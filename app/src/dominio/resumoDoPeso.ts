@@ -16,7 +16,6 @@ import { variacaoDoPeso, type SetaDoPeso } from './variacaoDoPeso';
 
 export const ROTULO_ULTIMO_REGISTRO = 'Último registro';
 export const ROTULO_DESDE_ANTERIOR = 'Desde o registro anterior';
-export const ROTULO_NO_PERIODO = 'No período';
 export const SEM_REGISTRO_ANTERIOR = 'Sem registro anterior';
 
 export interface PesoEmData {
@@ -45,13 +44,6 @@ const emData = (r: RegistroPeso): PesoEmData => ({ kg: r.pesoKg, data: r.data })
 function maisRecente(registros: readonly RegistroPeso[]): RegistroPeso | null {
   let achado: RegistroPeso | null = null;
   for (const r of registros) if (!achado || r.data >= achado.data) achado = r;
-  return achado;
-}
-
-/** O de data mais antiga; no empate, o primeiro da lista recebida. */
-function maisAntigo(registros: readonly RegistroPeso[]): RegistroPeso | null {
-  let achado: RegistroPeso | null = null;
-  for (const r of registros) if (!achado || r.data < achado.data) achado = r;
   return achado;
 }
 
@@ -109,23 +101,6 @@ export function resumoDoPeso(registros: readonly RegistroPeso[]): ResumoDoPeso |
       referencia: `${pesoComCasas(ref.pesoKg)} kg em ${dataParaTela(ref.data)}`,
     } : null,
   };
-}
-
-export interface NoPeriodo {
-  rotulo: typeof ROTULO_NO_PERIODO;
-  primeiro: PesoEmData;
-  ultimo: PesoEmData;
-  /** `14/01/2026 a 11/09/2026`. */
-  datas: string;
-}
-
-/** Primeira e última medição do conjunto recebido (a tela passa o filtro, quando houver). Só com 2 ou mais registros. */
-export function noPeriodo(registros: readonly RegistroPeso[]): NoPeriodo | null {
-  const lista = registros.filter(valido);
-  const primeiro = maisAntigo(lista);
-  const ultimo = maisRecente(lista);
-  if (lista.length < 2 || !primeiro || !ultimo) return null;
-  return { rotulo: ROTULO_NO_PERIODO, primeiro: emData(primeiro), ultimo: emData(ultimo), datas: `${dataParaTela(primeiro.data)} a ${dataParaTela(ultimo.data)}` };
 }
 
 export interface LinhaDoHistorico {

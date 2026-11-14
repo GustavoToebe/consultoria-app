@@ -1,5 +1,5 @@
 import type { RegistroPeso } from '../api/tipos';
-import { variacaoDoPeso, variacoesDoPeso } from './variacaoDoPeso';
+import { variacaoDoPeso } from './variacaoDoPeso';
 
 /** Dados fictícios. A lista segue a API: mais recente primeiro, `variacao` = peso − registro anterior por data. */
 const peso = (id: string, data: string, pesoKg: number, variacao: number | null): RegistroPeso => ({ id, data, pesoKg, variacao, observacao: null });
@@ -61,14 +61,5 @@ describe('variação do peso', () => {
   it('a seta segue o valor já arredondado: nunca "sobe" com "+0 kg"', () => {
     expect(variacaoDoPeso(peso('x', '2026-10-28', 80, 0.001))).toEqual({ texto: '0 kg', seta: 'igual', desde: null });
     expect(variacaoDoPeso(peso('x', '2026-10-28', 80, -0.001))).toEqual({ texto: '0 kg', seta: 'igual', desde: null });
-  });
-
-  it('por lista: um resultado por id, sem mexer nos registros', () => {
-    const antes = JSON.stringify(lista);
-    const r = variacoesDoPeso(lista);
-    expect(Object.keys(r).sort()).toEqual(['a', 'b', 'c', 'd']);
-    expect(r.d?.texto).toBe('+1,2 kg');
-    expect(r.a).toBeNull();
-    expect(JSON.stringify(lista)).toBe(antes);
   });
 });

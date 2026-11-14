@@ -1,6 +1,6 @@
 import { Permitido } from '../ui/Permitido';
 import { Plus, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
@@ -89,12 +89,28 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
     );
   };
 
+  const abrirRegistro = () => { setErroSalvar(null); setRegistrando(true); };
+
+  // Quando a linha excluída some, o foco ia ao `body` (a lixeira sai da tela): vai ao "Registrar peso" do cartão.
+  const botaoRegistrar = useRef<View>(null);
+  const focarQuandoSumir = useRef<string | null>(null);
+  useEffect(() => {
+    if (focarQuandoSumir.current === null || !dados || dados.some((p) => p.id === focarQuandoSumir.current)) return;
+    focarQuandoSumir.current = null;
+    botaoRegistrar.current?.focus?.();
+  }, [dados]);
+
   const confirmarExclusao = () => {
     const alvo = excluir;
     setExcluir(null);
+    setErroSalvar(null);
     if (!alvo || !alunoId) return;
+    focarQuandoSumir.current = alvo.id;
     // `recarregar` mantém os dados na tela e a visão escolhida; resumo, gráfico e diferenças saem da lista nova.
-    excluirPeso(alunoId, alvo.id).then(recarregar, (e: unknown) => setErroSalvar(e));
+    excluirPeso(alunoId, alvo.id).then(
+      () => { setErroSalvar(null); recarregar(); },
+      (e: unknown) => { focarQuandoSumir.current = null; setErroSalvar(e); },
+    );
   };
 
   // Não depende da ordem da API (hoje, do mais novo para o mais antigo): `cronologico` é do mais antigo ao mais novo
@@ -162,7 +178,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
 
   return (
     <Cartao titulo="Peso" periodo={dados ? periodoDesdeOPrimeiro(dados.map((p) => p.data)) : undefined} descricao={daEquipe ? 'Evolução do peso ao longo do tempo.' : 'Seus registros de peso, do mais recente ao mais antigo.'}
-      acoes={podeGravar ? <Botao rotulo="Registrar peso" tipo="secundario" Icone={Plus} aoTocar={() => setRegistrando(true)} /> : null}>
+      acoes={podeGravar ? <Botao ref={botaoRegistrar} rotulo="Registrar peso" tipo="secundario" Icone={Plus} aoTocar={abrirRegistro} /> : null}>
       {erro && !semConexao ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {semConexao ? <Texto variante="suave">Sem conexão.</Texto> : null}
       {!dados && carregando ? <Esqueleto texto="Carregando pesos" cartoes={1} /> : null}
@@ -178,6 +194,8 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
       ) : null}
       {comGrafico && escala && primeiro && ultimo ? (
         <GraficoLinha
+          // Outro conjunto de registros monta o gráfico de novo: o ponto ativo é guardado por índice e não pode sobrar.
+          key={registros.map((r) => r.id).join('|')}
           pontos={pontosDoPeso(registros)}
           unidade="kg"
           cor={azul}

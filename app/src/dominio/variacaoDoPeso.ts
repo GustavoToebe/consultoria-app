@@ -54,10 +54,3 @@ export function variacaoDoPeso(registro: RegistroPeso, registros: readonly Regis
   const confere = anterior !== null && Math.abs(registro.pesoKg - anterior.pesoKg - variacao) <= TOLERANCIA_KG;
   return { ...formatar(variacao), desde: confere && anterior ? dataCurta(anterior.data) : null };
 }
-
-/** A variação de cada registro da lista, por `id` (a lista pode vir em qualquer ordem). */
-export function variacoesDoPeso(registros: readonly RegistroPeso[]): Record<string, VariacaoDoPeso | null> {
-  const porId: Record<string, VariacaoDoPeso | null> = {};
-  for (const r of registros) porId[r.id] = variacaoDoPeso(r, registros);
-  return porId;
-}

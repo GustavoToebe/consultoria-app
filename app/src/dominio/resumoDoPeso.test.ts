@@ -1,7 +1,7 @@
 import type { RegistroPeso } from '../api/tipos';
 import { fracaoNoEixo } from './grafico';
 import {
-  escalaDoPeso, legendaDaEscala, linhaDoHistorico, noPeriodo, pesoComCasas, pontosDoPeso, resumoDoPeso, textoDaDiferenca,
+  escalaDoPeso, legendaDaEscala, linhaDoHistorico, pesoComCasas, pontosDoPeso, resumoDoPeso, textoDaDiferenca,
   type DesdeAnterior, type ResumoDoPeso,
 } from './resumoDoPeso';
 
@@ -54,7 +54,6 @@ describe('resumo do peso', () => {
 
   it('zero registros: estado vazio explícito, nunca 0 kg', () => {
     expect(resumoDoPeso([])).toEqual({ vazio: true });
-    expect(noPeriodo([])).toBeNull();
     expect(escalaDoPeso([])).toBeNull();
     expect(pontosDoPeso([])).toEqual([]);
   });
@@ -87,33 +86,19 @@ describe('resumo do peso', () => {
 describe('registros inválidos (comportamento atual: o filtro `valido` os ignora)', () => {
   const ruim = [peso('n', '2026-09-10', Number.NaN), peso('v', '', 70), peso('i', '2026-09-11', Number.POSITIVE_INFINITY)];
 
-  it('só inválidos: resumo vazio, sem período, sem escala e sem pontos', () => {
+  it('só inválidos: resumo vazio, sem escala e sem pontos', () => {
     expect(resumoDoPeso(ruim)).toEqual({ vazio: true });
-    expect(noPeriodo(ruim)).toBeNull();
     expect(escalaDoPeso(ruim)).toBeNull();
     expect(pontosDoPeso(ruim)).toEqual([]);
   });
 
-  it('misturados com válidos: não entram no último, no anterior, no período, na escala nem nos pontos', () => {
+  it('misturados com válidos: não entram no último, no anterior, na escala nem nos pontos', () => {
     const boa = [peso('a', '2026-08-19', 51), peso('b', '2026-09-02', 51.6)];
     const mistura = [...ruim, ...boa, peso('x', '2026-12-01', Number.NaN)];
     expect(resumoDoPeso(mistura)).toEqual(resumoDoPeso(boa));
-    expect(noPeriodo(mistura)).toEqual(noPeriodo(boa));
     expect(escalaDoPeso(mistura)).toEqual(escalaDoPeso(boa));
     expect(pontosDoPeso(mistura)).toEqual(pontosDoPeso(boa));
     expect(pontosDoPeso(mistura)).toHaveLength(2);
-  });
-});
-
-describe('no período', () => {
-  it('só com 2 ou mais registros; primeira e última medição em qualquer ordem', () => {
-    expect(noPeriodo([peso('a', '2026-08-19', 51)])).toBeNull();
-    expect(noPeriodo([peso('c', '2026-10-01', 50), peso('a', '2026-08-19', 51), peso('b', '2026-09-02', 52)])).toEqual({
-      rotulo: 'No período',
-      primeiro: { kg: 51, data: '2026-08-19' },
-      ultimo: { kg: 50, data: '2026-10-01' },
-      datas: '19/08/2026 a 01/10/2026',
-    });
   });
 });
 

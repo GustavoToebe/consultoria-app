@@ -39,6 +39,13 @@ async function abrirFicha(page: Page, inicial: RegistroPeso[]) {
       pesos = pesos.filter((r) => r.id !== id);
       return route.fulfill({ status: 204 });
     },
+    [`POST /alunos/${ALUNO_ID}/pesos`]: (p, route) => {
+      const c = p.corpo as { data: string; pesoKg: number };
+      const anterior = [...pesos].sort((a, b) => b.data.localeCompare(a.data)).find((r) => r.data < c.data);
+      const novo: RegistroPeso = { id: 'p4', data: c.data, pesoKg: c.pesoKg, variacao: anterior ? Math.round((c.pesoKg - anterior.pesoKg) * 100) / 100 : null, observacao: null };
+      pesos = [novo, ...pesos];
+      return json(route, pesos);
+    },
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=evolucao`);
   return api;
@@ -82,15 +89,38 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Excluir peso de 26/10/2026', exact: true }).click();
     await page.getByRole('button', { name: 'Excluir', exact: true }).click();
 
-    // Depois: resumo, diferenças e gráfico saem da lista nova, e a visão Lista continua escolhida.
+    // Depois: resumo, diferenças e gráfico saem da lista nova (a visão mantida está no teste do Gráfico, abaixo).
     await expect(page.getByLabel('Último registro: 81,2 kg em 19/10/2026', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Desde o registro anterior: subiu 1,2 kg, comparado a 80,0 kg em 12/10/2026', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Excluir peso de 26/10/2026', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('tab', { name: 'Lista' })).toHaveAttribute('aria-selected', 'true');
+    // A lixeira saiu da tela: o foco não cai no body, vai ao "Registrar peso" do cartão.
+    await expect(page.getByRole('button', { name: 'Registrar peso' })).toBeFocused();
     expect(pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual([`/alunos/${ALUNO_ID}/pesos/p3`]);
     await page.getByRole('tab', { name: 'Gráfico' }).click();
     await expect(page.getByRole('img', { name: /^Gráfico de peso com 2 registros/ }).locator('circle')).toHaveCount(2);
     await semEstourar(page);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`ficha: registrar com o Gráfico aberto mantém o Gráfico e mostra o ponto novo em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await abrirFicha(page, PESOS);
+    await page.getByRole('tab', { name: 'Gráfico' }).click();
+    await expect(page.getByRole('img', { name: /^Gráfico de peso com 3 registros/ }).locator('circle')).toHaveCount(3);
+
+    await page.getByRole('button', { name: 'Registrar peso' }).click();
+    const folha = page.getByRole('dialog', { name: 'Registrar peso' });
+    await folha.getByLabel('Data', { exact: true }).fill('02/11/2026');
+    await folha.getByRole('textbox', { name: 'Peso (kg)', exact: true }).fill('79,9');
+    await folha.getByRole('button', { name: 'Registrar', exact: true }).click();
+    await expect(folha).toHaveCount(0);
+
+    // A visão não volta sozinha para a Lista: o Gráfico continua e já tem o ponto novo.
+    await expect(page.getByRole('tab', { name: 'Gráfico' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: 'Lista' })).toHaveAttribute('aria-selected', 'false');
+    await expect(page.getByRole('img', { name: /^Gráfico de peso com 4 registros/ }).locator('circle')).toHaveCount(4);
+    await expect(page.getByLabel('Registros de peso')).toHaveCount(0);
+    expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === `/alunos/${ALUNO_ID}/pesos`).map((p) => p.corpo)).toEqual([{ data: '2026-11-02', pesoKg: 79.9, observacao: null }]);
     expect(errosDaPagina).toEqual([]);
   });
 
