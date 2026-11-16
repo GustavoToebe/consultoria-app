@@ -39,11 +39,13 @@ export interface SecaoGuia {
   itens: { titulo: string; texto: string }[];
   /** Só com `TREINOS_RETORNO_HABILITADO` (Engajamento, Etapa 0): a tela tira a seção com a chave desligada e o PDF nunca a leva. */
   soComRetorno?: boolean;
+  /** Só com `vitrineHabilitada` (vitrine da consultoria): a tela tira a seção com a chave desligada e o PDF nunca a leva. */
+  soComVitrine?: boolean;
 }
 
-/** Seções do guia que valem agora: sem as do retorno imediato quando a chave está desligada. */
-export function secoesDoGuia(guia: Guia, retornoHabilitado: boolean): SecaoGuia[] {
-  return guia.secoes.filter((s) => retornoHabilitado || !s.soComRetorno);
+/** Seções do guia que valem agora: sem as do retorno imediato e sem as da vitrine quando as chaves estão desligadas. */
+export function secoesDoGuia(guia: Guia, retornoHabilitado: boolean, vitrineHabilitada: boolean): SecaoGuia[] {
+  return guia.secoes.filter((s) => (retornoHabilitado || !s.soComRetorno) && (vitrineHabilitada || !s.soComVitrine));
 }
 
 export interface Guia {
@@ -368,6 +370,14 @@ const TREINADOR: Guia = {
         { titulo: 'Exportar CSV', texto: 'Em Exportar CSV, baixe as cobranças (por vencimento) e os lançamentos (por data) do período. A exportação aceita até 5.000 linhas; se passar disso, escolha um período menor. A última coluna, historico_financeiro_parcial, vale true em todas as linhas quando o histórico financeiro da consultoria está incompleto (parte dele foi removida numa limpeza anterior) e false nas demais; é só uma informação, não muda nenhum valor e não garante que o período esteja completo. O arquivo tem dados financeiros dos alunos: guarde com cuidado.' },
       ],
     },
+    {
+      id: 'vitrine',
+      titulo: 'Vitrine',
+      soComVitrine: true,
+      itens: [
+        { titulo: 'Vitrine', texto: 'Fica no menu lateral, grupo Negócio (no celular, pela busca). Serve para mostrar aos alunos itens da consultoria (planilhas, roupas, produtos), com nome, descrição, tipo (digital ou físico), preço, preço especial com data final, cupom, link e foto. Até 30 itens; para criar outro no teto é preciso excluir um (desativar não libera vaga). "Item ativo" desligado esconde o item dos alunos sem apagar. Subir/Descer muda a ordem. O preço especial vale até o fim do dia escolhido e depois o item volta ao preço normal sozinho. O app não vende nem cobra pela vitrine: o link abre fora do app. Quem vê: perfil com "Vitrine: ver"; quem edita: "Vitrine: alterar".' },
+      ],
+    },
   ],
   perguntas: [
     { pergunta: 'Editei um plano e o aluno ainda vê o antigo.', resposta: 'O aluno só vê o que está publicado. Toque em Publicar para gerar a versão nova.' },
@@ -547,6 +557,14 @@ const ALUNO: Guia = {
         { titulo: 'Pagamento em aberto', texto: 'Uma cobrança vencida, ou que vence em até 3 dias, aparece em Suas pendências como “Pagamento em aberto”. É só um aviso.' },
         { titulo: 'Cobrança de saída', texto: 'Se o plano foi encerrado antes do tempo mínimo combinado, pode aparecer uma cobrança com o selo “Saída”. Ela não tem botão de pagar: o app mostra o valor e o vencimento, e você combina o pagamento com o seu treinador.' },
         { titulo: 'Lembretes por e-mail', texto: 'Se o seu treinador usa lembretes de cobrança, você pode desligar o interruptor “Receber lembretes de pagamento por e-mail” no cartão Meu plano, só para você. Precisa de internet. Desligar não cancela a cobrança nem muda o que você deve; o que já foi enviado não volta.' },
+      ],
+    },
+    {
+      id: 'vitrine',
+      titulo: 'Vitrine',
+      soComVitrine: true,
+      itens: [
+        { titulo: 'Vitrine', texto: 'No Início aparece um cartão com até 2 itens e "Ver tudo"; a lista completa mostra foto, preço, cupom (com "Copiar cupom") e "Ver produto", que abre o link fora do app. No aplicativo de celular, item digital mostra só foto, nome e descrição.' },
       ],
     },
   ],

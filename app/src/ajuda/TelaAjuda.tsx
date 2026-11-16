@@ -67,7 +67,7 @@ export function TelaAjuda({ publico, videos = VIDEOS_DA_AJUDA }: { publico: Publ
 /** Dentro da `Tela`: só aqui o `useRolagem` enxerga a rolagem da tela. */
 function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaAjuda }) {
   const guia = GUIAS[publico];
-  const { cicloHabilitado, retornoHabilitado, pode, perfilEquipe } = useSessao();
+  const { cicloHabilitado, retornoHabilitado, vitrineHabilitada, pode, perfilEquipe } = useSessao();
   const { rever } = usePasseio();
   const { rolarAte } = useRolagem();
   const [tutorial, setTutorial] = useState(false);
@@ -77,8 +77,8 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
   const [largura, setLargura] = useState(0);
   const campo = useRef<TextInput>(null);
 
-  // Textos como a tela mostra (sem a frase do ciclo, sem as seções do retorno desligado): a busca procura no que se vê.
-  const secoes: SecaoGuia[] = secoesDoGuia(guia, retornoHabilitado).map((s) => ({ ...s, itens: s.itens.map((i) => ({ ...i, texto: textoDoItem(i.texto, cicloHabilitado) })) }));
+  // Textos como a tela mostra (sem a frase do ciclo, sem as seções do retorno e da vitrine desligados): a busca procura no que se vê.
+  const secoes: SecaoGuia[] = secoesDoGuia(guia, retornoHabilitado, vitrineHabilitada).map((s) => ({ ...s, itens: s.itens.map((i) => ({ ...i, texto: textoDoItem(i.texto, cicloHabilitado) })) }));
   const buscando = palavrasDaBusca(busca).length > 0;
   const achado = buscarNaAjuda(secoes, guia.perguntas, busca);
   const comPrimeirosPassos = publico === 'aluno' || temPrimeirosPassos({ pode, administrador: !!perfilEquipe?.acessoTotal });

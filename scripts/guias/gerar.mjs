@@ -29,8 +29,8 @@ const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 function html(guia) {
   const passos = (lista) => lista.map((p, i) => `<li><b>${esc(p.titulo)}</b><br>${esc(semCiclo(p.texto))}</li>`).join('');
-  // O retorno imediato também está desligado em produção: as seções dele ficam só na tela, com a chave ligada.
-  const secoes = secoesDoGuia(guia, false)
+  // O retorno imediato e a vitrine também estão desligados em produção: as seções deles ficam só na tela, com a chave ligada.
+  const secoes = secoesDoGuia(guia, false, false)
     .map((s) => `<h2>${esc(s.titulo)}</h2>${s.itens.map((i) => `<p><b>${esc(i.titulo)}.</b> ${esc(semCiclo(i.texto))}</p>`).join('')}`)
     .join('');
   const perguntas = guia.perguntas.map((p) => `<p><b>${esc(p.pergunta)}</b><br>${esc(semCiclo(p.resposta))}</p>`).join('');
