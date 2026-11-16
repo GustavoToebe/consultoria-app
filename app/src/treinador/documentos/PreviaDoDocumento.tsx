@@ -11,8 +11,11 @@ export interface PropsDaPrevia {
   rotulo: string;
 }
 
-/** O documento vem do próprio app (`source={{ html }}`): no Android e no iPhone ele abre como `about:blank`. */
-const ORIGENS = ['about:*'];
+/**
+ * Toda origem passa pela lista para o `onShouldStartLoadWithRequest` ser o único filtro: o `react-native-webview` abre
+ * no navegador do sistema (`Linking.openURL`) o endereço que fica FORA desta lista, sem consultar o filtro.
+ */
+const ORIGENS = ['*'];
 /** Folha em largura A4 (210 mm a 96 px por polegada), reduzida pelo WebView para caber na tela. */
 const VIEWPORT = '<meta name="viewport" content="width=794">';
 /** A margem de 14 mm que a impressão põe pelo `@page`, que a tela não usa. */

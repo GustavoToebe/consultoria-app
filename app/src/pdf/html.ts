@@ -175,12 +175,13 @@ export function cabecalhoDoPdf(c: CabecalhoDoPdf): string {
 /**
  * CSS da prévia na tela da web (D10 e D11): o do documento sem as regras globais (`@page`, `*`, `html, body`), que
  * pintariam a página do app, mais o papel da prévia (`.previa-pdf`: branco, texto escuro e a margem de 14 mm da
- * impressão). O papel tem classe própria: o `.doc` do bloco de impressão, que pode estar na página ao mesmo tempo, não muda.
+ * impressão). Toda regra do `.doc` é presa ao papel (`.previa-pdf .doc`): o `.doc` do bloco de impressão, que pode estar na
+ * página ao mesmo tempo com outro tema, não muda, e as regras dele (um seletor a menos) não vencem as da prévia.
  */
 export function cssDaPrevia(css: string): string {
   return `.previa-pdf { background: #fff; color: #111; padding: 14mm; width: 210mm; box-sizing: border-box; }
 .previa-pdf * { box-sizing: border-box; }
-${css.replace(CSS_GLOBAL, '')}`;
+${css.replace(CSS_GLOBAL, '').replace(/\.doc(?![\w-])/g, '.previa-pdf .doc')}`;
 }
 
 /** Documento completo (celular: vira arquivo PDF). */

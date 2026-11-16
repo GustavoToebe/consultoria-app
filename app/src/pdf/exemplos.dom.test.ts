@@ -39,9 +39,10 @@ describe.each(TEMAS_PDF.map((t) => t.id))('documentos de exemplo no tema %s', (t
       const css = cssDaPrevia(doc.css).replace(/\/\*[\s\S]*?\*\//g, '');
       const seletores = [...css.matchAll(/([^{}]+)\{[^{}]*\}/g)].flatMap(([, s]) => s.split(',').map((x) => x.trim()));
       expect(seletores.length).toBeGreaterThan(20);
-      expect(seletores.filter((s) => !/^\.(doc|previa-pdf)\b/.test(s))).toEqual([]);
+      // Toda regra presa ao papel: nenhuma pega o `.doc` do bloco de impressão, que pode estar na página com outro tema.
+      expect(seletores.filter((s) => !/^\.previa-pdf\b/.test(s))).toEqual([]);
       expect(css).not.toContain('@page');
-      expect(cssDaPrevia(doc.css)).toContain(doc.css.slice(doc.css.indexOf('.doc {')));
+      expect(cssDaPrevia(doc.css)).toContain(doc.css.slice(doc.css.indexOf('.doc {')).replace(/\.doc(?![\w-])/g, '.previa-pdf .doc'));
     });
 
     it('é determinístico e o documento completo carrega o CSS do tema', () => {
