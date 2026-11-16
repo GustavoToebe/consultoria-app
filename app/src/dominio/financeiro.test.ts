@@ -79,6 +79,7 @@ import {
   TEXTO_RECEBIMENTO_ONLINE,
   TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO,
   textoDeAbertasQueContinuam,
+  textoDasAbertasDoAluno,
   textoDeComoPagar,
   validarBaixa,
   validarContratacao,
@@ -616,6 +617,21 @@ describe('comoPagar', () => {
     expect(textoDeComoPagar('botao')).toBeNull();
     expect(textoDeComoPagar('informar')).toBeNull();
     expect(TEXTO_COMBINE_COM_O_TREINADOR).not.toMatch(/pague|site|link/i);
+  });
+  it('a frase de combinar nas abertas: a saída (só informa) na web com pagamento online chama o treinador; celular sem a chave nunca', () => {
+    const modos = (plataforma: 'web' | 'ios', online: boolean, chaves: object, tipos: ('MENSALIDADE' | 'SAIDA')[]) =>
+      textoDasAbertasDoAluno(comoPagar(plataforma, online, chaves), tipos.map((t) => comoPagar(plataforma, online, chaves, t)));
+    expect(modos('web', true, {}, ['MENSALIDADE'])).toBeNull();
+    expect(modos('web', true, {}, ['MENSALIDADE', 'SAIDA'])).toBe(TEXTO_COMBINE_COM_O_TREINADOR);
+    expect(modos('web', true, {}, ['SAIDA'])).toBe(TEXTO_COMBINE_COM_O_TREINADOR);
+    expect(modos('web', false, {}, ['MENSALIDADE'])).toBe(TEXTO_COMBINE_COM_O_TREINADOR);
+    expect(modos('ios', true, { pagarNoIos: true }, ['MENSALIDADE', 'SAIDA'])).toBe(TEXTO_COMBINE_COM_O_TREINADOR);
+    expect(modos('ios', true, { pagarNoIos: true }, ['MENSALIDADE'])).toBeNull();
+    for (const online of [true, false]) {
+      expect(modos('ios', online, { pagarNoIos: false }, ['MENSALIDADE', 'SAIDA'])).toBeNull();
+      expect(modos('ios', online, {}, ['SAIDA'])).toBeNull();
+    }
+    expect(textoDasAbertasDoAluno('botao', [])).toBeNull();
   });
   it('só a web é web: o resto do Platform.OS conta como celular', () => {
     expect(plataformaDoApp('web')).toBe('web');

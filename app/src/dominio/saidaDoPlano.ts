@@ -102,6 +102,24 @@ export function opcoesDoPainel(previa: Pick<PreviaDoEncerramento, 'opcoes'>): Op
 /** O painel abre em "Não cobrar": cobrança de saída nunca é automática. */
 export const OPCAO_INICIAL_DO_ENCERRAR: OpcaoDeSaida = 'NAO_COBRAR';
 
+export const MENSAGEM_OPCAO_ESCOLHIDA_INDISPONIVEL = 'A opção escolhida não está mais disponível. Escolha de novo.';
+
+/**
+ * Por que a opção que o treinador escolheu não vale mais na prévia (recarregada depois de um 409 ou de qualquer recarga):
+ * o motivo da API, ou a frase fixa quando ela não mandou; `null` quando ainda vale. A tela NUNCA troca a escolha em
+ * silêncio: encerrar não tem volta, e cair em "Não cobrar" encerraria sem a cobrança que o treinador queria. "Não cobrar"
+ * vale sempre (é o que o painel abre escolhido e não depende de valor); opção que a prévia nem traz não vale.
+ */
+export function motivoDaOpcaoEscolhidaIndisponivel(
+  opcoes: readonly Pick<OpcaoDaPrevia, 'opcao' | 'disponivel' | 'motivo'>[],
+  opcao: OpcaoDeSaida,
+): string | null {
+  if (opcao === OPCAO_INICIAL_DO_ENCERRAR) return null;
+  const da = opcoes.find((o) => o.opcao === opcao);
+  if (da?.disponivel) return null;
+  return da?.motivo || MENSAGEM_OPCAO_ESCOLHIDA_INDISPONIVEL;
+}
+
 /**
  * "Faltam N meses para o mínimo (até dd/mm/aaaa)"; `N` = `mesesQueFaltam` da API. Sem mínimo, `null`. Mínimo sem meses a
  * cobrar: "Não faltam meses para o mínimo (até dd/mm/aaaa)".
@@ -224,6 +242,12 @@ export const MENSAGEM_CONTRATACAO_ENCERRADA = 'Este plano já foi encerrado. Mos
 export const MENSAGEM_CONFLITO_DO_ENCERRAR = 'O plano foi alterado por outra pessoa. Mostramos os dados mais recentes.';
 export const MENSAGEM_CAMPOS_DO_ENCERRAR = 'Confira os campos destacados.';
 const MENSAGEM_PADRAO_DO_ENCERRAR = 'Não foi possível encerrar o plano. Tente de novo.';
+const CAMPOS_DO_ENCERRAR = ['saida.opcao', 'saida.valorCentavos', 'saida.vencimento'];
+
+function statusDoErro(erro: unknown): number | null {
+  const status = typeof erro === 'object' && erro !== null ? (erro as { status?: unknown }).status : null;
+  return typeof status === 'number' ? status : null;
+}
 
 export interface ErroDoEncerrar {
   mensagem: string;
@@ -237,7 +261,8 @@ export interface ErroDoEncerrar {
 /**
  * Tradução do erro do encerrar e da prévia: 409 `VALOR_DA_SAIDA_MUDOU` (recarrega a prévia, sem fechar), 409
  * `CONTRATACAO_ENCERRADA` (recarrega e fecha), 409 `CONFLITO_EDICAO` (recarrega a contratação), 422 por campo
- * (`saida.opcao`, `saida.valorCentavos`, `saida.vencimento`) e o resto numa frase fixa, nunca com o que a pessoa digitou.
+ * (`saida.opcao`, `saida.valorCentavos`, `saida.vencimento`; campo fora desses, ou sem campo, mostra o texto da API), o texto
+ * da API também em 403, 503 `FINANCEIRO_INDISPONIVEL` e sem conexão, e o resto numa frase fixa, nunca com o que a pessoa digitou.
  */
 export function traduzirErroDoEncerrar(erro: unknown): ErroDoEncerrar {
   const base = { campos: {}, recarregar: false, fechar: false };
@@ -251,9 +276,17 @@ export function traduzirErroDoEncerrar(erro: unknown): ErroDoEncerrar {
       if (c['saida.opcao']) campos.opcao = c['saida.opcao'];
       if (c['saida.valorCentavos']) campos.valor = c['saida.valorCentavos'];
       if (c['saida.vencimento']) campos.vencimento = c['saida.vencimento'];
+      // Campo que a tela não mostra só tem onde aparecer no alerta: vai a mensagem dele (ou a do servidor, sem campo nenhum).
+      const fora = Object.entries(c).filter(([campo]) => !CAMPOS_DO_ENCERRAR.includes(campo)).map(([, mensagem]) => mensagem);
+      if (fora.length > 0) return { ...base, mensagem: fora.join(' '), campos };
+      if (Object.keys(campos).length === 0) return { ...base, mensagem: mensagemApi(erro, MENSAGEM_CAMPOS_DO_ENCERRAR), campos };
       return { ...base, mensagem: MENSAGEM_CAMPOS_DO_ENCERRAR, campos };
     }
-    default: return { ...base, mensagem: erroDeConexao(erro) ? mensagemApi(erro, MENSAGEM_PADRAO_DO_ENCERRAR) : MENSAGEM_PADRAO_DO_ENCERRAR };
+    default: {
+      // Sem conexão, sem permissão (403) e financeiro desligado (503): a API explica o que houve e a frase fixa esconderia isso.
+      const daApi = erroDeConexao(erro) || statusDoErro(erro) === 403 || codigoApi(erro) === 'FINANCEIRO_INDISPONIVEL';
+      return { ...base, mensagem: daApi ? mensagemApi(erro, MENSAGEM_PADRAO_DO_ENCERRAR) : MENSAGEM_PADRAO_DO_ENCERRAR };
+    }
   }
 }
 

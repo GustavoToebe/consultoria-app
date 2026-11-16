@@ -708,8 +708,45 @@ for (const [largura, tema] of [[390, 'CLARO'], [1280, 'CLARO'], [390, 'ESCURO'],
     await expect(aluno.getByText('Saída', { exact: true })).toBeVisible();
     await expect(aluno.getByRole('button', { name: /^Pagar/ })).toHaveCount(1);
     await expect(aluno.getByRole('button', { name: /R\$ 450,00/ })).toHaveCount(0);
+    // A saída não tem "Pagar": com o recebimento online, o texto diz ao aluno para combinar com o treinador.
+    await expect(aluno.getByText(TEXTO_COMBINE_COM_O_TREINADOR)).toBeVisible();
     await aluno.screenshot({ path: testInfo.outputPath(`meu-plano-saida-${largura}-${tema.toLowerCase()}.png`), fullPage: true });
     expect(doAluno.errosDaPagina).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+for (const largura of [390, 1280]) {
+  test(`encerrar em ${largura}px: a opção escolhida some da prévia nova e a tela não cai em "Não cobrar" (botão desabilitado com o motivo)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await fixarHoje(page);
+    const comVigente = { ...PREVIA_COM_MINIMO, opcoes: PREVIA_COM_MINIMO.opcoes.map((o) => (o.opcao === 'VIGENTE' ? { ...o, disponivel: true, valorCentavos: 15_000, motivo: null } : o)) };
+    const estado = estadoFinanceiro({
+      contratacoes: [{ ...COM_MINIMO }], cobrancas: cobrancasComMinimo(), previas: { [COM_MINIMO.id]: comVigente }, previaQueMuda: PREVIA_MUDOU,
+    });
+    const { errosDaPagina } = await fichaComFinanceiro(page, estado);
+    await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
+    await page.getByRole('button', { name: 'Encerrar', exact: true }).click();
+    const folha = page.getByRole('dialog', { name: 'Encerrar este plano?' });
+    await opcao(page, 'Cobrança de saída', 'Mês vigente: R$ 150,00').click();
+    await folha.getByRole('button', { name: 'Encerrar plano' }).click();
+
+    // O servidor recusa (a conta mudou) e a prévia nova traz "Mês vigente" indisponível.
+    await expect(folha.getByText('A conta da saída mudou. Confira os valores novos e confirme de novo.')).toBeVisible();
+    await expect(opcao(page, 'Cobrança de saída', 'Mês vigente')).toBeDisabled();
+    // A escolha NÃO cai em "Não cobrar": o motivo da API aparece sob o grupo (da opção desabilitada) e o aviso do que fazer, no grupo e sob o botão.
+    await expect(opcao(page, 'Cobrança de saída', 'Não cobrar')).not.toBeChecked();
+    await expect(folha.getByText('O mês vigente já está pago.')).toHaveCount(1);
+    await expect(folha.getByText('A opção escolhida não está mais disponível. Escolha de novo.')).toHaveCount(2);
+    const botao = folha.getByRole('button', { name: 'Encerrar plano' });
+    await expect(botao).toBeDisabled();
+    expect(estado.encerramentos).toEqual([{ versao: 0, saida: { opcao: 'VIGENTE', valorCentavos: 15_000, vencimento: '2026-10-19' } }]);
+
+    // Escolher de novo destrava; nenhum encerrar sem `saida` saiu até aqui.
+    await opcao(page, 'Cobrança de saída', 'Não cobrar').click();
+    await expect(folha.getByText('A opção escolhida não está mais disponível. Escolha de novo.')).toHaveCount(0);
+    await expect(botao).toBeEnabled();
+    expect(estado.encerramentos.filter((c) => !c.saida)).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
 }

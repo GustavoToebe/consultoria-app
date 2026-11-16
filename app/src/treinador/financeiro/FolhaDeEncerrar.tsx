@@ -7,7 +7,7 @@ import { hojeEmBrasilia } from '../../dominio/financeiro';
 import { dataParaTela } from '../../dominio/formatos';
 import {
   avisoDeLinkVivo, corpoDoEncerrar, type ErrosDoEncerrar, fraseDasAbertasQueContinuam, linhasDaConta, MENSAGEM_VALOR_DA_SAIDA_MUDOU,
-  OPCAO_INICIAL_DO_ENCERRAR, opcoesDoPainel, textoDosMesesQueFaltam, traduzirErroDoEncerrar,
+  MENSAGEM_OPCAO_ESCOLHIDA_INDISPONIVEL, motivoDaOpcaoEscolhidaIndisponivel, OPCAO_INICIAL_DO_ENCERRAR, opcoesDoPainel, textoDosMesesQueFaltam, traduzirErroDoEncerrar,
 } from '../../dominio/saidaDoPlano';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -48,8 +48,11 @@ export function FolhaDeEncerrar({ contratacao, aoFechar, aoMudar }: {
 
   const dados = previa.dados;
   const opcoes = dados ? opcoesDoPainel(dados) : [];
-  // A prévia nova pode ter tirado a opção escolhida (ex.: não faltam mais meses): volta para "Não cobrar".
-  const escolhida: OpcaoDeSaida = opcoes.find((o) => o.opcao === opcao)?.disponivel ? opcao : OPCAO_INICIAL_DO_ENCERRAR;
+  // A prévia nova pode ter tirado a opção escolhida (ex.: não faltam mais meses). NÃO volta em silêncio para "Não cobrar":
+  // encerrar não tem volta e o treinador queria cobrar. O erro aparece nas opções e o botão fica desabilitado até escolher de novo.
+  const escolhida: OpcaoDeSaida = opcao;
+  // O motivo da API já aparece sob o grupo (opção desabilitada); o erro do grupo e o do botão dizem só o que fazer.
+  const opcaoIndisponivel = dados && motivoDaOpcaoEscolhidaIndisponivel(dados.opcoes, opcao) ? MENSAGEM_OPCAO_ESCOLHIDA_INDISPONIVEL : null;
   const daOpcao = opcoes.find((o) => o.opcao === escolhida);
   const entrada = { opcao: escolhida, valorTexto, vencimentoTexto };
   const validacao = dados ? corpoDoEncerrar(dados, entrada, contratacao.versao) : null;
@@ -63,7 +66,7 @@ export function FolhaDeEncerrar({ contratacao, aoFechar, aoMudar }: {
   const atualizando = !!dados && previa.carregando;
   const erroDaPrevia = previa.erro ? traduzirErroDoEncerrar(previa.erro) : null;
   const fechar = () => { if (erroDaPrevia?.fechar) aoMudar(); aoFechar(); };
-  const cobra = escolhida !== 'NAO_COBRAR';
+  const cobra = escolhida !== 'NAO_COBRAR' && !opcaoIndisponivel;
 
   const mudarOpcao = (o: OpcaoDeSaida) => {
     setOpcao(o);
@@ -72,7 +75,7 @@ export function FolhaDeEncerrar({ contratacao, aoFechar, aoMudar }: {
   };
 
   const enviar = () => {
-    if (!dados) return;
+    if (!dados || opcaoIndisponivel) return;
     setTentou(true);
     // A versão é lida da contratação atual no clique: depois de um 409 o cartão recarrega e a prop já vem nova.
     const montado = corpoDoEncerrar(dados, entrada, contratacao.versao);
@@ -108,10 +111,10 @@ export function FolhaDeEncerrar({ contratacao, aoFechar, aoMudar }: {
   };
 
   const meses = dados ? textoDosMesesQueFaltam(dados) : null;
-  const conta = dados && escolhida === 'FALTAM' ? linhasDaConta(dados) : [];
-  const linkVivo = dados && escolhida === 'FALTAM' ? avisoDeLinkVivo(dados.comLinkVivo) : null;
-  const abertas = dados ? fraseDasAbertasQueContinuam(dados, escolhida) : null;
-  const motivoDoBotao = !dados ? 'Carregando a conta do encerramento…' : atualizando ? 'Atualizando a conta…' : undefined;
+  const conta = dados && escolhida === 'FALTAM' && !opcaoIndisponivel ? linhasDaConta(dados) : [];
+  const linkVivo = dados && escolhida === 'FALTAM' && !opcaoIndisponivel ? avisoDeLinkVivo(dados.comLinkVivo) : null;
+  const abertas = dados && !opcaoIndisponivel ? fraseDasAbertasQueContinuam(dados, escolhida) : null;
+  const motivoDoBotao = !dados ? 'Carregando a conta do encerramento…' : atualizando ? 'Atualizando a conta…' : opcaoIndisponivel ?? undefined;
 
   return (
     <Folha visivel titulo="Encerrar este plano?" aoFechar={fechar}
@@ -119,7 +122,7 @@ export function FolhaDeEncerrar({ contratacao, aoFechar, aoMudar }: {
         <LinhaDeAcoes alinhar="fim">
           <Botao rotulo="Voltar" tipo="secundario" aoTocar={fechar} desabilitado={enviando} />
           <Botao rotulo="Encerrar plano" tipo="perigo" aoTocar={enviar} carregando={enviando}
-            desabilitado={!dados || atualizando} motivo={motivoDoBotao} />
+            desabilitado={!dados || atualizando || !!opcaoIndisponivel} motivo={motivoDoBotao} />
         </LinhaDeAcoes>
       )}>
       <View style={estilos.bloco}>
@@ -136,14 +139,14 @@ export function FolhaDeEncerrar({ contratacao, aoFechar, aoMudar }: {
           <>
             {meses ? <Texto variante="bloco">{meses}</Texto> : null}
             {dados.regraDeSaida ? <CampoLeitura rotulo="Regra de saída do plano" valor={dados.regraDeSaida} /> : null}
-            <Escolha chips rotulo="Cobrança de saída" valor={escolhida} aoMudar={mudarOpcao} erro={erros.opcao ?? null}
+            <Escolha chips rotulo="Cobrança de saída" valor={escolhida} aoMudar={mudarOpcao} erro={opcaoIndisponivel ?? erros.opcao ?? null}
               opcoes={opcoes.map((o) => ({
                 valor: o.opcao,
                 rotulo: o.valor ? `${o.rotulo}: ${o.valor}` : o.rotulo,
                 desabilitada: !o.disponivel,
                 motivo: o.motivo ?? undefined,
               }))} />
-            {daOpcao?.digitavel ? (
+            {daOpcao?.digitavel && !opcaoIndisponivel ? (
               <CampoMoeda mascara rotulo="Valor da cobrança de saída" texto={valorTexto}
                 aoMudar={(t) => { setValorTexto(t); setErrosDoServidor((e) => ({ ...e, valor: undefined })); }}
                 erro={erros.valor ?? null} ajuda="Valor combinado com o aluno. Nenhuma mensalidade é cancelada." />

@@ -3,7 +3,7 @@ import { ErroApi } from '@plataforma/web';
 import type { OpcaoDaPrevia, PreviaDoEncerramento, ResumoDaSaidaDoAluno } from '../api/financeiroTipos';
 import {
   abertasQueContinuamNaSaida, avisoDeLinkVivo, corpoDoEncerrar, errosDoMinimoDoServidor, fraseDasAbertasQueContinuam, linhasDaConta,
-  linhasDoPainelDeInativar, minimoDoPlanoParaEnvio, minimoDoPlanoParaForm, opcoesDoPainel, planoPodeTerMinimo, somarMeses,
+  linhasDoPainelDeInativar, MENSAGEM_OPCAO_ESCOLHIDA_INDISPONIVEL, minimoDoPlanoParaEnvio, minimoDoPlanoParaForm, motivoDaOpcaoEscolhidaIndisponivel, opcoesDoPainel, planoPodeTerMinimo, somarMeses,
   TEXTO_GENERICO_DO_INATIVAR, textoDoMinimoAte, textoDoMinimoDoPlano, textoDosMesesQueFaltam, traduzirErroDoEncerrar,
   validarMinimoAte, validarVencimentoDaSaida,
 } from './saidaDoPlano';
@@ -117,6 +117,20 @@ describe('corpo do encerrar', () => {
   });
 });
 
+describe('opção escolhida que deixou de valer', () => {
+  it('nunca troca em silêncio: devolve o motivo da API, ou a frase fixa sem motivo', () => {
+    expect(motivoDaOpcaoEscolhidaIndisponivel(opcoes, 'FALTAM')).toBeNull();
+    expect(motivoDaOpcaoEscolhidaIndisponivel(opcoes, 'OUTRO')).toBeNull();
+    expect(motivoDaOpcaoEscolhidaIndisponivel(opcoes, 'VIGENTE')).toBe('Já há mensalidade do mês vigente.');
+    expect(motivoDaOpcaoEscolhidaIndisponivel([{ opcao: 'VIGENTE', disponivel: false, motivo: null }], 'VIGENTE')).toBe(MENSAGEM_OPCAO_ESCOLHIDA_INDISPONIVEL);
+    expect(MENSAGEM_OPCAO_ESCOLHIDA_INDISPONIVEL).toBe('A opção escolhida não está mais disponível. Escolha de novo.');
+  });
+  it('opção que a prévia nem traz não vale; "Não cobrar" vale sempre', () => {
+    expect(motivoDaOpcaoEscolhidaIndisponivel([], 'FALTAM')).toBe(MENSAGEM_OPCAO_ESCOLHIDA_INDISPONIVEL);
+    expect(motivoDaOpcaoEscolhidaIndisponivel([], 'NAO_COBRAR')).toBeNull();
+  });
+});
+
 describe('erros do encerrar', () => {
   it('409 VALOR_DA_SAIDA_MUDOU recarrega a prévia sem fechar', () => {
     expect(traduzirErroDoEncerrar(new ErroApi(409, 'VALOR_DA_SAIDA_MUDOU', 'x'))).toMatchObject({ recarregar: true, fechar: false, mensagem: expect.stringContaining('A conta da saída mudou') });
@@ -141,6 +155,21 @@ describe('erros do encerrar', () => {
   it('outro erro vira frase fixa; sem conexão usa o texto de conexão', () => {
     expect(traduzirErroDoEncerrar(new ErroApi(500, null, 'detalhe interno')).mensagem).toBe('Não foi possível encerrar o plano. Tente de novo.');
     expect(traduzirErroDoEncerrar(new ErroApi(0, null, 'sem rede')).mensagem).not.toBe('Não foi possível encerrar o plano. Tente de novo.');
+  });
+  it('403 e 503 FINANCEIRO_INDISPONIVEL mostram o texto da API, não a frase fixa', () => {
+    expect(traduzirErroDoEncerrar(new ErroApi(403, 'PERMISSAO_NEGADA', 'Você não tem permissão para encerrar planos.')).mensagem).toBe('Você não tem permissão para encerrar planos.');
+    expect(traduzirErroDoEncerrar(new ErroApi(503, 'FINANCEIRO_INDISPONIVEL', 'O financeiro está desligado.')).mensagem).toBe('O financeiro está desligado.');
+    expect(traduzirErroDoEncerrar(new ErroApi(503, 'OUTRO', 'detalhe interno')).mensagem).toBe('Não foi possível encerrar o plano. Tente de novo.');
+  });
+  it('422 com campo que a tela não mostra, ou sem campo, mostra o texto do servidor e não manda olhar campo nenhum', () => {
+    const fora = new ErroApi(422, 'CONTRATACAO_INVALIDA', 'Dados inválidos.', [{ field: 'versao', message: 'Informe a versão.' }]);
+    expect(traduzirErroDoEncerrar(fora)).toMatchObject({ mensagem: 'Informe a versão.', campos: {} });
+    expect(traduzirErroDoEncerrar(new ErroApi(422, 'CONTRATACAO_INVALIDA', 'A contratação não aceita saída.')))
+      .toMatchObject({ mensagem: 'A contratação não aceita saída.', campos: {} });
+    const misto = new ErroApi(422, 'CONTRATACAO_INVALIDA', 'Dados inválidos.', [
+      { field: 'saida.vencimento', message: 'O vencimento vai de hoje até um ano à frente.' }, { field: 'versao', message: 'Informe a versão.' },
+    ]);
+    expect(traduzirErroDoEncerrar(misto)).toMatchObject({ mensagem: 'Informe a versão.', campos: { vencimento: 'O vencimento vai de hoje até um ano à frente.' } });
   });
 });
 

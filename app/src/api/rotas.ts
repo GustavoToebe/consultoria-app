@@ -1154,7 +1154,7 @@ export const contratarPlano = (alunoId: string, corpo: ContratarRequest) =>
   requisicao<ContratacaoResponse>(`/alunos/${seg(alunoId)}/contratacoes`, { metodo: 'POST', corpo });
 export const alterarContratacao = (id: string, corpo: AlterarContratacaoRequest) =>
   requisicao<ContratacaoResponse>(`/contratacoes/${seg(id)}`, { metodo: 'PUT', corpo });
-export const mudarSituacaoDaContratacao = (id: string, acao: 'pausar' | 'retomar' | 'encerrar', versao: number) =>
+export const mudarSituacaoDaContratacao = (id: string, acao: 'pausar' | 'retomar', versao: number) =>
   requisicao<ContratacaoResponse>(`/contratacoes/${seg(id)}/${acao}`, { metodo: 'POST', corpo: { versao } });
 /** O que encerrar faria agora (só leitura; contratação já encerrada = 409 `CONTRATACAO_ENCERRADA`). */
 export const previaDoEncerramento = (id: string) =>

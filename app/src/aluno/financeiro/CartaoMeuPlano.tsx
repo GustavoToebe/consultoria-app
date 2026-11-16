@@ -6,7 +6,7 @@ import type { CobrancaDoAluno } from '../../api/financeiroTipos';
 import { linkDePagamentoDoAluno } from '../../api/rotas';
 import {
   informacaoDaCobranca, ROTULO_COBRANCA_DE_SAIDA, rotuloDaForma, rotuloDaPeriodicidade, seloDaCobranca, seloDaContratacao,
-  seloDoTipoDaCobranca, textoDeComoPagar, type ComoPagar,
+  seloDoTipoDaCobranca, textoDasAbertasDoAluno, type ComoPagar,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { rotuloDoMes } from '../../dominio/numeros';
@@ -68,7 +68,7 @@ export function CartaoMeuPlano() {
   const historico = dados?.historico ?? [];
   const situacao = dados?.plano ? seloDaContratacao(dados.plano.situacao) : null;
   const vigencia = dados?.plano ? textoDaVigencia(dados.plano.situacao, dados.plano.diasRestantesVigencia) : null;
-  const textoDoModo = textoDeComoPagar(modo);
+  const textoDoModo = textoDasAbertasDoAluno(modo, (dados?.abertas ?? []).map((c) => modoDaCobranca(c.tipo)));
   const visiveis = todas ? historico : historico.slice(0, HISTORICO_VISIVEL);
   return (
     <Cartao titulo="Meu plano" descricao="Seu plano comercial com o seu treinador.">

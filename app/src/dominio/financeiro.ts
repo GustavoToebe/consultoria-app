@@ -348,6 +348,16 @@ export function textoDeComoPagar(modo: ComoPagar): string | null {
 }
 
 /**
+ * O texto da seção "Em aberto" do aluno: o do modo geral e, quando o "Pagar" existe nesta plataforma (`modo` diferente de
+ * `informar`), também quando alguma aberta não tem "Pagar" (a de saída, que só informa: o aluno combina com o treinador).
+ * No celular sem a chave da plataforma (`modo` `informar`) nunca há frase de pagamento: lá o app só informa.
+ */
+export function textoDasAbertasDoAluno(modo: ComoPagar, modosDasAbertas: readonly ComoPagar[]): string | null {
+  if (modo === 'informar') return null;
+  return modosDasAbertas.some((m) => m !== 'botao') ? TEXTO_COMBINE_COM_O_TREINADOR : textoDeComoPagar(modo);
+}
+
+/**
  * Linha de informação de uma cobrança no celular sem o "Pagar" (`informar`), com a vencida decidida pela API: aberta no
  * prazo = "Mensalidade de R$ 150,00, vence em 05/11" (a de saída: "Cobrança de saída de R$ 150,00, vence em 05/11"); aberta vencida = "Em aberto desde 05/10" (data do vencimento);
  * paga = "Paga em 19/10" (data da baixa). Qualquer outra situação (ou paga sem data) fica sem linha: só o selo.
