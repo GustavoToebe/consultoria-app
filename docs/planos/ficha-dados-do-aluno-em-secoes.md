@@ -1,6 +1,6 @@
 # Ficha do aluno › Dados do aluno em quatro seções
 
-Situação: Feito na árvore local, aguardando commit · Onde: main (sem commit; base = `main` local de 12/11/2026) · Atualizado: 12/11/2026
+Situação: Publicado em 12/11 (`8d022f6d`) · Onde: main (publicado em 12/11/2026) · Atualizado: 15/11/2026
 
 ## Objetivo
 Trocar o cartão único de "Dados do aluno" (duas listas distantes na leitura; campos curtos esticados na edição) por quatro

@@ -1,6 +1,6 @@
 # Comunidade: enquetes, reações melhores, capas e player de vídeo
 
-Situação: Contratos revisados em 13/11; API liberada (passo 3), app depois · Onde: `main`, commits locais, sem push · Atualizado: 13/11/2026
+Situação: Contratos revisados em 13/11; API liberada (passo 3), app depois · Onde: `main`, publicado (`6a6b78fc`, `6d22230d`, 13/11/2026) · Atualizado: 15/11/2026
 
 ## Objetivo
 Frente C do PDF `guia-cores-painel-e-comunidade.pdf` (P2 enquetes e reações, P3 capas e player de vídeo, mais as cores da Comunidade de D12 de `cores-de-destaque.md`): enquete votável no mural, reação com mais de uma opção e "você reagiu" evidente, capa nos vídeos e reprodução integrada com a alternativa de abrir fora do app. Funcionalidade completa, com permissões, isolamento por consultoria, exportação LGPD e anonimização.

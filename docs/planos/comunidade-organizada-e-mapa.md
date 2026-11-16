@@ -11,14 +11,14 @@ sobre a comunidade e do mapa"), sem compatibilidade com o que existe (ainda não
 ## Decisões
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
-| C1 | Tipos de publicação (lista fechada) | `AVISO`, `VIDEO`, `DUVIDA`, `RESULTADO` e `CONVERSA` (o padrão, para o post sem assunto; acrescentado pela sessão) | Gustavo aceitou a recomendação; `CONVERSA` é da sessão, confirmar |
+| C1 | Tipos de publicação (lista fechada) | `AVISO`, `VIDEO`, `DUVIDA`, `RESULTADO` e `CONVERSA` (o padrão, para o post sem assunto; acrescentado pela sessão) | Gustavo aceitou a recomendação; `CONVERSA` como padrão **confirmado pelo Gustavo em 15/11/2026** |
 | C2 | Quem publica o quê | `AVISO` e `VIDEO` só a equipe (`COMUNIDADE_MODERAR`); aluno publica `CONVERSA`, `DUVIDA` e `RESULTADO`. Tipo fora do permitido = 422 `POST_INVALIDO` no campo `tipo` | recomendação aceita |
 | C3 | Aviso | nasce fixado; a lista ordena fixados primeiro, depois os mais novos; a equipe desafixa pela rota que já existe | recomendação aceita |
 | C4 | Vídeo | publicação da equipe com `videoUrl` (https, por `LinksExternos`); o texto é o título; abre fora do app, sem token; miniatura pela mesma regra dos Aulões. Aluno não envia vídeo (corpo limitado a 1 MiB); só link no texto não vira cartão | recomendação aceita |
 | C5 | Filtro e busca | `tipo` e `busca` (texto sem acento) nos dois `GET` do mural; `busca` nos `GET` de aulas | recomendação aceita |
 | C6 | Dúvida | a equipe passa a comentar no mural (`COMUNIDADE_MODERAR`); comentário traz `daEquipe`; no post `DUVIDA` os da equipe vêm primeiro; o post traz `respondida` | recomendação aceita |
 | C7 | Foto no post do aluno | 1 a 4 por post; só JPEG, regravado sem metadados (`JpegSemMetadados`, 1600 px, 300 KB, como a imagem do questionário); guardada no banco (não depende do bucket); uma foto por requisição, pendente até o post; órfã com mais de 24 h sai; 20 por usuário em 24 h; bytes só pela API, `no-store` | recomendação aceita |
-| C8 | Foto de aluno menor | desligada até a revisão jurídica: só anexa quem tem data de nascimento e 18 anos ou mais (sem data = não anexa, como o perfil reservado) | recomendação aceita; "sem data = não" é da sessão, confirmar |
+| C8 | Foto de aluno menor | desligada até a revisão jurídica: só anexa quem tem data de nascimento e 18 anos ou mais (sem data = não anexa, como o perfil reservado) | recomendação aceita; "sem data = não anexa" **confirmado pelo Gustavo em 15/11/2026**, até a revisão jurídica |
 | C9 | Chaves do treinador | `alunosPublicam` e `alunosAnexamFotos` na consultoria (padrão ligadas), em `GET`/`PUT /comunidade/configuracao` (`COMUNIDADE_MODERAR`); desligada, o aluno recebe 403 `PUBLICACAO_DESLIGADA` ou `FOTO_NAO_PERMITIDA`; comentar e reagir continuam | recomendação aceita |
 | C10 | Denunciar | aluno denuncia post (motivo de lista fechada, uma vez por post); a equipe vê a contagem, filtra os denunciados e dispensa ou remove | recomendação aceita |
 | C11 | Publicar resultado com um toque | botão "Publicar na comunidade" na tela "Bom trabalho!" abre a publicação `RESULTADO` com o texto pronto e editável; nada vai sozinho | recomendação aceita |

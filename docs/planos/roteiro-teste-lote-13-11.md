@@ -1,6 +1,6 @@
 # Roteiro de teste local do lote de 13/11
 
-Situação: Para testar (Gustavo, à mão) · Onde: `main` local, sem push · Atualizado: 13/11/2026
+Situação: Para testar (Gustavo, à mão) · Onde: `main`, publicado (`e4adc9af`, 13/11/2026) · Atualizado: 15/11/2026
 
 ## Objetivo
 Conferir na tela, antes do push, o que o lote mudou: capas, reações, enquetes e player da Comunidade; Financeiro (nulo, zero e ressalva); cores de destaque; filtros laterais; Início editável. Só dados fictícios da demonstração: nenhum aluno real, nenhuma planilha, nenhum print do Saraiva.
@@ -90,7 +90,7 @@ Em 1280 o painel abre **à direita**; em 390 abre **como folha**. Em cada lista:
 
 ## 8. Início editável
 Em 1280: claro e **areia**; em 390: escuro. A edição é feita **na própria grade** (não é mais uma folha).
-- [ ] **Editar** liga o modo de edição. Fica **desabilitado** sem internet ("Precisa de internet.") e sem alunos ("O painel aparece quando houver alunos.").
+- [ ] **Editar** liga o modo de edição. Fica **desabilitado** só sem alunos ("O painel aparece quando houver alunos."); sem internet continua liberado (mudança de 15/11, ainda sem commit).
 - [ ] Cada bloco mostra faixa do título, **tamanho**, **Subir** e **Descer** ("Já é o primeiro." e "Já é o último." nas pontas) e o interruptor **"Aparece no Início"**.
 - [ ] **Arrastar** (1280): segurar a faixa do título (cerca de 0,25 s) e soltar no outro cartão troca a ordem. Em 390 na web, com uma coluna, **não há arraste**: só Subir e Descer.
 - [ ] Ocultar um bloco o manda para a bandeja dos ocultos; **Adicionar** o traz de volta.

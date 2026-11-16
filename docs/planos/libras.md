@@ -1,6 +1,6 @@
 # Libras (lb) na carga: fase 1 (aluno) e fase 2 (treinador) (N04)
 
-Situação: Fase 1 em produção, chave ligada em produção em 04/11; fase 2 no PR #97 (branch `libras-fase-2`) · Onde: `main` (PRs #77 e #82) e `libras-fase-2` · Atualizado: 04/11/2026
+Situação: Fase 1 em produção, chave ligada em produção em 04/11; fase 2 na `main` (`4538ef20`, PR #97; conferida de ponta a ponta em 15/11/2026, passos 9 a 14 com código e testes) · Onde: `main` (PRs #77, #82 e #97) · Atualizado: 15/11/2026
 
 ## Objetivo
 O aluno que pensa em libras escolhe `lb` em Perfil › Preferências e passa a digitar e ler as cargas em libras, sem que

@@ -237,7 +237,7 @@ Uso de cada nível (11/11):
 | `Folha` | Painel por cima da tela (formulários, escolhas). No PC pode ser arrastada pelo cabeçalho; no celular o mesmo arraste fecha. Entra no histórico do navegador. |
 | `LinhaDaLista` / `ListaDeLinhas` | Lista de registros numa coluna: título, metadados, selos, ações. `ListaDeLinhas divisorias` (11/11): superfície comum, sem caixa por linha, divisória `divisor` só entre as linhas, realce `superficie3` no hover com mouse, no foco e com o conteúdo de baixo aberto; seleção neutra mantida; padrão desligado (hoje só a Biblioteca usa). |
 | `Tabela` | Colunas no PC, cartões empilhados no celular. `detalhe` põe um conteúdo extra abaixo do registro (a observação do peso); a coluna `acao` com `largura` fixa guarda os botões (Ações do peso, 64 px). |
-| `GraficoLinha` | Gráfico SVG próprio. Opcionais, que não mudam os usos antigos (peso e avaliação física, 13/11): `segmentos="retos"` e `semArea` (só os pontos medidos, sem sugerir valor entre as datas), segunda série tracejada em outra cor com legenda em texto (`serieB`, no máximo duas), dica por mouse, toque e teclado (`textoDaDica`), `destacarUltimo` e as pontas do eixo escritas só quando há `escala` (ou `legendaDaEscala`) com os mesmos números da legenda. Alvo de toque do ponto: 36 px, abaixo dos 44 do projeto (pendência de decisão). |
+| `GraficoLinha` | Gráfico SVG próprio. Opcionais, que não mudam os usos antigos (peso e avaliação física, 13/11): `segmentos="retos"` e `semArea` (só os pontos medidos, sem sugerir valor entre as datas), segunda série tracejada em outra cor com legenda em texto (`serieB`, no máximo duas), dica por mouse, toque e teclado (`textoDaDica`), `destacarUltimo` e as pontas do eixo escritas só quando há `escala` (ou `legendaDaEscala`) com os mesmos números da legenda. Alvo de toque do ponto: 44 px (`ALVO_TOQUE`), com o desenho menor; pontos próximos dividem o espaço no meio do caminho entre os centros, sem sobrepor alvos. |
 | `Alerta` | Caixa de aviso: `perigo` (erro), `atencao` (cuidado, mas não impede), `sucesso`. |
 | `Selo` | Status curto com texto (11/11): `sucesso`/`atencao`/`perigo` viram pílula com ponto e texto na cor sobre o `*Suave` da situação; o estado normal (`neutro`) é só texto secundário, sem pílula. `categoria` (tipo de série, refeição: `useTema().identificacao[chave]`) é pílula escura com o texto na cor da categoria, sem ponto. |
 | `Botao` | Um `primario` por área, na cor da marca (hover `marcaHover`); o secundário tem borda `bordaCampo` e hover `superficie2`. Desabilitado sempre diz o porquê (`motivo`). |
@@ -430,11 +430,12 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   - **Filtro de cartão (13/11, passo 7A):** quando o filtro mexe só num cartão de uma tela com vários (ficha do aluno:
     Pastas, Registros e cargas da pasta; Histórico do aluno: Registros), cada cartão tem a sua `BarraDeFiltros` com o
     título do cartão ("Filtros de pastas", "Filtros de registros"), as suas etiquetas e o seu contador. O aluno e a pasta
-    são contexto: leitura (`CampoLeitura`) no grupo Identificação, sem etiqueta nem contador. Estado local da tela. O
-    painel dos Registros abre sobre a folha da pasta: é uma folha dentro da outra, com véu duplo como as outras folhas
-    aninhadas; uma etapa trocaria o corpo longo da pasta e perderia a rolagem. O Esc fecha só o painel.
+    são contexto: leitura (`CampoLeitura`) no grupo Identificação, sem etiqueta nem contador. Estado local da tela. Os
+    Registros da pasta não abrem painel por cima (15/11): são etapa da própria folha da pasta (item seguinte); o corpo
+    da pasta fica escondido sem desmontar e, ao voltar, a pasta reaparece na mesma rolagem com o foco em "Filtros".
   - **Etapa dentro da folha (13/11, passo 7A):** o filtro de uma folha de escolher (Escolher exercício no editor de
-    treino; Escolher exercícios do Progresso) não empilha um painel: "Filtros" (`BarraDeFiltros naFolha`) troca o título,
+    treino; Escolher exercícios do Progresso) e o dos Registros e cargas da folha da pasta ("Filtros de registros")
+    não empilham um painel: "Filtros" (`BarraDeFiltros naFolha`) troca o título,
     o corpo e o rodapé da mesma folha pelos da etapa (`ui/EtapaDeFiltros`; "Filtros de exercícios", "Filtros de
     progresso"). O rodapé é o mesmo do painel e o rascunho segue as mesmas regras. O X, o Esc, o fundo, o Cancelar e o
     voltar retornam à lista sem fechar a folha. A busca e as marcações ficam como estavam. O foco vai ao primeiro controle

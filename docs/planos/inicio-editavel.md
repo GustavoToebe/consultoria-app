@@ -1,6 +1,6 @@
 # Início editável: arrastar, redimensionar, adicionar e ocultar blocos
 
-Situação: Planejando · Onde: `main`, commits locais, sem push · Atualizado: 13/11/2026
+Situação: Planejando · Onde: `main`, publicado (`1c629a8c`, 13/11/2026) · Atualizado: 15/11/2026
 
 ## Objetivo
 O treinador monta o Início do jeito dele: arrasta os blocos de lugar, escolhe o tamanho, oculta e volta a mostrar, salva ou cancela a edição e restaura o padrão, no PC e no celular, sem perder o que já escolheu e sem depender do mouse (há alternativa por teclado e por botões). Fonte: PDF `guia-cores-painel-e-comunidade.pdf` (13/11/2026), frente P1; pedido do Gustavo de 13/11.
@@ -19,7 +19,7 @@ O treinador monta o Início do jeito dele: arrasta os blocos de lugar, escolhe o
 ## Passos
 - [ ] 1. Preferência: `tamanhos` em `PainelDoInicioPreferido`, `painelDoInicioDe`, `grade.ts` (`larguraDoBloco` lê o tamanho), regras puras em `dominio/painelDoInicio.ts` (`moverBloco`, `redimensionarBloco`, `restaurarPadrao`) com testes Jest — responsável: executor-front (tela e regra pura do painel) — commit: —
 - [ ] 2. Modo de edição no Início (`app/src/app/treinador/index.tsx`, `treinador/painel/EditarPainel.tsx` e peças novas em `treinador/painel/`): arrastar, tamanho, ocultar e mostrar, Salvar, Cancelar e Restaurar padrão, com teclado e botões — responsável: executor-front — commit: —
-- [ ] 3. Verificação: e2e do painel (`app/e2e/painel.spec.ts`: salvar, cancelar, restaurar, persistir ao recarregar, compatibilidade com a preferência antiga, teclado), 390/768/1280/1920, claro e escuro, texto ampliado, offline (Editar desabilitado) — responsável: executor-front, revisão independente (`revisor`) da persistência — commit: —
+- [ ] 3. Verificação: e2e do painel (`app/e2e/painel.spec.ts`: salvar, cancelar, restaurar, persistir ao recarregar, compatibilidade com a preferência antiga, teclado), 390/768/1280/1920, claro e escuro, texto ampliado, offline (Editar liberado desde 15/11: a lista de blocos vem do perfil salvo; só "sem alunos" desabilita) — responsável: executor-front, revisão independente (`revisor`) da persistência — commit: —
 - [x] 4. Documentação: `AGENTS.md` (item do Início, corrigido em 13/11 pelo que o código faz: edição na grade, arrastar só com 2 colunas ou mais, Subir e Descer sempre, "Restaurar padrão" só no rascunho, Editar desabilitado sem internet e sem alunos); `docs/design-e-front.md` e a Ajuda do app: **ainda não conferidos** — responsável: sessão principal — commit: o de docs de 13/11 (`git log -- AGENTS.md docs/planos/inicio-editavel.md`); código em `1c629a8c`
 
 ## Responsabilidade por arquivo (um dono por arquivo, 13/11)
@@ -28,7 +28,7 @@ O treinador monta o Início do jeito dele: arrasta os blocos de lugar, escolhe o
 - Compartilhados (`tema/tokens.ts`, `ui/Selo`, `ui/NumeroDeDestaque`): sessão principal.
 
 ## Estado em 13/11 (para retomar)
-- Código commitado em `1c629a8c` (local, sem push). Passos 1 a 3 seguem sem a marca porque o commit e a evidência de cada um (Jest, `painel.spec.ts`, revisão da persistência) não foram reconferidos neste registro; conferir no `verify`/e2e do lote antes de marcar. Passo 4: `AGENTS.md` corrigido em 13/11; `docs/design-e-front.md` e a Ajuda do app ainda por conferir. Pendência aberta: Editar desabilitado sem internet (README, "Pendências soltas").
+- Código commitado em `1c629a8c` (local, sem push). Passos 1 a 3 seguem sem a marca porque o commit e a evidência de cada um (Jest, `painel.spec.ts`, revisão da persistência) não foram reconferidos neste registro; conferir no `verify`/e2e do lote antes de marcar. Passo 4: `AGENTS.md` corrigido em 13/11; `docs/design-e-front.md` e a Ajuda do app ainda por conferir. Pendência "Editar desabilitado sem internet": **resolvida em 15/11/2026** (decisão do Gustavo: liberar offline desde que a lista venha do perfil salvo; conferido que vem de `useSessao()`, sem consulta de rede). Evidência: `motivoDoEditar` em `dominio/painelDoInicio.ts`, 2 testes em `painelDoInicio.test.ts`, e2e `painel.spec.ts:470` (44 de 44 na rodada do agente); estado local, sem commit. O item do Início no `AGENTS.md` foi corrigido junto (o passo 4 acima registra o texto antigo de 13/11).
 
 ## Fora do escopo
 - Sincronizar o painel entre aparelhos e guardá-lo no servidor (pendência abaixo).

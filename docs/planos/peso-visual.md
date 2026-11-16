@@ -1,6 +1,6 @@
 # Peso: evolução mais legível
 
-Situação: Entregue localmente (sem push) · Onde: `main`, commits locais, sem push · Atualizado: 13/11/2026
+Situação: Publicada (`5e46fad6`, `3998c635`, `b0ca7f98`, 13/11/2026) · Onde: `main`, publicado (13/11/2026) · Atualizado: 15/11/2026
 
 ## Objetivo
 O treinador lê o último registro de peso com a data, a diferença desde o anterior (com a referência), um gráfico fiel às medições e um histórico compacto, sem julgar saúde. Fonte: `guia-peso-visual-grafico-e-historico.pdf` (13/11/2026, 5 páginas) e pedido do Gustavo de 13/11. Depende do `GraficoLinha` já alterado em `avaliacao-fisica-visual.md`.

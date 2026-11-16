@@ -1,6 +1,6 @@
 # Inscrição do Saraiva
 
-Situação: Aguardando revisão (PR aberto) · Onde: branch `inscricao-saraiva` · Atualizado: 04/11/2026
+Situação: Concluída em 04/11/2026 (PR #91, `e8a7d0f4`) · Onde: `main` · Atualizado: 15/11/2026
 
 ## Objetivo
 O Saraiva (Saraiva Team) recebe interessados pelo link "Quero ser aluno" com o formulário dele: as origens que ele usa
@@ -25,12 +25,16 @@ sem os campos fixos que ele não quer. O formulário entra na consultoria por um
 - [x] 2. API: origens e previsão novas, `origemDoLink`, migration V057, testes de integração — commit/run: `faabb8b8`
 - [x] 3. App: tipos, rótulos, filtro, indicadores, página pública e e2e — commit/run: `faabb8b8`
 - [x] 4. Script `inscricao-saraiva.mjs` com teste (API falsa em 127.0.0.1) — commit/run: `b00968af`
-- [x] 5. Verificação local (`mvn verify`, typecheck, lint, jest, e2e, script contra a API local) e PR — commit/run: `mvn verify` 2112 testes, jest 5229, script contra a API local (simular, `--gravar`, de novo sem escrita) e a página `/inscricao/<codigo>` conferida
+- [x] 5. Verificação local (`mvn verify`, typecheck, lint, jest, e2e, script contra a API local) e PR — commit/run: `mvn verify` 2112 testes, jest 5229, script contra a API local (simular, `--gravar`, de novo sem escrita) e a página `/inscricao/<codigo>` conferida; mesclado na `main` pelo PR #91 (`e8a7d0f4`, 04/11/2026)
 
 ## Fora do escopo
 - Termo de uso e aviso de privacidade para menores, e responsável legal na anamnese (revisão jurídica).
-- Rodar o script em produção (só o Gustavo, depois de revisar o PR).
+- Rodar o script em produção: o `.mjs` nunca foi rodado lá. A "Inscrição Saraiva Team" que está na consultoria real foi gravada em 05 e 08/11 copiando por SQL o conteúdo dos scripts `scripts/questionario/*-saraiva.mjs`, validado antes na API local (`series-redesenho.md`, passo 7, que a descreve com **15** perguntas, não 14). Se a publicada é a do script (14 perguntas) ficou em aberto: pendência no README.
 - Imagem nas perguntas e destino no cadastro (a inscrição não aceita, ver `inscricao-com-perguntas-proprias.md`).
 
 ## O que ficou para trás
+- Menores de idade: revisão jurídica do termo de uso, do aviso de privacidade e da anamnese (sem responsável legal). Aberta.
+- "Hormonizado ou natural": dado de saúde perguntado na inscrição pública, a rever com a LGPD. Aberta.
+- Conferir no app se a "Inscrição Saraiva Team" publicada é a do script (14 perguntas). Aberta.
+- O envio encadeado inscrição → inscrição pede nome e WhatsApp de novo e cria uma segunda inscrição (ver `formularios-unificados.md`). Aberta.
 - (cada sobra também vai para "Pendências soltas" no README)

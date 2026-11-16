@@ -1,6 +1,6 @@
 # Composição visual: padrões compartilhados (modais, formulários, opções, prévia, mensagens)
 
-Situação: Em andamento (4a, 4b e 4c feitos; 5 e 6 abertos) · Onde: `main`, commits locais (4a `04cb44ea`, 4b `6a726e29`, 4c `f9790e2c`) · Atualizado: 10/11/2026
+Situação: Em andamento (4a, 4b e 4c feitos; 5 e 6 abertos) · Onde: `main`, publicado (4a `04cb44ea`, 4b `6a726e29`, 4c `f9790e2c`) · Atualizado: 15/11/2026
 
 ## Objetivo
 A mesma função tem o mesmo alinhamento, espaçamento, hierarquia e comportamento em todas as telas: modal com cabeçalho,

@@ -1,6 +1,6 @@
 # Avaliação física: evolução primeiro, comparação organizada e PDF
 
-Situação: Entregue localmente (sem push) · Onde: `main`, commits locais, sem push · Atualizado: 13/11/2026
+Situação: Publicada (`5272d286`, `d5664cab`, `33d9a434`, `b75c1d54`, `705dc9aa`, 13/11/2026) · Onde: `main`, publicado (13/11/2026) · Atualizado: 15/11/2026
 
 ## Objetivo
 O treinador abre a Avaliação física e vê a medida atual, a mudança no período e as datas usadas; alterna entre Evolução e Comparar sem percorrer cartões longos; compara direita × esquerda; exporta um PDF igual ao que vê na tela. Fonte: `guia-avaliacao-fisica-visual-e-comparativos.pdf` (13/11/2026, 6 páginas) e pedido do Gustavo de 13/11. Só reorganiza tela e relatório: nenhuma mudança de API, de permissão, de cálculo gravado ou de salvamento.
@@ -18,7 +18,7 @@ O treinador abre a Avaliação física e vê a medida atual, a mudança no perí
 | D8 | Histórico (`CartaoAvaliacaoFisica` sem `alunoId`, no Histórico do aluno) continua só leitura e diz "Sem conexão." sem internet | AGENTS.md | Gustavo |
 | D9 | PDF: exatamente as datas e medidas da tela; aluno, unidades, grupos, variação e observação por data; gráfico opcional; fundo claro, cor discreta, sinais escritos (lê em preto e branco); linhas e títulos sem corte entre páginas; todo texto com `esc()` | Guia p. 5 | Gustavo |
 | D10 | **Gráfico no PDF da web** (Gustavo, 13/11): o sanitizador de `pdf/imprimir.web.ts` libera só o `src` de `<img>` com o prefixo exato `data:image/svg+xml;base64,` (corpo base64 até 500.000 caracteres). Nenhum outro `data:` novo (`data:text/html` e `svg+xml` sem base64 seguem barrados); `<svg>` solto continua removido; `javascript:`, `on*` e `href` continuam bloqueados. O SVG é gerado só por `pdfAvaliacaoFisica.ts` a partir de números e datas; todo texto dele (rótulos, datas, legenda, `<title>`) passa por `esc()` antes do `base64DeTexto`. SVG dentro de `<img>` não executa script nem carrega recurso de fora. `injecao.test.ts` ganhou 4 casos e `imprimir.web.dom.test.ts` prova o `montarCorpo` real. O interruptor do gráfico no PDF aparece em todas as plataformas | Gustavo | Gustavo |
-| D11 | Datas no gráfico e na tabela: dd/mm; com ano (dd/mm/aaaa) só quando as datas abrangem mais de um ano; o "valor atual" traz sempre a data completa. Pontas do eixo só rotuladas quando há `escala` (ou `legendaDaEscala`) com os mesmos números da legenda. Alvo de toque do ponto do gráfico: 36 px (abaixo dos 44 do projeto; pendência de decisão, vai a "Pendências soltas") | Sessão principal (decisão de rotina) | Sessão principal |
+| D11 | Datas no gráfico e na tabela: dd/mm; com ano (dd/mm/aaaa) só quando as datas abrangem mais de um ano; o "valor atual" traz sempre a data completa. Pontas do eixo só rotuladas quando há `escala` (ou `legendaDaEscala`) com os mesmos números da legenda. Alvo de toque do ponto do gráfico: 44 px (`ALVO_TOQUE`), decisão do Gustavo de 15/11/2026; o desenho continua menor e alvos de pontos que se sobreporiam dividem o espaço no meio do caminho entre os centros | Sessão principal (decisão de rotina) | Sessão principal |
 | D12 | Parte C (Peso) foi iniciada em paralelo, depois de o `GraficoLinha` (commit `d5664cab`) ficar pronto; nenhum token foi criado nem alterado nas duas frentes | Pedido do Gustavo ("máximo de agentes em paralelo") | Gustavo |
 
 ## Passos
@@ -41,8 +41,8 @@ O treinador abre a Avaliação física e vê a medida atual, a mudança no perí
 - Peso (frente `peso-visual.md`, que reaproveita o `GraficoLinha` depois desta).
 
 ## O que ficou para trás (13/11; cada item também está em "Pendências soltas" do README)
-- Alvo de toque do ponto do gráfico em 36 px (abaixo dos 44 do projeto): decisão do Gustavo.
+- Alvo de toque do ponto do gráfico: resolvido em 15/11/2026 (44 px, `ALVO_TOQUE`; pontos próximos dividem o espaço; testes em `ui/GraficoLinha.test.tsx`; sem commit ainda).
 - Interruptor do gráfico no PDF aparece mesmo com a preferência `graficos` desligada, e o rótulo dele cita os dois lados mesmo se as datas marcadas deixam um sem ponto: decidir se a preferência o esconde.
-- Rótulos do eixo do gráfico do PDF podem se sobrepor com pontos muito próximos (sem anticolisão); `srcset` com vários candidatos no sanitizador não é tratado.
+- Rótulos do eixo do gráfico do PDF: resolvido em 15/11/2026 (o eixo omite o rótulo que colidiria com o anterior ou com o último, mantendo primeiro e último; marca e ponto de cada data continuam; teste em `pdf/pdfAvaliacaoFisica.test.ts`; sem commit ainda). Segue aberto: `srcset` com vários candidatos no sanitizador não é tratado.
 - O SVG em `<img>` só foi conferido no Chromium (web); WebView do `expo-print` (iOS e Android) e o app nativo não foram verificados. Os PDFs dos guias não foram conferidos visualmente.
 - Nome acessível do ponto do `GraficoLinha` arredondado a 1 casa; `Tabela` sem destaque por linha e `LinhaDaLista` sem controle de linhas (sugestões de design system).
