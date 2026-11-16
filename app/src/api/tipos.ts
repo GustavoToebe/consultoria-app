@@ -63,6 +63,8 @@ export interface EuResponse {
   /** Escolha de kg ou lb para ver e digitar a carga ligada na plataforma; falso ou ausente = o app esconde a escolha e usa kg. */
   unidadeDeCargaHabilitada?: boolean;
   /** Migração assistida (diagnóstico do arquivo antes de importar) ligada na plataforma; falso ou ausente = o app esconde tudo. */
+  /** Só do aluno: WhatsApp da consultoria em dígitos (DDD + número, sem 55); ausente = sem número, sem "Falar com o treinador". */
+  whatsappDaConsultoria?: string;
   migracaoAssistidaHabilitada?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
@@ -178,6 +180,10 @@ export interface ConsultoriaResponse {
   /** Ciclo de atualização padrão (1 a 365 dias): aluno sem valor próprio usa este; nulo = sem padrão. */
   diasAtualizacaoPadrao: number | null;
   /** Meta do peso padrão dos alunos (nasce `REDUZIR`). */
+  /** Contato (bloco da Marca): WhatsApp `(45) 99999-8888`, nome do remetente e "responder para" dos e-mails; nulo = vazio. */
+  whatsapp?: string | null;
+  emailRemetenteNome?: string | null;
+  emailResponderPara?: string | null;
   metaDoPeso: MetaDoPeso;
   /** Textos opcionais das fases do ciclo. Ausente ou campo vazio = a fase aparece só com o nome. */
   textosFasesCiclo?: TextosDasFases | null;

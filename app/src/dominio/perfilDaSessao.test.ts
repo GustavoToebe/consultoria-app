@@ -17,6 +17,11 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu({ ...EU, unidadeDeCargaHabilitada: true }).unidadeDeCargaHabilitada).toBe(true);
     expect(perfilDoEu(EU).unidadeDeCargaHabilitada).toBeUndefined();
   });
+
+  it('guarda o WhatsApp da consultoria do aluno; ausente fica ausente', () => {
+    expect(perfilDoEu({ ...EU, whatsappDaConsultoria: '45999998888' }).whatsappDaConsultoria).toBe('45999998888');
+    expect(perfilDoEu(EU).whatsappDaConsultoria).toBeUndefined();
+  });
 });
 
 describe('perfilAtualizado', () => {

@@ -17,6 +17,8 @@ export interface PerfilDaSessao {
   retornoHabilitado?: boolean;
   pushHabilitado?: boolean;
   unidadeDeCargaHabilitada?: boolean;
+  /** Só do aluno (dígitos, sem 55); ausente = a consultoria não tem número. */
+  whatsappDaConsultoria?: string;
   migracaoAssistidaHabilitada?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
@@ -36,6 +38,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     pagarNoAndroid: eu.pagarNoAndroid,
     cicloHabilitado: eu.cicloHabilitado,
     retornoHabilitado: eu.retornoHabilitado,
+    whatsappDaConsultoria: eu.whatsappDaConsultoria,
     pushHabilitado: eu.pushHabilitado,
     unidadeDeCargaHabilitada: eu.unidadeDeCargaHabilitada,
     migracaoAssistidaHabilitada: eu.migracaoAssistidaHabilitada,

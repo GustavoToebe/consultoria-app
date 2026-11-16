@@ -6,6 +6,8 @@ import { Platform, StyleSheet, View, type ViewStyle } from 'react-native';
 import { ErroApi } from '../../api/cliente';
 import { alterarMarca, consultoria as buscarConsultoria, enviarLogo, removerLogo } from '../../api/rotas';
 import type { ConsultoriaResponse, Fonte, Marca, MetaDoPeso, Tema } from '../../api/tipos';
+import { mascaraTelefone } from '../../dominio/cadastroDoAluno';
+import { NOME_DO_REMETENTE_MAXIMO, problemasDoContato, RESPONDER_PARA_MAXIMO } from '../../dominio/contatoDaConsultoria';
 import { OPCOES_DA_META } from '../../dominio/metaDoPesoNaFicha';
 import { avaliarMarca, avisoDeMarcaPertoDeStatus, paletaDaCor, PALETAS } from '../../dominio/paletas';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -71,6 +73,12 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
     lutea: textosIniciais?.lutea?.trim() || null,
   };
   const diasValidos = dias === null || (Number.isInteger(dias) && dias >= 1 && dias <= 365);
+  const contatoSalvo = { whatsapp: consultoria.whatsapp ?? '', emailRemetenteNome: consultoria.emailRemetenteNome ?? '', emailResponderPara: consultoria.emailResponderPara ?? '' };
+  const [contato, setContato] = useState(contatoSalvo);
+  const mudarContato = (campo: keyof typeof contato) => (valor: string) => setContato((atual) => ({ ...atual, [campo]: valor }));
+  const problemasContato = problemasDoContato(contato);
+  const contatoValido = Object.keys(problemasContato).length === 0;
+  const contatoAlterado = (Object.keys(contato) as (keyof typeof contato)[]).some((k) => contato[k].trim() !== contatoSalvo[k].trim());
   const [logoUrl, setLogoUrl] = useState(inicial.logoUrl);
   const [salvando, setSalvando] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -93,13 +101,16 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
     tema !== inicial.temaPadrao ||
     dias !== (consultoria.diasAtualizacaoPadrao ?? null) ||
     meta !== metaSalva ||
+    contatoAlterado ||
     JSON.stringify(textosAtuais) !== JSON.stringify(textosSalvos);
   const previa: Marca = { ...inicial, nome: nome || inicial.nome, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
 
   const salvar = () => {
     setSalvando(true);
     setErro(null);
-    alterarMarca({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao, diasAtualizacaoPadrao: dias, textosFasesCiclo: textosAtuais, metaDoPeso: meta }).then(
+    alterarMarca({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao, diasAtualizacaoPadrao: dias, textosFasesCiclo: textosAtuais, metaDoPeso: meta,
+      // Os três sempre: em branco apaga na API, então ausente apagaria o contato ao salvar só a cor.
+      whatsapp: contato.whatsapp.trim(), emailRemetenteNome: contato.emailRemetenteNome.trim(), emailResponderPara: contato.emailResponderPara.trim() }).then(
       (c) => {
         setSalvando(false);
         aoSalvar(c);
@@ -319,12 +330,26 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
         </Cartao>
         ) : null}
       </Cartao>
+      <Cartao titulo="Contato" descricao="Opcional. Como o aluno fala com você e de quem os e-mails do app parecem vir.">
+        <View style={estilos.campoDias}>
+          <Campo rotulo="WhatsApp da consultoria" valor={contato.whatsapp} aoMudar={(t) => mudarContato('whatsapp')(mascaraTelefone(t))}
+            erro={problemasContato.whatsapp ?? campos.whatsapp} keyboardType="phone-pad" autoComplete="tel" maxLength={15}
+            ajuda="Aparece para o aluno em Conta › Falar com o treinador. Vazio, o botão não aparece." />
+        </View>
+        <Campo rotulo="Nome que aparece nos e-mails" valor={contato.emailRemetenteNome} aoMudar={mudarContato('emailRemetenteNome')}
+          erro={problemasContato.emailRemetenteNome ?? campos.emailRemetenteNome} autoComplete="off" maxLength={NOME_DO_REMETENTE_MAXIMO}
+          ajuda={`Remetente do lembrete de cobrança e do convite de equipe, até ${NOME_DO_REMETENTE_MAXIMO} caracteres. Vazio, vai o nome da consultoria.`} />
+        <Campo rotulo="Responder para" valor={contato.emailResponderPara} aoMudar={mudarContato('emailResponderPara')}
+          erro={problemasContato.emailResponderPara ?? campos.emailResponderPara} keyboardType="email-address" autoCapitalize="none"
+          autoComplete="email" spellCheck={false} maxLength={RESPONDER_PARA_MAXIMO}
+          ajuda="Quem responde ao lembrete de cobrança ou ao convite de equipe escreve para este e-mail." />
+      </Cartao>
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {alterado ? (
         <View style={[estilos.rodape, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           <Texto variante="suave" style={estilos.textoRodape}>Alterações ainda não salvas.</Texto>
-          <Botao rotulo="Salvar marca" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || !corValida || !!avaliacao.bloqueia || !diasValidos}
-            motivo={!nome.trim() ? 'Informe o nome da consultoria.' : !corValida ? 'Use uma cor no formato #RRGGBB.' : avaliacao.bloqueia ? 'Escolha uma cor que segure texto branco.' : !diasValidos ? 'O ciclo de atualização vai de 1 a 365 dias.' : undefined} />
+          <Botao rotulo="Salvar marca" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || !corValida || !!avaliacao.bloqueia || !diasValidos || !contatoValido}
+            motivo={!nome.trim() ? 'Informe o nome da consultoria.' : !corValida ? 'Use uma cor no formato #RRGGBB.' : avaliacao.bloqueia ? 'Escolha uma cor que segure texto branco.' : !diasValidos ? 'O ciclo de atualização vai de 1 a 365 dias.' : !contatoValido ? 'Corrija os campos do Contato.' : undefined} />
         </View>
       ) : null}
       <PainelConfirmacao

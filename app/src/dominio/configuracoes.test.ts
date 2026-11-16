@@ -78,10 +78,13 @@ describe('cartoesVisiveis', () => {
     expect(ids(cartoesVisiveis(com(['ALUNO_ALTERAR'])))).toEqual(expect.arrayContaining(['importacao', 'planilha-completa']));
   });
 
-  it('Marca é só do administrador: precisa da guarda da tela e de MARCA_ALTERAR', () => {
-    expect(ids(cartoesVisiveis(com(['MARCA_ALTERAR'])))).not.toContain('marca');
-    expect(ids(cartoesVisiveis(com([], { administrador: true })))).not.toContain('marca');
-    expect(ids(cartoesVisiveis(com(['MARCA_ALTERAR'], { administrador: true })))).toContain('marca');
+  it('Marca e Contato são só do administrador: precisam da guarda da tela e de MARCA_ALTERAR', () => {
+    for (const id of ['marca', 'contato']) {
+      expect(ids(cartoesVisiveis(com(['MARCA_ALTERAR'])))).not.toContain(id);
+      expect(ids(cartoesVisiveis(com([], { administrador: true })))).not.toContain(id);
+      expect(ids(cartoesVisiveis(com(['MARCA_ALTERAR'], { administrador: true })))).toContain(id);
+    }
+    expect(CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'contato')).toMatchObject({ grupo: 'Consultoria', href: '/treinador/marca' });
   });
 
   it('Financeiro: precisa do módulo ligado e de FINANCEIRO_LER; o Recebimento online ainda pede a chave', () => {
@@ -145,6 +148,9 @@ describe('buscarCartoes', () => {
     expect(ids(buscarCartoes('2fa', todos))).toEqual(['seguranca']);
     expect(ids(buscarCartoes('Questionário padrão', todos))).toContain('questionarios');
     expect(ids(buscarCartoes('pix', todos))).toContain('financeiro-recebimento');
+    expect(ids(buscarCartoes('remetente', todos))).toEqual(['contato']);
+    expect(ids(buscarCartoes('Responder para', todos))).toEqual(['contato']);
+    expect(ids(buscarCartoes('WhatsApp', todos))).toContain('contato');
   });
 
   it('cada palavra precisa aparecer (E), em qualquer ordem', () => {

@@ -67,7 +67,7 @@ async function capturar(page: Page, nome: string) {
 
 const ADMIN: Perfil = { permissoes: ACESSO_TOTAL, administrador: true, pagamentos: true, recebimentoOnline: true };
 
-test('acesso total (1280): um h1, os sete grupos na ordem e os vinte cartões, cada um com o destino do catálogo', async ({ page }) => {
+test('acesso total (1280): um h1, os sete grupos na ordem e os vinte e um cartões, cada um com o destino do catálogo', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, ADMIN);
   await expect(page.getByRole('heading', { level: 1, name: 'Configurações' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
@@ -90,7 +90,7 @@ test('perfil restrito: só os cartões que ele pode abrir; Consultoria, Equipe e
   const { grupos, titulos } = esperado(restrito);
   await expect.poll(() => titulosDosCartoes(page)).toEqual(grupos);
   for (const fora of ['Consultoria', 'Equipe', 'Financeiro']) await expect(page.getByRole('heading', { level: 2, name: fora })).toHaveCount(0);
-  for (const fora of ['Marca', 'Assinatura e faturas', 'Metodologias', 'Auditoria']) await expect(cartao(page, fora)).toHaveCount(0);
+  for (const fora of ['Marca', 'Contato', 'Assinatura e faturas', 'Metodologias', 'Auditoria']) await expect(cartao(page, fora)).toHaveCount(0);
   for (const titulo of titulos) await expect(cartao(page, titulo)).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });
@@ -131,6 +131,19 @@ test('busca: acha por palavra sem acento, mostra o vazio e "Limpar busca" volta 
   await expect.poll(() => titulosDosCartoes(page)).toEqual(esperado(ADMIN).grupos);
   expect(errosDaPagina).toEqual([]);
 });
+
+for (const largura of [390, 1280]) {
+  test(`Contato (${largura}): a busca por "remetente" acha o cartão, que abre a Marca`, async ({ page }) => {
+    const { errosDaPagina } = await abrir(page, largura, ADMIN);
+    await busca(page).fill('remetente');
+    await expect(page.getByText('1 configuração encontrada')).toBeVisible();
+    await expect.poll(() => titulosDosCartoes(page)).toEqual(['Consultoria']);
+    await expect(cartao(page, 'Contato')).toHaveAttribute('href', '/treinador/marca');
+    await cartao(page, 'Contato').click();
+    await expect(page).toHaveURL(/\/treinador\/marca$/);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
 
 test('destinos: os cartões abrem a tela e a aba certas', async ({ page }) => {
   await abrir(page, 1280, ADMIN);

@@ -695,6 +695,10 @@ export const alterarMarca = (dados: {
   diasAtualizacaoPadrao: number | null;
   textosFasesCiclo?: import('./tipos').TextosDasFases | null;
   /** Ausente mantém a gravada. */
+  /** Os três vão em todo PUT: em branco ou ausente apaga na API. */
+  whatsapp: string;
+  emailRemetenteNome: string;
+  emailResponderPara: string;
   metaDoPeso?: import('./tipos').MetaDoPeso;
 }) => requisicao<ConsultoriaResponse>('/consultoria/marca', { metodo: 'PUT', corpo: dados });
 

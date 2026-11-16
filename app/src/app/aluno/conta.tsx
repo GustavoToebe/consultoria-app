@@ -1,6 +1,6 @@
-import { BookOpen, FileText, LogOut, RefreshCw, SlidersHorizontal } from 'lucide-react-native';
+import { BookOpen, FileText, LogOut, MessageCircle, RefreshCw, SlidersHorizontal } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { CartaoApelido } from '../../aluno/CartaoApelido';
 import { CartaoExcluirConta } from '../../aluno/CartaoExcluirConta';
@@ -14,11 +14,13 @@ import { InterruptorDeAvisoNoCelular } from '../../aluno/push/InterruptorDeAviso
 import { CartaoMeuPlano } from '../../aluno/financeiro/CartaoMeuPlano';
 import { useRetornoDoPagamento } from '../../aluno/financeiro/useRetornoDoPagamento';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
+import { linkParaFalarComOTreinador } from '../../dominio/contatoDaConsultoria';
 import { dataParaTela } from '../../dominio/formatos';
 import { avisoAoSairComPendencias, diasDeAguaNaoEnviados, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from '../../dominio/treinosNaoEnviados';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
+import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
@@ -45,6 +47,9 @@ export default function ContaAluno() {
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
   const totalDeFalhas = falhas.length + falhasDeMobilidade.length + falhasDeConclusao.length + falhasDeAgua.length;
   const naoEnviados = pendentes + totalDeFalhas;
+  const { avisar } = useAviso();
+  // Abre fora do app, sem token nem texto pronto (C3 de `docs/planos/contato-da-consultoria.md`).
+  const linkDoTreinador = linkParaFalarComOTreinador(sessao.whatsappDaConsultoria);
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Conta" subtitulo={[sessao.usuario?.nome, sessao.usuario?.email].filter(Boolean).join(' · ') || undefined} />
@@ -90,6 +95,10 @@ export default function ContaAluno() {
       <TrocarSenha />
       <View style={estilos.itens}>
         <ItemDeLista titulo="Aparência e preferências" detalhe="Tema, contraste, tamanho do texto, animações e gráficos" Icone={SlidersHorizontal} aoTocar={() => abrirPreferencias(true)} />
+        {linkDoTreinador ? (
+          <ItemDeLista titulo="Falar com o treinador" detalhe="Abre o WhatsApp da consultoria" Icone={MessageCircle}
+            aoTocar={() => void Linking.openURL(linkDoTreinador).catch(() => avisar('Não foi possível abrir o WhatsApp.', 'perigo'))} />
+        ) : null}
         <ItemDeLista titulo="Ajuda" detalhe="Primeiros passos e tutorial" Icone={BookOpen} href="/aluno/ajuda" />
         <ItemDeLista titulo="Termos e privacidade" Icone={FileText} href="/aluno/termos" />
       </View>
