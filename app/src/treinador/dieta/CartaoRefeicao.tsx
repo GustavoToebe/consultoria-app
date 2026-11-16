@@ -11,6 +11,7 @@ import {
   novaOpcao,
   novoItem,
   recalcularItem,
+  semConversao,
   somar,
 } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
@@ -237,6 +238,7 @@ function OpcaoDaRefeicao({
           posicao={ii}
           total={opcao.itens.length}
           comProblema={comProblema.has(item.uid)}
+          alimento={item.alimentoId ? alimentos.get(item.alimentoId) : undefined}
           aoMudar={(novo) => aoMudarItens((itens) => substituir(itens, ii, recalcularItem(novo, novo.alimentoId ? alimentos.get(novo.alimentoId) : undefined)))}
           aoRemover={() => (aoRemoverItem ? aoRemoverItem(ii, item.nome || `Item ${ii + 1}`) : aoMudarItens((itens) => remover(itens, ii)))}
           aoMover={(d) => aoMudarItens((itens) => mover(itens, ii, d))}
@@ -256,11 +258,12 @@ function OpcaoDaRefeicao({
 }
 
 /** Um item da opção: caixa própria (a segunda moldura), com o nome, ↑↓ desabilitadas na ponta, a lixeira e as quantidades. */
-function LinhaItem({ item, posicao, total, comProblema, aoMudar, aoRemover, aoMover }: {
+function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRemover, aoMover }: {
   item: ItemDieta;
   posicao: number;
   total: number;
   comProblema: boolean;
+  alimento: Alimento | undefined;
   aoMudar: (i: ItemDieta) => void;
   aoRemover: () => void;
   aoMover: (d: -1 | 1) => void;
@@ -285,6 +288,8 @@ function LinhaItem({ item, posicao, total, comProblema, aoMudar, aoRemover, aoMo
             <Texto style={estilos.nomeItem}>{item.nome}</Texto>
           )}
           {faltaQuantidade ? <View style={estilos.selo}><Selo texto="Falta a quantidade" tipo="atencao" Icone={TriangleAlert} /></View> : null}
+          {/* A unidade escolhida não converte para a base do alimento: o valor fica "—" e não se inventa gramatura. */}
+          {semConversao(item, alimento) ? <View style={estilos.selo}><Selo texto="Informe gramas por unidade no alimento" tipo="atencao" Icone={TriangleAlert} /></View> : null}
         </View>
         {total > 1 ? (
           <>

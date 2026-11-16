@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta } from '../api/tipos';
-import { aguaValida, aplicarReceitaDeDieta, colunasDasOpcoes, comNomesPadrao, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from './dieta';
+import { aguaValida, aplicarReceitaDeDieta, colunasDasOpcoes, comNomesPadrao, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -42,6 +42,17 @@ describe('dieta', () => {
     const semGramas = { ...pao, gramasPorUnidade: null };
     const item = recalcularItem({ ...novoItem(semGramas), quantidade: 2, unidade: 'ml' }, semGramas);
     expect(item.kcal).toBeNull();
+  });
+
+  it('semConversao (C49): só item da biblioteca cuja unidade não converte para a base do alimento', () => {
+    const semGramas = { ...pao, gramasPorUnidade: null };
+    const item = (a: Alimento, unidade: ItemDieta['unidade']): ItemDieta => ({ ...novoItem(a), quantidade: 2, unidade });
+    expect(semConversao(item(semGramas, 'un'), semGramas)).toBe(true);
+    expect(semConversao(item(semGramas, 'ml'), semGramas)).toBe(true);
+    expect(semConversao(item(semGramas, 'g'), semGramas)).toBe(false); // mesma unidade da base
+    expect(semConversao(item(pao, 'un'), pao)).toBe(false); // gramas por unidade informadas
+    expect(semConversao({ ...item(semGramas, 'un'), manual: true }, semGramas)).toBe(false);
+    expect(semConversao(item(semGramas, 'un'), undefined)).toBe(false); // alimento fora da biblioteca: nada a dizer
   });
 
   it('item manual não é recalculado', () => {

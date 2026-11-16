@@ -23,6 +23,11 @@ export function quantidadeNaBase(alimento: Alimento, quantidade: number, unidade
   return null;
 }
 
+/** Item da biblioteca cuja unidade não converte para a base do alimento (o valor fica "—"): o editor avisa o que falta. */
+export function semConversao(item: ItemDieta, alimento: Alimento | undefined): boolean {
+  return !item.manual && !!alimento && quantidadeNaBase(alimento, 1, item.unidade) === null;
+}
+
 const arredondar = (n: number) => Math.round(n * 1000) / 1000;
 
 /** Item recalculado a partir do alimento (não mexe em item manual). */

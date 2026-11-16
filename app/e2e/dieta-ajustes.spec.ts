@@ -271,3 +271,47 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+// ---- C49: unidade sem conversão avisa o que falta, sem inventar valor ----
+
+const FARINHA = { id: 'f0000000-0000-4000-8000-0000000000a5', nome: 'Farinha fictícia', baseQuantidade: 100, baseUnidade: 'g', kcal: 360, proteina: 10, carboidrato: 70, gordura: 1, gramasPorUnidade: null, fonte: null, origem: 'MANUAL', fatorCorrecao: null, fatorCoccao: null, grupo: null } as const;
+
+for (const largura of [390, 1280]) {
+  test(`item em "un" de alimento sem gramas por unidade avisa o que falta e o valor continua "—" (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    const conteudo: ConteudoDieta = {
+      ...CONTEUDO, suplementacao: [], ergogenicos: null,
+      refeicoes: [{ uid: 'lanche', nome: 'Lanche', horario: null, observacao: null, modoDePreparo: null, opcoes: [{ uid: 'la', rotulo: 'A', itens: [
+        { uid: 'farinha', alimentoId: FARINHA.id, nome: FARINHA.nome, quantidade: 2, unidade: 'un', kcal: null, proteina: null, carboidrato: null, gordura: null, manual: false },
+        { uid: 'manual', alimentoId: null, nome: 'Item manual fictício', quantidade: 1, unidade: 'un', kcal: 50, proteina: 1, carboidrato: 1, gordura: 1, manual: true },
+      ] }] }],
+    };
+    const { naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      'GET /alimentos': { corpo: [FARINHA] },
+      'GET /consultoria': { corpo: { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluna Fictícia' } },
+      [`GET /planos-dieta/${PLANO_ID}`]: { corpo: { ...DETALHE, rascunho: conteudo } },
+    });
+    await page.goto(`/treinador/dietas/${PLANO_ID}`);
+    await expect(page.getByRole('heading', { name: 'Refeições (1)' })).toBeVisible();
+    if (largura < 1280) await page.getByRole('button', { name: 'Lanche, fechado' }).click();
+
+    // Só o item da biblioteca sem conversão leva o aviso (o manual não); o aviso fica dentro da janela e não corta.
+    const aviso = page.getByText('Informe gramas por unidade no alimento');
+    await expect(aviso).toHaveCount(1);
+    await expect(aviso).toBeVisible();
+    const caixa = (await aviso.boundingBox())!;
+    expect(caixa.x).toBeGreaterThanOrEqual(0);
+    expect(caixa.x + caixa.width).toBeLessThanOrEqual(largura + 0.5);
+    // Nenhum valor é inventado: a linha do item continua com "—" nos valores.
+    await expect(page.getByLabel('Total da opção A')).toBeVisible();
+    const linha = page.locator('div', { has: page.getByText(FARINHA.nome, { exact: true }) }).filter({ has: page.getByLabel('Quantidade', { exact: true }) }).last();
+    await expect(linha.getByText('—').first()).toBeVisible();
+    await expect(linha.getByText('360')).toHaveCount(0);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
