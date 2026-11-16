@@ -502,19 +502,19 @@ export function nomeBusca(texto) {
   return String(texto ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-/** Suplementos de dados/suplementos-heavysuppz.json: criados pelo nome; com --substituir atualiza os que já existem. */
+/** Suplementos de dados/suplementos-heavysuppz.json (`/alimentos`, `tipo = SUPLEMENTO`): criados pelo nome; com --substituir atualiza os que já existem. */
 async function importarSuplementos() {
-  const existentes = new Map((await chamar('GET', '/suplementos')).map((s) => [nomeBusca(s.nome), s]));
+  const existentes = new Map((await chamar('GET', '/alimentos?tipo=SUPLEMENTO')).map((s) => [nomeBusca(s.nome), s]));
   for (const item of lerJson('suplementos-heavysuppz.json').itens) {
     const corpo = {
-      nome: item.nome, marca: item.marca ?? null, categoria: item.categoria ?? null, porcao: item.porcao ?? null,
+      tipo: 'SUPLEMENTO', nome: item.nome, marca: item.marca ?? null, grupo: item.categoria ?? null, porcao: item.porcao ?? null,
       porcoesPorEmbalagem: item.porcoesPorEmbalagem ?? null, sabores: item.sabores ?? [], link: item.link ?? null,
     };
     const ja = existentes.get(nomeBusca(item.nome));
     if (ja && !SUBSTITUIR) { rel.suplementos.push(`${item.nome}: já existe, mantido`); continue; }
     if (SIMULAR) { rel.suplementos.push(`${item.nome}: ${ja ? 'seria atualizado' : 'seria criado'}`); continue; }
-    if (ja) await chamar('PUT', `/suplementos/${ja.id}`, corpo);
-    else await chamar('POST', '/suplementos', corpo);
+    if (ja) await chamar('PUT', `/alimentos/${ja.id}`, corpo);
+    else await chamar('POST', '/alimentos', corpo);
     rel.suplementos.push(`${item.nome}: ${ja ? 'atualizado' : 'criado'}`);
   }
 }
