@@ -25,7 +25,7 @@ import java.util.UUID;
  * dono (aulão ou post); a anterior é apagada ao trocar, ao ocultar o post e (por cascata) ao excluir o aulão. Conteúdo da equipe:
  * não entra na exportação nem na anonimização do aluno. Teto de {@value #POR_DIA} envios por consultoria em 24 h, num contador
  * atômico no banco (não conta linhas vivas: apagar não devolve cota e envios simultâneos não passam do teto). A pendente com mais de 24 h sai no próximo envio da consultoria
- * (shortcut: sem agendador, como a foto do mural; trocar por job se alguma consultoria ficar parada com pendentes).
+ * (shortcut: sem agendador; a foto do mural já sai pelo {@code FotosManutencao}, a capa pode ir para o mesmo job se alguma consultoria ficar parada com pendentes).
  */
 @Service
 public class CapasDaComunidadeService {

@@ -11,23 +11,20 @@ import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Fotos dos posts do mural (C7 a C9). Uma por requisição, pendente até o post; só JPEG, conferido e regravado sem metadados
  * (1600 px, 300 KB depois da limpeza); só quem a regra de idade e a chave do treinador deixam anexar. Os bytes ficam no banco
- * e só saem pela API, com {@code no-store}; nunca em log. A pendente com mais de 24 h é apagada no próximo envio da consultoria
- * (shortcut: sem agendador, como a imagem órfã do questionário; trocar por job se alguma consultoria ficar parada com pendentes).
+ * e só saem pela API, com {@code no-store}; nunca em log. A pendente com mais de 24 h é apagada pela manutenção
+ * ({@code fotos/FotosManutencao}). O teto de 20 envios em 24 h é do {@code LimiteTentativas.fotoDoMuralCabe}.
  */
 @Service
 public class FotosDoMuralService {
 
     static final int BYTES_MAXIMO = 300_000;
     static final int LADO_MAXIMO = 1600;
-    /** Pendente sem post com mais que isso é apagada no próximo envio. O teto de 20 envios em 24 h é do {@code LimiteTentativas.fotoDoMuralCabe}. */
-    static final Duration JANELA = Duration.ofHours(24);
 
     private final ComunidadeMuralFotoRepository fotos;
     private final AlunoRepository alunos;
@@ -42,17 +39,19 @@ public class FotosDoMuralService {
         this.limite = limite;
     }
 
-    /** 403 {@code FOTO_NAO_PERMITIDA} antes de ler o arquivo; depois 422 do arquivo e do teto diário. */
+    /**
+     * 403 {@code PUBLICACAO_DESLIGADA} (treinador desligou a publicação dos alunos) e 403 {@code FOTO_NAO_PERMITIDA} antes de ler
+     * o arquivo; depois 422 do arquivo e do teto diário.
+     */
     @Transactional
     public UUID enviar(UsuarioAutenticado eu, byte[] recebido) {
+        configuracao.exigirQueAlunosPublicam(eu);
         configuracao.exigirQuePodeAnexarFoto(eu, aluno(eu));
         byte[] jpeg = limpar(recebido);
-        Instant agora = Instant.now();
-        fotos.apagarPendentesAntigas(agora.minus(JANELA));
         if (!limite.fotoDoMuralCabe(eu.usuarioId())) {
             throw FotoException.limiteDoDia();
         }
-        return fotos.saveAndFlush(new ComunidadeMuralFoto(eu.usuarioId(), jpeg, agora)).getId();
+        return fotos.saveAndFlush(new ComunidadeMuralFoto(eu.usuarioId(), jpeg, Instant.now())).getId();
     }
 
     /** Só a pendente do próprio aluno; de outro autor, já ligada a um post ou inexistente = 404. */

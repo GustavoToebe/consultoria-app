@@ -12,7 +12,8 @@ import java.util.UUID;
 
 /**
  * SQL nativo da manutenção das fotos, permitido no {@code ArquiteturaTest}: a fila de remoção é global (só os UUIDs da foto e da
- * consultoria, sem aluno) e a limpeza das pendentes vê todas as consultorias de uma vez, no job, sem {@code TenantContext}.
+ * consultoria, sem aluno) e a limpeza das pendentes (da atualização e do mural) vê todas as consultorias de uma vez, no job, sem
+ * {@code TenantContext}.
  * O {@code @TenantId} não protege SQL nativo, por isso aqui nada devolve dado de pessoa: só ids de objeto e de consultoria. Quem remove foto de
  * um aluno específico usa a JPA (com o tenant) e só chama {@link #enfileirar}.
  */
@@ -47,6 +48,14 @@ class FotoRemocaoRepositorio {
         return jdbc.update("with p as (update atualizacao_foto set removida_em = ? where pergunta_id is null "
                 + "and removida_em is null and criada_em < ? returning id, consultoria_id) "
                 + "insert into foto_remocao (objeto, consultoria_id) select id, consultoria_id from p on conflict (objeto) do nothing", em(agora), em(limite));
+    }
+
+    /**
+     * Fotos pendentes do mural (sem post) criadas antes de {@code limite}. Os bytes moram no banco, então não há fila nem bucket:
+     * sai a linha. Varre todas as consultorias de uma vez (é a manutenção, sem {@code TenantContext}) e devolve só a contagem.
+     */
+    int apagarPendentesDoMural(Instant limite) {
+        return jdbc.update("delete from comunidade_mural_foto where post_id is null and criado_em < ?", em(limite));
     }
 
     /** Linhas removidas há tempo suficiente para o limite diário já não depender delas. */

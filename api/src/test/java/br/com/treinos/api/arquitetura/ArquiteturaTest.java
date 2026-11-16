@@ -64,7 +64,7 @@ class ArquiteturaTest {
      * que a JPA trata como imutáveis, e posts, comentários e reações da comunidade, que guardam {@code autor_id}/{@code usuario_id} e não
      * {@code aluno_id}; todo método filtra {@code consultoria_id} e o aluno, ou o usuário dele);
      * {@code FotoRemocaoRepositorio} (fila durável de remoção das fotos no bucket e limpeza das fotos pendentes vencidas: roda no job, sem tenant,
-     * e só mexe em ids de objeto e em linhas ainda não ligadas a nenhuma atualização; nenhum método devolve dado de pessoa);
+     * e só mexe em ids de objeto e em linhas ainda não ligadas a nenhuma atualização ou post do mural ({@code comunidade_mural_foto}); nenhum método devolve dado de pessoa);
      * {@code InscricaoBusca} (link público de inscrição: descobre só a consultoria de um link aberto pelo código, antes de abrir a
      * sessão nela);
      * {@code VerificacaoDasCredenciais} (na subida, sem tenant: lê só os ids de chave das API Keys cifradas do recebimento online,

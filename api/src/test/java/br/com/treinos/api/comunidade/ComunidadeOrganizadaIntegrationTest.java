@@ -2,7 +2,9 @@ package br.com.treinos.api.comunidade;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.auth.LimiteTentativas;
 import br.com.treinos.api.fotos.FotosDeTeste;
+import br.com.treinos.api.fotos.FotosManutencao;
 import br.com.treinos.api.web.Fuso;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -53,6 +61,10 @@ class ComunidadeOrganizadaIntegrationTest extends AbstractIntegrationTest {
     private JsonMapper json;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private FotosManutencao manutencao;
+    @Autowired
+    private LimiteTentativas limite;
 
     private ApiDeTeste api;
     private JsonNode admin;
@@ -434,11 +446,9 @@ class ComunidadeOrganizadaIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void pendenteComMaisDe24HSaiNoProximoEnvioEApagarPendenteVale() throws Exception {
+    void apagarPendenteSoValePeloDonoEUmaVez() throws Exception {
         nasceuHaAnos(alunoA, 25, 0);
         UUID autor = usuarioDoAluno(alunoA);
-        jdbc.update("insert into comunidade_mural_foto (consultoria_id, post_id, autor_id, bytes, tamanho, criado_em) "
-                + "values (?, null, ?, ?, 3, now() - interval '25 hours')", consultoria(), autor, new byte[] {1, 2, 3});
         String nova = fotoPendente(loginA);
         assertThat(contar("select count(*) from comunidade_mural_foto where autor_id = ?", autor)).isEqualTo(1);
 
@@ -446,6 +456,110 @@ class ComunidadeOrganizadaIntegrationTest extends AbstractIntegrationTest {
         api.delete(MURAL + "/fotos/" + nova, loginA, 204);
         api.delete(MURAL + "/fotos/" + nova, loginA, 404);
         assertThat(contar("select count(*) from comunidade_mural_foto where autor_id = ?", autor)).isZero();
+    }
+
+    private void envelhecer(String fotoId, String intervalo) {
+        jdbc.update("update comunidade_mural_foto set criado_em = now() - ?::interval where id = ?::uuid", intervalo, fotoId);
+    }
+
+    private boolean fotoExiste(String fotoId) {
+        return contar("select count(*) from comunidade_mural_foto where id = ?::uuid", fotoId) == 1;
+    }
+
+    @Test
+    void manutencaoApagaAPendenteDoMuralComMaisDe24HSemNenhumEnvioNovo() throws Exception {
+        nasceuHaAnos(alunoA, 25, 0);
+        JsonNode outroTreinador = api.novoTreinador();
+        UUID alunoDeFora = api.criarAluno(outroTreinador, "Aluno de fora");
+        JsonNode loginDeFora = api.convidarEEntrar(outroTreinador, alunoDeFora);
+        nasceuHaAnos(alunoDeFora, 25, 0);
+
+        String antiga = fotoPendente(loginA);
+        envelhecer(antiga, "25 hours");
+        String recente = fotoPendente(loginA);
+        envelhecer(recente, "23 hours");
+        String ligada = fotoPendente(loginA);
+        api.post(MURAL, loginA, corpo("RESULTADO", "Com foto", null, List.of(ligada)), 200);
+        envelhecer(ligada, "72 hours");
+        String recenteDeFora = fotoPendente(loginDeFora);
+
+        // Nenhum envio novo: só a rotina de manutenção (a mesma que o agendador chama).
+        assertThat(manutencao.limparPendentesDoMural()).isGreaterThanOrEqualTo(1);
+
+        assertThat(fotoExiste(antiga)).isFalse();
+        assertThat(fotoExiste(recente)).isTrue();
+        assertThat(fotoExiste(ligada)).isTrue();
+        assertThat(fotoExiste(recenteDeFora)).isTrue();
+        // Rodar de novo não acha mais nada dela e não mexe no resto.
+        manutencao.limparPendentesDoMural();
+        assertThat(fotoExiste(recente)).isTrue();
+        assertThat(fotoExiste(ligada)).isTrue();
+        assertThat(fotoExiste(recenteDeFora)).isTrue();
+    }
+
+    @Test
+    void comAPublicacaoDosAlunosDesligadaAFotoNaoSobeNemLigaAPostMasComentarContinua() throws Exception {
+        nasceuHaAnos(alunoA, 25, 0);
+        String antes = fotoPendente(loginA);
+        String doTreinador = equipePosta("CONVERSA", "Bom dia", null).get("id").asString();
+        api.put("/comunidade/configuracao", admin, Map.of("alunosPublicam", false, "alunosAnexamFotos", true), 200);
+
+        assertThat(api.ler(enviarFoto(loginA, FotosDeTeste.jpeg(Color.RED), 403)).get("codigo").asString()).isEqualTo("PUBLICACAO_DESLIGADA");
+        assertThat(contar("select count(*) from comunidade_mural_foto where autor_id = ?", usuarioDoAluno(alunoA))).isEqualTo(1);
+        // A pendente de antes da chave não vira post; o texto sem foto também não.
+        for (List<String> fotos : List.of(List.of(antes), List.<String>of())) {
+            assertThat(api.post(MURAL, loginA, corpo("RESULTADO", "Não sai", null, fotos), 403).get("codigo").asString())
+                    .isEqualTo("PUBLICACAO_DESLIGADA");
+        }
+        assertThat(contar("select count(*) from comunidade_mural_post where autor_id = ?", usuarioDoAluno(alunoA))).isZero();
+        // Comentar continua, e o aluno ainda descarta a própria pendente.
+        api.post(MURAL + "/" + doTreinador + "/comentarios", loginA, Map.of("texto", "Bom dia!"), 200);
+        api.delete(MURAL + "/fotos/" + antes, loginA, 204);
+    }
+
+    private record Envio(int status, String codigo) { }
+
+    private Envio enviarFotoSemConferir(JsonNode login, byte[] bytes) throws Exception {
+        MvcResult r = mvc.perform(multipart(MURAL + "/fotos").file(new MockMultipartFile("arquivo", "foto.jpg", "image/jpeg", bytes))
+                .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(login))).andReturn();
+        String corpo = r.getResponse().getContentAsString();
+        return new Envio(r.getResponse().getStatus(), corpo.isEmpty() ? null : json.readTree(corpo).path("codigo").asString());
+    }
+
+    @Test
+    void doisEnviosSimultaneosNaVagaQueRestaDoTetoDeFotosSoUmPassa() throws Exception {
+        nasceuHaAnos(alunoA, 25, 0);
+        UUID autor = usuarioDoAluno(alunoA);
+        for (int i = 0; i < 19; i++) {
+            assertThat(limite.fotoDoMuralCabe(autor)).as("vaga %d de 19", i + 1).isTrue();
+        }
+        byte[] jpeg = FotosDeTeste.jpeg(Color.RED, 200, false);
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        CountDownLatch largada = new CountDownLatch(1);
+        List<Envio> envios = new ArrayList<>();
+        try {
+            List<Future<Envio>> futuros = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                Callable<Envio> enviar = () -> {
+                    largada.await();
+                    return enviarFotoSemConferir(loginA, jpeg);
+                };
+                futuros.add(pool.submit(enviar));
+            }
+            largada.countDown();
+            for (Future<Envio> f : futuros) {
+                envios.add(f.get(60, TimeUnit.SECONDS));
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        assertThat(envios.stream().filter(e -> e.status() == 200).count()).isEqualTo(1);
+        Envio recusado = envios.stream().filter(e -> e.status() != 200).findFirst().orElseThrow();
+        assertThat(recusado.status()).isEqualTo(422);
+        assertThat(recusado.codigo()).isEqualTo("FOTOS_LIMITE_DIARIO");
+        assertThat(contar("select count(*) from comunidade_mural_foto where autor_id = ?", autor)).isEqualTo(1);
     }
 
     @Test

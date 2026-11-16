@@ -29,11 +29,6 @@ public interface ComunidadeMuralFotoRepository extends JpaRepository<ComunidadeM
     @Query("select f.postId as postId, f.id as id from ComunidadeMuralFoto f where f.postId in :postIds order by f.criadoEm, f.id")
     List<IdDaFoto> idsDosPosts(Collection<UUID> postIds);
 
-    /** Pendentes sem post criadas antes de {@code limite}: nunca foram publicadas. */
-    @Modifying
-    @Query("delete from ComunidadeMuralFoto f where f.postId is null and f.criadoEm < :limite")
-    int apagarPendentesAntigas(Instant limite);
-
     /**
      * Liga as pendentes do autor ao post num UPDATE só: devolve quantas ligou, e quem chama compara com o pedido (id de outro
      * autor, inexistente ou já ligado fica de fora).

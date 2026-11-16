@@ -15,7 +15,8 @@ import java.util.List;
 /**
  * Rotinas das fotos: (1) esvazia a fila de remoção no bucket, com espera crescente a cada falha; (2) apaga as fotos
  * pendentes que ninguém ligou a uma atualização em 24 h; (3) limpa as linhas removidas que já não contam para o limite do
- * dia. Só rodam com as fotos ligadas e a manutenção ativa. O log diz apenas quantas e a classe do erro, nunca ids.
+ * dia; (4) apaga as fotos pendentes do mural (no banco) com mais de 24 h. As três primeiras só rodam com as fotos ligadas e a
+ * manutenção ativa; a do mural só pede a manutenção ativa. O log diz apenas quantas e a classe do erro, nunca ids.
  */
 @Component
 public class FotosManutencao {
@@ -47,6 +48,10 @@ public class FotosManutencao {
 
     @Scheduled(cron = "0 17 * * * *")
     void agendadaLimpeza() {
+        if (propriedades.manutencaoAtiva()) {
+            // As fotos do mural moram no banco: a limpeza não depende do bucket (TREINOS_FOTOS_HABILITADO).
+            limparPendentesDoMural();
+        }
         if (ativa()) {
             limparPendentesEAntigas();
         }
@@ -80,6 +85,16 @@ public class FotosManutencao {
             LOG.info("Fila de fotos: {} removidas do bucket, {} adiadas.", apagados, adiados);
         }
         return apagados;
+    }
+
+    /** Pendentes do mural (sem post) com mais de 24 h saem do banco; devolve quantas. */
+    public int limparPendentesDoMural() {
+        Integer apagadas = transacao.execute(s -> remocoes.apagarPendentesDoMural(Instant.now().minus(PRAZO_DA_PENDENTE)));
+        int n = apagadas == null ? 0 : apagadas;
+        if (n > 0) {
+            LOG.info("Mural: {} fotos pendentes vencidas apagadas.", n);
+        }
+        return n;
     }
 
     /** Pendentes velhas viram removidas e entram na fila; linhas removidas há dias saem da tabela. */

@@ -27,6 +27,5 @@ public interface ComunidadeMuralComentarioRepository extends JpaRepository<Comun
             + "where c.postId in :postIds and c.oculto = false group by c.postId")
     List<TotalDoPost> totaisVisiveis(Collection<UUID> postIds);
 
-    long countByPostIdAndOcultoFalse(UUID postId);
     List<ComunidadeMuralComentario> findTop5000ByAutorIdOrderByCriadoEmDesc(UUID autorId);
 }
