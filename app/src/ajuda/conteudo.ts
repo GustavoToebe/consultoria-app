@@ -41,11 +41,13 @@ export interface SecaoGuia {
   soComRetorno?: boolean;
   /** Só com `vitrineHabilitada` (vitrine da consultoria): a tela tira a seção com a chave desligada e o PDF nunca a leva. */
   soComVitrine?: boolean;
+  /** Só com `lojaHabilitada` (página pública da vitrine): a tela tira a seção com a chave desligada e o PDF nunca a leva. */
+  soComLoja?: boolean;
 }
 
-/** Seções do guia que valem agora: sem as do retorno imediato e sem as da vitrine quando as chaves estão desligadas. */
-export function secoesDoGuia(guia: Guia, retornoHabilitado: boolean, vitrineHabilitada: boolean): SecaoGuia[] {
-  return guia.secoes.filter((s) => (retornoHabilitado || !s.soComRetorno) && (vitrineHabilitada || !s.soComVitrine));
+/** Seções do guia que valem agora: sem as do retorno imediato, da vitrine e da página pública quando as chaves estão desligadas. */
+export function secoesDoGuia(guia: Guia, retornoHabilitado: boolean, vitrineHabilitada: boolean, lojaHabilitada = false): SecaoGuia[] {
+  return guia.secoes.filter((s) => (retornoHabilitado || !s.soComRetorno) && (vitrineHabilitada || !s.soComVitrine) && (lojaHabilitada || !s.soComLoja));
 }
 
 export interface Guia {
@@ -376,6 +378,14 @@ const TREINADOR: Guia = {
       soComVitrine: true,
       itens: [
         { titulo: 'Vitrine', texto: 'Fica no menu lateral, grupo Negócio (no celular, pela busca). Serve para mostrar aos alunos itens da consultoria (planilhas, roupas, produtos), com nome, descrição, tipo (digital ou físico), preço, preço especial com data final, cupom, link e foto. Até 30 itens; para criar outro no teto é preciso excluir um (desativar não libera vaga). "Item ativo" desligado esconde o item dos alunos sem apagar. Subir/Descer muda a ordem. O preço especial vale até o fim do dia escolhido e depois o item volta ao preço normal sozinho. O app não vende nem cobra pela vitrine: o link abre fora do app. Quem vê: perfil com "Vitrine: ver"; quem edita: "Vitrine: alterar".' },
+      ],
+    },
+    {
+      id: 'vitrine-pagina-publica',
+      titulo: 'Página pública da vitrine',
+      soComLoja: true,
+      itens: [
+        { titulo: 'Página pública', texto: 'Na Vitrine, o bloco Página pública gera um link para divulgar fora do app. Quem abre o link, mesmo sem conta, vê só os itens digitais ativos que você marcou com "Aparece na página pública", com a marca da consultoria. "Comprar" abre o link do item em outra aba: o app não vende nem cobra. "Página ligada" liga e desliga; desligada, o link mostra "Página não encontrada.". "Gerar novo link" troca o endereço e o anterior para de funcionar. No app de celular a página mostra só foto, nome e descrição. Quem liga a página e gera o link: perfil com "Vitrine: alterar".' },
       ],
     },
   ],
