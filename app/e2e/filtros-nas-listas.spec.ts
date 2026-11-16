@@ -369,6 +369,35 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(errosDaPagina).toEqual([]);
     });
 
+    test('Auditoria: marcar duas pessoas seguidas não fecha a lista nem remonta a tela; o endereço só muda no Aplicar', async ({ page }) => {
+      const { naoTratadas, errosDaPagina } = await simularApi(page, {
+        ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'AUDITORIA_LER'] })),
+        'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+        'GET /auditoria/pessoas': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }, OUTRA] },
+        'GET /auditoria': { corpo: { itens: [], total: 0, pagina: 0 } },
+      });
+      await page.goto('/treinador/auditoria');
+      const painel = await abrirPainelLateral(page, 'Filtros de eventos');
+      await painel.getByRole('button', { name: 'Pessoa: Todas as pessoas. Escolher.' }).click();
+      const lista = page.getByRole('dialog', { name: 'Pessoa' });
+      await lista.getByRole('checkbox', { name: 'Bia Fictícia', exact: true }).click();
+      // Depois da primeira caixa a lista segue aberta com ela marcada, e o endereço ainda não mudou.
+      await expect(lista).toBeVisible();
+      await expect(lista.getByRole('checkbox', { name: 'Bia Fictícia', exact: true })).toBeChecked();
+      await lista.getByRole('checkbox', { name: 'Sistema', exact: true }).click();
+      await expect(lista).toBeVisible();
+      await expect(lista.getByRole('checkbox', { name: 'Bia Fictícia', exact: true })).toBeChecked();
+      await expect(lista.getByRole('checkbox', { name: 'Sistema', exact: true })).toBeChecked();
+      await expect(page).not.toHaveURL(/usuarioId=/);
+      if (celular) await lista.getByRole('button', { name: 'Fechar' }).click();
+      else await page.keyboard.press('Escape');
+      await expect(painel).toBeVisible();
+      await aplicarFiltros(painel);
+      await expect(page).toHaveURL(new RegExp(`usuarioId=${OUTRA.id}(%2C|,)sistema`));
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
     test('Importação: destino e arquivo do endereço; situação e período pelo painel; Limpar tira tudo', async ({ page }) => {
       const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
         ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES_TREINADOR })),
