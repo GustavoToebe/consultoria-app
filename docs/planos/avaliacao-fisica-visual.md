@@ -41,7 +41,7 @@ O treinador abre a Avaliação física e vê a medida atual, a mudança no perí
 - Peso (frente `peso-visual.md`, que reaproveita o `GraficoLinha` depois desta).
 
 ## O que ficou para trás (13/11; cada item também está em "Pendências soltas" do README)
-- Alvo de toque do ponto do gráfico: resolvido em 15/11/2026 (44 px, `ALVO_TOQUE`; pontos próximos dividem o espaço; testes em `ui/GraficoLinha.test.tsx`; sem commit ainda).
+- Alvo de toque do ponto do gráfico: resolvido em 15/11/2026 (44 px, `ALVO_TOQUE`; pontos próximos dividem o espaço; testes em `ui/GraficoLinha.test.tsx`; commit `86a09407`).
 - Interruptor do gráfico no PDF aparece mesmo com a preferência `graficos` desligada, e o rótulo dele cita os dois lados mesmo se as datas marcadas deixam um sem ponto: decidir se a preferência o esconde.
 - Rótulos do eixo do gráfico do PDF: resolvido em 15/11/2026 (o eixo omite o rótulo que colidiria com o anterior ou com o último, mantendo primeiro e último; marca e ponto de cada data continuam; teste em `pdf/pdfAvaliacaoFisica.test.ts`; sem commit ainda). Segue aberto: `srcset` com vários candidatos no sanitizador não é tratado.
 - O SVG em `<img>` só foi conferido no Chromium (web); WebView do `expo-print` (iOS e Android) e o app nativo não foram verificados. Os PDFs dos guias não foram conferidos visualmente.

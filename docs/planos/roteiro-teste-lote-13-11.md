@@ -90,7 +90,7 @@ Em 1280 o painel abre **à direita**; em 390 abre **como folha**. Em cada lista:
 
 ## 8. Início editável
 Em 1280: claro e **areia**; em 390: escuro. A edição é feita **na própria grade** (não é mais uma folha).
-- [ ] **Editar** liga o modo de edição. Fica **desabilitado** só sem alunos ("O painel aparece quando houver alunos."); sem internet continua liberado (mudança de 15/11, ainda sem commit).
+- [ ] **Editar** liga o modo de edição. Fica **desabilitado** só sem alunos ("O painel aparece quando houver alunos."); sem internet continua liberado (mudança de 15/11, commit `86a09407`).
 - [ ] Cada bloco mostra faixa do título, **tamanho**, **Subir** e **Descer** ("Já é o primeiro." e "Já é o último." nas pontas) e o interruptor **"Aparece no Início"**.
 - [ ] **Arrastar** (1280): segurar a faixa do título (cerca de 0,25 s) e soltar no outro cartão troca a ordem. Em 390 na web, com uma coluna, **não há arraste**: só Subir e Descer.
 - [ ] Ocultar um bloco o manda para a bandeja dos ocultos; **Adicionar** o traz de volta.
