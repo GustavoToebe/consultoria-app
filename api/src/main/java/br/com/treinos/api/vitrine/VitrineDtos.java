@@ -16,9 +16,11 @@ public final class VitrineDtos {
     /**
      * Corpo do {@code POST} e do {@code PUT}. {@code tipo} é {@code DIGITAL} ou {@code FISICO}; {@code ativo} é obrigatório;
      * {@code versao} só vale no {@code PUT} (a que a tela leu). A ordem não vem aqui: muda por {@code PUT .../ordem}.
+     * {@code naPaginaPublica} (ausente = falso) só vale em item {@code DIGITAL} (senão 422 no campo).
      */
     public record ItemRequest(String nome, String descricao, String tipo, Long precoCentavos, Long precoEspecialCentavos,
-                              LocalDate especialAte, String cupom, String linkUrl, Boolean ativo, Long versao) { }
+                              LocalDate especialAte, String cupom, String linkUrl, Boolean ativo, Boolean naPaginaPublica,
+                              Long versao) { }
 
     /** Todos os ids da vitrine, na nova ordem (nem a mais, nem a menos, sem repetir). */
     public record OrdemRequest(List<UUID> ids) { }
@@ -29,7 +31,7 @@ public final class VitrineDtos {
      */
     public record ItemResponse(UUID id, String nome, String descricao, String tipo, Long precoCentavos, Long precoEspecialCentavos,
                                LocalDate especialAte, Long precoVigenteCentavos, String cupom, String linkUrl, boolean ativo,
-                               int ordem, Long versao, boolean temFoto, Instant fotoAtualizadaEm) { }
+                               boolean naPaginaPublica, int ordem, Long versao, boolean temFoto, Instant fotoAtualizadaEm) { }
 
     /**
      * Item para o aluno (só os ativos, sem ordem nem versão). {@code especialAte} só vem quando o preço especial está vigente
@@ -38,4 +40,29 @@ public final class VitrineDtos {
     public record ItemDoAlunoResponse(UUID id, String nome, String descricao, String tipo, Long precoCentavos,
                                       Long precoVigenteCentavos, LocalDate especialAte, String cupom, String linkUrl,
                                       boolean temFoto, Instant fotoAtualizadaEm) { }
+
+    /**
+     * Página pública da loja, para a equipe. {@code codigo} e {@code versao} são nulos enquanto a linha não existe (a página nunca
+     * foi ligada nem teve link); a primeira gravação a cria com a {@code versao} ausente, e as seguintes a levam (senão 409
+     * {@code CONFLITO_EDICAO}).
+     */
+    public record PaginaResponse(boolean paginaLigada, String codigo, Long versao) { }
+
+    /** {@code paginaLigada} é obrigatório (422 {@code VITRINE_PAGINA_INVALIDA} no campo). */
+    public record PaginaRequest(Boolean paginaLigada, Long versao) { }
+
+    public record NovoLinkRequest(Long versao) { }
+
+    /** Marca da loja: o que já é público na consultoria. O {@code logoUrl} leva o id da consultoria (rota pública da logo); não há campo de id à parte. */
+    public record MarcaDaLoja(String nome, String corPrimaria, String fonteTitulo, String temaPadrao, String logoUrl) { }
+
+    /**
+     * Item da página pública (só ativo, DIGITAL e marcado). {@code especialAte} só vem com o preço especial vigente. Nada da equipe:
+     * sem ordem, versão, tipo nem id de consultoria.
+     */
+    public record ItemPublicoResponse(UUID id, String nome, String descricao, Long precoCentavos, Long precoVigenteCentavos,
+                                      LocalDate especialAte, String cupom, String linkUrl, boolean temFoto,
+                                      Instant fotoAtualizadaEm) { }
+
+    public record LojaPublicaResponse(MarcaDaLoja marca, List<ItemPublicoResponse> itens) { }
 }

@@ -22,6 +22,8 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          boolean migracaoAssistidaHabilitada,
                          /* Vitrine da consultoria ligada ({@code TREINOS_VITRINE_HABILITADA}); desligada, o app esconde tudo dela. */
                          boolean vitrineHabilitada,
+                         /* Página pública da loja efetiva (vitrine e {@code TREINOS_LOJA_HABILITADA} ligadas); desligada, o app esconde o que é dela. */
+                         boolean lojaHabilitada,
                          /* Só para o aluno: WhatsApp da consultoria só com dígitos (DDD + número, sem o 55), para o app montar wa.me/55<dígitos>; some se não há. */
                          String whatsappDaConsultoria) {
 

@@ -6,6 +6,7 @@ import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.vitrine.VitrineDtos.ItemDoAlunoResponse;
+import br.com.treinos.api.vitrine.VitrineDtos.ItemPublicoResponse;
 import br.com.treinos.api.vitrine.VitrineDtos.ItemRequest;
 import br.com.treinos.api.vitrine.VitrineDtos.ItemResponse;
 import br.com.treinos.api.vitrine.VitrineDtos.OrdemRequest;
@@ -63,6 +64,18 @@ public class VitrineService {
         LocalDate hoje = FaixaDeData.hoje();
         return ativos.stream().map(i -> new ItemDoAlunoResponse(i.getId(), i.getNome(), i.getDescricao(), i.getTipo(),
                 i.getPrecoCentavos(), PrecoDaVitrine.vigente(i, hoje),
+                PrecoDaVitrine.especialVigente(i.getPrecoEspecialCentavos(), i.getEspecialAte(), hoje) ? i.getEspecialAte() : null,
+                i.getCupom(), i.getLinkUrl(), comFoto.containsKey(i.getId()), comFoto.get(i.getId()))).toList();
+    }
+
+    /** Os itens da página pública, na ordem da vitrine; roda dentro da consultoria que o código revelou (sem login). */
+    @Transactional(readOnly = true)
+    public List<ItemPublicoResponse> listarDaPaginaPublica() {
+        List<VitrineItem> publicos = itens.daPaginaPublica();
+        Map<UUID, Instant> comFoto = fotosDe(publicos);
+        LocalDate hoje = FaixaDeData.hoje();
+        return publicos.stream().map(i -> new ItemPublicoResponse(i.getId(), i.getNome(), i.getDescricao(), i.getPrecoCentavos(),
+                PrecoDaVitrine.vigente(i, hoje),
                 PrecoDaVitrine.especialVigente(i.getPrecoEspecialCentavos(), i.getEspecialAte(), hoje) ? i.getEspecialAte() : null,
                 i.getCupom(), i.getLinkUrl(), comFoto.containsKey(i.getId()), comFoto.get(i.getId()))).toList();
     }
@@ -157,7 +170,7 @@ public class VitrineService {
     private static ItemResponse resposta(VitrineItem i, Instant fotoAtualizadaEm, LocalDate hoje) {
         return new ItemResponse(i.getId(), i.getNome(), i.getDescricao(), i.getTipo(), i.getPrecoCentavos(),
                 i.getPrecoEspecialCentavos(), i.getEspecialAte(), PrecoDaVitrine.vigente(i, hoje), i.getCupom(), i.getLinkUrl(),
-                i.isAtivo(), i.getOrdem(), i.getVersao(), fotoAtualizadaEm != null, fotoAtualizadaEm);
+                i.isAtivo(), i.isNaPaginaPublica(), i.getOrdem(), i.getVersao(), fotoAtualizadaEm != null, fotoAtualizadaEm);
     }
 
     /** Quando cada item teve a foto trocada (só os que têm), numa consulta e sem os bytes. */

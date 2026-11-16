@@ -4,7 +4,10 @@ import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.fotos.RespostaDeFoto;
 import br.com.treinos.api.vitrine.VitrineDtos.ItemRequest;
 import br.com.treinos.api.vitrine.VitrineDtos.ItemResponse;
+import br.com.treinos.api.vitrine.VitrineDtos.NovoLinkRequest;
 import br.com.treinos.api.vitrine.VitrineDtos.OrdemRequest;
+import br.com.treinos.api.vitrine.VitrineDtos.PaginaRequest;
+import br.com.treinos.api.vitrine.VitrineDtos.PaginaResponse;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,7 +28,7 @@ import java.util.UUID;
 
 /**
  * Vitrine da consultoria, pela equipe. Ler com {@code VITRINE_LER}; criar, alterar, apagar, ordenar e trocar a foto com
- * {@code VITRINE_ALTERAR}. Item de outra consultoria = 404.
+ * {@code VITRINE_ALTERAR}. Item de outra consultoria = 404. A página pública da loja (ligar, novo link) segue as mesmas duas permissões.
  */
 @RestController
 @ExigeVitrine
@@ -33,10 +36,12 @@ public class VitrineController {
 
     private final VitrineService vitrine;
     private final FotosDaVitrineService fotos;
+    private final VitrinePaginaService pagina;
 
-    public VitrineController(VitrineService vitrine, FotosDaVitrineService fotos) {
+    public VitrineController(VitrineService vitrine, FotosDaVitrineService fotos, VitrinePaginaService pagina) {
         this.vitrine = vitrine;
         this.fotos = fotos;
+        this.pagina = pagina;
     }
 
     @PreAuthorize("hasAuthority('PERM_VITRINE_LER')")
@@ -87,6 +92,27 @@ public class VitrineController {
         } catch (IOException e) {
             throw new BadRequestException("Não foi possível ler o arquivo enviado.");
         }
+    }
+
+    @PreAuthorize("hasAuthority('PERM_VITRINE_LER')")
+    @ExigeLoja
+    @GetMapping("/vitrine/configuracao")
+    public PaginaResponse lerPagina() {
+        return pagina.ler();
+    }
+
+    @PreAuthorize("hasAuthority('PERM_VITRINE_ALTERAR')")
+    @ExigeLoja
+    @PutMapping("/vitrine/configuracao")
+    public PaginaResponse alterarPagina(@RequestBody PaginaRequest request) {
+        return pagina.alterar(request);
+    }
+
+    @PreAuthorize("hasAuthority('PERM_VITRINE_ALTERAR')")
+    @ExigeLoja
+    @PostMapping("/vitrine/configuracao/novo-link")
+    public PaginaResponse novoLink(@RequestBody NovoLinkRequest request) {
+        return pagina.novoLink(request);
     }
 
     @PreAuthorize("hasAuthority('PERM_VITRINE_ALTERAR')")

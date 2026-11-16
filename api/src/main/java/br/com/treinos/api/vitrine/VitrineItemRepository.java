@@ -18,6 +18,14 @@ public interface VitrineItemRepository extends JpaRepository<VitrineItem, UUID> 
     @Query("select i from VitrineItem i where i.ativo = true order by i.ordem, i.nome, i.id")
     List<VitrineItem> ativos();
 
+    /** O que a página pública mostra: ativo, DIGITAL e marcado (o tipo é conferido mesmo com o CHECK do banco). */
+    @Query("select i from VitrineItem i where i.ativo = true and i.naPaginaPublica = true and i.tipo = 'DIGITAL' "
+            + "order by i.ordem, i.nome, i.id")
+    List<VitrineItem> daPaginaPublica();
+
+    @Query("select i from VitrineItem i where i.id = :id and i.ativo = true and i.naPaginaPublica = true and i.tipo = 'DIGITAL'")
+    Optional<VitrineItem> daPaginaPublicaPorId(UUID id);
+
     /** Todos, já travados na ordem da lista: quem reordena nunca cruza o trinco de outra reordenação (sem deadlock). */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from VitrineItem i order by i.ordem, i.nome, i.id")

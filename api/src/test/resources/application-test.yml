@@ -41,6 +41,8 @@ treinos:
     inscricao-ip: 100000
     inscricao-consulta-ip: 100000
     cep-ip: 100000
+    loja-ip: 100000
+    loja-foto-ip: 100000
   # Fotos ligadas em toda a suíte (o bucket é um MinIO de teste, registrado por MinioDeTeste); o modo desligado tem a sua
   # classe (FotosDesligadasIntegrationTest), que sobrescreve esta chave.
   fotos:
@@ -54,6 +56,7 @@ treinos:
   # Vitrine ligada na suíte; o modo desligado tem a sua classe (VitrineDesligadaIntegrationTest).
   vitrine:
     habilitada: true
+    loja-habilitada: true
   # Escolha de kg/lb ligada na suíte; o modo desligado tem a sua classe (UnidadeDeCargaDesligadaIntegrationTest).
   unidade-carga:
     habilitado: true

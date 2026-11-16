@@ -544,5 +544,7 @@ class VitrineIntegrationTest extends AbstractIntegrationTest {
     void euTrazAChaveLigadaParaEquipeEAluno() throws Exception {
         assertThat(api.get("/eu", admin, 200).get("vitrineHabilitada").asBoolean()).isTrue();
         assertThat(api.get("/eu", loginAluno, 200).get("vitrineHabilitada").asBoolean()).isTrue();
+        assertThat(api.get("/eu", admin, 200).get("lojaHabilitada").asBoolean()).isTrue();
+        assertThat(api.get("/eu", loginAluno, 200).get("lojaHabilitada").asBoolean()).isTrue();
     }
 }

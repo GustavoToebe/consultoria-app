@@ -87,6 +87,15 @@ public class FotosDaVitrineService {
         return lerDaEquipe(itemId);
     }
 
+    /** Página pública: só a foto de item ativo, DIGITAL e marcado; qualquer outro caso dá o mesmo 404. */
+    @Transactional(readOnly = true)
+    public byte[] lerDaPaginaPublica(UUID itemId) {
+        if (itens.daPaginaPublicaPorId(itemId).isEmpty()) {
+            throw semFoto();
+        }
+        return lerDaEquipe(itemId);
+    }
+
     private static NaoEncontradoException semFoto() {
         return new NaoEncontradoException("Foto não encontrada.");
     }

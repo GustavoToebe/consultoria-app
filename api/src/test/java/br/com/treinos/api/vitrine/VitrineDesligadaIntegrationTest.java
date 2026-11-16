@@ -58,7 +58,17 @@ class VitrineDesligadaIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/aluno/vitrine/itens/" + qualquer + "/foto", login, 503).path("codigo").asString())
                 .isEqualTo("VITRINE_INDISPONIVEL");
 
+        assertThat(api.get("/vitrine/configuracao", treinador, 503).path("codigo").asString()).isEqualTo("VITRINE_INDISPONIVEL");
+        assertThat(api.put("/vitrine/configuracao", treinador, Map.of("paginaLigada", true), 503).path("codigo").asString())
+                .isEqualTo("VITRINE_INDISPONIVEL");
+        assertThat(api.post("/vitrine/configuracao/novo-link", treinador, Map.of(), 503).path("codigo").asString())
+                .isEqualTo("VITRINE_INDISPONIVEL");
+
         assertThat(api.get("/eu", login, 200).get("vitrineHabilitada").asBoolean()).isFalse();
         assertThat(api.get("/eu", treinador, 200).get("vitrineHabilitada").asBoolean()).isFalse();
+
+        // A loja só vale com a vitrine ligada, mesmo com a chave dela ligada (a suíte liga as duas): 503 próprio, nunca 404.
+        assertThat(api.get("/publico/loja/" + "Z".repeat(24), null, 503).path("codigo").asString()).isEqualTo("LOJA_INDISPONIVEL");
+        assertThat(api.get("/eu", treinador, 200).get("lojaHabilitada").asBoolean()).isFalse();
     }
 }

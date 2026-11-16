@@ -13,7 +13,7 @@ import java.util.HexFormat;
 /**
  * Limita as tentativas das rotas públicas que não são o login (o login é do módulo de autenticação da plataforma:
  * {@code LimiteLogin}): cadastro de treinador e convite público por IP (10 e 30), refresh por IP (120), logo pública por IP (300),
- * inscrição pelo link por IP (20 envios e 300 consultas da página), busca de CEP por IP (120) e falhas da
+ * inscrição pelo link por IP (20 envios e 300 consultas da página), busca de CEP por IP (120), página pública da loja por IP (600), fotos dela por IP (3000) e falhas da
  * verificação humana por IP (20), com janela fixa
  * de 600 s e contador no banco. A chave é um SHA-256 com o sal {@code plataforma.auth.login.sal}; cada ação tem prefixo
  * próprio, então uma não consome o limite da outra.
@@ -37,12 +37,14 @@ public class LimiteTentativas {
                      @Value("${treinos.limites.inscricao-consulta-ip:300}") int inscricaoConsultaIp,
                      @Value("${treinos.limites.convite-equipe-consulta-ip:30}") int conviteEquipeConsultaIp,
                      @Value("${treinos.limites.cep-ip:120}") int cepIp,
+                     @Value("${treinos.limites.loja-ip:600}") int lojaIp,
+                     @Value("${treinos.limites.loja-foto-ip:3000}") int lojaFotoIp,
                      @Value("${treinos.limites.janela-segundos:600}") long janelaSegundos,
                      @Value("${plataforma.auth.login.sal:}") String sal) {
         this.limites = new Limites(cadastroIp, conviteIp, refreshIp, verificacaoIp, logoIp, inscricaoIp, inscricaoConsultaIp,
-                conviteEquipeConsultaIp, cepIp);
+                conviteEquipeConsultaIp, cepIp, lojaIp, lojaFotoIp);
         if (cadastroIp < 1 || conviteIp < 1 || refreshIp < 1 || verificacaoIp < 1 || logoIp < 1 || inscricaoIp < 1
-                || inscricaoConsultaIp < 1 || conviteEquipeConsultaIp < 1 || cepIp < 1 || janelaSegundos < 1 || janelaSegundos > 86400) {
+                || inscricaoConsultaIp < 1 || conviteEquipeConsultaIp < 1 || cepIp < 1 || lojaIp < 1 || lojaFotoIp < 1 || janelaSegundos < 1 || janelaSegundos > 86400) {
             throw new IllegalArgumentException("Limites de tentativas inválidos.");
         }
         this.contador = contador;
@@ -85,6 +87,18 @@ public class LimiteTentativas {
     /** Busca de CEP (logado): cada consulta pode virar uma chamada ao serviço público de CEP, então o IP tem um teto por janela. */
     public void cepConsulta(String ip) {
         porIp("cep-ip", ip, limites.cepIp());
+    }
+
+    /**
+     * Página pública da loja (sem login): um contador por IP. Cada resposta consulta o banco, então o IP tem um teto por janela.
+     */
+    public void loja(String ip) {
+        porIp("loja-ip", ip, limites.lojaIp());
+    }
+
+    /** Fotos dos itens da página pública (uma por item, sem cache): balde à parte, para as fotos não gastarem o da página. */
+    public void lojaFoto(String ip) {
+        porIp("loja-foto-ip", ip, limites.lojaFotoIp());
     }
 
     public void refresh(String ip) {
@@ -253,6 +267,7 @@ public class LimiteTentativas {
     }
 
     private record Limites(int cadastroIp, int conviteIp, int refreshIp, int verificacaoIp, int logoIp, int inscricaoIp,
-                           int inscricaoConsultaIp, int conviteEquipeConsultaIp, int cepIp) {
+                           int inscricaoConsultaIp, int conviteEquipeConsultaIp, int cepIp, int lojaIp,
+                           int lojaFotoIp) {
     }
 }

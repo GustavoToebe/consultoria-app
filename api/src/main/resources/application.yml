@@ -121,6 +121,14 @@ treinos:
   # padrão: as rotas respondem 503 VITRINE_INDISPONIVEL e o app esconde tudo (GET /eu traz vitrineHabilitada).
   vitrine:
     habilitada: ${TREINOS_VITRINE_HABILITADA:false}
+    # Página pública da loja (F2a, só leitura): desligada por padrão; 503 LOJA_INDISPONIVEL e GET /eu traz lojaHabilitada. Só vale
+    # com a vitrine ligada. A condição "pagamentos + InfinitePay" da D1 é da venda (F2b) e ainda não entra.
+    loja-habilitada: ${TREINOS_LOJA_HABILITADA:false}
+  # Teto por IP e janela de 10 min da página pública da loja e, em balde à parte, das fotos dos itens (sem login; 429 + Retry-After).
+  # Os padrões de código são os mesmos, aqui só ficam à vista.
+  limites:
+    loja-ip: 600
+    loja-foto-ip: 3000
   # Escolha de kg ou lb para o aluno ver e digitar a carga. Desligado por padrão: o app esconde a escolha e usa kg (GET /eu traz
   # unidadeDeCargaHabilitada). A carga é guardada sempre em kg; nenhuma rota depende desta chave.
   unidade-carga:

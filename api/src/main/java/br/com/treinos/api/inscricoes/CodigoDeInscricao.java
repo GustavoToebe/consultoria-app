@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
  * caracteres. Fica no caminho do link (não é segredo como o convite), mas não se adivinha: sem ele não se chega à
  * consultoria. O formato é conferido antes de qualquer consulta ao banco.
  */
-final class CodigoDeInscricao {
+public final class CodigoDeInscricao {
 
     static final int TAMANHO = 24;
     private static final Pattern FORMATO = Pattern.compile("[A-Za-z0-9_-]{12,64}");
@@ -18,13 +18,13 @@ final class CodigoDeInscricao {
     private CodigoDeInscricao() {
     }
 
-    static String novo() {
+    public static String novo() {
         byte[] bytes = new byte[18];
         RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    static boolean valido(String codigo) {
+    public static boolean valido(String codigo) {
         return codigo != null && FORMATO.matcher(codigo).matches();
     }
 }

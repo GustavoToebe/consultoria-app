@@ -27,7 +27,7 @@ final class ValidacaoDoItem {
 
     /** O que vai para a entidade: textos sem espaços nas pontas (vazio = nulo). */
     record Valido(String nome, String descricao, String tipo, Long precoCentavos, Long precoEspecialCentavos,
-                  LocalDate especialAte, String cupom, String linkUrl, boolean ativo) { }
+                  LocalDate especialAte, String cupom, String linkUrl, boolean ativo, boolean naPaginaPublica) { }
 
     /** Problemas por campo; lista vazia = válido. */
     static List<ApiError.FieldError> problemas(ItemRequest r, LocalDate hoje) {
@@ -72,13 +72,17 @@ final class ValidacaoDoItem {
         if (r.ativo() == null) {
             erros.add(new ApiError.FieldError("ativo", "Informe se o item está ativo."));
         }
+        if (Boolean.TRUE.equals(r.naPaginaPublica()) && !"DIGITAL".equals(r.tipo())) {
+            erros.add(new ApiError.FieldError("naPaginaPublica", "Só item digital pode aparecer na página pública."));
+        }
         return erros;
     }
 
     /** Só depois de {@link #problemas} vazio. */
     static Valido normalizar(ItemRequest r) {
         return new Valido(r.nome().strip(), vazioViraNulo(r.descricao()), r.tipo(), r.precoCentavos(), r.precoEspecialCentavos(),
-                r.especialAte(), CupomDeSuplemento.limpar(r.cupom()), vazioViraNulo(r.linkUrl()), r.ativo());
+                r.especialAte(), CupomDeSuplemento.limpar(r.cupom()), vazioViraNulo(r.linkUrl()), r.ativo(),
+                Boolean.TRUE.equals(r.naPaginaPublica()));
     }
 
     private static boolean precoValido(long centavos) {
