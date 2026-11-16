@@ -69,6 +69,14 @@ class CatalogoPermissoesTest {
                 .containsExactlyInAnyOrder("COMUNIDADE_MODERAR","TREINO_LER");
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("COMUNIDADE_MODERAR"))).isInstanceOf(BadRequestException.class);
     }
+    @Test void vitrineNaoESensivelEAlterarDependeDeLer() {
+        assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().startsWith("VITRINE_"))
+                .extracting(CatalogoPermissoes.Permissao::codigo,CatalogoPermissoes.Permissao::sensivel)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("VITRINE_LER",false),org.assertj.core.groups.Tuple.tuple("VITRINE_ALTERAR",false));
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("VITRINE_ALTERAR"))))
+                .containsExactlyInAnyOrder("VITRINE_ALTERAR","VITRINE_LER");
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("VITRINE_ALTERAR"))).isInstanceOf(BadRequestException.class);
+    }
     @Test void agendaNaoESensivelEAlterarDependeDeLerQueDependeDeLerAluno() {
         assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().startsWith("AGENDA_"))
                 .extracting(CatalogoPermissoes.Permissao::codigo,CatalogoPermissoes.Permissao::sensivel)

@@ -199,7 +199,9 @@ class ArquiteturaTest {
                                 // Token de push do aparelho do próprio aluno (hasRole ALUNO, sempre o da sessão; registrar dá 503 com a chave desligada, apagar não).
                                 "AlunoPushTokenController",
                                 // Avaliações físicas do próprio aluno, só leitura (hasRole ALUNO, sempre o da sessão); a equipe declara PERM_ALUNO_SENSIVEL_LER.
-                                "AvaliacaoFisicaAlunoController", "AlunoComunidadeController").contains(c.getSimpleName())))
+                                "AvaliacaoFisicaAlunoController", "AlunoComunidadeController",
+                                // Vitrine vista pelo próprio aluno, só os itens ativos (hasRole ALUNO); a equipe declara PERM_VITRINE_LER/ALTERAR.
+                                "VitrineAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {
@@ -218,6 +220,16 @@ class ArquiteturaTest {
                 .should().beAnnotatedWith(ExigePagamentos.class)
                 .because("com TREINOS_PAGAMENTOS_HABILITADO=false toda rota do financeiro responde 503 (PagamentosInterceptor); "
                         + "controller novo sem a anotação ficaria aberto com o módulo desligado")
+                .check(codigo);
+    }
+
+    @Test
+    void controllerDaVitrineExigeVitrineHabilitada() {
+        classes().that().areAnnotatedWith(RestController.class)
+                .and().resideInAPackage("br.com.treinos.api.vitrine..")
+                .should().beAnnotatedWith(br.com.treinos.api.vitrine.ExigeVitrine.class)
+                .because("com TREINOS_VITRINE_HABILITADA=false toda rota da vitrine responde 503 (VitrineConfiguracao); "
+                        + "controller novo sem a anotação ficaria aberto com o recurso desligado")
                 .check(codigo);
     }
 

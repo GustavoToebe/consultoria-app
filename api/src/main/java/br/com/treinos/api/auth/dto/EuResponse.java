@@ -19,7 +19,9 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          /* Escolha de kg ou lb ({@code TREINOS_UNIDADE_CARGA_HABILITADA}); desligado, o app esconde a escolha e usa kg. */
                          boolean unidadeDeCargaHabilitada,
                          /* Migração assistida (diagnóstico do arquivo) ligada ({@code TREINOS_MIGRACAO_ASSISTIDA_HABILITADA}); desligada, o app esconde tudo dela. */
-                         boolean migracaoAssistidaHabilitada) {
+                         boolean migracaoAssistidaHabilitada,
+                         /* Vitrine da consultoria ligada ({@code TREINOS_VITRINE_HABILITADA}); desligada, o app esconde tudo dela. */
+                         boolean vitrineHabilitada) {
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 

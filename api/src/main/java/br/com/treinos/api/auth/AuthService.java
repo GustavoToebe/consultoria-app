@@ -62,6 +62,7 @@ public class AuthService {
     private final br.com.treinos.api.push.PushService pushTokens;
     private final br.com.treinos.api.unidadecarga.UnidadeDeCargaProperties unidadeDeCarga;
     private final br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao;
+    private final br.com.treinos.api.vitrine.VitrineProperties vitrine;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
 
@@ -77,7 +78,9 @@ public class AuthService {
                        br.com.treinos.api.retorno.RetornoProperties retorno,
                        br.com.treinos.api.push.PushProperties push, br.com.treinos.api.push.PushService pushTokens,
                        br.com.treinos.api.unidadecarga.UnidadeDeCargaProperties unidadeDeCarga,
-                       br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao) {
+                       br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao,
+                       br.com.treinos.api.vitrine.VitrineProperties vitrine) {
+        this.vitrine = vitrine;
         this.pagamentos = pagamentos;
         this.ciclo = ciclo;
         this.retorno = retorno;
@@ -192,7 +195,8 @@ public class AuthService {
                 termos.pendente(usuario.getId()), Termos.VERSAO,
                 plano.funcionalidadesLiberadas(usuario.getConsultoriaId()), pagamentos.habilitado(),
                 pagamentos.habilitado() && infinitePay.habilitado(), pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
-                ciclo.habilitado(), retorno.habilitado(), push.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado());
+                ciclo.habilitado(), retorno.habilitado(), push.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado(),
+                vitrine.habilitada());
     }
 
     /**

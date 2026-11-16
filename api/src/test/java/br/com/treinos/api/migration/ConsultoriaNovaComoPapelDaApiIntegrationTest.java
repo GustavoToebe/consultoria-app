@@ -63,6 +63,11 @@ class ConsultoriaNovaComoPapelDaApiIntegrationTest extends AbstractIntegrationTe
                 assertThat(codigos(c, consultoria, "Nutricionista")).doesNotContain("COMUNIDADE_MODERAR");
                 assertThat(codigos(c, consultoria, "Assistente")).doesNotContain("COMUNIDADE_MODERAR");
 
+                // V075: Treinador padrão com VITRINE_LER e VITRINE_ALTERAR; os outros dois não.
+                assertThat(codigos(c, consultoria, "Treinador")).contains("VITRINE_LER", "VITRINE_ALTERAR");
+                assertThat(codigos(c, consultoria, "Nutricionista")).doesNotContain("VITRINE_LER", "VITRINE_ALTERAR");
+                assertThat(codigos(c, consultoria, "Assistente")).doesNotContain("VITRINE_LER", "VITRINE_ALTERAR");
+
                 // Os demais gatilhos também rodaram no mesmo INSERT: perfis padrão e questionários padrão nasceram.
                 assertThat(contar(c, "select count(*) from perfil where consultoria_id = '" + consultoria + "'")).isGreaterThan(0);
                 assertThat(contar(c, "select count(*) from questionario where consultoria_id = '" + consultoria + "'")).isGreaterThan(0);

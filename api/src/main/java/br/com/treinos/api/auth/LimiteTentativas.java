@@ -194,6 +194,18 @@ public class LimiteTentativas {
     }
 
     /**
+     * Foto de item da vitrine: {@code limite} envios por consultoria em 24 h, sem lançar (quem chama responde 422
+     * {@code FOTOS_LIMITE_DIARIO}). Contador próprio (não gasta o das capas da comunidade), janela fixa e atômico no banco, como o
+     * {@link #capaDaComunidadeCabe}: apagar ou trocar a foto não devolve cota; chamada dentro da transação do envio, o consumo de
+     * quem falha depois volta com o rollback.
+     */
+    public boolean fotoDaVitrineCabe(java.util.UUID consultoriaId, int limite) {
+        long agora = clock.millis();
+        var estado = contador.tentar(chave("foto-vitrine", consultoriaId.toString()), agora, 86_400_000L);
+        return estado.tentativas() <= limite;
+    }
+
+    /**
      * Verificação humana: antes de chamar a Cloudflare, recusa o IP que já gastou as falhas da janela (não conta nada, assim
      * quem está bloqueado também não gera chamada ao siteverify).
      */
