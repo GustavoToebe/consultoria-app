@@ -288,8 +288,8 @@ public class FinanceiroService {
     // ---- GET /financeiro/visao-geral ----
 
     @Transactional(readOnly = true)
-    public VisaoGeralResponse visaoGeral() {
-        List<ContratacaoAluno> ativas = contratacoes.findBySituacao(ContratacaoAluno.Situacao.ATIVA);
+    public VisaoGeralResponse visaoGeral(UUID responsavelId) {
+        List<ContratacaoAluno> ativas = contratacoes.ativasDoEscopo(ContratacaoAluno.Situacao.ATIVA, responsavelId);
         int renovacoesCount = 0;
         long renovacoesCentavos = 0;
         long projecaoAnual = 0;

@@ -155,6 +155,8 @@ export interface EstadoFinanceiro {
   pedidosDeLembretesDoAluno: unknown[];
   /** O que `GET /financeiro/visao-geral` devolve (renovações próximas); nulo = 404, e o cartão não aparece. */
   renovacoes: VisaoGeralDoFinanceiro | null;
+  /** O mesmo com `?meus=true` (só os alunos do responsável); nulo = a rota devolve `renovacoes`. */
+  renovacoesMeus: VisaoGeralDoFinanceiro | null;
   /**
    * Cobranças que o `POST /cobrancas/baixa-em-lote` recusa, com o código (falha parcial); as outras são baixadas como na
    * baixa manual. Os corpos recebidos ficam em `lotesRecebidos`.
@@ -171,7 +173,7 @@ export function estadoFinanceiro(parcial: Partial<EstadoFinanceiro> = {}): Estad
     planos: [], contratacoes: [], cobrancas: [], lancamentos: [], inadimplentes: [], painel: PAINEL_COM_DADOS,
     recebimento: { ...RECEBIMENTO_NAO_CONFIGURADO }, chaveGuardada: null, conferencias: [], pagamentoOnline: false, retornos: [],
     lembretes: { ...LEMBRETES_PADRAO }, lembretesDasCobrancas: {}, alunoRecebeLembretes: true, falhaAoDefinirLembretesDoAluno: null,
-    pedidosDeLembretesDoAluno: [], renovacoes: null, recusasDoLote: {}, lotesRecebidos: [], ...parcial,
+    pedidosDeLembretesDoAluno: [], renovacoes: null, renovacoesMeus: null, recusasDoLote: {}, lotesRecebidos: [], ...parcial,
   };
 }
 
@@ -243,9 +245,10 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       pagina: 0,
     }),
     'GET /financeiro/painel': (p, route) => json(route, { ...estado.painel, somenteMeus: p.busca.get('meus') === 'true' }),
-    'GET /financeiro/visao-geral': (_p, route) => (estado.renovacoes
-      ? json(route, estado.renovacoes)
-      : json(route, erroApi(404, 'Não encontrado.', 'NAO_ENCONTRADO').corpo, 404)),
+    'GET /financeiro/visao-geral': (p, route) => {
+      const dados = p.busca.get('meus') === 'true' ? estado.renovacoesMeus ?? estado.renovacoes : estado.renovacoes;
+      return dados ? json(route, dados) : json(route, erroApi(404, 'Não encontrado.', 'NAO_ENCONTRADO').corpo, 404);
+    },
     'GET /financeiro/lancamentos': (_p, route) => json(route, { itens: estado.lancamentos, total: estado.lancamentos.length, pagina: 0 }),
     'GET /financeiro/lancamentos/categorias': (_p, route) =>
       json(route, [...new Set(estado.lancamentos.map((l) => l.categoria).filter((c): c is string => !!c))].sort()),

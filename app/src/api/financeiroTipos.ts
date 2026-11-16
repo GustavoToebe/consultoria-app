@@ -264,7 +264,7 @@ export interface Liquido {
 }
 
 /**
- * `GET /financeiro/visao-geral` (`FINANCEIRO_LER`): sem período nem "meus", sempre a consultoria inteira. `renovacoesProximas*`:
+ * `GET /financeiro/visao-geral` (`FINANCEIRO_LER`): sem período; com `meus`, só os alunos do responsável autenticado (renovações e projeção anual). `renovacoesProximas*`:
  * contratações ATIVAS cuja vigência vence em até 40 dias ou já venceu (conta da API); `projecaoAnualCentavos`: valor ×
  * parcelas por ano das ATIVAS (parcela única fica fora).
  */

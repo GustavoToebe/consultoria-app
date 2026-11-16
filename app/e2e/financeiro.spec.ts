@@ -194,13 +194,13 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
     await page.getByRole('heading', { name: 'Períodos e limites dos dados' }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`visao-geral-1440-${tema.toLowerCase()}-glossario.png`) });
 
-    // "Meus" tira as renovações (a rota é da consultoria inteira): os dois que sobram dividem a linha ao meio.
+    // "Meus" mantém as renovações (a rota também filtra por responsável): os três continuam na mesma linha.
     await opcao(page, 'Responsável', 'Meus').click();
-    await expect(page.getByText('Renovações próximas')).toHaveCount(0);
-    await expect(page.getByTestId('linha-previsoes-2')).toHaveCount(0);
-    const [proximos, liquido] = [await caixa(page, 'linha-previsoes-0'), await caixa(page, 'linha-previsoes-1')];
+    await expect(page.getByText('Renovações próximas')).toBeVisible();
+    const [renovar, proximos, liquido] = [await caixa(page, 'linha-previsoes-0'), await caixa(page, 'linha-previsoes-1'), await caixa(page, 'linha-previsoes-2')];
+    expect(renovar.y).toBe(proximos.y);
     expect(proximos.y).toBe(liquido.y);
-    expect(Math.abs(proximos.width - liquido.width)).toBeLessThan(1);
+    expect(Math.abs(renovar.width - proximos.width)).toBeLessThan(1);
     expect(await semRolagemHorizontal(page)).toBe(true);
     expect(errosDaPagina).toEqual([]);
   });
@@ -237,6 +237,28 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
     expect(termo2!.y).toBeGreaterThan(termo1!.y);
     expect(await semRolagemHorizontal(page)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`visao-geral-390-${tema.toLowerCase()}-glossario.png`) });
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+for (const largura of [390, 1280]) {
+  test(`escopo "Meus" em ${largura}: o cartão de renovações fica e mostra o número do escopo`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await fixarHoje(page);
+    const renovacoesMeus = { renovacoesProximasCount: 1, renovacoesProximasCentavos: 12_345, projecaoAnualCentavos: 987_650 };
+    const estado = estadoFinanceiro({ renovacoes: RENOVACOES, renovacoesMeus });
+    const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+    await page.goto('/treinador/financeiro');
+    await expect(page.getByText('2 planos', { exact: true })).toBeVisible();
+
+    await opcao(page, 'Responsável', 'Meus').click();
+    await expect(page.getByText('Renovações próximas')).toBeVisible();
+    await expect(page.getByText('1 plano', { exact: true })).toBeVisible();
+    await expect(page.getByText('R$ 123,45', { exact: true })).toBeVisible();
+    await expect(page.getByText('R$ 9.876,50', { exact: true })).toBeVisible();
+    await expect(page.getByText('2 planos', { exact: true })).toHaveCount(0);
+    expect(pedidos.filter((p) => p.caminho === '/financeiro/visao-geral').at(-1)?.busca.get('meus')).toBe('true');
+    expect(await semRolagemHorizontal(page)).toBe(true);
     expect(errosDaPagina).toEqual([]);
   });
 }

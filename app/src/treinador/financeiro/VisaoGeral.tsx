@@ -53,9 +53,8 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
   const meus = escopo === 'meus';
   const painel = useCarregar(`painel|${periodo.de}|${periodo.ate}|${meus}`, () => painelFinanceiro({ ...periodo, meus }));
   const atrasados = useCarregar(`inadimplentes|${meus}`, () => listarInadimplentes({ meus, pagina: 0 }));
-  // A rota é da consultoria inteira (não filtra por responsável nem por período): com "só os seus alunos" o cartão não aparece.
-  // Falhar aqui não derruba a tela; o cartão só fica de fora.
-  const renovacoes = useCarregar(meus ? null : 'visao-geral-financeiro', () => visaoGeralDoFinanceiro());
+  // A rota segue o escopo (não filtra por período). Falhar aqui não derruba a tela; o cartão só fica de fora.
+  const renovacoes = useCarregar(`visao-geral-financeiro|${meus}`, () => visaoGeralDoFinanceiro({ meus }));
   const [aberta, setAberta] = useState<{ cobranca: CobrancaResponse; emBaixa: boolean } | null>(null);
   const [buscando, setBuscando] = useState<string | null>(null);
   const { recarregar: recarregarPainel } = painel;
@@ -121,8 +120,8 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
             </Cartao>
           </LinhaDeBlocos>
           <LinhaDeBlocos nome="previsoes" minimo={MINIMO_CARTAO}>
-            {/* Com "Meus" a chave fica nula e o `useCarregar` guarda os dados de antes: sem o `!meus`, o número da consultoria ficaria. */}
-            {!meus && renovacoes.dados ? (
+            {/* Trocar o escopo muda a chave e o `useCarregar` guarda os dados do escopo anterior até a resposta: sem esta guarda, o número do outro escopo apareceria como o deste. */}
+            {!renovacoes.dadosDeOutraChave && renovacoes.dados ? (
               <Cartao titulo="Renovações próximas" descricao="Contratações ativas com a vigência vencida ou terminando nos próximos 40 dias." style={estilos.esticar}>
                 <CamposEmLinha>
                   <CampoLeitura rotulo="Para renovar" numerico

@@ -55,8 +55,9 @@ public class FinanceiroController {
 
     @PreAuthorize(LER)
     @GetMapping("/financeiro/visao-geral")
-    public VisaoGeralResponse visaoGeral() {
-        return financeiro.visaoGeral();
+    public VisaoGeralResponse visaoGeral(@RequestParam(defaultValue = "false") boolean meus,
+                                         @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return financeiro.visaoGeral(meus ? eu.usuarioId() : null);
     }
 
     @PreAuthorize(LER_COM_ALUNO)

@@ -1189,8 +1189,9 @@ export const manterCobrancaPaga = (id: string, corpo: MotivoRequest) =>
 
 export const painelFinanceiro = (filtro: { de: string; ate: string; meus: boolean }) =>
   requisicao<Painel>(`/financeiro/painel${consultaFinanceiro({ de: filtro.de, ate: filtro.ate, meus: filtro.meus ? true : undefined })}`);
-/** Renovações próximas e projeção anual: da consultoria inteira (a rota não filtra por responsável nem por período). */
-export const visaoGeralDoFinanceiro = () => requisicao<VisaoGeralDoFinanceiro>('/financeiro/visao-geral');
+/** Renovações próximas e projeção anual: da consultoria inteira ou, com `meus`, só dos alunos do responsável (a rota não filtra por período). */
+export const visaoGeralDoFinanceiro = ({ meus }: { meus: boolean }) =>
+  requisicao<VisaoGeralDoFinanceiro>(`/financeiro/visao-geral${consultaFinanceiro({ meus: meus ? true : undefined })}`);
 export const listarInadimplentes = (filtro: { meus: boolean; pagina?: number }) =>
   requisicao<PaginaInadimplentes>(`/financeiro/inadimplentes${consultaFinanceiro({ meus: filtro.meus ? true : undefined, pagina: filtro.pagina ?? 0 })}`);
 /** CSV como texto (cobranças e lançamentos do período). 422 se passar de 5.000 linhas. */
