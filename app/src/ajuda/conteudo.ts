@@ -564,7 +564,7 @@ const ALUNO: Guia = {
       titulo: 'Vitrine',
       soComVitrine: true,
       itens: [
-        { titulo: 'Vitrine', texto: 'No Início aparece um cartão com até 2 itens e "Ver tudo"; a lista completa mostra foto, preço, cupom (com "Copiar cupom") e "Ver produto", que abre o link fora do app. No aplicativo de celular, item digital mostra só foto, nome e descrição.' },
+        { titulo: 'Vitrine', texto: 'No Início aparece um cartão com até 2 itens que a sua consultoria indica; "Ver tudo" abre a lista completa.' },
       ],
     },
   ],
