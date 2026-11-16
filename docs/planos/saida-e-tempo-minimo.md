@@ -1,6 +1,6 @@
 # Saída antes do tempo mínimo e cobrança de saída
 
-Situação: **Aprovado pelo Gustavo em 13/11/2026**; passo 1 (revisão do desenho) feito em 15/11/2026 pelo `revisor`; o Gustavo respondeu no mesmo dia e o desenho foi ajustado; **passo 2 (API) feito em 16/11/2026 (`f8e6ed73`, local, sem push); passos 3 (app) e 4 abertos, para uma sessão nova** · Onde: `main` · Atualizado: 16/11/2026
+Situação: **Aprovado pelo Gustavo em 13/11/2026**; passo 1 (revisão do desenho) feito em 15/11/2026 pelo `revisor`; o Gustavo respondeu no mesmo dia e o desenho foi ajustado; **passo 2 (API) feito em 16/11/2026 (`f8e6ed73`); passo 3 (app) feito na noite de 16/11 (`1076fe60`, local, sem push; a API da prévia, com as mensalidades que continuam abertas, em `8c9ef97d`); passo 4 (revisão final e verificações) feito em 16/11 (`2d480115`). Tudo local, sem push** · Onde: `main` · Atualizado: 16/11/2026
 
 Origem: Front P1.5 do pedido do Gustavo de 13/11, depois da resposta do Saraiva. Continua o [cobrancas-acumuladas.md](cobrancas-acumuladas.md), que guarda só a parte do acúmulo mês a mês (ainda sem decisão de implementar).
 
@@ -117,8 +117,8 @@ Quem revisou: agente `revisor` (o `advisor` Opus não estava disponível na sess
 - [x] 0. Aprovação deste plano pelo Gustavo (6 pontos, com os ajustes das decisões 7 a 13) — 13/11/2026
 - [x] 1. Revisão independente do desenho (dinheiro, concorrência, LGPD, `Travas`) e confirmação da origem do texto do CSV — responsável: sessão principal + `revisor` (o `advisor` não estava disponível) — evidência: 15/11/2026, sobre `5bc44c9f`; 19 achados (4 bloqueiam o passo 2, 12 ajustes, 3 observações) e 6 perguntas na seção "Revisão do desenho"; o texto "Cobrança de saída" não existe no código e será criado no passo 2. Respostas do Gustavo recebidas e desenho ajustado em 15/11/2026; passo 2 liberado.
 - [x] 2. API: V074, entidades, prévia, encerrar com SAIDA e cancelamento das a vencer, `encerrarPorSaida` em dois modos, variante de `Travas` (baixa, lote, desfazer e cancelar), WhatsApp de inativo e texto da saída, DTOs, exportação LGPD, auditoria; testes novos e os dos riscos acima; contagem de migrations — responsável: `executor` — commit: `f8e6ed73` (16/11/2026, local, sem push) — evidência: `mvn -o verify` completo em 16/11 com o P1.5 na árvore (259 classes, 2.392 testes, 0 falhas, 0 erros, cobertura mínima atendida, BUILD SUCCESS, 1h18); as classes escritas ou alteradas depois do início do verify rodaram à parte na árvore real (85 testes, 0 falhas: `CalculoDaSaidaTest` 19, `SaidaETempoMinimoIntegrationTest` 12, `LembretesDeCobrancaIntegrationTest` 19, `ImportacaoIntegrationTest` 35); revisão independente na seção "Revisão do passo 2"
-- [ ] 3. App: Planos (mínimo e regra de saída), `minimo_ate` no cartão, painel de encerrar (`executor-front`), aviso do painel de inativar, selo na folha da cobrança, regras em `dominio/financeiro.ts`, Ajuda; Jest e e2e do Financeiro — responsável: `executor-front` (painel de encerrar) e sessão principal (resto) — commit: — · **Primeiro, antes da tela (decisão do Gustavo, 16/11/2026):** a prévia do encerramento ganha o grupo das mensalidades a vencer que continuam abertas (competência a partir do `minimo_ate`; hoje `CalculoDaSaida` as deixa fora da resposta), com teste, e o painel de encerrar diz quantas ficam abertas (`executor`, API). O que mais o revisor deixou para este passo está na seção "Revisão do passo 2"
-- [ ] 4. Revisão final (`revisor`), `mvn verify`, `npm run typecheck && npm run lint && npm test`, e2e, e `AGENTS.md` (itens de pagamentos: "pausar e encerrar mantêm as cobranças abertas", a frase de `encerrarPorSaida`/"Aluno que sai", `Travas` com inativo e a contagem de migrations) — responsável: sessão principal — commit: —
+- [x] 3. App: Planos (mínimo e regra de saída), `minimo_ate` no cartão, painel de encerrar (`executor-front`), aviso do painel de inativar, selo na folha da cobrança, regras em `dominio/financeiro.ts`, Ajuda; Jest e e2e do Financeiro — responsável: `executor-front` (telas e e2e) e `executor` (API da prévia) — commit: `1076fe60` (app, 16/11/2026, local, sem push; a API da prévia entra no commit da API depois do verify integrado) — evidência (números do `executor-front`, na árvore inteira da noite): typecheck sem erro, lint sem erro, jest 284 suítes e 6.172 testes, e2e `financeiro` em 390 e 1280 (122 passaram) e os e2e da ficha (65 passaram). Decisões tomadas sozinho (a confirmar com o Gustavo) e limitações: seção "Passo 3: decisões e limitações" · **Primeiro, antes da tela (decisão do Gustavo, 16/11/2026):** a prévia do encerramento ganha o grupo das mensalidades a vencer que continuam abertas (competência a partir do `minimo_ate`; hoje `CalculoDaSaida` as deixa fora da resposta), com teste, e o painel de encerrar diz quantas ficam abertas (`executor`, API). O que mais o revisor deixou para este passo está na seção "Revisão do passo 2"
+- [x] 4. Revisão final (`revisor`), `mvn verify`, `npm run typecheck && npm run lint && npm test`, e2e, e `AGENTS.md` (itens de pagamentos: "pausar e encerrar mantêm as cobranças abertas", a frase de `encerrarPorSaida`/"Aluno que sai", `Travas` com inativo e a contagem de migrations) — responsável: sessão principal — commit: `2d480115` (correções da revisão, app) e `8c9ef97d` (API: a prévia diz quais mensalidades continuam abertas), locais, sem push. `mvn verify` integrado de 16/11 ✅ (2.461 testes, 0 falhas); typecheck, lint, Jest e e2e do Financeiro ✅ (números no README, "Noite de 16/11"); `AGENTS.md` atualizado no commit de documentação da noite
 
 ## Revisão do passo 2 (16/11/2026)
 
@@ -130,6 +130,30 @@ Quem revisou: agente `revisor` (o `advisor` Opus não estava disponível na sess
 - `AGENTS.md` já atualizado em `f8e6ed73` (parte do passo 4): contagem de migrations, "Aluno que sai", "pausar e encerrar" e o cancelamento dos lembretes.
 - Não conferido: se o Hibernate 7 emite `for update` ou `for no key update` nas travas (impasse de baixa probabilidade com o planejador de lembretes); a V074 contra uma cópia do banco de produção; as telas (passo 3).
 - Retomada: os seis commits do lote de 16/11 estão só no local (`3daa3ab1` docs, `9af0d862` Financeiro "Meus", `86a09407` app, `f8e6ed73` P1.5 API, `46d8d25c` importação e este registro), sem push; o push é um só e quem manda é o Gustavo. Antes de reusar este registro, confira `git log origin/main..main` e se `pagamentos/` mudou depois de `f8e6ed73`.
+
+## Passo 3: decisões e limitações (noite de 16/11/2026)
+Decididas pelo Claude em 16/11, a confirmar pelo Gustavo:
+- Encerrar a contratação virou uma `Folha` (`FolhaDeEncerrar`), não um painel dentro do cartão: a prévia, as três opções e o motivo não cabiam no cartão em 390.
+- O valor de FALTAM e de VIGENTE é só leitura (pedido da noite). O plano dizia que editar o valor passaria para "Outro valor": não foi feito; quem quer outro valor escolhe "Outro valor" e digita.
+- O valor aparece no rótulo da opção ("Meses que faltam para o mínimo: R$ 600,00").
+- O selo "Saída" é neutro (texto, sem pílula colorida): cor fica para a situação da cobrança.
+- O tempo mínimo da contratação só aparece em plano mensal (as outras periodicidades estão nas Pendências soltas).
+- O aviso do inativar usa texto genérico também com o financeiro desligado.
+- Na ficha do aluno o título da cobrança segue o mês, com o selo; "Cobrança de saída" como título só na folha da cobrança.
+- `ui/Escolha` (peça compartilhada): motivos repetidos das opções desabilitadas aparecem uma vez. Sem mudança visual nas outras telas (antes repetia a frase e duplicava a `key`).
+
+Limitações conhecidas:
+- O alerta do 409 `VALOR_DA_SAIDA_MUDOU` aparece só no topo da folha.
+- Em 390, o valor quebra em "(R$ / 300,00)" no aviso do inativar (formatador compartilhado, não mexido).
+- Não foi conferido no aplicativo nativo (só web em 390 e 1280).
+- Não há caso de e2e para o 422 de `minimoAte` da contratação.
+
+## Revisão final (passo 4, noite de 16/11/2026)
+Feita pelo `revisor` (só leitura, sem rodar testes) sobre o app do `1076fe60` e a API da prévia do passo 3. Nada bloqueia. Confirmado: o app não calcula valor (FALTAM e VIGENTE usam o `valorCentavos` da prévia e o servidor reconfere; só OUTRO é digitado, em centavos inteiros, com o teto de R$ 1.000.000,00 nos dois lados); os tipos do app batem com os DTOs e as rotas com as permissões; duplo clique não gera duas cobranças (botão desabilitado, trava e o índice `ux_cobranca_saida_viva`); a cobrança de saída nunca mostra "Pagar" ao aluno nem leva motivo; nada novo bloqueia o aluno por atraso; nenhum valor, nome ou motivo em log ou mensagem de erro.
+- **Deve corrigir (em correção pelo `executor`):** na `FolhaDeEncerrar`, depois do 409 `VALOR_DA_SAIDA_MUDOU`, se a opção escolhida volta indisponível na prévia nova, a seleção caía sozinha em "Não cobrar" e o treinador podia encerrar sem a saída, sem volta. Passa a mostrar o erro e travar o "Encerrar plano" até escolher de novo.
+- **Menores (na mesma correção):** 403 e 503 no encerrar com o texto do erro da API; 422 com campo fora dos três conhecidos mostra a mensagem do servidor; "Meu plano" na web com recebimento online e só a cobrança de saída aberta passa a dizer para combinar com o treinador; `'encerrar'` sai da união de `mudarSituacaoDaContratacao`.
+- **Para o Gustavo confirmar:** o texto genérico do aviso do inativar aparece mesmo com o financeiro desligado (o `AGENTS.md` diz que desligado "o app esconde tudo").
+- **Não conferido pelo revisor:** execução de testes; o app nativo e a tela renderizada; o nome `aVencerQueFicam` no JSON (coberto só pelo teste de integração novo, que roda no `mvn verify` integrado).
 
 ## Fora do escopo
 - Multa, percentual e qualquer regra de saída calculada pelo app: decisão do Gustavo.

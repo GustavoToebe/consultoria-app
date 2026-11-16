@@ -1,6 +1,6 @@
 # Documentos (PDF): temas da consultoria e prévia
 
-Situação: Planejando (opção (b) escolhida pelo Gustavo em 15/11/2026; nada implementado) · Onde: `main`, só este plano · Atualizado: 15/11/2026
+Situação: Em andamento (primeira entrega na noite de 16/11/2026: passos 1.1, 3.1 e a tela do 3.2 **sem gravar**; ver "Primeira entrega") · Onde: `main` · Atualizado: 16/11/2026
 
 Origem: Evolução da decisão 6 de [evolucao-prime.md](evolucao-prime.md) ("Temas (2 ou 3) e prévia própria ficam para depois"). O primeiro desenho deste plano (15/11) era um motor próprio de diagramação em milímetros com prévia em SVG; o Gustavo comparou as duas opções no mesmo dia e escolheu os **temas em CSS sobre os geradores HTML que já existem** (D1). O nome do arquivo ficou o do primeiro desenho.
 
@@ -37,13 +37,27 @@ O administrador da consultoria escolhe o tema dos documentos (`CLASSICO`, `MINIM
 - **CSP para o `<style>` da prévia web (15/11):** o modelo de produção (`central-api-back/deploy/proxy/extras/consultoria.caddy.modelo`, linha 23) e o local (`deploy-local/Caddyfile`, linha 13) trazem `style-src 'self' 'unsafe-inline'`. O `<style>` montado em tempo de execução passa, e é o mesmo recurso que a impressão usa hoje. **Não precisa mexer na CSP.** Conferido no modelo do repositório, não no arquivo aplicado na VPS.
 - **Prévia no WebView do celular:** **ainda não conferida** (é o passo 0.1).
 
+## Primeira entrega (noite de 16/11/2026)
+Pedido do Gustavo para a noite: "3 temas de CSS e prévia em `/treinador/documentos` só com Dados de exemplo", sem migration nova sem necessidade real. Recorte **decidido pelo Claude em 16/11, a confirmar pelo Gustavo**:
+- Entram: passo 1.1 (temas nos geradores), 3.1 (`pdf/exemplos.ts` e a prévia) e a tela do 3.2 só com a escolha do tema para a prévia e "Baixar PDF de exemplo".
+- Ficam para depois: a Fase 2 inteira (migration `tema_pdf`/`config_pdf`, `PUT /consultoria/marca`, `MarcaPublica`), o "Salvar alterações" e os interruptores da estrutura (1.2). Sem a Fase 2 o tema escolhido **não é gravado**: todo PDF real continua saindo no `CLASSICO`, e a tela diz isso.
+- `Marca` no app ganha só o campo opcional `temaPdf` (a API ainda não o envia), para os geradores já lerem o tema de onde a D4 manda.
+- Passo 0.1 (prova no celular) **não foi feito**: sem aparelho na noite. A prévia do celular segue o desenho da D10 (WebView sem JavaScript, navegação recusada), **sem conferência em aparelho**; conferir no APK antes de ligar a tela para o celular.
+- **Entregue no commit `eafa0046` (só app, sem push):** `pdf/temas.ts` e `pdf/cssDosTemas.ts` (os temas só acrescentam regras no fim do CSS do `.doc`; o `CLASSICO` não muda um caractere, e há teste que compara com o CSS de antes), `pdf/exemplos.ts` (treino e dieta fictícios), `cssDaPrevia` em `pdf/html.ts`, a tela `/treinador/documentos` (`treinador/documentos/`: abas Treino e Dieta, os 3 temas, prévia e "Baixar PDF de exemplo"; administrador com `MARCA_ALTERAR` e plano com `PDF`), o cartão "Documentos (PDF)" no hub e o e2e `e2e/documentos-pdf.spec.ts` (390 e 1280). O `imprimir.web.ts` (sanitizador) não foi tocado. Da tela do 3.2 faltam os interruptores da estrutura, o "Salvar alterações" e o tema areia no e2e; por isso o 3.2 continua aberto.
+- **Testes:** ✅ `tsc`; ✅ jest de `src/pdf`, `src/dominio` e `src/treinador` (265 suítes, 5176 testes); ✅ e2e `documentos-pdf` e `configuracoes` (31 casos, 390 e 1280).
+- **Decisões de tela (Claude, a confirmar):** a escolha do tema não vai para o endereço; os três temas em coluna única ao lado da prévia a partir de 760 px; aviso neutro "Esta escolha não é gravada"; no `MINIMALISTA` a marca aparece só numa linha fina por seção e no `MARCANTE` no topo cheio e no texto dos títulos (cabeçalho de tabela neutro nos dois), para a cor ficar contida.
+- **Achados no `CLASSICO`, não corrigidos (a regra da entrega era não mudar o visual de hoje; decidir com o Gustavo):** com marca amarela (`#FFEB3B`), o texto na cor crua da marca sobre o branco em cargas e dieta fica ilegível; `.doc table.dark th` fica escuro sobre escuro; na opção A da dieta sai texto branco sobre a marca; e `.item .macros` tem 4,48:1 (abaixo de 4,5:1). Os dois temas novos usam `corDeTextoDaMarca` e passam no teste de contraste.
+- **Revisão independente (`revisor`, 16/11, depois do commit; sem bloqueio) e correções no commit `74fae8e0` (local, sem push):** (1) a prévia do celular abria link no navegador do sistema: com a lista de origens restrita, o `react-native-webview` 13.16.1 chama `Linking.openURL` para o que está fora dela sem consultar o filtro; agora a lista é `['*']` e o `onShouldStartLoadWithRequest` (só `about:blank`) é o único filtro. (2) o CSS da prévia vazava para o bloco de impressão e vice-versa quando os dois estavam na página com temas diferentes: toda regra do `.doc` da prévia agora nasce presa a `.previa-pdf` (teste em `pdf/exemplos.dom.test.ts`). Jest de `src/pdf` ✅ (674 testes) e eslint ✅. **Ficou sem fazer:** teste nativo do filtro da WebView; teste jsdom da prévia e da impressão juntas com temas diferentes; a origem do hash do CSS de antes, em `pdf/temas.test.ts`, não foi reconferida contra `eafa0046^`.
+- **Decidido pelo Claude em 16/11, a confirmar pelo Gustavo:** a tela e o cartão do hub aparecem também no app de celular, sem a prova em aparelho do passo 0.1 (o revisor apontou; a alternativa é esconder os dois no nativo até o 0.1, uma condição em `dominio/telas.ts`).
+- **Não conferido:** WebView no Android e no iPhone (inclusive se a carga inicial é mesmo `about:blank` nas duas plataformas, condição do `onShouldStartLoadWithRequest`); PDFs de cargas, mobilidade e avaliação física nos temas novos (só o contraste por teste); temas areia e contraste alto da tela.
+
 ## Passos
 
 ### Fase 0. Conferência que falta
 - [ ] 0.1 Prova no celular: um `react-native-webview` com `source={{ html }}` de um `documentoCompleto` de exemplo, JavaScript desligado e navegação recusada, em Android e iPhone. Confere largura A4 com zoom para caber em 390 px, a logo em data URI e a cor de fundo da faixa. Se não servir, parar e avisar o Gustavo antes de seguir para a Fase 3 — commit: —
 
 ### Fase 1. Temas e estrutura nos geradores (`app/`, regra pura, sem API)
-- [ ] 1.1 `pdf/html.ts`: dividir o `cssBase` em regras globais e regras do `.doc` (D11); `cssBase` e `cabecalhoDoPdf` recebem o tema; CSS do `MINIMALISTA` e do `MARCANTE` (o `CLASSICO` é o de hoje, sem mudar um pixel). Os 6 geradores passam o tema. Testes: casos por tema em `pdf/pdf.test.ts` e `pdfAvaliacaoFisica.test.ts`, contraste com `#FFEB3B` nos três temas, tema desconhecido cai em `CLASSICO`, e casos novos em `injecao.test.ts` e `imprimir.web.dom.test.ts` rodando os mesmos ataques em cada tema — commit: —
+- [x] 1.1 `pdf/html.ts`: dividir o `cssBase` em regras globais e regras do `.doc` (D11); `cssBase` e `cabecalhoDoPdf` recebem o tema; CSS do `MINIMALISTA` e do `MARCANTE` (o `CLASSICO` é o de hoje, sem mudar um pixel). Os 6 geradores passam o tema. Testes: casos por tema em `pdf/pdf.test.ts` e `pdfAvaliacaoFisica.test.ts`, contraste com `#FFEB3B` nos três temas, tema desconhecido cai em `CLASSICO`, e casos novos em `injecao.test.ts` e `imprimir.web.dom.test.ts` rodando os mesmos ataques em cada tema — commit: `eafa0046` (noite de 16/11; ✅ jest de `src/pdf`)
 - [ ] 1.2 Estrutura: os geradores de treino e dieta respeitam `mostrarSemana`, `mostrarGlossario`, `mostrarInstrucoes`, `quebrarPorSessao`, `mostrarPesos` e `rodapePadrao` (com `esc()`); sem a chave vale o comportamento de hoje. `FolhaPdfDieta` abre com `modoPadrao` marcado. Testes de cada interruptor ligado e desligado — commit: —
 
 ### Fase 2. API e contrato
@@ -51,7 +65,7 @@ O administrador da consultoria escolhe o tema dos documentos (`CLASSICO`, `MINIM
 - [ ] 2.2 App: `Marca` em `api/tipos.ts`, `mesmaMarca`, e os pontos de chamada do aluno (`treino.tsx`, `dieta.tsx`, `mobilidade.tsx`, `lista-de-compras.tsx`, `historico.tsx`, `DietaDoAluno.tsx`) e do treinador (`gerarPdf.ts`, `CartaoAvaliacaoFisica.tsx`, `CargasPorDivisao.tsx`, `FolhaListaDeCompras.tsx`) passando a marca com tema e configuração — commit: —
 
 ### Fase 3. Prévia e tela `/treinador/documentos`
-- [ ] 3.1 `pdf/exemplos.ts` (treino e dieta fictícios completos) e o componente de prévia nas duas plataformas (D10) — commit: —
+- [x] 3.1 `pdf/exemplos.ts` (treino e dieta fictícios completos) e o componente de prévia nas duas plataformas (D10) — commit: `eafa0046` (noite de 16/11; prévia na web conferida no e2e, a do celular sem aparelho)
 - [ ] 3.2 Tela (pelo `executor-front`): abas Treino e Dieta, escolha dos 3 temas, interruptores da estrutura, prévia, "Baixar PDF de exemplo" e "Salvar alterações" (409 recarrega). `dominio/telas.ts`, `permissoes.ts`, Perfil e hub. E2e `e2e/documentos-pdf.spec.ts` em 390 e 1280 px, claro, areia e escuro — commit: —
 - [ ] 3.3 Fechamento: `AGENTS.md`, `docs/design-e-front.md`, Ajuda e guias em PDF; `mvn verify`, `npm run typecheck`, `npm run lint`, `npm test` e o e2e da tela; revisão do `revisor` (permissão, validação do `config_pdf`, injeção) — commit: —
 
