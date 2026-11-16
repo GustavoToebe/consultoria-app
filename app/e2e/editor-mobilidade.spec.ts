@@ -267,3 +267,32 @@ test('mobilidade: Modelos salva o rascunho como modelo de mobilidade', async ({ 
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
+
+// C61: "Adicionar seção" leva a tela até a seção nova (como o "Adicionar refeição" da dieta).
+for (const [largura, altura] of [[390, 844], [1280, 720]] as const) {
+  test(`adicionar seção rola até a seção nova, logo abaixo da barra (${largura}×${altura})`, async ({ page }) => {
+    const itens = (n: number) => Array.from({ length: 4 }, (_, i) => ({ uid: `i${n}${i}`, nome: `Item fictício ${n}.${i}`, prescricao: '2 x 10', videoUrl: null }));
+    const conteudo: ConteudoMobilidadeApi = { orientacoes: 'Antes do treino.', secoes: [1, 2, 3].map((n) => ({ uid: `s${n}`, titulo: `Seção fictícia ${n}`, itens: itens(n) })) };
+    await abrir(page, largura, { conteudo });
+    await page.setViewportSize({ width: largura, height: altura });
+    const adicionar = page.getByRole('button', { name: 'Adicionar seção' });
+    // Mouse na posição, sem o auto-rolar do `click()` (que centralizaria o botão e esconderia o defeito).
+    await adicionar.evaluate((el) => el.scrollIntoView({ block: 'end' }));
+    const ponto = (await adicionar.boundingBox())!;
+    await page.mouse.click(ponto.x + ponto.width / 2, ponto.y + ponto.height / 2);
+    await expect(page.getByRole('heading', { name: 'Seções (4)' })).toBeVisible();
+    const cartao = page.locator('[id^="secao-"]').last();
+    // Logo abaixo da barra grudada, ou o mais perto que a tela deixa quando a rolagem já chegou ao fim (a seção é a última da coluna).
+    const noLugar = async () => {
+      const [c, barra] = [await cartao.boundingBox(), await page.locator('#barra-do-editor').boundingBox()];
+      if (!c || !barra) return false;
+      const folga = c.y - (barra.y + barra.height);
+      const noFim = await page.evaluate(() => { let r = document.getElementById('barra-do-editor')!.parentElement; while (r && !/(auto|scroll)/.test(getComputedStyle(r).overflowY)) r = r.parentElement; return r!.scrollTop >= r!.scrollHeight - r!.clientHeight - 1; });
+      return folga >= 0 && (folga <= 24 || noFim);
+    };
+    await expect.poll(noLugar).toBe(true);
+    const titulo = (await page.getByRole('textbox', { name: 'Título da seção 4' }).boundingBox())!;
+    expect(titulo.y).toBeGreaterThanOrEqual(0);
+    expect(titulo.y + titulo.height).toBeLessThanOrEqual(altura);
+  });
+}

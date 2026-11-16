@@ -315,3 +315,52 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+// ---- C61: "Adicionar refeição" leva a tela até a refeição nova ----
+
+for (const [largura, altura] of [[390, 844], [1280, 720]] as const) {
+  test(`adicionar refeição rola até o campo Nome da refeição nova (${largura}×${altura})`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: altura });
+    const conteudo: ConteudoDieta = {
+      ...CONTEUDO,
+      refeicoes: [...CONTEUDO.refeicoes, { uid: 'jantar', nome: 'Jantar', horario: '20:00', observacao: null, modoDePreparo: null, opcoes: [
+        { uid: 'ja', rotulo: 'A', itens: [item('sopa', 'Sopa fictícia', 'g')] },
+      ] }],
+    };
+    const { naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      'GET /alimentos': { corpo: [] },
+      'GET /consultoria': { corpo: { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluna Fictícia' } },
+      [`GET /planos-dieta/${PLANO_ID}`]: { corpo: { ...DETALHE, rascunho: conteudo } },
+    });
+    await page.goto(`/treinador/dietas/${PLANO_ID}`);
+    await expect(page.getByRole('heading', { name: 'Refeições (3)' })).toBeVisible();
+    const adicionar = page.getByRole('button', { name: 'Adicionar refeição' });
+    // O botão na borda de baixo da janela: é onde a pessoa está ao tocar, e a refeição nova nasce logo abaixo dele.
+    // Clique pelo mouse na posição, sem o auto-rolar do `click()` do Playwright (que já centralizaria o botão e esconderia o defeito).
+    await adicionar.evaluate((el) => el.scrollIntoView({ block: 'end' }));
+    const ponto = (await adicionar.boundingBox())!;
+    await page.mouse.click(ponto.x + ponto.width / 2, ponto.y + ponto.height / 2);
+    await expect(page.getByRole('heading', { name: 'Refeições (4)' })).toBeVisible();
+    const nome = page.getByRole('textbox', { name: 'Nome', exact: true }).first();
+    await expect(nome).toHaveValue('Refeição 4');
+    // A tela andou até a refeição nova: o cartão começa logo abaixo da barra grudada, como o exercício aberto do treino
+    // (sem o conserto o cartão ficava onde nasceu, com o campo Nome colado na borda de baixo). A rolagem é assíncrona: poll.
+    const cartao = page.locator('[id^="refeicao-"]').last();
+    const folgaSobAbarra = async () => {
+      const [c, barra] = [await cartao.boundingBox(), await page.locator('#barra-do-editor').boundingBox()];
+      return c && barra ? Math.round(c.y - (barra.y + barra.height)) : null;
+    };
+    await expect.poll(folgaSobAbarra).toBeLessThanOrEqual(24);
+    expect(await folgaSobAbarra()).toBeGreaterThanOrEqual(0);
+    // E o campo Nome inteiro dentro da janela.
+    const caixa = (await nome.boundingBox())!;
+    expect(caixa.y).toBeGreaterThanOrEqual(0);
+    expect(caixa.y + caixa.height).toBeLessThanOrEqual(altura);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}

@@ -1,6 +1,6 @@
 import { ChevronsDownUp, ChevronsUpDown, Plus, Trash2 } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
@@ -8,21 +8,28 @@ import { type ConteudoMobilidade, type ItemMobilidade, type SecaoMobilidade, nov
 import { videoValido } from '../../dominio/video';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
+import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { Divisor } from '../../ui/Divisor';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { useRolagem } from '../../ui/RolagemComTopo';
 import { Texto } from '../../ui/Texto';
 import { BarraDesfazer, type Desfazer } from '../plano/BarraDesfazer';
 import { BlocoAdicionar } from '../plano/BlocoAdicionar';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { useDuasColunas } from '../plano/ColunasDoEditor';
 import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
+import { mostrarAbaixoDaBarra } from '../plano/TelaDoEditor';
+import { ESPERA_DA_SELECAO } from '../treino/ContadoresDoTreino';
 import { ItemDeMobilidade } from './ItemDeMobilidade';
 
 const MAXIMO_DE_SECOES = 10;
 const MAXIMO_DE_ITENS = 40;
+
+/** Id no DOM (web) do cartão da seção: `mostrarAbaixoDaBarra` rola até ele ao adicionar uma seção. */
+const idDaSecao = (uid: string) => `secao-${uid}`;
 
 /** Item que trava o salvar: sem nome ou com link que não é do YouTube (a mesma regra de `secaoValida`). */
 const itemComProblema = (i: ItemMobilidade) => !i.nome.trim() || (!!i.videoUrl.trim() && !videoValido(i.videoUrl));
@@ -50,6 +57,7 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
   // `secaoDoItem`/`indiceDaSecao`: onde o aviso aparece (no lugar do que saiu, para o Desfazer ficar à vista).
   const [desfazer, setDesfazer] = useState<(Desfazer<ConteudoMobilidade> & { voltarPara?: string; secaoDoItem?: string; indiceDaSecao?: number }) | null>(null);
   const duas = useDuasColunas();
+  const { rolarAte } = useRolagem();
   // Seção do inspetor; a que sumiu (removida, modelo recarregado) cai na primeira.
   const [escolhidaUid, setEscolhidaUid] = useState<string | null>(null);
   // Ajuste durante o render (estado derivado): um pedido novo de "ir ao primeiro" escolhe a seção do problema.
@@ -88,6 +96,9 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
     aoMudar({ ...mob, secoes: [...mob.secoes, nova] });
     setEscolhidaUid(nova.uid);
     setAbertos((a) => new Set(a).add(nova.itens[0].uid));
+    // C61: o cartão novo nasce abaixo do botão; sem rolar, o título ficava cortado na borda (web: a barra grudada é da rolagem).
+    if (Platform.OS === 'web') setTimeout(() => mostrarAbaixoDaBarra(idDaSecao(nova.uid), true), ESPERA_DA_SELECAO);
+    else rolarAte([nova.uid]);
   };
 
   const barra = desfazer ? (
@@ -105,7 +116,7 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
     const titulo = sec.titulo.trim() || `Seção ${si + 1}`;
     const problema = !secaoValida(sec);
     return (
-      <Cartao key={sec.uid} style={problema ? { borderColor: cores.perigo } : undefined}
+      <AlvoDeRolagem key={sec.uid} chave={sec.uid}><View nativeID={idDaSecao(sec.uid)}><Cartao style={problema ? { borderColor: cores.perigo } : undefined}
         cabecalho={
           <CabecalhoDoItem faixa
             // A posição por extenso só no inspetor: empilhadas, a ordem já está à vista.
@@ -140,7 +151,7 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
               aoTocar={() => { const novo = novoItemMobilidade(); alterarSecao(si, (x) => ({ ...x, itens: [...x.itens, novo] })); setAbertos((a) => new Set(a).add(novo.uid)); }} />
           </View>
         </View>
-      </Cartao>
+      </Cartao></View></AlvoDeRolagem>
     );
   };
 

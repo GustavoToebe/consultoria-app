@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronsDownUp, ChevronsUpDown, NotebookTabs, Plus, ShoppingCart } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { listarAlimentos, listarErgogenicos, suplementoDaResposta } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, Receita, ResultadoValidacao } from '../../api/tipos';
@@ -24,6 +24,7 @@ import { textoDoErro } from '../../ui/erros';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { useRolagem } from '../../ui/RolagemComTopo';
 import { useCarregar } from '../../ui/useCarregar';
 import { CartaoCicloNoPeriodo } from '../ciclo/CicloNaFicha';
 import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
@@ -33,13 +34,14 @@ import { ComColunas } from '../plano/ColunasDoEditor';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
-import { TelaDoEditor } from '../plano/TelaDoEditor';
+import { mostrarAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
 import { BarraDoModeloDoEditor, NomeDoModelo } from '../plano/TopoModelo';
 import { BarraDoPlano, ProblemasDoPlano } from '../plano/TopoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 import { usePlanoEditor } from '../plano/usePlanoEditor';
 import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
-import { CartaoRefeicao, resumoDaRefeicao, tituloDaRefeicao } from './CartaoRefeicao';
+import { ESPERA_DA_SELECAO } from '../treino/ContadoresDoTreino';
+import { CartaoRefeicao, idDaRefeicao, resumoDaRefeicao, tituloDaRefeicao } from './CartaoRefeicao';
 import { ComplementosDaDieta } from './ComplementosDaDieta';
 import { type FolhaDaDieta, FolhasDaDieta } from './FolhasDaDieta';
 import { TotalDoDia } from './TotalDoDia';
@@ -122,12 +124,13 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
     const nova = novaRefeicao();
     mudarRefeicoes((r) => [...r, nova]);
     abrirRefeicao(nova.uid);
+    return nova.uid;
   };
 
   // O único lugar de adicionar: no fim da lista (PC) ou dos cartões (celular), como o "Adicionar próximo exercício" do treino.
   const adicionar = unica ? null : (
     <BlocoAdicionar titulo="Adicionar próxima refeição" descricao="Comece em branco ou acrescente uma refeição pronta dos modelos.">
-      <Botao rotulo="Adicionar refeição" tipo="secundario" Icone={Plus} aoTocar={adicionarRefeicao} />
+      <BotaoAdicionarRefeicao aoAdicionar={adicionarRefeicao} />
       <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setFolha({ tipo: 'modelos' })} />
     </BlocoAdicionar>
   );
@@ -295,6 +298,23 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         aoPorcao={(uid, porcao) => setPorcoes((atual) => ({ ...atual, [uid]: porcao }))}
       />
     </TelaDoEditor>
+  );
+}
+
+/**
+ * "Adicionar refeição" e a rolagem até a refeição nova (C61): o cartão novo nasce abaixo do botão e o campo Nome ficava
+ * cortado na borda de baixo. Um componente à parte porque o `useRolagem` só vale dentro da `TelaDoEditor`. Na web a barra
+ * grudada fica dentro da rolagem (`mostrarAbaixoDaBarra`); no nativo o alvo é o cartão (`AlvoDeRolagem chave={uid}`).
+ */
+function BotaoAdicionarRefeicao({ aoAdicionar }: { aoAdicionar: () => string }) {
+  const { rolarAte } = useRolagem();
+  return (
+    <Botao rotulo="Adicionar refeição" tipo="secundario" Icone={Plus} aoTocar={() => {
+      const uid = aoAdicionar();
+      // Depois de o cartão abrir (o `rolarAte` já espera um pouco por conta própria).
+      if (Platform.OS === 'web') setTimeout(() => mostrarAbaixoDaBarra(idDaRefeicao(uid), true), ESPERA_DA_SELECAO);
+      else rolarAte([uid]);
+    }} />
   );
 }
 

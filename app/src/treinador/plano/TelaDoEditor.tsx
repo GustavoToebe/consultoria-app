@@ -85,9 +85,10 @@ const ID_DA_BARRA = 'barra-do-editor';
  * da barra; se já está à vista, não mexe. Serve ao inspetor das duas colunas (escolher um item no fim de uma lista longa
  * deixava o detalhe começando fora da tela) e ao "Exercício aberto" do celular (o `rolarAte` da rolagem não conhece a
  * barra e deixava o nome do exercício embaixo dela). Sem animação (nada a reduzir para o movimento reduzido).
+ * `forcar`: rola mesmo com o topo à vista, para o item recém-criado (refeição nova) não ficar com o campo cortado na borda de baixo.
  * shortcut: no celular nativo não faz nada (lá não há duas colunas com barra grudada); trocar por `rolarAte` se houver.
  */
-export function mostrarAbaixoDaBarra(id: string): void {
+export function mostrarAbaixoDaBarra(id: string, forcar = false): void {
   if (Platform.OS !== 'web') return;
   requestAnimationFrame(() => {
     const alvo = document.getElementById(id);
@@ -95,7 +96,7 @@ export function mostrarAbaixoDaBarra(id: string): void {
     if (!alvo || !barra) return;
     const topo = alvo.getBoundingClientRect().top;
     const base = barra.getBoundingClientRect().bottom;
-    if (topo >= base && topo < window.innerHeight) return;
+    if (!forcar && topo >= base && topo < window.innerHeight) return;
     // A conta na mão, na rolagem da barra: `scrollIntoView` com `scroll-margin-top` deixava o alvo no topo, sob a barra,
     // quando um ancestral tem `overflow: hidden` (o cartão da sessão no celular).
     let rolagem = barra.parentElement;

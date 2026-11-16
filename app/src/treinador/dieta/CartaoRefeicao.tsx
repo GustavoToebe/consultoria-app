@@ -35,6 +35,9 @@ import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 
+/** Id no DOM (web) do cartão da refeição: `mostrarAbaixoDaBarra` rola até ele ao adicionar uma refeição. */
+export const idDaRefeicao = (uid: string) => `refeicao-${uid}`;
+
 /** "Almoço · 12:00" no título do cartão e do item da lista: "12:00 · Almoço" ("Refeição N" sem nome). */
 export function tituloDaRefeicao(r: Refeicao, posicao: number): string {
   return `${r.horario ? `${r.horario} · ` : ''}${r.nome || `Refeição ${posicao + 1}`}`;
@@ -98,7 +101,7 @@ export function CartaoRefeicao(p: Props) {
   const varias = r.opcoes.length > 1;
 
   return (
-    <AlvoDeRolagem chave={r.uid}><Cartao
+    <AlvoDeRolagem chave={r.uid}><View nativeID={idDaRefeicao(r.uid)}><Cartao
       style={problema ? { borderColor: cores.perigo } : undefined}
       cabecalho={
         <CabecalhoDoItem
@@ -192,7 +195,7 @@ export function CartaoRefeicao(p: Props) {
           ) : null}
         </View>
       ) : null}
-    </Cartao></AlvoDeRolagem>
+    </Cartao></View></AlvoDeRolagem>
   );
 }
 
