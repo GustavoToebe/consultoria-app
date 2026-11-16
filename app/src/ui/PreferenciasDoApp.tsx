@@ -5,7 +5,7 @@ import type { Preferencias, TamanhoTexto } from '../dominio/preferencias';
 import { fatorDoTexto } from '../dominio/preferencias';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { AREIA, CLARO, ESCURO, espaco, fontes, paletaDe, RAIO, type Cores } from '../tema/tokens';
+import { CLARO, CODIGOS_PALETAS_VISIVEIS, ESCURO, espaco, fontes, PALETAS, paletaDe, RAIO, type Cores } from '../tema/tokens';
 import { useAviso } from './Aviso';
 import { Botao } from './Botao';
 import { Interruptor } from './Campos';
@@ -29,6 +29,8 @@ const TAMANHOS: { valor: TamanhoTexto; rotulo: string }[] = [
  */
 const BASE_DA_COLUNA = 464;
 const LARGURA_DA_COLUNA = 720;
+
+const VARIACOES_DE_TOM = CODIGOS_PALETAS_VISIVEIS.filter((c) => c !== 'ESCURO' && c !== 'CLARO');
 
 /**
  * Preferências pessoais: tema, contraste, bordas reforçadas, tamanho do texto, animações, vibração e restaurar o padrão. Valem só neste
@@ -60,7 +62,7 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
 
       <View style={[estilos.coluna, duasColunas ? estilos.ladoALado : null]}>
       <View style={coluna}>
-      <Cartao titulo="Tema" descricao="Escuro, claro, claro areia, o da consultoria ou o do aparelho.">
+      <Cartao titulo="Tema" descricao="Escolha o tema principal ou uma variação de tom do catálogo da marca.">
         <GradeDeOpcoes rotulo="Tema">
           <OpcaoCartao
             titulo="Padrão da consultoria"
@@ -71,24 +73,17 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
           />
           <OpcaoCartao
             titulo="Escuro"
-            descricao="Fundo preto"
+            descricao="STNDRD Dark (#09090B)"
             selecionada={preferencias.tema === 'ESCURO'}
             aoEscolher={() => mudar({ tema: 'ESCURO' })}
             amostra={<AmostraDoTema esquerda={ESCURO} cor={marca} />}
           />
           <OpcaoCartao
             titulo="Claro"
-            descricao="Fundo claro"
+            descricao="STNDRD White (#FFFFFF)"
             selecionada={preferencias.tema === 'CLARO'}
             aoEscolher={() => mudar({ tema: 'CLARO' })}
             amostra={<AmostraDoTema esquerda={CLARO} cor={marca} />}
-          />
-          <OpcaoCartao
-            titulo="Claro areia"
-            descricao="Fundo claro em tom areia"
-            selecionada={preferencias.tema === 'AREIA'}
-            aoEscolher={() => mudar({ tema: 'AREIA' })}
-            amostra={<AmostraDoTema esquerda={AREIA} cor={marca} />}
           />
           <OpcaoCartao
             titulo="Igual ao aparelho"
@@ -98,6 +93,20 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
             amostra={<AmostraDoTema esquerda={ESCURO} direita={CLARO} cor={marca} />}
           />
         </GradeDeOpcoes>
+        <View style={estilos.variacoes}>
+          <Texto variante="suave">Variações de tom</Texto>
+          <GradeDeOpcoes papel="group" rotulo="Variações de tom">
+            {VARIACOES_DE_TOM.map((codigo) => (
+              <OpcaoCartao
+                key={codigo}
+                titulo={PALETAS[codigo].nome}
+                selecionada={preferencias.tema === codigo}
+                aoEscolher={() => mudar({ tema: codigo })}
+                amostra={<AmostraDoTema esquerda={PALETAS[codigo].cores} cor={marca} />}
+              />
+            ))}
+          </GradeDeOpcoes>
+        </View>
       </Cartao>
       </View>
 
@@ -265,6 +274,7 @@ const estilos = StyleSheet.create({
   metade: { flexGrow: 1, flexShrink: 1, flexBasis: BASE_DA_COLUNA, minWidth: 0, maxWidth: LARGURA_DA_COLUNA },
   cabecaPreferencias: { gap: 2, marginTop: espaco(1) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  variacoes: { gap: espaco(1), marginTop: espaco(1) },
   amostra: { width: 40, height: 40, flexDirection: 'row' },
   meia: { flex: 1, padding: 4, gap: 3 },
   barra: { height: 5, width: '80%', borderRadius: 3 },

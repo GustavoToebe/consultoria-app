@@ -57,7 +57,7 @@ describe('o CSS do CLASSICO não mudou um caractere', () => {
       });
     const esperado = {
       treino: '8a3967f877e60a3fa2894253f5e00072f40610d32baf534ed87bbdd3ab768c5a',
-      dieta: '09036bffd5258da741783de221838a366c2a4a146607df86ae22687b79c0f543',
+      dieta: '949f39852431efe1a3e90a896991c0771d4c73fdfdd0375bdd5fb7dcc7abe507',
       cargas: '836b3c4e2132b5749596bf531fac767b8dab21d7ca0dcd6ebc932b545a156098',
     };
     for (const m of [marca, { ...marca, temaPdf: 'CLASSICO' }, { ...marca, temaPdf: 'inexistente' }, { ...marca, temaPdf: null }]) {

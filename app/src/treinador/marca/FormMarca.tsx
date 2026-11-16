@@ -12,7 +12,7 @@ import { OPCOES_DA_META } from '../../dominio/metaDoPesoNaFicha';
 import { avaliarMarca, avisoDeMarcaPertoDeStatus, paletaDaCor, PALETAS } from '../../dominio/paletas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, LARGURA_DUAS_COLUNAS, MARCA_NEUTRA, PALETAS as PALETAS_DO_TEMA, paletaDe, RAIO, textoSobre, type Cores } from '../../tema/tokens';
+import { CODIGOS_PALETAS_VISIVEIS, espaco, fontes, LARGURA_DUAS_COLUNAS, MARCA_NEUTRA, PALETAS as PALETAS_DO_TEMA, paletaDe, RAIO, textoSobre, type Cores } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
@@ -365,8 +365,8 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   );
 }
 
-/** Os códigos na ordem do `PALETAS` do tema: escuras primeiro, depois as claras. */
-const CODIGOS_DAS_PALETAS = Object.keys(PALETAS_DO_TEMA) as Tema[];
+/** Os códigos visíveis na ordem do `CODIGOS_PALETAS_VISIVEIS` (sem Café): escuras primeiro, depois as claras. */
+const CODIGOS_DAS_PALETAS: readonly Tema[] = CODIGOS_PALETAS_VISIVEIS;
 
 /** Miniatura do app numa paleta: fundo, faixa do título, um cartão com uma linha de texto e o botão na cor da marca. */
 function MiniaturaDoTema({ cores, marca }: { cores: Cores; marca: string }) {
@@ -382,8 +382,8 @@ function MiniaturaDoTema({ cores, marca }: { cores: Cores; marca: string }) {
 }
 
 /**
- * Topo do app do aluno com as cores fixas da paleta escolhida (independe do tema de quem está editando). `compacta` (celular):
- * só o topo com a marca e o botão, sem o cartão do treino, para caber perto das opções sem empurrá-las para longe.
+ * Topo do app do aluno com as cores fixas da paleta escolhida (independe do tema de quem está editando): cartão Nível 1
+ * limpo (#FFFFFF no claro / #141416 no escuro) sobre o canvas do tema, usando a cor da marca apenas como detalhe/identidade.
  */
 function Previa({ marca, tema, compacta }: { marca: Marca; tema: Tema; compacta: boolean }) {
   const { cores: atuais } = useTema();
@@ -398,12 +398,12 @@ function Previa({ marca, tema, compacta }: { marca: Marca; tema: Tema; compacta:
       {compacta ? <Texto variante="rotulo" cor={atuais.texto}>Prévia do app do aluno</Texto> : null}
       <Texto variante="suave">{`Paleta ${nome}`}</Texto>
       <View testID="previa-da-paleta" style={[estilos.telaPrevia, compacta ? estilos.telaCompacta : null, { backgroundColor: cores.fundo, borderColor: atuais.borda }]}>
-        <View style={[estilos.faixaPrevia, compacta ? estilos.faixaCompacta : null, { backgroundColor: cores.superficie3 }]}>
-          <View style={estilos.marcaCompacta}><MarcaTitulo marca={marca} fundo={cores.superficie3} /></View>
+        <View style={[estilos.faixaPrevia, compacta ? estilos.faixaCompacta : null, { backgroundColor: cores.fundo }]}>
+          <View style={estilos.marcaCompacta}><MarcaTitulo marca={marca} fundo={cores.fundo} /></View>
           {compacta ? botao : null}
         </View>
         {compacta ? null : (
-        <View style={[estilos.cartaoPrevia, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+        <View style={[estilos.cartaoPrevia, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>
           <Texto style={[estilos.tituloPrevia, { color: cores.texto }]}>Treino de hoje</Texto>
           <Texto style={{ color: cores.textoSuave }}>Segunda - Costas</Texto>
           {botao}

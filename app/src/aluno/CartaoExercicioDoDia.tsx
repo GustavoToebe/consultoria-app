@@ -8,7 +8,7 @@ import { usaCargaDeTrabalho } from '../dominio/cargas';
 import { MODALIDADES } from '../dominio/modalidades';
 import { textoDaCarga } from '../dominio/unidadeDeCarga';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { espaco, fontes, RAIO, TOKENS_STNDRD_ESCURO } from '../tema/tokens';
 import { propsDeLink } from '../ui/propsDeLink';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
@@ -46,7 +46,8 @@ export function CartaoExercicioDoDia({
   descansoNaSerie?: boolean;
   aoAbrir: () => void;
 }) {
-  const { cores } = useTema();
+  const { cores, stndrd: stndrdTema } = useTema();
+  const stndrd = stndrdTema ?? TOKENS_STNDRD_ESCURO;
   const unidade = useUnidadeDeCarga();
   const completo = total > 0 && feitas >= total;
   // Só aquecimento: nada entra na contagem, mas as séries continuam planejadas.
@@ -70,20 +71,27 @@ export function CartaoExercicioDoDia({
       {...(href ? propsDeLink(href, aoAbrir) : { onPress: aoAbrir })}
       style={({ pressed }) => [
         estilos.cartao,
-        { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.divisor },
+        {
+          backgroundColor: pressed ? cores.superficie3 : cores.superficie,
+          borderColor: completo ? stndrd.neon.emerald.tintBorder : cores.divisor,
+        },
       ]}>
       <View style={estilos.topo}>
         <View style={estilos.nomes}>
           <Texto numerico style={estilos.nome}>
             {posicao + 1}. {e.nome}
           </Texto>
-          {e.modalidade ? <Texto numerico variante="suave">{MODALIDADES[e.modalidade] ?? e.modalidade}</Texto> : null}
+          {e.modalidade ? (
+            <View style={[estilos.pilulaModalidade, { backgroundColor: cores.superficie3, borderColor: cores.divisor }]}>
+              <Texto numerico variante="pequeno">{MODALIDADES[e.modalidade] ?? e.modalidade}</Texto>
+            </View>
+          ) : null}
           {resumo ? <Texto numerico variante="pequeno">{resumo}</Texto> : null}
           {prescricaoDeCardio ? <Texto numerico variante="pequeno">{prescricaoDeCardio}</Texto> : null}
         </View>
-        {completo ? <CheckCircle2 size={22} color={cores.texto} /> : <ChevronRight size={22} color={cores.textoSuave} />}
+        {completo ? <CheckCircle2 size={22} color={stndrd.neon.emerald.accent} /> : <ChevronRight size={22} color={cores.textoSuave} />}
       </View>
-      <View style={[estilos.rodape, { borderTopColor: cores.divisor }]}>
+      <View style={[estilos.rodape, { backgroundColor: cores.superficie2, borderTopColor: cores.divisor }]}>
         {carga ? (
           <Texto numerico variante="suave" style={estilos.carga}>
             {carga.rotulo}: <Texto numerico style={estilos.valor}>{carga.valor}</Texto>
@@ -102,10 +110,11 @@ export function CartaoExercicioDoDia({
 }
 
 const estilos = StyleSheet.create({
-  cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
-  topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
-  nomes: { flex: 1, gap: 2 },
+  cartao: { borderWidth: 1, borderRadius: 16, overflow: 'hidden' },
+  topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), padding: espaco(2) },
+  nomes: { flex: 1, gap: 4 },
   nome: { fontFamily: fontes.semi, fontSize: 17, lineHeight: 23 },
+  pilulaModalidade: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 8, paddingHorizontal: espaco(1), paddingVertical: 2 },
   rodape: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -113,7 +122,8 @@ const estilos = StyleSheet.create({
     flexWrap: 'wrap',
     gap: espaco(1),
     borderTopWidth: 1,
-    paddingTop: espaco(1.5),
+    paddingHorizontal: espaco(2),
+    paddingVertical: espaco(1.25),
   },
   carga: { flexShrink: 1 },
   valor: { fontFamily: fontes.negrito },

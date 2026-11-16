@@ -3,12 +3,31 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CartaoDoPainel, FolhaDoPainelId } from '../../dominio/painelDoInicio';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, type TokenNeon, type TokensStndrd } from '../../tema/tokens';
 import { contornoDoNumero } from '../../ui/destaqueDoNumero';
-import { useAparenciaDoNumero } from '../../ui/NumeroDeDestaque';
 import { propsDeLink } from '../../ui/propsDeLink';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
+
+function neonDoCartao(cartao: CartaoDoPainel, stndrd: TokensStndrd): TokenNeon | null {
+  if (cartao.estado !== 'valor' || cartao.enfase === 'zero' || cartao.enfase === 'indisponivel' || cartao.enfase === 'neutro') {
+    return null;
+  }
+  switch (cartao.chave) {
+    case 'financeiro.recebido':
+    case 'treinos.concluidos':
+      return stndrd.neon.emerald;
+    case 'atualizacoes.atrasadas':
+    case 'financeiro.vencidas':
+      return stndrd.neon.crimson;
+    case 'treinos.semRegistro':
+      return stndrd.neon.acidLime;
+    case 'treinos.recordes':
+      return stndrd.neon.electricPurple;
+    default:
+      return stndrd.neon.electricBlue;
+  }
+}
 
 /** "R$ 1.240" vira o "R$" pequeno e o número grande; o resto fica inteiro. */
 function partesDoValor(texto: string, moeda: boolean): { prefixo: string | null; numero: string } {
@@ -25,23 +44,26 @@ function partesDoValor(texto: string, moeda: boolean): { prefixo: string | null;
  * `superficie2`. `linha`: a linha de baixo do bloco.
  */
 export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPainel; aoAbrirFolha: (folha: FolhaDoPainelId) => void; linha?: boolean }) {
-  const { cores, bordas, fatorTexto } = useTema();
+  const { cores, bordas, fatorTexto, stndrd } = useTema();
   const comValor = cartao.estado === 'valor';
-  const aparencia = useAparenciaDoNumero(cartao.enfase);
-  const cor = aparencia.numero;
+  const neon = neonDoCartao(cartao, stndrd);
+  const cor = comValor ? cores.texto : cores.textoSuave;
   const deitado = cartao.largo || !!linha;
   const { prefixo, numero } = partesDoValor(cartao.texto, cartao.moeda);
 
   const conteudo = (
     <>
-      <Texto variante={linha ? 'corpo' : 'rotulo'} cor={cores.texto}
-        style={[deitado ? estilos.rotuloDeitado : null, linha ? estilos.rotuloDaLinha : null]}>
-        {cartao.rotulo}
-      </Texto>
+      <View style={estilos.topoRotulo}>
+        {neon ? <View aria-hidden style={[estilos.pontoNeon, { backgroundColor: neon.accent }]} /> : null}
+        <Texto variante={linha ? 'corpo' : 'rotulo'} cor={cores.textoSuave}
+          style={[deitado ? estilos.rotuloDeitado : null, linha ? estilos.rotuloDaLinha : null]}>
+          {cartao.rotulo}
+        </Texto>
+      </View>
       <View style={deitado ? estilos.valorDeitado : estilos.valor}>
         {comValor ? (
           <View style={estilos.numero}>
-            {prefixo ? <Texto variante="rotulo" numerico cor={cor} style={estilos.prefixo}>{prefixo}</Texto> : null}
+            {prefixo ? <Texto variante="rotulo" numerico cor={neon ? neon.textOnTint : cor} style={estilos.prefixo}>{prefixo}</Texto> : null}
             <Texto variante="destaque" cor={cor} style={linha ? estilos.numeroDaLinha : null}>{numero}</Texto>
           </View>
         ) : (
@@ -52,16 +74,22 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
     </>
   );
 
-  // `largo` ocupa a linha inteira dentro da fileira de cartões; a `linha` fica fora dela, na coluna do bloco, onde
-  // `flexBasis: 100%` viraria altura e esticaria o cartão até o fim do bloco.
-  // Dinheiro em pé pede a largura de "R$ 100.000" no tamanho de texto escolhido: sem ela, desce para um por linha em vez
-  // de cortar ou diminuir a fonte. shortcut: dimensionado para até R$ 999.999; acima disso, medir o texto.
+  // Poço Nível 2 (`superficie2`) dentro do bloco Nível 1 (`superficie`), com contorno nítido e filete Neon semântico.
   const base = !deitado && cartao.moeda ? { flexBasis: Math.round(BASE_DO_DINHEIRO * fatorTexto) } : null;
-  const estilo = [estilos.cartao, deitado ? estilos.deitado : estilos.empe, base, cartao.largo && !linha ? estilos.largo : null, contornoDoNumero(aparencia.faixa, cores, bordas.bloco, RECUO)];
+  const fundoBase = cores.superficie2;
+  const fundoHover = cores.superficie3;
+  const estilo = [
+    estilos.cartao,
+    deitado ? estilos.deitado : estilos.empe,
+    base,
+    cartao.largo && !linha ? estilos.largo : null,
+    contornoDoNumero(neon?.accent ?? null, { divisor: neon ? neon.tintBorder : cores.divisor }, bordas.bloco, RECUO),
+    { borderRadius: 12 },
+  ];
   const destino = cartao.destino;
   if (!destino) {
     return (
-      <View accessible accessibilityLabel={cartao.falado} style={[...estilo, { backgroundColor: aparencia.fundo }]}>{conteudo}</View>
+      <View accessible accessibilityLabel={cartao.falado} style={[...estilo, { backgroundColor: fundoBase }]}>{conteudo}</View>
     );
   }
   const href = destino.tipo === 'endereco' ? (destino.href as Href) : null;
@@ -70,7 +98,7 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
       accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={cartao.falado}
       {...(href ? propsDeLink(href, () => router.push(href)) : { onPress: () => destino.tipo === 'folha' && aoAbrirFolha(destino.folha) })}
-      style={(e) => [...estilo, { backgroundColor: sobre(e) ? aparencia.fundoSobre : aparencia.fundo }]}>
+      style={(e) => [...estilo, { backgroundColor: sobre(e) ? fundoHover : fundoBase }]}>
       {conteudo}
     </Pressable>
   );
@@ -87,6 +115,8 @@ const estilos = StyleSheet.create({
   largo: { flexBasis: '100%' },
   rotuloDeitado: { flexShrink: 1 },
   rotuloDaLinha: { fontSize: 14 },
+  topoRotulo: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  pontoNeon: { width: 6, height: 6, borderRadius: 3 },
   valor: { gap: 2 },
   valorDeitado: { alignItems: 'flex-end', flexShrink: 0 },
   numero: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },

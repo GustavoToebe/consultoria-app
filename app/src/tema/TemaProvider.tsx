@@ -26,10 +26,12 @@ import {
   marcaParaTexto,
   paletaDe,
   textoSobre,
+  tokensStndrdDe,
   type ChaveDeIdentificacao,
   type CorDeIdentificacao,
   type Cores,
   type ModoDoTema,
+  type TokensStndrd,
   type VarianteDoTema,
 } from './tokens';
 
@@ -45,6 +47,8 @@ interface ValorTema {
   /** Variante das cores fixas (agenda, perfil, identificação, destaque): a da paleta em uso. */
   variante: VarianteDoTema;
   cores: Cores;
+  /** Tokens semânticos STNDRD (neon, CTA alto contraste e liquid glass) para o modo em uso. */
+  stndrd: TokensStndrd;
   /** Espessura do contorno do bloco e do item (1 px; 2 px com "Bordas reforçadas"). */
   bordas: { bloco: number; item: number };
   marca: string;
@@ -119,13 +123,13 @@ export function TemaProvider({ children }: { children: ReactNode }) {
     const doAparelho: Tema = esquemaDoAparelho === 'light' ? 'CLARO' : 'ESCURO';
     // Tela pública (sem consultoria conhecida) segue o aparelho; logado, o padrão é o da marca do treinador.
     const doTreinador: Tema = sessao.marca?.temaPadrao ?? doAparelho;
-    // A preferência da pessoa (Escuro, Claro, Areia, Sistema) vence a paleta da consultoria; o modo sai da paleta.
+    // A preferência da pessoa (Escuro, Claro, variações de tom ou Sistema) vence a paleta da consultoria; o modo sai da paleta.
     const codigo: Tema =
-      preferencias.tema === 'ESCURO' || preferencias.tema === 'CLARO' || preferencias.tema === 'AREIA'
-        ? preferencias.tema
-        : preferencias.tema === 'SISTEMA'
-          ? doAparelho
-          : doTreinador;
+      preferencias.tema === 'SISTEMA'
+        ? doAparelho
+        : preferencias.tema === 'CONSULTORIA'
+          ? doTreinador
+          : (preferencias.tema as Tema);
     const { cores: base, modo, variante } = paletaDe(codigo);
     const marca = sessao.marca?.corPrimaria ?? MARCA_NEUTRA;
     const cores = coresComBordasReforcadas(coresComContraste(base, preferencias.contraste, modo !== 'CLARO'), preferencias.bordasReforcadas);
@@ -133,6 +137,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       modo,
       variante,
       cores,
+      stndrd: tokensStndrdDe(modo),
       bordas: espessurasDasBordas(preferencias.bordasReforcadas),
       marca,
       sobreMarca: textoSobre(marca),

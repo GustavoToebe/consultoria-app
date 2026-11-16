@@ -13,16 +13,17 @@ import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { contagemParaTela, rotuloDoMes } from '../../dominio/numeros';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL, type TokenNeon, type TokensStndrd } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { Cartao } from '../../ui/Cartao';
+import { contornoDoNumero } from '../../ui/destaqueDoNumero';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
-import { NumeroDeDestaque } from '../../ui/NumeroDeDestaque';
+import { MotivoDoIndisponivel } from '../../ui/NumeroDeDestaque';
 import { textoDoErro } from '../../ui/erros';
 import { GraficoBarras } from '../../ui/GraficoBarras';
 import { ItemDeLista } from '../../ui/ItemDeLista';
@@ -180,15 +181,53 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
  * marca, e sempre com o título. Três por linha no PC; no celular um por linha, para "R$ 100.000,00" caber inteiro no
  * tamanho normal (dois por linha só cabiam até a casa dos milhares, encolhendo a fonte).
  */
+function neonDoIndicador(cartao: CartaoDoPainel, stndrd: TokensStndrd): TokenNeon | null {
+  if (cartao.enfase === 'zero' || cartao.enfase === 'indisponivel' || cartao.enfase === 'neutro') return null;
+  switch (cartao.chave) {
+    case 'recebido':
+      return stndrd.neon.emerald;
+    case 'emAtraso':
+      return stndrd.neon.crimson;
+    case 'recorrente':
+      return stndrd.neon.electricBlue;
+    case 'aReceber':
+      return stndrd.neon.acidLime;
+    default:
+      return stndrd.neon.electricPurple;
+  }
+}
+
 function Indicador({ cartao }: { cartao: CartaoDoPainel }) {
   const { width } = useWindowDimensions();
-  const { fatorTexto } = useTema();
+  const { cores, bordas, fatorTexto, stndrd } = useTema();
   const celular = width < LARGURA_MENU_LATERAL;
-  // Base larga no PC (três ou mais por linha, nunca quatro e dois), crescendo com o texto maior das preferências.
+  const neon = neonDoIndicador(cartao, stndrd);
+  const indisponivel = cartao.enfase === 'indisponivel';
+  const zero = cartao.enfase === 'zero';
+  const corValor = indisponivel || zero ? cores.textoSuave : cores.texto;
   return (
-    <NumeroDeDestaque rotulo={cartao.titulo} valor={cartao.valor} detalhe={cartao.detalhe} enfase={cartao.enfase} motivo={cartao.motivo} nivelDoRotulo={2}
-      rotuloAcessivel={`${cartao.titulo}: ${cartao.valor}${cartao.detalhe ? `. ${cartao.detalhe}` : ''}`}
-      style={[estilos.indicador, { flexBasis: celular ? '100%' : Math.round(280 * fatorTexto) }]} />
+    <View
+      accessibilityLabel={`${cartao.titulo}: ${cartao.valor}${cartao.detalhe ? `. ${cartao.detalhe}` : ''}`}
+      style={[
+        estilos.indicador,
+        contornoDoNumero(neon?.accent ?? null, { divisor: neon ? neon.tintBorder : cores.divisor }, bordas.bloco, espaco(2)),
+        {
+          flexBasis: celular ? '100%' : Math.round(280 * fatorTexto),
+          backgroundColor: cores.superficie,
+          borderRadius: 16,
+          paddingVertical: espaco(1.75),
+          paddingRight: espaco(2),
+          gap: espaco(0.5),
+        },
+      ]}>
+      <View style={estilos.indicadorTopo}>
+        {neon ? <View aria-hidden style={[estilos.pontoNeon, { backgroundColor: neon.accent }]} /> : null}
+        <Texto variante="rotulo" cor={cores.textoSuave} nivel={2}>{cartao.titulo}</Texto>
+      </View>
+      <Texto variante="destaque" numerico cor={corValor}>{cartao.valor}</Texto>
+      {indisponivel ? <MotivoDoIndisponivel texto={cartao.motivo} /> : null}
+      {cartao.detalhe ? <Texto variante="pequeno" cor={cores.textoSuave}>{cartao.detalhe}</Texto> : null}
+    </View>
   );
 }
 
@@ -347,6 +386,8 @@ const estilos = StyleSheet.create({
   caber: { flexShrink: 1, maxWidth: '100%' },
   indicadores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   indicador: { flexShrink: 1, paddingVertical: espaco(2) },
+  indicadorTopo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pontoNeon: { width: 6, height: 6, borderRadius: 3 },
   lista: { gap: espaco(1) },
   esticar: { flexGrow: 1 },
 });

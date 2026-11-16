@@ -22,7 +22,7 @@ import { anteriorDaSerie, textoDaUltimaVez, textoDoAnterior } from '../dominio/s
 import { videoValido } from '../dominio/video';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO, TOKENS_STNDRD_ESCURO } from '../tema/tokens';
 import { AjusteDeCarga, BotaoDePasso } from '../ui/AjusteDeCarga';
 import { CampoDeCarga } from '../ui/CampoDeCarga';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
@@ -366,7 +366,8 @@ function CartaoSerie({
   /** Passo da metodologia, para o aviso de meta batida. */
   arredondamentoKg: number;
 }) {
-  const { cores, identificacao } = useTema();
+  const { cores, identificacao, stndrd: stndrdTema } = useTema();
+  const stndrd = stndrdTema ?? TOKENS_STNDRD_ESCURO;
   const unidade = useUnidadeDeCarga();
   // Antes de gravar, os dois campos começam vazios (D1 e D3, 02/11): a sugestão é só dica ao lado, nunca valor no campo.
   const [cargaDigitada, setCargaDigitada] = useState<number | null>(null);
@@ -506,7 +507,16 @@ function CartaoSerie({
   );
 
   return (
-    <View testID={`serie-${s.uid}`} style={[estilos.serie, { backgroundColor: cores.superficie, borderColor: ativa && !feita ? cores.bordaCampo : cores.divisor }, barra]}>
+    <View
+      testID={`serie-${s.uid}`}
+      style={[
+        estilos.serie,
+        {
+          backgroundColor: ativa && !feita ? stndrd.neon.electricBlue.tintBg : cores.superficie,
+          borderColor: ativa && !feita ? stndrd.neon.electricBlue.tintBorder : cores.divisor,
+        },
+        barra ?? (ativa && !feita ? { borderLeftWidth: 3, borderLeftColor: stndrd.neon.electricBlue.solidBg ?? stndrd.neon.electricBlue.accent } : null),
+      ]}>
       <CabecalhoDaSerie numero={numero} tipo={selos.tipo} tecnica={selos.tecnica} recordes={recordes} registro={feita ? 'FEITA' : null} agora={agora} />
       {textos.alvoExtra ? <Texto numerico variante="pequeno">Observação desta série: {textos.alvoExtra}</Texto> : null}
       {textos.amrap ? <Texto numerico variante="pequeno">AMRAP: faça o máximo de repetições que conseguir e anote quantas fez.</Texto> : null}

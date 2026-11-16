@@ -3,7 +3,7 @@ import { useMovimentoReduzido } from '../../../../ui/useMovimentoReduzido';
 import { usePrimeiraLista } from '../../../../ui/EntradaEmCascata';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Medal, Play } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Pressable, View } from 'react-native';
 
 import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
 import { DatasDaDivisao } from '../../../../aluno/DatasDaDivisao';
@@ -18,9 +18,8 @@ import { contagemDeSeries } from '../../../../dominio/conclusaoDoTreino';
 import { contagemDoExercicio, datasDaSessao, nomeComDia } from '../../../../dominio/semana';
 import { useSessao } from '../../../../sessao/SessaoProvider';
 import { useTema } from '../../../../tema/TemaProvider';
-import { espaco } from '../../../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../../../../tema/tokens';
 import { BarraProgresso } from '../../../../ui/BarraProgresso';
-import { Botao } from '../../../../ui/Botao';
 import { Cabecalho } from '../../../../ui/Cabecalho';
 import { useDestaques } from '../../../../ui/NumeroDeDestaque';
 import { Cartao } from '../../../../ui/Cartao';
@@ -38,7 +37,7 @@ export default function SessaoAluno() {
   const { sessao, data, hoje } = dia;
   const animar = usePrimeiraLista(dia.carregado);
   const reduzido = useMovimentoReduzido();
-  const { cores, marcaPeca } = useTema();
+  const { cores, marcaPeca, stndrd } = useTema();
   const { violeta } = useDestaques();
   const { retornoHabilitado } = useSessao();
 
@@ -100,7 +99,19 @@ export default function SessaoAluno() {
       </Cartao>
       {/* Logo depois do cartão do dia, antes de "Outras datas": em 390×844 o começar aparece sem rolar (auditoria de 03/11). */}
       {pendente ? (
-        <Botao rotulo={feitas ? `Continuar: ${pendente.nome}` : 'Começar treino'} Icone={Play} cheio aoTocar={() => abrir(pendente.uid)} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={feitas ? `Continuar: ${pendente.nome}` : 'Começar treino'}
+          onPress={() => abrir(pendente.uid)}
+          style={({ pressed }) => [
+            estilos.ctaTreino,
+            { backgroundColor: stndrd.cta.bg, opacity: pressed ? 0.85 : 1 },
+          ]}>
+          <Play size={18} color={stndrd.cta.text} />
+          <Texto style={[estilos.ctaTreinoTexto, { color: stndrd.cta.text }]}>
+            {feitas ? `Continuar: ${pendente.nome}` : 'Começar treino'}
+          </Texto>
+        </Pressable>
       ) : null}
       {datas.length > 1 ? (
         <Cartao titulo="Outras datas">
@@ -142,4 +153,14 @@ export default function SessaoAluno() {
 const estilos = StyleSheet.create({
   recordes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   linhaResumo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
+  ctaTreino: {
+    minHeight: ALVO_TOQUE + 4,
+    borderRadius: RAIO_CONTROLE,
+    paddingHorizontal: espaco(2),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: espaco(1),
+  },
+  ctaTreinoTexto: { fontFamily: fontes.negrito, fontSize: 16, lineHeight: 22 },
 });

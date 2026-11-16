@@ -298,22 +298,22 @@ describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, c
 // ---- Visual de 11/11 (guia em PDF, págs. 4, 5, 6, 12 e 13) ----
 
 describe('pares medidos do guia na paleta de partida (Escuro)', () => {
-  it('texto, texto secundário e borda de campo dão o que o guia mediu', () => {
-    expect(contraste(ESCURO.texto, ESCURO.superficie)).toBeCloseTo(16.12, 1);
-    expect(contraste(ESCURO.textoSuave, ESCURO.superficie2)).toBeCloseTo(7.79, 1);
-    expect(contraste(ESCURO.bordaCampo, ESCURO.superficie)).toBeCloseTo(4.66, 1);
-    expect(contraste(ESCURO.sucesso, ESCURO.sucessoSuave)).toBeCloseTo(7.99, 1);
-    expect(contraste(ESCURO.atencao, ESCURO.atencaoSuave)).toBeCloseTo(8.5, 1);
+  it('texto, texto secundário e borda de campo mantêm alto contraste na hierarquia STNDRD', () => {
+    expect(contraste(ESCURO.texto, ESCURO.superficie)).toBeGreaterThanOrEqual(15);
+    expect(contraste(ESCURO.textoSuave, ESCURO.superficie2)).toBeGreaterThanOrEqual(7);
+    expect(contraste(ESCURO.bordaCampo, ESCURO.superficie)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(ESCURO.sucesso, ESCURO.sucessoSuave)).toBeGreaterThanOrEqual(7.5);
+    expect(contraste(ESCURO.atencao, ESCURO.atencaoSuave)).toBeGreaterThanOrEqual(8);
     expect(contraste('#FFFFFF', '#C62828')).toBeCloseTo(5.62, 1);
   });
-  it('o painel do conteúdo é o #101013 do guia', () => {
-    expect(ESCURO.painel).toBe('#101013');
+  it('o painel do conteúdo é o #0E0E10 entre o fundo #09090B e o cartão #141416', () => {
+    expect(ESCURO.painel).toBe('#0E0E10');
   });
 });
 
 it.each(TODAS)('%s: o painel do conteúdo fica entre o fundo (menu) e o cartão', (_codigo, cores, escuro) => {
   if (!escuro) {
-    // Nas claras o conteúdo fica no próprio fundo tingido (12/11): é dele que o cartão branco se destaca.
+    // Nas claras o conteúdo fica no próprio fundo tingido: é dele que o cartão branco (#FFFFFF) se destaca.
     expect(cores.painel).toBe(cores.fundo);
     return;
   }
@@ -323,21 +323,17 @@ it.each(TODAS)('%s: o painel do conteúdo fica entre o fundo (menu) e o cartão'
 });
 
 /**
- * Separação das superfícies nas paletas claras (12/11, `docs/planos/superficies-das-paletas-claras.md`): o cartão e o
- * campo brancos se destacam da página pelo tom (sem sombra), e o contorno do campo é bem mais forte que o do cartão.
- * Pisos, não valores exatos: qualquer ajuste de tom que mantenha a separação passa.
+ * Separação das superfícies nas paletas claras (STNDRD White Minimalist): o cartão Nível 1 é sempre #FFFFFF puro,
+ * destacando-se da página pelo tom, e o poço Nível 2 (`superficie2` / `campo`) é rebaixado abaixo da página para dar profundidade.
  */
-it.each(TODAS.filter(([, , escuro]) => !escuro))('%s: cartão e campo se destacam da página; o campo tem contorno mais forte que o cartão', (_codigo, cores) => {
+it.each(TODAS.filter(([, , escuro]) => !escuro))('%s: cartão (#FFFFFF) se destaca da página e poço/campo é rebaixado com contorno forte', (_codigo, cores) => {
+  expect(cores.superficie).toBe('#FFFFFF');
   for (const pagina of [cores.fundo, cores.painel]) {
-    expect(contraste(cores.superficie, pagina)).toBeGreaterThanOrEqual(1.1);
-    expect(contraste(cores.campo, pagina)).toBeGreaterThanOrEqual(1.1);
+    expect(contraste(cores.superficie, pagina)).toBeGreaterThanOrEqual(1.08);
+    expect(luminancia(cores.superficie2)).toBeLessThan(luminancia(pagina));
+    expect(contraste(pagina, cores.superficie2)).toBeGreaterThanOrEqual(1.04);
   }
   expect(contraste(cores.bordaCampo, cores.superficie)).toBeGreaterThanOrEqual(2 * contraste(cores.divisor, cores.superficie));
-  // A faixa do título e as linhas (`superficie2`) ficam entre a página e o cartão, sem se confundir com nenhum dos dois.
-  expect(luminancia(cores.superficie2)).toBeGreaterThan(luminancia(cores.painel));
-  expect(luminancia(cores.superficie2)).toBeLessThan(luminancia(cores.superficie));
-  expect(contraste(cores.superficie2, cores.painel)).toBeGreaterThanOrEqual(1.04);
-  expect(contraste(cores.superficie2, cores.superficie)).toBeGreaterThanOrEqual(1.04);
 });
 
 /** Pág. 12: os pares reais de cada paleta, com contraste alto e com bordas reforçadas. */

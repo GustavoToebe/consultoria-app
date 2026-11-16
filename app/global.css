@@ -17,20 +17,20 @@
 @layer theme {
  :root {
   @variant light {
-   --color-background: #F2F2F4;
-   --color-foreground: #111114;
+   --color-background: #F3F4F6;
+   --color-foreground: #09090B;
    --color-card: #FFFFFF;
-   --color-card-foreground: #111114;
-   --color-muted: #F8F8F9;
+   --color-card-foreground: #09090B;
+   --color-muted: #EAECEF;
    --color-muted-foreground: #52525B;
-   --color-accent: #E7E7EA;
-   --color-accent-foreground: #111114;
-   --color-secondary: #F8F8F9;
-   --color-secondary-foreground: #111114;
-   --color-border: #D4D4D8;
-   --color-input: #80808A;
+   --color-accent: #FFFFFF;
+   --color-accent-foreground: #09090B;
+   --color-secondary: #EAECEF;
+   --color-secondary-foreground: #09090B;
+   --color-border: #E4E4E7;
+   --color-input: #71717A;
    --color-destructive: #B71C1C;
-   --color-sucesso: #176E3C;
+   --color-sucesso: #125C32;
    --color-atencao: #875710;
    --color-perigo: #B71C1C;
    --color-neutro: #616169;
@@ -40,20 +40,20 @@
    --color-fase4: #7A86C4;
    --color-primary: #52525B;
    --color-primary-foreground: #FFFFFF;
-   --color-ring: #111114;
+   --color-ring: #09090B;
   }
   @variant dark {
-   --color-background: #0A0A0C;
-   --color-foreground: #F4F4F5;
-   --color-card: #18181B;
-   --color-card-foreground: #F4F4F5;
-   --color-muted: #222226;
-   --color-muted-foreground: #B5B5BE;
-   --color-accent: #2C2C31;
-   --color-accent-foreground: #F4F4F5;
-   --color-secondary: #222226;
-   --color-secondary-foreground: #F4F4F5;
-   --color-border: #36363C;
+   --color-background: #09090B;
+   --color-foreground: #FCFCFC;
+   --color-card: #141416;
+   --color-card-foreground: #FCFCFC;
+   --color-muted: #0B0B0D;
+   --color-muted-foreground: #9A9AA1;
+   --color-accent: #202024;
+   --color-accent-foreground: #FCFCFC;
+   --color-secondary: #0B0B0D;
+   --color-secondary-foreground: #FCFCFC;
+   --color-border: #232326;
    --color-input: #82828C;
    --color-destructive: #C62828;
    --color-sucesso: #4ADE80;
@@ -66,7 +66,7 @@
    --color-fase4: #ADBAEB;
    --color-primary: #52525B;
    --color-primary-foreground: #FFFFFF;
-   --color-ring: #F4F4F5;
+   --color-ring: #FCFCFC;
   }
  }
 }

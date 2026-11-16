@@ -70,7 +70,7 @@ export function BlocoDoPainel({ bloco, aoAtualizar, aoAlternarFiltro, aoAbrirFol
 }
 
 const estilos = StyleSheet.create({
-  bloco: { minWidth: 0 },
+  bloco: { minWidth: 0, borderRadius: 16 },
   cartoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   esqueleto: { height: 140, borderRadius: RAIO },
 });

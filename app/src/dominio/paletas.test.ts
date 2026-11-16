@@ -41,28 +41,28 @@ describe('paletas da marca', () => {
   });
 
   describe('mede contra a paleta escolhida (decisão 4)', () => {
-    it('a mesma cor passa no Escuro e some no cartão do Oceano; trocar de paleta reavalia', () => {
+    it('a mesma cor passa no Escuro e no Claro sem aviso', () => {
       expect(avaliarMarca('#386CB8', 'ESCURO').aviso).toBeNull();
       expect(avaliarMarca('#386CB8', 'CLARO').aviso).toBeNull();
-      expect(avaliarMarca('#386CB8', 'OCEANO').aviso).toBe('Na paleta Oceano, ícones e o menu ativo ficam apagados.');
+      expect(avaliarMarca('#386CB8', 'OCEANO').aviso).toBeNull();
     });
 
     it('junta a paleta escolhida com o tema neutro onde a cor também some', () => {
       expect(avaliarMarca('#1F2937', 'AMEIXA').aviso).toBe('Na paleta Ameixa e no tema escuro, ícones e o menu ativo ficam apagados.');
     });
 
-    it('a paleta Escuro conta o cartão: Índigo e Magenta avisam, Azul não', () => {
+    it('a paleta Escuro conta o cartão: Índigo avisa, Magenta e Azul passam no cartão #141416', () => {
       expect(avaliarMarca('#4F46E5', 'ESCURO').aviso).toBe('Na paleta Escuro, ícones e o menu ativo ficam apagados.');
-      expect(avaliarMarca('#BE185D', 'ESCURO').aviso).not.toBeNull();
+      expect(avaliarMarca('#BE185D', 'ESCURO').aviso).toBeNull();
       expect(avaliarMarca('#2563EB', 'ESCURO').aviso).toBeNull();
     });
 
-    it('nas claras nenhuma das Cores prontas avisa; nas escuras, as que somem são estas', () => {
+    it('nas claras nenhuma das Cores prontas avisa; nas escuras, as que somem no Oceano são estas', () => {
       for (const tema of TEMAS.filter((t) => PALETAS_DO_TEMA[t].modo === 'CLARO')) {
         expect(PALETAS.filter((p) => avaliarMarca(p.cor, tema).aviso)).toEqual([]);
       }
       expect(PALETAS.filter((p) => avaliarMarca(p.cor, 'OCEANO').aviso).map((p) => p.id)).toEqual(
-        ['vermelho', 'esmeralda', 'turquesa', 'ciano', 'indigo', 'roxo', 'magenta', 'bronze'],
+        ['indigo', 'magenta'],
       );
     });
   });

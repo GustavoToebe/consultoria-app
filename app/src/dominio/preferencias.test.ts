@@ -160,9 +160,12 @@ describe('preferências pessoais', () => {
     }
   });
 
-  it('contraste alto no Claro (e nas outras paletas claras): o texto secundário continua #3F3F46', () => {
+  it('contraste alto no Claro (e nas outras paletas claras): o texto secundário fecha ≥ 7:1 sobre todas as superfícies', () => {
     for (const codigo of ['CLARO', 'LAVANDA', 'CEU', 'ROSA'] as const) {
-      expect(coresComContraste(PALETAS[codigo].cores, 'ALTO', false).textoSuave).toBe('#3F3F46');
+      const alto = coresComContraste(PALETAS[codigo].cores, 'ALTO', false);
+      for (const s of [alto.fundo, alto.painel, alto.superficie, alto.superficie2, alto.superficie3, alto.faixaForte]) {
+        expect(contraste(alto.textoSuave, s)).toBeGreaterThanOrEqual(7);
+      }
     }
   });
 

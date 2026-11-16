@@ -15,7 +15,7 @@ import { NOME_DO_PRODUTO } from '../dominio/produto';
 import { useSessao } from '../sessao/SessaoProvider';
 import { inteiroComMilhar } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL, RAIO, RAIO_CONTROLE } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL, RAIO, RAIO_CONTROLE, TOKENS_STNDRD_ESCURO } from '../tema/tokens';
 import { ProvedorDoFundoDaArea } from './fundoDaArea';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { FAMILIAS } from './MarcaTitulo';
@@ -78,7 +78,8 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   conta?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
-  const { cores, bordas } = useTema();
+  const { cores, bordas, stndrd: stndrdTema } = useTema();
+  const stndrd = stndrdTema ?? TOKENS_STNDRD_ESCURO;
   const { marca } = useSessao();
   const lateral = !sempreInferior && width >= LARGURA_MENU_LATERAL;
   // Entre 768 e 1023 o menu é só um trilho de ícones: não há largura para menu aberto e conteúdo.
@@ -162,7 +163,11 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
       {lateral ? null : rodape}
       {lateral ? null : (
         <SafeAreaView edges={['bottom']}
-          style={[estilos.inferior, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>
+          style={[
+            estilos.inferior,
+            { backgroundColor: stndrd.glass.bg, borderColor: stndrd.glass.border },
+            Platform.OS === 'web' ? ({ backdropFilter: `blur(${stndrd.glass.blur}px)` } as object) : null,
+          ]}>
           <View accessibilityRole="menubar" style={[estilos.itensInferiores, larguraInferior ? { maxWidth: larguraInferior } : null]}>
             {itens.filter((item) => !item.soLateral).map((item) => (
               <ItemNavegacao key={item.caminho} item={item} />
@@ -229,7 +234,7 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, aoMostrarDica, aoEsco
         lateral ? estilos.itemLateral : estilos.itemInferior,
         lateral && recolhido && (rotuloEmbaixo ? estilos.itemTrilho : estilos.itemRecolhido),
         lateral && sobre(estado) && { backgroundColor: cores.superficie2 },
-        lateral && ativo && { backgroundColor: cores.superficie3 },
+        lateral && ativo && { backgroundColor: cores.superficie3, borderWidth: 1, borderColor: cores.divisor },
         !lateral && estado.pressed && { opacity: 0.7 },
       ]}>
       {ativo ? <View aria-hidden style={[lateral ? estilos.indicadorLateral : estilos.indicadorInferior, { backgroundColor: marcaPeca }]} /> : null}

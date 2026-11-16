@@ -7,7 +7,18 @@ import { UNIDADES_DE_CARGA, type UnidadeDeCarga } from './unidadeDeCarga';
  * Preferências visuais de cada pessoa, só neste aparelho e para a conta dela (não vão para a API nem para log). A
  * cor da marca não entra aqui: é do treinador e vale para todos os alunos dele.
  */
-export type TemaEscolhido = 'CONSULTORIA' | 'ESCURO' | 'CLARO' | 'AREIA' | 'SISTEMA';
+export type TemaEscolhido =
+  | 'CONSULTORIA'
+  | 'SISTEMA'
+  | 'ESCURO'
+  | 'MEIA_NOITE'
+  | 'OCEANO'
+  | 'AMEIXA'
+  | 'CLARO'
+  | 'AREIA'
+  | 'CEU'
+  | 'LAVANDA'
+  | 'ROSA';
 export type Contraste = 'PADRAO' | 'ALTO';
 export type TamanhoTexto = 'PADRAO' | 'MEDIO' | 'GRANDE' | 'EXTRA';
 export type Movimento = 'SISTEMA' | 'REDUZIDO';
@@ -95,7 +106,19 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   unidadeDeCarga: 'kg',
 };
 
-const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'AREIA', 'SISTEMA'];
+const TEMAS: readonly TemaEscolhido[] = [
+  'CONSULTORIA',
+  'SISTEMA',
+  'ESCURO',
+  'MEIA_NOITE',
+  'OCEANO',
+  'AMEIXA',
+  'CLARO',
+  'AREIA',
+  'CEU',
+  'LAVANDA',
+  'ROSA',
+];
 const CONTRASTES: readonly Contraste[] = ['PADRAO', 'ALTO'];
 const TAMANHOS: readonly TamanhoTexto[] = ['PADRAO', 'MEDIO', 'GRANDE', 'EXTRA'];
 const MOVIMENTOS: readonly Movimento[] = ['SISTEMA', 'REDUZIDO'];
@@ -115,8 +138,9 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     }
   }
   const o = bruto && typeof bruto === 'object' ? (bruto as Record<string, unknown>) : {};
+  const temaBruto = o.tema === 'CAFE' ? 'ESCURO' : o.tema;
   return {
-    tema: entre(o.tema, TEMAS, PREFERENCIAS_PADRAO.tema),
+    tema: entre(temaBruto, TEMAS, PREFERENCIAS_PADRAO.tema),
     contraste: entre(o.contraste, CONTRASTES, PREFERENCIAS_PADRAO.contraste),
     tamanhoTexto: entre(o.tamanhoTexto, TAMANHOS, PREFERENCIAS_PADRAO.tamanhoTexto),
     movimento: entre(o.movimento, MOVIMENTOS, PREFERENCIAS_PADRAO.movimento),

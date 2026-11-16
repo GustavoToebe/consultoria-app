@@ -1,12 +1,14 @@
+import { StyleSheet, View } from 'react-native';
 import type { ResultadoDoMes as ResultadoApi } from '../../api/financeiroTipos';
 import { enfaseDoNumero, type FuncaoDeDestaque } from '../../dominio/destaque';
 import { motivoDoResultadoNulo, resultadoDoMesParaTela } from '../../dominio/financeiro';
 import { colunasDosIndicadores } from '../../dominio/grade';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, type TokenNeon, type TokensStndrd } from '../../tema/tokens';
 import { Cartao } from '../../ui/Cartao';
+import { contornoDoNumero } from '../../ui/destaqueDoNumero';
 import { Grade } from '../../ui/Grade';
-import { NumeroDeDestaque } from '../../ui/NumeroDeDestaque';
+import { MotivoDoIndisponivel } from '../../ui/NumeroDeDestaque';
 import { Texto } from '../../ui/Texto';
 
 /** Com "Meus" os avulsos (e a conta que depende deles) vêm sem valor de propósito: o motivo diz isso. */
@@ -46,12 +48,49 @@ export function ResultadoDoMes({ resultado, somenteMeus, periodo }: {
   );
 }
 
-/** Uma parcela da conta; o rótulo acessível mantém "Rótulo: valor" do antigo `CampoLeitura`. */
+function neonDaParcela(destaque: FuncaoDeDestaque | null, stndrd: TokensStndrd): TokenNeon | null {
+  switch (destaque) {
+    case 'azul':
+      return stndrd.neon.emerald;
+    case 'violeta':
+      return stndrd.neon.electricPurple;
+    case 'vermelho':
+      return stndrd.neon.crimson;
+    default:
+      return null;
+  }
+}
+
+/** Uma parcela da conta; poço Nível 2 dentro do cartão Nível 1 com filete Neon semântico. */
 function Parcela({ rotulo, valor, centavos, destaque, motivo }: {
   rotulo: string; valor: string; centavos: number | null | undefined; destaque: FuncaoDeDestaque | null; motivo?: string;
 }) {
+  const { cores, bordas, stndrd } = useTema();
+  const enfase = enfaseDoNumero(destaque, centavos);
+  const indisponivel = enfase === 'indisponivel';
+  const zero = enfase === 'zero';
+  const neon = indisponivel || zero ? null : neonDaParcela(destaque, stndrd);
+  const corValor = indisponivel || zero ? cores.textoSuave : cores.texto;
   return (
-    <NumeroDeDestaque rotulo={rotulo} valor={valor} enfase={enfaseDoNumero(destaque, centavos)} motivo={motivo} tamanho="medio"
-      rotuloAcessivel={`${rotulo}: ${valor}${motivo && typeof centavos !== 'number' ? `. ${motivo}` : ''}`} />
+    <View
+      accessibilityLabel={`${rotulo}: ${valor}${motivo && typeof centavos !== 'number' ? `. ${motivo}` : ''}`}
+      style={[
+        estilos.parcela,
+        contornoDoNumero(neon?.accent ?? null, { divisor: neon ? neon.tintBorder : cores.divisor }, bordas.bloco, espaco(1.5)),
+        { backgroundColor: cores.superficie2, borderRadius: 12 },
+      ]}>
+      <View style={estilos.topo}>
+        {neon ? <View aria-hidden style={[estilos.ponto, { backgroundColor: neon.accent }]} /> : null}
+        <Texto variante="rotulo" cor={cores.textoSuave}>{rotulo}</Texto>
+      </View>
+      <Texto variante="titulo" numerico cor={corValor}>{valor}</Texto>
+      {indisponivel ? <MotivoDoIndisponivel texto={motivo} /> : null}
+    </View>
   );
 }
+
+const estilos = StyleSheet.create({
+  parcela: { flexGrow: 1, minWidth: 0, paddingVertical: espaco(1.5), paddingRight: espaco(1.5), gap: espaco(0.5) },
+  topo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ponto: { width: 6, height: 6, borderRadius: 3 },
+});

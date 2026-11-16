@@ -1,6 +1,6 @@
 import { Medal, X } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInUp, FadeOutUp, ReduceMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,9 +8,8 @@ import type { DemonstracaoDoAluno } from '../api/tipos';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO, TOKENS_STNDRD_ESCURO } from '../tema/tokens';
 import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
-import { useDestaques } from '../ui/NumeroDeDestaque';
 import { Texto } from '../ui/Texto';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 
@@ -33,9 +32,10 @@ export interface RecordeParaAvisar {
  * Some sozinho em 5 s; o leitor de tela o anuncia (região viva educada). Cor de status (sucesso), nunca a da marca.
  */
 export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar | null; aoFechar: () => void }) {
-  const { cores } = useTema();
-  // Recorde é indicador em violeta (`cores-de-destaque.md` D6), na área do aluno inteira; conclusão segue verde.
-  const { violeta } = useDestaques();
+  const { cores, modo, stndrd: stndrdTema } = useTema();
+  const stndrd = stndrdTema ?? TOKENS_STNDRD_ESCURO;
+  const emerald = stndrd.neon.emerald;
+  const claro = modo === 'CLARO';
   const unidade = useUnidadeDeCarga();
   const margem = useSafeAreaInsets();
   const reduzido = useMovimentoReduzido();
@@ -47,6 +47,8 @@ export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar |
   }, [chave, aoFechar]);
   if (!aviso) return null;
   const linhas = aviso.recordes.map((r) => textoDoRecorde(r, unidade));
+  const seloBg = claro && emerald.capsuleBg ? emerald.capsuleBg : emerald.tintBg;
+  const seloText = claro && emerald.capsuleText ? emerald.capsuleText : emerald.textOnTint;
   return (
     <View pointerEvents="box-none" style={[estilos.camada, { top: margem.top + espaco(1) }]}>
       <Animated.View
@@ -56,17 +58,26 @@ export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar |
         role="status"
         accessibilityLiveRegion="polite"
         accessibilityLabel={`Recorde pessoal em ${aviso.nome}, série ${aviso.numeroDaSerie}: ${linhas.join('; ')}`}
-        style={[estilos.aviso, { backgroundColor: cores.superficie2, borderColor: violeta.cor }]}>
+        style={[
+          estilos.aviso,
+          { backgroundColor: stndrd.glass.bg, borderColor: emerald.tintBorder },
+          Platform.OS === 'web' ? ({ backdropFilter: `blur(${stndrd.glass.blur}px)` } as object) : null,
+        ]}>
         {aviso.demonstracao ? (
           <DemonstracaoDoExercicio exercicioId={aviso.exercicioId} nome={aviso.nome} imagens={aviso.demonstracao.imagens}
             imagemPropriaEm={aviso.demonstracao.imagemPropriaEm} papel="ALUNO" largura={44} altura={44} preencher />
         ) : (
-          <View style={[estilos.icone, { borderColor: violeta.cor }]}>
-            <Medal size={22} color={violeta.cor} />
+          <View style={[estilos.icone, { backgroundColor: emerald.tintBg, borderColor: emerald.tintBorder }]}>
+            <Medal size={22} color={emerald.accent} />
           </View>
         )}
         <View style={estilos.textos}>
-          <Texto variante="pequeno" style={[estilos.titulo, { color: violeta.cor }]}>Recorde pessoal · {aviso.nome}</Texto>
+          <View style={estilos.cabecalhoPr}>
+            <View style={[estilos.seloPr, { backgroundColor: seloBg, borderColor: emerald.tintBorder }]}>
+              <Texto style={[estilos.seloPrTexto, { color: seloText }]}>NEW PR</Texto>
+            </View>
+            <Texto variante="pequeno" numberOfLines={1} style={[estilos.titulo, { color: emerald.textOnTint }]}>{aviso.nome}</Texto>
+          </View>
           {linhas.map((l) => (
             <Texto key={l} numerico style={estilos.linha}>{l}</Texto>
           ))}
@@ -92,8 +103,11 @@ const estilos = StyleSheet.create({
     padding: espaco(1.25),
   },
   icone: { width: 44, height: 44, borderRadius: RAIO, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  textos: { flex: 1, minWidth: 0, gap: 2 },
-  titulo: { fontFamily: fontes.semi },
+  textos: { flex: 1, minWidth: 0, gap: 3 },
+  cabecalhoPr: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  seloPr: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
+  seloPrTexto: { fontFamily: fontes.negrito, fontSize: 10, lineHeight: 14, letterSpacing: 0.6 },
+  titulo: { flex: 1, minWidth: 0, fontFamily: fontes.semi },
   linha: { fontFamily: fontes.semi, fontSize: 16 },
   fechar: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center' },
 });

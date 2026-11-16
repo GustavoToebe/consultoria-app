@@ -60,18 +60,18 @@ export interface Cores {
 }
 
 export const ESCURO: Cores = {
-  fundo: '#0A0A0C',
-  superficie: '#18181B',
-  superficie2: '#222226',
-  superficie3: '#2C2C31',
-  faixaForte: '#34343B',
-  divisor: '#36363C',
-  borda: '#4C4C55',
-  campo: '#0F0F12',
+  fundo: '#09090B',
+  superficie: '#141416',
+  superficie2: '#0B0B0D',
+  superficie3: '#202024',
+  faixaForte: '#28282E',
+  divisor: '#232326',
+  borda: '#4A4A52',
+  campo: '#0B0B0D',
   bordaCampo: '#82828C',
-  painel: '#101013',
-  texto: '#F4F4F5',
-  textoSuave: '#B5B5BE',
+  painel: '#0E0E10',
+  texto: '#FCFCFC',
+  textoSuave: '#9A9AA1',
   sucesso: '#4ADE80',
   atencao: '#FBBF24',
   // O guia propõe #FB7185; fica um passo mais vermelho para não se confundir com o magenta da categoria (ΔE ≥ 40 em `tokens.test.ts`).
@@ -81,7 +81,7 @@ export const ESCURO: Cores = {
   atencaoSuave: '#352915',
   perigoSuave: '#3B1C26',
   perigoFundo: '#C62828',
-  anelFoco: '#F4F4F5',
+  anelFoco: '#FCFCFC',
   // Rosa e lavanda um pouco mais claros que antes: o `perigo` novo é mais claro e a fase não pode parecer erro.
   fase1: '#E7AEC1',
   fase2: '#7DCFC6',
@@ -90,31 +90,28 @@ export const ESCURO: Cores = {
 };
 
 export const CLARO: Cores = {
-  // Fundo e painel tingidos (12/11, `docs/planos/superficies-das-paletas-claras.md`): o cartão e o campo brancos se
-  // destacam da página; o mais escuro em que a seleção (`superficie3`) ainda se separa do menu (1,1:1).
-  fundo: '#F2F2F4',
+  // STNDRD White Minimalist + Neon: cartão sempre #FFFFFF puro, poço rebaixado (#EAECEF) e pílula (#F4F4F6).
+  fundo: '#F3F4F6',
   superficie: '#FFFFFF',
-  // Faixa, linha e hover entre a página e o cartão (12/11): mais clara que o fundo novo, para o cartão ler como um bloco
-  // claro e a faixa do título não se confundir com a página.
-  superficie2: '#F8F8F9',
-  superficie3: '#E7E7EA',
-  faixaForte: '#DCDCE1',
-  divisor: '#D4D4D8',
-  borda: '#B9B9C0',
-  campo: '#FFFFFF',
-  bordaCampo: '#80808A',
-  painel: '#F2F2F4',
-  texto: '#111114',
+  superficie2: '#EAECEF',
+  superficie3: '#FFFFFF',
+  faixaForte: '#DCDCE0',
+  divisor: '#E4E4E7',
+  borda: '#B4B4BC',
+  campo: '#EAECEF',
+  bordaCampo: '#71717A',
+  painel: '#F3F4F6',
+  texto: '#09090B',
   textoSuave: '#52525B',
-  sucesso: '#176E3C',
+  sucesso: '#125C32',
   atencao: '#875710',
   perigo: '#B71C1C',
   neutro: '#616169',
-  sucessoSuave: tingido('#176E3C', '#FFFFFF'),
+  sucessoSuave: tingido('#125C32', '#FFFFFF'),
   atencaoSuave: tingido('#875710', '#FFFFFF'),
   perigoSuave: tingido('#B71C1C', '#FFFFFF'),
   perigoFundo: '#B71C1C',
-  anelFoco: '#111114',
+  anelFoco: '#09090B',
   fase1: '#C46B86',
   fase2: '#5E8F8A',
   fase3: '#A67C2E',
@@ -122,50 +119,20 @@ export const CLARO: Cores = {
 };
 
 /**
- * "Claro areia" (D2 da frente "Clareza do treinador", 30/10): a mesma regra do claro, com fundo e faixas em tom areia,
- * a pedido do Gustavo na reunião de 29/10. Vale como opção nas Preferências e como paleta da marca; o padrão continua o claro neutro. Fases,
- * foco e texto são os do claro.
- *
- * 14/11: areia mais escura e acinzentada, do exemplo que o Saraiva aprovou (cinza-areia na página, cartão em branco quente,
- * faixa do título um tom abaixo do cartão; valores tirados de uma imagem comprimida e ajustados só no que o contraste pede).
- * Sobre essas superfícies os status do claro caem a 4,1–4,4:1 (e menos ainda sob a caixa de aviso, tingida sobre a página),
- * então os quatro são escurecidos aqui no mínimo para fechar 4,5:1, as quatro fases fecham 3:1 e os fundos dos selos são
- * tingidos sobre o cartão novo, como na `paletaEscura`. As cores fixas de agenda, perfil, identificação e destaque ganharam a
- * variante `areia` pelo mesmo motivo (`VarianteDoTema`).
+ * Claro Areia (STNDRD White Minimalist): cartão Nível 1 sempre #FFFFFF puro, fundo #F4F1EA e poço #ECE7DD.
  */
-const SUPERFICIE_AREIA = '#E6E5E1';
-const SUCESSO_AREIA = '#125830';
-const ATENCAO_AREIA = '#6C460D';
-const PERIGO_AREIA = '#961717';
 export const AREIA: Cores = {
   ...CLARO,
-  // O exemplo tinha #CAC7C0; um passo mais claro para o Âmbar e o Verde da Marca seguirem a 3:1 da página (`paletas.test.ts`).
-  fundo: '#CDCAC3',
-  painel: '#CDCAC3',
-  superficie: SUPERFICIE_AREIA,
-  superficie2: '#D9D6CF',
-  // Acompanha o fundo: precisa de 1,1:1 contra ele (`tokens.test.ts`).
-  superficie3: '#D7D4CD',
-  faixaForte: '#CCC9C1',
-  divisor: '#B0ACA2',
-  borda: '#8E8A80',
-  campo: '#F4F3F0',
-  bordaCampo: '#625E56',
-  // O do claro (#52525B) cai a 4,2:1 sobre a série feita (verde translúcido sobre `superficie2`); um passo mais escuro fecha 4,5:1.
-  textoSuave: '#4C4C54',
-  sucesso: SUCESSO_AREIA,
-  atencao: ATENCAO_AREIA,
-  perigo: PERIGO_AREIA,
-  neutro: '#4D4D53',
-  sucessoSuave: tingido(SUCESSO_AREIA, SUPERFICIE_AREIA),
-  atencaoSuave: tingido(ATENCAO_AREIA, SUPERFICIE_AREIA),
-  perigoSuave: tingido(PERIGO_AREIA, SUPERFICIE_AREIA),
-  perigoFundo: PERIGO_AREIA,
-  // Mesmo tom e mínimo mais escuro para fechar 3:1 sobre o cartão novo (`tokens.test.ts`).
-  fase1: '#AC5E76',
-  fase2: '#537E79',
-  fase3: '#957029',
-  fase4: '#6973A9',
+  fundo: '#F4F1EA',
+  painel: '#F4F1EA',
+  superficie: '#FFFFFF',
+  superficie2: '#ECE7DD',
+  superficie3: '#FFFFFF',
+  faixaForte: '#DDD6C7',
+  divisor: '#E5DFD3',
+  borda: '#B0A899',
+  campo: '#ECE7DD',
+  bordaCampo: '#6E6659',
 };
 
 /** Modo de uma paleta: decide a barra de status e o esquema do Uniwind. */
@@ -202,81 +169,245 @@ function paletaEscura(chao: Pick<Cores, 'fundo' | 'superficie' | 'superficie2' |
  * deste passo porque a prévia não calcula esse tom). Nas claras o cartão é branco e o segundo tom da paleta é a faixa.
  */
 export const MEIA_NOITE: Cores = paletaEscura({
-  fundo: '#06141B',
-  superficie: '#11212D',
-  superficie2: '#0D1C26',
-  superficie3: '#1F2E3A',
-  faixaForte: '#263540',
-  divisor: '#303E48',
-  borda: '#48545D',
-  campo: '#162531',
-  bordaCampo: '#737C83',
+  fundo: '#080C14',
+  superficie: '#111722',
+  superficie2: '#060910',
+  superficie3: '#1A2333',
+  faixaForte: '#232E42',
+  divisor: '#1E293B',
+  borda: '#49566B',
+  campo: '#060910',
+  bordaCampo: '#7B879B',
 });
 
 export const AMEIXA: Cores = paletaEscura({
-  fundo: '#190019',
-  superficie: '#2B124C',
-  superficie2: '#240B38',
-  superficie3: '#382057',
-  faixaForte: '#3E275C',
-  divisor: '#473163',
-  borda: '#5C4975',
-  campo: '#2F1750',
-  bordaCampo: '#827395',
+  fundo: '#0D0914',
+  superficie: '#161122',
+  superficie2: '#08050D',
+  superficie3: '#221A33',
+  faixaForte: '#2B2240',
+  divisor: '#281E3C',
+  borda: '#514766',
+  campo: '#08050D',
+  bordaCampo: '#817796',
 });
 
-/** Cartão ajustado da prévia (o original era #1C2541): o mais claro em que série feita, tingido e neutro passam 4,5:1. */
 export const OCEANO: Cores = paletaEscura({
-  fundo: '#0B132B',
-  superficie: '#1A223C',
-  superficie2: '#141C35',
-  superficie3: '#232B44',
-  faixaForte: '#2A314A',
-  divisor: '#383F55',
-  borda: '#4F5569',
-  campo: '#1F2640',
-  bordaCampo: '#787D8C',
+  fundo: '#071014',
+  superficie: '#0F1B22',
+  superficie2: '#050B0E',
+  superficie3: '#172832',
+  faixaForte: '#1F3440',
+  divisor: '#1B303C',
+  borda: '#475C68',
+  campo: '#050B0E',
+  bordaCampo: '#778A95',
 });
 
-/** Cartão ajustado da prévia (o original era #3A2418): o mais claro em que série feita, tingido e neutro passam 4,5:1. */
-export const CAFE: Cores = paletaEscura({
-  fundo: '#1A120E',
-  superficie: '#301E14',
-  superficie2: '#271912',
-  superficie3: '#38271D',
-  faixaForte: '#3E2E24',
-  divisor: '#4B3B33',
-  borda: '#60524A',
-  campo: '#342319',
-  bordaCampo: '#857A74',
-});
+/** Mantido apenas como alias retrocompatível; não é mais exibido na seleção de Marca/Ajustes. */
+export const CAFE: Cores = ESCURO;
 
-// Fundo e painel tingidos no tom da paleta (12/11); no Céu e no Rosa a seleção ganhou um passo de tom para continuar
-// separada do fundo novo (1,1:1), na força da seleção do Claro e da Areia.
-export const LAVANDA: Cores = { ...CLARO, fundo: '#EFF0FA', painel: '#EFF0FA', superficie3: '#E6E0FF' };
-export const CEU: Cores = { ...CLARO, fundo: '#EBF2FC', painel: '#EBF2FC', superficie3: '#D5E5FB' };
-export const ROSA: Cores = { ...CLARO, fundo: '#FAEFF3', painel: '#FAEFF3', superficie3: '#F8DCEA' };
+export const LAVANDA: Cores = {
+  ...CLARO,
+  fundo: '#F3F0FA',
+  painel: '#F3F0FA',
+  superficie: '#FFFFFF',
+  superficie2: '#EAE5F5',
+  superficie3: '#FFFFFF',
+  faixaForte: '#D6CEE8',
+  divisor: '#E2DCF0',
+  borda: '#B0A8C4',
+  campo: '#EAE5F5',
+  bordaCampo: '#706884',
+};
+export const CEU: Cores = {
+  ...CLARO,
+  fundo: '#EEF4FA',
+  painel: '#EEF4FA',
+  superficie: '#FFFFFF',
+  superficie2: '#E4EDF7',
+  superficie3: '#FFFFFF',
+  faixaForte: '#CEDCEB',
+  divisor: '#DAE4F0',
+  borda: '#A6B5C7',
+  campo: '#E4EDF7',
+  bordaCampo: '#67778A',
+};
+export const ROSA: Cores = {
+  ...CLARO,
+  fundo: '#FAF0F4',
+  painel: '#FAF0F4',
+  superficie: '#FFFFFF',
+  superficie2: '#F5E5EC',
+  superficie3: '#FFFFFF',
+  faixaForte: '#E6CFD9',
+  divisor: '#F0DCE5',
+  borda: '#C2A5B3',
+  campo: '#F5E5EC',
+  bordaCampo: '#806472',
+};
 
 /** Código da paleta (= `Tema` da API, o `temaPadrao` da consultoria) → nome na tela, cores e modo. Fonte única do modo. */
 export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTema; variante: VarianteDoTema }> = {
   ESCURO: { nome: 'Escuro', cores: ESCURO, modo: 'ESCURO', variante: 'escuro' },
   MEIA_NOITE: { nome: 'Meia-noite', cores: MEIA_NOITE, modo: 'ESCURO', variante: 'escuro' },
-  AMEIXA: { nome: 'Ameixa', cores: AMEIXA, modo: 'ESCURO', variante: 'escuro' },
   OCEANO: { nome: 'Oceano', cores: OCEANO, modo: 'ESCURO', variante: 'escuro' },
-  CAFE: { nome: 'Café', cores: CAFE, modo: 'ESCURO', variante: 'escuro' },
+  AMEIXA: { nome: 'Ameixa', cores: AMEIXA, modo: 'ESCURO', variante: 'escuro' },
+  CAFE: { nome: 'Escuro', cores: ESCURO, modo: 'ESCURO', variante: 'escuro' },
   CLARO: { nome: 'Claro', cores: CLARO, modo: 'CLARO', variante: 'claro' },
-  AREIA: { nome: 'Areia', cores: AREIA, modo: 'CLARO', variante: 'areia' },
-  LAVANDA: { nome: 'Lavanda', cores: LAVANDA, modo: 'CLARO', variante: 'claro' },
+  AREIA: { nome: 'Areia', cores: AREIA, modo: 'CLARO', variante: 'claro' },
   CEU: { nome: 'Céu', cores: CEU, modo: 'CLARO', variante: 'claro' },
+  LAVANDA: { nome: 'Lavanda', cores: LAVANDA, modo: 'CLARO', variante: 'claro' },
   ROSA: { nome: 'Rosa', cores: ROSA, modo: 'CLARO', variante: 'claro' },
 };
+
+/** Paletas exibidas nos seletores de Marca e Ajustes (sem `CAFE`, que resolve para `ESCURO`). */
+export const CODIGOS_PALETAS_VISIVEIS: readonly Exclude<Tema, 'CAFE'>[] = [
+  'ESCURO', 'MEIA_NOITE', 'OCEANO', 'AMEIXA',
+  'CLARO', 'AREIA', 'CEU', 'LAVANDA', 'ROSA',
+];
 
 /**
  * A paleta de um código, com reserva no Escuro: um código que o app não conhece (app antigo com a API nova, ou o contrário)
  * nunca derruba a tela. Todo código vindo de fora (marca da sessão, prévia) passa por aqui, não por `PALETAS[codigo]`.
+ * `'CAFE'` (legado) resolve automaticamente para `PALETAS.ESCURO`.
  */
 export const paletaDe = (codigo: string | null | undefined): (typeof PALETAS)[Tema] =>
-  (codigo && Object.hasOwn(PALETAS, codigo) ? PALETAS[codigo as Tema] : undefined) ?? PALETAS.ESCURO;
+  codigo === 'CAFE'
+    ? PALETAS.ESCURO
+    : (codigo && Object.hasOwn(PALETAS, codigo) ? PALETAS[codigo as Tema] : undefined) ?? PALETAS.ESCURO;
+
+export interface TokenNeon {
+  accent: string;
+  tintBg: string;
+  tintBorder: string;
+  textOnTint: string;
+  capsuleBg?: string;
+  capsuleText?: string;
+  solidBg?: string;
+}
+
+export interface TokensStndrd {
+  neon: {
+    emerald: TokenNeon;
+    acidLime: TokenNeon;
+    electricBlue: TokenNeon;
+    electricPurple: TokenNeon;
+    crimson: TokenNeon;
+  };
+  cta: {
+    bg: string;
+    text: string;
+  };
+  glass: {
+    bg: string;
+    border: string;
+    blur: number;
+  };
+}
+
+export const TOKENS_STNDRD_ESCURO: TokensStndrd = {
+  neon: {
+    emerald: {
+      accent: '#00E699',
+      tintBg: 'rgba(0, 230, 153, 0.12)',
+      tintBorder: 'rgba(0, 230, 153, 0.28)',
+      textOnTint: '#00E699',
+    },
+    acidLime: {
+      accent: '#CDFF00',
+      tintBg: 'rgba(205, 255, 0, 0.12)',
+      tintBorder: 'rgba(205, 255, 0, 0.28)',
+      textOnTint: '#CDFF00',
+    },
+    electricBlue: {
+      accent: '#3B82F6',
+      solidBg: '#2563EB',
+      tintBg: 'rgba(59, 130, 246, 0.14)',
+      tintBorder: 'rgba(59, 130, 246, 0.28)',
+      textOnTint: '#60A5FA',
+    },
+    electricPurple: {
+      accent: '#A855F7',
+      tintBg: 'rgba(168, 85, 247, 0.12)',
+      tintBorder: 'rgba(168, 85, 247, 0.28)',
+      textOnTint: '#C084FC',
+    },
+    crimson: {
+      accent: '#FF3B5C',
+      tintBg: 'rgba(255, 59, 92, 0.12)',
+      tintBorder: 'rgba(255, 59, 92, 0.28)',
+      textOnTint: '#FF4D6D',
+    },
+  },
+  cta: {
+    bg: '#FCFCFC',
+    text: '#09090B',
+  },
+  glass: {
+    bg: 'rgba(20, 20, 22, 0.78)',
+    border: 'rgba(255, 255, 255, 0.08)',
+    blur: 20,
+  },
+};
+
+export const TOKENS_STNDRD_CLARO: TokensStndrd = {
+  neon: {
+    emerald: {
+      accent: '#00D68F',
+      tintBg: 'rgba(0, 214, 143, 0.12)',
+      tintBorder: 'rgba(5, 150, 105, 0.28)',
+      textOnTint: '#047857',
+      capsuleBg: '#09090B',
+      capsuleText: '#00E699',
+    },
+    acidLime: {
+      accent: '#A3E635',
+      tintBg: 'rgba(163, 230, 53, 0.16)',
+      tintBorder: 'rgba(101, 163, 13, 0.28)',
+      textOnTint: '#3F6212',
+      capsuleBg: '#09090B',
+      capsuleText: '#CDFF00',
+    },
+    electricBlue: {
+      accent: '#2563EB',
+      solidBg: '#2563EB',
+      tintBg: 'rgba(37, 99, 235, 0.10)',
+      tintBorder: 'rgba(37, 99, 235, 0.25)',
+      textOnTint: '#1D4ED8',
+      capsuleBg: '#2563EB',
+      capsuleText: '#FFFFFF',
+    },
+    electricPurple: {
+      accent: '#9333EA',
+      tintBg: 'rgba(147, 51, 234, 0.10)',
+      tintBorder: 'rgba(147, 51, 234, 0.25)',
+      textOnTint: '#7E22CE',
+      capsuleBg: '#09090B',
+      capsuleText: '#C084FC',
+    },
+    crimson: {
+      accent: '#F43F5E',
+      tintBg: 'rgba(244, 63, 94, 0.10)',
+      tintBorder: 'rgba(225, 29, 72, 0.25)',
+      textOnTint: '#BE123C',
+      capsuleBg: '#09090B',
+      capsuleText: '#FF4D6D',
+    },
+  },
+  cta: {
+    bg: '#09090B',
+    text: '#FFFFFF',
+  },
+  glass: {
+    bg: 'rgba(255, 255, 255, 0.82)',
+    border: 'rgba(9, 9, 11, 0.08)',
+    blur: 20,
+  },
+};
+
+export const tokensStndrdDe = (modo: ModoDoTema): TokensStndrd =>
+  modo === 'CLARO' ? TOKENS_STNDRD_CLARO : TOKENS_STNDRD_ESCURO;
 
 export const modoDaPaleta = (codigo: string | null | undefined): ModoDoTema => paletaDe(codigo).modo;
 
@@ -380,7 +511,7 @@ export function coresDeIdentificacao(cores: Cores, variante: VarianteDoTema): Re
  * `perigo`), os mesmos do `Selo` (D13: a mesma informação com a mesma cor). Não substituem as cores de categoria.
  */
 export const PALETA_DE_DESTAQUE: Record<VarianteDoTema, Record<'azul' | 'ciano' | 'violeta', string>> = {
-  claro: { azul: '#1D4ED8', ciano: '#0E7490', violeta: '#6D28D9' },
+  claro: { azul: '#153A9E', ciano: '#0A576D', violeta: '#5B21B6' },
   // Areia (14/11): 4,5:1 sobre a página, o cartão e o fundo tonalizado novos; o azul fica mais escuro que o ciano e o violeta
   // (que já estão no limite de 4,5:1) para o par de barras azul × ciano manter 1,2:1.
   areia: { azul: '#173EAB', ciano: '#0B5D73', violeta: '#6A27D2' },
