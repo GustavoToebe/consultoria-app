@@ -90,6 +90,8 @@ class VisaoGeralComMeusIntegrationTest extends AbstractIntegrationTest {
         confere(admin, "?meus=false", 2, 15_000, 12 * 10_000 + 12 * 5_000 + 20_000);
         confere(admin, "?meus=true", 1, 10_000, 12 * 10_000);
         confere(leitor, "?meus=true", 1, 5_000, 12 * 5_000 + 20_000);
+        // Sem `meus`, quem não é administrador vê a consultoria inteira, como o administrador.
+        confere(leitor, "", 2, 15_000, 12 * 10_000 + 12 * 5_000 + 20_000);
         confere(outro, "?meus=true", 1, 99_000, 12 * 99_000);
     }
 
