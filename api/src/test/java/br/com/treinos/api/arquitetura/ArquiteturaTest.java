@@ -67,9 +67,12 @@ class ArquiteturaTest {
      * e só mexe em ids de objeto e em linhas ainda não ligadas a nenhuma atualização ou post do mural ({@code comunidade_mural_foto}); nenhum método devolve dado de pessoa);
      * {@code InscricaoBusca} (link público de inscrição: descobre só a consultoria de um link aberto pelo código, antes de abrir a
      * sessão nela);
-     * {@code VitrinePublicaRepositorio} (página pública da loja: descobre só a consultoria de uma página ligada pelo código do
-     * link, antes de abrir o tenant, como {@code InscricaoBusca}; devolve apenas esse id e nunca dado de equipe, de aluno ou
-     * item: o resto roda dentro da consultoria, com {@code @TenantId});
+     * {@code VitrinePublicaRepositorio} (leituras públicas da vitrine, sem login e sem tenant: a página da loja descobre só a
+     * consultoria de uma página ligada pelo código do link, como {@code InscricaoBusca}, e o resto roda dentro dela com
+     * {@code @TenantId}; o marketplace (D15) lê entre consultorias com projeção fechada (marca, código da loja e, por item, nome,
+     * descrição, tipo, preço e data da foto, nunca bytes, cupom, link nem dado de equipe ou de aluno) e filtros explícitos em toda
+     * consulta: opt-in da consultoria e do item, página ligada, item ativo, digital e na página, e consultoria não suspensa em
+     * {@code direitos_locais});
      * {@code VerificacaoDasCredenciais} (na subida, sem tenant: lê só os ids de chave das API Keys cifradas do recebimento online,
      * de todas as consultorias, para a API não subir sem a chave que decifra o que já está gravado; nunca lê o segredo);
      * {@code AvisoDePagamentoRepositorio} (caixa de entrada dos avisos da InfinitePay: a busca do token do webhook roda antes de
@@ -115,10 +118,10 @@ class ArquiteturaTest {
     private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario",
             "CatalogoExercicio", "CatalogoAlimento", "AtualizacaoModelo");
 
-    /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo, inscrição pelo link, aviso da InfinitePay, termos sem login). */
+    /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo, inscrição pelo link, aviso da InfinitePay, termos sem login, lista pública de lojas do marketplace). */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
             "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController",
-            "InscricaoPublicaController", "AvisoInfinitePayController", "TermosPublicoController", "VitrinePublicaController");
+            "InscricaoPublicaController", "AvisoInfinitePayController", "TermosPublicoController", "VitrinePublicaController", "MarketplaceController");
 
     @BeforeAll
     static void importar() {
@@ -228,12 +231,14 @@ class ArquiteturaTest {
     }
 
     @Test
-    void controllerDaVitrineExigeVitrineOuLojaHabilitada() {
+    void controllerDaVitrineExigeVitrineLojaOuMarketplaceHabilitado() {
         classes().that().areAnnotatedWith(RestController.class)
                 .and().resideInAPackage("br.com.treinos.api.vitrine..")
                 .should().beAnnotatedWith(br.com.treinos.api.vitrine.ExigeVitrine.class)
                 .orShould().beAnnotatedWith(br.com.treinos.api.vitrine.ExigeLoja.class)
-                .because("com TREINOS_VITRINE_HABILITADA=false (ou TREINOS_LOJA_HABILITADA=false, na página pública) toda rota responde 503 "
+                .orShould().beAnnotatedWith(br.com.treinos.api.vitrine.ExigeMarketplace.class)
+                .because("com TREINOS_VITRINE_HABILITADA=false (ou TREINOS_LOJA_HABILITADA=false na página pública, ou "
+                        + "TREINOS_MARKETPLACE_HABILITADO=false na lista de lojas) toda rota responde 503 "
                         + "(VitrineConfiguracao); controller novo sem a anotação ficaria aberto com o recurso desligado")
                 .check(codigo);
     }

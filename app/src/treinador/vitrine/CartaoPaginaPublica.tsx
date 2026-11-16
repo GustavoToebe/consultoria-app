@@ -80,7 +80,7 @@ function Configuracao({ pagina, podeAlterar, aoGravar, aoConflito }: {
 
   const ligar = (ligada: boolean) => {
     if (salvando) return;
-    gravar(() => gravarPaginaDaVitrine(corpoDaPagina(ligada, pagina)), (p) => (p.paginaLigada ? 'Página ligada.' : 'Página desligada.'));
+    gravar(() => gravarPaginaDaVitrine(corpoDaPagina({ paginaLigada: ligada, noMarketplace: pagina?.noMarketplace ?? false }, pagina)), (p) => (p.paginaLigada ? 'Página ligada.' : 'Página desligada.'));
   };
   const gerarNovo = () => {
     if (novo.versao == null) return;

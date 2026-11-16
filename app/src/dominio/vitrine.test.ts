@@ -1,8 +1,8 @@
 import type { ItemDaVitrine, ItemDaVitrineDoAluno, TipoDoItem } from '../api/vitrineTipos';
 import type { PlataformaDoApp } from './financeiro';
 import {
-  comoMostrarItem, comTipoDoItem, contagemDeItens, corpoDoItem, emPromocao, erroDaPaginaPublicaDoItem, interruptorDaPaginaPublica, itensDoCartaoDoInicio,
-  moverItem, MOTIVO_SO_DIGITAL, podeAdicionarItem, problemasDoItem, rascunhoDoItem, rascunhoVazio, textoDoPreco, TETO_DE_ITENS, type RascunhoDoItem,
+  comoMostrarItem, comTipoDoItem, contagemDeItens, corpoDoItem, emPromocao, erroDaListaDeConsultoriasDoItem, erroDaPaginaPublicaDoItem, interruptorDaPaginaPublica, itensDoCartaoDoInicio,
+  moverItem, MOTIVO_SO_DIGITAL, MOTIVO_SO_DIGITAL_NA_LISTA, podeAdicionarItem, problemasDoItem, rascunhoDoItem, rascunhoVazio, textoDoPreco, TETO_DE_ITENS, type RascunhoDoItem,
 } from './vitrine';
 
 const HOJE = '2026-11-16';
@@ -162,23 +162,49 @@ describe('editor: validação espelhada da API', () => {
 describe('corpo do POST/PUT', () => {
   it('centavos inteiros, textos aparados, em branco = nulo e versão só na edição', () => {
     const r: RascunhoDoItem = {
-      nome: '  Fullbody ', descricao: '  ', tipo: 'DIGITAL', preco: '149,9', precoEspecial: 'R$ 99,00', especialAte: '2026-11-27', cupom: ' BLACK ', linkUrl: ' https://exemplo.com ', ativo: false, naPaginaPublica: true,
+      nome: '  Fullbody ', descricao: '  ', tipo: 'DIGITAL', preco: '149,9', precoEspecial: 'R$ 99,00', especialAte: '2026-11-27', cupom: ' BLACK ', linkUrl: ' https://exemplo.com ', ativo: false, naPaginaPublica: true, noMarketplace: true,
     };
     expect(corpoDoItem(r)).toEqual({
-      nome: 'Fullbody', descricao: null, tipo: 'DIGITAL', precoCentavos: 14990, precoEspecialCentavos: 9900, especialAte: '2026-11-27', cupom: 'BLACK', linkUrl: 'https://exemplo.com', ativo: false, naPaginaPublica: true,
+      nome: 'Fullbody', descricao: null, tipo: 'DIGITAL', precoCentavos: 14990, precoEspecialCentavos: 9900, especialAte: '2026-11-27', cupom: 'BLACK', linkUrl: 'https://exemplo.com', ativo: false, naPaginaPublica: true, noMarketplace: true,
     });
     expect(corpoDoItem(r, 3).versao).toBe(3);
-    expect(corpoDoItem(rascunhoVazio())).toMatchObject({ precoCentavos: null, precoEspecialCentavos: null, especialAte: null, cupom: null, linkUrl: null, ativo: true, tipo: 'DIGITAL', naPaginaPublica: false });
+    expect(corpoDoItem(rascunhoVazio())).toMatchObject({ precoCentavos: null, precoEspecialCentavos: null, especialAte: null, cupom: null, linkUrl: null, ativo: true, tipo: 'DIGITAL', naPaginaPublica: false, noMarketplace: false });
   });
 
   it('o rascunho de um item salvo volta ao mesmo corpo', () => {
     const item: ItemDaVitrine = {
-      id: 'i', nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, precoVigenteCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, naPaginaPublica: false, ordem: 2, versao: 4, temFoto: true, fotoAtualizadaEm: "2026-11-16T03:00:00Z",
+      id: 'i', nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, precoVigenteCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, naPaginaPublica: false, noMarketplace: false, ordem: 2, versao: 4, temFoto: true, fotoAtualizadaEm: "2026-11-16T03:00:00Z",
     };
     expect(problemasDoItem(rascunhoDoItem(item), HOJE)).toEqual({});
     expect(corpoDoItem(rascunhoDoItem(item), item.versao)).toEqual({
-      nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, naPaginaPublica: false, versao: 4,
+      nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, naPaginaPublica: false, noMarketplace: false, versao: 4,
     });
+  });
+});
+
+describe('lista de consultorias: marcar o item', () => {
+  it('o corpo manda noMarketplace sempre (falso por padrão) e o valor que o item já tinha', () => {
+    expect(corpoDoItem(rascunhoVazio()).noMarketplace).toBe(false);
+    expect(corpoDoItem({ ...rascunhoVazio(), nome: 'A', noMarketplace: true }).noMarketplace).toBe(true);
+  });
+
+  it('item físico nunca vai marcado, e o editor recusa a marca no campo noMarketplace', () => {
+    const fisico = { ...rascunhoVazio(), nome: 'A', tipo: 'FISICO' as const, noMarketplace: true };
+    expect(corpoDoItem(fisico).noMarketplace).toBe(false);
+    expect(problemasDoItem(fisico, HOJE)).toEqual({ noMarketplace: MOTIVO_SO_DIGITAL_NA_LISTA });
+    expect(problemasDoItem({ ...rascunhoVazio(), nome: 'A', noMarketplace: true }, HOJE)).toEqual({});
+  });
+
+  it('trocar o tipo para não digital desmarca; para digital mantém; o texto não diz "marketplace"', () => {
+    const marcado = { ...rascunhoVazio(), noMarketplace: true };
+    expect(comTipoDoItem(marcado, 'FISICO')).toMatchObject({ tipo: 'FISICO', noMarketplace: false });
+    expect(comTipoDoItem(marcado, 'DIGITAL').noMarketplace).toBe(true);
+    expect(MOTIVO_SO_DIGITAL_NA_LISTA).not.toMatch(/marketplace/i);
+  });
+
+  it('o 422 da API no campo vira a mensagem; outro campo, nada', () => {
+    expect(erroDaListaDeConsultoriasDoItem({ noMarketplace: 'x' })).toBe(MOTIVO_SO_DIGITAL_NA_LISTA);
+    expect(erroDaListaDeConsultoriasDoItem({ naPaginaPublica: 'x' })).toBeNull();
   });
 });
 

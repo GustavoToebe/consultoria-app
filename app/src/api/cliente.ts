@@ -17,6 +17,7 @@ import {
 
 import { ehCicloDesligado } from '../dominio/cicloDesligado';
 import { ehLojaDesligada } from '../dominio/lojaDesligada';
+import { ehMarketplaceDesligado } from '../dominio/marketplaceDesligado';
 import { ehVitrineDesligada } from '../dominio/vitrineDesligada';
 import { ehRetornoDesligado } from '../dominio/retornoDesligado';
 import { apagarRefresh, lerRefresh, salvarRefresh } from '../sessao/armazenamentoSeguro';
@@ -68,6 +69,7 @@ let aoCicloDesligadoSessao: (() => void) | null = null;
 let aoRetornoDesligadoSessao: (() => void) | null = null;
 let aoVitrineDesligadaSessao: (() => void) | null = null;
 let aoLojaDesligadaSessao: (() => void) | null = null;
+let aoMarketplaceDesligadoSessao: (() => void) | null = null;
 /** Quem está com a sessão aberta nesta aba; a renovação que devolve outra pessoa não é aceita. */
 let usuarioEsperado: string | null = null;
 let recusaPorTroca = false;
@@ -107,6 +109,14 @@ export function aoVitrineDesligada(callback: (() => void) | null) {
  */
 export function aoLojaDesligada(callback: (() => void) | null) {
   aoLojaDesligadaSessao = callback;
+}
+
+/**
+ * O SessaoProvider é avisado quando qualquer rota responde 503 `MARKETPLACE_INDISPONIVEL` (lista de consultorias desligada na
+ * plataforma, com o perfil salvo ainda dizendo que estava ligada). O erro continua sendo lançado para quem chamou.
+ */
+export function aoMarketplaceDesligado(callback: (() => void) | null) {
+  aoMarketplaceDesligadoSessao = callback;
 }
 
 export async function guardarSessao(resposta: LoginResponse): Promise<void> {
@@ -203,6 +213,9 @@ export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promi
     }
     if (ehLojaDesligada(erro)) {
       aoLojaDesligadaSessao?.();
+    }
+    if (ehMarketplaceDesligado(erro)) {
+      aoMarketplaceDesligadoSessao?.();
     }
     throw erro;
   }

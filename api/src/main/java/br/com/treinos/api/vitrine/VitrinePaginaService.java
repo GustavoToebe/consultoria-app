@@ -21,7 +21,8 @@ import java.util.Optional;
  * Página pública da loja, pela equipe (F2a). A linha nasce na primeira gravação (ligar a página ou pedir o link) com a {@code versao}
  * ausente; depois toda gravação leva a {@code versao} que a tela leu (409 {@code CONFLITO_EDICAO}). Gravar trava a consultoria
  * (duas primeiras gravações não perdem a corrida). O código é gerado aqui, nunca vem do cliente; trocar o link invalida o antigo. A
- * auditoria leva um resumo fixo: nunca o código. Ligar ao mesmo valor não grava nem audita.
+ * auditoria leva um resumo fixo: nunca o código. Ligar ao mesmo valor não grava nem audita; entrar ou sair do
+ * marketplace (opt-in da consultoria, F3) grava (a versão sobe, como em qualquer gravação) e audita {@code VITRINE_MARKETPLACE_ALTERADO}, também com resumo fixo.
  */
 @Service
 public class VitrinePaginaService {
@@ -48,11 +49,25 @@ public class VitrinePaginaService {
                     List.of(new ApiError.FieldError("paginaLigada", "Informe se a página fica ligada.")));
         }
         VitrinePagina pagina = obterParaAlterar(r.versao());
-        if (pagina.isPaginaLigada() != r.paginaLigada()) {
+        boolean noMarketplace = Boolean.TRUE.equals(r.noMarketplace());
+        boolean mudouPagina = pagina.isPaginaLigada() != r.paginaLigada();
+        boolean mudouMarketplace = pagina.isNoMarketplace() != noMarketplace;
+        if (mudouPagina) {
             pagina.ligar(r.paginaLigada());
+        }
+        if (mudouMarketplace) {
+            pagina.entrarNoMarketplace(noMarketplace);
+        }
+        if (mudouPagina || mudouMarketplace) {
             paginas.saveAndFlush(pagina);
+        }
+        if (mudouPagina) {
             auditoria.registrarEvento("VITRINE_PAGINA_ALTERADA", "VITRINE_PAGINA", null,
                     r.paginaLigada() ? "Ligou a página pública da loja." : "Desligou a página pública da loja.");
+        }
+        if (mudouMarketplace) {
+            auditoria.registrarEvento("VITRINE_MARKETPLACE_ALTERADO", "VITRINE_PAGINA", null,
+                    noMarketplace ? "Entrou na Vitrine de consultorias." : "Saiu da Vitrine de consultorias.");
         }
         return resposta(Optional.of(pagina));
     }
@@ -80,7 +95,7 @@ public class VitrinePaginaService {
     }
 
     private static PaginaResponse resposta(Optional<VitrinePagina> pagina) {
-        return pagina.map(p -> new PaginaResponse(p.isPaginaLigada(), p.getCodigoPublico(), p.getVersao()))
-                .orElse(new PaginaResponse(false, null, null));
+        return pagina.map(p -> new PaginaResponse(p.isPaginaLigada(), p.getCodigoPublico(), p.isNoMarketplace(), p.getVersao()))
+                .orElse(new PaginaResponse(false, null, false, null));
     }
 }

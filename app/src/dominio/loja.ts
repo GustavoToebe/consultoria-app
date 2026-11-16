@@ -88,7 +88,7 @@ export type EstadoDaLoja =
 export const TEXTO_CARREGANDO_A_LOJA = 'Carregando a página…';
 export const ROTULO_TENTAR_DE_NOVO = 'Tentar de novo';
 /** A mesma frase da API para código inexistente, malformado, página desligada e vitrine desligada: nada distingue um do outro. */
-const NAO_ENCONTRADA: TextosDoEstado = { titulo: 'Página não encontrada.', texto: 'O endereço pode estar errado ou a página não está disponível.' };
+export const NAO_ENCONTRADA: TextosDoEstado = { titulo: 'Página não encontrada.', texto: 'O endereço pode estar errado ou a página não está disponível.' };
 
 /** `Retry-After` (segundos inteiros ou data HTTP) em segundos de espera, pelo menos 1; ilegível ou ausente = `null`. */
 export function esperaDoRetryAfter(valor: string | null | undefined, agora: number = Date.now()): number | null {
@@ -160,9 +160,12 @@ export function textoDaPagina(pagina: PaginaDaVitrine | null | undefined): Texto
     : { situacao: 'DESLIGADA', rotulo: 'Desligada', descricao: 'Quem abrir o link vê "Página não encontrada.".', link };
 }
 
-/** Corpo do `PUT`: a `versao` que a tela leu (nula só enquanto não há configuração). */
-export const corpoDaPagina = (paginaLigada: boolean, pagina: PaginaDaVitrine | null | undefined): DadosDaPagina => ({
-  paginaLigada, versao: pagina?.versao ?? null,
+/**
+ * Corpo do `PUT`: a `versao` que a tela leu (nula só enquanto não há configuração). O PUT grava o estado inteiro, então a
+ * escolha traz os dois campos: quem muda um reenvia o outro como veio da API (`pagina.noMarketplace`; sem configuração, falso).
+ */
+export const corpoDaPagina = (escolha: Pick<DadosDaPagina, 'paginaLigada' | 'noMarketplace'>, pagina: PaginaDaVitrine | null | undefined): DadosDaPagina => ({
+  paginaLigada: escolha.paginaLigada, noMarketplace: escolha.noMarketplace, versao: pagina?.versao ?? null,
 });
 
 /** Novo link só com configuração gravada (precisa da versão); devolve a `versao` a enviar no `POST .../novo-link`. */

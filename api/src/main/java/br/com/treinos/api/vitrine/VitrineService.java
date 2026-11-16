@@ -170,7 +170,7 @@ public class VitrineService {
     private static ItemResponse resposta(VitrineItem i, Instant fotoAtualizadaEm, LocalDate hoje) {
         return new ItemResponse(i.getId(), i.getNome(), i.getDescricao(), i.getTipo(), i.getPrecoCentavos(),
                 i.getPrecoEspecialCentavos(), i.getEspecialAte(), PrecoDaVitrine.vigente(i, hoje), i.getCupom(), i.getLinkUrl(),
-                i.isAtivo(), i.isNaPaginaPublica(), i.getOrdem(), i.getVersao(), fotoAtualizadaEm != null, fotoAtualizadaEm);
+                i.isAtivo(), i.isNaPaginaPublica(), i.isNoMarketplace(), i.getOrdem(), i.getVersao(), fotoAtualizadaEm != null, fotoAtualizadaEm);
     }
 
     /** Quando cada item teve a foto trocada (só os que têm), numa consulta e sem os bytes. */

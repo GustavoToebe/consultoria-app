@@ -12,7 +12,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Com {@link VitrineProperties#habilitada()} falso, toda rota marcada com {@link ExigeVitrine} responde 503, leitura inclusive;
- * com {@link VitrineProperties#lojaEfetiva()} falso, o mesmo vale para {@link ExigeLoja} (503 {@code LOJA_INDISPONIVEL}).
+ * com {@link VitrineProperties#lojaEfetiva()} falso, o mesmo vale para {@link ExigeLoja} (503 {@code LOJA_INDISPONIVEL}) e, com
+ * {@link VitrineProperties#marketplaceEfetivo()} falso, para {@link ExigeMarketplace} (503 {@code MARKETPLACE_INDISPONIVEL}).
  */
 @Configuration
 @EnableConfigurationProperties(VitrineProperties.class)
@@ -39,6 +40,10 @@ public class VitrineConfiguracao implements WebMvcConfigurer {
                 if (!propriedades.lojaEfetiva() && (AnnotatedElementUtils.hasAnnotation(metodo.getBeanType(), ExigeLoja.class)
                         || AnnotatedElementUtils.hasAnnotation(metodo.getMethod(), ExigeLoja.class))) {
                     throw new LojaIndisponivelException();
+                }
+                if (!propriedades.marketplaceEfetivo() && (AnnotatedElementUtils.hasAnnotation(metodo.getBeanType(), ExigeMarketplace.class)
+                        || AnnotatedElementUtils.hasAnnotation(metodo.getMethod(), ExigeMarketplace.class))) {
+                    throw new MarketplaceIndisponivelException();
                 }
                 return true;
             }

@@ -4,6 +4,7 @@ import { dataNaFaixa, mensagemDaFaixa } from './datasValidas';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataParaTela } from './formatos';
 import { VALOR_MAXIMO_CENTAVOS, type PlataformaDoApp } from './financeiro';
 import { erroDoLink } from './links';
+import { NOME_DA_VITRINE_DE_CONSULTORIAS } from './produto';
 import { MAX_CUPOM } from './suplementos';
 
 /**
@@ -117,14 +118,21 @@ export function interruptorDaPaginaPublica(tipo: TipoDoItem, lojaHabilitada: boo
   return tipo === 'DIGITAL' ? { visivel: lojaHabilitada, habilitado: true, motivo: null } : { visivel: lojaHabilitada, habilitado: false, motivo: MOTIVO_SO_DIGITAL };
 }
 
-/** Troca o tipo no rascunho: para não digital, o item sai da página pública (o interruptor fica desligado e travado). */
+/** Texto da tela para a recusa da API (422 `VITRINE_ITEM_INVALIDO` no campo `noMarketplace`): só item digital entra na lista de consultorias. */
+export const MOTIVO_SO_DIGITAL_NA_LISTA = `Só item digital pode aparecer na ${NOME_DA_VITRINE_DE_CONSULTORIAS.toLowerCase()}.`;
+
+/** Troca o tipo no rascunho: para não digital, o item sai da página pública e da lista de consultorias (os interruptores ficam desligados e travados). */
 export const comTipoDoItem = (r: RascunhoDoItem, tipo: TipoDoItem): RascunhoDoItem => ({
-  ...r, tipo, naPaginaPublica: tipo === 'DIGITAL' && r.naPaginaPublica,
+  ...r, tipo, naPaginaPublica: tipo === 'DIGITAL' && r.naPaginaPublica, noMarketplace: tipo === 'DIGITAL' && r.noMarketplace,
 });
 
 /** Mensagem do campo quando a API recusou a marca (`fieldErrors` com `naPaginaPublica`); `null` se o erro não é desse campo. */
 export const erroDaPaginaPublicaDoItem = (porCampo: Record<string, string>): string | null =>
   'naPaginaPublica' in porCampo ? MOTIVO_SO_DIGITAL : null;
+
+/** Idem para `noMarketplace`. */
+export const erroDaListaDeConsultoriasDoItem = (porCampo: Record<string, string>): string | null =>
+  'noMarketplace' in porCampo ? MOTIVO_SO_DIGITAL_NA_LISTA : null;
 
 // ---- Editor ----
 
@@ -141,11 +149,13 @@ export interface RascunhoDoItem {
   ativo: boolean;
   /** Aparece na página pública da loja; só vale com `tipo` DIGITAL (`interruptorDaPaginaPublica`). */
   naPaginaPublica: boolean;
+  /** Aparece na lista de consultorias; só vale com `tipo` DIGITAL (`interruptorDoItemNaLista`). */
+  noMarketplace: boolean;
 }
 
 /** Item novo: digital (o que mostra menos no celular) e ativo. */
 export const rascunhoVazio = (): RascunhoDoItem => ({
-  nome: '', descricao: '', tipo: 'DIGITAL', preco: '', precoEspecial: '', especialAte: '', cupom: '', linkUrl: '', ativo: true, naPaginaPublica: false,
+  nome: '', descricao: '', tipo: 'DIGITAL', preco: '', precoEspecial: '', especialAte: '', cupom: '', linkUrl: '', ativo: true, naPaginaPublica: false, noMarketplace: false,
 });
 
 export const rascunhoDoItem = (i: ItemDaVitrine): RascunhoDoItem => ({
@@ -159,6 +169,7 @@ export const rascunhoDoItem = (i: ItemDaVitrine): RascunhoDoItem => ({
   linkUrl: i.linkUrl ?? '',
   ativo: i.ativo,
   naPaginaPublica: i.naPaginaPublica,
+  noMarketplace: i.noMarketplace,
 });
 
 /** Preço digitado: vazio = sem preço (`null`); preenchido e ilegível ou grande demais = `undefined` (erro no campo). */
@@ -197,6 +208,7 @@ export function problemasDoItem(r: RascunhoDoItem, hoje: string = hojeEmBrasilia
   const link = erroDoLink(r.linkUrl);
   if (link) erros.linkUrl = link;
   if (r.naPaginaPublica && r.tipo !== 'DIGITAL') erros.naPaginaPublica = MOTIVO_SO_DIGITAL;
+  if (r.noMarketplace && r.tipo !== 'DIGITAL') erros.noMarketplace = MOTIVO_SO_DIGITAL_NA_LISTA;
   return erros;
 }
 
@@ -214,6 +226,7 @@ export function corpoDoItem(r: RascunhoDoItem, versao?: number): DadosDoItem {
     ativo: r.ativo,
     // A API trata ausente como falso: manda sempre. Item que não é digital nunca vai marcado (422 no campo).
     naPaginaPublica: r.tipo === 'DIGITAL' && r.naPaginaPublica,
+    noMarketplace: r.tipo === 'DIGITAL' && r.noMarketplace,
   };
   if (versao !== undefined) corpo.versao = versao;
   return corpo;

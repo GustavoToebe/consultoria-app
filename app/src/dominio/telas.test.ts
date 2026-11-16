@@ -330,6 +330,8 @@ describe('título da aba do navegador', () => {
     expect(tituloDaPagina('/treinador/entrar', null)).toBe('Entrar · Overtraining');
     expect(tituloDaPagina('/convite-equipe', null)).toBe('Convite da equipe · Overtraining');
     expect(tituloDaPagina('/inscricao/abc', 'Saraiva Team')).toBe('Inscrição · Saraiva Team');
+    expect(tituloDaPagina('/consultorias', null)).toBe('Vitrine de consultorias · Overtraining');
+    expect(tituloDaPagina('/loja/abc', null)).toBe('Loja · Overtraining');
   });
   it('páginas públicas de privacidade, termos e exclusão da conta têm título, mas não entram na busca de telas', () => {
     expect(tituloDaPagina('/privacidade', null)).toBe('Privacidade · Overtraining');

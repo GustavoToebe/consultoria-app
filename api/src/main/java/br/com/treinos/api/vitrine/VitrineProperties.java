@@ -9,13 +9,21 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>{@code lojaHabilitada} ({@code TREINOS_LOJA_HABILITADA}, também desligada por padrão) liga a página pública da loja; as rotas
  * {@link ExigeLoja} respondem 503 {@code LOJA_INDISPONIVEL}. A loja só vale com a vitrine ligada ({@link #lojaEfetiva()}).
  * shortcut: a condição "pagamentos + InfinitePay" da D1 do plano é da venda (F2b) e ainda não entra; incluir quando houver pedido.
- * O marketplace (F3) terá chave própria.
+ *
+ * <p>{@code marketplaceHabilitado} ({@code TREINOS_MARKETPLACE_HABILITADO}, desligada por padrão) liga a lista pública de lojas (F3); as
+ * rotas {@link ExigeMarketplace} respondem 503 {@code MARKETPLACE_INDISPONIVEL}. O marketplace leva o visitante à página da loja, então
+ * só vale com a loja efetiva ({@link #marketplaceEfetivo()}).
  */
 @ConfigurationProperties("treinos.vitrine")
-public record VitrineProperties(boolean habilitada, boolean lojaHabilitada) {
+public record VitrineProperties(boolean habilitada, boolean lojaHabilitada, boolean marketplaceHabilitado) {
 
     /** Vitrine ligada e loja ligada: o valor que o app e o interceptor usam. */
     public boolean lojaEfetiva() {
         return habilitada && lojaHabilitada;
+    }
+
+    /** Loja efetiva e marketplace ligado: o valor que o app e o interceptor usam. */
+    public boolean marketplaceEfetivo() {
+        return lojaEfetiva() && marketplaceHabilitado;
     }
 }

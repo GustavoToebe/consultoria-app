@@ -345,6 +345,31 @@ describe('cliente HTTP: vitrine desligada (503 VITRINE_INDISPONIVEL)', () => {
   });
 });
 
+describe('cliente HTTP: lista de consultorias desligada (503 MARKETPLACE_INDISPONIVEL)', () => {
+  let fetchSimulado: jest.Mock;
+  beforeEach(() => {
+    mockLerRefresh.mockResolvedValue('refresh-velho');
+    fetchSimulado = jest.fn();
+    global.fetch = fetchSimulado as unknown as typeof fetch;
+  });
+
+  it('avisa a sessão uma vez e relança o mesmo erro; os outros 503 não avisam', async () => {
+    const { requisicao, aoMarketplaceDesligado } = carregarCliente();
+    const desligado = jest.fn();
+    aoMarketplaceDesligado(desligado);
+
+    fetchSimulado.mockResolvedValue(json(503, { status: 503, message: 'x', codigo: 'MARKETPLACE_INDISPONIVEL', fieldErrors: null }));
+    await expect(requisicao('/vitrine/configuracao')).rejects.toMatchObject({ status: 503, codigo: 'MARKETPLACE_INDISPONIVEL' });
+    expect(desligado).toHaveBeenCalledTimes(1);
+
+    for (const [status, codigo] of [[503, 'LOJA_INDISPONIVEL'], [503, 'VITRINE_INDISPONIVEL'], [409, 'MARKETPLACE_INDISPONIVEL'], [500, 'MARKETPLACE_INDISPONIVEL']] as [number, string][]) {
+      fetchSimulado.mockResolvedValue(json(status, { status, message: 'x', codigo, fieldErrors: null }));
+      await expect(requisicao('/vitrine/itens')).rejects.toMatchObject({ status, codigo });
+    }
+    expect(desligado).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('cliente HTTP: imagem protegida', () => {
   let fetchSimulado: jest.Mock;
 

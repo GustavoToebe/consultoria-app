@@ -8,6 +8,7 @@ import {
   aoRetornoDesligado,
   aoVitrineDesligada,
   aoLojaDesligada,
+  aoMarketplaceDesligado,
   aoEncerrar,
   definirUsuarioDaSessao,
   ErroApi,
@@ -73,6 +74,8 @@ interface ValorSessao {
   vitrineHabilitada: boolean;
   /** Página pública da loja ligada? Desligada ou desconhecida, o app esconde a configuração da página e o interruptor do item. */
   lojaHabilitada: boolean;
+  /** Lista pública de consultorias ligada? Desligada ou desconhecida, o app esconde o interruptor da consultoria e a escolha por item. */
+  marketplaceHabilitado: boolean;
   /** Aviso de compromisso por push ligado? Desligado ou desconhecido, o app não oferece o interruptor. */
   pushHabilitado: boolean;
   /** Escolha de kg/lb ligada? Desligado ou desconhecido, a carga é sempre kg e a escolha não aparece. */
@@ -402,6 +405,19 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     });
     return () => aoLojaDesligada(null);
   }, []);
+  // Idem para a lista de consultorias: 503 `MARKETPLACE_INDISPONIVEL` com o perfil dizendo que estava ligada.
+  useEffect(() => {
+    aoMarketplaceDesligado(() => {
+      setPerfil((atual) => {
+        if (!atual || atual.marketplaceHabilitado !== true) return atual;
+        const novo = { ...atual, marketplaceHabilitado: false };
+        perfilAtual.current = novo;
+        AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
+        return novo;
+      });
+    });
+    return () => aoMarketplaceDesligado(null);
+  }, []);
   const valor = useMemo<ValorSessao>(
     () => ({
       termosPendentes: perfil?.termosPendentes ?? false,
@@ -419,6 +435,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       retornoHabilitado:perfil?.retornoHabilitado===true,
       vitrineHabilitada:perfil?.vitrineHabilitada===true,
       lojaHabilitada:perfil?.lojaHabilitada===true,
+      marketplaceHabilitado:perfil?.marketplaceHabilitado===true,
       pushHabilitado:perfil?.pushHabilitado===true,
       unidadeDeCargaHabilitada:perfil?.unidadeDeCargaHabilitada===true,
       migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,

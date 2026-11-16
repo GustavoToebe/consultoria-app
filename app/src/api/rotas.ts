@@ -1324,7 +1324,7 @@ export const baixarFotoDoItemDoAluno = (id: string) =>
 // ---- Página pública da loja (F2a; configuração com `VITRINE_LER`/`VITRINE_ALTERAR`; leitura pública sem login) ----
 /** Configuração da página (`paginaLigada`, `codigo`, `versao`); sem configuração ainda, tudo nulo e desligada. */
 export const paginaDaVitrine = () => requisicao<import('./vitrineTipos').PaginaDaVitrine>('/vitrine/configuracao');
-/** 409 `CONFLITO_EDICAO` (recarregar); 422 `VITRINE_PAGINA_INVALIDA` no campo `paginaLigada`. */
+/** Grava o estado inteiro: o corpo exige `paginaLigada` e `noMarketplace` (ausente = falso na API). 409 `CONFLITO_EDICAO` (recarregar); 422 `VITRINE_PAGINA_INVALIDA` no campo `paginaLigada`. */
 export const gravarPaginaDaVitrine = (corpo: import('./vitrineTipos').DadosDaPagina) =>
   requisicao<import('./vitrineTipos').PaginaDaVitrine>('/vitrine/configuracao', { metodo: 'PUT', corpo });
 /** Código novo: o link antigo passa a dar 404. 409 `CONFLITO_EDICAO`. */
@@ -1339,3 +1339,9 @@ export const lojaPublica = (codigo: string) =>
  */
 export const caminhoDaFotoDaLoja = (codigo: string, itemId: string, versao?: string | null) =>
   `/publico/loja/${seg(codigo)}/itens/${seg(itemId)}/foto${versao ? `?v=${seg(versao)}` : ''}`;
+/**
+ * Lista pública de consultorias (F3), sem login: `pagina` base 0, `tamanho` até 100 (o servidor corta). 503 `MARKETPLACE_INDISPONIVEL`
+ * (chave desligada) e 404 viram "Página não encontrada."; 429 com `Retry-After`. A foto do item é a da loja (`caminhoDaFotoDaLoja`).
+ */
+export const lojasPublicas = (pagina: number, tamanho: number) =>
+  requisicao<import('./vitrineTipos').MarketplaceResposta>(`/publico/lojas?pagina=${seg(pagina)}&tamanho=${seg(tamanho)}`, { semRenovar: true });

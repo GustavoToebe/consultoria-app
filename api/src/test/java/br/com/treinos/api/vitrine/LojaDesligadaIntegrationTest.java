@@ -28,6 +28,7 @@ class LojaDesligadaIntegrationTest extends AbstractIntegrationTest {
     @DynamicPropertySource
     static void desligarALoja(DynamicPropertyRegistry registry) {
         registry.add("treinos.vitrine.loja-habilitada", () -> "false");
+        registry.add("treinos.vitrine.marketplace-habilitado", () -> "true");
     }
 
     @Autowired private MockMvc mvc;
@@ -57,6 +58,8 @@ class LojaDesligadaIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.post("/vitrine/configuracao/novo-link", treinador, Map.of(), 503).path("codigo").asString())
                 .isEqualTo("LOJA_INDISPONIVEL");
 
+        assertThat(api.get("/publico/lojas", null, 503).path("codigo").asString()).isEqualTo("MARKETPLACE_INDISPONIVEL");
+
         // A vitrine continua: o item aceita naPaginaPublica (o app é quem esconde o interruptor) e o aluno lê a lista.
         JsonNode item = api.post("/vitrine/itens", treinador,
                 Map.of("nome", "Planilha Fictícia", "tipo", "DIGITAL", "ativo", true, "naPaginaPublica", true), 200);
@@ -67,6 +70,8 @@ class LojaDesligadaIntegrationTest extends AbstractIntegrationTest {
         for (JsonNode eu : new JsonNode[] {api.get("/eu", treinador, 200), api.get("/eu", login, 200)}) {
             assertThat(eu.get("vitrineHabilitada").asBoolean()).isTrue();
             assertThat(eu.get("lojaHabilitada").asBoolean()).isFalse();
+            // O marketplace depende da loja: com a chave dele ligada (suíte) e a loja desligada, o app o recebe desligado.
+            assertThat(eu.get("marketplaceHabilitado").asBoolean()).isFalse();
         }
     }
 }

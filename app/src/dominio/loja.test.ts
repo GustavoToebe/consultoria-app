@@ -112,25 +112,25 @@ describe('estados da página', () => {
 });
 
 describe('configuração da página (treinador)', () => {
-  const ligada: PaginaDaVitrine = { paginaLigada: true, codigo: CODIGO, versao: 3 };
+  const ligada: PaginaDaVitrine = { paginaLigada: true, codigo: CODIGO, noMarketplace: false, versao: 3 };
 
   it('textos do estado: sem link, desligada e ligada', () => {
     expect(textoDaPagina(null)).toMatchObject({ situacao: 'SEM_LINK', link: null });
-    expect(textoDaPagina({ paginaLigada: false, codigo: null, versao: null })).toMatchObject({ situacao: 'SEM_LINK', link: null });
+    expect(textoDaPagina({ paginaLigada: false, codigo: null, noMarketplace: false, versao: null })).toMatchObject({ situacao: 'SEM_LINK', link: null });
     expect(textoDaPagina({ ...ligada, paginaLigada: false })).toMatchObject({ situacao: 'DESLIGADA', rotulo: 'Desligada', link: `https://overtraining.app/loja/${CODIGO}` });
     expect(textoDaPagina(ligada)).toMatchObject({ situacao: 'LIGADA', rotulo: 'Ligada', link: `https://overtraining.app/loja/${CODIGO}` });
   });
 
-  it('versão a enviar: a lida, ou nula enquanto não há configuração', () => {
-    expect(corpoDaPagina(true, ligada)).toEqual({ paginaLigada: true, versao: 3 });
-    expect(corpoDaPagina(true, null)).toEqual({ paginaLigada: true, versao: null });
-    expect(corpoDaPagina(false, { paginaLigada: false, codigo: null, versao: null })).toEqual({ paginaLigada: false, versao: null });
+  it('o corpo leva os dois campos e a versão lida (nula enquanto não há configuração)', () => {
+    expect(corpoDaPagina({ paginaLigada: true, noMarketplace: false }, ligada)).toEqual({ paginaLigada: true, noMarketplace: false, versao: 3 });
+    expect(corpoDaPagina({ paginaLigada: true, noMarketplace: false }, null)).toEqual({ paginaLigada: true, noMarketplace: false, versao: null });
+    expect(corpoDaPagina({ paginaLigada: false, noMarketplace: true }, { ...ligada, noMarketplace: true })).toEqual({ paginaLigada: false, noMarketplace: true, versao: 3 });
   });
 
   it('novo link só com configuração gravada', () => {
     expect(novoLinkDaPagina(ligada)).toEqual({ pode: true, versao: 3, motivo: null });
     expect(novoLinkDaPagina(null).pode).toBe(false);
-    expect(novoLinkDaPagina({ paginaLigada: false, codigo: null, versao: null })).toMatchObject({ pode: false, versao: null });
+    expect(novoLinkDaPagina({ paginaLigada: false, codigo: null, noMarketplace: false, versao: null })).toMatchObject({ pode: false, versao: null });
   });
 
   it('409 recarrega com aviso; 422 mostra o campo; 503 da vitrine, sem conexão e 403 mostram a API; o resto é a frase padrão', () => {

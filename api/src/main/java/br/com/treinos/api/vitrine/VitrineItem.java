@@ -14,7 +14,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * Item da vitrine da consultoria (V075; {@code na_pagina_publica} na V077): o que o treinador mostra ao aluno, com preço, preço especial (com validade) e cupom.
+ * Item da vitrine da consultoria (V075; {@code na_pagina_publica} na V077, {@code no_marketplace} na V079): o que o treinador mostra ao aluno, com preço, preço especial (com validade) e cupom.
  * Dinheiro em centavos. Sem dado de pessoa. O preço que vale hoje não mora aqui: é calculado por {@link PrecoDaVitrine}.
  */
 @Entity
@@ -57,6 +57,9 @@ public class VitrineItem {
     @Column(name = "na_pagina_publica", nullable = false)
     private boolean naPaginaPublica;
 
+    @Column(name = "no_marketplace", nullable = false)
+    private boolean noMarketplace;
+
     @Column(nullable = false)
     private int ordem;
 
@@ -88,6 +91,7 @@ public class VitrineItem {
     public String getLinkUrl() { return linkUrl; }
     public boolean isAtivo() { return ativo; }
     public boolean isNaPaginaPublica() { return naPaginaPublica; }
+    public boolean isNoMarketplace() { return noMarketplace; }
     public int getOrdem() { return ordem; }
     public Long getVersao() { return versao; }
 
@@ -102,6 +106,7 @@ public class VitrineItem {
         this.linkUrl = v.linkUrl();
         this.ativo = v.ativo();
         this.naPaginaPublica = v.naPaginaPublica();
+        this.noMarketplace = v.noMarketplace();
         this.atualizadoEm = Instant.now();
     }
 

@@ -70,5 +70,8 @@ class VitrineDesligadaIntegrationTest extends AbstractIntegrationTest {
         // A loja só vale com a vitrine ligada, mesmo com a chave dela ligada (a suíte liga as duas): 503 próprio, nunca 404.
         assertThat(api.get("/publico/loja/" + "Z".repeat(24), null, 503).path("codigo").asString()).isEqualTo("LOJA_INDISPONIVEL");
         assertThat(api.get("/eu", treinador, 200).get("lojaHabilitada").asBoolean()).isFalse();
+        // O marketplace também: depende da loja, que depende da vitrine.
+        assertThat(api.get("/publico/lojas", null, 503).path("codigo").asString()).isEqualTo("MARKETPLACE_INDISPONIVEL");
+        assertThat(api.get("/eu", treinador, 200).get("marketplaceHabilitado").asBoolean()).isFalse();
     }
 }

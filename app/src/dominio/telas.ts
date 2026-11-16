@@ -1,7 +1,7 @@
 import { temFuncionalidade } from './funcionalidadesDoPlano';
 import { posicaoNoMenu, type GrupoDoMenu } from './gruposDoMenu';
 import { podeAcessarTela } from './permissoes';
-import { NOME_DO_PRODUTO } from './produto';
+import { NOME_DA_VITRINE_DE_CONSULTORIAS, NOME_DO_PRODUTO } from './produto';
 
 /**
  * Seção de uma tela na busca global: o grupo do menu lateral (D24 de `docs/planos/auditoria-ficha.md`, os mesmos do
@@ -281,6 +281,7 @@ const TITULOS_FORA_DO_CATALOGO: readonly [string, string][] = [
   ['/redefinir-senha', 'Nova senha'],
   ['/inscricao', 'Inscrição'],
   ['/loja', 'Loja'],
+  ['/consultorias', NOME_DA_VITRINE_DE_CONSULTORIAS],
   ['/privacidade', 'Privacidade'],
   ['/termos-de-uso', 'Termos de uso'],
   ['/excluir-conta', 'Excluir conta'],

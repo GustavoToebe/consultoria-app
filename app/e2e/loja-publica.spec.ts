@@ -167,7 +167,7 @@ function itemDaVitrine(n: number, extra: Partial<ItemDaVitrine> = {}): ItemDaVit
   return {
     id: `v0000000-0000-4000-8000-${String(n).padStart(12, '0')}`, nome: `Item fictício ${n}`, descricao: null, tipo: 'DIGITAL',
     precoCentavos: null, precoEspecialCentavos: null, precoVigenteCentavos: null, especialAte: null, cupom: null, linkUrl: null,
-    ativo: true, naPaginaPublica: false, ordem: n - 1, versao: 1, temFoto: false, fotoAtualizadaEm: null, ...extra,
+    ativo: true, naPaginaPublica: false, noMarketplace: false, ordem: n - 1, versao: 1, temFoto: false, fotoAtualizadaEm: null, ...extra,
   };
 }
 const MARCADO = itemDaVitrine(1, { nome: 'Planilha de força', precoCentavos: 9900, precoVigenteCentavos: 9900, naPaginaPublica: true });
@@ -175,8 +175,8 @@ const FISICO = itemDaVitrine(2, { nome: 'Camiseta do time', tipo: 'FISICO' });
 const INATIVO_MARCADO = itemDaVitrine(3, { nome: 'Guia antigo', ativo: false, naPaginaPublica: true });
 const ITENS = [MARCADO, FISICO, INATIVO_MARCADO];
 
-const SEM_LINK: PaginaDaVitrine = { paginaLigada: false, codigo: null, versao: null };
-const LIGADA: PaginaDaVitrine = { paginaLigada: true, codigo: CODIGO, versao: 1 };
+const SEM_LINK: PaginaDaVitrine = { paginaLigada: false, codigo: null, noMarketplace: false, versao: null };
+const LIGADA: PaginaDaVitrine = { paginaLigada: true, codigo: CODIGO, noMarketplace: false, versao: 1 };
 const COM_ALTERAR = [...PERMISSOES_TREINADOR, 'VITRINE_LER', 'VITRINE_ALTERAR'];
 
 async function abrirVitrine(page: Page, { pagina = { corpo: LIGADA }, permissoes = COM_ALTERAR, loja = true, tema = 'CLARO', largura = 1280, extra = {} }: {
@@ -222,7 +222,7 @@ for (const largura of [390, 1280]) {
       await page.getByRole('switch', { name: 'Página ligada' }).click();
       await expect(page.getByText('Página ligada.')).toBeVisible();
       await expect(page.getByText('Ligada', { exact: true })).toBeVisible();
-      expect(pedidos.find((p) => p.metodo === 'PUT' && p.caminho === '/vitrine/configuracao')?.corpo).toEqual({ paginaLigada: true, versao: null });
+      expect(pedidos.find((p) => p.metodo === 'PUT' && p.caminho === '/vitrine/configuracao')?.corpo).toEqual({ paginaLigada: true, noMarketplace: false, versao: null });
       const link = `${new URL(page.url()).origin}/loja/${CODIGO}`;
       await expect(page.getByTestId('link-da-pagina-publica')).toHaveText(link);
       await capturar(page, `vitrine-ligada-${tema.toLowerCase()}-${largura}`);
@@ -261,7 +261,7 @@ test('vitrine: 409 avisa e busca a configuração de novo', async ({ page }) => 
   await page.getByRole('switch', { name: 'Página ligada' }).click();
   await expect(page.getByText('A página foi alterada em outro lugar. Recarregamos para você conferir.')).toBeVisible();
   await expect.poll(() => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/vitrine/configuracao').length).toBe(2);
-  expect(pedidos.find((p) => p.metodo === 'PUT')?.corpo).toEqual({ paginaLigada: false, versao: 1 });
+  expect(pedidos.find((p) => p.metodo === 'PUT')?.corpo).toEqual({ paginaLigada: false, noMarketplace: false, versao: 1 });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });

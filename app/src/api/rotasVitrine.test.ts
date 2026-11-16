@@ -1,7 +1,7 @@
 import { requisicao } from './cliente';
 import {
   alterarItemDaVitrine, baixarFotoDoItem, baixarFotoDoItemDoAluno, criarItemDaVitrine, excluirItemDaVitrine, itensDaVitrine, ordenarItensDaVitrine,
-  caminhoDaFotoDaLoja, gravarPaginaDaVitrine, lojaPublica, novoLinkDaVitrine, paginaDaVitrine, removerFotoDoItem, trocarFotoDoItem, vitrineDoAluno,
+  caminhoDaFotoDaLoja, gravarPaginaDaVitrine, lojaPublica, lojasPublicas, novoLinkDaVitrine, paginaDaVitrine, removerFotoDoItem, trocarFotoDoItem, vitrineDoAluno,
 } from './rotas';
 import { corpoDoItem, rascunhoVazio } from '../dominio/vitrine';
 
@@ -41,12 +41,21 @@ describe('rotas da vitrine', () => {
   it('página pública: configuração da equipe, novo link e leitura pública sem renovar sessão', async () => {
     await paginaDaVitrine();
     expect(requisicao).toHaveBeenLastCalledWith('/vitrine/configuracao');
-    await gravarPaginaDaVitrine({ paginaLigada: true, versao: null });
-    expect(requisicao).toHaveBeenLastCalledWith('/vitrine/configuracao', { metodo: 'PUT', corpo: { paginaLigada: true, versao: null } });
+    await gravarPaginaDaVitrine({ paginaLigada: true, noMarketplace: true, versao: null });
+    expect(requisicao).toHaveBeenLastCalledWith('/vitrine/configuracao', { metodo: 'PUT', corpo: { paginaLigada: true, noMarketplace: true, versao: null } });
     await novoLinkDaVitrine(4);
     expect(requisicao).toHaveBeenLastCalledWith('/vitrine/configuracao/novo-link', { metodo: 'POST', corpo: { versao: 4 } });
     await lojaPublica('../x');
     expect(requisicao).toHaveBeenLastCalledWith('/publico/loja/..%2Fx', { semRenovar: true });
+  });
+
+  it('lista de consultorias: GET público com página e tamanho, sem renovar sessão', async () => {
+    await lojasPublicas(2, 30);
+    expect(requisicao).toHaveBeenLastCalledWith('/publico/lojas?pagina=2&tamanho=30', { semRenovar: true });
+  });
+
+  it('o corpo do item leva noMarketplace', async () => {
+    expect(corpo).toMatchObject({ naPaginaPublica: false, noMarketplace: false });
   });
 
   it('foto pública: só o caminho, com o código e o item codificados e a versão como chave', () => {

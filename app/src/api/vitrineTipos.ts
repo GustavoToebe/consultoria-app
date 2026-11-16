@@ -19,6 +19,8 @@ export interface ItemDaVitrine {
   ativo: boolean;
   /** Aparece na página pública da loja (F2a); só item `DIGITAL` pode (422 `VITRINE_ITEM_INVALIDO` no campo). */
   naPaginaPublica: boolean;
+  /** Aparece na lista pública de consultorias (F3); só item `DIGITAL`, ativo e na página pública aparece de fato. */
+  noMarketplace: boolean;
   ordem: number;
   versao: number;
   temFoto: boolean;
@@ -45,6 +47,8 @@ export interface DadosDoItem {
   ativo: boolean;
   /** Mandar SEMPRE: a API trata ausente como `false`. */
   naPaginaPublica: boolean;
+  /** Mandar SEMPRE: a API trata ausente como `false` (o item sai da lista de consultorias). */
+  noMarketplace: boolean;
   versao?: number;
 }
 
@@ -55,6 +59,8 @@ export interface PaginaDaVitrine {
   paginaLigada: boolean;
   /** Código do link `/loja/<codigo>`; nulo até a primeira gravação. */
   codigo: string | null;
+  /** A consultoria aceitou entrar na lista pública de consultorias (F3); falso sem configuração. */
+  noMarketplace: boolean;
   /** Vai de volta em toda escrita (nulo só enquanto não há configuração); diferente = 409 `CONFLITO_EDICAO`. */
   versao: number | null;
 }
@@ -62,6 +68,8 @@ export interface PaginaDaVitrine {
 /** Corpo do `PUT /vitrine/configuracao`. */
 export interface DadosDaPagina {
   paginaLigada: boolean;
+  /** Obrigatório aqui: o PUT grava o estado inteiro e ausente = `false` (tiraria a consultoria da lista sem querer). */
+  noMarketplace: boolean;
   versao: number | null;
 }
 
@@ -77,4 +85,33 @@ export type ItemDaLojaPublica = Omit<ItemDaVitrineDoAluno, 'tipo'>;
 export interface LojaPublica {
   marca: MarcaDaLoja;
   itens: ItemDaLojaPublica[];
+}
+
+// ---- Lista pública de consultorias (F3) ----
+
+/** Item na lista de consultorias (`GET /publico/lojas`): só digital, sem cupom, link nem preço normal; a compra é na página da loja. */
+export interface ItemDoMarketplace {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  tipo: 'DIGITAL';
+  /** Decidido no servidor; nulo = sem preço (nunca zero nem "grátis"). A API manda sempre; o celular não mostra (D6). */
+  precoVigenteCentavos: number | null;
+  temFoto: boolean;
+  fotoAtualizadaEm: string | null;
+}
+
+/** Uma consultoria na lista: `codigo` é o da página da loja (`/loja/<codigo>`), onde a compra continua. */
+export interface LojaDoMarketplace {
+  marca: MarcaDaLoja;
+  codigo: string;
+  itens: ItemDoMarketplace[];
+}
+
+/** `GET /publico/lojas?pagina=&tamanho=`: `total` é de LOJAS; `pagina` (base 0) e `tamanho` são os efetivos, depois do corte do servidor. */
+export interface MarketplaceResposta {
+  lojas: LojaDoMarketplace[];
+  total: number;
+  pagina: number;
+  tamanho: number;
 }

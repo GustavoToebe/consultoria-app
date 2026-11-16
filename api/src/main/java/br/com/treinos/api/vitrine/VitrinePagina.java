@@ -34,6 +34,9 @@ public class VitrinePagina {
     @Column(name = "pagina_ligada", nullable = false)
     private boolean paginaLigada;
 
+    @Column(name = "no_marketplace", nullable = false)
+    private boolean noMarketplace;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm = Instant.now();
 
@@ -52,10 +55,16 @@ public class VitrinePagina {
 
     public String getCodigoPublico() { return codigoPublico; }
     public boolean isPaginaLigada() { return paginaLigada; }
+    public boolean isNoMarketplace() { return noMarketplace; }
     public Long getVersao() { return versao; }
 
     void ligar(boolean ligada) {
         this.paginaLigada = ligada;
+        this.atualizadoEm = Instant.now();
+    }
+
+    void entrarNoMarketplace(boolean entra) {
+        this.noMarketplace = entra;
         this.atualizadoEm = Instant.now();
     }
 

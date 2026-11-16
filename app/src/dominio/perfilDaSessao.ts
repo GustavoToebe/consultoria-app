@@ -17,6 +17,7 @@ export interface PerfilDaSessao {
   retornoHabilitado?: boolean;
   vitrineHabilitada?: boolean;
   lojaHabilitada?: boolean;
+  marketplaceHabilitado?: boolean;
   pushHabilitado?: boolean;
   unidadeDeCargaHabilitada?: boolean;
   migracaoAssistidaHabilitada?: boolean;
@@ -42,6 +43,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     retornoHabilitado: eu.retornoHabilitado,
     vitrineHabilitada: eu.vitrineHabilitada,
     lojaHabilitada: eu.lojaHabilitada,
+    marketplaceHabilitado: eu.marketplaceHabilitado,
     pushHabilitado: eu.pushHabilitado,
     unidadeDeCargaHabilitada: eu.unidadeDeCargaHabilitada,
     migracaoAssistidaHabilitada: eu.migracaoAssistidaHabilitada,

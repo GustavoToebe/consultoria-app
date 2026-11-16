@@ -10,9 +10,12 @@ public record MarcaPublica(UUID id, String nome, String corPrimaria, String font
                            String temaPadrao, String logoUrl) {
 
     public static MarcaPublica de(Consultoria c) {
-        String logoUrl = c.getLogoTipo() == null ? null
-                : "/publico/marcas/" + c.getId() + "/logo?v=" + c.getLogoVersao();
         return new MarcaPublica(c.getId(), c.getNome(), c.getCorPrimaria(), c.getFonteTitulo().name(),
-                c.getTemaPadrao().name(), logoUrl);
+                c.getTemaPadrao().name(), logoUrl(c.getId(), c.getLogoTipo(), c.getLogoVersao()));
+    }
+
+    /** O caminho da logo pública; nulo sem logo ({@code logoTipo} nulo). Quem não carrega a entidade (marketplace) usa este. */
+    public static String logoUrl(UUID consultoriaId, String logoTipo, int logoVersao) {
+        return logoTipo == null ? null : "/publico/marcas/" + consultoriaId + "/logo?v=" + logoVersao;
     }
 }

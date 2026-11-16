@@ -1,3 +1,5 @@
+import { NOME_DA_VITRINE_DE_CONSULTORIAS } from '../../dominio/produto';
+
 export const ACOES_AUDITORIA:Record<string,string>={
   LOGIN_SUCESSO:'Login realizado',LOGIN_BLOQUEADO:'Login bloqueado',SENHA_REDEFINIDA:'Senha redefinida pelo link do e-mail',SENHA_ALTERADA:'Senha alterada pelo próprio usuário',
   USUARIO_CONVIDADO:'Convite de equipe criado',CONVITE_EQUIPE_ACEITO:'Convite de equipe aceito',CONVITE_EQUIPE_CANCELADO:'Convite de equipe cancelado',
@@ -39,6 +41,6 @@ export const ACOES_AUDITORIA:Record<string,string>={
   EXERCICIO_IMAGEM_ALTERADA:'Imagem do exercício enviada',EXERCICIO_IMAGEM_REMOVIDA:'Imagem do exercício removida',
   CSV_EXERCICIOS_IMPORTADO:'CSV de exercícios importado',CSV_ALIMENTOS_IMPORTADO:'CSV de alimentos importado',
   AGENDA_PESSOAL_CRIADA:'Agenda pessoal criada',AGENDA_PESSOAL_ALTERADA:'Agenda pessoal alterada',AGENDA_PESSOAL_APAGADA:'Agenda pessoal apagada (com os eventos dela)',
-  VITRINE_ITEM_CRIADO:'Item da vitrine criado',VITRINE_ITEM_ALTERADO:'Item da vitrine editado',VITRINE_ITEM_EXCLUIDO:'Item da vitrine excluído',VITRINE_ITEM_ORDEM_ALTERADA:'Ordem da vitrine alterada',VITRINE_ITEM_FOTO_ALTERADA:'Foto de item da vitrine enviada',VITRINE_ITEM_FOTO_REMOVIDA:'Foto de item da vitrine removida',VITRINE_PAGINA_ALTERADA:'Página pública da vitrine alterada',VITRINE_LINK_RENOVADO:'Novo link da página pública gerado',
+  VITRINE_ITEM_CRIADO:'Item da vitrine criado',VITRINE_ITEM_ALTERADO:'Item da vitrine editado',VITRINE_ITEM_EXCLUIDO:'Item da vitrine excluído',VITRINE_ITEM_ORDEM_ALTERADA:'Ordem da vitrine alterada',VITRINE_ITEM_FOTO_ALTERADA:'Foto de item da vitrine enviada',VITRINE_ITEM_FOTO_REMOVIDA:'Foto de item da vitrine removida',VITRINE_PAGINA_ALTERADA:'Página pública da vitrine alterada',VITRINE_LINK_RENOVADO:'Novo link da página pública gerado',VITRINE_MARKETPLACE_ALTERADO:`Participação na ${NOME_DA_VITRINE_DE_CONSULTORIAS.toLowerCase()} alterada`,
   EVENTO_CRIADO:'Evento criado na agenda',EVENTO_ALTERADO:'Evento alterado na agenda',EVENTO_EXCLUIDO:'Evento excluído da agenda',
 };

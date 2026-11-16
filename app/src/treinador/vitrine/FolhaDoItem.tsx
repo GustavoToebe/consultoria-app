@@ -40,7 +40,7 @@ const LIMITES_FOTO_DA_VITRINE: LimitesDaReducao = { lados: [1600, 1200, 900, 640
 /** Campo do rascunho → chave do `fieldErrors` da API (as mesmas de `problemasDoItem`). */
 const CHAVE_DO_ERRO: Record<keyof RascunhoDoItem, string> = {
   nome: 'nome', descricao: 'descricao', tipo: 'tipo', preco: 'precoCentavos', precoEspecial: 'precoEspecialCentavos',
-  especialAte: 'especialAte', cupom: 'cupom', linkUrl: 'linkUrl', ativo: 'ativo', naPaginaPublica: 'naPaginaPublica',
+  especialAte: 'especialAte', cupom: 'cupom', linkUrl: 'linkUrl', ativo: 'ativo', naPaginaPublica: 'naPaginaPublica', noMarketplace: 'noMarketplace',
 };
 
 /** Folha de um item da vitrine: criar, editar, foto e excluir (com `VITRINE_ALTERAR`); sem ela, só leitura. */
@@ -90,7 +90,7 @@ function Formulario({ inicial, podeAlterar, aoFechar, aoMudar, aoCriar }: {
   // Trocar para físico tira o item da página pública (`comTipoDoItem`) e, com isso, o erro do servidor nesse campo.
   const mudarTipo = (tipo: RascunhoDoItem['tipo']) => {
     setR((atual) => comTipoDoItem(atual, tipo));
-    setDoServidor(({ tipo: _t, naPaginaPublica: _p, ...resto }) => resto);
+    setDoServidor(({ tipo: _t, naPaginaPublica: _p, noMarketplace: _m, ...resto }) => resto);
   };
   const pagina = interruptorDaPaginaPublica(r.tipo, lojaHabilitada);
   const erroDaPagina = erroDaPaginaPublicaDoItem(erros);
