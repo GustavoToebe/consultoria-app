@@ -34,7 +34,7 @@ import { validarTreino } from '../../dominio/validacaoDoTreino';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
 import { BarraDoModeloDoEditor } from '../../treinador/plano/TopoModelo';
 import { BarraDoPlano, ProblemasDoPlano } from '../../treinador/plano/TopoPlano';
-import { TelaDoEditor } from '../plano/TelaDoEditor';
+import { mostrarAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
 import { ComColunas, useDuasColunas } from '../plano/ColunasDoEditor';
 import { usePlanoEditor } from '../../treinador/plano/usePlanoEditor';
 import { CartaoExercicio } from '../../treinador/treino/CartaoExercicio';
@@ -64,7 +64,7 @@ import { ResumoDaSessao } from './ResumoDaSessao';
 import { SessaoVazia } from './SessaoVazia';
 import { EscolhaDoExercicio } from './EscolhaDoExercicio';
 import { FolhasDoTreino, type FolhaDoTreino } from './FolhasDoTreino';
-import { InspetorDoExercicio, type PropsDoInspetor } from './InspetorDoExercicio';
+import { ID_DO_INSPETOR, InspetorDoExercicio, type PropsDoInspetor } from './InspetorDoExercicio';
 import { ItemDaListaDeExercicios, ListaDeExercicios } from './ListaDeExercicios';
 import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
@@ -366,7 +366,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
             if (!duas) return <CartaoExercicio key={e.uid} {...propsDoExercicio(sessaoAtual, e, ei, g.grupo !== null, descansoPorSerie)} aberto={e.uid === escolhido} aoAbrir={() => alternar(e.uid)} />;
             if (e.uid === escolhido) noInspetor = propsDoExercicio(sessaoAtual, e, ei, g.grupo !== null, descansoPorSerie);
             return <ItemDaListaDeExercicios key={e.uid} exercicio={e} posicao={ei} total={sessaoAtual.exercicios.length} config={config}
-              escolhido={e.uid === escolhido} comProblema={comErro.has(e.uid)} aoEscolher={() => escolherExercicio(e.uid)} />;
+              escolhido={e.uid === escolhido} comProblema={comErro.has(e.uid)} aoEscolher={() => { escolherExercicio(e.uid); mostrarAbaixoDaBarra(ID_DO_INSPETOR); }} />;
           });
           const grupo = g.grupo;
           if (!grupo) return <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>;
@@ -399,7 +399,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           if (duas && aberto) grupoNoInspetor = edicao;
           return (
             <GrupoNaLista key={`grupo-${g.exercicios[0].uid}`} grupo={grupo} config={config} tamanho={g.exercicios.length}
-              comErro={Object.keys(erros).length > 0} escolhido={aberto} duas={duas} aoEscolher={() => escolherGrupo(grupo.uid, duas)}
+              comErro={Object.keys(erros).length > 0} escolhido={aberto} duas={duas} aoEscolher={() => { escolherGrupo(grupo.uid, duas); if (duas) mostrarAbaixoDaBarra(ID_DO_INSPETOR); }}
               edicao={duas ? null : edicao}>
               {cartoes}
             </GrupoNaLista>

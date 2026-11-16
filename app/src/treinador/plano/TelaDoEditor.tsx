@@ -65,7 +65,7 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
         <RolagemComTopo preencher contentContainerStyle={estilos.rolagem}>
           <View style={[estilos.conteudo, { maxWidth: larguraUtil }]}>
             {cabecalho}
-            {web ? <View ref={barraGrudada} style={[GRUDADA, estilos.barraGrudada, fundoDaBarra]}>{barra}</View> : null}
+            {web ? <View ref={barraGrudada} nativeID={ID_DA_BARRA} style={[GRUDADA, estilos.barraGrudada, fundoDaBarra]}>{barra}</View> : null}
             {children}
             {web && rodape ? <View style={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, fundoDaBarra]}>{rodape}</View> : null}
           </View>
@@ -75,6 +75,33 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
     </SafeAreaView>
     </ProvedorDeColunas>
   );
+}
+
+/** Id no DOM (web) da barra grudada: `mostrarAbaixoDaBarra` mede a altura dela. */
+const ID_DA_BARRA = 'barra-do-editor';
+
+/**
+ * Web: se o topo do elemento `id` está fora da tela ou escondido sob a barra grudada, rola até ele ficar logo abaixo
+ * da barra; se já está à vista, não mexe. Serve ao inspetor das duas colunas (escolher um item no fim de uma lista longa
+ * deixava o detalhe começando fora da tela) e ao "Exercício aberto" do celular (o `rolarAte` da rolagem não conhece a
+ * barra e deixava o nome do exercício embaixo dela). Sem animação (nada a reduzir para o movimento reduzido).
+ * shortcut: no celular nativo não faz nada (lá não há duas colunas com barra grudada); trocar por `rolarAte` se houver.
+ */
+export function mostrarAbaixoDaBarra(id: string): void {
+  if (Platform.OS !== 'web') return;
+  requestAnimationFrame(() => {
+    const alvo = document.getElementById(id);
+    const barra = document.getElementById(ID_DA_BARRA);
+    if (!alvo || !barra) return;
+    const topo = alvo.getBoundingClientRect().top;
+    const base = barra.getBoundingClientRect().bottom;
+    if (topo >= base && topo < window.innerHeight) return;
+    // A conta na mão, na rolagem da barra: `scrollIntoView` com `scroll-margin-top` deixava o alvo no topo, sob a barra,
+    // quando um ancestral tem `overflow: hidden` (o cartão da sessão no celular).
+    let rolagem = barra.parentElement;
+    while (rolagem && !/(auto|scroll)/.test(getComputedStyle(rolagem).overflowY)) rolagem = rolagem.parentElement;
+    if (rolagem) rolagem.scrollTop += topo - base - espaco(1);
+  });
 }
 
 /**

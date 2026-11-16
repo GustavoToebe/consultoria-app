@@ -60,6 +60,9 @@ export interface PropsDoCartaoExercicio {
  * "Progressão de carga" (04/11, C08): a musculação aceita carga e progride; o cardio nasce do "+ Adicionar cardio" da
  * sessão e tem a prescrição própria.
  */
+/** Id no DOM (web) do topo do cartão: o "Exercício aberto" o traz para baixo da barra grudada. */
+export const idDoExercicio = (uid: string) => `exercicio-${uid}`;
+
 export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   const { cores, bordas } = useTema();
   const largo = useWindowDimensions().width >= LARGURA_MENU_LATERAL;
@@ -159,7 +162,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
         { borderWidth: bordas.bloco, borderColor: comErro ? cores.perigo : cores.borda, backgroundColor: cores.superficie },
       ]}>
       {/* A faixa do exercício é mais forte que as de dentro dele (`faixaForte`), aberto ou fechado. */}
-      <View style={[estilos.topo, { backgroundColor: cores.faixaForte }, p.aberto && { borderBottomWidth: LINHA_DA_FAIXA, borderBottomColor: cores.bordaCampo }]}>
+      <View nativeID={idDoExercicio(e.uid)} style={[estilos.topo, { backgroundColor: cores.faixaForte }, p.aberto && { borderBottomWidth: LINHA_DA_FAIXA, borderBottomColor: cores.bordaCampo }]}>
         {p.demonstracao ? (
           <DemonstracaoDoExercicio exercicioId={e.exercicioId} nome={e.nome} imagens={p.demonstracao.imagens}
             imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />

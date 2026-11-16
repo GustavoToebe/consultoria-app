@@ -1,7 +1,11 @@
+import { Platform } from 'react-native';
+
 import type { Configuracao, Sessao } from '../../api/tipos';
 import { linhaDoExercicio } from '../../dominio/inspetorDoTreino';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { useRolagem } from '../../ui/RolagemComTopo';
+import { mostrarAbaixoDaBarra } from '../plano/TelaDoEditor';
+import { idDoExercicio } from './CartaoExercicio';
 import { ESPERA_DA_SELECAO } from './ContadoresDoTreino';
 
 /**
@@ -21,8 +25,9 @@ export function EscolhaDoExercicio({ sessao, config, escolhido, aoEscolher }: {
       aoMudar={(uid) => {
         if (!uid) return;
         aoEscolher(uid);
-        // Depois de o cartão abrir: o alvo de rolagem é o próprio cartão (`AlvoDeRolagem chave={uid}`).
-        setTimeout(() => rolarAte([uid]), ESPERA_DA_SELECAO);
+        // Depois de o cartão abrir. Na web a barra grudada fica dentro da rolagem e o `rolarAte` (que não a conhece) deixava
+        // o nome do exercício embaixo dela (16/11); no nativo a barra fica fora e o alvo é o cartão (`AlvoDeRolagem chave={uid}`).
+        setTimeout(() => (Platform.OS === 'web' ? mostrarAbaixoDaBarra(idDoExercicio(uid)) : rolarAte([uid])), ESPERA_DA_SELECAO);
       }} />
   );
 }

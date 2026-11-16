@@ -13,9 +13,12 @@ import { CartaoExercicio, type PropsDoCartaoExercicio } from './CartaoExercicio'
  */
 export type PropsDoInspetor = Omit<PropsDoCartaoExercicio, 'aberto' | 'aoAbrir'>;
 
+/** Id no DOM (web) da coluna do inspetor: o editor a traz para baixo da barra ao escolher um item da lista. */
+export const ID_DO_INSPETOR = 'inspetor-do-exercicio';
+
 export function InspetorDoExercicio({ props, grupo }: { props: PropsDoInspetor | null; grupo?: ReactNode }) {
   return (
-    <View style={estilos.coluna}>
+    <View style={estilos.coluna} nativeID={ID_DO_INSPETOR}>
       {grupo ? grupo : props
         ? <CartaoExercicio key={props.exercicio.uid} {...props} aberto />
         : <Vazio texto="Adicione um exercício na lista para editar as séries aqui." />}

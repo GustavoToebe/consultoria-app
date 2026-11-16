@@ -186,12 +186,14 @@ const estilos = StyleSheet.create({
   // Mesmo recuo da linha (padding mais as bordas), para as colunas do cabeçalho caírem sobre os valores.
   cabecalho: { paddingLeft: espaco(1.5) + FAIXA, paddingRight: espaco(1.5) + BORDA_ITEM },
   celula: { gap: espaco(0.25), minWidth: 0 },
-  serie: { width: 80, flexShrink: 0 },
+  serie: { width: 72, flexShrink: 0 },
   // A sobra da linha é repartida (11/11): antes ia toda para o Tipo e Carga, Reps e Descanso ficavam colados à direita.
-  tipo: { flexGrow: 4, flexShrink: 1, flexBasis: 0, minWidth: 0 },
-  carga: { flexGrow: 3, flexShrink: 0, flexBasis: 112 },
-  reps: { flexGrow: 2, flexShrink: 0, flexBasis: 88 },
-  descanso: { flexGrow: 2, flexShrink: 0, flexBasis: 88 },
+  // O Tipo tem base própria (16/11): com base 0 ficava com ~60 px em 1280 e o selo, "Editando" e a variação
+  // quebravam em seis linhas, com o Descanso sobrando. Tipo e Carga (os textos longos) cedem quando falta espaço.
+  tipo: { flexGrow: 3, flexShrink: 1, flexBasis: 150, minWidth: 96 },
+  carga: { flexGrow: 3, flexShrink: 1, flexBasis: 120, minWidth: 96 },
+  reps: { flexGrow: 1, flexShrink: 0, flexBasis: 80 },
+  descanso: { flexGrow: 1, flexShrink: 0, flexBasis: 72 },
   titulo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexWrap: 'wrap' },
   forte: { fontFamily: fontes.semi, fontSize: 15, flexShrink: 1 },
   semi: { fontFamily: fontes.semi },
