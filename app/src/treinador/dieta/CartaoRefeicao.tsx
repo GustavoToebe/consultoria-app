@@ -56,6 +56,8 @@ interface Props {
   /** Sem ele, a refeição fica sempre aberta (inspetor do editor em duas colunas, modelo de uma refeição só). */
   aoAbrir?: () => void;
   aoMudar: (r: Refeicao) => void;
+  /** Ao sair do campo Nome: o editor preenche "Refeição N" se ele ficou vazio. */
+  aoSairDoNome?: () => void;
   /** Remove a opção com "Desfazer" (leva os itens dela junto). */
   aoRemoverOpcao: (indice: number) => void;
   aoRemoverItem?: (opcaoIndice: number, itemIndice: number, nomeItem: string) => void;
@@ -121,7 +123,7 @@ export function CartaoRefeicao(p: Props) {
           <View style={estilos.dados}>
             <View style={estilos.linha}>
               <View style={estilos.nome}>
-                <Campo rotulo="Nome" valor={r.nome} aoMudar={(nome) => mudar({ nome })} maxLength={80} placeholder="Ex.: Café da manhã" />
+                <Campo rotulo="Nome" valor={r.nome} aoMudar={(nome) => mudar({ nome })} onBlur={p.aoSairDoNome} maxLength={80} placeholder="Ex.: Café da manhã" />
               </View>
               <View style={estilos.horario}>
                 <Campo rotulo="Horário" valor={r.horario ?? ''} aoMudar={(t) => mudar({ horario: t || null })} maxLength={5} placeholder="07:00" />

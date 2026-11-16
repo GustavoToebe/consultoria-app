@@ -71,6 +71,15 @@ export function novaRefeicao(nome = ''): Refeicao {
   return { uid: novoUid(), nome, horario: null, observacao: null, opcoes: [novaOpcao([])], modoDePreparo: null };
 }
 
+/**
+ * Nome de refeição vazio (ou só espaços) vira "Refeição N", com N = posição + 1 (o mesmo texto de `tituloDaRefeicao`), para
+ * a publicação não recusar "Refeição sem nome". Devolve o próprio conteúdo quando todos os nomes já existem.
+ */
+export function comNomesPadrao(conteudo: ConteudoDieta): ConteudoDieta {
+  if (conteudo.refeicoes.every((r) => r.nome.trim() !== '')) return conteudo;
+  return { ...conteudo, refeicoes: conteudo.refeicoes.map((r, i) => (r.nome.trim() !== '' ? r : { ...r, nome: `Refeição ${i + 1}` })) };
+}
+
 export function novoItem(alimento?: Alimento): ItemDieta {
   if (!alimento) {
     return {

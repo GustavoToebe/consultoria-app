@@ -7,7 +7,7 @@ import { listarAlimentos, listarErgogenicos, suplementoDaResposta } from '../../
 import type { Alimento, ConteudoDieta, Receita, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
 import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
-import { itensSemValorNoTotal, novaRefeicao, normalizarDieta } from '../../dominio/dieta';
+import { comNomesPadrao, itensSemValorNoTotal, novaRefeicao, normalizarDieta } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { dataParaTela } from '../../dominio/formatos';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
@@ -53,7 +53,12 @@ import { TotalDoDia } from './TotalDoDia';
  */
 export default function EditorDeDieta({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const editor = usePlanoEditor<ConteudoDieta>('dieta', id, normalizarDieta, modelo);
+  // Ao abrir: nome vazio vira "Refeição N" e o modelo não leva data de início (C57, C59; o campo nem aparece nele).
+  const abrirConteudo = (c: unknown): ConteudoDieta => {
+    const d = comNomesPadrao(normalizarDieta(c));
+    return modelo ? { ...d, dataInicio: null } : d;
+  };
+  const editor = usePlanoEditor<ConteudoDieta>('dieta', id, abrirConteudo, modelo);
   const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
   const alimentosComuns = useCarregar('biblioteca-alimentos', () => listarAlimentos()).dados ?? [];
   const { pode } = useSessao();
@@ -91,12 +96,14 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const c = estado.conteudo;
   const comErro = uidsComProblema(c, (problemas?.erros ?? []).map((p) => p.caminho));
   const todasAbertas = c.refeicoes.length > 0 && c.refeicoes.every((r) => abertas.has(r.uid));
-  const mudar = (parcial: Partial<ConteudoDieta>) => editor.alterarConteudo((a) => ({ ...a, ...parcial }));
+  // Toda mudança (menos digitar no Nome da refeição, que o cartão manda direto) sai com "Refeição N" nos nomes vazios:
+  // refeição nova, de modelo ou de desfazer nunca chega ao rascunho sem nome (C57; o validador recusa "Refeição sem nome").
+  const mudar = (parcial: Partial<ConteudoDieta>) => editor.alterarConteudo((a) => comNomesPadrao({ ...a, ...parcial }));
   const mudarRefeicoes = (fn: (r: ConteudoDieta['refeicoes']) => ConteudoDieta['refeicoes']) =>
-    editor.alterarConteudo((a) => ({ ...a, refeicoes: fn(a.refeicoes) }));
+    editor.alterarConteudo((a) => comNomesPadrao({ ...a, refeicoes: fn(a.refeicoes) }));
   const comDesfazer = (rotulo: string, mudanca: (a: ConteudoDieta) => ConteudoDieta, onde: OndeDesfazer = {}) => {
     setDesfazer({ rotulo, conteudo: c, ...onde });
-    editor.alterarConteudo(mudanca);
+    editor.alterarConteudo((a) => comNomesPadrao(mudanca(a)));
   };
   const alternar = (uid: string) =>
     setAbertas((a) => {
@@ -167,7 +174,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         modelo={modelo}
         recolhido={c.refeicoes.length > 0 && estado.titulo.trim() !== ''}
         descricao="Título, período, objetivo e profissional da dieta.">
-        <CamposDaDieta conteudo={c} aoMudar={mudar} />
+        <CamposDaDieta conteudo={c} aoMudar={mudar} modelo={modelo} />
       </ConfiguracaoDoPlano>}
       <TotalDoDia conteudo={c} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} aoMudarAgua={unica ? undefined : (aguaLitros) => mudar({ aguaLitros })} />
       <ComColunas>{(duas) => {
@@ -187,7 +194,9 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             alimentos={porId}
             aviso={avisoNaRefeicao && desfazer?.refeicaoDaOpcao === r.uid ? barra : undefined}
             aoAbrir={noInspetor || unica ? undefined : () => alternar(r.uid)}
-            aoMudar={(nova) => mudarRefeicoes((lista) => substituir(lista, ri, nova))}
+            // Direto, sem o nome padrão: apagar o Nome para digitar outro não pode preencher na hora (preenche ao sair do campo).
+            aoMudar={(nova) => editor.alterarConteudo((a) => ({ ...a, refeicoes: substituir(a.refeicoes, ri, nova) }))}
+            aoSairDoNome={() => { if (c.refeicoes.some((x) => x.nome.trim() === '')) editor.alterarConteudo(comNomesPadrao); }}
             aoRemoverOpcao={(oi) => comDesfazer(`Opção ${r.opcoes[oi]?.rotulo ?? oi + 1} removida.`, (a) =>
               ({ ...a, refeicoes: substituir(a.refeicoes, ri, { ...a.refeicoes[ri], opcoes: remover(a.refeicoes[ri].opcoes, oi) }) }),
               { refeicaoDaOpcao: r.uid })}
@@ -296,14 +305,14 @@ interface OndeDesfazer {
   secao?: 'complementos';
 }
 
-/** Objetivo, data de início e profissional (como no topo do PDF do Saraiva). A água fica no "Total do dia". */
-function CamposDaDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; aoMudar: (p: Partial<ConteudoDieta>) => void }) {
+/** Objetivo, data de início e profissional (como no topo do PDF do Saraiva). A água fica no "Total do dia". O modelo não tem data de início (C59). */
+function CamposDaDieta({ conteudo, aoMudar, modelo }: { conteudo: ConteudoDieta; aoMudar: (p: Partial<ConteudoDieta>) => void; modelo: boolean }) {
   const [inicio, setInicio] = useState(dataParaTela(conteudo.dataInicio));
   return (
     <>
       <Campo rotulo="Objetivo (opcional)" valor={conteudo.objetivo ?? ''} aoMudar={(t) => aoMudar({ objetivo: t || null })} maxLength={200} />
       <View style={estilos.grade}>
-        <View style={estilos.campo}>
+        {modelo ? null : <View style={estilos.campo}>
           <CampoData
             rotulo="Data de início (opcional)"
             nome="Data de início da dieta"
@@ -315,7 +324,7 @@ function CamposDaDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; aoMudar
               if (iso !== undefined) aoMudar({ dataInicio: iso });
             }}
           />
-        </View>
+        </View>}
         <View style={estilos.cresce}>
           <Campo rotulo="Profissional (opcional)" valor={conteudo.profissional ?? ''} aoMudar={(t) => aoMudar({ profissional: t || null })} maxLength={120} />
         </View>

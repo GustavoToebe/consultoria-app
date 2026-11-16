@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta } from '../api/tipos';
-import { aguaValida, aplicarReceitaDeDieta, colunasDasOpcoes, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from './dieta';
+import { aguaValida, aplicarReceitaDeDieta, colunasDasOpcoes, comNomesPadrao, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -170,5 +170,20 @@ describe('opções da refeição: só apresentação (28/10)', () => {
     expect(textoEscolhaDasOpcoes(['A', 'B', 'C'])).toBe('Escolha uma das opções: A, B ou C.');
     expect(textoEscolhaDasOpcoes(['A', ' '])).toBe('Escolha uma das opções: A ou 2.');
     expect(textoEscolhaDasOpcoes(['A', 'B', 'C']) ?? '').not.toMatch(/equivalent/i);
+  });
+});
+
+describe('comNomesPadrao (C57)', () => {
+  it('nome vazio ou só com espaços vira "Refeição N" (posição + 1); o que tem nome fica', () => {
+    const c = normalizarDieta({ refeicoes: [{ nome: '', opcoes: [] }, { nome: 'Almoço', opcoes: [] }, { nome: '   ', opcoes: [] }] });
+    expect(comNomesPadrao(c).refeicoes.map((r) => r.nome)).toEqual(['Refeição 1', 'Almoço', 'Refeição 3']);
+  });
+
+  it('sem nada a preencher devolve o mesmo conteúdo, sem tocar nas outras refeições', () => {
+    const c = normalizarDieta({ refeicoes: [{ nome: 'Almoço', opcoes: [] }] });
+    expect(comNomesPadrao(c)).toBe(c);
+    const d = normalizarDieta({ refeicoes: [{ nome: 'Café', opcoes: [] }, { nome: '', opcoes: [] }] });
+    expect(comNomesPadrao(d).refeicoes[0]).toBe(d.refeicoes[0]);
+    expect(comNomesPadrao(normalizarDieta({ refeicoes: [] })).refeicoes).toEqual([]);
   });
 });

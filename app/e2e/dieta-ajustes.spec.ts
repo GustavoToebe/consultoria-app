@@ -185,3 +185,89 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+// ---- C59: "Data de início" fora do modelo de dieta; a dieta do aluno mantém o campo ----
+
+const MODELO_DIETA: Receita = {
+  id: MODELO_ID, tipo: 'PLANO_DIETA', nome: 'Dieta fictícia padrão', descricao: null, pastaId: null, ordem: 1, versao: 1,
+  // Data antiga no modelo gravado: ao salvar de novo ela sai (o modelo aplicado não a leva para o aluno).
+  conteudo: { ...CONTEUDO, dataInicio: '2026-10-01', suplementacao: [], ergogenicos: null },
+};
+
+for (const largura of [390, 1280]) {
+  test(`modelo de dieta sem "Data de início" e dieta do aluno com o campo (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR', 'DIETA_LER', 'DIETA_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      'GET /alimentos': { corpo: [] },
+      'GET /consultoria': { corpo: { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluna Fictícia' } },
+      [`GET /receitas/${MODELO_ID}`]: { corpo: MODELO_DIETA },
+      [`PUT /receitas/${MODELO_ID}/conteudo`]: { corpo: { ...MODELO_DIETA, versao: 2 } },
+      [`GET /planos-dieta/${PLANO_ID}`]: { corpo: DETALHE },
+    });
+
+    // Modelo: o objetivo e o profissional ficam; a data de início não existe e a antiga não é regravada.
+    await page.goto(`/treinador/planejamento/modelo/${MODELO_ID}`);
+    await expect(page.getByRole('heading', { name: 'Refeições (2)' })).toBeVisible();
+    await page.getByRole('button', { name: /Configuração do plano/ }).click();
+    await expect(page.getByLabel('Profissional (opcional)')).toBeVisible();
+    await expect(page.getByText('Data de início (opcional)')).toHaveCount(0);
+    await page.getByLabel('Objetivo (opcional)').fill('Objetivo fictício');
+    await page.getByRole('button', { name: 'Salvar modelo' }).click();
+    await expect.poll(() => pedidos.filter((p) => p.metodo === 'PUT' && p.caminho.endsWith('/conteudo')).length).toBe(1);
+    const modelo = pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith('/conteudo'));
+    expect((modelo?.corpo as { conteudo: ConteudoDieta }).conteudo.dataInicio).toBeNull();
+
+    // Dieta do aluno: o campo continua.
+    await page.goto(`/treinador/dietas/${PLANO_ID}`);
+    await expect(page.getByRole('heading', { name: 'Refeições (2)' })).toBeVisible();
+    await page.getByRole('button', { name: /Configuração do plano/ }).click();
+    await expect(page.getByText('Data de início (opcional)')).toBeVisible();
+    await expect(page.getByLabel('Profissional (opcional)')).toBeVisible();
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+// ---- C57: refeição sem nome é gravada como "Refeição N" ----
+
+for (const largura of [390, 1280]) {
+  test(`refeição sem nome vai ao rascunho como "Refeição N", também ao apagar o nome (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      'GET /alimentos': { corpo: [] },
+      'GET /consultoria': { corpo: { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluna Fictícia' } },
+      [`GET /planos-dieta/${PLANO_ID}`]: { corpo: DETALHE },
+      [`PUT /planos-dieta/${PLANO_ID}/rascunho`]: { corpo: { ...DETALHE, plano: { ...DETALHE.plano, versao: 2 } } },
+    });
+    await page.goto(`/treinador/dietas/${PLANO_ID}`);
+    await expect(page.getByRole('heading', { name: 'Refeições (2)' })).toBeVisible();
+
+    // Refeição nova, sem digitar o nome: o rascunho já leva "Refeição 3" (o validador recusa nome vazio na publicação).
+    await page.getByRole('button', { name: 'Adicionar refeição' }).click();
+    await expect(page.getByRole('heading', { name: 'Refeições (3)' })).toBeVisible();
+    // A refeição nova é a única aberta; a Suplementação, mais abaixo, também tem campos "Nome".
+    const nome = page.getByRole('textbox', { name: 'Nome', exact: true }).first();
+    await expect(nome).toHaveValue('Refeição 3');
+
+    // Apagar o nome não preenche na hora (dá para digitar outro); ao sair do campo, volta "Refeição 3".
+    await nome.fill('');
+    await expect(nome).toHaveValue('');
+    await nome.blur();
+    await expect(nome).toHaveValue('Refeição 3');
+
+    await page.getByRole('button', { name: 'Salvar rascunho' }).click();
+    await expect.poll(() => pedidos.filter((p) => p.metodo === 'PUT' && p.caminho.endsWith('/rascunho')).length).toBe(1);
+    const put = pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith('/rascunho'));
+    expect((put?.corpo as { conteudo: ConteudoDieta }).conteudo.refeicoes.map((r) => r.nome)).toEqual(['Café da manhã', 'Almoço', 'Refeição 3']);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
