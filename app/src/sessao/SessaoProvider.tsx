@@ -7,6 +7,7 @@ import {
   aoCicloDesligado,
   aoRetornoDesligado,
   aoVitrineDesligada,
+  aoLojaDesligada,
   aoEncerrar,
   definirUsuarioDaSessao,
   ErroApi,
@@ -70,6 +71,8 @@ interface ValorSessao {
   retornoHabilitado: boolean;
   /** Vitrine da consultoria ligada? Desligada ou desconhecida, o app esconde tudo dela e não a consulta. */
   vitrineHabilitada: boolean;
+  /** Página pública da loja ligada? Desligada ou desconhecida, o app esconde a configuração da página e o interruptor do item. */
+  lojaHabilitada: boolean;
   /** Aviso de compromisso por push ligado? Desligado ou desconhecido, o app não oferece o interruptor. */
   pushHabilitado: boolean;
   /** Escolha de kg/lb ligada? Desligado ou desconhecido, a carga é sempre kg e a escolha não aparece. */
@@ -386,6 +389,19 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     });
     return () => aoVitrineDesligada(null);
   }, []);
+  // Idem para a página pública da loja: 503 `LOJA_INDISPONIVEL` com o perfil dizendo que estava ligada.
+  useEffect(() => {
+    aoLojaDesligada(() => {
+      setPerfil((atual) => {
+        if (!atual || atual.lojaHabilitada !== true) return atual;
+        const novo = { ...atual, lojaHabilitada: false };
+        perfilAtual.current = novo;
+        AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
+        return novo;
+      });
+    });
+    return () => aoLojaDesligada(null);
+  }, []);
   const valor = useMemo<ValorSessao>(
     () => ({
       termosPendentes: perfil?.termosPendentes ?? false,
@@ -402,6 +418,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       cicloHabilitado:perfil?.cicloHabilitado===true,
       retornoHabilitado:perfil?.retornoHabilitado===true,
       vitrineHabilitada:perfil?.vitrineHabilitada===true,
+      lojaHabilitada:perfil?.lojaHabilitada===true,
       pushHabilitado:perfil?.pushHabilitado===true,
       unidadeDeCargaHabilitada:perfil?.unidadeDeCargaHabilitada===true,
       migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,

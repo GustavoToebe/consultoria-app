@@ -21,6 +21,7 @@ jest.mock('../api/cliente', () => ({
   aoCicloDesligado: jest.fn(),
   aoRetornoDesligado: jest.fn(),
   aoVitrineDesligada: jest.fn(),
+  aoLojaDesligada: jest.fn(),
   aoEncerrar: jest.fn(),
   definirUsuarioDaSessao: jest.fn(),
   ErroApi: class ErroApi extends Error { semConexao = false; },

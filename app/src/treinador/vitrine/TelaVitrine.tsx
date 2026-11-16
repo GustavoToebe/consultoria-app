@@ -21,6 +21,7 @@ import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { Tela } from '../../ui/Tela';
 import { useCarregar } from '../../ui/useCarregar';
 import { ehConflito } from '../financeiro/comum';
+import { CartaoPaginaPublica } from './CartaoPaginaPublica';
 import { FolhaDoItem } from './FolhaDoItem';
 
 /**
@@ -29,7 +30,7 @@ import { FolhaDoItem } from './FolhaDoItem';
  * A chave desligada e a falta de `VITRINE_LER` ficam na guarda da rota (`GuardaDePermissao`).
  */
 export function TelaVitrine() {
-  const { pode } = useSessao();
+  const { pode, lojaHabilitada } = useSessao();
   const { avisar } = useAviso();
   const podeAlterar = pode('VITRINE_ALTERAR');
   const lista = useCarregar('vitrine-da-equipe', () => itensDaVitrine());
@@ -64,6 +65,7 @@ export function TelaVitrine() {
           <Botao rotulo="Novo item" Icone={Plus} aoTocar={() => setAberto('novo')} desabilitado={!adicionar.pode}
             motivo={adicionar.motivo ?? undefined} />
         ) : undefined} />
+      {lojaHabilitada ? <CartaoPaginaPublica podeAlterar={podeAlterar} /> : null}
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregar} /> : null}
       {!itens && lista.carregando ? <Esqueleto texto="Carregando a vitrine" /> : null}
       {itens && itens.length === 0 ? (
@@ -78,7 +80,7 @@ export function TelaVitrine() {
               return (
                 <LinhaDaLista key={item.id} titulo={item.nome}
                   metadados={[rotuloDoTipo(item.tipo), preco.atual, preco.validade].filter(Boolean).join(' · ')}
-                  selos={item.ativo ? undefined : [{ texto: 'Inativo', tipo: 'neutro' }]}
+                  selos={seloDoItem(item, lojaHabilitada)}
                   inicio={<MiniaturaDoItem item={item} carregar={baixarFotoDoItem} tamanho={48} />}
                   aoTocarTextos={() => setAberto(item)}
                   acoes={(
@@ -99,6 +101,13 @@ export function TelaVitrine() {
         aoCriar={(novo) => { recarregar(); setAberto(novo); }} />
     </Tela>
   );
+}
+
+/** Inativo some de tudo; ativo, digital e marcado é o que a página pública mostra (a API só manda esses). Neutros: não pedem ação. */
+function seloDoItem(item: ItemDaVitrine, lojaHabilitada: boolean): { texto: string; tipo: 'neutro' }[] | undefined {
+  if (!item.ativo) return [{ texto: 'Inativo', tipo: 'neutro' }];
+  if (lojaHabilitada && item.naPaginaPublica && item.tipo === 'DIGITAL') return [{ texto: 'Na página pública', tipo: 'neutro' }];
+  return undefined;
 }
 
 const estilos = StyleSheet.create({

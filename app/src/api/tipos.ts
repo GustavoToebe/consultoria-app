@@ -62,6 +62,8 @@ export interface EuResponse {
   retornoHabilitado?: boolean;
   /** Vitrine da consultoria (itens do treinador para os alunos) ligada na plataforma; falso ou ausente = o app esconde tudo e não consulta. */
   vitrineHabilitada?: boolean;
+  /** Página pública da loja ligada (efetiva: vitrine E loja ligadas); falso ou ausente = o app esconde a configuração da página e o interruptor do item. */
+  lojaHabilitada?: boolean;
   /** Aviso no celular por push do Expo ligado na plataforma; falso ou ausente = o app não oferece o interruptor. */
   pushHabilitado?: boolean;
   /** Escolha de kg ou lb para ver e digitar a carga ligada na plataforma; falso ou ausente = o app esconde a escolha e usa kg. */

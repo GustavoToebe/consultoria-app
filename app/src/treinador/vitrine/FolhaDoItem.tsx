@@ -13,13 +13,14 @@ import { MiniaturaDoItem } from '../../aluno/vitrine/MiniaturaDoItem';
 import { dataDaTela, dataParaTela, centavosParaTela } from '../../dominio/formatos';
 import { MAX_CUPOM } from '../../dominio/suplementos';
 import {
-  corpoDoItem, DESCRICAO_MAXIMA, NOME_MAXIMO, problemasDoItem, rascunhoDoItem, rascunhoVazio, rotuloDoTipo, TIPOS_DE_ITEM,
-  type RascunhoDoItem,
+  comTipoDoItem, corpoDoItem, DESCRICAO_MAXIMA, erroDaPaginaPublicaDoItem, interruptorDaPaginaPublica, NOME_MAXIMO, problemasDoItem,
+  rascunhoDoItem, rascunhoVazio, rotuloDoTipo, TIPOS_DE_ITEM, type RascunhoDoItem,
 } from '../../dominio/vitrine';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
+import { Campo, MensagemDeErro } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CampoData, Interruptor } from '../../ui/Campos';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
@@ -31,6 +32,7 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { avisoDeConflito, CampoMoeda, ehConflito } from '../financeiro/comum';
+import { InterruptorComMotivo } from './InterruptorComMotivo';
 
 /** O que a API aceita na foto do item (D3: 1600 px, 300 KB depois da limpeza): o aparelho já manda dentro disso. */
 const LIMITES_FOTO_DA_VITRINE: LimitesDaReducao = { lados: [1600, 1200, 900, 640], bytesMaximo: 300_000 };
@@ -38,7 +40,7 @@ const LIMITES_FOTO_DA_VITRINE: LimitesDaReducao = { lados: [1600, 1200, 900, 640
 /** Campo do rascunho → chave do `fieldErrors` da API (as mesmas de `problemasDoItem`). */
 const CHAVE_DO_ERRO: Record<keyof RascunhoDoItem, string> = {
   nome: 'nome', descricao: 'descricao', tipo: 'tipo', preco: 'precoCentavos', precoEspecial: 'precoEspecialCentavos',
-  especialAte: 'especialAte', cupom: 'cupom', linkUrl: 'linkUrl', ativo: 'ativo',
+  especialAte: 'especialAte', cupom: 'cupom', linkUrl: 'linkUrl', ativo: 'ativo', naPaginaPublica: 'naPaginaPublica',
 };
 
 /** Folha de um item da vitrine: criar, editar, foto e excluir (com `VITRINE_ALTERAR`); sem ela, só leitura. */
@@ -63,6 +65,7 @@ function Formulario({ inicial, podeAlterar, aoFechar, aoMudar, aoCriar }: {
   aoCriar: (item: ItemDaVitrine) => void;
 }) {
   const { avisar } = useAviso();
+  const { lojaHabilitada } = useSessao();
   // A foto muda o item sem mudar a versão (tabela à parte na API): o estado local evita remontar e perder o que foi digitado.
   const [item, setItem] = useState(inicial);
   const [r, setR] = useState<RascunhoDoItem>(() => (inicial ? rascunhoDoItem(inicial) : rascunhoVazio()));
@@ -84,6 +87,13 @@ function Formulario({ inicial, podeAlterar, aoFechar, aoMudar, aoCriar }: {
     setR((atual) => ({ ...atual, [campo]: valor }));
     setDoServidor(({ [CHAVE_DO_ERRO[campo]]: _, ...resto }) => resto);
   };
+  // Trocar para físico tira o item da página pública (`comTipoDoItem`) e, com isso, o erro do servidor nesse campo.
+  const mudarTipo = (tipo: RascunhoDoItem['tipo']) => {
+    setR((atual) => comTipoDoItem(atual, tipo));
+    setDoServidor(({ tipo: _t, naPaginaPublica: _p, ...resto }) => resto);
+  };
+  const pagina = interruptorDaPaginaPublica(r.tipo, lojaHabilitada);
+  const erroDaPagina = erroDaPaginaPublicaDoItem(erros);
 
   const falhar = (e: unknown) => {
     setEnviando(false);
@@ -208,7 +218,7 @@ function Formulario({ inicial, podeAlterar, aoFechar, aoMudar, aoCriar }: {
             <Campo rotulo="Descrição (opcional)" valor={r.descricao} aoMudar={(t) => mudar('descricao', t)} linhas={3}
               maxLength={DESCRICAO_MAXIMA} erro={erros.descricao ?? null} ajuda={`Até ${DESCRICAO_MAXIMA} caracteres.`} />
             <View style={estilos.grupo}>
-              <Escolha rotulo="Tipo" opcoes={TIPOS_DE_ITEM.map((t) => ({ valor: t.valor, rotulo: t.rotulo }))} valor={r.tipo} aoMudar={(t) => mudar('tipo', t)} />
+              <Escolha rotulo="Tipo" opcoes={TIPOS_DE_ITEM.map((t) => ({ valor: t.valor, rotulo: t.rotulo }))} valor={r.tipo} aoMudar={mudarTipo} />
               <Texto variante="pequeno">
                 {r.tipo === 'DIGITAL'
                   ? 'No app do celular, item digital mostra só foto, nome e descrição (regra das lojas de aplicativo). Preço, cupom e link aparecem na web.'
@@ -229,6 +239,14 @@ function Formulario({ inicial, podeAlterar, aoFechar, aoMudar, aoCriar }: {
               keyboardType="url" inputMode="url" placeholder="https://" erro={erros.linkUrl ?? null} ajuda="Endereço https; abre fora do app." />
             <Interruptor rotulo="Item ativo" valor={r.ativo} aoMudar={(v) => mudar('ativo', v)}
               ajuda="Desligado, o item some da vitrine dos alunos e continua guardado aqui." />
+            {pagina.visivel ? (
+              <View style={estilos.grupo}>
+                <InterruptorComMotivo rotulo="Aparece na página pública" valor={r.naPaginaPublica}
+                  aoMudar={(v) => mudar('naPaginaPublica', v)} desabilitado={!pagina.habilitado} motivo={pagina.motivo}
+                  ajuda={pagina.habilitado ? 'Quem tem o link da página vê o item, se ele estiver ativo.' : undefined} />
+                {erroDaPagina ? <MensagemDeErro erro={erroDaPagina} /> : null}
+              </View>
+            ) : null}
           </>
         ) : item ? (
           <>
@@ -237,6 +255,7 @@ function Formulario({ inicial, podeAlterar, aoFechar, aoMudar, aoCriar }: {
             <CamposEmLinha>
               <CampoLeitura rotulo="Tipo" valor={rotuloDoTipo(item.tipo)} />
               <CampoLeitura rotulo="Situação" valor={item.ativo ? 'Ativo' : 'Inativo'} />
+              {lojaHabilitada ? <CampoLeitura rotulo="Página pública" valor={item.naPaginaPublica ? 'Aparece' : 'Não aparece'} /> : null}
             </CamposEmLinha>
             <CamposEmLinha>
               <CampoLeitura rotulo="Preço" valor={centavosParaTela(item.precoCentavos)} numerico />

@@ -103,6 +103,29 @@ export function moverItem(ids: readonly string[], id: string, sentido: 'subir' |
   return novo;
 }
 
+// ---- Página pública da loja (F2a): marcar o item ----
+
+/** O mesmo texto da API (422 `VITRINE_ITEM_INVALIDO` no campo `naPaginaPublica`). */
+export const MOTIVO_SO_DIGITAL = 'Só item digital pode aparecer na página pública.';
+
+/**
+ * O interruptor "Aparece na página pública" da Folha do item. `visivel` = a chave da loja está ligada (`lojaHabilitada` da
+ * sessão); sem ela o interruptor some, mas o corpo do item continua levando o valor que o item já tinha (desligar a chave não
+ * desmarca os itens). `habilitado`: só o item digital pode ser marcado (`motivo` explica quando não).
+ */
+export function interruptorDaPaginaPublica(tipo: TipoDoItem, lojaHabilitada: boolean): { visivel: boolean; habilitado: boolean; motivo: string | null } {
+  return tipo === 'DIGITAL' ? { visivel: lojaHabilitada, habilitado: true, motivo: null } : { visivel: lojaHabilitada, habilitado: false, motivo: MOTIVO_SO_DIGITAL };
+}
+
+/** Troca o tipo no rascunho: para não digital, o item sai da página pública (o interruptor fica desligado e travado). */
+export const comTipoDoItem = (r: RascunhoDoItem, tipo: TipoDoItem): RascunhoDoItem => ({
+  ...r, tipo, naPaginaPublica: tipo === 'DIGITAL' && r.naPaginaPublica,
+});
+
+/** Mensagem do campo quando a API recusou a marca (`fieldErrors` com `naPaginaPublica`); `null` se o erro não é desse campo. */
+export const erroDaPaginaPublicaDoItem = (porCampo: Record<string, string>): string | null =>
+  'naPaginaPublica' in porCampo ? MOTIVO_SO_DIGITAL : null;
+
 // ---- Editor ----
 
 /** O que a tela guarda enquanto a pessoa digita: preços como texto, a data em ISO (vazia = sem prazo). */
@@ -116,11 +139,13 @@ export interface RascunhoDoItem {
   cupom: string;
   linkUrl: string;
   ativo: boolean;
+  /** Aparece na página pública da loja; só vale com `tipo` DIGITAL (`interruptorDaPaginaPublica`). */
+  naPaginaPublica: boolean;
 }
 
 /** Item novo: digital (o que mostra menos no celular) e ativo. */
 export const rascunhoVazio = (): RascunhoDoItem => ({
-  nome: '', descricao: '', tipo: 'DIGITAL', preco: '', precoEspecial: '', especialAte: '', cupom: '', linkUrl: '', ativo: true,
+  nome: '', descricao: '', tipo: 'DIGITAL', preco: '', precoEspecial: '', especialAte: '', cupom: '', linkUrl: '', ativo: true, naPaginaPublica: false,
 });
 
 export const rascunhoDoItem = (i: ItemDaVitrine): RascunhoDoItem => ({
@@ -133,6 +158,7 @@ export const rascunhoDoItem = (i: ItemDaVitrine): RascunhoDoItem => ({
   cupom: i.cupom ?? '',
   linkUrl: i.linkUrl ?? '',
   ativo: i.ativo,
+  naPaginaPublica: i.naPaginaPublica,
 });
 
 /** Preço digitado: vazio = sem preço (`null`); preenchido e ilegível ou grande demais = `undefined` (erro no campo). */
@@ -170,6 +196,7 @@ export function problemasDoItem(r: RascunhoDoItem, hoje: string = hojeEmBrasilia
   if (r.cupom.trim().length > MAX_CUPOM) erros.cupom = `Use no máximo ${MAX_CUPOM} caracteres.`;
   const link = erroDoLink(r.linkUrl);
   if (link) erros.linkUrl = link;
+  if (r.naPaginaPublica && r.tipo !== 'DIGITAL') erros.naPaginaPublica = MOTIVO_SO_DIGITAL;
   return erros;
 }
 
@@ -185,6 +212,8 @@ export function corpoDoItem(r: RascunhoDoItem, versao?: number): DadosDoItem {
     cupom: r.cupom.trim() || null,
     linkUrl: r.linkUrl.trim() || null,
     ativo: r.ativo,
+    // A API trata ausente como falso: manda sempre. Item que não é digital nunca vai marcado (422 no campo).
+    naPaginaPublica: r.tipo === 'DIGITAL' && r.naPaginaPublica,
   };
   if (versao !== undefined) corpo.versao = versao;
   return corpo;

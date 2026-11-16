@@ -17,7 +17,7 @@ function item(n: number, extra: Partial<ItemDaVitrine> = {}): ItemDaVitrine {
   return {
     id: `v0000000-0000-4000-8000-${String(n).padStart(12, '0')}`, nome: `Item fictício ${n}`, descricao: null, tipo: 'DIGITAL',
     precoCentavos: null, precoEspecialCentavos: null, precoVigenteCentavos: null, especialAte: null, cupom: null, linkUrl: null,
-    ativo: true, ordem: n - 1, versao: 1, temFoto: false, fotoAtualizadaEm: null, ...extra,
+    ativo: true, naPaginaPublica: false, ordem: n - 1, versao: 1, temFoto: false, fotoAtualizadaEm: null, ...extra,
   };
 }
 
@@ -102,7 +102,7 @@ test('criar: confere antes de enviar, cria e reabre no item para a foto', async 
   const post = pedidos.find((p) => p.metodo === 'POST' && p.caminho === '/vitrine/itens');
   expect(post?.corpo).toEqual({
     nome: 'Garrafa térmica', descricao: null, tipo: 'FISICO', precoCentavos: 15000, precoEspecialCentavos: null, especialAte: null,
-    cupom: null, linkUrl: 'https://loja.exemplo.invalid/garrafa', ativo: true,
+    cupom: null, linkUrl: 'https://loja.exemplo.invalid/garrafa', ativo: true, naPaginaPublica: false,
   });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);

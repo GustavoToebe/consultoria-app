@@ -1320,3 +1320,22 @@ export const vitrineDoAluno = () => requisicao<import('./vitrineTipos').ItemDaVi
 /** Do aluno: 404 = sem foto ou item que ele não vê. */
 export const baixarFotoDoItemDoAluno = (id: string) =>
   requisicao<Blob>(`/aluno/vitrine/itens/${seg(id)}/foto`, { binario: true, limiteMs: 30000 });
+
+// ---- Página pública da loja (F2a; configuração com `VITRINE_LER`/`VITRINE_ALTERAR`; leitura pública sem login) ----
+/** Configuração da página (`paginaLigada`, `codigo`, `versao`); sem configuração ainda, tudo nulo e desligada. */
+export const paginaDaVitrine = () => requisicao<import('./vitrineTipos').PaginaDaVitrine>('/vitrine/configuracao');
+/** 409 `CONFLITO_EDICAO` (recarregar); 422 `VITRINE_PAGINA_INVALIDA` no campo `paginaLigada`. */
+export const gravarPaginaDaVitrine = (corpo: import('./vitrineTipos').DadosDaPagina) =>
+  requisicao<import('./vitrineTipos').PaginaDaVitrine>('/vitrine/configuracao', { metodo: 'PUT', corpo });
+/** Código novo: o link antigo passa a dar 404. 409 `CONFLITO_EDICAO`. */
+export const novoLinkDaVitrine = (versao: number) =>
+  requisicao<import('./vitrineTipos').PaginaDaVitrine>('/vitrine/configuracao/novo-link', { metodo: 'POST', corpo: { versao } });
+/** Pública (molde de `inscricaoPublica`): o código vem de `codigoDaLoja`. 404 igual para inexistente, desligada e malformado; 429 com `Retry-After`. */
+export const lojaPublica = (codigo: string) =>
+  requisicao<import('./vitrineTipos').LojaPublica>(`/publico/loja/${seg(codigo)}`, { semRenovar: true });
+/**
+ * Caminho (não a imagem) da foto pública do item, para `urlDaApi` num `<Image>`: sem token. `versao` = `fotoAtualizadaEm`,
+ * chave para buscar de novo depois da troca (a API ignora o parâmetro).
+ */
+export const caminhoDaFotoDaLoja = (codigo: string, itemId: string, versao?: string | null) =>
+  `/publico/loja/${seg(codigo)}/itens/${seg(itemId)}/foto${versao ? `?v=${seg(versao)}` : ''}`;

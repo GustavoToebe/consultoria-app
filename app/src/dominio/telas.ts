@@ -280,6 +280,7 @@ const TITULOS_FORA_DO_CATALOGO: readonly [string, string][] = [
   ['/esqueci-senha', 'Esqueci a senha'],
   ['/redefinir-senha', 'Nova senha'],
   ['/inscricao', 'Inscrição'],
+  ['/loja', 'Loja'],
   ['/privacidade', 'Privacidade'],
   ['/termos-de-uso', 'Termos de uso'],
   ['/excluir-conta', 'Excluir conta'],

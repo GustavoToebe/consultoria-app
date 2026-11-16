@@ -4,7 +4,7 @@ import { baixarFotoDoItemDoAluno } from '../../api/rotas';
 import type { ItemDaVitrineDoAluno } from '../../api/vitrineTipos';
 import { plataformaDoApp } from '../../dominio/financeiro';
 import { linkParaAbrir } from '../../dominio/links';
-import { comoMostrarItem, textoDoPreco } from '../../dominio/vitrine';
+import { comoMostrarItem, textoDoPreco, type TextoDoPreco } from '../../dominio/vitrine';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { CupomDoProduto, VerProduto } from '../../ui/AcoesDoProduto';
@@ -16,7 +16,11 @@ import { MiniaturaDoItem } from './MiniaturaDoItem';
  * normal vem riscado ao lado e a validade embaixo. O leitor de tela ouve "antes" no lugar do risco.
  */
 export function PrecoDoItem({ item }: { item: ItemDaVitrineDoAluno }) {
-  const preco = textoDoPreco(item);
+  return <PrecoFormatado preco={textoDoPreco(item)} />;
+}
+
+/** O desenho do preço já formatado pelo domínio (também na página pública da loja). */
+export function PrecoFormatado({ preco }: { preco: TextoDoPreco }) {
   const rotulo = `Preço: ${preco.atual === '—' ? 'não informado' : preco.atual}${preco.antes ? `, antes ${preco.antes}` : ''}${preco.validade ? `. ${preco.validade}` : ''}`;
   return (
     <View style={estilos.preco} accessible accessibilityLabel={rotulo}>

@@ -1,7 +1,7 @@
 import { requisicao } from './cliente';
 import {
   alterarItemDaVitrine, baixarFotoDoItem, baixarFotoDoItemDoAluno, criarItemDaVitrine, excluirItemDaVitrine, itensDaVitrine, ordenarItensDaVitrine,
-  removerFotoDoItem, trocarFotoDoItem, vitrineDoAluno,
+  caminhoDaFotoDaLoja, gravarPaginaDaVitrine, lojaPublica, novoLinkDaVitrine, paginaDaVitrine, removerFotoDoItem, trocarFotoDoItem, vitrineDoAluno,
 } from './rotas';
 import { corpoDoItem, rascunhoVazio } from '../dominio/vitrine';
 
@@ -36,5 +36,22 @@ describe('rotas da vitrine', () => {
     await expect(vitrineDoAluno()).resolves.toBe('/aluno/vitrine');
     await baixarFotoDoItemDoAluno('../y');
     expect(requisicao).toHaveBeenLastCalledWith('/aluno/vitrine/itens/..%2Fy/foto', { binario: true, limiteMs: 30000 });
+  });
+
+  it('página pública: configuração da equipe, novo link e leitura pública sem renovar sessão', async () => {
+    await paginaDaVitrine();
+    expect(requisicao).toHaveBeenLastCalledWith('/vitrine/configuracao');
+    await gravarPaginaDaVitrine({ paginaLigada: true, versao: null });
+    expect(requisicao).toHaveBeenLastCalledWith('/vitrine/configuracao', { metodo: 'PUT', corpo: { paginaLigada: true, versao: null } });
+    await novoLinkDaVitrine(4);
+    expect(requisicao).toHaveBeenLastCalledWith('/vitrine/configuracao/novo-link', { metodo: 'POST', corpo: { versao: 4 } });
+    await lojaPublica('../x');
+    expect(requisicao).toHaveBeenLastCalledWith('/publico/loja/..%2Fx', { semRenovar: true });
+  });
+
+  it('foto pública: só o caminho, com o código e o item codificados e a versão como chave', () => {
+    expect(caminhoDaFotoDaLoja('abc', 'i/1')).toBe('/publico/loja/abc/itens/i%2F1/foto');
+    expect(caminhoDaFotoDaLoja('abc', 'i', '2026-11-16T03:00:00Z')).toBe('/publico/loja/abc/itens/i/foto?v=2026-11-16T03%3A00%3A00Z');
+    expect(caminhoDaFotoDaLoja('abc', 'i', null)).toBe('/publico/loja/abc/itens/i/foto');
   });
 });

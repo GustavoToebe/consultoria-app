@@ -76,7 +76,8 @@ function Conteudo() {
   const caminho = usePathname();
   const { marca } = useSessao();
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
+    // A loja pública põe o próprio título (a marca é a da página, não a de quem está logado).
+    if (Platform.OS !== 'web' || caminho.startsWith('/loja/')) return;
     document.title = tituloDaPagina(caminho, marca?.nome);
   }, [caminho, marca?.nome]);
   return (

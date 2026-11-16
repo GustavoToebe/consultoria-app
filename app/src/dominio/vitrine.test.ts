@@ -1,8 +1,8 @@
 import type { ItemDaVitrine, ItemDaVitrineDoAluno, TipoDoItem } from '../api/vitrineTipos';
 import type { PlataformaDoApp } from './financeiro';
 import {
-  comoMostrarItem, contagemDeItens, corpoDoItem, emPromocao, itensDoCartaoDoInicio, moverItem, podeAdicionarItem, problemasDoItem,
-  rascunhoDoItem, rascunhoVazio, textoDoPreco, TETO_DE_ITENS, type RascunhoDoItem,
+  comoMostrarItem, comTipoDoItem, contagemDeItens, corpoDoItem, emPromocao, erroDaPaginaPublicaDoItem, interruptorDaPaginaPublica, itensDoCartaoDoInicio,
+  moverItem, MOTIVO_SO_DIGITAL, podeAdicionarItem, problemasDoItem, rascunhoDoItem, rascunhoVazio, textoDoPreco, TETO_DE_ITENS, type RascunhoDoItem,
 } from './vitrine';
 
 const HOJE = '2026-11-16';
@@ -162,22 +162,56 @@ describe('editor: validação espelhada da API', () => {
 describe('corpo do POST/PUT', () => {
   it('centavos inteiros, textos aparados, em branco = nulo e versão só na edição', () => {
     const r: RascunhoDoItem = {
-      nome: '  Fullbody ', descricao: '  ', tipo: 'DIGITAL', preco: '149,9', precoEspecial: 'R$ 99,00', especialAte: '2026-11-27', cupom: ' BLACK ', linkUrl: ' https://exemplo.com ', ativo: false,
+      nome: '  Fullbody ', descricao: '  ', tipo: 'DIGITAL', preco: '149,9', precoEspecial: 'R$ 99,00', especialAte: '2026-11-27', cupom: ' BLACK ', linkUrl: ' https://exemplo.com ', ativo: false, naPaginaPublica: true,
     };
     expect(corpoDoItem(r)).toEqual({
-      nome: 'Fullbody', descricao: null, tipo: 'DIGITAL', precoCentavos: 14990, precoEspecialCentavos: 9900, especialAte: '2026-11-27', cupom: 'BLACK', linkUrl: 'https://exemplo.com', ativo: false,
+      nome: 'Fullbody', descricao: null, tipo: 'DIGITAL', precoCentavos: 14990, precoEspecialCentavos: 9900, especialAte: '2026-11-27', cupom: 'BLACK', linkUrl: 'https://exemplo.com', ativo: false, naPaginaPublica: true,
     });
     expect(corpoDoItem(r, 3).versao).toBe(3);
-    expect(corpoDoItem(rascunhoVazio())).toMatchObject({ precoCentavos: null, precoEspecialCentavos: null, especialAte: null, cupom: null, linkUrl: null, ativo: true, tipo: 'DIGITAL' });
+    expect(corpoDoItem(rascunhoVazio())).toMatchObject({ precoCentavos: null, precoEspecialCentavos: null, especialAte: null, cupom: null, linkUrl: null, ativo: true, tipo: 'DIGITAL', naPaginaPublica: false });
   });
 
   it('o rascunho de um item salvo volta ao mesmo corpo', () => {
     const item: ItemDaVitrine = {
-      id: 'i', nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, precoVigenteCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, ordem: 2, versao: 4, temFoto: true, fotoAtualizadaEm: "2026-11-16T03:00:00Z",
+      id: 'i', nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, precoVigenteCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, naPaginaPublica: false, ordem: 2, versao: 4, temFoto: true, fotoAtualizadaEm: "2026-11-16T03:00:00Z",
     };
     expect(problemasDoItem(rascunhoDoItem(item), HOJE)).toEqual({});
     expect(corpoDoItem(rascunhoDoItem(item), item.versao)).toEqual({
-      nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, versao: 4,
+      nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, naPaginaPublica: false, versao: 4,
     });
+  });
+});
+
+describe('página pública da loja: marcar o item', () => {
+  it('o corpo manda naPaginaPublica sempre (falso por padrão) e o valor que o item já tinha', () => {
+    expect(corpoDoItem(rascunhoVazio()).naPaginaPublica).toBe(false);
+    expect(corpoDoItem({ ...rascunhoVazio(), nome: 'A', naPaginaPublica: true }).naPaginaPublica).toBe(true);
+  });
+
+  it('só item digital pode aparecer: o corpo de item físico vai falso mesmo com o rascunho marcado', () => {
+    expect(corpoDoItem({ ...rascunhoVazio(), nome: 'A', tipo: 'FISICO', naPaginaPublica: true }).naPaginaPublica).toBe(false);
+  });
+
+  it('trocar o tipo para não digital desmarca; para digital mantém', () => {
+    const marcado = { ...rascunhoVazio(), naPaginaPublica: true };
+    expect(comTipoDoItem(marcado, 'FISICO')).toMatchObject({ tipo: 'FISICO', naPaginaPublica: false });
+    expect(comTipoDoItem(marcado, 'DIGITAL')).toMatchObject({ tipo: 'DIGITAL', naPaginaPublica: true });
+    expect(comTipoDoItem({ ...marcado, tipo: 'FISICO', naPaginaPublica: false }, 'DIGITAL').naPaginaPublica).toBe(false);
+  });
+
+  it('o interruptor: habilitado só para digital, com o motivo; visível só com a chave da loja', () => {
+    expect(interruptorDaPaginaPublica('DIGITAL', true)).toEqual({ visivel: true, habilitado: true, motivo: null });
+    expect(interruptorDaPaginaPublica('FISICO', true)).toEqual({ visivel: true, habilitado: false, motivo: MOTIVO_SO_DIGITAL });
+    expect(interruptorDaPaginaPublica('DIGITAL', false).visivel).toBe(false);
+  });
+
+  it('o editor recusa marca em item físico, no campo naPaginaPublica; digital passa', () => {
+    expect(problemasDoItem({ ...rascunhoVazio(), nome: 'A', tipo: 'FISICO', naPaginaPublica: true }, HOJE)).toEqual({ naPaginaPublica: MOTIVO_SO_DIGITAL });
+    expect(problemasDoItem({ ...rascunhoVazio(), nome: 'A', naPaginaPublica: true }, HOJE)).toEqual({});
+  });
+
+  it('o 422 da API no campo vira a mensagem do interruptor; outro campo, nada', () => {
+    expect(erroDaPaginaPublicaDoItem({ naPaginaPublica: 'Só item digital pode aparecer na página pública.' })).toBe(MOTIVO_SO_DIGITAL);
+    expect(erroDaPaginaPublicaDoItem({ nome: 'x' })).toBeNull();
   });
 });

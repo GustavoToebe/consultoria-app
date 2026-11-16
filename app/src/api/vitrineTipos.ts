@@ -17,6 +17,8 @@ export interface ItemDaVitrine {
   cupom: string | null;
   linkUrl: string | null;
   ativo: boolean;
+  /** Aparece na página pública da loja (F2a); só item `DIGITAL` pode (422 `VITRINE_ITEM_INVALIDO` no campo). */
+  naPaginaPublica: boolean;
   ordem: number;
   versao: number;
   temFoto: boolean;
@@ -41,5 +43,38 @@ export interface DadosDoItem {
   cupom: string | null;
   linkUrl: string | null;
   ativo: boolean;
+  /** Mandar SEMPRE: a API trata ausente como `false`. */
+  naPaginaPublica: boolean;
   versao?: number;
+}
+
+// ---- Página pública da loja (F2a) ----
+
+/** `GET`/`PUT /vitrine/configuracao` e `POST .../novo-link` (equipe). Sem configuração ainda: tudo nulo e `paginaLigada` falso. */
+export interface PaginaDaVitrine {
+  paginaLigada: boolean;
+  /** Código do link `/loja/<codigo>`; nulo até a primeira gravação. */
+  codigo: string | null;
+  /** Vai de volta em toda escrita (nulo só enquanto não há configuração); diferente = 409 `CONFLITO_EDICAO`. */
+  versao: number | null;
+}
+
+/** Corpo do `PUT /vitrine/configuracao`. */
+export interface DadosDaPagina {
+  paginaLigada: boolean;
+  versao: number | null;
+}
+
+/** A marca como a página pública a recebe (sem `id`). */
+export type MarcaDaLoja = Pick<import('./tipos').Marca, 'nome' | 'corPrimaria' | 'fonteTitulo' | 'temaPadrao' | 'logoUrl'>;
+
+/**
+ * Item da página pública (`GET /publico/loja/{codigo}`): só itens ativos, DIGITAIS e marcados, na ordem da vitrine; por
+ * isso não traz `tipo`. A foto vem em `/publico/loja/{codigo}/itens/{id}/foto` (`caminhoDaFotoDaLoja`).
+ */
+export type ItemDaLojaPublica = Omit<ItemDaVitrineDoAluno, 'tipo'>;
+
+export interface LojaPublica {
+  marca: MarcaDaLoja;
+  itens: ItemDaLojaPublica[];
 }
