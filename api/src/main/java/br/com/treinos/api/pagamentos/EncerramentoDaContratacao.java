@@ -67,6 +67,7 @@ public class EncerramentoDaContratacao {
         int comLink = (int) calculo.aCancelar().stream().filter(m -> linkVivo(m, agora)).count();
         return new PreviaDoEncerramento(c.getId(), c.getPeriodicidade(), c.getSituacao(), c.getMinimoAte(),
                 calculo.mesesQueFaltam(), regra, grupo(calculo.vencidas()), grupo(calculo.aCancelar()),
+                grupo(calculo.aVencerQueFicam()),
                 calculo.aCancelar().stream().map(CobrancaAluno::getId).toList(), comLink, calculo.mesesNaoGerados(),
                 calculo.valorNaoGerados(), CalculoDaSaida.opcoes(c, calculo));
     }

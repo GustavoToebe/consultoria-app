@@ -143,12 +143,14 @@ class CalculoDaSaidaTest {
         ContratacaoAluno c = mensal(10_000, "2027-03-10", 10, "2027-06-10");
         CobrancaAluno abr = aberta(c, "2027-04-10", 10_000);
         CobrancaAluno mai = aberta(c, "2027-05-10", 10_000);
+        CobrancaAluno jun = aberta(c, "2027-06-10", 10_000);
+        CobrancaAluno jul = aberta(c, "2027-07-10", 10_000);
 
-        Calculo k = calcular(c, "2027-03-10", paga(c, "2027-03-10", 10_000), abr, mai,
-                aberta(c, "2027-06-10", 10_000), aberta(c, "2027-07-10", 10_000));
+        Calculo k = calcular(c, "2027-03-10", paga(c, "2027-03-10", 10_000), abr, mai, jun, jul);
 
-        // Jun (igual) e jul (depois) não são canceladas nem somadas.
+        // Jun (igual) e jul (depois) não são canceladas nem somadas: entram no grupo das que continuam abertas.
         assertThat(k.aCancelar()).containsExactly(abr, mai);
+        assertThat(k.aVencerQueFicam()).containsExactly(jun, jul);
         assertThat(k.valorFaltam()).isEqualTo(20_000);
         assertThat(k.vencidas()).isEmpty();
     }
@@ -242,13 +244,19 @@ class CalculoDaSaidaTest {
     }
 
     @Test
-    void semMinimoNaoEhElegivel() {
+    void semMinimoNaoEhElegivelETodasAsAVencerContinuamAbertas() {
         ContratacaoAluno c = mensal(10_000, "2027-01-10", 10, null);
+        CobrancaAluno vencida = aberta(c, "2027-02-10", 10_000);
+        CobrancaAluno hoje = aberta(c, "2027-03-10", 10_000);
+        CobrancaAluno abr = aberta(c, "2027-04-10", 10_000);
 
-        Calculo k = calcular(c, "2027-03-10", aberta(c, "2027-03-10", 10_000));
+        Calculo k = calcular(c, "2027-03-10", vencida, hoje, abr);
 
         assertThat(k.elegivel()).isFalse();
         assertThat(k.aCancelar()).isEmpty();
+        // Vencida nunca entra no grupo; o vencimento de hoje ainda não é vencido.
+        assertThat(k.vencidas()).containsExactly(vencida);
+        assertThat(k.aVencerQueFicam()).containsExactly(hoje, abr);
         assertThat(k.valorFaltam()).isZero();
         indisponiveisPorNaoElegivel(CalculoDaSaida.opcoes(c, k));
     }

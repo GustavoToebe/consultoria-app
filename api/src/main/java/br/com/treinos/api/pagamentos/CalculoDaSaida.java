@@ -21,10 +21,13 @@ final class CalculoDaSaida {
     /**
      * @param vencidas      mensalidades abertas com vencimento antes de hoje (ficam em aberto)
      * @param aCancelar     mensalidades abertas a vencer dentro do mínimo (a opção FALTAM as cancela e as soma)
+     * @param aVencerQueFicam mensalidades abertas a vencer que continuam abertas: as de competência a partir do mínimo ou, sem
+     *                      mínimo (não elegível), todas as a vencer; a opção FALTAM não as cancela
      * @param mesesNaoGerados quantas competências ainda não geradas entram, e {@code valorNaoGerados} a soma delas
      * @param mesVigenteCoberto existe mensalidade cujo período contém hoje e que ainda cobre período
      */
-    record Calculo(List<CobrancaAluno> vencidas, List<CobrancaAluno> aCancelar, int mesesNaoGerados,
+    record Calculo(List<CobrancaAluno> vencidas, List<CobrancaAluno> aCancelar, List<CobrancaAluno> aVencerQueFicam,
+                   int mesesNaoGerados,
                    long valorNaoGerados, long valorFaltam, boolean mesVigenteCoberto, boolean elegivel) {
 
         int mesesQueFaltam() {
@@ -57,10 +60,11 @@ final class CalculoDaSaida {
         }
         boolean elegivel = c.getPeriodicidade() == PeriodoDoPlano.MENSAL && c.getMinimoAte() != null;
         if (!elegivel) {
-            return new Calculo(vencidas, List.of(), 0, 0, 0, mesVigenteCoberto, false);
+            return new Calculo(vencidas, List.of(), aVencer, 0, 0, 0, mesVigenteCoberto, false);
         }
         LocalDate minimo = c.getMinimoAte();
         List<CobrancaAluno> dentro = aVencer.stream().filter(m -> m.getCompetencia().isBefore(minimo)).toList();
+        List<CobrancaAluno> restantes = aVencer.stream().filter(m -> !m.getCompetencia().isBefore(minimo)).toList();
         long soma = 0;
         for (CobrancaAluno m : dentro) {
             soma = Math.addExact(soma, m.getValorCentavos());
@@ -82,7 +86,7 @@ final class CalculoDaSaida {
             coberta = competencia;
             competencia = CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, maior, coberta);
         }
-        return new Calculo(vencidas, dentro, naoGerados, valorNaoGerados, Math.addExact(soma, valorNaoGerados),
+        return new Calculo(vencidas, dentro, restantes, naoGerados, valorNaoGerados, Math.addExact(soma, valorNaoGerados),
                 mesVigenteCoberto, true);
     }
 

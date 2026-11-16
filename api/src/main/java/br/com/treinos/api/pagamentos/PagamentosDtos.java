@@ -165,13 +165,14 @@ public final class PagamentosDtos {
      * O que acontece se o plano for encerrado agora. {@code vencidas} ficam em aberto; {@code aVencerNoMinimo} são canceladas
      * pela opção {@code FALTAM} (ids em {@code cobrancasACancelar}, {@code comLinkVivo} delas têm link de pagamento que ainda vale:
      * pagar depois do cancelamento cai em "para conferir"). {@code mesesQueFaltam} = a vencer dentro do mínimo + meses ainda
-     * não gerados. {@code regraDeSaida} é o lembrete do contrato (texto do treinador): fora do {@code toString}. A tela só
+     * não gerados. {@code aVencerQueFicam} são as mensalidades abertas a vencer que continuam abertas (competência a partir do
+     * {@code minimoAte} ou, sem mínimo, todas as a vencer): nenhuma opção as cancela. {@code regraDeSaida} é o lembrete do contrato (texto do treinador): fora do {@code toString}. A tela só
      * desenha estes números.
      */
     public record PreviaDoEncerramento(UUID contratacaoId, PeriodoDoPlano periodicidade, ContratacaoAluno.Situacao situacao,
                                        LocalDate minimoAte, int mesesQueFaltam, String regraDeSaida,
                                        GrupoDeAbertas vencidas, GrupoDeAbertas aVencerNoMinimo,
-                                       List<UUID> cobrancasACancelar, int comLinkVivo, int mesesNaoGerados,
+                                       GrupoDeAbertas aVencerQueFicam, List<UUID> cobrancasACancelar, int comLinkVivo, int mesesNaoGerados,
                                        long valorDosNaoGeradosCentavos, List<OpcaoDaPrevia> opcoes) {
 
         @Override

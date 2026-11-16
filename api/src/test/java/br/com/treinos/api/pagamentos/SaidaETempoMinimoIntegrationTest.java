@@ -179,6 +179,9 @@ class SaidaETempoMinimoIntegrationTest extends AbstractIntegrationTest {
         JsonNode previa = previa(contratacao);
         assertThat(previa.get("mesesQueFaltam").asInt()).isEqualTo(3);
         assertThat(previa.get("aVencerNoMinimo").get("quantidade").asInt()).isEqualTo(1);
+        // A única aberta cabe no mínimo e é cancelada: nada continua aberto.
+        assertThat(previa.get("aVencerQueFicam").get("quantidade").asInt()).isZero();
+        assertThat(previa.get("aVencerQueFicam").get("valorCentavos").asLong()).isZero();
         assertThat(previa.get("mesesNaoGerados").asInt()).isEqualTo(2);
         assertThat(previa.get("regraDeSaida").asString()).isEqualTo("Multa combinada de três mensalidades.");
         assertThat(previa.get("cobrancasACancelar").get(0).asString()).isEqualTo(mensalidade.get("id").asString());
@@ -292,6 +295,18 @@ class SaidaETempoMinimoIntegrationTest extends AbstractIntegrationTest {
             }
             return null;
         })).isInstanceOf(Exception.class).hasMessageContaining("ux_cobranca_saida_viva");
+    }
+
+    @Test
+    void semMinimoAMensalidadeAVencerContinuaAbertaNoGrupoNovoDaPrevia() throws Exception {
+        UUID aluno = aluno();
+        JsonNode previa = previa(contratarHoje(aluno, plano(10000, "MENSAL", null, null)));
+        // Vence hoje (ainda não é vencida) e nenhuma opção a cancela: fica no grupo novo, com valor.
+        assertThat(previa.get("aVencerQueFicam").get("quantidade").asInt()).isEqualTo(1);
+        assertThat(previa.get("aVencerQueFicam").get("valorCentavos").asLong()).isEqualTo(10000);
+        assertThat(previa.get("aVencerNoMinimo").get("quantidade").asInt()).isZero();
+        assertThat(previa.get("vencidas").get("quantidade").asInt()).isZero();
+        assertThat(opcao(previa, "FALTAM").get("disponivel").asBoolean()).isFalse();
     }
 
     @Test
