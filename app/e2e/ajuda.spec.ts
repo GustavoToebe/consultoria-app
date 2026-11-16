@@ -182,7 +182,7 @@ test('aluno: guia próprio, busca e seletor no celular; índice no PC, também n
   await expect(page.getByText(/Vídeos? \(abre fora do app\)/)).toHaveCount(0);
   await semRolagemLateral(page);
   await page.screenshot({ path: captura('ajuda-aluno-390.png') });
-  await campoDaBusca(page).fill('aulao');
+  await campoDaBusca(page).fill('auloes');
   await expect(secao(page, 'Comunidade')).toHaveAccessibleName(/aberto$/);
   await expect(page.getByRole('heading', { name: 'Aulões', level: 3 })).toBeVisible();
   await semRolagemLateral(page);
