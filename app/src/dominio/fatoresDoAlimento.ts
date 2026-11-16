@@ -9,8 +9,8 @@ export const FC_MAXIMO = 20;
 export const FCC_MINIMO = 0.1;
 export const FCC_MAXIMO = 10;
 
-export const AJUDA_FC = 'Peso bruto ÷ peso limpo.';
-export const AJUDA_FCC = 'Peso pronto ÷ peso cru. Acima de 1, hidrata.';
+export const AJUDA_FC = 'Peso bruto ÷ peso limpo. “Sem valor” (1,00) não corrige o peso.';
+export const AJUDA_FCC = 'Peso pronto ÷ peso cru. Acima de 1, hidrata. “Sem valor” (1,00) não converte o peso.';
 
 export const NOTA_DA_ESTIMATIVA = 'Apenas um cálculo estimado: as quantidades convertem automaticamente o peso da dieta para peso aproximado de compra no mercado (considerando descarte de limpeza/casca e absorção ou perda de água no preparo).';
 
@@ -33,14 +33,14 @@ export interface PerfilDeFator<T extends string> {
 }
 
 export const PERFIS_FC: readonly PerfilDeFator<CodigoFc>[] = [
-  { codigo: 'SEM_PERDA', rotulo: 'Sem perda (1,00)', valor: 1 },
+  { codigo: 'SEM_PERDA', rotulo: 'Sem valor (1,00)', valor: 1 },
   { codigo: 'LIMPEZA_LEVE', rotulo: 'Limpeza leve (1,12)', valor: 1.12 },
   { codigo: 'DESCASCADO_MEDIO', rotulo: 'Casca/talos médios (1,25)', valor: 1.25 },
   { codigo: 'DESCASCADO_ALTO', rotulo: 'Casca grossa/osso (1,45)', valor: 1.45 },
 ];
 
 export const PERFIS_FCC: readonly PerfilDeFator<CodigoFcc>[] = [
-  { codigo: 'CRU_OU_PRONTO', rotulo: 'Cru / Pronto (1,00)', valor: 1 },
+  { codigo: 'CRU_OU_PRONTO', rotulo: 'Sem valor (1,00)', valor: 1 },
   { codigo: 'GRAO_COZIDO', rotulo: 'Arroz/grão cozido (2,60)', valor: 2.6 },
   { codigo: 'MASSA_COZIDA', rotulo: 'Massa cozida (2,50)', valor: 2.5 },
   { codigo: 'LEGUMINOSA_COZIDA', rotulo: 'Feijão/leguminosa cozida (1,85)', valor: 1.85 },

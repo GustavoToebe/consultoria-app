@@ -228,7 +228,7 @@ for (const largura of largurasDaFolha) {
       const { folha, naoTratadas, errosDaPagina, tirados } = await abrirAlimento(page, largura, [ARROZ], preferencias);
       const grupo = botaoDa(folha, 'Grupo (opcional)', 'Sem grupo');
       await expect(grupo).toBeVisible();
-      await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Sem perda (1,00)')).toBeVisible();
+      await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Sem valor (1,00)')).toBeVisible();
       await expect(botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Arroz/grão cozido (2,60)')).toBeVisible();
       // Perfil escolhido: o número fica escondido (o fator está no nome).
       await expect(folha.getByLabel('Fator de correção (FC)')).toHaveCount(0);
@@ -266,14 +266,14 @@ for (const largura of largurasDaFolha) {
       await expect(folha).toBeVisible();
 
       // FC: sem busca (cinco opções); o foco vai à escolhida e as setas e o Enter escolhem.
-      const fc = botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Sem perda (1,00)');
+      const fc = botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Sem valor (1,00)');
       await fc.click();
       const listaDoFc = page.getByRole('listbox', { name: 'Descarte e limpeza (FC)' });
       await listaNaJanela(page, listaDoFc, 5);
       await expect(page.getByLabel('Buscar campo')).toHaveCount(0);
       await capturar(page, `${prefixo}-fc-aberto`);
       if (nomeDoTema === 'claro') {
-        await expect(listaDoFc.getByRole('option', { name: 'Sem perda (1,00)', exact: true })).toBeFocused();
+        await expect(listaDoFc.getByRole('option', { name: 'Sem valor (1,00)', exact: true })).toBeFocused();
         await page.keyboard.press('ArrowDown');
         await expect(listaDoFc.getByRole('option', { name: 'Limpeza leve (1,12)', exact: true })).toBeFocused();
         await page.keyboard.press('Enter');
@@ -368,7 +368,7 @@ for (const largura of [390, 1280]) {
     await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Personalizado (1,3)')).toBeVisible();
     await expect(botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Personalizado (1,9)')).toBeVisible();
     await folha.getByRole('button', { name: 'Sugerir pelo nome' }).click();
-    await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Sem perda (1,00)')).toBeVisible();
+    await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Sem valor (1,00)')).toBeVisible();
     await expect(botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Arroz/grão cozido (2,60)')).toBeVisible();
     await expect(folha.getByLabel('Fator de correção (FC)')).toHaveCount(0);
     await expect(folha.getByLabel('Fator de cocção (FCc)')).toHaveCount(0);

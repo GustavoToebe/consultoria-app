@@ -1,4 +1,4 @@
-import { descricaoDosFatores, erroDoFatorCoccao, erroDoFatorCorrecao, estimarFatoresDoAlimento, previaDeConversao, textoDosFatores } from './fatoresDoAlimento';
+import { AJUDA_FC, AJUDA_FCC, descricaoDosFatores, erroDoFatorCoccao, erroDoFatorCorrecao, estimarFatoresDoAlimento, perfilFccDoValor, perfilFcDoValor, PERFIS_FC, PERFIS_FCC, previaDeConversao, textoDosFatores } from './fatoresDoAlimento';
 
 describe('fatoresDoAlimento', () => {
   it('vazio é válido (não informado); fora da faixa ou com mais de duas casas, não', () => {
@@ -13,6 +13,19 @@ describe('fatoresDoAlimento', () => {
     expect(erroDoFatorCoccao(10)).toBeNull();
     expect(erroDoFatorCoccao(0.09)).toBe('Use um valor de 0,1 a 10.');
     expect(erroDoFatorCoccao(10.5)).toBe('Use um valor de 0,1 a 10.');
+  });
+
+  it('os dois perfis de 1,00 dizem "Sem valor (1,00)", sem acrescentar perfil nem zerar nada (C50)', () => {
+    expect(PERFIS_FC.filter((p) => p.valor === 1)).toEqual([{ codigo: 'SEM_PERDA', rotulo: 'Sem valor (1,00)', valor: 1 }]);
+    expect(PERFIS_FCC.filter((p) => p.valor === 1)).toEqual([{ codigo: 'CRU_OU_PRONTO', rotulo: 'Sem valor (1,00)', valor: 1 }]);
+    expect(PERFIS_FC).toHaveLength(4);
+    expect(PERFIS_FCC).toHaveLength(9);
+    expect(perfilFcDoValor(1)).toBe('SEM_PERDA');
+    expect(perfilFccDoValor(1)).toBe('CRU_OU_PRONTO');
+    expect(AJUDA_FC).toContain('não corrige');
+    expect(AJUDA_FCC).toContain('não converte');
+    expect(erroDoFatorCorrecao(0)).toBe('Use um valor de 1 a 20.');
+    expect(erroDoFatorCoccao(0)).toBe('Use um valor de 0,1 a 10.');
   });
 
   it('texto curto só com o que foi informado', () => {
