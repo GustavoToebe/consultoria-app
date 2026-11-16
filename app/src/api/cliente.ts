@@ -16,6 +16,7 @@ import {
 } from '@plataforma/web';
 
 import { ehCicloDesligado } from '../dominio/cicloDesligado';
+import { ehVitrineDesligada } from '../dominio/vitrineDesligada';
 import { ehRetornoDesligado } from '../dominio/retornoDesligado';
 import { apagarRefresh, lerRefresh, salvarRefresh } from '../sessao/armazenamentoSeguro';
 import type { LoginResponse } from './tipos';
@@ -64,6 +65,7 @@ let accessToken: string | null = null;
 let aoEncerrarSessao: (() => void) | null = null;
 let aoCicloDesligadoSessao: (() => void) | null = null;
 let aoRetornoDesligadoSessao: (() => void) | null = null;
+let aoVitrineDesligadaSessao: (() => void) | null = null;
 /** Quem está com a sessão aberta nesta aba; a renovação que devolve outra pessoa não é aceita. */
 let usuarioEsperado: string | null = null;
 let recusaPorTroca = false;
@@ -87,6 +89,14 @@ export function aoCicloDesligado(callback: (() => void) | null) {
  */
 export function aoRetornoDesligado(callback: (() => void) | null) {
   aoRetornoDesligadoSessao = callback;
+}
+
+/**
+ * O SessaoProvider é avisado quando qualquer rota responde 503 `VITRINE_INDISPONIVEL` (vitrine desligada na plataforma,
+ * com o perfil salvo ainda dizendo que estava ligada). O erro continua sendo lançado para quem chamou.
+ */
+export function aoVitrineDesligada(callback: (() => void) | null) {
+  aoVitrineDesligadaSessao = callback;
 }
 
 export async function guardarSessao(resposta: LoginResponse): Promise<void> {
@@ -177,6 +187,9 @@ export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promi
     }
     if (ehRetornoDesligado(erro)) {
       aoRetornoDesligadoSessao?.();
+    }
+    if (ehVitrineDesligada(erro)) {
+      aoVitrineDesligadaSessao?.();
     }
     throw erro;
   }

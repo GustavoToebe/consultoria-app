@@ -58,14 +58,16 @@ export interface EuResponse {
   cicloHabilitado?: boolean;
   /** "Concluir treino" (retorno ao aluno) ligado na plataforma; falso ou ausente = o app esconde tudo e não consulta nem envia. */
   retornoHabilitado?: boolean;
+  /** Vitrine da consultoria (itens do treinador para os alunos) ligada na plataforma; falso ou ausente = o app esconde tudo e não consulta. */
+  vitrineHabilitada?: boolean;
   /** Aviso no celular por push do Expo ligado na plataforma; falso ou ausente = o app não oferece o interruptor. */
   pushHabilitado?: boolean;
   /** Escolha de kg ou lb para ver e digitar a carga ligada na plataforma; falso ou ausente = o app esconde a escolha e usa kg. */
   unidadeDeCargaHabilitada?: boolean;
   /** Migração assistida (diagnóstico do arquivo antes de importar) ligada na plataforma; falso ou ausente = o app esconde tudo. */
+  migracaoAssistidaHabilitada?: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos (DDD + número, sem 55); ausente = sem número, sem "Falar com o treinador". */
   whatsappDaConsultoria?: string;
-  migracaoAssistidaHabilitada?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string; sexo?: string | null };
@@ -180,13 +182,13 @@ export interface ConsultoriaResponse {
   /** Ciclo de atualização padrão (1 a 365 dias): aluno sem valor próprio usa este; nulo = sem padrão. */
   diasAtualizacaoPadrao: number | null;
   /** Meta do peso padrão dos alunos (nasce `REDUZIR`). */
+  metaDoPeso: MetaDoPeso;
+  /** Textos opcionais das fases do ciclo. Ausente ou campo vazio = a fase aparece só com o nome. */
+  textosFasesCiclo?: TextosDasFases | null;
   /** Contato (bloco da Marca): WhatsApp `(45) 99999-8888`, nome do remetente e "responder para" dos e-mails; nulo = vazio. */
   whatsapp?: string | null;
   emailRemetenteNome?: string | null;
   emailResponderPara?: string | null;
-  metaDoPeso: MetaDoPeso;
-  /** Textos opcionais das fases do ciclo. Ausente ou campo vazio = a fase aparece só com o nome. */
-  textosFasesCiclo?: TextosDasFases | null;
 }
 
 export interface TextosDasFases {

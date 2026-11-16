@@ -320,6 +320,31 @@ describe('cliente HTTP: "Concluir treino" desligado na plataforma', () => {
   });
 });
 
+describe('cliente HTTP: vitrine desligada (503 VITRINE_INDISPONIVEL)', () => {
+  let fetchSimulado: jest.Mock;
+  beforeEach(() => {
+    mockLerRefresh.mockResolvedValue('refresh-velho');
+    fetchSimulado = jest.fn();
+    global.fetch = fetchSimulado as unknown as typeof fetch;
+  });
+
+  it('avisa a sessão uma vez e relança o mesmo erro; os outros 503 e a loja não avisam', async () => {
+    const { requisicao, aoVitrineDesligada } = carregarCliente();
+    const desligada = jest.fn();
+    aoVitrineDesligada(desligada);
+
+    fetchSimulado.mockResolvedValue(json(503, { status: 503, message: 'x', codigo: 'VITRINE_INDISPONIVEL', fieldErrors: null }));
+    await expect(requisicao('/aluno/vitrine')).rejects.toMatchObject({ status: 503, codigo: 'VITRINE_INDISPONIVEL' });
+    expect(desligada).toHaveBeenCalledTimes(1);
+
+    for (const [status, codigo] of [[503, 'LOJA_INDISPONIVEL'], [503, 'FINANCEIRO_INDISPONIVEL'], [409, 'VITRINE_LIMITE'], [500, 'VITRINE_INDISPONIVEL']] as [number, string][]) {
+      fetchSimulado.mockResolvedValue(json(status, { status, message: 'x', codigo, fieldErrors: null }));
+      await expect(requisicao('/vitrine/itens')).rejects.toMatchObject({ status, codigo });
+    }
+    expect(desligada).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('cliente HTTP: imagem protegida', () => {
   let fetchSimulado: jest.Mock;
 

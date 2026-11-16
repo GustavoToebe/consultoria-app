@@ -15,11 +15,12 @@ export interface PerfilDaSessao {
   pagarNoAndroid?: boolean;
   cicloHabilitado?: boolean;
   retornoHabilitado?: boolean;
+  vitrineHabilitada?: boolean;
   pushHabilitado?: boolean;
   unidadeDeCargaHabilitada?: boolean;
+  migracaoAssistidaHabilitada?: boolean;
   /** Só do aluno (dígitos, sem 55); ausente = a consultoria não tem número. */
   whatsappDaConsultoria?: string;
-  migracaoAssistidaHabilitada?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   termosPendentes?: boolean;
@@ -38,10 +39,11 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     pagarNoAndroid: eu.pagarNoAndroid,
     cicloHabilitado: eu.cicloHabilitado,
     retornoHabilitado: eu.retornoHabilitado,
-    whatsappDaConsultoria: eu.whatsappDaConsultoria,
+    vitrineHabilitada: eu.vitrineHabilitada,
     pushHabilitado: eu.pushHabilitado,
     unidadeDeCargaHabilitada: eu.unidadeDeCargaHabilitada,
     migracaoAssistidaHabilitada: eu.migracaoAssistidaHabilitada,
+    whatsappDaConsultoria: eu.whatsappDaConsultoria,
     termosPendentes: eu.termosPendentes,
   };
 }

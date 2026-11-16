@@ -16,16 +16,17 @@ export function pode(permissoes:readonly string[]|undefined,codigo:string):boole
  * servidor): o aviso diz isso em vez de culpar a permissão, e não manda ninguém pedir, porque o administrador da
  * consultoria também não liga o módulo (C4 da auditoria de 03/11). `null` = a tela não depende de módulo desligado.
  */
-export function moduloDesligadoDaTela(caminho:string,pagamentosHabilitados:boolean=false):{titulo:string;texto:string}|null {
+export function moduloDesligadoDaTela(caminho:string,pagamentosHabilitados:boolean=false,vitrineHabilitada:boolean=false):{titulo:string;texto:string}|null {
   if(caminho==='/treinador/financeiro'&&!pagamentosHabilitados) return {titulo:'Recurso desativado',texto:'Os pagamentos não estão ativos nesta instalação do app.'};
+  if(caminho.startsWith('/treinador/vitrine')&&!vitrineHabilitada) return {titulo:'Recurso desativado',texto:'A vitrine não está ativa nesta instalação do app.'};
   return null;
 }
 
 /**
  * `pagamentosHabilitados`: módulo de pagamentos ligado para a consultoria (vem de `GET /eu`). Ausente = desligado: o
- * Financeiro some do menu mesmo para quem tem a permissão.
+ * Financeiro some do menu mesmo para quem tem a permissão. `vitrineHabilitada`, idem para a Vitrine (`GET /eu`).
  */
-export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,pagamentosHabilitados:boolean=false,administrador:boolean=false):boolean {
+export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,pagamentosHabilitados:boolean=false,administrador:boolean=false,vitrineHabilitada:boolean=false):boolean {
   if(['/treinador/perfil','/treinador/meus-dados','/treinador/seguranca','/treinador/ajustes','/treinador/ajuda','/treinador/termos','/treinador/configuracoes'].includes(caminho)) return true;
   if(caminho==='/treinador/comunidade') return tem('TREINO_LER');
   if(caminho==='/treinador/minha-conta') return tem('CONTA_LER');
@@ -38,6 +39,8 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,paga
   if(caminho==='/treinador/numeros') return tem('PAINEL_VER');
   // Financeiro: planos comerciais, cobranças e painel de recebimentos. Precisa da permissão E do módulo ligado.
   if(caminho==='/treinador/financeiro') return pagamentosHabilitados&&tem('FINANCEIRO_LER');
+  // Vitrine: itens que o treinador mostra aos alunos. Precisa da permissão E da chave ligada.
+  if(caminho.startsWith('/treinador/vitrine')) return vitrineHabilitada&&tem('VITRINE_LER');
   if(caminho==='/treinador/alunos/novo') return tem('ALUNO_ALTERAR');
   if(caminho==='/treinador/interessados') return tem('INSCRICAO_LER');
   if(caminho.startsWith('/treinador/alunos')) return tem('ALUNO_LER');

@@ -10,12 +10,12 @@ export function Permitido({codigo,children}:{codigo:string;children:ReactNode}) 
 }
 /** Não monta a tela nem suas buscas quando falta permissão. A proteção de dados continua na API. */
 export function GuardaDePermissao({children}:{children:ReactNode}) {
-  const caminho=usePathname();const {pode,pagamentosHabilitados,perfilEquipe}=useSessao();
-  if(!podeAcessarTela(caminho,pode,pagamentosHabilitados,!!perfilEquipe?.acessoTotal)) {
+  const caminho=usePathname();const {pode,pagamentosHabilitados,vitrineHabilitada,perfilEquipe}=useSessao();
+  if(!podeAcessarTela(caminho,pode,pagamentosHabilitados,!!perfilEquipe?.acessoTotal,vitrineHabilitada)) {
     const inicio = caminho.startsWith('/aluno') ? '/aluno' : '/treinador';
     const acao = { rotulo: 'Voltar ao início', aoTocar: () => router.replace(inicio) };
     // Módulo desligado ganha da permissão: ninguém, nem o administrador, abriria a tela pedindo acesso (C4).
-    const desligado = moduloDesligadoDaTela(caminho, pagamentosHabilitados);
+    const desligado = moduloDesligadoDaTela(caminho, pagamentosHabilitados, vitrineHabilitada);
     return <Tela>{desligado ? <ModuloDesligado {...desligado} acao={acao} /> : <SemPermissao acao={acao} />}</Tela>;
   }
   return <>{children}</>;

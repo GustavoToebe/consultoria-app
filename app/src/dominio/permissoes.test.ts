@@ -24,10 +24,10 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/desconhecido', () => true)).toBe(false);
     expect(podeAcessarTela('/treinador/perfil', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajuda', acesso([]))).toBe(true);
+  });
   it('Configurações (o hub) abre para todo membro, mesmo sem nenhuma permissão', () => {
     expect(podeAcessarTela('/treinador/configuracoes', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/configuracoes', () => false)).toBe(true);
-  });
   });
   it('a Agenda abre com as permissões das Atualizações ou com AGENDA_LER (compromissos presenciais)', () => {
     expect(podeAcessarTela('/treinador/agenda', acesso(['AGENDA_LER','ALUNO_LER']))).toBe(true);
@@ -101,5 +101,21 @@ describe('módulo desligado (C4)', () => {
   it('com os pagamentos ligados, ou em outra tela, não há módulo desligado (vale a permissão)', () => {
     expect(moduloDesligadoDaTela('/treinador/financeiro', true)).toBeNull();
     expect(moduloDesligadoDaTela('/treinador/equipe', false)).toBeNull();
+  });
+});
+
+describe('Vitrine', () => {
+  const acesso = (codigos: string[]) => (codigo: string) => pode(codigos, codigo);
+  it('pede VITRINE_LER e a chave ligada; ALTERAR sozinha não abre', () => {
+    expect(podeAcessarTela('/treinador/vitrine', acesso(['VITRINE_LER']), false, false, true)).toBe(true);
+    expect(podeAcessarTela('/treinador/vitrine', acesso(['VITRINE_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/vitrine', acesso(['VITRINE_LER']), true, true, false)).toBe(false);
+    expect(podeAcessarTela('/treinador/vitrine', acesso(['ALUNO_LER', 'VITRINE_ALTERAR']), false, false, true)).toBe(false);
+  });
+  it('chave desligada diz que o recurso está desativado, sem culpar a permissão', () => {
+    expect(moduloDesligadoDaTela('/treinador/vitrine', true, false)).toEqual({ titulo: 'Recurso desativado', texto: 'A vitrine não está ativa nesta instalação do app.' });
+    expect(moduloDesligadoDaTela('/treinador/vitrine')).not.toBeNull();
+    expect(moduloDesligadoDaTela('/treinador/vitrine', false, true)).toBeNull();
+    expect(moduloDesligadoDaTela('/treinador/financeiro', true, false)).toBeNull();
   });
 });

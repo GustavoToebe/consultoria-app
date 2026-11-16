@@ -8,6 +8,7 @@ import { CartaoHoje } from '../../aluno/CartaoHoje';
 import { MapaDeTreinos } from '../../aluno/MapaDeTreinos';
 import { ParaFazer } from '../../aluno/ParaFazer';
 import { ProgressoSemana } from '../../aluno/ProgressoSemana';
+import { CartaoVitrineDoInicio } from '../../aluno/vitrine/CartaoVitrineDoInicio';
 import { SecaoDoInicio } from '../../aluno/SecaoDoInicio';
 import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
 import { caminhoDaConclusao, caminhoDaSessao } from '../../aluno/useSessaoDoDia';
@@ -63,6 +64,7 @@ export default function InicioAluno() {
       {pacote ? <ParaFazer /> : null}
       <CartaoCompromissos />
       {pacote ? <ProgressoSemana hoje={hoje} /> : null}
+      <CartaoVitrineDoInicio />
       <MapaDeTreinos />
     </Tela>
   );

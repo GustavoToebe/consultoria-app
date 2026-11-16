@@ -89,3 +89,8 @@ test('alterar interessados leva junto o ler, e desmarcar o ler tira o alterar', 
   expect(completarPermissoes(['INSCRICAO_ALTERAR']).sort()).toEqual(['INSCRICAO_ALTERAR', 'INSCRICAO_LER']);
   expect(desmarcarPermissoes(['INSCRICAO_ALTERAR', 'INSCRICAO_LER'], ['INSCRICAO_LER'])).toEqual([]);
 });
+
+test('VITRINE_ALTERAR puxa VITRINE_LER e tirar a leitura tira a escrita',()=>{
+  expect(completarPermissoes(['VITRINE_ALTERAR'])).toEqual(expect.arrayContaining(['VITRINE_ALTERAR','VITRINE_LER']));
+  expect(desmarcarPermissoes(completarPermissoes(['VITRINE_ALTERAR']),['VITRINE_LER'])).toEqual([]);
+});

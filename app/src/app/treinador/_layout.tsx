@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChartColumn, CircleUserRound, ClipboardCheck, ContactRound, FileUp, House, Inbox, NotebookTabs, UsersRound, History, LifeBuoy, Wallet } from 'lucide-react-native';
+import { BookOpen, CalendarDays, ChartColumn, CircleUserRound, ClipboardCheck, ContactRound, FileUp, House, Inbox, NotebookTabs, UsersRound, History, LifeBuoy, Store, Wallet } from 'lucide-react-native';
 
 import { Navigator, Redirect, Slot, usePathname } from 'expo-router';
 import { Platform } from 'react-native';
@@ -38,6 +38,7 @@ const ITENS: ItemMenu[] = naOrdemDoMenu<ItemMenu>([
   { rotulo: 'Planejamento', rotuloCurto: 'Planos', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs },
   { rotulo: 'Interessados', href: '/treinador/interessados', caminho: '/treinador/interessados', Icone: Inbox, soLateral: true },
   { rotulo: 'Financeiro', href: '/treinador/financeiro', caminho: '/treinador/financeiro', Icone: Wallet, soLateral: true },
+  { rotulo: 'Vitrine', href: '/treinador/vitrine', caminho: '/treinador/vitrine', Icone: Store, soLateral: true },
   { rotulo: 'Números', href: '/treinador/numeros', caminho: '/treinador/numeros', Icone: ChartColumn, soLateral: true },
   // A conta no rodapé do menu lateral é só da web; num tablet nativo largo o Perfil continua no menu lateral.
   { rotulo: 'Perfil', href: '/treinador/perfil', caminho: '/treinador/perfil', Icone: CircleUserRound, soCelular: Platform.OS === 'web', tambemNoCelular: telasDaOrigem('/treinador/perfil') },
@@ -54,15 +55,15 @@ const ITENS: ItemMenu[] = naOrdemDoMenu<ItemMenu>([
 const web = Platform.OS === 'web';
 
 function SemInicio() {
-  const {pode,funcionalidadesDoPlano,pagamentosHabilitados,perfilEquipe}=useSessao();const caminho=usePathname();
+  const {pode,funcionalidadesDoPlano,pagamentosHabilitados,vitrineHabilitada,perfilEquipe}=useSessao();const caminho=usePathname();
   const administrador=!!perfilEquipe?.acessoTotal;
-  if(caminho!=='/treinador'||podeAcessarTela(caminho,pode,pagamentosHabilitados,administrador)) return null;
-  const destino=primeiraTelaPermitida(telasPermitidas(pode,undefined,funcionalidadesDoPlano,pagamentosHabilitados,administrador));
+  if(caminho!=='/treinador'||podeAcessarTela(caminho,pode,pagamentosHabilitados,administrador,vitrineHabilitada)) return null;
+  const destino=primeiraTelaPermitida(telasPermitidas(pode,undefined,funcionalidadesDoPlano,pagamentosHabilitados,administrador,vitrineHabilitada));
   return destino?<Redirect href={destino as never} />:null;
 }
 
 export default function LayoutTreinador() {
-  const {pode,recarregarPerfil,usuario,pagamentosHabilitados}=useSessao();const caminho=usePathname();
+  const {pode,recarregarPerfil,usuario,pagamentosHabilitados,vitrineHabilitada}=useSessao();const caminho=usePathname();
   useLimparFavoritosAoSair();
   useEffect(()=>{if(caminho.startsWith('/treinador')) void recarregarPerfil().catch(()=>undefined);},[recarregarPerfil,caminho]);
   // Ponto em Atualizações quando há alguma para revisar (no celular, no Início, que leva a elas) e em Interessados quando
@@ -92,7 +93,7 @@ export default function LayoutTreinador() {
         {/* Busca global (Ctrl/Cmd+K em qualquer tela) e conta no menu lateral só na web; no celular a busca abre pelo Perfil. */}
         <ProvedorDaBuscaGlobal>
         <Navegacao busca={web ? <BotaoDaBusca /> : undefined} conta={web ? <CartaoDoUsuario /> : undefined}
-          itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode,pagamentosHabilitados)).map(comPontos)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
+          itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode,pagamentosHabilitados,false,vitrineHabilitada)).map(comPontos)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
         </ProvedorDaBuscaGlobal>
         </ProvedorDaUnidadeDeCarga>
       </ProvedorDoPasseio>

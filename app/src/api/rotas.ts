@@ -4,8 +4,8 @@ import type {
   AlterarContratacaoRequest,
   BaixaEmLoteRequest,
   BaixaManualRequest,
-  EncerrarContratacaoRequest,
   ContratacaoResponse,
+  EncerrarContratacaoRequest,
   ResultadoDoLote,
   ContratarRequest,
   ConferenciasDePagamento,
@@ -16,10 +16,10 @@ import type {
   LancamentoResponse,
   LinkDePagamento,
   MotivoRequest,
-  PreviaDoEncerramento,
-  ResumoDaSaidaDoAluno,
   Painel,
   PaginaCobrancas,
+  PreviaDoEncerramento,
+  ResumoDaSaidaDoAluno,
   PaginaInadimplentes,
   PaginaLancamentos,
   CobrancaResponse,
@@ -695,11 +695,11 @@ export const alterarMarca = (dados: {
   diasAtualizacaoPadrao: number | null;
   textosFasesCiclo?: import('./tipos').TextosDasFases | null;
   /** Ausente mantém a gravada. */
+  metaDoPeso?: import('./tipos').MetaDoPeso;
   /** Os três vão em todo PUT: em branco ou ausente apaga na API. */
   whatsapp: string;
   emailRemetenteNome: string;
   emailResponderPara: string;
-  metaDoPeso?: import('./tipos').MetaDoPeso;
 }) => requisicao<ConsultoriaResponse>('/consultoria/marca', { metodo: 'PUT', corpo: dados });
 
 /** `arquivo`: FormData já montado (web: File; nativo: objeto com bytes(), `anexarArquivoDoAparelho`). */
@@ -1152,6 +1152,10 @@ export const listarContratacoesDoAluno = (alunoId: string) =>
   requisicao<ContratacaoResponse[]>(`/alunos/${seg(alunoId)}/contratacoes`);
 export const contratarPlano = (alunoId: string, corpo: ContratarRequest) =>
   requisicao<ContratacaoResponse>(`/alunos/${seg(alunoId)}/contratacoes`, { metodo: 'POST', corpo });
+export const alterarContratacao = (id: string, corpo: AlterarContratacaoRequest) =>
+  requisicao<ContratacaoResponse>(`/contratacoes/${seg(id)}`, { metodo: 'PUT', corpo });
+export const mudarSituacaoDaContratacao = (id: string, acao: 'pausar' | 'retomar' | 'encerrar', versao: number) =>
+  requisicao<ContratacaoResponse>(`/contratacoes/${seg(id)}/${acao}`, { metodo: 'POST', corpo: { versao } });
 /** O que encerrar faria agora (só leitura; contratação já encerrada = 409 `CONTRATACAO_ENCERRADA`). */
 export const previaDoEncerramento = (id: string) =>
   requisicao<PreviaDoEncerramento>(`/contratacoes/${seg(id)}/previa-de-encerramento`);
@@ -1161,10 +1165,6 @@ export const encerrarContratacao = (id: string, corpo: EncerrarContratacaoReques
 /** O que inativar o aluno faz com o financeiro (painel de inativar; `FINANCEIRO_LER`, 503 com o financeiro desligado). */
 export const resumoDaSaidaDoAluno = (alunoId: string) =>
   requisicao<ResumoDaSaidaDoAluno>(`/alunos/${seg(alunoId)}/resumo-da-saida`);
-export const alterarContratacao = (id: string, corpo: AlterarContratacaoRequest) =>
-  requisicao<ContratacaoResponse>(`/contratacoes/${seg(id)}`, { metodo: 'PUT', corpo });
-export const mudarSituacaoDaContratacao = (id: string, acao: 'pausar' | 'retomar' | 'encerrar', versao: number) =>
-  requisicao<ContratacaoResponse>(`/contratacoes/${seg(id)}/${acao}`, { metodo: 'POST', corpo: { versao } });
 
 export const listarCobrancasDoAluno = (alunoId: string) =>
   requisicao<CobrancaResponse[]>(`/alunos/${seg(alunoId)}/cobrancas`);
@@ -1294,3 +1294,29 @@ export const excluirAvaliacaoFisica = (id: string, versao: number) =>
 /** As do próprio aluno, só leitura. */
 export const minhasAvaliacoesFisicas = () =>
   requisicao<import('./avaliacaoFisicaTipos').AvaliacaoFisica[]>('/aluno/avaliacoes-fisicas');
+
+// ---- Vitrine da consultoria (só com `vitrineHabilitada`; `VITRINE_LER`/`VITRINE_ALTERAR`; plano `docs/planos/vitrine-e-loja.md`) ----
+/** Todos os itens (ativos e inativos), na ordem da vitrine; no máximo 30. */
+export const itensDaVitrine = () => requisicao<import('./vitrineTipos').ItemDaVitrine[]>('/vitrine/itens');
+/** 422 `VITRINE_ITEM_INVALIDO` com `fieldErrors`; 409 `VITRINE_LIMITE` no teto de 30. */
+export const criarItemDaVitrine = (corpo: import('./vitrineTipos').DadosDoItem) =>
+  requisicao<import('./vitrineTipos').ItemDaVitrine>('/vitrine/itens', { metodo: 'POST', corpo });
+/** O corpo leva `versao`; 409 `CONFLITO_EDICAO` se outra aba editou antes. */
+export const alterarItemDaVitrine = (id: string, corpo: import('./vitrineTipos').DadosDoItem) =>
+  requisicao<import('./vitrineTipos').ItemDaVitrine>(`/vitrine/itens/${seg(id)}`, { metodo: 'PUT', corpo });
+export const excluirItemDaVitrine = (id: string, versao: number) =>
+  requisicao<void>(`/vitrine/itens/${seg(id)}?versao=${seg(versao)}`, { metodo: 'DELETE' });
+/** Subir/Descer: manda todos os ids na nova ordem. */
+export const ordenarItensDaVitrine = (ids: readonly string[]) =>
+  requisicao<void>('/vitrine/itens/ordem', { metodo: 'PUT', corpo: { ids } });
+/** `arquivo`: FormData com `arquivo` (JPEG já reduzido a 1600 px e sem EXIF, até 300 KB). Troca a foto atual. */
+export const trocarFotoDoItem = (id: string, arquivo: FormData) =>
+  requisicao<import('./vitrineTipos').ItemDaVitrine>(`/vitrine/itens/${seg(id)}/foto`, { metodo: 'PUT', corpoBruto: arquivo, limiteMs: 60000 });
+export const removerFotoDoItem = (id: string) => requisicao<void>(`/vitrine/itens/${seg(id)}/foto`, { metodo: 'DELETE' });
+/** Equipe (`VITRINE_LER`); 404 = sem foto. */
+export const baixarFotoDoItem = (id: string) => requisicao<Blob>(`/vitrine/itens/${seg(id)}/foto`, { binario: true, limiteMs: 30000 });
+/** Do aluno: só itens ativos da própria consultoria. */
+export const vitrineDoAluno = () => requisicao<import('./vitrineTipos').ItemDaVitrineDoAluno[]>('/aluno/vitrine');
+/** Do aluno: 404 = sem foto ou item que ele não vê. */
+export const baixarFotoDoItemDoAluno = (id: string) =>
+  requisicao<Blob>(`/aluno/vitrine/itens/${seg(id)}/foto`, { binario: true, limiteMs: 30000 });

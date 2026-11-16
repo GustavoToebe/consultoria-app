@@ -1,6 +1,5 @@
-import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { Copy, Droplet, ExternalLink, FileDown, ShoppingCart } from 'lucide-react-native';
+import { Droplet, FileDown, ShoppingCart } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -15,8 +14,7 @@ import type { DadosPdfDieta } from '../pdf/pdfDieta';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
-import { abrirLinkExterno } from '../ui/abrirLinkExterno';
-import { useAviso } from '../ui/Aviso';
+import { CupomDoProduto, VerProduto } from '../ui/AcoesDoProduto';
 import { Botao } from '../ui/Botao';
 import { CabecalhoDeGrupo } from '../ui/CabecalhoDeGrupo';
 import { Cartao } from '../ui/Cartao';
@@ -148,47 +146,6 @@ function LinhasDoComplemento({ item }: { item: { dose?: string | null; horario?:
   );
 }
 
-/** Abre o link do produto fora do app, sem token. */
-function VerProduto({ link }: { link: string | null }) {
-  const { avisar } = useAviso();
-  return (
-    <View style={estilos.produto}>
-      <Botao
-        rotulo="Ver produto"
-        tipo="secundario"
-        Icone={ExternalLink}
-        aoTocar={() => { void abrirLinkExterno(link).then((ok) => { if (!ok) avisar('Não foi possível abrir o link.', 'perigo'); }); }}
-      />
-    </View>
-  );
-}
-
-/** Cupom do produto, como o treinador escreveu, com o botão de copiar. Nada é calculado nem aplicado pelo app; copiar também vale na prévia (não grava nem chama a API). */
-function CupomDoProduto({ uid, nome, cupom }: { uid: string; nome: string; cupom: string }) {
-  const { avisar } = useAviso();
-  const copiar = async () => {
-    try {
-      await Clipboard.setStringAsync(cupom);
-      avisar('Copiado.', 'sucesso');
-    } catch {
-      avisar('Selecione o texto e copie à mão.', 'neutro');
-    }
-  };
-  return (
-    <View style={estilos.produto}>
-      <Texto numerico selectable>Cupom: {cupom}</Texto>
-      <Botao
-        rotulo="Copiar cupom"
-        rotuloAcessivel={`Copiar cupom${nome ? ` de ${nome}` : ''}`}
-        testID={`copiar-cupom-${uid}`}
-        tipo="secundario"
-        Icone={Copy}
-        aoTocar={() => { void copiar(); }}
-      />
-    </View>
-  );
-}
-
 /**
  * Refeição da dieta do aluno (Frente G, D14): uma barra na cor da refeição (pela ordem no dia) e, em cada item, a
  * quantidade e a unidade numa etiqueta grande à direita, na mesma cor. Só apresentação: a cor identifica a refeição, não
@@ -298,5 +255,4 @@ const estilos = StyleSheet.create({
   totalDoDia: { gap: espaco(1) },
   macros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(2), rowGap: espaco(0.75) },
   macro: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
-  produto: { alignItems: 'flex-start', paddingTop: espaco(0.5), gap: espaco(0.5) },
 });

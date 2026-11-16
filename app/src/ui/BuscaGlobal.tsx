@@ -109,11 +109,11 @@ function PainelDaBusca({ campo, favoritos, alternar, aoFechar }: {
   aoFechar: () => void;
 }) {
   const { cores } = useTema();
-  const { pode, perfilEquipe, funcionalidadesDoPlano, pagamentosHabilitados } = useSessao();
+  const { pode, perfilEquipe, funcionalidadesDoPlano, pagamentosHabilitados, vitrineHabilitada } = useSessao();
   const administrador = !!perfilEquipe?.acessoTotal;
   const permitidas = useMemo(
-    () => telasPermitidas(pode, undefined, funcionalidadesDoPlano, pagamentosHabilitados, administrador),
-    [pode, funcionalidadesDoPlano, pagamentosHabilitados, administrador],
+    () => telasPermitidas(pode, undefined, funcionalidadesDoPlano, pagamentosHabilitados, administrador, vitrineHabilitada),
+    [pode, funcionalidadesDoPlano, pagamentosHabilitados, administrador, vitrineHabilitada],
   );
   const [texto, setTexto] = useState('');
   const [ativo, setAtivo] = useState(0);

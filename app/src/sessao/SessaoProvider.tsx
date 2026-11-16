@@ -6,6 +6,7 @@ import { AppState, Platform } from 'react-native';
 import {
   aoCicloDesligado,
   aoRetornoDesligado,
+  aoVitrineDesligada,
   aoEncerrar,
   definirUsuarioDaSessao,
   ErroApi,
@@ -67,14 +68,16 @@ interface ValorSessao {
   cicloHabilitado: boolean;
   /** "Concluir treino" ligado? Desligado ou desconhecido, o app esconde tudo e nunca consulta nem enfileira conclusões. */
   retornoHabilitado: boolean;
+  /** Vitrine da consultoria ligada? Desligada ou desconhecida, o app esconde tudo dela e não a consulta. */
+  vitrineHabilitada: boolean;
   /** Aviso de compromisso por push ligado? Desligado ou desconhecido, o app não oferece o interruptor. */
   pushHabilitado: boolean;
   /** Escolha de kg/lb ligada? Desligado ou desconhecido, a carga é sempre kg e a escolha não aparece. */
   unidadeDeCargaHabilitada: boolean;
   /** Diagnóstico do arquivo antes de importar ligado? Desligado ou desconhecido, a tela de importação não o mostra. */
+  migracaoAssistidaHabilitada: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos; nulo = sem "Falar com o treinador". */
   whatsappDaConsultoria: string | null;
-  migracaoAssistidaHabilitada: boolean;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -368,6 +371,21 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     });
     return () => aoRetornoDesligado(null);
   }, []);
+  // O servidor respondeu 503 `VITRINE_INDISPONIVEL` (vitrine desligada na plataforma) com o perfil ainda dizendo que estava
+  // ligada: a chave vira falsa na sessão e no perfil salvo, e o menu, o cartão do Início e a tela do aluno somem. Sem
+  // efeito, nem regravação, se já está falsa.
+  useEffect(() => {
+    aoVitrineDesligada(() => {
+      setPerfil((atual) => {
+        if (!atual || atual.vitrineHabilitada !== true) return atual;
+        const novo = { ...atual, vitrineHabilitada: false };
+        perfilAtual.current = novo;
+        AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
+        return novo;
+      });
+    });
+    return () => aoVitrineDesligada(null);
+  }, []);
   const valor = useMemo<ValorSessao>(
     () => ({
       termosPendentes: perfil?.termosPendentes ?? false,
@@ -383,10 +401,11 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       pagarNoAndroid:perfil?.pagarNoAndroid===true,
       cicloHabilitado:perfil?.cicloHabilitado===true,
       retornoHabilitado:perfil?.retornoHabilitado===true,
-      whatsappDaConsultoria:perfil?.whatsappDaConsultoria??null,
+      vitrineHabilitada:perfil?.vitrineHabilitada===true,
       pushHabilitado:perfil?.pushHabilitado===true,
       unidadeDeCargaHabilitada:perfil?.unidadeDeCargaHabilitada===true,
       migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,
+      whatsappDaConsultoria:perfil?.whatsappDaConsultoria??null,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,

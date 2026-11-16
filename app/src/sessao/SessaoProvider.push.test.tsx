@@ -20,6 +20,7 @@ let mockEu: Record<string, unknown> = {};
 jest.mock('../api/cliente', () => ({
   aoCicloDesligado: jest.fn(),
   aoRetornoDesligado: jest.fn(),
+  aoVitrineDesligada: jest.fn(),
   aoEncerrar: jest.fn(),
   definirUsuarioDaSessao: jest.fn(),
   ErroApi: class ErroApi extends Error { semConexao = false; },

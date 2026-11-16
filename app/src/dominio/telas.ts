@@ -41,6 +41,7 @@ const CATALOGO: readonly Omit<TelaDoCatalogo, 'secao'>[] = [
   { id: 'planejamento', rotulo: 'Planejamento', href: '/treinador/planejamento', palavras: ['modelos', 'treinos', 'dietas', 'mobilidade', 'pacotes', 'receitas'], permissao: null },
   { id: 'interessados', rotulo: 'Interessados', href: '/treinador/interessados', palavras: ['inscricoes', 'inscricao', 'link de inscricao', 'fila', 'candidatos', 'novos alunos', 'whatsapp', 'captacao'], permissao: null },
   { id: 'financeiro', rotulo: 'Financeiro', href: '/treinador/financeiro', palavras: ['pagamentos', 'cobrancas', 'recebimentos', 'planos comerciais', 'mensalidade', 'inadimplencia', 'inadimplentes', 'lancamentos', 'lembretes', 'lembrete de cobranca', 'receita', 'caixa', 'baixa', 'pix'], permissao: null },
+  { id: 'vitrine', rotulo: 'Vitrine', href: '/treinador/vitrine', palavras: ['loja', 'produtos', 'itens', 'planilhas', 'roupas', 'preco especial', 'promocao', 'black friday', 'cupom', 'venda'], permissao: null },
   { id: 'numeros', rotulo: 'Números', href: '/treinador/numeros', palavras: ['relatorio', 'contagem', 'alunos ativos', 'meses', 'no prazo', 'atrasadas'], permissao: null },
   { id: 'equipe', rotulo: 'Equipe', href: '/treinador/equipe', palavras: ['membros', 'usuarios', 'perfis', 'permissoes', 'convites'], permissao: null },
   { id: 'importacao', rotulo: 'Importação', href: '/treinador/importacao', palavras: ['planilha', 'xlsx', 'csv', 'importar alunos', 'importar pesos', 'importar alimentos', 'importar exercicios'], permissao: null },
@@ -51,8 +52,8 @@ const CATALOGO: readonly Omit<TelaDoCatalogo, 'secao'>[] = [
   { id: 'seguranca', rotulo: 'Segurança', href: '/treinador/seguranca', palavras: ['senha', 'verificacao em duas etapas', 'duas etapas', '2fa', 'mfa', 'autenticador', 'codigo', 'codigos de recuperacao', 'qr'], permissao: null },
   { id: 'minha-conta', rotulo: 'Assinatura e faturas', href: '/treinador/minha-conta', palavras: ['minha conta', 'plano', 'assinatura', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
   { id: 'marca', rotulo: 'Marca', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome'], permissao: null },
-  { id: 'configuracoes', rotulo: 'Configurações', href: '/treinador/configuracoes', palavras: ['ajustes', 'preferencias', 'opcoes', 'configurar'], permissao: null },
   { id: 'ajustes', rotulo: 'Ajustes', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
+  { id: 'configuracoes', rotulo: 'Configurações', href: '/treinador/configuracoes', palavras: ['ajustes', 'preferencias', 'opcoes', 'configurar'], permissao: null },
   { id: 'termos', rotulo: 'Termos e privacidade', href: '/treinador/termos', palavras: ['termo de uso', 'aviso de privacidade', 'lgpd', 'dados pessoais', 'politica'], permissao: null },
 
   { id: 'ergogenicos', rotulo: 'Outros (medicação e ergogênicos)', href: '/treinador/biblioteca?aba=ergogenicos', palavras: ['biblioteca', 'outros', 'ergogenicos', 'medicacao', 'categorias'], permissao: 'ERGOGENICO_LER', acao: true },
@@ -104,10 +105,11 @@ export function telasPermitidas(
   liberadas?: readonly string[],
   pagamentosHabilitados = false,
   administrador = false,
+  vitrineHabilitada = false,
 ): TelaDoCatalogo[] {
   return telas.filter(
     (t) =>
-      podeAcessarTela(caminhoDoHref(t.href), pode, pagamentosHabilitados, administrador) &&
+      podeAcessarTela(caminhoDoHref(t.href), pode, pagamentosHabilitados, administrador, vitrineHabilitada) &&
       (t.permissao === null || pode(t.permissao)) &&
       (t.funcionalidade === undefined || temFuncionalidade(liberadas, t.funcionalidade)),
   );
@@ -227,9 +229,9 @@ const ORIGEM_NO_CELULAR: readonly [string, string][] = [
   ['/treinador/equipe', '/treinador/perfil'],
   ['/treinador/ajuda', '/treinador/perfil'],
   ['/treinador/auditoria', '/treinador/perfil'],
-  ['/treinador/configuracoes', '/treinador/perfil'],
   ['/treinador/importacao', '/treinador/perfil'],
   ['/treinador/termos', '/treinador/perfil'],
+  ['/treinador/configuracoes', '/treinador/perfil'],
   ['/treinador/meus-dados', '/treinador/perfil'],
   ['/treinador/seguranca', '/treinador/perfil'],
   ['/treinador/ajustes', '/treinador/perfil'],

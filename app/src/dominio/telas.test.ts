@@ -105,6 +105,17 @@ describe('catálogo de telas', () => {
     expect(tituloDaPagina('/treinador/numeros', 'Saraiva Team')).toBe('Números · Saraiva Team');
   });
 
+  it('Vitrine pede VITRINE_LER e a chave ligada; fica em Negócio e a busca acha por loja e promoção', () => {
+    expect(ids(telasPermitidas(com(['VITRINE_LER'])))).not.toContain('vitrine');
+    expect(ids(telasPermitidas(com(['ALUNO_LER']), undefined, undefined, false, false, true))).not.toContain('vitrine');
+    const tudo = telasPermitidas(com(['VITRINE_LER']), undefined, undefined, false, false, true);
+    expect(ids(tudo)).toContain('vitrine');
+    expect(ids(buscarTelas('loja', tudo))).toEqual(['vitrine']);
+    expect(ids(buscarTelas('promoção', tudo))).toEqual(['vitrine']);
+    expect(TELAS.find((t) => t.id === 'vitrine')?.secao).toBe('Negócio');
+    expect(nomeDaTela('/treinador/vitrine')).toBe('Vitrine');
+  });
+
   it('Financeiro pede FINANCEIRO_LER e o módulo ligado; some do catálogo e da busca sem um dos dois', () => {
     const pagador = ['ALUNO_LER', 'FINANCEIRO_LER'];
     expect(ids(telasPermitidas(com(pagador)))).not.toContain('financeiro');

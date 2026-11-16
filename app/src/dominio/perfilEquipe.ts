@@ -12,6 +12,7 @@ const dependencias:Record<string,string[]> = {
   BIBLIOTECA_ALTERAR:['BIBLIOTECA_LER'],MODELO_ALTERAR:['MODELO_LER'],MODELO_APLICAR:['MODELO_LER'],QUESTIONARIO_ALTERAR:['QUESTIONARIO_LER'],
   USUARIO_ALTERAR:['EQUIPE_LER'],PERFIL_ALTERAR:['EQUIPE_LER'],
   FINANCEIRO_LER:['ALUNO_LER'],FINANCEIRO_ALTERAR:['FINANCEIRO_LER'],
+  VITRINE_ALTERAR:['VITRINE_LER'],
 };
 export function completarPermissoes(codigos:readonly string[]):string[] {
   const conjunto=new Set(codigos);
