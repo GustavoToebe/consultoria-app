@@ -51,6 +51,7 @@ const CATALOGO: readonly Omit<TelaDoCatalogo, 'secao'>[] = [
   { id: 'seguranca', rotulo: 'Segurança', href: '/treinador/seguranca', palavras: ['senha', 'verificacao em duas etapas', 'duas etapas', '2fa', 'mfa', 'autenticador', 'codigo', 'codigos de recuperacao', 'qr'], permissao: null },
   { id: 'minha-conta', rotulo: 'Assinatura e faturas', href: '/treinador/minha-conta', palavras: ['minha conta', 'plano', 'assinatura', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
   { id: 'marca', rotulo: 'Marca', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome'], permissao: null },
+  { id: 'configuracoes', rotulo: 'Configurações', href: '/treinador/configuracoes', palavras: ['ajustes', 'preferencias', 'opcoes', 'configurar'], permissao: null },
   { id: 'ajustes', rotulo: 'Ajustes', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
   { id: 'termos', rotulo: 'Termos e privacidade', href: '/treinador/termos', palavras: ['termo de uso', 'aviso de privacidade', 'lgpd', 'dados pessoais', 'politica'], permissao: null },
 
@@ -226,6 +227,7 @@ const ORIGEM_NO_CELULAR: readonly [string, string][] = [
   ['/treinador/equipe', '/treinador/perfil'],
   ['/treinador/ajuda', '/treinador/perfil'],
   ['/treinador/auditoria', '/treinador/perfil'],
+  ['/treinador/configuracoes', '/treinador/perfil'],
   ['/treinador/importacao', '/treinador/perfil'],
   ['/treinador/termos', '/treinador/perfil'],
   ['/treinador/meus-dados', '/treinador/perfil'],

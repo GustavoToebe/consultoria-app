@@ -1,4 +1,4 @@
-export type IdDoItemDoMenu = 'meus-dados' | 'seguranca' | 'minha-conta' | 'marca' | 'ajustes' | 'sair';
+export type IdDoItemDoMenu = 'configuracoes' | 'meus-dados' | 'seguranca' | 'minha-conta' | 'marca' | 'ajustes' | 'sair';
 
 export interface ItemDoMenuDoUsuario {
   id: IdDoItemDoMenu;
@@ -13,6 +13,7 @@ export interface ItemDoMenuDoUsuario {
  */
 export function itensDoMenuDoUsuario(pode: (codigo: string) => boolean, administrador = false): ItemDoMenuDoUsuario[] {
   return [
+    { id: 'configuracoes', rotulo: 'Configurações', href: '/treinador/configuracoes' },
     { id: 'meus-dados', rotulo: 'Meus dados', href: '/treinador/meus-dados' },
     { id: 'seguranca', rotulo: 'Segurança', href: '/treinador/seguranca' },
     ...(pode('CONTA_LER') ? [{ id: 'minha-conta' as const, rotulo: 'Assinatura e faturas', href: '/treinador/minha-conta' }] : []),

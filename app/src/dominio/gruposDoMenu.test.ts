@@ -104,6 +104,7 @@ describe('posicaoNoMenu', () => {
 describe('naConta', () => {
   it('as telas do menu da conta, e as subpáginas delas, acendem o botão da conta', () => {
     expect(naConta('/treinador/marca')).toBe(true);
+    expect(naConta('/treinador/configuracoes')).toBe(true);
     expect(naConta('/treinador/ajustes')).toBe(true);
     expect(naConta('/treinador/minha-conta/faturas')).toBe(true);
     expect(naConta('/treinador')).toBe(false);

@@ -17,8 +17,15 @@ describe('catálogo de telas', () => {
     const tudo = telasPermitidas(com(ADMIN));
     expect(ids(tudo)).toEqual(expect.arrayContaining(['inicio', 'novo-aluno', 'novo-modelo', 'convidar-membro', 'atualizacoes-revisar', 'auditoria']));
     const assistente = telasPermitidas(com(['PAINEL_VER', 'ALUNO_LER', 'BIBLIOTECA_LER', 'MODELO_LER']));
-    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'biblioteca', 'planejamento', 'numeros', 'ajuda', 'meus-dados', 'seguranca', 'ajustes', 'termos']);
-    expect(ids(telasPermitidas(com([])))).toEqual(['ajuda', 'meus-dados', 'seguranca', 'ajustes', 'termos']);
+    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'biblioteca', 'planejamento', 'numeros', 'ajuda', 'meus-dados', 'seguranca', 'ajustes', 'configuracoes', 'termos']);
+    expect(ids(telasPermitidas(com([])))).toEqual(['ajuda', 'meus-dados', 'seguranca', 'ajustes', 'configuracoes', 'termos']);
+  });
+
+  it('Configurações (o hub) é achada por nome e por sinônimo, por qualquer perfil, e dá nome à aba do navegador', () => {
+    const sem = telasPermitidas(com([]));
+    expect(ids(buscarTelas('configuracoes', sem))[0]).toBe('configuracoes');
+    expect(ids(buscarTelas('preferencias', sem))).toContain('configuracoes');
+    expect(nomeDaTela('/treinador/configuracoes')).toBe('Configurações');
   });
 
   it('Medicação e ergogênicos só aparece e só é achado com ERGOGENICO_LER', () => {
@@ -189,7 +196,7 @@ describe('favoritos e legenda da busca', () => {
   it('as telas da conta ficam em Configurações e as de Negócio, em Negócio', () => {
     const secao = (id: string) => TELAS.find((t) => t.id === id)?.secao;
     expect(['interessados', 'financeiro', 'numeros'].map(secao)).toEqual(['Negócio', 'Negócio', 'Negócio']);
-    expect(['meus-dados', 'seguranca', 'minha-conta', 'marca', 'ajustes', 'termos'].every((id) => secao(id) === 'Configurações')).toBe(true);
+    expect(['meus-dados', 'seguranca', 'minha-conta', 'marca', 'ajustes', 'configuracoes', 'termos'].every((id) => secao(id) === 'Configurações')).toBe(true);
   });
   it('todo item do menu lateral tem a tela no catálogo, no mesmo grupo, e toda tela do catálogo cai num lugar do menu', () => {
     for (const lugar of MENU_DO_TREINADOR) {

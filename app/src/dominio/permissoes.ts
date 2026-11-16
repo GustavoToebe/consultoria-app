@@ -26,7 +26,7 @@ export function moduloDesligadoDaTela(caminho:string,pagamentosHabilitados:boole
  * Financeiro some do menu mesmo para quem tem a permissão.
  */
 export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,pagamentosHabilitados:boolean=false,administrador:boolean=false):boolean {
-  if(['/treinador/perfil','/treinador/meus-dados','/treinador/seguranca','/treinador/ajustes','/treinador/ajuda','/treinador/termos'].includes(caminho)) return true;
+  if(['/treinador/perfil','/treinador/meus-dados','/treinador/seguranca','/treinador/ajustes','/treinador/ajuda','/treinador/termos','/treinador/configuracoes'].includes(caminho)) return true;
   if(caminho==='/treinador/comunidade') return tem('TREINO_LER');
   if(caminho==='/treinador/minha-conta') return tem('CONTA_LER');
   if(caminho==='/treinador') return tem('PAINEL_VER');

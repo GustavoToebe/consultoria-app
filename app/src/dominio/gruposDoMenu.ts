@@ -58,7 +58,7 @@ export const MENU_DO_TREINADOR: readonly LugarNoMenu[] = [
   {
     caminho: '/treinador/perfil',
     grupo: 'Configurações',
-    tambem: ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/ajustes', '/treinador/minha-conta', '/treinador/marca'],
+    tambem: ['/treinador/configuracoes', '/treinador/meus-dados', '/treinador/seguranca', '/treinador/ajustes', '/treinador/minha-conta', '/treinador/marca'],
   },
   { caminho: '/treinador/equipe', grupo: 'Configurações' },
   { caminho: '/treinador/importacao', grupo: 'Configurações' },
@@ -115,7 +115,7 @@ export function posicaoNoMenu(caminho: string, menu: readonly LugarNoMenu[] = ME
 }
 
 /** Telas abertas pelo menu da conta (rodapé do menu lateral): com elas abertas o botão da conta fica realçado. */
-export const TELAS_DA_CONTA: readonly string[] = ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/minha-conta', '/treinador/marca', '/treinador/ajustes'];
+export const TELAS_DA_CONTA: readonly string[] = ['/treinador/configuracoes', '/treinador/meus-dados', '/treinador/seguranca', '/treinador/minha-conta', '/treinador/marca', '/treinador/ajustes'];
 
 export function naConta(caminho: string): boolean {
   return TELAS_DA_CONTA.some((t) => caminho === t || caminho.startsWith(`${t}/`));

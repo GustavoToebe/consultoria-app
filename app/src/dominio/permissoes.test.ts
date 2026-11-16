@@ -24,6 +24,10 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/desconhecido', () => true)).toBe(false);
     expect(podeAcessarTela('/treinador/perfil', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajuda', acesso([]))).toBe(true);
+  it('Configurações (o hub) abre para todo membro, mesmo sem nenhuma permissão', () => {
+    expect(podeAcessarTela('/treinador/configuracoes', acesso([]))).toBe(true);
+    expect(podeAcessarTela('/treinador/configuracoes', () => false)).toBe(true);
+  });
   });
   it('a Agenda abre com as permissões das Atualizações ou com AGENDA_LER (compromissos presenciais)', () => {
     expect(podeAcessarTela('/treinador/agenda', acesso(['AGENDA_LER','ALUNO_LER']))).toBe(true);

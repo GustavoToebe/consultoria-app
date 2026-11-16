@@ -1,5 +1,5 @@
 import { router, usePathname, type Href } from 'expo-router';
-import { ChevronUp, CreditCard, LogOut, Palette, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react-native';
+import { ChevronUp, CreditCard, LogOut, Palette, Settings, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -20,6 +20,7 @@ import { Texto } from './Texto';
 import { useCliqueFora, useTeclado } from './usoWeb';
 
 export const ICONES_DO_MENU: Record<IdDoItemDoMenu, LucideIcon> = {
+  configuracoes: Settings,
   'meus-dados': UserRound,
   seguranca: ShieldCheck,
   // A assinatura (plano e cobranças) tem ícone próprio: com o mesmo de Meus dados as duas linhas pareciam iguais.
