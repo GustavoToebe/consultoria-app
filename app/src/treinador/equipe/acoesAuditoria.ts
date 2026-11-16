@@ -27,7 +27,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   LOGO_ALTERADA:'Logo alterada',LOGO_REMOVIDA:'Logo removida',
   PLANO_COMERCIAL_CRIADO:'Plano comercial criado',PLANO_COMERCIAL_ALTERADO:'Plano comercial editado',PLANO_COMERCIAL_ARQUIVADO:'Plano comercial arquivado',
   CONTRATACAO_CRIADA:'Plano comercial contratado por um aluno',CONTRATACAO_ALTERADA:'Contratação alterada',CONTRATACAO_PAUSADA:'Contratação pausada',
-  CONTRATACAO_RETOMADA:'Contratação retomada',CONTRATACAO_ENCERRADA:'Contratação encerrada',
+  CONTRATACAO_RETOMADA:'Contratação retomada',CONTRATACAO_ENCERRADA:'Contratação encerrada',COBRANCA_DE_SAIDA_CRIADA:'Cobrança de saída criada',
   COBRANCA_CANCELADA:'Cobrança cancelada',COBRANCA_BAIXA_DESFEITA:'Baixa de cobrança desfeita',
   COBRANCA_ESTORNADA:'Cobrança marcada como estornada',COBRANCA_CONTESTADA:'Cobrança marcada como contestada',COBRANCA_CONTESTACAO_ENCERRADA:'Contestação encerrada (cobrança continua paga)',PAGAMENTO_MANUAL_REGISTRADO:'Pagamento registrado manualmente',
   LANCAMENTO_FINANCEIRO_CRIADO:'Lançamento financeiro criado',LANCAMENTO_FINANCEIRO_ALTERADO:'Lançamento financeiro editado',LANCAMENTO_FINANCEIRO_EXCLUIDO:'Lançamento financeiro excluído',

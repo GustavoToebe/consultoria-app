@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import type { FinanceiroDoAluno } from '../../api/financeiroTipos';
+import type { FinanceiroDoAluno, TipoDaCobranca } from '../../api/financeiroTipos';
 import { financeiroDoAluno } from '../../api/rotas';
 import { comoPagar, plataformaDoApp, type ComoPagar } from '../../dominio/financeiro';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -23,6 +23,8 @@ interface Valor {
    * chave da plataforma) ou "o treinador combina". Uma conta só para a Conta e para as pendências do Início.
    */
   modoDePagamento: ComoPagar;
+  /** O mesmo, por cobrança: a de saída nunca tem "Pagar" (só informação), em nenhuma plataforma. */
+  modoDaCobranca: (tipo: TipoDaCobranca | null | undefined) => ComoPagar;
   recarregar: () => void;
 }
 
@@ -62,6 +64,10 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
   }, [buscando, recarregar]);
   const pagamentoOnline = chave !== null && carga.dados?.pagamentoOnline === true;
   const modoDePagamento = comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid });
+  const modoDaCobranca = useCallback(
+    (tipo: TipoDaCobranca | null | undefined) => comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, tipo),
+    [pagamentoOnline, pagarNoIos, pagarNoAndroid],
+  );
   const valor = useMemo<Valor>(
     () => ({
       habilitado: pagamentosHabilitados && !indisponivel,
@@ -70,9 +76,10 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
       erro: carga.erro,
       carregando: carga.carregando,
       modoDePagamento,
+      modoDaCobranca,
       recarregar: carga.recarregar,
     }),
-    [pagamentosHabilitados, indisponivel, online, chave, carga.dados, carga.erro, carga.carregando, modoDePagamento, carga.recarregar],
+    [pagamentosHabilitados, indisponivel, online, chave, carga.dados, carga.erro, carga.carregando, modoDePagamento, modoDaCobranca, carga.recarregar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

@@ -1,4 +1,5 @@
 import { MessageCircle, Plus } from 'lucide-react-native';
+import { errosPorCampo } from '@plataforma/web';
 import { useCallback, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -10,8 +11,9 @@ import {
 } from '../../api/rotas';
 import {
   abertasDaContratacao, hojeEmBrasilia, LIMITES, resumoDaCobranca, rotuloDaPeriodicidade, seloDaCobranca, seloDaContratacao,
-  textoDeAbertasQueContinuam, validarContratacao,
+  seloDoTipoDaCobranca, textoDeAbertasQueContinuam, validarContratacao,
 } from '../../dominio/financeiro';
+import { planoPodeTerMinimo, textoDoMinimoAte, validarMinimoAte } from '../../dominio/saidaDoPlano';
 import { primeiroNome } from '../../dominio/inscricoes';
 import { linkDoWhatsApp, MOTIVO_SEM_TELEFONE } from '../../dominio/lembretesDeCobranca';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
@@ -41,6 +43,7 @@ import { useCarregar } from '../../ui/useCarregar';
 import { ICONE_DO_SELO } from '../iconesDosSelos';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
+import { FolhaDeEncerrar } from './FolhaDeEncerrar';
 
 /** Cobranças à vista no cartão; "Ver todas" mostra o resto (a lista do aluno só cresce, um item por competência). */
 const COBRANCAS_VISIVEIS = 4;
@@ -96,7 +99,8 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
   const lista = contratacoes.dados;
   const vigente = lista?.find((c) => c.situacao !== 'ENCERRADA') ?? null;
   const anteriores = lista ? lista.filter((c) => c.situacao === 'ENCERRADA').length : 0;
-  // Pausar e encerrar mantêm as cobranças abertas da contratação (inclui as vencidas); o painel avisa só quando há alguma.
+  // Pausar mantém as cobranças abertas da contratação (inclui as vencidas); o painel avisa só quando há alguma. O encerrar
+  // tem a própria conta, vinda da prévia da API (`FolhaDeEncerrar`).
   const avisoDasAbertas = vigente ? textoDeAbertasQueContinuam(abertasDaContratacao(cobrancas.dados, vigente.id)) : null;
   const ordenadas = emOrdemDeAtencao(cobrancas.dados ?? []);
   const visiveis = todas ? ordenadas : ordenadas.slice(0, COBRANCAS_VISIVEIS);
@@ -110,7 +114,7 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
     if (linkDaRenovacao) Linking.openURL(linkDaRenovacao).catch(() => avisar('Não foi possível abrir o WhatsApp.', 'perigo'));
   };
 
-  const mudarSituacao = (acao: 'pausar' | 'retomar' | 'encerrar', mensagem: string) => {
+  const mudarSituacao = (acao: 'pausar' | 'retomar', mensagem: string) => {
     if (!vigente) return;
     setMudando(acao);
     mudarSituacaoDaContratacao(vigente.id, acao, vigente.versao).then(
@@ -158,6 +162,8 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
             ) : null}
           </CamposEmLinha>
           {vigente.motivoValor ? <CampoLeitura rotulo="Motivo do valor" valor={vigente.motivoValor} /> : null}
+          {/* O tempo mínimo só existe em contratação mensal: nas outras, a linha nem aparece. */}
+          {planoPodeTerMinimo(vigente.periodicidade) ? <Texto variante="suave">{textoDoMinimoAte(vigente.minimoAte)}</Texto> : null}
           {emRenovacao ? (
             <LinhaDeAcoes>
               <Botao rotulo="Cobrar renovação pelo WhatsApp" tipo="secundario" Icone={MessageCircle} aoTocar={abrirWhatsApp}
@@ -181,9 +187,14 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
           <Grade>
             {visiveis.map((c) => {
               const selo = seloDaCobranca(c);
-              return <ItemDeLista key={c.id} titulo={rotuloDoMes(c.competencia)} detalhe={resumoDaCobranca(c)}
-                selo={{ texto: selo.rotulo, tipo: selo.tom, Icone: ICONE_DO_SELO[selo.tom] }} aoTocar={() => setCobrancaAberta(c)}
-                rotulo={`Abrir cobrança de ${rotuloDoMes(c.competencia)}, ${selo.rotulo}`} />;
+              const doTipo = seloDoTipoDaCobranca(c.tipo);
+              return (
+                <ItemDeLista key={c.id} titulo={rotuloDoMes(c.competencia)} detalhe={resumoDaCobranca(c)}
+                  selo={{ texto: selo.rotulo, tipo: selo.tom, Icone: ICONE_DO_SELO[selo.tom] }} aoTocar={() => setCobrancaAberta(c)}
+                  rotulo={`Abrir ${doTipo ? 'cobrança de saída' : 'cobrança'} de ${rotuloDoMes(c.competencia)}, ${selo.rotulo}`}>
+                  {doTipo ? <View style={estilos.seloDoTipo}><Selo texto={doTipo.rotulo} tipo={doTipo.tom} /></View> : null}
+                </ItemDeLista>
+              );
             })}
           </Grade>
           {ordenadas.length > COBRANCAS_VISIVEIS ? (
@@ -207,12 +218,9 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
         aoConfirmar={() => mudarSituacao('pausar', 'Contratação pausada.')} aoCancelar={() => setConfirmando(null)}>
         {avisoDasAbertas ? <Texto variante="suave">{avisoDasAbertas}</Texto> : null}
       </PainelConfirmacao>
-      <PainelConfirmacao visivel={confirmando === 'encerrar'} titulo="Encerrar este plano?"
-        mensagem="O aluno deixa de receber novas cobranças. As que já existem continuam e podem ser pagas ou canceladas. Para voltar, será preciso contratar de novo."
-        rotuloConfirmar="Encerrar plano" rotuloCancelar="Voltar" perigo carregando={mudando === 'encerrar'}
-        aoConfirmar={() => mudarSituacao('encerrar', 'Contratação encerrada.')} aoCancelar={() => setConfirmando(null)}>
-        {avisoDasAbertas ? <Texto variante="suave">{avisoDasAbertas}</Texto> : null}
-      </PainelConfirmacao>
+      {confirmando === 'encerrar' && vigente ? (
+        <FolhaDeEncerrar contratacao={vigente} aoFechar={() => setConfirmando(null)} aoMudar={recarregar} />
+      ) : null}
     </Cartao>
   );
 }
@@ -231,6 +239,8 @@ function FolhaDeContratacao({ alunoId, contratacao, aoFechar, aoMudar }: {
   const [motivo, setMotivo] = useState(contratacao?.motivoValor ?? '');
   const [inicio, setInicio] = useState(dataParaTela(contratacao?.inicio ?? hojeEmBrasilia()));
   const [dia, setDia] = useState<number | null>(contratacao?.diaVencimento ?? Number(hojeEmBrasilia().slice(8, 10)));
+  const [minimoTexto, setMinimoTexto] = useState(dataParaTela(contratacao?.minimoAte));
+  const [erroDoMinimoNoServidor, setErroDoMinimoNoServidor] = useState<string | null>(null);
   const [tentou, setTentou] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
@@ -249,16 +259,23 @@ function FolhaDeContratacao({ alunoId, contratacao, aoFechar, aoMudar }: {
         motivoValor: motivo, inicio: iso ?? null, diaVencimento: dia,
       });
   const diferente = centavos !== null && (!plano || centavos !== plano.valorCentavos);
+  // O fim do mínimo só se edita em contratação mensal; nas outras o `PUT` reenvia o que já está gravado.
+  const editaMinimo = !!contratacao && planoPodeTerMinimo(contratacao.periodicidade);
+  const minimo = contratacao && editaMinimo ? validarMinimoAte(minimoTexto, contratacao.inicio) : null;
+  const erroDoMinimo = (tentou ? minimo?.erro : null) ?? erroDoMinimoNoServidor;
   const motivoVisivel = diferente || !!contratacao?.motivoValor;
 
   const enviar = () => {
     setTentou(true);
-    if (problema || !planoId || dia === null) return;
+    if (problema || !planoId || dia === null || minimo?.erro) return;
     setEnviando(true);
     setErro(null);
+    setErroDoMinimoNoServidor(null);
+    // O `PUT` substitui inteiro: `minimoAte` vai sempre (vazio apaga).
+    const minimoAte = editaMinimo ? (minimo?.iso ?? null) : (contratacao?.minimoAte ?? null);
     const motivoValor = motivoVisivel ? motivo.trim() || null : null;
     const chamada = contratacao
-      ? alterarContratacao(contratacao.id, { valorCentavos: centavos as number, motivoValor, diaVencimento: dia, versao: contratacao.versao })
+      ? alterarContratacao(contratacao.id, { valorCentavos: centavos as number, motivoValor, diaVencimento: dia, minimoAte, versao: contratacao.versao })
       : contratarPlano(alunoId, { planoComercialId: planoId, valorCentavos: diferente ? centavos : null, motivoValor, inicio: iso as string, diaVencimento: dia });
     chamada.then(
       () => { setEnviando(false); avisar(contratacao ? 'Contratação alterada.' : 'Plano contratado.', 'sucesso'); aoMudar(); aoFechar(); },
@@ -270,6 +287,8 @@ function FolhaDeContratacao({ alunoId, contratacao, aoFechar, aoMudar }: {
           aoFechar();
           return;
         }
+        const doMinimo = errosPorCampo(e).minimoAte;
+        if (doMinimo) { setErroDoMinimoNoServidor(doMinimo); return; }
         setErro(e);
       },
     );
@@ -298,6 +317,13 @@ function FolhaDeContratacao({ alunoId, contratacao, aoFechar, aoMudar }: {
         ) : null}
         {contratacao ? null : <CampoData rotulo="Início" valor={inicio} aoMudar={setInicio} />}
         <CampoNumerico rotulo="Dia do vencimento" inteiro valor={dia} aoMudar={setDia} ajuda="De 1 a 31. Em meses mais curtos, vale o último dia do mês." />
+        {editaMinimo ? (
+          <View style={estilos.campoComAjuda}>
+            <CampoData rotulo="Fim do tempo mínimo" valor={minimoTexto} erro={erroDoMinimo}
+              aoMudar={(t) => { setMinimoTexto(t); setErroDoMinimoNoServidor(null); }} />
+            <Texto variante="pequeno">Até quando vale o tempo mínimo deste aluno. Em branco, a contratação fica sem mínimo.</Texto>
+          </View>
+        ) : null}
         {tentou && problema ? <MensagemErro texto={problema} /> : null}
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
       </View>
@@ -310,4 +336,6 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   encolher: { flexShrink: 1 },
   selos: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.5) },
+  seloDoTipo: { flexDirection: 'row' },
+  campoComAjuda: { gap: espaco(0.5) },
 });

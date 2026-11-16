@@ -167,7 +167,7 @@ for (const parcial of [false, true]) {
 
 // ---- 13/11 (decisões do Gustavo): ressalva em todas as abas com valores, CSV, "Recurso desativado" e zero nos gráficos ----
 
-const PLANO = { id: 'b0000000-0000-4000-8000-000000000001', nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL' as const, arquivado: false, criadoEm: '2026-10-01T12:00:00Z', versao: 0 };
+const PLANO = { id: 'b0000000-0000-4000-8000-000000000001', nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL' as const, arquivado: false, criadoEm: '2026-10-01T12:00:00Z', versao: 0, tempoMinimoMeses: null, regraDeSaida: null };
 const PARCIAL: Painel = { ...PAINEL_COM_DADOS, historicoFinanceiroParcial: true };
 const DADOS_DAS_ABAS = { planos: [PLANO], cobrancas: [COBRANCA_ATRASADA] };
 const ABAS_COM_RESSALVA = [['visao', ''], ['cobrancas', 'Aluna Atrasada'], ['planos', 'Consultoria mensal'], ['lancamentos', '']] as const;

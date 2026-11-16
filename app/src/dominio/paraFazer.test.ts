@@ -51,7 +51,7 @@ describe('atualização nas pendências', () => {
 describe('pagamento nas pendências', () => {
   const hoje = '2026-10-20';
   const cobranca = (extra: Partial<CobrancaDoAluno>): CobrancaDoAluno => ({
-    id: 'c', competencia: '2026-10-01', vencimento: '2026-10-25', valorCentavos: 15000, situacao: 'ABERTA', vencida: false, forma: null, pagoEm: null, ...extra,
+    id: 'c', competencia: '2026-10-01', vencimento: '2026-10-25', valorCentavos: 15000, situacao: 'ABERTA', vencida: false, forma: null, pagoEm: null, tipo: 'MENSALIDADE', ...extra,
   });
   const semEspaco = (t: string) => t.replace(/ /g, ' ');
 

@@ -25,6 +25,8 @@ import {
   AVISO_RETORNO_SEM_CONFIRMAR,
   cartoesDoPainel,
   comoPagar,
+  rotuloDoTipoDaCobranca,
+  seloDoTipoDaCobranca,
   DEFINICOES_DO_PAINEL,
   descricaoDoGrafico,
   ehPagamentoOnline,
@@ -540,6 +542,7 @@ describe('pagamentoPendente', () => {
     vencida: false,
     forma: null,
     pagoEm: null,
+    tipo: 'MENSALIDADE',
     ...extra,
   });
   it('vencida (da API) entra, mesmo muito atrasada', () => {
@@ -625,7 +628,7 @@ describe('comoPagar', () => {
 
 describe('informacaoDaCobranca (celular sem o "Pagar")', () => {
   const cobranca = (extra: Partial<CobrancaDoAluno>): CobrancaDoAluno => ({
-    id: 'c', competencia: '2026-11-05', vencimento: '2026-11-05', valorCentavos: 15_000, situacao: 'ABERTA', vencida: false, forma: null, pagoEm: null, ...extra,
+    id: 'c', competencia: '2026-11-05', vencimento: '2026-11-05', valorCentavos: 15_000, situacao: 'ABERTA', vencida: false, forma: null, pagoEm: null, tipo: 'MENSALIDADE', ...extra,
   });
   const semEspaco = (t: string | null) => (t ?? '').replace(/ /g, ' ');
   it('aberta no prazo: valor e vencimento', () => {
@@ -927,5 +930,36 @@ describe('pagamentos em lote', () => {
       .toMatchObject({ tom: 'perigo', texto: 'O pagamento não foi registrado.' });
     expect(motivoDoItemDoLote('QUALQUER_OUTRO')).toBe('Erro inesperado ao registrar.');
     expect(motivoDoItemDoLote('COBRANCA_NAO_ENCONTRADA')).toBe('A cobrança não foi encontrada.');
+  });
+});
+
+describe('cobrança de saída', () => {
+  const semEspacoDaSaida = (t: string | null) => (t ?? '').replace(/ /g, ' ');
+  it('rótulo e selo do tipo: só a saída tem selo, e nunca se chama Mensalidade', () => {
+    expect(rotuloDoTipoDaCobranca('MENSALIDADE')).toBe('Mensalidade');
+    expect(rotuloDoTipoDaCobranca('SAIDA')).toBe('Cobrança de saída');
+    expect(rotuloDoTipoDaCobranca(undefined)).toBe('Mensalidade');
+    expect(seloDoTipoDaCobranca('SAIDA')).toEqual({ tom: 'neutro', rotulo: 'Saída' });
+    expect(seloDoTipoDaCobranca('MENSALIDADE')).toBeNull();
+  });
+  it('comoPagar: a saída só informa, na web e no celular, com a chave ligada ou não, com ou sem recebimento online', () => {
+    for (const plataforma of ['web', 'ios', 'android'] as const) {
+      for (const chaves of [{}, { pagarNoIos: true, pagarNoAndroid: true }]) {
+        for (const online of [true, false]) expect(comoPagar(plataforma, online, chaves, 'SAIDA')).toBe('informar');
+      }
+    }
+    expect(comoPagar('web', true, {}, 'MENSALIDADE')).toBe('botao');
+    expect(comoPagar('web', true, {})).toBe('botao');
+  });
+  it('a saída não tem link para copiar', () => {
+    expect(podeCopiarLink({ situacao: 'ABERTA', tipo: 'SAIDA' }, true)).toBe(false);
+    expect(podeCopiarLink({ situacao: 'ABERTA', tipo: 'MENSALIDADE' }, true)).toBe(true);
+    expect(podeCopiarLink({ situacao: 'ABERTA' }, true)).toBe(true);
+  });
+  it('a linha de informação do aluno nunca diz "Mensalidade" para a saída', () => {
+    const base = { situacao: 'ABERTA' as const, vencida: false, vencimento: '2026-11-20', valorCentavos: 45_000, pagoEm: null };
+    expect(semEspacoDaSaida(informacaoDaCobranca({ ...base, tipo: 'SAIDA' }))).toBe('Cobrança de saída de R$ 450,00, vence em 20/11');
+    expect(semEspacoDaSaida(informacaoDaCobranca({ ...base, tipo: 'MENSALIDADE' }))).toBe('Mensalidade de R$ 450,00, vence em 20/11');
+    expect(informacaoDaCobranca({ ...base, vencida: true, tipo: 'SAIDA' })).toBe('Em aberto desde 20/11');
   });
 });

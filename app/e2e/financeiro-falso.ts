@@ -2,7 +2,8 @@ import type { Page, Route } from '@playwright/test';
 
 import type {
   CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, Inadimplente, JurosDoParcelamento,
-  LancamentoResponse, Lembretes, LembretesDaCobranca, Painel, PlanoResponse, RecebimentoOnline, VisaoGeralDoFinanceiro,
+  EncerrarContratacaoRequest, LancamentoResponse, Lembretes, LembretesDaCobranca, Painel, PlanoResponse, PreviaDoEncerramento, RecebimentoOnline,
+  ResumoDaSaidaDoAluno, VisaoGeralDoFinanceiro,
 } from '../src/api/financeiroTipos';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, TREINADOR, type PedidoFalso, type RespostasApi } from './api-falsa';
 
@@ -124,7 +125,7 @@ export const COBRANCA_ATRASADA: CobrancaResponse = {
   id: INADIMPLENTE.cobrancaId, contratacaoId: 'e0000000-0000-4000-8000-0000000000cc', alunoId: INADIMPLENTE.alunoId, alunoNome: INADIMPLENTE.alunoNome,
   planoNome: 'Consultoria mensal', competencia: '2026-10-05', vencimento: INADIMPLENTE.vencimento, valorCentavos: INADIMPLENTE.valorCentavos,
   situacao: 'ABERTA', vencida: true, diasDeAtraso: INADIMPLENTE.diasDeAtraso, forma: null, provedor: null, pagoEm: null, baixaPor: null,
-  baixaPorNome: null, observacao: null, motivo: null, versao: 0,
+  baixaPorNome: null, observacao: null, motivo: null, versao: 0, tipo: 'MENSALIDADE',
 };
 
 /** Estado em memória do financeiro falso: o mesmo objeto serve à página do treinador e à do aluno no mesmo teste. */
@@ -163,7 +164,24 @@ export interface EstadoFinanceiro {
    */
   recusasDoLote: Record<string, string>;
   lotesRecebidos: unknown[];
+  /**
+   * O que `GET /contratacoes/{id}/previa-de-encerramento` devolve por contratação; sem entrada, a prévia sem mínimo montada
+   * das cobranças abertas (`previaSemMinimo`).
+   */
+  previas: Record<string, PreviaDoEncerramento>;
+  /**
+   * Preenchida: o próximo `POST /contratacoes/{id}/encerrar` com `saida` responde 409 `VALOR_DA_SAIDA_MUDOU` uma vez e a
+   * prévia da contratação passa a ser esta (a conta mudou enquanto a folha estava aberta).
+   */
+  previaQueMuda: PreviaDoEncerramento | null;
+  /** Os corpos recebidos pelo encerrar, na ordem (inclusive os recusados). */
+  encerramentos: EncerrarContratacaoRequest[];
+  /** O que `GET /alunos/{id}/resumo-da-saida` devolve (o painel de inativar). */
+  resumoDaSaida: ResumoDaSaidaDoAluno;
 }
+
+const SEM_ABERTAS = { quantidade: 0, valorCentavos: 0 };
+export const RESUMO_DA_SAIDA_VAZIO: ResumoDaSaidaDoAluno = { aCancelar: SEM_ABERTAS, emAberto: SEM_ABERTAS, minimoAte: null, mesesQueFaltam: 0 };
 
 /** Os lembretes como a API devolve numa consultoria que nunca os configurou. */
 export const LEMBRETES_PADRAO: Lembretes = { ligado: false, diasAntes: 3, noDia: true, diasDepois: 3, versao: null, emailDisponivel: true };
@@ -173,7 +191,8 @@ export function estadoFinanceiro(parcial: Partial<EstadoFinanceiro> = {}): Estad
     planos: [], contratacoes: [], cobrancas: [], lancamentos: [], inadimplentes: [], painel: PAINEL_COM_DADOS,
     recebimento: { ...RECEBIMENTO_NAO_CONFIGURADO }, chaveGuardada: null, conferencias: [], pagamentoOnline: false, retornos: [],
     lembretes: { ...LEMBRETES_PADRAO }, lembretesDasCobrancas: {}, alunoRecebeLembretes: true, falhaAoDefinirLembretesDoAluno: null,
-    pedidosDeLembretesDoAluno: [], renovacoes: null, renovacoesMeus: null, recusasDoLote: {}, lotesRecebidos: [], ...parcial,
+    pedidosDeLembretesDoAluno: [], renovacoes: null, renovacoesMeus: null, recusasDoLote: {}, lotesRecebidos: [], previas: {}, previaQueMuda: null,
+    encerramentos: [], resumoDaSaida: RESUMO_DA_SAIDA_VAZIO, ...parcial,
   };
 }
 
@@ -189,6 +208,27 @@ function idFalso(prefixo: string): string {
 
 /** O relógio fixo dos testes (`fixarHoje`) é 19/10/2026 em São Paulo. */
 const HOJE = '2026-10-19';
+
+/**
+ * A prévia de uma contratação sem tempo mínimo, como a API: as abertas vencidas e as a vencer ficam (nenhuma opção cancela),
+ * "Meses que faltam" e "Mês vigente" indisponíveis, "Outro valor" só em contratação recorrente.
+ */
+function previaSemMinimo(estado: EstadoFinanceiro, contratacao: ContratacaoResponse): PreviaDoEncerramento {
+  const abertas = estado.cobrancas.filter((c) => c.contratacaoId === contratacao.id && c.situacao === 'ABERTA');
+  const grupo = (lista: CobrancaResponse[]) => ({ quantidade: lista.length, valorCentavos: lista.reduce((s, c) => s + c.valorCentavos, 0) });
+  const recorrente = contratacao.periodicidade !== 'PARCELA_UNICA';
+  return {
+    contratacaoId: contratacao.id, periodicidade: contratacao.periodicidade, situacao: contratacao.situacao, minimoAte: null, mesesQueFaltam: 0,
+    regraDeSaida: null, vencidas: grupo(abertas.filter((c) => c.vencida)), aVencerNoMinimo: SEM_ABERTAS, aVencerQueFicam: grupo(abertas.filter((c) => !c.vencida)),
+    cobrancasACancelar: [], comLinkVivo: 0, mesesNaoGerados: 0, valorDosNaoGeradosCentavos: 0,
+    opcoes: [
+      { opcao: 'FALTAM', disponivel: false, valorCentavos: null, motivo: 'A contratação não tem tempo mínimo.' },
+      { opcao: 'VIGENTE', disponivel: false, valorCentavos: null, motivo: 'A contratação não tem tempo mínimo.' },
+      { opcao: 'OUTRO', disponivel: recorrente, valorCentavos: null, motivo: recorrente ? null : 'Só em contratação recorrente.' },
+      { opcao: 'NAO_COBRAR', disponivel: true, valorCentavos: null, motivo: null },
+    ],
+  };
+}
 
 const conflito = (route: Route) => json(route, erroApi(409, 'Alguém alterou este registro.', 'CONFLITO_EDICAO').corpo, 409);
 
@@ -206,6 +246,15 @@ function marcarSituacao(estado: EstadoFinanceiro, p: PedidoFalso, route: Route, 
   return json(route, cobranca);
 }
 
+type PlanoDoCorpo = {
+  nome: string; valorCentavos: number; periodicidade: PlanoResponse['periodicidade']; tempoMinimoMeses?: number | null; regraDeSaida?: string | null;
+};
+const minimoForaDoMensal = (c: PlanoDoCorpo) => c.periodicidade !== 'MENSAL' && (c.tempoMinimoMeses != null || c.regraDeSaida != null);
+const minimoSoNoMensal = (route: Route) => json(route, {
+  status: 422, message: 'Confira os dados do plano.', codigo: 'PLANO_INVALIDO',
+  fieldErrors: [{ field: 'tempoMinimoMeses', message: 'O tempo mínimo só vale em plano mensal.' }],
+}, 422);
+
 /** Rotas do financeiro para somar ao mapa de `simularApi`. */
 export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
   const marcar = (p: PedidoFalso, route: Route, de: CobrancaResponse['situacao'][], para: CobrancaResponse['situacao'], codigo: string) =>
@@ -214,14 +263,81 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
     'GET /financeiro/planos': (p, route) =>
       json(route, estado.planos.filter((x) => p.busca.get('arquivados') === 'true' || !x.arquivado)),
     'POST /financeiro/planos': (p, route) => {
-      const c = p.corpo as { nome: string; valorCentavos: number; periodicidade: PlanoResponse['periodicidade'] };
+      const c = p.corpo as PlanoDoCorpo;
+      if (minimoForaDoMensal(c)) return minimoSoNoMensal(route);
       const plano: PlanoResponse = {
         id: idFalso('b'), nome: c.nome, valorCentavos: c.valorCentavos, periodicidade: c.periodicidade,
-        arquivado: false, criadoEm: '2026-10-19T12:00:00Z', versao: 0,
+        arquivado: false, criadoEm: '2026-10-19T12:00:00Z', versao: 0, tempoMinimoMeses: c.tempoMinimoMeses ?? null, regraDeSaida: c.regraDeSaida ?? null,
       };
       estado.planos.push(plano);
       return json(route, plano, 201);
     },
+    // O `PUT` substitui inteiro, como a API: tempo mínimo e regra de saída só no plano mensal (422 no campo).
+    'PUT /financeiro/planos/{id}': (p, route) => {
+      const id = p.caminho.split('/')[3];
+      const c = p.corpo as PlanoDoCorpo & { versao: number };
+      const plano = estado.planos.find((x) => x.id === id);
+      if (!plano) return json(route, erroApi(404, 'Plano comercial não encontrado.', 'NAO_ENCONTRADO').corpo, 404);
+      if (plano.versao !== c.versao) return conflito(route);
+      if (minimoForaDoMensal(c)) return minimoSoNoMensal(route);
+      Object.assign(plano, {
+        nome: c.nome, valorCentavos: c.valorCentavos, periodicidade: c.periodicidade, tempoMinimoMeses: c.tempoMinimoMeses ?? null,
+        regraDeSaida: c.regraDeSaida ?? null, versao: plano.versao + 1,
+      });
+      return json(route, plano);
+    },
+    'PUT /contratacoes/{id}': (p, route) => {
+      const id = p.caminho.split('/')[2];
+      const c = p.corpo as { valorCentavos: number; motivoValor: string | null; diaVencimento: number; minimoAte: string | null; versao: number };
+      const contratacao = estado.contratacoes.find((x) => x.id === id);
+      if (!contratacao) return json(route, erroApi(404, 'Contratação não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
+      if (contratacao.versao !== c.versao) return conflito(route);
+      Object.assign(contratacao, {
+        valorCentavos: c.valorCentavos, motivoValor: c.motivoValor, diaVencimento: c.diaVencimento, minimoAte: c.minimoAte, versao: contratacao.versao + 1,
+      });
+      return json(route, contratacao);
+    },
+    'GET /contratacoes/{id}/previa-de-encerramento': (p, route) => {
+      const id = p.caminho.split('/')[2];
+      const contratacao = estado.contratacoes.find((x) => x.id === id);
+      if (!contratacao) return json(route, erroApi(404, 'Contratação não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
+      if (contratacao.situacao === 'ENCERRADA') return json(route, erroApi(409, 'A contratação já foi encerrada.', 'CONTRATACAO_ENCERRADA').corpo, 409);
+      return json(route, estado.previas[id] ?? previaSemMinimo(estado, contratacao));
+    },
+    // Encerrar com a saída opcional: a conta é a da prévia (o valor de FALTAM e VIGENTE é conferido), cancela as a vencer do
+    // FALTAM e cria a cobrança `tipo=SAIDA`. Sem `saida`, encerra como antes (as abertas ficam).
+    'POST /contratacoes/{id}/encerrar': (p, route) => {
+      const id = p.caminho.split('/')[2];
+      const c = p.corpo as EncerrarContratacaoRequest;
+      estado.encerramentos.push(c);
+      const contratacao = estado.contratacoes.find((x) => x.id === id);
+      if (!contratacao) return json(route, erroApi(404, 'Contratação não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
+      if (contratacao.versao !== c.versao) return conflito(route);
+      const previa = estado.previas[id] ?? previaSemMinimo(estado, contratacao);
+      const saida = c.saida;
+      const da = saida ? previa.opcoes.find((o) => o.opcao === saida.opcao) : undefined;
+      const calculada = !!saida && (saida.opcao === 'FALTAM' || saida.opcao === 'VIGENTE');
+      if (saida && (estado.previaQueMuda !== null || (calculada && da?.valorCentavos !== saida.valorCentavos))) {
+        if (estado.previaQueMuda) estado.previas[id] = estado.previaQueMuda;
+        estado.previaQueMuda = null;
+        return json(route, erroApi(409, 'A conta da saída mudou.', 'VALOR_DA_SAIDA_MUDOU').corpo, 409);
+      }
+      Object.assign(contratacao, { situacao: 'ENCERRADA', encerradaEm: HOJE, versao: contratacao.versao + 1 });
+      if (saida?.opcao === 'FALTAM') {
+        for (const cobranca of estado.cobrancas) {
+          if (saida.cobrancasACancelar?.includes(cobranca.id)) Object.assign(cobranca, { situacao: 'CANCELADA', motivo: 'Cobrança de saída', versao: cobranca.versao + 1 });
+        }
+      }
+      if (saida && saida.opcao !== 'NAO_COBRAR' && saida.valorCentavos) {
+        estado.cobrancas.push({
+          ...COBRANCA_ATRASADA, id: idFalso('c'), contratacaoId: contratacao.id, alunoId: contratacao.alunoId, alunoNome: ALUNO.nome,
+          planoNome: contratacao.planoNome, competencia: HOJE, vencimento: saida.vencimento ?? HOJE, valorCentavos: saida.valorCentavos,
+          vencida: false, diasDeAtraso: null, criadoEm: '2026-10-19T12:00:00Z', tipo: 'SAIDA',
+        });
+      }
+      return json(route, contratacao);
+    },
+    'GET /alunos/{id}/resumo-da-saida': (_p, route) => json(route, estado.resumoDaSaida),
     'GET /financeiro/cobrancas': (p, route) => {
       // Várias situações em OU (VENCIDA = aberta já vencida) e a busca pelo nome do aluno, como a API.
       const situacoes = p.busca.getAll('situacao');
@@ -283,7 +399,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       const contratacao: ContratacaoResponse = {
         id: idFalso('e'), alunoId: ALUNO_FINANCEIRO_ID, planoComercialId: plano.id, planoNome: plano.nome, periodicidade: plano.periodicidade,
         valorCentavos, motivoValor: c.motivoValor ?? null, inicio: c.inicio, diaVencimento: c.diaVencimento, situacao: 'ATIVA', encerradaEm: null,
-        criadoEm: '2026-10-19T12:00:00Z', versao: 0,
+        criadoEm: '2026-10-19T12:00:00Z', versao: 0, minimoAte: null,
       };
       estado.contratacoes.push(contratacao);
       const [ano, mes] = c.inicio.split('-').map(Number);
@@ -293,7 +409,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       estado.cobrancas.push({
         id: idFalso('c'), contratacaoId: contratacao.id, alunoId: ALUNO_FINANCEIRO_ID, alunoNome: ALUNO.nome, planoNome: plano.nome,
         competencia: c.inicio, vencimento, valorCentavos, situacao: 'ABERTA', vencida, diasDeAtraso: vencida ? 1 : null, forma: null, provedor: null,
-        pagoEm: null, baixaPor: null, baixaPorNome: null, observacao: null, motivo: null, versao: 0,
+        pagoEm: null, baixaPor: null, baixaPorNome: null, observacao: null, motivo: null, versao: 0, tipo: 'MENSALIDADE',
       });
       return json(route, contratacao, 201);
     },
@@ -342,7 +458,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       const vigente = estado.contratacoes.find((x) => x.situacao !== 'ENCERRADA') ?? null;
       const doAluno = (c: CobrancaResponse): CobrancaDoAluno => ({
         id: c.id, competencia: c.competencia, vencimento: c.vencimento, valorCentavos: c.valorCentavos, situacao: c.situacao, vencida: c.vencida,
-        forma: c.forma, pagoEm: c.pagoEm,
+        forma: c.forma, pagoEm: c.pagoEm, tipo: c.tipo,
       });
       const corpo: FinanceiroDoAluno = {
         plano: vigente
@@ -456,7 +572,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
     'GET /cobrancas/{id}/lembretes': (p, route) => {
       const id = p.caminho.split('/')[2];
       if (!estado.cobrancas.some((x) => x.id === id)) return json(route, erroApi(404, 'Cobrança não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
-      return json(route, estado.lembretesDasCobrancas[id] ?? { itens: [], whatsapp: null, alunoDesligou: false });
+      return json(route, estado.lembretesDasCobrancas[id] ?? { itens: [], whatsapp: null, motivoSemWhatsapp: null, alunoDesligou: false });
     },
     'GET /financeiro/conferencias': (_p, route) => json(route, { itens: estado.conferencias }),
     'POST /financeiro/conferencias/{id}/conferido': (p, route) => {

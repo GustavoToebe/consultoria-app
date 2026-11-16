@@ -14,6 +14,7 @@ import type {
   RetornoDoPagamento,
   SituacaoDaCobranca,
   SituacaoDaContratacao,
+  TipoDaCobranca,
   ValorEQuantidade,
 } from '../api/financeiroTipos';
 import { dataSemAnoCorrente } from './datasRelativas';
@@ -173,6 +174,22 @@ export function seloDaCobranca(c: { situacao: SituacaoDaCobranca; vencida?: bool
   }
 }
 
+/** Cobrança de saída (criada ao encerrar o plano): o nome no app inteiro, aluno e treinador. Nunca "Mensalidade". */
+export const ROTULO_COBRANCA_DE_SAIDA = 'Cobrança de saída';
+
+/** "Mensalidade" ou "Cobrança de saída". Sem `tipo` (dado antigo do aparelho), a mensalidade. */
+export function rotuloDoTipoDaCobranca(tipo: TipoDaCobranca | null | undefined): string {
+  return tipo === 'SAIDA' ? ROTULO_COBRANCA_DE_SAIDA : 'Mensalidade';
+}
+
+/**
+ * O selo que marca o TIPO da cobranca ao lado do selo da situação: só a de saída tem ("Saída", neutro: a cor é da situação,
+ * não do tipo). Mensalidade não ganha selo.
+ */
+export function seloDoTipoDaCobranca(tipo: TipoDaCobranca | null | undefined): SeloFinanceiro | null {
+  return tipo === 'SAIDA' ? { tom: 'neutro', rotulo: 'Saída' } : null;
+}
+
 export function seloDaContratacao(situacao: SituacaoDaContratacao): SeloFinanceiro {
   switch (situacao) {
     case 'ATIVA':
@@ -272,9 +289,12 @@ export function ehPagamentoOnline(c: Pick<CobrancaResponse, 'provedor'>): boolea
   return !!c.provedor && c.provedor !== 'MANUAL';
 }
 
-/** Copiar o link: só de cobrança em aberto e com o recebimento online configurado (a API confere de novo). */
-export function podeCopiarLink(c: Pick<CobrancaResponse, 'situacao'>, recebimentoConfigurado: boolean): boolean {
-  return c.situacao === 'ABERTA' && recebimentoConfigurado;
+/**
+ * Copiar o link: só de cobrança em aberto, com o recebimento online configurado e que não seja de saída (a de saída não tem
+ * link: a API responde 409 `COBRANCA_SEM_LINK`).
+ */
+export function podeCopiarLink(c: Pick<CobrancaResponse, 'situacao'> & { tipo?: TipoDaCobranca | null }, recebimentoConfigurado: boolean): boolean {
+  return c.situacao === 'ABERTA' && c.tipo !== 'SAIDA' && recebimentoConfigurado;
 }
 
 export type PlataformaDoApp = 'web' | 'ios' | 'android';
@@ -309,8 +329,15 @@ export type ComoPagar = 'botao' | 'informar' | 'combinar';
  * Como o aluno vê uma cobrança em aberto. `informar`: celular sem a chave da plataforma, só informação (nada de botão,
  * link nem frase mandando pagar). Com o "Pagar" permitido, `botao` quando a consultoria tem o recebimento online; sem
  * ele o treinador combina a forma e registra à mão (`combinar`). A plataforma vem do componente (`Platform.OS`).
+ * Cobrança de saída (`tipo` `SAIDA`) só informa, em qualquer plataforma e com a chave ligada ou não: não há link nem botão.
  */
-export function comoPagar(plataforma: PlataformaDoApp, pagamentoOnline: boolean, chaves: ChavesDePagamentoNoCelular): ComoPagar {
+export function comoPagar(
+  plataforma: PlataformaDoApp,
+  pagamentoOnline: boolean,
+  chaves: ChavesDePagamentoNoCelular,
+  tipo: TipoDaCobranca | null | undefined = 'MENSALIDADE',
+): ComoPagar {
+  if (tipo === 'SAIDA') return 'informar';
   if (!pagarPermitidoNaPlataforma(plataforma, chaves)) return 'informar';
   return pagamentoOnline ? 'botao' : 'combinar';
 }
@@ -322,11 +349,11 @@ export function textoDeComoPagar(modo: ComoPagar): string | null {
 
 /**
  * Linha de informação de uma cobrança no celular sem o "Pagar" (`informar`), com a vencida decidida pela API: aberta no
- * prazo = "Mensalidade de R$ 150,00, vence em 05/11"; aberta vencida = "Em aberto desde 05/10" (data do vencimento);
+ * prazo = "Mensalidade de R$ 150,00, vence em 05/11" (a de saída: "Cobrança de saída de R$ 150,00, vence em 05/11"); aberta vencida = "Em aberto desde 05/10" (data do vencimento);
  * paga = "Paga em 19/10" (data da baixa). Qualquer outra situação (ou paga sem data) fica sem linha: só o selo.
  */
 export function informacaoDaCobranca(
-  c: Pick<CobrancaDoAluno, 'situacao' | 'vencida' | 'vencimento' | 'valorCentavos' | 'pagoEm'>,
+  c: Pick<CobrancaDoAluno, 'situacao' | 'vencida' | 'vencimento' | 'valorCentavos' | 'pagoEm'> & { tipo?: TipoDaCobranca | null },
 ): string | null {
   if (c.situacao === 'PAGA') {
     const quando = c.pagoEm ? dataCurta(c.pagoEm) : '';
@@ -335,7 +362,7 @@ export function informacaoDaCobranca(
   if (c.situacao !== 'ABERTA') return null;
   const vence = dataCurta(c.vencimento);
   if (!vence) return null;
-  return c.vencida ? `Em aberto desde ${vence}` : `Mensalidade de ${centavosParaTela(c.valorCentavos)}, vence em ${vence}`;
+  return c.vencida ? `Em aberto desde ${vence}` : `${rotuloDoTipoDaCobranca(c.tipo)} de ${centavosParaTela(c.valorCentavos)}, vence em ${vence}`;
 }
 
 export const TEXTO_RECEBIMENTO_ONLINE =

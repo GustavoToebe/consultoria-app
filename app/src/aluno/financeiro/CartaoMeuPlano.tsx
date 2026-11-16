@@ -5,8 +5,8 @@ import { Platform, StyleSheet, View } from 'react-native';
 import type { CobrancaDoAluno } from '../../api/financeiroTipos';
 import { linkDePagamentoDoAluno } from '../../api/rotas';
 import {
-  informacaoDaCobranca, rotuloDaForma, rotuloDaPeriodicidade, seloDaCobranca, seloDaContratacao, textoDeComoPagar,
-  type ComoPagar,
+  informacaoDaCobranca, ROTULO_COBRANCA_DE_SAIDA, rotuloDaForma, rotuloDaPeriodicidade, seloDaCobranca, seloDaContratacao,
+  seloDoTipoDaCobranca, textoDeComoPagar, type ComoPagar,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { rotuloDoMes } from '../../dominio/numeros';
@@ -54,7 +54,7 @@ function textoDaVigencia(situacao: string, restantes: number | null | undefined)
  * nem quem registrou o pagamento. Aparece só com o módulo de pagamentos ligado para a consultoria.
  */
 export function CartaoMeuPlano() {
-  const { habilitado, online, dados, erro, carregando, modoDePagamento: modo, recarregar } = useFinanceiroDoAluno();
+  const { habilitado, online, dados, erro, carregando, modoDePagamento: modo, modoDaCobranca, recarregar } = useFinanceiroDoAluno();
   const [todas, setTodas] = useState(false);
   useRecarregarFinanceiroAoFocar();
   if (!habilitado) return null;
@@ -101,18 +101,21 @@ export function CartaoMeuPlano() {
             <View style={estilos.bloco}>
               <Texto variante="secao">Em aberto</Texto>
               {/* O "Pagar" mora dentro da própria cobrança: solto embaixo, parecia de outra. */}
-              {dados.abertas.map((c) => (
-                <LinhaDaCobranca key={c.id} cobranca={c} modo={modo}>
-                  {modo === 'botao' ? <BotaoPagar cobranca={c} aoMudar={recarregar} /> : null}
-                </LinhaDaCobranca>
-              ))}
+              {dados.abertas.map((c) => {
+                const daCobranca = modoDaCobranca(c.tipo);
+                return (
+                  <LinhaDaCobranca key={c.id} cobranca={c} modo={daCobranca}>
+                    {daCobranca === 'botao' ? <BotaoPagar cobranca={c} aoMudar={recarregar} /> : null}
+                  </LinhaDaCobranca>
+                );
+              })}
               {textoDoModo ? <Texto variante="suave">{textoDoModo}</Texto> : null}
             </View>
           ) : null}
           {historico.length > 0 ? (
             <View style={estilos.bloco}>
               <Texto variante="secao">Histórico</Texto>
-              {visiveis.map((c) => <LinhaDaCobranca key={c.id} cobranca={c} modo={modo} />)}
+              {visiveis.map((c) => <LinhaDaCobranca key={c.id} cobranca={c} modo={modoDaCobranca(c.tipo)} />)}
               {historico.length > HISTORICO_VISIVEL && !todas ? (
                 <LinhaDeAcoes><Botao rotulo={`Ver todas (${historico.length})`} tipo="fantasma" aoTocar={() => setTodas(true)} /></LinhaDeAcoes>
               ) : null}
@@ -173,14 +176,18 @@ function LinhaDaCobranca({ cobranca, modo, children }: { cobranca: CobrancaDoAlu
   const selo = seloDaCobranca(cobranca);
   // Celular sem o "Pagar" (`informar`): só a linha de informação; sem ela (cancelada...), o texto de sempre.
   const detalhe = (modo === 'informar' ? informacaoDaCobranca(cobranca) : null) ?? textoDaData(cobranca);
+  const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
   const mes = rotuloDoMes(cobranca.competencia);
   const valor = centavosParaTela(cobranca.valorCentavos);
   return (
     <View style={[estilos.cobranca, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
-      <View accessible accessibilityLabel={`${mes}, ${valor}, ${selo.rotulo}. ${detalhe}`} style={estilos.textos}>
+      <View accessible accessibilityLabel={`${doTipo ? `${ROTULO_COBRANCA_DE_SAIDA}, ` : ''}${mes}, ${valor}, ${selo.rotulo}. ${detalhe}`} style={estilos.textos}>
         <View style={estilos.linha}>
           <Texto variante="bloco">{mes}</Texto>
-          <Selo texto={selo.rotulo} tipo={selo.tom} Icone={ICONE_DO_SELO[selo.tom]} />
+          <View style={estilos.selos}>
+            {doTipo ? <Selo texto={doTipo.rotulo} tipo={doTipo.tom} /> : null}
+            <Selo texto={selo.rotulo} tipo={selo.tom} Icone={ICONE_DO_SELO[selo.tom]} />
+          </View>
         </View>
         <Texto numerico>{valor}</Texto>
         <Texto variante="suave">{detalhe}</Texto>

@@ -14,6 +14,7 @@ import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespos
 import { CartaoFrequencia, useAcompanhamentoDoAluno } from '../../../treinador/CartaoFrequencia';
 import { CartaoAgua } from '../../../treinador/CartaoAgua';
 import { CartaoRecordesDaSemana } from '../../../treinador/CartaoRecordesDaSemana';
+import { AvisoDoInativar } from '../../../treinador/financeiro/AvisoDoInativar';
 import { CartaoTreinosConcluidos } from '../../../treinador/CartaoTreinosConcluidos';
 import { FolhaDeAcoes } from '../../../treinador/FolhaDeAcoes';
 import { FotoDePerfilEditavel } from '../../../treinador/FotoDePerfilEditavel';
@@ -239,8 +240,9 @@ function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar }: { aluno: Alu
       perigo={aluno.ativo}
       carregando={mudando}
       aoConfirmar={mudarSituacao}
-      aoCancelar={aoFechar}
-    />
+      aoCancelar={aoFechar}>
+      {visivel && aluno.ativo ? <AvisoDoInativar alunoId={aluno.id} /> : null}
+    </PainelConfirmacao>
   );
 }
 

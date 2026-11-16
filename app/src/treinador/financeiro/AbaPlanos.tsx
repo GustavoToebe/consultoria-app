@@ -7,6 +7,9 @@ import type { PeriodoDoPlano, PlanoResponse } from '../../api/financeiroTipos';
 import { alterarPlanoComercial, arquivarPlanoComercial, criarPlanoComercial, listarPlanosComerciais } from '../../api/rotas';
 import { LIMITES, OPCOES_DE_PERIODICIDADE, rotuloDaPeriodicidade, validarPlano } from '../../dominio/financeiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela } from '../../dominio/formatos';
+import {
+  errosDoMinimoDoServidor, minimoDoPlanoParaEnvio, minimoDoPlanoParaForm, planoPodeTerMinimo, REGRA_DE_SAIDA_MAXIMA, textoDoMinimoDoPlano,
+} from '../../dominio/saidaDoPlano';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -58,7 +61,7 @@ export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
             rotuloDaLinha={(p) => `Abrir plano ${p.nome}`}
             item={(p) => ({
               titulo: p.nome,
-              detalhe: `${centavosParaTela(p.valorCentavos)} · ${rotuloDaPeriodicidade(p.periodicidade)}`,
+              detalhe: [centavosParaTela(p.valorCentavos), rotuloDaPeriodicidade(p.periodicidade), textoDoMinimoDoPlano(p)].filter(Boolean).join(' · '),
               selo: p.arquivado ? { texto: 'Arquivado', tipo: 'neutro' } : undefined,
             })}
             colunas={[
@@ -69,7 +72,15 @@ export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
                   {p.arquivado ? <Selo texto="Arquivado" tipo="neutro" /> : null}
                 </View>
               ) },
-              { chave: 'periodicidade', titulo: 'Periodicidade', flex: 1, render: (p) => <Texto>{rotuloDaPeriodicidade(p.periodicidade)}</Texto> },
+              { chave: 'periodicidade', titulo: 'Periodicidade', flex: 1, render: (p) => {
+                const minimo = textoDoMinimoDoPlano(p);
+                return (
+                  <View>
+                    <Texto>{rotuloDaPeriodicidade(p.periodicidade)}</Texto>
+                    {minimo ? <Texto variante="pequeno">{minimo}</Texto> : null}
+                  </View>
+                );
+              } },
               { chave: 'valor', titulo: 'Valor', flex: 1, alinhar: 'direita', render: (p) => <Texto numerico>{centavosParaTela(p.valorCentavos)}</Texto> },
             ]} />
         </Cartao>
@@ -101,6 +112,10 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
   const [nome, setNome] = useState(plano?.nome ?? '');
   const [valor, setValor] = useState(centavosParaCampo(plano?.valorCentavos));
   const [periodicidade, setPeriodicidade] = useState<PeriodoDoPlano>(plano?.periodicidade ?? 'MENSAL');
+  const inicial = minimoDoPlanoParaForm(plano);
+  const [tempoMinimo, setTempoMinimo] = useState(inicial.tempoMinimoTexto);
+  const [regraDeSaida, setRegraDeSaida] = useState(inicial.regraDeSaidaTexto);
+  const [errosDoServidor, setErrosDoServidor] = useState<{ tempoMinimo?: string; regraDeSaida?: string }>({});
   const [tentou, setTentou] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
@@ -108,6 +123,16 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
 
   const centavos = centavosDaTela(valor);
   const problema = validarPlano({ nome, valorCentavos: centavos });
+  const comMinimo = planoPodeTerMinimo(periodicidade);
+  const minimo = minimoDoPlanoParaEnvio({ periodicidade, tempoMinimoTexto: tempoMinimo, regraDeSaidaTexto: regraDeSaida });
+  // Campo a campo: o do servidor vira `undefined` ao digitar, e espalhar o objeto apagaria o erro da tela junto.
+  const locais = tentou && !minimo.ok ? minimo.erros : {};
+  const errosDoMinimo = {
+    tempoMinimo: errosDoServidor.tempoMinimo ?? locais.tempoMinimo,
+    regraDeSaida: errosDoServidor.regraDeSaida ?? locais.regraDeSaida,
+  };
+  // Trocar a periodicidade de um plano que tinha mínimo apaga o mínimo e a regra ao salvar: a tela avisa antes.
+  const perdeMinimo = !comMinimo && !!(plano?.tempoMinimoMeses || plano?.regraDeSaida);
 
   const terminar = (mensagem: string) => {
     setEnviando(false);
@@ -124,15 +149,22 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
       aoFechar();
       return;
     }
+    const porCampo = errosDoMinimoDoServidor(e);
+    if (porCampo.tempoMinimo || porCampo.regraDeSaida) { setErrosDoServidor(porCampo); return; }
     setErro(e);
   };
 
   const salvar = () => {
     setTentou(true);
-    if (problema || centavos === null) return;
+    if (problema || centavos === null || !minimo.ok) return;
     setEnviando(true);
     setErro(null);
-    const corpo = { nome: nome.trim(), valorCentavos: centavos, periodicidade, versao: plano?.versao ?? null };
+    setErrosDoServidor({});
+    // O `PUT` substitui inteiro: os dois campos vão sempre (nulos fora do plano mensal).
+    const corpo = {
+      nome: nome.trim(), valorCentavos: centavos, periodicidade, tempoMinimoMeses: minimo.tempoMinimoMeses, regraDeSaida: minimo.regraDeSaida,
+      versao: plano?.versao ?? null,
+    };
     (plano ? alterarPlanoComercial(plano.id, corpo) : criarPlanoComercial(corpo)).then(
       () => terminar(plano ? 'Plano salvo.' : 'Plano criado.'),
       falhar,
@@ -165,12 +197,31 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
             <CampoMoeda mascara rotulo="Valor" texto={valor} aoMudar={setValor} erro={tentou && centavos === null ? 'Informe um valor maior que zero, por exemplo 150,00.' : null}
               ajuda="Valor de cada cobrança do plano. Na ficha do aluno dá para combinar outro valor, com o motivo." />
             <Escolha rotulo="Periodicidade" opcoes={OPCOES_DE_PERIODICIDADE.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))} valor={periodicidade} aoMudar={setPeriodicidade} />
+            {perdeMinimo ? <Texto variante="pequeno">Tempo mínimo e regra de saída valem só no plano mensal: ao salvar com outra periodicidade, eles são apagados.</Texto> : null}
+            {comMinimo ? (
+              <>
+                <Campo numerico rotulo="Tempo mínimo (meses)" valor={tempoMinimo} aoMudar={(t) => { setTempoMinimo(t.replace(/\D/g, '')); setErrosDoServidor((e) => ({ ...e, tempoMinimo: undefined })); }}
+                  keyboardType="number-pad" inputMode="numeric" maxLength={2} placeholder="Sem mínimo" erro={errosDoMinimo.tempoMinimo ?? null}
+                  ajuda="De 1 a 60. Em branco, o plano não tem mínimo. Vale para as contratações feitas depois." />
+                <Campo rotulo="Regra de saída" valor={regraDeSaida} aoMudar={(t) => { setRegraDeSaida(t); setErrosDoServidor((e) => ({ ...e, regraDeSaida: undefined })); }}
+                  linhas={3} maxLength={REGRA_DE_SAIDA_MAXIMA} erro={errosDoMinimo.regraDeSaida ?? null}
+                  ajuda="Lembrete do que o contrato diz sobre sair antes do mínimo. Aparece só para a equipe, ao encerrar o plano; o app não calcula multa." />
+              </>
+            ) : null}
           </>
         ) : (
-          <CamposEmLinha>
-            <CampoLeitura rotulo="Valor" valor={centavosParaTela(plano?.valorCentavos)} numerico />
-            <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(plano?.periodicidade)} />
-          </CamposEmLinha>
+          <>
+            <CamposEmLinha>
+              <CampoLeitura rotulo="Valor" valor={centavosParaTela(plano?.valorCentavos)} numerico />
+              <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(plano?.periodicidade)} />
+            </CamposEmLinha>
+            {plano && planoPodeTerMinimo(plano.periodicidade) ? (
+              <>
+                <CampoLeitura rotulo="Tempo mínimo" valor={textoDoMinimoDoPlano(plano) ?? 'Sem mínimo'} />
+                {plano.regraDeSaida ? <CampoLeitura rotulo="Regra de saída" valor={plano.regraDeSaida} /> : null}
+              </>
+            ) : null}
+          </>
         )}
         {tentou && problema && centavos !== null && nome.trim() ? <MensagemErro texto={problema} /> : null}
         {erro && !arquivando ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}

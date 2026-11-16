@@ -23,7 +23,7 @@ const atualizacao = (extra: Partial<Atualizacao>) => ({
   enviadaEm: null, feedback: null, versao: 1, resumo: null, ...extra,
 }) as Atualizacao;
 const cobranca = (extra: Partial<CobrancaDoAluno>): CobrancaDoAluno => ({
-  id: 'c', competencia: '2026-10-01', vencimento: '2026-10-23', valorCentavos: 15000, situacao: 'ABERTA', vencida: false, forma: null, pagoEm: null, ...extra,
+  id: 'c', competencia: '2026-10-01', vencimento: '2026-10-23', valorCentavos: 15000, situacao: 'ABERTA', vencida: false, forma: null, pagoEm: null, tipo: 'MENSALIDADE', ...extra,
 });
 const tomDoItem = (a: Atualizacao) => itemDaAtualizacao(a, hoje).selo?.tipo;
 

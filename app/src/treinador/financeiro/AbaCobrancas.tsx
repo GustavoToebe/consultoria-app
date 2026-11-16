@@ -8,7 +8,7 @@ import { aluno, listarCobrancas, listarPlanosComerciais } from '../../api/rotas'
 import {
   alternarNoLote, atrasoParaTela, contagemDoLote, cpfMascarado, ehPagamentoOnline, emissaoDaCobranca, estadoDaPaginaNoLote,
   hojeEmBrasilia, idCurtoDaCobranca, marcarPaginaNoLote, opcoesDePlanoDoFiltro, podeEntrarNoLote, problemaDoLote, resumoDaCobranca,
-  ROTULO_ONLINE, rotuloDaForma, seloDaCobranca, temBaixaRegistrada,
+  ROTULO_ONLINE, rotuloDaForma, seloDaCobranca, seloDoTipoDaCobranca, temBaixaRegistrada,
 } from '../../dominio/financeiro';
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
@@ -175,7 +175,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
           ) : null}
           <View style={lista.carregando ? estilos.esmaecido : null} pointerEvents={desatualizada ? 'none' : 'auto'}>
             <ListaOuTabela rotulo="Cobranças" linhas={dados.itens} chave={(c) => c.id} aoTocar={setAberta} larguraMinima={LARGURA_DA_TABELA}
-              rotuloDaLinha={(c) => `Abrir cobrança de ${c.alunoNome ?? 'aluno'}`}
+              rotuloDaLinha={(c) => `Abrir ${c.tipo === 'SAIDA' ? 'cobrança de saída' : 'cobrança'} de ${c.alunoNome ?? 'aluno'}`}
               // `null` (nunca `undefined`) na que não entra no lote: a coluna fica, vazia, e a tabela não desalinha.
               // Coluna das caixas só quando a página tem alguma cobrança que pode entrar no lote.
               inicio={comLote && dados.itens.some(podeEntrarNoLote) ? (c) => (podeEntrarNoLote(c) ? (
@@ -184,10 +184,12 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
               ) : null) : undefined}
               item={(c) => {
                 const selo = seloDaCobranca(c);
+                const doTipo = seloDoTipoDaCobranca(c.tipo);
                 return {
                   titulo: c.alunoNome ?? '—',
                   detalhe: `${resumoDaCobranca(c)}${c.situacao === 'PAGA' && ehPagamentoOnline(c) ? ` · ${ROTULO_ONLINE}` : ''}`,
                   selo: { texto: selo.rotulo, tipo: selo.tom },
+                  extra: doTipo ? <View style={estilos.seloDoTipo}><Selo texto={doTipo.rotulo} tipo={doTipo.tom} /></View> : undefined,
                 };
               }}
               colunas={[
@@ -383,9 +385,11 @@ function PagamentoDaCobranca({ cobranca }: { cobranca: CobrancaResponse }) {
 /** Selo da situação; vencida mostra os dias de atraso que a API calculou. */
 export function SituacaoDaCobranca({ cobranca }: { cobranca: CobrancaResponse }) {
   const selo = seloDaCobranca(cobranca);
+  const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
   return (
     <View style={estilos.selos}>
       <Selo texto={selo.rotulo} tipo={selo.tom} />
+      {doTipo ? <Selo texto={doTipo.rotulo} tipo={doTipo.tom} /> : null}
       {cobranca.situacao === 'PAGA' && ehPagamentoOnline(cobranca) ? <Selo texto={ROTULO_ONLINE} tipo="neutro" /> : null}
       {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <Texto variante="pequeno">{atrasoParaTela(cobranca.diasDeAtraso)}</Texto> : null}
     </View>
@@ -397,6 +401,7 @@ const estilos = StyleSheet.create({
   cheio: { alignSelf: 'stretch' },
   esmaecido: { opacity: 0.6 },
   selos: { gap: espaco(0.25), alignItems: 'flex-start' },
+  seloDoTipo: { flexDirection: 'row' },
   celula: { gap: 2, minWidth: 0 },
   barra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 260, gap: 2 },

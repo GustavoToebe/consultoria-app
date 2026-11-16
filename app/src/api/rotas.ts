@@ -4,6 +4,7 @@ import type {
   AlterarContratacaoRequest,
   BaixaEmLoteRequest,
   BaixaManualRequest,
+  EncerrarContratacaoRequest,
   ContratacaoResponse,
   ResultadoDoLote,
   ContratarRequest,
@@ -15,6 +16,8 @@ import type {
   LancamentoResponse,
   LinkDePagamento,
   MotivoRequest,
+  PreviaDoEncerramento,
+  ResumoDaSaidaDoAluno,
   Painel,
   PaginaCobrancas,
   PaginaInadimplentes,
@@ -1145,6 +1148,15 @@ export const listarContratacoesDoAluno = (alunoId: string) =>
   requisicao<ContratacaoResponse[]>(`/alunos/${seg(alunoId)}/contratacoes`);
 export const contratarPlano = (alunoId: string, corpo: ContratarRequest) =>
   requisicao<ContratacaoResponse>(`/alunos/${seg(alunoId)}/contratacoes`, { metodo: 'POST', corpo });
+/** O que encerrar faria agora (só leitura; contratação já encerrada = 409 `CONTRATACAO_ENCERRADA`). */
+export const previaDoEncerramento = (id: string) =>
+  requisicao<PreviaDoEncerramento>(`/contratacoes/${seg(id)}/previa-de-encerramento`);
+/** Encerrar, com cobrança de saída opcional (`saida`); sem `saida` encerra como sempre, mantendo as abertas. */
+export const encerrarContratacao = (id: string, corpo: EncerrarContratacaoRequest) =>
+  requisicao<ContratacaoResponse>(`/contratacoes/${seg(id)}/encerrar`, { metodo: 'POST', corpo });
+/** O que inativar o aluno faz com o financeiro (painel de inativar; `FINANCEIRO_LER`, 503 com o financeiro desligado). */
+export const resumoDaSaidaDoAluno = (alunoId: string) =>
+  requisicao<ResumoDaSaidaDoAluno>(`/alunos/${seg(alunoId)}/resumo-da-saida`);
 export const alterarContratacao = (id: string, corpo: AlterarContratacaoRequest) =>
   requisicao<ContratacaoResponse>(`/contratacoes/${seg(id)}`, { metodo: 'PUT', corpo });
 export const mudarSituacaoDaContratacao = (id: string, acao: 'pausar' | 'retomar' | 'encerrar', versao: number) =>

@@ -10,14 +10,22 @@ export type SituacaoDaCobranca = 'ABERTA' | 'PAGA' | 'CANCELADA' | 'ESTORNADA' |
 /** As quatro primeiras são do registro manual; `PIX` e `CARTAO` só vêm do recebimento online (InfinitePay). */
 export type FormaDePagamento = 'DINHEIRO' | 'PIX_DIRETO' | 'TRANSFERENCIA' | 'OUTRO' | 'PIX' | 'CARTAO';
 export type TipoDeLancamento = 'ENTRADA' | 'SAIDA';
+/** `SAIDA` é a cobrança de saída (criada ao encerrar o plano); não tem link de pagamento. Não confundir com `TipoDeLancamento`. */
+export type TipoDaCobranca = 'MENSALIDADE' | 'SAIDA';
 
 // ---- Plano comercial ----
 
-/** Opcionais nulos viram o padrão do servidor. `versao` só na edição. */
+/**
+ * Opcionais nulos viram o padrão do servidor. `versao` só na edição. `tempoMinimoMeses` (1 a 60) só em plano `MENSAL`: em
+ * outra periodicidade vai nulo (a API responde 422 `PLANO_INVALIDO` no campo). `regraDeSaida` é o texto do contrato (até 500;
+ * em branco vira nulo no servidor). O `PUT` substitui inteiro: ao alterar, reenvie os dois com o valor atual.
+ */
 export interface PlanoRequest {
   nome: string;
   valorCentavos: number;
   periodicidade: PeriodoDoPlano;
+  tempoMinimoMeses?: number | null;
+  regraDeSaida?: string | null;
   versao?: number | null;
 }
 
@@ -29,6 +37,10 @@ export interface PlanoResponse {
   arquivado: boolean;
   criadoEm: string;
   versao: number;
+  /** Mínimo em meses (só plano mensal); nulo = sem mínimo. */
+  tempoMinimoMeses: number | null;
+  /** Lembrete da regra de saída do contrato (texto do treinador); nulo = sem regra. Nunca vai ao aluno. */
+  regraDeSaida: string | null;
 }
 
 export interface VersaoRequest {
@@ -47,10 +59,15 @@ export interface ContratarRequest {
   primeiroPeriodoPago?: boolean;
 }
 
+/**
+ * O `PUT` substitui inteiro: `minimoAte` é sempre enviado (o atual, ou outro `AAAA-MM-DD`); nulo APAGA o mínimo. Entre o início
+ * da contratação e 60 meses depois, só em contratação mensal (422 `CONTRATACAO_INVALIDA` no campo `minimoAte`).
+ */
 export interface AlterarContratacaoRequest {
   valorCentavos: number;
   motivoValor?: string | null;
   diaVencimento: number;
+  minimoAte: string | null;
   versao: number;
 }
 
@@ -73,6 +90,79 @@ export interface ContratacaoResponse {
   alertaRenovacao?: 'EM_DIA' | 'PROXIMO_VENCIMENTO' | 'VENCIDO' | null;
   criadoEm: string;
   versao: number;
+  /** Fim do tempo mínimo (`AAAA-MM-DD`); nulo = sem mínimo. É a competência N+1 (início + N meses), não o último dia. */
+  minimoAte: string | null;
+}
+
+// ---- Encerrar com cobrança de saída ----
+
+export type OpcaoDeSaida = 'FALTAM' | 'VIGENTE' | 'OUTRO' | 'NAO_COBRAR';
+
+/**
+ * `FALTAM` e `VIGENTE`: o servidor confere `valorCentavos` com a conta dele (409 `VALOR_DA_SAIDA_MUDOU` se mudou); `FALTAM`
+ * leva também `cobrancasACancelar` (os ids da prévia; `VIGENTE` com lista dá o mesmo 409). `OUTRO`: valor digitado, maior que
+ * zero até 100.000.000 (R$ 1.000.000,00), sem cancelar nada. `vencimento` (`AAAA-MM-DD`) nulo = hoje; vai de hoje a hoje + 1 ano.
+ */
+export interface SaidaRequest {
+  opcao: OpcaoDeSaida;
+  valorCentavos?: number | null;
+  vencimento?: string | null;
+  cobrancasACancelar?: string[] | null;
+}
+
+/** `saida` ausente (ou `NAO_COBRAR`) encerra como sempre: as cobranças abertas ficam. `versao` é a da contratação. */
+export interface EncerrarContratacaoRequest {
+  versao: number;
+  saida?: SaidaRequest | null;
+}
+
+export interface GrupoDeAbertas {
+  quantidade: number;
+  valorCentavos: number;
+}
+
+/** `motivo` (texto pronto) só quando indisponível; `valorCentavos` só em `FALTAM` e `VIGENTE` disponíveis. */
+export interface OpcaoDaPrevia {
+  opcao: OpcaoDeSaida;
+  disponivel: boolean;
+  valorCentavos: number | null;
+  motivo: string | null;
+}
+
+/**
+ * `GET /contratacoes/{id}/previa-de-encerramento` (`FINANCEIRO_LER`; contratação já encerrada = 409 `CONTRATACAO_ENCERRADA`).
+ * `vencidas` ficam em aberto; `aVencerNoMinimo` são as que `FALTAM` cancela (ids em `cobrancasACancelar`, `comLinkVivo` delas
+ * têm link ainda válido); `aVencerQueFicam` são as abertas a vencer que NENHUMA opção cancela (competência a partir de
+ * `minimoAte` ou, sem mínimo, todas as a vencer). `mesesQueFaltam` = `aVencerNoMinimo.quantidade` + `mesesNaoGerados`.
+ * `regraDeSaida` é o lembrete do contrato (texto do treinador). Todos os números são da API: a tela só desenha.
+ */
+export interface PreviaDoEncerramento {
+  contratacaoId: string;
+  periodicidade: PeriodoDoPlano;
+  situacao: SituacaoDaContratacao;
+  minimoAte: string | null;
+  mesesQueFaltam: number;
+  regraDeSaida: string | null;
+  vencidas: GrupoDeAbertas;
+  aVencerNoMinimo: GrupoDeAbertas;
+  aVencerQueFicam: GrupoDeAbertas;
+  cobrancasACancelar: string[];
+  comLinkVivo: number;
+  mesesNaoGerados: number;
+  valorDosNaoGeradosCentavos: number;
+  opcoes: OpcaoDaPrevia[];
+}
+
+/**
+ * `GET /alunos/{id}/resumo-da-saida` (`FINANCEIRO_LER`; 503 com o financeiro desligado): o que inativar o aluno faz com o
+ * financeiro (todas as contratações). `aCancelar` = mensalidades abertas que ainda não venceram; `emAberto` = fica (vencidas e
+ * cobrança de saída). `mesesQueFaltam` > 0 = o mínimo se perde sem cobrança de saída. `minimoAte` nulo = sem mínimo.
+ */
+export interface ResumoDaSaidaDoAluno {
+  aCancelar: GrupoDeAbertas;
+  emAberto: GrupoDeAbertas;
+  minimoAte: string | null;
+  mesesQueFaltam: number;
 }
 
 // ---- Cobrança ----
@@ -117,6 +207,8 @@ export interface CobrancaResponse {
   idExterno?: string | null;
   /** CPF do aluno, só com `ALUNO_SENSIVEL_LER` (nulo sem ela ou sem CPF). Dado sensível: nunca em log nem no endereço. */
   alunoCpf?: string | null;
+  /** `SAIDA` = cobrança de saída: sem link de pagamento; no app do aluno nunca se chama "Mensalidade". */
+  tipo: TipoDaCobranca;
 }
 
 /** `POST /cobrancas/baixa-em-lote`: o mesmo registro manual de cada cobrança, sem valor (o servidor decide), 1 a 100 itens. */
@@ -333,6 +425,8 @@ export interface CobrancaDoAluno {
   vencida: boolean;
   forma: FormaDePagamento | null;
   pagoEm: string | null;
+  /** `SAIDA`: só informa (sem botão de pagar nem link; a API responde 409 `COBRANCA_SEM_LINK`). */
+  tipo: TipoDaCobranca;
 }
 
 /**
@@ -465,13 +559,19 @@ export interface LembreteDaCobranca {
   atualizadoEm: string;
 }
 
+/** Por que `whatsapp` veio nulo (código fixo da API; ver `dominio/lembretesDeCobranca`). */
+export type MotivoSemWhatsapp = 'COBRANCA_NAO_ABERTA' | 'ALUNO_ANONIMIZADO' | 'ALUNO_INATIVO';
+
 /**
- * Os lembretes de uma cobrança e a mensagem pronta para o WhatsApp (o mesmo texto do e-mail, para hoje). `whatsapp` nulo =
- * cobrança que não está em aberto ou aluno inativo; `telefone` nulo = o aluno não tem telefone.
+ * Os lembretes de uma cobrança e a mensagem pronta para o WhatsApp (o mesmo texto do e-mail, para hoje; o da saída é próprio).
+ * `whatsapp` nulo = cobrança que não está em aberto, aluno anonimizado ou inativo com mensalidade ainda não vencida (de inativo
+ * só a vencida e a de saída têm mensagem); `motivoSemWhatsapp` diz qual e vem nulo quando há mensagem; `telefone` nulo = o aluno
+ * não tem telefone.
  */
 export interface LembretesDaCobranca {
   itens: LembreteDaCobranca[];
   whatsapp: { telefone: string | null; mensagem: string } | null;
+  motivoSemWhatsapp: MotivoSemWhatsapp | null;
   /** O aluno desligou os lembretes por e-mail para si (`PUT /aluno/lembretes-de-cobranca`); o WhatsApp manual segue valendo. */
   alunoDesligou: boolean;
 }

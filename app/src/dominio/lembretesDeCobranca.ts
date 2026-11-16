@@ -104,12 +104,17 @@ export function linkDoWhatsApp(telefone: string | null | undefined, mensagem: st
 
 export const MOTIVO_SEM_TELEFONE = 'O aluno não tem telefone no cadastro.';
 
+/** Aluno inativo: só a mensalidade já vencida e a cobrança de saída têm mensagem (a API decide; este é o texto do `ALUNO_INATIVO`). */
+export const MOTIVO_ALUNO_INATIVO = 'O aluno está inativo: só a cobrança vencida e a de saída têm mensagem.';
+
 /**
- * O botão "Abrir WhatsApp com a mensagem" na folha: some (`null`) quando a API não manda a mensagem (cobrança que não está
- * em aberto, aluno inativo) e fica desabilitado, com o porquê, sem telefone válido. Nada é registrado como enviado.
+ * O botão "Abrir WhatsApp com a mensagem" na folha. Some (`null`) quando não há o que enviar: cobrança que não está em aberto
+ * (`COBRANCA_NAO_ABERTA`) ou aluno anonimizado (`ALUNO_ANONIMIZADO`). Fica desabilitado, com o porquê, quando a API não manda
+ * a mensagem por o aluno estar inativo (`ALUNO_INATIVO`) e quando falta telefone válido. Nada é registrado como enviado.
  */
 export function botaoDoWhatsApp(dados: LembretesDaCobranca | null | undefined): { link: string | null; motivo: string | null } | null {
-  if (!dados?.whatsapp) return null;
+  if (!dados) return null;
+  if (!dados.whatsapp) return dados.motivoSemWhatsapp === 'ALUNO_INATIVO' ? { link: null, motivo: MOTIVO_ALUNO_INATIVO } : null;
   const link = linkDoWhatsApp(dados.whatsapp.telefone, dados.whatsapp.mensagem);
   return link ? { link, motivo: null } : { link: null, motivo: MOTIVO_SEM_TELEFONE };
 }

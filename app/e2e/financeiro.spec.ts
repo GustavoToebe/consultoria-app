@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
-import type { CobrancaResponse, ContratacaoResponse } from '../src/api/financeiroTipos';
+import type { CobrancaResponse, ContratacaoResponse, PreviaDoEncerramento } from '../src/api/financeiroTipos';
 import type { AlunoDetalhe } from '../src/api/tipos';
 import { TEXTO_COMBINE_COM_O_TREINADOR, TEXTO_NADA_E_BAIXADO } from '../src/dominio/financeiro';
 import { ALUNO, erroApi, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
@@ -382,7 +382,7 @@ test('fluxo completo: o treinador cria o plano, contrata na ficha e dá a baixa;
   await expect(page.getByText('Plano criado.')).toBeVisible();
   await expect(page.getByText('Consultoria mensal').first()).toBeVisible();
   expect(pedidos.find((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos')?.corpo)
-    .toEqual({ nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', versao: null });
+    .toEqual({ nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', tempoMinimoMeses: null, regraDeSaida: null, versao: null });
   const planoId = estado.planos[0].id;
 
   // 2. Contratação na ficha do aluno.
@@ -434,7 +434,7 @@ test('fluxo completo: o treinador cria o plano, contrata na ficha e dá a baixa;
 const CONTRATACAO_ATIVA: ContratacaoResponse = {
   id: 'e0000000-0000-4000-8000-0000000000dd', alunoId: ALUNO_FINANCEIRO_ID, planoComercialId: 'b0000000-0000-4000-8000-0000000000f1',
   planoNome: 'Consultoria mensal', periodicidade: 'MENSAL', valorCentavos: 15_000, motivoValor: null, inicio: '2026-08-05', diaVencimento: 5,
-  situacao: 'ATIVA', encerradaEm: null, criadoEm: '2026-08-05T12:00:00Z', versao: 0,
+  situacao: 'ATIVA', encerradaEm: null, criadoEm: '2026-08-05T12:00:00Z', versao: 0, minimoAte: null,
 };
 
 const abertaDaContratacao = (id: string, vencimento: string, vencida: boolean): CobrancaResponse => ({
@@ -442,7 +442,7 @@ const abertaDaContratacao = (id: string, vencimento: string, vencida: boolean): 
   diasDeAtraso: vencida ? 14 : null,
 });
 
-test('Pausar e Encerrar avisam das cobranças abertas (as vencidas incluídas) só quando há alguma', async ({ page, context }) => {
+test('Pausar e Encerrar (sem tempo mínimo) avisam das cobranças abertas (as vencidas incluídas) só quando há alguma', async ({ page, context }) => {
   await fixarHoje(page);
   const comAbertas = estadoFinanceiro({
     contratacoes: [{ ...CONTRATACAO_ATIVA }],
@@ -464,9 +464,13 @@ test('Pausar e Encerrar avisam das cobranças abertas (as vencidas incluídas) s
   await expect(pausar.getByText(aviso)).toBeVisible();
   await pausar.getByRole('button', { name: 'Voltar' }).click();
 
+  // Encerrar: a folha da prévia, com "Não cobrar" escolhido; a conta das abertas vem da API (1 vencida + 1 a vencer).
   await page.getByRole('button', { name: 'Encerrar', exact: true }).click();
-  await expect(page.getByRole('alertdialog', { name: 'Encerrar este plano?' }).getByText(aviso)).toBeVisible();
-  await page.getByRole('alertdialog', { name: 'Encerrar este plano?' }).getByRole('button', { name: 'Voltar' }).click();
+  const encerrar = page.getByRole('dialog', { name: 'Encerrar este plano?' });
+  await expect(encerrar.getByText(aviso)).toBeVisible();
+  await expect(opcao(page, 'Cobrança de saída', 'Não cobrar')).toBeChecked();
+  await encerrar.getByRole('button', { name: 'Voltar' }).click();
+  await expect(encerrar).toHaveCount(0);
 
   // Sem cobrança aberta: nenhum texto sobre cobranças abertas no painel.
   const outra = await context.newPage();
@@ -483,6 +487,300 @@ test('Pausar e Encerrar avisam das cobranças abertas (as vencidas incluídas) s
   await expect(painel).not.toContainText(/cobranças? abertas?/);
   expect(daOutra.errosDaPagina).toEqual([]);
   expect(errosDaPagina).toEqual([]);
+});
+
+// ---- Saída e tempo mínimo (plano `docs/planos/saida-e-tempo-minimo.md`, passo 3) ----
+
+const ID_VENCIDA = 'c0000000-0000-4000-8000-0000000000b1';
+const ID_A_VENCER_1 = 'c0000000-0000-4000-8000-0000000000b2';
+const ID_A_VENCER_2 = 'c0000000-0000-4000-8000-0000000000b3';
+const COM_MINIMO: ContratacaoResponse = { ...CONTRATACAO_ATIVA, minimoAte: '2027-02-05' };
+const REGRA = 'Saída antes do mínimo: paga os meses que faltam, conforme o contrato.';
+
+/** A prévia de uma contratação com mínimo, como a API devolve: todos os números vêm daqui, a tela não calcula nada. */
+const PREVIA_COM_MINIMO: PreviaDoEncerramento = {
+  contratacaoId: COM_MINIMO.id, periodicidade: 'MENSAL', situacao: 'ATIVA', minimoAte: '2027-02-05', mesesQueFaltam: 4,
+  regraDeSaida: REGRA, vencidas: { quantidade: 1, valorCentavos: 15_000 }, aVencerNoMinimo: { quantidade: 2, valorCentavos: 30_000 },
+  aVencerQueFicam: { quantidade: 0, valorCentavos: 0 }, cobrancasACancelar: [ID_A_VENCER_1, ID_A_VENCER_2], comLinkVivo: 1,
+  mesesNaoGerados: 2, valorDosNaoGeradosCentavos: 30_000,
+  opcoes: [
+    { opcao: 'FALTAM', disponivel: true, valorCentavos: 60_000, motivo: null },
+    { opcao: 'VIGENTE', disponivel: false, valorCentavos: null, motivo: 'O mês vigente já está pago.' },
+    { opcao: 'OUTRO', disponivel: true, valorCentavos: null, motivo: null },
+    { opcao: 'NAO_COBRAR', disponivel: true, valorCentavos: null, motivo: null },
+  ],
+};
+/** A mesma conta depois de o aluno pagar uma das a vencer enquanto a folha estava aberta. */
+const PREVIA_MUDOU: PreviaDoEncerramento = {
+  ...PREVIA_COM_MINIMO, mesesQueFaltam: 3, aVencerNoMinimo: { quantidade: 1, valorCentavos: 15_000 }, cobrancasACancelar: [ID_A_VENCER_2], comLinkVivo: 0,
+  opcoes: PREVIA_COM_MINIMO.opcoes.map((o) => (o.opcao === 'FALTAM' ? { ...o, valorCentavos: 45_000 } : o)),
+};
+
+const cobrancasComMinimo = (): CobrancaResponse[] => [
+  abertaDaContratacao(ID_VENCIDA, '2026-10-05', true),
+  abertaDaContratacao(ID_A_VENCER_1, '2026-11-05', false),
+  abertaDaContratacao(ID_A_VENCER_2, '2026-12-05', false),
+];
+
+const fichaComFinanceiro = async (page: Page, estado: ReturnType<typeof estadoFinanceiro>, permissoes?: string[]) => simularApi(page, {
+  ...(await sessaoComFinanceiro(page, permissoes)), ...rotasDoFinanceiro(estado),
+  'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } }, [`GET /alunos/${ALUNO_FINANCEIRO_ID}`]: { corpo: FICHA },
+});
+
+const comTema = (page: Page, tema: 'CLARO' | 'ESCURO') =>
+  page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema] as const);
+
+for (const largura of [390, 1280]) {
+  test(`Planos em ${largura}px: tempo mínimo e regra de saída só no plano mensal, enviados sempre e mostrados na lista`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await fixarHoje(page);
+    const estado = estadoFinanceiro();
+    const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+    await page.goto('/treinador/financeiro?aba=planos');
+    await expect(page.getByText('Nenhum plano comercial ainda')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Novo plano' }).click();
+    const folha = page.getByRole('dialog');
+    await folha.getByLabel('Nome do plano').fill('Consultoria mensal');
+    await folha.getByLabel('Valor', { exact: true }).fill('150,00');
+    await folha.getByLabel('Tempo mínimo (meses)').fill('61');
+    await folha.getByLabel('Regra de saída').fill(REGRA);
+    await folha.getByRole('button', { name: 'Criar plano' }).click();
+    // Fora de 1 a 60 a tela recusa sem chamar a API.
+    await expect(folha.getByText('O tempo mínimo vai de 1 a 60 meses.')).toBeVisible();
+    expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos')).toHaveLength(0);
+    await folha.getByLabel('Tempo mínimo (meses)').fill('6');
+    await folha.getByRole('button', { name: 'Criar plano' }).click();
+    await expect(page.getByText('Plano criado.')).toBeVisible();
+    expect(pedidos.find((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos')?.corpo).toEqual({
+      nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', tempoMinimoMeses: 6, regraDeSaida: REGRA, versao: null,
+    });
+    await expect(page.getByText(/Mínimo de 6 meses/)).toBeVisible();
+
+    // Outra periodicidade: os dois campos nem aparecem, e o corpo os manda nulos.
+    await page.getByRole('button', { name: 'Novo plano' }).click();
+    const outro = page.getByRole('dialog');
+    await outro.getByLabel('Nome do plano').fill('Consultoria trimestral');
+    await outro.getByLabel('Valor', { exact: true }).fill('400,00');
+    await opcao(page, 'Periodicidade', 'Trimestral').click();
+    await expect(outro.getByLabel('Tempo mínimo (meses)')).toHaveCount(0);
+    await expect(outro.getByLabel('Regra de saída')).toHaveCount(0);
+    await outro.getByRole('button', { name: 'Criar plano' }).click();
+    await expect.poll(() => pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos').length).toBe(2);
+    expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos').at(-1)?.corpo).toEqual({
+      nome: 'Consultoria trimestral', valorCentavos: 40_000, periodicidade: 'TRIMESTRAL', tempoMinimoMeses: null, regraDeSaida: null, versao: null,
+    });
+
+    // Editar o mensal e trocar para trimestral avisa que o mínimo será apagado.
+    await page.getByRole('button', { name: /Consultoria mensal/ }).first().click();
+    const editar = page.getByRole('dialog');
+    await expect(editar.getByLabel('Tempo mínimo (meses)')).toHaveValue('6');
+    await opcao(page, 'Periodicidade', 'Trimestral').click();
+    await expect(editar.getByText(/ao salvar com outra periodicidade, eles são apagados/)).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`erro do servidor no tempo mínimo aparece no campo, sem fechar a folha (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await fixarHoje(page);
+    const estado = estadoFinanceiro();
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado),
+      'POST /financeiro/planos': { status: 422, corpo: { status: 422, message: 'Confira os dados do plano.', codigo: 'PLANO_INVALIDO', fieldErrors: [{ field: 'regraDeSaida', message: 'A regra de saída pode ter até 500 caracteres.' }] } },
+    });
+    await page.goto('/treinador/financeiro?aba=planos');
+    await page.getByRole('button', { name: 'Novo plano' }).click();
+    const folha = page.getByRole('dialog');
+    await folha.getByLabel('Nome do plano').fill('Consultoria mensal');
+    await folha.getByLabel('Valor', { exact: true }).fill('150,00');
+    await folha.getByLabel('Regra de saída').fill(REGRA);
+    await folha.getByRole('button', { name: 'Criar plano' }).click();
+    await expect(folha.getByText('A regra de saída pode ter até 500 caracteres.')).toBeVisible();
+    await expect(folha).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`tempo mínimo na ficha em ${largura}px: o cartão mostra a data e a edição valida, apaga e envia sempre o minimoAte`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await fixarHoje(page);
+    const estado = estadoFinanceiro({ contratacoes: [{ ...COM_MINIMO }], cobrancas: [] });
+    const { pedidos, errosDaPagina } = await fichaComFinanceiro(page, estado);
+    await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
+    await expect(page.getByText('Tempo mínimo até 05/02/2027')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Alterar', exact: true }).click();
+    const folha = page.getByRole('dialog', { name: 'Alterar contratação' });
+    const campo = folha.getByLabel('Fim do tempo mínimo');
+    await expect(campo).toHaveValue('05/02/2027');
+    await campo.fill('01/01/2020');
+    await folha.getByRole('button', { name: 'Salvar contratação' }).click();
+    await expect(folha.getByText('O fim do mínimo vai de 05/08/2026 até 05/08/2031.')).toBeVisible();
+    expect(pedidos.filter((p) => p.metodo === 'PUT' && p.caminho.startsWith('/contratacoes/'))).toHaveLength(0);
+
+    // Em branco apaga: o PUT manda `minimoAte: null` e o cartão passa a dizer "Sem tempo mínimo".
+    await campo.fill('');
+    await folha.getByRole('button', { name: 'Salvar contratação' }).click();
+    await expect(page.getByText('Contratação alterada.')).toBeVisible();
+    expect(pedidos.find((p) => p.metodo === 'PUT' && p.caminho === `/contratacoes/${COM_MINIMO.id}`)?.corpo)
+      .toEqual({ valorCentavos: 15_000, motivoValor: null, diaVencimento: 5, minimoAte: null, versao: 0 });
+    await expect(page.getByText('Sem tempo mínimo')).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+for (const [largura, tema] of [[390, 'CLARO'], [1280, 'CLARO'], [390, 'ESCURO'], [1280, 'ESCURO']] as const) {
+  test(`encerrar com cobrança de saída em ${largura}px (${tema.toLowerCase()}): opções da API, indisponível com o motivo, 409 recarrega e o selo "Saída" aparece`, async ({ page, context }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await comTema(page, tema);
+    await fixarHoje(page);
+    const estado = estadoFinanceiro({
+      contratacoes: [{ ...COM_MINIMO }], cobrancas: cobrancasComMinimo(), previas: { [COM_MINIMO.id]: PREVIA_COM_MINIMO }, previaQueMuda: PREVIA_MUDOU,
+      recebimento: { ...RECEBIMENTO_CONFIGURADO }, pagamentoOnline: true,
+    });
+    const { errosDaPagina } = await fichaComFinanceiro(page, estado);
+    await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
+    await page.getByRole('button', { name: 'Encerrar', exact: true }).click();
+    const folha = page.getByRole('dialog', { name: 'Encerrar este plano?' });
+    await expect(folha.getByText('Faltam 4 meses para o mínimo (até 05/02/2027)')).toBeVisible();
+    await expect(folha.getByText(REGRA)).toBeVisible();
+    // Começa em "Não cobrar": as três abertas continuam.
+    await expect(opcao(page, 'Cobrança de saída', 'Não cobrar')).toBeChecked();
+    await expect(folha.getByText('Há 3 cobranças abertas; elas continuam valendo. Cancele uma a uma se precisar.')).toBeVisible();
+    // A opção indisponível fica desabilitada e o motivo aparece sob o grupo.
+    await expect(opcao(page, 'Cobrança de saída', 'Mês vigente')).toBeDisabled();
+    await expect(folha.getByText('O mês vigente já está pago.')).toBeVisible();
+
+    // "Meses que faltam": o valor da API, só leitura, a conta e o aviso do link vivo.
+    await opcao(page, 'Cobrança de saída', 'Meses que faltam para o mínimo: R$ 600,00').click();
+    await expect(folha.getByText('R$ 600,00').last()).toBeVisible();
+    await expect(folha.getByText('2 mensalidades a vencer dentro do mínimo (R$ 300,00), canceladas ao cobrar a saída.')).toBeVisible();
+    await expect(folha.getByText('2 meses ainda não gerados (R$ 300,00).')).toBeVisible();
+    await expect(folha.getByText(/Uma das cobranças canceladas tem link de pagamento ainda válido/)).toBeVisible();
+    await expect(folha.getByText('Há 1 cobrança aberta; ela continua valendo. Cancele-a se precisar.')).toBeVisible();
+    await expect(folha.getByLabel('Vence em')).toHaveValue('19/10/2026');
+    await page.screenshot({ path: testInfo.outputPath(`encerrar-${largura}-${tema.toLowerCase()}.png`), fullPage: true });
+
+    // A conta mudou no servidor: 409, a folha continua aberta com o aviso e o valor novo.
+    await folha.getByRole('button', { name: 'Encerrar plano' }).click();
+    await expect(folha.getByText('A conta da saída mudou. Confira os valores novos e confirme de novo.')).toBeVisible();
+    // O que a prévia nova reflete: o aluno pagou a mensalidade de 05/11 enquanto a folha estava aberta.
+    Object.assign(estado.cobrancas.find((c) => c.id === ID_A_VENCER_1) as CobrancaResponse, { situacao: 'PAGA', vencida: false, pagoEm: '2026-10-19', forma: 'PIX' });
+    await expect(opcao(page, 'Cobrança de saída', 'Meses que faltam para o mínimo: R$ 450,00')).toBeChecked();
+    await expect(folha.getByText(/link de pagamento ainda válido/)).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`encerrar-409-${largura}-${tema.toLowerCase()}.png`), fullPage: true });
+    await folha.getByRole('button', { name: 'Encerrar plano' }).click();
+    await expect(page.getByText('Plano encerrado. A cobrança de saída foi criada.')).toBeVisible();
+    expect(estado.encerramentos).toEqual([
+      { versao: 0, saida: { opcao: 'FALTAM', valorCentavos: 60_000, vencimento: '2026-10-19', cobrancasACancelar: [ID_A_VENCER_1, ID_A_VENCER_2] } },
+      { versao: 0, saida: { opcao: 'FALTAM', valorCentavos: 45_000, vencimento: '2026-10-19', cobrancasACancelar: [ID_A_VENCER_2] } },
+    ]);
+
+    // Na ficha, a cobrança de saída tem o selo; a folha dela chama-se "Cobrança de saída" e não tem link de pagamento.
+    const daSaida = page.getByRole('button', { name: /^Abrir cobrança de saída de/ });
+    await expect(daSaida).toBeVisible();
+    await expect(daSaida.getByText('Saída', { exact: true })).toBeVisible();
+    await daSaida.click();
+    const cobranca = page.getByRole('dialog', { name: 'Cobrança de saída' });
+    await expect(cobranca.getByText('Saída', { exact: true })).toBeVisible();
+    await expect(cobranca.getByText('R$ 450,00').first()).toBeVisible();
+    await expect(cobranca.getByRole('button', { name: 'Copiar link de pagamento' })).toHaveCount(0);
+    await expect(cobranca.getByRole('button', { name: 'Registrar pagamento' })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`folha-saida-${largura}-${tema.toLowerCase()}.png`), fullPage: true });
+    await cobranca.getByRole('button', { name: /Fechar/ }).first().click();
+
+    // Na lista de cobranças do Financeiro, o selo também.
+    await page.goto('/treinador/financeiro?aba=cobrancas');
+    await expect(page.getByRole('button', { name: /^Abrir cobrança de saída de / }).first()).toBeVisible();
+    await expect(page.getByText('Saída', { exact: true }).first()).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`cobrancas-saida-${largura}-${tema.toLowerCase()}.png`), fullPage: true });
+
+    // O aluno, na web e com recebimento online: a saída tem o selo e nunca o "Pagar"; a mensalidade vencida mantém o dela.
+    const aluno = await context.newPage();
+    await aluno.setViewportSize({ width: largura, height: 900 });
+    await fixarHoje(aluno);
+    const doAluno = await simularApi(aluno, {
+      ...(await sessaoDoAlunoComFinanceiro(aluno)), ...rotasDoFinanceiro(estado),
+    });
+    await aluno.goto('/aluno/conta');
+    const daSaidaNoAluno = aluno.getByLabel(/^Cobrança de saída, /).first();
+    await daSaidaNoAluno.scrollIntoViewIfNeeded();
+    await expect(daSaidaNoAluno).toBeVisible();
+    await expect(aluno.getByText('Saída', { exact: true })).toBeVisible();
+    await expect(aluno.getByRole('button', { name: /^Pagar/ })).toHaveCount(1);
+    await expect(aluno.getByRole('button', { name: /R\$ 450,00/ })).toHaveCount(0);
+    await aluno.screenshot({ path: testInfo.outputPath(`meu-plano-saida-${largura}-${tema.toLowerCase()}.png`), fullPage: true });
+    expect(doAluno.errosDaPagina).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('encerrar sem mínimo com "Outro valor": a tela valida o valor e o vencimento antes de enviar', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({ contratacoes: [{ ...CONTRATACAO_ATIVA }], cobrancas: [] });
+  const { errosDaPagina } = await fichaComFinanceiro(page, estado);
+  await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
+  await page.getByRole('button', { name: 'Encerrar', exact: true }).click();
+  const folha = page.getByRole('dialog', { name: 'Encerrar este plano?' });
+  await expect(opcao(page, 'Cobrança de saída', 'Meses que faltam para o mínimo')).toBeDisabled();
+  await expect(folha.getByText('A contratação não tem tempo mínimo.')).toHaveCount(1);
+  await opcao(page, 'Cobrança de saída', 'Outro valor').click();
+  await folha.getByLabel('Vence em').fill('19/10/2028');
+  await folha.getByRole('button', { name: 'Encerrar plano' }).click();
+  await expect(folha.getByText('Informe um valor maior que zero, até R$ 1.000.000,00.')).toBeVisible();
+  await expect(folha.getByText('O vencimento vai de hoje até um ano à frente.')).toBeVisible();
+  expect(estado.encerramentos).toHaveLength(0);
+  await folha.getByLabel('Valor da cobrança de saída').fill('200,00');
+  await folha.getByLabel('Vence em').fill('30/10/2026');
+  await folha.getByRole('button', { name: 'Encerrar plano' }).click();
+  await expect(page.getByText('Plano encerrado. A cobrança de saída foi criada.')).toBeVisible();
+  expect(estado.encerramentos).toEqual([{ versao: 0, saida: { opcao: 'OUTRO', valorCentavos: 20_000, vencimento: '2026-10-30' } }]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+for (const largura of [390, 1280]) {
+  test(`inativar em ${largura}px: o painel mostra o que acontece com as cobranças, pela API`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await fixarHoje(page);
+    const estado = estadoFinanceiro({
+      contratacoes: [{ ...COM_MINIMO }], cobrancas: cobrancasComMinimo(),
+      resumoDaSaida: { aCancelar: { quantidade: 2, valorCentavos: 30_000 }, emAberto: { quantidade: 1, valorCentavos: 15_000 }, minimoAte: '2027-02-05', mesesQueFaltam: 4 },
+    });
+    const { pedidos, errosDaPagina } = await fichaComFinanceiro(page, estado);
+    await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
+    await page.getByRole('button', { name: 'Mais ações do aluno', exact: true }).click();
+    await page.getByText('Inativar aluno', { exact: true }).click();
+    const painel = page.getByRole('alertdialog', { name: `Inativar ${ALUNO.nome}?` });
+    await expect(painel.getByText('2 mensalidades a vencer serão canceladas (R$ 300,00).')).toBeVisible();
+    await expect(painel.getByText('1 cobrança vencida ou de saída continua em aberto (R$ 150,00). Dê baixa ou cancele depois, se precisar.')).toBeVisible();
+    await expect(painel.getByText('Faltam 4 meses para o mínimo (até 05/02/2027). Inativar não cobra a saída: para cobrar, encerre o plano antes.')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`inativar-${largura}.png`) });
+    expect(pedidos.filter((p) => p.caminho === `/alunos/${ALUNO_FINANCEIRO_ID}/resumo-da-saida`)).toHaveLength(1);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('inativar sem a permissão do Financeiro: a linha genérica, sem valores e sem chamar o resumo; nada em aberto = nenhuma linha', async ({ page, context }) => {
+  await fixarHoje(page);
+  const { pedidos, errosDaPagina } = await fichaComFinanceiro(page, estadoFinanceiro(), []);
+  await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
+  await page.getByRole('button', { name: 'Mais ações do aluno', exact: true }).click();
+  await page.getByText('Inativar aluno', { exact: true }).click();
+  const painel = page.getByRole('alertdialog', { name: `Inativar ${ALUNO.nome}?` });
+  await expect(painel.getByText('As cobranças que ainda não venceram serão canceladas. As vencidas e a cobrança de saída continuam em aberto.')).toBeVisible();
+  expect(pedidos.filter((p) => p.caminho.endsWith('/resumo-da-saida'))).toHaveLength(0);
+  expect(errosDaPagina).toEqual([]);
+
+  const outra = await context.newPage();
+  await fixarHoje(outra);
+  const daOutra = await fichaComFinanceiro(outra, estadoFinanceiro());
+  await outra.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
+  await outra.getByRole('button', { name: 'Mais ações do aluno', exact: true }).click();
+  await outra.getByText('Inativar aluno', { exact: true }).click();
+  const vazio = outra.getByRole('alertdialog', { name: `Inativar ${ALUNO.nome}?` });
+  await expect(vazio).toBeVisible();
+  await expect.poll(() => daOutra.pedidos.filter((p) => p.caminho.endsWith('/resumo-da-saida')).length).toBe(1);
+  await expect(vazio).not.toContainText(/cobran/);
+  expect(daOutra.errosDaPagina).toEqual([]);
 });
 
 test('aluno com cobrança vencida: "Pagamento em aberto" nas pendências do Início, sem botão de pagar (o Pagar fica na Conta)', async ({ page }) => {
@@ -1244,6 +1542,7 @@ test('folha da cobrança: lista os lembretes e abre o WhatsApp com a mensagem pr
           { id: 'l2', tipo: 'NO_DIA', situacao: 'CANCELADO', motivo: 'SEM_EMAIL', dataPrevista: '2026-10-05', enviadoEm: null, atualizadoEm: '2026-10-05T12:07:00Z' },
         ],
         whatsapp: { telefone: '(45) 99999-8888', mensagem },
+        motivoSemWhatsapp: null,
         alunoDesligou: false,
       },
     },
@@ -1270,7 +1569,7 @@ test('folha da cobrança sem telefone do aluno: o botão do WhatsApp fica desabi
   await fixarHoje(page);
   const estado = estadoFinanceiro({
     cobrancas: [{ ...COBRANCA_ATRASADA }],
-    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: null, mensagem: 'Olá, Aluna.' }, alunoDesligou: false } },
+    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: null, mensagem: 'Olá, Aluna.' }, motivoSemWhatsapp: null, alunoDesligou: false } },
   });
   const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=cobrancas');
@@ -1287,7 +1586,7 @@ test('folha da cobrança: o aluno que desligou os lembretes aparece em texto sua
   await fixarHoje(page);
   const estado = estadoFinanceiro({
     cobrancas: [{ ...COBRANCA_ATRASADA }],
-    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: '(45) 99999-8888', mensagem: 'Olá, Aluna.' }, alunoDesligou: true } },
+    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: '(45) 99999-8888', mensagem: 'Olá, Aluna.' }, motivoSemWhatsapp: null, alunoDesligou: true } },
   });
   const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=cobrancas');

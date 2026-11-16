@@ -11,7 +11,7 @@ import {
 } from '../../api/rotas';
 import {
   atrasoParaTela, cpfMascarado, ehPagamentoOnline, emissaoDaCobranca, FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeCancelarCobranca, podeCopiarLink, podeDesfazerBaixa,
-  podeManterPaga, podeMarcarContestacao, podeMarcarEstorno, podeRegistrarPagamento, ROTULO_ONLINE, rotuloDaForma, seloDaCobranca,
+  podeManterPaga, podeMarcarContestacao, podeMarcarEstorno, podeRegistrarPagamento, ROTULO_COBRANCA_DE_SAIDA, ROTULO_ONLINE, rotuloDaForma, seloDaCobranca, seloDoTipoDaCobranca,
   temBaixaRegistrada, TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO, validarBaixa,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
@@ -94,7 +94,8 @@ export function FolhaDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, mostrarFi
   const { recebimentoOnlineHabilitado } = useSessao();
   // O estado do recebimento online só é buscado quando o link pode ser copiado (em aberto, com permissão e a InfinitePay
   // ligada); fica aqui, fora do `Conteudo`, para não buscar de novo a cada versão da cobrança.
-  const querLink = !!cobranca && cobranca.situacao === 'ABERTA' && podeAlterar && recebimentoOnlineHabilitado;
+  // A cobrança de saída não tem link de pagamento nesta fase (só baixa manual e WhatsApp): nem busca o recebimento online.
+  const querLink = !!cobranca && cobranca.situacao === 'ABERTA' && cobranca.tipo !== 'SAIDA' && podeAlterar && recebimentoOnlineHabilitado;
   const recebimento = useCarregar(querLink ? 'recebimento-online|folha' : null, () => buscarRecebimentoOnline());
   // Os lembretes por e-mail desta cobrança e a mensagem pronta do WhatsApp; falha na busca só esconde o bloco.
   // O id sai antes: o React Compiler lê as dependências da função na renderização, e `cobranca` pode ser nula aqui.
@@ -236,7 +237,8 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
     router.push(`/treinador/alunos/${cobranca.alunoId}?aba=ficha`);
   });
 
-  const titulo = modo === 'baixa' ? 'Registrar pagamento' : `Cobrança de ${rotuloDoMes(cobranca.competencia)}`;
+  const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
+  const titulo = modo === 'baixa' ? 'Registrar pagamento' : doTipo ? ROTULO_COBRANCA_DE_SAIDA : `Cobrança de ${rotuloDoMes(cobranca.competencia)}`;
   const cpf = cpfMascarado(cobranca.alunoCpf);
   const rodape = modo === 'baixa' ? (
     <>
@@ -273,6 +275,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
           </View>
           <View style={estilos.selos}>
             <Selo texto={selo.rotulo} tipo={selo.tom} />
+            {doTipo ? <Selo texto={doTipo.rotulo} tipo={doTipo.tom} /> : null}
             {cobranca.situacao === 'PAGA' && ehPagamentoOnline(cobranca) ? <Selo texto={ROTULO_ONLINE} tipo="neutro" /> : null}
           </View>
         </View>

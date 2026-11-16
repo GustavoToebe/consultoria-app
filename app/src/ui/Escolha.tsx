@@ -58,7 +58,8 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
     },
   }));
   useAnunciarErro(erro, rotulo ?? descricao ?? 'Escolha');
-  const motivos = opcoes.filter((o) => o.desabilitada && o.motivo).map((o) => o.motivo as string);
+  // Sem repetir: duas opções com o mesmo motivo mostram a frase uma vez (e não duplicam a `key`).
+  const motivos = [...new Set(opcoes.filter((o) => o.desabilitada && o.motivo).map((o) => o.motivo as string))];
   // Segmento só para uma escolha curta de rótulos (até cinco); com contagem são filtros, que ficam em chips.
   const segmento = !chips && opcoes.length <= 5 && opcoes.every((o) => o.contagem === undefined);
   return (
