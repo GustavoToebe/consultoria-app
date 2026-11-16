@@ -5,7 +5,8 @@ import { urlDaApi } from '../api/cliente';
 import type { Marca } from '../api/tipos';
 import { NOME_DO_PRODUTO } from '../dominio/produto';
 import { useTema } from '../tema/TemaProvider';
-import { fontes, marcaParaTexto } from '../tema/tokens';
+import { fontes, marcaParaTitulo } from '../tema/tokens';
+import { useFundoDaArea } from './fundoDaArea';
 import { Texto } from './Texto';
 
 /**
@@ -17,17 +18,20 @@ export function MarcaTitulo({ marca, tamanho = 'medio', nivel, fundo }: {
   marca: Marca | null;
   tamanho?: 'pequeno' | 'medio' | 'grande';
   nivel?: 1 | 2 | 3;
-  /** Fundo onde o nome fica, quando não é o do tema de quem vê (a prévia da Marca desenha a paleta escolhida). */
+  /** Fundo onde o nome fica, quando não é o da área (`useFundoDaArea`): a prévia da Marca desenha a paleta escolhida. */
   fundo?: string;
 }) {
-  const { cores, marcaTexto } = useTema();
+  const { cores, marca: doTema } = useTema();
+  const daArea = useFundoDaArea();
   const grande = tamanho === 'grande';
   const pequeno = tamanho === 'pequeno';
   if (!marca) {
     return <Texto variante="titulo" nivel={nivel}>{NOME_DO_PRODUTO}</Texto>;
   }
-  // A cor da própria marca: na tela de convite (antes do login) o tema ainda é neutro.
-  const cor = marca.corPrimaria ? marcaParaTexto(marca.corPrimaria, fundo ?? cores.superficie3) : marcaTexto;
+  // A cor da própria marca (na tela de convite, antes do login, o tema ainda é neutro), legível contra o fundo onde o nome
+  // fica: o da área (Cabeçalho, início do aluno e telas públicas ficam direto na `Tela`). A cor de sempre (contra a
+  // `superficie3`) fica onde já passa nesse fundo (Claro, Escuro); na Areia, onde dava 4,19:1, vale a medida contra ele.
+  const cor = marcaParaTitulo(marca.corPrimaria || doTema, fundo ?? daArea, fundo ?? cores.superficie3);
   if (marca.logoUrl) {
     return (
       <View accessibilityRole="image" accessibilityLabel={marca.nome}>

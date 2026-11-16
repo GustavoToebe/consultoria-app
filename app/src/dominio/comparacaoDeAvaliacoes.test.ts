@@ -217,7 +217,7 @@ describe('peso do dia', () => {
     const l = linhaDoPeso([comPeso('a', '2026-07-01', 82), comPeso('b', '2026-09-01', null), comPeso('c', '2026-11-01', 80.25)], colunas('a', 'b', 'c'));
     expect(l?.celulas).toEqual([{ valor: 82, texto: '82 kg' }, { valor: null, texto: '—' }, { valor: 80.25, texto: '80,25 kg' }]);
     expect(l?.variacao).toEqual({ valor: -1.75, direcao: 'reducao', texto: '−1,75 kg' });
-    expect(linhaDoPeso([comPeso('a', '2026-07-01', 80), comPeso('b', '2026-09-01', 80)], colunas('a', 'b'))?.variacao).toMatchObject({ direcao: 'igual', texto: '0 kg' });
+    expect(linhaDoPeso([comPeso('a', '2026-07-01', 80), comPeso('b', '2026-09-01', 80)], colunas('a', 'b'))?.variacao).toMatchObject({ direcao: 'igual', texto: '0,0 kg' });
   });
 
   it('uma ponta sem peso: "Indisponível"; nenhuma data com peso: nulo', () => {

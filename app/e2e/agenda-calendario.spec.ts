@@ -329,6 +329,9 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         await expect(botaoDaVisao(page, 'Ano')).toBeFocused();
         await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
         await botaoDaVisao(page, 'Ano').click();
+        // O menu abre depois do clique (`measureInWindow` do react-native-web é um `setTimeout(0)`): o atalho só vale "com o menu
+        // aberto" depois que ele abriu e o foco entrou na visão atual (o efeito que avisa a tela já rodou).
+        await expect(menu.getByRole('menuitemradio', { name: 'Ano', exact: true })).toBeFocused();
         // Com o menu aberto, a letra do atalho não troca a visão por trás dele.
         await page.keyboard.press('m');
         await expect(menu).toBeVisible();

@@ -155,10 +155,32 @@ test.describe('Novo aluno', () => {
     expect(d.y).toBeGreaterThan(c.y + c.height);
     expect(Math.abs(n.x - c.x)).toBeLessThan(2);
     expect(Math.abs(n.x - d.x)).toBeLessThan(2);
+    await umaColunaNaOrdem(page);
     await semRolagemHorizontal(page);
     await capturar(page, 'novo-aluno-390');
     expect(errosDaPagina).toEqual([]);
   });
+
+  // A mesma regra dos Dados do aluno (decisão de 15/11): duas colunas de 420 px que descem para uma quando não cabem, também
+  // no PC com o menu ao lado, nunca presas em duas.
+  for (const tema of ['CLARO', 'ESCURO'] as const) test(`768 px (${tema.toLowerCase()}): com o menu ao lado as colunas não cabem e descem para uma, na mesma ordem`, async ({ page }) => {
+    await comTema(page, tema);
+    const errosDaPagina = await abrir(page, 768, 1024);
+    await umaColunaNaOrdem(page);
+    await semRolagemHorizontal(page);
+    await capturar(page, `novo-aluno-768-${tema.toLowerCase()}`);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  /** As quatro seções uma embaixo da outra, alinhadas à esquerda, na ordem 1, 2, 3, 4. */
+  async function umaColunaNaOrdem(page: Page) {
+    const secoes = await Promise.all(
+      ['Identificação', 'Contato e endereço', 'Configuração do acompanhamento', 'Objetivo e observações'].map((t) => caixa(titulo(page, t))));
+    for (let i = 1; i < secoes.length; i++) {
+      expect(Math.abs(secoes[i].x - secoes[0].x)).toBeLessThan(2);
+      expect(secoes[i].y).toBeGreaterThan(secoes[i - 1].y + secoes[i - 1].height);
+    }
+  }
 
   test('1440 px sem dados sensíveis: Identificação e Acompanhamento lado a lado, sem a seção do objetivo', async ({ page }) => {
     await comTema(page, 'ESCURO');
@@ -186,7 +208,11 @@ test.describe('Financeiro › Lembretes', () => {
     await expect(page.getByText('Lembretes de cobrança', { exact: true })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Recebimento online' })).toBeVisible();
     await expect(page.getByLabel('InfiniteTag')).toHaveCount(0);
-    const campo = await caixa(page.getByRole('textbox', { name: 'Dias antes do vencimento' }));
+    // O corpo mede a própria largura (`onLayout`) e só então passa às duas colunas: na primeira passada o campo ocupa a coluna
+    // única (790 px em 1920). O limite é o mesmo; só se espera a passada que vale.
+    const dias = page.getByRole('textbox', { name: 'Dias antes do vencimento' });
+    await expect.poll(async () => (await caixa(dias)).width).toBeLessThanOrEqual(560);
+    const campo = await caixa(dias);
     const abas = await caixa(page.getByRole('tab', { name: 'Visão geral' }));
     expect(campo.width).toBeLessThanOrEqual(560);
     expect(campo.x).toBeGreaterThanOrEqual(abas.x);

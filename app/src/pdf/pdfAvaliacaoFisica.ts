@@ -41,6 +41,9 @@ const COR_B = '#6D28D9';
 const LARGURA = 560;
 const ALTURA = 220;
 const MARGEM = { esq: 62, dir: 40, topo: 16, base: 36 };
+/** Largura estimada de um caractere do rótulo de data (fonte de 9 px; dígitos e "/" ficam abaixo de 0,6 em) e a folga entre dois rótulos. */
+const LARGURA_DO_CARACTERE = 5.4;
+const FOLGA_ENTRE_ROTULOS = 4;
 
 function instante(iso: string): number {
   const [a, m, d] = iso.slice(0, 10).split('-').map(Number);
@@ -74,11 +77,25 @@ function svgDoGrafico(a: PontoDoGrafico[], b: PontoDoGrafico[], titulo: string):
   const guias = [...new Set([y(vMax), y(vMin)])]
     .map((py) => `<line x1="${MARGEM.esq}" y1="${f(py)}" x2="${LARGURA - MARGEM.dir}" y2="${f(py)}" stroke="#ddd" stroke-width="0.8"/>`)
     .join('');
-  // shortcut: rótulos de data não se evitam entre si, datas a menos de ~2 dias ficam coladas; trocar por seleção de ticks se isso ocorrer.
   const datas = [...new Set(todos.map((p) => p.data))].sort();
   const formatarData = formatadorDeDatas(datas);
+  // Datas próximas (dias seguidos num eixo de meses) deixariam os rótulos um sobre o outro: a marca e o ponto de cada data
+  // ficam, e só o texto que colidiria com o anterior já escrito, ou com o último, é omitido. Primeiro e último sempre saem.
+  const faixas = datas.map((d) => ({ d, x: x(d), meia: (formatarData(d).length * LARGURA_DO_CARACTERE) / 2 }));
+  const ultimaFaixa = faixas[faixas.length - 1];
+  let fimDoAnterior = -Infinity;
+  const comTexto = new Set(
+    faixas
+      .filter((r, i) => {
+        const sai = i === 0 || i === faixas.length - 1
+          || (r.x - r.meia >= fimDoAnterior + FOLGA_ENTRE_ROTULOS && r.x + r.meia + FOLGA_ENTRE_ROTULOS <= ultimaFaixa.x - ultimaFaixa.meia);
+        if (sai) fimDoAnterior = r.x + r.meia;
+        return sai;
+      })
+      .map((r) => r.d),
+  );
   const eixoX = datas
-    .map((d) => `<line x1="${f(x(d))}" y1="${baseY}" x2="${f(x(d))}" y2="${baseY + 4}" stroke="#555" stroke-width="0.8"/>${texto(x(d), baseY + 15, formatarData(d), 'middle')}`)
+    .map((d) => `<line x1="${f(x(d))}" y1="${baseY}" x2="${f(x(d))}" y2="${baseY + 4}" stroke="#555" stroke-width="0.8"/>${comTexto.has(d) ? texto(x(d), baseY + 15, formatarData(d), 'middle') : ''}`)
     .join('');
   const serie = (pontos: PontoDoGrafico[], cor: string, tracejada: boolean) => {
     if (!pontos.length) return '';

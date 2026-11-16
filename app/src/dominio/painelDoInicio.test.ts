@@ -6,7 +6,7 @@ import { periodoDoCalendario } from './agendaCalendario';
 import {
   barrasDoRecebido, blocoDisponivel, BLOCOS_DO_PAINEL, blocosParaEditar, blocosPermitidos, blocosVisiveis,
   chaveDaConsulta, compromissosDaSemana, consultaDaAgenda, consultasDoBloco, enderecoDoBloco, FONTE_CARREGANDO, FONTE_DESLIGADA,
-  FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, fonteDaConsulta, inicioSemAlunos, listaDaFolha, moverBloco, moverBlocoPara,
+  FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, fonteDaConsulta, inicioSemAlunos, listaDaFolha, moverBloco, moverBlocoPara, MOTIVO_EDITAR_SEM_ALUNOS, motivoDoEditar,
   montarBloco, mostrarBloco, PAINEL_DO_INICIO_PADRAO, periodoDoFinanceiroNoPainel, reaisSemCentavos, redimensionarBloco, restaurarPadrao,
   resumoDaFolha, ressalvaUmaVez, roscaDosAlunos,
   type BlocoDoPainel, type BlocoDoPainelId, type ContextoDoPainel, type FontesDoPainel, type OpcoesDoBloco, type PainelDoInicioPreferido,
@@ -775,5 +775,22 @@ describe('inicioSemAlunos', () => {
   it('/painel que falhou, carregando ou nulo nunca é "sem alunos"', () => {
     expect(inicioSemAlunos(null)).toBe(false);
     expect(inicioSemAlunos(undefined)).toBe(false);
+  });
+});
+
+describe('motivoDoEditar (Editar liberado sem internet)', () => {
+  it('só a consultoria sem alunos desliga o Editar; sem internet não existe motivo', () => {
+    expect(motivoDoEditar(true)).toBe(MOTIVO_EDITAR_SEM_ALUNOS);
+    expect(motivoDoEditar(false)).toBeUndefined();
+  });
+
+  it('a lista que a edição oferece sai só do perfil salvo (permissões e chaves do /eu), sem consulta de rede', () => {
+    const lista = (ctx: ContextoDoPainel) => blocosParaEditar(ctx, PAINEL_DO_INICIO_PADRAO).map((b) => b.id);
+    expect(lista(ctxCom())).toEqual(blocosPermitidos(ctxCom(), PAINEL_DO_INICIO_PADRAO));
+    // pagamentos desligados no perfil salvo: Financeiro e Recebido não são oferecidos
+    expect(lista(ctxCom(TODAS, { pagamentosHabilitados: false }))).not.toContain('financeiro');
+    expect(lista(ctxCom(TODAS, { pagamentosHabilitados: false }))).not.toContain('recebido');
+    // sem permissão: o bloco não aparece nem na edição
+    expect(lista(ctxCom(['PAINEL_VER']))).toEqual([]);
   });
 });

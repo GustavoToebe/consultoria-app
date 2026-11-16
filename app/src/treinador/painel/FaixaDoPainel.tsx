@@ -59,8 +59,8 @@ export const FaixaDoPainel = forwardRef<View, { titulo: string; descricao?: stri
         <View onLayout={linha ? medirFaixa : undefined} style={estilos.conteudo}>
           <View style={[estilos.titulo, { flexBasis: larguraDoTitulo(fatorTexto) }, linha ? { minHeight: linha.titulo } : null]}>
             <View onLayout={linha ? medirTitulo : undefined} style={estilos.textos}>
-              <View style={estilos.linhaDoTitulo}><Texto variante="bloco" nivel={2}>{titulo}</Texto></View>
-              {descricao ? <Texto variante="pequeno" cor={cores.textoSuave} style={estilos.descricao}>{descricao}</Texto> : null}
+              <View style={[estilos.linhaDoTitulo, descricao ? estilos.linhaComDescricao : null]}><Texto variante="bloco" nivel={2}>{titulo}</Texto></View>
+              {descricao ? <Texto variante="pequeno" cor={cores.textoSuave}>{descricao}</Texto> : null}
             </View>
           </View>
           {meio ? <View style={estilos.meio}>{meio}</View> : null}
@@ -86,8 +86,10 @@ const estilos = StyleSheet.create({
   titulo: { flexGrow: 1, flexShrink: 1, minWidth: 0 },
   textos: { gap: 2 },
   linhaDoTitulo: { minHeight: ALVO_TOQUE, justifyContent: 'center' },
-  // Sobe a descrição para perto do título, que está centrado numa linha de 44 px.
-  descricao: { marginTop: -espaco(1) },
+  // Com descrição, a linha cede à descrição os 8 px de baixo e guarda os 8 de cima: o título de uma linha fica no mesmo
+  // lugar (centrado nos 44 px dos ícones) e a descrição logo abaixo. Sem margem negativa, título de duas linhas ou com o
+  // texto ampliado empurra a descrição em vez de ficar por baixo dela (defeito de 15/11, "Recebido e lançamentos" em 390).
+  linhaComDescricao: { minHeight: ALVO_TOQUE - espaco(1), paddingTop: espaco(1) },
   meio: { minHeight: ALVO_TOQUE, justifyContent: 'center' },
   acoes: { flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 0, marginLeft: 'auto' },
 });

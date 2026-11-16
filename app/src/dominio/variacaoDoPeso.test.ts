@@ -1,5 +1,6 @@
 import type { RegistroPeso } from '../api/tipos';
-import { variacaoDoPeso } from './variacaoDoPeso';
+import { linhaDoHistorico } from './resumoDoPeso';
+import { textoDaDiferenca, variacaoDoPeso } from './variacaoDoPeso';
 
 /** Dados fictícios. A lista segue a API: mais recente primeiro, `variacao` = peso − registro anterior por data. */
 const peso = (id: string, data: string, pesoKg: number, variacao: number | null): RegistroPeso => ({ id, data, pesoKg, variacao, observacao: null });
@@ -22,8 +23,8 @@ describe('variação do peso', () => {
     expect(v?.texto.startsWith('−')).toBe(true);
   });
 
-  it('igual: "0 kg" sem sinal e seta igual (o mesmo formato do resto do app)', () => {
-    expect(variacaoDoPeso(lista[2], lista)).toEqual({ texto: '0 kg', seta: 'igual', desde: '28/09' });
+  it('igual: "0,0 kg" sem sinal e seta igual (o mesmo texto do histórico do peso)', () => {
+    expect(variacaoDoPeso(lista[2], lista)).toEqual({ texto: '0,0 kg', seta: 'igual', desde: '28/09' });
   });
 
   it('sem anterior (primeiro registro do aluno, variação nula): nada a mostrar', () => {
@@ -49,17 +50,26 @@ describe('variação do peso', () => {
     expect(variacaoDoPeso(lista[0], embaralhada)?.desde).toBe('12/10');
   });
 
-  it('casas como no resto do app (`numeroParaTela`): até duas, sem zero sobrando; resíduo de ponto flutuante some', () => {
-    expect(variacaoDoPeso(peso('x', '2026-10-28', 81, 1), [peso('y', '2026-10-12', 80, null)])?.texto).toBe('+1 kg');
+  it('sempre uma casa no mínimo e duas no máximo (`pesoComCasas`): "+1,0 kg", nunca "+1 kg"; resíduo de ponto flutuante some', () => {
+    expect(variacaoDoPeso(peso('x', '2026-10-28', 81, 1), [peso('y', '2026-10-12', 80, null)])?.texto).toBe('+1,0 kg');
     expect(variacaoDoPeso(peso('x', '2026-10-28', 80.25, 0.25), [peso('y', '2026-10-12', 80, null)])?.texto).toBe('+0,25 kg');
     expect(variacaoDoPeso(peso('x', '2026-10-28', 79.75, -0.25))?.texto).toBe('−0,25 kg');
     expect(variacaoDoPeso(peso('x', '2026-10-28', 80, -0.7000000000000028))?.texto).toBe('−0,7 kg');
-    expect(variacaoDoPeso(peso('x', '2026-10-28', 80, 10))?.texto).toBe('+10 kg');
+    expect(variacaoDoPeso(peso('x', '2026-10-28', 80, 10))?.texto).toBe('+10,0 kg');
+    expect(variacaoDoPeso(peso('x', '2026-10-28', 80, -1))?.texto).toBe('−1,0 kg');
     expect(variacaoDoPeso(peso('x', '2026-10-28', 80, 1.5))?.texto).toBe('+1,5 kg');
   });
 
-  it('a seta segue o valor já arredondado: nunca "sobe" com "+0 kg"', () => {
-    expect(variacaoDoPeso(peso('x', '2026-10-28', 80, 0.001))).toEqual({ texto: '0 kg', seta: 'igual', desde: null });
-    expect(variacaoDoPeso(peso('x', '2026-10-28', 80, -0.001))).toEqual({ texto: '0 kg', seta: 'igual', desde: null });
+  it('a tela (histórico do peso) e a variação dos PDFs escrevem o mesmo texto para qualquer diferença', () => {
+    for (const v of [1, -1, 0, 0.6, -0.25, 10, 1.5, 0.001]) {
+      const registro = peso('x', '2026-10-28', 80, v);
+      expect(variacaoDoPeso(registro)?.texto).toBe(linhaDoHistorico(registro, [registro]).texto);
+      expect(variacaoDoPeso(registro)?.texto).toBe(textoDaDiferenca(v));
+    }
+  });
+
+  it('a seta segue o valor já arredondado: nunca "sobe" com "+0,0 kg"', () => {
+    expect(variacaoDoPeso(peso('x', '2026-10-28', 80, 0.001))).toEqual({ texto: '0,0 kg', seta: 'igual', desde: null });
+    expect(variacaoDoPeso(peso('x', '2026-10-28', 80, -0.001))).toEqual({ texto: '0,0 kg', seta: 'igual', desde: null });
   });
 });

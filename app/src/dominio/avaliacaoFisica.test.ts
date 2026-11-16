@@ -62,6 +62,9 @@ describe('formatação', () => {
     expect(diferencaParaTela(diferenca(80, 80))).toBe('0,0 cm');
     expect(diferencaParaTela(null)).toBe('—');
     expect(diferencaParaTela(diferenca(80.5, 79.25, 2), 'kg')).toBe('−1,25 kg');
+    expect(diferencaParaTela(diferenca(82, 80, 2), 'kg')).toBe('−2,0 kg'); // as casas do Peso: nunca "−2 kg"
+    expect(diferencaParaTela(diferenca(80, 81, 2), 'kg')).toBe('+1,0 kg');
+    expect(diferencaParaTela(diferenca(80, 80, 2), 'kg')).toBe('0,0 kg');
   });
 
   it('corpo: observação sem pontas e versão só na edição', () => {

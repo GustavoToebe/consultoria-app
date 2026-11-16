@@ -13,11 +13,24 @@ import { dataCurta, numeroParaTela } from './formatos';
 
 export type SetaDoPeso = 'sobe' | 'desce' | 'igual';
 
+/**
+ * Peso com ao menos uma casa e no máximo duas (o peso tem duas): `51` → `51,0`, `51,25` fica. Mora aqui (e o
+ * `resumoDoPeso` a reexporta) para a variação, o resumo, o histórico e os PDFs escreverem o número do mesmo jeito.
+ */
+export function pesoComCasas(kg: number): string {
+  const t = numeroParaTela(kg);
+  return t.includes(',') ? t : `${t},0`;
+}
+
+/** Diferença entre dois pesos, com sinal de menos tipográfico: `+0,6 kg`, `−0,6 kg`, `0,0 kg`. */
+export function textoDaDiferenca(diferenca: number): string {
+  const d = Math.round(diferenca * 100) / 100;
+  const sinal = d > 0 ? '+' : d < 0 ? '−' : '';
+  return `${sinal}${pesoComCasas(Math.abs(d))} kg`;
+}
+
 export interface VariacaoDoPeso {
-  /**
-   * Com sinal sempre explícito: "+1,2 kg", "−0,7 kg" (sinal de menos tipográfico), "0 kg". O número segue o resto do app
-   * (`numeroParaTela`: até duas casas, sem zero sobrando), igual à coluna do peso ("80 kg", então "+1 kg", não "+1,0 kg").
-   */
+  /** Com sinal sempre explícito e as mesmas casas da tela (`textoDaDiferenca`): "+1,2 kg", "+1,0 kg", "−0,7 kg" (sinal de menos tipográfico), "0,0 kg". */
   texto: string;
   seta: SetaDoPeso;
   /** Dia e mês do registro de comparação ("12/10"); `null` quando ele não está na lista recebida. */
@@ -30,8 +43,7 @@ const TOLERANCIA_KG = 0.005 + 1e-9;
 function formatar(variacao: number): { texto: string; seta: SetaDoPeso } {
   const d = Math.round(variacao * 100) / 100;
   const seta: SetaDoPeso = d > 0 ? 'sobe' : d < 0 ? 'desce' : 'igual';
-  const sinal = seta === 'sobe' ? '+' : seta === 'desce' ? '−' : '';
-  return { texto: `${sinal}${numeroParaTela(Math.abs(d))} kg`, seta };
+  return { texto: textoDaDiferenca(d), seta };
 }
 
 /** O registro de data imediatamente anterior à do `registro`, na lista recebida (em qualquer ordem). */

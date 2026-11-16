@@ -380,6 +380,20 @@ describe('PDF da dieta', () => {
       }
       expect(corpo('REDUZIR')).not.toMatch(new RegExp(`<td style="color:${marca.corPrimaria}">[▲▼]`, 'i'));
     });
+
+    it('as mesmas casas da tela: "+1,0 kg" e "−2,0 kg", nunca "+1 kg"; igual sai "0,0 kg"', () => {
+      const inteiros = [
+        { id: 'p1', data: '2026-10-01', pesoKg: 80, variacao: null, observacao: null },
+        { id: 'p2', data: '2026-10-08', pesoKg: 81, variacao: 1, observacao: null },
+        { id: 'p3', data: '2026-10-15', pesoKg: 79, variacao: -2, observacao: null },
+        { id: 'p4', data: '2026-10-22', pesoKg: 79, variacao: 0, observacao: null },
+      ];
+      const html = documentoDieta({ ...base, versao: 1, conteudo: dieta, pesos: inteiros }).corpo;
+      expect(celula(html, '▲ +1,0 kg')).toBe('<td>▲ +1,0 kg</td>');
+      expect(celula(html, '▼ −2,0 kg')).toBe('<td>▼ −2,0 kg</td>');
+      expect(celula(html, '0,0 kg')).toBe('<td>0,0 kg</td>');
+      expect(html).not.toMatch(/[+−]\d+ kg/);
+    });
   });
 
   it('suplementação vazia e peso sem registro não aparecem', () => {

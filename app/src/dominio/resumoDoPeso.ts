@@ -1,7 +1,7 @@
 import type { RegistroPeso } from '../api/tipos';
 import { tomDaVariacaoDoPeso, type TomDoPeso } from './corDaVariacaoDoPeso';
 import { dataCurta, dataParaTela, numeroParaTela } from './formatos';
-import { variacaoDoPeso, type SetaDoPeso } from './variacaoDoPeso';
+import { pesoComCasas, textoDaDiferenca, variacaoDoPeso, type SetaDoPeso } from './variacaoDoPeso';
 
 /**
  * Regras do resumo, da escala do gráfico e da linha do histórico do Peso (plano peso-visual, D3 a D6). Só texto e
@@ -24,18 +24,8 @@ export interface PesoEmData {
   data: string;
 }
 
-/** Peso com ao menos uma casa e no máximo duas (o peso tem duas): `51` → `51,0`, `51,25` fica. */
-export function pesoComCasas(kg: number): string {
-  const t = numeroParaTela(kg);
-  return t.includes(',') ? t : `${t},0`;
-}
-
-/** Diferença entre dois pesos, com sinal de menos tipográfico: `+0,6 kg`, `−0,6 kg`, `0,0 kg`. */
-export function textoDaDiferenca(diferenca: number): string {
-  const d = Math.round(diferenca * 100) / 100;
-  const sinal = d > 0 ? '+' : d < 0 ? '−' : '';
-  return `${sinal}${pesoComCasas(Math.abs(d))} kg`;
-}
+// As duas moram em `variacaoDoPeso` (a variação do PDF e a da tela usam a mesma regra); quem já importava daqui segue igual.
+export { pesoComCasas, textoDaDiferenca };
 
 const valido = (r: RegistroPeso) => Number.isFinite(r.pesoKg) && !!r.data;
 const emData = (r: RegistroPeso): PesoEmData => ({ kg: r.pesoKg, data: r.data });

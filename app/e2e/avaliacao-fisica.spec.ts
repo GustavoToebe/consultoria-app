@@ -251,12 +251,12 @@ for (const largura of LARGURAS) {
     await expect(tabela.getByText('0,0 cm', { exact: true })).toBeVisible();
     await expect(tabela.getByText('Não registrada').first()).toBeVisible();
     await expect(tabela.getByText('Indisponível', { exact: true }).first()).toBeVisible();
-    await expect(tabela.getByText('−2 kg', { exact: true })).toBeVisible();
+    await expect(tabela.getByText('−2,0 kg', { exact: true })).toBeVisible();
 
     if (largura >= 768) {
       // PC: tabela com as datas em ordem cronológica no cabeçalho (dd/mm: as três datas são do mesmo ano).
-      const cabecalho = await page.getByRole('table', { name: 'Tronco: circunferências por data' }).getByRole('columnheader').allTextContents();
-      expect(cabecalho).toEqual(['Medida', '01/07', '01/09', '01/11', 'Variação']);
+      await expect(page.getByRole('table', { name: 'Tronco: circunferências por data' }).getByRole('columnheader'))
+        .toHaveText(['Medida', '01/07', '01/09', '01/11', 'Variação']);
     } else {
       // Celular: um bloco por medida, sem rolagem lateral.
       await expect(page.getByRole('list', { name: 'Tronco: circunferências por data' })).toBeVisible();
@@ -299,6 +299,20 @@ test('Baixar comparativo gera o PDF sem erro, com o interruptor do gráfico liga
   expect(html).toContain('Não registrada');
   expect(errosDaPagina).toEqual([]);
   expect(errosNoConsole).toEqual([]);
+});
+
+test('com a preferência de gráficos desligada o interruptor do PDF continua aparecendo, nasce desligado e dá para ligar à mão', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ graficos: false })), TREINADOR.id);
+  const { errosDaPagina } = await fichaDoTreinador(page, TRES);
+  await abaComparar(page).click();
+  await page.getByRole('button', { name: 'Comparar as duas últimas' }).click();
+  const interruptor = page.getByRole('switch', { name: 'Incluir o gráfico da medida no PDF' });
+  await expect(interruptor).toBeVisible();
+  await expect(interruptor).not.toBeChecked();
+  await interruptor.click();
+  await expect(interruptor).toBeChecked();
+  expect(errosDaPagina).toEqual([]);
 });
 
 const IMG_DO_GRAFICO = '#treinos-impressao img[src^="data:image/svg+xml;base64,"]';
@@ -406,8 +420,9 @@ test('datas de anos diferentes: resumo, eixo do gráfico, Comparar e referência
   await abaComparar(page).click();
   await page.getByRole('button', { name: 'Comparar as duas últimas' }).click();
   await expect(page.getByText('Variação = 01/02/2026 menos 01/11/2025.')).toBeVisible();
-  const cabecalho = await page.getByRole('table', { name: 'Tronco: circunferências por data' }).getByRole('columnheader').allTextContents();
-  expect(cabecalho).toEqual(['Medida', '01/11/2025', '01/02/2026', 'Variação']);
+  // A `Tabela` só desenha o cabeçalho depois de medir a própria largura (`onLayout`): `toHaveText` espera; `allTextContents` não.
+  await expect(page.getByRole('table', { name: 'Tronco: circunferências por data' }).getByRole('columnheader'))
+    .toHaveText(['Medida', '01/11/2025', '01/02/2026', 'Variação']);
   expect(errosDaPagina).toEqual([]);
 });
 

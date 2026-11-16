@@ -1,5 +1,6 @@
 import type { FotoDaLinha } from '../api/tipos';
-import { dataCurta, numeroParaTela } from './formatos';
+import { dataCurta } from './formatos';
+import { pesoComCasas } from './variacaoDoPeso';
 
 export const MINIMO_DATAS = 2;
 export const MAXIMO_DATAS = 4;
@@ -136,7 +137,7 @@ export function textoDaDiferenca(de: FotoDaLinha, ate: FotoDaLinha): string | nu
   const sinal = delta > 0 ? '+' : delta < 0 ? '−' : '';
   const dias = diasEntre(de.data, ate.data);
   const unidade = Math.abs(dias) === 1 ? 'dia' : 'dias';
-  return `${dataCurta(de.data)} → ${dataCurta(ate.data)}: ${sinal}${numeroParaTela(Math.abs(delta))} kg em ${Math.abs(dias)} ${unidade}`;
+  return `${dataCurta(de.data)} → ${dataCurta(ate.data)}: ${sinal}${pesoComCasas(Math.abs(delta))} kg em ${Math.abs(dias)} ${unidade}`;
 }
 
 export function diasEntre(de: string, ate: string): number {

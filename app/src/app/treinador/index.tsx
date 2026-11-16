@@ -23,7 +23,7 @@ import {
   inicioSemAlunos,
   listaDaFolha,
   montarBloco,
-  MOTIVO_EDITAR_SEM_ALUNOS,
+  motivoDoEditar,
   ressalvaUmaVez,
   type BlocoDoPainelId,
   type ConsultaDoPainel,
@@ -73,7 +73,6 @@ import { useCarregar } from '../../ui/useCarregar';
 
 /** Próximo passo da consultoria ainda sem alunos (o `inicioTreinador` não fala disso: só conta pendências). */
 const PASSO_SEM_ALUNOS = { texto: 'Nenhum aluno ainda. Cadastre o primeiro para começar.', acao: 'Cadastrar aluno' };
-const MOTIVO_SEM_INTERNET = 'Precisa de internet.';
 
 const numero = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const ehNumero = (v: unknown): v is number => numero(v) !== null;
@@ -201,7 +200,7 @@ export default function InicioTreinador() {
     const r = resumoDoInicio({
       paraRevisar: verAtualizacoes && lido ? padrao.atualizacoesParaRevisar : null,
       atrasadas: verAtualizacoes && lido ? padrao.atualizacoesAtrasadas : null,
-      interessadosNovos: interessados ? interessados.porSituacao?.NOVA ?? 0 : null,
+      interessadosNovos: interessados ? numero(interessados.porSituacao?.NOVA) : null,
       retornosAtrasados: interessados?.retornosAtrasados ?? null,
       retornosHoje: interessados?.retornosHoje ?? null,
       planosTerminando: lido && pode('TREINO_LER') ? padrao.planosTerminando?.length ?? null : null,
@@ -285,7 +284,7 @@ export default function InicioTreinador() {
     };
   })();
 
-  const motivoEditar = semAlunos ? MOTIVO_EDITAR_SEM_ALUNOS : offline ? MOTIVO_SEM_INTERNET : undefined;
+  const motivoEditar = motivoDoEditar(semAlunos);
   const acoes = (
     <>
       <Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Novo aluno" tipo="secundario" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} /></Permitido>

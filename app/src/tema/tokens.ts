@@ -524,6 +524,15 @@ export function marcaParaTexto(marca: string, fundo: string): string {
 }
 
 /**
+ * A cor do nome da marca no título (`ui/MarcaTitulo`): a de sempre (medida contra a `superficie3`) quando ela já dá 4,5:1
+ * no fundo onde o nome fica; só onde não dá (Areia: 4,19:1) é medida contra esse fundo. Sempre ≥ 4,5:1 no `fundo`.
+ */
+export function marcaParaTitulo(marca: string, fundo: string, superficie3: string): string {
+  const deSempre = marcaParaTexto(marca, superficie3);
+  return contraste(deSempre, fundo) >= 4.5 ? deSempre : marcaParaTexto(marca, fundo);
+}
+
+/**
  * Botão principal com o mouse em cima ou apertado: a marca 14% mais escura quando o texto sobre ela é branco, 14% mais
  * clara quando é preto (o texto ganha contraste nos dois casos).
  */

@@ -85,6 +85,8 @@ import {
   validarPlano,
   validarRecebimentoOnline,
   valorEQuantidadeParaTela,
+  vencidasDoPeriodo,
+  listaTrazOutraBase,
   MOTIVO_SEM_PAGANTES,
 } from './financeiro';
 
@@ -252,6 +254,25 @@ describe('contas do painel', () => {
     expect(valorEQuantidadeParaTela({ valorCentavos: null, cobrancas: 0 })).toBe('—');
     expect(valorEQuantidadeParaTela({ valorCentavos: null, cobrancas: 2 })).toBe('—');
     expect(valorEQuantidadeParaTela(null)).toBe('—');
+  });
+  it('vencidas do período: 0 da API vale 0; sem o cartão é nulo, nunca zero', () => {
+    expect(vencidasDoPeriodo({ valorCentavos: 0, cobrancas: 0 })).toBe(0);
+    expect(vencidasDoPeriodo({ valorCentavos: null, cobrancas: 3 })).toBe(3);
+    expect(vencidasDoPeriodo(null)).toBeNull();
+    expect(vencidasDoPeriodo(undefined)).toBeNull();
+    expect(vencidasDoPeriodo({ valorCentavos: null })).toBeNull();
+  });
+  it('a lista de vencidas só "traz outra base" com a quantidade do período em mãos', () => {
+    const lista = { total: 4, valorTotalCentavos: 40000 };
+    expect(listaTrazOutraBase(lista, 4, 40000)).toBe(false);
+    expect(listaTrazOutraBase(lista, 2, 40000)).toBe(true);
+    expect(listaTrazOutraBase(lista, 4, 10000)).toBe(true);
+    // Nada venceu no período (a API mandou 0 e valor nulo) e a lista tem vencidas antigas: outra base.
+    expect(listaTrazOutraBase(lista, 0, null)).toBe(true);
+    // Sem a quantidade do período (nulo) não há com o que comparar: não afirma nada (antes virava 0 e afirmava).
+    expect(listaTrazOutraBase(lista, null, null)).toBe(false);
+    expect(listaTrazOutraBase({ total: 0, valorTotalCentavos: null }, 0, null)).toBe(false);
+    expect(listaTrazOutraBase(undefined, 3, 100)).toBe(false);
   });
   // 13/11: a API devolve 0 na consulta válida e vazia; o app não converte nulo em zero.
   it('cartões com tudo nulo (sem dado): "—" em tudo, sem zero inventado', () => {

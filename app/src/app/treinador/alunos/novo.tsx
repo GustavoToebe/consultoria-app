@@ -13,7 +13,8 @@ import { useCarregar } from '../../../ui/useCarregar';
 
 /**
  * Novo aluno. No PC usa a largura útil (como Números); o formulário traz as mesmas quatro seções da ficha (cartões com
- * título, h2 logo abaixo do h1), em duas colunas quando cabem e numa coluna no celular, na mesma ordem.
+ * título, h2 logo abaixo do h1), na mesma regra dos Dados do aluno: duas colunas de 420 px que descem para uma quando não
+ * cabem, na mesma ordem.
  */
 export default function NovoAluno() {
   const { width } = useWindowDimensions();

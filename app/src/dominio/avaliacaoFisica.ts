@@ -1,6 +1,7 @@
 import type { AvaliacaoFisica, CampoDaMedida, DadosAvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
 import { dataNaFaixa, mensagemDaFaixa } from './datasValidas';
 import { SEM_DADO } from './formatos';
+import { textoDaDiferenca } from './variacaoDoPeso';
 
 /**
  * Avaliação física (circunferências em cm por data): validação espelhada da API (`ValidacaoDaAvaliacao`: mudou uma,
@@ -95,10 +96,10 @@ export function diferenca(primeiro: number | null | undefined, ultimo: number | 
 /** "+1,5 cm", "−2,0 cm", "0,0 cm" (sem sinal) ou "—". Só o número com sinal: sem cor nem palavra de avaliação. */
 export function diferencaParaTela(d: number | null, unidade: 'cm' | 'kg' = 'cm'): string {
   if (d === null) return SEM_DADO;
-  const casas = unidade === 'cm' ? 1 : 2;
-  const absoluto = unidade === 'cm' ? Math.abs(d).toFixed(1) : String(Math.round(Math.abs(d) * 10 ** casas) / 10 ** casas);
+  // Peso: a mesma regra de casas do Peso e dos PDFs da dieta ("+1,0 kg", nunca "+1 kg").
+  if (unidade === 'kg') return textoDaDiferenca(d);
   const sinal = d > 0 ? '+' : d < 0 ? '−' : '';
-  return `${sinal}${absoluto.replace('.', ',')} ${unidade}`;
+  return `${sinal}${Math.abs(d).toFixed(1).replace('.', ',')} cm`;
 }
 
 /** Marca ou desmarca uma avaliação para comparar; acima do máximo não entra (a tela avisa pelo `motivo`). */

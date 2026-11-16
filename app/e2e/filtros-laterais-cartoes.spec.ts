@@ -5,11 +5,12 @@ import { fixarHoje, sessaoDeAluno } from './aluno';
 import { ALUNO, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
 /**
- * Passo 7A de `docs/planos/filtros-laterais.md`: os filtros dos cartões (ficha do aluno: Pastas e Registros e cargas da
- * pasta; Histórico do aluno) no painel lateral com o contexto do cartão (título dele, aluno e pasta só como leitura, sem
- * contar nem virar etiqueta), e o grupo muscular das folhas de escolher exercícios (editor de treino e Progresso) como
- * etapa da mesma folha: Esc, Cancelar e o voltar do navegador voltam à lista com a busca e as marcações. Tema claro, 390 e
- * 1280 px, sem a entrada animada. Capturas na pasta de resultados do teste. Só dados fictícios, API simulada.
+ * Passo 7A de `docs/planos/filtros-laterais.md`: os filtros dos cartões (ficha do aluno: Pastas; Histórico do aluno) no
+ * painel lateral com o contexto do cartão (título dele, aluno só como leitura, sem contar nem virar etiqueta), e como etapa
+ * da mesma folha, sem painel por cima: o grupo muscular das folhas de escolher exercícios (editor de treino e Progresso),
+ * onde Esc, Cancelar e o voltar do navegador voltam à lista com a busca e as marcações, e os Registros e cargas da pasta
+ * (decisão de 15/11), onde voltam à pasta na mesma rolagem com o foco em "Filtros". Tema claro (os Registros também no
+ * escuro), 390 e 1280 px, sem a entrada animada. Capturas na pasta de resultados do teste. Só dados fictícios, API simulada.
  */
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -41,12 +42,21 @@ const DIAS: DiaDeTreino[] = [{
   }],
 }];
 
-const tema = (page: Page, usuarioId: string) =>
-  page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'CLARO', contraste: 'PADRAO' })), usuarioId);
+const tema = (page: Page, usuarioId: string, escolhido: 'CLARO' | 'ESCURO' = 'CLARO') =>
+  page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t, contraste: 'PADRAO' })), [usuarioId, escolhido] as const);
 
-async function ficha(page: Page, aba: string, extra: RespostasApi = {}) {
+/** Rolagem da folha em que o elemento está (o primeiro ancestral que rola de verdade); -1 sem rolagem. */
+const rolagemDaFolha = (alvo: Locator) => alvo.evaluate((no) => {
+  for (let el = no.parentElement; el; el = el.parentElement) {
+    const { overflowY } = getComputedStyle(el);
+    if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight) return el.scrollTop;
+  }
+  return -1;
+});
+
+async function ficha(page: Page, aba: string, extra: RespostasApi = {}, temaDaTela: 'CLARO' | 'ESCURO' = 'CLARO') {
   await fixarHoje(page);
-  await tema(page, TREINADOR.id);
+  await tema(page, TREINADOR.id, temaDaTela);
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'REGISTRO_LER', 'TREINO_LER'] })),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
@@ -63,7 +73,7 @@ async function ficha(page: Page, aba: string, extra: RespostasApi = {}) {
 const filtros = (onde: Locator | Page) => onde.getByRole('button', { name: /^Filtros, / });
 
 for (const largura of [390, 1280]) {
-  test.describe(`${largura}px, tema claro`, () => {
+  test.describe(`${largura}px`, () => {
     test.beforeEach(({ page }) => page.setViewportSize({ width: largura, height: largura === 390 ? 844 : 900 }));
 
     test('Pastas: painel "Filtros de pastas" com o aluno de contexto, etiqueta e contador próprios', async ({ page }, testInfo) => {
@@ -97,55 +107,98 @@ for (const largura of [390, 1280]) {
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('Registros da pasta: painel sobre a folha da pasta, Esc volta à pasta, contador separado do das Pastas', async ({ page }, testInfo) => {
-      const { errosDaPagina } = await ficha(page, 'planos', {
-        [`GET /alunos/${ALUNO_ID}/planos-treino`]: (_p, route) => json(route, [plano('pt1', 'Treino A'), plano('pt2', 'Treino B')]),
-      });
-      await page.getByText('Plano 17', { exact: true }).click();
-      const pasta = page.getByRole('dialog', { name: 'Plano 17' });
-      await expect(pasta.getByText('Registros e cargas', { exact: true })).toBeVisible();
-      const botao = filtros(pasta);
-      await botao.scrollIntoViewIfNeeded();
-      await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
-      await botao.click();
-      const painel = page.getByRole('dialog', { name: 'Filtros de registros' });
-      await expect(painel).toBeVisible();
-      // Aluno e pasta são contexto; dentro da pasta o período é o dela (sem 14/30/60 dias).
-      await expect(painel.getByText(ALUNO.nome, { exact: true })).toBeVisible();
-      await expect(painel.getByText('Plano 17', { exact: true })).toBeVisible();
-      await expect(painel.getByRole('radio', { name: '30 dias' })).toHaveCount(0);
-      await page.screenshot({ path: testInfo.outputPath(`registros-painel-${largura}.png`) });
-      // Esc fecha só o painel: a folha da pasta continua aberta e o foco volta ao botão.
-      await page.keyboard.press('Escape');
-      await expect(painel).toHaveCount(0);
-      await expect(pasta).toBeVisible();
-      await expect(botao).toBeFocused();
+    for (const temaDaTela of ['CLARO', 'ESCURO'] as const) {
+      test(`Registros da pasta (${temaDaTela.toLowerCase()}): etapa da própria folha, sem véu duplo; volta na mesma rolagem com o foco em "Filtros"`, async ({ page }, testInfo) => {
+        // Nove planos (dez opções com "Todos os planos", mais que `OPCOES_PARA_BUSCAR`): a etapa mostra todos ali mesmo, sem
+        // abrir outra folha; e a pasta fica longa, para a rolagem contar.
+        const planos = 'ABCDEFGHI'.split('').map((l, i) => plano(`pt${i + 1}`, `Treino ${l}`));
+        const { errosDaPagina } = await ficha(page, 'planos', {
+          [`GET /alunos/${ALUNO_ID}/planos-treino`]: (_p, route) => json(route, planos),
+        }, temaDaTela);
+        await page.getByText('Plano 17', { exact: true }).click();
+        const pasta = page.getByRole('dialog', { name: 'Plano 17' });
+        const etapa = page.getByRole('dialog', { name: 'Filtros de registros' });
+        await expect(pasta.getByText('Registros e cargas', { exact: true })).toBeVisible();
+        const botao = filtros(pasta);
+        await botao.scrollIntoViewIfNeeded();
+        await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
+        const antes = await rolagemDaFolha(botao);
+        expect(antes).toBeGreaterThan(0);
+        const voltouIgual = async () => {
+          await expect(pasta).toBeVisible();
+          await expect(page.getByRole('dialog')).toHaveCount(1);
+          await expect(botao).toBeFocused();
+          await expect.poll(async () => Math.abs((await rolagemDaFolha(botao)) - antes)).toBeLessThanOrEqual(1);
+        };
 
-      await botao.click();
-      await painel.getByRole('radio', { name: 'Treino B', exact: true }).click();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
-      await expect(painel).toHaveCount(0);
-      await expect(pasta).toBeVisible();
-      await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
-      await expect(pasta.getByRole('button', { name: 'Tirar filtro: Plano: Treino B' })).toBeVisible();
-      await page.screenshot({ path: testInfo.outputPath(`registros-aplicado-${largura}.png`) });
-      // O ✕ da etiqueta e o "Limpar filtros" da página tiram na hora, com a folha da pasta aberta.
-      await pasta.getByRole('button', { name: 'Tirar filtro: Plano: Treino B' }).click();
-      await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
-      await expect(pasta).toBeVisible();
-      await botao.click();
-      await painel.getByRole('radio', { name: 'Treino B', exact: true }).click();
-      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
-      await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
-      await pasta.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
-      await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
-      await expect(pasta).toBeVisible();
-      // Fechar a pasta: o botão das Pastas nunca contou o filtro dos Registros.
-      await pasta.getByRole('button', { name: 'Fechar' }).click();
-      await expect(pasta).toHaveCount(0);
-      await expect(filtros(page)).toHaveAccessibleName('Filtros, nenhum ligado');
-      expect(errosDaPagina).toEqual([]);
-    });
+        // A folha troca título, corpo e rodapé pelos da etapa: um diálogo só, sem painel por cima.
+        await botao.click();
+        await expect(etapa).toBeVisible();
+        await expect(page.getByRole('dialog')).toHaveCount(1);
+        // O corpo da pasta fica escondido (montado), fora da tela e do leitor de tela.
+        await expect(etapa.getByText('Registros e cargas', { exact: true })).toBeHidden();
+        await expect(etapa.getByRole('button', { name: 'Finalizar pasta' })).toHaveCount(0);
+        // Aluno e pasta são contexto; dentro da pasta o período é o dela (sem 14/30/60 dias).
+        await expect(etapa.getByText(ALUNO.nome, { exact: true })).toBeVisible();
+        await expect(etapa.getByText('Plano 17', { exact: true })).toBeVisible();
+        await expect(etapa.getByRole('radio', { name: '30 dias' })).toHaveCount(0);
+        await expect(etapa.getByRole('radio', { name: 'Treino I', exact: true })).toBeVisible();
+        await expect(etapa.getByRole('radio', { name: 'Todos os planos', exact: true })).toBeFocused();
+        await page.screenshot({ path: testInfo.outputPath(`registros-etapa-${largura}-${temaDaTela}.png`) });
+        // Esc volta à pasta (não fecha a folha).
+        await page.keyboard.press('Escape');
+        await voltouIgual();
+
+        // Cancelar descarta o rascunho.
+        await botao.click();
+        await etapa.getByRole('radio', { name: 'Treino B', exact: true }).click();
+        await etapa.getByRole('button', { name: 'Cancelar' }).click();
+        await voltouIgual();
+        await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
+
+        // O voltar do navegador também só volta à pasta.
+        await botao.click();
+        await expect(etapa).toBeVisible();
+        await page.goBack();
+        await voltouIgual();
+
+        // O X da etapa também só volta à pasta.
+        await botao.click();
+        await etapa.getByRole('button', { name: 'Fechar', exact: true }).click();
+        await voltouIgual();
+
+        await botao.click();
+        await etapa.getByRole('radio', { name: 'Treino B', exact: true }).click();
+        await etapa.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await voltouIgual();
+        await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
+        await expect(pasta.getByRole('button', { name: 'Tirar filtro: Plano: Treino B' })).toBeVisible();
+        await page.screenshot({ path: testInfo.outputPath(`registros-aplicado-${largura}-${temaDaTela}.png`) });
+        // O ✕ da etiqueta e o "Limpar filtros" da página tiram na hora, com a folha da pasta aberta.
+        await pasta.getByRole('button', { name: 'Tirar filtro: Plano: Treino B' }).click();
+        await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
+        await expect(pasta).toBeVisible();
+        await botao.click();
+        await etapa.getByRole('radio', { name: 'Treino B', exact: true }).click();
+        await etapa.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
+        await pasta.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
+        await expect(botao).toHaveAccessibleName('Filtros, nenhum ligado');
+        await expect(pasta).toBeVisible();
+
+        // Fechar a pasta com um filtro ligado: ao reabrir, os Registros começam sem filtro; o botão das Pastas nunca contou o dos Registros.
+        await botao.click();
+        await etapa.getByRole('radio', { name: 'Treino C', exact: true }).click();
+        await etapa.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
+        await pasta.getByRole('button', { name: 'Fechar' }).click();
+        await expect(pasta).toHaveCount(0);
+        await expect(filtros(page)).toHaveAccessibleName('Filtros, nenhum ligado');
+        await page.getByText('Plano 17', { exact: true }).click();
+        await expect(filtros(pasta)).toHaveAccessibleName('Filtros, nenhum ligado');
+        expect(errosDaPagina).toEqual([]);
+      });
+    }
 
     test('Histórico do aluno: período no painel "Filtros de registros"; o padrão não conta e "Limpar filtros" volta a ele', async ({ page }, testInfo) => {
       await fixarHoje(page);

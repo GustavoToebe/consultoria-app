@@ -113,7 +113,7 @@ describe('PDF da avaliação física', () => {
     expect(corpo).toContain('Peso do dia (informativo)');
     expect(corpo.indexOf('Pernas')).toBeLessThan(corpo.indexOf('Peso do dia'));
     expect(corpo).toContain('82 kg');
-    expect(corpo).toContain('−2 kg'); // 82 → 80
+    expect(corpo).toContain('−2,0 kg'); // 82 → 80, com as casas do Peso ("+1,0 kg", nunca "+1 kg")
     const semPeso = gerar(['b', 'c'], { avaliacoes: [todas[1], avaliacao('c', '2026-10-01', { cintura: 85 }, null)] });
     expect(semPeso.corpo).not.toContain('Peso do dia');
   });
@@ -173,6 +173,56 @@ describe('PDF da avaliação física', () => {
     // Datas proporcionais ao tempo: 01/09 fica a 62 dias de 123 (≈ metade), não no meio por índice.
     const xs = [...svg.matchAll(/<circle cx="([\d.]+)"/g)].map((m) => Number(m[1]));
     expect((xs[1] - xs[0]) / (xs[2] - xs[0])).toBeCloseTo(62 / 123, 1);
+  });
+
+  describe('rótulos de data do eixo com datas próximas', () => {
+    // Fonte de 9 px: ~0,6 em por caractere é uma estimativa folgada para dígitos e "/" (Helvetica/Arial dão ~0,5 em).
+    const LARGURA_POR_CARACTERE = 5.4;
+    const rotulosDoEixo = (svg: string) =>
+      [...svg.matchAll(/<text x="([\d.]+)" y="199\.0" text-anchor="middle"[^>]*>([^<]*)<\/text>/g)].map((m) => ({ x: Number(m[1]), texto: m[2] }));
+    const marcasDoEixo = (svg: string) => (svg.match(/y1="184" x2="[\d.]+" y2="188"/g) ?? []).length;
+    const colisoes = (svg: string) => {
+      const r = rotulosDoEixo(svg).sort((a, b) => a.x - b.x);
+      return r.slice(1).filter((b, i) => r[i].x + (r[i].texto.length * LARGURA_POR_CARACTERE) / 2 > b.x - (b.texto.length * LARGURA_POR_CARACTERE) / 2);
+    };
+    const pontosDe = (datas: string[]) => datas.map((data, i) => ({ data, valor: 90 - i }));
+    const svgCom = (grafico: DadosPdfAvaliacaoFisica['grafico']) => svgDoCorpo(gerar(['a', 'b'], { grafico }).corpo) as string;
+
+    it('três avaliações em dias seguidos e uma distante: nenhum rótulo cobre o outro, e primeiro e último ficam', () => {
+      const datas = ['2026-07-01', '2026-07-02', '2026-07-03', '2026-10-01'];
+      const svg = svgCom({ rotulo: 'Cintura', unidade: 'cm', pontos: pontosDe(datas) });
+      expect(colisoes(svg)).toEqual([]);
+      const textos = rotulosDoEixo(svg).map((r) => r.texto);
+      expect(textos[0]).toBe('01/07');
+      expect(textos[textos.length - 1]).toBe('01/10');
+      // Só o texto sai: a marca no eixo e o ponto de cada data real continuam onde estavam (nada interpolado nem movido).
+      expect(marcasDoEixo(svg)).toBe(4);
+      expect((svg.match(/<circle /g) ?? []).length).toBe(4);
+    });
+
+    it('com a segunda série em dias entre os da primeira, a regra vale para a união das datas', () => {
+      const svg = svgCom({
+        rotulo: 'Braço direito', unidade: 'cm', pontos: pontosDe(['2026-07-01', '2026-07-03', '2026-10-01']),
+        serieB: { rotulo: 'Braço esquerdo', pontos: pontosDe(['2026-07-02', '2026-07-04', '2026-10-01']) },
+      });
+      expect(colisoes(svg)).toEqual([]);
+      expect(marcasDoEixo(svg)).toBe(5);
+      expect((svg.match(/<circle /g) ?? []).length).toBe(3);
+      expect((svg.match(/<rect x=/g) ?? []).length).toBe(3); // os três quadrados da série B (o fundo não tem `x`)
+    });
+
+    it('datas bem espaçadas mantêm todos os rótulos, e com ano os rótulos mais largos também não se cobrem', () => {
+      const espacadas = svgCom({ rotulo: 'Cintura', unidade: 'cm', pontos: pontosDe(['2026-01-01', '2026-04-01', '2026-07-01', '2026-10-01']) });
+      expect(rotulosDoEixo(espacadas).map((r) => r.texto)).toEqual(['01/01', '01/04', '01/07', '01/10']);
+      const viradaDoAno = svgCom({ rotulo: 'Cintura', unidade: 'cm', pontos: pontosDe(['2025-12-28', '2025-12-30', '2026-01-02', '2026-03-01']) });
+      expect(rotulosDoEixo(viradaDoAno)[0].texto).toBe('28/12/2025');
+      expect(colisoes(viradaDoAno)).toEqual([]);
+      expect(rotulosDoEixo(viradaDoAno).map((r) => r.texto).slice(-1)).toEqual(['01/03/2026']);
+    });
+
+    it('uma data só: o rótulo fica', () => {
+      expect(rotulosDoEixo(svgCom({ rotulo: 'Cintura', unidade: 'cm', pontos: pontosDe(['2026-07-01']) })).map((r) => r.texto)).toEqual(['01/07']);
+    });
   });
 
   it('gráfico com uma só série e valor constante não quebra e sem ponto válido some', () => {

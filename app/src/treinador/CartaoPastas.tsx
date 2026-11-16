@@ -23,7 +23,8 @@ import { dataSemAnoCorrente, periodoCurto } from '../dominio/datasRelativas';
 import { prazoDaPasta, precisaRenovar, type PrazoDaPasta } from '../dominio/resumoDoAluno';
 import { dadosDaRenovacao, diasDoPeriodo, fimQueAcompanha, periodoInicial, proximoPeriodo } from '../dominio/periodo';
 import { FILTROS_PASTAS, filtrarPastas, pastasParaCopiarNaNova, type FiltroPastas } from '../dominio/pastas';
-import { chipsDasPastas, PASTAS_SEM_FILTRO } from '../dominio/filtrosDosCartoes';
+import { chipsDasPastas, PASTAS_SEM_FILTRO, REGISTROS_SEM_FILTRO, type FiltrosDeRegistros } from '../dominio/filtrosDosCartoes';
+import { useEtapaDeFiltros } from '../ui/EtapaDeFiltros';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
@@ -142,6 +143,16 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const [menuPasta, setMenuPasta] = useState<PastaResumo | null>(null);
   const visiveis = filtrarPastas(dados ?? [], filtro);
   const aberta = dados?.find((p) => p.id === abertaId) ?? null;
+  // Filtros dos Registros e a etapa "Filtros de registros" desta folha (sem painel por cima): moram aqui porque a etapa
+  // troca o título, o corpo e o rodapé da folha. Outra pasta (ou fechar) começa sem filtro e fora da etapa.
+  const [filtrosDosRegistros, setFiltrosDosRegistros] = useState<FiltrosDeRegistros>(REGISTROS_SEM_FILTRO);
+  const etapa = useEtapaDeFiltros({ valor: filtrosDosRegistros, limpo: REGISTROS_SEM_FILTRO, aoAplicar: setFiltrosDosRegistros });
+  const [abertaAntes, setAbertaAntes] = useState(abertaId);
+  if (abertaId !== abertaAntes) {
+    setAbertaAntes(abertaId);
+    setFiltrosDosRegistros(REGISTROS_SEM_FILTRO);
+    etapa.reiniciar();
+  }
   const [escolher, setEscolher] = useState(false);
   const [modelo, setModelo] = useState<Receita | null>(null);
   const [geracao, setGeracao] = useState(0);
@@ -222,8 +233,12 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         ))}
       </Cartao>
       {aberta ? (
-        <Folha visivel titulo={aberta.titulo} largura={LARGURA_EDITOR} aoFechar={() => setAbertaId(null)}
-          acaoNoTopo={temAcaoNoMenuDaPasta(pode) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : undefined}>
+        // Com a etapa dos Registros aberta, a mesma folha (mesma largura e rolagem) mostra só ela; o resto fica escondido,
+        // montado, para voltar como estava.
+        <Folha visivel titulo={etapa.aberta ? 'Filtros de registros' : aberta.titulo} largura={LARGURA_EDITOR}
+          aoFechar={etapa.aberta ? etapa.fechar : () => setAbertaId(null)} rodape={etapa.aberta ? etapa.rodape : undefined}
+          acaoNoTopo={!etapa.aberta && temAcaoNoMenuDaPasta(pode) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : undefined}>
+          <View style={etapa.aberta ? estilos.escondido : estilos.corpoDaPasta}>
           <View style={estilos.resumo}>
             {idDaVigente === aberta.id || prazoDaAberta ? (
               <View style={estilos.selosDaFolha}>
@@ -263,7 +278,8 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.treino} aoNavegar={() => setAbertaId(null)} /></Permitido>
           <Permitido codigo={PERMISSOES_DO_PLANO.dieta.ler}><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.dieta} aoNavegar={() => setAbertaId(null)} /></Permitido>
           <Permitido codigo={PERMISSOES_DO_PLANO.mobilidade.ler}><CartaoPlanos tipo="mobilidade" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.mobilidade} aoNavegar={() => setAbertaId(null)} /></Permitido>
-          <Permitido codigo="REGISTRO_LER"><CartaoRegistros aluno={{ id: alunoId, nome: alunoNome }} pasta={aberta} /></Permitido>
+          </View>
+          <Permitido codigo="REGISTRO_LER"><CartaoRegistros aluno={{ id: alunoId, nome: alunoNome }} pasta={aberta} filtros={filtrosDosRegistros} aoMudarFiltros={setFiltrosDosRegistros} etapa={etapa} /></Permitido>
         </Folha>
       ) : null}
       {menuPasta ? <FolhaDeAcoes titulo={menuPasta.titulo} aoFechar={() => setMenuPasta(null)} acoes={[
@@ -634,6 +650,9 @@ const estilos = StyleSheet.create({
   fimManual: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   data: { flex: 1, minWidth: 190 },
   resumo: { gap: espaco(0.75) },
+  // O mesmo espaço do conteúdo da `Folha` (`gap` de 1,5): embrulhar o corpo não muda a pasta.
+  corpoDaPasta: { gap: espaco(1.5) },
+  escondido: { display: 'none' },
   selosDaFolha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(0.75) },
   passos: { gap: espaco(0.5) },
   passo: { flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start' },

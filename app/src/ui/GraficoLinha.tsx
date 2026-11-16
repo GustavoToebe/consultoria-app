@@ -6,7 +6,7 @@ import { faixasSobrePontos, type FaixaDoGrafico } from '../dominio/cicloMenstrua
 import { caminhoReto, caminhoSuave, fracaoNoEixo, marcasDaEscala, marcasDoEixo } from '../dominio/grafico';
 import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes } from '../tema/tokens';
 import { Texto } from './Texto';
 
 export interface PontoGrafico {
@@ -34,9 +34,36 @@ const veioDoTeclado = (e: unknown) => {
   return !!ev && ('key' in ev || ev.nativeEvent?.detail === 0);
 };
 
+interface CentroDoPonto { cx: number; cy: number }
+
+/**
+ * Área de toque de um ponto: `ALVO_TOQUE` (44 px) em volta do centro; o desenho do ponto não muda. Dois alvos que se
+ * sobreporiam (pontos a menos de 44 px) dividem o espaço no meio do caminho entre os centros, no eixo em que estão mais
+ * afastados, e o toque cai sempre no ponto mais próximo (sem isso o último da lista cobriria o anterior e o ponteiro
+ * pegaria o ponto ~22 px à direita). `ordenados` está na ordem do eixo (por `cx`), então a busca por vizinhos para cedo.
+ * Pontos exatamente no mesmo lugar não se dividem (o de baixo na ordem continua só no teclado e no leitor de tela).
+ */
+function areaDeToque(ordenados: CentroDoPonto[], i: number) {
+  const a = ordenados[i];
+  const meio = ALVO_TOQUE / 2;
+  const area = { esq: a.cx - meio, dir: a.cx + meio, topo: a.cy - meio, base: a.cy + meio };
+  const cortar = (o: CentroDoPonto) => {
+    const dx = o.cx - a.cx;
+    const dy = o.cy - a.cy;
+    if (Math.abs(dy) >= ALVO_TOQUE || (dx === 0 && dy === 0)) return;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      if (dx > 0) area.dir = Math.min(area.dir, a.cx + dx / 2);
+      else area.esq = Math.max(area.esq, a.cx + dx / 2);
+    } else if (dy > 0) area.base = Math.min(area.base, a.cy + dy / 2);
+    else area.topo = Math.max(area.topo, a.cy + dy / 2);
+  };
+  for (let j = i - 1; j >= 0 && a.cx - ordenados[j].cx < ALVO_TOQUE; j--) cortar(ordenados[j]);
+  for (let j = i + 1; j < ordenados.length && ordenados[j].cx - a.cx < ALVO_TOQUE; j++) cortar(ordenados[j]);
+  return { left: area.esq, top: area.topo, width: area.dir - area.esq, height: area.base - area.topo };
+}
+
 const ALTURA_BASE = 240;
 const MARGEM_BASE = { topo: 14, base: 24, esq: 58, dir: 18 };
-const TAMANHO_TOQUE = 36;
 const LARGURA_DICA = 120;
 /** Balão com mais de uma linha (texto da tela ou duas séries): cabe "01/09/2026 · 87,0 cm" e a referência. */
 const LARGURA_DICA_LARGA = 208;
@@ -137,6 +164,7 @@ export function GraficoLinha({
     ...pontos.map((p, i) => ({ chave: `A${i}`, serie: 'A' as QualSerie, i, p, cx: x(i), cy: y(p.valor) })),
     ...pontosB.map((p, i) => ({ chave: `B${i}`, serie: 'B' as QualSerie, i, p, cx: xDe('B', i), cy: y(p.valor) })),
   ].sort((a, b) => a.cx - b.cx || (a.serie < b.serie ? -1 : a.serie > b.serie ? 1 : 0));
+  const areasDeToque = alvos.map((_, i) => areaDeToque(alvos, i));
   const atual = alvos.find((a) => a.chave === ativo) ?? null;
   // Uma parada só do Tab (tabindex móvel): o ponto ativo, senão o mais recente da série principal.
   const paradaDoTab = atual?.chave ?? `A${pontos.length - 1}`;
@@ -268,11 +296,8 @@ export function GraficoLinha({
               onPress={(e) => (veioDoTeclado(e) ? setAtivo(a.chave) : setAtivo((atualmente) => (atualmente === a.chave ? null : a.chave)))}
               style={{
                 position: 'absolute',
-                left: a.cx - TAMANHO_TOQUE / 2,
-                top: a.cy - TAMANHO_TOQUE / 2,
-                width: TAMANHO_TOQUE,
-                height: TAMANHO_TOQUE,
-                borderRadius: TAMANHO_TOQUE / 2,
+                ...areasDeToque[posicao],
+                borderRadius: Math.min(areasDeToque[posicao].width, areasDeToque[posicao].height) / 2,
                 cursor: 'pointer',
               }}
             />

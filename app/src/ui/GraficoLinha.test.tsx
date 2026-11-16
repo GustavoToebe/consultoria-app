@@ -369,6 +369,85 @@ describe('GraficoLinha: opções do guia (todas opcionais)', () => {
     expect(semEscala[semEscala.length - 1]).toBe(String(Math.round((95 + folga) * 10) / 10).replace('.', ','));
   });
 
+  describe('área de toque do ponto (44 px, o desenho do ponto não muda)', () => {
+    const { ALVO_TOQUE } = require('../tema/tokens') as typeof import('../tema/tokens');
+    const caixa = (b: import('react-test-renderer').ReactTestInstance) => {
+      const { left, top, width, height } = [b.props.style].flat()[0] as { left: number; top: number; width: number; height: number };
+      return { esq: left, dir: left + width, topo: top, base: top + height, width, height };
+    };
+    const centros = (raiz: Raiz) => raiz.root.findAllByType(Svg.Circle).filter((c) => c.props.r === 4).map((c) => ({ cx: c.props.cx as number, cy: c.props.cy as number }));
+    const sobrepoe = (a: ReturnType<typeof caixa>, b: ReturnType<typeof caixa>) => a.esq < b.dir && b.esq < a.dir && a.topo < b.base && b.topo < a.base;
+
+    it('pontos afastados: cada alvo tem 44 por 44 em volta do centro e o círculo desenhado segue com raio 4', () => {
+      const pontos: PontoGrafico[] = [
+        { rotulo: '01/10', valor: 80, data: '2026-10-01' },
+        { rotulo: '15/10', valor: 85, data: '2026-10-15' },
+        { rotulo: '30/10', valor: 90, data: '2026-10-30' },
+      ];
+      const raiz = montarCom({}, pontos);
+      const alvos = obterBotoes(raiz).map(caixa);
+      const circulos = centros(raiz);
+      expect(circulos).toHaveLength(3);
+      alvos.forEach((a, i) => {
+        expect(a.width).toBe(ALVO_TOQUE);
+        expect(a.height).toBe(ALVO_TOQUE);
+        expect((a.esq + a.dir) / 2).toBeCloseTo(circulos[i].cx, 5);
+        expect((a.topo + a.base) / 2).toBeCloseTo(circulos[i].cy, 5);
+      });
+    });
+
+    it('pontos próximos: os alvos não se sobrepõem, cada um guarda o próprio centro e o toque vai ao mais próximo na ordem do eixo', () => {
+      // 20 dias em 424 px: 21 px por dia; os três primeiros ficam a ~21 px um do outro, mais afastados na horizontal que na vertical.
+      const pontos: PontoGrafico[] = [
+        { rotulo: '10/10', valor: 80, data: '2026-10-10' },
+        { rotulo: '11/10', valor: 80.2, data: '2026-10-11' },
+        { rotulo: '12/10', valor: 80.4, data: '2026-10-12' },
+        { rotulo: '30/10', valor: 83, data: '2026-10-30' },
+      ];
+      const raiz = montarCom({}, pontos);
+      const alvos = obterBotoes(raiz).map(caixa);
+      const c = centros(raiz);
+      for (let i = 0; i < alvos.length; i++) {
+        expect(alvos[i].esq).toBeLessThanOrEqual(c[i].cx);
+        expect(alvos[i].dir).toBeGreaterThanOrEqual(c[i].cx);
+        expect(alvos[i].topo).toBeLessThanOrEqual(c[i].cy);
+        expect(alvos[i].base).toBeGreaterThanOrEqual(c[i].cy);
+        for (let j = i + 1; j < alvos.length; j++) expect(sobrepoe(alvos[i], alvos[j])).toBe(false);
+      }
+      // O limite entre dois vizinhos é o meio entre os centros: o ponteiro à esquerda dele pega o da esquerda.
+      expect(alvos[0].dir).toBeCloseTo((c[0].cx + c[1].cx) / 2, 5);
+      expect(alvos[1].esq).toBeCloseTo((c[0].cx + c[1].cx) / 2, 5);
+      expect(alvos[1].dir).toBeCloseTo((c[1].cx + c[2].cx) / 2, 5);
+      // O isolado (18 dias do vizinho) segue com os 44 inteiros.
+      expect(alvos[3].width).toBe(ALVO_TOQUE);
+      expect(alvos[3].height).toBe(ALVO_TOQUE);
+    });
+
+    it('duas séries na mesma data e quase na mesma altura: a divisão é na vertical, e os dois ficam com a largura inteira', () => {
+      const a: PontoGrafico[] = [{ rotulo: '10/10', valor: 31, data: '2026-10-10' }, { rotulo: '20/10', valor: 35, data: '2026-10-20' }];
+      const b: PontoGrafico[] = [{ rotulo: '10/10', valor: 30.9, data: '2026-10-10' }, { rotulo: '20/10', valor: 34.9, data: '2026-10-20' }];
+      const raiz = montarCom({ rotuloA: 'Direito', serieB: { pontos: b, cor: '#654321', rotulo: 'Esquerdo' } }, a);
+      const alvos = obterBotoes(raiz).map(caixa);
+      expect(alvos).toHaveLength(4);
+      for (let i = 0; i < alvos.length; i++) {
+        expect(alvos[i].width).toBe(ALVO_TOQUE);
+        expect(alvos[i].height).toBeLessThan(ALVO_TOQUE);
+        for (let j = i + 1; j < alvos.length; j++) expect(sobrepoe(alvos[i], alvos[j])).toBe(false);
+      }
+    });
+
+    it('dois pontos exatamente no mesmo lugar: nenhum alvo some (fica o de sempre, o da frente cobre o de trás)', () => {
+      const a: PontoGrafico[] = [{ rotulo: '10/10', valor: 31, data: '2026-10-10' }, { rotulo: '20/10', valor: 35, data: '2026-10-20' }];
+      const raiz = montarCom({ rotuloA: 'Direito', serieB: { pontos: a, cor: '#654321', rotulo: 'Esquerdo' } }, a);
+      const alvos = obterBotoes(raiz).map(caixa);
+      expect(alvos).toHaveLength(4);
+      for (const x of alvos) {
+        expect(x.width).toBe(ALVO_TOQUE);
+        expect(x.height).toBe(ALVO_TOQUE);
+      }
+    });
+  });
+
   it('destacarUltimo aumenta só o último ponto, sem cor nova e sem círculo a mais', () => {
     const circulos = (raiz: Raiz) => raiz.root.findAllByType(Svg.Circle);
     const normal = circulos(montar());

@@ -133,7 +133,10 @@ async function medirOPainel(page: Page) {
       const titulo = h.textContent ?? '';
       const abrir = document.querySelector(`[role="button"][aria-label="Abrir ${titulo}"]`);
       const atualizar = document.querySelector(`[role="button"][aria-label="Atualizar ${titulo}"]`);
-      return abrir && atualizar ? [{ titulo, h: caixa(h), abrir: caixa(abrir), atualizar: caixa(atualizar) }] : [];
+      // A descrição da faixa é a irmã da linha do título.
+      const descricao = h.parentElement?.nextElementSibling?.textContent ? caixa(h.parentElement.nextElementSibling) : null;
+      const linhas = Math.round(caixa(h).height / parseFloat(getComputedStyle(h).lineHeight));
+      return abrir && atualizar ? [{ titulo, h: caixa(h), abrir: caixa(abrir), atualizar: caixa(atualizar), descricao, linhas }] : [];
     });
     const topo = Math.min(...blocos.map((b) => b.h.top));
     return {
@@ -143,6 +146,8 @@ async function medirOPainel(page: Page) {
       iconesSeparados: blocos.filter((b) => Math.abs(b.abrir.top - b.atualizar.top) > 1).map((b) => b.titulo),
       iconesAbaixoDoTitulo: blocos.filter((b) => b.abrir.top >= b.h.bottom).map((b) => b.titulo),
       tituloCobreIcone: blocos.filter((b) => b.abrir.top < b.h.bottom && b.h.right > b.abrir.left + 0.5).map((b) => b.titulo),
+      descricaoSobreOTitulo: blocos.filter((b) => b.descricao && b.descricao.top < b.h.bottom - 0.5).map((b) => b.titulo),
+      tituloEmDuasLinhasComDescricao: blocos.filter((b) => b.descricao && b.linhas > 1).length,
       total: blocos.length,
     };
   });
@@ -163,6 +168,9 @@ for (const [largura, recolhido, colunas] of [[390, false, 1], [1280, false, 3], 
     expect(m.foraDaTela).toEqual([]);
     expect(m.iconesSeparados).toEqual([]);
     expect(m.tituloCobreIcone).toEqual([]);
+    // 15/11: título que quebra em duas linhas ("Recebido e lançamentos" em 390) empurra a descrição, não fica por baixo dela.
+    expect(m.descricaoSobreOTitulo).toEqual([]);
+    if (largura === 390) expect(m.tituloEmDuasLinhasComDescricao).toBeGreaterThan(0);
     // No PC, cada bloco tem largura para o título e os três ícones numa linha; no celular os ícones podem descer juntos.
     if (colunas > 1) expect(m.iconesAbaixoDoTitulo).toEqual([]);
     if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/inicio-${largura}${recolhido ? '-recolhido' : ''}.png` });
@@ -467,7 +475,7 @@ test('Editar com tudo oculto: a grade diz onde adicionar e o Início salvo vazio
   await expect(botaoEditar(page)).toBeEnabled();
 });
 
-test('sem internet ao abrir: o Editar fica desligado com o motivo', async ({ page }) => {
+test('sem internet ao abrir: o Editar continua liberado (a lista vem do perfil salvo) e o Salvar grava no aparelho', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await abrir(page);
   await expect(botaoEditar(page)).toBeEnabled();
@@ -475,8 +483,16 @@ test('sem internet ao abrir: o Editar fica desligado com o motivo', async ({ pag
   await page.route('**/auth/refresh', (route) => route.abort('internetdisconnected'));
   await page.reload();
   await expect(page.getByText('Sem internet.', { exact: true })).toBeVisible();
-  await expect(botaoEditar(page)).toBeDisabled();
-  await expect(page.getByText('Precisa de internet.')).toBeVisible();
+  await expect(botaoEditar(page)).toBeEnabled();
+  await expect(page.getByText('Precisa de internet.')).toHaveCount(0);
+  await botaoEditar(page).click();
+  // Os blocos oferecidos são os do perfil salvo, sem consulta de rede.
+  await expect(page.getByRole('switch', { name: 'Agenda aparece no Início' })).toBeVisible();
+  await page.getByRole('switch', { name: 'Agenda aparece no Início' }).click();
+  await botaoSalvar(page).click();
+  await expect(botaoSalvar(page)).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Agenda', level: 2 })).toHaveCount(0);
+  expect((await preferenciaGravada(page)).escondidos).toEqual(['agenda']);
 });
 
 test('no celular (390px) a edição não trava a rolagem: sem arrastar, Subir/Descer e sem rolagem lateral', async ({ page }) => {

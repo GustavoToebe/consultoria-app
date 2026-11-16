@@ -6,7 +6,7 @@ import type { CobrancaResponse, Inadimplente, PaginaInadimplentes } from '../../
 import { listarCobrancasDoAluno, listarInadimplentes, painelFinanceiro, visaoGeralDoFinanceiro } from '../../api/rotas';
 import {
   ATALHOS_DE_PERIODO, atrasoParaTela, cartoesDoPainel, DEFINICOES_DO_PAINEL, hojeEmBrasilia, inadimplenciaParaTela, LIMITES_DOS_DADOS,
-  liquidoParaTela, periodoDoPainel, rotuloDaForma, serieDoGrafico, valorEQuantidadeParaTela, type AtalhoDePeriodo, type CartaoDoPainel,
+  liquidoParaTela, listaTrazOutraBase, periodoDoPainel, rotuloDaForma, serieDoGrafico, valorEQuantidadeParaTela, vencidasDoPeriodo, type AtalhoDePeriodo, type CartaoDoPainel,
   NOTA_CONSIDERA_GERADAS, NOTA_REGISTROS_DISPONIVEIS,
 } from '../../dominio/financeiro';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
@@ -103,7 +103,7 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
               <Indicador key={c.chave} cartao={c} />
             ))}
           </View>
-          <Inadimplencia painel={dados.inadimplencia} vencidasNoPeriodo={dados.cartoes.emAtraso?.cobrancas ?? 0} lista={atrasados}
+          <Inadimplencia painel={dados.inadimplencia} vencidasNoPeriodo={vencidasDoPeriodo(dados.cartoes.emAtraso)} lista={atrasados}
             buscando={buscando} podeAlterar={podeAlterar} aoAbrir={(i) => abrirCobrancaDe(i, false)} aoRegistrar={(i) => abrirCobrancaDe(i, true)} />
           <LinhaDeBlocos nome="mensal" minimo={MINIMO_MENSAL}>
             <Cartao titulo="Recebido e previsto por mês" descricao={`O previsto ${NOTA_CONSIDERA_GERADAS}.`} style={estilos.esticar}>
@@ -259,7 +259,7 @@ function Liquido({ liquido }: { liquido: Parameters<typeof liquidoParaTela>[0] }
 function Inadimplencia({ painel, vencidasNoPeriodo, lista, buscando, podeAlterar, aoAbrir, aoRegistrar }: {
   painel: Parameters<typeof inadimplenciaParaTela>[0];
   /** Quantas cobranças entram no vencido do período (a API conta as mesmas do "Em atraso"). */
-  vencidasNoPeriodo: number;
+  vencidasNoPeriodo: number | null;
   lista: { dados?: PaginaInadimplentes; erro?: unknown; recarregar: () => void };
   buscando: string | null;
   podeAlterar: boolean;
@@ -271,11 +271,10 @@ function Inadimplencia({ painel, vencidasNoPeriodo, lista, buscando, podeAlterar
   const i = inadimplenciaParaTela(painel);
   const itens = lista.dados?.itens ?? [];
   const temBase = !!painel && painel.percentual !== null && painel.vencidoCentavos !== null && painel.cobradoCentavos !== null;
-  const quantas = vencidasNoPeriodo > 0 ? ` · ${contagemParaTela(vencidasNoPeriodo)} ${vencidasNoPeriodo === 1 ? 'cobrança' : 'cobranças'}` : '';
+  const quantas = vencidasNoPeriodo !== null && vencidasNoPeriodo > 0 ? ` · ${contagemParaTela(vencidasNoPeriodo)} ${vencidasNoPeriodo === 1 ? 'cobrança' : 'cobranças'}` : '';
   // A lista não tem filtro de período: quando ela traz o mesmo conjunto do resumo, repetir quantidade e valor só alonga o
   // cartão; quando traz mais (vencidas antes do período), a frase diz que a base é outra.
-  const outraBase = !!lista.dados && lista.dados.total > 0
-    && (lista.dados.total !== vencidasNoPeriodo || lista.dados.valorTotalCentavos !== (painel?.vencidoCentavos ?? null));
+  const outraBase = listaTrazOutraBase(lista.dados, vencidasNoPeriodo, painel?.vencidoCentavos);
   return (
     <Cartao titulo="Inadimplência e cobranças vencidas" descricao={i.detalhe}>
       {/* Resumo compacto, tudo do mesmo conjunto (vencidas no período): percentual, valor de quanto venceu e quantidade. */}

@@ -87,6 +87,16 @@ export function inicioSemAlunos(painelDeTodos: Pick<PainelTreinador, 'alunosAtiv
   return painelDeTodos.alunosAtivos === 0 && painelDeTodos.alunosInativos === 0;
 }
 
+/**
+ * Por que o "Editar" fica desligado (`undefined` = liberado). Só a consultoria sem alunos desliga: o painel nem aparece.
+ * Sem internet NÃO desliga: a lista do que a edição oferece sai do perfil salvo da sessão (`blocoDisponivel`: permissões,
+ * `pagamentosHabilitados`), a preferência mora só no aparelho e o conteúdo de cada bloco continua mostrando o próprio estado
+ * de erro ou sem conexão; a edição só mexe na ordem, no tamanho e na visibilidade.
+ */
+export function motivoDoEditar(semAlunos: boolean): string | undefined {
+  return semAlunos ? MOTIVO_EDITAR_SEM_ALUNOS : undefined;
+}
+
 // ---- Contexto e disponibilidade ----
 
 /** O que o painel precisa saber da sessão: `useSessao()` entrega os três. */

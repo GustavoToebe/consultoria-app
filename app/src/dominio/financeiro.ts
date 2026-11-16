@@ -624,6 +624,27 @@ export function inadimplenciaParaTela(i: Painel['inadimplencia'] | null | undefi
   };
 }
 
+/**
+ * Quantas cobranças entram no vencido do período (a API conta as mesmas do "Em atraso"): `0` só quando a API mandou o
+ * cartão e a quantidade 0; sem o cartão (ou sem número) é `null`, nunca zero.
+ */
+export function vencidasDoPeriodo(emAtraso: Partial<ValorEQuantidade> | null | undefined): number | null {
+  return typeof emAtraso?.cobrancas === 'number' && Number.isFinite(emAtraso.cobrancas) ? emAtraso.cobrancas : null;
+}
+
+/**
+ * A lista de vencidas em aberto traz um conjunto maior que o resumo do período? Só diz que sim com a base do período em
+ * mãos: sem a quantidade (`null`) não há com o que comparar e a frase "a lista traz todas as vencidas" não aparece.
+ */
+export function listaTrazOutraBase(
+  lista: { total: number; valorTotalCentavos: number | null } | null | undefined,
+  vencidasNoPeriodo: number | null,
+  vencidoCentavos: number | null | undefined,
+): boolean {
+  if (!lista || lista.total <= 0 || vencidasNoPeriodo === null) return false;
+  return lista.total !== vencidasNoPeriodo || lista.valorTotalCentavos !== (vencidoCentavos ?? null);
+}
+
 /** Líquido: sempre "indisponível" na Fase 1; nunca um desconto inventado. Mostra o bruto, quando houver. */
 export function liquidoParaTela(l: Liquido | null | undefined): { valor: string; detalhe: string } {
   if (!l || !l.disponivel) {

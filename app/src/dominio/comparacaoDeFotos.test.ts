@@ -76,6 +76,8 @@ describe('comparação de fotos', () => {
     const de = foto({ fotoId: 'a', data: '2026-01-01', perguntaId: 'f', posicao: 'Frente', pesoKg: 80 });
     const ate = foto({ fotoId: 'b', data: '2026-01-22', perguntaId: 'f', posicao: 'Frente', pesoKg: 79.3 });
     expect(textoDaDiferenca(de, ate)).toBe('01/01 → 22/01: −0,7 kg em 21 dias');
+    // Mesmas casas do Peso: "−1,0 kg", nunca "−1 kg".
+    expect(textoDaDiferenca(de, { ...ate, pesoKg: (de.pesoKg ?? 0) - 1 })).toBe('01/01 → 22/01: −1,0 kg em 21 dias');
     expect(textoDaDiferenca(de, { ...ate, pesoKg: null })).toBeNull();
   });
 

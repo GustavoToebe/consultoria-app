@@ -18,6 +18,7 @@ import {
   marcaAoPassar,
   marcaParaPeca,
   marcaParaTexto,
+  marcaParaTitulo,
   textoSobre,
   tingido,
   type Cores,
@@ -389,6 +390,13 @@ describe.each(TODAS)('as 12 cores da marca na paleta %s (pág. 6)', (_codigo, co
     const peca = marcaParaPeca(marca, [cores.superficie3, cores.fundo, cores.painel, cores.superficie]);
     for (const fundo of [cores.superficie3, cores.fundo, cores.painel, cores.superficie]) expect(contraste(peca, fundo)).toBeGreaterThanOrEqual(3);
     expect(contraste(marcaParaTexto(marca, cores.superficie3), cores.superficie3)).toBeGreaterThanOrEqual(4.5);
+    // Nome da marca no título: ≥ 4,5:1 no fundo real, e a cor de sempre fica quando já passa nele.
+    for (const fundo of [cores.fundo, cores.painel]) {
+      const titulo = marcaParaTitulo(marca, fundo, cores.superficie3);
+      expect(contraste(titulo, fundo)).toBeGreaterThanOrEqual(4.5);
+      const deSempre = marcaParaTexto(marca, cores.superficie3);
+      if (contraste(deSempre, fundo) >= 4.5) expect(titulo).toBe(deSempre);
+    }
   });
 });
 
