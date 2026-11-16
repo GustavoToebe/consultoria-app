@@ -28,6 +28,16 @@ describe('problemasDoContato', () => {
     expect(com('Equipe\nExemplo').emailRemetenteNome).toBeTruthy();
     expect(com(`Equipe${String.fromCharCode(0x2028)}Exemplo`).emailRemetenteNome).toBeTruthy();
   });
+
+  it('nome do remetente: recusa barra invertida e formatação do Unicode (bidi, largura zero, BOM), como a biblioteca', () => {
+    const com = (emailRemetenteNome: string) => problemasDoContato({ ...vazio, emailRemetenteNome });
+    expect(com('Equipe\\Exemplo').emailRemetenteNome).toBeTruthy();
+    // Montados por código: o Error Prone, do lado Java, recusa bidi escapado no fonte; aqui o mesmo cuidado, sem caractere cru.
+    for (const ponto of [0x202e, 0x2066, 0x200b, 0x200f, 0xfeff]) {
+      expect(com(`Equipe${String.fromCodePoint(ponto)}Exemplo`).emailRemetenteNome).toBeTruthy();
+    }
+    expect(com('Academia São José, Treino: A@B (1)')).toEqual({});
+  });
 });
 
 describe('linkParaFalarComOTreinador', () => {

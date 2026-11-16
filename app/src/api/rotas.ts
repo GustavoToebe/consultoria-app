@@ -696,7 +696,7 @@ export const alterarMarca = (dados: {
   textosFasesCiclo?: import('./tipos').TextosDasFases | null;
   /** Ausente mantém a gravada. */
   metaDoPeso?: import('./tipos').MetaDoPeso;
-  /** Os três vão em todo PUT: em branco ou ausente apaga na API. */
+  /** Contato: na API, nulo ou ausente mantém o gravado, em branco apaga e preenchido valida e grava (cada campo sozinho). A tela manda os três em todo PUT. */
   whatsapp: string;
   emailRemetenteNome: string;
   emailResponderPara: string;
