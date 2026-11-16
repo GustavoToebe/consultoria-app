@@ -6,6 +6,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { Campo } from '../../ui/Campo';
 import { Folha } from '../../ui/Folha';
+import { MostrarMais, useMostrarMais } from '../../ui/MostrarMais';
 import { Texto } from '../../ui/Texto';
 import { LegendaDosMacros } from '../../ui/ValoresDaDieta';
 import { ValoresDoAlimento } from '../biblioteca/AbaAlimentos';
@@ -25,6 +26,7 @@ export function FolhaAlimentos({
   const [busca, setBusca] = useState('');
   const termo = normalizar(busca.trim());
   const lista = alimentos.filter((a) => !termo || normalizar(a.nome).includes(termo));
+  const { limite, mostrarMais } = useMostrarMais(termo);
   return (
     <Folha visivel titulo="Escolher alimento" aoFechar={aoFechar}>
       <Campo rotulo="Buscar alimento" valor={busca} aoMudar={setBusca} autoFocus />
@@ -32,7 +34,7 @@ export function FolhaAlimentos({
         <Texto variante="suave">Nenhum alimento na biblioteca. Use “Item manual” ou importe alimentos na Biblioteca.</Texto>
       ) : null}
       {lista.length ? <LegendaDosMacros /> : null}
-      {lista.slice(0, 80).map((a) => (
+      {lista.slice(0, limite).map((a) => (
         <Pressable
           key={a.id}
           accessibilityRole="button"
@@ -43,6 +45,7 @@ export function FolhaAlimentos({
           <ValoresDoAlimento alimento={a} />
         </Pressable>
       ))}
+      <MostrarMais limite={limite} total={lista.length} aoMostrarMais={mostrarMais} />
     </Folha>
   );
 }

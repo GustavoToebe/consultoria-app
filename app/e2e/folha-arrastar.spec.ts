@@ -7,18 +7,18 @@ import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api
 const ID = 'f0000000-0000-4000-8000-000000000001';
 function exercicio(n: number, nome: string, grupo: string): Exercicio {
   return {
-    id: `e000000${n}-0000-4000-8000-000000000000`, nome, grupoMuscular: grupo, equipamento: null, modalidade: 'LIVRE', videoUrl: null,
+    id: `e${String(n).padStart(7, '0')}-0000-4000-8000-000000000000`, nome, grupoMuscular: grupo, equipamento: null, modalidade: 'LIVRE', videoUrl: null,
     observacoes: null, origem: 'MANUAL', imagens: [], imagemPropriaEm: null,
   };
 }
 const BIBLIOTECA = [exercicio(1, 'Supino reto', 'Peito'), exercicio(2, 'Crucifixo', 'Peito'), exercicio(3, 'Remada baixa', 'Costas')];
 
-async function abrirEditor(page: import('@playwright/test').Page) {
+async function abrirEditor(page: import('@playwright/test').Page, biblioteca: Exercicio[] = BIBLIOTECA) {
   const salvos: unknown[] = [];
   const { naoTratadas, errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR', 'MODELO_LER', 'MODELO_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
-    'GET /exercicios': { corpo: BIBLIOTECA },
+    'GET /exercicios': { corpo: biblioteca },
     [`GET /receitas/${ID}`]: { corpo: { id: ID, tipo: 'SESSAO_TREINO', nome: 'Dia de treino', descricao: null, conteudo: { sessoes: [{ nome: 'Treino A' }] }, ordem: 0, pastaId: null, versao: 1 } },
     [`PUT /receitas/${ID}`]: (pedido, route) => { salvos.push(pedido.corpo); return json(route, { id: ID, tipo: 'SESSAO_TREINO', nome: 'Dia de treino', descricao: null, conteudo: pedido.corpo, ordem: 0, pastaId: null, versao: 2 }); },
   });
@@ -99,6 +99,36 @@ test('escolher exercício: o manual leva junto os já marcados', async ({ page }
   await folha.getByRole('button', { name: /Usar só o nome Flexão diamante/ }).click();
   await expect(folha).toHaveCount(0);
   for (const nome of ['Supino reto', 'Remada baixa', 'Flexão diamante']) await expect(page.getByText(nome).first()).toBeVisible();
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('escolher exercício: "Mostrar mais" de 80 em 80 (80, 160, 200), a busca volta a 80 e "Marcar" vale só para os exibidos', async ({ page }) => {
+  const muitos = Array.from({ length: 200 }, (_, i) => exercicio(i + 1, `Exercício ${String(i + 1).padStart(3, '0')}`, 'Peito'));
+  const { naoTratadas, errosDaPagina } = await abrirEditor(page, muitos);
+  await page.getByRole('button', { name: 'Adicionar exercício' }).first().click();
+  const folha = page.getByRole('dialog', { name: 'Escolher exercício' });
+  const caixas = folha.getByRole('checkbox');
+  await expect(caixas).toHaveCount(80);
+  await expect(folha.getByText('Mostrando 80 de 200.')).toBeVisible();
+  // Com a lista cortada, marcar leva só os 80 exibidos.
+  await folha.getByRole('button', { name: 'Marcar os 80 exibidos' }).click();
+  await expect(folha.getByRole('button', { name: 'Adicionar 80 exercícios' })).toBeEnabled();
+  await folha.getByRole('button', { name: 'Mostrar mais' }).click();
+  await expect(caixas).toHaveCount(160);
+  await expect(folha.getByText('Mostrando 160 de 200.')).toBeVisible();
+  await expect(folha.getByRole('button', { name: 'Adicionar 80 exercícios' })).toBeEnabled();
+  await folha.getByRole('button', { name: 'Mostrar mais' }).click();
+  await expect(caixas).toHaveCount(200);
+  await expect(folha.getByRole('button', { name: 'Mostrar mais' })).toHaveCount(0);
+  await expect(folha.getByText(/^Mostrando /)).toHaveCount(0);
+  // Buscar mostra o resultado inteiro (9 itens) e, ao limpar a busca, a contagem recomeça em 80.
+  const busca = folha.getByRole('textbox', { name: 'Buscar na biblioteca' });
+  await busca.fill('Exercício 00');
+  await expect(caixas).toHaveCount(9);
+  await busca.fill('');
+  await expect(caixas).toHaveCount(80);
+  await expect(folha.getByText('Mostrando 80 de 200.')).toBeVisible();
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
