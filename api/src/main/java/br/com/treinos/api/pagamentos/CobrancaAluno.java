@@ -28,6 +28,9 @@ public class CobrancaAluno {
 
     public enum Situacao { ABERTA, PAGA, CANCELADA, ESTORNADA, CONTESTADA }
 
+    /** MENSALIDADE é a cobrança do período; SAIDA é a cobrança de saída antes do tempo mínimo (V074), uma viva por contratação. */
+    public enum Tipo { MENSALIDADE, SAIDA }
+
     /** O dinheiro não ficou: cancelada e estornada não cobrem período (a contestada cobre, até o banco decidir). */
     public static final Set<Situacao> NAO_COBREM_PERIODO = Set.of(Situacao.CANCELADA, Situacao.ESTORNADA);
 
@@ -53,6 +56,9 @@ public class CobrancaAluno {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Situacao situacao;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false)
+    private Tipo tipo;
     @Enumerated(EnumType.STRING)
     private FormaDePagamento forma;
     @Column(nullable = false)
@@ -97,7 +103,17 @@ public class CobrancaAluno {
         this.valorCentavos = contratacao.getValorCentavos();
         this.vencimento = vencimento;
         this.situacao = Situacao.ABERTA;
+        this.tipo = Tipo.MENSALIDADE;
         this.provedor = MANUAL;
+    }
+
+    /** Cobrança de saída: o valor é o confirmado no encerramento (não o da contratação) e a competência é a data dele. */
+    static CobrancaAluno saida(ContratacaoAluno contratacao, LocalDate competencia, LocalDate vencimento,
+                               long valorCentavos) {
+        CobrancaAluno c = new CobrancaAluno(contratacao, competencia, vencimento);
+        c.tipo = Tipo.SAIDA;
+        c.valorCentavos = valorCentavos;
+        return c;
     }
 
     /** Valor e vencimento novos de uma aberta ainda não vencida (alteração da contratação). */
@@ -182,6 +198,7 @@ public class CobrancaAluno {
     public long getValorCentavos() { return valorCentavos; }
     public LocalDate getVencimento() { return vencimento; }
     public Situacao getSituacao() { return situacao; }
+    public Tipo getTipo() { return tipo; }
     public FormaDePagamento getForma() { return forma; }
     public String getProvedor() { return provedor; }
     public String getIdExterno() { return idExterno; }

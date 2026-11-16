@@ -47,7 +47,17 @@ class Travas {
 
     @Transactional(propagation = Propagation.MANDATORY)
     DaCobranca daCobranca(UUID cobrancaId) {
-        return travar(cobrancaId, true);
+        return travar(cobrancaId, Exigencia.ATIVO);
+    }
+
+    /**
+     * A mesma ordem, aceitando aluno <b>inativo</b> (anonimizado segue recusado, 409): quem saiu ainda pode ter cobrança
+     * vencida ou de saída em aberto, e o treinador precisa dar baixa, desfazer a baixa manual ou cancelar. Só essas três ações
+     * usam; contestar, estornar, link, contratar, retomar e alterar seguem por {@link #daCobranca}.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    DaCobranca daCobrancaDeAlunoQueSaiu(UUID cobrancaId) {
+        return travar(cobrancaId, Exigencia.INATIVO_OK);
     }
 
     /**
@@ -57,14 +67,19 @@ class Travas {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     DaCobranca daCobrancaDoProvedor(UUID cobrancaId) {
-        return travar(cobrancaId, false);
+        return travar(cobrancaId, Exigencia.QUALQUER);
     }
 
-    private DaCobranca travar(UUID cobrancaId, boolean exigirAlunoAtivo) {
+    /** O que se exige do aluno ao travar uma cobrança. */
+    private enum Exigencia { ATIVO, INATIVO_OK, QUALQUER }
+
+    private DaCobranca travar(UUID cobrancaId, Exigencia exigencia) {
         var travas = cobrancas.referenciasDe(cobrancaId).orElseThrow(Travas::cobrancaNaoEncontrada);
         Aluno aluno = alunos.buscarParaAlterar(travas.getAlunoId()).orElseThrow(Travas::alunoNaoEncontrado);
-        if (exigirAlunoAtivo) {
+        if (exigencia == Exigencia.ATIVO) {
             exigirAlunoNaConsultoria(aluno);
+        } else if (exigencia == Exigencia.INATIVO_OK) {
+            AlunoService.exigirNaoAnonimizado(aluno);
         }
         ContratacaoAluno contratacao = contratacoes.buscarParaAlterar(travas.getContratacaoId())
                 .orElseThrow(Travas::contratacaoNaoEncontrada);
@@ -73,9 +88,9 @@ class Travas {
     }
 
     /**
-     * Quem saiu (inativo ou anonimizado) não recebe mais nenhuma mudança de contratação ou cobrança: desfazer uma baixa o
-     * traria de volta para a inadimplência, e a baixa ou o motivo gravariam texto novo sobre alguém que pediu para sair.
-     * A saída em si ({@link PagamentosDoAluno#encerrarPorSaida}) não passa por aqui.
+     * Por padrão quem saiu (inativo ou anonimizado) não recebe mudança de contratação ou cobrança. As exceções são as de
+     * {@link #daCobrancaDeAlunoQueSaiu} (baixa manual, desfazer baixa e cancelar, para o inativo que ainda deve) e a do provedor;
+     * anonimizado nunca. A saída em si ({@link PagamentosDoAluno#encerrarPorInativacao}) não passa por aqui.
      */
     private static void exigirAlunoNaConsultoria(Aluno aluno) {
         AlunoService.exigirNaoAnonimizado(aluno);

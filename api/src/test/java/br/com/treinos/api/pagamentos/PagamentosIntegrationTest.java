@@ -1207,7 +1207,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void alunoQueSaiuNaoTemMaisBaixaDesfeitaNemCobrancaMexida() throws Exception {
+    void alunoInativoAceitaSoBaixaManualEDesfazerEAnonimizadoNada() throws Exception {
         String nome = "Rita Fictícia Que Saiu";
         UUID aluno = api.criarAluno(admin, nome);
         JsonNode contratacao = contratarHoje(aluno, plano("Plano de quem saiu", 10000, "MENSAL"));
@@ -1216,14 +1216,21 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         String id = paga.get("id").asString();
 
         api.patch("/alunos/" + aluno + "/situacao", admin, Map.of("ativo", false), 200);
-        assertThat(codigo(motivo("/cobrancas/" + id + "/desfazer-baixa", paga, 409))).isEqualTo("ALUNO_INATIVO");
-        assertThat(codigo(baixar(cobrancas(aluno).get(0), hoje, 409))).isEqualTo("ALUNO_INATIVO");
+        // Inativo: a baixa manual e o desfazer valem (o dinheiro que ele deve ou pagou continua sendo registrado)...
+        JsonNode reaberta = motivo("/cobrancas/" + id + "/desfazer-baixa", paga, 200);
+        assertThat(reaberta.get("situacao").asString()).isEqualTo("ABERTA");
+        JsonNode repaga = baixar(reaberta, hoje, 200);
+        assertThat(repaga.get("situacao").asString()).isEqualTo("PAGA");
+        // ...mas contestar, estornar e mexer na contratação seguem recusados.
+        assertThat(codigo(motivo("/cobrancas/" + id + "/contestar", repaga, 409))).isEqualTo("ALUNO_INATIVO");
+        assertThat(codigo(motivo("/cobrancas/" + id + "/estornar", repaga, 409))).isEqualTo("ALUNO_INATIVO");
         assertThat(codigo(api.post("/contratacoes/" + contratacao.get("id").asString() + "/pausar", admin,
                 Map.of("versao", 0), 409))).isEqualTo("ALUNO_INATIVO");
         assertThat(porCompetencia(aluno, hoje).get("situacao").asString()).isEqualTo("PAGA");
 
         api.post("/alunos/" + aluno + "/anonimizar", admin, Map.of("nomeConfirmado", nome), 200);
-        assertThat(codigo(motivo("/cobrancas/" + id + "/desfazer-baixa", paga, 409))).isEqualTo("ALUNO_ANONIMIZADO");
+        assertThat(codigo(motivo("/cobrancas/" + id + "/desfazer-baixa", repaga, 409))).isEqualTo("ALUNO_ANONIMIZADO");
+        assertThat(codigo(baixar(repaga, hoje, 409))).isEqualTo("ALUNO_ANONIMIZADO");
         assertThat(porCompetencia(aluno, hoje).get("situacao").asString()).isEqualTo("PAGA");
         assertThat(api.get("/financeiro/inadimplentes", admin, 200).get("itens")).isEmpty();
     }
@@ -2035,7 +2042,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
     // ---- serviço comum de baixa (estorno e contestação ainda sem chamador HTTP) ----
 
     @Test
-    void caminhoDoProvedorBaixaEEstornaComAlunoInativoMasOManualContinuaRecusando() throws Exception {
+    void caminhoDoProvedorBaixaComAlunoInativoEOEstornoManualContinuaRecusando() throws Exception {
         UUID aluno = aluno();
         contratarHoje(aluno, plano("Plano do aluno que saiu", 10000, "MENSAL"));
         JsonNode paga = baixar(cobrancas(aluno).get(0), hoje, 200);
@@ -2053,11 +2060,9 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
                 .isInstanceOfSatisfying(ConflictException.class, e -> assertThat(e.getCodigo()).isEqualTo("ALUNO_INATIVO"));
 
         // O estorno nunca é automático: não existe caminho do provedor para ele (a consulta só gera aviso para conferir).
-        // A baixa: o manual recusa, o provedor grava a transação (id_externo).
+        // A baixa pelo provedor grava a transação (id_externo) mesmo com o aluno inativo.
         jdbc.update("update cobranca_aluno set situacao = 'ABERTA', motivo = null where id = ?::uuid", seguinteId.toString());
         var baixa = new BaixaDeCobranca.Baixa(CobrancaAluno.MANUAL, FormaDePagamento.PIX, hoje, null, null, null, "transacao-fake-1");
-        assertThatThrownBy(() -> TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.baixar(seguinteId, baixa))))
-                .isInstanceOfSatisfying(ConflictException.class, e -> assertThat(e.getCodigo()).isEqualTo("ALUNO_INATIVO"));
         var baixada = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.baixarDoProvedor(seguinteId, baixa)));
         assertThat(baixada.cobranca().getSituacao()).isEqualTo(CobrancaAluno.Situacao.PAGA);
         assertThat(jdbc.queryForObject("select id_externo from cobranca_aluno where id = ?::uuid", String.class,

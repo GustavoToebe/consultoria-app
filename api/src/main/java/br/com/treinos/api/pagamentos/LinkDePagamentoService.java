@@ -1,6 +1,8 @@
 package br.com.treinos.api.pagamentos;
 
 import br.com.plataforma.comum.web.ConflictException;
+import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.pagamentos.provedor.CobrancaGerada;
 import br.com.treinos.api.pagamentos.provedor.CredencialDoProvedor;
@@ -51,6 +53,7 @@ public class LinkDePagamentoService {
         }
     }
 
+    private final AlunoRepository alunos;
     private final CobrancaAlunoRepository cobrancas;
     private final ContratacaoAlunoRepository contratacoes;
     private final PlanoComercialRepository planos;
@@ -64,11 +67,13 @@ public class LinkDePagamentoService {
     private final TransactionTemplate leitura;
     private final TransactionTemplate gravacao;
 
-    public LinkDePagamentoService(CobrancaAlunoRepository cobrancas, ContratacaoAlunoRepository contratacoes,
+    public LinkDePagamentoService(AlunoRepository alunos, CobrancaAlunoRepository cobrancas,
+                                  ContratacaoAlunoRepository contratacoes,
                                   PlanoComercialRepository planos, CredencialPagamentoRepository credenciais,
                                   CifraDePagamento cifra, InfinitePayProperties infinitePay,
                                   ProvedoresDePagamento provedores, Travas travas, Auditoria auditoria,
                                   PlatformTransactionManager transacoes, @Value("${treinos.app-url}") String appUrl) {
+        this.alunos = alunos;
         this.cobrancas = cobrancas;
         this.contratacoes = contratacoes;
         this.planos = planos;
@@ -128,14 +133,26 @@ public class LinkDePagamentoService {
         return fimDoDia.isAfter(teto) ? teto : fimDoDia;
     }
 
-    /** Passo 1: lê e confere. Fora da consultoria, de outro aluno ou inexistente é 404; só cobrança aberta recebe link. */
+    /**
+     * Passo 1: lê e confere. Fora da consultoria, de outro aluno ou inexistente é 404; só cobrança aberta recebe link; a
+     * cobrança de saída nunca recebe (409 {@code COBRANCA_SEM_LINK}) e aluno inativo ou anonimizado também não: o link vivo
+     * de quem saiu não pode ser devolvido (as vencidas ficam em aberto depois de inativar).
+     */
     private Leitura ler(UUID cobrancaId, UUID alunoId) {
         CobrancaAluno cobranca = cobrancas.findById(cobrancaId).orElseThrow(Travas::cobrancaNaoEncontrada);
         if (alunoId != null && !alunoId.equals(cobranca.getAlunoId())) {
             throw Travas.cobrancaNaoEncontrada();
         }
+        if (cobranca.getTipo() == CobrancaAluno.Tipo.SAIDA) {
+            throw new ConflictException("A cobrança de saída não tem link de pagamento.", "COBRANCA_SEM_LINK");
+        }
         if (cobranca.getSituacao() != CobrancaAluno.Situacao.ABERTA) {
             throw naoAberta();
+        }
+        var aluno = alunos.findById(cobranca.getAlunoId()).orElseThrow(Travas::alunoNaoEncontrado);
+        AlunoService.exigirNaoAnonimizado(aluno);
+        if (!aluno.isAtivo()) {
+            throw new ConflictException("Este aluno está inativo; reative-o para gerar o link.", "ALUNO_INATIVO");
         }
         CredencialPagamento credencial = credenciais.findByProvedor(RecebimentoOnlineService.PROVEDOR)
                 .orElseThrow(() -> new ConflictException("O treinador ainda não configurou o recebimento online.",

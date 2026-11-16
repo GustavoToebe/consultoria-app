@@ -376,7 +376,7 @@ public class AlunoService {
             }
         }
         if (!ativo) {
-            pagamentos.encerrarPorSaida(aluno.getId()); // quem saiu não fica na receita recorrente nem na inadimplência
+            pagamentos.encerrarPorInativacao(aluno.getId()); // quem saiu sai da receita recorrente; o vencido e a saída ficam em aberto
         }
     }
 

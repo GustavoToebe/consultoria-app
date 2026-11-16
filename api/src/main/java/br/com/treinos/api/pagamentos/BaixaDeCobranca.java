@@ -53,7 +53,7 @@ public class BaixaDeCobranca {
     /** ABERTA vira PAGA; parcela única encerra a contratação, as demais geram a seguinte se a de maior competência não está aberta. */
     @Transactional(propagation = Propagation.MANDATORY)
     public Resultado baixar(UUID cobrancaId, Baixa baixa) {
-        return baixar(baixa, () -> travas.daCobranca(cobrancaId));
+        return baixar(baixa, () -> travas.daCobrancaDeAlunoQueSaiu(cobrancaId));
     }
 
     /** A baixa que o provedor confirmou: a mesma regra, sem recusar aluno que saiu (ver {@link Travas#daCobrancaDoProvedor}). */
@@ -91,7 +91,7 @@ public class BaixaDeCobranca {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public Resultado desfazerBaixa(UUID cobrancaId, String motivo, Long versaoEsperada) {
-        Travas.DaCobranca t = travas.daCobranca(cobrancaId);
+        Travas.DaCobranca t = travas.daCobrancaDeAlunoQueSaiu(cobrancaId);
         CobrancaAluno c = t.cobranca();
         if (c.getSituacao() == CobrancaAluno.Situacao.ABERTA) {
             return resultado(t, false);
@@ -118,7 +118,7 @@ public class BaixaDeCobranca {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public Resultado cancelar(UUID cobrancaId, String motivo, Long versaoEsperada) {
-        Travas.DaCobranca t = travas.daCobranca(cobrancaId);
+        Travas.DaCobranca t = travas.daCobrancaDeAlunoQueSaiu(cobrancaId);
         CobrancaAluno c = t.cobranca();
         if (c.getSituacao() == CobrancaAluno.Situacao.CANCELADA) {
             return resultado(t, false);

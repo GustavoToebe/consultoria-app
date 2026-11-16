@@ -28,6 +28,8 @@ import java.util.UUID;
 public class ExportacaoFinanceiraService {
 
     public static final int LIMITE_DE_LINHAS = 5000;
+    /** Descrição da cobrança de saída no CSV (no lugar do nome do plano; nenhuma coluna nova). */
+    static final String DESCRICAO_DA_SAIDA = "Cobrança de saída";
     private static final String CABECALHO = "registro;data;descricao;aluno;situacao;forma;pago_em;tipo;categoria;valor;historico_financeiro_parcial";
 
     /** Classe, não record: array em record compara por referência (Error Prone, ArrayRecordComponent). */
@@ -78,7 +80,8 @@ public class ExportacaoFinanceiraService {
         StringBuilder csv = new StringBuilder("﻿").append(CABECALHO).append("\r\n");
         for (LinhaDeCobranca l : cobrancas.paraExportar(de, ate)) {
             CobrancaAluno c = l.cobranca();
-            linha(csv, "COBRANCA", c.getVencimento().toString(), l.planoNome(), l.alunoNome(), c.getSituacao().name(),
+            linha(csv, "COBRANCA", c.getVencimento().toString(),
+                    c.getTipo() == CobrancaAluno.Tipo.SAIDA ? DESCRICAO_DA_SAIDA : l.planoNome(), l.alunoNome(), c.getSituacao().name(),
                     c.getForma() == null ? null : c.getForma().name(), c.getPagoEm() == null ? null : c.getPagoEm().toString(),
                     null, null, reais(c.getValorCentavos()), parcial);
         }

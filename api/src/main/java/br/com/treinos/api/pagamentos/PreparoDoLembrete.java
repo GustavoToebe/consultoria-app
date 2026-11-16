@@ -30,6 +30,8 @@ class PreparoDoLembrete {
     static final String ALUNO_INATIVO = "ALUNO_INATIVO";
     static final String ALUNO_DESLIGOU = "ALUNO_DESLIGOU";
     static final String SEM_EMAIL = "SEM_EMAIL";
+    /** Defesa: lembrete é só de mensalidade; a cobrança de saída nunca recebe e-mail (o planejamento já a pula). */
+    static final String NAO_E_MENSALIDADE = "NAO_E_MENSALIDADE";
 
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@<>\"(),;:]+@[^\\s@<>\"(),;:]+\\.[^\\s@<>\"(),;:]+$");
 
@@ -77,6 +79,9 @@ class PreparoDoLembrete {
             return Preparo.cancelar(COBRANCA_NAO_ABERTA);
         }
         CobrancaAluno cobranca = achada.get();
+        if (cobranca.getTipo() != CobrancaAluno.Tipo.MENSALIDADE) {
+            return Preparo.cancelar(NAO_E_MENSALIDADE);
+        }
         RegraDosLembretes.Configuracao configuracao = configuracoes.daConsultoria()
                 .map(ConfiguracaoDeLembretes::configuracao).orElse(RegraDosLembretes.Configuracao.PADRAO);
         if (RegraDosLembretes.devido(hoje, cobranca.getVencimento(), configuracao).filter(lembrete.tipo()::equals).isEmpty()) {

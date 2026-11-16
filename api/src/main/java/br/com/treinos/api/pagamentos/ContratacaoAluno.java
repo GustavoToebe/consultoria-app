@@ -52,6 +52,9 @@ public class ContratacaoAluno {
     private LocalDate ancora;
     @Column(name = "dia_vencimento", nullable = false)
     private int diaVencimento;
+    /** Fim do tempo mínimo (início + N meses do plano, ou o que o treinador pôs); nulo = sem mínimo. Só data, nada pessoal. */
+    @Column(name = "minimo_ate")
+    private LocalDate minimoAte;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Situacao situacao;
@@ -80,10 +83,16 @@ public class ContratacaoAluno {
         this.situacao = Situacao.ATIVA;
     }
 
-    void alterar(long valorCentavos, String motivoValor, int diaVencimento) {
+    void alterar(long valorCentavos, String motivoValor, int diaVencimento, LocalDate minimoAte) {
         this.valorCentavos = valorCentavos;
         this.motivoValor = motivoValor;
         this.diaVencimento = diaVencimento;
+        this.minimoAte = minimoAte;
+    }
+
+    /** Contratar copia o mínimo do plano; o plano alterado depois não muda a contratação (como o valor). */
+    void definirMinimo(LocalDate minimoAte) {
+        this.minimoAte = minimoAte;
     }
 
     void pausar() {
@@ -120,6 +129,7 @@ public class ContratacaoAluno {
     public LocalDate getInicio() { return inicio; }
     public LocalDate getAncora() { return ancora; }
     public int getDiaVencimento() { return diaVencimento; }
+    public LocalDate getMinimoAte() { return minimoAte; }
     public Situacao getSituacao() { return situacao; }
     public Instant getEncerradaEm() { return encerradaEm; }
     public Instant getCriadoEm() { return criadoEm; }

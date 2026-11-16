@@ -48,4 +48,12 @@ class TextoDoLembreteTest {
         assertThat(TextoDoLembrete.valor(100_000_000L)).isEqualTo("R$ 1.000.000,00");
         assertThat(TextoDoLembrete.valor(99)).isEqualTo("R$ 0,99");
     }
+
+    @Test
+    void aMensagemDeSaidaNaoFalaDeMensalidadeNemLevaLink() {
+        String texto = TextoDoLembrete.mensagemDeSaida(DADOS);
+        assertThat(texto).isEqualTo("Olá, Ana.\n\nConforme combinado na saída de Equipe Fictícia, há uma cobrança de "
+                + "R$ 1.234,56 com vencimento em 05/03. Se você já pagou, desconsidere esta mensagem.");
+        assertThat(texto).doesNotContainIgnoringCase("mensalidade").doesNotContain("http").doesNotContain("Maria");
+    }
 }

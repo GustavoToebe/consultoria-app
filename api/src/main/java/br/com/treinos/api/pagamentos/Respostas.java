@@ -18,7 +18,7 @@ final class Respostas {
 
     static PlanoResponse plano(PlanoComercial p) {
         return new PlanoResponse(p.getId(), p.getNome(), p.getValorCentavos(), p.getPeriodicidade(),
-                p.isArquivado(), p.getCriadoEm(), p.getVersao());
+                p.isArquivado(), p.getCriadoEm(), p.getVersao(), p.getTempoMinimoMeses(), p.getRegraDeSaida());
     }
 
     static ContratacaoResponse contratacao(ContratacaoAluno c, String planoNome) {
@@ -28,7 +28,7 @@ final class Respostas {
         String alerta = calcularAlerta(dias);
         return new ContratacaoResponse(c.getId(), c.getAlunoId(), c.getPlanoComercialId(), planoNome, c.getPeriodicidade(),
                 c.getValorCentavos(), c.getMotivoValor(), c.getInicio(), c.getDiaVencimento(), c.getSituacao(),
-                c.getEncerradaEm(), c.getCriadoEm(), c.getVersao(), termino, dias, alerta);
+                c.getEncerradaEm(), c.getCriadoEm(), c.getVersao(), termino, dias, alerta, c.getMinimoAte());
     }
 
     static LocalDate calcularTerminoVigencia(LocalDate inicio, PeriodoDoPlano periodicidade) {
@@ -67,13 +67,13 @@ final class Respostas {
                 c.getCompetencia(), c.getVencimento(), c.getValorCentavos(), c.getSituacao(), vencida,
                 vencida ? diasDeAtraso(c, hoje) : null, c.getForma(), c.getProvedor(), c.getPagoEm(), c.getBaixaPor(),
                 l.baixaPorNome(), c.getObservacao(), c.getMotivo(), c.getVersao(), c.getCriadoEm(), c.getIdExterno(),
-                alunoCpf);
+                alunoCpf, c.getTipo());
     }
 
     /** Só o que o aluno pode ver: sem observação, motivo, quem deu a baixa nem o provedor. */
     static CobrancaDoAluno cobrancaDoAluno(CobrancaAluno c, LocalDate hoje) {
         return new CobrancaDoAluno(c.getId(), c.getCompetencia(), c.getVencimento(), c.getValorCentavos(),
-                c.getSituacao(), c.vencida(hoje), c.getForma(), c.getPagoEm());
+                c.getSituacao(), c.vencida(hoje), c.getForma(), c.getPagoEm(), c.getTipo());
     }
 
     static LancamentoResponse lancamento(LancamentoFinanceiro l) {

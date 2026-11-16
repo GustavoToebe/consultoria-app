@@ -575,6 +575,39 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(auditorias("IMPORTACAO_CONCLUIDA", UUID.fromString(feito.path("id").asString()))).isEqualTo(1);
     }
 
+    /** Inativar pela planilha segue a regra da saída: a mensalidade vencida fica aberta e a que ainda vai vencer é cancelada. */
+    @Test
+    void inativarPelaPlanilhaMantemAVencidaECancelaSoAMensalidadeAVencer() throws Exception {
+        String emailSai = unico("sai-vencida");
+        UUID sai = alunoComEmail("Sai Com Vencida Fictício", emailSai);
+        JsonNode plano = api.post("/financeiro/planos", treinador, Map.of("nome", "Mensal " + UUID.randomUUID(),
+                "valorCentavos", 25000, "periodicidade", "MENSAL"), 200);
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        api.post("/alunos/" + sai + "/contratacoes", treinador, Map.of("planoComercialId", plano.path("id").asString(),
+                "inicio", hoje.toString(), "diaVencimento", hoje.getDayOfMonth()), 200);
+        String vencidaId = api.get("/alunos/" + sai + "/cobrancas", treinador, 200).get(0).path("id").asString();
+        // A API só gera a próxima depois de pagar ou cancelar a aberta: a "a vencer" nasce por cópia da vencida.
+        jdbc.update("update cobranca_aluno set vencimento = ?::date where id = ?::uuid", hoje.minusDays(5).toString(), vencidaId);
+        jdbc.update("insert into cobranca_aluno (id, consultoria_id, contratacao_id, aluno_id, competencia, valor_centavos, "
+                + "vencimento, situacao) select gen_random_uuid(), consultoria_id, contratacao_id, aluno_id, "
+                + "(competencia + interval '1 month')::date, valor_centavos, ?::date, 'ABERTA' from cobranca_aluno where id = ?::uuid",
+                hoje.plusDays(20).toString(), vencidaId);
+
+        String csv = "nome;email;situacao\nSai Com Vencida Fictício;" + emailSai + ";inativo\n";
+        String config = config("email", "ATUALIZAR", Map.of("nome", 0, "email", 1, "situacao", 2));
+        JsonNode previa = previa("alunos", "sai-vencida.csv", csv, config);
+        assertThat(previa.path("comErro").asInt()).isZero();
+        confirmar("alunos", "sai-vencida.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+
+        assertThat(api.get("/alunos/" + sai, treinador, 200).path("ativo").asBoolean()).isFalse();
+        for (JsonNode c : api.get("/alunos/" + sai + "/cobrancas", treinador, 200)) {
+            boolean eAVencida = vencidaId.equals(c.path("id").asString());
+            assertThat(c.path("situacao").asString()).as("vencida? " + eAVencida).isEqualTo(eAVencida ? "ABERTA" : "CANCELADA");
+        }
+        assertThat(api.get("/alunos/" + sai + "/contratacoes", treinador, 200).get(0).path("situacao").asString())
+                .isEqualTo("ENCERRADA");
+    }
+
     /** D18: inativar pela planilha cancela os compromissos futuros de quem já existe; quem fica e quem é criado não mudam. */
     @Test
     void inativarPelaPlanilhaCancelaOsCompromissosFuturos() throws Exception {

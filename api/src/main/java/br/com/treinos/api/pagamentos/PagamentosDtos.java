@@ -29,14 +29,33 @@ public final class PagamentosDtos {
 
     // ---- Plano comercial ----
 
+    /**
+     * {@code tempoMinimoMeses} (1 a 60) só em plano mensal e {@code regraDeSaida} (até 500) são conferidos no serviço, que
+     * responde 422 {@code PLANO_INVALIDO} sem repetir o valor (o erro do Bean Validation o carregaria). A regra é texto do
+     * treinador: nunca em log, auditoria nem {@code toString}.
+     */
     public record PlanoRequest(
             @NotBlank @Size(max = 80) String nome,
             @NotNull @Positive @Max(VALOR_MAXIMO) Long valorCentavos,
             @NotNull PeriodoDoPlano periodicidade,
-            Long versao) { }
+            Integer tempoMinimoMeses,
+            String regraDeSaida,
+            Long versao) {
+
+        @Override
+        public String toString() {
+            return "PlanoRequest[nome=" + nome + "]";
+        }
+    }
 
     public record PlanoResponse(UUID id, String nome, long valorCentavos, PeriodoDoPlano periodicidade, boolean arquivado,
-                                Instant criadoEm, Long versao) { }
+                                Instant criadoEm, Long versao, Short tempoMinimoMeses, String regraDeSaida) {
+
+        @Override
+        public String toString() {
+            return "PlanoResponse[id=" + id + "]";
+        }
+    }
 
     public record VersaoRequest(@NotNull Long versao) { }
 
@@ -100,13 +119,15 @@ public final class PagamentosDtos {
             @NotNull @Positive @Max(VALOR_MAXIMO) Long valorCentavos,
             @Size(max = 200) String motivoValor,
             @NotNull @Min(1) @Max(31) Integer diaVencimento,
+            LocalDate minimoAte,
             @NotNull Long versao) { }
 
     public record ContratacaoResponse(UUID id, UUID alunoId, UUID planoComercialId, String planoNome,
                                       PeriodoDoPlano periodicidade, long valorCentavos, String motivoValor, LocalDate inicio,
                                       int diaVencimento, ContratacaoAluno.Situacao situacao, Instant encerradaEm,
                                       Instant criadoEm, Long versao,
-                                      LocalDate terminoVigencia, Long diasRestantesVigencia, String alertaRenovacao) {
+                                      LocalDate terminoVigencia, Long diasRestantesVigencia, String alertaRenovacao,
+                                      LocalDate minimoAte) {
 
         public ContratacaoResponse(UUID id, UUID alunoId, UUID planoComercialId, String planoNome,
                                    PeriodoDoPlano periodicidade, long valorCentavos, String motivoValor, LocalDate inicio,
@@ -116,9 +137,56 @@ public final class PagamentosDtos {
                     situacao, encerradaEm, criadoEm, versao,
                     Respostas.calcularTerminoVigencia(inicio, periodicidade),
                     Respostas.calcularDiasRestantes(Respostas.calcularTerminoVigencia(inicio, periodicidade)),
-                    Respostas.calcularAlerta(Respostas.calcularDiasRestantes(Respostas.calcularTerminoVigencia(inicio, periodicidade))));
+                    Respostas.calcularAlerta(Respostas.calcularDiasRestantes(Respostas.calcularTerminoVigencia(inicio, periodicidade))),
+                    null);
         }
     }
+
+    // ---- Encerrar com cobrança de saída ----
+
+    /**
+     * Só {@code opcao} é obrigatória. {@code valorCentavos} é obrigatório em {@code FALTAM}, {@code VIGENTE} e {@code OUTRO}
+     * (nas duas primeiras o servidor confere com a conta dele) e é a única vez que o corpo traz valor de cobrança.
+     * {@code cobrancasACancelar} são os ids que a tela mostrou (só {@code FALTAM}); {@code vencimento} nulo = hoje. Os limites
+     * (valor, vencimento) são conferidos no serviço, que responde 422 sem repetir o valor.
+     */
+    public record SaidaRequest(@NotNull OpcaoDeSaida opcao, Long valorCentavos, LocalDate vencimento,
+                               List<UUID> cobrancasACancelar) { }
+
+    /** {@code saida} ausente (ou {@code NAO_COBRAR}) encerra como sempre: as cobranças abertas ficam. */
+    public record EncerrarRequest(@NotNull Long versao, @Valid SaidaRequest saida) { }
+
+    public record GrupoDeAbertas(int quantidade, long valorCentavos) { }
+
+    /** {@code motivo} (texto fixo) só quando indisponível; {@code valorCentavos} só nas opções que têm valor calculado. */
+    public record OpcaoDaPrevia(OpcaoDeSaida opcao, boolean disponivel, Long valorCentavos, String motivo) { }
+
+    /**
+     * O que acontece se o plano for encerrado agora. {@code vencidas} ficam em aberto; {@code aVencerNoMinimo} são canceladas
+     * pela opção {@code FALTAM} (ids em {@code cobrancasACancelar}, {@code comLinkVivo} delas têm link de pagamento que ainda vale:
+     * pagar depois do cancelamento cai em "para conferir"). {@code mesesQueFaltam} = a vencer dentro do mínimo + meses ainda
+     * não gerados. {@code regraDeSaida} é o lembrete do contrato (texto do treinador): fora do {@code toString}. A tela só
+     * desenha estes números.
+     */
+    public record PreviaDoEncerramento(UUID contratacaoId, PeriodoDoPlano periodicidade, ContratacaoAluno.Situacao situacao,
+                                       LocalDate minimoAte, int mesesQueFaltam, String regraDeSaida,
+                                       GrupoDeAbertas vencidas, GrupoDeAbertas aVencerNoMinimo,
+                                       List<UUID> cobrancasACancelar, int comLinkVivo, int mesesNaoGerados,
+                                       long valorDosNaoGeradosCentavos, List<OpcaoDaPrevia> opcoes) {
+
+        @Override
+        public String toString() {
+            return "PreviaDoEncerramento[contratacaoId=" + contratacaoId + "]";
+        }
+    }
+
+    /**
+     * O que inativar o aluno faz com o financeiro (todas as contratações, inclusive encerradas): {@code aCancelar} são as
+     * mensalidades abertas que ainda não venceram; {@code emAberto} fica (vencidas e cobrança de saída).
+     * {@code mesesQueFaltam} > 0 avisa que o mínimo se perde: sem cobrança de saída, inativar não cobra o que falta.
+     */
+    public record ResumoDaSaidaDoAluno(GrupoDeAbertas aCancelar, GrupoDeAbertas emAberto, LocalDate minimoAte,
+                                       int mesesQueFaltam) { }
 
     // ---- Cobrança ----
 
@@ -142,7 +210,7 @@ public final class PagamentosDtos {
                                    CobrancaAluno.Situacao situacao, boolean vencida, Long diasDeAtraso,
                                    FormaDePagamento forma, String provedor, LocalDate pagoEm, UUID baixaPor,
                                    String baixaPorNome, String observacao, String motivo, Long versao,
-                                   Instant criadoEm, String idExterno, String alunoCpf) {
+                                   Instant criadoEm, String idExterno, String alunoCpf, CobrancaAluno.Tipo tipo) {
 
         @Override
         public String toString() {
@@ -256,7 +324,7 @@ public final class PagamentosDtos {
 
     public record CobrancaDoAluno(UUID id, LocalDate competencia, LocalDate vencimento, long valorCentavos,
                                   CobrancaAluno.Situacao situacao, boolean vencida, FormaDePagamento forma,
-                                  LocalDate pagoEm) { }
+                                  LocalDate pagoEm, CobrancaAluno.Tipo tipo) { }
 
     /** {@code pagamentoOnline}: o aluno pode pedir o link de pagamento (módulo, InfinitePay e credencial do treinador). A Tag nunca vem. */
     public record FinanceiroDoAluno(PlanoDoAluno plano, List<CobrancaDoAluno> abertas, List<CobrancaDoAluno> historico,
@@ -281,11 +349,13 @@ public final class PagamentosDtos {
 
     public record ContratacaoExportada(UUID id, String planoNome, PeriodoDoPlano periodicidade, long valorCentavos,
                                        String motivoValor, LocalDate inicio, int diaVencimento,
-                                       ContratacaoAluno.Situacao situacao, Instant encerradaEm, Instant criadoEm) { }
+                                       ContratacaoAluno.Situacao situacao, Instant encerradaEm, Instant criadoEm,
+                                       LocalDate minimoAte) { }
 
     public record CobrancaExportada(UUID id, UUID contratacaoId, LocalDate competencia, LocalDate vencimento,
                                     long valorCentavos, CobrancaAluno.Situacao situacao, FormaDePagamento forma,
-                                    String provedor, LocalDate pagoEm, String observacao, String motivo) { }
+                                    String provedor, LocalDate pagoEm, String observacao, String motivo,
+                                    CobrancaAluno.Tipo tipo) { }
 
     /** Lembrete de cobrança na exportação: tipo, situação e datas (a linha não guarda endereço nem texto). */
     public record LembreteExportado(UUID cobrancaId, TipoDeLembrete tipo, LembreteDeCobranca.Situacao situacao,
@@ -316,15 +386,24 @@ public final class PagamentosDtos {
 
     /**
      * A mensagem pronta para o treinador mandar à mão pelo WhatsApp (o mesmo texto do e-mail, para hoje). Só na cobrança em
-     * aberto de aluno ativo; {@code telefone} nulo = o aluno não tem telefone (o app explica e não oferece o botão).
+     * aberto (de aluno ativo; de inativo só a vencida ou a de saída); {@code telefone} nulo = o aluno não tem telefone (o app
+     * explica e não oferece o botão). Telefone e mensagem nunca vão a log nem {@code toString}.
      */
-    public record WhatsAppDaCobranca(String telefone, String mensagem) { }
+    public record WhatsAppDaCobranca(String telefone, String mensagem) {
+
+        @Override
+        public String toString() {
+            return "WhatsAppDaCobranca[]";
+        }
+    }
 
     /**
      * {@code alunoDesligou}: o aluno desligou os lembretes por e-mail só para ele (o job não manda mais). Só informa o
-     * treinador: o botão do WhatsApp manual não muda.
+     * treinador: o botão do WhatsApp manual não muda. {@code motivoSemWhatsapp} (código fixo) diz por que {@code whatsapp} veio
+     * nulo, para o botão aparecer desabilitado com o porquê; nulo quando há mensagem.
      */
-    public record LembretesDaCobranca(List<LembreteResponse> itens, WhatsAppDaCobranca whatsapp, boolean alunoDesligou) { }
+    public record LembretesDaCobranca(List<LembreteResponse> itens, WhatsAppDaCobranca whatsapp, boolean alunoDesligou,
+                                      String motivoSemWhatsapp) { }
 
     /** O pedido do aluno para receber ou não os lembretes de cobrança por e-mail; sempre vale para o aluno da sessão. */
     public record LembretesDoAlunoRequest(@NotNull Boolean receber) { }

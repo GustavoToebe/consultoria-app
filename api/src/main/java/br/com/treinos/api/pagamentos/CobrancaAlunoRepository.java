@@ -102,13 +102,42 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
     @Query("select c from CobrancaAluno c where c.id = :id")
     Optional<CobrancaAluno> buscarParaAlterar(UUID id);
 
-    /** Maior competência de todas as linhas da contratação, canceladas incluídas. */
-    @Query("select max(c.competencia) from CobrancaAluno c where c.contratacaoId = :contratacaoId")
-    Optional<LocalDate> maiorCompetencia(UUID contratacaoId);
+    /**
+     * Maior competência de todas as MENSALIDADES da contratação, canceladas incluídas. A cobrança de saída tem a data do
+     * encerramento como competência e nunca entra na conta do calendário.
+     */
+    @Query("select max(c.competencia) from CobrancaAluno c where c.contratacaoId = :contratacaoId and c.tipo = :mensalidade")
+    Optional<LocalDate> maiorCompetenciaDaMensalidade(UUID contratacaoId, CobrancaAluno.Tipo mensalidade);
 
-    /** Maior competência da contratação fora das situações dadas (sem as que não cobrem período, dá o fim do último período em uso). */
-    @Query("select max(c.competencia) from CobrancaAluno c where c.contratacaoId = :contratacaoId and c.situacao not in :excluidas")
-    Optional<LocalDate> maiorCompetenciaCoberta(UUID contratacaoId, Collection<CobrancaAluno.Situacao> excluidas);
+    default Optional<LocalDate> maiorCompetencia(UUID contratacaoId) {
+        return maiorCompetenciaDaMensalidade(contratacaoId, CobrancaAluno.Tipo.MENSALIDADE);
+    }
+
+    /** Maior competência da mensalidade fora das situações dadas (sem as que não cobrem período, dá o fim do último período em uso). */
+    @Query("select max(c.competencia) from CobrancaAluno c where c.contratacaoId = :contratacaoId "
+            + "and c.tipo = :mensalidade and c.situacao not in :excluidas")
+    Optional<LocalDate> maiorCompetenciaCobertaDaMensalidade(UUID contratacaoId, CobrancaAluno.Tipo mensalidade,
+            Collection<CobrancaAluno.Situacao> excluidas);
+
+    default Optional<LocalDate> maiorCompetenciaCoberta(UUID contratacaoId,
+            Collection<CobrancaAluno.Situacao> excluidas) {
+        return maiorCompetenciaCobertaDaMensalidade(contratacaoId, CobrancaAluno.Tipo.MENSALIDADE, excluidas);
+    }
+
+    /**
+     * As mensalidades da contratação fora das situações dadas, em ordem fixa (vencimento, id). A versão com trava é a do
+     * encerrar: todas numa consulta só, na ordem que evita deadlock entre duas operações sobre a mesma contratação.
+     */
+    @Query("select c from CobrancaAluno c where c.contratacaoId = :contratacaoId and c.tipo = :mensalidade "
+            + "and c.situacao not in :excluidas order by c.vencimento asc, c.id asc")
+    List<CobrancaAluno> mensalidadesDaContratacao(UUID contratacaoId, CobrancaAluno.Tipo mensalidade,
+            Collection<CobrancaAluno.Situacao> excluidas);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from CobrancaAluno c where c.contratacaoId = :contratacaoId and c.tipo = :mensalidade "
+            + "and c.situacao not in :excluidas order by c.vencimento asc, c.id asc")
+    List<CobrancaAluno> mensalidadesDaContratacaoTravadas(UUID contratacaoId, CobrancaAluno.Tipo mensalidade,
+            Collection<CobrancaAluno.Situacao> excluidas);
 
     /**
      * Esquece o link das cobranças abertas da consultoria (a pagas, canceladas e as demais guardam o histórico). Serve para
@@ -121,13 +150,22 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
             + "c.linkGeradoEm = null, c.linkValidoAte = null where c.situacao = :aberta")
     int esquecerLinksDasAbertas(CobrancaAluno.Situacao aberta);
 
-    boolean existsByContratacaoIdAndCompetencia(UUID contratacaoId, LocalDate competencia);
+    boolean existsByContratacaoIdAndCompetenciaAndTipo(UUID contratacaoId, LocalDate competencia, CobrancaAluno.Tipo tipo);
 
-    boolean existsByContratacaoIdAndCompetenciaAndSituacao(UUID contratacaoId, LocalDate competencia,
-            CobrancaAluno.Situacao situacao);
+    boolean existsByContratacaoIdAndCompetenciaAndTipoAndSituacao(UUID contratacaoId, LocalDate competencia,
+            CobrancaAluno.Tipo tipo, CobrancaAluno.Situacao situacao);
 
-    List<CobrancaAluno> findByContratacaoIdAndSituacaoAndVencimentoGreaterThanEqual(UUID contratacaoId,
-            CobrancaAluno.Situacao situacao, LocalDate vencimento);
+    default boolean existsMensalidade(UUID contratacaoId, LocalDate competencia) {
+        return existsByContratacaoIdAndCompetenciaAndTipo(contratacaoId, competencia, CobrancaAluno.Tipo.MENSALIDADE);
+    }
+
+    default boolean existsMensalidadeNaSituacao(UUID contratacaoId, LocalDate competencia, CobrancaAluno.Situacao situacao) {
+        return existsByContratacaoIdAndCompetenciaAndTipoAndSituacao(contratacaoId, competencia,
+                CobrancaAluno.Tipo.MENSALIDADE, situacao);
+    }
+
+    List<CobrancaAluno> findByContratacaoIdAndTipoAndSituacaoAndVencimentoGreaterThanEqual(UUID contratacaoId,
+            CobrancaAluno.Tipo tipo, CobrancaAluno.Situacao situacao, LocalDate vencimento);
 
     List<CobrancaAluno> findByAlunoIdAndSituacao(UUID alunoId, CobrancaAluno.Situacao situacao);
 
@@ -194,10 +232,18 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
             + "and (:responsavelId is null or a.responsavelId = :responsavelId)")
     Soma pagasPorPagamento(CobrancaAluno.Situacao paga, LocalDate de, LocalDate ate, UUID responsavelId);
 
-    @Query("select count(distinct c.alunoId) from CobrancaAluno c join Aluno a on a.id = c.alunoId "
-            + "where c.situacao = :paga and c.pagoEm between :de and :ate "
+    /** Só o tipo dado: pagantes e valor médio contam mensalidade; a cobrança de saída entra em recebido, não aqui (P6). */
+    @Query("select sum(c.valorCentavos) as total, count(c) as quantidade from CobrancaAluno c "
+            + "join Aluno a on a.id = c.alunoId where c.situacao = :paga and c.tipo = :tipo and c.pagoEm between :de and :ate "
             + "and (:responsavelId is null or a.responsavelId = :responsavelId)")
-    long alunosQuePagaram(CobrancaAluno.Situacao paga, LocalDate de, LocalDate ate, UUID responsavelId);
+    Soma pagasPorPagamentoDoTipo(CobrancaAluno.Situacao paga, CobrancaAluno.Tipo tipo, LocalDate de, LocalDate ate,
+            UUID responsavelId);
+
+    @Query("select count(distinct c.alunoId) from CobrancaAluno c join Aluno a on a.id = c.alunoId "
+            + "where c.situacao = :paga and c.tipo = :tipo and c.pagoEm between :de and :ate "
+            + "and (:responsavelId is null or a.responsavelId = :responsavelId)")
+    long alunosQuePagaramDoTipo(CobrancaAluno.Situacao paga, CobrancaAluno.Tipo tipo, LocalDate de, LocalDate ate,
+            UUID responsavelId);
 
     @Query("select extract(year from c.pagoEm) as ano, extract(month from c.pagoEm) as mes, "
             + "sum(c.valorCentavos) as total from CobrancaAluno c join Aluno a on a.id = c.alunoId "

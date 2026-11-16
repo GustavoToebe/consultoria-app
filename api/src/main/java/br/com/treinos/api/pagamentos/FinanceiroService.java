@@ -138,10 +138,15 @@ public class FinanceiroService {
         boolean haAtraso = !atrasoAte.isBefore(inicio);
         Soma atrasadas = haAtraso ? cobrancas.abertasPorVencimento(ABERTA, inicio, atrasoAte, responsavelId) : null;
         Soma cobradas = haAtraso ? cobrancas.cobradoPorVencimento(CANCELADA, inicio, atrasoAte, responsavelId) : null;
-        Long pagantes = recebido == null ? null : recebido.getQuantidade() == 0 ? Long.valueOf(0)
-                : Long.valueOf(cobrancas.alunosQuePagaram(PAGA, inicio, ateHoje, responsavelId));
-        Long medio = recebidoTotal == null || pagantes == null || pagantes == 0 ? null
-                : BigDecimal.valueOf(recebidoTotal).divide(BigDecimal.valueOf(pagantes), 0, RoundingMode.HALF_UP).longValueExact();
+        // Pagantes e valor médio contam só mensalidade: a cobrança de saída entra no recebido, mas não vira "mais um pagante".
+        Soma mensalidades = recebido == null ? null
+                : cobrancas.pagasPorPagamentoDoTipo(PAGA, CobrancaAluno.Tipo.MENSALIDADE, inicio, ateHoje, responsavelId);
+        Long pagantes = mensalidades == null ? null : mensalidades.getQuantidade() == 0 ? Long.valueOf(0)
+                : Long.valueOf(cobrancas.alunosQuePagaramDoTipo(PAGA, CobrancaAluno.Tipo.MENSALIDADE, inicio, ateHoje,
+                        responsavelId));
+        Long medio = mensalidades == null || pagantes == 0 ? null
+                : BigDecimal.valueOf(ouZero(mensalidades.getTotal()))
+                        .divide(BigDecimal.valueOf(pagantes), 0, RoundingMode.HALF_UP).longValueExact();
 
         Cartoes cartoes = new Cartoes(recebidoTotal, aReceber,
                 new ValorEQuantidade(atrasadas == null ? null : ouZero(atrasadas.getTotal()),

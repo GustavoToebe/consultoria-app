@@ -259,6 +259,28 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void alunoInativadoComMensalidadeVencidaMantidaAbertaNaoRecebeEmailDeAtraso() throws Exception {
+        String email = ApiDeTeste.emailUnico("lembrete-inativo");
+        JsonNode cobranca = cobrancaDe(admin, "Fábio Fictício Inativo", email, 9000);
+        ligar(admin);
+        // Vence há 3 dias: o lembrete DEPOIS (3 dias) é devido hoje.
+        jdbc.update("update cobranca_aluno set vencimento = ?::date where id = ?::uuid", hoje.minusDays(3).toString(),
+                cobranca.get("id").asString());
+        api.patch("/alunos/" + cobranca.get("alunoId").asString() + "/situacao", admin, Map.of("ativo", false), 200);
+        // A inativação mantém a vencida aberta (a equipe ainda cobra), mas não pode mandar e-mail a quem saiu.
+        assertThat(jdbc.queryForObject("select situacao from cobranca_aluno where id = ?::uuid", String.class,
+                cobranca.get("id").asString())).isEqualTo("ABERTA");
+
+        job.rodar(hoje, enviador);
+        job.rodar(hoje, enviador);
+
+        assertThat(EmailDeTeste.para(email)).isEmpty();
+        assertThat(linhas(cobranca)).allSatisfy(l -> assertThat(l.get("situacao")).isEqualTo("CANCELADO"));
+        // A contratação encerrada pela inativação é conferida antes do aluno: é esse o motivo gravado.
+        assertThat(linhas(cobranca)).singleElement().satisfies(l -> assertThat(l.get("motivo")).isEqualTo("CONTRATACAO_NAO_ATIVA"));
+    }
+
+    @Test
     void configuracaoDesligadaDepoisDoPlanejamentoCancela() throws Exception {
         String email = ApiDeTeste.emailUnico("lembrete-desligou");
         JsonNode cobranca = cobrancaDe(admin, "Dora Fictícia", email, 9000);

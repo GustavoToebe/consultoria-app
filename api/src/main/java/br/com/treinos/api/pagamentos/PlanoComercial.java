@@ -37,6 +37,12 @@ public class PlanoComercial {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PeriodoDoPlano periodicidade;
+    /** Só plano mensal; nulo = sem mínimo. */
+    @Column(name = "tempo_minimo_meses")
+    private Short tempoMinimoMeses;
+    /** Lembrete do contrato mostrado ao encerrar; texto do treinador: nunca em log, auditoria nem resposta do aluno. */
+    @Column(name = "regra_de_saida")
+    private String regraDeSaida;
     @Column(name = "arquivado_em")
     private Instant arquivadoEm;
     /** Do {@code default now()} da coluna; o Hibernate lê de volta no insert, para a resposta de criação já trazer. */
@@ -49,16 +55,18 @@ public class PlanoComercial {
     protected PlanoComercial() {
     }
 
-    PlanoComercial(String nome, long valorCentavos, PeriodoDoPlano periodicidade) {
-        this.nome = nome;
-        this.valorCentavos = valorCentavos;
-        this.periodicidade = periodicidade;
+    PlanoComercial(String nome, long valorCentavos, PeriodoDoPlano periodicidade, Short tempoMinimoMeses,
+                   String regraDeSaida) {
+        alterar(nome, valorCentavos, periodicidade, tempoMinimoMeses, regraDeSaida);
     }
 
-    void alterar(String nome, long valorCentavos, PeriodoDoPlano periodicidade) {
+    void alterar(String nome, long valorCentavos, PeriodoDoPlano periodicidade, Short tempoMinimoMeses,
+                 String regraDeSaida) {
         this.nome = nome;
         this.valorCentavos = valorCentavos;
         this.periodicidade = periodicidade;
+        this.tempoMinimoMeses = tempoMinimoMeses;
+        this.regraDeSaida = regraDeSaida;
     }
 
     void arquivar(Instant quando) {
@@ -74,6 +82,8 @@ public class PlanoComercial {
     public String getNome() { return nome; }
     public long getValorCentavos() { return valorCentavos; }
     public PeriodoDoPlano getPeriodicidade() { return periodicidade; }
+    public Short getTempoMinimoMeses() { return tempoMinimoMeses; }
+    public String getRegraDeSaida() { return regraDeSaida; }
     public Instant getArquivadoEm() { return arquivadoEm; }
     public Instant getCriadoEm() { return criadoEm; }
     public Long getVersao() { return versao; }

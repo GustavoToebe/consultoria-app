@@ -62,6 +62,19 @@ public final class TextoDoLembrete {
         return String.join("\n\n", paragrafos(tipo, d));
     }
 
+    /**
+     * A mensagem da cobrança de saída (só WhatsApp à mão, sem e-mail nem link): primeiro nome, consultoria, valor e vencimento,
+     * sem a palavra "mensalidade" (não é uma). {@code appUrl} é ignorado.
+     */
+    public static String mensagemDeSaida(Dados d) {
+        String nome = primeiroNome(d.nomeDoAluno());
+        String consultoria = vazio(d.nomeDaConsultoria()) ? "sua consultoria" : umaLinha(d.nomeDaConsultoria());
+        return String.join("\n\n", nome == null ? "Olá." : "Olá, " + nome + ".",
+                "Conforme combinado na saída de " + consultoria + ", há uma cobrança de " + valor(d.valorCentavos())
+                        + " com vencimento em " + d.vencimento().format(DIA_MES)
+                        + ". Se você já pagou, desconsidere esta mensagem.");
+    }
+
     static List<String> paragrafos(TipoDeLembrete tipo, Dados d) {
         List<String> p = new ArrayList<>();
         String nome = primeiroNome(d.nomeDoAluno());

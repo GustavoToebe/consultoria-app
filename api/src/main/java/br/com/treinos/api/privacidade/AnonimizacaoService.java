@@ -177,7 +177,7 @@ public class AnonimizacaoService {
         // Agenda presencial: o aluno sai de todos os compromissos (o de aluno único é apagado) e os avisos dele também.
         agenda.apagarDoAluno(consultoriaId, alunoId);
         // Contratação encerrada, abertas canceladas e o texto livre do treinador sobre a cobrança apagado; valores ficam.
-        pagamentos.encerrarPorSaida(alunoId);
+        pagamentos.encerrarPorAnonimizacao(alunoId);
         pagamentos.apagarDoAluno(alunoId);
         nativo.apagarObservacoesDasExecucoes(consultoriaId, alunoId);
         nativo.apagarComentariosDasSessoesConcluidas(consultoriaId, alunoId);

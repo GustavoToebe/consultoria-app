@@ -3,10 +3,12 @@ package br.com.treinos.api.pagamentos;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.auditoria.Auditar;
 import br.com.treinos.api.auditoria.Auditoria;
+import br.com.plataforma.comum.web.ApiError;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PlanoRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PlanoResponse;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.NaoEncontradoException;
+import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,8 @@ import java.util.UUID;
  */
 @Service
 public class PlanoComercialService {
+
+    private static final int REGRA_MAXIMA = 500;
 
     private final PlanoComercialRepository planos;
     private final Auditoria auditoria;
@@ -41,7 +45,8 @@ public class PlanoComercialService {
     public PlanoResponse criar(PlanoRequest r) {
         String nome = r.nome().trim();
         exigirNomeLivre(nome, null);
-        PlanoComercial plano = new PlanoComercial(nome, r.valorCentavos(), r.periodicidade());
+        PlanoComercial plano = new PlanoComercial(nome, r.valorCentavos(), r.periodicidade(), minimo(r),
+                Buscas.opcional(r.regraDeSaida()));
         return Respostas.plano(gravar(plano));
     }
 
@@ -55,7 +60,7 @@ public class PlanoComercialService {
         conferirVersao(plano, r.versao());
         String nome = r.nome().trim();
         exigirNomeLivre(nome, id);
-        plano.alterar(nome, r.valorCentavos(), r.periodicidade());
+        plano.alterar(nome, r.valorCentavos(), r.periodicidade(), minimo(r), Buscas.opcional(r.regraDeSaida()));
         return Respostas.plano(gravar(plano));
     }
 
@@ -71,6 +76,32 @@ public class PlanoComercialService {
         PlanoComercial gravado = gravar(plano);
         auditoria.registrarEvento("PLANO_COMERCIAL_ARQUIVADO", "PLANO_COMERCIAL", id, "Arquivou um plano comercial.");
         return Respostas.plano(gravado);
+    }
+
+    /**
+     * O tempo mínimo só existe em plano mensal (1 a 60 meses) e a regra de saída cabe em 500 caracteres: 422 no campo, sem
+     * repetir o valor. Vale ao criar e ao alterar, inclusive ao trocar a periodicidade de um plano que já tinha mínimo.
+     */
+    private static Short minimo(PlanoRequest r) {
+        if (r.regraDeSaida() != null && r.regraDeSaida().trim().length() > REGRA_MAXIMA) {
+            throw invalido("regraDeSaida", "A regra de saída pode ter até " + REGRA_MAXIMA + " caracteres.");
+        }
+        Integer meses = r.tempoMinimoMeses();
+        if (meses == null) {
+            return null;
+        }
+        if (r.periodicidade() != PeriodoDoPlano.MENSAL) {
+            throw invalido("tempoMinimoMeses", "O tempo mínimo só vale em plano mensal.");
+        }
+        if (meses < 1 || meses > 60) {
+            throw invalido("tempoMinimoMeses", "O tempo mínimo vai de 1 a 60 meses.");
+        }
+        return meses.shortValue();
+    }
+
+    private static ValidacaoException invalido(String campo, String mensagem) {
+        return new ValidacaoException("Confira os dados do plano.", "PLANO_INVALIDO",
+                List.of(new ApiError.FieldError(campo, mensagem)));
     }
 
     private PlanoComercial buscar(UUID id) {

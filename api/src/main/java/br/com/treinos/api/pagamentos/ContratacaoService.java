@@ -18,15 +18,14 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Contratar, alterar, pausar, retomar e encerrar. Toda operação que muda a contratação trava aluno e contratação nessa
- * ordem ({@link Travas}); o valor de cada cobrança vem sempre da contratação, nunca do cliente. Pausar, retomar e
- * encerrar são idempotentes (repetir devolve o estado atual, sem auditoria nova).
+ * Contratar, alterar, pausar e retomar (encerrar é do {@link EncerramentoDaContratacao}). Toda operação que muda a contratação trava aluno e contratação nessa
+ * ordem ({@link Travas}); o valor de cada cobrança vem sempre da contratação, nunca do cliente. Pausar e retomar
+ * são idempotentes (repetir devolve o estado atual, sem auditoria nova).
  */
 @Service
 public class ContratacaoService {
@@ -80,6 +79,9 @@ public class ContratacaoService {
         long valor = r.valorCentavos() == null ? plano.getValorCentavos() : r.valorCentavos();
         String motivo = motivoDoValor(valor, plano.getValorCentavos(), r.motivoValor());
         ContratacaoAluno contratacao = new ContratacaoAluno(alunoId, plano, valor, motivo, r.inicio(), r.diaVencimento());
+        if (plano.getTempoMinimoMeses() != null && plano.getPeriodicidade() == PeriodoDoPlano.MENSAL) {
+            contratacao.definirMinimo(r.inicio().plusMonths(plano.getTempoMinimoMeses()));
+        }
         try {
             contratacoes.saveAndFlush(contratacao);
         } catch (DataIntegrityViolationException e) {
@@ -101,7 +103,8 @@ public class ContratacaoService {
 
     /**
      * Valor e dia de vencimento novos. Refaz no lugar só as cobranças abertas que ainda não venceram (as vencidas e as
-     * pagas não mudam); o vencimento refeito nunca fica antes de hoje, então a edição não gera cobrança vencida.
+     * pagas não mudam; a cobrança de saída nunca é reajustada); o vencimento refeito nunca fica antes de hoje, então a
+     * edição não gera cobrança vencida. {@code minimoAte} substitui o que havia (nulo apaga): o formulário reenvia o atual.
      */
     @Transactional
     @Auditar(acao = "CONTRATACAO_ALTERADA", entidade = "CONTRATACAO", resumo = "Alterou a contratação de um aluno.")
@@ -112,10 +115,10 @@ public class ContratacaoService {
         PlanoComercial plano = planos.findById(c.getPlanoComercialId())
                 .orElseThrow(() -> new NaoEncontradoException("Plano comercial não encontrado."));
         String motivo = motivoDoValor(r.valorCentavos(), plano.getValorCentavos(), r.motivoValor());
-        c.alterar(r.valorCentavos(), motivo, r.diaVencimento());
+        c.alterar(r.valorCentavos(), motivo, r.diaVencimento(), minimoValido(c, r.minimoAte()));
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        for (CobrancaAluno aberta : cobrancas.findByContratacaoIdAndSituacaoAndVencimentoGreaterThanEqual(
-                c.getId(), CobrancaAluno.Situacao.ABERTA, hoje)) {
+        for (CobrancaAluno aberta : cobrancas.findByContratacaoIdAndTipoAndSituacaoAndVencimentoGreaterThanEqual(
+                c.getId(), CobrancaAluno.Tipo.MENSALIDADE, CobrancaAluno.Situacao.ABERTA, hoje)) {
             aberta.reajustar(r.valorCentavos(),
                     CalendarioDeCobranca.vencimento(aberta.getCompetencia(), r.diaVencimento(), hoje));
         }
@@ -157,23 +160,25 @@ public class ContratacaoService {
         return mudou(c, "CONTRATACAO_RETOMADA", "Retomou a contratação de um aluno.");
     }
 
-    /** Não cancela as cobranças abertas: o treinador cancela uma a uma, se quiser. Libera nova contratação. */
-    @Transactional
-    public ContratacaoResponse encerrar(UUID id, Long versao) {
-        ContratacaoAluno c = travas.daContratacao(id).contratacao();
-        if (c.getSituacao() == ContratacaoAluno.Situacao.ENCERRADA) {
-            return resposta(c, nomeDoPlano(c));
-        }
-        conferirVersao(c, versao);
-        c.encerrar(Instant.now());
-        return mudou(c, "CONTRATACAO_ENCERRADA", "Encerrou a contratação de um aluno.");
-    }
-
     private ContratacaoResponse mudou(ContratacaoAluno c, String acao, String resumo) {
         ContratacaoResponse resposta = resposta(contratacoes.saveAndFlush(c), nomeDoPlano(c));
         cobrancas.flush();
         auditoria.registrarEvento(acao, "CONTRATACAO", c.getId(), resumo);
         return resposta;
+    }
+
+    /** Nulo apaga; senão entre o início e o início + 60 meses, e só em contratação mensal. 422 sem repetir a data. */
+    private static LocalDate minimoValido(ContratacaoAluno c, LocalDate minimoAte) {
+        if (minimoAte == null) {
+            return null;
+        }
+        if (c.getPeriodicidade() != PeriodoDoPlano.MENSAL) {
+            throw invalido("minimoAte", "O tempo mínimo só vale em plano mensal.");
+        }
+        if (minimoAte.isBefore(c.getInicio()) || minimoAte.isAfter(c.getInicio().plusMonths(60))) {
+            throw invalido("minimoAte", "O fim do mínimo precisa estar entre o início da contratação e 60 meses depois.");
+        }
+        return minimoAte;
     }
 
     private static ContratacaoResponse resposta(ContratacaoAluno c, String planoNome) {

@@ -97,12 +97,18 @@ class CobrancaVencidaNaoBloqueiaOAlunoIntegrationTest extends AbstractIntegratio
     /** Aluno com um plano mensal contratado hoje; a cobrança aberta que nasce ganha o vencimento no passado. */
     private String contratarEVencer(UUID alunoId, int diasDeAtraso) throws Exception {
         JsonNode plano = api.post("/financeiro/planos", treinador,
-                Map.of("nome", "Plano " + UUID.randomUUID(), "valorCentavos", 15_000, "periodicidade", "MENSAL"), 200);
+                Map.of("nome", "Plano " + UUID.randomUUID(), "valorCentavos", 15_000, "periodicidade", "MENSAL",
+                        "tempoMinimoMeses", 3), 200);
         Map<String, Object> corpo = new LinkedHashMap<>();
         corpo.put("planoComercialId", plano.get("id").asString());
         corpo.put("inicio", hoje.toString());
         corpo.put("diaVencimento", hoje.getDayOfMonth());
-        api.post("/alunos/" + alunoId + "/contratacoes", treinador, corpo, 200);
+        JsonNode contratacao = api.post("/alunos/" + alunoId + "/contratacoes", treinador, corpo, 200);
+        // Além da mensalidade vencida, uma cobrança de saída vencida com o mínimo ainda no futuro: nada disso bloqueia o aluno.
+        api.post("/contratacoes/" + contratacao.get("id").asString() + "/encerrar", treinador, Map.of("versao",
+                contratacao.get("versao").asLong(), "saida", Map.of("opcao", "OUTRO", "valorCentavos", 5_000)), 200);
+        jdbc.update("update cobranca_aluno set vencimento = ? where aluno_id = ?::uuid and tipo = 'SAIDA'",
+                hoje.minusDays(diasDeAtraso), alunoId.toString());
         String cobrancaId = null;
         for (JsonNode c : api.get("/alunos/" + alunoId + "/cobrancas", treinador, 200)) {
             if ("ABERTA".equals(c.get("situacao").asString())) {

@@ -130,7 +130,9 @@ public class LembretesService {
                 .toList();
         Optional<Aluno> aluno = alunos.findById(cobranca.getAlunoId());
         boolean alunoDesligou = aluno.map(a -> a.getLembretesCobrancaDesligadosEm() != null).orElse(false);
-        return new LembretesDaCobranca(itens, whatsapp(cobranca, aluno), alunoDesligou);
+        String[] motivo = new String[1];
+        WhatsAppDaCobranca whatsapp = whatsapp(cobranca, aluno, motivo);
+        return new LembretesDaCobranca(itens, whatsapp, alunoDesligou, whatsapp == null ? motivo[0] : null);
     }
 
     /** O aluno da sessão recebe os lembretes de cobrança por e-mail? (Sem escolha gravada, sim.) */
@@ -162,21 +164,34 @@ public class LembretesService {
         return new LembretesDoAlunoResponse(receber);
     }
 
-    private WhatsAppDaCobranca whatsapp(CobrancaAluno cobranca, Optional<Aluno> aluno) {
+    /**
+     * A mensagem do WhatsApp à mão. Aluno ativo: cobrança aberta de qualquer tipo. Aluno inativo (não anonimizado): só a
+     * vencida e a de saída, sem link do app (ele não entra mais). Anonimizado: nunca. Sem mensagem, {@code motivo[0]} diz por quê.
+     */
+    private WhatsAppDaCobranca whatsapp(CobrancaAluno cobranca, Optional<Aluno> aluno, String[] motivo) {
         if (cobranca.getSituacao() != CobrancaAluno.Situacao.ABERTA) {
+            motivo[0] = "COBRANCA_NAO_ABERTA";
             return null;
         }
-        if (aluno.isEmpty() || !aluno.get().isAtivo() || aluno.get().isAnonimizado()) {
+        if (aluno.isEmpty() || aluno.get().isAnonimizado()) {
+            motivo[0] = "ALUNO_ANONIMIZADO";
+            return null;
+        }
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        boolean saida = cobranca.getTipo() == CobrancaAluno.Tipo.SAIDA;
+        boolean ativo = aluno.get().isAtivo();
+        if (!ativo && !saida && !cobranca.getVencimento().isBefore(hoje)) {
+            motivo[0] = "ALUNO_INATIVO";
             return null;
         }
         String telefone = aluno.get().getUsuarioId() == null ? null
                 : usuarios.findById(aluno.get().getUsuarioId()).map(Usuario::getTelefone)
                         .filter(t -> !t.isBlank()).orElse(null);
         String consultoria = consultorias.findById(TenantContext.get()).map(Consultoria::getNome).orElse(null);
-        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        String mensagem = TextoDoLembrete.mensagem(RegraDosLembretes.situacaoDeHoje(hoje, cobranca.getVencimento()),
-                new TextoDoLembrete.Dados(aluno.get().getNome(), consultoria, cobranca.getValorCentavos(),
-                        cobranca.getVencimento(), appUrl));
+        var dados = new TextoDoLembrete.Dados(aluno.get().getNome(), consultoria, cobranca.getValorCentavos(),
+                cobranca.getVencimento(), ativo && !saida ? appUrl : "");
+        String mensagem = saida ? TextoDoLembrete.mensagemDeSaida(dados)
+                : TextoDoLembrete.mensagem(RegraDosLembretes.situacaoDeHoje(hoje, cobranca.getVencimento()), dados);
         return new WhatsAppDaCobranca(telefone, mensagem);
     }
 

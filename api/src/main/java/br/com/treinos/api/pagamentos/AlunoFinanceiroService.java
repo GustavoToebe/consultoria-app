@@ -56,7 +56,7 @@ public class AlunoFinanceiroService {
                 .map(c -> new PlanoDoAluno(c.getId(),
                         planos.findById(c.getPlanoComercialId()).map(PlanoComercial::getNome).orElse(null),
                         c.getValorCentavos(), c.getPeriodicidade(), c.getSituacao(),
-                        abertas.isEmpty() ? null : abertas.get(0).getVencimento()))
+                        proximoVencimento(abertas, c.getId())))
                 .orElse(null);
         List<CobrancaDoAluno> historico = cobrancas
                 .findTop24ByAlunoIdAndSituacaoInOrderByCompetenciaDescIdDesc(alunoId, NO_HISTORICO).stream()
@@ -65,6 +65,12 @@ public class AlunoFinanceiroService {
         boolean pagamentoOnline = infinitePay.habilitado() && credenciais.existsByProvedor(RecebimentoOnlineService.PROVEDOR);
         return new FinanceiroDoAluno(plano, abertas.stream().map(c -> Respostas.cobrancaDoAluno(c, hoje)).toList(), historico,
                 pagamentoOnline);
+    }
+
+    /** O da mensalidade aberta mais próxima desta contratação: a cobrança de saída não é "o próximo vencimento do plano". */
+    private static LocalDate proximoVencimento(List<CobrancaAluno> abertas, UUID contratacaoId) {
+        return abertas.stream().filter(a -> a.getTipo() == CobrancaAluno.Tipo.MENSALIDADE
+                && a.getContratacaoId().equals(contratacaoId)).map(CobrancaAluno::getVencimento).findFirst().orElse(null);
     }
 
     @Transactional(readOnly = true)

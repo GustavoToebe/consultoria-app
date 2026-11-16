@@ -39,7 +39,7 @@ class GeradorDeCobrancas {
     @Transactional(propagation = Propagation.MANDATORY)
     Optional<CobrancaAluno> garantirSeguinte(ContratacaoAluno contratacao) {
         Optional<LocalDate> maior = cobrancas.maiorCompetencia(contratacao.getId());
-        if (maior.isPresent() && cobrancas.existsByContratacaoIdAndCompetenciaAndSituacao(contratacao.getId(), maior.get(),
+        if (maior.isPresent() && cobrancas.existsMensalidadeNaSituacao(contratacao.getId(), maior.get(),
                 CobrancaAluno.Situacao.ABERTA)) {
             return Optional.empty();
         }
@@ -60,7 +60,7 @@ class GeradorDeCobrancas {
                 .maiorCompetenciaCoberta(contratacao.getId(), CobrancaAluno.NAO_COBREM_PERIODO).orElse(null);
         LocalDate competencia = CalendarioDeCobranca.proximaCompetencia(contratacao.getAncora(),
                 contratacao.getPeriodicidade(), maior, maiorCoberta);
-        if (cobrancas.existsByContratacaoIdAndCompetencia(contratacao.getId(), competencia)) {
+        if (cobrancas.existsMensalidade(contratacao.getId(), competencia)) {
             return Optional.empty();
         }
         LocalDate vencimento = CalendarioDeCobranca.vencimento(competencia, contratacao.getDiaVencimento(), null);
