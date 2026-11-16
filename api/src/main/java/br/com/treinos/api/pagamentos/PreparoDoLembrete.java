@@ -6,6 +6,7 @@ import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.consultoria.Consultoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.consultoria.RemetenteDaConsultoria;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,11 +36,11 @@ class PreparoDoLembrete {
 
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@<>\"(),;:]+@[^\\s@<>\"(),;:]+\\.[^\\s@<>\"(),;:]+$");
 
-    /** O resultado: {@code para} e {@code mensagem} para enviar, ou só o {@code motivo} do cancelamento. */
-    record Preparo(String para, TextoDoLembrete.Mensagem mensagem, String motivo) {
+    /** O resultado: {@code para}, {@code mensagem} e o {@code remetente} da consultoria para enviar, ou só o {@code motivo} do cancelamento. */
+    record Preparo(String para, TextoDoLembrete.Mensagem mensagem, RemetenteDaConsultoria.Remetente remetente, String motivo) {
 
         static Preparo cancelar(String motivo) {
-            return new Preparo(null, null, motivo);
+            return new Preparo(null, null, null, motivo);
         }
 
         boolean enviar() {
@@ -103,10 +104,11 @@ class PreparoDoLembrete {
         if (para == null) {
             return Preparo.cancelar(SEM_EMAIL);
         }
-        String consultoria = consultorias.findById(lembrete.consultoriaId()).map(Consultoria::getNome).orElse(null);
-        var dados = new TextoDoLembrete.Dados(aluno.get().getNome(), consultoria, cobranca.getValorCentavos(),
-                cobranca.getVencimento(), appUrl);
-        return new Preparo(para, TextoDoLembrete.email(lembrete.tipo(), dados), null);
+        Consultoria consultoria = consultorias.findById(lembrete.consultoriaId()).orElse(null);
+        var dados = new TextoDoLembrete.Dados(aluno.get().getNome(), consultoria == null ? null : consultoria.getNome(),
+                cobranca.getValorCentavos(), cobranca.getVencimento(), appUrl);
+        return new Preparo(para, TextoDoLembrete.email(lembrete.tipo(), dados),
+                consultoria == null ? null : RemetenteDaConsultoria.de(consultoria), null);
     }
 
     /** O e-mail do cadastro do aluno; sem ele, o de login. Nulo se nenhum serve. */

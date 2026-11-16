@@ -1,10 +1,15 @@
 package br.com.treinos.api.consultoria;
 
+import br.com.plataforma.comum.auth.EnviadorDeEmail;
+import br.com.plataforma.comum.web.ApiError;
 import br.com.plataforma.comum.web.ApiException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.equipe.PerfilRepository;
+import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.NaoEncontradoException;
+import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.security.access.AccessDeniedException;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -16,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -39,22 +45,25 @@ public class MarcaService {
             @Min(1) @Max(365) Integer diasAtualizacaoPadrao,
             br.com.treinos.api.ciclo.CicloDtos.TextosDasFases textosFasesCiclo,
             /** Meta do peso padrão dos alunos; nulo = não muda a gravada (a coluna nunca é nula). */
-            MetaDoPeso metaDoPeso) {
+            MetaDoPeso metaDoPeso,
+            /** Contato (V076): nulo (ausente) mantém o gravado, em branco apaga. Validado no serviço (422 {@code MARCA_INVALIDA} por campo, sem repetir o valor). */
+            String whatsapp, String emailRemetenteNome, String emailResponderPara) {
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null, null, null, null, null);
         }
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao, Integer diasAtualizacaoPadrao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null, null, null, null, null);
         }
     }
 
+    /** O contato fica fora de {@link MarcaPublica} (pública): só a equipe o lê aqui; o aluno recebe o número em {@code GET /eu}. */
     public record ConsultoriaResponse(MarcaPublica marca, Long versao, Integer diasAtualizacaoPadrao,
                                      br.com.treinos.api.ciclo.CicloDtos.TextosDasFases textosFasesCiclo,
-                                     MetaDoPeso metaDoPeso) {
+                                     MetaDoPeso metaDoPeso, String whatsapp, String emailRemetenteNome, String emailResponderPara) {
     }
 
     private final ConsultoriaRepository consultorias;
@@ -98,6 +107,7 @@ public class MarcaService {
     public ConsultoriaResponse alterarMarca(UUID consultoriaId, MarcaRequest r) {
         Consultoria c = buscar(consultoriaId);
         exigirMesmaVersao(c, r.versao());
+        conferirContato(c, r);
         c.alterarMarca(r.nome().trim(), r.corPrimaria().toUpperCase(java.util.Locale.ROOT),
                 r.fonteTitulo(), r.temaPadrao(), r.diasAtualizacaoPadrao());
         c.definirTextosFasesCiclo(ciclo.textosParaGravar(r.textosFasesCiclo()));
@@ -108,6 +118,46 @@ public class MarcaService {
         }
         consultorias.saveAndFlush(c);
         return resposta(c);
+    }
+
+    /**
+     * Cada um dos três campos é independente: nulo (ausente) mantém o gravado, em branco apaga e preenchido valida e grava (como
+     * telefone e data de nascimento do aluno). Recusa com 422 {@code MARCA_INVALIDA} e o campo em {@code fieldErrors}; nunca
+     * repete o valor.
+     */
+    private static void conferirContato(Consultoria c, MarcaRequest r) {
+        var erros = new ArrayList<ApiError.FieldError>();
+        String whatsapp = c.getWhatsapp();
+        if (r.whatsapp() != null) {
+            try {
+                whatsapp = Formatos.telefone(r.whatsapp());
+            } catch (BadRequestException recusado) {
+                erros.add(new ApiError.FieldError("whatsapp", recusado.getMessage()));
+            }
+        }
+        String nome = c.getEmailRemetenteNome();
+        if (r.emailRemetenteNome() != null) {
+            nome = emBrancoViraNulo(r.emailRemetenteNome());
+            if (nome != null && !RemetenteDaConsultoria.nomeValido(nome)) {
+                erros.add(new ApiError.FieldError("emailRemetenteNome", "O nome do remetente pode ter até "
+                        + EnviadorDeEmail.NOME_REMETENTE_MAXIMO + " caracteres, sem quebra de linha, < >, aspas, barra invertida ou caractere de controle."));
+            }
+        }
+        String responderPara = c.getEmailResponderPara();
+        if (r.emailResponderPara() != null) {
+            responderPara = emBrancoViraNulo(r.emailResponderPara());
+            if (responderPara != null && !RemetenteDaConsultoria.enderecoValido(responderPara)) {
+                erros.add(new ApiError.FieldError("emailResponderPara", "E-mail inválido."));
+            }
+        }
+        if (!erros.isEmpty()) {
+            throw new ValidacaoException("Confira os campos de contato.", "MARCA_INVALIDA", erros);
+        }
+        c.definirContato(whatsapp, nome, responderPara);
+    }
+
+    private static String emBrancoViraNulo(String texto) {
+        return texto == null || texto.isBlank() ? null : texto.strip();
     }
 
     /**
@@ -198,7 +248,7 @@ public class MarcaService {
 
     private ConsultoriaResponse resposta(Consultoria c) {
         return new ConsultoriaResponse(MarcaPublica.de(c), c.getVersao(), c.getDiasAtualizacaoPadrao(), ciclo.textos(c.getId()),
-                c.getMetaDoPeso());
+                c.getMetaDoPeso(), c.getWhatsapp(), c.getEmailRemetenteNome(), c.getEmailResponderPara());
     }
 
     private Consultoria buscar(UUID consultoriaId) {

@@ -83,6 +83,16 @@ public class Consultoria {
     @Column(name = "historico_financeiro_parcial", nullable = false, insertable = false, updatable = false)
     private boolean historicoFinanceiroParcial;
 
+    /** Contato (V076), tudo opcional: WhatsApp já em {@code Formatos.telefone}; nome e responder-para só para o e-mail da consultoria. */
+    @Column(name = "whatsapp")
+    private String whatsapp;
+
+    @Column(name = "email_remetente_nome")
+    private String emailRemetenteNome;
+
+    @Column(name = "email_responder_para")
+    private String emailResponderPara;
+
     @Column(name = "logo_tipo", insertable = false, updatable = false)
     private String logoTipo;
 
@@ -162,6 +172,29 @@ public class Consultoria {
 
     public boolean isHistoricoFinanceiroParcial() {
         return historicoFinanceiroParcial;
+    }
+
+    public String getWhatsapp() {
+        return whatsapp;
+    }
+
+    public String getEmailRemetenteNome() {
+        return emailRemetenteNome;
+    }
+
+    public String getEmailResponderPara() {
+        return emailResponderPara;
+    }
+
+    /** O número só com dígitos (DDD + número, sem o 55): o app monta {@code https://wa.me/55<dígitos>}. Nulo = sem número. */
+    public String whatsappParaLink() {
+        return whatsapp == null ? null : whatsapp.replaceAll("\\D", "");
+    }
+
+    public void definirContato(String whatsapp, String emailRemetenteNome, String emailResponderPara) {
+        this.whatsapp = whatsapp;
+        this.emailRemetenteNome = emailRemetenteNome;
+        this.emailResponderPara = emailResponderPara;
     }
 
     public String getLogoTipo() {

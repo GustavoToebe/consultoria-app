@@ -206,6 +206,33 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
     // ---- o job ----
 
     @Test
+    void lembreteSaiComONomeEOResponderParaDaConsultoriaOuONomeDelaSaneado() throws Exception {
+        String padrao = ApiDeTeste.emailUnico("lembrete-padrao");
+        JsonNode cobrancaPadrao = cobrancaDe(admin, "Aluna Remetente Padrão", padrao, 9000);
+        String nomeDaConsultoria = api.get("/consultoria", admin, 200).get("marca").get("nome").asString();
+        ligar(admin);
+        job.rodar(vencimento(cobrancaPadrao).minusDays(3), enviador);
+        var semMarca = EmailDeTeste.para(padrao);
+        assertThat(semMarca).hasSize(1);
+        assertThat(semMarca.get(0).nomeRemetente()).as("sem nome na Marca vale o da consultoria, até 60")
+                .isEqualTo(nomeDaConsultoria.substring(0, 60).strip());
+        assertThat(semMarca.get(0).responderPara()).isNull();
+        assertThat(semMarca.get(0).remetente()).isNull();
+
+        JsonNode atual = api.get("/consultoria", admin, 200);
+        api.put("/consultoria/marca", admin, Map.of("nome", nomeDaConsultoria, "corPrimaria", "#C62828", "fonteTitulo", "PADRAO",
+                "temaPadrao", "CLARO", "versao", atual.get("versao").asLong(), "emailRemetenteNome", "Time Lembrete",
+                "emailResponderPara", "cobranca@teste.local"), 200);
+        String comMarca = ApiDeTeste.emailUnico("lembrete-marca");
+        JsonNode cobranca = cobrancaDe(admin, "Aluna Remetente Marca", comMarca, 9000);
+        job.rodar(vencimento(cobranca).minusDays(3), enviador);
+        var m = EmailDeTeste.para(comMarca).get(0);
+        assertThat(m.nomeRemetente()).isEqualTo("Time Lembrete");
+        assertThat(m.responderPara()).isEqualTo("cobranca@teste.local");
+        assertThat(m.remetente()).isNull();
+    }
+
+    @Test
     void mandaUmaVezSoEOTextoNaoTemNadaAlemDoCombinado() throws Exception {
         String email = ApiDeTeste.emailUnico("lembrete-antes");
         JsonNode cobranca = cobrancaDe(admin, "Bruna Fictícia Lembrada", email, 15000);

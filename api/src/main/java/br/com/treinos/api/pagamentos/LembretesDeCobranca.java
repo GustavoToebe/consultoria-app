@@ -149,13 +149,23 @@ public class LembretesDeCobranca {
             return Fim.CANCELADO;
         }
         try {
-            enviador.enviar(new EnviadorDeEmail.Mensagem(pronto.para(), pronto.mensagem().assunto(), pronto.mensagem().texto(),
-                    pronto.mensagem().html()));
+            enviador.enviar(mensagem(pronto));
         } catch (RuntimeException e) {
             return falhou(lembrete, dono, e);
         }
         transacao.executeWithoutResult(s -> fila.enviado(lembrete.consultoriaId(), lembrete.id(), dono));
         return Fim.ENVIADO;
+    }
+
+    /** Com o nome e o responder-para da consultoria; se a biblioteca recusar o remetente (nunca devia), sai sem remetente próprio. */
+    private static EnviadorDeEmail.Mensagem mensagem(Preparo p) {
+        var r = p.remetente();
+        try {
+            return new EnviadorDeEmail.Mensagem(p.para(), p.mensagem().assunto(), p.mensagem().texto(), p.mensagem().html(),
+                    r == null ? null : r.nomeRemetente(), r == null ? null : r.responderPara(), r == null ? null : r.remetente());
+        } catch (IllegalArgumentException semRemetente) {
+            return new EnviadorDeEmail.Mensagem(p.para(), p.mensagem().assunto(), p.mensagem().texto(), p.mensagem().html());
+        }
     }
 
     /** Só a classe do erro vai ao banco e ao log: a mensagem do provedor pode repetir o endereço. */

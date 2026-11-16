@@ -463,6 +463,10 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         await().atMost(Duration.ofSeconds(15)).until(() -> !EmailDeTeste.para(email).isEmpty());
         var mensagem = EmailDeTeste.para(email).get(0);
         assertThat(mensagem.texto()).contains(link).doesNotContain("Admin Teste");
+        // O convite do sistema segue com o nome da plataforma: nada de remetente da consultoria.
+        assertThat(mensagem.nomeRemetente()).isNull();
+        assertThat(mensagem.responderPara()).isNull();
+        assertThat(mensagem.remetente()).isNull();
 
         // A Central repete o pedido (1 min, 5 min...): a repetição não manda outro e-mail.
         assertThat(central("POST", "/integracao/v1/instancias", corpo, contratacao).getResponse().getStatus()).isEqualTo(200);

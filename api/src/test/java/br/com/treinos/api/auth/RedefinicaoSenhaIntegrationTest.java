@@ -227,6 +227,39 @@ class RedefinicaoSenhaIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void conviteDeEquipeSaiComONomeEOResponderParaDaConsultoriaEORedefinirSenhaSemRemetenteProprio() throws Exception {
+        String perfil = api.get("/perfis", treinador, 200).get(0).path("id").asString();
+        JsonNode atual = api.get("/consultoria", treinador, 200);
+        String nomeDaConsultoria = atual.get("marca").get("nome").asString();
+
+        // Sem nome na Marca: vale o nome da consultoria cortado em 60; sem responder-para, sem reply_to.
+        String padrao = ApiDeTeste.emailUnico("equipe-padrao");
+        api.post("/usuarios/convites", treinador, Map.of("nome", "Pessoa Padrão", "email", padrao, "perfilId", perfil), 200);
+        EnviadorDeEmail.Mensagem semMarca = EmailDeTeste.para(padrao).get(0);
+        assertThat(semMarca.nomeRemetente()).isEqualTo(nomeDaConsultoria.substring(0, 60).strip());
+        assertThat(semMarca.responderPara()).isNull();
+        assertThat(semMarca.remetente()).isNull();
+
+        api.put("/consultoria/marca", treinador, Map.of("nome", nomeDaConsultoria, "corPrimaria", "#C62828", "fonteTitulo", "PADRAO",
+                "temaPadrao", "CLARO", "versao", atual.get("versao").asLong(), "emailRemetenteNome", "Time Convite",
+                "emailResponderPara", "equipe@teste.local"), 200);
+        String comMarca = ApiDeTeste.emailUnico("equipe-marca");
+        api.post("/usuarios/convites", treinador, Map.of("nome", "Pessoa Marca", "email", comMarca, "perfilId", perfil), 200);
+        EnviadorDeEmail.Mensagem m = EmailDeTeste.para(comMarca).get(0);
+        assertThat(m.nomeRemetente()).isEqualTo("Time Convite");
+        assertThat(m.responderPara()).isEqualTo("equipe@teste.local");
+        assertThat(m.remetente()).isNull();
+
+        // Redefinir senha (acesso) segue com a plataforma, mesmo com a Marca preenchida.
+        esqueci(email, 202);
+        aguardarToken(email);
+        EnviadorDeEmail.Mensagem acesso = EmailDeTeste.para(email).get(0);
+        assertThat(acesso.nomeRemetente()).isNull();
+        assertThat(acesso.responderPara()).isNull();
+        assertThat(acesso.remetente()).isNull();
+    }
+
+    @Test
     void conviteDeEquipeContinuaValendoSeOEmailFalhar() throws Exception {
         EmailDeTeste.FALHAR.set(true);
         String perfil = api.get("/perfis", treinador, 200).get(0).path("id").asString();

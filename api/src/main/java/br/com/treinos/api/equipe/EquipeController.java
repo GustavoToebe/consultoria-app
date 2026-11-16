@@ -38,7 +38,7 @@ public class EquipeController {
     public ConviteResponse convidar(@RequestBody @Valid ConviteRequest r,@AuthenticationPrincipal UsuarioAutenticado eu) {
         // O convite já está gravado (transação do serviço fechada): a chamada HTTP do e-mail não segura conexão do banco.
         var convite=equipe.convidar(r,eu.usuarioId());
-        return convite.comEmailEnviado(conviteEmail.enviar(br.com.treinos.api.web.Emails.normalizar(r.email()),convite.link()));
+        return convite.comEmailEnviado(conviteEmail.enviar(br.com.treinos.api.web.Emails.normalizar(r.email()),convite.link(),eu.consultoriaId()));
     }
     @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @DeleteMapping("/usuarios/convites/{id}")
     public ResponseEntity<Void> cancelarConvite(@PathVariable UUID id) { equipe.cancelarConvite(id);return ResponseEntity.noContent().build(); }

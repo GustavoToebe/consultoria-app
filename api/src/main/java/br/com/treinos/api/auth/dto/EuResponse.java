@@ -21,7 +21,9 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          /* Migração assistida (diagnóstico do arquivo) ligada ({@code TREINOS_MIGRACAO_ASSISTIDA_HABILITADA}); desligada, o app esconde tudo dela. */
                          boolean migracaoAssistidaHabilitada,
                          /* Vitrine da consultoria ligada ({@code TREINOS_VITRINE_HABILITADA}); desligada, o app esconde tudo dela. */
-                         boolean vitrineHabilitada) {
+                         boolean vitrineHabilitada,
+                         /* Só para o aluno: WhatsApp da consultoria só com dígitos (DDD + número, sem o 55), para o app montar wa.me/55<dígitos>; some se não há. */
+                         String whatsappDaConsultoria) {
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 
