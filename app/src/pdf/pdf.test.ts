@@ -5,7 +5,10 @@ import { agrupar } from '../dominio/agrupamento';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { carga, exercicio, grupo, rir, rpe, serie, sessao, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
 import { normalizarMobilidade } from '../dominio/mobilidade';
-import { cabecalhoDoPdf, cssBase, esc, link, type Documento } from './html';
+import { cabecalhoDoPdf, cssBase, cssDoDoc, esc, link, type Documento } from './html';
+import { MARCADOR_DO_TEMA, textosSemContraste } from './contrasteDoCss.apoioTeste';
+import { documentoDeExemploDeDieta, documentoDeExemploDeTreino } from './exemplos';
+import { TEMAS_PDF } from './temas';
 import { CLARO, contraste, marcaParaTexto } from '../tema/tokens';
 import type { LinhaCarga } from '../dominio/relatorio';
 import { documentoCargas } from './pdfCargas';
@@ -972,4 +975,90 @@ test('PDF: treino sem nenhum item com explicação não gera glossário', () => 
 
 test('PDF: agrupar continua juntando séries iguais', () => {
   expect(agrupar([serie('a'), serie('b')])).toHaveLength(1);
+});
+
+describe('temas dos PDFs (marca.temaPdf)', () => {
+  const emitidoEm = new Date('2026-10-11T19:30:00Z');
+  const linhaCarga = { data: '2026-10-07', carga: 90, repeticoes: 6, etapas: '4+4 = 8', cargaVariavel: false, volume: { valor: 540, completo: true }, series: 5, semCarga: false, feitoSemCarga: false, observacoes: ['Observação do aluno'] };
+  const linhaDaLista = { chave: 'a', nome: 'Arroz', unidade: 'g' as const, quantidade: 1225, cru: true, bruto: false, semFator: false, naDieta: 1050, quantidadeCru: 420, fatorCorrecao: null, fatorCoccao: 2.5, grupo: null };
+  // Os seis geradores com conteúdo de verdade (a dieta e o treino de exemplo exercitam técnica, opções, suplemento e peso).
+  const geradores: Record<string, (m: Marca) => Documento> = {
+    treino: (m) => documentoDeExemploDeTreino(m, emitidoEm),
+    dieta: (m) => documentoDeExemploDeDieta(m, emitidoEm),
+    mobilidade: (m) => documentoMobilidade({ ...base, marca: m, versao: 1, conteudo: normalizarMobilidade({ secoes: [{ uid: 's', titulo: 'Seção', itens: [{ uid: 'i', nome: 'Gato-camelo', prescricao: '2x30s', videoUrl: null }] }] }) }),
+    cargas: (m) =>
+      documentoCargas({
+        ...base, marca: m, de: '2026-10-01', ate: '2026-10-14',
+        divisoes: [{ chave: 'd', nome: 'Quarta - Pernas', exercicios: [{ chave: 'x', nome: 'Mesa flexora', linhas: [linhaCarga, { ...linhaCarga, data: '2026-10-14', carga: null, etapas: null }] }] }],
+      }),
+    'lista de compras': (m) => documentoListaDeCompras({ ...base, marca: m, versao: 1, periodo: 'semana', opcoes: [], linhas: [linhaDaLista] }),
+  };
+  const comTema = (tema: unknown, cor = '#C62828'): Marca => ({ ...marca, corPrimaria: cor, temaPdf: tema as string });
+  const semTags = (html: string) => html.replace(/<[^>]*>/g, '');
+  const estrutura = (html: string) => [...html.matchAll(/<\/?([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>/g)].map((t) => t[1] + [...t[2].replace(/"[^"]*"/g, '""').matchAll(/\s([a-zA-Z-]+)=/g)].map((a) => a[1]).join(','));
+
+  describe.each(TEMAS_PDF.map((t) => t.id))('%s', (tema) => {
+    it.each(Object.keys(geradores))('%s: o CSS é o do tema, vindo de marca.temaPdf', (nome) => {
+      const css = geradores[nome](comTema(tema)).css;
+      expect(css).toMatch(MARCADOR_DO_TEMA[tema]('#C62828'));
+      expect(css.startsWith(cssBase('#C62828', tema))).toBe(true);
+      if (tema === 'CLASSICO') {
+        expect(css).not.toMatch(MARCADOR_DO_TEMA.MINIMALISTA());
+        expect(css).not.toMatch(MARCADOR_DO_TEMA.MARCANTE('#C62828'));
+      }
+    });
+
+    it.each(Object.keys(geradores))('%s: o HTML não ganha elemento nem atributo novo em relação ao CLASSICO', (nome) => {
+      const classico = geradores[nome](comTema('CLASSICO')).corpo;
+      const doTema = geradores[nome](comTema(tema)).corpo;
+      expect(estrutura(doTema)).toEqual(estrutura(classico));
+      expect(semTags(doTema)).toBe(semTags(classico));
+      // Só a dieta (cores do texto e da faixa de opção) muda de atributo; o resto é idêntico caractere por caractere.
+      if (nome !== 'dieta') expect(doTema).toBe(classico);
+    });
+
+    it.each(Object.keys(geradores))('%s: marca amarela (#FFEB3B) não deixa texto abaixo de 4,5:1', (nome) => {
+      const d = geradores[nome](comTema(tema, '#FFEB3B'));
+      // CLASSICO é o visual de hoje, sem mudar um pixel: só o `cssBase` dele é conferido aqui (a dieta e o relatório de cargas
+      // pintam número com a cor crua da marca desde antes dos temas; os outros temas já usam `corDeTextoDaMarca`).
+      if (tema === 'CLASSICO') return expect(textosSemContraste(cssBase('#FFEB3B', tema))).toEqual([]);
+      expect(textosSemContraste(d.css, d.corpo)).toEqual([]);
+    });
+
+    it('cor hostil cai no neutro e o tema continua valendo', () => {
+      const d = geradores.cargas(comTema(tema, 'red;}</style><script>alert(1)</script>'));
+      expect(d.css).not.toContain('<script');
+      expect(d.css).not.toContain('red;}');
+      expect(d.css).toMatch(MARCADOR_DO_TEMA[tema]('#333333'));
+    });
+  });
+
+  it.each(['OUTRO', 'minimalista', '', null, undefined, 3, '"><script>alert(1)</script>'])('temaPdf %p cai em CLASSICO em todos os geradores', (valor) => {
+    for (const gerar of Object.values(geradores)) {
+      const esperado = gerar(comTema('CLASSICO'));
+      expect(gerar(comTema(valor))).toEqual(esperado);
+    }
+  });
+
+  it('os três temas são diferentes entre si e a prévia usa só a parte do .doc', () => {
+    const csss = TEMAS_PDF.map((t) => cssDoDoc('#C62828', t.id));
+    expect(new Set(csss).size).toBe(3);
+    for (const doc of csss) expect(doc).not.toContain('@page');
+  });
+
+  describe('dieta', () => {
+    it('MINIMALISTA e MARCANTE: faixa de opção com texto legível sobre o fundo e cabeçalho de tabela sem texto escuro sobre o escuro', () => {
+      const classico = documentoDeExemploDeDieta(comTema('CLASSICO', '#FFEB3B'), emitidoEm);
+      expect(classico.corpo).toContain('<div class="cab" style="background:#FFEB3B">');
+      for (const tema of ['MINIMALISTA', 'MARCANTE']) {
+        const d = documentoDeExemploDeDieta(comTema(tema, '#FFEB3B'), emitidoEm);
+        expect(d.corpo).toContain('<div class="cab" style="background:#FFEB3B;color:#000000">');
+        expect(d.corpo).toContain('<div class="cab" style="background:#1A5276;color:#FFFFFF">');
+        // O `th` das tabelas escuras não fica com o fundo escuro do classico.
+        expect(d.css).toMatch(/\.doc table\.dark th \{ background: (none|#F3F4F6);/);
+        const titulo = /<h2 class="sec" style="color:(#[0-9A-F]{6})">/.exec(d.corpo)?.[1] ?? '';
+        expect(titulo).toBe(marcaParaTexto('#FFEB3B', '#FFFFFF'));
+      }
+    });
+  });
 });

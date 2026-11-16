@@ -124,5 +124,5 @@ export function documentoListaDeCompras(d: DadosPdfListaDeCompras): Documento {
       : '<div class="suave">—</div>',
     `<div class="rodape">${esc(NOTA_DA_LISTA)}${d.versao ? '' : ` ${esc(NOTA_DA_PREVIA)}`}</div>`,
   ].join('\n');
-  return { titulo: `Lista de compras - ${d.aluno ?? 'Modelo'} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria) + CSS_LISTA, corpo };
+  return { titulo: `Lista de compras - ${d.aluno ?? 'Modelo'} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf) + CSS_LISTA, corpo };
 }

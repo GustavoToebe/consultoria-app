@@ -2,8 +2,10 @@ import type { AvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTi
 import type { Marca } from '../api/tipos';
 import { medidasVazias } from '../dominio/avaliacaoFisica';
 import { compararAvaliacoes } from '../dominio/comparacaoDeAvaliacoes';
-import { documentoCompleto } from './html';
+import { MARCADOR_DO_TEMA, textosSemContraste } from './contrasteDoCss.apoioTeste';
+import { cssBase, documentoCompleto } from './html';
 import { documentoAvaliacaoFisica, type DadosPdfAvaliacaoFisica } from './pdfAvaliacaoFisica';
+import { TEMAS_PDF } from './temas';
 
 /** O gráfico sai como `<img src="data:image/svg+xml;base64,...">`: devolve o SVG decodificado (ou nulo sem imagem). */
 function svgDoCorpo(corpo: string): string | null {
@@ -270,5 +272,28 @@ describe('PDF da avaliação física', () => {
   it('seleção fora de 2 a 4 datas lança (a tela só habilita o botão com seleção válida)', () => {
     expect(() => gerar(['a'])).toThrow(/pelo menos/);
     expect(() => gerar(['a', 'b', 'c', 'd', 'x'].concat('e'))).not.toThrow(); // ids desconhecidos são ignorados, como na tela
+  });
+});
+
+describe('PDF da avaliação física nos temas (marca.temaPdf)', () => {
+  const comTema = (tema: unknown, cor = '#123456') => ({ marca: { ...marca, corPrimaria: cor, temaPdf: tema } as unknown as Marca });
+  const classico = gerar(['a', 'b', 'c'], comTema('CLASSICO'));
+
+  it.each(TEMAS_PDF.map((t) => t.id))('%s: CSS do tema, HTML idêntico ao do CLASSICO e cabeçalho de tabela cinza da avaliação preservado', (tema) => {
+    const d = gerar(['a', 'b', 'c'], comTema(tema));
+    expect(d.css.startsWith(cssBase('#123456', tema))).toBe(true);
+    expect(d.css).toMatch(MARCADOR_DO_TEMA[tema]('#123456'));
+    expect(d.corpo).toBe(classico.corpo);
+    // A tabela comparativa tem fundo cinza próprio, com texto escuro, em qualquer tema (nada de texto da marca sobre fundo da marca).
+    expect(d.css).toMatch(/.doc table.comp th { background: #f1f3f5; color: #111;/);
+  });
+
+  it.each(TEMAS_PDF.map((t) => t.id))('%s: marca amarela (#FFEB3B) não deixa texto abaixo de 4,5:1', (tema) => {
+    const d = gerar(['a', 'b', 'c'], comTema(tema, '#FFEB3B'));
+    expect(textosSemContraste(d.css, d.corpo)).toEqual([]);
+  });
+
+  it.each(['OUTRO', null, undefined, '', 5])('temaPdf %p cai em CLASSICO', (valor) => {
+    expect(gerar(['a', 'b', 'c'], comTema(valor))).toEqual(classico);
   });
 });

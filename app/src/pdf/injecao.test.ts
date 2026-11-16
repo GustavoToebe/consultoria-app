@@ -17,6 +17,7 @@ import { documentoAvaliacaoFisica } from './pdfAvaliacaoFisica';
 import { documentoMobilidade } from './pdfMobilidade';
 import { documentoTreino } from './pdfTreino';
 import { montarCorpo } from './imprimir.web';
+import { TEMAS_PDF } from './temas';
 
 jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
 
@@ -33,7 +34,7 @@ jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
  */
 
 /** Chaves que só ligam um objeto a outro (uid, referência). Nunca são texto do usuário nem aparecem no PDF. */
-const LIGACAO = ['uid', 'id', 'exercicioId', 'alimentoId', 'grupoUid', 'escolhidas'];
+const LIGACAO = ['uid', 'id', 'exercicioId', 'alimentoId', 'grupoUid', 'escolhidas', 'temaPdf']; // temaPdf escolhe o CSS; o tema atacado tem caso próprio, abaixo
 /** Códigos, enums e datas que escolhem uma entrada da metodologia ou um formato; o servidor os valida. */
 const CODIGOS = [
   'chave', 'codigo', 'tipo', 'modo', 'papel', 'tecnica', 'modalidade', 'regiao', 'unidade', 'periodo',
@@ -142,15 +143,6 @@ function trocarPorX<T>(entrada: T, poupar: Poupar): T {
   return percorrer(entrada, '') as T;
 }
 
-const marca: Marca = { id: 'm', nome: 'Marca', corPrimaria: '#C62828', fonteTitulo: 'METAL', temaPadrao: 'ESCURO', logoUrl: null };
-const base = {
-  marca,
-  logoDataUri: 'data:image/png;base64,AAAA',
-  aluno: 'Aluno',
-  titulo: 'Título',
-  rodapePdf: 'Rodapé',
-  emitidoEm: new Date('2026-10-11T19:30:00Z'),
-};
 
 /** Um grupo de cada combinação (tamanhos que o `ValidadorTreino` aceita), para o glossário das combinações também ser atacado. */
 const COMBINACOES = [
@@ -236,6 +228,18 @@ const linhaDaLista = (chave: string, extra: Partial<LinhaDaLista> = {}): LinhaDa
   chave, nome: 'Arroz', unidade: 'g', quantidade: 1225, cru: true, bruto: true, semFator: false,
   naDieta: 1050, quantidadeCru: 420, fatorCorrecao: 1.1, fatorCoccao: 2.5, grupo: 'Cereais e derivados', ...extra,
 });
+
+// Os mesmos ataques e a mesma barreira (montarCorpo) valem em cada tema: o tema só acrescenta CSS do código, nunca texto do usuário.
+describe.each(TEMAS_PDF.map((x) => x.id))('tema %s', (tema) => {
+const marca: Marca = { id: 'm', nome: 'Marca', corPrimaria: '#C62828', fonteTitulo: 'METAL', temaPadrao: 'ESCURO', logoUrl: null, temaPdf: tema };
+const base = {
+  marca,
+  logoDataUri: 'data:image/png;base64,AAAA',
+  aluno: 'Aluno',
+  titulo: 'Título',
+  rodapePdf: 'Rodapé',
+  emitidoEm: new Date('2026-10-11T19:30:00Z'),
+};
 
 describe('PDF do treino não deixa texto virar HTML', () => {
   conferir('treino', documentoTreino as never, { ...base, inicio: '2026-10-05', fim: '2026-10-20', versao: 2, conteudo: treino, instrucoesTreino: 'Instruções globais' });
@@ -372,5 +376,12 @@ describe('cor da marca nunca chega crua ao CSS nem ao HTML', () => {
       expect(d.corpo).not.toContain('<script');
       expect(d.corpo).not.toContain('red;}');
     });
+    it(`${nome}: temaPdf atacado cai em CLASSICO e nada dele chega ao CSS ou ao HTML`, () => {
+      const hostil = '"><script>alert(1)</script>;}body{display:none';
+      const d = gerar({ ...marca, temaPdf: hostil });
+      expect(d).toEqual(gerar({ ...marca, temaPdf: 'CLASSICO' }));
+      expect(JSON.stringify(d)).not.toContain('alert(1)');
+    });
   }
+});
 });

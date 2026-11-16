@@ -49,7 +49,7 @@ function esperado(perfil: Perfil) {
 const busca = (page: Page) => page.getByRole('textbox', { name: 'Pesquisar configuração' }).or(page.getByRole('searchbox', { name: 'Pesquisar configuração' })).first();
 
 /** Cartão do hub: o nome acessível é "Título, descrição." (o menu lateral tem links só com o título). */
-const cartao = (page: Page, titulo: string) => page.getByRole('link', { name: new RegExp(`^${titulo}, `) });
+const cartao = (page: Page, titulo: string) => page.getByRole('link', { name: new RegExp(`^${titulo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `) });
 
 async function titulosDosCartoes(page: Page) {
   const h2 = await page.getByRole('heading', { level: 2 }).allTextContents();
@@ -67,7 +67,7 @@ async function capturar(page: Page, nome: string) {
 
 const ADMIN: Perfil = { permissoes: ACESSO_TOTAL, administrador: true, pagamentos: true, recebimentoOnline: true };
 
-test('acesso total (1280): um h1, os sete grupos na ordem e os vinte e um cartões, cada um com o destino do catálogo', async ({ page }) => {
+test('acesso total (1280): um h1, os sete grupos na ordem e os vinte e dois cartões, cada um com o destino do catálogo', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, ADMIN);
   await expect(page.getByRole('heading', { level: 1, name: 'Configurações' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
@@ -90,7 +90,7 @@ test('perfil restrito: só os cartões que ele pode abrir; Consultoria, Equipe e
   const { grupos, titulos } = esperado(restrito);
   await expect.poll(() => titulosDosCartoes(page)).toEqual(grupos);
   for (const fora of ['Consultoria', 'Equipe', 'Financeiro']) await expect(page.getByRole('heading', { level: 2, name: fora })).toHaveCount(0);
-  for (const fora of ['Marca', 'Contato', 'Assinatura e faturas', 'Metodologias', 'Auditoria']) await expect(cartao(page, fora)).toHaveCount(0);
+  for (const fora of ['Marca', 'Contato', 'Documentos (PDF)', 'Assinatura e faturas', 'Metodologias', 'Auditoria']) await expect(cartao(page, fora)).toHaveCount(0);
   for (const titulo of titulos) await expect(cartao(page, titulo)).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });

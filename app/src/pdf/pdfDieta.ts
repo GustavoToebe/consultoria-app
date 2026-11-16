@@ -7,8 +7,10 @@ import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { linkParaAbrir } from '../dominio/links';
 import { tomDaVariacaoDoPeso } from '../dominio/corDaVariacaoDoPeso';
 import { variacaoDoPeso } from '../dominio/variacaoDoPeso';
-import { CLARO } from '../tema/tokens';
-import { cabecalhoDoPdf, corDaMarca, cssBase, esc, escLinhas, type Documento } from './html';
+import { CLARO, textoSobre } from '../tema/tokens';
+import { FUNDO_LEVE } from './cssDosTemas';
+import { cabecalhoDoPdf, corDaMarca, corDeTextoNoTema, cssBase, esc, escLinhas, type Documento } from './html';
+import { temaValido, type TemaPdf } from './temas';
 
 export interface DadosPdfDieta {
   marca: Marca;
@@ -107,6 +109,32 @@ const CSS_DIETA = `
 `;
 
 /**
+ * Regras da dieta em cada tema (o `CLASSICO` não acrescenta nada). Fundo na cor da marca ou escuro sempre com texto
+ * legível: no `MINIMALISTA` as faixas escuras viram linhas e o texto é escuro; no `MARCANTE` o cabeçalho das tabelas é leve.
+ */
+function cssDoTemaDeDieta(tema: TemaPdf, cor: string): string {
+  if (tema === 'MINIMALISTA') {
+    return `.doc .refeicao > .cab { background: none; color: #111; padding: 4pt 0; border-bottom: 1px solid ${cor}; }
+.doc .opcao > .cab { background: none !important; color: #111 !important; padding: 2pt 0 2pt 6pt; border-left: 2pt solid ${cor}; }
+.doc table.dark th { background: none; color: #333; }
+.doc table.id tr:nth-child(even) td, .doc table.macros tr:nth-child(even) td, .doc table.dark tr:nth-child(even) td { background: none; }
+.doc .barra { height: 1px; margin: 10pt 0; }
+`;
+  }
+  if (tema === 'MARCANTE') {
+    // O canto da faixa da refeição vem do raio do `.cab`, não de `overflow: hidden` no cartão, que pode cortar o que passa
+    // para a página seguinte na impressão.
+    return `.doc .barra { display: none; }
+.doc > .refeicao { padding: 0 0 6pt; }
+.doc > .refeicao > .cab { border-radius: 5pt 5pt 0 0; }
+.doc .refeicao > :not(.cab) { margin-left: 10pt; margin-right: 10pt; }
+.doc table.dark th { background: ${FUNDO_LEVE}; color: #333; }
+`;
+  }
+  return '';
+}
+
+/**
  * PDF da dieta no layout do Saraiva Team (barras da marca, refeições em faixas escuras), com o cabeçalho comum dos PDFs
  * (logo na faixa da marca). Refeição com várias opções diz para escolher uma; o modo de preparo sai no fim da refeição,
  * com as quebras de linha.
@@ -114,8 +142,10 @@ const CSS_DIETA = `
 export function documentoDieta(d: DadosPdfDieta): Documento {
   const c = d.conteudo;
   const cor = corDaMarca(d.marca.corPrimaria);
+  const tema = temaValido(d.marca.temaPdf);
+  const corTexto = corDeTextoNoTema(d.marca.corPrimaria, tema);
   const barra = `<div class="barra" style="background:${cor}"></div>`;
-  const sec = (t: string) => `<h2 class="sec" style="color:${cor}">${esc(t)}</h2>`;
+  const sec = (t: string) => `<h2 class="sec" style="color:${corTexto}">${esc(t)}</h2>`;
   const total = totalDoDia(c);
   // Nome do aluno e data de emissão ficam no cabeçalho comum (`cabecalhoDoPdf`), sem repetir aqui.
   const identificacao = [
@@ -131,8 +161,10 @@ export function documentoDieta(d: DadosPdfDieta): Documento {
       const opcoes = r.opcoes
         .map((o, oi) => {
           const corOpcao = oi === 0 ? cor : (COR_OPCAO[oi] ?? NAVY);
-          const faixa = varias ? `<div class="cab" style="background:${corOpcao}">▸ OPÇÃO ${esc(o.rotulo)}</div>` : '';
-          const itens = o.itens.map((i) => linhaItem(i, varias ? corOpcao : cor)).join('') || '<div class="suave">—</div>';
+          const corDoItem = oi === 0 ? corTexto : corOpcao;
+          const textoDaFaixa = tema === 'CLASSICO' ? '' : `;color:${textoSobre(corOpcao)}`;
+          const faixa = varias ? `<div class="cab" style="background:${corOpcao}${textoDaFaixa}">▸ OPÇÃO ${esc(o.rotulo)}</div>` : '';
+          const itens = o.itens.map((i) => linhaItem(i, varias ? corDoItem : corTexto)).join('') || '<div class="suave">—</div>';
           return `<div class="opcao">${faixa}${itens}<div class="total">Total: ${esc(textoTotaisPdf(somar(o.itens)))}</div></div>`;
         })
         .join('');
@@ -163,10 +195,10 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
     barra,
     `<div class="bloco">${sec('Distribuição diária de macronutrientes')}
 <table class="macros"><tbody>
-<tr><td>Calorias Totais</td><td style="color:${cor}">${esc(kcal(total.kcal))}</td></tr>
-<tr><td>Proteína</td><td style="color:${cor}">${esc(g(total.proteina))}</td></tr>
-<tr><td>Carboidrato</td><td style="color:${cor}">${esc(g(total.carboidrato))}</td></tr>
-<tr><td>Gordura</td><td style="color:${cor}">${esc(g(total.gordura))}</td></tr></tbody></table>
+<tr><td>Calorias Totais</td><td style="color:${corTexto}">${esc(kcal(total.kcal))}</td></tr>
+<tr><td>Proteína</td><td style="color:${corTexto}">${esc(g(total.proteina))}</td></tr>
+<tr><td>Carboidrato</td><td style="color:${corTexto}">${esc(g(total.carboidrato))}</td></tr>
+<tr><td>Gordura</td><td style="color:${corTexto}">${esc(g(total.gordura))}</td></tr></tbody></table>
 <div class="pequeno">Total do dia considerando a opção A de cada refeição.</div></div>`,
     barra,
     sec('Sugestão de plano alimentar'),
@@ -201,6 +233,6 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
       : '',
     `<div class="fim">${d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : ''}<div class="pequeno centro" style="margin-top:14pt">${esc(d.marca.nome)}</div></div>`,
   ];
-  if (d.lista) partes.splice(partes.length - 1, 0, secaoDaLista(d.lista, d.versao, cor));
-  return { titulo: `Dieta - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria) + CSS_DIETA, corpo: partes.join('\n') };
+  if (d.lista) partes.splice(partes.length - 1, 0, secaoDaLista(d.lista, d.versao, corTexto));
+  return { titulo: `Dieta - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria, tema) + CSS_DIETA + cssDoTemaDeDieta(tema, cor), corpo: partes.join('\n') };
 }

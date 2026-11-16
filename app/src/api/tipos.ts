@@ -15,6 +15,8 @@ export interface Marca {
   temaPadrao: Tema;
   /** Relativo à API (o app junta com a URL base). */
   logoUrl: string | null;
+  /** Tema dos PDFs da consultoria (`pdf/temas.ts`); ausente ou desconhecido = `CLASSICO`. A API ainda não o envia. */
+  temaPdf?: string | null;
 }
 
 export interface UsuarioResumo {

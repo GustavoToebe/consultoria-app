@@ -2,7 +2,10 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
+import type { Marca } from '../api/tipos';
+import { cabecalhoDoPdf } from './html';
 import { montarCorpo } from './imprimir.web';
+import { TEMAS_PDF } from './temas';
 
 const noCorpo = (html: string) => {
   const raiz = document.createElement('div');
@@ -143,5 +146,48 @@ describe('montarCorpo (impressão na web)', () => {
       expect(raiz.querySelector('img')).toBeNull();
       expect(raiz.textContent).toBe('"><img src=x onerror=alert(1)>');
     });
+  });
+});
+
+/**
+ * Os mesmos ataques em cada tema: o tema só escolhe CSS do código (nada passa por `montarCorpo`), mas o cabeçalho real
+ * do tema atravessa a barreira intacto, e o HTML hostil colado depois dele continua sendo neutralizado.
+ */
+describe.each(TEMAS_PDF.map((x) => x.id))('montarCorpo com o tema %s', (tema) => {
+  const ataque = '"><img src=x onerror="window.__executou = 1"><script>window.__executou = 2</script>';
+  const marca: Marca = { id: 'm', nome: ataque, corPrimaria: '#C62828', fonteTitulo: 'METAL', temaPadrao: 'ESCURO', logoUrl: null, temaPdf: tema };
+  const cabecalho = cabecalhoDoPdf({ marca, logoDataUri: 'data:image/png;base64,AAAA', documento: 'Treino', titulo: ataque, versao: 1, aluno: ataque, emitidoEm: new Date('2026-10-11T19:30:00Z') });
+  const hostil =
+    '<div><img src=x onerror="window.__executou = 3"><script>window.__executou = 4</script>' +
+    '<a href="javascript:window.__executou = 5" onclick="window.__executou = 6">x</a>' +
+    '<iframe src="https://exemplo.invalid"></iframe><object data="x"></object><embed src="x"><form action="javascript:1"></form>' +
+    '<svg onload="window.__executou = 7"></svg><style>body{display:none}</style></div>';
+
+  it('o cabeçalho atacado sai igual ao do innerHTML antigo, escapado e sem nó ativo', () => {
+    const referencia = document.createElement('div');
+    referencia.innerHTML = cabecalho; // só o teste usa: é o comportamento antigo a preservar
+    const raiz = noCorpo(cabecalho);
+    expect(raiz.innerHTML).toBe(referencia.innerHTML);
+    expect(raiz.querySelector('.topo h1')?.textContent).toBe('Treino');
+    expect(raiz.querySelector('.faixa-marca')?.textContent).toBe(ataque);
+    expect(raiz.querySelectorAll('script, iframe, object, embed, form, svg, style').length).toBe(0);
+  });
+
+  it('o HTML hostil depois do cabeçalho é neutralizado: sem nó ativo, sem on*, sem javascript:', async () => {
+    const janela = window as unknown as { __executou?: number };
+    delete janela.__executou;
+    const raiz = noCorpo(cabecalho + hostil);
+    expect(raiz.querySelectorAll('script, iframe, object, embed, form, svg, style')).toHaveLength(0);
+    for (const e of raiz.querySelectorAll('*')) {
+      for (const nome of e.getAttributeNames()) {
+        expect(nome).not.toMatch(/^on/i);
+        expect(e.getAttribute(nome) ?? '').not.toMatch(/javascript:/i);
+      }
+    }
+    document.body.append(raiz);
+    raiz.querySelector('a')?.click();
+    await new Promise((r) => setTimeout(r, 20));
+    raiz.remove();
+    expect(janela.__executou).toBeUndefined();
   });
 });

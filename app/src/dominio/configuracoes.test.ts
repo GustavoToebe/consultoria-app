@@ -87,6 +87,17 @@ describe('cartoesVisiveis', () => {
     expect(CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'contato')).toMatchObject({ grupo: 'Consultoria', href: '/treinador/marca' });
   });
 
+  it('Documentos (PDF): administrador com MARCA_ALTERAR e o PDF no plano; a busca acha por pdf e tema', () => {
+    const admin = com(['MARCA_ALTERAR'], { administrador: true });
+    expect(ids(cartoesVisiveis(admin))).toContain('documentos-pdf');
+    expect(ids(cartoesVisiveis({ ...admin, liberadas: ['PDF'] }))).toContain('documentos-pdf');
+    expect(ids(cartoesVisiveis({ ...admin, liberadas: ['MOBILIDADE', 'EQUIPE'] }))).not.toContain('documentos-pdf');
+    expect(ids(cartoesVisiveis(com(['MARCA_ALTERAR'])))).not.toContain('documentos-pdf');
+    expect(ids(cartoesVisiveis(com([], { administrador: true })))).not.toContain('documentos-pdf');
+    expect(ids(buscarCartoes('pdf', cartoesVisiveis(admin)))).toEqual(['documentos-pdf']);
+    expect(ids(buscarCartoes('tema do pdf', cartoesVisiveis(admin)))).toEqual(['documentos-pdf']);
+  });
+
   it('Financeiro: precisa do módulo ligado e de FINANCEIRO_LER; o Recebimento online ainda pede a chave', () => {
     const financeiro = ['financeiro-planos', 'financeiro-lembretes'];
     expect(ids(cartoesVisiveis(com(['FINANCEIRO_LER'])))).not.toEqual(expect.arrayContaining(financeiro));

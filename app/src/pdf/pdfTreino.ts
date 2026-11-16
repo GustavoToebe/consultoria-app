@@ -238,5 +238,5 @@ export function documentoTreino(d: DadosPdfTreino): Documento {
     d.instrucoesTreino?.trim() ? blocoInstrucoes(d.instrucoesTreino) : '',
     d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',
   ].join('\n');
-  return { titulo: `Treino - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria) + CSS_INSTRUCOES, corpo };
+  return { titulo: `Treino - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf) + CSS_INSTRUCOES, corpo };
 }

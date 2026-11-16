@@ -56,6 +56,8 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,paga
   if(caminho.startsWith('/treinador/planejamento')) return tem('MODELO_LER');
   // A tela da marca fica no menu da conta e só o perfil Administrador (acesso total) abre.
   if(caminho==='/treinador/marca') return administrador;
+  // Documentos (PDF): a mesma regra de quem grava a marca (administrador com MARCA_ALTERAR); o plano sem PDF a tela confere.
+  if(caminho==='/treinador/documentos') return administrador&&tem('MARCA_ALTERAR');
   if(caminho==='/treinador/equipe') return tem('EQUIPE_LER');
   if(caminho==='/treinador/auditoria') return tem('AUDITORIA_LER');
   // A planilha completa cria alunos (e o resto por parte, conferido na API): a rota pede ALUNO_ALTERAR.

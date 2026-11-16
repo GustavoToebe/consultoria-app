@@ -166,6 +166,20 @@ describe('funcionalidades do plano no catálogo', () => {
     expect(ids(telasPermitidas(com(ADMIN), TELAS, ['EQUIPE']))).toContain('novo-modelo');
   });
 
+  it('Documentos (PDF): só o administrador com MARCA_ALTERAR e com PDF no plano; a busca acha por pdf, tema e modelo', () => {
+    const admin = (liberadas?: string[]) => ids(telasPermitidas(com(ADMIN), TELAS, liberadas, false, true));
+    expect(admin()).toContain('documentos-pdf');
+    expect(admin(['PDF'])).toContain('documentos-pdf');
+    expect(admin(['MOBILIDADE', 'EQUIPE'])).not.toContain('documentos-pdf');
+    expect(ids(telasPermitidas(com(ADMIN)))).not.toContain('documentos-pdf');
+    expect(ids(telasPermitidas(com(ADMIN.filter((p) => p !== 'MARCA_ALTERAR')), TELAS, undefined, false, true))).not.toContain('documentos-pdf');
+    const permitidas = telasPermitidas(com(ADMIN), TELAS, undefined, false, true);
+    for (const termo of ['pdf', 'documentos', 'tema do pdf', 'modelo']) expect(ids(buscarTelas(termo, permitidas))).toContain('documentos-pdf');
+    expect(TELAS.find((t) => t.id === 'documentos-pdf')?.secao).toBe('Configurações');
+    expect(nomeDaTela('/treinador/documentos')).toBe('Documentos (PDF)');
+    expect(voltarAutomatico('/treinador/documentos', true)).toBe('/treinador/perfil');
+  });
+
   it('todo item do catálogo que declara funcionalidade usa um código conhecido', () => {
     for (const t of TELAS) {
       if (t.funcionalidade !== undefined) expect(FUNCIONALIDADES as readonly string[]).toContain(t.funcionalidade);

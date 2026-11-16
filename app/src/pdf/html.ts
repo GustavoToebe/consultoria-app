@@ -2,6 +2,8 @@ import type { Marca } from '../api/tipos';
 import { dataHoraParaTela } from '../dominio/formatos';
 import { videoValido } from '../dominio/video';
 import { marcaParaTexto, textoSobre } from '../tema/tokens';
+import { cssDoTema } from './cssDosTemas';
+import { temaValido } from './temas';
 
 /**
  * Peças comuns dos PDFs: HTML + CSS de impressão gerados a partir dos dados (nunca imagem da tela). Fundo branco,
@@ -52,14 +54,29 @@ export function corDeTextoDaMarca(cor: string | null | undefined): string {
   return marcaParaTexto(corDaMarca(cor), '#FFFFFF');
 }
 
-export function cssBase(cor: string): string {
-  const marca = corDaMarca(cor);
-  const marcaTexto = corDeTextoDaMarca(cor);
-  return `
+/**
+ * Cor da marca como texto nos blocos que os geradores pintam por conta própria (dieta e cargas). `CLASSICO` mantém a cor
+ * como sempre foi (o visual de hoje não muda); os outros temas usam `corDeTextoDaMarca` (4,5:1), nunca a cor crua.
+ */
+export function corDeTextoNoTema(cor: string | null | undefined, tema?: unknown): string {
+  return temaValido(tema) === 'CLASSICO' ? corDaMarca(cor) : corDeTextoDaMarca(cor);
+}
+
+/** Regras globais: só a impressão e o `documentoCompleto` as usam; a prévia na tela não (D11), para não pintar a página do app. */
+const CSS_GLOBAL = `
 @page { size: A4; margin: 14mm; }
 * { box-sizing: border-box; }
 html, body { background: #fff; color: #111; margin: 0; }
-.doc { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10.5pt; line-height: 1.35; }
+`;
+
+/**
+ * Regras do `.doc` (D11), as que também servem à prévia. `tema` passa por `temaValido` (desconhecido = `CLASSICO`, o visual
+ * de sempre, sem mudar um caractere). Os outros temas só acrescentam regras no fim; nenhum texto do usuário entra no CSS.
+ */
+export function cssDoDoc(cor: string, tema?: unknown): string {
+  const marca = corDaMarca(cor);
+  const marcaTexto = corDeTextoDaMarca(cor);
+  const classico = `.doc { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10.5pt; line-height: 1.35; }
 .doc h1 { font-size: 18pt; margin: 0; letter-spacing: 1px; text-transform: uppercase; color: ${marcaTexto}; }
 .doc h2 { font-size: 12.5pt; margin: 14pt 0 5pt; color: ${marcaTexto}; padding-bottom: 3pt; border-bottom: 2px solid ${marca}; break-after: avoid; page-break-after: avoid; }
 .doc h3 { font-size: 11pt; margin: 9pt 0 4pt; break-after: avoid; page-break-after: avoid; }
@@ -88,6 +105,12 @@ html, body { background: #fff; color: #111; margin: 0; }
    com o nome da consultoria. Chromium respeita o avoid entre irmãos e leva junto as últimas linhas do bloco anterior. */
 .doc .fim, .doc .rodape { break-before: avoid; page-break-before: avoid; break-inside: avoid; page-break-inside: avoid; }
 `;
+  return classico + cssDoTema(temaValido(tema), marca, marcaTexto);
+}
+
+/** Regras globais + as do `.doc`: o que a impressão e o `documentoCompleto` usam. */
+export function cssBase(cor: string, tema?: unknown): string {
+  return CSS_GLOBAL + cssDoDoc(cor, tema);
 }
 
 /**
@@ -147,6 +170,17 @@ export function cabecalhoDoPdf(c: CabecalhoDoPdf): string {
   return `${faixaDaMarca(c.marca, c.logoDataUri)}<div class="topo"><div class="topo-titulo"><h1>${esc(c.documento)}</h1>${
     titulo ? `<div class="doc-titulo">${esc(titulo)}</div>` : ''
   }</div><div class="topo-dados pequeno">${dados.map(esc).join('<br>')}</div></div>`;
+}
+
+/**
+ * CSS da prévia na tela da web (D10 e D11): o do documento sem as regras globais (`@page`, `*`, `html, body`), que
+ * pintariam a página do app, mais o papel da prévia (`.previa-pdf`: branco, texto escuro e a margem de 14 mm da
+ * impressão). O papel tem classe própria: o `.doc` do bloco de impressão, que pode estar na página ao mesmo tempo, não muda.
+ */
+export function cssDaPrevia(css: string): string {
+  return `.previa-pdf { background: #fff; color: #111; padding: 14mm; width: 210mm; box-sizing: border-box; }
+.previa-pdf * { box-sizing: border-box; }
+${css.replace(CSS_GLOBAL, '')}`;
 }
 
 /** Documento completo (celular: vira arquivo PDF). */
