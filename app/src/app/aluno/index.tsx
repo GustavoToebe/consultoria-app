@@ -5,6 +5,7 @@ import { CartaoCompromissos } from '../../aluno/CartaoCompromissos';
 import { CartaoAguaDoDia } from '../../aluno/CartaoAguaDoDia';
 import { CartaoDietaDoInicio } from '../../aluno/CartaoDietaDoInicio';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
+import { FaixaTreinoEmAndamento } from '../../aluno/FaixaTreinoEmAndamento';
 import { MapaDeTreinos } from '../../aluno/MapaDeTreinos';
 import { NivelDoAluno } from '../../aluno/NivelDoAluno';
 import { ParaFazer } from '../../aluno/ParaFazer';
@@ -26,7 +27,7 @@ import { Tela } from '../../ui/Tela';
 
 /**
  * Início do aluno: o resumo do dia. Marca e "Olá", a dieta compacta com a água, a água do dia (só com meta na dieta),
- * o cartão Hoje (o único primário),
+ * a faixa "Treino em andamento" (só com o retorno ligado), o cartão Hoje (o único primário),
  * as pendências, os próximos compromissos presenciais (só leitura), a faixa da semana, o nível (só com o retorno ligado) e o mapa de treinos do ano (só com o retorno ligado). A lista de divisões, o PDF e
  * a mobilidade ficam na aba Treino. Sempre o plano em uso. Em 390 o botão do treino de hoje precisa aparecer na primeira tela.
  */
@@ -55,6 +56,8 @@ export default function InicioAluno() {
   return (
     <Tela bordas={['top']} largura={720}>
       <CabecalhoDoInicio nome={nome} hoje={hoje} />
+      {/* Treino começado e não concluído (só com o retorno ligado): antes de tudo, para voltar a ele num toque. */}
+      <FaixaTreinoEmAndamento versaoId={treino?.versaoId ?? null} conteudo={conteudo} hoje={hoje} />
       <CartaoDietaDoInicio estado={estadoDaDieta} aoTentarDeNovo={dieta.recarregar} />
       {dietaDoPlano?.conteudo.aguaLitros ? <CartaoAguaDoDia compacto metaLitros={dietaDoPlano.conteudo.aguaLitros} /> : null}
       <SecaoHojeDoInicio

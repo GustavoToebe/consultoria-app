@@ -88,6 +88,31 @@ for (const largura of [390, 1280]) {
   });
 }
 
+for (const largura of [390, 1280]) {
+  // Item 1 do `docs/planos/treino-do-aluno-lacunas-cbum.md`: os botões do descanso têm alvo de toque de 44 px nas duas dimensões.
+  test(`descanso: "−15", "+15" e "Pular" com pelo menos 44 × 44 px (${largura} px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 844 });
+    await fixarHoje(page);
+    const sessoes = [sessaoFalsa('sx', 'Treino curto', 1, 1)];
+    sessoes[0]!.exercicios[0]!.series = sessoes[0]!.exercicios[0]!.series.map((s) => ({ ...s, descansoSegundos: 60 }));
+    await simularApi(page, {
+      ...(await sessaoDeAlunoComTreino(page, sessoes)),
+      'POST /aluno/execucoes/lote': (p, route) => {
+        const lote = (p.corpo as { registros: { id: string }[] }).registros;
+        return json(route, { resultados: lote.map((r) => ({ id: r.id, situacao: 'ACEITO', motivo: null })) });
+      },
+    });
+    await page.goto(EXERCICIO);
+    await page.getByRole('checkbox', { name: 'Série 1 feita', exact: true }).click();
+    for (const nome of ['Diminuir 15 segundos', 'Aumentar 15 segundos', 'Pular o descanso']) {
+      const caixa = await page.getByRole('button', { name: nome, exact: true }).boundingBox();
+      test.info().annotations.push({ type: 'medida', description: `${largura} px · ${nome}: ${caixa!.width.toFixed(1)} × ${caixa!.height.toFixed(1)}` });
+      expect(caixa!.width).toBeGreaterThanOrEqual(44);
+      expect(caixa!.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+}
+
 test('a coluna "Anterior" aparece sem internet (vem no pacote)', async ({ page }) => {
   await abrir(page, true);
   await page.goto(LISTA);
