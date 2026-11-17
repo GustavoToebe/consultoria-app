@@ -38,7 +38,8 @@ async function abrir(page: Page, ligada: boolean) {
 const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Peso da série ${n}, em quilos`, exact: true });
 const reps = (page: Page, n: number) => page.getByRole('textbox', { name: `Repetições da série ${n}`, exact: true });
 const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true }).click();
-const aviso = (page: Page) => page.getByRole('status').filter({ hasText: 'Recorde pessoal' });
+// Pelo nome acessível (o que o leitor de tela anuncia); o texto visível é o selo "Recorde" e o nome do exercício.
+const aviso = (page: Page) => page.getByRole('status', { name: /^Recorde pessoal em / });
 
 for (const largura of [390, 1280]) {
   test(`chave ligada (${largura} px): aviso no topo ao marcar, medalha na série e contagem no resumo`, async ({ page }) => {
@@ -73,8 +74,9 @@ for (const largura of [390, 1280]) {
   });
 }
 
-// Recorde é indicador em violeta na área do aluno (`docs/planos/cores-de-destaque.md`, D6): aviso, medalha, selo e a
-// contagem da lista do dia; o "Feita" recém-marcado continua verde (conclusão). Claro e escuro, com captura em 390 px.
+// O selo "Recorde" do aviso usa a cor de conquista (`docs/planos/hierarquia-visual-tres-temas.md`, D9, 17/11); a medalha,
+// o selo da série e a contagem da lista do dia seguem o violeta de indicador (`docs/planos/cores-de-destaque.md`, D6); o
+// "Feita" recém-marcado continua verde (conclusão). Claro e escuro, com captura em 390 px (aviso aberto, sobre o vidro).
 const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
 for (const tema of ['CLARO', 'ESCURO'] as const) {
   test(`recorde em violeta e "Feita" em verde (${tema.toLowerCase()})`, async ({ page }, testInfo) => {
@@ -82,21 +84,24 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
     await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [ALUNO.id, tema] as const);
     const api = await abrir(page, true);
     const violeta = rgb(PALETA_DE_DESTAQUE[tema === 'CLARO' ? 'claro' : 'escuro'].violeta);
-    const sucesso = rgb((tema === 'CLARO' ? CLARO : ESCURO).sucesso);
+    const { sucesso: verde, conquista } = tema === 'CLARO' ? CLARO : ESCURO;
+    const sucesso = rgb(verde);
     const cor = (l: ReturnType<Page['getByText']>) => l.evaluate((e) => getComputedStyle(e).color);
     await page.goto(EXERCICIO);
     await peso(page, 1).fill('62,5');
     await reps(page, 1).fill('10');
     await marcar(page, 1);
     await expect(aviso(page)).toBeVisible();
-    expect(await cor(aviso(page).getByText(/^Recorde pessoal · /))).toBe(violeta);
+    expect(await cor(aviso(page).getByText('Recorde', { exact: true }))).toBe(rgb(conquista));
+    await page.screenshot({ path: testInfo.outputPath(`recorde-${tema.toLowerCase()}-390.png`) });
+    await page.getByRole('button', { name: 'Fechar aviso de recorde' }).click();
+    // Fechado, o único "Recorde" é o selo da série (com o aviso aberto seriam dois).
+    await expect(aviso(page)).toHaveCount(0);
     await expect(page.getByText('Recorde', { exact: true })).toBeVisible();
     expect(await cor(page.getByText('Recorde', { exact: true }))).toBe(violeta);
     expect(await cor(page.getByText('Feita', { exact: true }))).toBe(sucesso);
     const medalha = page.getByLabel(/Série 1, recorde pessoal: /).locator('svg');
     expect((await medalha.getAttribute('stroke'))?.toLowerCase()).toBe(PALETA_DE_DESTAQUE[tema === 'CLARO' ? 'claro' : 'escuro'].violeta.toLowerCase());
-    await page.screenshot({ path: testInfo.outputPath(`recorde-${tema.toLowerCase()}-390.png`) });
-    await page.getByRole('button', { name: 'Fechar aviso de recorde' }).click();
     await page.goto(LISTA);
     const contagem = page.getByText('1 recorde pessoal neste treino', { exact: true });
     await expect(contagem).toBeVisible();
