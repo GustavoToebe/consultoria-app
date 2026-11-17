@@ -2,6 +2,7 @@ package br.com.treinos.api.inscricoes;
 
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
+import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.alunos.ConviteService;
 import br.com.treinos.api.alunos.Sexo;
@@ -203,8 +204,31 @@ public class InscricaoService {
         nova.setIndicadoPor(r.indicadoPor());
         responderPerguntas(nova, q, r.questionarioVersaoId(), r.respostas());
         Inscricao gravada = inscricoes.saveAndFlush(nova);
+        // A indicação só depois do INSERT (que já prende a consultoria): a ordem é consultoria, depois aluno, a mesma da
+        // anonimização e do inativar. Travar o aluno antes inverteria a ordem e fecharia um círculo (40P01) numa rota pública.
+        UUID indicador = indicadorValido(r.codigoIndicacao());
+        if (indicador != null) {
+            inscricoes.gravarIndicador(gravada.getId(), indicador);
+            gravada.indicadaPor(indicador); // a coluna é updatable=false: só alinha a entidade com o UPDATE acima
+        }
         historico.registrar(gravada, TipoEvento.CRIADA, null, null, null, null);
         return codigoDoProximo(q);
+    }
+
+    /**
+     * Indicação por link (chamada depois do INSERT da inscrição, ver {@link #registrarPublica}), conferida em silêncio dentro da consultoria do link (o {@code @TenantId} da consulta): formato do UUID,
+     * busca pelo código e aluno ativo e não anonimizado. Qualquer falha devolve nulo e a inscrição segue como se não houvesse
+     * código, com o mesmo status e o mesmo corpo (nunca um erro que diga quem é aluno). O código nunca vai a log nem à auditoria.
+     */
+    private UUID indicadorValido(String codigo) {
+        if (codigo == null || codigo.isBlank()) return null;
+        UUID uuid;
+        try {
+            uuid = UUID.fromString(codigo.strip());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+        return inscricoes.indicadorValido(uuid).map(Aluno::getId).orElse(null);
     }
 
     /** Confere a versão das perguntas e valida as respostas por ela (regras no javadoc de {@link #registrarPublica}). */

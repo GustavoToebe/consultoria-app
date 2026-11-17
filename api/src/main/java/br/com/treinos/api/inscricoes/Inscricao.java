@@ -177,6 +177,14 @@ public class Inscricao {
     @Column(name = "indicado_por")
     private String indicadoPor;
 
+    /**
+     * Aluno que indicou, conferido pela API dentro da consultoria do link (V081); nulo quando o código não valeu. Só na criação
+     * ({@code updatable = false}): a anonimização zera a coluna por SQL nativo e nenhuma gravação da entidade a restaura.
+     * Nunca em log nem auditoria; o detalhe só mostra o nome a quem tem {@code ALUNO_LER}.
+     */
+    @Column(name = "indicado_por_aluno_id", updatable = false)
+    private UUID indicadoPorAlunoId;
+
     /** Coluna gerada no banco (nome sem acento, em minúsculas), lida pela busca. */
     @Column(name = "nome_busca", insertable = false, updatable = false)
     private String nomeBusca;
@@ -274,6 +282,9 @@ public class Inscricao {
     public void setQuestionarioNome(String questionarioNome) { this.questionarioNome = questionarioNome; }
     public String getIndicadoPor() { return indicadoPor; }
     public void setIndicadoPor(String indicadoPor) { this.indicadoPor = indicadoPor; }
+    public UUID getIndicadoPorAlunoId() { return indicadoPorAlunoId; }
+    /** Só antes de gravar a linha nova, com um aluno ativo da mesma consultoria já conferido. */
+    void indicadaPor(UUID alunoId) { this.indicadoPorAlunoId = alunoId; }
 
     /** Só na criação (as colunas não mudam depois): a versão respondida e as respostas, em JSON, já validadas. */
     void responder(UUID questionarioVersaoId, String respostas) {

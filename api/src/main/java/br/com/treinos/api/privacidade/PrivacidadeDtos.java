@@ -60,7 +60,19 @@ public final class PrivacidadeDtos {
                              Secao<br.com.treinos.api.avaliacoes.AvaliacaoFisicaDtos.AvaliacaoResponse> avaliacoesFisicas,
                              Secao<br.com.treinos.api.agua.AguaDoDiaDtos.AguaRegistrada> agua,
                              Secao<br.com.treinos.api.push.PushDtos.PushExportado> pushDoCelular,
-                             br.com.treinos.api.comunidade.dto.ComunidadeDtos.ComunidadeExportada comunidade) { }
+                             br.com.treinos.api.comunidade.dto.ComunidadeDtos.ComunidadeExportada comunidade,
+                             IndicacaoExportada indicacao) { }
+
+    /**
+     * O código do link de indicação do próprio aluno (V081) e nada mais: a lista de quem ele indicou é dado de terceiros (nome e
+     * WhatsApp de interessados) e nunca sai na exportação dele. Com a permissão da ficha ({@code ALUNO_LER}).
+     */
+    public record IndicacaoExportada(java.util.UUID codigoIndicacao) {
+        @Override
+        public String toString() {
+            return "IndicacaoExportada[***]";
+        }
+    }
 
     /** Só a data em que a foto de perfil foi trocada; a imagem não vai no arquivo. Sem foto: {@code null}. */
     public record FotoPerfilExportada(Instant atualizadaEm) { }

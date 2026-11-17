@@ -1,5 +1,6 @@
 package br.com.treinos.api.privacidade;
 
+import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.atualizacoes.Atualizacao;
 import br.com.treinos.api.atualizacoes.AtualizacaoRepository;
@@ -64,6 +65,7 @@ public class ExportacaoService {
     private final br.com.treinos.api.agua.AguaDoDiaService agua;
     private final br.com.treinos.api.push.PushService push;
     private final br.com.treinos.api.comunidade.ComunidadeService comunidade;
+    private final AlunoRepository alunosRepositorio;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -79,7 +81,8 @@ public class ExportacaoService {
                              br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas,
                              br.com.treinos.api.agua.AguaDoDiaService agua,
                              br.com.treinos.api.push.PushService push,
-                             br.com.treinos.api.comunidade.ComunidadeService comunidade) {
+                             br.com.treinos.api.comunidade.ComunidadeService comunidade, AlunoRepository alunosRepositorio) {
+        this.alunosRepositorio = alunosRepositorio;
         this.comunidade = comunidade;
         this.push = push;
         this.agua = agua;
@@ -165,9 +168,16 @@ public class ExportacaoService {
         if (comunidadeDoAluno == null) {
             omitidas.add("comunidade");
         }
+        // O próprio código do link de indicação, sem a lista de quem ele indicou (dado de terceiros); com a permissão da ficha.
+        // Aluno anonimizado: o código já é outro e não vale nada, então a seção sai como omitida.
+        var indicacao = AcessoAtual.pode("ALUNO_LER") ? alunosRepositorio.findById(alunoId).filter(a -> !a.isAnonimizado())
+                .map(a -> new PrivacidadeDtos.IndicacaoExportada(a.getCodigoIndicacao())).orElse(null) : null;
+        if (indicacao == null) {
+            omitidas.add("indicacao");
+        }
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
-                cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular, comunidadeDoAluno);
+                cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular, comunidadeDoAluno, indicacao);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

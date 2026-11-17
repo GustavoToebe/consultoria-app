@@ -1,5 +1,6 @@
 package br.com.treinos.api.inscricoes;
 
+import br.com.treinos.api.alunos.Aluno;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -55,6 +56,29 @@ public interface InscricaoRepository extends JpaRepository<Inscricao, UUID>, Jpa
     @Query("select new br.com.treinos.api.inscricoes.InscricaoRepository$AlunoComEmail(a.id, lower(a.email)) "
             + "from Aluno a where lower(a.email) in :emails order by a.criadoEm")
     List<AlunoComEmail> alunosComEmail(Collection<String> emails);
+
+    /**
+     * Indicação por link: o aluno com este código, só se estiver ativo e não anonimizado. O {@code @TenantId} restringe à
+     * consultoria da sessão (a do link público, dentro do {@code TenantContext.executarComo}); de outra consultoria, vazio.
+     * Chamar só depois do INSERT da inscrição (consultoria antes de aluno, como a anonimização). Trava a linha em modo
+     * compartilhado até o fim da transação: a anonimização trava o aluno para escrita, então ela espera a
+     * inscrição gravar (e depois zera a coluna) ou termina antes e este código já não vale.
+     */
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select a from Aluno a where a.codigoIndicacao = :codigo and a.ativo = true and a.anonimizadoEm is null")
+    Optional<Aluno> indicadorValido(UUID codigo);
+
+    /**
+     * Grava o indicador na inscrição recém-criada (a coluna é {@code updatable=false} na entidade). Roda depois do INSERT e do
+     * {@link #indicadorValido}, com a linha do aluno já travada; não sobe a versão.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query("update Inscricao i set i.indicadoPorAlunoId = :aluno where i.id = :id")
+    int gravarIndicador(UUID id, UUID aluno);
+
+    /** Nome do aluno da consultoria (só o detalhe da inscrição, para quem tem {@code ALUNO_LER}). */
+    @Query("select a.nome from Aluno a where a.id = :id")
+    Optional<String> nomeDoAluno(UUID id);
 
     Optional<Inscricao> findByAlunoId(UUID alunoId);
 

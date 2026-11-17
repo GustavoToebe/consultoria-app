@@ -42,6 +42,8 @@ class DetalheDaInscricao {
     /** O detalhe leva até tantos eventos e retornos (os mais recentes). */
     static final int EVENTOS = 300;
     static final int RETORNOS = 100;
+    /** O que a equipe sem {@code ALUNO_LER} vê no lugar do nome de quem indicou. */
+    static final String UM_ALUNO = "Um aluno";
 
     private final InscricaoRepository inscricoes;
     private final InscricaoNotaRepository notas;
@@ -99,7 +101,14 @@ class DetalheDaInscricao {
                         e.getMotivo() == null ? null : MotivoEncerramento.valueOf(e.getMotivo()), e.getDetalhe(),
                         nomes.get(e.getAutorId()), e.getCriadoEm())).toList(),
                 respostas(i),
-                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor());
+                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), indicadoPorAluno(i));
+    }
+
+    /** Indicação conferida pela API: o nome só para quem vê alunos, os demais veem só que foi um aluno (sem nome nem id). */
+    private String indicadoPorAluno(Inscricao i) {
+        if (i.getIndicadoPorAlunoId() == null) return null;
+        if (!AcessoAtual.pode("ALUNO_LER")) return UM_ALUNO;
+        return inscricoes.nomeDoAluno(i.getIndicadoPorAlunoId()).orElse(UM_ALUNO);
     }
 
     /**

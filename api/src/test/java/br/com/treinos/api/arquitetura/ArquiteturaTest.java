@@ -207,6 +207,8 @@ class ArquiteturaTest {
                                 "AlunoPushTokenController",
                                 // Avaliações físicas do próprio aluno, só leitura (hasRole ALUNO, sempre o da sessão); a equipe declara PERM_ALUNO_SENSIVEL_LER.
                                 "AvaliacaoFisicaAlunoController", "AlunoComunidadeController",
+                                // Link de indicação do próprio aluno, só o link (hasRole ALUNO, sempre o da sessão).
+                                "IndicacaoDoAlunoController",
                                 // Vitrine vista pelo próprio aluno, só os itens ativos (hasRole ALUNO); a equipe declara PERM_VITRINE_LER/ALTERAR.
                                 "VitrineAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {

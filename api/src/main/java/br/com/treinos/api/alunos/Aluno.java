@@ -167,6 +167,14 @@ public class Aluno {
         this.importacaoId = importacao;
     }
 
+    /**
+     * Código do link de indicação (V081), gerado pelo banco ({@code gen_random_uuid()}) e trocado só pela anonimização, por SQL
+     * nativo ({@code AnonimizacaoRepositorio}). Identifica quem indicou no link que circula em WhatsApp: nunca em log, auditoria,
+     * {@code toString} nem resposta a quem não é o próprio aluno.
+     */
+    @Column(name = "codigo_indicacao", insertable = false, updatable = false)
+    private UUID codigoIndicacao;
+
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
 
@@ -244,6 +252,10 @@ public class Aluno {
 
     public Instant getCriadoEm() {
         return criadoEm;
+    }
+
+    public UUID getCodigoIndicacao() {
+        return codigoIndicacao;
     }
 
     public Instant getAtualizadoEm() {

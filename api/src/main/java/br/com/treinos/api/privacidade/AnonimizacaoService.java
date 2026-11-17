@@ -181,6 +181,8 @@ public class AnonimizacaoService {
         pagamentos.apagarDoAluno(alunoId);
         nativo.apagarObservacoesDasExecucoes(consultoriaId, alunoId);
         nativo.apagarComentariosDasSessoesConcluidas(consultoriaId, alunoId);
+        // Indicações que ele fez (inscrições de outras pessoas perdem o vínculo) e o link antigo dele morre (código novo).
+        nativo.desfazerIndicacoes(consultoriaId, alunoId);
         nativo.apagarNomesDosTitulos(consultoriaId, alunoId);
         nativo.apagarTextoLivreDosPlanos(consultoriaId, alunoId);
 

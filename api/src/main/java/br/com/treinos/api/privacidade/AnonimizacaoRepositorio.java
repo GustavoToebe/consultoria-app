@@ -41,6 +41,18 @@ class AnonimizacaoRepositorio {
     }
 
     /**
+     * Indicação de alunos (V081): as inscrições que este aluno indicou perdem o vínculo (a FK com {@code SET NULL} só age em DELETE
+     * e a anonimização não apaga a linha) e o código do link dele é trocado por outro aleatório, então o link antigo que circula em
+     * WhatsApp deixa de valer. As duas linhas saem sempre de {@code consultoria_id}; nada disso vai a log nem à auditoria.
+     */
+    void desfazerIndicacoes(UUID consultoriaId, UUID alunoId) {
+        jdbc.update("update inscricao set indicado_por_aluno_id = null where consultoria_id = ? and indicado_por_aluno_id = ?",
+                consultoriaId, alunoId);
+        jdbc.update("update aluno set codigo_indicacao = gen_random_uuid() where consultoria_id = ? and id = ?",
+                consultoriaId, alunoId);
+    }
+
+    /**
      * Comunidade (V065): o que o usuário do aluno escreveu sai do ar. Posts e comentários perdem texto, vídeo, busca, foto e nome
      * (o nome civil ficava gravado em {@code autor_nome}) e ficam ocultos; as reações e os votos de enquete dele são apagados. Uma linha vazia e oculta
      * preserva as contagens dos outros e a FK. As linhas saem de {@code consultoria_id} e do usuário do aluno
