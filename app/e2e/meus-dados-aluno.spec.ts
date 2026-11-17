@@ -170,8 +170,9 @@ test('409 de versão recarrega com aviso neutro; 422 marca o campo e some ao cor
   await expect(page.getByText(CONFLITO)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Telefone: (11) 97777-6666')).toBeVisible();
-  // Duas leituras do cartão (abrir e recarregar depois do 409) e uma do cartão do apelido, que lê a mesma rota.
-  expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/meus-dados')).toHaveLength(3);
+  // Duas leituras do cartão (abrir e recarregar depois do 409) e uma de cada cartão que lê a mesma rota ao abrir:
+  // o do apelido e o Meu perfil (prévia do nome, V085). O 409 só recarrega o Meus dados.
+  expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/meus-dados')).toHaveLength(4);
 
   // A edição seguinte leva a versão recarregada; o servidor recusa o telefone: erro no campo e aviso geral.
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
