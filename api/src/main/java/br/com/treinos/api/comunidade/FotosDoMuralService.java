@@ -16,7 +16,8 @@ import java.util.UUID;
 
 /**
  * Fotos dos posts do mural (C7 a C9). Uma por requisição, pendente até o post; só JPEG, conferido e regravado sem metadados
- * (1600 px, 300 KB depois da limpeza); só quem a regra de idade e a chave do treinador deixam anexar. Os bytes ficam no banco
+ * (1600 px, 300 KB depois da limpeza); o aluno só anexa se a regra de idade e a chave do treinador deixam, e a equipe
+ * ({@code COMUNIDADE_MODERAR}) anexa sem elas (C36). Os bytes ficam no banco
  * e só saem pela API, com {@code no-store}; nunca em log. A pendente com mais de 24 h é apagada pela manutenção
  * ({@code fotos/FotosManutencao}). O teto de 20 envios em 24 h é do {@code LimiteTentativas.fotoDoMuralCabe}.
  */
@@ -50,6 +51,19 @@ public class FotosDoMuralService {
     public UUID enviar(UsuarioAutenticado eu, byte[] recebido) {
         configuracao.exigirQueAlunosPublicam(eu);
         configuracao.exigirQuePodeAnexarFoto(eu, aluno(eu));
+        return gravar(eu, recebido);
+    }
+
+    /**
+     * Foto da equipe (C36; a rota exige {@code COMUNIDADE_MODERAR}): a chave de alunos publicarem, a de fotos dos alunos e a regra
+     * de idade são do aluno e não valem aqui; o arquivo e o teto diário seguem as mesmas regras.
+     */
+    @Transactional
+    public UUID enviarDaEquipe(UsuarioAutenticado eu, byte[] recebido) {
+        return gravar(eu, recebido);
+    }
+
+    private UUID gravar(UsuarioAutenticado eu, byte[] recebido) {
         byte[] jpeg = limpar(recebido);
         if (!limite.fotoDoMuralCabe(eu.usuarioId())) {
             throw FotoException.limiteDoDia();
@@ -57,7 +71,7 @@ public class FotosDoMuralService {
         return fotos.saveAndFlush(new ComunidadeMuralFoto(eu.usuarioId(), jpeg, Instant.now())).getId();
     }
 
-    /** Só a pendente do próprio aluno; de outro autor, já ligada a um post ou inexistente = 404. */
+    /** Só a pendente do próprio autor (aluno ou equipe); de outro autor, já ligada a um post ou inexistente = 404. */
     @Transactional
     public void apagarPendente(UsuarioAutenticado eu, UUID id) {
         ComunidadeMuralFoto f = fotos.findById(id)
@@ -67,7 +81,7 @@ public class FotosDoMuralService {
         fotos.flush();
     }
 
-    /** Foto de post visível para o aluno (funil do post: consultoria, oculto e pod) ou a própria pendente. */
+    /** Foto de post visível para quem pede (funil do post: consultoria, oculto e pod) ou a própria pendente. */
     @Transactional(readOnly = true)
     public byte[] lerDoAluno(UsuarioAutenticado eu, UUID id) {
         ComunidadeMuralFoto f = fotos.findById(id).orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
@@ -79,13 +93,10 @@ public class FotosDoMuralService {
         return f.getBytes();
     }
 
-    /** A equipe só vê foto de post (pelo funil do post); a pendente ainda é só do aluno. */
+    /** Foto de post (pelo funil do post) ou a própria pendente da pessoa da equipe (para a prévia); a pendente de aluno é 404. */
     @Transactional(readOnly = true)
     public byte[] lerDaEquipe(UUID id, UsuarioAutenticado eu) {
-        ComunidadeMuralFoto f = fotos.findById(id).filter(x -> x.getPostId() != null)
-                .orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
-        visiveis.exigirPostVisivel(f.getPostId(), eu, "Foto não encontrada.");
-        return f.getBytes();
+        return lerDoAluno(eu, id);
     }
 
     private Aluno aluno(UsuarioAutenticado eu) {

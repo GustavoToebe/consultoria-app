@@ -219,7 +219,7 @@ class ComunidadeOrganizadaIntegrationTest extends AbstractIntegrationTest {
         }
         JsonNode avisoComLink = api.post("/comunidade/mural", admin, corpo("AVISO", "Aviso", "https://exemplo.test/v", null), 422);
         assertThat(campoDoErro(avisoComLink)).isEqualTo("videoUrl");
-        // Equipe não anexa foto; aluno não usa a rota da equipe.
+        // Foto inexistente na publicação da equipe (C36: ela anexa as próprias pendentes): 422 no campo; aluno não usa a rota da equipe.
         JsonNode comFoto = api.post("/comunidade/mural", admin, corpo("CONVERSA", "Foto", null, List.of(UUID.randomUUID().toString())), 422);
         assertThat(campoDoErro(comFoto)).isEqualTo("fotoIds");
         api.post("/comunidade/mural", loginA, corpo("CONVERSA", "Oi", null, null), 403);

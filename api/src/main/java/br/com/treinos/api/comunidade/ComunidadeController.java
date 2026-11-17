@@ -151,7 +151,31 @@ public class ComunidadeController {
         return comunidade.adicionarComentarioMural(id, request.texto(), eu);
     }
 
-    /** Bytes da foto de um post (a pendente ainda é só do aluno); sempre {@code no-store}. */
+    /**
+     * Foto pendente da equipe (C36), uma por requisição, no limite de 1 MiB do corpo; o id vai em {@code fotoIds} do post (0 a 4).
+     * JPEG regravado sem metadados, 1600 px e 300 KB; teto diário por usuário como o do aluno.
+     */
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
+    @PostMapping(value = "/mural/fotos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public FotoCriada enviarFoto(@RequestPart("arquivo") MultipartFile arquivo, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
+        try {
+            return new FotoCriada(fotos.enviarDaEquipe(eu, arquivo.getBytes()));
+        } catch (IOException e) {
+            throw new BadRequestException("Não foi possível ler o arquivo enviado.");
+        }
+    }
+
+    /** Remove a foto pendente da própria pessoa (204); de outro autor, já publicada ou inexistente = 404. */
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
+    @DeleteMapping("/mural/fotos/{id}")
+    public ResponseEntity<Void> apagarFotoPendente(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
+        fotos.apagarPendente(eu, id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Bytes da foto de um post ou a própria pendente da pessoa (a pendente de aluno é 404); sempre {@code no-store}. */
     @PreAuthorize("hasAuthority('PERM_TREINO_LER')")
     @GetMapping("/mural/fotos/{id}")
     public ResponseEntity<byte[]> fotoDoPost(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {

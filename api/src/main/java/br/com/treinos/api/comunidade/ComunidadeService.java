@@ -165,6 +165,7 @@ public class ComunidadeService {
 
     public ComentarioResponse adicionarComentarioAula(UUID aulaId, String texto, UsuarioAutenticado eu) {
         exigirAula(aulaId, eu);
+        exigirTextoPermitido(texto, eu);
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
         ComunidadeAulaComentario c = new ComunidadeAulaComentario(aulaId, eu.usuarioId(), nome, null, texto.trim());
         if (!souAluno(eu)) {
@@ -323,7 +324,8 @@ public class ComunidadeService {
 
     /**
      * Publica no mural. Aluno: só {@code CONVERSA}, {@code DUVIDA} e {@code RESULTADO}, com 0 a 4 fotos pendentes dele e a chave
-     * {@code alunosPublicam} ligada (403 {@code PUBLICACAO_DESLIGADA}); equipe: todos os tipos, sem fotos. {@code VIDEO} exige
+     * {@code alunosPublicam} ligada (403 {@code PUBLICACAO_DESLIGADA}), e o texto passa pelo {@link FiltroDeConteudo}; equipe:
+     * todos os tipos, sem filtro, com 0 a 4 fotos pendentes dela (C36, menos a enquete). {@code VIDEO} exige
      * {@code videoUrl} https e só ele a aceita (e a {@code capaId}, opcional); {@code ENQUETE} (só a equipe) exige {@code opcoes}
      * (2 a 6) e aceita {@code variasRespostas} e {@code encerraEm}, e recusa link, fotos e capa; os outros tipos recusam
      * {@code opcoes}, {@code variasRespostas}, {@code encerraEm} e (menos o vídeo) {@code capaId}; {@code AVISO} nasce fixado. Tipo,
@@ -359,8 +361,8 @@ public class ComunidadeService {
         }
         List<UUID> fotoIds = r.fotoIds() == null ? List.of() : r.fotoIds();
         if (!fotoIds.isEmpty()) {
-            if (!aluno) {
-                erros.add(new ApiError.FieldError("fotoIds", "A equipe não anexa fotos."));
+            if (tipo == TipoDePost.ENQUETE) {
+                erros.add(new ApiError.FieldError("fotoIds", "A enquete não leva fotos."));
             } else if (fotoIds.size() > MAXIMO_DE_FOTOS || fotoIds.stream().anyMatch(Objects::isNull)
                     || fotoIds.stream().distinct().count() != fotoIds.size()) {
                 erros.add(new ApiError.FieldError("fotoIds", "Use de 1 a " + MAXIMO_DE_FOTOS + " fotos, sem repetir."));
@@ -384,10 +386,14 @@ public class ComunidadeService {
         if (r.capaId() != null && tipo != null && tipo != TipoDePost.VIDEO) {
             erros.add(new ApiError.FieldError("capaId", "Só a publicação de vídeo leva capa."));
         }
+        if (aluno && FiltroDeConteudo.bloqueia(r.texto())) {
+            erros.add(FiltroDeConteudo.ERRO);
+        }
         if (!erros.isEmpty()) {
             throw new ValidacaoException("Confira a publicação.", "POST_INVALIDO", erros);
         }
-        if (!fotoIds.isEmpty()) {
+        // A idade e a chave de fotos são regras do aluno; a equipe (COMUNIDADE_MODERAR, na rota) anexa sem elas.
+        if (aluno && !fotoIds.isEmpty()) {
             configuracao.exigirQuePodeAnexarFoto(eu, alunos.findById(AlunoAppService.alunoDaSessao(eu))
                     .orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado.")));
         }
@@ -425,6 +431,13 @@ public class ComunidadeService {
         return ligadas.isEmpty() ? List.of() : fotos.idsDosPosts(List.of(postId)).stream().map(ComunidadeMuralFotoRepository.IdDaFoto::getId).toList();
     }
 
+    /** Comentário de aluno com termo do filtro: 422 no campo {@code texto}, sem repetir o texto nem o termo. A equipe não é filtrada. */
+    private static void exigirTextoPermitido(String texto, UsuarioAutenticado eu) {
+        if (souAluno(eu) && FiltroDeConteudo.bloqueia(texto)) {
+            throw new ValidacaoException("Confira o comentário.", "COMUNIDADE_INVALIDA", List.of(FiltroDeConteudo.ERRO));
+        }
+    }
+
     private static boolean souAluno(UsuarioAutenticado eu) {
         return eu != null && "ALUNO".equals(eu.papel());
     }
@@ -446,6 +459,7 @@ public class ComunidadeService {
 
     public ComentarioResponse adicionarComentarioMural(UUID postId, String texto, UsuarioAutenticado eu) {
         visiveis.exigirPostVisivel(postId, eu);
+        exigirTextoPermitido(texto, eu);
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
         ComunidadeMuralComentario c = new ComunidadeMuralComentario(postId, eu.usuarioId(), nome, null, texto.trim());
         if (!souAluno(eu)) {
