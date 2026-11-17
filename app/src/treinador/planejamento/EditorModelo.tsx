@@ -96,9 +96,9 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
         aoMover={(d) => mudarConteudo({ planos: mover(pasta.planos, i, d) })}
         aoRemover={() => mudarConteudo({ planos: pasta.planos.filter((_, n) => n !== i) })} />)}
       <View style={estilos.acoes}>
-        <Botao rotulo="Adicionar semana de treino" tipo="secundario" Icone={Plus} desabilitado={pasta.planos.length >= 30} motivo="No máximo 30 planos." aoTocar={() => setAdicionar('PLANO_TREINO')} />
-        <Botao rotulo="Adicionar dieta" tipo="secundario" Icone={Plus} desabilitado={pasta.planos.length >= 30} motivo="No máximo 30 planos." aoTocar={() => setAdicionar('PLANO_DIETA')} />
-        <NoPlano funcionalidade="MOBILIDADE"><Botao rotulo="Adicionar mobilidade" tipo="secundario" Icone={Plus} desabilitado={pasta.planos.length >= 30} motivo="No máximo 30 planos." aoTocar={() => setAdicionar('MOBILIDADE')} /></NoPlano>
+        <Botao rotulo="Adicionar semana de treino" tipo="acao" Icone={Plus} desabilitado={pasta.planos.length >= 30} motivo="No máximo 30 planos." aoTocar={() => setAdicionar('PLANO_TREINO')} />
+        <Botao rotulo="Adicionar dieta" tipo="acao" Icone={Plus} desabilitado={pasta.planos.length >= 30} motivo="No máximo 30 planos." aoTocar={() => setAdicionar('PLANO_DIETA')} />
+        <NoPlano funcionalidade="MOBILIDADE"><Botao rotulo="Adicionar mobilidade" tipo="acao" Icone={Plus} desabilitado={pasta.planos.length >= 30} motivo="No máximo 30 planos." aoTocar={() => setAdicionar('MOBILIDADE')} /></NoPlano>
       </View>
       {adicionar ? <FolhaReceitas tipo={adicionar} titulo="Adicionar ao pacote" aoFechar={() => setAdicionar(null)} aoUsar={(modelo) => {
         mudarConteudo({ planos: [...pasta.planos, { titulo: modelo.nome, treino: adicionar === 'PLANO_TREINO' ? normalizarTreino(modelo.conteudo) : null, dieta: adicionar === 'PLANO_DIETA' ? normalizarDieta(modelo.conteudo) : null, mobilidade: adicionar === 'MOBILIDADE' ? mobilidadeParaApi(normalizarMobilidade(modelo.conteudo)) : null }] }); setAdicionar(null);

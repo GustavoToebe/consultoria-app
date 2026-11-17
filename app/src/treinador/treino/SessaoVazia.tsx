@@ -33,7 +33,7 @@ export function SessaoVazia({ estado, aoNovoExercicio, aoNovoCardio, aoAbrirMode
     <BlocoAdicionar titulo="Monte esta sessão" descricao="Adicione exercícios ou comece com um modelo pronto.">
       <Botao rotulo="Adicionar exercício" Icone={Plus} aoTocar={aoNovoExercicio} />
       {aoAbrirModelos ? <Botao rotulo="Usar modelo" tipo="secundario" Icone={NotebookTabs} aoTocar={aoAbrirModelos} /> : null}
-      <Botao rotulo="Adicionar cardio" tipo="secundario" Icone={HeartPulse} aoTocar={aoNovoCardio} />
+      <Botao rotulo="Adicionar cardio" tipo="acao" Icone={HeartPulse} aoTocar={aoNovoCardio} />
     </BlocoAdicionar>
   );
 }

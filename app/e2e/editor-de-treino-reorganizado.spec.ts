@@ -136,12 +136,11 @@ test.describe('PC (1280)', () => {
     expect(api.errosDaPagina).toEqual([]);
   });
 
-  test('sem pendência, o plano do aluno diz "Pronto para publicar"; distribuição recolhida e totais na sessão', async ({ page }) => {
+  test('sem pendência, o plano do aluno diz "Pronto para publicar"; distribuição sempre à vista e totais na sessão', async ({ page }) => {
     await abrirPlano(page);
     await expect(page.getByText('Pronto para publicar', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/^\d+ exercícios · \d+ séries · \d+ séries de trabalho$/)).toBeVisible();
-    await expect(page.getByText('Séries por tipo', { exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: /^Ver distribuição da sessão/ }).click();
+    // Visual-ponytail (17/11): a distribuição não fica mais recolhida.
     await expect(page.getByText('Séries por tipo', { exact: true })).toBeVisible();
     // "Salvar como dia de treino" mora no ⋯ da sessão.
     await page.getByRole('button', { name: /^Mais ações da sessão/ }).click();

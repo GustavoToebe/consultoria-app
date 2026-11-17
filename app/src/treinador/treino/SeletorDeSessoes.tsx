@@ -55,8 +55,9 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
               style={(st) => [
                 estilos.chip,
                 {
-                  backgroundColor: ativo || sobre(st) ? cores.sobre : cores.superficie2,
-                  borderColor: ativo ? cores.texto : cores.borda,
+                  backgroundColor: ativo ? cores.acaoSuave : sobre(st) ? cores.sobre : cores.superficie2,
+                  borderColor: ativo ? cores.acao : cores.borda,
+                  boxShadow: ativo ? `0px 0px 0px 3px ${cores.acaoSuave}` : undefined,
                 },
               ]}>
               <Icone size={16} color={corTexto} strokeWidth={2} />
@@ -65,7 +66,7 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
               <View style={[estilos.contagem, { borderColor: corTexto }]} accessible={false}>
                 <Texto numerico style={[estilos.numero, { color: corTexto }]}>{s.exercicios.length}</Texto>
               </View>
-              {erro ? <View style={[estilos.ponto, { backgroundColor: cores.perigo, borderColor: ativo ? cores.sobre : cores.superficie2 }]} /> : null}
+              {erro ? <View style={[estilos.ponto, { backgroundColor: cores.perigo, borderColor: ativo ? cores.acaoSuave : cores.superficie2 }]} /> : null}
             </Pressable>
           );
         })}

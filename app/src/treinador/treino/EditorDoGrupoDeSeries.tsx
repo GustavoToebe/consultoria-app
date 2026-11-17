@@ -164,7 +164,7 @@ export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga,
       inicio={<NumeroInvertido numero={numero} invertido />} acoesJuntas={largo} acoes={<>
       <IconeBotao moldura Icone={ArrowUp} rotulo={`Subir série ${numero}`} desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
       <IconeBotao moldura Icone={ArrowDown} rotulo={`Descer série ${numero}`} desabilitado={ultimo} aoTocar={() => aoMover(1)} />
-      <IconeBotao moldura Icone={Trash2} rotulo={`Remover série ${numero}`} cor={cores.perigo} aoTocar={aoRemover} />
+      <Botao tipo="perigoTexto" rotulo="Excluir série" rotuloAcessivel={`Remover série ${numero}`} Icone={Trash2} aoTocar={aoRemover} />
     </>} />
     <View style={[estilos.corpo, { padding: recuo }]}>
       {/* Faixa 1: para que a série serve (tipo) e como executar (técnica). */}

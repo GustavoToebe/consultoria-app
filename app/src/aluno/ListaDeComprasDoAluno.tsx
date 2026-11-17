@@ -149,7 +149,7 @@ export function ListaDeComprasDoAluno({
           {itens.length ? (
             <Botao rotulo={ajustando ? 'Concluir ajustes' : 'Ajustar lista'} tipo="secundario" Icone={SlidersHorizontal} aoTocar={() => setAjustando(!ajustando)} />
           ) : null}
-          <Botao rotulo="Adicionar item" tipo="secundario" Icone={Plus} aoTocar={() => setEdicao({ tipo: 'avulso', item: null })} />
+          <Botao rotulo="Adicionar item" tipo="acao" Icone={Plus} aoTocar={() => setEdicao({ tipo: 'avulso', item: null })} />
         </LinhaDeAcoes>
         <Texto variante="suave">{NOTA_DA_LISTA_ALUNO}</Texto>
         <Texto variante="suave">Marcações, ajustes e itens adicionados ficam só neste aparelho e não mudam a dieta.</Texto>

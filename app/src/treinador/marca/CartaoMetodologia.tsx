@@ -134,13 +134,13 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
       <Campo rotulo="Nome do tipo" valor={novo.nome} aoMudar={(nome) => setNovo({ ...novo, nome })} maxLength={30} ajuda="O código do tipo é gerado deste nome e não muda depois." />
       <Escolha rotulo="Papel" valor={novo.papel} opcoes={PAPEIS} aoMudar={(papel) => setNovo({ ...novo, papel })} />
       <View style={estilos.acoes}>
-        <Botao rotulo="Criar tipo" tipo="secundario" Icone={Plus} aoTocar={adicionar} desabilitado={!novo.nome.trim()} motivo={!novo.nome.trim() ? 'Dê um nome ao tipo.' : undefined} />
+        <Botao rotulo="Criar tipo" tipo="acao" Icone={Plus} aoTocar={adicionar} desabilitado={!novo.nome.trim()} motivo={!novo.nome.trim() ? 'Dê um nome ao tipo.' : undefined} />
         <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={() => setNovo(null)} />
       </View>
     </Cartao> : null}
     <View style={estilos.acoes}>
-      {novo ? null : <Botao rotulo="Adicionar tipo" tipo="secundario" Icone={Plus} aoTocar={() => setNovo({ nome: '', papel: 'OUTRO' })} desabilitado={cheio} motivo={cheio ? `O máximo é ${MAXIMO_DE_TIPOS} tipos.` : undefined} />}
-      <Botao rotulo="Adicionar da lista" tipo="secundario" aoTocar={() => setFolha('tipos')} desabilitado={cheio || itensDeTipo.every((i) => i.presente)} motivo={cheio ? `O máximo é ${MAXIMO_DE_TIPOS} tipos.` : itensDeTipo.every((i) => i.presente) ? 'Todos os tipos do catálogo já estão na metodologia.' : undefined} />
+      {novo ? null : <Botao rotulo="Adicionar tipo" tipo="acao" Icone={Plus} aoTocar={() => setNovo({ nome: '', papel: 'OUTRO' })} desabilitado={cheio} motivo={cheio ? `O máximo é ${MAXIMO_DE_TIPOS} tipos.` : undefined} />}
+      <Botao rotulo="Adicionar da lista" tipo="acao" aoTocar={() => setFolha('tipos')} desabilitado={cheio || itensDeTipo.every((i) => i.presente)} motivo={cheio ? `O máximo é ${MAXIMO_DE_TIPOS} tipos.` : itensDeTipo.every((i) => i.presente) ? 'Todos os tipos do catálogo já estão na metodologia.' : undefined} />
     </View>
 
     <AlvoDeRolagem chave={chaveDoAlvo('tecnicas')}>
@@ -153,7 +153,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
         aoMudar={(nova) => aoMudar({ ...c, tecnicas: c.tecnicas.map((x, n) => (n === i ? nova : x)) })}
         aoRemover={() => retirar(`Técnica “${t.nome.trim() || t.tipo}” retirada.`, { ...c, tecnicas: c.tecnicas.filter((_, n) => n !== i) })} />
     </AlvoDeRolagem>)}
-    <Botao rotulo="Adicionar da lista" tipo="secundario" aoTocar={() => setFolha('tecnicas')} desabilitado={itensDeTecnica.every((i) => i.presente)} motivo={itensDeTecnica.every((i) => i.presente) ? 'Todas as técnicas do catálogo já estão na metodologia.' : undefined} />
+    <Botao rotulo="Adicionar da lista" tipo="acao" aoTocar={() => setFolha('tecnicas')} desabilitado={itensDeTecnica.every((i) => i.presente)} motivo={itensDeTecnica.every((i) => i.presente) ? 'Todas as técnicas do catálogo já estão na metodologia.' : undefined} />
 
     <AlvoDeRolagem chave={chaveDoAlvo('combinacoes')}>
       <Texto variante="secao">Combinações de exercícios</Texto>
@@ -165,7 +165,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
         aoMudar={(nova) => aoMudar({ ...c, combinacoes: (c.combinacoes ?? []).map((x, n) => (n === i ? nova : x)) })}
         aoRemover={() => retirar(`Combinação “${k.nome.trim() || k.tipo}” retirada.`, { ...c, combinacoes: (c.combinacoes ?? []).filter((_, n) => n !== i) })} />
     </AlvoDeRolagem>)}
-    <Botao rotulo="Adicionar da lista" tipo="secundario" aoTocar={() => setFolha('combinacoes')} desabilitado={itensDeCombinacao.every((i) => i.presente)} motivo={itensDeCombinacao.every((i) => i.presente) ? 'Todas as combinações do catálogo já estão na metodologia.' : undefined} />
+    <Botao rotulo="Adicionar da lista" tipo="acao" aoTocar={() => setFolha('combinacoes')} desabilitado={itensDeCombinacao.every((i) => i.presente)} motivo={itensDeCombinacao.every((i) => i.presente) ? 'Todas as combinações do catálogo já estão na metodologia.' : undefined} />
 
     <AlvoDeRolagem chave={chaveDoAlvo('geral')}>
       <Cartao titulo="Geral">

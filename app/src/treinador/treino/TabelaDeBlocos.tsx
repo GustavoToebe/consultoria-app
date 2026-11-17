@@ -7,6 +7,8 @@ import { textoAcessivelDoBloco, textoDaVariacao, type ResumoDoBloco } from '../.
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, BORDA_ITEM, espaco, fontes, RAIO } from '../../tema/tokens';
 import { Selo } from '../../ui/Selo';
+import { coresDaEdicao } from '../../ui/selecao';
+import { SeloEditando } from '../../ui/SeloEditando';
 import { sobre as comMouse } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 
@@ -77,7 +79,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
       <View style={estilos.titulo}>
         {l.tipo ? <Selo texto={l.tipo} categoria={l.categoria} /> : <Texto cor="suave">—</Texto>}
         {/* O "selected"/"expanded" já diz ao leitor de tela; o marcador é para quem vê (guia pág. 9). */}
-        {sel ? <Texto variante="secao" cor={cores.texto} aria-hidden>Editando</Texto> : null}
+        {sel ? <SeloEditando /> : null}
       </View>
     );
     const detalhes = (
@@ -118,7 +120,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
   ].filter(Boolean).join(', ');
   // Sem categoria a faixa fica na cor do fundo: as colunas não andam entre linhas com e sem cor.
   const caixa = (l: LinhaDoBloco, sel: boolean, fundo: string) =>
-    [estilos.caixa, { backgroundColor: fundo, borderColor: sel ? cores.texto : cores.borda, borderLeftColor: l.categoria?.cor ?? fundo }];
+    [estilos.caixa, { backgroundColor: fundo, borderColor: sel ? cores.acao : cores.borda, borderLeftColor: l.categoria?.cor ?? fundo, boxShadow: sel ? coresDaEdicao(cores).halo : undefined }];
 
   if (empilhado) {
     return (
@@ -131,7 +133,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
                 <Pressable accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
                   {...(Platform.OS === 'web' && sel && detalhe ? ({ 'aria-controls': idDoDetalhe } as object) : {})}
                   onPress={() => { if (!sel) aoMudar(l.valor); }}
-                  style={(st) => caixa(l, sel, sel || comMouse(st) ? cores.sobre : cores.superficie2)}>
+                  style={(st) => caixa(l, sel, sel ? cores.acaoSuave : comMouse(st) ? cores.sobre : cores.superficie2)}>
                   {conteudo(l, sel)}
                 </Pressable>
                 {sel && detalhe ? <View nativeID={idDoDetalhe} role="region" aria-label={`Editando ${l.rotulo}`}>{detalhe}</View> : null}
@@ -158,7 +160,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
         <TabsList aria-label="Blocos do exercício" style={estilos.lista}>
           {linhas.map((l) => {
             const sel = l.valor === ativa;
-            const fundo = sel || sobre === l.valor ? cores.sobre : cores.superficie2;
+            const fundo = sel ? cores.acaoSuave : sobre === l.valor ? cores.sobre : cores.superficie2;
             return (
               <TabsTrigger key={l.valor} value={l.valor} accessibilityRole="tab" accessibilityLabel={rotuloDe(l)} accessibilityState={{ selected: sel }}
                 {...(Platform.OS === 'web' ? ({ onMouseEnter: () => setSobre(l.valor), onMouseLeave: () => setSobre(null) } as object) : {})}

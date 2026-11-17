@@ -164,7 +164,7 @@ export function EditorQuestionario({ id }: { id: string }) {
           <IconeBotao Icone={Trash2} rotulo={`Remover instrução ${i + 1}`} aoTocar={() => editor.alterarConteudo((c) => alterarInstrucoes(c, instrucoes.filter((_, n) => n !== i)))} />
         </View>)}
         <LinhaDeAcoes>
-          <Botao rotulo="Adicionar instrução" tipo="secundario" Icone={Plus} desabilitado={instrucoes.length >= L.instrucoes} motivo={`No máximo ${L.instrucoes} instruções.`}
+          <Botao rotulo="Adicionar instrução" tipo="acao" Icone={Plus} desabilitado={instrucoes.length >= L.instrucoes} motivo={`No máximo ${L.instrucoes} instruções.`}
             aoTocar={() => editor.alterarConteudo((c) => alterarInstrucoes(c, [...instrucoes, '']))} />
         </LinhaDeAcoes>
       </Cartao>

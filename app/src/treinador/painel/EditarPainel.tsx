@@ -179,7 +179,7 @@ export function GradeEmEdicao({ ctx, rascunho, colunas, aoMudar }: {
                   <Texto variante="pequeno">{b.descricao}</Texto>
                 </View>
                 <View nativeID={alvo(b.id, 'adicionar')}>
-                  <Botao rotulo="Adicionar" rotuloAcessivel={`Adicionar ${b.titulo} ao Início`} tipo="secundario" Icone={Plus} aoTocar={() => adicionar(b)} />
+                  <Botao rotulo="Adicionar" rotuloAcessivel={`Adicionar ${b.titulo} ao Início`} tipo="acao" Icone={Plus} aoTocar={() => adicionar(b)} />
                 </View>
               </View>
             ))}

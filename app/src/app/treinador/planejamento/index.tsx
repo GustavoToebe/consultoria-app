@@ -153,7 +153,7 @@ export default function Planejamento() {
     })}
     {menu ? <Folha visivel titulo={menu.nome} aoFechar={() => setMenu(null)}>
       <Botao rotulo="Renomear ou mudar de coleção" tipo="secundario" Icone={Pencil} cheio aoTocar={() => { setFormulario(menu); setMenu(null); }} />
-      <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} cheio desabilitado={ocupado !== null} aoTocar={() => duplicar(menu)} />
+      <Botao rotulo="Duplicar" tipo="acao" Icone={Copy} cheio desabilitado={ocupado !== null} aoTocar={() => duplicar(menu)} />
       <Botao rotulo="Excluir modelo" tipo="perigoTexto" Icone={Trash2} cheio aoTocar={() => { setExcluir(menu); setMenu(null); }} />
     </Folha> : null}
     {formulario ? <Formulario key={typeof formulario === 'string' ? 'novo' : formulario.id} receita={formulario === 'novo' ? null : formulario} tipo={tipo} colecoes={colecoes.dados ?? []} aoFechar={fecharFormulario} aoSalvar={async (nome, descricao, pastaId) => {

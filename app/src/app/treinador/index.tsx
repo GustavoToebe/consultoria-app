@@ -315,7 +315,7 @@ export default function InicioTreinador() {
   const motivoEditar = motivoDoEditar(semAlunos);
   const acoes = (
     <>
-      <Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Novo aluno" tipo="secundario" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} /></Permitido>
+      <Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Novo aluno" tipo="acao" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} /></Permitido>
       {permitidos.length ? (
         <View nativeID={ID_DO_EDITAR}>
           <Botao rotulo="Editar" rotuloAcessivel="Editar os blocos do Início" tipo="secundario" Icone={Pencil}

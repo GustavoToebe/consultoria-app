@@ -45,7 +45,7 @@ interface Props {
   motivoSemGrupo?: string | null;
   /** `false` quando o bloco "Adicionar próximo exercício" vai no fim da lista da coluna da esquerda (duas colunas). */
   adicionarNoFim?: boolean;
-  /** Totais e "Ver distribuição da sessão", logo abaixo da faixa. */
+  /** Totais e a distribuição da sessão, logo abaixo da faixa. */
   resumo?: ReactNode;
   /** Há erro num campo da própria sessão (nome, tipo...): "Editar sessão" fica aberto para o campo estar à vista. */
   comErroNosDados?: boolean;
@@ -162,10 +162,10 @@ export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'ao
   emColuna?: boolean;
 }) {
   const botoes = <>
-    <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
-    <Botao rotulo="Adicionar cardio" tipo="secundario" Icone={HeartPulse} aoTocar={p.aoNovoCardio} />
-    {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
-    {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
+    <Botao rotulo="Adicionar exercício" tipo="acao" Icone={Plus} aoTocar={p.aoNovoExercicio} />
+    <Botao rotulo="Adicionar cardio" tipo="acao" Icone={HeartPulse} aoTocar={p.aoNovoCardio} />
+    {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="acao" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
+    {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="acao" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
   </>;
   return (
     <BlocoAdicionar titulo="Adicionar próximo exercício" descricao="Escolha da biblioteca da consultoria ou use um modelo pronto.">

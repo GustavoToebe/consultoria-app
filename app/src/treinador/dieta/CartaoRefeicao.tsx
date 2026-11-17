@@ -145,7 +145,7 @@ export function CartaoRefeicao(p: Props) {
           posicao={p.posicao}
           total={p.total}
           aoMover={p.aoMover}
-          remover={p.aoRemover ? <IconeBotao Icone={Trash2} rotulo={`Remover ${titulo}`} cor={cores.perigo} aoTocar={p.aoRemover} /> : undefined}
+          remover={p.aoRemover ? <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${titulo}`} Icone={Trash2} aoTocar={p.aoRemover} /> : undefined}
         />
       }>
       {p.aberta ? (
@@ -285,7 +285,7 @@ function OpcaoDaRefeicao({
         <View style={estilos.cresce} aria-hidden><ValoresDaDieta totais={somar(opcao.itens)} forte /></View>
       </View>
       <LinhaDeAcoes>
-        <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="secundario" Icone={Plus} aoTocar={aoEscolherAlimento} />
+        <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="acao" Icone={Plus} aoTocar={aoEscolherAlimento} />
         <Botao rotulo="Item manual" rotuloAcessivel={`Item manual${naOpcao}`} tipo="secundario" Icone={PencilLine} aoTocar={() => aoMudarItens((itens) => [...itens, novoItem()])} />
       </LinhaDeAcoes>
     </View>

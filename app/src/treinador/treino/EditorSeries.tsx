@@ -147,7 +147,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
       depois={cheio ? undefined : <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} style={estilos.tracejado} aoTocar={aoNova} />} />
       : <View style={estilos.vazio}>
         <Texto variante="suave">Nenhuma série ainda.</Texto>
-        {aoUsarReceita ? <LinhaDeAcoes><Botao rotulo="Usar receita" rotuloAcessivel="Usar receita de séries" tipo="destaque" Icone={NotebookTabs} aoTocar={aoUsarReceita} /></LinhaDeAcoes> : null}
+        {aoUsarReceita ? <LinhaDeAcoes><Botao rotulo="Usar receita de séries" tipo="acao" Icone={NotebookTabs} aoTocar={aoUsarReceita} /></LinhaDeAcoes> : null}
         {botoesDaNova ?? <LinhaDeAcoes>{nova}</LinhaDeAcoes>}
       </View>}
     {grupos.length > 0 && cheio ? <LinhaDeAcoes>{nova}</LinhaDeAcoes> : null}

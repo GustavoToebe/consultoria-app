@@ -44,7 +44,7 @@ export function VariacoesDaDieta({ conteudo: c, aberta, comProblema, aoAbrir, al
   if (!aberta) {
     return (
       <Cartao titulo="Dias da semana" descricao="A mesma dieta vale em todos os dias. Para refeições diferentes em alguns dias, crie uma variação."
-        acoes={<Botao rotulo="Criar variação por dia" tipo="secundario" Icone={CalendarDays} aoTocar={() => {
+        acoes={<Botao rotulo="Criar variação por dia" tipo="acao" Icone={CalendarDays} aoTocar={() => {
           const dividida = dividirPorDia(c);
           comDesfazer('Variação criada. A dieta de antes virou a “Variação 1”.', () => dividida);
           aoAbrir(dividida.variacoes[1].uid);
@@ -114,7 +114,7 @@ export function VariacoesDaDieta({ conteudo: c, aberta, comProblema, aoAbrir, al
             ].filter(Boolean).join(' ')} />
         ) : null}
         <LinhaDeAcoes>
-          <Botao rotulo="Duplicar variação" tipo="secundario" Icone={Copy} aoTocar={duplicar}
+          <Botao rotulo="Duplicar variação" tipo="acao" Icone={Copy} aoTocar={duplicar}
             desabilitado={noLimite} motivo={`No máximo ${LIMITE_DE_VARIACOES} variações, uma por dia.`} />
           {c.variacoes.length > 1 ? (
             <Botao rotulo="Excluir variação" rotuloAcessivel={`Excluir a variação ${nomeDe(aberta)}`} tipo="perigoTexto" Icone={Trash2}

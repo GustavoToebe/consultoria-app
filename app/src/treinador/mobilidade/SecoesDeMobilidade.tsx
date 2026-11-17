@@ -146,7 +146,7 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
           </View>
           {avisoNaSecao && desfazer?.secaoDoItem === sec.uid ? barra : null}
           <View style={estilos.linha}>
-            <Botao rotulo="Adicionar item" rotuloAcessivel={`Adicionar item em ${titulo}`} tipo="secundario" Icone={Plus}
+            <Botao rotulo="Adicionar item" rotuloAcessivel={`Adicionar item em ${titulo}`} tipo="acao" Icone={Plus}
               desabilitado={sec.itens.length >= MAXIMO_DE_ITENS} motivo={`No máximo ${MAXIMO_DE_ITENS} itens por seção.`}
               aoTocar={() => { const novo = novoItemMobilidade(); alterarSecao(si, (x) => ({ ...x, itens: [...x.itens, novo] })); setAbertos((a) => new Set(a).add(novo.uid)); }} />
           </View>
@@ -158,7 +158,7 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
   // O único lugar de adicionar seção: no fim da lista (PC) ou dos cartões (celular), como "Adicionar próxima refeição".
   const adicionar = (
     <BlocoAdicionar titulo="Adicionar próxima seção" descricao="Um bloco do plano, como Aquecimento ou Alongamento.">
-      <Botao rotulo="Adicionar seção" tipo="secundario" Icone={Plus} desabilitado={mob.secoes.length >= MAXIMO_DE_SECOES}
+      <Botao rotulo="Adicionar seção" tipo="acao" Icone={Plus} desabilitado={mob.secoes.length >= MAXIMO_DE_SECOES}
         motivo={`No máximo ${MAXIMO_DE_SECOES} seções.`} aoTocar={adicionarSecao} />
     </BlocoAdicionar>
   );
