@@ -41,7 +41,7 @@ export function VoltarParaAPasta({ alunoId, pastaId }: Props) {
       accessibilityLabel="Voltar à pasta"
       accessibilityHint="Abre a ficha do aluno com a pasta deste plano."
       {...propsDeLink(href, voltar)}
-      style={(estado) => [estilos.botao, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
+      style={(estado) => [estilos.botao, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.sobre : 'transparent' }]}>
       <View style={estilos.linha}>
         <ArrowLeft size={18} color={cores.texto} strokeWidth={2} />
         <Texto numberOfLines={2} style={[estilos.rotulo, { color: cores.texto }]}>Voltar à pasta</Texto>

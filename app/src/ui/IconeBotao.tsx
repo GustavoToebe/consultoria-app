@@ -38,7 +38,7 @@ export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto
       {(estado) => (
         <View
           style={[estilos.desenho, compacto && estilos.compacto, moldura && [estilos.moldura, { borderColor: cores.bordaCampo }],
-            { backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : moldura ? cores.superficie : 'transparent' }]}>
+            { backgroundColor: sobre(estado) && !desabilitado ? cores.sobreNaFaixa : moldura ? cores.superficie : 'transparent' }]}>
           <Icone size={compacto ? 16 : 20} color={desabilitado ? cores.textoSuave : cor ?? cores.texto} strokeWidth={2} />
         </View>
       )}

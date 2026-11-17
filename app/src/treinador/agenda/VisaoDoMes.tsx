@@ -67,7 +67,7 @@ function Celula({ celula, itens, compacta, aoTocar }: { celula: CelulaDoDia; ite
   const corDe = useCorDaAgenda();
   const marcado = celula.selecionado;
   const rotulo = `${dataComDiaDaSemana(celula.data)}${celula.hoje ? ', hoje' : ''}, ${quantos(itens.length)}${compacta ? '' : '. Abrir o dia'}`;
-  // Como o `ui/Calendario`: o escolhido é o mais forte (superficie3 com contorno, sem inverter); hoje é o número na cor
+  // Como o `ui/Calendario`: o escolhido é o mais forte (`sobre` com contorno, sem inverter); hoje é o número na cor
   // da marca com o traço embaixo, que continua quando hoje é também o escolhido.
   const selecao = coresDaSelecao(cores, true);
   const numero = (
@@ -81,7 +81,7 @@ function Celula({ celula, itens, compacta, aoTocar }: { celula: CelulaDoDia; ite
     const coresDoDia = [...new Set(itens.map((i) => i.cor))].slice(0, PONTOS_NA_CELULA);
     return (
       <Pressable accessibilityRole="button" accessibilityLabel={rotulo} accessibilityState={{ selected: marcado }} aria-selected={marcado}
-        onPress={aoTocar} style={(e) => [estilos.celulaCompacta, sobre(e) && { backgroundColor: cores.superficie3 }]}>
+        onPress={aoTocar} style={(e) => [estilos.celulaCompacta, sobre(e) && { backgroundColor: cores.sobre }]}>
         {numero}
         <View style={estilos.pontos} aria-hidden>
           {coresDoDia.map((c) => <View key={c} style={[estilos.ponto, { backgroundColor: corDe(c) }]} />)}
@@ -92,7 +92,7 @@ function Celula({ celula, itens, compacta, aoTocar }: { celula: CelulaDoDia; ite
   const { visiveis, mais } = itensDaCelula(itens, ITENS_NA_CELULA);
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={rotulo} onPress={aoTocar}
-      style={(e) => [estilos.celula, { borderLeftColor: cores.divisor }, sobre(e) && { backgroundColor: cores.superficie3 }]}>
+      style={(e) => [estilos.celula, { borderLeftColor: cores.divisor }, sobre(e) && { backgroundColor: cores.sobre }]}>
       {numero}
       <View style={estilos.chips} aria-hidden>
         {visiveis.map((item) => (

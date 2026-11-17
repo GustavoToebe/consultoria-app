@@ -101,7 +101,7 @@ function Item({ Icone, rotulo, descricao, aoTocar, refDoItem }: {
   const { cores } = useTema();
   return (
     <Pressable ref={refDoItem} role="menuitem" accessibilityLabel={`${rotulo}. ${descricao}`} onPress={aoTocar}
-      style={(e) => [estilos.item, sobre(e) && { backgroundColor: cores.superficie3 }]}>
+      style={(e) => [estilos.item, sobre(e) && { backgroundColor: cores.sobre }]}>
       <View style={[estilos.icone, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
         <Icone size={20} color={cores.texto} strokeWidth={2} />
       </View>

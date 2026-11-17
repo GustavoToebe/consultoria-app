@@ -63,7 +63,7 @@ export function VisaoDoAno({ ano, hoje, contagem, aoAbrirDia, aoAbrirMes }: Prop
                 return (
                   <Pressable key={c.data} accessibilityRole="button" onPress={() => aoAbrirDia(c.data)}
                     accessibilityLabel={`${dataComDiaDaSemana(c.data)}${c.hoje ? ', hoje' : ''}, ${resumoDoDia(conta)}. Abrir o dia`}
-                    style={(e) => [estilos.dia, sobre(e) && { backgroundColor: cores.superficie3 }]}>
+                    style={(e) => [estilos.dia, sobre(e) && { backgroundColor: cores.sobre }]}>
                     {/* Hoje: o número na cor da marca, sem círculo invertido, e o traço embaixo (a cor não fala sozinha). */}
                     <View style={estilos.numero}>
                       <Texto variante="pequeno" numerico cor={c.hoje ? marcaTexto : cores.texto} style={conta || c.hoje ? estilos.forte : undefined}>{String(c.dia)}</Texto>

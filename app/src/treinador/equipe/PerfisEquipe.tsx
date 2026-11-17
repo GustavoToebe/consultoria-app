@@ -4,7 +4,6 @@ import * as api from '../../api/rotas';
 import type { PerfilEquipe, PermissaoEquipe } from '../../api/equipeTipos';
 import { completarPermissoes, desmarcarPermissoes, permissaoMarcavel, motivoSemEditarPerfil, podeDuplicarPerfil, podeEditarPerfil } from '../../dominio/perfilEquipe';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -41,13 +40,12 @@ export function PerfisEquipe({perfis,catalogo,recarregar}:{perfis:PerfilEquipe[]
   const {temFuncionalidade}=useSessao();
   // Equipe fora do plano: perfis só para consulta, edição e exclusão; sem criar nem duplicar.
   const criaLiberado=temFuncionalidade('EQUIPE');
-  const {cores}=useTema();
   const duplicar=async(p:PerfilEquipe)=>{setErro(null);try{await api.duplicarPerfilEquipe(p.id);recarregar();avisar('Perfil duplicado.','sucesso');}catch(e){setErro(e);}};
   const apagar=async()=>{if(!excluir)return;setOcupado(true);setErro(null);try{await api.excluirPerfilEquipe(excluir.id);setExcluir(null);recarregar();avisar('Perfil excluído.','sucesso');}catch(e){setExcluir(null);setErro(e);}finally{setOcupado(false);}};
   return <>
     <Cartao titulo="Perfis de acesso" descricao="Cada perfil define o que a pessoa vê e altera." acoes={<NoPlano funcionalidade="EQUIPE"><Permitido codigo="PERFIL_ALTERAR"><Botao rotulo="Novo perfil" aoTocar={()=>setEditar('novo')}/></Permitido></NoPlano>}>
     {erro?<MensagemErro texto={textoDoErro(erro)}/>:null}
-    {perfis.map(p=><Cartao key={p.id} titulo={p.nome} style={{backgroundColor:cores.superficie2}} acoes={<>
+    {perfis.map(p=><Cartao key={p.id} titulo={p.nome} acoes={<>
       {p.sistema?<Selo texto="Acesso total · perfil do sistema" tipo="neutro"/>:null}
       {!p.ativo?<Selo texto="Inativo" tipo="neutro"/>:null}
     </>}>

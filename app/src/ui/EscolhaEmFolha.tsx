@@ -93,7 +93,7 @@ export function EscolhaEmFolha<T extends string | number | null>({
         accessibilityState={{ disabled: !!desabilitado, expanded: aberta }}
         disabled={desabilitado}
         onPress={() => setAberta(true)}
-        style={(estado) => [estilos.botao, { borderColor: desabilitado ? coresDoDesabilitado(cores).borda : cores.bordaCampo, backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : sobre(estado) ? cores.superficie3 : cores.campo }, style]}>
+        style={(estado) => [estilos.botao, { borderColor: desabilitado ? coresDoDesabilitado(cores).borda : cores.bordaCampo, backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : sobre(estado) ? cores.sobre : cores.campo }, style]}>
         <Texto style={estilos.textoBotao} numberOfLines={1} cor={desabilitado ? cores.textoSuave : undefined}>
           <Texto variante="suave" style={estilos.textoBotao}>{rotulo}: </Texto>
           {textoDoValor}
@@ -122,7 +122,7 @@ export function EscolhaEmFolha<T extends string | number | null>({
                   disabled={o.desabilitada}
                   onPress={() => escolher(o.valor)}
                   style={(estado) => [estilos.opcao, cinza ? { borderColor: cinza.borda, backgroundColor: cinza.fundo }
-                    : { borderColor: ativa ? cores.bordaCampo : cores.divisor, backgroundColor: ativa ? cores.superficie3 : sobre(estado) ? cores.superficie2 : cores.superficie }]}>
+                    : { borderColor: ativa ? cores.bordaCampo : cores.divisor, backgroundColor: ativa ? cores.sobre : sobre(estado) ? cores.superficie2 : cores.superficie }]}>
                   <View style={estilos.textosOpcao}>
                     <Texto style={[estilos.rotuloOpcao, { color: cinza ? cinza.texto : cores.texto }]}>{o.rotulo}</Texto>
                     {detalhe ? <Texto variante="pequeno">{detalhe}</Texto> : null}

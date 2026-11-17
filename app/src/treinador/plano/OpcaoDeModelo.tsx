@@ -19,7 +19,7 @@ export function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: {
       onPress={aoEscolher}
       style={({ pressed }) => [
         estilos.opcao,
-        { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
+        { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.sobre : cores.superficie2, borderColor: cores.borda },
       ]}>
       <Texto variante="bloco" cor={desabilitado ? cores.textoSuave : undefined}>{titulo}</Texto>
       <Texto variante="suave">{descricao}</Texto>

@@ -12,7 +12,7 @@ export function CaixaSelecao({rotulo,ajuda,marcado,aoMudar,desabilitado}:{rotulo
   const {cores}=useTema();
   const cinza=coresDoDesabilitado(cores);
   return <Pressable accessibilityRole="checkbox" accessibilityLabel={rotulo} accessibilityState={{checked:marcado,disabled:!!desabilitado}} aria-checked={marcado} aria-disabled={!!desabilitado} accessibilityHint={desabilitado?ajuda:undefined}
-    disabled={desabilitado} onPress={()=>aoMudar(!marcado)} style={({pressed})=>[estilos.linha,{backgroundColor:desabilitado?cinza.fundo:pressed?cores.superficie3:cores.superficie2,borderColor:cores.divisor}]}>
+    disabled={desabilitado} onPress={()=>aoMudar(!marcado)} style={({pressed})=>[estilos.linha,{backgroundColor:desabilitado?cinza.fundo:pressed?cores.sobre:cores.superficie2,borderColor:cores.divisor}]}>
     <View style={[estilos.caixa,{backgroundColor:desabilitado?(marcado?cinza.texto:cinza.fundo):marcado?cores.texto:cores.campo,borderColor:desabilitado?cinza.borda:marcado?cores.texto:cores.bordaCampo}]}>{marcado?<Check size={18} color={desabilitado?cinza.fundo:cores.fundo}/>:null}</View>
     <View style={estilos.textos}><Texto cor={desabilitado?cinza.texto:undefined}>{rotulo}</Texto>{ajuda?<Texto variante="pequeno">{ajuda}</Texto>:null}</View>
   </Pressable>;

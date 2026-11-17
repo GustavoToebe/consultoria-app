@@ -53,8 +53,8 @@ export function SeletorDeNota({ rotulo, valor, aoMudar, minimo = 0, maximo = 10,
                 accessibilityLabel={`${n} de ${maximo}${ponta ? `, ${ponta}` : ''}`}
                 style={({ pressed }) => [estilos.botao, {
                   width: lado, height: lado,
-                  // Seleção neutra: a nota escolhida em `superficie3` com o contorno forte (≥ 3:1 contra as vizinhas).
-                  backgroundColor: ativo ? cores.superficie3 : pressed ? cores.superficie3 : cores.superficie2,
+                  // Seleção neutra: a nota escolhida em `sobre` com o contorno forte (≥ 3:1 contra as vizinhas).
+                  backgroundColor: ativo ? cores.sobre : pressed ? cores.sobre : cores.superficie2,
                   borderColor: ativo ? cores.bordaCampo : cores.divisor,
                 }]}>
                 <Texto numerico style={[estilos.numero, { color: cores.texto }, ativo ? { fontFamily: fontes.negrito } : null]}>{String(n)}</Texto>

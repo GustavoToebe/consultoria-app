@@ -144,7 +144,7 @@ function ChipDaVariacao({ variacao: v, nome, aberta, erro, aoAbrir }: { variacao
       aria-selected={aberta}
       accessibilityLabel={`${nome}, ${dias}${erro ? ', precisa corrigir' : ''}`}
       onPress={aoAbrir}
-      style={(st) => [estilos.chip, { backgroundColor: aberta || sobre(st) ? cores.superficie3 : sel.fundo, borderColor: sel.borda }]}>
+      style={(st) => [estilos.chip, { backgroundColor: aberta || sobre(st) ? cores.sobre : sel.fundo, borderColor: sel.borda }]}>
       {aberta ? <Check size={16} color={sel.texto} strokeWidth={2.5} /> : null}
       <View style={estilos.textoDoChip}>
         <Texto numberOfLines={1} style={[estilos.nome, { color: sel.texto }]}>{nome}</Texto>
@@ -167,7 +167,7 @@ function ChipDoDia({ curto, nome, dica, marcado, aoAlternar }: { curto: string; 
       accessibilityLabel={nome}
       accessibilityHint={dica}
       onPress={aoAlternar}
-      style={(st) => [estilos.dia, { backgroundColor: marcado || sobre(st) ? cores.superficie3 : sel.fundo, borderColor: sel.borda }]}>
+      style={(st) => [estilos.dia, { backgroundColor: marcado || sobre(st) ? cores.sobre : sel.fundo, borderColor: sel.borda }]}>
       <View style={estilos.marca}>{marcado ? <Check size={14} color={sel.texto} strokeWidth={2.5} /> : null}</View>
       <Texto style={[estilos.curto, { color: sel.texto }]}>{curto}</Texto>
     </Pressable>

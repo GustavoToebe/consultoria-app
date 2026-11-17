@@ -25,7 +25,7 @@ export function TipoDaSerieComExplicacao({ nome, explicacao, numero, cor }: { no
         accessibilityRole="button"
         accessibilityLabel={`Explicação de ${nome}, série ${numero}`}
         onPress={() => abrir(true)}
-        style={(estado) => [estilos.toque, { backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
+        style={(estado) => [estilos.toque, { backgroundColor: sobre(estado) ? cores.sobre : 'transparent' }]}>
         {tom ? (
           <View style={[estilos.selo, { backgroundColor: tom.fundo }]}>
             <Texto style={estilos.nomeNoSelo} cor={tom.cor}>{nome}</Texto>

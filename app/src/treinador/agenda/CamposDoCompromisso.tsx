@@ -269,7 +269,7 @@ export function DiasDaSemana({ dias, aoMudar }: { dias: readonly DiaDaSemana[]; 
               onPress={() => aoMudar(alternarDiaDaRepeticao(dias, d.valor))}
               style={(e) => [estilos.dia, {
                 // Seleção neutra (`ui/selecao`): superfície de seleção, contorno forte e ✓.
-                backgroundColor: ativo ? coresDaSelecao(cores, true).fundo : sobre(e) ? cores.superficie3 : cores.superficie2,
+                backgroundColor: ativo ? coresDaSelecao(cores, true).fundo : sobre(e) ? cores.sobre : cores.superficie2,
                 borderColor: ativo ? coresDaSelecao(cores, true).borda : cores.borda,
               }]}>
               {ativo ? <Check size={14} color={cores.texto} strokeWidth={2.5} /> : null}

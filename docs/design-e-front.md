@@ -116,7 +116,7 @@ borda de 1 px, Geist, seleção neutra, conteúdo num painel ao lado do menu. O 
   diferente. Não se usa cor aleatória para separar.
 - **Cor com significado (cor semântica):** verde é "pronto", âmbar é atenção, vermelho é problema e cinza é encerrado;
   onde a cor da marca pode aparecer está na lista fechada da seção 4.5.
-- **Seleção neutra (11/11, `ui/selecao.ts`):** a opção escolhida ganha fundo `superficie3`, contorno `bordaCampo` e ✓
+- **Seleção neutra (11/11, `ui/selecao.ts`):** a opção escolhida ganha fundo `sobre` (`superficie3` até 17/11), contorno `bordaCampo` e ✓
   (ou, no grupo segmentado de até cinco opções, sobe da trilha `superficie2`); a marca só aparece no indicador pequeno
   (sublinhado da aba, barra do menu ativo). Caixa de seleção e interruptor continuam preenchidos (é o desenho do controle).
 - **Mostrar aos poucos (progressive disclosure, padrão "acordeão"):** uma série aberta por vez e as outras resumidas
@@ -159,22 +159,36 @@ Escada de 17/11 (`docs/planos/hierarquia-visual-tres-temas.md`, D1 a D6; travada
                                                         Claro      Areia      Escuro
 fundo / painel (página; menu e conteúdo no PC)          #D9DCE1    #CDCAC3    #09090B / #0B0B0D
  └─ Cartao   superficie + 1 px divisor                  #FFFFFF    #FFFFFF    #1C1C20 / #36363C (contraste alto: bordaCampo)
-     ├─ faixa do título e seleção   superficie3         #F2F3F5    #EDEBE7    #26262B
-     ├─ poço (item, apoio, hover)   superficie2         #EEF0F2    #F1EFEB    #0F0F11 (mais escuro que o cartão)
+     ├─ faixa do título             superficie3         #F2F3F5    #EDEBE7    #26262B
+     ├─ poço (item, apoio)          superficie2         #EEF0F2    #F1EFEB    #0F0F11 (mais escuro que o cartão)
      └─ campo   campo + bordaCampo (≥ 3:1)              #FFFFFF    #FFFFFF    #0F0F11
+realce (hover, apertado, seleção)   sobre               #E4E5E7    #E6E4E0    #26262B (= a faixa)
+hover na faixa e do IconeBotao      sobreNaFaixa        #E4E5E7    #E2E0DC    #2F2F33
+painel flutuante (menu, calendário) superficie + borda  #FFFFFF    #FFFFFF    #1C1C20
 ```
 
 Pisos (D1): cartão × página ≥ 1,35 no Claro (e Céu, Lavanda, Rosa), ≥ 1,6 na Areia e ≥ 1,15 nas escuras, medido sobre o
 `fundo` e sobre o `painel`; contorno do cartão (`divisor`) × cartão ≥ 1,4; texto × cartão ≥ 7; faixa diferente do cartão e
 da página, poço diferente do cartão (D2). Razões medidas de cada paleta: tabela "Razão final de cada par" do plano.
-O `Cartao` ainda pinta a faixa com `superficie2` (o poço): trocar para `superficie3` é pendência do plano.
+
+Realce (A6, 17/11): `sobre` e `sobreNaFaixa` não são escolhidos à mão, saem da escada (`comRealce` em `tema/tokens.ts`):
+a faixa andando na direção do `texto`, em passos de 1%, até ficar ≥ 1,10:1 do cartão, do poço e do campo (`sobre`) e
+também da própria faixa (`sobreNaFaixa`). Com a escada nova a faixa ficou a 1,03:1 do poço no Claro e 1,04 na Areia (e
+mais escura que ele), e o hover que ia do poço para a faixa sumia. Nas escuras `sobre` é a própria faixa (o passo já era
+1,27) e o `sobreNaFaixa` é mais claro: clarear a faixa até 1,10 derruba o `perigo` como texto abaixo de 4,5:1, por isso o
+`sobreNaFaixa` só leva texto, texto secundário e ícone (3:1). Os dois mudam sozinhos se a escada mudar; o piso está em
+`tokens.test.ts`.
 
 Uso de cada nível (11/11):
-- **`superficie2` (poço):** menus suspensos (lista suspensa, calendário, menu da conta, passeio, com borda
-  `divisor` e **sem sombra**: o `SOMBRA_FLUTUANTE` saiu em 11/11), conteúdo de apoio, item e o hover de linhas
-  e botões. Dentro de um menu, o item em foco ou sob o ponteiro sobe para `superficie3`.
-- **`superficie3` (faixa do título e seleção neutra):** faixa de título (Tabela, Folha, PainelConfirmacao) e fundo do item
-  escolhido (chip, opção da folha, dia do calendário, item do menu).
+- **`superficie` + borda `borda` (painel flutuante, 17/11):** menus suspensos (lista suspensa, seleção múltipla,
+  calendário, menu da conta, passeio), **sem sombra** (o `SOMBRA_FLUTUANTE` saiu em 11/11). Até 17/11 ficavam no poço,
+  que no Escuro passou a ser mais escuro que o cartão onde abrem (1,13:1): agora são cartão, separados do que está por
+  baixo pela borda `borda` (≥ 1,9:1 contra o cartão; `bordaCampo` no contraste alto).
+- **`superficie2` (poço):** conteúdo de apoio e item dentro do cartão.
+- **`superficie3` (faixa do título):** faixa de título (`Cartao`, `CabecalhoDeGrupo`, Tabela, Folha, PainelConfirmacao).
+- **`sobre` (realce):** hover, apertado e seleção neutra de linha, item, chip, opção de menu e dia do calendário.
+  **`sobreNaFaixa`:** hover do que fica em cima da faixa (`IconeBotao` em qualquer lugar, faixa tocável do grupo e da
+  divisão).
 - **`painel`:** separação discreta entre o menu e o conteúdo no PC (`Navegacao`); nas paletas claras é o próprio
   `fundo` tingido (12/11), separado do menu pelo contorno `divisor`. Quem pinta o fundo da tela ou casa
   uma cor com ele (`Tela`, o esmaecido das faixas que rolam) usa `useFundoDaArea()` (`ui/fundoDaArea`),
@@ -193,7 +207,7 @@ Uso de cada nível (11/11):
   Lavanda `#DCDBE7` / `#F3F3F7` / `#EFEFF4`; Rosa `#E1DAE0` / `#F5F2F4` / `#F2EEF1` (regra das três no comentário das
   paletas em `tema/tokens.ts`).
 - **Areia (17/11, D4; volta à página do exemplo que o Saraiva aprovou em 14/11):** página (`fundo` e `painel`) `#CDCAC3`,
-  cartão e campo `#FFFFFF`, `superficie3` (faixa, seleção) `#EDEBE7`, `superficie2` (poço) `#F1EFEB`, `faixaForte`
+  cartão e campo `#FFFFFF`, `superficie3` (faixa) `#EDEBE7`, `superficie2` (poço) `#F1EFEB`, `faixaForte`
   `#C3C0B8`, `divisor` `#DED8CD`, `borda` `#A0998B`, `bordaCampo` (também o interruptor desligado) `#6E6659`, `textoSuave`
   `#4C4C54`. A cor da marca não muda. Verde, âmbar e vermelho um passo mais escuros só nessa paleta (`sucesso` `#0A5931`,
   `atencao` `#704300`, `perigo` `#961329`; ver 4.5). A paleta voltou a usar a variante `areia` das cores fixas fora de
@@ -221,7 +235,7 @@ Uso de cada nível (11/11):
   (o jest confere ≥ 3:1 nas nove paletas). Não era falha da WCAG 1.4.11 (o cartão é contêiner estático, identificado
   pelo título e pela faixa, não componente de interface): o ajuste cumpre o que a preferência promete. Com contraste alto **e** "bordas reforçadas" o
   `divisor` também chega a `bordaCampo` (as divisórias engrossam): é o efeito pedido pela segunda preferência.
-- Seleção (chips, escolhas) é **neutra** (11/11): `superficie3` + `bordaCampo` + ✓, nunca a cor da marca.
+- Seleção (chips, escolhas) é **neutra** (11/11): `sobre` + `bordaCampo` + ✓, nunca a cor da marca.
 - Larguras:
   - formulário: 640;
   - editor: 1040 (em coluna única);
@@ -240,7 +254,7 @@ Uso de cada nível (11/11):
 | `Cartao` | Seção. Com título ganha a **faixa de cabeçalho**. Pode ser recolhível. |
 | `CabecalhoDeGrupo` | Faixa de grupo (sessão, refeição, pasta, dia), recolhível, com resumo e selo. |
 | `Folha` | Painel por cima da tela (formulários, escolhas). No PC pode ser arrastada pelo cabeçalho; no celular o mesmo arraste fecha. Entra no histórico do navegador. |
-| `LinhaDaLista` / `ListaDeLinhas` | Lista de registros numa coluna: título, metadados, selos, ações. `ListaDeLinhas divisorias` (11/11): superfície comum, sem caixa por linha, divisória `divisor` só entre as linhas, realce `superficie3` no hover com mouse, no foco e com o conteúdo de baixo aberto; seleção neutra mantida; padrão desligado (hoje só a Biblioteca usa). |
+| `LinhaDaLista` / `ListaDeLinhas` | Lista de registros numa coluna: título, metadados, selos, ações. `ListaDeLinhas divisorias` (11/11): superfície comum, sem caixa por linha, divisória `divisor` só entre as linhas, realce `sobre` no hover com mouse, no foco e com o conteúdo de baixo aberto; seleção neutra mantida; padrão desligado (hoje só a Biblioteca usa). |
 | `Tabela` | Colunas no PC, cartões empilhados no celular. `detalhe` põe um conteúdo extra abaixo do registro (a observação do peso); a coluna `acao` com `largura` fixa guarda os botões (Ações do peso, 64 px). |
 | `GraficoLinha` | Gráfico SVG próprio. Opcionais, que não mudam os usos antigos (peso e avaliação física, 13/11): `segmentos="retos"` e `semArea` (só os pontos medidos, sem sugerir valor entre as datas), segunda série tracejada em outra cor com legenda em texto (`serieB`, no máximo duas), dica por mouse, toque e teclado (`textoDaDica`), `destacarUltimo` e as pontas do eixo escritas só quando há `escala` (ou `legendaDaEscala`) com os mesmos números da legenda. Alvo de toque do ponto: 44 px (`ALVO_TOQUE`), com o desenho menor; pontos próximos dividem o espaço no meio do caminho entre os centros, sem sobrepor alvos. |
 | `Alerta` | Caixa de aviso: `perigo` (erro), `atencao` (cuidado, mas não impede), `sucesso`. |
@@ -301,7 +315,7 @@ Qualquer outro lugar precisa de decisão nova.
 | Conquista | `conquista` (17/11, D9) | Recorde, nível, marca pessoal | Aviso de recorde, "Recordes da semana" no painel, `BadgeNivel` | Sim | 4,5:1 | cartão 6,68 · 6,68 · 5,86; pílula 5,52 · 5,52 · 4,93 (pior: Oceano, 4,74) |
 | Encerrado, inativo ou informativo | `neutro` | Acabou, foi desligado, ou é só informação, inclusive o que ainda vai acontecer, sempre com a data; também quem espera a ação de outro | Cancelada, Estornada, Encerrada, Arquivado, Inativo, Pasta concluída, Dispensada, Sem conexão, "Em 15 dias", "Enviada · aguardando revisão" (quem espera); rascunho sem erro (11/11): Rascunho, Nunca publicado, Alterações não publicadas, Alterado desde a publicação | Sim | 4,5:1 | `textoSuave` sem pílula: 6,26 · 6,04 · 6,83 (sobre `superficie3`) |
 | Desabilitado | fundo `superficie3`, borda `borda`, texto e ícone `textoSuave`, sem opacidade e sem a marca | Controle que não pode ser usado agora | Botão com `motivo` ("Preencha o nome"), opção indisponível, ✓ na prévia | Sim | Isento pela WCAG 1.4.3; o `motivo` abaixo é texto comum (4,5:1) | `textoSuave` sobre `superficie3`: 6,26 · 6,04 · 5,42 |
-| Seleção | neutra (11/11): fundo `superficie3`, contorno `bordaCampo`, ✓ e letra `texto`; caixa de seleção e `Interruptor` seguem preenchidos | Opção escolhida (chips, `Escolha`, calendário, opção de folha) | Chip marcado | Sim | 4,5:1 (texto); 3:1 (contorno) | `texto` sobre `superficie3` ≥ 12,6 (pior: ameixa); `bordaCampo` ≥ 3:1 (pior 3,56, ameixa) |
+| Seleção | neutra (11/11): fundo `sobre` (17/11), contorno `bordaCampo`, ✓ e letra `texto`; caixa de seleção e `Interruptor` seguem preenchidos | Opção escolhida (chips, `Escolha`, calendário, opção de folha) | Chip marcado | Sim | 4,5:1 (texto); 3:1 (contorno) | `texto` sobre `sobre` ≥ 12,6 (pior: ameixa); `bordaCampo` ≥ 3:1 (pior 3,56, ameixa) |
 | Identificação | paletas próprias (`PALETA_DE_IDENTIFICACAO`, agendas, fases e `PALETA_SO_DO_PERFIL`) | Diz *qual* coisa é, nunca status | Tipo de série, refeição, agenda, fase do ciclo, cor do perfil na Comunidade | Sim | 4,5:1 (texto); 3:1 (marcador) | conferido em `tokens.test.ts` |
 
 - **Cinco papéis de situação (17/11, D9; `ui/contrasteDasPecas.test.ts`, nas nove paletas):** `sucesso`, `atencao`,
@@ -507,7 +521,7 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
 - **Quando usar:** até 8 opções: `Escolha` (botões lado a lado) ou `GradeDeOpcoes` com `OpcaoCartao` quando cada opção
   tem descrição ou amostra. Mais de 8: `EscolhaEmFolha`. Várias marcadas: `SelecaoMultiplaSuspensa`. Registros com
   ações: `LinhaDaLista` dentro de `ListaDeLinhas`; atalhos e itens de ação: `ItemDeLista`.
-- **Estrutura:** a opção escolhida é neutra (`superficie3` + `bordaCampo`, 11/11), com ✓; motivo de opção desabilitada fica sob o
+- **Estrutura:** a opção escolhida é neutra (`sobre` + `bordaCampo`, 11/11; `superficie3` até 17/11), com ✓; motivo de opção desabilitada fica sob o
   grupo (P5); as ações de uma linha ficam **à direita**, a principal da linha só uma.
 - **Peça:** `Escolha` (`distribuida` para dividir a largura, `compacta` para caber em duas fileiras no celular),
   `GradeDeOpcoes` (1 coluna abaixo de 700 px, 2 acima), `OpcaoCartao`, `LinhaDaLista`.

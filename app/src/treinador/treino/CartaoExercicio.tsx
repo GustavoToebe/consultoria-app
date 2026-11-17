@@ -167,7 +167,8 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
       style={[
         estilos.cartao,
         // Reunião de 29/10: o exercício é o bloco principal (cartão branco) e os grupos de séries ficam dentro dele, em
-        // `superficie2` com a faixa própria; aberto, o topo vira faixa para marcar onde o exercício começa.
+        // cartão com contorno e faixas próprios (`EditorDoGrupoDeSeries`); aberto, o topo vira faixa para marcar onde o
+        // exercício começa.
         { borderWidth: bordas.bloco, borderColor: comErro ? cores.perigo : cores.borda, backgroundColor: cores.superficie },
       ]}>
       {/* A faixa do exercício é mais forte que as de dentro dele (`faixaForte`), aberto ou fechado. */}

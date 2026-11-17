@@ -51,7 +51,7 @@ export function RoscaDosAlunos({ rosca }: { rosca: RoscaDoPainel }) {
             <View key={f.chave} role="listitem">
               <Pressable accessibilityRole="link" accessibilityLabel={`${f.rotulo}: ${f.valor}. Ver na lista de alunos`}
                 {...propsDeLink(f.href as Href, () => router.push(f.href as Href))}
-                style={(e) => [estilos.itemDaLegenda, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
+                style={(e) => [estilos.itemDaLegenda, { backgroundColor: sobre(e) ? cores.sobre : 'transparent' }]}>
                 <View style={[estilos.bolinha, { backgroundColor: corDe(f.cor) }]} />
                 <Texto style={estilos.rotulo}>{f.rotulo}</Texto>
                 <Texto variante="bloco" numerico>{String(f.valor)}</Texto>

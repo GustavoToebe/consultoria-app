@@ -17,7 +17,7 @@ export function BotaoDeAbrir({ texto, rotuloAcessivel, aberto, aoAlternar }: {
   const { cores } = useTema();
   const Seta = aberto ? ChevronUp : ChevronDown;
   return <Pressable accessibilityRole="button" accessibilityLabel={rotuloAcessivel ?? texto} accessibilityState={{ expanded: aberto }} aria-expanded={aberto} onPress={aoAlternar}
-    style={(estado) => [estilos.botao, { backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
+    style={(estado) => [estilos.botao, { backgroundColor: sobre(estado) ? cores.sobre : 'transparent' }]}>
     <Texto style={[estilos.texto, { color: cores.texto }]}>{texto}</Texto>
     <Seta size={16} color={cores.texto} strokeWidth={2} />
   </Pressable>;
@@ -30,7 +30,7 @@ export function BotaoDeAbrir({ texto, rotuloAcessivel, aberto, aoAlternar }: {
 export function BotaoDeTexto({ texto, rotuloAcessivel, Icone, aoTocar }: { texto: string; rotuloAcessivel?: string; Icone: LucideIcon; aoTocar: () => void }) {
   const { cores } = useTema();
   return <Pressable accessibilityRole="button" accessibilityLabel={rotuloAcessivel ?? texto} onPress={aoTocar}
-    style={(estado) => [estilos.botao, { backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
+    style={(estado) => [estilos.botao, { backgroundColor: sobre(estado) ? cores.sobre : 'transparent' }]}>
     <Icone size={16} color={cores.texto} strokeWidth={2} />
     <Texto style={[estilos.texto, { color: cores.texto }]}>{texto}</Texto>
   </Pressable>;

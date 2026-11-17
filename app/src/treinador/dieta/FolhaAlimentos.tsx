@@ -52,7 +52,7 @@ export function FolhaAlimentos({
           accessibilityRole="button"
           accessibilityLabel={`Escolher ${a.nome}`}
           onPress={() => aoEscolher(a)}
-          style={({ pressed }) => [estilos.item, { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie3 : cores.superficie }]}>
+          style={({ pressed }) => [estilos.item, { borderColor: cores.borda, backgroundColor: pressed ? cores.sobre : cores.superficie }]}>
           <Texto>{a.nome}</Texto>
           <ValoresDoAlimento alimento={a} />
         </Pressable>

@@ -116,7 +116,7 @@ export function LinhaDaLista(p: PropsDaLinha) {
         ? { borderColor: 'transparent' }
         : { borderTopColor: 'transparent', borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: cores.divisor }]
     : { borderColor: escolhida ? cores.bordaCampo : cores.divisor };
-  const fundo = (aceso: boolean) => ({ backgroundColor: aceso || escolhida ? cores.superficie3 : semCaixa ? 'transparent' : cores.superficie2 });
+  const fundo = (aceso: boolean) => ({ backgroundColor: aceso || escolhida ? cores.sobre : semCaixa ? 'transparent' : cores.superficie2 });
   const apagado = p.esmaecido ? estilos.esmaecido : null;
 
   const colunas = p.colunas;
@@ -308,7 +308,7 @@ export function CaixaDaLinha({ rotulo, marcado, aoMudar, desabilitado }: { rotul
       aria-disabled={!!desabilitado}
       disabled={desabilitado}
       onPress={aoMudar}
-      style={(estado) => [estilos.alvoDaCaixa, { backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : 'transparent' }]}>
+      style={(estado) => [estilos.alvoDaCaixa, { backgroundColor: sobre(estado) && !desabilitado ? cores.sobre : 'transparent' }]}>
       <DesenhoDaCaixa marcado={marcado} />
     </Pressable>
   );

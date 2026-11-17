@@ -34,7 +34,7 @@ function MiniDoMes({ visao, data, hoje, aoEscolher }: Props) {
   const { cores, marcaTexto } = useTema();
   const [mes, setMes] = useState(data);
   const m = miniCalendario(mes, visao, data, hoje);
-  // Como o `ui/Calendario`: o escolhido é o mais forte (superficie3 com contorno, sem inverter); hoje é o número na cor
+  // Como o `ui/Calendario`: o escolhido é o mais forte (`sobre` com contorno, sem inverter); hoje é o número na cor
   // da marca com o traço embaixo, que continua quando hoje é também o escolhido.
   const selecao = coresDaSelecao(cores, true);
   return (
@@ -59,7 +59,7 @@ function MiniDoMes({ visao, data, hoje, aoEscolher }: Props) {
                 style={[estilos.dia, c.destaque && { backgroundColor: cores.superficie2 }]}>
                 {(e) => (
                   <View style={[estilos.numero, marcado ? { backgroundColor: selecao.fundo, borderWidth: 1, borderColor: selecao.borda }
-                    : sobre(e) && { backgroundColor: cores.superficie3 }]}>
+                    : sobre(e) && { backgroundColor: cores.sobre }]}>
                     <Texto variante="pequeno" numerico style={c.hoje || marcado ? estilos.forte : undefined}
                       cor={marcado ? selecao.texto : c.hoje ? marcaTexto : c.doMes ? cores.texto : cores.textoSuave}>{String(c.dia)}</Texto>
                     {c.hoje ? <TracoDeHoje /> : null}

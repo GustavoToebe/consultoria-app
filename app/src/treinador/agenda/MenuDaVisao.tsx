@@ -94,7 +94,7 @@ export function MenuDaVisao({ visao, aoMudar, aoMudarAberto }: Props) {
       <Pressable ref={botao} collapsable={false} onPress={abrir}
         accessibilityRole="button" accessibilityLabel={`Visão do calendário: ${rotulo}`}
         accessibilityState={{ expanded: aberto }} aria-expanded={aberto}
-        style={(e) => [estilos.botao, { borderColor: cores.borda, backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
+        style={(e) => [estilos.botao, { borderColor: cores.borda, backgroundColor: sobre(e) ? cores.sobre : 'transparent' }]}>
         <Texto style={estilos.rotuloDoBotao}>{rotulo}</Texto>
         <ChevronDown size={18} color={cores.texto} strokeWidth={2} />
       </Pressable>
@@ -112,7 +112,7 @@ export function MenuDaVisao({ visao, aoMudar, aoMudarAberto }: Props) {
                 <Pressable key={v} ref={(no) => { itens.current[i] = no; }} role={ITEM_DE_ESCOLHA} aria-checked={atual}
                   accessibilityState={{ checked: atual }} accessibilityLabel={ROTULOS_DAS_VISOES[v]}
                   onPress={() => escolher(v)}
-                  style={(e) => [estilos.item, sobre(e) && { backgroundColor: cores.superficie3 }]}>
+                  style={(e) => [estilos.item, sobre(e) && { backgroundColor: cores.sobre }]}>
                   <View style={estilos.marca}>
                     {atual ? <Check size={18} color={cores.texto} strokeWidth={2.5} /> : null}
                   </View>

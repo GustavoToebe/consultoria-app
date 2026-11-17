@@ -2,13 +2,13 @@ import type { Cores } from '../tema/tokens';
 
 /**
  * Seleção neutra (11/11, troca a seleção invertida): a cor da marca nunca diz "escolhido"; o que diz é a superfície de
- * seleção (`superficie3`) com o contorno forte (`bordaCampo`, ≥ 3:1 contra a seleção e a trilha, `tokens.test.ts`) e,
+ * seleção (`sobre`, 17/11) com o contorno forte (`bordaCampo`, ≥ 3:1 contra a seleção e a trilha, `tokens.test.ts`) e,
  * nos chips, o ✓. Peças: `Escolha`, `Abas`, chips de filtro, opções de lista, calendário.
  */
 
 /** Chip ou opção solta (várias escolhas ou mais de cinco opções): escolhido = superfície de seleção + ✓. */
-export const coresDaSelecao = (cores: Pick<Cores, 'superficie' | 'superficie3' | 'bordaCampo' | 'texto'>, escolhido: boolean) => ({
-  fundo: escolhido ? cores.superficie3 : cores.superficie,
+export const coresDaSelecao = (cores: Pick<Cores, 'superficie' | 'sobre' | 'bordaCampo' | 'texto'>, escolhido: boolean) => ({
+  fundo: escolhido ? cores.sobre : cores.superficie,
   borda: cores.bordaCampo,
   texto: cores.texto,
 });

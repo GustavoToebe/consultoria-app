@@ -350,7 +350,7 @@ function LinhaPasta({ pasta, atualizacao, rascunho, prazo, hoje, aoAbrir, aoRevi
         accessibilityRole="button"
         accessibilityLabel={`Pasta ${pasta.titulo}, ${concluida ? 'concluída' : 'aberta'}${rascunho ? ', rascunho' : ''}${prazo ? `, ${prazo.texto.toLowerCase()}` : ''}, período ${periodoTexto}${situacao ? `, ${situacao.texto}` : ''}. Abrir.`}
         onPress={aoAbrir}
-        style={(estado) => [estilos.linhaToque, { backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
+        style={(estado) => [estilos.linhaToque, { backgroundColor: sobre(estado) ? cores.sobre : 'transparent' }]}>
         {/* Ícone neutro: a marca não diz situação; quem diz é o selo. */}
         <View style={[estilos.icone, { backgroundColor: cores.superficie3 }]}>
           <Icone size={22} color={concluida ? cores.textoSuave : cores.texto} />

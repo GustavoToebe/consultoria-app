@@ -140,7 +140,7 @@ export function useCorDaAgenda() {
 export function useCoresDoItem() {
   const { cores } = useTema();
   return (aceso: boolean, escolhido: boolean) => ({
-    backgroundColor: aceso || escolhido ? cores.superficie3 : cores.superficie2,
+    backgroundColor: aceso || escolhido ? cores.sobre : cores.superficie2,
     borderColor: escolhido ? cores.bordaCampo : cores.borda,
   });
 }

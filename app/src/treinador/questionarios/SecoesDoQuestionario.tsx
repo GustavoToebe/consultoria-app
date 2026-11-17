@@ -175,7 +175,7 @@ function resumoDoTipo(p: PerguntaAtualizacao): string {
 function OpcaoDeTipo({ titulo, descricao, desabilitado, aoEscolher }: { titulo: string; descricao: string; desabilitado: boolean; aoEscolher: () => void }) {
   const { cores } = useTema();
   return <Pressable accessibilityRole="button" accessibilityLabel={titulo} accessibilityHint={descricao} accessibilityState={{ disabled: desabilitado }} disabled={desabilitado} onPress={aoEscolher}
-    style={({ pressed }) => [estilos.opcao, { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda }]}>
+    style={({ pressed }) => [estilos.opcao, { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.sobre : cores.superficie2, borderColor: cores.borda }]}>
     <Texto style={estilos.tituloOpcao} cor={desabilitado ? cores.textoSuave : undefined}>{titulo}</Texto>
     <Texto variante="pequeno">{descricao}</Texto>
   </Pressable>;

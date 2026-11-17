@@ -266,7 +266,7 @@ function ItemProblema({ conteudo, problema, tipo, aoIr }: { conteudo: unknown; p
   const onde = localizar(conteudo, problema.caminho).texto;
   return (
     <Pressable disabled={!aoIr} onPress={aoIr} accessibilityRole={aoIr ? 'link' : undefined} accessibilityLabel={aoIr ? `Ir até: ${onde || problema.mensagem}` : undefined}
-      style={({ pressed }) => [estilos.problema, { borderColor: cores[tipo], backgroundColor: pressed ? cores.superficie3 : 'transparent' }]}>
+      style={({ pressed }) => [estilos.problema, { borderColor: cores[tipo], backgroundColor: pressed ? cores.sobre : 'transparent' }]}>
       <Selo texto={tipo === 'perigo' ? 'Erro' : 'Aviso'} tipo={tipo} />
       <View style={estilos.textoProblema}>
         {onde ? <Texto style={estilos.onde}>{onde}</Texto> : null}

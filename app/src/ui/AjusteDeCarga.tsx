@@ -41,7 +41,7 @@ export function BotaoDePasso({ sentido, passo, rotulo, aoAjustar }: { sentido: 1
       accessibilityRole="button"
       accessibilityLabel={`${sentido === 1 ? 'Aumentar' : 'Diminuir'} ${texto} em ${rotulo}`}
       onPress={() => aoAjustar(sentido)}
-      style={(estado) => [estilos.passo, { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) ? cores.superficie3 : cores.campo }]}>
+      style={(estado) => [estilos.passo, { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) ? cores.sobre : cores.campo }]}>
       <Icone size={22} color={cores.texto} strokeWidth={2.5} />
     </Pressable>
   );

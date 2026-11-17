@@ -17,11 +17,11 @@ export function aoPressionarMarcar({ aoTocar, animar, vibrar }: {
  * (contrastes em `contrasteDasPecas.test.ts`).
  */
 export function coresDoMarcar(
-  cores: Pick<Cores, 'sucesso' | 'sucessoSuave' | 'bordaCampo' | 'borda' | 'campo' | 'superficie3' | 'textoSuave'>,
+  cores: Pick<Cores, 'sucesso' | 'sucessoSuave' | 'bordaCampo' | 'borda' | 'campo' | 'superficie3' | 'sobre' | 'textoSuave'>,
   { feito, desabilitado, pressionado, agora = false }: { feito: boolean; desabilitado: boolean; pressionado: boolean; agora?: boolean },
 ): { borda: string; fundo: string; icone: string | null } {
   if (desabilitado) return { borda: cores.borda, fundo: cores.superficie3, icone: feito ? cores.textoSuave : null };
   if (feito && agora) return { borda: cores.sucesso, fundo: cores.sucessoSuave, icone: cores.sucesso };
   if (feito) return { borda: cores.bordaCampo, fundo: cores.superficie3, icone: cores.textoSuave };
-  return { borda: cores.bordaCampo, fundo: pressionado ? cores.superficie3 : cores.campo, icone: null };
+  return { borda: cores.bordaCampo, fundo: pressionado ? cores.sobre : cores.campo, icone: null };
 }

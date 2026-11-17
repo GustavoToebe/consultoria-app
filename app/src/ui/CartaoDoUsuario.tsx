@@ -112,7 +112,7 @@ export function CartaoDoUsuario() {
           estilos.cartao,
           recolhido && (trilho ? estilos.cartaoTrilho : estilos.cartaoIcone),
           realce && { backgroundColor: cores.superficie2 },
-          (aberto || sobre(estado)) && { backgroundColor: cores.superficie3 },
+          (aberto || sobre(estado)) && { backgroundColor: cores.sobre },
         ]}>
         <View aria-hidden style={[estilos.avatar, { backgroundColor: cores.superficie3, borderColor: cores.divisor }]}>
           <Texto style={[estilos.iniciais, { color: cores.texto }]}>{iniciais(usuario?.nome)}</Texto>
@@ -130,7 +130,7 @@ export function CartaoDoUsuario() {
         )}
       </Pressable>
       {aberto ? (
-        <View style={[estilos.menu, recolhido ? estilos.menuAoLado : estilos.menuAcima, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+        <View style={[estilos.menu, recolhido ? estilos.menuAoLado : estilos.menuAcima, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           <View style={[estilos.cabeca, { borderBottomColor: cores.divisor }]}>
             <Texto numberOfLines={2} style={estilos.nome}>{nome}</Texto>
             <Texto variante="pequeno" numberOfLines={1}>{perfilEquipe?.nome ?? '—'}</Texto>
@@ -157,7 +157,7 @@ export function CartaoDoUsuario() {
                       else escolher(item.id, item.href);
                     }}
                     onHoverIn={() => setAtivo(i)}
-                    style={(estado) => [estilos.item, (i === ativo || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
+                    style={(estado) => [estilos.item, (i === ativo || sobre(estado)) && { backgroundColor: cores.sobre }]}>
                     <Icone size={18} color={perigo ? cores.perigo : cores.textoSuave} strokeWidth={2} />
                     <Texto style={[estilos.rotulo, perigo && { color: cores.perigo }]}>{item.rotulo}</Texto>
                   </Pressable>

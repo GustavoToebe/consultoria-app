@@ -186,7 +186,7 @@ export function FolhaBiblioteca({
           onPress={() => aoEscolher([e])}
           style={(estado) => [
             estilos.item,
-            { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie },
+            { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.sobre : cores.superficie },
           ]}>
           <Texto>{e.nome}</Texto>
           <Texto variante="pequeno">

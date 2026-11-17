@@ -76,7 +76,7 @@ export function Paleta({ selecionado, forcarAbaixo, aoInserir }: Props) {
                       style={(estado) => [
                         estilos.item,
                         {
-                          backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2,
+                          backgroundColor: sobre(estado) ? cores.sobre : cores.superficie2,
                           borderColor: vaiDentro ? cores.bordaCampo : cores.borda,
                         },
                       ]}

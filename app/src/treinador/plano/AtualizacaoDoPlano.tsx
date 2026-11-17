@@ -107,7 +107,7 @@ function LinkEmOutraAba({ href, rotuloAcessivel }: { href: string; rotuloAcessiv
     hrefAttrs: { target: '_blank', rel: 'noopener noreferrer' },
     accessibilityRole: 'link',
     accessibilityLabel: rotuloAcessivel,
-    style: (estado) => [estilos.ancora, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }],
+    style: (estado) => [estilos.ancora, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.sobre : 'transparent' }],
   };
   return (
     <Pressable {...props}>

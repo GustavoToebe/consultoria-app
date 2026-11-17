@@ -57,7 +57,7 @@ function LinhaDaFolha({ item, aoAbrir }: { item: ItemDaFolha; aoAbrir: () => voi
   };
   return (
     <Pressable accessibilityRole="link" accessibilityLabel={item.falado} {...propsDeLink(href, abrir)}
-      style={(e) => [estilos.linha, { borderColor: cores.divisor, backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
+      style={(e) => [estilos.linha, { borderColor: cores.divisor, backgroundColor: sobre(e) ? cores.sobre : 'transparent' }]}>
       <View style={[estilos.iniciais, { backgroundColor: cores.superficie3 }]} accessible={false}>
         <Texto variante="rotulo" cor={cores.texto}>{iniciais(item.nome)}</Texto>
       </View>

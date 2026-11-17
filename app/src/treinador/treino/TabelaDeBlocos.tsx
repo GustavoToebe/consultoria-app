@@ -131,7 +131,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
                 <Pressable accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
                   {...(Platform.OS === 'web' && sel && detalhe ? ({ 'aria-controls': idDoDetalhe } as object) : {})}
                   onPress={() => { if (!sel) aoMudar(l.valor); }}
-                  style={(st) => caixa(l, sel, sel || comMouse(st) ? cores.superficie3 : cores.superficie2)}>
+                  style={(st) => caixa(l, sel, sel || comMouse(st) ? cores.sobre : cores.superficie2)}>
                   {conteudo(l, sel)}
                 </Pressable>
                 {sel && detalhe ? <View nativeID={idDoDetalhe} role="region" aria-label={`Editando ${l.rotulo}`}>{detalhe}</View> : null}
@@ -158,7 +158,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
         <TabsList aria-label="Blocos do exercício" style={estilos.lista}>
           {linhas.map((l) => {
             const sel = l.valor === ativa;
-            const fundo = sel || sobre === l.valor ? cores.superficie3 : cores.superficie2;
+            const fundo = sel || sobre === l.valor ? cores.sobre : cores.superficie2;
             return (
               <TabsTrigger key={l.valor} value={l.valor} accessibilityRole="tab" accessibilityLabel={rotuloDe(l)} accessibilityState={{ selected: sel }}
                 {...(Platform.OS === 'web' ? ({ onMouseEnter: () => setSobre(l.valor), onMouseLeave: () => setSobre(null) } as object) : {})}

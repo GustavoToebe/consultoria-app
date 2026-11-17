@@ -119,7 +119,7 @@ export function FotoDePerfilEditavel({ alunoId, alunoNome, anonimizado, aoAnonim
                 </View>
               ) : null}
               <View accessible={false} style={[estilos.selo, { left: pontoDoSelo, top: pontoDoSelo, borderColor: cores.bordaCampo,
-                backgroundColor: sobre(estado) && !enviando ? cores.superficie3 : cores.superficie }]}>
+                backgroundColor: sobre(estado) && !enviando ? cores.sobre : cores.superficie }]}>
                 <Camera size={12} strokeWidth={2.25} color={enviando ? cores.textoSuave : cores.texto} aria-hidden />
               </View>
             </>

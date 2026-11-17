@@ -77,7 +77,7 @@ it.each(TODAS)('%s: preserva contraste AA nos detalhes de todas as superfícies'
 
 it.each(TODAS)('%s: status e neutro servem de texto em todas as superfícies', (_codigo, cores) => {
   for (const cor of [cores.sucesso, cores.atencao, cores.perigo, cores.neutro]) {
-    for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
+    for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3, cores.sobre]) {
       expect(contraste(cor, superficie)).toBeGreaterThanOrEqual(4.5);
     }
   }
@@ -297,10 +297,10 @@ describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, c
     }
   });
 
-  it('serve de texto (4,5:1) sobre superficie, superficie2, superficie3 e o fundo do próprio selo', () => {
+  it('serve de texto (4,5:1) sobre superficie, superficie2, superficie3, o hover (sobre) e o fundo do próprio selo', () => {
     for (const chave of CHAVES_DE_IDENTIFICACAO) {
       const { cor, fundo } = identificacao[chave];
-      for (const base of [cores.superficie, cores.superficie2, cores.superficie3, fundo]) {
+      for (const base of [cores.superficie, cores.superficie2, cores.superficie3, cores.sobre, fundo]) {
         expect(contraste(cor, base)).toBeGreaterThanOrEqual(4.5);
       }
     }
@@ -398,7 +398,7 @@ const VARIANTES: [string, Cores, VarianteDoTema][] = TODAS.flatMap(([nome, base,
 ]) as [string, Cores, VarianteDoTema][];
 
 describe.each(VARIANTES)('medidas do guia (%s)', (_nome, cores) => {
-  const superficies = [cores.fundo, cores.painel, cores.superficie, cores.superficie2, cores.superficie3];
+  const superficies = [cores.fundo, cores.painel, cores.superficie, cores.superficie2, cores.superficie3, cores.sobre, cores.sobreNaFaixa];
 
   it('texto e texto secundário ≥ 4,5:1 em toda superfície (inclusive hover e seleção)', () => {
     for (const fundo of superficies) {
@@ -407,12 +407,28 @@ describe.each(VARIANTES)('medidas do guia (%s)', (_nome, cores) => {
     }
   });
 
+  // A6 (17/11): com a escada nova a faixa ficou a 1,03:1 do poço no Claro (1,04 na Areia, e mais escura que ele): o hover e
+  // a seleção que iam do poço para a faixa sumiam. O realce precisa se ver contra o repouso (cartão ou poço).
+  it('hover, apertado e seleção (`sobre`) ≥ 1,10:1 contra o cartão e o poço', () => {
+    for (const repouso of [cores.superficie, cores.superficie2, cores.campo]) expect(contraste(cores.sobre, repouso)).toBeGreaterThanOrEqual(1.1);
+  });
+
+  // Faixa do título (ações do `Cartao`, `CabecalhoDeGrupo`, `FaixaDoPainel`) e `IconeBotao` em qualquer superfície. Nas
+  // escuras não dá para ser o mesmo `sobre`: clarear a faixa até 1,10:1 derruba o `perigo` como texto abaixo de 4,5:1,
+  // por isso o que fica nele é só texto, texto secundário e ícone (3:1).
+  it('hover sobre a faixa e do ícone (`sobreNaFaixa`) ≥ 1,10:1 contra o cartão, o poço e a faixa; ícones ≥ 3:1 nele', () => {
+    for (const repouso of [cores.superficie, cores.superficie2, cores.superficie3, cores.campo]) expect(contraste(cores.sobreNaFaixa, repouso)).toBeGreaterThanOrEqual(1.1);
+    for (const icone of [cores.texto, cores.textoSuave, cores.bordaCampo, cores.sucesso, cores.atencao, cores.perigo, cores.informacao, cores.conquista]) {
+      expect(contraste(icone, cores.sobreNaFaixa)).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it('borda de campo ≥ 3:1 contra o campo e o cartão vizinhos', () => {
     for (const fundo of [cores.campo, cores.superficie, cores.painel]) expect(contraste(cores.bordaCampo, fundo)).toBeGreaterThanOrEqual(3);
   });
 
   it('seleção neutra: o contorno do escolhido (bordaCampo) ≥ 3:1 contra a seleção e a trilha em volta', () => {
-    for (const fundo of [cores.superficie3, cores.superficie2, cores.superficie]) expect(contraste(cores.bordaCampo, fundo)).toBeGreaterThanOrEqual(3);
+    for (const fundo of [cores.sobre, cores.superficie3, cores.superficie2, cores.superficie]) expect(contraste(cores.bordaCampo, fundo)).toBeGreaterThanOrEqual(3);
   });
 
   it('anel de foco ≥ 3:1 sobre toda superfície e sobre o campo', () => {
@@ -495,9 +511,9 @@ describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, variante) => {
   });
 
   // Evolução (peso, respostas, medidas da avaliação): o valor medido vai em azul solto na linha da `Tabela`, que no toque
-  // ou na seleção passa a `superficie3`.
-  it('azul (valor medido) passa 4,5:1 como texto também na linha ativa (superficie3)', () => {
-    expect(contraste(destaque.azul.cor, cores.superficie3)).toBeGreaterThanOrEqual(4.5);
+  // ou na seleção passa a `sobre`.
+  it('azul (valor medido) passa 4,5:1 como texto também na linha ativa (sobre)', () => {
+    for (const fundo of [cores.superficie3, cores.sobre]) expect(contraste(destaque.azul.cor, fundo)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('rótulo (texto) e detalhe (textoSuave) seguem legíveis sobre o fundo tonalizado', () => {
@@ -515,9 +531,9 @@ describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, variante) => {
   // legenda com texto e do vão entre as barras/fatias; o piso abaixo só trava uma troca de token que juntasse as duas.
   it('séries dos gráficos: cada cor passa 3:1 sobre o cartão e a trilha, e o par de barras não colapsa', () => {
     for (const f of ['azul', 'ciano', 'violeta', 'verde'] as const) {
-      for (const fundo of [cores.superficie, cores.superficie2, cores.superficie3]) expect(contraste(destaque[f].cor, fundo)).toBeGreaterThanOrEqual(3);
+      for (const fundo of [cores.superficie, cores.superficie2, cores.superficie3, cores.sobre]) expect(contraste(destaque[f].cor, fundo)).toBeGreaterThanOrEqual(3);
     }
-    for (const fundo of [cores.superficie, cores.superficie2, cores.superficie3]) expect(contraste(cores.neutro, fundo)).toBeGreaterThanOrEqual(3);
+    for (const fundo of [cores.superficie, cores.superficie2, cores.superficie3, cores.sobre]) expect(contraste(cores.neutro, fundo)).toBeGreaterThanOrEqual(3);
     expect(contraste(destaque.azul.cor, destaque.ciano.cor)).toBeGreaterThanOrEqual(1.2);
     expect(contraste(destaque.azul.cor, destaque.violeta.cor)).toBeGreaterThanOrEqual(1.05);
   });

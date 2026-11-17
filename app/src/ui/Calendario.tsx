@@ -35,7 +35,7 @@ const CELULA = 36;
 /**
  * Calendário compacto que abre colado ao campo (embaixo, ou em cima se faltar espaço), sem escurecer a tela: mês
  * anterior/próximo, dias dos meses vizinhos esmaecidos, "Hoje" e "Limpar". Tocar fora fecha. Hoje tem o número na cor da
- * marca e o `TracoDeHoje` embaixo, como na agenda; o dia escolhido é a seleção neutra (`superficie3` + contorno) e, quando
+ * marca e o `TracoDeHoje` embaixo, como na agenda; o dia escolhido é a seleção neutra (`sobre` + contorno; painel no cartão com borda `borda`, 17/11) e, quando
  * é também hoje, mostra os dois (o traço fica). O nome acessível do dia diz ", hoje".
  */
 export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Props) {
@@ -56,7 +56,7 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
       <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel="Fechar calendário" />
       <View
         accessibilityViewIsModal
-        style={[estilos.painel, { left: esquerda, top: topo, backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+        style={[estilos.painel, { left: esquerda, top: topo, backgroundColor: cores.superficie, borderColor: cores.borda }]}>
         <View style={estilos.cabecalho}>
           <IconeBotao Icone={ChevronLeft} rotulo="Mês anterior" aoTocar={() => setVisto((v) => mudarMes(v, -1))} />
           <Texto numerico style={estilos.titulo}>
@@ -84,7 +84,7 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
                   // Na web o `selected` de um botão não vira atributo: o `aria-current` diz o escolhido, como no `MiniCalendario`.
                   aria-current={escolhido ? 'date' : undefined}
                   onPress={() => aoEscolher(d.iso)}
-                  style={({ pressed }) => [estilos.dia, escolhido && { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo }, { opacity: pressed ? 0.7 : d.doMes ? 1 : 0.6 }]}>
+                  style={({ pressed }) => [estilos.dia, escolhido && { backgroundColor: cores.sobre, borderColor: cores.bordaCampo }, { opacity: pressed ? 0.7 : d.doMes ? 1 : 0.6 }]}>
                   <Texto numerico style={[estilos.numeroDia, { color: cor }]}>{d.dia}</Texto>
                   {/* Hoje esmaecido no mês vizinho fica sem o traço: a 60% ele perderia o 3:1. */}
                   {ehHoje && d.doMes ? <TracoDeHoje /> : null}
@@ -94,10 +94,10 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
           </View>
         ))}
         <View style={[estilos.rodape, { borderColor: cores.divisor }]}>
-          <Pressable accessibilityRole="button" onPress={() => aoEscolher(hoje)} style={({ pressed }) => [estilos.botaoRodape, pressed && { backgroundColor: cores.superficie3 }]}>
+          <Pressable accessibilityRole="button" onPress={() => aoEscolher(hoje)} style={({ pressed }) => [estilos.botaoRodape, pressed && { backgroundColor: cores.sobre }]}>
             <Texto style={[estilos.acao, { color: marcaTexto }]}>Hoje</Texto>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={aoLimpar} style={({ pressed }) => [estilos.botaoRodape, pressed && { backgroundColor: cores.superficie3 }]}>
+          <Pressable accessibilityRole="button" onPress={aoLimpar} style={({ pressed }) => [estilos.botaoRodape, pressed && { backgroundColor: cores.sobre }]}>
             <Texto style={[estilos.acao, { color: marcaTexto }]}>Limpar</Texto>
           </Pressable>
         </View>

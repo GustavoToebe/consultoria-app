@@ -26,7 +26,7 @@ export function ModoDePreparo({ texto }: { texto: string | null | undefined }) {
         accessibilityState={{ expanded: aberto }}
         accessibilityLabel={aberto ? 'Fechar modo de preparo' : 'Abrir modo de preparo'}
         onPress={() => setAberto((a) => !a)}
-        style={(estado) => [estilos.botao, { backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
+        style={(estado) => [estilos.botao, { backgroundColor: sobre(estado) ? cores.sobre : 'transparent' }]}>
         <CookingPot size={20} color={cores.texto} />
         <Texto style={estilos.titulo}>Modo de preparo</Texto>
         <Seta size={20} color={cores.texto} />

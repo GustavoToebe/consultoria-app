@@ -186,7 +186,7 @@ function CorpoDoExercicio(p: Props) {
               accessibilityState={{ expanded: comoFazerAberto }}
               accessibilityLabel={comoFazerAberto ? 'Fechar como fazer' : 'Abrir como fazer'}
               onPress={() => abrirComoFazer((a) => !a)}
-              style={(estado) => [estilos.comoFazer, { backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
+              style={(estado) => [estilos.comoFazer, { backgroundColor: sobre(estado) ? cores.sobre : 'transparent' }]}>
               <View style={estilos.comoFazerTextos}>
                 <Texto style={estilos.comoFazerTitulo}>Como fazer</Texto>
                 {!comoFazerAberto && e.observacao ? (

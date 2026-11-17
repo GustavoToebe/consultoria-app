@@ -15,8 +15,9 @@ import type { FuncaoDeDestaque } from '../dominio/destaque';
  * cor: `docs/design-e-front.md`, seção 4.5.
  *
  * Escada de superfícies (17/11, `docs/planos/hierarquia-visual-tres-temas.md`, travada em `tokens.test.ts`): `fundo`
- * (menu e página) → `painel` (área do conteúdo no PC) → `superficie` (cartão, contorno `divisor` ≥ 1,4:1) → `superficie3`
- * (faixa do título e seleção neutra) e `superficie2` (poço: item, apoio, hover). Cartão × página ≥ 1,35 nas claras, 1,6
+ * (menu e página) → `painel` (área do conteúdo no PC) → `superficie` (cartão e painel flutuante, contorno `divisor` ≥
+ * 1,4:1) → `superficie3` (faixa do título) e `superficie2` (poço: item, apoio). Hover, apertado e seleção neutra = `sobre`
+ * (na faixa e no `IconeBotao`, `sobreNaFaixa`), calculados da escada (`comRealce`). Cartão × página ≥ 1,35 nas claras, 1,6
  * na Areia e 1,15 nas escuras. Campo de digitar = `campo` + `bordaCampo` (≥ 3:1).
  */
 export interface Cores {
@@ -24,6 +25,17 @@ export interface Cores {
   superficie: string;
   superficie2: string;
   superficie3: string;
+  /**
+   * Hover, apertado e seleção neutra de linha, item, chip e opção de menu (A6, 17/11): a faixa (`superficie3`) andando na
+   * direção do `texto` o mínimo para ficar ≥ 1,10:1 do cartão e do poço. Nas escuras dá a própria faixa. Aguenta texto,
+   * situação e identificação a 4,5:1 (`tokens.test.ts`).
+   */
+  sobre: string;
+  /**
+   * Hover em cima da faixa do título e do `IconeBotao` (em qualquer superfície): o mesmo passo, ≥ 1,10:1 também da faixa.
+   * Nas escuras fica mais claro que `sobre` e só aguenta `texto`/`textoSuave` (4,5:1) e ícone (3:1).
+   */
+  sobreNaFaixa: string;
   divisor: string;
   borda: string;
   /**
@@ -84,7 +96,25 @@ function pilulasDaSituacao(s: Pick<Cores, 'sucesso' | 'atencao' | 'perigo' | 'in
   };
 }
 
-export const ESCURO: Cores = {
+/** Quanto o realce (hover, seleção) se afasta do repouso: 1,10:1 (o poço e a faixa da escada de 17/11 ficaram a 1,03). */
+const PASSO_DO_REALCE = 1.1;
+
+/** A escada sem os realces, que saem dela (`comRealce`). */
+type Escada = Omit<Cores, 'sobre' | 'sobreNaFaixa'>;
+
+/** `sobre` e `sobreNaFaixa` da escada: a faixa misturada ao texto em passos de 1% até ficar a `PASSO_DO_REALCE` dos fundos. */
+function comRealce(c: Escada): Cores {
+  const passo = (fundos: string[]) => {
+    for (let i = 0; i <= 100; i++) {
+      const cor = misturar(c.superficie3, c.texto, i / 100);
+      if (fundos.every((f) => contraste(cor, f) >= PASSO_DO_REALCE)) return cor;
+    }
+    return c.texto;
+  };
+  return { ...c, sobre: passo([c.superficie, c.superficie2, c.campo]), sobreNaFaixa: passo([c.superficie, c.superficie2, c.superficie3, c.campo]) };
+}
+
+export const ESCURO: Cores = comRealce({
   // D5 (17/11): página, cartão, faixa e poço (mais escuro que o cartão). Contorno #34343A subiu a #36363C (1,37 → 1,42:1,
   // piso 1,4), o painel do PC desceu a 10% do caminho até o cartão para o cartão manter 1,15:1 sobre ele, e `bordaCampo`
   // e `textoSuave` clarearam 1% e 2% para os pares do guia (4,5:1 sobre o cartão e 7:1 sobre o poço) com o cartão novo.
@@ -110,7 +140,7 @@ export const ESCURO: Cores = {
   fase2: '#7DCFC6',
   fase3: '#E2C56A',
   fase4: '#ADBAEB',
-};
+});
 
 /**
  * Situação do Claro (D9: `#0E7A43 #8A5300 #C01834 #1D5FD1 #7A2FD0`). Verde, âmbar e vermelho escurecidos o mínimo para o
@@ -119,7 +149,7 @@ export const ESCURO: Cores = {
  */
 const SITUACAO_CLARA = { sucesso: '#0C6638', atencao: '#804D00', perigo: '#AB152E', informacao: '#1D5FD1', conquista: '#7A2FD0' } as const;
 
-export const CLARO: Cores = {
+export const CLARO: Cores = comRealce({
   // D3 (17/11): página, cartão branco, faixa e poço. Contorno #E4E4E7 → #D9D9DB e borda #B4B4BC → #A7A7AF, o mínimo para
   // os pisos de 1,4 (contorno × cartão) e 1,7 (borda × página).
   fundo: '#D9DCE1',
@@ -143,7 +173,7 @@ export const CLARO: Cores = {
   fase2: '#5E8F8A',
   fase3: '#A67C2E',
   fase4: '#7A86C4',
-};
+});
 
 /**
  * Situação da Areia: verde, âmbar e vermelho do Claro (D9) escurecidos mais um passo, só o que a página #CDCAC3 pede para
@@ -156,7 +186,7 @@ const SITUACAO_AREIA = { sucesso: '#0A5931', atencao: '#704300', perigo: '#96132
  * `#EDEBE7`, poço `#F1EFEB` e `faixaForte` `#C3C0B8`. Contorno, borda e texto secundário escurecidos o mínimo para os
  * pisos (contorno × cartão 1,4, borda × página 1,7, texto secundário 4,5:1 sobre a `faixaForte`).
  */
-export const AREIA: Cores = {
+export const AREIA: Cores = comRealce({
   ...CLARO,
   fundo: '#CDCAC3',
   painel: '#CDCAC3',
@@ -171,7 +201,7 @@ export const AREIA: Cores = {
   textoSuave: '#4C4C54',
   ...SITUACAO_AREIA,
   ...pilulasDaSituacao(SITUACAO_AREIA, '#FFFFFF'),
-};
+});
 
 /** Modo de uma paleta: decide a barra de status e o esquema do Uniwind. */
 export type ModoDoTema = 'ESCURO' | 'CLARO';
@@ -189,13 +219,13 @@ export type VarianteDoTema = 'claro' | 'areia' | 'escuro';
  * pílulas tingidas sobre o cartão dela.
  */
 function paletaEscura(chao: Pick<Cores, 'fundo' | 'superficie' | 'superficie2' | 'superficie3' | 'faixaForte' | 'divisor' | 'borda' | 'campo' | 'bordaCampo'>, perigo: string = ESCURO.perigo): Cores {
-  return {
+  return comRealce({
     ...ESCURO,
     ...chao,
     perigo,
     painel: misturar(chao.fundo, chao.superficie, 0.1),
     ...pilulasDaSituacao({ ...ESCURO, perigo }, chao.superficie),
-  };
+  });
 }
 
 /**
@@ -247,7 +277,7 @@ export const OCEANO: Cores = paletaEscura({
   bordaCampo: '#778A95',
 }, '#FF526E');
 
-export const LAVANDA: Cores = {
+export const LAVANDA: Cores = comRealce({
   ...CLARO,
   fundo: '#DCDBE7',
   painel: '#DCDBE7',
@@ -259,8 +289,8 @@ export const LAVANDA: Cores = {
   borda: '#ACA5C0',
   campo: '#FFFFFF',
   bordaCampo: '#706884',
-};
-export const CEU: Cores = {
+});
+export const CEU: Cores = comRealce({
   ...CLARO,
   fundo: '#D5DDE6',
   painel: '#D5DDE6',
@@ -272,8 +302,8 @@ export const CEU: Cores = {
   borda: '#9CAABB',
   campo: '#FFFFFF',
   bordaCampo: '#67778A',
-};
-export const ROSA: Cores = {
+});
+export const ROSA: Cores = comRealce({
   ...CLARO,
   fundo: '#E1DAE0',
   painel: '#E1DAE0',
@@ -285,7 +315,7 @@ export const ROSA: Cores = {
   borda: '#BEA2AF',
   campo: '#FFFFFF',
   bordaCampo: '#806472',
-};
+});
 
 /** Código da paleta (= `Tema` da API, o `temaPadrao` da consultoria) → nome na tela, cores e modo. Fonte única do modo. */
 export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTema; variante: VarianteDoTema }> = {

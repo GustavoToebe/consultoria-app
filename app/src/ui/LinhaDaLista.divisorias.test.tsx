@@ -29,7 +29,7 @@ it('padrão: cada linha na caixa (fundo `superficie2`, contorno `divisor`), sem 
   expect(r.root.findAll((n) => String(n.type) === 'View' && estilo(n)?.height === 1)).toHaveLength(0);
 });
 
-it('divisorias: sem caixa, uma divisória entre as linhas e realce `superficie3` no foco, no hover e aberta', () => {
+it('divisorias: sem caixa, uma divisória entre as linhas e realce `sobre` no foco, no hover e aberta', () => {
   let r!: ReactTestRenderer;
   act(() => {
     r = create(
@@ -49,18 +49,18 @@ it('divisorias: sem caixa, uma divisória entre as linhas e realce `superficie3`
   expect(estilo(divisorias[0]).backgroundColor).toBe(CLARO.divisor);
 
   act(() => { a.props.onFocus(); });
-  expect(estilo(contornos(r)[0]).backgroundColor).toBe(CLARO.superficie3);
+  expect(estilo(contornos(r)[0]).backgroundColor).toBe(CLARO.sobre);
   // O dedo não acende (tocar no lápis não pode parecer tocar na linha); o mouse acende.
   act(() => { a.props.onBlur(); b.props.onPointerEnter({ nativeEvent: { pointerType: 'touch' } }); });
   expect(estilo(contornos(r)[0]).backgroundColor).toBe('transparent');
   expect(estilo(contornos(r)[1]).backgroundColor).toBe('transparent');
   act(() => { b.props.onPointerEnter({ nativeEvent: { pointerType: 'mouse' } }); });
-  expect(estilo(contornos(r)[1]).backgroundColor).toBe(CLARO.superficie3);
+  expect(estilo(contornos(r)[1]).backgroundColor).toBe(CLARO.sobre);
   act(() => { b.props.onPointerLeave(); });
   expect(estilo(contornos(r)[1]).backgroundColor).toBe('transparent');
   // Sem conteúdo embaixo (`null`) não é aberta; com conteúdo, é.
   expect(estilo(c).backgroundColor).toBe('transparent');
-  expect(estilo(d).backgroundColor).toBe(CLARO.superficie3);
-  // Escolhida: a seleção neutra de sempre, contorno forte e `superficie3`.
-  expect(estilo(e)).toMatchObject({ backgroundColor: CLARO.superficie3, borderColor: CLARO.bordaCampo });
+  expect(estilo(d).backgroundColor).toBe(CLARO.sobre);
+  // Escolhida: a seleção neutra de sempre, contorno forte e `sobre`.
+  expect(estilo(e)).toMatchObject({ backgroundColor: CLARO.sobre, borderColor: CLARO.bordaCampo });
 });

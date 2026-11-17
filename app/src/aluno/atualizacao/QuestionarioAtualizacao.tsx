@@ -353,7 +353,7 @@ function OpcoesComImagem({ p, valor, aoMudar }: { p: PerguntaAtualizacao; valor:
           borderWidth: marcado ? 2 : 1,
           padding: marcado ? espaco(1) - 1 : espaco(1),
           borderColor: marcado ? cores.texto : cores.bordaCampo,
-          backgroundColor: !aoMudar && !marcado ? coresDoDesabilitado(cores).fundo : marcado || pressed ? cores.superficie3 : cores.superficie2,
+          backgroundColor: !aoMudar && !marcado ? coresDoDesabilitado(cores).fundo : marcado || pressed ? cores.sobre : cores.superficie2,
         }]}>
         {o.imagemId ? <ImagemDaOpcao id={o.imagemId} descricao={`Imagem da opção ${o.rotulo}`} largura={imagem} />
           : <View style={[estilos.semImagem, { height: Math.round(imagem * 0.75), borderColor: cores.divisor }]} />}

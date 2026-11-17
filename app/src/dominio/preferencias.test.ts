@@ -152,7 +152,7 @@ describe('preferências pessoais', () => {
   it.each(Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO'] as const))('contraste alto no tema %s: borda nítida e texto secundário ≥ 7:1 em todas as superfícies', (_nome, base, escuro) => {
     const alto = coresComContraste(base, 'ALTO', escuro);
     expect(alto.borda).toBe(base.bordaCampo);
-    for (const superficie of [alto.fundo, alto.superficie, alto.superficie2, alto.superficie3]) {
+    for (const superficie of [alto.fundo, alto.superficie, alto.superficie2, alto.superficie3, alto.sobre, alto.sobreNaFaixa]) {
       expect(contraste(alto.textoSuave, superficie)).toBeGreaterThanOrEqual(7);
     }
     expect(coresComContraste(base, 'PADRAO', escuro)).toBe(base);
@@ -162,7 +162,7 @@ describe('preferências pessoais', () => {
   // texto secundário aparece, não só para uma delas.
   it('contraste alto na Areia: textoSuave ≥ 7:1 sobre fundo, painel, superficie, superficie2, superficie3 e faixaForte', () => {
     const alto = coresComContraste(PALETAS.AREIA.cores, 'ALTO', false);
-    for (const s of [alto.fundo, alto.painel, alto.superficie, alto.superficie2, alto.superficie3, alto.faixaForte]) {
+    for (const s of [alto.fundo, alto.painel, alto.superficie, alto.superficie2, alto.superficie3, alto.sobre, alto.sobreNaFaixa, alto.faixaForte]) {
       expect(contraste(alto.textoSuave, s)).toBeGreaterThanOrEqual(7);
     }
   });
@@ -170,7 +170,7 @@ describe('preferências pessoais', () => {
   it('contraste alto no Claro (e nas outras paletas claras): o texto secundário fecha ≥ 7:1 sobre todas as superfícies', () => {
     for (const codigo of ['CLARO', 'LAVANDA', 'CEU', 'ROSA'] as const) {
       const alto = coresComContraste(PALETAS[codigo].cores, 'ALTO', false);
-      for (const s of [alto.fundo, alto.painel, alto.superficie, alto.superficie2, alto.superficie3, alto.faixaForte]) {
+      for (const s of [alto.fundo, alto.painel, alto.superficie, alto.superficie2, alto.superficie3, alto.sobre, alto.sobreNaFaixa, alto.faixaForte]) {
         expect(contraste(alto.textoSuave, s)).toBeGreaterThanOrEqual(7);
       }
     }

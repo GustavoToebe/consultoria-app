@@ -60,7 +60,7 @@ export function EstadoDasPendencias({ conteudo, erros, modelo, aoIrAPendencia }:
   const quantas = modelo ? `${pendencia.total} ${pendencia.total === 1 ? 'pendência' : 'pendências'}` : textoDosProblemas(pendencia.total);
   return (
     <Pressable accessibilityRole="button" onPress={ir}
-      style={(estado) => [estilos.estado, { borderColor: cores.perigo, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie }]}>
+      style={(estado) => [estilos.estado, { borderColor: cores.perigo, backgroundColor: sobre(estado) ? cores.sobre : cores.superficie }]}>
       <CircleAlert size={16} color={cores.perigo} />
       <Texto cor={cores.perigo} style={estilos.forte}>{`${quantas} · Ir à primeira pendência`}</Texto>
     </Pressable>

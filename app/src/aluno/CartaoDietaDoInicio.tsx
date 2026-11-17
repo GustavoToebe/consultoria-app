@@ -50,7 +50,7 @@ export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaN
       accessibilityRole="link"
       accessibilityLabel={`Dieta, ${refeicoes}${agua ? `, água do dia ${agua}` : ''}. Ver dieta.`}
       {...propsDeLink('/aluno/dieta', () => router.navigate('/aluno/dieta'))}
-      style={(e) => [estilos.cartao, estilos.linha, { backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie, borderColor: cores.divisor }]}>
+      style={(e) => [estilos.cartao, estilos.linha, { backgroundColor: sobre(e) ? cores.sobre : cores.superficie, borderColor: cores.divisor }]}>
       {width >= LARGURA_COM_ICONE ? (
         <View style={[estilos.icone, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
           <Utensils size={20} color={cores.texto} aria-hidden />

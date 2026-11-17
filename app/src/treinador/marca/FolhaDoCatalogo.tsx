@@ -93,7 +93,7 @@ export function FolhaDoCatalogo({
                 style={(estado) => [estilos.opcao, {
                   // Seleção neutra (`ui/selecao`): superfície de seleção, contorno forte e ✓.
                   borderColor: marcado ? coresDaSelecao(cores, true).borda : cores.borda,
-                  backgroundColor: item.presente ? coresDoDesabilitado(cores).fundo : marcado ? coresDaSelecao(cores, true).fundo : sobre(estado) ? cores.superficie3 : cores.superficie2,
+                  backgroundColor: item.presente ? coresDoDesabilitado(cores).fundo : marcado ? coresDaSelecao(cores, true).fundo : sobre(estado) ? cores.sobre : cores.superficie2,
                 // A faixa do tipo fica por cima do contorno: marcar não troca a cor da categoria (D9); o que já está na
                 // metodologia (desabilitado) fica sem faixa, para ler como desabilitado.
                 }, barraDoTipo(item.cor && !item.presente ? identificacao?.[item.cor]?.cor ?? null : null)]}>

@@ -71,7 +71,7 @@ export function CartaoExercicioDoDia({
       style={({ pressed }) => [
         estilos.cartao,
         {
-          backgroundColor: pressed ? cores.superficie3 : cores.superficie,
+          backgroundColor: pressed ? cores.sobre : cores.superficie,
           borderColor: cores.divisor,
         },
       ]}>

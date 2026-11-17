@@ -42,7 +42,7 @@ export function LinhaDaDivisao({ sessao, letra, hoje, href, aoAbrir }: { sessao:
       accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={rotulo}
       {...(href ? propsDeLink(href, aoAbrir) : { onPress: aoAbrir })}
-      style={(estado) => [estilos.linha, { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie, borderColor: cores.divisor }]}>
+      style={(estado) => [estilos.linha, { backgroundColor: sobre(estado) ? cores.sobre : cores.superficie, borderColor: cores.divisor }]}>
       {conteudo}
     </Pressable>
   );

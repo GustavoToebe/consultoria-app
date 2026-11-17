@@ -75,7 +75,7 @@ export function EscolhaSuspensa<T extends string | number | null>({
         accessibilityState={{ expanded: !!aberta }}
         aria-haspopup="listbox"
         onPress={abrir}
-        style={(estado) => [estilos.botao, { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) ? cores.superficie3 : cores.campo }, style]}>
+        style={(estado) => [estilos.botao, { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) ? cores.sobre : cores.campo }, style]}>
         <View style={estilos.textos}>
           <Texto variante="pequeno" numberOfLines={1}>{rotulo}</Texto>
           <Texto style={estilos.valor} numberOfLines={linhasDoValor}>{texto}</Texto>
@@ -177,7 +177,7 @@ function Lista<T extends string | number | null>({ ancora, rotulo, valor, opcoes
           <Pressable key={String(o.valor)} ref={(no) => { itens.current[i] = no; }} nativeID={`${prefixo}-${i}`} role="option" aria-selected={escolhida}
             accessibilityLabel={o.detalhe ? `${o.rotulo}, ${o.detalhe}` : o.rotulo}
             onHoverIn={() => setDestaque(i)} onFocus={() => setDestaque(i)} onPress={() => aoEscolher(o.valor)}
-            style={[estilos.opcao, { backgroundColor: escolhida ? cores.superficie3 : i === atual ? cores.superficie3 : 'transparent', borderColor: escolhida ? cores.bordaCampo : 'transparent' }]}>
+            style={[estilos.opcao, { backgroundColor: escolhida ? cores.sobre : i === atual ? cores.sobre : 'transparent', borderColor: escolhida ? cores.bordaCampo : 'transparent' }]}>
             <View style={estilos.textos}>
               <Texto style={[estilos.rotuloOpcao, { color: cores.texto }]}>{o.rotulo}</Texto>
               {o.detalhe ? <Texto variante="pequeno">{o.detalhe}</Texto> : null}
@@ -201,7 +201,7 @@ function Lista<T extends string | number | null>({ ancora, rotulo, valor, opcoes
     <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={aoFechar}>
       <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel={`Fechar ${rotulo}`} />
       <View accessibilityViewIsModal role="dialog" aria-label={rotulo}
-        style={[estilos.painel, posicao, { left: esquerda, width: largura, backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+        style={[estilos.painel, posicao, { left: esquerda, width: largura, backgroundColor: cores.superficie, borderColor: cores.borda }]}>
         {campoDeBusca}
         <ScrollView style={{ maxHeight: alturaMaxima }} keyboardShouldPersistTaps="handled">{lista}</ScrollView>
       </View>

@@ -74,7 +74,7 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
         linhas.map((l) => (
           <ComInicio key={chave(l)} inicio={inicio?.(l)} estilo={estilos.cartaoComInicio}>
             <Toque linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha}
-              style={(ativo) => [estilos.cartao, inicio ? estilos.resto : null, { backgroundColor: ativo ? cores.superficie3 : cores.superficie2, borderColor: cores.divisor }]}>
+              style={(ativo) => [estilos.cartao, inicio ? estilos.resto : null, { backgroundColor: ativo ? cores.sobre : cores.superficie2, borderColor: cores.divisor }]}>
               {principal || acao ? (
                 <View style={estilos.topoCartao}>
                   {principal ? <View style={estilos.principal}>{principal.render(l)}</View> : null}
@@ -110,7 +110,7 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
             return (
               <ComInicio key={chave(l)} inicio={inicio?.(l)} estilo={[estilos.linhaComInicio, divisoria]} papel="row">
                 <Toque linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha} papel={inicio ? undefined : 'row'}
-                  style={(ativo) => [estilos.corpoLinha, inicio ? estilos.resto : null, ativo ? { backgroundColor: cores.superficie3 } : null, !inicio && divisoria]}>
+                  style={(ativo) => [estilos.corpoLinha, inicio ? estilos.resto : null, ativo ? { backgroundColor: cores.sobre } : null, !inicio && divisoria]}>
                   <View style={[estilos.linha, inicio ? estilos.semRecuo : null]}>
                     {colunas.map((c) => (
                       <View key={c.chave} role="cell" style={estiloColuna(c)}>{c.render(l)}</View>

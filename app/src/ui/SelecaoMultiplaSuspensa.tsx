@@ -78,7 +78,7 @@ export function SelecaoMultiplaSuspensa({ rotulo, opcoes, marcados, aoMudar, rot
         accessibilityLabel={`${rotulo}: ${textoDosMarcados(opcoes, vigentes, rotuloDeTodos)}. Escolher.`}
         accessibilityState={{ expanded: aberta }}
         onPress={abrir}
-        style={(estado) => [estilos.campo, { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) ? cores.superficie3 : cores.campo }, style]}>
+        style={(estado) => [estilos.campo, { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) ? cores.sobre : cores.campo }, style]}>
         <View style={estilos.textos}>
           <Texto variante="pequeno" numberOfLines={1}>{rotulo}</Texto>
           <View style={estilos.chips}>
@@ -118,7 +118,7 @@ function Suspensa({ ancora, abreEmbaixo, rotulo, aoFechar, children }: { ancora:
         accessibilityViewIsModal
         role="dialog"
         aria-label={rotulo}
-        style={[estilos.painel, posicao, { left: esquerda, width: largura, backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+        style={[estilos.painel, posicao, { left: esquerda, width: largura, backgroundColor: cores.superficie, borderColor: cores.borda }]}>
         {children}
       </View>
     </Modal>
@@ -164,7 +164,7 @@ function ListaDeOpcoes({ rotulo, opcoes, marcados, aoMudar, comFoco, limiteDeAlt
           accessibilityLabel={`Limpar ${rotulo}`}
           disabled={marcados.size === 0}
           onPress={() => aoMudar(new Set())}
-          style={(e) => [estilos.limpar, { backgroundColor: sobre(e) && marcados.size > 0 ? cores.superficie3 : 'transparent' }]}>
+          style={(e) => [estilos.limpar, { backgroundColor: sobre(e) && marcados.size > 0 ? cores.sobre : 'transparent' }]}>
           <Texto variante="pequeno" cor={marcados.size === 0 ? cores.textoSuave : cores.texto} style={estilos.rotuloLimpar}>Limpar</Texto>
         </Pressable>
       </View>
@@ -184,7 +184,7 @@ function Linha({ rotulo, estado, aoTocar, negrito }: { rotulo: string; estado: '
       accessibilityState={{ checked: estado === 'alguns' ? 'mixed' : marcada }}
       aria-checked={estado === 'alguns' ? 'mixed' : marcada}
       onPress={aoTocar}
-      style={(e) => [estilos.linha, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
+      style={(e) => [estilos.linha, { backgroundColor: sobre(e) ? cores.sobre : 'transparent' }]}>
       <View style={[estilos.caixa, { backgroundColor: marcada ? cores.texto : cores.campo, borderColor: marcada ? cores.texto : cores.bordaCampo }]}>
         {estado === 'todos' ? <Check size={16} color={cores.fundo} strokeWidth={3} /> : null}
         {estado === 'alguns' ? <Minus size={16} color={cores.fundo} strokeWidth={3} /> : null}

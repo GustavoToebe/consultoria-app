@@ -107,7 +107,7 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
                 {visiveis.map((item) => <ItemDeDiaInteiro key={item.chave} item={item} hoje={hoje} meus={meus} aoAbrir={aoAbrir} aoRotulo={setDiaInteiroAberto} escolhido={item.chave === escolhido} />)}
                 {mais > 0 ? (
                   <Pressable accessibilityRole="button" accessibilityLabel={`Mais ${mais} de dia inteiro em ${dataComDiaDaSemana(c.data)}. Abrir o dia`}
-                    onPress={() => aoAbrirDia?.(c.data)} style={(e) => [estilos.mais, sobre(e) && { backgroundColor: cores.superficie3 }]}>
+                    onPress={() => aoAbrirDia?.(c.data)} style={(e) => [estilos.mais, sobre(e) && { backgroundColor: cores.sobre }]}>
                     <Texto variante="pequeno" numerico>{`+${mais}`}</Texto>
                   </Pressable>
                 ) : null}

@@ -66,7 +66,7 @@ export function PrimeirosPassosAberto({ passos, aoAcao, aoDispensar }: {
               <Pressable accessibilityRole="button" accessibilityState={{ expanded: feitosAbertos }}
                 accessibilityLabel={`${passos.resumoDosRecolhidos}. ${feitosAbertos ? 'Esconder' : 'Mostrar'}`}
                 onPress={() => setFeitosAbertos((v) => !v)}
-                style={(e) => [estilos.linhaFeitos, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
+                style={(e) => [estilos.linhaFeitos, { backgroundColor: sobre(e) ? cores.sobre : 'transparent' }]}>
                 <View style={[estilos.numero, { borderColor: cores.sucesso }]}><Check size={14} color={cores.sucesso} strokeWidth={2.5} /></View>
                 <Texto variante="bloco" style={estilos.flex}>{passos.resumoDosRecolhidos}</Texto>
                 {feitosAbertos ? <ChevronUp size={18} color={cores.textoSuave} /> : <ChevronDown size={18} color={cores.textoSuave} />}

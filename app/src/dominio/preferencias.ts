@@ -244,7 +244,7 @@ const TEXTO_SUAVE_CLARO_ALTO = '#3F3F46';
 
 /** `#3F3F46`, ou o mínimo mais escuro que ainda chega a 7:1 sobre a superfície mais escura (a Areia de 14/11 pede). */
 function textoSuaveClaroDeContrasteAlto(c: Cores): string {
-  const superficies = [c.fundo, c.painel, c.superficie, c.superficie2, c.superficie3, c.faixaForte];
+  const superficies = [c.fundo, c.painel, c.superficie, c.superficie2, c.superficie3, c.sobre, c.sobreNaFaixa, c.faixaForte];
   let cor = TEXTO_SUAVE_CLARO_ALTO;
   for (let t = 0.04; t <= 0.8 && superficies.some((s) => contraste(cor, s) < 7.05); t += 0.04) cor = misturar(TEXTO_SUAVE_CLARO_ALTO, '#000000', t);
   return cor;

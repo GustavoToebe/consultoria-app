@@ -55,7 +55,7 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
               style={(st) => [
                 estilos.chip,
                 {
-                  backgroundColor: ativo || sobre(st) ? cores.superficie3 : cores.superficie2,
+                  backgroundColor: ativo || sobre(st) ? cores.sobre : cores.superficie2,
                   borderColor: ativo ? cores.texto : cores.borda,
                 },
               ]}>
@@ -65,7 +65,7 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
               <View style={[estilos.contagem, { borderColor: corTexto }]} accessible={false}>
                 <Texto numerico style={[estilos.numero, { color: corTexto }]}>{s.exercicios.length}</Texto>
               </View>
-              {erro ? <View style={[estilos.ponto, { backgroundColor: cores.perigo, borderColor: ativo ? cores.superficie3 : cores.superficie2 }]} /> : null}
+              {erro ? <View style={[estilos.ponto, { backgroundColor: cores.perigo, borderColor: ativo ? cores.sobre : cores.superficie2 }]} /> : null}
             </Pressable>
           );
         })}
@@ -76,7 +76,7 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
           style={(st) => [
             estilos.chip,
             estilos.adicionar,
-            { borderColor: cores.bordaCampo, backgroundColor: sobre(st) ? cores.superficie3 : 'transparent' },
+            { borderColor: cores.bordaCampo, backgroundColor: sobre(st) ? cores.sobre : 'transparent' },
           ]}>
           <Plus size={16} color={cores.texto} strokeWidth={2} />
           <Texto style={[estilos.texto, { color: cores.texto }]}>Sessão</Texto>

@@ -184,7 +184,7 @@ function PainelDaBusca({ campo, favoritos, alternar, aoFechar }: {
                 style={(estado) => [
                   estilos.resultado,
                   sobre(estado) && { backgroundColor: cores.superficie2 },
-                  noCampo && i === indice && { backgroundColor: cores.superficie3 },
+                  noCampo && i === indice && { backgroundColor: cores.sobre },
                 ]}>
                 <Texto style={estilos.nome} numberOfLines={1}>{tela.rotulo}</Texto>
                 <Texto variante="pequeno" numberOfLines={1}>{legendaDaTela(tela)}</Texto>

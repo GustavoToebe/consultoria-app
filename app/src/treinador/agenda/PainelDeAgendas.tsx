@@ -94,7 +94,7 @@ function LinhaDaAgenda({ agenda: a, aoAlternar, aoEditar }: { agenda: AgendaDoPa
     <View style={estilos.linha}>
       <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: a.visivel }} aria-checked={a.visivel}
         accessibilityLabel={`${a.nome}, cor ${ROTULOS_DAS_CORES_DA_AGENDA[a.cor]}. Mostrar na agenda`} onPress={aoAlternar}
-        style={(e) => [estilos.caixaELinha, sobre(e) && { backgroundColor: cores.superficie3 }]}>
+        style={(e) => [estilos.caixaELinha, sobre(e) && { backgroundColor: cores.sobre }]}>
         <View style={[estilos.caixa, { borderColor: cor, backgroundColor: a.visivel ? cor : 'transparent' }]}>
           {a.visivel ? <Check size={14} color={textoSobre(cor)} strokeWidth={3} /> : null}
         </View>
@@ -201,7 +201,7 @@ function EscolhaDeCor({ valor, aoMudar }: { valor: CorDaAgenda; aoMudar: (c: Cor
               onPress={() => aoMudar(c)}
               style={(e) => [estilos.cor, {
                 // Seleção neutra (`ui/selecao`): superfície de seleção, contorno forte e ✓.
-                backgroundColor: ativo ? coresDaSelecao(cores, true).fundo : sobre(e) ? cores.superficie3 : cores.superficie2, borderColor: ativo ? coresDaSelecao(cores, true).borda : cores.borda,
+                backgroundColor: ativo ? coresDaSelecao(cores, true).fundo : sobre(e) ? cores.sobre : cores.superficie2, borderColor: ativo ? coresDaSelecao(cores, true).borda : cores.borda,
               }]}>
               <View style={[estilos.amostra, { backgroundColor: corDe(c) }]} />
               <Texto style={[estilos.nomeDaCor, { color: cores.texto }, ativo && { fontFamily: fontes.semi }]}>{ROTULOS_DAS_CORES_DA_AGENDA[c]}</Texto>

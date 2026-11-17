@@ -112,7 +112,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
   return <View style={estilos.lista}>
     <Texto variante="pequeno">Esta metodologia define nomes, explicações e padrões para montar novos treinos. Alterar este modelo não atualiza automaticamente as cópias já aplicadas.</Texto>
     <FaixaDeChips quebrar accessibilityLabel="Seções da metodologia">
-      {SECOES.map((s) => <Pressable key={s.alvo} accessibilityRole="button" accessibilityLabel={`Ir para ${s.rotulo}`} onPress={() => rolarAte([chaveDoAlvo(s.alvo)])} style={({ pressed }) => [estilos.atalho, { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie3 : cores.superficie2 }]}>
+      {SECOES.map((s) => <Pressable key={s.alvo} accessibilityRole="button" accessibilityLabel={`Ir para ${s.rotulo}`} onPress={() => rolarAte([chaveDoAlvo(s.alvo)])} style={({ pressed }) => [estilos.atalho, { borderColor: cores.borda, backgroundColor: pressed ? cores.sobre : cores.superficie2 }]}>
         <Texto style={estilos.atalhoTexto}>{s.rotulo}</Texto>
       </Pressable>)}
     </FaixaDeChips>

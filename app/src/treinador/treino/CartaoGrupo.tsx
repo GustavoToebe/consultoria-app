@@ -61,7 +61,7 @@ export function GrupoNaLista({ grupo: g, config, tamanho, comErro, escolhido, du
           onPress={aoEscolher}
           style={(s) => [estilos.linha, {
             borderWidth: bordas.bloco, borderColor: borda,
-            backgroundColor: escolhido ? cores.superficie : sobre(s) ? cores.superficie2 : cores.superficie3,
+            backgroundColor: escolhido ? cores.superficie : sobre(s) ? cores.sobreNaFaixa : cores.superficie3,
           }]}>
           <Link2 size={18} color={cores.texto} strokeWidth={2} />
           <View style={estilos.textos}>

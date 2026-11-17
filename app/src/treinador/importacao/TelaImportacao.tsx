@@ -598,7 +598,7 @@ function CartoesDeDestino({ destinos, valor, aoMudar }: { destinos: Destino[]; v
               style={(e) => [estilos.destino, {
                 // Seleção neutra (`ui/selecao`): superfície de seleção, contorno forte e o rótulo em semi.
                 borderColor: ativo ? coresDaSelecao(cores, true).borda : cores.divisor,
-                backgroundColor: ativo ? coresDaSelecao(cores, true).fundo : sobre(e) ? cores.superficie3 : cores.superficie2,
+                backgroundColor: ativo ? coresDaSelecao(cores, true).fundo : sobre(e) ? cores.sobre : cores.superficie2,
               }]}>
               <Icone size={26} color={cores.texto} strokeWidth={ativo ? 2.25 : 1.75} />
               <Texto style={[estilos.rotuloDoDestino, { color: cores.texto }, ativo && { fontFamily: fontes.semi }]} numberOfLines={2}>{d.rotulo}</Texto>
@@ -720,7 +720,7 @@ function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita,
                 ))}
                 <View style={estilos.celulaAcao}>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Tirar a linha ${linha.numero}`} onPress={() => aoAjustar(alternarRemovida(ajustes, linha.numero))}
-                    style={(e) => [estilos.lixeira, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
+                    style={(e) => [estilos.lixeira, { backgroundColor: sobre(e) ? cores.sobre : 'transparent' }]}>
                     <Trash2 size={18} color={cores.perigo} />
                   </Pressable>
                 </View>
@@ -815,7 +815,7 @@ export function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhi
     </View>
   ) : (
     <Pressable accessibilityRole="button" accessibilityLabel="Escolher arquivo" onPress={escolher}
-      style={(e) => [estilos.vazioDoArquivo, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
+      style={(e) => [estilos.vazioDoArquivo, { backgroundColor: sobre(e) ? cores.sobre : 'transparent' }]}>
       <FileUp size={28} color={cores.textoSuave} />
       <Texto variante="suave">{Platform.OS === 'web' ? 'Clique ou arraste o arquivo até aqui.' : 'Toque para escolher o arquivo no aparelho.'}</Texto>
     </Pressable>
@@ -828,7 +828,7 @@ export function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhi
     onDrop: (e: DragEvent) => { e.preventDefault(); setArrastando(false); receber(e.dataTransfer?.files?.[0]); },
     style: {
       display: 'flex', flexDirection: 'column', border: `${arrastando ? 2 : 1}px dashed ${arrastando ? cores.texto : cores.bordaCampo}`,
-      borderRadius: RAIO, background: arrastando ? cores.superficie3 : cores.campo, padding: 16, minHeight: 120, justifyContent: 'center',
+      borderRadius: RAIO, background: arrastando ? cores.sobre : cores.campo, padding: 16, minHeight: 120, justifyContent: 'center',
     },
   }, conteudo, createElement('input', {
     id: idDaEntrada,

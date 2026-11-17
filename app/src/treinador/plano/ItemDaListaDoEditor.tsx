@@ -47,7 +47,7 @@ export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escol
           borderColor: borda,
           // Escolhido e com erro: o contorno é o da seleção, a barra continua vermelha (o erro não some ao escolher).
           borderLeftColor: comProblema ? cores.perigo : borda,
-          backgroundColor: escolhido || sobre(s) ? cores.superficie3 : cores.superficie2,
+          backgroundColor: escolhido || sobre(s) ? cores.sobre : cores.superficie2,
         },
       ]}>
       <NumeroInvertido numero={numero} invertido={escolhido} />

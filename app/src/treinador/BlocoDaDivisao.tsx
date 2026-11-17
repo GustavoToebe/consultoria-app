@@ -86,7 +86,7 @@ export function BlocoDaDivisao({ letra, titulo, dia, resumo, aberto = true, aoAl
           accessibilityLabel={`${nome}, ${aberto ? 'aberta' : 'recolhida'}`}
           accessibilityState={{ expanded: aberto }}
           onPress={aoAlternar}
-          style={(estado) => [estilos.faixa, { backgroundColor: sobre(estado) ? cores.superficie3 : fundoDaFaixa }, linhaDaFaixa]}>
+          style={(estado) => [estilos.faixa, { backgroundColor: sobre(estado) ? cores.sobreNaFaixa : fundoDaFaixa }, linhaDaFaixa]}>
           {textos}
           <Seta size={20} color={cores.textoSuave} />
         </Pressable>

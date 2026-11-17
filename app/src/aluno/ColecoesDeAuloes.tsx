@@ -64,7 +64,7 @@ export function ColecoesDeAuloes({ aulas, baixarCapa, aoAbrirFora, aoComentarios
                     accessibilityRole="button"
                     accessibilityLabel={`Ver ${a.totalComentarios} comentário(s) do vídeo ${a.titulo}`}
                     onPress={() => aoComentarios(a)}
-                    style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
+                    style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.sobre }]}>
                     <MessageSquare size={18} color={cores.texto} aria-hidden />
                     <Texto variante="suave" cor={cores.texto} numerico>{a.totalComentarios} comentário(s)</Texto>
                   </Pressable>
