@@ -9,7 +9,7 @@ import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { linkParaAbrir } from '../dominio/links';
 import { tomDaVariacaoDoPeso } from '../dominio/corDaVariacaoDoPeso';
 import { variacaoDoPeso } from '../dominio/variacaoDoPeso';
-import { CLARO, textoSobre } from '../tema/tokens';
+import { textoSobre } from '../tema/tokens';
 import { FUNDO_LEVE } from './cssDosTemas';
 import { cabecalhoDoPdf, corDaMarca, corDeTextoNoTema, cssBase, esc, escLinhas, type Documento } from './html';
 import { temaValido, type TemaPdf } from './temas';
@@ -87,7 +87,8 @@ function celulaDaVariacao(p: RegistroPeso): string {
   const v = variacaoDoPeso(p);
   if (!v) return '<td>—</td>';
   const tom = tomDaVariacaoDoPeso(p.variacao, p.metaDoPeso);
-  const cor = tom === 'positivo' ? CLARO.sucesso : tom === 'problema' ? CLARO.perigo : null;
+  // O PDF não segue o tema do app: verde e vermelho fixos (os do CLARO até 16/11), senão o documento muda a cada ajuste de token.
+  const cor = tom === 'positivo' ? '#125C32' : tom === 'problema' ? '#B71C1C' : null;
   const seta = v.seta === 'sobe' ? '▲ ' : v.seta === 'desce' ? '▼ ' : '';
   return `<td${cor ? ` style="color:${cor}"` : ''}>${esc(`${seta}${v.texto}`)}</td>`;
 }

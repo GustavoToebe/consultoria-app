@@ -9,7 +9,7 @@ import { cabecalhoDoPdf, cssBase, cssDoDoc, esc, link, type Documento } from './
 import { MARCADOR_DO_TEMA, textosSemContraste } from './contrasteDoCss.apoioTeste';
 import { documentoDeExemploDeDieta, documentoDeExemploDeTreino } from './exemplos';
 import { TEMAS_PDF } from './temas';
-import { CLARO, contraste, marcaParaTexto } from '../tema/tokens';
+import { contraste, marcaParaTexto } from '../tema/tokens';
 import type { LinhaCarga } from '../dominio/relatorio';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta, textoDosDias } from './pdfDieta';
@@ -365,15 +365,15 @@ describe('PDF da dieta', () => {
 
     it('REDUZIR: queda verde e aumento vermelho', () => {
       const html = corpo('REDUZIR');
-      expect(celula(html, '▼ −0,7 kg')).toBe(`<td style="color:${CLARO.sucesso}">▼ −0,7 kg</td>`);
-      expect(celula(html, '▲ +1,2 kg')).toBe(`<td style="color:${CLARO.perigo}">▲ +1,2 kg</td>`);
+      expect(celula(html, '▼ −0,7 kg')).toBe(`<td style="color:#125C32">▼ −0,7 kg</td>`);
+      expect(celula(html, '▲ +1,2 kg')).toBe(`<td style="color:#B71C1C">▲ +1,2 kg</td>`);
       expect(html).toContain('<td>—</td>');
     });
 
     it('AUMENTAR: o contrário', () => {
       const html = corpo('AUMENTAR');
-      expect(celula(html, '▼ −0,7 kg')).toBe(`<td style="color:${CLARO.perigo}">▼ −0,7 kg</td>`);
-      expect(celula(html, '▲ +1,2 kg')).toBe(`<td style="color:${CLARO.sucesso}">▲ +1,2 kg</td>`);
+      expect(celula(html, '▼ −0,7 kg')).toBe(`<td style="color:#B71C1C">▼ −0,7 kg</td>`);
+      expect(celula(html, '▲ +1,2 kg')).toBe(`<td style="color:#125C32">▲ +1,2 kg</td>`);
     });
 
     it('SEM_META ou sem meta: seta e sinal, sem cor; nunca a cor da marca', () => {
