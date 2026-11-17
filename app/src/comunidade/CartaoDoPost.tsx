@@ -1,4 +1,4 @@
-import { Ellipsis, Megaphone, MessageSquare } from 'lucide-react-native';
+import { Ellipsis, Megaphone, MessageSquare, Users } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CodigoDeReacao, PostDoMural } from '../api/comunidadeTipos';
@@ -20,11 +20,11 @@ import { CapaDoVideo } from './CapaDoVideo';
  * Um post do mural (aluno e equipe). O tipo vai num selo discreto; só o Aviso se destaca. "Respondida" na dúvida que a
  * equipe respondeu; o número de denúncias só para a equipe (`post.denuncias`). O vídeo é o texto como título e a
  * `CapaDoVideo` (player só depois do toque, "Abrir no YouTube" sempre); a enquete, a pergunta como título e o
- * `BlocoDaEnquete`. Fotos e capa só pela rota com token.
+ * `BlocoDaEnquete`. Fotos e capa só pela rota com token. `grupo` (só a equipe) = nome do pod do post, num selo neutro.
  */
 export function CartaoDoPost({
   post, baixarFoto, baixarCapa, aoAbrirPerfil, aoReagir, ocupado, aoComentarios, aoAbrirMenu, aoAbrirFora,
-  aoVotar, motivoDoVoto, aoMostrarVotos, baixarFotoDoVotante,
+  aoVotar, motivoDoVoto, aoMostrarVotos, baixarFotoDoVotante, grupo,
 }: {
   post: PostDoMural;
   baixarFoto: (id: string) => Promise<Blob>;
@@ -44,6 +44,7 @@ export function CartaoDoPost({
   motivoDoVoto?: string;
   aoMostrarVotos: () => void;
   baixarFotoDoVotante: (autorId: string) => Promise<Blob>;
+  grupo?: string;
 }) {
   const { cores } = useTema();
   const video = post.tipo === 'VIDEO';
@@ -59,6 +60,7 @@ export function CartaoDoPost({
         {post.tipo === 'AVISO'
           ? <Selo texto="Aviso" tipo="atencao" Icone={Megaphone} />
           : <Selo texto={rotuloDoTipo(post.tipo)} tipo="neutro" />}
+        {grupo ? <Selo texto={`Grupo: ${grupo}`} tipo="neutro" Icone={Users} /> : null}
         {post.tipo === 'DUVIDA' && post.respondida ? <Selo texto="Respondida" tipo="sucesso" /> : null}
         {denuncias > 0 ? <Selo texto={textoDasDenuncias(denuncias)} tipo="perigo" /> : null}
       </View>

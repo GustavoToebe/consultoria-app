@@ -1,6 +1,7 @@
+import { codigoApi, erroDeConexao, errosPorCampo, mensagemApi } from '@plataforma/web';
 import type {
   AulaDaComunidade, CodigoDeReacao, ConfiguracaoDoAluno, CriarPostRequest, EnqueteDoMural, FiltrosDoMural, MotivoDeDenuncia,
-  NovaAula, PostDoMural, TipoDePost,
+  NovaAula, PodResumo, PostDoMural, TipoDePost,
 } from '../api/comunidadeTipos';
 import { paraBusca } from './filtrosComuns';
 import { dataDaTela } from './formatos';
@@ -393,7 +394,7 @@ export function postParaEnviar(r: RascunhoDoPost): CriarPostRequest {
 export const podePublicar = (config: Pick<ConfiguracaoDoAluno, 'alunosPublicam'> | null | undefined): boolean => config?.alunosPublicam === true;
 
 /** Anexar foto: só com a chave ligada e o servidor liberando (o motivo, como a idade, nunca chega ao app). */
-export const podeAnexarFoto = (config: ConfiguracaoDoAluno | null | undefined): boolean =>
+export const podeAnexarFoto = (config: Pick<ConfiguracaoDoAluno, 'alunosPublicam' | 'podeAnexarFoto'> | null | undefined): boolean =>
   podePublicar(config) && config?.podeAnexarFoto === true;
 
 // ---- Denúncia ----
@@ -437,14 +438,63 @@ export function chipsDoMural(f: FiltroDoMural): { chave: ChaveDoFiltroDoMural; t
 
 export const semOFiltroDoMural = (f: FiltroDoMural, chave: ChaveDoFiltroDoMural): FiltroDoMural => ({ ...f, [chave]: MURAL_SEM_FILTRO[chave] });
 
-/** O filtro da tela no formato da API (`FiltrosDoMural`); busca em branco não vai. */
-export function filtrosParaApi(filtro: FiltroDoMural, busca: string): FiltrosDoMural {
+/** O filtro da tela no formato da API (`FiltrosDoMural`); busca em branco não vai e `podId` ausente/nulo = mural geral. */
+export function filtrosParaApi(filtro: FiltroDoMural, busca: string, podId?: string | null): FiltrosDoMural {
   const b = busca.trim();
   return {
     ...(filtro.tipo ? { tipo: filtro.tipo } : {}),
     ...(filtro.denunciados ? { denunciados: true } : {}),
     ...(b ? { busca: b } : {}),
+    ...(podId ? { podId } : {}),
   };
+}
+
+// ---- Pods: rótulo do post, aviso de menor, nome e erros (espelho de `PodsService`) ----
+
+export const ROTULO_DO_MURAL_GERAL = 'Geral';
+
+/** "Geral" ou o nome do pod do post. */
+export const rotuloDoPost = (post: Pick<PostDoMural, 'podNome'>): string => post.podNome ?? ROTULO_DO_MURAL_GERAL;
+
+/** Aviso do pod com algum menor (a API só diz `temMenor`; nunca idade nem nome). `null` = não mostrar. */
+export const AVISO_DO_POD_COM_MENOR = 'Este grupo tem pelo menos um aluno menor de idade. Confira o que será publicado nele.';
+export const avisoDoPod = (pod: Pick<PodResumo, 'temMenor'> | null | undefined): string | null =>
+  pod?.temMenor ? AVISO_DO_POD_COM_MENOR : null;
+
+export const POD_NOME_MINIMO = 2;
+export const POD_NOME_MAXIMO = 40;
+export const MENSAGEM_POD_NOME = `Use de ${POD_NOME_MINIMO} a ${POD_NOME_MAXIMO} caracteres.`;
+
+/** O nome como a API grava (strip e NFC): é este texto que vai no corpo e que o campo confere. */
+export const nomeDoPodParaEnviar = (texto: string): string => texto.trim().normalize('NFC');
+
+/** Mesma regra do servidor: mínimo conta caracteres (um emoji vale 1), máximo conta UTF-16, depois do strip e do NFC. */
+export function erroDoNomeDoPod(texto: string): string | null {
+  const nome = nomeDoPodParaEnviar(texto);
+  return [...nome].length < POD_NOME_MINIMO || nome.length > POD_NOME_MAXIMO ? MENSAGEM_POD_NOME : null;
+}
+
+const MENSAGEM_PADRAO_DO_POD = 'Não foi possível concluir. Tente de novo.';
+const MENSAGENS_DO_POD: Record<string, string> = {
+  POD_CHEIO: 'Este grupo já tem 12 alunos. Tire alguém dele antes de incluir outro.',
+  POD_NOME_EM_USO: 'Já existe um grupo com esse nome. Escolha outro.',
+  ALUNO_SEM_ACESSO: 'Só entra num grupo o aluno que já tem acesso ao app.',
+  ALUNO_INATIVO: 'Aluno inativo não entra num grupo.',
+  ALUNO_ANONIMIZADO: 'Este aluno foi anonimizado e não entra num grupo.',
+};
+
+/**
+ * Erro de criar, renomear ou atribuir pod em português. `noCampoNome` = a mensagem é do campo do nome (422 `POD_INVALIDO`,
+ * `fieldErrors` `nome`; cai no texto fixo se o campo não vier). Sem conexão e 403 mostram o texto da API; o resto, frase fixa.
+ */
+export function traduzirErroDoPod(erro: unknown): { mensagem: string; noCampoNome: boolean } {
+  const codigo = codigoApi(erro);
+  if (codigo === 'POD_INVALIDO') return { mensagem: errosPorCampo(erro).nome ?? MENSAGEM_POD_NOME, noCampoNome: true };
+  const fixa = codigo ? MENSAGENS_DO_POD[codigo] : undefined;
+  if (fixa) return { mensagem: fixa, noCampoNome: false };
+  const status = typeof erro === 'object' && erro !== null ? (erro as { status?: unknown }).status : null;
+  const daApi = erroDeConexao(erro) || status === 403;
+  return { mensagem: daApi ? mensagemApi(erro, MENSAGEM_PADRAO_DO_POD) : MENSAGEM_PADRAO_DO_POD, noCampoNome: false };
 }
 
 /** Mural vazio: com filtro ou busca a frase diz que nada bateu, sem filtro que ninguém publicou. */

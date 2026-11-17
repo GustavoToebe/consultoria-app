@@ -70,7 +70,7 @@ const QUESTIONARIO: QuestionarioResumo = {
 const POST: PostDoMural = {
   id: 'p1', autorId: 'u2', autorNome: 'Aluno Fictício', autorApelido: null, autorEhAluno: true, autorFotoUrl: null, texto: 'Treino feito.',
   tipo: 'CONVERSA', videoUrl: null, capaId: null, enquete: null, fotos: [], respondida: false, fixado: false, criadoEm: '2026-10-19T12:00:00-03:00', reacoes: {}, minhasReacoes: [],
-  totalComentarios: 0,
+  totalComentarios: 0, podId: null, podNome: null,
 };
 const mural = (...content: PostDoMural[]): PaginaDoMural => ({ content, totalElements: content.length });
 const aula = (id: string, titulo: string, categoria: string | null): AulaDaComunidade => ({
@@ -79,6 +79,7 @@ const aula = (id: string, titulo: string, categoria: string | null): AulaDaComun
 });
 const COMUNIDADE: RespostasApi = {
   'GET /comunidade/configuracao': { corpo: { alunosPublicam: true, alunosAnexamFotos: false } },
+  'GET /comunidade/pods': { corpo: [] },
   'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: true, podeAnexarFoto: false } },
   'GET /aluno/comunidade/aulas': { corpo: [] },
   'GET /aluno/comunidade/conquistas': { corpo: [] },

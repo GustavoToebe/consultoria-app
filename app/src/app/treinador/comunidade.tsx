@@ -1,27 +1,29 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ellipsis, MessageSquare, Pencil, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, UserX } from 'lucide-react-native';
+import { Ellipsis, MessageSquare, Pencil, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, Users, UserX } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
   alternarFixadoDoPost, baixarCapaDaEquipe, baixarFotoDoMuralDaEquipe, baixarFotoDoVotanteDaEquipe, dispensarDenuncias, excluirAula,
-  listarAulasDaEquipe, listarMuralDaEquipe, reagirComoEquipe, removerApelidoDoAutor, removerPostDoMural, votarComoEquipe,
+  listarAulasDaEquipe, listarMuralDaEquipe, listarPods, reagirComoEquipe, removerApelidoDoAutor, removerPostDoMural, votarComoEquipe,
 } from '../../api/comunidade';
 import type { AlvoDosComentarios, AulaDaComunidade, PostDoMural } from '../../api/comunidadeTipos';
 import { ErroApi } from '../../api/cliente';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
 import { CapaDoVideo } from '../../comunidade/CapaDoVideo';
 import { CartaoDoPost } from '../../comunidade/CartaoDoPost';
+import { EscolhaDoGrupo } from '../../comunidade/EscolhaDoGrupo';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
 import { type AlvoDosVotos, FolhaDosVotos } from '../../comunidade/FolhaDosVotos';
 import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
 import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
   categoriasDosAuloes, type FiltroDeCategoria, filtrarAuloesPorCategoria, filtroDeCategoriaValido, type FiltroDoMural, filtrosParaApi, chipsDoMural, chipDaCategoria, MURAL_SEM_FILTRO,
-  opcoesDoFiltroDeCategoria, type RascunhoDoPost, textoDoMuralVazio, TIPO_PADRAO_DO_POST,
+  opcoesDoFiltroDeCategoria, type RascunhoDoPost, rotuloDoPost, textoDoMuralVazio, TIPO_PADRAO_DO_POST,
 } from '../../dominio/comunidade';
 import { FolhaConfiguracoesDoMural } from '../../treinador/comunidade/FolhaConfiguracoesDoMural';
 import { FolhaDoAulao } from '../../treinador/comunidade/FolhaDoAulao';
+import { FolhaGruposDaComunidade } from '../../treinador/comunidade/FolhaGruposDaComunidade';
 import { FolhaDeAcoes } from '../../treinador/FolhaDeAcoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -103,7 +105,13 @@ export default function ComunidadeTreinador() {
   const [filtro, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
   const [busca, setBusca] = useState('');
   const buscaAtrasada = useAtrasado(busca);
-  const chaveDoMural = `${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada))}`;
+  // Grupos (pods): só com COMUNIDADE_MODERAR (a API recusa o resto). O mural mostra um de cada vez, Geral (`null`) ou um
+  // grupo; "Só denunciadas" vem de todos os grupos e a API ignora o `podId`, então o seletor trava com o motivo.
+  const pods = useCarregar(podePublicar && aba === 'mural' ? 'treinador-comunidade-pods' : null, () => listarPods());
+  const [grupoDoMural, setGrupoDoMural] = useState<string | null>(null);
+  const podDoMural = filtro.denunciados ? null : pods.dados?.find((p) => p.id === grupoDoMural) ?? null;
+  const [vendoGrupos, setVendoGrupos] = useState(false);
+  const chaveDoMural = `${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada, podDoMural?.id))}`;
   const mural = useCarregar(chaveDoMural, (c) => listarMuralDaEquipe(JSON.parse(c.slice(PREFIXO_DO_MURAL.length))));
   const acoesDoPost = useAcoesDoPost({ mural, chave: chaveDoMural, reagir: podePublicar ? reagirComoEquipe : undefined,
     votar: podeVotar ? votarComoEquipe : undefined });
@@ -166,10 +174,11 @@ export default function ComunidadeTreinador() {
     }
   };
 
-  const publicado = () => {
+  const publicado = (podId: string | null) => {
     setRascunho(RASCUNHO_VAZIO);
     setCompondo(false);
-    avisar('Publicado no mural.', 'sucesso');
+    const grupo = podId ? pods.dados?.find((p) => p.id === podId) : null;
+    avisar(grupo ? `Publicado no grupo ${grupo.nome}.` : pods.dados?.length ? 'Publicado no mural Geral.' : 'Publicado no mural.', 'sucesso');
     mural.recarregar();
   };
 
@@ -288,11 +297,23 @@ export default function ComunidadeTreinador() {
 
       {aba === 'mural' ? (
         <View style={estilos.blocos}>
+          {/* Os grupos moram junto do seletor do mural (não no cabeçalho, que em 390 px quebraria em três linhas). */}
+          {podePublicar ? (
+            <View style={estilos.grupos}>
+              {pods.dados?.length ? (
+                <View style={estilos.encolher}>
+                  <EscolhaDoGrupo rotulo="Mural" rotuloDoNulo="Geral" grupos={pods.dados} valor={podDoMural?.id ?? null}
+                    aoMudar={setGrupoDoMural} motivo={filtro.denunciados ? 'As denunciadas vêm de todos os grupos.' : undefined} />
+                </View>
+              ) : null}
+              <Botao rotulo="Grupos" tipo="secundario" Icone={Users} aoTocar={() => setVendoGrupos(true)} />
+            </View>
+          ) : null}
           <BarraDoMural filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={podePublicar} />
 
           <View testID="coluna-das-publicacoes" style={estilos.colunaDasPublicacoes}>
             <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
-              textoVazio={textoDoMuralVazio(filtro, busca)}
+              textoVazio={podDoMural && !filtro.tipo && !busca.trim() ? `Nenhuma publicação no grupo ${podDoMural.nome} ainda.` : textoDoMuralVazio(filtro, busca)}
               recarregar={mural.recarregar}
               acaoVazio={chipsDoMural(filtro).length ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) }
                 : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : undefined} />
@@ -311,6 +332,7 @@ export default function ComunidadeTreinador() {
                 ocupado={acoesDoPost.ocupados.has(post.id)}
                 aoMostrarVotos={() => setVotosDe({ postId: post.id })}
                 baixarFotoDoVotante={baixarFotoDoVotanteDaEquipe}
+                grupo={post.podId ? rotuloDoPost(post) : undefined}
               />
             )) : null}
           </View>
@@ -340,9 +362,10 @@ export default function ComunidadeTreinador() {
       />
 
       <FolhaConfiguracoesDoMural visivel={configurando && podePublicar} aoFechar={() => setConfigurando(false)} />
+      <FolhaGruposDaComunidade visivel={vendoGrupos && podePublicar} grupos={pods} aoFechar={() => setVendoGrupos(false)} />
 
       <FolhaNovaPublicacao visivel={compondo && podePublicar} papel="equipe" rascunho={rascunho} aoMudar={setRascunho}
-        comFotos={false} aoFechar={() => setCompondo(false)} aoPublicar={publicado} />
+        comFotos={false} grupos={podePublicar ? pods.dados : undefined} aoFechar={() => setCompondo(false)} aoPublicar={publicado} />
 
       <PainelConfirmacao
         visivel={!!removerApelidoDe}
@@ -394,6 +417,9 @@ export default function ComunidadeTreinador() {
 const estilos = StyleSheet.create({
   // 24 px entre blocos; 16 px dentro do cartão e do item.
   blocos: { gap: espaco(3) },
+  grupos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5),
+    width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES },
+  encolher: { flexShrink: 1, minWidth: 0 },
   colunaDasPublicacoes: { width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES, gap: espaco(3) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   acoesDoAulao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexShrink: 1, maxWidth: '100%' },

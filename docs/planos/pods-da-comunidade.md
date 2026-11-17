@@ -1,6 +1,6 @@
 # Pods da comunidade
 
-Situação: Em andamento (API feita e revisada em 16/11/2026; telas em andamento) · Onde: main · Atualizado: 16/11/2026
+Situação: Concluído, falta decisão do Gustavo (API e telas em 16/11/2026) · Onde: main · Atualizado: 16/11/2026
 
 Fonte: plano-trio (Arquiteto, Guardião e Enxuto) e mapa do explorador, leitura do código em 16/11/2026, base 1f33299d (HEAD atual b4b66332). Validade: vale enquanto `comunidade/` (`ComunidadeService.exigirPostVisivel`, `ReacoesDoMuralService`, `EnquetesDoMuralService`, `DenunciasDoMuralService`, `CapasDaComunidadeService`, `FotosDoMuralService`) e a anonimização/exportação não mudarem. A migration usa **V080 em diante** (V078 é da N2, V079 é a F3; Flyway sem out-of-order, então não anda em paralelo com outra frente de migration).
 

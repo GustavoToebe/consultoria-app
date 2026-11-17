@@ -7,7 +7,8 @@ import {
   baixarCapaDoAluno, baixarFotoDoColega, baixarFotoDoMuralDoAluno, listarAulasDoAluno, listarMinhasConquistas, listarMuralDoAluno,
   obterConfiguracaoDoAluno, obterMeuRanking, reagirComoAluno, votarComoAluno,
 } from '../../api/comunidade';
-import type { AlvoDosComentarios, PostDoMural } from '../../api/comunidadeTipos';
+import { ErroApi } from '../../api/cliente';
+import type { AlvoDosComentarios, FiltrosDoMural, PostDoMural } from '../../api/comunidadeTipos';
 import { AvisoDoPerfilNaComunidade } from '../../aluno/AvisoDoPerfil';
 import { ColecoesDeAuloes } from '../../aluno/ColecoesDeAuloes';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
@@ -20,7 +21,7 @@ import { ListaDeColegas } from '../../comunidade/ListaDeColegas';
 import { PainelDeDenuncia } from '../../comunidade/PainelDeDenuncia';
 import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
-  type FiltroDoMural, filtrosParaApi, MURAL_SEM_FILTRO, podeAnexarFoto, podePublicar, type RascunhoDoPost, textoDaPosicao,
+  type FiltroDoMural, filtrosParaApi, MURAL_SEM_FILTRO, podeAnexarFoto, ROTULO_DO_MURAL_GERAL, podePublicar, type RascunhoDoPost, textoDaPosicao,
   textoDoMuralVazio, TIPO_PADRAO_DO_POST, tipoPedido,
 } from '../../dominio/comunidade';
 import { dataParaTela } from '../../dominio/formatos';
@@ -36,15 +37,16 @@ import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { textoDoErro } from '../../ui/erros';
+import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
-import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 
 type AbaComunidade = 'mural' | 'auloes' | 'ranking' | 'colegas';
+type VisaoDoMural = 'geral' | 'grupo';
 
 /** Estado de uma fonte da tela: carregando, erro (com tentar de novo) ou vazio; `null` = mostrar os dados. */
 function EstadoDaFonte({ carregando, erro, vazio, textoVazio, recarregar, acaoVazio }: {
@@ -71,7 +73,7 @@ export default function ComunidadeAluno() {
   const { online } = useAluno();
   const { avisar } = useAviso();
   const { usuario } = useSessao();
-  const params = useLocalSearchParams<{ aba?: string; publicar?: string; texto?: string }>();
+  const params = useLocalSearchParams<{ aba?: string; mural?: string; publicar?: string; texto?: string }>();
   // A aba mora no endereço (`?aba=`). `setParams` mantém a tela montada (o rascunho fica) e preserva os outros parâmetros.
   const aba: AbaComunidade = params.aba === 'auloes' || params.aba === 'ranking' || params.aba === 'colegas' ? params.aba : 'mural';
   const setAba = (valor: AbaComunidade) => { if (valor !== aba) router.setParams({ aba: valor }); };
@@ -79,12 +81,32 @@ export default function ComunidadeAluno() {
   const [filtro, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
   const [busca, setBusca] = useState('');
   const buscaAtrasada = useAtrasado(busca);
-  const chaveDoMural = online ? `${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada))}` : null;
-  const mural = useCarregar(chaveDoMural, (c) => listarMuralDoAluno(JSON.parse(c.slice(PREFIXO_DO_MURAL.length))));
-  const posts = mural.dadosDeOutraChave ? undefined : mural.dados?.content;
-  // Quem publica e se anexa foto: a API decide e o app só segue (sem a configuração, o formulário não aparece).
+  // Quem publica, se anexa foto e o grupo (pod) do aluno: a API decide e o app só segue (sem a configuração, o formulário não aparece).
   const config = useCarregar(online ? 'mural-configuracao' : null, () => obterConfiguracaoDoAluno());
   const publica = podePublicar(config.dados);
+  // "Meu grupo" mora no endereço (`?mural=grupo`) e só vale com o pod que a API mandou; sem pod, fica o Geral e não há seletor.
+  const pod = config.dados?.pod ?? null;
+  const esperandoOGrupo = params.mural === 'grupo' && config.dados === undefined && !config.erro;
+  const visao: VisaoDoMural = params.mural === 'grupo' && pod ? 'grupo' : 'geral';
+  const setVisao = (valor: VisaoDoMural) => { if (valor !== visao) router.setParams({ mural: valor === 'grupo' ? 'grupo' : undefined }); };
+  const podDoMural = visao === 'grupo' ? pod : null;
+  const chaveDoMural = online && !esperandoOGrupo
+    ? `${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada, podDoMural?.id))}` : null;
+  const mural = useCarregar(chaveDoMural, async (c) => {
+    const filtros: FiltrosDoMural = JSON.parse(c.slice(PREFIXO_DO_MURAL.length));
+    try {
+      return await listarMuralDoAluno(filtros);
+    } catch (e) {
+      // 404 no grupo: a equipe tirou o aluno do pod depois de a tela abrir. Volta ao Geral e pergunta de novo qual é o grupo.
+      if (filtros.podId && e instanceof ErroApi && e.status === 404) {
+        router.setParams({ mural: undefined });
+        config.recarregar();
+        avisar('Você não está mais nesse grupo. Mostrando o mural Geral.', 'neutro');
+      }
+      throw e;
+    }
+  });
+  const posts = mural.dadosDeOutraChave ? undefined : mural.dados?.content;
   const [rascunho, setRascunho] = useState<RascunhoDoPost>(RASCUNHO_VAZIO);
   const [compondo, setCompondo] = useState(false);
   const [menuDe, setMenuDe] = useState<PostDoMural | null>(null);
@@ -112,10 +134,10 @@ export default function ComunidadeAluno() {
   const ranking = useCarregar(online ? 'ranking-lista' : null, () => obterMeuRanking());
   const conquistas = useCarregar(online ? 'conquistas-lista' : null, () => listarMinhasConquistas());
 
-  const publicado = () => {
+  const publicado = (podId: string | null) => {
     setRascunho(RASCUNHO_VAZIO);
     setCompondo(false);
-    avisar('Publicado no mural.', 'sucesso');
+    avisar(podId && podDoMural ? `Publicado no grupo ${podDoMural.nome}.` : 'Publicado no mural.', 'sucesso');
     mural.recarregar();
   };
 
@@ -150,20 +172,31 @@ export default function ComunidadeAluno() {
 
           {aba === 'mural' ? (
             <View style={estilos.blocos}>
+              {/* O grupo escolhe qual mural se vê; a publicação nova vai para o mesmo (o aluno nunca vê quem está no grupo). */}
+              {pod || (config.dados && publica) ? (
+                <View style={estilos.topoDoMural}>
+                  {pod ? (
+                    <Escolha<VisaoDoMural> descricao="Qual mural" valor={visao} aoMudar={setVisao}
+                      opcoes={[{ valor: 'geral', rotulo: ROTULO_DO_MURAL_GERAL }, { valor: 'grupo', rotulo: 'Meu grupo' }]} />
+                  ) : <View />}
+                  {config.dados && publica ? (
+                    <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={() => setCompondo(true)} />
+                  ) : null}
+                </View>
+              ) : null}
+              {/* O nome (até 40) fica no texto, que quebra a linha; no segmento ele cortaria em 390 px. */}
+              {podDoMural ? <Texto variante="suave">{`Grupo ${podDoMural.nome}: só quem está nele vê estas publicações.`}</Texto> : null}
               {config.erro ? (
                 <MensagemErro texto={textoDoErro(config.erro)} erro={config.erro} tentarDeNovo={config.recarregar} />
-              ) : config.dados && publica ? (
-                <LinhaDeAcoes alinhar="fim">
-                  <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={() => setCompondo(true)} />
-                </LinhaDeAcoes>
-              ) : config.dados ? (
+              ) : config.dados && publica ? null : config.dados ? (
                 <Texto variante="suave">No momento, só a equipe publica no mural. Você pode reagir, votar nas enquetes e comentar.</Texto>
               ) : null}
 
               <BarraDoMural filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={false} />
 
               <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
-                textoVazio={textoDoMuralVazio(filtro, busca)} recarregar={mural.recarregar}
+                textoVazio={podDoMural && !filtro.tipo && !busca.trim() ? 'Nenhuma publicação neste grupo ainda.' : textoDoMuralVazio(filtro, busca)}
+                recarregar={mural.recarregar}
                 acaoVazio={filtro.tipo ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) } : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : undefined} />
 
               {posts ? fixadosPrimeiro(posts).map((p) => (
@@ -246,7 +279,8 @@ export default function ComunidadeAluno() {
         aoAlterar={comentariosDe?.tipo === 'aula' ? auloes.recarregar : mural.recarregar} />
       <FolhaDosVotos alvo={votosDe} papel="aluno" aoFechar={() => setVotosDe(null)} />
       <FolhaNovaPublicacao visivel={compondo && publica} papel="aluno" rascunho={rascunho} aoMudar={setRascunho}
-        comFotos={podeAnexarFoto(config.dados)} online={online} aoFechar={() => setCompondo(false)} aoPublicar={publicado} />
+        comFotos={podeAnexarFoto(config.dados)} online={online} aoFechar={() => setCompondo(false)} aoPublicar={publicado}
+        destino={pod ? { podId: podDoMural?.id ?? null, rotulo: podDoMural?.nome ?? ROTULO_DO_MURAL_GERAL } : undefined} />
       {menuDe ? (
         <FolhaDeAcoes titulo="Ações da publicação" aoFechar={() => setMenuDe(null)}
           acoes={[{ rotulo: 'Denunciar', detalhe: 'A equipe da consultoria vai olhar.', Icone: Flag, perigo: true, aoTocar: () => setDenunciar(menuDe) }]} />
@@ -259,6 +293,8 @@ export default function ComunidadeAluno() {
 const estilos = StyleSheet.create({
   // 24 px entre blocos; 16 px dentro do cartão e do item.
   blocos: { gap: espaco(3) },
+  // Seletor do mural à esquerda e a ação principal à direita; no celular estreito, o botão desce para a linha de baixo.
+  topoDoMural: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(2) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   encolher: { flex: 1, minWidth: 0, gap: 2 },
   item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },

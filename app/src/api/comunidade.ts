@@ -5,7 +5,8 @@ import { requisicao } from './cliente';
 import type {
   AlvoDosComentarios, AulaDaComunidade, CodigoDeReacao, ComentarioDoMural, ConfiguracaoDaComunidade, ConfiguracaoDoAluno,
   ConquistaDoAluno, CriarPostRequest, EnqueteDoMural, FiltrosDoMural, MotivoDeDenuncia, NovaAula, PaginaDeColegas,
-  PaginaDeComentarios, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking, PostDoMural, PreferenciasDoPerfil, VotosDaEnquete,
+  PaginaDeComentarios, PaginaDoMural, PerfilDaComunidade, PodResumo, PosicaoNoRanking, PostDoMural, PreferenciasDoPerfil,
+  VotosDaEnquete,
 } from './comunidadeTipos';
 
 // Rotas reais da API (`AlunoComunidadeController` e `ComunidadeController`). Erro é erro: a tela mostra o aviso com
@@ -26,6 +27,7 @@ const filtrosDoMural = (f: FiltrosDoMural | undefined, comDenunciados: boolean):
     f?.tipo ? `&tipo=${f.tipo}` : '',
     busca ? `&busca=${encodeURIComponent(busca)}` : '',
     comDenunciados && f?.denunciados ? '&denunciados=true' : '',
+    f?.podId ? `&podId=${encodeURIComponent(f.podId)}` : '',
   ].join('');
 };
 
@@ -172,6 +174,20 @@ export const obterConfiguracaoDaComunidade = () => requisicao<ConfiguracaoDaComu
 /** Os dois campos são obrigatórios (`COMUNIDADE_MODERAR`). */
 export const salvarConfiguracaoDaComunidade = (c: ConfiguracaoDaComunidade) =>
   requisicao<ConfiguracaoDaComunidade>('/comunidade/configuracao', { metodo: 'PUT', corpo: c });
+
+// ---- Pods (`COMUNIDADE_MODERAR`; `PodsController`). Erros: `dominio/comunidade.traduzirErroDoPod`. ----
+
+export const listarPods = () => requisicao<PodResumo[]>('/comunidade/pods');
+
+/** 422 `POD_INVALIDO` (campo `nome`), 409 `POD_NOME_EM_USO`. */
+export const criarPod = (nome: string) => requisicao<PodResumo>('/comunidade/pods', { metodo: 'POST', corpo: { nome } });
+
+export const renomearPod = (id: string, nome: string) =>
+  requisicao<PodResumo>(`/comunidade/pods/${encodeURIComponent(id)}`, { metodo: 'PUT', corpo: { nome } });
+
+/** 204; `podId` nulo tira o aluno do pod. 409 `POD_CHEIO`, `ALUNO_INATIVO`, `ALUNO_ANONIMIZADO` ou `ALUNO_SEM_ACESSO`. */
+export const atribuirPod = (alunoId: string, podId: string | null) =>
+  requisicao<void>(`/alunos/${encodeURIComponent(alunoId)}/pod`, { metodo: 'PUT', corpo: { podId } });
 
 export const listarComentariosDaEquipe = (alvo: AlvoDosComentarios, n: number) =>
   requisicao<PaginaDeComentarios>(`/comunidade/${comentariosDoAlvo(alvo)}${pagina(n)}`);

@@ -4,9 +4,10 @@ import { Platform, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { apagarFotoPendenteDoMural, baixarFotoDoMuralDoAluno, publicarNoMuralDaEquipe, publicarNoMuralDoAluno } from '../api/comunidade';
+import type { PodResumo } from '../api/comunidadeTipos';
 import { FotoRecusada } from '../aluno/atualizacao/fotos/prepararFoto';
 import {
-  AVISO_AO_CRIAR_ENQUETE, type CampoDoPost, ENQUETE_OPCAO_MAXIMA, ENQUETE_OPCOES_MAXIMO, ENQUETE_OPCOES_MINIMO, errosDoPost,
+  AVISO_AO_CRIAR_ENQUETE, avisoDoPod, type CampoDoPost, ENQUETE_OPCAO_MAXIMA, ENQUETE_OPCOES_MAXIMO, ENQUETE_OPCOES_MINIMO, errosDoPost,
   OPCOES_INICIAIS_DA_ENQUETE, POST_FOTOS_MAXIMO, type PapelNoMural, postParaEnviar, type RascunhoDoPost, tiposParaEscolher,
 } from '../dominio/comunidade';
 import { espaco } from '../tema/tokens';
@@ -22,6 +23,7 @@ import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { Texto } from '../ui/Texto';
 import { separarErros, textoDoErro } from '../ui/erros';
 import { CampoDaCapa } from './CampoDaCapa';
+import { EscolhaDoGrupo } from './EscolhaDoGrupo';
 import { escolherEEnviarFotoDoMural } from './fotosDoMural';
 
 const CAMPOS: CampoDoPost[] = ['tipo', 'texto', 'videoUrl', 'fotoIds', 'capaId', 'opcoes', 'encerraEm'];
@@ -33,17 +35,24 @@ const SEM_INTERNET = 'Sem conexão: publicar precisa de internet.';
  * escolhe também Aviso (nasce fixado), Vídeo (link https e capa opcional) e Enquete (a pergunta é o texto; 2 a 6 opções,
  * várias respostas e prazo opcionais, com o aviso de que o voto é identificado); fotos só para o aluno com `comFotos`,
  * uma por vez, pendentes até publicar.
+ *
+ * Grupos (pods): o aluno com pod publica no mural que está vendo (`destino`, só leitura; o servidor confere que o pod é o
+ * dele); a equipe com `grupos` escolhe Geral (padrão) ou um grupo, com o aviso de menor do grupo escolhido.
  */
-export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFotos, online = true, aoFechar, aoPublicar }: {
+export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFotos, online = true, destino, grupos, aoFechar, aoPublicar }: {
   visivel: boolean;
   papel: PapelNoMural;
   rascunho: RascunhoDoPost;
   aoMudar: (r: RascunhoDoPost) => void;
   comFotos: boolean;
   online?: boolean;
+  /** Aluno com pod: o mural onde o post vai (`podId` nulo = Geral) e o nome mostrado. */
+  destino?: { podId: string | null; rotulo: string };
+  /** Equipe com `COMUNIDADE_MODERAR`: os grupos para escolher onde publicar. */
+  grupos?: readonly PodResumo[];
   aoFechar: () => void;
-  /** Publicado: a tela limpa o rascunho, fecha, avisa e recarrega o mural. */
-  aoPublicar: () => void;
+  /** Publicado (`podId` nulo = Geral): a tela limpa o rascunho, fecha, avisa e recarrega o mural. */
+  aoPublicar: (podId: string | null) => void;
 }) {
   const [tentou, setTentou] = useState(false);
   const [errosApi, setErrosApi] = useState<Partial<Record<CampoDoPost, string>>>({});
@@ -51,6 +60,10 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
   const [enviando, setEnviando] = useState(false);
   const [subindoFoto, setSubindoFoto] = useState(false);
   const [erroDaFoto, setErroDaFoto] = useState<string | null>(null);
+  const [grupoEscolhido, setGrupoEscolhido] = useState<string | null>(null);
+  const grupo = grupos?.find((p) => p.id === grupoEscolhido) ?? null;
+  const podId = destino ? destino.podId : grupo?.id ?? null;
+  const avisoDoGrupo = avisoDoPod(grupo);
 
   const fotos = rascunho.fotoIds ?? [];
   const erros = tentou ? errosDoPost(rascunho, papel) : {};
@@ -76,10 +89,11 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
     if (Object.keys(errosDoPost(rascunho, papel)).length) return;
     setEnviando(true);
     try {
-      await (papel === 'equipe' ? publicarNoMuralDaEquipe : publicarNoMuralDoAluno)(postParaEnviar(rascunho));
+      await (papel === 'equipe' ? publicarNoMuralDaEquipe : publicarNoMuralDoAluno)({ ...postParaEnviar(rascunho), ...(podId ? { podId } : {}) });
       setTentou(false);
       setErrosApi({});
-      aoPublicar();
+      setGrupoEscolhido(null);
+      aoPublicar(podId);
     } catch (e) {
       const { campos, geral } = separarErros(e, CAMPOS);
       setErrosApi(campos);
@@ -129,6 +143,18 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
             motivo={!online ? SEM_INTERNET : 'Espere a foto terminar de enviar.'} aoTocar={() => void publicar()} />
         </LinhaDeAcoes>
       }>
+      {grupos?.length ? (
+        <>
+          <EscolhaDoGrupo rotulo="Publicar em" rotuloDoNulo="Geral" grupos={grupos} valor={grupo?.id ?? null} aoMudar={setGrupoEscolhido} />
+          {grupo ? <Texto variante="suave">Só os alunos deste grupo veem a publicação.</Texto> : null}
+          {avisoDoGrupo ? <Alerta tom="atencao" texto={avisoDoGrupo} /> : null}
+        </>
+      ) : null}
+      {destino ? (
+        <Texto variante="suave">
+          {destino.podId ? `Vai para o grupo ${destino.rotulo}: só quem está nele vê.` : 'Vai para o mural Geral, que todo o time vê.'}
+        </Texto>
+      ) : null}
       {/* A equipe tem seis tipos: em chips, que quebram a linha no celular em vez de espremer o segmento. */}
       <Escolha rotulo="Tipo" opcoes={opcoes} valor={rascunho.tipo} chips={opcoes.length > 3}
         aoMudar={mudarTipo} erro={erro('tipo')} />

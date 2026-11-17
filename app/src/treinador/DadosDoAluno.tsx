@@ -24,6 +24,7 @@ import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { LinhaDoCicloNaFicha } from './ciclo/CicloNaFicha';
+import { GrupoDoAlunoNaFicha } from './comunidade/GrupoDoAlunoNaFicha';
 import { FormAluno } from './FormAluno';
 import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 
@@ -137,6 +138,7 @@ function Leitura({ aluno, padrao, questionario }: { aluno: AlunoDetalhe; padrao:
           {textoDoQuestionario ? <Par rotulo="Questionário de atualização" valor={textoDoQuestionario} /> : null}
           <Par rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
           <LinhaDoCicloNaFicha alunoId={aluno.id} />
+          {pode('COMUNIDADE_MODERAR') ? <GrupoDoAlunoNaFicha aluno={aluno} /> : null}
         </Cartao>
         {sensivel ? (
           <Cartao titulo={SECOES_DO_ALUNO.objetivo} nivel={3}>

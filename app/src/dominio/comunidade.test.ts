@@ -8,9 +8,11 @@ import {
   ATRIBUTOS_DO_PLAYER, htmlDoPlayer, idDoYoutube, navegacaoDoPlayerPermitida, urlDoEmbed, urlNoYoutube,
   errosDoPost, MOTIVOS_DE_DENUNCIA, podeAnexarFoto, podePublicar, postParaEnviar, rotuloDoMotivo, rotuloDoTipo, TIPOS_DE_POST,
   tiposParaEscolher, chipsDoMural, MURAL_SEM_FILTRO, opcoesDoTipoDoMural, semOFiltroDoMural, filtrosParaApi, textoDoMuralVazio, textoDasDenuncias, tipoPedido,
+  avisoDoPod, AVISO_DO_POD_COM_MENOR, erroDoNomeDoPod, MENSAGEM_POD_NOME, nomeDoPodParaEnviar, rotuloDoPost, traduzirErroDoPod,
   agruparAuloesPorCategoria, buscarAuloes, categoriasDosAuloes, corpoDaAula, errosDaAula, filtrarAuloesPorCategoria,
   chipDaCategoria, filtroDeCategoriaValido, opcoesDoFiltroDeCategoria, RASCUNHO_DA_AULA_VAZIO, rascunhoDaAula, resumoDosAuloes,
 } from './comunidade';
+import { ErroApi } from '@plataforma/web';
 import type { AulaDaComunidade, PostDoMural } from '../api/comunidadeTipos';
 
 const aula = (id: string, categoria: string | null, extra: Partial<AulaDaComunidade> = {}): AulaDaComunidade => ({
@@ -406,6 +408,48 @@ describe('quem pode publicar e anexar', () => {
   });
 });
 
+describe('pods', () => {
+  it('rótulo do post: nome do pod ou "Geral"', () => {
+    expect(rotuloDoPost({ podNome: null })).toBe('Geral');
+    expect(rotuloDoPost({ podNome: 'Turma das 6h' })).toBe('Turma das 6h');
+  });
+  it('aviso de menor só com temMenor, sem idade nem nome', () => {
+    expect(avisoDoPod({ temMenor: true })).toBe(AVISO_DO_POD_COM_MENOR);
+    expect(avisoDoPod({ temMenor: false })).toBeNull();
+    expect(avisoDoPod(null)).toBeNull();
+    expect(AVISO_DO_POD_COM_MENOR).not.toMatch(/\d/);
+  });
+  it('nome: 2 a 40 depois do strip e do NFC; o mínimo conta caracteres e o máximo, UTF-16', () => {
+    expect(nomeDoPodParaEnviar('  Turma  ')).toBe('Turma');
+    expect(nomeDoPodParaEnviar('Café')).toBe('Café');
+    expect(erroDoNomeDoPod(' a ')).toBe(MENSAGEM_POD_NOME);
+    expect(erroDoNomeDoPod('ab')).toBeNull();
+    expect(erroDoNomeDoPod('💪')).toBe(MENSAGEM_POD_NOME);
+    expect(erroDoNomeDoPod('💪💪')).toBeNull();
+    expect(erroDoNomeDoPod('a'.repeat(40))).toBeNull();
+    expect(erroDoNomeDoPod('a'.repeat(41))).toBe(MENSAGEM_POD_NOME);
+    expect(erroDoNomeDoPod('💪'.repeat(21))).toBe(MENSAGEM_POD_NOME);
+  });
+  it('erros de pod em português', () => {
+    for (const codigo of ['POD_CHEIO', 'POD_NOME_EM_USO', 'ALUNO_SEM_ACESSO', 'ALUNO_INATIVO', 'ALUNO_ANONIMIZADO']) {
+      const r = traduzirErroDoPod(new ErroApi(409, codigo, 'texto interno'));
+      expect(r.noCampoNome).toBe(false);
+      expect(r.mensagem).not.toBe('texto interno');
+      expect(r.mensagem).toMatch(/[a-zç]/i);
+    }
+    expect(traduzirErroDoPod(new ErroApi(409, 'POD_CHEIO', 'x')).mensagem).toContain('12');
+  });
+  it('POD_INVALIDO vai ao campo do nome, com o texto do campo ou o fixo', () => {
+    expect(traduzirErroDoPod(new ErroApi(422, 'POD_INVALIDO', 'Confira o pod.', [{ field: 'nome', message: 'Use de 2 a 40 caracteres.' }])))
+      .toEqual({ mensagem: 'Use de 2 a 40 caracteres.', noCampoNome: true });
+    expect(traduzirErroDoPod(new ErroApi(422, 'POD_INVALIDO', 'Confira o pod.'))).toEqual({ mensagem: MENSAGEM_POD_NOME, noCampoNome: true });
+  });
+  it('403 e sem conexão mostram o texto da API; o resto, frase fixa', () => {
+    expect(traduzirErroDoPod(new ErroApi(403, 'PERMISSAO_NEGADA', 'Sem permissão.')).mensagem).toBe('Sem permissão.');
+    expect(traduzirErroDoPod(new ErroApi(500, null, 'detalhe interno')).mensagem).toBe('Não foi possível concluir. Tente de novo.');
+  });
+});
+
 describe('motivos de denúncia', () => {
   it('lista fechada com rótulo', () => {
     expect(MOTIVOS_DE_DENUNCIA.map((m) => m.motivo)).toEqual(['OFENSIVO', 'SPAM', 'IMPROPRIO', 'OUTRO']);
@@ -428,6 +472,11 @@ describe('filtros do mural', () => {
     expect(filtrosParaApi({ tipo: 'DUVIDA', denunciados: false }, ' supino ')).toEqual({ tipo: 'DUVIDA', busca: 'supino' });
     expect(filtrosParaApi({ tipo: null, denunciados: true }, '')).toEqual({ denunciados: true });
     expect(filtrosParaApi({ tipo: 'CONVERSA', denunciados: true }, '')).toEqual({ tipo: 'CONVERSA', denunciados: true });
+  });
+  it('o pod entra na query só quando informado', () => {
+    expect(filtrosParaApi(MURAL_SEM_FILTRO, '', 'p1')).toEqual({ podId: 'p1' });
+    expect(filtrosParaApi({ tipo: 'AVISO', denunciados: false }, ' x ', 'p1')).toEqual({ tipo: 'AVISO', busca: 'x', podId: 'p1' });
+    expect(filtrosParaApi(MURAL_SEM_FILTRO, '', null)).toEqual({});
   });
   it('vazio com e sem filtro', () => {
     expect(textoDoMuralVazio(MURAL_SEM_FILTRO, '')).toBe('Nenhuma publicação no mural ainda.');

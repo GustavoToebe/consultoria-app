@@ -105,6 +105,9 @@ export interface PostDoMural {
   criadoEm: string;
   /** Contagem por código (código sem reação pode faltar). */
   reacoes: Partial<Record<CodigoDeReacao, number>>;
+  /** Pod do post; nulo = mural geral (`podNome` vem junto). */
+  podId: string | null;
+  podNome: string | null;
   /** Códigos que o usuário da sessão marcou neste post. */
   minhasReacoes: CodigoDeReacao[];
   totalComentarios: number;
@@ -126,16 +129,27 @@ export interface CriarPostRequest {
   variasRespostas?: boolean;
   /** Instante ISO futuro, no máximo 1 ano à frente; ausente = sem prazo. */
   encerraEm?: string;
+  /** Publica no pod (o aluno só no próprio; a API confere no banco); ausente = mural geral. */
+  podId?: string;
 }
+
+/** Pod da comunidade (`PodResumo`): `membros` é contagem e `temMenor` só diz se algum nasceu há menos de 18 anos; nunca lista de gente. */
+export interface PodResumo { id: string; nome: string; membros: number; temMenor: boolean; criadoEm: string }
+
+/** O pod do próprio aluno (`PodDoAluno`): só id e nome. */
+export interface PodDoAluno { id: string; nome: string }
 
 /** Chaves da Comunidade da equipe (`GET`/`PUT /comunidade/configuracao`). */
 export interface ConfiguracaoDaComunidade { alunosPublicam: boolean; alunosAnexamFotos: boolean }
 
 /** O que o aluno vê (`GET /aluno/comunidade/configuracao`): sem o motivo, que pode ser a idade. */
-export interface ConfiguracaoDoAluno { alunosPublicam: boolean; podeAnexarFoto: boolean }
+export interface ConfiguracaoDoAluno { alunosPublicam: boolean; podeAnexarFoto: boolean; pod: PodDoAluno | null }
 
-/** Filtros do mural: `tipo` (`undefined` = todos), `busca` livre e, só na equipe, `denunciados`. */
-export interface FiltrosDoMural { tipo?: TipoDePost; busca?: string; denunciados?: boolean }
+/**
+ * Filtros do mural: `tipo` (`undefined` = todos), `busca` livre, só na equipe `denunciados` e `podId` (ausente = mural geral;
+ * o aluno só pede o próprio pod, senão 404).
+ */
+export interface FiltrosDoMural { tipo?: TipoDePost; busca?: string; denunciados?: boolean; podId?: string }
 
 /** Comentário de um post do mural ou de uma aula (`ComentarioResponse`): autor como no post, sem ocultos, mais antigo primeiro. */
 export interface ComentarioDoMural {

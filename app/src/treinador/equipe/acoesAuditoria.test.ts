@@ -44,6 +44,10 @@ test('o apelido da Comunidade (do aluno e da moderação) tem rótulo no filtro 
   for (const acao of ['ALUNO_APELIDO_ALTERADO', 'COMUNIDADE_APELIDO_REMOVIDO', 'ALUNO_PERFIL_COMUNIDADE_ALTERADO', 'COMUNIDADE_CONFIGURACAO_ALTERADA', 'COMUNIDADE_DENUNCIAS_DISPENSADAS']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
 
+test('ações dos pods da Comunidade têm rótulo no filtro da auditoria', () => {
+  for (const acao of ['POD_CRIADO', 'POD_ALTERADO', 'ALUNO_POD_ALTERADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});
+
 test('ações da vitrine têm rótulo no filtro da auditoria', () => {
   for (const acao of ['VITRINE_ITEM_CRIADO', 'VITRINE_ITEM_ALTERADO', 'VITRINE_ITEM_EXCLUIDO', 'VITRINE_ITEM_ORDEM_ALTERADA', 'VITRINE_ITEM_FOTO_ALTERADA', 'VITRINE_ITEM_FOTO_REMOVIDA', 'VITRINE_PAGINA_ALTERADA', 'VITRINE_LINK_RENOVADO', 'VITRINE_MARKETPLACE_ALTERADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
   expect(ACOES_AUDITORIA.VITRINE_MARKETPLACE_ALTERADO).not.toMatch(/marketplace/i);

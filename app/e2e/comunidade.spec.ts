@@ -16,7 +16,7 @@ import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINAD
 const POST: PostDoMural = {
   id: 'p1', autorId: 'u1', autorNome: 'Treinadora Teste', autorApelido: null, autorEhAluno: false, autorFotoUrl: null, texto: 'Semana de constância, time!',
   tipo: 'CONVERSA', videoUrl: null, capaId: null, enquete: null, fotos: [], respondida: false, fixado: true, criadoEm: '2026-10-19T12:00:00-03:00',
-  reacoes: { CURTIR: 2, FOGO: 5 }, minhasReacoes: [], totalComentarios: 4,
+  reacoes: { CURTIR: 2, FOGO: 5 }, minhasReacoes: [], totalComentarios: 4, podId: null, podNome: null,
 };
 const POST_CURTIDO: PostDoMural = {
   ...POST, id: 'p2', autorId: 'u2', autorNome: 'Aluno Fictício', autorApelido: 'Fictí', autorEhAluno: true, texto: 'Treino feito.', fixado: false,
@@ -90,6 +90,7 @@ const cheia: RespostasApi = {
   'DELETE /aluno/comunidade/mural/{id}/reacoes/{codigo}': { status: 204 },
   'GET /comunidade/mural': { corpo: pagina(POST, POST_CURTIDO) },
   'GET /comunidade/aulas': { corpo: [AULA] },
+  'GET /comunidade/pods': { corpo: [] },
 };
 const vazia: RespostasApi = {
   'GET /aluno/comunidade/configuracao': { corpo: CONFIGURACAO_DO_ALUNO },
@@ -100,6 +101,7 @@ const vazia: RespostasApi = {
   'GET /aluno/comunidade/ranking': { corpo: RANKING },
   'GET /comunidade/mural': { corpo: pagina() },
   'GET /comunidade/aulas': { corpo: [] },
+  'GET /comunidade/pods': { corpo: [] },
 };
 
 const CAPTURAS = process.env.CAPTURAS_DIR;
