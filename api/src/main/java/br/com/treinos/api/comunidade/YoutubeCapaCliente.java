@@ -105,8 +105,11 @@ class YoutubeCapaCliente {
         try {
             resposta = envio.get(total.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException | ExecutionException e) {
-            envio.cancel(true);
+            descartar(envio);
             return null;
+        } catch (InterruptedException e) {
+            descartar(envio);
+            throw e; // quem chama restaura a flag de interrupção
         }
         InputStream entrada = resposta.body();
         String tipo = resposta.headers().firstValue("Content-Type").orElse("").split(";", 2)[0].trim();
@@ -128,6 +131,15 @@ class YoutubeCapaCliente {
             leitura.cancel(true);
             fechar(entrada);
         }
+    }
+
+    /**
+     * Desiste do envio. Se a resposta completou entre o fim do prazo e o {@code cancel} (ele devolve {@code false}), o corpo
+     * chega depois e ninguém o leria: sem fechar, a conexão ficaria presa.
+     */
+    static void descartar(CompletableFuture<HttpResponse<InputStream>> envio) {
+        envio.cancel(true);
+        var unused = envio.thenAccept(r -> fechar(r.body())); // fire-and-forget: fechar já trata a exceção
     }
 
     private static void fechar(InputStream entrada) {

@@ -12,19 +12,27 @@ import org.junit.jupiter.params.provider.ValueSource;
 import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * O download da miniatura contra um servidor de mentira do JDK (sem rede). Cada id de teste diz o que o servidor faz. Prova o host
@@ -241,6 +249,60 @@ class YoutubeCapaClienteTest {
         long inicio = System.nanoTime();
         assertThat(cliente.baixar(OK)).isNull();
         assertThat(Duration.ofNanos(System.nanoTime() - inicio)).isLessThan(Duration.ofMillis(3_500));
+    }
+
+    /**
+     * A corrida real (resposta que chega entre o fim do prazo e o {@code cancel}) não é reproduzível de forma estável contra o
+     * servidor de mentira: o teste cobre o helper com um envio já completo, em que {@code cancel} devolve {@code false}.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void envioDescartadoQueJaCompletouFechaOCorpo() {
+        var fechado = new AtomicBoolean();
+        InputStream corpo = new ByteArrayInputStream(new byte[0]) {
+            @Override
+            public void close() throws IOException {
+                fechado.set(true);
+                super.close();
+            }
+        };
+        HttpResponse<InputStream> resposta = mock(HttpResponse.class);
+        when(resposta.body()).thenReturn(corpo);
+        var envio = CompletableFuture.completedFuture(resposta);
+
+        YoutubeCapaCliente.descartar(envio);
+
+        assertThat(fechado).isTrue();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void erroAoFecharOCorpoDoEnvioDescartadoNaoEscapa() {
+        HttpResponse<InputStream> resposta = mock(HttpResponse.class);
+        when(resposta.body()).thenReturn(new InputStream() {
+            @Override
+            public int read() {
+                return -1;
+            }
+
+            @Override
+            public void close() throws IOException {
+                throw new IOException("falha ao fechar");
+            }
+        });
+        var envio = CompletableFuture.completedFuture(resposta);
+
+        assertThatCode(() -> YoutubeCapaCliente.descartar(envio)).doesNotThrowAnyException();
+        assertThat(envio).isNotCancelled();
+    }
+
+    @Test
+    void envioDescartadoSemRespostaFicaCancelado() {
+        var envio = new CompletableFuture<HttpResponse<InputStream>>();
+
+        YoutubeCapaCliente.descartar(envio);
+
+        assertThat(envio).isCancelled();
     }
 
     @Test

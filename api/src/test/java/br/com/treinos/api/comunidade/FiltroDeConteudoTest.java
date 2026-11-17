@@ -11,7 +11,7 @@ class FiltroDeConteudoTest {
         assertThat(FiltroDeConteudo.bloqueia("Que BUCETA")).isTrue();
         assertThat(FiltroDeConteudo.bloqueia("bucéta")).isTrue();
         assertThat(FiltroDeConteudo.bloqueia("PORNÔ")).isTrue();
-        assertThat(FiltroDeConteudo.bloqueia("fez uma OrGiA")).isTrue();
+        assertThat(FiltroDeConteudo.bloqueia("manda NuDeS")).isTrue();
     }
 
     @Test
@@ -29,6 +29,18 @@ class FiltroDeConteudoTest {
     void bloqueiaTrocandoLetrasPorFormasEquivalentesOuCaracteresInvisiveis() {
         assertThat(FiltroDeConteudo.bloqueia("bu​ceta")).isTrue();
         assertThat(FiltroDeConteudo.bloqueia("ｂｕｃｅｔａ")).isTrue();
+        // Preenchimentos Hangul não são Cf e parecem espaço: U+3164, U+115F, U+1160 e U+FFA0.
+        assertThat(FiltroDeConteudo.bloqueia("buㅤceta")).isTrue();
+        assertThat(FiltroDeConteudo.bloqueia("buᅟceᅠta")).isTrue();
+        assertThat(FiltroDeConteudo.bloqueia("buﾠceta")).isTrue();
+    }
+
+    @Test
+    void bloqueiaComDigitoColadoNaPalavra() {
+        assertThat(FiltroDeConteudo.bloqueia("buceta1")).isTrue();
+        assertThat(FiltroDeConteudo.bloqueia("nudes2")).isTrue();
+        assertThat(FiltroDeConteudo.bloqueia("buceta123")).isTrue();
+        assertThat(FiltroDeConteudo.bloqueia("7nudes")).isTrue();
     }
 
     @Test
@@ -45,7 +57,15 @@ class FiltroDeConteudoTest {
         assertThat(FiltroDeConteudo.bloqueia("bucetaria")).isFalse();
         assertThat(FiltroDeConteudo.bloqueia("antibuceta")).isFalse();
         assertThat(FiltroDeConteudo.bloqueia("nudesmaior")).isFalse();
-        assertThat(FiltroDeConteudo.bloqueia("buceta123")).isFalse();
+        assertThat(FiltroDeConteudo.bloqueia("bucetaria2")).isFalse();
+    }
+
+    @Test
+    void naoBloqueiaUsoFiguradoNemPalavraComDigitoSemTermo() {
+        assertThat(FiltroDeConteudo.bloqueia("fiz uma orgia de doces")).isFalse();
+        assertThat(FiltroDeConteudo.bloqueia("que putaria esse preço do whey")).isFalse();
+        assertThat(FiltroDeConteudo.bloqueia("ab1c, treino3 e 4x12 de agachamento")).isFalse();
+        assertThat(FiltroDeConteudo.bloqueia("bu1ceta")).isFalse();
     }
 
     @Test
