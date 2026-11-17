@@ -7,10 +7,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.TenantId;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -55,6 +58,11 @@ public class Compromisso {
     @Column(name = "serie_id")
     private UUID serieId;
 
+    /** Antecedências dos lembretes em minutos (0 a 5, sem repetir); ver {@link LembretesDoCompromisso}. */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "lembretes_minutos", nullable = false, columnDefinition = "integer[]")
+    private List<Integer> lembretesMinutos = LembretesDoCompromisso.PADRAO;
+
     @Column(name = "criado_por", updatable = false)
     private UUID criadoPor;
 
@@ -85,6 +93,7 @@ public class Compromisso {
     public String getObservacao() { return observacao; }
     public boolean isCancelado() { return cancelado; }
     public UUID getSerieId() { return serieId; }
+    public List<Integer> getLembretesMinutos() { return lembretesMinutos; }
     public UUID getCriadoPor() { return criadoPor; }
     public Instant getCriadoEm() { return criadoEm; }
     public Instant getAtualizadoEm() { return atualizadoEm; }
@@ -93,6 +102,11 @@ public class Compromisso {
     /** Liga a ocorrência à série (só ao criar). */
     void pertencerASerie(UUID serieId) {
         this.serieId = serieId;
+    }
+
+    /** Troca a lista já validada ({@link LembretesDoCompromisso#validar}). */
+    void definirLembretes(List<Integer> lembretesMinutos) {
+        this.lembretesMinutos = lembretesMinutos;
     }
 
     /** Fim calculado sempre aqui, para nunca divergir do início e da duração. */

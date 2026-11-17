@@ -32,13 +32,16 @@ public final class AgendaDtos {
      * PUT, quem entra nasce {@code AGENDADO} e quem sai é apagado do compromisso. {@code data} e {@code hora} são do horário
      * de Brasília (nunca do fuso do servidor nem do aparelho). {@code versao} é obrigatória só ao remarcar (PUT).
      * {@code observacao} só é gravada por quem tem {@code ALUNO_SENSIVEL_ALTERAR}; sem ela é ignorada (a gravada fica).
+     * {@code lembretesMinutos}: antecedências dos lembretes em minutos (0 a 5, de 1 a 40320, sem repetir; vazia = sem
+     * lembrete; validada no serviço, 422 {@code COMPROMISSO_INVALIDO}); ausente (nula) vale 30 ao marcar e mantém a lista
+     * gravada ao remarcar.
      */
     public record CompromissoRequest(@NotNull @Size(min = 1, max = ALUNOS_MAXIMO) List<@NotNull UUID> alunoIds,
                                      @NotNull UUID responsavelId, @NotNull LocalDate data, @NotNull LocalTime hora,
                                      @NotNull @Min(DURACAO_MINIMA) @Max(DURACAO_MAXIMA) Integer duracaoMinutos,
                                      @Size(max = LOCAL_MAXIMO) String local,
                                      @Size(max = OBSERVACAO_MAXIMA) String observacao, Long versao,
-                                     @Valid Repeticao repeticao) { }
+                                     @Valid Repeticao repeticao, List<Integer> lembretesMinutos) { }
 
     /** Máximo de ocorrências de uma série (D17); a primeira conta. */
     public static final int OCORRENCIAS_MAXIMO = 52;
@@ -69,12 +72,13 @@ public final class AgendaDtos {
      * {@code hora} ("HH:mm") são do início em Brasília. A situação de cada aluno está em {@code participantes} (por nome);
      * {@code cancelado} é o compromisso inteiro. Numa série, {@code serieId} liga as ocorrências, {@code ocorrenciaDaSerie}
      * é a posição desta (1 a N, por início, contando as canceladas) e {@code totalDaSerie} é N; os três são nulos no
-     * compromisso avulso.
+     * compromisso avulso. {@code lembretesMinutos} são as antecedências dos lembretes (vazia = sem lembrete).
      */
     public record CompromissoResponse(UUID id, UUID responsavelId, String responsavelNome, Instant inicio, Instant fim,
                                       LocalDate data, String hora, String horaFim, int duracaoMinutos, String local,
                                       String observacao, boolean cancelado, List<Participante> participantes,
-                                      long versao, UUID serieId, Integer ocorrenciaDaSerie, Integer totalDaSerie) { }
+                                      long versao, UUID serieId, Integer ocorrenciaDaSerie, Integer totalDaSerie,
+                                      List<Integer> lembretesMinutos) { }
 
     /** Aluno que já tem outro compromisso sobreposto (só aviso): id e nome, sem horário nem observação do outro. */
     public record AlunoOcupado(UUID id, String nome) { }
@@ -82,10 +86,11 @@ public final class AgendaDtos {
     /**
      * O que o aluno vê dos próprios compromissos: quando, onde, com quem e a situação DELE. Sem a observação (texto de
      * trabalho da equipe), sem a lista de participantes e sem ids de aluno ou da equipe (o {@code id} é o do compromisso).
+     * {@code lembretesMinutos} são as antecedências dos lembretes (o app agenda a notificação local).
      */
     public record CompromissoDoAluno(UUID id, Instant inicio, Instant fim, LocalDate data, String hora, String horaFim,
                                      int duracaoMinutos, String local, SituacaoCompromisso situacao,
-                                     String responsavelNome) { }
+                                     String responsavelNome, List<Integer> lembretesMinutos) { }
 
     /**
      * Seção {@code compromissos} da exportação do aluno (LGPD): o compromisso com a situação DELE, sem os nomes dos outros

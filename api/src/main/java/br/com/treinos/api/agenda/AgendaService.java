@@ -151,6 +151,8 @@ public class AgendaService {
     public CompromissoResponse criar(CompromissoRequest r, UUID quem) {
         travarConsultoria();
         exigirDatasNaFaixa(r);
+        List<Integer> lembretes = r.lembretesMinutos() == null ? LembretesDoCompromisso.PADRAO
+                : LembretesDoCompromisso.validar(r.lembretesMinutos());
         List<UUID> alunoIds = exigirAlunoIds(r.alunoIds());
         alunoIds.forEach(this::exigirAlunoParaMarcar);
         UUID responsavel = exigirResponsavel(r.responsavelId());
@@ -168,6 +170,7 @@ public class AgendaService {
             Compromisso c = new Compromisso(responsavel, inicio, r.duracaoMinutos(), Buscas.opcional(r.local()), observacao,
                     quem);
             c.pertencerASerie(serieId);
+            c.definirLembretes(lembretes);
             criados.add(compromissos.save(c));
         }
         compromissos.flush();
@@ -206,6 +209,8 @@ public class AgendaService {
             throw new BadRequestException("A repetição só vale ao marcar um compromisso novo.", "REPETICAO_SO_AO_CRIAR");
         }
         exigirDatasNaFaixa(r);
+        // Ausente = mantém a lista gravada de cada ocorrência; presente (inclusive vazia) vale para todas do escopo.
+        List<Integer> lembretes = r.lembretesMinutos() == null ? null : LembretesDoCompromisso.validar(r.lembretesMinutos());
         Compromisso escolhida = buscar(id);
         exigirVersao(escolhida, r.versao());
         List<Compromisso> alvo = ocorrenciasDoEscopo(escolhida, escopo);
@@ -246,6 +251,9 @@ public class AgendaService {
             // Quem sai é avisado do horário e do responsável que ele conhecia, não dos novos.
             MudancaDoAluno.Retrato antes = MudancaDoAluno.Retrato.de(c);
             c.alterar(responsavel, p.novoInicio(), r.duracaoMinutos(), Buscas.opcional(r.local()), observacao);
+            if (lembretes != null) {
+                c.definirLembretes(lembretes);
+            }
             p.saem().forEach(participantes::delete);
             SituacaoCompromisso nasce = c.isCancelado() ? SituacaoCompromisso.CANCELADO : SituacaoCompromisso.AGENDADO;
             participantes.saveAll(p.entram().stream().map(a -> new CompromissoAluno(c.getId(), a, nasce)).toList());
@@ -437,7 +445,7 @@ public class AgendaService {
             Compromisso c = (Compromisso) l[0];
             return new CompromissoDoAluno(c.getId(), c.getInicio(), c.getFim(), data(c.getInicio()), hora(c.getInicio()),
                     hora(c.getFim()), c.getDuracaoMinutos(), c.getLocal(), (SituacaoCompromisso) l[1],
-                    nomes.get(c.getResponsavelId()));
+                    nomes.get(c.getResponsavelId()), c.getLembretesMinutos());
         }).toList();
     }
 
@@ -802,7 +810,7 @@ public class AgendaService {
                                 .thenComparing(Participante::id)).toList(),
                 c.getVersao() == null ? 0 : c.getVersao(), c.getSerieId(),
                 naSerie.containsKey(c.getId()) ? naSerie.get(c.getId())[0] : null,
-                naSerie.containsKey(c.getId()) ? naSerie.get(c.getId())[1] : null)).toList();
+                naSerie.containsKey(c.getId()) ? naSerie.get(c.getId())[1] : null, c.getLembretesMinutos())).toList();
     }
 
     private Map<UUID, String> nomesDaEquipe(Collection<UUID> ids) {
