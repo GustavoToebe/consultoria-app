@@ -60,6 +60,12 @@ for (const largura of [390, 1280]) {
         'GET /comunidade/capas/{id}': (_p, route) => route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg }),
         'POST /comunidade/aulas': { corpo: { id: 'novo' } },
       });
+      // `api.pedidos` só vê a nossa API (onde `/comunidade/capas/youtube` é legítimo); host de fora é abortado sem registro.
+      const hostsDeFora: string[] = [];
+      page.on('request', (r) => {
+        const url = new URL(r.url());
+        if (url.protocol.startsWith('http') && url.hostname !== 'localhost') hostsDeFora.push(url.hostname);
+      });
       await page.goto('/treinador/comunidade');
       jpeg = await jpegFicticio(page);
       await page.getByRole('button', { name: 'Novo vídeo' }).click();
@@ -84,8 +90,8 @@ for (const largura of [390, 1280]) {
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/aulas'))?.corpo)
         .toEqual({ titulo: 'Vídeo de teste', videoUrl: YOUTUBE, capaId: 'capa-yt' });
-      // Nunca pede imagem a um host de fora.
-      expect(api.pedidos.some((p) => /youtube|ytimg/.test(p.caminho))).toBe(false);
+      // O navegador nunca pede nada ao YouTube (a capa vem só da nossa API).
+      expect(hostsDeFora.filter((h) => /youtube|ytimg/.test(h))).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
     });
 

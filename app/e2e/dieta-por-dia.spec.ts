@@ -43,7 +43,7 @@ const versaoDoAluno = (conteudo: ConteudoDieta): VersaoDetalhe<ConteudoDieta> =>
 async function abrirEditor(page: Page, rascunho: ConteudoDieta | 'erro', extra: RespostasApi = {}) {
   await fixarHoje(page);
   const api = await simularApi(page, {
-    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR'] })),
+    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR', 'DIETA_PUBLICAR'] })),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /alimentos': { corpo: [] },
