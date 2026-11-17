@@ -85,33 +85,33 @@ a caloria do item e o botão "Adicionar refeição" colado na borda ficam reprod
    digitado (a pessoa que prescreve pode ser externa; `EscolhaSuspensa` já tem `digitado`).
 
 ## Passos
-- [ ] 1. Reproduzir C49 e C61 no local, a 1280 e 390 px, num modelo de dieta novo — executor: Gustavo / sessão principal · tamanho: P · mudança: nenhuma (diagnóstico) — commit/run: —
+- [x] 1. Reproduzir C49 e C61 no local, a 1280 e 390 px, num modelo de dieta novo — executor: Gustavo / sessão principal · tamanho: P · mudança: nenhuma (diagnóstico) — commit: sem commit (diagnóstico, 16/11): C49 reproduziu só o aviso na linha; C61 não reproduz a folga, reproduz a rolagem até o item novo; capturas no scratchpad da sessão
   - Ambiente: o repositório local tem arquivos alterados de outro trabalho; usar uma cópia limpa do commit atual da `main` (worktree). Subir como no `AGENTS.md:101` (web em `:8088`, Caddy) e abrir com o Playwright já instalado (`PW_CHROMIUM`, `AGENTS.md:324`), dados fictícios, senha só na linha do comando.
   - C49: criar um alimento "Pão de forma (teste)" (a) com kcal 150 e 100 g de cada macro (o caso da reunião) e (b) sem "gramas por unidade"; usar cada um num modelo com unidade "g" e "un". Conferir o que `LinhaItem` mostra (`CartaoRefeicao.tsx:305`) e o `item.kcal` gravado. Hipóteses, não confirmadas: (1) unidade sem conversão devolve nulo e a tela mostra "—" (`dieta.ts:17-24,29-42`); (2) o número mostrado é o kcal digitado, que não bate com os macros (isso é C48 e o passo 3 resolve).
   - C61: modelo novo vazio e com 1 e 3 refeições; janelas 1280×720 e 390×844; rolar ao fim e medir a distância de "Adicionar refeição" até a borda de baixo e a altura da rolagem (`TelaDoEditor.tsx`, `RolagemComTopo`). Hipótese, não confirmada: falta folga inferior na rolagem ou na coluna da lista (280 px, `EditorDeDieta.tsx:344`). Guardar capturas e anotar o que reproduziu e o que não.
-- [ ] 2. Consertar só o que o passo 1 reproduziu — executor: sessão principal (C61) / executor (C49) · tamanho: P · mudança: apresentação (C61) / comportamento (C49) — commit/run: —
+- [x] 2. Consertar só o que o passo 1 reproduziu — executor: sessão principal (C61) / executor (C49) · tamanho: P · mudança: apresentação (C61) / comportamento (C49) — commit: `dc0b0294` (C49) e `76fe0239` (C61)
   - C61: folga inferior no contêiner de rolagem de `TelaDoEditor.tsx`. `BlocoAdicionar` e `TelaDoEditor` também servem treino e mobilidade: conferir os três editores. Sem reprodução, não mexer: registrar em "O que ficou para trás".
   - C49: se for unidade sem conversão, avisar/pedir "gramas por unidade" ao escolher o alimento; se for kcal incoerente, o passo 3 resolve. Reconferir C49 depois do passo 4.
-- [ ] 3. C48: regra pura e servidor — executor: executor · tamanho: M · mudança: contrato (comportamento da API; sem migration; DTO com a mesma forma; tipos do app sem mudança; sem fila offline; sem PDF; APK não se aplica, sem módulo nativo, ver `docs/build-celular.md`) — commit/run: —
+- [x] 3. C48: regra pura e servidor — executor: executor · tamanho: M · mudança: contrato (comportamento da API; sem migration; DTO com a mesma forma; tipos do app sem mudança; sem fila offline; sem PDF; APK não se aplica, sem módulo nativo, ver `docs/build-celular.md`) — commit: `0fa84b91` (junto com o passo 4; `mvn verify` 2493 testes, BUILD SUCCESS em 16/11)
   - Regra pura primeiro: `kcalDosMacros(p, c, g)` em `app/src/dominio/dieta.ts` (ou arquivo vizinho) com teste em `dieta.test.ts`; mesma conta em `BibliotecaService.valores` (`api/.../biblioteca/BibliotecaService.java:361-373`). Macros têm até 2 casas, então a conta é exata em 2 casas.
   - `exigirNutricaoDeAlimento` (`:410-423`) deixa de exigir kcal em alimento; o servidor calcula e ignora o kcal do corpo para `ALIMENTO` (criar e editar). `AlimentoRequest.kcal` **fica** no DTO (`BibliotecaDtos.java:58-78`) porque o suplemento usa (`valoresDeSuplemento`, `:379-400`, mantém o kcal gravado quando não há macros). Catálogo importado (`importarCatalogoAlimentos`, `:341-359`) não muda.
   - Não quebrar: `FatoresDeRendimento.completar` recebe o kcal derivado (`:361-373`); item, total, PDF, aluno e lista de compras seguem lendo `AlimentoResponse.kcal`. Seeds (`SeedDemo`), `DietasPadrao`, V060/V062 e importação por planilha não mudam.
   - Testes de API a ajustar ou escrever: `BibliotecaIntegrationTest`, `SuplementoIntegrationTest`, `GrupoDoAlimentoIntegrationTest`, `FatoresDosAlimentosIntegrationTest`, `DietaIntegrationTest` (kcal enviado que não bate com os macros é ignorado; editar item do catálogo recalcula; suplemento sem macros mantém). `mvn verify` completo: a saída grande vai ao `executor-rapido` para filtrar.
-- [ ] 4. C48: formulário de alimento — executor: sessão principal · tamanho: P · mudança: apresentação (tipos e importadores não mudam) — commit/run: —
+- [x] 4. C48: formulário de alimento — executor: sessão principal · tamanho: P · mudança: apresentação (tipos e importadores não mudam) — commit: `0fa84b91`
   - `app/src/treinador/biblioteca/AbaAlimentos.tsx:257,284,385` (folha só de alimento; o suplemento, `AbaSuplementos.tsx:118`, não muda): o `CampoNumerico` "Kcal" vira valor calculado de leitura ("Kcal (calculada)", mostra "—" até os três macros), sai do estado `kcal` e da pendência "Preencha kcal, proteína…". O kcal que alimenta `estimarFatoresDoAlimento` (`:277`) passa a ser o derivado.
   - Ajustar `app/e2e/biblioteca-alimentos-macros.spec.ts` e `biblioteca-catalogo.spec.ts` (campo Kcal). Conferir a folha em 390 e 1280 px.
-- [ ] 5. C59: esconder "Data de início" no modelo de dieta — executor: sessão principal · tamanho: P · mudança: apresentação — commit/run: —
+- [x] 5. C59: esconder "Data de início" no modelo de dieta — executor: sessão principal · tamanho: P · mudança: apresentação — commit: `6e261b89` (junto com o passo 6)
   - `CamposDaDieta` (`EditorDeDieta.tsx:300-325`) ganha `modelo` (hoje só o `ConfiguracaoDoPlano` o recebe, `:165-171`) e não desenha `CampoData`; o `profissional` fica.
   - Para o modelo não carregar data antiga ao ser aplicado: o normalizador passado a `usePlanoEditor` (`EditorDeDieta.tsx:56`) zera `dataInicio` quando `modelo`. A dieta do aluno mantém o campo; `ConteudoDieta`, `ValidadorDieta`, PDF e aluno não mudam.
   - Teste: e2e do modelo (sem o campo) e da dieta do aluno (com o campo), 390 e 1280.
-- [ ] 6. C57: gravar "Refeição N" quando o nome fica vazio — executor: executor · tamanho: P · mudança: comportamento (sem contrato) — commit/run: —
+- [x] 6. C57: gravar "Refeição N" quando o nome fica vazio — executor: executor · tamanho: P · mudança: comportamento (sem contrato) — commit: `6e261b89`
   - Regra pura `comNomesPadrao(conteudo)` em `app/src/dominio/dieta.ts` (N = posição + 1, como `tituloDaRefeicao`, `CartaoRefeicao.tsx:38-40`) com teste. Usar ao sair do campo Nome (`Campo` repassa `onBlur`, `ui/Campo.tsx:73`) e no normalizador do editor, para a publicação não recusar "Refeição sem nome" (`ValidadorDieta.java:50-51`, só em validar/publicar; o rascunho salva: não conferido, o passo 6 confirma).
   - Precedente do mesmo texto: `planilhaCompleta.ts:532` e `InterpretadorPorRegras.java:260`. Aluno e PDF passam a ler o nome gravado.
   - Teste: criar refeição, não digitar nome, validar e publicar sem erro, aluno vendo "Refeição 1". Ajustar `app/e2e/editor-inspetor-sobras.spec.ts:168` se o rótulo mudar.
-- [ ] 7. C50: rótulo "Sem valor (1,00)" nos fatores — executor: sessão principal · tamanho: P · mudança: texto — commit/run: —
+- [x] 7. C50: rótulo "Sem valor (1,00)" nos fatores — executor: sessão principal · tamanho: P · mudança: texto — commit: `f761ca5c`
   - `PERFIS_FC` e `PERFIS_FCC` (`fatoresDoAlimento.ts:35-52`): trocar o `rotulo` dos dois perfis de 1,00, mantendo `codigo` e `valor`; frase curta de ajuda dizendo que "Sem valor" não corrige nem converte (`AJUDA_FC`, `AJUDA_FCC`, `:12-13`). Não zerar nada.
   - Ajustar `app/e2e/biblioteca-catalogo.spec.ts:231,269,276,371` (hoje procura "Sem perda (1,00)"); conferir os testes de `fatoresDoAlimento`. Texto final depende da decisão 4.
-- [ ] 8. C55: "mostrar mais" além de 80 resultados — executor: executor · tamanho: P · mudança: comportamento (cliente; `GET /alimentos` já devolve a lista inteira, `BibliotecaService.java:240-250`) — commit/run: —
+- [x] 8. C55: "mostrar mais" além de 80 resultados — executor: executor · tamanho: P · mudança: comportamento (cliente; `GET /alimentos` já devolve a lista inteira, `BibliotecaService.java:240-250`) — commit: `c41afaa3`
   - Um padrão só (peça pequena reutilizável: contagem que cresce de 80 em 80, texto "Mostrando 80 de N" e botão "Mostrar mais", contagem volta a 80 quando o texto da busca muda; `dominio/catalogo.ts:34` já tem um texto parecido). Usos do corte: `app/src/treinador/dieta/FolhaAlimentos.tsx:35`, `FolhaSuplementos.tsx:44`, `FolhaErgogenicos.tsx:48` (corte por categoria) e `app/src/treinador/treino/FolhaBiblioteca.tsx:101` (também alimenta "marcar os visíveis").
   - Teste: unidade da regra de contagem; e2e com 200 itens fictícios (80 → 160 → 200). Medição: abrir a folha com cerca de 1.200 alimentos fictícios com a CPU do Chromium reduzida (o receio do Gustavo é PC fraco); hipótese, não medida: o filtro no cliente aguenta.
   - **Fim do que cabe até 17/11.**
@@ -127,7 +127,7 @@ a caloria do item e o botão "Adicionar refeição" colado na borda ficam reprod
   - Verificar 390 e 1280 px nos temas claro, Areia e escuro, com contraste dos tokens existentes.
 - [ ] 12. C58 (opcional): sugestão dos nomes da equipe em "Profissional" — executor: sessão principal · tamanho: P · mudança: apresentação (sem contrato; PDF não muda) — commit/run: —
   - `CamposDaDieta` (`EditorDeDieta.tsx:318-320`): trocar o `Campo` por `EscolhaSuspensa` com `digitado` (já usada para o grupo do alimento), fonte `responsaveisEquipe` (`app/src/api/rotas.ts:198`, `GET /responsaveis` pede `ALUNO_LER` ou `INSCRICAO_LER`, `EquipeController.java:35`). Sem a permissão, cair no texto livre (`.catch(() => [])`, como `treinador/alunos/index.tsx:72`). Guardar só o texto (máx. 120).
-- [ ] 13. Fechar: registro e documentação — executor: executor-rapido (sessão principal revisa) · tamanho: P · mudança: documentação — commit/run: —
+- [ ] 13. Fechar: registro e documentação — executor: executor-rapido (sessão principal revisa) · tamanho: P · mudança: documentação — commit: parcial (AGENTS.md atualizado dentro do `0fa84b91`; este plano e o README no commit de docs de 16/11; guia PDF não conferido)
   - Atualizar `AGENTS.md` (alimento com kcal derivado; modelo sem data de início), `docs/planos/README.md` e este plano com commit/run reais, "Pendências soltas" com o que sobrou (origem e próximo responsável) e C68 registrado como "a soma ao vivo fica". Ver se algum guia PDF cita o campo kcal ou a data de início e regenerar pelo gerador (nunca editar o PDF).
 
 ## Critérios de aceite
@@ -226,3 +226,11 @@ na web, nos temas claro, Areia e escuro (docs/design-e-front.md:357). Passo 3 pe
 Aceite: ver "Critérios de aceite" do plano; o Saraiva diz "resolvido" quando a caloria sai sozinha dos macros, a refeição
 sem nome vira "Refeição N", o modelo não pede data de início e qualquer alimento aparece na lista.
 ```
+
+## Entrega de 16/11/2026 (sem push; base HEAD `76fe0239` + C48)
+- Feitos: passos 1 a 8 (commits nos próprios passos). Não feitos: passos 9 a 12 (C56 trocar alimento, C66+C60 subtotal e Total do dia, C63+C95 cor, C58 sugestão de profissional): vão para "Pendências soltas" do README e a mensagem ao Saraiva está no relatório.
+- C68: "a soma ao vivo fica" (já existe em `TotalDoDia.tsx` e `CartaoRefeicao.tsx`); nenhum código.
+- C49: consertado só o aviso na linha ("Informe gramas por unidade no alimento"); converter a quantidade ao trocar a unidade (g para un) ficou como pergunta ao Gustavo.
+- C61: a hipótese de falta de folga não reproduziu; consertada a rolagem até o item novo, **testada só na web**; o `rolarAte` no nativo fica para o próximo APK (responsável: Gustavo).
+- C48 menor: ao apagar um macro de alimento só com caloria (Batel Grill) o rótulo "Kcal (da fonte)" não foi conferido em todos os estados.
+- Verificações: C48 `mvn verify` 2493 testes verdes; passos de app com typecheck, lint, test e e2e das telas mexidas (390 e 1280) rodados pelos agentes e repetidos antes de cada commit.
