@@ -406,7 +406,8 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
         <CampoLeitura rotulo="Quando quer começar" valor={rotuloOpcional(PREVISOES, dados.previsaoInicio)} />
         <CampoLeitura rotulo="Como conheceu"
           valor={`${rotuloOpcional(ORIGENS_INFORMADAS, dados.origemInformada)}${dados.origemLink ? ` · Link: ${dados.origemLink}` : ''}`} />
-        {dados.indicadoPor ? <CampoLeitura rotulo="Indicado por" valor={dados.indicadoPor} /> : null}
+        {dados.indicadoPorAluno ? <CampoLeitura rotulo="Indicado por" valor={dados.indicadoPorAluno} /> : null}
+        {dados.indicadoPor ? <CampoLeitura rotulo="Informado pela pessoa, não conferido" valor={dados.indicadoPor} /> : null}
         <CampoLeitura rotulo="Ciência do texto da consultoria"
           valor={dados.cienciaEm ? `Marcada em ${dataHoraParaTela(dados.cienciaEm)}` : 'Não havia texto de privacidade'} />
       </Cartao>

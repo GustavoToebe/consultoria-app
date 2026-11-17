@@ -179,6 +179,14 @@ describe('formulário público', () => {
     expect(corpoDaInscricao(ok, true, null, 'abc123').textoVersao).toBe('abc123');
   });
 
+  it('o código de indicação só vai quando há', () => {
+    const codigo = '123e4567-e89b-42d3-a456-426614174000';
+    const semCodigo = corpoDaInscricao(ok, false, null);
+    expect('codigoIndicacao' in semCodigo).toBe(false);
+    expect('codigoIndicacao' in corpoDaInscricao(ok, false, null, null, null, TODOS_OS_CAMPOS, null, null)).toBe(false);
+    expect(corpoDaInscricao(ok, false, null, null, null, TODOS_OS_CAMPOS, null, codigo).codigoIndicacao).toBe(codigo);
+  });
+
   it('campo fixo escondido não é conferido nem enviado', () => {
     const visiveis = TODOS_OS_CAMPOS.filter((c) => c !== 'EMAIL' && c !== 'ORIGEM' && c !== 'SEXO');
     expect(errosDaInscricao({ ...ok, email: 'sem-arroba' }, false, false, visiveis)).toEqual({});

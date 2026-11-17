@@ -83,6 +83,8 @@ export async function sessaoDeAlunoComTreino(page: Page, sessoes: Sessao[] | nul
     'GET /aluno/fotos/configuracao': { corpo: { habilitado: false, maximoPorPergunta: 6, bytesMaximo: 1_000_000, porDia: 12 } },
     // "Meus dados" na Conta: cadastro fictício só com nome e e-mail (o teste da tela troca).
     'GET /aluno/meus-dados': { corpo: MEUS_DADOS_VAZIOS },
+    // "Convidar um amigo" na Conta: sem link de inscrição aberto o cartão some (o `convidar-amigo.spec.ts` troca).
+    'GET /aluno/indicacao': erroApi(404, 'Sem link de inscrição aberto.', 'NAO_ENCONTRADO'),
     // Agenda presencial no Início: sem compromissos o bloco some (o teste da agenda troca).
     'GET /aluno/compromissos': { corpo: [] },
     // Avisos de compromisso não vistos (ponto na aba e item nas pendências): nenhum, salvo no teste dos avisos.

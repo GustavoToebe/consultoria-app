@@ -65,6 +65,8 @@ export interface InscricaoPublicaRequest {
   /** `textoVersao` da página que a pessoa leu (409 `TEXTO_ALTERADO` se a equipe trocou o texto nesse meio-tempo). */
   textoVersao: string | null;
   turnstileToken?: string;
+  /** Código do link de indicação de um aluno (UUID, do fragmento do endereço); a API confere em silêncio e nunca recusa por ele. */
+  codigoIndicacao?: string;
   /** `perguntas.versaoId` da página (409 `PERGUNTAS_ALTERADAS` se a consultoria trocou as perguntas); nulo sem perguntas. */
   questionarioVersaoId: string | null;
   respostas: RespostasAtualizacao | null;
@@ -273,6 +275,8 @@ export interface InscricaoDetalhe {
   sexo?: string | null;
   interesse: Interesse | null;
   indicadoPor?: string | null;
+  /** Nome do aluno que indicou (com `ALUNO_LER`), "Um aluno" sem ela; nulo sem indicação. */
+  indicadoPorAluno?: string | null;
   modalidadeDesejada: ModalidadeDesejada | null;
   previsaoInicio: PrevisaoInicio | null;
   origemInformada: OrigemInformada | null;

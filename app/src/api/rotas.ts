@@ -373,7 +373,9 @@ export const baixarFotoDoTreinador = (atualizacaoId: string, fotoId: string) =>
 
 export const fotosDoAluno = (id: string) => requisicao<FotoDaLinha[]>(`/alunos/${seg(id)}/fotos`);
 export const linhaDoTempoDeFotos = () => requisicao<FotoDaLinha[]>('/aluno/fotos/linha-do-tempo');
-export const usoDeImagem = () => requisicao<{ autorizadoEm: string | null }>('/aluno/uso-de-imagem');
+/** Link de inscrição com a indicação do próprio aluno (código no fragmento). 404 sem link aberto. Nunca em log. */
+export const linkDeIndicacao = () => requisicao<{ link: string }>('/aluno/indicacao');
+export const usoDeImagem = () =>requisicao<{ autorizadoEm: string | null }>('/aluno/uso-de-imagem');
 export const definirUsoDeImagem = (autorizado: boolean) =>
   requisicao<{ autorizadoEm: string | null }>('/aluno/uso-de-imagem', { metodo: 'PUT', corpo: { autorizado } });
 export const gerarComparacao = (alunoId: string, pedido: PedidoDeComparacao) =>

@@ -361,11 +361,12 @@ export interface RespostasDoEnvio {
 /**
  * Corpo do envio: textos sem espaços nas pontas e vazio = nulo. O token só vai quando há. `textoVersao` é a do texto que
  * a página mostrou (a API recusa a ciência de um texto que mudou). Campo fixo escondido (`campos` são os visíveis) vai
- * nulo. `perguntas` nulo = a página não tinha perguntas.
+ * nulo. `perguntas` nulo = a página não tinha perguntas. `codigoIndicacao` (link de um aluno) só vai quando há.
  */
 export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: string | null,
   textoVersao: string | null = null, origemLink: string | null = null,
-  campos: readonly CampoDaInscricao[] = TODOS_OS_CAMPOS, perguntas: RespostasDoEnvio | null = null): InscricaoPublicaRequest {
+  campos: readonly CampoDaInscricao[] = TODOS_OS_CAMPOS, perguntas: RespostasDoEnvio | null = null,
+  codigoIndicacao: string | null = null): InscricaoPublicaRequest {
   const opcional = (t: string) => (t.trim() ? t.trim() : null);
   const mostra = (c: CampoDaInscricao) => campos.includes(c);
   const corpo: InscricaoPublicaRequest = {
@@ -386,6 +387,7 @@ export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: s
     respostas: perguntas ? perguntas.respostas : null,
   };
   if (token) corpo.turnstileToken = token;
+  if (codigoIndicacao) corpo.codigoIndicacao = codigoIndicacao;
   return corpo;
 }
 

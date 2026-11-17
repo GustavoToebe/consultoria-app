@@ -6,6 +6,7 @@ import { CartaoApelido } from '../../aluno/CartaoApelido';
 import { CartaoExcluirConta } from '../../aluno/CartaoExcluirConta';
 import { CartaoUsoDeImagem } from '../../aluno/CartaoUsoDeImagem';
 import { CartaoCiclo } from '../../aluno/CartaoCiclo';
+import { CartaoConvidarAmigo } from '../../aluno/CartaoConvidarAmigo';
 import { CartaoFotoDePerfil } from '../../aluno/CartaoFotoDePerfil';
 import { CartaoMeuPerfil } from '../../aluno/CartaoMeuPerfil';
 import { CartaoMeusDados } from '../../aluno/CartaoMeusDados';
@@ -57,6 +58,8 @@ export default function ContaAluno() {
       <CartaoMeusDados />
       <CartaoApelido />
       <CartaoMeuPerfil />
+      {/* Depois do bloco da Comunidade (apelido e perfil), sem separá-lo: também é o lado social da Conta. */}
+      <CartaoConvidarAmigo />
       <CartaoCiclo />
       <CartaoMeuPlano />
       <Cartao titulo="Sincronização" descricao="Os registros ficam salvos neste aparelho e vão para o seu treinador quando houver internet.">

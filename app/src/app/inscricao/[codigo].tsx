@@ -8,6 +8,7 @@ import { enviarInscricao, inscricaoPublica } from '../../api/rotas';
 import type { RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
 import type { CampoDaInscricao } from '../../api/inscricoesTipos';
 import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
+import { apagarIndicacao, guardarIndicacao, indicacaoGuardada, lerIndicacaoDoFragmento } from '../../dominio/indicacaoNoLink';
 import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
 import {
   contatoGuardado,
@@ -161,6 +162,15 @@ export default function Inscricao() {
     return () => window.removeEventListener('popstate', aoNavegarVoltar);
   }, [duasPartes, parte]);
 
+  // Link de indicação de um aluno (`#indicacao=<uuid>`): guarda na guia e tira o fragmento do endereço (histórico, captura de
+  // tela, link copiado), mantendo o `?origem=`. Nunca é exibido; a API confere em silêncio e a tela não muda por isso.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.location.hash) return;
+    const indicacao = lerIndicacaoDoFragmento(window.location.hash);
+    if (indicacao) guardarIndicacao(guardaDaGuia(), indicacao);
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+  }, []);
+
   const { nome, whatsapp, email } = dados;
   useEffect(() => {
     const guarda = guardaDaGuia();
@@ -212,7 +222,9 @@ export default function Inscricao() {
     try {
       const resposta = await enviarInscricao(codigo,
         corpoDaInscricao(dados, !!texto && ciencia, verificacao.token, pagina.dados?.textoVersao ?? null, origemLink, visiveis,
-          perguntas ? { versaoId: perguntas.versaoId, respostas: respostasDaPagina(perguntas.conteudo, respostas) } : null));
+          perguntas ? { versaoId: perguntas.versaoId, respostas: respostasDaPagina(perguntas.conteudo, respostas) } : null,
+          indicacaoGuardada(guardaDaGuia())));
+      apagarIndicacao(guardaDaGuia());
       setRecebida(resposta.mensagem);
       if (resposta.proximoQuestionarioCodigo) setProximoCodigo(resposta.proximoQuestionarioCodigo);
     } catch (e) {
