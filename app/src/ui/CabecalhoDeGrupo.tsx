@@ -66,6 +66,7 @@ export function CabecalhoDeGrupo({ titulo, resumo, Icone, selo, inicio, acoes, a
           accessibilityRole="button"
           accessibilityLabel={`${titulo}, ${aberto ? 'aberto' : 'recolhido'}`}
           accessibilityState={{ expanded: aberto }}
+          aria-expanded={aberto}
           onPress={aoAlternar}
           style={({ pressed }) => [estilos.identificacao, { opacity: pressed ? 0.7 : 1 }]}>
           {identificacao}
