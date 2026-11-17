@@ -43,6 +43,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Grade } from '../../ui/Grade';
+import { depoisDeFecharAsFolhas } from '../../ui/historicoDasFolhas';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
@@ -196,7 +197,8 @@ export default function ComunidadeTreinador() {
     setCompondo(false);
     const grupo = podId ? pods.dados?.find((p) => p.id === podId) : null;
     avisar(grupo ? `Publicado no grupo ${grupo.nome}.` : pods.dados?.length ? 'Publicado no mural Geral.' : 'Publicado no mural.', 'sucesso');
-    if (abaDoPost !== abaDoMural) setAbaDoMural(abaDoPost);
+    // Grava a aba só depois de a Folha devolver a entrada dela no histórico (na web): antes, o fechar voltaria à URL sem `?mural=`.
+    if (abaDoPost !== abaDoMural) depoisDeFecharAsFolhas(() => setAbaDoMural(abaDoPost));
     else mural.recarregar();
   };
 

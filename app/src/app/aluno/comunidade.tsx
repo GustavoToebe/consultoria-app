@@ -43,6 +43,7 @@ import { textoDoErro } from '../../ui/erros';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
+import { depoisDeFecharAsFolhas } from '../../ui/historicoDasFolhas';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -150,7 +151,8 @@ export default function ComunidadeAluno() {
     setRascunho(RASCUNHO_VAZIO);
     setCompondo(false);
     avisar(podId && podDoMural ? `Publicado no grupo ${podDoMural.nome}.` : 'Publicado no mural.', 'sucesso');
-    if (abaDoPost !== abaDoMural) setAbaDoMural(abaDoPost);
+    // Grava a aba só depois de a Folha devolver a entrada dela no histórico (na web): antes, o fechar voltaria à URL sem `?mural=`.
+    if (abaDoPost !== abaDoMural) depoisDeFecharAsFolhas(() => setAbaDoMural(abaDoPost));
     else mural.recarregar();
   };
 
