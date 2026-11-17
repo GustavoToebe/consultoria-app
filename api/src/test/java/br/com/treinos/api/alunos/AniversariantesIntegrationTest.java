@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -36,6 +37,7 @@ class AniversariantesIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
+    @Autowired private JdbcTemplate banco;
     private ApiDeTeste api;
     private JsonNode treinador;
     private final LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
@@ -95,6 +97,28 @@ class AniversariantesIntegrationTest extends AbstractIntegrationTest {
         criar(outra, "Aluno da outra", 2);
         assertThat(nomes(outra, "?dias=3")).containsExactly("Aluno da outra");
         assertThat(nomes(treinador, "?dias=3")).containsExactly("Aluno ativo");
+    }
+
+    /** Mesmo critério do {@code ativosDoEscopo}: "meus" = responsável igual a quem pede, então sem responsável fica só no geral. */
+    @Test
+    void alunoSemResponsavelEntraNoGeralMasNaoEmMeus() throws Exception {
+        String semResponsavel = criar(treinador, "Aluno sem responsável", 2);
+        criar(treinador, "Aluno do treinador", 2);
+        banco.update("update aluno set responsavel_id = null where id = ?::uuid", semResponsavel);
+
+        assertThat(nomes(treinador, "?dias=3&meus=false")).containsExactlyInAnyOrder("Aluno sem responsável", "Aluno do treinador");
+        assertThat(nomes(treinador, "?dias=3&meus=true")).containsExactly("Aluno do treinador");
+    }
+
+    /** Sozinho (ativo, com data), para provar que o filtro de anonimizado pesa por si e não pelo de ativo. */
+    @Test
+    void alunoAnonimizadoNuncaApareceMesmoAtivoEComDataPreenchida() throws Exception {
+        String id = criar(treinador, "Aluno anonimizado isolado", 1);
+        assertThat(nomes(treinador, "?dias=3")).containsExactly("Aluno anonimizado isolado");
+        banco.update("update aluno set anonimizado_em = now() where id = ?::uuid", id);
+
+        assertThat(nomes(treinador, "?dias=3")).isEmpty();
+        assertThat(nomes(treinador, "?dias=3&meus=true")).isEmpty();
     }
 
     @Test

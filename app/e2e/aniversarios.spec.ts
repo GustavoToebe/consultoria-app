@@ -81,6 +81,19 @@ test('a janela vem da preferência do aparelho: 3 dias vai na consulta, e só ho
   await expect(page.getByRole('link', { name: /^Aluno Fictício Dois/ })).toBeVisible();
 });
 
+for (const largura of [390, 1280]) {
+  test(`o Início espera a preferência antes de pedir: nenhum pedido sai com a janela padrão e o cartão não pisca nela (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos } = await abrir(page, { preferencias: { diasAniversario: 15 } });
+    await expect(page.getByText('Hoje e nos próximos 15 dias', { exact: true })).toBeVisible();
+    // Com a janela padrão (7) o cartão apareceria um instante e o pedido de 7 dias teria saído antes da preferência (8c35e28e).
+    await expect(page.getByText('Hoje e nos próximos 7 dias', { exact: true })).toHaveCount(0);
+    const janelas = pedidosDeAniversario(pedidos).map((p) => p.busca.get('dias'));
+    expect(janelas.length).toBeGreaterThan(0);
+    expect(new Set(janelas)).toEqual(new Set(['15']));
+  });
+}
+
 test('Ajustes escolhe a janela e as Configurações levam até lá', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const { pedidos } = await abrir(page);
