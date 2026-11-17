@@ -13,6 +13,7 @@ import { MensagemErro } from '../ui/Estados';
 import { erroDeMfaNoCampo, erroDeSenhaNoCampo, focarPrimeiroComErro, separarErros } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
+import { useSemFragmentoNoEndereco } from '../ui/useSemFragmentoNoEndereco';
 import { Texto } from '../ui/Texto';
 
 const WEB = Platform.OS === 'web' && typeof window !== 'undefined';
@@ -37,11 +38,7 @@ export default function RedefinirSenha() {
   const [enviando, setEnviando] = useState(false);
   const [concluido, setConcluido] = useState(false);
 
-  useEffect(() => {
-    if (WEB && window.location.hash) {
-      window.history.replaceState(window.history.state, '', window.location.pathname);
-    }
-  }, []);
+  useSemFragmentoNoEndereco();
 
   // O campo do código só existe depois que a API pede: o foco vai para ele quando o passo aparece.
   useEffect(() => {

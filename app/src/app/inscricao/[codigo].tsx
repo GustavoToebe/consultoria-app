@@ -52,6 +52,7 @@ import { BotaoPublico, LARGURA_PUBLICA, TelaPublica } from '../../ui/TelaPublica
 import { Texto } from '../../ui/Texto';
 import { TextoFormatado } from '../../ui/TextoFormatado';
 import { useCarregar } from '../../ui/useCarregar';
+import { useSemFragmentoNoEndereco } from '../../ui/useSemFragmentoNoEndereco';
 import { useVerificacaoHumana } from '../../ui/useVerificacaoHumana';
 import { VerificacaoHumana } from '../../ui/VerificacaoHumana';
 
@@ -163,13 +164,13 @@ export default function Inscricao() {
   }, [duasPartes, parte]);
 
   // Link de indicação de um aluno (`#indicacao=<uuid>`): guarda na guia e tira o fragmento do endereço (histórico, captura de
-  // tela, link copiado), mantendo o `?origem=`. Nunca é exibido; a API confere em silêncio e a tela não muda por isso.
+  // tela, link copiado; `useSemFragmentoNoEndereco`), mantendo o `?origem=`. Nunca é exibido; a API confere em silêncio e a tela não muda por isso.
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.location.hash) return;
     const indicacao = lerIndicacaoDoFragmento(window.location.hash);
     if (indicacao) guardarIndicacao(guardaDaGuia(), indicacao);
-    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
   }, []);
+  useSemFragmentoNoEndereco();
 
   const { nome, whatsapp, email } = dados;
   useEffect(() => {

@@ -13,6 +13,7 @@ import { MensagemErro } from '../ui/Estados';
 import { erroDeSenhaNoCampo, focarPrimeiroComErro, separarErros } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
+import { useSemFragmentoNoEndereco } from '../ui/useSemFragmentoNoEndereco';
 
 /**
  * Convite do aluno: abre pelo link (`/convite#codigo=...`, o código no fragmento, tirado do endereço logo depois de
@@ -61,11 +62,7 @@ export default function Convite() {
   }, []);
 
   // O código não fica no endereço (histórico, captura de tela, link copiado).
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.hash) {
-      window.history.replaceState(window.history.state, '', window.location.pathname);
-    }
-  }, []);
+  useSemFragmentoNoEndereco();
 
   // Aberto pelo link do convite: consulta direto.
   useEffect(() => {

@@ -14,6 +14,7 @@ import { Alerta, MensagemErro } from '../ui/Estados';
 import { erroDeSenhaNoCampo, focarPrimeiroComErro, separarErros } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
+import { useSemFragmentoNoEndereco } from '../ui/useSemFragmentoNoEndereco';
 import { Texto } from '../ui/Texto';
 
 /**
@@ -59,9 +60,7 @@ export default function ConviteEquipe() {
   }, [codigo, tentativa]);
   const marca = consultado && consultado.codigo === codigo.trim() ? consultado.marca : null;
   const avisoDaConsulta = !marca && falhou !== null && falhou === codigo.trim();
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.hash) window.history.replaceState(window.history.state, '', window.location.pathname);
-  }, []);
+  useSemFragmentoNoEndereco();
   // Vindo do link, o código não está na tela: erro nele (local ou da API) vai ao alerta.
   const refs = [...(verCodigo ? [['codigo', refCodigo] as const] : []), ['senha', refSenha] as const, ['confirmacao', refConfirmacao] as const];
   const aceitar = async () => {
