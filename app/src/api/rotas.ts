@@ -1,4 +1,5 @@
 import { requisicao } from './cliente';
+import type { AniversarianteDoAluno } from './aniversariosTipos';
 import type { PedidoDeComparacao } from '../dominio/comparacaoDeFotos';
 import type {
   AlterarContratacaoRequest,
@@ -800,6 +801,10 @@ export const recordesDaSemanaDoAluno = (id: string) => requisicao<RecordesDaSema
 
 /** Trocas "só hoje" do aluno nos últimos 7 dias, com o `vistoEm` (`REGISTRO_LER`). */
 export const trocasDeExercicioDoAluno = (id: string) => requisicao<TrocasDeExercicio>(`/alunos/${seg(id)}/trocas-de-exercicio`);
+
+/** Aniversariantes dos próximos `dias` (0, 3, 7 ou 15), só nome, dia e mês (`ALUNO_LER`; `meus` = só os alunos do usuário). */
+export const aniversariantesDosAlunos = (dias: number, meus: boolean) =>
+  requisicao<AniversarianteDoAluno[]>(`/alunos/aniversariantes?dias=${dias}${meus ? '&meus=true' : ''}`);
 
 /** Pendência do Início: trocas dos últimos 7 dias sem "Visto" (`meus` = só os alunos do usuário). */
 export const trocasPendentes = (meus: boolean) => requisicao<TrocasPendentes>(`/trocas-de-exercicio/pendentes${meus ? '?meus=true' : ''}`);

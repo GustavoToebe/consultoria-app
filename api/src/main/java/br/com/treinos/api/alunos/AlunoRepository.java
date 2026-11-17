@@ -107,6 +107,15 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
             + "and (:exceto is null or a.id <> :exceto)")
     long contarAtivosDoResponsavel(UUID responsavelId, UUID exceto);
 
+    /**
+     * Dia e mês de nascimento dos alunos ativos e não anonimizados com data informada, só do responsável quando vier
+     * ({@code @TenantId} limita à consultoria da sessão). O ano nunca sai da consulta (D1 do plano de aniversários).
+     */
+    @Query("select new br.com.treinos.api.alunos.NascimentoSemAno(a.id, a.nome, extract(month from a.dataNascimento), "
+            + "extract(day from a.dataNascimento)) from Aluno a where a.ativo = true and a.anonimizadoEm is null "
+            + "and a.dataNascimento is not null and (:responsavelId is null or a.responsavelId = :responsavelId)")
+    List<NascimentoSemAno> nascimentosSemAnoDoEscopo(UUID responsavelId);
+
     // ---- Pods da comunidade (V082) ----
 
     /** O pod do aluno lido do banco agora; vazio = sem pod (ou aluno de outra consultoria). É o que decide quem vê o mural do grupo. */

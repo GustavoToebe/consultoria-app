@@ -1,5 +1,5 @@
 import {
-  BellRing, BookOpen, CircleHelp, ClipboardCheck, ClipboardList, FileDown, FileSpreadsheet, FileText, History, KeyRound, Link2, ListChecks,
+  BellRing, BookOpen, Cake, CircleHelp, ClipboardCheck, ClipboardList, FileDown, FileSpreadsheet, FileText, History, KeyRound, Link2, ListChecks,
   MessageCircle, Palette, QrCode, Receipt, Settings, ShieldCheck, SlidersHorizontal, Tags, Upload, User, Users, type LucideIcon,
 } from 'lucide-react-native';
 
@@ -7,7 +7,7 @@ import {
 export const ICONES_DAS_CONFIGURACOES: Readonly<Record<string, LucideIcon>> = {
   'meus-dados': User, seguranca: ShieldCheck, ajustes: SlidersHorizontal, 'minha-conta': Receipt, marca: Palette, contato: MessageCircle, 'documentos-pdf': FileDown,
   'equipe-membros': Users, 'equipe-perfis': KeyRound, auditoria: History, questionarios: ClipboardList, anamneses: ClipboardCheck,
-  'perguntas-inscricao': ListChecks, interessados: Link2, metodologias: BookOpen, 'financeiro-planos': Tags,
+  'perguntas-inscricao': ListChecks, interessados: Link2, metodologias: BookOpen, aniversarios: Cake, 'financeiro-planos': Tags,
   'financeiro-lembretes': BellRing, 'financeiro-recebimento': QrCode, importacao: Upload, 'planilha-completa': FileSpreadsheet,
   ajuda: CircleHelp, termos: FileText,
 };

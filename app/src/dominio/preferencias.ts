@@ -1,3 +1,4 @@
+import { OPCOES_DIAS_ANIVERSARIO } from './aniversariosDosAlunos';
 import { PERIODOS_DA_LISTA, type PeriodoDaLista } from './listaDeCompras';
 import { BLOCOS_DO_PAINEL, ehBlocoDoPainel, ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
 import { BORDA_BLOCO, BORDA_ITEM, contraste, misturar, type Cores } from '../tema/tokens';
@@ -47,6 +48,8 @@ export interface Preferencias {
   barrasEscuras: boolean;
   /** Só treinador: "Sem registro há N dias" no Início. Informação, nunca inativa ninguém. */
   diasSemRegistro: number;
+  /** Só treinador com `ALUNO_LER`: aniversariantes no Início de hoje até N dias (0 = só hoje, 3, 7 ou 15). Só nome, dia e mês. */
+  diasAniversario: number;
   /** Folha do PDF da dieta: Simples ou Detalhado, período e colunas de fator. */
   pdfDieta: PdfDietaPreferida;
   /** Folha "Gerar imagem": incluir a logo da consultoria. Sem logo, a caixinha fica desligada. */
@@ -96,6 +99,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   bordasReforcadas: false,
   barrasEscuras: true,
   diasSemRegistro: 7,
+  diasAniversario: 7,
   pdfDieta: { modo: 'simples', periodo: 'semana', fatores: true },
   logoNaComparacao: true,
   mostrarFasesDoCiclo: true,
@@ -148,6 +152,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     bordasReforcadas: typeof o.bordasReforcadas === 'boolean' ? o.bordasReforcadas : PREFERENCIAS_PADRAO.bordasReforcadas,
     barrasEscuras: typeof o.barrasEscuras === 'boolean' ? o.barrasEscuras : PREFERENCIAS_PADRAO.barrasEscuras,
     diasSemRegistro: typeof o.diasSemRegistro === 'number' && OPCOES_DIAS_SEM_REGISTRO.includes(o.diasSemRegistro) ? o.diasSemRegistro : PREFERENCIAS_PADRAO.diasSemRegistro,
+    diasAniversario: typeof o.diasAniversario === 'number' && OPCOES_DIAS_ANIVERSARIO.includes(o.diasAniversario) ? o.diasAniversario : PREFERENCIAS_PADRAO.diasAniversario,
     pdfDieta: pdfDietaDe(o.pdfDieta),
     logoNaComparacao: typeof o.logoNaComparacao === 'boolean' ? o.logoNaComparacao : PREFERENCIAS_PADRAO.logoNaComparacao,
     mostrarFasesDoCiclo: typeof o.mostrarFasesDoCiclo === 'boolean' ? o.mostrarFasesDoCiclo : PREFERENCIAS_PADRAO.mostrarFasesDoCiclo,

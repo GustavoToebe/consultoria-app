@@ -21,7 +21,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], unidadeDeCarga: 'lb', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false }, tamanhos: { alunos: 3 } } };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, diasAniversario: 3, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], unidadeDeCarga: 'lb', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false }, tamanhos: { alunos: 3 } } };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -135,6 +135,12 @@ describe('preferências pessoais', () => {
   it('dias sem registro: só 3, 7, 14 ou 30; outro valor volta a 7', () => {
     for (const n of [3, 7, 14, 30]) expect(normalizarPreferencias({ diasSemRegistro: n }).diasSemRegistro).toBe(n);
     for (const n of [0, 5, 90, '14', null]) expect(normalizarPreferencias({ diasSemRegistro: n }).diasSemRegistro).toBe(7);
+  });
+
+  it('dias de aniversário: só 0, 3, 7 ou 15; padrão e outro valor voltam a 7', () => {
+    expect(PREFERENCIAS_PADRAO.diasAniversario).toBe(7);
+    for (const n of [0, 3, 7, 15]) expect(normalizarPreferencias({ diasAniversario: n }).diasAniversario).toBe(n);
+    for (const n of [1, 5, 14, -3, '3', null, true]) expect(normalizarPreferencias({ diasAniversario: n }).diasAniversario).toBe(7);
   });
 
   it('fator do texto: 1,00 · 1,12 · 1,25 · 1,40, arredondando em inteiro', () => {

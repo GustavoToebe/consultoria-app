@@ -3,9 +3,10 @@ import { Lock, Pencil, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
-import { configuracaoInscricao } from '../../api/rotas';
+import { aniversariantesDosAlunos, configuracaoInscricao } from '../../api/rotas';
 import type { ContagensInscricoes } from '../../api/inscricoesTipos';
 import type { PainelTreinador, RecordesDaSemana, TrocasPendentes } from '../../api/tipos';
+import { aniversariantesDosProximosDias } from '../../dominio/aniversariosDosAlunos';
 import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
 import { estadoDaFonte, resumoDoInicio, type DestinoDoInicio } from '../../dominio/inicioTreinador';
 import {
@@ -52,6 +53,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { espaco, LARGURA_LISTA } from '../../tema/tokens';
+import { BlocoAniversarios } from '../../treinador/painel/BlocoAniversarios';
 import { BlocoDoPainel } from '../../treinador/painel/BlocoDoPainel';
 import { LinhaDeBlocos } from '../../treinador/painel/FaixaDoPainel';
 import { PrimeirosPassosAberto, PrimeirosPassosConcluidos, type AcaoGuardada } from '../../treinador/painel/BlocoPrimeirosPassos';
@@ -138,6 +140,15 @@ export default function InicioTreinador() {
   ], [verPainel, painelTodos, painelPadrao, verInteressados, interessadosPadrao, verTrocas, trocasPadrao, porBloco, semAlunosSabido, preferenciasLidas]);
   const { fonte, dadosDeOutraChave, fontesDe, recarregar } = useFontesDoPainel(consultas);
 
+  // ---- Aniversários (só com ALUNO_LER): nome e dia/mês dos próximos dias; falha ou lista vazia = o cartão não aparece ----
+  const diasAniversario = preferencias.diasAniversario;
+  const carregarAniversarios = useCarregar(pode('ALUNO_LER') ? `inicio:aniversarios:${diasAniversario}:${padraoMeus}` : null, () => aniversariantesDosAlunos(diasAniversario, padraoMeus));
+  const recarregarAniversarios = carregarAniversarios.recarregar;
+  const aniversariantes = useMemo(
+    () => aniversariantesDosProximosDias(carregarAniversarios.dados ?? [], hoje, diasAniversario),
+    [carregarAniversarios.dados, hoje, diasAniversario],
+  );
+
   // Ao voltar para a tela (não na primeira vez), recarrega tudo e relê o aparelho: cadastrou o aluno ou ligou o link e voltou.
   const consultasAtuais = useRef(consultas);
   useEffect(() => {
@@ -149,8 +160,9 @@ export default function InicioTreinador() {
   const recarregarTudo = useCallback(() => {
     recarregar(consultasAtuais.current);
     recarregarConfig();
+    recarregarAniversarios();
     releer();
-  }, [recarregar, recarregarConfig, releer]);
+  }, [recarregar, recarregarConfig, recarregarAniversarios, releer]);
   useFocusEffect(useCallback(() => {
     if (primeiroFoco.current) {
       primeiroFoco.current = false;
@@ -345,6 +357,7 @@ export default function InicioTreinador() {
           <PrimeirosPassosConcluidos passos={passos} aoAcao={aoAcao} aoFechar={() => gravar(fecharConcluidos)} />
         ) : null}
         {!editando && topo.proximoPasso ? <ProximoPasso passo={topo.proximoPasso} /> : null}
+        {!editando && aniversariantes.length ? <BlocoAniversarios itens={aniversariantes} dias={diasAniversario} /> : null}
 
         <View onLayout={aoMedir} style={estilos.painel}>
           {edicao ? (

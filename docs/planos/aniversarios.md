@@ -18,9 +18,17 @@ O treinador vê no Início quem faz aniversário nos próximos dias, para lembra
 | D6 | LGPD | a data de nascimento nunca vai a log nem a auditoria | Gustavo, 17/11 |
 | D7 | Sem compatibilidade | sem flag; é tela nova | regra do projeto |
 
+## Contrato da API
+`GET /alunos/aniversariantes?dias=<0|3|7|15>&meus=<true|false>` (`AniversariantesController`, `@PreAuthorize("hasAuthority('PERM_ALUNO_LER')")`).
+- `dias` obrigatório; fora de 0, 3, 7 ou 15 (ou ausente, ou não numérico) = 400. `meus=true` = só os alunos do responsável autenticado, como "Meus alunos".
+- Resposta: lista, do mais próximo ao mais distante (empate por nome), de `{alunoId, nome, dia, mes, diasAte}` (`diasAte` 0 = hoje, em Brasília). Nunca ano nem idade: a consulta JPQL (`AlunoRepository.nascimentosSemAnoDoEscopo`) já extrai só dia e mês, o ano não sai do banco.
+- Escopo: alunos ativos, não anonimizados e com data de nascimento, da consultoria da sessão (`@TenantId`). Outra consultoria não aparece (lista vazia, sem 404: a rota não recebe id).
+- Não é auditado; `NascimentoSemAno` esconde nome e data no `toString`; nada vai a log (D6).
+- 29/02: em ano não bissexto comemora em 28/02 (`MonthDay.atYear` na API, a mesma regra em `dominio/aniversariosDosAlunos.ts`).
+
 ## Passos
-- [ ] 1. API (se faltar o dado no contrato do Início) e regra pura em `dominio/` com teste: aniversariantes dos próximos N dias, virada de ano, 29/02 — executor · commit: —
-- [ ] 2. Bloco no Início do treinador e item no hub de Configurações — executor (mesma tarefa da Onda 2F; tela simples, bloco já no padrão do Início) · commit: —
+- [x] 1. API e regra pura em `dominio/` com teste: aniversariantes dos próximos N dias, virada de ano, 29/02 — feito (sem commit). `AniversariantesService`/`Controller`, `AniversariantesIntegrationTest`, `AniversariantesRegraTest`, `dominio/aniversariosDosAlunos.ts` (+ teste) · commit: —
+- [x] 2. Cartão "Aniversários" no Início do treinador, preferência `diasAniversario` (0, 3, 7 ou 15; padrão 7) escolhida em Ajustes e item "Aniversários dos alunos" no hub de Configurações — feito (sem commit). Cartão fora da grade e do "Editar" (`shortcut` em `BlocoAniversarios.tsx`); e2e escrito em `app/e2e/aniversarios.spec.ts`, ainda não rodado (Onda 5) · commit: —
 - [ ] 3. Revisão independente (data de nascimento, LGPD) — revisor, só leitura · commit: —
 
 ## Critérios de aceite

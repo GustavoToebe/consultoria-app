@@ -95,6 +95,8 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     // Alertas de troca (Início e ficha): nenhuma troca nos testes que não conferem isso.
     'GET /trocas-de-exercicio/pendentes': { corpo: { de: '2026-10-13', ate: '2026-10-19', total: 0, trocas: [] } },
     'GET /alunos/{id}/trocas-de-exercicio': { corpo: { de: '2026-10-13', ate: '2026-10-19', trocas: [] } },
+    // Aniversariantes do Início (com ALUNO_LER): ninguém nos testes que não conferem isso, e o cartão não aparece.
+    'GET /alunos/aniversariantes': { corpo: [] },
     ...respostas,
   };
   const rotas = Object.keys(mapa).sort((a, b) => b.length - a.length);
