@@ -1,8 +1,7 @@
 import { CircleAlert, TriangleAlert } from 'lucide-react-native';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { textoAcessivelDoBloco, textoDaVariacao, type ResumoDoBloco } from '../../dominio/editorDeTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, BORDA_ITEM, espaco, fontes, RAIO } from '../../tema/tokens';
@@ -40,10 +39,10 @@ const FAIXA = 6;
 
 /**
  * Tabela dos blocos do exercício (guia premium pág. 9 e 17): Série, Tipo, Carga, Reps e Descanso, uma linha por bloco de
- * `agrupar`, com o que varia entre as séries embaixo do tipo. No PC é uma lista de abas **vertical** com ativação manual
- * (APG Tabs): setas movem o foco, Enter ou Espaço escolhem, e o editor do bloco fica logo depois da tabela. Estreito
- * (`empilhado`, 390) as linhas viram sanfona (APG Accordion): cada uma é botão com `aria-expanded` e `aria-controls`, e o
- * editor (`detalhe`) abre logo abaixo da série escolhida (guia pág. 9). Uma fica sempre aberta, como nas abas.
+ * `agrupar`, com o que varia entre as séries embaixo do tipo. Sanfona (APG Accordion) no PC e no celular (visual-ponytail,
+ * 17/11): cada linha é botão com `aria-expanded` e `aria-controls`, e o editor (`detalhe`) abre logo abaixo da série
+ * escolhida, ligado a ela. No PC a linha mostra as colunas; estreito (`empilhado`, 390) ela vira texto corrido. Uma fica
+ * sempre aberta.
  * Quatro sinais que não se confundem: o foco é o anel do `:focus-visible`; a escolhida é neutra, a superfície de seleção
  * com o contorno forte e "EDITANDO"; a categoria é a faixa lateral e o selo na cor do tipo; o problema é o ícone na cor
  * da gravidade (a carga ainda vazia é âmbar, "Falta a carga").
@@ -56,13 +55,11 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
   depois?: ReactNode;
   /** Coluna estreita: sanfona em vez de abas. */
   empilhado?: boolean;
-  /** O editor do bloco escolhido, só no modo empilhado (no PC quem usa o põe depois da tabela). */
+  /** O editor do bloco escolhido: abre logo abaixo da série escolhida, no PC e no celular. */
   detalhe?: ReactNode;
 }) {
   const { cores } = useTema();
   const idDoDetalhe = `detalhe-da-serie-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  // O primitivo das abas na web descarta `style` em função: o hover vem do mouse sobre a linha.
-  const [sobre, setSobre] = useState<string | null>(null);
 
   const conteudo = (l: LinhaDoBloco, sel: boolean) => {
     const Icone = l.problema === 'perigo' ? CircleAlert : TriangleAlert;
@@ -156,21 +153,24 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
         <Texto variante="rotulo" style={estilos.reps}>Reps</Texto>
         <Texto variante="rotulo" style={estilos.descanso}>Descanso</Texto>
       </View>
-      <Tabs value={ativa} onValueChange={aoMudar} orientation="vertical" activationMode="manual">
-        <TabsList aria-label="Blocos do exercício" style={estilos.lista}>
-          {linhas.map((l) => {
-            const sel = l.valor === ativa;
-            const fundo = sel ? cores.acaoSuave : sobre === l.valor ? cores.sobre : cores.superficie2;
-            return (
-              <TabsTrigger key={l.valor} value={l.valor} accessibilityRole="tab" accessibilityLabel={rotuloDe(l)} accessibilityState={{ selected: sel }}
-                {...(Platform.OS === 'web' ? ({ onMouseEnter: () => setSobre(l.valor), onMouseLeave: () => setSobre(null) } as object) : {})}
-                style={caixa(l, sel, fundo)}>
+      {/* Visual-ponytail (17/11): também no PC a linha é sanfona (botão com `aria-expanded`) e o editor do bloco abre logo
+          abaixo da série escolhida, dentro da tabela, em vez de depois dela. */}
+      <View style={estilos.lista} role="group" aria-label="Blocos do exercício">
+        {linhas.map((l) => {
+          const sel = l.valor === ativa;
+          return (
+            <View key={l.valor} style={estilos.lista}>
+              <Pressable accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
+                {...(Platform.OS === 'web' && sel && detalhe ? ({ 'aria-controls': idDoDetalhe } as object) : {})}
+                onPress={() => { if (!sel) aoMudar(l.valor); }}
+                style={(st) => caixa(l, sel, sel ? cores.acaoSuave : comMouse(st) ? cores.sobre : cores.superficie2)}>
                 {conteudo(l, sel)}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-      </Tabs>
+              </Pressable>
+              {sel && detalhe ? <View nativeID={idDoDetalhe} role="region" aria-label={`Editando ${l.rotulo}`}>{detalhe}</View> : null}
+            </View>
+          );
+        })}
+      </View>
       {depois ? <View style={estilos.depois}>{depois}</View> : null}
     </View>
   );

@@ -72,7 +72,8 @@ test.describe('PC (1280)', () => {
   test('tabela de blocos: colunas, variação, blocos × séries e teclado (setas movem o foco, Enter e Espaço escolhem)', async ({ page }) => {
     const api = await abrirPlano(page);
     for (const coluna of ['Série', 'Tipo', 'Carga', 'Reps', 'Descanso']) await expect(page.getByText(coluna, { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole('tablist', { name: 'Blocos do exercício' })).toHaveAttribute('aria-orientation', 'vertical');
+    // Visual-ponytail (17/11): sanfona também no PC, com o editor logo abaixo do bloco escolhido.
+    await expect(page.getByRole('group', { name: 'Blocos do exercício' })).toBeVisible();
     await expect(blocos(page)).toHaveCount(3);
     // Supino: 3 FS com % diferentes, 1 WS e 1 Back off.
     await expect(bloco(page, 1)).toHaveAccessibleName(/^Série 1 · FS, 3 séries, repetições .*, Varia entre as séries: carga/);
