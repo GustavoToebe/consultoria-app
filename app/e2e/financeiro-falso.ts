@@ -252,8 +252,8 @@ const diasEntre = (de: string, ate: string) => Math.round((Date.parse(`${ate}T00
 
 /**
  * Os totais do `GET /financeiro/cobrancas` sobre o filtro inteiro, como o contrato: cancelada e estornada fora; vencido =
- * aberta com vencimento antes de hoje; em aberto inclui a vencida. CONTESTADA conta como paga (o contrato não diz; a
- * confirmar com a API).
+ * aberta com vencimento antes de hoje; em aberto inclui a vencida. CONTESTADA entra só no total (como a API: "pago" é
+ * só PAGA, a mesma regra do recebido do painel), então total ≠ pago + em aberto.
  */
 function totaisDoFalso(itens: readonly CobrancaResponse[]) {
   const validas = itens.filter((c) => c.situacao !== 'CANCELADA' && c.situacao !== 'ESTORNADA');
@@ -261,7 +261,7 @@ function totaisDoFalso(itens: readonly CobrancaResponse[]) {
   const abertas = validas.filter((c) => c.situacao === 'ABERTA');
   return {
     totalCentavos: soma(validas),
-    pagoCentavos: soma(validas.filter((c) => c.situacao === 'PAGA' || c.situacao === 'CONTESTADA')),
+    pagoCentavos: soma(validas.filter((c) => c.situacao === 'PAGA')),
     emAbertoCentavos: soma(abertas),
     vencidoCentavos: soma(abertas.filter((c) => c.vencimento < HOJE)),
   };
