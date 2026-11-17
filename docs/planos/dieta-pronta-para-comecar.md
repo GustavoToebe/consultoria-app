@@ -46,6 +46,7 @@ a caloria do item e o botão "Adicionar refeição" colado na borda ficam reprod
 | D12 | Sem camada de compatibilidade | nada de flag nem leitura de formato velho; o produto não tem cliente em uso | regra do projeto (`AGENTS.md:52-54`) |
 | D13 | C58 | passo opcional, no fim (ainda sem aceite do Saraiva) | recomendação da análise de 16/11 (o Gustavo confirma) |
 | D14 | **C113 fechado (Saraiva, 17/11/2026):** não haverá migração dos cinco alunos; a condição "o Saraiva só começa quando ... ele e uns 5 alunos" deixa de depender de migrar alunos. O resto do plano não muda | Saraiva, 17/11 |
+| D15 | **Kcal sem obrigar os macros (Gustavo, 17/11/2026; fecha a "decisão aberta" do C48 e a pendência "C48 menor"):** criar e editar alimento não exigem mais proteína, carboidrato e gordura. Os três preenchidos: kcal recalculada (P×4 + C×4 + G×9, como hoje). Um, dois ou nenhum preenchido: grava os macros digitados e a kcal fica a que estava gravada (a da fonte, no Batel Grill) ou nula ("—") se não havia; nunca vira zero. 0/0/0 digitado de propósito continua dando kcal 0. App (Biblioteca › Alimentos): macros opcionais; rótulo "Kcal (calculada)" com os três, "Kcal (da fonte)" com kcal gravada sem os três, "—" sem nenhuma; ajuda curta "Preencha os três para o app calcular a kcal."; regra espelhada em `dominio/kcalDosMacros.ts` e `KcalDosMacrosParidadeTest` | Gustavo, 17/11 |
 
 ## Decisões que faltam antes de começar
 1. **C48, derivar a caloria no servidor? (Gustavo; trava os passos 3 e 4.)** Recomendado: sim, só ao criar ou editar
