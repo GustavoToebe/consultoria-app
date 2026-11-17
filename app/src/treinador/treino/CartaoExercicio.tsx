@@ -2,7 +2,7 @@ import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, ChevronUp, NotebookTab
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import type { Configuracao, ExercicioPlano } from '../../api/tipos';
+import type { AlternativaDeExercicio, Configuracao, ExercicioPlano } from '../../api/tipos';
 import { descreverSeries } from '../../dominio/agrupamento';
 import { erroDaCadencia, erroDaIsometria, normalizarCadencia, textoExecucao } from '../../dominio/execucaoDoExercicio';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
@@ -20,6 +20,7 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { rotuloSalvarComo } from '../planejamento/modelos';
+import { AlternativasDoExercicio } from './AlternativasDoExercicio';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
 import { EditorSeries } from './EditorSeries';
 import { estadoDoExercicio } from './estadoDoExercicio';
@@ -46,6 +47,9 @@ export interface PropsDoCartaoExercicio {
   aoEscolherDaBiblioteca: () => void;
   aoUsarReceita: () => void;
   aoSalvarReceita: () => void;
+  /** Alternativas de troca do dia: abre a folha da biblioteca e pede a troca em todas as sessões. Sem os dois, o bloco não aparece. */
+  aoAdicionarAlternativa?: () => void;
+  aoTrocarEmTodas?: (alternativa: AlternativaDeExercicio) => void;
   /** Aba de séries aberta (uid de uma série do grupo) e a troca dela: o editor guarda uma por exercício (D8). */
   grupoAbertoUid?: string | null;
   aoAbrirGrupo?: (serieUid: string | null) => void;
@@ -132,6 +136,9 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
           </View>
         </View>
       </View>
+    ) : null}
+    {p.aoAdicionarAlternativa && p.aoTrocarEmTodas ? (
+      <AlternativasDoExercicio exercicio={e} erros={erros} aoMudar={p.aoMudar} aoAdicionar={p.aoAdicionarAlternativa} aoTrocarEmTodas={p.aoTrocarEmTodas} />
     ) : null}
     {cardio ? <Texto variante="pequeno">Cardio tem prescrição própria: duração, distância, ritmo, zona e intervalos.</Texto> : null}
     {p.noGrupo && p.aoTirarDoGrupo ? (

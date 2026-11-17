@@ -48,6 +48,7 @@ export function localizar(conteudo: unknown, caminho: string): Localizacao {
     if (campo === 'series') partes.push(`série ${posicao}`);
     else if (campo === 'opcoes') partes.push(`opção ${item.rotulo || posicao}`);
     else if (campo === 'grupos') partes.push(`grupo ${posicao}`);
+    else if (campo === 'alternativas') partes.push(`alternativa ${item.nome?.trim() || posicao}`);
     else partes.push(item.nome?.trim() || `${campo === 'sessoes' ? 'sessão' : 'item'} ${posicao}`);
     atual = item;
   }

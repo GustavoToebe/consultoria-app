@@ -4,7 +4,9 @@ import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { baixarFotoDePerfilDoAluno, listarExercicios } from '../../api/rotas';
-import type { ConteudoTreino, ExercicioPlano, Receita, ResultadoValidacao, Sessao } from '../../api/tipos';
+import type { AlternativaDeExercicio, ConteudoTreino, ExercicioPlano, Receita, ResultadoValidacao, Sessao } from '../../api/tipos';
+import { adicionarAlternativa, alternativasDepoisDaTroca } from '../../dominio/alternativasDoExercicio';
+import { trocarEmTodasAsSessoes } from '../../dominio/trocarEmTodasAsSessoes';
 import { uidsComProblema } from '../../dominio/caminhos';
 import {
   alterarGrupoDaSessao,
@@ -82,7 +84,8 @@ import { trilhaDoPlano } from '../plano/trilha';
 
 /** Exercício alvo da folha; `exercicio` nulo = um novo no fim da sessão, criado só quando se escolhe algo. `cardio` = o item é de cardio. */
 type Alvo = { sessao: number; exercicio: number | null; cardio?: boolean };
-type FolhaAberta = FolhaDoTreino | { tipo: 'biblioteca'; alvo: Alvo } | { tipo: 'grupo' };
+/** `alternativa`: a folha da biblioteca para uma alternativa de troca do exercício `exercicioUid` da sessão `sessao`. */
+type FolhaAberta = FolhaDoTreino | { tipo: 'biblioteca'; alvo: Alvo } | { tipo: 'grupo' } | { tipo: 'alternativa'; sessao: number; exercicioUid: string };
 
 /** Troca de exercício da biblioteca que apagaria as séries (de ou para cardio): espera a confirmação. */
 interface TrocaPendente {
@@ -90,7 +93,20 @@ interface TrocaPendente {
   exercicioUid: string;
   novo: ExercicioPlano;
   apagadas: number;
+  /** As alternativas saem junto (são do tipo antigo). */
+  alternativasApagadas: number;
 }
+
+/** "Trocar em todas as sessões" esperando a confirmação; `trocados` e `sessoes` são a prévia da contagem. */
+interface TrocaEmTodas {
+  principalId: string;
+  principalNome: string;
+  nova: AlternativaDeExercicio;
+  trocados: number;
+  sessoes: number;
+}
+
+const contar = (n: number, um: string, varios: string) => (n === 1 ? `1 ${um}` : `${n} ${varios}`);
 
 /** Editor do plano de treino: a tela mais importante do treinador. */
 export default function EditorDeTreino({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
@@ -123,6 +139,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   // Depois da primeira tentativa de salvar, validar ou publicar, `validarTreino` roda a cada edição: erros por campo e avisos, sem bloquear.
   const [verificando, setVerificando] = useState(false);
   const [trocaPendente, setTrocaPendente] = useState<TrocaPendente | null>(null);
+  const [trocaEmTodas, setTrocaEmTodas] = useState<TrocaEmTodas | null>(null);
   const [folha, setFolha] = useState<FolhaAberta | null>(null);
   const [desfazer, setDesfazer] = useState<Desfazer<ConteudoTreino> | null>(null);
   // Uma sessão aparece por vez. Se o uid sumiu (desfazer, recarregar), vale a primeira.
@@ -260,6 +277,9 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const adicionarExercicio = (si: number, cardio = false) => setFolha({ tipo: 'biblioteca', alvo: { sessao: si, exercicio: null, cardio } });
 
   const blocos = sessaoAtual ? gruposDaSessao(sessaoAtual, config) : [];
+  // A folha da alternativa lê o principal pelo uid (o índice pode mudar com a folha aberta); sumiu, a folha não abre.
+  const alvoDaAlternativa = folha?.tipo === 'alternativa' ? folha : null;
+  const principalDaAlternativa = alvoDaAlternativa ? c.sessoes[alvoDaAlternativa.sessao]?.exercicios.find((x) => x.uid === alvoDaAlternativa.exercicioUid) ?? null : null;
 
   /** Props do exercício, as mesmas no cartão empilhado (uma coluna) e no inspetor (duas colunas). */
   const propsDoExercicio = (sessao: Sessao, e: ExercicioPlano, ei: number, noGrupo: boolean, descansoPorSerie: boolean): PropsDoInspetor => ({
@@ -289,6 +309,14 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     aoSalvarReceita: () => setFolha({ tipo: 'salvarSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } }),
     grupoAbertoUid: grupoAbertoPorExercicio[e.uid] ?? null,
     aoAbrirGrupo: (uid) => abrirGrupo(e.uid, uid),
+    aoAdicionarAlternativa: () => setFolha({ tipo: 'alternativa', sessao: indiceSelecionado, exercicioUid: e.uid }),
+    aoTrocarEmTodas: (nova) => {
+      if (!e.exercicioId) return;
+      // A prévia da contagem sai da própria regra; ao confirmar ela roda de novo sobre o conteúdo daquela hora.
+      const { trocados } = trocarEmTodasAsSessoes(c, e.exercicioId, nova);
+      const sessoes = c.sessoes.filter((s) => s.exercicios.some((x) => x.exercicioId === e.exercicioId)).length;
+      setTrocaEmTodas({ principalId: e.exercicioId, principalNome: e.nome || 'o exercício', nova, trocados, sessoes });
+    },
   });
 
   // Fica visível com o plano vazio e no dia de treino (sem cabeçalho de sessões): é por onde o treino colado entra.
@@ -508,10 +536,11 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           if (!sessao || !atual) return;
           const d = daBiblioteca(escolhidos[0]);
           const base = { ...atual, ...d.campos };
-          const novo = d.modalidade === atual.modalidade ? base : comModalidade(base, d.modalidade);
+          // A alternativa igual ao novo principal sai; de ou para cardio saem todas (outro tipo; a API recusaria).
+          const novo = alternativasDepoisDaTroca(d.modalidade === atual.modalidade ? base : comModalidade(base, d.modalidade), atual.modalidade);
           // De ou para cardio as séries não servem mais: pergunta antes de apagar.
           if (trocaApagaSeries(atual, d.modalidade)) {
-            setTrocaPendente({ sessaoUid: sessao.uid, exercicioUid: atual.uid, novo, apagadas: atual.series.length });
+            setTrocaPendente({ sessaoUid: sessao.uid, exercicioUid: atual.uid, novo, apagadas: atual.series.length, alternativasApagadas: atual.alternativas?.length ?? 0 });
             return;
           }
           mudarExercicios(si, (lista) => substituir(lista, ei, novo));
@@ -521,7 +550,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         <PainelConfirmacao
           visivel
           titulo="Trocar o exercício apaga as séries?"
-          mensagem={`O novo exercício ${trocaPendente.novo.modalidade === 'CARDIO' ? 'é de cardio' : 'não é de cardio'}, e a prescrição de cardio é outra. ${trocaPendente.apagadas === 1 ? 'A série atual será apagada' : `As ${trocaPendente.apagadas} séries atuais serão apagadas`}. Dá para desfazer logo depois.`}
+          mensagem={`O novo exercício ${trocaPendente.novo.modalidade === 'CARDIO' ? 'é de cardio' : 'não é de cardio'}, e a prescrição de cardio é outra. ${trocaPendente.apagadas === 1 ? 'A série atual será apagada' : `As ${trocaPendente.apagadas} séries atuais serão apagadas`}${trocaPendente.alternativasApagadas ? `, e ${trocaPendente.alternativasApagadas === 1 ? 'a alternativa de troca também' : `as ${trocaPendente.alternativasApagadas} alternativas de troca também`}` : ''}. Dá para desfazer logo depois.`}
           rotuloConfirmar="Apagar séries e trocar"
           perigo
           aoCancelar={() => setTrocaPendente(null)}
@@ -529,6 +558,34 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
             const t = trocaPendente;
             setTrocaPendente(null);
             comDesfazer(`Exercício trocado por “${t.novo.nome || 'sem nome'}”; séries apagadas.`, (a) => trocarExercicioPorUid(a, t.sessaoUid, t.exercicioUid, t.novo));
+          }}
+        />
+      ) : null}
+      {alvoDaAlternativa && principalDaAlternativa ? (
+        <FolhaBiblioteca
+          visivel
+          alternativaDe={principalDaAlternativa}
+          cardio={principalDaAlternativa.modalidade === 'CARDIO'}
+          aoFechar={() => setFolha(null)}
+          aoEscolher={(escolhidos) => {
+            const escolhido = escolhidos[0];
+            if (!escolhido || !('id' in escolhido)) return;
+            setFolha(null);
+            mudarExercicios(alvoDaAlternativa.sessao, (lista) => lista.map((x) => (x.uid === alvoDaAlternativa.exercicioUid ? adicionarAlternativa(x, escolhido) : x)));
+          }}
+        />
+      ) : null}
+      {trocaEmTodas ? (
+        <PainelConfirmacao
+          visivel
+          titulo={`Trocar em todas as sessões ${modelo ? 'deste modelo' : 'deste plano'}?`}
+          mensagem={`“${trocaEmTodas.principalNome}” vira “${trocaEmTodas.nova.nome}” em ${contar(trocaEmTodas.trocados, 'exercício', 'exercícios')} (${contar(trocaEmTodas.sessoes, 'sessão', 'sessões')}). Onde “${trocaEmTodas.nova.nome}” era alternativa, “${trocaEmTodas.principalNome}” fica no lugar dela. As séries não mudam. ${modelo ? '' : 'Muda só o rascunho: o aluno vê depois de publicar. '}Dá para desfazer logo depois.`}
+          rotuloConfirmar="Trocar em todas as sessões"
+          aoCancelar={() => setTrocaEmTodas(null)}
+          aoConfirmar={() => {
+            const t = trocaEmTodas;
+            setTrocaEmTodas(null);
+            comDesfazer(`“${t.principalNome}” trocado por “${t.nova.nome}” em todas as sessões.`, (a) => trocarEmTodasAsSessoes(a, t.principalId, t.nova).conteudo);
           }}
         />
       ) : null}
