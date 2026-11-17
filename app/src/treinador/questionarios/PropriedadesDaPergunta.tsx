@@ -11,12 +11,12 @@ import {
 } from '../../dominio/editorQuestionario';
 import { ROTULO_DO_DESTINO } from '../../dominio/anamnese';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
-import { type DestinoOferecido, escalaDaNota, LIMITES_QUESTIONARIO as L, maximoDeFotos, temOpcoes } from '../../dominio/questionario';
+import { type DestinoOferecido, errosDosLugares, escalaDaNota, LIMITES_QUESTIONARIO as L, maximoDeFotos, temOpcoes } from '../../dominio/questionario';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
+import { Campo, MensagemDeErro } from '../../ui/Campo';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
@@ -58,8 +58,10 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
     {destinosPossiveis(p.tipo, finalidade).length > 0 ? <DestinoNoCadastro pergunta={p} conteudo={conteudo} finalidade={finalidade} aoMudar={aoMudar} /> : null}
     {p.tipo === 'DATA_AUTOMATICA' ? <Texto variante="suave">Mostra a data da atualização; o aluno não responde.</Texto> : null}
     {p.tipo === 'FOTOS' ? <>
-      <Escolha rotulo="Quantas fotos o aluno pode anexar" opcoes={QUANTAS_FOTOS} valor={maximoDeFotos(p)}
-        aoMudar={(n) => aoMudar({ max: n === L.fotosPorPergunta ? undefined : n })} />
+      {p.lugares?.length ? <Texto variante="suave">{`Uma foto por lugar: o aluno anexa ${p.lugares.length} ${p.lugares.length === 1 ? 'foto' : 'fotos'}, na ordem dos lugares.`}</Texto>
+        : <Escolha rotulo="Quantas fotos o aluno pode anexar" opcoes={QUANTAS_FOTOS} valor={maximoDeFotos(p)}
+          aoMudar={(n) => aoMudar({ max: n === L.fotosPorPergunta ? undefined : n })} />}
+      <LugaresDasFotos lugares={p.lugares ?? []} mostrarVazios={problemas.length > 0} aoMudar={aoMudar} />
       <Texto variante="suave">Elas só aparecem para você depois do envio, e só com o envio de fotos ligado no servidor.</Texto>
     </> : null}
     {p.tipo === 'NOTA' ? <EscalaDaNota pergunta={p} aoMudar={aoMudar} /> : null}
@@ -132,6 +134,43 @@ function EscalaDaNota({ pergunta: p, aoMudar }: { pergunta: PerguntaAtualizacao;
         <Campo rotulo="Texto na ponta de cima (opcional)" placeholder="ex.: Muito" valor={p.rotuloMax ?? ''} maxLength={L.rotuloPontaTamanho}
           aoMudar={(rotuloMax) => aoMudar({ rotuloMax })} />
       </View>
+    </View>
+  </View>;
+}
+
+/**
+ * "Lugares das fotos" (opcional): um nome por foto ("Frente", "Costas"), na ordem. Com lugares, o aluno vê um espaço por
+ * lugar e as fotos aceitas acompanham a lista (o `paraApi` grava o `max`); sem nenhum, volta a "Quantas fotos". O erro de cada
+ * linha é o texto da regra da publicação; "Texto vazio." só aparece depois de tentar publicar, para a linha recém-criada
+ * não nascer com erro.
+ */
+function LugaresDasFotos({ lugares, mostrarVazios, aoMudar }: {
+  lugares: string[]; mostrarVazios: boolean; aoMudar: (parcial: Partial<PerguntaAtualizacao>) => void;
+}) {
+  const erros = errosDosLugares(lugares);
+  // O `max` do estado fica como estava (o `paraApi` manda um por lugar): tirar todos os lugares volta à contagem de antes.
+  const mudar = (novos: string[]) => aoMudar({ lugares: novos.length ? novos : undefined });
+  return <View style={estilos.bloco}>
+    <Texto variante="rotulo">{lugares.length ? `Lugares das fotos (${lugares.length} de ${L.fotosPorPergunta})` : 'Lugares das fotos (opcional)'}</Texto>
+    <Texto variante="pequeno">Dê nome a cada foto, como Frente ou Costas: o aluno vê um espaço por lugar, na ordem, e você vê o nome sobre cada foto.</Texto>
+    {lugares.map((nome, i) => {
+      const erro = erros[i] === 'Texto vazio.' && !mostrarVazios ? null : erros[i];
+      return <View key={i} style={estilos.bloco}>
+        <View style={estilos.opcao}>
+          <View style={estilos.campoOpcao}>
+            <Campo rotulo={`Lugar ${i + 1}`} placeholder={i === 0 ? 'ex.: Frente' : undefined} valor={nome} maxLength={L.lugarTamanho} erro={erro} erroSemTexto
+              aoMudar={(texto) => mudar(substituir(lugares, i, texto))} />
+          </View>
+          <IconeBotao Icone={ArrowUp} rotulo={`Subir lugar ${i + 1}`} desabilitado={i === 0} aoTocar={() => mudar(mover(lugares, i, -1))} />
+          <IconeBotao Icone={ArrowDown} rotulo={`Descer lugar ${i + 1}`} desabilitado={i === lugares.length - 1} aoTocar={() => mudar(mover(lugares, i, 1))} />
+          <IconeBotao Icone={Trash2} rotulo={`Remover lugar ${i + 1}`} aoTocar={() => mudar(remover(lugares, i))} />
+        </View>
+        {erro ? <MensagemDeErro erro={erro} /> : null}
+      </View>;
+    })}
+    <View style={estilos.linha}>
+      <Botao rotulo="Adicionar lugar" tipo="secundario" Icone={Plus} desabilitado={lugares.length >= L.fotosPorPergunta}
+        motivo={`No máximo ${L.fotosPorPergunta} lugares.`} aoTocar={() => mudar([...lugares, ''])} />
     </View>
   </View>;
 }

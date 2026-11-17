@@ -11,7 +11,7 @@ import { tomDaVariacaoDoPeso } from '../dominio/corDaVariacaoDoPeso';
 import { linhaDaMeta } from '../dominio/metaDoPesoNaFicha';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useCarregar } from '../ui/useCarregar';
-import { idsDeFotos } from '../dominio/fotosAtualizacao';
+import { idsDeFotos, lugarDaFoto } from '../dominio/fotosAtualizacao';
 import { LinhaDoCicloNaAtualizacao } from './ciclo/CicloNaFicha';
 import { Cartao } from '../ui/Cartao';
 import { ImagemProtegida } from '../ui/ImagemProtegida';
@@ -57,14 +57,19 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
     {perguntasFotos.map(p=>{
       const fotos=idsDeFotos(a.respostas?.[p.id]);
       const rotulo=perguntasFotos.length>1?(p.rotulo.trim()||'Fotos'):'Fotos';
+      // Com lugares, a foto i é o lugar i: o nome vai sobre a miniatura (sem lugar correspondente, o rótulo da pergunta).
+      const comLugares=(p.lugares?.length??0)>0;
       return <View key={p.id} style={estilos.fotos}>
         <Texto variante="rotulo">{rotulo}</Texto>
-        {fotos.length&&a.id?<View style={estilos.faixa}>{fotos.map(id=><ImagemProtegida key={id} chave={`resumo:${id}`} descricao={`Foto: ${rotulo}`}
-          carregar={()=>baixarFotoDoTreinador(a.id!,id)} />)}</View>:<Texto>—</Texto>}
+        {fotos.length&&a.id?<View style={estilos.faixa}>{fotos.map((id,i)=>{
+          const nome=comLugares?lugarDaFoto(p,i):rotulo;
+          const imagem=<ImagemProtegida key={id} chave={`resumo:${id}`} descricao={`Foto: ${nome}`} carregar={()=>baixarFotoDoTreinador(a.id!,id)} />;
+          return comLugares?<View key={id} style={estilos.lugar}><Texto variante="pequeno" cor={cores.texto} numberOfLines={2}>{nome}</Texto>{imagem}</View>:imagem;
+        })}</View>:<Texto>—</Texto>}
       </View>;
     })}
     {resumo.peso?<Texto variante="pequeno">Peso anterior: {resumo.pesoAnterior==null?'—':`${numeroParaTela(resumo.pesoAnterior,1)} kg`}</Texto>:null}
     {resumo.peso&&linha?<Texto variante="pequeno">{linha}</Texto>:null}
   </Cartao>;
 }
-const estilos=StyleSheet.create({numeros:{flexDirection:'row',flexWrap:'wrap',gap:espaco(1.5)},numero:{flexGrow:1,flexBasis:130,minWidth:0,gap:espaco(0.5),borderWidth:1,borderRadius:RAIO,padding:espaco(1.5)},fotos:{gap:espaco(1)},faixa:{flexDirection:'row',flexWrap:'wrap',gap:espaco(1)}});
+const estilos=StyleSheet.create({numeros:{flexDirection:'row',flexWrap:'wrap',gap:espaco(1.5)},numero:{flexGrow:1,flexBasis:130,minWidth:0,gap:espaco(0.5),borderWidth:1,borderRadius:RAIO,padding:espaco(1.5)},fotos:{gap:espaco(1)},faixa:{flexDirection:'row',flexWrap:'wrap',gap:espaco(1)},lugar:{width:96,gap:espaco(0.5)}});

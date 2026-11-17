@@ -445,14 +445,19 @@ function lugares(p: PerguntaAtualizacao, cp: string, erro: Erro) {
   const L = LIMITES_QUESTIONARIO;
   const teto = p.max != null && inteiroEntre(p.max, 1, L.fotosPorPergunta) ? p.max : L.fotosPorPergunta;
   if (!Array.isArray(p.lugares) || p.lugares.length === 0 || p.lugares.length > teto) erro(`${cp}.lugares`, `Use de 1 a ${teto} lugares.`);
+  errosDosLugares(Array.isArray(p.lugares) ? p.lugares : []).forEach((m, k) => { if (m) erro(`${cp}.lugares[${k}]`, m); });
+}
+
+/** Erro de cada nome de lugar (nulo = certo), na ordem: o mesmo texto da publicação, para o editor mostrar na linha. */
+export function errosDosLugares(lugares: readonly unknown[]): (string | null)[] {
   const vistos = new Set<string>();
-  (Array.isArray(p.lugares) ? p.lugares : []).forEach((l, k) => {
-    const co = `${cp}.lugares[${k}]`;
+  return lugares.map((l) => {
     const nome = typeof l === 'string' ? l.trim().normalize('NFC') : '';
-    if (nome === '') erro(co, 'Texto vazio.');
-    else if (nome.length > L.lugarTamanho) erro(co, 'Texto longo demais.');
-    else if (vistos.has(normalizarOpcao(nome))) erro(co, 'Texto repetido.');
-    else vistos.add(normalizarOpcao(nome));
+    if (nome === '') return 'Texto vazio.';
+    if (nome.length > LIMITES_QUESTIONARIO.lugarTamanho) return 'Texto longo demais.';
+    if (vistos.has(normalizarOpcao(nome))) return 'Texto repetido.';
+    vistos.add(normalizarOpcao(nome));
+    return null;
   });
 }
 

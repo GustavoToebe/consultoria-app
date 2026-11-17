@@ -165,7 +165,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   const mensagemErro = erro ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erro}</Texto> : null;
   if (p.tipo === 'DATA_AUTOMATICA') return <View style={estilos.pergunta}><Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto><Texto numerico>{dataParaTela(dataAtualizacao ?? null) || '—'}</Texto></View>;
   if (p.tipo === 'FOTOS') return <View style={estilos.pergunta}>
-    <CampoFotos pergunta={p} valor={valor} carregarDaEquipe={carregarFotoDaEquipe} rotulo={aoMudar ? rotulo : p.rotulo} />{mensagemErro}
+    <CampoFotos pergunta={p} valor={valor} carregarDaEquipe={carregarFotoDaEquipe} rotulo={aoMudar ? rotulo : p.rotulo} respondendo={!!aoMudar} />{mensagemErro}
   </View>;
   if (!TIPOS_DE_PERGUNTA.includes(p.tipo)) return <View style={estilos.pergunta}>
     <Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto><Texto variante="pequeno">{aoMudar ? 'Atualize o app para responder esta pergunta.' : 'Atualize o app para ver esta resposta.'}</Texto>

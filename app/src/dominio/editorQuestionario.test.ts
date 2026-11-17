@@ -6,7 +6,7 @@ import {
   controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao, datasDaPesagem, destinosPossiveis, podeUsarDestino,
   gruposParaAdicionar, alterarDescricaoDaSecao, aceitaImagem,
 } from './editorQuestionario';
-import { errosDoQuestionario, escalaDaNota, LIMITES_QUESTIONARIO, maximoDeFotos, TIPOS_FORA_DA_INSCRICAO, validarQuestionario } from './questionario';
+import { errosDoQuestionario, errosDosLugares, escalaDaNota, LIMITES_QUESTIONARIO, maximoDeFotos, TIPOS_FORA_DA_INSCRICAO, validarQuestionario } from './questionario';
 
 let mockContador = 0;
 jest.mock('./uid', () => ({ novoUid: () => `uid-${++mockContador}` }));
@@ -155,6 +155,10 @@ describe('descrição da seção, escala da nota e fotos por pergunta', () => {
     expect(erros(p('f', 'FOTOS', { max: 2, lugares: ['a', 'b', 'c'] }))).toEqual([base]);
     expect(erros(p('f', 'FOTOS', { lugares: [] }))).toEqual([base]);
     expect(erros(p('n', 'NOTA', { lugares: ['a'] }))).toEqual([base]);
+  });
+  it('errosDosLugares dá o texto da publicação por linha, para o editor mostrar onde está', () => {
+    expect(errosDosLugares(['Frente', ' ', 'frente', 'a'.repeat(41), 'Costas'])).toEqual([null, 'Texto vazio.', 'Texto repetido.', 'Texto longo demais.', null]);
+    expect(errosDosLugares([])).toEqual([]);
   });
   it('FOTOS pode repetir até seis perguntas; a sétima é recusada antes de publicar', () => {
     let c = base();

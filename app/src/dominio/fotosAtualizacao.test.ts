@@ -1,6 +1,7 @@
 import {
-  comFotoLocal, contagemDeFotos, fotosAceitas, idsDeFotos, LIMITES_FOTO, redimensionamento, reducoesDeFoto, selecaoDeFotos, semFotoLocal, todasAsFotosLocais, vagasDeFoto,
+  comFotoLocal, contagemDeFotos, espacosDasFotos, fotosAceitas, idsDeFotos, lugarDaFoto, LIMITES_FOTO, redimensionamento, reducoesDeFoto, selecaoDeFotos, semFotoLocal, todasAsFotosLocais, vagasDeFoto,
 } from './fotosAtualizacao';
+import { maximoDeFotos } from './questionario';
 
 describe('reducoesDeFoto', () => {
   it('começa no lado máximo e na melhor qualidade, e só desce', () => {
@@ -84,5 +85,37 @@ describe('fotosAceitas', () => {
     expect(fotosAceitas(6, 3)).toBe(3);
     expect(fotosAceitas(0, 6)).toBe(6);
     expect(fotosAceitas(9)).toBe(6);
+  });
+});
+
+describe('fotos guiadas (lugares)', () => {
+  const p = { rotulo: 'Fotos do corpo', lugares: ['Frente', 'Costas', ' Lado direito '] };
+
+  it('com lugares, aceita uma foto por lugar mesmo com max maior', () => {
+    expect(fotosAceitas(maximoDeFotos({ max: 6, lugares: ['Frente', 'Costas'] }), 6)).toBe(2);
+    expect(fotosAceitas(maximoDeFotos({ max: 3 }), 6)).toBe(3);
+  });
+
+  it('a foto i é o lugar i; sem lugar correspondente, o rótulo da pergunta', () => {
+    expect(lugarDaFoto(p, 0)).toBe('Frente');
+    expect(lugarDaFoto(p, 2)).toBe('Lado direito');
+    expect(lugarDaFoto(p, 3)).toBe('Fotos do corpo');
+    expect(lugarDaFoto({ rotulo: '  ' }, 0)).toBe('Fotos');
+  });
+
+  it('um espaço por lugar, sem buraco: só o primeiro vazio é o próximo e só a última foto sai', () => {
+    expect(espacosDasFotos(p, []).map((e) => [e.nome, e.item, e.proximo, e.removivel])).toEqual([
+      ['Frente', null, true, false], ['Costas', null, false, false], ['Lado direito', null, false, false],
+    ]);
+    const dois = espacosDasFotos(p, ['a', 'b']);
+    expect(dois.map((e) => e.item)).toEqual(['a', 'b', null]);
+    expect(dois.map((e) => e.proximo)).toEqual([false, false, true]);
+    expect(dois.map((e) => e.removivel)).toEqual([false, true, false]);
+    expect(espacosDasFotos(p, ['a', 'b', 'c']).some((e) => e.proximo)).toBe(false);
+  });
+
+  it('foto além dos lugares continua aparecendo, com o rótulo da pergunta, e é a que sai', () => {
+    const e = espacosDasFotos({ rotulo: 'Fotos', lugares: ['Frente'] }, ['a', 'b']);
+    expect(e.map((x) => [x.nome, x.removivel])).toEqual([['Frente', false], ['Fotos', true]]);
   });
 });

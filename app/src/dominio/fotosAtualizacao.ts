@@ -1,4 +1,4 @@
-import type { RespostaAtualizacao } from '../api/tipos';
+import type { PerguntaAtualizacao, RespostaAtualizacao } from '../api/tipos';
 import { LIMITES_QUESTIONARIO, maximoDeFotos } from './questionario';
 
 /**
@@ -63,6 +63,34 @@ export function selecaoDeFotos(origem: 'galeria' | 'camera', vagas: number): { v
  */
 export function fotosAceitas(maxDaPergunta: number | undefined, tetoDoServidor: number = LIMITES_QUESTIONARIO.fotosPorPergunta) {
   return Math.max(1, Math.min(maximoDeFotos({ max: maxDaPergunta }), tetoDoServidor));
+}
+
+/** Texto fixo do guia ao aluno (D5): só aponta o lugar, nunca opina sobre o corpo. */
+export const TEXTO_DO_GUIA = 'Tire a foto no lugar indicado.';
+
+/** Nome do lugar da foto de posição `i` (a foto i é o lugar i); sem lugar correspondente, o rótulo da pergunta. */
+export function lugarDaFoto(p: Pick<PerguntaAtualizacao, 'rotulo' | 'lugares'>, i: number): string {
+  return p.lugares?.[i]?.trim() || p.rotulo.trim() || 'Fotos';
+}
+
+export interface EspacoDeFoto<T> {
+  nome: string;
+  item: T | null;
+  /** O primeiro espaço vazio: é ele que recebe a próxima foto. */
+  proximo: boolean;
+  /** Só a última foto sai: tirar uma do meio passaria as seguintes para o lugar errado. */
+  removivel: boolean;
+}
+
+/**
+ * Guia da pergunta com `lugares`: um espaço por lugar, na ordem, sem buraco (o aluno preenche em ordem). Foto além dos
+ * lugares (questionário mudou depois do rascunho) continua aparecendo, com o rótulo da pergunta, e pode sair.
+ */
+export function espacosDasFotos<T>(p: Pick<PerguntaAtualizacao, 'rotulo' | 'lugares'>, itens: readonly T[]): EspacoDeFoto<T>[] {
+  const total = Math.max(p.lugares?.length ?? 0, itens.length);
+  return Array.from({ length: total }, (_, i) => ({
+    nome: lugarDaFoto(p, i), item: itens[i] ?? null, proximo: i === itens.length, removivel: i === itens.length - 1,
+  }));
 }
 
 export function contagemDeFotos(total: number, maximo: number) {
