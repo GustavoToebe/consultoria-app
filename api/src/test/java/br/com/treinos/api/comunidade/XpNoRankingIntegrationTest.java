@@ -59,8 +59,7 @@ class XpNoRankingIntegrationTest extends AbstractIntegrationTest {
     private Plano publicar(JsonNode login, UUID aluno) throws Exception {
         var treino = ApiDeTeste.treino();
         api.publicarTreino(admin, aluno, treino.conteudo());
-        jdbc.update("insert into exercicio (id, consultoria_id, nome, grupo_muscular) "
-                + "select ?, consultoria_id, 'Remada baixa na polia', 'Costas' from aluno where id = ?", treino.exercicioId(), aluno);
+        jdbc.update("update exercicio set nome = 'Remada baixa na polia', grupo_muscular = 'Costas' where id = ?", treino.exercicioId());
         return new Plano(treino, api.get("/aluno/painel", login, 200).get("treino").get("versaoId").asString());
     }
 

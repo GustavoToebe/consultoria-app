@@ -19,7 +19,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTreinoVersao, ConteudoTreino> {
@@ -124,17 +123,24 @@ public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTrein
         return ids;
     }
 
-    /** As alternativas são conferidas contra a biblioteca da consultoria (JPA com tenant: outra consultoria não aparece). */
+    /**
+     * O exercício principal e as alternativas são conferidos contra a biblioteca da consultoria numa consulta só (JPA com
+     * tenant: id de outra consultoria não aparece e conta como inexistente).
+     */
     @Override
     protected ResultadoValidacao validar(ConteudoTreino conteudo, LocalDate inicio, LocalDate fim) {
-        Set<UUID> alternativas = conteudo.sessoesOuVazio().stream().flatMap(s -> s.exerciciosOuVazio().stream())
-                .flatMap(x -> x.alternativas().stream()).map(ConteudoTreino.Alternativa::exercicioId)
-                .filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<UUID, Exercicio.Modalidade> biblioteca = new HashMap<>();
-        if (!alternativas.isEmpty()) {
-            exercicios.findByIdIn(alternativas).stream().filter(Exercicio::isAtivo)
-                    .forEach(e -> biblioteca.put(e.getId(), e.getModalidade()));
+        Set<UUID> ids = idsDosExercicios(conteudo);
+        Map<UUID, Exercicio.Modalidade> ativos = new HashMap<>();
+        Set<UUID> arquivados = new HashSet<>();
+        if (!ids.isEmpty()) {
+            exercicios.findByIdIn(ids).forEach(e -> {
+                if (e.isAtivo()) {
+                    ativos.put(e.getId(), e.getModalidade());
+                } else {
+                    arquivados.add(e.getId());
+                }
+            });
         }
-        return validador.validar(conteudo, inicio, fim, biblioteca);
+        return validador.validar(conteudo, inicio, fim, ativos, arquivados);
     }
 }

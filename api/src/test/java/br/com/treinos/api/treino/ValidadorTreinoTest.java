@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -735,20 +736,40 @@ class ValidadorTreinoTest {
         UUID cardio = UUID.randomUUID();
         UUID arquivadaOuAlheia = UUID.randomUUID();
         Map<UUID, br.com.treinos.api.biblioteca.Exercicio.Modalidade> biblioteca = Map.of(
+                principal, br.com.treinos.api.biblioteca.Exercicio.Modalidade.MAQUINA,
                 naBiblioteca, br.com.treinos.api.biblioteca.Exercicio.Modalidade.MAQUINA,
                 cardio, br.com.treinos.api.biblioteca.Exercicio.Modalidade.CARDIO);
         ConteudoTreino conteudo = conteudo(List.of(comAlternativas(principal, alt(naBiblioteca), alt(cardio),
                 alt(arquivadaOuAlheia))));
         // Com a biblioteca: id fora dela e cardio no lugar de carga são recusados; sem ela, nada é conferido.
-        assertThat(validador.validar(conteudo, null, null, biblioteca).erros().stream()
+        assertThat(validador.validar(conteudo, null, null, biblioteca, Set.of()).erros().stream()
                 .map(ResultadoValidacao.Problema::caminho).toList())
                 .containsExactly(BASE + "0].alternativas[1].exercicioId", BASE + "0].alternativas[2].exercicioId");
         assertThat(caminhosDeErro(conteudo)).isEmpty();
         // Cardio só por cardio: a alternativa de carga num exercício de cardio também é recusada.
         ExercicioPlano esteira = exercicioDeCardio(cardio(new Cardio(20, null, null, null, null)))
                 .comAlternativas(List.of(alt(naBiblioteca), alt(cardio)));
-        assertThat(validador.validar(conteudo(List.of(esteira)), null, null, biblioteca).erros().stream()
+        assertThat(validador.validar(conteudo(List.of(esteira)), null, null, biblioteca, Set.of()).erros().stream()
                 .map(ResultadoValidacao.Problema::caminho).toList()).containsExactly(BASE + "0].alternativas[0].exercicioId");
+    }
+
+    @Test
+    void exercicioPrincipalConfereABibliotecaDaConsultoria() {
+        UUID naBiblioteca = UUID.randomUUID();
+        UUID arquivado = UUID.randomUUID();
+        UUID alheioOuInexistente = UUID.randomUUID();
+        Map<UUID, br.com.treinos.api.biblioteca.Exercicio.Modalidade> biblioteca = Map.of(
+                naBiblioteca, br.com.treinos.api.biblioteca.Exercicio.Modalidade.MAQUINA);
+        ConteudoTreino conteudo = conteudo(List.of(comAlternativas(naBiblioteca), comAlternativas(arquivado),
+                comAlternativas(alheioOuInexistente), comAlternativas(null)));
+        ResultadoValidacao r = validador.validar(conteudo, null, null, biblioteca, Set.of(arquivado));
+        // Fora da biblioteca: erro no campo do exercício, com mensagem fixa (sem o id); arquivado só avisa; nulo vale.
+        assertThat(r.erros().stream().map(ResultadoValidacao.Problema::caminho).toList())
+                .containsExactly(BASE + "2].exercicioId");
+        assertThat(r.erros().get(0).mensagem()).doesNotContain(alheioOuInexistente.toString());
+        assertThat(r.avisos().stream().map(ResultadoValidacao.Problema::caminho).toList()).contains(BASE + "1].exercicioId");
+        // Sem biblioteca (quem importa e os testes), o id não é conferido.
+        assertThat(caminhosDeErro(conteudo)).isEmpty();
     }
 
     @Test

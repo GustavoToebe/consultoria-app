@@ -359,8 +359,7 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode exercicio = historico.get(0).get("sessoes").get(0).get("exercicios").get(0);
         // Fora da biblioteca não há grupo muscular; nada é presumido.
         assertThat(exercicio.get("grupoMuscular").isNull()).isTrue();
-        jdbc.update("insert into exercicio (id, consultoria_id, nome, grupo_muscular) "
-                + "select ?, consultoria_id, 'Remada baixa na polia', 'Costas' from aluno where id = ?", treino.exercicioId(), alunoId);
+        jdbc.update("update exercicio set nome = 'Remada baixa na polia', grupo_muscular = 'Costas' where id = ?", treino.exercicioId());
         historico = api.get("/alunos/" + alunoId + "/execucoes", treinador, 200);
         exercicio = historico.get(0).get("sessoes").get(0).get("exercicios").get(0);
         assertThat(exercicio.get("grupoMuscular").asString()).isEqualTo("Costas");

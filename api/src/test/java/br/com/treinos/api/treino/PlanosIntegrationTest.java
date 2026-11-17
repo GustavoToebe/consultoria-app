@@ -235,14 +235,11 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
     void publicarCopiaOEquipamentoDaBibliotecaENuncaOQueOClienteMandou() throws Exception {
         UUID comEquipamento = criarExercicio(treinador, "Remada máquina " + UUID.randomUUID(), "Máquina de remada");
         UUID semEquipamento = criarExercicio(treinador, "Flexão " + UUID.randomUUID(), null);
-        UUID deOutraConsultoria = criarExercicio(api.novoTreinador(), "Remada alheia " + UUID.randomUUID(), "Polia alheia");
-        UUID foraDaBiblioteca = UUID.randomUUID();
+        // Id de outra consultoria ou fora da biblioteca já não publica (422, ExercicioPrincipalNaBibliotecaIntegrationTest).
         String inventado = "Inventado pelo cliente";
         List<ExercicioPlano> exercicios = List.of(
                 exercicioComEquipamento("Remada", comEquipamento, inventado),
                 exercicioComEquipamento("Flexão", semEquipamento, inventado),
-                exercicioComEquipamento("Alheio", deOutraConsultoria, inventado),
-                exercicioComEquipamento("Fantasma", foraDaBiblioteca, inventado),
                 exercicioComEquipamento("Manual", null, inventado));
         ConteudoTreino conteudo = new ConteudoTreino(null, null, List.of(
                 new Sessao(UUID.randomUUID(), "Treino A", 1, "TREINO", null, null, null, exercicios),
@@ -255,14 +252,14 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
         JsonNode v1 = api.get("/planos-treino/" + id + "/versoes/1", treinador, 200)
                 .get("conteudo").get("sessoes").get(0).get("exercicios");
         assertThat(v1.get(0).get("equipamento").asString()).isEqualTo("Máquina de remada");
-        for (int i = 1; i < 5; i++) {
+        for (int i = 1; i < 3; i++) {
             assertThat(v1.get(i).has("equipamento")).as("exercício %d sem equipamento", i).isFalse();
         }
 
         // O rascunho não muda (o que o cliente mandou fica lá, sem valer nada).
         JsonNode rascunho = api.get("/planos-treino/" + id, treinador, 200).get("rascunho")
                 .get("sessoes").get(0).get("exercicios");
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 3; i++) {
             assertThat(rascunho.get(i).get("equipamento").asString()).isEqualTo(inventado);
         }
     }

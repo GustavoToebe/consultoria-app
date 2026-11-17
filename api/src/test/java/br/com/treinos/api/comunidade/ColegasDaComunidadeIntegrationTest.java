@@ -113,8 +113,7 @@ class ColegasDaComunidadeIntegrationTest extends AbstractIntegrationTest {
     private ApiDeTeste.TreinoDeTeste treinarB() throws Exception {
         var treino = ApiDeTeste.treino();
         api.publicarTreino(admin, alunoB, treino.conteudo());
-        jdbc.update("insert into exercicio (id, consultoria_id, nome, grupo_muscular) "
-                + "select ?, consultoria_id, 'Remada baixa na polia', 'Costas' from aluno where id = ?", treino.exercicioId(), alunoB);
+        jdbc.update("update exercicio set nome = 'Remada baixa na polia', grupo_muscular = 'Costas' where id = ?", treino.exercicioId());
         String versao = api.get("/aluno/painel", loginB, 200).get("treino").get("versaoId").asString();
 
         Map<String, Object> sessao = new LinkedHashMap<>();
@@ -209,7 +208,7 @@ class ColegasDaComunidadeIntegrationTest extends AbstractIntegrationTest {
         assertThat(campos(visto)).containsExactlyInAnyOrder("autorId", "nome", "apelido", "ehVoce", "reservado");
         assertThat(visto.get("reservado").asBoolean()).isTrue();
         assertThat(visto.get("ehVoce").asBoolean()).isFalse();
-        assertThat(visto.get("nome").asString()).isEqualTo("Beto Fictício Colegas");
+        assertThat(visto.get("nome").asString()).isEqualTo("Beto");
         assertThat(visto.toString()).doesNotContain("treinosConcluidos").doesNotContain("recordes").doesNotContain("atividade");
 
         JsonNode proprio = api.get("/aluno/comunidade/perfis/" + usuarioB, loginB, 200);
@@ -307,6 +306,8 @@ class ColegasDaComunidadeIntegrationTest extends AbstractIntegrationTest {
         var conteudo = new ConteudoTreino("Objetivo fictício", null,
                 List.of(new Sessao(sessaoUid, "Segunda - Costas", 1, "TREINO", null, null, null, exercicios)));
         api.publicarTreino(admin, alunoB, conteudo);
+        // Publicar exige o id na biblioteca (o ApiDeTeste o cria); o 6 sai depois, como se tivesse saído dela.
+        jdbc.update("delete from exercicio where id = ?", bibliotecaIds[6]);
         String versao = api.get("/aluno/painel", loginB, 200).get("treino").get("versaoId").asString();
 
         List<Map<String, Object>> lote = new ArrayList<>();
@@ -468,7 +469,7 @@ class ColegasDaComunidadeIntegrationTest extends AbstractIntegrationTest {
         assertThat(campos(lista)).containsExactlyInAnyOrder("itens", "total");
         // Ordem por nome sem acento: Ágata, Édson, Eduardo. Nunca A (o próprio), B (reservou), Zeca (menor), Zélia (sem data).
         assertThat(lista.get("itens").valueStream().map(i -> i.get("nome").asString()))
-                .containsExactly("Ágata Com Foto", "Édson Adulto", "Eduardo Escolheu");
+                .containsExactly("Ágata", "Édson", "Eduardo");
         assertThat(lista.get("total").asLong()).isEqualTo(3);
         JsonNode primeiro = lista.get("itens").get(0);
         assertThat(campos(primeiro)).containsExactlyInAnyOrder("autorId", "nome", "apelido", "nivel", "temFoto");

@@ -55,17 +55,19 @@ public class ValidadorTreino {
         this.videoUrls = videoUrls;
     }
 
-    /** Sem a biblioteca: as alternativas só passam pelas regras do próprio plano (quem importa e os testes). */
+    /** Sem a biblioteca: os exercícios só passam pelas regras do próprio plano (quem importa e os testes). */
     public ResultadoValidacao validar(ConteudoTreino conteudo, LocalDate inicio, LocalDate fim) {
-        return validar(conteudo, inicio, fim, null);
+        return validar(conteudo, inicio, fim, null, Set.of());
     }
 
     /**
-     * @param biblioteca modalidade dos exercícios <b>ativos</b> da consultoria que o chamador leu (id fora do mapa =
-     *                   inexistente ou arquivado); {@code null} = não confere as alternativas contra a biblioteca
+     * @param biblioteca modalidade dos exercícios <b>ativos</b> da consultoria que o chamador leu; {@code null} = não
+     *                   confere os exercícios contra a biblioteca
+     * @param arquivados ids que o chamador leu na consultoria e estão arquivados: o exercício principal arquivado só
+     *                   avisa; id fora do mapa e fora deste conjunto (inexistente ou de outra consultoria) é erro
      */
     public ResultadoValidacao validar(ConteudoTreino conteudo, LocalDate inicio, LocalDate fim,
-                                      Map<UUID, Exercicio.Modalidade> biblioteca) {
+                                      Map<UUID, Exercicio.Modalidade> biblioteca, Set<UUID> arquivados) {
         ResultadoValidacao.Coletor c = new ResultadoValidacao.Coletor();
         Set<UUID> uids = new HashSet<>();
         Map<Integer, Integer> sessoesPorDia = new HashMap<>();
@@ -103,7 +105,7 @@ public class ValidadorTreino {
             }
             List<ExercicioPlano> exercicios = s.exerciciosOuVazio();
             for (int j = 0; j < exercicios.size(); j++) {
-                exercicio(c, uids, exercicios.get(j), cs + ".exercicios[" + j + "]", metodologia, biblioteca);
+                exercicio(c, uids, exercicios.get(j), cs + ".exercicios[" + j + "]", metodologia, biblioteca, arquivados);
             }
             grupos(c, uids, s, cs, metodologia);
         }
@@ -156,9 +158,28 @@ public class ValidadorTreino {
         }
     }
 
+    /**
+     * O {@code exercicioId} do exercício principal, quando vem (nulo = exercício livre digitado), existe na biblioteca
+     * da consultoria; mensagem fixa, sem o id. Arquivado só avisa (o plano publicado guarda a cópia do nome).
+     */
+    private static void principalNaBiblioteca(ResultadoValidacao.Coletor c, ExercicioPlano e, String ce,
+                                              Map<UUID, Exercicio.Modalidade> biblioteca, Set<UUID> arquivados) {
+        UUID id = e.exercicioId();
+        if (biblioteca == null || id == null || biblioteca.containsKey(id)) {
+            return;
+        }
+        if (arquivados.contains(id)) {
+            c.aviso(ce + ".exercicioId", "Exercício arquivado na biblioteca.");
+        } else {
+            c.erro(ce + ".exercicioId", "Exercício não encontrado na biblioteca.");
+        }
+    }
+
     private void exercicio(ResultadoValidacao.Coletor c, Set<UUID> uids, ExercicioPlano e, String ce,
-                           ConfiguracaoConsultoria metodologia, Map<UUID, Exercicio.Modalidade> biblioteca) {
+                           ConfiguracaoConsultoria metodologia, Map<UUID, Exercicio.Modalidade> biblioteca,
+                           Set<UUID> arquivados) {
         uid(c, uids, e.uid(), ce);
+        principalNaBiblioteca(c, e, ce, biblioteca, arquivados);
         alternativas(c, e, ce, biblioteca);
         if (vazio(e.nome())) {
             c.erro(ce + ".nome", "Exercício sem nome.");

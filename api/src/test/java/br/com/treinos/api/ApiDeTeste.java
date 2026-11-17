@@ -6,6 +6,8 @@ import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
 import br.com.treinos.api.treino.ConteudoTreino.Sessao;
 import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -30,10 +32,24 @@ public final class ApiDeTeste {
 
     private final MockMvc mvc;
     private final JsonMapper json;
+    private final boolean bibliotecaAutomatica;
 
     public ApiDeTeste(MockMvc mvc, JsonMapper json) {
+        this(mvc, json, true);
+    }
+
+    private ApiDeTeste(MockMvc mvc, JsonMapper json, boolean bibliotecaAutomatica) {
         this.mvc = mvc;
         this.json = json;
+        this.bibliotecaAutomatica = bibliotecaAutomatica;
+    }
+
+    /**
+     * Como este, mas sem criar na biblioteca o exercício principal que o plano enviado cita: para os testes que
+     * precisam de um {@code exercicioId} que a consultoria não tem (a publicação o recusa).
+     */
+    public ApiDeTeste semBibliotecaAutomatica() {
+        return new ApiDeTeste(mvc, json, false);
     }
 
     public static String emailUnico(String prefixo) {
@@ -93,11 +109,67 @@ public final class ApiDeTeste {
             req.header(HttpHeaders.AUTHORIZATION, bearer(login));
         }
         if (corpo != null) {
-            req.contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corpo));
+            String texto = json.writeValueAsString(corpo);
+            if (bibliotecaAutomatica && login != null && texto.contains("\"sessoes\"")) {
+                garantirNaBiblioteca(login, json.readTree(texto));
+            }
+            req.contentType(MediaType.APPLICATION_JSON).content(texto);
         }
         MvcResult r = mvc.perform(req).andExpect(status().is(esperado)).andReturn();
         String texto = r.getResponse().getContentAsString(StandardCharsets.UTF_8);
         return texto.isBlank() ? json.nullNode() : json.readTree(texto);
+    }
+
+    // ---- Biblioteca de exercícios ----
+
+    /**
+     * A publicação confere o {@code exercicioId} do exercício principal contra a biblioteca da consultoria. Os testes
+     * montam o treino antes de existir consultoria ({@link #treino()}, ids sorteados): ao enviar um corpo que traz
+     * {@code sessoes[].exercicios[].exercicioId}, cada id vira um exercício da biblioteca da consultoria do login, com
+     * esse mesmo id (o que o teste lê depois continua valendo). Só o principal: as alternativas o teste cria.
+     */
+    // shortcut: mascara id principal inexistente (todo teste publica); o teste de id inválido usa semBibliotecaAutomatica(), troque se os testes passarem a criar o exercício antes.
+    private void garantirNaBiblioteca(JsonNode login, JsonNode corpo) {
+        if (corpo.isArray()) {
+            corpo.forEach(filho -> garantirNaBiblioteca(login, filho));
+            return;
+        }
+        if (!corpo.isObject()) {
+            return;
+        }
+        for (JsonNode sessao : corpo.path("sessoes")) {
+            for (JsonNode exercicio : sessao.path("exercicios")) {
+                String id = exercicio.path("exercicioId").asString(null);
+                if (id != null) {
+                    String nome = exercicio.path("nome").asString("Exercício de teste").strip();
+                    String unico = (nome.length() > 80 ? nome.substring(0, 80) : nome) + " (" + id + ")";
+                    BANCO.get().update("insert into exercicio (id, consultoria_id, nome, grupo_muscular) "
+                            + "select ?::uuid, consultoria_id, ?, null from usuario where id = ?::uuid "
+                            + "on conflict (id) do nothing", id, unico, login.path("usuario").path("id").asString());
+                }
+            }
+        }
+        corpo.forEach(filho -> garantirNaBiblioteca(login, filho));
+    }
+
+    /** Conexão própria ao Postgres da suíte (insere com o id escolhido, que a API não aceita no corpo). */
+    private static final java.util.function.Supplier<JdbcTemplate> BANCO = new java.util.function.Supplier<>() {
+        private JdbcTemplate jdbc;
+
+        @Override
+        public synchronized JdbcTemplate get() {
+            if (jdbc == null) {
+                jdbc = new JdbcTemplate(new DriverManagerDataSource(AbstractIntegrationTest.POSTGRES.getJdbcUrl(),
+                        AbstractIntegrationTest.POSTGRES.getUsername(), AbstractIntegrationTest.POSTGRES.getPassword()));
+            }
+            return jdbc;
+        }
+    };
+
+    /** Cria um exercício na biblioteca da consultoria do treinador (pela API) e devolve o id. */
+    public UUID criarExercicio(JsonNode treinador, String nome) throws Exception {
+        JsonNode e = post("/exercicios", treinador, Map.of("nome", nome, "modalidade", "MAQUINA"), 200);
+        return UUID.fromString(e.get("id").asString());
     }
 
     // ---- Alunos e convite ----
