@@ -56,32 +56,39 @@ public class AlunoFinanceiroService {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         List<CobrancaAluno> abertas = cobrancas.findByAlunoIdAndSituacaoOrderByVencimentoAscIdAsc(alunoId,
                 CobrancaAluno.Situacao.ABERTA);
+        FormasDePagamentoDoAluno.Ligadas ligadas = formas.ligadas();
         PlanoDoAluno plano = contratacoes.findFirstByAlunoIdAndSituacaoNot(alunoId, ContratacaoAluno.Situacao.ENCERRADA)
                 .map(c -> {
                     Optional<PlanoComercial> comercial = planos.findById(c.getPlanoComercialId());
+                    // Link próprio desligado nas formas: o plano não o expõe (a tela não pode abri-lo por outro caminho).
+                    String link = ligadas.linkProprio() ? comercial.map(PlanoComercial::getLinkDePagamento).orElse(null) : null;
                     return new PlanoDoAluno(c.getId(), comercial.map(PlanoComercial::getNome).orElse(null),
                             c.getValorCentavos(), c.getPeriodicidade(), c.getSituacao(),
-                            proximoVencimento(abertas, c.getId()), comercial.map(PlanoComercial::getLinkDePagamento).orElse(null));
+                            proximoVencimento(abertas, c.getId(), hoje), link);
                 })
                 .orElse(null);
         List<CobrancaDoAluno> historico = cobrancas
                 .findTop24ByAlunoIdAndSituacaoInOrderByCompetenciaDescIdDesc(alunoId, NO_HISTORICO).stream()
                 .map(c -> Respostas.cobrancaDoAluno(c, hoje)).toList();
-        // O módulo ligado já vale (o controller é fechado por ele); falta a InfinitePay ligada e a credencial do treinador.
-        boolean pagamentoOnline = infinitePay.habilitado() && credenciais.existsByProvedor(RecebimentoOnlineService.PROVEDOR);
-        // Do aluno todo: o link próprio só vale numa mensalidade em aberto e o Pix, numa cobrança em aberto (qualquer tipo).
+        // O módulo ligado já vale (o controller é fechado por ele); falta a InfinitePay ligada (no módulo e nas formas do
+        // treinador) e a credencial do treinador.
+        boolean pagamentoOnline = infinitePay.habilitado() && ligadas.infinitePay()
+                && credenciais.existsByProvedor(RecebimentoOnlineService.PROVEDOR);
+        // Do aluno todo: o link próprio só vale numa mensalidade em aberto e o Pix, numa cobrança em aberto que não seja a de saída
+        // (a saída só informa: nunca tem "Pagar").
         boolean mensalidadeAberta = abertas.stream().anyMatch(c -> c.getTipo() == CobrancaAluno.Tipo.MENSALIDADE);
+        boolean pagavelAberta = abertas.stream().anyMatch(c -> c.getTipo() != CobrancaAluno.Tipo.SAIDA);
         boolean planoTemLink = plano != null && plano.linkDePagamento() != null && mensalidadeAberta;
-        List<FormasDePagamentoDoAluno.Forma> formasDePagamento = FormasDePagamentoDoAluno.decidir(formas.ligadas(),
-                pagamentoOnline, planoTemLink, !abertas.isEmpty());
+        List<FormasDePagamentoDoAluno.Forma> formasDePagamento = FormasDePagamentoDoAluno.decidir(ligadas,
+                pagamentoOnline, planoTemLink, pagavelAberta);
         return new FinanceiroDoAluno(plano, abertas.stream().map(c -> Respostas.cobrancaDoAluno(c, hoje)).toList(), historico,
                 pagamentoOnline, formasDePagamento);
     }
 
     /**
      * O Pix copia e cola de uma cobrança do próprio aluno (inclusive a avulsa), com o valor e o identificador tirados da
-     * cobrança no servidor. Cobrança de outro aluno ou de outra consultoria é 404; cobrança que não está aberta ou Pix desligado
-     * ou sem configuração é 409 {@code PIX_INDISPONIVEL} (mensagem fixa).
+     * cobrança no servidor. Cobrança de outro aluno ou de outra consultoria é 404; cobrança que não está aberta, a de saída (só
+     * informa) ou Pix desligado ou sem configuração é 409 {@code PIX_INDISPONIVEL} (mensagem fixa).
      */
     @Transactional(readOnly = true)
     public String codigoPix(UsuarioAutenticado eu, UUID cobrancaId) {
@@ -89,14 +96,21 @@ public class AlunoFinanceiroService {
         CobrancaAluno c = cobrancas.findById(cobrancaId).filter(x -> x.getAlunoId().equals(alunoId))
                 .orElseThrow(() -> new NaoEncontradoException("Cobrança não encontrada."));
         return FormasDePagamentoDoAluno.codigoPix(formas.ligadas(), c.getId(), c.getValorCentavos(),
-                c.getSituacao() == CobrancaAluno.Situacao.ABERTA)
+                c.getSituacao() == CobrancaAluno.Situacao.ABERTA && c.getTipo() != CobrancaAluno.Tipo.SAIDA)
                 .orElseThrow(() -> new ConflictException("O Pix não está disponível para esta cobrança.", "PIX_INDISPONIVEL"));
     }
 
-    /** O da mensalidade aberta mais próxima desta contratação: a cobrança de saída não é "o próximo vencimento do plano". */
-    private static LocalDate proximoVencimento(List<CobrancaAluno> abertas, UUID contratacaoId) {
-        return abertas.stream().filter(a -> a.getTipo() == CobrancaAluno.Tipo.MENSALIDADE
-                && a.getContratacaoId().equals(contratacaoId)).map(CobrancaAluno::getVencimento).findFirst().orElse(null);
+    /**
+     * O menor vencimento de hoje em diante entre as mensalidades abertas desta contratação (com a geração todo mês pode haver
+     * várias vencidas, e a mais antiga não é "o próximo"). Sem nenhuma a vencer, o da mais antiga aberta: a vencida segue
+     * aparecendo como "Pagamento em aberto". A cobrança de saída não é "o próximo vencimento do plano". {@code abertas} já vem
+     * ordenada por vencimento.
+     */
+    private static LocalDate proximoVencimento(List<CobrancaAluno> abertas, UUID contratacaoId, LocalDate hoje) {
+        List<LocalDate> vencimentos = abertas.stream().filter(a -> a.getTipo() == CobrancaAluno.Tipo.MENSALIDADE
+                && contratacaoId.equals(a.getContratacaoId())).map(CobrancaAluno::getVencimento).toList();
+        return vencimentos.stream().filter(v -> !v.isBefore(hoje)).findFirst()
+                .orElse(vencimentos.isEmpty() ? null : vencimentos.get(0));
     }
 
     @Transactional(readOnly = true)

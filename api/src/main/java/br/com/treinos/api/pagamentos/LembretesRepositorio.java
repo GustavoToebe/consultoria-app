@@ -5,7 +5,9 @@ import org.springframework.stereotype.Component;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -17,9 +19,12 @@ import java.util.UUID;
 @Component
 class LembretesRepositorio {
 
-    /** Uma cobrança aberta de consultoria com os lembretes ligados, com a configuração dela (candidata a lembrete hoje). */
+    /**
+     * Uma cobrança aberta de consultoria com os lembretes ligados, com a configuração dela (candidata a lembrete hoje) e os tipos
+     * que ela já tem gravados, em qualquer situação ({@code jaTem}: o par (cobrança, tipo) existente não gera outro lembrete).
+     */
     record Candidata(UUID consultoriaId, UUID alunoId, UUID cobrancaId, LocalDate vencimento,
-                     RegraDosLembretes.Configuracao configuracao) {
+                     RegraDosLembretes.Configuracao configuracao, Set<TipoDeLembrete> jaTem) {
     }
 
     /** Um lembrete a criar (o que a regra pura decidiu ser devido hoje). */
@@ -43,10 +48,13 @@ class LembretesRepositorio {
      * {@link PreparoDoLembrete} cancelaria não pode ganhar a vaga do dia. "Um e-mail por aluno por dia": sai da lista a
      * cobrança cujo aluno já tem lembrete PENDENTE ou ENVIADO de OUTRA cobrança com {@code data_prevista} de {@code hoje} (se a
      * primeira for paga entre duas rodadas, a seguinte não recebe um segundo e-mail no mesmo dia). Da mais antiga para a mais
-     * nova: o planejamento fica com a mais antiga de cada aluno.
+     * nova; o planejamento fica com a mais antiga de cada aluno <b>que ainda não tem o lembrete devido hoje</b> ({@code jaTem}),
+     * senão ela gastaria a vaga sem gravar nada (o insert é {@code on conflict do nothing}) e o lembrete das outras se perderia.
      */
     List<Candidata> candidatas(LocalDate de, LocalDate ate, LocalDate hoje) {
-        return jdbc.query("select c.consultoria_id, c.aluno_id, c.id, c.vencimento, l.dias_antes, l.no_dia, l.dias_depois "
+        return jdbc.query("select c.consultoria_id, c.aluno_id, c.id, c.vencimento, l.dias_antes, l.no_dia, l.dias_depois, "
+                + "(select coalesce(string_agg(t.tipo, ','), '') from lembrete_cobranca t "
+                + "where t.consultoria_id = c.consultoria_id and t.cobranca_id = c.id) "
                 + "from cobranca_aluno c join lembrete_configuracao l on l.consultoria_id = c.consultoria_id "
                 + "join aluno a on a.consultoria_id = c.consultoria_id and a.id = c.aluno_id "
                 + "left join contratacao_aluno k on k.consultoria_id = c.consultoria_id and k.id = c.contratacao_id "
@@ -60,8 +68,19 @@ class LembretesRepositorio {
                 + "order by c.vencimento, c.id",
                 (rs, n) -> new Candidata(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
                         rs.getObject(3, UUID.class), rs.getObject(4, LocalDate.class),
-                        new RegraDosLembretes.Configuracao(true, rs.getInt(5), rs.getBoolean(6), rs.getInt(7))),
+                        new RegraDosLembretes.Configuracao(true, rs.getInt(5), rs.getBoolean(6), rs.getInt(7)),
+                        tipos(rs.getString(8))),
                 Date.valueOf(de), Date.valueOf(ate), Date.valueOf(hoje));
+    }
+
+    private static Set<TipoDeLembrete> tipos(String lista) {
+        Set<TipoDeLembrete> tipos = EnumSet.noneOf(TipoDeLembrete.class);
+        for (String t : lista.split(",")) {
+            if (!t.isEmpty()) {
+                tipos.add(TipoDeLembrete.valueOf(t));
+            }
+        }
+        return tipos;
     }
 
     /** Grava os lembretes novos; o que já existe para (cobrança, tipo) fica como está. Devolve quantos nasceram. */

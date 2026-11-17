@@ -94,6 +94,82 @@ class CobrancaVencidaNaoBloqueiaOAlunoIntegrationTest extends AbstractIntegratio
         }
     }
 
+    /**
+     * Avulsa vencida e várias mensalidades vencidas (a geração todo mês deixa meses atrás em aberto): o aluno segue acessando
+     * treino, dieta, mobilidade, atualização (lê e envia) e anamnese (lê e envia), e o financeiro só informa.
+     */
+    @Test
+    void avulsaVencidaEVariasMensalidadesVencidasNaoTiramTreinoDietaMobilidadeAtualizacaoNemAnamnese() throws Exception {
+        UUID alunoId = api.criarAluno(treinador, "Aluno Fictício " + UUID.randomUUID());
+        // Pasta com treino publicado (a atualização vem dela), mobilidade e a anamnese atribuída pelo treinador.
+        String pasta = api.post("/alunos/" + alunoId + "/pastas", treinador,
+                Map.of("titulo", "Período fictício", "inicio", hoje.minusDays(26).toString(), "fim", hoje.plusDays(1).toString()), 200)
+                .get("id").asString();
+        JsonNode criado = api.post("/alunos/" + alunoId + "/planos-treino", treinador,
+                Map.of("titulo", "Treino fictício", "pastaId", pasta), 200);
+        String planoId = criado.get("plano").get("id").asString();
+        JsonNode salvo = api.put("/planos-treino/" + planoId + "/rascunho", treinador,
+                ApiDeTeste.rascunho("Treino fictício", ApiDeTeste.treino().conteudo(), criado.get("plano").get("versao").asLong()), 200);
+        api.post("/planos-treino/" + planoId + "/publicar", treinador,
+                Map.of("versao", salvo.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
+        api.publicarMobilidade(treinador, alunoId, ApiDeTeste.mobilidade().conteudo());
+        JsonNode anamnese = api.post("/alunos/" + alunoId + "/anamneses", treinador,
+                Map.of("questionarioId", anamnesePublicada().get("id").asString()), 200);
+        JsonNode aluno = api.convidarEEntrar(treinador, alunoId);
+
+        // Quatro mensalidades (início há três meses) e uma avulsa, todas vencidas e abertas.
+        JsonNode plano = api.post("/financeiro/planos", treinador,
+                Map.of("nome", "Plano " + UUID.randomUUID(), "valorCentavos", 15_000, "periodicidade", "MENSAL"), 200);
+        Map<String, Object> contratar = new LinkedHashMap<>();
+        contratar.put("planoComercialId", plano.get("id").asString());
+        contratar.put("inicio", hoje.minusMonths(3).toString());
+        contratar.put("diaVencimento", hoje.getDayOfMonth());
+        api.post("/alunos/" + alunoId + "/contratacoes", treinador, contratar, 200);
+        api.post("/financeiro/cobrancas-avulsas", treinador, Map.of("alunoIds", List.of(alunoId.toString()),
+                "descricao", "Camiseta fictícia", "valorCentavos", 3_000, "primeiroVencimento", hoje.minusDays(20).toString(),
+                "parcelas", 1), 201);
+        jdbc.update("update cobranca_aluno set vencimento = ? where aluno_id = ?::uuid and tipo = 'MENSALIDADE'",
+                hoje.minusDays(8), alunoId.toString());
+
+        JsonNode financeiro = api.get("/aluno/financeiro", aluno, 200);
+        assertThat(financeiro.get("abertas")).hasSize(5);
+        financeiro.get("abertas").forEach(c -> assertThat(c.get("vencida").asBoolean()).isTrue());
+
+        api.get("/aluno/painel", aluno, 200);
+        api.get("/aluno/pastas", aluno, 200);
+        api.get("/aluno/dieta", aluno, 200);
+        api.get("/aluno/mobilidade", aluno, 200);
+        // Atualização: lê e envia.
+        JsonNode atualizacao = api.get("/aluno/atualizacao", aluno, 200);
+        assertThat(atualizacao.get("fase").asString()).isEqualTo("ABERTA");
+        Map<String, Object> respostas = new LinkedHashMap<>(
+                Map.of("peso", 80.5, "sono", 7, "alim_desempenho", 8, "treino_desempenho", 6));
+        JsonNode enviada = api.post("/aluno/atualizacao/enviar", aluno, Map.of("pastaId", atualizacao.get("pastaId").asString(),
+                "questionarioVersaoId", atualizacao.get("questionarioVersaoId").asString(), "respostas", respostas), 200);
+        assertThat(enviada.get("fase").asString()).isEqualTo("ENVIADA");
+        // Anamnese: lê e envia.
+        JsonNode daAluno = api.get("/aluno/anamnese", aluno, 200);
+        assertThat(daAluno.get("id").asString()).isEqualTo(anamnese.get("id").asString());
+        JsonNode anamneseEnviada = api.post("/aluno/anamnese/" + anamnese.get("id").asString() + "/enviar", aluno,
+                Map.of("questionarioVersaoId", daAluno.get("questionarioVersaoId").asString(), "respostas", Map.of("pergunta", true)), 200);
+        assertThat(anamneseEnviada.get("situacao").asString()).isEqualTo("ENVIADA");
+    }
+
+    /** Anamnese fictícia mínima, publicada: uma pergunta sim ou não obrigatória. */
+    private JsonNode anamnesePublicada() throws Exception {
+        String nome = "Anamnese fictícia " + UUID.randomUUID();
+        JsonNode q = api.post("/questionarios", treinador, Map.of("nome", nome, "origem", "VAZIO", "finalidade", "ANAMNESE"), 200);
+        Map<String, Object> pergunta = Map.of("id", "pergunta", "tipo", "SIM_NAO", "rotulo", "Pergunta fictícia?", "obrigatoria", true);
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("nome", nome);
+        corpo.put("conteudo", Map.of("instrucoes", List.of(),
+                "secoes", List.of(Map.of("uid", "s1", "titulo", "Geral", "perguntas", List.of(pergunta)))));
+        corpo.put("versao", q.get("versao").asLong());
+        JsonNode salvo = api.put("/questionarios/" + q.get("id").asString(), treinador, corpo, 200);
+        return api.post("/questionarios/" + q.get("id").asString() + "/publicar", treinador,
+                Map.of("versao", salvo.get("versao").asLong(), "confirmarAvisos", true), 200);
+    }
+
     /** Aluno com um plano mensal contratado hoje; a cobrança aberta que nasce ganha o vencimento no passado. */
     private String contratarEVencer(UUID alunoId, int diasDeAtraso) throws Exception {
         JsonNode plano = api.post("/financeiro/planos", treinador,

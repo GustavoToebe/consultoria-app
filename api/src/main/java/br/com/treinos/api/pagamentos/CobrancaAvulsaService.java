@@ -28,8 +28,8 @@ import java.util.UUID;
  * da cobrança é do servidor" (a primeira é a saída {@code OUTRO}): valor e descrição vêm do corpo e são conferidos aqui, em 422
  * {@code COBRANCA_AVULSA_INVALIDA} com um erro por campo e sem repetir o valor recebido. Os alunos são travados (ordem de id, a
  * primeira trava da ordem do financeiro) antes de gravar; de outra consultoria ou inexistente é 404, anonimizado 409
- * {@code ALUNO_ANONIMIZADO} e inativo 409 {@code ALUNO_INATIVO}, como no resto do financeiro. Auditoria com resumo fixo (sem valor,
- * nome nem descrição).
+ * {@code ALUNO_ANONIMIZADO} e inativo 409 {@code ALUNO_INATIVO}, como no resto do financeiro. Auditoria: um evento
+ * {@code COBRANCAS_AVULSAS_GERADAS} por aluno ({@code entidadeId} = id do aluno), com resumo fixo (sem valor, nome nem descrição).
  */
 @Service
 public class CobrancaAvulsaService {
@@ -76,7 +76,10 @@ public class CobrancaAvulsaService {
         }
         cobrancas.saveAll(novas);
         cobrancas.flush();
-        auditoria.registrarEvento("COBRANCAS_AVULSAS_GERADAS", "COBRANCA", null, "Gerou cobranças avulsas.");
+        // Um evento por aluno (o rastro de quem foi cobrado), na mesma transação, com resumo fixo: sem valor, nome nem descrição.
+        for (UUID id : ids) {
+            auditoria.registrarEvento("COBRANCAS_AVULSAS_GERADAS", "ALUNO", id, "Gerou cobranças avulsas para o aluno.");
+        }
         return new CobrancasAvulsasGeradas(ids.size(), novas.size());
     }
 

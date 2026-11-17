@@ -63,6 +63,7 @@ public class LinkDePagamentoService {
     private final ProvedoresDePagamento provedores;
     private final Travas travas;
     private final Auditoria auditoria;
+    private final FormasDeRecebimentoService formas;
     private final String appUrl;
     private final TransactionTemplate leitura;
     private final TransactionTemplate gravacao;
@@ -72,7 +73,9 @@ public class LinkDePagamentoService {
                                   PlanoComercialRepository planos, CredencialPagamentoRepository credenciais,
                                   CifraDePagamento cifra, InfinitePayProperties infinitePay,
                                   ProvedoresDePagamento provedores, Travas travas, Auditoria auditoria,
-                                  PlatformTransactionManager transacoes, @Value("${treinos.app-url}") String appUrl) {
+                                  FormasDeRecebimentoService formas, PlatformTransactionManager transacoes,
+                                  @Value("${treinos.app-url}") String appUrl) {
+        this.formas = formas;
         this.alunos = alunos;
         this.cobrancas = cobrancas;
         this.contratacoes = contratacoes;
@@ -139,6 +142,10 @@ public class LinkDePagamentoService {
      * de quem saiu não pode ser devolvido (as vencidas ficam em aberto depois de inativar).
      */
     private Leitura ler(UUID cobrancaId, UUID alunoId) {
+        // Pelo aluno, a InfinitePay desligada nas formas do treinador fecha o link (a equipe segue gerando: as rotas dela não mudam).
+        if (alunoId != null && !formas.ligadas().infinitePay()) {
+            throw new RecebimentoOnlineIndisponivelException();
+        }
         CobrancaAluno cobranca = cobrancas.findById(cobrancaId).orElseThrow(Travas::cobrancaNaoEncontrada);
         if (alunoId != null && !alunoId.equals(cobranca.getAlunoId())) {
             throw Travas.cobrancaNaoEncontrada();
@@ -170,10 +177,13 @@ public class LinkDePagamentoService {
                 descricao(cobranca), cobranca.getVencimento(), credencial.getJurosDoParcelamento());
     }
 
-    /** "Mensalidade: Plano (MM/aaaa)" ou, na avulsa, a descrição do treinador: nunca o nome do aluno (a avulsa não tem contratação). */
+    /**
+     * "Mensalidade: Plano (MM/aaaa)" ou, na avulsa, "Cobrança avulsa (MM/aaaa)" do vencimento: o texto livre do treinador
+     * (pode ter nome ou dado de saúde) nunca vai ao provedor, nem o nome do aluno. Texto fixo e curto: sem corte de tamanho.
+     */
     private String descricao(CobrancaAluno cobranca) {
         if (cobranca.getTipo() == CobrancaAluno.Tipo.AVULSA) {
-            return cobranca.getDescricao();
+            return "Cobrança avulsa (" + MES.format(cobranca.getVencimento()) + ")";
         }
         String plano = contratacoes.findById(cobranca.getContratacaoId())
                 .flatMap(c -> planos.findById(c.getPlanoComercialId())).map(PlanoComercial::getNome).orElse(null);

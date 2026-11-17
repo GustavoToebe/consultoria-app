@@ -28,7 +28,7 @@ import java.util.UUID;
  * Cada rodada:
  * <ol>
  * <li><b>planeja</b>: lê as cobranças abertas das consultorias com os lembretes ligados e grava, pela regra pura
- * {@link RegraDosLembretes}, o lembrete devido hoje (um por aluno, o da cobrança mais antiga). A chave única (cobrança, tipo) faz a repetição não criar outro: rodar de
+ * {@link RegraDosLembretes}, o lembrete devido hoje (um por aluno, o da cobrança mais antiga que ainda não o tem). A chave única (cobrança, tipo) faz a repetição não criar outro: rodar de
  * novo na mesma hora, no dia seguinte da folga ou em duas instâncias nunca manda o mesmo lembrete duas vezes;</li>
  * <li><b>envia</b>: reserva lotes de pendentes ({@code skip locked}, lease de {@value #RESERVA_EM_SEGUNDOS} s), confere cada
  * um de novo logo antes do envio ({@link PreparoDoLembrete}: cobrança ainda ABERTA etc.; senão CANCELADO), manda o e-mail
@@ -130,15 +130,17 @@ public class LembretesDeCobranca {
 
     /**
      * No máximo um lembrete por aluno por dia: as candidatas vêm da cobrança mais antiga para a mais nova e só a primeira com
-     * lembrete devido hoje entra. Rodar de novo no mesmo dia escolhe a mesma (ela só sai da escolha quando deixa de ser
-     * devida, o que não muda no meio do dia), então a cobrança seguinte nunca recebe um segundo e-mail no mesmo dia. O texto
-     * diz quantas estão em aberto ({@link TextoDoLembrete}).
+     * lembrete devido hoje <b>e ainda não gravado</b> entra. A cobrança cujo par (cobrança, tipo devido hoje) já existe (gravado
+     * num dia anterior da folga) não ocupa a vaga: o insert não faria nada e o lembrete das outras se perderia. Rodar de novo no
+     * mesmo dia não manda outro e-mail: o lembrete de hoje já gravado tira as demais cobranças do aluno da lista
+     * ({@link LembretesRepositorio#candidatas}). O texto diz quantas estão em aberto ({@link TextoDoLembrete}).
      */
     private int planejar(LocalDate hoje) {
         List<Novo> novos = new ArrayList<>();
         Set<UUID> alunosDeHoje = new HashSet<>();
         for (Candidata c : fila.candidatas(RegraDosLembretes.menorVencimento(hoje), RegraDosLembretes.maiorVencimento(hoje), hoje)) {
-            Optional<TipoDeLembrete> tipo = RegraDosLembretes.devido(hoje, c.vencimento(), c.configuracao());
+            Optional<TipoDeLembrete> tipo = RegraDosLembretes.devido(hoje, c.vencimento(), c.configuracao())
+                    .filter(t -> !c.jaTem().contains(t));
             if (tipo.isPresent() && alunosDeHoje.add(c.alunoId())) {
                 novos.add(new Novo(c.consultoriaId(), c.cobrancaId(), tipo.get(), hoje));
             }

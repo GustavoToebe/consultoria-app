@@ -163,6 +163,7 @@ public class FinanceiroService {
 
         List<PagamentosDtos.PorForma> porForma = inicio.isAfter(hoje) ? List.of()
                 : cobrancas.pagasPorForma(PAGA, inicio, ateHoje, responsavelId).stream().map(FinanceiroService::forma).toList();
+        // shortcut: a avulsa não tem plano; a soma por plano não inclui avulsas; mostrar linha própria se alguém pedir.
         List<PagamentosDtos.PorPlano> porPlano = inicio.isAfter(hoje) ? List.of()
                 : cobrancas.pagasPorPlano(PAGA, inicio, ateHoje, responsavelId).stream().map(FinanceiroService::plano).toList();
 
@@ -331,8 +332,8 @@ public class FinanceiroService {
     /**
      * Cobranças abertas e vencidas, das mais antigas, uma linha por COBRANÇA (um aluno com três vencidas aparece três vezes,
      * com o mesmo {@code alunoId}); {@code total} conta cobranças, não alunos, e {@code valorTotalCentavos} é a soma de todas, não só
-     * da página. A avulsa (sem contratação) só aparece na lista se {@code CobrancaAlunoRepository.LINHA} usar LEFT JOIN na contratação e no
-     * plano (hoje é inner join, e é do B1).
+     * da página. A consulta (a {@code LINHA} de {@code CobrancaAlunoRepository}) usa LEFT JOIN na contratação e no plano, então a
+     * avulsa (sem contratação) e a de saída entram, e {@code total} e {@code valorTotalCentavos} batem com as páginas.
      */
     @Transactional(readOnly = true)
     public PaginaInadimplentes inadimplentes(UUID responsavelId, int pagina) {
