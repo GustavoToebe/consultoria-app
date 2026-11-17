@@ -9,7 +9,9 @@ import java.util.Locale;
 /**
  * O texto fixo do lembrete de cobrança: o mesmo no e-mail automático e na mensagem do WhatsApp que o treinador manda à mão.
  * Só o primeiro nome do aluno, o nome da consultoria, o valor, o vencimento e o endereço da Conta do aluno no app (onde ele
- * vê a cobrança). Nada de saúde, plano de treino, link de pagamento nem dado de outra pessoa. Nada daqui vai a log.
+ * vê a cobrança). Nada de saúde, plano de treino, link de pagamento nem dado de outra pessoa. Nada daqui vai a log. Com mais de
+ * uma cobrança em aberto o aluno recebe um e-mail só (o da mais antiga, escolhida em {@link LembretesDeCobranca}) e o texto
+ * diz quantas estão em aberto.
  */
 public final class TextoDoLembrete {
 
@@ -17,9 +19,12 @@ public final class TextoDoLembrete {
     /** Onde o aluno vê as cobranças no app. */
     static final String CAMINHO_DA_CONTA = "/aluno/conta";
 
-    /** O que entra no texto. {@code appUrl} vazio = sem a linha do link. */
+    /**
+     * O que entra no texto. {@code appUrl} vazio = sem a linha do link; {@code emAberto} = cobranças em aberto do aluno (a desta
+     * inclusive; acima de 1 o texto o diz); {@code mensalidade} falso (cobrança avulsa) troca "mensalidade" por "cobrança".
+     */
     public record Dados(String nomeDoAluno, String nomeDaConsultoria, long valorCentavos, LocalDate vencimento,
-                        String appUrl) {
+                        String appUrl, int emAberto, boolean mensalidade) {
 
         @Override
         public String toString() {
@@ -41,7 +46,7 @@ public final class TextoDoLembrete {
 
     public static Mensagem email(TipoDeLembrete tipo, Dados d) {
         List<String> paragrafos = paragrafos(tipo, d);
-        String assunto = "Lembrete de mensalidade" + (vazio(d.nomeDaConsultoria()) ? "" : " - " + umaLinha(d.nomeDaConsultoria()));
+        String assunto = (d.mensalidade() ? "Lembrete de mensalidade" : "Lembrete de cobrança") + (vazio(d.nomeDaConsultoria()) ? "" : " - " + umaLinha(d.nomeDaConsultoria()));
         StringBuilder html = new StringBuilder("<!doctype html><html><body style=\"font-family:sans-serif\">");
         String link = link(d.appUrl());
         for (String p : paragrafos) {
@@ -81,12 +86,15 @@ public final class TextoDoLembrete {
         p.add(nome == null ? "Olá." : "Olá, " + nome + ".");
         String consultoria = vazio(d.nomeDaConsultoria()) ? "sua consultoria" : umaLinha(d.nomeDaConsultoria());
         String data = d.vencimento().format(DIA_MES);
-        String inicio = "A mensalidade de " + consultoria + " no valor de " + valor(d.valorCentavos());
+        String inicio = (d.mensalidade() ? "A mensalidade de " : "A cobrança de ") + consultoria + " no valor de " + valor(d.valorCentavos());
         p.add(switch (tipo) {
             case ANTES -> inicio + " vence em " + data + ".";
             case NO_DIA -> inicio + " vence hoje (" + data + ").";
             case DEPOIS -> inicio + " venceu em " + data + " e ainda está em aberto. Se você já pagou, desconsidere esta mensagem.";
         });
+        if (d.emAberto() > 1) {
+            p.add("Você tem " + d.emAberto() + " cobranças em aberto no total.");
+        }
         String link = link(d.appUrl());
         if (link != null) {
             p.add("Veja a cobrança no app, na sua Conta: " + link);

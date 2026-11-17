@@ -16,6 +16,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -267,6 +268,76 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
         assertThat(linhas(cobranca)).extracting(l -> l.get("tipo")).containsExactly("ANTES", "NO_DIA", "DEPOIS");
     }
 
+    /** Aluno com três mensalidades abertas, todas com lembrete devido hoje: vencidas há 5 e 4 dias e a que vence hoje. */
+    private List<JsonNode> tresAbertasComLembreteDevidoHoje(String email) throws Exception {
+        String alunoId = api.post("/alunos", admin, Map.of("nome", "Marta Fictícia Acumulada", "email", email), 200)
+                .get("id").asString();
+        JsonNode plano = api.post("/financeiro/planos", admin,
+                Map.of("nome", "Plano varias " + UUID.randomUUID(), "valorCentavos", 9000, "periodicidade", "MENSAL"), 200);
+        // Início há 2 meses: a geração já cria as três mensalidades (hoje-2m, hoje-1m e hoje), todas abertas.
+        api.post("/alunos/" + alunoId + "/contratacoes", admin, Map.of("planoComercialId", plano.get("id").asString(),
+                "inicio", hoje.minusMonths(2).toString(), "diaVencimento", hoje.getDayOfMonth()), 200);
+        List<JsonNode> abertas = new ArrayList<>();
+        api.get("/alunos/" + alunoId + "/cobrancas", admin, 200).forEach(c -> abertas.add(0, c));
+        assertThat(abertas).hasSize(3);
+        ligar(admin);
+        int[] atraso = {5, 4, 0};
+        for (int i = 0; i < 3; i++) {
+            jdbc.update("update cobranca_aluno set vencimento = ?::date where id = ?::uuid",
+                    hoje.minusDays(atraso[i]).toString(), abertas.get(i).get("id").asString());
+        }
+        return abertas;
+    }
+
+    @Test
+    void alunoComVariasAbertasRecebeUmEmailPorDiaDaMaisAntigaEOTextoDizQuantasSao() throws Exception {
+        String email = ApiDeTeste.emailUnico("lembrete-varias");
+        List<JsonNode> abertas = tresAbertasComLembreteDevidoHoje(email);
+
+        job.rodar(hoje, enviador);
+        job.rodar(hoje, enviador);
+
+        List<EnviadorDeEmail.Mensagem> recebidas = EmailDeTeste.para(email);
+        assertThat(recebidas).as("um e-mail por aluno por dia, mesmo rodando de novo").hasSize(1);
+        assertThat(recebidas.get(0).texto()).contains("Você tem 3 cobranças em aberto no total.")
+                .contains("venceu em " + String.format("%02d/%02d", hoje.minusDays(5).getDayOfMonth(),
+                        hoje.minusDays(5).getMonthValue()));
+        assertThat(linhas(abertas.get(0))).singleElement().satisfies(l -> assertThat(l.get("situacao")).isEqualTo("ENVIADO"));
+        assertThat(linhas(abertas.get(1))).isEmpty();
+        assertThat(linhas(abertas.get(2))).isEmpty();
+    }
+
+    @Test
+    void baixaDaMaisAntigaEntreDuasRodadasNaoLiberaUmSegundoEmailNoMesmoDia() throws Exception {
+        String email = ApiDeTeste.emailUnico("lembrete-baixa-no-meio");
+        List<JsonNode> abertas = tresAbertasComLembreteDevidoHoje(email);
+        job.rodar(hoje, enviador);
+        assertThat(EmailDeTeste.para(email)).hasSize(1);
+
+        api.post("/cobrancas/" + abertas.get(0).get("id").asString() + "/baixa-manual", admin,
+                Map.of("data", hoje.toString(), "forma", "DINHEIRO", "versao", abertas.get(0).get("versao").asLong()), 200);
+        job.rodar(hoje, enviador);
+
+        assertThat(EmailDeTeste.para(email)).as("a seguinte espera o dia seguinte").hasSize(1);
+        assertThat(linhas(abertas.get(1))).isEmpty();
+        assertThat(linhas(abertas.get(2))).isEmpty();
+    }
+
+    @Test
+    void cobrancaVencidaDeContratacaoPausadaNaoTiraAVagaDaOutra() throws Exception {
+        String email = ApiDeTeste.emailUnico("lembrete-pausada");
+        List<JsonNode> abertas = tresAbertasComLembreteDevidoHoje(email);
+        // Pausada, a contratação cancelaria os três: nenhum ocupa a vaga e nenhum e-mail sai.
+        String contratacao = api.get("/alunos/" + abertas.get(0).get("alunoId").asString() + "/contratacoes", admin, 200)
+                .get(0).get("id").asString();
+        jdbc.update("update contratacao_aluno set situacao = 'PAUSADA' where id = ?::uuid", contratacao);
+
+        job.rodar(hoje, enviador);
+
+        assertThat(EmailDeTeste.para(email)).isEmpty();
+        assertThat(linhas(abertas.get(0))).isEmpty();
+    }
+
     @Test
     void cobrancaPagaEntreOPlanejamentoEOEnvioCancelaOLembrete() throws Exception {
         String email = ApiDeTeste.emailUnico("lembrete-pago");
@@ -297,6 +368,8 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
         // A inativação mantém a vencida aberta (a equipe ainda cobra), mas não pode mandar e-mail a quem saiu.
         assertThat(jdbc.queryForObject("select situacao from cobranca_aluno where id = ?::uuid", String.class,
                 cobranca.get("id").asString())).isEqualTo("ABERTA");
+        // O planejamento já nem escolhe a cobrança de contratação encerrada; um lembrete que ficou pendente de antes é cancelado.
+        pendenteNaMao(admin, cobranca, "DEPOIS");
 
         job.rodar(hoje, enviador);
         job.rodar(hoje, enviador);
@@ -378,6 +451,8 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
         ligar(admin);
         String contratacao = pausada.get("contratacaoId").asString();
         jdbc.update("update contratacao_aluno set situacao = 'PAUSADA' where id = ?::uuid", contratacao);
+        // O planejamento já nem escolhe a pausada; um lembrete que ficou pendente de antes é cancelado pelo preparo.
+        pendenteNaMao(admin, pausada, "NO_DIA");
 
         job.rodar(vencimento(semEmail), enviador);
         job.rodar(vencimento(pausada), enviador);

@@ -179,6 +179,10 @@ treinos:
     # desligam o job agendado (eles o chamam à mão). Sem o e-mail do app ligado (TREINOS_EMAIL_HABILITADO) nada é enviado.
     lembretes:
       agendados: ${TREINOS_PAGAMENTOS_LEMBRETES_AGENDADOS:true}
+    # Rotina diária (4h15 de Brasília) que gera a mensalidade de todo mês, paga a anterior ou não. Só os testes a desligam
+    # (eles a chamam à mão).
+    geracao:
+      agendada: ${TREINOS_PAGAMENTOS_GERACAO_AGENDADA:true}
 
 # Coleta de métricas (docs/biblioteca-comum.md): fechada sem um token de 32 a 128 caracteres [A-Za-z0-9_-].
 monitoramento:

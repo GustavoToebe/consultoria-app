@@ -11,7 +11,8 @@ import java.util.List;
  * "Meses que faltam" = competências anteriores a {@code minimo_ate} (estrito) com vencimento de hoje em diante: as mensalidades
  * abertas que cabem são canceladas e somadas pelo valor de cada uma, e as ainda não geradas saem do
  * {@link CalendarioDeCobranca} (nunca por {@code plusMonths} encadeado) vezes o valor mensal. As vencidas ficam fora (ficam em
- * aberto) e o mês passado que nunca foi gerado não entra (é o tema do acúmulo). Pausada conta como se retomasse hoje.
+ * aberto); mês passado sem cobrança só existe em contratação pausada (a rotina gera todo mês, paga ou não, e a pausa não entra
+ * na conta). Pausada conta como se retomasse hoje.
  */
 final class CalculoDaSaida {
 
@@ -51,7 +52,7 @@ final class CalculoDaSaida {
             if (maiorCoberta == null || m.getCompetencia().isAfter(maiorCoberta)) {
                 maiorCoberta = m.getCompetencia();
             }
-            if (!hoje.isBefore(m.getCompetencia()) && hoje.isBefore(m.getCompetencia().plusMonths(1))) {
+            if (!hoje.isBefore(m.getCompetencia()) && hoje.isBefore(CalendarioDeCobranca.fimDoPeriodo(c.getAncora(), 1, m.getCompetencia()))) {
                 mesVigenteCoberto = true;
             }
             if (m.getSituacao() == CobrancaAluno.Situacao.ABERTA) {
@@ -72,7 +73,7 @@ final class CalculoDaSaida {
         int naoGerados = 0;
         long valorNaoGerados = 0;
         LocalDate ancora = c.getSituacao() == ContratacaoAluno.Situacao.PAUSADA
-                ? CalendarioDeCobranca.ancoraDaRetomada(hoje, PeriodoDoPlano.MENSAL, maiorCoberta) : c.getAncora();
+                ? CalendarioDeCobranca.ancoraDaRetomada(hoje, PeriodoDoPlano.MENSAL, c.getAncora(), maiorCoberta) : c.getAncora();
         LocalDate maior = maiorCompetencia;
         LocalDate coberta = maiorCoberta;
         LocalDate competencia = CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, maior, coberta);

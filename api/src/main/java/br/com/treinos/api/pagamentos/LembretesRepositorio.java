@@ -18,7 +18,8 @@ import java.util.UUID;
 class LembretesRepositorio {
 
     /** Uma cobrança aberta de consultoria com os lembretes ligados, com a configuração dela (candidata a lembrete hoje). */
-    record Candidata(UUID consultoriaId, UUID cobrancaId, LocalDate vencimento, RegraDosLembretes.Configuracao configuracao) {
+    record Candidata(UUID consultoriaId, UUID alunoId, UUID cobrancaId, LocalDate vencimento,
+                     RegraDosLembretes.Configuracao configuracao) {
     }
 
     /** Um lembrete a criar (o que a regra pura decidiu ser devido hoje). */
@@ -36,18 +37,31 @@ class LembretesRepositorio {
     }
 
     /**
-     * Mensalidades ABERTAS (a cobrança de saída nunca tem lembrete) com vencimento no intervalo, só das consultorias com os lembretes ligados e de alunos que não os
-     * desligaram para si ({@code aluno.lembretes_cobranca_desligados_em} nulo).
+     * Cobranças ABERTAS (mensalidade e avulsa; a de saída nunca tem lembrete) com vencimento no intervalo, só das consultorias
+     * com os lembretes ligados e de alunos ativos que não os desligaram para si ({@code aluno.lembretes_cobranca_desligados_em}
+     * nulo). A contratação, quando a cobrança tem (a avulsa não tem: {@code left join}), precisa estar ATIVA: quem o
+     * {@link PreparoDoLembrete} cancelaria não pode ganhar a vaga do dia. "Um e-mail por aluno por dia": sai da lista a
+     * cobrança cujo aluno já tem lembrete PENDENTE ou ENVIADO de OUTRA cobrança com {@code data_prevista} de {@code hoje} (se a
+     * primeira for paga entre duas rodadas, a seguinte não recebe um segundo e-mail no mesmo dia). Da mais antiga para a mais
+     * nova: o planejamento fica com a mais antiga de cada aluno.
      */
-    List<Candidata> candidatas(LocalDate de, LocalDate ate) {
-        return jdbc.query("select c.consultoria_id, c.id, c.vencimento, l.dias_antes, l.no_dia, l.dias_depois "
+    List<Candidata> candidatas(LocalDate de, LocalDate ate, LocalDate hoje) {
+        return jdbc.query("select c.consultoria_id, c.aluno_id, c.id, c.vencimento, l.dias_antes, l.no_dia, l.dias_depois "
                 + "from cobranca_aluno c join lembrete_configuracao l on l.consultoria_id = c.consultoria_id "
                 + "join aluno a on a.consultoria_id = c.consultoria_id and a.id = c.aluno_id "
-                + "where a.lembretes_cobranca_desligados_em is null and l.ligado and c.situacao = 'ABERTA' and c.tipo = 'MENSALIDADE' and c.vencimento between ? and ?",
+                + "left join contratacao_aluno k on k.consultoria_id = c.consultoria_id and k.id = c.contratacao_id "
+                + "where a.lembretes_cobranca_desligados_em is null and a.ativo and a.anonimizado_em is null and l.ligado "
+                + "and c.situacao = 'ABERTA' and c.tipo <> 'SAIDA' and (c.contratacao_id is null or k.situacao = 'ATIVA') "
+                + "and c.vencimento between ? and ? "
+                + "and not exists (select 1 from lembrete_cobranca o join cobranca_aluno x "
+                + "on x.consultoria_id = o.consultoria_id and x.id = o.cobranca_id "
+                + "where o.consultoria_id = c.consultoria_id and x.aluno_id = c.aluno_id and o.cobranca_id <> c.id "
+                + "and o.situacao in ('PENDENTE', 'ENVIADO') and o.data_prevista = ?) "
+                + "order by c.vencimento, c.id",
                 (rs, n) -> new Candidata(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                        rs.getObject(3, LocalDate.class),
-                        new RegraDosLembretes.Configuracao(true, rs.getInt(4), rs.getBoolean(5), rs.getInt(6))),
-                Date.valueOf(de), Date.valueOf(ate));
+                        rs.getObject(3, UUID.class), rs.getObject(4, LocalDate.class),
+                        new RegraDosLembretes.Configuracao(true, rs.getInt(5), rs.getBoolean(6), rs.getInt(7))),
+                Date.valueOf(de), Date.valueOf(ate), Date.valueOf(hoje));
     }
 
     /** Grava os lembretes novos; o que já existe para (cobrança, tipo) fica como está. Devolve quantos nasceram. */

@@ -95,6 +95,12 @@ public class FinanceiroService {
                 receitaRecorrente(null), daConsultoria().historicoParcial());
     }
 
+    /**
+     * Com a mensalidade gerada todo mês (várias abertas por aluno), tudo aqui conta COBRANÇA, não aluno: "em atraso",
+     * inadimplentes, vencido, cobrado e o percentual são sobre cobranças (ou o valor delas) vencidas e não canceladas, de
+     * qualquer tipo (os agregados não olham a contratação, então a avulsa entra). O mesmo aluno aparece em tantas linhas quanto
+     * cobranças vencidas tiver. Esta é a porcentagem por contagem de cobranças.
+     */
     private BigDecimal inadimplenciaPorContagem(LocalDate de, LocalDate ate) {
         if (ate.isBefore(de)) {
             return null;
@@ -322,7 +328,12 @@ public class FinanceiroService {
 
     // ---- GET /financeiro/inadimplentes ----
 
-    /** Cobranças abertas e vencidas, das mais antigas; {@code valorTotalCentavos} é a soma de todas, não só da página. */
+    /**
+     * Cobranças abertas e vencidas, das mais antigas, uma linha por COBRANÇA (um aluno com três vencidas aparece três vezes,
+     * com o mesmo {@code alunoId}); {@code total} conta cobranças, não alunos, e {@code valorTotalCentavos} é a soma de todas, não só
+     * da página. A avulsa (sem contratação) só aparece na lista se {@code CobrancaAlunoRepository.LINHA} usar LEFT JOIN na contratação e no
+     * plano (hoje é inner join, e é do B1).
+     */
     @Transactional(readOnly = true)
     public PaginaInadimplentes inadimplentes(UUID responsavelId, int pagina) {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);

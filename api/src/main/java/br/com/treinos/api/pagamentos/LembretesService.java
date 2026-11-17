@@ -189,7 +189,8 @@ public class LembretesService {
                         .filter(t -> !t.isBlank()).orElse(null);
         String consultoria = consultorias.findById(TenantContext.get()).map(Consultoria::getNome).orElse(null);
         var dados = new TextoDoLembrete.Dados(aluno.get().getNome(), consultoria, cobranca.getValorCentavos(),
-                cobranca.getVencimento(), ativo && !saida ? appUrl : "");
+                cobranca.getVencimento(), ativo && !saida ? appUrl : "", PreparoDoLembrete.emAberto(cobrancas, cobranca),
+                cobranca.getTipo() == CobrancaAluno.Tipo.MENSALIDADE);
         String mensagem = saida ? TextoDoLembrete.mensagemDeSaida(dados)
                 : TextoDoLembrete.mensagem(RegraDosLembretes.situacaoDeHoje(hoje, cobranca.getVencimento()), dados);
         return new WhatsAppDaCobranca(telefone, mensagem);

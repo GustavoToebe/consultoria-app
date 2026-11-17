@@ -95,6 +95,9 @@ treinos:
     # O job dos lembretes de cobrança também: os testes chamam LembretesDeCobranca.rodar à mão.
     lembretes:
       agendados: false
+    # A geração diária das mensalidades também: os testes chamam RotinaDeGeracaoDeCobrancas.rodar à mão.
+    geracao:
+      agendada: false
   # A suíte cria treinadores pelo cadastro público; o modo fechado (o de produção) tem a sua classe.
   cadastro:
     aberto: true

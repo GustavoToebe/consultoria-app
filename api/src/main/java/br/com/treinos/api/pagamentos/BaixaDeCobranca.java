@@ -15,7 +15,9 @@ import java.util.function.Supplier;
  * Todas as mudanças de situação de uma cobrança, para qualquer provedor: a baixa manual do treinador passa por aqui e a
  * baixa que o provedor confirmou usa as mesmas regras. Cada operação trava aluno, contratação e
  * cobrança nessa ordem ({@link Travas}) e é idempotente: repetir devolve o estado atual com {@code mudou = false}, e só
- * quem mudou de verdade gera auditoria e cobrança seguinte. Roda dentro da transação de quem chama.
+ * quem mudou de verdade gera auditoria. Pagar ou cancelar nunca gera cobrança: a mensalidade nasce todo mês, paga ou não, pela
+ * {@link RotinaDeGeracaoDeCobrancas}. A cobrança avulsa não tem contratação (nula em {@link Resultado}): as regras da parcela
+ * única e do encerramento só valem quando há. Roda dentro da transação de quem chama.
  */
 @Service
 public class BaixaDeCobranca {
@@ -38,19 +40,16 @@ public class BaixaDeCobranca {
     }
 
     private final Travas travas;
-    private final GeradorDeCobrancas gerador;
     private final ProvedoresDePagamento provedores;
     private final CobrancaAlunoRepository cobrancas;
 
-    BaixaDeCobranca(Travas travas, GeradorDeCobrancas gerador, ProvedoresDePagamento provedores,
-                    CobrancaAlunoRepository cobrancas) {
+    BaixaDeCobranca(Travas travas, ProvedoresDePagamento provedores, CobrancaAlunoRepository cobrancas) {
         this.travas = travas;
-        this.gerador = gerador;
         this.provedores = provedores;
         this.cobrancas = cobrancas;
     }
 
-    /** ABERTA vira PAGA; parcela única encerra a contratação, as demais geram a seguinte se a de maior competência não está aberta. */
+    /** ABERTA vira PAGA; parcela única encerra a contratação (a avulsa não tem). */
     @Transactional(propagation = Propagation.MANDATORY)
     public Resultado baixar(UUID cobrancaId, Baixa baixa) {
         return baixar(baixa, () -> travas.daCobrancaDeAlunoQueSaiu(cobrancaId));
@@ -75,13 +74,7 @@ public class BaixaDeCobranca {
         exigirAberta(c);
         conferirVersao(c, baixa.versaoEsperada());
         c.pagar(baixa.provedor(), baixa.forma(), baixa.pagoEm(), baixa.baixaPor(), baixa.observacao(), baixa.idExterno());
-        if (!t.contratacao().getPeriodicidade().recorrente()) {
-            if (t.contratacao().isVigente()) {
-                t.contratacao().encerrar(Instant.now());
-            }
-        } else {
-            gerador.garantirSeguinte(t.contratacao());
-        }
+        encerrarSeParcelaUnica(t.contratacao());
         return resultado(t, true);
     }
 
@@ -102,7 +95,7 @@ public class BaixaDeCobranca {
         if (!CobrancaAluno.MANUAL.equals(c.getProvedor())) {
             throw new ConflictException("Só a baixa manual pode ser desfeita.", "BAIXA_NAO_MANUAL");
         }
-        if (!t.contratacao().getPeriodicidade().recorrente()
+        if (t.contratacao() != null && !t.contratacao().getPeriodicidade().recorrente()
                 && t.contratacao().getSituacao() == ContratacaoAluno.Situacao.ENCERRADA) {
             throw new ConflictException("Esta cobrança era a parcela única de um plano já encerrado; para cobrar de novo, "
                     + "contrate o plano outra vez.", "PARCELA_UNICA_ENCERRADA");
@@ -113,7 +106,7 @@ public class BaixaDeCobranca {
     }
 
     /**
-     * ABERTA vira CANCELADA e vale como "pular o período": gera a seguinte se a de maior competência não ficou aberta; na
+     * ABERTA vira CANCELADA e vale como "pular o período" (a competência fica ocupada, a rotina segue para a próxima); na
      * parcela única encerra a contratação. Já cancelada: nada muda.
      */
     @Transactional(propagation = Propagation.MANDATORY)
@@ -126,12 +119,8 @@ public class BaixaDeCobranca {
         exigirAberta(c);
         conferirVersao(c, versaoEsperada);
         c.cancelar(motivo);
-        if (t.contratacao().getPeriodicidade().recorrente()) {
-            gerador.garantirSeguinte(t.contratacao());
-        } else if (t.contratacao().isVigente()) {
-            // Parcela única cancelada: não há mais o que cobrar, e a contratação vigente bloquearia uma nova.
-            t.contratacao().encerrar(Instant.now());
-        }
+        // Parcela única cancelada: não há mais o que cobrar, e a contratação vigente bloquearia uma nova.
+        encerrarSeParcelaUnica(t.contratacao());
         return resultado(t, true);
     }
 
@@ -192,6 +181,12 @@ public class BaixaDeCobranca {
         conferirVersao(c, versaoEsperada);
         c.manterPaga(motivo);
         return resultado(t, true);
+    }
+
+    private static void encerrarSeParcelaUnica(ContratacaoAluno contratacao) {
+        if (contratacao != null && !contratacao.getPeriodicidade().recorrente() && contratacao.isVigente()) {
+            contratacao.encerrar(Instant.now());
+        }
     }
 
     /** Grava já, para a resposta levar a versão nova e uma violação de unicidade aparecer aqui, não no commit. */

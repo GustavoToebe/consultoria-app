@@ -214,18 +214,22 @@ class CalculoDaSaidaTest {
     }
 
     /**
-     * DÚVIDA (relatada, comportamento atual): com âncora no dia 31, o período de 28/02 termina em 27/03 e o da competência
-     * seguinte (31/03) só começa em 31/03; em 28, 29 e 30/03 nenhuma mensalidade cobre hoje, então {@code mesVigenteCoberto} fica
-     * falso e VIGENTE aparece disponível mesmo com fevereiro pago. Vem do desenho do calendário, não de um erro da conta.
+     * Dia 31 (decisão de 17/11, financeiro-em-fases): o período de 28/02 vai até 30/03 (o dia antes da competência seguinte da
+     * grade, 31/03), então em 28, 29 e 30/03 a mensalidade de fevereiro ainda cobre hoje e VIGENTE não aparece.
      */
     @Test
-    void ancoraNoDia31DeixaTresDiasSemMesVigenteEmMarco() {
+    void ancoraNoDia31NaoDeixaDiasSemMesVigenteEmMarco() {
         ContratacaoAluno c = mensal(10_000, "2027-01-31", 31, "2027-06-30");
+        CobrancaAluno jan = paga(c, "2027-01-31", 10_000);
+        CobrancaAluno fev = paga(c, "2027-02-28", 10_000);
 
-        Calculo k = calcular(c, "2027-03-30", paga(c, "2027-01-31", 10_000), paga(c, "2027-02-28", 10_000));
-
-        assertThat(k.mesVigenteCoberto()).isFalse();
-        assertThat(opcao(CalculoDaSaida.opcoes(c, k), OpcaoDeSaida.VIGENTE).disponivel()).isTrue();
+        for (String hoje : new String[] {"2027-03-27", "2027-03-28", "2027-03-29", "2027-03-30"}) {
+            Calculo k = calcular(c, hoje, jan, fev);
+            assertThat(k.mesVigenteCoberto()).as(hoje).isTrue();
+            assertThat(opcao(CalculoDaSaida.opcoes(c, k), OpcaoDeSaida.VIGENTE).disponivel()).as(hoje).isFalse();
+        }
+        // Em 31/03 começa a competência de março, ainda não gerada.
+        assertThat(calcular(c, "2027-03-31", jan, fev).mesVigenteCoberto()).isFalse();
     }
 
     @Test

@@ -18,7 +18,8 @@ import java.util.regex.Pattern;
 /**
  * A conferência de um lembrete reservado, logo antes do envio, numa transação curta somente leitura dentro da consultoria
  * dele (quem chama abre o {@code TenantContext}): a cobrança ainda está ABERTA, a regra ainda diz que este tipo é devido
- * hoje (configuração desligada, alterada ou vencimento reajustado cancelam), a contratação está ATIVA, o aluno está ativo e
+ * hoje (configuração desligada, alterada ou vencimento reajustado cancelam), a contratação, quando a cobrança tem uma (a avulsa
+ * não tem), está ATIVA, o aluno está ativo e
  * não anonimizado, que não desligou os lembretes para si ({@code ALUNO_DESLIGOU}), e há um e-mail. Devolve a mensagem pronta ou o motivo do cancelamento. O envio fica fora daqui (e de
  * qualquer transação). Nada daqui vai a log.
  */
@@ -31,7 +32,7 @@ class PreparoDoLembrete {
     static final String ALUNO_INATIVO = "ALUNO_INATIVO";
     static final String ALUNO_DESLIGOU = "ALUNO_DESLIGOU";
     static final String SEM_EMAIL = "SEM_EMAIL";
-    /** Defesa: lembrete é só de mensalidade; a cobrança de saída nunca recebe e-mail (o planejamento já a pula). */
+    /** Defesa: a cobrança de saída nunca recebe e-mail (o planejamento já a pula); mensalidade e avulsa recebem. */
     static final String NAO_E_MENSALIDADE = "NAO_E_MENSALIDADE";
 
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@<>\"(),;:]+@[^\\s@<>\"(),;:]+\\.[^\\s@<>\"(),;:]+$");
@@ -80,7 +81,7 @@ class PreparoDoLembrete {
             return Preparo.cancelar(COBRANCA_NAO_ABERTA);
         }
         CobrancaAluno cobranca = achada.get();
-        if (cobranca.getTipo() != CobrancaAluno.Tipo.MENSALIDADE) {
+        if (cobranca.getTipo() == CobrancaAluno.Tipo.SAIDA) {
             return Preparo.cancelar(NAO_E_MENSALIDADE);
         }
         RegraDosLembretes.Configuracao configuracao = configuracoes.daConsultoria()
@@ -88,7 +89,7 @@ class PreparoDoLembrete {
         if (RegraDosLembretes.devido(hoje, cobranca.getVencimento(), configuracao).filter(lembrete.tipo()::equals).isEmpty()) {
             return Preparo.cancelar(NAO_E_MAIS_DEVIDO);
         }
-        boolean ativa = contratacoes.findById(cobranca.getContratacaoId())
+        boolean ativa = cobranca.getContratacaoId() == null || contratacoes.findById(cobranca.getContratacaoId())
                 .map(c -> c.getSituacao() == ContratacaoAluno.Situacao.ATIVA).orElse(false);
         if (!ativa) {
             return Preparo.cancelar(CONTRATACAO_NAO_ATIVA);
@@ -106,9 +107,16 @@ class PreparoDoLembrete {
         }
         Consultoria consultoria = consultorias.findById(lembrete.consultoriaId()).orElse(null);
         var dados = new TextoDoLembrete.Dados(aluno.get().getNome(), consultoria == null ? null : consultoria.getNome(),
-                cobranca.getValorCentavos(), cobranca.getVencimento(), appUrl);
+                cobranca.getValorCentavos(), cobranca.getVencimento(), appUrl, emAberto(cobrancas, cobranca),
+                cobranca.getTipo() == CobrancaAluno.Tipo.MENSALIDADE);
         return new Preparo(para, TextoDoLembrete.email(lembrete.tipo(), dados),
                 consultoria == null ? null : RemetenteDaConsultoria.de(consultoria), null);
+    }
+
+    /** Quantas cobranças do aluno estão em aberto (a de saída não entra: não tem lembrete), a desta inclusive. */
+    static int emAberto(CobrancaAlunoRepository cobrancas, CobrancaAluno cobranca) {
+        return (int) cobrancas.findByAlunoIdAndSituacao(cobranca.getAlunoId(), CobrancaAluno.Situacao.ABERTA).stream()
+                .filter(c -> c.getTipo() != CobrancaAluno.Tipo.SAIDA).count();
     }
 
     /** O e-mail do cadastro do aluno; sem ele, o de login. Nulo se nenhum serve. */

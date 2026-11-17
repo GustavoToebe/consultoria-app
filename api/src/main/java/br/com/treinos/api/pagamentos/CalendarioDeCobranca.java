@@ -2,11 +2,14 @@ package br.com.treinos.api.pagamentos;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 
 /**
  * As datas de uma contratação, sem banco nem relógio. A competência de ordem {@code n} é sempre {@code âncora + n·k meses}
  * (nunca encadeando datas, para 31/01 não virar 28/02 e depois 28/03). O vencimento é a primeira data que não é anterior
- * à competência (nem ao piso, quando há) com o dia de vencimento limitado ao último dia do mês.
+ * à competência (nem ao piso, quando há) com o dia de vencimento limitado ao último dia do mês. O período de uma competência
+ * vai até o dia anterior à seguinte da mesma grade ({@link #fimDoPeriodo}): com âncora no dia 31, 28/02 cobre até 30/03 e
+ * 31/03 começa em seguida, sem buraco em mês curto.
  */
 final class CalendarioDeCobranca {
 
@@ -15,9 +18,10 @@ final class CalendarioDeCobranca {
 
     /**
      * A primeira competência da âncora, em passos da periodicidade, que vem depois de {@code maior} e não antes do fim do
-     * período da última cobrança que cobre período ({@code maiorCoberta + período}, que a grade antiga de uma âncora
+     * período da última cobrança que cobre período ({@link #fimDoPeriodo}, que a grade antiga de uma âncora
      * anterior poderia deixar para trás, sobrepondo períodos).
      *
+     * @param ancora       de onde a grade das competências é contada (a âncora da contratação)
      * @param maior        maior competência de TODAS as linhas, canceladas e estornadas incluídas; nula = nenhuma cobrança ainda
      * @param maiorCoberta maior competência de cobrança que cobre período (fora {@link CobrancaAluno#NAO_COBREM_PERIODO}:
      *                     paga, aberta ou contestada); nula = nenhuma
@@ -28,7 +32,7 @@ final class CalendarioDeCobranca {
             throw new IllegalArgumentException("Parcela única não tem próxima competência.");
         }
         long passo = periodo.meses();
-        LocalDate piso = maiorCoberta == null ? null : maiorCoberta.plusMonths(passo);
+        LocalDate piso = maiorCoberta == null ? null : fimDoPeriodo(ancora, passo, maiorCoberta);
         for (long n = 0;; n++) {
             LocalDate competencia = ancora.plusMonths(n * passo);
             if ((maior == null || competencia.isAfter(maior)) && (piso == null || !competencia.isBefore(piso))) {
@@ -40,18 +44,30 @@ final class CalendarioDeCobranca {
     /**
      * A âncora de uma retomada: hoje, ou o dia seguinte ao fim do período da última cobrança que cobre período (paga,
      * aberta ou contestada), o que vier depois: retomar não sobrepõe período pago nem o de uma cobrança já aberta. A
-     * estornada, como a cancelada, não cobre: o dinheiro voltou. O período de uma
-     * competência {@code c} vai até {@code c + meses − 1 dia}, então o dia seguinte é {@code c + meses} (mesma conta de
-     * meses das competências, que limita ao último dia do mês).
+     * estornada, como a cancelada, não cobre: o dinheiro voltou. O dia seguinte ao fim do período é o de
+     * {@link #fimDoPeriodo}.
      *
+     * @param ancora       a âncora atual da contratação (a grade a que {@code maiorCoberta} pertence)
      * @param maiorCoberta maior competência de cobrança que cobre período da contratação; nula = nenhuma (vale hoje)
      */
-    static LocalDate ancoraDaRetomada(LocalDate hoje, PeriodoDoPlano periodo, LocalDate maiorCoberta) {
+    static LocalDate ancoraDaRetomada(LocalDate hoje, PeriodoDoPlano periodo, LocalDate ancora, LocalDate maiorCoberta) {
         if (maiorCoberta == null || !periodo.recorrente()) {
             return hoje;
         }
-        LocalDate livre = maiorCoberta.plusMonths(periodo.meses());
+        LocalDate livre = fimDoPeriodo(ancora, periodo.meses(), maiorCoberta);
         return livre.isAfter(hoje) ? livre : hoje;
+    }
+
+    /**
+     * O dia seguinte ao último dia coberto pela competência: a seguinte da grade da âncora quando ela é da grade (dia 31 em
+     * mês curto não deixa dias descobertos) ou, se vier de uma grade antiga (antes de uma retomada), {@code competência + passo}.
+     */
+    static LocalDate fimDoPeriodo(LocalDate ancora, long passo, LocalDate competencia) {
+        long meses = ChronoUnit.MONTHS.between(YearMonth.from(ancora), YearMonth.from(competencia));
+        if (meses >= 0 && meses % passo == 0 && ancora.plusMonths(meses).equals(competencia)) {
+            return ancora.plusMonths(meses + passo);
+        }
+        return competencia.plusMonths(passo);
     }
 
     /**

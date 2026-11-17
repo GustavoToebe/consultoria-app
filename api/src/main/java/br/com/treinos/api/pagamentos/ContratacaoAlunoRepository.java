@@ -34,6 +34,10 @@ public interface ContratacaoAlunoRepository extends JpaRepository<ContratacaoAlu
     @Query("select c from ContratacaoAluno c where c.id = :id")
     Optional<ContratacaoAluno> buscarParaAlterar(UUID id);
 
+    /** Só os ids das contratações que a rotina diária de geração percorre (ativas e recorrentes), numa ordem fixa. */
+    @Query("select c.id from ContratacaoAluno c where c.situacao = :ativa and c.periodicidade <> :unica order by c.id")
+    List<UUID> idsAtivasRecorrentes(ContratacaoAluno.Situacao ativa, PeriodoDoPlano unica);
+
     Optional<ContratacaoAluno> findFirstByAlunoIdAndSituacaoNot(UUID alunoId, ContratacaoAluno.Situacao situacao);
 
     List<ContratacaoAluno> findByAlunoIdOrderByCriadoEmDescIdDesc(UUID alunoId);

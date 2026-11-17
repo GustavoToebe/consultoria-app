@@ -88,54 +88,83 @@ class CalendarioDeCobrancaTest {
 
     @Test
     void retomadaSemNenhumaPagaVaiParaHoje() {
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.TRIMESTRAL, null)).isEqualTo(d("2027-11-01"));
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.MENSAL, null)).isEqualTo(d("2027-11-01"));
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.TRIMESTRAL, d("2027-11-01"), null)).isEqualTo(d("2027-11-01"));
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.MENSAL, d("2027-11-01"), null)).isEqualTo(d("2027-11-01"));
     }
 
     @Test
     void retomadaNaoSobrepoePeriodoPagoEPisoEODiaSeguinteAoFim() {
         // Trimestral pago de 01/10: o período vai até 31/12, o dia seguinte ao fim é 01/01; retomar em 01/11 fica em 01/01.
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.TRIMESTRAL, d("2027-10-01")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.TRIMESTRAL, d("2027-10-01"), d("2027-10-01")))
                 .isEqualTo(d("2028-01-01"));
         // Semestral e anual, com a mesma conta de meses.
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.SEMESTRAL, d("2027-10-01")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.SEMESTRAL, d("2027-10-01"), d("2027-10-01")))
                 .isEqualTo(d("2028-04-01"));
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.ANUAL, d("2027-03-10")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.ANUAL, d("2027-03-10"), d("2027-03-10")))
                 .isEqualTo(d("2028-03-10"));
         // Mensal pago de 15/06 cobre até 14/07: retomar em 10/07 fica em 15/07.
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-07-10"), PeriodoDoPlano.MENSAL, d("2027-06-15")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-07-10"), PeriodoDoPlano.MENSAL, d("2027-06-15"), d("2027-06-15")))
                 .isEqualTo(d("2027-07-15"));
     }
 
     @Test
     void retomadaDepoisDoFimDoPeriodoPagoValeHojeEOFimExatoTambem() {
         // Mensal pago de 15/06: o dia seguinte ao fim é 15/07; retomar em 20/07 vale hoje, em 15/07 também (igual).
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-07-20"), PeriodoDoPlano.MENSAL, d("2027-06-15")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-07-20"), PeriodoDoPlano.MENSAL, d("2027-06-15"), d("2027-06-15")))
                 .isEqualTo(d("2027-07-20"));
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-07-15"), PeriodoDoPlano.MENSAL, d("2027-06-15")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-07-15"), PeriodoDoPlano.MENSAL, d("2027-06-15"), d("2027-06-15")))
                 .isEqualTo(d("2027-07-15"));
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2028-04-02"), PeriodoDoPlano.TRIMESTRAL, d("2027-10-01")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2028-04-02"), PeriodoDoPlano.TRIMESTRAL, d("2027-10-01"), d("2027-10-01")))
                 .isEqualTo(d("2028-04-02"));
     }
 
     @Test
     void retomadaComPagoEmFimDeMesUsaAMesmaContaDeMesesDasCompetencias() {
         // Pago de 31/01 mensal: 31/01 + 1 mês = 28/02 (o último dia do mês, como nas competências); em 2028, 29/02.
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-02-10"), PeriodoDoPlano.MENSAL, d("2027-01-31")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-02-10"), PeriodoDoPlano.MENSAL, d("2027-01-31"), d("2027-01-31")))
                 .isEqualTo(d("2027-02-28"));
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2028-02-10"), PeriodoDoPlano.MENSAL, d("2028-01-31")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2028-02-10"), PeriodoDoPlano.MENSAL, d("2028-01-31"), d("2028-01-31")))
                 .isEqualTo(d("2028-02-29"));
         // Já passou do fim: vale hoje.
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-03-05"), PeriodoDoPlano.MENSAL, d("2027-01-31")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-03-05"), PeriodoDoPlano.MENSAL, d("2027-01-31"), d("2027-01-31")))
                 .isEqualTo(d("2027-03-05"));
         // Anual pago em 29/02/2028: o dia seguinte ao fim é 28/02/2029.
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2028-06-01"), PeriodoDoPlano.ANUAL, d("2028-02-29")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2028-06-01"), PeriodoDoPlano.ANUAL, d("2028-02-29"), d("2028-02-29")))
                 .isEqualTo(d("2029-02-28"));
     }
 
     @Test
+    void periodoDeMesCurtoVaiAteODiaAntesDaCompetenciaSeguinteDaGrade() {
+        LocalDate ancora = d("2027-01-31");
+        // 31/01 cobre até 27/02 (a seguinte da grade é 28/02); 28/02 cobre até 30/03 (a seguinte é 31/03): sem buraco em março.
+        assertThat(CalendarioDeCobranca.fimDoPeriodo(ancora, 1, d("2027-01-31"))).isEqualTo(d("2027-02-28"));
+        assertThat(CalendarioDeCobranca.fimDoPeriodo(ancora, 1, d("2027-02-28"))).isEqualTo(d("2027-03-31"));
+        assertThat(CalendarioDeCobranca.fimDoPeriodo(ancora, 1, d("2027-04-30"))).isEqualTo(d("2027-05-31"));
+        // Dia 30 e 29, e ano bissexto.
+        assertThat(CalendarioDeCobranca.fimDoPeriodo(d("2027-01-30"), 1, d("2027-02-28"))).isEqualTo(d("2027-03-30"));
+        assertThat(CalendarioDeCobranca.fimDoPeriodo(d("2028-01-29"), 1, d("2028-02-29"))).isEqualTo(d("2028-03-29"));
+        assertThat(CalendarioDeCobranca.fimDoPeriodo(d("2027-01-29"), 1, d("2027-02-28"))).isEqualTo(d("2027-03-29"));
+        // Trimestral: 30/11 cobre até 28/02 (a seguinte da grade é 28/02).
+        assertThat(CalendarioDeCobranca.fimDoPeriodo(d("2026-11-30"), 3, d("2026-11-30"))).isEqualTo(d("2027-02-28"));
+    }
+
+    @Test
+    void competenciaDeGradeAntigaSegueCompetenciaMaisPasso() {
+        // Uma competência que não é da grade da âncora (antes de uma retomada) termina em competência + passo.
+        assertThat(CalendarioDeCobranca.fimDoPeriodo(d("2027-06-17"), 1, d("2027-02-10"))).isEqualTo(d("2027-03-10"));
+        assertThat(CalendarioDeCobranca.fimDoPeriodo(d("2027-01-15"), 1, d("2027-02-10"))).isEqualTo(d("2027-03-10"));
+    }
+
+    @Test
+    void retomadaComPagoEmFimDeMesDeixaOPeriodoContinuoNoDia31() {
+        // Âncora 31/01, paga de 28/02 (grade): o período vai até 30/03, então retomar em 10/03 recomeça em 31/03, não em 28/03.
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-03-10"), PeriodoDoPlano.MENSAL, d("2027-01-31"), d("2027-02-28")))
+                .isEqualTo(d("2027-03-31"));
+    }
+
+    @Test
     void parcelaUnicaNaoTemPisoPeloPeriodoPago() {
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.PARCELA_UNICA, d("2027-10-01")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-11-01"), PeriodoDoPlano.PARCELA_UNICA, d("2027-10-01"), d("2027-10-01")))
                 .isEqualTo(d("2027-11-01"));
     }
 
@@ -156,7 +185,7 @@ class CalendarioDeCobrancaTest {
     @Test
     void retomadaNaoSobrepoeOPeriodoDeCobrancaAbertaTambem() {
         // O argumento é a maior coberta (paga, aberta ou contestada): mensal aberta de 10/02, retomar em 15/02 vai para 10/03.
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-02-15"), PeriodoDoPlano.MENSAL, d("2027-02-10")))
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-02-15"), PeriodoDoPlano.MENSAL, d("2027-02-10"), d("2027-02-10")))
                 .isEqualTo(d("2027-03-10"));
     }
 
@@ -164,11 +193,11 @@ class CalendarioDeCobrancaTest {
     void estornadaNaoCobrePeriodoMasContestadaCobre() {
         // Trimestral paga em 01/10 e retomada em 01/11. Estornada: sem cobertura, a âncora é hoje e a 01/10 só pesa em "maior".
         LocalDate hoje = d("2027-11-01");
-        assertThat(CalendarioDeCobranca.ancoraDaRetomada(hoje, PeriodoDoPlano.TRIMESTRAL, null)).isEqualTo(hoje);
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(hoje, PeriodoDoPlano.TRIMESTRAL, hoje, null)).isEqualTo(hoje);
         assertThat(CalendarioDeCobranca.proximaCompetencia(hoje, PeriodoDoPlano.TRIMESTRAL, d("2027-10-01"), null))
                 .isEqualTo(hoje);
         // Contestada: cobre até 31/12, então a âncora e a próxima competência são 01/01.
-        LocalDate ancora = CalendarioDeCobranca.ancoraDaRetomada(hoje, PeriodoDoPlano.TRIMESTRAL, d("2027-10-01"));
+        LocalDate ancora = CalendarioDeCobranca.ancoraDaRetomada(hoje, PeriodoDoPlano.TRIMESTRAL, d("2027-10-01"), d("2027-10-01"));
         assertThat(ancora).isEqualTo(d("2028-01-01"));
         assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.TRIMESTRAL, d("2027-10-01"), d("2027-10-01")))
                 .isEqualTo(d("2028-01-01"));

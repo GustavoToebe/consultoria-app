@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 /**
- * A ordem única das travas do financeiro: aluno, depois contratação, depois cobrança. Quem muda a contratação ou gera
+ * A ordem única das travas do financeiro: aluno, depois contratação (quando a cobrança tem), depois cobrança. Quem muda a contratação ou gera
  * cobrança entra por aqui, e é isso que serializa clique duplo, pausar durante uma baixa e a corrida com a anonimização.
  * O dono e a contratação são lidos antes (projeção), para a entidade de baixo só entrar na sessão já travada.
  */
@@ -22,6 +22,7 @@ class Travas {
     record DaContratacao(Aluno aluno, ContratacaoAluno contratacao) {
     }
 
+    /** {@code contratacao} é nula na cobrança avulsa (sem contratação): quem usa confere antes de olhar para ela. */
     record DaCobranca(Aluno aluno, ContratacaoAluno contratacao, CobrancaAluno cobranca) {
     }
 
@@ -81,8 +82,9 @@ class Travas {
         } else if (exigencia == Exigencia.INATIVO_OK) {
             AlunoService.exigirNaoAnonimizado(aluno);
         }
-        ContratacaoAluno contratacao = contratacoes.buscarParaAlterar(travas.getContratacaoId())
-                .orElseThrow(Travas::contratacaoNaoEncontrada);
+        // Cobrança avulsa não tem contratação: a ordem fica aluno → cobrança.
+        ContratacaoAluno contratacao = travas.getContratacaoId() == null ? null
+                : contratacoes.buscarParaAlterar(travas.getContratacaoId()).orElseThrow(Travas::contratacaoNaoEncontrada);
         CobrancaAluno cobranca = cobrancas.buscarParaAlterar(cobrancaId).orElseThrow(Travas::cobrancaNaoEncontrada);
         return new DaCobranca(aluno, contratacao, cobranca);
     }

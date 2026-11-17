@@ -8,18 +8,22 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 /**
- * Cria as cobranças de uma contratação. Sem agendador: a primeira nasce ao contratar e a seguinte ao pagar ou cancelar uma
- * cobrança (se a de maior competência não está aberta), ou ao retomar. Sempre dentro da transação de quem já travou aluno
- * e contratação (ver {@link Travas}); a conta das datas é do {@link CalendarioDeCobranca}, e conferir a competência antes
- * de inserir é o que torna repetir inofensivo (a unicidade do banco é só rede de segurança).
+ * Cria as cobranças de uma contratação. A primeira nasce ao contratar; as seguintes, todo mês, paga a anterior ou não (D1 do
+ * plano financeiro-em-fases): {@link #garantirAteHoje} cria cada competência até a primeira com vencimento a partir de hoje,
+ * e quem o chama é a {@link RotinaDeGeracaoDeCobrancas} (diária), contratar e retomar. Pagar, cancelar e pausar não geram nada.
+ * Sempre dentro da transação de quem já travou aluno e contratação (ver {@link Travas}); a conta das datas é do
+ * {@link CalendarioDeCobranca}, e conferir a competência antes de inserir é o que torna repetir inofensivo (a unicidade do
+ * banco é só rede de segurança).
  */
 @Component
 class GeradorDeCobrancas {
 
     private final CobrancaAlunoRepository cobrancas;
+    private final GeracaoRepositorio geracao;
 
-    GeradorDeCobrancas(CobrancaAlunoRepository cobrancas) {
+    GeradorDeCobrancas(CobrancaAlunoRepository cobrancas, GeracaoRepositorio geracao) {
         this.cobrancas = cobrancas;
+        this.geracao = geracao;
     }
 
     /** A cobrança do início: competência = início, vencimento = primeira data a partir dele com o dia combinado. */
@@ -31,27 +35,31 @@ class GeradorDeCobrancas {
     }
 
     /**
-     * Garante a seguinte: gera uma cobrança nova sempre que a de MAIOR competência (canceladas incluídas) não está ABERTA.
-     * Pagar ou cancelar uma cobrança que não é a última, ou pagar de novo depois de desfazer, não gera nada: a maior
-     * continua aberta. Não depende de qual cobrança mudou, então nenhuma sequência de pagar, desfazer, pausar e retomar
-     * deixa uma contratação ativa sem cobrança futura (não há agendador).
+     * Garante uma cobrança para cada competência até a primeira com vencimento a partir de {@code hoje}, sem olhar se as
+     * anteriores estão pagas, abertas ou canceladas (a competência cancelada continua ocupada). Contratação pausada,
+     * encerrada ou de parcela única não gera. Repetir no mesmo dia não faz nada. Devolve quantas criou.
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    Optional<CobrancaAluno> garantirSeguinte(ContratacaoAluno contratacao) {
-        Optional<LocalDate> maior = cobrancas.maiorCompetencia(contratacao.getId());
-        if (maior.isPresent() && cobrancas.existsMensalidadeNaSituacao(contratacao.getId(), maior.get(),
-                CobrancaAluno.Situacao.ABERTA)) {
-            return Optional.empty();
+    int garantirAteHoje(ContratacaoAluno contratacao, LocalDate hoje) {
+        int criadas = 0;
+        LocalDate vencimento = geracao.maiorVencimentoDaMensalidade(contratacao.getId(), CobrancaAluno.Tipo.MENSALIDADE)
+                .orElse(null);
+        while (vencimento == null || vencimento.isBefore(hoje)) {
+            Optional<CobrancaAluno> nova = proxima(contratacao);
+            if (nova.isEmpty()) {
+                break;
+            }
+            vencimento = nova.get().getVencimento();
+            criadas++;
         }
-        return proxima(contratacao);
+        return criadas;
     }
 
     /**
      * A próxima competência depois da maior que existe (e nunca antes do fim do período da última que cobre período);
      * nada para contratação parada, encerrada ou parcela única.
      */
-    @Transactional(propagation = Propagation.MANDATORY)
-    Optional<CobrancaAluno> proxima(ContratacaoAluno contratacao) {
+    private Optional<CobrancaAluno> proxima(ContratacaoAluno contratacao) {
         if (contratacao.getSituacao() != ContratacaoAluno.Situacao.ATIVA || !contratacao.getPeriodicidade().recorrente()) {
             return Optional.empty();
         }

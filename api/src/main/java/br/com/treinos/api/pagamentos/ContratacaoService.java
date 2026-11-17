@@ -25,7 +25,8 @@ import java.util.UUID;
 /**
  * Contratar, alterar, pausar e retomar (encerrar é do {@link EncerramentoDaContratacao}). Toda operação que muda a contratação trava aluno e contratação nessa
  * ordem ({@link Travas}); o valor de cada cobrança vem sempre da contratação, nunca do cliente. Pausar e retomar
- * são idempotentes (repetir devolve o estado atual, sem auditoria nova).
+ * são idempotentes (repetir devolve o estado atual, sem auditoria nova). Pausar mantém as cobranças abertas e para de gerar; a
+ * geração mensal é da {@link RotinaDeGeracaoDeCobrancas}.
  */
 @Service
 public class ContratacaoService {
@@ -95,8 +96,9 @@ public class ContratacaoService {
             primeira.pagar(CobrancaAluno.MANUAL, FormaDePagamento.OUTRO, LocalDate.now(Fuso.BRASILIA), null,
                     "Período inicial já pago", null);
             cobrancas.save(primeira);
-            gerador.garantirSeguinte(contratacao);
         }
+        // Início no passado: as competências até hoje nascem já (a rotina diária faria o mesmo no dia seguinte).
+        gerador.garantirAteHoje(contratacao, hoje);
         cobrancas.flush();
         return Respostas.contratacao(contratacao, plano.getNome());
     }
@@ -140,8 +142,8 @@ public class ContratacaoService {
     /**
      * Recomeça a contar em max(hoje, dia seguinte ao fim do período da última cobrança que COBRE período: paga, aberta ou
      * contestada; cancelada e estornada não cobrem): o período parado não é cobrado e retomar nunca sobrepõe período pago
-     * nem o de uma cobrança já aberta. Gera a seguinte
-     * se a de maior competência não está aberta.
+     * nem o de uma cobrança já aberta. Volta a gerar pela regra de sempre ({@link GeradorDeCobrancas#garantirAteHoje}); as
+     * cobranças que já estavam abertas ao pausar continuam como estão (D2).
      */
     @Transactional
     public ContratacaoResponse retomar(UUID id, Long versao) {
@@ -153,10 +155,10 @@ public class ContratacaoService {
         conferirVersao(c, versao);
         LocalDate maiorCoberta = cobrancas.maiorCompetenciaCoberta(c.getId(), CobrancaAluno.NAO_COBREM_PERIODO)
                 .orElse(null);
-        c.retomar(CalendarioDeCobranca.ancoraDaRetomada(LocalDate.now(Fuso.BRASILIA), c.getPeriodicidade(),
-                maiorCoberta));
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        c.retomar(CalendarioDeCobranca.ancoraDaRetomada(hoje, c.getPeriodicidade(), c.getAncora(), maiorCoberta));
         contratacoes.flush();
-        gerador.garantirSeguinte(c);
+        gerador.garantirAteHoje(c, hoje);
         return mudou(c, "CONTRATACAO_RETOMADA", "Retomou a contratação de um aluno.");
     }
 

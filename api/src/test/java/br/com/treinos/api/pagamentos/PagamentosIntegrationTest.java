@@ -53,6 +53,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private BaixaDeCobranca baixaDeCobranca;
+    @Autowired private RotinaDeGeracaoDeCobrancas rotina;
     @Autowired private PlatformTransactionManager transacoes;
 
     /** UTF-8 com marca de ordem (BOM): o Excel abre o CSV com a acentuação certa. */
@@ -151,6 +152,18 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
     private void vencerHaDias(JsonNode cobranca, int dias) {
         jdbc.update("update cobranca_aluno set vencimento = ?::date where id = ?::uuid", hoje.minusDays(dias).toString(),
                 cobranca.get("id").asString());
+    }
+
+    /** A rotina diária na consultoria do admin, com "hoje" no dia dado: gera cada mês até o primeiro vencimento a partir dele. */
+    private void gerarAte(LocalDate dia) {
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
+                admin.get("usuario").get("id").asString());
+        rotina.rodarNa(consultoria, dia);
+    }
+
+    /** Pagar e cancelar não geram nada (D1): o mês seguinte nasce pela rotina, aqui chamada com o dia daqui a um mês. */
+    private void gerarSeguinte() {
+        gerarAte(hoje.plusMonths(1));
     }
 
     /** Estorna pelo serviço comum de baixa, sem conferir a versão, na consultoria do aluno. */
@@ -359,7 +372,8 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(painelA.toString()).doesNotContain("Beta");
         JsonNode numerosA = api.get("/financeiro/numeros?meses=6", admin, 200);
         assertThat(numerosA.get("meses").get(5).get("recebidoCentavos").asLong()).isEqualTo(11111);
-        assertThat(numerosA.get("previstoCentavos").asLong()).isEqualTo(11111);
+        // Pagar não gera a seguinte: a de A paga não deixa nada previsto, e a de A2 já venceu.
+        assertThat(numerosA.get("previstoCentavos").asLong()).isZero();
         assertThat(numerosA.get("receitaRecorrenteMensalCentavos").asLong()).isEqualTo(11111 + 22222);
 
         JsonNode inadimplentesA = api.get("/financeiro/inadimplentes", admin, 200);
@@ -373,7 +387,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode cobrancasA = api.get("/financeiro/cobrancas", admin, 200);
         assertThat(campo(cobrancasA.get("itens"), "alunoId")).containsExactlyInAnyOrder(a1.toString(), a2.toString());
-        assertThat(cobrancasA.get("total").asLong()).isEqualTo(3);
+        assertThat(cobrancasA.get("total").asLong()).isEqualTo(2);
         assertThat(cobrancasA.toString()).doesNotContain("Beta");
 
         JsonNode lancamentosA = api.get("/financeiro/lancamentos", admin, 200);
@@ -483,6 +497,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         api.post("/cobrancas/" + cobrancaA.get("id").asString() + "/baixa-manual", admin,
                 Map.of("data", hoje.toString(), "forma", "DINHEIRO", "observacao", "Anotação interna fictícia",
                         "versao", cobrancaA.get("versao").asLong()), 200);
+        gerarSeguinte();
 
         JsonNode loginA = api.convidarEEntrar(admin, alunoA);
         JsonNode meu = api.get("/aluno/financeiro", loginA, 200);
@@ -698,7 +713,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         JsonNode repetida = baixar(aberta, hoje, 200);
         assertThat(repetida.get("versao").asLong()).isEqualTo(paga.get("versao").asLong());
         assertThat(auditorias("PAGAMENTO_MANUAL_REGISTRADO", id)).isEqualTo(1);
-        assertThat(cobrancas(aluno)).hasSize(2);
+        assertThat(cobrancas(aluno)).as("pagar não gera cobrança").hasSize(1);
         assertThat(jdbc.queryForObject("select resumo from auditoria where acao = 'PAGAMENTO_MANUAL_REGISTRADO' and entidade_id = ?::uuid",
                 String.class, id)).isEqualTo("Registrou o pagamento de uma cobrança.");
 
@@ -745,7 +760,9 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         JsonNode cancelada = motivo("/cobrancas/" + id + "/cancelar", primeira, 200);
         assertThat(cancelada.get("situacao").asString()).isEqualTo("CANCELADA");
         assertThat(cancelada.get("motivo").asString()).isEqualTo("Motivo fictício");
-        // A seguinte nasce quando a última é cancelada.
+        // Cancelar não gera nada: a competência cancelada segue ocupada e a rotina vai para a seguinte.
+        assertThat(cobrancas(aluno)).hasSize(1);
+        gerarSeguinte();
         assertThat(cobrancas(aluno)).hasSize(2);
         // Repetir devolve o mesmo estado, sem nova auditoria nem nova cobrança.
         motivo("/cobrancas/" + id + "/cancelar", primeira, 200);
@@ -801,6 +818,8 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(primeira.get("competencia").asString()).isEqualTo(hoje.toString());
 
         JsonNode paga = baixar(primeira, hoje, 200);
+        assertThat(cobrancas(aluno)).as("pagar não gera").hasSize(1);
+        gerarSeguinte();
         assertThat(cobrancas(aluno)).hasSize(2);
         assertThat(cobrancas(aluno).get(0).get("competencia").asString()).isEqualTo(hoje.plusMonths(1).toString());
         baixar(primeira, hoje, 200);
@@ -810,9 +829,11 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         baixar(reaberta, hoje, 200);
         assertThat(cobrancas(aluno)).as("desfazer e pagar de novo não cria outra").hasSize(2);
 
-        // Pular o período: cancelar a última gera a seguinte.
+        // Pular o período: a cancelada continua ocupada e a rotina gera a seguinte.
         JsonNode segunda = cobrancas(aluno).get(0);
         motivo("/cobrancas/" + segunda.get("id").asString() + "/cancelar", segunda, 200);
+        assertThat(cobrancas(aluno)).hasSize(2);
+        gerarAte(hoje.plusMonths(2));
         JsonNode todas = cobrancas(aluno);
         assertThat(todas).hasSize(3);
         assertThat(todas.get(0).get("competencia").asString()).isEqualTo(hoje.plusMonths(2).toString());
@@ -843,6 +864,9 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode retomada = api.post("/contratacoes/" + id + "/retomar", admin, Map.of("versao", pausada.get("versao").asLong()), 200);
         assertThat(retomada.get("situacao").asString()).isEqualTo("ATIVA");
+        // A primeira (paga) cobre o mês: retomar não gera dentro dele, e a rotina segue pela grade.
+        assertThat(cobrancas(aluno)).hasSize(1);
+        gerarSeguinte();
         assertThat(cobrancas(aluno)).hasSize(2);
         exigirSeguinteAberta(aluno);
         api.post("/contratacoes/" + id + "/retomar", admin, Map.of("versao", 999), 200);
@@ -883,7 +907,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         return lista;
     }
 
-    /** Invariante: contratação ATIVA e recorrente sempre tem a cobrança de maior competência ABERTA (não há agendador). */
+    /** Invariante depois da rotina: contratação ATIVA e recorrente sem pagamento adiantado tem a cobrança de maior competência ABERTA. */
     private void exigirSeguinteAberta(UUID aluno) throws Exception {
         JsonNode maior = cobrancas(aluno).get(0);
         assertThat(maior.get("situacao").asString()).as("a de maior competência (%s) deve estar ABERTA",
@@ -906,8 +930,9 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         LocalDate inicio = hoje.minusDays(31);
         LocalDate seguinte = inicio.plusMonths(3);
         JsonNode contratacao = contratar(aluno, plano("Plano trimestral da retomada", 30000, "TRIMESTRAL"), inicio, 10);
-        baixar(cobrancas(aluno).get(0), hoje, 200);
-        // Pagar a 1ª já gera a seguinte, aberta.
+        // A 1ª já venceu: contratar gera a seguinte (aberta), sem esperar o pagamento.
+        assertThat(competencias(aluno)).containsExactly(seguinte.toString(), inicio.toString());
+        baixar(porCompetencia(aluno, inicio), hoje, 200);
         assertThat(competencias(aluno)).containsExactly(seguinte.toString(), inicio.toString());
 
         JsonNode pausada = pausar(contratacao);
@@ -933,6 +958,8 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(competencias(aluno)).hasSize(2);
         assertThat(auditorias("CONTRATACAO_RETOMADA", contratacao.get("id").asString())).isEqualTo(1);
         baixar(porCompetencia(aluno, seguinte), hoje, 200);
+        assertThat(competencias(aluno)).hasSize(2);
+        gerarAte(seguinte.plusMonths(3));
         assertThat(competencias(aluno)).containsExactly(seguinte.plusMonths(3).toString(), seguinte.toString(), inicio.toString());
         exigirSeguinteAberta(aluno);
     }
@@ -944,9 +971,11 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         LocalDate pulada = inicio.plusMonths(3);
         LocalDate seguinte = inicio.plusMonths(6);
         JsonNode contratacao = contratar(aluno, plano("Plano trimestral do pulo", 30000, "TRIMESTRAL"), inicio, 10);
-        baixar(cobrancas(aluno).get(0), hoje, 200);
-        // Cancelar a aberta (pular o período) gera a seguinte: pulada CANCELADA e inicio+6 meses ABERTA.
+        baixar(porCompetencia(aluno, inicio), hoje, 200);
+        // Cancelar a aberta (pular o período) não gera nada; a rotina gera a seguinte: pulada CANCELADA e inicio+6 meses ABERTA.
         motivo("/cobrancas/" + porCompetencia(aluno, pulada).get("id").asString() + "/cancelar", porCompetencia(aluno, pulada), 200);
+        assertThat(competencias(aluno)).containsExactly(pulada.toString(), inicio.toString());
+        gerarAte(seguinte);
         assertThat(competencias(aluno)).containsExactly(seguinte.toString(), pulada.toString(), inicio.toString());
 
         retomar(pausar(contratacao));
@@ -966,9 +995,9 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         LocalDate pulada = inicio.plusMonths(3);
         LocalDate seguinte = inicio.plusMonths(6);
         JsonNode contratacao = contratar(aluno, plano("Plano trimestral cancelado pausado", 30000, "TRIMESTRAL"), inicio, 10);
-        baixar(cobrancas(aluno).get(0), hoje, 200);
+        baixar(porCompetencia(aluno, inicio), hoje, 200);
         JsonNode pausada = pausar(contratacao);
-        // Pausada, cancelar a aberta não gera a seguinte: ao retomar, não há aberta e a conta precisa gerar uma.
+        // Pausada, cancelar a aberta não gera nada: ao retomar, não há aberta e a rotina precisa gerar uma.
         motivo("/cobrancas/" + porCompetencia(aluno, pulada).get("id").asString() + "/cancelar", porCompetencia(aluno, pulada), 200);
         assertThat(competencias(aluno)).containsExactly(pulada.toString(), inicio.toString());
 
@@ -976,6 +1005,8 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
 
         // max(hoje, fim do pago) = `pulada`, mas ela já existe (cancelada, ainda ocupa): vem a seguinte, nunca dentro do período pago.
         assertThat(ancoraDe(contratacao)).isEqualTo(pulada);
+        assertThat(competencias(aluno)).containsExactly(pulada.toString(), inicio.toString());
+        gerarAte(seguinte);
         assertThat(competencias(aluno)).containsExactly(seguinte.toString(), pulada.toString(), inicio.toString());
         JsonNode nova = porCompetencia(aluno, seguinte);
         assertThat(nova.get("situacao").asString()).isEqualTo("ABERTA");
@@ -985,8 +1016,9 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
 
     /**
      * A montagem comum do par estornada x contestada: trimestral que começou em "1/10" (há 31 dias), pausada em "15/10" com a
-     * 1ª paga (a pausa vem antes da baixa para a seguinte não nascer: sem aberta depois da paga, só a situação final da 1ª
-     * decide a retomada em "1/11", que é hoje). A situação da 1ª é aplicada pelo teste; a retomada e a conferência também.
+     * 1ª paga e a seguinte (que nasceu ao contratar, porque a 1ª já venceu) cancelada: sem aberta cobrindo período, só a
+     * situação final da 1ª decide a retomada em "1/11", que é hoje. A situação da 1ª é aplicada pelo teste; a retomada e a
+     * conferência também.
      */
     private record PagaEPausada(UUID aluno, JsonNode contratacao, JsonNode pausada, JsonNode paga, LocalDate inicio) { }
 
@@ -995,8 +1027,10 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         LocalDate inicio = hoje.minusDays(31);
         JsonNode contratacao = contratar(aluno, plano("Plano trimestral do período coberto", 30000, "TRIMESTRAL"), inicio, 10);
         JsonNode pausada = pausar(contratacao);
-        JsonNode paga = baixar(cobrancas(aluno).get(0), hoje, 200);
-        assertThat(competencias(aluno)).containsExactly(inicio.toString());
+        JsonNode paga = baixar(porCompetencia(aluno, inicio), hoje, 200);
+        JsonNode seguinte = porCompetencia(aluno, inicio.plusMonths(3));
+        motivo("/cobrancas/" + seguinte.get("id").asString() + "/cancelar", seguinte, 200);
+        assertThat(competencias(aluno)).containsExactly(inicio.plusMonths(3).toString(), inicio.toString());
         return new PagaEPausada(aluno, contratacao, pausada, paga, inicio);
     }
 
@@ -1008,13 +1042,14 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         retomar(m.pausada());
 
         // O dinheiro voltou: o período estornado não cobre nada. A âncora é a retomada (1/11) e a ESTORNADA segue ocupando a
-        // competência dela (sem duplicar).
+        // competência dela (sem duplicar); a rotina continua da grade da nova âncora, depois da competência cancelada.
         assertThat(ancoraDe(m.contratacao())).isEqualTo(hoje);
-        assertThat(competencias(m.aluno())).containsExactly(hoje.toString(), m.inicio().toString());
+        assertThat(competencias(m.aluno())).containsExactly(m.inicio().plusMonths(3).toString(), m.inicio().toString());
         assertThat(porCompetencia(m.aluno(), m.inicio()).get("situacao").asString()).isEqualTo("ESTORNADA");
-        JsonNode nova = porCompetencia(m.aluno(), hoje);
+        gerarAte(hoje.plusMonths(3));
+        JsonNode nova = porCompetencia(m.aluno(), hoje.plusMonths(3));
         assertThat(nova.get("situacao").asString()).isEqualTo("ABERTA");
-        assertThat(nova.get("vencimento").asString()).isEqualTo(CalendarioDeCobranca.vencimento(hoje, 10, null).toString());
+        assertThat(nova.get("vencimento").asString()).isEqualTo(CalendarioDeCobranca.vencimento(hoje.plusMonths(3), 10, null).toString());
         exigirSeguinteAberta(m.aluno());
     }
 
@@ -1025,12 +1060,16 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
 
         retomar(m.pausada());
 
-        // Contestada ainda cobre o período ("1/10" a "31/12"): a âncora e a próxima competência são "1/1", sem duplicar.
+        // Contestada ainda cobre o período ("1/10" a "31/12"): a âncora é "1/1" e a rotina gera depois dela, sem duplicar.
         LocalDate seguinte = m.inicio().plusMonths(3);
         assertThat(ancoraDe(m.contratacao())).isEqualTo(seguinte);
         assertThat(competencias(m.aluno())).containsExactly(seguinte.toString(), m.inicio().toString());
         assertThat(porCompetencia(m.aluno(), m.inicio()).get("situacao").asString()).isEqualTo("CONTESTADA");
-        assertThat(porCompetencia(m.aluno(), seguinte).get("situacao").asString()).isEqualTo("ABERTA");
+        assertThat(porCompetencia(m.aluno(), seguinte).get("situacao").asString()).isEqualTo("CANCELADA");
+        gerarAte(seguinte.plusMonths(3));
+        assertThat(competencias(m.aluno())).containsExactly(seguinte.plusMonths(3).toString(), seguinte.toString(),
+                m.inicio().toString());
+        assertThat(porCompetencia(m.aluno(), seguinte.plusMonths(3)).get("situacao").asString()).isEqualTo("ABERTA");
         assertThat(competencias(m.aluno())).doesNotHaveDuplicates().doesNotContain(hoje.toString());
         exigirSeguinteAberta(m.aluno());
     }
@@ -1040,19 +1079,25 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         UUID aluno = aluno();
         LocalDate inicio = hoje.minusMonths(2);
         JsonNode contratacao = contratar(aluno, plano("Plano mensal sem paga", 10000, "MENSAL"), inicio, hoje.getDayOfMonth());
-        JsonNode primeira = cobrancas(aluno).get(0);
+        // Dois meses sem pagar: contratar já gerou as três (início, +1 mês e hoje), todas abertas.
+        assertThat(competencias(aluno)).hasSize(3);
         JsonNode pausada = pausar(contratacao);
-        motivo("/cobrancas/" + primeira.get("id").asString() + "/cancelar", primeira, 200);
-        assertThat(competencias(aluno)).containsExactly(inicio.toString());
+        for (JsonNode c : cobrancas(aluno)) {
+            motivo("/cobrancas/" + c.get("id").asString() + "/cancelar", c, 200);
+        }
 
         retomar(pausada);
 
-        // Sem PAGA, o comportamento é o de sempre: âncora = hoje e a competência nova é hoje.
+        // Sem cobrança que cubra período, a âncora é hoje; a competência de hoje já existe (cancelada, ocupa) e a rotina
+        // segue da grade, sem buraco nem repetição.
         assertThat(ancoraDe(contratacao)).isEqualTo(hoje);
-        assertThat(competencias(aluno)).containsExactly(hoje.toString(), inicio.toString());
-        JsonNode nova = porCompetencia(aluno, hoje);
+        assertThat(competencias(aluno)).hasSize(3);
+        gerarAte(hoje.plusMonths(1));
+        assertThat(competencias(aluno)).hasSize(4);
+        JsonNode nova = cobrancas(aluno).get(0);
+        assertThat(nova.get("competencia").asString()).isEqualTo(hoje.plusMonths(1).toString());
         assertThat(nova.get("situacao").asString()).isEqualTo("ABERTA");
-        assertThat(nova.get("vencimento").asString()).isEqualTo(hoje.toString());
+        assertThat(nova.get("vencimento").asString()).isEqualTo(hoje.plusMonths(1).toString());
     }
 
     @Test
@@ -1063,7 +1108,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         LocalDate aberta = inicio.plusMonths(1);
         JsonNode contratacao = contratar(aluno, plano("Plano mensal da retomada com aberta", 10000, "MENSAL"), inicio,
                 hoje.getDayOfMonth());
-        baixar(cobrancas(aluno).get(0), hoje, 200);
+        baixar(porCompetencia(aluno, inicio), hoje, 200);
         assertThat(competencias(aluno)).containsExactly(aberta.toString(), inicio.toString());
 
         retomar(pausar(contratacao));
@@ -1074,6 +1119,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         exigirSeguinteAberta(aluno);
 
         baixar(porCompetencia(aluno, aberta), hoje, 200);
+        gerarAte(aberta.plusMonths(1));
 
         List<LocalDate> ordem = new ArrayList<>();
         competencias(aluno).forEach(c -> ordem.add(0, LocalDate.parse(c)));
@@ -1088,7 +1134,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void contratacaoAtivaNuncaFicaSemCobrancaFuturaMesmoDesfazendoBaixaAntigaEPausando() throws Exception {
+    void contratacaoAtivaFicaComCobrancaFuturaDepoisDaRotinaMesmoDesfazendoBaixaAntigaEPausando() throws Exception {
         UUID aluno = aluno();
         // jan, fev e mar são as três primeiras competências; mar cai em hoje.
         LocalDate jan = hoje.minusMonths(2);
@@ -1107,9 +1153,11 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         baixar(porCompetencia(aluno, mar), hoje, 200);
         assertThat(competencias(aluno)).hasSize(3);
 
-        // Retomar e pagar jan: a de maior competência não pode ficar paga sem uma aberta depois dela.
+        // Retomar e pagar jan: pagar não gera nada; a rotina é que deixa uma aberta depois da de maior competência.
         retomar(pausada);
         baixar(porCompetencia(aluno, jan), hoje, 200);
+        assertThat(competencias(aluno)).hasSize(3);
+        gerarSeguinte();
 
         assertThat(contratacaoDe(aluno).get("situacao").asString()).isEqualTo("ATIVA");
         exigirSeguinteAberta(aluno);
@@ -1158,11 +1206,9 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         UUID aluno = aluno();
         LocalDate inicio = LocalDate.of(hoje.getYear() - 1, 1, 31);
         contratar(aluno, plano("Plano do fim de mês", 10000, "MENSAL"), inicio, 31);
-        for (int i = 0; i < 3; i++) {
-            baixar(cobrancas(aluno).get(0), hoje, 200);
-        }
+        // Contratar gera cada mês até hoje, pagos ou não.
         JsonNode todas = cobrancas(aluno);
-        assertThat(todas).hasSize(4);
+        assertThat(todas.size()).isGreaterThanOrEqualTo(12);
         for (int n = 0; n < 4; n++) {
             LocalDate competencia = inicio.plusMonths(n);
             JsonNode c = porCompetencia(aluno, competencia);
@@ -1182,6 +1228,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         UUID aluno = aluno();
         contratarHoje(aluno, plano("Plano de quem sai", 10000, "MENSAL"));
         baixar(cobrancas(aluno).get(0), hoje, 200);
+        gerarSeguinte();
         assertThat(cobrancas(aluno)).hasSize(2);
 
         api.patch("/alunos/" + aluno + "/situacao", admin, Map.of("ativo", false), 200);
@@ -1242,6 +1289,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         JsonNode primeira = cobrancas(aluno).get(0);
         api.post("/cobrancas/" + primeira.get("id").asString() + "/baixa-manual", admin, Map.of("data", hoje.toString(),
                 "forma", "OUTRO", "observacao", "Observação fictícia", "versao", primeira.get("versao").asLong()), 200);
+        gerarSeguinte();
         JsonNode segunda = cobrancas(aluno).get(0);
         assertThat(segunda.get("situacao").asString()).isEqualTo("ABERTA");
 
@@ -1277,7 +1325,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         JsonNode financeiro = dados.get("financeiro");
         assertThat(financeiro.get("contratacoes")).hasSize(1);
         assertThat(financeiro.get("contratacoes").get(0).get("motivoValor").asString()).isEqualTo("Desconto fictício de amigo");
-        assertThat(financeiro.get("cobrancas")).hasSize(2);
+        assertThat(financeiro.get("cobrancas")).hasSize(1);
         assertThat(financeiro.get("cobrancas").valueStream().map(c -> c.path("observacao").asString()))
                 .contains("Observação fictícia da baixa");
         assertThat(dados.get("secoesOmitidas").valueStream().map(JsonNode::asString)).doesNotContain("financeiro");
@@ -1588,6 +1636,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         UUID aluno = aluno();
         contratarHoje(aluno, plano("Plano com dado", 10000, "MENSAL"));
         baixar(cobrancas(aluno).get(0), hoje, 200);
+        gerarSeguinte();
         JsonNode comDado = api.get("/financeiro/painel", admin, 200);
         assertThat(comDado.get("cartoes").get("recebidoCentavos").asLong()).isEqualTo(10000);
         assertThat(api.get("/financeiro/numeros?meses=6", admin, 200).get("previstoCentavos").asLong()).isPositive();
@@ -1666,8 +1715,8 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(numeros.get("meses").get(5).get("recebidoCentavos").asLong()).isEqualTo(10000);
         // Mensal 10000 + trimestral 10000/3 (3333, arredondado) ; a parcela única fica de fora.
         assertThat(numeros.get("receitaRecorrenteMensalCentavos").asLong()).isEqualTo(10000 + 3333);
-        // Previsto: abertas com vencimento de hoje em diante (a do aluno C vence hoje; a seguinte do A, no mês que vem).
-        assertThat(numeros.get("previstoCentavos").asLong()).isEqualTo(50000 + 10000);
+        // Previsto: abertas com vencimento de hoje em diante (só a do aluno C, que vence hoje; pagar não gera a seguinte).
+        assertThat(numeros.get("previstoCentavos").asLong()).isEqualTo(50000);
         assertThat(numeros.get("inadimplenciaPercentual").decimalValue()).isEqualByComparingTo("100.0");
 
         api.post("/financeiro/lancamentos", admin, Map.of("data", hoje.toString(), "descricao", "Venda fictícia",
@@ -1828,7 +1877,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         motivo("/cobrancas/" + aberta.get("id").asString() + "/desfazer-baixa", paga, 200);
         JsonNode numeros = api.get("/financeiro/numeros?meses=6", admin, 200);
         assertThat(zero(numeros.get("meses").get(5).get("recebidoCentavos"))).isTrue();
-        assertThat(numeros.get("previstoCentavos").asLong()).isEqualTo(10000 + 10000);
+        assertThat(numeros.get("previstoCentavos").asLong()).isEqualTo(10000);
         JsonNode semBaixa = api.get("/financeiro/painel", admin, 200);
         assertThat(zero(semBaixa.get("cartoes").get("recebidoCentavos"))).isTrue();
         assertThat(zero(semBaixa.get("cartoes").get("alunosPagantes"))).isTrue();
@@ -2046,6 +2095,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         UUID aluno = aluno();
         contratarHoje(aluno, plano("Plano do aluno que saiu", 10000, "MENSAL"));
         JsonNode paga = baixar(cobrancas(aluno).get(0), hoje, 200);
+        gerarSeguinte();
         UUID pagaId = UUID.fromString(paga.get("id").asString());
         UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class, aluno.toString());
         var tx = new TransactionTemplate(transacoes);
@@ -2098,6 +2148,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
                 .isInstanceOf(ConflictException.class);
 
         // Contestação em outra cobrança paga.
+        gerarSeguinte();
         JsonNode segunda = cobrancas(aluno).get(0);
         UUID segundaId = UUID.fromString(segunda.get("id").asString());
         baixar(segunda, hoje, 200);
@@ -2163,6 +2214,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(codigo(motivo("/cobrancas/" + id + "/desfazer-baixa", estornada, 409))).isEqualTo("COBRANCA_NAO_PAGA");
 
         // Paga direto para estornada também vale.
+        gerarSeguinte();
         JsonNode segunda = baixar(cobrancas(aluno).get(0), hoje, 200);
         assertThat(motivo("/cobrancas/" + segunda.get("id").asString() + "/estornar", segunda, 200).get("situacao").asString())
                 .isEqualTo("ESTORNADA");
