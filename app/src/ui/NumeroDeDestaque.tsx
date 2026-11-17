@@ -4,7 +4,7 @@ import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from
 import { MOTIVO_SEM_DADOS, type EnfaseDoNumero } from '../dominio/destaque';
 import { useTema } from '../tema/TemaProvider';
 import { coresDeDestaque, espaco } from '../tema/tokens';
-import { aparenciaDoNumero, contornoDoNumero, type AparenciaDoNumero } from './destaqueDoNumero';
+import { aparenciaDoNumero, type AparenciaDoNumero } from './destaqueDoNumero';
 import { Texto } from './Texto';
 
 /** Os destaques no tema em uso (também para gráficos: a mesma cor do cartão, D13). */
@@ -57,19 +57,24 @@ export function MotivoDoIndisponivel({ texto = MOTIVO_SEM_DADOS }: { texto?: str
 export function NumeroDeDestaque({ rotulo, valor, detalhe, enfase, tamanho = 'grande', nivelDoRotulo, rotuloAcessivel, style, estiloDoValor, motivo }: Props) {
   const { cores, bordas } = useTema();
   const a = useAparenciaDoNumero(enfase);
+  // Visual-ponytail (17/11): peça neutra (poço, contorno sutil, cantos de 16), a cor da função só no ponto com brilho ao
+  // lado do rótulo; o número fica em `texto` (zero e indisponível continuam apagados, `a.numero`).
   return (
     <View accessibilityLabel={rotuloAcessivel}
-      style={[estilos.peca, contornoDoNumero(a.faixa, cores, bordas.bloco, RECUO), { backgroundColor: a.fundo }, style]}>
-      <Texto variante="rotulo" cor={cores.texto} nivel={nivelDoRotulo}>{rotulo}</Texto>
-      <Texto variante={tamanho === 'grande' ? 'destaque' : 'titulo'} numerico cor={a.numero} style={estiloDoValor}>{valor}</Texto>
+      style={[estilos.peca, { borderWidth: bordas.bloco, borderColor: cores.divisor, backgroundColor: cores.superficie2 }, style]}>
+      <View style={estilos.rotulo}>
+        {a.faixa ? <View aria-hidden style={[estilos.ponto, { backgroundColor: a.faixa, boxShadow: `0px 0px 10px ${a.faixa}` }]} /> : null}
+        <Texto variante="rotulo" cor={cores.textoSuave} nivel={nivelDoRotulo}>{rotulo}</Texto>
+      </View>
+      <Texto variante={tamanho === 'grande' ? 'destaque' : 'titulo'} numerico cor={a.faixa ? cores.texto : a.numero} style={estiloDoValor}>{valor}</Texto>
       {enfase === 'indisponivel' ? <MotivoDoIndisponivel texto={motivo} /> : null}
       {detalhe ? <Texto variante="pequeno" cor={cores.textoSuave}>{detalhe}</Texto> : null}
     </View>
   );
 }
 
-const RECUO = espaco(2);
-
 const estilos = StyleSheet.create({
-  peca: { flexGrow: 1, minWidth: 0, paddingVertical: espaco(1.5), paddingRight: RECUO, gap: espaco(0.5) },
+  peca: { flexGrow: 1, minWidth: 0, paddingVertical: espaco(1.5), paddingHorizontal: espaco(2), gap: espaco(0.5), borderRadius: 16 },
+  rotulo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
+  ponto: { width: 7, height: 7, borderRadius: 4 },
 });
