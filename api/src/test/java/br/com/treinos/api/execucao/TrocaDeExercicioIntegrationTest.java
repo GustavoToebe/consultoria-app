@@ -150,6 +150,48 @@ class TrocaDeExercicioIntegrationTest extends AbstractIntegrationTest {
         assertThat(contar()).isEqualTo(1);
     }
 
+    /**
+     * Desmarcar série trocada (plano treino-do-aluno-lacunas-cbum, D4): o mesmo registro volta com {@code concluida=false}
+     * e o {@code exercicioId} da alternativa; o último {@code alteradoNoAparelhoEm} vence, o atrasado é
+     * {@code IGNORADO_ANTIGO} e a troca deixa de aparecer ao treinador (só conta série concluída).
+     */
+    @Test
+    void desmarcarSerieTrocadaEOMesmoRegistroMantemAAlternativaOUltimoVenceEIdempotente() throws Exception {
+        UUID id = UUID.randomUUID();
+        Instant quando = Instant.now();
+        Map<String, Object> marcada = registro(id, wsUid, "40", 8, quando);
+        marcada.put("exercicioId", alternativaId.toString());
+        assertThat(situacoes(enviar(List.of(marcada)))).containsExactly("ACEITO");
+
+        Map<String, Object> desmarcada = registro(id, wsUid, "40", 8, quando.plusSeconds(60));
+        desmarcada.put("exercicioId", alternativaId.toString());
+        desmarcada.put("concluida", false);
+        assertThat(situacoes(enviar(List.of(desmarcada)))).containsExactly("ACEITO");
+        assertLinhaDaSerie(id, false);
+
+        // Reenviar o desmarcar é idempotente, e a marcação atrasada não o desfaz.
+        assertThat(situacoes(enviar(List.of(desmarcada)))).containsExactly("IGNORADO_ANTIGO");
+        assertThat(situacoes(enviar(List.of(marcada)))).containsExactly("IGNORADO_ANTIGO");
+        assertLinhaDaSerie(id, false);
+
+        // Série não concluída não é troca para o treinador.
+        assertThat(api.get("/alunos/" + alunoId + "/trocas-de-exercicio", treinador, 200).get("trocas")).isEmpty();
+
+        // Marcar de novo, mais novo, vence e a troca volta a aparecer.
+        Map<String, Object> remarcada = registro(id, wsUid, "40", 8, quando.plusSeconds(120));
+        remarcada.put("exercicioId", alternativaId.toString());
+        assertThat(situacoes(enviar(List.of(remarcada)))).containsExactly("ACEITO");
+        assertLinhaDaSerie(id, true);
+        assertThat(api.get("/alunos/" + alunoId + "/trocas-de-exercicio", treinador, 200).get("trocas")).hasSize(1);
+    }
+
+    private void assertLinhaDaSerie(UUID id, boolean concluida) {
+        Map<String, Object> linha = jdbc.queryForMap("select exercicio_id, concluida from execucao_serie where id = ?", id);
+        assertThat(linha.get("concluida")).isEqualTo(concluida);
+        assertThat(linha.get("exercicio_id")).isEqualTo(alternativaId);
+        assertThat(contar()).isEqualTo(1);
+    }
+
     @Test
     void serieComExercicioQueNaoEAlternativaDaVersaoERecusada() throws Exception {
         // Aleatório, da biblioteca mas fora das alternativas do plano: nenhum vira o exercício da série.
