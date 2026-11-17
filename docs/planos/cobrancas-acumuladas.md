@@ -1,6 +1,6 @@
 # Cobranças acumuladas e tempo mínimo de permanência
 
-Situação: Planejando (sem decisão de implementar o acúmulo; do Saraiva falta só a pergunta 2, pausar na mão; a saída antes do tempo mínimo é do P1.5 e não depende dele) · Onde: `main` (nada implementado) · Atualizado: 15/11/2026
+Situação: **Substituído por [financeiro-em-fases.md](financeiro-em-fases.md)** (17/11/2026: a D1 do novo plano gera a mensalidade todo mês e fecha a pergunta 2 do Saraiva; o limite N e os passos abaixo não serão feitos) · Onde: `main` (nada implementado) · Atualizado: 17/11/2026
 
 ## Objetivo
 O aluno que não paga continua sendo cobrado mês a mês: a cobrança do mês seguinte nasce mesmo com a anterior em aberto, até um limite que o treinador configura. Junto, o plano mensal passa a ter um tempo mínimo de permanência. É regra de negócio do Saraiva Team e do Gustavo (13/11); **este arquivo só registra, não há código nem migration nesta etapa**.

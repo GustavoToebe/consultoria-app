@@ -29,12 +29,12 @@ sem os campos fixos que ele não quer. O formulário entra na consultoria por um
 
 ## Fora do escopo
 - Termo de uso e aviso de privacidade para menores, e responsável legal na anamnese (revisão jurídica).
-- Rodar o script em produção: o `.mjs` nunca foi rodado lá. A "Inscrição Saraiva Team" que está na consultoria real foi gravada em 05 e 08/11 copiando por SQL o conteúdo dos scripts `scripts/questionario/*-saraiva.mjs`, validado antes na API local (`series-redesenho.md`, passo 7, que a descreve com **15** perguntas, não 14). Se a publicada é a do script (14 perguntas) ficou em aberto: pendência no README.
+- Rodar o script em produção: o `.mjs` nunca foi rodado lá. A "Inscrição Saraiva Team" que está na consultoria real foi gravada em 05 e 08/11 copiando por SQL o conteúdo dos scripts `scripts/questionario/*-saraiva.mjs`, validado antes na API local (`series-redesenho.md`, passo 7, que a descreve com **15** perguntas, não 14). Se a publicada é a do script (14 perguntas) ficou em aberto até 17/11/2026, quando o Saraiva revisou as perguntas e aprovou, sem mudança.
 - Imagem nas perguntas e destino no cadastro (a inscrição não aceita, ver `inscricao-com-perguntas-proprias.md`).
 
 ## O que ficou para trás
 - Menores de idade: revisão jurídica do termo de uso, do aviso de privacidade e da anamnese (sem responsável legal). Aberta.
 - "Hormonizado ou natural": dado de saúde perguntado na inscrição pública, a rever com a LGPD. Aberta.
-- Conferir no app se a "Inscrição Saraiva Team" publicada é a do script (14 perguntas). Aberta.
+- ~~Conferir no app se a "Inscrição Saraiva Team" publicada é a do script (14 perguntas).~~ Fechada em 17/11/2026: o Saraiva revisou as perguntas do formulário de inscrição e aprovou, sem mudança (fonte: respostas do Saraiva ao Gustavo, 17/11).
 - O envio encadeado inscrição → inscrição pede nome e WhatsApp de novo e cria uma segunda inscrição (ver `formularios-unificados.md`). Aberta.
 - (cada sobra também vai para "Pendências soltas" no README)

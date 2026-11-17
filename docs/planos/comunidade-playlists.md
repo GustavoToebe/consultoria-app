@@ -58,6 +58,7 @@ Duas etapas, em PRs separados se convier: a Etapa 1 (passos 1 a 3, pequena) não
 | D21 | C36 (substitui D13): a equipe (`COMUNIDADE_MODERAR`) anexa de 0 a 4 fotos no post do mural, mesmas regras da foto do aluno (JPEG regravado, 1600 px, 300 KB, teto diário, limpeza das órfãs); se `comunidade_mural_foto` não aceitar autor da equipe, migration **V085** e a N2 do contato vai para V086; exportação e anonimização não mudam | Gustavo, 17/11 |
 | D22 | C39 (substitui D15): o mural ganha duas abas, **Avisos** (AVISO, VIDEO, ENQUETE) e **Alunos** (CONVERSA, DUVIDA, RESULTADO), para equipe e aluno; só o filtro por tipo que a API já aceita, sem migration; fixados aparecem na aba do tipo; aba no endereço (`?mural=avisos\|alunos`); aluno com grupo mantém Geral/Meu grupo e as abas valem dentro de cada um | Gustavo, 17/11 |
 | D23 | C24: reproduzir primeiro com teste (systematic-debugging); se não reproduzir, dizer isso e não inventar correção | Gustavo, 17/11 |
+| D24 | **C24 não reproduziu nos testes** (sessão de 17/11/2026, commit `7dd4eb01`: só três testes novos em `CapaDoVideo.test.tsx`, sem correção inventada). O **Gustavo vai conferir à mão no aparelho**; até lá fica em "Pendências soltas" do README, responsável Gustavo | Gustavo, 17/11 |
 
 ## Passos
 ### Etapa 1 (PR pequeno, pode sair antes)

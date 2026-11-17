@@ -1,6 +1,6 @@
 # Filtro de conteúdo da Comunidade
 
-Situação: Em andamento (Onda 2F da sessão de 17/11/2026) · Onde: main · Atualizado: 17/11/2026 · Base: `e6537dc3`
+Situação: Em andamento até a Onda 5 (Onda 2F da sessão de 17/11/2026) · Onde: main · Atualizado: 17/11/2026 · Base: `e6537dc3`
 
 Fonte: decisões do Gustavo de 17/11/2026. Validade: vale enquanto a lista de termos abaixo for a fixa do servidor.
 
@@ -18,8 +18,8 @@ Post e comentário de aluno com termo sexual explícito não são publicados. A 
 | D6 | Equipe | o filtro não vale para a equipe (`COMUNIDADE_MODERAR`) | decorrência de D3 |
 
 ## Passos
-- [x] 1. Filtro na API (comunidade) e mensagem no app — executor (Onda 2F, depois dos aniversários) · **API feita em 17/11/2026 (sem commit)**: `comunidade/FiltroDeConteudo` (23 termos, palavra inteira, sem acento), 422 `texto` no post (`POST_INVALIDO`) e no comentário de aluno (`COMUNIDADE_INVALIDA`); testes `FiltroDeConteudoTest` e `FiltroDeConteudoIntegrationTest`; **a mensagem no app (campo `texto` do post e do comentário) fica com o executor-front** · commit: —
-- [ ] 2. Revisão independente (falso positivo) — revisor, só leitura · commit: —
+- [x] 1. Filtro na API (comunidade) e mensagem no app — executor (Onda 2F, depois dos aniversários) · **API feita em 17/11/2026**: `comunidade/FiltroDeConteudo` (19 termos, palavra inteira, sem acento), 422 `texto` no post (`POST_INVALIDO`) e no comentário de aluno (`COMUNIDADE_INVALIDA`); testes `FiltroDeConteudoTest` e `FiltroDeConteudoIntegrationTest`; **a mensagem no app (campo `texto` do post e do comentário)** · commit: `87f90ead` (API), `3a851bc1` (app, mensagem no campo), `c6296fab` (correções da revisão)
+- [x] 2. Revisão independente (falso positivo) — revisor, só leitura · **FEITO em 17/11/2026**: sem achado grave; correções aplicadas: tirou "orgia(s)" e "putaria(s)" da lista por falso positivo, o dígito passou a separar palavra, caracteres invisíveis do Hangul passaram a ser tratados e o corpo da resposta tardia do cliente do YouTube foi fechado · commit: `c6296fab`
 
 ## Critérios de aceite
 - Bloqueia: termo da lista, com acento, em maiúsculas e entre pontuação. Libera: "peito", "coxa", "glúteo", "bunda", palavra da lista como parte de outra.

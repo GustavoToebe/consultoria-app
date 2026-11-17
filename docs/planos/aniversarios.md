@@ -28,8 +28,8 @@ O treinador vê no Início quem faz aniversário nos próximos dias, para lembra
 
 ## Passos
 - [x] 1. API e regra pura em `dominio/` com teste: aniversariantes dos próximos N dias, virada de ano, 29/02 — feito em `b9a6c3bf`. `AniversariantesService`/`Controller`, `AniversariantesIntegrationTest`, `AniversariantesRegraTest`, `dominio/aniversariosDosAlunos.ts` (+ teste) · commit: `b9a6c3bf`
-- [x] 2. Cartão "Aniversários" no Início do treinador, preferência `diasAniversario` (0, 3, 7 ou 15; padrão 7) escolhida em Ajustes e item "Aniversários dos alunos" no hub de Configurações — feito em `b9a6c3bf`. Cartão fora da grade e do "Editar" (`shortcut` em `BlocoAniversarios.tsx`); e2e escrito em `app/e2e/aniversarios.spec.ts`, ainda não rodado (Onda 5) · commit: —
-- [x] 3. Revisão independente (data de nascimento, LGPD) — feita em 17/11: sem vazamento de ano ou idade nem quebra de autorização; ajustes pequenos aplicados (toString do record, espera da preferência no Início); lacunas de teste (sem responsável com `meus`, anonimizado isolado, espera do pedido no e2e) ficam para a Onda 5 · commit: ver abaixo
+- [x] 2. Cartão "Aniversários" no Início do treinador, preferência `diasAniversario` (0, 3, 7 ou 15; padrão 7) escolhida em Ajustes e item "Aniversários dos alunos" no hub de Configurações — feito em `b9a6c3bf`. Cartão fora da grade e do "Editar" (`shortcut` em `BlocoAniversarios.tsx`); e2e escrito em `app/e2e/aniversarios.spec.ts`, ainda não rodado (Onda 5) · commit: `b9a6c3bf`
+- [x] 3. Revisão independente (data de nascimento, LGPD) — feita em 17/11: sem vazamento de ano ou idade nem quebra de autorização; ajustes pequenos aplicados (toString do record, espera da preferência no Início); lacunas de teste (sem responsável com `meus`, anonimizado isolado, espera do pedido no e2e) ficam para a Onda 5 · commit: `b9a6c3bf` e `8c35e28e`
 
 ## Critérios de aceite
 - Sem `ALUNO_LER` o bloco não aparece e a API não devolve data.
