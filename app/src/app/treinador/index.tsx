@@ -419,5 +419,6 @@ export default function InicioTreinador() {
 const estilos = StyleSheet.create({
   raiz: { flex: 1 },
   painel: { gap: espaco(2) },
-  linha: { flexDirection: 'row', gap: espaco(2), alignItems: 'flex-start' },
+  // Visual-ponytail (17/11): blocos da mesma linha com a mesma altura (a grade não quebra).
+  linha: { flexDirection: 'row', gap: espaco(2), alignItems: 'stretch' },
 });
