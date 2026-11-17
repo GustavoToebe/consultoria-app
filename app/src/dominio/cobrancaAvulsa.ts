@@ -159,7 +159,7 @@ export const MENSAGEM_ALUNO_NAO_ENCONTRADO = 'Algum aluno da seleção não foi 
 export const MENSAGEM_ALUNO_INATIVO = 'Algum aluno da seleção está inativo. Nenhuma cobrança foi gerada. Tire-o da seleção ou reative-o.';
 export const MENSAGEM_ALUNO_ANONIMIZADO = 'Algum aluno da seleção foi anonimizado e não recebe cobrança. Nenhuma cobrança foi gerada. Tire-o da seleção.';
 /** Sem retorno do servidor não dá para saber se gerou (não há chave de idempotência): conferir antes de repetir. */
-export const MENSAGEM_CONFERIR_A_LISTA = 'Não foi possível confirmar se as cobranças foram geradas. Confira a lista de cobranças antes de tentar de novo.';
+export const MENSAGEM_CONFERIR_A_LISTA = 'Não foi possível confirmar se as cobranças foram geradas. Confira a lista de cobranças antes de gerar de novo: repetir pode criar tudo em dobro.';
 
 const CAMPOS_DA_API: Readonly<Record<string, CampoDaAvulsa>> = {
   descricao: 'descricao',
@@ -175,6 +175,11 @@ export interface ErroDaAvulsa {
   etapa: EtapaDaAvulsa | null;
   /** A lista de alunos mudou (404, inativo, anonimizado): a tela a busca de novo e o treinador revê a seleção. */
   recarregarAlunos: boolean;
+  /**
+   * Sem resposta do servidor (sem conexão ou erro desconhecido): pode ter gravado. A tela não oferece gerar de novo, só
+   * conferir a lista (não há chave de idempotência; repetir pode criar tudo em dobro).
+   */
+  incerto: boolean;
 }
 
 function statusDoErro(erro: unknown): number | null {
@@ -189,7 +194,7 @@ function statusDoErro(erro: unknown): number | null {
  * ou erro desconhecido a frase de conferir a lista. Nunca repete o que foi digitado.
  */
 export function traduzirErroDaAvulsa(erro: unknown): ErroDaAvulsa {
-  const base = { campos: {} as ErrosDaAvulsa, etapa: null, recarregarAlunos: false };
+  const base = { campos: {} as ErrosDaAvulsa, etapa: null, recarregarAlunos: false, incerto: false };
   const codigo = codigoApi(erro);
   const status = statusDoErro(erro);
   if (codigo === 'COBRANCA_AVULSA_INVALIDA') {
@@ -210,6 +215,15 @@ export function traduzirErroDaAvulsa(erro: unknown): ErroDaAvulsa {
   if (codigo === 'ALUNO_ANONIMIZADO') return { ...base, mensagem: MENSAGEM_ALUNO_ANONIMIZADO, recarregarAlunos: true };
   // 403 e 503 não gravam nada: a frase da API basta. Sem conexão pode ter gravado: a de conferir.
   if (status === 403 || codigo === 'FINANCEIRO_INDISPONIVEL') return { ...base, mensagem: mensagemApi(erro, 'Não foi possível gerar as cobranças agora. Nenhuma foi gerada.') };
-  if (erroDeConexao(erro)) return { ...base, mensagem: `${mensagemApi(erro, '')} ${MENSAGEM_CONFERIR_A_LISTA}`.trim() };
-  return { ...base, mensagem: MENSAGEM_CONFERIR_A_LISTA };
+  // Sem o "tente de novo" da frase padrão de conexão: aqui repetir pode duplicar tudo.
+  if (erroDeConexao(erro)) return { ...base, incerto: true, mensagem: `Sem conexão com o servidor. ${MENSAGEM_CONFERIR_A_LISTA}` };
+  return { ...base, incerto: true, mensagem: MENSAGEM_CONFERIR_A_LISTA };
+}
+
+/**
+ * Os escolhidos que não estão entre os ativos (depois de um 404 ou 409 do envio, com a lista de ativos buscada inteira):
+ * inativos, anonimizados ou que não existem mais. O servidor não diz qual foi; a tela os marca e oferece tirá-los.
+ */
+export function foraDosAtivos(escolhidos: readonly string[], ativos: ReadonlySet<string>): string[] {
+  return escolhidos.filter((id) => !ativos.has(id));
 }

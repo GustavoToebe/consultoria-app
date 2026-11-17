@@ -115,16 +115,27 @@ describe('chave Pix por tipo', () => {
 });
 
 describe('link de pagamento do plano', () => {
-  it('vazio apaga; https vale; o resto é recusado', () => {
+  it('vazio apaga; https vale (com a porta 443, que o servidor aceita)', () => {
     expect(lerLinkDoPlano('   ')).toEqual({ valor: null, erro: null });
     expect(lerLinkDoPlano(' https://pagamento.exemplo.com/plano?id=1 ')).toEqual({ valor: 'https://pagamento.exemplo.com/plano?id=1', erro: null });
-    for (const ruim of ['http://exemplo.com', 'exemplo.com/pagar', 'https://', 'https://exemplo .com', 'javascript:alert(1)', 'ftp://exemplo.com']) {
+    expect(lerLinkDoPlano('https://pagamento.exemplo.com:443/plano').erro).toBeNull();
+    // O "@" depois do host (no caminho ou na busca) não é usuário.
+    expect(lerLinkDoPlano('https://pagamento.exemplo.com/p?email=a@b.com').erro).toBeNull();
+  });
+  it('cada recusa do servidor que o app consegue ver tem a mensagem dela', () => {
+    expect(lerLinkDoPlano('http://exemplo.com/pagar').erro).toBe('Use https.');
+    expect(lerLinkDoPlano('HTTP://exemplo.com').erro).toBe('Use https.');
+    expect(lerLinkDoPlano('https://usuario:senha@exemplo.com/pagar').erro).toBe('O link não pode ter usuário ou senha.');
+    expect(lerLinkDoPlano('https://usuario@exemplo.com').erro).toBe('O link não pode ter usuário ou senha.');
+    expect(lerLinkDoPlano('https://exemplo.com:8443/pagar').erro).toBe('O link não pode ter porta.');
+    expect(lerLinkDoPlano('https://exemplo.com:/pagar').erro).toBe('O link não pode ter porta.');
+    expect(lerLinkDoPlano(`https://exemplo.com/${'a'.repeat(480)}`).erro).toBeNull();
+    expect(lerLinkDoPlano(`https://exemplo.com/${'a'.repeat(481)}`).erro).toBe('Até 500 caracteres.');
+  });
+  it('o resto fica na mensagem genérica', () => {
+    for (const ruim of ['exemplo.com/pagar', 'https://', 'https://exemplo .com', 'javascript:alert(1)', 'ftp://exemplo.com']) {
       expect(lerLinkDoPlano(ruim)).toEqual({ valor: null, erro: 'O link precisa começar com https://.' });
     }
-  });
-  it('até 500 caracteres', () => {
-    expect(lerLinkDoPlano(`https://exemplo.com/${'a'.repeat(480)}`).erro).toBeNull();
-    expect(lerLinkDoPlano(`https://exemplo.com/${'a'.repeat(481)}`).erro).toBe('O link pode ter até 500 caracteres.');
   });
 });
 

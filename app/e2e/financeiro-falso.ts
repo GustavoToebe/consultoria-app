@@ -485,12 +485,15 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
         && entre(c.pagoEm, q('pagoDe'), q('pagoAte')));
       return json(route, { itens, total: itens.length, pagina: 0, totais: totaisDoFalso(itens) });
     },
-    // Como a API: só os ativos (situação padrão), busca no nome e páginas de 30.
+    // Como a API: a situação (padrão ATIVO), busca no nome e páginas de `tamanho` (padrão 30, de 1 a 100).
     'GET /alunos': (p, route) => {
       const busca = (p.busca.get('busca') ?? '').toLowerCase();
       const pagina = Number(p.busca.get('pagina') ?? 0);
-      const ativos = estado.alunos.filter((a) => a.ativo && (!busca || a.nome.toLowerCase().includes(busca)));
-      return json(route, { itens: ativos.slice(pagina * 30, pagina * 30 + 30), total: ativos.length });
+      const tamanho = Math.min(100, Math.max(1, Number(p.busca.get('tamanho') ?? 30)));
+      const situacao = p.busca.get('situacao') ?? 'ATIVO';
+      const daSituacao = (a: AlunoResumo) => situacao === 'TODOS' || (situacao === 'ATIVO') === a.ativo;
+      const lista = estado.alunos.filter((a) => daSituacao(a) && (!busca || a.nome.toLowerCase().includes(busca)));
+      return json(route, { itens: lista.slice(pagina * tamanho, pagina * tamanho + tamanho), total: lista.length });
     },
     // Avulsa, tudo ou nada: 422 por campo, 404 aluno que não existe, 409 inativo; a parcela k vence no primeiro + (k-1) meses.
     'POST /financeiro/cobrancas-avulsas': (p, route) => {

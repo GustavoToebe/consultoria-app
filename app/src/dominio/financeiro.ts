@@ -386,7 +386,10 @@ export function acoesDePagamentoDoAluno(
   return acoes;
 }
 
-/** "Pagar" (um só) ou, com os dois "Pagar" ligados, o nome de cada um; "Copiar código Pix". */
+/**
+ * "Pagar" (um só) ou, com os dois "Pagar" ligados, o nome de cada um; "Copiar código Pix". `acoes` são as do cartão inteiro
+ * (todas as cobranças em aberto à vista), não só as da cobrança: a mesma ação tem o mesmo nome em todas.
+ */
 export function rotuloDaAcaoDePagamento(acao: AcaoDePagamento, acoes: readonly AcaoDePagamento[]): string {
   if (acao === 'COPIAR_PIX') return 'Copiar código Pix';
   if (!(acoes.includes('PAGAR_INFINITEPAY') && acoes.includes('PAGAR_LINK_PROPRIO'))) return 'Pagar';

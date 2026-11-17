@@ -4,7 +4,7 @@ import { StyleSheet, useWindowDimensions, View, type TextInput } from 'react-nat
 
 import { criarCobrancasAvulsas, listarAlunos } from '../../api/rotas';
 import {
-  confirmacaoDaAvulsa, corpoDaAvulsa, errosDaEtapa, LIMITES_DA_AVULSA, previaDasParcelas, primeiraEtapaComErro, textoDaAvulsaGerada,
+  confirmacaoDaAvulsa, corpoDaAvulsa, errosDaEtapa, foraDosAtivos, LIMITES_DA_AVULSA, previaDasParcelas, primeiraEtapaComErro, textoDaAvulsaGerada,
   traduzirErroDaAvulsa, type CampoDaAvulsa, type EntradaDaAvulsa, type ErrosDaAvulsa, type EtapaDaAvulsa,
 } from '../../dominio/cobrancaAvulsa';
 import { dadosEmDia } from '../../dominio/dadosEmDia';
@@ -25,6 +25,7 @@ import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { Selo } from '../../ui/Selo';
 import { SelecaoMultipla } from '../../ui/SelecaoMultipla';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
@@ -34,6 +35,10 @@ import { CampoMoeda } from './comum';
 const TAMANHO_PAGINA = 30;
 /** Quantos escolhidos a lista mostra antes do "Ver todos". */
 const ESCOLHIDOS_VISIVEIS = 8;
+/** A maior página de `GET /alunos` (a API corta em 100). */
+const PAGINA_DOS_ATIVOS = 100;
+/** Até quantas páginas de ativos a folha busca para achar quem saiu da lista depois de um 404/409. */
+const PAGINAS_DOS_ATIVOS = 10;
 /** Abaixo desta largura da janela o indicador vira uma linha só ("Etapa 2 de 3 · Descrição e valor"). */
 const LARGURA_DAS_ETAPAS = 480;
 
@@ -44,14 +49,30 @@ interface Escolhido { id: string; nome: string }
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
 /**
+ * Os ids de todos os alunos ativos, em páginas de 100. O 404/409 do envio não diz qual aluno saiu: com a lista inteira dá
+ * para marcar os escolhidos que não estão nela. Nulo se a consultoria passar do teto (aí a tela fica só com a mensagem).
+ */
+// shortcut: uma chamada a cada 100 ativos, até 1.000; trocar quando o 409 da API trouxer os ids recusados.
+async function idsDosAtivos(): Promise<Set<string> | null> {
+  const ids = new Set<string>();
+  for (let pagina = 0; pagina < PAGINAS_DOS_ATIVOS; pagina += 1) {
+    const r = await listarAlunos({ pagina, tamanho: PAGINA_DOS_ATIVOS });
+    for (const a of r.itens) ids.add(a.id);
+    if (r.itens.length === 0 || (pagina + 1) * PAGINA_DOS_ATIVOS >= r.total) return ids;
+  }
+  return null;
+}
+
+/**
  * Nova cobrança avulsa (Fase 1 do financeiro): passo a passo em três etapas na mesma folha, com o estado todo aqui (voltar
  * não perde nada). 1 Alunos: busca nos ativos (`GET /alunos`, que só traz ativos; anonimizado é sempre inativo), marca
  * vários entre páginas, de 1 a 100; os escolhidos ficam com o nome guardado e saem pelo ✕. 2 Descrição (até 120, o aluno
  * vê) e o valor de CADA parcela. 3 Primeiro vencimento (faixa de planejamento), parcelas de 1 a 12 e a prévia como o
  * servidor gera. "Continuar" confere só a etapa (erros no campo, foco no primeiro); "Revisar e gerar" abre a confirmação
  * "Gerar N cobranças?" com o total, e só ela envia. O servidor confere tudo de novo: 422 volta à etapa do campo, aluno
- * inativo, anonimizado ou sumido volta aos alunos (a lista é buscada de novo), sem conexão manda conferir a lista antes
- * de repetir (não há como saber se gravou). O app não calcula nada que o servidor grava: o total é só conferência.
+ * inativo, anonimizado ou sumido volta aos alunos (a lista é buscada de novo e, com os ativos inteiros, os escolhidos que
+ * saíram ficam marcados, primeiro, com "Remover os que não estão ativos"); sem conexão não há como saber se gravou: a
+ * confirmação troca o "Gerar" por "Conferir a lista" até a folha fechar. O app não calcula nada que o servidor grava.
  */
 export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => void; aoGerar: () => void }) {
   const { avisar } = useAviso();
@@ -72,8 +93,17 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
   const [confirmando, setConfirmando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erroDoEnvio, setErroDoEnvio] = useState<string | null>(null);
+  /**
+   * O envio ficou sem resposta (sem conexão): pode ter gravado. Daí em diante a folha não oferece gerar de novo, só conferir
+   * a lista (repetir criaria tudo em dobro); vale até fechar, também depois de "Voltar" e "Revisar e gerar".
+   */
+  const [incerto, setIncerto] = useState(false);
+  /** Os ativos buscados depois de um 404/409 do envio; nulo enquanto não se sabe (ou se não deu para saber). */
+  const [ativos, setAtivos] = useState<ReadonlySet<string> | null>(null);
   // O segundo toque chega antes de a tela redesenhar: sem a trava sairiam dois pedidos (e o dobro de cobranças).
   const ocupado = useRef(false);
+  // Só a resposta da última busca de ativos vale (dois 409 seguidos não se misturam).
+  const buscaDeAtivos = useRef(0);
 
   const [buscaDigitada, setBuscaDigitada] = useState('');
   const busca = useAtrasado(buscaDigitada.trim(), 300);
@@ -85,6 +115,7 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
   const refBusca = useRef<TextInput>(null);
   const refDescricao = useRef<TextInput>(null);
   const refValor = useRef<TextInput>(null);
+  const refVencimento = useRef<TextInput>(null);
   const refParcelas = useRef<TextInput>(null);
 
   const hoje = hojeEmBrasilia();
@@ -111,7 +142,7 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
   };
 
   const focar = (erros: ErrosDaAvulsa) => focarPrimeiroComErro(erros as Record<string, string>, [
-    ['alunos', refBusca], ['descricao', refDescricao], ['valor', refValor], ['parcelas', refParcelas],
+    ['alunos', refBusca], ['descricao', refDescricao], ['valor', refValor], ['primeiroVencimento', refVencimento], ['parcelas', refParcelas],
   ]);
 
   const continuar = () => {
@@ -137,7 +168,34 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
     setConfirmando(true);
   };
 
+  /** Depois do 404/409: busca os ativos e marca, entre os escolhidos, quem não está mais lá. Falha deixa só a mensagem. */
+  const marcarQuemSaiu = () => {
+    buscaDeAtivos.current += 1;
+    const vez = buscaDeAtivos.current;
+    setAtivos(null);
+    idsDosAtivos().then(
+      (ids) => { if (vez === buscaDeAtivos.current) setAtivos(ids); },
+      () => undefined,
+    );
+  };
+  const indisponiveis = ativos ? foraDosAtivos(escolhidos.map((e) => e.id), ativos) : [];
+  const tirarIndisponiveis = () => {
+    const fora = new Set(indisponiveis);
+    mudarEscolhidos(escolhidos.filter((e) => !fora.has(e.id)));
+    setAviso(null);
+  };
+
+  /** Sem resposta do envio: fecha e a lista de trás recarrega, para conferir se as cobranças foram geradas. */
+  const conferirALista = () => {
+    aoGerar();
+    aoFechar();
+  };
+
   const enviar = () => {
+    if (incerto) {
+      conferirALista();
+      return;
+    }
     if (!corpo || ocupado.current) return;
     ocupado.current = true;
     setEnviando(true);
@@ -152,12 +210,18 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
         ocupado.current = false;
         setEnviando(false);
         const t = traduzirErroDaAvulsa(e);
-        if (t.recarregarAlunos) alunos.recarregar();
+        if (t.recarregarAlunos) {
+          alunos.recarregar();
+          marcarQuemSaiu();
+        }
         if (t.etapa === null && !t.recarregarAlunos) {
           // Nada a corrigir nos campos (sem conexão, 403, 503): a mensagem fica na própria confirmação. Sem resposta pode
-          // ter gravado: a lista de trás já recarrega, para a conferência pedida na mensagem.
+          // ter gravado: a lista de trás já recarrega e a confirmação passa a oferecer só "Conferir a lista".
           setErroDoEnvio(t.mensagem);
-          aoGerar();
+          if (t.incerto) {
+            setIncerto(true);
+            aoGerar();
+          }
           return;
         }
         setConfirmando(false);
@@ -195,7 +259,8 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
         {etapa === 1 ? (
           <EtapaDosAlunos escolhidos={escolhidos} aoMudar={mudarEscolhidos} erro={erroDe('alunos')} limite={limite} aoPassarDoLimite={() => setLimite(true)}
             busca={buscaDigitada} aoBuscar={(t) => { setBuscaDigitada(t); setPagina(0); }} refBusca={refBusca}
-            alunos={alunos} itens={doAlunos?.itens ?? []} pagina={pagina} temMais={temMais} aoPaginar={setPagina} />
+            alunos={alunos} itens={doAlunos?.itens ?? []} pagina={pagina} temMais={temMais} aoPaginar={setPagina}
+            indisponiveis={indisponiveis} aoTirarIndisponiveis={tirarIndisponiveis} />
         ) : null}
         {etapa === 2 ? (
           <>
@@ -211,7 +276,7 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
         {etapa === 3 ? (
           <>
             <CamposEmLinha>
-              <CampoData rotulo="Primeiro vencimento" valor={vencimento} regra="PLANEJAMENTO" erro={erroDe('primeiroVencimento')}
+              <CampoData ref={refVencimento} rotulo="Primeiro vencimento" valor={vencimento} regra="PLANEJAMENTO" erro={erroDe('primeiroVencimento')}
                 aoMudar={(t) => { setVencimento(t); limparDoServidor('primeiroVencimento'); }} />
               <Campo ref={refParcelas} rotulo="Parcelas" valor={parcelas} numerico keyboardType="number-pad" inputMode="numeric" maxLength={2}
                 aoMudar={(t) => { setParcelas(t.replace(/\D/g, '')); limparDoServidor('parcelas'); }} erro={erroDe('parcelas')}
@@ -221,10 +286,11 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
           </>
         ) : null}
       </View>
-      <PainelConfirmacao visivel={confirmando} titulo={confirmacao?.titulo ?? 'Gerar cobranças?'}
+      {/* Sem resposta do envio, o principal deixa de ser "Gerar" (criaria tudo em dobro) e vira "Conferir a lista". */}
+      <PainelConfirmacao visivel={confirmando} titulo={incerto ? 'Confira a lista de cobranças' : confirmacao?.titulo ?? 'Gerar cobranças?'}
         // Espaço fixo depois do "R$": o valor nunca se parte no fim da linha (390 px).
-        mensagem={confirmacao ? `${confirmacao.detalhe.replace(/R\$ /g, 'R$\u00a0')} Cada cobrança nasce em aberto; para desfazer, cancele na lista.` : undefined}
-        rotuloConfirmar={confirmacao ? confirmacao.titulo.replace('?', '') : 'Gerar cobranças'} rotuloCancelar="Voltar"
+        mensagem={confirmacao && !incerto ? `${confirmacao.detalhe.replace(/R\$ /g, 'R$\u00a0')} Cada cobrança nasce em aberto; para desfazer, cancele na lista.` : undefined}
+        rotuloConfirmar={incerto ? 'Conferir a lista' : confirmacao ? confirmacao.titulo.replace('?', '') : 'Gerar cobranças'} rotuloCancelar="Voltar"
         carregando={enviando} aoConfirmar={enviar} aoCancelar={() => { if (!enviando) setConfirmando(false); }}>
         {erroDoEnvio ? <MensagemErro texto={erroDoEnvio} /> : null}
       </PainelConfirmacao>
@@ -233,7 +299,9 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
 }
 
 /** Etapa 1: busca e marcação nos alunos ativos (a página à vista) e, embaixo, quem já está escolhido, de qualquer página. */
-function EtapaDosAlunos({ escolhidos, aoMudar, erro, limite, aoPassarDoLimite, busca, aoBuscar, refBusca, alunos, itens, pagina, temMais, aoPaginar }: {
+function EtapaDosAlunos({
+  escolhidos, aoMudar, erro, limite, aoPassarDoLimite, busca, aoBuscar, refBusca, alunos, itens, pagina, temMais, aoPaginar, indisponiveis, aoTirarIndisponiveis,
+}: {
   escolhidos: Escolhido[];
   aoMudar: (novos: Escolhido[]) => void;
   erro: string | null;
@@ -247,8 +315,12 @@ function EtapaDosAlunos({ escolhidos, aoMudar, erro, limite, aoPassarDoLimite, b
   pagina: number;
   temMais: boolean;
   aoPaginar: (pagina: number) => void;
+  /** Escolhidos que não estão mais entre os ativos (depois de um 404/409): vêm primeiro na lista, marcados. */
+  indisponiveis: readonly string[];
+  aoTirarIndisponiveis: () => void;
 }) {
   const [todos, setTodos] = useState(false);
+  const fora = new Set(indisponiveis);
   const marcados = new Set(escolhidos.map((e) => e.id));
   // Só as opções à vista mudam: quem foi escolhido em outra página ou busca continua.
   const mudarVisiveis = (novos: Set<string>) => {
@@ -257,9 +329,20 @@ function EtapaDosAlunos({ escolhidos, aoMudar, erro, limite, aoPassarDoLimite, b
     const entram = itens.filter((a) => novos.has(a.id) && !marcados.has(a.id)).map((a) => ({ id: a.id, nome: a.nome }));
     aoMudar([...ficam, ...entram]);
   };
-  const mostrados = todos ? escolhidos : escolhidos.slice(0, ESCOLHIDOS_VISIVEIS);
+  // Os que saíram da lista vêm primeiro: com 100 escolhidos, ficariam escondidos atrás do "Ver todos".
+  const ordenados = fora.size ? [...escolhidos.filter((e) => fora.has(e.id)), ...escolhidos.filter((e) => !fora.has(e.id))] : escolhidos;
+  const mostrados = todos ? ordenados : ordenados.slice(0, ESCOLHIDOS_VISIVEIS);
   return (
     <>
+      {/* Logo abaixo do aviso do servidor: quem saiu da lista e como tirá-lo, sem rolar até os selecionados. */}
+      {fora.size > 0 ? (
+        <View style={estilos.fora} aria-live="polite">
+          <Texto>{textoDeQuemSaiu(escolhidos.filter((e) => fora.has(e.id)).map((e) => e.nome))}</Texto>
+          <LinhaDeAcoes>
+            <Botao rotulo={`Remover os que não estão ativos (${fora.size})`} tipo="secundario" aoTocar={aoTirarIndisponiveis} />
+          </LinhaDeAcoes>
+        </View>
+      ) : null}
       <Texto variante="suave">Só alunos ativos recebem cobrança avulsa. Escolha de 1 a {LIMITES_DA_AVULSA.alunos} de uma vez.</Texto>
       <Campo ref={refBusca} rotulo="Buscar aluno" valor={busca} aoMudar={aoBuscar} placeholder="Nome do aluno" />
       {alunos.erro ? <MensagemErro texto={textoDoErro(alunos.erro)} erro={alunos.erro} tentarDeNovo={alunos.recarregar} /> : null}
@@ -288,7 +371,10 @@ function EtapaDosAlunos({ escolhidos, aoMudar, erro, limite, aoPassarDoLimite, b
           <View role="list" accessibilityLabel="Alunos selecionados">
             {mostrados.map((e) => (
               <View key={e.id} role="listitem" style={estilos.escolhido}>
-                <Texto style={estilos.nome} numberOfLines={2}>{e.nome}</Texto>
+                <View style={estilos.nome}>
+                  <Texto numberOfLines={2}>{e.nome}</Texto>
+                  {fora.has(e.id) ? <View style={estilos.selo}><Selo texto="Não está ativo" tipo="atencao" /></View> : null}
+                </View>
                 <IconeBotao Icone={X} rotulo={`Tirar da seleção: ${e.nome}`} aoTocar={() => aoMudar(escolhidos.filter((x) => x.id !== e.id))} />
               </View>
             ))}
@@ -302,6 +388,15 @@ function EtapaDosAlunos({ escolhidos, aoMudar, erro, limite, aoPassarDoLimite, b
       ) : null}
     </>
   );
+}
+
+/** "Bruno não está mais entre os ativos (…)." ou "Não estão mais entre os ativos: Ana, Bruno, Carol e mais 2." */
+function textoDeQuemSaiu(nomes: readonly string[]): string {
+  if (nomes.length === 1) return `${nomes[0]} não está mais entre os ativos (inativo, anonimizado ou excluído).`;
+  const vistos = nomes.slice(0, 3);
+  const resto = nomes.length - vistos.length;
+  const lista = resto > 0 ? `${vistos.join(', ')} e mais ${resto}` : `${vistos.slice(0, -1).join(', ')} e ${vistos.at(-1)}`;
+  return `Não estão mais entre os ativos (inativos, anonimizados ou excluídos): ${lista}.`;
 }
 
 /**
@@ -373,6 +468,8 @@ const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
   esmaecido: { opacity: 0.6 },
   escolhidos: { gap: espaco(1) },
+  fora: { gap: espaco(1) },
+  selo: { flexDirection: 'row' },
   escolhido: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: 44 },
   nome: { flex: 1, minWidth: 0, gap: 2 },
   previa: { gap: espaco(1) },

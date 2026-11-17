@@ -43,6 +43,8 @@ export interface ItemDoResumoDaAcao {
   ok: boolean;
   /** Texto quando falhou; nulo quando deu certo. */
   motivo: string | null;
+  /** O código da falha (`SEM_RESPOSTA` quando o item não voltou); nulo quando deu certo. Decide se vale tentar de novo. */
+  codigo: string | null;
   /** O link (`https`), só na ação `LINK` com sucesso. */
   url: string | null;
 }
@@ -78,16 +80,22 @@ export function resumoDaAcaoEmLote(
   resultados: readonly Pick<ResultadoDoItemDoLote, 'cobrancaId' | 'ok' | 'codigo' | 'url'>[],
 ): ResumoDaAcaoEmLote {
   const porId = new Map(resultados.map((r) => [r.cobrancaId, r]));
+  const falha = (id: string, codigo: string | null | undefined): ItemDoResumoDaAcao =>
+    ({ cobrancaId: id, ok: false, motivo: motivoDoItemDaAcao(acao, codigo), codigo: codigo ?? null, url: null });
   const itens = pedidos.map((id): ItemDoResumoDaAcao => {
     const r = porId.get(id);
-    if (!r) return { cobrancaId: id, ok: false, motivo: motivoDoItemDaAcao(acao, SEM_RESPOSTA_DO_LOTE), url: null };
-    if (!r.ok) return { cobrancaId: id, ok: false, motivo: motivoDoItemDaAcao(acao, r.codigo), url: null };
+    if (!r) return falha(id, SEM_RESPOSTA_DO_LOTE);
+    if (!r.ok) return falha(id, r.codigo);
     if (acao === 'LINK') {
       const url = typeof r.url === 'string' && r.url.startsWith('https://') ? r.url : null;
-      return url ? { cobrancaId: id, ok: true, motivo: null, url } : { cobrancaId: id, ok: false, motivo: motivoDoItemDaAcao(acao, 'LINK_SEM_ENDERECO'), url: null };
+      return url ? { cobrancaId: id, ok: true, motivo: null, codigo: null, url } : falha(id, 'LINK_SEM_ENDERECO');
     }
-    return { cobrancaId: id, ok: true, motivo: null, url: null };
+    return { cobrancaId: id, ok: true, motivo: null, codigo: null, url: null };
   });
+  return resumir(acao, itens);
+}
+
+function resumir(acao: AcaoDoLote, itens: ItemDoResumoDaAcao[]): ResumoDaAcaoEmLote {
   const certos = itens.filter((i) => i.ok).length;
   const falhas = itens.length - certos;
   const t = FRASES[acao];
@@ -96,6 +104,27 @@ export function resumoDaAcaoEmLote(
     : certos === 0 ? (falhas === 1 ? t.nenhumUm : t.nenhumVarios(falhas))
       : `${certos} de ${itens.length} ${t.varios}. ${falhas === 1 ? `1 ${t.naoFoi}` : `${falhas} ${t.naoForam}`}: veja o motivo abaixo.`;
   return { itens, certos, falhas, tom: falhas === 0 ? 'sucesso' : certos === 0 ? 'perigo' : 'atencao', texto };
+}
+
+/**
+ * Falhas que outra tentativa não muda: a cobrança não está mais em aberto (ou sumiu), é de saída, o aluno saiu ou o
+ * recebimento online não está configurado. As outras (InfinitePay fora, sem resposta, erro inesperado) valem tentar de novo.
+ */
+const FALHAS_DEFINITIVAS_DO_LINK: ReadonlySet<string> = new Set([
+  'COBRANCA_NAO_ABERTA', 'COBRANCA_NAO_ENCONTRADA', 'COBRANCA_SEM_LINK', 'ALUNO_INATIVO', 'ALUNO_ANONIMIZADO', 'RECEBIMENTO_ONLINE_NAO_CONFIGURADO',
+]);
+
+/** Os links que falharam e ainda podem dar certo com outra tentativa (na ordem do pedido). */
+export const linksParaTentarDeNovo = (resumo: Pick<ResumoDaAcaoEmLote, 'itens'>): string[] =>
+  resumo.itens.filter((i) => !i.ok && !FALHAS_DEFINITIVAS_DO_LINK.has(i.codigo ?? '')).map((i) => i.cobrancaId);
+
+/**
+ * O resumo depois de tentar de novo só algumas: cada item da nova tentativa substitui o antigo, no mesmo lugar, e os que
+ * já tinham dado certo continuam (com o link). O texto e o tom são refeitos sobre o lote inteiro.
+ */
+export function juntarTentativa(acao: AcaoDoLote, antes: ResumoDaAcaoEmLote, tentativa: ResumoDaAcaoEmLote): ResumoDaAcaoEmLote {
+  const novos = new Map(tentativa.itens.map((i) => [i.cobrancaId, i]));
+  return resumir(acao, antes.itens.map((i) => novos.get(i.cobrancaId) ?? i));
 }
 
 /** Os links gerados, um por linha, para copiar de uma vez. */

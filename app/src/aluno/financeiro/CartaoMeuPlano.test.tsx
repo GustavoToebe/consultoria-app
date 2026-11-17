@@ -116,4 +116,12 @@ describe('CartaoMeuPlano: ações de pagamento por plataforma (D7)', () => {
     expect(t).toContain('[Copiar código Pix]');
     expect(t).not.toContain('link do treinador');
   });
+
+  it('web, mensalidade e avulsa no mesmo cartão: a InfinitePay tem o mesmo nome nas duas, nunca "Pagar" numa e o nome na outra', async () => {
+    mockDados = financeiro({ abertas: [MENSALIDADE, AVULSA] });
+    const t = await textos('web');
+    expect(t.match(/\[Pagar pela InfinitePay\]/g)).toHaveLength(2);
+    expect(t).not.toContain('[Pagar]');
+    expect(t.match(/\[Pagar pelo link do treinador\]/g)).toHaveLength(1);
+  });
 });

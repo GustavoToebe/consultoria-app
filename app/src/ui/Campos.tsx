@@ -24,11 +24,14 @@ export function CampoData({
   regra,
   nome,
   rotuloAcessivel,
+  ref,
 }: {
   rotulo: string;
   valor: string;
   aoMudar: (texto: string) => void;
   erro?: string | null;
+  /** Para levar o foco ao campo (primeiro erro do formulário); no React 19 o ref chega como prop e vai ao `Campo`. */
+  ref?: Ref<TextInput>;
   /**
    * Faixa de datas do campo (`dominio/datasValidas`): fora dela o campo mostra a mensagem junto ao valor. Sem `regra` o
    * campo não confere a faixa (financeiro e ciclo ficam como estão). Quem salva trava com `dataDaTelaNaFaixa`.
@@ -48,6 +51,7 @@ export function CampoData({
   return (
     <>
     <Campo
+      ref={ref}
       numerico
       rotulo={rotulo}
       rotuloAcessivel={rotuloAcessivel}

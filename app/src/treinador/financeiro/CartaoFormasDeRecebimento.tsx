@@ -127,6 +127,7 @@ function Formulario({ dados, comInfinitePay, infinitePayConfigurada, aoSalvar, a
   const refChave = useRef<TextInput>(null);
   const refNome = useRef<TextInput>(null);
   const refCidade = useRef<TextInput>(null);
+  const refTrocar = useRef<View>(null);
 
   // Trocar o tipo da chave gravada pede a chave nova (o servidor recusa sem ela): o campo aparece sozinho. Erro na chave (do
   // servidor, com a gravada) também abre o campo: o erro precisa de um lugar e a saída é digitar outra.
@@ -224,7 +225,9 @@ function Formulario({ dados, comInfinitePay, infinitePayConfigurada, aoSalvar, a
                 autoCorrect={false} autoComplete="off" spellCheck={false} maxLength={LIMITES_DO_PIX.chave} />
               {estado.chaveConfigurada && estado.tipoChave === estado.tipoChaveGravado ? (
                 <LinhaDeAcoes>
-                  <Botao rotulo="Manter a chave gravada" tipo="fantasma" aoTocar={() => { setTrocando(false); mudar({ chave: '' }, 'chave'); }} />
+                  {/* O campo some ao tocar: o foco vai ao "Trocar a chave", que volta no lugar dele (senão cairia no início da página). */}
+                  <Botao rotulo="Manter a chave gravada" tipo="fantasma" style={estilos.fantasmaNaColuna}
+                    aoTocar={() => { setTrocando(false); mudar({ chave: '' }, 'chave'); requestAnimationFrame(() => refTrocar.current?.focus()); }} />
                 </LinhaDeAcoes>
               ) : null}
             </View>
@@ -232,7 +235,7 @@ function Formulario({ dados, comInfinitePay, infinitePayConfigurada, aoSalvar, a
             <View style={estilos.chave}>
               <CampoLeitura rotulo="Chave Pix" valor={estado.chaveMascarada ?? 'Chave gravada'} />
               <LinhaDeAcoes>
-                <Botao rotulo="Trocar a chave" tipo="secundario" aoTocar={() => { setTrocando(true); requestAnimationFrame(() => refChave.current?.focus()); }} />
+                <Botao ref={refTrocar} rotulo="Trocar a chave" tipo="secundario" aoTocar={() => { setTrocando(true); requestAnimationFrame(() => refChave.current?.focus()); }} />
               </LinhaDeAcoes>
             </View>
           )}
@@ -262,4 +265,6 @@ const estilos = StyleSheet.create({
   // Os dados do Pix são outro grupo: o dobro do espaço entre as formas.
   secaoDoPix: { gap: espaco(1.5), marginTop: espaco(1) },
   chave: { gap: espaco(0.5) },
+  // O fantasma não tem contorno: sem o recuo do preenchimento, o texto dele começa na mesma borda dos rótulos dos campos.
+  fantasmaNaColuna: { marginLeft: -espaco(2) },
 });

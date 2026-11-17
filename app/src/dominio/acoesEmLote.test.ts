@@ -1,4 +1,6 @@
-import { linksGerados, motivoDoItemDaAcao, nomeDoCsvDasSelecionadas, resumoDaAcaoEmLote, textoDaExportacaoDasSelecionadas } from './acoesEmLote';
+import {
+  juntarTentativa, linksGerados, linksParaTentarDeNovo, motivoDoItemDaAcao, nomeDoCsvDasSelecionadas, resumoDaAcaoEmLote, textoDaExportacaoDasSelecionadas,
+} from './acoesEmLote';
 
 const URL = 'https://checkout.exemplo.com/abc';
 
@@ -61,6 +63,37 @@ describe('resumoDaAcaoEmLote: link', () => {
   it('todos certos: sucesso', () => {
     const r = resumoDaAcaoEmLote('LINK', ['a'], [{ cobrancaId: 'a', ok: true, codigo: null, url: URL }]);
     expect(r).toMatchObject({ tom: 'sucesso', texto: '1 link gerado.' });
+  });
+});
+
+describe('tentar de novo os links que falharam', () => {
+  const primeira = resumoDaAcaoEmLote('LINK', ['a', 'b', 'c', 'd', 'e'], [
+    { cobrancaId: 'a', ok: true, codigo: null, url: URL },
+    { cobrancaId: 'b', ok: false, codigo: 'PROVEDOR_INDISPONIVEL' },
+    { cobrancaId: 'c', ok: false, codigo: 'COBRANCA_NAO_ABERTA' },
+    { cobrancaId: 'd', ok: false, codigo: 'ERRO_INESPERADO' },
+    // 'e' sem resposta
+  ]);
+  it('só as que podem dar certo: nunca a que saiu do aberto, a de saída ou a de aluno que saiu', () => {
+    expect(primeira.itens[4].codigo).toBe('SEM_RESPOSTA');
+    expect(linksParaTentarDeNovo(primeira)).toEqual(['b', 'd', 'e']);
+    const definitivas = resumoDaAcaoEmLote('LINK', ['x', 'y', 'z', 'w'], [
+      { cobrancaId: 'x', ok: false, codigo: 'COBRANCA_SEM_LINK' }, { cobrancaId: 'y', ok: false, codigo: 'ALUNO_INATIVO' },
+      { cobrancaId: 'z', ok: false, codigo: 'RECEBIMENTO_ONLINE_NAO_CONFIGURADO' }, { cobrancaId: 'w', ok: false, codigo: 'COBRANCA_NAO_ENCONTRADA' },
+    ]);
+    expect(linksParaTentarDeNovo(definitivas)).toEqual([]);
+  });
+  it('a nova tentativa substitui só os itens dela, no mesmo lugar, e o texto conta o lote inteiro', () => {
+    const tentativa = resumoDaAcaoEmLote('LINK', ['b', 'd', 'e'], [
+      { cobrancaId: 'b', ok: true, codigo: null, url: `${URL}-b` },
+      { cobrancaId: 'd', ok: true, codigo: null, url: `${URL}-d` },
+      { cobrancaId: 'e', ok: false, codigo: 'PROVEDOR_INDISPONIVEL' },
+    ]);
+    const junto = juntarTentativa('LINK', primeira, tentativa);
+    expect(junto.itens.map((i) => i.cobrancaId)).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(linksGerados(junto)).toEqual([URL, `${URL}-b`, `${URL}-d`]);
+    expect(junto).toMatchObject({ certos: 3, falhas: 2, tom: 'atencao', texto: '3 de 5 links gerados. 2 não foram gerados: veja o motivo abaixo.' });
+    expect(linksParaTentarDeNovo(junto)).toEqual(['e']);
   });
 });
 

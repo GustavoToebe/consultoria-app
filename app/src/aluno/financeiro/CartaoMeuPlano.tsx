@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { Copy, CreditCard, ExternalLink } from 'lucide-react-native';
 import { type ReactNode, useRef, useState } from 'react';
-import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import type { CobrancaDoAluno } from '../../api/financeiroTipos';
 import { codigoPixDoAluno, linkDePagamentoDoAluno } from '../../api/rotas';
@@ -10,7 +10,7 @@ import {
   seloDaContratacao, seloDoTipoDaCobranca, textoDasAbertasDoAluno, type AcaoDePagamento, type ComoPagar,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
-import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { espaco, RAIO } from '../../tema/tokens';
 import { useTema } from '../../tema/TemaProvider';
 import { ICONE_DO_SELO } from '../../treinador/iconesDosSelos';
 import { abrirPagamento } from '../../ui/abrirPagamento';
@@ -70,6 +70,9 @@ export function CartaoMeuPlano() {
   const vigencia = dados?.plano ? textoDaVigencia(dados.plano.situacao, dados.plano.diasRestantesVigencia) : null;
   const textoDoModo = textoDasAbertasDoAluno(modo, (dados?.abertas ?? []).map((c) => modoDaCobranca(c.tipo)));
   const visiveis = todas ? historico : historico.slice(0, HISTORICO_VISIVEL);
+  // O nome da ação vem de todas as cobranças do cartão: a avulsa (sem o link do plano) não vira "Pagar" ao lado de uma
+  // mensalidade com "Pagar pela InfinitePay"; a mesma ação tem o mesmo nome no cartão inteiro.
+  const acoesDoCartao = [...new Set((dados?.abertas ?? []).flatMap((c) => acoesDaCobranca(c.tipo)))];
   return (
     <Cartao titulo="Meu plano" descricao="Seu plano comercial com o seu treinador.">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
@@ -106,7 +109,7 @@ export function CartaoMeuPlano() {
                 return (
                   <LinhaDaCobranca key={c.id} cobranca={c} modo={modoDaCobranca(c.tipo)} empilhar={acoes.length > 1 || acoes.includes('COPIAR_PIX')}>
                     {acoes.length > 0 ? (
-                      <AcoesDaCobranca cobranca={c} acoes={acoes} linkProprio={dados.plano?.linkDePagamento ?? null} aoMudar={recarregar} />
+                      <AcoesDaCobranca cobranca={c} acoes={acoes} doCartao={acoesDoCartao} linkProprio={dados.plano?.linkDePagamento ?? null} aoMudar={recarregar} />
                     ) : null}
                   </LinhaDaCobranca>
                 );
@@ -135,28 +138,29 @@ const ICONE_DA_ACAO = { PAGAR_INFINITEPAY: CreditCard, PAGAR_LINK_PROPRIO: Exter
 
 /**
  * As ações de pagamento de uma cobrança em aberto, na ordem de `acoesDePagamentoDoAluno` (só existem com o "Pagar" permitido
- * nesta plataforma). Dois "Pagar" ganham o nome de cada um (`rotuloDaAcaoDePagamento`). Se o navegador recusar a cópia do Pix,
- * o código aparece aqui, selecionável, enquanto a tela estiver aberta (nunca é guardado).
+ * nesta plataforma). Dois "Pagar" no cartão ganham o nome de cada um (`rotuloDaAcaoDePagamento` com as ações do cartão
+ * inteiro, `doCartao`). Se o navegador recusar a cópia do Pix, o código aparece aqui, selecionável, enquanto a tela estiver
+ * aberta (nunca é guardado).
  */
-function AcoesDaCobranca({ cobranca, acoes, linkProprio, aoMudar }: {
+function AcoesDaCobranca({ cobranca, acoes, doCartao, linkProprio, aoMudar }: {
   cobranca: CobrancaDoAluno;
   acoes: readonly AcaoDePagamento[];
+  /** As ações de todas as cobranças em aberto do cartão: decidem o nome de cada uma. */
+  doCartao: readonly AcaoDePagamento[];
   linkProprio: string | null;
   aoMudar: () => void;
 }) {
   const { cores } = useTema();
   const [codigoAMao, setCodigoAMao] = useState<string | null>(null);
-  // Com mais de uma ação a fileira fica embaixo do texto, na largura toda; no celular os botões vão em coluna, cheios (sem a
-  // escadinha de larguras diferentes alinhadas à direita).
-  const varias = acoes.length > 1;
-  const { width } = useWindowDimensions();
-  const cheio = varias && width < LARGURA_MENU_LATERAL;
+  // Com mais de uma ação a fileira fica embaixo do texto, em coluna e com os botões da mesma largura, no celular e no PC
+  // (em linha, no PC, eles quebravam em escadinha de larguras diferentes alinhadas à direita).
+  const cheio = acoes.length > 1;
   return (
     <>
       <LinhaDeAcoes alinhar={cheio ? 'inicio' : 'fim'} style={cheio ? estilos.emColuna : undefined}>
         {acoes.map((acao) => (acao === 'COPIAR_PIX'
-          ? <BotaoCopiarPix key={acao} cobranca={cobranca} rotulo={rotuloDaAcaoDePagamento(acao, acoes)} cheio={cheio} aoMudar={aoMudar} aoRecusarCopia={setCodigoAMao} />
-          : <BotaoPagar key={acao} cobranca={cobranca} acao={acao} rotulo={rotuloDaAcaoDePagamento(acao, acoes)} cheio={cheio} linkProprio={linkProprio} aoMudar={aoMudar} />))}
+          ? <BotaoCopiarPix key={acao} cobranca={cobranca} rotulo={rotuloDaAcaoDePagamento(acao, doCartao)} cheio={cheio} aoMudar={aoMudar} aoRecusarCopia={setCodigoAMao} />
+          : <BotaoPagar key={acao} cobranca={cobranca} acao={acao} rotulo={rotuloDaAcaoDePagamento(acao, doCartao)} cheio={cheio} linkProprio={linkProprio} aoMudar={aoMudar} />))}
       </LinhaDeAcoes>
       {codigoAMao ? (
         <View style={[estilos.codigo, { borderColor: cores.divisor, backgroundColor: cores.superficie }]}>

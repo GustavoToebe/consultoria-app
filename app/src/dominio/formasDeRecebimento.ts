@@ -185,16 +185,30 @@ export function corpoDasFormas(e: EstadoDasFormas): CorpoDasFormas {
 
 export const LINK_DO_PLANO_MAXIMO = 500;
 export const MENSAGEM_LINK_DO_PLANO = 'O link precisa começar com https://.';
+export const MENSAGENS_DO_LINK_DO_PLANO = {
+  http: 'Use https.',
+  usuario: 'O link não pode ter usuário ou senha.',
+  porta: 'O link não pode ter porta.',
+  tamanho: `Até ${LINK_DO_PLANO_MAXIMO} caracteres.`,
+} as const;
 
 /**
- * "Link de pagamento" do plano: vazio apaga (`valor` nulo, o `PUT` do plano substitui inteiro); senão tem de começar com
- * `https://`, sem espaços, até 500 caracteres. A API (`LinksExternos`) confere de novo.
+ * "Link de pagamento" do plano: vazio apaga (`valor` nulo, o `PUT` do plano substitui inteiro). As recusas que o servidor
+ * (`LinksExternos`) também faz e que dá para dizer aqui têm mensagem própria: `http://`, usuário ou senha antes do host,
+ * porta diferente de 443 e mais de 500 caracteres. O resto (`javascript:`, sem esquema, espaço, sem host) fica na genérica.
+ * Sem `new URL()`: no React Native ela não traz `port` nem `username`.
  */
 export function lerLinkDoPlano(texto: string): { valor: string | null; erro: string | null } {
   const t = texto.trim();
   if (!t) return { valor: null, erro: null };
-  if (!/^https:\/\/[^\s/?#]+\S*$/i.test(t)) return { valor: null, erro: MENSAGEM_LINK_DO_PLANO };
-  if (t.length > LINK_DO_PLANO_MAXIMO) return { valor: null, erro: `O link pode ter até ${LINK_DO_PLANO_MAXIMO} caracteres.` };
+  const recusa = (erro: string) => ({ valor: null, erro });
+  if (/^http:\/\//i.test(t)) return recusa(MENSAGENS_DO_LINK_DO_PLANO.http);
+  if (!/^https:\/\/[^\s/?#]+\S*$/i.test(t)) return recusa(MENSAGEM_LINK_DO_PLANO);
+  const autoridade = t.slice('https://'.length).split(/[/?#]/)[0];
+  if (autoridade.includes('@')) return recusa(MENSAGENS_DO_LINK_DO_PLANO.usuario);
+  const porta = /:(\d*)$/.exec(autoridade)?.[1];
+  if (porta !== undefined && porta !== '443') return recusa(MENSAGENS_DO_LINK_DO_PLANO.porta);
+  if (t.length > LINK_DO_PLANO_MAXIMO) return recusa(MENSAGENS_DO_LINK_DO_PLANO.tamanho);
   return { valor: t, erro: null };
 }
 

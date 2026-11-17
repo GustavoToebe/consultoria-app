@@ -2,7 +2,7 @@ import { ErroApi, MENSAGEM_SEM_CONEXAO } from '@plataforma/web';
 
 import {
   confirmacaoDaAvulsa, corpoDaAvulsa, errosDaEtapa, MENSAGEM_ALUNO_ANONIMIZADO, MENSAGEM_ALUNO_INATIVO, MENSAGEM_ALUNO_NAO_ENCONTRADO,
-  MENSAGEM_CONFERIR_A_LISTA, previaDasParcelas, primeiraEtapaComErro, quantidadeDeCobrancas, textoDaAvulsaGerada, traduzirErroDaAvulsa,
+  foraDosAtivos, MENSAGEM_CONFERIR_A_LISTA, previaDasParcelas, primeiraEtapaComErro, quantidadeDeCobrancas, textoDaAvulsaGerada, traduzirErroDaAvulsa,
   type EntradaDaAvulsa,
 } from './cobrancaAvulsa';
 
@@ -140,6 +140,13 @@ describe('confirmação', () => {
   });
 });
 
+describe('foraDosAtivos', () => {
+  it('os escolhidos que a lista de ativos não traz, na ordem da seleção', () => {
+    expect(foraDosAtivos(['a', 'b', 'c'], new Set(['a', 'c', 'x']))).toEqual(['b']);
+    expect(foraDosAtivos(['a'], new Set(['a']))).toEqual([]);
+  });
+});
+
 describe('traduzirErroDaAvulsa', () => {
   it('422 por campo: alunoIds e alunoIds[i] viram "alunos", com a etapa e a mensagem da API', () => {
     const e = new ErroApi(422, 'COBRANCA_AVULSA_INVALIDA', 'Dados inválidos.', [
@@ -148,7 +155,7 @@ describe('traduzirErroDaAvulsa', () => {
       { field: 'parcelas', message: 'As parcelas vão de 1 a 12.' },
     ]);
     expect(traduzirErroDaAvulsa(e)).toEqual({
-      mensagem: 'Confira os campos destacados.', etapa: 1, recarregarAlunos: false,
+      mensagem: 'Confira os campos destacados.', etapa: 1, recarregarAlunos: false, incerto: false,
       campos: { alunos: 'Aluno repetido.', valor: 'Informe um valor maior que zero.', parcelas: 'As parcelas vão de 1 a 12.' },
     });
   });
@@ -166,12 +173,20 @@ describe('traduzirErroDaAvulsa', () => {
   it('403 e 503 FINANCEIRO_INDISPONIVEL mostram o texto da API', () => {
     expect(traduzirErroDaAvulsa(new ErroApi(403, 'PERMISSAO_NEGADA', 'Você não pode gerar cobranças.')).mensagem).toBe('Você não pode gerar cobranças.');
     expect(traduzirErroDaAvulsa(new ErroApi(503, 'FINANCEIRO_INDISPONIVEL', 'O financeiro está desligado.')).mensagem).toBe('O financeiro está desligado.');
+    // Não gravaram nada: podem ser repetidos (não são incertos).
+    expect(traduzirErroDaAvulsa(new ErroApi(403, 'PERMISSAO_NEGADA', 'x')).incerto).toBe(false);
+    expect(traduzirErroDaAvulsa(new ErroApi(503, 'FINANCEIRO_INDISPONIVEL', 'x')).incerto).toBe(false);
+    expect(traduzirErroDaAvulsa(new ErroApi(409, 'ALUNO_INATIVO', 'x')).incerto).toBe(false);
   });
   it('sem conexão e erro desconhecido mandam conferir a lista antes de repetir, sem repassar texto técnico', () => {
     expect(traduzirErroDaAvulsa(new ErroApi(0, null, MENSAGEM_SEM_CONEXAO)).mensagem).toContain(MENSAGEM_CONFERIR_A_LISTA);
     expect(traduzirErroDaAvulsa(new ErroApi(0, null, MENSAGEM_SEM_CONEXAO)).mensagem).toContain('Sem conexão');
+    expect(traduzirErroDaAvulsa(new ErroApi(0, null, MENSAGEM_SEM_CONEXAO)).mensagem).not.toMatch(/tente de novo/i);
     expect(traduzirErroDaAvulsa(new ErroApi(500, null, 'detalhe interno')).mensagem).toBe(MENSAGEM_CONFERIR_A_LISTA);
     expect(traduzirErroDaAvulsa(new Error('boom')).mensagem).toBe(MENSAGEM_CONFERIR_A_LISTA);
+    // Pode ter gravado: incerto, a tela só oferece conferir a lista.
+    for (const e of [new ErroApi(0, null, MENSAGEM_SEM_CONEXAO), new ErroApi(500, null, 'x'), new Error('boom')]) expect(traduzirErroDaAvulsa(e).incerto).toBe(true);
+    expect(MENSAGEM_CONFERIR_A_LISTA).toContain('em dobro');
   });
   it('503 de outro código não vaza o texto técnico', () => {
     expect(traduzirErroDaAvulsa(new ErroApi(503, 'OUTRO', 'detalhe interno')).mensagem).toBe(MENSAGEM_CONFERIR_A_LISTA);

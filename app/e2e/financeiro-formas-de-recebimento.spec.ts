@@ -121,8 +121,14 @@ test('trocar a chave: o campo nasce vazio, a máscara segue o tipo e mudar o tip
   await page.getByRole('button', { name: 'Trocar a chave' }).click();
   await expect(page.getByLabel('Nova chave Pix')).toHaveValue('');
   await expect(page.getByLabel('Nova chave Pix')).toBeFocused();
+  // O fantasma "Manter" começa na mesma borda do campo (o texto, sem o recuo do preenchimento de 16 px).
+  const campo = await page.getByLabel('Nova chave Pix').boundingBox();
+  const manter = await page.getByRole('button', { name: 'Manter a chave gravada' }).boundingBox();
+  expect(Math.abs((manter?.x ?? 0) + 16 - (campo?.x ?? 0))).toBeLessThan(1.5);
   await page.getByRole('button', { name: 'Manter a chave gravada' }).click();
   await expect(page.getByText(CHAVE_PIX_FALSA_MASCARADA)).toBeVisible();
+  // O campo sumiu: o foco vai ao "Trocar a chave", que voltou no lugar dele (e não ao início da página).
+  await expect(page.getByRole('button', { name: 'Trocar a chave' })).toBeFocused();
 
   // Mudar o tipo sem digitar a chave nova: o campo aparece e o salvar pede a chave daquele tipo.
   await tipoDaChave(page, 'CPF').click();
@@ -251,10 +257,16 @@ test('plano com link de pagamento: http é recusado na tela, o 422 do servidor f
   await folha.getByLabel('Valor', { exact: true }).pressSequentially('15000');
   await folha.getByLabel('Link de pagamento (opcional)').fill('http://pagamento.exemplo.invalid/x');
   await folha.getByRole('button', { name: 'Criar plano' }).click();
-  await expect(folha.getByText('O link precisa começar com https://.')).toBeVisible();
+  await expect(folha.getByText('Use https.')).toBeVisible();
+  // Usuário e porta: o app diz qual é o problema antes de enviar.
+  await folha.getByLabel('Link de pagamento (opcional)').fill('https://loja@pagamento.exemplo.invalid/x');
+  await expect(folha.getByText('O link não pode ter usuário ou senha.')).toBeVisible();
+  await folha.getByLabel('Link de pagamento (opcional)').fill('https://pagamento.exemplo.invalid:8443/x');
+  await expect(folha.getByText('O link não pode ter porta.')).toBeVisible();
   expect(estado.planos).toEqual([]);
 
-  await folha.getByLabel('Link de pagamento (opcional)').fill('https://loja@pagamento.exemplo.invalid/x');
+  // O que só o servidor recusa (host inválido) volta no campo com a mensagem dele.
+  await folha.getByLabel('Link de pagamento (opcional)').fill('https://pagamento%zz.exemplo.invalid/x');
   await folha.getByRole('button', { name: 'Criar plano' }).click();
   await expect(folha.getByText('Link não aceito. Use um link https completo.')).toBeVisible();
   await page.screenshot({ path: `${CAPTURAS}/plano-link-erro-1280.png` });
@@ -351,19 +363,22 @@ for (const largura of [1280, 390]) {
     const estado = estadoDoAluno();
     const { pedidos, errosDaPagina } = await abrirContaDoAluno(page, estado);
 
-    // Mensalidade: as três ações; os dois "Pagar" com o nome de cada um. Avulsa: o link do plano não vale (só mensalidade).
-    await expect(page.getByRole('button', { name: /^Pagar pela InfinitePay: / })).toHaveCount(1);
+    // Mensalidade: as três ações; os dois "Pagar" com o nome de cada um. Avulsa: o link do plano não vale (só mensalidade), e a
+    // InfinitePay tem o mesmo nome nas duas cobranças do cartão (nunca "Pagar" numa e "Pagar pela InfinitePay" na outra).
+    await expect(page.getByRole('button', { name: /^Pagar pela InfinitePay: / })).toHaveCount(2);
     await expect(page.getByRole('button', { name: /^Pagar pelo link do treinador: / })).toHaveCount(1);
-    await expect(page.getByRole('button', { name: /^Pagar: Camiseta do time/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Pagar pela InfinitePay: Camiseta do time/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Pagar: / })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Copiar código Pix: / })).toHaveCount(2);
     await expect(page.getByText(TEXTO_COMBINE_COM_O_TREINADOR)).toHaveCount(0);
-    if (largura === 390) {
-      // No celular as ações da mensalidade vão em coluna, todas na mesma largura (cheias), sem escadinha.
-      const larguras = await Promise.all([/^Pagar pela InfinitePay: /, /^Pagar pelo link do treinador: /, /^Copiar código Pix: (?!Camiseta)/]
-        .map(async (nome) => (await page.getByRole('button', { name: nome }).boundingBox())?.width ?? 0));
-      expect(Math.max(...larguras) - Math.min(...larguras)).toBeLessThan(1);
-      expect(Math.min(...larguras)).toBeGreaterThan(280);
-    }
+    // No celular e no PC as ações de uma cobrança vão em coluna, todas na mesma borda e na mesma largura, sem escadinha.
+    const caixas = await Promise.all([/^Pagar pela InfinitePay: (?!Camiseta)/, /^Pagar pelo link do treinador: /, /^Copiar código Pix: (?!Camiseta)/]
+      .map(async (nome) => (await page.getByRole('button', { name: nome }).boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 }));
+    const larguras = caixas.map((c) => c.width);
+    const bordas = caixas.map((c) => c.x);
+    expect(Math.max(...larguras) - Math.min(...larguras)).toBeLessThan(1);
+    expect(Math.max(...bordas) - Math.min(...bordas)).toBeLessThan(1);
+    expect(Math.min(...larguras)).toBeGreaterThan(280);
     await semRolagemHorizontal(page);
     await page.getByText('Em aberto', { exact: true }).first().scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${CAPTURAS}/aluno-acoes-${largura}.png` });
@@ -384,30 +399,39 @@ for (const largura of [1280, 390]) {
   });
 }
 
-test('aluno: o treinador desligou o Pix no meio (409 PIX_INDISPONIVEL): mensagem e a lista recarrega sem o botão', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 900 });
-  await areaDeTransferencia(page);
-  const estado = estadoDoAluno();
-  const { errosDaPagina } = await abrirContaDoAluno(page, estado);
-  estado.formas = { ...estado.formas, pix: false };
-  await page.getByRole('button', { name: /^Copiar código Pix: (?!Camiseta)/ }).click();
-  await expect(page.getByText('O Pix não está disponível para esta cobrança agora. Fale com o seu treinador.')).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Copiar código Pix/ })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /^Pagar pela InfinitePay: / }).first()).toBeVisible();
-  expect(errosDaPagina).toEqual([]);
-});
+for (const largura of [390, 1280]) {
+  test(`aluno em ${largura}px: o treinador desligou o Pix no meio (409 PIX_INDISPONIVEL): mensagem e a lista recarrega sem o botão`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await areaDeTransferencia(page);
+    const estado = estadoDoAluno();
+    const { errosDaPagina } = await abrirContaDoAluno(page, estado);
+    estado.formas = { ...estado.formas, pix: false };
+    await page.getByRole('button', { name: /^Copiar código Pix: (?!Camiseta)/ }).click();
+    await expect(page.getByText('O Pix não está disponível para esta cobrança agora. Fale com o seu treinador.')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Copiar código Pix/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Pagar pela InfinitePay: / }).first()).toBeVisible();
+    await semRolagemHorizontal(page);
+    await page.getByText('Em aberto', { exact: true }).first().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${CAPTURAS}/aluno-pix-indisponivel-${largura}.png` });
+    expect(errosDaPagina).toEqual([]);
+  });
 
-test('aluno: a cópia recusada pelo navegador mostra o código para copiar à mão', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 900 });
-  await areaDeTransferencia(page, true);
-  const { errosDaPagina } = await abrirContaDoAluno(page, estadoDoAluno());
-  await page.getByRole('button', { name: /^Copiar código Pix: (?!Camiseta)/ }).click();
-  await expect(page.getByText('Não foi possível copiar sozinho. Selecione o código abaixo e copie à mão.')).toBeVisible();
-  await expect(page.getByText('Código Pix copia e cola')).toBeVisible();
-  await expect(page.getByText(CODIGO_PIX_FALSO)).toBeVisible();
-  await semRolagemHorizontal(page);
-  expect(errosDaPagina).toEqual([]);
-});
+  test(`aluno em ${largura}px: a cópia recusada pelo navegador mostra o código para copiar à mão`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await areaDeTransferencia(page, true);
+    const { errosDaPagina } = await abrirContaDoAluno(page, estadoDoAluno());
+    await page.getByRole('button', { name: /^Copiar código Pix: (?!Camiseta)/ }).click();
+    await expect(page.getByText('Não foi possível copiar sozinho. Selecione o código abaixo e copie à mão.')).toBeVisible();
+    await expect(page.getByText('Código Pix copia e cola')).toBeVisible();
+    await expect(page.getByText(CODIGO_PIX_FALSO)).toBeVisible();
+    await expect(page.getByText(/Código Pix copiado/)).toHaveCount(0);
+    await semRolagemHorizontal(page);
+    await page.getByText('Código Pix copia e cola').scrollIntoViewIfNeeded();
+    // O código leva a chave Pix (fictícia aqui): a captura cobre o texto dele, para a chave nunca aparecer inteira.
+    await page.screenshot({ path: `${CAPTURAS}/aluno-pix-recusado-${largura}.png`, mask: [page.getByText(CODIGO_PIX_FALSO)] });
+    expect(errosDaPagina).toEqual([]);
+  });
+}
 
 test('aluno só com o Manual: nenhuma ação, o texto de combinar com o treinador e nenhum pedido de link ou Pix', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });

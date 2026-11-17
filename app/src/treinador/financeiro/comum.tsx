@@ -1,9 +1,17 @@
+import * as Clipboard from 'expo-clipboard';
 import type { Ref } from 'react';
 import type { TextInput } from 'react-native';
 
 import { Campo } from '../../ui/Campo';
 import { codigoApi } from '../../ui/erros';
 import { centavosDaTela, centavosParaTela, mascaraDeMoeda } from '../../dominio/formatos';
+
+/**
+ * Põe o texto na área de transferência e diz se deu certo. Na web o `setStringAsync` não rejeita quando o navegador recusa:
+ * resolve `false` (a cópia antiga também falhou); no celular ele rejeita. Os dois viram `false`, e quem chama mostra o texto
+ * para copiar à mão (nunca "copiado").
+ */
+export const copiarTexto = (texto: string): Promise<boolean> => Clipboard.setStringAsync(texto).then((ok) => ok !== false, () => false);
 
 /** 409 `CONFLITO_EDICAO`: outra pessoa (ou outra aba) mexeu no registro; a tela avisa e recarrega, como nas outras telas. */
 export const ehConflito = (erro: unknown): boolean => codigoApi(erro) === 'CONFLITO_EDICAO';

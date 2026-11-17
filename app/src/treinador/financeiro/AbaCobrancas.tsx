@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { AlertCircle, Plus, UserRound } from 'lucide-react-native';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { CobrancaResponse, TotaisDasCobrancas } from '../../api/financeiroTipos';
 import { aluno, listarCobrancas, listarPlanosComerciais } from '../../api/rotas';
@@ -194,8 +194,8 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
             <BarraDoLote lote={lote} pagina={dados.itens}
               aoMarcarPagina={(marcar) => setSelecao((s) => marcarPaginaNoLote(s, dados.itens, marcar))}
               aoLimpar={() => setSelecao([])} aoRevisar={() => setRevisando(true)}
-              acoes={(
-                <AcoesDoLote lote={lote} comLink={recebimentoOnlineHabilitado} aoResultado={setResultadoDoLote}
+              acoes={(estilo) => (
+                <AcoesDoLote lote={lote} comLink={recebimentoOnlineHabilitado} aoResultado={setResultadoDoLote} estilo={estilo}
                   aoCancelar={(cancelados) => {
                     const feitos = new Set(cancelados);
                     setSelecao((s) => s.filter((x) => !feitos.has(x.id)));
@@ -217,8 +217,9 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
                 const doTipo = seloDoTipoDaCobranca(c.tipo);
                 return {
                   titulo: c.alunoNome ?? '—',
-                  // A avulsa diz o que é (a descrição) antes do valor; a mensalidade segue só com o valor e a data.
-                  detalhe: `${c.tipo === 'AVULSA' ? `${referenciaDaCobranca(c)} · ` : ''}${resumoDaCobranca(c)}${c.situacao === 'PAGA' && ehPagamentoOnline(c) ? ` · ${ROTULO_ONLINE}` : ''}`,
+                  // A avulsa diz o que é (a descrição) antes do valor; a mensalidade segue só com o valor e a data. O "R$" vai colado
+                  // ao número: no cartão de 390 px ele ficava sozinho no fim da linha.
+                  detalhe: `${c.tipo === 'AVULSA' ? `${referenciaDaCobranca(c)} · ` : ''}${resumoDaCobranca(c).replace(/R\$ /g, 'R$\u00a0')}${c.situacao === 'PAGA' && ehPagamentoOnline(c) ? ` · ${ROTULO_ONLINE}` : ''}`,
                   selo: { texto: selo.rotulo, tipo: selo.tom },
                   extra: doTipo ? <View style={estilos.seloDoTipo}><Selo texto={doTipo.rotulo} tipo={doTipo.tom} /></View> : undefined,
                 };
@@ -282,14 +283,18 @@ function BarraDoLote({ lote, pagina, aoMarcarPagina, aoLimpar, aoRevisar, acoes 
   aoMarcarPagina: (marcar: boolean) => void;
   aoLimpar: () => void;
   aoRevisar: () => void;
-  /** O menu das outras ações (cancelar, links, exportar), ao lado do "Revisar pagamentos". */
-  acoes: ReactNode;
+  /** O menu das outras ações (cancelar, links, exportar), ao lado do "Revisar pagamentos"; recebe o estilo dos botões da barra. */
+  acoes: (estilo: StyleProp<ViewStyle>) => ReactNode;
 }) {
   const estado = estadoDaPaginaNoLote(lote, pagina);
   const n = lote.length;
   const idsDaPagina = new Set(pagina.map((c) => c.id));
   const emOutras = lote.filter((c) => !idsDaPagina.has(c.id)).length;
   const problema = problemaDoLote(n);
+  // No celular cada fileira de botões ocupa a largura toda (os que cabem juntos dividem a linha): sem a escadinha de
+  // larguras diferentes que a quebra de linha deixava.
+  const { width } = useWindowDimensions();
+  const cheia = width < LARGURA_MENU_LATERAL ? estilos.cresce : undefined;
   if (estado === null && n === 0) return null;
   return (
     <View style={estilos.barra}>
@@ -303,11 +308,11 @@ function BarraDoLote({ lote, pagina, aoMarcarPagina, aoLimpar, aoRevisar, acoes 
       <LinhaDeAcoes>
         {estado !== null ? (
           <Botao tipo="secundario" rotulo={estado === 'todas' ? 'Desmarcar as desta página' : 'Selecionar todas desta página'}
-            aoTocar={() => aoMarcarPagina(estado !== 'todas')} />
+            aoTocar={() => aoMarcarPagina(estado !== 'todas')} style={cheia} />
         ) : null}
-        {n > 0 ? <Botao tipo="secundario" rotulo="Limpar seleção" aoTocar={aoLimpar} /> : null}
-        {n > 0 ? acoes : null}
-        {n > 0 ? <Botao rotulo="Revisar pagamentos" aoTocar={aoRevisar} desabilitado={!!problema} motivo={problema ?? undefined} /> : null}
+        {n > 0 ? <Botao tipo="secundario" rotulo="Limpar seleção" aoTocar={aoLimpar} style={cheia} /> : null}
+        {n > 0 ? acoes(cheia) : null}
+        {n > 0 ? <Botao rotulo="Revisar pagamentos" aoTocar={aoRevisar} desabilitado={!!problema} motivo={problema ?? undefined} style={cheia} /> : null}
       </LinhaDeAcoes>
     </View>
   );
@@ -437,7 +442,8 @@ export function SituacaoDaCobranca({ cobranca }: { cobranca: CobrancaResponse })
 
 /**
  * Os quatro totais do filtro inteiro (todas as páginas), como o servidor calcula: cancelada e estornada ficam fora; "Em
- * aberto" já inclui as vencidas (por isso diz isso, para ninguém somar duas vezes). Número sempre em `texto` (zero em
+ * aberto" já inclui as vencidas (por isso diz isso, para ninguém somar duas vezes); a contestada entra no total e não em
+ * pago nem em aberto, então o total pode passar de pago + em aberto (nenhuma tela soma os dois). Número sempre em `texto` (zero em
  * `textoSuave`); a única cor é o ícone de alerta do vencido, no `perigo` do selo "Vencida" das linhas (exceção da
  * cobrança, 4.5). Com o filtro novo a caminho, os números do anterior ficam esmaecidos e marcados como ocupados. No PC,
  * quatro (ou duas) caixas lado a lado; no celular, uma lista de rótulo e valor, que cabe acima da dobra e nunca parte o
@@ -455,7 +461,7 @@ function TotaisDaLista({ totais, atualizando }: { totais: TotaisDasCobrancas; at
   ];
   return (
     // O que vale para os quatro fica numa linha só, na faixa: no celular os números ainda cabem acima da dobra.
-    <Cartao titulo="Totais" descricao="De todas as páginas deste filtro. Em aberto inclui as vencidas; canceladas e estornadas não entram.">
+    <Cartao titulo="Totais" descricao="De todas as páginas deste filtro. Em aberto inclui as vencidas; canceladas e estornadas não entram. Contestadas entram no total, mas não em pago nem em aberto.">
       <View style={atualizando ? estilos.esmaecido : null} aria-busy={atualizando}>
         {celular ? (
           <View>
@@ -518,6 +524,7 @@ const estilos = StyleSheet.create({
   celula: { gap: 2, minWidth: 0 },
   barra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 260, gap: 2 },
+  cresce: { flexGrow: 1 },
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   faixaDoAluno: {
     flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5),
