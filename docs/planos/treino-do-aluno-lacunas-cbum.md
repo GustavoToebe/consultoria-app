@@ -25,8 +25,8 @@ Fechar quatro lacunas da tela de treino do aluno: ±15 s no descanso, folha "His
 ## Passos
 - [ ] 1. Plano e entrada no README — commit: este
 - [ ] 2. Item 1: medir a largura dos botões ±15 a 390 — commit: —
-- [ ] 3. Item 2: folha "Histórico" — commit: —
-- [ ] 4. Item 3: "Equipamentos para hoje" (API `paraPublicar`, `formatoDoPacote`, tela) — feito: API, pacote e regra pura `dominio/equipamentosDoDia` (commit: ver `git log`, "Equipamento no exercício do treino publicado"; `PlanosIntegrationTest` ainda não rodou); falta a tela — commit da tela: —
+- [x] 3. Item 2: folha "Histórico" (`aluno/HistoricoDoExercicio`; recordes só com retorno ligado; "Por data" só online) — commit: ver `git log` ("Trocar só hoje, equipamentos e histórico"); e2e não rodou
+- [ ] 4. Item 3: "Equipamentos para hoje" (API `paraPublicar`, `formatoDoPacote`, tela) — feito: API, pacote e regra pura `dominio/equipamentosDoDia` (commit: ver `git log`, "Equipamento no exercício do treino publicado"; `PlanosIntegrationTest` ainda não rodou); tela feita em 16/11 ("Equipamentos para hoje" em `sessao/[uid]/index.tsx`; e2e `treino-do-aluno-lacunas` escrito e NÃO rodado) — commit da tela: ver `git log` ("Trocar só hoje, equipamentos e histórico")
 - [ ] 5. Item 4: teste de desmarcar série e faixa "Treino em andamento" — commit: —
 
 ## Fora do escopo

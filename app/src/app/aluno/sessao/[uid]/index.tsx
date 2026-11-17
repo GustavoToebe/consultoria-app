@@ -15,6 +15,7 @@ import { contagem } from '../../../../dominio/contagens';
 import { dataParaTela } from '../../../../dominio/formatos';
 import { textoDaContagem } from '../../../../dominio/recordesPessoais';
 import { contagemDeSeries } from '../../../../dominio/conclusaoDoTreino';
+import { equipamentosDoDia } from '../../../../dominio/equipamentosDoDia';
 import { contagemDoExercicio, datasDaSessao, nomeComDia } from '../../../../dominio/semana';
 import { useSessao } from '../../../../sessao/SessaoProvider';
 import { useTema } from '../../../../tema/TemaProvider';
@@ -61,7 +62,10 @@ export default function SessaoAluno() {
 
   // "x de y séries" conta só trabalho e pós-trabalho (D6); o exercício pendente continua olhando todas as séries.
   const { total, feitas } = contagemDeSeries(sessao, dia.estaFeita, dia.config.metodologia);
-  const pendente = sessao.exercicios.find((e) => dia.feitas(e) < e.series.length);
+  // Cada exercício como vale hoje (a alternativa, quando a troca já tem série marcada): nomes, cargas e equipamentos seguem ele.
+  const doDia = { ...sessao, exercicios: sessao.exercicios.map((e) => dia.diaDe(e)) };
+  const equipamentos = equipamentosDoDia(doDia);
+  const pendente = doDia.exercicios.find((e) => dia.feitas(e) < e.series.length);
   const datas = sessao.exercicios.length ? datasDaSessao(sessao, dia.treino.inicio, dia.treino.fim, hoje) : [];
   const abrir = (exercicioUid: string) => router.push(caminhoDaSessao(sessao.uid, data, exercicioUid));
   // "Concluir treino" no topo e no rodapé (some com a chave desligada): os dois leem a mesma conclusão.
@@ -113,6 +117,11 @@ export default function SessaoAluno() {
           </Texto>
         </Pressable>
       ) : null}
+      {equipamentos.length ? (
+        <Cartao titulo="Equipamentos para hoje">
+          <Texto numerico>{equipamentos.join(' · ')}</Texto>
+        </Cartao>
+      ) : null}
       {datas.length > 1 ? (
         <Cartao titulo="Outras datas">
           <Texto variante="suave">Para registrar este treino em outro dia do período, escolha a data.</Texto>
@@ -133,7 +142,7 @@ export default function SessaoAluno() {
         </Cartao>
       ) : null}
       <ExerciciosDoDia
-        sessao={sessao}
+        sessao={doDia}
         metodologia={dia.config.metodologia}
         tipoTrabalho={dia.config.tipoTrabalho}
         contagemDe={(e) => contagemDoExercicio(e, dia.estaFeita, dia.config.metodologia)}

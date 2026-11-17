@@ -102,8 +102,8 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     treino
       ? recordesDoExercicio({ recordes: recordesDoPacote, exercicio: e, versaoId: treino.versaoId, data, registros: aluno.registros, serieDaVersao, marcacao })
       : {};
-  /** Séries com recorde no dia (a contagem do resumo). */
-  const recordesNoDia = sessao ? seriesComRecorde(sessao.exercicios.map((e) => recordesDe(e))) : 0;
+  /** Séries com recorde no dia (a contagem do resumo), cada uma pelo exercício que valeu (a alternativa, se trocado). */
+  const recordesNoDia = sessao ? seriesComRecorde(sessao.exercicios.map((e) => recordesDe(diaDe(e)))) : 0;
 
   // Coluna "Anterior" (Engajamento 0.3): a última vez de cada exercício, do pacote e do que o app conhece desta versão.
   const anterioresDoPacote = retornoHabilitado ? aluno.pacote?.pacote.anteriores : undefined;

@@ -68,6 +68,8 @@ interface Props {
   aoRegistrar: (serieUid: string, dados: DadosSerie) => void;
   /** Botão de descanso (ícone) na linha do "Como fazer", ao lado do vídeo. */
   acaoDescanso?: ReactNode;
+  /** Outros ícones da mesma linha, antes do vídeo ("Trocar", "Histórico"); somem na prévia. */
+  acoes?: ReactNode;
   /** Inicia o cronômetro com a pausa da técnica (cluster, rest pause); sem ele, o botão não aparece. `rotulo` vai na barra; `origem` liga o cronômetro à etapa. */
   aoIniciarPausa?: (segundos: number, rotulo?: string, opcoes?: { origem?: string; automatica?: boolean }) => void;
   /** Encerra a pausa que nasceu da etapa desfeita (só a dela). */
@@ -100,7 +102,7 @@ const SEM_EFEITO = () => undefined;
  */
 export function ExercicioAluno(props: Props) {
   const p: Props = props.previa
-    ? { ...props, registroDe: SEM_EFEITO, aoMudarCargaDoDia: props.aoMudarCargaDoDia ?? SEM_EFEITO, aoRegistrar: SEM_EFEITO, aoIniciarPausa: undefined, aoCancelarPausa: undefined, acaoDescanso: undefined, demonstracao: null }
+    ? { ...props, registroDe: SEM_EFEITO, aoMudarCargaDoDia: props.aoMudarCargaDoDia ?? SEM_EFEITO, aoRegistrar: SEM_EFEITO, aoIniciarPausa: undefined, aoCancelarPausa: undefined, acaoDescanso: undefined, acoes: undefined, demonstracao: null }
     : props;
   return (
     <ProvedorDaPrevia value={!!props.previa}>
@@ -176,7 +178,7 @@ function CorpoDoExercicio(p: Props) {
         <DemonstracaoDoExercicio exercicioId={e.exercicioId} nome={e.nome} imagens={p.demonstracao.imagens}
           imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="ALUNO" largura={240} altura={180} ampliavel />
       ) : null}
-      {temComoFazer || video || p.acaoDescanso ? (
+      {temComoFazer || video || p.acaoDescanso || p.acoes ? (
         <View style={estilos.linhaComoFazer}>
           {temComoFazer ? (
             <Pressable
@@ -196,6 +198,7 @@ function CorpoDoExercicio(p: Props) {
           ) : (
             <View style={estilos.espaco} />
           )}
+          {p.acoes}
           {video ? <RotuloDoIcone texto="Vídeo"><IconeBotao Icone={PlayCircle} rotulo={`Ver vídeo de ${e.nome}`} aoTocar={abrirVideo} /></RotuloDoIcone> : null}
           {p.acaoDescanso}
         </View>

@@ -9,6 +9,9 @@ import { StyleSheet, View } from 'react-native';
 import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
 import { ExercicioAluno } from '../../../../aluno/ExercicioAluno';
 import { FaixaDoTreino } from '../../../../aluno/FaixaDoTreino';
+import { HistoricoDoExercicio } from '../../../../aluno/HistoricoDoExercicio';
+import { ehExercicioDeCardio } from '../../../../aluno/serieDoAluno';
+import { TrocarSoHoje } from '../../../../aluno/TrocarSoHoje';
 import { useSessao } from '../../../../sessao/SessaoProvider';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { useAluno } from '../../../../offline/AlunoProvider';
@@ -50,6 +53,9 @@ export default function ExercicioDaSessao() {
   const [aviso, setAviso] = useState<RecordeParaAvisar | null>(null);
   const contador = useRef(0);
   const fecharAviso = useCallback(() => setAviso(null), []);
+  // "Trocar só hoje" ainda sem série marcada: só na tela (decisão do plano), presa a este exercício e data.
+  const [escolha, setEscolha] = useState<{ chave: string; exercicioId: string | null } | null>(null);
+  const chaveDaEscolha = `${exercicioUid ?? ''}|${data}`;
 
   if (!dia.carregado) {
     return (
@@ -60,8 +66,8 @@ export default function ExercicioDaSessao() {
     );
   }
   const posicao = sessao ? sessao.exercicios.findIndex((e) => e.uid === exercicioUid) : -1;
-  const e = sessao && posicao >= 0 ? sessao.exercicios[posicao] : undefined;
-  if (!dia.treino || !sessao || !e) {
+  const principal = sessao && posicao >= 0 ? sessao.exercicios[posicao] : undefined;
+  if (!dia.treino || !sessao || !principal) {
     return (
       <Tela bordas={['top']} largura={720}>
         <Cabecalho titulo="Exercício" voltar="/aluno/treino" />
@@ -71,6 +77,10 @@ export default function ExercicioDaSessao() {
     );
   }
 
+  // O exercício que vale hoje: tudo daqui para baixo (título, séries, cargas, "Anterior", recordes e registro) segue ele.
+  const e = dia.diaDe(principal, escolha?.chave === chaveDaEscolha ? escolha.exercicioId : null);
+  const trocado = dia.trocado(e);
+  const nomeDe = (x: typeof principal) => dia.diaDe(x).nome;
   const anterior = posicao > 0 ? sessao.exercicios[posicao - 1] : undefined;
   const nomeDoDia = nomeComDia(sessao);
   const noGrupo = posicaoNoGrupo(sessao, posicao, dia.config.metodologia);
@@ -119,6 +129,7 @@ export default function ExercicioDaSessao() {
         subtitulo={`${modalidade}Exercício ${posicao + 1} de ${sessao.exercicios.length} · ${nomeDoDia} (${dataCurta(data)})`}
         voltar={voltar}
       />
+      {trocado ? <Texto numerico variante="suave">{data === dia.hoje ? 'Só hoje' : `Só em ${dataCurta(data)}`} · no lugar de {principal.nome}</Texto> : null}
       {/* Treino ao vivo (Engajamento 0.3): duração, volume e séries do dia; some com "Concluir treino" desligado. */}
       {retornoHabilitado ? (
         <Cartao>
@@ -136,16 +147,23 @@ export default function ExercicioDaSessao() {
                 Exercício {noGrupo.posicao} de {noGrupo.tamanho}
               </Texto>
               <Texto numerico variante="suave">
-                {vez ? `Depois: ${vez.nome || 'próximo do grupo'}` : 'Grupo feito.'}
+                {vez ? `Depois: ${nomeDe(vez) || 'próximo do grupo'}` : 'Grupo feito.'}
               </Texto>
             </View>
-            {vez ? <Botao rotulo="Ir" rotuloAcessivel={`Ir para ${vez.nome || 'o próximo do grupo'}`} tipo="secundario" Icone={ArrowRight} aoTocar={() => ir(vez.uid)} /> : null}
+            {vez ? <Botao rotulo="Ir" rotuloAcessivel={`Ir para ${nomeDe(vez) || 'o próximo do grupo'}`} tipo="secundario" Icone={ArrowRight} aoTocar={() => ir(vez.uid)} /> : null}
           </View>
         </Cartao>
       ) : null}
       <ExercicioAluno
         acaoDescanso={<DescansoManual sugeridoSegundos={descansoDoPlano} />}
-        key={`${e.uid}|${data}`}
+        acoes={
+          <>
+            <TrocarSoHoje principal={principal} doDia={e} podeTrocar={dia.podeTrocar(principal)} outroDia={data === dia.hoje ? undefined : dataCurta(data)}
+              aoEscolher={(exercicioId) => setEscolha({ chave: chaveDaEscolha, exercicioId })} />
+            <HistoricoDoExercicio exercicio={e} ultimaVez={dia.ultimaVezDe(e)} ultima={dia.ultimaCarga(e.exercicioId)} cardio={ehExercicioDeCardio(e)} />
+          </>
+        }
+        key={`${e.uid}|${data}|${e.exercicioId ?? ''}`}
         exercicio={e}
         data={data}
         cargaDoDia={dia.cargaDoDia(e)}
@@ -167,10 +185,10 @@ export default function ExercicioDaSessao() {
           <>
             <Texto numerico variante="suave">{resumoDoDia}</Texto>
             <ConcluirTreino {...conclusao} tipo="primario" cheio />
-            <Botao rotulo={`Próximo: ${proximo.nome}`} Icone={ArrowRight} tipo="secundario" cheio aoTocar={() => ir(proximo.uid)} />
+            <Botao rotulo={`Próximo: ${nomeDe(proximo)}`} Icone={ArrowRight} tipo="secundario" cheio aoTocar={() => ir(proximo.uid)} />
           </>
         ) : proximo ? (
-          <Botao rotulo={`Próximo: ${proximo.nome}`} Icone={ArrowRight} cheio aoTocar={() => ir(proximo.uid)} />
+          <Botao rotulo={`Próximo: ${nomeDe(proximo)}`} Icone={ArrowRight} cheio aoTocar={() => ir(proximo.uid)} />
         ) : retornoHabilitado ? (
           <>
             <Texto numerico variante="suave">{resumoDoDia}</Texto>
@@ -185,7 +203,7 @@ export default function ExercicioDaSessao() {
         )}
         <LinhaDeAcoes alinhar="entre">
           {anterior ? (
-            <Botao rotulo="Anterior" rotuloAcessivel={`Anterior: ${anterior.nome}`} Icone={ArrowLeft} tipo="secundario" aoTocar={() => ir(anterior.uid)} />
+            <Botao rotulo="Anterior" rotuloAcessivel={`Anterior: ${nomeDe(anterior)}`} Icone={ArrowLeft} tipo="secundario" aoTocar={() => ir(anterior.uid)} />
           ) : (
             <View />
           )}

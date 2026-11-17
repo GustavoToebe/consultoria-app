@@ -93,7 +93,8 @@ export default function TreinoConcluido() {
   // Só as séries de trabalho e pós-trabalho (D6), como a faixa e o "Concluir treino".
   const { total, feitas } = contagemDeSeries(sessao, dia.estaFeita, dia.config.metodologia);
   const frase = fraseDoNumero(aluno.totalConcluidos, data, hoje);
-  const recordes = sessao.exercicios.flatMap((e) =>
+  // Cada exercício como valeu no dia (a alternativa, se trocado): os recordes e o nome são dela.
+  const recordes = sessao.exercicios.map((x) => dia.diaDe(x)).flatMap((e) =>
     Object.values(dia.recordesDe(e)).flatMap((lista) => lista.map((r) => `${e.nome}: ${textoDoRecorde(r, unidade)}`)),
   );
   const treinados = diasTreinadosNoMes(data, aluno.conclusoes, aluno.registros);
