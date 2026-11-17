@@ -7,6 +7,7 @@ import { obterPerfilDaComunidade } from '../api/comunidade';
 import type { PerfilDaComunidade } from '../api/comunidadeTipos';
 import { CHAVE_DO_MEU_PERFIL } from '../aluno/AvisoDoPerfil';
 import { MapaDeTreinos } from '../aluno/MapaDeTreinos';
+import { NivelDoAluno } from '../aluno/NivelDoAluno';
 import { hojeEmBrasilia } from '../dominio/financeiro';
 import { corDoPerfil, molduraDoPerfil } from '../dominio/perfilDaComunidade';
 import {
@@ -83,8 +84,9 @@ function PerfilAberto({ perfil, aoEditar }: { perfil: PerfilDaComunidade; aoEdit
 
   return (
     <View style={estilos.blocos}>
-      {/* M1: o próprio aluno vê o mapa dos treinos no topo (some sozinho com o retorno desligado); colegas não. */}
+      {/* M1: o próprio aluno vê o mapa dos treinos e o nível com a barra no topo (somem com o retorno desligado); colegas, só o nível. */}
       {perfil.ehVoce ? <MapaDeTreinos /> : null}
+      {perfil.ehVoce ? <NivelDoAluno /> : null}
       <View style={[estilos.capa, { backgroundColor: cores.superficie2, borderColor: cores.borda, borderTopColor: tom }]}>
         <View style={estilos.foto}>
           {reservadoParaMim

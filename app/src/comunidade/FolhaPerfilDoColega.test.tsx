@@ -15,6 +15,7 @@ jest.mock('lucide-react-native', () => new Proxy({} as Record<string | symbol, u
 jest.mock('../api/comunidade', () => ({ obterPerfilDaComunidade: jest.fn(), baixarFotoDoColega: jest.fn() }));
 jest.mock('../aluno/AvisoDoPerfil', () => ({ CHAVE_DO_MEU_PERFIL: 'meu-perfil' }));
 jest.mock('../aluno/MapaDeTreinos', () => ({ MapaDeTreinos: () => require('react').createElement(require('react-native').Text, null, 'Mapa dos treinos') }));
+jest.mock('../aluno/NivelDoAluno', () => ({ NivelDoAluno: () => require('react').createElement(require('react-native').Text, null, 'Barra do nível') }));
 jest.mock('../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../tema/tokens').CLARO, modo: 'CLARO', variante: 'claro' }) }));
 jest.mock('../ui/unidadeDeCargaEmUso', () => ({ useUnidadeDeCarga: () => 'kg' }));
 jest.mock('../ui/Folha', () => ({
@@ -74,6 +75,7 @@ it('perfil visível: nível, treinos, insígnias, recordes em kg e a foto pedida
   expect(t.some((x) => /60\s*kg/.test(x))).toBe(true);
   expect(t).not.toContain('Você');
   expect(t).not.toContain('Mapa dos treinos');
+  expect(t).not.toContain('Barra do nível');
   expect(botao(r, 'Editar meu perfil')).toBeUndefined();
 });
 
@@ -90,7 +92,7 @@ it('o próprio aluno, mesmo reservado, vê tudo e o atalho leva ao cartão da Co
   const fechar = jest.fn();
   let r!: ReactTestRenderer;
   await act(async () => { r = create(<FolhaPerfilDoColega autorId="u2" online aoFechar={fechar} />); });
-  expect(textos(r)).toEqual(expect.arrayContaining(['Mapa dos treinos', 'Você', 'Nível 2', 'Seu perfil está reservado: os colegas veem só o seu nome e o apelido.']));
+  expect(textos(r)).toEqual(expect.arrayContaining(['Mapa dos treinos', 'Barra do nível', 'Você', 'Nível 2', 'Seu perfil está reservado: os colegas veem só o seu nome e o apelido.']));
   await act(async () => { botao(r, 'Editar meu perfil').props.onPress(); });
   expect(fechar).toHaveBeenCalled();
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/aluno/conta', params: { secao: 'meu-perfil' } });

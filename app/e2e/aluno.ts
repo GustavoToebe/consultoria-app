@@ -1,6 +1,7 @@
 import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
 import type { Page } from '@playwright/test';
 
+import type { PosicaoNoRanking } from '../src/api/comunidadeTipos';
 import type { Carga, ConteudoDieta, ExercicioPlano, MeusDadosResponse, PainelAluno, Serie, Sessao, Tecnica, TipoSessao } from '../src/api/tipos';
 import { ALUNO, erroApi, MARCA, sessao, type RespostasApi } from './api-falsa';
 
@@ -88,8 +89,13 @@ export async function sessaoDeAlunoComTreino(page: Page, sessoes: Sessao[] | nul
     'GET /aluno/avisos-de-compromisso': { corpo: [] },
     // Água marcada (só aparece com "Água por dia" na dieta): nenhuma, salvo no teste da água.
     'GET /aluno/agua': { corpo: [] },
+    // "Seu nível" no Início (só com o retorno ligado): nível 1 sem nada ainda, salvo no teste do nível.
+    'GET /aluno/comunidade/ranking': { corpo: RANKING_SEM_TREINO },
   };
 }
+
+/** Ranking do próprio aluno de quem ainda não concluiu treino: nível 1, barra vazia. Só dados fictícios. */
+export const RANKING_SEM_TREINO: PosicaoNoRanking = { posicao: 1, treinosConcluidos: 0, pontuacao: 0, participantes: 1, nivel: 1, xp: 0, xpNoNivel: 0, faltam: 100 };
 
 /** Cadastro do aluno em "Meus dados" sem telefone, CPF, endereço nem sexo. Só dados fictícios. */
 export const MEUS_DADOS_VAZIOS: MeusDadosResponse = {

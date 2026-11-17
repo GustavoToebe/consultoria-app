@@ -3,7 +3,7 @@ import { ErroApi } from '@plataforma/web';
 import type { ColegaDaLista } from '../api/comunidadeTipos';
 import {
   buscarFotoDoColega, colegasDaPrimeiraPagina, COLEGAS_POR_PAGINA, erroDaLeitura, gradeDaAtividade, haMaisColegas, juntarPaginaDeColegas,
-  proximaPaginaDeColegas, rotuloDoColega, soONome, textoDoNivel, textoDosTreinos,
+  proximaPaginaDeColegas, rotuloDoColega, soONome, textoDoNivel, textoDoQueFalta, textoDosTreinos,
 } from './perfilDoColega';
 
 const colega = (i: number): ColegaDaLista => ({ autorId: `u${i}`, nome: `Colega ${i}`, apelido: null, nivel: 1, temFoto: false });
@@ -65,6 +65,12 @@ describe('perfil do colega', () => {
     expect(textoDoNivel(2)).toBe('Nível 2');
     expect(textoDosTreinos(1)).toBe('1 treino concluído');
     expect(textoDosTreinos(0)).toBe('0 treinos concluídos');
+  });
+
+  it('o que falta para o próximo nível, no singular e no plural, sem a sigla XP', () => {
+    expect(textoDoQueFalta(1, 100)).toBe('Faltam 100 para o nível 2');
+    expect(textoDoQueFalta(3, 1)).toBe('Falta 1 para o nível 4');
+    expect(textoDoQueFalta(3, 40)).not.toMatch(/XP/i);
   });
 });
 

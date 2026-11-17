@@ -63,6 +63,10 @@ export const buscarFotoDoColega = (p: Pick<PerfilDaComunidade, 'reservado' | 'eh
 
 export const textoDoNivel = (nivel: number): string => `Nível ${nivel}`;
 
+/** O que falta até o próximo nível, sem a sigla XP (decisão 6 do plano `xp-e-niveis`): "Faltam 40 para o nível 4". */
+export const textoDoQueFalta = (nivel: number, faltam: number): string =>
+  `${faltam === 1 ? 'Falta 1' : `Faltam ${faltam}`} para o nível ${nivel + 1}`;
+
 export const textoDosTreinos = (n: number): string => (n === 1 ? '1 treino concluído' : `${n} treinos concluídos`);
 
 // ---- Atividade: os últimos 30 dias ----

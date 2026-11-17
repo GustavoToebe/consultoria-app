@@ -218,12 +218,19 @@ export interface ColegaDaLista { autorId: string; nome: string; apelido: string 
 /** Uma página da lista de colegas; `total` conta só os visíveis. */
 export interface PaginaDeColegas { itens: ColegaDaLista[]; total: number }
 
-/** Só a posição do próprio aluno: a API nunca manda nome, id ou contagem de outro aluno. */
+/**
+ * Só a posição do próprio aluno: a API nunca manda nome, id ou contagem de outro aluno. Os quatro últimos são o XP dele
+ * (`dominio/xp.ts`): `xpNoNivel` (0 a 99) e `faltam` (1 a 100) desenham a barra até o próximo nível. A tela nunca mostra `xp`.
+ */
 export interface PosicaoNoRanking {
   posicao: number;
   treinosConcluidos: number;
   pontuacao: number;
   participantes: number;
+  nivel: number;
+  xp: number;
+  xpNoNivel: number;
+  faltam: number;
 }
 
 /**

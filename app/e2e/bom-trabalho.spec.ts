@@ -56,7 +56,7 @@ async function abrir(page: Page, ligada = true) {
     'GET /aluno/comunidade/mural': { corpo: { content: [], totalElements: 0 } },
     'GET /aluno/comunidade/aulas': { corpo: [] },
     'GET /aluno/comunidade/conquistas': { corpo: [] },
-    'GET /aluno/comunidade/ranking': { corpo: { posicao: 1, treinosConcluidos: 12, pontuacao: 0, participantes: 1 } },
+    'GET /aluno/comunidade/ranking': { corpo: { posicao: 1, treinosConcluidos: 12, pontuacao: 0, participantes: 1, nivel: 2, xp: 120, xpNoNivel: 20, faltam: 80 } },
   });
   return { ...api, conclusoes };
 }

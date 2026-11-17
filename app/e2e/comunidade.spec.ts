@@ -36,7 +36,7 @@ const PERFIL: PerfilDaComunidade = {
   conquistas: CONQUISTAS.map(({ tipo, titulo, descricao, icone }) => ({ tipo, titulo, descricao, icone })), destaques: [],
   temFoto: false, atividade: { diasTreinadosUltimos30: [], ultimasConquistas: [] }, recordes: [],
 };
-const RANKING: PosicaoNoRanking = { posicao: 2, treinosConcluidos: 8, pontuacao: 80, participantes: 12 };
+const RANKING: PosicaoNoRanking = { posicao: 2, treinosConcluidos: 8, pontuacao: 80, participantes: 12, nivel: 2, xp: 130, xpNoNivel: 30, faltam: 70 };
 
 const COMENTARIOS: ComentarioDoMural[] = [
   { id: 'c1', autorId: 'u2', autorNome: 'Aluno Fictício', autorApelido: 'Fictí', autorEhAluno: true, autorFotoUrl: null, texto: 'Bora, time!', criadoEm: '2026-10-19T13:00:00-03:00', daEquipe: false },

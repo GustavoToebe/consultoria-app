@@ -179,7 +179,7 @@ for (const largura of [390, 1280]) {
         'GET /aluno/comunidade/mural': { corpo: { content: [], totalElements: 0 } },
         'GET /aluno/comunidade/aulas': { corpo: [] },
         'GET /aluno/comunidade/conquistas': { corpo: [] },
-        'GET /aluno/comunidade/ranking': { corpo: { posicao: 1, treinosConcluidos: 0, pontuacao: 0, participantes: 1 } },
+        'GET /aluno/comunidade/ranking': { corpo: { posicao: 1, treinosConcluidos: 0, pontuacao: 0, participantes: 1, nivel: 1, xp: 0, xpNoNivel: 0, faltam: 100 } },
       });
       await page.goto('/aluno/comunidade');
       await expect(page.getByText(AVISO)).toBeVisible();

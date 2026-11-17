@@ -82,7 +82,7 @@ const COMUNIDADE: RespostasApi = {
   'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: true, podeAnexarFoto: false } },
   'GET /aluno/comunidade/aulas': { corpo: [] },
   'GET /aluno/comunidade/conquistas': { corpo: [] },
-  'GET /aluno/comunidade/ranking': { corpo: { posicao: 1, treinosConcluidos: 1, pontuacao: 10, participantes: 2 } },
+  'GET /aluno/comunidade/ranking': { corpo: { posicao: 1, treinosConcluidos: 1, pontuacao: 10, participantes: 2, nivel: 1, xp: 10, xpNoNivel: 10, faltam: 90 } },
 };
 const exercicioDoCatalogo = (n: number, nome: string, grupo: string): CatalogoExercicio => ({
   id: `c000000${n}-0000-4000-8000-000000000000`, nome, grupoMuscular: grupo, equipamento: null, modalidade: 'LIVRE', instrucoes: null, fonte: null, imagens: [],
