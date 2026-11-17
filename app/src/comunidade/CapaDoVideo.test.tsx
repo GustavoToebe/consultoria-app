@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-import type { ReactNode } from 'react';
+import { StrictMode, type ReactNode } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import { CapaDoVideo } from './CapaDoVideo';
@@ -84,6 +84,40 @@ it('capa que chega depois de a tela sair: o blob é revogado', async () => {
   act(() => r.unmount());
   await act(async () => { liberar({} as Blob); });
   expect(revogar).toHaveBeenCalledWith('blob:capa');
+});
+
+// C24 (17/11): investigação de "a capa só aparecia depois do toque". Estes três casos NÃO reproduziram o defeito: a capa é
+// baixada ao montar (sem toque), também com a capa chegando depois e com o StrictMode do dev (efeito montado, solto e montado).
+it('C24: a capa é pedida e desenhada ao montar, sem nenhum toque', async () => {
+  const baixar = jest.fn().mockResolvedValue({});
+  let r!: ReactTestRenderer;
+  await act(async () => {
+    r = create(<CapaDoVideo videoUrl={YOUTUBE} titulo="Técnica" capaId="capa-1" baixarCapa={baixar} aoAbrirFora={jest.fn()} />);
+  });
+  expect(baixar).toHaveBeenCalledWith('capa-1');
+  expect(tem(r, 'Imagem')).toBe(true);
+  expect(tem(r, 'Player')).toBe(false);
+});
+
+it('C24: capa que passa a existir depois da montagem (lista recarregada) aparece sem toque', async () => {
+  const { r } = await montar(YOUTUBE, null);
+  expect(tem(r, 'Imagem')).toBe(false);
+  await act(async () => {
+    r.update(<CapaDoVideo videoUrl={YOUTUBE} titulo="Técnica" capaId="capa-1" baixarCapa={jest.fn().mockResolvedValue({})} aoAbrirFora={jest.fn()} />);
+  });
+  expect(tem(r, 'Imagem')).toBe(true);
+});
+
+it('C24: no StrictMode (efeito montado, solto e montado de novo) a capa também aparece sem toque', async () => {
+  let r!: ReactTestRenderer;
+  await act(async () => {
+    r = create(
+      <StrictMode>
+        <CapaDoVideo videoUrl={YOUTUBE} titulo="Técnica" capaId="capa-1" baixarCapa={jest.fn().mockResolvedValue({})} aoAbrirFora={jest.fn()} />
+      </StrictMode>,
+    );
+  });
+  expect(tem(r, 'Imagem')).toBe(true);
 });
 
 it('sem link ou com link inseguro: não desenha nada', async () => {
