@@ -1,4 +1,4 @@
-import { BadgeNivel, PilulaStatus } from './BadgeNivel';
+import { BadgeNivel } from './BadgeNivel';
 
 jest.mock('@rn-primitives/slot', () => jest.requireActual('./primitivosFalsos.apoioTeste').primitivosFalsos());
 
@@ -7,8 +7,6 @@ jest.mock('../tema/TemaProvider', () => ({
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     cores: require('../tema/tokens').ESCURO,
     modo: 'ESCURO',
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    stndrd: require('../tema/tokens').TOKENS_STNDRD_ESCURO,
     fatorTexto: 1,
     preferencias: { animacoes: false },
   }),
@@ -27,16 +25,10 @@ function renderizar(el: import('react').ReactElement) {
     .map((n) => [n.props.children].flat().join(''));
 }
 
-describe('BadgeNivel e PilulaStatus', () => {
-  it('renderiza Beginner, Intermediate e Advanced com textos corretos', () => {
-    expect(renderizar(<BadgeNivel nivel="INICIANTE" />)).toContain('Beginner');
-    expect(renderizar(<BadgeNivel nivel="INTERMEDIARIO" />)).toContain('Intermediate');
-    expect(renderizar(<BadgeNivel nivel="AVANCADO" />)).toContain('Advanced');
-  });
-
-  it('renderiza pílulas semânticas Live, Invite & earn e NEW PR', () => {
-    expect(renderizar(<PilulaStatus tipo="LIVE" />)).toContain('Live');
-    expect(renderizar(<PilulaStatus tipo="INVITE_EARN" />)).toContain('Invite & earn');
-    expect(renderizar(<PilulaStatus tipo="NEW_PR" />)).toContain('NEW PR');
+describe('BadgeNivel', () => {
+  it('escreve o nível em português (D10)', () => {
+    expect(renderizar(<BadgeNivel nivel="INICIANTE" />)).toContain('Iniciante');
+    expect(renderizar(<BadgeNivel nivel="INTERMEDIARIO" />)).toContain('Intermediário');
+    expect(renderizar(<BadgeNivel nivel="AVANCADO" />)).toContain('Avançado');
   });
 });
