@@ -78,9 +78,12 @@ for (const largura of [390, 1280]) {
     await expect(folha(page).getByText(/Para trocar, desmarque as séries feitas\./)).toBeVisible();
     await expect(folha(page).getByRole('radio')).toHaveCount(0);
     await page.keyboard.press('Escape');
+    await expect(folha(page)).toHaveCount(0);
 
-    // A lista do dia mostra o exercício que valeu hoje.
-    await page.goto(LISTA);
+    // A lista do dia mostra o exercício que valeu hoje. Volta pela própria tela: um `page.goto` logo depois de mexer
+    // na folha e na série às vezes termina em `net::ERR_ABORTED` (navegação do navegador sobreposta à do app).
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`${LISTA.replace('?', '\\?')}$`));
     await expect(page.getByText('Supino com halteres de teste').first()).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
   });

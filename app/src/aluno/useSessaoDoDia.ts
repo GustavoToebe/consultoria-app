@@ -31,7 +31,13 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
   const hoje = hojeIso();
   const data = dataDaRota && ISO.test(dataDaRota) && podeRegistrarEm(dataDaRota, hoje) ? dataDaRota : hoje;
   const treino = aluno.pacote?.pacote.treino ?? null;
-  const sessao = treino ? normalizarTreino(treino.conteudo).sessoes.find((s) => s.uid === uid) : undefined;
+  // `normalizarTreino` é o do editor e descarta o `equipamento` (copiado na publicação, nunca digitado): aqui ele volta do pacote.
+  const equipamentoDe = new Map(treino?.conteudo.sessoes?.flatMap((s) => s.exercicios ?? []).map((e) => [e.uid, e.equipamento] as const));
+  const sessao = treino
+    ? normalizarTreino(treino.conteudo).sessoes.filter((s) => s.uid === uid).map((s) => ({
+        ...s, exercicios: s.exercicios.map((e) => (equipamentoDe.get(e.uid) ? { ...e, equipamento: equipamentoDe.get(e.uid) } : e)),
+      }))[0]
+    : undefined;
   // O nome da série de trabalho ("WS") sai da metodologia copiada na versão do treino; o do pacote é só a reserva.
   const base = aluno.pacote?.pacote.configuracao ?? { arredondamentoKg: 0.5, tipoTrabalho: 'WS' };
   const config = configDoTreino(treino?.conteudo ?? {}, base);
