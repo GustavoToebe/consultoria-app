@@ -73,14 +73,14 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
           />
           <OpcaoCartao
             titulo="Escuro"
-            descricao="STNDRD Dark (#09090B)"
+            descricao="Fundo #09090B"
             selecionada={preferencias.tema === 'ESCURO'}
             aoEscolher={() => mudar({ tema: 'ESCURO' })}
             amostra={<AmostraDoTema esquerda={ESCURO} cor={marca} />}
           />
           <OpcaoCartao
             titulo="Claro"
-            descricao="STNDRD White (#FFFFFF)"
+            descricao="Cartão #FFFFFF"
             selecionada={preferencias.tema === 'CLARO'}
             aoEscolher={() => mudar({ tema: 'CLARO' })}
             amostra={<AmostraDoTema esquerda={CLARO} cor={marca} />}

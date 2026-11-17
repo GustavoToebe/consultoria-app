@@ -365,7 +365,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   );
 }
 
-/** Os códigos visíveis na ordem do `CODIGOS_PALETAS_VISIVEIS` (sem Café): escuras primeiro, depois as claras. */
+/** Os códigos visíveis na ordem do `CODIGOS_PALETAS_VISIVEIS` (escuras primeiro, depois as claras. */
 const CODIGOS_DAS_PALETAS: readonly Tema[] = CODIGOS_PALETAS_VISIVEIS;
 
 /** Miniatura do app numa paleta: fundo, faixa do título, um cartão com uma linha de texto e o botão na cor da marca. */

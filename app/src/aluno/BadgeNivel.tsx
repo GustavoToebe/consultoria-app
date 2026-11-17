@@ -33,7 +33,7 @@ function coresDoToken(token: TokenNeon, claro: boolean) {
 }
 
 /**
- * Badge de nível estilo STNDRD (`///`): 1/3 barras em Emerald Neon (Beginner), 2/3 em Acid Lime (Intermediate) e 3/3 em
+ * Badge de nível em barras (`///`): 1/3 barras em Emerald Neon (Beginner), 2/3 em Acid Lime (Intermediate) e 3/3 em
  * Electric Purple (Advanced). No tema claro usa cápsula de alto contraste (`capsuleBg`/`capsuleText`).
  */
 export function BadgeNivel({ nivel, rotulo }: { nivel: NivelBadge; rotulo?: string }) {
@@ -66,7 +66,7 @@ export function BadgeNivel({ nivel, rotulo }: { nivel: NivelBadge; rotulo?: stri
 }
 
 /**
- * Pílula semântica STNDRD: `Live` (Electric Blue), `Invite & earn` (Acid Lime) ou `NEW PR` (Emerald Neon).
+ * Pílula semântica de realce: `Live` (Electric Blue), `Invite & earn` (Acid Lime) ou `NEW PR` (Emerald Neon).
  */
 export function PilulaStatus({ tipo, rotulo }: { tipo: TipoPilulaStatus; rotulo?: string }) {
   const { modo, stndrd } = useTema();

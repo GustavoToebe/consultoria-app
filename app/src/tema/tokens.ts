@@ -90,7 +90,7 @@ export const ESCURO: Cores = {
 };
 
 export const CLARO: Cores = {
-  // STNDRD White Minimalist + Neon: cartão sempre #FFFFFF puro, poço rebaixado (#EAECEF) e pílula (#F4F4F6).
+  // Claro minimalista com realce neon: cartão sempre #FFFFFF puro, poço rebaixado (#EAECEF) e pílula (#F4F4F6).
   fundo: '#F3F4F6',
   superficie: '#FFFFFF',
   superficie2: '#EAECEF',
@@ -119,7 +119,7 @@ export const CLARO: Cores = {
 };
 
 /**
- * Claro Areia (STNDRD White Minimalist): cartão Nível 1 sempre #FFFFFF puro, fundo #F4F1EA e poço #ECE7DD.
+ * Claro Areia (claro minimalista): cartão Nível 1 sempre #FFFFFF puro, fundo #F4F1EA e poço #ECE7DD.
  */
 export const AREIA: Cores = {
   ...CLARO,
@@ -204,9 +204,6 @@ export const OCEANO: Cores = paletaEscura({
   bordaCampo: '#778A95',
 });
 
-/** Mantido apenas como alias retrocompatível; não é mais exibido na seleção de Marca/Ajustes. */
-export const CAFE: Cores = ESCURO;
-
 export const LAVANDA: Cores = {
   ...CLARO,
   fundo: '#F3F0FA',
@@ -253,7 +250,6 @@ export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTem
   MEIA_NOITE: { nome: 'Meia-noite', cores: MEIA_NOITE, modo: 'ESCURO', variante: 'escuro' },
   OCEANO: { nome: 'Oceano', cores: OCEANO, modo: 'ESCURO', variante: 'escuro' },
   AMEIXA: { nome: 'Ameixa', cores: AMEIXA, modo: 'ESCURO', variante: 'escuro' },
-  CAFE: { nome: 'Escuro', cores: ESCURO, modo: 'ESCURO', variante: 'escuro' },
   CLARO: { nome: 'Claro', cores: CLARO, modo: 'CLARO', variante: 'claro' },
   AREIA: { nome: 'Areia', cores: AREIA, modo: 'CLARO', variante: 'claro' },
   CEU: { nome: 'Céu', cores: CEU, modo: 'CLARO', variante: 'claro' },
@@ -261,8 +257,8 @@ export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTem
   ROSA: { nome: 'Rosa', cores: ROSA, modo: 'CLARO', variante: 'claro' },
 };
 
-/** Paletas exibidas nos seletores de Marca e Ajustes (sem `CAFE`, que resolve para `ESCURO`). */
-export const CODIGOS_PALETAS_VISIVEIS: readonly Exclude<Tema, 'CAFE'>[] = [
+/** Paletas exibidas nos seletores de Marca e Ajustes, na ordem da tela. */
+export const CODIGOS_PALETAS_VISIVEIS: readonly Tema[] = [
   'ESCURO', 'MEIA_NOITE', 'OCEANO', 'AMEIXA',
   'CLARO', 'AREIA', 'CEU', 'LAVANDA', 'ROSA',
 ];
@@ -270,12 +266,9 @@ export const CODIGOS_PALETAS_VISIVEIS: readonly Exclude<Tema, 'CAFE'>[] = [
 /**
  * A paleta de um código, com reserva no Escuro: um código que o app não conhece (app antigo com a API nova, ou o contrário)
  * nunca derruba a tela. Todo código vindo de fora (marca da sessão, prévia) passa por aqui, não por `PALETAS[codigo]`.
- * `'CAFE'` (legado) resolve automaticamente para `PALETAS.ESCURO`.
  */
 export const paletaDe = (codigo: string | null | undefined): (typeof PALETAS)[Tema] =>
-  codigo === 'CAFE'
-    ? PALETAS.ESCURO
-    : (codigo && Object.hasOwn(PALETAS, codigo) ? PALETAS[codigo as Tema] : undefined) ?? PALETAS.ESCURO;
+  (codigo && Object.hasOwn(PALETAS, codigo) ? PALETAS[codigo as Tema] : undefined) ?? PALETAS.ESCURO;
 
 export interface TokenNeon {
   accent: string;

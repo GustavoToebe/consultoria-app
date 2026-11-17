@@ -5,7 +5,7 @@
 export type Papel = 'TREINADOR' | 'ALUNO';
 export type Fonte = 'PADRAO' | 'METAL' | 'ESPORTIVA' | 'CONDENSADA';
 /** Paletas da marca (`temaPadrao` da consultoria); cada uma tem modo fixo em `tema/tokens.PALETAS`. */
-export type Tema = 'ESCURO' | 'MEIA_NOITE' | 'AMEIXA' | 'OCEANO' | 'CAFE' | 'CLARO' | 'AREIA' | 'LAVANDA' | 'CEU' | 'ROSA';
+export type Tema = 'ESCURO' | 'MEIA_NOITE' | 'AMEIXA' | 'OCEANO' | 'CLARO' | 'AREIA' | 'LAVANDA' | 'CEU' | 'ROSA';
 
 export interface Marca {
   id: string;

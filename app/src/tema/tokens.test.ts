@@ -298,7 +298,7 @@ describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, c
 // ---- Visual de 11/11 (guia em PDF, págs. 4, 5, 6, 12 e 13) ----
 
 describe('pares medidos do guia na paleta de partida (Escuro)', () => {
-  it('texto, texto secundário e borda de campo mantêm alto contraste na hierarquia STNDRD', () => {
+  it('texto, texto secundário e borda de campo mantêm alto contraste na hierarquia do tema escuro', () => {
     expect(contraste(ESCURO.texto, ESCURO.superficie)).toBeGreaterThanOrEqual(15);
     expect(contraste(ESCURO.textoSuave, ESCURO.superficie2)).toBeGreaterThanOrEqual(7);
     expect(contraste(ESCURO.bordaCampo, ESCURO.superficie)).toBeGreaterThanOrEqual(4.5);
@@ -323,7 +323,7 @@ it.each(TODAS)('%s: o painel do conteúdo fica entre o fundo (menu) e o cartão'
 });
 
 /**
- * Separação das superfícies nas paletas claras (STNDRD White Minimalist): o cartão Nível 1 é sempre #FFFFFF puro,
+ * Separação das superfícies nas paletas claras (claro minimalista): o cartão Nível 1 é sempre #FFFFFF puro,
  * destacando-se da página pelo tom, e o poço Nível 2 (`superficie2` / `campo`) é rebaixado abaixo da página para dar profundidade.
  */
 it.each(TODAS.filter(([, , escuro]) => !escuro))('%s: cartão (#FFFFFF) se destaca da página e poço/campo é rebaixado com contorno forte', (_codigo, cores) => {

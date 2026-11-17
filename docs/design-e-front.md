@@ -176,8 +176,8 @@ Uso de cada nível (11/11):
   No contraste alto o contorno do `Cartao` passa a `bordaCampo` (item abaixo).
 - **Texto secundário** perde peso (fonte regular, 13–14), não contraste: `textoSuave` ≥ 4,5:1 em toda superfície, nunca
   opacidade.
-- Os HEX acima são o ponto de partida do escuro (guia de 11/11). As outras nove paletas (claro, areia, lavanda, céu,
-  rosa, meia-noite, ameixa, oceano, café) têm pares próprios e não precisam repetir esses valores: o que vale é o
+- Os HEX acima são o ponto de partida do escuro (guia de 11/11). As outras oito paletas (claro, areia, lavanda, céu,
+  rosa, meia-noite, ameixa, oceano) têm pares próprios e não precisam repetir esses valores: o que vale é o
   contraste medido em `tema/tokens.test.ts`.
 - **Paletas claras (12/11, `docs/planos/superficies-das-paletas-claras.md`):** a página (`fundo` e `painel`, que nas
   claras são o mesmo tom) é tingida e o cartão e o campo são brancos, sem sombra: o cartão se destaca pelo tom (≥ 1,1:1)
@@ -213,7 +213,7 @@ Uso de cada nível (11/11):
   separa da página (cerca de 1,1:1) e é o contorno que marca a seção. Medido em 13/11 (Alunos, Financeiro › Cobranças
   e Ajustes, 1280 e 390 px; `e2e/cartao-contraste-alto.spec.ts`): o contorno contra a página e contra o cartão ia de
   1,75 a 1,95:1 no claro e de 2,09 a 2,33:1 no escuro; agora vai de 3,5 a 3,91:1 no claro e de 4,66 a 5,2:1 no escuro
-  (o jest confere ≥ 3:1 nas dez paletas). Não era falha da WCAG 1.4.11 (o cartão é contêiner estático, identificado
+  (o jest confere ≥ 3:1 nas nove paletas). Não era falha da WCAG 1.4.11 (o cartão é contêiner estático, identificado
   pelo título e pela faixa, não componente de interface): o ajuste cumpre o que a preferência promete. Com contraste alto **e** "bordas reforçadas" o
   `divisor` também chega a `bordaCampo` (as divisórias engrossam): é o efeito pedido pela segunda preferência.
 - Seleção (chips, escolhas) é **neutra** (11/11): `superficie3` + `bordaCampo` + ✓, nunca a cor da marca.
@@ -284,7 +284,7 @@ Qualquer outro lugar precisa de decisão nova.
 | Ação e destaque | fundo `marca` com texto `sobreMarca`; em texto ou ícone, `marcaTexto` | Só nos lugares da lista acima | "Salvar", menu ativo, cartão Hoje | Sim | 4,5:1 (texto) | `sobreMarca` sobre `marca` ≥ 4,5 (`avaliarMarca` recusa menos); `marcaTexto` ≥ 4,5 por construção (`marcaParaTexto`) |
 | Positivo, concluído | `sucesso` | Terminou bem e não falta nada | Paga, Ativa, Revisada, Sincronizado, Treino concluído, Realizado, Com acesso, Publicado | Sim | 4,5:1 | 5,48 · 5,48 · 7,99 (sobre `sucessoSuave`, o fundo do selo) |
 | Pendente, alguém precisa agir | `atencao` | Falta uma ação de alguém, mas nada impede de seguir | Em aberto, Para revisar, Responder até, Adiada, Pausada, Contestada, Alterações não salvas, "Falta a carga" e "Sem quantidade" (campo vazio que ainda vai ser preenchido; valor inválido é `perigo`) | Só quem age (a cobrança Em aberto, para os dois: exceção acima) | 4,5:1 | 5,40 · 5,40 · 8,50 (sobre `atencaoSuave`) |
-| Problema, erro ou atraso | `perigo` em texto e borda; `perigoFundo` em botão preenchido com texto branco | Algo deu errado, impede de seguir ou passou do prazo; ação destrutiva | Atrasada, "Vencida há N dias", Falhou, Faltou, Corrigir, Falha ao salvar, erro de campo | Sim | 4,5:1 | 5,62 · 5,62 · 5,59 (sobre `perigoSuave`; pior das dez paletas 5,03, café); branco sobre `perigoFundo`: 6,57 · 6,57 · 5,62 |
+| Problema, erro ou atraso | `perigo` em texto e borda; `perigoFundo` em botão preenchido com texto branco | Algo deu errado, impede de seguir ou passou do prazo; ação destrutiva | Atrasada, "Vencida há N dias", Falhou, Faltou, Corrigir, Falha ao salvar, erro de campo | Sim | 4,5:1 | 5,62 · 5,62 · 5,59 (sobre `perigoSuave`; pior das nove paletas 5,59, escuro); branco sobre `perigoFundo`: 6,57 · 6,57 · 5,62 |
 | Encerrado, inativo ou informativo | `neutro` | Acabou, foi desligado, ou é só informação, inclusive o que ainda vai acontecer, sempre com a data; também quem espera a ação de outro | Cancelada, Estornada, Encerrada, Arquivado, Inativo, Pasta concluída, Dispensada, Sem conexão, "Em 15 dias", "Enviada · aguardando revisão" (quem espera); rascunho sem erro (11/11): Rascunho, Nunca publicado, Alterações não publicadas, Alterado desde a publicação | Sim | 4,5:1 | `textoSuave` sem pílula: 6,26 · 6,04 · 6,83 (sobre `superficie3`) |
 | Desabilitado | fundo `superficie3`, borda `borda`, texto e ícone `textoSuave`, sem opacidade e sem a marca | Controle que não pode ser usado agora | Botão com `motivo` ("Preencha o nome"), opção indisponível, ✓ na prévia | Sim | Isento pela WCAG 1.4.3; o `motivo` abaixo é texto comum (4,5:1) | `textoSuave` sobre `superficie3`: 6,26 · 6,04 · 5,42 |
 | Seleção | neutra (11/11): fundo `superficie3`, contorno `bordaCampo`, ✓ e letra `texto`; caixa de seleção e `Interruptor` seguem preenchidos | Opção escolhida (chips, `Escolha`, calendário, opção de folha) | Chip marcado | Sim | 4,5:1 (texto); 3:1 (contorno) | `texto` sobre `superficie3` ≥ 12,6 (pior: ameixa); `bordaCampo` ≥ 3:1 (pior 3,56, ameixa) |

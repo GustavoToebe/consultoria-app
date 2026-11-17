@@ -16,6 +16,7 @@ describe('preferências pessoais', () => {
   it('valor desconhecido, faltando ou texto quebrado volta ao padrão', () => {
     expect(normalizarPreferencias(undefined)).toEqual(PREFERENCIAS_PADRAO);
     expect(normalizarPreferencias('{quebrado')).toEqual(PREFERENCIAS_PADRAO);
+    expect(normalizarPreferencias({ tema: 'CAFE' })).toEqual(PREFERENCIAS_PADRAO);
     expect(normalizarPreferencias({ tema: 'ROXO', contraste: 1, tamanhoTexto: 'GIGANTE', movimento: null, vibracao: 'sim', graficos: 'não', barrasEscuras: 'não', diasSemRegistro: 5 })).toEqual(PREFERENCIAS_PADRAO);
   });
 

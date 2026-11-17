@@ -138,9 +138,8 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     }
   }
   const o = bruto && typeof bruto === 'object' ? (bruto as Record<string, unknown>) : {};
-  const temaBruto = o.tema === 'CAFE' ? 'ESCURO' : o.tema;
   return {
-    tema: entre(temaBruto, TEMAS, PREFERENCIAS_PADRAO.tema),
+    tema: entre(o.tema, TEMAS, PREFERENCIAS_PADRAO.tema),
     contraste: entre(o.contraste, CONTRASTES, PREFERENCIAS_PADRAO.contraste),
     tamanhoTexto: entre(o.tamanhoTexto, TAMANHOS, PREFERENCIAS_PADRAO.tamanhoTexto),
     movimento: entre(o.movimento, MOVIMENTOS, PREFERENCIAS_PADRAO.movimento),

@@ -22,7 +22,7 @@ Tirar o nome "STNDRD" do código e do texto da tela e acabar com o alias silenci
 
 ## Passos
 - [ ] 1. Plano e entrada no README — commit: este
-- [ ] 2. App: tirar "STNDRD" do texto e dos comentários; tirar o Café (tipo, tokens, preferências, testes, docs de design) — commit: —
+- [x] 2. App: tirar "STNDRD" do texto e dos comentários; tirar o Café (tipo, tokens, preferências, testes, docs de design) — commit: ver `git log` ("Limpeza do estudo STNDRD no app"); sobra o comentário "Liquid Glass (STNDRD)" em `aluno/BarraDescanso.tsx:26`, que vai com o rename (passo 4)
 - [ ] 3. API: V080 (`CAFE` → `ESCURO`, CHECK refeito), enum sem `CAFE`, totais de migrations — commit: —
 - [ ] 4. Rename dos identificadores `stndrd` (depende da liberação do `financeiro/`) — commit: —
 - [ ] 5. e2e inteiro filtrado e capturas claro, Areia e escuro a 390 e 1280 — commit: —
