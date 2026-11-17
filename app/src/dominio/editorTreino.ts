@@ -560,6 +560,10 @@ export function normalizarTreino(conteudo: unknown): ConteudoTreino {
         cadencia: e.cadencia ?? null,
         isometriaSegundos: e.isometriaSegundos ?? null,
         grupoUid: e.grupoUid ?? null,
+        // Sem a chave quando vazia: a API omite a lista vazia e o editor não pode devolvê-la ao salvar.
+        ...(e.alternativas?.length
+          ? { alternativas: e.alternativas.map((a) => ({ exercicioId: a.exercicioId, nome: a.nome, videoUrl: a.videoUrl ?? null })) }
+          : {}),
         series: (e.series ?? []).map((x) => serieNormalizada(x, x.uid ?? novoUid())),
       })),
     })),

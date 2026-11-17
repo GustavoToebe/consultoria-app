@@ -8,6 +8,7 @@ import { ehSerieDeTrabalho, melhorUltimaCarga } from '../dominio/cargas';
 import { configDoTreino } from '../dominio/metodologia';
 import { semCargaNaSerieIlegivel } from '../dominio/modoDeCarga';
 import { normalizarTreino } from '../dominio/editorTreino';
+import { chaveDaBaseDoDia, exercicioDoDia, foiTrocado, podeTrocarNoDia } from '../dominio/exercicioDoDia';
 import { hojeIso } from '../dominio/formatos';
 import { recordesDoExercicio, seriesComRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { podeRegistrarEm } from '../dominio/semana';
@@ -44,7 +45,29 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
   const feitas = (e: ExercicioPlano) => e.series.filter((s) => registroDe(s.uid)?.concluida).length;
   /** A série está concluída nesta data (o `feita` das contagens de `dominio/semana` e `dominio/conclusaoDoTreino`). */
   const estaFeita = (serieUid: string) => !!registroDe(serieUid)?.concluida;
-  const cargaDoDia = (e: ExercicioPlano) => aluno.cargasDeTrabalho[`${e.uid}|${data}`] ?? null;
+  // Troca do dia (Lote B): `e` é o exercício do dia (`diaDe`); trocado = o `exercicioId` difere do que o plano traz.
+  const exerciciosDaVersao = treino ? normalizarTreino(treino.conteudo).sessoes.flatMap((ss) => ss.exercicios) : [];
+  const principalDe = (e: ExercicioPlano) => exerciciosDaVersao.find((x) => x.uid === e.uid);
+  const trocado = (e: ExercicioPlano) => {
+    const principal = principalDe(e);
+    return !!principal && foiTrocado(principal, e);
+  };
+  /** Chave da base do dia do exercício (nula no dia trocado: não se lê nem se grava; ver `chaveDaBaseDoDia`). */
+  const chaveDaBase = (e: ExercicioPlano) => {
+    const principal = principalDe(e);
+    return principal ? chaveDaBaseDoDia(principal, e, data) : `${e.uid}|${data}`;
+  };
+  const contextoDoDia = (escolhida?: string | null) => ({ versaoId: treino?.versaoId ?? '', data, registros: aluno.registros, escolhida });
+  /** O exercício que vale hoje (com a alternativa no lugar do principal, se for o caso). `escolhida`: troca ainda sem série marcada. */
+  const diaDe = (principal: ExercicioPlano, escolhida?: string | null) => (treino ? exercicioDoDia(principal, contextoDoDia(escolhida)) : principal);
+  /** Dá para trocar (ou desfazer) agora: tem alternativa e nenhuma série do exercício foi marcada hoje. */
+  const podeTrocar = (principal: ExercicioPlano) => !!treino && podeTrocarNoDia(principal, contextoDoDia());
+  // A base do dia é por exercício do plano e data: no dia trocado ela não vale (a do principal não é da alternativa) e
+  // não se grava; a sugestão parte da última carga da alternativa (`ultimaCarga` por `exercicioId`) ou fica sem base.
+  const cargaDoDia = (e: ExercicioPlano) => {
+    const chave = chaveDaBase(e);
+    return chave ? aluno.cargasDeTrabalho[chave] ?? null : null;
+  };
   /** A divisão tem alguma série feita nesta data (o ✓ do chip em "Outras datas"). */
   const treinouEm = (d: string) =>
     !!sessao && !!treino && aluno.registros.some((r) => r.data === d && r.sessaoUid === sessao.uid && r.planoVersaoId === treino.versaoId && r.concluida);
@@ -84,7 +107,6 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
 
   // Coluna "Anterior" (Engajamento 0.3): a última vez de cada exercício, do pacote e do que o app conhece desta versão.
   const anterioresDoPacote = retornoHabilitado ? aluno.pacote?.pacote.anteriores : undefined;
-  const exerciciosDaVersao = treino ? normalizarTreino(treino.conteudo).sessoes.flatMap((ss) => ss.exercicios) : [];
   const ultimaVezDe = (e: ExercicioPlano) =>
     treino ? ultimaVez({ anteriores: anterioresDoPacote, exercicio: e, versaoId: treino.versaoId, data, registros: aluno.registros, exerciciosDaVersao }) : null;
 
@@ -144,7 +166,12 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     recordesNoDia,
     ultimaVezDe,
     chaveDaExecucao,
-    salvarCargaDoDia: (e: ExercicioPlano, carga: number | null) => void aluno.salvarCargaDeTrabalho(e.uid, data, carga),
+    diaDe,
+    podeTrocar,
+    trocado,
+    salvarCargaDoDia: (e: ExercicioPlano, carga: number | null) => {
+      if (chaveDaBase(e)) void aluno.salvarCargaDeTrabalho(e.uid, data, carga);
+    },
   };
 }
 

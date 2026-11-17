@@ -32,14 +32,27 @@ public final class ExecucaoDtos {
     public record RegistroExecucao(UUID id, UUID planoVersaoId, UUID sessaoUid, UUID exercicioUid, UUID serieUid,
                                    LocalDate data, BigDecimal carga, Integer repeticoes, Boolean concluida,
                                    String observacao, Instant alteradoNoAparelhoEm,
-                                   List<EtapaRegistrada> etapas, BigDecimal referenciaCarga, String referenciaOrigem) {
+                                   List<EtapaRegistrada> etapas, BigDecimal referenciaCarga, String referenciaOrigem,
+                                   UUID exercicioId) {
+
+        /**
+         * Registro do exercício do plano (sem troca). {@code exercicioId} nulo = o exercício do plano; com valor, é a troca
+         * "só hoje" por uma alternativa que o treinador definiu na versão (o servidor recusa o que não está nela).
+         */
+        public RegistroExecucao(UUID id, UUID planoVersaoId, UUID sessaoUid, UUID exercicioUid, UUID serieUid,
+                                LocalDate data, BigDecimal carga, Integer repeticoes, Boolean concluida,
+                                String observacao, Instant alteradoNoAparelhoEm,
+                                List<EtapaRegistrada> etapas, BigDecimal referenciaCarga, String referenciaOrigem) {
+            this(id, planoVersaoId, sessaoUid, exercicioUid, serieUid, data, carga, repeticoes, concluida, observacao,
+                    alteradoNoAparelhoEm, etapas, referenciaCarga, referenciaOrigem, null);
+        }
 
         /** Registro da série inteira, sem etapas nem referência (séries sem Cluster nem Rest-pause). */
         public RegistroExecucao(UUID id, UUID planoVersaoId, UUID sessaoUid, UUID exercicioUid, UUID serieUid,
                                 LocalDate data, BigDecimal carga, Integer repeticoes, Boolean concluida,
                                 String observacao, Instant alteradoNoAparelhoEm) {
             this(id, planoVersaoId, sessaoUid, exercicioUid, serieUid, data, carga, repeticoes, concluida, observacao,
-                    alteradoNoAparelhoEm, null, null, null);
+                    alteradoNoAparelhoEm, null, null, null, null);
         }
     }
 
@@ -83,6 +96,22 @@ public final class ExecucaoDtos {
     }
 
     public record DiaDeTreino(LocalDate data, List<SessaoFeita> sessoes) {
+    }
+
+    /** Exercício da biblioteca numa troca; {@code exercicioId} nulo = o do plano não está ligado à biblioteca. */
+    public record ExercicioDaTroca(UUID exercicioId, String nome) {
+    }
+
+    /**
+     * Um exercício que o aluno trocou só naquele dia ({@code series} = quantas séries concluiu na alternativa). Só existe
+     * onde há série feita: troca sem série marcada fica só no aparelho. {@code planoVersaoId} e {@code exercicioUid}
+     * identificam o exercício na versão que ele via.
+     */
+    public record TrocaDeExercicio(LocalDate data, UUID planoVersaoId, UUID sessaoUid, String sessao, UUID exercicioUid,
+                                   ExercicioDaTroca principal, ExercicioDaTroca alternativa, int series) {
+    }
+
+    public record TrocasDeExercicio(LocalDate de, LocalDate ate, List<TrocaDeExercicio> trocas) {
     }
 
     public record ProgressoPonto(LocalDate data, BigDecimal maiorCargaTrabalho, Integer repeticoes) {

@@ -4,6 +4,7 @@ import br.com.treinos.api.execucao.dto.ExecucaoDtos.DiaDeTreino;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoRequest;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoResponse;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.ProgressoPonto;
+import br.com.treinos.api.execucao.dto.ExecucaoDtos.TrocasDeExercicio;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -30,10 +31,21 @@ public class ExecucoesTreinadorController {
 
     private final HistoricoService historico;
     private final PesoService pesos;
+    private final TrocasDeExercicioService trocas;
 
-    public ExecucoesTreinadorController(HistoricoService historico, PesoService pesos) {
+    public ExecucoesTreinadorController(HistoricoService historico, PesoService pesos, TrocasDeExercicioService trocas) {
         this.historico = historico;
         this.pesos = pesos;
+        this.trocas = trocas;
+    }
+
+    /** Exercícios que o aluno trocou só naquele dia (últimos 7 dias, até 31), lidos das séries concluídas. */
+    @PreAuthorize("hasAuthority('PERM_REGISTRO_LER')")
+    @GetMapping("/trocas-de-exercicio")
+    public TrocasDeExercicio trocasDeExercicio(@PathVariable UUID alunoId,
+                                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
+                                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate) {
+        return trocas.doAluno(alunoId, de, ate);
     }
 
     @PreAuthorize("hasAuthority('PERM_REGISTRO_LER')")

@@ -153,6 +153,18 @@ public record ConteudoTreino(
             Integer voltas) {
     }
 
+    /** Máximo de alternativas por exercício (a troca "só hoje" do aluno; plano {@code docs/planos/trocar-exercicio.md}). */
+    public static final int MAXIMO_DE_ALTERNATIVAS = 3;
+
+    /**
+     * Alternativa a um exercício, escolhida pelo treinador entre os da biblioteca: o aluno pode trocar o exercício só
+     * naquele dia. {@code nome} e {@code videoUrl} são cópias da biblioteca (o aluno lê sem internet); na publicação o
+     * servidor as sobrescreve ({@code PlanoTreinoService.paraPublicar}). A alternativa herda uid, séries, unidade,
+     * modalidade e grupo do exercício; não tem texto livre.
+     */
+    public record Alternativa(UUID exercicioId, @Size(max = 120) String nome, @Size(max = 500) String videoUrl) {
+    }
+
     public record ExercicioPlano(
             UUID uid,
             UUID exercicioId,
@@ -166,7 +178,23 @@ public record ConteudoTreino(
             @Size(max = 15) String cadencia,
             Integer isometriaSegundos,
             UUID grupoUid,
-            @JsonInclude(JsonInclude.Include.NON_NULL) @Size(max = 60) String equipamento) {
+            @JsonInclude(JsonInclude.Include.NON_NULL) @Size(max = 60) String equipamento,
+            // Omitida quando vazia: o app já instalado confere as chaves do exercício no pacote offline (formatoDoPacote).
+            // O teto de 3 é do ValidadorTreino (422 no campo); aqui @Size só limita o tamanho do que chega.
+            @JsonInclude(JsonInclude.Include.NON_EMPTY) @Size(max = 10) List<@Valid @NotNull Alternativa> alternativas) {
+
+        /** Sem alternativas = lista vazia, nunca nulo (o mesmo JSON e a mesma igualdade). */
+        public ExercicioPlano {
+            alternativas = alternativas == null ? List.of() : alternativas;
+        }
+
+        /** Sem alternativas (a maior parte dos exercícios). */
+        public ExercicioPlano(UUID uid, UUID exercicioId, String nome, String modalidade, String videoUrl,
+                              String observacao, Boolean progressao, String unidade, List<Serie> series, String cadencia,
+                              Integer isometriaSegundos, UUID grupoUid, String equipamento) {
+            this(uid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade, series, cadencia,
+                    isometriaSegundos, grupoUid, equipamento, null);
+        }
 
         /**
          * Sem equipamento: ele só nasce na publicação, copiado da biblioteca ({@code PlanoTreinoService.paraPublicar});
@@ -176,7 +204,7 @@ public record ConteudoTreino(
                               String observacao, Boolean progressao, String unidade, List<Serie> series, String cadencia,
                               Integer isometriaSegundos, UUID grupoUid) {
             this(uid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade, series, cadencia,
-                    isometriaSegundos, grupoUid, null);
+                    isometriaSegundos, grupoUid, null, null);
         }
 
         /** Sem cadência, isometria nem grupo (a maior parte dos exercícios). */
@@ -197,17 +225,27 @@ public record ConteudoTreino(
         /** Mesmo exercício com outras séries (o resto, inclusive execução e grupo, acompanha). */
         public ExercicioPlano comSeries(UUID novoUid, List<Serie> novas) {
             return new ExercicioPlano(novoUid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade,
-                    novas, cadencia, isometriaSegundos, grupoUid, equipamento);
+                    novas, cadencia, isometriaSegundos, grupoUid, equipamento, alternativas);
         }
 
         public ExercicioPlano comGrupoUid(UUID novo) {
             return new ExercicioPlano(uid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade,
-                    series, cadencia, isometriaSegundos, novo, equipamento);
+                    series, cadencia, isometriaSegundos, novo, equipamento, alternativas);
         }
 
         public ExercicioPlano comEquipamento(String novo) {
             return new ExercicioPlano(uid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade,
-                    series, cadencia, isometriaSegundos, grupoUid, novo);
+                    series, cadencia, isometriaSegundos, grupoUid, novo, alternativas);
+        }
+
+        public ExercicioPlano comAlternativas(List<Alternativa> novas) {
+            return new ExercicioPlano(uid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade,
+                    series, cadencia, isometriaSegundos, grupoUid, equipamento, novas);
+        }
+
+        public ExercicioPlano comNome(String novo) {
+            return new ExercicioPlano(uid, exercicioId, novo, modalidade, videoUrl, observacao, progressao, unidade,
+                    series, cadencia, isometriaSegundos, grupoUid, equipamento, alternativas);
         }
     }
 

@@ -181,10 +181,15 @@ public class AlunoAppService {
         return eu.alunoId();
     }
 
+    /**
+     * Ids da biblioteca do plano: os exercícios e as alternativas deles (troca "só hoje"). Alimenta as últimas cargas, os
+     * recordes, o "Anterior" e as demonstrações do aluno, que contam no exercício que ele de fato fez.
+     */
     public static Set<UUID> exerciciosDaBiblioteca(ConteudoTreino conteudo) {
         return conteudo.sessoesOuVazio().stream()
                 .flatMap(s -> s.exerciciosOuVazio().stream())
-                .map(ConteudoTreino.ExercicioPlano::exercicioId)
+                .flatMap(e -> java.util.stream.Stream.concat(java.util.stream.Stream.of(e.exercicioId()),
+                        e.alternativas().stream().map(ConteudoTreino.Alternativa::exercicioId)))
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
     }

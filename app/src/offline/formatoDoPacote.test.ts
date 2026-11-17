@@ -55,6 +55,33 @@ describe('formato do pacote salvo no aparelho', () => {
     expect(pacoteNoFormatoAtual(p)).toBe(false);
   });
 
+  it('a dieta com variações por dia não entra na conferência estrita (o pacote só confere o treino; a dieta é um documento à parte)', () => {
+    const p = salvo();
+    p.pacote.dieta = { conteudo: { refeicoes: [], variacoes: [{ uid: 'v', rotulo: 'Zero carbo', dias: [2, 4, 6], refeicoes: [] }] } };
+    expect(pacoteNoFormatoAtual(p)).toBe(true);
+  });
+
+  it('aceita as alternativas do exercício (até 3) e confere o formato delas, estritamente', () => {
+    const com = (alternativas: unknown) => {
+      const p = salvo();
+      p.pacote.treino.conteudo.sessoes[0].exercicios[0].alternativas = alternativas;
+      return p;
+    };
+    const alt = (n: number, extra: Record<string, unknown> = {}) => ({ exercicioId: `x${n}`, nome: `Alternativa ${n}`, videoUrl: null, ...extra });
+    expect(pacoteNoFormatoAtual(com([alt(1), alt(2, { videoUrl: 'https://exemplo.com/v' }), alt(3)]))).toBe(true);
+    // A API omite a lista vazia, mas o pacote salvo por um app mais novo ou um servidor que mande `null` continua legível.
+    expect(pacoteNoFormatoAtual(com(undefined))).toBe(true);
+    expect(pacoteNoFormatoAtual(com(null))).toBe(true);
+    expect(pacoteNoFormatoAtual(com([alt(1), alt(2), alt(3), alt(4)]))).toBe(false);
+    expect(pacoteNoFormatoAtual(com('x'))).toBe(false);
+    expect(pacoteNoFormatoAtual(com([alt(1, { extra: 1 })]))).toBe(false);
+    expect(pacoteNoFormatoAtual(com([alt(1, { exercicioId: null })]))).toBe(false);
+    expect(pacoteNoFormatoAtual(com([alt(1, { exercicioId: '' })]))).toBe(false);
+    expect(pacoteNoFormatoAtual(com([alt(1, { nome: 3 })]))).toBe(false);
+    expect(pacoteNoFormatoAtual(com([alt(1, { videoUrl: 3 })]))).toBe(false);
+    expect(pacoteNoFormatoAtual(com(['x']))).toBe(false);
+  });
+
   it('recusa o que não é pacote', () => {
     for (const ruim of [null, 'x', [], {}, { salvoEm: 1, pacote: {} }, { salvoEm: 'x', pacote: { configuracao: {} } }]) expect(pacoteNoFormatoAtual(ruim)).toBe(false);
   });

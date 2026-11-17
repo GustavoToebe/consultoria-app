@@ -129,12 +129,19 @@ function serie(v: unknown): boolean {
   );
 }
 
+/** Alternativa de troca do dia (Lote B): cópia da biblioteca, `exercicioId` e `nome` obrigatórios, até 3 por exercício. */
+const MAXIMO_DE_ALTERNATIVAS = 3;
+function alternativa(v: unknown): boolean {
+  return objeto(v) && campos(v, ['exercicioId', 'nome', 'videoUrl']) && typeof v.exercicioId === 'string' && v.exercicioId !== '' && typeof v.nome === 'string' && texto(v.videoUrl);
+}
+
 function exercicio(v: unknown): boolean {
   return (
     objeto(v) &&
-    campos(v, ['uid', 'exercicioId', 'nome', 'modalidade', 'videoUrl', 'observacao', 'progressao', 'unidade', 'series', 'cadencia', 'isometriaSegundos', 'grupoUid', 'equipamento']) &&
+    campos(v, ['uid', 'exercicioId', 'nome', 'modalidade', 'videoUrl', 'observacao', 'progressao', 'unidade', 'series', 'cadencia', 'isometriaSegundos', 'grupoUid', 'equipamento', 'alternativas']) &&
     typeof v.uid === 'string' &&
     lista(v.series, serie) &&
+    (v.alternativas == null || (Array.isArray(v.alternativas) && v.alternativas.length <= MAXIMO_DE_ALTERNATIVAS && lista(v.alternativas, alternativa))) &&
     texto(v.grupoUid) &&
     texto(v.equipamento) &&
     numero(v.isometriaSegundos)

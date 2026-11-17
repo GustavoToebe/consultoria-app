@@ -24,6 +24,10 @@ public interface ExecucaoSerieRepository extends JpaRepository<ExecucaoSerie, UU
 
     List<ExecucaoSerie> findByAlunoIdAndDataBetweenOrderByDataDesc(UUID alunoId, LocalDate de, LocalDate ate);
 
+    /** Séries concluídas do período, para achar as feitas em exercício trocado (quem chama compara com o plano da versão). */
+    List<ExecucaoSerie> findByAlunoIdAndConcluidaTrueAndExercicioIdIsNotNullAndDataBetweenOrderByDataDescIdAsc(
+            UUID alunoId, LocalDate de, LocalDate ate);
+
     @Query("select new br.com.treinos.api.execucao.ExecucaoSerieRepository$UltimoRegistro(e.alunoId, max(e.data)) "
             + "from ExecucaoSerie e where e.alunoId in :alunoIds group by e.alunoId")
     List<UltimoRegistro> ultimoRegistro(Collection<UUID> alunoIds);

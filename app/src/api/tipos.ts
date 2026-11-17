@@ -799,6 +799,13 @@ export interface Grupo {
   voltas: number | null;
 }
 
+/** Alternativa de troca do dia: cópia da biblioteca feita no salvar (o aluno lê offline). Herda séries, unidade e grupo do principal. */
+export interface AlternativaDeExercicio {
+  exercicioId: string;
+  nome: string;
+  videoUrl: string | null;
+}
+
 export interface ExercicioPlano {
   uid: string;
   exercicioId: string | null;
@@ -818,6 +825,8 @@ export interface ExercicioPlano {
   grupoUid?: string | null;
   /** Copiado da biblioteca na publicação (nunca digitado no plano); ausente em versão antiga ou exercício sem equipamento. */
   equipamento?: string | null;
+  /** Até 3 trocas que o aluno pode fazer só naquele dia (`dominio/exercicioDoDia`); ausente = sem alternativa. */
+  alternativas?: AlternativaDeExercicio[];
 }
 
 export interface Sessao {
@@ -1351,6 +1360,8 @@ export interface RegistroEnvio {
 }
 
 /** Item da mobilidade marcado (ou desmarcado) no aparelho; o `id` nasce no aparelho e torna o reenvio idempotente. */
+  /** Exercício feito na série: o principal ou uma alternativa da versão (troca do dia); a API recusa outro. Nulo/ausente = o principal. */
+  exercicioId?: string | null;
 export interface RegistroMobilidadeEnvio {
   id: string;
   planoVersaoId: string;

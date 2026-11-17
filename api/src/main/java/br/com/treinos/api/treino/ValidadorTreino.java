@@ -1,5 +1,6 @@
 package br.com.treinos.api.treino;
 
+import br.com.treinos.api.biblioteca.Exercicio;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.Papel;
 import br.com.treinos.api.planos.ResultadoValidacao;
@@ -54,7 +55,17 @@ public class ValidadorTreino {
         this.videoUrls = videoUrls;
     }
 
+    /** Sem a biblioteca: as alternativas só passam pelas regras do próprio plano (quem importa e os testes). */
     public ResultadoValidacao validar(ConteudoTreino conteudo, LocalDate inicio, LocalDate fim) {
+        return validar(conteudo, inicio, fim, null);
+    }
+
+    /**
+     * @param biblioteca modalidade dos exercícios <b>ativos</b> da consultoria que o chamador leu (id fora do mapa =
+     *                   inexistente ou arquivado); {@code null} = não confere as alternativas contra a biblioteca
+     */
+    public ResultadoValidacao validar(ConteudoTreino conteudo, LocalDate inicio, LocalDate fim,
+                                      Map<UUID, Exercicio.Modalidade> biblioteca) {
         ResultadoValidacao.Coletor c = new ResultadoValidacao.Coletor();
         Set<UUID> uids = new HashSet<>();
         Map<Integer, Integer> sessoesPorDia = new HashMap<>();
@@ -92,7 +103,7 @@ public class ValidadorTreino {
             }
             List<ExercicioPlano> exercicios = s.exerciciosOuVazio();
             for (int j = 0; j < exercicios.size(); j++) {
-                exercicio(c, uids, exercicios.get(j), cs + ".exercicios[" + j + "]", metodologia);
+                exercicio(c, uids, exercicios.get(j), cs + ".exercicios[" + j + "]", metodologia, biblioteca);
             }
             grupos(c, uids, s, cs, metodologia);
         }
@@ -105,9 +116,50 @@ public class ValidadorTreino {
         return c.resultado();
     }
 
+    /**
+     * Alternativas da troca "só hoje": até {@link ConteudoTreino#MAXIMO_DE_ALTERNATIVAS}, cada uma um exercício da
+     * biblioteca (id obrigatório, sem repetir, diferente do principal), com nome e vídeo válidos. Com a biblioteca, o
+     * exercício precisa existir e estar ativo na consultoria e ser do mesmo tipo do principal: cardio só por cardio,
+     * carga por carga (shortcut: a unidade do exercício vem do plano e a biblioteca não tem unidade, então o "mesmo
+     * tipo" é só cardio × não cardio; refinar se a biblioteca ganhar unidade).
+     */
+    private void alternativas(ResultadoValidacao.Coletor c, ExercicioPlano e, String ce,
+                              Map<UUID, Exercicio.Modalidade> biblioteca) {
+        List<ConteudoTreino.Alternativa> lista = e.alternativas();
+        if (lista.size() > ConteudoTreino.MAXIMO_DE_ALTERNATIVAS) {
+            c.erro(ce + ".alternativas", "No máximo " + ConteudoTreino.MAXIMO_DE_ALTERNATIVAS + " alternativas por exercício.");
+        }
+        Set<UUID> vistas = new HashSet<>();
+        for (int i = 0; i < lista.size(); i++) {
+            ConteudoTreino.Alternativa a = lista.get(i);
+            String ca = ce + ".alternativas[" + i + "]";
+            if (a.exercicioId() == null) {
+                c.erro(ca + ".exercicioId", "Escolha o exercício da biblioteca.");
+            } else if (a.exercicioId().equals(e.exercicioId())) {
+                c.erro(ca + ".exercicioId", "A alternativa precisa ser diferente do exercício.");
+            } else if (!vistas.add(a.exercicioId())) {
+                c.erro(ca + ".exercicioId", "Alternativa repetida.");
+            } else if (biblioteca != null) {
+                Exercicio.Modalidade modalidade = biblioteca.get(a.exercicioId());
+                if (modalidade == null) {
+                    c.erro(ca + ".exercicioId", "Exercício não encontrado na biblioteca.");
+                } else if ((modalidade == Exercicio.Modalidade.CARDIO) != e.deCardio()) {
+                    c.erro(ca + ".exercicioId", "A alternativa precisa ser do mesmo tipo do exercício (cardio só por cardio).");
+                }
+            }
+            if (vazio(a.nome())) {
+                c.erro(ca + ".nome", "Alternativa sem nome.");
+            }
+            if (a.videoUrl() != null && !a.videoUrl().isBlank() && !videoUrls.valida(a.videoUrl())) {
+                c.erro(ca + ".videoUrl", "Link de vídeo não aceito (só https do YouTube).");
+            }
+        }
+    }
+
     private void exercicio(ResultadoValidacao.Coletor c, Set<UUID> uids, ExercicioPlano e, String ce,
-                           ConfiguracaoConsultoria metodologia) {
+                           ConfiguracaoConsultoria metodologia, Map<UUID, Exercicio.Modalidade> biblioteca) {
         uid(c, uids, e.uid(), ce);
+        alternativas(c, e, ce, biblioteca);
         if (vazio(e.nome())) {
             c.erro(ce + ".nome", "Exercício sem nome.");
         }

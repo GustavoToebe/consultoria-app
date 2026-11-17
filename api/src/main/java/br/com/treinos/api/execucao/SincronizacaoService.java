@@ -73,7 +73,9 @@ public class SincronizacaoService {
             BigDecimal carga = etapas == null ? r.carga() : cargaComum(etapas);
             Integer repeticoes = etapas == null ? r.repeticoes() : totalDasEtapas(etapas, serie.etapas());
             boolean gravou = upsert.gravar(new ExecucaoUpsert.Linha(r.id(), consultoriaId, alunoId, r.planoVersaoId(),
-                    r.sessaoUid(), r.exercicioUid(), r.serieUid(), serie.exercicioId(), serie.trabalho(), r.data(),
+                    r.sessaoUid(), r.exercicioUid(), r.serieUid(),
+                    // Troca "só hoje": o id da alternativa (já conferido na versão) vale no lugar do principal.
+                    r.exercicioId() != null ? r.exercicioId() : serie.exercicioId(), serie.trabalho(), r.data(),
                     carga, serie.unidade(), repeticoes, Boolean.TRUE.equals(r.concluida()),
                     limpar(r.observacao()), r.alteradoNoAparelhoEm(), serie.contaNoProgresso(),
                     etapas == null ? null : json.writeValueAsString(etapas), r.referenciaCarga(),
@@ -99,6 +101,10 @@ public class SincronizacaoService {
         if (serie.isEmpty() || !serie.get().sessaoUid().equals(r.sessaoUid())
                 || !serie.get().exercicioUid().equals(r.exercicioUid())) {
             return "Série não existe nesta versão do plano.";
+        }
+        if (r.exercicioId() != null && !r.exercicioId().equals(serie.get().exercicioId())
+                && !versao.temAlternativa(r.exercicioUid(), r.exercicioId())) {
+            return "O exercício não é uma alternativa deste exercício nesta versão do plano.";
         }
         if (r.data().isBefore(hoje.minusDays(DIAS_PARA_TRAS)) || r.data().isAfter(hoje.plusDays(DIAS_PARA_TRAS))) {
             return "Data fora do período aceito (60 dias para trás ou para frente).";

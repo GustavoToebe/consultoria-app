@@ -472,10 +472,7 @@ public class ImportacaoAssistidaService {
             List<ConteudoTreino.ExercicioPlano> novosExs = new ArrayList<>();
             for (ConteudoTreino.ExercicioPlano ex : s.exerciciosOuVazio()) {
                 if (ex.nome() != null && ex.nome().equalsIgnoreCase(termoDe)) {
-                    novosExs.add(new ConteudoTreino.ExercicioPlano(
-                            ex.uid(), ex.exercicioId(), termoPara, ex.modalidade(), ex.videoUrl(),
-                            ex.observacao(), ex.progressao(), ex.unidade(), ex.series(),
-                            ex.cadencia(), ex.isometriaSegundos(), ex.grupoUid()));
+                    novosExs.add(ex.comNome(termoPara));
                     alterou = true;
                 } else {
                     novosExs.add(ex);
@@ -489,33 +486,21 @@ public class ImportacaoAssistidaService {
     }
 
     private ConteudoDieta substituirTermoNaDieta(ConteudoDieta dieta, String termoDe, String termoPara) {
-        if (dieta == null || dieta.refeicoes() == null || termoDe == null || termoPara == null) {
+        if (dieta == null || termoDe == null || termoPara == null) {
             return dieta;
         }
-        List<ConteudoDieta.Refeicao> novasRefeicoes = new ArrayList<>();
-        boolean alterou = false;
-        for (ConteudoDieta.Refeicao r : dieta.refeicoes()) {
-            List<ConteudoDieta.Opcao> novasOpcoes = new ArrayList<>();
-            for (ConteudoDieta.Opcao op : r.opcoesOuVazio()) {
-                List<ConteudoDieta.Item> novosItens = new ArrayList<>();
-                for (ConteudoDieta.Item it : op.itensOuVazio()) {
-                    if (it.nome() != null && it.nome().equalsIgnoreCase(termoDe)) {
-                        novosItens.add(new ConteudoDieta.Item(
-                                it.uid(), it.alimentoId(), termoPara, it.quantidade(), it.unidade(),
-                                it.kcal(), it.proteina(), it.carboidrato(), it.gordura(), it.manual(),
-                                it.fatorCorrecao(), it.fatorCoccao(), it.grupo()));
-                        alterou = true;
-                    } else {
-                        novosItens.add(it);
-                    }
-                }
-                novasOpcoes.add(new ConteudoDieta.Opcao(op.uid(), op.rotulo(), novosItens));
+        // comItens reconstrói a raiz e cada variação juntas (reconstruir o record à mão perderia as variações).
+        java.util.concurrent.atomic.AtomicBoolean alterou = new java.util.concurrent.atomic.AtomicBoolean();
+        ConteudoDieta nova = dieta.comItens(it -> {
+            if (it.nome() == null || !it.nome().equalsIgnoreCase(termoDe)) {
+                return it;
             }
-            novasRefeicoes.add(new ConteudoDieta.Refeicao(r.uid(), r.nome(), r.horario(), r.observacao(), novasOpcoes,
-                    r.modoDePreparo()));
-        }
-        return alterou ? new ConteudoDieta(dieta.objetivo(), dieta.dataInicio(), dieta.profissional(), novasRefeicoes,
-                dieta.orientacoes(), dieta.observacoes(), dieta.suplementacao(), dieta.ergogenicos(), dieta.aguaLitros()) : dieta;
+            alterou.set(true);
+            return new ConteudoDieta.Item(it.uid(), it.alimentoId(), termoPara, it.quantidade(), it.unidade(),
+                    it.kcal(), it.proteina(), it.carboidrato(), it.gordura(), it.manual(),
+                    it.fatorCorrecao(), it.fatorCoccao(), it.grupo());
+        });
+        return alterou.get() ? nova : dieta;
     }
 
     // -------------------------------------------------------------------------------------- métodos auxiliares

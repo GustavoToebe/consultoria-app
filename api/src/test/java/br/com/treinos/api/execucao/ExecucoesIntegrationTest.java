@@ -102,14 +102,24 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void exercicioIdETrabalhoVemDaVersaoENaoDoCliente() throws Exception {
+        // Sem exercicioId, ou com o do próprio exercício do plano: grava o da versão.
         UUID id = UUID.randomUUID();
         Map<String, Object> r = registro(id, treino.wsUid(), "30", 6, Instant.now());
-        r.put("exercicioId", UUID.randomUUID().toString());
-        enviar(List.of(r));
+        r.put("exercicioId", treino.exercicioId().toString());
+        assertThat(situacoes(enviar(List.of(r)))).containsExactly("ACEITO");
         Map<String, Object> linha = jdbc.queryForMap(
                 "select exercicio_id, serie_trabalho from execucao_serie where id = ?", id);
         assertThat(linha.get("exercicio_id")).isEqualTo(treino.exercicioId());
         assertThat(linha.get("serie_trabalho")).isEqualTo(true);
+
+        // Um id que o plano não traz como alternativa nunca vira o exercício da série: recusado, nada gravado.
+        UUID forjado = UUID.randomUUID();
+        Map<String, Object> outro = registro(forjado, treino.fsUid(), "15", 3, Instant.now());
+        outro.put("exercicioId", UUID.randomUUID().toString());
+        JsonNode resposta = enviar(List.of(outro));
+        assertThat(situacoes(resposta)).containsExactly("RECUSADO");
+        assertThat(resposta.get("resultados").get(0).get("motivo").asString()).isNotBlank();
+        assertThat(jdbc.queryForObject("select count(*) from execucao_serie where id = ?", Integer.class, forjado)).isZero();
     }
 
     /**

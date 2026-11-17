@@ -439,6 +439,17 @@ describe('receita de semana e cópia com uids novos', () => {
     expect(conteudoComGrupos().sessoes[0].grupos[0].uid).toBe('g1');
   });
 
+  it('normalizar mantém as alternativas do exercício (senão o editor as apagaria ao salvar e o aluno não as veria) e não cria a chave vazia', () => {
+    const alternativas = [{ exercicioId: 'leg', nome: 'Leg press', videoUrl: null }];
+    const n = normalizarTreino({ sessoes: [{ uid: 's', exercicios: [{ uid: 'e1', alternativas }, { uid: 'e2', alternativas: [] }, { uid: 'e3' }] }] });
+    const [e1, e2, e3] = n.sessoes[0].exercicios;
+    expect(e1.alternativas).toEqual(alternativas);
+    expect('alternativas' in e2).toBe(false);
+    expect('alternativas' in e3).toBe(false);
+    // A cópia com uids novos (replicar, copiar, aplicar receita) leva as alternativas.
+    expect(comUidsNovos(n).sessoes[0].exercicios[0].alternativas).toEqual(alternativas);
+  });
+
   it('aplicar a receita duas vezes não duplica nenhum uid', () => {
     const receita = conteudoComGrupos();
     const vazio = normalizarTreino({ sessoes: [] });

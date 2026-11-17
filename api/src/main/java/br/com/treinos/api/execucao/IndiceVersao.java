@@ -41,6 +41,8 @@ public final class IndiceVersao {
     private final Map<UUID, LocalSerie> series = new HashMap<>();
     private final Map<UUID, String> nomesSessao = new HashMap<>();
     private final Map<UUID, String> nomesExercicio = new HashMap<>();
+    /** Alternativas de cada exercício do plano (por uid), pelo id da biblioteca: a troca "só hoje" do aluno. */
+    private final Map<UUID, Map<UUID, ConteudoTreino.Alternativa>> alternativas = new HashMap<>();
 
     IndiceVersao(UUID alunoId, ConteudoTreino conteudo) {
         this.alunoId = alunoId;
@@ -54,6 +56,12 @@ public final class IndiceVersao {
             for (ExercicioPlano e : s.exerciciosOuVazio()) {
                 if (e.uid() != null) {
                     nomesExercicio.put(e.uid(), e.nome());
+                    Map<UUID, ConteudoTreino.Alternativa> doExercicio = new HashMap<>();
+                    e.alternativas().stream().filter(a -> a.exercicioId() != null)
+                            .forEach(a -> doExercicio.putIfAbsent(a.exercicioId(), a));
+                    if (!doExercicio.isEmpty()) {
+                        alternativas.put(e.uid(), doExercicio);
+                    }
                 }
                 // Cardio não tem tipo nem carga: no histórico a série se chama "Cardio" e não leva "kg".
                 boolean cardio = e.deCardio();
@@ -115,5 +123,16 @@ public final class IndiceVersao {
 
     public String nomeExercicio(UUID exercicioUid) {
         return nomesExercicio.getOrDefault(exercicioUid, "Exercício");
+    }
+
+    /** O exercício da biblioteca é alternativa válida deste exercício do plano, nesta versão. */
+    public boolean temAlternativa(UUID exercicioUid, UUID exercicioId) {
+        return alternativas.getOrDefault(exercicioUid, Map.of()).containsKey(exercicioId);
+    }
+
+    /** Nome do exercício que o aluno fez: o da alternativa quando trocou ({@code exercicioId} dela), senão o do plano. */
+    public String nomeExercicio(UUID exercicioUid, UUID exercicioId) {
+        ConteudoTreino.Alternativa a = exercicioId == null ? null : alternativas.getOrDefault(exercicioUid, Map.of()).get(exercicioId);
+        return a == null || a.nome() == null || a.nome().isBlank() ? nomeExercicio(exercicioUid) : a.nome();
     }
 }

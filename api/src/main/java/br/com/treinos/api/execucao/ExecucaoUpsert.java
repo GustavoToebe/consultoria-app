@@ -46,6 +46,7 @@ class ExecucaoUpsert {
               alterado_no_aparelho_em, conta_no_progresso, etapas, referencia_carga, referencia_origem)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, cast(? as jsonb), ?, ?)
             on conflict (aluno_id, plano_versao_id, serie_uid, data) do update set
+              exercicio_id = excluded.exercicio_id,
               carga = excluded.carga,
               unidade = excluded.unidade,
               repeticoes = excluded.repeticoes,

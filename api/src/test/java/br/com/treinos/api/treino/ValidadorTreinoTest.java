@@ -701,6 +701,76 @@ class ValidadorTreinoTest {
         assertThat(Tecnica.dropSet(1, null, null, null).comCargasDosBlocos(List.of(pct(500))).problemas()).isEmpty();
     }
 
+    // ---- Alternativas (troca "só hoje") ----
+
+    @Test
+    void alternativasAteTresSemRepetirDiferentesDoPrincipalComNome() {
+        UUID principal = UUID.randomUUID();
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        UUID c = UUID.randomUUID();
+        UUID d = UUID.randomUUID();
+        // Rascunho sem alternativa e três distintas: sem erro.
+        assertThat(caminhosDeErro(conteudo(List.of(comAlternativas(principal))))).isEmpty();
+        assertThat(caminhosDeErro(conteudo(List.of(comAlternativas(principal, alt(a), alt(b), alt(c)))))).isEmpty();
+        assertThat(caminhosDeErro(conteudo(List.of(comAlternativas(principal, alt(a), alt(b), alt(c), alt(d))))))
+                .containsExactly(BASE + "0].alternativas");
+        assertThat(caminhosDeErro(conteudo(List.of(comAlternativas(principal, alt(a), alt(a))))))
+                .containsExactly(BASE + "0].alternativas[1].exercicioId");
+        assertThat(caminhosDeErro(conteudo(List.of(comAlternativas(principal, alt(principal))))))
+                .containsExactly(BASE + "0].alternativas[0].exercicioId");
+        assertThat(caminhosDeErro(conteudo(List.of(comAlternativas(principal, alt(null))))))
+                .containsExactly(BASE + "0].alternativas[0].exercicioId");
+        assertThat(caminhosDeErro(conteudo(List.of(comAlternativas(principal,
+                new ConteudoTreino.Alternativa(a, "  ", null)))))).containsExactly(BASE + "0].alternativas[0].nome");
+        assertThat(caminhosDeErro(conteudo(List.of(comAlternativas(principal,
+                new ConteudoTreino.Alternativa(a, "Leg press", "https://exemplo.com/video")))))).containsExactly(
+                BASE + "0].alternativas[0].videoUrl");
+    }
+
+    @Test
+    void alternativasConferemABibliotecaDaConsultoriaETipo() {
+        UUID principal = UUID.randomUUID();
+        UUID naBiblioteca = UUID.randomUUID();
+        UUID cardio = UUID.randomUUID();
+        UUID arquivadaOuAlheia = UUID.randomUUID();
+        Map<UUID, br.com.treinos.api.biblioteca.Exercicio.Modalidade> biblioteca = Map.of(
+                naBiblioteca, br.com.treinos.api.biblioteca.Exercicio.Modalidade.MAQUINA,
+                cardio, br.com.treinos.api.biblioteca.Exercicio.Modalidade.CARDIO);
+        ConteudoTreino conteudo = conteudo(List.of(comAlternativas(principal, alt(naBiblioteca), alt(cardio),
+                alt(arquivadaOuAlheia))));
+        // Com a biblioteca: id fora dela e cardio no lugar de carga são recusados; sem ela, nada é conferido.
+        assertThat(validador.validar(conteudo, null, null, biblioteca).erros().stream()
+                .map(ResultadoValidacao.Problema::caminho).toList())
+                .containsExactly(BASE + "0].alternativas[1].exercicioId", BASE + "0].alternativas[2].exercicioId");
+        assertThat(caminhosDeErro(conteudo)).isEmpty();
+        // Cardio só por cardio: a alternativa de carga num exercício de cardio também é recusada.
+        ExercicioPlano esteira = exercicioDeCardio(cardio(new Cardio(20, null, null, null, null)))
+                .comAlternativas(List.of(alt(naBiblioteca), alt(cardio)));
+        assertThat(validador.validar(conteudo(List.of(esteira)), null, null, biblioteca).erros().stream()
+                .map(ResultadoValidacao.Problema::caminho).toList()).containsExactly(BASE + "0].alternativas[0].exercicioId");
+    }
+
+    @Test
+    void alternativasSobrevivemAComSeriesAComGrupoUidEAUidsNovos() {
+        UUID principal = UUID.randomUUID();
+        ExercicioPlano ex = comAlternativas(principal, alt(UUID.randomUUID()), alt(UUID.randomUUID()));
+        assertThat(ex.comSeries(UUID.randomUUID(), ex.series()).alternativas()).isEqualTo(ex.alternativas());
+        assertThat(ex.comGrupoUid(UUID.randomUUID()).alternativas()).isEqualTo(ex.alternativas());
+        assertThat(ex.comEquipamento("Polia").alternativas()).isEqualTo(ex.alternativas());
+        assertThat(conteudo(List.of(ex)).comUidsNovos().sessoes().get(0).exercicios().get(0).alternativas())
+                .isEqualTo(ex.alternativas());
+    }
+
+    private static ConteudoTreino.Alternativa alt(UUID exercicioId) {
+        return new ConteudoTreino.Alternativa(exercicioId, "Alternativa fictícia", null);
+    }
+
+    private static ExercicioPlano comAlternativas(UUID exercicioId, ConteudoTreino.Alternativa... alternativas) {
+        return new ExercicioPlano(UUID.randomUUID(), exercicioId, "Agachamento livre", "LIVRE", null, null, true, "kg",
+                List.of(ws())).comAlternativas(List.of(alternativas));
+    }
+
     // ---- Apoio ----
 
     private List<String> caminhosDeErro(ConteudoTreino conteudo) {

@@ -179,7 +179,7 @@ public class HistoricoService {
                 List<ExercicioFeito> exercicios = new ArrayList<>();
                 porExercicio.forEach((exercicioUid, feitas2) -> exercicios.add(new ExercicioFeito(exercicioUid,
                         exercicioIds.get(exercicioUid),
-                        indice == null ? "Exercício" : indice.nomeExercicio(exercicioUid),
+                        indice == null ? "Exercício" : indice.nomeExercicio(exercicioUid, exercicioIds.get(exercicioUid)),
                         grupos.get(exercicioIds.get(exercicioUid)), feitas2)));
                 feitas.add(new SessaoFeita(sessaoUid, indice == null ? "Sessão" : indice.nomeSessao(sessaoUid),
                         series.get(0).getPlanoVersaoId(), exercicios));

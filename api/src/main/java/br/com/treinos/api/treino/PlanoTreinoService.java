@@ -13,6 +13,8 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -79,22 +81,60 @@ public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTrein
      */
     @Override
     protected ConteudoTreino paraPublicar(ConteudoTreino conteudo) {
-        Set<UUID> ids = conteudo.sessoesOuVazio().stream().flatMap(s -> s.exerciciosOuVazio().stream())
-                .map(ConteudoTreino.ExercicioPlano::exercicioId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<UUID, String> equipamentoPorId = new HashMap<>();
+        Set<UUID> ids = idsDosExercicios(conteudo);
+        Map<UUID, Exercicio> porId = new HashMap<>();
         if (!ids.isEmpty()) {
-            for (Exercicio e : exercicios.findByIdIn(ids)) {
-                String equipamento = e.getEquipamento() == null ? "" : e.getEquipamento().strip();
-                if (!equipamento.isEmpty()) {
-                    equipamentoPorId.put(e.getId(), equipamento);
-                }
-            }
+            exercicios.findByIdIn(ids).forEach(e -> porId.put(e.getId(), e));
         }
-        return conteudo.comExercicios(x -> x.comEquipamento(x.exercicioId() == null ? null : equipamentoPorId.get(x.exercicioId())));
+        return conteudo.comExercicios(x -> x
+                .comEquipamento(x.exercicioId() == null ? null : equipamentoDe(porId.get(x.exercicioId())))
+                .comAlternativas(alternativasDaBiblioteca(x, porId)));
     }
 
+    private static String equipamentoDe(Exercicio e) {
+        String equipamento = e == null || e.getEquipamento() == null ? "" : e.getEquipamento().strip();
+        return equipamento.isEmpty() ? null : equipamento;
+    }
+
+    /**
+     * As alternativas publicadas levam o nome e o vídeo da biblioteca <b>agora</b>, nunca o que o cliente mandou (o aluno lê
+     * a cópia offline). Alternativa que a biblioteca não tem (a validação já a recusou; só uma corrida a deixaria chegar
+     * aqui) não entra na versão.
+     */
+    private static List<ConteudoTreino.Alternativa> alternativasDaBiblioteca(ConteudoTreino.ExercicioPlano x,
+                                                                             Map<UUID, Exercicio> porId) {
+        return x.alternativas().stream()
+                .filter(a -> a.exercicioId() != null && porId.containsKey(a.exercicioId()))
+                .map(a -> {
+                    Exercicio e = porId.get(a.exercicioId());
+                    String video = e.getVideoUrl() == null || e.getVideoUrl().isBlank() ? null : e.getVideoUrl().strip();
+                    return new ConteudoTreino.Alternativa(e.getId(), e.getNome(), video);
+                }).toList();
+    }
+
+    /** Ids da biblioteca do plano: os exercícios e as alternativas deles. */
+    private static Set<UUID> idsDosExercicios(ConteudoTreino conteudo) {
+        Set<UUID> ids = new HashSet<>();
+        conteudo.sessoesOuVazio().stream().flatMap(s -> s.exerciciosOuVazio().stream()).forEach(x -> {
+            if (x.exercicioId() != null) {
+                ids.add(x.exercicioId());
+            }
+            x.alternativas().stream().map(ConteudoTreino.Alternativa::exercicioId).filter(Objects::nonNull).forEach(ids::add);
+        });
+        return ids;
+    }
+
+    /** As alternativas são conferidas contra a biblioteca da consultoria (JPA com tenant: outra consultoria não aparece). */
     @Override
     protected ResultadoValidacao validar(ConteudoTreino conteudo, LocalDate inicio, LocalDate fim) {
-        return validador.validar(conteudo, inicio, fim);
+        Set<UUID> alternativas = conteudo.sessoesOuVazio().stream().flatMap(s -> s.exerciciosOuVazio().stream())
+                .flatMap(x -> x.alternativas().stream()).map(ConteudoTreino.Alternativa::exercicioId)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<UUID, Exercicio.Modalidade> biblioteca = new HashMap<>();
+        if (!alternativas.isEmpty()) {
+            exercicios.findByIdIn(alternativas).stream().filter(Exercicio::isAtivo)
+                    .forEach(e -> biblioteca.put(e.getId(), e.getModalidade()));
+        }
+        return validador.validar(conteudo, inicio, fim, biblioteca);
     }
 }

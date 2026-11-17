@@ -862,6 +862,8 @@ export function paraEnvio(r: RegistroLocal): RegistroEnvio {
     planoVersaoId: r.planoVersaoId,
     sessaoUid: r.sessaoUid,
     exercicioUid: r.exercicioUid,
+    // O exercício do dia (o principal ou a alternativa trocada); a API confere contra a versão e recusa o que não é dela.
+    exercicioId: r.exercicioId ?? null,
     serieUid: r.serieUid,
     data: r.data,
     carga: r.carga,

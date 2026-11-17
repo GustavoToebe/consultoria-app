@@ -165,6 +165,31 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     expect(enviados[1]).toMatchObject({ serieUid: 'ws', etapas: null, referenciaCarga: null, referenciaOrigem: null });
   });
 
+  it('troca do dia: o exercicioId da série (principal ou alternativa) vai no envio e trocar antes de enviar atualiza a mesma linha', async () => {
+    const repo = aparelho('u1');
+    await repo.registrar(serie('s1', { exercicioId: 'x1', concluida: false }));
+    // Trocou antes de marcar: é o mesmo registro (mesma série e dia) com o exercício da alternativa, sem duplicar.
+    await repo.registrar(serie('s1', { exercicioId: 'alt1' }));
+    await repo.registrar(serie('s2', { exercicioId: 'alt1' }));
+    await repo.fechar();
+    const reaberto = aparelho('u1');
+    const lista = await reaberto.listar();
+    expect(lista.map((r) => [r.serieUid, r.exercicioId])).toEqual([['s1', 'alt1'], ['s2', 'alt1']]);
+    const enviados: RegistroEnvio[] = [];
+    await sincronizadorDe(reaberto, async (r) => {
+      enviados.push(...r);
+      return aceitaTudo(r);
+    }).sincronizar();
+    expect(enviados.map((r) => r.exercicioId)).toEqual(['alt1', 'alt1']);
+    // Registro sem exercício da biblioteca vai com nulo (= o principal).
+    await reaberto.registrar(serie('s3', { exercicioId: null }));
+    await sincronizadorDe(reaberto, async (r) => {
+      enviados.push(...r);
+      return aceitaTudo(r);
+    }).sincronizar();
+    expect(enviados[2]).toMatchObject({ serieUid: 's3', exercicioId: null });
+  });
+
   it('rascunho da atualização persiste por pasta, fica isolado e some ao enviar ou sair', async () => {
     const repo = aparelho('u1');
     const salvo = {questionarioVersaoId:'v-uuid-1',respostas:{peso:80.5,sono:7,dor:false,extras:['a','b']}};
