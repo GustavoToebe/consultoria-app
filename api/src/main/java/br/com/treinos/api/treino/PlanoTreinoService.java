@@ -75,7 +75,7 @@ public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTrein
     /**
      * O equipamento do exercício publicado é o da biblioteca <b>agora</b> (strip; vazio vira nulo), copiado na versão
      * imutável como os fatores da dieta, para o app do aluno listar "Equipamentos para hoje" sem internet. A busca passa
-     * pelo {@code @TenantId}: id de outra consultoria ou que não existe fica sem equipamento, e o que o cliente mandou no
+     * pelo {@code @TenantId}: a publicação já recusa id inexistente ou de outra consultoria (pendência 213); só uma corrida rara chega aqui com id sem linha, que fica sem equipamento, e o que o cliente mandou no
      * campo é sempre sobrescrito. Versões antigas não têm o campo; o rascunho não muda.
      */
     @Override
