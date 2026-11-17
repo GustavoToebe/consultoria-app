@@ -28,7 +28,7 @@ public class Consultoria {
     public enum Fonte { PADRAO, METAL, ESPORTIVA, CONDENSADA }
 
     /** Paletas da marca (V055); o modo escuro ou claro de cada uma é decidido no app (`tema/tokens.PALETAS`). */
-    public enum Tema { ESCURO, MEIA_NOITE, AMEIXA, OCEANO, CAFE, CLARO, AREIA, LAVANDA, CEU, ROSA }
+    public enum Tema { ESCURO, MEIA_NOITE, AMEIXA, OCEANO, CLARO, AREIA, LAVANDA, CEU, ROSA }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
