@@ -5,6 +5,7 @@ import br.com.treinos.api.questionarios.ConteudoQuestionario.Pergunta;
 import br.com.treinos.api.questionarios.ConteudoQuestionario.Secao;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,6 +50,33 @@ class ValidadorQuestionarioTest {
     @Test
     void normalizaCaixaAcentoEEspacos() {
         assertThat(ValidadorQuestionario.normalizar("  Não ")).isEqualTo("nao");
+    }
+
+    private static Pergunta comLugares(TipoPergunta tipo, BigDecimal max, List<String> lugares) {
+        return new Pergunta("f", tipo, "Fotos", false, null, null, null, null, null, null, null, null, max, null,
+                null, null, null, null, null, null, null, null, null, null, null, lugares);
+    }
+
+    private static Pergunta fotos(BigDecimal max, List<String> lugares) {
+        return comLugares(TipoPergunta.FOTOS, max, lugares);
+    }
+
+    private List<String> errosDe(Pergunta p) {
+        return validador.validar(conteudo(pergunta("peso", TipoPergunta.PESO), p)).erros().stream()
+                .map(ResultadoValidacao.Problema::caminho).sorted().toList();
+    }
+
+    @Test
+    void lugaresDaPerguntaDeFotos() {
+        String base = "secoes[0].perguntas[1].lugares";
+        assertThat(errosDe(fotos(null, List.of("Frente", "Costas", "Lado direito")))).isEmpty();
+        assertThat(errosDe(fotos(null, List.of(" Frente ", "frente")))).containsExactly(base + "[1]");
+        assertThat(errosDe(fotos(null, List.of("Pé", "pe")))).containsExactly(base + "[1]"); // acento e caixa, como as opções
+        assertThat(errosDe(fotos(null, List.of("  ", "a".repeat(41))))).containsExactly(base + "[0]", base + "[1]");
+        assertThat(errosDe(fotos(null, List.of("a".repeat(40))))).isEmpty();
+        assertThat(errosDe(fotos(BigDecimal.valueOf(2), List.of("a", "b", "c")))).containsExactly(base);
+        assertThat(errosDe(fotos(null, List.of()))).containsExactly(base);
+        assertThat(errosDe(comLugares(TipoPergunta.NOTA, null, List.of("a")))).containsExactly(base);
     }
 
     @Test

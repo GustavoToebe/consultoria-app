@@ -1536,6 +1536,244 @@
   ]
  },
  {
+  "nome": "fotos_lugares_uma_por_lugar",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "lugares": [
+        "Frente",
+        "Costas"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002"
+   ]
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "fotos_lugares_menos_fotos_que_lugares",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "lugares": [
+        "Frente",
+        "Costas"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001"
+   ]
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "fotos_lugares_seis_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "lugares": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000004",
+    "00000000-0000-4000-8000-000000000005",
+    "00000000-0000-4000-8000-000000000006"
+   ]
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "fotos_lugares_mais_fotos_que_lugares",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "lugares": [
+        "Frente",
+        "Costas"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000003"
+   ]
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_lugares_manda_mais_que_o_max",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "max": 6,
+       "lugares": [
+        "Frente",
+        "Costas"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000003"
+   ]
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_lugares_max_igual_aos_lugares",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "max": 2,
+       "lugares": [
+        "Frente",
+        "Costas"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002"
+   ]
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "fotos_lugares_repetida",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "lugares": [
+        "Frente",
+        "Costas"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000001"
+   ]
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_lugares_obrigatoria_ausente",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": true,
+       "lugares": [
+        "Frente",
+        "Costas"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {},
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
   "nome": "fotos_desligadas_ignora_a_pergunta",
   "modelo": {
    "secoes": [

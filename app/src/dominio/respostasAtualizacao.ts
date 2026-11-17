@@ -35,7 +35,7 @@ const DATA = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TELEFONE = /^[0-9()+\-. ]+$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Lista de ids (UUID) de fotos já enviadas, sem repetir, até o `max` da pergunta (sem ele, `fotosPorPergunta`). */
+/** Lista de ids (UUID) de fotos já enviadas, sem repetir, até `maximoDeFotos` (um por lugar com `lugares`; senão o `max`, sem ele `fotosPorPergunta`). */
 function fotosValidas(p: PerguntaAtualizacao, v: unknown) {
   if (!Array.isArray(v) || v.length > maximoDeFotos(p)) return false;
   const vistos = new Set<string>();

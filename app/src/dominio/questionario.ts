@@ -36,6 +36,8 @@ export const LIMITES_QUESTIONARIO = {
   fotosPorPergunta: 6,
   /** Perguntas FOTOS num questionário (cada uma com o seu `max`, de 1 a `fotosPorPergunta`). */
   perguntasFotos: 6,
+  /** Nome de cada lugar da FOTOS (`lugares`): de 1 a este tanto depois do strip e do NFC; no máximo `fotosPorPergunta` lugares. */
+  lugarTamanho: 40,
   /** Escala da NOTA: ponta de baixo 0 ou 1 (padrão 0), ponta de cima de 2 a 10 (padrão 10). NOTAS_POR_DIA segue 0 a 10. */
   notaMinPadrao: 0,
   notaMinMaximo: 1,
@@ -141,9 +143,10 @@ export function escalaDaNota(p: Pick<PerguntaAtualizacao, 'min' | 'max'>): { min
   return { min, max };
 }
 
-/** Fotos que a pergunta FOTOS aceita: o `max` dela (1 a 6) ou, sem ele, `fotosPorPergunta`. */
-export function maximoDeFotos(p: Pick<PerguntaAtualizacao, 'max'>): number {
+/** Fotos que a pergunta FOTOS aceita: com `lugares`, um por lugar; senão o `max` dela (1 a 6) ou, sem ele, `fotosPorPergunta`. */
+export function maximoDeFotos(p: Pick<PerguntaAtualizacao, 'max' | 'lugares'>): number {
   const L = LIMITES_QUESTIONARIO;
+  if (Array.isArray(p.lugares) && p.lugares.length > 0) return Math.min(p.lugares.length, L.fotosPorPergunta);
   return Number.isInteger(p.max) && (p.max as number) >= 1 && (p.max as number) <= L.fotosPorPergunta ? (p.max as number) : L.fotosPorPergunta;
 }
 
@@ -265,6 +268,7 @@ function pergunta(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro
   opcoes(p, cp, estado.finalidade === 'INSCRICAO' ? SEM_IMAGEM_NA_INSCRICAO : null, erro);
   dias(p, cp, erro);
   numero(p, cp, erro);
+  lugares(p, cp, erro);
   escala(p, cp, erro);
   destaque(p, cp, estado, erro);
   if (p.ajudaAutomatica != null && !COM_AJUDA_AUTOMATICA.includes(p.tipo)) {
@@ -429,6 +433,27 @@ function numero(p: PerguntaAtualizacao, cp: string, erro: Erro) {
   if (p.max != null && !(Math.abs(p.max) <= N)) erro(`${cp}.max`, `Use um máximo entre -${N} e ${N}.`);
   if (p.min != null && p.max != null && p.min > p.max) erro(`${cp}.max`, 'O máximo é menor que o mínimo.');
   if (p.unidade != null && p.unidade.length > L.unidadeTamanho) erro(`${cp}.unidade`, 'Unidade longa demais.');
+}
+
+/**
+ * `lugares` só na FOTOS: de 1 ao `max` (sem ele, `fotosPorPergunta`) nomes de 1 a `lugarTamanho` caracteres depois do strip e do
+ * NFC, sem repetir (caixa e acento, como as opções). A mensagem nunca repete o nome digitado.
+ */
+function lugares(p: PerguntaAtualizacao, cp: string, erro: Erro) {
+  if (p.lugares == null) return;
+  if (p.tipo !== 'FOTOS') { erro(`${cp}.lugares`, 'Este tipo não tem lugares.'); return; }
+  const L = LIMITES_QUESTIONARIO;
+  const teto = p.max != null && inteiroEntre(p.max, 1, L.fotosPorPergunta) ? p.max : L.fotosPorPergunta;
+  if (!Array.isArray(p.lugares) || p.lugares.length === 0 || p.lugares.length > teto) erro(`${cp}.lugares`, `Use de 1 a ${teto} lugares.`);
+  const vistos = new Set<string>();
+  (Array.isArray(p.lugares) ? p.lugares : []).forEach((l, k) => {
+    const co = `${cp}.lugares[${k}]`;
+    const nome = typeof l === 'string' ? l.trim().normalize('NFC') : '';
+    if (nome === '') erro(co, 'Texto vazio.');
+    else if (nome.length > L.lugarTamanho) erro(co, 'Texto longo demais.');
+    else if (vistos.has(normalizarOpcao(nome))) erro(co, 'Texto repetido.');
+    else vistos.add(normalizarOpcao(nome));
+  });
 }
 
 /** Texto embaixo das pontas da escala: só na NOTA, até `rotuloPontaTamanho` cada. */

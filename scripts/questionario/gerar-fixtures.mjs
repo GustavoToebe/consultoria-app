@@ -115,6 +115,28 @@ c('fotos_max_7', com(P('f', 'FOTOS', { max: 7 })), [`${pp(1)}.max`]);
 c('fotos_max_fracionado', com(P('f', 'FOTOS', { max: 2.5 })), [`${pp(1)}.max`]);
 c('fotos_com_min', com(P('f', 'FOTOS', { min: 1 })), [`${pp(1)}.min`]);
 c('fotos_com_casas_e_pontas', com(P('f', 'FOTOS', { casas: 0, rotuloMin: 'a' })), [`${pp(1)}.casas`, `${pp(1)}.rotuloMin`]);
+// Lugares da FOTOS (opcional): de 1 ao max (sem ele, 6) nomes de 1 a 40 depois do strip e do NFC, sem repetir (caixa e acento), só na FOTOS.
+const LUGARES = ['Frente', 'Costas', 'Lado direito'];
+c('fotos_lugares_ok', com(P('f', 'FOTOS', { lugares: LUGARES })));
+c('fotos_lugares_com_max_igual_ok', com(P('f', 'FOTOS', { max: 2, lugares: ['Frente', 'Costas'] })));
+c('fotos_lugares_seis_ok', com(P('f', 'FOTOS', { lugares: ['a', 'b', 'c', 'd', 'e', 'f'] })));
+c('fotos_lugares_nome_40_ok', com(P('f', 'FOTOS', { lugares: ['a'.repeat(40)] })));
+c('fotos_lugares_nome_41', com(P('f', 'FOTOS', { lugares: ['a'.repeat(41)] })), [`${pp(1)}.lugares[0]`]);
+c('fotos_lugares_nome_40_com_espacos_nas_pontas_ok', com(P('f', 'FOTOS', { lugares: [` ${'a'.repeat(40)} `] })));
+c('fotos_lugares_nome_vazio', com(P('f', 'FOTOS', { lugares: ['Frente', '  '] })), [`${pp(1)}.lugares[1]`]);
+c('fotos_lugares_repetido', com(P('f', 'FOTOS', { lugares: ['Frente', ' frente '] })), [`${pp(1)}.lugares[1]`]);
+c('fotos_lugares_repetido_com_acento', com(P('f', 'FOTOS', { lugares: ['Pé', 'PE'] })), [`${pp(1)}.lugares[1]`]);
+// NFC: 'e' + acento combinante vale 1 caractere depois do NFC (2 unidades UTF-16 antes dele).
+c('fotos_lugares_nome_40_decomposto_ok', com(P('f', 'FOTOS', { lugares: ['é'.repeat(40)] })));
+c('fotos_lugares_nome_41_decomposto', com(P('f', 'FOTOS', { lugares: ['é'.repeat(41)] })), [`${pp(1)}.lugares[0]`]);
+c('fotos_lugares_mais_que_max', com(P('f', 'FOTOS', { max: 2, lugares: LUGARES })), [`${pp(1)}.lugares`]);
+c('fotos_lugares_sete', com(P('f', 'FOTOS', { lugares: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] })), [`${pp(1)}.lugares`]);
+c('fotos_lugares_lista_vazia', com(P('f', 'FOTOS', { lugares: [] })), [`${pp(1)}.lugares`]);
+c('fotos_lugares_em_nota', com(P('n', 'NOTA', { lugares: ['a'] })), [`${pp(1)}.lugares`]);
+c('fotos_lugares_em_texto', com(P('t', 'TEXTO', { lugares: ['a'] })), [`${pp(1)}.lugares`]);
+ca('anamnese_fotos_lugares_ok', { formato: 2, instrucoes: [], secoes: [secao(1, [P('f', 'FOTOS', { lugares: LUGARES })])] });
+ca('anamnese_fotos_lugares_repetido', { formato: 2, instrucoes: [], secoes: [secao(1, [P('f', 'FOTOS', { lugares: ['Frente', 'frente'] })])] },
+  ['secoes[0].perguntas[0].lugares[1]']);
 ca('anamnese_fotos_duas_e_nota_escala_ok', { formato: 2, instrucoes: [], secoes: [secao(1, [P('f1', 'FOTOS', { max: 3 }), P('f2', 'FOTOS'), P('n', 'NOTA', { min: 1, max: 5 })])] });
 
 c('destaques_4_ok', com(...notas(1, 4).map((p) => ({ ...p, destaque: true }))));
@@ -360,6 +382,16 @@ r('fotos_uma_com_max_1', Q(F({ max: 1 })), { f: [U(1)] });
 r('fotos_tres_com_max_3', Q(F({ max: 3 })), { f: [U(1), U(2), U(3)] });
 r('fotos_duas_perguntas', Q(F(), F({ id: 'g', max: 2 })), { f: [U(1)], g: [U(2), U(3)] });
 r('fotos_duas_perguntas_uma_acima', Q(F({ max: 2 }), F({ id: 'g', max: 2 })), { f: [U(1), U(2)], g: [U(3), U(4), U(5)] }, ['g']);
+// Com lugares, a foto de posição i é o lugar i: no máximo uma por lugar (o max, se vier maior, não vale mais que eles).
+const LG = ['Frente', 'Costas'];
+r('fotos_lugares_uma_por_lugar', Q(F({ lugares: LG })), { f: [U(1), U(2)] });
+r('fotos_lugares_menos_fotos_que_lugares', Q(F({ lugares: LG })), { f: [U(1)] });
+r('fotos_lugares_seis_ok', Q(F({ lugares: ['a', 'b', 'c', 'd', 'e', 'f'] })), { f: [1, 2, 3, 4, 5, 6].map(U) });
+r('fotos_lugares_mais_fotos_que_lugares', Q(F({ lugares: LG })), { f: [U(1), U(2), U(3)] }, ['f']);
+r('fotos_lugares_manda_mais_que_o_max', Q(F({ max: 6, lugares: LG })), { f: [U(1), U(2), U(3)] }, ['f']);
+r('fotos_lugares_max_igual_aos_lugares', Q(F({ max: 2, lugares: LG })), { f: [U(1), U(2)] });
+r('fotos_lugares_repetida', Q(F({ lugares: LG })), { f: [U(1), U(1)] }, ['f']);
+r('fotos_lugares_obrigatoria_ausente', Q(F({ obrigatoria: true, lugares: LG })), {}, ['f']);
 r('fotos_desligadas_ignora_a_pergunta', Q(F({ obrigatoria: true })), { f: 'lixo' }, [], { fotosLigadas: false });
 r('fotos_desligadas_sem_resposta_obrigatoria', Q(F({ obrigatoria: true })), {}, [], { fotosLigadas: false });
 
@@ -525,7 +557,7 @@ const limites = {
   rotuloTamanho: 200, ajudaTamanho: 300, rotuloCurtoTamanho: 20, opcoesMinimo: 2, opcoesMaximo: 20, opcaoTamanho: 80,
   unidadeTamanho: 12, casasMaximo: 2, diasMaximo: 7, diaValorMaximo: 14, destaquesMaximo: 4, textoCurtoCapacidade: 500,
   textoLongoCapacidade: 2000, capacidadeDeTextoTotal: 40000, rascunhoBytes: 262144, respostasBytes: 262144, idTamanho: 40,
-  numeroAbsoluto: 1000000000, fotosPorPergunta: 6, perguntasFotos: 6, notaMinPadrao: 0, notaMinMaximo: 1, notaMaxMinimo: 2,
+  numeroAbsoluto: 1000000000, fotosPorPergunta: 6, perguntasFotos: 6, lugarTamanho: 40, notaMinPadrao: 0, notaMinMaximo: 1, notaMaxMinimo: 2,
   notaMaxPadrao: 10, rotuloPontaTamanho: 40, descricaoSecaoTamanho: 4000, linhasMinimo: 1, linhasMaximo: 30, colunasMinimo: 2, colunasMaximo: 10,
   textoInformativoTamanho: 4000, declaracaoTamanho: 200, telefoneTamanho: 25, telefoneDigitosMinimo: 10,
   telefoneDigitosMaximo: 13, emailTamanho: 254, dataAnoMinimo: 1900, dataAnosAFrente: 5, imagemBytes: 300000, imagemLado: 1600,

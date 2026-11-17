@@ -45,7 +45,9 @@ public record ConteudoQuestionario(
     /**
      * Campos que só valem para alguns tipos: {@code dias} (NOTAS_POR_DIA), {@code opcoes} (escolhas), {@code unidade} e
      * {@code casas} (NUMERO), {@code min} e {@code max} (NUMERO: faixa; NOTA: pontas da escala, 0 ou 1 e de 2 a 10; FOTOS:
-     * só {@code max}, fotos aceitas de 1 a 6), {@code rotuloMin} e {@code rotuloMax} (NOTA), {@code somentePassado} (DATA), {@code linhas} e {@code colunas}
+     * só {@code max}, fotos aceitas de 1 a 6), {@code lugares} (FOTOS: nomes opcionais dos lugares; a foto de posição i é o lugar i,
+     * {@code max} só limita quantos lugares e as fotos aceitas passam a ser {@code lugares.size()}), {@code rotuloMin} e
+     * {@code rotuloMax} (NOTA), {@code somentePassado} (DATA), {@code linhas} e {@code colunas}
      * (GRADE), {@code texto} (ACEITE e INFORMATIVO) e {@code declaracao} (ACEITE). {@code imagemId} e {@code mostrarSe}
      * valem para todos. Só na anamnese: {@code destino} (campo do cadastro que a resposta alimenta) e, no PESO com destino,
      * {@code destinoData} (id da pergunta DATA com a data da pesagem; sem ela, vale a data do envio).
@@ -77,7 +79,8 @@ public record ConteudoQuestionario(
             DestinoNoPerfil destino,
             @Size(max = LimitesQuestionario.ID_TAMANHO) String destinoData,
             @Size(max = LimitesQuestionario.ROTULO_PONTA_TAMANHO) String rotuloMin,
-            @Size(max = LimitesQuestionario.ROTULO_PONTA_TAMANHO) String rotuloMax) {
+            @Size(max = LimitesQuestionario.ROTULO_PONTA_TAMANHO) String rotuloMax,
+            @Size(max = LimitesQuestionario.FOTOS_POR_PERGUNTA) List<@NotNull @Size(max = LimitesQuestionario.OPCAO_TAMANHO) String> lugares) {
 
         /** Pergunta sem destino no perfil. */
         public Pergunta(String id, TipoPergunta tipo, String rotulo, Boolean obrigatoria, String ajuda, Boolean destaque,
@@ -86,7 +89,7 @@ public record ConteudoQuestionario(
                         Boolean somentePassado, List<Opcao> linhas, List<Opcao> colunas, String texto, String declaracao,
                         Condicao mostrarSe) {
             this(id, tipo, rotulo, obrigatoria, ajuda, destaque, rotuloCurto, ajudaAutomatica, dias, opcoes, unidade, min,
-                    max, casas, imagemId, somentePassado, linhas, colunas, texto, declaracao, mostrarSe, null, null, null, null);
+                    max, casas, imagemId, somentePassado, linhas, colunas, texto, declaracao, mostrarSe, null, null, null, null, null);
         }
 
         /** Pergunta sem os campos da anamnese (imagem, data, grade, aceite, condição, destino). */
@@ -94,7 +97,7 @@ public record ConteudoQuestionario(
                         String rotuloCurto, AjudaAutomatica ajudaAutomatica, List<Integer> dias, List<Opcao> opcoes,
                         String unidade, BigDecimal min, BigDecimal max, Integer casas) {
             this(id, tipo, rotulo, obrigatoria, ajuda, destaque, rotuloCurto, ajudaAutomatica, dias, opcoes, unidade, min,
-                    max, casas, null, null, null, null, null, null, null, null, null, null, null);
+                    max, casas, null, null, null, null, null, null, null, null, null, null, null, null);
         }
     }
 

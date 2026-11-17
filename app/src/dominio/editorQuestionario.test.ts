@@ -133,6 +133,29 @@ describe('descrição da seção, escala da nota e fotos por pergunta', () => {
     expect(maximoDeFotos({ max: 2 })).toBe(2);
     expect(maximoDeFotos({ max: 0 })).toBe(LIMITES_QUESTIONARIO.fotosPorPergunta);
   });
+  it('paraApi leva os lugares só na FOTOS e o max acompanha; sem lugares nada muda', () => {
+    const c: ConteudoQuestionario = { instrucoes: [], secoes: [{ uid: 's', titulo: 'x', perguntas: [
+      p('f', 'FOTOS', { max: 6, lugares: ['Frente', 'Costas'] }), p('v', 'FOTOS', { max: 3, lugares: [] }), p('n', 'NOTA', { lugares: ['a'] }),
+    ] }] };
+    const [f, v, n] = paraApi(c).secoes[0].perguntas;
+    expect(f).toMatchObject({ max: 2, lugares: ['Frente', 'Costas'] });
+    expect(v).toMatchObject({ max: 3, lugares: undefined });
+    expect(n.lugares).toBeUndefined();
+    expect(maximoDeFotos({ max: 6, lugares: ['a', 'b'] })).toBe(2);
+    expect(errosDoQuestionario(paraApi({ ...c, secoes: [{ ...c.secoes[0], perguntas: [f] }] }))).toEqual([]);
+  });
+  it('lugares: de 1 ao max, nomes de 1 a 40 depois do strip, sem repetir (caixa e acento) e só na FOTOS', () => {
+    const base = 'secoes[0].perguntas[0].lugares';
+    const erros = (q: PerguntaAtualizacao) => errosDoQuestionario({ instrucoes: [], secoes: [{ uid: 's', titulo: 'x', perguntas: [q] }] }).map((e) => e.caminho).sort();
+    expect(erros(p('f', 'FOTOS', { lugares: ['Frente', 'Costas', 'Lado direito'] }))).toEqual([]);
+    expect(erros(p('f', 'FOTOS', { lugares: [' Frente ', 'frente'] }))).toEqual([`${base}[1]`]);
+    expect(erros(p('f', 'FOTOS', { lugares: ['Pé', 'pe'] }))).toEqual([`${base}[1]`]);
+    expect(erros(p('f', 'FOTOS', { lugares: ['  ', 'a'.repeat(41)] }))).toEqual([`${base}[0]`, `${base}[1]`]);
+    expect(erros(p('f', 'FOTOS', { lugares: ['a'.repeat(40)] }))).toEqual([]);
+    expect(erros(p('f', 'FOTOS', { max: 2, lugares: ['a', 'b', 'c'] }))).toEqual([base]);
+    expect(erros(p('f', 'FOTOS', { lugares: [] }))).toEqual([base]);
+    expect(erros(p('n', 'NOTA', { lugares: ['a'] }))).toEqual([base]);
+  });
   it('FOTOS pode repetir até seis perguntas; a sétima é recusada antes de publicar', () => {
     let c = base();
     for (let i = 0; i < LIMITES_QUESTIONARIO.perguntasFotos; i++) {

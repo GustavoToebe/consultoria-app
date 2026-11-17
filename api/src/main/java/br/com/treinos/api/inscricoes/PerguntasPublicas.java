@@ -30,7 +30,7 @@ final class PerguntasPublicas {
         return new Pergunta(p.id(), p.tipo(), p.rotulo(), Boolean.TRUE.equals(p.obrigatoria()), p.ajuda(), null, null, null,
                 p.dias(), opcoes(p.opcoes()), p.unidade(), p.min(), p.max(), p.casas(), null, p.somentePassado(),
                 opcoes(p.linhas()), opcoes(p.colunas()), p.texto(), p.declaracao(), p.mostrarSe(), null, null, p.rotuloMin(),
-                p.rotuloMax());
+                p.rotuloMax(), null); // sem lugares: FOTOS não vale na inscrição
     }
 
     private static List<Opcao> opcoes(List<Opcao> opcoes) {

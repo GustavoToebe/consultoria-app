@@ -237,6 +237,7 @@ public class ValidadorQuestionario {
         opcoes(c, p, cp, estado.finalidade == Finalidade.INSCRICAO ? SEM_IMAGEM_NA_INSCRICAO : null);
         dias(c, p, cp);
         numero(c, p, cp);
+        lugares(c, p, cp);
         escala(c, p, cp);
         destaque(c, estado, p, cp);
         if (p.ajudaAutomatica() != null && !COM_AJUDA_AUTOMATICA.contains(tipo)) {
@@ -500,6 +501,39 @@ public class ValidadorQuestionario {
         }
         if (p.unidade() != null && p.unidade().length() > LimitesQuestionario.UNIDADE_TAMANHO) {
             c.erro(cp + ".unidade", "Unidade longa demais.");
+        }
+    }
+
+    /**
+     * {@code lugares} só na FOTOS: de 1 ao {@code max} (sem ele, {@link LimitesQuestionario#FOTOS_POR_PERGUNTA}) nomes de 1 a
+     * {@link LimitesQuestionario#LUGAR_TAMANHO} caracteres depois do strip e do NFC, sem repetir (caixa e acento, como as
+     * opções). A mensagem nunca repete o nome digitado.
+     */
+    private static void lugares(ResultadoValidacao.Coletor c, Pergunta p, String cp) {
+        List<String> lugares = p.lugares();
+        if (lugares == null) {
+            return;
+        }
+        if (p.tipo() != FOTOS) {
+            c.erro(cp + ".lugares", "Este tipo não tem lugares.");
+            return;
+        }
+        int teto = p.max() != null && inteiroEntre(p.max(), 1, LimitesQuestionario.FOTOS_POR_PERGUNTA)
+                ? p.max().intValueExact() : LimitesQuestionario.FOTOS_POR_PERGUNTA;
+        if (lugares.isEmpty() || lugares.size() > teto) {
+            c.erro(cp + ".lugares", "Use de 1 a " + teto + " lugares.");
+        }
+        Set<String> vistos = new HashSet<>();
+        for (int k = 0; k < lugares.size(); k++) {
+            String co = cp + ".lugares[" + k + "]";
+            String nome = lugares.get(k) == null ? "" : Normalizer.normalize(lugares.get(k).strip(), Normalizer.Form.NFC);
+            if (nome.isEmpty()) {
+                c.erro(co, "Texto vazio.");
+            } else if (nome.length() > LimitesQuestionario.LUGAR_TAMANHO) {
+                c.erro(co, "Texto longo demais.");
+            } else if (!vistos.add(normalizar(nome))) {
+                c.erro(co, "Texto repetido.");
+            }
         }
     }
 

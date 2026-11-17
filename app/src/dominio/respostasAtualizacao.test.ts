@@ -67,6 +67,15 @@ it('foto no aparelho respeita o max da pergunta, cada pergunta com o seu',()=>{
   expect(Object.keys(errosRespostasAtualizacao(duas,{frente:[ID]},true,{frente:1}))).toEqual(['frente']);
   expect(Object.keys(errosRespostasAtualizacao(duas,{},true,{frente:1,lado:3}))).toEqual(['lado']);
 });
+it('com lugares, a pergunta aceita uma foto por lugar (as no aparelho contam junto), mesmo com max maior',()=>{
+  const lugares:ConteudoQuestionario={instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
+    {id:'f',tipo:'FOTOS',rotulo:'Fotos',obrigatoria:false,max:6,lugares:['Frente','Costas']},
+  ]}]};
+  const ID2='0b8f6f0e-6a53-4c3b-9d5a-2f1a4f3f9a12',ID3='0b8f6f0e-6a53-4c3b-9d5a-2f1a4f3f9a13';
+  expect(errosRespostasAtualizacao(lugares,{f:[ID,ID2]},true)).toEqual({});
+  expect(Object.keys(errosRespostasAtualizacao(lugares,{f:[ID,ID2,ID3]},true))).toEqual(['f']);
+  expect(Object.keys(errosRespostasAtualizacao(lugares,{f:[ID,ID2]},true,{f:1}))).toEqual(['f']);
+});
 it('nota na escala da pergunta; notas por dia seguem de 0 a 10',()=>{
   const escala:ConteudoQuestionario={instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
     {id:'n',tipo:'NOTA',rotulo:'N',obrigatoria:true,min:1,max:5},{id:'d',tipo:'NOTAS_POR_DIA',rotulo:'D',obrigatoria:false,dias:[1]},

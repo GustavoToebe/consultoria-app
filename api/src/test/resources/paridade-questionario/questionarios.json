@@ -2778,6 +2778,616 @@
   "avisos": []
  },
  {
+  "nome": "fotos_lugares_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "Frente",
+        "Costas",
+        "Lado direito"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_com_max_igual_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "max": 2,
+       "lugares": [
+        "Frente",
+        "Costas"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_seis_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_nome_40_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_nome_41",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].lugares[0]"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_nome_40_com_espacos_nas_pontas_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        " aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_nome_vazio",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "Frente",
+        "  "
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].lugares[1]"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_repetido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "Frente",
+        " frente "
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].lugares[1]"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_repetido_com_acento",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "Pé",
+        "PE"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].lugares[1]"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_nome_40_decomposto_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "éééééééééééééééééééééééééééééééééééééééé"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_nome_41_decomposto",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "ééééééééééééééééééééééééééééééééééééééééé"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].lugares[0]"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_mais_que_max",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "max": 2,
+       "lugares": [
+        "Frente",
+        "Costas",
+        "Lado direito"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].lugares"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_sete",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].lugares"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_lista_vazia",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": []
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].lugares"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_em_nota",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "lugares": [
+        "a"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].lugares"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "fotos_lugares_em_texto",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "lugares": [
+        "a"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].lugares"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "anamnese_fotos_lugares_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Seção 1",
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "Frente",
+        "Costas",
+        "Lado direito"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "anamnese_fotos_lugares_repetido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Seção 1",
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "lugares": [
+        "Frente",
+        "frente"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].lugares[1]"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
   "nome": "anamnese_fotos_duas_e_nota_escala_ok",
   "conteudo": {
    "formato": 2,

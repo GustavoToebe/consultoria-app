@@ -30,6 +30,8 @@ public final class LimitesQuestionario {
     public static final int FOTOS_POR_PERGUNTA = 6;
     /** Perguntas FOTOS num questionário (cada uma com o seu {@code max}, de 1 a {@link #FOTOS_POR_PERGUNTA}). */
     public static final int PERGUNTAS_FOTOS = 6;
+    /** Nome de cada lugar da FOTOS ({@code lugares}): de 1 a este tanto depois do strip e do NFC; no máximo {@link #FOTOS_POR_PERGUNTA} lugares. */
+    public static final int LUGAR_TAMANHO = 40;
     /**
      * Escala da NOTA: ponta de baixo ({@code min}) 0 ou 1, padrão 0; ponta de cima ({@code max}) de 2 a 10, padrão 10.
      * NOTAS_POR_DIA continua de 0 a 10, sem escala.

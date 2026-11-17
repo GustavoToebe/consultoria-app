@@ -24,7 +24,7 @@ O treinador dá nome aos lugares das fotos de uma pergunta FOTOS ("Frente", "Cos
 
 ## Passos
 - [ ] 1. Plano e entrada no README — commit: este
-- [ ] 2. API + regra pura (`executor`): `lugares` em `ConteudoQuestionario`, `ValidadorQuestionario`, `ValidadorAtualizacao` (resposta com mais fotos que lugares ou buraco = erro), `dominio/questionario.ts`, `respostasAtualizacao.ts`, fixtures por `gerar-fixtures.mjs` (casos válidos e inválidos), `AGENTS.md` — commit: —
+- [x] 2. API + regra pura (`executor`): `lugares` em `ConteudoQuestionario`, `ValidadorQuestionario`, `ValidadorAtualizacao` (resposta com mais fotos que lugares ou buraco = erro), `dominio/questionario.ts`, `respostasAtualizacao.ts`, fixtures por `gerar-fixtures.mjs` (casos válidos e inválidos), `AGENTS.md` — commit: ver `git log` ("Fotos guiadas: lugares na pergunta FOTOS"); decisão do executor: `max` do editor acompanha `lugares.length`, repetição ignora caixa e acento como as opções; testes unitários rodaram, `mvn verify` entra no passo 4
 - [ ] 3. Editor e tela do aluno (`executor-front`, depende do 2): campo "Lugares das fotos" no `PropriedadesDaPergunta`, guia com um espaço por lugar no `CampoFotos`, treinador vê o nome no detalhe e no Resumo — commit: —
 - [ ] 4. Verificação: `mvn verify` (fila única), typecheck, lint, jest, e2e das telas mexidas em 390 e 1280 — commit: —
 

@@ -65,6 +65,16 @@ class ValidadorAtualizacaoTest {
         assertThatThrownBy(() -> validador.validar(modelo, json.valueToTree(Map.of("x", multibyte)))).isInstanceOf(ValidacaoException.class);
     }
 
+    @Test void fotosComLugaresAceitamUmaPorLugarNaOrdemDaResposta() {
+        var modelo = json.readTree("{\"secoes\":[{\"perguntas\":[{\"id\":\"f\",\"tipo\":\"FOTOS\",\"max\":6,\"lugares\":[\"Frente\",\"Costas\"]}]}]}");
+        String a = "00000000-0000-4000-8000-000000000001", b = "00000000-0000-4000-8000-000000000002", c = "00000000-0000-4000-8000-000000000003";
+        var duas = json.readTree("{\"f\":[\"" + b + "\",\"" + a + "\"]}");
+        assertThat(validador.validar(modelo, duas, true)).isEqualTo(duas);
+        var tres = json.readTree("{\"f\":[\"" + a + "\",\"" + b + "\",\"" + c + "\"]}");
+        assertThatThrownBy(() -> validador.validar(modelo, tres, true)).isInstanceOf(ValidacaoException.class)
+            .extracting(e -> ((ValidacaoException) e).getProblemas().get(0).field()).isEqualTo("f");
+    }
+
     @Test void tipoDesconhecidoRespondidoEErro() {
         var modelo = json.readTree("{\"secoes\":[{\"perguntas\":[{\"id\":\"x\",\"tipo\":\"NOVO\"}]}]}");
         assertThat(validador.validar(modelo, json.createObjectNode()).isEmpty()).isTrue();

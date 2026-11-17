@@ -271,11 +271,14 @@ public class ValidadorAtualizacao {
     }
 
     /**
-     * Lista de ids (UUID) sem repetição, de 1 ao {@code max} da pergunta (sem ele, {@code FOTOS_POR_PERGUNTA}). A lista
-     * vazia já foi tratada como "não respondida".
+     * Lista de ids (UUID) sem repetição, de 1 ao {@code max} da pergunta (sem ele, {@code FOTOS_POR_PERGUNTA}); com
+     * {@code lugares}, a foto de posição i é o lugar i e o máximo é a quantidade de lugares. A lista vazia já foi tratada
+     * como "não respondida". Igual a {@code maximoDeFotos} de {@code dominio/questionario.ts}.
      */
     private static boolean fotos(JsonNode v, JsonNode p) {
-        int maximo = inteiroOu(p.path("max"), 1, LimitesQuestionario.FOTOS_POR_PERGUNTA, LimitesQuestionario.FOTOS_POR_PERGUNTA);
+        int lugares = p.path("lugares").isArray() ? p.path("lugares").size() : 0;
+        int maximo = lugares > 0 ? Math.min(lugares, LimitesQuestionario.FOTOS_POR_PERGUNTA)
+                : inteiroOu(p.path("max"), 1, LimitesQuestionario.FOTOS_POR_PERGUNTA, LimitesQuestionario.FOTOS_POR_PERGUNTA);
         if (!v.isArray() || v.size() > maximo) {
             return false;
         }

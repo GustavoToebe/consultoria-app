@@ -74,6 +74,7 @@ class ParidadeQuestionarioTest {
         daqui.put("numeroAbsoluto", LimitesQuestionario.NUMERO_ABSOLUTO);
         daqui.put("fotosPorPergunta", LimitesQuestionario.FOTOS_POR_PERGUNTA);
         daqui.put("perguntasFotos", LimitesQuestionario.PERGUNTAS_FOTOS);
+        daqui.put("lugarTamanho", LimitesQuestionario.LUGAR_TAMANHO);
         daqui.put("notaMinPadrao", LimitesQuestionario.NOTA_MIN_PADRAO);
         daqui.put("notaMinMaximo", LimitesQuestionario.NOTA_MIN_MAXIMO);
         daqui.put("notaMaxMinimo", LimitesQuestionario.NOTA_MAX_MINIMO);

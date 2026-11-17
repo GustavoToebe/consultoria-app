@@ -156,6 +156,7 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
         const destacada = aceitaDestaque(p.tipo) && p.destaque === true;
         const numerico = p.tipo === 'NUMERO';
         const nota = p.tipo === 'NOTA';
+        const lugares = p.tipo === 'FOTOS' && p.lugares && p.lugares.length > 0 ? p.lugares : undefined;
         const destino = p.destino != null && temEfeitoNoCadastro(p.destino) && destinosPossiveis(p.tipo, finalidade).includes(p.destino) ? p.destino : undefined;
         return {
           id: p.id,
@@ -170,10 +171,12 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
           opcoes: temOpcoes(p.tipo) ? p.opcoes?.map((o) => opcao(o, true, destino === 'SEXO')) : undefined,
           unidade: numerico ? texto(p.unidade) : undefined,
           min: numerico || nota ? p.min : undefined,
-          max: numerico || nota || p.tipo === 'FOTOS' ? p.max : undefined,
+          // Com lugares, o `max` acompanha: é um por lugar (a API só confere que os lugares cabem nele).
+          max: p.tipo === 'FOTOS' ? (lugares?.length ?? p.max) : numerico || nota ? p.max : undefined,
           casas: numerico ? p.casas : undefined,
           rotuloMin: nota ? texto(p.rotuloMin) : undefined,
           rotuloMax: nota ? texto(p.rotuloMax) : undefined,
+          lugares,
           imagemId: imagemPermitida ? texto(p.imagemId) : undefined,
           somentePassado: p.tipo === 'DATA' && p.somentePassado === true ? true : undefined,
           linhas: p.tipo === 'GRADE' ? p.linhas?.map((o) => opcao(o, false, false)) : undefined,
