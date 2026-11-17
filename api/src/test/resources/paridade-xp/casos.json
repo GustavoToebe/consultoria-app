@@ -1,0 +1,808 @@
+{
+ "constantes": {
+  "treinoCompleto": 10,
+  "treinoParcial": 5,
+  "semanaCompleta": 20,
+  "conquista": 50,
+  "recorde": 15,
+  "porNivel": 100
+ },
+ "niveis": [
+  {
+   "xp": -1,
+   "nivel": 1
+  },
+  {
+   "xp": 0,
+   "nivel": 1
+  },
+  {
+   "xp": 99,
+   "nivel": 1
+  },
+  {
+   "xp": 100,
+   "nivel": 2
+  },
+  {
+   "xp": 101,
+   "nivel": 2
+  },
+  {
+   "xp": 199,
+   "nivel": 2
+  },
+  {
+   "xp": 200,
+   "nivel": 3
+  },
+  {
+   "xp": 1000,
+   "nivel": 11
+  }
+ ],
+ "casos": [
+  {
+   "nome": "dia_sem_treino",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 0,
+    "nivel": 1,
+    "xpNoNivel": 0,
+    "faltam": 100
+   }
+  },
+  {
+   "nome": "treino_completo",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 10,
+    "nivel": 1,
+    "xpNoNivel": 10,
+    "faltam": 90
+   }
+  },
+  {
+   "nome": "treino_parcial",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "PARCIAL"
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 5,
+    "nivel": 1,
+    "xpNoNivel": 5,
+    "faltam": 95
+   }
+  },
+  {
+   "nome": "concluida_sem_resultado_nao_vale",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": null
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 0,
+    "nivel": 1,
+    "xpNoNivel": 0,
+    "faltam": 100
+   }
+  },
+  {
+   "nome": "dois_dias_distintos",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-02",
+      "concluida": true,
+      "resultado": "PARCIAL"
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 15,
+    "nivel": 1,
+    "xpNoNivel": 15,
+    "faltam": 85
+   }
+  },
+  {
+   "nome": "dois_treinos_no_mesmo_dia_vale_o_melhor",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "PARCIAL"
+     },
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 10,
+    "nivel": 1,
+    "xpNoNivel": 10,
+    "faltam": 90
+   }
+  },
+  {
+   "nome": "dois_treinos_no_mesmo_dia_ordem_inversa",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "PARCIAL"
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 10,
+    "nivel": 1,
+    "xpNoNivel": 10,
+    "faltam": 90
+   }
+  },
+  {
+   "nome": "dois_completos_no_mesmo_dia",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 10,
+    "nivel": 1,
+    "xpNoNivel": 10,
+    "faltam": 90
+   }
+  },
+  {
+   "nome": "reabrir_tira_o_xp",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": false,
+      "resultado": null
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 0,
+    "nivel": 1,
+    "xpNoNivel": 0,
+    "faltam": 100
+   }
+  },
+  {
+   "nome": "reabrir_a_completa_e_sobra_a_parcial",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": false,
+      "resultado": null
+     },
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "PARCIAL"
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 5,
+    "nivel": 1,
+    "xpNoNivel": 5,
+    "faltam": 95
+   }
+  },
+  {
+   "nome": "semana_completa",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [
+     {
+      "inicio": "2026-10-05",
+      "feitas": 3,
+      "total": 3
+     }
+    ],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 20,
+    "nivel": 1,
+    "xpNoNivel": 20,
+    "faltam": 80
+   }
+  },
+  {
+   "nome": "semana_completa_com_treino_a_mais",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [
+     {
+      "inicio": "2026-10-05",
+      "feitas": 4,
+      "total": 3
+     }
+    ],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 20,
+    "nivel": 1,
+    "xpNoNivel": 20,
+    "faltam": 80
+   }
+  },
+  {
+   "nome": "semana_incompleta",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [
+     {
+      "inicio": "2026-10-05",
+      "feitas": 2,
+      "total": 3
+     }
+    ],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 0,
+    "nivel": 1,
+    "xpNoNivel": 0,
+    "faltam": 100
+   }
+  },
+  {
+   "nome": "semana_sem_dia_fixo_nao_comemora",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [
+     {
+      "inicio": "2026-10-05",
+      "feitas": 0,
+      "total": 0
+     }
+    ],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 0,
+    "nivel": 1,
+    "xpNoNivel": 0,
+    "faltam": 100
+   }
+  },
+  {
+   "nome": "semana_repetida_conta_uma_vez",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [
+     {
+      "inicio": "2026-10-05",
+      "feitas": 3,
+      "total": 3
+     },
+     {
+      "inicio": "2026-10-05",
+      "feitas": 3,
+      "total": 3
+     }
+    ],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 20,
+    "nivel": 1,
+    "xpNoNivel": 20,
+    "faltam": 80
+   }
+  },
+  {
+   "nome": "duas_semanas",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [
+     {
+      "inicio": "2026-10-05",
+      "feitas": 3,
+      "total": 3
+     },
+     {
+      "inicio": "2026-10-12",
+      "feitas": 1,
+      "total": 1
+     },
+     {
+      "inicio": "2026-10-19",
+      "feitas": 0,
+      "total": 2
+     }
+    ],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 40,
+    "nivel": 1,
+    "xpNoNivel": 40,
+    "faltam": 60
+   }
+  },
+  {
+   "nome": "recorde",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": [
+     {
+      "data": "2026-10-01",
+      "exercicioId": "ex-1"
+     }
+    ]
+   },
+   "esperado": {
+    "xp": 15,
+    "nivel": 1,
+    "xpNoNivel": 15,
+    "faltam": 85
+   }
+  },
+  {
+   "nome": "recorde_repetido_no_mesmo_exercicio_e_dia",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": [
+     {
+      "data": "2026-10-01",
+      "exercicioId": "ex-1"
+     },
+     {
+      "data": "2026-10-01",
+      "exercicioId": "ex-1"
+     }
+    ]
+   },
+   "esperado": {
+    "xp": 15,
+    "nivel": 1,
+    "xpNoNivel": 15,
+    "faltam": 85
+   }
+  },
+  {
+   "nome": "recordes_de_exercicios_e_dias_diferentes",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": [
+     {
+      "data": "2026-10-01",
+      "exercicioId": "ex-1"
+     },
+     {
+      "data": "2026-10-01",
+      "exercicioId": "ex-2"
+     },
+     {
+      "data": "2026-10-02",
+      "exercicioId": "ex-1"
+     }
+    ]
+   },
+   "esperado": {
+    "xp": 45,
+    "nivel": 1,
+    "xpNoNivel": 45,
+    "faltam": 55
+   }
+  },
+  {
+   "nome": "conquista",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [],
+    "conquistas": [
+     "PRIMEIRO_TREINO"
+    ],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 50,
+    "nivel": 1,
+    "xpNoNivel": 50,
+    "faltam": 50
+   }
+  },
+  {
+   "nome": "conquista_repetida_conta_uma_vez",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [],
+    "conquistas": [
+     "PRIMEIRO_TREINO",
+     "PRIMEIRO_TREINO"
+    ],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 50,
+    "nivel": 1,
+    "xpNoNivel": 50,
+    "faltam": 50
+   }
+  },
+  {
+   "nome": "duas_conquistas_fecham_o_nivel_2",
+   "entrada": {
+    "sessoes": [],
+    "semanas": [],
+    "conquistas": [
+     "PRIMEIRO_TREINO",
+     "SEMANA_COMPLETA"
+    ],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 100,
+    "nivel": 2,
+    "xpNoNivel": 0,
+    "faltam": 100
+   }
+  },
+  {
+   "nome": "borda_95_xp_nivel_1",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-02",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-03",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-04",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-05",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-06",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-07",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-08",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-09",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-10",
+      "concluida": true,
+      "resultado": "PARCIAL"
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 95,
+    "nivel": 1,
+    "xpNoNivel": 95,
+    "faltam": 5
+   }
+  },
+  {
+   "nome": "borda_100_xp_sobe_para_o_nivel_2",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-02",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-03",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-04",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-05",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-06",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-07",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-08",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-09",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-10",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 100,
+    "nivel": 2,
+    "xpNoNivel": 0,
+    "faltam": 100
+   }
+  },
+  {
+   "nome": "borda_105_xp_nivel_2",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-02",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-03",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-04",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-05",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-06",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-07",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-08",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-09",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-10",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-11",
+      "concluida": true,
+      "resultado": "PARCIAL"
+     }
+    ],
+    "semanas": [],
+    "conquistas": [],
+    "recordes": []
+   },
+   "esperado": {
+    "xp": 105,
+    "nivel": 2,
+    "xpNoNivel": 5,
+    "faltam": 95
+   }
+  },
+  {
+   "nome": "tudo_junto",
+   "entrada": {
+    "sessoes": [
+     {
+      "data": "2026-10-01",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-02",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-03",
+      "concluida": true,
+      "resultado": "COMPLETA"
+     },
+     {
+      "data": "2026-10-04",
+      "concluida": true,
+      "resultado": "PARCIAL"
+     },
+     {
+      "data": "2026-10-05",
+      "concluida": false,
+      "resultado": null
+     }
+    ],
+    "semanas": [
+     {
+      "inicio": "2026-09-28",
+      "feitas": 3,
+      "total": 3
+     },
+     {
+      "inicio": "2026-10-05",
+      "feitas": 1,
+      "total": 2
+     }
+    ],
+    "conquistas": [
+     "PRIMEIRO_TREINO",
+     "SEMANA_COMPLETA"
+    ],
+    "recordes": [
+     {
+      "data": "2026-10-02",
+      "exercicioId": "ex-1"
+     },
+     {
+      "data": "2026-10-03",
+      "exercicioId": "ex-1"
+     }
+    ]
+   },
+   "esperado": {
+    "xp": 185,
+    "nivel": 2,
+    "xpNoNivel": 85,
+    "faltam": 15
+   }
+  }
+ ]
+}
