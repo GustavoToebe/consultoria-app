@@ -22,4 +22,9 @@ describe('kcalDosMacros', () => {
     expect(kcalDosMacros(10, 10, null)).toBeNull();
     expect(kcalDosMacros(Number.NaN, 10, 1)).toBeNull();
   });
+
+  it('é nulo com macro negativo (a API recusa)', () => {
+    expect(kcalDosMacros(-10, 10, 1)).toBeNull();
+    expect(kcalDosMacros(10, 10, -0.1)).toBeNull();
+  });
 });
