@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 import type { IndicadoresInscricoes } from '../src/api/inscricoesTipos';
 import type { Alimento, AtualizacaoDaLista, ConteudoDieta, ItemDieta, PainelTreinador, PlanoDetalhe, Receita, RecordesDaSemana, Tema } from '../src/api/tipos';
@@ -8,11 +8,13 @@ import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
 import { fixarHoje } from './aluno';
 import { json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 import { COBRANCA_ATRASADA, estadoFinanceiro, PAINEL_COM_DADOS, PERMISSOES_FINANCEIRO, rotasDoFinanceiro, sessaoComFinanceiro } from './financeiro-falso';
+import { TELAS_NOVAS, type Tela } from './capturas-telas';
 import { resumoFalso, rotasDaTela } from './inscricoes-falsas';
 
 /**
- * Conferência visual das cores de destaque nas paletas (D10 de `docs/planos/cores-de-destaque.md`, passo 8): as sete telas
- * da matriz em Céu e Rosa (390 e 1280) e em Areia, Lavanda e Escuro (390). Só roda com `CAPTURAS_PALETAS=<pasta>`: grava
+ * Prancha das telas nos temas: Claro, Areia e Escuro (verificação final de `docs/planos/hierarquia-visual-tres-temas.md`)
+ * e Céu e Rosa em 390 e 1280, Lavanda em 390 (D10 de `docs/planos/cores-de-destaque.md`). As sete primeiras telas moram
+ * aqui; as que vieram com a hierarquia visual, em `capturas-telas.ts`. Só roda com `CAPTURAS_PALETAS=<pasta>`: grava
  * `<tela>-<paleta>-<largura>-<tema>.png` e, ao lado, um `.json` com a rolagem horizontal, os textos abaixo de 4,5:1 (3:1 no
  * texto grande) contra o fundo composto dos ancestrais e o que a API simulada não tratou. Só dados fictícios.
  */
@@ -20,14 +22,15 @@ const PASTA = process.env.CAPTURAS_PALETAS;
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 interface Paleta { nome: string; tema: 'claro' | 'escuro'; marca?: Tema; preferencia?: Tema }
+const CLARO: Paleta = { nome: 'claro', tema: 'claro', preferencia: 'CLARO' };
 const CEU: Paleta = { nome: 'ceu', tema: 'claro', marca: 'CEU' };
 const ROSA: Paleta = { nome: 'rosa', tema: 'claro', marca: 'ROSA' };
 const AREIA: Paleta = { nome: 'areia', tema: 'claro', preferencia: 'AREIA' };
 const LAVANDA: Paleta = { nome: 'lavanda', tema: 'claro', marca: 'LAVANDA' };
 const ESCURO: Paleta = { nome: 'escuro', tema: 'escuro', preferencia: 'ESCURO' };
 const MATRIZ: [Paleta, number][] = [
-  ...[CEU, ROSA].flatMap((p) => [[p, 390], [p, 1280]] as [Paleta, number][]),
-  ...[AREIA, LAVANDA, ESCURO].map((p) => [p, 390] as [Paleta, number]),
+  ...[CLARO, AREIA, ESCURO, CEU, ROSA].flatMap((p) => [[p, 390], [p, 1280]] as [Paleta, number][]),
+  [LAVANDA, 390],
 ];
 
 const id = (n: number) => `a0000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -92,7 +95,6 @@ const DIETA: PlanoDetalhe<ConteudoDieta> = {
 const METODOLOGIA_ID = 'm0000000-0000-4000-8000-000000000010';
 const METODOLOGIA: Receita = { id: METODOLOGIA_ID, tipo: 'METODOLOGIA', nome: 'Metodologia fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo: CONFIGURACAO_PADRAO };
 
-interface Tela { nome: string; caminho: string; rotas: (page: Page) => Promise<RespostasApi>; pronto: (page: Page) => Promise<void> }
 const TELAS: Tela[] = [
   {
     nome: 'inicio', caminho: '/treinador',
@@ -180,6 +182,7 @@ const TELAS: Tela[] = [
     }),
     pronto: async (page) => { await expect(page.getByRole('button', { name: 'Salvar modelo', exact: true })).toBeVisible(); },
   },
+  ...TELAS_NOVAS,
 ];
 
 /** Troca a marca do login e do `/eu` pela da paleta (o tema "Da consultoria" do treinador segue o `temaPadrao`). */
@@ -246,7 +249,7 @@ for (const tela of TELAS) for (const [paleta, largura] of MATRIZ) {
     await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 900 });
     await fixarHoje(page);
     if (paleta.preferencia) {
-      await page.addInitScript(([u, t]) => localStorage.setItem(`treinos:${u}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, paleta.preferencia] as const);
+      await page.addInitScript(([u, t]) => localStorage.setItem(`treinos:${u}:preferencias`, JSON.stringify({ tema: t })), [tela.usuarioId ?? TREINADOR.id, paleta.preferencia] as const);
     }
     const rotas = await tela.rotas(page);
     const api = await simularApi(page, paleta.marca ? comMarca(rotas, paleta.marca) : rotas);
@@ -255,11 +258,20 @@ for (const tela of TELAS) for (const [paleta, largura] of MATRIZ) {
     await page.waitForTimeout(400);
     const rolagemLateral = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     const contraste = await page.evaluate(textosAbaixoDoMinimo);
-    // A página toda numa imagem: a altura da janela passa a ser a do maior conteúdo rolável.
-    const altura = await page.evaluate(() => Math.max(document.documentElement.scrollHeight,
-      ...[...document.querySelectorAll('*')].filter((e) => /(auto|scroll)/.test(getComputedStyle(e).overflowY)).map((e) => e.scrollHeight)));
-    await page.setViewportSize({ width: largura, height: Math.min(Math.max(altura, 844), 6000) });
-    await page.waitForTimeout(300);
+    // A página toda numa imagem: a janela cresce o que ainda rola (na folha aberta, só o dela; barras fixas ficam de fora da
+    // rolagem, por isso mede o que sobra e não a altura do conteúdo) e mede de novo até não sobrar rolagem.
+    for (let i = 0; i < 4; i++) {
+      const altura = await page.evaluate(() => {
+        const raiz = [...document.querySelectorAll('[role="dialog"]')].at(-1) ?? document.documentElement;
+        const rolaveis = [raiz, ...raiz.querySelectorAll('*')].filter((e) => e === document.documentElement || /(auto|scroll)/.test(getComputedStyle(e).overflowY));
+        return window.innerHeight + Math.max(0, ...rolaveis.map((e) => e.scrollHeight - e.clientHeight));
+      });
+      const atual = page.viewportSize()!.height;
+      const nova = Math.min(Math.max(altura, 844), 6000);
+      if (nova <= atual + 1) break;
+      await page.setViewportSize({ width: largura, height: nova });
+      await page.waitForTimeout(300);
+    }
     await page.screenshot({ path: `${PASTA}/${nome}.png`, animations: 'disabled' });
     writeFileSync(`${PASTA}/${nome}.json`, JSON.stringify({ rolagemLateral, contraste, naoTratadas: api.naoTratadas, errosDaPagina: api.errosDaPagina }, null, 2));
     expect(api.errosDaPagina).toEqual([]);
