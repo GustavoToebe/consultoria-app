@@ -79,17 +79,20 @@ class KcalDoAlimentoIntegrationTest extends AbstractIntegrationTest {
         assertThat(lido.path("carboidrato").isNull()).isTrue();
         assertThat(lido.path("gordura").isNull()).isTrue();
 
-        // (b) editar sem macros segue recusado (422 ALIMENTO_INVALIDO nos três macros) e não mexe no kcal, mesmo com kcal no corpo.
-        JsonNode erro = api.put("/alimentos/" + id, login,
-                alimento("Preparação fictícia sem macros", 999, null, null, null), 422);
-        assertThat(erro.path("codigo").asString()).isEqualTo("ALIMENTO_INVALIDO");
-        assertThat(StreamSupport.stream(erro.path("fieldErrors").spliterator(), false).map(f -> f.path("field").asString()))
-                .containsExactlyInAnyOrder("proteina", "carboidrato", "gordura");
+        // (b) D15: editar sem macros é aceito e a caloria da fonte fica (nunca zera), mesmo com kcal no corpo.
+        JsonNode semMacros = api.put("/alimentos/" + id, login,
+                alimento("Preparação fictícia sem macros", 999, null, null, null), 200);
+        assertThat(semMacros.path("kcal").decimalValue()).isEqualByComparingTo("321.50");
+        assertThat(semMacros.path("proteina").isNull()).isTrue();
         assertThat(kcalGravado(id)).isEqualByComparingTo("321.50");
-        assertThat(da(api.get("/alimentos", login, 200), id).path("kcal").decimalValue()).isEqualByComparingTo("321.50");
 
-        // Faltando só um macro também recusa, e o kcal fica.
-        api.put("/alimentos/" + id, login, alimento("Preparação fictícia sem macros", null, 10, 20, null), 422);
+        // Só dois macros: grava os digitados, o que faltou fica nulo (nunca zero) e a kcal da fonte continua.
+        JsonNode doisMacros = api.put("/alimentos/" + id, login,
+                alimento("Preparação fictícia sem macros", null, 10, 20, null), 200);
+        assertThat(doisMacros.path("kcal").decimalValue()).isEqualByComparingTo("321.50");
+        assertThat(doisMacros.path("proteina").decimalValue()).isEqualByComparingTo("10");
+        assertThat(doisMacros.path("carboidrato").decimalValue()).isEqualByComparingTo("20");
+        assertThat(doisMacros.path("gordura").isNull()).isTrue();
         assertThat(kcalGravado(id)).isEqualByComparingTo("321.50");
 
         // (c) com os três macros grava o derivado: 10 × 4 + 20 × 4 + 5 × 9 = 165.
@@ -97,6 +100,31 @@ class KcalDoAlimentoIntegrationTest extends AbstractIntegrationTest {
                 alimento("Preparação fictícia sem macros", 999, 10, 20, 5), 200);
         assertThat(editado.path("kcal").decimalValue()).isEqualByComparingTo("165.00");
         assertThat(kcalGravado(id)).isEqualByComparingTo("165.00");
+
+        // Apagar um macro depois não zera nem recalcula: a kcal gravada (agora 165) fica.
+        JsonNode apagado = api.put("/alimentos/" + id, login,
+                alimento("Preparação fictícia sem macros", null, 10, 20, null), 200);
+        assertThat(apagado.path("kcal").decimalValue()).isEqualByComparingTo("165.00");
+        assertThat(apagado.path("gordura").isNull()).isTrue();
+    }
+
+    @Test
+    void zeroZeroZeroDigitadoDePropositoZeraAKcalDaFonteEPassaAserUmValor() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var login = api.novoTreinador();
+        UUID id = inserirSoComKcal(login, "Preparação fictícia zerada", "321.50");
+        JsonNode editado = api.put("/alimentos/" + id, login, alimento("Preparação fictícia zerada", null, 0, 0, 0), 200);
+        assertThat(editado.path("kcal").decimalValue()).isEqualByComparingTo("0");
+        assertThat(editado.path("proteina").decimalValue()).isEqualByComparingTo("0");
+        assertThat(kcalGravado(id)).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void kcalDoCorpoForaDaFaixaDa400ComOuSemMacros() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var login = api.novoTreinador();
+        api.post("/alimentos", login, alimento("Faixa fictícia A", 100000, 10, 20, 5), 400);
+        api.post("/alimentos", login, alimento("Faixa fictícia B", -1, null, null, null), 400);
     }
 
     @Test
@@ -120,10 +148,13 @@ class KcalDoAlimentoIntegrationTest extends AbstractIntegrationTest {
         JsonNode zerado = api.post("/alimentos", login, alimento("Água fictícia C", 50, 0, 0, 0), 200);
         assertThat(zerado.path("kcal").decimalValue()).isEqualByComparingTo("0.00");
 
-        // O que o cliente manda sem macros continua recusado, sem exigir o kcal.
+        // D15: alimento NOVO sem os três macros fica sem kcal ("—"), e o CHECK alimento_kcal_obrigatoria_check da V061 ainda o
+        // proíbe: por ora a API responde 422 no campo proteina (não 500). Quando a migration derrubar o CHECK, este caso passa a
+        // 200 com kcal nula e macros digitados gravados (o bloco `shortcut:` do BibliotecaService.valores sai).
         JsonNode erro = api.post("/alimentos", login, alimento("Sem macros fictício D", 100, null, null, null), 422);
         assertThat(StreamSupport.stream(erro.path("fieldErrors").spliterator(), false).map(f -> f.path("field").asString()))
-                .doesNotContain("kcal");
+                .containsExactly("proteina");
+        api.post("/alimentos", login, alimento("Dois macros fictício E", null, 10, 20, null), 422);
     }
 
     @Test

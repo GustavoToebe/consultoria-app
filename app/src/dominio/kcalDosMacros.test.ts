@@ -1,4 +1,29 @@
-import { kcalDosMacros } from './kcalDosMacros';
+import { kcalDoAlimento, kcalDosMacros } from './kcalDosMacros';
+
+// Paridade com `KcalDosMacrosParidadeTest` (API): os mesmos casos de `kcalDoAlimento`, na mesma ordem.
+describe('kcalDoAlimento (D15: macros opcionais)', () => {
+  it('com os três macros recalcula, mesmo com kcal gravada', () => {
+    expect(kcalDoAlimento(100, 0, 0, 321.5)).toBe(400);
+    expect(kcalDoAlimento(2.5, 28.1, 0.2, null)).toBe(124.2);
+  });
+
+  it('com um, dois ou nenhum macro mantém a kcal gravada (a da fonte)', () => {
+    expect(kcalDoAlimento(10, 20, null, 321.5)).toBe(321.5);
+    expect(kcalDoAlimento(10, null, null, 321.5)).toBe(321.5);
+    expect(kcalDoAlimento(null, null, null, 321.5)).toBe(321.5);
+    expect(kcalDoAlimento(0, null, null, 321.5)).toBe(321.5);
+  });
+
+  it('sem macros e sem kcal gravada é nulo, nunca zero', () => {
+    expect(kcalDoAlimento(null, null, null, null)).toBeNull();
+    expect(kcalDoAlimento(10, null, 1, null)).toBeNull();
+  });
+
+  it('0/0/0 digitado de propósito dá 0 e não a kcal gravada', () => {
+    expect(kcalDoAlimento(0, 0, 0, 321.5)).toBe(0);
+    expect(kcalDoAlimento(0, 0, 0, null)).toBe(0);
+  });
+});
 
 describe('kcalDosMacros', () => {
   it('soma proteína × 4, carboidrato × 4 e gordura × 9', () => {

@@ -11,3 +11,13 @@ export function kcalDosMacros(proteina: number | null, carboidrato: number | nul
   const [p, c, g] = macros.map((m) => Math.round((m as number) * 100));
   return (p * 4 + c * 4 + g * 9) / 100;
 }
+
+/**
+ * D15: macros são opcionais. Os três preenchidos recalculam a kcal; com um, dois ou nenhum fica a `gravada` (a da fonte,
+ * como no Batel Grill; nula se não havia). Zero digitado é valor (0/0/0 dá 0). Espelha `BibliotecaService.kcalDoAlimento`.
+ */
+export function kcalDoAlimento(
+  proteina: number | null, carboidrato: number | null, gordura: number | null, gravada: number | null,
+): number | null {
+  return kcalDosMacros(proteina, carboidrato, gordura) ?? gravada;
+}

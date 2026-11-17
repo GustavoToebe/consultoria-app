@@ -378,14 +378,22 @@ public class BibliotecaService {
         if (tipo == Alimento.Tipo.SUPLEMENTO) {
             return valoresDeSuplemento(r, grupo, atual);
         }
-        exigirNutricaoDeAlimento(r);
-        // C48: o kcal do corpo é ignorado; é uma conta sobre os macros que o treinador escreveu (só o seed usa o do corpo).
-        // Seed sem kcal: recusa clara em vez de NPE/500 (a coluna é obrigatória no alimento) e sem inventar valor nem virar zero.
+        exigirBaseDeAlimento(r);
+        // C48/D15: o kcal do corpo é ignorado; é uma conta sobre os macros que o treinador escreveu (só o seed usa o do corpo).
+        // Macros não são obrigatórios: sem os três, a kcal fica a gravada (a da fonte) e nunca vira zero.
+        // Seed sem kcal: recusa clara em vez de NPE/500 e sem inventar valor nem virar zero.
         if (kcalDoCorpo && r.kcal() == null) {
             throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO",
                     List.of(new ApiError.FieldError("kcal", "Informe as calorias do alimento.")));
         }
-        BigDecimal kcal = kcalDoCorpo ? r.kcal() : kcalDosMacros(r.proteina(), r.carboidrato(), r.gordura());
+        BigDecimal kcal = kcalDoCorpo ? r.kcal()
+                : kcalDoAlimento(r.proteina(), r.carboidrato(), r.gordura(), atual == null ? null : atual.getKcal());
+        // shortcut: a V061 mantém o CHECK alimento_kcal_obrigatoria_check (alimento comum com kcal não nula); alimento NOVO sem os
+        // três macros fica sem kcal (D15: "—") e o banco recusaria com 500. Tirar este bloco quando a migration que derruba o CHECK entrar.
+        if (kcal == null) {
+            throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO", List.of(
+                    new ApiError.FieldError("proteina", "Preencha proteína, carboidrato e gordura para o app calcular a kcal.")));
+        }
         exigirKcalNaFaixa(kcal);
         var fatores = FatoresDeRendimento.completar(r.fatorCorrecao(), r.fatorCoccao(), r.nome(), grupo,
                 kcal, r.baseQuantidade(), r.baseUnidade());
@@ -404,6 +412,15 @@ public class BibliotecaService {
         if (proteina == null || carboidrato == null || gordura == null) return null;
         return proteina.multiply(KCAL_POR_G_DE_PROTEINA_E_CARBOIDRATO).add(carboidrato.multiply(KCAL_POR_G_DE_PROTEINA_E_CARBOIDRATO))
                 .add(gordura.multiply(KCAL_POR_G_DE_GORDURA)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * D15: os três macros preenchidos recalculam a kcal; com um, dois ou nenhum fica a {@code gravada} (a da fonte, no
+     * Batel Grill; nula se não havia). Zero digitado é valor: 0/0/0 dá 0. Espelha {@code dominio/kcalDosMacros.ts}.
+     */
+    static BigDecimal kcalDoAlimento(BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura, BigDecimal gravada) {
+        BigDecimal calculada = kcalDosMacros(proteina, carboidrato, gordura);
+        return calculada != null ? calculada : gravada;
     }
 
     /** O kcal derivado precisa caber no mesmo teto que o DTO dava ao kcal digitado (a coluna é {@code numeric(8,2)}). */
@@ -449,15 +466,12 @@ public class BibliotecaService {
         return pedido != null ? pedido : gravado;
     }
 
-    private static void exigirNutricaoDeAlimento(AlimentoRequest r) {
+    private static void exigirBaseDeAlimento(AlimentoRequest r) {
         List<ApiError.FieldError> erros = new ArrayList<>();
         if (r.baseQuantidade() == null) erros.add(new ApiError.FieldError("baseQuantidade", "Informe a quantidade da base."));
         if (r.baseUnidade() == null || r.baseUnidade().isBlank()) {
             erros.add(new ApiError.FieldError("baseUnidade", "Informe a unidade da base."));
         }
-        if (r.proteina() == null) erros.add(new ApiError.FieldError("proteina", "Informe a proteína."));
-        if (r.carboidrato() == null) erros.add(new ApiError.FieldError("carboidrato", "Informe o carboidrato."));
-        if (r.gordura() == null) erros.add(new ApiError.FieldError("gordura", "Informe a gordura."));
         if (!erros.isEmpty()) {
             throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO", erros);
         }

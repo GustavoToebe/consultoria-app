@@ -19,7 +19,7 @@ import {
   previaDeConversao,
 } from '../../dominio/fatoresDoAlimento';
 import { numeroParaTela } from '../../dominio/formatos';
-import { kcalDosMacros } from '../../dominio/kcalDosMacros';
+import { kcalDoAlimento, kcalDosMacros } from '../../dominio/kcalDosMacros';
 import { chipDeVarias } from '../../dominio/filtrosDaBiblioteca';
 import { grupoDoTexto, gruposDoCampo } from '../../dominio/gruposDaLista';
 import { useTema } from '../../tema/TemaProvider';
@@ -99,6 +99,8 @@ export function ValoresDoAlimento({ alimento: a }: { alimento: Pick<Alimento, 'b
 
 /** Tamanho do grupo do alimento (`GrupoDoAlimento.MAXIMO` na API). */
 export const LIMITE_GRUPO_DO_ALIMENTO = 60;
+/** Teto de cada macro, o mesmo do DTO da API (`@DecimalMax("99999")`). */
+const MACRO_MAXIMO = 99999;
 
 /** Grupo e a conversão de 100 g, ou "Peso direto" quando FC e FCc são 1. */
 export function descricaoDoAlimento(a: Pick<Alimento, 'grupo' | 'fatorCorrecao' | 'fatorCoccao'>): string | null {
@@ -275,19 +277,20 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
-  // C48: a kcal não é digitada. Com os três macros é a conta deles; sem macros (alimento só com caloria, como o do
-  // Batel Grill) fica a da fonte, só para leitura: salvar continua exigindo os macros.
+  // C48/D15: a kcal não é digitada. Com os três macros é a conta deles; com um, dois ou nenhum (alimento só com caloria,
+  // como o do Batel Grill) fica a da fonte, só para leitura, ou "—" se não havia. Macros são opcionais; só as faixas travam.
   const kcalDosMacrosDigitados = kcalDosMacros(proteina, carboidrato, gordura);
-  const kcal = kcalDosMacrosDigitados ?? inicial?.kcal ?? null;
+  const kcal = kcalDoAlimento(proteina, carboidrato, gordura, inicial?.kcal ?? null);
   const kcalDaFonte = kcalDosMacrosDigitados === null && kcal !== null;
   const sugerido = estimarFatoresDoAlimento(nome, grupo, kcal, base, unidade);
   const fcMostrado = tocouFatores ? fc : sugerido.fatorCorrecao;
   const fccMostrado = tocouFatores ? fcc : sugerido.fatorCoccao;
   const erroFc = erroDoFatorCorrecao(fcMostrado);
   const erroFcc = erroDoFatorCoccao(fccMostrado);
+  const macroForaDaFaixa = [proteina, carboidrato, gordura].some((m) => m !== null && (m < 0 || m > MACRO_MAXIMO));
   const pendencia = !nome.trim() ? 'Informe o nome do alimento.'
     : !base ? 'Informe a quantidade-base.'
-      : kcalDosMacrosDigitados === null ? 'Preencha proteína, carboidrato e gordura.'
+      : macroForaDaFaixa ? 'Confira os macros: de 0 a 99.999 g.'
         : erroFc || erroFcc ? 'Confira os fatores do alimento.' : null;
 
   const sugerirPeloNome = () => { setTocouFatores(false); setFcLivre(false); setFccLivre(false); };
@@ -308,7 +311,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
       nome: nome.trim(),
       baseQuantidade: base,
       baseUnidade: unidade,
-      kcal: null, // o servidor deriva dos macros (C48); enviar o valor só faria a validação do DTO falhar sem campo na tela
+      kcal: null, // o servidor deriva dos macros (C48/D15); enviar o valor só faria a validação do DTO falhar sem campo na tela
       proteina,
       carboidrato,
       gordura,
@@ -402,7 +405,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
                 <CampoDoMacro macro={MACROS[2]} rotulo="Gordura (g)" valor={gordura} aoMudar={setGordura} erro={campos.gordura} />
               </View>
             </View>
-            {kcalDaFonte ? <Texto variante="pequeno">Informe os três macros para recalcular.</Texto> : null}
+            {kcalDosMacrosDigitados === null ? <Texto variante="pequeno">Preencha os três para o app calcular a kcal.</Texto> : null}
           </View>
         </Cartao>
 

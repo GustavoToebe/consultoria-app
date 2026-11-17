@@ -48,6 +48,37 @@ class KcalDosMacrosParidadeTest {
         assertThat(BibliotecaService.kcalDosMacros(bd("10"), bd("10"), null)).isNull();
     }
 
+    private static BigDecimal alimento(String p, String c, String g, String gravada) {
+        return BibliotecaService.kcalDoAlimento(bd(p), bd(c), bd(g), bd(gravada));
+    }
+
+    // D15 (macros opcionais): os mesmos casos de kcalDoAlimento em kcalDosMacros.test.ts, na mesma ordem.
+    @Test
+    void comOsTresMacrosRecalculaMesmoComKcalGravada() {
+        assertThat(alimento("100", "0", "0", "321.5")).isEqualByComparingTo("400");
+        assertThat(alimento("2.5", "28.1", "0.2", null)).isEqualByComparingTo("124.2");
+    }
+
+    @Test
+    void comUmDoisOuNenhumMacroMantemAKcalGravada() {
+        assertThat(alimento("10", "20", null, "321.5")).isEqualByComparingTo("321.5");
+        assertThat(alimento("10", null, null, "321.5")).isEqualByComparingTo("321.5");
+        assertThat(alimento(null, null, null, "321.5")).isEqualByComparingTo("321.5");
+        assertThat(alimento("0", null, null, "321.5")).isEqualByComparingTo("321.5");
+    }
+
+    @Test
+    void semMacrosESemKcalGravadaENuloNuncaZero() {
+        assertThat(alimento(null, null, null, null)).isNull();
+        assertThat(alimento("10", null, "1", null)).isNull();
+    }
+
+    @Test
+    void zeroZeroZeroDigitadoDePropositoDaZeroENaoAKcalGravada() {
+        assertThat(alimento("0", "0", "0", "321.5")).isEqualByComparingTo("0");
+        assertThat(alimento("0", "0", "0", null)).isEqualByComparingTo("0");
+    }
+
     @Test
     void macroNegativoERecusadoPeloDtoDaApi() {
         try (var fabrica = Validation.buildDefaultValidatorFactory()) {
