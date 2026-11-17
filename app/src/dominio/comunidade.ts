@@ -134,6 +134,21 @@ export function idDoYoutube(url: string | null | undefined): string | null {
 /** O único `src` do player: molde fixo a partir do id já validado. */
 export const urlDoEmbed = (id: string): string => `https://www.youtube-nocookie.com/embed/${id}`;
 
+/**
+ * C25: "Usar a capa do YouTube" só com link do YouTube reconhecido e ainda sem capa. O app nunca baixa a imagem do
+ * YouTube: só manda o link à nossa API, que devolve o id de uma capa normal.
+ */
+export const podeUsarCapaDoYoutube = (videoUrl: string | null | undefined, capaId: string | null | undefined): boolean =>
+  !capaId && idDoYoutube(videoUrl) !== null;
+
+export const ROTULO_CAPA_DO_YOUTUBE = 'Usar a capa do YouTube';
+export const ROTULO_BUSCANDO_A_CAPA = 'Buscando a capa…';
+const SUGESTAO_DA_CAPA = 'Tente enviar a imagem.';
+
+/** A mensagem da API; no 503 (YouTube indisponível) soma a saída que sobra: enviar a imagem da galeria. */
+export const textoDoErroDaCapaDoYoutube = (status: number | null, mensagem: string): string =>
+  status === 503 && !mensagem.includes(SUGESTAO_DA_CAPA) ? `${mensagem} ${SUGESTAO_DA_CAPA}` : mensagem;
+
 /** "Abrir no YouTube": também montado pelo id, sem nenhum parâmetro da URL gravada. */
 export const urlNoYoutube = (id: string): string => `https://www.youtube.com/watch?v=${id}`;
 
@@ -364,11 +379,9 @@ export function errosDoPost(r: RascunhoDoPost, papel: PapelNoMural, agora: Date 
     if (!link) erros.videoUrl = MENSAGEM_POST_VIDEO_SEM_LINK;
     else if (!linkExternoSeguro(link)) erros.videoUrl = MENSAGEM_LINK;
   } else if (link) erros.videoUrl = 'Só a publicação de vídeo leva link.';
+  // De 0 a 4 fotos, sem repetir, para o aluno e (C36) para a equipe; quem pode anexar é decidido por `comFotos` na folha.
   const fotos = r.fotoIds ?? [];
-  if (fotos.length > 0) {
-    if (papel === 'equipe') erros.fotoIds = 'A equipe não anexa fotos.';
-    else if (fotos.length > POST_FOTOS_MAXIMO || new Set(fotos).size !== fotos.length) erros.fotoIds = `Use de 1 a ${POST_FOTOS_MAXIMO} fotos, sem repetir.`;
-  }
+  if (fotos.length > POST_FOTOS_MAXIMO || new Set(fotos).size !== fotos.length) erros.fotoIds = `Use de 1 a ${POST_FOTOS_MAXIMO} fotos, sem repetir.`;
   return erros;
 }
 

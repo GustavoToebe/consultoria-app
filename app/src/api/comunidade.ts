@@ -145,9 +145,17 @@ export const excluirAula = (id: string) =>
 export const listarMuralDaEquipe = (filtros?: FiltrosDoMural) =>
   requisicao<PaginaDoMural>(`/comunidade/mural${PAGINA_DO_MURAL}${filtrosDoMural(filtros, true)}`);
 
-/** Equipe (`COMUNIDADE_MODERAR`): todos os tipos, sem fotos; `VIDEO` exige `videoUrl` https; `AVISO` nasce fixado. 422 `POST_INVALIDO`. */
+/** Equipe (`COMUNIDADE_MODERAR`): todos os tipos, com 0 a 4 `fotoIds`; `VIDEO` exige `videoUrl` https; `AVISO` nasce fixado. 422 `POST_INVALIDO`. */
 export const publicarNoMuralDaEquipe = (post: CriarPostRequest) =>
   requisicao<PostDoMural>('/comunidade/mural', { metodo: 'POST', corpo: post });
+
+/** C36: uma foto pendente por chamada, como a do aluno (`enviarFotoDoMural`), pela rota da equipe. */
+export const enviarFotoDoMuralDaEquipe = (arquivo: FormData) =>
+  requisicao<{ id: string }>('/comunidade/mural/fotos', { metodo: 'POST', corpoBruto: arquivo, limiteMs: 60000 });
+
+/** Remove a foto pendente (204); a já publicada dá 404. */
+export const apagarFotoPendenteDaEquipe = (id: string) =>
+  requisicao<void>(`/comunidade/mural/fotos/${encodeURIComponent(id)}`, { metodo: 'DELETE' });
 
 /** Fixa ou desafixa (a API alterna; 204). O aviso já nasce fixado. */
 export const alternarFixadoDoPost = (postId: string) =>
@@ -222,5 +230,12 @@ export const baixarFotoDoVotanteDaEquipe = (autorId: string) =>
 export const enviarCapa = (arquivo: FormData) =>
   requisicao<{ id: string }>('/comunidade/capas', { metodo: 'POST', corpoBruto: arquivo, limiteMs: 60000 });
 
-export const baixarCapaDaEquipe = (id: string) =>
+/**
+ * C25: a API busca a miniatura do YouTube a partir do link e devolve o id de uma capa normal (mesma forma de `enviarCapa`);
+ * o app nunca fala com o YouTube. 422 `CAPA_INVALIDA` (campo `videoUrl`) e 503 com mensagem neutra.
+ */
+export const criarCapaDoYoutube = (videoUrl: string) =>
+  requisicao<{ id: string }>('/comunidade/capas/youtube', { metodo: 'POST', corpo: { videoUrl }, limiteMs: 30000 });
+
+export const baixarCapaDaEquipe =(id: string) =>
   requisicao<Blob>(`/comunidade/capas/${encodeURIComponent(id)}`, { binario: true, limiteMs: 30000 });

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
-import { apagarFotoPendenteDoMural, baixarFotoDoMuralDoAluno, publicarNoMuralDaEquipe, publicarNoMuralDoAluno } from '../api/comunidade';
+import { publicarNoMuralDaEquipe, publicarNoMuralDoAluno } from '../api/comunidade';
 import type { PodResumo } from '../api/comunidadeTipos';
 import { FotoRecusada } from '../aluno/atualizacao/fotos/prepararFoto';
 import {
@@ -24,7 +24,7 @@ import { Texto } from '../ui/Texto';
 import { separarErros, textoDoErro } from '../ui/erros';
 import { CampoDaCapa } from './CampoDaCapa';
 import { EscolhaDoGrupo } from './EscolhaDoGrupo';
-import { escolherEEnviarFotoDoMural } from './fotosDoMural';
+import { escolherEEnviarFotoDoMural, rotasDaFotoDoMural } from './fotosDoMural';
 
 const CAMPOS: CampoDoPost[] = ['tipo', 'texto', 'videoUrl', 'fotoIds', 'capaId', 'opcoes', 'encerraEm'];
 const SEM_INTERNET = 'Sem conexão: publicar precisa de internet.';
@@ -33,8 +33,8 @@ const SEM_INTERNET = 'Sem conexão: publicar precisa de internet.';
  * "Nova publicação" do mural numa `Folha` (aluno e equipe). O rascunho mora na tela (fechar e reabrir mantém); os erros
  * aparecem no envio, cada um no seu campo, com as regras de `dominio/comunidade` e o 422 da API no mesmo lugar. A equipe
  * escolhe também Aviso (nasce fixado), Vídeo (link https e capa opcional) e Enquete (a pergunta é o texto; 2 a 6 opções,
- * várias respostas e prazo opcionais, com o aviso de que o voto é identificado); fotos só para o aluno com `comFotos`,
- * uma por vez, pendentes até publicar.
+ * várias respostas e prazo opcionais, com o aviso de que o voto é identificado); fotos (0 a 4, aluno e equipe) só com
+ * `comFotos`, uma por vez, pendentes até publicar, pela rota do papel (`rotasDaFotoDoMural`).
  *
  * Grupos (pods): o aluno com pod publica no mural que está vendo (`destino`, só leitura; o servidor confere que o pod é o
  * dele); a equipe com `grupos` escolhe Geral (padrão) ou um grupo, com o aviso de menor do grupo escolhido.
@@ -107,7 +107,7 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
     setErroDaFoto(null);
     setSubindoFoto(true);
     try {
-      const id = await escolherEEnviarFotoDoMural(origem);
+      const id = await escolherEEnviarFotoDoMural(origem, papel);
       if (id) mudar({ fotoIds: [...fotos, id] }, 'fotoIds');
     } catch (e) {
       setErroDaFoto(e instanceof FotoRecusada ? e.message : (separarErros(e, ['arquivo']).campos.arquivo ?? textoDoErro(e)));
@@ -119,7 +119,7 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
   const tirarFoto = async (id: string) => {
     setErroDaFoto(null);
     try {
-      await apagarFotoPendenteDoMural(id);
+      await rotasDaFotoDoMural[papel].apagar(id);
     } catch (e) {
       // 404: a pendente já saiu (passou do prazo ou foi publicada); some da lista do mesmo jeito.
       if (!(e instanceof ErroApi && e.status === 404)) { setErroDaFoto(textoDoErro(e)); return; }
@@ -173,7 +173,7 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
         erro={erro('texto')}
       />
       {rascunho.tipo === 'VIDEO' ? (
-        <CampoDaCapa capaId={rascunho.capaId ?? null} aoMudar={(capaId) => mudar({ capaId }, 'capaId')} erro={erro('capaId')} />
+        <CampoDaCapa capaId={rascunho.capaId ?? null} videoUrl={rascunho.videoUrl} online={online} aoMudar={(capaId) => mudar({ capaId }, 'capaId')} erro={erro('capaId')} />
       ) : null}
 
       {rascunho.tipo === 'ENQUETE' ? (
@@ -204,14 +204,14 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
         </View>
       ) : null}
 
-      {papel === 'aluno' && comFotos ? (
+      {comFotos ? (
         <View style={estilos.fotos}>
           <Texto variante="rotulo">{`Fotos (opcional, até ${POST_FOTOS_MAXIMO})`}</Texto>
           {fotos.length ? (
             <View style={estilos.miniaturas}>
               {fotos.map((id, i) => (
                 <View key={id} style={estilos.miniatura}>
-                  <ImagemProtegida chave={`mural-foto:${id}`} carregar={() => baixarFotoDoMuralDoAluno(id)} descricao={`Foto ${i + 1} da publicação`} tamanho={88} />
+                  <ImagemProtegida chave={`mural-foto:${id}`} carregar={() => rotasDaFotoDoMural[papel].baixar(id)} descricao={`Foto ${i + 1} da publicação`} tamanho={88} />
                   <IconeBotao Icone={X} rotulo={`Remover a foto ${i + 1}`} moldura aoTocar={() => void tirarFoto(id)} />
                 </View>
               ))}

@@ -116,7 +116,7 @@ export interface PostDoMural {
 }
 
 /**
- * Corpo do `POST` do mural. `tipo` ausente = `CONVERSA`; `videoUrl` e `capaId` só em `VIDEO`; `fotoIds` só do aluno (0 a 4);
+ * Corpo do `POST` do mural. `tipo` ausente = `CONVERSA`; `videoUrl` e `capaId` só em `VIDEO`; `fotoIds` do aluno e da equipe (0 a 4, enviadas antes pela rota do papel);
  * `opcoes`, `variasRespostas` e `encerraEm` só em `ENQUETE` (da equipe).
  */
 export interface CriarPostRequest {

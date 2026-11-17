@@ -114,7 +114,7 @@ export function FolhaDoAulao({ visivel, original, categorias, aoFechar, aoSalvar
       <Campo rotulo="Descrição (opcional)" placeholder="O que será abordado e o que o aluno precisa saber" valor={r.descricao}
         maxLength={AULA_DESCRICAO_MAXIMA} aoMudar={mudar('descricao', 'descricao')} linhas={4}
         erro={errosApi.descricao || undefined} />
-      <CampoDaCapa capaId={r.capaId} erro={errosApi.capaId || undefined} aoMudar={(capaId) => {
+      <CampoDaCapa capaId={r.capaId} videoUrl={r.link} erro={errosApi.capaId || undefined} aoMudar={(capaId) => {
         setR((atual) => ({ ...atual, capaId }));
         setErrosApi((a) => Object.fromEntries(Object.entries(a).filter(([k]) => k !== 'capaId')));
       }} />

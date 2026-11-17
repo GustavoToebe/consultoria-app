@@ -6,7 +6,8 @@ import {
   AVISO_AO_CRIAR_ENQUETE, AVISO_ANTES_DO_VOTO, erroDasOpcoes, erroDoPrazo, MENSAGEM_PRAZO_DA_ENQUETE, nomeDoVotante, percentualDaOpcao,
   prazoDaEnquete, textoDosParticipantes, textoDosVotos, votosAoTocar,
   ATRIBUTOS_DO_PLAYER, htmlDoPlayer, idDoYoutube, navegacaoDoPlayerPermitida, urlDoEmbed, urlNoYoutube,
-  errosDoPost, MOTIVOS_DE_DENUNCIA, podeAnexarFoto, podePublicar, postParaEnviar, rotuloDoMotivo, rotuloDoTipo, TIPOS_DE_POST,
+  errosDoPost, MOTIVOS_DE_DENUNCIA, podeAnexarFoto, podePublicar, podeUsarCapaDoYoutube, postParaEnviar, rotuloDoMotivo, rotuloDoTipo,
+  textoDoErroDaCapaDoYoutube, TIPOS_DE_POST,
   tiposParaEscolher, chipsDoMural, MURAL_SEM_FILTRO, opcoesDoTipoDoMural, semOFiltroDoMural, filtrosParaApi, textoDoMuralVazio, textoDasDenuncias, tipoPedido,
   avisoDoPod, AVISO_DO_POD_COM_MENOR, erroDoNomeDoPod, motivoDoGrupoCheio, POD_TETO, MENSAGEM_POD_NOME, nomeDoPodParaEnviar, rotuloDoPost, traduzirErroDoPod,
   agruparAuloesPorCategoria, buscarAuloes, categoriasDosAuloes, corpoDaAula, errosDaAula, filtrarAuloesPorCategoria,
@@ -376,11 +377,16 @@ describe('validação da publicação', () => {
     expect(errosDoPost({ tipo: 'VIDEO', texto: 'Aula', videoUrl: 'https://youtu.be/abc' }, 'equipe')).toEqual({});
     expect(errosDoPost({ tipo: 'AVISO', texto: 'x', videoUrl: 'https://youtu.be/abc' }, 'equipe').videoUrl).toBeTruthy();
   });
-  it('foto: de 1 a 4 sem repetir, e só do aluno', () => {
+  it('foto: de 0 a 4 sem repetir, para o aluno e para a equipe (C36)', () => {
     expect(errosDoPost({ tipo: 'RESULTADO', texto: 'x', fotoIds: ['a', 'b', 'c', 'd'] }, 'aluno')).toEqual({});
     expect(errosDoPost({ tipo: 'RESULTADO', texto: 'x', fotoIds: ['a', 'b', 'c', 'd', 'e'] }, 'aluno').fotoIds).toBeTruthy();
     expect(errosDoPost({ tipo: 'RESULTADO', texto: 'x', fotoIds: ['a', 'a'] }, 'aluno').fotoIds).toBeTruthy();
-    expect(errosDoPost({ tipo: 'CONVERSA', texto: 'x', fotoIds: ['a'] }, 'equipe').fotoIds).toBeTruthy();
+    expect(errosDoPost({ tipo: 'AVISO', texto: 'x', fotoIds: [] }, 'equipe')).toEqual({});
+    expect(errosDoPost({ tipo: 'AVISO', texto: 'x', fotoIds: ['a'] }, 'equipe')).toEqual({});
+    expect(errosDoPost({ tipo: 'CONVERSA', texto: 'x', fotoIds: ['a', 'b', 'c', 'd'] }, 'equipe')).toEqual({});
+    expect(errosDoPost({ tipo: 'CONVERSA', texto: 'x', fotoIds: ['a', 'b', 'c', 'd', 'e'] }, 'equipe').fotoIds).toBeTruthy();
+    expect(errosDoPost({ tipo: 'CONVERSA', texto: 'x', fotoIds: ['a', 'a'] }, 'equipe').fotoIds).toBeTruthy();
+    expect(postParaEnviar({ tipo: 'AVISO', texto: 'x', fotoIds: ['a'] }).fotoIds).toEqual(['a']);
   });
   it('capa só no vídeo, e vai no corpo junto com o link', () => {
     expect(errosDoPost({ tipo: 'AVISO', texto: 'x', capaId: 'c1' }, 'equipe').capaId).toBeTruthy();
@@ -391,6 +397,24 @@ describe('validação da publicação', () => {
     expect(postParaEnviar({ tipo: 'CONVERSA', texto: '  oi  ', videoUrl: 'https://x.com/a', fotoIds: [] })).toEqual({ tipo: 'CONVERSA', texto: 'oi' });
     expect(postParaEnviar({ tipo: 'VIDEO', texto: 'Aula', videoUrl: ' https://youtu.be/abc ' })).toEqual({ tipo: 'VIDEO', texto: 'Aula', videoUrl: 'https://youtu.be/abc' });
     expect(postParaEnviar({ tipo: 'RESULTADO', texto: 'x', fotoIds: ['a'] }).fotoIds).toEqual(['a']);
+  });
+});
+
+describe('capa do YouTube (C25)', () => {
+  it('o botão só aparece com link do YouTube reconhecido e sem capa', () => {
+    expect(podeUsarCapaDoYoutube('https://youtu.be/abcdefghijk', null)).toBe(true);
+    expect(podeUsarCapaDoYoutube(' https://www.youtube.com/watch?v=abcdefghijk ', undefined)).toBe(true);
+    expect(podeUsarCapaDoYoutube('https://youtu.be/abcdefghijk', 'c1')).toBe(false);
+    expect(podeUsarCapaDoYoutube('https://video.exemplo.invalid/aula', null)).toBe(false);
+    expect(podeUsarCapaDoYoutube('https://youtu.be/curto', null)).toBe(false);
+    expect(podeUsarCapaDoYoutube('', null)).toBe(false);
+    expect(podeUsarCapaDoYoutube(undefined, null)).toBe(false);
+  });
+  it('503 ganha a sugestão de enviar a imagem; o 422 fica com a mensagem da API', () => {
+    expect(textoDoErroDaCapaDoYoutube(503, 'Não foi possível buscar a capa agora.')).toBe('Não foi possível buscar a capa agora. Tente enviar a imagem.');
+    expect(textoDoErroDaCapaDoYoutube(503, 'Não deu. Tente enviar a imagem.')).toBe('Não deu. Tente enviar a imagem.');
+    expect(textoDoErroDaCapaDoYoutube(422, 'Esse vídeo não tem capa.')).toBe('Esse vídeo não tem capa.');
+    expect(textoDoErroDaCapaDoYoutube(null, 'Sem conexão.')).toBe('Sem conexão.');
   });
 });
 
