@@ -484,7 +484,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(puts.map((p) => [p.caminho, p.busca.get('escopo')])).toEqual([['/agenda/compromissos/k4', 'SEGUINTES'], ['/agenda/compromissos/k4', null]]);
       expect(puts[0].corpo).toEqual({
         alunoIds: [ANA.id, BRUNO.id, CARLA.id], responsavelId: TREINADOR.id, data: '2026-10-20', hora: '16:00', duracaoMinutos: 60,
-        local: 'Sala 2', observacao: 'Observação fictícia', versao: 0,
+        local: 'Sala 2', observacao: 'Observação fictícia', lembretesMinutos: [30], versao: 0,
       });
       expect(puts[1].corpo).toMatchObject({ data: '2026-10-21', versao: 1 });
       expect(naoTratadas).toEqual([]);

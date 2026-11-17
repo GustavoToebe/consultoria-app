@@ -7,7 +7,8 @@ import { json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from
 /**
  * Tela Marca, paletas (plano paletas-da-marca, passo 5): as 10 paletas em dois grupos (Escuras e Claras), a prévia na
  * paleta escolhida, o `temaPadrao` no PUT e a checagem da cor personalizada medida contra a paleta (decisão 4).
- * Os dois grupos são subgrupos (`group`) de um único `radiogroup` "Tema padrão da consultoria". Dados fictícios. A cor `#386CB8` passa no Escuro e no Claro e some no cartão do Oceano (`dominio/paletas.test.ts`).
+ * Os dois grupos são subgrupos (`group`) de um único `radiogroup` "Tema padrão da consultoria". Dados fictícios. A cor `#3A67B5` passa no Escuro e no Claro e some no cartão do Oceano (2,96:1, abaixo de 3:1); a
+ * `#386CB8` de antes deixou de sumir quando o cartão do Oceano mudou (`dominio/paletas.test.ts`, commit 1f33299d).
  */
 const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
 const ADMIN = { permissoes: [...PERMISSOES_TREINADOR, 'MARCA_ALTERAR'], perfil: { id: 'p1', nome: 'Administrador', acessoTotal: true } };
@@ -79,7 +80,7 @@ for (const largura of [390, 1280]) {
   test(`cor personalizada: o aviso segue a paleta escolhida em ${largura}px`, async ({ page }) => {
     const { errosDaPagina } = await abrirMarca(page, largura);
     await page.getByRole('radio', { name: /^Cor personalizada/ }).click();
-    await page.getByRole('textbox', { name: 'Cor principal (#RRGGBB)' }).fill('#386CB8');
+    await page.getByRole('textbox', { name: 'Cor principal (#RRGGBB)' }).fill('#3A67B5');
     const aviso = page.getByTestId('aviso-marca-apagada-na-paleta');
     await expect(aviso).toHaveCount(0);
 

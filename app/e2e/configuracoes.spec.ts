@@ -95,12 +95,14 @@ test('perfil restrito: só os cartões que ele pode abrir; Consultoria, Equipe e
   expect(errosDaPagina).toEqual([]);
 });
 
-test('perfil com poucos cartões (390): Sua conta e Ajuda, sem buraco nem rolagem lateral', async ({ page }) => {
+test('perfil com poucos cartões (390): Sua conta, Aniversários e Ajuda, sem buraco nem rolagem lateral', async ({ page }) => {
   const poucos: Perfil = { permissoes: ['ALUNO_LER'] };
   const { errosDaPagina } = await abrir(page, 390, poucos);
   const { grupos } = esperado(poucos);
-  expect(grupos).toEqual(['Sua conta', 'Ajuda']);
+  // Com ALUNO_LER entra o "Aniversários dos alunos" (D4 de docs/planos/aniversarios.md), único do grupo dele.
+  expect(grupos).toEqual(['Sua conta', 'Alunos e atendimento', 'Ajuda']);
   await expect.poll(() => titulosDosCartoes(page)).toEqual(grupos);
+  await expect(cartao(page, 'Aniversários dos alunos')).toHaveAttribute('href', '/treinador/ajustes');
   await semRolagemLateral(page);
   await capturar(page, 'poucos-390');
   expect(errosDaPagina).toEqual([]);
