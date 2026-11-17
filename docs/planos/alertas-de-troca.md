@@ -28,7 +28,7 @@ O treinador fica sabendo que o aluno trocou um exercício, pelo canal que já ex
 | 5 | Janela | **(a) 7 dias (recomendada)**; (b) 14 dias |
 
 ## Passos (depois do Lote B e das respostas)
-- [ ] 1. API: leitura das trocas pendentes do escopo (JPQL) e, se decisão 3a, migration `troca_exercicio_visto` com o próximo número livre depois da do Lote B (executor) — commit: —
+- [x] 1. API: leitura das trocas pendentes do escopo (JPQL) e, se decisão 3a, migration `troca_exercicio_visto` com o próximo número livre depois da do Lote B (executor) — feito (16/11, NÃO compilado até o commit): V080 `troca_exercicio_visto`, `GET /trocas-de-exercicio/pendentes?meus=`, `vistoEm` na lista do aluno, `PUT`/`DELETE /alunos/{id}/trocas-de-exercicio/visto` (corpo com a chave; DELETE com corpo: conferir proxy e cliente web); `TrocasVistasIntegrationTest`; decisões do executor: visto aceito até 31 dias, chave inclui a alternativa — commit: ver `git log` ("V080: visto da troca de exercício")
 - [ ] 2. App: pendência no Início (`dominio/painelDoInicio.ts`), cartão na ficha (executor; tela pequena no executor-front se precisar) — commit: —
 - [ ] 3. Ajuda e `AGENTS.md` — commit: —
 

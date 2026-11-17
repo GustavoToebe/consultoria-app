@@ -105,13 +105,34 @@ public final class ExecucaoDtos {
     /**
      * Um exercício que o aluno trocou só naquele dia ({@code series} = quantas séries concluiu na alternativa). Só existe
      * onde há série feita: troca sem série marcada fica só no aparelho. {@code planoVersaoId} e {@code exercicioUid}
-     * identificam o exercício na versão que ele via.
+     * identificam o exercício na versão que ele via. {@code vistoEm} = quando o treinador marcou "Visto" (alertas-de-troca,
+     * {@code REGISTRO_REAGIR}); nulo = não visto.
      */
     public record TrocaDeExercicio(LocalDate data, UUID planoVersaoId, UUID sessaoUid, String sessao, UUID exercicioUid,
-                                   ExercicioDaTroca principal, ExercicioDaTroca alternativa, int series) {
+                                   ExercicioDaTroca principal, ExercicioDaTroca alternativa, int series, Instant vistoEm) {
     }
 
     public record TrocasDeExercicio(LocalDate de, LocalDate ate, List<TrocaDeExercicio> trocas) {
+    }
+
+    /** Troca ainda não vista, com o aluno (só nome, que o {@code REGISTRO_LER} já mostra). */
+    public record TrocaPendente(UUID alunoId, String alunoNome, TrocaDeExercicio troca) {
+    }
+
+    /** Pendências do escopo nos últimos 7 dias: {@code total} das não vistas e as mais recentes (até 50). */
+    public record TrocasPendentes(LocalDate de, LocalDate ate, int total, List<TrocaPendente> trocas) {
+    }
+
+    /**
+     * Chave natural da troca, no corpo do "Visto": dia, versão do plano, exercício do plano (uid) e a alternativa usada
+     * ({@code alternativa.exercicioId} da troca). O aluno vem do caminho.
+     */
+    public record ChaveDaTroca(@NotNull LocalDate data, @NotNull UUID planoVersaoId, @NotNull UUID exercicioUid,
+                               @NotNull UUID alternativaId) {
+    }
+
+    /** Resposta do "Visto" da troca: quando ficou marcado. */
+    public record VistoDaTroca(Instant vistoEm) {
     }
 
     public record ProgressoPonto(LocalDate data, BigDecimal maiorCargaTrabalho, Integer repeticoes) {
