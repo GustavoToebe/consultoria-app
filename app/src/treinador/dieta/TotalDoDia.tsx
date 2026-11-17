@@ -13,7 +13,8 @@ import { Texto } from '../../ui/Texto';
 import { gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro } from '../../ui/ValoresDaDieta';
 
 /**
- * "Total do dia" (opção A de cada refeição; guia premium pág. 10), compacto: kcal em destaque neutro e os três macros
+ * "Total do dia" (opção A de cada refeição; guia premium pág. 10), compacto: kcal em destaque neutro (a maior variante de
+ * `Texto`) e os três macros em `bloco` (C60, números maiores sem tipografia nova)
  * lado a lado com a marca da cor, o número antes do nome ("—" sem unidade quando falta valor), e a água por dia na mesma faixa, sempre à vista (dentro da "Configuração do plano", que fecha
  * sozinha quando a dieta já tem refeições, o treinador não a encontrava, 30/10). Se algum item deixa o total incompleto,
  * diz quantos são e leva ao primeiro. Modelo de uma refeição só não tem água. Com variações, soma as `refeicoes` da variação
@@ -35,12 +36,12 @@ export function TotalDoDia({ conteudo: c, refeicoes, rotulo, semValor, aoAbrirRe
         <View style={estilos.numeros} role="list">
           <View style={estilos.kcal} role="listitem" accessibilityLabel={`Calorias: ${t.kcal === null ? kcal : `${kcal} kcal`}`}>
             <Texto variante="destaque" numerico>{kcal}</Texto>
-            {t.kcal === null ? null : <Texto variante="pequeno">kcal</Texto>}
+            {t.kcal === null ? null : <Texto variante="subtitulo" cor="suave">kcal</Texto>}
           </View>
           <View style={estilos.macros}>
             {MACROS.map((m) => (
               <View key={m.chave} style={estilos.macro} role="listitem" accessibilityLabel={`${m.nome}: ${gramasNaTela(t[m.chave])}`}>
-                <Texto variante="subtitulo" numerico>{gramasNaTela(t[m.chave])}</Texto>
+                <Texto variante="bloco" numerico>{gramasNaTela(t[m.chave])}</Texto>
                 <View style={estilos.nomeDoMacro}><MarcaDoMacro cor={m.cor} /><Texto variante="pequeno">{m.nome}</Texto></View>
               </View>
             ))}

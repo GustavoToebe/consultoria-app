@@ -14,6 +14,8 @@ interface Props {
   contexto?: string;
   /** Linha de resumo do item fechado ("2×10 · com vídeo"). */
   resumo?: string;
+  /** Abaixo do resumo, aberto ou fechado: o que a linha de texto não carrega (o subtotal da refeição com P/C/G, C66). */
+  detalhe?: ReactNode;
   selo?: { texto: string; tipo: TipoSelo };
   aberto: boolean;
   /** Sem ele, o item fica sempre aberto (o inspetor dos editores em duas colunas): título fixo, sem chevron. */
@@ -35,13 +37,14 @@ interface Props {
  * gramática em todos os editores (padrão das telas de 19/10): título e resumo (tocar abre/fecha) · setas ↑↓ = mover ·
  * chevron = abrir/fechar · remover. O chevron nunca move e a seta nunca abre. Sem `aoAlternar`, o título é só texto.
  */
-export function CabecalhoDoItem({ titulo, contexto, resumo, selo, aberto, aoAlternar, posicao = 0, total = 1, aoMover, nomeDoItem, remover, faixa }: Props) {
+export function CabecalhoDoItem({ titulo, contexto, resumo, detalhe, selo, aberto, aoAlternar, posicao = 0, total = 1, aoMover, nomeDoItem, remover, faixa }: Props) {
   const { cores } = useTema();
   const Seta = aberto ? ChevronUp : ChevronDown;
   const textos = <>
     {contexto ? <Texto variante="pequeno" numerico>{contexto}</Texto> : null}
     <Texto variante="bloco" nivel={aoAlternar ? undefined : 3} style={estilos.titulo}>{titulo}</Texto>
     {resumo ? <Texto variante="suave" numerico>{resumo}</Texto> : null}
+    {detalhe ?? null}
     {selo ? <View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} /></View> : null}
   </>;
   return (

@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, PencilLine, Plus, Trash2, TriangleAlert } from 'lucide-react-native';
+import { ArrowDown, ArrowLeftRight, ArrowUp, PencilLine, Plus, Trash2, TriangleAlert } from 'lucide-react-native';
 import { Fragment, type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -14,10 +14,11 @@ import {
   semConversao,
   somar,
 } from '../../dominio/dieta';
+import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
@@ -43,12 +44,20 @@ export function tituloDaRefeicao(r: Refeicao, posicao: number): string {
   return `${r.horario ? `${r.horario} · ` : ''}${r.nome || `Refeição ${posicao + 1}`}`;
 }
 
-/** "540 kcal · 3 itens · 2 opções": o total e os itens são os da opção A ("—" sem valor). */
+/** "3 itens · 2 opções": os itens são os da opção A. */
+export function contagemDaRefeicao(r: Refeicao): string {
+  const nItens = r.opcoes[0]?.itens.length ?? 0;
+  return `${nItens} ${nItens === 1 ? 'item' : 'itens'}${r.opcoes.length > 1 ? ` · ${r.opcoes.length} opções` : ''}`;
+}
+
+/** "540 kcal · 3 itens · 2 opções" (lista do inspetor, que é estreita): o total e os itens são os da opção A ("—" sem valor). */
 export function resumoDaRefeicao(r: Refeicao): string {
   const totalA = somar(r.opcoes[0]?.itens ?? []);
-  const nItens = r.opcoes[0]?.itens.length ?? 0;
-  return `${totalA.kcal === null ? '—' : numeroParaTela(totalA.kcal, 0)} kcal · ${nItens} ${nItens === 1 ? 'item' : 'itens'}${r.opcoes.length > 1 ? ` · ${r.opcoes.length} opções` : ''}`;
+  return `${totalA.kcal === null ? '—' : numeroParaTela(totalA.kcal, 0)} kcal · ${contagemDaRefeicao(r)}`;
 }
+
+/** Barra lateral do cartão na cor da refeição (C63), a mesma largura da dieta do aluno; o resto do cartão fica neutro (Dose de cor). */
+const BARRA_DA_REFEICAO = 6;
 
 interface Props {
   refeicao: Refeicao;
@@ -73,6 +82,8 @@ interface Props {
   aoSalvarModelo?: () => void;
   /** Abre a escolha de alimento; o item entra na opção indicada. */
   aoEscolherAlimento: (opcao: number) => void;
+  /** "Trocar alimento" de um item da biblioteca (C56): abre a escolha para o item `uid`. */
+  aoTrocarAlimento?: (uid: string) => void;
 }
 
 /**
@@ -83,7 +94,9 @@ interface Props {
  * título e um fio, sem caixa. Nada é comparado nem calculado entre as opções.
  */
 export function CartaoRefeicao(p: Props) {
-  const { cores } = useTema();
+  const { cores, identificacao } = useTema();
+  // A cor diz qual refeição é (pela posição na seção aberta: na dieta por dia, dentro da variação), nunca status.
+  const corDaBarra = identificacao?.[corDaRefeicao(p.posicao)]?.cor;
   const r = p.refeicao;
   const [largura, setLargura] = useState(0);
   const mudar = (parcial: Partial<Refeicao>) => p.aoMudar({ ...r, ...parcial });
@@ -99,18 +112,27 @@ export function CartaoRefeicao(p: Props) {
   const titulo = tituloDaRefeicao(r, p.posicao);
   const problema = p.comProblema.has(r.uid);
   const varias = r.opcoes.length > 1;
+  const opcaoA = r.opcoes[0];
+  // Subtotal da refeição (C66): a opção A, a que entra no "Total do dia", também com a refeição aberta.
+  const subtotal = opcaoA ? (
+    <View role="group" aria-label={varias ? `Subtotal da refeição, opção ${opcaoA.rotulo}` : 'Subtotal da refeição'} style={estilos.subtotal}>
+      {varias ? <Texto variante="pequeno" aria-hidden>Opção {opcaoA.rotulo}:</Texto> : null}
+      <ValoresDaDieta totais={somar(opcaoA.itens)} inicio />
+    </View>
+  ) : undefined;
 
   return (
     <AlvoDeRolagem chave={r.uid}><View nativeID={idDaRefeicao(r.uid)}><Cartao
-      style={problema ? { borderColor: cores.perigo } : undefined}
+      style={[corDaBarra ? { borderLeftWidth: BARRA_DA_REFEICAO, borderLeftColor: corDaBarra } : null, problema ? { borderColor: cores.perigo } : null]}
       cabecalho={
         <CabecalhoDoItem
           faixa
           // A posição por extenso só no inspetor: empilhadas, a ordem já está à vista.
           contexto={p.aoAbrir ? undefined : `Refeição ${p.posicao + 1} de ${p.total}`}
           titulo={titulo}
-          // Aberta, o resumo repetiria o que está logo abaixo (e, no PC, no item da lista).
-          resumo={p.aberta ? undefined : resumoDaRefeicao(r)}
+          // Fechada, a contagem; os valores (kcal e P/C/G da opção A) ficam embaixo, aberta ou fechada.
+          resumo={p.aberta ? undefined : contagemDaRefeicao(r)}
+          detalhe={subtotal}
           selo={problema ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
           aberto={p.aberta}
           aoAlternar={p.aoAbrir}
@@ -169,6 +191,7 @@ export function CartaoRefeicao(p: Props) {
                   alimentos={p.alimentos}
                   aoMudarItens={(fn) => mudarItens(indice, fn)}
                   aoEscolherAlimento={() => p.aoEscolherAlimento(indice)}
+                  aoTrocarAlimento={p.aoTrocarAlimento}
                   aoRemover={varias ? () => p.aoRemoverOpcao(indice) : undefined}
                   aoRemoverItem={p.aoRemoverItem ? (ii, nome) => p.aoRemoverItem!(indice, ii, nome) : undefined}
                 />
@@ -208,6 +231,7 @@ function OpcaoDaRefeicao({
   alimentos,
   aoMudarItens,
   aoEscolherAlimento,
+  aoTrocarAlimento,
   aoRemover,
   aoRemoverItem,
 }: {
@@ -219,6 +243,7 @@ function OpcaoDaRefeicao({
   alimentos: Map<string, Alimento>;
   aoMudarItens: (fn: (itens: ItemDieta[]) => ItemDieta[]) => void;
   aoEscolherAlimento: () => void;
+  aoTrocarAlimento?: (uid: string) => void;
   aoRemover?: () => void;
   aoRemoverItem?: (itemIndice: number, nomeItem: string) => void;
 }) {
@@ -245,6 +270,7 @@ function OpcaoDaRefeicao({
           aoMudar={(novo) => aoMudarItens((itens) => substituir(itens, ii, recalcularItem(novo, novo.alimentoId ? alimentos.get(novo.alimentoId) : undefined)))}
           aoRemover={() => (aoRemoverItem ? aoRemoverItem(ii, item.nome || `Item ${ii + 1}`) : aoMudarItens((itens) => remover(itens, ii)))}
           aoMover={(d) => aoMudarItens((itens) => mover(itens, ii, d))}
+          aoTrocar={aoTrocarAlimento && !item.manual ? () => aoTrocarAlimento(item.uid) : undefined}
         />
       ))}
       {/* Total separado dos itens por um fio suave: o nome à esquerda, os números à direita (guia pág. 10). */}
@@ -261,7 +287,7 @@ function OpcaoDaRefeicao({
 }
 
 /** Um item da opção: caixa própria (a segunda moldura), com o nome, ↑↓ desabilitadas na ponta, a lixeira e as quantidades. */
-function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRemover, aoMover }: {
+function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRemover, aoMover, aoTrocar }: {
   item: ItemDieta;
   posicao: number;
   total: number;
@@ -270,6 +296,8 @@ function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRem
   aoMudar: (i: ItemDieta) => void;
   aoRemover: () => void;
   aoMover: (d: -1 | 1) => void;
+  /** Só item da biblioteca: o manual troca pelo campo de nome. */
+  aoTrocar?: () => void;
 }) {
   const { cores } = useTema();
   const mudar = (parcial: Partial<ItemDieta>) => aoMudar({ ...item, ...parcial });
@@ -288,12 +316,13 @@ function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRem
           {item.manual ? (
             <Campo rotulo="Item" valor={item.nome} aoMudar={(n) => mudar({ nome: n })} maxLength={160} />
           ) : (
-            <Texto style={estilos.nomeItem}>{item.nome}</Texto>
+            <Texto variante="subtitulo">{item.nome}</Texto>
           )}
           {faltaQuantidade ? <View style={estilos.selo}><Selo texto="Falta a quantidade" tipo="atencao" Icone={TriangleAlert} /></View> : null}
           {/* A unidade escolhida não converte para a base do alimento: o valor fica "—" e não se inventa gramatura. */}
           {semConversao(item, alimento) ? <View style={estilos.selo}><Selo texto="Informe gramas por unidade no alimento" tipo="atencao" Icone={TriangleAlert} /></View> : null}
         </View>
+        {aoTrocar ? <IconeBotao Icone={ArrowLeftRight} rotulo={`Trocar ${nome}`} aoTocar={aoTrocar} /> : null}
         {total > 1 ? (
           <>
             <IconeBotao Icone={ArrowUp} rotulo={`Subir ${nome}`} desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
@@ -342,7 +371,6 @@ const estilos = StyleSheet.create({
   tituloDaOpcao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: 44 },
   cresce: { flex: 1 },
   item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
-  nomeItem: { fontFamily: fontes.semi },
   quantidade: { width: 120 },
   // Mesma altura do campo da quantidade ao lado (a lista suspensa tem 52 de mínimo), como o RIR na série.
   unidade: { width: 112, minHeight: 44, alignSelf: 'flex-end' },
@@ -350,6 +378,7 @@ const estilos = StyleSheet.create({
   valor: { flex: 1, minWidth: 0 },
   total: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5), borderTopWidth: 1, paddingTop: espaco(1) },
   selo: { flexDirection: 'row' },
+  subtotal: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: 2, marginTop: 2 },
   // Sem espaço ao lado da quantidade e da unidade (opções lado a lado), os valores descem para a linha de baixo inteiros.
   valoresDoItem: { alignSelf: 'center', flexGrow: 1, flexShrink: 1, flexBasis: 180 },
 });

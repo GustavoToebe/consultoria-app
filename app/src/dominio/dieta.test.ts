@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta } from '../api/tipos';
-import { aguaValida, aplicarReceitaDeDieta, colunasDasOpcoes, comNomesPadrao, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from './dieta';
+import { aguaValida, aplicarReceitaDeDieta, colunasDasOpcoes, comNomesPadrao, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -247,5 +247,30 @@ describe('variações por dia da semana: normalizarDieta e receita', () => {
     expect(comNomesPadrao(c).variacoes[0].refeicoes.map((r) => r.nome)).toEqual(['Refeição 1', 'Jantar']);
     const ok = normalizarDieta({ variacoes: [{ uid: 'v', rotulo: 'A', dias: [1], refeicoes: [refeicao('r')] }] });
     expect(comNomesPadrao(ok)).toBe(ok);
+  });
+});
+
+describe('trocar alimento (C56)', () => {
+  const arroz: Alimento = { ...pao, id: 'arroz', nome: 'Arroz fictício', kcal: 128, proteina: 2.5, carboidrato: 28, gordura: 0.2, gramasPorUnidade: null };
+  const item = (uid: string, quantidade: number | null = 50, unidade: ItemDieta['unidade'] = 'g'): ItemDieta =>
+    ({ ...novoItem(pao), uid, quantidade, unidade, fatorCorrecao: 1.1, fatorCoccao: 2 });
+
+  it('mantém uid, quantidade e unidade e recalcula pelo novo alimento', () => {
+    const trocado = trocarAlimento(item('i2'), arroz);
+    expect(trocado).toMatchObject({ uid: 'i2', alimentoId: 'arroz', nome: 'Arroz fictício', quantidade: 50, unidade: 'g', manual: false, kcal: 64, proteina: 1.25, carboidrato: 14, gordura: 0.1 });
+    expect(trocado).toMatchObject({ fatorCorrecao: null, fatorCoccao: null });
+  });
+
+  it('unidade que não converte para o novo alimento deixa o valor vazio ("—"), sem inventar gramas', () => {
+    const trocado = trocarAlimento(item('i2', 2, 'un'), arroz);
+    expect(trocado).toMatchObject({ quantidade: 2, unidade: 'un', kcal: null, proteina: null, carboidrato: null, gordura: null });
+  });
+
+  it('nas refeições, troca só o item do uid, no mesmo lugar', () => {
+    const r = novaRefeicao('Almoço');
+    const refeicoes = [{ ...r, opcoes: [{ ...r.opcoes[0], itens: [item('i1'), item('i2'), item('i3')] }] }];
+    const depois = trocarAlimentoNasRefeicoes(refeicoes, 'i2', arroz);
+    expect(depois[0].opcoes[0].itens.map((i) => [i.uid, i.nome])).toEqual([['i1', pao.nome], ['i2', 'Arroz fictício'], ['i3', pao.nome]]);
+    expect(depois[0].opcoes[0].itens[0]).toBe(refeicoes[0].opcoes[0].itens[0]);
   });
 });

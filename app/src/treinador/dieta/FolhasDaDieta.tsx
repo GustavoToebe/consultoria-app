@@ -1,6 +1,6 @@
 import { criarReceita, salvarPlanoComoReceita } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, ErgogenicoDaBiblioteca, Refeicao, SuplementoDaBiblioteca } from '../../api/tipos';
-import { aplicarReceitaDeDieta, novoItem, normalizarDieta } from '../../dominio/dieta';
+import { aplicarReceitaDeDieta, novoItem, normalizarDieta, trocarAlimentoNasRefeicoes } from '../../dominio/dieta';
 import { substituir } from '../../dominio/editorTreino';
 import { linhaDeErgogenico } from '../../dominio/ergogenicos';
 import { SEM_DADO } from '../../dominio/formatos';
@@ -20,6 +20,8 @@ import { FolhaSuplementos } from './FolhaSuplementos';
 export type FolhaDaDieta =
   | { tipo: 'modelos' }
   | { tipo: 'alimento'; refeicao: number; opcao: number }
+  /** "Trocar alimento" (C56): o item `uid` da refeição `refeicao` (índice na seção aberta). */
+  | { tipo: 'trocar'; refeicao: number; uid: string }
   | { tipo: 'receita' }
   | { tipo: 'suplemento' }
   | { tipo: 'ergogenico' }
@@ -52,7 +54,8 @@ interface Props {
   ergogenicos: ErgogenicoDaBiblioteca[];
   mudar: (parcial: Partial<ConteudoDieta>) => void;
   mudarRefeicoes: (fn: (r: ConteudoDieta['refeicoes']) => ConteudoDieta['refeicoes']) => void;
-  comDesfazer: (rotulo: string, mudanca: (a: ConteudoDieta) => ConteudoDieta) => void;
+  /** `refeicaoDaOpcao`: o "Desfazer" aparece na refeição (empilhado), perto do que mudou. */
+  comDesfazer: (rotulo: string, mudanca: (a: ConteudoDieta) => ConteudoDieta, onde?: { refeicaoDaOpcao?: string }) => void;
   /** Guarda a porção da embalagem do suplemento escolhido (só referência ao escrever a dose). */
   aoPorcao: (uid: string, porcao: string) => void;
 }
@@ -101,6 +104,26 @@ export function FolhasDaDieta(p: Props) {
           }}
         />
       );
+    case 'trocar': {
+      const r = p.refeicoes[folha.refeicao];
+      const atual = r?.opcoes.flatMap((o) => o.itens).find((i) => i.uid === folha.uid);
+      if (!r || !atual) return null;
+      return (
+        <FolhaAlimentos
+          titulo="Trocar alimento"
+          explicacao={`No lugar de “${atual.nome}”. A posição, a quantidade e a unidade ficam; os valores são recalculados.`}
+          alimentos={p.alimentos.filter((a) => a.id !== atual.alimentoId)}
+          vazio="Não há outro alimento na biblioteca para trocar. Cadastre-o na Biblioteca."
+          aoFechar={fechar}
+          aoEscolher={(alimento) => {
+            fechar();
+            // Pelo uid, na seção aberta (`naSecao`): vale também dentro de uma variação por dia.
+            p.comDesfazer(`“${atual.nome}” trocado por “${alimento.nome}”.`,
+              (a) => p.naSecao(a, (lista) => trocarAlimentoNasRefeicoes(lista, folha.uid, alimento)), { refeicaoDaOpcao: r.uid });
+          }}
+        />
+      );
+    }
     case 'suplemento':
       return (
         <FolhaSuplementos

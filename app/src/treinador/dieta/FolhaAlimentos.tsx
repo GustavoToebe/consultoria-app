@@ -12,15 +12,25 @@ import { LegendaDosMacros } from '../../ui/ValoresDaDieta';
 import { ValoresDoAlimento } from '../biblioteca/AbaAlimentos';
 import { normalizar } from '../treino/FolhaBiblioteca';
 
-/** Escolher um alimento da biblioteca; o item entra com a quantidade-base e os valores calculados. */
+/**
+ * Escolher um alimento da biblioteca; o item entra com a quantidade-base e os valores calculados. Na troca (C56), `titulo`
+ * e `explicacao` dizem o que fica do item.
+ */
 export function FolhaAlimentos({
   alimentos,
   aoEscolher,
   aoFechar,
+  titulo = 'Escolher alimento',
+  explicacao,
+  vazio = 'Nenhum alimento na biblioteca. Use “Item manual” ou importe alimentos na Biblioteca.',
 }: {
   alimentos: Alimento[];
   aoEscolher: (a: Alimento) => void;
   aoFechar: () => void;
+  titulo?: string;
+  explicacao?: string;
+  /** Texto quando não há alimento para escolher. */
+  vazio?: string;
 }) {
   const { cores } = useTema();
   const [busca, setBusca] = useState('');
@@ -28,11 +38,13 @@ export function FolhaAlimentos({
   const lista = alimentos.filter((a) => !termo || normalizar(a.nome).includes(termo));
   const { limite, mostrarMais } = useMostrarMais(termo);
   return (
-    <Folha visivel titulo="Escolher alimento" aoFechar={aoFechar}>
+    <Folha visivel titulo={titulo} aoFechar={aoFechar}>
+      {explicacao ? <Texto variante="suave">{explicacao}</Texto> : null}
       <Campo rotulo="Buscar alimento" valor={busca} aoMudar={setBusca} autoFocus />
       {alimentos.length === 0 ? (
-        <Texto variante="suave">Nenhum alimento na biblioteca. Use “Item manual” ou importe alimentos na Biblioteca.</Texto>
+        <Texto variante="suave">{vazio}</Texto>
       ) : null}
+      {alimentos.length > 0 && lista.length === 0 ? <Texto variante="suave">Nenhum alimento encontrado.</Texto> : null}
       {lista.length ? <LegendaDosMacros /> : null}
       {lista.slice(0, limite).map((a) => (
         <Pressable

@@ -242,6 +242,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             }}
             aoSalvarModelo={unica ? undefined : () => setFolha({ tipo: 'salvarRefeicao', indice: ri })}
             aoEscolherAlimento={(opcao) => setFolha({ tipo: 'alimento', refeicao: ri, opcao })}
+            aoTrocarAlimento={(uid) => setFolha({ tipo: 'trocar', refeicao: ri, uid })}
           />
         );
         return <>

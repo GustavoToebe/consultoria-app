@@ -11,8 +11,11 @@ jest.mock('@rn-primitives/slot', () => jest.requireActual('../../aluno/primitivo
 jest.mock('@rn-primitives/label', () => jest.requireActual('../../aluno/primitivosFalsos.apoioTeste').primitivosFalsos());
 jest.mock('@rn-primitives/portal', () => jest.requireActual('../../aluno/primitivosFalsos.apoioTeste').primitivosFalsos());
 jest.mock('../../tema/TemaProvider', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  useTema: () => ({ cores: require('../../tema/tokens').ESCURO, bordas: { bloco: 2, item: 2 }, marca: '#E11D48', sobreMarca: '#FFFFFF', fatorTexto: 1, preferencias: { animacoes: false } }),
+  useTema: () => ({
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    cores: require('../../tema/tokens').ESCURO, bordas: { bloco: 2, item: 2 }, marca: '#E11D48', sobreMarca: '#FFFFFF', fatorTexto: 1, preferencias: { animacoes: false },
+    identificacao: { CIANO: { cor: '#3CC3D6', fundo: '#000' }, AZUL: { cor: '#62A0F8', fundo: '#000' }, VIOLETA: { cor: '#CF8DEE', fundo: '#000' }, MAGENTA: { cor: '#F07AC8', fundo: '#000' }, INDIGO: { cor: '#A196F5', fundo: '#000' } },
+  }),
 }));
 jest.mock('../../ui/Botao', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -46,12 +49,13 @@ function refeicao(extra: Partial<Refeicao> = {}): Refeicao {
   };
 }
 
-function montar(r: Refeicao): Arvore {
+function montar(r: Refeicao, extra: { posicao?: number; aberta?: boolean; aoTrocarAlimento?: (uid: string) => void } = {}): Arvore {
   let arvore: Arvore | undefined;
   Renderer.act(() => {
     arvore = Renderer.create(
-      <CartaoRefeicao refeicao={r} posicao={0} total={1} aberta comProblema={new Set()} alimentos={new Map()}
-        aoMudar={() => undefined} aoRemoverOpcao={() => undefined} aoMover={() => undefined} aoRemover={() => undefined} aoEscolherAlimento={() => undefined} />,
+      <CartaoRefeicao refeicao={r} posicao={extra.posicao ?? 0} total={1} aberta={extra.aberta ?? true} comProblema={new Set()} alimentos={new Map()}
+        aoMudar={() => undefined} aoRemoverOpcao={() => undefined} aoMover={() => undefined} aoRemover={() => undefined} aoEscolherAlimento={() => undefined}
+        aoTrocarAlimento={extra.aoTrocarAlimento} />,
     );
   });
   return arvore as Arvore;
@@ -96,5 +100,45 @@ describe('CartaoRefeicao: unidade do alimento', () => {
     const a = montar(refeicao());
     expect(comRotulo(a, 'campo Quantidade')).toHaveLength(2);
     expect(comRotulo(a, 'suspensa Unidade: ml')).toHaveLength(2);
+  });
+});
+
+describe('CartaoRefeicao: trocar alimento (C56)', () => {
+  const biblioteca = (uid: string, nome: string): ItemDieta => ({ ...item(uid, nome), alimentoId: `al-${uid}`, manual: false });
+  const comItens = (itens: ItemDieta[]) => refeicao({ opcoes: [{ uid: 'a', rotulo: 'A', itens }] });
+  const trocar = (a: Arvore, nome: string) => a.root.findAll((n) => n.props.accessibilityLabel === `Trocar ${nome}` && typeof n.props.onPress === 'function');
+
+  it('só o item da biblioteca tem "Trocar", e o toque manda o uid dele', () => {
+    const aoTrocarAlimento = jest.fn();
+    const a = montar(comItens([biblioteca('i1', 'Pão fictício'), item('i2', 'Suco fictício')]), { aoTrocarAlimento });
+    expect(trocar(a, 'Pão fictício')).toHaveLength(1);
+    expect(trocar(a, 'Suco fictício')).toHaveLength(0);
+    Renderer.act(() => trocar(a, 'Pão fictício')[0].props.onPress());
+    expect(aoTrocarAlimento).toHaveBeenCalledWith('i1');
+  });
+
+  it('sem quem trate a troca, o botão não aparece', () => {
+    expect(trocar(montar(comItens([biblioteca('i1', 'Pão fictício')])), 'Pão fictício')).toHaveLength(0);
+  });
+});
+
+describe('CartaoRefeicao: subtotal e cor (C66, C63)', () => {
+  const grupo = (a: Arvore, rotulo: string) => a.root.findAll((n) => n.props['aria-label'] === rotulo && typeof n.type === 'string');
+  const cartao = (a: Arvore) => a.root.findAll((n) => n.props.testID === 'cartao' && typeof n.type === 'string')[0];
+
+  it('o subtotal da opção A aparece aberta e fechada; com uma opção, é o da refeição', () => {
+    expect(grupo(montar(refeicao()), 'Subtotal da refeição, opção A')).toHaveLength(1);
+    expect(grupo(montar(refeicao(), { aberta: false }), 'Subtotal da refeição, opção A')).toHaveLength(1);
+    const uma = refeicao({ opcoes: [{ uid: 'a', rotulo: 'A', itens: [item('i1', 'Suco fictício')] }] });
+    expect(grupo(montar(uma), 'Subtotal da refeição')).toHaveLength(1);
+  });
+
+  it('a barra lateral segue a posição da refeição (1ª ciano, 2ª azul)', () => {
+    const borda = (posicao: number) => {
+      const estilo = cartao(montar(refeicao(), { posicao })).props.style;
+      return Object.assign({}, ...(Array.isArray(estilo) ? estilo.flat(5) : [estilo]).filter(Boolean));
+    };
+    expect(borda(0)).toMatchObject({ borderLeftWidth: 6, borderLeftColor: '#3CC3D6' });
+    expect(borda(1)).toMatchObject({ borderLeftWidth: 6, borderLeftColor: '#62A0F8' });
   });
 });

@@ -46,6 +46,23 @@ export function recalcularItem(item: ItemDieta, alimento: Alimento | undefined):
   };
 }
 
+/**
+ * "Trocar alimento" (C56): o item passa a ser do `alimento`, no mesmo lugar, com a mesma quantidade e unidade, e os
+ * valores são recalculados por ele. A unidade que não converte para a base do novo alimento deixa o valor "—" (decisão 5
+ * do plano `dieta-pronta-para-comecar`). Os fatores eram do alimento anterior: o servidor regrava os do novo ao publicar.
+ */
+export function trocarAlimento(item: ItemDieta, alimento: Alimento): ItemDieta {
+  return recalcularItem({ ...item, alimentoId: alimento.id, nome: alimento.nome, manual: false, fatorCorrecao: null, fatorCoccao: null }, alimento);
+}
+
+/** Troca o alimento do item `uid` onde ele estiver (refeição e opção), sem mexer na ordem nem nos outros itens. */
+export function trocarAlimentoNasRefeicoes(refeicoes: Refeicao[], uid: string, alimento: Alimento): Refeicao[] {
+  return refeicoes.map((r) => ({
+    ...r,
+    opcoes: r.opcoes.map((o) => (o.itens.some((i) => i.uid === uid) ? { ...o, itens: o.itens.map((i) => (i.uid === uid ? trocarAlimento(i, alimento) : i)) } : o)),
+  }));
+}
+
 /** Soma os valores sem arredondar (arredonda só na tela). Algum item sem valor → aquele total fica `null`. */
 export function somar(itens: ItemDieta[]): Totais {
   const totais: Totais = { kcal: 0, proteina: 0, carboidrato: 0, gordura: 0 };
