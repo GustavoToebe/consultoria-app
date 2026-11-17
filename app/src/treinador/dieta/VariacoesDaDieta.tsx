@@ -14,7 +14,6 @@ import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { Alerta } from '../../ui/Estados';
-import { FaixaDeChips } from '../../ui/FaixaDeChips';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { coresDaSelecao } from '../../ui/selecao';
 import { sobre } from '../../ui/sobre';
@@ -73,11 +72,13 @@ export function VariacoesDaDieta({ conteudo: c, aberta, comProblema, aoAbrir, al
 
   return (
     <Cartao titulo="Dias da semana" descricao="Cada variação tem as próprias refeições e vale nos dias marcados. Orientações, observações, suplementação e água valem para todas.">
-      <FaixaDeChips quebrar accessibilityRole="tablist" accessibilityLabel="Variações da dieta">
+      {/* Quebra linha também no celular (a `FaixaDeChips` rolaria e deixaria fora da vista a cópia recém-duplicada, que é a
+          aberta); são no máximo sete chips. */}
+      <View style={estilos.chips} accessibilityRole="tablist" accessibilityLabel="Variações da dieta">
         {c.variacoes.map((v) => (
           <ChipDaVariacao key={v.uid} variacao={v} nome={nomeDe(v)} aberta={v.uid === aberta.uid} erro={comProblema.has(v.uid)} aoAbrir={() => aoAbrir(v.uid)} />
         ))}
-      </FaixaDeChips>
+      </View>
       {aviso}
       <View style={estilos.aberta}>
         <Campo
@@ -138,6 +139,8 @@ function ChipDaVariacao({ variacao: v, nome, aberta, erro, aoAbrir }: { variacao
     <Pressable
       accessibilityRole="tab"
       accessibilityState={{ selected: aberta }}
+      // No RN-web o `accessibilityState.selected` não vira atributo: sem isto o leitor de tela não sabe qual aba está aberta.
+      aria-selected={aberta}
       accessibilityLabel={`${nome}, ${dias}${erro ? ', precisa corrigir' : ''}`}
       onPress={aoAbrir}
       style={(st) => [estilos.chip, { backgroundColor: aberta || sobre(st) ? cores.superficie3 : sel.fundo, borderColor: sel.borda }]}>
@@ -146,7 +149,7 @@ function ChipDaVariacao({ variacao: v, nome, aberta, erro, aoAbrir }: { variacao
         <Texto numberOfLines={1} style={[estilos.nome, { color: sel.texto }]}>{nome}</Texto>
         <Texto variante="pequeno" numberOfLines={1}>{dias}</Texto>
       </View>
-      {erro ? <View style={[estilos.ponto, { backgroundColor: cores.perigo, borderColor: cores.superficie3 }]} /> : null}
+      {erro ? <View style={[estilos.ponto, { backgroundColor: cores.perigo, borderColor: sel.fundo }]} /> : null}
     </Pressable>
   );
 }
@@ -172,6 +175,7 @@ function ChipDoDia({ curto, nome, dica, marcado, aoAlternar }: { curto: string; 
 
 const estilos = StyleSheet.create({
   aberta: { gap: espaco(2) },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

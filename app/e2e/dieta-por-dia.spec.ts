@@ -170,8 +170,11 @@ for (const largura of [390, 1280]) {
       'GET /aluno/dieta': { corpo: { dieta: versaoDoAluno(COM_VARIACOES) } },
       'GET /aluno/atualizacao': erroApi(404, 'Nenhuma atualização.', 'NAO_ENCONTRADO'),
       'GET /aluno/pesos': { corpo: [] },
+      'GET /aluno/foto-perfil': erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
     });
     await page.goto('/aluno');
+    await expect(page.getByRole('link', { name: /^Dieta,/ })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`aluno-inicio-${largura}.png`), fullPage: true });
     await expect(page.getByRole('link', { name: /^Dieta,/ })).toContainText('Hoje: Dia de treino · 2 refeições');
 
     await page.goto('/aluno/dieta');
@@ -231,9 +234,15 @@ for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
       await page.addInitScript(([ids, t]) => {
         for (const id of ids) localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t }));
       }, [[TREINADOR.id, ALUNO.id], tema] as const);
-      await abrirEditor(page, { ...VAZIA, variacoes: [TREINO, { ...DESCANSO, dias: [2, 4, 6] }] });
+      await abrirEditor(page, { ...VAZIA, variacoes: [TREINO, { ...DESCANSO, dias: [2, 4, 6] }] }, {
+        [`POST /planos-dieta/${PLANO_ID}/validar`]: { corpo: { erros: [{ caminho: 'variacoes[1].dias', mensagem: 'Domingo sem variação.' }], avisos: [] } },
+      });
       await expect(page.getByText('Dias sem variação: Dom.', { exact: false })).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`editor-${largura}-${tema}.png`), fullPage: true });
+      // O ponto de erro no chip da variação com problema (contraste nos três temas).
+      await page.getByRole('button', { name: 'Validar' }).click();
+      await expect(page.getByRole('tab', { name: /^Descanso, .*precisa corrigir$/ })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`editor-erro-${largura}-${tema}.png`) });
     });
   }
 }

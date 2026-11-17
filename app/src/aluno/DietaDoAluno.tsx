@@ -73,6 +73,7 @@ export function DietaDoAluno({
   const refeicoes = mostrada ? mostrada.refeicoes : c.refeicoes;
   const totais = totalDoDia(refeicoes);
   const ergogenicos = ergogenicosPreenchidos(c.ergogenicos);
+  const inicioEProfissional = [c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ');
 
   return (
     <>
@@ -86,9 +87,7 @@ export function DietaDoAluno({
             <Texto numerico style={estilos.forte}>Água: {textoDaAgua(c.aguaLitros)}</Texto>
           </View>
         ) : null}
-        <Texto numerico variante="suave">
-          {[c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ') || ' '}
-        </Texto>
+        {inicioEProfissional ? <Texto numerico variante="suave">{inicioEProfissional}</Texto> : null}
       </Cartao>
       {/* Orientações e observações logo abaixo do plano (ficavam no fim, depois de todas as refeições), recolhíveis. */}
       {c.orientacoes.length ? (
