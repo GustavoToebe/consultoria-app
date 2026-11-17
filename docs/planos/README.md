@@ -395,6 +395,10 @@ Todas "decidido pelo Claude em 16/11, a confirmar pelo Gustavo".
 | Atualizações: a paginação é em memória (a lista inteira ainda vem do banco); passar para SQL se uma consultoria chegar a milhares de alunos ativos. Evolução: escala por ponto, se o treinador mudar a escala de uma pergunta já respondida | Claude, quando houver necessidade | miudos-com-api-04-11 |
 | Antes de mesclar os PRs do `lock_timeout` (Servirea e Central): na VPS, contar os `?` nas linhas `DB_URL` e `MIGRATION_DB_URL` de `/opt/ecossistema/servirea.env` e `central.env`; precisa dar 0 (a URL nova já leva um `?`) | Gustavo | infra-04-11 |
 | ~~e2e que falham na `main`: `cadastro-aluno.spec.ts:296` e `links-do-menu.spec.ts:20`~~ · o primeiro corrigido no lote 04/11-b (o seletor de "Acompanhamento" ignora o título do grupo do menu, que é `aria-hidden`); o segundo passou nas duas rodadas da nuvem (Linux): fica em observação, intermitente no Windows | Claude | lote 04/11-b |
+| Revisão final da API (17/11): `TrocasDeExercicioService.pendentes` varre as séries da janela inteira em memória (sem `shortcut:`), a FK de usuário da `troca_exercicio_visto` (V080) não tem índice e os construtores curtos de `ExercicioPlano` (`SemanasPadrao.java:88`) deixam `alternativas` nulo: nenhum dos três quebra hoje; olhar se uma consultoria passar de centenas de alunos | Claude, próximo lote da API | revisão independente, 17/11 |
+| Indicação (V081): falta e2e do fragmento `#indicacao=` na URL da inscrição pública (hoje só a regra pura e o teste da API cobrem) | Claude, próximo lote do app | revisão final, 17/11 |
+| Pods: ficha do aluno não mostra o grupo atual (`AlunoDetalhe` não traz o pod), filtro "Todos" no mural da equipe pede rota nova, reativar o aluno não o devolve ao grupo e grupo cheio não é desabilitado no app (o servidor responde `POD_CHEIO`) | Gustavo decide, depois Claude | `docs/planos/pods-da-comunidade.md`, 17/11 |
+
 
 ## Limitações aceitas (não são pendência)
 
