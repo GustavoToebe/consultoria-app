@@ -30,20 +30,22 @@ O `AREIA` gravado em `tokens.ts` em 16/11 às 21:27 (página `#F4F1EA`, cartão 
 | D13 | Sem camada de compatibilidade | os valores novos substituem os antigos, sem flag | regra do projeto |
 
 ## Passos
-- [ ] A1. Escada de superfícies, teste primeiro (`tokens.test.ts`, `tokens.ts`, `global.css`) — executor-front · APK: sim (valor de token em JS) · commit: —
-- [ ] A2. Botão principal invertido; apagar `cta` (`ui/Botao.tsx`, `ProximoPasso.tsx`) — executor-front · commit: —
-- [ ] A3. Cinco papéis de situação, pílula a 12%, contraste em `contrasteDasPecas.test.ts`; tabela 4.5 e seção de botões do `design-e-front.md` — executor-front · commit: —
-- [ ] A4. `BadgeNivel` — executor-front · commit: —
+- [x] A1. Escada de superfícies, teste primeiro (`tokens.test.ts`, `tokens.ts`, `global.css`) — executor-front · APK: sim (valor de token em JS) · commit: — · **feito (sem commit), 17/11.** Mapeamento: página = `fundo` e `painel`; faixa do título = `superficie3`; poço = `superficie2`; "borda" de D1 e o `#34343A` de D5 = `divisor` (contorno do `Cartao`; o token `borda` tem piso de 1,9 e não podia receber `#34343A`). Um teste por tema (Claro, Areia, Escuro) mais um `it.each` para os outros seis (`conferirEscada`). Testes antigos atualizados por contradizerem a decisão: poço "rebaixado abaixo da página" nas claras (agora entre a página e o cartão), painel do Escuro `#0E0E10` (agora `#0B0B0D`), âmbar × pílula do Escuro ≥ 8 (par literal do guia; com `#FFB020` a 12% dá 7,29, piso 7,2), TERRA do perfil `#A64F43` (`#A85347`) e três expectativas de `dominio/paletas.test.ts` (Magenta passa a avisar no Escuro e por parecer o perigo; seis cores avisam no Oceano). Areia volta à variante `areia` das cores fixas. Valores ajustados: tabela abaixo.
+- [x] A2. Botão principal invertido; apagar `cta` (`ui/Botao.tsx`, `ProximoPasso.tsx`) — executor-front · commit: — · **feito (sem commit), 17/11.** `primario` = `coresDoBotaoPrincipal` (fundo `texto`, rótulo `fundo`, hover 15% para a página); `perigo` = contorno e rótulo `perigo`, hover `perigoSuave`; tipo `cta` e `stndrd.cta` apagados; `ProximoPasso` usa `primario` e o "Começar treino" do aluno (`app/aluno/sessao/[uid]/index.tsx`) usa o mesmo par.
+- [x] A3. Cinco papéis de situação, pílula a 12%, contraste em `contrasteDasPecas.test.ts`; tabela 4.5 e seção de botões do `design-e-front.md` — executor-front · commit: — · **feito (sem commit), 17/11.** `Cores` ganhou `informacao`, `conquista` e os cinco `*Suave` (`tingidoDaPilula`, 12%). Ajustes mínimos (pisos antigos: `Alerta` direto na página e série feita a 4,5:1): Claro `sucesso` `#0C6638`, `atencao` `#804D00`, `perigo` `#AB152E`; Areia `#0A5931`, `#704300`, `#961329`; `perigo` da Meia-noite `#FF4F6B` e do Oceano `#FF526E`. Neon trocado em `CartaoMini`, `ProximoPasso`, `CartaoExercicioDoDia`, `ExercicioAluno`, `AvisoDeRecorde` ("NEW PR" virou "Recorde"); sobra só no Financeiro (`shortcut:` em `tokens.ts`). `PilulaStatus` (sem uso, em inglês, "Invite & earn" contra a regra de indicação sem prêmio) apagada.
+- [x] A4. `BadgeNivel` — executor-front · commit: — · **feito (sem commit), 17/11.** Iniciante, Intermediário, Avançado; pílula `conquistaSuave`, texto e barras acesas `conquista`, apagadas `borda`; continua sem tela.
 - [ ] D. Vidro (depende de A) — executor-front · APK novo, anotar em `docs/build-celular.md` · commit: —
 - [ ] H2. Variante `destaque` do `Botao` e uso nos três botões (depende de D e de C81/C97 da frente do editor) — executor-front · commit: —
 
 ## Razão final de cada par (a preencher pelo executor-front)
+Medido em 17/11 sobre `tokens.ts` sem commit (base `e6537dc3`); refazer se a escada mudar. "Borda" = `divisor`; página = o pior entre `fundo` e `painel`.
+
 | Tema | cartão × página | borda × cartão | texto × cartão | observação |
 | --- | --- | --- | --- | --- |
-| Claro | — | — | — | — |
-| Areia | — | — | — | — |
-| Escuro | — | — | — | — |
-| Demais seis | — | — | — | — |
+| Claro | 1,37 | 1,41 | 19,90 | Valores de D3. `divisor` `#E4E4E7` → `#D9D9DB` (1,27 não fechava 1,4) e `borda` `#B4B4BC` → `#A7A7AF` (piso antigo de 1,7 sobre a página). Faixa × cartão 1,11, faixa × página 1,24, poço × cartão 1,14. |
+| Areia | 1,64 | 1,42 | 19,90 | Valores de D4. `divisor` → `#DED8CD`, `borda` → `#A0998B`, `textoSuave` → `#4C4C54` (4,5:1 sobre a `faixaForte`). Faixa × cartão 1,19, faixa × página 1,37, poço × cartão 1,15. |
+| Escuro | 1,16 (fundo 1,17; painel 1,16) | 1,42 | 16,56 | Valores de D5. `divisor` `#34343A` → `#36363C` (1,37 não fechava 1,4); `painel` `#0E0E10` → `#0B0B0D` (com `#0E0E10` o cartão ficava a 1,135 sobre ele); `bordaCampo` → `#83838D` e `textoSuave` → `#9C9CA3` (pares do guia de 4,5 e 7:1). Faixa × cartão 1,13, poço × cartão 1,13. |
+| Demais seis | Meia-noite 1,16 · Oceano 1,15 · Ameixa 1,16 · Céu, Lavanda e Rosa 1,37 | 1,42 · 1,41 · 1,40 · 1,40 · 1,43 · 1,43 | 16,29 · 15,99 · 16,38 · 19,90 | Regra única por modo, no comentário das paletas em `tokens.ts`. Escuras: cartão e faixa clareados o mínimo para 1,15 sobre o painel (painel a 10% do fundo ao cartão). Claras: página desce como a do Claro e volta o mínimo para agenda e laranja do perfil manterem 3:1 (Céu `#D5DDE6`, Lavanda `#DCDBE7`, Rosa `#E1DAE0`). |
 
 ## Critérios de aceite
 - Um teste por tema (Claro, Areia, Escuro) trava os pisos de D1 e D2; nenhum piso afrouxado, nenhum teste apagado.
@@ -56,4 +58,7 @@ O `AREIA` gravado em `tokens.ts` em 16/11 às 21:27 (página `#F4F1EA`, cartão 
 - `treinador/financeiro/` (`VisaoGeral.tsx`, `ResultadoDoMes.tsx`) é de outra sessão: se a troca de cores pedir mexer neles, parar e avisar o Gustavo.
 
 ## O que ficou para trás
-- (nada ainda)
+- `ui/Cartao.tsx:64` pinta a faixa do título com `superficie2` (o poço). No Escuro o título do cartão sai `#0F0F11`, mais escuro que o cartão, e não o `#26262B` de D5. Trocar para `superficie3` ficou fora dos arquivos do A1 (próximo responsável: executor-front, com captura).
+- Financeiro: `treinador/financeiro/VisaoGeral.tsx` e `ResultadoDoMes.tsx` ainda leem `stndrd.neon.*` (`TokenNeon`, `TokensStndrd`). Trocar pelos papéis de situação e apagar o bloco `neon` de `tokens.ts` quando a outra sessão liberar.
+- D8 ainda incompleto: `BotaoPublico`, `Calendario`, PDFs, prévias, `CartaoSessao` e o cartão para compartilhar seguem com a marca (lista da 4.5 do `design-e-front.md`).
+- Nada visto renderizado no A1 a A4: rótulo bege (`#CDCAC3`) sobre o botão preto na Areia, separação menu × painel no Escuro (1,01:1), informação perto da identificação AZUL e conquista perto da VIOLETA ficam para a verificação final.

@@ -17,22 +17,22 @@
 @layer theme {
  :root {
   @variant light {
-   --color-background: #F3F4F6;
+   --color-background: #D9DCE1;
    --color-foreground: #09090B;
    --color-card: #FFFFFF;
    --color-card-foreground: #09090B;
-   --color-muted: #EAECEF;
+   --color-muted: #EEF0F2;
    --color-muted-foreground: #52525B;
-   --color-accent: #FFFFFF;
+   --color-accent: #F2F3F5;
    --color-accent-foreground: #09090B;
-   --color-secondary: #EAECEF;
+   --color-secondary: #EEF0F2;
    --color-secondary-foreground: #09090B;
-   --color-border: #E4E4E7;
+   --color-border: #D9D9DB;
    --color-input: #71717A;
    --color-destructive: #B71C1C;
-   --color-sucesso: #125C32;
-   --color-atencao: #875710;
-   --color-perigo: #B71C1C;
+   --color-sucesso: #0C6638;
+   --color-atencao: #804D00;
+   --color-perigo: #AB152E;
    --color-neutro: #616169;
    --color-fase1: #C46B86;
    --color-fase2: #5E8F8A;
@@ -45,20 +45,20 @@
   @variant dark {
    --color-background: #09090B;
    --color-foreground: #FCFCFC;
-   --color-card: #141416;
+   --color-card: #1C1C20;
    --color-card-foreground: #FCFCFC;
-   --color-muted: #0B0B0D;
-   --color-muted-foreground: #9A9AA1;
-   --color-accent: #202024;
+   --color-muted: #0F0F11;
+   --color-muted-foreground: #9C9CA3;
+   --color-accent: #26262B;
    --color-accent-foreground: #FCFCFC;
-   --color-secondary: #0B0B0D;
+   --color-secondary: #0F0F11;
    --color-secondary-foreground: #FCFCFC;
-   --color-border: #232326;
-   --color-input: #82828C;
+   --color-border: #36363C;
+   --color-input: #83838D;
    --color-destructive: #C62828;
-   --color-sucesso: #4ADE80;
-   --color-atencao: #FBBF24;
-   --color-perigo: #FA717B;
+   --color-sucesso: #00E699;
+   --color-atencao: #FFB020;
+   --color-perigo: #FF4D6A;
    --color-neutro: #9A9AA3;
    --color-fase1: #E7AEC1;
    --color-fase2: #7DCFC6;

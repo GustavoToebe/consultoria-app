@@ -7,14 +7,17 @@ import type { FuncaoDeDestaque } from '../dominio/destaque';
  * `docs/planos/visual-vendavel/guia-premium-no-app.md`): flat, sem sombra nem gradiente, contorno de 1 px (2 px com
  * "bordas reforçadas"), raio 8 nos controles (`RAIO_CONTROLE`) e 12 nos cartões (`RAIO`), grade de 8 px, fonte Geist.
  *
- * Três famílias de cor que não se misturam: **marca** (logo, pequeno indicador do item ativo, ação principal; papéis
- * calculados no `TemaProvider`), **situação** (`sucesso`, `atencao`, `perigo`, `neutro`, com o fundo `*Suave` do selo;
- * fixas no tema, nunca derivadas da marca, sempre com texto) e **categoria** (`PALETA_DE_IDENTIFICACAO`: tipo de série,
- * divisão, refeição). Seleção é neutra (`ui/selecao.ts`). Tabela situação → cor: `docs/design-e-front.md`, seção 4.5.
+ * Três famílias de cor que não se misturam: **marca** (logo, pequeno indicador do item ativo, título e cartão "Hoje" do
+ * aluno; papéis calculados no `TemaProvider`; o `Botao primario` é neutro desde 17/11), **situação** (`sucesso`,
+ * `atencao`, `perigo`, `informacao`, `conquista` e `neutro`, com o fundo `*Suave` da pílula, tingido a 12%; fixas no
+ * tema, nunca derivadas da marca, sempre com texto; o número principal fica em `texto`) e **categoria**
+ * (`PALETA_DE_IDENTIFICACAO`: tipo de série, divisão, refeição). Seleção é neutra (`ui/selecao.ts`). Tabela situação →
+ * cor: `docs/design-e-front.md`, seção 4.5.
  *
- * Superfícies: `fundo` (menu e página) → `painel` (área do conteúdo no PC) → `superficie` (cartão, contorno `divisor`,
- * discreto) → `superficie2` (elevada: menus, apoio, hover) → `superficie3` (seleção neutra: fundo do item escolhido).
- * Campo de digitar = `campo` + `bordaCampo` (≥ 3:1): campo, foco e seleção têm contorno forte; contêiner, discreto.
+ * Escada de superfícies (17/11, `docs/planos/hierarquia-visual-tres-temas.md`, travada em `tokens.test.ts`): `fundo`
+ * (menu e página) → `painel` (área do conteúdo no PC) → `superficie` (cartão, contorno `divisor` ≥ 1,4:1) → `superficie3`
+ * (faixa do título e seleção neutra) e `superficie2` (poço: item, apoio, hover). Cartão × página ≥ 1,35 nas claras, 1,6
+ * na Areia e 1,15 nas escuras. Campo de digitar = `campo` + `bordaCampo` (≥ 3:1).
  */
 export interface Cores {
   fundo: string;
@@ -39,16 +42,24 @@ export interface Cores {
   painel: string;
   texto: string;
   textoSuave: string;
-  /** Status como texto e borda (≥ 4,5:1 sobre `superficie`, `superficie2` e `superficie3`). */
+  /** Situação como texto, ícone e borda (≥ 4,5:1 sobre `superficie`, `superficie2` e `superficie3`). */
   sucesso: string;
   atencao: string;
   perigo: string;
+  /** Informação (medida, ao vivo, sem juízo) e conquista (recorde, nível): ≥ 4,5:1 sobre o cartão e a própria pílula. */
+  informacao: string;
+  conquista: string;
   neutro: string;
-  /** Fundo do selo de cada situação: o texto do selo é a própria cor da situação (≥ 4,5:1 sobre ele). */
+  /** Fundo da pílula de cada situação: a cor a 12% sobre o cartão (`tingidoDaPilula`); o texto é a própria cor (≥ 4,5:1). */
   sucessoSuave: string;
   atencaoSuave: string;
   perigoSuave: string;
-  /** Fundo do botão destrutivo preenchido (texto branco ≥ 4,5:1); o `perigo` claro do tema escuro não serve de fundo. */
+  informacaoSuave: string;
+  conquistaSuave: string;
+  /**
+   * Vermelho que aguenta texto branco por cima (≥ 4,5:1): só a variável `--color-destructive` do RNR. O `Botao perigo`
+   * é de contorno desde 17/11 (D7) e não o usa.
+   */
   perigoFundo: string;
   /** Anel de foco do teclado: a cor do texto (≥ 4,5:1 em qualquer superfície), nunca a da marca. */
   anelFoco: string;
@@ -59,27 +70,39 @@ export interface Cores {
   fase4: string;
 }
 
+/** Situação do Escuro (D9, 17/11); as escuras da marca usam as mesmas. */
+const SITUACAO_ESCURA = { sucesso: '#00E699', atencao: '#FFB020', perigo: '#FF4D6A', informacao: '#4D9BFF', conquista: '#B57BFF' } as const;
+
+/** Os cinco fundos de pílula de uma situação sobre o cartão do tema. */
+function pilulasDaSituacao(s: Pick<Cores, 'sucesso' | 'atencao' | 'perigo' | 'informacao' | 'conquista'>, cartao: string) {
+  return {
+    sucessoSuave: tingidoDaPilula(s.sucesso, cartao),
+    atencaoSuave: tingidoDaPilula(s.atencao, cartao),
+    perigoSuave: tingidoDaPilula(s.perigo, cartao),
+    informacaoSuave: tingidoDaPilula(s.informacao, cartao),
+    conquistaSuave: tingidoDaPilula(s.conquista, cartao),
+  };
+}
+
 export const ESCURO: Cores = {
+  // D5 (17/11): página, cartão, faixa e poço (mais escuro que o cartão). Contorno #34343A subiu a #36363C (1,37 → 1,42:1,
+  // piso 1,4), o painel do PC desceu a 10% do caminho até o cartão para o cartão manter 1,15:1 sobre ele, e `bordaCampo`
+  // e `textoSuave` clarearam 1% e 2% para os pares do guia (4,5:1 sobre o cartão e 7:1 sobre o poço) com o cartão novo.
   fundo: '#09090B',
-  superficie: '#141416',
-  superficie2: '#0B0B0D',
-  superficie3: '#202024',
+  superficie: '#1C1C20',
+  superficie2: '#0F0F11',
+  superficie3: '#26262B',
   faixaForte: '#28282E',
-  divisor: '#232326',
+  divisor: '#36363C',
   borda: '#4A4A52',
-  campo: '#0B0B0D',
-  bordaCampo: '#82828C',
-  painel: '#0E0E10',
+  campo: '#0F0F11',
+  bordaCampo: '#83838D',
+  painel: '#0B0B0D',
   texto: '#FCFCFC',
-  textoSuave: '#9A9AA1',
-  sucesso: '#4ADE80',
-  atencao: '#FBBF24',
-  // O guia propõe #FB7185; fica um passo mais vermelho para não se confundir com o magenta da categoria (ΔE ≥ 40 em `tokens.test.ts`).
-  perigo: '#FA717B',
+  textoSuave: '#9C9CA3',
+  ...SITUACAO_ESCURA,
   neutro: '#9A9AA3',
-  sucessoSuave: '#143222',
-  atencaoSuave: '#352915',
-  perigoSuave: '#3B1C26',
+  ...pilulasDaSituacao(SITUACAO_ESCURA, '#1C1C20'),
   perigoFundo: '#C62828',
   anelFoco: '#FCFCFC',
   // Rosa e lavanda um pouco mais claros que antes: o `perigo` novo é mais claro e a fase não pode parecer erro.
@@ -89,27 +112,31 @@ export const ESCURO: Cores = {
   fase4: '#ADBAEB',
 };
 
+/**
+ * Situação do Claro (D9: `#0E7A43 #8A5300 #C01834 #1D5FD1 #7A2FD0`). Verde, âmbar e vermelho escurecidos o mínimo para o
+ * texto da caixa `Alerta` passar 4,5:1 também direto na página nova (#D9DCE1) e o verde, sobre a série feita; informação e
+ * conquista ficam como decididas (só aparecem no cartão e na pílula).
+ */
+const SITUACAO_CLARA = { sucesso: '#0C6638', atencao: '#804D00', perigo: '#AB152E', informacao: '#1D5FD1', conquista: '#7A2FD0' } as const;
+
 export const CLARO: Cores = {
-  // Claro minimalista com realce neon: cartão sempre #FFFFFF puro, poço rebaixado (#EAECEF) e pílula (#F4F4F6).
-  fundo: '#F3F4F6',
+  // D3 (17/11): página, cartão branco, faixa e poço. Contorno #E4E4E7 → #D9D9DB e borda #B4B4BC → #A7A7AF, o mínimo para
+  // os pisos de 1,4 (contorno × cartão) e 1,7 (borda × página).
+  fundo: '#D9DCE1',
   superficie: '#FFFFFF',
-  superficie2: '#EAECEF',
-  superficie3: '#FFFFFF',
+  superficie2: '#EEF0F2',
+  superficie3: '#F2F3F5',
   faixaForte: '#DCDCE0',
-  divisor: '#E4E4E7',
-  borda: '#B4B4BC',
-  campo: '#EAECEF',
+  divisor: '#D9D9DB',
+  borda: '#A7A7AF',
+  campo: '#FFFFFF',
   bordaCampo: '#71717A',
-  painel: '#F3F4F6',
+  painel: '#D9DCE1',
   texto: '#09090B',
   textoSuave: '#52525B',
-  sucesso: '#125C32',
-  atencao: '#875710',
-  perigo: '#B71C1C',
+  ...SITUACAO_CLARA,
   neutro: '#616169',
-  sucessoSuave: tingido('#125C32', '#FFFFFF'),
-  atencaoSuave: tingido('#875710', '#FFFFFF'),
-  perigoSuave: tingido('#B71C1C', '#FFFFFF'),
+  ...pilulasDaSituacao(SITUACAO_CLARA, '#FFFFFF'),
   perigoFundo: '#B71C1C',
   anelFoco: '#09090B',
   fase1: '#C46B86',
@@ -119,20 +146,31 @@ export const CLARO: Cores = {
 };
 
 /**
- * Claro Areia (claro minimalista): cartão Nível 1 sempre #FFFFFF puro, fundo #F4F1EA e poço #ECE7DD.
+ * Situação da Areia: verde, âmbar e vermelho do Claro (D9) escurecidos mais um passo, só o que a página #CDCAC3 pede para
+ * o texto da caixa `Alerta` direto nela passar 4,5:1; informação e conquista ficam as decididas.
+ */
+const SITUACAO_AREIA = { sucesso: '#0A5931', atencao: '#704300', perigo: '#961329', informacao: '#1D5FD1', conquista: '#7A2FD0' } as const;
+
+/**
+ * Areia (D4, 17/11): página `#CDCAC3` (a do exemplo que o Saraiva aprovou em 14/11), cartão e campo brancos, faixa
+ * `#EDEBE7`, poço `#F1EFEB` e `faixaForte` `#C3C0B8`. Contorno, borda e texto secundário escurecidos o mínimo para os
+ * pisos (contorno × cartão 1,4, borda × página 1,7, texto secundário 4,5:1 sobre a `faixaForte`).
  */
 export const AREIA: Cores = {
   ...CLARO,
-  fundo: '#F4F1EA',
-  painel: '#F4F1EA',
+  fundo: '#CDCAC3',
+  painel: '#CDCAC3',
   superficie: '#FFFFFF',
-  superficie2: '#ECE7DD',
-  superficie3: '#FFFFFF',
-  faixaForte: '#DDD6C7',
-  divisor: '#E5DFD3',
-  borda: '#B0A899',
-  campo: '#ECE7DD',
+  superficie2: '#F1EFEB',
+  superficie3: '#EDEBE7',
+  faixaForte: '#C3C0B8',
+  divisor: '#DED8CD',
+  borda: '#A0998B',
+  campo: '#FFFFFF',
   bordaCampo: '#6E6659',
+  textoSuave: '#4C4C54',
+  ...SITUACAO_AREIA,
+  ...pilulasDaSituacao(SITUACAO_AREIA, '#FFFFFF'),
 };
 
 /** Modo de uma paleta: decide a barra de status e o esquema do Uniwind. */
@@ -146,47 +184,52 @@ export type ModoDoTema = 'ESCURO' | 'CLARO';
 export type VarianteDoTema = 'claro' | 'areia' | 'escuro';
 
 /**
- * Paleta escura a partir do "chão" dela: texto e situação do Escuro (fixos, nunca da marca), `painel` a 45% do fundo ao
- * cartão (a mesma regra que dá o #101013 do Escuro) e fundos dos selos tingidos sobre o cartão dela (os do Escuro são os
- * pares do guia).
+ * Paleta escura a partir do "chão" dela: texto e situação do Escuro (fixos, nunca da marca), `painel` a 10% do fundo ao
+ * cartão (a mesma regra que dá o #0B0B0D do Escuro: mais que isso derruba o cartão abaixo de 1,15:1 sobre o painel) e
+ * pílulas tingidas sobre o cartão dela.
  */
-function paletaEscura(chao: Pick<Cores, 'fundo' | 'superficie' | 'superficie2' | 'superficie3' | 'faixaForte' | 'divisor' | 'borda' | 'campo' | 'bordaCampo'>): Cores {
+function paletaEscura(chao: Pick<Cores, 'fundo' | 'superficie' | 'superficie2' | 'superficie3' | 'faixaForte' | 'divisor' | 'borda' | 'campo' | 'bordaCampo'>, perigo: string = ESCURO.perigo): Cores {
   return {
     ...ESCURO,
     ...chao,
-    painel: misturar(chao.fundo, chao.superficie, 0.45),
-    sucessoSuave: tingido(ESCURO.sucesso, chao.superficie),
-    atencaoSuave: tingido(ESCURO.atencao, chao.superficie),
-    perigoSuave: tingido(ESCURO.perigo, chao.superficie),
+    perigo,
+    painel: misturar(chao.fundo, chao.superficie, 0.1),
+    ...pilulasDaSituacao({ ...ESCURO, perigo }, chao.superficie),
   };
 }
 
 /**
  * Paletas da marca (`docs/planos/paletas-da-marca.md`, decisão 1 de 03/11): a consultoria escolhe uma da lista em Marca.
- * A paleta muda só o "chão" (fundo, cartão, faixas, divisor, bordas e campo); texto, status, fases e foco são os do Escuro
- * ou do Claro. Valores literais, calculados uma vez pela prévia `docs/prototipos/paletas-da-marca.html` (item = 40% do caminho do cartão ao fundo, mais escuro que o cartão: o trilho das barras de progresso aparece dentro dele, e um item mais claro faria a série feita (verde translúcido) cair abaixo de 4,5:1 no Oceano;
- * faixa no tom mais claro em que texto e status passam 4,5:1; `faixaForte` = faixa + 0,03 de mistura com branco, escolha
- * deste passo porque a prévia não calcula esse tom). Nas claras o cartão é branco e o segundo tom da paleta é a faixa.
+ * A paleta muda só o "chão" (fundo, cartão, faixas, divisor, bordas e campo); texto, situação, fases e foco são os do
+ * Escuro ou do Claro. Escada de 17/11 (D6), uma regra só por modo:
+ * - escuras: cartão e faixa clareiam juntos o mínimo para o cartão chegar a 1,15:1 sobre o painel (Meia-noite 3%,
+ *   Ameixa 4%, Oceano 2,5% para o branco; clarear mais deixa mais cores prontas da marca abaixo de 3:1 no cartão), poço e
+ *   campo ficam (já eram mais escuros que o cartão), contorno e `faixaForte` clareiam o mínimo para os pisos;
+ * - claras: página desce o mesmo que a do Claro (−26/−24/−21) e volta o mínimo para os marcadores (agenda e laranja do
+ *   perfil) manterem 3:1 sobre ela (Céu 2%, Lavanda 7%, Rosa 4% para o branco; o cartão fica a 1,37:1), faixa e poço a
+ *   34% e 45% do branco à página, campo branco; contorno e borda escurecidos o mínimo para 1,4:1 sobre o cartão e 1,7:1
+ *   sobre a página.
+ * - o vermelho de perigo das escuras clareia o mínimo onde a faixa e a pílula dela pedem (Meia-noite 1%, Oceano 3%).
  */
 export const MEIA_NOITE: Cores = paletaEscura({
   fundo: '#080C14',
-  superficie: '#111722',
+  superficie: '#181E29',
   superficie2: '#060910',
-  superficie3: '#1A2333',
+  superficie3: '#212A39',
   faixaForte: '#232E42',
-  divisor: '#1E293B',
+  divisor: '#2E3849',
   borda: '#49566B',
   campo: '#060910',
   bordaCampo: '#7B879B',
-});
+}, '#FF4F6B');
 
 export const AMEIXA: Cores = paletaEscura({
   fundo: '#0D0914',
-  superficie: '#161122',
+  superficie: '#1F1B2B',
   superficie2: '#08050D',
-  superficie3: '#221A33',
-  faixaForte: '#2B2240',
-  divisor: '#281E3C',
+  superficie3: '#2B233B',
+  faixaForte: '#2C2341',
+  divisor: '#3B324E',
   borda: '#514766',
   campo: '#08050D',
   bordaCampo: '#817796',
@@ -194,53 +237,53 @@ export const AMEIXA: Cores = paletaEscura({
 
 export const OCEANO: Cores = paletaEscura({
   fundo: '#071014',
-  superficie: '#0F1B22',
+  superficie: '#152128',
   superficie2: '#050B0E',
-  superficie3: '#172832',
+  superficie3: '#1D2D37',
   faixaForte: '#1F3440',
-  divisor: '#1B303C',
+  divisor: '#283B47',
   borda: '#475C68',
   campo: '#050B0E',
   bordaCampo: '#778A95',
-});
+}, '#FF526E');
 
 export const LAVANDA: Cores = {
   ...CLARO,
-  fundo: '#F3F0FA',
-  painel: '#F3F0FA',
+  fundo: '#DCDBE7',
+  painel: '#DCDBE7',
   superficie: '#FFFFFF',
-  superficie2: '#EAE5F5',
-  superficie3: '#FFFFFF',
+  superficie2: '#EFEFF4',
+  superficie3: '#F3F3F7',
   faixaForte: '#D6CEE8',
-  divisor: '#E2DCF0',
-  borda: '#B0A8C4',
-  campo: '#EAE5F5',
+  divisor: '#DBD5E9',
+  borda: '#ACA5C0',
+  campo: '#FFFFFF',
   bordaCampo: '#706884',
 };
 export const CEU: Cores = {
   ...CLARO,
-  fundo: '#EEF4FA',
-  painel: '#EEF4FA',
+  fundo: '#D5DDE6',
+  painel: '#D5DDE6',
   superficie: '#FFFFFF',
-  superficie2: '#E4EDF7',
-  superficie3: '#FFFFFF',
+  superficie2: '#ECF0F4',
+  superficie3: '#F1F3F7',
   faixaForte: '#CEDCEB',
-  divisor: '#DAE4F0',
-  borda: '#A6B5C7',
-  campo: '#E4EDF7',
+  divisor: '#D1DBE6',
+  borda: '#9CAABB',
+  campo: '#FFFFFF',
   bordaCampo: '#67778A',
 };
 export const ROSA: Cores = {
   ...CLARO,
-  fundo: '#FAF0F4',
-  painel: '#FAF0F4',
+  fundo: '#E1DAE0',
+  painel: '#E1DAE0',
   superficie: '#FFFFFF',
-  superficie2: '#F5E5EC',
-  superficie3: '#FFFFFF',
+  superficie2: '#F2EEF1',
+  superficie3: '#F5F2F4',
   faixaForte: '#E6CFD9',
-  divisor: '#F0DCE5',
-  borda: '#C2A5B3',
-  campo: '#F5E5EC',
+  divisor: '#E6D3DC',
+  borda: '#BEA2AF',
+  campo: '#FFFFFF',
   bordaCampo: '#806472',
 };
 
@@ -251,7 +294,7 @@ export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTem
   OCEANO: { nome: 'Oceano', cores: OCEANO, modo: 'ESCURO', variante: 'escuro' },
   AMEIXA: { nome: 'Ameixa', cores: AMEIXA, modo: 'ESCURO', variante: 'escuro' },
   CLARO: { nome: 'Claro', cores: CLARO, modo: 'CLARO', variante: 'claro' },
-  AREIA: { nome: 'Areia', cores: AREIA, modo: 'CLARO', variante: 'claro' },
+  AREIA: { nome: 'Areia', cores: AREIA, modo: 'CLARO', variante: 'areia' },
   CEU: { nome: 'Céu', cores: CEU, modo: 'CLARO', variante: 'claro' },
   LAVANDA: { nome: 'Lavanda', cores: LAVANDA, modo: 'CLARO', variante: 'claro' },
   ROSA: { nome: 'Rosa', cores: ROSA, modo: 'CLARO', variante: 'claro' },
@@ -270,6 +313,9 @@ export const CODIGOS_PALETAS_VISIVEIS: readonly Tema[] = [
 export const paletaDe = (codigo: string | null | undefined): (typeof PALETAS)[Tema] =>
   (codigo && Object.hasOwn(PALETAS, codigo) ? PALETAS[codigo as Tema] : undefined) ?? PALETAS.ESCURO;
 
+// shortcut: legado do Financeiro (outra sessão), trocar pelos papéis de situação quando ela liberar
+// (`treinador/financeiro/VisaoGeral.tsx` e `ResultadoDoMes.tsx` leem `TokenNeon`, `TokensStndrd` e as cinco chaves de
+// `neon`; fora do Financeiro ninguém mais usa: as telas usam `sucesso`, `atencao`, `perigo`, `informacao` e `conquista`).
 export interface TokenNeon {
   accent: string;
   tintBg: string;
@@ -281,6 +327,7 @@ export interface TokenNeon {
 }
 
 export interface TokensStndrd {
+  /** Legado do Financeiro (ver o `shortcut:` acima). */
   neon: {
     emerald: TokenNeon;
     acidLime: TokenNeon;
@@ -288,10 +335,7 @@ export interface TokensStndrd {
     electricPurple: TokenNeon;
     crimson: TokenNeon;
   };
-  cta: {
-    bg: string;
-    text: string;
-  };
+  /** Vidro da barra de descanso, do aviso de recorde e da barra inferior (Onda 2 do plano, D11). */
   glass: {
     bg: string;
     border: string;
@@ -332,10 +376,6 @@ export const TOKENS_STNDRD_ESCURO: TokensStndrd = {
       tintBorder: 'rgba(255, 59, 92, 0.28)',
       textOnTint: '#FF4D6D',
     },
-  },
-  cta: {
-    bg: '#FCFCFC',
-    text: '#09090B',
   },
   glass: {
     bg: 'rgba(20, 20, 22, 0.78)',
@@ -388,10 +428,6 @@ export const TOKENS_STNDRD_CLARO: TokensStndrd = {
       capsuleText: '#FF4D6D',
     },
   },
-  cta: {
-    bg: '#09090B',
-    text: '#FFFFFF',
-  },
   glass: {
     bg: 'rgba(255, 255, 255, 0.82)',
     border: 'rgba(9, 9, 11, 0.08)',
@@ -415,13 +451,14 @@ export const CHAVES_DA_AGENDA: readonly CorDaAgenda[] = ['AZUL', 'INDIGO', 'VIOL
 export const PALETA_DA_AGENDA: Record<VarianteDoTema, Record<CorDaAgenda, string>> = {
   claro: {
     AZUL: '#1B6FD6', INDIGO: '#4B3FBF', VIOLETA: '#9333B8', MAGENTA: '#C0306F',
-    TURQUESA: '#0B7F8A', ARDOSIA: '#51677E', TERRA: '#A64F43', OLIVA: '#758418',
+    TURQUESA: '#0B7F8A', ARDOSIA: '#51677E', TERRA: '#A85347', OLIVA: '#758418',
   },
   // Areia (14/11): AZUL, TURQUESA e OLIVA, um passo mais escuras (3:1 sobre a página mais escura); TERRA, um pouco mais clara,
-  // porque o vermelho de perigo escurecido da Areia a deixava a 22,6 de distância dele (piso 25).
+  // porque o vermelho de perigo escurecido da Areia a deixava a menos de 25 de distância dele (o piso). 17/11: TERRA mais 2%
+  // para o branco, no claro e na areia, pelo mesmo motivo com o perigo novo.
   areia: {
     AZUL: '#1B6ED4', INDIGO: '#4B3FBF', VIOLETA: '#9333B8', MAGENTA: '#C0306F',
-    TURQUESA: '#0B7C87', ARDOSIA: '#51677E', TERRA: '#A25346', OLIVA: '#697716',
+    TURQUESA: '#0B7C87', ARDOSIA: '#51677E', TERRA: '#A4564A', OLIVA: '#697716',
   },
   escuro: {
     AZUL: '#4A90F7', INDIGO: '#8B7CF0', VIOLETA: '#C07DE8', MAGENTA: '#E8579F',
@@ -631,6 +668,19 @@ export function misturar(cor: string, alvo: string, t: number): string {
 export function tingido(cor: string, base: string): string {
   if (!/^#[0-9a-f]{6}$/i.test(cor) || !/^#[0-9a-f]{6}$/i.test(base)) return base;
   return misturar(base, cor, 0x18 / 255);
+}
+
+/**
+ * Botão principal neutro (D7, 17/11): fundo na cor do texto (preto nas claras, branco nas escuras) e rótulo na cor da
+ * página; com o mouse em cima ou apertado, o fundo anda 15% na direção da página (o rótulo segue ≥ 4,5:1 sobre ele).
+ */
+export function coresDoBotaoPrincipal(cores: Pick<Cores, 'texto' | 'fundo'>): { fundo: string; texto: string; fundoAoPassar: string } {
+  return { fundo: cores.texto, texto: cores.fundo, fundoAoPassar: misturar(cores.texto, cores.fundo, 0.15) };
+}
+
+/** Fundo opaco da pílula de situação (D9, 17/11): `cor` a 12% sobre `base` (o cartão). */
+export function tingidoDaPilula(cor: string, base: string): string {
+  return misturar(base, cor, 0.12);
 }
 
 /**

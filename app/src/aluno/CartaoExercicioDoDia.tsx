@@ -8,7 +8,7 @@ import { usaCargaDeTrabalho } from '../dominio/cargas';
 import { MODALIDADES } from '../dominio/modalidades';
 import { textoDaCarga } from '../dominio/unidadeDeCarga';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO, TOKENS_STNDRD_ESCURO } from '../tema/tokens';
+import { espaco, fontes } from '../tema/tokens';
 import { propsDeLink } from '../ui/propsDeLink';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
@@ -46,8 +46,7 @@ export function CartaoExercicioDoDia({
   descansoNaSerie?: boolean;
   aoAbrir: () => void;
 }) {
-  const { cores, stndrd: stndrdTema } = useTema();
-  const stndrd = stndrdTema ?? TOKENS_STNDRD_ESCURO;
+  const { cores } = useTema();
   const unidade = useUnidadeDeCarga();
   const completo = total > 0 && feitas >= total;
   // Só aquecimento: nada entra na contagem, mas as séries continuam planejadas.
@@ -73,7 +72,7 @@ export function CartaoExercicioDoDia({
         estilos.cartao,
         {
           backgroundColor: pressed ? cores.superficie3 : cores.superficie,
-          borderColor: completo ? stndrd.neon.emerald.tintBorder : cores.divisor,
+          borderColor: cores.divisor,
         },
       ]}>
       <View style={estilos.topo}>
@@ -89,7 +88,7 @@ export function CartaoExercicioDoDia({
           {resumo ? <Texto numerico variante="pequeno">{resumo}</Texto> : null}
           {prescricaoDeCardio ? <Texto numerico variante="pequeno">{prescricaoDeCardio}</Texto> : null}
         </View>
-        {completo ? <CheckCircle2 size={22} color={stndrd.neon.emerald.accent} /> : <ChevronRight size={22} color={cores.textoSuave} />}
+        {completo ? <CheckCircle2 size={22} color={cores.sucesso} /> : <ChevronRight size={22} color={cores.textoSuave} />}
       </View>
       <View style={[estilos.rodape, { backgroundColor: cores.superficie2, borderTopColor: cores.divisor }]}>
         {carga ? (

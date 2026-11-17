@@ -128,8 +128,8 @@ borda de 1 px, Geist, seleção neutra, conteúdo num painel ao lado do menu. O 
 
 > UI flat utilitária de painel SaaS, organizada em cartões com contorno discreto de 1 px e faixa de título; menu no
 > fundo e conteúdo num painel levemente destacado; sem sombras nem gradientes; cor só com significado (verde, âmbar,
-> vermelho e cinza para status, em pílula com ponto sobre um fundo escuro da própria cor; marca só na ação principal e
-> no indicador pequeno do item ativo); seleção neutra em cinza com ✓; detalhes revelados aos poucos, como acordeão;
+> vermelho e cinza para status, em pílula com ponto sobre um fundo escuro da própria cor; botão principal neutro, marca só
+> no indicador pequeno do item ativo, no título e no cartão "Hoje"); seleção neutra em cinza com ✓; detalhes revelados aos poucos, como acordeão;
 > cantos de 12 px no cartão e 8 px no controle, grade de 8 px, fonte Geist.
 
 Termos para procurar referências: *flat SaaS dashboard*, *outlined card UI*, *data-dense admin UI* e *soft
@@ -153,21 +153,28 @@ neo-brutalism UI* (este último mostra o lado "borda forte").
 
 ### 4.3 Níveis de superfície (o coração da hierarquia)
 
+Escada de 17/11 (`docs/planos/hierarquia-visual-tres-temas.md`, D1 a D6; travada por tema em `tema/tokens.test.ts`):
+
 ```text
-fundo (menu lateral do PC, telas do celular)           escuro #0A0A0C
- └─ painel (conteúdo ao lado do menu no PC)             escuro #101013, borda divisor
-     └─ Cartao              superficie + 1 px divisor   escuro #18181B / #36363C (contraste alto: bordaCampo)
-         ├─ faixa de título superficie2 + linha divisor ← onde a seção COMEÇA
-         ├─ item            superficie2 (elevada)       escuro #222226
-         │   └─ selecionado superficie3 + bordaCampo + ✓ escuro #2C2C31 / #82828C
-         └─ campo           campo + bordaCampo (3:1)    escuro #0F0F12
+                                                        Claro      Areia      Escuro
+fundo / painel (página; menu e conteúdo no PC)          #D9DCE1    #CDCAC3    #09090B / #0B0B0D
+ └─ Cartao   superficie + 1 px divisor                  #FFFFFF    #FFFFFF    #1C1C20 / #36363C (contraste alto: bordaCampo)
+     ├─ faixa do título e seleção   superficie3         #F2F3F5    #EDEBE7    #26262B
+     ├─ poço (item, apoio, hover)   superficie2         #EEF0F2    #F1EFEB    #0F0F11 (mais escuro que o cartão)
+     └─ campo   campo + bordaCampo (≥ 3:1)              #FFFFFF    #FFFFFF    #0F0F11
 ```
 
+Pisos (D1): cartão × página ≥ 1,35 no Claro (e Céu, Lavanda, Rosa), ≥ 1,6 na Areia e ≥ 1,15 nas escuras, medido sobre o
+`fundo` e sobre o `painel`; contorno do cartão (`divisor`) × cartão ≥ 1,4; texto × cartão ≥ 7; faixa diferente do cartão e
+da página, poço diferente do cartão (D2). Razões medidas de cada paleta: tabela "Razão final de cada par" do plano.
+O `Cartao` ainda pinta a faixa com `superficie2` (o poço): trocar para `superficie3` é pendência do plano.
+
 Uso de cada nível (11/11):
-- **`superficie2` (elevada):** menus suspensos (lista suspensa, calendário, menu da conta, passeio, com borda
-  `divisor` e **sem sombra**: o `SOMBRA_FLUTUANTE` saiu em 11/11), conteúdo de apoio, faixa de título e o hover de linhas
+- **`superficie2` (poço):** menus suspensos (lista suspensa, calendário, menu da conta, passeio, com borda
+  `divisor` e **sem sombra**: o `SOMBRA_FLUTUANTE` saiu em 11/11), conteúdo de apoio, item e o hover de linhas
   e botões. Dentro de um menu, o item em foco ou sob o ponteiro sobe para `superficie3`.
-- **`superficie3` (seleção neutra):** fundo do item escolhido (chip, opção da folha, dia do calendário, item do menu).
+- **`superficie3` (faixa do título e seleção neutra):** faixa de título (Tabela, Folha, PainelConfirmacao) e fundo do item
+  escolhido (chip, opção da folha, dia do calendário, item do menu).
 - **`painel`:** separação discreta entre o menu e o conteúdo no PC (`Navegacao`); nas paletas claras é o próprio
   `fundo` tingido (12/11), separado do menu pelo contorno `divisor`. Quem pinta o fundo da tela ou casa
   uma cor com ele (`Tela`, o esmaecido das faixas que rolam) usa `useFundoDaArea()` (`ui/fundoDaArea`),
@@ -179,23 +186,21 @@ Uso de cada nível (11/11):
 - Os HEX acima são o ponto de partida do escuro (guia de 11/11). As outras oito paletas (claro, areia, lavanda, céu,
   rosa, meia-noite, ameixa, oceano) têm pares próprios e não precisam repetir esses valores: o que vale é o
   contraste medido em `tema/tokens.test.ts`.
-- **Paletas claras (12/11, `docs/planos/superficies-das-paletas-claras.md`):** a página (`fundo` e `painel`, que nas
-  claras são o mesmo tom) é tingida e o cartão e o campo são brancos, sem sombra: o cartão se destaca pelo tom (≥ 1,1:1)
-  e o campo pelo contorno `bordaCampo`, pelo menos o dobro do contraste do `divisor` do cartão. A faixa do título e as
-  linhas (`superficie2`) ficam entre a página e o cartão. Valores de página / faixa / seleção: Claro `#F2F2F4` /
-  `#F8F8F9` / `#E7E7EA`; Areia (14/11, ver abaixo) `#CDCAC3` / `#D9D6CF` / `#D7D4CD`; Lavanda `#EFF0FA` / `#F8F8F9` / `#E6E0FF`; Céu
-  `#EBF2FC` / `#F8F8F9` / `#D5E5FB`; Rosa `#FAEFF3` / `#F8F8F9` / `#F8DCEA`. Cartão e campo `#FFFFFF` nas quatro que não são a Areia.
-- **Areia (14/11, pedido do Saraiva):** areia mais escura e acinzentada, de um exemplo que ele aprovou (valores tirados de
-  uma imagem comprimida, ajustados só no que o contraste pede). Página (`fundo` e `painel`) `#CDCAC3` (o exemplo tinha
-  `#CAC7C0`; o Âmbar e o Verde da Marca precisam de 3:1 da página), cartão `#E6E5E1` (branco quente, não branco puro),
-  `superficie2` `#D9D6CF`, `superficie3` (faixa, seleção) `#D7D4CD`, `faixaForte` `#CCC9C1`, campo `#F4F3F0`, `divisor`
-  `#B0ACA2`, `borda` `#8E8A80`, `bordaCampo` (também o interruptor desligado) `#625E56`, `textoSuave` `#4C4C54`. A cor da marca
-  não muda. Status e fases ficam um passo mais escuros só nessa paleta (`sucesso` `#125830`, `atencao` `#6C460D`, `perigo`
-  `#961717`, `neutro` `#4D4D53`, fases `#AC5E76` `#537E79` `#957029` `#6973A9`) e os fundos dos selos são tingidos sobre o cartão novo.
-  As cores fixas fora de `Cores` ganharam a coluna `areia` (`VarianteDoTema`; só o que os pisos pediam): agenda AZUL `#1B6ED4`,
-  TURQUESA `#0B7C87`, OLIVA `#697716`, TERRA `#A25346`; perfil LARANJA `#BC4E00`; identificação CIANO `#006483`, AZUL `#1959B4`;
-  destaque azul `#173EAB`, ciano `#0B5D73`, violeta `#6A27D2`. Contraste alto: o `textoSuave` do claro (`#3F3F46`) é escurecido
-  na conta até 7:1 sobre fundo, painel, `superficie`, `superficie2`, `superficie3` e `faixaForte`; nas claras de sempre segue `#3F3F46`.
+- **Paletas claras (17/11, D3 e D6):** a página (`fundo` e `painel`, que nas claras são o mesmo tom) é tingida e o cartão e
+  o campo são brancos, sem sombra: o cartão se destaca pelo tom (≥ 1,35:1) e o campo pelo contorno `bordaCampo`, pelo
+  menos o dobro do contraste do `divisor` do cartão. Faixa (`superficie3`) e poço (`superficie2`) ficam entre a página e
+  o cartão. Página / faixa / poço: Claro `#D9DCE1` / `#F2F3F5` / `#EEF0F2`; Céu `#D5DDE6` / `#F1F3F7` / `#ECF0F4`;
+  Lavanda `#DCDBE7` / `#F3F3F7` / `#EFEFF4`; Rosa `#E1DAE0` / `#F5F2F4` / `#F2EEF1` (regra das três no comentário das
+  paletas em `tema/tokens.ts`).
+- **Areia (17/11, D4; volta à página do exemplo que o Saraiva aprovou em 14/11):** página (`fundo` e `painel`) `#CDCAC3`,
+  cartão e campo `#FFFFFF`, `superficie3` (faixa, seleção) `#EDEBE7`, `superficie2` (poço) `#F1EFEB`, `faixaForte`
+  `#C3C0B8`, `divisor` `#DED8CD`, `borda` `#A0998B`, `bordaCampo` (também o interruptor desligado) `#6E6659`, `textoSuave`
+  `#4C4C54`. A cor da marca não muda. Verde, âmbar e vermelho um passo mais escuros só nessa paleta (`sucesso` `#0A5931`,
+  `atencao` `#704300`, `perigo` `#961329`; ver 4.5). A paleta voltou a usar a variante `areia` das cores fixas fora de
+  `Cores` (`VarianteDoTema`): agenda AZUL `#1B6ED4`, TURQUESA `#0B7C87`, OLIVA `#697716`, TERRA `#A4564A`; perfil LARANJA
+  `#BC4E00`; identificação CIANO `#006483`, AZUL `#1959B4`; destaque azul `#173EAB`, ciano `#0B5D73`, violeta `#6A27D2`.
+  Contraste alto: o `textoSuave` do claro (`#3F3F46`) é escurecido na conta até 7:1 sobre fundo, painel, `superficie`,
+  `superficie2`, `superficie3` e `faixaForte`; nas claras de sempre segue `#3F3F46`.
 
 - 24 px entre blocos, 16 px dentro do cartão.
 - Toque mínimo de 44 px (48 nas linhas de lista e caixas de seleção); fonte mínima de 12.
@@ -240,7 +245,7 @@ Uso de cada nível (11/11):
 | `GraficoLinha` | Gráfico SVG próprio. Opcionais, que não mudam os usos antigos (peso e avaliação física, 13/11): `segmentos="retos"` e `semArea` (só os pontos medidos, sem sugerir valor entre as datas), segunda série tracejada em outra cor com legenda em texto (`serieB`, no máximo duas), dica por mouse, toque e teclado (`textoDaDica`), `destacarUltimo` e as pontas do eixo escritas só quando há `escala` (ou `legendaDaEscala`) com os mesmos números da legenda. Alvo de toque do ponto: 44 px (`ALVO_TOQUE`), com o desenho menor; pontos próximos dividem o espaço no meio do caminho entre os centros, sem sobrepor alvos. |
 | `Alerta` | Caixa de aviso: `perigo` (erro), `atencao` (cuidado, mas não impede), `sucesso`. |
 | `Selo` | Status curto com texto (11/11): `sucesso`/`atencao`/`perigo` viram pílula com ponto e texto na cor sobre o `*Suave` da situação; o estado normal (`neutro`) é só texto secundário, sem pílula. `categoria` (tipo de série, refeição: `useTema().identificacao[chave]`) é pílula escura com o texto na cor da categoria, sem ponto. |
-| `Botao` | Um `primario` por área, na cor da marca (hover `marcaHover`); o secundário tem borda `bordaCampo` e hover `superficie2`. Desabilitado sempre diz o porquê (`motivo`). |
+| `Botao` | Um `primario` por área, **neutro** (17/11, D7): fundo `texto` e rótulo `fundo` (preto no Claro e na Areia, branco nas escuras), hover 15% na direção da página (`coresDoBotaoPrincipal`); a marca não pinta botão. O secundário tem borda `bordaCampo` e hover `superficie2`. `perigo` (confirmação destrutiva do painel) é contorno e rótulo em `perigo`, sem fundo cheio, hover `perigoSuave`; `perigoTexto` é o fantasma vermelho. O tipo `cta` saiu. Todos com 44 px de altura mínima, foco pelo `anelFoco`, afundar ao apertar (sem movimento com "reduzir movimento"), carregando com indicador e desabilitado sempre com o porquê (`motivo`). |
 | `Campo` / `MensagemDeErro` | Rótulo permanente, ajuda abaixo do campo, erro com ícone + mensagem + borda `perigo` (`MensagemDeErro` também na `Escolha`, no endereço e na `EscolhaEmFolha`); foco visível pelo `anelFoco`. |
 | `Escolha` | Até cinco opções sem contagem = grupo segmentado; mais = chips com ✓. `contagem` mostra "Todos 48" em texto secundário sem mudar o alvo de toque. |
 | `Abas` | Aba ativa com texto forte e sublinhado de 2 px em `marcaPeca`; contagem em pílula neutra; sem a versão invertida. |
@@ -254,7 +259,8 @@ Uso de cada nível (11/11):
 
 Duas regras. Plano e passos em `docs/planos/auditoria-cores.md`.
 
-1. **A cor da marca serve só para destaque e ação.** Erro e alerta têm tom próprio, e desabilitado é cinza.
+1. **A cor da marca serve só para identidade e destaque pequeno** (desde 17/11, D7 e D8: o botão principal é neutro). Erro
+   e alerta têm tom próprio, e desabilitado é cinza.
 2. **Uma cor por situação, e âmbar só para quem precisa agir.** Quem espera vê neutro, e o texto diz quem age. Por
    exemplo, a atualização enviada diz "Enviada · aguardando revisão" ao aluno, em neutro, e "Para revisar" ao
    treinador, em âmbar.
@@ -268,8 +274,10 @@ a cor da marca muda por consultoria, mas `sucesso`, `atencao` e `perigo` são fi
 vêm da marca; por isso o status de cobrança também leva sempre o texto ("Em aberto", "Vencida", "Paga"). O selo de cobrança fica só
 com o texto, sem ícone e sem mudar o desenho do `Selo` (Gustavo, 04/11).
 
-**Onde a marca pode aparecer (lista fechada):**
-- ação principal: `Botao primario` e, nas telas públicas da consultoria, `BotaoPublico`;
+**Onde a marca pode aparecer (lista fechada).** D8 (17/11) reduz o alvo a três lugares: menu ativo, título e cartão "Hoje"
+do aluno. O `Botao primario` já saiu (neutro, D7); os demais itens abaixo ainda usam a marca no código e esperam a troca
+(pendência do plano `hierarquia-visual-tres-temas.md`):
+- nas telas públicas da consultoria, `BotaoPublico`;
 - indicador pequeno do item de menu ativo e da aba ativa (barra ou sublinhado, `marcaPeca`; o fundo do item é neutro, 11/11);
 - cartão "Hoje" do aluno;
 - nome da marca (`MarcaTitulo`), a inicial no trilho do menu (`MarcaDoTrilho`) e a da identidade do menu aberto (`MarcaDoMenu`, 68 px, logo e nome numa linha);
@@ -281,17 +289,28 @@ com o texto, sem ícone e sem mudar o desenho do `Selo` (Gustavo, 04/11).
 
 Qualquer outro lugar precisa de decisão nova.
 
-| Situação | Tom (token) | Quando usar | Exemplos | Aluno e treinador | Mínimo WCAG AA | Pior valor medido (claro · areia · escuro; 11/11) |
+| Situação | Tom (token) | Quando usar | Exemplos | Aluno e treinador | Mínimo WCAG AA | Pior valor medido (claro · areia · escuro; 17/11 nas linhas de ação e situação, 11/11 nas demais) |
 | --- | --- | --- | --- | --- | --- | --- |
-| Ação e destaque | fundo `marca` com texto `sobreMarca`; em texto ou ícone, `marcaTexto` | Só nos lugares da lista acima | "Salvar", menu ativo, cartão Hoje | Sim | 4,5:1 (texto) | `sobreMarca` sobre `marca` ≥ 4,5 (`avaliarMarca` recusa menos); `marcaTexto` ≥ 4,5 por construção (`marcaParaTexto`) |
-| Positivo, concluído | `sucesso` | Terminou bem e não falta nada | Paga, Ativa, Revisada, Sincronizado, Treino concluído, Realizado, Com acesso, Publicado | Sim | 4,5:1 | 5,48 · 5,48 · 7,99 (sobre `sucessoSuave`, o fundo do selo) |
-| Pendente, alguém precisa agir | `atencao` | Falta uma ação de alguém, mas nada impede de seguir | Em aberto, Para revisar, Responder até, Adiada, Pausada, Contestada, Alterações não salvas, "Falta a carga" e "Sem quantidade" (campo vazio que ainda vai ser preenchido; valor inválido é `perigo`) | Só quem age (a cobrança Em aberto, para os dois: exceção acima) | 4,5:1 | 5,40 · 5,40 · 8,50 (sobre `atencaoSuave`) |
-| Problema, erro ou atraso | `perigo` em texto e borda; `perigoFundo` em botão preenchido com texto branco | Algo deu errado, impede de seguir ou passou do prazo; ação destrutiva | Atrasada, "Vencida há N dias", Falhou, Faltou, Corrigir, Falha ao salvar, erro de campo | Sim | 4,5:1 | 5,62 · 5,62 · 5,59 (sobre `perigoSuave`; pior das nove paletas 5,59, escuro); branco sobre `perigoFundo`: 6,57 · 6,57 · 5,62 |
+| Ação principal | neutra (17/11, D7): fundo `texto`, rótulo `fundo`, hover `coresDoBotaoPrincipal().fundoAoPassar` | Uma por área | "Salvar", "Publicar treino", "Começar treino" | Sim | 4,5:1 (texto) | rótulo sobre o botão: 14,47 · 12,16 · 19,39; sobre o hover: 10,59 · 9,24 · 13,96 |
+| Destaque da marca | `marcaPeca` (indicador), `marcaTexto` (texto e ícone) | Só nos lugares da lista acima | Menu ativo, nome da marca, cartão Hoje | Sim | 4,5:1 (texto); 3:1 (peça) | `marcaTexto` ≥ 4,5 e `marcaPeca` ≥ 3 por construção (`marcaParaTexto`, `marcaParaPeca`) |
+| Positivo, concluído | `sucesso` | Terminou bem e não falta nada | Paga, Ativa, Revisada, Sincronizado, Treino concluído, Realizado, Com acesso, Publicado | Sim | 4,5:1 | cartão 7,06 · 8,45 · 10,34; pílula 5,89 · 6,94 · 8,12 |
+| Pendente, alguém precisa agir | `atencao` | Falta uma ação de alguém, mas nada impede de seguir | Em aberto, Para revisar, Responder até, Adiada, Pausada, Contestada, Alterações não salvas, "Falta a carga" e "Sem quantidade" (campo vazio que ainda vai ser preenchido; valor inválido é `perigo`) | Só quem age (a cobrança Em aberto, para os dois: exceção acima) | 4,5:1 | cartão 7,05 · 8,43 · 9,29; pílula 5,89 · 6,92 · 7,29 |
+| Problema, erro ou atraso | `perigo` em texto, ícone e borda; o `Botao perigo` é contorno e rótulo `perigo`, sem fundo cheio (D7) | Algo deu errado, impede de seguir ou passou do prazo; ação destrutiva | Atrasada, "Vencida há N dias", Falhou, Faltou, Corrigir, Falha ao salvar, erro de campo | Sim | 4,5:1 | cartão 7,30 · 8,67 · 5,28; pílula 5,91 · 6,98 · 4,58 (pior das nove paletas: Ameixa, 4,51) |
+| Informação | `informacao` (17/11, D9) | Medida ou estado sem juízo: o que está acontecendo agora | Série em andamento do aluno, número de indicador sem juízo no painel | Sim | 4,5:1 | cartão 5,82 · 5,82 · 6,02; pílula 4,89 · 4,89 · 5,04 (pior: Oceano, 4,80) |
+| Conquista | `conquista` (17/11, D9) | Recorde, nível, marca pessoal | Aviso de recorde, "Recordes da semana" no painel, `BadgeNivel` | Sim | 4,5:1 | cartão 6,68 · 6,68 · 5,86; pílula 5,52 · 5,52 · 4,93 (pior: Oceano, 4,74) |
 | Encerrado, inativo ou informativo | `neutro` | Acabou, foi desligado, ou é só informação, inclusive o que ainda vai acontecer, sempre com a data; também quem espera a ação de outro | Cancelada, Estornada, Encerrada, Arquivado, Inativo, Pasta concluída, Dispensada, Sem conexão, "Em 15 dias", "Enviada · aguardando revisão" (quem espera); rascunho sem erro (11/11): Rascunho, Nunca publicado, Alterações não publicadas, Alterado desde a publicação | Sim | 4,5:1 | `textoSuave` sem pílula: 6,26 · 6,04 · 6,83 (sobre `superficie3`) |
 | Desabilitado | fundo `superficie3`, borda `borda`, texto e ícone `textoSuave`, sem opacidade e sem a marca | Controle que não pode ser usado agora | Botão com `motivo` ("Preencha o nome"), opção indisponível, ✓ na prévia | Sim | Isento pela WCAG 1.4.3; o `motivo` abaixo é texto comum (4,5:1) | `textoSuave` sobre `superficie3`: 6,26 · 6,04 · 5,42 |
 | Seleção | neutra (11/11): fundo `superficie3`, contorno `bordaCampo`, ✓ e letra `texto`; caixa de seleção e `Interruptor` seguem preenchidos | Opção escolhida (chips, `Escolha`, calendário, opção de folha) | Chip marcado | Sim | 4,5:1 (texto); 3:1 (contorno) | `texto` sobre `superficie3` ≥ 12,6 (pior: ameixa); `bordaCampo` ≥ 3:1 (pior 3,56, ameixa) |
 | Identificação | paletas próprias (`PALETA_DE_IDENTIFICACAO`, agendas, fases e `PALETA_SO_DO_PERFIL`) | Diz *qual* coisa é, nunca status | Tipo de série, refeição, agenda, fase do ciclo, cor do perfil na Comunidade | Sim | 4,5:1 (texto); 3:1 (marcador) | conferido em `tokens.test.ts` |
 
+- **Cinco papéis de situação (17/11, D9; `ui/contrasteDasPecas.test.ts`, nas nove paletas):** `sucesso`, `atencao`,
+  `perigo`, `informacao` e `conquista`, cada um com a pílula `*Suave` = a cor a 12% sobre o cartão (`tingidoDaPilula`).
+  O número principal fica sempre em `texto`; a cor entra só na pílula, na barra, no ícone e no tingido. Valores decididos:
+  escuro `#00E699 #FFB020 #FF4D6A #4D9BFF #B57BFF`; Claro e Areia `#0E7A43 #8A5300 #C01834 #1D5FD1 #7A2FD0`. Ajustados o
+  mínimo para os pisos que já existiam (o texto da caixa `Alerta` direto na página e a série feita do aluno a 4,5:1):
+  Claro `sucesso` `#0C6638`, `atencao` `#804D00`, `perigo` `#AB152E`; Areia `#0A5931`, `#704300`, `#961329`; `perigo` da
+  Meia-noite `#FF4F6B` e do Oceano `#FF526E` (a faixa e a pílula deles). Informação e conquista ficaram como decididas.
+  Os tokens neon do estudo (`stndrd.neon`) só sobram no Financeiro, marcados `shortcut:` em `tema/tokens.ts`.
 - **Casos que não estão na tabela** (04/11; teste `dominio/corPorSituacao.test.ts`):
   - **Atualização revisada** (11/11, segundo guia): para o treinador `neutro` (`statusAtualizacaoTreinador`: é
     informativa; "Para revisar" segue `atencao`); para o aluno continua `sucesso`.
@@ -336,9 +355,9 @@ Qualquer outro lugar precisa de decisão nova.
   ficam numa fileira só, acima das coleções, e não na faixa do cartão.
 - **Aviso de rodapé (`useAviso`):** o tom de atenção é para o aviso que não é erro, como "o navegador bloqueou a nova
   aba" ou "a mensagem foi preparada, mas não foi registrada". O vermelho fica para o que falhou.
-- **Marca parecida com um status:** a marca padrão `#C62828` é o mesmo vermelho do `perigoFundo` do escuro. Por isso
-  o erro e o botão destrutivo se distinguem pela forma, com ícone, texto e fundo `tingido` do `Alerta`, e nunca só
-  pelo tom.
+- **Marca parecida com um status:** a marca padrão `#C62828` é o mesmo vermelho do `perigoFundo` do escuro e, com o
+  `perigo` de 17/11, também a Magenta `#BE185D` avisa na Marca (`avisoDeMarcaPertoDeStatus`). Por isso o erro e o botão
+  destrutivo se distinguem pela forma, com ícone, texto, contorno e fundo `tingido` do `Alerta`, e nunca só pelo tom.
 
 ---
 

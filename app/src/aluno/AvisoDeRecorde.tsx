@@ -29,13 +29,12 @@ export interface RecordeParaAvisar {
 /**
  * Aviso de recorde pessoal no topo da tela do exercício (Engajamento 0.2, referência do Hevy): aparece na hora em que a
  * série é marcada, sem internet, com a miniatura e o nome do exercício e uma linha por recorde ("Maior carga · 70 kg").
- * Some sozinho em 5 s; o leitor de tela o anuncia (região viva educada). Cor de status (sucesso), nunca a da marca.
+ * Some sozinho em 5 s; o leitor de tela o anuncia (região viva educada). Cor de conquista (D9, 17/11) no ícone e no selo,
+ * nunca a da marca; o nome do exercício e as linhas ficam em `texto`.
  */
 export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar | null; aoFechar: () => void }) {
-  const { cores, modo, stndrd: stndrdTema } = useTema();
+  const { cores, stndrd: stndrdTema } = useTema();
   const stndrd = stndrdTema ?? TOKENS_STNDRD_ESCURO;
-  const emerald = stndrd.neon.emerald;
-  const claro = modo === 'CLARO';
   const unidade = useUnidadeDeCarga();
   const margem = useSafeAreaInsets();
   const reduzido = useMovimentoReduzido();
@@ -47,8 +46,6 @@ export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar |
   }, [chave, aoFechar]);
   if (!aviso) return null;
   const linhas = aviso.recordes.map((r) => textoDoRecorde(r, unidade));
-  const seloBg = claro && emerald.capsuleBg ? emerald.capsuleBg : emerald.tintBg;
-  const seloText = claro && emerald.capsuleText ? emerald.capsuleText : emerald.textOnTint;
   return (
     <View pointerEvents="box-none" style={[estilos.camada, { top: margem.top + espaco(1) }]}>
       <Animated.View
@@ -60,23 +57,23 @@ export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar |
         accessibilityLabel={`Recorde pessoal em ${aviso.nome}, série ${aviso.numeroDaSerie}: ${linhas.join('; ')}`}
         style={[
           estilos.aviso,
-          { backgroundColor: stndrd.glass.bg, borderColor: emerald.tintBorder },
+          { backgroundColor: stndrd.glass.bg, borderColor: cores.divisor },
           Platform.OS === 'web' ? ({ backdropFilter: `blur(${stndrd.glass.blur}px)` } as object) : null,
         ]}>
         {aviso.demonstracao ? (
           <DemonstracaoDoExercicio exercicioId={aviso.exercicioId} nome={aviso.nome} imagens={aviso.demonstracao.imagens}
             imagemPropriaEm={aviso.demonstracao.imagemPropriaEm} papel="ALUNO" largura={44} altura={44} preencher />
         ) : (
-          <View style={[estilos.icone, { backgroundColor: emerald.tintBg, borderColor: emerald.tintBorder }]}>
-            <Medal size={22} color={emerald.accent} />
+          <View style={[estilos.icone, { backgroundColor: cores.conquistaSuave, borderColor: cores.divisor }]}>
+            <Medal size={22} color={cores.conquista} />
           </View>
         )}
         <View style={estilos.textos}>
           <View style={estilos.cabecalhoPr}>
-            <View style={[estilos.seloPr, { backgroundColor: seloBg, borderColor: emerald.tintBorder }]}>
-              <Texto style={[estilos.seloPrTexto, { color: seloText }]}>NEW PR</Texto>
+            <View style={[estilos.seloPr, { backgroundColor: cores.conquistaSuave }]}>
+              <Texto style={[estilos.seloPrTexto, { color: cores.conquista }]}>Recorde</Texto>
             </View>
-            <Texto variante="pequeno" numberOfLines={1} style={[estilos.titulo, { color: emerald.textOnTint }]}>{aviso.nome}</Texto>
+            <Texto variante="pequeno" numberOfLines={1} cor={cores.texto} style={estilos.titulo}>{aviso.nome}</Texto>
           </View>
           {linhas.map((l) => (
             <Texto key={l} numerico style={estilos.linha}>{l}</Texto>
@@ -105,7 +102,7 @@ const estilos = StyleSheet.create({
   icone: { width: 44, height: 44, borderRadius: RAIO, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   textos: { flex: 1, minWidth: 0, gap: 3 },
   cabecalhoPr: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  seloPr: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
+  seloPr: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   seloPrTexto: { fontFamily: fontes.negrito, fontSize: 10, lineHeight: 14, letterSpacing: 0.6 },
   titulo: { flex: 1, minWidth: 0, fontFamily: fontes.semi },
   linha: { fontFamily: fontes.semi, fontSize: 16 },

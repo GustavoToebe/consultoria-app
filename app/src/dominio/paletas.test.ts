@@ -51,9 +51,10 @@ describe('paletas da marca', () => {
       expect(avaliarMarca('#1F2937', 'AMEIXA').aviso).toBe('Na paleta Ameixa e no tema escuro, ícones e o menu ativo ficam apagados.');
     });
 
-    it('a paleta Escuro conta o cartão: Índigo avisa, Magenta e Azul passam no cartão #141416', () => {
+    // Cartão #1C1C20 desde a escada de 17/11 (D5, `docs/planos/hierarquia-visual-tres-temas.md`): a Magenta (2,81:1) passou a avisar.
+    it('a paleta Escuro conta o cartão: Índigo e Magenta avisam, Azul passa no cartão #1C1C20', () => {
       expect(avaliarMarca('#4F46E5', 'ESCURO').aviso).toBe('Na paleta Escuro, ícones e o menu ativo ficam apagados.');
-      expect(avaliarMarca('#BE185D', 'ESCURO').aviso).toBeNull();
+      expect(avaliarMarca('#BE185D', 'ESCURO').aviso).toBe('Na paleta Escuro, ícones e o menu ativo ficam apagados.');
       expect(avaliarMarca('#2563EB', 'ESCURO').aviso).toBeNull();
     });
 
@@ -61,8 +62,9 @@ describe('paletas da marca', () => {
       for (const tema of TEMAS.filter((t) => PALETAS_DO_TEMA[t].modo === 'CLARO')) {
         expect(PALETAS.filter((p) => avaliarMarca(p.cor, tema).aviso)).toEqual([]);
       }
+      // Cartão do Oceano mais claro desde 17/11 (D6): o mínimo para 1,15:1 sobre o painel, e seis das doze ficam abaixo de 3:1 nele.
       expect(PALETAS.filter((p) => avaliarMarca(p.cor, 'OCEANO').aviso).map((p) => p.id)).toEqual(
-        ['indigo', 'magenta'],
+        ['vermelho', 'esmeralda', 'turquesa', 'indigo', 'roxo', 'magenta'],
       );
     });
   });
@@ -85,9 +87,10 @@ describe('paletas da marca', () => {
       expect(avisoDeMarcaPertoDeStatus('#7C3AED')).toBeNull();
     });
 
-    it('das doze Cores prontas só o Vermelho intenso e o Laranja avisam', () => {
+    // Com o perigo de 17/11 (D9, um vermelho mais rosado) a Magenta ficou perto dele e o Laranja se afastou.
+    it('das doze Cores prontas só o Vermelho intenso e a Magenta avisam', () => {
       const avisam = PALETAS.filter((p) => avisoDeMarcaPertoDeStatus(p.cor)).map((p) => p.id);
-      expect(avisam).toEqual(['vermelho', 'laranja']);
+      expect(avisam).toEqual(['vermelho', 'magenta']);
     });
 
     it('só avisa: a avaliação que bloqueia o Salvar não muda', () => {

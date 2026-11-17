@@ -5,7 +5,7 @@ import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
 import { coresDoInterruptor } from './interruptor';
 import { coresDoMarcar } from './marcar';
 import { CORES_DO_PERFIL } from '../dominio/perfilDaComunidade';
-import { CAMADA_DA_FOTO, MARCA_NEUTRA, PALETAS, contraste, coresDeDestaque, corDoTomDoPerfil, marcaParaTexto, textoSobre, tingido, type Cores, type VarianteDoTema } from '../tema/tokens';
+import { CAMADA_DA_FOTO, MARCA_NEUTRA, PALETAS, contraste, coresDeDestaque, coresDoBotaoPrincipal, corDoTomDoPerfil, marcaParaTexto, tingido, tingidoDaPilula, type Cores, type VarianteDoTema } from '../tema/tokens';
 
 /**
  * Pares de cor que as peças comuns de `ui/` usam depois do passo 1 da atualização visual (30/10), conferidos em todos os
@@ -83,10 +83,41 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     for (const s of [cores.fundo, cores.superficie, cores.superficie3]) expect(contraste(cores.bordaCampo, s)).toBeGreaterThanOrEqual(3);
   });
 
-  it('Botao perigo: rótulo `textoSobre(perigoFundo)` sobre o `perigoFundo` (sem cor fixa no botão)', () => {
-    expect(contraste(textoSobre(cores.perigoFundo), cores.perigoFundo)).toBeGreaterThanOrEqual(4.5);
-    // Era o `#FFFFFF` fixo: o visual do botão não muda em nenhum tema.
-    expect(textoSobre(cores.perigoFundo)).toBe('#FFFFFF');
+  // D7 (17/11): o destrutivo é de contorno, sem fundo cheio (antes, `perigoFundo` preenchido com texto branco).
+  it('Botao perigo: rótulo e contorno `perigo` sobre o cartão, a faixa e o fundo; no hover, sobre a pílula `perigoSuave`', () => {
+    for (const s of [cores.fundo, cores.superficie, cores.superficie2, cores.superficie3, cores.perigoSuave]) {
+      expect(contraste(cores.perigo, s)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('Botao primario neutro (D7): rótulo `fundo` sobre o fundo `texto` e sobre o hover ≥ 4,5:1; o botão ≥ 3:1 contra onde fica', () => {
+    const p = coresDoBotaoPrincipal(cores);
+    expect(p).toMatchObject({ fundo: cores.texto, texto: cores.fundo });
+    expect(contraste(p.texto, p.fundo)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(p.texto, p.fundoAoPassar)).toBeGreaterThanOrEqual(4.5);
+    // Na pílula do Próximo passo também (tingido de atenção ou de perigo).
+    for (const s of [cores.fundo, cores.superficie, cores.superficie2, cores.superficie3, cores.atencaoSuave, cores.perigoSuave]) {
+      expect(contraste(p.fundo, s)).toBeGreaterThanOrEqual(3);
+      expect(contraste(p.fundoAoPassar, s)).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  // D9 (17/11): cinco papéis; texto e ícone informativo ≥ 4,5:1 sobre o cartão e sobre a própria pílula (12%), e o ponto,
+  // a barra e a faixa lateral ≥ 3:1 sobre o poço e o hover (`CartaoMini`, `ExercicioAluno`).
+  it.each(['sucesso', 'atencao', 'perigo', 'informacao', 'conquista'] as const)('situação %s: ≥ 4,5:1 sobre o cartão e o tingido de 12%%; marca ≥ 3:1 no poço e na faixa', (papel) => {
+    const cor = cores[papel];
+    const pilula = cores[`${papel}Suave`];
+    expect(pilula).toBe(tingidoDaPilula(cor, cores.superficie));
+    expect(contraste(cor, cores.superficie)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cor, pilula)).toBeGreaterThanOrEqual(4.5);
+    for (const s of [cores.superficie2, cores.superficie3]) expect(contraste(cor, s)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('pílulas de situação: o número e o texto que ficam por cima seguem em `texto`/`textoSuave` ≥ 4,5:1 (Próximo passo, série em andamento, BadgeNivel)', () => {
+    for (const fundo of [cores.sucessoSuave, cores.atencaoSuave, cores.perigoSuave, cores.informacaoSuave, cores.conquistaSuave]) {
+      expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.textoSuave, fundo)).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it('Botao perigoTexto e secundário: `perigo` e `texto` sobre o cartão, a faixa e o fundo', () => {

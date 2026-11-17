@@ -3,29 +3,30 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CartaoDoPainel, FolhaDoPainelId } from '../../dominio/painelDoInicio';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, type TokenNeon, type TokensStndrd } from '../../tema/tokens';
+import { espaco, type Cores } from '../../tema/tokens';
 import { contornoDoNumero } from '../../ui/destaqueDoNumero';
 import { propsDeLink } from '../../ui/propsDeLink';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 
-function neonDoCartao(cartao: CartaoDoPainel, stndrd: TokensStndrd): TokenNeon | null {
+/** Cor de situação do cartão (D9, 17/11): só no ponto e na faixa lateral; o número fica em `texto`. */
+function corDoCartao(cartao: CartaoDoPainel, cores: Cores): string | null {
   if (cartao.estado !== 'valor' || cartao.enfase === 'zero' || cartao.enfase === 'indisponivel' || cartao.enfase === 'neutro') {
     return null;
   }
   switch (cartao.chave) {
     case 'financeiro.recebido':
     case 'treinos.concluidos':
-      return stndrd.neon.emerald;
+      return cores.sucesso;
     case 'atualizacoes.atrasadas':
     case 'financeiro.vencidas':
-      return stndrd.neon.crimson;
+      return cores.perigo;
     case 'treinos.semRegistro':
-      return stndrd.neon.acidLime;
+      return cores.atencao;
     case 'treinos.recordes':
-      return stndrd.neon.electricPurple;
+      return cores.conquista;
     default:
-      return stndrd.neon.electricBlue;
+      return cores.informacao;
   }
 }
 
@@ -44,9 +45,9 @@ function partesDoValor(texto: string, moeda: boolean): { prefixo: string | null;
  * `superficie2`. `linha`: a linha de baixo do bloco.
  */
 export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPainel; aoAbrirFolha: (folha: FolhaDoPainelId) => void; linha?: boolean }) {
-  const { cores, bordas, fatorTexto, stndrd } = useTema();
+  const { cores, bordas, fatorTexto } = useTema();
   const comValor = cartao.estado === 'valor';
-  const neon = neonDoCartao(cartao, stndrd);
+  const tom = corDoCartao(cartao, cores);
   const cor = comValor ? cores.texto : cores.textoSuave;
   const deitado = cartao.largo || !!linha;
   const { prefixo, numero } = partesDoValor(cartao.texto, cartao.moeda);
@@ -54,7 +55,7 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
   const conteudo = (
     <>
       <View style={estilos.topoRotulo}>
-        {neon ? <View aria-hidden style={[estilos.pontoNeon, { backgroundColor: neon.accent }]} /> : null}
+        {tom ? <View aria-hidden style={[estilos.ponto, { backgroundColor: tom }]} /> : null}
         <Texto variante={linha ? 'corpo' : 'rotulo'} cor={cores.textoSuave}
           style={[deitado ? estilos.rotuloDeitado : null, linha ? estilos.rotuloDaLinha : null]}>
           {cartao.rotulo}
@@ -63,7 +64,7 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
       <View style={deitado ? estilos.valorDeitado : estilos.valor}>
         {comValor ? (
           <View style={estilos.numero}>
-            {prefixo ? <Texto variante="rotulo" numerico cor={neon ? neon.textOnTint : cor} style={estilos.prefixo}>{prefixo}</Texto> : null}
+            {prefixo ? <Texto variante="rotulo" numerico cor={cor} style={estilos.prefixo}>{prefixo}</Texto> : null}
             <Texto variante="destaque" cor={cor} style={linha ? estilos.numeroDaLinha : null}>{numero}</Texto>
           </View>
         ) : (
@@ -74,7 +75,7 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
     </>
   );
 
-  // Poço Nível 2 (`superficie2`) dentro do bloco Nível 1 (`superficie`), com contorno nítido e filete Neon semântico.
+  // Poço (`superficie2`) dentro do bloco (`superficie`), com a faixa lateral na cor da situação.
   const base = !deitado && cartao.moeda ? { flexBasis: Math.round(BASE_DO_DINHEIRO * fatorTexto) } : null;
   const fundoBase = cores.superficie2;
   const fundoHover = cores.superficie3;
@@ -83,7 +84,7 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
     deitado ? estilos.deitado : estilos.empe,
     base,
     cartao.largo && !linha ? estilos.largo : null,
-    contornoDoNumero(neon?.accent ?? null, { divisor: neon ? neon.tintBorder : cores.divisor }, bordas.bloco, RECUO),
+    contornoDoNumero(tom, cores, bordas.bloco, RECUO),
     { borderRadius: 12 },
   ];
   const destino = cartao.destino;
@@ -116,7 +117,7 @@ const estilos = StyleSheet.create({
   rotuloDeitado: { flexShrink: 1 },
   rotuloDaLinha: { fontSize: 14 },
   topoRotulo: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
-  pontoNeon: { width: 6, height: 6, borderRadius: 3 },
+  ponto: { width: 6, height: 6, borderRadius: 3 },
   valor: { gap: 2 },
   valorDeitado: { alignItems: 'flex-end', flexShrink: 0 },
   numero: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },

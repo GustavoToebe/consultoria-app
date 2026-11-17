@@ -20,23 +20,23 @@ export interface ProximoPassoDaTela {
  * A borda à esquerda acende em âmbar com pendência (em `perigo` se for atraso); sem nada, fica neutra e sem botão.
  */
 export function ProximoPasso({ passo }: { passo: ProximoPassoDaTela }) {
-  const { cores, bordas, stndrd } = useTema();
-  const neon = !passo.acao ? null : passo.atraso ? stndrd.neon.crimson : stndrd.neon.acidLime;
-  const acento = neon ? neon.accent : cores.divisor;
+  const { cores, bordas } = useTema();
+  // Situação (D9, 17/11): a cor fica na barra, no tingido e no rótulo "Próximo passo"; o texto da pendência segue em `texto`.
+  const tom = !passo.acao ? null : passo.atraso ? { cor: cores.perigo, fundo: cores.perigoSuave } : { cor: cores.atencao, fundo: cores.atencaoSuave };
   return (
     <View accessibilityRole="summary"
       style={[estilos.passo, {
         borderWidth: bordas.bloco,
-        borderColor: neon ? neon.tintBorder : cores.divisor,
-        borderLeftColor: acento,
-        backgroundColor: neon ? neon.tintBg : cores.superficie,
+        borderColor: cores.divisor,
+        borderLeftColor: tom ? tom.cor : cores.divisor,
+        backgroundColor: tom ? tom.fundo : cores.superficie,
       }]}>
       <View style={estilos.texto}>
-        <Texto variante="secao" cor={neon ? neon.textOnTint : cores.textoSuave}>Próximo passo</Texto>
+        <Texto variante="secao" cor={tom ? tom.cor : cores.textoSuave}>Próximo passo</Texto>
         <Texto variante="bloco">{passo.texto}</Texto>
         {passo.aviso ? <Texto variante="pequeno">{passo.aviso}</Texto> : null}
       </View>
-      {passo.acao ? <Botao tipo="cta" rotulo={passo.acao.rotulo} aoTocar={passo.acao.aoTocar} /> : null}
+      {passo.acao ? <Botao tipo="primario" rotulo={passo.acao.rotulo} aoTocar={passo.acao.aoTocar} /> : null}
     </View>
   );
 }

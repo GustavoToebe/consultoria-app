@@ -19,7 +19,7 @@ import { equipamentosDoDia } from '../../../../dominio/equipamentosDoDia';
 import { contagemDoExercicio, datasDaSessao, nomeComDia } from '../../../../dominio/semana';
 import { useSessao } from '../../../../sessao/SessaoProvider';
 import { useTema } from '../../../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../../../../tema/tokens';
+import { ALVO_TOQUE, coresDoBotaoPrincipal, espaco, fontes, RAIO_CONTROLE } from '../../../../tema/tokens';
 import { BarraProgresso } from '../../../../ui/BarraProgresso';
 import { Cabecalho } from '../../../../ui/Cabecalho';
 import { useDestaques } from '../../../../ui/NumeroDeDestaque';
@@ -38,7 +38,9 @@ export default function SessaoAluno() {
   const { sessao, data, hoje } = dia;
   const animar = usePrimeiraLista(dia.carregado);
   const reduzido = useMovimentoReduzido();
-  const { cores, marcaPeca, stndrd } = useTema();
+  const { cores, marcaPeca } = useTema();
+  // Botão principal neutro (D7, 17/11), o mesmo par do `Botao primario`.
+  const principal = coresDoBotaoPrincipal(cores);
   const { violeta } = useDestaques();
   const { retornoHabilitado } = useSessao();
 
@@ -109,10 +111,10 @@ export default function SessaoAluno() {
           onPress={() => abrir(pendente.uid)}
           style={({ pressed }) => [
             estilos.ctaTreino,
-            { backgroundColor: stndrd.cta.bg, opacity: pressed ? 0.85 : 1 },
+            { backgroundColor: pressed ? principal.fundoAoPassar : principal.fundo },
           ]}>
-          <Play size={18} color={stndrd.cta.text} />
-          <Texto style={[estilos.ctaTreinoTexto, { color: stndrd.cta.text }]}>
+          <Play size={18} color={principal.texto} />
+          <Texto style={[estilos.ctaTreinoTexto, { color: principal.texto }]}>
             {feitas ? `Continuar: ${pendente.nome}` : 'Começar treino'}
           </Texto>
         </Pressable>

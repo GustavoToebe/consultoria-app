@@ -30,6 +30,45 @@ import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
 /** Todas as paletas da marca (decisão 1 do plano `paletas-da-marca`): cada teste de contraste percorre a lista inteira. */
 const TODAS: [string, Cores, boolean, VarianteDoTema][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO', p.variante]);
 
+// ---- Escada de superfícies (`docs/planos/hierarquia-visual-tres-temas.md`, D1 a D6, 17/11) ----
+
+/**
+ * Página (`fundo` e `painel`, onde o cartão fica no PC) → cartão (`superficie`) → faixa do título (`superficie3`) e poço
+ * (`superficie2`). A "borda" de D1 é o contorno do cartão (`divisor`, `preferencias.contornoDoCartao`).
+ */
+function conferirEscada(cores: Cores, pisoDoCartao: number) {
+  for (const pagina of [cores.fundo, cores.painel]) {
+    expect(contraste(cores.superficie, pagina)).toBeGreaterThanOrEqual(pisoDoCartao);
+    expect(cores.superficie3).not.toBe(pagina);
+  }
+  expect(cores.superficie3).not.toBe(cores.superficie);
+  expect(cores.superficie2).not.toBe(cores.superficie);
+  expect(contraste(cores.divisor, cores.superficie)).toBeGreaterThanOrEqual(1.4);
+  expect(contraste(cores.texto, cores.superficie)).toBeGreaterThanOrEqual(7);
+}
+
+it('Claro: cartão × página ≥ 1,35, faixa e poço distintos, borda ≥ 1,4 e texto ≥ 7 sobre o cartão (D3)', () => {
+  expect(PALETAS.CLARO.cores).toMatchObject({ fundo: '#D9DCE1', superficie: '#FFFFFF', superficie3: '#F2F3F5', superficie2: '#EEF0F2', campo: '#FFFFFF' });
+  conferirEscada(PALETAS.CLARO.cores, 1.35);
+});
+
+it('Areia: cartão × página ≥ 1,6, faixa e poço distintos, borda ≥ 1,4 e texto ≥ 7 sobre o cartão (D4)', () => {
+  expect(PALETAS.AREIA.cores).toMatchObject({ fundo: '#CDCAC3', superficie: '#FFFFFF', campo: '#FFFFFF', superficie3: '#EDEBE7', superficie2: '#F1EFEB', faixaForte: '#C3C0B8' });
+  conferirEscada(PALETAS.AREIA.cores, 1.6);
+});
+
+it('Escuro: cartão × página ≥ 1,15, faixa e poço distintos (poço abaixo do cartão), borda ≥ 1,4 e texto ≥ 7 (D5)', () => {
+  const cores = PALETAS.ESCURO.cores;
+  expect(cores).toMatchObject({ fundo: '#09090B', superficie: '#1C1C20', superficie3: '#26262B', superficie2: '#0F0F11' });
+  conferirEscada(cores, 1.15);
+  expect(luminancia(cores.superficie2)).toBeLessThan(luminancia(cores.superficie));
+});
+
+it.each(TODAS.filter(([codigo]) => !['CLARO', 'AREIA', 'ESCURO'].includes(codigo)))('%s: a mesma escada, com o piso do modo (D6)', (_codigo, cores, escuro) => {
+  conferirEscada(cores, escuro ? 1.15 : 1.35);
+  if (escuro) expect(luminancia(cores.superficie2)).toBeLessThan(luminancia(cores.superficie));
+});
+
 it.each(TODAS)('%s: preserva contraste AA nos detalhes de todas as superfícies', (_codigo, cores) => {
   for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
     expect(contraste(cores.textoSuave, superficie)).toBeGreaterThanOrEqual(4.5);
@@ -200,7 +239,7 @@ describe('corDoTomDoPerfil', () => {
     expect(corDoTomDoPerfil('LARANJA', 'escuro')).toBe(PALETA_SO_DO_PERFIL.escuro.LARANJA);
     expect(corDoTomDoPerfil('OLIVA', 'escuro')).toBe(PALETA_DA_AGENDA.escuro.OLIVA);
     expect(corDoTomDoPerfil('OLIVA', 'areia')).toBe(PALETA_DA_AGENDA.areia.OLIVA);
-    expect(corDoTomDoPerfil('TERRA', 'claro')).toBe('#A64F43');
+    expect(corDoTomDoPerfil('TERRA', 'claro')).toBe('#A85347');
     expect(CHAVES_DA_AGENDA).not.toContain('LARANJA');
   });
 });
@@ -303,11 +342,12 @@ describe('pares medidos do guia na paleta de partida (Escuro)', () => {
     expect(contraste(ESCURO.textoSuave, ESCURO.superficie2)).toBeGreaterThanOrEqual(7);
     expect(contraste(ESCURO.bordaCampo, ESCURO.superficie)).toBeGreaterThanOrEqual(4.5);
     expect(contraste(ESCURO.sucesso, ESCURO.sucessoSuave)).toBeGreaterThanOrEqual(7.5);
-    expect(contraste(ESCURO.atencao, ESCURO.atencaoSuave)).toBeGreaterThanOrEqual(8);
+    // Era 8 com o par literal do guia (#FBBF24 sobre #352915); D9 (17/11) fixou #FFB020 e a pílula a 12%: 7,29.
+    expect(contraste(ESCURO.atencao, ESCURO.atencaoSuave)).toBeGreaterThanOrEqual(7.2);
     expect(contraste('#FFFFFF', '#C62828')).toBeCloseTo(5.62, 1);
   });
-  it('o painel do conteúdo é o #0E0E10 entre o fundo #09090B e o cartão #141416', () => {
-    expect(ESCURO.painel).toBe('#0E0E10');
+  it('o painel do conteúdo é o #0B0B0D entre o fundo #09090B e o cartão #1C1C20 (D5: mais claro, o cartão cairia abaixo de 1,15:1)', () => {
+    expect(ESCURO.painel).toBe('#0B0B0D');
   });
 });
 
@@ -323,14 +363,15 @@ it.each(TODAS)('%s: o painel do conteúdo fica entre o fundo (menu) e o cartão'
 });
 
 /**
- * Separação das superfícies nas paletas claras (claro minimalista): o cartão Nível 1 é sempre #FFFFFF puro,
- * destacando-se da página pelo tom, e o poço Nível 2 (`superficie2` / `campo`) é rebaixado abaixo da página para dar profundidade.
+ * Separação das superfícies nas paletas claras: o cartão é sempre #FFFFFF puro e se destaca da página pelo tom. Desde a
+ * escada de 17/11 (D3 e D4) o poço fica entre a página e o cartão (antes era rebaixado abaixo da página) e o campo é
+ * branco, separado pelo contorno forte.
  */
-it.each(TODAS.filter(([, , escuro]) => !escuro))('%s: cartão (#FFFFFF) se destaca da página e poço/campo é rebaixado com contorno forte', (_codigo, cores) => {
+it.each(TODAS.filter(([, , escuro]) => !escuro))('%s: cartão (#FFFFFF) se destaca da página, poço entre a página e o cartão, campo com contorno forte', (_codigo, cores) => {
   expect(cores.superficie).toBe('#FFFFFF');
   for (const pagina of [cores.fundo, cores.painel]) {
     expect(contraste(cores.superficie, pagina)).toBeGreaterThanOrEqual(1.08);
-    expect(luminancia(cores.superficie2)).toBeLessThan(luminancia(pagina));
+    expect(luminancia(cores.superficie2)).toBeGreaterThan(luminancia(pagina));
     expect(contraste(pagina, cores.superficie2)).toBeGreaterThanOrEqual(1.04);
   }
   expect(contraste(cores.bordaCampo, cores.superficie)).toBeGreaterThanOrEqual(2 * contraste(cores.divisor, cores.superficie));

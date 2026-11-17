@@ -47,7 +47,7 @@ interface ValorTema {
   /** Variante das cores fixas (agenda, perfil, identificação, destaque): a da paleta em uso. */
   variante: VarianteDoTema;
   cores: Cores;
-  /** Tokens semânticos de realce (neon, CTA alto contraste e liquid glass) para o modo em uso. */
+  /** Vidro (Onda 2) e o `neon` legado do Financeiro (ver `tokens.ts`) para o modo em uso. */
   stndrd: TokensStndrd;
   /** Espessura do contorno do bloco e do item (1 px; 2 px com "Bordas reforçadas"). */
   bordas: { bloco: number; item: number };

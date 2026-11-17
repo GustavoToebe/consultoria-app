@@ -4,14 +4,14 @@ import { ActivityIndicator, Platform, StyleSheet, View, type StyleProp, type Vie
 
 import { Button } from '../components/ui/button';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE, textoSobre } from '../tema/tokens';
+import { ALVO_TOQUE, coresDoBotaoPrincipal, espaco, fontes, RAIO_CONTROLE } from '../tema/tokens';
 import { coresDoDesabilitado, visualDoInativo } from './desabilitado';
 import { useArranjoDasAcoes } from './LinhaDeAcoes';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 
-type Tipo = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'perigoTexto' | 'cta';
+type Tipo = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'perigoTexto';
 
 interface Props {
   rotulo: string;
@@ -37,17 +37,19 @@ interface Props {
 }
 
 /**
- * Ação principal com a cor da marca (no máximo uma por área; mouse em cima ou apertado = `marcaHover`); secundária com o
- * contorno forte (`bordaCampo`, ≥ 3:1); fantasma só texto, para ação
- * rara ou de baixo risco; `perigoTexto` é o fantasma com texto vermelho (remover, inativar), sempre com confirmação.
- * `perigo` (preenchido, `perigoFundo`) é só para o botão de confirmação do painel. O rótulo quebra em até duas
- * linhas e nunca estoura o cartão; vários botões lado a lado vão numa `LinhaDeAcoes`.
+ * Ação principal neutra (D7, 17/11: fundo `texto`, rótulo `fundo`; no máximo uma por área; mouse em cima ou apertado =
+ * `coresDoBotaoPrincipal().fundoAoPassar`); a marca não pinta botão. Secundária com o contorno forte (`bordaCampo`,
+ * ≥ 3:1); fantasma só texto, para ação rara ou de baixo risco; `perigoTexto` é o fantasma com texto vermelho (remover,
+ * inativar), sempre com confirmação. `perigo` (contorno e rótulo em `perigo`, sem fundo cheio; hover `perigoSuave`) é só
+ * para o botão de confirmação do painel. O rótulo quebra em até duas linhas e nunca estoura o cartão; vários botões lado
+ * a lado vão numa `LinhaDeAcoes`.
  */
 export const Botao = forwardRef<View, Props>(function Botao(
   { rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Icone, desabilitado, motivo, carregando, cheio, autoFocus, style, testID }: Props,
   ref
 ) {
-  const { cores, marca, marcaHover, sobreMarca, stndrd } = useTema();
+  const { cores } = useTema();
+  const principal = coresDoBotaoPrincipal(cores);
   const reduzido = useMovimentoReduzido();
   // Na fila de ações do rodapé no celular todo botão é cheio; um `cheio` explícito vale mais.
   const arranjo = useArranjoDasAcoes();
@@ -56,14 +58,15 @@ export const Botao = forwardRef<View, Props>(function Botao(
   const semFundo = tipo === 'fantasma' || tipo === 'perigoTexto';
   const cinza = coresDoDesabilitado(cores);
   const visual = visualDoInativo(desabilitado, carregando);
-  const fundo = visual.cinza && !semFundo ? cinza.fundo : tipo === 'cta' ? stndrd.cta.bg : tipo === 'primario' ? marca : tipo === 'perigo' ? cores.perigoFundo : 'transparent';
-  const texto = visual.cinza ? cinza.texto : tipo === 'cta' ? stndrd.cta.text : tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? textoSobre(cores.perigoFundo) : tipo === 'perigoTexto' ? cores.perigo : cores.texto;
-  const borda = visual.cinza && !semFundo ? cinza.borda : tipo === 'secundario' ? cores.bordaCampo : fundo;
+  const fundo = visual.cinza && !semFundo ? cinza.fundo : tipo === 'primario' ? principal.fundo : 'transparent';
+  const texto = visual.cinza ? cinza.texto : tipo === 'primario' ? principal.texto : tipo === 'perigo' || tipo === 'perigoTexto' ? cores.perigo : cores.texto;
+  const borda = visual.cinza && !semFundo ? cinza.borda : tipo === 'secundario' ? cores.bordaCampo : tipo === 'perigo' ? cores.perigo : fundo;
   const explicacao = desabilitado && !carregando && motivo ? motivo : undefined;
-  /** Mouse em cima ou apertado: a marca um tom adiante no principal, a superfície elevada nos outros (o perigo fica). */
+  /** Mouse em cima ou apertado: o principal anda na direção da página, o perigo ganha a pílula vermelha, os outros a superfície elevada. */
   const corAoPassar = (ativo: boolean) => {
-    if (!ativo || tipo === 'perigo' || tipo === 'cta') return { backgroundColor: fundo, borderColor: borda };
-    if (tipo === 'primario') return { backgroundColor: marcaHover, borderColor: marcaHover };
+    if (!ativo) return { backgroundColor: fundo, borderColor: borda };
+    if (tipo === 'primario') return { backgroundColor: principal.fundoAoPassar, borderColor: principal.fundoAoPassar };
+    if (tipo === 'perigo') return { backgroundColor: cores.perigoSuave, borderColor: borda };
     return { backgroundColor: cores.superficie2, borderColor: semFundo ? cores.superficie2 : borda };
   };
   // Ação e motivo são um bloco (P5): numa fila alinhada à direita o botão fica na ponta e o motivo, colado sob ele,
@@ -73,7 +76,7 @@ export const Botao = forwardRef<View, Props>(function Botao(
     <Button
       ref={ref}
       autoFocus={autoFocus}
-      variant={tipo === 'primario' || tipo === 'cta' ? 'default' : tipo === 'perigo' ? 'destructive' : tipo === 'secundario' ? 'outline' : 'ghost'}
+      variant={tipo === 'primario' ? 'default' : tipo === 'perigo' || tipo === 'secundario' ? 'outline' : 'ghost'}
       accessibilityRole="button"
       testID={testID}
       accessibilityLabel={rotuloAcessivel ?? rotulo}
