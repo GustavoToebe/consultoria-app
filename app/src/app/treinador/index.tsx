@@ -142,7 +142,7 @@ export default function InicioTreinador() {
 
   // ---- Aniversários (só com ALUNO_LER): nome e dia/mês dos próximos dias; falha ou lista vazia = o cartão não aparece ----
   const diasAniversario = preferencias.diasAniversario;
-  const carregarAniversarios = useCarregar(pode('ALUNO_LER') ? `inicio:aniversarios:${diasAniversario}:${padraoMeus}` : null, () => aniversariantesDosAlunos(diasAniversario, padraoMeus));
+  const carregarAniversarios = useCarregar(pode('ALUNO_LER') && preferenciasLidas ? `inicio:aniversarios:${diasAniversario}:${padraoMeus}` : null, () => aniversariantesDosAlunos(diasAniversario, padraoMeus));
   const recarregarAniversarios = carregarAniversarios.recarregar;
   const aniversariantes = useMemo(
     () => aniversariantesDosProximosDias(carregarAniversarios.dados ?? [], hoje, diasAniversario),

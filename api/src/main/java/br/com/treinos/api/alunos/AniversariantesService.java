@@ -26,6 +26,12 @@ public class AniversariantesService {
 
     /** Uma linha da resposta: sem ano, sem idade. {@code diasAte} = 0 é hoje. */
     public record Aniversariante(UUID alunoId, String nome, int dia, int mes, int diasAte) {
+
+        /** Nome e dia/mês são dado pessoal (D6): um log futuro não pode imprimi-los. */
+        @Override
+        public String toString() {
+            return "Aniversariante[...]";
+        }
     }
 
     private final AlunoRepository alunos;
