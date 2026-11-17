@@ -335,7 +335,7 @@ export const CEU: Cores = comRealce({
   campo: '#EDF2F8',
   bordaCampo: '#75808D',
   texto: '#111A24',
-  textoSuave: '#4F5D6E',
+  textoSuave: '#515C68',
   sucesso: '#0C6638',
   atencao: '#804D00',
   perigo: '#AB152E',
