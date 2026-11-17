@@ -35,6 +35,7 @@ class BaixaEmLoteIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private RotinaDeGeracaoDeCobrancas rotina;
 
     private final LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
     private ApiDeTeste api;
@@ -92,6 +93,13 @@ class BaixaEmLoteIntegrationTest extends AbstractIntegrationTest {
         return corpo;
     }
 
+    /** Baixar não gera nada (D1): o mês seguinte nasce pela rotina diária, aqui chamada com o dia daqui a um mês. */
+    private void gerarSeguinte() {
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
+                admin.get("usuario").get("id").asString());
+        rotina.rodarNa(consultoria, hoje.plusMonths(1));
+    }
+
     private int auditorias(String cobrancaId) {
         Integer n = jdbc.queryForObject("select count(*) from auditoria where acao = 'PAGAMENTO_MANUAL_REGISTRADO' "
                 + "and entidade_id = ?::uuid", Integer.class, cobrancaId);
@@ -108,7 +116,7 @@ class BaixaEmLoteIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void variosItensGravamECadaUmGeraASeguinteERepetirNaoDuplica() throws Exception {
+    void variosItensGravamARotinaGeraASeguinteDeCadaUmERepetirNaoDuplica() throws Exception {
         String plano = plano(admin);
         List<JsonNode> cobrancas = List.of(cobranca(admin, plano), cobranca(admin, plano), cobranca(admin, plano));
         List<Map<String, Object>> itens = cobrancas.stream().map(BaixaEmLoteIntegrationTest::item).toList();
@@ -126,11 +134,18 @@ class BaixaEmLoteIntegrationTest extends AbstractIntegrationTest {
             assertThat(paga.get("pagoEm").asString()).isEqualTo(hoje.toString());
             assertThat(paga.get("forma").asString()).isEqualTo("PIX_DIRETO");
             assertThat(paga.get("valorCentavos").asLong()).isEqualTo(12_300);
-            // A baixa gera a próxima cobrança, uma por item.
-            JsonNode todas = api.get("/alunos/" + cobrancas.get(i).get("alunoId").asString() + "/cobrancas", admin, 200);
+            // A baixa não gera a próxima: o aluno segue só com a cobrança paga.
+            assertThat(api.get("/alunos/" + cobrancas.get(i).get("alunoId").asString() + "/cobrancas", admin, 200)).hasSize(1);
+            assertThat(auditorias(cobrancas.get(i).get("id").asString())).isEqualTo(1);
+        }
+
+        // A rotina diária gera a próxima de cada item, e repeti-la no mesmo dia não duplica.
+        gerarSeguinte();
+        gerarSeguinte();
+        for (JsonNode c : cobrancas) {
+            JsonNode todas = api.get("/alunos/" + c.get("alunoId").asString() + "/cobrancas", admin, 200);
             assertThat(todas).hasSize(2);
             assertThat(todas.get(0).get("situacao").asString()).isEqualTo("ABERTA");
-            assertThat(auditorias(cobrancas.get(i).get("id").asString())).isEqualTo(1);
         }
 
         // Repetir o mesmo lote (versões já velhas): idempotente, sem nova cobrança nem nova auditoria.

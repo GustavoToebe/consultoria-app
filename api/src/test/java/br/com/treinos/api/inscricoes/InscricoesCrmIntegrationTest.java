@@ -406,7 +406,9 @@ class InscricoesCrmIntegrationTest extends AbstractIntegrationTest {
         JsonNode ano0260 = api.post("/inscricoes/" + id + "/retornos", admin, mapa("descricao", "Antigo", "data", "0260-11-01"), 422);
         assertThat(ano0260.path("codigo").asString()).isEqualTo("RETORNO_INVALIDO");
         assertThat(ano0260.path("fieldErrors").get(0).path("field").asString()).isEqualTo("data");
-        assertThat(ano0260.toString()).doesNotContain("0260");
+        // Só as mensagens: o JSON inteiro traz o timestamp, em que "0260" aparece por acaso.
+        assertThat(ano0260.path("message").asString()).doesNotContain("0260");
+        assertThat(ano0260.path("fieldErrors").get(0).path("message").asString()).doesNotContain("0260");
         api.post("/inscricoes/" + id + "/retornos", admin, mapa("descricao", "Antigo", "data", "1999-12-31"), 422);
 
         long vr2 = reagendado.path("retornos").get(0).path("versao").asLong();

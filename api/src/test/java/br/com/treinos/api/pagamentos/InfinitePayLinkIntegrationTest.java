@@ -73,6 +73,7 @@ class InfinitePayLinkIntegrationTest extends AbstractIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private ProvedoresDePagamento provedores;
     @Autowired private PlatformTransactionManager transacoes;
+    @Autowired private RotinaDeGeracaoDeCobrancas rotina;
 
     private ApiDeTeste api;
     private JsonNode admin;
@@ -121,6 +122,13 @@ class InfinitePayLinkIntegrationTest extends AbstractIntegrationTest {
         corpo.put("inicio", hoje.toString());
         corpo.put("diaVencimento", hoje.getDayOfMonth());
         return api.post("/alunos/" + aluno + "/contratacoes", admin, corpo, 200);
+    }
+
+    /** Baixar e cancelar não geram nada (D1): o mês seguinte nasce pela rotina diária, aqui com o dia daqui a um mês. */
+    private void gerarSeguinte() {
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
+                admin.get("usuario").get("id").asString());
+        rotina.rodarNa(consultoria, hoje.plusMonths(1));
     }
 
     private JsonNode cobrancaAberta(UUID aluno) throws Exception {
@@ -522,7 +530,8 @@ class InfinitePayLinkIntegrationTest extends AbstractIntegrationTest {
         String linkDaPaga = gerar(paga, 200).get("url").asString();
         api.post("/cobrancas/" + paga + "/baixa-manual", admin,
                 Map.of("data", hoje.toString(), "forma", "DINHEIRO", "versao", cobranca(aluno, paga).get("versao").asLong()), 200);
-        // A baixa gera a cobrança seguinte, que fica aberta e com link.
+        // A rotina gera a cobrança seguinte, que fica aberta e com link.
+        gerarSeguinte();
         JsonNode abertaJson = cobrancaAberta(aluno);
         String aberta = abertaJson.get("id").asString();
         gerar(aberta, 200);
@@ -560,7 +569,8 @@ class InfinitePayLinkIntegrationTest extends AbstractIntegrationTest {
         String paga = cenarioSemChave(aluno, 10_000).get("id").asString();
         api.post("/cobrancas/" + paga + "/baixa-manual", admin,
                 Map.of("data", hoje.toString(), "forma", "DINHEIRO", "versao", cobranca(aluno, paga).get("versao").asLong()), 200);
-        // A baixa gera a cobrança seguinte: essa é cancelada.
+        // A rotina gera a cobrança seguinte: essa é cancelada.
+        gerarSeguinte();
         String cancelada = cobrancaAberta(aluno).get("id").asString();
         api.post("/cobrancas/" + cancelada + "/cancelar", admin,
                 Map.of("motivo", "Cancelada de propósito", "versao", cobranca(aluno, cancelada).get("versao").asLong()), 200);

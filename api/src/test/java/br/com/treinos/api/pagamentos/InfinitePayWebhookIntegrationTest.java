@@ -80,6 +80,7 @@ class InfinitePayWebhookIntegrationTest extends AbstractIntegrationTest {
     @Autowired private JsonMapper json;
     @MockitoSpyBean private JdbcTemplate jdbc;
     @Autowired private ConciliadorInfinitePay conciliador;
+    @Autowired private RotinaDeGeracaoDeCobrancas rotina;
 
     private ApiDeTeste api;
     private ListAppender<ILoggingEvent> log;
@@ -200,6 +201,11 @@ class InfinitePayWebhookIntegrationTest extends AbstractIntegrationTest {
         MockHttpServletResponse r = avisar(c.conta().token(), aviso(c.id(), transacao, "slug-abc"));
         assertThat(r.getStatus()).isEqualTo(200);
         assertThat(r.getContentAsString()).isEmpty();
+    }
+
+    /** Baixar não gera nada (D1): a próxima nasce pela rotina diária, aqui com o dia daqui a um mês. */
+    private void gerarSeguinte(Conta conta) {
+        rotina.rodarNa(conta.consultoria(), hoje.plusMonths(1));
     }
 
     private int rodar() {
@@ -494,7 +500,7 @@ class InfinitePayWebhookIntegrationTest extends AbstractIntegrationTest {
     // ---- a baixa ----
 
     @Test
-    void fluxoFelizNoPixBaixaGeraAProximaEAuditaComoSistema() throws Exception {
+    void fluxoFelizNoPixBaixaSemGerarAProximaEAuditaComoSistema() throws Exception {
         Conta conta = novaConta();
         CobrancaDeTeste cobranca = novaCobranca(conta);
         String transacao = transacao();
@@ -519,7 +525,9 @@ class InfinitePayWebhookIntegrationTest extends AbstractIntegrationTest {
         assertThat(aviso.get("forma_capturada")).isEqualTo("pix");
         assertThat(inteiro(aviso, "parcelas")).isEqualTo(1);
         assertThat(((Number) aviso.get("valor_bruto_pago_centavos")).longValue()).isEqualTo(VALOR);
-        // A próxima cobrança nasce, como em toda baixa.
+        // A baixa não gera a próxima; quem gera é a rotina diária.
+        assertThat(cobrancasDe(conta, cobranca.aluno(), "ABERTA")).isEmpty();
+        gerarSeguinte(conta);
         assertThat(cobrancasDe(conta, cobranca.aluno(), "ABERTA")).hasSize(1);
         assertThat(cobrancasDe(conta, cobranca.aluno(), "ABERTA").get(0).get("id").asString()).isNotEqualTo(cobranca.id());
 
@@ -625,6 +633,9 @@ class InfinitePayWebhookIntegrationTest extends AbstractIntegrationTest {
         assertThat(consultas(cobranca)).hasSize(1);
         assertThat(cobrancaNoBanco(cobranca).get("situacao")).isEqualTo("PAGA");
         assertThat(auditorias(conta, "PAGAMENTO_ONLINE_CONFIRMADO")).isEqualTo(1);
+        // A baixa não gera cobrança nenhuma, nem duas por correr em dobro; a rotina gera uma só.
+        assertThat(cobrancasDe(conta, cobranca.aluno(), null)).hasSize(1);
+        gerarSeguinte(conta);
         assertThat(cobrancasDe(conta, cobranca.aluno(), "ABERTA")).hasSize(1);
         assertThat(avisoNoBanco(conta, transacao).get("situacao")).isEqualTo("APLICADO");
     }
