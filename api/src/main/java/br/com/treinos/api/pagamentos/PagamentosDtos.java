@@ -204,14 +204,17 @@ public final class PagamentosDtos {
      * {@code vencida} é calculada pela API (ABERTA com vencimento anterior a hoje em Brasília). {@code criadoEm} é o instante
      * em que a linha da cobrança foi gerada (a "Emissão" da tela: a API não emite documento fiscal nem boleto) e
      * {@code idExterno} a transação do provedor (nulo na baixa manual). {@code alunoCpf} só vem com
-     * {@code ALUNO_SENSIVEL_LER} (senão nulo) e nunca vai a log, auditoria nem {@code toString}.
+     * {@code ALUNO_SENSIVEL_LER} (senão nulo) e nunca vai a log, auditoria nem {@code toString}. Na cobrança AVULSA
+     * {@code contratacaoId}, {@code planoNome} e {@code competencia} vêm nulos e {@code descricao} traz o texto do treinador
+     * (nulo nas outras).
      */
     public record CobrancaResponse(UUID id, UUID contratacaoId, UUID alunoId, String alunoNome, String planoNome,
                                    LocalDate competencia, LocalDate vencimento, long valorCentavos,
                                    CobrancaAluno.Situacao situacao, boolean vencida, Long diasDeAtraso,
                                    FormaDePagamento forma, String provedor, LocalDate pagoEm, UUID baixaPor,
                                    String baixaPorNome, String observacao, String motivo, Long versao,
-                                   Instant criadoEm, String idExterno, String alunoCpf, CobrancaAluno.Tipo tipo) {
+                                   Instant criadoEm, String idExterno, String alunoCpf, CobrancaAluno.Tipo tipo,
+                                   String descricao) {
 
         @Override
         public String toString() {
@@ -238,7 +241,56 @@ public final class PagamentosDtos {
 
     public record ResultadoDoLote(List<ResultadoDoItem> resultados) { }
 
-    public record PaginaCobrancas(List<CobrancaResponse> itens, long total, int pagina) { }
+    /**
+     * Os totais do filtro inteiro (todas as páginas): cancelada e estornada ficam fora de tudo; {@code pagoCentavos} é só PAGA;
+     * {@code emAbertoCentavos} inclui a vencida; {@code vencidoCentavos} é a aberta com vencimento antes de hoje (Brasília).
+     */
+    public record Totais(long totalCentavos, long pagoCentavos, long emAbertoCentavos, long vencidoCentavos) { }
+
+    public record PaginaCobrancas(List<CobrancaResponse> itens, long total, int pagina, Totais totais) { }
+
+    // ---- Cobrança avulsa ----
+
+    /**
+     * Sem validação de Bean Validation de propósito: o erro dela carregaria o valor recusado e não traria o código; tudo é
+     * conferido em {@link CobrancaAvulsaService}, que responde 422 {@code COBRANCA_AVULSA_INVALIDA} por campo sem repetir o
+     * valor. {@code descricao} é texto do treinador: fora do {@code toString}.
+     */
+    public record CobrancaAvulsaRequest(List<UUID> alunoIds, String descricao, Long valorCentavos,
+                                        LocalDate primeiroVencimento, Integer parcelas) {
+
+        @Override
+        public String toString() {
+            return "CobrancaAvulsaRequest[]";
+        }
+    }
+
+    /** Contagens do que foi gerado: {@code alunos} e {@code cobrancas} (alunos x parcelas). */
+    public record CobrancasAvulsasGeradas(int alunos, int cobrancas) { }
+
+    // ---- Lote: cancelar, link e exportar as selecionadas ----
+
+    public static final int MAXIMO_DO_LOTE = 100;
+
+    /** {@code motivo} opcional (até 300): vale para todos os itens. */
+    public record CancelarEmLoteRequest(
+            @NotNull @Size(min = 1, max = MAXIMO_DO_LOTE) List<@NotNull @Valid ItemDoLote> itens,
+            @Size(max = 300) String motivo) { }
+
+    public record LinkEmLoteRequest(@NotNull @Size(min = 1, max = MAXIMO_DO_LOTE) List<@NotNull UUID> cobrancaIds) { }
+
+    /** {@code url} só no item que deu certo (nunca vai a log). */
+    public record ResultadoDoLink(UUID cobrancaId, boolean ok, String codigo, String url) {
+
+        @Override
+        public String toString() {
+            return "ResultadoDoLink[cobrancaId=" + cobrancaId + ", ok=" + ok + "]";
+        }
+    }
+
+    public record ResultadoDoLoteDeLinks(List<ResultadoDoLink> resultados) { }
+
+    public record SelecionadasRequest(@NotNull @Size(min = 1, max = MAXIMO_DO_LOTE) List<@NotNull UUID> cobrancaIds) { }
 
     // ---- Lançamentos avulsos ----
 
@@ -323,9 +375,10 @@ public final class PagamentosDtos {
     public record PlanoDoAluno(UUID contratacaoId, String planoNome, long valorCentavos, PeriodoDoPlano periodicidade,
                                ContratacaoAluno.Situacao situacao, LocalDate proximoVencimento) { }
 
+    /** {@code competencia} é nula na AVULSA, que traz {@code descricao}. */
     public record CobrancaDoAluno(UUID id, LocalDate competencia, LocalDate vencimento, long valorCentavos,
                                   CobrancaAluno.Situacao situacao, boolean vencida, FormaDePagamento forma,
-                                  LocalDate pagoEm, CobrancaAluno.Tipo tipo) { }
+                                  LocalDate pagoEm, CobrancaAluno.Tipo tipo, String descricao) { }
 
     /** {@code pagamentoOnline}: o aluno pode pedir o link de pagamento (módulo, InfinitePay e credencial do treinador). A Tag nunca vem. */
     public record FinanceiroDoAluno(PlanoDoAluno plano, List<CobrancaDoAluno> abertas, List<CobrancaDoAluno> historico,
@@ -356,7 +409,7 @@ public final class PagamentosDtos {
     public record CobrancaExportada(UUID id, UUID contratacaoId, LocalDate competencia, LocalDate vencimento,
                                     long valorCentavos, CobrancaAluno.Situacao situacao, FormaDePagamento forma,
                                     String provedor, LocalDate pagoEm, String observacao, String motivo,
-                                    CobrancaAluno.Tipo tipo) { }
+                                    CobrancaAluno.Tipo tipo, String descricao) { }
 
     /** Lembrete de cobrança na exportação: tipo, situação e datas (a linha não guarda endereço nem texto). */
     public record LembreteExportado(UUID cobrancaId, TipoDeLembrete tipo, LembreteDeCobranca.Situacao situacao,

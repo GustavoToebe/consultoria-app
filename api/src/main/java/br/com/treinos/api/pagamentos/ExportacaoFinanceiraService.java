@@ -5,6 +5,7 @@ import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.consultoria.Consultoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.tenant.TenantContext;
+import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,19 +79,40 @@ public class ExportacaoFinanceiraService {
         }
         String parcial = String.valueOf(historicoParcial());
         StringBuilder csv = new StringBuilder("﻿").append(CABECALHO).append("\r\n");
-        for (LinhaDeCobranca l : cobrancas.paraExportar(de, ate)) {
-            CobrancaAluno c = l.cobranca();
-            linha(csv, "COBRANCA", c.getVencimento().toString(),
-                    c.getTipo() == CobrancaAluno.Tipo.SAIDA ? DESCRICAO_DA_SAIDA : l.planoNome(), l.alunoNome(), c.getSituacao().name(),
-                    c.getForma() == null ? null : c.getForma().name(), c.getPagoEm() == null ? null : c.getPagoEm().toString(),
-                    null, null, reais(c.getValorCentavos()), parcial);
-        }
+        cobrancas.paraExportar(de, ate).forEach(l -> cobranca(csv, l, parcial));
         for (LancamentoFinanceiro l : lancamentos.findByDataBetweenOrderByDataAscCriadoEmAscIdAsc(de, ate)) {
             linha(csv, "LANCAMENTO", l.getData().toString(), l.getDescricao(), null, null, null, null, l.getTipo().name(),
                     l.getCategoria(), reais(l.getValorCentavos()), parcial);
         }
         auditoria.registrarEvento("FINANCEIRO_EXPORTADO", "FINANCEIRO", null, "Exportou o financeiro em CSV.");
         return new Csv("financeiro-" + de + "-a-" + ate + ".csv", csv.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Só as cobranças escolhidas (1 a 100 ids), com as mesmas colunas da exportação por período e nenhum lançamento. Id de outra
+     * consultoria ou inexistente some sem aviso (o {@code @TenantId} filtra), para não revelar a existência; ordem por vencimento.
+     */
+    @Transactional
+    public Csv exportarSelecionadas(List<UUID> cobrancaIds) {
+        String parcial = String.valueOf(historicoParcial());
+        StringBuilder csv = new StringBuilder("﻿").append(CABECALHO).append("\r\n");
+        cobrancas.paraExportarPorIds(cobrancaIds).forEach(l -> cobranca(csv, l, parcial));
+        auditoria.registrarEvento("FINANCEIRO_EXPORTADO", "FINANCEIRO", null, "Exportou o financeiro em CSV.");
+        return new Csv("financeiro-selecionadas-" + LocalDate.now(Fuso.BRASILIA) + ".csv",
+                csv.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Na descrição: a de saída é fixa, a avulsa leva a do treinador e a mensalidade, o nome do plano. */
+    private static void cobranca(StringBuilder csv, LinhaDeCobranca l, String parcial) {
+        CobrancaAluno c = l.cobranca();
+        String descricao = switch (c.getTipo()) {
+            case SAIDA -> DESCRICAO_DA_SAIDA;
+            case AVULSA -> c.getDescricao();
+            case MENSALIDADE -> l.planoNome();
+        };
+        linha(csv, "COBRANCA", c.getVencimento().toString(), descricao, l.alunoNome(), c.getSituacao().name(),
+                c.getForma() == null ? null : c.getForma().name(), c.getPagoEm() == null ? null : c.getPagoEm().toString(),
+                null, null, reais(c.getValorCentavos()), parcial);
     }
 
     /** Aviso informativo da consultoria da sessão (mesmo caminho do painel); sem consultoria, {@code false}. */

@@ -114,7 +114,7 @@ class CobrancaCamposEFiltrosIntegrationTest extends AbstractIntegrationTest {
         assertThat(ficha.toString()).doesNotContain(cpf);
         // O toString do DTO nunca leva o CPF.
         var dto = new PagamentosDtos.CobrancaResponse(UUID.randomUUID(), null, null, "x", "p", hoje, hoje, 1,
-                CobrancaAluno.Situacao.ABERTA, false, null, null, "MANUAL", null, null, null, null, null, 0L, null, null, cpf, CobrancaAluno.Tipo.MENSALIDADE);
+                CobrancaAluno.Situacao.ABERTA, false, null, null, "MANUAL", null, null, null, null, null, 0L, null, null, cpf, CobrancaAluno.Tipo.MENSALIDADE, null);
         assertThat(dto.toString()).doesNotContain(cpf);
     }
 

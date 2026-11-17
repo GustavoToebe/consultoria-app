@@ -1,16 +1,11 @@
 package br.com.treinos.api.pagamentos;
 
-import br.com.plataforma.comum.web.ApiException;
-import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.pagamentos.PagamentosDtos.BaixaEmLoteRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ItemDoLote;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ResultadoDoItem;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ResultadoDoLote;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Fuso;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -28,10 +23,7 @@ import java.util.UUID;
 public class BaixaEmLote {
 
     public static final int MAXIMO_DE_ITENS = 100;
-    static final String NAO_ENCONTRADA = "COBRANCA_NAO_ENCONTRADA";
     static final String JA_ESTAVA_PAGA = "JA_ESTAVA_PAGA";
-
-    private static final Logger log = LoggerFactory.getLogger(BaixaEmLote.class);
 
     private final BaixaManualDeUma baixaManual;
 
@@ -40,9 +32,7 @@ public class BaixaEmLote {
     }
 
     public ResultadoDoLote baixar(BaixaEmLoteRequest r, UUID usuarioId) {
-        if (r.itens().stream().map(ItemDoLote::cobrancaId).distinct().count() != r.itens().size()) {
-            throw new BadRequestException("O lote repete uma cobrança.", "LOTE_INVALIDO");
-        }
+        CodigoDoItem.exigirSemRepetidas(CodigoDoItem.ids(r.itens()));
         CobrancaService.exigirDadosDaBaixa(r.data(), r.forma(), LocalDate.now(Fuso.BRASILIA));
         String observacao = Buscas.opcional(r.observacao());
         List<ResultadoDoItem> resultados = new ArrayList<>(r.itens().size());
@@ -58,19 +48,7 @@ public class BaixaEmLote {
             // Já paga antes (online ou por outro membro): continua paga com a forma e a data de antes; a tela avisa.
             return new ResultadoDoItem(item.cobrancaId(), true, gravou ? null : JA_ESTAVA_PAGA);
         } catch (RuntimeException e) {
-            return new ResultadoDoItem(item.cobrancaId(), false, codigoDe(e));
+            return new ResultadoDoItem(item.cobrancaId(), false, CodigoDoItem.de(e, "baixas"));
         }
-    }
-
-    /** Só o código estável: a mensagem e o corpo da exceção (que podem ter nome ou valor) nunca saem nem vão ao log. */
-    private static String codigoDe(RuntimeException e) {
-        if (e instanceof ApiException api) {
-            if (api.getStatus().value() == 404) return NAO_ENCONTRADA;
-            if (api.getCodigo() != null && !api.getCodigo().isBlank()) return api.getCodigo();
-        } else if (e instanceof ObjectOptimisticLockingFailureException) {
-            return "CONFLITO_EDICAO";
-        }
-        log.warn("Falha inesperada num item do lote de baixas: {}", e.getClass().getSimpleName());
-        return "ERRO_INESPERADO";
     }
 }

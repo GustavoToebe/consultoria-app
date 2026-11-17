@@ -2,12 +2,21 @@ package br.com.treinos.api.pagamentos;
 
 import br.com.treinos.api.pagamentos.PagamentosDtos.BaixaEmLoteRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.BaixaManualRequest;
+import br.com.treinos.api.pagamentos.PagamentosDtos.CancelarEmLoteRequest;
+import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancaAvulsaRequest;
+import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancasAvulsasGeradas;
 import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancaResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.MotivoRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PaginaCobrancas;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ResultadoDoLote;
+import br.com.treinos.api.pagamentos.PagamentosDtos.SelecionadasRequest;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,16 +25,19 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 /**
  * Cobranças. As listas mostram aluno, então pedem também {@code ALUNO_LER}; baixa, desfazer, cancelar, estorno e
- * contestação pedem {@code FINANCEIRO_ALTERAR}. O corpo nunca traz valor: ele sai da contratação. Estorno e contestação só
- * registram o que aconteceu fora do app (na InfinitePay ou no banco): nada aqui move dinheiro.
+ * contestação pedem {@code FINANCEIRO_ALTERAR}. O corpo nunca traz valor, com uma exceção: a cobrança avulsa (D5), cujo valor e
+ * descrição o treinador digita; nas demais o valor sai da contratação. Estorno e contestação só registram o que aconteceu fora do
+ * app (na InfinitePay ou no banco): nada aqui move dinheiro.
  */
 @RestController
 @ExigePagamentos
@@ -36,10 +48,17 @@ public class CobrancaController {
 
     private final CobrancaService cobrancas;
     private final BaixaEmLote lote;
+    private final CancelamentoEmLote cancelamentos;
+    private final CobrancaAvulsaService avulsas;
+    private final ExportacaoFinanceiraService exportacao;
 
-    public CobrancaController(CobrancaService cobrancas, BaixaEmLote lote) {
+    public CobrancaController(CobrancaService cobrancas, BaixaEmLote lote, CancelamentoEmLote cancelamentos,
+                              CobrancaAvulsaService avulsas, ExportacaoFinanceiraService exportacao) {
         this.cobrancas = cobrancas;
         this.lote = lote;
+        this.cancelamentos = cancelamentos;
+        this.avulsas = avulsas;
+        this.exportacao = exportacao;
     }
 
     /**
@@ -92,6 +111,36 @@ public class CobrancaController {
     public ResultadoDoLote baixaEmLote(@Valid @RequestBody BaixaEmLoteRequest r,
                                        @AuthenticationPrincipal UsuarioAutenticado eu) {
         return lote.baixar(r, eu.usuarioId());
+    }
+
+    /** Cancelar em lote: o mesmo cancelamento de uma cobrança, {@code motivo} opcional, até 100 itens; um resultado por item. */
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/cobrancas/cancelar-em-lote")
+    public ResultadoDoLote cancelarEmLote(@Valid @RequestBody CancelarEmLoteRequest r) {
+        return cancelamentos.cancelar(r);
+    }
+
+    /**
+     * Cobrança avulsa a 1 a 100 alunos (tudo ou nada). O valor e a descrição vêm do corpo: é a segunda exceção à regra do valor
+     * do servidor (a primeira é a saída {@code OUTRO}).
+     */
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/financeiro/cobrancas-avulsas")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CobrancasAvulsasGeradas gerarAvulsas(@RequestBody CobrancaAvulsaRequest r) {
+        return avulsas.gerar(r);
+    }
+
+    /** O CSV só das cobranças escolhidas (as mesmas colunas da exportação por período); id de outra consultoria some. */
+    @PreAuthorize(LER)
+    @PostMapping("/financeiro/exportacao/selecionadas")
+    public ResponseEntity<byte[]> exportarSelecionadas(@Valid @RequestBody SelecionadasRequest r) {
+        var csv = exportacao.exportarSelecionadas(r.cobrancaIds());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + csv.nomeDoArquivo() + "\"")
+                .cacheControl(CacheControl.noStore())
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(csv.conteudo());
     }
 
     @PreAuthorize(ALTERAR)

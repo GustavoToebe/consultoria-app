@@ -28,8 +28,11 @@ public class CobrancaAluno {
 
     public enum Situacao { ABERTA, PAGA, CANCELADA, ESTORNADA, CONTESTADA }
 
-    /** MENSALIDADE é a cobrança do período; SAIDA é a cobrança de saída antes do tempo mínimo (V074), uma viva por contratação. */
-    public enum Tipo { MENSALIDADE, SAIDA }
+    /**
+     * MENSALIDADE é a cobrança do período; SAIDA é a cobrança de saída antes do tempo mínimo (V074), uma viva por contratação;
+     * AVULSA (V087) é a que o treinador lança direto ao aluno, sem contratação nem competência, com descrição e valor do corpo.
+     */
+    public enum Tipo { MENSALIDADE, SAIDA, AVULSA }
 
     /** O dinheiro não ficou: cancelada e estornada não cobrem período (a contestada cobre, até o banco decidir). */
     public static final Set<Situacao> NAO_COBREM_PERIODO = Set.of(Situacao.CANCELADA, Situacao.ESTORNADA);
@@ -37,18 +40,25 @@ public class CobrancaAluno {
     /** Provedor da baixa manual do treinador. */
     public static final String MANUAL = "MANUAL";
 
+    /** No lugar da descrição da avulsa depois da anonimização do aluno (o treinador pode ter escrito o nome dele nela). */
+    static final String DESCRICAO_ANONIMIZADA = "Cobrança avulsa";
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
     @TenantId
     @Column(name = "consultoria_id", nullable = false, updatable = false)
     private UUID consultoriaId;
-    @Column(name = "contratacao_id", nullable = false, updatable = false)
+    /** Nulo só na AVULSA (CHECK da V087). */
+    @Column(name = "contratacao_id", updatable = false)
     private UUID contratacaoId;
     @Column(name = "aluno_id", nullable = false, updatable = false)
     private UUID alunoId;
-    @Column(nullable = false, updatable = false)
+    /** Nula só na AVULSA (CHECK da V087). */
+    @Column(updatable = false)
     private LocalDate competencia;
+    /** Texto do treinador, só da AVULSA (nulo nas outras): nunca em log nem auditoria; a anonimização o troca por texto fixo. */
+    private String descricao;
     @Column(name = "valor_centavos", nullable = false)
     private long valorCentavos;
     @Column(nullable = false)
@@ -113,6 +123,19 @@ public class CobrancaAluno {
         CobrancaAluno c = new CobrancaAluno(contratacao, competencia, vencimento);
         c.tipo = Tipo.SAIDA;
         c.valorCentavos = valorCentavos;
+        return c;
+    }
+
+    /** Cobrança avulsa: sem contratação nem competência; valor e descrição vêm do treinador (D5, exceção à regra do valor do servidor). */
+    static CobrancaAluno avulsa(UUID alunoId, String descricao, long valorCentavos, LocalDate vencimento) {
+        CobrancaAluno c = new CobrancaAluno();
+        c.alunoId = alunoId;
+        c.descricao = descricao;
+        c.valorCentavos = valorCentavos;
+        c.vencimento = vencimento;
+        c.situacao = Situacao.ABERTA;
+        c.tipo = Tipo.AVULSA;
+        c.provedor = MANUAL;
         return c;
     }
 
@@ -184,6 +207,9 @@ public class CobrancaAluno {
         this.linkUrl = null;
         this.linkSlug = null;
         this.linkValidoAte = null;
+        if (tipo == Tipo.AVULSA) {
+            this.descricao = DESCRICAO_ANONIMIZADA;
+        }
     }
 
     public boolean vencida(LocalDate hoje) {
@@ -195,6 +221,7 @@ public class CobrancaAluno {
     public UUID getContratacaoId() { return contratacaoId; }
     public UUID getAlunoId() { return alunoId; }
     public LocalDate getCompetencia() { return competencia; }
+    public String getDescricao() { return descricao; }
     public long getValorCentavos() { return valorCentavos; }
     public LocalDate getVencimento() { return vencimento; }
     public Situacao getSituacao() { return situacao; }

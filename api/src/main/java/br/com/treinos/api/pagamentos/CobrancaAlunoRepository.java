@@ -35,6 +35,16 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
         Long getQuantidade();
     }
 
+    interface TotaisDaLista {
+        Long getTotal();
+
+        Long getPago();
+
+        Long getEmAberto();
+
+        Long getVencido();
+    }
+
     interface SomaMensal {
         Integer getAno();
 
@@ -63,8 +73,8 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
 
     String LINHA = "select new br.com.treinos.api.pagamentos.LinhaDeCobranca(c, a.nome, p.nome, u.nome) "
             + "from CobrancaAluno c join Aluno a on a.id = c.alunoId "
-            + "join ContratacaoAluno k on k.id = c.contratacaoId "
-            + "join PlanoComercial p on p.id = k.planoComercialId "
+            + "left join ContratacaoAluno k on k.id = c.contratacaoId "
+            + "left join PlanoComercial p on p.id = k.planoComercialId "
             + "left join Usuario u on u.id = c.baixaPor ";
 
     String FILTRO = "where (:todas = true or c.situacao = :situacao) and (:soVencidas = false or c.vencimento < :hoje) "
@@ -92,8 +102,21 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
             + "and c.criadoEm >= :emissaoDe and c.criadoEm < :emissaoAte "
             + "and (:filtraPagamento = false or c.pagoEm between :pagoDe and :pagoAte) ";
 
+    // left join: a cobrança avulsa não tem contratação e tem de aparecer na lista, na contagem e nos totais.
     String CONTAGEM_DA_LISTA = "select count(c) from CobrancaAluno c join Aluno a on a.id = c.alunoId "
-            + "join ContratacaoAluno k on k.id = c.contratacaoId ";
+            + "left join ContratacaoAluno k on k.id = c.contratacaoId ";
+
+    /**
+     * Totais da lista sobre o filtro inteiro ({@link #FILTRO_DA_LISTA}, sem paginar): CANCELADA e ESTORNADA ficam fora de tudo.
+     * {@code total} = todas as demais (aberta, paga e contestada); {@code pago} = só PAGA (como o recebido do painel);
+     * {@code emAberto} = ABERTA (inclui a vencida); {@code vencido} = ABERTA com vencimento antes de hoje.
+     */
+    String TOTAIS = "select coalesce(sum(c.valorCentavos), 0L) as total, "
+            + "coalesce(sum(case when c.situacao = :paga then c.valorCentavos else 0L end), 0L) as pago, "
+            + "coalesce(sum(case when c.situacao = :aberta then c.valorCentavos else 0L end), 0L) as emAberto, "
+            + "coalesce(sum(case when c.situacao = :aberta and c.vencimento < :hoje then c.valorCentavos else 0L end), 0L) as vencido "
+            + "from CobrancaAluno c join Aluno a on a.id = c.alunoId "
+            + "left join ContratacaoAluno k on k.id = c.contratacaoId ";
 
     @Query("select c.contratacaoId as contratacaoId, c.alunoId as alunoId from CobrancaAluno c where c.id = :id")
     Optional<Referencias> referenciasDe(UUID id);
@@ -173,6 +196,9 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
 
     List<CobrancaAluno> findByAlunoIdAndSituacaoOrderByVencimentoAscIdAsc(UUID alunoId, CobrancaAluno.Situacao situacao);
 
+    /** As 24 mais recentes (a avulsa, sem competência, entra pelo vencimento). */
+    @Query("select c from CobrancaAluno c where c.alunoId = :alunoId and c.situacao in :situacoes "
+            + "order by coalesce(c.competencia, c.vencimento) desc, c.id desc limit 24")
     List<CobrancaAluno> findTop24ByAlunoIdAndSituacaoInOrderByCompetenciaDescIdDesc(UUID alunoId,
             Collection<CobrancaAluno.Situacao> situacoes);
 
@@ -204,7 +230,7 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
             UUID responsavelId, UUID planoId, String forma, boolean busca, String nome, Instant emissaoDe, Instant emissaoAte,
             boolean filtraPagamento, LocalDate pagoDe, LocalDate pagoAte, Pageable pagina);
 
-    @Query(LINHA + "where c.alunoId = :alunoId order by c.competencia desc, c.id desc")
+    @Query(LINHA + "where c.alunoId = :alunoId order by coalesce(c.competencia, c.vencimento) desc, c.id desc")
     List<LinhaDeCobranca> doAluno(UUID alunoId);
 
     @Query(LINHA + "where c.id = :id")
@@ -212,6 +238,18 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
 
     @Query(LINHA + "where c.vencimento between :de and :ate order by c.vencimento asc, c.id asc")
     List<LinhaDeCobranca> paraExportar(LocalDate de, LocalDate ate);
+
+    /** As cobranças da consultoria entre os ids dados (id de outra consultoria some: o {@code @TenantId} filtra), no mesmo corte da exportação. */
+    @Query(LINHA + "where c.id in :ids order by c.vencimento asc, c.id asc")
+    List<LinhaDeCobranca> paraExportarPorIds(Collection<UUID> ids);
+
+    /** Os totais do mesmo filtro da lista ({@link #FILTRO_DA_LISTA}), uma linha só; {@code fora} = situações que não entram. */
+    @Query(TOTAIS + FILTRO_DA_LISTA + "and c.situacao not in :fora")
+    TotaisDaLista totais(boolean filtraSituacoes, Collection<CobrancaAluno.Situacao> situacoes, boolean soVencidas,
+            CobrancaAluno.Situacao aberta, CobrancaAluno.Situacao paga, Collection<CobrancaAluno.Situacao> fora,
+            LocalDate hoje, LocalDate de, LocalDate ate, UUID alunoId, UUID responsavelId, UUID planoId, String forma,
+            boolean busca, String nome, Instant emissaoDe, Instant emissaoAte, boolean filtraPagamento, LocalDate pagoDe,
+            LocalDate pagoAte);
 
     // ---- Agregados (números e painel) ----
 

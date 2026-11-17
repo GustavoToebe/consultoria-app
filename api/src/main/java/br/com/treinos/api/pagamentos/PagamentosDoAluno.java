@@ -63,10 +63,11 @@ public class PagamentosDoAluno {
                         c.getPeriodicidade(), c.getValorCentavos(), c.getMotivoValor(), c.getInicio(),
                         c.getDiaVencimento(), c.getSituacao(), c.getEncerradaEm(), c.getCriadoEm(), c.getMinimoAte())).toList(),
                 cobrancas.findByAlunoId(alunoId).stream()
-                        .sorted(Comparator.comparing(CobrancaAluno::getCompetencia).reversed())
+                        .sorted(Comparator.comparing((CobrancaAluno c) -> c.getCompetencia() != null ? c.getCompetencia() : c.getVencimento())
+                                .reversed())
                         .map(c -> new CobrancaExportada(c.getId(), c.getContratacaoId(), c.getCompetencia(),
                                 c.getVencimento(), c.getValorCentavos(), c.getSituacao(), c.getForma(), c.getProvedor(),
-                                c.getPagoEm(), c.getObservacao(), c.getMotivo(), c.getTipo())).toList(),
+                                c.getPagoEm(), c.getObservacao(), c.getMotivo(), c.getTipo(), c.getDescricao())).toList(),
                 lembretes.doAluno(alunoId).stream()
                         .map(l -> new LembreteExportado(l.getCobrancaId(), l.getTipo(), l.getSituacao(), l.getDataPrevista(),
                                 l.getEnviadoEm())).toList(),

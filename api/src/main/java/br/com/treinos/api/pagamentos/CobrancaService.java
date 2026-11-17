@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 /**
  * As cobranças vistas e mexidas pelo treinador. As mudanças de situação moram em {@link BaixaDeCobranca}; aqui ficam a
  * conferência do pedido (data da baixa, forma manual), a auditoria (só do que mudou de verdade) e as listas. O valor de
- * uma cobrança nunca vem do corpo: corpo com campo a mais é ignorado.
+ * uma cobrança nunca vem do corpo (exceto a avulsa, em {@link CobrancaAvulsaService}): corpo com campo a mais é ignorado.
  */
 @Service
 public class CobrancaService {
@@ -45,15 +45,20 @@ public class CobrancaService {
     private final PlanoComercialRepository planos;
     private final BaixaDeCobranca baixa;
     private final BaixaManualDeUma baixaManual;
+    private final CancelamentoDeUma cancelamento;
+    private final TotaisDeCobrancas totais;
     private final Auditoria auditoria;
 
     public CobrancaService(CobrancaAlunoRepository cobrancas, AlunoRepository alunos, PlanoComercialRepository planos,
-                           BaixaDeCobranca baixa, BaixaManualDeUma baixaManual, Auditoria auditoria) {
+                           BaixaDeCobranca baixa, BaixaManualDeUma baixaManual, CancelamentoDeUma cancelamento,
+                           TotaisDeCobrancas totais, Auditoria auditoria) {
         this.cobrancas = cobrancas;
         this.alunos = alunos;
         this.planos = planos;
         this.baixa = baixa;
         this.baixaManual = baixaManual;
+        this.cancelamento = cancelamento;
+        this.totais = totais;
         this.auditoria = auditoria;
     }
 
@@ -132,7 +137,10 @@ public class CobrancaService {
                 : cobrancas.filtrarDecrescente(filtraSituacoes, situacoes, vencidas, CobrancaAluno.Situacao.ABERTA, hoje,
                         inicio, fim, alunoId, responsavelId, planoId, textoForma, busca, nome, emissaoDe, emissaoAte,
                         filtraPagamento, pagoDe, pagoAte, pageable);
-        return new PaginaCobrancas(respostas(page.getContent(), hoje), page.getTotalElements(), Math.max(0, pagina));
+        var totaisDoFiltro = totais.calcular(filtraSituacoes, situacoes, vencidas, hoje, inicio, fim, alunoId,
+                responsavelId, planoId, textoForma, busca, nome, emissaoDe, emissaoAte, filtraPagamento, pagoDe, pagoAte);
+        return new PaginaCobrancas(respostas(page.getContent(), hoje), page.getTotalElements(), Math.max(0, pagina),
+                totaisDoFiltro);
     }
 
     /** Ponta ausente vira o padrão; ponta fora de 1900..2999 é cortada nele (o filtro continua valendo, sem estourar). */
@@ -193,10 +201,7 @@ public class CobrancaService {
 
     @Transactional
     public CobrancaResponse cancelar(UUID id, MotivoRequest r) {
-        var resultado = baixa.cancelar(id, r.motivo().trim(), r.versao());
-        if (resultado.mudou()) {
-            auditoria.registrarEvento("COBRANCA_CANCELADA", "COBRANCA", id, "Cancelou uma cobrança.");
-        }
+        cancelamento.cancelar(id, r.motivo().trim(), r.versao());
         return resposta(id, LocalDate.now(Fuso.BRASILIA));
     }
 

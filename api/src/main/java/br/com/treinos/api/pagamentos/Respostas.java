@@ -67,13 +67,13 @@ final class Respostas {
                 c.getCompetencia(), c.getVencimento(), c.getValorCentavos(), c.getSituacao(), vencida,
                 vencida ? diasDeAtraso(c, hoje) : null, c.getForma(), c.getProvedor(), c.getPagoEm(), c.getBaixaPor(),
                 l.baixaPorNome(), c.getObservacao(), c.getMotivo(), c.getVersao(), c.getCriadoEm(), c.getIdExterno(),
-                alunoCpf, c.getTipo());
+                alunoCpf, c.getTipo(), c.getDescricao());
     }
 
     /** Só o que o aluno pode ver: sem observação, motivo, quem deu a baixa nem o provedor. */
     static CobrancaDoAluno cobrancaDoAluno(CobrancaAluno c, LocalDate hoje) {
         return new CobrancaDoAluno(c.getId(), c.getCompetencia(), c.getVencimento(), c.getValorCentavos(),
-                c.getSituacao(), c.vencida(hoje), c.getForma(), c.getPagoEm(), c.getTipo());
+                c.getSituacao(), c.vencida(hoje), c.getForma(), c.getPagoEm(), c.getTipo(), c.getDescricao());
     }
 
     static LancamentoResponse lancamento(LancamentoFinanceiro l) {

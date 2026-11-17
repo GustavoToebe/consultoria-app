@@ -1,11 +1,15 @@
 package br.com.treinos.api.pagamentos;
 
 import br.com.treinos.api.pagamentos.PagamentosDtos.LinkDePagamento;
+import br.com.treinos.api.pagamentos.PagamentosDtos.LinkEmLoteRequest;
+import br.com.treinos.api.pagamentos.PagamentosDtos.ResultadoDoLoteDeLinks;
+import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -20,14 +24,23 @@ public class LinkDePagamentoController {
             + "and hasAuthority('PERM_FINANCEIRO_ALTERAR')";
 
     private final LinkDePagamentoService links;
+    private final LinksEmLote lote;
 
-    public LinkDePagamentoController(LinkDePagamentoService links) {
+    public LinkDePagamentoController(LinkDePagamentoService links, LinksEmLote lote) {
         this.links = links;
+        this.lote = lote;
     }
 
     @PreAuthorize(ALTERAR)
     @PostMapping("/cobrancas/{id}/link")
     public ResponseEntity<LinkDePagamento> gerar(@PathVariable UUID id) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new LinkDePagamento(links.gerar(id)));
+    }
+
+    /** O link de várias cobranças (até 100 ids sem repetir): um resultado por item, na ordem do pedido; o que falha não desfaz o resto. */
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/cobrancas/link-em-lote")
+    public ResponseEntity<ResultadoDoLoteDeLinks> gerarEmLote(@Valid @RequestBody LinkEmLoteRequest r) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(lote.gerar(r));
     }
 }

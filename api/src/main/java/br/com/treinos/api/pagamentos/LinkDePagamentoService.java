@@ -170,8 +170,11 @@ public class LinkDePagamentoService {
                 descricao(cobranca), cobranca.getVencimento(), credencial.getJurosDoParcelamento());
     }
 
-    /** "Mensalidade: Plano (MM/aaaa)": nunca o nome do aluno. */
+    /** "Mensalidade: Plano (MM/aaaa)" ou, na avulsa, a descrição do treinador: nunca o nome do aluno (a avulsa não tem contratação). */
     private String descricao(CobrancaAluno cobranca) {
+        if (cobranca.getTipo() == CobrancaAluno.Tipo.AVULSA) {
+            return cobranca.getDescricao();
+        }
         String plano = contratacoes.findById(cobranca.getContratacaoId())
                 .flatMap(c -> planos.findById(c.getPlanoComercialId())).map(PlanoComercial::getNome).orElse(null);
         String nome = plano == null ? "" : plano.strip();
