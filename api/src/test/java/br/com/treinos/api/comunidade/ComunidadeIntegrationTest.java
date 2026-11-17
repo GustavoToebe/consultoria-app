@@ -412,6 +412,33 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         assertThat(p.get("itens")).hasSize(2);
     }
 
+    private static long totalDaAula(JsonNode lista, String aulaId) {
+        for (JsonNode item : lista) {
+            if (aulaId.equals(item.get("id").asString())) {
+                return item.get("totalComentarios").asLong();
+            }
+        }
+        throw new AssertionError("Aulão fora da lista: " + aulaId);
+    }
+
+    @Test
+    void listaDeAulasContaSoComentariosVisiveisPorAulaoNumaConsultaSo() throws Exception {
+        String comDois = criarAula(admin, true);
+        String comUm = criarAula(admin, true);
+        String semNenhum = criarAula(admin, true);
+        semear(true, comDois, 3);
+        semear(true, comUm, 1);
+        // O comentário oculto não conta: dos três semeados no primeiro aulão, sobram dois.
+        jdbc.update("update comunidade_aula_comentario set oculto = true where aula_id = ? and texto = 'Comentário 1'",
+                UUID.fromString(comDois));
+
+        for (JsonNode lista : List.of(api.get("/comunidade/aulas", admin, 200), api.get("/aluno/comunidade/aulas", loginA, 200))) {
+            assertThat(totalDaAula(lista, comDois)).isEqualTo(2);
+            assertThat(totalDaAula(lista, comUm)).isEqualTo(1);
+            assertThat(totalDaAula(lista, semNenhum)).isZero();
+        }
+    }
+
     @Test
     void comentarioTemLimiteDe280UnidadesDepoisDoStrip() throws Exception {
         String aula = criarAula(admin, true);

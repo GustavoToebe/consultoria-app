@@ -185,14 +185,17 @@ public class ComunidadeService {
         }
     }
 
-    /**
-     * Os aulões da lista com a contagem de comentários e a capa de cada um. shortcut: a contagem de comentários segue uma consulta
-     * por aulão (a lista não é paginada nem passa de algumas dezenas); a capa sai numa consulta só.
-     */
+    /** Os aulões da lista com a contagem de comentários visíveis e a capa de cada um: uma consulta para cada, sem N+1. */
     private List<AulaResumo> resumos(List<ComunidadeAula> doLote) {
-        Map<UUID, UUID> capasDasAulas = capas.idsDasAulas(doLote.stream().map(ComunidadeAula::getId).toList());
+        if (doLote.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> ids = doLote.stream().map(ComunidadeAula::getId).toList();
+        Map<UUID, UUID> capasDasAulas = capas.idsDasAulas(ids);
+        Map<UUID, Long> totais = new HashMap<>();
+        aulaComentarios.totaisVisiveis(ids).forEach(t -> totais.put(t.getAulaId(), t.getTotal()));
         return doLote.stream()
-                .map(a -> resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId()), capasDasAulas.get(a.getId())))
+                .map(a -> resumo(a, totais.getOrDefault(a.getId(), 0L), capasDasAulas.get(a.getId())))
                 .toList();
     }
 
