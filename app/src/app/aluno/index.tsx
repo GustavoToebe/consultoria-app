@@ -11,6 +11,7 @@ import { ParaFazer } from '../../aluno/ParaFazer';
 import { ProgressoSemana } from '../../aluno/ProgressoSemana';
 import { CartaoVitrineDoInicio } from '../../aluno/vitrine/CartaoVitrineDoInicio';
 import { SecaoDoInicio } from '../../aluno/SecaoDoInicio';
+import { useDiaDeHojeEmBrasilia } from '../../aluno/useDiaDeHoje';
 import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
 import { caminhoDaConclusao, caminhoDaSessao } from '../../aluno/useSessaoDoDia';
 import { normalizarTreino } from '../../dominio/editorTreino';
@@ -38,7 +39,9 @@ export default function InicioAluno() {
   const conteudo = treino ? normalizarTreino(treino.conteudo) : null;
   const nome = pacote?.pacote.aluno.nome ?? usuario?.nome ?? null;
   const dietaDoPlano = dieta.dados ? dieta.dados.dieta : undefined;
-  const estadoDaDieta = dietaNoInicio({ conteudo: dietaDoPlano === undefined ? undefined : dietaDoPlano?.conteudo ?? null, erro: !!dieta.erro });
+  // Dieta por dia da semana: o dia de Brasília, relido na virada do dia e na volta do app.
+  const diaDaDieta = useDiaDeHojeEmBrasilia();
+  const estadoDaDieta = dietaNoInicio({ conteudo: dietaDoPlano === undefined ? undefined : dietaDoPlano?.conteudo ?? null, erro: !!dieta.erro, dia: diaDaDieta });
   const semPacote = !pacote;
   const dia = diaDaSemana();
   const estadoHoje = estadoDoHoje({ conteudo, dia, carregando: semPacote && carregando, erro: semPacote && !carregando && !!erroPacote, recusado: semPacote && pacoteRecusado });

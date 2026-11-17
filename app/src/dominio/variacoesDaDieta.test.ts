@@ -1,8 +1,10 @@
 import type { ConteudoDieta, Refeicao } from '../api/tipos';
 import { normalizarDieta } from './dieta';
+import { localizar, uidsComProblema } from './caminhos';
 import {
-  alternarDia, criarVariacoes, diaDeHojeEmBrasilia, diasSemVariacao, duplicarVariacao, LIMITE_DE_VARIACOES, refeicoesDoDia,
-  ROTULO_MAXIMO, secoesDaDieta, variacaoDoDia,
+  alternarDia, criarVariacoes, diaDeHojeEmBrasilia, diasSemVariacao, dividirPorDia, duplicarVariacao, excluirVariacao,
+  LIMITE_DE_VARIACOES, mudarRefeicoesDaSecao, refeicoesDaSecao, refeicoesDoDia, renomearVariacao, ROTULO_MAXIMO,
+  secoesDaDieta, textoDosDiasCurtos, usarEmTodosOsDias, variacaoAberta, variacaoDoDia,
 } from './variacoesDaDieta';
 
 let mockProximo = 0;
@@ -132,5 +134,80 @@ describe('dia de hoje em Brasília (relógio falso)', () => {
     expect(diaDeHojeEmBrasilia(new Date('2026-11-22T12:00:00Z'))).toBe(7);
     expect(diaDeHojeEmBrasilia(new Date('2026-11-23T02:59:00Z'))).toBe(7);
     expect(diaDeHojeEmBrasilia(new Date('2026-11-23T03:01:00Z'))).toBe(1);
+  });
+});
+
+describe('editor: a seção aberta (lente das refeições)', () => {
+  const mais = (r: Refeicao[]) => [...r, refeicao('nova')];
+
+  it('sem variações escreve só na raiz; com variações, só na variação do uid e nunca na raiz', () => {
+    const r = raiz();
+    expect(mudarRefeicoesDaSecao(r, null, mais).refeicoes.map((x) => x.uid)).toEqual(['raiz', 'nova']);
+    const c = duas();
+    const d = mudarRefeicoesDaSecao(c, 'zero', mais);
+    expect(d.refeicoes).toEqual([]);
+    expect(d.variacoes[0]).toBe(c.variacoes[0]);
+    expect(d.variacoes[1].refeicoes.map((x) => x.uid)).toEqual(['z', 'nova']);
+  });
+
+  it('alvo que não existe mais não muda nada (uid sumido, nulo com variações, uid sem variações)', () => {
+    const c = duas();
+    expect(mudarRefeicoesDaSecao(c, 'sumiu', mais)).toBe(c);
+    expect(mudarRefeicoesDaSecao(c, null, mais)).toBe(c);
+    const r = raiz();
+    expect(mudarRefeicoesDaSecao(r, 'alto', mais)).toBe(r);
+  });
+
+  it('lê as refeições da seção e abre a primeira variação quando o uid sumiu', () => {
+    const c = duas();
+    expect(refeicoesDaSecao(c, 'zero')[0].uid).toBe('z');
+    expect(refeicoesDaSecao(c, null)).toEqual([]);
+    expect(refeicoesDaSecao(raiz(), null)[0].uid).toBe('raiz');
+    expect(variacaoAberta(c, 'zero')?.uid).toBe('zero');
+    expect(variacaoAberta(c, 'sumiu')?.uid).toBe('alto');
+    expect(variacaoAberta(raiz(), null)).toBeNull();
+  });
+});
+
+describe('editor: criar, renomear, excluir e voltar à dieta sem variação', () => {
+  it('criar variação: a dieta vira a Variação 1 com os 7 dias e nasce a Variação 2 sem dia, com uids novos', () => {
+    const c = dividirPorDia(raiz());
+    expect(c.refeicoes).toEqual([]);
+    expect(c.variacoes.map((v) => [v.rotulo, v.dias])).toEqual([['Variação 1', [1, 2, 3, 4, 5, 6, 7]], ['Variação 2', []]]);
+    expect(c.variacoes[1].refeicoes[0].uid).not.toBe('raiz');
+    expect(dividirPorDia(c)).toBe(c);
+  });
+
+  it('renomear corta no limite; excluir deixa os dias dela sem variação e nunca tira a última', () => {
+    const c = duas();
+    expect(renomearVariacao(c, 'zero', 'x'.repeat(ROTULO_MAXIMO + 5)).variacoes[1].rotulo).toHaveLength(ROTULO_MAXIMO);
+    expect(renomearVariacao(c, 'sumiu', 'Outro')).toBe(c);
+    const sem = excluirVariacao(c, 'zero');
+    expect(sem.variacoes.map((v) => v.uid)).toEqual(['alto']);
+    expect(diasSemVariacao(sem)).toEqual([2, 4, 6]);
+    expect(excluirVariacao(sem, 'alto')).toBe(sem);
+  });
+
+  it('usar em todos os dias: as refeições da variação voltam à raiz e as variações saem', () => {
+    const c = usarEmTodosOsDias(duas(), 'zero');
+    expect(c.variacoes).toEqual([]);
+    expect(c.refeicoes.map((r) => r.uid)).toEqual(['z']);
+    const d = duas();
+    expect(usarEmTodosOsDias(d, 'sumiu')).toBe(d);
+  });
+
+  it('dias curtos em ordem, sem repetir', () => {
+    expect(textoDosDiasCurtos([5, 1, 3, 3])).toBe('Seg, Qua e Sex');
+    expect(textoDosDiasCurtos([7])).toBe('Dom');
+    expect(textoDosDiasCurtos([])).toBe('Nenhum dia');
+  });
+});
+
+describe('problemas da API dentro das variações', () => {
+  it('o caminho leva o nome da variação e marca o uid dela e o da refeição', () => {
+    const c = duas();
+    expect(localizar(c, 'variacoes[1].refeicoes[0].nome')).toEqual({ texto: 'Zero carbo › Refeição z', uids: ['zero', 'z'] });
+    expect(localizar(c, 'variacoes').texto).toBe('Variações');
+    expect(uidsComProblema(c, ['variacoes[0].dias'])).toEqual(new Set(['alto']));
   });
 });

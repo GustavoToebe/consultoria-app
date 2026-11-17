@@ -4,6 +4,7 @@ import { normalizarDieta } from './dieta';
 import { DIAS_SEMANA } from './editorTreino';
 import { diaDaSemanaIso, somarDias } from './formatos';
 import { nomeComDia, rotuloDoTipo, sessoesDaSemana } from './semana';
+import { variacaoDoDia } from './variacoesDaDieta';
 
 /**
  * Regras do Início do aluno (a tela só desenha). Nada aqui inventa dado: dia, água e contagens vêm do plano publicado
@@ -41,18 +42,19 @@ export function aguaDoInicio(litros: number | null | undefined): string | null {
 
 /**
  * Cartão da Dieta. `conteudo` nulo = o treinador ainda não publicou. Falha de busca nunca vira "não publicada": é
- * `erro` (a tela oferece "Tentar de novo").
+ * `erro` (a tela oferece "Tentar de novo"). `dia` (1 = segunda ... 7, de Brasília): com variações por dia, conta as
+ * refeições da variação de hoje e diz qual é ("Hoje: Dia de treino · 5 refeições"); sem variação, o texto de sempre.
  */
-export function dietaNoInicio(entrada: { conteudo: ConteudoDieta | null | undefined; erro: boolean }): DietaNoInicio {
-  const { conteudo, erro } = entrada;
+export function dietaNoInicio(entrada: { conteudo: ConteudoDieta | null | undefined; erro: boolean; dia: number }): DietaNoInicio {
+  const { conteudo, erro, dia } = entrada;
   if (conteudo === undefined) return erro ? { tipo: 'erro' } : { tipo: 'carregando' };
   if (conteudo === null) return { tipo: 'sem-dieta' };
   const c = normalizarDieta(conteudo);
-  return {
-    tipo: 'ok',
-    refeicoes: `${contagem(c.refeicoes.length, 'refeição', 'refeições')} no seu plano`,
-    agua: aguaDoInicio(c.aguaLitros),
-  };
+  const agua = aguaDoInicio(c.aguaLitros);
+  if (c.variacoes.length === 0) return { tipo: 'ok', refeicoes: `${contagem(c.refeicoes.length, 'refeição', 'refeições')} no seu plano`, agua };
+  const hoje = variacaoDoDia(c, dia);
+  if (!hoje) return { tipo: 'ok', refeicoes: 'Nenhuma variação para hoje', agua };
+  return { tipo: 'ok', refeicoes: `Hoje: ${hoje.rotulo.trim() || 'Variação sem nome'} · ${contagem(hoje.refeicoes.length, 'refeição', 'refeições')}`, agua };
 }
 
 // ---- Hoje ----

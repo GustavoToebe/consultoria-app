@@ -11,6 +11,7 @@ const NOMES_DE_CAMPO: Record<string, string> = {
   exercicios: 'exercícios',
   series: 'séries',
   refeicoes: 'Refeições',
+  variacoes: 'Variações',
   opcoes: 'opções',
   itens: 'itens',
   fim: 'Período',
@@ -49,6 +50,7 @@ export function localizar(conteudo: unknown, caminho: string): Localizacao {
     else if (campo === 'opcoes') partes.push(`opção ${item.rotulo || posicao}`);
     else if (campo === 'grupos') partes.push(`grupo ${posicao}`);
     else if (campo === 'alternativas') partes.push(`alternativa ${item.nome?.trim() || posicao}`);
+    else if (campo === 'variacoes') partes.push(item.rotulo?.trim() || `variação ${posicao}`);
     else partes.push(item.nome?.trim() || `${campo === 'sessoes' ? 'sessão' : 'item'} ${posicao}`);
     atual = item;
   }

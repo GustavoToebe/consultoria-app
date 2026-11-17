@@ -13,6 +13,7 @@ import type { Configuracao, ConteudoPastaModelo, Receita } from '../../api/tipos
 import { normalizarDieta } from '../../dominio/dieta';
 import { LIMITE_DESCRICAO_DO_MODELO } from '../../dominio/modelos';
 import { tituloDoModelo } from '../../dominio/planoDoAluno';
+import { secoesDaDieta } from '../../dominio/variacoesDaDieta';
 import { mover, normalizarTreino, novoExercicio, seriesDaReceita, seriesParaReceita } from '../../dominio/editorTreino';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { type ConteudoMobilidade, mobilidadeParaApi, mobilidadeValida, normalizarMobilidade } from '../../dominio/mobilidade';
@@ -116,7 +117,7 @@ function ItemDoPacote({ posicao, total, plano: p, aoTitulo, aoMover, aoRemover }
   const [aberto, setAberto] = useState(false);
   const [removendo, setRemovendo] = useState(false);
   const tipo = p.treino ? 'Semana de treino' : p.mobilidade ? 'Mobilidade' : 'Dieta';
-  const partes = p.treino ? p.treino.sessoes.map((x) => x.nome || 'Sessão') : p.mobilidade ? p.mobilidade.secoes.map((sec) => sec.titulo || 'Seção') : p.dieta?.refeicoes.map((ref) => ref.nome || 'Refeição') ?? [];
+  const partes = p.treino ? p.treino.sessoes.map((x) => x.nome || 'Sessão') : p.mobilidade ? p.mobilidade.secoes.map((sec) => sec.titulo || 'Seção') : p.dieta ? partesDaDieta(p.dieta) : [];
   return <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
     <CabecalhoDoItem titulo={`${posicao + 1}. ${p.titulo || tipo}`} resumo={`${tipo} · ${partes.join(' · ') || 'vazio'}`} aberto={aberto} aoAlternar={() => setAberto((v) => !v)}
       nomeDoItem="plano" posicao={posicao} total={total} aoMover={aoMover}
@@ -136,4 +137,9 @@ const estilos = StyleSheet.create({
 function codigosDaVersaoSalva(conteudo: unknown): string[] {
   const tipos = (conteudo as { tipos?: unknown } | null)?.tipos;
   return Array.isArray(tipos) ? tipos.map((t) => (t as { codigo?: unknown })?.codigo).filter((x): x is string => typeof x === 'string') : [];
+}
+
+/** Itens da dieta no pacote: as refeições; com variações por dia (a raiz fica vazia), o nome de cada variação. */
+function partesDaDieta(dieta: unknown): string[] {
+  return secoesDaDieta(normalizarDieta(dieta)).flatMap((s) => (s.uid === null ? s.refeicoes.map((ref) => ref.nome || 'Refeição') : [s.rotulo?.trim() || 'Variação']));
 }

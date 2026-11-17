@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { listarAlimentos, listarErgogenicos, suplementoDaResposta } from '../../api/rotas';
-import type { Alimento, ConteudoDieta, Receita, ResultadoValidacao } from '../../api/tipos';
+import type { Alimento, ConteudoDieta, Receita, Refeicao, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
 import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
 import { comNomesPadrao, itensSemValorNoTotal, novaRefeicao, normalizarDieta } from '../../dominio/dieta';
@@ -12,6 +12,7 @@ import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { dataParaTela } from '../../dominio/formatos';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
+import { mudarRefeicoesDaSecao, refeicoesDaSecao, secoesDaDieta, variacaoAberta } from '../../dominio/variacoesDaDieta';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -45,13 +46,15 @@ import { CartaoRefeicao, idDaRefeicao, resumoDaRefeicao, tituloDaRefeicao } from
 import { ComplementosDaDieta } from './ComplementosDaDieta';
 import { type FolhaDaDieta, FolhasDaDieta } from './FolhasDaDieta';
 import { TotalDoDia } from './TotalDoDia';
+import { VariacoesDaDieta } from './VariacoesDaDieta';
 
 /**
  * Editor do plano de dieta, no formato dos PDFs do Saraiva. Os valores dos itens vêm da biblioteca e são gravados no item;
  * o total do dia soma só a opção A de cada refeição. O topo segue a ordem do editor de treino (pasta, problemas, contexto,
  * configuração) e depois vêm o total, as refeições e os complementos. Com 960 px de conteúdo (`TelaDoEditor colunas`), as
  * refeições viram uma lista à esquerda e a escolhida abre inteira à direita (inspetor); abaixo disso, os cartões empilhados
- * que abrem e fecham. O modelo de uma refeição só fica sempre empilhado e aberto.
+ * que abrem e fecham. O modelo de uma refeição só fica sempre empilhado e aberto. Com variações por dia, total, refeições e
+ * folhas agem na variação aberta (`secao`): toda escrita passa por `mudarRefeicoesDaSecao` com o uid dela, nunca na raiz.
  */
 export default function EditorDeDieta({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -77,6 +80,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const [abertas, setAbertas] = useState<Set<string>>(new Set());
   // Refeição do inspetor (duas colunas); a que sumiu da lista (desfazer, modelo aplicado) cai na primeira.
   const [escolhidaUid, setEscolhidaUid] = useState<string | null>(null);
+  // Variação aberta (dieta por dia); a que sumiu (excluída, desfeita, modelo aplicado) cai na primeira.
+  const [abertaUid, setAbertaUid] = useState<string | null>(null);
   const [problemas, setProblemas] = useState<ResultadoValidacao | null>(null);
   const [folha, setFolha] = useState<FolhaDaDieta | null>(null);
   // `refeicaoDaOpcao`/`indiceDaRefeicao`: onde o aviso aparece empilhado (no lugar do que saiu, para o Desfazer ficar à vista).
@@ -96,15 +101,21 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   }
 
   const c = estado.conteudo;
+  const aberta = variacaoAberta(c, abertaUid);
+  // A seção que o editor mostra: a raiz sem variações (`null`), senão a variação aberta.
+  const secao = aberta?.uid ?? null;
+  const refs = refeicoesDaSecao(c, secao);
+  const temRefeicao = secoesDaDieta(c).some((s) => s.refeicoes.length > 0);
+  const naSecao = (a: ConteudoDieta, fn: (r: Refeicao[]) => Refeicao[]) => mudarRefeicoesDaSecao(a, secao, fn);
   const comErro = uidsComProblema(c, (problemas?.erros ?? []).map((p) => p.caminho));
-  const todasAbertas = c.refeicoes.length > 0 && c.refeicoes.every((r) => abertas.has(r.uid));
+  const todasAbertas = refs.length > 0 && refs.every((r) => abertas.has(r.uid));
   // Toda mudança (menos digitar no Nome da refeição, que o cartão manda direto) sai com "Refeição N" nos nomes vazios:
   // refeição nova, de modelo ou de desfazer nunca chega ao rascunho sem nome (C57; o validador recusa "Refeição sem nome").
   const mudar = (parcial: Partial<ConteudoDieta>) => editor.alterarConteudo((a) => comNomesPadrao({ ...a, ...parcial }));
   const mudarRefeicoes = (fn: (r: ConteudoDieta['refeicoes']) => ConteudoDieta['refeicoes']) =>
-    editor.alterarConteudo((a) => comNomesPadrao({ ...a, refeicoes: fn(a.refeicoes) }));
+    editor.alterarConteudo((a) => comNomesPadrao(naSecao(a, fn)));
   const comDesfazer = (rotulo: string, mudanca: (a: ConteudoDieta) => ConteudoDieta, onde: OndeDesfazer = {}) => {
-    setDesfazer({ rotulo, conteudo: c, ...onde });
+    setDesfazer({ rotulo, conteudo: c, variacao: secao, ...onde });
     editor.alterarConteudo((a) => comNomesPadrao(mudanca(a)));
   };
   const alternar = (uid: string) =>
@@ -116,8 +127,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
     });
 
   const titulo = modelo ? tituloDoModelo(unica ? 'REFEICAO' : 'PLANO_DIETA') : tituloDoPlanoDoAluno('dieta', nomeDoAluno);
-  const semValor = itensSemValorNoTotal(c);
-  const escolhida = c.refeicoes.find((r) => r.uid === escolhidaUid) ?? c.refeicoes[0];
+  const semValor = itensSemValorNoTotal(refs);
+  const escolhida = refs.find((r) => r.uid === escolhidaUid) ?? refs[0];
   /** Abre (empilhado) e escolhe (duas colunas) a refeição; a rolagem, quando há, é de quem chama. */
   const abrirRefeicao = (uid: string) => { setEscolhidaUid(uid); setAbertas((a) => new Set(a).add(uid)); };
   const adicionarRefeicao = () => {
@@ -162,7 +173,10 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       ) : null}
       {modelo ? null : <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas}
         aoIrAoPrimeiro={(uids) => {
-          const comProblema = c.refeicoes.filter((r) => uids.includes(r.uid)).map((r) => r.uid);
+          // Com variações, abre antes a primeira variação com problema (nela ou numa refeição dela).
+          const alvo = secoesDaDieta(c).find((s) => (s.uid !== null && uids.includes(s.uid)) || s.refeicoes.some((r) => uids.includes(r.uid)));
+          if (alvo?.uid) setAbertaUid(alvo.uid);
+          const comProblema = (alvo?.refeicoes ?? refs).filter((r) => uids.includes(r.uid)).map((r) => r.uid);
           if (comProblema[0]) setEscolhidaUid(comProblema[0]);
           setAbertas((a) => new Set([...a, ...comProblema]));
         }} />}
@@ -175,48 +189,56 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       {unica ? null : <ConfiguracaoDoPlano
         editor={editor}
         modelo={modelo}
-        recolhido={c.refeicoes.length > 0 && estado.titulo.trim() !== ''}
+        recolhido={temRefeicao && estado.titulo.trim() !== ''}
         descricao="Título, período, objetivo e profissional da dieta.">
         <CamposDaDieta conteudo={c} aoMudar={mudar} modelo={modelo} />
       </ConfiguracaoDoPlano>}
-      <TotalDoDia conteudo={c} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} aoMudarAgua={unica ? undefined : (aguaLitros) => mudar({ aguaLitros })} />
+      {unica ? null : (
+        <VariacoesDaDieta conteudo={c} aberta={aberta} comProblema={comErro} aoAbrir={setAbertaUid}
+          alterar={(mudanca) => editor.alterarConteudo(mudanca)}
+          comDesfazer={(rotulo, mudanca) => comDesfazer(rotulo, mudanca, { secao: 'variacoes' })}
+          aviso={desfazer?.secao === 'variacoes' ? barra : undefined} />
+      )}
+      <TotalDoDia conteudo={c} refeicoes={refs} rotulo={aberta?.rotulo} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} aoMudarAgua={unica ? undefined : (aguaLitros) => mudar({ aguaLitros })} />
       <ComColunas>{(duas) => {
         // Empilhadas, várias refeições abertas empurravam o aviso do topo para fora da janela. Opção removida: o aviso fica
         // na refeição dela (se ela está aberta); refeição removida: no lugar dela. Em duas colunas e no resto, no topo.
         const avisoNaRefeicao = !duas && desfazer?.refeicaoDaOpcao !== undefined
-          && c.refeicoes.some((r) => r.uid === desfazer.refeicaoDaOpcao && (unica || abertas.has(r.uid)));
-        const avisoNoLugar = !duas && desfazer?.indiceDaRefeicao !== undefined ? Math.min(desfazer.indiceDaRefeicao, c.refeicoes.length) : null;
+          && refs.some((r) => r.uid === desfazer.refeicaoDaOpcao && (unica || abertas.has(r.uid)));
+        // A posição só vale na variação de onde a refeição saiu; em outra, o aviso vai para o topo da lista.
+        const avisoNoLugar = !duas && desfazer?.indiceDaRefeicao !== undefined && desfazer.variacao === secao
+          ? Math.min(desfazer.indiceDaRefeicao, refs.length) : null;
         const cartao = (r: ConteudoDieta['refeicoes'][number], ri: number, noInspetor: boolean) => (
           <CartaoRefeicao
             key={r.uid}
             refeicao={r}
             posicao={ri}
-            total={c.refeicoes.length}
+            total={refs.length}
             aberta={noInspetor || unica || abertas.has(r.uid)}
             comProblema={comErro}
             alimentos={porId}
             aviso={avisoNaRefeicao && desfazer?.refeicaoDaOpcao === r.uid ? barra : undefined}
             aoAbrir={noInspetor || unica ? undefined : () => alternar(r.uid)}
             // Direto, sem o nome padrão: apagar o Nome para digitar outro não pode preencher na hora (preenche ao sair do campo).
-            aoMudar={(nova) => editor.alterarConteudo((a) => ({ ...a, refeicoes: substituir(a.refeicoes, ri, nova) }))}
-            aoSairDoNome={() => { if (c.refeicoes.some((x) => x.nome.trim() === '')) editor.alterarConteudo(comNomesPadrao); }}
+            aoMudar={(nova) => editor.alterarConteudo((a) => naSecao(a, (lista) => substituir(lista, ri, nova)))}
+            aoSairDoNome={() => { if (refs.some((x) => x.nome.trim() === '')) editor.alterarConteudo(comNomesPadrao); }}
             aoRemoverOpcao={(oi) => comDesfazer(`Opção ${r.opcoes[oi]?.rotulo ?? oi + 1} removida.`, (a) =>
-              ({ ...a, refeicoes: substituir(a.refeicoes, ri, { ...a.refeicoes[ri], opcoes: remover(a.refeicoes[ri].opcoes, oi) }) }),
+              naSecao(a, (lista) => substituir(lista, ri, { ...lista[ri], opcoes: remover(lista[ri].opcoes, oi) })),
               { refeicaoDaOpcao: r.uid })}
             aoRemoverItem={(oi, ii, nomeItem) => comDesfazer(`Alimento “${nomeItem}” removido.`, (a) =>
-              ({ ...a, refeicoes: substituir(a.refeicoes, ri, {
-                ...a.refeicoes[ri],
-                opcoes: substituir(a.refeicoes[ri].opcoes, oi, {
-                  ...a.refeicoes[ri].opcoes[oi],
-                  itens: remover(a.refeicoes[ri].opcoes[oi].itens, ii),
+              naSecao(a, (lista) => substituir(lista, ri, {
+                ...lista[ri],
+                opcoes: substituir(lista[ri].opcoes, oi, {
+                  ...lista[ri].opcoes[oi],
+                  itens: remover(lista[ri].opcoes[oi].itens, ii),
                 }),
-              }) }),
+              })),
               { refeicaoDaOpcao: r.uid })}
             aoMover={(d) => mudarRefeicoes((lista) => mover(lista, ri, d))}
             aoRemover={unica ? undefined : () => {
-              const depois = remover(c.refeicoes, ri);
-              setEscolhidaUid(proximaSelecao(c.refeicoes.map((x) => x.uid), depois.map((x) => x.uid), escolhida?.uid ?? null));
-              comDesfazer(`Refeição “${r.nome || ri + 1}” removida.`, (a) => ({ ...a, refeicoes: remover(a.refeicoes, ri) }), { indiceDaRefeicao: ri });
+              const depois = remover(refs, ri);
+              setEscolhidaUid(proximaSelecao(refs.map((x) => x.uid), depois.map((x) => x.uid), escolhida?.uid ?? null));
+              comDesfazer(`Refeição “${r.nome || ri + 1}” removida.`, (a) => naSecao(a, (lista) => remover(lista, ri)), { indiceDaRefeicao: ri });
             }}
             aoSalvarModelo={unica ? undefined : () => setFolha({ tipo: 'salvarRefeicao', indice: ri })}
             aoEscolherAlimento={(opcao) => setFolha({ tipo: 'alimento', refeicao: ri, opcao })}
@@ -224,42 +246,42 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         );
         return <>
           <View style={estilos.cabecalhoRefeicoes}>
-            <Texto variante="bloco" nivel={2}>Refeições ({c.refeicoes.length})</Texto>
+            <Texto variante="bloco" nivel={2}>Refeições ({refs.length})</Texto>
             <LinhaDeAcoes>
-              <Botao rotulo="Lista de compras" tipo="fantasma" Icone={ShoppingCart} desabilitado={c.refeicoes.length === 0}
+              <Botao rotulo="Lista de compras" tipo="fantasma" Icone={ShoppingCart} desabilitado={!temRefeicao}
                 motivo="Adicione uma refeição primeiro." aoTocar={() => setFolha({ tipo: 'compras' })} />
               {/* Em duas colunas a escolhida já está aberta: não há o que abrir todas. */}
-              {!duas && !unica && c.refeicoes.length > 1 ? (
+              {!duas && !unica && refs.length > 1 ? (
                 <Botao rotulo={todasAbertas ? 'Fechar todas' : 'Abrir todas'} tipo="fantasma" Icone={todasAbertas ? ChevronsDownUp : ChevronsUpDown}
-                  aoTocar={() => setAbertas(todasAbertas ? new Set() : new Set(c.refeicoes.map((r) => r.uid)))} />
+                  aoTocar={() => setAbertas(todasAbertas ? new Set() : new Set(refs.map((r) => r.uid)))} />
               ) : null}
             </LinhaDeAcoes>
           </View>
-          {avisoNaRefeicao || avisoNoLugar !== null || desfazer?.secao === 'complementos' ? null : barra}
-          {c.refeicoes.length === 0 ? <Vazio texto="Nenhuma refeição ainda. Adicione a primeira ou comece de um modelo pronto." /> : null}
+          {avisoNaRefeicao || avisoNoLugar !== null || desfazer?.secao ? null : barra}
+          {refs.length === 0 ? <Vazio texto={aberta ? 'Nenhuma refeição nesta variação ainda. Adicione a primeira ou comece de um modelo pronto.' : 'Nenhuma refeição ainda. Adicione a primeira ou comece de um modelo pronto.'} /> : null}
           {duas && escolhida ? (
             <View style={estilos.colunas}>
               <View style={estilos.lista}>
                 <View style={estilos.itens} role="group" accessibilityLabel="Refeições do plano">
-                  {c.refeicoes.map((r, ri) => {
+                  {refs.map((r, ri) => {
                     const tituloDaLinha = tituloDaRefeicao(r, ri);
                     const resumo = resumoDaRefeicao(r);
                     const problema = comErro.has(r.uid);
                     return (
                       <ItemDaListaDoEditor key={r.uid} numero={ri + 1} titulo={tituloDaLinha} linha={resumo} escolhido={r.uid === escolhida.uid}
                         comProblema={problema} selo={problema ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
-                        rotulo={`Refeição ${ri + 1} de ${c.refeicoes.length}: ${tituloDaLinha}${problema ? ', corrigir' : ''}. ${resumo}`}
+                        rotulo={`Refeição ${ri + 1} de ${refs.length}: ${tituloDaLinha}${problema ? ', corrigir' : ''}. ${resumo}`}
                         aoEscolher={() => setEscolhidaUid(r.uid)} />
                     );
                   })}
                 </View>
                 {adicionar}
               </View>
-              <View style={estilos.inspetor}>{cartao(escolhida, c.refeicoes.indexOf(escolhida), true)}</View>
+              <View style={estilos.inspetor}>{cartao(escolhida, refs.indexOf(escolhida), true)}</View>
             </View>
           ) : <>
-            {c.refeicoes.flatMap((r, ri) => (ri === avisoNoLugar ? [barra, cartao(r, ri, false)] : [cartao(r, ri, false)]))}
-            {avisoNoLugar === c.refeicoes.length ? barra : null}
+            {refs.flatMap((r, ri) => (ri === avisoNoLugar ? [barra, cartao(r, ri, false)] : [cartao(r, ri, false)]))}
+            {avisoNoLugar === refs.length ? barra : null}
             {adicionar}
           </>}
         </>;
@@ -283,6 +305,9 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         abrir={setFolha}
         fechar={() => setFolha(null)}
         conteudo={c}
+        refeicoes={refs}
+        temRefeicao={temRefeicao}
+        naSecao={naSecao}
         titulo={estado.titulo}
         modelo={modelo}
         unica={unica}
@@ -318,11 +343,15 @@ function BotaoAdicionarRefeicao({ aoAdicionar }: { aoAdicionar: () => string }) 
   );
 }
 
-/** De onde saiu o que o "Desfazer" devolve: a refeição da opção removida ou a posição da refeição removida. */
+/**
+ * De onde saiu o que o "Desfazer" devolve: a refeição da opção removida ou a posição da refeição removida (na `variacao`
+ * que estava aberta; `null` = dieta sem variação), ou a seção do editor.
+ */
 interface OndeDesfazer {
   refeicaoDaOpcao?: string;
   indiceDaRefeicao?: number;
-  secao?: 'complementos';
+  variacao?: string | null;
+  secao?: 'complementos' | 'variacoes';
 }
 
 /** Objetivo, data de início e profissional (como no topo do PDF do Saraiva). A água fica no "Total do dia". O modelo não tem data de início (C59). */

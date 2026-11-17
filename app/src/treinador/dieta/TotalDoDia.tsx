@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import type { ConteudoDieta } from '../../api/tipos';
+import type { ConteudoDieta, Refeicao } from '../../api/tipos';
 import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, type ItemSemValor, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
 import { numeroParaTela } from '../../dominio/formatos';
 import { espaco } from '../../tema/tokens';
@@ -16,17 +16,19 @@ import { gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro } from '../../ui/Valores
  * "Total do dia" (opção A de cada refeição; guia premium pág. 10), compacto: kcal em destaque neutro e os três macros
  * lado a lado com a marca da cor, o número antes do nome ("—" sem unidade quando falta valor), e a água por dia na mesma faixa, sempre à vista (dentro da "Configuração do plano", que fecha
  * sozinha quando a dieta já tem refeições, o treinador não a encontrava, 30/10). Se algum item deixa o total incompleto,
- * diz quantos são e leva ao primeiro. Modelo de uma refeição só não tem água.
+ * diz quantos são e leva ao primeiro. Modelo de uma refeição só não tem água. Com variações, soma as `refeicoes` da variação
+ * aberta (`rotulo` no título); a água é da dieta toda e vem de `conteudo`.
  */
-export function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao, aoMudarAgua }: {
-  conteudo: ConteudoDieta; semValor: ItemSemValor[]; aoAbrirRefeicao: (uid: string) => void; aoMudarAgua?: (litros: number | null) => void;
+export function TotalDoDia({ conteudo: c, refeicoes, rotulo, semValor, aoAbrirRefeicao, aoMudarAgua }: {
+  conteudo: ConteudoDieta; refeicoes: Refeicao[]; rotulo?: string | null; semValor: ItemSemValor[]; aoAbrirRefeicao: (uid: string) => void;
+  aoMudarAgua?: (litros: number | null) => void;
 }) {
   const { rolarAte } = useRolagem();
-  const t = totalDoDia(c);
+  const t = totalDoDia(refeicoes);
   const kcal = kcalNaTela(t.kcal);
   const primeiro = semValor[0];
   return (
-    <Cartao faixa titulo="Total do dia" descricao="Soma só a opção A de cada refeição: as outras opções substituem a refeição e não entram no total.">
+    <Cartao faixa titulo={rotulo ? `Total do dia · ${rotulo.trim() || 'Variação sem nome'}` : 'Total do dia'} descricao="Soma só a opção A de cada refeição: as outras opções substituem a refeição e não entram no total.">
       <View style={estilos.faixa}>
         {/* Um destaque só, as kcal, em texto neutro (nunca vermelho por ser alto) com a unidade pequena; os macros ao lado,
             menores, cada um com a marca da cor e o nome escrito. No celular os macros descem juntos para a linha de baixo. */}

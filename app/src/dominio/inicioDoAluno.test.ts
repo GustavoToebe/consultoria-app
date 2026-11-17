@@ -48,24 +48,39 @@ describe('dieta no início', () => {
   }) as unknown as ConteudoDieta;
 
   it('com dieta e água: refeições e "3,0 L"', () => {
-    expect(dietaNoInicio({ conteudo: dieta(), erro: false })).toEqual({ tipo: 'ok', refeicoes: '6 refeições no seu plano', agua: '3,0 L' });
+    expect(dietaNoInicio({ conteudo: dieta(), erro: false, dia: 1 })).toEqual({ tipo: 'ok', refeicoes: '6 refeições no seu plano', agua: '3,0 L' });
   });
 
   it('sem água, a coluna da água some (nunca zero nem meta)', () => {
-    expect(dietaNoInicio({ conteudo: dieta({ aguaLitros: null }), erro: false })).toMatchObject({ tipo: 'ok', agua: null });
+    expect(dietaNoInicio({ conteudo: dieta({ aguaLitros: null }), erro: false, dia: 1 })).toMatchObject({ tipo: 'ok', agua: null });
   });
 
   it('uma refeição no singular', () => {
-    expect(dietaNoInicio({ conteudo: dieta({ refeicoes: [dieta().refeicoes[0]] }), erro: false })).toMatchObject({ refeicoes: '1 refeição no seu plano' });
+    expect(dietaNoInicio({ conteudo: dieta({ refeicoes: [dieta().refeicoes[0]] }), erro: false, dia: 1 })).toMatchObject({ refeicoes: '1 refeição no seu plano' });
+  });
+
+  it('com variações por dia: conta as refeições da variação de hoje e diz qual é', () => {
+    const r = (uid: string) => ({ uid, nome: uid, horario: null, observacao: null, modoDePreparo: null, opcoes: [] });
+    const comVariacoes = dieta({
+      refeicoes: [],
+      variacoes: [
+        { uid: 'a', rotulo: 'Dia de treino', dias: [1, 3, 5], refeicoes: [r('a1'), r('a2'), r('a3'), r('a4'), r('a5')] },
+        { uid: 'b', rotulo: 'Descanso', dias: [2, 4, 6], refeicoes: [r('b1')] },
+      ],
+    });
+    expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 3 })).toEqual({ tipo: 'ok', refeicoes: 'Hoje: Dia de treino · 5 refeições', agua: '3,0 L' });
+    expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 4 })).toMatchObject({ refeicoes: 'Hoje: Descanso · 1 refeição' });
+    // Domingo sem variação (só num rascunho; a publicação exige os 7 dias): nunca conta as de outro dia.
+    expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 7 })).toMatchObject({ refeicoes: 'Nenhuma variação para hoje' });
   });
 
   it('dieta não publicada (nula)', () => {
-    expect(dietaNoInicio({ conteudo: null, erro: false })).toEqual({ tipo: 'sem-dieta' });
+    expect(dietaNoInicio({ conteudo: null, erro: false, dia: 1 })).toEqual({ tipo: 'sem-dieta' });
   });
 
   it('falha ao carregar não vira "não publicada"', () => {
-    expect(dietaNoInicio({ conteudo: undefined, erro: true })).toEqual({ tipo: 'erro' });
-    expect(dietaNoInicio({ conteudo: undefined, erro: false })).toEqual({ tipo: 'carregando' });
+    expect(dietaNoInicio({ conteudo: undefined, erro: true, dia: 1 })).toEqual({ tipo: 'erro' });
+    expect(dietaNoInicio({ conteudo: undefined, erro: false, dia: 1 })).toEqual({ tipo: 'carregando' });
   });
 
   it('água com uma casa e vírgula', () => {
@@ -118,16 +133,16 @@ describe('estado do Hoje', () => {
   });
 
   it('falha ao carregar nunca vira "não publicado"; ainda lendo é carregando', () => {
-    expect(estadoDoHoje({ ...base, conteudo: null, erro: true })).toEqual({ tipo: 'erro' });
+    expect(estadoDoHoje({ ...base, conteudo: null, erro: true, dia: 1 })).toEqual({ tipo: 'erro' });
     expect(estadoDoHoje({ ...base, conteudo: null, carregando: true })).toEqual({ tipo: 'carregando' });
     // Com plano salvo no aparelho, uma falha de rede não esconde o treino.
-    expect(estadoDoHoje({ ...base, conteudo: treino(sessao('a', 1)), erro: true })).toMatchObject({ tipo: 'treino' });
+    expect(estadoDoHoje({ ...base, conteudo: treino(sessao('a', 1)), erro: true, dia: 1 })).toMatchObject({ tipo: 'treino' });
   });
 
   it('pacote recusado por formato: sem plano legível vira "recusado", antes de erro, carregando e "não publicado"', () => {
     expect(TEXTO_PACOTE_RECUSADO).toBe('Seu treinador usou algo novo. Atualize o app para ver o plano.');
     expect(estadoDoHoje({ ...base, conteudo: null, recusado: true })).toEqual({ tipo: 'recusado' });
-    expect(estadoDoHoje({ ...base, conteudo: null, recusado: true, erro: true })).toEqual({ tipo: 'recusado' });
+    expect(estadoDoHoje({ ...base, conteudo: null, recusado: true, erro: true, dia: 1 })).toEqual({ tipo: 'recusado' });
     expect(estadoDoHoje({ ...base, conteudo: null, recusado: true, carregando: true })).toEqual({ tipo: 'recusado' });
     // Sem a marca, o resto segue como antes.
     expect(estadoDoHoje({ ...base, conteudo: null, recusado: false })).toEqual({ tipo: 'preparando' });

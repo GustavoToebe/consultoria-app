@@ -1,5 +1,5 @@
 import { criarReceita, salvarPlanoComoReceita } from '../../api/rotas';
-import type { Alimento, ConteudoDieta, ErgogenicoDaBiblioteca, SuplementoDaBiblioteca } from '../../api/tipos';
+import type { Alimento, ConteudoDieta, ErgogenicoDaBiblioteca, Refeicao, SuplementoDaBiblioteca } from '../../api/tipos';
 import { aplicarReceitaDeDieta, novoItem, normalizarDieta } from '../../dominio/dieta';
 import { substituir } from '../../dominio/editorTreino';
 import { linhaDeErgogenico } from '../../dominio/ergogenicos';
@@ -33,6 +33,12 @@ interface Props {
   abrir: (f: FolhaDaDieta) => void;
   fechar: () => void;
   conteudo: ConteudoDieta;
+  /** Refeições da seção aberta (a variação aberta, ou a dieta toda sem variação): os índices de `alimento` e `salvarRefeicao` são dela. */
+  refeicoes: Refeicao[];
+  /** Alguma seção tem refeição (com variações a raiz fica vazia). */
+  temRefeicao: boolean;
+  /** Aplica `fn` às refeições da seção aberta dentro de uma mudança (refeição pronta entra na variação aberta). */
+  naSecao: (a: ConteudoDieta, fn: (r: Refeicao[]) => Refeicao[]) => ConteudoDieta;
   /** Título do plano (lista de compras). */
   titulo: string;
   modelo: boolean;
@@ -62,20 +68,20 @@ export function FolhasDaDieta(p: Props) {
     case 'modelos':
       return (
         <Folha visivel titulo="Modelos prontos" aoFechar={fechar}>
-          <OpcaoDeModelo titulo="Usar modelo de dieta" descricao="Troca as refeições do plano pelas do modelo (orientações, observações e suplementação ficam). Dá para desfazer." desabilitado={p.unica} aoEscolher={() => abrir({ tipo: 'receita' })} />
-          <OpcaoDeModelo titulo="Adicionar refeição pronta" descricao="Acrescenta ao plano as refeições de um modelo de refeição." desabilitado={p.unica} aoEscolher={() => abrir({ tipo: 'refeicao' })} />
-          {!p.modelo && c.refeicoes.length ? <OpcaoDeModelo titulo={rotuloSalvarComo('PLANO_DIETA')} descricao="Guarda as refeições, opções e itens deste rascunho para reutilizar. O plano continua igual." aoEscolher={() => abrir({ tipo: 'salvar' })} /> : null}
+          <OpcaoDeModelo titulo="Usar modelo de dieta" descricao="Troca as refeições do plano, e as variações por dia, pelas do modelo (orientações, observações e suplementação ficam). Dá para desfazer." desabilitado={p.unica} aoEscolher={() => abrir({ tipo: 'receita' })} />
+          <OpcaoDeModelo titulo="Adicionar refeição pronta" descricao={c.variacoes.length ? 'Acrescenta à variação aberta as refeições de um modelo de refeição.' : 'Acrescenta ao plano as refeições de um modelo de refeição.'} desabilitado={p.unica} aoEscolher={() => abrir({ tipo: 'refeicao' })} />
+          {!p.modelo && p.temRefeicao ? <OpcaoDeModelo titulo={rotuloSalvarComo('PLANO_DIETA')} descricao="Guarda as refeições, opções e itens deste rascunho para reutilizar. O plano continua igual." aoEscolher={() => abrir({ tipo: 'salvar' })} /> : null}
         </Folha>
       );
     case 'compras':
       return <FolhaListaDeCompras conteudo={c} titulo={p.titulo} aluno={p.modelo ? null : p.nomeDoAluno} aoFechar={fechar} />;
     case 'refeicao':
       return <FolhaReceitas tipo="REFEICAO" titulo="Adicionar refeição pronta" aoFechar={fechar} aoUsar={(r) => {
-        fechar(); p.comDesfazer('Refeição adicionada.', (a) => ({ ...a, refeicoes: [...a.refeicoes, ...aplicarReceitaDeDieta(normalizarDieta(null), r.conteudo).refeicoes] }));
+        fechar(); p.comDesfazer('Refeição adicionada.', (a) => p.naSecao(a, (lista) => [...lista, ...aplicarReceitaDeDieta(normalizarDieta(null), r.conteudo).refeicoes]));
       }} />;
     case 'salvarRefeicao':
       return <FolhaSalvarReceita titulo={rotuloSalvarComo('REFEICAO')} aoFechar={fechar} aoSalvar={async (nome, descricao) => {
-        await criarReceita({ tipo: 'REFEICAO', nome, descricao, conteudo: { ...normalizarDieta(null), refeicoes: [c.refeicoes[folha.indice]] } });
+        await criarReceita({ tipo: 'REFEICAO', nome, descricao, conteudo: { ...normalizarDieta(null), refeicoes: [p.refeicoes[folha.indice]] } });
         fechar(); avisar(avisoModeloSalvo('REFEICAO'), 'sucesso');
       }} />;
     case 'alimento':
@@ -125,7 +131,7 @@ export function FolhasDaDieta(p: Props) {
         <FolhaReceitas
           tipo="PLANO_DIETA"
           titulo="Modelo de dieta"
-          explicacao="As refeições do plano são trocadas pelas do modelo (orientações, observações e suplementação ficam). Dá para desfazer logo depois."
+          explicacao="As refeições do plano, e as variações por dia, são trocadas pelas do modelo (orientações, observações e suplementação ficam). Dá para desfazer logo depois."
           aoFechar={fechar}
           aoUsar={(r) => {
             fechar();
