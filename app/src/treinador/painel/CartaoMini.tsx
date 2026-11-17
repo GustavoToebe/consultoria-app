@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { CartaoDoPainel, FolhaDoPainelId } from '../../dominio/painelDoInicio';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, type Cores } from '../../tema/tokens';
-import { contornoDoNumero } from '../../ui/destaqueDoNumero';
 import { propsDeLink } from '../../ui/propsDeLink';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -55,7 +54,7 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
   const conteudo = (
     <>
       <View style={estilos.topoRotulo}>
-        {tom ? <View aria-hidden style={[estilos.ponto, { backgroundColor: tom }]} /> : null}
+        {tom ? <View aria-hidden style={[estilos.ponto, { backgroundColor: tom, boxShadow: `0px 0px 10px ${tom}` }]} /> : null}
         <Texto variante={linha ? 'corpo' : 'rotulo'} cor={cores.textoSuave}
           style={[deitado ? estilos.rotuloDeitado : null, linha ? estilos.rotuloDaLinha : null]}>
           {cartao.rotulo}
@@ -84,8 +83,8 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
     deitado ? estilos.deitado : estilos.empe,
     base,
     cartao.largo && !linha ? estilos.largo : null,
-    contornoDoNumero(tom, cores, bordas.bloco, RECUO),
-    { borderRadius: 12 },
+    // Visual-ponytail (17/11): sem a faixa lateral colorida; a cor fica só no ponto com brilho, como no canvas.
+    { borderWidth: bordas.bloco, borderColor: cores.divisor, borderRadius: 14 },
   ];
   const destino = cartao.destino;
   if (!destino) {
@@ -117,7 +116,7 @@ const estilos = StyleSheet.create({
   rotuloDeitado: { flexShrink: 1 },
   rotuloDaLinha: { fontSize: 14 },
   topoRotulo: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
-  ponto: { width: 6, height: 6, borderRadius: 3 },
+  ponto: { width: 7, height: 7, borderRadius: 4 },
   valor: { gap: 2 },
   valorDeitado: { alignItems: 'flex-end', flexShrink: 0 },
   numero: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },

@@ -154,7 +154,7 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   return (
     <View style={[lateral ? estilos.linha : estilos.coluna, { backgroundColor: cores.fundo }]}>
       {menuLateral}
-      <View style={lateral ? [estilos.conteudo, estilos.painel, { backgroundColor: cores.painel, borderColor: cores.divisor, borderWidth: bordas.bloco }] : estilos.conteudo}>
+      <View style={lateral ? [estilos.conteudo, estilos.painel, { backgroundColor: cores.painel, borderLeftColor: cores.divisor, borderLeftWidth: bordas.bloco }] : estilos.conteudo}>
         <ProvedorDoFundoDaArea value={lateral ? cores.painel : null}>
           <View style={estilos.conteudo}>
             {conteudo??<Slot />}
@@ -233,7 +233,7 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, aoMostrarDica, aoEsco
         lateral ? estilos.itemLateral : estilos.itemInferior,
         lateral && recolhido && (rotuloEmbaixo ? estilos.itemTrilho : estilos.itemRecolhido),
         lateral && sobre(estado) && { backgroundColor: cores.superficie2 },
-        lateral && ativo && { backgroundColor: cores.superficie3, borderWidth: 1, borderColor: cores.divisor },
+        lateral && ativo && { backgroundColor: cores.superficie2 },
         !lateral && estado.pressed && { opacity: 0.7 },
       ]}>
       {ativo ? <View aria-hidden style={[lateral ? estilos.indicadorLateral : estilos.indicadorInferior, { backgroundColor: marcaPeca }]} /> : null}
@@ -395,7 +395,8 @@ const estilos = StyleSheet.create({
   lateral: { width: LARGURA_ABERTO, paddingHorizontal: espaco(1.5), gap: espaco(0.5), zIndex: 30 },
   // O conteúdo ao lado do menu: 8 px do topo, da direita e de baixo; o lado do menu fica rente (o menu já tem folga).
   // `overflow: hidden` deixa os cantos de 12 limpos sob as faixas fixas das telas.
-  painel: { marginVertical: espaco(1), marginRight: espaco(1), borderRadius: RAIO, overflow: 'hidden' },
+  // Visual-ponytail (17/11): o conteúdo ocupa a página inteira ao lado do menu, separado só pelo filete (sem a moldura arredondada).
+  painel: { overflow: 'hidden' },
   lateralRecolhido: { width: LARGURA_RECOLHIDO, paddingTop: espaco(2) },
   lateralTrilho: { width: LARGURA_TRILHO, paddingTop: espaco(2), paddingHorizontal: espaco(0.5) },
   itemRecolhido: { justifyContent: 'center', paddingHorizontal: 0 },
