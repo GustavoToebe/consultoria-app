@@ -4,6 +4,7 @@ import type { Atualizacao, ConteudoQuestionario } from '../api/tipos';
 import { resumoDoTreinador } from '../dominio/atualizacaoQuestionario';
 import { fraseDeTreinosNoPeriodo } from '../dominio/atualizacao';
 import { numeroParaTela } from '../dominio/formatos';
+import { textoDaDiferenca } from '../dominio/variacaoDoPeso';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { baixarFotoDoTreinador, pesosDoAluno } from '../api/rotas';
@@ -35,12 +36,12 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
     ()=>pesosDoAluno(a.alunoId).then(l=>l.find(p=>p.metaDoPeso)?.metaDoPeso??null,()=>null)).dados??null;
   const tom=tomDaVariacaoDoPeso(variacao,meta);
   const corDaVariacao=tom==='positivo'?cores.sucesso:tom==='problema'?cores.perigo:undefined;
-  const sinal=(valor:number)=>valor>0?`▲ +${numeroParaTela(valor,1)}`:valor<0?`▼ −${numeroParaTela(-valor,1)}`:'0';
+  const sinal=(valor:number)=>valor>0?`▲ ${textoDaDiferenca(valor)}`:valor<0?`▼ ${textoDaDiferenca(valor)}`:textoDaDiferenca(0);
   const linha=variacao?linhaDaMeta(meta,'equipe'):null;
   const numeros:[string,string,string?,string?][]=[
     ...(resumo.peso?[
       ['Peso (kg)',numeroParaTela(resumo.peso.valor,1)] as [string,string],
-      ['Variação (kg)',variacao==null?'—':sinal(variacao),corDaVariacao] as [string,string,string?],
+      ['Variação',variacao==null?'—':sinal(variacao),corDaVariacao] as [string,string,string?],
     ]:[]),
     ...resumo.destaques.map(d=>[d.rotulo,d.nota?.valor??d.texto,undefined,d.nota?.escala] as [string,string,string?,string?]),
   ];
