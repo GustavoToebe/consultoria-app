@@ -75,8 +75,7 @@ public class PerfilDoAlunoService {
         CorDoPerfil cor = escolha(erros, "cor", pedido.cor(), CorDoPerfil::ler, "Escolha uma das cores da lista.");
         MolduraDoPerfil moldura = escolha(erros, "moldura", pedido.moldura(), MolduraDoPerfil::ler,
                 "Escolha uma das molduras da lista.");
-        ExibicaoDoNome exibicao = escolha(erros, "exibicaoDoNome", pedido.exibicaoDoNome(), ExibicaoDoNome::ler,
-                "Escolha uma das formas da lista.");
+        ExibicaoDoNome exibicao = exibicao(erros, pedido.exibicaoDoNome(), aluno.getExibicaoDoNome());
         if (!erros.isEmpty()) {
             throw new ValidacaoException("Confira o perfil.", "PERFIL_INVALIDO", erros);
         }
@@ -101,6 +100,21 @@ public class PerfilDoAlunoService {
             return null;
         }
         return valor.asBoolean();
+    }
+
+    /**
+     * Ausente = a escolha gravada fica; {@code null} explícito ou texto em branco = padrão (grava nulo); texto fora da lista ou de
+     * outro tipo = erro no campo, sem repetir o valor.
+     */
+    private static ExibicaoDoNome exibicao(List<ApiError.FieldError> erros, JsonNode valor, ExibicaoDoNome atual) {
+        if (valor == null) {
+            return atual;
+        }
+        if (valor.isNull()) {
+            return null;
+        }
+        return escolha(erros, "exibicaoDoNome", valor.isString() ? valor.asString() : "?", ExibicaoDoNome::ler,
+                "Escolha uma das formas da lista.");
     }
 
     /** Nulo e {@code NOME} são a mesma coisa para quem vê: trocar de um para o outro não é mudança (nem auditoria). */

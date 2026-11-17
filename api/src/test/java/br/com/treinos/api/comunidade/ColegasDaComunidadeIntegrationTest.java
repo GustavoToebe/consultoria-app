@@ -489,7 +489,7 @@ class ColegasDaComunidadeIntegrationTest extends AbstractIntegrationTest {
         reservar(colegaDeFora, false);
         JsonNode deFora = api.get("/aluno/comunidade/perfis", loginFora, 200);
         assertThat(deFora.get("itens").valueStream().map(i -> i.get("nome").asString()))
-                .containsExactlyInAnyOrder("Aluno de outra consultoria", "Colega de fora dois");
+                .containsExactlyInAnyOrder("Aluno", "Colega"); // só o primeiro nome (escolha padrão, V085)
         assertThat(deFora.get("total").asLong()).isEqualTo(2);
     }
 

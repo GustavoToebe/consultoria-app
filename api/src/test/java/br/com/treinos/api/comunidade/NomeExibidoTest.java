@@ -43,6 +43,27 @@ class NomeExibidoTest {
     }
 
     @Test
+    void espacoEspecialNoInicioNuncaDeixaOPrimeiroNomeVazio() {
+        // NBSP, espaço estreito e separadores Unicode viram espaço comum ANTES do strip.
+        assertThat(NomeExibido.paraColegas(NOME, " Ana Souzalima", null)).isEqualTo("Ana");
+        assertThat(NomeExibido.paraColegas(NOME_E_APELIDO, " Ana Souzalima", "Aninha")).isEqualTo("Ana (Aninha)");
+        assertThat(NomeExibido.paraColegas(NOME_COMPLETO, "   Ana  Souzalima ", null)).isEqualTo("Ana Souzalima");
+        assertThat(NomeExibido.paraColegas(NOME, "　Ana Souzalima", null)).isEqualTo("Ana");
+        // Sem nada utilizável: "Membro", nunca "" nem " (Aninha)".
+        assertThat(NomeExibido.paraColegas(NOME, "  ", null)).isEqualTo("Membro");
+        assertThat(NomeExibido.paraColegas(NOME_E_APELIDO, " ", "Aninha")).isEqualTo("Membro");
+    }
+
+    /** Documenta o limite: o servidor não adivinha ordem de nome nem trata caractere invisível que não é espaço. */
+    @Test
+    void limiteDoPrimeiroNomeSemHeuristicaDeNome() {
+        // U+200B (espaço de largura zero) não é separador de palavra: "Ana<ZWSP>Souzalima" é uma palavra só.
+        assertThat(NomeExibido.paraColegas(NOME, "Ana​Souzalima", null)).isEqualTo("Ana​Souzalima");
+        // "SOBRENOME, NOME" cadastrado assim: a primeira palavra é o sobrenome (com a vírgula).
+        assertThat(NomeExibido.paraColegas(NOME, "SOUZALIMA, ANA", null)).isEqualTo("SOUZALIMA,");
+    }
+
+    @Test
     void nomeVazioOuNuloNuncaVazaNada() {
         assertThat(NomeExibido.paraColegas(NOME_COMPLETO, null, "Aninha")).isEqualTo("Membro");
         assertThat(NomeExibido.paraColegas(APELIDO, "   ", null)).isEqualTo("Membro");

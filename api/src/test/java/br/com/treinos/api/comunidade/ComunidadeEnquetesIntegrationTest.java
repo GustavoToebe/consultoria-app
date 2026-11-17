@@ -508,7 +508,7 @@ class ComunidadeEnquetesIntegrationTest extends AbstractIntegrationTest {
         // Filtro por opção e paginação (base 0).
         JsonNode soTarde = votos(loginA, post, "?opcaoId=" + opcao(post, 1), 200).get("votantes");
         assertThat(soTarde.get("total").asLong()).isEqualTo(1);
-        assertThat(soTarde.get("itens").get(0).get("nome").asString()).isEqualTo("Beto Votante Fictício");
+        assertThat(soTarde.get("itens").get(0).get("nome").asString()).isEqualTo("Beto");
         JsonNode pagina = votos(loginA, post, "?pagina=1&tamanho=3", 200).get("votantes");
         assertThat(pagina.get("itens")).hasSize(1);
         assertThat(pagina.get("total").asLong()).isEqualTo(4);
@@ -518,7 +518,7 @@ class ComunidadeEnquetesIntegrationTest extends AbstractIntegrationTest {
         JsonNode amostra = noMural(loginA, id).get("enquete").get("opcoes").get(0).get("votantesAmostra");
         assertThat(amostra).hasSize(3);
         assertThat(campos(amostra.get(0))).isSubsetOf("autorId", "nome", "apelido", "temFoto");
-        assertThat(amostra.get(2).get("nome").asString()).isEqualTo("Ana Votante Fictícia");
+        assertThat(amostra.get(2).get("nome").asString()).isEqualTo("Ana");
     }
 
     @Test

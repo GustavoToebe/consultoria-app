@@ -320,6 +320,212 @@ class NomeNoMuralIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get(caminho, loginB, 200).get("nome").asString()).isEqualTo(NOME_DE_A);
     }
 
+    // ---- PUT sem o campo, auditoria ----
+
+    /** Corpo como o de um app antigo: sem {@code exibicaoDoNome} (campo AUSENTE, não nulo). */
+    private static Map<String, Object> pedidoSemExibicao(String cor, String moldura) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("perfilReservado", false);
+        m.put("destaques", List.of());
+        m.put("cor", cor);
+        m.put("moldura", moldura);
+        return m;
+    }
+
+    private int auditorias() {
+        return jdbc.queryForObject("select count(*) from auditoria where acao = 'ALUNO_PERFIL_COMUNIDADE_ALTERADO' and entidade_id = ?",
+                Integer.class, alunoA);
+    }
+
+    @Test
+    void putSemOCampoNaoApagaAEscolhaENuloExplicitoVoltaANome() throws Exception {
+        for (String escolha : new String[] {"APELIDO", "NOME_COMPLETO"}) {
+            escolher(escolha);
+            JsonNode salvo = api.put(CAMINHO + "/perfil", loginA, pedidoSemExibicao("ROXO", "DUPLA"), 200);
+            assertThat(salvo.get("exibicaoDoNome").asString()).isEqualTo(escolha);
+            assertThat(salvo.get("cor").asString()).isEqualTo("ROXO");
+            assertThat(jdbc.queryForObject("select exibicao_do_nome from aluno where id = ?", String.class, alunoA)).isEqualTo(escolha);
+            api.put(CAMINHO + "/perfil", loginA, pedidoSemExibicao(null, null), 200);
+        }
+        // Com APELIDO guardado, salvar só cor e moldura continua mostrando o apelido aos colegas.
+        escolher("APELIDO");
+        api.put(CAMINHO + "/perfil", loginA, pedidoSemExibicao("ROXO", "DUPLA"), 200);
+        String post = postDeA();
+        assertThat(doMural(loginB, post).get("autorNome").asString()).isEqualTo("Aninha");
+
+        // null explícito e texto em branco voltam a NOME.
+        assertThat(api.put(CAMINHO + "/perfil", loginA, pedido(false, null), 200).get("exibicaoDoNome").asString()).isEqualTo("NOME");
+        escolher("APELIDO");
+        assertThat(api.put(CAMINHO + "/perfil", loginA, pedido(false, "   "), 200).get("exibicaoDoNome").asString()).isEqualTo("NOME");
+        assertThat(doMural(loginB, post).get("autorNome").asString()).isEqualTo("Ana");
+    }
+
+    @Test
+    void exibicaoQueNaoETextoDa422NoCampoESemEco() throws Exception {
+        escolher("APELIDO");
+        for (Object invalido : new Object[] {123456, true, List.of("APELIDO")}) {
+            Map<String, Object> corpo = pedido(false, null);
+            corpo.put("exibicaoDoNome", invalido);
+            JsonNode erro = api.put(CAMINHO + "/perfil", loginA, corpo, 422);
+            assertThat(erro.get("codigo").asString()).isEqualTo("PERFIL_INVALIDO");
+            assertThat(erro.get("fieldErrors").get(0).get("field").asString()).isEqualTo("exibicaoDoNome");
+            assertThat(erro.toString()).doesNotContain("123456");
+        }
+        assertThat(api.get(CAMINHO + "/perfil", loginA, 200).get("exibicaoDoNome").asString()).isEqualTo("APELIDO");
+    }
+
+    @Test
+    void auditaSoQuandoAFormaQueOColegaVeMuda() throws Exception {
+        assertThat(auditorias()).isZero();
+        // Nula e NOME são a mesma coisa para o colega: sem mudança, sem auditoria.
+        api.put(CAMINHO + "/perfil", loginA, pedido(false, "NOME"), 200);
+        api.put(CAMINHO + "/perfil", loginA, pedido(false, null), 200);
+        assertThat(auditorias()).isEqualTo(1); // perfilReservado nulo -> false foi mudança do perfil, não do nome
+        api.put(CAMINHO + "/perfil", loginA, pedido(false, "NOME"), 200);
+        api.put(CAMINHO + "/perfil", loginA, pedidoSemExibicao(null, null), 200);
+        assertThat(auditorias()).isEqualTo(1);
+        // Mudou a forma: uma auditoria; repetir não audita.
+        api.put(CAMINHO + "/perfil", loginA, pedido(false, "APELIDO"), 200);
+        assertThat(auditorias()).isEqualTo(2);
+        api.put(CAMINHO + "/perfil", loginA, pedido(false, "APELIDO"), 200);
+        api.put(CAMINHO + "/perfil", loginA, pedidoSemExibicao(null, null), 200);
+        assertThat(auditorias()).isEqualTo(2);
+        // Volta a NOME: mudou.
+        api.put(CAMINHO + "/perfil", loginA, pedido(false, null), 200);
+        assertThat(auditorias()).isEqualTo(3);
+        // Valor recusado não audita.
+        api.put(CAMINHO + "/perfil", loginA, pedido(false, "TUDO"), 422);
+        assertThat(auditorias()).isEqualTo(3);
+        // O resumo é fixo: nunca o valor escolhido.
+        assertThat(jdbc.queryForObject("select count(*) from auditoria a where a.acao = 'ALUNO_PERFIL_COMUNIDADE_ALTERADO'"
+                + " and a.entidade_id = ? and a::text like '%APELIDO%'", Integer.class, alunoA)).isZero();
+    }
+
+    // ---- lacunas de cobertura ----
+
+    @Test
+    void respostaDoVotoDeBMostraONomeMontadoDeA() throws Exception {
+        JsonNode enquete = api.post("/comunidade/mural", admin, Map.of("tipo", "ENQUETE", "texto", "Qual horário?",
+                "opcoes", List.of("Manhã", "Noite")), 200);
+        String opcao = enquete.get("enquete").get("opcoes").get(0).get("id").asString();
+        api.put(CAMINHO + "/mural/" + enquete.get("id").asString() + "/votos", loginA, Map.of("opcaoIds", List.of(opcao)), 200);
+        for (Object[] caso : new Object[][] {{null, "Ana"}, {"APELIDO", "Aninha"}, {"NOME_E_APELIDO", "Ana (Aninha)"}}) {
+            escolher((String) caso[0]);
+            JsonNode resposta = api.put(CAMINHO + "/mural/" + enquete.get("id").asString() + "/votos", loginB,
+                    Map.of("opcaoIds", List.of(opcao)), 200);
+            semSobrenome(resposta);
+            boolean achou = false;
+            for (JsonNode quem : resposta.get("opcoes").get(0).get("votantesAmostra")) {
+                if (quem.get("nome").asString().startsWith("Beto")) {
+                    continue;
+                }
+                achou = true;
+                assertThat(quem.get("nome").asString()).isEqualTo(caso[1]);
+                assertThat(quem.has("apelido")).isFalse();
+            }
+            assertThat(achou).isTrue();
+        }
+    }
+
+    @Test
+    void muralDePodMostraONomeMontado() throws Exception {
+        String pod = api.post("/comunidade/pods", admin, Map.of("nome", "Pod " + UUID.randomUUID().toString().substring(0, 8)), 200)
+                .get("id").asString();
+        api.put("/alunos/" + alunoA + "/pod", admin, Map.of("podId", pod), 204);
+        api.put("/alunos/" + alunoB + "/pod", admin, Map.of("podId", pod), 204);
+        String post = api.post(CAMINHO + "/mural", loginA, Map.of("texto", "Treino do pod", "podId", pod), 200).get("id").asString();
+        for (Object[] caso : new Object[][] {{null, "Ana"}, {"APELIDO", "Aninha"}, {"NOME_E_APELIDO", "Ana (Aninha)"}}) {
+            escolher((String) caso[0]);
+            JsonNode lista = api.get(CAMINHO + "/mural?tamanho=50&podId=" + pod, loginB, 200);
+            semSobrenome(lista);
+            JsonNode doPod = null;
+            for (JsonNode p : lista.get("content")) {
+                if (p.get("id").asString().equals(post)) {
+                    doPod = p;
+                }
+            }
+            assertThat(doPod).isNotNull();
+            assertThat(doPod.get("autorNome").asString()).isEqualTo(caso[1]);
+            assertThat(doPod.get("autorApelido").isNull()).isTrue();
+        }
+        escolher("NOME_COMPLETO");
+        // A equipe, no mural do pod, continua com o nome completo e o apelido.
+        JsonNode daEquipe = null;
+        for (JsonNode p : api.get("/comunidade/mural?tamanho=50&podId=" + pod, admin, 200).get("content")) {
+            if (p.get("id").asString().equals(post)) {
+                daEquipe = p;
+            }
+        }
+        assertThat(daEquipe).isNotNull();
+        assertThat(daEquipe.get("autorNome").asString()).isEqualTo(NOME_DE_A);
+        assertThat(daEquipe.get("autorApelido").asString()).isEqualTo("Aninha");
+    }
+
+    @Test
+    void autorInativoNosComentariosDoMuralEDoAulaoNaoMostraSobrenomeNemApelido() throws Exception {
+        String post = api.post("/comunidade/mural", admin, Map.of("texto", "Aviso da equipe"), 200).get("id").asString();
+        String aula = aula();
+        api.post(CAMINHO + "/mural/" + post + "/comentarios", loginA, Map.of("texto", "Oi, time"), 200);
+        api.post(CAMINHO + "/aulas/" + aula + "/comentarios", loginA, Map.of("texto", "Aula ótima"), 200);
+        escolher("NOME_E_APELIDO");
+        jdbc.update("update aluno set ativo = false where id = ?", alunoA);
+        for (String caminho : new String[] {CAMINHO + "/mural/" + post + "/comentarios", CAMINHO + "/aulas/" + aula + "/comentarios"}) {
+            JsonNode lista = api.get(caminho, loginB, 200);
+            semSobrenome(lista);
+            JsonNode c = lista.get("itens").get(0);
+            // Inativo perde o apelido (D1, decisão em aberto do Gustavo): cai no primeiro nome.
+            assertThat(c.get("autorNome").asString()).isEqualTo("Ana");
+            assertThat(c.get("autorApelido").isNull()).isTrue();
+            assertThat(c.get("autorEhAluno").asBoolean()).isFalse();
+        }
+        escolher("NOME_COMPLETO");
+        assertThat(api.get(CAMINHO + "/mural/" + post + "/comentarios", loginB, 200).get("itens").get(0).get("autorNome").asString())
+                .isEqualTo(NOME_DE_A);
+    }
+
+    @Test
+    void alunoNuncaRecebeANomeCompletaGravadaQuandoOTreinadorRenomeouOAluno() throws Exception {
+        String post = postDeA();
+        api.post(CAMINHO + "/mural/" + post + "/comentarios", loginA, Map.of("texto", "Meu comentário"), 200);
+        String enquete = enqueteVotadaPorA();
+        // O treinador renomeou o aluno: aluno.nome muda, a cópia gravada no post e no comentário (usuario.nome) continua "Ana Souzalima".
+        jdbc.update("update aluno set nome = 'Ana Renomeada Oliveira' where id = ?", alunoA);
+        for (Object[] caso : new Object[][] {{"NOME", "Ana"}, {"APELIDO", "Aninha"}, {"NOME_E_APELIDO", "Ana (Aninha)"}}) {
+            escolher((String) caso[0]);
+            for (JsonNode resposta : new JsonNode[] {api.get(CAMINHO + "/mural?tamanho=50", loginB, 200),
+                    api.get(CAMINHO + "/mural/" + post + "/comentarios", loginB, 200),
+                    api.get(CAMINHO + "/mural/" + enquete + "/votos", loginB, 200), api.get(CAMINHO + "/perfis", loginB, 200),
+                    api.get(CAMINHO + "/perfis/" + usuarioA, loginB, 200)}) {
+                semSobrenome(resposta);
+                assertThat(resposta.toString()).doesNotContain("Oliveira").doesNotContain("Renomeada");
+            }
+            assertThat(doMural(loginB, post).get("autorNome").asString()).isEqualTo(caso[1]);
+        }
+        // NOME_COMPLETO usa o nome de hoje do aluno, nunca a cópia gravada.
+        escolher("NOME_COMPLETO");
+        JsonNode mural = api.get(CAMINHO + "/mural?tamanho=50", loginB, 200);
+        semSobrenome(mural);
+        assertThat(doMural(loginB, post).get("autorNome").asString()).isEqualTo("Ana Renomeada Oliveira");
+        assertThat(api.get(CAMINHO + "/mural/" + post + "/comentarios", loginB, 200).get("itens").get(0).get("autorNome").asString())
+                .isEqualTo("Ana Renomeada Oliveira");
+        assertThat(api.get(CAMINHO + "/mural/" + enquete + "/votos", loginB, 200).get("votantes").get("itens").get(0).get("nome")
+                .asString()).isEqualTo("Ana Renomeada Oliveira");
+    }
+
+    @Test
+    void apelidoNaoDeixaOPrimeiroNomeEmLugarNenhum() throws Exception {
+        String post = postDeA();
+        api.post(CAMINHO + "/mural/" + post + "/comentarios", loginA, Map.of("texto", "Meu comentário"), 200);
+        String enquete = enqueteVotadaPorA();
+        escolher("APELIDO");
+        for (JsonNode resposta : new JsonNode[] {api.get(CAMINHO + "/mural?tamanho=50", loginB, 200),
+                api.get(CAMINHO + "/mural/" + post + "/comentarios", loginB, 200),
+                api.get(CAMINHO + "/mural/" + enquete + "/votos", loginB, 200), api.get(CAMINHO + "/perfis", loginB, 200),
+                api.get(CAMINHO + "/perfis/" + usuarioA, loginB, 200)}) {
+            assertThat(resposta.toString()).doesNotContain("Ana").doesNotContain(SOBRENOME).contains("Aninha");
+        }
+    }
+
     // ---- LGPD ----
 
     @Test

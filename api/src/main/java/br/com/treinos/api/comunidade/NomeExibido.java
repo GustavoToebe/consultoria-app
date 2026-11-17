@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 public final class NomeExibido {
 
     private static final String SEM_NOME = "Membro";
-    private static final Pattern ESPACOS = Pattern.compile("[\\p{javaWhitespace}\\p{Zs}]+");
+    private static final Pattern ESPACOS = Pattern.compile("[\\p{javaWhitespace}\\p{Zs}\\u0085]+");
 
     private NomeExibido() {}
 
@@ -37,7 +37,8 @@ public final class NomeExibido {
      * nome. Primeiro nome = primeira palavra do nome sem espaços nas pontas, com a caixa que o aluno cadastrou.
      */
     public static String paraColegas(ExibicaoDoNome exibicao, String nomeCompleto, String apelido) {
-        String completo = nomeCompleto == null ? "" : ESPACOS.matcher(nomeCompleto.strip()).replaceAll(" ");
+        // Troca os espaços por ' ' ANTES do strip: o strip não tira NBSP, e o primeiro nome sairia vazio.
+        String completo = nomeCompleto == null ? "" : ESPACOS.matcher(nomeCompleto).replaceAll(" ").strip();
         if (completo.isEmpty()) {
             return SEM_NOME;
         }

@@ -305,16 +305,18 @@ public final class ComunidadeDtos {
      * Substitui as quatro preferências de uma vez: {@code perfilReservado} é obrigatório e vem como {@code true}, {@code false}
      * ou {@code null} explícito (volta à regra da idade); campo ausente = 422, para um corpo incompleto não devolver sem querer
      * um perfil reservado à regra da idade (que pode mostrá-lo). Por isso é um {@code JsonNode}: ausente chega como Java nulo e o
-     * {@code null} do JSON como {@code NullNode}. {@code destaques} nulo ou vazio limpa, {@code cor}, {@code moldura} e {@code exibicaoDoNome}
-     * nulos voltam ao padrão ({@code NOME}); {@code exibicaoDoNome} fora de {@code NOME}, {@code NOME_COMPLETO}, {@code APELIDO} e
-     * {@code NOME_E_APELIDO} = 422 {@code PERFIL_INVALIDO}. Nunca traz data de nascimento.
+     * {@code null} do JSON como {@code NullNode}. {@code destaques} nulo ou vazio limpa, {@code cor} e {@code moldura} nulos voltam
+     * ao padrão. {@code exibicaoDoNome} também é um {@code JsonNode}: AUSENTE = não muda a escolha gravada (um corpo sem o campo não
+     * apaga a escolha em silêncio); {@code null} explícito ou texto em branco = volta a {@code NOME}; fora de {@code NOME},
+     * {@code NOME_COMPLETO}, {@code APELIDO} e {@code NOME_E_APELIDO} (ou de outro tipo que texto) = 422 {@code PERFIL_INVALIDO}.
+     * Nunca traz data de nascimento.
      */
     public record PerfilPreferenciasRequest(
             JsonNode perfilReservado,
             @Size(max = 10) List<@Size(max = 40) String> destaques,
             @Size(max = 20) String cor,
             @Size(max = 20) String moldura,
-            String exibicaoDoNome) {}
+            JsonNode exibicaoDoNome) {}
 
     /** Preferências do perfil na exportação LGPD (sem a data de nascimento, que sai no cadastro); {@code exibicaoDoNome} nulo = não escolheu. */
     public record PerfilExportado(Boolean perfilReservado, List<String> destaques, String cor, String moldura, String exibicaoDoNome) {}

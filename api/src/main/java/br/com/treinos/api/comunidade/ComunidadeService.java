@@ -441,8 +441,9 @@ public class ComunidadeService {
         }
     }
 
+    /** Falha fechada: só o papel de equipe EXPLÍCITO pega o caminho da equipe (nome completo, apelido, denúncias); sem usuário ou outro papel, o do aluno. */
     private static boolean souAluno(UsuarioAutenticado eu) {
-        return eu != null && "ALUNO".equals(eu.papel());
+        return !PostsVisiveisDoMural.equipe(eu);
     }
 
     @Transactional(readOnly = true)

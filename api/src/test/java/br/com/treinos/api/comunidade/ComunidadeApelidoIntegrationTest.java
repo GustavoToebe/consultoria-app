@@ -234,14 +234,16 @@ class ComunidadeApelidoIntegrationTest extends AbstractIntegrationTest {
         assertThat(postNoMural(loginB, postDaEquipe).get("autorEhAluno").asBoolean()).isFalse();
         for (JsonNode c : api.get("/aluno/comunidade/mural/" + postA + "/comentarios", loginB, 200).get("itens")) {
             assertThat(c.get("autorEhAluno").asBoolean()).isTrue();
-            assertThat(c.get("autorApelido").asString()).isEqualTo(APELIDO);
+            // Outro aluno nunca recebe o apelido solto: ele só entra no nome montado, conforme a escolha do autor (V085).
+            assertThat(c.get("autorApelido").isNull()).isTrue();
+            assertThat(c.get("autorNome").asString()).isEqualTo("Ana");
         }
         for (JsonNode c : api.get("/aluno/comunidade/aulas/" + aula + "/comentarios", loginB, 200).get("itens")) {
-            assertThat(c.get("autorApelido").asString()).isEqualTo(APELIDO);
+            assertThat(c.get("autorApelido").isNull()).isTrue();
         }
-        // Quem escreve agora já recebe o próprio apelido; a equipe recebe nulo.
+        // Quem escreve também recebe o nome montado (a prévia de como os colegas o veem); a equipe recebe nulo.
         assertThat(api.post("/aluno/comunidade/mural/" + postA + "/comentarios", loginA, Map.of("texto", "De novo"), 200)
-                .get("autorApelido").asString()).isEqualTo(APELIDO);
+                .get("autorApelido").isNull()).isTrue();
         assertThat(api.post("/comunidade/aulas/" + aula + "/comentarios", admin, Map.of("texto", "Resposta"), 200)
                 .get("autorApelido").isNull()).isTrue();
         // A equipe também vê o apelido no mural dela.
@@ -251,10 +253,13 @@ class ComunidadeApelidoIntegrationTest extends AbstractIntegrationTest {
             }
         }
 
-        // Não é cópia: trocar vale para o post antigo, apagar some.
+        // Não é cópia: com a escolha APELIDO, trocar vale para o post antigo e apagar volta ao primeiro nome.
+        api.put("/aluno/comunidade/perfil", loginA, Map.of("perfilReservado", false, "exibicaoDoNome", "APELIDO"), 200);
+        assertThat(postNoMural(loginB, postA).get("autorNome").asString()).isEqualTo(APELIDO);
         definir(loginA, "Nova.Ana", 204);
-        assertThat(postNoMural(loginB, postA).get("autorApelido").asString()).isEqualTo("Nova.Ana");
+        assertThat(postNoMural(loginB, postA).get("autorNome").asString()).isEqualTo("Nova.Ana");
         definir(loginA, "", 204);
+        assertThat(postNoMural(loginB, postA).get("autorNome").asString()).isEqualTo("Ana");
         assertThat(postNoMural(loginB, postA).get("autorApelido").isNull()).isTrue();
         assertThat(comentarioMural).isNotBlank();
     }

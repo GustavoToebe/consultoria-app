@@ -197,7 +197,7 @@ public class EnquetesDoMuralService {
             }
         }
         Map<UUID, Identidade> quem = identidades(amostraDasOpcoes.values().stream().flatMap(List::stream).collect(Collectors.toSet()),
-                eu.usuarioId(), "ALUNO".equals(eu.papel()));
+                eu.usuarioId(), !PostsVisiveisDoMural.equipe(eu));
         Instant agora = Instant.now();
         Map<UUID, EnqueteResponse> respostas = new HashMap<>();
         for (ComunidadeMuralPost p : enquetes) {
@@ -233,7 +233,7 @@ public class EnquetesDoMuralService {
                 ? votos.findByPostIdOrderByVotadoEmDescIdAsc(postId, daPagina)
                 : votos.findByPostIdAndOpcaoIdOrderByVotadoEmDescIdAsc(postId, opcaoId, daPagina);
         Map<UUID, Identidade> quem = identidades(pg.getContent().stream().map(ComunidadeEnqueteVoto::getUsuarioId)
-                .collect(Collectors.toSet()), eu.usuarioId(), "ALUNO".equals(eu.papel()));
+                .collect(Collectors.toSet()), eu.usuarioId(), !PostsVisiveisDoMural.equipe(eu));
         Map<UUID, Long> votosDasOpcoes = new HashMap<>();
         votos.contagensDasOpcoes(List.of(postId)).forEach(c -> votosDasOpcoes.put(c.getOpcaoId(), c.getTotal()));
         long participantes = votos.participantes(List.of(postId)).stream().mapToLong(c -> c.getTotal()).sum();
