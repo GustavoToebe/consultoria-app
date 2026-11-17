@@ -5,11 +5,10 @@ import { StyleSheet, View } from 'react-native';
 import type { CobrancaResponse, FormaDePagamento } from '../../api/financeiroTipos';
 import { listarCobrancasDoAluno, registrarPagamentosEmLote } from '../../api/rotas';
 import {
-  FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeEntrarNoLote, problemaDoLote, resumoDoLote, rotuloDaForma, totalDoLote,
+  FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeEntrarNoLote, problemaDoLote, referenciaDaCobranca, resumoDoLote, rotuloDaForma, totalDoLote,
   validarBaixa, type ResumoDoLote,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
-import { rotuloDoMes } from '../../dominio/numeros';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -142,7 +141,7 @@ export function FolhaDoLote({ itens, aoTirar, aoRegistrar, aoTrocar, aoFechar }:
                     <MarcaDoResultado ok={r.ok} />
                     <View style={estilos.quem}>
                       <Texto variante="bloco" numberOfLines={2}>{c?.alunoNome ?? '—'}</Texto>
-                      <Texto variante="suave" numerico>{c ? rotuloDoMes(c.competencia) : '—'} · {c ? centavosParaTela(c.valorCentavos) : '—'}</Texto>
+                      <Texto variante="suave" numerico>{c ? referenciaDaCobranca(c) : '—'} · {c ? centavosParaTela(c.valorCentavos) : '—'}</Texto>
                       <Texto variante={r.ok ? 'suave' : 'rotulo'}>{r.ok ? (r.motivo ?? 'Registrado') : `Não registrado: ${r.motivo}`}</Texto>
                     </View>
                   </View>
@@ -178,10 +177,10 @@ export function FolhaDoLote({ itens, aoTirar, aoRegistrar, aoTrocar, aoFechar }:
                 <View style={estilos.item}>
                   <View style={estilos.quem}>
                     <Texto variante="bloco" numberOfLines={2}>{c.alunoNome ?? '—'}</Texto>
-                    <Texto variante="suave" numerico>{rotuloDoMes(c.competencia)} · vence {dataParaTela(c.vencimento)}</Texto>
+                    <Texto variante="suave" numerico>{referenciaDaCobranca(c)} · vence {dataParaTela(c.vencimento)}</Texto>
                   </View>
                   <Texto numerico style={estilos.valor}>{centavosParaTela(c.valorCentavos)}</Texto>
-                  <IconeBotao Icone={X} rotulo={`Tirar do lote: ${c.alunoNome ?? 'aluno'}, ${rotuloDoMes(c.competencia)}`}
+                  <IconeBotao Icone={X} rotulo={`Tirar do lote: ${c.alunoNome ?? 'aluno'}, ${referenciaDaCobranca(c)}`}
                     aoTocar={() => aoTirar(c.id)} desabilitado={enviando} />
                 </View>
               </View>
@@ -219,7 +218,7 @@ export function FolhaDoLote({ itens, aoTirar, aoRegistrar, aoTrocar, aoFechar }:
 }
 
 /** ✓ ou ✕ ao lado do nome; o texto embaixo diz o que houve (a cor e o ícone nunca falam sozinhos). */
-function MarcaDoResultado({ ok }: { ok: boolean }) {
+export function MarcaDoResultado({ ok }: { ok: boolean }) {
   const { cores } = useTema();
   const Icone = ok ? Check : X;
   return <View style={estilos.marca}><Icone size={20} color={ok ? cores.sucesso : cores.perigo} strokeWidth={2.5} aria-hidden /></View>;

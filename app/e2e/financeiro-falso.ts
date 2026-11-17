@@ -1,7 +1,8 @@
 import type { Page, Route } from '@playwright/test';
 
+import type { AlunoResumo } from '../src/api/tipos';
 import type {
-  CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, Inadimplente, JurosDoParcelamento,
+  CobrancaAvulsaRequest, CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, Inadimplente, JurosDoParcelamento,
   EncerrarContratacaoRequest, LancamentoResponse, Lembretes, LembretesDaCobranca, Painel, PlanoResponse, PreviaDoEncerramento, RecebimentoOnline,
   ResumoDaSaidaDoAluno, VisaoGeralDoFinanceiro,
 } from '../src/api/financeiroTipos';
@@ -125,7 +126,7 @@ export const COBRANCA_ATRASADA: CobrancaResponse = {
   id: INADIMPLENTE.cobrancaId, contratacaoId: 'e0000000-0000-4000-8000-0000000000cc', alunoId: INADIMPLENTE.alunoId, alunoNome: INADIMPLENTE.alunoNome,
   planoNome: 'Consultoria mensal', competencia: '2026-10-05', vencimento: INADIMPLENTE.vencimento, valorCentavos: INADIMPLENTE.valorCentavos,
   situacao: 'ABERTA', vencida: true, diasDeAtraso: INADIMPLENTE.diasDeAtraso, forma: null, provedor: null, pagoEm: null, baixaPor: null,
-  baixaPorNome: null, observacao: null, motivo: null, versao: 0, tipo: 'MENSALIDADE',
+  baixaPorNome: null, observacao: null, motivo: null, versao: 0, tipo: 'MENSALIDADE', descricao: null,
 };
 
 /** Estado em memória do financeiro falso: o mesmo objeto serve à página do treinador e à do aluno no mesmo teste. */
@@ -178,6 +179,13 @@ export interface EstadoFinanceiro {
   encerramentos: EncerrarContratacaoRequest[];
   /** O que `GET /alunos/{id}/resumo-da-saida` devolve (o painel de inativar). */
   resumoDaSaida: ResumoDaSaidaDoAluno;
+  /**
+   * Os alunos de `GET /alunos` (a escolha da cobrança avulsa): a lista só devolve os ativos, como o padrão da API. O
+   * `POST /financeiro/cobrancas-avulsas` confere cada id aqui: fora da lista = 404, inativo = 409 `ALUNO_INATIVO`.
+   */
+  alunos: AlunoResumo[];
+  /** Os corpos recebidos pelo `POST /financeiro/cobrancas-avulsas`, na ordem (inclusive os recusados). */
+  avulsasRecebidas: CobrancaAvulsaRequest[];
 }
 
 const SEM_ABERTAS = { quantidade: 0, valorCentavos: 0 };
@@ -192,7 +200,7 @@ export function estadoFinanceiro(parcial: Partial<EstadoFinanceiro> = {}): Estad
     recebimento: { ...RECEBIMENTO_NAO_CONFIGURADO }, chaveGuardada: null, conferencias: [], pagamentoOnline: false, retornos: [],
     lembretes: { ...LEMBRETES_PADRAO }, lembretesDasCobrancas: {}, alunoRecebeLembretes: true, falhaAoDefinirLembretesDoAluno: null,
     pedidosDeLembretesDoAluno: [], renovacoes: null, renovacoesMeus: null, recusasDoLote: {}, lotesRecebidos: [], previas: {}, previaQueMuda: null,
-    encerramentos: [], resumoDaSaida: RESUMO_DA_SAIDA_VAZIO, ...parcial,
+    encerramentos: [], resumoDaSaida: RESUMO_DA_SAIDA_VAZIO, alunos: [], avulsasRecebidas: [], ...parcial,
   };
 }
 
@@ -229,6 +237,42 @@ function previaSemMinimo(estado: EstadoFinanceiro, contratacao: ContratacaoRespo
     ],
   };
 }
+
+/** `AAAA-MM-DD` + `meses`, com o dia preso ao último do mês (31/01 + 1 = 28/02), sempre contado do primeiro vencimento. */
+function somarMesesNoFalso(iso: string, meses: number): string {
+  const [ano, mes, dia] = iso.split('-').map(Number);
+  const indice = mes - 1 + meses;
+  const a = ano + Math.floor(indice / 12);
+  const m = (indice % 12) + 1;
+  return `${a}-${String(m).padStart(2, '0')}-${String(Math.min(dia, ultimoDia(a, m))).padStart(2, '0')}`;
+}
+
+/** Diferença em dias entre duas datas `AAAA-MM-DD` (dias de atraso das cobranças criadas no falso). */
+const diasEntre = (de: string, ate: string) => Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);
+
+/**
+ * Os totais do `GET /financeiro/cobrancas` sobre o filtro inteiro, como o contrato: cancelada e estornada fora; vencido =
+ * aberta com vencimento antes de hoje; em aberto inclui a vencida. CONTESTADA conta como paga (o contrato não diz; a
+ * confirmar com a API).
+ */
+function totaisDoFalso(itens: readonly CobrancaResponse[]) {
+  const validas = itens.filter((c) => c.situacao !== 'CANCELADA' && c.situacao !== 'ESTORNADA');
+  const soma = (lista: readonly CobrancaResponse[]) => lista.reduce((s, c) => s + c.valorCentavos, 0);
+  const abertas = validas.filter((c) => c.situacao === 'ABERTA');
+  return {
+    totalCentavos: soma(validas),
+    pagoCentavos: soma(validas.filter((c) => c.situacao === 'PAGA' || c.situacao === 'CONTESTADA')),
+    emAbertoCentavos: soma(abertas),
+    vencidoCentavos: soma(abertas.filter((c) => c.vencimento < HOJE)),
+  };
+}
+
+const avulsaInvalida = (route: Route, fieldErrors: { field: string; message: string }[]) =>
+  json(route, { status: 422, message: 'Confira os dados da cobrança avulsa.', codigo: 'COBRANCA_AVULSA_INVALIDA', fieldErrors }, 422);
+
+/** Os `cobrancaIds` dos lotes de link e de exportação: 1 a 100, sem repetir (senão 400, como a API). */
+const idsDoLoteValidos = (ids: unknown): ids is string[] =>
+  Array.isArray(ids) && ids.length > 0 && ids.length <= 100 && new Set(ids).size === ids.length;
 
 const conflito = (route: Route) => json(route, erroApi(409, 'Alguém alterou este registro.', 'CONFLITO_EDICAO').corpo, 409);
 
@@ -268,6 +312,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       const plano: PlanoResponse = {
         id: idFalso('b'), nome: c.nome, valorCentavos: c.valorCentavos, periodicidade: c.periodicidade,
         arquivado: false, criadoEm: '2026-10-19T12:00:00Z', versao: 0, tempoMinimoMeses: c.tempoMinimoMeses ?? null, regraDeSaida: c.regraDeSaida ?? null,
+        linkDePagamento: null,
       };
       estado.planos.push(plano);
       return json(route, plano, 201);
@@ -352,7 +397,86 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
         && entre(c.vencimento, q('de'), q('ate'))
         && entre(c.criadoEm?.slice(0, 10), q('emissaoDe'), q('emissaoAte'))
         && entre(c.pagoEm, q('pagoDe'), q('pagoAte')));
-      return json(route, { itens, total: itens.length, pagina: 0 });
+      return json(route, { itens, total: itens.length, pagina: 0, totais: totaisDoFalso(itens) });
+    },
+    // Como a API: só os ativos (situação padrão), busca no nome e páginas de 30.
+    'GET /alunos': (p, route) => {
+      const busca = (p.busca.get('busca') ?? '').toLowerCase();
+      const pagina = Number(p.busca.get('pagina') ?? 0);
+      const ativos = estado.alunos.filter((a) => a.ativo && (!busca || a.nome.toLowerCase().includes(busca)));
+      return json(route, { itens: ativos.slice(pagina * 30, pagina * 30 + 30), total: ativos.length });
+    },
+    // Avulsa, tudo ou nada: 422 por campo, 404 aluno que não existe, 409 inativo; a parcela k vence no primeiro + (k-1) meses.
+    'POST /financeiro/cobrancas-avulsas': (p, route) => {
+      const c = p.corpo as CobrancaAvulsaRequest;
+      estado.avulsasRecebidas.push(c);
+      const erros: { field: string; message: string }[] = [];
+      if (!Array.isArray(c.alunoIds) || c.alunoIds.length < 1 || c.alunoIds.length > 100) erros.push({ field: 'alunoIds', message: 'Escolha de 1 a 100 alunos.' });
+      else if (new Set(c.alunoIds).size !== c.alunoIds.length) erros.push({ field: 'alunoIds', message: 'Há aluno repetido.' });
+      const descricao = (c.descricao ?? '').trim();
+      if (!descricao || descricao.length > 120) erros.push({ field: 'descricao', message: 'A descrição vai de 1 a 120 caracteres.' });
+      if (!Number.isInteger(c.valorCentavos) || c.valorCentavos < 1 || c.valorCentavos > 1_000_000_000) erros.push({ field: 'valorCentavos', message: 'Valor fora da faixa.' });
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(c.primeiroVencimento ?? '')) erros.push({ field: 'primeiroVencimento', message: 'Data inválida.' });
+      if (!Number.isInteger(c.parcelas) || c.parcelas < 1 || c.parcelas > 12) erros.push({ field: 'parcelas', message: 'As parcelas vão de 1 a 12.' });
+      if (erros.length) return avulsaInvalida(route, erros);
+      const alunos = c.alunoIds.map((id) => estado.alunos.find((a) => a.id === id));
+      if (alunos.some((a) => !a)) return json(route, erroApi(404, 'Aluno não encontrado.', 'NAO_ENCONTRADO').corpo, 404);
+      if (alunos.some((a) => !a?.ativo)) return json(route, erroApi(409, 'O aluno está inativo.', 'ALUNO_INATIVO').corpo, 409);
+      for (const aluno of alunos) {
+        if (!aluno) continue;
+        for (let k = 1; k <= c.parcelas; k += 1) {
+          const vencimento = somarMesesNoFalso(c.primeiroVencimento, k - 1);
+          const vencida = vencimento < HOJE;
+          estado.cobrancas.push({
+            ...COBRANCA_ATRASADA, id: idFalso('c'), contratacaoId: null, alunoId: aluno.id, alunoNome: aluno.nome, planoNome: null,
+            competencia: null, vencimento, valorCentavos: c.valorCentavos, vencida, diasDeAtraso: vencida ? diasEntre(vencimento, HOJE) : null,
+            criadoEm: '2026-10-19T12:00:00Z', tipo: 'AVULSA', descricao: c.parcelas > 1 ? `${descricao} (Parcela ${k}/${c.parcelas})` : descricao,
+          });
+        }
+      }
+      return json(route, { alunos: alunos.length, cobrancas: alunos.length * c.parcelas }, 201);
+    },
+    // Lotes de cancelar e de link: cada item em separado, na ordem do pedido; `recusasDoLote` força a recusa de um item.
+    'POST /cobrancas/cancelar-em-lote': (p, route) => {
+      const c = p.corpo as { itens: { cobrancaId: string; versao: number }[]; motivo?: string | null };
+      if (!c.itens?.length || c.itens.length > 100 || new Set(c.itens.map((i) => i.cobrancaId)).size !== c.itens.length) {
+        return json(route, erroApi(400, 'Lote inválido.', 'LOTE_INVALIDO').corpo, 400);
+      }
+      const resultados = c.itens.map(({ cobrancaId, versao }) => {
+        const cobranca = estado.cobrancas.find((x) => x.id === cobrancaId);
+        const recusa = estado.recusasDoLote[cobrancaId];
+        if (recusa) return { cobrancaId, ok: false, codigo: recusa };
+        if (!cobranca) return { cobrancaId, ok: false, codigo: 'COBRANCA_NAO_ENCONTRADA' };
+        if (cobranca.situacao !== 'ABERTA') return { cobrancaId, ok: false, codigo: 'COBRANCA_NAO_ABERTA' };
+        if (cobranca.versao !== versao) return { cobrancaId, ok: false, codigo: 'CONFLITO_EDICAO' };
+        Object.assign(cobranca, { situacao: 'CANCELADA', motivo: c.motivo ?? null, vencida: false, diasDeAtraso: null, versao: cobranca.versao + 1 });
+        return { cobrancaId, ok: true, codigo: null };
+      });
+      return json(route, { resultados });
+    },
+    'POST /cobrancas/link-em-lote': (p, route) => {
+      const ids = (p.corpo as { cobrancaIds?: unknown }).cobrancaIds;
+      if (!idsDoLoteValidos(ids)) return json(route, erroApi(400, 'Lote inválido.', 'LOTE_INVALIDO').corpo, 400);
+      const resultados = ids.map((cobrancaId) => {
+        const cobranca = estado.cobrancas.find((x) => x.id === cobrancaId);
+        const recusa = estado.recusasDoLote[cobrancaId];
+        if (recusa) return { cobrancaId, ok: false, codigo: recusa, url: null };
+        if (!cobranca) return { cobrancaId, ok: false, codigo: 'COBRANCA_NAO_ENCONTRADA', url: null };
+        if (cobranca.situacao !== 'ABERTA') return { cobrancaId, ok: false, codigo: 'COBRANCA_NAO_ABERTA', url: null };
+        if (cobranca.tipo === 'SAIDA') return { cobrancaId, ok: false, codigo: 'COBRANCA_SEM_LINK', url: null };
+        if (!estado.recebimento.configurado) return { cobrancaId, ok: false, codigo: 'RECEBIMENTO_ONLINE_NAO_CONFIGURADO', url: null };
+        return { cobrancaId, ok: true, codigo: null, url: `${LINK_DE_PAGAMENTO}-${cobrancaId.slice(-4)}` };
+      });
+      return json(route, { resultados });
+    },
+    // O CSV das selecionadas, com as colunas da exportação por período (só dados fictícios).
+    'POST /financeiro/exportacao/selecionadas': (p, route) => {
+      const ids = (p.corpo as { cobrancaIds?: unknown }).cobrancaIds;
+      if (!idsDoLoteValidos(ids)) return json(route, erroApi(400, 'Lote inválido.', 'LOTE_INVALIDO').corpo, 400);
+      const linhas = estado.cobrancas.filter((c) => ids.includes(c.id))
+        .map((c) => `COBRANCA;${c.vencimento};${c.descricao ?? c.planoNome ?? ''};${c.alunoNome ?? ''};${c.situacao};;;${c.tipo};;${(c.valorCentavos / 100).toFixed(2).replace('.', ',')};false`);
+      const cabecalho = 'registro;data;descricao;aluno;situacao;forma;pago_em;tipo;categoria;valor;historico_financeiro_parcial';
+      return route.fulfill({ status: 200, contentType: 'text/csv; charset=utf-8', body: [cabecalho, ...linhas].join('\n') });
     },
     'GET /financeiro/inadimplentes': (_p, route) => json(route, {
       itens: estado.inadimplentes,
@@ -409,7 +533,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       estado.cobrancas.push({
         id: idFalso('c'), contratacaoId: contratacao.id, alunoId: ALUNO_FINANCEIRO_ID, alunoNome: ALUNO.nome, planoNome: plano.nome,
         competencia: c.inicio, vencimento, valorCentavos, situacao: 'ABERTA', vencida, diasDeAtraso: vencida ? 1 : null, forma: null, provedor: null,
-        pagoEm: null, baixaPor: null, baixaPorNome: null, observacao: null, motivo: null, versao: 0, tipo: 'MENSALIDADE',
+        pagoEm: null, baixaPor: null, baixaPorNome: null, observacao: null, motivo: null, versao: 0, tipo: 'MENSALIDADE', descricao: null,
       });
       return json(route, contratacao, 201);
     },
@@ -458,18 +582,20 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       const vigente = estado.contratacoes.find((x) => x.situacao !== 'ENCERRADA') ?? null;
       const doAluno = (c: CobrancaResponse): CobrancaDoAluno => ({
         id: c.id, competencia: c.competencia, vencimento: c.vencimento, valorCentavos: c.valorCentavos, situacao: c.situacao, vencida: c.vencida,
-        forma: c.forma, pagoEm: c.pagoEm, tipo: c.tipo,
+        forma: c.forma, pagoEm: c.pagoEm, tipo: c.tipo, descricao: c.descricao,
       });
       const corpo: FinanceiroDoAluno = {
         plano: vigente
           ? {
               contratacaoId: vigente.id, planoNome: vigente.planoNome, valorCentavos: vigente.valorCentavos, periodicidade: vigente.periodicidade,
               situacao: vigente.situacao, proximoVencimento: estado.cobrancas.find((c) => c.situacao === 'ABERTA')?.vencimento ?? null,
+              linkDePagamento: null,
             }
           : null,
         abertas: estado.cobrancas.filter((c) => c.situacao === 'ABERTA').map(doAluno),
         historico: estado.cobrancas.filter((c) => c.situacao !== 'ABERTA').map(doAluno),
         pagamentoOnline: estado.pagamentoOnline,
+        formasDePagamento: estado.pagamentoOnline ? ['INFINITEPAY', 'MANUAL'] : ['MANUAL'],
       };
       return json(route, corpo);
     },

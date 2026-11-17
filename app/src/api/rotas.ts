@@ -4,6 +4,10 @@ import type { PedidoDeComparacao } from '../dominio/comparacaoDeFotos';
 import type {
   AlterarContratacaoRequest,
   BaixaEmLoteRequest,
+  CancelarEmLoteRequest,
+  CobrancaAvulsaRequest,
+  CobrancaAvulsaResponse,
+  CobrancasSelecionadasRequest,
   BaixaManualRequest,
   ContratacaoResponse,
   EncerrarContratacaoRequest,
@@ -1214,6 +1218,18 @@ export const registrarPagamentoManual = (id: string, corpo: BaixaManualRequest) 
 /** Registrar pagamentos em lote: um resultado por item, na ordem do pedido; o que falha não desfaz o resto. */
 export const registrarPagamentosEmLote = (corpo: BaixaEmLoteRequest) =>
   requisicao<ResultadoDoLote>('/cobrancas/baixa-em-lote', { metodo: 'POST', corpo });
+/** Cancelar em lote (1 a 100, com a `versao` de cada): um resultado por item, na ordem do pedido. Não tem volta. */
+export const cancelarCobrancasEmLote = (corpo: CancelarEmLoteRequest) =>
+  requisicao<ResultadoDoLote>('/cobrancas/cancelar-em-lote', { metodo: 'POST', corpo });
+/** Gerar o link de pagamento de várias (1 a 100): `url` em cada item `ok`. */
+export const gerarLinksEmLote = (corpo: CobrancasSelecionadasRequest) =>
+  requisicao<ResultadoDoLote>('/cobrancas/link-em-lote', { metodo: 'POST', corpo });
+/** CSV como texto das cobranças escolhidas (1 a 100), com as colunas da exportação por período. */
+export const exportarCobrancasSelecionadas = (corpo: CobrancasSelecionadasRequest) =>
+  requisicao<string>('/financeiro/exportacao/selecionadas', { metodo: 'POST', corpo, aceita: 'text/csv' });
+/** Cobrança avulsa para 1 a 100 alunos, tudo ou nada; `valorCentavos` é o de cada parcela de cada aluno (exceção D5). */
+export const criarCobrancasAvulsas = (corpo: CobrancaAvulsaRequest) =>
+  requisicao<CobrancaAvulsaResponse>('/financeiro/cobrancas-avulsas', { metodo: 'POST', corpo });
 export const desfazerBaixaDaCobranca = (id: string, corpo: MotivoRequest) =>
   requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/desfazer-baixa`, { metodo: 'POST', corpo });
 export const cancelarCobranca = (id: string, corpo: MotivoRequest) =>

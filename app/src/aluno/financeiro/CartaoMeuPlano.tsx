@@ -5,11 +5,10 @@ import { Platform, StyleSheet, View } from 'react-native';
 import type { CobrancaDoAluno } from '../../api/financeiroTipos';
 import { linkDePagamentoDoAluno } from '../../api/rotas';
 import {
-  informacaoDaCobranca, ROTULO_COBRANCA_DE_SAIDA, rotuloDaForma, rotuloDaPeriodicidade, seloDaCobranca, seloDaContratacao,
+  informacaoDaCobranca, referenciaDaCobranca, rotuloDaForma, rotuloDaPeriodicidade, rotuloDoTipoDaCobranca, seloDaCobranca, seloDaContratacao,
   seloDoTipoDaCobranca, textoDasAbertasDoAluno, type ComoPagar,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
-import { rotuloDoMes } from '../../dominio/numeros';
 import { espaco, RAIO } from '../../tema/tokens';
 import { useTema } from '../../tema/TemaProvider';
 import { ICONE_DO_SELO } from '../../treinador/iconesDosSelos';
@@ -139,7 +138,7 @@ function BotaoPagar({ cobranca, aoMudar }: { cobranca: CobrancaDoAluno; aoMudar:
   const [abrindo, setAbrindo] = useState(false);
   // O segundo clique chega antes de a tela redesenhar: sem a trava abriria duas abas e pediria dois links.
   const ocupado = useRef(false);
-  const mes = rotuloDoMes(cobranca.competencia);
+  const mes = referenciaDaCobranca(cobranca);
   const pagar = () => {
     if (ocupado.current) return;
     ocupado.current = true;
@@ -168,7 +167,7 @@ function BotaoPagar({ cobranca, aoMudar }: { cobranca: CobrancaDoAluno; aoMudar:
 }
 
 /**
- * Uma cobrança: mês e selo na primeira linha; valor e a data que importa na segunda ("R$ 150,00 · Vence em 05/11/2026").
+ * Uma cobrança: mês (na avulsa, a descrição) e selo na primeira linha; valor e a data que importa na segunda ("R$ 150,00 · Vence em 05/11/2026").
  * Em aberto, o "Pagar" (quando há) vem dentro do mesmo cartão, à direita.
  */
 function LinhaDaCobranca({ cobranca, modo, children }: { cobranca: CobrancaDoAluno; modo: ComoPagar; children?: ReactNode }) {
@@ -177,11 +176,11 @@ function LinhaDaCobranca({ cobranca, modo, children }: { cobranca: CobrancaDoAlu
   // Celular sem o "Pagar" (`informar`): só a linha de informação; sem ela (cancelada...), o texto de sempre.
   const detalhe = (modo === 'informar' ? informacaoDaCobranca(cobranca) : null) ?? textoDaData(cobranca);
   const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
-  const mes = rotuloDoMes(cobranca.competencia);
+  const mes = referenciaDaCobranca(cobranca);
   const valor = centavosParaTela(cobranca.valorCentavos);
   return (
     <View style={[estilos.cobranca, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
-      <View accessible accessibilityLabel={`${doTipo ? `${ROTULO_COBRANCA_DE_SAIDA}, ` : ''}${mes}, ${valor}, ${selo.rotulo}. ${detalhe}`} style={estilos.textos}>
+      <View accessible accessibilityLabel={`${doTipo ? `${rotuloDoTipoDaCobranca(cobranca.tipo)}, ` : ''}${mes}, ${valor}, ${selo.rotulo}. ${detalhe}`} style={estilos.textos}>
         <View style={estilos.linha}>
           <Texto variante="bloco">{mes}</Texto>
           <View style={estilos.selos}>

@@ -1,14 +1,15 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { UserRound } from 'lucide-react-native';
-import { useCallback, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { AlertCircle, Plus, UserRound } from 'lucide-react-native';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import type { CobrancaResponse } from '../../api/financeiroTipos';
+import type { CobrancaResponse, TotaisDasCobrancas } from '../../api/financeiroTipos';
 import { aluno, listarCobrancas, listarPlanosComerciais } from '../../api/rotas';
 import {
   alternarNoLote, atrasoParaTela, contagemDoLote, cpfMascarado, ehPagamentoOnline, emissaoDaCobranca, estadoDaPaginaNoLote,
-  hojeEmBrasilia, idCurtoDaCobranca, marcarPaginaNoLote, opcoesDePlanoDoFiltro, podeEntrarNoLote, problemaDoLote, resumoDaCobranca,
-  ROTULO_ONLINE, rotuloDaForma, seloDaCobranca, seloDoTipoDaCobranca, temBaixaRegistrada,
+  hojeEmBrasilia, idCurtoDaCobranca, marcarPaginaNoLote, nomeNaListaDaCobranca, opcoesDePlanoDoFiltro, podeEntrarNoLote, problemaDoLote,
+  referenciaDaCobranca, resumoDaCobranca, ROTULO_ONLINE, rotuloDaForma, rotuloDoTipoDaCobranca, seloDaCobranca, seloDoTipoDaCobranca,
+  temBaixaRegistrada,
 } from '../../dominio/financeiro';
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
@@ -17,20 +18,23 @@ import {
   textoDoVencimento, type ChaveDoFiltroDeCobrancas, type FiltrosDeCobrancas, type FormaDoFiltro, type SituacaoDoFiltro,
 } from '../../dominio/filtrosDoFinanceiro';
 import { centavosParaTela, dataParaTela, SEM_DADO } from '../../dominio/formatos';
+import { colunasDosIndicadores } from '../../dominio/grade';
 import { selecaoDepoisDosFiltros } from '../../dominio/painelDeFiltros';
 import { rotuloDoMes } from '../../dominio/numeros';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { OPCOES_RESPONSABILIDADE } from '../EscolhaResponsabilidade';
 import { UmaOpcao } from '../SeletoresDeFiltro';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
+import { Divisor } from '../../ui/Divisor';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
+import { Grade } from '../../ui/Grade';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { CaixaDaLinha } from '../../ui/LinhaDaLista';
@@ -39,9 +43,11 @@ import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
+import { AcoesDoLote, FolhaDoResultadoDaAcao, type ResultadoDaAcao } from './AcoesDoLote';
 import { CartaoDeConferencias } from './CartaoDeConferencias';
 import { PeriodoDoFiltro } from './FiltrosEmGrade';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
+import { FolhaDaCobrancaAvulsa } from './FolhaDaCobrancaAvulsa';
 import { FolhaDoLote } from './FolhaDoLote';
 import { ListaOuTabela } from './ListaOuTabela';
 
@@ -73,7 +79,12 @@ const dataOuNada = (iso: string | null | undefined) => (iso ? dataParaTela(iso) 
  * toque que a abre) e a barra do lote conta as marcadas, seleciona as da página e abre a revisão obrigatória
  * (`FolhaDoLote`). Trocar de página mantém a seleção. Seleção × filtros (D9, `selecaoDepoisDosFiltros`): aplicar filtros
  * diferentes (painel, ✕ do chip, "Limpar filtros") ou mudar a busca limpa a seleção, com aviso; aplicar os mesmos filtros
- * e Cancelar/X/Esc/fundo do painel não mexem nela. Assim o lote nunca leva cobrança que a lista não mostra.
+ * e Cancelar/X/Esc/fundo do painel não mexem nela. Assim o lote nunca leva cobrança que a lista não mostra. Ao lado do
+ * "Revisar pagamentos", "Mais ações" cancela, gera os links e exporta as selecionadas (`AcoesDoLote`).
+ *
+ * No topo, "Nova cobrança avulsa" (`FINANCEIRO_ALTERAR`) abre o passo a passo (`FolhaDaCobrancaAvulsa`); acima da lista, os
+ * totais do filtro inteiro (todas as páginas), calculados pelo servidor (`PaginaCobrancas.totais`); a avulsa aparece com
+ * o selo "Avulsa" e a descrição no lugar do plano.
  */
 export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   const { pode, recebimentoOnlineHabilitado } = useSessao();
@@ -89,6 +100,9 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   const [selecao, setSelecao] = useState<CobrancaResponse[]>([]);
   // A revisão tem estado próprio: com sucesso total a seleção esvazia, e o resultado precisa continuar na tela.
   const [revisando, setRevisando] = useState(false);
+  const [novaAvulsa, setNovaAvulsa] = useState(false);
+  // Fora da barra do lote: cancelar tudo esvazia a seleção e a barra some, mas o resultado continua na tela.
+  const [resultadoDoLote, setResultadoDoLote] = useState<ResultadoDaAcao | null>(null);
   const busca = useAtrasado(buscaDigitada.trim(), 300);
   const hoje = hojeEmBrasilia();
   const lista = useCarregar(`cobrancas|${chaveDasCobrancas(filtros, busca)}|${hoje}|${pagina}`, () =>
@@ -143,6 +157,12 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
 
   return (
     <View style={estilos.coluna}>
+      {podeAlterar ? (
+        <View style={estilos.topo}>
+          <Texto variante="suave" style={estilos.explicacao}>Mensalidades, cobranças de saída e avulsas dos alunos, por vencimento.</Texto>
+          <Botao rotulo="Nova cobrança avulsa" Icone={Plus} aoTocar={() => setNovaAvulsa(true)} />
+        </View>
+      ) : null}
       {recebimentoOnlineHabilitado && pode('ALUNO_LER') ? <CartaoDeConferencias podeAlterar={podeAlterar} /> : null}
       {filtros.alunoId ? <FaixaDoAluno nome={textoDoAluno} aoVerTodos={verTodos} /> : null}
       <View ref={barra}>
@@ -156,6 +176,8 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
       </View>
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregar} /> : null}
       {!dados && lista.carregando ? <Esqueleto /> : null}
+      {/* Sem resposta (primeira carga ou erro) não há totais: nunca um zero inventado. Lista vazia: o vazio já diz tudo. */}
+      {dados?.totais && dados.itens.length > 0 && !lista.erro ? <TotaisDaLista totais={dados.totais} atualizando={desatualizada} /> : null}
       {dados && dados.itens.length === 0 ? (
         <Vazio titulo="Nenhuma cobrança nesta lista"
           texto={temVencimento(filtros) ? `Nenhuma cobrança${filtros.situacoes.length ? ' nesta situação' : ''} vence ${textoDoVencimento(filtros, hoje)}.`
@@ -171,15 +193,23 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
           {comLote ? (
             <BarraDoLote lote={lote} pagina={dados.itens}
               aoMarcarPagina={(marcar) => setSelecao((s) => marcarPaginaNoLote(s, dados.itens, marcar))}
-              aoLimpar={() => setSelecao([])} aoRevisar={() => setRevisando(true)} />
+              aoLimpar={() => setSelecao([])} aoRevisar={() => setRevisando(true)}
+              acoes={(
+                <AcoesDoLote lote={lote} comLink={recebimentoOnlineHabilitado} aoResultado={setResultadoDoLote}
+                  aoCancelar={(cancelados) => {
+                    const feitos = new Set(cancelados);
+                    setSelecao((s) => s.filter((x) => !feitos.has(x.id)));
+                    recarregar();
+                  }} />
+              )} />
           ) : null}
           <View style={lista.carregando ? estilos.esmaecido : null} pointerEvents={desatualizada ? 'none' : 'auto'}>
             <ListaOuTabela rotulo="Cobranças" linhas={dados.itens} chave={(c) => c.id} aoTocar={setAberta} larguraMinima={LARGURA_DA_TABELA}
-              rotuloDaLinha={(c) => `Abrir ${c.tipo === 'SAIDA' ? 'cobrança de saída' : 'cobrança'} de ${c.alunoNome ?? 'aluno'}`}
+              rotuloDaLinha={(c) => `Abrir ${c.tipo === 'MENSALIDADE' ? 'cobrança' : rotuloDoTipoDaCobranca(c.tipo).toLowerCase()} de ${c.alunoNome ?? 'aluno'}`}
               // `null` (nunca `undefined`) na que não entra no lote: a coluna fica, vazia, e a tabela não desalinha.
               // Coluna das caixas só quando a página tem alguma cobrança que pode entrar no lote.
               inicio={comLote && dados.itens.some(podeEntrarNoLote) ? (c) => (podeEntrarNoLote(c) ? (
-                <CaixaDaLinha rotulo={`Selecionar cobrança de ${c.alunoNome ?? 'aluno'}, ${rotuloDoMes(c.competencia)}`} marcado={marcadas.has(c.id)}
+                <CaixaDaLinha rotulo={`Selecionar cobrança de ${c.alunoNome ?? 'aluno'}, ${referenciaDaCobranca(c)}`} marcado={marcadas.has(c.id)}
                   aoMudar={() => setSelecao((s) => alternarNoLote(s, c))} />
               ) : null) : undefined}
               item={(c) => {
@@ -187,7 +217,8 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
                 const doTipo = seloDoTipoDaCobranca(c.tipo);
                 return {
                   titulo: c.alunoNome ?? '—',
-                  detalhe: `${resumoDaCobranca(c)}${c.situacao === 'PAGA' && ehPagamentoOnline(c) ? ` · ${ROTULO_ONLINE}` : ''}`,
+                  // A avulsa diz o que é (a descrição) antes do valor; a mensalidade segue só com o valor e a data.
+                  detalhe: `${c.tipo === 'AVULSA' ? `${referenciaDaCobranca(c)} · ` : ''}${resumoDaCobranca(c)}${c.situacao === 'PAGA' && ehPagamentoOnline(c) ? ` · ${ROTULO_ONLINE}` : ''}`,
                   selo: { texto: selo.rotulo, tipo: selo.tom },
                   extra: doTipo ? <View style={estilos.seloDoTipo}><Selo texto={doTipo.rotulo} tipo={doTipo.tom} /></View> : undefined,
                 };
@@ -197,7 +228,10 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
                   <Texto variante="pequeno" numerico numberOfLines={1} accessibilityLabel={`ID terminado em ${idCurtoDaCobranca(c.id)}`}>{idCurtoDaCobranca(c.id)}</Texto>
                 ) },
                 { chave: 'aluno', titulo: 'Aluno', flex: 1, principal: true, render: (c) => <AlunoDaCobranca cobranca={c} /> },
-                { chave: 'competencia', titulo: 'Competência', largura: 96, render: (c) => <Texto numerico numberOfLines={1}>{rotuloDoMes(c.competencia)}</Texto> },
+                { chave: 'competencia', titulo: 'Competência', largura: 96, render: (c) => (
+                  // A avulsa não tem competência: diz isso, sem "—" (a descrição está na coluna do aluno).
+                  c.competencia ? <Texto numerico numberOfLines={1}>{rotuloDoMes(c.competencia)}</Texto> : <Texto variante="pequeno">Não se aplica</Texto>
+                ) },
                 { chave: 'vencimento', titulo: 'Vencimento', largura: 96, render: (c) => <Texto numerico numberOfLines={1}>{dataParaTela(c.vencimento)}</Texto> },
                 { chave: 'emissao', titulo: 'Emissão', largura: 92, render: (c) => <Texto numerico numberOfLines={1}>{dataOuNada(emissaoDaCobranca(c))}</Texto> },
                 { chave: 'pagamento', titulo: 'Pagamento', largura: 96, render: (c) => <PagamentoDaCobranca cobranca={c} /> },
@@ -222,6 +256,8 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
           if (id) setSelecao((s) => s.filter((x) => x.id !== id));
           recarregar();
         }} />
+      {resultadoDoLote ? <FolhaDoResultadoDaAcao {...resultadoDoLote} aoFechar={() => setResultadoDoLote(null)} /> : null}
+      {novaAvulsa ? <FolhaDaCobrancaAvulsa aoFechar={() => setNovaAvulsa(false)} aoGerar={recarregar} /> : null}
       {revisando ? (
         <FolhaDoLote itens={lote} aoFechar={() => setRevisando(false)}
           aoTirar={(id) => setSelecao((s) => s.filter((x) => x.id !== id))}
@@ -240,12 +276,14 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
  * Barra do lote, acima da lista: quantas estão marcadas (anunciado), selecionar ou desmarcar as desta página e a ação
  * principal, que só abre a revisão. Sem nada marcado, diz como começar; acima de 100, o botão fica desabilitado com o motivo.
  */
-function BarraDoLote({ lote, pagina, aoMarcarPagina, aoLimpar, aoRevisar }: {
+function BarraDoLote({ lote, pagina, aoMarcarPagina, aoLimpar, aoRevisar, acoes }: {
   lote: readonly CobrancaResponse[];
   pagina: readonly CobrancaResponse[];
   aoMarcarPagina: (marcar: boolean) => void;
   aoLimpar: () => void;
   aoRevisar: () => void;
+  /** O menu das outras ações (cancelar, links, exportar), ao lado do "Revisar pagamentos". */
+  acoes: ReactNode;
 }) {
   const estado = estadoDaPaginaNoLote(lote, pagina);
   const n = lote.length;
@@ -258,7 +296,7 @@ function BarraDoLote({ lote, pagina, aoMarcarPagina, aoLimpar, aoRevisar }: {
       <View style={estilos.contagem} aria-live="polite">
         <Texto variante="rotulo">{n === 0 ? 'Registrar vários pagamentos' : contagemDoLote(n)}</Texto>
         <Texto variante="suave">
-          {n === 0 ? 'Marque as cobranças em aberto para registrar o pagamento de várias de uma vez.'
+          {n === 0 ? 'Marque as cobranças em aberto para registrar o pagamento, cancelar ou gerar o link de várias de uma vez.'
             : emOutras > 0 ? `${emOutras === 1 ? '1 está' : `${emOutras} estão`} em outra página.` : 'Revise antes de registrar.'}
         </Texto>
       </View>
@@ -268,6 +306,7 @@ function BarraDoLote({ lote, pagina, aoMarcarPagina, aoLimpar, aoRevisar }: {
             aoTocar={() => aoMarcarPagina(estado !== 'todas')} />
         ) : null}
         {n > 0 ? <Botao tipo="secundario" rotulo="Limpar seleção" aoTocar={aoLimpar} /> : null}
+        {n > 0 ? acoes : null}
         {n > 0 ? <Botao rotulo="Revisar pagamentos" aoTocar={aoRevisar} desabilitado={!!problema} motivo={problema ?? undefined} /> : null}
       </LinhaDeAcoes>
     </View>
@@ -366,7 +405,7 @@ function AlunoDaCobranca({ cobranca }: { cobranca: CobrancaResponse }) {
     <View style={estilos.celula}>
       <Texto variante="bloco" numberOfLines={2}>{cobranca.alunoNome ?? '—'}</Texto>
       {cpf ? <Texto variante="pequeno" numerico numberOfLines={1} accessibilityLabel={`CPF ${cpf}`}>CPF {cpf}</Texto> : null}
-      <Texto variante="pequeno" numberOfLines={1}>{cobranca.planoNome ?? '—'}</Texto>
+      <Texto variante="pequeno" numberOfLines={2}>{nomeNaListaDaCobranca(cobranca)}</Texto>
     </View>
   );
 }
@@ -396,8 +435,82 @@ export function SituacaoDaCobranca({ cobranca }: { cobranca: CobrancaResponse })
   );
 }
 
+/**
+ * Os quatro totais do filtro inteiro (todas as páginas), como o servidor calcula: cancelada e estornada ficam fora; "Em
+ * aberto" já inclui as vencidas (por isso diz isso, para ninguém somar duas vezes). Número sempre em `texto` (zero em
+ * `textoSuave`); a única cor é o ícone de alerta do vencido, no `perigo` do selo "Vencida" das linhas (exceção da
+ * cobrança, 4.5). Com o filtro novo a caminho, os números do anterior ficam esmaecidos e marcados como ocupados. No PC,
+ * quatro (ou duas) caixas lado a lado; no celular, uma lista de rótulo e valor, que cabe acima da dobra e nunca parte o
+ * valor (o "R$" vai colado ao número, como no ResultadoDoMes, que no celular usa uma coluna pelo mesmo motivo).
+ */
+function TotaisDaLista({ totais, atualizando }: { totais: TotaisDasCobrancas; atualizando: boolean }) {
+  const { cores, fatorTexto } = useTema();
+  const { width } = useWindowDimensions();
+  const celular = width < LARGURA_MENU_LATERAL;
+  const itens = [
+    { rotulo: 'Total', centavos: totais.totalCentavos },
+    { rotulo: 'Pago', centavos: totais.pagoCentavos },
+    { rotulo: 'Em aberto', centavos: totais.emAbertoCentavos, nota: 'inclui as vencidas' },
+    { rotulo: 'Vencido', centavos: totais.vencidoCentavos, alerta: totais.vencidoCentavos > 0 },
+  ];
+  return (
+    // O que vale para os quatro fica numa linha só, na faixa: no celular os números ainda cabem acima da dobra.
+    <Cartao titulo="Totais" descricao="De todas as páginas deste filtro. Em aberto inclui as vencidas; canceladas e estornadas não entram.">
+      <View style={atualizando ? estilos.esmaecido : null} aria-busy={atualizando}>
+        {celular ? (
+          <View>
+            {itens.map((t, i) => (
+              <View key={t.rotulo}>
+                {i > 0 ? <Divisor /> : null}
+                <View accessible accessibilityLabel={`${t.rotulo}: ${centavosParaTela(t.centavos)}${t.nota ? `, ${t.nota}` : ''}`} style={estilos.linhaDoTotal}>
+                  <RotuloDoTotal rotulo={t.rotulo} alerta={!!t.alerta} />
+                  <ValorDoTotal centavos={t.centavos} />
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Grade gap={espaco(1.5)} colunas={(l) => Math.max(2, colunasDosIndicadores(l, fatorTexto))}>
+            {itens.map((t) => (
+              <View key={t.rotulo} accessible accessibilityLabel={`${t.rotulo}: ${centavosParaTela(t.centavos)}${t.nota ? `, ${t.nota}` : ''}`}
+                style={[estilos.total, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+                <RotuloDoTotal rotulo={t.rotulo} alerta={!!t.alerta} />
+                <ValorDoTotal centavos={t.centavos} />
+              </View>
+            ))}
+          </Grade>
+        )}
+      </View>
+    </Cartao>
+  );
+}
+
+function RotuloDoTotal({ rotulo, alerta }: { rotulo: string; alerta: boolean }) {
+  const { cores } = useTema();
+  return (
+    <View style={estilos.rotuloDoTotal}>
+      {alerta ? <AlertCircle size={16} color={cores.perigo} strokeWidth={2.25} aria-hidden /> : null}
+      <Texto variante="rotulo">{rotulo}</Texto>
+    </View>
+  );
+}
+
+function ValorDoTotal({ centavos }: { centavos: number }) {
+  const { cores } = useTema();
+  return (
+    <Texto variante="bloco" numerico cor={centavos === 0 ? cores.textoSuave : cores.texto}>
+      {centavosParaTela(centavos).replace('R$ ', 'R$\u00a0')}
+    </Texto>
+  );
+}
+
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
+  linhaDoTotal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5), minHeight: 44, paddingVertical: espaco(0.5) },
+  topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
+  explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
+  total: { flexGrow: 1, minWidth: 0, gap: espaco(0.25), paddingVertical: espaco(1), paddingHorizontal: espaco(1.5), borderRadius: RAIO, borderWidth: 1 },
+  rotuloDoTotal: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   cheio: { alignSelf: 'stretch' },
   esmaecido: { opacity: 0.6 },
   selos: { gap: espaco(0.25), alignItems: 'flex-start' },

@@ -2,6 +2,7 @@ import type {
   CartoesDoPainel,
   CobrancaDoAluno,
   CobrancaResponse,
+  FormaDeRecebimento,
   MotivoDaConferencia,
   FiltroDeSituacao,
   FormaDePagamento,
@@ -177,17 +178,41 @@ export function seloDaCobranca(c: { situacao: SituacaoDaCobranca; vencida?: bool
 /** Cobrança de saída (criada ao encerrar o plano): o nome no app inteiro, aluno e treinador. Nunca "Mensalidade". */
 export const ROTULO_COBRANCA_DE_SAIDA = 'Cobrança de saída';
 
-/** "Mensalidade" ou "Cobrança de saída". Sem `tipo` (dado antigo do aparelho), a mensalidade. */
+/** Cobrança lançada pelo treinador, sem plano (Fase 1 do financeiro): o nome no app inteiro. */
+export const ROTULO_COBRANCA_AVULSA = 'Cobrança avulsa';
+
+/** "Mensalidade", "Cobrança de saída" ou "Cobrança avulsa". Sem `tipo` (dado antigo do aparelho), a mensalidade. */
 export function rotuloDoTipoDaCobranca(tipo: TipoDaCobranca | null | undefined): string {
-  return tipo === 'SAIDA' ? ROTULO_COBRANCA_DE_SAIDA : 'Mensalidade';
+  if (tipo === 'SAIDA') return ROTULO_COBRANCA_DE_SAIDA;
+  return tipo === 'AVULSA' ? ROTULO_COBRANCA_AVULSA : 'Mensalidade';
 }
 
 /**
- * O selo que marca o TIPO da cobranca ao lado do selo da situação: só a de saída tem ("Saída", neutro: a cor é da situação,
- * não do tipo). Mensalidade não ganha selo.
+ * O selo que marca o TIPO da cobranca ao lado do selo da situação: a de saída ("Saída") e a avulsa ("Avulsa"), neutros (a
+ * cor é da situação, não do tipo). Mensalidade não ganha selo.
  */
 export function seloDoTipoDaCobranca(tipo: TipoDaCobranca | null | undefined): SeloFinanceiro | null {
-  return tipo === 'SAIDA' ? { tom: 'neutro', rotulo: 'Saída' } : null;
+  if (tipo === 'SAIDA') return { tom: 'neutro', rotulo: 'Saída' };
+  return tipo === 'AVULSA' ? { tom: 'neutro', rotulo: 'Avulsa' } : null;
+}
+
+/**
+ * A coluna "Plano" da lista do treinador: o nome do plano; na avulsa (sem plano) a descrição ("Camiseta (Parcela 1/3)"), ou
+ * "Cobrança avulsa" se ela não veio. Sem dado, "—".
+ */
+export function nomeNaListaDaCobranca(c: Pick<CobrancaResponse, 'tipo' | 'planoNome' | 'descricao'>): string {
+  if (c.tipo === 'AVULSA') return c.descricao?.trim() || ROTULO_COBRANCA_AVULSA;
+  return c.planoNome ?? SEM_DADO;
+}
+
+/**
+ * Como a cobrança se identifica numa linha, num título ou num rótulo acessível: o mês da competência ("out/2026"); a
+ * avulsa, que não tem competência, pela descrição ("Camiseta (Parcela 1/3)") ou "Cobrança avulsa". Nunca "—" só porque a
+ * competência é nula.
+ */
+export function referenciaDaCobranca(c: { competencia: string | null; descricao?: string | null; tipo?: TipoDaCobranca | null }): string {
+  if (c.tipo === 'AVULSA' || !c.competencia) return c.descricao?.trim() || rotuloDoTipoDaCobranca(c.tipo);
+  return rotuloDoMes(c.competencia);
 }
 
 export function seloDaContratacao(situacao: SituacaoDaContratacao): SeloFinanceiro {
@@ -325,21 +350,61 @@ export function pagarPermitidoNaPlataforma(plataforma: PlataformaDoApp, chaves: 
 
 export type ComoPagar = 'botao' | 'informar' | 'combinar';
 
+/** Ação de pagamento que o aluno pode ter numa cobrança em aberto. A `MANUAL` não é ação: só informa. */
+export type AcaoDePagamento = 'PAGAR_INFINITEPAY' | 'PAGAR_LINK_PROPRIO' | 'COPIAR_PIX';
+
+export interface OpcoesDePagamentoDoAluno {
+  /** `FinanceiroDoAluno.formasDePagamento`. Ausente = só o que existia antes: InfinitePay (se `pagamentoOnline`) e Manual. */
+  formas?: readonly FormaDeRecebimento[];
+  /** O plano da cobrança tem `linkDePagamento`. Sem ele o "Pagar" do link próprio não aparece (não há para onde abrir). */
+  temLinkProprio?: boolean;
+}
+
 /**
- * Como o aluno vê uma cobrança em aberto. `informar`: celular sem a chave da plataforma, só informação (nada de botão,
- * link nem frase mandando pagar). Com o "Pagar" permitido, `botao` quando a consultoria tem o recebimento online; sem
- * ele o treinador combina a forma e registra à mão (`combinar`). A plataforma vem do componente (`Platform.OS`).
- * Cobrança de saída (`tipo` `SAIDA`) só informa, em qualquer plataforma e com a chave ligada ou não: não há link nem botão.
+ * As ações de pagamento de uma cobrança em aberto do aluno (D7 do `docs/planos/financeiro-em-fases.md`). Saída só informa e
+ * celular sem a chave da plataforma não tem NENHUMA ação (nem o Pix: ele também pede ao aluno que pague). Fora isso, uma ação por
+ * forma ligada: InfinitePay (precisa do `pagamentoOnline`), link próprio (só mensalidade, que tem plano, e só com o link) e Pix.
+ * Lista vazia = só informar ou combinar com o treinador.
+ */
+export function acoesDePagamentoDoAluno(
+  plataforma: PlataformaDoApp,
+  pagamentoOnline: boolean,
+  chaves: ChavesDePagamentoNoCelular,
+  tipo: TipoDaCobranca | null | undefined = 'MENSALIDADE',
+  opcoes: OpcoesDePagamentoDoAluno = {},
+): AcaoDePagamento[] {
+  const t = tipo ?? 'MENSALIDADE';
+  if (t === 'SAIDA' || !pagarPermitidoNaPlataforma(plataforma, chaves)) return [];
+  const formas = opcoes.formas ?? (pagamentoOnline ? ['INFINITEPAY'] : []);
+  const acoes: AcaoDePagamento[] = [];
+  if (pagamentoOnline && formas.includes('INFINITEPAY')) acoes.push('PAGAR_INFINITEPAY');
+  if (t === 'MENSALIDADE' && opcoes.temLinkProprio === true && formas.includes('LINK_PROPRIO')) acoes.push('PAGAR_LINK_PROPRIO');
+  if (formas.includes('PIX')) acoes.push('COPIAR_PIX');
+  return acoes;
+}
+
+/** "Pagar" (um só) ou, com os dois "Pagar" ligados, o nome de cada um; "Copiar código Pix". */
+export function rotuloDaAcaoDePagamento(acao: AcaoDePagamento, acoes: readonly AcaoDePagamento[]): string {
+  if (acao === 'COPIAR_PIX') return 'Copiar código Pix';
+  if (!(acoes.includes('PAGAR_INFINITEPAY') && acoes.includes('PAGAR_LINK_PROPRIO'))) return 'Pagar';
+  return acao === 'PAGAR_INFINITEPAY' ? 'Pagar pela InfinitePay' : 'Pagar pelo link do treinador';
+}
+
+/**
+ * Como o aluno vê uma cobrança em aberto. `informar`: celular sem a chave da plataforma ou cobrança de saída, só informação
+ * (nada de botão, link, Pix nem frase mandando pagar). Com o "Pagar" permitido, `botao` quando há alguma ação de pagamento
+ * (`acoesDePagamentoDoAluno`) e `combinar` quando só resta o Manual (o treinador combina a forma e registra à mão). A
+ * plataforma vem do componente (`Platform.OS`). Sem `opcoes.formas`, vale o de antes: o botão é a InfinitePay.
  */
 export function comoPagar(
   plataforma: PlataformaDoApp,
   pagamentoOnline: boolean,
   chaves: ChavesDePagamentoNoCelular,
   tipo: TipoDaCobranca | null | undefined = 'MENSALIDADE',
+  opcoes: OpcoesDePagamentoDoAluno = {},
 ): ComoPagar {
-  if (tipo === 'SAIDA') return 'informar';
-  if (!pagarPermitidoNaPlataforma(plataforma, chaves)) return 'informar';
-  return pagamentoOnline ? 'botao' : 'combinar';
+  if (tipo === 'SAIDA' || !pagarPermitidoNaPlataforma(plataforma, chaves)) return 'informar';
+  return acoesDePagamentoDoAluno(plataforma, pagamentoOnline, chaves, tipo, opcoes).length > 0 ? 'botao' : 'combinar';
 }
 
 /** O texto da seção "Em aberto" para cada modo; `botao` e `informar` não têm texto (o botão fala por si; informar só informa). */

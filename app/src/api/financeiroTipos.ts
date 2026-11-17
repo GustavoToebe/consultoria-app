@@ -10,8 +10,14 @@ export type SituacaoDaCobranca = 'ABERTA' | 'PAGA' | 'CANCELADA' | 'ESTORNADA' |
 /** As quatro primeiras são do registro manual; `PIX` e `CARTAO` só vêm do recebimento online (InfinitePay). */
 export type FormaDePagamento = 'DINHEIRO' | 'PIX_DIRETO' | 'TRANSFERENCIA' | 'OUTRO' | 'PIX' | 'CARTAO';
 export type TipoDeLancamento = 'ENTRADA' | 'SAIDA';
-/** `SAIDA` é a cobrança de saída (criada ao encerrar o plano); não tem link de pagamento. Não confundir com `TipoDeLancamento`. */
-export type TipoDaCobranca = 'MENSALIDADE' | 'SAIDA';
+/**
+ * `SAIDA` é a cobrança de saída (criada ao encerrar o plano); não tem link de pagamento. `AVULSA` é a lançada pelo treinador
+ * para vários alunos (sem contratação nem plano: `descricao` diz o que é). Não confundir com `TipoDeLancamento`.
+ */
+export type TipoDaCobranca = 'MENSALIDADE' | 'SAIDA' | 'AVULSA';
+/** As formas de recebimento que o treinador liga (e que o aluno vê em `FinanceiroDoAluno.formasDePagamento`). `MANUAL` só informa. */
+export type FormaDeRecebimento = 'INFINITEPAY' | 'LINK_PROPRIO' | 'PIX' | 'MANUAL';
+export type TipoDeChavePix = 'CPF' | 'CNPJ' | 'EMAIL' | 'TELEFONE' | 'ALEATORIA';
 
 // ---- Plano comercial ----
 
@@ -26,6 +32,8 @@ export interface PlanoRequest {
   periodicidade: PeriodoDoPlano;
   tempoMinimoMeses?: number | null;
   regraDeSaida?: string | null;
+  /** Link de pagamento próprio (https, opcional, até 500). O `PUT` substitui inteiro: nulo APAGA, então reenvie o atual. */
+  linkDePagamento?: string | null;
   versao?: number | null;
 }
 
@@ -41,6 +49,8 @@ export interface PlanoResponse {
   tempoMinimoMeses: number | null;
   /** Lembrete da regra de saída do contrato (texto do treinador); nulo = sem regra. Nunca vai ao aluno. */
   regraDeSaida: string | null;
+  /** Link de pagamento próprio do plano (https); nulo = sem link. */
+  linkDePagamento: string | null;
 }
 
 export interface VersaoRequest {
@@ -183,11 +193,12 @@ export interface MotivoRequest {
 /** `vencida` e `diasDeAtraso` vêm calculados pela API (Brasília): a tela nunca decide vencida pela data do aparelho. */
 export interface CobrancaResponse {
   id: string;
-  contratacaoId: string;
+  /** Nulo só na `AVULSA` (como `planoNome` e `competencia`). */
+  contratacaoId: string | null;
   alunoId: string;
   alunoNome: string | null;
   planoNome: string | null;
-  competencia: string;
+  competencia: string | null;
   vencimento: string;
   valorCentavos: number;
   situacao: SituacaoDaCobranca;
@@ -209,6 +220,8 @@ export interface CobrancaResponse {
   alunoCpf?: string | null;
   /** `SAIDA` = cobrança de saída: sem link de pagamento; no app do aluno nunca se chama "Mensalidade". */
   tipo: TipoDaCobranca;
+  /** O que é a cobrança, só na `AVULSA` (até 150 com o "(Parcela k/n)"); nulo nas outras. */
+  descricao: string | null;
 }
 
 /** `POST /cobrancas/baixa-em-lote`: o mesmo registro manual de cada cobrança, sem valor (o servidor decide), 1 a 100 itens. */
@@ -219,21 +232,60 @@ export interface BaixaEmLoteRequest {
   observacao?: string | null;
 }
 
-/** `codigo` nulo quando deu certo; senão o código estável da recusa (o mesmo da baixa individual). */
+/**
+ * `codigo` nulo quando deu certo; senão o código estável da recusa (o mesmo da baixa individual). `url` só no lote de links
+ * (`POST /cobrancas/link-em-lote`), nos itens `ok`.
+ */
 export interface ResultadoDoItemDoLote {
   cobrancaId: string;
   ok: boolean;
   codigo: string | null;
+  url?: string | null;
+}
+
+/** `POST /cobrancas/cancelar-em-lote`: o mesmo cancelamento de cada cobrança, 1 a 100 itens, com `versao` e um motivo comum. */
+export interface CancelarEmLoteRequest {
+  itens: { cobrancaId: string; versao: number }[];
+  motivo?: string | null;
+}
+
+/** `POST /cobrancas/link-em-lote` e `POST /financeiro/exportacao/selecionadas` (esta devolve o CSV): 1 a 100 ids. */
+export interface CobrancasSelecionadasRequest {
+  cobrancaIds: string[];
+}
+
+/** `POST /financeiro/cobrancas-avulsas`: `valorCentavos` é o de CADA cobrança (cada parcela, cada aluno); segunda exceção da regra do valor do servidor. */
+export interface CobrancaAvulsaRequest {
+  alunoIds: string[];
+  descricao: string;
+  valorCentavos: number;
+  primeiroVencimento: string;
+  parcelas: number;
+}
+
+/** 201: só contagens (tudo ou nada). */
+export interface CobrancaAvulsaResponse {
+  alunos: number;
+  cobrancas: number;
 }
 
 export interface ResultadoDoLote {
   resultados: ResultadoDoItemDoLote[];
 }
 
+/** Calculados pelo servidor sobre o filtro inteiro (todas as páginas); cancelada e estornada ficam fora, em aberto inclui a vencida. */
+export interface TotaisDasCobrancas {
+  totalCentavos: number;
+  pagoCentavos: number;
+  emAbertoCentavos: number;
+  vencidoCentavos: number;
+}
+
 export interface PaginaCobrancas {
   itens: CobrancaResponse[];
   total: number;
   pagina: number;
+  totais: TotaisDasCobrancas;
 }
 
 /** `VENCIDA` é só filtro: é ABERTA com vencimento anterior a hoje (Brasília). `ABERTA` inclui as vencidas. */
@@ -411,6 +463,8 @@ export interface PlanoDoAluno {
   periodicidade: PeriodoDoPlano;
   situacao: SituacaoDaContratacao;
   proximoVencimento: string | null;
+  /** Link de pagamento próprio do plano (https), aberto fora do app, sem token; nulo = sem link. */
+  linkDePagamento: string | null;
   // A API ainda não manda a vigência no plano do aluno (só `GET /aluno/contratacao`, que o app não usa): hoje não chega.
   terminoVigencia?: string | null;
   diasRestantesVigencia?: number | null;
@@ -418,7 +472,10 @@ export interface PlanoDoAluno {
 
 export interface CobrancaDoAluno {
   id: string;
-  competencia: string;
+  /** Nulo na `AVULSA`. */
+  competencia: string | null;
+  /** O que é a cobrança, só na `AVULSA`. Fora do contrato escrito (confirmar com a API); ausente ou nulo = sem descrição. */
+  descricao?: string | null;
   vencimento: string;
   valorCentavos: number;
   situacao: SituacaoDaCobranca;
@@ -439,6 +496,13 @@ export interface FinanceiroDoAluno {
   abertas: CobrancaDoAluno[];
   historico: CobrancaDoAluno[];
   pagamentoOnline: boolean;
+  /** As formas que o treinador ligou e que se aplicam às cobranças do aluno (`MANUAL` só informa). */
+  formasDePagamento: FormaDeRecebimento[];
+}
+
+/** `POST /aluno/financeiro/cobrancas/{id}/pix`: o BR Code copia e cola, montado pelo servidor (só cobrança ABERTA do próprio aluno). */
+export interface CodigoPix {
+  codigo: string;
 }
 
 // ---- Recebimento online (InfinitePay, conta do treinador) ----
@@ -481,6 +545,46 @@ export interface RetornoDoPagamento {
 /** Link de pagamento de uma cobrança em aberto (`https`, aberto fora do app, sem token). */
 export interface LinkDePagamento {
   url: string;
+}
+
+// ---- Formas de recebimento (`GET/PUT /financeiro/formas-de-recebimento`) ----
+
+/** A chave Pix nunca volta inteira: só `chaveMascarada` e `chaveConfigurada`. É dado pessoal (CPF): nunca em log nem mensagem. */
+export interface PixConfigResponse {
+  tipoChave: TipoDeChavePix;
+  chaveMascarada: string | null;
+  chaveConfigurada: boolean;
+  nomeRecebedor: string;
+  cidade: string;
+}
+
+/** `pixConfig` nulo = Pix nunca configurado. `versao` nula = a consultoria nunca gravou as formas (vale o padrão de hoje). */
+export interface FormasDeRecebimento {
+  infinitePay: boolean;
+  linkProprio: boolean;
+  pix: boolean;
+  /** Sempre ligado. */
+  manual: boolean;
+  pixConfig: PixConfigResponse | null;
+  versao: number | null;
+}
+
+/** `chave` só quando o treinador digitou uma nova (ausente mantém a gravada). Nome do recebedor até 25 e cidade até 15. */
+export interface PixConfigRequest {
+  tipoChave: TipoDeChavePix;
+  chave?: string;
+  nomeRecebedor: string;
+  cidade: string;
+}
+
+/** `manual` sempre `true`; `pixConfig` obrigatório com `pix` ligado. */
+export interface FormasDeRecebimentoRequest {
+  infinitePay: boolean;
+  linkProprio: boolean;
+  pix: boolean;
+  manual: true;
+  pixConfig?: PixConfigRequest;
+  versao: number | null;
 }
 
 // ---- Pagamentos para conferir ----

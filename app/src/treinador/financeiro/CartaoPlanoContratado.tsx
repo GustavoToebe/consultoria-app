@@ -10,14 +10,13 @@ import {
   mudarSituacaoDaContratacao,
 } from '../../api/rotas';
 import {
-  abertasDaContratacao, hojeEmBrasilia, LIMITES, resumoDaCobranca, rotuloDaPeriodicidade, seloDaCobranca, seloDaContratacao,
-  seloDoTipoDaCobranca, textoDeAbertasQueContinuam, validarContratacao,
+  abertasDaContratacao, hojeEmBrasilia, LIMITES, referenciaDaCobranca, resumoDaCobranca, rotuloDaPeriodicidade, rotuloDoTipoDaCobranca,
+  seloDaCobranca, seloDaContratacao, seloDoTipoDaCobranca, textoDeAbertasQueContinuam, validarContratacao,
 } from '../../dominio/financeiro';
 import { planoPodeTerMinimo, textoDoMinimoAte, validarMinimoAte } from '../../dominio/saidaDoPlano';
 import { primeiroNome } from '../../dominio/inscricoes';
 import { linkDoWhatsApp, MOTIVO_SEM_TELEFONE } from '../../dominio/lembretesDeCobranca';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
-import { rotuloDoMes } from '../../dominio/numeros';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -189,9 +188,9 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
               const selo = seloDaCobranca(c);
               const doTipo = seloDoTipoDaCobranca(c.tipo);
               return (
-                <ItemDeLista key={c.id} titulo={rotuloDoMes(c.competencia)} detalhe={resumoDaCobranca(c)}
+                <ItemDeLista key={c.id} titulo={referenciaDaCobranca(c)} detalhe={resumoDaCobranca(c)}
                   selo={{ texto: selo.rotulo, tipo: selo.tom, Icone: ICONE_DO_SELO[selo.tom] }} aoTocar={() => setCobrancaAberta(c)}
-                  rotulo={`Abrir ${doTipo ? 'cobrança de saída' : 'cobrança'} de ${rotuloDoMes(c.competencia)}, ${selo.rotulo}`}>
+                  rotulo={`Abrir ${doTipo ? rotuloDoTipoDaCobranca(c.tipo).toLowerCase() : 'cobrança'}${c.tipo === 'AVULSA' ? ':' : ' de'} ${referenciaDaCobranca(c)}, ${selo.rotulo}`}>
                   {doTipo ? <View style={estilos.seloDoTipo}><Selo texto={doTipo.rotulo} tipo={doTipo.tom} /></View> : null}
                 </ItemDeLista>
               );

@@ -11,7 +11,8 @@ import {
 } from '../../api/rotas';
 import {
   atrasoParaTela, cpfMascarado, ehPagamentoOnline, emissaoDaCobranca, FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeCancelarCobranca, podeCopiarLink, podeDesfazerBaixa,
-  podeManterPaga, podeMarcarContestacao, podeMarcarEstorno, podeRegistrarPagamento, ROTULO_COBRANCA_DE_SAIDA, ROTULO_ONLINE, rotuloDaForma, seloDaCobranca, seloDoTipoDaCobranca,
+  nomeNaListaDaCobranca, podeManterPaga, podeMarcarContestacao, podeMarcarEstorno, podeRegistrarPagamento, referenciaDaCobranca, ROTULO_ONLINE, rotuloDaForma,
+  rotuloDoTipoDaCobranca, seloDaCobranca, seloDoTipoDaCobranca,
   temBaixaRegistrada, TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO, validarBaixa,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
@@ -238,7 +239,8 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
   });
 
   const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
-  const titulo = modo === 'baixa' ? 'Registrar pagamento' : doTipo ? ROTULO_COBRANCA_DE_SAIDA : `Cobrança de ${rotuloDoMes(cobranca.competencia)}`;
+  // A mensalidade pelo mês; a saída e a avulsa pelo tipo (a descrição da avulsa vem logo abaixo do nome).
+  const titulo = modo === 'baixa' ? 'Registrar pagamento' : doTipo ? rotuloDoTipoDaCobranca(cobranca.tipo) : `Cobrança de ${rotuloDoMes(cobranca.competencia)}`;
   const cpf = cpfMascarado(cobranca.alunoCpf);
   const rodape = modo === 'baixa' ? (
     <>
@@ -271,7 +273,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
             <Texto variante="bloco">{cobranca.alunoNome ?? '—'}</Texto>
             {/* CPF só quando a API manda (com `ALUNO_SENSIVEL_LER`), e só o meio dele. */}
             {cpf ? <Texto variante="suave" numerico accessibilityLabel={`CPF ${cpf}`}>CPF {cpf}</Texto> : null}
-            <Texto variante="suave">{cobranca.planoNome ?? '—'}{modo === 'baixa' ? ` · ${rotuloDoMes(cobranca.competencia)}` : ''}</Texto>
+            <Texto variante="suave">{nomeNaListaDaCobranca(cobranca)}{modo === 'baixa' && cobranca.tipo !== 'AVULSA' ? ` · ${referenciaDaCobranca(cobranca)}` : ''}</Texto>
           </View>
           <View style={estilos.selos}>
             <Selo texto={selo.rotulo} tipo={selo.tom} />
@@ -285,7 +287,8 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
             {/* Os detalhes em grupos com título (datas, pagamento, observações), cada um em campos lado a lado. */}
             <Grupo titulo="Datas">
               <CamposEmLinha>
-                <CampoLeitura rotulo="Competência" valor={rotuloDoMes(cobranca.competencia)} />
+                {/* A avulsa não tem competência: a descrição já está no topo, abaixo do nome. */}
+                {cobranca.competencia ? <CampoLeitura rotulo="Competência" valor={rotuloDoMes(cobranca.competencia)} /> : null}
                 <CampoLeitura rotulo="Vencimento" valor={dataParaTela(cobranca.vencimento)} numerico />
                 <CampoLeitura rotulo="Emissão" valor={dataParaTela(emissaoDaCobranca(cobranca))} numerico />
                 {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <CampoLeitura rotulo="Atraso" valor={atrasoParaTela(cobranca.diasDeAtraso)} /> : null}

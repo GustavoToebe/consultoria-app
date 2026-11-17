@@ -1,6 +1,11 @@
 import type { CobrancaDoAluno, MesDoPainel, MotivoDaConferencia } from '../api/financeiroTipos';
 import {
   abertasDaContratacao,
+  acoesDePagamentoDoAluno,
+  nomeNaListaDaCobranca,
+  referenciaDaCobranca,
+  rotuloDaAcaoDePagamento,
+  ROTULO_COBRANCA_AVULSA,
   avisoDaExportacao,
   avisoDoHistoricoParcial,
   linhasDaTabelaDoGrafico,
@@ -977,5 +982,107 @@ describe('cobrança de saída', () => {
     expect(semEspacoDaSaida(informacaoDaCobranca({ ...base, tipo: 'SAIDA' }))).toBe('Cobrança de saída de R$ 450,00, vence em 20/11');
     expect(semEspacoDaSaida(informacaoDaCobranca({ ...base, tipo: 'MENSALIDADE' }))).toBe('Mensalidade de R$ 450,00, vence em 20/11');
     expect(informacaoDaCobranca({ ...base, vencida: true, tipo: 'SAIDA' })).toBe('Em aberto desde 20/11');
+  });
+});
+
+describe('cobrança avulsa: rótulo, selo e linha da lista', () => {
+  it('rótulo e selo do tipo: a avulsa tem o selo "Avulsa" neutro, como a saída', () => {
+    expect(rotuloDoTipoDaCobranca('AVULSA')).toBe('Cobrança avulsa');
+    expect(ROTULO_COBRANCA_AVULSA).toBe('Cobrança avulsa');
+    expect(seloDoTipoDaCobranca('AVULSA')).toEqual({ tom: 'neutro', rotulo: 'Avulsa' });
+    expect(seloDoTipoDaCobranca('SAIDA')).toEqual({ tom: 'neutro', rotulo: 'Saída' });
+    expect(seloDoTipoDaCobranca('MENSALIDADE')).toBeNull();
+  });
+  it('a coluna do plano: a avulsa mostra a descrição (ou o rótulo), as outras o plano ou "—"', () => {
+    expect(nomeNaListaDaCobranca({ tipo: 'AVULSA', planoNome: null, descricao: 'Camiseta (Parcela 1/3)' })).toBe('Camiseta (Parcela 1/3)');
+    expect(nomeNaListaDaCobranca({ tipo: 'AVULSA', planoNome: null, descricao: '  ' })).toBe('Cobrança avulsa');
+    expect(nomeNaListaDaCobranca({ tipo: 'AVULSA', planoNome: null, descricao: null })).toBe('Cobrança avulsa');
+    expect(nomeNaListaDaCobranca({ tipo: 'MENSALIDADE', planoNome: 'Consultoria mensal', descricao: null })).toBe('Consultoria mensal');
+    expect(nomeNaListaDaCobranca({ tipo: 'SAIDA', planoNome: null, descricao: null })).toBe('—');
+  });
+  it('a referência da cobrança: o mês da competência; a avulsa pela descrição, nunca "—"', () => {
+    expect(referenciaDaCobranca({ tipo: 'MENSALIDADE', competencia: '2026-10-05', descricao: null })).toBe('out/2026');
+    expect(referenciaDaCobranca({ tipo: 'SAIDA', competencia: '2026-10-19' })).toBe('out/2026');
+    expect(referenciaDaCobranca({ tipo: 'AVULSA', competencia: null, descricao: ' Camiseta (Parcela 2/3) ' })).toBe('Camiseta (Parcela 2/3)');
+    expect(referenciaDaCobranca({ tipo: 'AVULSA', competencia: null, descricao: null })).toBe('Cobrança avulsa');
+    // Dado do aparelho do aluno, sem `descricao`.
+    expect(referenciaDaCobranca({ tipo: 'AVULSA', competencia: null })).toBe('Cobrança avulsa');
+  });
+  it('a linha do aluno chama a avulsa de "Cobrança avulsa", nunca de Mensalidade', () => {
+    const base = { situacao: 'ABERTA' as const, vencida: false, vencimento: '2026-12-05', valorCentavos: 15_000, pagoEm: null };
+    expect(informacaoDaCobranca({ ...base, tipo: 'AVULSA' })).toBe('Cobrança avulsa de R$ 150,00, vence em 05/12');
+    expect(informacaoDaCobranca({ ...base, vencida: true, tipo: 'AVULSA' })).toBe('Em aberto desde 05/12');
+  });
+  it('a linha da lista do treinador aceita a avulsa (competência nula não entra na conta)', () => {
+    const c = { valorCentavos: 15_000, situacao: 'ABERTA' as const, vencida: false, vencimento: '2026-12-05', diasDeAtraso: null, pagoEm: null, forma: null };
+    expect(resumoDaCobranca(c, '2026-11-17')).toBe('R$ 150,00 · vence 05/12');
+  });
+});
+
+describe('ações de pagamento do aluno (formas de recebimento, D7)', () => {
+  type Forma = 'INFINITEPAY' | 'LINK_PROPRIO' | 'PIX' | 'MANUAL';
+  const ligadas = { pagarNoIos: true, pagarNoAndroid: true };
+  const todas: readonly Forma[] = ['INFINITEPAY', 'LINK_PROPRIO', 'PIX', 'MANUAL'];
+  const acoes = (plataforma: 'web' | 'ios' | 'android', online: boolean, chaves: object, tipo: 'MENSALIDADE' | 'SAIDA' | 'AVULSA', formas: readonly Forma[], temLinkProprio = true) =>
+    acoesDePagamentoDoAluno(plataforma, online, chaves, tipo, { formas, temLinkProprio });
+
+  it('web com tudo ligado: Pagar (InfinitePay), Pagar (link próprio) e Copiar código Pix; o Manual não é ação', () => {
+    expect(acoes('web', true, {}, 'MENSALIDADE', todas)).toEqual(['PAGAR_INFINITEPAY', 'PAGAR_LINK_PROPRIO', 'COPIAR_PIX']);
+    expect(comoPagar('web', true, {}, 'MENSALIDADE', { formas: todas, temLinkProprio: true })).toBe('botao');
+  });
+  it('cada forma sozinha', () => {
+    expect(acoes('web', true, {}, 'MENSALIDADE', ['INFINITEPAY'])).toEqual(['PAGAR_INFINITEPAY']);
+    expect(acoes('web', true, {}, 'MENSALIDADE', ['LINK_PROPRIO'])).toEqual(['PAGAR_LINK_PROPRIO']);
+    expect(acoes('web', true, {}, 'MENSALIDADE', ['PIX'])).toEqual(['COPIAR_PIX']);
+  });
+  it('só o Manual (ou nenhuma forma): sem ação, o treinador combina e a web mostra a frase', () => {
+    for (const formas of [['MANUAL'], []] as Forma[][]) {
+      expect(acoes('web', true, {}, 'MENSALIDADE', formas)).toEqual([]);
+      expect(comoPagar('web', true, {}, 'MENSALIDADE', { formas })).toBe('combinar');
+    }
+    expect(textoDeComoPagar('combinar')).toBe(TEXTO_COMBINE_COM_O_TREINADOR);
+  });
+  it('celular com a chave desligada: NENHUMA ação (nem o Pix) e nenhuma frase, com qualquer combinação de formas', () => {
+    for (const plataforma of ['ios', 'android'] as const) {
+      for (const chaves of [{}, { pagarNoIos: false, pagarNoAndroid: false }, { pagarNoIos: plataforma === 'android', pagarNoAndroid: plataforma === 'ios' }]) {
+        expect(acoes(plataforma, true, chaves, 'MENSALIDADE', todas)).toEqual([]);
+        const modo = comoPagar(plataforma, true, chaves, 'MENSALIDADE', { formas: todas, temLinkProprio: true });
+        expect(modo).toBe('informar');
+        expect(textoDeComoPagar(modo)).toBeNull();
+        expect(textoDasAbertasDoAluno(modo, [modo, comoPagar(plataforma, true, chaves, 'SAIDA')])).toBeNull();
+      }
+    }
+  });
+  it('celular com a chave ligada: as mesmas ações da web', () => {
+    expect(acoes('ios', true, { pagarNoIos: true }, 'MENSALIDADE', todas)).toEqual(['PAGAR_INFINITEPAY', 'PAGAR_LINK_PROPRIO', 'COPIAR_PIX']);
+    expect(acoes('android', true, ligadas, 'AVULSA', ['PIX', 'MANUAL'])).toEqual(['COPIAR_PIX']);
+  });
+  it('a saída só informa, em qualquer plataforma e com qualquer forma', () => {
+    for (const plataforma of ['web', 'ios', 'android'] as const) {
+      expect(acoes(plataforma, true, ligadas, 'SAIDA', todas)).toEqual([]);
+      expect(comoPagar(plataforma, true, ligadas, 'SAIDA', { formas: todas, temLinkProprio: true })).toBe('informar');
+    }
+  });
+  it('a avulsa não tem o link do plano; a mensalidade só tem com o link no plano', () => {
+    expect(acoes('web', true, {}, 'AVULSA', todas)).toEqual(['PAGAR_INFINITEPAY', 'COPIAR_PIX']);
+    expect(acoes('web', true, {}, 'MENSALIDADE', todas, false)).toEqual(['PAGAR_INFINITEPAY', 'COPIAR_PIX']);
+    expect(acoesDePagamentoDoAluno('web', true, {}, 'MENSALIDADE', { formas: ['LINK_PROPRIO'] })).toEqual([]);
+  });
+  it('InfinitePay ligada na lista mas sem recebimento online (pagamentoOnline falso): sem "Pagar"', () => {
+    expect(acoes('web', false, {}, 'MENSALIDADE', ['INFINITEPAY', 'MANUAL'])).toEqual([]);
+    expect(comoPagar('web', false, {}, 'MENSALIDADE', { formas: ['INFINITEPAY', 'MANUAL'] })).toBe('combinar');
+  });
+  it('sem a lista de formas vale o de antes: InfinitePay só com pagamentoOnline', () => {
+    expect(acoesDePagamentoDoAluno('web', true, {})).toEqual(['PAGAR_INFINITEPAY']);
+    expect(acoesDePagamentoDoAluno('web', false, {})).toEqual([]);
+    expect(acoesDePagamentoDoAluno('web', true, {}, null)).toEqual(['PAGAR_INFINITEPAY']);
+  });
+  it('rótulos: "Pagar" quando é um só; com os dois Pagar, cada um diz de onde vem', () => {
+    expect(rotuloDaAcaoDePagamento('PAGAR_INFINITEPAY', ['PAGAR_INFINITEPAY', 'COPIAR_PIX'])).toBe('Pagar');
+    expect(rotuloDaAcaoDePagamento('PAGAR_LINK_PROPRIO', ['PAGAR_LINK_PROPRIO'])).toBe('Pagar');
+    expect(rotuloDaAcaoDePagamento('COPIAR_PIX', ['COPIAR_PIX'])).toBe('Copiar código Pix');
+    const duas = ['PAGAR_INFINITEPAY', 'PAGAR_LINK_PROPRIO', 'COPIAR_PIX'] as const;
+    expect(rotuloDaAcaoDePagamento('PAGAR_INFINITEPAY', duas)).toBe('Pagar pela InfinitePay');
+    expect(rotuloDaAcaoDePagamento('PAGAR_LINK_PROPRIO', duas)).toBe('Pagar pelo link do treinador');
   });
 });
