@@ -388,13 +388,8 @@ public class BibliotecaService {
         }
         BigDecimal kcal = kcalDoCorpo ? r.kcal()
                 : kcalDoAlimento(r.proteina(), r.carboidrato(), r.gordura(), atual == null ? null : atual.getKcal());
-        // shortcut: a V061 mantém o CHECK alimento_kcal_obrigatoria_check (alimento comum com kcal não nula); alimento NOVO sem os
-        // três macros fica sem kcal (D15: "—") e o banco recusaria com 500. Tirar este bloco quando a migration que derruba o CHECK entrar.
-        if (kcal == null) {
-            throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO", List.of(
-                    new ApiError.FieldError("proteina", "Preencha proteína, carboidrato e gordura para o app calcular a kcal.")));
-        }
-        exigirKcalNaFaixa(kcal);
+        // Sem os três macros e sem kcal gravada, a kcal fica nula ("—"); só uma kcal informada passa pela faixa.
+        if (kcal != null) exigirKcalNaFaixa(kcal);
         var fatores = FatoresDeRendimento.completar(r.fatorCorrecao(), r.fatorCoccao(), r.nome(), grupo,
                 kcal, r.baseQuantidade(), r.baseUnidade());
         exigirFatoresEGrupo(fatores.fatorCorrecao(), fatores.fatorCoccao(), grupo);

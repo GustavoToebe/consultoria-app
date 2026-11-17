@@ -129,6 +129,13 @@ class BibliotecaUnificadaMigrationTest extends AbstractIntegrationTest {
                         UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa9"), consultoria))
                         .isInstanceOf(SQLException.class)
                         .hasMessageContaining("alimento_kcal_obrigatoria_check");
+                // V086 (D15): macros opcionais, o CHECK cai e alimento comum sem kcal passa a valer; o que já existia não muda.
+                flyway(banco).target("86").load().migrate();
+                inserir(c, "insert into alimento(id, consultoria_id, nome, tipo, kcal) values (?, ?, 'Sem kcal fictício', 'ALIMENTO', null)",
+                        UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab"), consultoria);
+                assertThat(escalar(c, "select count(*)::text from pg_constraint where conname = 'alimento_kcal_obrigatoria_check'"))
+                        .isEqualTo("0");
+                assertThat(escalar(c, "select kcal::text from alimento where id = '" + alimento + "'")).isEqualTo("128.00");
                 try (PreparedStatement ps = c.prepareStatement(
                         "select tipo, kcal from alimento where id = ?")) {
                     ps.setObject(1, alimento);

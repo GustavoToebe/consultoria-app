@@ -148,13 +148,16 @@ class KcalDoAlimentoIntegrationTest extends AbstractIntegrationTest {
         JsonNode zerado = api.post("/alimentos", login, alimento("Água fictícia C", 50, 0, 0, 0), 200);
         assertThat(zerado.path("kcal").decimalValue()).isEqualByComparingTo("0.00");
 
-        // D15: alimento NOVO sem os três macros fica sem kcal ("—"), e o CHECK alimento_kcal_obrigatoria_check da V061 ainda o
-        // proíbe: por ora a API responde 422 no campo proteina (não 500). Quando a migration derrubar o CHECK, este caso passa a
-        // 200 com kcal nula e macros digitados gravados (o bloco `shortcut:` do BibliotecaService.valores sai).
-        JsonNode erro = api.post("/alimentos", login, alimento("Sem macros fictício D", 100, null, null, null), 422);
-        assertThat(StreamSupport.stream(erro.path("fieldErrors").spliterator(), false).map(f -> f.path("field").asString()))
-                .containsExactly("proteina");
-        api.post("/alimentos", login, alimento("Dois macros fictício E", null, 10, 20, null), 422);
+        // D15 (V086 derrubou o CHECK da V061): alimento NOVO sem os três macros fica sem kcal ("—"), com os macros digitados
+        // gravados e nunca zero por ausência.
+        JsonNode semMacros = api.post("/alimentos", login, alimento("Sem macros fictício D", 100, null, null, null), 200);
+        assertThat(semMacros.path("kcal").isNull()).isTrue();
+        assertThat(semMacros.path("proteina").isNull()).isTrue();
+        assertThat(kcalGravado(UUID.fromString(semMacros.path("id").asString()))).isNull();
+        JsonNode doisMacros = api.post("/alimentos", login, alimento("Dois macros fictício E", null, 10, 20, null), 200);
+        assertThat(doisMacros.path("kcal").isNull()).isTrue();
+        assertThat(doisMacros.path("proteina").decimalValue()).isEqualByComparingTo("10");
+        assertThat(doisMacros.path("gordura").isNull()).isTrue();
     }
 
     @Test
