@@ -1,5 +1,6 @@
-import type { ConteudoDieta, FatoresDoAlimento, ItemDieta, UnidadeAlimento } from '../api/tipos';
+import type { ConteudoDieta, FatoresDoAlimento, ItemDieta, Refeicao, UnidadeAlimento } from '../api/tipos';
 import { completarFatores, NOTA_DA_ESTIMATIVA } from './fatoresDoAlimento';
+import { secoesDaDieta } from './variacoesDaDieta';
 
 /**
  * Lista de compras da dieta publicada (pedido do Saraiva em 17/10, R13/R14/R32), calculada no aparelho do aluno, também
@@ -69,7 +70,7 @@ export interface LinhaDaLista {
 }
 
 /** Opção que entra na lista para a refeição: a escolhida, se ainda existe; senão a primeira. */
-function opcaoEscolhida(refeicao: ConteudoDieta['refeicoes'][number], escolhas: EscolhasDeOpcao) {
+function opcaoEscolhida(refeicao: Refeicao, escolhas: EscolhasDeOpcao) {
   const uid = escolhas[refeicao.uid];
   return refeicao.opcoes.find((o) => o.uid === uid) ?? refeicao.opcoes[0];
 }
@@ -96,15 +97,30 @@ function porDia(item: ItemDieta & { quantidade: number }): { quantidade: number;
   return { quantidade: (item.quantidade / fatores.fcc) * fatores.fc, cru, bruto, fc: fatores.fc, fcc: fatores.fcc };
 }
 
+/** Todas as refeições da dieta, de todas as variações (a raiz, sem variações). Só para quem não depende do dia. */
+function todasAsRefeicoes(conteudo: ConteudoDieta): Refeicao[] {
+  return secoesDaDieta(conteudo).flatMap((s) => s.refeicoes);
+}
+
+/**
+ * Refeições de cada seção com os dias que ela vale no período: `dias da seção × período ÷ 7` (multiplica antes de dividir:
+ * sem variação são 7 dias e dá exatamente o período, 7, 14 ou 30). Variação de rascunho sem dia marcado fica de fora.
+ */
+function refeicoesComDias(conteudo: ConteudoDieta, periodo: PeriodoDaLista): { refeicao: Refeicao; dias: number }[] {
+  return secoesDaDieta(conteudo).flatMap((s) => {
+    const dias = (s.dias.length * DIAS_DO_PERIODO[periodo]) / 7;
+    return dias === 0 ? [] : s.refeicoes.map((refeicao) => ({ refeicao, dias }));
+  });
+}
+
 /**
  * Lista do período: soma, por alimento (mesmo `alimentoId`; item manual pelo nome sem acento) e unidade, a opção
- * escolhida de cada refeição vezes os dias. Refeição sem opções e item sem quantidade (ou sem nome) não entram: nada
- * vira zero. Ordem alfabética sem acento.
+ * escolhida de cada refeição vezes os dias (com variações, cada uma pelos dias dela na semana). Refeição sem opções e
+ * item sem quantidade (ou sem nome) não entram: nada vira zero. Ordem alfabética sem acento.
  */
 export function listaDeCompras(conteudo: ConteudoDieta, escolhas: EscolhasDeOpcao, periodo: PeriodoDaLista): LinhaDaLista[] {
-  const dias = DIAS_DO_PERIODO[periodo];
   const linhas = new Map<string, LinhaDaLista>();
-  for (const refeicao of conteudo.refeicoes) {
+  for (const { refeicao, dias } of refeicoesComDias(conteudo, periodo)) {
     const opcao = opcaoEscolhida(refeicao, escolhas);
     for (const item of opcao?.itens ?? []) {
       const nome = item.nome.trim();
@@ -146,24 +162,24 @@ function mesmoFator(atual: number | null, novo: number | null): number | null {
   return atual !== null && novo !== null && atual === novo ? atual : null;
 }
 
-/** "Café da manhã: opção B" para cada refeição com mais de uma opção. */
+/** "Café da manhã: opção B" para cada refeição com mais de uma opção; com variações, "Carbo alto · Café da manhã: opção B". */
 export function textosDasOpcoes(conteudo: ConteudoDieta, escolhas: EscolhasDeOpcao): string[] {
-  return refeicoesComEscolha(conteudo).map((r) => {
+  return secoesDaDieta(conteudo).flatMap((s) => s.refeicoes.filter((r) => r.opcoes.length > 1).map((r) => {
     const uid = escolhas[r.uid];
     const opcao = r.opcoes.find((o) => o.uid === uid) ?? r.opcoes[0];
-    return `${r.nome || 'Refeição'}: opção ${opcao?.rotulo ?? '—'}`;
-  });
+    return `${s.rotulo ? `${s.rotulo} · ` : ''}${r.nome || 'Refeição'}: opção ${opcao?.rotulo ?? '—'}`;
+  }));
 }
 
-/** Refeições com mais de uma opção: só nelas o aluno escolhe qual entra na lista. */
-export function refeicoesComEscolha(conteudo: ConteudoDieta): ConteudoDieta['refeicoes'] {
-  return conteudo.refeicoes.filter((r) => r.opcoes.length > 1);
+/** Refeições (de todas as variações) com mais de uma opção: só nelas o aluno escolhe qual entra na lista. */
+export function refeicoesComEscolha(conteudo: ConteudoDieta): Refeicao[] {
+  return todasAsRefeicoes(conteudo).filter((r) => r.opcoes.length > 1);
 }
 
-/** Ids distintos dos alimentos da biblioteca usados na dieta (todas as opções), para buscar os fatores atuais. */
+/** Ids distintos dos alimentos da biblioteca usados na dieta (todas as variações e opções), para buscar os fatores atuais. */
 export function alimentosDaDieta(conteudo: ConteudoDieta): string[] {
   const ids = new Set<string>();
-  for (const r of conteudo.refeicoes) for (const o of r.opcoes) for (const i of o.itens) if (i.alimentoId) ids.add(i.alimentoId);
+  for (const r of todasAsRefeicoes(conteudo)) for (const o of r.opcoes) for (const i of o.itens) if (i.alimentoId) ids.add(i.alimentoId);
   return [...ids];
 }
 
@@ -175,18 +191,20 @@ export function alimentosDaDieta(conteudo: ConteudoDieta): string[] {
  */
 export function comFatoresDaBiblioteca(conteudo: ConteudoDieta, fatores: readonly FatoresDoAlimento[]): ConteudoDieta {
   const porId = new Map(fatores.map((f) => [f.alimentoId, f]));
+  const comFatores = (refeicoes: Refeicao[]): Refeicao[] => refeicoes.map((r) => ({
+    ...r,
+    opcoes: r.opcoes.map((o) => ({
+      ...o,
+      itens: o.itens.map((i) => {
+        const f = i.alimentoId ? porId.get(i.alimentoId) : undefined;
+        return { ...i, fatorCorrecao: f?.fatorCorrecao ?? null, fatorCoccao: f?.fatorCoccao ?? null, grupo: f?.grupo ?? null };
+      }),
+    })),
+  }));
   return {
     ...conteudo,
-    refeicoes: conteudo.refeicoes.map((r) => ({
-      ...r,
-      opcoes: r.opcoes.map((o) => ({
-        ...o,
-        itens: o.itens.map((i) => {
-          const f = i.alimentoId ? porId.get(i.alimentoId) : undefined;
-          return { ...i, fatorCorrecao: f?.fatorCorrecao ?? null, fatorCoccao: f?.fatorCoccao ?? null, grupo: f?.grupo ?? null };
-        }),
-      })),
-    })),
+    refeicoes: comFatores(conteudo.refeicoes),
+    variacoes: conteudo.variacoes.map((v) => ({ ...v, refeicoes: comFatores(v.refeicoes) })),
   };
 }
 

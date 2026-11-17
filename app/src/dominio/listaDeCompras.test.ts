@@ -1,6 +1,6 @@
 import type { ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao } from '../api/tipos';
 import { normalizarDieta } from './dieta';
-import { alimentosDaDieta, comFatoresDaBiblioteca, detalheDaConversao, DIAS_DO_PERIODO, listaDeCompras, NOTA_DA_LISTA, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, PERIODOS_DA_LISTA, textoDoPeriodo, tituloDaLista } from './listaDeCompras';
+import { alimentosDaDieta, comFatoresDaBiblioteca, detalheDaConversao, DIAS_DO_PERIODO, listaDeCompras, NOTA_DA_LISTA, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, PERIODOS_DA_LISTA, textoDoPeriodo, textosDasOpcoes, tituloDaLista } from './listaDeCompras';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
 
@@ -97,6 +97,70 @@ describe('listaDeCompras', () => {
   it('dieta publicada vinda da API passa pelo normalizador sem perder os fatores', () => {
     const c = normalizarDieta({ refeicoes: [{ uid: 'r', nome: 'Almoço', opcoes: [{ uid: 'a', rotulo: 'A', itens: [{ uid: 'i', alimentoId: 'x', nome: 'Arroz cozido', quantidade: 100, unidade: 'g', fatorCoccao: 2.5 }] }] }] });
     expect(listaDeCompras(c, {}, 'semana')[0]).toMatchObject({ quantidade: 280, cru: true, bruto: false });
+  });
+});
+
+describe('dieta com variações por dia da semana', () => {
+  const leite = (quantidade: number) => item('Leite', quantidade, { unidade: 'ml' });
+  const variacao = (uid: string, rotulo: string, dias: number[], refeicoes: Refeicao[]) => ({ uid, rotulo, dias, refeicoes });
+  const comVariacoes = (variacoes: ConteudoDieta['variacoes']): ConteudoDieta => ({ ...normalizarDieta(null), refeicoes: [], variacoes });
+  // 5 dias com 100 ml e 2 dias com 50 ml (e ovo só na segunda).
+  const cinco = comVariacoes([
+    variacao('v1', 'Carbo alto', [1, 2, 3, 4, 5], [refeicao('cafe1', [opcao('a', [leite(100)])])]),
+    variacao('v2', 'Carbo baixo', [6, 7], [refeicao('cafe2', [opcao('a', [leite(50), item('Ovo', 30, { unidade: 'un' })])])]),
+  ]);
+
+  it('cada variação entra pelos dias dela: dias × período ÷ 7, somando o mesmo alimento entre variações', () => {
+    const quantidade = (periodo: 'semana' | 'duasSemanas' | 'mes') => listaDeCompras(cinco, {}, periodo).find((l) => l.nome === 'Leite')?.quantidade;
+    expect(quantidade('semana')).toBe(100 * 5 + 50 * 2);
+    expect(quantidade('duasSemanas')).toBe(100 * 10 + 50 * 4);
+    expect(quantidade('mes')).toBeCloseTo((100 * 5 + 50 * 2) * (30 / 7), 6);
+    expect(listaDeCompras(cinco, {}, 'semana').find((l) => l.nome === 'Ovo')?.quantidade).toBe(30 * 2);
+  });
+
+  it('dieta sem variação e a mesma dieta numa variação com os 7 dias dão exatamente a mesma lista', () => {
+    const refs = [refeicao('r', [opcao('a', [item('Arroz cozido', 150, { alimentoId: 'arroz', manual: false, fatorCoccao: 2.5 }), leite(250)])])];
+    const semVariacao = dieta(refs);
+    const umaVariacao = comVariacoes([variacao('v', 'Única', [1, 2, 3, 4, 5, 6, 7], refs)]);
+    for (const periodo of PERIODOS_DA_LISTA) {
+      expect(listaDeCompras(umaVariacao, {}, periodo)).toEqual(listaDeCompras(semVariacao, {}, periodo));
+    }
+  });
+
+  it('variação sem dia marcado (rascunho) não entra, e sem nenhuma a lista fica vazia', () => {
+    const rascunho = comVariacoes([
+      variacao('v1', 'Marcada', [1, 2], [refeicao('r1', [opcao('a', [leite(100)])])]),
+      variacao('v2', 'Sem dia', [], [refeicao('r2', [opcao('a', [item('Suco', 200, { unidade: 'ml' })])])]),
+    ]);
+    expect(listaDeCompras(rascunho, {}, 'semana').map((l) => [l.nome, l.quantidade])).toEqual([['Leite', 200]]);
+    expect(listaDeCompras(comVariacoes([variacao('v', 'Vazia', [], [])]), {}, 'semana')).toEqual([]);
+  });
+
+  it('a escolha de opção vale por refeição de qualquer variação, e o texto diz de qual variação é', () => {
+    const duas = comVariacoes([
+      variacao('v1', 'Carbo alto', [1, 2, 3], [refeicao('r1', [opcao('a', [leite(100)]), opcao('b', [leite(300)])])]),
+      variacao('v2', 'Carbo baixo', [4, 5, 6, 7], [refeicao('r2', [opcao('a', [leite(50)]), opcao('b', [leite(70)])])]),
+    ]);
+    expect(refeicoesComEscolha(duas).map((r) => r.uid)).toEqual(['r1', 'r2']);
+    expect(textosDasOpcoes(duas, { r1: 'b' })).toEqual(['Carbo alto · r1: opção B', 'Carbo baixo · r2: opção A']);
+    expect(listaDeCompras(duas, { r1: 'b', r2: 'b' }, 'semana')[0].quantidade).toBe(300 * 3 + 70 * 4);
+    // Sem variação o texto é o de antes, sem prefixo.
+    expect(textosDasOpcoes(dieta([refeicao('r', [opcao('a', []), opcao('b', [])])]), {})).toEqual(['r: opção A']);
+  });
+
+  it('os ids dos alimentos e os fatores da biblioteca alcançam as variações (e a raiz continua vazia)', () => {
+    const c = comVariacoes([
+      variacao('v1', 'A', [1, 2, 3], [refeicao('r1', [opcao('a', [item('Arroz cozido', 100, { alimentoId: 'arroz', manual: false })])])]),
+      variacao('v2', 'B', [4, 5, 6, 7], [refeicao('r2', [opcao('a', [item('Feijão', 100, { alimentoId: 'feijao', manual: false })])])]),
+    ]);
+    expect(alimentosDaDieta(c)).toEqual(['arroz', 'feijao']);
+    const comFatores = comFatoresDaBiblioteca(c, [{ alimentoId: 'feijao', fatorCorrecao: 1.1, fatorCoccao: null, grupo: 'Leguminosas' }]);
+    expect(comFatores.refeicoes).toEqual([]);
+    expect(comFatores.variacoes.map((v) => v.rotulo)).toEqual(['A', 'B']);
+    expect(comFatores.variacoes.flatMap((v) => v.refeicoes.flatMap((r) => r.opcoes.flatMap((o) => o.itens))).map((i) => [i.nome, i.fatorCorrecao, i.grupo]))
+      .toEqual([['Arroz cozido', null, null], ['Feijão', 1.1, 'Leguminosas']]);
+    // O conteúdo recebido não muda.
+    expect(c.variacoes[1].refeicoes[0].opcoes[0].itens[0].fatorCorrecao).toBeNull();
   });
 });
 

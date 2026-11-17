@@ -219,6 +219,16 @@ const dieta: ConteudoDieta = normalizarDieta({
   ergogenicos: [{ uid: 'e1', nome: 'Item', principioAtivo: 'Princípio', concentracao: '200 mg', dose: 'Dose', horario: 'Horário', observacao: 'Obs', prescricao: 'Prescrição' }],
 });
 
+// Dieta por dia da semana: o rótulo da variação é texto do treinador e entra no PDF como título da seção.
+const dietaComVariacoes: ConteudoDieta = {
+  ...dieta,
+  refeicoes: [],
+  variacoes: [
+    { uid: 'v1', rotulo: 'Dia de carbo alto', dias: [1, 3, 5], refeicoes: dieta.refeicoes },
+    { uid: 'v2', rotulo: 'Dia de carbo baixo', dias: [2, 4, 6, 7], refeicoes: dieta.refeicoes },
+  ],
+};
+
 const mobilidade = normalizarMobilidade({
   orientacoes: 'Orientações',
   secoes: [{ uid: 's1', titulo: 'Seção', itens: [{ uid: 'i1', nome: 'Gato-camelo', prescricao: '2x30s', videoUrl: 'https://youtu.be/abc' }] }],
@@ -250,6 +260,10 @@ describe('PDF da dieta não deixa texto virar HTML', () => {
   conferir('dieta com lista de compras', documentoDieta as never, {
     ...base, versao: 1, conteudo: dieta, pesos: [],
     lista: { periodo: 'mes', opcoes: ['Café: opção B'], linhas: [linhaDaLista('a'), linhaDaLista('b', { semFator: true, cru: false, bruto: false, fatorCorrecao: null, fatorCoccao: null })], mostrarFatores: true },
+  });
+  conferir('dieta com variações e lista de compras', documentoDieta as never, {
+    ...base, versao: 1, conteudo: dietaComVariacoes, pesos: [],
+    lista: { periodo: 'semana', opcoes: ['Dia de carbo alto · Café: opção B'], linhas: [linhaDaLista('a')], mostrarFatores: false },
   });
 });
 

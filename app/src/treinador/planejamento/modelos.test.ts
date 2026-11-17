@@ -91,6 +91,11 @@ describe('Planejamento e as funcionalidades do plano', () => {
     expect(metadadosDoModelo('PLANO_TREINO', { sessoes: [{ nome: 'A', exercicios: [] }] })).toBe('1 sessão · sem exercícios');
     expect(metadadosDoModelo('PASTA_PLANO', { planos: [{}, {}] })).toBe('2 planos');
     expect(metadadosDoModelo('PLANO_DIETA', { refeicoes: [] })).toBe('0 refeições');
+    // Com variações a raiz é vazia: conta as refeições de todas e só mostra kcal com uma variação (um total único).
+    const refeicoes = [{ nome: 'Almoço', opcoes: [{ rotulo: 'A', itens: [{ nome: 'Arroz', quantidade: 100, unidade: 'g', kcal: 130, proteina: 3, carboidrato: 28, gordura: 0 }] }] }];
+    const variacao = (uid: string, dias: number[]) => ({ uid, rotulo: uid, dias, refeicoes });
+    expect(metadadosDoModelo('PLANO_DIETA', { refeicoes: [], variacoes: [variacao('v1', [1, 2, 3, 4, 5, 6, 7])] })).toBe('1 refeição · 130 kcal');
+    expect(metadadosDoModelo('PLANO_DIETA', { refeicoes: [], variacoes: [variacao('v1', [1, 2]), variacao('v2', [3, 4])] })).toBe('2 refeições');
     expect(metadadosDoModelo('METODOLOGIA', { tipos: [{nome:'FS'}, {nome:'WS'}] })).toBe('2 tipos de série');
     expect(metadadosDoModelo('MOBILIDADE', { orientacoes: '', secoes: [{ titulo: 'A', itens: [{ nome: 'x', prescricao: '', videoUrl: '' }] }] })).toBe('1 seção · 1 item');
   });

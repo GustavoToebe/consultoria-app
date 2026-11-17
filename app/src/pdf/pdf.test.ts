@@ -12,7 +12,7 @@ import { TEMAS_PDF } from './temas';
 import { CLARO, contraste, marcaParaTexto } from '../tema/tokens';
 import type { LinhaCarga } from '../dominio/relatorio';
 import { documentoCargas } from './pdfCargas';
-import { documentoDieta } from './pdfDieta';
+import { documentoDieta, textoDosDias } from './pdfDieta';
 import { ajustarQuantidade, alternarComprado, gravarAvulso, itensDoAluno, MARCACOES_VAZIAS } from '../dominio/listaDeComprasDoAluno';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoMobilidade } from './pdfMobilidade';
@@ -456,6 +456,67 @@ describe('PDF da dieta', () => {
     }).corpo;
     expect(previa).toContain('Prévia com os fatores atuais da biblioteca');
     expect(previa).toContain('Lista de compras · 7 dias');
+  });
+
+  describe('variações por dia da semana', () => {
+    const opcaoA = (nome: string, quantidade: number, kcalDoItem: number) => ({
+      rotulo: 'A', itens: [{ nome, quantidade, unidade: 'g' as const, kcal: kcalDoItem, proteina: 1, carboidrato: 1, gordura: 1 }],
+    });
+    const ref = (nome: string, o: ReturnType<typeof opcaoA>) => normalizarDieta({ refeicoes: [{ nome, opcoes: [o] }] }).refeicoes;
+    const comVariacoes: ConteudoDieta = {
+      ...dieta,
+      refeicoes: [],
+      variacoes: [
+        { uid: 'v1', rotulo: 'Dia de <b>carbo</b> alto', dias: [5, 1, 3], refeicoes: ref('Almoço', opcaoA('Arroz', 200, 260)) },
+        { uid: 'v2', rotulo: 'Dia de carbo baixo', dias: [2, 4, 6, 7], refeicoes: ref('Jantar', opcaoA('Frango', 150, 240)) },
+      ],
+    };
+    const corpo = documentoDieta({ ...base, versao: 1, conteudo: comVariacoes, pesos: [] }).corpo;
+
+    it('textoDosDias: em ordem, 7 = domingo, sem repetir, ignora dia inválido e vazio vira "—"', () => {
+      expect(textoDosDias([5, 1, 3])).toBe('seg, qua, sex');
+      expect(textoDosDias([7, 6, 6])).toBe('sáb, dom');
+      expect(textoDosDias([0, 8, 2.5])).toBe('—');
+      expect(textoDosDias([])).toBe('—');
+    });
+
+    it('uma seção por variação, com rótulo escapado, dias em texto, total da variação e as refeições dela', () => {
+      expect(corpo).toContain('Variação · Dia de &lt;b&gt;carbo&lt;/b&gt; alto');
+      expect(corpo).not.toContain('<b>carbo</b>');
+      expect(corpo).toContain('Variação · Dia de carbo baixo');
+      expect(corpo).toContain('Dias: seg, qua, sex');
+      expect(corpo).toContain('Dias: ter, qui, sáb, dom');
+      expect(corpo).toContain('260 kcal');
+      expect(corpo).toContain('240 kcal');
+      expect(corpo).toContain('Total do dia desta variação considerando a opção A de cada refeição.');
+      expect(corpo).toContain('ALMOÇO');
+      expect(corpo).toContain('JANTAR');
+      // a tabela única do dia só existe sem variação
+      expect(corpo).not.toContain('Distribuição diária de macronutrientes');
+      expect(corpo.indexOf('Dia de carbo baixo')).toBeGreaterThan(corpo.indexOf('Dia de &lt;b&gt;carbo'));
+    });
+
+    it('orientações e suplementação continuam globais, uma vez só', () => {
+      const com = documentoDieta({
+        ...base, versao: 1, pesos: [],
+        conteudo: { ...comVariacoes, orientacoes: [{ titulo: 'Água', texto: 'Beba água' }] },
+      }).corpo;
+      expect(com.match(/Orientações e recomendações/g)).toHaveLength(1);
+      expect(com.match(/Beba água/g)).toHaveLength(1);
+    });
+
+    it('com lista, avisa que cada variação entra pelos dias dela; sem variação, o aviso não aparece', () => {
+      const lista = { periodo: 'semana' as const, opcoes: [], linhas: [], mostrarFatores: false };
+      const com = documentoDieta({ ...base, versao: 1, conteudo: comVariacoes, pesos: [], lista }).corpo;
+      expect(com).toContain('Cada variação entra pelo número de dias dela na semana.');
+      expect(documentoDieta({ ...base, versao: 1, conteudo: dieta, pesos: [], lista }).corpo).not.toContain('Cada variação entra');
+    });
+
+    it('sem variação o PDF é o de sempre: tabela do dia, sem seção de variação', () => {
+      expect(html).toContain('Distribuição diária de macronutrientes');
+      expect(html).not.toContain('Variação ·');
+      expect(html).not.toContain('Dias:');
+    });
   });
 
   describe('link da suplementação', () => {

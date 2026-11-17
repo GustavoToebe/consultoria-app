@@ -1,4 +1,6 @@
-import type { ConteudoDieta, ItemDieta, Marca, RegistroPeso, Suplemento } from '../api/tipos';
+import type { ConteudoDieta, ItemDieta, Marca, Refeicao, RegistroPeso, Suplemento } from '../api/tipos';
+import { NOMES_DOS_DIAS } from '../dominio/calendario';
+import { secoesDaDieta } from '../dominio/variacoesDaDieta';
 import { modoDePreparoParaMostrar, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type Totais } from '../dominio/dieta';
 import { DIAS_DO_PERIODO, NOTA_DA_LISTA, NOTA_DA_PREVIA, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
 import { cabecalhoDaTabela, corpoDaTabela } from './pdfListaDeCompras';
@@ -41,6 +43,12 @@ export function textoTotaisPdf(t: Totais): string {
   return `${kcal(t.kcal)} · P: ${g(t.proteina)} · C: ${g(t.carboidrato)} · G: ${g(t.gordura)}`;
 }
 
+/** "seg, qua, sex" para os dias da variação (1 = segunda ... 7 = domingo), em ordem; sem dia válido, "—". */
+export function textoDosDias(dias: number[]): string {
+  const validos = [...new Set(dias)].filter((d) => Number.isInteger(d) && d >= 1 && d <= 7).sort((a, b) => a - b);
+  return validos.length ? validos.map((d) => NOMES_DOS_DIAS[d % 7]).join(', ') : '—';
+}
+
 /** Nome do suplemento; vira link só se o link passa na regra (https sem credenciais). Nome e link passam por `esc()`. */
 export function nomeDoSuplemento(s: Pick<Suplemento, 'nome' | 'link'>): string {
   const nome = esc(s.nome) || '—';
@@ -57,14 +65,14 @@ function linhaItem(i: ItemDieta, cor: string): string {
   return `<div class="item">• ${esc(i.nome)} <strong style="color:${cor}">${esc(qtd)}</strong> <span class="macros">| ${esc(textoTotaisPdf(somar([i])))}</span></div>`;
 }
 
-function secaoDaLista(lista: NonNullable<DadosPdfDieta['lista']>, versao: number | null, cor: string): string {
+function secaoDaLista(lista: NonNullable<DadosPdfDieta['lista']>, versao: number | null, cor: string, comVariacoes: boolean): string {
   const dias = DIAS_DO_PERIODO[lista.periodo];
   const tabela = lista.linhas.length
     ? `<table><thead>${cabecalhoDaTabela(lista.mostrarFatores)}</thead><tbody>${corpoDaTabela(lista.linhas, lista.mostrarFatores)}</tbody></table>`
     : '<div class="suave">—</div>';
   const previa = versao ? '' : `<div class="rodape">${esc(NOTA_DA_PREVIA)}</div>`;
   return `<div class="lista-pdf"><h2 class="sec" style="color:${cor}">Lista de compras · ${dias} dias</h2>
-${lista.opcoes.length ? `<div class="pequeno">${lista.opcoes.map(esc).join(' · ')}</div>` : ''}
+${comVariacoes ? '<div class="pequeno">Cada variação entra pelo número de dias dela na semana.</div>\n' : ''}${lista.opcoes.length ? `<div class="pequeno">${lista.opcoes.map(esc).join(' · ')}</div>` : ''}
 ${tabela}
 <div class="rodape">${esc(NOTA_DA_LISTA)}</div>${previa}</div>`;
 }
@@ -146,7 +154,12 @@ export function documentoDieta(d: DadosPdfDieta): Documento {
   const corTexto = corDeTextoNoTema(d.marca.corPrimaria, tema);
   const barra = `<div class="barra" style="background:${cor}"></div>`;
   const sec = (t: string) => `<h2 class="sec" style="color:${corTexto}">${esc(t)}</h2>`;
-  const total = totalDoDia(c);
+  const comVariacoes = c.variacoes.length > 0;
+  const tabelaDoTotal = (t: Totais) => `<table class="macros"><tbody>
+<tr><td>Calorias Totais</td><td style="color:${corTexto}">${esc(kcal(t.kcal))}</td></tr>
+<tr><td>Proteína</td><td style="color:${corTexto}">${esc(g(t.proteina))}</td></tr>
+<tr><td>Carboidrato</td><td style="color:${corTexto}">${esc(g(t.carboidrato))}</td></tr>
+<tr><td>Gordura</td><td style="color:${corTexto}">${esc(g(t.gordura))}</td></tr></tbody></table>`;
   // Nome do aluno e data de emissão ficam no cabeçalho comum (`cabecalhoDoPdf`), sem repetir aqui.
   const identificacao = [
     ['Objetivo', c.objetivo],
@@ -155,7 +168,7 @@ export function documentoDieta(d: DadosPdfDieta): Documento {
   ]
     .map(([r, v]) => `<tr><td>${esc(r)}</td><td>${esc(v || '—')}</td></tr>`)
     .join('');
-  const refeicoes = c.refeicoes
+  const htmlDasRefeicoes = (lista: Refeicao[]) => lista
     .map((r, ri) => {
       const varias = r.opcoes.length > 1;
       const opcoes = r.opcoes
@@ -178,6 +191,24 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
       }</div>`;
     })
     .join('');
+  // Sem variação, a dieta de sempre (macros do dia e refeições); com variações, uma seção por variação: rótulo, dias em
+  // texto, total do dia dela e refeições. Orientações, suplementos e o resto abaixo são globais.
+  const planoAlimentar = comVariacoes
+    ? [
+        sec('Sugestão de plano alimentar'),
+        ...secoesDaDieta(c).map((s) => `<div class="bloco">${sec(`Variação · ${s.rotulo ?? ''}`)}<div class="escolha">Dias: ${esc(textoDosDias(s.dias))}</div>
+${tabelaDoTotal(totalDoDia(s.refeicoes))}
+<div class="pequeno">Total do dia desta variação considerando a opção A de cada refeição.</div></div>
+${htmlDasRefeicoes(s.refeicoes) || '<div class="suave">—</div>'}`),
+      ]
+    : [
+        `<div class="bloco">${sec('Distribuição diária de macronutrientes')}
+${tabelaDoTotal(totalDoDia(c.refeicoes))}
+<div class="pequeno">Total do dia considerando a opção A de cada refeição.</div></div>`,
+        barra,
+        sec('Sugestão de plano alimentar'),
+        htmlDasRefeicoes(c.refeicoes) || '<div class="suave">—</div>',
+      ];
   const suplementos = c.suplementacao.filter((s) => s.nome || s.dose || s.horario || s.observacao || s.cupom?.trim());
   const ergogenicos = ergogenicosPreenchidos(c.ergogenicos);
   const comPrescricao = ergogenicos.some((e) => e.prescricao.trim() !== '');
@@ -193,16 +224,7 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
     }),
     `<div class="bloco">${sec('Identificação do aluno')}<table class="id"><tbody>${identificacao}</tbody></table></div>`,
     barra,
-    `<div class="bloco">${sec('Distribuição diária de macronutrientes')}
-<table class="macros"><tbody>
-<tr><td>Calorias Totais</td><td style="color:${corTexto}">${esc(kcal(total.kcal))}</td></tr>
-<tr><td>Proteína</td><td style="color:${corTexto}">${esc(g(total.proteina))}</td></tr>
-<tr><td>Carboidrato</td><td style="color:${corTexto}">${esc(g(total.carboidrato))}</td></tr>
-<tr><td>Gordura</td><td style="color:${corTexto}">${esc(g(total.gordura))}</td></tr></tbody></table>
-<div class="pequeno">Total do dia considerando a opção A de cada refeição.</div></div>`,
-    barra,
-    sec('Sugestão de plano alimentar'),
-    refeicoes || '<div class="suave">—</div>',
+    ...planoAlimentar,
     c.orientacoes.length || c.observacoes ? barra : '',
     c.orientacoes.length
       ? `<div class="bloco">${sec('Orientações e recomendações')}${c.orientacoes
@@ -233,6 +255,6 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
       : '',
     `<div class="fim">${d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : ''}<div class="pequeno centro" style="margin-top:14pt">${esc(d.marca.nome)}</div></div>`,
   ];
-  if (d.lista) partes.splice(partes.length - 1, 0, secaoDaLista(d.lista, d.versao, corTexto));
+  if (d.lista) partes.splice(partes.length - 1, 0, secaoDaLista(d.lista, d.versao, corTexto, comVariacoes));
   return { titulo: `Dieta - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria, tema) + CSS_DIETA + cssDoTemaDeDieta(tema, cor), corpo: partes.join('\n') };
 }

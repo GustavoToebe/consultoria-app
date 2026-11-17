@@ -1,6 +1,7 @@
 import type { Configuracao, TipoReceita } from '../../api/tipos';
 import { normalizarDieta, novaRefeicao, totalDoDia } from '../../dominio/dieta';
 import { numeroParaTela } from '../../dominio/formatos';
+import { secoesDaDieta } from '../../dominio/variacoesDaDieta';
 import { normalizarTreino, novaSerie, novaSessao, seriesDaReceita } from '../../dominio/editorTreino';
 import { temFuncionalidade } from '../../dominio/funcionalidadesDoPlano';
 import { mobilidadeParaApi, normalizarMobilidade } from '../../dominio/mobilidade';
@@ -141,8 +142,11 @@ export function metadadosDoModelo(tipo: TipoReceita, conteudo: unknown): string 
     case 'SERIES': return contar(seriesDaReceita(conteudo).length, 'série', 'séries');
     case 'PLANO_DIETA': case 'REFEICAO': {
       const d = normalizarDieta(conteudo);
-      const kcal = totalDoDia(d).kcal;
-      return [contar(d.refeicoes.length, 'refeição', 'refeições'), kcal === null || d.refeicoes.length === 0 ? null : `${numeroParaTela(kcal, 0)} kcal`].filter(Boolean).join(' · ');
+      // Com variações a raiz é vazia: conta as refeições de todas e só mostra kcal quando há um total único (uma seção).
+      const secoes = secoesDaDieta(d);
+      const total = secoes.reduce((n, s) => n + s.refeicoes.length, 0);
+      const kcal = secoes.length === 1 ? totalDoDia(secoes[0].refeicoes).kcal : null;
+      return [contar(total, 'refeição', 'refeições'), kcal === null || total === 0 ? null : `${numeroParaTela(kcal, 0)} kcal`].filter(Boolean).join(' · ');
     }
     case 'PASTA_PLANO': return contar((conteudo as { planos?: unknown[] } | null)?.planos?.length ?? 0, 'plano', 'planos');
     case 'MOBILIDADE': {
