@@ -1,6 +1,6 @@
 import { Medal, X } from 'lucide-react-native';
-import { useEffect } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, type RefObject } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInUp, FadeOutUp, ReduceMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,10 +8,11 @@ import type { DemonstracaoDoAluno } from '../api/tipos';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO, TOKENS_STNDRD_ESCURO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
 import { Texto } from '../ui/Texto';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
+import { Vidro } from '../ui/Vidro';
 
 /** Quanto tempo o aviso fica no topo (o aluno pode fechar antes). */
 export const DURACAO_DO_AVISO_DE_RECORDE_MS = 5000;
@@ -30,11 +31,15 @@ export interface RecordeParaAvisar {
  * Aviso de recorde pessoal no topo da tela do exercício (Engajamento 0.2, referência do Hevy): aparece na hora em que a
  * série é marcada, sem internet, com a miniatura e o nome do exercício e uma linha por recorde ("Maior carga · 70 kg").
  * Some sozinho em 5 s; o leitor de tela o anuncia (região viva educada). Cor de conquista (D9, 17/11) no ícone e no selo,
- * nunca a da marca; o nome do exercício e as linhas ficam em `texto`.
+ * nunca a da marca; o nome do exercício e as linhas ficam em `texto`. Fundo de vidro (D11): `alvo` é a tela que passa por
+ * baixo (no Android, sem ele, fundo sólido).
  */
-export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar | null; aoFechar: () => void }) {
-  const { cores, stndrd: stndrdTema } = useTema();
-  const stndrd = stndrdTema ?? TOKENS_STNDRD_ESCURO;
+export function AvisoDeRecorde({ aviso, aoFechar, alvo }: {
+  aviso: RecordeParaAvisar | null;
+  aoFechar: () => void;
+  alvo?: RefObject<View | null>;
+}) {
+  const { cores } = useTema();
   const unidade = useUnidadeDeCarga();
   const margem = useSafeAreaInsets();
   const reduzido = useMovimentoReduzido();
@@ -55,33 +60,31 @@ export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar |
         role="status"
         accessibilityLiveRegion="polite"
         accessibilityLabel={`Recorde pessoal em ${aviso.nome}, série ${aviso.numeroDaSerie}: ${linhas.join('; ')}`}
-        style={[
-          estilos.aviso,
-          { backgroundColor: stndrd.glass.bg, borderColor: cores.divisor },
-          Platform.OS === 'web' ? ({ backdropFilter: `blur(${stndrd.glass.blur}px)` } as object) : null,
-        ]}>
-        {aviso.demonstracao ? (
-          <DemonstracaoDoExercicio exercicioId={aviso.exercicioId} nome={aviso.nome} imagens={aviso.demonstracao.imagens}
-            imagemPropriaEm={aviso.demonstracao.imagemPropriaEm} papel="ALUNO" largura={44} altura={44} preencher />
-        ) : (
-          <View style={[estilos.icone, { backgroundColor: cores.conquistaSuave, borderColor: cores.divisor }]}>
-            <Medal size={22} color={cores.conquista} />
-          </View>
-        )}
-        <View style={estilos.textos}>
-          <View style={estilos.cabecalhoPr}>
-            <View style={[estilos.seloPr, { backgroundColor: cores.conquistaSuave }]}>
-              <Texto style={[estilos.seloPrTexto, { color: cores.conquista }]}>Recorde</Texto>
+        style={estilos.largura}>
+        <Vidro alvo={alvo} estilo={[estilos.aviso, { borderColor: cores.divisor }]}>
+          {aviso.demonstracao ? (
+            <DemonstracaoDoExercicio exercicioId={aviso.exercicioId} nome={aviso.nome} imagens={aviso.demonstracao.imagens}
+              imagemPropriaEm={aviso.demonstracao.imagemPropriaEm} papel="ALUNO" largura={44} altura={44} preencher />
+          ) : (
+            <View style={[estilos.icone, { backgroundColor: cores.conquistaSuave, borderColor: cores.divisor }]}>
+              <Medal size={22} color={cores.conquista} />
             </View>
-            <Texto variante="pequeno" numberOfLines={1} cor={cores.texto} style={estilos.titulo}>{aviso.nome}</Texto>
+          )}
+          <View style={estilos.textos}>
+            <View style={estilos.cabecalhoPr}>
+              <View style={[estilos.seloPr, { backgroundColor: cores.conquistaSuave }]}>
+                <Texto style={[estilos.seloPrTexto, { color: cores.conquista }]}>Recorde</Texto>
+              </View>
+              <Texto variante="pequeno" numberOfLines={1} cor={cores.texto} style={estilos.titulo}>{aviso.nome}</Texto>
+            </View>
+            {linhas.map((l) => (
+              <Texto key={l} numerico style={estilos.linha}>{l}</Texto>
+            ))}
           </View>
-          {linhas.map((l) => (
-            <Texto key={l} numerico style={estilos.linha}>{l}</Texto>
-          ))}
-        </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Fechar aviso de recorde" onPress={aoFechar} style={estilos.fechar}>
-          <X size={18} color={cores.textoSuave} strokeWidth={2} />
-        </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Fechar aviso de recorde" onPress={aoFechar} style={estilos.fechar}>
+            <X size={18} color={cores.textoSuave} strokeWidth={2} />
+          </Pressable>
+        </Vidro>
       </Animated.View>
     </View>
   );
@@ -89,9 +92,8 @@ export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar |
 
 const estilos = StyleSheet.create({
   camada: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingHorizontal: espaco(2), zIndex: 20 },
+  largura: { width: '100%', maxWidth: 520 },
   aviso: {
-    width: '100%',
-    maxWidth: 520,
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaco(1.25),

@@ -8,6 +8,7 @@ import { duasColunas, larguraDoEditor } from '../../dominio/colunasDoEditor';
 import { RolagemComTopo } from '../../ui/RolagemComTopo';
 import { ProvedorDeColunas } from './ColunasDoEditor';
 import { useFundoDaArea } from '../../ui/fundoDaArea';
+import { Vidro } from '../../ui/Vidro';
 
 interface Props {
   /** O `Cabecalho` da tela (trilha, título, subtítulo): rola junto com o conteúdo. */
@@ -55,7 +56,8 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   const barraGrudada = useRef<View>(null);
   useEffect(() => (web ? semFocoDebaixoDaBarra(barraGrudada.current as unknown as HTMLElement | null) : undefined), [web]);
   const fundo = useFundoDaArea();
-  const fundoDaBarra = { backgroundColor: fundo, borderColor: cores.borda };
+  const bordaDaBarra = { borderColor: cores.borda };
+  const fundoDaBarra = { backgroundColor: fundo, ...bordaDaBarra };
   return (
     <ProvedorDeColunas value={duas}>
     <SafeAreaView edges={['top']} style={[estilos.raiz, { backgroundColor: fundo }]}
@@ -65,9 +67,10 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
         <RolagemComTopo preencher contentContainerStyle={estilos.rolagem}>
           <View style={[estilos.conteudo, { maxWidth: larguraUtil }]}>
             {cabecalho}
-            {web ? <View ref={barraGrudada} nativeID={ID_DA_BARRA} style={[GRUDADA, estilos.barraGrudada, fundoDaBarra]}>{barra}</View> : null}
+            {/* Na web o conteúdo passa por baixo das barras grudadas: vidro (D11). No nativo elas ficam fora da rolagem, sólidas. */}
+            {web ? <Vidro ref={barraGrudada} nativeID={ID_DA_BARRA} estilo={[GRUDADA, estilos.barraGrudada, bordaDaBarra]}>{barra}</Vidro> : null}
             {children}
-            {web && rodape ? <View style={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, fundoDaBarra]}>{rodape}</View> : null}
+            {web && rodape ? <Vidro estilo={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, bordaDaBarra]}>{rodape}</Vidro> : null}
           </View>
         </RolagemComTopo>
         {!web && rodape ? <View style={[estilos.rodapeFora, fundoDaBarra]}><View style={[estilos.largura, estilos.linhaDoRodape, { maxWidth: larguraUtil }]}>{rodape}</View></View> : null}

@@ -23,6 +23,7 @@ import { ROLAGEM_DO_MENU, useAlvoDoPasseio } from './Passeio';
 import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
+import { Vidro } from './Vidro';
 
 export interface ItemMenu {
   /** Pendência (ponto de atenção no ícone). `'inferior'`: só na barra do celular, quando a tela do aviso fica fora dela. */
@@ -162,18 +163,16 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
       </View>
       {lateral ? null : rodape}
       {lateral ? null : (
-        <SafeAreaView edges={['bottom']}
-          style={[
-            estilos.inferior,
-            { backgroundColor: stndrd.glass.bg, borderColor: stndrd.glass.border },
-            Platform.OS === 'web' ? ({ backdropFilter: `blur(${stndrd.glass.blur}px)` } as object) : null,
-          ]}>
-          <View accessibilityRole="menubar" style={[estilos.itensInferiores, larguraInferior ? { maxWidth: larguraInferior } : null]}>
-            {itens.filter((item) => !item.soLateral).map((item) => (
-              <ItemNavegacao key={item.caminho} item={item} />
-            ))}
-          </View>
-        </SafeAreaView>
+        // Sem alvo: no Android a barra fica sólida (nada rola por baixo dela; ela vem depois do conteúdo).
+        <Vidro estilo={[estilos.inferior, { borderColor: stndrd.glass.border }]}>
+          <SafeAreaView edges={['bottom']} style={estilos.areaInferior}>
+            <View accessibilityRole="menubar" style={[estilos.itensInferiores, larguraInferior ? { maxWidth: larguraInferior } : null]}>
+              {itens.filter((item) => !item.soLateral).map((item) => (
+                <ItemNavegacao key={item.caminho} item={item} />
+              ))}
+            </View>
+          </SafeAreaView>
+        </Vidro>
       )}
     </View>
   );
@@ -441,7 +440,8 @@ const estilos = StyleSheet.create({
   // Pílula atrás do ícone na barra inferior: `superficie3` no item ativo.
   pilula: { width: 52, height: 30, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   pontoNaPilula: { right: 10, top: 2 },
-  inferior: { borderTopWidth: 1, alignItems: 'center' },
+  inferior: { borderTopWidth: 1 },
+  areaInferior: { alignItems: 'center' },
   itensInferiores: { flexDirection: 'row', width: '100%' },
   itemInferior: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 56, gap: 3, paddingVertical: espaco(0.5), paddingHorizontal: 2 },
   rotuloInferior: { fontSize: 12, lineHeight: 16 },

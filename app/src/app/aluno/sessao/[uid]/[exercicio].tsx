@@ -33,6 +33,7 @@ import { LinhaDeAcoes } from '../../../../ui/LinhaDeAcoes';
 import { Vazio } from '../../../../ui/Estados';
 import { Tela } from '../../../../ui/Tela';
 import { Texto } from '../../../../ui/Texto';
+import { AlvoDoVidro } from '../../../../ui/Vidro';
 
 /**
  * Um exercício da sessão: séries em cartões para registrar carga e repetições. No rodapé, "Próximo" e, logo abaixo,
@@ -53,6 +54,8 @@ export default function ExercicioDaSessao() {
   const [aviso, setAviso] = useState<RecordeParaAvisar | null>(null);
   const contador = useRef(0);
   const fecharAviso = useCallback(() => setAviso(null), []);
+  // O que passa por baixo do aviso (vidro, D11): no Android o blur só lê o que está dentro deste alvo, irmão do aviso.
+  const alvoDoVidro = useRef<View>(null);
   // "Trocar só hoje" ainda sem série marcada: só na tela (decisão do plano), presa a este exercício e data.
   const [escolha, setEscolha] = useState<{ chave: string; exercicioId: string | null } | null>(null);
   const chaveDaEscolha = `${exercicioUid ?? ''}|${data}`;
@@ -123,6 +126,7 @@ export default function ExercicioDaSessao() {
 
   return (
     <View style={estilos.raiz}>
+    <AlvoDoVidro ref={alvoDoVidro} style={estilos.raiz}>
     <Tela bordas={['top']} largura={720}>
       <Cabecalho
         titulo={e.nome}
@@ -213,7 +217,8 @@ export default function ExercicioDaSessao() {
       </View>
       <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
     </Tela>
-    <AvisoDeRecorde aviso={aviso} aoFechar={fecharAviso} />
+    </AlvoDoVidro>
+    <AvisoDeRecorde aviso={aviso} aoFechar={fecharAviso} alvo={alvoDoVidro} />
     </View>
   );
 }

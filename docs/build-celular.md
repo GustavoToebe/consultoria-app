@@ -49,6 +49,18 @@ npx eas-cli build --profile preview --platform android
 
 iPhone: não existe "APK" no iOS. O caminho para o piloto é o TestFlight; ver [5. iPhone](#5-iphone).
 
+**Pede APK novo (17/11/2026): vidro com `expo-blur`.** O `expo-blur` (~57.0.3) é módulo nativo: o APK atual e o Expo Go
+antigo não o têm, e o app nem abre a tela do exercício sem ele. Gere APK (e build do iPhone) novos antes de testar. Não há
+nada no `app.json` (o pacote não tem plugin). O que testar no aparelho (regra em `app/src/ui/Vidro.tsx`):
+- [ ] **Android 12 ou mais:** na tela do exercício, marcar uma série que bate recorde. O aviso de recorde no topo mostra a
+  tela borrada por trás e o texto legível; rolar com o aviso aberto não trava nem pisca. A barra de baixo e a barra de
+  descanso ficam sólidas (nada rola por baixo delas; é esperado).
+- [ ] **Android 11 ou menos:** o mesmo aviso aparece com fundo sólido (sem blur), nunca com o texto direto sobre a tela.
+- [ ] **iPhone:** o aviso, a barra de baixo e a barra de descanso com vidro; texto legível.
+- [ ] **iPhone com Ajustes › Acessibilidade › Tela e Tamanho do Texto › Reduzir Transparência:** os três ficam sólidos, e
+  voltam ao vidro ao desligar, com o app aberto. Preferências › contraste alto do app também deixa sólido (os dois sistemas).
+- [ ] Num Android simples (pouca memória), a tela do exercício continua rolando sem travar.
+
 ## 3. O que testar no celular
 
 Use um aluno e um treinador de teste (dados fictícios). Marque cada item; anote o modelo do celular e a versão do Android.

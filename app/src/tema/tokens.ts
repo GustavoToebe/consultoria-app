@@ -335,12 +335,24 @@ export interface TokensStndrd {
     electricPurple: TokenNeon;
     crimson: TokenNeon;
   };
-  /** Vidro da barra de descanso, do aviso de recorde e da barra inferior (Onda 2 do plano, D11). */
+  /**
+   * Vidro da barra inferior, da barra de descanso, do aviso de recorde e da barra grudada do editor (D11; só pela peça
+   * `ui/Vidro`). `cor` com `opacidade` por cima do blur; sem blur (Android sem alvo ou < 12, "reduzir transparência",
+   * contraste alto) a `cor` vira fundo sólido. A opacidade é a mínima que deixa texto e `textoSuave` a 4,5:1 e borda e
+   * ícone a 3:1 mesmo sem blur, sobre branco ou preto puros atrás, em todas as paletas (`ui/contrasteDoVidro.test.ts`).
+   */
   glass: {
-    bg: string;
+    cor: string;
+    opacidade: number;
     border: string;
     blur: number;
   };
+}
+
+/** Fundo translúcido do vidro (`cor` a `opacidade`), em `rgba`. */
+export function fundoDoVidro(glass: TokensStndrd['glass']): string {
+  const n = parseInt(glass.cor.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${glass.opacidade})`;
 }
 
 export const TOKENS_STNDRD_ESCURO: TokensStndrd = {
@@ -377,8 +389,10 @@ export const TOKENS_STNDRD_ESCURO: TokensStndrd = {
       textOnTint: '#FF4D6D',
     },
   },
+  // 0,91: o `perigo` da barra do editor (`#FF4D6A`) sobre o vidro com branco puro atrás pede isso; `textoSuave`, 0,87.
   glass: {
-    bg: 'rgba(20, 20, 22, 0.78)',
+    cor: '#141416',
+    opacidade: 0.91,
     border: 'rgba(255, 255, 255, 0.08)',
     blur: 20,
   },
@@ -428,8 +442,10 @@ export const TOKENS_STNDRD_CLARO: TokensStndrd = {
       capsuleText: '#FF4D6D',
     },
   },
+  // 0,82: a `bordaCampo` do Céu sobre o vidro com preto puro atrás pede isso.
   glass: {
-    bg: 'rgba(255, 255, 255, 0.82)',
+    cor: '#FFFFFF',
+    opacidade: 0.82,
     border: 'rgba(9, 9, 11, 0.08)',
     blur: 20,
   },
