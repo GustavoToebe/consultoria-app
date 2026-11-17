@@ -45,7 +45,7 @@ public final class CatalogoPermissoes {
         new Permissao("MODELO_APLICAR","Conteúdo","Modelos","Aplicar ao aluno: modelos.",false),
         new Permissao("QUESTIONARIO_LER","Conteúdo","Questionários","Consultar: questionários de atualização e de anamnese.",false),
         new Permissao("QUESTIONARIO_ALTERAR","Conteúdo","Questionários","Criar, editar e publicar: questionários de atualização e de anamnese.",false),
-        new Permissao("COMUNIDADE_MODERAR","Conteúdo","Comunidade","Moderar: aulões, mural, comentários e apelidos da comunidade.",false),
+        new Permissao("COMUNIDADE_MODERAR","Conteúdo","Comunidade","Moderar: vídeos, mural, comentários e apelidos da comunidade.",false),
         new Permissao("MARCA_ALTERAR","Consultoria","Marca","Criar e editar: marca.",false),
         new Permissao("EQUIPE_LER","Consultoria","Equipe","Consultar: equipe.",false),
         new Permissao("USUARIO_ALTERAR","Consultoria","Equipe","Criar e editar: equipe.",false),

@@ -114,7 +114,7 @@ it('o contador avisa perto do limite e o comentário enviado entra sem buscar a 
   expect(listar).toHaveBeenCalledTimes(1);
 });
 
-it('a equipe com moderar responde no post do mural pela rota dela; no aulão e sem moderar, não há campo', async () => {
+it('a equipe com moderar responde no post do mural pela rota dela; no vídeo e sem moderar, não há campo', async () => {
   const daEquipe = listarComentariosDaEquipe as jest.Mock;
   const comoEquipe = comentarComoEquipe as jest.Mock;
   const POST: AlvoDosComentarios = { tipo: 'post', id: 'p1' };

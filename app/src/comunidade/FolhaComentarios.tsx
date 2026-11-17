@@ -37,7 +37,7 @@ const RECUO_DO_TEXTO = 36 + espaco(1);
 
 const TEXTOS = {
   post: { indisponivel: 'Post não disponível', saiu: 'Este post saiu do mural.', onde: 'do mural' },
-  aula: { indisponivel: 'Aulão não disponível', saiu: 'Este aulão saiu da Comunidade.', onde: 'do aulão' },
+  aula: { indisponivel: 'Vídeo não disponível', saiu: 'Este vídeo saiu da Comunidade.', onde: 'do vídeo' },
 } as const;
 
 const eh404 = (erro: unknown) => erro instanceof ErroApi && erro.status === 404;

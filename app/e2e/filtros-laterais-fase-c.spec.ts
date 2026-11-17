@@ -162,14 +162,14 @@ const CASOS: Caso[] = [
     chip: 'Tirar filtro: Tipo: Dúvidas', vazio: /^Nenhuma publicação encontrada com esse filtro\.$/,
   },
   {
-    tela: 'auloes', caminho: '/treinador/comunidade', painel: 'Filtros de aulões', usuarioId: TREINADOR.id,
+    tela: 'auloes', caminho: '/treinador/comunidade', painel: 'Filtros de vídeos', usuarioId: TREINADOR.id,
     api: null, noPedido: null, noEndereco: null,
-    pronto: (page) => page.getByRole('heading', { level: 2, name: 'Aulão de boas-vindas' }),
+    pronto: (page) => page.getByRole('heading', { level: 2, name: 'Vídeo de boas-vindas' }),
     sessao: treinador(['TREINO_LER', 'COMUNIDADE_MODERAR']),
     rotas: {
       ...COMUNIDADE,
       'GET /comunidade/mural': { corpo: mural() },
-      'GET /comunidade/aulas': { corpo: [aula('a1', 'Aulão de técnica', 'Técnica'), aula('a2', 'Aulão de boas-vindas', null), aula('a3', 'Aulão de execução', 'Técnica')] },
+      'GET /comunidade/aulas': { corpo: [aula('a1', 'Vídeo de técnica', 'Técnica'), aula('a2', 'Vídeo de boas-vindas', null), aula('a3', 'Vídeo de execução', 'Técnica')] },
     },
     ligar: async (_page, painel) => { await painel.getByRole('radio', { name: 'Técnica, 2', exact: true }).click(); },
     chip: 'Tirar filtro: Categoria: Técnica', vazio: null, largas: true,

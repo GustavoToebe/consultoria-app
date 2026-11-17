@@ -33,7 +33,7 @@ const muralFalso = (...posts: PostDoMural[]): Resposta => (p, route) => json(rou
 const MURAL_DOS_ALUNOS = '/aluno/comunidade?mural=alunos';
 const MURAL_DOS_ALUNOS_DA_EQUIPE = '/treinador/comunidade?aba=mural&mural=alunos';
 const AULA: AulaDaComunidade = {
-  id: 'a1', titulo: 'Aulão de técnica', descricao: 'Pauta do aulão de teste.', videoUrl: 'https://exemplo.test/video', capaId: null,
+  id: 'a1', titulo: 'Vídeo de técnica', descricao: 'Pauta do vídeo de teste.', videoUrl: 'https://exemplo.test/video', capaId: null,
   categoria: 'Técnica', ordem: 0, publicada: true, criadaEm: '2026-10-19T12:00:00-03:00', totalComentarios: 0,
 };
 const CONQUISTAS: ConquistaDoAluno[] = [
@@ -144,7 +144,7 @@ async function aplicarFiltros(painel: ReturnType<Page['getByRole']>) {
 }
 /** Escolhe a categoria no painel dos aulões e aplica. */
 async function filtrarCategoria(page: Page, rotulo: string) {
-  const painel = await abrirPainel(page, 'Filtros de aulões');
+  const painel = await abrirPainel(page, 'Filtros de vídeos');
   await painel.getByRole('radio', { name: rotulo, exact: true }).click();
   await aplicarFiltros(painel);
 }
@@ -172,7 +172,7 @@ for (const largura of [390, 1280]) {
   test.describe(`${largura} px`, () => {
     test.use({ viewport: { width: largura, height: 900 } });
 
-    test('aluno: mural, aulões, conquistas e a própria posição; um h1 e selos neutros', async ({ page }) => {
+    test('aluno: mural, vídeos, conquistas e a própria posição; um h1 e selos neutros', async ({ page }) => {
       await tema(page, ALUNO.id, 'CLARO');
       const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia });
       await page.goto(MURAL_DOS_ALUNOS);
@@ -198,11 +198,11 @@ for (const largura of [390, 1280]) {
       await expect.poll(() => api.pedidos.some((p) => p.metodo === 'DELETE' && p.caminho === '/aluno/comunidade/mural/p2/reacoes/CURTIR')).toBe(true);
       await expect(page.getByRole('button', { name: 'Curtir, 0 reações', exact: true })).toBeVisible();
 
-      await page.getByRole('tab', { name: 'Aulões' }).click();
-      await expect(page.getByText('Pauta do aulão de teste.')).toBeVisible();
+      await page.getByRole('tab', { name: 'Vídeos' }).click();
+      await expect(page.getByText('Pauta do vídeo de teste.')).toBeVisible();
       await expect(page.getByText('Técnica', { exact: true })).toBeVisible();
       // Link que não é do YouTube: só o botão de abrir fora, sem player.
-      await expect(page.getByRole('button', { name: 'Abrir vídeo: Aulão de técnica' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Abrir vídeo: Vídeo de técnica' })).toBeVisible();
       await expect(page.getByRole('button', { name: /^Assistir aqui/ })).toHaveCount(0);
 
       await page.getByRole('tab', { name: 'Conquistas' }).click();
@@ -293,8 +293,8 @@ for (const largura of [390, 1280]) {
       await expect(page).toHaveURL(/[?&]mural=alunos/);
       await expect(page.getByText('Nenhuma conversa, dúvida ou resultado ainda.')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Ver publicações dos alunos' })).toHaveCount(0);
-      await page.getByRole('tab', { name: 'Aulões' }).click();
-      await expect(page.getByText('Nenhum aulão por enquanto.')).toBeVisible();
+      await page.getByRole('tab', { name: 'Vídeos' }).click();
+      await expect(page.getByText('Nenhum vídeo por enquanto.')).toBeVisible();
       await page.getByRole('tab', { name: 'Conquistas' }).click();
       await expect(page.getByText('Nenhuma conquista por enquanto.')).toBeVisible();
       await capturar(page, `aluno-vazio-${largura}`);
@@ -783,7 +783,7 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('aluno: comentários do aulão abrem pelo cartão, comenta e o total do aulão sobe', async ({ page }) => {
+    test('aluno: comentários do vídeo abrem pelo cartão, comenta e o total do vídeo sobe', async ({ page }) => {
       await tema(page, ALUNO.id, 'CLARO');
       const { estado, rotas } = comComentariosDaAula('/aluno/comunidade/aulas', '/aluno/comunidade/aulas/{id}/comentarios');
       const api = await simularApi(page, {
@@ -797,26 +797,26 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto('/aluno/comunidade?aba=auloes');
-      const abrir = page.getByRole('button', { name: 'Ver 2 comentário(s) do aulão Aulão de técnica' });
+      const abrir = page.getByRole('button', { name: 'Ver 2 comentário(s) do vídeo Vídeo de técnica' });
       expect((await abrir.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await capturar(page, `aluno-aulao-com-comentarios-${largura}`);
       await abrir.click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Bora, time!')).toBeVisible();
-      await folha.getByRole('textbox', { name: 'Seu comentário' }).fill('Aulão excelente');
+      await folha.getByRole('textbox', { name: 'Seu comentário' }).fill('Vídeo excelente');
       await folha.getByRole('button', { name: /^Comentar/ }).click();
-      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/aulas/a1/comentarios'))?.corpo).toEqual({ texto: 'Aulão excelente' });
-      await expect(folha.getByText('Aulão excelente', { exact: true })).toBeVisible();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/aulas/a1/comentarios'))?.corpo).toEqual({ texto: 'Vídeo excelente' });
+      await expect(folha.getByText('Vídeo excelente', { exact: true })).toBeVisible();
       await capturar(page, `aluno-aulao-comentarios-${largura}`);
       await page.keyboard.press('Escape');
-      await expect(page.getByRole('button', { name: 'Ver 3 comentário(s) do aulão Aulão de técnica' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ver 3 comentário(s) do vídeo Vídeo de técnica' })).toBeVisible();
       expect(api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho.endsWith('/comentarios')).map((p) => p.caminho))
         .toEqual(['/aluno/comunidade/aulas/a1/comentarios']);
       expect(api.naoTratadas).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('aluno: aulão fora do alcance (404) diz "Aulão não disponível"; erro comum tem "Tentar de novo"', async ({ page }) => {
+    test('aluno: vídeo fora do alcance (404) diz "Vídeo não disponível"; erro comum tem "Tentar de novo"', async ({ page }) => {
       let resposta: '404' | '503' | 'ok' = '404';
       await simularApi(page, {
         ...(await sessaoDeAluno(page)), ...cheia,
@@ -827,11 +827,11 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto('/aluno/comunidade?aba=auloes');
-      const abrir = page.getByRole('button', { name: /^Ver 0 comentário\(s\) do aulão/ });
+      const abrir = page.getByRole('button', { name: /^Ver 0 comentário\(s\) do vídeo/ });
       await abrir.click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
-      await expect(folha.getByText('Aulão não disponível')).toBeVisible();
-      await expect(folha.getByText('Este aulão saiu da Comunidade.')).toBeVisible();
+      await expect(folha.getByText('Vídeo não disponível')).toBeVisible();
+      await expect(folha.getByText('Este vídeo saiu da Comunidade.')).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0);
       await expect(folha.getByRole('textbox', { name: 'Seu comentário' })).toHaveCount(0);
       await capturar(page, `aluno-aulao-comentarios-404-${largura}`);
@@ -848,12 +848,12 @@ for (const largura of [390, 1280]) {
     });
 
     for (const [nome, t, contraste] of TEMAS) {
-      test(`aluno: comentários do aulão no tema ${nome}`, async ({ page }) => {
+      test(`aluno: comentários do vídeo no tema ${nome}`, async ({ page }) => {
         await tema(page, ALUNO.id, t, contraste);
         const { rotas } = comComentariosDaAula('/aluno/comunidade/aulas', '/aluno/comunidade/aulas/{id}/comentarios', varios(32));
         await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, ...rotas });
         await page.goto('/aluno/comunidade?aba=auloes');
-        const verComentarios = page.getByRole('button', { name: /^Ver 32 comentário\(s\) do aulão/ });
+        const verComentarios = page.getByRole('button', { name: /^Ver 32 comentário\(s\) do vídeo/ });
         await expect(verComentarios).toBeVisible();
         await capturar(page, `aluno-auloes-tema-${nome}-${largura}`);
         await verComentarios.click();
@@ -934,27 +934,27 @@ for (const largura of [390, 1280]) {
     const abrirTreinador = async (page: Page, respostas: RespostasApi, permissoes = [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR']) =>
       simularApi(page, { ...(await sessao(page, TREINADOR, { permissoes })), ...respostas });
 
-    test('treinador: aulões e mural com dados, sem ranking; com moderação, reage como equipe', async ({ page }) => {
+    test('treinador: vídeos e mural com dados, sem ranking; com moderação, reage como equipe', async ({ page }) => {
       await tema(page, TREINADOR.id, 'CLARO');
       const api = await abrirTreinador(page, { ...cheia, 'PUT /comunidade/mural/{id}/reacoes/{codigo}': { status: 204 } });
       await page.goto('/treinador/comunidade');
       await expect(page.getByRole('heading', { level: 1, name: 'Comunidade' })).toBeVisible();
       // A categoria aparece no selo neutro do cartão e, com a contagem, no painel "Filtros de aulões".
       await expect(page.getByText('Técnica', { exact: true })).toHaveCount(1);
-      const painel = await abrirPainel(page, 'Filtros de aulões');
+      const painel = await abrirPainel(page, 'Filtros de vídeos');
       await expect(painel.getByRole('radio', { name: 'Técnica, 1' })).toBeVisible();
       await painel.getByRole('button', { name: 'Cancelar' }).click();
       await expect(painel).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Abrir vídeo: Aulão de técnica' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Abrir vídeo: Vídeo de técnica' })).toBeVisible();
       await expect(page.getByRole('tab', { name: 'Ranking' })).toHaveCount(0);
       // Uma ação principal por vez, a da aba ativa, no cabeçalho (guia pág. 35).
-      await expect(page.getByRole('button', { name: 'Novo aulão' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Novo vídeo' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Configurações do mural' })).toHaveCount(0);
       // Cabeçalho na largura útil (plano larguras-das-telas): a ação vai até a borda direita, sem faixa estreita no meio.
       if (largura >= 1280) {
         const titulo = await page.getByRole('heading', { level: 1, name: 'Comunidade' }).boundingBox();
-        const acao = await page.getByRole('button', { name: 'Novo aulão' }).boundingBox();
+        const acao = await page.getByRole('button', { name: 'Novo vídeo' }).boundingBox();
         expect(acao!.x + acao!.width - titulo!.x).toBeGreaterThan(800);
         expect(largura - (acao!.x + acao!.width)).toBeLessThanOrEqual(48);
       }
@@ -966,7 +966,7 @@ for (const largura of [390, 1280]) {
       await page.getByRole('radio', { name: 'Alunos', exact: true }).click();
       await expect(page).toHaveURL(/[?&]mural=alunos/);
       await expect(page.getByText('Treino feito.')).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Novo aulão' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Novo vídeo' })).toHaveCount(0);
       // As chaves não ficam mais no caminho de leitura: só o acesso "Configurações do mural".
       await expect(page.getByRole('button', { name: 'Configurações do mural' })).toBeVisible();
       await expect(page.getByRole('switch')).toHaveCount(0);
@@ -978,7 +978,7 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: 'Nova publicação' }).click();
       await novaPublicacao(page).getByRole('textbox', { name: 'Texto', exact: true }).fill('Rascunho de teste');
       await novaPublicacao(page).getByRole('button', { name: 'Cancelar' }).click();
-      await page.getByRole('tab', { name: 'Aulões' }).click();
+      await page.getByRole('tab', { name: 'Vídeos' }).click();
       await expect(page).toHaveURL(/aba=auloes/);
       await capturar(page, `treinador-mural-${largura}`);
       // A aba mora no endereço e a tela continua montada: o rascunho do mural continua lá.
@@ -1111,10 +1111,10 @@ for (const largura of [390, 1280]) {
     test('treinador: sem COMUNIDADE_MODERAR (mesmo com TREINO_ALTERAR) lê, mas não publica nem remove apelido', async ({ page }) => {
       await abrirTreinador(page, cheia, [...PERMISSOES_TREINADOR, 'TREINO_LER', 'TREINO_ALTERAR']);
       await page.goto('/treinador/comunidade');
-      await expect(page.getByText('Aulão de técnica')).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Novo aulão' })).toHaveCount(0);
+      await expect(page.getByText('Vídeo de técnica')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Novo vídeo' })).toHaveCount(0);
       // Editar e excluir moram no ⋯ do aulão, que só aparece com COMUNIDADE_MODERAR.
-      await expect(page.getByRole('button', { name: /^Ações do aulão/ })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^Ações do vídeo/ })).toHaveCount(0);
       await page.getByRole('tab', { name: 'Mural' }).click();
       await page.getByRole('radio', { name: 'Alunos', exact: true }).click();
       await expect(page.getByText('Treino feito.')).toBeVisible();
@@ -1246,7 +1246,7 @@ for (const largura of [390, 1280]) {
       await expect(folha.getByRole('textbox')).toHaveCount(0);
     });
 
-    test('treinador: comentários do aulão; lê sem campo, remove com confirmação e o total do aulão desce', async ({ page }) => {
+    test('treinador: comentários do vídeo; lê sem campo, remove com confirmação e o total do vídeo desce', async ({ page }) => {
       const { estado, rotas } = comComentariosDaAula('/comunidade/aulas', '/comunidade/aulas/{id}/comentarios', varios(31));
       const api = await abrirTreinador(page, {
         ...cheia, ...rotas,
@@ -1257,7 +1257,7 @@ for (const largura of [390, 1280]) {
       });
       await page.goto('/treinador/comunidade');
       await capturar(page, `treinador-auloes-comentarios-${largura}`);
-      await page.getByRole('button', { name: 'Ver 31 comentário(s) do aulão Aulão de técnica' }).click();
+      await page.getByRole('button', { name: 'Ver 31 comentário(s) do vídeo Vídeo de técnica' }).click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Comentário de teste 1', { exact: true })).toBeVisible();
       await expect(folha.getByText('Mostrando 30 de 31 comentários.')).toBeVisible();
@@ -1267,7 +1267,7 @@ for (const largura of [390, 1280]) {
 
       await folha.getByRole('button', { name: 'Remover comentário de Aluno Fictício' }).first().click();
       const painel = page.getByRole('alertdialog', { name: 'Remover o comentário?' });
-      await expect(painel.getByText('O comentário de Aluno Fictício sai do aulão para todos.')).toBeVisible();
+      await expect(painel.getByText('O comentário de Aluno Fictício sai do vídeo para todos.')).toBeVisible();
       await capturar(page, `treinador-aulao-comentarios-remover-${largura}`);
       await painel.getByRole('button', { name: 'Remover comentário' }).click();
       await expect(painel).toHaveCount(0);
@@ -1279,13 +1279,13 @@ for (const largura of [390, 1280]) {
       expect(api.pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual(['/comunidade/aulas/comentarios/v1']);
       expect(api.pedidos.some((p) => foiPost(p, '/comunidade/aulas/a1/comentarios'))).toBe(false);
       await page.keyboard.press('Escape');
-      await expect(page.getByRole('button', { name: 'Ver 30 comentário(s) do aulão Aulão de técnica' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ver 30 comentário(s) do vídeo Vídeo de técnica' })).toBeVisible();
       // Só as rotas dos comentários importam aqui (o menu do treinador consulta outras, como nos demais casos da equipe).
       expect(api.naoTratadas.filter((r) => r.includes('/comunidade'))).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('treinador: aulão fora do alcance (404) diz "Aulão não disponível"; sem COMUNIDADE_MODERAR não há "Remover"', async ({ page }) => {
+    test('treinador: vídeo fora do alcance (404) diz "Vídeo não disponível"; sem COMUNIDADE_MODERAR não há "Remover"', async ({ page }) => {
       let resposta: '404' | 'ok' = '404';
       await abrirTreinador(page, {
         ...cheia,
@@ -1297,10 +1297,10 @@ for (const largura of [390, 1280]) {
         },
       }, [...PERMISSOES_TREINADOR, 'TREINO_LER']);
       await page.goto('/treinador/comunidade');
-      const abrir = page.getByRole('button', { name: 'Ver 2 comentário(s) do aulão Aulão de técnica' });
+      const abrir = page.getByRole('button', { name: 'Ver 2 comentário(s) do vídeo Vídeo de técnica' });
       await abrir.click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
-      await expect(folha.getByText('Aulão não disponível')).toBeVisible();
+      await expect(folha.getByText('Vídeo não disponível')).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0);
       await page.keyboard.press('Escape');
       await expect(folha).toHaveCount(0);
@@ -1322,16 +1322,16 @@ for (const largura of [390, 1280]) {
       });
     }
 
-    test('treinador: folha do aulão pede título e link https e envia os campos da API', async ({ page }) => {
+    test('treinador: folha do vídeo pede título e link https e envia os campos da API', async ({ page }) => {
       const api = await abrirTreinador(page, { ...vazia, 'POST /comunidade/aulas': { corpo: { ...AULA, id: 'novo' } } });
       await page.goto('/treinador/comunidade');
-      await expect(page.getByText('Nenhum aulão publicado.')).toBeVisible();
-      await page.getByRole('button', { name: 'Novo aulão' }).click();
-      const folha = page.getByRole('dialog', { name: 'Novo aulão' });
+      await expect(page.getByText('Nenhum vídeo publicado.')).toBeVisible();
+      await page.getByRole('button', { name: 'Novo vídeo' }).click();
+      const folha = page.getByRole('dialog', { name: 'Novo vídeo' });
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect(folha.getByText('Escreva o título.')).toBeVisible();
       await expect(folha.getByText('Cole o link do vídeo.')).toBeVisible();
-      await folha.getByRole('textbox', { name: 'Título' }).fill('Aulão de teste');
+      await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('http://exemplo.test');
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect(folha.getByText('Use um link https completo.')).toBeVisible();
@@ -1347,7 +1347,7 @@ for (const largura of [390, 1280]) {
       await folha.getByRole('textbox', { name: /^Descrição/ }).fill('Pauta de teste.');
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/aulas'))?.corpo)
-        .toEqual({ titulo: 'Aulão de teste', descricao: 'Pauta de teste.', videoUrl: 'https://exemplo.test/video', categoria: 'Técnica' });
+        .toEqual({ titulo: 'Vídeo de teste', descricao: 'Pauta de teste.', videoUrl: 'https://exemplo.test/video', categoria: 'Técnica' });
       await expect(folha).toHaveCount(0);
     });
 
@@ -1355,26 +1355,26 @@ for (const largura of [390, 1280]) {
       const e = erroApi(422, 'Dados inválidos.', 'COMUNIDADE_INVALIDA', [{ field: 'videoUrl', message: 'Use um link https sem usuário e senha.' }]);
       await abrirTreinador(page, { ...vazia, 'POST /comunidade/aulas': (_p, route) => json(route, e.corpo, e.status) });
       await page.goto('/treinador/comunidade');
-      await page.getByRole('button', { name: 'Novo aulão' }).click();
-      const folha = page.getByRole('dialog', { name: 'Novo aulão' });
-      await folha.getByRole('textbox', { name: 'Título' }).fill('Aulão de teste');
+      await page.getByRole('button', { name: 'Novo vídeo' }).click();
+      const folha = page.getByRole('dialog', { name: 'Novo vídeo' });
+      await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video');
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect(folha.getByText('Use um link https sem usuário e senha.')).toBeVisible();
       await expect(folha).toBeVisible();
     });
 
-    test('treinador: falha sem campo (503) ao publicar o aulão aparece no rodapé da folha, que continua aberta', async ({ page }) => {
+    test('treinador: falha sem campo (503) ao publicar o vídeo aparece no rodapé da folha, que continua aberta', async ({ page }) => {
       const e = erroApi(503, 'Comunidade indisponível agora.');
       await abrirTreinador(page, { ...vazia, 'POST /comunidade/aulas': (_p, route) => json(route, e.corpo, e.status) });
       await page.goto('/treinador/comunidade');
-      await page.getByRole('button', { name: 'Novo aulão' }).click();
-      const folha = page.getByRole('dialog', { name: 'Novo aulão' });
-      await folha.getByRole('textbox', { name: 'Título' }).fill('Aulão de teste');
+      await page.getByRole('button', { name: 'Novo vídeo' }).click();
+      const folha = page.getByRole('dialog', { name: 'Novo vídeo' });
+      await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video');
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect(folha.getByText('Comunidade indisponível agora.')).toBeVisible();
-      await expect(folha.getByRole('textbox', { name: 'Título' })).toHaveValue('Aulão de teste');
+      await expect(folha.getByRole('textbox', { name: 'Título' })).toHaveValue('Vídeo de teste');
     });
 
     test('treinador: erro da API vira mensagem com "Tentar de novo" e nenhum dado de exemplo', async ({ page }) => {
@@ -1382,16 +1382,16 @@ for (const largura of [390, 1280]) {
       await abrirTreinador(page, { ...cheia, 'GET /comunidade/aulas': (_p, route) => json(route, e.corpo, e.status) });
       await page.goto('/treinador/comunidade');
       await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
-      await expect(page.getByText('Nenhum aulão publicado.')).toHaveCount(0);
+      await expect(page.getByText('Nenhum vídeo publicado.')).toHaveCount(0);
       await capturar(page, `treinador-erro-${largura}`);
     });
 
     for (const [nome, t, contraste] of TEMAS) {
-      test(`treinador: aulões no tema ${nome}`, async ({ page }) => {
+      test(`treinador: vídeos no tema ${nome}`, async ({ page }) => {
         await tema(page, TREINADOR.id, t, contraste);
         const api = await abrirTreinador(page, cheia);
         await page.goto('/treinador/comunidade');
-        await expect(page.getByText('Pauta do aulão de teste.')).toBeVisible();
+        await expect(page.getByText('Pauta do vídeo de teste.')).toBeVisible();
         await capturar(page, `treinador-tema-${nome}-${largura}`);
         expect(api.errosDaPagina).toEqual([]);
       });
@@ -1401,17 +1401,17 @@ for (const largura of [390, 1280]) {
 
 /** Aulões de várias categorias, na ordem da API (por `ordem`); o terceiro não tem categoria. */
 const AULAS_VARIADAS: AulaDaComunidade[] = [
-  { ...AULA, id: 'a1', titulo: 'Aulão de técnica', categoria: 'Técnica', ordem: 0 },
-  { ...AULA, id: 'a2', titulo: 'Aulão de proteína', descricao: 'Proteína no café da manhã.', categoria: 'Alimentação', ordem: 1 },
-  { ...AULA, id: 'a3', titulo: 'Aulão de boas-vindas', descricao: 'Como o time funciona.', categoria: null, ordem: 2 },
-  { ...AULA, id: 'a4', titulo: 'Aulão de execução', descricao: 'Amplitude e cadência.', categoria: 'Técnica', ordem: 3 },
+  { ...AULA, id: 'a1', titulo: 'Vídeo de técnica', categoria: 'Técnica', ordem: 0 },
+  { ...AULA, id: 'a2', titulo: 'Vídeo de proteína', descricao: 'Proteína no café da manhã.', categoria: 'Alimentação', ordem: 1 },
+  { ...AULA, id: 'a3', titulo: 'Vídeo de boas-vindas', descricao: 'Como o time funciona.', categoria: null, ordem: 2 },
+  { ...AULA, id: 'a4', titulo: 'Vídeo de execução', descricao: 'Amplitude e cadência.', categoria: 'Técnica', ordem: 3 },
 ];
 
 /** Títulos (h2) dos aulões na ordem da tela. */
-const titulosNaTela = (page: Page) => page.getByRole('heading', { level: 2, name: /^Aulão de/ }).allInnerTexts();
+const titulosNaTela = (page: Page) => page.getByRole('heading', { level: 2, name: /^Vídeo de/ }).allInnerTexts();
 
 for (const largura of [390, 1280]) {
-  test.describe(`aulões: editar e excluir em ${largura} px`, () => {
+  test.describe(`vídeos: editar e excluir em ${largura} px`, () => {
     test.use({ viewport: { width: largura, height: 900 } });
     const abrir = async (page: Page, respostas: RespostasApi) => {
       await tema(page, TREINADOR.id, 'CLARO');
@@ -1429,12 +1429,12 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto('/treinador/comunidade');
-      await page.getByRole('button', { name: 'Ações do aulão Aulão de técnica' }).click();
-      await page.getByRole('dialog', { name: 'Ações do aulão' }).getByRole('button', { name: /^Editar aulão/ }).click();
-      const folha = page.getByRole('dialog', { name: 'Editar aulão' });
-      await expect(folha.getByRole('textbox', { name: 'Título' })).toHaveValue('Aulão de técnica');
+      await page.getByRole('button', { name: 'Ações do vídeo Vídeo de técnica' }).click();
+      await page.getByRole('dialog', { name: 'Ações do vídeo' }).getByRole('button', { name: /^Editar vídeo/ }).click();
+      const folha = page.getByRole('dialog', { name: 'Editar vídeo' });
+      await expect(folha.getByRole('textbox', { name: 'Título' })).toHaveValue('Vídeo de técnica');
       await expect(folha.getByRole('textbox', { name: 'Link do vídeo' })).toHaveValue('https://exemplo.test/video');
-      await expect(folha.getByRole('textbox', { name: /^Descrição/ })).toHaveValue('Pauta do aulão de teste.');
+      await expect(folha.getByRole('textbox', { name: /^Descrição/ })).toHaveValue('Pauta do vídeo de teste.');
       await expect(folha.getByRole('button', { name: /^Categoria \(opcional\): Técnica/ })).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Publicar para o time' })).toHaveCount(0);
       await capturar(page, `treinador-editar-aulao-${largura}`);
@@ -1446,25 +1446,25 @@ for (const largura of [390, 1280]) {
       expect(api.pedidos.some((p) => p.metodo === 'PUT')).toBe(false);
 
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video-novo');
-      await folha.getByRole('textbox', { name: 'Título' }).fill('Aulão de técnica avançada');
+      await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de técnica avançada');
       await folha.getByRole('button', { name: /^Categoria \(opcional\): Técnica/ }).click();
       await page.getByLabel('Buscar ou digitar uma categoria').fill('Mobilidade');
       await page.getByRole('option', { name: 'Usar “Mobilidade”, Categoria nova' }).click();
       await folha.getByRole('textbox', { name: /^Descrição/ }).fill('');
       await folha.getByRole('button', { name: 'Salvar alterações' }).click();
       await expect.poll(() => api.pedidos.find((p) => p.metodo === 'PUT')?.corpo).toEqual({
-        titulo: 'Aulão de técnica avançada', descricao: null, videoUrl: 'https://exemplo.test/video-novo',
+        titulo: 'Vídeo de técnica avançada', descricao: null, videoUrl: 'https://exemplo.test/video-novo',
         capaId: 'capa-1', categoria: 'Mobilidade', ordem: 3, publicada: false,
       });
       expect(api.pedidos.find((p) => p.metodo === 'PUT')?.caminho).toBe('/comunidade/aulas/a1');
       await expect(folha).toHaveCount(0);
-      await expect(page.getByText('Aulão atualizado.')).toBeVisible();
-      await expect(page.getByRole('heading', { level: 2, name: 'Aulão de técnica avançada' })).toBeVisible();
+      await expect(page.getByText('Vídeo atualizado.')).toBeVisible();
+      await expect(page.getByRole('heading', { level: 2, name: 'Vídeo de técnica avançada' })).toBeVisible();
 
       await page.reload();
-      await expect(page.getByRole('heading', { level: 2, name: 'Aulão de técnica avançada' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 2, name: 'Vídeo de técnica avançada' })).toBeVisible();
       await expect(page.getByText('Não publicado', { exact: true })).toBeVisible();
-      const filtros = await abrirPainel(page, 'Filtros de aulões');
+      const filtros = await abrirPainel(page, 'Filtros de vídeos');
       await expect(filtros.getByRole('radio', { name: 'Mobilidade, 1' })).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
     });
@@ -1476,12 +1476,12 @@ for (const largura of [390, 1280]) {
         'PUT /comunidade/aulas/{id}': (_p, route) => { estado.aulas = []; const e = erroApi(404, 'Aula não encontrada.'); return json(route, e.corpo, e.status); },
       });
       await page.goto('/treinador/comunidade');
-      await page.getByRole('button', { name: 'Ações do aulão Aulão de técnica' }).click();
-      await page.getByRole('dialog', { name: 'Ações do aulão' }).getByRole('button', { name: /^Editar aulão/ }).click();
-      await page.getByRole('dialog', { name: 'Editar aulão' }).getByRole('button', { name: 'Salvar alterações' }).click();
-      await expect(page.getByRole('dialog', { name: 'Editar aulão' })).toHaveCount(0);
-      await expect(page.getByText('Este aulão já tinha sido excluído.')).toBeVisible();
-      await expect(page.getByText('Nenhum aulão publicado.')).toBeVisible();
+      await page.getByRole('button', { name: 'Ações do vídeo Vídeo de técnica' }).click();
+      await page.getByRole('dialog', { name: 'Ações do vídeo' }).getByRole('button', { name: /^Editar vídeo/ }).click();
+      await page.getByRole('dialog', { name: 'Editar vídeo' }).getByRole('button', { name: 'Salvar alterações' }).click();
+      await expect(page.getByRole('dialog', { name: 'Editar vídeo' })).toHaveCount(0);
+      await expect(page.getByText('Este vídeo já tinha sido excluído.')).toBeVisible();
+      await expect(page.getByText('Nenhum vídeo publicado.')).toBeVisible();
     });
 
     test('excluir pede confirmação com o aviso dos comentários; Cancelar não apaga; a falha fica no painel; confirmar chama o DELETE', async ({ page }) => {
@@ -1495,29 +1495,29 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto('/treinador/comunidade');
-      const menu = page.getByRole('dialog', { name: 'Ações do aulão' });
-      const painel = page.getByRole('alertdialog', { name: 'Excluir o aulão?' });
-      await page.getByRole('button', { name: 'Ações do aulão Aulão de proteína' }).click();
-      await menu.getByRole('button', { name: /^Excluir aulão/ }).click();
-      await expect(painel.getByText('Excluir o aulão “Aulão de proteína”? Os comentários dele também somem. Essa ação não pode ser desfeita.')).toBeVisible();
+      const menu = page.getByRole('dialog', { name: 'Ações do vídeo' });
+      const painel = page.getByRole('alertdialog', { name: 'Excluir o vídeo?' });
+      await page.getByRole('button', { name: 'Ações do vídeo Vídeo de proteína' }).click();
+      await menu.getByRole('button', { name: /^Excluir vídeo/ }).click();
+      await expect(painel.getByText('Excluir o vídeo “Vídeo de proteína”? Os comentários dele também somem. Essa ação não pode ser desfeita.')).toBeVisible();
       await capturar(page, `treinador-excluir-aulao-${largura}`);
       await painel.getByRole('button', { name: 'Cancelar' }).click();
       expect(api.pedidos.some((p) => p.metodo === 'DELETE')).toBe(false);
 
-      await page.getByRole('button', { name: 'Ações do aulão Aulão de proteína' }).click();
-      await menu.getByRole('button', { name: /^Excluir aulão/ }).click();
-      await painel.getByRole('button', { name: 'Excluir aulão' }).click();
+      await page.getByRole('button', { name: 'Ações do vídeo Vídeo de proteína' }).click();
+      await menu.getByRole('button', { name: /^Excluir vídeo/ }).click();
+      await painel.getByRole('button', { name: 'Excluir vídeo' }).click();
       await expect(painel.getByText('Comunidade indisponível agora.')).toBeVisible();
       expect(estado.aulas).toHaveLength(4);
       await capturar(page, `treinador-excluir-aulao-falha-${largura}`);
 
-      await painel.getByRole('button', { name: 'Excluir aulão' }).click();
+      await painel.getByRole('button', { name: 'Excluir vídeo' }).click();
       await expect(painel).toHaveCount(0);
-      await expect(page.getByText('Aulão excluído.')).toBeVisible();
-      await expect(page.getByRole('heading', { level: 2, name: 'Aulão de proteína' })).toHaveCount(0);
+      await expect(page.getByText('Vídeo excluído.')).toBeVisible();
+      await expect(page.getByRole('heading', { level: 2, name: 'Vídeo de proteína' })).toHaveCount(0);
       expect(api.pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual(['/comunidade/aulas/a2', '/comunidade/aulas/a2']);
       // A categoria que ficou sem aula sai do filtro.
-      const filtros = await abrirPainel(page, 'Filtros de aulões');
+      const filtros = await abrirPainel(page, 'Filtros de vídeos');
       await expect(filtros.getByRole('radio', { name: /^Técnica/ })).toBeVisible();
       await expect(filtros.getByRole('radio', { name: /^Alimentação/ })).toHaveCount(0);
       expect(api.errosDaPagina).toEqual([]);
@@ -1526,7 +1526,7 @@ for (const largura of [390, 1280]) {
 }
 
 for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 1080]] as const) {
-  test.describe(`aulões por categoria em ${largura} px`, () => {
+  test.describe(`vídeos por categoria em ${largura} px`, () => {
     test.use({ viewport: { width: largura, height: altura } });
 
     test('treinador: no painel, Todas, cada categoria e Sem categoria filtram a grade; a etiqueta tira o filtro', async ({ page }) => {
@@ -1538,8 +1538,8 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 10
       });
       await page.goto('/treinador/comunidade');
       await expect.poll(() => titulosNaTela(page)).toHaveLength(4);
-      const painel = await abrirPainel(page, 'Filtros de aulões');
-      const chips = painel.getByRole('radiogroup', { name: 'Categoria do aulão' }).getByRole('radio');
+      const painel = await abrirPainel(page, 'Filtros de vídeos');
+      const chips = painel.getByRole('radiogroup', { name: 'Categoria do vídeo' }).getByRole('radio');
       // Ordem alfabética pt-BR e "Sem categoria" por último, com a contagem.
       await expect(chips).toHaveText([/^Todas\s*4$/, /^Alimentação\s*1$/, /^Técnica\s*2$/, /^Sem categoria\s*1$/]);
       await expect(painel.getByRole('radio', { name: 'Todas, 4' })).toBeChecked();
@@ -1547,11 +1547,11 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 10
       // Rascunho: a grade só muda no Aplicar.
       await expect.poll(() => titulosNaTela(page)).toHaveLength(4);
       await aplicarFiltros(painel);
-      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de técnica', 'Aulão de execução']);
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Vídeo de técnica', 'Vídeo de execução']);
       await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, 1 ligado');
       await capturar(page, `treinador-filtro-categoria-${largura}`);
       await filtrarCategoria(page, 'Sem categoria, 1');
-      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de boas-vindas']);
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Vídeo de boas-vindas']);
       await page.getByRole('button', { name: 'Tirar filtro: Categoria: Sem categoria' }).click();
       await expect.poll(() => titulosNaTela(page)).toHaveLength(4);
       await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, nenhum ligado');
@@ -1563,8 +1563,8 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 10
       const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/aulas': { corpo: AULAS_VARIADAS } });
       await page.goto('/aluno/comunidade?aba=auloes');
       const cabecalhos = page.getByRole('button', { name: /, (aberto|recolhido)$/ });
-      await expect(cabecalhos).toHaveText([/^Alimentação\s*1 aulão/, /^Técnica\s*2 aulões/, /^Sem categoria\s*1 aulão/]);
-      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de proteína', 'Aulão de técnica', 'Aulão de execução', 'Aulão de boas-vindas']);
+      await expect(cabecalhos).toHaveText([/^Alimentação\s*1 vídeo/, /^Técnica\s*2 vídeos/, /^Sem categoria\s*1 vídeo/]);
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Vídeo de proteína', 'Vídeo de técnica', 'Vídeo de execução', 'Vídeo de boas-vindas']);
       // Sem o selo da categoria no item: a coleção já diz.
       await expect(page.getByText('Técnica', { exact: true })).toHaveCount(1);
       await expect(page.getByRole('button', { name: /^Abrir vídeo: / })).toHaveCount(4);
@@ -1572,17 +1572,17 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 10
 
       await page.getByRole('button', { name: 'Técnica, aberto' }).click();
       await expect(page.getByRole('button', { name: 'Técnica, recolhido' })).toBeVisible();
-      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de proteína', 'Aulão de boas-vindas']);
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Vídeo de proteína', 'Vídeo de boas-vindas']);
       await capturar(page, `aluno-colecoes-recolhida-${largura}`);
 
       // A busca procura em todas as coleções (título e descrição, sem acento) e reabre as recolhidas.
-      await page.getByRole('searchbox', { name: 'Buscar nos aulões' }).fill('cadencia');
-      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de execução']);
+      await page.getByRole('searchbox', { name: 'Buscar nos vídeos' }).fill('cadencia');
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Vídeo de execução']);
       await expect(page.getByRole('button', { name: 'Técnica, aberto' })).toBeVisible();
-      await page.getByRole('searchbox', { name: 'Buscar nos aulões' }).fill('PROTEINA');
-      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de proteína']);
-      await page.getByRole('searchbox', { name: 'Buscar nos aulões' }).fill('nada disso');
-      await expect(page.getByText('Nenhum aulão encontrado com essa busca.')).toBeVisible();
+      await page.getByRole('searchbox', { name: 'Buscar nos vídeos' }).fill('PROTEINA');
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Vídeo de proteína']);
+      await page.getByRole('searchbox', { name: 'Buscar nos vídeos' }).fill('nada disso');
+      await expect(page.getByText('Nenhum vídeo encontrado com essa busca.')).toBeVisible();
       await capturar(page, `aluno-colecoes-busca-vazia-${largura}`);
       await page.getByRole('button', { name: 'Limpar busca' }).click();
       await expect.poll(() => titulosNaTela(page)).toHaveLength(4);
@@ -1594,7 +1594,7 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 10
   });
 }
 
-test.describe('aulões do aluno: estados', () => {
+test.describe('vídeos do aluno: estados', () => {
   test.use({ viewport: { width: 390, height: 900 } });
 
   for (const [nome, t, contraste] of TEMAS) {
@@ -1612,7 +1612,7 @@ test.describe('aulões do aluno: estados', () => {
     const longa = 'Categoria muito comprida para conferir a quebra de linha 60';
     const aula: AulaDaComunidade = {
       ...AULA, categoria: longa, publicada: false,
-      titulo: 'Aulão com um título bem comprido para ver se o cartão quebra a linha sem espremer nada',
+      titulo: 'Vídeo com um título bem comprido para ver se o cartão quebra a linha sem espremer nada',
     };
     await simularApi(page, {
       ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR'] })), ...cheia,
@@ -1624,14 +1624,14 @@ test.describe('aulões do aluno: estados', () => {
     // O título continua com largura de leitura (não espremido pelos selos e pelo ⋯).
     expect((await page.getByRole('heading', { level: 2, name: aula.titulo }).boundingBox())!.width).toBeGreaterThan(200);
     // O ⋯ continua inteiro dentro da tela (o selo longo encolhe, não o empurra para fora do cartão).
-    const menu = (await page.getByRole('button', { name: `Ações do aulão ${aula.titulo}` }).boundingBox())!;
+    const menu = (await page.getByRole('button', { name: `Ações do vídeo ${aula.titulo}` }).boundingBox())!;
     expect(menu.x + menu.width).toBeLessThanOrEqual(390);
     // Selo neutro de duas linhas sem raio: o raio de pílula com overflow escondido cortava o início das linhas.
     expect(await page.getByText(longa, { exact: true }).last().evaluate((el) => getComputedStyle(el.parentElement!).borderTopLeftRadius)).toBe('0px');
     await capturar(page, 'treinador-categoria-longa-390');
-    await page.getByRole('button', { name: `Ações do aulão ${aula.titulo}` }).click();
-    await page.getByRole('dialog', { name: 'Ações do aulão' }).getByRole('button', { name: /^Editar aulão/ }).click();
-    await expect(page.getByRole('dialog', { name: 'Editar aulão' }).getByRole('button', { name: new RegExp(`^Categoria \\(opcional\\): ${longa}`) })).toBeVisible();
+    await page.getByRole('button', { name: `Ações do vídeo ${aula.titulo}` }).click();
+    await page.getByRole('dialog', { name: 'Ações do vídeo' }).getByRole('button', { name: /^Editar vídeo/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Editar vídeo' }).getByRole('button', { name: new RegExp(`^Categoria \\(opcional\\): ${longa}`) })).toBeVisible();
     expect(await semRolagemHorizontal(page)).toBe(true);
     await capturar(page, 'treinador-categoria-longa-folha-390');
   });
@@ -1656,7 +1656,7 @@ test.describe('aulões do aluno: estados', () => {
     await expect(page.getByRole('progressbar').first()).toBeVisible();
     await capturar(page, 'treinador-auloes-carregando-390');
     liberar();
-    await expect(page.getByRole('heading', { level: 2, name: /^Aulão de/ })).toHaveCount(4);
+    await expect(page.getByRole('heading', { level: 2, name: /^Vídeo de/ })).toHaveCount(4);
     await expect(botaoFiltros(page)).toBeVisible();
   });
 
@@ -1677,7 +1677,7 @@ test.describe('aulões do aluno: estados', () => {
     await capturar(page, 'aluno-auloes-carregando-390');
     liberar();
     await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
-    await expect(page.getByRole('heading', { level: 2, name: /^Aulão de/ })).toHaveCount(0);
+    await expect(page.getByRole('heading', { level: 2, name: /^Vídeo de/ })).toHaveCount(0);
     await capturar(page, 'aluno-auloes-falha-390');
     await page.getByRole('button', { name: 'Tentar de novo' }).click();
     await expect(page.getByRole('button', { name: 'Alimentação, aberto' })).toBeVisible();
@@ -1685,11 +1685,11 @@ test.describe('aulões do aluno: estados', () => {
 });
 
 /** `n` aulões fictícios com títulos distintos. */
-const aulas = (n: number): AulaDaComunidade[] => Array.from({ length: n }, (_, i) => ({ ...AULA, id: `a${i + 1}`, titulo: `Aulão de teste ${i + 1}` }));
+const aulas = (n: number): AulaDaComunidade[] => Array.from({ length: n }, (_, i) => ({ ...AULA, id: `a${i + 1}`, titulo: `Vídeo de teste ${i + 1}` }));
 
 /** Colunas da grade dos aulões: quantos `x` distintos têm os botões de comentários (à esquerda de cada cartão). */
 async function colunasDosAuloes(page: Page) {
-  const caixas = await Promise.all((await page.getByRole('button', { name: /comentário\(s\) do aulão/ }).all()).map((b) => b.boundingBox()));
+  const caixas = await Promise.all((await page.getByRole('button', { name: /comentário\(s\) do vídeo/ }).all()).map((b) => b.boundingBox()));
   return new Set(caixas.map((c) => Math.round(c!.x))).size;
 }
 
@@ -1710,22 +1710,22 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 2], [1920, 
       return simularApi(page, { ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR'] })), ...cheia, ...respostas });
     };
 
-    test(`aulões em ${colunas} coluna(s) pela largura medida; sem rolagem horizontal`, async ({ page }) => {
+    test(`vídeos em ${colunas} coluna(s) pela largura medida; sem rolagem horizontal`, async ({ page }) => {
       await abrir(page, { 'GET /comunidade/aulas': { corpo: aulas(4) } });
       await page.goto('/treinador/comunidade');
-      await expect(page.getByRole('button', { name: 'Abrir vídeo: Aulão de teste 4' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Abrir vídeo: Vídeo de teste 4' })).toBeVisible();
       await expect.poll(() => colunasDosAuloes(page)).toBe(colunas);
       expect(await semRolagemHorizontal(page)).toBe(true);
       await capturar(page, `treinador-auloes-grade-${largura}`);
     });
 
-    test('um aulão só fica à esquerda, com a largura de uma coluna (não estica)', async ({ page }) => {
+    test('um vídeo só fica à esquerda, com a largura de uma coluna (não estica)', async ({ page }) => {
       await abrir(page, { 'GET /comunidade/aulas': { corpo: aulas(1) } });
       await page.goto('/treinador/comunidade');
-      const video = page.getByRole('button', { name: 'Abrir vídeo: Aulão de teste 1' });
+      const video = page.getByRole('button', { name: 'Abrir vídeo: Vídeo de teste 1' });
       await expect(video).toBeVisible();
-      const { esquerda, direita } = await bordasDoConteudo(page, 'Novo aulão');
-      const comentarios = (await page.getByRole('button', { name: /comentário\(s\) do aulão Aulão de teste 1/ }).boundingBox())!;
+      const { esquerda, direita } = await bordasDoConteudo(page, 'Novo vídeo');
+      const comentarios = (await page.getByRole('button', { name: /comentário\(s\) do vídeo Vídeo de teste 1/ }).boundingBox())!;
       // O botão de comentários fica rente ao recuo do cartão, colado à borda esquerda do conteúdo.
       expect(comentarios.x - esquerda).toBeLessThanOrEqual(32);
       const fimDoCartao = (await video.boundingBox())!;
@@ -2018,7 +2018,7 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('treinador: vídeo com capa (envia na hora, prévia pela API, remove e escolhe de novo) e aulão com capa', async ({ page }) => {
+    test('treinador: vídeo com capa (envia na hora, prévia pela API, remove e escolhe de novo) e vídeo com capa', async ({ page }) => {
       let n = 0;
       let jpeg: Buffer = Buffer.alloc(0);
       const api = await abrirEquipe(page, {
@@ -2052,16 +2052,16 @@ for (const largura of [390, 1280]) {
       });
       await expect(folha).toHaveCount(0);
 
-      await page.getByRole('tab', { name: 'Aulões' }).click();
-      await page.getByRole('button', { name: 'Novo aulão' }).click();
-      const aulao = page.getByRole('dialog', { name: 'Novo aulão' });
-      await aulao.getByRole('textbox', { name: 'Título' }).fill('Aulão de teste');
+      await page.getByRole('tab', { name: 'Vídeos' }).click();
+      await page.getByRole('button', { name: 'Novo vídeo' }).click();
+      const aulao = page.getByRole('dialog', { name: 'Novo vídeo' });
+      await aulao.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
       await aulao.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://youtu.be/abcDEF12345');
       await escolherCapa(aulao, 'Escolher capa');
       await expect(aulao.getByRole('button', { name: 'Trocar capa' })).toBeVisible();
       await aulao.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/aulas'))?.corpo)
-        .toEqual({ titulo: 'Aulão de teste', videoUrl: 'https://youtu.be/abcDEF12345', capaId: 'capa-3' });
+        .toEqual({ titulo: 'Vídeo de teste', videoUrl: 'https://youtu.be/abcDEF12345', capaId: 'capa-3' });
       expect(api.pedidos.filter((p) => foiPost(p, '/comunidade/capas')).length).toBe(3);
       expect(api.errosDaPagina).toEqual([]);
     });

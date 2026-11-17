@@ -56,7 +56,7 @@ it('com vídeo https, mostra o botão e abre fora do app', async () => {
 it('avisa quando o link não abriu', async () => {
   abrir.mockResolvedValue(false);
   let r!: ReactTestRenderer;
-  act(() => { r = create(<VideosDaSecao videos={[{ titulo: 'Aulão', url: 'https://videos.exemplo.test/x' }]} />); });
+  act(() => { r = create(<VideosDaSecao videos={[{ titulo: 'Vídeo', url: 'https://videos.exemplo.test/x' }]} />); });
   await act(async () => { botoes(r)[0].props.onPress(); });
   expect(textos(r)).toContain('Não foi possível abrir o vídeo. Tente de novo.');
 });

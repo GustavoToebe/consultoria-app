@@ -87,7 +87,7 @@ export function FolhaDoAulao({ visivel, original, categorias, aoFechar, aoSalvar
   return (
     <Folha
       visivel={visivel}
-      titulo={original ? 'Editar aulão' : 'Novo aulão'}
+      titulo={original ? 'Editar vídeo' : 'Novo vídeo'}
       aoFechar={fechar}
       statusDoRodape={erroGeral ? <MensagemErro texto={erroGeral} /> : undefined}
       rodape={
@@ -97,13 +97,13 @@ export function FolhaDoAulao({ visivel, original, categorias, aoFechar, aoSalvar
             aoTocar={() => void salvar()} />
         </LinhaDeAcoes>
       }>
-      <Campo rotulo="Título" placeholder="Ex.: Aulão sobre progressão de carga" valor={r.titulo} maxLength={AULA_TITULO_MAXIMO}
+      <Campo rotulo="Título" placeholder="Ex.: Vídeo sobre progressão de carga" valor={r.titulo} maxLength={AULA_TITULO_MAXIMO}
         aoMudar={mudar('titulo', 'titulo')} erro={(tentou && erros.titulo) || errosApi.titulo || undefined} />
       <Campo rotulo="Link do vídeo" placeholder="https://" valor={r.link} maxLength={LINK_MAXIMO} inputMode="url"
         autoCapitalize="none" autoCorrect={false}
         aoMudar={mudar('link', 'videoUrl')} erro={(tentou && erros.link) || errosApi.videoUrl || undefined} />
       {/* Texto livre opcional (como a categoria dos Outros): escolhe uma já usada ou digita uma nova na busca. */}
-      <EscolhaSuspensa<string> rotulo="Categoria (opcional)" titulo="Categoria do aulão" valor={categoria}
+      <EscolhaSuspensa<string> rotulo="Categoria (opcional)" titulo="Categoria do vídeo" valor={categoria}
         aoMudar={mudar('categoria', 'categoria')}
         rotuloDaBusca="Buscar ou digitar uma categoria" textoVazio="Nenhuma categoria encontrada."
         opcoes={[{ valor: '', rotulo: SEM_CATEGORIA_DO_AULAO }, ...opcoesDeCategoria.map((c) => ({ valor: c, rotulo: c }))]}

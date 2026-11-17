@@ -165,7 +165,7 @@ export default function ComunidadeTreinador() {
   const aulaSumiu = () => {
     setEditando(null);
     setExcluirDe(null);
-    avisar('Este aulão já tinha sido excluído.', 'perigo');
+    avisar('Este vídeo já tinha sido excluído.', 'perigo');
     auloes.recarregar();
   };
 
@@ -176,7 +176,7 @@ export default function ComunidadeTreinador() {
     try {
       await excluirAula(excluirDe.id);
       setExcluirDe(null);
-      avisar('Aulão excluído.', 'sucesso');
+      avisar('Vídeo excluído.', 'sucesso');
       auloes.recarregar();
     } catch (e) {
       if (e instanceof ErroApi && e.status === 404) aulaSumiu();
@@ -231,7 +231,7 @@ export default function ComunidadeTreinador() {
 
   // Uma ação principal por vez, a da aba ativa, no cabeçalho (guia pág. 35); as configurações do mural ficam em segundo plano.
   const acoes = !podePublicar ? undefined : aba === 'auloes' ? (
-    <Botao rotulo="Novo aulão" tipo="primario" Icone={Plus} aoTocar={() => setFolhaNovaAula(true)} />
+    <Botao rotulo="Novo vídeo" tipo="primario" Icone={Plus} aoTocar={() => setFolhaNovaAula(true)} />
   ) : (
     <>
       <Botao rotulo="Configurações do mural" tipo="secundario" Icone={Settings} aoTocar={() => setConfigurando(true)} />
@@ -241,11 +241,11 @@ export default function ComunidadeTreinador() {
 
   return (
     <Tela bordas={['top']} folga={largo ? FOLGA_NO_PC : undefined}>
-      <Cabecalho titulo="Comunidade" subtitulo="Aulões e mural do time." acoes={acoes} />
+      <Cabecalho titulo="Comunidade" subtitulo="Vídeos e mural do time." acoes={acoes} />
 
       <Abas<AbaComunidade>
         abas={[
-          { valor: 'auloes', rotulo: 'Aulões' },
+          { valor: 'auloes', rotulo: 'Vídeos' },
           { valor: 'mural', rotulo: 'Mural' },
         ]}
         ativa={aba}
@@ -255,22 +255,22 @@ export default function ComunidadeTreinador() {
       {aba === 'auloes' ? (
         <View style={estilos.blocos}>
           <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
-            textoVazio="Nenhum aulão publicado." recarregar={auloes.recarregar} />
+            textoVazio="Nenhum vídeo publicado." recarregar={auloes.recarregar} />
 
           {/* Filtro por categoria no painel lateral (`docs/planos/filtros-laterais.md`): só quando alguma aula tem uma; a
               categoria que sumiu volta para "Todas" (`filtroDeCategoriaValido`) e a etiqueta some junto. */}
           {!auloes.erro && categorias.length ? (
             <BarraDeFiltros valor={filtroDeCategoria} aoAplicar={setFiltroPedido} limpo={null} chips={chipDaCategoria(filtroDeCategoria)}
-              aoTirar={() => setFiltroPedido(null)} painelLateral={{ titulo: 'Filtros de aulões' }}
+              aoTirar={() => setFiltroPedido(null)} painelLateral={{ titulo: 'Filtros de vídeos' }}
               seletores={(atual, mudar) => (
                 <GrupoDoPainel titulo="Identificação" primeiro>
-                  <Escolha rotulo="Categoria do aulão" chips valor={atual} aoMudar={mudar} opcoes={opcoesDoFiltroDeCategoria(todasAsAulas)} />
+                  <Escolha rotulo="Categoria do vídeo" chips valor={atual} aoMudar={mudar} opcoes={opcoesDoFiltroDeCategoria(todasAsAulas)} />
                 </GrupoDoPainel>
               )} />
           ) : null}
 
           {/* Título primeiro; categoria e estado discretos (neutros, juntos); descrição de apoio; vídeo e comentários no rodapé.
-              Grade pela largura medida (1 coluna no celular, 2 ou 3 no PC); um aulão só ocupa uma célula, à esquerda. */}
+              Grade pela largura medida (1 coluna no celular, 2 ou 3 no PC); um vídeo só ocupa uma célula, à esquerda. */}
           {auloes.erro ? null : aulasVisiveis.length ? (
             <Grade gap={espaco(3)}>
               {aulasVisiveis.map((item) => (
@@ -289,7 +289,7 @@ export default function ComunidadeTreinador() {
                       ) : null}
                       {/* Editar e excluir no ⋯, como a moderação do post: o rodapé do cartão fica inteiro em 390 px. */}
                       {podePublicar ? (
-                        <IconeBotao Icone={Ellipsis} rotulo={`Ações do aulão ${item.titulo}`} aoTocar={() => setMenuDaAula(item)} />
+                        <IconeBotao Icone={Ellipsis} rotulo={`Ações do vídeo ${item.titulo}`} aoTocar={() => setMenuDaAula(item)} />
                       ) : null}
                     </View>
                   ) : undefined}>
@@ -299,7 +299,7 @@ export default function ComunidadeTreinador() {
                   <View style={[estilos.linha, estilos.rodapePost, { borderTopColor: cores.divisor }]}>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Ver ${item.totalComentarios} comentário(s) do aulão ${item.titulo}`}
+                      accessibilityLabel={`Ver ${item.totalComentarios} comentário(s) do vídeo ${item.titulo}`}
                       onPress={() => setComentariosDe({ tipo: 'aula', id: item.id })}
                       style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
                       <MessageSquare size={18} color={cores.texto} aria-hidden />
@@ -408,26 +408,26 @@ export default function ComunidadeTreinador() {
 
       {/* Criar fica montada (o rascunho sobrevive ao Cancelar); editar monta por aula, já preenchida. */}
       <FolhaDoAulao visivel={folhaNovaAula && podePublicar} categorias={categorias} aoFechar={() => setFolhaNovaAula(false)}
-        aoSalvar={() => { setFolhaNovaAula(false); avisar('Aulão publicado para o time.', 'sucesso'); auloes.recarregar(); }} />
+        aoSalvar={() => { setFolhaNovaAula(false); avisar('Vídeo publicado para o time.', 'sucesso'); auloes.recarregar(); }} />
       {editando ? (
         <FolhaDoAulao key={editando.id} visivel={podePublicar} original={editando} categorias={categorias}
           aoFechar={() => setEditando(null)} aoSumir={aulaSumiu}
-          aoSalvar={() => { setEditando(null); avisar('Aulão atualizado.', 'sucesso'); auloes.recarregar(); }} />
+          aoSalvar={() => { setEditando(null); avisar('Vídeo atualizado.', 'sucesso'); auloes.recarregar(); }} />
       ) : null}
 
       {menuDaAula ? (
-        <FolhaDeAcoes titulo="Ações do aulão" aoFechar={() => setMenuDaAula(null)} acoes={[
-          { rotulo: 'Editar aulão', detalhe: 'Título, link, categoria e descrição.', Icone: Pencil, aoTocar: () => setEditando(menuDaAula) },
-          { rotulo: 'Excluir aulão', detalhe: 'Sai para todos, com os comentários.', Icone: Trash2, perigo: true,
+        <FolhaDeAcoes titulo="Ações do vídeo" aoFechar={() => setMenuDaAula(null)} acoes={[
+          { rotulo: 'Editar vídeo', detalhe: 'Título, link, categoria e descrição.', Icone: Pencil, aoTocar: () => setEditando(menuDaAula) },
+          { rotulo: 'Excluir vídeo', detalhe: 'Sai para todos, com os comentários.', Icone: Trash2, perigo: true,
             aoTocar: () => { setErroAoExcluir(null); setExcluirDe(menuDaAula); } },
         ]} />
       ) : null}
 
       <PainelConfirmacao
         visivel={!!excluirDe}
-        titulo="Excluir o aulão?"
-        mensagem={excluirDe ? `Excluir o aulão “${excluirDe.titulo}”? Os comentários dele também somem. Essa ação não pode ser desfeita.` : undefined}
-        rotuloConfirmar="Excluir aulão"
+        titulo="Excluir o vídeo?"
+        mensagem={excluirDe ? `Excluir o vídeo “${excluirDe.titulo}”? Os comentários dele também somem. Essa ação não pode ser desfeita.` : undefined}
+        rotuloConfirmar="Excluir vídeo"
         perigo
         carregando={excluindo}
         aoConfirmar={() => void confirmarExcluirAula()}

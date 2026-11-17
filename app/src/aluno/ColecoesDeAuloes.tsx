@@ -45,7 +45,7 @@ export function ColecoesDeAuloes({ aulas, baixarCapa, aoAbrirFora, aoComentarios
 
   return (
     <View style={estilos.blocos}>
-      <Campo rotulo="Buscar nos aulões" valor={busca} aoMudar={buscar} placeholder="Palavra do título ou da descrição"
+      <Campo rotulo="Buscar nos vídeos" valor={busca} aoMudar={buscar} placeholder="Palavra do título ou da descrição"
         autoCorrect={false} inputMode="search" />
       {colecoes.length ? colecoes.map((g) => {
         const aberto = !recolhidas.has(chave(g.categoria));
@@ -62,7 +62,7 @@ export function ColecoesDeAuloes({ aulas, baixarCapa, aoAbrirFora, aoComentarios
                 <View style={estilos.linha}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Ver ${a.totalComentarios} comentário(s) do aulão ${a.titulo}`}
+                    accessibilityLabel={`Ver ${a.totalComentarios} comentário(s) do vídeo ${a.titulo}`}
                     onPress={() => aoComentarios(a)}
                     style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
                     <MessageSquare size={18} color={cores.texto} aria-hidden />
@@ -74,7 +74,7 @@ export function ColecoesDeAuloes({ aulas, baixarCapa, aoAbrirFora, aoComentarios
           </Cartao>
         );
       }) : (
-        <Vazio texto="Nenhum aulão encontrado com essa busca." acao={{ rotulo: 'Limpar busca', aoTocar: () => setBusca('') }} />
+        <Vazio texto="Nenhum vídeo encontrado com essa busca." acao={{ rotulo: 'Limpar busca', aoTocar: () => setBusca('') }} />
       )}
     </View>
   );

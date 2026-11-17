@@ -27,7 +27,7 @@ const PALAVRA = 'Sua publicação tem uma palavra não permitida.';
 
 const foiPost = (p: { metodo: string; caminho: string }, caminho: string) => p.metodo === 'POST' && p.caminho === caminho;
 const novaPublicacao = (page: Page) => page.getByRole('dialog', { name: 'Nova publicação' });
-const novoAulao = (page: Page) => page.getByRole('dialog', { name: 'Novo aulão' });
+const novoAulao = (page: Page) => page.getByRole('dialog', { name: 'Novo vídeo' });
 
 /** JPEG fictício gerado na página (quadrado liso), para o seletor de arquivo e para as miniaturas. */
 async function jpegFicticio(page: Page): Promise<Buffer> {
@@ -50,7 +50,7 @@ for (const largura of [390, 1280]) {
   test.describe(`${largura} px`, () => {
     test.use({ viewport: { width: largura, height: 900 } });
 
-    test('aulão: "Usar a capa do YouTube" só com link do YouTube; busca pela API, mostra a capa e salva com o capaId', async ({ page }) => {
+    test('vídeo: "Usar a capa do YouTube" só com link do YouTube; busca pela API, mostra a capa e salva com o capaId', async ({ page }) => {
       let jpeg: Buffer = Buffer.alloc(0);
       let soltar: () => void = () => {};
       const resposta = new Promise<void>((resolve) => { soltar = resolve; });
@@ -62,7 +62,7 @@ for (const largura of [390, 1280]) {
       });
       await page.goto('/treinador/comunidade');
       jpeg = await jpegFicticio(page);
-      await page.getByRole('button', { name: 'Novo aulão' }).click();
+      await page.getByRole('button', { name: 'Novo vídeo' }).click();
       const folha = novoAulao(page);
       const botao = folha.getByRole('button', { name: 'Usar a capa do YouTube' });
       await expect(botao).toHaveCount(0);
@@ -80,10 +80,10 @@ for (const largura of [390, 1280]) {
       await expect(folha.getByRole('button', { name: 'Usar a capa do YouTube' })).toHaveCount(0);
       await expect(folha.getByRole('button', { name: 'Remover capa' })).toBeVisible();
 
-      await folha.getByRole('textbox', { name: 'Título' }).fill('Aulão de teste');
+      await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/aulas'))?.corpo)
-        .toEqual({ titulo: 'Aulão de teste', videoUrl: YOUTUBE, capaId: 'capa-yt' });
+        .toEqual({ titulo: 'Vídeo de teste', videoUrl: YOUTUBE, capaId: 'capa-yt' });
       // Nunca pede imagem a um host de fora.
       expect(api.pedidos.some((p) => /youtube|ytimg/.test(p.caminho))).toBe(false);
       expect(api.errosDaPagina).toEqual([]);
@@ -122,7 +122,7 @@ for (const largura of [390, 1280]) {
         'POST /comunidade/capas/youtube': (_p, route) => (++n === 1 ? json(route, indisponivel.corpo, indisponivel.status) : json(route, invalida.corpo, invalida.status)),
       });
       await page.goto('/treinador/comunidade');
-      await page.getByRole('button', { name: 'Novo aulão' }).click();
+      await page.getByRole('button', { name: 'Novo vídeo' }).click();
       const folha = novoAulao(page);
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill(YOUTUBE);
       await folha.getByRole('button', { name: 'Usar a capa do YouTube' }).click();

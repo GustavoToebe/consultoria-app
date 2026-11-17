@@ -428,7 +428,7 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   - **Variantes nomeadas:** (1) com grupos `GrupoDoPainel` (Identificação, Situação, Datas, Outros, nesta ordem; grupo
     sem seletor não aparece); (2) sem grupo: as abas
     da Biblioteca (`BarraDaBiblioteca`: busca mais os seletores da aba, direto no corpo; sem nada a filtrar fica só a
-    busca); a categoria dos aulões e o tipo do mural usam um grupo Identificação com um seletor só (fica como está).
+    busca); a categoria dos vídeos e o tipo do mural usam um grupo Identificação com um seletor só (fica como está).
   - **Dois "Limpar filtros", escopos diferentes:** o do rodapé do painel limpa só o rascunho (a busca fica) e ainda
     pede o Aplicar; o da página (`Botao` depois das etiquetas, o "link das etiquetas") e a ação do estado vazio limpam os
     filtros aplicados de uma vez e nunca a busca ("Limpar busca" é outra ação do vazio). Nomes acessíveis conferidos no
@@ -491,8 +491,8 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   (`app/e2e/filtros-laterais.spec.ts`); Cobranças com o aluno de contexto e com período incompleto em 390 e 1280 px,
   escuro e claro. Lançamentos, Alunos, Atualizações, Interessados, Auditoria e Equipe (13/11,
   `filtros-laterais-fase-b.spec.ts`): 390 e 1280 px no escuro e, em Alunos, Lançamentos, Auditoria e Interessados, também
-  1280 e 1920 px no claro. Agenda, Comunidade (aulões e mural), questionários, Importação e Biblioteca › Importar, Outros e
-  Suplementos (13/11, `filtros-laterais-fase-c.spec.ts`): 390 e 1280 px no escuro e, em Agenda, Importação e aulões, também
+  1280 e 1920 px no claro. Agenda, Comunidade (vídeos e mural), questionários, Importação e Biblioteca › Importar, Outros e
+  Suplementos (13/11, `filtros-laterais-fase-c.spec.ts`): 390 e 1280 px no escuro e, em Agenda, Importação e vídeos, também
   1280 e 1920 px no claro. **Não conferido:** os temas Areia e alto contraste fora das telas da fase 1, o leitor de
   tela e o app nativo (Android e iOS).
 - **Observado no código (antes do painel lateral; no painel os campos ficam numa coluna):** a `BarraDeFiltros`

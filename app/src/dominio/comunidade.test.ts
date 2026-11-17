@@ -21,7 +21,7 @@ const aula = (id: string, categoria: string | null, extra: Partial<AulaDaComunid
   ordem: 0, publicada: true, criadaEm: '2026-11-01T10:00:00Z', totalComentarios: 0, ...extra,
 });
 
-describe('aulões', () => {
+describe('vídeos', () => {
   const aulas = [aula('1', 'Técnica'), aula('2', null), aula('3', 'alimentação'), aula('4', 'Técnica'), aula('5', '  ')];
 
   it('agrupa em ordem alfabética pt-BR, com Sem categoria por último e a ordem da API dentro de cada uma', () => {
@@ -88,8 +88,8 @@ describe('aulões', () => {
   });
 
   it('resume a quantidade', () => {
-    expect(resumoDosAuloes(1)).toBe('1 aulão');
-    expect(resumoDosAuloes(3)).toBe('3 aulões');
+    expect(resumoDosAuloes(1)).toBe('1 vídeo');
+    expect(resumoDosAuloes(3)).toBe('3 vídeos');
   });
 });
 

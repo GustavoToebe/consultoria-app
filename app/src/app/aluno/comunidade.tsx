@@ -163,12 +163,12 @@ export default function ComunidadeAluno() {
 
   return (
     <Tela bordas={['top']} largura={720}>
-      <Cabecalho titulo="Comunidade" subtitulo="Mural do time, aulões, conquistas e colegas da sua consultoria." />
+      <Cabecalho titulo="Comunidade" subtitulo="Mural do time, vídeos, conquistas e colegas da sua consultoria." />
       <AvisoDoPerfilNaComunidade online={online} />
 
       {!online ? (
         <Cartao>
-          <Vazio Icone={WifiOff} texto="Sem conexão. O mural, os aulões, as conquistas e os colegas aparecem quando o aparelho voltar a ter internet." />
+          <Vazio Icone={WifiOff} texto="Sem conexão. O mural, os vídeos, as conquistas e os colegas aparecem quando o aparelho voltar a ter internet." />
         </Cartao>
       ) : (
         <>
@@ -177,7 +177,7 @@ export default function ComunidadeAluno() {
             aoMudar={setAba}
             abas={[
               { valor: 'mural', rotulo: 'Mural' },
-              { valor: 'auloes', rotulo: 'Aulões' },
+              { valor: 'auloes', rotulo: 'Vídeos' },
               { valor: 'ranking', rotulo: 'Conquistas' },
               { valor: 'colegas', rotulo: 'Colegas' },
             ]}
@@ -241,7 +241,7 @@ export default function ComunidadeAluno() {
           {aba === 'auloes' ? (
             <View style={estilos.blocos}>
               <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
-                textoVazio="Nenhum aulão por enquanto." recarregar={auloes.recarregar} />
+                textoVazio="Nenhum vídeo por enquanto." recarregar={auloes.recarregar} />
               {auloes.dados?.length ? (
                 <ColecoesDeAuloes aulas={auloes.dados} baixarCapa={baixarCapaDoAluno} aoAbrirFora={(url) => void abrir(url)}
                   aoComentarios={(a) => setComentariosDe({ tipo: 'aula', id: a.id })} />

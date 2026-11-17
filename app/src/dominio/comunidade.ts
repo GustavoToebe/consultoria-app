@@ -636,4 +636,4 @@ export function buscarAuloes<T extends Pick<AulaDaComunidade, 'titulo' | 'descri
 }
 
 /** "1 aulão" / "3 aulões", na faixa da coleção. */
-export const resumoDosAuloes = (n: number): string => (n === 1 ? '1 aulão' : `${n} aulões`);
+export const resumoDosAuloes = (n: number): string => (n === 1 ? '1 vídeo' : `${n} vídeos`);
