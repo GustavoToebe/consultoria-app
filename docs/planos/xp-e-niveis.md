@@ -36,8 +36,8 @@ Recomendada primeiro em cada uma.
 | 7 | Quando o aluno desfaz uma conclusão (reabrir), o XP volta? | **(a) Sim, é derivado (recomendada)**; (b) não, mantém o ganho |
 
 ## Passos (depois das respostas)
-- [ ] 1. `dominio/xp.ts` + `comunidade/RegrasXp.java` + fixture de paridade e testes (executor) — commit: —
-- [ ] 2. API: `nivel` e `xp` no pacote do aluno e no perfil (sem migration), exportação/anonimização sem mudança (nada novo é gravado) (executor) — commit: —
+- [x] 1. `dominio/xp.ts` + `comunidade/RegrasXp.java` + fixture de paridade e testes (executor) — feito (16/11): `RegrasXp`, fixture de paridade, `xp.ts`; jest verde, Maven não rodou — commit: `d735658e`
+- [x] 2. API: `nivel` e `xp` no pacote do aluno e no perfil (sem migration), exportação/anonimização sem mudança (nada novo é gravado) (executor) — feito (16/11) sem migration: `XpService` (calcula a cada leitura), `GET /aluno/comunidade/ranking` traz `{nivel, xp, xpNoNivel, faltam}` só do próprio aluno; perfil/lista do colega só `nivel`; `RegrasDoPerfil.nivel` removido. Decisões: semana completa no servidor = sessões TREINO distintas com dia fixo da versão concluídas na semana (qualquer dia; o app olha séries/data/período da pasta, então os dois podem divergir); recorde só MAIOR_CARGA, vale 0 com `TREINOS_RETORNO_HABILITADO` desligada; sem janela no histórico (`shortcut:`); `obterRanking` deixou de ser `readOnly` porque grava as conquistas antes de calcular (o nível do colega pode ficar atrás até o dono abrir ranking/conquistas); reabrir tira XP do treino/semana mas a conquista gravada fica. Risco de carga: lista de colegas calcula XP por colega. Maven não rodou — commit: ver `git log` ("XP e níveis na API")
 - [ ] 3. App: barra de nível no início do aluno e no perfil, `BadgeNivel` na comunidade (executor-front) — commit: —
 - [ ] 4. Ajuda e `AGENTS.md` — commit: —
 - Revisão independente: não exige trio (não mexe em tenant nem em dado novo); uma revisão do `revisor` sobre o texto exibido (nada de promessa de saúde).

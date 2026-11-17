@@ -11,8 +11,6 @@ import java.util.Set;
  */
 public final class RegrasDoPerfil {
 
-    /** Treinos concluídos por nível (a mesma base da pontuação do ranking). */
-    public static final int TREINOS_POR_NIVEL = 10;
     public static final int MAIORIDADE = 18;
     /** Janela da atividade recente (decisão 8): os últimos 30 dias, contando hoje. */
     public static final int DIAS_DA_ATIVIDADE = 30;
@@ -21,11 +19,6 @@ public final class RegrasDoPerfil {
     public static final int MAXIMO_DE_RECORDES = 10;
 
     private RegrasDoPerfil() {
-    }
-
-    /** Começa no nível 1 e sobe a cada 10 treinos concluídos: {@code 1 + treinos / 10}. Número negativo conta como zero. */
-    public static int nivel(long treinosConcluidos) {
-        return 1 + (int) (Math.max(0, treinosConcluidos) / TREINOS_POR_NIVEL);
     }
 
     /**

@@ -193,13 +193,19 @@ public final class ComunidadeDtos {
 
     /**
      * O ranking de constância mostra ao aluno só a posição dele: nunca nome, id ou contagem de outro aluno (sem opt-in e sem lista
-     * de colegas; o perfil de um colega só abre pelo mural, em {@code PerfilResponse}). Empate divide a posição.
+     * de colegas; o perfil de um colega só abre pelo mural, em {@code PerfilResponse}). Empate divide a posição. Os quatro últimos
+     * são o XP do próprio aluno ({@code RegrasXp}): {@code xp} total, {@code nivel} (1 + xp / 100) e a barra até o próximo
+     * ({@code xpNoNivel} de 0 a 99 e {@code faltam} de 1 a 100). O colega nunca vê o XP, só o nível.
      */
     public record RankingResponse(
             int posicao,
             int treinosConcluidos,
             int pontuacao,
-            long participantes) {}
+            long participantes,
+            int nivel,
+            long xp,
+            int xpNoNivel,
+            int faltam) {}
 
     /**
      * Perfil de um colega (só aluno ativo da mesma consultoria). Reservado ({@code reservado = true}) e visto por outro aluno, só

@@ -20,18 +20,20 @@ public interface SessaoConcluidaRepository extends JpaRepository<SessaoConcluida
     /** Quantos registros do aluno estão concluídos, em todo o histórico (a consultoria sai do {@code @TenantId}). */
     long countByAlunoIdAndSituacaoAndConcluidaTrue(UUID alunoId, String situacao);
 
-    record TreinosDoAluno(UUID alunoId, long total) {
-    }
-
-    /** Treinos concluídos de vários alunos numa consulta só (lista de colegas); aluno sem treino não vem. */
-    @Query("select new br.com.treinos.api.sessoesconcluidas.SessaoConcluidaRepository$TreinosDoAluno(s.alunoId, count(s)) "
-            + "from SessaoConcluida s where s.alunoId in :alunoIds and s.situacao = 'ACEITO' and s.concluida = true group by s.alunoId")
-    List<TreinosDoAluno> treinosConcluidosDosAlunos(Collection<UUID> alunoIds);
-
     /** Os dias (sem repetir, do mais antigo ao mais novo) em que o aluno concluiu algum treino em [{@code de}, {@code ate}]: só datas. */
     @Query("select distinct s.data from SessaoConcluida s where s.alunoId = :alunoId and s.situacao = 'ACEITO' "
             + "and s.concluida = true and s.data between :de and :ate order by s.data asc")
     List<LocalDate> diasConcluidos(UUID alunoId, LocalDate de, LocalDate ate);
+
+    /** Uma sessão concluída do aluno para o XP: o dia, o resultado e (para a semana completa) a versão e a sessão do plano. */
+    record SessaoParaXp(LocalDate data, String resultado, UUID planoVersaoId, UUID sessaoUid) {
+    }
+
+    /** Todas as sessões concluídas (aceitas, não reabertas) do aluno: a base do XP, que não tem janela (janela faria o XP cair). */
+    @Query("select new br.com.treinos.api.sessoesconcluidas.SessaoConcluidaRepository$SessaoParaXp(s.data, s.resultado, "
+            + "s.planoVersaoId, s.sessaoUid) from SessaoConcluida s where s.alunoId = :alunoId and s.situacao = 'ACEITO' "
+            + "and s.concluida = true")
+    List<SessaoParaXp> sessoesParaXp(UUID alunoId);
 
     /**
      * Quantas sessões concluídas (aceitas, não reabertas, completas ou parciais) os alunos têm em [{@code de}, {@code ate}]:

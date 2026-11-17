@@ -56,6 +56,7 @@ public class ComunidadeService {
     private final ReacoesDoMuralService reacoes;
     private final EnquetesDoMuralService enquetes;
     private final CapasDaComunidadeService capas;
+    private final XpService xp;
 
     public ComunidadeService(ComunidadeAulaRepository aulas,
                              ComunidadeAulaComentarioRepository aulaComentarios,
@@ -71,7 +72,8 @@ public class ComunidadeService {
                              ConfiguracaoDaComunidadeService configuracao,
                              ReacoesDoMuralService reacoes,
                              EnquetesDoMuralService enquetes,
-                             CapasDaComunidadeService capas) {
+                             CapasDaComunidadeService capas,
+                             XpService xp) {
         this.aulas = aulas;
         this.aulaComentarios = aulaComentarios;
         this.muralPosts = muralPosts;
@@ -87,6 +89,7 @@ public class ComunidadeService {
         this.reacoes = reacoes;
         this.enquetes = enquetes;
         this.capas = capas;
+        this.xp = xp;
     }
 
     // ---- Aulões ----
@@ -476,17 +479,20 @@ public class ComunidadeService {
     // ---- Ranking ----
 
     /**
-     * A posição do próprio aluno entre os ativos da consultoria (empate divide a posição) e quantos são. Não há apelido público
-     * nem opt-in, então nada de outro aluno (nome, id, contagem) sai daqui. O ranking de força saiu: carga nunca se inventa.
+     * A posição do próprio aluno entre os ativos da consultoria (empate divide a posição) e quantos são, mais o XP e o nível dele.
+     * Não há apelido público nem opt-in, então nada de outro aluno (nome, id, contagem) sai daqui. O ranking de força saiu: carga
+     * nunca se inventa. Grava as conquistas devidas antes (como {@code GET /conquistas}), porque o XP conta as já gravadas.
      */
-    @Transactional(readOnly = true)
     public RankingResponse obterRanking(UUID alunoId) {
         if (alunos.findById(alunoId).isEmpty()) {
             throw new NaoEncontradoException("Aluno não encontrado.");
         }
+        avaliarConquistas(alunoId);
         long treinos = sessoes.countByAlunoIdAndSituacaoAndConcluidaTrue(alunoId, "ACEITO");
         long adiante = alunos.contarAtivosComMaisTreinosConcluidos(treinos);
-        return new RankingResponse((int) (adiante + 1), (int) treinos, (int) treinos * 10, alunos.countByAtivoTrue());
+        RegrasXp.Xp pontos = xp.doAluno(alunoId);
+        return new RankingResponse((int) (adiante + 1), (int) treinos, (int) treinos * 10, alunos.countByAtivoTrue(),
+                pontos.nivel(), pontos.xp(), pontos.xpNoNivel(), pontos.faltam());
     }
 
     // ---- Exportação LGPD ----

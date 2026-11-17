@@ -14,16 +14,6 @@ class RegrasDoPerfilTest {
     private static final LocalDate HOJE = LocalDate.of(2026, 11, 10);
 
     @Test
-    void nivelComecaEmUmESobeACadaDezTreinos() {
-        assertThat(RegrasDoPerfil.nivel(0)).isEqualTo(1);
-        assertThat(RegrasDoPerfil.nivel(9)).isEqualTo(1);
-        assertThat(RegrasDoPerfil.nivel(10)).isEqualTo(2);
-        assertThat(RegrasDoPerfil.nivel(99)).isEqualTo(10);
-        assertThat(RegrasDoPerfil.nivel(100)).isEqualTo(11);
-        assertThat(RegrasDoPerfil.nivel(-5)).isEqualTo(1);
-    }
-
-    @Test
     void maiorDeIdadeSoComDezoitoAnosCompletos() {
         assertThat(RegrasDoPerfil.maiorDeIdade(LocalDate.of(2008, 11, 10), HOJE)).isTrue();   // faz 18 hoje
         assertThat(RegrasDoPerfil.maiorDeIdade(LocalDate.of(2008, 11, 11), HOJE)).isFalse();  // falta um dia

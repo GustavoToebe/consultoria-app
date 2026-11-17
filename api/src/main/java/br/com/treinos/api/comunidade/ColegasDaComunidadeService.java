@@ -20,7 +20,6 @@ import br.com.treinos.api.comunidade.dto.ComunidadeDtos.RecordeDoColega;
 import br.com.treinos.api.recordes.RecordesService;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.sessoesconcluidas.SessaoConcluidaRepository;
-import br.com.treinos.api.sessoesconcluidas.SessaoConcluidaRepository.TreinosDoAluno;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
@@ -56,20 +55,22 @@ public class ColegasDaComunidadeService {
     private final FotoPerfilService fotos;
     private final RecordesService recordes;
     private final ExercicioRepository exercicios;
+    private final XpService xp;
 
     public ColegasDaComunidadeService(AlunoRepository alunos, SessaoConcluidaRepository sessoes, ConquistaAlunoRepository conquistas,
-                                      FotoPerfilService fotos, RecordesService recordes, ExercicioRepository exercicios) {
+                                      FotoPerfilService fotos, RecordesService recordes, ExercicioRepository exercicios, XpService xp) {
         this.alunos = alunos;
         this.sessoes = sessoes;
         this.conquistas = conquistas;
         this.fotos = fotos;
         this.recordes = recordes;
         this.exercicios = exercicios;
+        this.xp = xp;
     }
 
     /**
      * Perfil de um aluno ativo da mesma consultoria. Reservado (e não é o próprio aluno): só nome, apelido e {@code reservado}.
-     * Senão traz nível, insígnias, destaques, cor, moldura, foto (só se tem), atividade (só datas) e recordes de carga.
+     * Senão traz nível (do XP; o XP em si nunca sai), insígnias, destaques, cor, moldura, foto (só se tem), atividade (só datas) e recordes de carga.
      */
     @Transactional(readOnly = true)
     public PerfilResponse perfil(UUID autorId, UsuarioAutenticado eu) {
@@ -88,7 +89,7 @@ public class ColegasDaComunidadeService {
                         ? new ConquistaResponse(c.getId(), c.getTipo(), c.getTitulo(), c.getDescricao(), c.getIcone(), c.getConquistadaEm())
                         : new ConquistaDoColega(c.getTipo(), c.getTitulo(), c.getDescricao(), c.getIcone()))
                 .toList();
-        return new PerfilResponse(autorId, aluno.getNome(), aluno.getApelido(), ehVoce, reservado, treinos, RegrasDoPerfil.nivel(treinos),
+        return new PerfilResponse(autorId, aluno.getNome(), aluno.getApelido(), ehVoce, reservado, treinos, xp.doAluno(aluno.getId()).nivel(),
                 todas, destaques(aluno, ganhas),
                 (aluno.getPerfilCor() == null ? CorDoPerfil.PADRAO : aluno.getPerfilCor()).name(),
                 (aluno.getPerfilMoldura() == null ? MolduraDoPerfil.PADRAO : aluno.getPerfilMoldura()).name(),
@@ -134,8 +135,9 @@ public class ColegasDaComunidadeService {
     /**
      * Quem não reservou o perfil, sem o próprio aluno, por nome (sem acento) e id, paginado. Decisão: a reserva e a idade se
      * decidem em memória pela mesma regra pura do perfil ({@code RegrasDoPerfil}), sobre uma consulta só dos colegas ativos da
-     * consultoria (sem N+1; nível e foto da página vêm em duas consultas agrupadas); assim {@code total} conta só os visíveis e
-     * a data de nascimento não passa de um record interno. shortcut: carrega todos os colegas ativos da consultoria a cada
+     * consultoria (a foto da página vem agrupada); assim {@code total} conta só os visíveis e a data de nascimento não passa de um
+     * record interno. O nível sai do XP, calculado um aluno por vez na página (30 por padrão, até 100). shortcut: várias consultas
+     * por colega, trocar por cálculo em lote se a lista pesar. shortcut: carrega todos os colegas ativos da consultoria a cada
      * página, trocar por filtro na consulta se uma consultoria passar de alguns milhares de alunos ativos.
      */
     @Transactional(readOnly = true)
@@ -151,12 +153,10 @@ public class ColegasDaComunidadeService {
         List<ColegaDaComunidade> doIntervalo = inicio >= visiveis.size() ? List.of()
                 : visiveis.subList((int) inicio, (int) Math.min(visiveis.size(), inicio + tam));
         List<UUID> ids = doIntervalo.stream().map(ColegaDaComunidade::alunoId).toList();
-        Map<UUID, Long> treinos = ids.isEmpty() ? Map.of() : sessoes.treinosConcluidosDosAlunos(ids).stream()
-                .collect(Collectors.toMap(TreinosDoAluno::alunoId, TreinosDoAluno::total));
         Set<UUID> comFoto = fotos.comFoto(ids);
         return new PaginaDeColegas(doIntervalo.stream()
                 .map(c -> new ColegaDaLista(c.usuarioId(), c.nome(), c.apelido(),
-                        RegrasDoPerfil.nivel(treinos.getOrDefault(c.alunoId(), 0L)), comFoto.contains(c.alunoId())))
+                        xp.doAluno(c.alunoId()).nivel(), comFoto.contains(c.alunoId())))
                 .toList(), visiveis.size());
     }
 

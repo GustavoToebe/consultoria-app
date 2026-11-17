@@ -43,6 +43,7 @@ class ComunidadeServiceTest {
     @Mock private ReacoesDoMuralService reacoes;
     @Mock private EnquetesDoMuralService enquetes;
     @Mock private CapasDaComunidadeService capas;
+    @Mock private XpService xp;
 
     private ComunidadeService service;
     private final UUID consultoriaId = UUID.randomUUID();
@@ -53,7 +54,7 @@ class ComunidadeServiceTest {
     @BeforeEach
     void setUp() {
         service = new ComunidadeService(aulas, aulaComentarios, muralPosts, muralReacoes, muralComentarios,
-                conquistas, alunos, sessoes, usuarios, fotos, denuncias, configuracao, reacoes, enquetes, capas);
+                conquistas, alunos, sessoes, usuarios, fotos, denuncias, configuracao, reacoes, enquetes, capas, xp);
         eu = new UsuarioAutenticado(usuarioId, consultoriaId, "ALUNO", alunoId);
     }
 
@@ -184,10 +185,12 @@ class ComunidadeServiceTest {
         when(sessoes.countByAlunoIdAndSituacaoAndConcluidaTrue(alunoId, "ACEITO")).thenReturn(7L);
         when(alunos.contarAtivosComMaisTreinosConcluidos(7L)).thenReturn(2L);
         when(alunos.countByAtivoTrue()).thenReturn(9L);
+        when(xp.doAluno(alunoId)).thenReturn(new RegrasXp.Xp(230, 3, 30, 70));
 
         RankingResponse r = service.obterRanking(alunoId);
 
-        assertThat(r).isEqualTo(new RankingResponse(3, 7, 70, 9));
+        assertThat(r).isEqualTo(new RankingResponse(3, 7, 70, 9, 3, 230, 30, 70));
+        verify(conquistas).saveAndFlush(argThat(c -> c.getTipo().equals("PRIMEIRO_TREINO")));
     }
 
     @Test

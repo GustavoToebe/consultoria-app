@@ -244,7 +244,8 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         JsonNode daAna = api.get("/aluno/comunidade/ranking", loginA, 200);
         List<String> campos = new ArrayList<>();
         daAna.propertyNames().forEach(campos::add);
-        assertThat(campos).containsExactlyInAnyOrder("posicao", "treinosConcluidos", "pontuacao", "participantes");
+        assertThat(campos).containsExactlyInAnyOrder("posicao", "treinosConcluidos", "pontuacao", "participantes", "nivel", "xp",
+                "xpNoNivel", "faltam");
         assertThat(daAna.get("posicao").asInt()).isEqualTo(2);
         assertThat(daAna.get("treinosConcluidos").asInt()).isZero();
         assertThat(daAna.get("participantes").asInt()).isEqualTo(2);
