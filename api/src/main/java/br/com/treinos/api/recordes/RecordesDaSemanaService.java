@@ -123,7 +123,7 @@ public class RecordesDaSemanaService {
                 ExecucaoSerie e = r.origem();
                 IndiceVersao indice = porVersao.get(e.getPlanoVersaoId());
                 resultado.add(new SerieComRecorde(e.getAlunoId(), porId.get(e.getAlunoId()).getNome(), r.data(), e.getExercicioId(),
-                        indice == null ? "Exercício" : indice.nomeExercicio(e.getExercicioUid()), r.recordes()));
+                        indice == null ? "Exercício" : indice.nomeExercicio(e.getExercicioUid(), e.getExercicioId()), r.recordes()));
             }
         });
         resultado.sort(Comparator.comparing(SerieComRecorde::data).reversed()

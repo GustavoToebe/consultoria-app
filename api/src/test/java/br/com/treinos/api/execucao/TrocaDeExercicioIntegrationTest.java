@@ -150,6 +150,20 @@ class TrocaDeExercicioIntegrationTest extends AbstractIntegrationTest {
         assertThat(contar()).isEqualTo(1);
     }
 
+    @Test
+    void recordeDaSemanaDaSerieTrocadaTrazONomeDaAlternativa() throws Exception {
+        Map<String, Object> antes = registro(UUID.randomUUID(), wsUid, "40", 8, Instant.now());
+        antes.put("exercicioId", alternativaId.toString());
+        antes.put("data", hoje.minusDays(20).toString());
+        Map<String, Object> agora = registro(UUID.randomUUID(), wsUid, "50", 8, Instant.now());
+        agora.put("exercicioId", alternativaId.toString());
+        assertThat(situacoes(enviar(List.of(antes, agora)))).containsExactly("ACEITO", "ACEITO");
+
+        JsonNode r = api.get("/alunos/" + alunoId + "/recordes/semana", treinador, 200).get("series").get(0);
+        assertThat(r.get("exercicioId").asString()).isEqualTo(alternativaId.toString());
+        assertThat(r.get("exercicioNome").asString()).isEqualTo(nomeDaAlternativa);
+    }
+
     /**
      * Desmarcar série trocada (plano treino-do-aluno-lacunas-cbum, D4): o mesmo registro volta com {@code concluida=false}
      * e o {@code exercicioId} da alternativa; o último {@code alteradoNoAparelhoEm} vence, o atrasado é
