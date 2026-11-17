@@ -247,6 +247,8 @@ Uso de cada nível (11/11):
 | `Navegacao` | PC: menu no `fundo`, conteúdo no `painel`; item ativo em `superficie3` com a barrinha da marca; o trilho mostra o nome no hover/foco e tem rótulo acessível. Sem barra de topo (guia de 11/11): o conteúdo começa no respiro da `Tela`. Na web do treinador o menu lateral tem, de cima para baixo, a marca numa linha só dela (nome até duas linhas), depois "Buscar" com o recolher/expandir ao lado (só onde o menu recolhe; 72 px recolhido, 240 aberto, 88 no trilho; recolhido, lupa e seta empilhadas e centralizadas), com o atalho Ctrl K / ⌘ K só na dica e no nome acessível, sem selo no botão e com contorno `divisor` e sem fundo de campo (`ui/BuscaGlobal`: abre a `Folha` "Buscar", com as favoritas e a estrela 44 px em `atencao` em cada tela; recolhido, só a lupa com nome acessível e dica no foco), a lista que rola e, fixa no pé, a conta (`ui/CartaoDoUsuario`: iniciais, nome que trunca e perfil; recolhido, só as iniciais com o nome na dica; o menu abre para cima no aberto e para o lado nos estreitos). No celular não há faixa global: Perfil › "Buscar telas" abre a mesma busca. No nativo largo, o recolher fica na linha da marca e a conta segue em Perfil. O menu aberto mostra a contagem neutra (contorno `divisor`, texto `texto`) de Atualizações e Interessados, e o ponto fica no trilho, no recolhido e no celular. Celular: barra inferior com pílula `superficie3` no ativo. |
 | `corDoNumero` (`ui/indicador.ts`) | Número de indicador: comum em `texto`, atrasado em `perigo`, zero em `textoSuave`, nunca a marca; o cartão fica neutro. |
 | `EscolhaSuspensa` / `EscolhaEmFolha` | Escolha com busca: lista suspensa no PC, folha no celular. |
+| `TabelaDeBlocos` (`treinador/treino`, 16/11) | Blocos de séries do exercício: lista de abas vertical com ativação manual (setas movem o foco, Enter e Espaço escolhem). Colunas Série, Tipo, Carga, Reps e Descanso; abaixo de 390 px da coluna das séries cada bloco vira linha empilhada. Ver 4.7. |
+| `EscolhaDoExercicio` (`treinador/treino`, 16/11) | "Exercício aberto" no celular, com 3 ou mais exercícios na sessão: abre a folha com todos e rola até o escolhido (`EscolhaEmFolha`). |
 
 ### 4.5 Cor por situação (Gustavo, 03/11)
 
@@ -556,6 +558,60 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
 `CamposEmLinha` aceitar o par de datas; (c) uma largura nomeada por variante de modal.
 
 ---
+
+### 4.7 Editor de treino e de plano (reorganizado, 10/11 a 16/11)
+
+Vale para o treino do aluno e para o modelo de treino (`treinador/treino/EditorDeTreino`, com os filhos da pasta).
+O cabeçalho é da tela do modelo (`treinador/plano/TopoModelo`) ou da barra do plano do aluno (`treinador/plano/TopoPlano`).
+Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
+
+**Estrutura**
+- PC, a partir de 960 px de conteúdo: lista de exercícios à esquerda (`ListaDeExercicios`, coluna de no máximo 360 px)
+  e inspetor do exercício à direita, até 1800 px (4.3). Abaixo disso, coluna única de 1040 px.
+- Item da lista: posição, nome, resumo curto e pendência (`linhaDoExercicio`, selo de `estadoDoExercicio`). "Adicionar
+  próximo exercício" fica embaixo da lista, com "Criar grupo" (`AdicionarProximoExercicio emColuna`).
+- Cabeçalho da sessão (`CartaoSessao`): faixa com o nome, totais em linha compacta (`ResumoDaSessao`), "Adicionar
+  exercício", "Adicionar cardio" e "Criar grupo" (com o motivo quando travado). O ⋯ tem "Salvar como …" (`rotuloSalvarComo`)
+  e "Remover sessão" (perigo). "Ver distribuição da sessão" começa recolhida (por tipo e por grupo muscular). "Editar
+  sessão" recolhido diz o que já tem dentro, entre parênteses.
+- Sessão de treino sem exercício (`SessaoVazia`, `estadoDaSessao`): "Monte esta sessão" com "Adicionar exercício",
+  "Usar modelo" (não aparece no dia de treino solto) e "Adicionar cardio". Dia de descanso não ganha convite nem erro: recebe o texto
+  de que a sessão não leva exercícios.
+- Configuração recolhida (`ConfiguracaoDoPlano`, prop `resumo`): o resumo fica no lugar das ações. Dieta e mobilidade
+  não passam a prop e seguem como antes.
+- Celular com 3 ou mais exercícios: "Exercício aberto" (`EscolhaDoExercicio`) abre a folha com todos.
+
+**Blocos de séries (`TabelaDeBlocos`)**
+- Quatro sinais que não se confundem: foco é o anel do `:focus-visible`; escolhida é a superfície de seleção neutra com
+  contorno forte e "EDITANDO"; categoria é a faixa lateral e o selo na cor do tipo; problema é o ícone na cor da gravidade
+  (carga vazia é âmbar, "Falta a carga").
+- Nome acessível de cada linha começa por "Série N · tipo" e traz quantidade, repetições, descanso e o que varia entre as
+  séries do bloco (`textoAcessivelDoBloco`, `textoDaVariacao`). Resumo do exercício: "Este exercício: N blocos · M séries"
+  (`textoDeBlocosESeries`).
+- A edição completa do bloco escolhido fica abaixo da tabela (`EditorSeries`, `EditorDoGrupoDeSeries`).
+
+**Salvamento, validação e aplicação (três estados separados)**
+- Salvamento (`seloDoEditor`, `dominio/barraDoEditor.ts`): "Alterações não salvas" em neutro com lápis (D12, não é erro),
+  "Salvando…", "Falha ao salvar" e "Data inválida: não salvo" em `perigo`.
+- Validação (`ContadoresDoTreino`): "Sem pendências" ou "N pendências · Ir à primeira pendência" no modelo; no plano do
+  aluno, "Pronto para publicar" ou o mesmo texto de pendências. Só informa: nada trava salvar.
+- "Ir à primeira pendência" seleciona sessão, exercício e bloco, abre o recolhido e foca o campo com `aria-invalid="true"`.
+  A `TelaDoEditor` leva o campo focado para baixo da barra grudada (`focusin`).
+- Aplicação (modelo): "Aplicar ao aluno" fica desabilitado até salvar, com o motivo "Salve o modelo antes.".
+- Regras puras em `dominio/editorDeTreino.ts`: `resumoDoBloco`, `blocosESeries`, `textoDeBlocosESeries`,
+  `primeiraPendencia`, `estadoDaSessao`, `textoAcessivelDoBloco`, `textoDaVariacao`.
+
+**Cor (conferida no código)**
+- Prévia "Para o aluno" (`EditorDoGrupoDeSeries`): verde quando não há nada a corrigir; âmbar ou vermelho com aviso ou erro.
+- "Alterações não salvas" é neutro no código. A linha dessa situação na tabela de 4.5 ainda diz `atencao`: a decisão
+  está pendente (plano, decisão 4 e passo 4). Não conferido qual vale.
+
+**Não conferido**
+- Aparelho nativo (Android e iOS), leitor de tela real, web local em `:8088` com conta de demonstração,
+  `prefers-reduced-motion` e mais de 7 exercícios além da fixture de teste.
+- Largura da tabela de blocos: o plano diz 480 px; o código usa 390 px (`TabelaDeBlocos.tsx`, linha 34). Este texto segue o código.
+- Os ajustes de 11/11 (campo de nome ocupando a largura, "Criar grupo" embaixo de "Modelos prontos", "Editar sessão" na
+  largura da sessão) não foram vistos na tela; só o código.
 
 ## 5. Os problemas de design que estamos resolvendo
 
