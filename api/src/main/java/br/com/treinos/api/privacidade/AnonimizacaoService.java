@@ -115,7 +115,7 @@ public class AnonimizacaoService {
                     List.of(new ApiError.FieldError("nomeConfirmado", "Digite o nome do aluno exatamente como está no cadastro.")));
         }
         // O telefone do usuário acabou de ser apagado (Usuario.anonimizar): não há o que mostrar.
-        return AlunoDetalhe.de(apagar(aluno), null);
+        return AlunoDetalhe.de(apagar(aluno), null, null);
     }
 
     /**

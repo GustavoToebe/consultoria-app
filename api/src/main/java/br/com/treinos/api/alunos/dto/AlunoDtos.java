@@ -145,12 +145,15 @@ public final class AlunoDtos {
                                br.com.treinos.api.consultoria.MetaDoPeso metaDoPeso,
                                /** Data de nascimento; com {@code ALUNO_LER}, como o sexo. Só a equipe a recebe. */
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-                               LocalDate dataNascimento) {
+                               LocalDate dataNascimento,
+                               /** Grupo (pod) atual; os dois saem nulos (presentes) sem {@code COMUNIDADE_MODERAR} ou sem grupo. */
+                               UUID podId, String podNome) {
         /**
          * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
          * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
          */
-        public static AlunoDetalhe de(Aluno a, br.com.treinos.api.auth.Usuario usuario) {
+        public static AlunoDetalhe de(Aluno a, br.com.treinos.api.auth.Usuario usuario,
+                                      br.com.treinos.api.comunidade.ComunidadePod pod) {
             boolean conviteValido = a.getConviteExpiraEm() != null && a.getConviteExpiraEm().isAfter(Instant.now());
             boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
             boolean ler = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_LER");
@@ -165,7 +168,8 @@ public final class AlunoDtos {
                     sensivel ? a.getUsoDeImagemAutorizadoEm() : null,
                     ler && a.getSexo() != null ? a.getSexo().name() : null,
                     sensivel ? a.getMetaDoPeso() : null,
-                    ler ? a.getDataNascimento() : null);
+                    ler ? a.getDataNascimento() : null,
+                    pod == null ? null : pod.getId(), pod == null ? null : pod.getNome());
         }
     }
 

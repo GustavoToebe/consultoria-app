@@ -221,6 +221,51 @@ class PodsIntegrationTest extends AbstractIntegrationTest {
         }
     }
 
+    // ---- grupo atual na ficha do aluno ----
+
+    @Test
+    void fichaDoAlunoTrazOGrupoSoParaQuemTemComunidadeModerar() throws Exception {
+        String nomeX = api.get("/comunidade/pods", admin, 200).valueStream()
+                .filter(p -> p.get("id").asString().equals(podX)).findFirst().orElseThrow().get("nome").asString();
+
+        // Com COMUNIDADE_MODERAR (o administrador e um moderador): id e nome do grupo do banco.
+        JsonNode moderador = membro(Set.of("ALUNO_LER", "TREINO_LER", "COMUNIDADE_MODERAR"));
+        for (JsonNode quem : List.of(admin, moderador)) {
+            JsonNode ficha = api.get("/alunos/" + alunoA, quem, 200);
+            assertThat(ficha.get("podId").asString()).isEqualTo(podX);
+            assertThat(ficha.get("podNome").asString()).isEqualTo(nomeX);
+        }
+
+        // Sem a permissão: os dois campos estão presentes e nulos, mesmo com o aluno num grupo.
+        JsonNode soLer = membro(Set.of("ALUNO_LER"));
+        JsonNode semPermissao = api.get("/alunos/" + alunoA, soLer, 200);
+        assertThat(semPermissao.has("podId")).isTrue();
+        assertThat(semPermissao.get("podId").isNull()).isTrue();
+        assertThat(semPermissao.has("podNome")).isTrue();
+        assertThat(semPermissao.get("podNome").isNull()).isTrue();
+
+        // Aluno sem grupo: nulos também para quem modera.
+        JsonNode semGrupo = api.get("/alunos/" + alunoD, admin, 200);
+        assertThat(semGrupo.get("podId").isNull()).isTrue();
+        assertThat(semGrupo.get("podNome").isNull()).isTrue();
+
+        // Tirar do grupo volta a nulo; inativar (UPDATE que zera o pod) também, na própria resposta.
+        Map<String, Object> nulo = new LinkedHashMap<>();
+        nulo.put("podId", null);
+        api.put("/alunos/" + alunoA + "/pod", admin, nulo, 204);
+        JsonNode depois = api.get("/alunos/" + alunoA, admin, 200);
+        assertThat(depois.get("podId").isNull()).isTrue();
+        assertThat(depois.get("podNome").isNull()).isTrue();
+        JsonNode inativado = api.patch("/alunos/" + alunoB + "/situacao", admin, Map.of("ativo", false), 200);
+        assertThat(inativado.get("podId").isNull()).isTrue();
+        assertThat(inativado.get("podNome").isNull()).isTrue();
+
+        // Aluno de outra consultoria: 404 como sempre, mesmo para quem modera.
+        JsonNode outroAdmin = api.novoTreinador();
+        UUID deOutra = api.criarAluno(outroAdmin, "Gil Outra Consultoria");
+        api.get("/alunos/" + deOutra, admin, 404);
+    }
+
     // ---- atribuição ----
 
     @Test

@@ -12,6 +12,7 @@ import br.com.treinos.api.atualizacoes.RegrasAtualizacao;
 import br.com.plataforma.comum.auth.Autenticador;
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
+import br.com.treinos.api.comunidade.ComunidadePod;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
 import br.com.treinos.api.treino.PlanoTreino;
@@ -67,6 +68,7 @@ public class AlunoService {
     private final ConsultoriaRepository consultorias;
     private final br.com.treinos.api.pastas.PastaRepository pastas;
     private final LimiteDoTreinador limiteDoTreinador;
+    private final br.com.treinos.api.comunidade.ComunidadePodRepository pods;
 
     public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                         PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria,
@@ -75,7 +77,9 @@ public class AlunoService {
                         br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
                         br.com.treinos.api.agenda.AgendaService agenda, ConsultoriaRepository consultorias,
                         br.com.treinos.api.pastas.PastaRepository pastas, LimiteDoTreinador limiteDoTreinador,
-                        br.com.treinos.api.push.PushService push) {
+                        br.com.treinos.api.push.PushService push,
+                        br.com.treinos.api.comunidade.ComunidadePodRepository pods) {
+        this.pods = pods;
         this.push = push;
         this.limiteDoTreinador = limiteDoTreinador;
         this.pastas = pastas;
@@ -278,7 +282,17 @@ public class AlunoService {
      */
     public AlunoDetalhe detalheDe(Aluno aluno) {
         Usuario usuario = aluno.getUsuarioId() == null ? null : usuarios.findById(aluno.getUsuarioId()).orElse(null);
-        return AlunoDetalhe.de(aluno, usuario);
+        return AlunoDetalhe.de(aluno, usuario, podParaAFicha(aluno));
+    }
+
+    /**
+     * Grupo atual do aluno, só para quem modera a comunidade. Lido do banco agora (inativar zera {@code pod_id} por UPDATE e a
+     * entidade em memória fica velha); o pod sai do repositório do tenant, então nunca é de outra consultoria. Só a ficha chama:
+     * a lista de alunos não carrega pod (sem N+1).
+     */
+    private ComunidadePod podParaAFicha(Aluno aluno) {
+        if (!br.com.treinos.api.equipe.AcessoAtual.pode("COMUNIDADE_MODERAR")) return null;
+        return alunos.podDoAluno(aluno.getId()).flatMap(pods::findById).orElse(null);
     }
 
     @Transactional
