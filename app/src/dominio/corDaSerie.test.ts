@@ -48,7 +48,8 @@ describe('corDaDivisao', () => {
 
 describe('corDaRefeicao', () => {
   it('segue a ordem do dia, em ciclo', () => {
-    expect([0, 1, 2, 3, 4, 5].map(corDaRefeicao)).toEqual(['CIANO', 'AZUL', 'VIOLETA', 'MAGENTA', 'INDIGO', 'CIANO']);
-    expect(corDaRefeicao(-3)).toBe('CIANO');
+    expect([0, 1, 2, 3, 4, 5, 6].map(corDaRefeicao)).toEqual(['MAGENTA', 'INDIGO', 'CIANO', 'AZUL', 'VIOLETA', 'MAGENTA', 'INDIGO']);
+    expect(corDaRefeicao(-3)).toBe('MAGENTA');
+    expect(corDaRefeicao(1.5)).toBe('MAGENTA');
   });
 });

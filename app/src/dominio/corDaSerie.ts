@@ -28,8 +28,12 @@ const COR_DO_PAPEL: Readonly<Record<PapelDaSerie, ChaveDeIdentificacao | null>> 
 /** A, B e C bem diferentes entre si (azul, magenta, ciano); depois violeta e índigo, em ciclo (prévia aprovada). */
 const CORES_DAS_DIVISOES: readonly ChaveDeIdentificacao[] = ['AZUL', 'MAGENTA', 'CIANO', 'VIOLETA', 'INDIGO'];
 
-/** Refeições na ordem do dia (D14, prévia aprovada), em ciclo. */
-const CORES_DAS_REFEICOES: readonly ChaveDeIdentificacao[] = ['CIANO', 'AZUL', 'VIOLETA', 'MAGENTA', 'INDIGO'];
+/**
+ * Refeições na ordem do dia (D14, prévia aprovada), em ciclo. Começa em magenta e índigo, as duas cores que os macros
+ * (P ciano, C azul, G violeta, `ui/ValoresDaDieta`) não usam: a 1ª refeição nunca tem a cor de um macro (17/11). Com só
+ * cinco cores, da 3ª refeição em diante a repetição é inevitável; a ordem segue a aprovada, girada.
+ */
+const CORES_DAS_REFEICOES: readonly ChaveDeIdentificacao[] = ['MAGENTA', 'INDIGO', 'CIANO', 'AZUL', 'VIOLETA'];
 
 /**
  * Cor de um tipo de série: os cinco códigos padrão têm cor própria; qualquer outro código (tipo criado pelo treinador)

@@ -14,7 +14,10 @@ interface Props {
   contexto?: string;
   /** Linha de resumo do item fechado ("2×10 · com vídeo"). */
   resumo?: string;
-  /** Abaixo do resumo, aberto ou fechado: o que a linha de texto não carrega (o subtotal da refeição com P/C/G, C66). */
+  /**
+   * Embaixo do título e das ações, na largura toda, aberto ou fechado: o que a linha de texto não carrega (o subtotal da
+   * refeição com P/C/G, C66). Não abre nem fecha o item.
+   */
   detalhe?: ReactNode;
   selo?: { texto: string; tipo: TipoSelo };
   aberto: boolean;
@@ -44,11 +47,11 @@ export function CabecalhoDoItem({ titulo, contexto, resumo, detalhe, selo, abert
     {contexto ? <Texto variante="pequeno" numerico>{contexto}</Texto> : null}
     <Texto variante="bloco" nivel={aoAlternar ? undefined : 3} style={estilos.titulo}>{titulo}</Texto>
     {resumo ? <Texto variante="suave" numerico>{resumo}</Texto> : null}
-    {detalhe ?? null}
     {selo ? <View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} /></View> : null}
   </>;
-  return (
-    <View style={[estilos.linha, faixa && [estilos.faixa, { backgroundColor: cores.superficie3, borderColor: cores.borda }]]}>
+  const estiloDaFaixa = faixa && [estilos.faixa, { backgroundColor: cores.superficie3, borderColor: cores.borda }];
+  const linha = (
+    <View style={[estilos.linha, !detalhe && estiloDaFaixa]}>
       {aoAlternar ? (
         <Pressable
           accessibilityRole="button"
@@ -71,6 +74,9 @@ export function CabecalhoDoItem({ titulo, contexto, resumo, detalhe, selo, abert
       </View>
     </View>
   );
+  // O detalhe desce para a largura toda, abaixo do título e das ações: ao lado dos 4 botões, no celular, sobravam uns
+  // 150 px e o subtotal se partia em várias linhas. Fora do botão de abrir, o leitor de tela também o alcança.
+  return detalhe ? <View style={estiloDaFaixa}>{linha}<View style={estilos.detalhe}>{detalhe}</View></View> : linha;
 }
 
 const estilos = StyleSheet.create({
@@ -79,5 +85,6 @@ const estilos = StyleSheet.create({
   textos: { flex: 1, minHeight: ALVO_TOQUE, justifyContent: 'center', gap: 1 },
   titulo: { fontSize: 16, lineHeight: 22 },
   selo: { flexDirection: 'row', marginTop: 2 },
+  detalhe: { paddingBottom: espaco(0.5) },
   acoes: { flexDirection: 'row', alignItems: 'center' },
 });

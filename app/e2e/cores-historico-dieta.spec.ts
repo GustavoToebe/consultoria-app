@@ -1,9 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { ConteudoDieta, DiaDeTreino, ItemDieta, PastaDoAluno, SerieFeita, VersaoDetalhe } from '../src/api/tipos';
+import { corDaRefeicao } from '../src/dominio/corDaSerie';
 import { PALETA_DE_IDENTIFICACAO } from '../src/tema/tokens';
 import { ALUNO, json, simularApi } from './api-falsa';
 import { sessaoDeAluno } from './aluno';
+import { transbordos } from './transbordo';
 
 /**
  * Frente G, passo 5 (D13, D14 e D15): a dieta do aluno com a cor da refeição na barra e na etiqueta da quantidade, e o
@@ -40,6 +42,13 @@ const DIETA: VersaoDetalhe<ConteudoDieta> = {
   id: 'd0000000-0000-4000-8000-000000000011', planoId: 'p0000000-0000-4000-8000-000000000011', numero: 1, titulo: 'Dieta de teste',
   inicio: '2026-10-01', fim: '2026-10-31', publicadoEm: '2026-10-01T12:00:00Z', conteudo: CONTEUDO,
 };
+
+/** Nome longo (com e sem espaços) na refeição e no alimento: quebra a linha e não empurra a etiqueta nem os valores. */
+const SEM_ESPACOS = 'Batatadocecozidasemcascaamassadacomazeitedeolivaextravirgemsalrosadohimalaiaenozmoscada';
+const DIETA_NOME_LONGO: VersaoDetalhe<ConteudoDieta> = { ...DIETA, conteudo: { ...CONTEUDO, refeicoes: [
+  { uid: 'cafe', nome: 'Refeição pré-treino com batata-doce, frango desfiado e salada verde temperada no azeite', horario: '07:00', observacao: null,
+    opcoes: [{ uid: 'a', rotulo: 'A', itens: [item('batata', SEM_ESPACOS, 1500, 'g'), item('aveia', 'Aveia fictícia', 40)] }, { uid: 'b', rotulo: 'B', itens: [item('arroz', 'Arroz fictício', 150)] }] },
+] } };
 
 /* ---------------- histórico (D13 e D15) ---------------- */
 
@@ -112,16 +121,46 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       await expect(aveia).toBeVisible();
       await expect(arroz).toBeVisible();
       await arroz.scrollIntoViewIfNeeded();
-      // A primeira refeição é ciano e a segunda, azul: etiqueta e texto na cor da refeição.
-      expect(await aveia.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(rgb(paleta.CIANO));
-      expect(await arroz.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(rgb(paleta.AZUL));
-      await expect(aveia.getByText('40', { exact: true })).toHaveCSS('color', rgb(paleta.CIANO));
+      // A primeira refeição é magenta e a segunda, índigo (fora das cores dos macros): etiqueta e texto na cor da refeição.
+      expect(await aveia.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(rgb(paleta[corDaRefeicao(0)]));
+      expect(await arroz.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(rgb(paleta[corDaRefeicao(1)]));
+      await expect(aveia.getByText('40', { exact: true })).toHaveCSS('color', rgb(paleta[corDaRefeicao(0)]));
       // O nome do alimento continua no texto, e a quantidade ausente é "—" (sem unidade inventada).
       await expect(page.getByText('Arroz fictício', { exact: true })).toBeVisible();
       await expect(page.getByLabel('Quantidade: —', { exact: true })).toBeVisible();
       await expect(page.getByText('Arroz fictício — 150 g')).toHaveCount(0);
       expect(await semRolagemDeLado(page)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath(`dieta-${nomeDoTema}-${largura}.png`), fullPage: true });
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test(`dieta: nome longo quebra a linha sem empurrar a quantidade nem o total (${nomeDoTema}, ${largura}px)`, async ({ page }, testInfo) => {
+      // Alta para o cartão caber inteiro na captura (a tela rola por dentro).
+      await page.setViewportSize({ width: largura, height: 2000 });
+      await tema(page, nomeDoTema);
+      const { naoTratadas, errosDaPagina } = await simularApi(page, {
+        ...(await sessaoDeAluno(page)),
+        'GET /aluno/dieta': { corpo: { dieta: DIETA_NOME_LONGO } },
+        'GET /aluno/pesos': { corpo: [] },
+      });
+      await page.goto('/aluno/dieta');
+      const etiqueta = page.getByLabel('Quantidade: 1500 g', { exact: true });
+      await expect(etiqueta).toBeVisible();
+      await expect(page.getByText(SEM_ESPACOS, { exact: true })).toBeVisible();
+      const cartao = page.getByTestId('cartao').filter({ has: etiqueta }).first();
+      const c = await cartao.boundingBox();
+      const e = await etiqueta.boundingBox();
+      // A etiqueta da quantidade continua inteira dentro do cartão, à direita do nome.
+      expect(c && e && e.x + e.width <= c.x + c.width + 1).toBe(true);
+      // A linha do item (nome, valores e etiqueta) e o total não transbordam (as abas das opções não são deste caso).
+      const linha = page.locator('div', { has: page.getByText(SEM_ESPACOS, { exact: true }) }).filter({ has: etiqueta }).last();
+      const total = page.getByRole('group', { name: 'Total da opção A' });
+      expect(await transbordos(linha)).toEqual([]);
+      expect(await transbordos(total)).toEqual([]);
+      await expect(total.getByText('Total da opção A: 200 kcal, proteína 10,0 g, carboidrato 20,0 g, gordura 4,0 g', { exact: true })).toHaveCount(1);
+      expect(await semRolagemDeLado(page)).toBe(true);
+      await cartao.screenshot({ path: testInfo.outputPath(`dieta-nome-longo-${nomeDoTema}-${largura}.png`) });
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });

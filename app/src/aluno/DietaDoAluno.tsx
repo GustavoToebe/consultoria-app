@@ -26,7 +26,7 @@ import { FolhaPdfDieta } from '../ui/FolhaPdfDieta';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { NumeroAnimado } from '../ui/NumeroAnimado';
-import { MACROS, MarcaDoMacro, ValoresDaDieta } from '../ui/ValoresDaDieta';
+import { MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../ui/ValoresDaDieta';
 import { ModoDePreparo } from './ModoDePreparo';
 import { useDiaDeHojeEmBrasilia } from './useDiaDeHoje';
 
@@ -218,8 +218,10 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
       })}
       {opcao ? (
         <View style={[estilos.totalDaRefeicao, { borderColor: cores.bordaCampo }]} role="group" aria-label={rotuloDoTotal}>
-          <Texto numerico style={estilos.forte} cor={cores.texto}>{rotuloDoTotal}</Texto>
-          <ValoresDaDieta totais={somar(opcao.itens)} forte inicio />
+          {/* O leitor ouve rótulo e valores numa frase só; o que se vê fica escondido dele. */}
+          <TotalParaLeitor rotulo={rotuloDoTotal} totais={somar(opcao.itens)} />
+          <Texto numerico style={estilos.forte} cor={cores.texto} aria-hidden>{rotuloDoTotal}</Texto>
+          <View aria-hidden><ValoresDaDieta totais={somar(opcao.itens)} forte inicio /></View>
         </View>
       ) : null}
       <ModoDePreparo texto={refeicao.modoDePreparo} />

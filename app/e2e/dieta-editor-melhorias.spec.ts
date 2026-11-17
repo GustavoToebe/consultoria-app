@@ -1,8 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { Alimento, ConteudoDieta, ItemDieta, PlanoDetalhe, Refeicao } from '../src/api/tipos';
+import { corDaRefeicao } from '../src/dominio/corDaSerie';
 import { PALETA_DE_IDENTIFICACAO, paletaDe } from '../src/tema/tokens';
 import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type PedidoFalso } from './api-falsa';
+import { transbordos } from './transbordo';
 
 /**
  * Editor de dieta, passos 9 a 11 do plano `dieta-pronta-para-comecar` (C56, C66+C60, C63+C95): "Trocar" no item da
@@ -108,9 +110,9 @@ for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
       // A paleta que o tema usa de verdade (a Areia hoje resolve para a variante clara: `PALETAS.AREIA`).
       const paleta = PALETA_DE_IDENTIFICACAO[paletaDe(tema).variante];
 
-      // Cor: barra de 6 px, ciano na 1ª refeição e azul na 2ª (no PC, a 2ª entra no inspetor pela lista).
-      expect(await barra(page, 'cafe')).toEqual({ largura: '6px', cor: rgb(paleta.CIANO) });
-      if (largura < 1280) expect(await barra(page, 'almoco')).toEqual({ largura: '6px', cor: rgb(paleta.AZUL) });
+      // Cor: barra de 6 px pela posição (1ª magenta, 2ª índigo, fora das cores dos macros; no PC, a 2ª entra no inspetor pela lista).
+      expect(await barra(page, 'cafe')).toEqual({ largura: '6px', cor: rgb(paleta[corDaRefeicao(0)]) });
+      if (largura < 1280) expect(await barra(page, 'almoco')).toEqual({ largura: '6px', cor: rgb(paleta[corDaRefeicao(1)]) });
       if (largura < 1280) await page.screenshot({ path: testInfo.outputPath(`fechadas-${sufixo}.png`), fullPage: true });
 
       await abrirRefeicao(page, largura, '07:00 · Café da manhã');
@@ -151,7 +153,7 @@ for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
 
       if (largura >= 1280) {
         await page.getByRole('button', { name: /^Refeição 2 de 2: 12:00 · Almoço/ }).click();
-        expect(await barra(page, 'almoco')).toEqual({ largura: '6px', cor: rgb(paleta.AZUL) });
+        expect(await barra(page, 'almoco')).toEqual({ largura: '6px', cor: rgb(paleta[corDaRefeicao(1)]) });
       }
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
@@ -160,12 +162,12 @@ for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
 }
 
 for (const largura of [390, 1280]) {
-  test(`dieta por dia: troca na 2ª variação, a 1ª refeição dela volta ao ciano; unidade sem conversão fica "—" (${largura})`, async ({ page }, testInfo) => {
+  test(`dieta por dia: troca na 2ª variação, a 1ª refeição dela volta à cor da 1ª; unidade sem conversão fica "—" (${largura})`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     const { pedidos, naoTratadas, errosDaPagina } = await abrirEditor(page, POR_DIA, 'CLARO');
     await page.getByRole('tablist', { name: 'Variações da dieta' }).getByRole('tab', { name: /^Descanso,/ }).click();
     await expect(page.getByRole('heading', { name: 'Total do dia · Descanso' })).toBeVisible();
-    expect(await barra(page, 'cafe2')).toEqual({ largura: '6px', cor: rgb(PALETA_DE_IDENTIFICACAO.claro.CIANO) });
+    expect(await barra(page, 'cafe2')).toEqual({ largura: '6px', cor: rgb(PALETA_DE_IDENTIFICACAO.claro[corDaRefeicao(0)]) });
 
     await abrirRefeicao(page, largura, '07:00 · Café da manhã');
     const cafe2 = cartao(page, 'cafe2');
@@ -182,6 +184,44 @@ for (const largura of [390, 1280]) {
     const itens = salvo.variacoes[1].refeicoes[0].opcoes[0].itens;
     expect(itens.map((i) => i.uid)).toEqual(['cafe2-pao', 'cafe2-leite', 'cafe2-banana']);
     expect(itens[2]).toMatchObject({ alimentoId: 'arroz', nome: 'Arroz fictício', quantidade: 1, unidade: 'un', kcal: null });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+/** Nome longo (com e sem espaços) não estoura o cartão nem empurra kcal/macros para fora; 80 = limite do campo Nome. */
+const NOME_LONGO = 'Refeição pré-treino com batata-doce, frango desfiado e salada verde temperada no azeite';
+const SEM_ESPACOS = 'Batatadocecozidasemcascaamassadacomazeitedeolivaextravirgemsalrosadohimalaiaenozmoscada';
+const COM_NOME_LONGO: ConteudoDieta = { ...BASE, refeicoes: [
+  { ...cafe(), nome: NOME_LONGO.slice(0, 80), opcoes: [
+    { uid: 'cafe-a', rotulo: 'A', itens: [{ ...item('cafe-pao', PAO, 50, 'g'), nome: SEM_ESPACOS }, item('cafe-leite', LEITE, 200, 'ml')] },
+    { uid: 'cafe-b', rotulo: 'B', itens: [item('cafe-banana', BANANA, 1, 'un')] },
+  ] },
+  { ...ALMOCO, nome: SEM_ESPACOS.slice(0, 80) },
+] };
+
+for (const largura of [390, 1280]) {
+  test(`nome longo de refeição e de alimento quebra a linha sem empurrar o subtotal (${largura})`, async ({ page }, testInfo) => {
+    // Alta para o cartão aberto caber inteiro na captura (a tela rola por dentro).
+    await page.setViewportSize({ width: largura, height: 2600 });
+    const { naoTratadas, errosDaPagina } = await abrirEditor(page, COM_NOME_LONGO, 'CLARO');
+    const titulo = `07:00 · ${NOME_LONGO.slice(0, 80)}`;
+    if (largura < 1280) {
+      // Fechadas: o cabeçalho empilha título, contagem e subtotal, sem corte.
+      expect(await transbordos(cartao(page, 'almoco'))).toEqual([]);
+      expect(await transbordos(cartao(page, 'cafe'))).toEqual([]);
+      // A tela rola por dentro: a captura é do cartão.
+      await cartao(page, 'cafe').screenshot({ path: testInfo.outputPath(`nome-longo-fechada-${largura}.png`) });
+    }
+    await abrirRefeicao(page, largura, titulo);
+    const subtotal = cartao(page, 'cafe').getByRole('group', { name: 'Subtotal da refeição, opção A' });
+    await expect(subtotal).toBeVisible();
+    // O leitor de tela ouve o rótulo e os valores por extenso, numa frase só.
+    await expect(subtotal.getByText('Subtotal da refeição, opção A: 233 kcal, proteína 10,2 g, carboidrato 34,8 g, gordura 5,6 g', { exact: true })).toHaveCount(1);
+    await expect(cartao(page, 'cafe').getByText(SEM_ESPACOS, { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await transbordos(cartao(page, 'cafe'))).toEqual([]);
+    await cartao(page, 'cafe').screenshot({ path: testInfo.outputPath(`nome-longo-aberta-${largura}.png`) });
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

@@ -1,4 +1,8 @@
+import { Text } from 'react-native';
+
 import type { ItemDieta, Refeicao } from '../../api/tipos';
+import { corDaRefeicao } from '../../dominio/corDaSerie';
+import { MACROS, valoresPorExtenso } from '../../ui/ValoresDaDieta';
 import { CartaoRefeicao } from './CartaoRefeicao';
 
 /**
@@ -122,6 +126,13 @@ describe('CartaoRefeicao: trocar alimento (C56)', () => {
   });
 });
 
+describe('valoresPorExtenso', () => {
+  it('lê kcal e os três macros na ordem da tela, com unidade, e "sem dado" no que falta (nunca o traço)', () => {
+    expect(valoresPorExtenso({ kcal: 233.4, proteina: 10.24, carboidrato: 34.8, gordura: null })).toBe('233 kcal, proteína 10,2 g, carboidrato 34,8 g, gordura sem dado');
+    expect(valoresPorExtenso({ kcal: null, proteina: 0, carboidrato: 1, gordura: 2 })).toBe('kcal sem dado, proteína 0,0 g, carboidrato 1,0 g, gordura 2,0 g');
+  });
+});
+
 describe('CartaoRefeicao: subtotal e cor (C66, C63)', () => {
   const grupo = (a: Arvore, rotulo: string) => a.root.findAll((n) => n.props['aria-label'] === rotulo && typeof n.type === 'string');
   const cartao = (a: Arvore) => a.root.findAll((n) => n.props.testID === 'cartao' && typeof n.type === 'string')[0];
@@ -133,12 +144,26 @@ describe('CartaoRefeicao: subtotal e cor (C66, C63)', () => {
     expect(grupo(montar(uma), 'Subtotal da refeição')).toHaveLength(1);
   });
 
-  it('a barra lateral segue a posição da refeição (1ª ciano, 2ª azul)', () => {
+  it('a barra lateral segue a posição da refeição (1ª magenta, 2ª índigo)', () => {
     const borda = (posicao: number) => {
       const estilo = cartao(montar(refeicao(), { posicao })).props.style;
       return Object.assign({}, ...(Array.isArray(estilo) ? estilo.flat(5) : [estilo]).filter(Boolean));
     };
-    expect(borda(0)).toMatchObject({ borderLeftWidth: 6, borderLeftColor: '#3CC3D6' });
-    expect(borda(1)).toMatchObject({ borderLeftWidth: 6, borderLeftColor: '#62A0F8' });
+    expect(borda(0)).toMatchObject({ borderLeftWidth: 6, borderLeftColor: '#F07AC8' });
+    expect(borda(1)).toMatchObject({ borderLeftWidth: 6, borderLeftColor: '#A196F5' });
+  });
+
+  it('a cor da 1ª e da 2ª refeição nunca é a de um macro (P, C ou G)', () => {
+    const doMacro = new Set<string>(MACROS.map((m) => m.cor));
+    expect(doMacro.has(corDaRefeicao(0))).toBe(false);
+    expect(doMacro.has(corDaRefeicao(1))).toBe(false);
+    expect(corDaRefeicao(0)).not.toBe(MACROS.find((m) => m.curto === 'P')?.cor);
+  });
+
+  it('o subtotal e o total da opção têm uma frase só para o leitor, com rótulo e valores por extenso', () => {
+    const a = montar(refeicao());
+    const textos = a.root.findAllByType(Text).map((t) => t.props.children);
+    expect(textos).toContain('Subtotal da refeição, opção A: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g');
+    expect(textos).toContain('Total da opção B: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g');
   });
 });

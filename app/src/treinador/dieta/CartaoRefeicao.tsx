@@ -30,7 +30,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
-import { CampoDoMacro, MACROS, ValoresDaDieta } from '../../ui/ValoresDaDieta';
+import { CampoDoMacro, MACROS, TotalParaLeitor, ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
@@ -114,10 +114,15 @@ export function CartaoRefeicao(p: Props) {
   const varias = r.opcoes.length > 1;
   const opcaoA = r.opcoes[0];
   // Subtotal da refeição (C66): a opção A, a que entra no "Total do dia", também com a refeição aberta.
+  const rotuloDoSubtotal = varias ? `Subtotal da refeição, opção ${opcaoA?.rotulo}` : 'Subtotal da refeição';
+  // O leitor ouve uma frase só (rótulo e os quatro valores por extenso); o que se vê fica escondido dele.
   const subtotal = opcaoA ? (
-    <View role="group" aria-label={varias ? `Subtotal da refeição, opção ${opcaoA.rotulo}` : 'Subtotal da refeição'} style={estilos.subtotal}>
-      {varias ? <Texto variante="pequeno" aria-hidden>Opção {opcaoA.rotulo}:</Texto> : null}
-      <ValoresDaDieta totais={somar(opcaoA.itens)} inicio />
+    <View role="group" aria-label={rotuloDoSubtotal}>
+      <TotalParaLeitor rotulo={rotuloDoSubtotal} totais={somar(opcaoA.itens)} />
+      <View aria-hidden style={estilos.subtotal}>
+        {varias ? <Texto variante="pequeno">Opção {opcaoA.rotulo}:</Texto> : null}
+        <ValoresDaDieta totais={somar(opcaoA.itens)} inicio />
+      </View>
     </View>
   ) : undefined;
 
@@ -275,8 +280,9 @@ function OpcaoDaRefeicao({
       ))}
       {/* Total separado dos itens por um fio suave: o nome à esquerda, os números à direita (guia pág. 10). */}
       <View role="group" aria-label={`Total da opção ${opcao.rotulo}`} style={[estilos.total, { borderTopColor: cores.divisor }]}>
-        <Texto variante="rotulo" cor={cores.texto}>Total da opção {opcao.rotulo}</Texto>
-        <View style={estilos.cresce}><ValoresDaDieta totais={somar(opcao.itens)} forte /></View>
+        <TotalParaLeitor rotulo={`Total da opção ${opcao.rotulo}`} totais={somar(opcao.itens)} />
+        <Texto variante="rotulo" cor={cores.texto} aria-hidden>Total da opção {opcao.rotulo}</Texto>
+        <View style={estilos.cresce} aria-hidden><ValoresDaDieta totais={somar(opcao.itens)} forte /></View>
       </View>
       <LinhaDeAcoes>
         <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="secundario" Icone={Plus} aoTocar={aoEscolherAlimento} />

@@ -26,6 +26,17 @@ export const kcalNaTela = (v: number | null) => (v === null ? SEM_DADO : numeroP
 export const gramasNaTela = (v: number | null) => (v === null ? SEM_DADO : `${v.toFixed(1).replace('.', ',')} g`);
 /** O que o leitor de tela diz no lugar da letra: "Proteína 4,0 g", "Gordura sem dado". */
 export const macroPorExtenso = (nome: string, v: number | null) => `${nome} ${v === null ? 'sem dado' : gramasNaTela(v)}`;
+/** A linha inteira para o leitor de tela, na ordem da tela: "233 kcal, proteína 10,2 g, carboidrato 34,8 g, gordura sem dado". */
+export const valoresPorExtenso = (t: Totais) =>
+  [t.kcal === null ? 'kcal sem dado' : `${kcalNaTela(t.kcal)} kcal`, ...MACROS.map((m) => macroPorExtenso(m.nome.toLowerCase(), t[m.chave]))].join(', ');
+
+/**
+ * Um total (subtotal da refeição, total da opção) numa frase só para o leitor de tela, "Total da opção A: 233 kcal,
+ * proteína…", em vez de números soltos. Quem usa esconde do leitor o rótulo visível e a linha dos valores (`aria-hidden`).
+ */
+export function TotalParaLeitor({ rotulo, totais }: { rotulo: string; totais: Totais }) {
+  return <Texto style={estilos.soParaLeitor}>{`${rotulo}: ${valoresPorExtenso(totais)}`}</Texto>;
+}
 
 /** Quadradinho de 8 px na cor do macro; sem a cor (tema de teste), não aparece. */
 export function MarcaDoMacro({ cor }: { cor: ChaveDeIdentificacao }) {
