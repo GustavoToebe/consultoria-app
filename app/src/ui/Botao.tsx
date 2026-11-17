@@ -11,7 +11,7 @@ import { sobre } from './sobre';
 import { Texto } from './Texto';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 
-type Tipo = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'perigoTexto';
+type Tipo = 'primario' | 'secundario' | 'destaque' | 'perigo' | 'fantasma' | 'perigoTexto';
 
 interface Props {
   rotulo: string;
@@ -41,7 +41,9 @@ interface Props {
  * `coresDoBotaoPrincipal().fundoAoPassar`); a marca não pinta botão. Secundária com o contorno forte (`bordaCampo`,
  * ≥ 3:1); fantasma só texto, para ação rara ou de baixo risco; `perigoTexto` é o fantasma com texto vermelho (remover,
  * inativar), sempre com confirmação. `perigo` (contorno e rótulo em `perigo`, sem fundo cheio; hover `perigoSuave`) é só
- * para o botão de confirmação do painel. O rótulo quebra em até duas linhas e nunca estoura o cartão; vários botões lado
+ * para o botão de confirmação do painel. `destaque` (D12) é a ação de apoio que precisa ser achada sem ser a principal
+ * ("Usar receita", "Modelos prontos" e "Adicionar refeição" da dieta): fundo opaco `informacaoSuave` (12%), rótulo e
+ * ícone `informacao`; com o mouse em cima ou apertado ganha o contorno `informacao`. O rótulo quebra em até duas linhas e nunca estoura o cartão; vários botões lado
  * a lado vão numa `LinhaDeAcoes`.
  */
 export const Botao = forwardRef<View, Props>(function Botao(
@@ -58,15 +60,17 @@ export const Botao = forwardRef<View, Props>(function Botao(
   const semFundo = tipo === 'fantasma' || tipo === 'perigoTexto';
   const cinza = coresDoDesabilitado(cores);
   const visual = visualDoInativo(desabilitado, carregando);
-  const fundo = visual.cinza && !semFundo ? cinza.fundo : tipo === 'primario' ? principal.fundo : 'transparent';
-  const texto = visual.cinza ? cinza.texto : tipo === 'primario' ? principal.texto : tipo === 'perigo' || tipo === 'perigoTexto' ? cores.perigo : cores.texto;
+  const fundo = visual.cinza && !semFundo ? cinza.fundo : tipo === 'primario' ? principal.fundo : tipo === 'destaque' ? cores.informacaoSuave : 'transparent';
+  const texto = visual.cinza ? cinza.texto : tipo === 'primario' ? principal.texto : tipo === 'destaque' ? cores.informacao : tipo === 'perigo' || tipo === 'perigoTexto' ? cores.perigo : cores.texto;
   const borda = visual.cinza && !semFundo ? cinza.borda : tipo === 'secundario' ? cores.bordaCampo : tipo === 'perigo' ? cores.perigo : fundo;
   const explicacao = desabilitado && !carregando && motivo ? motivo : undefined;
-  /** Mouse em cima ou apertado: o principal anda na direção da página, o perigo ganha a pílula vermelha, os outros a superfície elevada. */
+  /** Mouse em cima ou apertado: o principal anda na direção da página, o perigo ganha a pílula vermelha, o destaque o contorno azul, os outros a superfície elevada. */
   const corAoPassar = (ativo: boolean) => {
     if (!ativo) return { backgroundColor: fundo, borderColor: borda };
     if (tipo === 'primario') return { backgroundColor: principal.fundoAoPassar, borderColor: principal.fundoAoPassar };
     if (tipo === 'perigo') return { backgroundColor: cores.perigoSuave, borderColor: borda };
+    // O fundo não escurece: mais tinta tiraria o rótulo de 4,5:1 nos temas claros (`contrasteDasPecas.test.ts`).
+    if (tipo === 'destaque') return { backgroundColor: fundo, borderColor: cores.informacao };
     return { backgroundColor: cores.superficie2, borderColor: semFundo ? cores.superficie2 : borda };
   };
   // Ação e motivo são um bloco (P5): numa fila alinhada à direita o botão fica na ponta e o motivo, colado sob ele,
@@ -76,7 +80,7 @@ export const Botao = forwardRef<View, Props>(function Botao(
     <Button
       ref={ref}
       autoFocus={autoFocus}
-      variant={tipo === 'primario' ? 'default' : tipo === 'perigo' || tipo === 'secundario' ? 'outline' : 'ghost'}
+      variant={tipo === 'primario' ? 'default' : tipo === 'perigo' || tipo === 'secundario' || tipo === 'destaque' ? 'outline' : 'ghost'}
       accessibilityRole="button"
       testID={testID}
       accessibilityLabel={rotuloAcessivel ?? rotulo}

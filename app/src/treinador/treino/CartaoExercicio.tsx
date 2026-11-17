@@ -149,7 +149,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
     <View style={estilos.tituloDasSeries}>
       <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
       {/* Sem séries, "Usar receita" fica no estado vazio do `EditorSeries` (D13), não duas vezes. */}
-      {cardio || !e.series.length ? null : <Botao rotulo="Usar receita" rotuloAcessivel="Usar receita de séries" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
+      {cardio || !e.series.length ? null : <Botao rotulo="Usar receita" rotuloAcessivel="Usar receita de séries" tipo="destaque" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
     </View>
     <EditorSeries cardio={cardio} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
       aoUsarReceita={cardio ? undefined : p.aoUsarReceita}

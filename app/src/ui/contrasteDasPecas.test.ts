@@ -102,6 +102,17 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     }
   });
 
+  // D12 (17/11): ação de apoio que precisa ser achada ("Usar receita", "Modelos prontos" e "Adicionar refeição" da dieta).
+  // O fundo é o tingido de 12% **opaco**, composto sobre o cartão (`informacaoSuave`): o rótulo dá 4,89 no Claro e na
+  // Areia e 5,04 no Escuro em qualquer lugar. Translúcido não serviria: 12% composto sobre a página dá 3,63 (Claro) e
+  // 3,08 (Areia), e sobre o bloco dentro do cartão (`superficie2`) 4,33 e 4,30. Mouse em cima ou apertado: contorno `informacao`.
+  it('Botao destaque: rótulo e ícone `informacao` ≥ 4,5:1 sobre o fundo opaco `informacaoSuave`; contorno do hover ≥ 3:1 onde o botão fica', () => {
+    expect(cores.informacaoSuave).toBe(tingidoDaPilula(cores.informacao, cores.superficie));
+    expect(cores.informacaoSuave).toMatch(/^#[0-9A-F]{6}$/i);
+    expect(contraste(cores.informacao, cores.informacaoSuave)).toBeGreaterThanOrEqual(4.5);
+    for (const s of [cores.fundo, cores.superficie, cores.superficie2, cores.informacaoSuave]) expect(contraste(cores.informacao, s)).toBeGreaterThanOrEqual(3);
+  });
+
   // D9 (17/11): cinco papéis; texto e ícone informativo ≥ 4,5:1 sobre o cartão e sobre a própria pílula (12%), e o ponto,
   // a barra e a faixa lateral ≥ 3:1 sobre o poço e o hover (`CartaoMini`, `ExercicioAluno`).
   it.each(['sucesso', 'atencao', 'perigo', 'informacao', 'conquista'] as const)('situação %s: ≥ 4,5:1 sobre o cartão e o tingido de 12%%; marca ≥ 3:1 no poço e na faixa', (papel) => {

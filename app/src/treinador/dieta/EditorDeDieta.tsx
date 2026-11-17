@@ -142,7 +142,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const adicionar = unica ? null : (
     <BlocoAdicionar titulo="Adicionar próxima refeição" descricao="Comece em branco ou acrescente uma refeição pronta dos modelos.">
       <BotaoAdicionarRefeicao aoAdicionar={adicionarRefeicao} />
-      <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setFolha({ tipo: 'modelos' })} />
+      <Botao rotulo="Modelos prontos" tipo="destaque" Icone={NotebookTabs} aoTocar={() => setFolha({ tipo: 'modelos' })} />
     </BlocoAdicionar>
   );
 
@@ -335,7 +335,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
 function BotaoAdicionarRefeicao({ aoAdicionar }: { aoAdicionar: () => string }) {
   const { rolarAte } = useRolagem();
   return (
-    <Botao rotulo="Adicionar refeição" tipo="secundario" Icone={Plus} aoTocar={() => {
+    <Botao rotulo="Adicionar refeição" tipo="destaque" Icone={Plus} aoTocar={() => {
       const uid = aoAdicionar();
       // Depois de o cartão abrir (o `rolarAte` já espera um pouco por conta própria).
       if (Platform.OS === 'web') setTimeout(() => mostrarAbaixoDaBarra(idDaRefeicao(uid), true), ESPERA_DA_SELECAO);
