@@ -97,6 +97,12 @@ public class Aluno {
     @OptimisticLock(excluded = true)
     private String apelido;
 
+    /** Como o nome aparece para os outros alunos (V085). Nulo = não escolheu: vale {@code NOME}. Preferência: não sobe a versão do cadastro. */
+    @OptimisticLock(excluded = true)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "exibicao_do_nome")
+    private br.com.treinos.api.comunidade.ExibicaoDoNome exibicaoDoNome;
+
     /** Data de nascimento (V070), opcional; só a equipe a lê. Dado pessoal: nunca em log, auditoria nem DTO que outro aluno recebe. */
     @Column(name = "data_nascimento")
     private java.time.LocalDate dataNascimento;
@@ -373,6 +379,7 @@ public class Aluno {
         this.lembretesCobrancaDesligadosEm = null;
         this.sexo = null;
         this.apelido = null;
+        this.exibicaoDoNome = null;
         this.dataNascimento = null;
         this.perfilReservado = null;
         this.perfilCor = null;
@@ -451,6 +458,14 @@ public class Aluno {
     /** Grava o instante da autorização, ou nulo quando o aluno desliga. */
     public void definirUsoDeImagem(Instant quando) {
         this.usoDeImagemAutorizadoEm = quando;
+    }
+
+    public br.com.treinos.api.comunidade.ExibicaoDoNome getExibicaoDoNome() {
+        return exibicaoDoNome;
+    }
+
+    public void definirExibicaoDoNome(br.com.treinos.api.comunidade.ExibicaoDoNome exibicao) {
+        this.exibicaoDoNome = exibicao;
     }
 
     public String getApelido() {

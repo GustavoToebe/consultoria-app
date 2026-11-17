@@ -493,10 +493,10 @@ class ComunidadeEnquetesIntegrationTest extends AbstractIntegrationTest {
         // Mais recente primeiro: o da equipe, depois os dois de Beto (empate no instante, desempate por id) e por último Ana.
         assertThat(itens.get(0).get("nome").asString()).isNotEmpty();
         assertThat(itens.get(0).get("temFoto").asBoolean()).isFalse();
-        assertThat(itens.get(3).get("nome").asString()).isEqualTo("Ana Votante Fictícia");
-        assertThat(itens.get(3).get("apelido").asString()).isEqualTo("Aninha");
+        assertThat(itens.get(3).get("nome").asString()).isEqualTo("Ana");
+        assertThat(itens.get(3).has("apelido")).isFalse();
         assertThat(itens.get(3).get("ehVoce").asBoolean()).isFalse();
-        assertThat(campos(itens.get(3))).containsExactlyInAnyOrder("autorId", "opcaoId", "nome", "apelido", "temFoto", "votadoEm", "ehVoce");
+        assertThat(campos(itens.get(3))).containsExactlyInAnyOrder("autorId", "opcaoId", "nome", "temFoto", "votadoEm", "ehVoce");
         // Sem apelido o campo some do JSON.
         assertThat(itens.get(1).has("apelido")).isFalse();
         long meus = 0;
@@ -565,7 +565,7 @@ class ComunidadeEnquetesIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode item = votos(loginB, post, "", 200).get("votantes").get("itens").get(0);
 
-        assertThat(item.get("nome").asString()).isEqualTo("Ana Votante Fictícia");
+        assertThat(item.get("nome").asString()).isEqualTo("Ana");
         assertThat(item.has("apelido")).isFalse();
         assertThat(item.get("temFoto").asBoolean()).isFalse();
         assertThat(votos(loginB, post, "", 200).get("participantes").asLong()).isEqualTo(1);

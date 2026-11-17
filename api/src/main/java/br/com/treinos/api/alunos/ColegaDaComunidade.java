@@ -8,7 +8,7 @@ import java.util.UUID;
  * A data de nascimento serve para decidir a reserva em memória e <b>nunca</b> sai daqui: não vai a DTO, log nem {@code toString}.
  */
 public record ColegaDaComunidade(UUID alunoId, UUID usuarioId, String nome, String apelido, Boolean perfilReservado,
-                                 LocalDate dataNascimento) {
+                                 LocalDate dataNascimento, br.com.treinos.api.comunidade.ExibicaoDoNome exibicaoDoNome) {
 
     @Override
     public String toString() {

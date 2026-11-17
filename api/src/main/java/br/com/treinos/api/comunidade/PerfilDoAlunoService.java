@@ -75,13 +75,17 @@ public class PerfilDoAlunoService {
         CorDoPerfil cor = escolha(erros, "cor", pedido.cor(), CorDoPerfil::ler, "Escolha uma das cores da lista.");
         MolduraDoPerfil moldura = escolha(erros, "moldura", pedido.moldura(), MolduraDoPerfil::ler,
                 "Escolha uma das molduras da lista.");
+        ExibicaoDoNome exibicao = escolha(erros, "exibicaoDoNome", pedido.exibicaoDoNome(), ExibicaoDoNome::ler,
+                "Escolha uma das formas da lista.");
         if (!erros.isEmpty()) {
             throw new ValidacaoException("Confira o perfil.", "PERFIL_INVALIDO", erros);
         }
         boolean mudou = !Objects.equals(reservado, aluno.getPerfilReservado())
-                || !destaques.equals(aluno.getPerfilDestaques()) || cor != aluno.getPerfilCor() || moldura != aluno.getPerfilMoldura();
+                || !destaques.equals(aluno.getPerfilDestaques()) || cor != aluno.getPerfilCor() || moldura != aluno.getPerfilMoldura()
+                || efetiva(exibicao) != efetiva(aluno.getExibicaoDoNome());
         if (mudou) {
             aluno.definirPerfil(reservado, destaques, cor, moldura);
+            aluno.definirExibicaoDoNome(exibicao);
             auditoria.registrarEvento("ALUNO_PERFIL_COMUNIDADE_ALTERADO", "ALUNO", aluno.getId(), RESUMO_ALTERADO);
         }
         return resposta(aluno);
@@ -99,6 +103,11 @@ public class PerfilDoAlunoService {
         return valor.asBoolean();
     }
 
+    /** Nulo e {@code NOME} são a mesma coisa para quem vê: trocar de um para o outro não é mudança (nem auditoria). */
+    private static ExibicaoDoNome efetiva(ExibicaoDoNome e) {
+        return e == null ? ExibicaoDoNome.PADRAO : e;
+    }
+
     private PerfilPreferenciasResponse resposta(Aluno aluno) {
         List<ConquistaAluno> ganhas = conquistas.findByAlunoIdOrderByConquistadaEmDesc(aluno.getId());
         Set<String> tipos = ganhas.stream().map(ConquistaAluno::getTipo).collect(Collectors.toSet());
@@ -110,7 +119,8 @@ public class PerfilDoAlunoService {
                 (aluno.getPerfilCor() == null ? CorDoPerfil.PADRAO : aluno.getPerfilCor()).name(),
                 (aluno.getPerfilMoldura() == null ? MolduraDoPerfil.PADRAO : aluno.getPerfilMoldura()).name(),
                 ganhas.stream().map(c -> new ConquistaResponse(c.getId(), c.getTipo(), c.getTitulo(), c.getDescricao(),
-                        c.getIcone(), c.getConquistadaEm())).toList());
+                        c.getIcone(), c.getConquistadaEm())).toList(),
+                efetiva(aluno.getExibicaoDoNome()).name());
     }
 
     private Set<String> tiposGanhos(Aluno aluno) {

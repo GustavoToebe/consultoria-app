@@ -225,8 +225,9 @@ class ComunidadeApelidoIntegrationTest extends AbstractIntegrationTest {
 
         definir(loginA, APELIDO, 204);
         JsonNode post = postNoMural(loginB, postA);
-        assertThat(post.get("autorApelido").asString()).isEqualTo(APELIDO);
-        assertThat(post.get("autorNome").asString()).isEqualTo("Ana Fictícia Apelido");
+        // Outro aluno recebe o nome já montado (padrão NOME: só o primeiro) e nunca o apelido solto (V085).
+        assertThat(post.get("autorApelido").isNull()).isTrue();
+        assertThat(post.get("autorNome").asString()).isEqualTo("Ana");
         assertThat(postNoMural(loginB, postDaEquipe).get("autorApelido").isNull()).isTrue();
         // O perfil só abre para aluno: o mural diz quem é (equipe = falso).
         assertThat(post.get("autorEhAluno").asBoolean()).isTrue();
@@ -278,8 +279,8 @@ class ComunidadeApelidoIntegrationTest extends AbstractIntegrationTest {
         assertThat(campos).containsExactlyInAnyOrder("autorId", "nome", "apelido", "ehVoce", "reservado", "treinosConcluidos", "nivel",
                 "conquistas", "destaques", "cor", "moldura", "temFoto", "atividade", "recordes");
         assertThat(perfil.get("autorId").asString()).isEqualTo(usuarioB.toString());
-        assertThat(perfil.get("nome").asString()).isEqualTo("Beto Fictício Apelido");
-        assertThat(perfil.get("apelido").asString()).isEqualTo(APELIDO);
+        assertThat(perfil.get("nome").asString()).isEqualTo("Beto");
+        assertThat(perfil.get("apelido").isNull()).isTrue();
         assertThat(perfil.get("treinosConcluidos").asInt()).isEqualTo(1);
         assertThat(perfil.get("conquistas").get(0).get("tipo").asString()).isEqualTo("PRIMEIRO_TREINO");
         assertThat(perfil.get("ehVoce").asBoolean()).isFalse();

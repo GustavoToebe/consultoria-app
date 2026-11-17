@@ -197,7 +197,7 @@ public class EnquetesDoMuralService {
             }
         }
         Map<UUID, Identidade> quem = identidades(amostraDasOpcoes.values().stream().flatMap(List::stream).collect(Collectors.toSet()),
-                eu.usuarioId());
+                eu.usuarioId(), "ALUNO".equals(eu.papel()));
         Instant agora = Instant.now();
         Map<UUID, EnqueteResponse> respostas = new HashMap<>();
         for (ComunidadeMuralPost p : enquetes) {
@@ -233,7 +233,7 @@ public class EnquetesDoMuralService {
                 ? votos.findByPostIdOrderByVotadoEmDescIdAsc(postId, daPagina)
                 : votos.findByPostIdAndOpcaoIdOrderByVotadoEmDescIdAsc(postId, opcaoId, daPagina);
         Map<UUID, Identidade> quem = identidades(pg.getContent().stream().map(ComunidadeEnqueteVoto::getUsuarioId)
-                .collect(Collectors.toSet()), eu.usuarioId());
+                .collect(Collectors.toSet()), eu.usuarioId(), "ALUNO".equals(eu.papel()));
         Map<UUID, Long> votosDasOpcoes = new HashMap<>();
         votos.contagensDasOpcoes(List.of(postId)).forEach(c -> votosDasOpcoes.put(c.getOpcaoId(), c.getTotal()));
         long participantes = votos.participantes(List.of(postId)).stream().mapToLong(c -> c.getTotal()).sum();
@@ -280,11 +280,11 @@ public class EnquetesDoMuralService {
     }
 
     /**
-     * Aluno = {@code aluno.nome} com o apelido atual (aluno inativo aparece com o nome, sem apelido e sem foto); equipe =
-     * {@code usuario.nome}, sem foto. A foto segue exatamente {@code ColegasDaComunidadeService.foto}. Os ids vêm de linhas de
+     * Aluno visto por aluno = o nome montado pela escolha do votante ({@link NomeExibido}), sem apelido à parte; aluno visto pela
+     * equipe = {@code aluno.nome} com o apelido atual (inativo: sem apelido e sem foto); membro da equipe = {@code usuario.nome}, sem foto. A foto segue exatamente {@code ColegasDaComunidadeService.foto}. Os ids vêm de linhas de
      * voto já filtradas pela consultoria (o {@code Usuario} não tem {@code @TenantId}).
      */
-    private Map<UUID, Identidade> identidades(Collection<UUID> usuarioIds, UUID quemPede) {
+    private Map<UUID, Identidade> identidades(Collection<UUID> usuarioIds, UUID quemPede, boolean paraAluno) {
         Map<UUID, Identidade> mapa = new HashMap<>();
         if (usuarioIds.isEmpty()) {
             return mapa;
@@ -292,8 +292,8 @@ public class EnquetesDoMuralService {
         List<VotanteDaComunidade> deAluno = alunos.votantesDaComunidade(usuarioIds);
         Set<UUID> comFoto = colegas.comFotoVisivel(deAluno, quemPede);
         for (VotanteDaComunidade v : deAluno) {
-            boolean ativo = v.ativo() && v.anonimizadoEm() == null;
-            mapa.put(v.usuarioId(), new Identidade(v.nome(), ativo ? v.apelido() : null, comFoto.contains(v.usuarioId())));
+            NomeExibido.Nome n = NomeExibido.doAluno(paraAluno, v, v.nome());
+            mapa.put(v.usuarioId(), new Identidade(n.nome(), n.apelido(), comFoto.contains(v.usuarioId())));
         }
         Set<UUID> daEquipe = new HashSet<>(usuarioIds);
         daEquipe.removeAll(mapa.keySet());

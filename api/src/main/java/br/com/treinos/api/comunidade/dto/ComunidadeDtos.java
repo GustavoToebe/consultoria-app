@@ -58,7 +58,9 @@ public final class ComunidadeDtos {
     }
 
     /**
-     * {@code autorApelido} é o apelido atual do aluno autor (lido na hora, não é cópia); nulo se não houver ou se o autor é da equipe.
+     * {@code autorNome} já vem montado pelo servidor (V085): para outro ALUNO, o nome pela escolha do autor ({@code exibicaoDoNome}:
+     * só o primeiro nome por padrão) e {@code autorApelido} nulo, porque o apelido já entrou no nome; para a EQUIPE, o nome completo.
+     * {@code autorApelido} (só para a equipe) é o apelido atual do aluno autor (lido na hora, não é cópia); nulo se não houver ou se o autor é da equipe.
      * {@code autorEhAluno}: aluno ativo, não anonimizado, da consultoria (o perfil dele abre); equipe e conta encerrada, falso.
      * {@code daEquipe}: o autor comentou como equipe (gravado na hora; não muda se o autor deixar a equipe).
      */
@@ -146,7 +148,10 @@ public final class ComunidadeDtos {
     /** {@code votantesAmostra}: até 3 votantes, os mais recentes da opção (para as mini-fotos). */
     public record OpcaoDaEnquete(UUID id, String texto, long votos, List<VotanteDaAmostra> votantesAmostra) {}
 
-    /** {@code temFoto} segue a mesma regra de {@code GET .../perfis/{autorId}/foto}; sem foto o app mostra as iniciais. */
+    /**
+     * {@code nome} já montado pelo servidor (para aluno, pela escolha do votante e com {@code apelido} sempre nulo; para a equipe,
+     * nome completo e apelido). {@code temFoto} segue a mesma regra de {@code GET .../perfis/{autorId}/foto}; sem foto o app mostra as iniciais.
+     */
     public record VotanteDaAmostra(UUID autorId, String nome, @JsonInclude(JsonInclude.Include.NON_NULL) String apelido, boolean temFoto) {}
 
     /** O painel "Mostrar votos": a pergunta, os participantes únicos, a contagem por opção e a página de votantes. */
@@ -158,8 +163,8 @@ public final class ComunidadeDtos {
     public record PaginaDeVotantes(List<Votante> itens, long total) {}
 
     /**
-     * Voto identificado: {@code nome} do aluno (ou do membro da equipe) com o {@code apelido} atual à parte (some se não há; aluno
-     * inativo vem sem apelido e sem foto); {@code votadoEm} é o horário em que ESTA opção foi escolhida (o do voto vigente).
+     * Voto identificado: {@code nome} já montado pelo servidor (aluno visto por aluno: pela escolha do votante e {@code apelido}
+     * sempre ausente; equipe vendo aluno: nome completo e o {@code apelido} atual à parte, que some se não há ou se o aluno é inativo); {@code votadoEm} é o horário em que ESTA opção foi escolhida (o do voto vigente).
      */
     public record Votante(
             UUID autorId,
@@ -234,7 +239,8 @@ public final class ComunidadeDtos {
     /**
      * Perfil de um colega (só aluno ativo da mesma consultoria). Reservado ({@code reservado = true}) e visto por outro aluno, só
      * saem {@code autorId}, {@code nome}, {@code apelido}, {@code ehVoce} e {@code reservado}: o resto fica nulo e sai do JSON
-     * (nível, conquistas, destaques, cor, moldura, foto, atividade e recordes; decisão 3); {@code apelido} sai sempre, nulo sem apelido. Visível, ou o próprio aluno, traz tudo.
+     * (nível, conquistas, destaques, cor, moldura, foto, atividade e recordes; decisão 3). {@code nome} já vem montado pela escolha do
+     * aluno ({@code exibicaoDoNome}, V085) e {@code apelido} é sempre nulo (entrou no nome). Visível, ou o próprio aluno, traz tudo.
      * Nunca contato, data de nascimento, medidas, dieta ou dado de saúde.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -272,7 +278,10 @@ public final class ComunidadeDtos {
     /** Maior carga levantada num exercício (kg, como o {@code RecordesService} calcula): sem data, série nem treino. */
     public record RecordeDoColega(String exercicio, java.math.BigDecimal carga) {}
 
-    /** Item da lista de colegas visíveis (decisão 12). {@code autorId} é o id de usuário que o mural expõe. */
+    /**
+     * Item da lista de colegas visíveis (decisão 12). {@code autorId} é o id de usuário que o mural expõe; {@code nome} já montado
+     * pela escolha do colega ({@code exibicaoDoNome}) e {@code apelido} sempre nulo.
+     */
     public record ColegaDaLista(UUID autorId, String nome, String apelido, int nivel, boolean temFoto) {}
 
     public record PaginaDeColegas(List<ColegaDaLista> itens, long total) {}
@@ -289,23 +298,26 @@ public final class ComunidadeDtos {
             List<String> destaques,
             String cor,
             String moldura,
-            List<ConquistaResponse> opcoesDeDestaque) {}
+            List<ConquistaResponse> opcoesDeDestaque,
+            String exibicaoDoNome) {}
 
     /**
      * Substitui as quatro preferências de uma vez: {@code perfilReservado} é obrigatório e vem como {@code true}, {@code false}
      * ou {@code null} explícito (volta à regra da idade); campo ausente = 422, para um corpo incompleto não devolver sem querer
      * um perfil reservado à regra da idade (que pode mostrá-lo). Por isso é um {@code JsonNode}: ausente chega como Java nulo e o
-     * {@code null} do JSON como {@code NullNode}. {@code destaques} nulo ou vazio limpa, {@code cor} e {@code moldura} nulos
-     * voltam ao padrão. Nunca traz data de nascimento.
+     * {@code null} do JSON como {@code NullNode}. {@code destaques} nulo ou vazio limpa, {@code cor}, {@code moldura} e {@code exibicaoDoNome}
+     * nulos voltam ao padrão ({@code NOME}); {@code exibicaoDoNome} fora de {@code NOME}, {@code NOME_COMPLETO}, {@code APELIDO} e
+     * {@code NOME_E_APELIDO} = 422 {@code PERFIL_INVALIDO}. Nunca traz data de nascimento.
      */
     public record PerfilPreferenciasRequest(
             JsonNode perfilReservado,
             @Size(max = 10) List<@Size(max = 40) String> destaques,
             @Size(max = 20) String cor,
-            @Size(max = 20) String moldura) {}
+            @Size(max = 20) String moldura,
+            String exibicaoDoNome) {}
 
-    /** Preferências do perfil na exportação LGPD (sem a data de nascimento, que sai no cadastro). */
-    public record PerfilExportado(Boolean perfilReservado, List<String> destaques, String cor, String moldura) {}
+    /** Preferências do perfil na exportação LGPD (sem a data de nascimento, que sai no cadastro); {@code exibicaoDoNome} nulo = não escolheu. */
+    public record PerfilExportado(Boolean perfilReservado, List<String> destaques, String cor, String moldura, String exibicaoDoNome) {}
 
     /** Tudo o que o aluno escreveu ou marcou na comunidade (exportação LGPD). Inclui o que a moderação ocultou. */
     public record ComunidadeExportada(

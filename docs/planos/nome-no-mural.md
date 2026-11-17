@@ -1,6 +1,6 @@
 # Como o nome do aluno aparece para os colegas
 
-Situação: Em andamento (Onda 4B, item L, da sessão de 17/11/2026; só começa depois da troca de nomes da Onda 4) · Onde: main · Atualizado: 17/11/2026 · Base: `e6537dc3`
+Situação: Em andamento (Onda 4B, item L, da sessão de 17/11/2026; só começa depois da troca de nomes da Onda 4) · Onde: main · Atualizado: 17/11/2026 (passo 2 feito, sem commit) · Base: `e6537dc3`
 
 Fonte: decisão do Gustavo de 17/11/2026. Validade: vale enquanto o nome do aluno chegar a outros alunos por posts, comentários, votos, Colegas e perfil do colega.
 
@@ -23,9 +23,17 @@ O aluno escolhe como o nome dele aparece para os outros alunos. O servidor monta
 
 ## Passos
 - [ ] 1. Mapa: todo DTO/consulta em que um aluno vê o nome de outro (explorador, só leitura) — commit: —
-- [ ] 2. API: migration, escolha no perfil, montagem do nome no servidor em todos os pontos, exportação e anonimização, testes de vazamento (executor) — commit: —
+- [x] 2. API: migration, escolha no perfil, montagem do nome no servidor em todos os pontos, exportação e anonimização, testes de vazamento (executor) — feito em 17/11 sem commit (árvore local); migration **V085** (`aluno.exibicao_do_nome`, `varchar(20)`, CHECK `ck_aluno_exibicao_do_nome`; total de migrations 84; a N2 do contato fica com a V086); contrato abaixo; testes `NomeExibidoTest`, `NomeNoMuralIntegrationTest`, `ExibicaoDoNomeMigrationTest` — commit: —
 - [ ] 3. Tela: cartão "Meu perfil" com as 4 opções e prévia, e2e em 390 e 1280, Ajuda (executor-front) — commit: —
 - [ ] 4. Revisão independente (LGPD, vazamento do nome completo, menor) e correções — commit: —
+
+## Contrato da API (passo 2, 17/11)
+- `GET`/`PUT /aluno/comunidade/perfil` ganham `exibicaoDoNome` (`NOME`, `NOME_COMPLETO`, `APELIDO`, `NOME_E_APELIDO`): o `GET` devolve sempre o valor efetivo (nula = `NOME`); o `PUT` aceita nulo ou em branco (volta a `NOME`) e valor fora da lista dá 422 `PERFIL_INVALIDO` no campo `exibicaoDoNome`, sem repetir o valor; auditoria só quando a forma que o colega vê muda (nula e `NOME` são iguais).
+- Para **outro aluno** o servidor manda o nome já montado (`NomeExibido.paraColegas`, o único ponto) e nunca o gravado no post: `autorNome` (mural e comentários), `nome` (votante, amostra de votantes, lista de Colegas e perfil do colega, inclusive reservado e menor). `autorApelido`/`apelido` chegam **nulos** (`autorApelido` no JSON; `apelido` do votante some; `apelido` de `ColegaDaLista` e `PerfilResponse` vai nulo), porque o apelido já entrou no nome. A lista de Colegas ordena pelo nome exibido.
+- O próprio aluno também recebe o nome montado (no perfil e nos posts dele): serve de prévia de como os colegas o veem.
+- A **equipe** continua com o nome completo (o gravado) e o apelido atual, em todas as rotas dela.
+- Aluno inativo: perde o apelido (`APELIDO` e `NOME_E_APELIDO` caem no primeiro nome), a escolha `NOME_COMPLETO` vale; anonimizado mostra só o texto já anonimizado.
+- Exportação do aluno: `comunidade.perfil.exibicaoDoNome` (valor gravado, nulo = não escolheu). Anonimização e "Excluir minha conta" zeram a coluna (`Aluno.anonimizar`).
 
 ## Critérios de aceite
 - Nenhuma resposta a aluno traz o nome completo de outro aluno com escolha diferente de `NOME_COMPLETO` (teste por endpoint).
@@ -35,4 +43,4 @@ O aluno escolhe como o nome dele aparece para os outros alunos. O servidor monta
 - Mudar o que a equipe vê; foto do colega.
 
 ## O que ficou para trás
-- (nada ainda)
+- Posts e comentários antigos continuam com o nome completo gravado em `autor_nome` (cópia da criação, visível só à equipe); o aluno nunca o recebe. Passo 3 (tela) e a Ajuda dependem do contrato acima.

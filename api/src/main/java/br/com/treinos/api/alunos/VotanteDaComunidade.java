@@ -10,7 +10,8 @@ import java.util.UUID;
  * {@code toString}.
  */
 public record VotanteDaComunidade(UUID alunoId, UUID usuarioId, String nome, String apelido, boolean ativo, Instant anonimizadoEm,
-                                  Boolean perfilReservado, LocalDate dataNascimento) {
+                                  Boolean perfilReservado, LocalDate dataNascimento,
+                                  br.com.treinos.api.comunidade.ExibicaoDoNome exibicaoDoNome) {
 
     @Override
     public String toString() {

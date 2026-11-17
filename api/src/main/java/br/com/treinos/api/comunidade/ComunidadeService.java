@@ -4,7 +4,7 @@ import br.com.plataforma.comum.web.ApiError;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
-import br.com.treinos.api.alunos.ApelidoDoAutor;
+import br.com.treinos.api.alunos.VotanteDaComunidade;
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.comunidade.dto.ComunidadeDtos.*;
@@ -149,10 +149,11 @@ public class ComunidadeService {
         exigirAula(aulaId, eu);
         Page<ComunidadeAulaComentario> pg = aulaComentarios.findByAulaIdAndOcultoFalseOrderByCriadoEmAscIdAsc(aulaId,
                 paginar(pagina, tamanho));
-        Map<UUID, String> apelidos = apelidosDe(pg.getContent().stream().map(ComunidadeAulaComentario::getAutorId));
+        Map<UUID, VotanteDaComunidade> autores = alunosAutores(pg.getContent().stream().map(ComunidadeAulaComentario::getAutorId));
+        boolean paraAluno = souAluno(eu);
         return new PaginaDeComentarios(pg.getContent().stream()
-                .map(c -> new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), apelidos.get(c.getAutorId()),
-                        apelidos.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm(), c.isDaEquipe()))
+                .map(c -> comentario(c.getId(), c.getAutorId(), c.getAutorNome(), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm(),
+                        c.isDaEquipe(), autores, paraAluno))
                 .toList(), pg.getTotalElements());
     }
 
@@ -172,9 +173,8 @@ public class ComunidadeService {
             c.marcarDaEquipe();
         }
         aulaComentarios.saveAndFlush(c);
-        Map<UUID, String> autor = apelidosDe(Stream.of(c.getAutorId()));
-        return new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), autor.get(c.getAutorId()),
-                autor.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm(), c.isDaEquipe());
+        return comentario(c.getId(), c.getAutorId(), c.getAutorNome(), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm(), c.isDaEquipe(),
+                alunosAutores(Stream.of(c.getAutorId())), souAluno(eu));
     }
 
     public void excluirComentarioAula(UUID id) {
@@ -252,7 +252,7 @@ public class ComunidadeService {
         List<UUID> ids = page.getContent().stream().map(ComunidadeMuralPost::getId).toList();
         Map<UUID, String> nomesDosPods = nomesDosPods(page.getContent().stream().map(ComunidadeMuralPost::getPodId));
         // Uma consulta de cada coisa por página, não por post.
-        Map<UUID, String> apelidos = apelidosDe(page.getContent().stream().map(ComunidadeMuralPost::getAutorId));
+        Map<UUID, VotanteDaComunidade> autores = alunosAutores(page.getContent().stream().map(ComunidadeMuralPost::getAutorId));
         Map<UUID, List<UUID>> fotosDosPosts = new HashMap<>();
         Map<UUID, Long> denunciasDosPosts = new HashMap<>();
         Set<UUID> respondidos = new HashSet<>();
@@ -276,13 +276,16 @@ public class ComunidadeService {
         Map<UUID, List<String>> minhas = reacoes.minhas(ids, eu == null ? null : eu.usuarioId());
         Map<UUID, EnqueteResponse> enquetesDosPosts = eu == null ? Map.of() : enquetes.resumos(page.getContent(), eu);
         Map<UUID, UUID> capasDaPagina = capasDosPosts;
-        return page.map(p -> new MuralPostResponse(p.getId(), p.getAutorId(), p.getAutorNome(), apelidos.get(p.getAutorId()),
-                apelidos.containsKey(p.getAutorId()), p.getAutorFotoUrl(), p.getTexto(), p.getTipo(), linkSeguro(p.getVideoUrl()),
-                capasDaPagina.get(p.getId()), fotosDosPosts.getOrDefault(p.getId(), List.of()), enquetesDosPosts.get(p.getId()),
-                respondidos.contains(p.getId()), p.isFixado(), p.getCriadoEm(), p.getPodId(), nomesDosPods.get(p.getPodId()),
-                contagens.getOrDefault(p.getId(), Map.of()),
-                minhas.getOrDefault(p.getId(), List.of()), comentariosDosPosts.getOrDefault(p.getId(), 0L),
-                equipe ? denunciasDosPosts.getOrDefault(p.getId(), 0L) : null));
+        return page.map(p -> {
+            AutorNoMural autor = autorDe(autores, p.getAutorId(), p.getAutorNome(), !equipe);
+            return new MuralPostResponse(p.getId(), p.getAutorId(), autor.nome(), autor.apelido(),
+                    autor.ehAluno(), p.getAutorFotoUrl(), p.getTexto(), p.getTipo(), linkSeguro(p.getVideoUrl()),
+                    capasDaPagina.get(p.getId()), fotosDosPosts.getOrDefault(p.getId(), List.of()), enquetesDosPosts.get(p.getId()),
+                    respondidos.contains(p.getId()), p.isFixado(), p.getCriadoEm(), p.getPodId(), nomesDosPods.get(p.getPodId()),
+                    contagens.getOrDefault(p.getId(), Map.of()),
+                    minhas.getOrDefault(p.getId(), List.of()), comentariosDosPosts.getOrDefault(p.getId(), 0L),
+                    equipe ? denunciasDosPosts.getOrDefault(p.getId(), 0L) : null);
+        });
     }
 
     /** Sentinela do pod no JPQL do mural (UUID zero nunca é id de pod); o filtro usa {@code soGeral}, não este valor. */
@@ -417,10 +420,10 @@ public class ComunidadeService {
             throw new ValidacaoException("Confira a publicação.", "POST_INVALIDO",
                     List.of(new ApiError.FieldError("fotoIds", "Alguma foto não está disponível. Envie de novo.")));
         }
-        Map<UUID, String> autor = apelidosDe(Stream.of(post.getAutorId()));
+        AutorNoMural autor = autorDe(alunosAutores(Stream.of(post.getAutorId())), post.getAutorId(), post.getAutorNome(), aluno);
         EnqueteResponse enquete = tipo == TipoDePost.ENQUETE ? enquetes.resumos(List.of(post), eu).get(post.getId()) : null;
-        return new MuralPostResponse(post.getId(), post.getAutorId(), post.getAutorNome(), autor.get(post.getAutorId()),
-                autor.containsKey(post.getAutorId()), post.getAutorFotoUrl(), post.getTexto(), post.getTipo(),
+        return new MuralPostResponse(post.getId(), post.getAutorId(), autor.nome(), autor.apelido(),
+                autor.ehAluno(), post.getAutorFotoUrl(), post.getTexto(), post.getTipo(),
                 post.getVideoUrl(), r.capaId(), fotosDoPost(post.getId(), fotoIds), enquete, false, post.isFixado(), post.getCriadoEm(),
                 post.getPodId(), nomesDosPods(Stream.of(post.getPodId())).get(post.getPodId()), Map.of(), List.of(), 0,
                 aluno ? null : 0L);
@@ -450,10 +453,11 @@ public class ComunidadeService {
         Page<ComunidadeMuralComentario> pg = TipoDePost.DUVIDA.name().equals(post.getTipo())
                 ? muralComentarios.findByPostIdAndOcultoFalseOrderByDaEquipeDescCriadoEmAscIdAsc(postId, daPagina)
                 : muralComentarios.findByPostIdAndOcultoFalseOrderByCriadoEmAscIdAsc(postId, daPagina);
-        Map<UUID, String> apelidos = apelidosDe(pg.getContent().stream().map(ComunidadeMuralComentario::getAutorId));
+        Map<UUID, VotanteDaComunidade> autores = alunosAutores(pg.getContent().stream().map(ComunidadeMuralComentario::getAutorId));
+        boolean paraAluno = souAluno(eu);
         return new PaginaDeComentarios(pg.getContent().stream()
-                .map(c -> new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), apelidos.get(c.getAutorId()),
-                        apelidos.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm(), c.isDaEquipe()))
+                .map(c -> comentario(c.getId(), c.getAutorId(), c.getAutorNome(), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm(),
+                        c.isDaEquipe(), autores, paraAluno))
                 .toList(), pg.getTotalElements());
     }
 
@@ -466,9 +470,8 @@ public class ComunidadeService {
             c.marcarDaEquipe();
         }
         muralComentarios.saveAndFlush(c);
-        Map<UUID, String> autor = apelidosDe(Stream.of(c.getAutorId()));
-        return new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), autor.get(c.getAutorId()),
-                autor.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm(), c.isDaEquipe());
+        return comentario(c.getId(), c.getAutorId(), c.getAutorNome(), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm(), c.isDaEquipe(),
+                alunosAutores(Stream.of(c.getAutorId())), souAluno(eu));
     }
 
     public void moderarPost(UUID postId, UsuarioAutenticado eu) {
@@ -497,19 +500,42 @@ public class ComunidadeService {
     }
 
     /**
-     * Autores que são aluno ativo (a chave existe) e o apelido atual de cada um, lido do aluno na hora (não é cópia no post);
-     * o valor é nulo sem apelido. Autor da equipe, inativo ou anonimizado não entra, então {@code containsKey} diz se o perfil
-     * abre. Uma consulta por lista; aluno de outra consultoria nem aparece (o filtro de tenant).
+     * Quem dos autores é aluno (em qualquer situação) da consultoria, por id de usuário, numa consulta por lista; autor da equipe não
+     * vem. O nome gravado no post é cópia do nome completo da hora da criação: para o aluno-visualizador ele nunca sai (ver
+     * {@link #autorDe}).
      */
-    private Map<UUID, String> apelidosDe(Stream<UUID> autores) {
+    private Map<UUID, VotanteDaComunidade> alunosAutores(Stream<UUID> autores) {
         List<UUID> ids = autores.distinct().toList();
-        Map<UUID, String> mapa = new HashMap<>();
+        Map<UUID, VotanteDaComunidade> mapa = new HashMap<>();
         if (!ids.isEmpty()) {
-            for (ApelidoDoAutor a : alunos.autoresAlunosDosUsuarios(ids)) {
-                mapa.putIfAbsent(a.usuarioId(), a.apelido());
+            for (VotanteDaComunidade a : alunos.votantesDaComunidade(ids)) {
+                mapa.putIfAbsent(a.usuarioId(), a);
             }
         }
         return mapa;
+    }
+
+    /** Nome e apelido como o visualizador vê; {@code ehAluno} = aluno ativo e não anonimizado (o perfil dele abre). */
+    private record AutorNoMural(String nome, String apelido, boolean ehAluno) {}
+
+    /**
+     * Autor aluno: para a equipe, o nome gravado + o apelido atual (só ativo); para outro aluno, o nome montado por
+     * {@link NomeExibido} a partir do aluno de hoje e {@code apelido} nulo (já entrou no nome). Autor da equipe: o nome gravado.
+     */
+    private static AutorNoMural autorDe(Map<UUID, VotanteDaComunidade> alunos, UUID autorId, String nomeGravado, boolean paraAluno) {
+        VotanteDaComunidade a = alunos.get(autorId);
+        if (a == null) {
+            return new AutorNoMural(nomeGravado, null, false);
+        }
+        NomeExibido.Nome n = NomeExibido.doAluno(paraAluno, a, nomeGravado);
+        return new AutorNoMural(n.nome(), n.apelido(), a.ativo() && a.anonimizadoEm() == null);
+    }
+
+    private static ComentarioResponse comentario(UUID id, UUID autorId, String nomeGravado, String fotoUrl, String texto,
+                                                 java.time.Instant criadoEm, boolean daEquipe,
+                                                 Map<UUID, VotanteDaComunidade> alunos, boolean paraAluno) {
+        AutorNoMural a = autorDe(alunos, autorId, nomeGravado, paraAluno);
+        return new ComentarioResponse(id, autorId, a.nome(), a.apelido(), a.ehAluno(), fotoUrl, texto, criadoEm, daEquipe);
     }
 
     // ---- Conquistas ----
@@ -566,7 +592,8 @@ public class ComunidadeService {
                 .toList();
         var perfil = new PerfilExportado(aluno.getPerfilReservado(), aluno.getPerfilDestaques(),
                 aluno.getPerfilCor() == null ? null : aluno.getPerfilCor().name(),
-                aluno.getPerfilMoldura() == null ? null : aluno.getPerfilMoldura().name());
+                aluno.getPerfilMoldura() == null ? null : aluno.getPerfilMoldura().name(),
+                aluno.getExibicaoDoNome() == null ? null : aluno.getExibicaoDoNome().name());
         // Só o nome do próprio pod; a lista de membros é dado de terceiros e nunca sai.
         PodExportado pod = aluno.getPodId() == null ? null
                 : pods.findById(aluno.getPodId()).map(p -> new PodExportado(p.getNome())).orElse(null);

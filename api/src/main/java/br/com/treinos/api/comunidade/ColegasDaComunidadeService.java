@@ -69,17 +69,19 @@ public class ColegasDaComunidadeService {
     }
 
     /**
-     * Perfil de um aluno ativo da mesma consultoria. Reservado (e não é o próprio aluno): só nome, apelido e {@code reservado}.
+     * Perfil de um aluno ativo da mesma consultoria. Reservado (e não é o próprio aluno): só o nome (já montado) e {@code reservado}.
      * Senão traz nível (do XP; o XP em si nunca sai), insígnias, destaques, cor, moldura, foto (só se tem), atividade (só datas) e recordes de carga.
      */
     @Transactional(readOnly = true)
     public PerfilResponse perfil(UUID autorId, UsuarioAutenticado eu) {
         Aluno aluno = exigirColega(autorId);
         boolean ehVoce = autorId.equals(eu.usuarioId());
+        // Rota só de aluno: o nome sai montado pela escolha do colega e o apelido, que já entrou nele, não vai à parte.
+        String nome = NomeExibido.paraColegas(aluno.getExibicaoDoNome(), aluno.getNome(), aluno.getApelido());
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         boolean reservado = RegrasDoPerfil.reservadoEfetivo(aluno.getPerfilReservado(), aluno.getDataNascimento(), hoje);
         if (!RegrasDoPerfil.mostraTudo(ehVoce, reservado)) {
-            return PerfilResponse.soONome(autorId, aluno.getNome(), aluno.getApelido());
+            return PerfilResponse.soONome(autorId, nome, null);
         }
         int treinos = (int) sessoes.countByAlunoIdAndSituacaoAndConcluidaTrue(aluno.getId(), "ACEITO");
         List<ConquistaAluno> ganhas = conquistas.findByAlunoIdOrderByConquistadaEmDesc(aluno.getId());
@@ -89,7 +91,7 @@ public class ColegasDaComunidadeService {
                         ? new ConquistaResponse(c.getId(), c.getTipo(), c.getTitulo(), c.getDescricao(), c.getIcone(), c.getConquistadaEm())
                         : new ConquistaDoColega(c.getTipo(), c.getTitulo(), c.getDescricao(), c.getIcone()))
                 .toList();
-        return new PerfilResponse(autorId, aluno.getNome(), aluno.getApelido(), ehVoce, reservado, treinos, xp.doAluno(aluno.getId()).nivel(),
+        return new PerfilResponse(autorId, nome, null, ehVoce, reservado, treinos, xp.doAluno(aluno.getId()).nivel(),
                 todas, destaques(aluno, ganhas),
                 (aluno.getPerfilCor() == null ? CorDoPerfil.PADRAO : aluno.getPerfilCor()).name(),
                 (aluno.getPerfilMoldura() == null ? MolduraDoPerfil.PADRAO : aluno.getPerfilMoldura()).name(),
@@ -143,20 +145,22 @@ public class ColegasDaComunidadeService {
     @Transactional(readOnly = true)
     public PaginaDeColegas listar(UsuarioAutenticado eu, Integer pagina, Integer tamanho) {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        List<ColegaDaComunidade> visiveis = alunos.colegasDaComunidade(eu.usuarioId()).stream()
+        // Ordena pelo nome que o colega escolheu mostrar: ordenar pelo completo diria a ordem dos sobrenomes.
+        record Linha(ColegaDaComunidade colega, String nome) {}
+        List<Linha> visiveis = alunos.colegasDaComunidade(eu.usuarioId()).stream()
                 .filter(c -> !RegrasDoPerfil.reservadoEfetivo(c.perfilReservado(), c.dataNascimento(), hoje))
-                .sorted(Comparator.comparing((ColegaDaComunidade c) -> Buscas.semAcento(c.nome()))
-                        .thenComparing(ColegaDaComunidade::alunoId))
+                .map(c -> new Linha(c, NomeExibido.paraColegas(c.exibicaoDoNome(), c.nome(), c.apelido())))
+                .sorted(Comparator.comparing((Linha l) -> Buscas.semAcento(l.nome())).thenComparing(l -> l.colega().alunoId()))
                 .toList();
         int tam = tamanho == null ? TAMANHO_DA_PAGINA : Math.max(1, Math.min(tamanho, TAMANHO_MAXIMO));
         long inicio = (long) Math.max(0, pagina == null ? 0 : pagina) * tam;
-        List<ColegaDaComunidade> doIntervalo = inicio >= visiveis.size() ? List.of()
+        List<Linha> doIntervalo = inicio >= visiveis.size() ? List.of()
                 : visiveis.subList((int) inicio, (int) Math.min(visiveis.size(), inicio + tam));
-        List<UUID> ids = doIntervalo.stream().map(ColegaDaComunidade::alunoId).toList();
+        List<UUID> ids = doIntervalo.stream().map(l -> l.colega().alunoId()).toList();
         Set<UUID> comFoto = fotos.comFoto(ids);
         return new PaginaDeColegas(doIntervalo.stream()
-                .map(c -> new ColegaDaLista(c.usuarioId(), c.nome(), c.apelido(),
-                        xp.doAluno(c.alunoId()).nivel(), comFoto.contains(c.alunoId())))
+                .map(l -> new ColegaDaLista(l.colega().usuarioId(), l.nome(), null,
+                        xp.doAluno(l.colega().alunoId()).nivel(), comFoto.contains(l.colega().alunoId())))
                 .toList(), visiveis.size());
     }
 
