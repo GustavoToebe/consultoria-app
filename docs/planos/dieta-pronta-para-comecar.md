@@ -3,7 +3,7 @@
 Situação: Rascunho (reunião de 15/11/2026) · Onde: ainda não está em docs/planos · Atualizado: 16/11/2026 · Base: 61dc3a5a
 
 ## Objetivo
-O Saraiva só começa a usar o app (ele e uns 5 alunos) quando o Gustavo avisar que a dieta está arrumada; prometido até
+O Saraiva só começa a usar o app quando o Gustavo avisar (C113, 17/11: sem migração dos cinco alunos) que a dieta está arrumada; prometido até
 terça, 17/11 (prioridade 1, só o que é pequeno). Ao fim: a caloria do alimento sai dos macros (P×4 + C×4 + G×9), a
 refeição sem nome vira "Refeição N", o modelo não pede "Data de início", a lista de alimentos passa dos 80 primeiros, e
 a caloria do item e o botão "Adicionar refeição" colado na borda ficam reproduzidos e consertados.
@@ -45,6 +45,7 @@ a caloria do item e o botão "Adicionar refeição" colado na borda ficam reprod
 | D11 | Dose de cor | cor é sinal; a cor da refeição só na barra lateral de 6 px, horário e quantidade neutros; marca só na lista fechada | regra do projeto (`docs/planos/visual-vendavel.md:53-65`, `docs/design-e-front.md:269-280`) |
 | D12 | Sem camada de compatibilidade | nada de flag nem leitura de formato velho; o produto não tem cliente em uso | regra do projeto (`AGENTS.md:52-54`) |
 | D13 | C58 | passo opcional, no fim (ainda sem aceite do Saraiva) | recomendação da análise de 16/11 (o Gustavo confirma) |
+| D14 | **C113 fechado (Saraiva, 17/11/2026):** não haverá migração dos cinco alunos; a condição "o Saraiva só começa quando ... ele e uns 5 alunos" deixa de depender de migrar alunos. O resto do plano não muda | Saraiva, 17/11 |
 
 ## Decisões que faltam antes de começar
 1. **C48, derivar a caloria no servidor? (Gustavo; trava os passos 3 e 4.)** Recomendado: sim, só ao criar ou editar

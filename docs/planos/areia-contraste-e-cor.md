@@ -1,6 +1,6 @@
 # Areia com contraste e os pedidos de cor
 
-Situação: Planejando (plano pronto, esperando o Gustavo reconciliar os valores da Areia; nenhum código) · Onde: main · Atualizado: 16/11/2026
+Situação: Passos 1 a 6 **substituídos por [hierarquia-visual-tres-temas.md](hierarquia-visual-tres-temas.md)** em 17/11/2026; passos 7 a 10 continuam valendo (nenhum código) · Onde: main · Atualizado: 17/11/2026
 
 Fonte: pedidos da reunião de 15/11 (IDs R1115-Cxx) e leitura do código em 16/11/2026 (conferências abaixo). Validade: vale enquanto `AREIA` em `app/src/tema/tokens.ts` e os valores de `docs/design-e-front.md:188-195` não mudarem; **se mudarem, refazer a seção "Estado do código"**.
 
@@ -55,19 +55,21 @@ O treinador do piloto só usa tema claro e, na paleta Areia, não distingue cart
 | `divisor`, `borda`, `bordaCampo`, `textoSuave`, status, fases | atuais | atuais | só ganham folga sobre o branco |
 
 ## Passos
-- [ ] 1. Reconciliar o `tokens.ts` com a decisão D3 e registrar de onde veio o `AREIA` de 21:27 — executor: Gustavo (decide) com a sessão principal (conferir) · tamanho: P · migration: não · APK: não · API: nenhuma · commit: —
+> **17/11/2026:** os passos 1 a 6 abaixo foram **substituídos por [hierarquia-visual-tres-temas.md](hierarquia-visual-tres-temas.md)** (escada de superfícies nos três temas, botão principal, cores de situação). Registro do passo 1: o `AREIA` de `#F4F1EA` (cartão × página 1,13:1) **não foi deliberado**; valem os valores novos (Areia: página `#CDCAC3`, piso 1,6). Os passos 7 a 10 continuam aqui.
+
+- [~] 1. (substituído) Reconciliar o `tokens.ts` com a decisão D3 e registrar de onde veio o `AREIA` de 21:27 — executor: Gustavo (decide) com a sessão principal (conferir) · tamanho: P · migration: não · APK: não · API: nenhuma · commit: —
   - Dizer se o `AREIA` atual é deliberado. Se for, este plano passa a medir o que está (cartão × página 1,13) e a discussão é se o treinador aprova; se não for, volta aos valores da proposta. Sem isso, os passos 3 a 6 ficam parados.
-- [ ] 2. Capturas "antes" da Areia vigente — executor: executor-rapido · tamanho: P · migration: não · APK: não · API: nenhuma (dados fictícios) · commit: —
+- [~] 2. (substituído) Capturas "antes" da Areia vigente — executor: executor-rapido · tamanho: P · migration: não · APK: não · API: nenhuma (dados fictícios) · commit: —
   - Reaproveitar `app/e2e/capturas-paletas.spec.ts` (existe; o rascunho diz que só roda com `CAPTURAS_PALETAS=<pasta>`, não reconferido). Telas, em 390 e 1280 px com a Areia: Planejamento, editor de modelo/treino, editor de dieta, Início, ficha do aluno, Agenda, Financeiro, Biblioteca, Equipe, Ajustes, Comunidade, Marca (prévia da Areia), mais contraste alto e bordas reforçadas do editor de treino. Capturas fora do git.
-- [ ] 3. Tokens da Areia e testes — executor: executor-front · tamanho: M · migration: não · APK: não (só valor de token em JS; se o app nativo recebe por OTA ou exige APK novo não foi conferido, mas não há `expo-updates` em `app/package.json` nem `app/app.json`, então vale APK novo) · API: nenhuma · commit: —
+- [~] 3. (substituído) Tokens da Areia e testes — executor: executor-front · tamanho: M · migration: não · APK: não (só valor de token em JS; se o app nativo recebe por OTA ou exige APK novo não foi conferido, mas não há `expo-updates` em `app/package.json` nem `app/app.json`, então vale APK novo) · API: nenhuma · commit: —
   - Teste primeiro, em `app/src/tema/tokens.test.ts`: teste só da Areia que fixa a ordem e os pisos (cartão × página ≥ 1,5; `superficie2` ≥ 1,15 do cartão e ≥ 1,3 da página; `faixaForte` ≥ 1,1 da página e ≥ 1,6 do cartão). O piso do projeto hoje é só 1,1, por isso um contraste de 1,13 a 1,30 passa e o treinador não vê.
   - Depois os valores aprovados no passo 1 em `tokens.ts` (campo, `superficie2`, `faixaForte`, página). Não tocar nas outras paletas nem nas colunas `areia` das cores fixas. Atualizar o comentário do bloco `AREIA` ("cartão Nível 1 sempre #FFFFFF", `tokens.ts:121-123`).
   - Rodar sem afrouxar piso: `tokens.test.ts`, `ui/contrasteDasPecas.test.ts`, `treinador/agenda/contrasteDaAgenda.test.ts` (não conferido), `dominio/paletas.test.ts`, `dominio/preferencias.test.ts`, `tema/TemaProvider.semUsuario.test.tsx`, `npm run typecheck && npm run lint`.
-- [ ] 4. Capturas "depois" e prancha antes/depois — executor: executor-front · tamanho: P · migration: não · APK: não · API: nenhuma · commit: —
+- [~] 4. (substituído) Capturas "depois" e prancha antes/depois — executor: executor-front · tamanho: P · migration: não · APK: não · API: nenhuma · commit: —
   - Mesmas telas e larguras do passo 2. Olhar a faixa do exercício e do grupo, a faixa do `Cartao`, a trilha do segmento do Planejamento, selos sobre o cartão branco e sobre a faixa, o `Alerta`, gráficos e barras de progresso dentro do cartão, o interruptor desligado e o campo sobre o cartão (só o contorno o separa).
-- [ ] 5. Aprovação do treinador pelas capturas — executor: Gustavo · tamanho: P · migration: não · APK: não · API: nenhuma · commit: —
+- [~] 5. (substituído) Aprovação do treinador pelas capturas — executor: Gustavo · tamanho: P · migration: não · APK: não · API: nenhuma · commit: —
   - "Aprovado" fecha o C99; outro tom volta ao passo 3. Sem aprovação, não há commit final.
-- [ ] 6. Documentação da Areia — executor: executor-rapido (texto já decidido) · tamanho: P · migration: não · APK: não · API: nenhuma · commit: —
+- [~] 6. (substituído) Documentação da Areia — executor: executor-rapido (texto já decidido) · tamanho: P · migration: não · APK: não · API: nenhuma · commit: —
   - `docs/design-e-front.md:186-195` (valores e a frase "branco quente, não branco puro", desfeita), `AGENTS.md` (a frase da Areia na seção do tema, linha não conferida) e o cabeçalho de `docs/planos/areia-do-saraiva.md`. Arquivo gerado nunca à mão.
 - [ ] 7. C100: conferir o tema padrão da consultoria do piloto em produção — executor: Gustavo (só leitura) · tamanho: P · migration: não · APK: não · API: nenhuma · commit: —
   - Se não for Areia nem Claro, dizer a ele onde trocar (Marca ou Ajustes). Registrar o valor aqui, sem dado pessoal.
