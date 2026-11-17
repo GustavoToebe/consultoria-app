@@ -1,15 +1,15 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
-import type { CompromissoDoAluno } from '../../api/agendaTipos';
 import {
   identificadorDoLembreteDeCompromisso, lembretesDeCompromissos, prefixoDosLembretesDeCompromisso,
-  TITULO_DO_LEMBRETE_DE_COMPROMISSO,
+  TITULO_DO_LEMBRETE_DE_COMPROMISSO, type CompromissoParaLembrete,
 } from '../../dominio/lembretesCompromisso';
 
 /**
- * Camada nativa dos lembretes de compromisso (D13): notificações locais 1 dia e 2 horas antes, agendadas a partir da lista
- * que o app baixou (`GET /aluno/compromissos`). Molde de `atualizacao/lembretes.ts`. A regra de quais lembretes existem e o
- * texto (sem horário, P7) ficam em `dominio/lembretesCompromisso`.
+ * Camada nativa dos lembretes de compromisso (D13): notificações locais nas antecedências escolhidas em cada compromisso,
+ * agendadas a partir da lista que o app baixou (`GET /aluno/compromissos`; o treinador responsável usa a mesma camada, por
+ * `treinador/agenda/lembretes`, com o id dele no prefixo). Molde de `atualizacao/lembretes.ts`. A regra de quais lembretes
+ * existem e o texto (sem horário, P7) ficam em `dominio/lembretesCompromisso`.
  */
 
 const CANAL='compromissos';
@@ -64,7 +64,7 @@ export function desligarLembretesDeCompromisso(usuarioId:string) {return emFila(
  * Apaga os lembretes do usuário e agenda de novo os da lista dada (os `AGENDADO` futuros; cancelado, remarcado e
  * passado saem por aqui). Sem permissão do aparelho não agenda nada: ela é pedida só no interruptor.
  */
-export function reagendarLembretesDeCompromisso(usuarioId:string,compromissos:readonly CompromissoDoAluno[]|null) {
+export function reagendarLembretesDeCompromisso(usuarioId:string,compromissos:readonly CompromissoParaLembrete[]|null) {
   return emFila(async()=>{
     if(encerrados.has(usuarioId))return;
     await limpar(usuarioId);

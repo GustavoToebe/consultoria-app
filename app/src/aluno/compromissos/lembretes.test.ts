@@ -8,9 +8,9 @@ import {
 jest.mock('expo-notifications',()=>({
   setNotificationHandler:jest.fn(),
   getAllScheduledNotificationsAsync:jest.fn(async()=>[
-    {identifier:'treinos:compromisso:u1:c0:1d'},
-    {identifier:'treinos:compromisso:u10:c0:1d'},
-    {identifier:'treinos:compromisso:u2:c0:1d'},
+    {identifier:'treinos:compromisso:u1:c0:1440'},
+    {identifier:'treinos:compromisso:u10:c0:1440'},
+    {identifier:'treinos:compromisso:u2:c0:1440'},
     {identifier:'treinos:atualizacao:u1:aviso'},
     {identifier:'outro-recurso'},
   ]),
@@ -23,14 +23,14 @@ jest.mock('expo-notifications',()=>({
 }));
 
 const em=(horas:number)=>new Date(Date.now()+horas*3_600_000).toISOString();
-function compromisso(id:string,horas:number,situacao:CompromissoDoAluno['situacao']='AGENDADO'):CompromissoDoAluno {
-  return {id,inicio:em(horas),fim:em(horas+1),data:'2030-01-01',hora:'09:00',horaFim:'10:00',duracaoMinutos:60,local:'Sala fictícia',situacao,responsavelNome:'Ana Fictícia'};
+function compromisso(id:string,horas:number,situacao:CompromissoDoAluno['situacao']='AGENDADO',lembretesMinutos:number[]=[1440,120]):CompromissoDoAluno {
+  return {id,inicio:em(horas),fim:em(horas+1),data:'2030-01-01',hora:'09:00',horaFim:'10:00',duracaoMinutos:60,local:'Sala fictícia',situacao,responsavelNome:'Ana Fictícia',lembretesMinutos};
 }
 const agendados=()=>jest.mocked(Notifications.scheduleNotificationAsync).mock.calls.map(([pedido])=>pedido);
 
 beforeEach(()=>{jest.clearAllMocks();iniciarLembretesDeCompromisso('u1');});
 
-it('cancela só os lembretes de compromisso do próprio usuário e agenda 1 dia e 2 horas antes dos AGENDADOS futuros',async()=>{
+it('cancela só os lembretes de compromisso do próprio usuário e agenda as antecedências escolhidas dos AGENDADOS futuros',async()=>{
   await reagendarLembretesDeCompromisso('u1',[
     compromisso('c1',48),                // os dois
     compromisso('c2',5),                 // só o de 2 h (o de 1 dia já passou)
@@ -39,10 +39,10 @@ it('cancela só os lembretes de compromisso do próprio usuário e agenda 1 dia 
     compromisso('c5',72,'REALIZADO'),
   ]);
   const cancelados=jest.mocked(Notifications.cancelScheduledNotificationAsync).mock.calls.map(([id])=>id);
-  expect(cancelados).toEqual(['treinos:compromisso:u1:c0:1d']);
+  expect(cancelados).toEqual(['treinos:compromisso:u1:c0:1440']);
   // Do disparo mais próximo ao mais distante.
   expect(agendados().map(p=>p.identifier)).toEqual([
-    'treinos:compromisso:u1:c2:2h','treinos:compromisso:u1:c1:1d','treinos:compromisso:u1:c1:2h',
+    'treinos:compromisso:u1:c2:120','treinos:compromisso:u1:c1:1440','treinos:compromisso:u1:c1:120',
   ]);
 });
 
@@ -51,10 +51,21 @@ it('o texto e o canal não trazem horário, local nem nome',async()=>{
   expect(agendados()).toHaveLength(2);
   for(const pedido of agendados()) {
     expect(pedido.content.title).toBe('Seu compromisso');
-    expect(pedido.content.body).toMatch(/^Você tem um compromisso (amanhã|daqui a pouco)\. Abra o app para ver\.$/);
+    expect(pedido.content.body).toBe('Você tem um compromisso chegando. Abra o app para ver.');
     expect(JSON.stringify(pedido)).not.toMatch(/Sala fictícia|Ana Fictícia|09:00/);
     expect(pedido.trigger).toMatchObject({type:'date',channelId:'compromissos'});
   }
+});
+
+it('agenda uma notificação por antecedência da lista (até 5) e nenhuma com a lista vazia',async()=>{
+  await reagendarLembretesDeCompromisso('u1',[
+    compromisso('c1',100,'AGENDADO',[2880,1440,120,30,5]),
+    compromisso('c2',100,'AGENDADO',[]),
+  ]);
+  expect(agendados().map(p=>p.identifier)).toEqual([
+    'treinos:compromisso:u1:c1:2880','treinos:compromisso:u1:c1:1440','treinos:compromisso:u1:c1:120',
+    'treinos:compromisso:u1:c1:30','treinos:compromisso:u1:c1:5',
+  ]);
 });
 
 it('sem permissão do aparelho limpa os antigos e não agenda nada (a permissão é pedida só no interruptor)',async()=>{

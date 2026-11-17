@@ -36,7 +36,7 @@ const Renderer = require('react-test-renderer') as typeof import('react-test-ren
 const AVISO = (id: string): AvisoDeCompromisso => ({ id, tipo: 'NOVO', inicio: '2030-11-05T12:00:00Z', responsavelNome: 'Ana Fictícia' });
 const COMPROMISSO = (id: string): CompromissoDoAluno => ({
   id, inicio: '2030-11-05T12:00:00Z', fim: '2030-11-05T13:00:00Z', data: '2030-11-05', hora: '09:00', horaFim: '10:00',
-  duracaoMinutos: 60, local: null, situacao: 'AGENDADO', responsavelNome: null,
+  duracaoMinutos: 60, local: null, situacao: 'AGENDADO', responsavelNome: null, lembretesMinutos: [30],
 });
 
 type Retorno = ReturnType<typeof useCompromissosDoAluno>;
@@ -122,5 +122,15 @@ describe('CompromissosDoAlunoProvider', () => {
     mockLigado = false;
     await remontar();
     expect(mockDesligar).toHaveBeenCalledWith('u1');
+  });
+
+  it('a equipe trocou só as antecedências do compromisso: reagenda de novo', async () => {
+    mockLigado = true;
+    const { atual } = await montar();
+    expect(mockReagendar).toHaveBeenCalledTimes(1);
+    mockCompromissos.mockResolvedValue([{ ...COMPROMISSO('c1'), lembretesMinutos: [1440, 30] }]);
+    await Renderer.act(async () => { atual().recarregar(); });
+    expect(mockReagendar).toHaveBeenCalledTimes(2);
+    expect(mockReagendar.mock.calls[1][1]?.[0].lembretesMinutos).toEqual([1440, 30]);
   });
 });

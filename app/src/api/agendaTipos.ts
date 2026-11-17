@@ -42,6 +42,8 @@ export interface Compromisso {
   serieId: string | null;
   ocorrenciaDaSerie: number | null;
   totalDaSerie: number | null;
+  /** Antecedências dos lembretes em minutos antes do início (0 a 5, de 1 a 40320); vazia = sem lembrete. */
+  lembretesMinutos: number[];
 }
 
 /**
@@ -67,6 +69,8 @@ export interface CompromissoRequest {
   duracaoMinutos: number;
   local: string | null;
   observacao: string | null;
+  /** Sempre a lista que a tela mostra: ausente no PUT mantém a gravada; `[]` = sem lembrete. */
+  lembretesMinutos?: number[];
   versao?: number;
   repeticao?: Repeticao | null;
 }
@@ -101,6 +105,7 @@ export interface CompromissoDoAluno {
   local: string | null;
   situacao: SituacaoCompromisso;
   responsavelNome: string | null;
+  lembretesMinutos: number[];
 }
 
 export type TipoAvisoCompromisso = 'NOVO' | 'REMARCADO' | 'CANCELADO';

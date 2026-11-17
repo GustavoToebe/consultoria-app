@@ -7,7 +7,7 @@ import { Interruptor } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { lembretesDeCompromissoPermitidos, pedirPermissaoDeLembretesDeCompromisso } from './lembretes';
 
-const TEXTO_DO_INTERRUPTOR = '1 dia antes e 2 horas antes, sem mostrar o horário na tela de bloqueio. Os lembretes se acertam quando você abre o app com internet.';
+const TEXTO_DO_INTERRUPTOR = 'Avisa na antecedência que foi escolhida em cada compromisso, sem mostrar o horário na tela de bloqueio. Os lembretes se acertam quando você abre o app com internet.';
 
 /**
  * "Lembrar dos meus compromissos" (D13) em Aparência e preferências: notificações locais deste aparelho, desligadas por

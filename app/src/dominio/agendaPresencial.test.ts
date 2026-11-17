@@ -19,7 +19,7 @@ function compromisso(parcial: Partial<Compromisso> & Pick<Compromisso, 'id' | 'i
     responsavelId: 'r1', responsavelNome: 'Ana', data: dataEmBrasilia(parcial.inicio),
     hora: horaEmBrasilia(parcial.inicio), horaFim: horaEmBrasilia(parcial.fim), duracaoMinutos: 60, local: null, observacao: null,
     cancelado: false, participantes: [{ id: 'a1', nome: 'Aluna Fictícia', situacao: 'AGENDADO' }], versao: 0,
-    serieId: null, ocorrenciaDaSerie: null, totalDaSerie: null, ...parcial,
+    serieId: null, ocorrenciaDaSerie: null, totalDaSerie: null, lembretesMinutos: [30], ...parcial,
   };
 }
 
@@ -155,7 +155,7 @@ describe('textos', () => {
     expect(metadadosDoCompromisso(c)).toBe('Compromisso · 09:00–10:00 · Sala 2 · com Ana');
     expect(metadadosDoCompromisso({ ...c, local: null, responsavelNome: null })).toBe('Compromisso · 09:00–10:00');
     const doAluno = { id: 'c', inicio: c.inicio, fim: c.fim, data: c.data, hora: c.hora, horaFim: c.horaFim, duracaoMinutos: 60,
-      local: null, situacao: 'AGENDADO' as const, responsavelNome: 'Ana' };
+      local: null, situacao: 'AGENDADO' as const, responsavelNome: 'Ana', lembretesMinutos: [30] };
     expect(textosDoCompromissoDoAluno(doAluno, '2026-11-03')).toEqual({ titulo: 'Amanhã, 04/11 · 09:00–10:00', detalhe: 'com Ana' });
     expect(textosDoCompromissoDoAluno({ ...doAluno, responsavelNome: null }, '2026-11-03').detalhe).toBeNull();
   });
@@ -210,14 +210,25 @@ describe('formulário', () => {
     expect(f.data).toBe('10/11/2026');
     const { erros, pedido } = pedidoDoFormulario(f, true);
     expect(erros).toEqual({});
-    expect(pedido).toEqual({ alunoIds: ['a1'], responsavelId: 'r1', data: '2026-11-10', hora: '23:30', duracaoMinutos: 60, local: 'Sala 2', observacao: 'Nota fictícia' });
-    expect(pedidoDoFormulario(f, false, 4).pedido).toMatchObject({ observacao: null, versao: 4 });
+    expect(pedido).toEqual({ alunoIds: ['a1'], responsavelId: 'r1', data: '2026-11-10', hora: '23:30', duracaoMinutos: 60, local: 'Sala 2', observacao: 'Nota fictícia', lembretesMinutos: [30] });
+    expect(pedidoDoFormulario(f, false, 4).pedido).toMatchObject({ observacao: null, versao: 4, lembretesMinutos: [30] });
     expect(intervaloDoPedido(pedido!)).toEqual({ inicio: '2026-11-11T02:30:00.000Z', fim: '2026-11-11T03:30:00.000Z' });
+  });
+
+  it('as notificações vão sempre, na ordem da tela; vazia = sem lembrete; com erro não há pedido', () => {
+    const f = { ...formularioNovo('r1', '2026-11-10'), alunoIds: ['a1'], hora: '09:00' };
+    const lembretes = [{ id: 'n1', valor: '1', unidade: 'DIAS' as const }, { id: 'n2', valor: '2', unidade: 'HORAS' as const }];
+    expect(pedidoDoFormulario({ ...f, lembretes }, false).pedido?.lembretesMinutos).toEqual([1440, 120]);
+    expect(pedidoDoFormulario({ ...f, lembretes: [] }, false, 3).pedido).toMatchObject({ lembretesMinutos: [], versao: 3 });
+    const comErro = pedidoDoFormulario({ ...f, lembretes: [...lembretes, { id: 'n3', valor: '29', unidade: 'DIAS' }] }, false);
+    expect(comErro.pedido).toBeNull();
+    expect(comErro.erros).toEqual({});
+    expect(comErro.errosDosLembretes).toEqual({ n3: 'De 1 minuto a 28 dias antes.' });
   });
 
   it('erros por campo, com os limites da API', () => {
     const { erros, pedido } = pedidoDoFormulario({ alunoIds: [], responsavelId: '', data: '31/02/2026', hora: '25:00', duracao: '481',
-      local: 'x'.repeat(121), observacao: 'x'.repeat(501), repeticao: SEM_REPETICAO }, true);
+      local: 'x'.repeat(121), observacao: 'x'.repeat(501), repeticao: SEM_REPETICAO, lembretes: [] }, true);
     expect(pedido).toBeNull();
     expect(Object.keys(erros).sort()).toEqual(['alunoIds', 'data', 'duracao', 'hora', 'local', 'observacao', 'responsavelId']);
     expect(pedidoDoFormulario({ ...formularioNovo('r', '2026-11-10'), alunoIds: ['a'], hora: '', data: '', duracao: '4' }, true).erros)
@@ -225,10 +236,13 @@ describe('formulário', () => {
   });
 
   it('editar parte do compromisso gravado', () => {
-    const c = compromisso({ id: 'c', inicio: '2026-11-04T12:00:00Z', fim: '2026-11-04T12:45:00Z', duracaoMinutos: 45, local: 'Sala 1', observacao: null });
+    const c = compromisso({ id: 'c', inicio: '2026-11-04T12:00:00Z', fim: '2026-11-04T12:45:00Z', duracaoMinutos: 45, local: 'Sala 1', observacao: null,
+      lembretesMinutos: [1440, 90] });
     expect(formularioDoCompromisso(c)).toEqual({
       alunoIds: ['a1'], responsavelId: 'r1', data: '04/11/2026', hora: '09:00', duracao: '45', local: 'Sala 1', observacao: '', repeticao: SEM_REPETICAO,
+      lembretes: [{ id: 'n1', valor: '1', unidade: 'DIAS' }, { id: 'n2', valor: '90', unidade: 'MINUTOS' }],
     });
+    expect(formularioDoCompromisso({ ...c, lembretesMinutos: [] }).lembretes).toEqual([]);
   });
 });
 
@@ -271,6 +285,13 @@ describe('linha do completo no painel rápido', () => {
     expect(linhaDoCompletoDoCompromisso({
       ...novo, alunoIds: ['a1', 'a2'], observacao: 'Levar a ficha', repeticao: personalizada,
     })).toBe('Também preenchido em Mais opções: repetição, alunos, observação.');
+  });
+
+  it('notificações diferentes da padrão (uma de 30 minutos) entram por último', () => {
+    expect(linhaDoCompletoDoCompromisso({ ...novo, lembretes: [{ id: 'n1', valor: '30', unidade: 'MINUTOS' }] })).toBeNull();
+    expect(linhaDoCompletoDoCompromisso({ ...novo, lembretes: [] })).toBe('Também preenchido em Mais opções: notificações.');
+    expect(linhaDoCompletoDoCompromisso({ ...novo, observacao: 'x', lembretes: [{ id: 'n1', valor: '1', unidade: 'HORAS' }] }))
+      .toBe('Também preenchido em Mais opções: observação, notificações.');
   });
 });
 

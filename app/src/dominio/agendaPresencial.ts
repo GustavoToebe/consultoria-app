@@ -5,6 +5,7 @@ import type {
 import type { AtualizacaoDaLista } from '../api/tipos';
 import type { TipoSelo } from '../ui/Selo';
 import { compararItens, rotuloDoDia } from './agenda';
+import { conferirLembretes, LEMBRETES_PADRAO, lembretesSaoOPadrao, type LinhaDeLembrete, linhasDosMinutos } from './antecedenciaDoLembrete';
 import { dataSemAnoCorrente } from './datasRelativas';
 import { naOrdem } from './filtrosComuns';
 import { dataNaFaixa, mensagemDaFaixa } from './datasValidas';
@@ -926,16 +927,21 @@ export interface FormularioDoCompromisso {
   observacao: string;
   /** Só vale ao marcar um compromisso novo. */
   repeticao: FormularioDaRepeticao;
+  /** As notificações (0 a 5), na ordem digitada; vazia = sem lembrete (`dominio/antecedenciaDoLembrete`). */
+  lembretes: LinhaDeLembrete[];
 }
 
+/** `lembretes` é o erro da lista inteira; o de cada linha vai em {@link ErrosDosLembretes}. */
 export type ErrosDoCompromisso = Partial<Record<keyof FormularioDoCompromisso, string>>;
 export type ErrosDaRepeticao = Partial<Record<CampoDaRepeticao, string>>;
+/** Erro de cada notificação, pelo `id` da linha. */
+export type ErrosDosLembretes = Record<string, string>;
 
 /** Compromisso novo no dia `data` (AAAA-MM-DD); `hora` (HH:MM) vem do horário clicado na grade, senão fica para escolher. */
 export function formularioNovo(responsavelId: string, data: string, hora = ''): FormularioDoCompromisso {
   return {
     alunoIds: [], responsavelId, data: dataParaTela(data), hora, duracao: String(DURACAO_PADRAO), local: '', observacao: '',
-    repeticao: { ...SEM_REPETICAO, dias: [] },
+    repeticao: { ...SEM_REPETICAO, dias: [] }, lembretes: linhasDosMinutos(LEMBRETES_PADRAO),
   };
 }
 
@@ -957,14 +963,15 @@ function repeticaoPersonalizada(r: FormularioDaRepeticao, data: string): boolean
 /**
  * Campos do formulário completo que fogem do padrão de um compromisso novo, na ordem do formulário (Quem, Quando,
  * Detalhes). Vazio = sem a linha. A repetição entra quando não é a da lista do painel rápido. Mais de um
- * aluno entra como "alunos". A observação entra quando tem texto. Responsável e local ficam de fora: são o padrão
- * ou a linha que o painel rápido já mostra vazia.
+ * aluno entra como "alunos". A observação entra quando tem texto. As notificações entram quando não são a padrão (uma
+ * de 30 minutos). Responsável e local ficam de fora: são o padrão ou a linha que o painel rápido já mostra vazia.
  */
 export function linhaDoCompletoDoCompromisso(form: FormularioDoCompromisso): string | null {
   const nomes: string[] = [];
   if (repeticaoPersonalizada(form.repeticao, form.data)) nomes.push('repetição');
   if (form.alunoIds.length > 1) nomes.push('alunos');
   if (form.observacao.trim()) nomes.push('observação');
+  if (!lembretesSaoOPadrao(form.lembretes)) nomes.push('notificações');
   return nomes.length ? `Também preenchido em Mais opções: ${nomes.join(', ')}.` : null;
 }
 
@@ -972,6 +979,7 @@ export function formularioDoCompromisso(c: Compromisso): FormularioDoCompromisso
   return {
     alunoIds: c.participantes.map((p) => p.id), responsavelId: c.responsavelId ?? '', data: dataParaTela(c.data), hora: c.hora,
     duracao: String(c.duracaoMinutos), local: c.local ?? '', observacao: c.observacao ?? '', repeticao: { ...SEM_REPETICAO, dias: [] },
+    lembretes: linhasDosMinutos(c.lembretesMinutos),
   };
 }
 
@@ -1018,10 +1026,11 @@ export function repeticaoDoFormulario(f: FormularioDaRepeticao, primeira: string
 /**
  * Confere o formulário e monta o pedido. `comObservacao`: só quem grava dado sensível manda a observação (sem a
  * permissão a API ignoraria; aqui ela nem vai). `versao` presente = remarcar (PUT): a repetição não vai (a API recusa);
- * ausente = marcar, e a repetição escolhida vai no pedido.
+ * ausente = marcar, e a repetição escolhida vai no pedido. `lembretesMinutos` vai sempre, também vazio e no PUT (no PUT
+ * ausente manteria a lista gravada; com `escopo` de série a mesma lista vale para todas), na ordem da tela.
  */
 export function pedidoDoFormulario(f: FormularioDoCompromisso, comObservacao: boolean, versao?: number):
-  { erros: ErrosDoCompromisso; errosDaRepeticao: ErrosDaRepeticao; pedido: CompromissoRequest | null } {
+  { erros: ErrosDoCompromisso; errosDaRepeticao: ErrosDaRepeticao; errosDosLembretes: ErrosDosLembretes; pedido: CompromissoRequest | null } {
   const erros: ErrosDoCompromisso = {};
   const erroDosAlunos = erroDosParticipantes(f.alunoIds);
   if (erroDosAlunos) erros.alunoIds = erroDosAlunos;
@@ -1046,13 +1055,17 @@ export function pedidoDoFormulario(f: FormularioDoCompromisso, comObservacao: bo
   const serie = marcando ? repeticaoDoFormulario(f.repeticao, data || null) : null;
   const errosDaRepeticao = serie?.erros ?? {};
   if (Object.keys(errosDaRepeticao).length) erros.repeticao = 'Confira a repetição.';
-  if (Object.keys(erros).length || !data) return { erros, errosDaRepeticao, pedido: null };
+  const lembretes = conferirLembretes(f.lembretes);
+  const errosDosLembretes = lembretes.porLinha;
+  if (lembretes.lista) erros.lembretes = lembretes.lista;
+  if (Object.keys(erros).length || !data || !lembretes.minutos) return { erros, errosDaRepeticao, errosDosLembretes, pedido: null };
   return {
     erros,
     errosDaRepeticao,
+    errosDosLembretes,
     pedido: {
       alunoIds: [...f.alunoIds], responsavelId: f.responsavelId, data, hora, duracaoMinutos: duracao,
-      local: local || null, observacao: comObservacao ? observacao || null : null,
+      local: local || null, observacao: comObservacao ? observacao || null : null, lembretesMinutos: lembretes.minutos,
       ...(marcando ? (serie?.repeticao ? { repeticao: serie.repeticao } : {}) : { versao }),
     },
   };

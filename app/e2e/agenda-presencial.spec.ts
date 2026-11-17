@@ -33,7 +33,7 @@ function compromisso(id: string, alunos: AlunoResumo[], data: string, hora: stri
     participantes: alunos.map((a) => participante(a)), cancelado: false,
     serieId: null, ocorrenciaDaSerie: null, totalDaSerie: null,
     inicio: inicio.toISOString(), fim: fim.toISOString(), data, hora, horaFim, duracaoMinutos: 60, local: 'Sala 2',
-    observacao: 'Observação fictícia', versao: 0, ...extra,
+    observacao: 'Observação fictícia', versao: 0, lembretesMinutos: [30], ...extra,
   };
 }
 
@@ -588,9 +588,9 @@ test('aluno vê os próximos compromissos no Início, só leitura', async ({ pag
   await fixarHoje(page);
   const meus: CompromissoDoAluno[] = [
     { id: 'k1', inicio: '2026-10-20T12:00:00.000Z', fim: '2026-10-20T13:00:00.000Z', data: '2026-10-20', hora: '09:00', horaFim: '10:00',
-      duracaoMinutos: 60, local: 'Sala 2', situacao: 'AGENDADO', responsavelNome: 'Treinadora Teste' },
+      duracaoMinutos: 60, local: 'Sala 2', situacao: 'AGENDADO', responsavelNome: 'Treinadora Teste', lembretesMinutos: [30] },
     { id: 'k2', inicio: '2026-10-22T12:00:00.000Z', fim: '2026-10-22T13:00:00.000Z', data: '2026-10-22', hora: '09:00', horaFim: '10:00',
-      duracaoMinutos: 60, local: null, situacao: 'CANCELADO', responsavelNome: null },
+      duracaoMinutos: 60, local: null, situacao: 'CANCELADO', responsavelNome: null, lembretesMinutos: [30] },
   ];
   const { naoTratadas, errosDaPagina } = await simularApi(page, {
     ...(await sessaoDeAluno(page)),

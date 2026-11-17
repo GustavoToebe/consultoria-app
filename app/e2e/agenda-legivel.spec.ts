@@ -36,7 +36,7 @@ function compromisso(id: string, a: AlunoResumo, hora: string, minutos: number, 
     id, responsavelId: TREINADOR.id, responsavelNome: TREINADOR.nome, participantes: [participante], cancelado: situacao === 'CANCELADO',
     serieId: null, ocorrenciaDaSerie: null, totalDaSerie: null,
     inicio: inicio.toISOString(), fim: fim.toISOString(), data: HOJE, hora, horaFim: horaDe(fim), duracaoMinutos: minutos, local: 'Sala 2',
-    observacao: null, versao: 0,
+    observacao: null, versao: 0, lembretesMinutos: [30],
   };
 }
 

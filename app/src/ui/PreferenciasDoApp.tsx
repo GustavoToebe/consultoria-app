@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
+import { OPCOES_DIAS_ANIVERSARIO } from '../dominio/aniversariosDosAlunos';
 import type { Preferencias, TamanhoTexto } from '../dominio/preferencias';
 import { fatorDoTexto } from '../dominio/preferencias';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -169,6 +170,18 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
         />
       </Cartao>
 
+      {/* Só quem lê alunos (o bloco do Início pede ALUNO_LER); mostra só nome, dia e mês. */}
+      {!aluno && sessao.pode('ALUNO_LER') ? (
+        <Cartao titulo="Aniversários" descricao="Até quantos dias o Início mostra quem faz aniversário. Aparece só o nome e o dia e mês, nunca a idade.">
+          <Escolha
+            descricao="Aniversários no Início"
+            opcoes={OPCOES_DIAS_ANIVERSARIO.map((n) => ({ valor: n, rotulo: n === 0 ? 'Só hoje' : `${n} dias` }))}
+            valor={preferencias.diasAniversario}
+            aoMudar={(diasAniversario) => mudar({ diasAniversario })}
+          />
+        </Cartao>
+      ) : null}
+
       {Platform.OS === 'web' ? (
         <Cartao titulo="Navegador">
           <Interruptor
@@ -216,7 +229,7 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
       <PainelConfirmacao
         visivel={confirmandoRestaurar}
         titulo="Restaurar as preferências?"
-        mensagem={`Tema, contraste, bordas, tamanho do texto, animações, gráficos, barras de rolagem e vibração voltam ao padrão${escolheUnidade ? '; a carga volta a kg' : ''}${aluno ? '; os lembretes de compromisso ficam desligados' : ''}.`}
+        mensagem={`Tema, contraste, bordas, tamanho do texto, animações, gráficos, barras de rolagem e vibração voltam ao padrão${escolheUnidade ? '; a carga volta a kg' : ''}${aluno || (Platform.OS !== 'web' && sessao.pode('AGENDA_LER')) ? '; os lembretes de compromisso ficam desligados' : ''}.`}
         rotuloConfirmar="Restaurar"
         aoConfirmar={() => {
           restaurarPadrao();

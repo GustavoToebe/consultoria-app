@@ -52,7 +52,7 @@ function compromisso(id: string, alunos: AlunoResumo[], data: string, hora: stri
     participantes: alunos.map((a) => ({ id: a.id, nome: a.nome, situacao: 'AGENDADO' })), cancelado: false,
     serieId: null, ocorrenciaDaSerie: null, totalDaSerie: null,
     inicio: inicio.toISOString(), fim: fim.toISOString(), data, hora, horaFim: horaDe(fim), duracaoMinutos: 60, local: 'Sala 2',
-    observacao: null, versao: 0,
+    observacao: null, versao: 0, lembretesMinutos: [30],
   };
 }
 

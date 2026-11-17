@@ -50,7 +50,7 @@ function compromisso(id: string, inicio: string, fim: string, extra: Partial<Com
   return {
     id, responsavelId: null, responsavelNome: null, inicio, fim, data: inicio.slice(0, 10), hora: '00:00', horaFim: '00:00',
     duracaoMinutos: 60, local: null, observacao: null, cancelado: false, versao: 0, serieId: null, ocorrenciaDaSerie: null,
-    totalDaSerie: null, participantes: [{ id: 'p1', nome: 'Ana', situacao: 'AGENDADO' }], ...extra,
+    totalDaSerie: null, lembretesMinutos: [30], participantes: [{ id: 'p1', nome: 'Ana', situacao: 'AGENDADO' }], ...extra,
   };
 }
 

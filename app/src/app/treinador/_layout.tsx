@@ -8,6 +8,7 @@ import { naOrdemDoMenu } from '../../dominio/gruposDoMenu';
 import { primeiraTelaPermitida } from '../../dominio/primeiraTela';
 import { telasDaOrigem, telasPermitidas } from '../../dominio/telas';
 import { useSessao } from '../../sessao/SessaoProvider';
+import { LembretesDoTreinador } from '../../treinador/agenda/lembretes/LembretesDoTreinador';
 import { useCarregar } from '../../ui/useCarregar';
 import { podeAcessarTela } from '../../dominio/permissoes';
 import { GuardaDePermissao } from '../../ui/Permitido';
@@ -88,6 +89,7 @@ export default function LayoutTreinador() {
     <Navigator><GuardaDePapel papel="TREINADOR"><GuardaDeSaida>
       {/* Passeio pelo menu no primeiro acesso (depois dos termos, que a GuardaDePapel cobra); revisto pela Ajuda. */}
       <SemInicio />
+      <LembretesDoTreinador />
       <ProvedorDoPasseio key={usuario?.id ?? ''} usuarioId={usuario?.id ?? ''} passos={usuario ? GUIAS.treinador.passeio : []}>
         <ProvedorDaUnidadeDeCarga>
         {/* Busca global (Ctrl/Cmd+K em qualquer tela) e conta no menu lateral só na web; no celular a busca abre pelo Perfil. */}

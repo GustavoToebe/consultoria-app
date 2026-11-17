@@ -25,7 +25,7 @@ function compromisso(id: string, inicioUtc: string, situacao: CompromissoDoAluno
   const brasilia = (d: Date) => new Date(d.getTime() - 3 * 3600_000).toISOString();
   return {
     id, inicio: inicio.toISOString(), fim: fim.toISOString(), data: brasilia(inicio).slice(0, 10), hora: brasilia(inicio).slice(11, 16),
-    horaFim: brasilia(fim).slice(11, 16), duracaoMinutos: 60, local: 'Sala 2', situacao, responsavelNome: 'Treinadora Teste',
+    horaFim: brasilia(fim).slice(11, 16), duracaoMinutos: 60, local: 'Sala 2', situacao, responsavelNome: 'Treinadora Teste', lembretesMinutos: [30],
   };
 }
 const COMPROMISSOS = [compromisso('k1', NOVO.inicio), compromisso('k2', REMARCADO.inicio), compromisso('k3', CANCELADO.inicio, 'CANCELADO')];

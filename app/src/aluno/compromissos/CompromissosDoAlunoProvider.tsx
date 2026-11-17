@@ -76,7 +76,7 @@ export function CompromissosDoAlunoProvider({ children }: { children: ReactNode 
 
   // Lembretes locais (D13). Só reagenda com uma lista baixada: sem rede os que já estão agendados ficam como estão.
   const ligado = preferencias.lembretesCompromisso;
-  const assinaturaDaLista = compromissos ? compromissos.map((c) => `${c.id}|${c.inicio}|${c.situacao}`).join(';') : null;
+  const assinaturaDaLista = compromissos ? compromissos.map((c) => `${c.id}|${c.inicio}|${c.situacao}|${c.lembretesMinutos.join(",")}`).join(';') : null;
   const listaAtual = useRef(compromissos);
   useEffect(() => { listaAtual.current = compromissos; });
   useEffect(() => { iniciarLembretesDeCompromisso(usuarioId); }, [usuarioId]);
