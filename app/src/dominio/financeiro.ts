@@ -34,7 +34,10 @@ import { contagemParaTela, rotuloDoMes, rotuloDoMesCompleto } from './numeros';
 
 // ---- Textos fixos ----
 
-/** Dito ao lado de inadimplência, previsto e atrasado: o painel só enxerga cobranças que já existem. */
+/**
+ * Dito ao lado de inadimplência, previsto e atrasado: o painel só enxerga cobranças que já existem. Desde a Fase 1 (D1) a
+ * mensalidade nasce todo mês pela rotina diária, paga ou não: o que ainda não existe é o mês seguinte ao da próxima cobrança.
+ */
 export const NOTA_CONSIDERA_GERADAS = 'considera as cobranças já geradas';
 
 /** Frase geral do Financeiro (Visão geral e Lançamentos), uma vez por tela, ao lado das notas de "cobranças já geradas". */
@@ -83,7 +86,7 @@ export const DEFINICOES_DO_PAINEL: readonly { termo: string; explicacao: string 
 
 /** Parte 2, "Períodos e limites dos dados": o que vale para vários números ao mesmo tempo (não é definição de um só). */
 export const LIMITES_DOS_DADOS: readonly string[] = [
-  `Previsto, atrasado e inadimplência ${NOTA_CONSIDERA_GERADAS}: cobranças que ainda não foram geradas não entram.`,
+  'Previsto, atrasado e inadimplência consideram as cobranças já geradas. A mensalidade é gerada todo mês, paga ou não, uma de cada vez: os meses depois da próxima cobrança ainda não entram no previsto.',
   'Resultado do mês: entradas menos saídas registradas, somando o recebido das cobranças com os lançamentos avulsos. Não é um resultado contábil.',
   'Com o filtro "Meus", os lançamentos avulsos ficam de fora, porque não pertencem a um aluno.',
 ];

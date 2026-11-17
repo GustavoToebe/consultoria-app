@@ -204,9 +204,9 @@ test.describe('Financeiro › Lembretes', () => {
     const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estadoFinanceiro()) });
     await page.goto('/treinador/financeiro?aba=lembretes');
     await expect(page.getByRole('tab', { name: 'Lembretes', selected: true })).toBeVisible();
-    // Recebimento online é outra aba: não aparece junto dos lembretes.
+    // Recebimento é outra aba: não aparece junto dos lembretes.
     await expect(page.getByText('Lembretes de cobrança', { exact: true })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Recebimento online' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Recebimento', exact: true })).toBeVisible();
     await expect(page.getByLabel('InfiniteTag')).toHaveCount(0);
     // O corpo mede a própria largura (`onLayout`) e só então passa às duas colunas: na primeira passada o campo ocupa a coluna
     // única (790 px em 1920). O limite é o mesmo; só se espera a passada que vale.

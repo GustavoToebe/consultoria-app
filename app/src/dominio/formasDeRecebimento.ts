@@ -1,4 +1,6 @@
-import { cnpjValido, codigoApi, cpfValido, emailValido, erroDeConexao, errosPorCampo, mensagemApi, telefoneValido } from '@plataforma/web';
+import {
+  cnpjValido, codigoApi, cpfValido, emailValido, erroDeConexao, errosPorCampo, formatarCnpj, formatarCpf, formatarTelefone, mensagemApi, telefoneValido,
+} from '@plataforma/web';
 
 import type { FormaDeRecebimento, FormasDeRecebimento, FormasDeRecebimentoRequest, PixConfigRequest, TipoDeChavePix } from '../api/financeiroTipos';
 
@@ -30,7 +32,8 @@ export const TIPOS_DE_CHAVE_PIX: readonly { valor: TipoDeChavePix; rotulo: strin
   { valor: 'CNPJ', rotulo: 'CNPJ' },
   { valor: 'EMAIL', rotulo: 'E-mail' },
   { valor: 'TELEFONE', rotulo: 'Telefone' },
-  { valor: 'ALEATORIA', rotulo: 'Chave aleatória' },
+  // Curto: os cinco cabem numa linha da escolha no celular; o grupo já se chama "Tipo da chave".
+  { valor: 'ALEATORIA', rotulo: 'Aleatória' },
 ];
 
 /** Os tamanhos do BR Code e da coluna: nome do recebedor até 25, cidade até 15 e a chave até 77. */
@@ -101,6 +104,35 @@ export function normalizarChavePix(tipo: TipoDeChavePix, texto: string): string 
     case 'ALEATORIA': return UUID.test(t) ? t.toLowerCase() : null;
     default: return null;
   }
+}
+
+/**
+ * A máscara da chave enquanto a pessoa digita: CPF `123.456.789-09`, CNPJ `12.345.678/0001-95` (alfanumérico em maiúsculas),
+ * telefone `(45) 99999-8888`; e-mail e chave aleatória sem espaços, como vieram. O corpo leva a forma canônica (`normalizarChavePix`).
+ */
+export function mascaraDaChavePix(tipo: TipoDeChavePix | null, texto: string): string {
+  switch (tipo) {
+    case 'CPF': return formatarCpf(texto);
+    case 'CNPJ': return formatarCnpj(texto).toUpperCase();
+    case 'TELEFONE': return formatarTelefone(texto);
+    default: return texto.replace(/\s/g, '').slice(0, LIMITES_DO_PIX.chave);
+  }
+}
+
+/** "12 de 25 caracteres": o contador do nome do recebedor e da cidade (contado sem os espaços das pontas, como o servidor). */
+export function contadorDoPix(texto: string, limite: number): string {
+  return `${texto.trim().length} de ${limite} caracteres`;
+}
+
+/**
+ * Algo mudou desde a última gravação? Sem nada a salvar o "Salvar" fica apagado com o motivo. O Pix desligado não compara os
+ * campos do Pix (eles nem vão no corpo); a chave digitada sempre conta como mudança.
+ */
+export function formasAlteradas(atual: EstadoDasFormas, gravado: EstadoDasFormas): boolean {
+  if (atual.infinitePay !== gravado.infinitePay || atual.linkProprio !== gravado.linkProprio || atual.pix !== gravado.pix) return true;
+  if (!atual.pix) return false;
+  return !!atual.chave.trim() || atual.tipoChave !== gravado.tipoChave
+    || atual.nomeRecebedor.trim() !== gravado.nomeRecebedor.trim() || atual.cidade.trim() !== gravado.cidade.trim();
 }
 
 const MENSAGEM_DA_CHAVE: Readonly<Record<TipoDeChavePix, string>> = {

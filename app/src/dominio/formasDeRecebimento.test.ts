@@ -2,7 +2,7 @@ import { ErroApi, MENSAGEM_SEM_CONEXAO } from '@plataforma/web';
 
 import type { FormasDeRecebimento } from '../api/financeiroTipos';
 import {
-  corpoDasFormas, estadoDasFormas, FORMAS_DO_FORMULARIO, lerLinkDoPlano, MENSAGEM_CONFLITO_DAS_FORMAS, normalizarChavePix,
+  contadorDoPix, corpoDasFormas, estadoDasFormas, FORMAS_DO_FORMULARIO, formasAlteradas, lerLinkDoPlano, mascaraDaChavePix, MENSAGEM_CONFLITO_DAS_FORMAS, normalizarChavePix,
   rotuloDaFormaDeRecebimento, textoDaChaveGravada, traduzirErroDasFormas, type EstadoDasFormas,
 } from './formasDeRecebimento';
 
@@ -154,5 +154,30 @@ describe('traduzirErroDasFormas', () => {
     const fixa = 'Não foi possível salvar as formas de recebimento. Tente de novo.';
     expect(traduzirErroDasFormas(new ErroApi(500, null, 'detalhe interno')).mensagem).toBe(fixa);
     expect(traduzirErroDasFormas(new ErroApi(503, 'OUTRO', 'detalhe interno')).mensagem).toBe(fixa);
+  });
+});
+
+describe('máscara, contador e mudança', () => {
+  it('máscara por tipo; e-mail e aleatória só perdem os espaços', () => {
+    expect(mascaraDaChavePix('CPF', '52998224725')).toBe(CPF);
+    expect(mascaraDaChavePix('CNPJ', '11222333000181')).toBe(CNPJ);
+    expect(mascaraDaChavePix('CNPJ', '12abc34501de35')).toBe('12.ABC.345/01DE-35');
+    expect(mascaraDaChavePix('TELEFONE', '45999998888')).toBe('(45) 99999-8888');
+    expect(mascaraDaChavePix('EMAIL', ' treinador @exemplo.com')).toBe('treinador@exemplo.com');
+    expect(mascaraDaChavePix(null, 'abc def')).toBe('abcdef');
+  });
+  it('contador conta sem as pontas', () => {
+    expect(contadorDoPix('  Cascavel ', 15)).toBe('8 de 15 caracteres');
+  });
+  it('formasAlteradas: formas, tipo, nome, cidade e chave digitada; com o Pix desligado os campos dele não contam', () => {
+    const gravado = estadoDasFormas(resposta({ pix: true, pixConfig: { tipoChave: 'EMAIL', chaveConfigurada: true, chaveMascarada: 't***@exemplo.com', nomeRecebedor: 'Treino Teste', cidade: 'Cascavel' } }));
+    expect(formasAlteradas(gravado, gravado)).toBe(false);
+    expect(formasAlteradas({ ...gravado, cidade: ' Cascavel ' }, gravado)).toBe(false);
+    expect(formasAlteradas({ ...gravado, linkProprio: true }, gravado)).toBe(true);
+    expect(formasAlteradas({ ...gravado, chave: 'outra@exemplo.com' }, gravado)).toBe(true);
+    expect(formasAlteradas({ ...gravado, tipoChave: 'CPF' }, gravado)).toBe(true);
+    expect(formasAlteradas({ ...gravado, nomeRecebedor: 'Outro' }, gravado)).toBe(true);
+    const desligado = { ...gravado, pix: false };
+    expect(formasAlteradas({ ...desligado, cidade: 'Toledo' }, desligado)).toBe(false);
   });
 });

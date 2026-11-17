@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
-import type { CobrancaResponse, ContratacaoResponse, PreviaDoEncerramento } from '../src/api/financeiroTipos';
+import type { CobrancaResponse, ContratacaoResponse, Inadimplente, PreviaDoEncerramento } from '../src/api/financeiroTipos';
 import type { AlunoDetalhe } from '../src/api/tipos';
 import { TEXTO_COMBINE_COM_O_TREINADOR, TEXTO_NADA_E_BAIXADO } from '../src/dominio/financeiro';
 import { ALUNO, erroApi, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
@@ -342,13 +342,38 @@ test('lançamento de saída: o app envia centavos e o resultado do mês acompanh
   expect(errosDaPagina).toEqual([]);
 });
 
+test('inadimplentes contam cobranças: o mesmo aluno com duas vencidas aparece em duas linhas, cada uma abre a própria cobrança', async ({ page }) => {
+  await fixarHoje(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const segunda: Inadimplente = { ...INADIMPLENTE, cobrancaId: 'c0000000-0000-4000-8000-0000000000a9', valorCentavos: 15_000, vencimento: '2026-09-05', diasDeAtraso: 44 };
+  const estado = estadoFinanceiro({
+    inadimplentes: [segunda, INADIMPLENTE],
+    cobrancas: [{ ...COBRANCA_ATRASADA, id: segunda.cobrancaId, competencia: '2026-09-05', vencimento: '2026-09-05', diasDeAtraso: 44 }, { ...COBRANCA_ATRASADA }],
+  });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro');
+
+  await expect(page.getByRole('button', { name: /^Registrar pagamento de Aluna Atrasada/ })).toHaveCount(2);
+  await page.getByRole('button', { name: 'Registrar pagamento de Aluna Atrasada, vencida em 05/09/2026' }).click();
+  const folha = page.getByRole('dialog');
+  await folha.getByRole('button', { name: 'Registrar pagamento', exact: true }).click();
+  await expect(page.getByText('Pagamento registrado.')).toBeVisible();
+  expect(estado.cobrancas.find((c) => c.id === segunda.cobrancaId)?.situacao).toBe('PAGA');
+  expect(estado.cobrancas.find((c) => c.id === INADIMPLENTE.cobrancaId)?.situacao).toBe('ABERTA');
+  await expect(page.getByRole('button', { name: /^Registrar pagamento de Aluna Atrasada/ })).toHaveCount(1);
+
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect(page.getByRole('button', { name: 'Abrir cobrança vencida de Aluna Atrasada, 05/10/2026' })).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('baixa pela lista de inadimplentes: busca a versão da cobrança, envia só data, forma e versão e tira o aluno da lista', async ({ page }) => {
   await fixarHoje(page);
   const estado = estadoFinanceiro({ inadimplentes: [INADIMPLENTE], cobrancas: [{ ...COBRANCA_ATRASADA }] });
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro');
 
-  await page.getByRole('button', { name: 'Registrar pagamento de Aluna Atrasada' }).click();
+  await page.getByRole('button', { name: 'Registrar pagamento de Aluna Atrasada, vencida em 05/10/2026' }).click();
   const folha = page.getByRole('dialog');
   await expect(folha.getByRole('heading', { name: 'Registrar pagamento' })).toBeVisible();
   await expect(folha.getByText('R$ 150,00')).toBeVisible();
@@ -382,7 +407,7 @@ test('fluxo completo: o treinador cria o plano, contrata na ficha e dá a baixa;
   await expect(page.getByText('Plano criado.')).toBeVisible();
   await expect(page.getByText('Consultoria mensal').first()).toBeVisible();
   expect(pedidos.find((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos')?.corpo)
-    .toEqual({ nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', tempoMinimoMeses: null, regraDeSaida: null, versao: null });
+    .toEqual({ nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: null, versao: null });
   const planoId = estado.planos[0].id;
 
   // 2. Contratação na ficha do aluno.
@@ -553,7 +578,7 @@ for (const largura of [390, 1280]) {
     await folha.getByRole('button', { name: 'Criar plano' }).click();
     await expect(page.getByText('Plano criado.')).toBeVisible();
     expect(pedidos.find((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos')?.corpo).toEqual({
-      nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', tempoMinimoMeses: 6, regraDeSaida: REGRA, versao: null,
+      nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', tempoMinimoMeses: 6, regraDeSaida: REGRA, linkDePagamento: null, versao: null,
     });
     await expect(page.getByText(/Mínimo de 6 meses/)).toBeVisible();
 
@@ -568,7 +593,7 @@ for (const largura of [390, 1280]) {
     await outro.getByRole('button', { name: 'Criar plano' }).click();
     await expect.poll(() => pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos').length).toBe(2);
     expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos').at(-1)?.corpo).toEqual({
-      nome: 'Consultoria trimestral', valorCentavos: 40_000, periodicidade: 'TRIMESTRAL', tempoMinimoMeses: null, regraDeSaida: null, versao: null,
+      nome: 'Consultoria trimestral', valorCentavos: 40_000, periodicidade: 'TRIMESTRAL', tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: null, versao: null,
     });
 
     // Editar o mensal e trocar para trimestral avisa que o mínimo será apagado.
@@ -996,7 +1021,7 @@ test('Recebimento online do treinador: salva a tag e a chave, a chave nunca volt
   const estado = estadoFinanceiro();
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro');
-  await page.getByRole('tab', { name: 'Recebimento online' }).click();
+  await page.getByRole('tab', { name: 'Recebimento' }).click();
 
   await expect(page.getByText('Ainda não configurado', { exact: true })).toBeVisible();
   const tag = page.getByLabel('InfiniteTag', { exact: true });
@@ -1118,7 +1143,7 @@ test('cobrança em aberto sem recebimento configurado: sem botão de link, com o
 
   await folha.getByRole('button', { name: 'Abrir Recebimento online' }).click();
   await expect(page).toHaveURL(/aba=recebimento/);
-  await expect(page.getByRole('tab', { name: 'Recebimento online', selected: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Recebimento', selected: true })).toBeVisible();
   await expect(page.getByText('Ainda não configurado', { exact: true })).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });
@@ -1272,14 +1297,17 @@ test('pagamentos para conferir sem permissão de alterar: a lista aparece, sem o
   expect(errosDaPagina).toEqual([]);
 });
 
-test('consultoria sem recebimento online: nenhuma aba, nenhum cartão, e o endereço da aba cai na visão geral sem chamar a API', async ({ page }) => {
+test('consultoria sem recebimento online: a aba Recebimento só com as formas, sem a InfinitePay nem o cartão de conferência, e sem chamar a API dela', async ({ page }) => {
   await fixarHoje(page);
   const estado = estadoFinanceiro({ conferencias: [{ ...CONFERENCIA_VALOR_DIFERENTE }], cobrancas: [{ ...COBRANCA_ATRASADA }] });
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page, undefined, false)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=recebimento');
 
-  await expect(page.getByText('Recebido no período')).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'Recebimento online' })).toHaveCount(0);
+  // As formas de recebimento (Pix, link próprio, Manual) não dependem da InfinitePay: a aba existe, sem a parte dela.
+  await expect(page.getByRole('tab', { name: 'Recebimento', selected: true })).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Pix copia e cola' })).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'InfinitePay' })).toHaveCount(0);
+  await expect(page.getByText('Recebimento online pela InfinitePay')).toHaveCount(0);
 
   await page.getByRole('tab', { name: 'Cobranças' }).click();
   await page.getByRole('button', { name: /^Abrir cobrança de/ }).click();
@@ -1306,7 +1334,8 @@ test('nenhuma tela do financeiro fala em boleto', async ({ page }) => {
   for (const aba of ['visao', 'cobrancas', 'planos', 'lancamentos', 'recebimento']) {
     await page.goto(`/treinador/financeiro?aba=${aba}`);
     await expect(page.getByRole('heading', { name: 'Financeiro', level: 1 })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Recebimento online' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Recebimento' })).toBeVisible();
+
     await expect(page.getByText(/boleto/i)).toHaveCount(0);
   }
   expect(errosDaPagina).toEqual([]);

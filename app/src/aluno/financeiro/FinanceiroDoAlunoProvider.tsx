@@ -4,7 +4,7 @@ import { AppState, Platform } from 'react-native';
 
 import type { FinanceiroDoAluno, TipoDaCobranca } from '../../api/financeiroTipos';
 import { financeiroDoAluno } from '../../api/rotas';
-import { comoPagar, plataformaDoApp, type ComoPagar } from '../../dominio/financeiro';
+import { acoesDePagamentoDoAluno, comoPagar, plataformaDoApp, type AcaoDePagamento, type ComoPagar } from '../../dominio/financeiro';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { codigoApi } from '../../ui/erros';
@@ -25,6 +25,11 @@ interface Valor {
   modoDePagamento: ComoPagar;
   /** O mesmo, por cobrança: a de saída nunca tem "Pagar" (só informação), em nenhuma plataforma. */
   modoDaCobranca: (tipo: TipoDaCobranca | null | undefined) => ComoPagar;
+  /**
+   * As ações de pagamento de uma cobrança em aberto (`acoesDePagamentoDoAluno`): InfinitePay, link do treinador e Pix, conforme
+   * as formas que o servidor diz que se aplicam e o link do plano. Celular sem a chave da plataforma e saída: nenhuma (D7).
+   */
+  acoesDaCobranca: (tipo: TipoDaCobranca | null | undefined) => AcaoDePagamento[];
   recarregar: () => void;
 }
 
@@ -63,10 +68,19 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
     return () => document.removeEventListener('visibilitychange', aoVoltar);
   }, [buscando, recarregar]);
   const pagamentoOnline = chave !== null && carga.dados?.pagamentoOnline === true;
-  const modoDePagamento = comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid });
+  // As formas que o servidor diz que se aplicam e se o plano tem link próprio (o link só vale para mensalidade: a regra pura decide).
+  const formas = chave !== null ? carga.dados?.formasDePagamento : undefined;
+  const temLinkProprio = chave !== null && !!carga.dados?.plano?.linkDePagamento;
+  const modoDePagamento = comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, 'MENSALIDADE', { formas, temLinkProprio });
   const modoDaCobranca = useCallback(
-    (tipo: TipoDaCobranca | null | undefined) => comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, tipo),
-    [pagamentoOnline, pagarNoIos, pagarNoAndroid],
+    (tipo: TipoDaCobranca | null | undefined) =>
+      comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, tipo, { formas, temLinkProprio }),
+    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio],
+  );
+  const acoesDaCobranca = useCallback(
+    (tipo: TipoDaCobranca | null | undefined) =>
+      acoesDePagamentoDoAluno(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, tipo, { formas, temLinkProprio }),
+    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio],
   );
   const valor = useMemo<Valor>(
     () => ({
@@ -77,9 +91,10 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
       carregando: carga.carregando,
       modoDePagamento,
       modoDaCobranca,
+      acoesDaCobranca,
       recarregar: carga.recarregar,
     }),
-    [pagamentosHabilitados, indisponivel, online, chave, carga.dados, carga.erro, carga.carregando, modoDePagamento, modoDaCobranca, carga.recarregar],
+    [pagamentosHabilitados, indisponivel, online, chave, carga.dados, carga.erro, carga.carregando, modoDePagamento, modoDaCobranca, acoesDaCobranca, carga.recarregar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

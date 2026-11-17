@@ -2,9 +2,9 @@ import type { Page, Route } from '@playwright/test';
 
 import type { AlunoResumo } from '../src/api/tipos';
 import type {
-  CobrancaAvulsaRequest, CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, Inadimplente, JurosDoParcelamento,
-  EncerrarContratacaoRequest, LancamentoResponse, Lembretes, LembretesDaCobranca, Painel, PlanoResponse, PreviaDoEncerramento, RecebimentoOnline,
-  ResumoDaSaidaDoAluno, VisaoGeralDoFinanceiro,
+  CobrancaAvulsaRequest, CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, FormaDeRecebimento,
+  FormasDeRecebimento, FormasDeRecebimentoRequest, Inadimplente, JurosDoParcelamento, EncerrarContratacaoRequest, LancamentoResponse, Lembretes,
+  LembretesDaCobranca, Painel, PlanoResponse, PreviaDoEncerramento, RecebimentoOnline, ResumoDaSaidaDoAluno, TipoDeChavePix, VisaoGeralDoFinanceiro,
 } from '../src/api/financeiroTipos';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, TREINADOR, type PedidoFalso, type RespostasApi } from './api-falsa';
 
@@ -186,6 +186,16 @@ export interface EstadoFinanceiro {
   alunos: AlunoResumo[];
   /** Os corpos recebidos pelo `POST /financeiro/cobrancas-avulsas`, na ordem (inclusive os recusados). */
   avulsasRecebidas: CobrancaAvulsaRequest[];
+  /** O que `GET /financeiro/formas-de-recebimento` devolve (sem `versao` = nunca gravadas: o padrão do servidor). */
+  formas: FormasDeRecebimento;
+  /** A chave Pix gravada (canônica). Fica só aqui, no falso: nenhuma resposta a devolve, só a máscara. */
+  chavePixGuardada: string | null;
+  /** Os corpos recebidos pelo `PUT /financeiro/formas-de-recebimento`, na ordem (inclusive os recusados). */
+  formasRecebidas: FormasDeRecebimentoRequest[];
+  /** Preenchida: o próximo `PUT` das formas responde 422 `FORMAS_INVALIDAS` com estes campos (uma vez), como o servidor faria. */
+  recusaDasFormas: { field: string; message: string }[] | null;
+  /** Os ids recebidos pelo `POST /aluno/financeiro/cobrancas/{id}/pix`. */
+  pixPedidos: string[];
 }
 
 const SEM_ABERTAS = { quantidade: 0, valorCentavos: 0 };
@@ -194,13 +204,85 @@ export const RESUMO_DA_SAIDA_VAZIO: ResumoDaSaidaDoAluno = { aCancelar: SEM_ABER
 /** Os lembretes como a API devolve numa consultoria que nunca os configurou. */
 export const LEMBRETES_PADRAO: Lembretes = { ligado: false, diasAntes: 3, noDia: true, diasDepois: 3, versao: null, emailDisponivel: true };
 
+/** As formas como a API devolve numa consultoria que nunca as gravou: InfinitePay e Manual ligados, sem Pix. */
+export const FORMAS_PADRAO: FormasDeRecebimento = { infinitePay: true, linkProprio: false, pix: false, manual: true, pixConfig: null, versao: null };
+
+/** Chave Pix fictícia (e-mail de exemplo) e a máscara que a API devolveria para ela. */
+export const CHAVE_PIX_FALSA = 'treinador@exemplo.invalid';
+export const CHAVE_PIX_FALSA_MASCARADA = 't***@exemplo.invalid';
+
+/** Formas já gravadas com o Pix ligado (chave de e-mail fictícia), como a API devolve: só a máscara da chave. */
+export const FORMAS_COM_PIX: FormasDeRecebimento = {
+  infinitePay: true, linkProprio: true, pix: true, manual: true, versao: 2,
+  pixConfig: { tipoChave: 'EMAIL', chaveConfigurada: true, chaveMascarada: CHAVE_PIX_FALSA_MASCARADA, nomeRecebedor: 'Treino Exemplo', cidade: 'Cascavel' },
+};
+
+/** O "código Pix" que a rota do aluno devolve: só o formato, sem chave de verdade (nenhum banco o aceitaria). */
+export const CODIGO_PIX_FALSO = '00020126450014br.gov.bcb.pix0123chave-ficticia-do-teste5204000053039865406150.005802BR5914Treino Exemplo6008Cascavel62290525abcdef0123456789abcdef0126304ABCD';
+
+/** A máscara da chave como a API (`ChavePix.mascarar`): nunca a chave inteira. */
+function mascararChave(tipo: TipoDeChavePix, chave: string): string {
+  const fim = (n: number) => chave.slice(-n);
+  if (tipo === 'CPF') return `***.***.***-${fim(2)}`;
+  if (tipo === 'CNPJ') return `**.***.***/****-${fim(2)}`;
+  if (tipo === 'TELEFONE') return `+55 ** *****-${fim(4)}`;
+  if (tipo === 'ALEATORIA') return `****-${fim(4)}`;
+  const arroba = chave.indexOf('@');
+  return arroba < 1 ? '***' : `${chave[0]}***${chave.slice(arroba)}`;
+}
+
+/** A chave canônica vale para o tipo? (O app já confere; aqui é a segunda barreira, como o servidor.) */
+function chaveValida(tipo: string, chave: string): boolean {
+  switch (tipo) {
+    case 'CPF': return /^\d{11}$/.test(chave);
+    case 'CNPJ': return /^[0-9A-Z]{12}\d{2}$/.test(chave);
+    case 'EMAIL': return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(chave) && chave.length <= 77;
+    case 'TELEFONE': return /^\+55\d{10,11}$/.test(chave);
+    case 'ALEATORIA': return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(chave);
+    default: return false;
+  }
+}
+
+const TIPOS_DE_CHAVE: readonly string[] = ['CPF', 'CNPJ', 'EMAIL', 'TELEFONE', 'ALEATORIA'];
+
+/** Como o `LinksExternos` do servidor: https, com host, sem usuário no endereço e na porta 443. */
+function linkAceito(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && !!u.hostname && !u.username && !u.password && (u.port === '' || u.port === '443');
+  } catch {
+    return false;
+  }
+}
+
+const linkRecusado = (route: Route) => json(route, {
+  status: 422, message: 'Confira os dados do plano.', codigo: 'PLANO_INVALIDO',
+  fieldErrors: [{ field: 'linkDePagamento', message: 'Link não aceito. Use um link https completo.' }],
+}, 422);
+
+/**
+ * As formas que se aplicam ao aluno, como o servidor (`FormasDePagamentoDoAluno.decidir`): InfinitePay com a forma ligada e o
+ * recebimento online pronto; link próprio com a forma ligada e o plano com link; Pix ligado e configurado com alguma aberta.
+ */
+function formasDoAluno(estado: EstadoFinanceiro, planoTemLink: boolean): FormaDeRecebimento[] {
+  const f = estado.formas;
+  const algumaAberta = estado.cobrancas.some((c) => c.situacao === 'ABERTA');
+  return [
+    ...(f.infinitePay && estado.pagamentoOnline ? ['INFINITEPAY' as const] : []),
+    ...(f.linkProprio && planoTemLink ? ['LINK_PROPRIO' as const] : []),
+    ...(f.pix && f.pixConfig && algumaAberta ? ['PIX' as const] : []),
+    'MANUAL' as const,
+  ];
+}
+
 export function estadoFinanceiro(parcial: Partial<EstadoFinanceiro> = {}): EstadoFinanceiro {
   return {
     planos: [], contratacoes: [], cobrancas: [], lancamentos: [], inadimplentes: [], painel: PAINEL_COM_DADOS,
     recebimento: { ...RECEBIMENTO_NAO_CONFIGURADO }, chaveGuardada: null, conferencias: [], pagamentoOnline: false, retornos: [],
     lembretes: { ...LEMBRETES_PADRAO }, lembretesDasCobrancas: {}, alunoRecebeLembretes: true, falhaAoDefinirLembretesDoAluno: null,
     pedidosDeLembretesDoAluno: [], renovacoes: null, renovacoesMeus: null, recusasDoLote: {}, lotesRecebidos: [], previas: {}, previaQueMuda: null,
-    encerramentos: [], resumoDaSaida: RESUMO_DA_SAIDA_VAZIO, alunos: [], avulsasRecebidas: [], ...parcial,
+    encerramentos: [], resumoDaSaida: RESUMO_DA_SAIDA_VAZIO, alunos: [], avulsasRecebidas: [], formas: { ...FORMAS_PADRAO }, chavePixGuardada: null,
+    formasRecebidas: [], recusaDasFormas: null, pixPedidos: [], ...parcial,
   };
 }
 
@@ -292,6 +374,7 @@ function marcarSituacao(estado: EstadoFinanceiro, p: PedidoFalso, route: Route, 
 
 type PlanoDoCorpo = {
   nome: string; valorCentavos: number; periodicidade: PlanoResponse['periodicidade']; tempoMinimoMeses?: number | null; regraDeSaida?: string | null;
+  linkDePagamento?: string | null;
 };
 const minimoForaDoMensal = (c: PlanoDoCorpo) => c.periodicidade !== 'MENSAL' && (c.tempoMinimoMeses != null || c.regraDeSaida != null);
 const minimoSoNoMensal = (route: Route) => json(route, {
@@ -309,10 +392,11 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
     'POST /financeiro/planos': (p, route) => {
       const c = p.corpo as PlanoDoCorpo;
       if (minimoForaDoMensal(c)) return minimoSoNoMensal(route);
+      if (c.linkDePagamento && !linkAceito(c.linkDePagamento)) return linkRecusado(route);
       const plano: PlanoResponse = {
         id: idFalso('b'), nome: c.nome, valorCentavos: c.valorCentavos, periodicidade: c.periodicidade,
         arquivado: false, criadoEm: '2026-10-19T12:00:00Z', versao: 0, tempoMinimoMeses: c.tempoMinimoMeses ?? null, regraDeSaida: c.regraDeSaida ?? null,
-        linkDePagamento: null,
+        linkDePagamento: c.linkDePagamento ?? null,
       };
       estado.planos.push(plano);
       return json(route, plano, 201);
@@ -325,9 +409,11 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       if (!plano) return json(route, erroApi(404, 'Plano comercial não encontrado.', 'NAO_ENCONTRADO').corpo, 404);
       if (plano.versao !== c.versao) return conflito(route);
       if (minimoForaDoMensal(c)) return minimoSoNoMensal(route);
+      if (c.linkDePagamento && !linkAceito(c.linkDePagamento)) return linkRecusado(route);
+      // Substitui inteiro, como a API: o link ausente ou nulo APAGA o que havia.
       Object.assign(plano, {
         nome: c.nome, valorCentavos: c.valorCentavos, periodicidade: c.periodicidade, tempoMinimoMeses: c.tempoMinimoMeses ?? null,
-        regraDeSaida: c.regraDeSaida ?? null, versao: plano.versao + 1,
+        regraDeSaida: c.regraDeSaida ?? null, linkDePagamento: c.linkDePagamento ?? null, versao: plano.versao + 1,
       });
       return json(route, plano);
     },
@@ -584,22 +670,74 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
         id: c.id, competencia: c.competencia, vencimento: c.vencimento, valorCentavos: c.valorCentavos, situacao: c.situacao, vencida: c.vencida,
         forma: c.forma, pagoEm: c.pagoEm, tipo: c.tipo, descricao: c.descricao,
       });
+      const linkDoPlano = vigente ? (estado.planos.find((x) => x.id === vigente.planoComercialId)?.linkDePagamento ?? null) : null;
       const corpo: FinanceiroDoAluno = {
         plano: vigente
           ? {
               contratacaoId: vigente.id, planoNome: vigente.planoNome, valorCentavos: vigente.valorCentavos, periodicidade: vigente.periodicidade,
               situacao: vigente.situacao, proximoVencimento: estado.cobrancas.find((c) => c.situacao === 'ABERTA')?.vencimento ?? null,
-              linkDePagamento: null,
+              linkDePagamento: linkDoPlano,
             }
           : null,
         abertas: estado.cobrancas.filter((c) => c.situacao === 'ABERTA').map(doAluno),
         historico: estado.cobrancas.filter((c) => c.situacao !== 'ABERTA').map(doAluno),
         pagamentoOnline: estado.pagamentoOnline,
-        formasDePagamento: estado.pagamentoOnline ? ['INFINITEPAY', 'MANUAL'] : ['MANUAL'],
+        formasDePagamento: formasDoAluno(estado, !!linkDoPlano),
       };
       return json(route, corpo);
     },
+    // O Pix da cobrança do aluno: 404 se não existe (ou é de outro aluno); 409 `PIX_INDISPONIVEL` se não está aberta ou o Pix não vale.
+    'POST /aluno/financeiro/cobrancas/{id}/pix': (p, route) => {
+      const id = p.caminho.split('/')[4];
+      estado.pixPedidos.push(id);
+      const cobranca = estado.cobrancas.find((x) => x.id === id);
+      if (!cobranca) return json(route, erroApi(404, 'Cobrança não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
+      if (cobranca.situacao !== 'ABERTA' || !estado.formas.pix || !estado.formas.pixConfig) {
+        return json(route, erroApi(409, 'O Pix não está disponível para esta cobrança.', 'PIX_INDISPONIVEL').corpo, 409);
+      }
+      return json(route, { codigo: CODIGO_PIX_FALSO });
+    },
+    'GET /financeiro/formas-de-recebimento': (_p, route) => json(route, estado.formas),
+    // Mesmas regras do servidor: `versao` igual à gravada (nula na primeira vez), Manual sempre ligado, Pix ligado exige
+    // `pixConfig` completo; a chave omitida mantém a gravada (só com o mesmo tipo); `pix: false` mantém o Pix gravado.
+    'PUT /financeiro/formas-de-recebimento': (p, route) => {
+      const c = p.corpo as FormasDeRecebimentoRequest;
+      estado.formasRecebidas.push(c);
+      if ((c.versao ?? null) !== estado.formas.versao) return conflito(route);
+      const invalidas = (fieldErrors: { field: string; message: string }[]) =>
+        json(route, { status: 422, message: 'Confira as formas de recebimento.', codigo: 'FORMAS_INVALIDAS', fieldErrors }, 422);
+      if (estado.recusaDasFormas) {
+        const campos = estado.recusaDasFormas;
+        estado.recusaDasFormas = null;
+        return invalidas(campos);
+      }
+      const erros: { field: string; message: string }[] = [];
+      if (c.manual !== true) erros.push({ field: 'manual', message: 'O Manual fica sempre ligado.' });
+      const px = c.pixConfig;
+      const gravado = estado.formas.pixConfig;
+      if (c.pix && !px) erros.push({ field: 'pixConfig', message: 'Informe os dados do Pix.' });
+      if (px) {
+        if (!TIPOS_DE_CHAVE.includes(px.tipoChave)) erros.push({ field: 'pixConfig.tipoChave', message: 'Escolha o tipo da chave.' });
+        else if (px.chave !== undefined && !chaveValida(px.tipoChave, px.chave)) erros.push({ field: 'pixConfig.chave', message: 'A chave não vale para o tipo escolhido.' });
+        else if (px.chave === undefined && (!estado.chavePixGuardada || gravado?.tipoChave !== px.tipoChave)) erros.push({ field: 'pixConfig.chave', message: 'Informe a chave Pix.' });
+        const nome = (px.nomeRecebedor ?? '').trim();
+        const cidade = (px.cidade ?? '').trim();
+        if (!nome || nome.length > 25) erros.push({ field: 'pixConfig.nomeRecebedor', message: 'O nome do recebedor vai de 1 a 25 caracteres.' });
+        if (!cidade || cidade.length > 15) erros.push({ field: 'pixConfig.cidade', message: 'A cidade vai de 1 a 15 caracteres.' });
+      }
+      if (erros.length) return invalidas(erros);
+      if (px?.chave !== undefined) estado.chavePixGuardada = px.chave;
+      const pixConfig = px && estado.chavePixGuardada
+        ? { tipoChave: px.tipoChave, chaveConfigurada: true, chaveMascarada: mascararChave(px.tipoChave, estado.chavePixGuardada), nomeRecebedor: px.nomeRecebedor.trim(), cidade: px.cidade.trim() }
+        : gravado;
+      estado.formas = {
+        infinitePay: c.infinitePay, linkProprio: c.linkProprio, pix: c.pix, manual: true, pixConfig,
+        versao: estado.formas.versao === null ? 0 : estado.formas.versao + 1,
+      };
+      return json(route, estado.formas);
+    },
     'GET /financeiro/recebimento-online': (_p, route) => json(route, estado.recebimento),
+
     // Mesmas regras do servidor: sem credencial a `versao` tem de vir nula; com ela, tem de ser a atual.
     'PUT /financeiro/recebimento-online': (p, route) => {
       const c = p.corpo as {
