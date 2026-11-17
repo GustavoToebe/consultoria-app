@@ -10,63 +10,63 @@
  --font-metal: 'MetalMania_400Regular';
  --font-esportiva: 'BebasNeue_400Regular';
  --font-condensada: 'Oswald_700Bold';
- /* RAIO_CONTROLE (botão, campo, chip, aba); cartão e painel usam rounded-xl = RAIO (12). */
- --radius-md: 8px;
- --radius-xl: 12px;
+ /* RAIO_CONTROLE (botão, campo, chip, aba) = 10; cartão e painel usam rounded-xl = RAIO (20). Visual-ponytail, 17/11. */
+ --radius-md: 10px;
+ --radius-xl: 20px;
 }
 @layer theme {
  :root {
   @variant light {
-   --color-background: #D9DCE1;
-   --color-foreground: #09090B;
+   --color-background: #FFFFFF;
+   --color-foreground: #15181D;
    --color-card: #FFFFFF;
-   --color-card-foreground: #09090B;
-   --color-muted: #EEF0F2;
-   --color-muted-foreground: #52525B;
-   --color-accent: #E4E5E7;
-   --color-accent-foreground: #09090B;
-   --color-secondary: #EEF0F2;
-   --color-secondary-foreground: #09090B;
-   --color-border: #D9D9DB;
-   --color-input: #71717A;
+   --color-card-foreground: #15181D;
+   --color-muted: #F1F3F6;
+   --color-muted-foreground: #535B66;
+   --color-accent: #E4E7EB;
+   --color-accent-foreground: #15181D;
+   --color-secondary: #F1F3F6;
+   --color-secondary-foreground: #15181D;
+   --color-border: #E2E5EA;
+   --color-input: #7D8188;
    --color-destructive: #B71C1C;
    --color-sucesso: #0C6638;
    --color-atencao: #804D00;
    --color-perigo: #AB152E;
-   --color-neutro: #616169;
+   --color-neutro: #5B5D63;
    --color-fase1: #C46B86;
    --color-fase2: #5E8F8A;
    --color-fase3: #A67C2E;
    --color-fase4: #7A86C4;
    --color-primary: #52525B;
    --color-primary-foreground: #FFFFFF;
-   --color-ring: #09090B;
+   --color-ring: #15181D;
   }
   @variant dark {
-   --color-background: #09090B;
-   --color-foreground: #FCFCFC;
-   --color-card: #1C1C20;
-   --color-card-foreground: #FCFCFC;
-   --color-muted: #0F0F11;
-   --color-muted-foreground: #9C9CA3;
-   --color-accent: #26262B;
-   --color-accent-foreground: #FCFCFC;
-   --color-secondary: #0F0F11;
-   --color-secondary-foreground: #FCFCFC;
-   --color-border: #36363C;
-   --color-input: #83838D;
+   --color-background: #070707;
+   --color-foreground: #F3F2EE;
+   --color-card: #0F0F0F;
+   --color-card-foreground: #F3F2EE;
+   --color-muted: #161614;
+   --color-muted-foreground: #A8A69F;
+   --color-accent: #21211E;
+   --color-accent-foreground: #F3F2EE;
+   --color-secondary: #161614;
+   --color-secondary-foreground: #F3F2EE;
+   --color-border: #22221F;
+   --color-input: #70706C;
    --color-destructive: #C62828;
-   --color-sucesso: #00E699;
-   --color-atencao: #FFB020;
-   --color-perigo: #FF4D6A;
-   --color-neutro: #9A9AA3;
+   --color-sucesso: #5FE08A;
+   --color-atencao: #F1C96B;
+   --color-perigo: #FF6B5B;
+   --color-neutro: #A3A19B;
    --color-fase1: #E7AEC1;
    --color-fase2: #7DCFC6;
    --color-fase3: #E2C56A;
    --color-fase4: #ADBAEB;
    --color-primary: #52525B;
    --color-primary-foreground: #FFFFFF;
-   --color-ring: #FCFCFC;
+   --color-ring: #F3F2EE;
   }
  }
 }

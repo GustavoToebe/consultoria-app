@@ -1,7 +1,7 @@
 import { OPCOES_DIAS_ANIVERSARIO } from './aniversariosDosAlunos';
 import { PERIODOS_DA_LISTA, type PeriodoDaLista } from './listaDeCompras';
 import { BLOCOS_DO_PAINEL, ehBlocoDoPainel, ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
-import { BORDA_BLOCO, BORDA_ITEM, contraste, misturar, type Cores } from '../tema/tokens';
+import { BORDA_BLOCO, BORDA_ITEM, CODIGOS_DA_COR_DE_ACAO, contraste, misturar, type CorDeAcao, type Cores } from '../tema/tokens';
 import { UNIDADES_DE_CARGA, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
@@ -35,6 +35,11 @@ export interface PdfDietaPreferida {
 
 export interface Preferencias {
   tema: TemaEscolhido;
+  /**
+   * Cor de ação (visual-ponytail, 17/11): botões de construção, aba ativa e item em edição. Índigo por padrão; a pessoa
+   * troca em Ajustes (também pela cor da marca). O `TemaProvider` ajusta o tom para passar 4,5:1 (`coresDaAcao`).
+   */
+  corDeAcao: CorDeAcao;
   contraste: Contraste;
   tamanhoTexto: TamanhoTexto;
   movimento: Movimento;
@@ -91,6 +96,7 @@ export const OPCOES_DIAS_SEM_REGISTRO: readonly number[] = [3, 7, 14, 30];
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
   tema: 'CONSULTORIA',
+  corDeAcao: 'INDIGO',
   contraste: 'PADRAO',
   tamanhoTexto: 'PADRAO',
   movimento: 'SISTEMA',
@@ -144,6 +150,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
   const o = bruto && typeof bruto === 'object' ? (bruto as Record<string, unknown>) : {};
   return {
     tema: entre(o.tema, TEMAS, PREFERENCIAS_PADRAO.tema),
+    corDeAcao: entre(o.corDeAcao, CODIGOS_DA_COR_DE_ACAO, PREFERENCIAS_PADRAO.corDeAcao),
     contraste: entre(o.contraste, CONTRASTES, PREFERENCIAS_PADRAO.contraste),
     tamanhoTexto: entre(o.tamanhoTexto, TAMANHOS, PREFERENCIAS_PADRAO.tamanhoTexto),
     movimento: entre(o.movimento, MOVIMENTOS, PREFERENCIAS_PADRAO.movimento),

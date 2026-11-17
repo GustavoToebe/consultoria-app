@@ -19,6 +19,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { definirVibracaoLigada } from '../ui/vibrar';
 import { criarArmazemDePreferencias } from './armazemDePreferencias';
 import {
+  coresDaAcao,
   coresDeIdentificacao,
   MARCA_NEUTRA,
   marcaAoPassar,
@@ -132,7 +133,9 @@ export function TemaProvider({ children }: { children: ReactNode }) {
           : (preferencias.tema as Tema);
     const { cores: base, modo, variante } = paletaDe(codigo);
     const marca = sessao.marca?.corPrimaria ?? MARCA_NEUTRA;
-    const cores = coresComBordasReforcadas(coresComContraste(base, preferencias.contraste, modo !== 'CLARO'), preferencias.bordasReforcadas);
+    const semAcao = coresComBordasReforcadas(coresComContraste(base, preferencias.contraste, modo !== 'CLARO'), preferencias.bordasReforcadas);
+    // Cor de ação escolhida em Ajustes (índigo por padrão), ajustada para 4,5:1 no cartão deste tema.
+    const cores = { ...semAcao, ...coresDaAcao(preferencias.corDeAcao, semAcao, variante, marca) };
     return {
       modo,
       variante,

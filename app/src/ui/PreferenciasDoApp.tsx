@@ -6,7 +6,7 @@ import type { Preferencias, TamanhoTexto } from '../dominio/preferencias';
 import { fatorDoTexto } from '../dominio/preferencias';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { CLARO, CODIGOS_PALETAS_VISIVEIS, ESCURO, espaco, fontes, PALETAS, paletaDe, RAIO, type Cores } from '../tema/tokens';
+import { CLARO, CODIGOS_DA_COR_DE_ACAO, CODIGOS_PALETAS_VISIVEIS, coresDaAcao, ESCURO, espaco, fontes, misturar, NOMES_DA_COR_DE_ACAO, PALETAS, paletaDe, RAIO, RAIO_CONTROLE, type Cores } from '../tema/tokens';
 import { useAviso } from './Aviso';
 import { Botao } from './Botao';
 import { Interruptor } from './Campos';
@@ -15,6 +15,7 @@ import { Escolha } from './Escolha';
 import { GradeDeOpcoes } from './GradeDeOpcoes';
 import { OpcaoCartao } from './OpcaoCartao';
 import { PainelConfirmacao } from './PainelConfirmacao';
+import { SeloEditando } from './SeloEditando';
 import { Texto } from './Texto';
 
 const TAMANHOS: { valor: TamanhoTexto; rotulo: string }[] = [
@@ -41,7 +42,7 @@ const VARIACOES_DE_TOM = CODIGOS_PALETAS_VISIVEIS.filter((c) => c !== 'ESCURO' &
  */
 export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = false }: { comTitulo?: boolean; extras?: ReactNode; duasColunas?: boolean }) {
   const sessao = useSessao();
-  const { preferencias, escolherPreferencia, restaurarPadrao, fatorTexto, marca } = useTema();
+  const { preferencias, escolherPreferencia, restaurarPadrao, fatorTexto, marca, cores, variante } = useTema();
   const { avisar } = useAviso();
   const [confirmandoRestaurar, setConfirmandoRestaurar] = useState(false);
   const coluna = [estilos.coluna, duasColunas ? estilos.metade : null];
@@ -107,6 +108,26 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
               />
             ))}
           </GradeDeOpcoes>
+        </View>
+      </Cartao>
+      <Cartao titulo="Cor de ação" descricao="Botões de adicionar, usar modelo e trocar, a aba ativa e o item em edição. Índigo é o padrão.">
+        <GradeDeOpcoes rotulo="Cor de ação">
+          {CODIGOS_DA_COR_DE_ACAO.map((codigo) => (
+            <OpcaoCartao
+              key={codigo}
+              titulo={NOMES_DA_COR_DE_ACAO[codigo]}
+              descricao={codigo === 'INDIGO' ? 'Padrão' : codigo === 'MARCA' ? 'A cor da consultoria' : undefined}
+              selecionada={preferencias.corDeAcao === codigo}
+              aoEscolher={() => mudar({ corDeAcao: codigo })}
+              amostra={<AmostraDaAcao cor={coresDaAcao(codigo, cores, variante, marca).acao} />}
+            />
+          ))}
+        </GradeDeOpcoes>
+        <View style={estilos.previaDaAcao} accessible accessibilityLabel="Prévia da cor de ação: botão de adicionar e selo Editando">
+          <View style={[estilos.botaoDaPrevia, { backgroundColor: cores.acaoSuave, borderColor: misturar(cores.acaoSuave, cores.acao, 0.35) }]}>
+            <Texto style={[estilos.textoDaPrevia, { color: cores.acao }]}>+ Adicionar refeição</Texto>
+          </View>
+          <SeloEditando />
         </View>
       </Cartao>
       </View>
@@ -280,7 +301,16 @@ function PreviaDoTexto({ nome, fator }: { nome: string; fator: number }) {
   );
 }
 
+/** Bolinha da cor de ação na opção (decorativa: o nome da opção diz a cor). */
+function AmostraDaAcao({ cor }: { cor: string }) {
+  return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[estilos.amostraDaAcao, { backgroundColor: cor }]} />;
+}
+
 const estilos = StyleSheet.create({
+  amostraDaAcao: { width: 26, height: 26, borderRadius: 13 },
+  previaDaAcao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), flexWrap: 'wrap' },
+  botaoDaPrevia: { minHeight: 40, paddingHorizontal: espaco(2), borderRadius: RAIO_CONTROLE, borderWidth: 1, justifyContent: 'center' },
+  textoDaPrevia: { fontFamily: fontes.semi, fontSize: 14 },
   coluna: { gap: espaco(3) },
   // Cada coluna termina com o próprio conteúdo (sem esticar até a altura da vizinha), alinhadas à esquerda.
   ladoALado: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start' },

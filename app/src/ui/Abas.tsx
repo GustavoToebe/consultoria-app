@@ -43,13 +43,13 @@ interface Props<T extends string> {
 const TEXTO_DO_PROBLEMA = { perigo: 'com problema a corrigir', atencao: 'com aviso' } as const;
 
 /**
- * Abas de texto: a ativa em texto principal com o pequeno indicador da marca embaixo (`marcaPeca`, 2 px, ≥ 3:1); as
+ * Abas de texto: a ativa na cor de ação, com o indicador embaixo também nela (visual-ponytail, 17/11; ≥ 3:1); as
  * outras em texto secundário. Rolam na horizontal se não couberem no celular, com a borda esmaecida
  * do lado em que há mais abas (sem isso "Atua…" parecia cortado). A aba ativa é rolada para a vista, inteira e fora do
  * esmaecido (C5): ao abrir por link uma aba do fim (`?aba=`), ao voltar, ou ao tocar numa aba meio escondida. Alvo de 44 px.
  */
 export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, depois, ativacao = 'automatica' }: Props<T>) {
-  const { cores, marcaPeca } = useTema();
+  const { cores } = useTema();
   const { direita, esquerda, medidas } = useEsmaecimento();
   const daArea = useFundoDaArea();
   const cor = fundo ?? daArea;
@@ -110,15 +110,15 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, depois, at
                   caixas.current[a.valor] = { x: e.nativeEvent.layout.x + FOLGA_DO_ANEL, largura: e.nativeEvent.layout.width };
                   if (sel) mostrar(a.valor, false);
                 }}
-                style={[estilos.aba, { borderColor: sel ? marcaPeca : 'transparent' }]}>
+                style={[estilos.aba, { borderColor: sel ? cores.acao : 'transparent' }]}>
                 <View style={estilos.conteudo}>
                   {corDoProblema ? <IconeDoProblema size={16} color={corDoProblema} strokeWidth={2.5} /> : null}
                   {a.corIndicador ? <View style={[estilos.ponto, { backgroundColor: a.corIndicador }]} /> : null}
-                  <Texto style={[estilos.texto, { color: sel ? cores.texto : cores.textoSuave, fontFamily: sel ? fontes.semi : fontes.medio }]}>{a.rotulo}</Texto>
+                  <Texto style={[estilos.texto, { color: sel ? cores.acao : cores.texto, fontFamily: sel ? fontes.semi : fontes.medio }]}>{a.rotulo}</Texto>
                   {a.detalhe ? <Selo texto={a.detalhe} tipo="neutro" /> : null}
                   {a.contagem === undefined ? null : (
-                    <View style={[estilos.contagem, { backgroundColor: cores.superficie3 }]}>
-                      <Texto numerico style={[estilos.textoContagem, { color: cores.texto }]}>{inteiroComMilhar(a.contagem)}</Texto>
+                    <View style={[estilos.contagem, { backgroundColor: sel ? cores.acaoSuave : cores.superficie2 }]}>
+                      <Texto numerico style={[estilos.textoContagem, { color: sel ? cores.acao : cores.textoSuave }]}>{inteiroComMilhar(a.contagem)}</Texto>
                     </View>
                   )}
                 </View>
