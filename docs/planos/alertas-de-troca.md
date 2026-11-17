@@ -29,7 +29,7 @@ O treinador fica sabendo que o aluno trocou um exercício, pelo canal que já ex
 
 ## Passos (depois do Lote B e das respostas)
 - [x] 1. API: leitura das trocas pendentes do escopo (JPQL) e, se decisão 3a, migration `troca_exercicio_visto` com o próximo número livre depois da do Lote B (executor) — feito (16/11, NÃO compilado até o commit): V080 `troca_exercicio_visto`, `GET /trocas-de-exercicio/pendentes?meus=`, `vistoEm` na lista do aluno, `PUT`/`DELETE /alunos/{id}/trocas-de-exercicio/visto` (corpo com a chave; DELETE com corpo: conferir proxy e cliente web); `TrocasVistasIntegrationTest`; decisões do executor: visto aceito até 31 dias, chave inclui a alternativa — commit: ver `git log` ("V080: visto da troca de exercício")
-- [ ] 2. App: pendência no Início (`dominio/painelDoInicio.ts`), cartão na ficha (executor; tela pequena no executor-front se precisar) — commit: —
+- [x] 2. App: pendência no Início (`dominio/painelDoInicio.ts`), cartão na ficha (executor; tela pequena no executor-front se precisar) — feito em 16/11 pelo `executor-front`: cartão `treinos.trocas` no bloco Treinos do Início, Folha "Trocas para ver", `CartaoTrocasDeExercicio` na aba Acompanhamento da ficha (`?aba=acompanhamento&secao=trocas`), "Marcar como visto"/"Desfazer" sem atualização otimista; e2e `alertas-de-troca` 10/10 e os 6 specs vizinhos do Início passam (117 + o foco do painel, que falhou uma vez sem relação e passou na repetição); dúvidas: rolagem até a seção só na web, ordem no Próximo passo, texto "Não vista" para quem só lê, DELETE com corpo não conferido no proxy de produção — commit: ver `git log` ("Alertas de troca: telas")
 - [ ] 3. Ajuda e `AGENTS.md` — commit: —
 
 ## Riscos

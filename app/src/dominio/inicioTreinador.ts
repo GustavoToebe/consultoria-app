@@ -3,7 +3,7 @@
  * Só leitura do painel; nada é feito sozinho.
  */
 
-export type DestinoDoInicio = 'PARA_REVISAR' | 'ATRASADAS' | 'RETORNOS' | 'INTERESSADOS' | 'PLANOS_TERMINANDO' | 'SEM_REGISTRO';
+export type DestinoDoInicio = 'PARA_REVISAR' | 'ATRASADAS' | 'RETORNOS' | 'INTERESSADOS' | 'PLANOS_TERMINANDO' | 'SEM_REGISTRO' | 'TROCAS';
 
 export interface PendenciasDoInicio {
   /** Nulo = sem permissão para ver (o item não entra na conta). */
@@ -16,6 +16,8 @@ export interface PendenciasDoInicio {
   planosTerminando: number | null;
   semRegistro: number | null;
   diasSemRegistro: number;
+  /** Trocas de exercício sem "Visto" nos últimos 7 dias (`GET /trocas-de-exercicio/pendentes`). */
+  trocas?: number | null;
 }
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
@@ -23,7 +25,7 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 /**
  * A primeira pendência, na ordem do trabalho do dia: atualização para revisar (o aluno espera o feedback), atrasadas,
  * retorno a interessado já vencido (combinado e não cumprido), interessados novos (quem espera contato), retornos
- * marcados para hoje, planos que terminam e alunos sem registro. Nada pendente = nulo.
+ * marcados para hoje, planos que terminam, alunos sem registro e trocas de exercício para ver. Nada pendente = nulo.
  */
 /** Teto da lista `planosTerminando` do `GET /painel` (a API não manda o total): no teto, o texto diz "20 ou mais". */
 export const TETO_PLANOS_TERMINANDO = 20;
@@ -39,6 +41,7 @@ export function proximoPassoDoInicio(p: PendenciasDoInicio): { texto: string; ac
     return { texto: `${quantos} nos próximos 7 dias.`, acao: 'Ver planos', destino: 'PLANOS_TERMINANDO' };
   }
   if (p.semRegistro) return { texto: `${plural(p.semRegistro, 'aluno está', 'alunos estão')} sem registro há ${p.diasSemRegistro} dias.`, acao: 'Ver alunos', destino: 'SEM_REGISTRO' };
+  if (p.trocas) return { texto: `${plural(p.trocas, 'troca de exercício', 'trocas de exercício')} para ver nos últimos 7 dias.`, acao: 'Ver trocas', destino: 'TROCAS' };
   return null;
 }
 
@@ -56,6 +59,7 @@ export interface FontesDoResumo {
   interessados: EstadoDaFonte;
   planosTerminando: EstadoDaFonte;
   semRegistro: EstadoDaFonte;
+  trocas?: EstadoDaFonte;
 }
 
 /** Sem acesso, nada a consultar; carregando, ainda não se sabe; só `pronta` com o número lido vale como consultada. */

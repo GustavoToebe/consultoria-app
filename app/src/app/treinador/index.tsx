@@ -5,7 +5,7 @@ import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import { configuracaoInscricao } from '../../api/rotas';
 import type { ContagensInscricoes } from '../../api/inscricoesTipos';
-import type { PainelTreinador, RecordesDaSemana } from '../../api/tipos';
+import type { PainelTreinador, RecordesDaSemana, TrocasPendentes } from '../../api/tipos';
 import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
 import { estadoDaFonte, resumoDoInicio, type DestinoDoInicio } from '../../dominio/inicioTreinador';
 import {
@@ -16,6 +16,7 @@ import {
   folhaPastasARenovar,
   folhaRecordes,
   folhaSemRegistro,
+  folhaTrocas,
   FONTE_CARREGANDO,
   FRASE_INICIO_SEM_ALUNOS,
   FRASE_NENHUM_BLOCO,
@@ -122,6 +123,8 @@ export default function InicioTreinador() {
   const painelPadrao: ConsultaDoPainel = useMemo(() => ({ fonte: 'painel', meus: padraoMeus, dias }), [padraoMeus, dias]);
   const interessadosPadrao: ConsultaDoPainel = useMemo(() => ({ fonte: 'interessados', meus: padraoMeus }), [padraoMeus]);
   const verInteressados = pode('INSCRICAO_LER');
+  const trocasPadrao: ConsultaDoPainel = useMemo(() => ({ fonte: 'trocas', meus: padraoMeus }), [padraoMeus]);
+  const verTrocas = verPainel && pode('REGISTRO_LER');
   const porBloco = useMemo(() => new Map(visiveis.map((id) => [id, consultasDoBloco(id, ctx, opcoes(id))])), [visiveis, ctx, opcoes]);
   // Consultoria que já se sabe sem alunos (última resposta do painel de Todos): os blocos não aparecem, então as consultas
   // deles não saem. Sem essa resposta saem junto com o painel, para o Início comum não esperar uma volta a mais. Antes de ler
@@ -130,8 +133,9 @@ export default function InicioTreinador() {
   const consultas = useMemo(() => [
     ...(verPainel ? [painelTodos, painelPadrao] : []),
     ...(verInteressados ? [interessadosPadrao] : []),
+    ...(verTrocas ? [trocasPadrao] : []),
     ...(semAlunosSabido || !preferenciasLidas ? [] : [...porBloco.values()].flat()),
-  ], [verPainel, painelTodos, painelPadrao, verInteressados, interessadosPadrao, porBloco, semAlunosSabido, preferenciasLidas]);
+  ], [verPainel, painelTodos, painelPadrao, verInteressados, interessadosPadrao, verTrocas, trocasPadrao, porBloco, semAlunosSabido, preferenciasLidas]);
   const { fonte, dadosDeOutraChave, fontesDe, recarregar } = useFontesDoPainel(consultas);
 
   // Ao voltar para a tela (não na primeira vez), recarrega tudo e relê o aparelho: cadastrou o aluno ou ligou o link e voltou.
@@ -171,6 +175,8 @@ export default function InicioTreinador() {
   const fontePadrao = fonte<PainelTreinador>(painelPadrao);
   const padrao = dadosDe(fontePadrao);
   const interessados = verInteressados ? dadosDe(fonte<ContagensInscricoes>(interessadosPadrao)) : null;
+  const fonteTrocas = fonte<TrocasPendentes>(trocasPadrao);
+  const trocas = verTrocas ? dadosDe(fonteTrocas) : null;
 
   // ---- Folhas e Editar ----
   const [folhaAberta, setFolhaAberta] = useState<{ id: FolhaDoPainelId; meus: boolean } | null>(null);
@@ -182,6 +188,7 @@ export default function InicioTreinador() {
 
   // ---- Próximo passo (as mesmas pendências e permissões do Início antigo, no escopo padrão) ----
   const irPara = (destino: DestinoDoInicio) => {
+    if (destino === 'TROCAS') return setFolhaAberta({ id: 'trocas', meus: padraoMeus });
     if (!padrao) return;
     if (destino === 'PARA_REVISAR' || destino === 'ATRASADAS') router.push(caminhoListaAtualizacoes(destino, padraoMeus));
     else if (destino === 'INTERESSADOS') router.push((padraoMeus ? '/treinador/interessados?situacao=NOVA&meus=true' : '/treinador/interessados?situacao=NOVA') as Href);
@@ -207,12 +214,14 @@ export default function InicioTreinador() {
       // O total sem o teto de 20, o mesmo número do cartão e da Folha.
       semRegistro: lido && pode('REGISTRO_LER') ? padrao.alunosSemRegistroTotal ?? null : null,
       diasSemRegistro: dias,
+      trocas: trocas?.total ?? null,
     }, {
       atualizacoes: estadoDaFonte(verPainel && verAtualizacoes, sitPadrao, lido && ehNumero(padrao.atualizacoesParaRevisar) && ehNumero(padrao.atualizacoesAtrasadas)),
       interessados: estadoDaFonte(verInteressados, fonte<ContagensInscricoes>(interessadosPadrao).situacao,
         !!interessados && ehNumero(interessados.retornosAtrasados) && ehNumero(interessados.retornosHoje) && ehNumero(interessados.porSituacao?.NOVA)),
       planosTerminando: estadoDaFonte(verPainel && pode('TREINO_LER'), sitPadrao, lido && Array.isArray(padrao.planosTerminando)),
       semRegistro: estadoDaFonte(verPainel && pode('REGISTRO_LER'), sitPadrao, lido && ehNumero(padrao.alunosSemRegistroTotal)),
+      trocas: estadoDaFonte(verTrocas, fonteTrocas.situacao, !!trocas && ehNumero(trocas.total)),
     });
     if (r.tipo === 'pendencia') {
       const p = r.passo;
@@ -268,6 +277,13 @@ export default function InicioTreinador() {
         titulo: 'Recordes dos últimos 7 dias',
         ...listaDaFolha(paraAFolha<RecordesDaSemana>(consulta), (r) =>
           Array.isArray(r.series) ? folhaRecordes(r, { meus, hoje, unidade }) : null),
+      };
+    }
+    if (id === 'trocas') {
+      return {
+        titulo: 'Trocas para ver',
+        ...listaDaFolha(paraAFolha<TrocasPendentes>({ fonte: 'trocas', meus }), (r) =>
+          Array.isArray(r.trocas) ? folhaTrocas(r, { meus, hoje }) : null),
       };
     }
     const consultaPainel = { fonte: 'painel', meus, dias } as const;

@@ -1,12 +1,12 @@
 import { ErroApi } from '@plataforma/web';
 import type { PaginaInadimplentes, Painel as PainelFinanceiro } from '../api/financeiroTipos';
 import type { ContagensInscricoes } from '../api/inscricoesTipos';
-import type { PainelTreinador, RecordesDaSemana } from '../api/tipos';
+import type { PainelTreinador, RecordesDaSemana, TrocaDeExercicio, TrocasPendentes } from '../api/tipos';
 import { periodoDoCalendario } from './agendaCalendario';
 import {
   barrasDoRecebido, blocoDisponivel, BLOCOS_DO_PAINEL, blocosParaEditar, blocosPermitidos, blocosVisiveis,
   chaveDaConsulta, compromissosDaSemana, consultaDaAgenda, consultasDoBloco, enderecoDoBloco, FONTE_CARREGANDO, FONTE_DESLIGADA,
-  FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, fonteDaConsulta, inicioSemAlunos, listaDaFolha, moverBloco, moverBlocoPara, MOTIVO_EDITAR_SEM_ALUNOS, motivoDoEditar,
+  FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, folhaTrocas, fonteDaConsulta, inicioSemAlunos, listaDaFolha, moverBloco, moverBlocoPara, MOTIVO_EDITAR_SEM_ALUNOS, motivoDoEditar,
   montarBloco, mostrarBloco, PAINEL_DO_INICIO_PADRAO, periodoDoFinanceiroNoPainel, reaisSemCentavos, redimensionarBloco, restaurarPadrao,
   resumoDaFolha, ressalvaUmaVez, roscaDosAlunos,
   type BlocoDoPainel, type BlocoDoPainelId, type ContextoDoPainel, type FontesDoPainel, type OpcoesDoBloco, type PainelDoInicioPreferido,
@@ -55,8 +55,17 @@ const recordes = (total = 2): RecordesDaSemana => ({
   series: [{ alunoId: 'a1', alunoNome: 'Aluno Um', data: '2026-10-30', exercicioId: 'e1', exercicioNome: 'Supino', recordes: [{ tipo: 'MAIOR_CARGA', carga: 70, repeticoes: 8, valor: 70 }] }],
 });
 
+const trocaPendente = (alunoId: string, alunoNome: string, extra: Partial<TrocaDeExercicio> = {}) => ({
+  alunoId, alunoNome,
+  troca: {
+    data: '2026-10-30', planoVersaoId: 'v1', sessaoUid: 's1', sessao: 'Treino A', exercicioUid: 'x1',
+    principal: { exercicioId: 'e1', nome: 'Supino reto' }, alternativa: { exercicioId: 'e2', nome: 'Supino com halteres' }, series: 3, vistoEm: null, ...extra,
+  },
+});
+const trocas = (total = 4): TrocasPendentes => ({ de: '2026-10-25', ate: '2026-10-31', total, trocas: [trocaPendente('a1', 'Aluno Um')] });
+
 const fontes = (extra: FontesDoPainel = {}): FontesDoPainel => ({
-  painel: fontePronta(painel()), interessados: fontePronta(contagens()), recordes: fontePronta(recordes()),
+  painel: fontePronta(painel()), interessados: fontePronta(contagens()), recordes: fontePronta(recordes()), trocas: fontePronta(trocas()),
   agenda: fontePronta({ dias: [{ data: '2026-10-26', compromissos: 2, eventos: 0 }, { data: '2026-10-28', compromissos: 3, eventos: 1 }] }),
   inadimplentes: fontePronta(inadimplentes()), financeiro: fontePronta(financeiro()), ...extra,
 });
@@ -334,14 +343,16 @@ describe('Interessados', () => {
 });
 
 describe('Treinos', () => {
-  it('com o retorno ligado: Concluídos, Recordes e Sem registro (Últimos 7 dias)', () => {
+  it('com o retorno ligado: Concluídos e Recordes lado a lado; Trocas para ver e Sem registro deitados (Últimos 7 dias)', () => {
     const b = bloco('treinos');
     expect(b.periodo).toBe('Últimos 7 dias');
-    expect(b.cartoes.map((c) => c.chave)).toEqual(['treinos.concluidos', 'treinos.recordes', 'treinos.semRegistro']);
-    expect(b.cartoes.map((c) => c.texto)).toEqual(['12', '2', '2']);
+    expect(b.cartoes.map((c) => c.chave)).toEqual(['treinos.concluidos', 'treinos.recordes', 'treinos.trocas', 'treinos.semRegistro']);
+    expect(b.cartoes.map((c) => c.texto)).toEqual(['12', '2', '4', '2']);
+    expect(b.cartoes.map((c) => c.largo)).toEqual([false, false, true, true]);
+    expect(cartaoDe(b, 'treinos.trocas')).toMatchObject({ enfase: 'ambar', rotulo: 'Trocas para ver', destino: { tipo: 'folha', folha: 'trocas' } });
     expect(cartaoDe(b, 'treinos.concluidos')).toMatchObject({ enfase: 'verde' });
     expect(cartaoDe(b, 'treinos.recordes')).toMatchObject({ enfase: 'violeta' });
-    expect(cartaoDe(b, 'treinos.semRegistro')).toMatchObject({ enfase: 'ambar', rotulo: 'Sem registro há 7 dias', largo: true });
+    expect(cartaoDe(b, 'treinos.semRegistro')).toMatchObject({ enfase: 'ambar', rotulo: 'Sem registro há 7 dias' });
     expect(cartaoDe(b, 'treinos.recordes').destino).toEqual({ tipo: 'folha', folha: 'recordes' });
     expect(cartaoDe(b, 'treinos.semRegistro').destino).toEqual({ tipo: 'folha', folha: 'semRegistro' });
     // Meus/Todos explícito: quem não tem acesso total abriria a lista nos seus sem o meus=false.
@@ -353,18 +364,18 @@ describe('Treinos', () => {
     expect(cartaoDe(bloco('treinos', fontes(), ctxCom(), { dias: 14 }), 'treinos.semRegistro').rotulo).toBe('Sem registro há 14 dias');
   });
 
-  it('retornoHabilitado falso (chave do /eu): Concluídos e Recordes SOMEM, fica só Sem registro, com a nota', () => {
+  it('retornoHabilitado falso (chave do /eu): Concluídos e Recordes SOMEM, ficam Trocas e Sem registro, com a nota', () => {
     const b = bloco('treinos', fontes(), ctxCom(TODAS, { retornoHabilitado: false }));
-    expect(b.cartoes.map((c) => c.chave)).toEqual(['treinos.semRegistro']);
+    expect(b.cartoes.map((c) => c.chave)).toEqual(['treinos.trocas', 'treinos.semRegistro']);
     expect(b.periodo).toBeNull();
     expect(b.nota).toMatch(/Concluir treino/);
-    expect(cartaoDe(b, 'treinos.semRegistro').largo).toBe(false);
-    expect(consultasDoBloco('treinos', ctxCom(TODAS, { retornoHabilitado: false }), opcoes()).map((c) => c.fonte)).toEqual(['painel']);
+    expect(b.cartoes.map((c) => c.largo)).toEqual([true, true]);
+    expect(consultasDoBloco('treinos', ctxCom(TODAS, { retornoHabilitado: false }), opcoes()).map((c) => c.fonte)).toEqual(['painel', 'trocas']);
   });
 
   it('/recordes/semana com 503 (desligada): os cartões do retorno somem, não viram "Não carregou"', () => {
     const b = bloco('treinos', fontes({ recordes: FONTE_DESLIGADA }));
-    expect(b.cartoes.map((c) => c.chave)).toEqual(['treinos.semRegistro']);
+    expect(b.cartoes.map((c) => c.chave)).toEqual(['treinos.trocas', 'treinos.semRegistro']);
     expect(b.cartoes.some((c) => c.estado === 'naoCarregou')).toBe(false);
   });
 
@@ -374,6 +385,27 @@ describe('Treinos', () => {
     expect(cartaoDe(b, 'treinos.concluidos')).toMatchObject({ estado: 'naoCarregou', valor: null });
     expect(cartaoDe(b, 'treinos.semRegistro')).toMatchObject({ estado: 'valor', texto: '0', enfase: 'zero' });
     expect(cartaoDe(b, 'treinos.recordes').destino).toBeNull();
+  });
+
+  it('trocas: a consulta segue o Meus do bloco; falhou = "Não carregou" sem abrir a Folha', () => {
+    expect(consultasDoBloco('treinos', ctxCom(), opcoes({ meus: true })).find((c) => c.fonte === 'trocas')).toEqual({ fonte: 'trocas', meus: true });
+    expect(chaveDaConsulta({ fonte: 'trocas', meus: true })).toBe('trocas:meus');
+    const b = bloco('treinos', fontes({ trocas: FONTE_FALHOU }));
+    expect(cartaoDe(b, 'treinos.trocas')).toMatchObject({ estado: 'naoCarregou', destino: null });
+  });
+
+  it('Folha das trocas: nome do aluno, a troca, sessão · quando · séries, e a ficha aberta na seção das trocas', () => {
+    const f = folhaTrocas(trocas(57), { meus: true, hoje: '2026-10-31' });
+    expect(f).toMatchObject({ id: 'trocas', titulo: 'Trocas para ver', escopo: 'Só os meus alunos', total: 57, resumo: 'Mostrando 1 de 57 trocas.' });
+    expect(f.itens[0]).toMatchObject({
+      nome: 'Aluno Um', descricao: 'Supino reto trocado por Supino com halteres', detalhes: ['Treino A · ontem · 3 séries'],
+      href: '/treinador/alunos/a1?aba=acompanhamento&secao=trocas',
+    });
+    expect(f.itens[0].falado).toMatch(/^Aluno Um, Supino reto trocado por Supino com halteres, .*Abrir a ficha$/);
+    // A mesma troca em duas versões do plano não repete a chave.
+    const duas = folhaTrocas({ total: 2, trocas: [trocaPendente('a1', 'Aluno Um'), trocaPendente('a1', 'Aluno Um', { planoVersaoId: 'v2' })] }, { meus: false, hoje: '2026-10-31' });
+    expect(new Set(duas.itens.map((i) => i.chave)).size).toBe(2);
+    expect(folhaTrocas({ total: 0, trocas: [] }, { meus: false, hoje: '2026-10-31' })).toMatchObject({ resumo: null, vazio: 'Nenhuma troca para ver nos últimos 7 dias.' });
   });
 });
 

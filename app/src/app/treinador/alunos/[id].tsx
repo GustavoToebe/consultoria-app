@@ -16,6 +16,7 @@ import { CartaoAgua } from '../../../treinador/CartaoAgua';
 import { CartaoRecordesDaSemana } from '../../../treinador/CartaoRecordesDaSemana';
 import { AvisoDoInativar } from '../../../treinador/financeiro/AvisoDoInativar';
 import { CartaoTreinosConcluidos } from '../../../treinador/CartaoTreinosConcluidos';
+import { CartaoTrocasDeExercicio } from '../../../treinador/CartaoTrocasDeExercicio';
 import { FolhaDeAcoes } from '../../../treinador/FolhaDeAcoes';
 import { FotoDePerfilEditavel } from '../../../treinador/FotoDePerfilEditavel';
 import { ResumoDoAluno } from '../../../treinador/ResumoDoAluno';
@@ -48,7 +49,8 @@ import { useCarregar } from '../../../ui/useCarregar';
  * a foto fica ao lado do nome, no cabeçalho (guia de 11/11, pág. 31); o Resumo (`ResumoDoAluno`) traz só o que decide a
  * próxima ação, numa coluna; os blocos das outras abas e a condição de cada um vêm de `blocosDaAba`, e aba sem bloco
  * permitido não aparece. Cada bloco busca e trata o próprio erro, então um que falha não derruba os outros.
- * `?secao=acesso` (o "Abrir acesso ao app" do Resumo) rola até o bloco Acesso ao app da aba Ficha e sai do endereço.
+ * `?secao=acesso` (o "Abrir acesso ao app" do Resumo) rola até o bloco Acesso ao app da aba Ficha e sai do endereço;
+ * `?secao=trocas` (as trocas do Início) faz o mesmo com o cartão das trocas, na aba Acompanhamento.
  * Ações raras (inativar, exportar, anonimizar) ficam no menu ⋯ do cabeçalho, fora das abas.
  */
 export default function FichaAluno() {
@@ -120,6 +122,9 @@ export default function FichaAluno() {
       // Retorno ao aluno (Engajamento 0.5): treinos concluídos com o "Visto" e os recordes da semana.
       case 'treinosConcluidos': return <CartaoTreinosConcluidos alunoId={a.id} />;
       case 'recordesDaSemana': return <CartaoRecordesDaSemana alunoId={a.id} />;
+      // `?secao=trocas` (a Folha "Trocas para ver" do Início): o cartão rola até ele quando a lista chega e sai do endereço.
+      case 'trocasDeExercicio':
+        return <CartaoTrocasDeExercicio alunoId={a.id} rolarAte={secao === 'trocas'} aoRolar={() => router.setParams({ secao: undefined })} />;
       case 'evolucaoDasRespostas': return <CartaoEvolucaoRespostas alunoId={a.id} />;
       case 'progresso': return <CartaoProgresso alunoId={a.id} />;
       // A meta na chave: salvar outra meta na ficha busca o peso de novo, e as cores vêm da meta de cada item.

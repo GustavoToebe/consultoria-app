@@ -92,6 +92,9 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     'GET /alunos/{id}/pastas/vigente': { corpo: { pasta: null } },
     // O número das abas de Atualizações (os mesmos filtros da lista); zero nos testes que não conferem isso.
     'GET /atualizacoes/contagens': { corpo: { PARA_REVISAR: 0, ATRASADAS: 0, AVISARAM_ATRASO: 0, PROXIMAS: 0 } },
+    // Alertas de troca (Início e ficha): nenhuma troca nos testes que não conferem isso.
+    'GET /trocas-de-exercicio/pendentes': { corpo: { de: '2026-10-13', ate: '2026-10-19', total: 0, trocas: [] } },
+    'GET /alunos/{id}/trocas-de-exercicio': { corpo: { de: '2026-10-13', ate: '2026-10-19', trocas: [] } },
     ...respostas,
   };
   const rotas = Object.keys(mapa).sort((a, b) => b.length - a.length);

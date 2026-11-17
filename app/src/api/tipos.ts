@@ -1468,6 +1468,50 @@ export interface RecordesDaSemana {
   series: SerieComRecorde[];
 }
 
+/** Exercício de uma troca "só hoje": só o nome, como o plano publicado o guardou. */
+export interface ExercicioDaTroca {
+  exercicioId: string;
+  nome: string | null;
+}
+
+/**
+ * Troca de exercício lida das séries concluídas (`GET /alunos/{id}/trocas-de-exercicio`, `REGISTRO_LER`): o exercício do
+ * plano (`principal`) e o que o aluno fez no lugar (`alternativa`), num dia. `vistoEm` nulo = o treinador ainda não viu.
+ */
+export interface TrocaDeExercicio {
+  data: string;
+  planoVersaoId: string;
+  sessaoUid: string;
+  sessao: string | null;
+  exercicioUid: string;
+  principal: ExercicioDaTroca;
+  alternativa: ExercicioDaTroca;
+  series: number;
+  vistoEm: string | null;
+}
+
+export interface TrocasDeExercicio {
+  de: string;
+  ate: string;
+  trocas: TrocaDeExercicio[];
+}
+
+/** Pendências do Início (`GET /trocas-de-exercicio/pendentes?meus=`): `total` sem visto e as mais recentes (até 50). */
+export interface TrocasPendentes {
+  de: string;
+  ate: string;
+  total: number;
+  trocas: { alunoId: string; alunoNome: string; troca: TrocaDeExercicio }[];
+}
+
+/** Chave natural da troca, o corpo do `PUT`/`DELETE .../trocas-de-exercicio/visto`. */
+export interface ChaveDaTroca {
+  data: string;
+  planoVersaoId: string;
+  exercicioUid: string;
+  alternativaId: string;
+}
+
 /** `totalConcluidos` = treinos concluídos do aluno em todo o histórico (não só na janela de `sessoes`). */
 export interface SessoesConcluidasResponse {
   totalConcluidos: number;

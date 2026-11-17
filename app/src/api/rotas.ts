@@ -156,6 +156,9 @@ import type {
   ResultadoValidacao,
   SessoesConcluidasResponse,
   RecordesDaSemana,
+  ChaveDaTroca,
+  TrocasDeExercicio,
+  TrocasPendentes,
   SituacaoFiltro,
   SuplementoDaBiblioteca,
   SuplementoDaBibliotecaRequest,
@@ -794,6 +797,19 @@ export const desmarcarTreinoVisto = (alunoId: string, sessaoConcluidaId: string)
 export const recordesDaSemana = (meus: boolean) => requisicao<RecordesDaSemana>(`/recordes/semana${meus ? '?meus=true' : ''}`);
 
 export const recordesDaSemanaDoAluno = (id: string) => requisicao<RecordesDaSemana>(`/alunos/${seg(id)}/recordes/semana`);
+
+/** Trocas "só hoje" do aluno nos últimos 7 dias, com o `vistoEm` (`REGISTRO_LER`). */
+export const trocasDeExercicioDoAluno = (id: string) => requisicao<TrocasDeExercicio>(`/alunos/${seg(id)}/trocas-de-exercicio`);
+
+/** Pendência do Início: trocas dos últimos 7 dias sem "Visto" (`meus` = só os alunos do usuário). */
+export const trocasPendentes = (meus: boolean) => requisicao<TrocasPendentes>(`/trocas-de-exercicio/pendentes${meus ? '?meus=true' : ''}`);
+
+/** "Visto" numa troca (`REGISTRO_REAGIR`); a chave vai no corpo, também no `DELETE`. Idempotentes. */
+export const marcarTrocaVista = (alunoId: string, chave: ChaveDaTroca) =>
+  requisicao<{ vistoEm: string }>(`/alunos/${seg(alunoId)}/trocas-de-exercicio/visto`, { metodo: 'PUT', corpo: chave });
+
+export const desmarcarTrocaVista = (alunoId: string, chave: ChaveDaTroca) =>
+  requisicao<void>(`/alunos/${seg(alunoId)}/trocas-de-exercicio/visto`, { metodo: 'DELETE', corpo: chave });
 
 export const progressoDoAluno = (id: string, exercicioId: string) =>
   requisicao<ProgressoPonto[]>(`/alunos/${seg(id)}/progresso?exercicioId=${encodeURIComponent(exercicioId)}`);

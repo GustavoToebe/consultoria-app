@@ -1,7 +1,7 @@
 import type { Painel as PainelFinanceiro, PaginaInadimplentes } from '../api/financeiroTipos';
 import type { ContagensInscricoes } from '../api/inscricoesTipos';
 import type { ResumoDaAgenda } from '../api/agendaTipos';
-import type { PainelTreinador, RecordesDaSemana } from '../api/tipos';
+import type { PainelTreinador, RecordesDaSemana, TrocasPendentes } from '../api/tipos';
 import { periodoDoCalendario } from './agendaCalendario';
 import { caminhoListaAtualizacoes } from './atualizacao';
 import { dataRelativa } from './datasRelativas';
@@ -11,6 +11,7 @@ import { avisoDoHistoricoParcial, hojeEmBrasilia, periodoDoPainel } from './fina
 import { contadorDeRetornos } from './inicioTreinador';
 import { rotuloDoMes } from './numeros';
 import { textoDoRecorde } from './recordesPessoais';
+import { idDaTroca, metadadosDaTroca, textoDaTroca } from './trocasDeExercicio';
 import type { UnidadeDeCarga } from './unidadeDeCarga';
 import { ehFinanceiroDesligado, TEXTO_RECURSO_DESATIVADO } from './financeiroDesligado';
 import { ehRetornoDesligado } from './retornoDesligado';
@@ -55,7 +56,7 @@ export const TITULOS_DOS_BLOCOS: Record<BlocoDoPainelId, string> = {
 export const DESCRICOES_DOS_BLOCOS: Record<BlocoDoPainelId, string> = {
   atualizacoes: 'Para revisar, atrasadas e próximos 7 dias',
   interessados: 'Novos, retornos e em contato ou negociação',
-  treinos: 'Concluídos e recordes dos últimos 7 dias, sem registro',
+  treinos: 'Concluídos, recordes e trocas para ver dos últimos 7 dias, sem registro',
   pastas: 'A renovar em 7 dias e sem pasta com período',
   agenda: 'Compromissos desta semana (segunda a domingo)',
   financeiro: 'Vencidas, vencendo e recebido no mês',
@@ -262,6 +263,8 @@ export interface FontesDoPainel {
   interessados?: Fonte<ContagensInscricoes>;
   /** `GET /recordes/semana?meus=`. */
   recordes?: Fonte<RecordesDaSemana>;
+  /** `GET /trocas-de-exercicio/pendentes?meus=`. */
+  trocas?: Fonte<TrocasPendentes>;
   /** `GET /agenda/resumo` da semana (ver {@link consultaDaAgenda}). */
   agenda?: Fonte<ResumoDaAgenda>;
   /** `GET /financeiro/inadimplentes?meus=` (página 0: só `total` e `valorTotalCentavos` importam). */
@@ -276,6 +279,7 @@ export type ConsultaDoPainel =
   | { fonte: 'painel'; meus: boolean; dias: number }
   | { fonte: 'interessados'; meus: boolean }
   | { fonte: 'recordes'; meus: boolean }
+  | { fonte: 'trocas'; meus: boolean }
   | { fonte: 'agenda'; de: string; ate: string; responsavel: string | null }
   | { fonte: 'inadimplentes'; meus: boolean }
   | { fonte: 'financeiro'; meus: boolean; de: string; ate: string };
@@ -286,6 +290,7 @@ export function chaveDaConsulta(c: ConsultaDoPainel): string {
     case 'painel': return `painel:${c.meus ? 'meus' : 'todos'}:${c.dias}`;
     case 'interessados': return `interessados:${c.meus ? 'meus' : 'todos'}`;
     case 'recordes': return `recordes:${c.meus ? 'meus' : 'todos'}`;
+    case 'trocas': return `trocas:${c.meus ? 'meus' : 'todos'}`;
     case 'agenda': return `agenda:${c.de}:${c.ate}:${c.responsavel ?? 'todos'}`;
     case 'inadimplentes': return `inadimplentes:${c.meus ? 'meus' : 'todos'}`;
     case 'financeiro': return `financeiro:${c.meus ? 'meus' : 'todos'}:${c.de}:${c.ate}`;
@@ -333,6 +338,8 @@ export function consultasDoBloco(id: BlocoDoPainelId, ctx: ContextoDoPainel, o: 
     case 'treinos': {
       const lista: ConsultaDoPainel[] = [{ fonte: 'painel', meus, dias: o.dias }];
       if (ctx.retornoHabilitado) lista.push({ fonte: 'recordes', meus });
+      // A troca "só hoje" vem das séries: não depende do "Concluir treino".
+      lista.push({ fonte: 'trocas', meus });
       return lista;
     }
     case 'agenda': {
@@ -353,10 +360,10 @@ export function consultasDoBloco(id: BlocoDoPainelId, ctx: ContextoDoPainel, o: 
 
 export type DestinoDoCartao =
   | { tipo: 'endereco'; href: string }
-  /** Abre uma `Folha` (use {@link folhaSemRegistro}, {@link folhaPastasARenovar} ou {@link folhaRecordes}). */
+  /** Abre uma `Folha` (use {@link folhaSemRegistro}, {@link folhaPastasARenovar}, {@link folhaRecordes} ou {@link folhaTrocas}). */
   | { tipo: 'folha'; folha: FolhaDoPainelId };
 
-export type FolhaDoPainelId = 'semRegistro' | 'pastasARenovar' | 'recordes';
+export type FolhaDoPainelId = 'semRegistro' | 'pastasARenovar' | 'recordes' | 'trocas';
 
 export interface CartaoDoPainel {
   chave: string;
@@ -666,15 +673,22 @@ function blocoTreinos(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   const sitRecordes = situacaoDe(o.fontes.recordes);
   const semRegistro = cartao({
     chave: 'treinos.semRegistro', rotulo: `Sem registro há ${dias} dias`, nome: `Alunos sem registro há ${dias} dias`, situacao: sitPainel,
-    valor: p?.alunosSemRegistroTotal, destaque: 'ambar', destino: { tipo: 'folha', folha: 'semRegistro' }, largo: retorno, abreLista: true,
+    valor: p?.alunosSemRegistroTotal, destaque: 'ambar', destino: { tipo: 'folha', folha: 'semRegistro' }, largo: true, abreLista: true,
   });
-  if (!retorno) return fechar(cabecalho('treinos', o.meus), { cartoes: [semRegistro], nota: NOTA_SEM_RETORNO });
+  // A troca "só hoje" vem das séries, então aparece com ou sem o "Concluir treino". Trocas e Sem registro deitados, um por
+  // linha: o rótulo longo não quebra ao lado de outro cartão.
+  const trocas = cartao({
+    chave: 'treinos.trocas', rotulo: 'Trocas para ver', nome: 'Trocas de exercício para ver nos últimos 7 dias', situacao: situacaoDe(o.fontes.trocas),
+    valor: dadosDe(o.fontes.trocas)?.total, destaque: 'ambar', destino: { tipo: 'folha', folha: 'trocas' }, largo: true, abreLista: true,
+  });
+  if (!retorno) return fechar(cabecalho('treinos', o.meus), { cartoes: [trocas, semRegistro], nota: NOTA_SEM_RETORNO });
   const alunos: DestinoDoCartao = { tipo: 'endereco', href: listaDeAlunos(o.meus) };
   const recordes = dadosDe(o.fontes.recordes);
   return fechar(cabecalho('treinos', o.meus, { periodo: PERIODO_DOS_TREINOS }), {
     cartoes: [
       cartao({ chave: 'treinos.concluidos', rotulo: 'Concluídos', nome: 'Sessões concluídas nos últimos 7 dias, completas e parciais', situacao: sitPainel, valor: p?.sessoesConcluidas7Dias, destaque: 'verde', destino: alunos }),
       cartao({ chave: 'treinos.recordes', rotulo: 'Recordes', nome: 'Recordes nos últimos 7 dias', situacao: sitRecordes, valor: recordes?.total, destaque: 'violeta', destino: { tipo: 'folha', folha: 'recordes' }, abreLista: true }),
+      trocas,
       semRegistro,
     ],
   });
@@ -941,6 +955,19 @@ export function folhaRecordes(r: Pick<RecordesDaSemana, 'total' | 'series'>, o: 
     };
   });
   return folha('recordes', 'Recordes dos últimos 7 dias', o.meus, r.total, itens, ['série com recorde', 'séries com recorde'], 'Nenhum recorde nos últimos 7 dias.');
+}
+
+/** Folha "Trocas para ver": `GET /trocas-de-exercicio/pendentes` (até 50 trocas sem visto; `total` conta trocas). */
+export function folhaTrocas(r: Pick<TrocasPendentes, 'total' | 'trocas'>, o: { meus: boolean; hoje: string }): FolhaDoPainel {
+  const itens = r.trocas.map<ItemDaFolha>(({ alunoId, alunoNome, troca }) => {
+    const texto = textoDaTroca(troca);
+    const meta = metadadosDaTroca(troca, o.hoje);
+    return {
+      chave: `${alunoId}:${idDaTroca(troca)}`, alunoId, nome: alunoNome, descricao: texto, detalhes: [meta], direita: null,
+      href: `${fichaDoAluno(alunoId, 'acompanhamento')}&secao=trocas`, falado: `${alunoNome}, ${texto}, ${meta}. Abrir a ficha`,
+    };
+  });
+  return folha('trocas', 'Trocas para ver', o.meus, r.total, itens, ['troca', 'trocas'], 'Nenhuma troca para ver nos últimos 7 dias.');
 }
 
 export { hojeEmBrasilia };

@@ -27,6 +27,15 @@ describe('proximoPassoDoInicio', () => {
     expect(proximoPassoDoInicio({ ...nada, retornosHoje: 1, planosTerminando: 3 })?.texto).toBe('1 retorno a interessado está marcado para hoje.');
     expect(proximoPassoDoInicio({ ...nada, retornosAtrasados: null, retornosHoje: null })).toBeNull();
   });
+  it('trocas de exercício para ver vêm por último e abrem a Folha das trocas', () => {
+    expect(proximoPassoDoInicio({ ...nada, semRegistro: 1, trocas: 5 })?.destino).toBe('SEM_REGISTRO');
+    expect(proximoPassoDoInicio({ ...nada, trocas: 1 })).toEqual({ texto: '1 troca de exercício para ver nos últimos 7 dias.', acao: 'Ver trocas', destino: 'TROCAS' });
+    expect(proximoPassoDoInicio({ ...nada, trocas: 2 })?.texto).toBe('2 trocas de exercício para ver nos últimos 7 dias.');
+    // A fonte das trocas falhou: nada pende no resto, mas não é "em dia".
+    const todas: FontesDoResumo = { atualizacoes: 'consultada', interessados: 'consultada', planosTerminando: 'consultada', semRegistro: 'consultada' };
+    expect(resumoDoInicio({ ...nada, trocas: null }, { ...todas, trocas: 'falhou' }).tipo).toBe('parcial');
+    expect(resumoDoInicio({ ...nada, trocas: 0 }, { ...todas, trocas: 'consultada' }).tipo).toBe('emDia');
+  });
   it('sem permissão (nulo) ou tudo zerado = nulo', () => {
     expect(proximoPassoDoInicio(nada)).toBeNull();
     expect(proximoPassoDoInicio({ ...nada, paraRevisar: null, atrasadas: null, interessadosNovos: null })).toBeNull();

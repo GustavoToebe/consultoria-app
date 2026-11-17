@@ -21,7 +21,7 @@ export interface ContextoDaFicha {
 /** Blocos de conteúdo que moram nas abas Planos, Acompanhamento, Evolução e Ficha (o Resumo só reúne o que decide a próxima ação). */
 export type BlocoDaFicha =
   | 'pastas'
-  | 'frequencia' | 'agua' | 'treinosConcluidos' | 'recordesDaSemana' | 'evolucaoDasRespostas'
+  | 'frequencia' | 'agua' | 'treinosConcluidos' | 'recordesDaSemana' | 'trocasDeExercicio' | 'evolucaoDasRespostas'
   | 'peso' | 'avaliacaoFisica' | 'fotos' | 'progresso'
   | 'dadosDoAluno' | 'acessoAoApp' | 'planoContratado' | 'anamnese' | 'lesoes';
 
@@ -37,6 +37,8 @@ const BLOCOS: readonly { bloco: BlocoDaFicha; aba: AbaDaFicha; visivel: (c: Cont
   { bloco: 'agua', aba: 'acompanhamento', visivel: (c) => c.pode('REGISTRO_LER') && c.pode('ALUNO_SENSIVEL_LER') },
   { bloco: 'treinosConcluidos', aba: 'acompanhamento', visivel: (c) => c.retornoHabilitado && c.pode('REGISTRO_LER') },
   { bloco: 'recordesDaSemana', aba: 'acompanhamento', visivel: (c) => c.retornoHabilitado && c.pode('REGISTRO_LER') },
+  // A troca "só hoje" vem das séries: não depende do retorno.
+  { bloco: 'trocasDeExercicio', aba: 'acompanhamento', visivel: (c) => c.pode('REGISTRO_LER') },
   { bloco: 'evolucaoDasRespostas', aba: 'acompanhamento', visivel: (c) => c.pode('ATUALIZACAO_LER') && c.pode('ALUNO_SENSIVEL_LER') },
   // Evolução: o peso (dado que quase sempre existe) antes do progresso de carga (guia de 11/11, pág. 34).
   { bloco: 'peso', aba: 'evolucao', visivel: (c) => c.pode('ALUNO_SENSIVEL_LER') },

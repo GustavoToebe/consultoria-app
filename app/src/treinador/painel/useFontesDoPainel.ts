@@ -7,6 +7,7 @@ import {
   painelTreinador,
   recordesDaSemana,
   resumoDaAgenda,
+  trocasPendentes,
 } from '../../api/rotas';
 import { chaveDaConsulta, fonteDaConsulta, type ConsultaDoPainel, type Fonte, type FontesDoPainel } from '../../dominio/painelDoInicio';
 import { useCarregar } from '../../ui/useCarregar';
@@ -29,6 +30,7 @@ function buscar(c: ConsultaDoPainel): Promise<unknown> {
     case 'painel': return painelTreinador(c.meus, c.dias);
     case 'interessados': return contagensInscricoes({ meus: c.meus });
     case 'recordes': return recordesDaSemana(c.meus);
+    case 'trocas': return trocasPendentes(c.meus);
     case 'agenda': return resumoDaAgenda({ de: c.de, ate: c.ate, responsavel: c.responsavel });
     case 'inadimplentes': return listarInadimplentes({ meus: c.meus });
     case 'financeiro': return painelFinanceiro({ de: c.de, ate: c.ate, meus: c.meus });
@@ -59,6 +61,8 @@ export function useFontesDoPainel(consultas: readonly ConsultaDoPainel[]) {
     'interessados:meus': useVaga(porVaga.get('interessados:meus')),
     'recordes:todos': useVaga(porVaga.get('recordes:todos')),
     'recordes:meus': useVaga(porVaga.get('recordes:meus')),
+    'trocas:todos': useVaga(porVaga.get('trocas:todos')),
+    'trocas:meus': useVaga(porVaga.get('trocas:meus')),
     'agenda:todos': useVaga(porVaga.get('agenda:todos')),
     'agenda:meus': useVaga(porVaga.get('agenda:meus')),
     'inadimplentes:todos': useVaga(porVaga.get('inadimplentes:todos')),

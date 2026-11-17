@@ -22,7 +22,7 @@ describe('abas da ficha', () => {
   it('REGISTRO_LER abre Acompanhamento e Evolução (frequência e progresso)', () => {
     const c = contexto(['ALUNO_LER', 'REGISTRO_LER']);
     expect(abasVisiveis(c)).toEqual(['resumo', 'planos', 'acompanhamento', 'evolucao', 'ficha']);
-    expect(blocosDaAba('acompanhamento', c)).toEqual(['frequencia']);
+    expect(blocosDaAba('acompanhamento', c)).toEqual(['frequencia', 'trocasDeExercicio']);
     expect(blocosDaAba('evolucao', c)).toEqual(['progresso']);
   });
 
@@ -53,6 +53,9 @@ describe('abas da ficha', () => {
     expect(blocoVisivel('treinosConcluidos', contexto(['REGISTRO_LER'], { retornoHabilitado: true }))).toBe(true);
     expect(blocoVisivel('recordesDaSemana', contexto([], { retornoHabilitado: true }))).toBe(false);
     expect(blocoVisivel('recordesDaSemana', contexto(['REGISTRO_LER'], { retornoHabilitado: true }))).toBe(true);
+    // A troca de exercício não depende do retorno.
+    expect(blocoVisivel('trocasDeExercicio', contexto(['REGISTRO_LER']))).toBe(true);
+    expect(blocoVisivel('trocasDeExercicio', contexto([]))).toBe(false);
   });
 
   it('plano contratado pede o financeiro ligado e FINANCEIRO_LER; anamnese e lesões, as sensíveis; a Ficha nunca some', () => {
@@ -71,7 +74,7 @@ describe('abas da ficha', () => {
     const c = contexto(TUDO, { pagamentosHabilitados: true, retornoHabilitado: true });
     expect(abasVisiveis(c)).toEqual(['resumo', 'planos', 'acompanhamento', 'evolucao', 'ficha']);
     expect(blocosDaAba('planos', c)).toEqual(['pastas']);
-    expect(blocosDaAba('acompanhamento', c)).toEqual(['frequencia', 'agua','treinosConcluidos', 'recordesDaSemana', 'evolucaoDasRespostas']);
+    expect(blocosDaAba('acompanhamento', c)).toEqual(['frequencia', 'agua','treinosConcluidos', 'recordesDaSemana', 'trocasDeExercicio', 'evolucaoDasRespostas']);
     expect(blocosDaAba('evolucao', c)).toEqual(['peso', 'progresso', 'avaliacaoFisica', 'fotos']);
     expect(blocosDaAba('ficha', c)).toEqual(['dadosDoAluno', 'acessoAoApp', 'planoContratado', 'anamnese', 'lesoes']);
   });
