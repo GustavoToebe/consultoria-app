@@ -816,6 +816,9 @@ export const fontes = {
   medio: 'Geist_500Medium',
   semi: 'Geist_600SemiBold',
   negrito: 'Geist_700Bold',
+  /** Geist Mono (visual-ponytail, 17/11): números de indicador, carga, kcal e repetições. */
+  mono: 'GeistMono_500Medium',
+  monoSemi: 'GeistMono_600SemiBold',
   metal: 'MetalMania_400Regular',
   esportiva: 'BebasNeue_400Regular',
   condensada: 'Oswald_700Bold',

@@ -6,6 +6,9 @@ import { Geist_400Regular } from '@expo-google-fonts/geist/400Regular';
 import { Geist_500Medium } from '@expo-google-fonts/geist/500Medium';
 import { Geist_600SemiBold } from '@expo-google-fonts/geist/600SemiBold';
 import { Geist_700Bold } from '@expo-google-fonts/geist/700Bold';
+// Geist Mono só nos números (visual-ponytail, 17/11): cargas, kcal, repetições e indicadores alinhados em colunas.
+import { GeistMono_500Medium } from '@expo-google-fonts/geist-mono/500Medium';
+import { GeistMono_600SemiBold } from '@expo-google-fonts/geist-mono/600SemiBold';
 import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue/400Regular';
 import { MetalMania_400Regular } from '@expo-google-fonts/metal-mania/400Regular';
 import { Oswald_700Bold } from '@expo-google-fonts/oswald/700Bold';
@@ -36,6 +39,8 @@ export default function Raiz() {
     Geist_500Medium,
     Geist_600SemiBold,
     Geist_700Bold,
+    GeistMono_500Medium,
+    GeistMono_600SemiBold,
     MetalMania_400Regular,
     BebasNeue_400Regular,
     Oswald_700Bold,

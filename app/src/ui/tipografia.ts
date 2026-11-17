@@ -7,9 +7,9 @@ export type Variante = 'destaque' | 'titulo' | 'subtitulo' | 'bloco' | 'rotulo' 
  * `suave`, `pequeno`); `secao` (12, caixa alta) é só o sobretítulo de grupo. Texto secundário perde peso, não contraste.
  */
 /** Números em colunas (tabular) e um pouco mais justos, como no canvas do visual-ponytail. */
-export const NUMERICO: TextStyle = { fontVariant: ['tabular-nums'], letterSpacing: -0.2 };
+export const NUMERICO: TextStyle = { fontFamily: fontes.mono, fontVariant: ['tabular-nums'], letterSpacing: -0.3 };
 export const ESTILOS_TEXTO: Record<Variante, TextStyle> = {
-  destaque: { fontFamily: fontes.medio, fontSize: 30, lineHeight: 36, ...NUMERICO, letterSpacing: -0.6 },
+  destaque: { ...NUMERICO, fontSize: 30, lineHeight: 36, letterSpacing: -0.9 },
   titulo: { fontFamily: fontes.semi, fontSize: 26, lineHeight: 32, letterSpacing: -0.5 },
   subtitulo: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },
   /** Título de cartão e de folha. */
@@ -18,7 +18,7 @@ export const ESTILOS_TEXTO: Record<Variante, TextStyle> = {
   rotulo: { fontFamily: fontes.semi, fontSize: 13, lineHeight: 18 },
   corpo: { fontFamily: fontes.normal, fontSize: 15, lineHeight: 21 },
   suave: { fontFamily: fontes.normal, fontSize: 14, lineHeight: 20 },
-  numero: { fontFamily: fontes.normal, fontSize: 15, lineHeight: 21, ...NUMERICO },
+  numero: { ...NUMERICO, fontSize: 15, lineHeight: 21 },
   secao: { fontFamily: fontes.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.6, textTransform: 'uppercase' },
   pequeno: { fontFamily: fontes.normal, fontSize: 13, lineHeight: 18 },
 };

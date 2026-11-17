@@ -10,6 +10,8 @@
  --font-metal: 'MetalMania_400Regular';
  --font-esportiva: 'BebasNeue_400Regular';
  --font-condensada: 'Oswald_700Bold';
+ --font-mono: 'GeistMono_500Medium';
+ --font-mono-semi: 'GeistMono_600SemiBold';
  /* RAIO_CONTROLE (botão, campo, chip, aba) = 10; cartão e painel usam rounded-xl = RAIO (20). Visual-ponytail, 17/11. */
  --radius-md: 10px;
  --radius-xl: 20px;
