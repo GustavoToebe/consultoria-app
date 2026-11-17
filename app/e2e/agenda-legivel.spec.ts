@@ -83,10 +83,10 @@ const PAINEL = { atualizacoesParaRevisar: 0, atualizacoesAtrasadas: 0, atualizac
  * `superficie2` do tema (guia de 11/11: a cor da agenda fica só na faixa; contraste em `contrasteDaAgenda.test.ts`).
  */
 const CLARO = {
-  texto: 'rgb(17, 17, 20)', superficie2: 'rgb(248, 248, 249)',
+  texto: 'rgb(9, 9, 11)', superficie2: 'rgb(234, 236, 239)',
   azul: 'rgb(27, 111, 214)', indigo: 'rgb(75, 63, 191)', oliva: 'rgb(117, 132, 24)',
 };
-const ESCURO = { texto: 'rgb(244, 244, 245)', azul: 'rgb(74, 144, 247)', superficie2: 'rgb(34, 34, 38)' };
+const ESCURO = { texto: 'rgb(252, 252, 252)', azul: 'rgb(74, 144, 247)', superficie2: 'rgb(11, 11, 13)' };
 
 async function abrirAgenda(page: Page, opcoes: { escuro?: boolean } = {}) {
   await fixarHoje(page);
