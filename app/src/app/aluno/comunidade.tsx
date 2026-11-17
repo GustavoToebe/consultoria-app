@@ -8,7 +8,7 @@ import {
   obterConfiguracaoDoAluno, obterMeuRanking, reagirComoAluno, votarComoAluno,
 } from '../../api/comunidade';
 import { ErroApi } from '../../api/cliente';
-import type { AlvoDosComentarios, FiltrosDoMural, PostDoMural } from '../../api/comunidadeTipos';
+import type { AlvoDosComentarios, FiltrosDoMural, PostDoMural, TipoDePost } from '../../api/comunidadeTipos';
 import { AvisoDoPerfilNaComunidade } from '../../aluno/AvisoDoPerfil';
 import { ColecoesDeAuloes } from '../../aluno/ColecoesDeAuloes';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
@@ -22,8 +22,11 @@ import { PainelDeDenuncia } from '../../comunidade/PainelDeDenuncia';
 import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
   type FiltroDoMural, filtrosParaApi, MURAL_SEM_FILTRO, podeAnexarFoto, ROTULO_DO_MURAL_GERAL, podePublicar, type RascunhoDoPost, textoDaPosicao,
-  textoDoMuralVazio, TIPO_PADRAO_DO_POST, tipoPedido,
+  TIPO_PADRAO_DO_POST, tipoPedido,
 } from '../../dominio/comunidade';
+import {
+  type AbaDoMural, ABAS_DO_MURAL, abaDoParametro, abaDoTipo, carregarMuralDaAba, filtroNaAba, PARAMETRO_DO_MEU_GRUPO, textoDoVazioDaAba, tiposParaBuscar, visaoDoParametro,
+} from '../../dominio/muralEmAbas';
 import { dataParaTela } from '../../dominio/formatos';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -73,33 +76,39 @@ export default function ComunidadeAluno() {
   const { online } = useAluno();
   const { avisar } = useAviso();
   const { usuario } = useSessao();
-  const params = useLocalSearchParams<{ aba?: string; mural?: string; publicar?: string; texto?: string }>();
+  const params = useLocalSearchParams<{ aba?: string; mural?: string; grupo?: string; publicar?: string; texto?: string }>();
   // A aba mora no endereço (`?aba=`). `setParams` mantém a tela montada (o rascunho fica) e preserva os outros parâmetros.
   const aba: AbaComunidade = params.aba === 'auloes' || params.aba === 'ranking' || params.aba === 'colegas' ? params.aba : 'mural';
   const setAba = (valor: AbaComunidade) => { if (valor !== aba) router.setParams({ aba: valor }); };
 
-  const [filtro, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
+  // Avisos ou Alunos (C39) no endereço (`?mural=`; desconhecido = Avisos). As abas valem dentro do Geral e do Meu grupo.
+  const abaDoMural = abaDoParametro(params.mural);
+  const setAbaDoMural = (valor: AbaDoMural) => { if (valor !== abaDoMural) router.setParams({ mural: valor }); };
+  const [filtroPedidoDoMural, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
+  // O tipo de outra aba não vale aqui (o chip some e volta com a aba dele), sem estado a corrigir.
+  const filtro = filtroNaAba(filtroPedidoDoMural, abaDoMural);
   const [busca, setBusca] = useState('');
   const buscaAtrasada = useAtrasado(busca);
   // Quem publica, se anexa foto e o grupo (pod) do aluno: a API decide e o app só segue (sem a configuração, o formulário não aparece).
   const config = useCarregar(online ? 'mural-configuracao' : null, () => obterConfiguracaoDoAluno());
   const publica = podePublicar(config.dados);
-  // "Meu grupo" mora no endereço (`?mural=grupo`) e só vale com o pod que a API mandou; sem pod, fica o Geral e não há seletor.
+  // "Meu grupo" mora no endereço (`?grupo=meu`) e só vale com o pod que a API mandou; sem pod, fica o Geral e não há seletor.
   const pod = config.dados?.pod ?? null;
-  const esperandoOGrupo = params.mural === 'grupo' && config.dados === undefined && !config.erro;
-  const visao: VisaoDoMural = params.mural === 'grupo' && pod ? 'grupo' : 'geral';
-  const setVisao = (valor: VisaoDoMural) => { if (valor !== visao) router.setParams({ mural: valor === 'grupo' ? 'grupo' : undefined }); };
+  const esperandoOGrupo = params.grupo === PARAMETRO_DO_MEU_GRUPO && config.dados === undefined && !config.erro;
+  const visao: VisaoDoMural = visaoDoParametro(params.grupo, !!pod);
+  const setVisao = (valor: VisaoDoMural) => { if (valor !== visao) router.setParams({ grupo: valor === 'grupo' ? PARAMETRO_DO_MEU_GRUPO : undefined }); };
   const podDoMural = visao === 'grupo' ? pod : null;
+  // A chave leva os tipos que a aba pede: trocar de aba ou de chip busca de novo, e a resposta de outra aba não entra.
   const chaveDoMural = online && !esperandoOGrupo
-    ? `${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada, podDoMural?.id))}` : null;
+    ? `${PREFIXO_DO_MURAL}${JSON.stringify({ tipos: tiposParaBuscar(filtro, abaDoMural), filtros: filtrosParaApi(filtro, buscaAtrasada, podDoMural?.id) })}` : null;
   const mural = useCarregar(chaveDoMural, async (c) => {
-    const filtros: FiltrosDoMural = JSON.parse(c.slice(PREFIXO_DO_MURAL.length));
+    const pedido: { tipos: TipoDePost[]; filtros: FiltrosDoMural } = JSON.parse(c.slice(PREFIXO_DO_MURAL.length));
     try {
-      return await listarMuralDoAluno(filtros);
+      return await carregarMuralDaAba(listarMuralDoAluno, pedido.filtros, pedido.tipos);
     } catch (e) {
       // 404 no grupo: a equipe tirou o aluno do pod depois de a tela abrir. Volta ao Geral e pergunta de novo qual é o grupo.
-      if (filtros.podId && e instanceof ErroApi && e.status === 404) {
-        router.setParams({ mural: undefined });
+      if (pedido.filtros.podId && e instanceof ErroApi && e.status === 404) {
+        router.setParams({ grupo: undefined });
         config.recarregar();
         avisar('Você não está mais nesse grupo. Mostrando o mural Geral.', 'neutro');
       }
@@ -122,7 +131,8 @@ export default function ComunidadeAluno() {
     void Promise.resolve().then(() => {
       if (!vivo) return;
       if (tipo) { setRascunho({ tipo, texto }); setCompondo(true); }
-      router.setParams({ publicar: undefined, texto: undefined, ...(tipo ? { aba: undefined } : {}) });
+      // Atrás da folha, o mural na aba onde o post vai aparecer.
+      router.setParams({ publicar: undefined, texto: undefined, ...(tipo ? { aba: undefined, mural: abaDoTipo(tipo) } : {}) });
     });
     return () => { vivo = false; };
   }, [params.publicar, params.texto]);
@@ -135,10 +145,13 @@ export default function ComunidadeAluno() {
   const conquistas = useCarregar(online ? 'conquistas-lista' : null, () => listarMinhasConquistas());
 
   const publicado = (podId: string | null) => {
+    // O post do aluno mora na aba Alunos: publicando de Avisos, a tela segue para lá, senão ele "some" logo depois do aviso.
+    const abaDoPost = abaDoTipo(rascunho.tipo);
     setRascunho(RASCUNHO_VAZIO);
     setCompondo(false);
     avisar(podId && podDoMural ? `Publicado no grupo ${podDoMural.nome}.` : 'Publicado no mural.', 'sucesso');
-    mural.recarregar();
+    if (abaDoPost !== abaDoMural) setAbaDoMural(abaDoPost);
+    else mural.recarregar();
   };
 
   const acoes = useAcoesDoPost({ mural, chave: chaveDoMural, reagir: reagirComoAluno, votar: votarComoAluno });
@@ -192,12 +205,17 @@ export default function ComunidadeAluno() {
                 <Texto variante="suave">No momento, só a equipe publica no mural. Você pode reagir, votar nas enquetes e comentar.</Texto>
               ) : null}
 
-              <BarraDoMural filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={false} />
+              {/* Avisos | Alunos (C39) numa linha própria, depois do grupo (o escopo): o segmento na largura toda lê como a
+                  divisão do conteúdo e não espreme a linha do grupo com o botão em 390 px. */}
+              <Escolha<AbaDoMural> descricao="Publicações" distribuida valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
+              <BarraDoMural aba={abaDoMural} filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={false} />
 
               <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
-                textoVazio={podDoMural && !filtro.tipo && !busca.trim() ? 'Nenhuma publicação neste grupo ainda.' : textoDoMuralVazio(filtro, busca)}
+                textoVazio={textoDoVazioDaAba(abaDoMural, filtro, busca, podDoMural?.nome)}
                 recarregar={mural.recarregar}
-                acaoVazio={filtro.tipo ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) } : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : undefined} />
+                acaoVazio={filtro.tipo ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) } : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }
+                  // Avisos vazio (a aba padrão) não é beco: o próximo passo é a outra aba.
+                  : abaDoMural === 'avisos' ? { rotulo: 'Ver publicações dos alunos', aoTocar: () => setAbaDoMural('alunos') } : undefined} />
 
               {posts ? fixadosPrimeiro(posts).map((p) => (
                 <CartaoDoPost

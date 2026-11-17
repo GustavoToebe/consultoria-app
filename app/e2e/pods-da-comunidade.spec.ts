@@ -23,10 +23,15 @@ const POST_GERAL: PostDoMural = {
 const POST_DO_GRUPO: PostDoMural = { ...POST_GERAL, id: 'p2', texto: 'Recado só da turma das 6h.', podId: POD_A.id, podNome: POD_A.nome };
 const pagina = (...content: PostDoMural[]): PaginaDoMural => ({ content, totalElements: content.length });
 
-/** O mural responde pelo `?podId=` como a API: nulo = geral; a fila de denunciadas traz todos os grupos. */
-const muralPorGrupo = (p: PedidoFalso) =>
+/** Só os posts do `?tipo=` pedido, como a API (cada aba do mural pede um tipo por vez, C39). */
+const doTipo = (p: PedidoFalso, pg: PaginaDoMural): PaginaDoMural => {
+  const tipo = p.busca.get('tipo');
+  return tipo ? pagina(...pg.content.filter((x) => x.tipo === tipo)) : pg;
+};
+/** O mural responde pelo `?podId=` como a API: nulo = geral; a fila de denunciadas traz todos os grupos. Os posts são conversas (aba Alunos). */
+const muralPorGrupo = (p: PedidoFalso) => doTipo(p,
   p.busca.get('denunciados') === 'true' ? pagina({ ...POST_DO_GRUPO, denuncias: 1 })
-    : p.busca.get('podId') === POD_A.id ? pagina(POST_DO_GRUPO) : pagina(POST_GERAL);
+    : p.busca.get('podId') === POD_A.id ? pagina(POST_DO_GRUPO) : pagina(POST_GERAL));
 
 const CAPTURAS = process.env.CAPTURAS_DIR;
 async function capturar(page: Page, nome: string) {
@@ -83,7 +88,7 @@ async function abrirMuralDaEquipe(page: Page, rotas: RespostasApi, permissoes = 
     'POST /comunidade/mural': { status: 201, corpo: POST_GERAL },
     ...rotas,
   });
-  await page.goto('/treinador/comunidade?aba=mural');
+  await page.goto('/treinador/comunidade?aba=mural&mural=alunos');
   await expect(page.getByText('Recado para o time todo.')).toBeVisible();
   return api;
 }
@@ -120,7 +125,7 @@ for (const largura of [390, 1280]) {
 
     test('aluno sem grupo: mural Geral sem seletor, e a publicação vai sem podId', async ({ page }) => {
       const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...ALUNO_COMUM, ...configuracaoDoAluno(null) });
-      await page.goto('/aluno/comunidade?mural=grupo');
+      await page.goto('/aluno/comunidade?grupo=meu&mural=alunos');
       await expect(page.getByText('Recado para o time todo.')).toBeVisible();
       await expect(page.getByRole('radiogroup', { name: 'Qual mural' })).toHaveCount(0);
       expect(api.pedidos.some((p) => foi(p, 'GET', '/aluno/comunidade/mural') && p.busca.has('podId'))).toBe(false);
@@ -138,7 +143,7 @@ for (const largura of [390, 1280]) {
 
     test('aluno com grupo: Geral e Meu grupo; o post do grupo vai com o podId e o do Geral sem', async ({ page }) => {
       const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...ALUNO_COMUM, ...configuracaoDoAluno({ id: POD_A.id, nome: POD_A.nome }) });
-      await page.goto('/aluno/comunidade');
+      await page.goto('/aluno/comunidade?mural=alunos');
       const visao = page.getByRole('radiogroup', { name: 'Qual mural' });
       await expect(visao.getByRole('radio', { name: 'Geral' })).toHaveAttribute('aria-checked', 'true');
       await expect(page.getByText('Recado para o time todo.')).toBeVisible();
@@ -155,7 +160,9 @@ for (const largura of [390, 1280]) {
       await expect(folha).toHaveCount(0);
 
       await visao.getByRole('radio', { name: 'Meu grupo' }).click();
-      await expect(page).toHaveURL(/[?&]mural=grupo/);
+      await expect(page).toHaveURL(/[?&]grupo=meu/);
+      // As abas valem dentro de cada mural: trocar o grupo mantém a aba.
+      await expect(page).toHaveURL(/[?&]mural=alunos/);
       await expect(page.getByText(`Grupo ${POD_A.nome}: só quem está nele vê estas publicações.`)).toBeVisible();
       await expect(page.getByText('Recado só da turma das 6h.')).toBeVisible();
       expect(api.pedidos.some((p) => foi(p, 'GET', '/aluno/comunidade/mural') && p.busca.get('podId') === POD_A.id)).toBe(true);
@@ -180,13 +187,13 @@ for (const largura of [390, 1280]) {
         'GET /aluno/comunidade/configuracao': (_p, route) => json(route, { alunosPublicam: true, podeAnexarFoto: false, pod }),
         'GET /aluno/comunidade/mural': (p, route) => {
           if (p.busca.has('podId')) { pod = null; return json(route, erroApi(404, 'Não encontrado.', 'NAO_ENCONTRADO').corpo, 404); }
-          return json(route, pagina(POST_GERAL));
+          return json(route, doTipo(p, pagina(POST_GERAL)));
         },
       });
-      await page.goto('/aluno/comunidade?mural=grupo');
+      await page.goto('/aluno/comunidade?grupo=meu&mural=alunos');
       await expect(page.getByText('Você não está mais nesse grupo. Mostrando o mural Geral.')).toBeVisible();
       await expect(page.getByText('Recado para o time todo.')).toBeVisible();
-      await expect(page).not.toHaveURL(/mural=grupo/);
+      await expect(page).not.toHaveURL(/grupo=meu/);
       await expect(page.getByRole('radiogroup', { name: 'Qual mural' })).toHaveCount(0);
       expect(api.errosDaPagina).toEqual([]);
     });
@@ -439,7 +446,7 @@ for (const largura of [390, 1280]) {
       await tema(page, ALUNO.id, id);
       await tema(page, TREINADOR.id, id);
       await simularApi(page, { ...(await sessaoDeAluno(page)), ...ALUNO_COMUM, ...configuracaoDoAluno({ id: POD_A.id, nome: POD_A.nome }) });
-      await page.goto('/aluno/comunidade?mural=grupo');
+      await page.goto('/aluno/comunidade?grupo=meu&mural=alunos');
       await expect(page.getByText('Recado só da turma das 6h.')).toBeVisible();
       await capturar(page, `aluno-meu-grupo-${nome}-${largura}`);
 

@@ -7,7 +7,7 @@ import {
   alternarFixadoDoPost, baixarCapaDaEquipe, baixarFotoDoMuralDaEquipe, baixarFotoDoVotanteDaEquipe, dispensarDenuncias, excluirAula,
   listarAulasDaEquipe, listarMuralDaEquipe, listarPods, reagirComoEquipe, removerApelidoDoAutor, removerPostDoMural, votarComoEquipe,
 } from '../../api/comunidade';
-import type { AlvoDosComentarios, AulaDaComunidade, PostDoMural } from '../../api/comunidadeTipos';
+import type { AlvoDosComentarios, AulaDaComunidade, FiltrosDoMural, PostDoMural, TipoDePost } from '../../api/comunidadeTipos';
 import { ErroApi } from '../../api/cliente';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
 import { CapaDoVideo } from '../../comunidade/CapaDoVideo';
@@ -19,8 +19,11 @@ import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
 import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
   categoriasDosAuloes, type FiltroDeCategoria, filtrarAuloesPorCategoria, filtroDeCategoriaValido, type FiltroDoMural, filtrosParaApi, chipsDoMural, chipDaCategoria, MURAL_SEM_FILTRO,
-  opcoesDoFiltroDeCategoria, type RascunhoDoPost, rotuloDoPost, textoDoMuralVazio, TIPO_PADRAO_DO_POST,
+  opcoesDoFiltroDeCategoria, type RascunhoDoPost, rotuloDoPost, TIPO_PADRAO_DO_POST,
 } from '../../dominio/comunidade';
+import {
+  type AbaDoMural, ABAS_DO_MURAL, abaDoParametro, abaDoTipo, carregarMuralDaAba, filtroNaAba, rascunhoAoAbrir, textoDoVazioDaAba, tiposParaBuscar,
+} from '../../dominio/muralEmAbas';
 import { FolhaConfiguracoesDoMural } from '../../treinador/comunidade/FolhaConfiguracoesDoMural';
 import { FolhaDoAulao } from '../../treinador/comunidade/FolhaDoAulao';
 import { FolhaGruposDaComunidade } from '../../treinador/comunidade/FolhaGruposDaComunidade';
@@ -83,9 +86,12 @@ export default function ComunidadeTreinador() {
   // Reagir é de quem modera; votar, de quem abre a tela (TREINO_LER), como a API.
   const podeVotar = pode('TREINO_LER');
   // A aba mora no endereço (`?aba=`). `setParams` e não `push`: o push remonta a tela e perderia o rascunho do mural.
-  const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
+  const { aba: abaPedida, mural: abaDoMuralPedida } = useLocalSearchParams<{ aba?: string; mural?: string }>();
   const aba: AbaComunidade = abaPedida === 'mural' ? 'mural' : 'auloes';
   const setAba = (valor: AbaComunidade) => { if (valor !== aba) router.setParams({ aba: valor }); };
+  // Avisos ou Alunos (C39) também no endereço (`?mural=`); valor desconhecido = Avisos.
+  const abaDoMural = abaDoParametro(abaDoMuralPedida);
+  const setAbaDoMural = (valor: AbaDoMural) => { if (valor !== abaDoMural) router.setParams({ mural: valor }); };
 
   const auloes = useCarregar('treinador-auloes', () => listarAulasDaEquipe());
   const [folhaNovaAula, setFolhaNovaAula] = useState(false);
@@ -102,7 +108,9 @@ export default function ComunidadeTreinador() {
   const filtroDeCategoria = filtroDeCategoriaValido(filtroPedido, todasAsAulas);
   const aulasVisiveis = filtrarAuloesPorCategoria(todasAsAulas, filtroDeCategoria);
 
-  const [filtro, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
+  const [filtroPedidoDoMural, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
+  // O tipo de outra aba não vale aqui (o chip some e volta com a aba dele), sem estado a corrigir.
+  const filtro = filtroNaAba(filtroPedidoDoMural, abaDoMural);
   const [busca, setBusca] = useState('');
   const buscaAtrasada = useAtrasado(busca);
   // Grupos (pods): só com COMUNIDADE_MODERAR (a API recusa o resto). O mural mostra um de cada vez, Geral (`null`) ou um
@@ -111,8 +119,12 @@ export default function ComunidadeTreinador() {
   const [grupoDoMural, setGrupoDoMural] = useState<string | null>(null);
   const podDoMural = filtro.denunciados ? null : pods.dados?.find((p) => p.id === grupoDoMural) ?? null;
   const [vendoGrupos, setVendoGrupos] = useState(false);
-  const chaveDoMural = `${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada, podDoMural?.id))}`;
-  const mural = useCarregar(chaveDoMural, (c) => listarMuralDaEquipe(JSON.parse(c.slice(PREFIXO_DO_MURAL.length))));
+  // A chave leva os tipos que a aba pede: trocar de aba ou de chip busca de novo, e a resposta de outra aba não entra.
+  const chaveDoMural = `${PREFIXO_DO_MURAL}${JSON.stringify({ tipos: tiposParaBuscar(filtro, abaDoMural), filtros: filtrosParaApi(filtro, buscaAtrasada, podDoMural?.id) })}`;
+  const mural = useCarregar(chaveDoMural, (c) => {
+    const pedido: { tipos: TipoDePost[]; filtros: FiltrosDoMural } = JSON.parse(c.slice(PREFIXO_DO_MURAL.length));
+    return carregarMuralDaAba(listarMuralDaEquipe, pedido.filtros, pedido.tipos);
+  });
   const acoesDoPost = useAcoesDoPost({ mural, chave: chaveDoMural, reagir: podePublicar ? reagirComoEquipe : undefined,
     votar: podeVotar ? votarComoEquipe : undefined });
   const [votosDe, setVotosDe] = useState<AlvoDosVotos>(null);
@@ -174,12 +186,18 @@ export default function ComunidadeTreinador() {
     }
   };
 
+  // A folha abre com o tipo da aba (Aviso em Avisos, Conversa em Alunos) enquanto nada foi digitado.
+  const comporNovaPublicacao = () => { setRascunho((r) => rascunhoAoAbrir(r, abaDoMural, 'equipe')); setCompondo(true); };
+
   const publicado = (podId: string | null) => {
+    // O post vai para a aba do tipo dele: a tela segue para lá, senão ele "some" logo depois do aviso.
+    const abaDoPost = abaDoTipo(rascunho.tipo);
     setRascunho(RASCUNHO_VAZIO);
     setCompondo(false);
     const grupo = podId ? pods.dados?.find((p) => p.id === podId) : null;
     avisar(grupo ? `Publicado no grupo ${grupo.nome}.` : pods.dados?.length ? 'Publicado no mural Geral.' : 'Publicado no mural.', 'sucesso');
-    mural.recarregar();
+    if (abaDoPost !== abaDoMural) setAbaDoMural(abaDoPost);
+    else mural.recarregar();
   };
 
   // Fixar, desafixar e dispensar: o aviso confirma e o mural vem de novo (404 = o post já saiu, e some ao recarregar).
@@ -217,7 +235,7 @@ export default function ComunidadeTreinador() {
   ) : (
     <>
       <Botao rotulo="Configurações do mural" tipo="secundario" Icone={Settings} aoTocar={() => setConfigurando(true)} />
-      <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={() => setCompondo(true)} />
+      <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={comporNovaPublicacao} />
     </>
   );
 
@@ -309,14 +327,20 @@ export default function ComunidadeTreinador() {
               <Botao rotulo="Grupos" tipo="secundario" Icone={Users} aoTocar={() => setVendoGrupos(true)} />
             </View>
           ) : null}
-          <BarraDoMural filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={podePublicar} />
+          {/* Avisos | Alunos (C39): o segmento na largura da coluna lê como a divisão do conteúdo, abaixo do grupo (o escopo). */}
+          <View style={estilos.abasDoMural}>
+            <Escolha<AbaDoMural> descricao="Publicações" distribuida valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
+          </View>
+          <BarraDoMural aba={abaDoMural} filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={podePublicar} />
 
           <View testID="coluna-das-publicacoes" style={estilos.colunaDasPublicacoes}>
             <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
-              textoVazio={podDoMural && !filtro.tipo && !busca.trim() ? `Nenhuma publicação no grupo ${podDoMural.nome} ainda.` : textoDoMuralVazio(filtro, busca)}
+              textoVazio={textoDoVazioDaAba(abaDoMural, filtro, busca, podDoMural?.nome)}
               recarregar={mural.recarregar}
               acaoVazio={chipsDoMural(filtro).length ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) }
-                : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : undefined} />
+                : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }
+                // Avisos vazio (a aba padrão) não é beco: o próximo passo é a outra aba.
+                : abaDoMural === 'avisos' ? { rotulo: 'Ver publicações dos alunos', aoTocar: () => setAbaDoMural('alunos') } : undefined} />
 
             {posts ? fixadosPrimeiro(posts).map((post) => (
               <CartaoDoPost
@@ -365,7 +389,7 @@ export default function ComunidadeTreinador() {
       <FolhaGruposDaComunidade visivel={vendoGrupos && podePublicar} grupos={pods} aoFechar={() => setVendoGrupos(false)} />
 
       <FolhaNovaPublicacao visivel={compondo && podePublicar} papel="equipe" rascunho={rascunho} aoMudar={setRascunho}
-        comFotos={false} grupos={podePublicar ? pods.dados : undefined} aoFechar={() => setCompondo(false)} aoPublicar={publicado} />
+        comFotos grupos={podePublicar ? pods.dados : undefined} aoFechar={() => setCompondo(false)} aoPublicar={publicado} />
 
       <PainelConfirmacao
         visivel={!!removerApelidoDe}
@@ -420,6 +444,7 @@ const estilos = StyleSheet.create({
   grupos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5),
     width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES },
   encolher: { flexShrink: 1, minWidth: 0 },
+  abasDoMural: { width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES },
   colunaDasPublicacoes: { width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES, gap: espaco(3) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   acoesDoAulao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexShrink: 1, maxWidth: '100%' },
