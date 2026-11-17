@@ -233,8 +233,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByRole('button', { name: 'Abrir compromisso de Bruno Exemplo e Carla Teste, das 10h às 11h', exact: true })).toBeVisible();
 
       expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([
-        { alunoIds: [BRUNO.id, CARLA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '09:30', duracaoMinutos: 60, local: null, observacao: null },
-        { alunoIds: [BRUNO.id, CARLA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '10:00', duracaoMinutos: 60, local: null, observacao: null },
+        { alunoIds: [BRUNO.id, CARLA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '09:30', duracaoMinutos: 60, local: null, observacao: null, lembretesMinutos: [30] },
+        { alunoIds: [BRUNO.id, CARLA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '10:00', duracaoMinutos: 60, local: null, observacao: null, lembretesMinutos: [30] },
       ]);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
@@ -278,7 +278,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await marcar.click();
       await expect(folha).toBeHidden();
       expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([
-        { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-20', hora: '09:30', duracaoMinutos: 60, local: null, observacao: null },
+        { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-20', hora: '09:30', duracaoMinutos: 60, local: null, observacao: null, lembretesMinutos: [30] },
       ]);
       expect(errosDaPagina).toEqual([]);
     });
@@ -354,8 +354,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
       const repeticao = { tipo: 'SEMANAL', diasDaSemana: ['MONDAY', 'WEDNESDAY'], vezes: 6 };
       expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([
-        { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '08:00', duracaoMinutos: 60, local: null, observacao: null, repeticao },
-        { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '07:00', duracaoMinutos: 60, local: null, observacao: null, repeticao },
+        { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '08:00', duracaoMinutos: 60, local: null, observacao: null, lembretesMinutos: [30], repeticao },
+        { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '07:00', duracaoMinutos: 60, local: null, observacao: null, lembretesMinutos: [30], repeticao },
       ]);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
@@ -409,7 +409,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(folha).toBeHidden();
 
       expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([{
-        alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '09:10', duracaoMinutos: 20, local: null, observacao: null,
+        alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '09:10', duracaoMinutos: 20, local: null, observacao: null, lembretesMinutos: [30],
         repeticao: { tipo: 'SEMANAL', diasDaSemana: ['MONDAY'], vezes: 4 },
       }]);
       expect(naoTratadas).toEqual([]);

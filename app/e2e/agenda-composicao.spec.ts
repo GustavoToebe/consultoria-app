@@ -40,7 +40,7 @@ function compromisso(id: string, alunos: AlunoResumo[], data: string, hora: stri
     participantes: alunos.map((a) => ({ id: a.id, nome: a.nome, situacao: 'AGENDADO' })), cancelado: false,
     serieId: null, ocorrenciaDaSerie: null, totalDaSerie: null,
     inicio: inicio.toISOString(), fim: fim.toISOString(), data, hora, horaFim: horaDe(fim), duracaoMinutos: 60, local: 'Sala 2',
-    observacao: 'Observação fictícia', versao: 0, ...extra,
+    observacao: 'Observação fictícia', versao: 0, lembretesMinutos: [30], ...extra,
   };
 }
 
@@ -204,7 +204,7 @@ test.describe('F12: formulário do compromisso novo', () => {
       await marcar.click();
       await expect(folha).toBeHidden();
       expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([
-        { alunoIds: [NOME_LONGO.id], responsavelId: TREINADOR.id, data: HOJE, hora: '09:30', duracaoMinutos: 60, local: null, observacao: null },
+        { alunoIds: [NOME_LONGO.id], responsavelId: TREINADOR.id, data: HOJE, hora: '09:30', duracaoMinutos: 60, local: null, observacao: null, lembretesMinutos: [30] },
       ]);
       expect(errosDaPagina).toEqual([]);
     });
@@ -219,6 +219,150 @@ test.describe('F12: formulário do compromisso novo', () => {
     await folha.getByRole('button', { name: 'Cancelar', exact: true }).click();
     await expect(folha).toBeHidden();
     expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([]);
+  });
+});
+
+/**
+ * Notificações do compromisso (passo E de `docs/planos/lembretes-do-compromisso.md`): número + unidade + X, até 5, padrão
+ * 30 minutos, erro por linha (na tela e no 422 `lembretesMinutos[i]`, sem repetir o valor) e a lista sempre no corpo.
+ */
+test.describe('Notificações do compromisso', () => {
+  const notificacao = (folha: Locator, n: number) => folha.getByRole('group', { name: `Notificação ${n}`, exact: true });
+  const quantidade = (folha: Locator, n: number) => notificacao(folha, n).getByRole('textbox', { name: `Notificação ${n}: quantidade` });
+
+  async function novoCompleto(page: Page) {
+    await page.getByRole('button', { name: 'Criar', exact: true }).click();
+    await page.getByRole('menuitem', { name: /^Compromisso com aluno/ }).click();
+    const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+    await folha.getByRole('button', { name: /^Aluno: Adicionar/ }).click();
+    const busca = page.getByRole('dialog', { name: 'Adicionar aluno' });
+    await busca.getByRole('radio', { name: ANA.nome }).click();
+    await expect(busca).toBeHidden();
+    await escolherNaLista(page, folha, 'Início', '09:30', 'Início (Brasília)');
+    // No painel rápido não há notificações (como no Google); ficam em "Mais opções".
+    await expect(notificacao(folha, 1)).toHaveCount(0);
+    await folha.getByRole('button', { name: 'Mais opções', exact: true }).click();
+    return folha;
+  }
+
+  for (const [largura, altura] of [[1280, 720], [390, 844]] as const) {
+    test(`${largura} px: padrão de 30 min, adicionar até 5, erro na tela e no 422, e a lista no corpo`, async ({ page }) => {
+      await page.setViewportSize({ width: largura, height: altura });
+      const lista: Compromisso[] = [];
+      let tentativas = 0;
+      const { pedidos, errosDaPagina } = await abrir(page, {
+        compromissos: lista,
+        extra: {
+          'POST /agenda/compromissos': (p, route) => {
+            tentativas += 1;
+            if (tentativas === 1) {
+              return json(route, { status: 422, message: 'Confira o compromisso.', codigo: 'COMPROMISSO_INVALIDO',
+                fieldErrors: [{ field: 'lembretesMinutos[1]', message: 'Use de 1 minuto a 28 dias.' }] }, 422);
+            }
+            const corpo = p.corpo as { data: string; hora: string };
+            const novo = compromisso(`n${lista.length}`, [ANA], corpo.data, corpo.hora);
+            lista.push(novo);
+            return json(route, novo);
+          },
+        },
+      });
+      const folha = await novoCompleto(page);
+
+      // Padrão: uma de 30 minutos.
+      await expect(folha.getByText('Notificações · 1 de 5', { exact: true })).toBeVisible();
+      await expect(quantidade(folha, 1)).toHaveValue('30');
+      await expect(notificacao(folha, 1).getByRole('button', { name: 'Unidade: minutos. Escolher.', exact: true })).toBeVisible();
+
+      // Adicionar vem com a próxima sugestão livre (10 minutos).
+      const adicionar = folha.getByRole('button', { name: 'Adicionar notificação', exact: true });
+      await adicionar.click();
+      await expect(quantidade(folha, 2)).toHaveValue('10');
+
+      // 29 dias passa de 28 dias: erro na linha, sem repetir o valor, e nada é enviado.
+      await quantidade(folha, 2).fill('29');
+      await escolherNaLista(page, notificacao(folha, 2), 'Unidade', 'dias', 'Unidade da notificação 2');
+      const marcar = folha.getByRole('button', { name: 'Marcar compromisso', exact: true });
+      await marcar.click();
+      await expect(notificacao(folha, 2).getByText('De 1 minuto a 28 dias antes.', { exact: true })).toBeVisible();
+      await expect(folha.getByText('Confira os campos destacados.')).toBeVisible();
+      expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([]);
+      await page.screenshot({ path: captura(`notificacoes-erro-${largura}.png`) });
+
+      // 28 dias vale; a linha repetida também é pega na tela.
+      await quantidade(folha, 2).fill('28');
+      await adicionar.click();
+      await expect(quantidade(folha, 3)).toHaveValue('10');
+      await quantidade(folha, 3).fill('30');
+      await marcar.click();
+      await expect(notificacao(folha, 3).getByText('Igual a outra notificação. Mude ou remova esta.', { exact: true })).toBeVisible();
+      await notificacao(folha, 3).getByRole('button', { name: 'Remover a notificação 3', exact: true }).click();
+      await expect(notificacao(folha, 3)).toHaveCount(0);
+
+      // O 422 da API vai para a linha que ele aponta (lembretesMinutos[1] = a segunda), uma vez só.
+      await marcar.click();
+      await expect(notificacao(folha, 2).getByText('Use de 1 minuto a 28 dias.', { exact: true })).toBeVisible();
+      await expect(folha.getByText('Use de 1 minuto a 28 dias.')).toHaveCount(1);
+      expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([
+        { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: HOJE, hora: '09:30', duracaoMinutos: 60, local: null, observacao: null, lembretesMinutos: [30, 40320] },
+      ]);
+
+      // Até 5: com cinco, "Adicionar notificação" fica desabilitado com o motivo.
+      for (let i = 0; i < 3; i += 1) await adicionar.click();
+      await expect(notificacao(folha, 5)).toBeVisible();
+      await expect(adicionar).toBeDisabled();
+      await expect(folha.getByText('Máximo de 5 notificações.', { exact: true })).toBeVisible();
+      await semRolagemHorizontal(page);
+      // Número, unidade e X na mesma linha, dentro da folha.
+      const caixa = (await folha.boundingBox())!;
+      const remover = (await notificacao(folha, 5).getByRole('button', { name: 'Remover a notificação 5' }).boundingBox())!;
+      expect(remover.x + remover.width).toBeLessThanOrEqual(caixa.x + caixa.width);
+      expect(Math.abs(remover.y - (await quantidade(folha, 5).boundingBox())!.y)).toBeLessThanOrEqual(2);
+      await page.screenshot({ path: captura(`notificacoes-cinco-${largura}.png`) });
+
+      await marcar.click();
+      await expect(folha).toBeHidden();
+      expect(corposDe(pedidos, 'POST', '/agenda/compromissos')[1]).toMatchObject({ lembretesMinutos: [30, 40320, 10, 60, 120] });
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
+
+  test('remover todas manda a lista vazia (sem lembrete)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    const lista: Compromisso[] = [];
+    const { pedidos } = await abrir(page, { compromissos: lista, extra: criarNaLista(lista) });
+    const folha = await novoCompleto(page);
+    await notificacao(folha, 1).getByRole('button', { name: 'Remover a notificação 1', exact: true }).click();
+    await expect(folha.getByText('Sem notificação: ninguém recebe lembrete deste compromisso.', { exact: true })).toBeVisible();
+    // O X some com a linha: o foco vai para "Adicionar notificação", não para a página.
+    await expect(folha.getByRole('button', { name: 'Adicionar notificação', exact: true })).toBeFocused();
+    await expect(folha.getByText('Notificações · 0 de 5', { exact: true })).toBeVisible();
+    await page.screenshot({ path: captura('notificacoes-vazia-1280.png') });
+    await folha.getByRole('button', { name: 'Marcar compromisso', exact: true }).click();
+    await expect(folha).toBeHidden();
+    expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([
+      { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: HOJE, hora: '09:30', duracaoMinutos: 60, local: null, observacao: null, lembretesMinutos: [] },
+    ]);
+  });
+
+  test('editar carrega as do compromisso na maior unidade exata e o PUT manda a lista da tela', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const lista = [compromisso('k1', [ANA], HOJE, '09:00', { lembretesMinutos: [1440, 120, 90] })];
+    const { pedidos } = await abrir(page, {
+      compromissos: lista,
+      extra: { 'PUT /agenda/compromissos/{id}': (_p, route) => json(route, { ...lista[0], versao: 1 }) },
+    });
+    await page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, das 9h às 10h', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Resumo do compromisso' }).getByRole('button', { name: 'Editar', exact: true }).click();
+    const folha = page.getByRole('dialog', { name: 'Editar compromisso' });
+    await expect(quantidade(folha, 1)).toHaveValue('1');
+    await expect(notificacao(folha, 1).getByRole('button', { name: 'Unidade: dia. Escolher.', exact: true })).toBeVisible();
+    await expect(quantidade(folha, 2)).toHaveValue('2');
+    await expect(notificacao(folha, 2).getByRole('button', { name: 'Unidade: horas. Escolher.', exact: true })).toBeVisible();
+    await expect(quantidade(folha, 3)).toHaveValue('90');
+    await notificacao(folha, 1).getByRole('button', { name: 'Remover a notificação 1', exact: true }).click();
+    await folha.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+    await expect(folha).toBeHidden();
+    expect(pedidos.filter((p) => p.metodo === 'PUT').map((p) => p.corpo)).toEqual([expect.objectContaining({ lembretesMinutos: [120, 90], versao: 0 })]);
   });
 });
 

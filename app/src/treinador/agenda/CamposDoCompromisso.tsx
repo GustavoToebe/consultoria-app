@@ -6,10 +6,11 @@ import type { DiaDaSemana } from '../../api/agendaTipos';
 import type { ResponsavelEquipe } from '../../api/equipeTipos';
 import { listarAlunos } from '../../api/rotas';
 import {
-  ALUNOS_MAXIMO, alternarDiaDaRepeticao, type ErrosDaRepeticao, type ErrosDoCompromisso, type FormularioDaRepeticao,
+  ALUNOS_MAXIMO, alternarDiaDaRepeticao, type ErrosDaRepeticao, type ErrosDoCompromisso, type ErrosDosLembretes, type FormularioDaRepeticao,
   AJUDA_DIAS_UTEIS, type FormularioDoCompromisso, LIMITES_COMPROMISSO, OCORRENCIAS_MAXIMO, OCORRENCIAS_MINIMO, OPCOES_DE_DIA_DA_SEMANA,
   repeticaoDoFormulario, textoDaPrevisao, trocarTipoDaRepeticao,
 } from '../../dominio/agendaPresencial';
+import type { LinhaDeLembrete } from '../../dominio/antecedenciaDoLembrete';
 import { dataDaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
@@ -28,6 +29,7 @@ import { sobre } from '../../ui/sobre';
 import { coresDaSelecao } from '../../ui/selecao';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
+import { ListaDeNotificacoes } from './ListaDeNotificacoes';
 import { CamposDoHorario, LinhaComIcone, SeletorDaRepeticao, TituloDaParte } from './PecasDoFormulario';
 
 /** Alunos por página de `GET /alunos` (igual à API). */
@@ -39,6 +41,10 @@ interface Props {
   errosDaRepeticao: ErrosDaRepeticao;
   mudar: <K extends keyof FormularioDoCompromisso>(campo: K, valor: FormularioDoCompromisso[K]) => void;
   mudarRepeticao: (r: FormularioDaRepeticao) => void;
+  /** Erro de cada notificação, pelo `id` da linha. */
+  errosDosLembretes: ErrosDosLembretes;
+  /** Muda a lista de notificações (e limpa os erros dela). */
+  mudarLembretes: (lembretes: LinhaDeLembrete[]) => void;
   /** Nome de cada aluno escolhido (a lista da busca muda; o nome fica guardado aqui). */
   nomes: Readonly<Record<string, string>>;
   aoAdicionarAluno: (id: string, nome: string) => void;
@@ -63,7 +69,7 @@ interface Props {
 /**
  * Campos do compromisso com aluno, em dois jeitos (D4): o painel rápido do Google Agenda (linhas com o ícone à esquerda:
  * alunos, data e horário com a repetição, responsável, local, observação) e o formulário completo nas partes "Quem",
- * "Quando" e "Detalhes" (F12, a mesma ordem), com os dias da semana do semanal. Rótulos sempre à vista. O horário é início–fim (D5) e a repetição, a lista com os rótulos do Google
+ * "Quando" e "Detalhes" (F12, a mesma ordem; as notificações só aqui, no fim de "Detalhes"), com os dias da semana do semanal. Rótulos sempre à vista. O horário é início–fim (D5) e a repetição, a lista com os rótulos do Google
  * (D6). Os botões ficam no rodapé da folha, fora da rolagem, para o teclado do celular não cobri-los. Toda regra vem de
  * `dominio/agendaPresencial`.
  */
@@ -111,6 +117,9 @@ export function CamposDoCompromisso(p: Props) {
   const observacao = p.comObservacao ? <Campo rotulo="Observação (opcional)" valor={form.observacao}
     aoMudar={(t) => mudar('observacao', t)} erro={erros.observacao} linhas={3} maxLength={LIMITES_COMPROMISSO.observacao}
     ajuda="Só a equipe vê. Os alunos não veem a observação." /> : null;
+  // Só no completo, em Detalhes (como no Google, as notificações ficam fora do painel rápido; o rodapé dele diz se mudaram).
+  const notificacoes = <ListaDeNotificacoes lembretes={form.lembretes} erros={p.errosDosLembretes} erroDaLista={erros.lembretes}
+    aoMudar={p.mudarLembretes} />;
 
   // F12: na ordem de quem marca, quem, quando (data e horário, repetição e os avisos de horário) e os detalhes.
   if (!completo) {
@@ -144,6 +153,7 @@ export function CamposDoCompromisso(p: Props) {
           {responsavel}
           {local}
           {observacao}
+          {notificacoes}
         </View>
       </Grade>
     </View>

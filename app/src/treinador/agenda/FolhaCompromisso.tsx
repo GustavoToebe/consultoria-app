@@ -7,17 +7,18 @@ import {
   alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, criarCompromisso, listarAlunosOcupados,
 } from '../../api/rotas';
 import {
-  type AcaoDeSituacao, acaoDeCancelamento, adicionarParticipante, conflitoNaLista, type ErrosDaRepeticao, type ErrosDoCompromisso,
+  type AcaoDeSituacao, acaoDeCancelamento, adicionarParticipante, conflitoNaLista, type ErrosDaRepeticao, type ErrosDoCompromisso, type ErrosDosLembretes,
   escoposPermitidos, explicacaoDoEscopo, filtroDeAlunosOcupados, type FormularioDaRepeticao, type FormularioDoCompromisso,
   formularioDoCompromisso, formularioNovo, intervaloDoPedido, linhaDoCompletoDoCompromisso, mudouAData, pedidoDoFormulario, removerParticipante, ROTULOS_DO_ESCOPO,
   textoDaOcorrencia, textoDeAlunosOcupados, textoDoCancelamentoDoAluno, textoDoCancelamentoInteiro, textoDoErroDaAgenda,
 } from '../../dominio/agendaPresencial';
+import { errosDosLembretesDaApi, type LinhaDeLembrete } from '../../dominio/antecedenciaDoLembrete';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Escolha } from '../../ui/Escolha';
 import { Alerta, MensagemErro } from '../../ui/Estados';
-import { textoDoErro } from '../../ui/erros';
+import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
@@ -82,6 +83,7 @@ function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, re
   const [nomes, setNomes] = useState<Record<string, string>>(nomesIniciais);
   const [erros, setErros] = useState<ErrosDoCompromisso>({});
   const [errosDaRepeticao, setErrosDaRepeticao] = useState<ErrosDaRepeticao>({});
+  const [errosDosLembretes, setErrosDosLembretes] = useState<ErrosDosLembretes>({});
   const [conferir, setConferir] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const [salvando, setSalvando] = useState(false);
@@ -105,11 +107,16 @@ function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, re
     setErros((e) => ({ ...e, repeticao: undefined }));
     limparMensagens();
   };
+  const mudarLembretes = (lembretes: LinhaDeLembrete[]) => {
+    mudar('lembretes', lembretes);
+    setErrosDosLembretes({});
+  };
   const editar = () => {
     setForm(formInicial());
     setNomes(nomesIniciais());
     setErros({});
     setErrosDaRepeticao({});
+    setErrosDosLembretes({});
     limparMensagens();
     setModo('formulario');
   };
@@ -143,7 +150,19 @@ function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, re
     } catch (e) {
       // 409 HORARIO_OCUPADO (com as datas), ALUNO_INATIVO, CONFLITO_EDICAO...: o formulário fica como está.
       setPergunta(null);
-      setErro(e);
+      // 422 nos lembretes (`lembretesMinutos[i]` = a linha i enviada, a ordem da tela): a mensagem vai ao campo, uma vez (D2),
+      // e o formulário completo abre para ela estar à vista.
+      const campos = errosPorCampo(e);
+      const daApi = errosDosLembretesDaApi(campos, form.lembretes);
+      const nosLembretes = Object.keys(daApi.porLinha).length > 0 || !!daApi.lista;
+      if (nosLembretes) {
+        setErrosDosLembretes(daApi.porLinha);
+        setErros((x) => ({ ...x, lembretes: daApi.lista }));
+        setCompleto(true);
+        setConferir(true);
+      }
+      // Outro motivo (ou outro campo junto) continua no rodapé, com a mensagem da API.
+      if (!nosLembretes || Object.keys(campos).some((k) => !k.startsWith('lembretesMinutos'))) setErro(e);
     } finally {
       setSalvando(false);
     }
@@ -152,7 +171,10 @@ function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, re
     const r = pedidoDoFormulario(form, comObservacao, c ? c.versao : undefined);
     setErros(r.erros);
     setErrosDaRepeticao(r.errosDaRepeticao);
+    setErrosDosLembretes(r.errosDosLembretes);
     setErro(null);
+    // As notificações só aparecem no completo: com erro nelas, ele abre para o erro não ficar escondido.
+    if (r.erros.lembretes || Object.keys(r.errosDosLembretes).length) setCompleto(true);
     if (!r.pedido) { setConferir(true); return; }
     setConferir(false);
     const escopos = c ? escoposPermitidos(c, { mudouData: mudouAData(form, c) }) : ['ESTA' as const];
@@ -240,6 +262,7 @@ function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, re
       largura={modo === 'formulario' && completo ? LARGURA_EDITOR : undefined}>
       {modo === 'formulario' ? (
         <CamposDoCompromisso form={form} erros={erros} errosDaRepeticao={errosDaRepeticao} mudar={mudar} mudarRepeticao={mudarRepeticao}
+          errosDosLembretes={errosDosLembretes} mudarLembretes={mudarLembretes}
           nomes={nomes} responsaveis={responsaveis} nomeDoResponsavel={c?.responsavelNome ?? null} comObservacao={comObservacao}
           comRepeticao={!c} hoje={hoje} avisos={avisos} sobreASerie={sobreASerie} completo={completo} aoMaisOpcoes={() => setCompleto(true)}
           aoAdicionarAluno={(id, nome) => { setNomes((n) => ({ ...n, [id]: nome })); mudar('alunoIds', adicionarParticipante(form.alunoIds, id)); }}
