@@ -4,6 +4,7 @@ import {
   CHAVES_DA_AGENDA,
   CHAVES_DE_IDENTIFICACAO,
   CLARO,
+  CODIGOS_DA_COR_DE_ACAO,
   ESCURO,
   PALETA_DA_AGENDA,
   PALETA_SO_DO_PERFIL,
@@ -11,6 +12,7 @@ import {
   corDoTomDoPerfil,
   PALETA_DE_IDENTIFICACAO,
   contraste,
+  coresDaAcao,
   corDaAgenda,
   coresDeDestaque,
   coresDeIdentificacao,
@@ -68,6 +70,18 @@ it.each(TODAS)('%s: cor de ação legível no botão de ação, no cartão e com
   expect(contraste(cores.acao, cores.acaoSuave)).toBeGreaterThanOrEqual(4.5);
   expect(contraste(cores.acao, cores.superficie)).toBeGreaterThanOrEqual(4.5);
   expect(contraste(cores.sobreAcao, cores.acao)).toBeGreaterThanOrEqual(4.5);
+});
+
+// visual-ponytail (17/11): qualquer cor de ação escolhida em Ajustes (e a marca de uma cor ruim, como o amarelo) fecha 4,5:1 em todas as paletas.
+describe.each(TODAS)('cor de ação trocável (%s)', (_codigo, cores, _escuro, variante) => {
+  it.each(CODIGOS_DA_COR_DE_ACAO)('%s', (opcao) => {
+    for (const marca of ['#386CB8', '#FFFF00', '#1F2937']) {
+      const { acao, sobreAcao, acaoSuave } = coresDaAcao(opcao, cores, variante, marca);
+      expect(contraste(acao, cores.superficie)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(acao, acaoSuave)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(sobreAcao, acao)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
 });
 
 it.each(TODAS)('%s: preserva contraste AA nos detalhes de todas as superfícies', (_codigo, cores) => {
