@@ -212,7 +212,7 @@ class DietaVariacoesIntegrationTest extends AbstractIntegrationTest {
         String novoA = rotulo("Carbo medio");
         JsonNode plano = api.post("/alunos/" + aluno + "/planos-dieta", login, Map.of("titulo", "Dieta"), 200);
         String id = plano.get("plano").get("id").asString();
-        JsonNode salvo = salvar(api, login, id, duasVariacoes(a, b, null, true), plano);
+        salvar(api, login, id, duasVariacoes(a, b, null, true), plano);
 
         // Sem ERGOGENICO_LER a leitura traz as variações e esconde só a medicação (rascunho e versão publicada).
         trocarPerfil(login, "Nutricionista");
