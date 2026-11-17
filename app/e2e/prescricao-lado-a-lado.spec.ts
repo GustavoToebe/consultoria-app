@@ -56,8 +56,8 @@ for (const largura of [1280, 1440, 1920]) {
     await nova.scrollIntoViewIfNeeded();
     await expect(nova).toBeInViewport({ ratio: 1 });
     const caixaNova = (await nova.boundingBox())!;
-    // "Receita de séries" marca a borda direita da coluna das séries.
-    const receita = (await page.getByRole('button', { name: 'Usar uma receita de séries', exact: true }).boundingBox())!;
+    // "Usar receita" marca a borda direita da coluna das séries.
+    const receita = (await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).boundingBox())!;
     expect(caixaNova.x + caixaNova.width).toBeLessThanOrEqual(receita.x + receita.width + 1);
   });
 }

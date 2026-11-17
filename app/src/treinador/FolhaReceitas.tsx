@@ -1,9 +1,10 @@
-import { Replace } from 'lucide-react-native';
+import { ListPlus, Replace } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { listarPastasModelos, listarReceitas } from '../api/rotas';
 import type { Configuracao, Receita, TipoReceita } from '../api/tipos';
+import { motivoParaAcrescentar, seriesDaReceita, type ModoDaReceita } from '../dominio/editorTreino';
 import { composicaoDaReceita, filtrarReceitasDeSeries, agruparReceitasDeSeries, pecasDaReceita, type PecaDaReceita } from '../dominio/receitasDeSeries';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
@@ -26,15 +27,17 @@ import { metadadosDoModelo } from './planejamento/modelos';
  * Receitas de séries (reunião de 30/10; Frente G, D16, C16): busca no topo (nome, descrição e composição, "back off"),
  * seções recolhíveis por bloco e técnica (receitas completas, Aquecimento, Preparação, Trabalho, Pós-trabalho, uma por
  * técnica; `agruparReceitasDeSeries`), cada receita uma vez, com a sequência que vai entrar ("3x3 - FS 50% · 70% · 85% da
- * WS") e o selo do tipo na cor dele, antes de aplicar, e o aviso fixo de que substitui as séries do exercício. A coleção
- * aparece embaixo da receita (sem as coleções, por erro ou permissão, a linha some). Semana e dia de treino dizem quando
- * o modelo é só a estrutura, sem exercícios.
+ * WS") e o selo do tipo na cor dele, antes de aplicar. Exercício sem séries: "Aplicar receita"; com séries (C81, D4):
+ * "Substituir as séries" ou "Acrescentar ao fim" (desabilitado com o motivo acima do limite). A coleção aparece embaixo
+ * da receita (sem as coleções, por erro ou permissão, a linha some). Semana e dia de treino dizem quando o modelo é só a
+ * estrutura, sem exercícios.
  */
 export function FolhaReceitas({
   tipo,
   titulo,
   explicacao,
   config,
+  seriesAtuais = 0,
   aoUsar,
   aoFechar,
 }: {
@@ -43,7 +46,10 @@ export function FolhaReceitas({
   explicacao?: string;
   /** Metodologia do plano: dá os nomes dos tipos na sequência das receitas de séries. */
   config?: Configuracao | null;
-  aoUsar: (r: Receita) => void;
+  /** Quantas séries o exercício já tem (só receita de séries): com alguma, cada receita oferece substituir ou acrescentar. */
+  seriesAtuais?: number;
+  /** `modo` só vem na receita de séries; os outros tipos ignoram. */
+  aoUsar: (r: Receita, modo?: ModoDaReceita) => void;
   aoFechar: () => void;
 }) {
   const { dados, erro, carregando, recarregar } = useCarregar(`receitas:${tipo}`, () => listarReceitas(tipo));
@@ -53,7 +59,7 @@ export function FolhaReceitas({
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? <Vazio titulo="Sem modelos deste tipo" texto="Cadastre um modelo em Planejamento para reutilizá-la nos planos." /> : null}
-      {dados && dados.length > 0 && tipo === 'SERIES' ? <ReceitasDeSeries receitas={dados} config={config} aoUsar={aoUsar} /> : null}
+      {dados && dados.length > 0 && tipo === 'SERIES' ? <ReceitasDeSeries receitas={dados} config={config} seriesAtuais={seriesAtuais} aoUsar={aoUsar} /> : null}
       {dados && tipo !== 'SERIES' ? dados.map((r) => <ModeloSimples key={r.id} receita={r} tipo={tipo} aoUsar={aoUsar} />) : null}
     </Folha>
   );
@@ -85,7 +91,12 @@ function ModeloSimples({ receita: r, tipo, aoUsar }: { receita: Receita; tipo: T
 
 const quantasReceitas = (n: number) => (n === 1 ? '1 receita' : `${n} receitas`);
 
-function ReceitasDeSeries({ receitas, config, aoUsar }: { receitas: Receita[]; config?: Configuracao | null; aoUsar: (r: Receita) => void }) {
+function ReceitasDeSeries({ receitas, config, seriesAtuais, aoUsar }: {
+  receitas: Receita[];
+  config?: Configuracao | null;
+  seriesAtuais: number;
+  aoUsar: (r: Receita, modo: ModoDaReceita) => void;
+}) {
   const colecoes = useCarregar('pastas-modelos', listarPastasModelos);
   const [busca, setBusca] = useState('');
   const [recolhidas, setRecolhidas] = useState<ReadonlySet<string>>(new Set());
@@ -98,7 +109,7 @@ function ReceitasDeSeries({ receitas, config, aoUsar }: { receitas: Receita[]; c
     return nova;
   });
   // Sequência e composição de cada receita, calculadas uma vez por lista (os uids de leitura nascem aqui, não vão ao plano).
-  const leituras = useMemo(() => new Map(receitas.map((r) => [r.id, { pecas: pecasDaReceita(r.conteudo, config), composicao: composicaoDaReceita(r.conteudo, config) }])), [receitas, config]);
+  const leituras = useMemo(() => new Map(receitas.map((r) => [r.id, { pecas: pecasDaReceita(r.conteudo, config), composicao: composicaoDaReceita(r.conteudo, config), quantas: seriesDaReceita(r.conteudo).length }])), [receitas, config]);
   const nomeDaColecao = useMemo(() => new Map((colecoes.dados ?? []).map((c) => [c.id, c.nome])), [colecoes.dados]);
   const filtradas = filtrarReceitasDeSeries(receitas, busca, config);
   const secoes = agruparReceitasDeSeries(filtradas, config);
@@ -118,6 +129,7 @@ function ReceitasDeSeries({ receitas, config, aoUsar }: { receitas: Receita[]; c
                     receita={r}
                     leitura={leituras.get(r.id)}
                     colecao={colecoes.dados ? (r.pastaId ? nomeDaColecao.get(r.pastaId) : null) ?? 'Sem coleção' : null}
+                    seriesAtuais={seriesAtuais}
                     aoUsar={aoUsar}
                   />
                 ))}
@@ -130,15 +142,17 @@ function ReceitasDeSeries({ receitas, config, aoUsar }: { receitas: Receita[]; c
   );
 }
 
-function CartaoDaReceita({ receita: r, leitura, colecao, aoUsar }: {
+function CartaoDaReceita({ receita: r, leitura, colecao, seriesAtuais, aoUsar }: {
   receita: Receita;
-  leitura?: { pecas: PecaDaReceita[]; composicao: string };
+  leitura?: { pecas: PecaDaReceita[]; composicao: string; quantas: number };
   /** Nome da coleção da receita; `null` sem as coleções (a linha some). */
   colecao: string | null;
-  aoUsar: (r: Receita) => void;
+  seriesAtuais: number;
+  aoUsar: (r: Receita, modo: ModoDaReceita) => void;
 }) {
   const { cores } = useTema();
   const pecas = leitura?.pecas ?? [];
+  const motivo = seriesAtuais > 0 ? motivoParaAcrescentar(seriesAtuais, leitura?.quantas ?? 0) : undefined;
   return (
     <View style={[estilos.receita, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
       <Texto variante="subtitulo">{r.nome}</Texto>
@@ -151,13 +165,13 @@ function CartaoDaReceita({ receita: r, leitura, colecao, aoUsar }: {
         </View>
       ) : null}
       {colecao ? <Texto variante="pequeno">Coleção: {colecao}</Texto> : null}
-      {/* O aviso fica sempre ao lado do botão: aplicar troca as séries do exercício (o editor oferece "Desfazer"). */}
+      {/* Os botões dizem o que acontece com as séries de agora; o editor oferece "Desfazer" depois dos dois. */}
       <View style={estilos.aplicar}>
-        <View style={estilos.aviso}>
-          <Replace size={16} color={cores.textoSuave} />
-          <Texto variante="pequeno" style={estilos.textoDoAviso}>Substitui as séries deste exercício</Texto>
-        </View>
-        <Botao rotulo="Aplicar receita" rotuloAcessivel={`Aplicar receita ${r.nome}`} tipo="secundario" aoTocar={() => aoUsar(r)} />
+        {seriesAtuais > 0 ? <>
+          <Botao rotulo="Substituir as séries" rotuloAcessivel={`Substituir as séries por ${r.nome}`} tipo="secundario" Icone={Replace} aoTocar={() => aoUsar(r, 'substituir')} />
+          <Botao rotulo="Acrescentar ao fim" rotuloAcessivel={`Acrescentar ao fim as séries de ${r.nome}`} tipo="secundario" Icone={ListPlus}
+            desabilitado={!!motivo} motivo={motivo} aoTocar={() => aoUsar(r, 'acrescentar')} />
+        </> : <Botao rotulo="Aplicar receita" rotuloAcessivel={`Aplicar receita ${r.nome}`} tipo="secundario" aoTocar={() => aoUsar(r, 'substituir')} />}
       </View>
     </View>
   );
@@ -189,7 +203,5 @@ const estilos = StyleSheet.create({
   seloDoTipo: { borderWidth: 1, borderRadius: 999, paddingHorizontal: espaco(1), paddingVertical: 1 },
   textoDoSelo: { fontFamily: fontes.negrito, fontSize: 12, lineHeight: 16 },
   textoDaPeca: { flexShrink: 1, flexGrow: 1, flexBasis: 160 },
-  aplicar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: espaco(1), marginTop: espaco(0.5) },
-  aviso: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1 },
-  textoDoAviso: { flexShrink: 1 },
+  aplicar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'flex-end', gap: espaco(1), marginTop: espaco(0.5) },
 });

@@ -1,7 +1,7 @@
 import { criarReceita, salvarPlanoComoReceita } from '../../api/rotas';
 import type { Configuracao, ConteudoTreino } from '../../api/tipos';
 import { agrupar } from '../../dominio/agrupamento';
-import { aplicarReceitaDePlano, comUidsNovos, normalizarTreino, seriesDaReceita, seriesParaReceita, substituir } from '../../dominio/editorTreino';
+import { aplicarReceitaDePlano, comUidsNovos, normalizarTreino, seriesComReceita, seriesDaReceita, seriesParaReceita, substituir } from '../../dominio/editorTreino';
 import { FolhaReceitas } from '../FolhaReceitas';
 import { FolhaSalvarReceita } from '../FolhaSalvarReceita';
 import { avisoModeloSalvo, rotuloSalvarComo } from '../planejamento/modelos';
@@ -81,31 +81,36 @@ export function FolhasDoTreino({ folha: aberta, abrir, fechar, conteudo: c, conf
         await criarReceita({ tipo: 'SESSAO_TREINO', nome, descricao, conteudo: { ...c, sessoes: [c.sessoes[folha.indice]] } });
         fechar(); avisar(avisoModeloSalvo('SESSAO_TREINO'), 'sucesso');
       }} />;
-    case 'receitaSeries':
+    case 'receitaSeries': {
+      const atuais = c.sessoes[folha.alvo.sessao]?.exercicios[folha.alvo.exercicio]?.series.length ?? 0;
       return (
         <FolhaReceitas
           tipo="SERIES"
-          titulo="Usar receita de séries"
-          explicacao="Escolha a receita pela sequência de séries. Ao aplicar, dá para desfazer logo depois."
+          titulo="Usar receita"
+          explicacao={atuais
+            ? `Este exercício já tem ${atuais === 1 ? '1 série' : `${atuais} séries`}: substitua ou acrescente as da receita ao fim. Dá para desfazer logo depois.`
+            : 'Escolha a receita pela sequência de séries. Ao aplicar, dá para desfazer logo depois.'}
           config={config}
+          seriesAtuais={atuais}
           aoFechar={fechar}
-          aoUsar={(r) => {
+          aoUsar={(r, modo = 'substituir') => {
             const { sessao: si, exercicio: ei } = folha.alvo;
             fechar();
             // Gerada uma vez, fora do `comDesfazer`, para a aba aberta (a do último grupo, D12) apontar para estas séries.
-            const series = seriesDaReceita(r.conteudo);
+            const daReceita = seriesDaReceita(r.conteudo);
             const alvo = c.sessoes[si]?.exercicios[ei];
-            if (alvo) abrirGrupo(alvo.uid, agrupar(series).at(-1)?.series[0].uid ?? null);
-            comDesfazer(`Receita “${r.nome}” aplicada.`, (a) => {
+            if (alvo) abrirGrupo(alvo.uid, agrupar(seriesComReceita(alvo.series, daReceita, modo)).at(-1)?.series[0].uid ?? null);
+            comDesfazer(modo === 'acrescentar' ? `Receita “${r.nome}” acrescentada ao fim.` : `Receita “${r.nome}” aplicada.`, (a) => {
               const sessao = a.sessoes[si];
               const exercicio = sessao?.exercicios[ei];
               if (!exercicio) return a;
-              const novo = { ...exercicio, series };
+              const novo = { ...exercicio, series: seriesComReceita(exercicio.series, daReceita, modo) };
               return { ...a, sessoes: substituir(a.sessoes, si, { ...sessao, exercicios: substituir(sessao.exercicios, ei, novo) }) };
             });
           }}
         />
       );
+    }
     case 'receitaPlano':
       return (
         <FolhaReceitas

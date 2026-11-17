@@ -173,9 +173,9 @@ for (const largura of [390, 1280]) {
     // Em duas colunas o exercício se escolhe na lista; no estreito o título do cartão abre.
     if (largura >= 960) await page.getByRole('button', { name: /^Exercício 1 de 2: Supino fictício/ }).click();
     else await page.getByRole('button', { name: 'Editar Supino fictício', exact: true }).click();
-    await page.getByRole('button', { name: 'Usar uma receita de séries', exact: true }).click();
-    await page.getByRole('button', { name: 'Aplicar receita Pirâmide decrescente', exact: true }).click();
-    await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
+    await page.getByRole('button', { name: 'Substituir as séries por Pirâmide decrescente', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Substituir as séries por / })).toHaveCount(0);
     // A receita vira três abas, uma por faixa de repetições, todas "WS + Pirâmide decrescente"; a de 10 reps é a segunda.
     await expect(linhaDaSerie(page, /^Série \d · WS/)).toHaveCount(3);
     await linhaDaSerie(page, /^Série 2 · WS/).click();

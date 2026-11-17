@@ -148,9 +148,11 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   const series = <>
     <View style={estilos.tituloDasSeries}>
       <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
-      {cardio ? null : <Botao rotulo="Receita de séries" rotuloAcessivel="Usar uma receita de séries" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
+      {/* Sem séries, "Usar receita" fica no estado vazio do `EditorSeries` (D13), não duas vezes. */}
+      {cardio || !e.series.length ? null : <Botao rotulo="Usar receita" rotuloAcessivel="Usar receita de séries" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
     </View>
     <EditorSeries cardio={cardio} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
+      aoUsarReceita={cardio ? undefined : p.aoUsarReceita}
       descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })}
       grupoAbertoUid={p.grupoAbertoUid} aoAbrirGrupo={p.aoAbrirGrupo} />
   </>;

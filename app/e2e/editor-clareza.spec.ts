@@ -40,7 +40,7 @@ const receitas: Receita[] = [
   ]),
 ];
 
-async function planoComDoisExercicios(page: Page, listaDeReceitas: Receita[] = receitas) {
+async function planoComDoisExercicios(page: Page, listaDeReceitas: Receita[] = receitas, seriesDaRemada: Serie[] = [serie('ws-r', 'WORKING', { repsMin: 8, repsMax: 12 })]) {
   const plano: Receita = {
     id: ID_PLANO, tipo: 'PLANO_TREINO', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
     conteudo: {
@@ -50,7 +50,7 @@ async function planoComDoisExercicios(page: Page, listaDeReceitas: Receita[] = r
         uid: 'sessao-1', nome: 'Treino A', diaSemana: 1, tipo: 'TREINO', frequenciaSemanal: null, observacao: null, cardio: null, grupos: [],
         exercicios: [
           { uid: 'ex-1', exercicioId: null, nome: 'Agachamento fictício', modalidade: 'LIVRE', videoUrl: null, observacao: null, progressao: true, unidade: 'kg', grupoUid: null, series: seriesDoAgachamento },
-          { uid: 'ex-2', exercicioId: null, nome: 'Remada fictícia', modalidade: 'LIVRE', videoUrl: null, observacao: null, progressao: true, unidade: 'kg', grupoUid: null, series: [serie('ws-r', 'WORKING', { repsMin: 8, repsMax: 12 })] },
+          { uid: 'ex-2', exercicioId: null, nome: 'Remada fictícia', modalidade: 'LIVRE', videoUrl: null, observacao: null, progressao: true, unidade: 'kg', grupoUid: null, series: seriesDaRemada },
         ],
       }],
     },
@@ -137,16 +137,19 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoComDoisExercicios(page);
     await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
-    await page.getByRole('button', { name: 'Usar uma receita de séries', exact: true }).click();
+    await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
     // Agrupadas por bloco e técnica (Frente G, D16): as duas têm mais de um papel e nenhuma técnica, então são
-    // "Receitas completas"; cada uma com a composição, a sequência, a coleção e o aviso de que substitui as séries.
+    // "Receitas completas"; cada uma com a composição, a sequência, a coleção e, como a remada já tem uma série, as duas
+    // ações (C81): substituir ou acrescentar ao fim.
     await expect(page.getByRole('button', { name: 'Receitas completas, aberto', exact: true })).toBeVisible();
     await expect(page.getByText('Coleção: Força', { exact: true })).toBeVisible();
     await expect(page.getByText('Coleção: Sem coleção', { exact: true })).toBeVisible();
     await expect(page.getByText('FS ×1 · WS ×1', { exact: true })).toBeVisible();
     await expect(page.getByText('WS ×1 · Back off ×2', { exact: true })).toBeVisible();
     await expect(page.getByText('Sequência', { exact: true })).toHaveCount(2);
-    await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(2);
+    await expect(page.getByText(/^Este exercício já tem 1 série: substitua ou acrescente/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Substituir as séries por / })).toHaveCount(2);
+    await expect(page.getByRole('button', { name: /^Acrescentar ao fim as séries de / })).toHaveCount(2);
     // Busca pela composição ("back off") e pelo nome, sem acento.
     const busca = page.getByRole('textbox', { name: 'Buscar receita', exact: true });
     await busca.fill('back off');
@@ -160,8 +163,8 @@ for (const largura of [390, 1280]) {
     await busca.fill('back off');
     expect(await semRolagemDeLado(page)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('folha-receitas.png'), fullPage: true });
-    await page.getByRole('button', { name: 'Aplicar receita Volume fictício', exact: true }).click();
-    await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Substituir as séries por Volume fictício', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Substituir as séries por / })).toHaveCount(0);
     await expect(page.getByText('Receita “Volume fictício” aplicada.', { exact: true })).toBeVisible();
     // A receita vira duas abas (uma por grupo); a aberta é a última, e o "Para o aluno" dela traz a faixa dos números.
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
@@ -177,6 +180,70 @@ for (const largura of [390, 1280]) {
     expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
+  });
+
+  // C81 (D4, D15): com séries, a receita pode entrar depois das existentes, com uids novos, e o Desfazer volta.
+  test(`editor: receita acrescentada ao fim das séries e desfeita (${largura}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await planoComDoisExercicios(page);
+    await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
+    await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
+    await page.getByRole('button', { name: 'Acrescentar ao fim as séries de Volume fictício', exact: true }).click();
+    await expect(page.getByText('Receita “Volume fictício” acrescentada ao fim.', { exact: true })).toBeVisible();
+    // A WS de antes continua a primeira; depois dela, a WS e os dois Back off da receita (a aberta é a última).
+    await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(3);
+    await expect(linhaDaSerie(page, /^Série 1 · WS/)).toBeVisible();
+    await expect(linhaDaSerie(page, /^Série 3 · Back off/, true)).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`receita-acrescentada-${largura}.png`), fullPage: true });
+    // Desfazer volta só a série de antes, sem gravar nada.
+    await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+    await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(1);
+    await expect(page.getByText(/1×8 a 12 · WS/).first()).toBeVisible();
+    expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
+    // Acrescentada de novo e salva: a série de antes fica primeiro e as da receita entram com uids novos.
+    await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
+    await page.getByRole('button', { name: 'Acrescentar ao fim as séries de Volume fictício', exact: true }).click();
+    await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(3);
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    const salvo = api.pedidos.filter((p) => p.metodo === 'PUT').at(-1)!.corpo as { conteudo: { sessoes: { exercicios: { series: Serie[] }[] }[] } };
+    const uids = salvo.conteudo.sessoes[0].exercicios[1].series.map((s) => s.uid);
+    expect(uids).toHaveLength(4);
+    expect(uids[0]).toBe('ws-r');
+    expect(new Set(uids).size).toBe(4);
+    expect(uids.some((u) => u.startsWith('r2-'))).toBe(false);
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+
+  test(`editor: receita sem séries é uma ação só; acima de 30 séries, acrescentar fica desabilitado com o motivo (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    // Sem séries: "Usar receita" fica no estado vazio (D13), uma vez só, e cada receita tem só "Aplicar receita".
+    await planoComDoisExercicios(page, receitas, []);
+    await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
+    await expect(page.getByText('Nenhuma série ainda.', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Aplicar receita Volume fictício', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Substituir as séries por / })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Acrescentar ao fim/ })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Aplicar receita Volume fictício', exact: true }).click();
+    await expect(page.getByText('Receita “Volume fictício” aplicada.', { exact: true })).toBeVisible();
+    await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
+  });
+
+  test(`editor: receita que passaria de 30 séries não acrescenta e diz por quê (${largura}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const muitas = Array.from({ length: 28 }, (_, i) => serie(`ws-${i}`, 'WORKING', { repsMin: 8, repsMax: 12 }));
+    await planoComDoisExercicios(page, receitas, muitas);
+    await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
+    await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
+    // 28 + 3 passa do máximo; 28 + 2 cabe. Substituir continua valendo nas duas.
+    await expect(page.getByRole('button', { name: 'Acrescentar ao fim as séries de Volume fictício', exact: true })).toBeDisabled();
+    await expect(page.getByText('Passaria de 30 séries, o máximo: o exercício tem 28 e a receita traz 3.', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Acrescentar ao fim as séries de Força com preparação', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Substituir as séries por Volume fictício', exact: true })).toBeEnabled();
+    expect(await semRolagemDeLado(page)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`receita-limite-${largura}.png`), fullPage: true });
   });
 }
 
@@ -203,7 +270,7 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, nomeDoTema === 'escuro' ? 'ESCURO' : 'CLARO']);
       const api = await planoComDoisExercicios(page, RECEITAS_EM_BLOCOS);
       await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
-      await page.getByRole('button', { name: 'Usar uma receita de séries', exact: true }).click();
+      await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
       // Completas primeiro, depois os papéis e as técnicas; cada receita uma vez.
       const secoes = page.getByRole('button', { name: /, (aberto|recolhido)$/ }).filter({ hasText: /^(Receitas completas|Aquecimento|Pós-trabalho|Técnica: .*)/ });
       await expect(secoes).toHaveText([/^Receitas completas/, /^Aquecimento/, /^Pós-trabalho/, /^Técnica: Rest pause/, /^Técnica: Cluster/]);
@@ -228,7 +295,7 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       expect(await semRolagemDeLado(page)).toBe(true);
       await page.getByText('Cluster fictício', { exact: true }).scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`usar-receita-${nomeDoTema}-${largura}.png`), fullPage: true });
-      await page.getByRole('button', { name: 'Aplicar receita Back off fictício', exact: true }).click();
+      await page.getByRole('button', { name: 'Substituir as séries por Back off fictício', exact: true }).click();
       await expect(page.getByText('Receita “Back off fictício” aplicada.', { exact: true })).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
       expect(api.naoTratadas).toEqual([]);

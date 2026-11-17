@@ -347,13 +347,13 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: 'Exemplo: FS e Cluster', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Exemplo: FS, WS e Cluster', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Nova WS com Rest-pause', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Usar uma receita de séries', exact: true }).click();
+    await page.getByRole('button', { name: 'Usar receita de séries', exact: true }).click();
     await expect(page.getByText('Exemplo: FS e Cluster', { exact: true })).toBeVisible();
-    // A receita mostra a sequência antes de aplicar e avisa que substitui as séries (reunião de 30/10).
-    await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toBeVisible();
+    // A receita mostra a sequência antes de aplicar; o supino já tem séries, então substituir ou acrescentar (C81).
+    await expect(page.getByRole('button', { name: 'Acrescentar ao fim as séries de Exemplo: FS e Cluster', exact: true })).toBeVisible();
     await expect(page.getByText('FS ×1 · WS ×1', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Aplicar receita Exemplo: FS e Cluster', exact: true }).click();
-    await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Substituir as séries por Exemplo: FS e Cluster', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Substituir as séries por / })).toHaveCount(0);
     // Dois grupos, duas abas; a aberta é a última (WS com Cluster) e o título dela traz a faixa dos números.
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
     await expect(page.getByText(/^Editando: Série \d · Trabalho · WS com Cluster$/)).toBeVisible();

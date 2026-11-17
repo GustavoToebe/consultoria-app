@@ -17,6 +17,7 @@ import {
   exercicioComUidsNovos,
   LIMITE_SERIES,
   modosDeCarga,
+  motivoParaAcrescentar,
   mover,
   moverExercicio,
   moverGrupo,
@@ -33,6 +34,7 @@ import {
   rotuloDaSessao,
   sessaoComUidsNovos,
   sessaoSelecionadaDepois,
+  seriesComReceita,
   seriesDaReceita,
   seriesParaReceita,
   substituir,
@@ -336,6 +338,51 @@ describe('adicionar e reordenar séries (reunião de 17/10)', () => {
     const series = [ws('a'), ws('b'), backOff('c')];
     const resultado = alterarGrupo(series, agrupar(series)[0], { descansoSegundos: 120 }, CONFIG);
     expect(resultado.map((s) => s.descansoSegundos)).toEqual([120, 120, null]);
+  });
+});
+
+describe('receita num exercício que já tem séries (C81)', () => {
+  const daReceita = () => seriesDaReceita({ series: [{ tipo: 'WORKING', repsMin: 3, repsMax: 6 }, { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8 }] });
+
+  it('sem séries, as da receita entram nos dois modos', () => {
+    const novas = daReceita();
+    expect(seriesComReceita([], novas, 'substituir')).toEqual(novas);
+    expect(seriesComReceita([], novas, 'acrescentar')).toEqual(novas);
+  });
+
+  it('substituir troca as séries; acrescentar põe as da receita depois das existentes, na ordem', () => {
+    const atuais = [fs('a', 50), ws('b')];
+    const novas = daReceita();
+    expect(seriesComReceita(atuais, novas, 'substituir')).toEqual(novas);
+    const juntas = seriesComReceita(atuais, novas, 'acrescentar');
+    expect(juntas.map((s) => s.uid)).toEqual(['a', 'b', 'uid-1', 'uid-2']);
+    expect(juntas.map((s) => s.tipo)).toEqual(['FEEDER', 'WORKING', 'WORKING', 'BACK_OFF']);
+  });
+
+  it('os uids acrescentados são novos, distintos entre si e dos existentes, mesmo com a mesma receita duas vezes', () => {
+    const uma = seriesComReceita([ws('b')], daReceita(), 'acrescentar');
+    const duas = seriesComReceita(uma, daReceita(), 'acrescentar');
+    expect(new Set(duas.map((s) => s.uid)).size).toBe(duas.length);
+    expect(duas).toHaveLength(5);
+  });
+
+  it('não altera a lista de antes: o Desfazer volta a ela', () => {
+    const atuais = [fs('a', 50), ws('b')];
+    const antes = JSON.parse(JSON.stringify(atuais)) as Serie[];
+    seriesComReceita(atuais, daReceita(), 'acrescentar');
+    seriesComReceita(atuais, daReceita(), 'substituir');
+    expect(atuais).toEqual(antes);
+  });
+
+  it(`acrescentar até ${LIMITE_SERIES} séries vale; passar disso devolve a mesma lista e dá o motivo`, () => {
+    const atuais = Array.from({ length: LIMITE_SERIES - 2 }, (_, i) => ws(`w${i}`));
+    expect(motivoParaAcrescentar(atuais.length, 2)).toBeUndefined();
+    expect(seriesComReceita(atuais, daReceita(), 'acrescentar')).toHaveLength(LIMITE_SERIES);
+    const uma = [...atuais, ws('x')];
+    expect(seriesComReceita(uma, daReceita(), 'acrescentar')).toBe(uma);
+    expect(motivoParaAcrescentar(uma.length, 2)).toBe(`Passaria de ${LIMITE_SERIES} séries, o máximo: o exercício tem ${LIMITE_SERIES - 1} e a receita traz 2.`);
+    // Substituir não soma: continua valendo com o exercício cheio.
+    expect(seriesComReceita(uma, daReceita(), 'substituir')).toHaveLength(2);
   });
 });
 

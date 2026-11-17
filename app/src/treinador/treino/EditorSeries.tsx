@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react-native';
+import { NotebookTabs, Plus } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
@@ -41,6 +41,8 @@ interface Props {
   semCarga?: boolean;
   /** `false` no grupo cujo descanso é depois da volta. Hoje só repassado: a leitura "Para o aluno" não fala de descanso. */
   descansoPorSerie?: boolean;
+  /** Abre a folha de receitas; com ela, o estado vazio oferece "Usar receita" antes dos botões de tipo (D13). */
+  aoUsarReceita?: () => void;
 }
 
 /** A ordem dos botões de 1 clique do "+ Nova série" (FS, WS, Back off, Aquecimento), pelo papel do tipo. */
@@ -55,7 +57,7 @@ const TECNICAS_DE_1_CLIQUE: TipoDeTecnica[] = ['REST_PAUSE', 'CLUSTER', 'DROP_SE
  * desta série e "Para o aluno". Séries iguais e seguidas formam um grupo e se editam juntas; o % e o RIR de cada série são
  * próprios. Cada campo mostra o erro e o aviso da validação (a mesma da publicação).
  */
-export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, grupoAbertoUid, aoAbrirGrupo, semCarga = false }: Props) {
+export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, grupoAbertoUid, aoAbrirGrupo, semCarga = false, aoUsarReceita }: Props) {
   const { identificacao } = useTema();
   const unidade = useUnidadeDeCarga();
   const cfg = config ?? CONFIGURACAO_PADRAO;
@@ -145,6 +147,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
       depois={cheio ? undefined : <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} style={estilos.tracejado} aoTocar={aoNova} />} />
       : <View style={estilos.vazio}>
         <Texto variante="suave">Nenhuma série ainda.</Texto>
+        {aoUsarReceita ? <LinhaDeAcoes><Botao rotulo="Usar receita" rotuloAcessivel="Usar receita de séries" tipo="secundario" Icone={NotebookTabs} aoTocar={aoUsarReceita} /></LinhaDeAcoes> : null}
         {botoesDaNova ?? <LinhaDeAcoes>{nova}</LinhaDeAcoes>}
       </View>}
     {grupos.length > 0 && cheio ? <LinhaDeAcoes>{nova}</LinhaDeAcoes> : null}

@@ -479,10 +479,29 @@ function seriesComUidsNovos(series: readonly Partial<Serie>[]): Serie[] {
   return series.map((x) => serieNormalizada(x, novoUid()));
 }
 
-/** Séries de uma receita aplicadas no exercício: substituem as atuais, cada uma com uid novo. */
+/** Séries de uma receita, cada uma com uid novo, prontas para entrar no exercício (`seriesComReceita`). */
 export function seriesDaReceita(conteudo: unknown): Serie[] {
   const lista = (conteudo as { series?: Partial<Serie>[] } | null)?.series ?? [];
   return seriesComUidsNovos(lista);
+}
+
+/** Como a receita entra num exercício que já tem séries (C81): no lugar delas ou depois delas. */
+export type ModoDaReceita = 'substituir' | 'acrescentar';
+
+/**
+ * As séries do exercício depois de usar a receita (`daReceita` vem de `seriesDaReceita`, já com uids novos). Acrescentar
+ * acima de `LIMITE_SERIES` devolve a mesma lista, como `adicionarSerie`; a tela desabilita antes (`motivoParaAcrescentar`).
+ */
+export function seriesComReceita(atuais: Serie[], daReceita: Serie[], modo: ModoDaReceita): Serie[] {
+  if (modo === 'substituir') return daReceita;
+  if (motivoParaAcrescentar(atuais.length, daReceita.length)) return atuais;
+  return [...atuais, ...daReceita];
+}
+
+/** Por que "Acrescentar ao fim" não vale para esta receita; `undefined` quando cabe. */
+export function motivoParaAcrescentar(quantasAtuais: number, quantasDaReceita: number): string | undefined {
+  if (quantasAtuais + quantasDaReceita <= LIMITE_SERIES) return undefined;
+  return `Passaria de ${LIMITE_SERIES} séries, o máximo: o exercício tem ${quantasAtuais} e a receita traz ${quantasDaReceita}.`;
 }
 
 /** Séries prontas para virar receita: os uids nascem ao aplicar, então saem. */
