@@ -149,8 +149,8 @@ for (const largura of [390, 1280]) {
         // Nunca o horário de uma conquista.
         await expect(folha.getByText(/\d{1,2}:\d{2}/)).toHaveCount(0);
         await capturarFolha(page, `colegas-perfil-${nome}-${largura}`);
-        // A foto vem uma vez para a linha da lista e outra para a folha (sem cache: `no-store`); os outros colegas não têm foto.
-        expect(pedidosDe(api.pedidos, '/aluno/comunidade/perfis/')).toEqual(['/aluno/comunidade/perfis/c1/foto', '/aluno/comunidade/perfis/c1', '/aluno/comunidade/perfis/c1/foto']);
+        // A foto vem uma vez só: a folha reaproveita, em memória, a que a linha da lista já pediu (`fotosEmMemoria`); os outros colegas não têm foto.
+        expect(pedidosDe(api.pedidos, '/aluno/comunidade/perfis/')).toEqual(['/aluno/comunidade/perfis/c1/foto', '/aluno/comunidade/perfis/c1']);
         expect(api.naoTratadas).toEqual([]);
         expect(api.errosDaPagina).toEqual([]);
       });
