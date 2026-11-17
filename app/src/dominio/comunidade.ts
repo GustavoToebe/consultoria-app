@@ -461,6 +461,16 @@ export const AVISO_DO_POD_COM_MENOR = 'Este grupo tem pelo menos um aluno menor 
 export const avisoDoPod = (pod: Pick<PodResumo, 'temMenor'> | null | undefined): string | null =>
   pod?.temMenor ? AVISO_DO_POD_COM_MENOR : null;
 
+/** Teto de alunos por pod, o mesmo `PodsService.TETO` da API (que confere de novo e responde 409 `POD_CHEIO`). */
+export const POD_TETO = 12;
+
+/**
+ * Por que o pod não pode receber o aluno agora: cheio, a não ser que seja o pod atual dele (ficar onde está não ocupa vaga).
+ * `null` = pode escolher. Só para mudar o grupo do aluno: publicar e filtrar não ocupam vaga.
+ */
+export const motivoDoGrupoCheio = (pod: Pick<PodResumo, 'id' | 'membros'>, grupoAtual: string | null): string | null =>
+  pod.membros >= POD_TETO && pod.id !== grupoAtual ? `Grupo cheio: ${pod.membros} de ${POD_TETO}` : null;
+
 export const POD_NOME_MINIMO = 2;
 export const POD_NOME_MAXIMO = 40;
 export const MENSAGEM_POD_NOME = `Use de ${POD_NOME_MINIMO} a ${POD_NOME_MAXIMO} caracteres.`;
@@ -476,7 +486,7 @@ export function erroDoNomeDoPod(texto: string): string | null {
 
 const MENSAGEM_PADRAO_DO_POD = 'Não foi possível concluir. Tente de novo.';
 const MENSAGENS_DO_POD: Record<string, string> = {
-  POD_CHEIO: 'Este grupo já tem 12 alunos. Tire alguém dele antes de incluir outro.',
+  POD_CHEIO: `Este grupo já tem ${POD_TETO} alunos. Tire alguém dele antes de incluir outro.`,
   POD_NOME_EM_USO: 'Já existe um grupo com esse nome. Escolha outro.',
   ALUNO_SEM_ACESSO: 'Só entra num grupo o aluno que já tem acesso ao app.',
   ALUNO_INATIVO: 'Aluno inativo não entra num grupo.',

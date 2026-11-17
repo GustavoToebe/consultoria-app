@@ -17,6 +17,9 @@ export interface OpcaoDaFolha<T> {
   rotulo: string;
   /** Linha pequena abaixo do rótulo. */
   detalhe?: string;
+  /** Não pode ser escolhida: fica cinza e o `motivo` toma o lugar do `detalhe` (como o `motivo` da `Escolha`). */
+  desabilitada?: boolean;
+  motivo?: string;
 }
 
 interface Props<T> {
@@ -101,24 +104,28 @@ export function EscolhaEmFolha<T extends string | number | null>({
         <Folha visivel titulo={titulo ?? rotulo} aoFechar={fechar}>
           {busca ? <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} autoCorrect={false} /> : null}
           {comBuscaLocal ? <Campo rotulo={digitado?.rotulo ?? 'Buscar'} valor={filtro} aoMudar={setFiltro} autoCorrect={false}
-            onSubmitEditing={opcaoDoTexto ? () => escolher(opcaoDoTexto.valor) : undefined} /> : null}
+            onSubmitEditing={opcaoDoTexto && !opcaoDoTexto.desabilitada ? () => escolher(opcaoDoTexto.valor) : undefined} /> : null}
           {avisoDoTexto ? <MensagemDeErro erro={avisoDoTexto} /> : null}
           <View accessibilityRole="radiogroup" accessibilityLabel={rotulo} style={estilos.lista}>
             {visiveis.length === 0 ? (carregando ? <Esqueleto texto="Carregando opções" cartoes={2} /> : <Texto variante="suave">{textoVazio}</Texto>) : null}
             {visiveis.map((o) => {
               const ativa = o.valor === valor;
+              const detalhe = o.desabilitada ? (o.motivo ?? o.detalhe) : o.detalhe;
+              const cinza = o.desabilitada ? coresDoDesabilitado(cores) : null;
               return (
                 <Pressable
                   key={String(o.valor)}
                   accessibilityRole="radio"
-                  accessibilityLabel={o.detalhe ? `${o.rotulo}, ${o.detalhe}` : o.rotulo}
-                  accessibilityState={{ checked: ativa }}
+                  accessibilityLabel={detalhe ? `${o.rotulo}, ${detalhe}` : o.rotulo}
+                  accessibilityState={{ checked: ativa, disabled: !!o.desabilitada }}
                   aria-checked={ativa}
+                  disabled={o.desabilitada}
                   onPress={() => escolher(o.valor)}
-                  style={(estado) => [estilos.opcao, { borderColor: ativa ? cores.bordaCampo : cores.divisor, backgroundColor: ativa ? cores.superficie3 : sobre(estado) ? cores.superficie2 : cores.superficie }]}>
+                  style={(estado) => [estilos.opcao, cinza ? { borderColor: cinza.borda, backgroundColor: cinza.fundo }
+                    : { borderColor: ativa ? cores.bordaCampo : cores.divisor, backgroundColor: ativa ? cores.superficie3 : sobre(estado) ? cores.superficie2 : cores.superficie }]}>
                   <View style={estilos.textosOpcao}>
-                    <Texto style={[estilos.rotuloOpcao, { color: cores.texto }]}>{o.rotulo}</Texto>
-                    {o.detalhe ? <Texto variante="pequeno">{o.detalhe}</Texto> : null}
+                    <Texto style={[estilos.rotuloOpcao, { color: cinza ? cinza.texto : cores.texto }]}>{o.rotulo}</Texto>
+                    {detalhe ? <Texto variante="pequeno">{detalhe}</Texto> : null}
                   </View>
                   {ativa ? <Check size={18} color={cores.texto} strokeWidth={2.5} /> : null}
                 </Pressable>

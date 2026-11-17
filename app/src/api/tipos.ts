@@ -338,6 +338,9 @@ export interface AlunoDetalhe {
   sexo?: string | null;
   /** `AAAA-MM-DD`, opcional; só a equipe a lê (`ALUNO_LER`). Nunca vai a tela de colega, log nem outro aluno. */
   dataNascimento?: string | null;
+  /** Grupo (pod) da comunidade em que o aluno está; nulo = sem grupo. Só vem preenchido com `COMUNIDADE_MODERAR`. */
+  podId?: string | null;
+  podNome?: string | null;
 }
 
 /** Foto já enviada na linha do tempo (`GET /alunos/{id}/fotos` e `GET /aluno/fotos/linha-do-tempo`). */

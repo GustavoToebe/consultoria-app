@@ -5,9 +5,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { criarPod, renomearPod } from '../../api/comunidade';
 import type { PodResumo } from '../../api/comunidadeTipos';
-import { POD_TETO } from '../../comunidade/EscolhaDoGrupo';
 import {
-  avisoDoPod, erroDoNomeDoPod, nomeDoPodParaEnviar, POD_NOME_MAXIMO, POD_NOME_MINIMO, traduzirErroDoPod,
+  avisoDoPod, erroDoNomeDoPod, nomeDoPodParaEnviar, POD_NOME_MAXIMO, POD_NOME_MINIMO, POD_TETO, traduzirErroDoPod,
 } from '../../dominio/comunidade';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';

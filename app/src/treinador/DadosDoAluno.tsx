@@ -87,7 +87,7 @@ export function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe
           }}
         />
       ) : (
-        <Leitura aluno={aluno} padrao={padrao} questionario={comQuestionario ? questionarios : null} />
+        <Leitura aluno={aluno} padrao={padrao} questionario={comQuestionario ? questionarios : null} aoAlterar={aoAlterar} />
       )}
       <PainelConfirmacao
         visivel={descartar}
@@ -105,7 +105,9 @@ export function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe
 
 type Questionarios = ReturnType<typeof useCarregar<Awaited<ReturnType<typeof opcoesDeQuestionario>>>>;
 
-function Leitura({ aluno, padrao, questionario }: { aluno: AlunoDetalhe; padrao: number | null; questionario: Questionarios | null }) {
+function Leitura({ aluno, padrao, questionario, aoAlterar }: {
+  aluno: AlunoDetalhe; padrao: number | null; questionario: Questionarios | null; aoAlterar: (a: AlunoDetalhe) => void;
+}) {
   const { pode } = useSessao();
   const sensivel = pode('ALUNO_SENSIVEL_LER');
   const responsaveis = useCarregar('responsaveis-ficha', () => responsaveisEquipe());
@@ -138,7 +140,7 @@ function Leitura({ aluno, padrao, questionario }: { aluno: AlunoDetalhe; padrao:
           {textoDoQuestionario ? <Par rotulo="Questionário de atualização" valor={textoDoQuestionario} /> : null}
           <Par rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
           <LinhaDoCicloNaFicha alunoId={aluno.id} />
-          {pode('COMUNIDADE_MODERAR') ? <GrupoDoAlunoNaFicha aluno={aluno} /> : null}
+          {pode('COMUNIDADE_MODERAR') ? <GrupoDoAlunoNaFicha aluno={aluno} aoAlterar={aoAlterar} /> : null}
         </Cartao>
         {sensivel ? (
           <Cartao titulo={SECOES_DO_ALUNO.objetivo} nivel={3}>

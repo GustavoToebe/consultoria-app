@@ -8,7 +8,7 @@ import {
   ATRIBUTOS_DO_PLAYER, htmlDoPlayer, idDoYoutube, navegacaoDoPlayerPermitida, urlDoEmbed, urlNoYoutube,
   errosDoPost, MOTIVOS_DE_DENUNCIA, podeAnexarFoto, podePublicar, postParaEnviar, rotuloDoMotivo, rotuloDoTipo, TIPOS_DE_POST,
   tiposParaEscolher, chipsDoMural, MURAL_SEM_FILTRO, opcoesDoTipoDoMural, semOFiltroDoMural, filtrosParaApi, textoDoMuralVazio, textoDasDenuncias, tipoPedido,
-  avisoDoPod, AVISO_DO_POD_COM_MENOR, erroDoNomeDoPod, MENSAGEM_POD_NOME, nomeDoPodParaEnviar, rotuloDoPost, traduzirErroDoPod,
+  avisoDoPod, AVISO_DO_POD_COM_MENOR, erroDoNomeDoPod, motivoDoGrupoCheio, POD_TETO, MENSAGEM_POD_NOME, nomeDoPodParaEnviar, rotuloDoPost, traduzirErroDoPod,
   agruparAuloesPorCategoria, buscarAuloes, categoriasDosAuloes, corpoDaAula, errosDaAula, filtrarAuloesPorCategoria,
   chipDaCategoria, filtroDeCategoriaValido, opcoesDoFiltroDeCategoria, RASCUNHO_DA_AULA_VAZIO, rascunhoDaAula, resumoDosAuloes,
 } from './comunidade';
@@ -438,6 +438,13 @@ describe('pods', () => {
       expect(r.mensagem).toMatch(/[a-zç]/i);
     }
     expect(traduzirErroDoPod(new ErroApi(409, 'POD_CHEIO', 'x')).mensagem).toContain('12');
+  });
+  it('grupo cheio: 12 trava, menos o grupo atual do aluno; 11 não trava', () => {
+    expect(POD_TETO).toBe(12);
+    expect(motivoDoGrupoCheio({ id: 'a', membros: 11 }, null)).toBeNull();
+    expect(motivoDoGrupoCheio({ id: 'a', membros: 12 }, null)).toBe('Grupo cheio: 12 de 12');
+    expect(motivoDoGrupoCheio({ id: 'a', membros: 12 }, 'b')).toBe('Grupo cheio: 12 de 12');
+    expect(motivoDoGrupoCheio({ id: 'a', membros: 12 }, 'a')).toBeNull();
   });
   it('POD_INVALIDO vai ao campo do nome, com o texto do campo ou o fixo', () => {
     expect(traduzirErroDoPod(new ErroApi(422, 'POD_INVALIDO', 'Confira o pod.', [{ field: 'nome', message: 'Use de 2 a 40 caracteres.' }])))

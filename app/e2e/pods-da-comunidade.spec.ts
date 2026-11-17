@@ -92,7 +92,7 @@ const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
 const FICHA: AlunoDetalhe = {
   id: ALUNO_ID, nome: ALUNO.nome, email: ALUNO.email, telefone: null, objetivo: null,
   ativo: true, temAcesso: true, conviteExpiraEm: null, versao: 1, diasAtualizacao: null, anonimizado: false,
-  emailDeAcesso: ALUNO.email, aguardandoPrimeiroAcesso: false,
+  emailDeAcesso: ALUNO.email, aguardandoPrimeiroAcesso: false, podId: null, podNome: null,
 };
 async function abrirFicha(page: Page, rotas: RespostasApi, ficha: AlunoDetalhe = FICHA, permissoes = MODERAR) {
   const api = await simularApi(page, {
@@ -323,29 +323,47 @@ for (const largura of [390, 1280]) {
 
       const ficha = await page.context().newPage();
       await ficha.setViewportSize({ width: largura, height: 900 });
-      await abrirFicha(ficha, { 'GET /comunidade/pods': { corpo: nove } });
+      // Um dos nove está cheio: na folha de escolha ele fica desabilitado, com o motivo no lugar do "N de 12".
+      const comCheio = nove.map((p, i) => (i === 2 ? { ...p, membros: 12 } : p));
+      await abrirFicha(ficha, { 'GET /comunidade/pods': { corpo: comCheio } });
       await ficha.getByRole('button', { name: 'Mudar grupo' }).click();
-      await expect(ficha.getByRole('dialog', { name: 'Grupo da comunidade' })).toBeVisible();
+      const folhaDaFicha = ficha.getByRole('dialog', { name: 'Grupo da comunidade' });
+      await expect(folhaDaFicha).toBeVisible();
       await capturar(ficha, `extremo-ficha-nove-grupos-${largura}`);
+      await folhaDaFicha.getByRole('button', { name: /^Grupo: / }).click();
+      const lista = ficha.getByRole('dialog', { name: 'Grupo', exact: true });
+      await expect(lista.getByRole('radio', { name: `${comCheio[2].nome}, Grupo cheio: 12 de 12` })).toBeDisabled();
+      await expect(lista.getByRole('radio', { name: `${POD_B.nome}, 11 de 12 alunos` })).toBeEnabled();
+      await capturar(ficha, `extremo-ficha-nove-grupos-lista-${largura}`);
     });
 
-    test('ficha: põe o aluno num grupo, com o aviso de menor, e mostra o POD_CHEIO', async ({ page }) => {
+    test('ficha: mostra o grupo atual, põe o aluno num grupo com o aviso de menor e trata o POD_CHEIO da corrida', async ({ page }) => {
+      // POD_B tem 11 na lista, mas lota antes do salvar: o servidor responde 409 e a lista nova vem com 12.
+      let membrosDoB = 11;
       const api = await abrirFicha(page, {
-        'GET /comunidade/pods': { corpo: [POD_A, POD_B] },
-        'PUT /alunos/{id}/pod': (p, route) => ((p.corpo as { podId: string | null }).podId === POD_B.id
-          ? json(route, erroApi(409, 'Pod cheio.', 'POD_CHEIO').corpo, 409) : route.fulfill({ status: 204 })),
+        'GET /comunidade/pods': (_p, route) => json(route, [POD_A, { ...POD_B, membros: membrosDoB }]),
+        'PUT /alunos/{id}/pod': (p, route) => {
+          if ((p.corpo as { podId: string | null }).podId !== POD_B.id) return route.fulfill({ status: 204 });
+          membrosDoB = 12;
+          return json(route, erroApi(409, 'Pod cheio.', 'POD_CHEIO').corpo, 409);
+        },
       });
+      await expect(page.getByText('Sem grupo', { exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Mudar grupo' }).click();
       const folha = page.getByRole('dialog', { name: 'Grupo da comunidade' });
-      // Nada vem marcado: a ficha ainda não sabe o grupo atual, e salvar pede uma escolha.
-      await expect(folha.getByRole('radio', { checked: true })).toHaveCount(0);
+      // Abre no atual (Sem grupo); salvar só depois de escolher outro.
+      await expect(folha.getByRole('radio', { name: 'Sem grupo' })).toHaveAttribute('aria-checked', 'true');
       await expect(folha.getByRole('button', { name: /Salvar grupo/ })).toBeDisabled();
 
       await folha.getByRole('radio', { name: POD_B.nome }).click();
       await expect(folha.getByText('11 de 12 alunos neste grupo.')).toBeVisible();
       await folha.getByRole('button', { name: /Salvar grupo/ }).click();
       await expect(folha.getByText('Este grupo já tem 12 alunos. Tire alguém dele antes de incluir outro.')).toBeVisible();
-      await capturar(page, `ficha-grupo-cheio-${largura}`);
+      // A lista volta com o B cheio: desabilitado com o motivo, e a escolha volta ao atual.
+      await expect(folha.getByRole('radio', { name: POD_B.nome })).toBeDisabled();
+      await expect(folha.getByText('Grupo cheio: 12 de 12')).toBeVisible();
+      await expect(folha.getByRole('radio', { name: 'Sem grupo' })).toHaveAttribute('aria-checked', 'true');
+      await capturar(page, `ficha-grupo-cheio-corrida-${largura}`);
 
       await folha.getByRole('radio', { name: POD_A.nome }).click();
       await expect(folha.getByText(AVISO_DE_MENOR)).toBeVisible();
@@ -353,13 +371,55 @@ for (const largura of [390, 1280]) {
       await folha.getByRole('button', { name: /Salvar grupo/ }).click();
       await expect(folha).toHaveCount(0);
       await expect(page.getByText(`Aluno está no grupo ${POD_A.nome}.`)).toBeVisible();
+      // A ficha passa a mostrar o grupo novo.
+      await expect(page.getByText(`Grupo: ${POD_A.nome}`, { exact: true })).toBeVisible();
       expect(api.pedidos.filter((p) => foi(p, 'PUT', `/alunos/${ALUNO_ID}/pod`)).map((p) => p.corpo)).toEqual([{ podId: POD_B.id }, { podId: POD_A.id }]);
 
-      // "Sem grupo" manda null.
+      // Reabre no grupo novo; "Sem grupo" manda null e a ficha volta a "Sem grupo".
       await page.getByRole('button', { name: 'Mudar grupo' }).click();
-      await page.getByRole('dialog', { name: 'Grupo da comunidade' }).getByRole('radio', { name: 'Sem grupo' }).click();
-      await page.getByRole('dialog', { name: 'Grupo da comunidade' }).getByRole('button', { name: /Salvar grupo/ }).click();
+      const deNovo = page.getByRole('dialog', { name: 'Grupo da comunidade' });
+      await expect(deNovo.getByRole('radio', { name: POD_A.nome })).toHaveAttribute('aria-checked', 'true');
+      await deNovo.getByRole('radio', { name: 'Sem grupo' }).click();
+      await expect(deNovo.getByText('Aluno sai do grupo e passa a ver só o mural Geral.')).toBeVisible();
+      await deNovo.getByRole('button', { name: /Salvar grupo/ }).click();
       await expect.poll(() => api.pedidos.filter((p) => foi(p, 'PUT', `/alunos/${ALUNO_ID}/pod`)).at(-1)?.corpo).toEqual({ podId: null });
+      await expect(page.getByText('Sem grupo', { exact: true })).toBeVisible();
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('ficha: grupo cheio desabilitado com o motivo, menos o atual do aluno; Sem grupo sempre livre', async ({ page }) => {
+      const CHEIO_ATUAL: PodResumo = { ...POD_A, membros: 12 };
+      const CHEIO_OUTRO: PodResumo = { ...POD_B, membros: 12 };
+      const api = await abrirFicha(page, { 'GET /comunidade/pods': { corpo: [CHEIO_ATUAL, CHEIO_OUTRO] } },
+        { ...FICHA, podId: POD_A.id, podNome: POD_A.nome });
+      await page.getByText(`Grupo: ${POD_A.nome}`, { exact: true }).scrollIntoViewIfNeeded();
+      await expect(page.getByText(`Grupo: ${POD_A.nome}`, { exact: true })).toBeVisible();
+      await capturar(page, `ficha-linha-do-grupo-${largura}`);
+      await page.getByRole('button', { name: 'Mudar grupo' }).click();
+      const folha = page.getByRole('dialog', { name: 'Grupo da comunidade' });
+      const atual = folha.getByRole('radio', { name: POD_A.nome });
+      await expect(atual).toHaveAttribute('aria-checked', 'true');
+      await expect(atual).toBeEnabled();
+      await expect(folha.getByRole('radio', { name: POD_B.nome })).toBeDisabled();
+      await expect(folha.getByText('Grupo cheio: 12 de 12')).toBeVisible();
+      await expect(folha.getByRole('radio', { name: 'Sem grupo' })).toBeEnabled();
+      await expect(folha.getByText('12 de 12 alunos neste grupo.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: /Salvar grupo/ })).toBeDisabled();
+      await capturar(page, `ficha-grupo-cheio-${largura}`);
+      expect(api.pedidos.some((p) => foi(p, 'PUT', `/alunos/${ALUNO_ID}/pod`))).toBe(false);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('publicar e filtrar não ocupam vaga: o grupo cheio continua escolhível no mural', async ({ page }) => {
+      const CHEIO: PodResumo = { ...POD_B, membros: 12 };
+      const api = await abrirMuralDaEquipe(page, comPods([POD_A, CHEIO]).rotas);
+      const mural = page.getByRole('radiogroup', { name: 'Mural' });
+      await expect(mural.getByRole('radio', { name: CHEIO.nome })).toBeEnabled();
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      const folha = page.getByRole('dialog', { name: 'Nova publicação' });
+      await folha.getByRole('radio', { name: CHEIO.nome }).click();
+      await expect(folha.getByRole('radio', { name: CHEIO.nome })).toHaveAttribute('aria-checked', 'true');
+      await expect(page.getByText(/Grupo cheio/)).toHaveCount(0);
       expect(api.errosDaPagina).toEqual([]);
     });
 
@@ -401,9 +461,11 @@ for (const largura of [390, 1280]) {
       const ficha = await page.context().newPage();
       await ficha.setViewportSize({ width: largura, height: 900 });
       await tema(ficha, TREINADOR.id, id);
-      await abrirFicha(ficha, { 'GET /comunidade/pods': { corpo: [POD_A, POD_B] } });
+      // O B cheio mostra o desabilitado com o motivo em cada tema.
+      await abrirFicha(ficha, { 'GET /comunidade/pods': { corpo: [POD_A, { ...POD_B, membros: 12 }] } });
       await ficha.getByRole('button', { name: 'Mudar grupo' }).click();
       const folhaDaFicha = ficha.getByRole('dialog', { name: 'Grupo da comunidade' });
+      await expect(folhaDaFicha.getByText('Grupo cheio: 12 de 12')).toBeVisible();
       await folhaDaFicha.getByRole('radio', { name: POD_A.nome }).click();
       await expect(folhaDaFicha.getByText(AVISO_DE_MENOR)).toBeVisible();
       await capturar(ficha, `ficha-grupo-${nome}-${largura}`);
