@@ -26,10 +26,12 @@ final class LembretesDoCompromisso {
 
     /** Confere e devolve a lista (na ordem recebida); {@code null} não é validado aqui (quem chama decide o padrão). */
     static List<Integer> validar(List<Integer> pedido) {
-        List<ApiError.FieldError> erros = new ArrayList<>();
+        // Acima do limite recusa já, sem um erro por item: o DTO não tem @Size e a lista pode vir enorme.
         if (pedido.size() > MAXIMO) {
-            erros.add(new ApiError.FieldError(CAMPO, "Use no máximo " + MAXIMO + " lembretes."));
+            throw new ValidacaoException("Confira os lembretes do compromisso.", "COMPROMISSO_INVALIDO",
+                    List.of(new ApiError.FieldError(CAMPO, "Use no máximo " + MAXIMO + " lembretes.")));
         }
+        List<ApiError.FieldError> erros = new ArrayList<>();
         Set<Integer> vistos = new HashSet<>();
         boolean repetido = false;
         for (int i = 0; i < pedido.size(); i++) {

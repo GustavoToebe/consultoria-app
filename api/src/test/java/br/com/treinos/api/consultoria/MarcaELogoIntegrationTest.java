@@ -150,8 +150,8 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
             assertThat(api.get("/consultoria", treinador, 200).get("marca").get("temaPadrao").asString()).isEqualTo(paleta);
             versao = salva.get("versao").asLong();
         }
-        // Fora da lista (inclusive a Brisa, que saiu na conferência de contraste) é 400, não 500 do banco.
-        for (String fora : List.of("BRISA", "NEON", "escuro", "")) {
+        // Fora da lista (a Brisa saiu na conferência de contraste e o Café na V083) é 400, não 500 do banco.
+        for (String fora : List.of("BRISA", "NEON", "CAFE", "escuro", "")) {
             JsonNode erro = api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#C62828",
                     "fonteTitulo", "PADRAO", "temaPadrao", fora, "versao", versao), 400);
             assertThat(erro.path("codigo").asString()).isEqualTo("DADOS_INVALIDOS");

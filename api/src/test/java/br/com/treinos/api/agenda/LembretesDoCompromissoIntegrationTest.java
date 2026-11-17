@@ -13,6 +13,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +117,85 @@ class LembretesDoCompromissoIntegrationTest extends AbstractIntegrationTest {
 
         // Nada foi gravado pelos pedidos recusados.
         assertThat(api.get("/agenda/compromissos?de=" + dia() + "&ate=" + dia(), admin, 200)).isEmpty();
+    }
+
+    @Test
+    void listaEnormeDa422ComUmSoErroERespostaPequena() throws Exception {
+        JsonNode enorme = marcar(Collections.nCopies(2000, 0), "08:00", 422);
+        assertThat(enorme.path("codigo").asString()).isEqualTo("COMPROMISSO_INVALIDO");
+        assertThat(camposDoErro(enorme)).containsExactly("lembretesMinutos");
+        assertThat(enorme.toString().length()).isLessThan(1000);
+    }
+
+    @Test
+    void numeroFracionadoETextoNumericoSaoCoagidosPeloJackson() throws Exception {
+        // Comportamento do Jackson 3 (padrão): 30.5 vira 30 (trunca) e "30" vira 30; não há 400 por isso.
+        assertThat(lista(marcar(List.of(30.5), "08:00", 200))).containsExactly(30);
+        assertThat(lista(marcar(List.of("45"), "09:00", 200))).containsExactly(45);
+        // Texto que não é número e objeto não passam: 400 do corpo ilegível.
+        marcar(List.of("abc"), "10:00", 400);
+        marcar(List.of(Map.of("a", 1)), "11:00", 400);
+    }
+
+    @Test
+    void serieGravaTrocaPorEscopoEPreservaNoPutSemOCampoEnoCancelar() throws Exception {
+        Map<String, Object> repeticao = Map.of("tipo", "DIARIA", "vezes", 3);
+        Map<String, Object> criar = pedido(List.of(aluno), "08:00");
+        criar.put("repeticao", repeticao);
+        criar.put("lembretesMinutos", List.of(15, 60));
+        JsonNode primeira = api.post("/agenda/compromissos", admin, criar, 200);
+        assertThat(listas()).containsExactly(List.of(15, 60), List.of(15, 60), List.of(15, 60));
+
+        // TODAS: troca as três.
+        alterar(0, "TODAS", List.of(10), "08:00");
+        assertThat(listas()).containsExactly(List.of(10), List.of(10), List.of(10));
+
+        // SEGUINTES a partir da segunda: a primeira fica.
+        alterar(1, "SEGUINTES", List.of(20), "08:00");
+        assertThat(listas()).containsExactly(List.of(10), List.of(20), List.of(20));
+
+        // ESTA com lista vazia: só a terceira, as irmãs não mudam.
+        alterar(2, "ESTA", List.of(), "08:00");
+        assertThat(listas()).containsExactly(List.of(10), List.of(20), List.of());
+
+        // PUT sem o campo mantém a lista de cada ocorrência (aqui remarca a hora das duas últimas).
+        alterar(1, "SEGUINTES", null, "09:00");
+        assertThat(listas()).containsExactly(List.of(10), List.of(20), List.of());
+        assertThat(ocorrencias().get(2).path("hora").asString()).isEqualTo("09:00");
+
+        // Cancelar e reabrir a série preserva as listas.
+        String id = primeira.path("id").asString();
+        api.post("/agenda/compromissos/" + id + "/situacao?escopo=TODAS", admin,
+                Map.of("cancelado", true, "versao", ocorrencias().get(0).path("versao").asLong()), 200);
+        assertThat(ocorrencias()).allMatch(c -> c.path("cancelado").asBoolean());
+        assertThat(listas()).containsExactly(List.of(10), List.of(20), List.of());
+        api.post("/agenda/compromissos/" + id + "/situacao?escopo=TODAS", admin,
+                Map.of("cancelado", false, "versao", ocorrencias().get(0).path("versao").asLong()), 200);
+        assertThat(ocorrencias()).noneMatch(c -> c.path("cancelado").asBoolean());
+        assertThat(listas()).containsExactly(List.of(10), List.of(20), List.of());
+    }
+
+    /** As ocorrências da série (o dia e os dois seguintes), em ordem de início. */
+    private List<JsonNode> ocorrencias() throws Exception {
+        List<JsonNode> r = new ArrayList<>();
+        api.get("/agenda/compromissos?de=" + dia() + "&ate=" + dia().plusDays(2), admin, 200).forEach(r::add);
+        r.sort(Comparator.comparing(c -> c.path("inicio").asString()));
+        assertThat(r).hasSize(3);
+        return r;
+    }
+
+    private List<List<Integer>> listas() throws Exception {
+        return ocorrencias().stream().map(LembretesDoCompromissoIntegrationTest::lista).toList();
+    }
+
+    /** PUT na i-ésima ocorrência com a data dela, versão lida na hora; {@code lembretes} nulo = sem o campo. */
+    private void alterar(int i, String escopo, List<Integer> lembretes, String hora) throws Exception {
+        JsonNode c = ocorrencias().get(i);
+        Map<String, Object> corpo = pedido(List.of(aluno), hora);
+        corpo.put("data", c.path("data").asString());
+        corpo.put("versao", c.path("versao").asLong());
+        if (lembretes != null) corpo.put("lembretesMinutos", lembretes);
+        api.put("/agenda/compromissos/" + c.path("id").asString() + "?escopo=" + escopo, admin, corpo, 200);
     }
 
     @Test

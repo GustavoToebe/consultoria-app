@@ -17,13 +17,13 @@ Tirar o nome "STNDRD" do código e do texto da tela e acabar com o alias silenci
 | --- | --- | --- | --- |
 | D1 | Rename dos identificadores | **bloqueado** até a outra sessão liberar `treinador/financeiro/`; nome sugerido `realce`/`TokensRealce` (sem alias temporário: é código de transição) | restrição do Gustavo (não tocar financeiro) |
 | D2 | Texto visível e comentários | tirar "STNDRD" agora | pedido do Gustavo |
-| D3 | Café | sai do app (tipo, `PALETAS`, alias, leitura de preferências) e, em commit próprio, da API: V080 troca `CAFE` por `ESCURO` e refaz o CHECK, enum sem `CAFE`; se não houver V080 livre, a API fica para depois | recomendação desta sessão (o Gustavo confirma) |
+| D3 | Café | sai do app (tipo, `PALETAS`, alias, leitura de preferências) e, em commit próprio, da API: V083 troca `CAFE` por `ESCURO` e refaz o CHECK, enum sem `CAFE` (a V080 já era a troca de exercício) | recomendação desta sessão (o Gustavo confirma) |
 | D4 | O que fica do estudo | **não decidido**: lista e recomendação no relatório de 16/11 | pedido do Gustavo |
 
 ## Passos
 - [ ] 1. Plano e entrada no README — commit: este
 - [x] 2. App: tirar "STNDRD" do texto e dos comentários; tirar o Café (tipo, tokens, preferências, testes, docs de design) — commit: ver `git log` ("Limpeza do estudo STNDRD no app"); sobra o comentário "Liquid Glass (STNDRD)" em `aluno/BarraDescanso.tsx:26`, que vai com o rename (passo 4)
-- [ ] 3. API: V080 (`CAFE` → `ESCURO`, CHECK refeito), enum sem `CAFE`, totais de migrations — commit: —
+- [x] 3. API: V083 (`CAFE` → `ESCURO`, CHECK refeito), enum sem `CAFE`, totais de migrations — commit: `66acd38f` · evidência: `V083__tira_o_tema_cafe.sql`, `Consultoria.Tema` sem `CAFE`, `TemaCafeELembretesMigrationTest`, `CAFE` = 400 em `MarcaELogoIntegrationTest`
 - [ ] 4. Rename dos identificadores `stndrd` (depende da liberação do `financeiro/`) — commit: —
 - [ ] 5. e2e inteiro filtrado e capturas claro, Areia e escuro a 390 e 1280 — commit: —
 

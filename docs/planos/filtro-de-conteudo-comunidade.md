@@ -18,7 +18,7 @@ Post e comentário de aluno com termo sexual explícito não são publicados. A 
 | D6 | Equipe | o filtro não vale para a equipe (`COMUNIDADE_MODERAR`) | decorrência de D3 |
 
 ## Passos
-- [ ] 1. Filtro na API (comunidade) e mensagem no app — executor (Onda 2F, depois dos aniversários) · commit: —
+- [x] 1. Filtro na API (comunidade) e mensagem no app — executor (Onda 2F, depois dos aniversários) · **API feita em 17/11/2026 (sem commit)**: `comunidade/FiltroDeConteudo` (23 termos, palavra inteira, sem acento), 422 `texto` no post (`POST_INVALIDO`) e no comentário de aluno (`COMUNIDADE_INVALIDA`); testes `FiltroDeConteudoTest` e `FiltroDeConteudoIntegrationTest`; **a mensagem no app (campo `texto` do post e do comentário) fica com o executor-front** · commit: —
 - [ ] 2. Revisão independente (falso positivo) — revisor, só leitura · commit: —
 
 ## Critérios de aceite
