@@ -1,9 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { ConteudoDieta, ItemDieta, PlanoDetalhe, Refeicao, VariacaoDaDieta, VersaoDetalhe } from '../src/api/tipos';
-import { ALUNO, erroApi, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
+import { ALUNO, erroApi, json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 import { fixarHoje, sessaoDeAluno, sessaoDeAlunoComTreino, SESSOES_COM_DIAS } from './aluno';
-
 /**
  * Dieta por dia da semana (passos 3 e 4 do plano `dieta-por-dia-da-semana`): no editor, os chips das variações e os sete
  * dias da aberta (marcar tira da outra), duplicar, criar a partir da dieta sem variação e voltar; no aluno, a dieta abre na
@@ -212,15 +211,105 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 
-  test(`prévia: segunda sem variação no rascunho avisa e mostra a primeira (${largura}px)`, async ({ page }, testInfo) => {
+  test(`prévia: segunda sem dieta marcada diz isso, não mostra refeições e deixa escolher a variação (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     const { naoTratadas, errosDaPagina } = await abrirEditor(page, { ...VAZIA, variacoes: [{ ...TREINO, dias: [3, 5] }, DESCANSO] });
     await expect(page.getByText('Dias sem variação: Seg.', { exact: false })).toBeVisible();
     await page.getByRole('button', { name: 'Ver como o aluno' }).click();
     const folha = page.getByRole('dialog', { name: 'Ver como o aluno' });
-    await expect(folha.getByText('Nenhuma variação para hoje. Escolha qual ver.')).toBeVisible();
-    await expect(folha.getByRole('heading', { name: 'Dia de treino' })).toBeVisible();
+    await expect(folha.getByRole('heading', { name: 'Sem dieta marcada para hoje' })).toBeVisible();
+    // Nada de refeições de outro dia como se fossem as de hoje.
+    await expect(folha.getByRole('heading', { name: 'Total do dia' })).toHaveCount(0);
+    await expect(folha.getByText('Café', { exact: true })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath(`previa-descoberta-${largura}.png`) });
+    await folha.getByRole('radio', { name: 'Dia de treino' }).click();
+    await expect(folha.getByRole('heading', { name: 'Dia de treino' })).toBeVisible();
+    await expect(folha.getByText('Sem dieta marcada para hoje. Esta é a dieta de outro dia.')).toBeVisible();
+    await expect(folha.getByText('Café', { exact: true })).toBeVisible();
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`editor: dia sem variação publica depois de o aviso ser confirmado (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    const semSegunda: ConteudoDieta = { ...VAZIA, variacoes: [{ ...TREINO, dias: [3, 5] }, DESCANSO] };
+    const alterado = { ...detalhe(semSegunda), plano: { ...detalhe(semSegunda).plano, rascunhoAlteradoDepoisDePublicar: true } };
+    const { pedidos, naoTratadas, errosDaPagina } = await abrirEditor(page, semSegunda, {
+      [`GET /planos-dieta/${PLANO_ID}`]: { corpo: alterado },
+      // O servidor devolve só aviso (nunca erro) para o dia que nenhuma variação cobre; confirmando, publica.
+      [`POST /planos-dieta/${PLANO_ID}/publicar`]: (pedido, route) => {
+        if ((pedido.corpo as { confirmarAvisos?: boolean }).confirmarAvisos) {
+          return json(route, { ...alterado, plano: { ...alterado.plano, versaoPublicada: 2, rascunhoAlteradoDepoisDePublicar: false } });
+        }
+        const e = erroApi(422, 'Confira os avisos antes de publicar. Nada foi publicado.', 'CONFIRMAR_AVISOS',
+          [{ field: 'variacoes', message: 'Dia sem dieta marcada: segunda.' }]);
+        return json(route, e.corpo, e.status);
+      },
+    });
+    await page.getByRole('button', { name: 'Publicar dieta' }).click();
+    const painel = page.getByRole('alertdialog', { name: 'Publicar com avisos?' });
+    await expect(painel.getByText('Dia sem dieta marcada: segunda.')).toBeVisible();
+    await painel.getByRole('button', { name: 'Publicar mesmo assim' }).click();
+    await expect.poll(() => pedidos.filter((p) => p.caminho.endsWith('/publicar')).map((p) => (p.corpo as { confirmarAvisos: boolean }).confirmarAvisos)).toEqual([false, true]);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`aluno: o PDF escolhe "Todas as variações" ou uma só, e a lista diz qual (${largura}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    await fixarHoje(page);
+    await page.addInitScript(() => { window.print = () => undefined; });
+    const { naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessaoDeAluno(page)),
+      'GET /aluno/dieta': { corpo: { dieta: versaoDoAluno(COM_VARIACOES) } },
+      'GET /aluno/pesos': { corpo: [] },
+    });
+    await page.goto('/aluno/dieta');
+    await page.getByRole('button', { name: 'Baixar PDF da dieta' }).click();
+    const folha = page.getByRole('dialog', { name: 'PDF da dieta' });
+    await expect(folha.getByRole('radio', { name: 'Todas as variações' })).toHaveAttribute('aria-checked', 'true');
+
+    // Todas: as duas seções no documento.
+    await folha.getByRole('button', { name: 'Baixar PDF', exact: true }).click();
+    const bloco = page.locator('#treinos-impressao');
+    await expect(bloco).toContainText('Variação · Dia de treino');
+    await expect(bloco).toContainText('Variação · Descanso');
+
+    // Uma só: o documento leva só ela; no detalhado a lista diz de qual variação é.
+    await page.getByRole('button', { name: 'Baixar PDF da dieta' }).click();
+    await folha.getByRole('radio', { name: 'Descanso' }).click();
+    await folha.getByRole('radio', { name: 'Detalhado' }).click();
+    await expect(folha.getByText('Lista da variação Descanso, que vale em Ter, Qui, Sáb e Dom.')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`aluno-pdf-uma-variacao-${largura}.png`) });
+    await folha.getByRole('button', { name: 'Baixar PDF', exact: true }).click();
+    await expect(bloco).toContainText('Variação · Descanso');
+    await expect(bloco).not.toContainText('Dia de treino');
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`aluno: dia sem dieta marcada (dieta publicada com dia descoberto) no Início e na Dieta (${largura}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    await fixarHoje(page);
+    // Segunda (o "hoje" fixo) não está em nenhuma variação: o "dia de descanso" publicável.
+    const semSegunda: ConteudoDieta = { ...VAZIA, variacoes: [{ ...TREINO, dias: [3, 5] }, DESCANSO] };
+    const { naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessaoDeAlunoComTreino(page, SESSOES_COM_DIAS)),
+      'GET /aluno/dieta': { corpo: { dieta: versaoDoAluno(semSegunda) } },
+      'GET /aluno/atualizacao': erroApi(404, 'Nenhuma atualização.', 'NAO_ENCONTRADO'),
+      'GET /aluno/pesos': { corpo: [] },
+      'GET /aluno/foto-perfil': erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
+    });
+    await page.goto('/aluno');
+    await expect(page.getByRole('link', { name: /^Dieta,/ })).toContainText('Sem dieta marcada para hoje');
+
+    await page.goto('/aluno/dieta');
+    await expect(page.getByRole('heading', { name: 'Sem dieta marcada para hoje' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Total do dia' })).toHaveCount(0);
+    await expect(page.getByText('Café', { exact: true })).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`aluno-sem-dieta-hoje-${largura}.png`), fullPage: true });
+    await page.getByRole('radio', { name: 'Descanso' }).click();
+    await expect(page.getByText('Jantar', { exact: true })).toBeVisible();
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
@@ -235,7 +324,7 @@ for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
         for (const id of ids) localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t }));
       }, [[TREINADOR.id, ALUNO.id], tema] as const);
       await abrirEditor(page, { ...VAZIA, variacoes: [TREINO, { ...DESCANSO, dias: [2, 4, 6] }] }, {
-        [`POST /planos-dieta/${PLANO_ID}/validar`]: { corpo: { erros: [{ caminho: 'variacoes[1].dias', mensagem: 'Domingo sem variação.' }], avisos: [] } },
+        [`POST /planos-dieta/${PLANO_ID}/validar`]: { corpo: { erros: [{ caminho: 'variacoes[1].dias', mensagem: 'Dia em mais de uma variação ou repetido: domingo.' }], avisos: [] } },
       });
       await expect(page.getByText('Dias sem variação: Dom.', { exact: false })).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`editor-${largura}-${tema}.png`), fullPage: true });

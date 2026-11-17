@@ -1,6 +1,6 @@
 import type { ConteudoDieta, ItemDieta, Marca, Refeicao, RegistroPeso, Suplemento } from '../api/tipos';
 import { NOMES_DOS_DIAS } from '../dominio/calendario';
-import { secoesDaDieta } from '../dominio/variacoesDaDieta';
+import { secoesDaDieta, soAVariacao } from '../dominio/variacoesDaDieta';
 import { modoDePreparoParaMostrar, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type Totais } from '../dominio/dieta';
 import { DIAS_DO_PERIODO, NOTA_DA_LISTA, NOTA_DA_PREVIA, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
 import { cabecalhoDaTabela, corpoDaTabela } from './pdfListaDeCompras';
@@ -21,6 +21,8 @@ export interface DadosPdfDieta {
   titulo: string;
   versao: number | null;
   conteudo: ConteudoDieta;
+  /** Uid de uma variação: o PDF leva só ela. Nulo, ausente ou desconhecido = todas as variações. */
+  variacaoUid?: string | null;
   pesos: RegistroPeso[];
   rodapePdf: string | null;
   emitidoEm: Date;
@@ -148,7 +150,7 @@ function cssDoTemaDeDieta(tema: TemaPdf, cor: string): string {
  * com as quebras de linha.
  */
 export function documentoDieta(d: DadosPdfDieta): Documento {
-  const c = d.conteudo;
+  const c = soAVariacao(d.conteudo, d.variacaoUid ?? null);
   const cor = corDaMarca(d.marca.corPrimaria);
   const tema = temaValido(d.marca.temaPdf);
   const corTexto = corDeTextoNoTema(d.marca.corPrimaria, tema);

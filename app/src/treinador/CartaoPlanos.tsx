@@ -167,7 +167,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
           aoFechar={() => setPdfDieta(null)}
           conteudo={conteudoPdf}
           versao={pdfDieta?.versaoPublicada ?? null}
-          aoBaixar={async (lista) => { if (pdfDieta) await gerarPdfDoPlano('dieta', pdfDieta, undefined, lista); }}
+          aoBaixar={async (lista, variacaoUid) => { if (pdfDieta) await gerarPdfDoPlano('dieta', pdfDieta, undefined, lista, undefined, variacaoUid); }}
         />
       ) : null}
       <PainelConfirmacao visivel={!!excluir} titulo={`Excluir “${excluir?.titulo ?? ''}”?`} mensagem="O plano sai da lista e deixa de estar ativo. As versões publicadas e o histórico de registros são preservados." rotuloConfirmar="Excluir plano" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {

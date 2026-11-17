@@ -53,7 +53,7 @@ export function dietaNoInicio(entrada: { conteudo: ConteudoDieta | null | undefi
   const agua = aguaDoInicio(c.aguaLitros);
   if (c.variacoes.length === 0) return { tipo: 'ok', refeicoes: `${contagem(c.refeicoes.length, 'refeição', 'refeições')} no seu plano`, agua };
   const hoje = variacaoDoDia(c, dia);
-  if (!hoje) return { tipo: 'ok', refeicoes: 'Nenhuma variação para hoje', agua };
+  if (!hoje) return { tipo: 'ok', refeicoes: 'Sem dieta marcada para hoje', agua };
   return { tipo: 'ok', refeicoes: `Hoje: ${hoje.rotulo.trim() || 'Variação sem nome'} · ${contagem(hoje.refeicoes.length, 'refeição', 'refeições')}`, agua };
 }
 

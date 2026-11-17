@@ -6,6 +6,7 @@ import { fatoresDosAlimentos } from '../api/rotas';
 import type { ConteudoDieta, FatoresDoAlimento } from '../api/tipos';
 import { alimentosDaDieta, comFatoresDaBiblioteca, listaDeCompras, textosDasOpcoes, type EscolhasDeOpcao, type PeriodoDaLista } from '../dominio/listaDeCompras';
 import type { ModoPdfDieta } from '../dominio/preferencias';
+import { soAVariacao } from '../dominio/variacoesDaDieta';
 import type { DadosPdfDieta } from '../pdf/pdfDieta';
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
@@ -22,6 +23,8 @@ import { Texto } from './Texto';
 import { useCarregar } from './useCarregar';
 
 const IDS_POR_PEDIDO = 200;
+/** Valor do chip "Todas as variações" (o uid de uma variação nunca é este texto). */
+const TODAS = 'todas';
 
 async function buscarFatores(ids: string[]): Promise<FatoresDoAlimento[]> {
   const partes: string[][] = [];
@@ -30,7 +33,8 @@ async function buscarFatores(ids: string[]): Promise<FatoresDoAlimento[]> {
 }
 
 /**
- * Folha "PDF da dieta": Simples (a dieta de hoje) ou Detalhado (dieta e lista no fim).
+ * Folha "PDF da dieta": Simples (a dieta de hoje) ou Detalhado (dieta e lista no fim). Com mais de uma variação por dia, antes
+ * escolhe "Todas as variações" ou uma só (o PDF e a lista levam só ela).
  * A escolha fica nas preferências do aparelho. Os fatores nunca desligam a conta: o interruptor só mostra as colunas.
  * `versao` nula é prévia (rascunho ou modelo): busca os fatores atuais da biblioteca.
  */
@@ -45,7 +49,8 @@ export function FolhaPdfDieta({
   aoFechar: () => void;
   conteudo: ConteudoDieta | null;
   versao: number | null;
-  aoBaixar: (lista: DadosPdfDieta['lista'] | undefined) => Promise<void>;
+  /** `variacaoUid` nulo = todas as variações (ou a dieta sem variação). */
+  aoBaixar: (lista: DadosPdfDieta['lista'] | undefined, variacaoUid: string | null) => Promise<void>;
 }) {
   return (
     <Folha visivel={visivel} titulo="PDF da dieta" aoFechar={aoFechar}>
@@ -62,7 +67,7 @@ function Corpo({
 }: {
   conteudo: ConteudoDieta | null;
   versao: number | null;
-  aoBaixar: (lista: DadosPdfDieta['lista'] | undefined) => Promise<void>;
+  aoBaixar: (lista: DadosPdfDieta['lista'] | undefined, variacaoUid: string | null) => Promise<void>;
   aoFechar: () => void;
 }) {
   const { preferencias, escolherPreferencia } = useTema();
@@ -72,6 +77,8 @@ function Corpo({
   const [periodo, setPeriodo] = useState<PeriodoDaLista>(salva.periodo);
   const [fatores, setFatores] = useState(salva.fatores);
   const [escolhas, setEscolhas] = useState<EscolhasDeOpcao>({});
+  // Dieta com variações por dia: o PDF leva todas ou só uma (não fica salvo nas preferências: é por pedido).
+  const [variacao, setVariacao] = useState<string>(TODAS);
   const [gerando, setGerando] = useState(false);
   const previa = versao == null;
   const pedido = useCarregar(previa && conteudo ? `pdf-dieta:${alimentosDaDieta(conteudo).join(',')}` : null, () =>
@@ -86,7 +93,10 @@ function Corpo({
     escolherPreferencia({ pdfDieta: proxima });
   };
 
-  const base = conteudo && previa && pedido.dados ? comFatoresDaBiblioteca(conteudo, pedido.dados) : conteudo;
+  const comFatores = conteudo && previa && pedido.dados ? comFatoresDaBiblioteca(conteudo, pedido.dados) : conteudo;
+  // A variação que sumiu (outra versão) volta a "todas"; a lista de compras segue a mesma escolha do PDF.
+  const uidDaVariacao = comFatores?.variacoes.some((v) => v.uid === variacao) ? variacao : null;
+  const base = comFatores ? soAVariacao(comFatores, uidDaVariacao) : comFatores;
   const baixar = async () => {
     if (!base) return;
     setGerando(true);
@@ -94,7 +104,7 @@ function Corpo({
       const lista = modo === 'detalhado'
         ? { periodo, opcoes: textosDasOpcoes(base, escolhas), linhas: listaDeCompras(base, escolhas, periodo), mostrarFatores: fatores }
         : undefined;
-      await aoBaixar(lista);
+      await aoBaixar(lista, uidDaVariacao);
       aoFechar();
     } catch (e) {
       avisar(textoDoErro(e), 'perigo');
@@ -117,6 +127,10 @@ function Corpo({
         aoMudar={(m) => gravar({ modo: m })}
       />
       <Texto variante="suave">{modo === 'simples' ? 'Só a dieta.' : 'Dieta e lista de compras.'}</Texto>
+      {conteudo.variacoes.length > 1 ? (
+        <Escolha chips rotulo="Quais variações" valor={uidDaVariacao ?? TODAS} aoMudar={setVariacao}
+          opcoes={[{ valor: TODAS, rotulo: 'Todas as variações' }, ...conteudo.variacoes.map((v) => ({ valor: v.uid, rotulo: v.rotulo.trim() || 'Variação sem nome' }))]} />
+      ) : null}
       {modo === 'detalhado' ? (
         <>
           {pedido.erro ? <MensagemErro texto={textoDoErro(pedido.erro)} erro={pedido.erro} tentarDeNovo={pedido.recarregar} /> : null}

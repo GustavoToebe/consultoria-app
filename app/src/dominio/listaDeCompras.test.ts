@@ -1,6 +1,7 @@
 import type { ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao } from '../api/tipos';
 import { normalizarDieta } from './dieta';
-import { alimentosDaDieta, comFatoresDaBiblioteca, detalheDaConversao, DIAS_DO_PERIODO, listaDeCompras, NOTA_DA_LISTA, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, PERIODOS_DA_LISTA, textoDoPeriodo, textosDasOpcoes, tituloDaLista } from './listaDeCompras';
+import { soAVariacao } from './variacoesDaDieta';
+import { alimentosDaDieta, comFatoresDaBiblioteca, detalheDaConversao, DIAS_DO_PERIODO, escolhasDaLista, listaDeCompras, NOTA_DA_LISTA, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, PERIODOS_DA_LISTA, textoDoPeriodo, textosDasOpcoes, tituloDaLista } from './listaDeCompras';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
 
@@ -146,6 +147,16 @@ describe('dieta com variações por dia da semana', () => {
     expect(listaDeCompras(duas, { r1: 'b', r2: 'b' }, 'semana')[0].quantidade).toBe(300 * 3 + 70 * 4);
     // Sem variação o texto é o de antes, sem prefixo.
     expect(textosDasOpcoes(dieta([refeicao('r', [opcao('a', []), opcao('b', [])])]), {})).toEqual(['r: opção A']);
+  });
+
+  it('escolhasDaLista diz de qual variação é cada refeição (e dos dias dela); sem variação, sem rótulo', () => {
+    const duas = comVariacoes([
+      variacao('v1', 'Carbo alto', [1, 3, 5], [refeicao('r1', [opcao('a', [leite(100)]), opcao('b', [leite(300)])])]),
+      variacao('v2', ' ', [2, 4], [refeicao('r2', [opcao('a', [leite(50)]), opcao('b', [leite(70)])]), refeicao('r3', [opcao('a', [leite(1)])])]),
+    ]);
+    expect(escolhasDaLista(duas).map((e) => [e.refeicao.uid, e.variacao])).toEqual([['r1', 'Carbo alto'], ['r2', 'Variação sem nome']]);
+    expect(escolhasDaLista(soAVariacao(duas, 'v1')).map((e) => e.refeicao.uid)).toEqual(['r1']);
+    expect(escolhasDaLista(dieta([refeicao('r', [opcao('a', []), opcao('b', [])])])).map((e) => [e.refeicao.uid, e.variacao])).toEqual([['r', null]]);
   });
 
   it('os ids dos alimentos e os fatores da biblioteca alcançam as variações (e a raiz continua vazia)', () => {

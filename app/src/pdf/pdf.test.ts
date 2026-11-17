@@ -512,6 +512,30 @@ describe('PDF da dieta', () => {
       expect(documentoDieta({ ...base, versao: 1, conteudo: dieta, pesos: [], lista }).corpo).not.toContain('Cada variação entra');
     });
 
+    it('uma variação só: o PDF leva só a escolhida (rótulo, dias, refeições e total dela); "todas" ou uid que sumiu leva todas', () => {
+      const so = documentoDieta({ ...base, versao: 1, conteudo: comVariacoes, pesos: [], variacaoUid: 'v2' }).corpo;
+      expect(so).toContain('Variação · Dia de carbo baixo');
+      expect(so).toContain('Dias: ter, qui, sáb, dom');
+      expect(so).toContain('JANTAR');
+      expect(so).toContain('240 kcal');
+      expect(so).not.toContain('carbo&lt;/b&gt; alto');
+      expect(so).not.toContain('Dias: seg, qua, sex');
+      expect(so).not.toContain('ALMOÇO');
+      expect(so).not.toContain('260 kcal');
+      // Orientações e o resto global continuam, uma vez só.
+      expect(documentoDieta({
+        ...base, versao: 1, pesos: [], variacaoUid: 'v1',
+        conteudo: { ...comVariacoes, orientacoes: [{ titulo: 'Água', texto: 'Beba água' }] },
+      }).corpo.match(/Beba água/g)).toHaveLength(1);
+      expect(documentoDieta({ ...base, versao: 1, conteudo: comVariacoes, pesos: [], variacaoUid: null }).corpo).toBe(corpo);
+      expect(documentoDieta({ ...base, versao: 1, conteudo: comVariacoes, pesos: [], variacaoUid: 'sumiu' }).corpo).toBe(corpo);
+    });
+
+    it('dieta sem variação ignora o uid: o PDF é o de sempre', () => {
+      expect(documentoDieta({ ...base, versao: 1, conteudo: dieta, pesos: [], variacaoUid: 'v1' }).corpo)
+        .toBe(documentoDieta({ ...base, versao: 1, conteudo: dieta, pesos: [] }).corpo);
+    });
+
     it('sem variação o PDF é o de sempre: tabela do dia, sem seção de variação', () => {
       expect(html).toContain('Distribuição diária de macronutrientes');
       expect(html).not.toContain('Variação ·');

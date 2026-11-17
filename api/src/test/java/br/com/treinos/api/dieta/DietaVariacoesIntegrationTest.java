@@ -162,7 +162,7 @@ class DietaVariacoesIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void publicarRecusaDiaRepetidoEDescobertoSemRepetirORotuloNaResposta() throws Exception {
+    void publicarRecusaDiaRepetidoSemRepetirORotuloNaResposta_eDiaDescobertoSoPedeConfirmacao() throws Exception {
         ApiDeTeste api = new ApiDeTeste(mvc, json);
         JsonNode treinador = api.novoTreinador();
         UUID aluno = api.criarAluno(treinador, "Aluno Fictício");
@@ -177,9 +177,10 @@ class DietaVariacoesIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode erro = publicar(api, treinador, id, salvo, 422);
         assertThat(erro.get("codigo").asString()).isEqualTo("PLANO_INVALIDO");
+        // O domingo descoberto não é erro (só aviso): o único erro é a sexta em duas variações.
         assertThat(erro.get("fieldErrors").valueStream().map(e -> e.get("field").asString()))
-                .containsExactlyInAnyOrder("variacoes[1].dias", "variacoes");
-        assertThat(erro.toString()).doesNotContain(a).doesNotContain(b).contains("domingo");
+                .containsExactly("variacoes[1].dias");
+        assertThat(erro.toString()).doesNotContain(a).doesNotContain(b).contains("sexta");
 
         // Nada foi publicado e a auditoria nunca guarda o rótulo.
         assertThat(api.get("/planos-dieta/" + id, treinador, 200).get("plano").get("versaoPublicada").asInt()).isZero();
@@ -193,6 +194,18 @@ class DietaVariacoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode salvoJunto = salvar(api, treinador, id, junto, api.get("/planos-dieta/" + id, treinador, 200));
         assertThat(publicar(api, treinador, id, salvoJunto, 422).get("fieldErrors").valueStream()
                 .map(e -> e.get("field").asString())).containsExactly("refeicoes");
+
+        // Dia descoberto (o "dia de descanso") publica: sem confirmar os avisos, 422 CONFIRMAR_AVISOS só com os nomes dos dias;
+        // confirmando, publica e o aluno lê a dieta com os dias marcados.
+        ConteudoDieta descanso = new ConteudoDieta(null, null, null, List.of(), List.of(), null, List.of(), null, null,
+                List.of(new Variacao(UUID.randomUUID(), a, List.of(1, 2, 3, 4, 5), List.of(refeicao(null, "Item manual")))));
+        JsonNode salvoDescanso = salvar(api, treinador, id, descanso, api.get("/planos-dieta/" + id, treinador, 200));
+        JsonNode aviso = api.post("/planos-dieta/" + id + "/publicar", treinador,
+                Map.of("versao", salvoDescanso.path("plano").path("versao").asLong(), "confirmarAvisos", false), 422);
+        assertThat(aviso.get("codigo").asString()).isEqualTo("CONFIRMAR_AVISOS");
+        assertThat(aviso.toString()).contains("sábado, domingo").doesNotContain(a);
+        publicar(api, treinador, id, salvoDescanso, 200);
+        assertThat(api.get("/planos-dieta/" + id, treinador, 200).get("plano").get("versaoPublicada").asInt()).isEqualTo(1);
 
         // Bean validation do corpo: dia fora de 1 a 7 e mais de 7 variações (400, sem publicar nada).
         ConteudoDieta dia9 = new ConteudoDieta(null, null, null, List.of(), List.of(), null, List.of(), null, null,

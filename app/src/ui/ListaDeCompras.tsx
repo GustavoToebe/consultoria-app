@@ -9,8 +9,8 @@ import {
   NOTA_DA_LISTA_ALUNO,
   NOTA_DA_LISTA_TREINADOR,
   PERIODOS_DA_LISTA,
+  escolhasDaLista,
   quantidadeParaTela,
-  refeicoesComEscolha,
   textoDoPeriodo,
   textosDasOpcoes,
   tituloDaLista,
@@ -19,6 +19,7 @@ import {
   type PeriodoDaLista,
 } from '../dominio/listaDeCompras';
 import { agruparLista, contagemDoGrupo } from '../dominio/gruposDaLista';
+import { textoDosDiasCurtos } from '../dominio/variacoesDaDieta';
 import { espaco, fontes } from '../tema/tokens';
 import { useAviso } from './Aviso';
 import { Botao } from './Botao';
@@ -48,18 +49,25 @@ export function EscolhasDaLista({
   escolhas: EscolhasDeOpcao;
   aoMudarEscolhas: (escolhas: EscolhasDeOpcao) => void;
 }) {
-  const comEscolha = refeicoesComEscolha(conteudo);
-  const opcaoDe = (r: (typeof comEscolha)[number]) => r.opcoes.find((o) => o.uid === escolhas[r.uid]) ?? r.opcoes[0];
+  const comEscolha = escolhasDaLista(conteudo);
+  const opcaoDe = (r: (typeof comEscolha)[number]['refeicao']) => r.opcoes.find((o) => o.uid === escolhas[r.uid]) ?? r.opcoes[0];
+  const variacoes = conteudo.variacoes;
   return (
     <>
+      {/* Lista de uma variação só (PDF de uma variação): diz qual e os dias dela; com várias, a conta de cada uma. */}
+      {variacoes.length === 1 ? (
+        <Texto variante="suave">{`Lista da variação ${variacoes[0].rotulo.trim() || 'sem nome'}, que vale em ${textoDosDiasCurtos(variacoes[0].dias)}.`}</Texto>
+      ) : variacoes.length > 1 ? (
+        <Texto variante="suave">Cada variação entra pelo número de dias dela na semana.</Texto>
+      ) : null}
       <Escolha descricao="Período da lista" opcoes={PERIODOS} valor={periodo} aoMudar={aoMudarPeriodo} />
       {comEscolha.length ? (
         <View style={estilos.opcoes}>
           <Texto variante="suave">Nas refeições com mais de uma opção, escolha a que vai comprar. A lista soma só a opção escolhida de cada refeição.</Texto>
-          {comEscolha.map((r) => (
+          {comEscolha.map(({ refeicao: r, variacao }) => (
             <Escolha
               key={r.uid}
-              rotulo={`${r.horario ? `${r.horario} · ` : ''}${r.nome || 'Refeição'}`}
+              rotulo={`${variacao ? `${variacao} · ` : ''}${r.horario ? `${r.horario} · ` : ''}${r.nome || 'Refeição'}`}
               opcoes={r.opcoes.map((o) => ({ valor: o.uid, rotulo: `Opção ${o.rotulo}` }))}
               valor={opcaoDe(r)?.uid ?? ''}
               aoMudar={(uid) => aoMudarEscolhas({ ...escolhas, [r.uid]: uid })}

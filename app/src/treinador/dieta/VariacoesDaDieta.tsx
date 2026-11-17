@@ -106,9 +106,10 @@ export function VariacoesDaDieta({ conteudo: c, aberta, comProblema, aoAbrir, al
           <Texto variante="pequeno">Marcar um dia o tira da outra variação.</Texto>
         </View>
         {semDia.length || vazias.length ? (
-          <Alerta tom="atencao" titulo="Para publicar, cada dia precisa estar em uma variação"
+          // Variação sem dia bloqueia a publicação; dia sem variação só avisa (o "dia de descanso" é permitido).
+          <Alerta tom="atencao" titulo={vazias.length ? 'Para publicar, marque ao menos um dia em cada variação' : 'Dias sem dieta marcada'}
             texto={[
-              semDia.length ? `Dias sem variação: ${textoDosDiasCurtos(semDia)}.` : null,
+              semDia.length ? `Dias sem variação: ${textoDosDiasCurtos(semDia)}. Nesses dias o aluno vê "Sem dieta marcada para hoje"; pode publicar assim.` : null,
               vazias.length ? `Sem dia marcado: ${vazias.map(nomeDe).join(', ')}.` : null,
             ].filter(Boolean).join(' ')} />
         ) : null}

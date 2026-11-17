@@ -4,7 +4,7 @@ import { localizar, uidsComProblema } from './caminhos';
 import {
   alternarDia, criarVariacoes, diaDeHojeEmBrasilia, diasSemVariacao, dividirPorDia, duplicarVariacao, excluirVariacao,
   LIMITE_DE_VARIACOES, mudarRefeicoesDaSecao, refeicoesDaSecao, refeicoesDoDia, renomearVariacao, ROTULO_MAXIMO,
-  secoesDaDieta, textoDosDiasCurtos, usarEmTodosOsDias, variacaoAberta, variacaoDoDia,
+  secoesDaDieta, soAVariacao, textoDosDiasCurtos, usarEmTodosOsDias, variacaoAberta, variacaoDoDia, variacaoMostrada,
 } from './variacoesDaDieta';
 
 let mockProximo = 0;
@@ -50,6 +50,26 @@ describe('qual variação vale em cada dia', () => {
     expect(variacaoDoDia(c, 6)).toBeNull();
     expect(refeicoesDoDia(c, 6)).toEqual([]);
     expect(diasSemVariacao(c)).toEqual([6]);
+  });
+
+  it('variacaoMostrada: a escolhida à mão vale; senão a de hoje; dia sem dieta marcada não mostra variação nenhuma', () => {
+    const c = duas();
+    c.variacoes[1].dias = [2, 4];
+    expect(variacaoMostrada(c, null, 1)?.uid).toBe('alto');
+    expect(variacaoMostrada(c, 'zero', 1)?.uid).toBe('zero');
+    expect(variacaoMostrada(c, 'sumiu', 2)?.uid).toBe('zero');
+    // Sábado (6) está descoberto: nada de cair na primeira variação.
+    expect(variacaoMostrada(c, null, 6)).toBeNull();
+    expect(variacaoMostrada(c, 'alto', 6)?.uid).toBe('alto');
+    expect(variacaoMostrada(raiz(), null, 6)).toBeNull();
+  });
+
+  it('soAVariacao: só a do uid; sem uid, uid que sumiu ou sem variações devolve a própria dieta', () => {
+    const c = duas();
+    expect(soAVariacao(c, 'zero').variacoes.map((v) => v.uid)).toEqual(['zero']);
+    expect(soAVariacao(c, null)).toBe(c);
+    expect(soAVariacao(c, 'sumiu')).toBe(c);
+    expect(soAVariacao(raiz(), 'zero').refeicoes).toHaveLength(1);
   });
 
   it('secoesDaDieta: uma seção com os 7 dias sem variações; uma por variação com elas', () => {

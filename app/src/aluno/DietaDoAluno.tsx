@@ -10,7 +10,7 @@ import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { linhasDoComplemento } from '../dominio/linhasDoComplemento';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { linkParaAbrir } from '../dominio/links';
-import { textoDosDiasCurtos, variacaoDoDia } from '../dominio/variacoesDaDieta';
+import { textoDosDiasCurtos, variacaoDoDia, variacaoMostrada } from '../dominio/variacoesDaDieta';
 import type { DadosPdfDieta } from '../pdf/pdfDieta';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
@@ -59,7 +59,7 @@ export function DietaDoAluno({
   aguaNoCartao?: boolean;
   previa?: boolean;
   /** Gera o PDF (a tela do aluno monta o documento com o pacote); fora da prévia, sem ele o botão não aparece. */
-  aoBaixarPdf?: (lista?: DadosPdfDieta['lista']) => Promise<void>;
+  aoBaixarPdf?: (lista?: DadosPdfDieta['lista'], variacaoUid?: string | null) => Promise<void>;
 }) {
   const { cores } = useTema();
   const [folhaPdf, setFolhaPdf] = useState(false);
@@ -69,8 +69,10 @@ export function DietaDoAluno({
   const [escolha, setEscolha] = useState<{ uid: string; dia: number } | null>(null);
   const escolhidaUid = escolha?.dia === dia ? escolha.uid : null;
   const deHoje = variacaoDoDia(c, dia);
-  const mostrada = c.variacoes.find((v) => v.uid === escolhidaUid) ?? deHoje ?? c.variacoes[0] ?? null;
-  const refeicoes = mostrada ? mostrada.refeicoes : c.refeicoes;
+  const mostrada = variacaoMostrada(c, escolhidaUid, dia);
+  // Com variações e sem nenhuma para mostrar: dia sem dieta marcada (publicável); não mostra refeições de outro dia.
+  const semDietaHoje = c.variacoes.length > 0 && !mostrada;
+  const refeicoes = mostrada ? mostrada.refeicoes : semDietaHoje ? [] : c.refeicoes;
   const totais = totalDoDia(refeicoes);
   const ergogenicos = ergogenicosPreenchidos(c.ergogenicos);
   const inicioEProfissional = [c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ');
@@ -106,15 +108,17 @@ export function DietaDoAluno({
         </Cartao>
       ) : null}
       <Botao rotulo="Lista de compras" tipo="secundario" cheio Icone={ShoppingCart} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) router.push('/aluno/lista-de-compras'); }} />
-      {mostrada ? (
+      {c.variacoes.length > 0 ? (
         <VariacaoDoDia variacoes={c.variacoes} mostrada={mostrada} deHoje={deHoje}
           aoEscolher={(uid) => setEscolha(uid === deHoje?.uid ? null : { uid, dia })} />
       ) : null}
-      <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
-        <TotalDoDia totais={totais} />
-        <Texto variante="pequeno">P = proteína · C = carboidrato · G = gordura</Texto>
-        {Object.values(totais).some((v) => v === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
-      </Cartao>
+      {semDietaHoje ? null : (
+        <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
+          <TotalDoDia totais={totais} />
+          <Texto variante="pequeno">P = proteína · C = carboidrato · G = gordura</Texto>
+          {Object.values(totais).some((v) => v === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
+        </Cartao>
+      )}
       {refeicoes.map((r, i) => (
         <CartaoRefeicaoAluno key={r.uid} refeicao={r} indice={i} />
       ))}
@@ -232,21 +236,23 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
 
 /**
  * Qual variação o aluno está vendo: "Hoje: <nome>" quando é a de hoje, senão o nome e os dias dela (e qual é a de hoje).
- * Troca à mão pelos chips (com ✓, "· hoje" na de hoje); tocar na de hoje volta a seguir o dia. Dia sem variação só
- * acontece na prévia do rascunho (publicar exige os 7 dias): mostra a primeira e diz isso.
+ * Troca à mão pelos chips (com ✓, "· hoje" na de hoje); tocar na de hoje volta a seguir o dia. Dia sem dieta marcada (o
+ * "dia de descanso", publicável) não mostra variação nenhuma: diz "Sem dieta marcada para hoje" e deixa os chips para ver
+ * as outras (`mostrada` nula); escolhida uma, mostra e avisa que hoje não tem.
  */
 function VariacaoDoDia({ variacoes, mostrada, deHoje, aoEscolher }: {
-  variacoes: VariacaoDaDieta[]; mostrada: VariacaoDaDieta; deHoje: VariacaoDaDieta | null; aoEscolher: (uid: string) => void;
+  variacoes: VariacaoDaDieta[]; mostrada: VariacaoDaDieta | null; deHoje: VariacaoDaDieta | null; aoEscolher: (uid: string) => void;
 }) {
   const nome = (v: VariacaoDaDieta) => v.rotulo.trim() || 'Variação sem nome';
-  const ehHoje = deHoje?.uid === mostrada.uid;
-  const dias = `Vale em ${textoDosDiasCurtos(mostrada.dias)}.`;
+  const ehHoje = !!mostrada && deHoje?.uid === mostrada.uid;
+  const dias = mostrada ? `Vale em ${textoDosDiasCurtos(mostrada.dias)}.` : '';
+  const titulo = !mostrada ? 'Sem dieta marcada para hoje' : ehHoje ? `Hoje: ${nome(mostrada)}` : nome(mostrada);
+  const descricao = !mostrada ? 'Se quiser, veja a dieta de outro dia abaixo.' : ehHoje || !deHoje ? dias : `${dias} Hoje é dia de ${nome(deHoje)}.`;
   return (
-    <Cartao titulo={ehHoje ? `Hoje: ${nome(mostrada)}` : nome(mostrada)}
-      descricao={ehHoje || !deHoje ? dias : `${dias} Hoje é dia de ${nome(deHoje)}.`}>
-      {deHoje ? null : <Alerta tom="atencao" texto="Nenhuma variação para hoje. Escolha qual ver." />}
-      {variacoes.length > 1 ? (
-        <Escolha chips rotulo="Ver a dieta de" valor={mostrada.uid} aoMudar={aoEscolher}
+    <Cartao titulo={titulo} descricao={descricao}>
+      {mostrada && !deHoje ? <Alerta tom="atencao" texto="Sem dieta marcada para hoje. Esta é a dieta de outro dia." /> : null}
+      {variacoes.length > 1 || !mostrada ? (
+        <Escolha chips rotulo="Ver a dieta de" valor={mostrada?.uid ?? ''} aoMudar={aoEscolher}
           opcoes={variacoes.map((v) => ({ valor: v.uid, rotulo: v.uid === deHoje?.uid ? `${nome(v)} · hoje` : nome(v) }))} />
       ) : null}
     </Cartao>

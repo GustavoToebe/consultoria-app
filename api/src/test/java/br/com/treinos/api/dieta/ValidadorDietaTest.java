@@ -154,7 +154,7 @@ class ValidadorDietaTest {
     }
 
     @Test
-    void diaForaDe1A7RepetidoOuDescobertoEErroEAMensagemSoTemONomeDoDia() {
+    void diaForaDe1A7OuRepetidoEErroEAMensagemSoTemONomeDoDia() {
         // Repetido na mesma variação (1,1) e entre variações (5): só os nomes dos dias na mensagem.
         ConteudoDieta repetido = comVariacoes(variacao(ROTULO_SIGILOSO, List.of(1, 1, 2, 3, 4, 5), refeicao(null)),
                 variacao("B", List.of(5, 6, 7), refeicao(null)));
@@ -169,10 +169,21 @@ class ValidadorDietaTest {
         assertThat(caminhosDosErros(fora)).containsExactly("variacoes[0].dias");
         assertThat(mensagensDosErros(fora)).containsExactly("Dia precisa ser de 1 (segunda) a 7 (domingo).");
 
+    }
+
+    @Test
+    void diaDescobertoPublicaComAvisoConfirmavelESemErro() {
+        // Dia de descanso: raro e permitido. Só aviso, com os nomes dos dias, nunca o rótulo.
         ResultadoValidacao descoberto = validador.validar(comVariacoes(
                 variacao(ROTULO_SIGILOSO, List.of(1, 2, 3, 4, 5), refeicao(null))), null, null);
-        assertThat(caminhosDosErros(descoberto)).containsExactly("variacoes");
-        assertThat(mensagensDosErros(descoberto)).containsExactly("Dia sem variação: sábado, domingo.");
+        assertThat(descoberto.erros()).isEmpty();
+        assertThat(descoberto.avisos().stream().map(ResultadoValidacao.Problema::caminho)).containsExactly("variacoes");
+        assertThat(descoberto.avisos().stream().map(ResultadoValidacao.Problema::mensagem)).containsExactly(
+                "Dia sem dieta marcada: sábado, domingo.");
+
+        // Os sete dias cobertos: nenhum aviso de dia.
+        assertThat(validador.validar(comVariacoes(
+                variacao("A", List.of(1, 2, 3, 4, 5, 6, 7), refeicao(null))), null, null).avisos()).isEmpty();
     }
 
     @Test

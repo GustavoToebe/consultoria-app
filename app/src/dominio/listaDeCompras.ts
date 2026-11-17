@@ -176,6 +176,14 @@ export function refeicoesComEscolha(conteudo: ConteudoDieta): Refeicao[] {
   return todasAsRefeicoes(conteudo).filter((r) => r.opcoes.length > 1);
 }
 
+/** Como {@link refeicoesComEscolha}, com o nome da variação de cada uma (nulo na dieta sem variação), para a tela dizer de qual é. */
+export function escolhasDaLista(conteudo: ConteudoDieta): { refeicao: Refeicao; variacao: string | null }[] {
+  return secoesDaDieta(conteudo).flatMap((s) => s.refeicoes.filter((r) => r.opcoes.length > 1).map((refeicao) => ({
+    refeicao,
+    variacao: s.uid === null ? null : s.rotulo?.trim() || 'Variação sem nome',
+  })));
+}
+
 /** Ids distintos dos alimentos da biblioteca usados na dieta (todas as variações e opções), para buscar os fatores atuais. */
 export function alimentosDaDieta(conteudo: ConteudoDieta): string[] {
   const ids = new Set<string>();

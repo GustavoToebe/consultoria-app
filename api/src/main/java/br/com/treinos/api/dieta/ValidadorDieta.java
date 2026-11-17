@@ -93,8 +93,9 @@ public class ValidadorDieta {
     }
 
     /**
-     * Dieta por dia da semana: a raiz fica sem refeição, cada variação tem rótulo, dia(s) e refeição(ões), e os sete dias
-     * ficam cobertos sem repetir. As mensagens são fixas: nunca levam o rótulo nem o conteúdo (só o nome do dia).
+     * Dieta por dia da semana: a raiz fica sem refeição, cada variação tem rótulo, dia(s) e refeição(ões), e nenhum dia
+     * se repete; dia que nenhuma variação cobre é só aviso. As mensagens são fixas: nunca levam o rótulo nem o conteúdo
+     * (só o nome do dia).
      */
     private static void variacoes(ResultadoValidacao.Coletor c, Set<UUID> uids, List<Refeicao> raiz,
                                   List<Variacao> variacoes) {
@@ -123,8 +124,10 @@ public class ValidadorDieta {
         }
         List<String> sobram = IntStream.rangeClosed(1, 7).filter(d -> !cobertos.contains(d))
                 .mapToObj(NOMES_DOS_DIAS::get).toList();
+        // Dia descoberto é raro e legítimo (o "dia de descanso"): aviso confirmável, nunca erro. O aluno vê "Sem dieta marcada
+        // para hoje" nesses dias. A mensagem traz só os nomes dos dias.
         if (!sobram.isEmpty()) {
-            c.erro("variacoes", "Dia sem variação: " + String.join(", ", sobram) + ".");
+            c.aviso("variacoes", "Dia sem dieta marcada: " + String.join(", ", sobram) + ".");
         }
     }
 

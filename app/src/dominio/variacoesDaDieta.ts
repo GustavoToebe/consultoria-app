@@ -29,6 +29,15 @@ export function refeicoesDoDia(c: ConteudoDieta, dia: number): Refeicao[] {
   return variacaoDoDia(c, dia)?.refeicoes ?? [];
 }
 
+/**
+ * Variação que a tela do aluno mostra: a que ele escolheu à mão (se existe), senão a de hoje. `null` = sem variações **ou**
+ * dia sem dieta marcada ("dia de descanso", publicável): quem chama distingue por `c.variacoes.length` e, no segundo caso,
+ * não mostra refeições de outro dia como se fossem as de hoje.
+ */
+export function variacaoMostrada(c: ConteudoDieta, escolhidaUid: string | null, dia: number): VariacaoDaDieta | null {
+  return c.variacoes.find((v) => v.uid === escolhidaUid) ?? variacaoDoDia(c, dia);
+}
+
 /** Uma parte da dieta com seus dias: serve PDF, lista de compras e editor. `uid` e `rotulo` nulos = a dieta sem variação. */
 export interface SecaoDaDieta {
   uid: string | null;
@@ -43,7 +52,16 @@ export function secoesDaDieta(c: ConteudoDieta): SecaoDaDieta[] {
   return c.variacoes.map((v) => ({ uid: v.uid, rotulo: v.rotulo, dias: v.dias, refeicoes: v.refeicoes }));
 }
 
-/** Dias sem variação marcada (publicar exige `[]`). Sem variações todos os dias valem, então também `[]`. */
+/**
+ * A dieta só com a variação do uid (PDF e lista de uma variação só). Sem uid, uid que sumiu ou dieta sem variações: a
+ * própria dieta (todas as variações, ou a raiz).
+ */
+export function soAVariacao(c: ConteudoDieta, uid: string | null): ConteudoDieta {
+  const v = uid === null ? undefined : c.variacoes.find((x) => x.uid === uid);
+  return v ? { ...c, variacoes: [v] } : c;
+}
+
+/** Dias sem variação marcada (publicar só avisa: o aluno vê "Sem dieta marcada para hoje"). Sem variações todos os dias valem, então `[]`. */
 export function diasSemVariacao(c: ConteudoDieta): number[] {
   if (c.variacoes.length === 0) return [];
   return DIAS_DA_SEMANA.filter((d) => !c.variacoes.some((v) => v.dias.includes(d)));

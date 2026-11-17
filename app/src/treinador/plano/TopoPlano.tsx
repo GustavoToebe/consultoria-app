@@ -211,9 +211,9 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>)
           aoFechar={() => setFolhaDieta(false)}
           conteudo={conteudoPdf}
           versao={e.plano.versaoPublicada > 0 ? e.plano.versaoPublicada : null}
-          aoBaixar={async (lista) => {
+          aoBaixar={async (lista, variacaoUid) => {
             if (e.plano.versaoPublicada === 0 && escritaLiberada) await editor.salvar();
-            await gerarPdfDoPlano(tipo, e.plano, e.conteudo, lista);
+            await gerarPdfDoPlano(tipo, e.plano, e.conteudo, lista, undefined, variacaoUid);
           }}
         />
       ) : null}

@@ -55,7 +55,7 @@ export default function DietaAluno() {
 /** A dieta do aluno com o PDF montado pelo pacote (marca e nome do aluno) e o peso dele, que só o servidor tem. */
 function Dieta({ versao, salva, aguaNoCartao }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean; aguaNoCartao: boolean }) {
   const { pacote } = useAluno();
-  const pdf = async (lista?: DadosPdfDieta['lista']) => {
+  const pdf = async (lista?: DadosPdfDieta['lista'], variacaoUid: string | null = null) => {
     if (!pacote) return;
     const marca = pacote.pacote.marca;
     // Sem internet o PDF sai sem o acompanhamento de peso (que vem do servidor).
@@ -68,6 +68,7 @@ function Dieta({ versao, salva, aguaNoCartao }: { versao: VersaoDetalhe<Conteudo
         titulo: versao.titulo,
         versao: versao.numero,
         conteudo: normalizarDieta(versao.conteudo),
+        variacaoUid,
         pesos,
         rodapePdf: null,
         emitidoEm: new Date(),

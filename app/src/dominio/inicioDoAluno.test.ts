@@ -70,8 +70,8 @@ describe('dieta no início', () => {
     });
     expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 3 })).toEqual({ tipo: 'ok', refeicoes: 'Hoje: Dia de treino · 5 refeições', agua: '3,0 L' });
     expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 4 })).toMatchObject({ refeicoes: 'Hoje: Descanso · 1 refeição' });
-    // Domingo sem variação (só num rascunho; a publicação exige os 7 dias): nunca conta as de outro dia.
-    expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 7 })).toMatchObject({ refeicoes: 'Nenhuma variação para hoje' });
+    // Domingo sem dieta marcada (o "dia de descanso", publicável): nunca conta as de outro dia.
+    expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 7 })).toMatchObject({ refeicoes: 'Sem dieta marcada para hoje' });
   });
 
   it('dieta não publicada (nula)', () => {

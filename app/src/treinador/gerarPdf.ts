@@ -16,8 +16,9 @@ import { documentoTreino } from '../pdf/pdfTreino';
 /**
  * PDF de um plano para o treinador: a versão publicada mais recente (o que o aluno vê). Plano nunca publicado sai
  * do rascunho, marcado como RASCUNHO. `unidade` é a de quem baixa (a carga fixa do treino sai nela; o plano continua em kg).
+ * `variacaoUid` (só dieta com variações por dia): o PDF leva só essa variação; nulo, todas.
  */
-export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascunho?: unknown, lista?: DadosPdfDieta['lista'], unidade: UnidadeDeCarga = 'kg'): Promise<void> {
+export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascunho?: unknown, lista?: DadosPdfDieta['lista'], unidade: UnidadeDeCarga = 'kg', variacaoUid: string | null = null): Promise<void> {
   const publicado = plano.versaoPublicada > 0;
   // Tudo sai junto; a logo só espera a consultoria (de onde vem o `logoUrl`).
   const [{ c, logoDataUri }, a, versao, pesos] = await Promise.all([
@@ -50,7 +51,7 @@ export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascu
   } else if (tipo === 'mobilidade') {
     await imprimir(documentoMobilidade({ ...comum, conteudo: normalizarMobilidade(conteudo) }));
   } else {
-    await imprimir(documentoDieta({ ...comum, conteudo: normalizarDieta(conteudo) as ConteudoDieta, pesos, lista }));
+    await imprimir(documentoDieta({ ...comum, conteudo: normalizarDieta(conteudo) as ConteudoDieta, variacaoUid, pesos, lista }));
   }
 }
 
