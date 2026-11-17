@@ -27,6 +27,7 @@ async function abrirInicio(page: Page, ranking: RespostasApi[string], { retorno 
   const api = await simularApi(page, {
     ...(await sessaoDeAlunoComTreino(page, SESSOES_COM_DIAS)),
     ...(await sessao(page, ALUNO, { retornoHabilitado: retorno })),
+    'GET /aluno/foto-perfil': erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
     'GET /aluno/dieta': { corpo: dietaFalsa(6, null) },
     'GET /aluno/atualizacao': erroApi(404, 'Nenhuma atualização.', 'NAO_ENCONTRADO'),
     'GET /aluno/sessoes-concluidas': { corpo: { totalConcluidos: 0, sessoes: [] } },

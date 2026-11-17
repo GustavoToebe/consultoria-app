@@ -59,7 +59,7 @@ export function NivelDoAluno() {
           <Texto variante="subtitulo" numerico>{nivel}</Texto>
           <Texto variante="suave" numerico>{falta}</Texto>
         </View>
-        <BarraProgresso feitas={dados.xpNoNivel} total={dados.xpNoNivel + dados.faltam} cor={marcaPeca} trilho={cores.superficie3}
+        <BarraProgresso feitas={dados.xpNoNivel} total={dados.xpNoNivel + dados.faltam} cor={marcaPeca} trilho={cores.faixaForte}
           rotulo={`Progresso até o nível ${dados.nivel + 1}`} valorEmTexto={`${nivel}. ${falta}.`} />
         <Texto variante="pequeno">Sobe com treinos concluídos, semanas completas, conquistas e recordes.</Texto>
         {!online ? <Texto variante="pequeno">Sem conexão: mostrando o último nível lido.</Texto> : null}

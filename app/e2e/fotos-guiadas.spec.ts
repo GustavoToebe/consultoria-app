@@ -106,16 +106,16 @@ for (const largura of [390, 1280]) {
 
     const adicionar = page.getByRole('button', { name: 'Adicionar lugar' });
     await adicionar.click();
-    await page.getByLabel('Lugar 1').fill('Frente');
+    await page.getByLabel('Lugar 1', { exact: true }).fill('Frente');
     await adicionar.click();
-    await page.getByLabel('Lugar 2').fill('frente');
+    await page.getByLabel('Lugar 2', { exact: true }).fill('frente');
     // Com lugares, o "Quantas fotos" some e o max acompanha.
     await expect(page.getByRole('radiogroup', { name: 'Quantas fotos o aluno pode anexar' })).toHaveCount(0);
     await expect(page.getByText('Uma foto por lugar: o aluno anexa 2 fotos, na ordem dos lugares.')).toBeVisible();
     await expect(page.getByText('Lugares das fotos (2 de 6)')).toBeVisible();
     // O erro da regra pura aparece na linha.
     await expect(page.getByText('Texto repetido.')).toBeVisible();
-    await page.getByLabel('Lugar 2').fill('Costas');
+    await page.getByLabel('Lugar 2', { exact: true }).fill('Costas');
     await expect(page.getByText('Texto repetido.')).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Salvar rascunho' }).click();
