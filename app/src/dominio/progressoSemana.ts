@@ -31,8 +31,10 @@ export function progressoSemana(treino: TreinoAtual | null, hoje: string, locais
 
 /**
  * Semana completa (Engajamento 0.6, P5): todos os treinos com dia fixo desta semana têm registro. É a mesma conta do "Sua
- * semana"; plano sem dia fixo (nada previsto) nunca comemora.
+ * semana"; plano sem dia fixo (nada previsto) nunca comemora. Com treino em andamento hoje (`dominio/treinoEmAndamento`)
+ * também não: a sessão começada já conta como feita, e comemorar ao lado de "1 de 6 séries feitas" se contradiz. A
+ * comemoração aparece quando o aluno conclui o treino ou no dia seguinte (o andamento é só de hoje).
  */
-export function semanaCompleta(p: { feitas: number; total: number } | null): boolean {
- return !!p && p.total > 0 && p.feitas >= p.total;
+export function semanaCompleta(p: { feitas: number; total: number } | null, treinoEmAndamento = false): boolean {
+ return !treinoEmAndamento && !!p && p.total > 0 && p.feitas >= p.total;
 }

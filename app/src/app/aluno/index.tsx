@@ -5,7 +5,7 @@ import { CartaoCompromissos } from '../../aluno/CartaoCompromissos';
 import { CartaoAguaDoDia } from '../../aluno/CartaoAguaDoDia';
 import { CartaoDietaDoInicio } from '../../aluno/CartaoDietaDoInicio';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
-import { FaixaTreinoEmAndamento } from '../../aluno/FaixaTreinoEmAndamento';
+import { FaixaTreinoEmAndamento, useTreinoEmAndamento } from '../../aluno/FaixaTreinoEmAndamento';
 import { MapaDeTreinos } from '../../aluno/MapaDeTreinos';
 import { NivelDoAluno } from '../../aluno/NivelDoAluno';
 import { ParaFazer } from '../../aluno/ParaFazer';
@@ -27,7 +27,7 @@ import { Tela } from '../../ui/Tela';
 
 /**
  * Início do aluno: o resumo do dia. Marca e "Olá", a dieta compacta com a água, a água do dia (só com meta na dieta),
- * a faixa "Treino em andamento" (só com o retorno ligado), o cartão Hoje (o único primário),
+ * a faixa "Treino em andamento" (só com o retorno ligado e só quando o treino começado não é o do Hoje), o cartão Hoje (o único primário),
  * as pendências, os próximos compromissos presenciais (só leitura), a faixa da semana, o nível (só com o retorno ligado) e o mapa de treinos do ano (só com o retorno ligado). A lista de divisões, o PDF e
  * a mobilidade ficam na aba Treino. Sempre o plano em uso. Em 390 o botão do treino de hoje precisa aparecer na primeira tela.
  */
@@ -52,12 +52,17 @@ export default function InicioAluno() {
   const concluido = conclusao?.concluida && estadoHoje.tipo === 'treino'
     ? { texto: textoDoHojeConcluido(conclusao), aoVerResumo: () => router.push(caminhoDaConclusao(estadoHoje.sessao.uid, hoje)) }
     : null;
+  // Treino começado hoje e não concluído: sendo o do Hoje, o próprio cartão vira "Continuar treino" (um botão só para o
+  // mesmo destino); sendo outro, a faixa aparece. O "Sua semana" segura o "Semana completa" só no primeiro caso: a
+  // sessão do Hoje é a que entra na conta da semana; um treino extra de outra divisão não contradiz a comemoração.
+  const andamento = useTreinoEmAndamento(treino?.versaoId ?? null, conteudo, hoje);
+  const andamentoNoHoje = !!andamento && estadoHoje.tipo === 'treino' && estadoHoje.sessao.uid === andamento.sessao.uid;
 
   return (
     <Tela bordas={['top']} largura={720}>
       <CabecalhoDoInicio nome={nome} hoje={hoje} />
-      {/* Treino começado e não concluído (só com o retorno ligado): antes de tudo, para voltar a ele num toque. */}
-      <FaixaTreinoEmAndamento versaoId={treino?.versaoId ?? null} conteudo={conteudo} hoje={hoje} />
+      {/* Treino começado e não concluído que não é o do Hoje: antes de tudo, para voltar a ele num toque. */}
+      {andamento && !andamentoNoHoje ? <FaixaTreinoEmAndamento andamento={andamento} hoje={hoje} /> : null}
       <CartaoDietaDoInicio estado={estadoDaDieta} aoTentarDeNovo={dieta.recarregar} />
       {dietaDoPlano?.conteudo.aguaLitros ? <CartaoAguaDoDia compacto metaLitros={dietaDoPlano.conteudo.aguaLitros} /> : null}
       <SecaoHojeDoInicio
@@ -65,12 +70,13 @@ export default function InicioAluno() {
         proximo={estadoHoje.tipo === 'descanso' ? proximoTreino(conteudo, hoje, treino?.fim ?? null) : null}
         hoje={hoje}
         concluido={concluido}
+        emAndamento={andamentoNoHoje ? andamento.texto : null}
         carregando={semPacote && carregando}
         erro={semPacote && erroPacote ? { texto: `${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`, aoTentarDeNovo: () => void tentarDeNovo(), causa: erroPacote } : undefined}
       />
       {pacote ? <ParaFazer /> : null}
       <CartaoCompromissos />
-      {pacote ? <ProgressoSemana hoje={hoje} /> : null}
+      {pacote ? <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} /> : null}
       <NivelDoAluno />
       <CartaoVitrineDoInicio />
       <MapaDeTreinos />
@@ -84,6 +90,7 @@ function SecaoHojeDoInicio({
   proximo,
   hoje,
   concluido,
+  emAndamento,
   carregando,
   erro,
 }: {
@@ -91,6 +98,7 @@ function SecaoHojeDoInicio({
   proximo: string | null;
   hoje: string;
   concluido: { texto: string; aoVerResumo: () => void } | null;
+  emAndamento: string | null;
   carregando: boolean;
   erro?: { texto: string; aoTentarDeNovo: () => void; causa?: unknown };
 }) {
@@ -101,6 +109,7 @@ function SecaoHojeDoInicio({
           estado={estado}
           proximo={proximo}
           concluido={concluido}
+          emAndamento={emAndamento}
           erro={erro}
           aoVerTreino={() => estado.tipo === 'treino' && router.push(caminhoDaSessao(estado.sessao.uid, hoje))}
           aoEscolher={() => router.push('/aluno/treino')}

@@ -22,6 +22,8 @@ interface Props {
   proximo?: string | null;
   /** Treino de hoje já concluído (N3): o cartão diz isso, com o resultado, e a ação vira "Ver resumo". `texto` vem de `textoDoHojeConcluido`. */
   concluido?: { texto: string; aoVerResumo: () => void } | null;
+  /** Treino de hoje começado e não concluído: "1 de 6 séries feitas" no lugar da contagem e a ação vira "Continuar treino" (o mesmo destino). */
+  emAndamento?: string | null;
 }
 
 /**
@@ -30,7 +32,7 @@ interface Props {
  * todo um toque: a ação é o botão "Ver meu treino →", que abre a lista do dia (cada exercício se abre e se marca por lá).
  * Falha ao carregar nunca é mostrada como "treino não publicado".
  */
-export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, concluido }: Props) {
+export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, concluido, emAndamento }: Props) {
   const { cores, marca, sobreMarca } = useTema();
   const neutro = { backgroundColor: cores.superficie, borderColor: cores.divisor };
 
@@ -76,22 +78,27 @@ export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, con
   }
 
   const treino = estado.tipo === 'treino';
+  const andamento = treino && !concluido ? emAndamento ?? null : null;
+  const rotuloDoBotao = treino ? (concluido ? 'Ver resumo →' : andamento ? 'Continuar treino →' : 'Ver meu treino →') : 'Escolher treino';
+  const rotuloAcessivel = treino
+    ? `${concluido ? 'Ver resumo do treino' : andamento ? 'Continuar treino' : 'Ver meu treino'}: ${estado.sessao.nome}`
+    : 'Escolher treino';
   return (
     <View style={[estilos.cartao, { backgroundColor: marca, borderColor: marca }]}>
       {treino ? <Texto variante="secao" cor={sobreMarca} style={estilos.rotulo}>{estado.rotulo}</Texto> : null}
       <Texto nivel={3} style={[estilos.nome, { color: sobreMarca }]}>{treino ? estado.sessao.nome : 'Qual é o treino de hoje?'}</Texto>
       <Texto cor={sobreMarca} style={estilos.detalhe}>
-        {treino ? (concluido ? concluido.texto : contagem(estado.sessao.exercicios.length, 'exercício', 'exercícios')) : 'Seu plano não tem dia fixo. Escolha uma divisão.'}
+        {treino ? (concluido ? concluido.texto : andamento ?? contagem(estado.sessao.exercicios.length, 'exercício', 'exercícios')) : 'Seu plano não tem dia fixo. Escolha uma divisão.'}
       </Texto>
       <View style={estilos.acao}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={treino ? (concluido ? `Ver resumo do treino: ${estado.sessao.nome}` : `Ver meu treino: ${estado.sessao.nome}`) : 'Escolher treino'}
+          accessibilityLabel={rotuloAcessivel}
           onPress={treino ? (concluido ? concluido.aoVerResumo : aoVerTreino) : aoEscolher}
           style={({ pressed }) => [estilos.botao, { backgroundColor: sobreMarca, opacity: pressed ? 0.85 : 1 }]}>
-          <Texto style={[estilos.botaoTexto, { color: marca }]}>{treino ? (concluido ? 'Ver resumo →' : 'Ver meu treino →') : 'Escolher treino'}</Texto>
+          <Texto style={[estilos.botaoTexto, { color: marca }]}>{rotuloDoBotao}</Texto>
         </Pressable>
-        {treino && !concluido ? <Texto variante="pequeno" cor={sobreMarca} style={estilos.nota}>Consulte a lista antes de começar.</Texto> : null}
+        {treino && !concluido && !andamento ? <Texto variante="pequeno" cor={sobreMarca} style={estilos.nota}>Consulte a lista antes de começar.</Texto> : null}
       </View>
     </View>
   );

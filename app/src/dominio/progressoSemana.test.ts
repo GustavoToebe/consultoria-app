@@ -32,4 +32,10 @@ describe('semana completa (Engajamento 0.6)', () => {
   expect(semanaCompleta({ feitas: 0, total: 0 })).toBe(false);
   expect(semanaCompleta(null)).toBe(false);
  });
+ it('treino em andamento hoje segura a comemoração; sem andamento vale a conta de sempre', () => {
+  expect(semanaCompleta({ feitas: 3, total: 3 }, true)).toBe(false);
+  expect(semanaCompleta({ feitas: 3, total: 3 }, false)).toBe(true);
+  expect(semanaCompleta({ feitas: 2, total: 3 }, true)).toBe(false);
+  expect(semanaCompleta({ feitas: 0, total: 0 }, true)).toBe(false);
+ });
 });

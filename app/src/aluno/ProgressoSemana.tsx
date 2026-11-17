@@ -16,10 +16,10 @@ import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 /**
  * Treinos da semana. Os registros do provedor já trazem o que está no servidor (a semana atual é buscada ao abrir e
  * guardada no aparelho), então esta conta e o "Hoje" usam a mesma fonte. Com "Concluir treino" ligado, a semana em que
- * todos os treinos com dia fixo têm registro ganha o "Semana completa" (Engajamento 0.6, P5); sem dia fixo, nada. O verde
- * fica só no selo (guia de 11/11, pág. 4: nunca a faixa inteira); o contêiner e o troféu são neutros.
+ * todos os treinos com dia fixo têm registro ganha o "Semana completa" (Engajamento 0.6, P5); sem dia fixo, nada. Com
+ * treino em andamento hoje a comemoração espera a conclusão (`semanaCompleta`). O verde fica só no selo (guia de 11/11, pág. 4: nunca a faixa inteira); o contêiner e o troféu são neutros.
  */
-export function ProgressoSemana({ hoje }: { hoje: string }) {
+export function ProgressoSemana({ hoje, treinoEmAndamento = false }: { hoje: string; treinoEmAndamento?: boolean }) {
   const { pacote, registros, semanaDoAparelho } = useAluno();
   const { retornoHabilitado } = useSessao();
   const { cores } = useTema();
@@ -27,7 +27,7 @@ export function ProgressoSemana({ hoje }: { hoje: string }) {
   const treino = pacote?.pacote.treino ?? null;
   const progresso = progressoSemana(treino, hoje, registros);
   if (!progresso) return null;
-  const completa = retornoHabilitado && semanaCompleta(progresso);
+  const completa = retornoHabilitado && semanaCompleta(progresso, treinoEmAndamento);
   const rotulo = `${progresso.feitas} de ${progresso.total} ${progresso.total === 1 ? 'treino' : 'treinos'}`;
   return (
     <Cartao titulo="Sua semana">
