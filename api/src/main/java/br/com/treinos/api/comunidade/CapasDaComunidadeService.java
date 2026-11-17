@@ -24,8 +24,8 @@ import java.util.UUID;
  * 300 KB depois da limpeza), guardada no banco e servida só pela API com {@code no-store}; nunca imagem remota. Pendente até o
  * dono (aulão ou post); a anterior é apagada ao trocar, ao ocultar o post e (por cascata) ao excluir o aulão. Conteúdo da equipe:
  * não entra na exportação nem na anonimização do aluno. Teto de {@value #POR_DIA} envios por consultoria em 24 h, num contador
- * atômico no banco (não conta linhas vivas: apagar não devolve cota e envios simultâneos não passam do teto). A pendente com mais de 24 h sai no próximo envio da consultoria
- * (shortcut: sem agendador; a foto do mural já sai pelo {@code FotosManutencao}, a capa pode ir para o mesmo job se alguma consultoria ficar parada com pendentes).
+ * atômico no banco (não conta linhas vivas: apagar não devolve cota e envios simultâneos não passam do teto). A pendente com mais de 24 h sai na manutenção
+ * de hora em hora ({@code fotos/FotosManutencao}) e também no próximo envio da consultoria.
  */
 @Service
 public class CapasDaComunidadeService {
@@ -37,7 +37,7 @@ public class CapasDaComunidadeService {
      * {@code LimiteTentativas.capaDaComunidadeCabe}: apagar a capa (troca, remoção, post oculto) não devolve cota.
      */
     static final int POR_DIA = 100;
-    /** Idade a partir da qual a capa ainda pendente (sem aulão nem post) sai no próximo envio; não é a janela da cota. */
+    /** Idade a partir da qual a capa ainda pendente (sem aulão nem post) sai na manutenção e no próximo envio; não é a janela da cota. */
     static final Duration JANELA = Duration.ofHours(24);
     static final ApiError.FieldError CAPA_INDISPONIVEL = new ApiError.FieldError("capaId", "A capa não está disponível. Envie de novo.");
 

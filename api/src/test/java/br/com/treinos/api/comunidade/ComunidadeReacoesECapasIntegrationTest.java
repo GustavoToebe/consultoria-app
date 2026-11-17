@@ -5,6 +5,7 @@ import br.com.treinos.api.ApiDeTeste;
 import br.com.treinos.api.auth.LimiteTentativas;
 import br.com.treinos.api.equipe.CatalogoPermissoes;
 import br.com.treinos.api.fotos.FotosDeTeste;
+import br.com.treinos.api.fotos.FotosManutencao;
 import br.com.treinos.api.tenant.TenantContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,6 +66,8 @@ class ComunidadeReacoesECapasIntegrationTest extends AbstractIntegrationTest {
     private JdbcTemplate jdbc;
     @Autowired
     private LimiteTentativas limite;
+    @Autowired
+    private FotosManutencao manutencao;
     @Autowired
     private ComunidadeMuralReacaoRepository reacoes;
 
@@ -335,6 +338,35 @@ class ComunidadeReacoesECapasIntegrationTest extends AbstractIntegrationTest {
         api.delete(EQUIPE + "/" + video.get("id").asString(), admin, 204);
         assertThat(contar("select count(*) from comunidade_capa where id = ?::uuid", capa)).isZero();
         bytesDaCapa(loginA, "/aluno/comunidade", capa, 404);
+    }
+
+    @Test
+    void manutencaoApagaACapaPendenteComMaisDe24HSemNenhumEnvioNovo() throws Exception {
+        String antiga = novaCapa();
+        String recente = novaCapa();
+        String doAulao = novaCapa();
+        api.post("/comunidade/aulas", admin, corpoDeAula(doAulao), 200);
+        String doPost = novaCapa();
+        api.post(EQUIPE, admin, corpoDeVideo(doPost), 200);
+        JsonNode outro = api.novoTreinador();
+        String deFora = enviarCapa(outro, FotosDeTeste.jpeg(Color.GREEN, 300, false), 200).get("id").asString();
+        String recenteDeFora = enviarCapa(outro, FotosDeTeste.jpeg(Color.BLUE, 300, false), 200).get("id").asString();
+        jdbc.update("update comunidade_capa set criado_em = now() - interval '25 hours' where id in (?::uuid, ?::uuid)", antiga, deFora);
+        jdbc.update("update comunidade_capa set criado_em = now() - interval '23 hours' where id = ?::uuid", recente);
+        jdbc.update("update comunidade_capa set criado_em = now() - interval '72 hours' where id in (?::uuid, ?::uuid)", doAulao, doPost);
+
+        // Nenhum envio novo: só a rotina de manutenção (a mesma que o agendador chama). Ela vê todas as consultorias,
+        // então a pendente vencida de fora também sai; as novas (inclusive a de fora) e as ligadas ficam.
+        assertThat(manutencao.limparCapasPendentesDaComunidade()).isGreaterThanOrEqualTo(2);
+
+        assertThat(contar("select count(*) from comunidade_capa where id = ?::uuid", antiga)).isZero();
+        assertThat(contar("select count(*) from comunidade_capa where id = ?::uuid", deFora)).isZero();
+        assertThat(contar("select count(*) from comunidade_capa where id = ?::uuid", recente)).isEqualTo(1);
+        assertThat(contar("select count(*) from comunidade_capa where id = ?::uuid", recenteDeFora)).isEqualTo(1);
+        assertThat(contar("select count(*) from comunidade_capa where id = ?::uuid", doAulao)).isEqualTo(1);
+        assertThat(contar("select count(*) from comunidade_capa where id = ?::uuid", doPost)).isEqualTo(1);
+        manutencao.limparCapasPendentesDaComunidade();
+        assertThat(contar("select count(*) from comunidade_capa where id = ?::uuid", recente)).isEqualTo(1);
     }
 
     @Test

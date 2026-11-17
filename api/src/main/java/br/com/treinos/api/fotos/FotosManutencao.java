@@ -15,8 +15,8 @@ import java.util.List;
 /**
  * Rotinas das fotos: (1) esvazia a fila de remoção no bucket, com espera crescente a cada falha; (2) apaga as fotos
  * pendentes que ninguém ligou a uma atualização em 24 h; (3) limpa as linhas removidas que já não contam para o limite do
- * dia; (4) apaga as fotos pendentes do mural (no banco) com mais de 24 h. As três primeiras só rodam com as fotos ligadas e a
- * manutenção ativa; a do mural só pede a manutenção ativa. O log diz apenas quantas e a classe do erro, nunca ids.
+ * dia; (4) apaga as fotos pendentes do mural e as capas de vídeo pendentes da comunidade (no banco) com mais de 24 h. As três
+ * primeiras só rodam com as fotos ligadas e a manutenção ativa; a 4 só pede a manutenção ativa. O log diz apenas quantas e a classe do erro, nunca ids.
  */
 @Component
 public class FotosManutencao {
@@ -49,8 +49,9 @@ public class FotosManutencao {
     @Scheduled(cron = "0 17 * * * *")
     void agendadaLimpeza() {
         if (propriedades.manutencaoAtiva()) {
-            // As fotos do mural moram no banco: a limpeza não depende do bucket (TREINOS_FOTOS_HABILITADO).
+            // As fotos do mural e as capas de vídeo moram no banco: a limpeza não depende do bucket (TREINOS_FOTOS_HABILITADO).
             limparPendentesDoMural();
+            limparCapasPendentesDaComunidade();
         }
         if (ativa()) {
             limparPendentesEAntigas();
@@ -93,6 +94,16 @@ public class FotosManutencao {
         int n = apagadas == null ? 0 : apagadas;
         if (n > 0) {
             LOG.info("Mural: {} fotos pendentes vencidas apagadas.", n);
+        }
+        return n;
+    }
+
+    /** Capas de vídeo da comunidade ainda sem aulão nem post com mais de 24 h saem do banco; devolve quantas. */
+    public int limparCapasPendentesDaComunidade() {
+        Integer apagadas = transacao.execute(s -> remocoes.apagarCapasPendentesDaComunidade(Instant.now().minus(PRAZO_DA_PENDENTE)));
+        int n = apagadas == null ? 0 : apagadas;
+        if (n > 0) {
+            LOG.info("Comunidade: {} capas de vídeo pendentes vencidas apagadas.", n);
         }
         return n;
     }
