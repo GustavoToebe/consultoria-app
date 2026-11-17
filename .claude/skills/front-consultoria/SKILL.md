@@ -41,6 +41,28 @@ identificação); se não for nenhuma, é neutro.
 - **Guia ao pé da letra:** quando o pedido traz um guia (PDF, prévia aprovada), responda item a item (feito / onde /
   ficou de fora e por quê). Onde a prévia e o guia discordam, vale o guia; divergência nunca passa em silêncio.
 
+## Código da tela (seções 2, 3 e 6 do documento de design)
+O método geral está em `referencias-front` (`references/oficio-visual.md` e `references/engenharia-front.md`); aqui
+fica o que é deste app.
+- **Camadas:** rota em `app/src/app/` só monta a tela; peça da área em `treinador/` ou `aluno/`; peça compartilhada
+  em `ui/` (adapta a base de `components/ui/`); regra em `dominio/`, pura e com teste.
+- **Dados da tela** por `ui/useCarregar` (chave → busca), HTTP só por `api/cliente.ts` e `api/rotas.ts`. Nunca buscar
+  em `useEffect` com `setState` (o documento de design diz que o lint recusa).
+- **React Compiler ligado:** sem `React.memo`, `useMemo` nem `useCallback` à mão.
+- **Estilo:** `StyleSheet` + tokens (`espaco(n)` na grade de 8, `RAIO`, `RAIO_CONTROLE`, `ALVO_TOQUE`, `LARGURA_*`).
+  Uniwind só nas peças-base de `components/ui/`.
+- **Sem biblioteca nova** de UI, de gráfico ou de estado global; gráfico é o SVG próprio (`GraficoLinha`,
+  `GraficoBarras`). Dependência do Expo só com `npx expo install`.
+- **Peças de comportamento que já existem:** `ui/Esqueleto` (primeira carga), `ui/useMovimentoReduzido`,
+  `focarPrimeiroComErro` (`ui/erros.ts`), `GuardaDeSaida` (sair com alteração pendente), `useAviso` (`ui/Aviso.tsx`).
+- **Peso:** lista que pode passar de algumas centenas de itens pagina (a API já pagina alunos, interessados e
+  auditoria); o pacote da web é um arquivo só, então tela do aluno não importa código pesado do treinador.
+- **e2e por papel e rótulo** (`getByRole`, `getByLabel`): o nome acessível da peça é contrato do teste. Mudou o
+  rótulo, mude o teste junto.
+- **Mudança visual separada de mudança de comportamento** (6.1), para cada uma ser revisada pelo que é.
+- **API do Expo ou do React Native:** Context7 na versão do `package.json` antes de usar (o `app/AGENTS.md` manda não
+  confiar na memória).
+
 ## Sempre
 - Cor só por token (`app/src/tema/tokens.ts`, `variaveis.ts`), nunca hex. Nada de `alert()`, `confirm()` ou
   `Alert.alert`: confirmação é `PainelConfirmacao`.
