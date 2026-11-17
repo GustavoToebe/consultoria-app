@@ -26,7 +26,7 @@ Fechar quatro lacunas da tela de treino do aluno: ±15 s no descanso, folha "His
 - [ ] 1. Plano e entrada no README — commit: este
 - [ ] 2. Item 1: medir a largura dos botões ±15 a 390 — commit: —
 - [ ] 3. Item 2: folha "Histórico" — commit: —
-- [ ] 4. Item 3: "Equipamentos para hoje" (API `paraPublicar`, `formatoDoPacote`, tela) — commit: —
+- [ ] 4. Item 3: "Equipamentos para hoje" (API `paraPublicar`, `formatoDoPacote`, tela) — feito: API, pacote e regra pura `dominio/equipamentosDoDia` (commit: ver `git log`, "Equipamento no exercício do treino publicado"; `PlanosIntegrationTest` ainda não rodou); falta a tela — commit da tela: —
 - [ ] 5. Item 4: teste de desmarcar série e faixa "Treino em andamento" — commit: —
 
 ## Fora do escopo

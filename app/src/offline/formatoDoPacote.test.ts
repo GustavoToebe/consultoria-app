@@ -152,6 +152,19 @@ describe('formato do pacote salvo no aparelho', () => {
     expect(pacoteNoFormatoAtual(r)).toBe(false);
   });
 
+  it('equipamento do exercício (copiado da biblioteca): ausente, nulo e texto aceitos; outro tipo, recusado', () => {
+    const com = (valor: unknown) => {
+      const p = salvo();
+      p.pacote.treino.conteudo.sessoes[0].exercicios[0].equipamento = valor;
+      return p;
+    };
+    expect(pacoteNoFormatoAtual(salvo())).toBe(true);
+    expect(pacoteNoFormatoAtual(com(null))).toBe(true);
+    expect(pacoteNoFormatoAtual(com('Máquina de remada'))).toBe(true);
+    expect(pacoteNoFormatoAtual(com(3))).toBe(false);
+    expect(pacoteNoFormatoAtual(com({ nome: 'x' }))).toBe(false);
+  });
+
   it('a metodologia do formato antigo é recusada: tipos sem código e sem combinações', () => {
     const semCodigo = salvo();
     delete semCodigo.pacote.treino.conteudo.metodologia.configuracao.tipos[0].codigo;

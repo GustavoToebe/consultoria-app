@@ -132,10 +132,11 @@ function serie(v: unknown): boolean {
 function exercicio(v: unknown): boolean {
   return (
     objeto(v) &&
-    campos(v, ['uid', 'exercicioId', 'nome', 'modalidade', 'videoUrl', 'observacao', 'progressao', 'unidade', 'series', 'cadencia', 'isometriaSegundos', 'grupoUid']) &&
+    campos(v, ['uid', 'exercicioId', 'nome', 'modalidade', 'videoUrl', 'observacao', 'progressao', 'unidade', 'series', 'cadencia', 'isometriaSegundos', 'grupoUid', 'equipamento']) &&
     typeof v.uid === 'string' &&
     lista(v.series, serie) &&
     texto(v.grupoUid) &&
+    texto(v.equipamento) &&
     numero(v.isometriaSegundos)
   );
 }

@@ -165,7 +165,19 @@ public record ConteudoTreino(
             @Size(max = 30) List<@Valid @NotNull Serie> series,
             @Size(max = 15) String cadencia,
             Integer isometriaSegundos,
-            UUID grupoUid) {
+            UUID grupoUid,
+            @JsonInclude(JsonInclude.Include.NON_NULL) @Size(max = 60) String equipamento) {
+
+        /**
+         * Sem equipamento: ele só nasce na publicação, copiado da biblioteca ({@code PlanoTreinoService.paraPublicar});
+         * o que o cliente mandar no rascunho nunca vale.
+         */
+        public ExercicioPlano(UUID uid, UUID exercicioId, String nome, String modalidade, String videoUrl,
+                              String observacao, Boolean progressao, String unidade, List<Serie> series, String cadencia,
+                              Integer isometriaSegundos, UUID grupoUid) {
+            this(uid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade, series, cadencia,
+                    isometriaSegundos, grupoUid, null);
+        }
 
         /** Sem cadência, isometria nem grupo (a maior parte dos exercícios). */
         public ExercicioPlano(UUID uid, UUID exercicioId, String nome, String modalidade, String videoUrl,
@@ -185,12 +197,17 @@ public record ConteudoTreino(
         /** Mesmo exercício com outras séries (o resto, inclusive execução e grupo, acompanha). */
         public ExercicioPlano comSeries(UUID novoUid, List<Serie> novas) {
             return new ExercicioPlano(novoUid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade,
-                    novas, cadencia, isometriaSegundos, grupoUid);
+                    novas, cadencia, isometriaSegundos, grupoUid, equipamento);
         }
 
         public ExercicioPlano comGrupoUid(UUID novo) {
             return new ExercicioPlano(uid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade,
-                    series, cadencia, isometriaSegundos, novo);
+                    series, cadencia, isometriaSegundos, novo, equipamento);
+        }
+
+        public ExercicioPlano comEquipamento(String novo) {
+            return new ExercicioPlano(uid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade,
+                    series, cadencia, isometriaSegundos, grupoUid, novo);
         }
     }
 
@@ -768,6 +785,14 @@ public record ConteudoTreino(
      */
     public ConteudoTreino comUidsNovos() {
         return comUids(UUID::randomUUID);
+    }
+
+    /** Mesmo treino com cada exercício trocado por {@code f} (sessões, grupos e o resto ficam como estão). */
+    public ConteudoTreino comExercicios(java.util.function.UnaryOperator<ExercicioPlano> f) {
+        List<Sessao> novas = sessoesOuVazio().stream().map(s -> new Sessao(s.uid(), s.nome(), s.diaSemana(), s.tipo(),
+                s.frequenciaSemanal(), s.observacao(), s.cardio(),
+                s.exercicios() == null ? null : s.exercicios().stream().map(f).toList(), s.grupos())).toList();
+        return new ConteudoTreino(objetivo, orientacoes, novas, metodologia);
     }
 
     /** Mesmo treino com outra metodologia (a cópia das regras que acompanha o plano). */

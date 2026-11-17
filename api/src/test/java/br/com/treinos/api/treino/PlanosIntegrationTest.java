@@ -231,6 +231,56 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
         assertThat(sessoes.get(0).get("uid").asString()).isNotEqualTo(molde.sessoes().get(0).uid().toString());
     }
 
+    @Test
+    void publicarCopiaOEquipamentoDaBibliotecaENuncaOQueOClienteMandou() throws Exception {
+        UUID comEquipamento = criarExercicio(treinador, "Remada máquina " + UUID.randomUUID(), "Máquina de remada");
+        UUID semEquipamento = criarExercicio(treinador, "Flexão " + UUID.randomUUID(), null);
+        UUID deOutraConsultoria = criarExercicio(api.novoTreinador(), "Remada alheia " + UUID.randomUUID(), "Polia alheia");
+        UUID foraDaBiblioteca = UUID.randomUUID();
+        String inventado = "Inventado pelo cliente";
+        List<ExercicioPlano> exercicios = List.of(
+                exercicioComEquipamento("Remada", comEquipamento, inventado),
+                exercicioComEquipamento("Flexão", semEquipamento, inventado),
+                exercicioComEquipamento("Alheio", deOutraConsultoria, inventado),
+                exercicioComEquipamento("Fantasma", foraDaBiblioteca, inventado),
+                exercicioComEquipamento("Manual", null, inventado));
+        ConteudoTreino conteudo = new ConteudoTreino(null, null, List.of(
+                new Sessao(UUID.randomUUID(), "Treino A", 1, "TREINO", null, null, null, exercicios),
+                new Sessao(UUID.randomUUID(), "Descanso", 7, "DESCANSO", null, null, null, List.of())));
+
+        JsonNode publicado = api.publicarTreino(treinador, aluno, conteudo);
+        String id = publicado.get("plano").get("id").asString();
+
+        // Versão publicada: só o equipamento da biblioteca da consultoria; o resto, sem o campo.
+        JsonNode v1 = api.get("/planos-treino/" + id + "/versoes/1", treinador, 200)
+                .get("conteudo").get("sessoes").get(0).get("exercicios");
+        assertThat(v1.get(0).get("equipamento").asString()).isEqualTo("Máquina de remada");
+        for (int i = 1; i < 5; i++) {
+            assertThat(v1.get(i).has("equipamento")).as("exercício %d sem equipamento", i).isFalse();
+        }
+
+        // O rascunho não muda (o que o cliente mandou fica lá, sem valer nada).
+        JsonNode rascunho = api.get("/planos-treino/" + id, treinador, 200).get("rascunho")
+                .get("sessoes").get(0).get("exercicios");
+        for (int i = 0; i < 5; i++) {
+            assertThat(rascunho.get(i).get("equipamento").asString()).isEqualTo(inventado);
+        }
+    }
+
+    private UUID criarExercicio(JsonNode quem, String nome, String equipamento) throws Exception {
+        Map<String, Object> corpo = new java.util.LinkedHashMap<>();
+        corpo.put("nome", nome);
+        corpo.put("modalidade", "LIVRE");
+        corpo.put("equipamento", equipamento);
+        return UUID.fromString(api.post("/exercicios", quem, corpo, 200).get("id").asString());
+    }
+
+    private static ExercicioPlano exercicioComEquipamento(String nome, UUID exercicioId, String equipamento) {
+        return new ExercicioPlano(UUID.randomUUID(), exercicioId, nome, "LIVRE", null, null, true, "kg",
+                List.of(Serie.de(UUID.randomUUID(), "WORKING", 3, 6, Carga.de("CARGA_TRABALHO"))), null, null, null,
+                equipamento);
+    }
+
     private static ConteudoTreino comSeries(List<Serie> series) {
         ExercicioPlano ex = new ExercicioPlano(UUID.randomUUID(), null, "Supino reto com barra", "LIVRE", null, null,
                 true, "kg", series);

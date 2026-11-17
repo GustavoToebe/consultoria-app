@@ -816,6 +816,8 @@ export interface ExercicioPlano {
   isometriaSegundos?: number | null;
   /** Grupo da sessão a que o exercício pertence (`Sessao.grupos`); nulo = feito sozinho. */
   grupoUid?: string | null;
+  /** Copiado da biblioteca na publicação (nunca digitado no plano); ausente em versão antiga ou exercício sem equipamento. */
+  equipamento?: string | null;
 }
 
 export interface Sessao {
