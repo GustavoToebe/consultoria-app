@@ -39,7 +39,10 @@ export type TipoDePost = 'AVISO' | 'VIDEO' | 'DUVIDA' | 'RESULTADO' | 'CONVERSA'
 /** Reação por código (D6, lista fechada da API); o emoji é só desenho no app (`dominio/comunidade.REACOES`). */
 export type CodigoDeReacao = 'CURTIR' | 'FORCA' | 'FOGO' | 'PALMAS' | 'RISO';
 
-/** Votante da amostra do cartão (até 3, mais recentes primeiro); `apelido` só vem quando existe. */
+/**
+ * Votante da amostra do cartão (até 3, mais recentes primeiro). `nome` já vem montado pelo servidor; `apelido` só vem para a
+ * equipe (para o aluno o apelido, se o colega escolheu, já entrou no nome).
+ */
 export interface VotanteDaAmostra { autorId: string; nome: string; apelido?: string; temFoto: boolean }
 
 export interface OpcaoDaEnquete { id: string; texto: string; votos: number; votantesAmostra: VotanteDaAmostra[] }
@@ -61,7 +64,9 @@ export interface EnqueteDoMural {
 export interface VotanteDaEnquete {
   autorId: string;
   opcaoId: string;
+  /** Já montado pelo servidor: para o aluno, pela escolha do colega; para a equipe, o nome completo. */
   nome: string;
+  /** Só para a equipe, à parte do nome; para o aluno nunca vem. */
   apelido?: string;
   temFoto: boolean;
   votadoEm: string;
@@ -82,9 +87,9 @@ export type MotivoDeDenuncia = 'OFENSIVO' | 'SPAM' | 'IMPROPRIO' | 'OUTRO';
 export interface PostDoMural {
   id: string;
   autorId: string;
-  /** Nome e sobrenome; o apelido aparece ao lado, nunca no lugar. */
+  /** Já montado pelo servidor (V085): para o aluno, pela escolha do autor; para a equipe, o nome completo. */
   autorNome: string;
-  /** Apelido atual do aluno autor; nulo se não tem ou se o autor é da equipe. */
+  /** Só para a equipe: o apelido atual do aluno autor, à parte. Para o aluno vem sempre nulo (já entrou no nome). */
   autorApelido: string | null;
   /** `true` só quando o autor é aluno ativo (a API decide): só então o perfil abre; equipe nunca vira link. */
   autorEhAluno: boolean;
@@ -155,7 +160,7 @@ export interface FiltrosDoMural { tipo?: TipoDePost; busca?: string; denunciados
 export interface ComentarioDoMural {
   id: string;
   autorId: string;
-  /** Nome e sobrenome; o apelido aparece ao lado, nunca no lugar. */
+  /** Como no post: montado pelo servidor; `autorApelido` só para a equipe. */
   autorNome: string;
   autorApelido: string | null;
   /** `true` só para aluno ativo: só então o perfil abre; equipe e conta encerrada nunca viram link. */
@@ -204,14 +209,13 @@ export interface ConquistaRecente extends DestaqueDoColega { data: string }
 export interface RecordeDoColega { exercicio: string; carga: number }
 
 /**
- * Perfil de um colega (`GET /aluno/comunidade/perfis/{autorId}`, `@JsonInclude(NON_NULL)`). Sempre: `autorId`, `nome`,
- * `apelido`, `ehVoce` e `reservado`. Reservado e visto por outro aluno, só isso; aberto (ou o próprio aluno, que vê tudo),
+ * Perfil de um colega (`GET /aluno/comunidade/perfis/{autorId}`, `@JsonInclude(NON_NULL)`). Sempre: `autorId`, `nome` (já
+ * montado pela escolha do colega), `ehVoce` e `reservado`; `apelido` vem sempre nulo (já entrou no nome). Reservado e visto por outro aluno, só isso; aberto (ou o próprio aluno, que vê tudo),
  * o resto. Nunca contato, peso corporal, medidas, dieta nem saúde.
  */
 export interface PerfilDaComunidade {
   autorId: string;
   nome: string;
-  apelido: string | null;
   ehVoce: boolean;
   reservado: boolean;
   treinosConcluidos?: number;
@@ -226,8 +230,8 @@ export interface PerfilDaComunidade {
   recordes?: RecordeDoColega[];
 }
 
-/** Colega na lista (`GET /aluno/comunidade/perfis`): só quem não reservou o perfil. Sem cor nem moldura. */
-export interface ColegaDaLista { autorId: string; nome: string; apelido: string | null; nivel: number; temFoto: boolean }
+/** Colega na lista (`GET /aluno/comunidade/perfis`): só quem não reservou o perfil, `nome` já montado pela escolha dele. Sem cor nem moldura. */
+export interface ColegaDaLista { autorId: string; nome: string; nivel: number; temFoto: boolean }
 
 /** Uma página da lista de colegas; `total` conta só os visíveis. */
 export interface PaginaDeColegas { itens: ColegaDaLista[]; total: number }
@@ -259,4 +263,6 @@ export interface PreferenciasDoPerfil {
   cor: string;
   moldura: string;
   opcoesDeDestaque: ConquistaDoAluno[];
+  /** Como o nome aparece para os colegas (`NOME`, `NOME_COMPLETO`, `APELIDO`, `NOME_E_APELIDO`): sempre o efetivo (não escolheu = `NOME`). */
+  exibicaoDoNome: string;
 }

@@ -100,7 +100,7 @@ function LinhaDaOpcao({ postId, opcao, enquete, azul, tipo, interativa, desabili
   const Marcador = minha ? Check : tipo === 'radio' ? Circle : Square;
   const corpo = (hover: boolean) => (
     <View style={[estilos.opcao, {
-      backgroundColor: minha ? cores.superficie3 : hover ? cores.superficie2 : cores.superficie,
+      backgroundColor: minha ? cores.sobre : hover ? cores.superficie2 : cores.superficie,
       borderColor: minha ? cores.bordaCampo : cores.divisor,
     }]}>
       <View style={estilos.topoDaOpcao}>

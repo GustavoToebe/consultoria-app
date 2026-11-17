@@ -38,7 +38,7 @@ function ErroDaLista({ erro, tentarDeNovo }: { erro: unknown; tentarDeNovo: () =
 /**
  * Colegas da consultoria com o perfil visível (decisão 12: quem reservou não aparece), por nome, 30 por vez com "Ver mais".
  * Cada linha: foto na moldura simples em tom neutro (a lista não traz a cor nem a moldura de cada um, e pintar todos de azul
- * diria uma escolha que não é deles), nome, apelido e nível; "Ver perfil" (ou tocar no nome) abre a folha do perfil. O total
+ * diria uma escolha que não é deles), nome (já montado pelo servidor pela escolha do colega) e nível; "Ver perfil" (ou tocar no nome) abre a folha do perfil. O total
  * da API só decide se há mais: nunca aparece escrito nem é comparado com nada. Montada só com internet (a tela da Comunidade
  * já troca tudo pelo aviso de sem conexão).
  */
@@ -83,8 +83,7 @@ export function ListaDeColegas({ aoAbrir }: { aoAbrir: (autorId: string) => void
               <LinhaDaLista
                 key={c.autorId}
                 titulo={c.nome}
-                // Apelido e nível numa linha só, logo abaixo do nome (a peça põe metadados antes da descrição).
-                metadados={[c.apelido ? `«${c.apelido}»` : null, textoDoNivel(c.nivel)].filter(Boolean).join(' · ')}
+                metadados={textoDoNivel(c.nivel)}
                 rotulo={rotuloDoColega(c)}
                 inicio={<FotoDoColega autorId={c.autorId} nome={c.nome} temFoto={c.temFoto} tamanho={FOTO} cor={cores.bordaCampo} moldura={moldura} />}
                 aoTocarTextos={() => aoAbrir(c.autorId)}

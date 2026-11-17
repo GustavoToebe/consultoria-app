@@ -24,10 +24,20 @@ const POST_CURTIDO: PostDoMural = {
 };
 const pagina = (...content: PostDoMural[]): PaginaDoMural => ({ content, totalElements: content.length });
 /**
+ * Como a API manda a um ALUNO (V085): o servidor já monta o nome do autor (aqui, a escolha "Nome e apelido": "Aluno (Fictí)")
+ * e `autorApelido` chega nulo. A equipe continua recebendo o nome completo e o apelido à parte (os fixtures como estão).
+ */
+const NOME_DO_COLEGA = 'Aluno (Fictí)';
+function comoAluno<T extends { autorNome: string; autorApelido: string | null }>(p: PedidoFalso, x: T): T {
+  if (!p.caminho.startsWith('/aluno/') || !x.autorApelido) return x;
+  return { ...x, autorNome: `${x.autorNome.split(' ')[0]} (${x.autorApelido})`, autorApelido: null };
+}
+/**
  * O mural como a API: só os posts do `?tipo=` pedido. Cada aba do mural (C39) pede um tipo por vez (Avisos: aviso, vídeo e
  * enquete; Alunos: conversa, dúvida e resultado) e junta as respostas.
  */
-const doTipo = (p: PedidoFalso, ...posts: PostDoMural[]) => pagina(...posts.filter((x) => !p.busca.get('tipo') || x.tipo === p.busca.get('tipo')));
+const doTipo = (p: PedidoFalso, ...posts: PostDoMural[]) =>
+  pagina(...posts.filter((x) => !p.busca.get('tipo') || x.tipo === p.busca.get('tipo')).map((x) => comoAluno(p, x)));
 const muralFalso = (...posts: PostDoMural[]): Resposta => (p, route) => json(route, doTipo(p, ...posts));
 // POST e POST_CURTIDO são conversas: moram na aba Alunos (a padrão é Avisos).
 const MURAL_DOS_ALUNOS = '/aluno/comunidade?mural=alunos';
@@ -39,9 +49,9 @@ const AULA: AulaDaComunidade = {
 const CONQUISTAS: ConquistaDoAluno[] = [
   { id: 'c1', tipo: 'PRIMEIRO_TREINO', titulo: 'Primeiro treino', descricao: 'Concluiu o primeiro treino.', icone: 'award', conquistadaEm: '2026-10-19T12:00:00-03:00' },
 ];
-// Colega visível como a API manda (V070): conquistas sem id nem horário, sem foto.
+// Colega visível como a API manda (V070): conquistas sem id nem horário, sem foto; o nome já montado (V085).
 const PERFIL: PerfilDaComunidade = {
-  autorId: 'u2', nome: 'Aluno Fictício', apelido: 'Fictí', ehVoce: false, reservado: false, treinosConcluidos: 8, nivel: 2,
+  autorId: 'u2', nome: NOME_DO_COLEGA, ehVoce: false, reservado: false, treinosConcluidos: 8, nivel: 2,
   conquistas: CONQUISTAS.map(({ tipo, titulo, descricao, icone }) => ({ tipo, titulo, descricao, icone })), destaques: [],
   temFoto: false, atividade: { diasTreinadosUltimos30: [], ultimasConquistas: [] }, recordes: [],
 };
@@ -56,7 +66,7 @@ const COMENTARIOS: ComentarioDoMural[] = [
 function paginaDe(lista: ComentarioDoMural[], p: PedidoFalso): PaginaDeComentarios {
   const n = Number(p.busca.get('pagina') ?? 0);
   const tamanho = Number(p.busca.get('tamanho') ?? 30);
-  return { itens: lista.slice(n * tamanho, (n + 1) * tamanho), total: lista.length };
+  return { itens: lista.slice(n * tamanho, (n + 1) * tamanho).map((c) => comoAluno(p, c)), total: lista.length };
 }
 
 /** Mural e comentários com estado: o total do post acompanha a lista, como na API (só os não ocultos). */
@@ -464,7 +474,7 @@ for (const largura of [390, 1280]) {
     });
 
     test('aluno: denuncia o post de outra pessoa pelo ⋯, com motivo, e o próprio post não tem ⋯', async ({ page }) => {
-      const MEU: PostDoMural = { ...POST_CURTIDO, id: 'p9', autorId: ALUNO.id, autorNome: ALUNO.nome, texto: 'Post do próprio aluno.' };
+      const MEU: PostDoMural = { ...POST_CURTIDO, id: 'p9', autorId: ALUNO.id, autorNome: ALUNO.nome, autorApelido: null, texto: 'Post do próprio aluno.' };
       const api = await simularApi(page, {
         ...(await sessaoDeAluno(page)), ...cheia,
         'GET /aluno/comunidade/mural': muralFalso(POST, MEU),
@@ -489,21 +499,22 @@ for (const largura of [390, 1280]) {
     });
 
     for (const [nome, t, contraste] of TEMAS) {
-      test(`aluno: apelido ao lado do nome e perfil do colega numa folha, tema ${nome}`, async ({ page }) => {
+      test(`aluno: o nome do colega como a API monta (sem apelido à parte) e o perfil numa folha, tema ${nome}`, async ({ page }) => {
         await tema(page, ALUNO.id, t, contraste);
         const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/perfis/{id}': { corpo: PERFIL } });
         await page.goto(MURAL_DOS_ALUNOS);
-        await expect(page.getByText('«Fictí»')).toBeVisible();
+        await expect(page.getByText(NOME_DO_COLEGA, { exact: true })).toBeVisible();
+        await expect(page.getByText('«Fictí»')).toHaveCount(0);
         // Autor da equipe não abre perfil; o aluno abre.
         await expect(page.getByRole('button', { name: 'Ver perfil de Treinadora Teste' })).toHaveCount(0);
-        const autor = page.getByRole('button', { name: 'Ver perfil de Aluno Fictício' });
+        const autor = page.getByRole('button', { name: `Ver perfil de ${NOME_DO_COLEGA}` });
         expect((await autor.boundingBox())!.height).toBeGreaterThanOrEqual(44);
         await autor.focus();
-        await capturar(page, `aluno-mural-apelido-${nome}-${largura}`);
+        await capturar(page, `aluno-mural-nome-${nome}-${largura}`);
         await page.keyboard.press('Enter');
         const folha = page.getByRole('dialog', { name: 'Perfil na Comunidade' });
-        await expect(folha.getByText('Aluno Fictício', { exact: true })).toBeVisible();
-        await expect(folha.getByText('«Fictí»')).toBeVisible();
+        await expect(folha.getByText(NOME_DO_COLEGA, { exact: true })).toBeVisible();
+        await expect(folha.getByText('«Fictí»')).toHaveCount(0);
         await expect(folha.getByText('8 treinos concluídos')).toBeVisible();
         await expect(folha.getByText('Nível 2', { exact: true })).toBeVisible();
         await expect(folha.getByText('Primeiro treino', { exact: true })).toBeVisible();
@@ -531,7 +542,7 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto(MURAL_DOS_ALUNOS);
-      const autor = page.getByRole('button', { name: 'Ver perfil de Aluno Fictício' });
+      const autor = page.getByRole('button', { name: `Ver perfil de ${NOME_DO_COLEGA}` });
       const folha = page.getByRole('dialog', { name: 'Perfil na Comunidade' });
       await autor.click();
       await expect(folha.getByText('Você', { exact: true })).toBeVisible();
@@ -584,7 +595,7 @@ for (const largura of [390, 1280]) {
       await page.goto('/aluno/conta');
       const campo = page.getByRole('textbox', { name: 'Apelido (opcional)' });
       await expect(campo).toBeVisible();
-      await expect(page.getByText('Aparece ao lado do seu nome na Comunidade.')).toBeVisible();
+      await expect(page.getByText('Os colegas veem o apelido se você escolher mostrá-lo em Meu perfil, logo abaixo.')).toBeVisible();
       const salvar = page.getByRole('button', { name: 'Salvar apelido' });
       await expect(salvar).toBeDisabled();
       await expect(page.getByRole('button', { name: 'Remover apelido' })).toHaveCount(0);
@@ -630,7 +641,8 @@ for (const largura of [390, 1280]) {
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Bora, time!')).toBeVisible();
       await expect(folha.getByText('Mandou bem.')).toBeVisible();
-      await expect(folha.getByText('«Fictí»')).toBeVisible();
+      await expect(folha.getByText(NOME_DO_COLEGA, { exact: true })).toBeVisible();
+      await expect(folha.getByText('«Fictí»')).toHaveCount(0);
       await expect(folha.getByRole('button', { name: 'Ver perfil de Treinadora Teste' })).toHaveCount(0);
       const comentar = folha.getByRole('button', { name: /^Comentar/ });
       await expect(comentar).toBeDisabled();
@@ -647,7 +659,7 @@ for (const largura of [390, 1280]) {
       await expect(campo).toHaveValue('');
 
       // Perfil do colega por cima dos comentários; o Esc fecha só o perfil.
-      await folha.getByRole('button', { name: 'Ver perfil de Aluno Fictício' }).click();
+      await folha.getByRole('button', { name: `Ver perfil de ${NOME_DO_COLEGA}` }).click();
       const perfil = page.getByRole('dialog', { name: 'Perfil na Comunidade' });
       await expect(perfil.getByText('8 treinos concluídos')).toBeVisible();
       await capturar(page, `aluno-comentarios-perfil-${largura}`);
@@ -1800,7 +1812,7 @@ const VOTOS: VotosDaEnquete = {
     total: 2,
     itens: [
       { autorId: ALUNO.id, opcaoId: 'o2', nome: 'Aluno Fictício', temFoto: false, votadoEm: '2026-11-12T10:00:00-03:00', ehVoce: true },
-      { autorId: 'u7', opcaoId: 'o1', nome: 'Colega Fictícia', apelido: 'Coleguinha', temFoto: false, votadoEm: '2026-11-11T09:00:00-03:00', ehVoce: false },
+      { autorId: 'u7', opcaoId: 'o1', nome: 'Colega (Coleguinha)', temFoto: false, votadoEm: '2026-11-11T09:00:00-03:00', ehVoce: false },
     ],
   },
 };
@@ -1893,13 +1905,13 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: 'Mostrar votos' }).click();
       const folha = page.getByRole('dialog', { name: 'Votos da enquete' });
       await expect(folha.getByText('Você', { exact: true })).toBeVisible();
-      await expect(folha.getByText('Colega Fictícia (Coleguinha)')).toBeVisible();
+      await expect(folha.getByText('Colega (Coleguinha)', { exact: true })).toBeVisible();
       await expect(folha.getByText(/^Noite · /)).toBeVisible();
       await capturar(page, `enquete-votos-${largura}`);
       await folha.getByRole('radio', { name: /^Manhã/ }).click();
       await expect.poll(() => api.pedidos.some((p) => p.caminho === '/aluno/comunidade/mural/p9/votos' && p.busca.get('opcaoId') === 'o1')).toBe(true);
       await expect(folha.getByText('Você', { exact: true })).toHaveCount(0);
-      await expect(folha.getByText('Colega Fictícia (Coleguinha)')).toBeVisible();
+      await expect(folha.getByText('Colega (Coleguinha)', { exact: true })).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
     });
 

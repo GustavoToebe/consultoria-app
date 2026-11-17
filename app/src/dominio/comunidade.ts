@@ -110,7 +110,7 @@ export function textoDosParticipantes(n: number): string {
   return n === 1 ? '1 pessoa votou' : `${n} pessoas votaram`;
 }
 
-/** Nome do votante na lista: o próprio é "Você"; o apelido vem ao lado, nunca no lugar. */
+/** Nome do votante na lista: o próprio é "Você"; o apelido (só a equipe o recebe à parte) vem ao lado, nunca no lugar. */
 export const nomeDoVotante = (v: { nome: string; apelido?: string | null; ehVoce?: boolean }): string =>
   v.ehVoce ? 'Você' : v.apelido ? `${v.nome} (${v.apelido})` : v.nome;
 

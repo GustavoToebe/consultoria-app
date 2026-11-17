@@ -33,9 +33,8 @@ export function juntarPaginaDeColegas(c: ColegasLidos, p: ColegasLidos): Colegas
   return { itens, total: novos.length === 0 ? Math.min(p.total, itens.length) : p.total };
 }
 
-/** Nome acessível da linha: nome, apelido e nível, na ordem em que aparecem. */
-export const rotuloDoColega = (c: Pick<ColegaDaLista, 'nome' | 'apelido' | 'nivel'>): string =>
-  [c.nome, c.apelido ? `apelido ${c.apelido}` : null, textoDoNivel(c.nivel)].filter(Boolean).join(', ');
+/** Nome acessível da linha: nome (já montado pelo servidor) e nível, na ordem em que aparecem. */
+export const rotuloDoColega = (c: Pick<ColegaDaLista, 'nome' | 'nivel'>): string => `${c.nome}, ${textoDoNivel(c.nivel)}`;
 
 // ---- Perfil ----
 
@@ -55,7 +54,7 @@ export function erroDaLeitura(erro: unknown): 'nao-encontrado' | 'limite' | 'out
   return 'outro';
 }
 
-/** Perfil reservado visto por outro aluno: só nome e apelido. O próprio aluno vê tudo, mesmo reservado. */
+/** Perfil reservado visto por outro aluno: só o nome. O próprio aluno vê tudo, mesmo reservado. */
 export const soONome = (p: Pick<PerfilDaComunidade, 'reservado' | 'ehVoce'>): boolean => p.reservado && !p.ehVoce;
 
 /** Busca a foto só quando a API disse que há e o perfil está aberto a quem vê (o 404 da foto não distingue os casos). */

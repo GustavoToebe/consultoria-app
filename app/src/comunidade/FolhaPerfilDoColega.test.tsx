@@ -46,12 +46,12 @@ jest.mock('./FotoDoColega', () => ({ FotoDoColega: ({ temFoto }: { temFoto: bool
 
 const obter = obterPerfilDaComunidade as jest.Mock;
 const VISIVEL: PerfilDaComunidade = {
-  autorId: 'u2', nome: 'Aluno Fictício', apelido: 'Fictí', ehVoce: false, reservado: false, treinosConcluidos: 8, nivel: 2,
+  autorId: 'u2', nome: 'Aluno (Fictí)', ehVoce: false, reservado: false, treinosConcluidos: 8, nivel: 2,
   conquistas: [{ tipo: 'PRIMEIRO_TREINO', titulo: 'Primeiro treino', descricao: 'Concluiu o primeiro treino.', icone: 'award' }],
   destaques: [], cor: 'LARANJA', moldura: 'SIMPLES', temFoto: true,
   atividade: { diasTreinadosUltimos30: [], ultimasConquistas: [] }, recordes: [{ exercicio: 'Supino reto', carga: 60 }],
 };
-const RESERVADO: PerfilDaComunidade = { autorId: 'u2', nome: 'Aluno Fictício', apelido: null, ehVoce: false, reservado: true };
+const RESERVADO: PerfilDaComunidade = { autorId: 'u2', nome: 'Aluno', ehVoce: false, reservado: true };
 
 const folha = (autorId: string | null, online = true) => <FolhaPerfilDoColega autorId={autorId} online={online} aoFechar={() => undefined} />;
 const textos = (r: ReactTestRenderer) =>
@@ -71,7 +71,7 @@ it('perfil visível: nível, treinos, insígnias, recordes em kg e a foto pedida
   const r = await abrir('u2');
   expect(obter).toHaveBeenCalledWith('u2');
   const t = textos(r);
-  expect(t).toEqual(expect.arrayContaining(['Aluno Fictício', 'Nível 2', '8 treinos concluídos', 'Primeiro treino', 'Supino reto', 'foto']));
+  expect(t).toEqual(expect.arrayContaining(['Aluno (Fictí)', 'Nível 2', '8 treinos concluídos', 'Primeiro treino', 'Supino reto', 'foto']));
   expect(t.some((x) => /60\s*kg/.test(x))).toBe(true);
   expect(t).not.toContain('Você');
   expect(t).not.toContain('Mapa dos treinos');
@@ -82,7 +82,7 @@ it('perfil visível: nível, treinos, insígnias, recordes em kg e a foto pedida
 it('reservado para outro aluno: só nome e o aviso, nada de nível, foto, insígnia ou recorde', async () => {
   obter.mockResolvedValueOnce(RESERVADO);
   const t = textos(await abrir('u2'));
-  expect(t).toEqual(expect.arrayContaining(['Aluno Fictício', 'Este aluno reservou o perfil.']));
+  expect(t).toEqual(expect.arrayContaining(['Aluno', 'Este aluno reservou o perfil.']));
   for (const fora of ['foto', 'iniciais', 'Insígnias', 'Recordes de carga', 'Atividade recente']) expect(t).not.toContain(fora);
   expect(t.some((x) => x.startsWith('Nível'))).toBe(false);
 });
@@ -92,7 +92,7 @@ it('o próprio aluno, mesmo reservado, vê tudo e o atalho leva ao cartão da Co
   const fechar = jest.fn();
   let r!: ReactTestRenderer;
   await act(async () => { r = create(<FolhaPerfilDoColega autorId="u2" online aoFechar={fechar} />); });
-  expect(textos(r)).toEqual(expect.arrayContaining(['Mapa dos treinos', 'Barra do nível', 'Você', 'Nível 2', 'Seu perfil está reservado: os colegas veem só o seu nome e o apelido.']));
+  expect(textos(r)).toEqual(expect.arrayContaining(['Mapa dos treinos', 'Barra do nível', 'Você', 'Nível 2', 'Seu perfil está reservado: os colegas veem só o seu nome.']));
   await act(async () => { botao(r, 'Editar meu perfil').props.onPress(); });
   expect(fechar).toHaveBeenCalled();
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/aluno/conta', params: { secao: 'meu-perfil' } });

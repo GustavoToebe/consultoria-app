@@ -40,9 +40,10 @@ export function fotoNaFicha(o: { largura: number; podeAlterar: boolean; anonimiz
 
 /** Até duas iniciais: a do primeiro e a do último nome ("Maria Fictícia Souza" → "MS"). Sem nome, "?". */
 export function iniciais(nome: string | null | undefined): string {
-  const partes = (nome ?? '').trim().split(/\s+/).filter(Boolean);
+  // A inicial é a primeira letra ou dígito de cada parte: "Ana (Aninha)" → "AA", nunca "A(".
+  const partes = (nome ?? '').trim().split(/\s+/).map((p) => p.match(/[\p{L}\p{N}]/u)?.[0] ?? '').filter(Boolean);
   if (!partes.length) return '?';
-  const primeira = partes[0].charAt(0);
-  const ultima = partes.length > 1 ? partes[partes.length - 1].charAt(0) : '';
+  const primeira = partes[0];
+  const ultima = partes.length > 1 ? partes[partes.length - 1] : '';
   return (primeira + ultima).toLocaleUpperCase('pt-BR');
 }

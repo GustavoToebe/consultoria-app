@@ -122,7 +122,10 @@ export const listarColegasDaComunidade = (n: number) =>
 export const definirMeuApelido = (apelido: string | null) =>
   requisicao<void>('/aluno/comunidade/apelido', { metodo: 'PUT', corpo: { apelido } });
 
-/** Preferências do próprio perfil. O PUT substitui as quatro: mande sempre todas (`dominio/perfilDaComunidade.corpoDoPerfil`). */
+/**
+ * Preferências do próprio perfil. O PUT substitui as cinco: mande sempre todas (`dominio/perfilDaComunidade.corpoDoPerfil`).
+ * `exibicaoDoNome` fora da lista = 422 `PERFIL_INVALIDO` no campo `exibicaoDoNome`.
+ */
 export const meuPerfilDaComunidade = () => requisicao<PreferenciasDoPerfil>('/aluno/comunidade/perfil');
 
 export const salvarMeuPerfilDaComunidade = (corpo: CorpoDoPerfil) =>

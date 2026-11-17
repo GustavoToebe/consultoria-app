@@ -50,7 +50,7 @@ const alvoDa = (chave: string): AlvoDosComentarios => {
 /**
  * Comentários de um post do mural ou de uma aula, numa `Folha` (aluno e equipe; `docs/design-e-front.md`). Lista do mais
  * antigo ao mais novo, 30 por vez, com "Carregar mais" que acrescenta a próxima página sem perder o que já foi lido; o
- * autor aparece como no post (apelido ao lado; só aluno abre o perfil do colega, numa folha por cima desta). 404 = o
+ * autor aparece como no post (nome como a API manda, apelido à parte só para a equipe; só aluno abre o perfil do colega, numa folha por cima desta). 404 = o
  * post ou a aula saiu do alcance: "não disponível", sem tentar de novo. Nada fica no aparelho: o rascunho vive só na
  * memória enquanto a tela existe. `aoAlterar` avisa a tela para atualizar o total.
  */

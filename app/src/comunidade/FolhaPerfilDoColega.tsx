@@ -33,9 +33,9 @@ const FOTO = 88;
 
 /**
  * Perfil de um colega na Comunidade, no estilo do Steam (plano `perfil-estilo-steam`): capa com a foto na moldura e na cor
- * que ele escolheu, nome, apelido, nível e treinos; depois destaques, atividade dos últimos 30 dias, insígnias e recordes de
+ * que ele escolheu, nome (já montado pelo servidor pela escolha do colega), nível e treinos; depois destaques, atividade dos últimos 30 dias, insígnias e recordes de
  * carga. Aberto pelo autor de um post ou comentário e pela lista de colegas. Só com internet e nada fica no aparelho: sem
- * conexão a folha diz isso e não mostra o que tinha lido. Reservado e visto por outro aluno: só nome, apelido e iniciais. O
+ * conexão a folha diz isso e não mostra o que tinha lido. Reservado e visto por outro aluno: só nome e iniciais. O
  * próprio aluno vê tudo e ganha o atalho "Editar meu perfil". Nunca peso corporal, medidas, dieta, saúde nem horário.
  */
 export function FolhaPerfilDoColega({ autorId, online, aoFechar }: { autorId: string | null; online: boolean; aoFechar: () => void }) {
@@ -99,7 +99,6 @@ function PerfilAberto({ perfil, aoEditar }: { perfil: PerfilDaComunidade; aoEdit
             <Texto variante="titulo" nivel={3}>{perfil.nome}</Texto>
             {perfil.ehVoce ? <Selo texto="Você" tipo="neutro" /> : null}
           </View>
-          {perfil.apelido ? <Texto variante="suave" accessibilityLabel={`apelido ${perfil.apelido}`}>«{perfil.apelido}»</Texto> : null}
           {reservadoParaMim ? (
             <View style={[estilos.linha, estilos.reservado]}>
               <Lock size={16} color={cores.textoSuave} aria-hidden />
@@ -120,7 +119,7 @@ function PerfilAberto({ perfil, aoEditar }: { perfil: PerfilDaComunidade; aoEdit
 
       {perfil.ehVoce ? (
         <View style={estilos.meu}>
-          {perfil.reservado ? <Texto variante="suave">Seu perfil está reservado: os colegas veem só o seu nome e o apelido.</Texto> : null}
+          {perfil.reservado ? <Texto variante="suave">Seu perfil está reservado: os colegas veem só o seu nome.</Texto> : null}
           <LinhaDeAcoes><Botao rotulo="Editar meu perfil" tipo="secundario" Icone={Pencil} aoTocar={aoEditar} /></LinhaDeAcoes>
         </View>
       ) : null}

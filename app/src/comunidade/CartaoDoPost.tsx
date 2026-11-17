@@ -89,7 +89,7 @@ export function CartaoDoPost({
           accessibilityRole="button"
           accessibilityLabel={`Ver ${post.totalComentarios} comentário(s)`}
           onPress={aoComentarios}
-          style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
+          style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.sobre }]}>
           <MessageSquare size={18} color={cores.texto} aria-hidden />
           <Texto variante="suave" cor={cores.texto} numerico>{post.totalComentarios} comentário(s)</Texto>
         </Pressable>
@@ -102,6 +102,6 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   fotos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   rodape: { borderTopWidth: 1, paddingTop: espaco(1), columnGap: espaco(2), rowGap: espaco(0.5) },
-  // Hover e pressionado pintam `superficie3` (`ui/sobre`); o respiro e o raio dão forma ao fundo.
+  // Hover e pressionado pintam `sobre` (`ui/sobre`); o respiro e o raio dão forma ao fundo.
   interacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: ALVO_TOQUE, minWidth: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), marginHorizontal: -espaco(1) },
 });

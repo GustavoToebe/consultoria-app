@@ -123,9 +123,9 @@ for (const largura of [390, 1280]) {
     });
 
     test('colega: a lista e o perfil mostram só "Nível N", sem barra nem o que falta', async ({ page }) => {
-      const colega: ColegaDaLista = { autorId: 'c1', nome: 'Ana Fictícia', apelido: null, nivel: 4, temFoto: false };
+      const colega: ColegaDaLista = { autorId: 'c1', nome: 'Ana Fictícia', nivel: 4, temFoto: false };
       const perfil = (id: string): PerfilDaComunidade => ({
-        autorId: id, nome: id === ALUNO.id ? 'Aluno Fictício' : 'Ana Fictícia', apelido: null, ehVoce: id === ALUNO.id, reservado: false,
+        autorId: id, nome: id === ALUNO.id ? 'Aluno Fictício' : 'Ana Fictícia', ehVoce: id === ALUNO.id, reservado: false,
         treinosConcluidos: 30, nivel: 4, conquistas: [], destaques: [], temFoto: false,
         atividade: { diasTreinadosUltimos30: [], ultimasConquistas: [] }, recordes: [],
       });

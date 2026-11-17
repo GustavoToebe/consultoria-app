@@ -14,6 +14,7 @@ import { MensagemErro } from '../ui/Estados';
 import { codigoApi, separarErros, textoDoErro } from '../ui/erros';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { useCarregar } from '../ui/useCarregar';
+import { avisarQueOApelidoMudou } from './versaoDoApelido';
 
 /**
  * Apelido da Comunidade, na Conta do aluno logo depois de "Meus dados" (cartão próprio: o apelido tem rota própria,
@@ -54,6 +55,7 @@ export function CartaoApelido() {
         setSalvando(null);
         setTexto(null);
         carga.definir({ ...dados, apelido });
+        avisarQueOApelidoMudou();
         avisar(apelido ? 'Apelido salvo.' : 'Apelido removido.', 'sucesso');
       },
       (erro: unknown) => {
@@ -73,7 +75,7 @@ export function CartaoApelido() {
 
   return (
     <Cartao titulo="Comunidade">
-      <Campo rotulo="Apelido (opcional)" ajuda="Aparece ao lado do seu nome na Comunidade." valor={valor}
+      <Campo rotulo="Apelido (opcional)" ajuda="Os colegas veem o apelido se você escolher mostrá-lo em Meu perfil, logo abaixo." valor={valor}
         aoMudar={(t) => { setTexto(t); setErroDaApi(null); }} erro={erroLocal ?? erroDaApi}
         autoCapitalize="none" autoCorrect={false} autoComplete="off" spellCheck={false} maxLength={40} editable={!salvando} />
       <LinhaDeAcoes alinhar="fim">

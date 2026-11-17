@@ -69,7 +69,7 @@ const fixadosPrimeiro = (posts: PostDoMural[]) => [...posts].sort((a, b) => Numb
 
 /**
  * Comunidade do aluno: mural do time, aulões, conquistas, a própria posição no ranking e os colegas com perfil visível. Tudo vem da API e nada fica no aparelho:
- * sem conexão a tela só avisa. O apelido aparece ao lado do nome do autor; tocar num autor que é aluno abre o perfil dele.
+ * sem conexão a tela só avisa. O nome do autor chega montado pela API (a escolha dele, V085); tocar num autor que é aluno abre o perfil dele.
  */
 export default function ComunidadeAluno() {
   const { cores } = useTema();

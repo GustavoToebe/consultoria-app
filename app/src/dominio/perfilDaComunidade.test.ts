@@ -1,10 +1,50 @@
 import {
   alternarDestaque, contadorDeDestaques, CORES_DO_PERFIL, corDoPerfil, corpoDoManterVisivel, corpoDoPerfil, MAXIMO_DE_DESTAQUES,
-  molduraDoPerfil, MOLDURAS_DO_PERFIL, mostrarAvisoDoPerfil, notaDoReservar, perfilMudou, reservadoNaTela, type PreferenciasLidas,
+  molduraDoPerfil, MOLDURAS_DO_PERFIL, mostrarAvisoDoPerfil, nomeParaColegas, notaDoReservar, OPCOES_DE_NOME, perfilMudou, reservadoNaTela,
+  type PreferenciasLidas,
 } from './perfilDaComunidade';
 
 const lido = (p: Partial<PreferenciasLidas> = {}): PreferenciasLidas => ({
-  perfilReservado: null, reservadoEfetivo: false, destaques: ['PRIMEIRO_TREINO'], cor: 'AZUL', moldura: 'SIMPLES', ...p,
+  perfilReservado: null, reservadoEfetivo: false, destaques: ['PRIMEIRO_TREINO'], cor: 'AZUL', moldura: 'SIMPLES', exibicaoDoNome: 'NOME', ...p,
+});
+
+describe('nome para os colegas (espelho de NomeExibido.paraColegas)', () => {
+  it('as quatro opções com apelido', () => {
+    expect(nomeParaColegas('NOME', 'Ana Souza Lima', 'Aninha')).toBe('Ana');
+    expect(nomeParaColegas('NOME_COMPLETO', 'Ana Souza Lima', 'Aninha')).toBe('Ana Souza Lima');
+    expect(nomeParaColegas('APELIDO', 'Ana Souza Lima', 'Aninha')).toBe('Aninha');
+    expect(nomeParaColegas('NOME_E_APELIDO', 'Ana Souza Lima', 'Aninha')).toBe('Ana (Aninha)');
+  });
+
+  it('sem apelido (nulo ou em branco), APELIDO e NOME_E_APELIDO caem no primeiro nome', () => {
+    for (const apelido of [null, undefined, '', '   ']) {
+      expect(nomeParaColegas('APELIDO', 'Ana Souza', apelido)).toBe('Ana');
+      expect(nomeParaColegas('NOME_E_APELIDO', 'Ana Souza', apelido)).toBe('Ana');
+    }
+    expect(nomeParaColegas('NOME_COMPLETO', 'Ana Souza', null)).toBe('Ana Souza');
+  });
+
+  it('nulo ou valor desconhecido vale NOME; espaços nas pontas e repetidos saem; nome vazio vira "Membro"', () => {
+    expect(nomeParaColegas(null, 'Ana Souza', 'Aninha')).toBe('Ana');
+    expect(nomeParaColegas('OUTRA', 'Ana Souza', 'Aninha')).toBe('Ana');
+    expect(nomeParaColegas('NOME_COMPLETO', '  Ana    Souza\tLima ', null)).toBe('Ana Souza Lima');
+    expect(nomeParaColegas('NOME', '  ana souza', null)).toBe('ana');
+    expect(nomeParaColegas('NOME', '   ', 'Aninha')).toBe('Membro');
+    expect(nomeParaColegas('APELIDO', null, 'Aninha')).toBe('Membro');
+  });
+
+  it('as opções espelham ExibicaoDoNome da API, NOME primeiro (o padrão)', () => {
+    expect(OPCOES_DE_NOME.map((o) => o.valor)).toEqual(['NOME', 'NOME_COMPLETO', 'APELIDO', 'NOME_E_APELIDO']);
+  });
+
+  it('o corpo leva a escolha lida quando o aluno não mexeu, e a nova quando mexeu', () => {
+    const l = lido({ exibicaoDoNome: 'APELIDO' });
+    expect(corpoDoPerfil(l, { cor: 'ROSA' }).exibicaoDoNome).toBe('APELIDO');
+    expect(corpoDoManterVisivel(l).exibicaoDoNome).toBe('APELIDO');
+    expect(corpoDoPerfil(l, { exibicaoDoNome: 'NOME_COMPLETO' }).exibicaoDoNome).toBe('NOME_COMPLETO');
+    expect(perfilMudou(l, { exibicaoDoNome: 'NOME_COMPLETO' })).toBe(true);
+    expect(perfilMudou(l, { exibicaoDoNome: 'APELIDO' })).toBe(false);
+  });
 });
 
 describe('perfil da comunidade', () => {
@@ -19,14 +59,14 @@ describe('perfil da comunidade', () => {
 
   it('o reservado que o aluno não tocou volta null, nunca o efetivo (salvar só a cor não vira escolha)', () => {
     const l = lido({ perfilReservado: null, reservadoEfetivo: true });
-    expect(corpoDoPerfil(l, { cor: 'ROSA' })).toEqual({ perfilReservado: null, destaques: ['PRIMEIRO_TREINO'], cor: 'ROSA', moldura: 'SIMPLES' });
+    expect(corpoDoPerfil(l, { cor: 'ROSA' })).toEqual({ perfilReservado: null, destaques: ['PRIMEIRO_TREINO'], cor: 'ROSA', moldura: 'SIMPLES', exibicaoDoNome: 'NOME' });
     expect(reservadoNaTela(l, {})).toBe(true);
     expect(corpoDoPerfil(l, { reservado: false }).perfilReservado).toBe(false);
   });
 
   it('"Entendi" manda false com o resto como está salvo', () => {
     expect(corpoDoManterVisivel(lido({ destaques: ['A', 'B'], cor: 'ROXO', moldura: 'DUPLA' })))
-      .toEqual({ perfilReservado: false, destaques: ['A', 'B'], cor: 'ROXO', moldura: 'DUPLA' });
+      .toEqual({ perfilReservado: false, destaques: ['A', 'B'], cor: 'ROXO', moldura: 'DUPLA', exibicaoDoNome: 'NOME' });
   });
 
   it('mudou: compara o corpo com o gravado, inclusive a ordem dos destaques', () => {

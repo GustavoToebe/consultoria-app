@@ -32,6 +32,8 @@ describe('foto de perfil', () => {
     expect(iniciais('Maria Fictícia Souza')).toBe('MS');
     expect(iniciais('  ana  ')).toBe('A');
     expect(iniciais('élio teste')).toBe('ÉT');
+    expect(iniciais('Ana (Aninha)')).toBe('AA');
+    expect(iniciais('(Aninha)')).toBe('A');
     expect(iniciais('')).toBe('?');
     expect(iniciais(null)).toBe('?');
   });

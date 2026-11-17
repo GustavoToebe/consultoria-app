@@ -37,6 +37,37 @@ export const MOLDURAS_DO_PERFIL: readonly { valor: MolduraDoPerfil; nome: string
 export const corDoPerfil = (valor: string | null | undefined) => CORES_DO_PERFIL.find((c) => c.valor === valor) ?? CORES_DO_PERFIL[0];
 export const molduraDoPerfil = (valor: string | null | undefined) => MOLDURAS_DO_PERFIL.find((m) => m.valor === valor) ?? MOLDURAS_DO_PERFIL[0];
 
+/** Como o nome do aluno aparece para os outros alunos (`ExibicaoDoNome` da API, V085); a equipe sempre vê o nome completo. */
+export type ExibicaoDoNome = 'NOME' | 'NOME_COMPLETO' | 'APELIDO' | 'NOME_E_APELIDO';
+
+/** As quatro escolhas, `NOME` (o padrão da API) primeiro. */
+export const OPCOES_DE_NOME: readonly { valor: ExibicaoDoNome; nome: string }[] = [
+  { valor: 'NOME', nome: 'Primeiro nome' },
+  { valor: 'NOME_COMPLETO', nome: 'Nome completo' },
+  { valor: 'APELIDO', nome: 'Apelido' },
+  { valor: 'NOME_E_APELIDO', nome: 'Nome e apelido' },
+];
+
+const ESPACOS = /[\s\p{Zs}]+/gu;
+
+/**
+ * Espelho de `NomeExibido.paraColegas` da API (quem monta de verdade é o servidor; aqui é só a prévia na Conta): nulo ou
+ * valor desconhecido = `NOME` (primeiro nome); `APELIDO` e `NOME_E_APELIDO` sem apelido caem no primeiro nome; nome vazio
+ * vira "Membro". Primeiro nome = a primeira palavra, com a caixa cadastrada.
+ */
+export function nomeParaColegas(exibicao: string | null | undefined, nomeCompleto: string | null | undefined, apelido: string | null | undefined): string {
+  const completo = (nomeCompleto ?? '').trim().replace(ESPACOS, ' ');
+  if (!completo) return 'Membro';
+  const primeiro = completo.split(' ')[0];
+  const valido = apelido?.trim() ? apelido : null;
+  switch (exibicao) {
+    case 'NOME_COMPLETO': return completo;
+    case 'APELIDO': return valido ?? primeiro;
+    case 'NOME_E_APELIDO': return valido ? `${primeiro} (${valido})` : primeiro;
+    default: return primeiro;
+  }
+}
+
 /** O que a API devolve (o mínimo que estas regras leem). */
 export interface PreferenciasLidas {
   perfilReservado: boolean | null;
@@ -44,6 +75,8 @@ export interface PreferenciasLidas {
   destaques: string[];
   cor: string;
   moldura: string;
+  /** O efetivo (a API devolve `NOME` quando o aluno não escolheu). */
+  exibicaoDoNome: string;
 }
 
 /** O que o aluno mexeu no cartão; campo ausente = não mexeu (vale o lido). */
@@ -52,6 +85,7 @@ export interface EdicaoDoPerfil {
   destaques?: string[];
   cor?: CorDoPerfil;
   moldura?: MolduraDoPerfil;
+  exibicaoDoNome?: ExibicaoDoNome;
 }
 
 export interface CorpoDoPerfil {
@@ -59,11 +93,13 @@ export interface CorpoDoPerfil {
   destaques: string[];
   cor: string;
   moldura: string;
+  exibicaoDoNome: string;
 }
 
 /**
- * Corpo do PUT, que substitui as quatro preferências: o que o aluno não tocou volta como veio. Em especial o reservado não
+ * Corpo do PUT, que substitui as cinco preferências: o que o aluno não tocou volta como veio. Em especial o reservado não
  * tocado volta `null` (vale o padrão da idade), nunca o efetivo: salvar só a cor não pode virar uma escolha de privacidade.
+ * A escolha do nome também volta como veio: ausente, a API a zeraria para `NOME`.
  */
 export function corpoDoPerfil(lido: PreferenciasLidas, edicao: EdicaoDoPerfil): CorpoDoPerfil {
   return {
@@ -71,6 +107,7 @@ export function corpoDoPerfil(lido: PreferenciasLidas, edicao: EdicaoDoPerfil): 
     destaques: edicao.destaques ?? lido.destaques,
     cor: edicao.cor ?? lido.cor,
     moldura: edicao.moldura ?? lido.moldura,
+    exibicaoDoNome: edicao.exibicaoDoNome ?? lido.exibicaoDoNome,
   };
 }
 
@@ -84,7 +121,7 @@ export const reservadoNaTela = (lido: PreferenciasLidas, edicao: EdicaoDoPerfil)
 export function perfilMudou(lido: PreferenciasLidas, edicao: EdicaoDoPerfil): boolean {
   const c = corpoDoPerfil(lido, edicao);
   return c.perfilReservado !== lido.perfilReservado || c.cor !== lido.cor || c.moldura !== lido.moldura
-    || c.destaques.length !== lido.destaques.length || c.destaques.some((d, i) => d !== lido.destaques[i]);
+    || c.exibicaoDoNome !== lido.exibicaoDoNome || c.destaques.length !== lido.destaques.length || c.destaques.some((d, i) => d !== lido.destaques[i]);
 }
 
 /**
@@ -110,7 +147,13 @@ export const mostrarAvisoDoPerfil = (p: Pick<PreferenciasLidas, 'perfilReservado
 export const TEXTO_DO_AVISO_DO_PERFIL = 'Seus colegas podem ver seu perfil; você pode reservá-lo.';
 
 /** O que o interruptor esconde (decisão 3). */
-export const AJUDA_DO_RESERVAR = 'Esconde dos colegas sua foto, nível, insígnias, destaques, atividade e recordes. Eles continuam vendo seu nome e apelido.';
+export const AJUDA_DO_RESERVAR = 'Esconde dos colegas sua foto, nível, insígnias, destaques, atividade e recordes. Eles continuam vendo seu nome, do jeito que você escolher abaixo.';
+
+/** Ajuda do grupo da escolha do nome: o que a equipe vê não muda. */
+export const AJUDA_DO_NOME = 'Seu treinador e a equipe sempre veem seu nome completo.';
+
+/** Sem apelido, as duas opções com apelido mostram o primeiro nome (a API faz o mesmo); a opção continua escolhível. */
+export const NOTA_SEM_APELIDO = 'Você ainda não tem apelido: "Apelido" e "Nome e apelido" mostram o primeiro nome até você criar um no cartão Comunidade.';
 
 /** Explicação extra quando a reserva é o padrão (menor de idade ou sem data de nascimento) e o aluno ainda não escolheu. */
 export function notaDoReservar(lido: PreferenciasLidas, edicao: EdicaoDoPerfil): string | null {

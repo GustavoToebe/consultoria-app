@@ -16,12 +16,12 @@ const TEMAS = [['claro', 'CLARO', 'PADRAO'], ['escuro', 'ESCURO', 'PADRAO'], ['a
 const diaAtras = (n: number) => new Date(Date.now() - 3 * 3600e3 - n * 864e5).toISOString().slice(0, 10);
 
 const colega = (i: number, extra: Partial<ColegaDaLista> = {}): ColegaDaLista => ({
-  autorId: `c${i}`, nome: `Colega Fictício ${String(i).padStart(2, '0')}`, apelido: null, nivel: 1 + (i % 4), temFoto: false, ...extra,
+  autorId: `c${i}`, nome: `Colega Fictício ${String(i).padStart(2, '0')}`, nivel: 1 + (i % 4), temFoto: false, ...extra,
 });
-const COLEGAS = [colega(1, { nome: 'Ana Fictícia', apelido: 'Aninha', nivel: 3, temFoto: true }), ...Array.from({ length: 31 }, (_, i) => colega(i + 2))];
+const COLEGAS = [colega(1, { nome: 'Ana (Aninha)', nivel: 3, temFoto: true }), ...Array.from({ length: 31 }, (_, i) => colega(i + 2))];
 
 const VISIVEL: PerfilDaComunidade = {
-  autorId: 'c1', nome: 'Ana Fictícia', apelido: 'Aninha', ehVoce: false, reservado: false, treinosConcluidos: 42, nivel: 3,
+  autorId: 'c1', nome: 'Ana (Aninha)', ehVoce: false, reservado: false, treinosConcluidos: 42, nivel: 3,
   conquistas: [
     { tipo: 'PRIMEIRO_TREINO', titulo: 'Primeiro treino', descricao: 'Concluiu o primeiro treino.', icone: 'trophy-first' },
     { tipo: 'DEZ_TREINOS', titulo: 'Dez treinos', descricao: 'Concluiu dez treinos.', icone: 'medal-10' },
@@ -38,7 +38,7 @@ const VISIVEL: PerfilDaComunidade = {
   },
   recordes: [{ exercicio: 'Supino reto', carga: 60 }, { exercicio: 'Agachamento livre', carga: 100 }],
 };
-const RESERVADO: PerfilDaComunidade = { autorId: 'c2', nome: 'Colega Fictício 02', apelido: null, ehVoce: false, reservado: true };
+const RESERVADO: PerfilDaComunidade = { autorId: 'c2', nome: 'Colega Fictício 02', ehVoce: false, reservado: true };
 
 /** Degradê JPEG gerado no próprio navegador, sem pessoa nenhuma. */
 async function jpegFicticio(page: Page): Promise<Buffer> {
@@ -79,7 +79,7 @@ async function abrirColegas(page: Page, o: { lista?: ColegaDaLista[]; perfil?: (
       if (id === 'c1') return json(route, VISIVEL);
       if (id === 'c2') return json(route, RESERVADO);
       // Os demais: visíveis, sem foto, novatos.
-      return json(route, { autorId: id, nome: `Colega ${id}`, apelido: null, ehVoce: false, reservado: false, treinosConcluidos: 1, nivel: 1, conquistas: [], destaques: [], temFoto: false, atividade: { diasTreinadosUltimos30: [], ultimasConquistas: [] }, recordes: [] });
+      return json(route, { autorId: id, nome: `Colega ${id}`, ehVoce: false, reservado: false, treinosConcluidos: 1, nivel: 1, conquistas: [], destaques: [], temFoto: false, atividade: { diasTreinadosUltimos30: [], ultimasConquistas: [] }, recordes: [] });
     },
     'GET /aluno/comunidade/perfis/{id}/foto': (p: PedidoFalso, route: Route) => (p.caminho === '/aluno/comunidade/perfis/c1/foto'
       ? route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg })
@@ -117,13 +117,14 @@ for (const largura of [390, 1280]) {
         const api = await abrirColegas(page);
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
         await expect(page.getByRole('tab', { name: 'Colegas' })).toHaveAttribute('aria-selected', 'true');
-        await expect(page.getByText('Ana Fictícia', { exact: true })).toBeVisible();
-        await expect(page.getByText('«Aninha»')).toBeVisible();
+        // O nome já vem montado pela API (V085): nada de apelido à parte.
+        await expect(page.getByText('Ana (Aninha)', { exact: true })).toBeVisible();
+        await expect(page.getByText('«Aninha»')).toHaveCount(0);
         await expect(page.getByText('Colega Fictício 30', { exact: true })).toBeVisible();
         await expect(page.getByText('Colega Fictício 31', { exact: true })).toHaveCount(0);
         // O total nunca aparece escrito.
         await expect(page.getByText(/\b32\b/)).toHaveCount(0);
-        const verPerfil = page.getByRole('button', { name: 'Ver perfil de Ana Fictícia' });
+        const verPerfil = page.getByRole('button', { name: 'Ver perfil de Ana (Aninha)' });
         expect((await verPerfil.boundingBox())!.height).toBeGreaterThanOrEqual(44);
         await capturar(page, `colegas-lista-${nome}-${largura}`);
 
@@ -215,13 +216,13 @@ for (const largura of [390, 1280]) {
 
     test('sem internet a folha diz isso e não mostra o perfil lido; na volta lê de novo', async ({ page }) => {
       const api = await abrirColegas(page);
-      await page.getByRole('button', { name: 'Ver perfil de Ana Fictícia' }).click();
+      await page.getByRole('button', { name: 'Ver perfil de Ana (Aninha)' }).click();
       const folha = page.getByRole('dialog', { name: 'Perfil na Comunidade' });
       await expect(folha.getByText('Nível 3', { exact: true })).toBeVisible();
       await page.context().setOffline(true);
       await expect(folha.getByText('Sem conexão. O perfil aparece quando o aparelho voltar a ter internet.')).toBeVisible();
       await expect(folha.getByText('Nível 3', { exact: true })).toHaveCount(0);
-      await expect(folha.getByText('Ana Fictícia', { exact: true })).toHaveCount(0);
+      await expect(folha.getByText('Ana (Aninha)', { exact: true })).toHaveCount(0);
       await capturarFolha(page, `colegas-offline-${largura}`);
       await page.context().setOffline(false);
       // O Chromium emulado não avisa o NetInfo quando a rede volta; o navegador de verdade avisa.

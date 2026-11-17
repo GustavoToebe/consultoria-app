@@ -4,11 +4,11 @@ import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { meuPerfilDaComunidade, salvarMeuPerfilDaComunidade } from '../api/comunidade';
-import { baixarFotoDePerfil } from '../api/rotas';
+import { baixarFotoDePerfil, meusDados } from '../api/rotas';
 import { MolduraDaFoto } from '../comunidade/MolduraDaFoto';
 import {
   AJUDA_DO_RESERVAR, alternarDestaque, contadorDeDestaques, CORES_DO_PERFIL, corDoPerfil, corpoDoManterVisivel, corpoDoPerfil, molduraDoPerfil,
-  MOLDURAS_DO_PERFIL, mostrarAvisoDoPerfil, notaDoReservar, perfilMudou, reservadoNaTela, type EdicaoDoPerfil,
+  MOLDURAS_DO_PERFIL, mostrarAvisoDoPerfil, nomeParaColegas, notaDoReservar, perfilMudou, reservadoNaTela, type EdicaoDoPerfil,
 } from '../dominio/perfilDaComunidade';
 import { useAluno } from '../offline/AlunoProvider';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -33,15 +33,18 @@ import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { AvisoDoPerfil, CHAVE_DO_MEU_PERFIL, textoDoErroDoPerfil } from './AvisoDoPerfil';
+import { EscolhaDoNome } from './EscolhaDoNome';
 import { useVersaoDaFotoDePerfil } from './versaoDaFotoDePerfil';
+import { useVersaoDoApelido } from './versaoDoApelido';
 
 const FOTO = 72;
 const AMOSTRA = 22;
 
 /**
- * "Meu perfil" da Comunidade, na Conta do aluno depois do apelido: reservar (decisão 3), até 4 destaques entre as conquistas
+ * "Meu perfil" da Comunidade, na Conta do aluno depois do apelido: como o nome aparece para os colegas (V085, `EscolhaDoNome`;
+ * nome e apelido de `GET /aluno/meus-dados`, lidos de novo quando o apelido muda), reservar (decisão 3), até 4 destaques entre as conquistas
  * já ganhas (decisão 6), cor de destaque e moldura da foto (decisão 7), com a prévia do que os colegas veem, e o aviso único
- * (decisão 11). O PUT substitui as quatro preferências: o corpo sempre leva o que o aluno não tocou (`corpoDoPerfil`). Só com
+ * (decisão 11). O PUT substitui as cinco preferências: o corpo sempre leva o que o aluno não tocou (`corpoDoPerfil`). Só com
  * internet: sem conexão antes de carregar, o cartão some; depois de carregar, fica com as escolhas e o salvar espera a rede.
  */
 export function CartaoMeuPerfil() {
@@ -53,6 +56,9 @@ export function CartaoMeuPerfil() {
   const { secao } = useLocalSearchParams<{ secao?: string }>();
   const versaoDaFoto = useVersaoDaFotoDePerfil();
   const carga = useCarregar(online ? 'aluno-perfil-comunidade' : null, () => meuPerfilDaComunidade());
+  // Só para as prévias do nome: sem ela (carregando ou falhou) o cartão continua, com as opções sem prévia.
+  const versaoDoApelido = useVersaoDoApelido();
+  const meus = useCarregar(online ? `aluno-nome-do-perfil:${versaoDoApelido}` : null, () => meusDados());
   const [edicao, setEdicao] = useState<EdicaoDoPerfil>({});
   const [recusou, setRecusou] = useState(false);
   const [salvando, setSalvando] = useState<'salvar' | 'entender' | null>(null);
@@ -81,6 +87,10 @@ export function CartaoMeuPerfil() {
   const destaques = edicao.destaques ?? lido.destaques;
   const cor = corDoPerfil(edicao.cor ?? lido.cor);
   const moldura = molduraDoPerfil(edicao.moldura ?? lido.moldura);
+  const exibicao = edicao.exibicaoDoNome ?? lido.exibicaoDoNome;
+  const nomes = meus.dados ? { nome: meus.dados.nome, apelido: meus.dados.apelido ?? null } : null;
+  // Sem os dados ainda, o nome da sessão sem apelido: nunca o nome completo de quem não o escolheu.
+  const nomeNaPrevia = nomeParaColegas(exibicao, nomes?.nome ?? usuario?.nome, nomes?.apelido);
   const tom = corDoTomDoPerfil(cor.tom, variante);
   const mudou = perfilMudou(lido, edicao);
   const nota = notaDoReservar(lido, edicao);
@@ -115,7 +125,7 @@ export function CartaoMeuPerfil() {
           avisar(textoDoErro(erro), 'neutro');
           return;
         }
-        const { campos, geral } = separarErros(erro, ['destaques', 'cor', 'moldura'], textoDoErroDoPerfil(erro));
+        const { campos, geral } = separarErros(erro, ['destaques', 'cor', 'moldura', 'exibicaoDoNome'], textoDoErroDoPerfil(erro));
         setErros(campos);
         if (geral) avisar(geral, 'perigo');
       },
@@ -136,20 +146,20 @@ export function CartaoMeuPerfil() {
           ) : null}
 
           <View style={[estilos.previa, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}
-            accessibilityLabel={reservado ? 'Prévia: perfil reservado, os colegas veem só o nome e o apelido.' : `Prévia do perfil: moldura ${moldura.nome.toLowerCase()} na cor ${cor.nome.toLowerCase()}.`}>
+            accessibilityLabel={reservado ? `Prévia: ${nomeNaPrevia}, perfil reservado, os colegas veem só o nome.` : `Prévia do perfil: ${nomeNaPrevia}, moldura ${moldura.nome.toLowerCase()} na cor ${cor.nome.toLowerCase()}.`}>
             <Texto variante="secao">Prévia</Texto>
             <View style={estilos.linhaDaPrevia}>
               {reservado ? null : (
                 <MolduraDaFoto moldura={moldura.valor} cor={tom} tamanho={FOTO}>
-                  <FotoDePerfil chave={`perfil:${versaoDaFoto}`} carregar={baixarFotoDePerfil} nome={usuario?.nome} tamanho={FOTO} />
+                  <FotoDePerfil chave={`perfil:${versaoDaFoto}`} carregar={baixarFotoDePerfil} nome={nomeNaPrevia} tamanho={FOTO} />
                 </MolduraDaFoto>
               )}
               <View style={estilos.textosDaPrevia}>
-                <Texto variante="bloco">{usuario?.nome ?? 'Você'}</Texto>
+                <Texto variante="bloco">{nomeNaPrevia}</Texto>
                 {reservado ? (
                   <>
                     <Selo texto="Reservado" tipo="neutro" />
-                    <Texto variante="pequeno">Os colegas veem só seu nome e apelido.</Texto>
+                    <Texto variante="pequeno">Os colegas veem só o seu nome.</Texto>
                   </>
                 ) : destaques.length ? (
                   <View style={estilos.selos}>
@@ -166,6 +176,9 @@ export function CartaoMeuPerfil() {
             <Interruptor rotulo="Reservar meu perfil" ajuda={AJUDA_DO_RESERVAR} valor={reservado} aoMudar={(v) => mudar({ reservado: v })} />
             {nota ? <Texto variante="pequeno">{nota}</Texto> : null}
           </View>
+
+          {/* Depois do interruptor: o atalho "Reservar meu perfil" da Comunidade rola até o topo do cartão e o interruptor precisa estar à vista em 390 px. */}
+          <EscolhaDoNome valor={exibicao} nomes={nomes} erro={erros.exibicaoDoNome} aoEscolher={(v) => mudar({ exibicaoDoNome: v })} />
 
           <View style={estilos.bloco} role="group" aria-label="Destaques">
             <View style={estilos.topoDoGrupo}>

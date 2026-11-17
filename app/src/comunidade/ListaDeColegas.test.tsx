@@ -39,7 +39,7 @@ jest.mock('../ui/LinhaDeAcoes', () => ({ LinhaDeAcoes: ({ children }: { children
 jest.mock('./FotoDoColega', () => ({ FotoDoColega: () => null }));
 
 const listar = listarColegasDaComunidade as jest.Mock;
-const colega = (i: number): ColegaDaLista => ({ autorId: `u${i}`, nome: `Colega ${i}`, apelido: i === 1 ? 'Um' : null, nivel: 2, temFoto: false });
+const colega = (i: number): ColegaDaLista => ({ autorId: `u${i}`, nome: `Colega ${i}`, nivel: 2, temFoto: false });
 const de = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => colega(a + i));
 const textos = (r: ReactTestRenderer) =>
   r.root.findAll((n) => String(n.type) === 'Text').map((n) => [n.props.children].flat().join('')).filter(Boolean);
@@ -54,7 +54,7 @@ it('"Ver mais" traz a página seguinte, sem repetir e sem nunca escrever o total
   let r!: ReactTestRenderer;
   await act(async () => { r = create(<ListaDeColegas aoAbrir={abrir} />); });
   expect(listar).toHaveBeenLastCalledWith(0);
-  expect(textos(r)).toEqual(expect.arrayContaining(['Colega 1', '«Um» · Nível 2', 'Colega 2']));
+  expect(textos(r)).toEqual(expect.arrayContaining(['Colega 1', 'Nível 2', 'Colega 2']));
   expect(textos(r)).toContain('Nível 2');
   expect(textos(r).some((t) => /32/.test(t))).toBe(false);
 

@@ -11,8 +11,8 @@ import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
 
 /**
- * Cabeçalho do post no mural (aluno e equipe): iniciais, nome e sobrenome e, ao lado, o apelido em texto suave entre
- * aspas (nunca no lugar do nome), "Fixado" e a data. Com `aoAbrirPerfil`, iniciais e nome viram um botão só (alvo de
+ * Cabeçalho do post no mural (aluno e equipe): iniciais, o nome como a API manda (para o aluno, já montado pela escolha do
+ * autor) e, só quando a API manda `autorApelido` (a equipe), o apelido em texto suave entre aspas; "Fixado" e a data. Com `aoAbrirPerfil`, iniciais e nome viram um botão só (alvo de
  * 44 px, foco do `global.css`) que abre o perfil do colega; sem ele, nada é tocável. `acao` fica no fim da linha.
  */
 export function AutorDoPost({ post, aoAbrirPerfil, acao }: {
@@ -37,7 +37,7 @@ export function AutorDoPost({ post, aoAbrirPerfil, acao }: {
     <View style={estilos.linha}>
       {aoAbrirPerfil ? (
         <Pressable accessibilityRole="button" accessibilityLabel={`Ver perfil de ${post.autorNome}`} onPress={aoAbrirPerfil}
-          style={(estado) => [estilos.linha, estilos.identidade, estilos.tocavel, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
+          style={(estado) => [estilos.linha, estilos.identidade, estilos.tocavel, sobre(estado) && { backgroundColor: cores.sobre }]}>
           {identidade}
         </Pressable>
       ) : <View style={[estilos.linha, estilos.identidade]}>{identidade}</View>}

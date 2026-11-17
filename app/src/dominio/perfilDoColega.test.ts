@@ -6,7 +6,7 @@ import {
   proximaPaginaDeColegas, rotuloDoColega, soONome, textoDoNivel, textoDoQueFalta, textoDosTreinos,
 } from './perfilDoColega';
 
-const colega = (i: number): ColegaDaLista => ({ autorId: `u${i}`, nome: `Colega ${i}`, apelido: null, nivel: 1, temFoto: false });
+const colega = (i: number): ColegaDaLista => ({ autorId: `u${i}`, nome: `Colega ${i}`, nivel: 1, temFoto: false });
 const varios = (de: number, ate: number) => Array.from({ length: ate - de }, (_, i) => colega(de + i));
 
 describe('lista de colegas', () => {
@@ -33,9 +33,9 @@ describe('lista de colegas', () => {
     expect(haMaisColegas(parado)).toBe(false);
   });
 
-  it('rótulo da linha com nome, apelido e nível', () => {
-    expect(rotuloDoColega({ nome: 'Ana Teste', apelido: 'Aninha', nivel: 3 })).toBe('Ana Teste, apelido Aninha, Nível 3');
-    expect(rotuloDoColega({ nome: 'Ana Teste', apelido: null, nivel: 1 })).toBe('Ana Teste, Nível 1');
+  it('rótulo da linha com o nome montado pelo servidor e o nível', () => {
+    expect(rotuloDoColega({ nome: 'Ana (Aninha)', nivel: 3 })).toBe('Ana (Aninha), Nível 3');
+    expect(rotuloDoColega({ nome: 'Ana', nivel: 1 })).toBe('Ana, Nível 1');
   });
 });
 

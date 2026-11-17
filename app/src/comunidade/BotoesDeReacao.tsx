@@ -9,7 +9,7 @@ import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
 
 /**
- * As cinco reações do post (D6). "Você reagiu" não fica só na cor: o botão ganha preenchimento de seleção (`superficie3`), o
+ * As cinco reações do post (D6). "Você reagiu" não fica só na cor: o botão ganha preenchimento de seleção (`sobre`), o
  * contorno forte (`bordaCampo`, contra o `divisor` dos outros), a contagem em negrito e "você reagiu" no nome acessível, com
  * `aria-pressed` na web. Sem `aoReagir` (quem não pode reagir) ficam só as reações que já têm contagem, para leitura.
  * `ocupado` trava o post enquanto um pedido está em curso (dois toques não se desencontram).
@@ -28,7 +28,7 @@ export function BotoesDeReacao({ post, aoReagir, ocupado }: {
         const total = totalDaReacao(post, r.codigo);
         const minha = reagiu(post, r.codigo);
         const conteudo = (fundo: string) => (
-          <View style={[estilos.botao, { backgroundColor: minha ? cores.superficie3 : fundo, borderColor: minha ? cores.bordaCampo : cores.divisor }]}>
+          <View style={[estilos.botao, { backgroundColor: minha ? cores.sobre : fundo, borderColor: minha ? cores.bordaCampo : cores.divisor }]}>
             <Texto aria-hidden style={estilos.emoji}>{r.emoji}</Texto>
             {total > 0 ? (
               <Texto numerico aria-hidden cor={cores.texto} style={{ fontFamily: minha ? fontes.semi : fontes.medio }}>{inteiroComMilhar(total)}</Texto>
