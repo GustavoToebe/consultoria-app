@@ -69,7 +69,7 @@ const baseDaBarra = (page: Page) => page.evaluate(() => {
 test.describe('PC (1280)', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
-  test('tabela de blocos: colunas, variação, blocos × séries e teclado (Enter e Espaço abrem o bloco)', async ({ page }) => {
+  test('tabela de blocos: colunas, variação, blocos × séries e teclado (setas movem o foco, Enter e Espaço abrem o bloco)', async ({ page }) => {
     const api = await abrirPlano(page);
     for (const coluna of ['Série', 'Tipo', 'Carga', 'Reps', 'Descanso']) await expect(page.getByText(coluna, { exact: true }).first()).toBeVisible();
     // Visual-ponytail (17/11): sanfona também no PC, com o editor logo abaixo do bloco escolhido.
@@ -83,10 +83,10 @@ test.describe('PC (1280)', () => {
     expect(b!.y).toBeGreaterThan(a!.y + a!.height - 1);
     expect(a!.height).toBeGreaterThanOrEqual(44);
 
-    // Visual-ponytail (17/11): sanfona (botões com `aria-expanded`), sem setas entre as linhas; Tab chega, Enter e Espaço abrem.
+    // Visual-ponytail (17/11): sanfona (botões com `aria-expanded`); as setas movem o foco entre as linhas, Enter e Espaço abrem.
     await bloco(page, 1).focus();
     await expect(bloco(page, 1)).toHaveAttribute('aria-expanded', 'true');
-    await bloco(page, 2).focus();
+    await page.keyboard.press('ArrowDown');
     // Ativação manual: o foco andou, a escolha não.
     await expect(bloco(page, 2)).toBeFocused();
     await expect(bloco(page, 1)).toHaveAttribute('aria-expanded', 'true');
@@ -100,7 +100,7 @@ test.describe('PC (1280)', () => {
     await expect(bloco(page, 2)).toHaveAttribute('aria-expanded', 'true');
     await expect(bloco(page, 1)).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
-    await bloco(page, 3).focus();
+    await page.keyboard.press('ArrowDown');
     await expect(bloco(page, 3)).toBeFocused();
     await page.keyboard.press('Space');
     await expect(bloco(page, 3)).toHaveAttribute('aria-expanded', 'true');

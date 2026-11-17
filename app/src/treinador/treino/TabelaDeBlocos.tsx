@@ -1,5 +1,5 @@
 import { CircleAlert, TriangleAlert } from 'lucide-react-native';
-import { useId, type ReactNode } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { textoAcessivelDoBloco, textoDaVariacao, type ResumoDoBloco } from '../../dominio/editorDeTreino';
@@ -40,7 +40,8 @@ const FAIXA = 6;
 /**
  * Tabela dos blocos do exercício (guia premium pág. 9 e 17): Série, Tipo, Carga, Reps e Descanso, uma linha por bloco de
  * `agrupar`, com o que varia entre as séries embaixo do tipo. Sanfona (APG Accordion) no PC e no celular (visual-ponytail,
- * 17/11): cada linha é botão com `aria-expanded` e `aria-controls`, e o editor (`detalhe`) abre logo abaixo da série
+ * 17/11): cada linha é botão com `aria-expanded` e `aria-controls` (setas, Home e End movem o foco; Enter e Espaço abrem),
+ * e o editor (`detalhe`) abre logo abaixo da série
  * escolhida, ligado a ela. No PC a linha mostra as colunas; estreito (`empilhado`, 390) ela vira texto corrido. Uma fica
  * sempre aberta.
  * Quatro sinais que não se confundem: o foco é o anel do `:focus-visible`; a escolhida é neutra, a superfície de seleção
@@ -60,6 +61,17 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
 }) {
   const { cores } = useTema();
   const idDoDetalhe = `detalhe-da-serie-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  // Teclado na sanfona (APG Accordion, opcional): setas para cima e para baixo, Home e End movem o foco entre as linhas
+  // sem escolher; Enter e Espaço abrem. Devolve a navegação por setas que as abas tinham.
+  const linhasRef = useRef<(View | null)[]>([]);
+  const aoTecla = (i: number) => (e: { nativeEvent?: { key?: string }; key?: string; preventDefault?: () => void }) => {
+    const tecla = e.key ?? e.nativeEvent?.key;
+    const alvo = tecla === 'ArrowDown' ? i + 1 : tecla === 'ArrowUp' ? i - 1 : tecla === 'Home' ? 0 : tecla === 'End' ? linhas.length - 1 : null;
+    if (alvo === null) return;
+    e.preventDefault?.();
+    linhasRef.current[(alvo + linhas.length) % linhas.length]?.focus();
+  };
+  const teclado = (i: number) => (Platform.OS === 'web' ? ({ onKeyDown: aoTecla(i) } as object) : {});
 
   const conteudo = (l: LinhaDoBloco, sel: boolean) => {
     const Icone = l.problema === 'perigo' ? CircleAlert : TriangleAlert;
@@ -123,11 +135,11 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
     return (
       <View style={estilos.tabela}>
         <View style={estilos.lista} role="group" aria-label="Blocos do exercício">
-          {linhas.map((l) => {
+          {linhas.map((l, i) => {
             const sel = l.valor === ativa;
             return (
               <View key={l.valor} style={estilos.lista}>
-                <Pressable accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
+                <Pressable ref={(n) => { linhasRef.current[i] = n; }} {...teclado(i)} accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
                   {...(Platform.OS === 'web' && sel && detalhe ? ({ 'aria-controls': idDoDetalhe } as object) : {})}
                   onPress={() => { if (!sel) aoMudar(l.valor); }}
                   style={(st) => caixa(l, sel, sel ? cores.acaoSuave : comMouse(st) ? cores.sobre : cores.superficie2)}>
@@ -156,11 +168,11 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
       {/* Visual-ponytail (17/11): também no PC a linha é sanfona (botão com `aria-expanded`) e o editor do bloco abre logo
           abaixo da série escolhida, dentro da tabela, em vez de depois dela. */}
       <View style={estilos.lista} role="group" aria-label="Blocos do exercício">
-        {linhas.map((l) => {
+        {linhas.map((l, i) => {
           const sel = l.valor === ativa;
           return (
             <View key={l.valor} style={estilos.lista}>
-              <Pressable accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
+              <Pressable ref={(n) => { linhasRef.current[i] = n; }} {...teclado(i)} accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
                 {...(Platform.OS === 'web' && sel && detalhe ? ({ 'aria-controls': idDoDetalhe } as object) : {})}
                 onPress={() => { if (!sel) aoMudar(l.valor); }}
                 style={(st) => caixa(l, sel, sel ? cores.acaoSuave : comMouse(st) ? cores.sobre : cores.superficie2)}>
