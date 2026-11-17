@@ -19,6 +19,7 @@ import {
   previaDeConversao,
 } from '../../dominio/fatoresDoAlimento';
 import { numeroParaTela } from '../../dominio/formatos';
+import { kcalDosMacros } from '../../dominio/kcalDosMacros';
 import { chipDeVarias } from '../../dominio/filtrosDaBiblioteca';
 import { grupoDoTexto, gruposDoCampo } from '../../dominio/gruposDaLista';
 import { useTema } from '../../tema/TemaProvider';
@@ -28,6 +29,7 @@ import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Cartao } from '../../ui/Cartao';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
@@ -254,7 +256,6 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [base, setBase] = useState<number | null>(inicial?.baseQuantidade ?? 100);
   const [unidade, setUnidade] = useState<UnidadeAlimento>(inicial?.baseUnidade ?? 'g');
-  const [kcal, setKcal] = useState<number | null>(inicial?.kcal ?? null);
   const [proteina, setProteina] = useState<number | null>(inicial?.proteina ?? null);
   const [carboidrato, setCarboidrato] = useState<number | null>(inicial?.carboidrato ?? null);
   const [gordura, setGordura] = useState<number | null>(inicial?.gordura ?? null);
@@ -274,6 +275,10 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
+  // C48: a kcal não é digitada. Com os três macros é a conta deles; sem macros (alimento só com caloria, como o do
+  // Batel Grill) fica a da fonte, só para leitura: salvar continua exigindo os macros.
+  const kcalDosMacrosDigitados = kcalDosMacros(proteina, carboidrato, gordura);
+  const kcal = kcalDosMacrosDigitados ?? inicial?.kcal ?? null;
   const sugerido = estimarFatoresDoAlimento(nome, grupo, kcal, base, unidade);
   const fcMostrado = tocouFatores ? fc : sugerido.fatorCorrecao;
   const fccMostrado = tocouFatores ? fcc : sugerido.fatorCoccao;
@@ -281,7 +286,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   const erroFcc = erroDoFatorCoccao(fccMostrado);
   const pendencia = !nome.trim() ? 'Informe o nome do alimento.'
     : !base ? 'Informe a quantidade-base.'
-      : kcal === null || proteina === null || carboidrato === null || gordura === null ? 'Preencha kcal, proteína, carboidrato e gordura.'
+      : kcalDosMacrosDigitados === null ? 'Preencha proteína, carboidrato e gordura.'
         : erroFc || erroFcc ? 'Confira os fatores do alimento.' : null;
 
   const sugerirPeloNome = () => { setTocouFatores(false); setFcLivre(false); setFccLivre(false); };
@@ -302,7 +307,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
       nome: nome.trim(),
       baseQuantidade: base,
       baseUnidade: unidade,
-      kcal,
+      kcal: null, // o servidor deriva dos macros (C48); enviar o valor só faria a validação do DTO falhar sem campo na tela
       proteina,
       carboidrato,
       gordura,
@@ -382,7 +387,8 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
             <Texto variante="secao" numerico>{base ? `Valores por ${numeroParaTela(base)} ${unidade}` : 'Valores pela quantidade-base'}</Texto>
             <View style={estilos.linhaDeCampos}>
               <View style={estilos.campoMacro}>
-                <CampoNumerico rotulo="Kcal" valor={kcal} aoMudar={setKcal} erro={campos.kcal} />
+                <CampoLeitura rotulo={kcalDosMacrosDigitados === null && kcal !== null ? 'Kcal (da fonte)' : 'Kcal (calculada)'}
+                  valor={kcal === null ? null : numeroParaTela(kcal)} numerico />
               </View>
               {/* Marca da cor só no rótulo (a mesma das listas e do aluno); a caixa e o número seguem neutros. */}
               <View style={estilos.campoMacro}>

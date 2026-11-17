@@ -53,7 +53,8 @@ public final class BibliotecaDtos {
      * {@code FatoresDeRendimento.estimar}. No suplemento ({@code tipo = SUPLEMENTO}) nulo permanece nulo: nada é
      * estimado. Número fora da faixa ou com mais de duas casas dá 422 {@code ALIMENTO_INVALIDO} no campo.
      * {@code grupo} é texto livre opcional (até 60; no suplemento é a categoria). {@code tipo} ausente = {@code ALIMENTO}.
-     * Kcal e macros nulos só valem no suplemento. Base ausente no suplemento vira 100 g só para preencher a coluna.
+     * No alimento o {@code kcal} do corpo é ignorado (o servidor grava proteína×4 + carboidrato×4 + gordura×9) e os três
+     * macros são obrigatórios; kcal e macros nulos só valem no suplemento. Base ausente no suplemento vira 100 g só para preencher a coluna.
      */
     public record AlimentoRequest(
             @NotBlank @Size(max = 160) String nome,

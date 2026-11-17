@@ -230,6 +230,9 @@ for (const largura of largurasDaFolha) {
       await expect(grupo).toBeVisible();
       await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Sem valor (1,00)')).toBeVisible();
       await expect(botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Arroz/grão cozido (2,60)')).toBeVisible();
+      // C48: a kcal não se digita; é a conta dos macros (2,5 × 4 + 28,1 × 4 + 0,2 × 9), só leitura.
+      await expect(folha.getByLabel('Kcal (calculada): 124,2')).toBeVisible();
+      await expect(folha.getByRole('textbox', { name: 'Kcal' })).toHaveCount(0);
       // Perfil escolhido: o número fica escondido (o fator está no nome).
       await expect(folha.getByLabel('Fator de correção (FC)')).toHaveCount(0);
       await expect(folha.getByLabel('Fator de cocção (FCc)')).toHaveCount(0);
@@ -381,6 +384,37 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Alimento salvo.')).toBeVisible();
     const corpo = pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith(`/alimentos/${salvo.id}`))?.corpo;
     expect(corpo).toMatchObject({ grupo: null, fatorCorrecao: 1, fatorCoccao: 2.6 });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  // C48 (caso do Batel Grill): preparação só com caloria da fonte. A kcal aparece só para leitura, salvar exige os macros
+  // e nada é enviado antes disso; com os três macros a kcal passa a ser a conta deles e o PUT leva `kcal: null`.
+  test(`alimento só com kcal da fonte em ${largura}px: Salvar fica travado sem macros e, com eles, o PUT leva macros e kcal nula`, async ({ page }) => {
+    const preparacao: Alimento = { ...ARROZ, id: 'f0000003-0000-4000-8000-000000000000', nome: 'Preparação (teste)', kcal: 321.5, proteina: null, carboidrato: null, gordura: null, fatorCorrecao: null, fatorCoccao: null };
+    const { folha, pedidos, naoTratadas, errosDaPagina } = await abrirAlimento(page, largura, [preparacao]);
+    const alteracoes = () => pedidos.filter((p) => (p.metodo === 'PUT' || p.metodo === 'POST') && p.caminho.includes('/alimentos'));
+    await expect(folha.getByLabel('Kcal (da fonte): 321,5')).toBeVisible();
+    await expect(folha.getByRole('textbox', { name: 'Kcal' })).toHaveCount(0);
+    const salvar = folha.getByRole('button', { name: 'Salvar' });
+    await expect(salvar).toBeDisabled();
+    await expect(folha.getByText('Preencha proteína, carboidrato e gordura.')).toBeVisible();
+    await salvar.click({ force: true });
+    expect(alteracoes()).toEqual([]);
+
+    await folha.getByLabel('Proteína (g)').fill('10');
+    await folha.getByLabel('Carboidrato (g)').fill('20');
+    await expect(salvar).toBeDisabled();
+    await folha.getByLabel('Gordura (g)').fill('5');
+    await expect(folha.getByLabel('Kcal (calculada): 165')).toBeVisible();
+    await expect(folha.getByText('Preencha proteína, carboidrato e gordura.')).toHaveCount(0);
+    await expect(salvar).toBeEnabled();
+    expect(alteracoes()).toEqual([]);
+
+    await salvar.click();
+    await expect(page.getByText('Alimento salvo.')).toBeVisible();
+    expect(alteracoes()).toHaveLength(1);
+    expect(alteracoes()[0].corpo).toMatchObject({ nome: 'Preparação (teste)', kcal: null, proteina: 10, carboidrato: 20, gordura: 5 });
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

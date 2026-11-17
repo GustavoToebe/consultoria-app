@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.Collator;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -60,6 +61,9 @@ public class BibliotecaService {
     private static final BigDecimal FCC_MINIMO = new BigDecimal("0.10");
     private static final BigDecimal FCC_MAXIMO = new BigDecimal("10.00");
     private static final BigDecimal BASE_DE_ARMAZENAMENTO = new BigDecimal("100");
+    private static final BigDecimal KCAL_POR_G_DE_PROTEINA_E_CARBOIDRATO = new BigDecimal("4");
+    private static final BigDecimal KCAL_POR_G_DE_GORDURA = new BigDecimal("9");
+    private static final BigDecimal KCAL_MAXIMO = new BigDecimal("99999");
     /** Nome neutro: o rótulo não trouxe marca nem nome comercial. */
     static final String WHEY = WheyDoRotulo.NOME;
     private static final TypeReference<List<String>> TEXTOS = new TypeReference<>() { };
@@ -268,9 +272,20 @@ public class BibliotecaService {
     @Transactional
     public AlimentoResponse criarAlimento(AlimentoRequest r) {
         Alimento.Tipo tipo = tipoDoCorpo(r.tipo());
-        Alimento.Valores valores = valores(r, tipo, null);
+        Alimento.Valores valores = valores(r, tipo, null, false);
         exigirNomeLivre(valores, tipo, NENHUM);
         return resposta(alimentos.saveAndFlush(new Alimento(valores, Exercicio.Origem.MANUAL, tipo)));
+    }
+
+    /**
+     * Só o {@code SeedDemo} (dados fictícios): cria o alimento com o kcal informado, sem derivar dos macros, como os
+     * seeds e o catálogo (a decisão da C48 é que seed mantém o kcal gravado). Nenhuma rota chama este método.
+     */
+    @Transactional
+    public AlimentoResponse criarAlimentoDeSeed(AlimentoRequest r) {
+        Alimento.Valores valores = valores(r, Alimento.Tipo.ALIMENTO, null, true);
+        exigirNomeLivre(valores, Alimento.Tipo.ALIMENTO, NENHUM);
+        return resposta(alimentos.saveAndFlush(new Alimento(valores, Exercicio.Origem.MANUAL, Alimento.Tipo.ALIMENTO)));
     }
 
     @Transactional
@@ -280,7 +295,7 @@ public class BibliotecaService {
             throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO",
                     List.of(new ApiError.FieldError("tipo", "O tipo não muda depois de gravado.")));
         }
-        Alimento.Valores valores = valores(r, a.getTipo(), a);
+        Alimento.Valores valores = valores(r, a.getTipo(), a, false);
         exigirNomeLivre(valores, a.getTipo(), id);
         a.alterar(valores);
         return resposta(alimentos.saveAndFlush(a));
@@ -358,18 +373,35 @@ public class BibliotecaService {
         return new ImportacaoResultado(importados, pedidos.size() - importados);
     }
 
-    private Alimento.Valores valores(AlimentoRequest r, Alimento.Tipo tipo, Alimento atual) {
+    private Alimento.Valores valores(AlimentoRequest r, Alimento.Tipo tipo, Alimento atual, boolean kcalDoCorpo) {
         String grupo = GrupoDoAlimento.normalizar(r.grupo());
         if (tipo == Alimento.Tipo.SUPLEMENTO) {
             return valoresDeSuplemento(r, grupo, atual);
         }
         exigirNutricaoDeAlimento(r);
+        // C48: o kcal do corpo é ignorado; é uma conta sobre os macros que o treinador escreveu (só o seed usa o do corpo).
+        BigDecimal kcal = kcalDoCorpo ? r.kcal() : kcalDosMacros(r.proteina(), r.carboidrato(), r.gordura());
+        exigirKcalNaFaixa(kcal);
         var fatores = FatoresDeRendimento.completar(r.fatorCorrecao(), r.fatorCoccao(), r.nome(), grupo,
-                r.kcal(), r.baseQuantidade(), r.baseUnidade());
+                kcal, r.baseQuantidade(), r.baseUnidade());
         exigirFatoresEGrupo(fatores.fatorCorrecao(), fatores.fatorCoccao(), grupo);
-        return Alimento.Valores.deAlimento(r.nome().trim(), r.baseQuantidade(), r.baseUnidade(), r.kcal(), r.proteina(),
+        return Alimento.Valores.deAlimento(r.nome().trim(), r.baseQuantidade(), r.baseUnidade(), kcal, r.proteina(),
                 r.carboidrato(), r.gordura(), r.gramasPorUnidade(), Buscas.opcional(r.fonte()),
                 fatores.fatorCorrecao(), fatores.fatorCoccao(), grupo);
+    }
+
+    /** proteína × 4 + carboidrato × 4 + gordura × 9, em 2 casas (HALF_UP). Espelha {@code dominio/kcalDosMacros.ts}. */
+    static BigDecimal kcalDosMacros(BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura) {
+        return proteina.multiply(KCAL_POR_G_DE_PROTEINA_E_CARBOIDRATO).add(carboidrato.multiply(KCAL_POR_G_DE_PROTEINA_E_CARBOIDRATO))
+                .add(gordura.multiply(KCAL_POR_G_DE_GORDURA)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** O kcal derivado precisa caber no mesmo teto que o DTO dava ao kcal digitado (a coluna é {@code numeric(8,2)}). */
+    private static void exigirKcalNaFaixa(BigDecimal kcal) {
+        if (kcal.compareTo(KCAL_MAXIMO) > 0) {
+            throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO", List.of(
+                    new ApiError.FieldError("proteina", "As calorias calculadas passam de 99.999. Confira os macros.")));
+        }
     }
 
     /**
@@ -413,7 +445,6 @@ public class BibliotecaService {
         if (r.baseUnidade() == null || r.baseUnidade().isBlank()) {
             erros.add(new ApiError.FieldError("baseUnidade", "Informe a unidade da base."));
         }
-        if (r.kcal() == null) erros.add(new ApiError.FieldError("kcal", "Informe as calorias."));
         if (r.proteina() == null) erros.add(new ApiError.FieldError("proteina", "Informe a proteína."));
         if (r.carboidrato() == null) erros.add(new ApiError.FieldError("carboidrato", "Informe o carboidrato."));
         if (r.gordura() == null) erros.add(new ApiError.FieldError("gordura", "Informe a gordura."));

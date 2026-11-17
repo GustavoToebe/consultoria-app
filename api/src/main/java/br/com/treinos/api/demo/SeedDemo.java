@@ -168,7 +168,7 @@ public class SeedDemo {
             Map<String, UUID> exercicios = bibliotecaDoPlano16();
             Map<String, UUID> alimentos = new HashMap<>();
             for (AlimentoDemo a : ALIMENTOS) {
-                alimentos.put(a.nome(), biblioteca.criarAlimento(new AlimentoRequest(a.nome(), new BigDecimal("100"),
+                alimentos.put(a.nome(), biblioteca.criarAlimentoDeSeed(new AlimentoRequest(a.nome(), new BigDecimal("100"),
                         "g", new BigDecimal(a.kcal()), new BigDecimal(a.proteina()), new BigDecimal(a.carboidrato()),
                         new BigDecimal(a.gordura()), null, FONTE_ALIMENTOS, null, null, a.grupo(),
                         null, null, null, null, null, null, null)).id());
