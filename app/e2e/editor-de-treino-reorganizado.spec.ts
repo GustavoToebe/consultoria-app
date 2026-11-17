@@ -349,3 +349,20 @@ test('modelo no celular (390): topo com nome, estado e ações sem rolagem later
   expect(await semRolagemLateral(page)).toBe(true);
   expect(api.errosDaPagina).toEqual([]);
 });
+
+for (const largura of [390, 1280]) {
+  test(`sessões: a escolhida tem aria-selected e trocar de sessão move a marca (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await abrirPlano(page);
+    const abas = page.getByRole('tablist', { name: 'Sessões do plano' }).getByRole('tab');
+    await expect(abas).toHaveCount(3);
+    const aba = (nome: RegExp) => page.getByRole('tab', { name: nome });
+    await expect(aba(/Peito e tríceps/)).toHaveAttribute('aria-selected', 'true');
+    await expect(aba(/Costas e bíceps/)).toHaveAttribute('aria-selected', 'false');
+    await aba(/Costas e bíceps/).click();
+    await expect(aba(/Costas e bíceps/)).toHaveAttribute('aria-selected', 'true');
+    await expect(aba(/Peito e tríceps/)).toHaveAttribute('aria-selected', 'false');
+    await expect(page.getByRole('tab', { selected: true }).filter({ hasText: /Peito|Costas|Pernas/ })).toHaveCount(1);
+    expect(api.errosDaPagina).toEqual([]);
+  });
+}

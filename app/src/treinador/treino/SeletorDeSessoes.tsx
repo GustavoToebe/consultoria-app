@@ -48,6 +48,8 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
               key={s.uid}
               accessibilityRole="tab"
               accessibilityState={{ selected: ativo }}
+              // No RN-web o `accessibilityState.selected` não vira atributo: sem isto o leitor de tela não sabe qual sessão está aberta.
+              aria-selected={ativo}
               accessibilityLabel={`${rotulo}, ${quantos(s.exercicios.length, 'exercício', 'exercícios')}${erro ? ', precisa corrigir' : ''}`}
               onPress={() => aoSelecionar(s.uid)}
               style={(st) => [
