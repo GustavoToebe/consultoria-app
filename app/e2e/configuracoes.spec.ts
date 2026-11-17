@@ -108,12 +108,12 @@ test('perfil com poucos cartões (390): Sua conta, Aniversários e Ajuda, sem bu
   expect(errosDaPagina).toEqual([]);
 });
 
-test('chave desligada esconde o cartão: sem recebimento online, os outros do Financeiro ficam', async ({ page }) => {
+test('sem a InfinitePay ligada o cartão de Recebimento continua: Pix, link próprio e Manual não dependem dela', async ({ page }) => {
   const semChave: Perfil = { ...ADMIN, recebimentoOnline: false };
   await abrir(page, 1280, semChave);
   await expect(cartao(page, 'Planos comerciais')).toBeVisible();
   await expect(cartao(page, 'Lembretes de cobrança')).toBeVisible();
-  await expect(cartao(page, 'Recebimento online')).toHaveCount(0);
+  await expect(cartao(page, 'Recebimento online')).toBeVisible();
 });
 
 test('busca: acha por palavra sem acento, mostra o vazio e "Limpar busca" volta tudo com o foco no campo', async ({ page }) => {

@@ -98,20 +98,33 @@ describe('cartoesVisiveis', () => {
     expect(ids(buscarCartoes('tema do pdf', cartoesVisiveis(admin)))).toEqual(['documentos-pdf']);
   });
 
-  it('Financeiro: precisa do módulo ligado e de FINANCEIRO_LER; o Recebimento online ainda pede a chave', () => {
-    const financeiro = ['financeiro-planos', 'financeiro-lembretes'];
+  it('Financeiro: precisa do módulo ligado e de FINANCEIRO_LER; o Recebimento vale sem a chave da InfinitePay', () => {
+    const financeiro = ['financeiro-planos', 'financeiro-lembretes', 'financeiro-recebimento'];
     expect(ids(cartoesVisiveis(com(['FINANCEIRO_LER'])))).not.toEqual(expect.arrayContaining(financeiro));
     expect(ids(cartoesVisiveis(com([], { pagamentosHabilitados: true })))).not.toContain('financeiro-planos');
     const ligado = com(['FINANCEIRO_LER'], { pagamentosHabilitados: true });
+    // Pix, link próprio e Manual não dependem da InfinitePay: a aba aparece com a chave ausente ou desligada.
     expect(ids(cartoesVisiveis(ligado))).toEqual(expect.arrayContaining(financeiro));
-    expect(ids(cartoesVisiveis(ligado))).not.toContain('financeiro-recebimento');
-    expect(ids(cartoesVisiveis({ ...ligado, chaves: { recebimentoOnlineHabilitado: false } }))).not.toContain('financeiro-recebimento');
+    expect(ids(cartoesVisiveis({ ...ligado, chaves: { recebimentoOnlineHabilitado: false } }))).toContain('financeiro-recebimento');
     expect(ids(cartoesVisiveis({ ...ligado, chaves: { recebimentoOnlineHabilitado: true } }))).toContain('financeiro-recebimento');
+    expect(ids(cartoesVisiveis(com(['FINANCEIRO_LER'], { pagamentosHabilitados: false })))).not.toContain('financeiro-recebimento');
   });
 
-  it('chave desligada ou ausente esconde o cartão mesmo com acesso total', () => {
-    expect(ids(cartoesVisiveis({ ...TUDO, chaves: {} }))).not.toContain('financeiro-recebimento');
-    expect(ids(cartoesVisiveis({ ...TUDO, chaves: { recebimentoOnlineHabilitado: false } }))).not.toContain('financeiro-recebimento');
+  it('o cartão do recebimento fala das formas, não só da InfinitePay, e a busca acha Pix e link próprio', () => {
+    const cartao = CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'financeiro-recebimento')!;
+    expect(cartao.chave).toBeUndefined();
+    expect(cartao.descricao).toMatch(/Pix/);
+    expect(ids(buscarCartoes('chave pix', CARTOES_DE_CONFIGURACAO))).toContain('financeiro-recebimento');
+    expect(ids(buscarCartoes('link proprio', CARTOES_DE_CONFIGURACAO))).toContain('financeiro-recebimento');
+  });
+
+  it('cartão com chave: chave desligada ou ausente o esconde mesmo com acesso total', () => {
+    const teste: CartaoDeConfiguracao[] = [
+      { id: 'c', grupo: 'Financeiro', titulo: 'C', descricao: 'c', href: '/treinador/ajuda', palavras: [], chave: 'recebimentoOnlineHabilitado' },
+    ];
+    expect(ids(cartoesVisiveis({ ...TUDO, chaves: {} }, teste))).toEqual([]);
+    expect(ids(cartoesVisiveis({ ...TUDO, chaves: { recebimentoOnlineHabilitado: false } }, teste))).toEqual([]);
+    expect(ids(cartoesVisiveis({ ...TUDO, chaves: { recebimentoOnlineHabilitado: true } }, teste))).toEqual(['c']);
   });
 
   it('funcionalidade fora do plano esconde o cartão; sem a lista (pacote antigo, offline), vale tudo', () => {
