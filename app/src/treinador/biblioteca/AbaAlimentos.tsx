@@ -279,6 +279,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   // Batel Grill) fica a da fonte, só para leitura: salvar continua exigindo os macros.
   const kcalDosMacrosDigitados = kcalDosMacros(proteina, carboidrato, gordura);
   const kcal = kcalDosMacrosDigitados ?? inicial?.kcal ?? null;
+  const kcalDaFonte = kcalDosMacrosDigitados === null && kcal !== null;
   const sugerido = estimarFatoresDoAlimento(nome, grupo, kcal, base, unidade);
   const fcMostrado = tocouFatores ? fc : sugerido.fatorCorrecao;
   const fccMostrado = tocouFatores ? fcc : sugerido.fatorCoccao;
@@ -387,7 +388,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
             <Texto variante="secao" numerico>{base ? `Valores por ${numeroParaTela(base)} ${unidade}` : 'Valores pela quantidade-base'}</Texto>
             <View style={estilos.linhaDeCampos}>
               <View style={estilos.campoMacro}>
-                <CampoLeitura rotulo={kcalDosMacrosDigitados === null && kcal !== null ? 'Kcal (da fonte)' : 'Kcal (calculada)'}
+                <CampoLeitura rotulo={kcalDaFonte ? 'Kcal (da fonte)' : 'Kcal (calculada)'}
                   valor={kcal === null ? null : numeroParaTela(kcal)} numerico />
               </View>
               {/* Marca da cor só no rótulo (a mesma das listas e do aluno); a caixa e o número seguem neutros. */}
@@ -401,6 +402,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
                 <CampoDoMacro macro={MACROS[2]} rotulo="Gordura (g)" valor={gordura} aoMudar={setGordura} erro={campos.gordura} />
               </View>
             </View>
+            {kcalDaFonte ? <Texto variante="pequeno">Informe os três macros para recalcular.</Texto> : null}
           </View>
         </Cartao>
 

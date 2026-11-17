@@ -395,6 +395,7 @@ for (const largura of [390, 1280]) {
     const { folha, pedidos, naoTratadas, errosDaPagina } = await abrirAlimento(page, largura, [preparacao]);
     const alteracoes = () => pedidos.filter((p) => (p.metodo === 'PUT' || p.metodo === 'POST') && p.caminho.includes('/alimentos'));
     await expect(folha.getByLabel('Kcal (da fonte): 321,5')).toBeVisible();
+    await expect(folha.getByText('Informe os três macros para recalcular.')).toBeVisible();
     await expect(folha.getByRole('textbox', { name: 'Kcal' })).toHaveCount(0);
     const salvar = folha.getByRole('button', { name: 'Salvar' });
     await expect(salvar).toBeDisabled();
@@ -407,6 +408,7 @@ for (const largura of [390, 1280]) {
     await expect(salvar).toBeDisabled();
     await folha.getByLabel('Gordura (g)').fill('5');
     await expect(folha.getByLabel('Kcal (calculada): 165')).toBeVisible();
+    await expect(folha.getByText('Informe os três macros para recalcular.')).toHaveCount(0);
     await expect(folha.getByText('Preencha proteína, carboidrato e gordura.')).toHaveCount(0);
     await expect(salvar).toBeEnabled();
     expect(alteracoes()).toEqual([]);
