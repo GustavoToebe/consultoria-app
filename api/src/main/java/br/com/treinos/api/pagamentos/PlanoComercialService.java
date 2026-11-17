@@ -7,6 +7,7 @@ import br.com.plataforma.comum.web.ApiError;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PlanoRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PlanoResponse;
 import br.com.treinos.api.web.Buscas;
+import br.com.treinos.api.web.LinksExternos;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -46,7 +47,7 @@ public class PlanoComercialService {
         String nome = r.nome().trim();
         exigirNomeLivre(nome, null);
         PlanoComercial plano = new PlanoComercial(nome, r.valorCentavos(), r.periodicidade(), minimo(r),
-                Buscas.opcional(r.regraDeSaida()));
+                Buscas.opcional(r.regraDeSaida()), link(r));
         return Respostas.plano(gravar(plano));
     }
 
@@ -60,7 +61,8 @@ public class PlanoComercialService {
         conferirVersao(plano, r.versao());
         String nome = r.nome().trim();
         exigirNomeLivre(nome, id);
-        plano.alterar(nome, r.valorCentavos(), r.periodicidade(), minimo(r), Buscas.opcional(r.regraDeSaida()));
+        plano.alterar(nome, r.valorCentavos(), r.periodicidade(), minimo(r), Buscas.opcional(r.regraDeSaida()),
+                link(r));
         return Respostas.plano(gravar(plano));
     }
 
@@ -97,6 +99,15 @@ public class PlanoComercialService {
             throw invalido("tempoMinimoMeses", "O tempo mínimo vai de 1 a 60 meses.");
         }
         return meses.shortValue();
+    }
+
+    /** Link próprio de pagamento: opcional, https pelo {@link LinksExternos}; vazio apaga; inválido é 422 no campo, sem repetir o valor. */
+    private static String link(PlanoRequest r) {
+        String link = Buscas.opcional(r.linkDePagamento());
+        if (link != null && !LinksExternos.valido(link)) {
+            throw invalido("linkDePagamento", LinksExternos.MENSAGEM);
+        }
+        return link;
     }
 
     private static ValidacaoException invalido(String campo, String mensagem) {

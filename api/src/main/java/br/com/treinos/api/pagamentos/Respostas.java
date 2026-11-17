@@ -18,7 +18,8 @@ final class Respostas {
 
     static PlanoResponse plano(PlanoComercial p) {
         return new PlanoResponse(p.getId(), p.getNome(), p.getValorCentavos(), p.getPeriodicidade(),
-                p.isArquivado(), p.getCriadoEm(), p.getVersao(), p.getTempoMinimoMeses(), p.getRegraDeSaida());
+                p.isArquivado(), p.getCriadoEm(), p.getVersao(), p.getTempoMinimoMeses(), p.getRegraDeSaida(),
+                p.getLinkDePagamento());
     }
 
     static ContratacaoResponse contratacao(ContratacaoAluno c, String planoNome) {

@@ -1,6 +1,7 @@
 package br.com.treinos.api.pagamentos;
 
 import br.com.treinos.api.execucao.AlunoAppService;
+import br.com.treinos.api.pagamentos.FormasDeRecebimentoDtos.CodigoPix;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.FinanceiroDoAluno;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LembretesDoAlunoRequest;
@@ -65,6 +66,13 @@ public class AlunoFinanceiroController {
     public ResponseEntity<LinkDePagamento> link(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
         String url = links.gerarDoAluno(id, AlunoAppService.alunoDaSessao(eu));
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new LinkDePagamento(url));
+    }
+
+    /** O Pix copia e cola da cobrança aberta do aluno; o valor é sempre o da cobrança e o código nunca fica em cache nem em log. */
+    @PreAuthorize("hasRole('ALUNO')")
+    @PostMapping("/aluno/financeiro/cobrancas/{id}/pix")
+    public ResponseEntity<CodigoPix> pix(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new CodigoPix(financeiro.codigoPix(eu, id)));
     }
 
     /** O retorno do checkout entra na caixa de entrada dos avisos; a baixa, se houver, vem depois, da consulta ao provedor. */

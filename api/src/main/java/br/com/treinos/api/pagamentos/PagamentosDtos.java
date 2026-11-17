@@ -40,6 +40,7 @@ public final class PagamentosDtos {
             @NotNull PeriodoDoPlano periodicidade,
             Integer tempoMinimoMeses,
             String regraDeSaida,
+            String linkDePagamento,
             Long versao) {
 
         @Override
@@ -49,7 +50,8 @@ public final class PagamentosDtos {
     }
 
     public record PlanoResponse(UUID id, String nome, long valorCentavos, PeriodoDoPlano periodicidade, boolean arquivado,
-                                Instant criadoEm, Long versao, Short tempoMinimoMeses, String regraDeSaida) {
+                                Instant criadoEm, Long versao, Short tempoMinimoMeses, String regraDeSaida,
+                                String linkDePagamento) {
 
         @Override
         public String toString() {
@@ -373,7 +375,8 @@ public final class PagamentosDtos {
 
     /** O que o aluno vê do próprio plano: sem observação interna, motivo nem quem deu a baixa. */
     public record PlanoDoAluno(UUID contratacaoId, String planoNome, long valorCentavos, PeriodoDoPlano periodicidade,
-                               ContratacaoAluno.Situacao situacao, LocalDate proximoVencimento) { }
+                               ContratacaoAluno.Situacao situacao, LocalDate proximoVencimento,
+                               String linkDePagamento) { }
 
     /** {@code competencia} é nula na AVULSA, que traz {@code descricao}. */
     public record CobrancaDoAluno(UUID id, LocalDate competencia, LocalDate vencimento, long valorCentavos,
@@ -382,7 +385,7 @@ public final class PagamentosDtos {
 
     /** {@code pagamentoOnline}: o aluno pode pedir o link de pagamento (módulo, InfinitePay e credencial do treinador). A Tag nunca vem. */
     public record FinanceiroDoAluno(PlanoDoAluno plano, List<CobrancaDoAluno> abertas, List<CobrancaDoAluno> historico,
-                                    boolean pagamentoOnline) { }
+                                    boolean pagamentoOnline, List<FormasDePagamentoDoAluno.Forma> formasDePagamento) { }
 
     /** O link de pagamento de uma cobrança aberta. */
     public record LinkDePagamento(String url) { }
