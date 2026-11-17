@@ -86,8 +86,9 @@ public class AlunoComunidadeController {
                                                @RequestParam(defaultValue = "20") int tamanho,
                                                @RequestParam(required = false) String tipo,
                                                @RequestParam(required = false) String busca,
+                                               @RequestParam(required = false) UUID podId,
                                                @AuthenticationPrincipal UsuarioAutenticado eu) {
-        return comunidade.listarMural(PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 50)), eu, tipo, busca, false);
+        return comunidade.listarMural(PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 50)), eu, tipo, busca, false, podId);
     }
 
     @PreAuthorize("hasRole('ALUNO')")
@@ -139,15 +140,16 @@ public class AlunoComunidadeController {
     /** Bytes da capa de aulão publicado ou de post visível (a pendente e a de post oculto dão 404); {@code no-store}. */
     @PreAuthorize("hasRole('ALUNO')")
     @GetMapping("/capas/{id}")
-    public ResponseEntity<byte[]> capa(@PathVariable UUID id) {
-        return RespostaDeFoto.de(capas.lerDoAluno(id));
+    public ResponseEntity<byte[]> capa(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return RespostaDeFoto.de(capas.lerDoAluno(id, eu));
     }
 
     @PreAuthorize("hasRole('ALUNO')")
     @GetMapping("/mural/{id}/comentarios")
     public PaginaDeComentarios listarComentariosMural(@PathVariable UUID id, @RequestParam(required = false) Integer pagina,
-                                                      @RequestParam(required = false) Integer tamanho) {
-        return comunidade.listarComentariosMural(id, pagina, tamanho);
+                                                      @RequestParam(required = false) Integer tamanho,
+                                                      @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return comunidade.listarComentariosMural(id, eu, pagina, tamanho);
     }
 
     @PreAuthorize("hasRole('ALUNO')")

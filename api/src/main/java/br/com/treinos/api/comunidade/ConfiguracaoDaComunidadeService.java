@@ -6,6 +6,7 @@ import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.comunidade.dto.ComunidadeDtos.ConfiguracaoDoAluno;
 import br.com.treinos.api.comunidade.dto.ComunidadeDtos.ConfiguracaoRequest;
 import br.com.treinos.api.comunidade.dto.ComunidadeDtos.ConfiguracaoResponse;
+import br.com.treinos.api.comunidade.dto.ComunidadeDtos.PodDoAluno;
 import br.com.treinos.api.consultoria.Consultoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.execucao.AlunoAppService;
@@ -31,11 +32,14 @@ public class ConfiguracaoDaComunidadeService {
     private final ConsultoriaRepository consultorias;
     private final Auditoria auditoria;
     private final AlunoRepository alunos;
+    private final ComunidadePodRepository pods;
 
-    public ConfiguracaoDaComunidadeService(ConsultoriaRepository consultorias, Auditoria auditoria, AlunoRepository alunos) {
+    public ConfiguracaoDaComunidadeService(ConsultoriaRepository consultorias, Auditoria auditoria, AlunoRepository alunos,
+                                           ComunidadePodRepository pods) {
         this.consultorias = consultorias;
         this.auditoria = auditoria;
         this.alunos = alunos;
+        this.pods = pods;
     }
 
     @Transactional(readOnly = true)
@@ -58,13 +62,15 @@ public class ConfiguracaoDaComunidadeService {
         return new ConfiguracaoResponse(publicam, anexam);
     }
 
-    /** Sempre o aluno da sessão. */
+    /** Sempre o aluno da sessão; o pod dele (id e nome, nunca os colegas) vem do banco a cada leitura. */
     @Transactional(readOnly = true)
     public ConfiguracaoDoAluno doAluno(UsuarioAutenticado eu) {
         Aluno aluno = alunos.findById(AlunoAppService.alunoDaSessao(eu))
                 .orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         Consultoria c = consultoria(eu);
-        return new ConfiguracaoDoAluno(c.isComunidadeAlunosPublicam(), podeAnexarFoto(c, aluno));
+        PodDoAluno pod = aluno.getPodId() == null ? null
+                : pods.findById(aluno.getPodId()).map(p -> new PodDoAluno(p.getId(), p.getNome())).orElse(null);
+        return new ConfiguracaoDoAluno(c.isComunidadeAlunosPublicam(), podeAnexarFoto(c, aluno), pod);
     }
 
     /** 403 {@code PUBLICACAO_DESLIGADA} se o treinador desligou a publicação dos alunos. */

@@ -88,7 +88,26 @@ public final class ComunidadeDtos {
             UUID capaId,
             @Size(max = 20) List<@Size(max = 500) String> opcoes,
             Boolean variasRespostas,
-            Instant encerraEm) {}
+            Instant encerraEm,
+            UUID podId) {}
+
+    /**
+     * Pod (V082): grupo pequeno com mural próprio. {@code membros} é a contagem; {@code temMenor} só diz se algum membro nasceu
+     * depois de 18 anos atrás (sem nome nem idade; quem não tem data de nascimento não conta). Nunca lista de membros.
+     */
+    public record PodResumo(UUID id, String nome, long membros, boolean temMenor, Instant criadoEm) {}
+
+    /** Corpo do {@code POST}/{@code PUT /comunidade/pods}; 2 a 40 caracteres depois do strip (o serviço confere). */
+    public record PodRequest(@NotNull @Size(max = 200) String nome) {}
+
+    /** Corpo do {@code PUT /alunos/{id}/pod}: {@code podId} nulo tira o aluno do pod. */
+    public record AtribuirPodRequest(UUID podId) {}
+
+    /** O pod do próprio aluno, como a tela dele precisa: só id e nome, nunca os colegas. */
+    public record PodDoAluno(UUID id, String nome) {}
+
+    /** O pod do aluno na exportação: só o nome, nunca a lista de membros (dado de terceiros). */
+    public record PodExportado(String nome) {}
 
     /** Id da foto pendente que acabou de ser enviada. */
     public record FotoCriada(UUID id) {}
@@ -103,8 +122,11 @@ public final class ComunidadeDtos {
 
     public record ConfiguracaoResponse(boolean alunosPublicam, boolean alunosAnexamFotos) {}
 
-    /** O que o aluno precisa saber: se publica e se pode anexar foto (sem dizer o motivo, que pode ser a idade). */
-    public record ConfiguracaoDoAluno(boolean alunosPublicam, boolean podeAnexarFoto) {}
+    /**
+     * O que o aluno precisa saber: se publica, se pode anexar foto (sem dizer o motivo, que pode ser a idade) e o pod dele
+     * ({@code pod} nulo = sem pod; lido do banco a cada requisição).
+     */
+    public record ConfiguracaoDoAluno(boolean alunosPublicam, boolean podeAnexarFoto, PodDoAluno pod) {}
 
     /** Corpo do {@code PUT .../votos}: o conjunto de opções escolhidas (vazio retira o voto). */
     public record VotoRequest(List<UUID> opcaoIds) {}
@@ -172,6 +194,8 @@ public final class ComunidadeDtos {
             boolean respondida,
             boolean fixado,
             Instant criadoEm,
+            UUID podId,
+            String podNome,
             Map<String, Long> reacoes,
             List<String> minhasReacoes,
             long totalComentarios,
@@ -287,6 +311,7 @@ public final class ComunidadeDtos {
     public record ComunidadeExportada(
             String apelido,
             PerfilExportado perfil,
+            PodExportado pod,
             List<PostExportado> posts,
             List<ComentarioExportado> comentariosDeAulas,
             List<ComentarioExportado> comentariosDoMural,
@@ -297,7 +322,9 @@ public final class ComunidadeDtos {
             List<ConquistaResponse> conquistas,
             boolean truncado) {}
 
-    public record PostExportado(UUID id, String tipo, String texto, String videoUrl, boolean fixado, boolean oculto, Instant criadoEm) {}
+    /** {@code podId} nulo = mural geral. */
+    public record PostExportado(UUID id, String tipo, String texto, String videoUrl, boolean fixado, boolean oculto, Instant criadoEm,
+                                UUID podId) {}
 
     /** Foto enviada pelo aluno, só metadados (a imagem não sai); {@code postId} nulo = ainda pendente. */
     public record FotoExportada(UUID id, UUID postId, int tamanho, Instant criadoEm) {}

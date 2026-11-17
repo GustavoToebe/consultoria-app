@@ -2,7 +2,6 @@ package br.com.treinos.api.comunidade;
 
 import br.com.plataforma.comum.web.ApiError;
 import br.com.treinos.api.security.UsuarioAutenticado;
-import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -26,17 +25,20 @@ import java.util.UUID;
 @Service
 public class ReacoesDoMuralService {
 
-    private final ComunidadeMuralPostRepository posts;
+    private final PostsVisiveisDoMural visiveis;
     private final ComunidadeMuralReacaoRepository reacoes;
 
-    public ReacoesDoMuralService(ComunidadeMuralPostRepository posts, ComunidadeMuralReacaoRepository reacoes) {
-        this.posts = posts;
+    public ReacoesDoMuralService(PostsVisiveisDoMural visiveis, ComunidadeMuralReacaoRepository reacoes) {
+        this.visiveis = visiveis;
         this.reacoes = reacoes;
     }
 
-    /** Liga o código para o usuário. Post de outra consultoria ou oculto = 404; código fora da lista = 422 {@code REACAO_INVALIDA}. */
+    /**
+     * Liga o código para o usuário. Post de outra consultoria, oculto ou de outro pod = 404; código fora da lista = 422
+     * {@code REACAO_INVALIDA}.
+     */
     public void reagir(UUID postId, String codigo, UsuarioAutenticado eu) {
-        CodigoDeReacao c = exigir(postId, codigo);
+        CodigoDeReacao c = exigir(postId, codigo, eu);
         if (reacoes.existsByPostIdAndUsuarioIdAndCodigo(postId, eu.usuarioId(), c.name())) {
             return;
         }
@@ -65,15 +67,13 @@ public class ReacoesDoMuralService {
 
     /** Desliga o código (idempotente: sem a reação não apaga nada). Mesmas recusas do {@link #reagir}. */
     public void desfazer(UUID postId, String codigo, UsuarioAutenticado eu) {
-        CodigoDeReacao c = exigir(postId, codigo);
+        CodigoDeReacao c = exigir(postId, codigo, eu);
         reacoes.desfazer(postId, eu.usuarioId(), c.name());
     }
 
-    private CodigoDeReacao exigir(UUID postId, String codigo) {
-        // O post primeiro: de outra consultoria ou oculto é 404 mesmo com código inválido (nada vaza sobre o recurso).
-        if (posts.findById(postId).filter(p -> !p.isOculto()).isEmpty()) {
-            throw new NaoEncontradoException("Post não encontrado.");
-        }
+    private CodigoDeReacao exigir(UUID postId, String codigo, UsuarioAutenticado eu) {
+        // O post primeiro: de outra consultoria, oculto ou de outro pod é 404 mesmo com código inválido (nada vaza sobre o recurso).
+        visiveis.exigirPostVisivel(postId, eu);
         return CodigoDeReacao.de(codigo).orElseThrow(() -> new ValidacaoException("Reação inválida.", "REACAO_INVALIDA",
                 List.of(new ApiError.FieldError("codigo", "Escolha uma reação da lista."))));
     }

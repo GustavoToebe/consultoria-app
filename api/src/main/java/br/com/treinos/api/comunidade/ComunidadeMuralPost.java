@@ -54,14 +54,19 @@ public class ComunidadeMuralPost {
     @Column(nullable = false)
     private boolean oculto;
 
+    /** Nulo = mural geral; senão o post é só do pod (V082, FK composta NO ACTION). Imutável: o post não muda de grupo. */
+    @Column(name = "pod_id", updatable = false)
+    private UUID podId;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm = Instant.now();
 
     protected ComunidadeMuralPost() {}
 
-    /** O aviso nasce fixado (C3). */
+    /** O aviso nasce fixado (C3). {@code podId} nulo = mural geral. */
     public ComunidadeMuralPost(UUID autorId, String autorNome, String autorFotoUrl, String texto, TipoDePost tipo,
-                               String videoUrl, String textoBusca) {
+                               String videoUrl, String textoBusca, UUID podId) {
+        this.podId = podId;
         this.autorId = autorId;
         this.autorNome = autorNome;
         this.autorFotoUrl = autorFotoUrl;
@@ -99,6 +104,7 @@ public class ComunidadeMuralPost {
     public String getVideoUrl() { return videoUrl; }
     public Boolean getEnqueteVariasRespostas() { return enqueteVariasRespostas; }
     public Instant getEnqueteEncerraEm() { return enqueteEncerraEm; }
+    public UUID getPodId() { return podId; }
     public boolean isFixado() { return fixado; }
     public boolean isOculto() { return oculto; }
     public Instant getCriadoEm() { return criadoEm; }

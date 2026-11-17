@@ -57,6 +57,8 @@ public class ComunidadeService {
     private final EnquetesDoMuralService enquetes;
     private final CapasDaComunidadeService capas;
     private final XpService xp;
+    private final PostsVisiveisDoMural visiveis;
+    private final ComunidadePodRepository pods;
 
     public ComunidadeService(ComunidadeAulaRepository aulas,
                              ComunidadeAulaComentarioRepository aulaComentarios,
@@ -73,7 +75,11 @@ public class ComunidadeService {
                              ReacoesDoMuralService reacoes,
                              EnquetesDoMuralService enquetes,
                              CapasDaComunidadeService capas,
-                             XpService xp) {
+                             XpService xp,
+                             PostsVisiveisDoMural visiveis,
+                             ComunidadePodRepository pods) {
+        this.visiveis = visiveis;
+        this.pods = pods;
         this.aulas = aulas;
         this.aulaComentarios = aulaComentarios;
         this.muralPosts = muralPosts;
@@ -229,14 +235,21 @@ public class ComunidadeService {
      * desconhecido) e {@code busca} (sem acento, sobre {@code texto_busca}). {@code soDenunciados} e a contagem de denúncias só
      * valem para a equipe. Fotos, capas, reações, comentários, enquetes, respostas da equipe e denúncias saem em consultas
      * agrupadas por página, sem N+1.
+     * <p>Dois modos (V082): {@code podId} nulo = mural geral ({@code pod_id is null}); com ele, só o mural daquele pod. O aluno só
+     * pode pedir o próprio pod (lido do banco; outro id = 404 igual ao de pod inexistente) e a equipe, qualquer pod da consultoria.
+     * A fila {@code soDenunciados} da equipe atravessa todos os pods.
      */
     @Transactional(readOnly = true)
     public Page<MuralPostResponse> listarMural(Pageable pageable, UsuarioAutenticado eu, String tipo, String busca,
-                                               boolean soDenunciados) {
+                                               boolean soDenunciados, UUID podId) {
         boolean equipe = !souAluno(eu);
-        Page<ComunidadeMuralPost> page = muralPosts.mural(filtroDeTipo(tipo), Buscas.padraoSemAcento(busca),
-                equipe && soDenunciados, pageable);
+        boolean todosOsPods = equipe && soDenunciados;
+        UUID pod = todosOsPods ? null : exigirPodDoMural(eu, podId);
+        // soDenunciados só vale para a equipe, e então é também "todos os pods".
+        Page<ComunidadeMuralPost> page = muralPosts.mural(filtroDeTipo(tipo), Buscas.padraoSemAcento(busca), todosOsPods,
+                todosOsPods, pod == null, pod == null ? SEM_POD : pod, pageable);
         List<UUID> ids = page.getContent().stream().map(ComunidadeMuralPost::getId).toList();
+        Map<UUID, String> nomesDosPods = nomesDosPods(page.getContent().stream().map(ComunidadeMuralPost::getPodId));
         // Uma consulta de cada coisa por página, não por post.
         Map<UUID, String> apelidos = apelidosDe(page.getContent().stream().map(ComunidadeMuralPost::getAutorId));
         Map<UUID, List<UUID>> fotosDosPosts = new HashMap<>();
@@ -265,9 +278,38 @@ public class ComunidadeService {
         return page.map(p -> new MuralPostResponse(p.getId(), p.getAutorId(), p.getAutorNome(), apelidos.get(p.getAutorId()),
                 apelidos.containsKey(p.getAutorId()), p.getAutorFotoUrl(), p.getTexto(), p.getTipo(), linkSeguro(p.getVideoUrl()),
                 capasDaPagina.get(p.getId()), fotosDosPosts.getOrDefault(p.getId(), List.of()), enquetesDosPosts.get(p.getId()),
-                respondidos.contains(p.getId()), p.isFixado(), p.getCriadoEm(), contagens.getOrDefault(p.getId(), Map.of()),
+                respondidos.contains(p.getId()), p.isFixado(), p.getCriadoEm(), p.getPodId(), nomesDosPods.get(p.getPodId()),
+                contagens.getOrDefault(p.getId(), Map.of()),
                 minhas.getOrDefault(p.getId(), List.of()), comentariosDosPosts.getOrDefault(p.getId(), 0L),
                 equipe ? denunciasDosPosts.getOrDefault(p.getId(), 0L) : null));
+    }
+
+    /** Sentinela do pod no JPQL do mural (UUID zero nunca é id de pod); o filtro usa {@code soGeral}, não este valor. */
+    private static final UUID SEM_POD = new UUID(0L, 0L);
+
+    /**
+     * O pod do mural pedido ({@code null} = geral). Aluno: só o próprio, lido do banco; equipe: qualquer pod da consultoria
+     * ({@code @TenantId}). Pod que não existe ou que não é dele = o mesmo 404.
+     */
+    private UUID exigirPodDoMural(UsuarioAutenticado eu, UUID podId) {
+        if (podId == null) {
+            return null;
+        }
+        boolean permitido = souAluno(eu) ? podId.equals(visiveis.podDoAluno(eu)) : pods.existsById(podId);
+        if (!permitido) {
+            throw new NaoEncontradoException("Pod não encontrado.");
+        }
+        return podId;
+    }
+
+    /** Nome de cada pod citado, numa consulta; mapa mutável (aceita chave nula). */
+    private Map<UUID, String> nomesDosPods(Stream<UUID> podIds) {
+        List<UUID> ids = podIds.filter(Objects::nonNull).distinct().toList();
+        Map<UUID, String> nomes = new HashMap<>();
+        if (!ids.isEmpty()) {
+            pods.findAllById(ids).forEach(p -> nomes.put(p.getId(), p.getNome()));
+        }
+        return nomes;
     }
 
     /** Vazio = todos os tipos; desconhecido = 400 sem repetir o valor. */
@@ -293,6 +335,8 @@ public class ComunidadeService {
         if (aluno) {
             configuracao.exigirQueAlunosPublicam(eu);
         }
+        // Aluno: só o próprio pod (do banco), senão 404; nulo = mural geral.
+        UUID podDoPost = exigirPodDoMural(eu, r.podId());
         List<ApiError.FieldError> erros = new ArrayList<>();
         TipoDePost tipo = r.tipo() == null || r.tipo().isBlank() ? TipoDePost.CONVERSA : TipoDePost.de(r.tipo().trim()).orElse(null);
         if (tipo == null) {
@@ -349,15 +393,16 @@ public class ComunidadeService {
         }
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
         String texto = r.texto().trim();
-        ComunidadeMuralPost post = new ComunidadeMuralPost(eu.usuarioId(), nome, null, texto, tipo, video, Buscas.semAcento(texto));
+        ComunidadeMuralPost post = new ComunidadeMuralPost(eu.usuarioId(), nome, null, texto, tipo, video, Buscas.semAcento(texto),
+                podDoPost);
         if (tipo == TipoDePost.ENQUETE) {
             post.definirEnquete(Boolean.TRUE.equals(r.variasRespostas()), r.encerraEm());
         }
         muralPosts.saveAndFlush(post);
         if (tipo == TipoDePost.ENQUETE) {
-            enquetes.criarOpcoes(post.getId(), opcoesLimpas);
+            enquetes.criarOpcoes(post.getId(), opcoesLimpas, eu);
         }
-        if (r.capaId() != null && !capas.ligarAoPost(r.capaId(), post.getId())) {
+        if (r.capaId() != null && !capas.ligarAoPost(r.capaId(), post.getId(), eu)) {
             // Capa inexistente, de outra consultoria ou já com dono: desfaz o post também (a exceção reverte a transação).
             throw new ValidacaoException("Confira a publicação.", "POST_INVALIDO", List.of(CapasDaComunidadeService.CAPA_INDISPONIVEL));
         }
@@ -371,7 +416,8 @@ public class ComunidadeService {
         return new MuralPostResponse(post.getId(), post.getAutorId(), post.getAutorNome(), autor.get(post.getAutorId()),
                 autor.containsKey(post.getAutorId()), post.getAutorFotoUrl(), post.getTexto(), post.getTipo(),
                 post.getVideoUrl(), r.capaId(), fotosDoPost(post.getId(), fotoIds), enquete, false, post.isFixado(), post.getCriadoEm(),
-                Map.of(), List.of(), 0, aluno ? null : 0L);
+                post.getPodId(), nomesDosPods(Stream.of(post.getPodId())).get(post.getPodId()), Map.of(), List.of(), 0,
+                aluno ? null : 0L);
     }
 
     /** Mesma ordem da lista do mural: a do envio das fotos (não a ordem do pedido). */
@@ -384,8 +430,8 @@ public class ComunidadeService {
     }
 
     @Transactional(readOnly = true)
-    public PaginaDeComentarios listarComentariosMural(UUID postId, Integer pagina, Integer tamanho) {
-        ComunidadeMuralPost post = exigirPostVisivel(postId);
+    public PaginaDeComentarios listarComentariosMural(UUID postId, UsuarioAutenticado eu, Integer pagina, Integer tamanho) {
+        ComunidadeMuralPost post = visiveis.exigirPostVisivel(postId, eu);
         // Dúvida: a resposta da equipe vem primeiro (C6); nos outros tipos, só por data.
         Pageable daPagina = paginar(pagina, tamanho);
         Page<ComunidadeMuralComentario> pg = TipoDePost.DUVIDA.name().equals(post.getTipo())
@@ -399,7 +445,7 @@ public class ComunidadeService {
     }
 
     public ComentarioResponse adicionarComentarioMural(UUID postId, String texto, UsuarioAutenticado eu) {
-        exigirPostVisivel(postId);
+        visiveis.exigirPostVisivel(postId, eu);
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
         ComunidadeMuralComentario c = new ComunidadeMuralComentario(postId, eu.usuarioId(), nome, null, texto.trim());
         if (!souAluno(eu)) {
@@ -411,32 +457,29 @@ public class ComunidadeService {
                 autor.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm(), c.isDaEquipe());
     }
 
-    public void moderarPost(UUID postId) {
-        ComunidadeMuralPost p = muralPosts.findById(postId).orElseThrow(() -> new NaoEncontradoException("Post não encontrado."));
+    public void moderarPost(UUID postId, UsuarioAutenticado eu) {
+        ComunidadeMuralPost p = visiveis.exigirPostVisivel(postId, eu);
+        // Post oculto não guarda foto (C7) nem capa (D7): os bytes saem do banco junto (a capa antes de ocultar: o funil recusa o
+        // oculto). Os votos ficam, escondidos com o post.
+        capas.apagarDoPost(postId, eu);
+        fotos.apagarDoPost(postId);
         p.ocultar();
         muralPosts.saveAndFlush(p);
-        // Post oculto não guarda foto (C7) nem capa (D7): os bytes saem do banco junto. Os votos ficam, escondidos com o post.
-        fotos.apagarDoPost(postId);
-        capas.apagarDoPost(postId);
     }
 
-    public void fixarPost(UUID postId) {
-        ComunidadeMuralPost p = exigirPostVisivel(postId);
+    public void fixarPost(UUID postId, UsuarioAutenticado eu) {
+        ComunidadeMuralPost p = visiveis.exigirPostVisivel(postId, eu);
         p.alternarFixado();
         muralPosts.saveAndFlush(p);
     }
 
-    public void moderarComentarioMural(UUID comentarioId) {
+    /** O comentário vale pelo post dele: post oculto ou de outro pod (ou de outra consultoria) = 404, como o comentário inexistente. */
+    public void moderarComentarioMural(UUID comentarioId, UsuarioAutenticado eu) {
         ComunidadeMuralComentario c = muralComentarios.findById(comentarioId)
                 .orElseThrow(() -> new NaoEncontradoException("Comentário não encontrado."));
+        visiveis.exigirPostVisivel(c.getPostId(), eu, "Comentário não encontrado.");
         c.ocultar();
         muralComentarios.saveAndFlush(c);
-    }
-
-    /** Post da consultoria da sessão e não oculto; de outra consultoria (ou oculto), 404. */
-    private ComunidadeMuralPost exigirPostVisivel(UUID postId) {
-        return muralPosts.findById(postId).filter(p -> !p.isOculto())
-                .orElseThrow(() -> new NaoEncontradoException("Post não encontrado."));
     }
 
     /**
@@ -510,13 +553,17 @@ public class ComunidadeService {
         var perfil = new PerfilExportado(aluno.getPerfilReservado(), aluno.getPerfilDestaques(),
                 aluno.getPerfilCor() == null ? null : aluno.getPerfilCor().name(),
                 aluno.getPerfilMoldura() == null ? null : aluno.getPerfilMoldura().name());
+        // Só o nome do próprio pod; a lista de membros é dado de terceiros e nunca sai.
+        PodExportado pod = aluno.getPodId() == null ? null
+                : pods.findById(aluno.getPodId()).map(p -> new PodExportado(p.getNome())).orElse(null);
         UUID usuarioId = aluno.getUsuarioId();
         if (usuarioId == null) {
-            return new ComunidadeExportada(aluno.getApelido(), perfil, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+            return new ComunidadeExportada(aluno.getApelido(), perfil, pod, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
                     List.of(), minhasConquistas, false);
         }
         var posts = muralPosts.findTop5000ByAutorIdOrderByCriadoEmDesc(usuarioId).stream()
-                .map(p -> new PostExportado(p.getId(), p.getTipo(), p.getTexto(), p.getVideoUrl(), p.isFixado(), p.isOculto(), p.getCriadoEm()))
+                .map(p -> new PostExportado(p.getId(), p.getTipo(), p.getTexto(), p.getVideoUrl(), p.isFixado(), p.isOculto(), p.getCriadoEm(),
+                        p.getPodId()))
                 .toList();
         var deAulas = aulaComentarios.findTop5000ByAutorIdOrderByCriadoEmDesc(usuarioId).stream()
                 .map(c -> new ComentarioExportado(c.getId(), c.getAulaId(), c.getTexto(), c.isOculto(), c.getCriadoEm()))
@@ -539,7 +586,7 @@ public class ComunidadeService {
                 || posts.size() == LIMITE_DA_EXPORTACAO || deAulas.size() == LIMITE_DA_EXPORTACAO
                 || doMural.size() == LIMITE_DA_EXPORTACAO || reacoesDadas.size() == LIMITE_DA_EXPORTACAO
                 || votos.size() == LIMITE_DA_EXPORTACAO;
-        return new ComunidadeExportada(aluno.getApelido(), perfil, posts, deAulas, doMural, reacoesDadas, votos, fotosEnviadas,
+        return new ComunidadeExportada(aluno.getApelido(), perfil, pod, posts, deAulas, doMural, reacoesDadas, votos, fotosEnviadas,
                 denunciasFeitas, minhasConquistas, truncado);
     }
 

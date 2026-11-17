@@ -175,6 +175,14 @@ public class Aluno {
     @Column(name = "codigo_indicacao", insertable = false, updatable = false)
     private UUID codigoIndicacao;
 
+    /**
+     * Pod da comunidade (V082), nulo = sem pod. Só leitura na JPA: quem grava são as atualizações em lote do
+     * {@code AlunoRepository} (atribuir sob a trava do pod, zerar ao inativar e anonimizar), para uma ficha lida antes e salva
+     * depois nunca devolver o pod antigo. Decide quem vê o mural do grupo: sempre lido do banco, nunca de token ou corpo.
+     */
+    @Column(name = "pod_id", insertable = false, updatable = false)
+    private UUID podId;
+
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
 
@@ -256,6 +264,10 @@ public class Aluno {
 
     public UUID getCodigoIndicacao() {
         return codigoIndicacao;
+    }
+
+    public UUID getPodId() {
+        return podId;
     }
 
     public Instant getAtualizadoEm() {

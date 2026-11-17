@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -59,10 +60,12 @@ public class EnquetesDoMuralService {
     private final AlunoRepository alunos;
     private final UsuarioRepository usuarios;
     private final ColegasDaComunidadeService colegas;
+    private final PostsVisiveisDoMural visiveis;
 
     public EnquetesDoMuralService(ComunidadeMuralPostRepository posts, ComunidadeEnqueteOpcaoRepository opcoes,
                                   ComunidadeEnqueteVotoRepository votos, AlunoRepository alunos, UsuarioRepository usuarios,
-                                  ColegasDaComunidadeService colegas) {
+                                  ColegasDaComunidadeService colegas, PostsVisiveisDoMural visiveis) {
+        this.visiveis = visiveis;
         this.posts = posts;
         this.opcoes = opcoes;
         this.votos = votos;
@@ -109,7 +112,8 @@ public class EnquetesDoMuralService {
     }
 
     /** Grava as opções do post recém-criado (já validadas por {@link #opcoesLimpas}), na ordem recebida. */
-    public void criarOpcoes(UUID postId, List<String> textos) {
+    public void criarOpcoes(UUID postId, List<String> textos, UsuarioAutenticado eu) {
+        visiveis.exigirPostVisivel(postId, eu);
         List<ComunidadeEnqueteOpcao> novas = new ArrayList<>();
         for (int i = 0; i < textos.size(); i++) {
             novas.add(new ComunidadeEnqueteOpcao(postId, i, textos.get(i)));
@@ -120,12 +124,15 @@ public class EnquetesDoMuralService {
     // ---- votar ----
 
     /**
-     * Substitui o conjunto de opções do usuário (vazio retira o voto). Ordem das recusas: 404 (post de outra consultoria, oculto
-     * ou que não é enquete), 409 {@code ENQUETE_ENCERRADA} (também para retirar), 422 {@code VOTO_INVALIDO}. A linha do post é
-     * travada primeiro e o voto atual só é lido depois, então dois pedidos do mesmo usuário se serializam e o último vale.
-     * Devolve a enquete como o mural a mostra.
+     * Substitui o conjunto de opções do usuário (vazio retira o voto). Ordem das recusas: 404 (post de outra consultoria, oculto,
+     * de outro pod ou que não é enquete), 409 {@code ENQUETE_ENCERRADA} (também para retirar), 422 {@code VOTO_INVALIDO}. O funil
+     * de visibilidade roda antes da trava (quem não pode ver o post nem espera na linha dele); a linha é travada logo depois e o voto
+     * atual só é lido depois dela, então dois pedidos do mesmo usuário se serializam e o último vale. O que se usa do post (tipo,
+     * opções, prazo, escolha única ou várias) é imutável; só {@code oculto} muda, e um voto simultâneo à moderação vale pelo estado
+     * que o funil leu (voto em post recém-oculto não vaza nada). Devolve a enquete como o mural a mostra.
      */
     public EnqueteResponse votar(UUID postId, List<UUID> pedidas, UsuarioAutenticado eu) {
+        visiveis.exigirPostVisivel(postId, eu);
         ComunidadeMuralPost post = posts.travar(postId).filter(EnquetesDoMuralService::eEnqueteVisivel)
                 .orElseThrow(() -> new NaoEncontradoException("Post não encontrado."));
         Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
@@ -215,7 +222,7 @@ public class EnquetesDoMuralService {
      */
     @Transactional(readOnly = true)
     public VotosDaEnquete votos(UUID postId, UUID opcaoId, Integer pagina, Integer tamanho, UsuarioAutenticado eu) {
-        ComunidadeMuralPost post = posts.findById(postId).filter(EnquetesDoMuralService::eEnqueteVisivel)
+        ComunidadeMuralPost post = Optional.of(visiveis.exigirPostVisivel(postId, eu)).filter(EnquetesDoMuralService::eEnqueteVisivel)
                 .orElseThrow(() -> new NaoEncontradoException("Post não encontrado."));
         List<ComunidadeEnqueteOpcao> doPost = opcoes.findByPostIdOrderByOrdemAsc(postId);
         if (opcaoId != null && doPost.stream().noneMatch(o -> o.getId().equals(opcaoId))) {

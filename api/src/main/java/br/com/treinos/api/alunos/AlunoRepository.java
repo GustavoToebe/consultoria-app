@@ -4,6 +4,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -105,4 +106,40 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
     @Query("select count(a) from Aluno a where a.responsavelId = :responsavelId and a.ativo = true and a.anonimizadoEm is null "
             + "and (:exceto is null or a.id <> :exceto)")
     long contarAtivosDoResponsavel(UUID responsavelId, UUID exceto);
+
+    // ---- Pods da comunidade (V082) ----
+
+    /** O pod do aluno lido do banco agora; vazio = sem pod (ou aluno de outra consultoria). É o que decide quem vê o mural do grupo. */
+    @Query("select a.podId from Aluno a where a.id = :alunoId and a.podId is not null")
+    Optional<UUID> podDoAluno(UUID alunoId);
+
+    /** Quantos alunos estão no pod agora (inativar e anonimizar zeram o pod, então só ativos contam). Chamar com a linha do pod travada. */
+    @Query("select count(a) from Aluno a where a.podId = :podId")
+    long contarDoPod(UUID podId);
+
+    /**
+     * Coloca o aluno no pod só se ele ainda é aluno ativo, não anonimizado e com acesso (a ficha pode ter mudado desde que foi lida).
+     * Devolve quantas linhas mudou (0 = não pode mais). Sempre com a consultoria explícita.
+     * Limpa o contexto depois: quem chama relê o aluno para saber por que não pôde entrar.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update Aluno a set a.podId = :podId where a.id = :alunoId and a.consultoriaId = :consultoriaId and a.ativo = true "
+            + "and a.anonimizadoEm is null and a.usuarioId is not null")
+    int colocarNoPod(UUID consultoriaId, UUID alunoId, UUID podId);
+
+    /** Tira o aluno do pod (nulo é válido): inativar, anonimizar, "Excluir minha conta" e a remoção pela equipe. */
+    @Modifying(flushAutomatically = true)
+    @Query("update Aluno a set a.podId = null where a.id = :alunoId and a.consultoriaId = :consultoriaId")
+    int tirarDoPod(UUID consultoriaId, UUID alunoId);
+
+    /** Membros por pod e quantos têm data de nascimento depois de {@code corte} (menores de 18); só as contagens saem daqui. */
+    interface ContagemDoPod {
+        UUID getPodId();
+        long getMembros();
+        Long getMenores();
+    }
+
+    @Query("select a.podId as podId, count(a) as membros, sum(case when a.dataNascimento > :corte then 1 else 0 end) as menores "
+            + "from Aluno a where a.podId is not null group by a.podId")
+    List<ContagemDoPod> contagensDosPods(java.time.LocalDate corte);
 }

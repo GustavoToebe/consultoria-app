@@ -9,7 +9,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.sql.SQLException;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,7 +22,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ReacoesDoMuralServiceTest {
 
-    @Mock private ComunidadeMuralPostRepository posts;
+    @Mock private PostsVisiveisDoMural visiveis;
     @Mock private ComunidadeMuralReacaoRepository reacoes;
 
     private static DataIntegrityViolationException violacao(String restricao) {
@@ -43,12 +42,11 @@ class ReacoesDoMuralServiceTest {
                 new DataIntegrityViolationException("x", new SQLException("uk_mural_reacao_usuario")))).isFalse();
     }
 
-    private ReacoesDoMuralService comSaveQueFalhaCom(DataIntegrityViolationException erro, UUID postId) {
+    private ReacoesDoMuralService comSaveQueFalhaCom(DataIntegrityViolationException erro, UUID postId, UsuarioAutenticado eu) {
         ComunidadeMuralPost post = mock(ComunidadeMuralPost.class);
-        when(post.isOculto()).thenReturn(false);
-        when(posts.findById(postId)).thenReturn(Optional.of(post));
+        when(visiveis.exigirPostVisivel(postId, eu)).thenReturn(post);
         when(reacoes.saveAndFlush(any(ComunidadeMuralReacao.class))).thenThrow(erro);
-        return new ReacoesDoMuralService(posts, reacoes);
+        return new ReacoesDoMuralService(visiveis, reacoes);
     }
 
     @Test
@@ -56,7 +54,7 @@ class ReacoesDoMuralServiceTest {
         UUID postId = UUID.randomUUID();
         UsuarioAutenticado eu = new UsuarioAutenticado(UUID.randomUUID(), UUID.randomUUID(), "ALUNO", UUID.randomUUID());
 
-        ReacoesDoMuralService corrida = comSaveQueFalhaCom(violacao("uk_mural_reacao_usuario"), postId);
+        ReacoesDoMuralService corrida = comSaveQueFalhaCom(violacao("uk_mural_reacao_usuario"), postId, eu);
         assertThatCode(() -> corrida.reagir(postId, "CURTIR", eu)).doesNotThrowAnyException();
     }
 
@@ -66,7 +64,7 @@ class ReacoesDoMuralServiceTest {
         UsuarioAutenticado eu = new UsuarioAutenticado(UUID.randomUUID(), UUID.randomUUID(), "ALUNO", UUID.randomUUID());
         DataIntegrityViolationException chaveEstrangeira = violacao("fk_comunidade_mural_reacao_post");
 
-        ReacoesDoMuralService service = comSaveQueFalhaCom(chaveEstrangeira, postId);
+        ReacoesDoMuralService service = comSaveQueFalhaCom(chaveEstrangeira, postId, eu);
         assertThatThrownBy(() -> service.reagir(postId, "CURTIR", eu)).isSameAs(chaveEstrangeira);
     }
 }

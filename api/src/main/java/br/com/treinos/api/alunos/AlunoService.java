@@ -367,6 +367,8 @@ public class AlunoService {
         aluno.alterarSituacao(ativo, Instant.now());
         if (!ativo) {
             agenda.cancelarFuturosDoAluno(aluno.getId()); // antes de encerrarSessoes, que não se desfaz
+            // Libera a vaga no pod da comunidade; reativar não devolve (a equipe atribui de novo).
+            alunos.tirarDoPod(aluno.getConsultoriaId(), aluno.getId());
         }
         if (aluno.getUsuarioId() != null) {
             usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo));

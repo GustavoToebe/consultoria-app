@@ -108,8 +108,10 @@ public class ComunidadeController {
                                                @RequestParam(required = false) String tipo,
                                                @RequestParam(required = false) String busca,
                                                @RequestParam(defaultValue = "false") boolean denunciados,
+                                               @RequestParam(required = false) UUID podId,
                                                @AuthenticationPrincipal UsuarioAutenticado eu) {
-        return comunidade.listarMural(PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 50)), eu, tipo, busca, denunciados);
+        return comunidade.listarMural(PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 50)), eu, tipo, busca, denunciados,
+                podId);
     }
 
     @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
@@ -121,23 +123,24 @@ public class ComunidadeController {
 
     @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @PostMapping("/mural/{id}/fixar")
-    public ResponseEntity<Void> fixarPost(@PathVariable UUID id) {
-        comunidade.fixarPost(id);
+    public ResponseEntity<Void> fixarPost(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        comunidade.fixarPost(id, eu);
         return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @DeleteMapping("/mural/{id}")
-    public ResponseEntity<Void> moderarPost(@PathVariable UUID id) {
-        comunidade.moderarPost(id);
+    public ResponseEntity<Void> moderarPost(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        comunidade.moderarPost(id, eu);
         return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasAuthority('PERM_TREINO_LER')")
     @GetMapping("/mural/{id}/comentarios")
     public PaginaDeComentarios listarComentariosMural(@PathVariable UUID id, @RequestParam(required = false) Integer pagina,
-                                                      @RequestParam(required = false) Integer tamanho) {
-        return comunidade.listarComentariosMural(id, pagina, tamanho);
+                                                      @RequestParam(required = false) Integer tamanho,
+                                                      @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return comunidade.listarComentariosMural(id, eu, pagina, tamanho);
     }
 
     /** A equipe responde no mural (C6): o comentário sai com {@code daEquipe} e, na dúvida, vem primeiro. */
@@ -151,8 +154,8 @@ public class ComunidadeController {
     /** Bytes da foto de um post (a pendente ainda é só do aluno); sempre {@code no-store}. */
     @PreAuthorize("hasAuthority('PERM_TREINO_LER')")
     @GetMapping("/mural/fotos/{id}")
-    public ResponseEntity<byte[]> fotoDoPost(@PathVariable UUID id) {
-        return RespostaDeFoto.de(fotos.lerDaEquipe(id));
+    public ResponseEntity<byte[]> fotoDoPost(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return RespostaDeFoto.de(fotos.lerDaEquipe(id, eu));
     }
 
     /** Dispensa as denúncias do post (apaga todas); o post continua. Remover o post é o {@code DELETE /mural/{id}}. */
@@ -165,8 +168,8 @@ public class ComunidadeController {
 
     @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @DeleteMapping("/mural/comentarios/{id}")
-    public ResponseEntity<Void> moderarComentarioMural(@PathVariable UUID id) {
-        comunidade.moderarComentarioMural(id);
+    public ResponseEntity<Void> moderarComentarioMural(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        comunidade.moderarComentarioMural(id, eu);
         return ResponseEntity.noContent().build();
     }
 
@@ -237,8 +240,8 @@ public class ComunidadeController {
     /** Bytes da capa (a pendente também, para a prévia); sempre {@code no-store}. */
     @PreAuthorize("hasAuthority('PERM_TREINO_LER')")
     @GetMapping("/capas/{id}")
-    public ResponseEntity<byte[]> capa(@PathVariable UUID id) {
-        return RespostaDeFoto.de(capas.lerDaEquipe(id));
+    public ResponseEntity<byte[]> capa(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return RespostaDeFoto.de(capas.lerDaEquipe(id, eu));
     }
 
     // ---- Chaves da comunidade ----

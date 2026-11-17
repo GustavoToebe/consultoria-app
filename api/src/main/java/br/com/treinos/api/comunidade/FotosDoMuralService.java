@@ -30,9 +30,12 @@ public class FotosDoMuralService {
     private final AlunoRepository alunos;
     private final ConfiguracaoDaComunidadeService configuracao;
     private final LimiteTentativas limite;
+    private final PostsVisiveisDoMural visiveis;
 
     public FotosDoMuralService(ComunidadeMuralFotoRepository fotos, AlunoRepository alunos,
-                               ConfiguracaoDaComunidadeService configuracao, LimiteTentativas limite) {
+                               ConfiguracaoDaComunidadeService configuracao, LimiteTentativas limite,
+                               PostsVisiveisDoMural visiveis) {
+        this.visiveis = visiveis;
         this.fotos = fotos;
         this.alunos = alunos;
         this.configuracao = configuracao;
@@ -64,22 +67,25 @@ public class FotosDoMuralService {
         fotos.flush();
     }
 
-    /** Foto de post (a consultoria já filtra) ou a própria pendente; o post oculto não tem foto (a moderação as apaga). */
+    /** Foto de post visível para o aluno (funil do post: consultoria, oculto e pod) ou a própria pendente. */
     @Transactional(readOnly = true)
     public byte[] lerDoAluno(UsuarioAutenticado eu, UUID id) {
-        return fotos.findById(id)
-                .filter(f -> f.getPostId() != null || f.getAutorId().equals(eu.usuarioId()))
-                .map(ComunidadeMuralFoto::getBytes)
-                .orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
+        ComunidadeMuralFoto f = fotos.findById(id).orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
+        if (f.getPostId() != null) {
+            visiveis.exigirPostVisivel(f.getPostId(), eu, "Foto não encontrada.");
+        } else if (!f.getAutorId().equals(eu.usuarioId())) {
+            throw new NaoEncontradoException("Foto não encontrada.");
+        }
+        return f.getBytes();
     }
 
-    /** A equipe só vê foto de post; a pendente ainda é só do aluno. */
+    /** A equipe só vê foto de post (pelo funil do post); a pendente ainda é só do aluno. */
     @Transactional(readOnly = true)
-    public byte[] lerDaEquipe(UUID id) {
-        return fotos.findById(id)
-                .filter(f -> f.getPostId() != null)
-                .map(ComunidadeMuralFoto::getBytes)
+    public byte[] lerDaEquipe(UUID id, UsuarioAutenticado eu) {
+        ComunidadeMuralFoto f = fotos.findById(id).filter(x -> x.getPostId() != null)
                 .orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
+        visiveis.exigirPostVisivel(f.getPostId(), eu, "Foto não encontrada.");
+        return f.getBytes();
     }
 
     private Aluno aluno(UsuarioAutenticado eu) {

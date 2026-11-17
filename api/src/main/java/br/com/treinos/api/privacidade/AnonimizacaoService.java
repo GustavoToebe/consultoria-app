@@ -183,6 +183,8 @@ public class AnonimizacaoService {
         nativo.apagarComentariosDasSessoesConcluidas(consultoriaId, alunoId);
         // Indicações que ele fez (inscrições de outras pessoas perdem o vínculo) e o link antigo dele morre (código novo).
         nativo.desfazerIndicacoes(consultoriaId, alunoId);
+        // Sai do pod da comunidade, com ou sem usuário (V082); o UPDATE leva a consultoria explícita.
+        alunos.tirarDoPod(consultoriaId, alunoId);
         nativo.apagarNomesDosTitulos(consultoriaId, alunoId);
         nativo.apagarTextoLivreDosPlanos(consultoriaId, alunoId);
 

@@ -23,25 +23,26 @@ public class DenunciasDoMuralService {
     /** Resumo fixo: nunca o motivo, o post nem quem denunciou. */
     static final String RESUMO_DISPENSADAS = "Dispensou as denúncias de uma publicação.";
 
+    private final PostsVisiveisDoMural visiveis;
     private final ComunidadeMuralPostRepository posts;
     private final ComunidadeMuralDenunciaRepository denuncias;
     private final Auditoria auditoria;
 
-    public DenunciasDoMuralService(ComunidadeMuralPostRepository posts, ComunidadeMuralDenunciaRepository denuncias,
-                                   Auditoria auditoria) {
+    public DenunciasDoMuralService(PostsVisiveisDoMural visiveis, ComunidadeMuralPostRepository posts,
+                                   ComunidadeMuralDenunciaRepository denuncias, Auditoria auditoria) {
+        this.visiveis = visiveis;
         this.posts = posts;
         this.denuncias = denuncias;
         this.auditoria = auditoria;
     }
 
     /**
-     * Idempotente: repetir não grava de novo nem avisa. Post inexistente, oculto ou de outra consultoria = 404; o próprio post e
+     * Idempotente: repetir não grava de novo nem avisa. Post inexistente, oculto, de outra consultoria ou de outro pod = 404; o próprio post e
      * motivo fora da lista = 422 {@code DENUNCIA_INVALIDA} no campo. Sem transação aberta aqui de propósito: a corrida de dois
      * toques simultâneos bate na chave única e é tratada como "já denunciou", sem derrubar uma transação do chamador.
      */
     public void denunciar(UsuarioAutenticado eu, UUID postId, DenunciaRequest r) {
-        ComunidadeMuralPost post = posts.findById(postId).filter(p -> !p.isOculto())
-                .orElseThrow(() -> new NaoEncontradoException("Post não encontrado."));
+        ComunidadeMuralPost post = visiveis.exigirPostVisivel(postId, eu);
         MotivoDeDenuncia motivo = MotivoDeDenuncia.de(r.motivo() == null ? "" : r.motivo().trim()).orElse(null);
         if (motivo == null) {
             throw invalida("motivo", "Escolha um motivo da lista.");
@@ -59,7 +60,11 @@ public class DenunciasDoMuralService {
         }
     }
 
-    /** Apaga as denúncias do post (idempotente; sem denúncia não audita). Post de outra consultoria = 404. */
+    /**
+     * Apaga as denúncias do post (idempotente; sem denúncia não audita). Post inexistente ou de outra consultoria = 404; o oculto
+     * segue valendo (204): a equipe limpa as denúncias de um post que acabou de moderar. Fora do funil de propósito: a equipe vê
+     * todos os pods e o único filtro dele que sobraria é o oculto.
+     */
     @Transactional
     public void dispensar(UUID postId) {
         if (!posts.existsById(postId)) {

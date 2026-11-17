@@ -4,6 +4,7 @@ import br.com.plataforma.comum.web.ApiError;
 import br.com.treinos.api.auth.LimiteTentativas;
 import br.com.treinos.api.fotos.FotoException;
 import br.com.treinos.api.fotos.JpegSemMetadados;
+import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
@@ -43,14 +44,14 @@ public class CapasDaComunidadeService {
 
     private final ComunidadeCapaRepository capas;
     private final ComunidadeAulaRepository aulas;
-    private final ComunidadeMuralPostRepository posts;
+    private final PostsVisiveisDoMural visiveis;
     private final LimiteTentativas limite;
 
-    public CapasDaComunidadeService(ComunidadeCapaRepository capas, ComunidadeAulaRepository aulas, ComunidadeMuralPostRepository posts,
+    public CapasDaComunidadeService(ComunidadeCapaRepository capas, ComunidadeAulaRepository aulas, PostsVisiveisDoMural visiveis,
                                     LimiteTentativas limite) {
         this.capas = capas;
         this.aulas = aulas;
-        this.posts = posts;
+        this.visiveis = visiveis;
         this.limite = limite;
     }
 
@@ -71,21 +72,28 @@ public class CapasDaComunidadeService {
         return capas.saveAndFlush(new ComunidadeCapa(jpeg, agora)).getId();
     }
 
-    /** A equipe vê qualquer capa da consultoria, inclusive a pendente (para a prévia ao montar o post). */
+    /** A equipe vê qualquer capa da consultoria, inclusive a pendente (para a prévia); a de post passa pelo funil do post. */
     @Transactional(readOnly = true)
-    public byte[] lerDaEquipe(UUID id) {
-        return capas.findById(id).map(ComunidadeCapa::getBytes).orElseThrow(() -> new NaoEncontradoException("Capa não encontrada."));
+    public byte[] lerDaEquipe(UUID id, UsuarioAutenticado eu) {
+        ComunidadeCapa capa = capas.findById(id).orElseThrow(() -> new NaoEncontradoException("Capa não encontrada."));
+        if (capa.getPostId() != null) {
+            visiveis.exigirPostVisivel(capa.getPostId(), eu, "Capa não encontrada.");
+        }
+        return capa.getBytes();
     }
 
-    /** O aluno só vê capa ligada a aulão publicado ou a post visível; a pendente e a do post oculto dão 404. */
+    /** O aluno só vê capa ligada a aulão publicado ou a post visível para ele (pod); a pendente e a do post oculto dão 404. */
     @Transactional(readOnly = true)
-    public byte[] lerDoAluno(UUID id) {
+    public byte[] lerDoAluno(UUID id, UsuarioAutenticado eu) {
         ComunidadeCapa capa = capas.findById(id).orElseThrow(() -> new NaoEncontradoException("Capa não encontrada."));
-        boolean visivel = capa.getAulaId() != null
-                ? aulas.findById(capa.getAulaId()).filter(ComunidadeAula::isPublicada).isPresent()
-                : capa.getPostId() != null && posts.findById(capa.getPostId()).filter(p -> !p.isOculto()).isPresent();
-        if (!visivel) {
+        if (capa.getAulaId() != null) {
+            if (aulas.findById(capa.getAulaId()).filter(ComunidadeAula::isPublicada).isEmpty()) {
+                throw new NaoEncontradoException("Capa não encontrada.");
+            }
+        } else if (capa.getPostId() == null) {
             throw new NaoEncontradoException("Capa não encontrada.");
+        } else {
+            visiveis.exigirPostVisivel(capa.getPostId(), eu, "Capa não encontrada.");
         }
         return capa.getBytes();
     }
@@ -111,13 +119,15 @@ public class CapasDaComunidadeService {
 
     /** Liga a capa pendente ao post {@code VIDEO} recém-criado; {@code false} = não está disponível (quem chama responde 422). */
     @Transactional
-    public boolean ligarAoPost(UUID capaId, UUID postId) {
+    public boolean ligarAoPost(UUID capaId, UUID postId, UsuarioAutenticado eu) {
+        visiveis.exigirPostVisivel(postId, eu);
         return capas.ligarAoPost(capaId, postId) == 1;
     }
 
-    /** Post oculto não guarda capa. */
+    /** Post oculto não guarda capa; quem chama oculta o post só depois, porque o funil recusa o oculto. */
     @Transactional
-    public void apagarDoPost(UUID postId) {
+    public void apagarDoPost(UUID postId, UsuarioAutenticado eu) {
+        visiveis.exigirPostVisivel(postId, eu);
         capas.apagarDoPost(postId);
     }
 

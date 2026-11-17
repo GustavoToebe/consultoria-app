@@ -44,6 +44,7 @@ class ComunidadeServiceTest {
     @Mock private EnquetesDoMuralService enquetes;
     @Mock private CapasDaComunidadeService capas;
     @Mock private XpService xp;
+    @Mock private ComunidadePodRepository pods;
 
     private ComunidadeService service;
     private final UUID consultoriaId = UUID.randomUUID();
@@ -54,7 +55,8 @@ class ComunidadeServiceTest {
     @BeforeEach
     void setUp() {
         service = new ComunidadeService(aulas, aulaComentarios, muralPosts, muralReacoes, muralComentarios,
-                conquistas, alunos, sessoes, usuarios, fotos, denuncias, configuracao, reacoes, enquetes, capas, xp);
+                conquistas, alunos, sessoes, usuarios, fotos, denuncias, configuracao, reacoes, enquetes, capas, xp,
+                new PostsVisiveisDoMural(muralPosts, alunos), pods);
         eu = new UsuarioAutenticado(usuarioId, consultoriaId, "ALUNO", alunoId);
     }
 
@@ -63,7 +65,7 @@ class ComunidadeServiceTest {
     }
 
     private static CriarPostRequest post(String tipo, String texto, String videoUrl) {
-        return new CriarPostRequest(tipo, texto, videoUrl, null, null, null, null, null);
+        return new CriarPostRequest(tipo, texto, videoUrl, null, null, null, null, null, null);
     }
 
     @Test
@@ -137,8 +139,8 @@ class ComunidadeServiceTest {
 
         for (UUID id : List.of(deOutra, oculto)) {
             assertThatThrownBy(() -> service.adicionarComentarioMural(id, "Oi", eu)).isInstanceOf(NaoEncontradoException.class);
-            assertThatThrownBy(() -> service.listarComentariosMural(id, null, null)).isInstanceOf(NaoEncontradoException.class);
-            assertThatThrownBy(() -> service.fixarPost(id)).isInstanceOf(NaoEncontradoException.class);
+            assertThatThrownBy(() -> service.listarComentariosMural(id, eu, null, null)).isInstanceOf(NaoEncontradoException.class);
+            assertThatThrownBy(() -> service.fixarPost(id, eu)).isInstanceOf(NaoEncontradoException.class);
         }
         verify(muralComentarios, never()).saveAndFlush(any());
     }
@@ -151,8 +153,8 @@ class ComunidadeServiceTest {
         when(aulaComentarios.findById(id)).thenReturn(Optional.empty());
         when(aulas.findById(id)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.moderarPost(id)).isInstanceOf(NaoEncontradoException.class);
-        assertThatThrownBy(() -> service.moderarComentarioMural(id)).isInstanceOf(NaoEncontradoException.class);
+        assertThatThrownBy(() -> service.moderarPost(id, eu)).isInstanceOf(NaoEncontradoException.class);
+        assertThatThrownBy(() -> service.moderarComentarioMural(id, eu)).isInstanceOf(NaoEncontradoException.class);
         assertThatThrownBy(() -> service.excluirComentarioAula(id)).isInstanceOf(NaoEncontradoException.class);
         assertThatThrownBy(() -> service.excluirAula(id)).isInstanceOf(NaoEncontradoException.class);
         verify(aulas, never()).delete(any());
