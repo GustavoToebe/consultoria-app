@@ -74,6 +74,43 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(contar()).isEqualTo(1);
     }
 
+    /**
+     * Desmarcar série (plano treino-do-aluno-lacunas-cbum, D4): é o mesmo registro (mesmo {@code id} do aparelho e mesma
+     * chave natural) reenviado com {@code concluida=false} e {@code alteradoNoAparelhoEm} mais novo. O último vence, o
+     * atrasado volta {@code IGNORADO_ANTIGO} e nada duplica.
+     */
+    @Test
+    void desmarcarSerieEOMesmoRegistroComConcluidaFalseOUltimoVenceENaoDuplica() throws Exception {
+        UUID id = UUID.randomUUID();
+        Instant quando = Instant.now();
+        Map<String, Object> marcada = registro(id, treino.wsUid(), "40", 8, quando);
+        assertThat(situacoes(enviar(List.of(marcada)))).containsExactly("ACEITO");
+        assertThat(concluida(id)).isTrue();
+
+        // Desmarcar: mesmo id e mesma chave natural, mais novo e com concluida=false.
+        Map<String, Object> desmarcada = registro(id, treino.wsUid(), "40", 8, quando.plusSeconds(60));
+        desmarcada.put("concluida", false);
+        assertThat(situacoes(enviar(List.of(desmarcada)))).containsExactly("ACEITO");
+        assertThat(concluida(id)).isFalse();
+        assertThat(contar()).isEqualTo(1);
+
+        // Reenviar a mesma desmarcação não duplica nem muda nada.
+        assertThat(situacoes(enviar(List.of(desmarcada)))).containsExactly("IGNORADO_ANTIGO");
+        assertThat(concluida(id)).isFalse();
+        assertThat(contar()).isEqualTo(1);
+
+        // A marcação atrasada (mais antiga que a desmarcação) não desfaz o desmarcar.
+        assertThat(situacoes(enviar(List.of(marcada)))).containsExactly("IGNORADO_ANTIGO");
+        assertThat(concluida(id)).isFalse();
+        assertThat(contar()).isEqualTo(1);
+
+        // Marcar de novo, mais novo, vence: continua uma linha só.
+        assertThat(situacoes(enviar(List.of(registro(id, treino.wsUid(), "40", 8, quando.plusSeconds(120))))))
+                .containsExactly("ACEITO");
+        assertThat(concluida(id)).isTrue();
+        assertThat(contar()).isEqualTo(1);
+    }
+
     @Test
     void observacaoDaSerieSoApareceParaQuemLeDadoSensivel() throws Exception {
         Map<String, Object> r = registro(UUID.randomUUID(), treino.wsUid(), "30", 6, Instant.now());
@@ -432,6 +469,10 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
 
     private static List<String> situacoes(JsonNode resposta) {
         return resposta.get("resultados").valueStream().map(r -> r.get("situacao").asString()).toList();
+    }
+
+    private boolean concluida(UUID id) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("select concluida from execucao_serie where id = ?", Boolean.class, id));
     }
 
     private int contar() {
