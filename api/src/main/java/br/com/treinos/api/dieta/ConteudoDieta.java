@@ -3,6 +3,8 @@ package br.com.treinos.api.dieta;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -11,6 +13,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 
 /**
  * Conteúdo do plano de dieta, no formato dos PDFs do Saraiva. Os valores de cada item são calculados no
@@ -35,6 +38,14 @@ import java.util.function.UnaryOperator;
  *
  * {@code Item.grupo} (grupo do alimento, que agrupa a lista de compras) segue a mesma regra: copiado do alimento atual
  * na publicação, nulo no item manual.
+ *
+ * <p>{@code variacoes} (dieta por dia da semana, ciclo de carbo; plano {@code dieta-por-dia-da-semana}): sem variação, as
+ * refeições ficam em {@code refeicoes} e valem nos 7 dias; com variação, cada uma guarda {@code uid}, {@code rotulo},
+ * {@code dias} (1 = segunda ... 7 = domingo) e as próprias refeições, e {@code refeicoes} da raiz fica vazia (o
+ * {@link ValidadorDieta} recusa as duas juntas). Orientações, observações, suplementação, medicação e água são globais, na
+ * raiz. Nunca vem nulo (lista vazia = sem variação). O {@code rotulo} é texto do treinador: nunca em log nem em mensagem
+ * de erro. <b>Todo método que reconstrói o record leva {@code variacoes}</b>; não crie construtor de 9 argumentos "sem
+ * variações", que compilaria e apagaria as variações em silêncio.
  */
 public record ConteudoDieta(
         @Size(max = 200) String objetivo,
@@ -45,7 +56,12 @@ public record ConteudoDieta(
         @Size(max = 8000) String observacoes,
         @Size(max = 40) List<@Valid @NotNull Suplemento> suplementacao,
         @Size(max = 40) List<@Valid @NotNull Ergogenico> ergogenicos,
-        @DecimalMin("0") @DecimalMax("100") BigDecimal aguaLitros) {
+        @DecimalMin("0") @DecimalMax("100") BigDecimal aguaLitros,
+        @Size(max = 7) List<@Valid @NotNull Variacao> variacoes) {
+
+    public ConteudoDieta {
+        variacoes = variacoes == null ? List.of() : variacoes;
+    }
 
     /** Limite do modo de preparo da refeição (o mesmo do app, `MODO_DE_PREPARO_MAXIMO` em `dominio/dieta.ts`). */
     public static final int MODO_DE_PREPARO_MAXIMO = 2000;
@@ -54,13 +70,14 @@ public record ConteudoDieta(
     public ConteudoDieta(String objetivo, String dataInicio, String profissional, List<Refeicao> refeicoes,
                          List<Orientacao> orientacoes, String observacoes, List<Suplemento> suplementacao,
                          List<Ergogenico> ergogenicos) {
-        this(objetivo, dataInicio, profissional, refeicoes, orientacoes, observacoes, suplementacao, ergogenicos, null);
+        this(objetivo, dataInicio, profissional, refeicoes, orientacoes, observacoes, suplementacao, ergogenicos, null,
+                null);
     }
 
     /** Sem a lista de medicação e ergogênicos nem a água (a maior parte dos usos). */
     public ConteudoDieta(String objetivo, String dataInicio, String profissional, List<Refeicao> refeicoes,
                          List<Orientacao> orientacoes, String observacoes, List<Suplemento> suplementacao) {
-        this(objetivo, dataInicio, profissional, refeicoes, orientacoes, observacoes, suplementacao, null, null);
+        this(objetivo, dataInicio, profissional, refeicoes, orientacoes, observacoes, suplementacao, null, null, null);
     }
 
     public record Refeicao(
@@ -120,6 +137,22 @@ public record ConteudoDieta(
         }
     }
 
+    /** Variação da dieta por dias da semana; {@code dias} de 1 (segunda) a 7 (domingo), sem repetir entre variações. */
+    public record Variacao(
+            UUID uid,
+            @Size(max = 40) String rotulo,
+            @Size(max = 7) List<@NotNull @Min(1) @Max(7) Integer> dias,
+            @Size(max = 12) List<@Valid @NotNull Refeicao> refeicoes) {
+
+        public List<Integer> diasOuVazio() {
+            return dias == null ? List.of() : dias;
+        }
+
+        public List<Refeicao> refeicoesOuVazio() {
+            return refeicoes == null ? List.of() : refeicoes;
+        }
+    }
+
     public record Orientacao(@Size(max = 80) String titulo, @Size(max = 2000) String texto) {
     }
 
@@ -157,42 +190,65 @@ public record ConteudoDieta(
 
     public ConteudoDieta comErgogenicos(List<Ergogenico> lista) {
         return new ConteudoDieta(objetivo, dataInicio, profissional, refeicoes, orientacoes, observacoes, suplementacao,
-                lista, aguaLitros);
+                lista, aguaLitros, variacoes);
+    }
+
+    /** Cópia com a data de início trocada (seed): leva todo o resto, inclusive as variações. */
+    public ConteudoDieta comDataInicio(String data) {
+        return new ConteudoDieta(objetivo, data, profissional, refeicoes, orientacoes, observacoes, suplementacao,
+                ergogenicos, aguaLitros, variacoes);
     }
 
     public List<Refeicao> refeicoesOuVazio() {
         return refeicoes == null ? List.of() : refeicoes;
     }
 
+    /** As refeições da raiz e as de cada variação (publicar e validar olham tudo, não só a raiz). */
+    public List<Refeicao> todasAsRefeicoes() {
+        return Stream.concat(refeicoesOuVazio().stream(), variacoes.stream().flatMap(v -> v.refeicoesOuVazio().stream()))
+                .toList();
+    }
+
     public List<Suplemento> suplementacaoOuVazio() {
         return suplementacao == null ? List.of() : suplementacao;
     }
 
-    /** Cópia com cada item trocado por {@code troca} (mesmos uids e o resto igual). */
+    /** Cópia com cada item trocado por {@code troca} (mesmos uids e o resto igual), na raiz e em cada variação. */
     public ConteudoDieta comItens(UnaryOperator<Item> troca) {
-        List<Refeicao> novas = refeicoes == null ? null : refeicoes.stream().map(r -> new Refeicao(r.uid(), r.nome(),
+        return mapearRefeicoes(lista -> lista == null ? null : lista.stream().map(r -> new Refeicao(r.uid(), r.nome(),
                 r.horario(), r.observacao(), r.opcoes() == null ? null : r.opcoes().stream().map(o -> new Opcao(
                         o.uid(), o.rotulo(), o.itens() == null ? null : o.itens().stream().map(troca).toList()))
-                        .toList(), r.modoDePreparo())).toList();
-        return new ConteudoDieta(objetivo, dataInicio, profissional, novas, orientacoes, observacoes, suplementacao,
-                ergogenicos, aguaLitros);
+                        .toList(), r.modoDePreparo())).toList(), v -> v);
     }
 
-    /** Cópia com uids novos (receita, cópia ou replicação). */
+    /** Cópia com uids novos (receita, cópia ou replicação), inclusive o de cada variação (rótulo e dias ficam). */
     public ConteudoDieta comUidsNovos() {
         Supplier<UUID> novo = UUID::randomUUID;
-        List<Refeicao> novas = refeicoesOuVazio().stream().map(r -> new Refeicao(novo.get(), r.nome(), r.horario(),
-                r.observacao(), r.opcoesOuVazio().stream().map(o -> new Opcao(novo.get(), o.rotulo(),
-                        o.itensOuVazio().stream().map(i -> new Item(novo.get(), i.alimentoId(), i.nome(),
-                                i.quantidade(), i.unidade(), i.kcal(), i.proteina(), i.carboidrato(), i.gordura(),
-                                i.manual(), i.fatorCorrecao(), i.fatorCoccao(), i.grupo())).toList())).toList(), r.modoDePreparo()))
-                .toList();
+        UnaryOperator<List<Refeicao>> novasRefeicoes = lista -> lista == null ? List.of() : lista.stream()
+                .map(r -> new Refeicao(novo.get(), r.nome(), r.horario(), r.observacao(), r.opcoesOuVazio().stream()
+                        .map(o -> new Opcao(novo.get(), o.rotulo(), o.itensOuVazio().stream().map(i -> new Item(
+                                novo.get(), i.alimentoId(), i.nome(), i.quantidade(), i.unidade(), i.kcal(),
+                                i.proteina(), i.carboidrato(), i.gordura(), i.manual(), i.fatorCorrecao(),
+                                i.fatorCoccao(), i.grupo())).toList())).toList(), r.modoDePreparo())).toList();
+        ConteudoDieta base = mapearRefeicoes(novasRefeicoes,
+                v -> new Variacao(novo.get(), v.rotulo(), v.dias(), v.refeicoes()));
         List<Suplemento> suplementos = suplementacaoOuVazio().stream().map(s -> new Suplemento(novo.get(), s.nome(),
                 s.dose(), s.horario(), s.observacao(), s.link(), s.cupom())).toList();
         List<Ergogenico> medicacao = ergogenicos == null ? null : ergogenicos.stream().map(e -> new Ergogenico(novo.get(),
                 e.nome(), e.principioAtivo(), e.concentracao(), e.dose(), e.horario(), e.observacao(),
                 e.prescricao())).toList();
-        return new ConteudoDieta(objetivo, dataInicio, profissional, novas, orientacoes, observacoes, suplementos,
-                medicacao, aguaLitros);
+        return new ConteudoDieta(objetivo, dataInicio, profissional, base.refeicoes, orientacoes, observacoes,
+                suplementos, medicacao, aguaLitros, base.variacoes);
+    }
+
+    /**
+     * Único ponto que reconstrói a raiz e as variações juntas: {@code troca} vale para a lista de refeições da raiz e de
+     * cada variação; {@code daVariacao} ajusta o resto da variação (uid novo, por exemplo) depois da troca.
+     */
+    private ConteudoDieta mapearRefeicoes(UnaryOperator<List<Refeicao>> troca, UnaryOperator<Variacao> daVariacao) {
+        List<Variacao> novas = variacoes.stream().map(v -> daVariacao.apply(
+                new Variacao(v.uid(), v.rotulo(), v.dias(), troca.apply(v.refeicoes())))).toList();
+        return new ConteudoDieta(objetivo, dataInicio, profissional, troca.apply(refeicoes), orientacoes, observacoes,
+                suplementacao, ergogenicos, aguaLitros, novas);
     }
 }

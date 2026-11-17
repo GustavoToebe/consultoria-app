@@ -15,7 +15,7 @@ function item(uid: string, nome: string, quantidade: number, kcal: number | null
 const PREPARO = 'Cozinhe o arroz por 15 minutos.\nGrelhe o frango com limão.';
 
 const CONTEUDO: ConteudoDieta = {
-  objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, suplementacao: [], ergogenicos: null, aguaLitros: null,
+  objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, suplementacao: [], ergogenicos: null, aguaLitros: null, variacoes: [],
   refeicoes: [{
     uid: 'almoco', nome: 'Almoço', horario: '12:00', observacao: null, modoDePreparo: PREPARO,
     opcoes: [

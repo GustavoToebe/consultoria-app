@@ -9,7 +9,7 @@ import { sessaoDeAluno } from './aluno';
  * aparece. Números e textos fictícios.
  */
 const CONTEUDO: ConteudoDieta = {
-  objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, ergogenicos: null, aguaLitros: null,
+  objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, ergogenicos: null, aguaLitros: null, variacoes: [],
   refeicoes: [],
   suplementacao: [
     { uid: 's1', nome: 'Creatina fictícia', dose: '3 g', horario: '', observacao: '', link: 'https://exemplo.com/p', cupom: 'TESTE10' },

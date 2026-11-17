@@ -1,4 +1,4 @@
-import type { Alimento, ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento } from '../api/tipos';
+import type { Alimento, ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento, VariacaoDaDieta } from '../api/tipos';
 import { numeroParaTela } from './formatos';
 import { novoUid } from './uid';
 
@@ -59,9 +59,14 @@ export function somar(itens: ItemDieta[]): Totais {
   return totais;
 }
 
-/** Total do dia = primeira opção de cada refeição (nunca somar alternativas como se todas fossem consumidas). */
-export function totalDoDia(conteudo: ConteudoDieta): Totais {
-  return somar(conteudo.refeicoes.flatMap((r) => r.opcoes[0]?.itens ?? []));
+/**
+ * Total do dia = primeira opção de cada refeição (nunca somar alternativas como se todas fossem consumidas), por variação:
+ * recebe as refeições do dia (`refeicoesDoDia`). shortcut: ainda aceita o conteúdo (soma só a raiz, que com variações é
+ * vazia) para não quebrar os chamadores de tela/PDF/modelos que outros passos migram; trocar para só `Refeicao[]` no passo 5.
+ */
+export function totalDoDia(fonte: Refeicao[] | ConteudoDieta): Totais {
+  const refeicoes = Array.isArray(fonte) ? fonte : fonte.refeicoes;
+  return somar(refeicoes.flatMap((r) => r.opcoes[0]?.itens ?? []));
 }
 
 const LETRAS = 'ABCDEF';
@@ -81,8 +86,16 @@ export function novaRefeicao(nome = ''): Refeicao {
  * a publicação não recusar "Refeição sem nome". Devolve o próprio conteúdo quando todos os nomes já existem.
  */
 export function comNomesPadrao(conteudo: ConteudoDieta): ConteudoDieta {
-  if (conteudo.refeicoes.every((r) => r.nome.trim() !== '')) return conteudo;
-  return { ...conteudo, refeicoes: conteudo.refeicoes.map((r, i) => (r.nome.trim() !== '' ? r : { ...r, nome: `Refeição ${i + 1}` })) };
+  const comNomes = (refeicoes: Refeicao[]) => (refeicoes.every((r) => r.nome.trim() !== '')
+    ? refeicoes
+    : refeicoes.map((r, i) => (r.nome.trim() !== '' ? r : { ...r, nome: `Refeição ${i + 1}` })));
+  const refeicoes = comNomes(conteudo.refeicoes);
+  const variacoes = conteudo.variacoes.map((v) => {
+    const r = comNomes(v.refeicoes);
+    return r === v.refeicoes ? v : { ...v, refeicoes: r };
+  });
+  if (refeicoes === conteudo.refeicoes && variacoes.every((v, i) => v === conteudo.variacoes[i])) return conteudo;
+  return { ...conteudo, refeicoes, variacoes };
 }
 
 export function novoItem(alimento?: Alimento): ItemDieta {
@@ -117,38 +130,63 @@ export function novoItem(alimento?: Alimento): ItemDieta {
   );
 }
 
+/** Lista de objetos do JSON de fora: ausente, nulo ou não-lista vira `[]`; elemento que não é objeto some (offline não quebra). */
+function objetosDe<T>(v: unknown): T[] {
+  return Array.isArray(v) ? v.filter((x): x is T => !!x && typeof x === 'object') : [];
+}
+
+function normalizarRefeicoes(refeicoes: unknown): Refeicao[] {
+  return objetosDe<Partial<Refeicao>>(refeicoes).map((r) => ({
+    uid: r.uid ?? novoUid(),
+    nome: r.nome ?? '',
+    horario: r.horario ?? null,
+    observacao: r.observacao ?? null,
+    modoDePreparo: r.modoDePreparo ?? null,
+    opcoes: (r.opcoes ?? []).map((o) => ({
+      uid: o.uid ?? novoUid(),
+      rotulo: o.rotulo ?? '',
+      itens: (o.itens ?? []).map((i) => ({
+        uid: i.uid ?? novoUid(),
+        alimentoId: i.alimentoId ?? null,
+        nome: i.nome ?? '',
+        quantidade: i.quantidade ?? null,
+        unidade: i.unidade ?? 'g',
+        kcal: i.kcal ?? null,
+        proteina: i.proteina ?? null,
+        carboidrato: i.carboidrato ?? null,
+        gordura: i.gordura ?? null,
+        manual: i.manual ?? i.alimentoId == null,
+        fatorCorrecao: i.fatorCorrecao ?? null,
+        fatorCoccao: i.fatorCoccao ?? null,
+        grupo: i.grupo ?? null,
+      })),
+    })),
+  }));
+}
+
+/** Dias da variação: só inteiros de 1 a 7, sem repetir, em ordem (dia fora da faixa some; o publicar do servidor cobra a cobertura). */
+function normalizarDias(dias: unknown): number[] {
+  if (!Array.isArray(dias)) return [];
+  return [...new Set(dias.filter((d): d is number => Number.isInteger(d) && d >= 1 && d <= 7))].sort((a, b) => a - b);
+}
+
+function normalizarVariacoes(variacoes: unknown): VariacaoDaDieta[] {
+  return objetosDe<Partial<VariacaoDaDieta>>(variacoes).map((v) => ({
+    uid: v.uid ?? novoUid(),
+    rotulo: v.rotulo ?? '',
+    dias: normalizarDias(v.dias),
+    refeicoes: normalizarRefeicoes(v.refeicoes),
+  }));
+}
+
 export function normalizarDieta(conteudo: unknown): ConteudoDieta {
   const c = (conteudo ?? {}) as Partial<ConteudoDieta>;
   return {
     objetivo: c.objetivo ?? null,
     dataInicio: c.dataInicio ?? null,
     profissional: c.profissional ?? null,
-    refeicoes: (c.refeicoes ?? []).map((r) => ({
-      uid: r.uid ?? novoUid(),
-      nome: r.nome ?? '',
-      horario: r.horario ?? null,
-      observacao: r.observacao ?? null,
-      modoDePreparo: r.modoDePreparo ?? null,
-      opcoes: (r.opcoes ?? []).map((o) => ({
-        uid: o.uid ?? novoUid(),
-        rotulo: o.rotulo ?? '',
-        itens: (o.itens ?? []).map((i) => ({
-          uid: i.uid ?? novoUid(),
-          alimentoId: i.alimentoId ?? null,
-          nome: i.nome ?? '',
-          quantidade: i.quantidade ?? null,
-          unidade: i.unidade ?? 'g',
-          kcal: i.kcal ?? null,
-          proteina: i.proteina ?? null,
-          carboidrato: i.carboidrato ?? null,
-          gordura: i.gordura ?? null,
-          manual: i.manual ?? i.alimentoId == null,
-          fatorCorrecao: i.fatorCorrecao ?? null,
-          fatorCoccao: i.fatorCoccao ?? null,
-          grupo: i.grupo ?? null,
-        })),
-      })),
-    })),
+    refeicoes: normalizarRefeicoes(c.refeicoes),
+    variacoes: normalizarVariacoes(c.variacoes),
     orientacoes: (c.orientacoes ?? []).map((o) => ({ titulo: o.titulo ?? '', texto: o.texto ?? '' })),
     observacoes: c.observacoes ?? null,
     aguaLitros: c.aguaLitros ?? null,
@@ -177,16 +215,25 @@ export function normalizarDieta(conteudo: unknown): ConteudoDieta {
   };
 }
 
-/** Receita de dieta: troca as refeições pelas da receita (uids novos); o resto do plano fica. */
+/** Cópia das refeições com uid novo em cada refeição, opção e item (copiar nunca repete identificador). */
+export function comUidsNovos(refeicoes: Refeicao[]): Refeicao[] {
+  return refeicoes.map((r) => ({
+    ...r,
+    uid: novoUid(),
+    opcoes: r.opcoes.map((o) => ({ ...o, uid: novoUid(), itens: o.itens.map((i) => ({ ...i, uid: novoUid() })) })),
+  }));
+}
+
+/**
+ * Receita de dieta: troca as refeições **e** as variações pelas da receita (uids novos); o resto do plano fica. Trocar só
+ * a raiz deixaria raiz e variações juntas, estado que o servidor recusa.
+ */
 export function aplicarReceitaDeDieta(atual: ConteudoDieta, receita: unknown): ConteudoDieta {
   const daReceita = normalizarDieta(receita);
   return {
     ...atual,
-    refeicoes: daReceita.refeicoes.map((r) => ({
-      ...r,
-      uid: novoUid(),
-      opcoes: r.opcoes.map((o) => ({ ...o, uid: novoUid(), itens: o.itens.map((i) => ({ ...i, uid: novoUid() })) })),
-    })),
+    refeicoes: comUidsNovos(daReceita.refeicoes),
+    variacoes: daReceita.variacoes.map((v) => ({ ...v, uid: novoUid(), refeicoes: comUidsNovos(v.refeicoes) })),
   };
 }
 
@@ -230,8 +277,9 @@ export interface ItemSemValor {
  * Itens que fazem o "Total do dia" ficar "—": só a opção A de cada refeição entra no total (`totalDoDia`), então só ela
  * é conferida. O editor diz quantos são e leva ao primeiro, em vez de mostrar "— g de proteína" sem explicar.
  */
-export function itensSemValorNoTotal(conteudo: ConteudoDieta): ItemSemValor[] {
-  return conteudo.refeicoes.flatMap((r) => (r.opcoes[0]?.itens ?? [])
+export function itensSemValorNoTotal(fonte: Refeicao[] | ConteudoDieta): ItemSemValor[] {
+  const refeicoes = Array.isArray(fonte) ? fonte : fonte.refeicoes;
+  return refeicoes.flatMap((r) => (r.opcoes[0]?.itens ?? [])
     .filter((i) => MACROS.some((m) => i[m] === null || i[m] === undefined))
     .map((i) => ({ refeicaoUid: r.uid, itemUid: i.uid, nome: i.nome })));
 }

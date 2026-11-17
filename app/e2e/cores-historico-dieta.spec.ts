@@ -29,7 +29,7 @@ const item = (uid: string, nome: string, quantidade: number | null, unidade: Ite
 });
 
 const CONTEUDO: ConteudoDieta = {
-  objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, suplementacao: [], ergogenicos: null, aguaLitros: null,
+  objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, suplementacao: [], ergogenicos: null, aguaLitros: null, variacoes: [],
   refeicoes: [
     { uid: 'cafe', nome: 'Café da manhã', horario: '07:00', observacao: null, opcoes: [{ uid: 'a', rotulo: 'A', itens: [item('aveia', 'Aveia fictícia', 40)] }] },
     { uid: 'almoco', nome: 'Almoço', horario: '12:00', observacao: null, opcoes: [{ uid: 'a', rotulo: 'A', itens: [item('arroz', 'Arroz fictício', 150), item('sal', 'Tempero fictício', null)] }] },

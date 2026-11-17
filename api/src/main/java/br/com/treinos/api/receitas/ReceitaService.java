@@ -221,8 +221,9 @@ public class ReceitaService {
         }
         // Modelo nunca leva medicação e ergogênicos (dado pessoal de aluno): sai antes de gravar.
         if (valor instanceof ConteudoDieta d) valor = d.semErgogenicos();
-        if (tipo == Receita.Tipo.REFEICAO && ((ConteudoDieta) valor).refeicoes().size() != 1)
-            throw new BadRequestException("Modelo de refeição precisa de uma refeição.");
+        if (tipo == Receita.Tipo.REFEICAO && (((ConteudoDieta) valor).refeicoes().size() != 1
+                || !((ConteudoDieta) valor).variacoes().isEmpty()))
+            throw new BadRequestException("Modelo de refeição precisa de uma refeição, sem variações.");
         if (valor instanceof ConteudoPastaModelo pasta) {
             List<ConteudoPastaModelo.Plano> planos = new java.util.ArrayList<>();
             for (ConteudoPastaModelo.Plano p : pasta.planos()) {

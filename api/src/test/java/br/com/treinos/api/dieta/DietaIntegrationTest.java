@@ -59,7 +59,7 @@ class DietaIntegrationTest extends AbstractIntegrationTest {
                         new Item(UUID.randomUUID(), null, "Legumes", new BigDecimal("100"), "g", new BigDecimal("45"),
                                 null, null, null, true)))))),
                 List.of(new ConteudoDieta.Orientacao("Hidratação", "3 a 4 litros de água")),
-                "Texto livre", List.of(), null, new BigDecimal("3.5"));
+                "Texto livre", List.of(), null, new BigDecimal("3.5"), null);
         JsonNode salvo = api.put("/planos-dieta/" + id + "/rascunho", treinador,
                 ApiDeTeste.rascunho("Dieta de teste", conteudo, plano.get("plano").get("versao").asLong()), 200);
         assertThat(api.post("/planos-dieta/" + id + "/validar", treinador, null, 200).get("erros")).isEmpty();
@@ -86,14 +86,14 @@ class DietaIntegrationTest extends AbstractIntegrationTest {
                 new Opcao(UUID.randomUUID(), "A", List.of(item("Arroz branco cozido", "150", "191.7"))))));
         for (String agua : List.of("0.05", "21", "2.25")) {
             ConteudoDieta conteudo = new ConteudoDieta(null, null, null, refeicoes, List.of(), null, List.of(), null,
-                    new BigDecimal(agua));
+                    new BigDecimal(agua), null);
             versao = api.put("/planos-dieta/" + id + "/rascunho", treinador,
                     ApiDeTeste.rascunho("Dieta", conteudo, versao), 200).get("plano").get("versao").asLong();
             JsonNode v = api.post("/planos-dieta/" + id + "/validar", treinador, null, 200);
             assertThat(v.get("erros").valueStream().map(e -> e.get("caminho").asString())).containsExactly("aguaLitros");
         }
         ConteudoDieta certa = new ConteudoDieta(null, null, null, refeicoes, List.of(), null, List.of(), null,
-                new BigDecimal("20"));
+                new BigDecimal("20"), null);
         api.put("/planos-dieta/" + id + "/rascunho", treinador, ApiDeTeste.rascunho("Dieta", certa, versao), 200);
         assertThat(api.post("/planos-dieta/" + id + "/validar", treinador, null, 200).get("erros")).isEmpty();
     }

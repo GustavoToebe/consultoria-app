@@ -923,11 +923,25 @@ export interface ItemErgogenico {
   prescricao: string;
 }
 
+/**
+ * Variação da dieta por dia da semana (ciclo de carbo): rótulo livre do treinador (até 40) e os dias em que vale
+ * (1 = segunda ... 7 = domingo, o mesmo do treino). Orientações, suplementação, ergogênicos e água ficam na raiz do conteúdo.
+ */
+export interface VariacaoDaDieta {
+  uid: string;
+  rotulo: string;
+  dias: number[];
+  refeicoes: Refeicao[];
+}
+
 export interface ConteudoDieta {
   objetivo: string | null;
   dataInicio: string | null;
   profissional: string | null;
+  /** Sem variações, as refeições valem nos 7 dias; com variações, a raiz fica vazia (o servidor recusa as duas juntas). */
   refeicoes: Refeicao[];
+  /** Vazia = dieta sem variação; `normalizarDieta` sempre a preenche. */
+  variacoes: VariacaoDaDieta[];
   orientacoes: { titulo: string; texto: string }[];
   observacoes: string | null;
   suplementacao: Suplemento[];
@@ -1346,6 +1360,8 @@ export interface RegistroEnvio {
   planoVersaoId: string;
   sessaoUid: string;
   exercicioUid: string;
+  /** Exercício feito na série: o principal ou uma alternativa da versão (troca do dia); a API recusa outro. Nulo/ausente = o principal. */
+  exercicioId?: string | null;
   serieUid: string;
   data: string;
   carga: number | null;
@@ -1360,8 +1376,6 @@ export interface RegistroEnvio {
 }
 
 /** Item da mobilidade marcado (ou desmarcado) no aparelho; o `id` nasce no aparelho e torna o reenvio idempotente. */
-  /** Exercício feito na série: o principal ou uma alternativa da versão (troca do dia); a API recusa outro. Nulo/ausente = o principal. */
-  exercicioId?: string | null;
 export interface RegistroMobilidadeEnvio {
   id: string;
   planoVersaoId: string;

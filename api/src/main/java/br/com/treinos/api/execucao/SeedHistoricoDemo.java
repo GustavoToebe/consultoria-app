@@ -357,8 +357,9 @@ public class SeedHistoricoDemo {
         PlanoDetalhe<ConteudoDieta> criado = dietas.criar(aluno,
                 new CriarPlanoRequest("Dieta " + modelo.nome(), inicio, fim, modelo.id(), null, pasta));
         ConteudoDieta c = criado.rascunho();
+        // Como antes, sem ergogênicos nem água do modelo; só as variações passam a ir junto.
         ConteudoDieta comData = new ConteudoDieta(c.objetivo(), inicio.toString(), c.profissional(), c.refeicoes(),
-                c.orientacoes(), c.observacoes(), c.suplementacao());
+                c.orientacoes(), c.observacoes(), c.suplementacao(), null, null, c.variacoes());
         PlanoDetalhe<ConteudoDieta> salvo = dietas.salvarRascunho(criado.plano().id(),
                 new SalvarRascunhoRequest<>("Dieta " + modelo.nome(), inicio, fim, comData, criado.plano().versao()));
         dietas.publicar(salvo.plano().id(), new PublicarRequest(salvo.plano().versao(), true), treinador);

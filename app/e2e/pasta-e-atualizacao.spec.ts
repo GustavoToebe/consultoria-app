@@ -49,7 +49,7 @@ const PESOS: RegistroPeso[] = [
 
 const CONTEUDO: ConteudoDieta = {
   objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, suplementacao: [], ergogenicos: null,
-  aguaLitros: null, refeicoes: [],
+  aguaLitros: null, variacoes: [], refeicoes: [],
 };
 
 const DIETA: PlanoDetalhe<ConteudoDieta> = {

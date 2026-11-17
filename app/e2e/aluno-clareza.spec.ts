@@ -77,7 +77,7 @@ const DIETA: VersaoDetalhe<ConteudoDieta> = {
   id: 'd0000000-0000-4000-8000-000000000001', planoId: 'p0000000-0000-4000-8000-000000000001', numero: 1, titulo: 'Dieta de teste',
   inicio: '2026-10-01', fim: '2026-10-31', publicadoEm: '2026-10-01T12:00:00Z',
   conteudo: {
-    objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, aguaLitros: null,
+    objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, aguaLitros: null, variacoes: [],
     refeicoes: [{
       uid: 'almoco', nome: 'Almoço', horario: '12:00', observacao: null,
       opcoes: [

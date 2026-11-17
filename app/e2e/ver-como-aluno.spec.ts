@@ -36,7 +36,7 @@ const TREINO: PlanoDetalhe<ConteudoTreino> = {
 const DIETA: PlanoDetalhe<ConteudoDieta> = {
   plano: resumo(DIETA_ID, 'Dieta de teste'),
   rascunho: {
-    objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, suplementacao: [], ergogenicos: null, aguaLitros: null,
+    objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, suplementacao: [], ergogenicos: null, aguaLitros: null, variacoes: [],
     refeicoes: [{
       uid: 'almoco', nome: 'Almoço', horario: '12:00', observacao: null,
       opcoes: [{ uid: 'almoco-a', rotulo: 'A', itens: [{

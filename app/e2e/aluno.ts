@@ -41,7 +41,7 @@ export const SESSOES_COM_DIAS = [
 /** Dieta publicada com `refeicoes` refeições e a água dada (nulo = o treinador não escreveu). */
 export function dietaFalsa(refeicoes: number, aguaLitros: number | null) {
   const conteudo: ConteudoDieta = {
-    objetivo: null, dataInicio: null, profissional: null, observacoes: null, orientacoes: [], suplementacao: [], ergogenicos: null, aguaLitros,
+    objetivo: null, dataInicio: null, profissional: null, observacoes: null, orientacoes: [], suplementacao: [], ergogenicos: null, aguaLitros, variacoes: [],
     refeicoes: Array.from({ length: refeicoes }, (_, i) => ({ uid: `r${i}`, nome: `Refeição ${i + 1}`, horario: null, observacao: null, opcoes: [] })),
   };
   return {

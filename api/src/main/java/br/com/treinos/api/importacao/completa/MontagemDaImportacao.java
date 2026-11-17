@@ -1214,7 +1214,7 @@ public final class MontagemDaImportacao {
                 List<ConteudoDieta.Orientacao> orientacoes = new ArrayList<>();
                 String observacoes = cabecalhoDoPlano(d, orientacoes);
                 saida.put(d, new ConteudoDieta(null, null, null, List.copyOf(refeicoes), List.copyOf(orientacoes), observacoes,
-                        List.copyOf(suplementacao), ergogenicos.isEmpty() ? null : List.copyOf(ergogenicos), null));
+                        List.copyOf(suplementacao), ergogenicos.isEmpty() ? null : List.copyOf(ergogenicos)));
             }
         }
 

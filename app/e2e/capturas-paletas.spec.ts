@@ -75,7 +75,7 @@ const DIETA: PlanoDetalhe<ConteudoDieta> = {
     versaoPublicada: 1, publicadoEm: '2026-10-01T12:00:00Z', rascunhoAlteradoDepoisDePublicar: false, versao: 1,
   },
   rascunho: {
-    objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, aguaLitros: null, suplementacao: [], ergogenicos: [],
+    objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, aguaLitros: null, variacoes: [], suplementacao: [], ergogenicos: [],
     refeicoes: [
       { uid: 'cafe', nome: 'Café da manhã', horario: '07:00', observacao: null, modoDePreparo: null, opcoes: [
         { uid: 'ca', rotulo: 'A', itens: [item('pao', 'Pão fictício', 'g', 9, 49, 3), item('leite', 'Leite fictício', 'ml', 3, 5, 1)] },

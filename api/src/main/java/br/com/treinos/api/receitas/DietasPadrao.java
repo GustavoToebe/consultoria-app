@@ -134,7 +134,7 @@ public final class DietasPadrao {
     }
 
     public static void cadaItem(ConteudoDieta conteudo, java.util.function.Consumer<Item> acao) {
-        for (ConteudoDieta.Refeicao refeicao : conteudo.refeicoesOuVazio()) {
+        for (ConteudoDieta.Refeicao refeicao : conteudo.todasAsRefeicoes()) {
             for (ConteudoDieta.Opcao opcao : refeicao.opcoesOuVazio()) {
                 for (Item item : opcao.itensOuVazio()) {
                     acao.accept(item);

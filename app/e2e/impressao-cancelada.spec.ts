@@ -29,6 +29,7 @@ const CONTEUDO: ConteudoDieta = {
   suplementacao: [],
   ergogenicos: null,
   aguaLitros: null,
+  variacoes: [],
 };
 
 const DIETA: VersaoDetalhe<ConteudoDieta> = {

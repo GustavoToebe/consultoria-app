@@ -500,9 +500,7 @@ public class SeedDemo {
     private void publicarDieta(UUID aluno, UUID pasta, LocalDate inicio, LocalDate fim, ConteudoDieta conteudo,
                                UUID treinador) {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        ConteudoDieta comData = new ConteudoDieta(conteudo.objetivo(), hoje.with(DayOfWeek.MONDAY).toString(),
-                conteudo.profissional(), conteudo.refeicoes(), conteudo.orientacoes(), conteudo.observacoes(),
-                conteudo.suplementacao());
+        ConteudoDieta comData = conteudo.comDataInicio(hoje.with(DayOfWeek.MONDAY).toString());
         PlanoDetalhe<ConteudoDieta> criado = dietas.criar(aluno, new CriarPlanoRequest("Plano alimentar", inicio, fim,
                 null, null, pasta));
         PlanoDetalhe<ConteudoDieta> salvo = dietas.salvarRascunho(criado.plano().id(),

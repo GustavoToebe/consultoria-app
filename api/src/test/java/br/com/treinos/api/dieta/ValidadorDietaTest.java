@@ -98,4 +98,157 @@ class ValidadorDietaTest {
         assertThat(com.apply("2032-01-01").erros().getFirst().mensagem())
                 .isEqualTo("Data de início da dieta: use uma data entre 01/01/2000 e 31/12/2031");
     }
+
+    // ---------------------------------------------------------------- variações por dia da semana
+
+    private static final String ROTULO_SIGILOSO = "Rótulo-fictício-sigiloso";
+
+    private static ConteudoDieta.Variacao variacao(String rotulo, List<Integer> dias, Refeicao... refeicoes) {
+        return new ConteudoDieta.Variacao(UUID.randomUUID(), rotulo, dias, List.of(refeicoes));
+    }
+
+    private static ConteudoDieta comVariacoes(ConteudoDieta.Variacao... variacoes) {
+        return new ConteudoDieta(null, null, null, List.of(), List.of(), null, List.of(), null, null,
+                List.of(variacoes));
+    }
+
+    private static ConteudoDieta comVariacoesEAguaEErgogenico(ConteudoDieta.Variacao... variacoes) {
+        ConteudoDieta.Ergogenico e = new ConteudoDieta.Ergogenico(UUID.randomUUID(), "Item fictício", null, null, null,
+                null, null, null);
+        return new ConteudoDieta("Objetivo fictício", "2026-11-02", "Profissional fictício", List.of(), List.of(),
+                "Obs fictícia", List.of(), List.of(e), new BigDecimal("2.5"), List.of(variacoes));
+    }
+
+    private static List<String> mensagensDosErros(ResultadoValidacao r) {
+        return r.erros().stream().map(ResultadoValidacao.Problema::mensagem).toList();
+    }
+
+    @Test
+    void duasVariacoesQueCobremOsSeteDiasPublicamSemErroNemAviso() {
+        ConteudoDieta c = comVariacoes(variacao("Carbo alto", List.of(1, 3, 5, 7), refeicao(null)),
+                variacao("Carbo zero", List.of(2, 4, 6), refeicao(null)));
+        ResultadoValidacao r = validador.validar(c, null, null);
+        assertThat(r.erros()).isEmpty();
+        // O mesmo nome de refeição em variações diferentes não é repetição: o aviso vale por lista.
+        assertThat(r.avisos()).isEmpty();
+    }
+
+    @Test
+    void rotuloSemDiaSemRefeicaoERaizJuntaSaoErrosComMensagemFixa() {
+        ConteudoDieta c = new ConteudoDieta(null, null, null, List.of(refeicao(null)), List.of(), null, List.of(), null,
+                null, List.of(variacao(" ", List.of(1, 2, 3, 4, 5, 6, 7), refeicao(null)),
+                variacao(ROTULO_SIGILOSO, List.of()), variacao("Outra", null, refeicao(null))));
+        ResultadoValidacao r = validador.validar(c, null, null);
+        assertThat(caminhosDosErros(r)).containsExactly("refeicoes", "variacoes[0].rotulo", "variacoes[1].dias",
+                "variacoes[1].refeicoes", "variacoes[2].dias");
+        assertThat(mensagensDosErros(r)).doesNotContain(ROTULO_SIGILOSO).allSatisfy(m -> assertThat(m)
+                .doesNotContain(ROTULO_SIGILOSO));
+    }
+
+    @Test
+    void rotuloComMaisDe40CaracteresEErro() {
+        ResultadoValidacao r = validador.validar(comVariacoes(
+                variacao("x".repeat(41), List.of(1, 2, 3, 4, 5, 6, 7), refeicao(null))), null, null);
+        assertThat(caminhosDosErros(r)).containsExactly("variacoes[0].rotulo");
+        assertThat(mensagensDosErros(r).getFirst()).doesNotContain("xxx");
+    }
+
+    @Test
+    void diaForaDe1A7RepetidoOuDescobertoEErroEAMensagemSoTemONomeDoDia() {
+        // Repetido na mesma variação (1,1) e entre variações (5): só os nomes dos dias na mensagem.
+        ConteudoDieta repetido = comVariacoes(variacao(ROTULO_SIGILOSO, List.of(1, 1, 2, 3, 4, 5), refeicao(null)),
+                variacao("B", List.of(5, 6, 7), refeicao(null)));
+        ResultadoValidacao r = validador.validar(repetido, null, null);
+        assertThat(caminhosDosErros(r)).containsExactly("variacoes[0].dias", "variacoes[1].dias");
+        assertThat(mensagensDosErros(r)).containsExactly(
+                "Dia em mais de uma variação ou repetido: segunda.",
+                "Dia em mais de uma variação ou repetido: sexta.");
+
+        ResultadoValidacao fora = validador.validar(comVariacoes(
+                variacao("A", List.of(0, 8, 1, 2, 3, 4, 5, 6, 7), refeicao(null))), null, null);
+        assertThat(caminhosDosErros(fora)).containsExactly("variacoes[0].dias");
+        assertThat(mensagensDosErros(fora)).containsExactly("Dia precisa ser de 1 (segunda) a 7 (domingo).");
+
+        ResultadoValidacao descoberto = validador.validar(comVariacoes(
+                variacao(ROTULO_SIGILOSO, List.of(1, 2, 3, 4, 5), refeicao(null))), null, null);
+        assertThat(caminhosDosErros(descoberto)).containsExactly("variacoes");
+        assertThat(mensagensDosErros(descoberto)).containsExactly("Dia sem variação: sábado, domingo.");
+    }
+
+    @Test
+    void uidRepetidoEntreVariacoesEErroEZeroKcalEAvisoPorVariacao() {
+        UUID repetido = UUID.randomUUID();
+        Refeicao a = new Refeicao(repetido, "Almoço", null, null,
+                List.of(new Opcao(UUID.randomUUID(), "A", List.of(item()))));
+        Refeicao b = new Refeicao(repetido, "Almoço", null, null, List.of(new Opcao(UUID.randomUUID(), "A", List.of(
+                new Item(UUID.randomUUID(), null, "Água de coco", new BigDecimal("100"), "ml", null, null, null, null,
+                        false)))));
+        ResultadoValidacao r = validador.validar(comVariacoes(variacao("A", List.of(1, 2, 3), a),
+                variacao("B", List.of(4, 5, 6, 7), b)), null, null);
+        assertThat(caminhosDosErros(r)).containsExactly("variacoes[1].refeicoes[0].uid");
+        assertThat(r.avisos().stream().map(ResultadoValidacao.Problema::caminho)).containsExactly(
+                "variacoes[1].refeicoes");
+    }
+
+    @Test
+    void semVariacaoRaizVazia_aMensagemDeAntesContinua() {
+        ResultadoValidacao r = validador.validar(ConteudoDieta.vazio(), null, null);
+        assertThat(caminhosDosErros(r)).containsExactly("refeicoes");
+        assertThat(mensagensDosErros(r)).containsExactly("A dieta não tem nenhuma refeição.");
+    }
+
+    @Test
+    void todasAsCopiasDoConteudoLevamAsVariacoes() {
+        // O guarda mais barato contra a perda silenciosa: quem reconstrói o record e esquece variacoes cai aqui.
+        ConteudoDieta original = comVariacoesEAguaEErgogenico(
+                variacao("Carbo alto", List.of(1, 3, 5, 7), refeicao("Misture")),
+                variacao("Carbo zero", List.of(2, 4, 6), refeicao(null)));
+
+        assertThat(original.semErgogenicos().variacoes()).isEqualTo(original.variacoes());
+        assertThat(original.comErgogenicos(null).variacoes()).isEqualTo(original.variacoes());
+        assertThat(original.comErgogenicos(List.of()).variacoes()).isEqualTo(original.variacoes());
+        assertThat(original.comDataInicio("2026-12-07").variacoes()).isEqualTo(original.variacoes());
+        assertThat(original.comDataInicio("2026-12-07").aguaLitros()).isEqualByComparingTo("2.5");
+
+        ConteudoDieta comItens = original.comItens(i -> i.comDadosDaBiblioteca(BigDecimal.ONE, BigDecimal.TEN, "Grupo"));
+        assertThat(comItens.variacoes()).hasSize(2);
+        assertThat(comItens.variacoes().get(0).uid()).isEqualTo(original.variacoes().get(0).uid());
+        assertThat(comItens.variacoes().get(1).refeicoes().getFirst().opcoes().getFirst().itens().getFirst().grupo())
+                .isEqualTo("Grupo");
+        assertThat(comItens.variacoes().getFirst().refeicoes().getFirst().modoDePreparo()).isEqualTo("Misture");
+
+        ConteudoDieta nova = original.comUidsNovos();
+        assertThat(nova.variacoes()).hasSize(2);
+        for (int i = 0; i < 2; i++) {
+            ConteudoDieta.Variacao antes = original.variacoes().get(i);
+            ConteudoDieta.Variacao depois = nova.variacoes().get(i);
+            assertThat(depois.uid()).isNotEqualTo(antes.uid());
+            assertThat(depois.rotulo()).isEqualTo(antes.rotulo());
+            assertThat(depois.dias()).isEqualTo(antes.dias());
+            assertThat(depois.refeicoes().getFirst().uid()).isNotEqualTo(antes.refeicoes().getFirst().uid());
+            assertThat(depois.refeicoes().getFirst().opcoes().getFirst().itens().getFirst().uid())
+                    .isNotEqualTo(antes.refeicoes().getFirst().opcoes().getFirst().itens().getFirst().uid());
+        }
+        assertThat(nova.todasAsRefeicoes()).hasSize(2);
+        assertThat(original.todasAsRefeicoes()).hasSize(2);
+        // Os campos globais da raiz continuam iguais nas variações de cópia.
+        assertThat(nova.observacoes()).isEqualTo("Obs fictícia");
+        assertThat(nova.aguaLitros()).isEqualByComparingTo("2.5");
+    }
+
+    @Test
+    void jsonDasVariacoesIdaEVoltaESemOCampoFicaListaVazia() {
+        JsonMapper json = JsonMapper.builder().build();
+        ConteudoDieta original = comVariacoes(variacao("Carbo alto", List.of(1, 2, 3, 4, 5, 6, 7), refeicao(null)));
+        ConteudoDieta lido = json.readValue(json.writeValueAsString(original), ConteudoDieta.class);
+        assertThat(lido.variacoes()).hasSize(1);
+        assertThat(lido.variacoes().getFirst().rotulo()).isEqualTo("Carbo alto");
+        assertThat(lido.variacoes().getFirst().dias()).containsExactly(1, 2, 3, 4, 5, 6, 7);
+        assertThat(lido.refeicoes()).isEmpty();
+
+        // Versão publicada antes do campo (ou corpo sem ele) lê como "sem variação", não como nulo.
+        assertThat(json.readValue("{\"refeicoes\":[]}", ConteudoDieta.class).variacoes()).isEmpty();
+        assertThat(json.readValue("{\"refeicoes\":[],\"variacoes\":null}", ConteudoDieta.class).variacoes()).isEmpty();
+        assertThat(ConteudoDieta.vazio().variacoes()).isEmpty();
+    }
 }

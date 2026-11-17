@@ -198,3 +198,54 @@ describe('comNomesPadrao (C57)', () => {
     expect(comNomesPadrao(normalizarDieta({ refeicoes: [] })).refeicoes).toEqual([]);
   });
 });
+
+describe('variações por dia da semana: normalizarDieta e receita', () => {
+  const refeicao = (uid: string, nome = 'Almoço') => ({ uid, nome, opcoes: [{ uid: `o${uid}`, rotulo: 'A', itens: [{ uid: `i${uid}`, nome: 'Arroz (fictício)', kcal: 10 }] }] });
+
+  it('preserva as variações com dias, rótulo e refeições; sem o campo vira lista vazia', () => {
+    const c = normalizarDieta({ variacoes: [{ uid: 'v1', rotulo: 'Carbo alto', dias: [3, 1, 5], refeicoes: [refeicao('r1')] }] });
+    expect(c.variacoes).toHaveLength(1);
+    expect(c.variacoes[0]).toMatchObject({ uid: 'v1', rotulo: 'Carbo alto', dias: [1, 3, 5] });
+    expect(c.variacoes[0].refeicoes[0].opcoes[0].itens[0]).toMatchObject({ nome: 'Arroz (fictício)', kcal: 10, quantidade: null });
+    expect(normalizarDieta({}).variacoes).toEqual([]);
+    expect(normalizarDieta(null).variacoes).toEqual([]);
+  });
+
+  it('aguenta variações malformadas sem quebrar (tela offline)', () => {
+    expect(normalizarDieta({ variacoes: null }).variacoes).toEqual([]);
+    expect(normalizarDieta({ variacoes: 'x' }).variacoes).toEqual([]);
+    const c = normalizarDieta({ variacoes: [null, 3, { rotulo: null, dias: [0, 8, 2.5, '3', 4, 4, 7], refeicoes: null }, { dias: 'seg', refeicoes: [null, refeicao('r')] }] });
+    expect(c.variacoes).toHaveLength(2);
+    expect(c.variacoes[0]).toMatchObject({ uid: 'uid', rotulo: '', dias: [4, 7], refeicoes: [] });
+    expect(c.variacoes[1].dias).toEqual([]);
+    expect(c.variacoes[1].refeicoes).toHaveLength(1);
+  });
+
+  it('refeições da raiz nulas ou não-lista não quebram', () => {
+    expect(normalizarDieta({ refeicoes: null }).refeicoes).toEqual([]);
+    expect(normalizarDieta({ refeicoes: [null, refeicao('r')] }).refeicoes).toHaveLength(1);
+  });
+
+  it('aplicar a receita troca raiz e variações juntas, com uids novos', () => {
+    const atual = normalizarDieta({ refeicoes: [], variacoes: [{ uid: 'antiga', rotulo: 'Antiga', dias: [1], refeicoes: [refeicao('x')] }] });
+    const daReceita = aplicarReceitaDeDieta(atual, { refeicoes: [refeicao('r')] });
+    expect(daReceita.variacoes).toEqual([]);
+    expect(daReceita.refeicoes).toHaveLength(1);
+    const comVariacoes = aplicarReceitaDeDieta(normalizarDieta({ refeicoes: [refeicao('r')] }), { variacoes: [{ uid: 'v', rotulo: 'Zero carbo', dias: [2, 4], refeicoes: [refeicao('z')] }] });
+    expect(comVariacoes.refeicoes).toEqual([]);
+    expect(comVariacoes.variacoes[0]).toMatchObject({ uid: 'uid', rotulo: 'Zero carbo', dias: [2, 4] });
+  });
+
+  it('total e itens sem valor aceitam a lista de refeições de uma variação', () => {
+    const c = normalizarDieta({ variacoes: [{ uid: 'v', rotulo: 'A', dias: [1], refeicoes: [refeicao('r')] }] });
+    expect(totalDoDia(c.variacoes[0].refeicoes)).toMatchObject({ kcal: 10, proteina: null }); // só o macro que falta fica "—"
+    expect(itensSemValorNoTotal(c.variacoes[0].refeicoes)).toEqual([{ refeicaoUid: 'r', itemUid: 'ir', nome: 'Arroz (fictício)' }]);
+  });
+
+  it('comNomesPadrao também preenche o nome das refeições das variações', () => {
+    const c = normalizarDieta({ variacoes: [{ uid: 'v', rotulo: 'A', dias: [1], refeicoes: [refeicao('r', ''), refeicao('s', 'Jantar')] }] });
+    expect(comNomesPadrao(c).variacoes[0].refeicoes.map((r) => r.nome)).toEqual(['Refeição 1', 'Jantar']);
+    const ok = normalizarDieta({ variacoes: [{ uid: 'v', rotulo: 'A', dias: [1], refeicoes: [refeicao('r')] }] });
+    expect(comNomesPadrao(ok)).toBe(ok);
+  });
+});

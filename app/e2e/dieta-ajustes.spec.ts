@@ -17,7 +17,7 @@ const item = (uid: string, nome: string, unidade: ItemDieta['unidade']): ItemDie
   ({ uid, alimentoId: null, nome, quantidade: 100, unidade, kcal: 120, proteina: 5, carboidrato: 20, gordura: 2, manual: false });
 
 const CONTEUDO: ConteudoDieta = {
-  objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, aguaLitros: null,
+  objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, aguaLitros: null, variacoes: [],
   refeicoes: [
     { uid: 'cafe', nome: 'Café da manhã', horario: '07:00', observacao: null, modoDePreparo: null, opcoes: [
       { uid: 'ca', rotulo: 'A', itens: [item('pao', 'Pão fictício', 'g'), item('leite', 'Leite fictício', 'ml')] },

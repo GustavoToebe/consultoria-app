@@ -107,7 +107,7 @@ function alimento(uid: string, nome: string, kcal: number): ItemDieta {
 }
 
 const DIETA: ConteudoDieta = {
-  objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, suplementacao: [], ergogenicos: null, aguaLitros: null,
+  objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, suplementacao: [], ergogenicos: null, aguaLitros: null, variacoes: [],
   refeicoes: [
     { uid: 'cafe', nome: 'Café da manhã', horario: '07:00', observacao: null, modoDePreparo: null, opcoes: [{ uid: 'c-a', rotulo: 'A', itens: [alimento('pao', 'Pão fictício', 150)] }] },
     {

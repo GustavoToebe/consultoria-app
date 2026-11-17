@@ -95,7 +95,8 @@ public class PlanoDietaService extends PlanoServiceBase<PlanoDieta, PlanoDietaVe
      */
     @Override
     protected ConteudoDieta paraPublicar(ConteudoDieta conteudo) {
-        Set<UUID> ids = conteudo.refeicoesOuVazio().stream().flatMap(r -> r.opcoesOuVazio().stream())
+        // todasAsRefeicoes: raiz e variações; só a raiz deixaria fator e grupo nulos nas variações (lista de compras errada).
+        Set<UUID> ids = conteudo.todasAsRefeicoes().stream().flatMap(r -> r.opcoesOuVazio().stream())
                 .flatMap(o -> o.itensOuVazio().stream()).map(ConteudoDieta.Item::alimentoId).filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         Map<UUID, Alimento> porId = ids.isEmpty() ? Map.of()
