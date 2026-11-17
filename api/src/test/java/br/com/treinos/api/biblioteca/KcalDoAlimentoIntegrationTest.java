@@ -2,6 +2,9 @@ package br.com.treinos.api.biblioteca;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.AlimentoRequest;
+import br.com.treinos.api.tenant.TenantContext;
+import br.com.treinos.api.web.ValidacaoException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -17,6 +20,7 @@ import java.util.UUID;
 import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * C48: o kcal do alimento (não do suplemento) é calculado no servidor, proteína × 4 + carboidrato × 4 + gordura × 9, a
@@ -29,6 +33,7 @@ class KcalDoAlimentoIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private BibliotecaService biblioteca;
 
     private static Map<String, Object> alimento(String nome, Object kcal, Object p, Object c, Object g) {
         Map<String, Object> m = new HashMap<>();
@@ -139,6 +144,26 @@ class KcalDoAlimentoIntegrationTest extends AbstractIntegrationTest {
         assertThat(denso.path("fatorCoccao").decimalValue()).isEqualByComparingTo("1.00");
         JsonNode leve = api.post("/alimentos", login, alimento("Arroz fictício leve", 900, 10, 0, 0), 200);
         assertThat(leve.path("fatorCoccao").decimalValue()).isGreaterThan(BigDecimal.ONE);
+    }
+
+    @Test
+    void seedSemKcalDa422ClaroEmVezDeErro500ESeedComKcalMantemOInformado() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where email = ?", UUID.class,
+                api.novoTreinador().path("usuario").path("email").asString());
+        // A coluna kcal é obrigatória no alimento: seed sem kcal era NullPointerException (500). Agora é recusa clara e nada é gravado
+        // (ausente não vira zero nem é derivado).
+        var semKcal = new AlimentoRequest("Seed fictício sem kcal", new BigDecimal("100"), "g", null, new BigDecimal("10"),
+                new BigDecimal("20"), new BigDecimal("5"), null, null, null, null, null, null, null, null, null, null, null, null);
+        assertThatThrownBy(() -> TenantContext.executarComo(consultoria, () -> biblioteca.criarAlimentoDeSeed(semKcal)))
+                .isInstanceOf(ValidacaoException.class);
+        assertThat(jdbc.queryForObject("select count(*) from alimento where nome = 'Seed fictício sem kcal' and consultoria_id = ?::uuid",
+                Integer.class, consultoria)).isZero();
+        // Com kcal, mantém o informado (não deriva dos macros).
+        var comKcal = TenantContext.executarComo(consultoria, () -> biblioteca.criarAlimentoDeSeed(new AlimentoRequest(
+                "Seed fictício com kcal", new BigDecimal("100"), "g", new BigDecimal("321.5"), new BigDecimal("10"),
+                new BigDecimal("20"), new BigDecimal("5"), null, null, null, null, null, null, null, null, null, null, null, null)));
+        assertThat(comKcal.kcal()).isEqualByComparingTo("321.5");
     }
 
     @Test

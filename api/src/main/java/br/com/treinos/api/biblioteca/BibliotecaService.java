@@ -380,6 +380,11 @@ public class BibliotecaService {
         }
         exigirNutricaoDeAlimento(r);
         // C48: o kcal do corpo é ignorado; é uma conta sobre os macros que o treinador escreveu (só o seed usa o do corpo).
+        // Seed sem kcal: recusa clara em vez de NPE/500 (a coluna é obrigatória no alimento) e sem inventar valor nem virar zero.
+        if (kcalDoCorpo && r.kcal() == null) {
+            throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO",
+                    List.of(new ApiError.FieldError("kcal", "Informe as calorias do alimento.")));
+        }
         BigDecimal kcal = kcalDoCorpo ? r.kcal() : kcalDosMacros(r.proteina(), r.carboidrato(), r.gordura());
         exigirKcalNaFaixa(kcal);
         var fatores = FatoresDeRendimento.completar(r.fatorCorrecao(), r.fatorCoccao(), r.nome(), grupo,
@@ -390,8 +395,13 @@ public class BibliotecaService {
                 fatores.fatorCorrecao(), fatores.fatorCoccao(), grupo);
     }
 
-    /** proteína × 4 + carboidrato × 4 + gordura × 9, em 2 casas (HALF_UP). Espelha {@code dominio/kcalDosMacros.ts}. */
+    /**
+     * proteína × 4 + carboidrato × 4 + gordura × 9, em 2 casas (HALF_UP). Espelha {@code dominio/kcalDosMacros.ts}:
+     * qualquer macro nulo dá nulo (ausente nunca vira zero). Macro negativo é recusado antes, pelo DTO. Visibilidade de
+     * pacote só para o teste de paridade ({@code KcalDosMacrosParidadeTest}) usar a conta em vez de duplicá-la.
+     */
     static BigDecimal kcalDosMacros(BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura) {
+        if (proteina == null || carboidrato == null || gordura == null) return null;
         return proteina.multiply(KCAL_POR_G_DE_PROTEINA_E_CARBOIDRATO).add(carboidrato.multiply(KCAL_POR_G_DE_PROTEINA_E_CARBOIDRATO))
                 .add(gordura.multiply(KCAL_POR_G_DE_GORDURA)).setScale(2, RoundingMode.HALF_UP);
     }
