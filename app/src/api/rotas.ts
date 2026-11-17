@@ -7,6 +7,9 @@ import type {
   CancelarEmLoteRequest,
   CobrancaAvulsaRequest,
   CobrancaAvulsaResponse,
+  CodigoPix,
+  FormasDeRecebimento,
+  FormasDeRecebimentoRequest,
   CobrancasSelecionadasRequest,
   BaixaManualRequest,
   ContratacaoResponse,
@@ -1285,6 +1288,14 @@ export const salvarRecebimentoOnline = (corpo: RecebimentoOnlineRequest) =>
 export const removerRecebimentoOnline = (versao?: number | null) =>
   requisicao<void>(`/financeiro/recebimento-online${consultaFinanceiro({ versao })}`, { metodo: 'DELETE' });
 
+// ---- Formas de recebimento (InfinitePay, link próprio, Pix, Manual): atrás do financeiro, não da InfinitePay ----
+
+/** A chave Pix nunca volta inteira (`chaveMascarada`). `versao` nula = a consultoria nunca gravou (vale o padrão). Ler pede também `ALUNO_LER`. */
+export const buscarFormasDeRecebimento = () => requisicao<FormasDeRecebimento>('/financeiro/formas-de-recebimento');
+/** `pixConfig.chave` só quando o treinador digitou uma nova; `pix: false` vai sem `pixConfig` (o servidor mantém a gravada). */
+export const salvarFormasDeRecebimento = (corpo: FormasDeRecebimentoRequest) =>
+  requisicao<FormasDeRecebimento>('/financeiro/formas-de-recebimento', { metodo: 'PUT', corpo });
+
 // ---- Lembretes de cobrança por e-mail (atrás do financeiro: desligado, 503) ----
 
 /** Sem configuração gravada vem desligada com os padrões e `versao` nula. */
@@ -1308,6 +1319,12 @@ export const linkDaCobranca = (id: string) =>
 /** Link de pagamento de uma cobrança do próprio aluno (o "Pagar"; no celular só com a chave da plataforma ligada). */
 export const linkDePagamentoDoAluno = (id: string) =>
   requisicao<LinkDePagamento>(`/aluno/financeiro/cobrancas/${seg(id)}/link`, { metodo: 'POST' });
+/**
+ * O Pix copia e cola de uma cobrança em aberto do próprio aluno, montado pelo servidor (`no-store`). O código leva a chave Pix
+ * do treinador: só vai à área de transferência, nunca a log, cache ou armazenamento do aparelho. 409 `PIX_INDISPONIVEL`.
+ */
+export const codigoPixDoAluno = (id: string) =>
+  requisicao<CodigoPix>(`/aluno/financeiro/cobrancas/${seg(id)}/pix`, { metodo: 'POST' });
 /**
  * A volta do navegador depois do pagamento (a InfinitePay manda o aluno a `/aluno/conta` com os NSU na query): avisa a API,
  * que consulta a InfinitePay e dá a baixa se for o caso. 204; cobrança de outro aluno = 404. Nada fica no aparelho.

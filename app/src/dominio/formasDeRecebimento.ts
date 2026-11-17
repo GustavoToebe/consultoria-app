@@ -1,4 +1,6 @@
-import { cnpjValido, codigoApi, cpfValido, emailValido, erroDeConexao, errosPorCampo, mensagemApi, telefoneValido } from '@plataforma/web';
+import {
+  cnpjValido, codigoApi, cpfValido, emailValido, erroDeConexao, errosPorCampo, formatarCnpj, formatarCpf, formatarTelefone, mensagemApi, telefoneValido,
+} from '@plataforma/web';
 
 import type { FormaDeRecebimento, FormasDeRecebimento, FormasDeRecebimentoRequest, PixConfigRequest, TipoDeChavePix } from '../api/financeiroTipos';
 
@@ -30,7 +32,8 @@ export const TIPOS_DE_CHAVE_PIX: readonly { valor: TipoDeChavePix; rotulo: strin
   { valor: 'CNPJ', rotulo: 'CNPJ' },
   { valor: 'EMAIL', rotulo: 'E-mail' },
   { valor: 'TELEFONE', rotulo: 'Telefone' },
-  { valor: 'ALEATORIA', rotulo: 'Chave aleatória' },
+  // Curto: os cinco cabem numa linha da escolha no celular; o grupo já se chama "Tipo da chave".
+  { valor: 'ALEATORIA', rotulo: 'Aleatória' },
 ];
 
 /** Os tamanhos do BR Code e da coluna: nome do recebedor até 25, cidade até 15 e a chave até 77. */
@@ -103,6 +106,35 @@ export function normalizarChavePix(tipo: TipoDeChavePix, texto: string): string 
   }
 }
 
+/**
+ * A máscara da chave enquanto a pessoa digita: CPF `123.456.789-09`, CNPJ `12.345.678/0001-95` (alfanumérico em maiúsculas),
+ * telefone `(45) 99999-8888`; e-mail e chave aleatória sem espaços, como vieram. O corpo leva a forma canônica (`normalizarChavePix`).
+ */
+export function mascaraDaChavePix(tipo: TipoDeChavePix | null, texto: string): string {
+  switch (tipo) {
+    case 'CPF': return formatarCpf(texto);
+    case 'CNPJ': return formatarCnpj(texto).toUpperCase();
+    case 'TELEFONE': return formatarTelefone(texto);
+    default: return texto.replace(/\s/g, '').slice(0, LIMITES_DO_PIX.chave);
+  }
+}
+
+/** "12 de 25 caracteres": o contador do nome do recebedor e da cidade (contado sem os espaços das pontas, como o servidor). */
+export function contadorDoPix(texto: string, limite: number): string {
+  return `${texto.trim().length} de ${limite} caracteres`;
+}
+
+/**
+ * Algo mudou desde a última gravação? Sem nada a salvar o "Salvar" fica apagado com o motivo. O Pix desligado não compara os
+ * campos do Pix (eles nem vão no corpo); a chave digitada sempre conta como mudança.
+ */
+export function formasAlteradas(atual: EstadoDasFormas, gravado: EstadoDasFormas): boolean {
+  if (atual.infinitePay !== gravado.infinitePay || atual.linkProprio !== gravado.linkProprio || atual.pix !== gravado.pix) return true;
+  if (!atual.pix) return false;
+  return !!atual.chave.trim() || atual.tipoChave !== gravado.tipoChave
+    || atual.nomeRecebedor.trim() !== gravado.nomeRecebedor.trim() || atual.cidade.trim() !== gravado.cidade.trim();
+}
+
 const MENSAGEM_DA_CHAVE: Readonly<Record<TipoDeChavePix, string>> = {
   CPF: 'Informe um CPF válido.',
   CNPJ: 'Informe um CNPJ válido.',
@@ -153,16 +185,30 @@ export function corpoDasFormas(e: EstadoDasFormas): CorpoDasFormas {
 
 export const LINK_DO_PLANO_MAXIMO = 500;
 export const MENSAGEM_LINK_DO_PLANO = 'O link precisa começar com https://.';
+export const MENSAGENS_DO_LINK_DO_PLANO = {
+  http: 'Use https.',
+  usuario: 'O link não pode ter usuário ou senha.',
+  porta: 'O link não pode ter porta.',
+  tamanho: `Até ${LINK_DO_PLANO_MAXIMO} caracteres.`,
+} as const;
 
 /**
- * "Link de pagamento" do plano: vazio apaga (`valor` nulo, o `PUT` do plano substitui inteiro); senão tem de começar com
- * `https://`, sem espaços, até 500 caracteres. A API (`LinksExternos`) confere de novo.
+ * "Link de pagamento" do plano: vazio apaga (`valor` nulo, o `PUT` do plano substitui inteiro). As recusas que o servidor
+ * (`LinksExternos`) também faz e que dá para dizer aqui têm mensagem própria: `http://`, usuário ou senha antes do host,
+ * porta diferente de 443 e mais de 500 caracteres. O resto (`javascript:`, sem esquema, espaço, sem host) fica na genérica.
+ * Sem `new URL()`: no React Native ela não traz `port` nem `username`.
  */
 export function lerLinkDoPlano(texto: string): { valor: string | null; erro: string | null } {
   const t = texto.trim();
   if (!t) return { valor: null, erro: null };
-  if (!/^https:\/\/[^\s/?#]+\S*$/i.test(t)) return { valor: null, erro: MENSAGEM_LINK_DO_PLANO };
-  if (t.length > LINK_DO_PLANO_MAXIMO) return { valor: null, erro: `O link pode ter até ${LINK_DO_PLANO_MAXIMO} caracteres.` };
+  const recusa = (erro: string) => ({ valor: null, erro });
+  if (/^http:\/\//i.test(t)) return recusa(MENSAGENS_DO_LINK_DO_PLANO.http);
+  if (!/^https:\/\/[^\s/?#]+\S*$/i.test(t)) return recusa(MENSAGEM_LINK_DO_PLANO);
+  const autoridade = t.slice('https://'.length).split(/[/?#]/)[0];
+  if (autoridade.includes('@')) return recusa(MENSAGENS_DO_LINK_DO_PLANO.usuario);
+  const porta = /:(\d*)$/.exec(autoridade)?.[1];
+  if (porta !== undefined && porta !== '443') return recusa(MENSAGENS_DO_LINK_DO_PLANO.porta);
+  if (t.length > LINK_DO_PLANO_MAXIMO) return recusa(MENSAGENS_DO_LINK_DO_PLANO.tamanho);
   return { valor: t, erro: null };
 }
 

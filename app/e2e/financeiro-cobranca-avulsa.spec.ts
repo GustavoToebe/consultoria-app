@@ -149,6 +149,8 @@ test('cada etapa inválida mostra o erro no campo e não avança; nada vai ao se
   await folha.getByRole('button', { name: 'Revisar e gerar' }).click();
   await expect(folha.getByText('As parcelas vão de 1 a 12.')).toBeVisible();
   await expect(folha.getByText(/^Primeiro vencimento: use uma data entre 01\/01\/2000 e/)).toBeVisible();
+  // O foco vai ao primeiro campo com erro na ordem da tela: a data vem antes das parcelas.
+  await expect(folha.getByLabel('Primeiro vencimento')).toBeFocused();
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await page.screenshot({ path: `${CAPTURAS}/etapa3-erro-1280.png` });
   expect(pedidos.filter(ehAvulsa)).toHaveLength(0);
@@ -191,24 +193,59 @@ test('erro 422 do servidor volta à etapa do campo com a mensagem dele; 409 alun
   await expect(folha.getByText('2 alunos selecionados')).toBeVisible();
   await expect.poll(() => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/alunos').length).toBeGreaterThan(buscasAntes);
   await expect(folha.getByRole('checkbox', { name: 'Bruno Avulso' })).toHaveCount(0);
-  await page.screenshot({ path: `${CAPTURAS}/erro-409-1280.png` });
   expect(estado.cobrancas.filter((c) => c.tipo === 'AVULSA')).toHaveLength(0);
+  // A API não diz qual aluno: a folha busca os ativos inteiros (páginas de 100) e marca quem saiu, primeiro na lista.
+  const remover = folha.getByRole('button', { name: 'Remover os que não estão ativos (1)' });
+  await expect(remover).toBeVisible();
+  await expect(folha.getByText('Bruno Avulso não está mais entre os ativos (inativo, anonimizado ou excluído).')).toBeVisible();
+  const linhas = folha.getByRole('list', { name: 'Alunos selecionados' }).getByRole('listitem');
+  await expect(linhas.first()).toContainText('Bruno Avulso');
+  await expect(linhas.first()).toContainText('Não está ativo');
+  await expect(linhas.nth(1)).not.toContainText('Não está ativo');
+  expect(pedidos.some((p) => p.metodo === 'GET' && p.caminho === '/alunos' && p.busca.get('tamanho') === '100')).toBe(true);
+  await page.screenshot({ path: `${CAPTURAS}/erro-409-1280.png` });
+  await remover.click();
+  await expect(folha.getByText('1 aluno selecionado', { exact: true })).toBeVisible();
+  await expect(folha.getByRole('button', { name: /Remover os que não estão ativos/ })).toHaveCount(0);
+  await expect(folha.getByText(/Algum aluno da seleção está inativo/)).toHaveCount(0);
+  await folha.getByRole('button', { name: 'Continuar' }).click();
+  await folha.getByRole('button', { name: 'Continuar' }).click();
+  await folha.getByRole('button', { name: 'Revisar e gerar' }).click();
+  await page.getByRole('alertdialog', { name: 'Gerar 3 cobranças?' }).getByRole('button', { name: 'Gerar 3 cobranças' }).click();
+  await expect(page.getByText('3 cobranças geradas para 1 aluno.')).toBeVisible();
+  expect(estado.avulsasRecebidas.at(-1)?.alunoIds).toEqual([ANA.id]);
   expect(errosDaPagina).toEqual([]);
 });
 
-test('sem conexão: a confirmação fica aberta e manda conferir a lista antes de repetir', async ({ page }) => {
-  const { errosDaPagina } = await abrir(page, comCobrancas(), {
-    'POST /financeiro/cobrancas-avulsas': (_p, route) => route.abort('internetdisconnected'),
+for (const largura of [1280, 390]) {
+  test(`sem conexão em ${largura}px: o principal deixa de ser "Gerar" e vira "Conferir a lista", que fecha e recarrega`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await abrir(page, comCobrancas(), {
+      'POST /financeiro/cobrancas-avulsas': (_p, route) => route.abort('internetdisconnected'),
+    });
+    const folha = await preencherAteAEtapa3(page);
+    await folha.getByRole('button', { name: 'Revisar e gerar' }).click();
+    await page.getByRole('alertdialog', { name: 'Gerar 6 cobranças?' }).getByRole('button', { name: 'Gerar 6 cobranças' }).click();
+    const conferir = page.getByRole('alertdialog', { name: 'Confira a lista de cobranças' });
+    await expect(conferir.getByText(/Confira a lista de cobranças antes de gerar de novo: repetir pode criar tudo em dobro\./)).toBeVisible();
+    await expect(conferir.getByRole('button', { name: /^Gerar/ })).toHaveCount(0);
+    await expect(conferir.getByRole('button', { name: 'Conferir a lista' })).toBeEnabled();
+    await semRolagemHorizontal(page);
+    await page.screenshot({ path: `${CAPTURAS}/sem-conexao-${largura}.png` });
+
+    // Voltar e revisar de novo não traz o "Gerar" de volta.
+    await conferir.getByRole('button', { name: 'Voltar' }).click();
+    await folha.getByRole('button', { name: 'Revisar e gerar' }).click();
+    const deNovo = page.getByRole('alertdialog', { name: 'Confira a lista de cobranças' });
+    await expect(deNovo.getByRole('button', { name: /^Gerar/ })).toHaveCount(0);
+    const listasAntes = pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/financeiro/cobrancas').length;
+    await deNovo.getByRole('button', { name: 'Conferir a lista' }).click();
+    await expect(folhaDaAvulsa(page)).toHaveCount(0);
+    await expect.poll(() => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/financeiro/cobrancas').length).toBeGreaterThan(listasAntes);
+    expect(pedidos.filter(ehAvulsa)).toHaveLength(1);
+    expect(errosDaPagina.filter((e) => !/internet|Failed to fetch/i.test(e))).toEqual([]);
   });
-  const folha = await preencherAteAEtapa3(page);
-  await folha.getByRole('button', { name: 'Revisar e gerar' }).click();
-  const confirmar = page.getByRole('alertdialog', { name: 'Gerar 6 cobranças?' });
-  await confirmar.getByRole('button', { name: 'Gerar 6 cobranças' }).click();
-  await expect(confirmar.getByText(/Confira a lista de cobranças antes de tentar de novo\./)).toBeVisible();
-  await expect(confirmar.getByRole('button', { name: 'Gerar 6 cobranças' })).toBeEnabled();
-  await page.screenshot({ path: `${CAPTURAS}/sem-conexao-1280.png` });
-  expect(errosDaPagina.filter((e) => !/internet|Failed to fetch/i.test(e))).toEqual([]);
-});
+}
 
 test('totais do filtro: total, pago, em aberto e vencido do servidor; mudam com o filtro; sem lista, sem totais', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, comCobrancas());
@@ -219,6 +256,7 @@ test('totais do filtro: total, pago, em aberto e vencido do servidor; mudam com 
   await expect(totais('Em aberto', '450,00')).toBeVisible();
   await expect(totais('Vencido', '350,00')).toBeVisible();
   await expect(page.getByText(/Em aberto inclui as vencidas/)).toBeVisible();
+  await expect(page.getByText(/Contestadas entram no total, mas não em pago nem em aberto\./)).toBeVisible();
   await esperarValorInteiro(totais('Total', '600,00'), ['R$ 600,00']);
   await page.screenshot({ path: `${CAPTURAS}/totais-1280.png`, fullPage: true });
 
@@ -292,7 +330,7 @@ test('cancelar em lote: confirmação destrutiva com motivo opcional, resultado 
 test('gerar links em lote com falha parcial: diz quantos deram certo, o motivo da que falhou e copia os links', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   const estado = comCobrancas({ recebimento: { ...RECEBIMENTO_CONFIGURADO }, recusasDoLote: { [CAIO.id]: 'PROVEDOR_INDISPONIVEL' } });
-  const { errosDaPagina } = await abrir(page, estado);
+  const { pedidos, errosDaPagina } = await abrir(page, estado);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByRole('button', { name: 'Selecionar todas desta página' }).click();
   await page.getByRole('button', { name: 'Mais ações' }).click();
@@ -309,6 +347,17 @@ test('gerar links em lote com falha parcial: diz quantos deram certo, o motivo d
   expect(copiado.split('\n')).toHaveLength(2);
   await resultado.getByRole('button', { name: 'Copiar link de Bruna Teste' }).click();
   await expect(page.getByText('Link copiado.')).toBeVisible();
+
+  // A InfinitePay voltou: "Tentar de novo" manda só a que falhou e o resultado entra no lugar dela.
+  estado.recusasDoLote = {};
+  await resultado.getByRole('button', { name: 'Tentar de novo a que falhou' }).click();
+  await expect(resultado.getByText('3 links gerados.')).toBeVisible();
+  await expect(resultado.getByText(/^https:\/\/pagamento\.exemplo\.invalid\/abc-/)).toHaveCount(3);
+  await expect(resultado.getByRole('button', { name: /Tentar de novo/ })).toHaveCount(0);
+  const tentativas = pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/cobrancas/link-em-lote');
+  expect(tentativas).toHaveLength(2);
+  expect(tentativas[1].corpo).toEqual({ cobrancaIds: [CAIO.id] });
+  await page.screenshot({ path: `${CAPTURAS}/links-tentar-de-novo-1280.png` });
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -343,7 +392,9 @@ for (const largura of [1280, 390]) {
     if (largura === 1280) await expect(page.getByText('Não se aplica')).toBeVisible();
     await expect(page.getByRole('checkbox', { name: 'Selecionar cobrança de Ana Avulsa, Camiseta do time (Parcela 1/3)' })).toBeVisible();
     await semRolagemHorizontal(page);
-    await page.screenshot({ path: `${CAPTURAS}/lista-avulsa-${largura}.png`, fullPage: true });
+    // A página rola por dentro: a captura vai até a linha da avulsa (no celular, o cartão; no PC, a linha da tabela).
+    await page.getByText('Camiseta do time (Parcela 1/3)').first().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${CAPTURAS}/lista-avulsa-${largura}.png` });
 
     await page.getByRole('button', { name: 'Abrir cobrança avulsa de Ana Avulsa' }).click();
     const folha = page.getByRole('dialog', { name: 'Cobrança avulsa' });

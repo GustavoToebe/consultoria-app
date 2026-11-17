@@ -2,7 +2,7 @@ import { ErroApi, MENSAGEM_SEM_CONEXAO } from '@plataforma/web';
 
 import type { FormasDeRecebimento } from '../api/financeiroTipos';
 import {
-  corpoDasFormas, estadoDasFormas, FORMAS_DO_FORMULARIO, lerLinkDoPlano, MENSAGEM_CONFLITO_DAS_FORMAS, normalizarChavePix,
+  contadorDoPix, corpoDasFormas, estadoDasFormas, FORMAS_DO_FORMULARIO, formasAlteradas, lerLinkDoPlano, mascaraDaChavePix, MENSAGEM_CONFLITO_DAS_FORMAS, normalizarChavePix,
   rotuloDaFormaDeRecebimento, textoDaChaveGravada, traduzirErroDasFormas, type EstadoDasFormas,
 } from './formasDeRecebimento';
 
@@ -115,16 +115,27 @@ describe('chave Pix por tipo', () => {
 });
 
 describe('link de pagamento do plano', () => {
-  it('vazio apaga; https vale; o resto é recusado', () => {
+  it('vazio apaga; https vale (com a porta 443, que o servidor aceita)', () => {
     expect(lerLinkDoPlano('   ')).toEqual({ valor: null, erro: null });
     expect(lerLinkDoPlano(' https://pagamento.exemplo.com/plano?id=1 ')).toEqual({ valor: 'https://pagamento.exemplo.com/plano?id=1', erro: null });
-    for (const ruim of ['http://exemplo.com', 'exemplo.com/pagar', 'https://', 'https://exemplo .com', 'javascript:alert(1)', 'ftp://exemplo.com']) {
+    expect(lerLinkDoPlano('https://pagamento.exemplo.com:443/plano').erro).toBeNull();
+    // O "@" depois do host (no caminho ou na busca) não é usuário.
+    expect(lerLinkDoPlano('https://pagamento.exemplo.com/p?email=a@b.com').erro).toBeNull();
+  });
+  it('cada recusa do servidor que o app consegue ver tem a mensagem dela', () => {
+    expect(lerLinkDoPlano('http://exemplo.com/pagar').erro).toBe('Use https.');
+    expect(lerLinkDoPlano('HTTP://exemplo.com').erro).toBe('Use https.');
+    expect(lerLinkDoPlano('https://usuario:senha@exemplo.com/pagar').erro).toBe('O link não pode ter usuário ou senha.');
+    expect(lerLinkDoPlano('https://usuario@exemplo.com').erro).toBe('O link não pode ter usuário ou senha.');
+    expect(lerLinkDoPlano('https://exemplo.com:8443/pagar').erro).toBe('O link não pode ter porta.');
+    expect(lerLinkDoPlano('https://exemplo.com:/pagar').erro).toBe('O link não pode ter porta.');
+    expect(lerLinkDoPlano(`https://exemplo.com/${'a'.repeat(480)}`).erro).toBeNull();
+    expect(lerLinkDoPlano(`https://exemplo.com/${'a'.repeat(481)}`).erro).toBe('Até 500 caracteres.');
+  });
+  it('o resto fica na mensagem genérica', () => {
+    for (const ruim of ['exemplo.com/pagar', 'https://', 'https://exemplo .com', 'javascript:alert(1)', 'ftp://exemplo.com']) {
       expect(lerLinkDoPlano(ruim)).toEqual({ valor: null, erro: 'O link precisa começar com https://.' });
     }
-  });
-  it('até 500 caracteres', () => {
-    expect(lerLinkDoPlano(`https://exemplo.com/${'a'.repeat(480)}`).erro).toBeNull();
-    expect(lerLinkDoPlano(`https://exemplo.com/${'a'.repeat(481)}`).erro).toBe('O link pode ter até 500 caracteres.');
   });
 });
 
@@ -154,5 +165,30 @@ describe('traduzirErroDasFormas', () => {
     const fixa = 'Não foi possível salvar as formas de recebimento. Tente de novo.';
     expect(traduzirErroDasFormas(new ErroApi(500, null, 'detalhe interno')).mensagem).toBe(fixa);
     expect(traduzirErroDasFormas(new ErroApi(503, 'OUTRO', 'detalhe interno')).mensagem).toBe(fixa);
+  });
+});
+
+describe('máscara, contador e mudança', () => {
+  it('máscara por tipo; e-mail e aleatória só perdem os espaços', () => {
+    expect(mascaraDaChavePix('CPF', '52998224725')).toBe(CPF);
+    expect(mascaraDaChavePix('CNPJ', '11222333000181')).toBe(CNPJ);
+    expect(mascaraDaChavePix('CNPJ', '12abc34501de35')).toBe('12.ABC.345/01DE-35');
+    expect(mascaraDaChavePix('TELEFONE', '45999998888')).toBe('(45) 99999-8888');
+    expect(mascaraDaChavePix('EMAIL', ' treinador @exemplo.com')).toBe('treinador@exemplo.com');
+    expect(mascaraDaChavePix(null, 'abc def')).toBe('abcdef');
+  });
+  it('contador conta sem as pontas', () => {
+    expect(contadorDoPix('  Cascavel ', 15)).toBe('8 de 15 caracteres');
+  });
+  it('formasAlteradas: formas, tipo, nome, cidade e chave digitada; com o Pix desligado os campos dele não contam', () => {
+    const gravado = estadoDasFormas(resposta({ pix: true, pixConfig: { tipoChave: 'EMAIL', chaveConfigurada: true, chaveMascarada: 't***@exemplo.com', nomeRecebedor: 'Treino Teste', cidade: 'Cascavel' } }));
+    expect(formasAlteradas(gravado, gravado)).toBe(false);
+    expect(formasAlteradas({ ...gravado, cidade: ' Cascavel ' }, gravado)).toBe(false);
+    expect(formasAlteradas({ ...gravado, linkProprio: true }, gravado)).toBe(true);
+    expect(formasAlteradas({ ...gravado, chave: 'outra@exemplo.com' }, gravado)).toBe(true);
+    expect(formasAlteradas({ ...gravado, tipoChave: 'CPF' }, gravado)).toBe(true);
+    expect(formasAlteradas({ ...gravado, nomeRecebedor: 'Outro' }, gravado)).toBe(true);
+    const desligado = { ...gravado, pix: false };
+    expect(formasAlteradas({ ...desligado, cidade: 'Toledo' }, desligado)).toBe(false);
   });
 });

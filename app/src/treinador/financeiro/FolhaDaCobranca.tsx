@@ -1,4 +1,3 @@
-import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { MessageCircle } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
@@ -38,7 +37,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
-import { avisoDeConflito, ehConflito } from './comum';
+import { avisoDeConflito, copiarTexto, ehConflito } from './comum';
 
 type Modo = 'detalhe' | 'baixa';
 type Pergunta = 'desfazer' | 'cancelar' | 'contestar' | 'estornar' | 'manterPaga' | null;
@@ -203,10 +202,15 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
           return;
         }
         // O navegador pode recusar a escrita depois de uma espera (Safari): então o link fica na tela para copiar à mão.
-        Clipboard.setStringAsync(seguro).then(
-          () => { setCopiando(false); avisar('Link copiado.', 'sucesso'); },
-          () => { setCopiando(false); setLinkParaCopiarAMao(seguro); avisar('Não foi possível copiar sozinho. Selecione o link e copie à mão.', 'neutro'); },
-        );
+        void copiarTexto(seguro).then((ok) => {
+          setCopiando(false);
+          if (ok) {
+            avisar('Link copiado.', 'sucesso');
+            return;
+          }
+          setLinkParaCopiarAMao(seguro);
+          avisar('Não foi possível copiar sozinho. Selecione o link e copie à mão.', 'neutro');
+        });
       },
       (e: unknown) => {
         setCopiando(false);
@@ -316,7 +320,13 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
                 <LinhaDeAcoes><Botao rotulo="Abrir Recebimento online" tipo="secundario" aoTocar={irParaORecebimento} /></LinhaDeAcoes>
               </View>
             ) : null}
-            {linkParaCopiarAMao ? <Texto selectable>{linkParaCopiarAMao}</Texto> : null}
+            {linkParaCopiarAMao ? (
+              // A cópia foi recusada: o link fica aqui, com rótulo, para selecionar e copiar à mão.
+              <View style={estilos.linkAMao}>
+                <Texto variante="rotulo">Link de pagamento para copiar</Texto>
+                <Texto selectable>{linkParaCopiarAMao}</Texto>
+              </View>
+            ) : null}
             {whatsapp ? (
               <View style={estilos.aviso}>
                 <LinhaDeAcoes>
@@ -393,6 +403,7 @@ function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
 }
 
 const estilos = StyleSheet.create({
+  linkAMao: { gap: espaco(0.5) },
   coluna: { gap: espaco(2) },
   grupo: { gap: espaco(1.5) },
   id: { gap: espaco(0.25) },

@@ -120,9 +120,9 @@ class CobrancaAvulsaBaixaECancelamentoIntegrationTest extends AbstractIntegratio
     }
 
     @Test
-    void linkDeAvulsaUsaADescricaoEOValorDoServidor() throws Exception {
+    void linkDeAvulsaUsaOValorDoServidorENuncaMandaADescricaoDoTreinadorAoProvedor() throws Exception {
         api.put("/financeiro/recebimento-online", admin, Map.of("infiniteTag", "$TREINADOR-FAKE"), 200);
-        JsonNode c = avulsa("Camiseta oficial do time", 8_990);
+        JsonNode c = avulsa("Camiseta oficial do time (nome Fulano, joelho)", 8_990);
         String id = c.get("id").asString();
         FALSA.esperaPreco(8_990).esperaPedido(UUID.fromString(id));
 
@@ -130,8 +130,12 @@ class CobrancaAvulsaBaixaECancelamentoIntegrationTest extends AbstractIntegratio
 
         assertThat(url).startsWith("https://checkout.falsa.test/pagar/");
         assertThat(FALSA.requisicoes()).hasSize(1);
-        assertThat(FALSA.requisicoes().get(0).corpo().get("items").get(0).get("description").asString())
-                .isEqualTo("Camiseta oficial do time");
+        JsonNode corpo = FALSA.requisicoes().get(0).corpo();
+        // Texto fixo com o mês do vencimento: o texto livre do treinador (nome, dado de saúde) nunca sai da API.
+        assertThat(corpo.get("items").get(0).get("description").asString())
+                .isEqualTo("Cobrança avulsa (" + c.get("vencimento").asString().substring(5, 7) + "/"
+                        + c.get("vencimento").asString().substring(0, 4) + ")");
+        assertThat(corpo.toString()).doesNotContain("Camiseta").doesNotContain("Fulano").doesNotContain("joelho");
         JsonNode lote = api.post("/cobrancas/link-em-lote", admin, Map.of("cobrancaIds", List.of(id)), 200);
         assertThat(lote.get("resultados").get(0).get("url").asString()).isEqualTo(url);
     }

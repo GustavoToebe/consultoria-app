@@ -335,7 +335,7 @@ function Inadimplencia({ painel, vencidasNoPeriodo, lista, buscando, podeAlterar
           {itens.map((x) => (
             <ItemDeLista key={x.cobrancaId} titulo={x.alunoNome ?? '—'}
               detalhe={`${centavosParaTela(x.valorCentavos)} · venceu ${dataSemAnoCorrente(x.vencimento, hojeEmBrasilia())} · ${atrasoParaTela(x.diasDeAtraso)}`}
-              aoTocar={() => aoAbrir(x)} rotulo={`Abrir cobrança vencida de ${x.alunoNome ?? 'aluno'}`} />
+              aoTocar={() => aoAbrir(x)} rotulo={`Abrir cobrança vencida de ${x.alunoNome ?? 'aluno'}, ${dataParaTela(x.vencimento)}`} />
           ))}
         </View>
       ) : null}
@@ -348,7 +348,7 @@ function Inadimplencia({ painel, vencidasNoPeriodo, lista, buscando, podeAlterar
           { chave: 'acoes', titulo: 'Ações', acao: true, largura: 330, render: (x) => (
             <LinhaDeAcoes alinhar="fim">
               {podeAlterar ? <Botao rotulo="Registrar pagamento" tipo="secundario" carregando={buscando === x.cobrancaId}
-                rotuloAcessivel={`Registrar pagamento de ${x.alunoNome ?? 'aluno'}`} aoTocar={() => aoRegistrar(x)} /> : null}
+                rotuloAcessivel={`Registrar pagamento de ${x.alunoNome ?? 'aluno'}, vencida em ${dataParaTela(x.vencimento)}`} aoTocar={() => aoRegistrar(x)} /> : null}
               <Botao rotulo="Abrir ficha" tipo="fantasma" rotuloAcessivel={`Abrir ficha de ${x.alunoNome ?? 'aluno'}`}
                 aoTocar={() => router.push(`/treinador/alunos/${x.alunoId}?aba=ficha`)} />
             </LinhaDeAcoes>

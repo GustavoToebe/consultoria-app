@@ -214,11 +214,32 @@ class CobrancaAvulsaIntegrationTest extends AbstractIntegrationTest {
         api.get("/alunos/" + a + "/cobrancas", outro, 404);
         assertThat(api.get("/financeiro/cobrancas", outro, 200).get("total").asLong()).isZero();
 
-        // Auditoria: uma linha por chamada, resumo fixo, sem valor, nome nem descrição.
-        List<Map<String, Object>> linhas = jdbc.queryForList("select resumo from auditoria where acao = 'COBRANCAS_AVULSAS_GERADAS' "
+        // Auditoria: uma linha por aluno, resumo fixo, sem valor, nome nem descrição.
+        List<Map<String, Object>> linhas = jdbc.queryForList("select resumo, entidade_id from auditoria "
+                + "where acao = 'COBRANCAS_AVULSAS_GERADAS' "
                 + "and consultoria_id = (select consultoria_id from usuario where id = ?::uuid)", admin.get("usuario").get("id").asString());
         assertThat(linhas).hasSize(1);
-        assertThat(linhas.get(0).get("resumo").toString()).isEqualTo("Gerou cobranças avulsas.");
+        assertThat(linhas.get(0).get("resumo").toString()).isEqualTo("Gerou cobranças avulsas para o aluno.");
+        assertThat(linhas.get(0).get("entidade_id").toString()).isEqualTo(a.toString());
+    }
+
+    @Test
+    void tresAlunosGeramTresEventosDeAuditoriaSemDadoPessoal() throws Exception {
+        List<UUID> alunos = List.of(aluno(admin), aluno(admin), aluno(admin));
+
+        api.post(ROTA, admin, corpo(alunos, "Descrição Secreta 4455", 4_455, hoje, 2), 201);
+
+        List<Map<String, Object>> linhas = jdbc.queryForList("select resumo, entidade, entidade_id from auditoria "
+                + "where acao = 'COBRANCAS_AVULSAS_GERADAS' and entidade_id in (?::uuid, ?::uuid, ?::uuid)",
+                alunos.get(0).toString(), alunos.get(1).toString(), alunos.get(2).toString());
+        assertThat(linhas).hasSize(3);
+        assertThat(linhas).extracting(l -> l.get("entidade_id").toString())
+                .containsExactlyInAnyOrderElementsOf(alunos.stream().map(UUID::toString).toList());
+        for (Map<String, Object> l : linhas) {
+            assertThat(l.get("entidade")).isEqualTo("ALUNO");
+            assertThat(l.get("resumo").toString()).isEqualTo("Gerou cobranças avulsas para o aluno.")
+                    .doesNotContain("Secreta").doesNotContain("4455").doesNotContain("44,55");
+        }
     }
 
     @Test

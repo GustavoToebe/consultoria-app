@@ -1,12 +1,13 @@
-import { CreditCard } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Copy, CreditCard, ExternalLink } from 'lucide-react-native';
 import { type ReactNode, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import type { CobrancaDoAluno } from '../../api/financeiroTipos';
-import { linkDePagamentoDoAluno } from '../../api/rotas';
+import { codigoPixDoAluno, linkDePagamentoDoAluno } from '../../api/rotas';
 import {
-  informacaoDaCobranca, referenciaDaCobranca, rotuloDaForma, rotuloDaPeriodicidade, rotuloDoTipoDaCobranca, seloDaCobranca, seloDaContratacao,
-  seloDoTipoDaCobranca, textoDasAbertasDoAluno, type ComoPagar,
+  informacaoDaCobranca, referenciaDaCobranca, rotuloDaAcaoDePagamento, rotuloDaForma, rotuloDaPeriodicidade, rotuloDoTipoDaCobranca, seloDaCobranca,
+  seloDaContratacao, seloDoTipoDaCobranca, textoDasAbertasDoAluno, type AcaoDePagamento, type ComoPagar,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { espaco, RAIO } from '../../tema/tokens';
@@ -46,14 +47,14 @@ function textoDaVigencia(situacao: string, restantes: number | null | undefined)
 /**
  * "Meu plano" na Conta do aluno: o plano comercial com o treinador (nome, valor, periodicidade, próximo vencimento), as
  * cobranças em aberto e o histórico. Só online: nada fica guardado no aparelho. Como pagar depende da plataforma, da chave
- * da plataforma e do recebimento online da consultoria (`modoDePagamento`, de `comoPagar`): com o "Pagar" permitido e o
- * recebimento online, cada cobrança em aberto tem o botão "Pagar" (link da InfinitePay, aberto fora do app, sem token);
- * no celular sem a chave da plataforma não há botão, link nem frase mandando pagar: só informação por cobrança
- * (`informacaoDaCobranca`); sem recebimento online o treinador combina a forma e dá a baixa. Não leva observação interna
+ * da plataforma e das formas de recebimento ligadas (`acoesDaCobranca`, de `acoesDePagamentoDoAluno`): com o "Pagar" permitido,
+ * cada cobrança em aberto tem as suas ações (InfinitePay, link do treinador e "Copiar código Pix"), abertas fora do app e sem
+ * token; no celular sem a chave da plataforma não há botão, link, Pix nem frase mandando pagar: só informação por cobrança
+ * (`informacaoDaCobranca`); só com o Manual o treinador combina a forma e dá a baixa. Não leva observação interna
  * nem quem registrou o pagamento. Aparece só com o módulo de pagamentos ligado para a consultoria.
  */
 export function CartaoMeuPlano() {
-  const { habilitado, online, dados, erro, carregando, modoDePagamento: modo, modoDaCobranca, recarregar } = useFinanceiroDoAluno();
+  const { habilitado, online, dados, erro, carregando, modoDePagamento: modo, modoDaCobranca, acoesDaCobranca, recarregar } = useFinanceiroDoAluno();
   const [todas, setTodas] = useState(false);
   useRecarregarFinanceiroAoFocar();
   if (!habilitado) return null;
@@ -69,6 +70,9 @@ export function CartaoMeuPlano() {
   const vigencia = dados?.plano ? textoDaVigencia(dados.plano.situacao, dados.plano.diasRestantesVigencia) : null;
   const textoDoModo = textoDasAbertasDoAluno(modo, (dados?.abertas ?? []).map((c) => modoDaCobranca(c.tipo)));
   const visiveis = todas ? historico : historico.slice(0, HISTORICO_VISIVEL);
+  // O nome da ação vem de todas as cobranças do cartão: a avulsa (sem o link do plano) não vira "Pagar" ao lado de uma
+  // mensalidade com "Pagar pela InfinitePay"; a mesma ação tem o mesmo nome no cartão inteiro.
+  const acoesDoCartao = [...new Set((dados?.abertas ?? []).flatMap((c) => acoesDaCobranca(c.tipo)))];
   return (
     <Cartao titulo="Meu plano" descricao="Seu plano comercial com o seu treinador.">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
@@ -99,12 +103,14 @@ export function CartaoMeuPlano() {
           {dados.abertas.length > 0 ? (
             <View style={estilos.bloco}>
               <Texto variante="secao">Em aberto</Texto>
-              {/* O "Pagar" mora dentro da própria cobrança: solto embaixo, parecia de outra. */}
+              {/* As ações moram dentro da própria cobrança: soltas embaixo, pareciam de outra. */}
               {dados.abertas.map((c) => {
-                const daCobranca = modoDaCobranca(c.tipo);
+                const acoes = acoesDaCobranca(c.tipo);
                 return (
-                  <LinhaDaCobranca key={c.id} cobranca={c} modo={daCobranca}>
-                    {daCobranca === 'botao' ? <BotaoPagar cobranca={c} aoMudar={recarregar} /> : null}
+                  <LinhaDaCobranca key={c.id} cobranca={c} modo={modoDaCobranca(c.tipo)} empilhar={acoes.length > 1 || acoes.includes('COPIAR_PIX')}>
+                    {acoes.length > 0 ? (
+                      <AcoesDaCobranca cobranca={c} acoes={acoes} doCartao={acoesDoCartao} linkProprio={dados.plano?.linkDePagamento ?? null} aoMudar={recarregar} />
+                    ) : null}
                   </LinhaDaCobranca>
                 );
               })}
@@ -128,12 +134,58 @@ export function CartaoMeuPlano() {
   );
 }
 
+const ICONE_DA_ACAO = { PAGAR_INFINITEPAY: CreditCard, PAGAR_LINK_PROPRIO: ExternalLink, COPIAR_PIX: Copy } as const;
+
 /**
- * "Pagar" (só com o recebimento online e a plataforma liberada): pede o link à API e abre fora do app. Na web a aba é
- * aberta dentro do clique (`abrirPagamento`); o aluno paga lá e, ao voltar, a lista recarrega. A baixa vem do servidor,
- * nunca daqui.
+ * As ações de pagamento de uma cobrança em aberto, na ordem de `acoesDePagamentoDoAluno` (só existem com o "Pagar" permitido
+ * nesta plataforma). Dois "Pagar" no cartão ganham o nome de cada um (`rotuloDaAcaoDePagamento` com as ações do cartão
+ * inteiro, `doCartao`). Se o navegador recusar a cópia do Pix, o código aparece aqui, selecionável, enquanto a tela estiver
+ * aberta (nunca é guardado).
  */
-function BotaoPagar({ cobranca, aoMudar }: { cobranca: CobrancaDoAluno; aoMudar: () => void }) {
+function AcoesDaCobranca({ cobranca, acoes, doCartao, linkProprio, aoMudar }: {
+  cobranca: CobrancaDoAluno;
+  acoes: readonly AcaoDePagamento[];
+  /** As ações de todas as cobranças em aberto do cartão: decidem o nome de cada uma. */
+  doCartao: readonly AcaoDePagamento[];
+  linkProprio: string | null;
+  aoMudar: () => void;
+}) {
+  const { cores } = useTema();
+  const [codigoAMao, setCodigoAMao] = useState<string | null>(null);
+  // Com mais de uma ação a fileira fica embaixo do texto, em coluna e com os botões da mesma largura, no celular e no PC
+  // (em linha, no PC, eles quebravam em escadinha de larguras diferentes alinhadas à direita).
+  const cheio = acoes.length > 1;
+  return (
+    <>
+      <LinhaDeAcoes alinhar={cheio ? 'inicio' : 'fim'} style={cheio ? estilos.emColuna : undefined}>
+        {acoes.map((acao) => (acao === 'COPIAR_PIX'
+          ? <BotaoCopiarPix key={acao} cobranca={cobranca} rotulo={rotuloDaAcaoDePagamento(acao, doCartao)} cheio={cheio} aoMudar={aoMudar} aoRecusarCopia={setCodigoAMao} />
+          : <BotaoPagar key={acao} cobranca={cobranca} acao={acao} rotulo={rotuloDaAcaoDePagamento(acao, doCartao)} cheio={cheio} linkProprio={linkProprio} aoMudar={aoMudar} />))}
+      </LinhaDeAcoes>
+      {codigoAMao ? (
+        <View style={[estilos.codigo, { borderColor: cores.divisor, backgroundColor: cores.superficie }]}>
+          <Texto variante="rotulo">Código Pix copia e cola</Texto>
+          <Texto selectable>{codigoAMao}</Texto>
+          <Texto variante="pequeno">Selecione o código, copie e cole no app do seu banco, em Pix copia e cola.</Texto>
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * "Pagar" pela InfinitePay (pede o link à API) ou pelo link de pagamento do treinador (o do plano, sem passar pela API): abre
+ * fora do app e sem token (`abrirPagamento` confere o https). Na web a aba é aberta dentro do clique; o aluno paga lá e, ao
+ * voltar, a lista recarrega. A baixa nunca vem daqui: a da InfinitePay vem do servidor, a do link próprio é do treinador.
+ */
+function BotaoPagar({ cobranca, acao, rotulo, cheio, linkProprio, aoMudar }: {
+  cobranca: CobrancaDoAluno;
+  acao: Exclude<AcaoDePagamento, 'COPIAR_PIX'>;
+  rotulo: string;
+  cheio: boolean;
+  linkProprio: string | null;
+  aoMudar: () => void;
+}) {
   const { avisar } = useAviso();
   const [abrindo, setAbrindo] = useState(false);
   // O segundo clique chega antes de a tela redesenhar: sem a trava abriria duas abas e pediria dois links.
@@ -143,11 +195,14 @@ function BotaoPagar({ cobranca, aoMudar }: { cobranca: CobrancaDoAluno; aoMudar:
     if (ocupado.current) return;
     ocupado.current = true;
     setAbrindo(true);
-    abrirPagamento(() => linkDePagamentoDoAluno(cobranca.id))
+    const buscar = acao === 'PAGAR_LINK_PROPRIO'
+      ? () => Promise.resolve({ url: linkProprio ?? '' })
+      : () => linkDePagamentoDoAluno(cobranca.id);
+    abrirPagamento(buscar)
       .then((resultado) => {
         if (resultado === 'aberta') {
           avisar(Platform.OS === 'web' ? 'Abrimos o pagamento em outra aba. Quando terminar, volte para esta.' : 'Abrimos o pagamento no navegador. Quando terminar, volte para o app.', 'neutro');
-        } else if (resultado === 'bloqueada') avisar('O navegador bloqueou a nova aba. Libere os pop-ups deste site e toque em Pagar de novo.', 'atencao');
+        } else if (resultado === 'bloqueada') avisar(`O navegador bloqueou a nova aba. Libere os pop-ups deste site e toque em ${rotulo} de novo.`, 'atencao');
         else avisar('Não foi possível abrir o pagamento. Tente de novo ou fale com o seu treinador.', 'perigo');
       })
       .catch((erro: unknown) => {
@@ -161,8 +216,58 @@ function BotaoPagar({ cobranca, aoMudar }: { cobranca: CobrancaDoAluno; aoMudar:
       });
   };
   return (
-    <Botao rotulo="Pagar" Icone={CreditCard} tipo="secundario" rotuloAcessivel={`Pagar ${mes}, ${centavosParaTela(cobranca.valorCentavos)}`}
-      carregando={abrindo} aoTocar={pagar} />
+    <Botao rotulo={rotulo} Icone={ICONE_DA_ACAO[acao]} tipo="secundario" rotuloAcessivel={`${rotulo}: ${mes}, ${centavosParaTela(cobranca.valorCentavos)}`}
+      cheio={cheio} style={cheio ? estilos.botaoCheio : undefined} carregando={abrindo} aoTocar={pagar} />
+  );
+}
+
+/**
+ * "Copiar código Pix": pede o código ao servidor (valor e identificador são da cobrança, lá) e o põe na área de transferência.
+ * O código leva a chave Pix do treinador: não fica em estado além do texto de reserva, nem em log ou no aparelho. Se a cópia
+ * for recusada (Safari depois de uma espera), o código aparece para copiar à mão. Pix desligado (409 `PIX_INDISPONIVEL`),
+ * cobrança que deixou de estar aberta ou não encontrada: a mensagem e a lista confere de novo.
+ */
+function BotaoCopiarPix({ cobranca, rotulo, cheio, aoMudar, aoRecusarCopia }: {
+  cobranca: CobrancaDoAluno;
+  rotulo: string;
+  cheio: boolean;
+  aoMudar: () => void;
+  aoRecusarCopia: (codigo: string | null) => void;
+}) {
+  const { avisar } = useAviso();
+  const [copiando, setCopiando] = useState(false);
+  const ocupado = useRef(false);
+  const mes = referenciaDaCobranca(cobranca);
+  const copiar = () => {
+    if (ocupado.current) return;
+    ocupado.current = true;
+    setCopiando(true);
+    aoRecusarCopia(null);
+    codigoPixDoAluno(cobranca.id)
+      .then(({ codigo }) => {
+        const recusada = () => {
+          aoRecusarCopia(codigo);
+          avisar('Não foi possível copiar sozinho. Selecione o código abaixo e copie à mão.', 'neutro');
+        };
+        // Na web o `setStringAsync` não rejeita quando o navegador recusa: resolve `false` (cópia antiga que falhou).
+        return Clipboard.setStringAsync(codigo).then(
+          (ok) => (ok === false ? recusada() : avisar('Código Pix copiado. No app do seu banco, escolha Pix copia e cola e cole o código.', 'sucesso')),
+          recusada,
+        );
+      })
+      .catch((erro: unknown) => {
+        const codigo = codigoApi(erro);
+        avisar(codigo === 'PIX_INDISPONIVEL' ? 'O Pix não está disponível para esta cobrança agora. Fale com o seu treinador.' : textoDoErro(erro), 'perigo');
+        if (codigo === 'PIX_INDISPONIVEL' || codigo === 'COBRANCA_NAO_ABERTA' || codigo === 'NAO_ENCONTRADO') aoMudar();
+      })
+      .finally(() => {
+        ocupado.current = false;
+        setCopiando(false);
+      });
+  };
+  return (
+    <Botao rotulo={rotulo} Icone={Copy} tipo="secundario" rotuloAcessivel={`${rotulo}: ${mes}, ${centavosParaTela(cobranca.valorCentavos)}`}
+      cheio={cheio} style={cheio ? estilos.botaoCheio : undefined} carregando={copiando} aoTocar={copiar} />
   );
 }
 
@@ -170,7 +275,13 @@ function BotaoPagar({ cobranca, aoMudar }: { cobranca: CobrancaDoAluno; aoMudar:
  * Uma cobrança: mês (na avulsa, a descrição) e selo na primeira linha; valor e a data que importa na segunda ("R$ 150,00 · Vence em 05/11/2026").
  * Em aberto, o "Pagar" (quando há) vem dentro do mesmo cartão, à direita.
  */
-function LinhaDaCobranca({ cobranca, modo, children }: { cobranca: CobrancaDoAluno; modo: ComoPagar; children?: ReactNode }) {
+function LinhaDaCobranca({ cobranca, modo, empilhar, children }: {
+  cobranca: CobrancaDoAluno;
+  modo: ComoPagar;
+  /** Várias ações (ou o Pix, que pode mostrar o código embaixo): as ações vão numa linha só delas, abaixo do texto. */
+  empilhar?: boolean;
+  children?: ReactNode;
+}) {
   const { cores } = useTema();
   const selo = seloDaCobranca(cobranca);
   // Celular sem o "Pagar" (`informar`): só a linha de informação; sem ela (cancelada...), o texto de sempre.
@@ -179,8 +290,9 @@ function LinhaDaCobranca({ cobranca, modo, children }: { cobranca: CobrancaDoAlu
   const mes = referenciaDaCobranca(cobranca);
   const valor = centavosParaTela(cobranca.valorCentavos);
   return (
-    <View style={[estilos.cobranca, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
-      <View accessible accessibilityLabel={`${doTipo ? `${rotuloDoTipoDaCobranca(cobranca.tipo)}, ` : ''}${mes}, ${valor}, ${selo.rotulo}. ${detalhe}`} style={estilos.textos}>
+    <View style={[estilos.cobranca, empilhar && estilos.cobrancaEmColuna, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
+      <View accessible accessibilityLabel={`${doTipo ? `${rotuloDoTipoDaCobranca(cobranca.tipo)}, ` : ''}${mes}, ${valor}, ${selo.rotulo}. ${detalhe}`}
+        style={[estilos.textos, empilhar && estilos.textosEmColuna]}>
         <View style={estilos.linha}>
           <Texto variante="bloco">{mes}</Texto>
           <View style={estilos.selos}>
@@ -191,7 +303,7 @@ function LinhaDaCobranca({ cobranca, modo, children }: { cobranca: CobrancaDoAlu
         <Texto numerico>{valor}</Texto>
         <Texto variante="suave">{detalhe}</Texto>
       </View>
-      {children ? <LinhaDeAcoes alinhar="fim">{children}</LinhaDeAcoes> : null}
+      {children}
     </View>
   );
 }
@@ -213,4 +325,12 @@ const estilos = StyleSheet.create({
   // Texto e "Pagar" lado a lado quando cabem (PC), o botão embaixo e à direita quando não (celular).
   cobranca: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'flex-end' },
   textos: { gap: espaco(0.25), flexGrow: 1, flexShrink: 1, flexBasis: 240 },
+  // O código de reserva ocupa a linha toda, abaixo dos botões (o texto do React Native quebra a sequência longa sozinho).
+  // Empilhada: texto em cima e as ações embaixo, cada um na largura toda (sem porcentagem: a coluna estica os filhos).
+  cobrancaEmColuna: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch' },
+  textosEmColuna: { flexBasis: 'auto' },
+  emColuna: { flexDirection: 'column', alignItems: 'stretch' },
+  // O `<button>` da web não estica só com `alignSelf: 'stretch'` (medido em 390 px): a largura vai explícita.
+  botaoCheio: { width: '100%' },
+  codigo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(0.5) },
 });

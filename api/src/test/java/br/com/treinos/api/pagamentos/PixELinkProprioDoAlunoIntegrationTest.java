@@ -179,10 +179,175 @@ class PixELinkProprioDoAlunoIntegrationTest extends AbstractIntegrationTest {
         UUID id = api.criarAluno(admin, "Aluno Link " + UUID.randomUUID());
         contratar(id, plano(LINK, 15_000));
         JsonNode aluno = api.convidarEEntrar(admin, id);
+        formas(true, true, false);
 
         JsonNode meu = api.get("/aluno/financeiro", aluno, 200);
 
         assertThat(meu.get("plano").get("linkDePagamento").asString()).isEqualTo(LINK);
+    }
+
+    @Test
+    void linkProprioDesligadoNasFormasTiraOLinkDoPlanoDoAluno() throws Exception {
+        UUID id = api.criarAluno(admin, "Aluno Sem Link Ligado " + UUID.randomUUID());
+        contratar(id, plano(LINK, 15_000));
+        JsonNode aluno = api.convidarEEntrar(admin, id);
+
+        // Sem linha gravada o link próprio está desligado: o plano do aluno não o expõe.
+        assertThat(nulo(api.get("/aluno/financeiro", aluno, 200).get("plano").get("linkDePagamento"))).isTrue();
+        formas(true, true, false);
+        assertThat(api.get("/aluno/financeiro", aluno, 200).get("plano").get("linkDePagamento").asString()).isEqualTo(LINK);
+        formas(true, false, false);
+        assertThat(nulo(api.get("/aluno/financeiro", aluno, 200).get("plano").get("linkDePagamento"))).isTrue();
+        // O treinador segue vendo o link no plano dele.
+        assertThat(api.get("/financeiro/planos", admin, 200).toString()).contains(LINK);
+    }
+
+    private static boolean nulo(JsonNode n) {
+        return n == null || n.isNull() || n.isMissingNode();
+    }
+
+    // ---- cobrança de saída: o aluno só é informado ----
+
+    private JsonNode contratarComMinimo(UUID aluno) throws Exception {
+        JsonNode plano = api.post("/financeiro/planos", admin, Map.of("nome", "Plano minimo " + UUID.randomUUID(),
+                "valorCentavos", 15_000, "periodicidade", "MENSAL", "tempoMinimoMeses", 3), 200);
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("planoComercialId", plano.get("id").asString());
+        corpo.put("inicio", hoje.toString());
+        corpo.put("diaVencimento", hoje.getDayOfMonth());
+        return api.post("/alunos/" + aluno + "/contratacoes", admin, corpo, 200);
+    }
+
+    private JsonNode cobrancaDoTipo(UUID aluno, String tipo) throws Exception {
+        for (JsonNode c : api.get("/alunos/" + aluno + "/cobrancas", admin, 200)) {
+            if (tipo.equals(c.get("tipo").asString()) && "ABERTA".equals(c.get("situacao").asString())) {
+                return c;
+            }
+        }
+        throw new AssertionError("Sem cobrança aberta do tipo " + tipo + ".");
+    }
+
+    /** Encerra com saída OUTRO: a mensalidade segue aberta e nasce uma cobrança de saída. */
+    private void encerrarComSaida(UUID aluno, JsonNode contratacao) throws Exception {
+        api.post("/contratacoes/" + contratacao.get("id").asString() + "/encerrar", admin, Map.of("versao",
+                contratacao.get("versao").asLong(), "saida", Map.of("opcao", "OUTRO", "valorCentavos", 5_000)), 200);
+        assertThat(cobrancaDoTipo(aluno, "SAIDA")).isNotNull();
+    }
+
+    @Test
+    void quemSoTemASaidaAbertaNaoRecebePixNemPodePedirOCodigo() throws Exception {
+        UUID id = api.criarAluno(admin, "Aluno So Saida " + UUID.randomUUID());
+        encerrarComSaida(id, contratarComMinimo(id));
+        JsonNode mensalidade = cobrancaDoTipo(id, "MENSALIDADE");
+        api.post("/cobrancas/" + mensalidade.get("id").asString() + "/cancelar", admin,
+                Map.of("motivo", "Teste", "versao", mensalidade.get("versao").asLong()), 200);
+        JsonNode aluno = api.convidarEEntrar(admin, id);
+        formas(false, true, true);
+
+        JsonNode meu = api.get("/aluno/financeiro", aluno, 200);
+
+        assertThat(meu.get("abertas")).hasSize(1);
+        assertThat(meu.get("abertas").get(0).get("tipo").asString()).isEqualTo("SAIDA");
+        assertThat(formasDoAluno(aluno)).as("a saída só informa: sem Pix").containsExactly("MANUAL");
+        String saidaId = meu.get("abertas").get(0).get("id").asString();
+        JsonNode erro = api.post("/aluno/financeiro/cobrancas/" + saidaId + "/pix", aluno, null, 409);
+        assertThat(erro.get("codigo").asString()).isEqualTo("PIX_INDISPONIVEL");
+        semLog(CHAVE, "recebe.pix");
+    }
+
+    @Test
+    void comMensalidadeESaidaAbertasOPixValeSoParaAMensalidade() throws Exception {
+        UUID id = api.criarAluno(admin, "Aluno Mensalidade E Saida " + UUID.randomUUID());
+        encerrarComSaida(id, contratarComMinimo(id));
+        JsonNode aluno = api.convidarEEntrar(admin, id);
+        formas(false, false, true);
+        String mensalidadeId = cobrancaDoTipo(id, "MENSALIDADE").get("id").asString();
+        String saidaId = cobrancaDoTipo(id, "SAIDA").get("id").asString();
+
+        assertThat(formasDoAluno(aluno)).containsExactly("PIX", "MANUAL");
+        assertThat(api.post("/aluno/financeiro/cobrancas/" + mensalidadeId + "/pix", aluno, null, 200).get("codigo").asString())
+                .isEqualTo(codigoEsperado(mensalidadeId, 15_000));
+        assertThat(api.post("/aluno/financeiro/cobrancas/" + saidaId + "/pix", aluno, null, 409).get("codigo").asString())
+                .isEqualTo("PIX_INDISPONIVEL");
+    }
+
+    // ---- InfinitePay desligada nas formas: o servidor respeita ----
+
+    @Test
+    void infinitePayDesligadaNasFormasFechaOLinkEOPagamentoOnlineDoAluno() throws Exception {
+        UUID id = api.criarAluno(admin, "Aluno Sem Online " + UUID.randomUUID());
+        contratar(id, plano(null, 15_000));
+        JsonNode aluno = api.convidarEEntrar(admin, id);
+        configurarInfinitePay();
+        String cobrancaId = cobrancaAberta(id).get("id").asString();
+        // Sem linha gravada vale o padrão (InfinitePay ligada).
+        assertThat(api.get("/aluno/financeiro", aluno, 200).get("pagamentoOnline").asBoolean()).isTrue();
+
+        formas(false, false, false);
+
+        assertThat(api.get("/aluno/financeiro", aluno, 200).get("pagamentoOnline").asBoolean()).isFalse();
+        JsonNode erro = api.post("/aluno/financeiro/cobrancas/" + cobrancaId + "/link", aluno, null, 503);
+        assertThat(erro.get("codigo").asString()).isEqualTo("RECEBIMENTO_ONLINE_INDISPONIVEL");
+        // Religada, volta ao normal.
+        formas(true, false, false);
+        assertThat(api.get("/aluno/financeiro", aluno, 200).get("pagamentoOnline").asBoolean()).isTrue();
+    }
+
+    @Test
+    void infinitePayDesligadaNasFormasNaoMudaOPadraoSemLinhaNemAsRotasDoTreinador() throws Exception {
+        UUID id = api.criarAluno(admin, "Aluno Rotas Treinador " + UUID.randomUUID());
+        contratar(id, plano(null, 15_000));
+        JsonNode aluno = api.convidarEEntrar(admin, id);
+        String cobrancaId = cobrancaAberta(id).get("id").asString();
+
+        // Sem linha em forma_de_recebimento a InfinitePay vale ligada: o aluno chega à checagem da credencial (sem chamar o provedor).
+        assertThat(api.post("/aluno/financeiro/cobrancas/" + cobrancaId + "/link", aluno, null, 409).get("codigo").asString())
+                .isEqualTo("RECEBIMENTO_ONLINE_NAO_CONFIGURADO");
+
+        // Com ela desligada nas formas: o aluno é barrado; a rota do treinador segue como está (aqui, sem credencial).
+        formas(false, false, false);
+        assertThat(api.post("/aluno/financeiro/cobrancas/" + cobrancaId + "/link", aluno, null, 503).get("codigo").asString())
+                .isEqualTo("RECEBIMENTO_ONLINE_INDISPONIVEL");
+        assertThat(api.post("/cobrancas/" + cobrancaId + "/link", admin, Map.of(), 409).get("codigo").asString())
+                .isEqualTo("RECEBIMENTO_ONLINE_NAO_CONFIGURADO");
+        JsonNode lote = api.post("/cobrancas/link-em-lote", admin, Map.of("cobrancaIds", List.of(cobrancaId)), 200);
+        assertThat(lote.get("resultados").get(0).get("codigo").asString()).isEqualTo("RECEBIMENTO_ONLINE_NAO_CONFIGURADO");
+    }
+
+    // ---- próximo vencimento do plano do aluno ----
+
+    @Test
+    void oProximoVencimentoDoPlanoEOMenorDeHojeEmDianteESenaoOdaMaisAntigaAberta() throws Exception {
+        UUID id = api.criarAluno(admin, "Aluno Proximo Vencimento " + UUID.randomUUID());
+        JsonNode plano = plano(null, 15_000);
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("planoComercialId", plano.get("id").asString());
+        corpo.put("inicio", hoje.minusMonths(2).toString());
+        corpo.put("diaVencimento", hoje.getDayOfMonth());
+        api.post("/alunos/" + id + "/contratacoes", admin, corpo, 200);
+        List<String> ids = new ArrayList<>();
+        api.get("/alunos/" + id + "/cobrancas", admin, 200).forEach(c -> ids.add(0, c.get("id").asString()));
+        assertThat(ids).hasSize(3);
+        JsonNode aluno = api.convidarEEntrar(admin, id);
+        mudarVencimento(ids.get(0), hoje.minusDays(60));
+        mudarVencimento(ids.get(1), hoje.minusDays(30));
+        mudarVencimento(ids.get(2), hoje.plusDays(5));
+
+        // Duas vencidas e uma a vencer: o próximo é a que vence, não a mais antiga.
+        assertThat(proximoVencimento(aluno)).isEqualTo(hoje.plusDays(5).toString());
+        mudarVencimento(ids.get(2), hoje);
+        assertThat(proximoVencimento(aluno)).as("a que vence hoje ainda é o próximo").isEqualTo(hoje.toString());
+        // Todas vencidas: a mais antiga segue aparecendo (Pagamento em aberto).
+        mudarVencimento(ids.get(2), hoje.minusDays(1));
+        assertThat(proximoVencimento(aluno)).isEqualTo(hoje.minusDays(60).toString());
+    }
+
+    private void mudarVencimento(String cobrancaId, LocalDate vencimento) {
+        jdbc.update("update cobranca_aluno set vencimento = ?::date where id = ?::uuid", vencimento.toString(), cobrancaId);
+    }
+
+    private String proximoVencimento(JsonNode aluno) throws Exception {
+        return api.get("/aluno/financeiro", aluno, 200).get("plano").get("proximoVencimento").asString();
     }
 
     // ---- formasDePagamento ----

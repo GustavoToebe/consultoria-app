@@ -338,6 +338,78 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
         assertThat(linhas(abertas.get(0))).isEmpty();
     }
 
+    private void vencerEm(JsonNode cobranca, LocalDate vencimento) {
+        jdbc.update("update cobranca_aluno set vencimento = ?::date where id = ?::uuid", vencimento.toString(),
+                cobranca.get("id").asString());
+    }
+
+    private JsonNode avulsaDe(JsonNode cobranca, LocalDate vencimento) throws Exception {
+        String alunoId = cobranca.get("alunoId").asString();
+        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("alunoIds", List.of(alunoId), "descricao", "Camiseta fictícia",
+                "valorCentavos", 3000, "primeiroVencimento", vencimento.toString(), "parcelas", 1), 201);
+        for (JsonNode c : api.get("/alunos/" + alunoId + "/cobrancas", admin, 200)) {
+            if ("AVULSA".equals(c.get("tipo").asString())) {
+                return c;
+            }
+        }
+        throw new AssertionError("Sem avulsa.");
+    }
+
+    @Test
+    void avulsaQueJaTemOLembreteDaFolgaNaoGastaAVagaDaMensalidadeNosDiasSeguintes() throws Exception {
+        String email = ApiDeTeste.emailUnico("lembrete-folga-avulsa");
+        JsonNode mensalidade = cobrancaDe(admin, "Nina Fictícia da Folga", email, 9000);
+        vencerEm(mensalidade, hoje.plusDays(5));
+        JsonNode avulsa = avulsaDe(mensalidade, hoje); // DEPOIS em hoje+3, ainda devido em +4 e +5 pela folga de 2 dias
+        ligar(admin);
+
+        job.rodar(hoje.plusDays(3), enviador);
+        assertThat(EmailDeTeste.para(email)).hasSize(1);
+        assertThat(EmailDeTeste.para(email).get(0).texto()).contains("A cobrança de").contains("venceu em");
+
+        // A avulsa já tem o DEPOIS: não ocupa a vaga e o ANTES da mensalidade sai.
+        job.rodar(hoje.plusDays(4), enviador);
+        assertThat(EmailDeTeste.para(email)).hasSize(2);
+        assertThat(EmailDeTeste.para(email).get(1).texto()).contains("A mensalidade de").contains("vence em");
+
+        // No dia da mensalidade, o NO_DIA dela não se perde.
+        job.rodar(hoje.plusDays(5), enviador);
+        job.rodar(hoje.plusDays(5), enviador);
+        assertThat(EmailDeTeste.para(email)).hasSize(3);
+        assertThat(EmailDeTeste.para(email).get(2).texto()).contains("A mensalidade de").contains("vence hoje");
+        assertThat(linhas(avulsa)).extracting(l -> l.get("tipo")).containsExactly("DEPOIS");
+        assertThat(linhas(mensalidade)).extracting(l -> l.get("tipo")).containsExactly("ANTES", "NO_DIA");
+    }
+
+    @Test
+    void soMensalidadesComDiasDepoisGrandeNaoPerdemOLembreteDaSeguinte() throws Exception {
+        String email = ApiDeTeste.emailUnico("lembrete-folga-mensal");
+        String alunoId = api.post("/alunos", admin, Map.of("nome", "Rita Fictícia da Folga", "email", email), 200).get("id").asString();
+        JsonNode plano = api.post("/financeiro/planos", admin,
+                Map.of("nome", "Plano folga " + UUID.randomUUID(), "valorCentavos", 9000, "periodicidade", "MENSAL"), 200);
+        api.post("/alunos/" + alunoId + "/contratacoes", admin, Map.of("planoComercialId", plano.get("id").asString(),
+                "inicio", hoje.minusMonths(1).toString(), "diaVencimento", hoje.getDayOfMonth()), 200);
+        List<JsonNode> abertas = new ArrayList<>();
+        api.get("/alunos/" + alunoId + "/cobrancas", admin, 200).forEach(c -> abertas.add(0, c));
+        assertThat(abertas).hasSize(2);
+        JsonNode antiga = abertas.get(0);
+        JsonNode nova = abertas.get(1);
+        vencerEm(antiga, hoje);
+        vencerEm(nova, hoje.plusDays(8));
+        api.put(ROTA, admin, config(true, 3, true, 6, null), 200);
+
+        // hoje+6: DEPOIS da antiga (a mais antiga ganha a vaga); +7: o DEPOIS dela já existe e o ANTES da nova sai; +8: NO_DIA da nova.
+        job.rodar(hoje.plusDays(6), enviador);
+        job.rodar(hoje.plusDays(7), enviador);
+        job.rodar(hoje.plusDays(8), enviador);
+
+        List<EnviadorDeEmail.Mensagem> recebidas = EmailDeTeste.para(email);
+        assertThat(recebidas).hasSize(3);
+        assertThat(recebidas.get(2).texto()).contains("vence hoje");
+        assertThat(linhas(antiga)).extracting(l -> l.get("tipo")).containsExactly("DEPOIS");
+        assertThat(linhas(nova)).extracting(l -> l.get("tipo")).containsExactly("ANTES", "NO_DIA");
+    }
+
     @Test
     void cobrancaPagaEntreOPlanejamentoEOEnvioCancelaOLembrete() throws Exception {
         String email = ApiDeTeste.emailUnico("lembrete-pago");

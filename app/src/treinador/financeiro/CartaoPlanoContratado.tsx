@@ -205,14 +205,16 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
           <LinkTexto texto="Ver no Financeiro" href={`/treinador/financeiro?aba=cobrancas&alunoId=${encodeURIComponent(alunoId)}` as never} />
         </View>
       ) : null}
-      {cobrancas.dados && cobrancas.dados.length === 0 && vigente ? <Texto variante="suave">Ainda não há cobranças geradas.</Texto> : null}
+      {cobrancas.dados && cobrancas.dados.length === 0 && vigente ? (
+        <Texto variante="suave">{vigente.situacao === 'ATIVA' ? 'Nenhuma cobrança ainda. A mensalidade é gerada todo mês, paga ou não.' : 'Nenhuma cobrança.'}</Texto>
+      ) : null}
       {formulario ? (
         <FolhaDeContratacao alunoId={alunoId} contratacao={formulario === 'alterar' ? vigente : null}
           aoFechar={() => setFormulario(null)} aoMudar={recarregar} />
       ) : null}
       <FolhaDaCobranca cobranca={cobrancaAberta} podeAlterar={podeAlterar} aoFechar={() => setCobrancaAberta(null)} aoMudar={recarregar} />
       <PainelConfirmacao visivel={confirmando === 'pausar'} titulo="Pausar este plano?"
-        mensagem="Enquanto estiver pausado, o aluno não recebe novas cobranças. Você pode retomar quando quiser."
+        mensagem="Enquanto estiver pausado, o aluno não recebe novas mensalidades. Você pode retomar quando quiser."
         rotuloConfirmar="Pausar plano" rotuloCancelar="Voltar" carregando={mudando === 'pausar'}
         aoConfirmar={() => mudarSituacao('pausar', 'Contratação pausada.')} aoCancelar={() => setConfirmando(null)}>
         {avisoDasAbertas ? <Texto variante="suave">{avisoDasAbertas}</Texto> : null}

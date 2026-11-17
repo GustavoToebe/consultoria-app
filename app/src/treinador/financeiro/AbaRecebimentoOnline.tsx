@@ -10,6 +10,7 @@ import {
 } from '../../dominio/financeiro';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_FORMULARIO } from '../../tema/tokens';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -26,26 +27,34 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { CartaoFormasDeRecebimento } from './CartaoFormasDeRecebimento';
 import { avisoDeConflito, ehConflito } from './comum';
 
 /**
- * Recebimento online: o treinador liga a InfinitePay informando a InfiniteTag (e, se quiser, uma API Key). O aluno paga
- * por Pix ou cartão por um link e o dinheiro cai direto na conta InfinitePay do treinador: o app não recebe nem guarda
- * dinheiro. A API Key é **só de escrita**: a API nunca a devolve, o campo nasce vazio, o que foi digitado some do estado
- * depois de salvar e a tela só sabe dizer "Chave configurada". Quem paga os juros do parcelamento no cartão (Aluno, padrão,
- * ou Você) também mora aqui; "Você" só vale com a API Key (sem ela a opção fica apagada e a escolha volta para Aluno). Só
- * aparece com o recebimento online ligado na consultoria.
+ * Aba Recebimento: primeiro as formas de recebimento (o que o aluno vê para pagar: InfinitePay, link próprio, Pix e Manual,
+ * `CartaoFormasDeRecebimento`), depois, só com o módulo da InfinitePay ligado na instalação (`recebimentoOnlineHabilitado`),
+ * a conta InfinitePay. São dois cartões com títulos e "Salvar" próprios: gravam coisas diferentes, em rotas diferentes.
+ *
+ * Conta InfinitePay: o treinador informa a InfiniteTag (e, se quiser, uma API Key). O aluno paga por Pix ou cartão por um
+ * link e o dinheiro cai direto na conta InfinitePay do treinador: o app não recebe nem guarda dinheiro. A API Key é **só de
+ * escrita**: a API nunca a devolve, o campo nasce vazio, o que foi digitado some do estado depois de salvar e a tela só sabe
+ * dizer "Chave configurada". Quem paga os juros do parcelamento no cartão (Aluno, padrão, ou Você) também mora aqui; "Você"
+ * só vale com a API Key (sem ela a opção fica apagada e a escolha volta para Aluno).
  */
 export function AbaRecebimentoOnline({ podeAlterar }: { podeAlterar: boolean }) {
-  const carga = useCarregar('recebimento-online', () => buscarRecebimentoOnline());
+  const { recebimentoOnlineHabilitado } = useSessao();
+  const carga = useCarregar(recebimentoOnlineHabilitado ? 'recebimento-online' : null, () => buscarRecebimentoOnline());
   const { dados, erro, recarregar, definir } = carga;
   return (
     <View style={estilos.coluna}>
-      {erro ? <MensagemErro texto={codigoApi(erro) === 'RECEBIMENTO_ONLINE_INDISPONIVEL' ? 'O recebimento online não está disponível agora.' : textoDoErro(erro)}
-        erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!dados && carga.carregando ? <Esqueleto /> : null}
+      <CartaoFormasDeRecebimento podeAlterar={podeAlterar} comInfinitePay={recebimentoOnlineHabilitado} infinitePayConfigurada={dados?.configurado} />
+      {recebimentoOnlineHabilitado && erro ? (
+        <MensagemErro texto={codigoApi(erro) === 'RECEBIMENTO_ONLINE_INDISPONIVEL' ? 'O recebimento online não está disponível agora.' : textoDoErro(erro)}
+          erro={erro} tentarDeNovo={recarregar} />
+      ) : null}
+      {recebimentoOnlineHabilitado && !dados && carga.carregando ? <Esqueleto /> : null}
       {/* A chave do formulário é a versão: salvar ou remover traz outra versão e o formulário nasce de novo, sem resto de digitação. */}
-      {dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
+      {recebimentoOnlineHabilitado && dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
     </View>
   );
 }
@@ -144,7 +153,7 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
 
   return (
     <>
-      <Cartao titulo="Recebimento online" descricao={TEXTO_RECEBIMENTO_ONLINE}
+      <Cartao titulo="Recebimento online pela InfinitePay" descricao={TEXTO_RECEBIMENTO_ONLINE}
         acoes={<Selo texto={dados.configurado ? 'Configurado' : 'Ainda não configurado'} tipo={dados.configurado ? 'sucesso' : 'neutro'} />}
         rodape={podeAlterar ? (
           <LinhaDeAcoes alinhar="entre">

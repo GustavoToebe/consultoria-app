@@ -73,7 +73,10 @@ export const NOTA_SEM_RETORNO = 'Concluídos e recordes aparecem com o "Concluir
 export const PERIODO_DOS_TREINOS = 'Últimos 7 dias';
 export const SO_OS_MEUS = 'Só os meus alunos';
 export const TEXTO_NAO_CARREGOU = 'Não carregou';
-/** Sob o bloco Financeiro: vencidas e vencendo só enxergam o que já foi gerado (não há agendador de cobranças). */
+/**
+ * Sob o bloco Financeiro: vencidas e vencendo só enxergam o que já foi gerado. Continua verdadeiro com a geração todo mês (D1,
+ * rotina diária): o texto não promete nada além das cobranças que existem.
+ */
 export const NOTA_FINANCEIRO_GERADAS = 'Vencidas e vencendo consideram só as cobranças já geradas.';
 /** Nulo de permissão: o servidor não deixou contar. Não é falha (sem "Tentar de novo") nem zero. */
 export const TEXTO_SEM_PERMISSAO = 'Sem permissão';

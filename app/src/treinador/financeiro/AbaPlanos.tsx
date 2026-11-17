@@ -7,6 +7,7 @@ import type { PeriodoDoPlano, PlanoResponse } from '../../api/financeiroTipos';
 import { alterarPlanoComercial, arquivarPlanoComercial, criarPlanoComercial, listarPlanosComerciais } from '../../api/rotas';
 import { LIMITES, OPCOES_DE_PERIODICIDADE, rotuloDaPeriodicidade, validarPlano } from '../../dominio/financeiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela } from '../../dominio/formatos';
+import { LINK_DO_PLANO_MAXIMO, lerLinkDoPlano } from '../../dominio/formasDeRecebimento';
 import {
   errosDoMinimoDoServidor, minimoDoPlanoParaEnvio, minimoDoPlanoParaForm, planoPodeTerMinimo, REGRA_DE_SAIDA_MAXIMA, textoDoMinimoDoPlano,
 } from '../../dominio/saidaDoPlano';
@@ -21,7 +22,7 @@ import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
-import { textoDoErro } from '../../ui/erros';
+import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
@@ -61,15 +62,19 @@ export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
             rotuloDaLinha={(p) => `Abrir plano ${p.nome}`}
             item={(p) => ({
               titulo: p.nome,
-              detalhe: [centavosParaTela(p.valorCentavos), rotuloDaPeriodicidade(p.periodicidade), textoDoMinimoDoPlano(p)].filter(Boolean).join(' · '),
+              detalhe: [centavosParaTela(p.valorCentavos), rotuloDaPeriodicidade(p.periodicidade), textoDoMinimoDoPlano(p), p.linkDePagamento ? COM_LINK : null]
+                .filter(Boolean).join(' · '),
               selo: p.arquivado ? { texto: 'Arquivado', tipo: 'neutro' } : undefined,
             })}
             colunas={[
               // Selo só na exceção (arquivado), como na lista de alunos.
               { chave: 'nome', titulo: 'Plano', flex: 2, principal: true, render: (p) => (
-                <View style={estilos.nome}>
-                  <Texto variante="bloco" numberOfLines={2} style={estilos.encolher}>{p.nome}</Texto>
-                  {p.arquivado ? <Selo texto="Arquivado" tipo="neutro" /> : null}
+                <View>
+                  <View style={estilos.nome}>
+                    <Texto variante="bloco" numberOfLines={2} style={estilos.encolher}>{p.nome}</Texto>
+                    {p.arquivado ? <Selo texto="Arquivado" tipo="neutro" /> : null}
+                  </View>
+                  {p.linkDePagamento ? <Texto variante="pequeno">{COM_LINK}</Texto> : null}
                 </View>
               ) },
               { chave: 'periodicidade', titulo: 'Periodicidade', flex: 1, render: (p) => {
@@ -115,7 +120,8 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
   const inicial = minimoDoPlanoParaForm(plano);
   const [tempoMinimo, setTempoMinimo] = useState(inicial.tempoMinimoTexto);
   const [regraDeSaida, setRegraDeSaida] = useState(inicial.regraDeSaidaTexto);
-  const [errosDoServidor, setErrosDoServidor] = useState<{ tempoMinimo?: string; regraDeSaida?: string }>({});
+  const [link, setLink] = useState(plano?.linkDePagamento ?? '');
+  const [errosDoServidor, setErrosDoServidor] = useState<{ tempoMinimo?: string; regraDeSaida?: string; link?: string }>({});
   const [tentou, setTentou] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
@@ -131,6 +137,8 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
     tempoMinimo: errosDoServidor.tempoMinimo ?? locais.tempoMinimo,
     regraDeSaida: errosDoServidor.regraDeSaida ?? locais.regraDeSaida,
   };
+  const linkLido = lerLinkDoPlano(link);
+  const erroDoLink = errosDoServidor.link ?? (tentou ? linkLido.erro : null);
   // Trocar a periodicidade de um plano que tinha mínimo apaga o mínimo e a regra ao salvar: a tela avisa antes.
   const perdeMinimo = !comMinimo && !!(plano?.tempoMinimoMeses || plano?.regraDeSaida);
 
@@ -150,20 +158,21 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
       return;
     }
     const porCampo = errosDoMinimoDoServidor(e);
-    if (porCampo.tempoMinimo || porCampo.regraDeSaida) { setErrosDoServidor(porCampo); return; }
+    const doLink = errosPorCampo(e).linkDePagamento;
+    if (porCampo.tempoMinimo || porCampo.regraDeSaida || doLink) { setErrosDoServidor({ ...porCampo, link: doLink }); return; }
     setErro(e);
   };
 
   const salvar = () => {
     setTentou(true);
-    if (problema || centavos === null || !minimo.ok) return;
+    if (problema || centavos === null || !minimo.ok || linkLido.erro) return;
     setEnviando(true);
     setErro(null);
     setErrosDoServidor({});
-    // O `PUT` substitui inteiro: os dois campos vão sempre (nulos fora do plano mensal).
+    // O `PUT` substitui inteiro: os campos opcionais vão sempre (mínimo e regra nulos fora do plano mensal; o link nulo apaga).
     const corpo = {
       nome: nome.trim(), valorCentavos: centavos, periodicidade, tempoMinimoMeses: minimo.tempoMinimoMeses, regraDeSaida: minimo.regraDeSaida,
-      versao: plano?.versao ?? null,
+      linkDePagamento: linkLido.valor, versao: plano?.versao ?? null,
     };
     (plano ? alterarPlanoComercial(plano.id, corpo) : criarPlanoComercial(corpo)).then(
       () => terminar(plano ? 'Plano salvo.' : 'Plano criado.'),
@@ -208,6 +217,9 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
                   ajuda="Lembrete do que o contrato diz sobre sair antes do mínimo. Aparece só para a equipe, ao encerrar o plano; o app não calcula multa." />
               </>
             ) : null}
+            <Campo rotulo="Link de pagamento (opcional)" valor={link} aoMudar={(t) => { setLink(t); setErrosDoServidor((e) => ({ ...e, link: undefined })); }}
+              erro={erroDoLink} maxLength={LINK_DO_PLANO_MAXIMO} keyboardType="url" inputMode="url" autoCapitalize="none" autoCorrect={false} autoComplete="off" spellCheck={false}
+              placeholder="https://" ajuda={AJUDA_DO_LINK} />
           </>
         ) : (
           <>
@@ -221,6 +233,7 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
                 {plano.regraDeSaida ? <CampoLeitura rotulo="Regra de saída" valor={plano.regraDeSaida} /> : null}
               </>
             ) : null}
+            {plano?.linkDePagamento ? <CampoLeitura rotulo="Link de pagamento" valor={plano.linkDePagamento} /> : null}
           </>
         )}
         {tentou && problema && centavos !== null && nome.trim() ? <MensagemErro texto={problema} /> : null}
@@ -235,6 +248,10 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
     </Folha>
   );
 }
+
+const COM_LINK = 'Com link de pagamento';
+const AJUDA_DO_LINK =
+  'Para quem cobra por outra plataforma. O aluno abre este link no "Pagar" das mensalidades do plano, com "Link de pagamento próprio" ligado em Recebimento. Em branco, sem link.';
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },

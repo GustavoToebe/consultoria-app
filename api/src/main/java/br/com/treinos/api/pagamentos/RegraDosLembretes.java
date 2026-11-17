@@ -12,8 +12,10 @@ import java.util.Optional;
  * <li>{@code DEPOIS}: de {@code vencimento + diasDepois} até {@value #FOLGA_EM_DIAS} dias depois.</li>
  * </ul>
  * A folga cobre o job que não rodou (API fora do ar, deploy) sem nunca mandar lembrete de uma cobrança antiga: quem liga a
- * configuração hoje não dispara e-mail para o que venceu há meses. 0 dias = aquele lembrete não sai. As janelas não se
- * cruzam, então no máximo um tipo é devido por dia; a chave única (cobrança, tipo) impede o segundo do mesmo tipo.
+ * configuração hoje não dispara e-mail para o que venceu há meses. 0 dias = aquele lembrete não sai. As janelas de uma
+ * cobrança podem se cruzar (a folga de {@value #FOLGA_EM_DIAS} dias com {@code diasAntes} ou {@code diasDepois} pequenos), e a
+ * ordem do {@code if} escolhe o tipo: no máximo um tipo é devido por dia para cada cobrança. A chave única (cobrança, tipo)
+ * impede o segundo do mesmo tipo; quem escolhe a cobrança do dia (uma por aluno) é o planejamento do job.
  */
 public final class RegraDosLembretes {
 

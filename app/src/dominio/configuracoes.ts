@@ -8,7 +8,9 @@ export type GrupoDeConfiguracao = (typeof GRUPOS_DE_CONFIGURACAO)[number];
 
 /**
  * Booleanos do `GET /eu` (já na sessão) que ligam ou desligam um cartão. Ausente ou `false` = o cartão some. A frente
- * Contato (passo 3 do plano) acrescenta aqui `emailDominioProprioHabilitado` e `whatsappHabilitado`.
+ * Contato (passo 3 do plano) acrescenta aqui `emailDominioProprioHabilitado` e `whatsappHabilitado`. A aba Recebimento do
+ * Financeiro vale sempre (Pix, link próprio e Manual não dependem da InfinitePay): só o cartão da InfinitePay dentro dela
+ * usa `recebimentoOnlineHabilitado`, e isso é da tela, não do cartão do hub. Nenhum cartão usa chave hoje.
  * `pagamentosHabilitados` não entra: já vive dentro de `podeAcessarTela`.
  */
 export type ChaveDeConfiguracao = 'recebimentoOnlineHabilitado';
@@ -64,7 +66,7 @@ export const CARTOES_DE_CONFIGURACAO: readonly CartaoDeConfiguracao[] = [
   { id: 'aniversarios', grupo: 'Alunos e atendimento', titulo: 'Aniversários dos alunos', descricao: 'Quantos dias antes o Início mostra quem faz aniversário.', href: '/treinador/ajustes', palavras: ['aniversario', 'aniversariantes', 'data de nascimento', 'parabens', 'inicio'], permissao: 'ALUNO_LER' },
   { id: 'financeiro-planos', grupo: 'Financeiro', titulo: 'Planos comerciais', descricao: 'Os planos que você cobra dos alunos.', href: '/treinador/financeiro?aba=planos', palavras: ['pagamentos', 'mensalidade', 'valores', 'cobranca', 'planos'] },
   { id: 'financeiro-lembretes', grupo: 'Financeiro', titulo: 'Lembretes de cobrança', descricao: 'Quando avisar o aluno por e-mail sobre uma cobrança.', href: '/treinador/financeiro?aba=lembretes', palavras: ['lembrete', 'avisos', 'email', 'vencimento', 'atraso', 'inadimplencia'] },
-  { id: 'financeiro-recebimento', grupo: 'Financeiro', titulo: 'Recebimento online', descricao: 'Receber pelo link de pagamento da InfinitePay.', href: '/treinador/financeiro?aba=recebimento', palavras: ['infinitepay', 'pix', 'cartao', 'link de pagamento', 'parcelamento', 'juros'], chave: 'recebimentoOnlineHabilitado' },
+  { id: 'financeiro-recebimento', grupo: 'Financeiro', titulo: 'Recebimento online', descricao: 'Como o aluno paga: Pix, link próprio, InfinitePay e manual.', href: '/treinador/financeiro?aba=recebimento', palavras: ['formas de recebimento', 'infinitepay', 'pix', 'copia e cola', 'chave pix', 'cartao', 'link de pagamento', 'link proprio', 'manual', 'parcelamento', 'juros'] },
   { id: 'importacao', grupo: 'Dados', titulo: 'Importação', descricao: 'Trazer alunos, pesos, alimentos e exercícios de planilhas.', href: '/treinador/importacao', palavras: ['planilha', 'xlsx', 'csv', 'importar', 'alunos', 'pesos', 'alimentos', 'exercicios'] },
   { id: 'planilha-completa', grupo: 'Dados', titulo: 'Importar planilha completa', descricao: 'Migrar alunos com treinos e dietas de outra plataforma.', href: '/treinador/importacao/planilha-completa', palavras: ['planilha completa', 'migrar', 'migracao', 'outra plataforma', 'treinos', 'dietas'] },
   { id: 'ajuda', grupo: 'Ajuda', titulo: 'Ajuda', descricao: 'Guias e respostas sobre o uso do app.', href: '/treinador/ajuda', palavras: ['guia', 'tutorial', 'suporte', 'duvidas', 'como fazer'] },
