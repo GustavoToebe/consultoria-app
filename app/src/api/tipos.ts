@@ -1498,10 +1498,10 @@ export interface PerguntaAtualizacao {
   /** NOTA: texto curto embaixo das pontas da escala ("Nada", "Muito"); até 40 cada. */
   rotuloMin?: string;
   rotuloMax?: string;
-  /** Imagem (PNG/JPEG da consultoria), vista pela API com token. */
-  imagemId?: string;
   /** FOTOS: nomes dos lugares (1 a 40 caracteres, sem repetir, no máximo `max`/6); a foto de posição i é o lugar i e as fotos aceitas passam a ser `lugares.length`. */
   lugares?: string[];
+  /** Imagem (PNG/JPEG da consultoria), vista pela API com token. */
+  imagemId?: string;
   /** DATA: só hoje ou antes. */
   somentePassado?: boolean;
   /** GRADE. */
