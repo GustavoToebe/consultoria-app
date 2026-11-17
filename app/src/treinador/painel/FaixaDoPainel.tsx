@@ -36,7 +36,7 @@ export function LinhaDeBlocos({ children, style }: { children: ReactNode; style?
 }
 
 /**
- * Faixa de título dos blocos do painel (a mesma do `Cartao`: `superficie2`, linha `divisor` embaixo), com o título e a
+ * Faixa de título dos blocos do painel (a mesma do `Cartao`: `superficie3`, linha `divisor` embaixo), com o título e a
  * linha pequena embaixo dele à esquerda e as ações à direita na mesma linha; num bloco estreito (1 coluna, celular) as
  * ações descem para uma segunda linha, à direita (os ícones continuam com 44 px). `ref`: o passeio aponta para a faixa
  * dos Primeiros passos.
@@ -54,7 +54,7 @@ export const FaixaDoPainel = forwardRef<View, { titulo: string; descricao?: stri
     const recuo = espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2);
     return (
       <View ref={ref} collapsable={false}
-        style={[estilos.faixa, { backgroundColor: cores.superficie2, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo },
+        style={[estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo },
           linha ? { minHeight: Math.max(MINIMA, linha.faixa + 2 * VERTICAL + bordas.bloco) } : null]}>
         <View onLayout={linha ? medirFaixa : undefined} style={estilos.conteudo}>
           <View style={[estilos.titulo, { flexBasis: larguraDoTitulo(fatorTexto) }, linha ? { minHeight: linha.titulo } : null]}>

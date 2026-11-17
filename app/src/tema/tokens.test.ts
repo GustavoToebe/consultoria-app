@@ -323,6 +323,19 @@ describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, c
     }
   });
 
+  it('informação e conquista (D9) não ficam mais perto do AZUL, do INDIGO e da VIOLETA do que hoje', () => {
+    // shortcut: pisos por par no mínimo medido em 17/11 (9 paletas × base, contraste alto e bordas), abaixo do alvo de
+    // 40 dos outros papéis de situação: informação × AZUL 7,26 (Escuro #4D9BFF × #62A0F8; Claro 12,0, Areia 13,7),
+    // conquista × VIOLETA 18,33 (Claro e Areia #7A2FD0 × #8A2DB0), informação × INDIGO 20,35, conquista × INDIGO 20,56,
+    // informação × VIOLETA 37,80, conquista × AZUL 42,86. As cores de D9 são do Gustavo; subir para 40 quando ele mexer
+    // nelas ou na paleta de identificação.
+    const pisos: [keyof Pick<Cores, 'informacao' | 'conquista'>, 'AZUL' | 'INDIGO' | 'VIOLETA', number][] = [
+      ['informacao', 'AZUL', 7], ['informacao', 'INDIGO', 20], ['informacao', 'VIOLETA', 37],
+      ['conquista', 'AZUL', DISTANCIA_DA_IDENTIFICACAO_AO_STATUS], ['conquista', 'INDIGO', 20], ['conquista', 'VIOLETA', 18],
+    ];
+    for (const [papel, chave, piso] of pisos) expect(distanciaDeCor(cores[papel], identificacao[chave].cor)).toBeGreaterThanOrEqual(piso);
+  });
+
   it('as cinco se distinguem entre si', () => {
     for (let i = 0; i < CHAVES_DE_IDENTIFICACAO.length; i++) {
       for (let j = i + 1; j < CHAVES_DE_IDENTIFICACAO.length; j++) {

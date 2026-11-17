@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AgendaPessoal, Compromisso, OcorrenciaDeEvento, Participante, SituacaoCompromisso } from '../src/api/agendaTipos';
 import type { AlunoResumo, AtualizacaoDaLista } from '../src/api/tipos';
+import { CLARO as T_CLARO, ESCURO as T_ESCURO, PALETA_DA_AGENDA } from '../src/tema/tokens';
 import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 import { fixarHoje } from './aluno';
 
@@ -82,11 +83,16 @@ const PAINEL = { atualizacoesParaRevisar: 0, atualizacoesAtrasadas: 0, atualizac
  * Cores esperadas (tema claro da marca de teste e tema escuro escolhido nas preferências). O fundo do item é neutro, a
  * `superficie2` do tema (guia de 11/11: a cor da agenda fica só na faixa; contraste em `contrasteDaAgenda.test.ts`).
  */
+function rgb(hex: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+// Lidas de `tokens.ts` (não literais): a escada de 17/11 mudou a `superficie2` e o teste não pode ficar com a antiga.
 const CLARO = {
-  texto: 'rgb(9, 9, 11)', superficie2: 'rgb(234, 236, 239)',
-  azul: 'rgb(27, 111, 214)', indigo: 'rgb(75, 63, 191)', oliva: 'rgb(117, 132, 24)',
+  texto: rgb(T_CLARO.texto), superficie2: rgb(T_CLARO.superficie2),
+  azul: rgb(PALETA_DA_AGENDA.claro.AZUL), indigo: rgb(PALETA_DA_AGENDA.claro.INDIGO), oliva: rgb(PALETA_DA_AGENDA.claro.OLIVA),
 };
-const ESCURO = { texto: 'rgb(252, 252, 252)', azul: 'rgb(74, 144, 247)', superficie2: 'rgb(11, 11, 13)' };
+const ESCURO = { texto: rgb(T_ESCURO.texto), azul: rgb(PALETA_DA_AGENDA.escuro.AZUL), superficie2: rgb(T_ESCURO.superficie2) };
 
 async function abrirAgenda(page: Page, opcoes: { escuro?: boolean } = {}) {
   await fixarHoje(page);

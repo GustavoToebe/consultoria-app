@@ -51,7 +51,7 @@ export function CargasPorDivisao({ divisoes, letras: dadas }: { divisoes: Divisa
           <FaixaDaDivisao divisao={d} letra={letraDaDivisaoNoHistorico(letras, d.nome)} aberta={!recolhidas.has(d.chave)} aoAlternar={() => alternar(d.chave)}>
           {d.exercicios.map((e) => (
             <View key={e.chave} style={[estilos.exercicio, { borderColor: cores.borda }]}>
-              <View style={[estilos.cabecalho, { backgroundColor: cores.superficie2 }]}>
+              <View style={[estilos.cabecalho, { backgroundColor: cores.superficie3 }]}>
                 <Texto numerico style={estilos.nomeExercicio}>{e.nome}</Texto>
                 <Texto numerico variante="pequeno">
                   {e.linhas.length} {e.linhas.length === 1 ? 'sessão' : 'sessões'}
