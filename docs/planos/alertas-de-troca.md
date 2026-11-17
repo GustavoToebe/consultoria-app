@@ -1,6 +1,6 @@
 # Alertas de troca de exercício
 
-Situação: Planejando (depende do Lote B, `trocar-exercicio.md`; nenhum código) · Onde: main · Atualizado: 16/11/2026
+Situação: Entregue (API V080 `839d89ce`, telas `ee5cbc16`, AGENTS.md `8c045384`; sem push) · Onde: main · Atualizado: 17/11/2026
 
 Fonte: leitura do código em 16/11/2026 (mapa do explorador), base 1f33299d. Validade: vale enquanto não existir push para treinador e o Lote B não mudar o formato da troca.
 
@@ -41,4 +41,5 @@ O treinador fica sabendo que o aluno trocou um exercício, pelo canal que já ex
 Push, e-mail e WhatsApp ao treinador; alerta de qualquer outro evento.
 
 ## O que ficou para trás
-- (nada ainda)
+- **`DELETE` com corpo** (o "Desfazer" do visto, `DELETE /alunos/{alunoId}/trocas-de-exercicio/visto`): o proxy de produção (Caddy da VPS, `central-api-back/deploy`) não foi conferido. Se ele descartar o corpo, o "Desfazer" falha em produção e o teste local não vê. Conferir no primeiro deploy (ou trocar por `POST .../visto/desfazer`); responsável: Gustavo (conferir) e depois Claude.
+- Desempenho de `TrocasDeExercicioService.pendentes` (varre as séries da janela em memória), índice da FK de usuário da `troca_exercicio_visto` e construtores curtos de `ExercicioPlano` (`SemanasPadrao.java:88`): ver "Pendências soltas" do README.
