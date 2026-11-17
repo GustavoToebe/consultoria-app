@@ -22,7 +22,8 @@ import java.util.UUID;
 
 /**
  * Capa do vídeo (D7), do aulão e do post {@code VIDEO}: enviada pela equipe, só JPEG conferido e regravado sem metadados (1600 px,
- * 300 KB depois da limpeza), guardada no banco e servida só pela API com {@code no-store}; nunca imagem remota. Pendente até o
+ * 300 KB depois da limpeza), guardada no banco e servida só pela API com {@code no-store}; o app nunca mostra imagem remota (a única que o servidor busca fora é a miniatura do
+ * YouTube, de host fixo, por {@code CapaDoYoutubeService}, e ela passa pela mesma limpeza). Pendente até o
  * dono (aulão ou post); a anterior é apagada ao trocar, ao ocultar o post e (por cascata) ao excluir o aulão. Conteúdo da equipe:
  * não entra na exportação nem na anonimização do aluno. Teto de {@value #POR_DIA} envios por consultoria em 24 h, num contador
  * atômico no banco (não conta linhas vivas: apagar não devolve cota e envios simultâneos não passam do teto). A pendente com mais de 24 h sai na manutenção
@@ -65,11 +66,37 @@ public class CapasDaComunidadeService {
         byte[] jpeg = limpar(recebido);
         Instant agora = Instant.now();
         capas.apagarPendentesAntigas(agora.minus(JANELA));
+        exigirVaga();
+        return capas.saveAndFlush(new ComunidadeCapa(jpeg, agora)).getId();
+    }
+
+    /**
+     * Gasta uma vaga do teto diário em transação própria (C25, capa do YouTube: a vaga sai <b>antes</b> do download, para o
+     * botão não virar uma enxurrada de chamadas de saída, e a transação não fica aberta durante a rede). Download que falha
+     * depois não devolve a vaga: é o mesmo critério de apagar a capa. 422 {@code IMAGENS_LIMITE_DIARIO} sem vaga.
+     */
+    @Transactional
+    public void reservarVaga() {
+        exigirVaga();
+    }
+
+    /**
+     * Grava a capa de bytes que o servidor mesmo buscou, com a vaga já gasta em {@link #reservarVaga()}: a mesma limpeza do
+     * envio manual (JPEG regravado sem metadados, 1600 px, 300 KB), sem gastar outra vaga.
+     */
+    @Transactional
+    public UUID gravarComVagaReservada(byte[] recebido) {
+        byte[] jpeg = limpar(recebido);
+        Instant agora = Instant.now();
+        capas.apagarPendentesAntigas(agora.minus(JANELA));
+        return capas.saveAndFlush(new ComunidadeCapa(jpeg, agora)).getId();
+    }
+
+    private void exigirVaga() {
         if (!limite.capaDaComunidadeCabe(Objects.requireNonNull(TenantContext.get()), POR_DIA)) {
             throw new ValidacaoException("Limite de " + POR_DIA + " capas por dia atingido. Tente de novo amanhã.",
                     "IMAGENS_LIMITE_DIARIO", List.of());
         }
-        return capas.saveAndFlush(new ComunidadeCapa(jpeg, agora)).getId();
     }
 
     /** A equipe vê qualquer capa da consultoria, inclusive a pendente (para a prévia); a de post passa pelo funil do post. */
