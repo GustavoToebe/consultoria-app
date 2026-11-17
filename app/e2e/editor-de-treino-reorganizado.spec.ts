@@ -95,6 +95,8 @@ test.describe('PC (1280)', () => {
     await expect(bloco(page, 2)).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
     await page.keyboard.press('ArrowDown');
+    // A seta move o foco num `setTimeout` (Radix): sob carga o Espaço chegaria antes e cairia na Série 2.
+    await expect(bloco(page, 3)).toBeFocused();
     await page.keyboard.press('Space');
     await expect(bloco(page, 3)).toHaveAttribute('aria-selected', 'true');
     expect(api.errosDaPagina).toEqual([]);
