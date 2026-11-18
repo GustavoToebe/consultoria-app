@@ -21,7 +21,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, diasAniversario: 3, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], unidadeDeCarga: 'lb', corDeAcao: 'VIOLETA', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false }, tamanhos: { alunos: 3 } } };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, diasAniversario: 3, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], gruposRecolhidos: ['Acompanhamento', 'Negócio'], unidadeDeCarga: 'lb', corDeAcao: 'VIOLETA', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false }, tamanhos: { alunos: 3 } } };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -127,6 +127,14 @@ describe('preferências pessoais', () => {
     expect(normalizarPreferencias({ agendasOcultas: muitas }).agendasOcultas).toEqual(muitas.slice(0, AGENDAS_OCULTAS_MAXIMO));
     // Não poda por existência: o id fica guardado até a lista de agendas dizer que sumiu (a leitura pode ter falhado).
     expect(normalizarPreferencias(JSON.stringify({ agendasOcultas: ['id-que-nao-existe-mais'] })).agendasOcultas).toEqual(['id-que-nao-existe-mais']);
+  });
+
+  it('grupos recolhidos: nenhum por padrão; só nomes de grupos do menu, sem repetir, na ordem do menu; o resto volta a tudo aberto', () => {
+    expect(PREFERENCIAS_PADRAO.gruposRecolhidos).toEqual([]);
+    expect(normalizarPreferencias({ gruposRecolhidos: ['Negócio', 'Xis', 7, null, 'Negócio', 'Acompanhamento'] }).gruposRecolhidos)
+      .toEqual(['Acompanhamento', 'Negócio']);
+    for (const v of ['Negócio', 1, { a: 1 }, null, true, undefined]) expect(normalizarPreferencias({ gruposRecolhidos: v }).gruposRecolhidos).toEqual([]);
+    expect(normalizarPreferencias(JSON.stringify({ gruposRecolhidos: ['Conteúdo'] })).gruposRecolhidos).toEqual(['Conteúdo']);
   });
 
   it('pdf da dieta: valor inválido volta a simples, 7 dias e fatores ligados', () => {

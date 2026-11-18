@@ -1,4 +1,16 @@
-import { GRUPOS_DO_MENU, gruposDoMenu, MENU_DO_TREINADOR, naConta, naOrdemDoMenu, posicaoNoMenu, rotuloCurtoDoMenu, type GrupoDoMenu } from './gruposDoMenu';
+import {
+  alternarGrupoRecolhido,
+  GRUPOS_DO_MENU,
+  gruposDoMenu,
+  gruposRecolhidos,
+  MENU_DO_TREINADOR,
+  naConta,
+  naOrdemDoMenu,
+  posicaoNoMenu,
+  resumoDoGrupoRecolhido,
+  rotuloCurtoDoMenu,
+  type GrupoDoMenu,
+} from './gruposDoMenu';
 
 const item = (rotulo: string, grupo?: GrupoDoMenu) => ({ rotulo, grupo });
 
@@ -41,6 +53,74 @@ describe('gruposDoMenu', () => {
 
   it('lista vazia, nenhum bloco', () => {
     expect(gruposDoMenu([])).toEqual([]);
+  });
+});
+
+describe('gruposRecolhidos', () => {
+  const todos: GrupoDoMenu[] = [...GRUPOS_DO_MENU];
+
+  it('devolve os salvos que têm item permitido, na ordem do menu', () => {
+    expect(gruposRecolhidos(['Negócio', 'Acompanhamento'], todos)).toEqual(['Acompanhamento', 'Negócio']);
+    expect(gruposRecolhidos([], todos)).toEqual([]);
+  });
+
+  it('o grupo da tela aberta nunca fica recolhido, mesmo salvo como recolhido', () => {
+    expect(gruposRecolhidos(['Acompanhamento', 'Negócio'], todos, 'Negócio')).toEqual(['Acompanhamento']);
+    // Tela aberta no Início (sem grupo): nada é protegido.
+    expect(gruposRecolhidos(['Negócio'], [undefined, ...todos], undefined)).toEqual(['Negócio']);
+  });
+
+  it('id desconhecido é ignorado', () => {
+    expect(gruposRecolhidos(['Inexistente', '', 'Conteúdo'], todos)).toEqual(['Conteúdo']);
+  });
+
+  it('grupo sem item permitido continua sumindo: não aparece nem recolhido', () => {
+    expect(gruposRecolhidos(['Negócio', 'Conteúdo'], ['Conteúdo', 'Configurações'])).toEqual(['Conteúdo']);
+  });
+});
+
+describe('alternarGrupoRecolhido', () => {
+  it('recolhe o grupo aberto e abre o recolhido', () => {
+    expect(alternarGrupoRecolhido([], 'Negócio')).toEqual(['Negócio']);
+    expect(alternarGrupoRecolhido(['Negócio'], 'Negócio')).toEqual([]);
+  });
+
+  it('mantém a ordem do menu, sem repetir, e descarta o que não é grupo', () => {
+    expect(alternarGrupoRecolhido(['Negócio', 'Negócio', 'Xis'], 'Acompanhamento')).toEqual(['Acompanhamento', 'Negócio']);
+    expect(alternarGrupoRecolhido(['Negócio', 'Conteúdo', 'Negócio'], 'Conteúdo')).toEqual(['Negócio']);
+  });
+});
+
+describe('resumoDoGrupoRecolhido', () => {
+  const conta = (numero: number, descricao = 'para revisar') => ({ contagem: { numero, descricao } });
+
+  it('soma as contagens dos itens e guarda as partes maiores que zero', () => {
+    expect(resumoDoGrupoRecolhido([conta(3), conta(1, 'inscrição nova'), conta(0, 'outra')])).toEqual({
+      numero: 4,
+      ponto: false,
+      partes: [{ numero: 3, descricao: 'para revisar' }, { numero: 1, descricao: 'inscrição nova' }],
+    });
+  });
+
+  it('item sem contagem conta como ausente: a soma só usa os que têm', () => {
+    expect(resumoDoGrupoRecolhido([{}, conta(2), { ponto: false }]).numero).toBe(2);
+  });
+
+  it('nenhum item com contagem: numero nulo, nunca zero inventado', () => {
+    expect(resumoDoGrupoRecolhido([{}, { ponto: false }]).numero).toBeNull();
+    expect(resumoDoGrupoRecolhido([]).numero).toBeNull();
+  });
+
+  it('contagem presente e zero soma zero (a tela não a mostra)', () => {
+    expect(resumoDoGrupoRecolhido([conta(0)])).toEqual({ numero: 0, ponto: false, partes: [] });
+  });
+
+  it('o ponto vale com algum item com ponto e sem contagem maior que zero; "inferior" é só da barra do celular', () => {
+    expect(resumoDoGrupoRecolhido([{ ponto: true }, {}]).ponto).toBe(true);
+    expect(resumoDoGrupoRecolhido([{ ponto: true, ...conta(0) }]).ponto).toBe(true);
+    expect(resumoDoGrupoRecolhido([{ ponto: true, ...conta(2) }]).ponto).toBe(false);
+    expect(resumoDoGrupoRecolhido([{ ponto: 'inferior' }]).ponto).toBe(false);
+    expect(resumoDoGrupoRecolhido([{ ponto: false }]).ponto).toBe(false);
   });
 });
 

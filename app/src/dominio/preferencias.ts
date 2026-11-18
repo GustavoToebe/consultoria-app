@@ -1,4 +1,5 @@
 import { OPCOES_DIAS_ANIVERSARIO } from './aniversariosDosAlunos';
+import { GRUPOS_DO_MENU, type GrupoDoMenu } from './gruposDoMenu';
 import { PERIODOS_DA_LISTA, type PeriodoDaLista } from './listaDeCompras';
 import { BLOCOS_DO_PAINEL, ehBlocoDoPainel, ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
 import { BORDA_BLOCO, BORDA_ITEM, CODIGOS_DA_COR_DE_ACAO, contraste, misturar, type CorDeAcao, type Cores } from '../tema/tokens';
@@ -72,6 +73,12 @@ export interface Preferencias {
    */
   agendasOcultas: string[];
   /**
+   * Só treinador, só no menu lateral aberto: grupos recolhidos neste aparelho (D2). Nenhum é o padrão (tudo aberto). Fica
+   * depois do "Sair" (a chave `preferencias` inteira sobrevive); quem usa filtra com `gruposRecolhidos` (o grupo da tela
+   * aberta nunca fica recolhido).
+   */
+  gruposRecolhidos: GrupoDoMenu[];
+  /**
    * Só treinador: painel do Início (D7). `ordem` traz sempre todos os blocos (os que a pessoa não pode ver guardam o
    * lugar), `escondidos` os que ela desligou no "Editar", `meus` o Todos/Meus escolhido em cada bloco e `tamanhos` o
    * Pequeno/Médio/Grande de cada um (o "Restaurar padrão" do Editar limpa os quatro). Os Primeiros passos não entram.
@@ -112,6 +119,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   lembretesCompromisso: false,
   avisoNoCelular: false,
   agendasOcultas: [],
+  gruposRecolhidos: [],
   painelDoInicio: PAINEL_DO_INICIO_PADRAO,
   unidadeDeCarga: 'kg',
 };
@@ -166,6 +174,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     lembretesCompromisso: typeof o.lembretesCompromisso === 'boolean' ? o.lembretesCompromisso : PREFERENCIAS_PADRAO.lembretesCompromisso,
     avisoNoCelular: typeof o.avisoNoCelular === 'boolean' ? o.avisoNoCelular : PREFERENCIAS_PADRAO.avisoNoCelular,
     agendasOcultas: agendasOcultasDe(o.agendasOcultas),
+    gruposRecolhidos: gruposRecolhidosDe(o.gruposRecolhidos),
     painelDoInicio: painelDoInicioDe(o.painelDoInicio),
     unidadeDeCarga: entre(o.unidadeDeCarga, UNIDADES_DE_CARGA, PREFERENCIAS_PADRAO.unidadeDeCarga),
   };
@@ -204,7 +213,12 @@ function agendasOcultasDe(valor: unknown): string[] {
   return [...new Set(itens)].slice(0, AGENDAS_OCULTAS_MAXIMO);
 }
 
-const MODOS_PDF: readonly ModoPdfDieta[] = ['simples', 'detalhado'];
+/** Só nomes de grupos que existem, sem repetir, na ordem do menu; qualquer outra coisa vira "tudo aberto". */
+function gruposRecolhidosDe(valor: unknown): GrupoDoMenu[] {
+  return Array.isArray(valor) ? GRUPOS_DO_MENU.filter((g) => valor.includes(g)) : [];
+}
+
+const MODOS_PDF:readonly ModoPdfDieta[] = ['simples', 'detalhado'];
 
 function pdfDietaDe(valor: unknown): PdfDietaPreferida {
   const o = valor && typeof valor === 'object' ? (valor as Record<string, unknown>) : {};

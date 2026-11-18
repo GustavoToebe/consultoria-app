@@ -23,6 +23,54 @@ export function gruposDoMenu<T extends { grupo?: GrupoDoMenu }>(itens: readonly 
   return blocos;
 }
 
+/**
+ * Grupos recolhidos no menu lateral aberto (D2, D3 e D5 de `docs/planos/menu-grupos-recolhiveis.md`), na ordem de
+ * `GRUPOS_DO_MENU`. `ids` é a preferência `gruposRecolhidos`; `visiveis` são os grupos que têm item permitido agora (os
+ * `grupo` dos blocos de `gruposDoMenu`). Id desconhecido é ignorado, grupo sem item permitido nem entra (continua sumindo) e o
+ * grupo da tela aberta nunca fica recolhido, mesmo salvo como recolhido.
+ */
+export function gruposRecolhidos(
+  ids: readonly string[],
+  visiveis: readonly (GrupoDoMenu | undefined)[],
+  grupoDaTela?: GrupoDoMenu,
+): GrupoDoMenu[] {
+  return GRUPOS_DO_MENU.filter((g) => g !== grupoDaTela && ids.includes(g) && visiveis.includes(g));
+}
+
+/**
+ * Recolhe o grupo se estava aberto e abre se estava recolhido; devolve a nova lista da preferência: só grupos conhecidos,
+ * sem repetir, na ordem de `GRUPOS_DO_MENU`.
+ */
+export function alternarGrupoRecolhido(ids: readonly string[], grupo: GrupoDoMenu): GrupoDoMenu[] {
+  return GRUPOS_DO_MENU.filter((g) => (g === grupo ? !ids.includes(g) : ids.includes(g)));
+}
+
+/** O que um item do menu mostra de pendência: o mesmo formato de `ItemMenu` (`ui/Navegacao`). */
+export interface SinalDoItem {
+  ponto?: boolean | 'inferior';
+  contagem?: { numero: number; descricao: string };
+}
+
+/**
+ * O que o título de um grupo recolhido mostra (D4): `numero` é a soma das contagens dos itens, `null` quando nenhum item
+ * tem contagem (ausente nunca vira zero; zero que existe soma e a tela, como no item, não o mostra); `partes` são as
+ * contagens maiores que zero, para o nome acessível ("3 para revisar, 1 inscrição nova"); `ponto` vale quando algum item
+ * mostraria o ponto no menu aberto (`ponto === true` e sem contagem maior que zero; `'inferior'` é só da barra do celular).
+ * A tela escolhe como pintar: número se `numero > 0`, senão o ponto se `ponto`, como cada item faz.
+ */
+export function resumoDoGrupoRecolhido(itens: readonly SinalDoItem[]): {
+  numero: number | null;
+  ponto: boolean;
+  partes: { numero: number; descricao: string }[];
+} {
+  const contagens = itens.flatMap((i) => (i.contagem ? [i.contagem] : []));
+  return {
+    numero: contagens.length ? contagens.reduce((soma, c) => soma + c.numero, 0) : null,
+    ponto: itens.some((i) => i.ponto === true && !(i.contagem && i.contagem.numero > 0)),
+    partes: contagens.filter((c) => c.numero > 0),
+  };
+}
+
 /** Rótulo do trilho do tablet e da barra do celular: o curto, quando existe (cerca de 10 letras cabem embaixo do ícone). */
 export function rotuloCurtoDoMenu(item: { rotulo: string; rotuloCurto?: string }): string {
   return item.rotuloCurto ?? item.rotulo;
