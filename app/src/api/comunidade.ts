@@ -5,7 +5,7 @@ import { requisicao } from './cliente';
 import type {
   AlvoDosComentarios, AulaDaComunidade, CodigoDeReacao, ComentarioDoMural, ConfiguracaoDaComunidade, ConfiguracaoDoAluno,
   ConquistaDoAluno, CriarPostRequest, EnqueteDoMural, FiltrosDoMural, MotivoDeDenuncia, NovaAula, PaginaDeColegas,
-  PaginaDeComentarios, PaginaDoMural, PerfilDaComunidade, PodResumo, PosicaoNoRanking, PostDoMural, PreferenciasDoPerfil,
+  PaginaDeComentarios, PaginaDoMural, PerfilDaComunidade, PlaylistDaComunidade, PodResumo, PosicaoNoRanking, PostDoMural, PreferenciasDoPerfil,
   VotosDaEnquete,
 } from './comunidadeTipos';
 
@@ -42,6 +42,9 @@ const comBusca = (caminho: string, busca?: string): string => {
 // ---- Aluno ----
 
 export const listarAulasDoAluno = (busca?: string) => requisicao<AulaDaComunidade[]>(comBusca('/aluno/comunidade/aulas', busca));
+
+/** Só as coleções com vídeo publicado; `totalAulas` conta só os publicados. Ordene por `playlistsEmOrdem`. */
+export const listarPlaylistsDoAluno = () => requisicao<PlaylistDaComunidade[]>('/aluno/comunidade/playlists');
 
 export const listarMuralDoAluno = (filtros?: FiltrosDoMural) =>
   requisicao<PaginaDoMural>(`/aluno/comunidade/mural${PAGINA_DO_MURAL}${filtrosDoMural(filtros, false)}`);
@@ -137,13 +140,45 @@ export const listarAulasDaEquipe = (busca?: string) => requisicao<AulaDaComunida
 
 export const criarAula = (aula: NovaAula) => requisicao<AulaDaComunidade>('/comunidade/aulas', { metodo: 'POST', corpo: aula });
 
-/** Substitui a aula inteira (`COMUNIDADE_MODERAR`): mande os sete campos (`corpoDaAula` com a original). 404 = já saiu. */
+/** Substitui a aula inteira (`COMUNIDADE_MODERAR`): mande os seis campos (`corpoDaAula` com a original). 404 = já saiu. */
 export const alterarAula = (id: string, aula: NovaAula) =>
   requisicao<AulaDaComunidade>(`/comunidade/aulas/${encodeURIComponent(id)}`, { metodo: 'PUT', corpo: aula });
 
 /** 204; os comentários da aula saem junto (FK `ON DELETE CASCADE`). 404 = já saiu. */
 export const excluirAula = (id: string) =>
   requisicao<void>(`/comunidade/aulas/${encodeURIComponent(id)}`, { metodo: 'DELETE' });
+
+// ---- Coleções (playlists, V088; `PlaylistsController`). Erros: `dominio/comunidade.traduzirErroDaPlaylist` e `listaVelha`. ----
+
+/** Todas as coleções, também as vazias (`TREINO_LER`); `totalAulas` conta todos os vídeos. Ordene por `playlistsEmOrdem`. */
+export const listarPlaylists = () => requisicao<PlaylistDaComunidade[]>('/comunidade/playlists');
+
+/** Vazia é válida; vai para o fim. 422 `PLAYLIST_INVALIDA` (campo `nome`), 409 `PLAYLIST_NOME_EM_USO`. */
+export const criarPlaylist = (nome: string) =>
+  requisicao<PlaylistDaComunidade>('/comunidade/playlists', { metodo: 'POST', corpo: { nome } });
+
+/** Os mesmos erros de `criarPlaylist`, mais 404 (já saiu). */
+export const renomearPlaylist = (id: string, nome: string) =>
+  requisicao<PlaylistDaComunidade>(`/comunidade/playlists/${encodeURIComponent(id)}`, { metodo: 'PUT', corpo: { nome } });
+
+/** 204; os vídeos ficam sem coleção (com `ordem` 0), nunca são apagados. 404 = já saiu. */
+export const excluirPlaylist = (id: string) =>
+  requisicao<void>(`/comunidade/playlists/${encodeURIComponent(id)}`, { metodo: 'DELETE' });
+
+/** A lista COMPLETA das coleções, na nova ordem (1 a 500, sem repetir); 409 `CONFLITO_EDICAO` ou 404 = lista velha. 204. */
+export const reordenarPlaylists = (ids: string[]) =>
+  requisicao<void>('/comunidade/playlists/ordem', { metodo: 'PUT', corpo: { ids } });
+
+/** A lista COMPLETA dos vídeos da coleção (com os não publicados), na nova ordem; 409 `CONFLITO_EDICAO` ou 404 = lista velha. 204. */
+export const reordenarAulasDaPlaylist = (playlistId: string, ids: string[]) =>
+  requisicao<void>(`/comunidade/playlists/${encodeURIComponent(playlistId)}/aulas/ordem`, { metodo: 'PUT', corpo: { ids } });
+
+/**
+ * Um lote de 1 a 100 vídeos para o fim da coleção, na ordem enviada (`playlistId` nulo = tira da coleção). Acima de 100, a tela
+ * chama uma vez por lote (`emLotes`). 404 ou 409 `CONFLITO_EDICAO` = lista velha. 204.
+ */
+export const moverAulasParaPlaylist = (aulaIds: string[], playlistId: string | null) =>
+  requisicao<void>('/comunidade/aulas/playlist', { metodo: 'PUT', corpo: { aulaIds, playlistId } });
 
 export const listarMuralDaEquipe = (filtros?: FiltrosDoMural) =>
   requisicao<PaginaDoMural>(`/comunidade/mural${PAGINA_DO_MURAL}${filtrosDoMural(filtros, true)}`);

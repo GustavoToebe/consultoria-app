@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
   alternarFixadoDoPost, baixarCapaDaEquipe, baixarFotoDoMuralDaEquipe, baixarFotoDoVotanteDaEquipe, dispensarDenuncias, excluirAula,
-  listarAulasDaEquipe, listarMuralDaEquipe, listarPods, reagirComoEquipe, removerApelidoDoAutor, removerPostDoMural, votarComoEquipe,
+  listarAulasDaEquipe, listarMuralDaEquipe, listarPlaylists, listarPods, reagirComoEquipe, removerApelidoDoAutor, removerPostDoMural, votarComoEquipe,
 } from '../../api/comunidade';
 import type { AlvoDosComentarios, AulaDaComunidade, FiltrosDoMural, PostDoMural, TipoDePost } from '../../api/comunidadeTipos';
 import { ErroApi } from '../../api/cliente';
@@ -18,8 +18,8 @@ import { type AlvoDosVotos, FolhaDosVotos } from '../../comunidade/FolhaDosVotos
 import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
 import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
-  categoriasDosAuloes, type FiltroDeCategoria, filtrarAuloesPorCategoria, filtroDeCategoriaValido, type FiltroDoMural, filtrosParaApi, chipsDoMural, chipDaCategoria, MURAL_SEM_FILTRO,
-  opcoesDoFiltroDeCategoria, type RascunhoDoPost, rotuloDoPost, TIPO_PADRAO_DO_POST,
+  chipDaPlaylist, chipsDoMural, type FiltroDePlaylist, filtroDePlaylistValido, filtrarPorPlaylist, type FiltroDoMural, filtrosParaApi,
+  MURAL_SEM_FILTRO, opcoesDoFiltroDePlaylist, type RascunhoDoPost, rotuloDoPost, TIPO_PADRAO_DO_POST,
 } from '../../dominio/comunidade';
 import {
   type AbaDoMural, ABAS_DO_MURAL, abaDoParametro, abaDoTipo, carregarMuralDaAba, filtroNaAba, rascunhoAoAbrir, textoDoVazioDaAba, tiposParaBuscar,
@@ -102,12 +102,15 @@ export default function ComunidadeTreinador() {
   const [excluindo, setExcluindo] = useState(false);
   // Falha do DELETE: dentro do painel, porque o aviso de rodapé da tela fica atrás do véu do Modal.
   const [erroAoExcluir, setErroAoExcluir] = useState<string | null>(null);
-  const [filtroPedido, setFiltroPedido] = useState<FiltroDeCategoria>(null);
+  // Coleções só na aba dos vídeos; se o GET falhar, o filtro some (filtrar sem elas poria tudo em "Sem coleção").
+  // shortcut: filtro mínimo por coleção depois da V088; o passo 8 desenha o botão "Coleções", a tela delas e o selo.
+  const playlists = useCarregar(aba === 'auloes' ? 'treinador-comunidade-playlists' : null, () => listarPlaylists());
+  const listaDePlaylists = playlists.erro ? [] : playlists.dados ?? [];
+  const [filtroPedido, setFiltroPedido] = useState<FiltroDePlaylist>(null);
   const todasAsAulas = auloes.dados ?? [];
-  const categorias = categoriasDosAuloes(todasAsAulas);
-  // A categoria que sumiu (a última aula dela foi editada ou excluída) volta para "Todas" sem estado a corrigir.
-  const filtroDeCategoria = filtroDeCategoriaValido(filtroPedido, todasAsAulas);
-  const aulasVisiveis = filtrarAuloesPorCategoria(todasAsAulas, filtroDeCategoria);
+  // A coleção que sumiu (excluída ou sem vídeo) volta para "Todas" sem estado a corrigir.
+  const filtroDePlaylist = filtroDePlaylistValido(filtroPedido, todasAsAulas, listaDePlaylists);
+  const aulasVisiveis = filtrarPorPlaylist(todasAsAulas, filtroDePlaylist, listaDePlaylists);
 
   const [filtroPedidoDoMural, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
   // O tipo de outra aba não vale aqui (o chip some e volta com a aba dele), sem estado a corrigir.
@@ -259,19 +262,21 @@ export default function ComunidadeTreinador() {
           <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
             textoVazio="Nenhum vídeo publicado." recarregar={auloes.recarregar} />
 
-          {/* Filtro por categoria no painel lateral (`docs/planos/filtros-laterais.md`): só quando alguma aula tem uma; a
-              categoria que sumiu volta para "Todas" (`filtroDeCategoriaValido`) e a etiqueta some junto. */}
-          {!auloes.erro && categorias.length ? (
-            <BarraDeFiltros valor={filtroDeCategoria} aoAplicar={setFiltroPedido} limpo={null} chips={chipDaCategoria(filtroDeCategoria)}
+          {/* Filtro por coleção no painel lateral (`docs/planos/filtros-laterais.md`): só quando existe alguma coleção; a
+              que sumiu volta para "Todas" (`filtroDePlaylistValido`) e a etiqueta some junto. */}
+          {!auloes.erro && listaDePlaylists.length ? (
+            <BarraDeFiltros valor={filtroDePlaylist} aoAplicar={setFiltroPedido} limpo={null}
+              chips={chipDaPlaylist(filtroDePlaylist, listaDePlaylists)}
               aoTirar={() => setFiltroPedido(null)} painelLateral={{ titulo: 'Filtros de vídeos' }}
               seletores={(atual, mudar) => (
                 <GrupoDoPainel titulo="Identificação" primeiro>
-                  <Escolha rotulo="Categoria do vídeo" chips valor={atual} aoMudar={mudar} opcoes={opcoesDoFiltroDeCategoria(todasAsAulas)} />
+                  <Escolha rotulo="Coleção do vídeo" chips valor={atual} aoMudar={mudar}
+                    opcoes={opcoesDoFiltroDePlaylist(todasAsAulas, listaDePlaylists)} />
                 </GrupoDoPainel>
               )} />
           ) : null}
 
-          {/* Título primeiro; categoria e estado discretos (neutros, juntos); descrição de apoio; vídeo e comentários no rodapé.
+          {/* Título primeiro; o estado discreto (neutro); descrição de apoio; vídeo e comentários no rodapé.
               Grade pela largura medida (1 coluna no celular, 2 ou 3 no PC); um vídeo só ocupa uma célula, à esquerda. */}
           {auloes.erro ? null : aulasVisiveis.length ? (
             <Grade gap={espaco(3)}>
@@ -279,14 +284,13 @@ export default function ComunidadeTreinador() {
                 <Cartao
                   key={item.id}
                   titulo={item.titulo}
-                  acoes={item.categoria || !item.publicada || podePublicar ? (
+                  acoes={!item.publicada || podePublicar ? (
                     <View style={estilos.acoesDoAulao}>
                       {/* O Selo se alinha ao início por conta própria; a caixa dele centraliza com o ⋯ de 44 px e encolhe
-                          (categoria de até 60) sem empurrar o ⋯ para fora do cartão em 390 px. */}
-                      {item.categoria || !item.publicada ? (
+                          sem empurrar o ⋯ para fora do cartão em 390 px. */}
+                      {!item.publicada ? (
                         <View style={[estilos.linha, estilos.selosDoAulao]}>
-                          {item.categoria ? <Selo texto={item.categoria} tipo="neutro" /> : null}
-                          {!item.publicada ? <Selo texto="Não publicado" tipo="neutro" /> : null}
+                          <Selo texto="Não publicado" tipo="neutro" />
                         </View>
                       ) : null}
                       {/* Editar e excluir no ⋯, como a moderação do post: o rodapé do cartão fica inteiro em 390 px. */}
@@ -409,17 +413,17 @@ export default function ComunidadeTreinador() {
       <FolhaDosVotos alvo={votosDe} papel="equipe" aoFechar={() => setVotosDe(null)} />
 
       {/* Criar fica montada (o rascunho sobrevive ao Cancelar); editar monta por aula, já preenchida. */}
-      <FolhaDoAulao visivel={folhaNovaAula && podePublicar} categorias={categorias} aoFechar={() => setFolhaNovaAula(false)}
+      <FolhaDoAulao visivel={folhaNovaAula && podePublicar} aoFechar={() => setFolhaNovaAula(false)}
         aoSalvar={() => { setFolhaNovaAula(false); avisar('Vídeo publicado para o time.', 'sucesso'); auloes.recarregar(); }} />
       {editando ? (
-        <FolhaDoAulao key={editando.id} visivel={podePublicar} original={editando} categorias={categorias}
+        <FolhaDoAulao key={editando.id} visivel={podePublicar} original={editando}
           aoFechar={() => setEditando(null)} aoSumir={aulaSumiu}
           aoSalvar={() => { setEditando(null); avisar('Vídeo atualizado.', 'sucesso'); auloes.recarregar(); }} />
       ) : null}
 
       {menuDaAula ? (
         <FolhaDeAcoes titulo="Ações do vídeo" aoFechar={() => setMenuDaAula(null)} acoes={[
-          { rotulo: 'Editar vídeo', detalhe: 'Título, link, categoria e descrição.', Icone: Pencil, aoTocar: () => setEditando(menuDaAula) },
+          { rotulo: 'Editar vídeo', detalhe: 'Título, link, descrição e capa.', Icone: Pencil, aoTocar: () => setEditando(menuDaAula) },
           { rotulo: 'Excluir vídeo', detalhe: 'Sai para todos, com os comentários.', Icone: Trash2, perigo: true,
             aoTocar: () => { setErroAoExcluir(null); setExcluirDe(menuDaAula); } },
         ]} />

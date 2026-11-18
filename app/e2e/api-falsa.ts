@@ -84,6 +84,9 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     'GET /aluno/anamnese': erroApi(404, 'Nenhuma anamnese.', 'NAO_ENCONTRADO'),
     // O cartão "Meu perfil" da Conta e o aviso da Comunidade leem isto; visível por escolha (sem aviso) e sem conquistas.
     'GET /aluno/comunidade/perfil': { corpo: { perfilReservado: false, reservadoEfetivo: false, destaques: [], cor: 'AZUL', moldura: 'SIMPLES', opcoesDeDestaque: [] } },
+    // Coleções dos vídeos (V088): nenhuma nos testes que não conferem isso (sem elas, a tela não mostra o filtro por coleção).
+    'GET /comunidade/playlists': { corpo: [] },
+    'GET /aluno/comunidade/playlists': { corpo: [] },
     // A faixa do ciclo na pasta e nos editores do aluno consulta isto; desligado não desenha nada.
     'GET /alunos/{id}/ciclo': { corpo: { ativo: false, registros: [], dias: [] } },
     // "Atividade recente" do Resumo da ficha: vazia nos testes que não conferem isso.
