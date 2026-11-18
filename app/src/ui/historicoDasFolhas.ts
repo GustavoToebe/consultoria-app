@@ -237,6 +237,23 @@ export function useFolhaNoHistorico(aoFechar: () => void, portal: PortalDaFolhaV
 }
 
 /**
+ * "Tela dentro da tela" (a edição dos Dados do aluno, 18/11): enquanto `ativo`, só na web, ocupa uma entrada do histórico
+ * como uma Folha, sem portal (o "Sair sem salvar?" fica na raiz), e o voltar do navegador chama `aoVoltar`. Se `aoVoltar`
+ * não desativar o passo (a pessoa ficou), a entrada volta a ser empilhada; desativar por código devolve a entrada. No
+ * celular não faz nada: quem usa trata o voltar do aparelho.
+ */
+export function usePassoNoHistorico(ativo: boolean, aoVoltar: () => void) {
+  const id = useId();
+  const voltar = useRef(aoVoltar);
+  useEffect(() => { voltar.current = aoVoltar; });
+  useEffect(() => {
+    if (!web() || !ativo) return;
+    registrar({ id, tela: idDoEstado(), fechar: () => voltar.current(), portal: () => undefined });
+    return () => remover(id);
+  }, [id, ativo]);
+}
+
+/**
  * Editor com alteração pendente (só na web): o voltar do navegador pergunta antes de sair. `perguntar` abre o "Sair
  * sem salvar?" e, se a pessoa confirmar, chama a função `sair` que recebe (sai do editor num `history.go` só). Salvar (ou
  * descartar) tira a guarda e devolve a entrada, como fechar uma Folha pelo X.
