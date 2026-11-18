@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta, Refeicao, VariacaoDaDieta, VersaoDetalhe } from '../api/tipos';
 import { corDaRefeicao } from '../dominio/corDaSerie';
-import { normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type Totais } from '../dominio/dieta';
+import { MACROS as CHAVES_DOS_MACROS, normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { linhasDoComplemento } from '../dominio/linhasDoComplemento';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
@@ -26,7 +26,7 @@ import { FolhaPdfDieta } from '../ui/FolhaPdfDieta';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { NumeroAnimado } from '../ui/NumeroAnimado';
-import { MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../ui/ValoresDaDieta';
+import { AJUDA_DA_FIBRA_PARCIAL, fibraParcial, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../ui/ValoresDaDieta';
 import { ModoDePreparo } from './ModoDePreparo';
 import { useDiaDeHojeEmBrasilia } from './useDiaDeHoje';
 
@@ -116,7 +116,8 @@ export function DietaDoAluno({
         <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
           <TotalDoDia totais={totais} />
           <Texto variante="pequeno">P = proteína · C = carboidrato · G = gordura</Texto>
-          {Object.values(totais).some((v) => v === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
+          {/* Só os macros e a kcal: a fibra é opcional e nula não deixa o total incompleto. */}
+          {CHAVES_DOS_MACROS.some((m) => totais[m] === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
         </Cartao>
       )}
       {refeicoes.map((r, i) => (
@@ -208,7 +209,7 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
           <View key={i.uid} style={[estilos.itemComQuantidade, { borderColor: cores.divisor }]}>
             <View style={estilos.nomeDoItem}>
               <Texto numerico style={estilos.forte}>{i.nome}</Texto>
-              <ValoresDaDieta totais={somar([i])} inicio />
+              <ValoresDaDieta totais={somar([i])} inicio omitirFibraSemValor />
             </View>
             <View
               style={[estilos.quantidade, { borderColor: cor.cor, backgroundColor: cor.fundo }]}
@@ -223,9 +224,9 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
       {opcao ? (
         <View style={[estilos.totalDaRefeicao, { borderColor: cores.bordaCampo }]} role="group" aria-label={rotuloDoTotal}>
           {/* O leitor ouve rótulo e valores numa frase só; o que se vê fica escondido dele. */}
-          <TotalParaLeitor rotulo={rotuloDoTotal} totais={somar(opcao.itens)} />
+          <TotalParaLeitor rotulo={rotuloDoTotal} totais={somar(opcao.itens)} omitirFibraSemValor />
           <Texto numerico style={estilos.forte} cor={cores.texto} aria-hidden>{rotuloDoTotal}</Texto>
-          <View aria-hidden><ValoresDaDieta totais={somar(opcao.itens)} forte inicio /></View>
+          <View aria-hidden><ValoresDaDieta totais={somar(opcao.itens)} forte inicio omitirFibraSemValor /></View>
         </View>
       ) : null}
       <ModoDePreparo texto={refeicao.modoDePreparo} />
@@ -261,9 +262,11 @@ function VariacaoDoDia({ variacoes, mostrada, deHoje, aoEscolher }: {
 
 /**
  * Total do dia: kcal em destaque na cor do texto e, por macro, a marca de cor da peça única (`ui/ValoresDaDieta`, a mesma do
- * editor) com o valor e o nome por extenso ("—" sem valor).
+ * editor) com o valor e o nome por extenso ("—" sem valor). A fibra vem depois, neutra, só quando há valor (recurso que não
+ * existe não aparece), com "(parcial)" e a ajuda quando algum item não a tem.
  */
-function TotalDoDia({ totais }: { totais: Totais }) {
+function TotalDoDia({ totais }: { totais: TotaisComFibra }) {
+  const parcial = fibraParcial(totais);
   return (
     <View style={estilos.totalDoDia}>
       <NumeroAnimado valor={totais.kcal} variante="destaque" sufixo=" kcal" />
@@ -278,7 +281,13 @@ function TotalDoDia({ totais }: { totais: Totais }) {
             )}
           </View>
         ))}
+        {totais.fibra === null ? null : (
+          <View style={estilos.macro}>
+            <NumeroAnimado valor={totais.fibra} casas={1} sufixo={` g de fibra${parcial ? ' (parcial)' : ''}`} />
+          </View>
+        )}
       </View>
+      {parcial ? <Texto variante="pequeno">{AJUDA_DA_FIBRA_PARCIAL}</Texto> : null}
     </View>
   );
 }

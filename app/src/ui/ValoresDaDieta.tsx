@@ -26,16 +26,35 @@ export const kcalNaTela = (v: number | null) => (v === null ? SEM_DADO : numeroP
 export const gramasNaTela = (v: number | null) => (v === null ? SEM_DADO : `${v.toFixed(1).replace('.', ',')} g`);
 /** O que o leitor de tela diz no lugar da letra: "Proteína 4,0 g", "Gordura sem dado". */
 export const macroPorExtenso = (nome: string, v: number | null) => `${nome} ${v === null ? 'sem dado' : gramasNaTela(v)}`;
+
+/**
+ * Valores com a fibra (V089), quando quem chama a conhece (`somar`, `totalDoDia`, o alimento). A fibra não é macro: sem
+ * marca de cor, fora da kcal e da legenda. Ausente (`undefined`) = não se fala dela; nula = "—".
+ */
+export type ValoresComFibra = Totais & { fibra?: number | null; fibraCompleta?: boolean };
+/** Ajuda do total parcial, uma vez por total do dia (o "(parcial)" vai junto de cada número). */
+export const AJUDA_DA_FIBRA_PARCIAL = 'Há itens sem fibra informada.';
+/** Soma de só uma parte dos itens: há fibra somada e algum item sem ela. Nunca com "—". */
+export const fibraParcial = (t: ValoresComFibra) => t.fibra != null && t.fibraCompleta === false;
+/** "Fibra 2,8 g", "Fibra 12,0 g (parcial)" ou "Fibra —"; `null` quando os valores não trazem a fibra. */
+export function textoDaFibra(t: ValoresComFibra): string | null {
+  if (t.fibra === undefined) return null;
+  return `Fibra ${gramasNaTela(t.fibra)}${fibraParcial(t) ? ' (parcial)' : ''}`;
+}
+/** A fibra para o leitor: "fibra 2,8 g", "fibra 12,0 g, parcial", "fibra sem dado" (ou nada, se omitida ou ausente). */
+const fibraPorExtenso = (t: ValoresComFibra, omitirSemValor: boolean) =>
+  (t.fibra === undefined || (omitirSemValor && t.fibra === null) ? [] : [`${macroPorExtenso('fibra', t.fibra)}${fibraParcial(t) ? ', parcial' : ''}`]);
+
 /** A linha inteira para o leitor de tela, na ordem da tela: "233 kcal, proteína 10,2 g, carboidrato 34,8 g, gordura sem dado". */
-export const valoresPorExtenso = (t: Totais) =>
-  [t.kcal === null ? 'kcal sem dado' : `${kcalNaTela(t.kcal)} kcal`, ...MACROS.map((m) => macroPorExtenso(m.nome.toLowerCase(), t[m.chave]))].join(', ');
+export const valoresPorExtenso = (t: ValoresComFibra, omitirFibraSemValor = false) =>
+  [t.kcal === null ? 'kcal sem dado' : `${kcalNaTela(t.kcal)} kcal`, ...MACROS.map((m) => macroPorExtenso(m.nome.toLowerCase(), t[m.chave])), ...fibraPorExtenso(t, omitirFibraSemValor)].join(', ');
 
 /**
  * Um total (subtotal da refeição, total da opção) numa frase só para o leitor de tela, "Total da opção A: 233 kcal,
  * proteína…", em vez de números soltos. Quem usa esconde do leitor o rótulo visível e a linha dos valores (`aria-hidden`).
  */
-export function TotalParaLeitor({ rotulo, totais }: { rotulo: string; totais: Totais }) {
-  return <Texto style={estilos.soParaLeitor}>{`${rotulo}: ${valoresPorExtenso(totais)}`}</Texto>;
+export function TotalParaLeitor({ rotulo, totais, omitirFibraSemValor = false }: { rotulo: string; totais: ValoresComFibra; omitirFibraSemValor?: boolean }) {
+  return <Texto style={estilos.soParaLeitor}>{`${rotulo}: ${valoresPorExtenso(totais, omitirFibraSemValor)}`}</Texto>;
 }
 
 /** Quadradinho de 8 px na cor do macro; sem a cor (tema de teste), não aparece. */
@@ -49,12 +68,16 @@ export function MarcaDoMacro({ cor }: { cor: ChaveDeIdentificacao }) {
  * Linha dos valores de um item ou de uma opção: kcal e P, C e G, números tabulares, cada macro com a marca. À direita no
  * editor (coluna), à esquerda (`inicio`) embaixo do nome na dieta do aluno. Sem espaço, os macros descem juntos.
  * A letra é só visual: o leitor de tela ouve o nome inteiro, num texto que não aparece (`aria-label` num texto solto não
- * é lido de forma confiável na web).
+ * é lido de forma confiável na web). A fibra, quando os valores a trazem, vem depois dos macros, solta e neutra (sem marca
+ * nem negrito: é dado de apoio); `omitirFibraSemValor` (dieta do aluno) some com ela quando é "—".
  */
-export function ValoresDaDieta({ totais: t, forte = false, inicio = false }: { totais: Totais; forte?: boolean; inicio?: boolean }) {
+export function ValoresDaDieta({ totais: t, forte = false, inicio = false, omitirFibraSemValor = false }: {
+  totais: ValoresComFibra; forte?: boolean; inicio?: boolean; omitirFibraSemValor?: boolean;
+}) {
   const estilo = forte ? estilos.forte : undefined;
   const variante = forte ? 'corpo' : 'pequeno';
   const lado = inicio ? estilos.inicio : null;
+  const fibra = omitirFibraSemValor && t.fibra === null ? null : textoDaFibra(t);
   return (
     <View style={[estilos.valores, lado]}>
       <Texto variante={variante} numerico style={estilo}>{`${kcalNaTela(t.kcal)} kcal`}</Texto>
@@ -67,6 +90,7 @@ export function ValoresDaDieta({ totais: t, forte = false, inicio = false }: { t
           </View>
         ))}
       </View>
+      {fibra ? <Texto variante={variante} numerico numberOfLines={1} style={[estilos.fibra, forte ? estilos.fibraNoTotal : null]}>{fibra}</Texto> : null}
     </View>
   );
 }
@@ -115,6 +139,10 @@ const estilos = StyleSheet.create({
   macro: { flexDirection: 'row', alignItems: 'center', flexShrink: 0, gap: espaco(0.5) },
   marca: { width: 8, height: 8, borderRadius: 2 },
   forte: { fontFamily: fontes.semi },
+  // "Fibra 12,0 g (parcial)" anda inteiro, como o macro.
+  fibra: { flexShrink: 0 },
+  // No total (forte), a mesma família dos números ao lado, um peso abaixo: a fibra é apoio, não disputa com os macros.
+  fibraNoTotal: { fontFamily: fontes.medio },
   // Fora da vista e sem ocupar lugar, mas na árvore de acessibilidade (opacidade 0 continua sendo lida).
   soParaLeitor: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
 });

@@ -1,7 +1,7 @@
 import type { ConteudoDieta, ItemDieta, Marca, Refeicao, RegistroPeso, Suplemento } from '../api/tipos';
 import { NOMES_DOS_DIAS } from '../dominio/calendario';
 import { secoesDaDieta, soAVariacao } from '../dominio/variacoesDaDieta';
-import { modoDePreparoParaMostrar, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type Totais } from '../dominio/dieta';
+import { modoDePreparoParaMostrar, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
 import { DIAS_DO_PERIODO, NOTA_DA_LISTA, NOTA_DA_PREVIA, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
 import { cabecalhoDaTabela, corpoDaTabela } from './pdfListaDeCompras';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
@@ -41,8 +41,13 @@ export interface DadosPdfDieta {
 const g = (v: number | null) => (v === null ? '—' : `${numeroParaTela(v, 1)} g`);
 const kcal = (v: number | null) => (v === null ? '—' : `${numeroParaTela(v, 0)} kcal`);
 
-export function textoTotaisPdf(t: Totais): string {
-  return `${kcal(t.kcal)} · P: ${g(t.proteina)} · C: ${g(t.carboidrato)} · G: ${g(t.gordura)}`;
+/** Soma de só uma parte dos itens (algum sem fibra informada): o número leva "(parcial)"; "—" nunca é parcial. */
+const fibraParcial = (t: TotaisComFibra) => t.fibra !== null && !t.fibraCompleta;
+/** Fibra (V089): neutra, fora da kcal; "—" sem valor, nunca zero. */
+const fibra = (t: TotaisComFibra) => `${g(t.fibra)}${fibraParcial(t) ? ' (parcial)' : ''}`;
+
+export function textoTotaisPdf(t: TotaisComFibra): string {
+  return `${kcal(t.kcal)} · P: ${g(t.proteina)} · C: ${g(t.carboidrato)} · G: ${g(t.gordura)} · Fibra: ${fibra(t)}`;
 }
 
 /** "seg, qua, sex" para os dias da variação (1 = segunda ... 7 = domingo), em ordem; sem dia válido, "—". */
@@ -158,11 +163,12 @@ export function documentoDieta(d: DadosPdfDieta): Documento {
   const barra = `<div class="barra" style="background:${cor}"></div>`;
   const sec = (t: string) => `<h2 class="sec" style="color:${corTexto}">${esc(t)}</h2>`;
   const comVariacoes = c.variacoes.length > 0;
-  const tabelaDoTotal = (t: Totais) => `<table class="macros"><tbody>
+  const tabelaDoTotal = (t: TotaisComFibra) => `<table class="macros"><tbody>
 <tr><td>Calorias Totais</td><td style="color:${corTexto}">${esc(kcal(t.kcal))}</td></tr>
 <tr><td>Proteína</td><td style="color:${corTexto}">${esc(g(t.proteina))}</td></tr>
 <tr><td>Carboidrato</td><td style="color:${corTexto}">${esc(g(t.carboidrato))}</td></tr>
-<tr><td>Gordura</td><td style="color:${corTexto}">${esc(g(t.gordura))}</td></tr></tbody></table>`;
+<tr><td>Gordura</td><td style="color:${corTexto}">${esc(g(t.gordura))}</td></tr>
+<tr><td>Fibra</td><td>${esc(fibra(t))}</td></tr></tbody></table>${fibraParcial(t) ? `<div class="pequeno">${esc('Fibra parcial: há itens sem fibra informada.')}</div>` : ''}`;
   // Nome do aluno e data de emissão ficam no cabeçalho comum (`cabecalhoDoPdf`), sem repetir aqui.
   const identificacao = [
     ['Objetivo', c.objetivo],

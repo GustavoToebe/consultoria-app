@@ -143,8 +143,9 @@ export function documentoDeExemploDeTreino(marca: Marca, emitidoEm: Date, logoDa
   });
 }
 
-const item = (uid: string, nome: string, quantidade: number, unidade: 'g' | 'ml' | 'un', kcal: number, proteina: number, carboidrato: number, gordura: number) => ({
-  uid, alimentoId: null, nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, manual: true,
+/** `fibra` nula = sem fibra informada (o ovo e o frango): o total do dia sai "(parcial)", como na tela. */
+const item = (uid: string, nome: string, quantidade: number, unidade: 'g' | 'ml' | 'un', kcal: number, proteina: number, carboidrato: number, gordura: number, fibra: number | null = null) => ({
+  uid, alimentoId: null, nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, fibra, manual: true,
 });
 
 /** Quatro refeições (uma com opções A e B e outra com modo de preparo), orientações, suplementos com cupom e três pesos. */
@@ -161,8 +162,8 @@ function conteudoDeDieta(): ConteudoDieta {
         horario: '07:30',
         observacao: 'Observação da refeição: escolha uma das opções.',
         opcoes: [
-          { uid: 'cafe-a', rotulo: 'A', itens: [item('i1', 'Pão integral', 50, 'g', 125, 5, 22, 2), item('i2', 'Ovo cozido', 2, 'un', 140, 12, 1, 10)] },
-          { uid: 'cafe-b', rotulo: 'B', itens: [item('i3', 'Iogurte natural', 170, 'g', 105, 6, 8, 5), item('i4', 'Aveia em flocos', 30, 'g', 115, 4, 20, 2)] },
+          { uid: 'cafe-a', rotulo: 'A', itens: [item('i1', 'Pão integral', 50, 'g', 125, 5, 22, 2, 3.4), item('i2', 'Ovo cozido', 2, 'un', 140, 12, 1, 10)] },
+          { uid: 'cafe-b', rotulo: 'B', itens: [item('i3', 'Iogurte natural', 170, 'g', 105, 6, 8, 5, 0), item('i4', 'Aveia em flocos', 30, 'g', 115, 4, 20, 2, 2.9)] },
         ],
       },
       {
@@ -170,19 +171,19 @@ function conteudoDeDieta(): ConteudoDieta {
         nome: 'Almoço',
         horario: '12:30',
         modoDePreparo: 'Cozinhe o arroz em fogo baixo.\nGrelhe o frango com temperos naturais.',
-        opcoes: [{ uid: 'almoco-a', rotulo: 'A', itens: [item('i5', 'Arroz cozido', 120, 'g', 155, 3, 34, 0), item('i6', 'Frango grelhado', 150, 'g', 240, 45, 0, 5), item('i7', 'Salada de folhas', 80, 'g', 15, 1, 3, 0)] }],
+        opcoes: [{ uid: 'almoco-a', rotulo: 'A', itens: [item('i5', 'Arroz cozido', 120, 'g', 155, 3, 34, 0, 1.9), item('i6', 'Frango grelhado', 150, 'g', 240, 45, 0, 5), item('i7', 'Salada de folhas', 80, 'g', 15, 1, 3, 0, 1.6)] }],
       },
       {
         uid: 'ref-lanche',
         nome: 'Lanche da tarde',
         horario: '16:00',
-        opcoes: [{ uid: 'lanche-a', rotulo: 'A', itens: [item('i8', 'Banana', 1, 'un', 90, 1, 23, 0), item('i9', 'Castanhas', 20, 'g', 130, 3, 4, 12)] }],
+        opcoes: [{ uid: 'lanche-a', rotulo: 'A', itens: [item('i8', 'Banana', 1, 'un', 90, 1, 23, 0, 2), item('i9', 'Castanhas', 20, 'g', 130, 3, 4, 12, 1.5)] }],
       },
       {
         uid: 'ref-jantar',
         nome: 'Jantar',
         horario: '20:00',
-        opcoes: [{ uid: 'jantar-a', rotulo: 'A', itens: [item('i10', 'Omelete de legumes', 1, 'un', 220, 15, 6, 15), item('i11', 'Batata-doce cozida', 100, 'g', 90, 2, 21, 0)] }],
+        opcoes: [{ uid: 'jantar-a', rotulo: 'A', itens: [item('i10', 'Omelete de legumes', 1, 'un', 220, 15, 6, 15), item('i11', 'Batata-doce cozida', 100, 'g', 90, 2, 21, 0, 2.2)] }],
       },
     ],
     orientacoes: [{ titulo: 'Hidratação', texto: 'Orientação de exemplo: distribua a água ao longo do dia.' }],

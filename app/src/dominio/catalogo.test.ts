@@ -7,6 +7,12 @@ describe('catálogo: exibição', () => {
     expect(resumoNutrientes({ ...arroz, tracos: [] })).toBe('100 g · 128 kcal · P 2,5 · C 28,1 · G 0,2');
   });
 
+  it('fibra: só aparece quando conhecida; nula é "—" e traço é "Tr"', () => {
+    expect(resumoNutrientes({ ...arroz, tracos: [], fibra: 1.62 })).toBe('100 g · 128 kcal · P 2,5 · C 28,1 · G 0,2 · Fibra 1,6');
+    expect(resumoNutrientes({ ...arroz, tracos: [], fibra: null })).toMatch(/ · Fibra —$/);
+    expect(resumoNutrientes({ ...arroz, tracos: ['fibra'], fibra: 0 })).toMatch(/ · Fibra Tr$/);
+  });
+
   it('nutriente em traço aparece como Tr e não como 0', () => {
     const r = resumoNutrientes({ ...arroz, gordura: 0, carboidrato: 0, tracos: ['gordura'] });
     expect(r).toContain('G Tr');

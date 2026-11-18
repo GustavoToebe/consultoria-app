@@ -217,7 +217,7 @@ for (const largura of [390, 1280]) {
     const subtotal = cartao(page, 'cafe').getByRole('group', { name: 'Subtotal da refeição, opção A' });
     await expect(subtotal).toBeVisible();
     // O leitor de tela ouve o rótulo e os valores por extenso, numa frase só.
-    await expect(subtotal.getByText('Subtotal da refeição, opção A: 233 kcal, proteína 10,2 g, carboidrato 34,8 g, gordura 5,6 g', { exact: true })).toHaveCount(1);
+    await expect(subtotal.getByText('Subtotal da refeição, opção A: 233 kcal, proteína 10,2 g, carboidrato 34,8 g, gordura 5,6 g, fibra sem dado', { exact: true })).toHaveCount(1);
     await expect(cartao(page, 'cafe').getByText(SEM_ESPACOS, { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(await transbordos(cartao(page, 'cafe'))).toEqual([]);

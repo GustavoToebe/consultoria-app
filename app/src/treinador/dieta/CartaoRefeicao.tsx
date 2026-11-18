@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import type { Alimento, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento } from '../../api/tipos';
 import {
   colunasDasOpcoes,
+  erroDaFibra,
   ESPACO_ENTRE_OPCOES,
   MODO_DE_PREPARO_MAXIMO,
   modoDePreparoValido,
@@ -349,6 +350,8 @@ function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRem
       ) : (
         <View style={estilos.valoresDoItem}><ValoresDaDieta totais={somar([item])} /></View>
       )}
+      {/* Fibra do item manual (V089): opcional, fora da kcal e sem marca de cor; o da biblioteca a mostra nos valores acima. */}
+      {item.manual ? <View style={estilos.quantidade}><CampoNumerico rotulo="Fibras (g)" valor={item.fibra ?? null} aoMudar={(fibra) => mudar({ fibra })} erro={erroDaFibra(item.fibra)} /></View> : null}
       <View style={estilos.acoesDoItem}>
         {aoTrocar ? <IconeBotao Icone={ArrowLeftRight} rotulo={`Trocar ${nome}`} aoTocar={aoTrocar} /> : null}
         {total > 1 ? (

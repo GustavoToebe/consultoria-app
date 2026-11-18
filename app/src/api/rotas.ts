@@ -1139,7 +1139,7 @@ function pedidoDeSuplemento(dados: SuplementoDaBibliotecaRequest): AlimentoReque
     nome: dados.nome, tipo: 'SUPLEMENTO', marca: dados.marca, grupo: dados.categoria, porcao: dados.porcao,
     porcoesPorEmbalagem: dados.porcoesPorEmbalagem, sabores: dados.sabores, link: dados.link, cupom: dados.cupom,
     baseQuantidade: null, baseUnidade: null, kcal: null, proteina: null, carboidrato: null, gordura: null,
-    gramasPorUnidade: null, fonte: null, fatorCorrecao: null, fatorCoccao: null,
+    gramasPorUnidade: null, fonte: null, fatorCorrecao: null, fatorCoccao: null, fibra: null, // suplemento fica sem fibra (V089)
   };
 }
 

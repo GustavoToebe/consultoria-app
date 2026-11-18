@@ -1,5 +1,5 @@
-import type { Alimento, ConteudoDieta, ItemDieta } from '../api/tipos';
-import { aguaValida, aplicarReceitaDeDieta, colunasDasOpcoes, comNomesPadrao, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
+import type { Alimento, ConteudoDieta, ItemDieta, Refeicao } from '../api/tipos';
+import { aguaValida, aplicarReceitaDeDieta, colunasDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -73,6 +73,73 @@ describe('dieta', () => {
 
   it('item sem valor deixa aquele total vazio', () => {
     expect(somar([{ ...novoItem(), kcal: null }]).kcal).toBeNull();
+  });
+});
+
+describe('fibra (V089)', () => {
+  const comFibra = { ...pao, fibra: 5.55 };
+  const item = (fibra: number | null | undefined): ItemDieta => ({ ...novoItem(), kcal: 10, proteina: 1, carboidrato: 1, gordura: 1, fibra });
+
+  it('o item leva a fibra do alimento proporcional à quantidade, com o mesmo arredondamento dos macros', () => {
+    expect(recalcularItem({ ...novoItem(comFibra), quantidade: 50 }, comFibra).fibra).toBe(2.775);
+    expect(recalcularItem({ ...novoItem(comFibra), quantidade: 2, unidade: 'un' }, comFibra).fibra).toBe(2.775); // 2 un × 25 g
+    expect(recalcularItem({ ...novoItem(comFibra), quantidade: 33.3333 }, comFibra).fibra).toBe(1.85); // 3 casas
+  });
+
+  it('copiar o alimento para o item leva a fibra (novoItem e trocarAlimento)', () => {
+    expect(novoItem(comFibra).fibra).toBe(5.55); // 100 g = a base
+    expect(trocarAlimento(novoItem(pao), comFibra).fibra).toBe(5.55);
+  });
+
+  it('alimento sem fibra (nula ou ausente) deixa o item sem fibra, nunca zero', () => {
+    expect(novoItem(pao).fibra).toBeNull();
+    expect(novoItem({ ...pao, fibra: null }).fibra).toBeNull();
+    expect(novoItem().fibra).toBeNull();
+    expect(recalcularItem({ ...novoItem(comFibra), quantidade: 2, unidade: 'ml' }, comFibra).fibra).toBeNull(); // sem conversão
+  });
+
+  it('não entra na kcal nem nos macros', () => {
+    const t = somar([item(7)]);
+    expect(t).toMatchObject({ kcal: 10, proteina: 1, carboidrato: 1, gordura: 1, fibra: 7 });
+    expect(somar([item(null)])).toMatchObject({ kcal: 10, proteina: 1 });
+  });
+
+  it('total nulo quando nenhum item tem fibra (nunca 0)', () => {
+    expect(somar([item(null), item(undefined)])).toMatchObject({ fibra: null, fibraCompleta: false });
+    expect(somar([])).toMatchObject({ fibra: null, fibraCompleta: false });
+  });
+
+  it('soma só os itens com fibra e marca o total parcial', () => {
+    expect(somar([item(2), item(null), item(3.5)])).toMatchObject({ fibra: 5.5, fibraCompleta: false });
+    expect(somar([item(0), item(null)])).toMatchObject({ fibra: 0, fibraCompleta: false }); // 0 digitado é valor
+  });
+
+  it('total completo quando todos têm fibra', () => {
+    expect(somar([item(2), item(3.5)])).toMatchObject({ fibra: 5.5, fibraCompleta: true });
+  });
+
+  it('total do dia soma a primeira opção de cada refeição, com o mesmo critério de parcial', () => {
+    const refeicoes = [
+      { opcoes: [{ itens: [item(2)] }, { itens: [item(999)] }] },
+      { opcoes: [{ itens: [item(null), item(1)] }] },
+    ] as unknown as ConteudoDieta;
+    expect(totalDoDia(refeicoes)).toMatchObject({ fibra: 3, fibraCompleta: false });
+  });
+
+  it('item sem fibra não vira "item sem valor" do total (fibra é opcional)', () => {
+    expect(itensSemValorNoTotal([{ uid: 'r', opcoes: [{ itens: [item(null)] }] }] as unknown as Refeicao[])).toEqual([]);
+  });
+
+  it('normalizarDieta lê fibra ausente como nula e mantém a que veio', () => {
+    const { refeicoes } = normalizarDieta({ refeicoes: [{ opcoes: [{ itens: [{ nome: 'a' }, { nome: 'b', fibra: 1.5 }] }] }] });
+    expect(refeicoes[0].opcoes[0].itens.map((i) => i.fibra)).toEqual([null, 1.5]);
+  });
+
+  it('faixa do formulário: 0 a 99.999, até 2 casas; vazio é permitido', () => {
+    for (const v of [null, undefined, 0, 0.01, 12.5, 99999]) expect(fibraValida(v)).toBe(true);
+    for (const v of [-0.01, 99999.01, 100000, 1.234, Number.NaN]) expect(fibraValida(v)).toBe(false);
+    expect(erroDaFibra(null)).toBeNull();
+    expect(erroDaFibra(1.234)).toBe('Use de 0 a 99.999, com até 2 casas.');
   });
 });
 
