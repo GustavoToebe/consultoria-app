@@ -17,8 +17,8 @@ Três melhorias de tela, em ordem: (1) alimentos do editor de dieta numa tabela 
 
 ## Passos
 - [ ] 1. Dieta em tabela (`CartaoRefeicao.tsx`: `OpcaoDaRefeicao` e `LinhaItem`) — executor-front — commit: —
-- [ ] 2. Arrastar para reordenar: peça em `ui/`, regra em `dominio/`, refeições, exercícios, blocos e sessões — executor-front — commit: —
-- [ ] 2b. Alça de arrastar nos alimentos de cada opção (`LinhaItem`), depois do passo 1 — executor-front — commit: —
+- [x] 2. Arrastar para reordenar: peça em `ui/` (`ArrasteDaLista`), regra em `dominio/reordenar`, refeições (lista mestre no PC), exercícios e blocos; sessões ficaram fora (ver abaixo) — executor-front — commits: 98cef762, be3a9e8a — evidência: `e2e/arrastar.spec.ts`, `editor-clareza.spec.ts`, `reordenar.test.ts`
+- [x] 2b. Alça de arrastar nos alimentos de cada opção (`LinhaItem`) e ⋯ da refeição, depois do passo 1 — executor-front — commit: 89a095e8 — evidência: `e2e/arrastar.spec.ts`, e2e `dieta-*` verdes
 - [ ] 3. Menu: botão de recolher no topo e submenu flutuante no trilho — executor-front — depende do commit do menu recolhível na `main` — commit: —
 
 ## Conflitos previstos ao trazer a `main`
@@ -28,4 +28,7 @@ Três melhorias de tela, em ordem: (1) alimentos do editor de dieta numa tabela 
 - Qualquer mudança de API ou de dados.
 
 ## O que ficou para trás
-- (nada ainda)
+- Sessões do plano (chips do `SeletorDeSessoes`): sem arraste; continuam com ← → no `CartaoSessao`. Chips que quebram linha pedem destino em 2D (a regra `destinoDoArraste` já tem o eixo `linhas`) e alça dentro de cada chip; fica para quando o Gustavo pedir.
+- Refeições no celular (cartões empilhados): sem alça (precisaria de um encaixe no `CabecalhoDoItem`, compartilhado com mobilidade e questionário); a ordem muda pelo ⋯ da refeição.
+- Sem rolagem automática perto da borda durante o arraste (`shortcut:` em `ui/ArrasteDaLista.tsx`).
+- Arraste por toque (Android/iOS, toque longo de 250 ms) não foi conferido em aparelho; só e2e com mouse na web.
