@@ -90,16 +90,20 @@ export function LegendaDosMacros() {
  * acessível começa pelo texto visível (WCAG 2.5.3, quem fala "P (g)" acha o campo) e traz o nome inteiro quando o rótulo é
  * só a sigla: "P (g), proteína". A cor não entra na caixa nem no número.
  */
-export function CampoDoMacro({ macro, rotulo, valor, aoMudar, erro }: {
+export function CampoDoMacro({ macro, rotulo, valor, aoMudar, erro, rotuloOculto = false }: {
   macro: (typeof MACROS)[number]; rotulo: string; valor: number | null; aoMudar: (v: number | null) => void; erro?: string | null;
+  /** Sem a marca e o rótulo em cima (tabela da dieta: o cabeçalho da coluna já os mostra); o nome acessível não muda. */
+  rotuloOculto?: boolean;
 }) {
   const { cores } = useTema();
   return (
     <View style={estilos.campo}>
-      <View style={estilos.macro} aria-hidden>
-        <MarcaDoMacro cor={macro.cor} />
-        <Texto variante="rotulo" cor={cores.texto} numberOfLines={1}>{rotulo}</Texto>
-      </View>
+      {rotuloOculto ? null : (
+        <View style={estilos.macro} aria-hidden>
+          <MarcaDoMacro cor={macro.cor} />
+          <Texto variante="rotulo" cor={cores.texto} numberOfLines={1}>{rotulo}</Texto>
+        </View>
+      )}
       <CampoNumerico rotulo={rotulo} rotuloOculto rotuloAcessivel={rotulo.includes(macro.nome) ? rotulo : `${rotulo}, ${macro.nome.toLowerCase()}`} valor={valor} aoMudar={aoMudar} erro={erro} />
     </View>
   );

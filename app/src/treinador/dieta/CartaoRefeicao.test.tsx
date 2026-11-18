@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import type { ItemDieta, Refeicao } from '../../api/tipos';
 import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { MACROS, valoresPorExtenso } from '../../ui/ValoresDaDieta';
-import { CartaoRefeicao } from './CartaoRefeicao';
+import { CartaoRefeicao, larguraDaTabela } from './CartaoRefeicao';
 
 /**
  * Refeição aberta (04/11): "Observação" e "Modo de preparo" vazios ficam num link "+ Observação ou modo de preparo
@@ -123,6 +123,44 @@ describe('CartaoRefeicao: trocar alimento (C56)', () => {
 
   it('sem quem trate a troca, o botão não aparece', () => {
     expect(trocar(montar(comItens([biblioteca('i1', 'Pão fictício')])), 'Pão fictício')).toHaveLength(0);
+  });
+});
+
+// Dieta em tabela (18/11): com a opção larga, um cabeçalho de colunas e os itens em faixas; estreita, o item empilhado.
+describe('CartaoRefeicao: itens em tabela', () => {
+  const biblioteca = (uid: string, nome: string): ItemDieta => ({ ...item(uid, nome), alimentoId: `al-${uid}`, manual: false });
+  const umaOpcao = refeicao({ opcoes: [{ uid: 'a', rotulo: 'A', itens: [biblioteca('i1', 'Pão fictício'), item('i2', 'Suco fictício')] }] });
+  const comLargura = (a: Arvore, width: number) => {
+    const opcoes = a.root.findAll((n) => n.props.testID === 'opcoes-da-refeicao' && typeof n.type === 'string')[0];
+    Renderer.act(() => opcoes.props.onLayout({ nativeEvent: { layout: { width, height: 0, x: 0, y: 0 } } }));
+    return a;
+  };
+  const textos = (a: Arvore) => a.root.findAllByType(Text).map((t) => t.props.children);
+  const temCabecalho = (a: Arvore) => textos(a).includes('Alimento');
+
+  it('larga, mostra o cabeçalho uma vez, escondido do leitor, e os valores da biblioteca como texto', () => {
+    const a = comLargura(montar(umaOpcao, { aoTrocarAlimento: () => undefined }), 1200);
+    expect(textos(a).filter((t) => t === 'Alimento')).toHaveLength(1);
+    for (const titulo of ['#', 'Quantidade', 'Unidade', 'Kcal', 'P (g)', 'C (g)', 'G (g)']) expect(textos(a)).toContain(titulo);
+    const cabecalho = a.root.findAll((n) => typeof n.type === 'string' && n.props['aria-hidden'] && n.findAll((f) => f.props.children === 'Alimento').length > 0);
+    expect(cabecalho.length).toBeGreaterThan(0);
+    // O item da biblioteca: número solto na coluna e uma frase só para o leitor.
+    expect(textos(a)).toContain('1,0 g');
+    expect(textos(a)).toContain('Pão fictício: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g');
+  });
+
+  it('larga, os campos mantêm os nomes de hoje (quantidade, unidade e os valores do item manual)', () => {
+    const a = comLargura(montar(umaOpcao), 1200);
+    expect(comRotulo(a, 'campo Quantidade')).toHaveLength(2);
+    expect(comRotulo(a, 'suspensa Unidade: ml')).toHaveLength(2);
+    for (const campo of ['Item', 'Kcal', 'P (g)', 'C (g)', 'G (g)']) expect(temCampo(a, campo)).toBe(true);
+  });
+
+  it('o limite sai das colunas: um pixel abaixo dele, volta ao item empilhado, sem cabeçalho', () => {
+    const limite = larguraDaTabela(4);
+    expect(temCabecalho(comLargura(montar(umaOpcao, { aoTrocarAlimento: () => undefined }), limite))).toBe(true);
+    expect(temCabecalho(comLargura(montar(umaOpcao, { aoTrocarAlimento: () => undefined }), limite - 1))).toBe(false);
+    expect(temCabecalho(montar(umaOpcao))).toBe(false);
   });
 });
 

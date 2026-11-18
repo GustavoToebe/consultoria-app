@@ -18,7 +18,7 @@ import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, LARGURA_EDITOR } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
@@ -28,9 +28,10 @@ import { Divisor } from '../../ui/Divisor';
 import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { NumeroInvertido } from '../../ui/NumeroInvertido';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
-import { CampoDoMacro, MACROS, TotalParaLeitor, ValoresDaDieta } from '../../ui/ValoresDaDieta';
+import { CampoDoMacro, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
@@ -183,7 +184,7 @@ export function CartaoRefeicao(p: Props) {
           ) : (
             <Texto variante="secao">Alimentos ({r.opcoes[0]?.itens.length ?? 0})</Texto>
           )}
-          <View style={estilos.opcoes} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
+          <View testID="opcoes-da-refeicao" style={estilos.opcoes} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
             {r.opcoes.map((opcao, indice) => (
               <Fragment key={opcao.uid}>
                 {/* Empilhadas, um fio entre as opções; lado a lado, a coluna e o título já separam. */}
@@ -191,6 +192,7 @@ export function CartaoRefeicao(p: Props) {
                 <OpcaoDaRefeicao
                   opcao={opcao}
                   largura={larguraDaColuna}
+                  larguraDisponivel={larguraDaColuna ?? largura}
                   varias={varias}
                   comProblema={p.comProblema}
                   alimentos={p.alimentos}
@@ -231,6 +233,7 @@ export function CartaoRefeicao(p: Props) {
 function OpcaoDaRefeicao({
   opcao,
   largura,
+  larguraDisponivel,
   varias,
   comProblema,
   alimentos,
@@ -243,6 +246,8 @@ function OpcaoDaRefeicao({
   opcao: OpcaoRefeicao;
   /** Largura da coluna no PC; sem ela, a opção ocupa a linha toda (celular). */
   largura: number | undefined;
+  /** Largura medida da opção (a coluna, ou a linha inteira): decide entre a tabela e o item empilhado. */
+  larguraDisponivel: number;
   varias: boolean;
   comProblema: Set<string>;
   alimentos: Map<string, Alimento>;
@@ -255,6 +260,10 @@ function OpcaoDaRefeicao({
   const { cores } = useTema();
   // Com várias opções, o nome acessível diz a qual delas o botão serve (o texto visível é o mesmo em cada coluna).
   const naOpcao = varias ? ` na opção ${opcao.rotulo}` : '';
+  // A coluna das ações reserva Trocar, ↑↓ e a lixeira mesmo com um item só: o segundo item não muda o modo da opção.
+  const acoes = (aoTrocarAlimento ? 1 : 0) + 3;
+  const modo: ModoDoItem = larguraDisponivel >= larguraDaTabela(acoes) ? 'tabela' : 'empilhado';
+  const larguraDasAcoes = acoes * ALVO_TOQUE;
   return (
     <View style={[estilos.opcao, largura ? { width: largura } : estilos.opcaoInteira]}>
       {varias ? (
@@ -263,21 +272,27 @@ function OpcaoDaRefeicao({
           {aoRemover ? <IconeBotao Icone={Trash2} rotulo={`Remover opção ${opcao.rotulo}`} cor={cores.perigo} aoTocar={aoRemover} /> : null}
         </View>
       ) : null}
-      {opcao.itens.length === 0 ? <Texto variante="suave">Nenhum item nesta opção.</Texto> : null}
-      {opcao.itens.map((item, ii) => (
-        <LinhaItem
-          key={item.uid}
-          item={item}
-          posicao={ii}
-          total={opcao.itens.length}
-          comProblema={comProblema.has(item.uid)}
-          alimento={item.alimentoId ? alimentos.get(item.alimentoId) : undefined}
-          aoMudar={(novo) => aoMudarItens((itens) => substituir(itens, ii, recalcularItem(novo, novo.alimentoId ? alimentos.get(novo.alimentoId) : undefined)))}
-          aoRemover={() => (aoRemoverItem ? aoRemoverItem(ii, item.nome || `Item ${ii + 1}`) : aoMudarItens((itens) => remover(itens, ii)))}
-          aoMover={(d) => aoMudarItens((itens) => mover(itens, ii, d))}
-          aoTrocar={aoTrocarAlimento && !item.manual ? () => aoTrocarAlimento(item.uid) : undefined}
-        />
-      ))}
+      {opcao.itens.length === 0 ? <Texto variante="suave">Nenhum item nesta opção.</Texto> : (
+        <View style={estilos.itens}>
+          {modo === 'tabela' ? <CabecalhoDosItens larguraDasAcoes={larguraDasAcoes} /> : null}
+          {opcao.itens.map((item, ii) => (
+            <LinhaItem
+              key={item.uid}
+              modo={modo}
+              larguraDasAcoes={larguraDasAcoes}
+              item={item}
+              posicao={ii}
+              total={opcao.itens.length}
+              comProblema={comProblema.has(item.uid)}
+              alimento={item.alimentoId ? alimentos.get(item.alimentoId) : undefined}
+              aoMudar={(novo) => aoMudarItens((itens) => substituir(itens, ii, recalcularItem(novo, novo.alimentoId ? alimentos.get(novo.alimentoId) : undefined)))}
+              aoRemover={() => (aoRemoverItem ? aoRemoverItem(ii, item.nome || `Item ${ii + 1}`) : aoMudarItens((itens) => remover(itens, ii)))}
+              aoMover={(d) => aoMudarItens((itens) => mover(itens, ii, d))}
+              aoTrocar={aoTrocarAlimento && !item.manual ? () => aoTrocarAlimento(item.uid) : undefined}
+            />
+          ))}
+        </View>
+      )}
       {/* Total separado dos itens por um fio suave: o nome à esquerda, os números à direita (guia pág. 10). */}
       <View role="group" aria-label={`Total da opção ${opcao.rotulo}`} style={[estilos.total, { borderTopColor: cores.divisor }]}>
         <TotalParaLeitor rotulo={`Total da opção ${opcao.rotulo}`} totais={somar(opcao.itens)} />
@@ -292,8 +307,76 @@ function OpcaoDaRefeicao({
   );
 }
 
-/** Um item da opção: caixa própria (a segunda moldura), com o nome, ↑↓ desabilitadas na ponta, a lixeira e as quantidades. */
-function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRemover, aoMover, aoTrocar }: {
+/** Os números do item que viram coluna; a fibra entra aqui e no `COLUNAS_DO_ITEM`. */
+type ChaveDoValor = 'kcal' | 'proteina' | 'carboidrato' | 'gordura';
+type ModoDoItem = 'tabela' | 'empilhado';
+/** O nome nunca fica mais estreito que isto na tabela: abaixo, a opção volta ao item empilhado. */
+const LARGURA_MINIMA_DO_NOME = 160;
+
+/**
+ * Colunas da tabela de itens da opção (dieta em tabela, 18/11): o cabeçalho, a linha e a largura mínima da tabela leem
+ * daqui, então uma coluna nova é uma linha a mais. `largura` é fixa, menos a do `nome`, que é o mínimo dela (estica).
+ * `valor` liga a coluna ao número do item. A `alca` é o encaixe da alça de arrastar: com largura 0 não aparece; com
+ * largura, vira a primeira célula da faixa, nos dois modos, e mostra a prop `alca` da `LinhaItem`.
+ */
+const COLUNAS_DO_ITEM: readonly { chave: string; rotulo: string; largura: number; valor?: ChaveDoValor }[] = [
+  { chave: 'alca', rotulo: '', largura: 0 },
+  { chave: 'numero', rotulo: '#', largura: 28 },
+  { chave: 'nome', rotulo: 'Alimento', largura: LARGURA_MINIMA_DO_NOME },
+  { chave: 'quantidade', rotulo: 'Quantidade', largura: 80 },
+  { chave: 'unidade', rotulo: 'Unidade', largura: 104 },
+  { chave: 'kcal', rotulo: 'Kcal', largura: 64, valor: 'kcal' },
+  { chave: 'proteina', rotulo: 'P (g)', largura: 64, valor: 'proteina' },
+  { chave: 'carboidrato', rotulo: 'C (g)', largura: 64, valor: 'carboidrato' },
+  { chave: 'gordura', rotulo: 'G (g)', largura: 64, valor: 'gordura' },
+];
+const COLUNAS = COLUNAS_DO_ITEM.filter((c) => c.largura > 0);
+const COLUNAS_DE_VALOR = COLUNAS.filter((c) => c.valor);
+const PARES_DE_VALOR = COLUNAS_DE_VALOR.flatMap((c, i, todas) => (i % 2 === 0 ? [todas.slice(i, i + 2)] : []));
+const LARGURA_DA_ALCA = COLUNAS_DO_ITEM[0].largura;
+const VAO_DA_TABELA = espaco(1);
+/** Recuo da faixa do item (e do cabeçalho, para as colunas baterem) mais o contorno de 1 px. */
+const RECUO_DA_FAIXA = espaco(1);
+const CONTORNO_DA_FAIXA = 1;
+
+/** Largura da opção a partir da qual os itens viram tabela: as colunas, os vãos, o recuo da faixa e `acoes` botões de 44. */
+export function larguraDaTabela(acoes: number): number {
+  const colunas = COLUNAS.reduce((soma, c) => soma + c.largura, 0) + acoes * ALVO_TOQUE;
+  return colunas + VAO_DA_TABELA * COLUNAS.length + 2 * (RECUO_DA_FAIXA + CONTORNO_DA_FAIXA);
+}
+
+const estiloDaColuna = (c: (typeof COLUNAS)[number]) => (c.chave === 'nome' ? estilos.colunaDoNomeNaTabela : { width: c.largura });
+const macroDa = (chave: ChaveDoValor | undefined) => MACROS.find((m) => m.chave === chave);
+
+/** Cabeçalho das colunas, uma vez por opção. Fora do leitor de tela: cada campo já tem nome e cada linha lê os valores. */
+function CabecalhoDosItens({ larguraDasAcoes }: { larguraDasAcoes: number }) {
+  return (
+    <View aria-hidden style={[estilos.linhaDaTabela, estilos.cabecalhoDosItens]}>
+      {COLUNAS.map((c) => {
+        const macro = macroDa(c.valor);
+        return (
+          <View key={c.chave} style={[estiloDaColuna(c), c.valor ? estilos.aDireita : null, estilos.celulaDoCabecalho]}>
+            {macro ? <MarcaDoMacro cor={macro.cor} /> : null}
+            {/* O mesmo texto do rótulo do campo empilhado: na tabela ele só sobe para o cabeçalho. */}
+            {c.rotulo ? <Texto variante="rotulo" numberOfLines={1}>{c.rotulo}</Texto> : null}
+          </View>
+        );
+      })}
+      <View style={{ width: larguraDasAcoes }} />
+    </View>
+  );
+}
+
+/**
+ * Um item da opção numa faixa própria (`superficie2`, cantos de 12), com o número no começo. Em `tabela`, cada coisa na
+ * coluna do cabeçalho, sem rótulo em cima; em `empilhado` (opção estreita), o cartão de antes, com os rótulos à vista.
+ * Item com pendência ganha o contorno na cor do problema (o contorno existe sempre, transparente, para nada pular).
+ */
+function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProblema, alimento, aoMudar, aoRemover, aoMover, aoTrocar }: {
+  modo: ModoDoItem;
+  larguraDasAcoes: number;
+  /** Encaixe da alça de arrastar (parte 2): aparece quando a coluna `alca` tem largura. */
+  alca?: ReactNode;
   item: ItemDieta;
   posicao: number;
   total: number;
@@ -307,7 +390,9 @@ function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRem
 }) {
   const { cores } = useTema();
   const mudar = (parcial: Partial<ItemDieta>) => aoMudar({ ...item, ...parcial });
+  const mudarValor = (chave: ChaveDoValor, v: number | null) => aoMudar({ ...item, [chave]: v });
   const nome = item.nome || 'item';
+  const emTabela = modo === 'tabela';
   // Quantidade vazia ou zero, a condição que a publicação recusa (`ValidadorDieta`). Vazia é pendência de preenchimento:
   // "Falta a quantidade" em âmbar com o ícone, como o "Falta a carga" do treino; zero ou negativa é valor errado: a
   // mensagem da API no próprio campo, em vermelho (cores-de-destaque D12: três sentidos, três textos).
@@ -315,49 +400,101 @@ function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRem
   const faltaQuantidade = item.quantidade == null;
   const tom = faltaQuantidade ? 'atencao' : 'perigo';
   const erroDaQuantidade = semQuantidade && !faltaQuantidade ? 'Quantidade precisa ser maior que zero.' : null;
-  // Visual-ponytail (17/11): o alimento é uma LINHA da tabela da refeição (nome, quantidade, unidade, valores e ações lado a
-  // lado, separados por filete), não mais um cartão alto por item; no celular a linha quebra. Item com pendência ganha a
-  // barra lateral na cor do problema.
-  return (
-    <View style={[estilos.item, { borderBottomColor: cores.divisor }, comProblema ? { borderLeftWidth: 3, borderLeftColor: cores[tom], paddingLeft: espaco(1) } : null]}>
-      <View style={estilos.colunaDoNome}>
-        {item.manual ? (
-          <Campo rotulo="Item" valor={item.nome} aoMudar={(n) => mudar({ nome: n })} maxLength={160} />
-        ) : (
-          <Texto style={estilos.nomeDoItem}>{item.nome}</Texto>
-        )}
-        {faltaQuantidade ? <View style={estilos.selo}><Selo texto="Falta a quantidade" tipo="atencao" Icone={TriangleAlert} /></View> : null}
-        {/* A unidade escolhida não converte para a base do alimento: o valor fica "—" e não se inventa gramatura. */}
-        {semConversao(item, alimento) ? <View style={estilos.selo}><Selo texto="Informe gramas por unidade no alimento" tipo="atencao" Icone={TriangleAlert} /></View> : null}
-        {item.manual ? <View style={estilos.selo}><Selo texto="Item manual" tipo="neutro" /></View> : null}
-      </View>
-      <View style={estilos.quantidade}>
-        {/* Campo estreito: a caixa marca o erro e a mensagem vai na linha inteira abaixo, sem empurrar a Unidade. */}
-        <CampoNumerico rotulo="Quantidade" valor={item.quantidade} aoMudar={(quantidade) => mudar({ quantidade })} erro={erroDaQuantidade} erroSemTexto />
-      </View>
-      <EscolhaSuspensa<UnidadeAlimento> rotulo="Unidade" titulo={`Unidade de ${nome}`} opcoes={UNIDADES} valor={item.unidade}
-        aoMudar={(unidade) => mudar({ unidade })} style={estilos.unidade} />
+  const totais = somar([item]);
+
+  const nomeDoItem = (
+    <>
       {item.manual ? (
-        // Os quatro valores do item manual na própria linha; P, C e G com a marca da cor no rótulo.
-        <View style={estilos.valores}>
-          <View style={estilos.valor}><CampoNumerico rotulo="Kcal" valor={item.kcal} aoMudar={(kcal) => mudar({ kcal })} /></View>
-          <View style={estilos.valor}><CampoDoMacro macro={MACROS[0]} rotulo="P (g)" valor={item.proteina} aoMudar={(proteina) => mudar({ proteina })} /></View>
-          <View style={estilos.valor}><CampoDoMacro macro={MACROS[1]} rotulo="C (g)" valor={item.carboidrato} aoMudar={(carboidrato) => mudar({ carboidrato })} /></View>
-          <View style={estilos.valor}><CampoDoMacro macro={MACROS[2]} rotulo="G (g)" valor={item.gordura} aoMudar={(gordura) => mudar({ gordura })} /></View>
+        <Campo rotulo="Item" rotuloOculto={emTabela} valor={item.nome} aoMudar={(n) => mudar({ nome: n })} maxLength={160} />
+      ) : (
+        <Texto style={estilos.nomeDoItem}>{item.nome}</Texto>
+      )}
+      {faltaQuantidade ? <View style={estilos.selo}><Selo texto="Falta a quantidade" tipo="atencao" Icone={TriangleAlert} /></View> : null}
+      {/* A unidade escolhida não converte para a base do alimento: o valor fica "—" e não se inventa gramatura. */}
+      {semConversao(item, alimento) ? <View style={estilos.selo}><Selo texto="Informe gramas por unidade no alimento" tipo="atencao" Icone={TriangleAlert} /></View> : null}
+      {item.manual ? <View style={estilos.selo}><Selo texto="Item manual" tipo="neutro" /></View> : null}
+      {/* Na tabela os valores da biblioteca são números soltos nas colunas: o leitor ouve a linha numa frase só. */}
+      {emTabela && !item.manual ? <TotalParaLeitor rotulo={nome} totais={totais} /> : null}
+    </>
+  );
+  // Campo estreito: a caixa marca o erro e a mensagem vai na linha inteira abaixo, sem empurrar a Unidade.
+  const quantidade = (
+    <CampoNumerico rotulo="Quantidade" rotuloOculto={emTabela} valor={item.quantidade} aoMudar={(q) => mudar({ quantidade: q })} erro={erroDaQuantidade} erroSemTexto />
+  );
+  const unidade = (
+    <EscolhaSuspensa<UnidadeAlimento> rotulo="Unidade" titulo={`Unidade de ${nome}`} opcoes={UNIDADES} valor={item.unidade}
+      aoMudar={(u) => mudar({ unidade: u })} style={estilos.unidade} />
+  );
+  // Os valores do item manual são campos; P, C e G com a marca da cor no rótulo (na tabela, no cabeçalho).
+  const campoDoValor = (c: (typeof COLUNAS)[number]) => {
+    const macro = macroDa(c.valor);
+    const chave = c.valor;
+    if (!chave) return null;
+    return macro ? (
+      <CampoDoMacro macro={macro} rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave]} aoMudar={(v) => mudarValor(chave, v)} />
+    ) : (
+      <CampoNumerico rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave]} aoMudar={(v) => mudarValor(chave, v)} />
+    );
+  };
+  const acoes = (
+    <>
+      {aoTrocar ? <IconeBotao Icone={ArrowLeftRight} rotulo={`Trocar ${nome}`} aoTocar={aoTrocar} /> : null}
+      {total > 1 ? (
+        <>
+          <IconeBotao Icone={ArrowUp} rotulo={`Subir ${nome}`} desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
+          <IconeBotao Icone={ArrowDown} rotulo={`Descer ${nome}`} desabilitado={posicao === total - 1} aoTocar={() => aoMover(1)} />
+        </>
+      ) : null}
+      <IconeBotao Icone={Trash2} rotulo={`Remover ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />
+    </>
+  );
+  const celula = (c: (typeof COLUNAS)[number]): ReactNode => {
+    if (c.chave === 'alca') return alca;
+    if (c.chave === 'numero') return <NumeroInvertido numero={posicao + 1} invertido={false} />;
+    if (c.chave === 'nome') return nomeDoItem;
+    if (c.chave === 'quantidade') return quantidade;
+    if (c.chave === 'unidade') return unidade;
+    if (!c.valor) return null;
+    if (item.manual) return campoDoValor(c);
+    const v = totais[c.valor];
+    return <Texto numerico cor={cores.texto} style={estilos.textoADireita} aria-hidden>{c.valor === 'kcal' ? kcalNaTela(v) : gramasNaTela(v)}</Texto>;
+  };
+
+  return (
+    <View style={[estilos.faixa, { backgroundColor: cores.superficie2, borderColor: comProblema ? cores[tom] : 'transparent' }]}>
+      {emTabela ? (
+        <View style={estilos.linhaDaTabela}>
+          {COLUNAS.map((c) => (
+            <View key={c.chave} style={[estiloDaColuna(c), c.chave === 'nome' ? estilos.celulaDoNome : null, c.valor && !item.manual ? estilos.aDireita : null]}>
+              {celula(c)}
+            </View>
+          ))}
+          <View style={[estilos.acoesDaTabela, { width: larguraDasAcoes }]}>{acoes}</View>
         </View>
       ) : (
-        <View style={estilos.valoresDoItem}><ValoresDaDieta totais={somar([item])} /></View>
+        <View style={estilos.empilhado}>
+          {LARGURA_DA_ALCA > 0 ? <View style={{ width: LARGURA_DA_ALCA }}>{alca}</View> : null}
+          <View style={estilos.numeroEmpilhado}><NumeroInvertido numero={posicao + 1} invertido={false} /></View>
+          <View style={estilos.item}>
+            <View style={estilos.colunaDoNome}>{nomeDoItem}</View>
+            <View style={estilos.quantidade}>{quantidade}</View>
+            {unidade}
+            {item.manual ? (
+              // Em pares (kcal e P, C e G): sem largura para os quatro, descem dois a dois, nunca um sozinho.
+              <View style={estilos.valores}>
+                {PARES_DE_VALOR.map((par) => (
+                  <View key={par[0].chave} style={estilos.parDeValores}>
+                    {par.map((c) => <View key={c.chave} style={estilos.valor}>{campoDoValor(c)}</View>)}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={estilos.valoresDoItem}><ValoresDaDieta totais={totais} /></View>
+            )}
+            <View style={estilos.acoesDoItem}>{acoes}</View>
+          </View>
+        </View>
       )}
-      <View style={estilos.acoesDoItem}>
-        {aoTrocar ? <IconeBotao Icone={ArrowLeftRight} rotulo={`Trocar ${nome}`} aoTocar={aoTrocar} /> : null}
-        {total > 1 ? (
-          <>
-            <IconeBotao Icone={ArrowUp} rotulo={`Subir ${nome}`} desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
-            <IconeBotao Icone={ArrowDown} rotulo={`Descer ${nome}`} desabilitado={posicao === total - 1} aoTocar={() => aoMover(1)} />
-          </>
-        ) : null}
-        <IconeBotao Icone={Trash2} rotulo={`Remover ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />
-      </View>
       {erroDaQuantidade ? <View style={estilos.erroDaLinha}><MensagemDeErro erro={erroDaQuantidade} /></View> : null}
     </View>
   );
@@ -376,7 +513,22 @@ const estilos = StyleSheet.create({
   opcaoInteira: { width: '100%' },
   tituloDaOpcao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: 44 },
   cresce: { flex: 1 },
-  item: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(1.5), rowGap: espaco(1), borderBottomWidth: 1, paddingVertical: espaco(1.25) },
+  // Os itens ficam a 6 px um do outro: cada faixa já separa pelo fundo.
+  itens: { gap: 6 },
+  faixa: { borderRadius: 12, borderWidth: CONTORNO_DA_FAIXA, paddingHorizontal: RECUO_DA_FAIXA, paddingVertical: espaco(1), gap: espaco(0.5) },
+  linhaDaTabela: { flexDirection: 'row', alignItems: 'center', gap: VAO_DA_TABELA },
+  // Mesmo recuo e contorno da faixa, para cada título ficar em cima da sua coluna.
+  cabecalhoDosItens: { paddingHorizontal: RECUO_DA_FAIXA + CONTORNO_DA_FAIXA },
+  celulaDoCabecalho: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
+  colunaDoNomeNaTabela: { flex: 1, minWidth: LARGURA_MINIMA_DO_NOME },
+  celulaDoNome: { gap: espaco(0.5), justifyContent: 'center', minHeight: 44 },
+  aDireita: { alignItems: 'flex-end', justifyContent: 'flex-end' },
+  textoADireita: { textAlign: 'right' },
+  acoesDaTabela: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' },
+  empilhado: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
+  // O número desce até o meio da primeira linha (o nome tem 44 de altura mínima).
+  numeroEmpilhado: { paddingTop: 8 },
+  item: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(1.5), rowGap: espaco(1) },
   colunaDoNome: { flexGrow: 1, flexShrink: 1, flexBasis: 220, minWidth: 180, gap: espaco(0.5), minHeight: 44, justifyContent: 'center', alignSelf: 'center' },
   nomeDoItem: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 20 },
   acoesDoItem: { flexDirection: 'row', alignItems: 'center', marginLeft: 'auto', alignSelf: 'center' },
@@ -384,7 +536,8 @@ const estilos = StyleSheet.create({
   quantidade: { width: 104 },
   // Mesma altura do campo da quantidade ao lado (a lista suspensa tem 52 de mínimo), como o RIR na série.
   unidade: { width: 104, minHeight: 44, alignSelf: 'flex-end' },
-  valores: { flexDirection: 'row', gap: espaco(1), flexGrow: 1, flexBasis: 320 },
+  valores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), flexGrow: 1, flexShrink: 1, flexBasis: 320, minWidth: 0 },
+  parDeValores: { flexDirection: 'row', gap: espaco(1), flexGrow: 1, flexBasis: 2 * 64 + espaco(1) },
   valor: { flex: 1, minWidth: 64 },
   total: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5), borderTopWidth: 1, paddingTop: espaco(1) },
   selo: { flexDirection: 'row' },
