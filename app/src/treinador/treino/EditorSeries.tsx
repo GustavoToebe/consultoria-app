@@ -22,6 +22,7 @@ import { cargaDoBloco, FALTA_A_CARGA } from './cargaDaSerie';
 import { AvisoDoCampo, ErroDoCampo, useCamposLadoALado } from './CamposDaPrescricao';
 import { EditorGrupo, faltaCargaNoGrupo, nivelDoGrupo, type Nivel } from './EditorDoGrupoDeSeries';
 import { LARGURA_DAS_COLUNAS, TabelaDeBlocos } from './TabelaDeBlocos';
+import { reordenarPorPassos } from '../../dominio/reordenar';
 import { opcoesDeTecnica, opcoesDeTipo, problemasDoExercicioSemSeries, problemasPorSerie } from './opcoesDoEditor';
 
 interface Props {
@@ -127,6 +128,11 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   return <View style={estilos.lista} onLayout={medir}>
     {grupos.length > 0 ? <TabelaDeBlocos ativa={uidAberto ?? grupos[0].series[0].uid} aoMudar={definirAberto}
       empilhado={empilhado} detalhe={editor}
+      // Arrastar (18/11): a mesma regra da seta (`moverGrupo`), um vizinho por vez, achando o bloco pela 1ª série dele.
+      aoSoltar={(de, para) => {
+        const uid = grupos[de]?.series[0].uid;
+        aoMudar(reordenarPorPassos(series, para, (s) => agrupar(s).findIndex((x) => x.series.some((y) => y.uid === uid)), moverGrupo));
+      }}
       linhas={grupos.map((x, i) => {
         const faltaCarga = !cardio && faltaCargaNoGrupo(validacao.porSerieErros, x);
         const chaveCor = corDoTipoDeSerie(x.series[0].tipo, papelDe(cfg, x.series[0].tipo));

@@ -30,6 +30,12 @@ jest.mock('../../ui/Selo', () => ({
   Selo: ({ texto }: { texto: string }) => require('react').createElement(require('react-native').Text, null, texto),
 }));
 jest.mock('../../ui/DemonstracaoDoExercicio', () => ({ DemonstracaoDoExercicio: () => null }));
+jest.mock('../FolhaDeAcoes', () => {
+  const { Pressable } = jest.requireActual('react-native');
+  // O menu ⋯ sem a Folha: cada ação vira um botão com o nome acessível do item da folha ("rótulo, detalhe").
+  return { FolhaDeAcoes: ({ acoes }: { acoes: { rotulo: string; detalhe?: string; aoTocar: () => void }[] }) =>
+    acoes.map((a) => <Pressable key={a.rotulo} accessibilityLabel={`${a.rotulo}, ${a.detalhe}`} onPress={a.aoTocar} />) };
+});
 jest.mock('./EditorSeries', () => ({ EditorSeries: () => null, BotaoDeMover: () => null }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports

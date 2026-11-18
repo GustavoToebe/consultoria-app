@@ -32,6 +32,7 @@ import {
 } from '../../dominio/editorTreino';
 import { textoDoResumo, trazerParaOEditor } from '../../dominio/importarTreinoDeTexto';
 import { proximaSelecao, resumoDaSessaoPorContagem, serieDoProblema } from '../../dominio/inspetorDoTreino';
+import { reordenarPorPassos } from '../../dominio/reordenar';
 import { validarTreino } from '../../dominio/validacaoDoTreino';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
 import { BarraDoModeloDoEditor } from '../../treinador/plano/TopoModelo';
@@ -54,6 +55,7 @@ import { descansoSoDoGrupo } from '../../dominio/textoDoGrupo';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
 import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
+import { AlcaDeArraste, ItemArrastavel, ListaArrastavel } from '../../ui/ArrasteDaLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -258,6 +260,17 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const mudarGrupos = (fn: (s: Sessao) => ExerciciosEGrupos) =>
     mudarSessoes((sessoes) => substituir(sessoes, indiceSelecionado, { ...sessoes[indiceSelecionado], ...fn(sessoes[indiceSelecionado]) }));
 
+  /**
+   * Soltar um exercício arrastado (arrastar, 18/11): a mesma regra da seta (`moverExercicio`), passo a passo até o destino;
+   * o solto passa por cima do grupo vizinho inteiro, como na seta. O Desfazer do aviso volta ao conteúdo de antes.
+   */
+  const soltarExercicio = (de: number, para: number) => {
+    const anterior = c;
+    const uid = sessaoAtual?.exercicios[de]?.uid;
+    mudarGrupos((s) => reordenarPorPassos<ExerciciosEGrupos>(s, para, (x) => x.exercicios.findIndex((e) => e.uid === uid), moverExercicio));
+    return () => editor.alterarConteudo(() => anterior);
+  };
+
   /** Troca um exercício pelo uid (a confirmação da troca de modalidade chega depois de o conteúdo poder ter mudado). */
   const trocarExercicioPorUid = (a: ConteudoTreino, sessaoUid: string, exercicioUid: string, novo: ExercicioPlano): ConteudoTreino => ({
     ...a,
@@ -381,7 +394,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de uma semana de treino pronta."
           acao={unica ? undefined : { rotulo: 'Modelos prontos', aoTocar: () => setFolha({ tipo: 'modelos' }) }} />
       ) : null}
-      {sessaoAtual ? <ComColunas>{(duas) => {
+      {sessaoAtual ? <ComColunas>{(duas) => <ListaArrastavel total={sessaoAtual.exercicios.length} aoSoltar={soltarExercicio}>{(arraste) => {
         // Com um grupo de exercícios escolhido, nenhum exercício fica realçado e o inspetor mostra o grupo.
         const escolhido = grupoEscolhido ? null : escolhidoEm(duas);
         let noInspetor: PropsDoInspetor | null = null;
@@ -391,10 +404,17 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           // Uma coluna: o cartão de hoje, com o corpo aberto só no escolhido. Duas: o item da lista, e o escolhido vai ao inspetor.
           const cartoes = g.exercicios.map((e, i) => {
             const ei = g.inicio + i;
-            if (!duas) return <CartaoExercicio key={e.uid} {...propsDoExercicio(sessaoAtual, e, ei, g.grupo !== null, descansoPorSerie)} aberto={e.uid === escolhido} aoAbrir={() => alternar(e.uid)} />;
+            const alca = <AlcaDeArraste arraste={arraste} indice={ei} />;
+            if (!duas) {
+              return <ItemArrastavel key={e.uid} arraste={arraste} indice={ei}>
+                <CartaoExercicio {...propsDoExercicio(sessaoAtual, e, ei, g.grupo !== null, descansoPorSerie)} aberto={e.uid === escolhido} aoAbrir={() => alternar(e.uid)} alca={alca} />
+              </ItemArrastavel>;
+            }
             if (e.uid === escolhido) noInspetor = propsDoExercicio(sessaoAtual, e, ei, g.grupo !== null, descansoPorSerie);
-            return <ItemDaListaDeExercicios key={e.uid} exercicio={e} posicao={ei} total={sessaoAtual.exercicios.length} config={config}
-              escolhido={e.uid === escolhido} comProblema={comErro.has(e.uid)} aoEscolher={() => { escolherExercicio(e.uid); mostrarAbaixoDaBarra(ID_DO_INSPETOR); }} />;
+            return <ItemArrastavel key={e.uid} arraste={arraste} indice={ei}>
+              <ItemDaListaDeExercicios exercicio={e} posicao={ei} total={sessaoAtual.exercicios.length} config={config} alca={alca}
+                escolhido={e.uid === escolhido} comProblema={comErro.has(e.uid)} aoEscolher={() => { escolherExercicio(e.uid); mostrarAbaixoDaBarra(ID_DO_INSPETOR); }} />
+            </ItemArrastavel>;
           });
           const grupo = g.grupo;
           if (!grupo) return <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>;
@@ -480,7 +500,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
             )}
           </CartaoSessao>
         );
-      }}</ComColunas> : null}
+      }}</ListaArrastavel>}</ComColunas> : null}
 
       <FolhasDoTreino folha={folha} abrir={setFolha} fechar={() => setFolha(null)} conteudo={c} config={config} modelo={modelo} unica={unica}
         planoId={id} salvar={editor.salvar} comDesfazer={comDesfazer} abrirGrupo={abrirGrupo} />

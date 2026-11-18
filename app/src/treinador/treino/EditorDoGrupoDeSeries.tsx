@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CircleAlert, CircleCheck, Minus, Plus, Smartphone, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react-native';
+import { CircleAlert, Ellipsis, CircleCheck, Minus, Plus, Smartphone, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -28,6 +28,8 @@ import { NumeroInvertido } from '../../ui/NumeroInvertido';
 import { type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
+import { acoesDeMover } from '../acoesDeMover';
+import { FolhaDeAcoes } from '../FolhaDeAcoes';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
 import { AvisoDoCampo, CamposDaTecnica, CamposDasRepeticoes, CamposDoCardio, CargaERirDaSerie, ErroDoCampo } from './CamposDaPrescricao';
 import { cargaPendente, textoParaOAluno } from './cargaDaSerie';
@@ -135,6 +137,9 @@ export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga,
   // Explicações do tipo e da técnica começam recolhidas; o "O que é?" abre.
   const [explicarTipo, setExplicarTipo] = useState(false);
   const [explicarTecnica, setExplicarTecnica] = useState(false);
+  // Arrastar (18/11): subir e descer saíram da faixa e foram para o ⋯ (na ponta, a ação que não cabe some).
+  const [menu, setMenu] = useState(false);
+  const acoesDoMenu = acoesDeMover({ nome: `série ${numero}`, posicao: primeiro ? 0 : 1, total: ultimo ? (primeiro ? 1 : 2) : 3, aoMover });
   const s = g.series[0];
   const secoes = secoesDaSerie(cardio ? 'CARDIO' : null);
   const cluster = s.tecnica?.tipo === 'CLUSTER';
@@ -164,10 +169,10 @@ export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga,
         linha, senão o título quebra palavra por palavra. */}
     <CabecalhoDeGrupo titulo={`Editando: ${titulo}`} resumo={leitura ?? undefined} selo={nivel === 'sucesso' ? undefined : SELO_DO_NIVEL[nivel]} linha="fina"
       inicio={<NumeroInvertido numero={numero} invertido emEdicao />} acoesJuntas={largo} acoes={<>
-      <IconeBotao moldura Icone={ArrowUp} rotulo={`Subir série ${numero}`} desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
-      <IconeBotao moldura Icone={ArrowDown} rotulo={`Descer série ${numero}`} desabilitado={ultimo} aoTocar={() => aoMover(1)} />
       <Botao tipo="perigoTexto" rotulo="Excluir série" rotuloAcessivel={`Remover série ${numero}`} Icone={Trash2} aoTocar={aoRemover} />
+      {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações da série ${numero}`} aoTocar={() => setMenu(true)} /> : null}
     </>} />
+    {menu ? <FolhaDeAcoes titulo={`Série ${numero}`} aoFechar={() => setMenu(false)} acoes={acoesDoMenu} /> : null}
     <View style={[estilos.corpo, { padding: recuo }]}>
       {/* Faixa 1: para que a série serve (tipo) e como executar (técnica). */}
       {secoes.tipo ? <Faixa titulo="Tipo e técnica" primeira>

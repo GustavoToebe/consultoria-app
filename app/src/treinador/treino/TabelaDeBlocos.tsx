@@ -5,6 +5,7 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { textoAcessivelDoBloco, textoDaVariacao, type ResumoDoBloco } from '../../dominio/editorDeTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, BORDA_ITEM, espaco, fontes, RAIO } from '../../tema/tokens';
+import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Selo } from '../../ui/Selo';
 import { coresDaEdicao } from '../../ui/selecao';
 import { SeloEditando } from '../../ui/SeloEditando';
@@ -36,6 +37,8 @@ const TEXTO_DO_PROBLEMA = { perigo: 'com problema a corrigir', atencao: 'com avi
 export const LARGURA_DAS_COLUNAS = 540;
 /** A mesma largura da barra do tipo no cartão da série do aluno (`aluno/PartesDaSerie`), para os dois lados lerem igual. */
 const FAIXA = 6;
+/** Vão entre a alça e a linha. */
+const ESPACO_DA_ALCA = espaco(0.25);
 
 /**
  * Tabela dos blocos do exercício (guia premium pág. 9 e 17): Série, Tipo, Carga, Reps e Descanso, uma linha por bloco de
@@ -48,7 +51,7 @@ const FAIXA = 6;
  * com o contorno forte e "EDITANDO"; a categoria é a faixa lateral e o selo na cor do tipo; o problema é o ícone na cor
  * da gravidade (a carga ainda vazia é âmbar, "Falta a carga").
  */
-export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = false, detalhe }: {
+export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = false, detalhe, aoSoltar }: {
   linhas: LinhaDoBloco[];
   ativa: string;
   aoMudar: (valor: string) => void;
@@ -58,8 +61,13 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
   empilhado?: boolean;
   /** O editor do bloco escolhido: abre logo abaixo da série escolhida, no PC e no celular. */
   detalhe?: ReactNode;
+  /** Arrastar pela alça (arrastar, 18/11): soltar o bloco `de` na posição `para`. Sem ele, sem alça. */
+  aoSoltar?: (de: number, para: number) => (() => void) | void;
 }) {
   const { cores } = useTema();
+  // Só a linha anda (o editor aberto embaixo dela fica); as setas ficam no ⋯ do "Editando: Série N".
+  const arraste = useArrasteDaLista({ total: aoSoltar ? linhas.length : 0, aoSoltar: aoSoltar ?? (() => undefined), folga: espaco(0.25) });
+  const comAlca = !!aoSoltar && linhas.length > 1;
   const idDoDetalhe = `detalhe-da-serie-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   // Teclado na sanfona (APG Accordion, opcional): setas para cima e para baixo, Home e End movem o foco entre as linhas
   // sem escolher; Enter e Espaço abrem. Devolve a navegação por setas que as abas tinham.
@@ -131,25 +139,28 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
   const caixa = (l: LinhaDoBloco, sel: boolean, fundo: string) =>
     [estilos.caixa, { backgroundColor: fundo, borderColor: sel ? cores.acao : cores.borda, borderLeftColor: l.categoria?.cor ?? fundo, boxShadow: sel ? coresDaEdicao(cores).halo : undefined }];
 
+  const linha = (l: LinhaDoBloco, i: number) => {
+    const sel = l.valor === ativa;
+    return (
+      <View key={l.valor} style={estilos.lista}>
+        <ItemArrastavel arraste={arraste} indice={i} style={comAlca ? estilos.comAlca : null}>
+          {comAlca ? <AlcaDeArraste arraste={arraste} indice={i} /> : null}
+          <Pressable ref={(n) => { linhasRef.current[i] = n; }} {...teclado(i)} accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
+            {...(Platform.OS === 'web' && sel && detalhe ? ({ 'aria-controls': idDoDetalhe } as object) : {})}
+            onPress={() => { if (!sel) aoMudar(l.valor); }}
+            style={(st) => [caixa(l, sel, sel ? cores.acaoSuave : comMouse(st) ? cores.sobre : cores.superficie2), comAlca ? estilos.aoLado : null]}>
+            {conteudo(l, sel)}
+          </Pressable>
+        </ItemArrastavel>
+        {sel && detalhe ? <View nativeID={idDoDetalhe} role="region" aria-label={`Editando ${l.rotulo}`}>{detalhe}</View> : null}
+      </View>
+    );
+  };
+
   if (empilhado) {
     return (
       <View style={estilos.tabela}>
-        <View style={estilos.lista} role="group" aria-label="Blocos do exercício">
-          {linhas.map((l, i) => {
-            const sel = l.valor === ativa;
-            return (
-              <View key={l.valor} style={estilos.lista}>
-                <Pressable ref={(n) => { linhasRef.current[i] = n; }} {...teclado(i)} accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
-                  {...(Platform.OS === 'web' && sel && detalhe ? ({ 'aria-controls': idDoDetalhe } as object) : {})}
-                  onPress={() => { if (!sel) aoMudar(l.valor); }}
-                  style={(st) => caixa(l, sel, sel ? cores.acaoSuave : comMouse(st) ? cores.sobre : cores.superficie2)}>
-                  {conteudo(l, sel)}
-                </Pressable>
-                {sel && detalhe ? <View nativeID={idDoDetalhe} role="region" aria-label={`Editando ${l.rotulo}`}>{detalhe}</View> : null}
-              </View>
-            );
-          })}
-        </View>
+        <View style={estilos.lista} role="group" aria-label="Blocos do exercício">{linhas.map(linha)}</View>
         {depois ? <View style={estilos.depois}>{depois}</View> : null}
       </View>
     );
@@ -158,7 +169,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
   return (
     <View style={estilos.tabela}>
       {/* Cabeçalho só visual: cada linha já diz os valores no nome acessível. */}
-      <View style={[estilos.linha, estilos.cabecalho]} aria-hidden importantForAccessibility="no-hide-descendants">
+      <View style={[estilos.linha, estilos.cabecalho, comAlca ? estilos.cabecalhoComAlca : null]} aria-hidden importantForAccessibility="no-hide-descendants">
         <Texto variante="rotulo" style={estilos.serie}>Série</Texto>
         <Texto variante="rotulo" style={estilos.tipo}>Tipo</Texto>
         <Texto variante="rotulo" style={estilos.carga}>Carga</Texto>
@@ -167,22 +178,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
       </View>
       {/* Visual-ponytail (17/11): também no PC a linha é sanfona (botão com `aria-expanded`) e o editor do bloco abre logo
           abaixo da série escolhida, dentro da tabela, em vez de depois dela. */}
-      <View style={estilos.lista} role="group" aria-label="Blocos do exercício">
-        {linhas.map((l, i) => {
-          const sel = l.valor === ativa;
-          return (
-            <View key={l.valor} style={estilos.lista}>
-              <Pressable ref={(n) => { linhasRef.current[i] = n; }} {...teclado(i)} accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
-                {...(Platform.OS === 'web' && sel && detalhe ? ({ 'aria-controls': idDoDetalhe } as object) : {})}
-                onPress={() => { if (!sel) aoMudar(l.valor); }}
-                style={(st) => caixa(l, sel, sel ? cores.acaoSuave : comMouse(st) ? cores.sobre : cores.superficie2)}>
-                {conteudo(l, sel)}
-              </Pressable>
-              {sel && detalhe ? <View nativeID={idDoDetalhe} role="region" aria-label={`Editando ${l.rotulo}`}>{detalhe}</View> : null}
-            </View>
-          );
-        })}
-      </View>
+      <View style={estilos.lista} role="group" aria-label="Blocos do exercício">{linhas.map(linha)}</View>
       {depois ? <View style={estilos.depois}>{depois}</View> : null}
     </View>
   );
@@ -199,6 +195,10 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(2), width: '100%' },
   // Mesmo recuo da linha (padding mais as bordas), para as colunas do cabeçalho caírem sobre os valores.
   cabecalho: { paddingLeft: espaco(1.5) + FAIXA, paddingRight: espaco(1.5) + BORDA_ITEM },
+  // Com a alça à esquerda de cada linha, o cabeçalho anda a largura dela e o vão.
+  cabecalhoComAlca: { paddingLeft: espaco(1.5) + FAIXA + LARGURA_DA_ALCA + ESPACO_DA_ALCA },
+  comAlca: { flexDirection: 'row', alignItems: 'stretch', gap: ESPACO_DA_ALCA },
+  aoLado: { flex: 1, width: 'auto', minWidth: 0 },
   celula: { gap: espaco(0.25), minWidth: 0 },
   serie: { width: 72, flexShrink: 0 },
   // A sobra da linha é repartida (11/11): antes ia toda para o Tipo e Carga, Reps e Descanso ficavam colados à direita.

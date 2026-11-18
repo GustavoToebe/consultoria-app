@@ -46,10 +46,12 @@ interface PropsDoItem {
   /** Erro da validação do servidor ou da local casado com este exercício (borda vermelha, como no cartão). */
   comProblema: boolean;
   aoEscolher: () => void;
+  /** Alça de arrastar (`ui/ArrasteDaLista`). */
+  alca?: ReactNode;
 }
 
 /** Item da lista: o `ItemDaListaDoEditor` com o selo de situação (`estadoDoExercicio`) e a linha das séries (`linhaDoExercicio`). */
-export function ItemDaListaDeExercicios({ exercicio: e, posicao, total, config, escolhido, comProblema, aoEscolher }: PropsDoItem) {
+export function ItemDaListaDeExercicios({ exercicio: e, posicao, total, config, escolhido, comProblema, aoEscolher, alca }: PropsDoItem) {
   const estado = useMemo(() => estadoDoExercicio(e, config), [e, config]);
   const linha = useMemo(() => linhaDoExercicio(e, config), [e, config]);
   const nome = e.nome || 'sem nome';
@@ -57,7 +59,7 @@ export function ItemDaListaDeExercicios({ exercicio: e, posicao, total, config, 
   const pendente = estado.tipo !== 'sucesso';
   return (
     <ItemDaListaDoEditor numero={posicao + 1} titulo={nome} selo={pendente ? estado : undefined} linha={linha} escolhido={escolhido}
-      comProblema={comProblema || estado.tipo === 'perigo'} aoEscolher={aoEscolher}
+      comProblema={comProblema || estado.tipo === 'perigo'} aoEscolher={aoEscolher} alca={alca}
       rotulo={`Exercício ${posicao + 1} de ${total}: ${nome}${pendente ? `, ${estado.texto}` : ''}. ${linha}`} />
   );
 }

@@ -27,6 +27,12 @@ jest.mock('../../ui/Botao', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   Botao: ({ rotuloAcessivel, rotulo, aoTocar }: { rotuloAcessivel?: string; rotulo: string; aoTocar: () => void }) => require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotuloAcessivel ?? rotulo, onPress: aoTocar }),
 }));
+jest.mock('../FolhaDeAcoes', () => {
+  const { Pressable } = jest.requireActual('react-native');
+  // O menu ⋯ sem a Folha: cada ação vira um botão com o nome acessível do item da folha ("rótulo, detalhe").
+  return { FolhaDeAcoes: ({ acoes }: { acoes: { rotulo: string; detalhe?: string; aoTocar: () => void }[] }) =>
+    acoes.map((a) => <Pressable key={a.rotulo} accessibilityLabel={`${a.rotulo}, ${a.detalhe}`} onPress={a.aoTocar} />) };
+});
 jest.mock('./TabelaDeBlocos', () => ({
   TabelaDeBlocos: ({ linhas: abas, ativa, aoMudar, depois, detalhe }: { linhas: { valor: string; rotulo: string }[]; ativa: string; aoMudar: (v: string) => void; depois?: unknown; detalhe?: unknown }) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -144,7 +150,9 @@ describe('EditorSeries com a aba controlada', () => {
   it('sem nada guardado, mover o 1º grupo para baixo leva a aba junto', () => {
     const aoAbrir = jest.fn();
     const arvore = montar(<Controlado inicial={null} aoAbrir={aoAbrir} />);
-    tocar(arvore, 'Descer série 1');
+    // arrastar (18/11): subir e descer ficam no ⋯ da série aberta.
+    tocar(arvore, 'Mais ações da série 1');
+    tocar(arvore, 'Mover para baixo, Descer série 1 uma posição.');
     expect(aoAbrir).toHaveBeenLastCalledWith('a1');
     expect(abaSelecionada(arvore)).toMatch(/^Série 2/);
   });

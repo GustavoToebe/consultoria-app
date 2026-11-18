@@ -1,5 +1,5 @@
 import { GripVertical } from 'lucide-react-native';
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
@@ -35,14 +35,16 @@ export interface ArrasteDaLista {
  *   (`activateAfterLongPress`), para não brigar com a rolagem. Na web por toque não há essa espera.
  * - No começo mede os itens na janela (`measureInWindow`, funciona com itens aninhados, como os exercícios dentro de um
  *   grupo); o destino sai de `dominio/reordenar.destinoDoArraste` e só redesenha a lista quando muda.
- * - Ao soltar noutro lugar chama `aoSoltar(de, para)` (que aplica a MESMA função das setas e devolve como desfazer) e
- *   mostra o aviso "Ordem alterada." com Desfazer.
+ * - Ao soltar noutro lugar chama `aoSoltar(de, para)`, que aplica a MESMA função das setas, e mostra o aviso "Ordem
+ *   alterada." com Desfazer. Se `aoSoltar` devolve uma função, ela é o desfazer (o conteúdo de antes, como o
+ *   `BarraDesfazer`); senão o Desfazer leva o item de volta (`aoSoltar(para, de)` da versão mais nova da lista, nada se
+ *   ela já saiu da tela).
  *
  * Os índices são os da ordem visível, de 0 a `total - 1`.
  */
 export function useArrasteDaLista({ total, aoSoltar, eixo = 'vertical', folga = espaco(0.5) }: {
   total: number;
-  aoSoltar: (de: number, para: number) => () => void;
+  aoSoltar: (de: number, para: number) => (() => void) | void;
   eixo?: 'vertical' | 'linhas';
   /** Metade do espaço entre os itens: a linha guia fica no meio dele. */
   folga?: number;
@@ -54,6 +56,11 @@ export function useArrasteDaLista({ total, aoSoltar, eixo = 'vertical', folga = 
   const [estado, setEstado] = useState<{ de: number; para: number; linha: CaixaDoItem | null } | null>(null);
   const dx = useSharedValue(0);
   const dy = useSharedValue(0);
+  // O Desfazer chega até 10 s depois: usa o `aoSoltar` da lista de agora, e só se ela ainda está na tela.
+  const atual = useRef(aoSoltar);
+  const montada = useRef(false);
+  useEffect(() => { atual.current = aoSoltar; });
+  useEffect(() => { montada.current = true; return () => { montada.current = false; }; }, []);
 
   const comecar = (de: number) => {
     caixas.current = [];
@@ -83,7 +90,7 @@ export function useArrasteDaLista({ total, aoSoltar, eixo = 'vertical', folga = 
     const para = destino(de, x, y);
     setEstado(null);
     if (para === de || para < 0) return;
-    const desfazer = aoSoltar(de, para);
+    const desfazer = aoSoltar(de, para) ?? (() => { if (montada.current) atual.current(para, de); });
     avisar('Ordem alterada.', 'neutro', { rotulo: 'Desfazer', aoTocar: desfazer });
   };
 
@@ -100,6 +107,14 @@ export function useArrasteDaLista({ total, aoSoltar, eixo = 'vertical', folga = 
     else nos.current.delete(indice);
   };
   return { total, eixo, de: estado?.de ?? null, para: estado?.para ?? null, linha: estado?.linha ?? null, reduzido, dx, dy, medir, gesto };
+}
+
+/**
+ * O mesmo `useArrasteDaLista` como componente (render prop), para quem monta a lista dentro de uma função de render ou
+ * depois de um retorno antecipado, onde não pode chamar hook.
+ */
+export function ListaArrastavel({ children, ...opcoes }: Parameters<typeof useArrasteDaLista>[0] & { children: (arraste: ArrasteDaLista) => ReactNode }) {
+  return <>{children(useArrasteDaLista(opcoes))}</>;
 }
 
 /**

@@ -1,5 +1,5 @@
-import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, ChevronUp, NotebookTabs, Save, Trash2, Unlink } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { ArrowLeftRight, ChevronDown, ChevronUp, Ellipsis, NotebookTabs, Save, Trash2, Unlink } from 'lucide-react-native';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { AlternativaDeExercicio, Configuracao, ExercicioPlano } from '../../api/tipos';
@@ -19,6 +19,8 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
+import { acoesDeMover } from '../acoesDeMover';
+import { FolhaDeAcoes } from '../FolhaDeAcoes';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AlternativasDoExercicio } from './AlternativasDoExercicio';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
@@ -57,6 +59,8 @@ export interface PropsDoCartaoExercicio {
   demonstracao?: { imagens: string[]; imagemPropriaEm: string | null } | null;
   /** Grupo muscular do exercício na biblioteca (etiqueta ao lado do nome); nulo fora dela. */
   grupoMuscular?: string | null;
+  /** Alça de arrastar (`ui/ArrasteDaLista`) no começo do topo, no cartão empilhado. */
+  alca?: ReactNode;
 }
 
 /**
@@ -87,6 +91,10 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   const extrasPreenchidos = !!(e.observacao || e.videoUrl || e.cadencia || e.isometriaSegundos != null);
   const extrasAbertos = extrasComErro || !e.nome.trim() || (escolhaDosExtras ?? extrasPreenchidos);
   const foraDaBiblioteca = e.exercicioId === null && !!e.nome;
+  // Arrastar (18/11): as setas saíram da linha e foram para o ⋯ ("Mover para cima/baixo").
+  const [menu, setMenu] = useState(false);
+  const nomeDoExercicio = e.nome || 'o exercício';
+  const acoesDoMenu = acoesDeMover({ nome: nomeDoExercicio, posicao: p.posicao, total: p.total, aoMover: p.aoMover });
 
   const dados = <>
     {/* Nome de exibição e o que é opcional num acordeão só (10/11): fechado, o botão diz o que já tem dentro. */}
@@ -172,7 +180,8 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
         { borderWidth: bordas.bloco, borderColor: comErro ? cores.perigo : cores.borda, backgroundColor: cores.superficie },
       ]}>
       {/* A faixa do exercício é mais forte que as de dentro dele (`faixaForte`), aberto ou fechado. */}
-      <View nativeID={idDoExercicio(e.uid)} style={[estilos.topo, { backgroundColor: cores.faixaForte }, p.aberto && { borderBottomWidth: LINHA_DA_FAIXA, borderBottomColor: cores.bordaCampo }]}>
+      <View nativeID={idDoExercicio(e.uid)} style={[estilos.topo, p.alca ? estilos.topoComAlca : null, { backgroundColor: cores.faixaForte }, p.aberto && { borderBottomWidth: LINHA_DA_FAIXA, borderBottomColor: cores.bordaCampo }]}>
+        {p.alca}
         {p.demonstracao ? (
           <DemonstracaoDoExercicio exercicioId={e.exercicioId} nome={e.nome} imagens={p.demonstracao.imagens}
             imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />
@@ -206,12 +215,12 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
           {largo
             ? <Botao rotulo="Trocar" rotuloAcessivel={`Trocar ${e.nome || 'o exercício'}`} tipo="acao" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
             : <IconeBotao moldura Icone={ArrowLeftRight} rotulo={`Trocar ${e.nome || 'o exercício'}`} aoTocar={p.aoEscolherDaBiblioteca} />}
-          <IconeBotao moldura Icone={ArrowUp} rotulo={`Subir ${e.nome || 'o exercício'}`} desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
-          <IconeBotao moldura Icone={ArrowDown} rotulo={`Descer ${e.nome || 'o exercício'}`} desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
-          <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${e.nome || 'o exercício'}`} Icone={Trash2} aoTocar={p.aoRemover} />
+          <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${nomeDoExercicio}`} Icone={Trash2} aoTocar={p.aoRemover} />
+          {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações de ${nomeDoExercicio}`} aoTocar={() => setMenu(true)} /> : null}
           {p.aoAbrir ? <IconeBotao moldura Icone={p.aberto ? ChevronUp : ChevronDown} rotulo={p.aberto ? 'Fechar exercício' : 'Editar exercício'} aoTocar={p.aoAbrir} /> : null}
         </View>
       </View>
+      {menu ? <FolhaDeAcoes titulo={e.nome || 'Exercício sem nome'} aoFechar={() => setMenu(false)} acoes={acoesDoMenu} /> : null}
       {p.aberto ? (
         <View style={estilos.corpo}>
           {dados}
@@ -233,6 +242,8 @@ function textoDosExtras(e: ExercicioPlano): string {
 const estilos = StyleSheet.create({
   cartao: { borderWidth: BORDA_BLOCO, borderRadius: RAIO, overflow: 'hidden' },
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5), paddingVertical: espaco(1.25) },
+  // Com a alça, o recuo da esquerda fica com ela (a alça já tem a largura do vão).
+  topoComAlca: { paddingLeft: espaco(0.5) },
   linhaDoNome: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   acoesEstreitas: { marginLeft: 'auto' },
   titulo: { flexGrow: 1, flexShrink: 1, flexBasis: 220, gap: 2, minHeight: 44, justifyContent: 'center' },

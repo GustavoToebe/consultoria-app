@@ -97,11 +97,17 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText(/^Exercício 2 de 2( ·|$)/).first()).toBeVisible();
     }
     await escolherExercicio(page, largura, 1, 2, 'Agachamento fictício');
-    // Subir e descer o exercício levam o nome dele; os da série, "série N". O primeiro não sobe.
-    await expect(page.getByRole('button', { name: 'Subir Agachamento fictício', exact: true })).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'Descer Agachamento fictício', exact: true })).toBeEnabled();
-    await expect(page.getByRole('button', { name: 'Subir série 1', exact: true })).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'Descer série 1', exact: true })).toBeEnabled();
+    // arrastar (18/11): subir e descer saíram da linha e ficam no ⋯ ("Mover para cima/baixo"), com o nome do exercício
+    // ("Subir X") ou "série N" no nome acessível. O primeiro não sobe: a ação some do menu.
+    await page.getByRole('button', { name: 'Mais ações de Agachamento fictício', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Mover para cima, Subir Agachamento fictício/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Mover para baixo, Descer Agachamento fictício/ })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Mais ações da série 1', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Mover para cima, Subir série 1/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Mover para baixo, Descer série 1/ })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: /^Mover para baixo, Descer série 1/ })).toHaveCount(0);
     // Só a seta, em todas as larguras (o nome acessível diz o quê).
     await expect(page.getByText('Mover exercício', { exact: true })).toHaveCount(0);
     // O grupo: uma aba por grupo ("Série 1 · FS"), já aberta no 1º; o "Para o aluno" diz o tipo e os percentuais de cada série.
@@ -120,7 +126,9 @@ for (const largura of [390, 1280]) {
     await expect(lixo.getByText('Excluir', { exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('editor-clareza.png'), fullPage: true });
     // Descer a série 1 (o grupo FS) muda só a ordem das séries do exercício.
-    await page.getByRole('button', { name: 'Descer série 1', exact: true }).click();
+    // arrastar (18/11): pelo ⋯ da série aberta.
+    await page.getByRole('button', { name: 'Mais ações da série 1', exact: true }).click();
+    await page.getByRole('button', { name: /^Mover para baixo, Descer série 1/ }).click();
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
     const corpo = api.pedidos.filter((p) => p.metodo === 'PUT').at(-1)!.corpo as { conteudo: { sessoes: { exercicios: { nome: string; series: Serie[] }[] }[] } };
