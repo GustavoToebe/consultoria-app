@@ -1,8 +1,9 @@
-"""Gera a migration V002 (catálogo de alimentos da TACO) e o relatório da importação.
+"""Gera a migration V002 (catálogo de alimentos da TACO), a V089 (fibra do catálogo) e o relatório da importação.
 
 Fonte oficial: planilha do NEPA/UNICAMP em dados/fontes/taco/. O PDF da mesma edição só serve para
 conferir os valores. Valor ausente nunca vira zero: o alimento sai do catálogo e vai para o relatório.
 Só `Tr` e `NA` viram 0, e ficam registrados.
+A fibra (V089) segue as mesmas regras de `Tr` e `NA`, mas nunca tira o alimento do catálogo: sem análise, a fibra fica nula.
 
 Uso (na raiz do repositório): python scripts/catalogo/gerar_taco.py
 """
@@ -19,6 +20,7 @@ import comum  # noqa: E402
 PLANILHA = comum.RAIZ / "dados/fontes/taco/Taco-4a-Edicao.xlsx"
 PDF = comum.RAIZ / "dados/fontes/taco/taco_4_edicao_ampliada_e_revisada.pdf"
 SQL = comum.RAIZ / "api/src/main/resources/db/migration/V002__catalogo_taco.sql"
+SQL_FIBRA = comum.RAIZ / "api/src/main/resources/db/migration/V089__fibra_do_alimento.sql"
 RELATORIO = comum.RAIZ / "dados/relatorios/taco-importacao.md"
 
 FONTE = "TACO 4ª ed. (2011), NEPA/UNICAMP"
@@ -32,6 +34,10 @@ NUTRIENTES = {
     "gordura": ("G", 1),
     "carboidrato": ("I", 1),
 }
+# Fibra alimentar: coluna J da planilha, 1 casa no PDF (oitava coluna da linha: umidade, kcal, kJ, proteína, lipídeos,
+# colesterol, carboidrato, fibra). Fica fora de NUTRIENTES de propósito: os alimentos da V002 já estão decididos pelos
+# quatro nutrientes e a fibra sem análise não descarta ninguém.
+FIBRA = ("J", 1)
 LIMITE_KCAL = Decimal("950")
 LIMITE_MACRO = Decimal("100.05")  # g por 100 g; folga de arredondamento para óleos (100,0)
 # O carboidrato da TACO é "por diferença" e sai da conta com resíduo negativo minúsculo (ex.: -0,027), que o
@@ -80,6 +86,7 @@ def ler_alimentos(linhas):
                 "nome": nome,
                 "grupo": grupo,
                 "brutos": {n: celulas.get(col) for n, (col, _) in NUTRIENTES.items()},
+                "fibra_bruta": celulas.get(FIBRA[0]),
             })
         elif isinstance(codigo, str) and nome is None and len(celulas) == 1:
             if not codigo.startswith(("Número", "Alimento")):
@@ -89,6 +96,19 @@ def ler_alimentos(linhas):
 
 def arredondar(valor):
     return valor.quantize(CASAS, rounding=ROUND_HALF_UP)
+
+
+def tratar_fibra(bruto):
+    """Fibra como os macros tratam `Tr`/`NA` (0; `Tr` fica marcado), mas sem descartar o alimento: o que não tem
+    valor possível devolve `valor` None (fica nulo no banco, nunca zero) e o `motivo` vai ao relatório."""
+    lido = normalizar_marcador(bruto)
+    if lido[0] == "numero":
+        if 0 <= lido[1] <= LIMITE_MACRO:
+            return {"valor": arredondar(lido[1]), "marca": None, "motivo": None}
+        return {"valor": None, "marca": None, "motivo": f"valor fora do possível ({lido[1].quantize(Decimal('0.01'))})"}
+    if lido[0] in ("traco", "na"):
+        return {"valor": Decimal("0.00"), "marca": lido[0], "motivo": None}
+    return {"valor": None, "marca": None, "motivo": lido[1]}
 
 
 def montar(alimentos):
@@ -133,7 +153,8 @@ def montar(alimentos):
             contagem["traco"][n] += 1
         for n in nas:
             contagem["na"][n] += 1
-        aceitos.append({**a, "valores": valores, "tracos": tracos, "nas": nas, "residuos": residuos})
+        aceitos.append({**a, "valores": valores, "tracos": tracos, "nas": nas, "residuos": residuos,
+                        "fibra": tratar_fibra(a.get("fibra_bruta"))})
     return aceitos, descartados, contagem
 
 
@@ -161,6 +182,56 @@ def gerar_sql(aceitos, sha):
                 f"{comum.sql_texto(comum.normalizar(a['nome']))})")
         linhas.append(",\n".join(valores) + ";")
         linhas.append("")
+    return "\n".join(linhas)
+
+
+DDL_FIBRA = """-- Fibra (g por 100 g) do alimento da biblioteca e do catálogo. Nula = sem dado ("—" na tela), nunca zero.
+ALTER TABLE alimento ADD COLUMN fibra numeric(8,2);
+ALTER TABLE catalogo_alimento ADD COLUMN fibra numeric(8,2);
+"""
+
+# Mesma regra da V038 (nome sem diferença de caixa e espaços nas pontas, uma única correspondência no catálogo), só
+# para o alimento vindo do catálogo e ainda sem fibra: nunca sobrescreve o que o treinador digitou.
+BIBLIOTECA_FIBRA = """-- Os alimentos da biblioteca que vieram do catálogo ganham a fibra do item de mesmo nome, só quando há exatamente
+-- um item correspondente com fibra. Não sobrescreve nada (a coluna é nova, mas o filtro deixa a regra explícita).
+update alimento as a
+set fibra = c.fibra
+from catalogo_alimento as c
+where a.origem = 'CATALOGO'
+  and a.fibra is null
+  and c.fibra is not null
+  and lower(btrim(a.nome)) = lower(btrim(c.nome))
+  and (select count(*) from catalogo_alimento as c2 where lower(btrim(c2.nome)) = lower(btrim(a.nome))) = 1;
+"""
+
+
+def tracos_com_fibra(a):
+    """`tracos` do alimento com a fibra no fim, quando ela é `Tr` (a ordem dos demais é a da V002)."""
+    return ",".join(a["tracos"] + ["fibra"]) if a["fibra"]["marca"] == "traco" else None
+
+
+def gerar_sql_fibra(aceitos, sha):
+    linhas = [
+        "-- Fibra do alimento (g por 100 g) e fibra do catálogo da TACO 4ª edição.",
+        f"-- GERADO por scripts/catalogo/gerar_taco.py a partir de dados/fontes/taco/{PLANILHA.name}",
+        f"-- (sha256 {sha}). Não editar à mão.",
+        f"-- Fonte: {CITACAO}",
+        "-- Coluna \"Fibra\" da planilha. `Tr` e `NA` viram 0 como nos demais nutrientes (o `Tr` entra em `tracos`).",
+        "-- Fibra sem análise fica nula e não aparece aqui (ver dados/relatorios/taco-importacao.md).",
+        "",
+        DDL_FIBRA,
+    ]
+    com_fibra = [a for a in aceitos if a["fibra"]["valor"] is not None]
+    for bloco in comum.blocos(com_fibra, 200):
+        linhas.append("update catalogo_alimento as c set fibra = v.fibra, tracos = coalesce(v.tracos, c.tracos)")
+        linhas.append("from (values")
+        valores = [f"  (md5('catalogo-alimento:taco:{a['codigo']}')::uuid, {a['fibra']['valor']}, "
+                   f"{comum.sql_texto(tracos_com_fibra(a))})" for a in bloco]
+        linhas.append(",\n".join(valores))
+        linhas.append(") as v(id, fibra, tracos)")
+        linhas.append("where c.id = v.id;")
+        linhas.append("")
+    linhas.append(BIBLIOTECA_FIBRA)
     return "\n".join(linhas)
 
 
@@ -207,10 +278,11 @@ def conferir(alimentos, pdf):
         if len(tokens) < 11:
             nao_conferidos.append((a, "linha do PDF com colunas em branco; posição dos valores incerta"))
             continue
-        pdf_valores = {"kcal": tokens[1], "proteina": tokens[3], "gordura": tokens[4], "carboidrato": tokens[6]}
+        pdf_valores = {"kcal": tokens[1], "proteina": tokens[3], "gordura": tokens[4], "carboidrato": tokens[6],
+                       "fibra": tokens[7]}
         conferidos += 1
-        for nutriente, (_, casas) in NUTRIENTES.items():
-            bruto = a["brutos"][nutriente]
+        for nutriente, (_, casas) in {**NUTRIENTES, "fibra": FIBRA}.items():
+            bruto = a.get("fibra_bruta") if nutriente == "fibra" else a["brutos"][nutriente]
             lido = normalizar_marcador(bruto)
             esperado = pdf_valores[nutriente]
             if lido[0] == "numero":
@@ -237,6 +309,21 @@ def _tabela(cabecalho, linhas):
     return "\n".join(saida) + "\n"
 
 
+def _secao_fibra(aceitos):
+    """Fibra (V089): quantos receberam valor, `Tr`, `NA` e quais ficam sem fibra (nula, nunca zero)."""
+    com_valor = [a for a in aceitos if a["fibra"]["valor"] is not None]
+    tr = [a for a in com_valor if a["fibra"]["marca"] == "traco"]
+    na = [a for a in com_valor if a["fibra"]["marca"] == "na"]
+    sem = [a for a in aceitos if a["fibra"]["valor"] is None]
+    return ["## Fibra (V089)", "",
+            "Coluna \"Fibra\" da planilha, em g por 100 g. `Tr` e `NA` seguem os demais nutrientes (viram 0; o `Tr` entra em "
+            "`tracos`), mas a fibra sem análise **não descarta** o alimento: fica nula (\"—\" na tela), nunca zero.", "",
+            f"- Alimentos do catálogo com fibra gravada: **{len(com_valor)}** de {len(aceitos)}, sendo `Tr`: **{len(tr)}** "
+            f"e `NA`: **{len(na)}** (gravados como 0).",
+            f"- Sem fibra (nula): **{len(sem)}**.", "",
+            _tabela(["Nº", "Alimento", "Motivo"], [(a["codigo"], a["nome"], a["fibra"]["motivo"]) for a in sem])]
+
+
 def gerar_relatorio(alimentos, aceitos, descartados, contagem, sha, conferencia, sha_pdf):
     r = [
         "# Importação da TACO — relatório",
@@ -258,6 +345,7 @@ def gerar_relatorio(alimentos, aceitos, descartados, contagem, sha, conferencia,
     if na_kcal:
         r += ["Alimentos com a energia `NA` (gravada como 0 kcal, conforme a legenda da planilha): "
               + ", ".join(f"{a['codigo']} {a['nome']}" for a in na_kcal) + ".", ""]
+    r += _secao_fibra(aceitos)
     com_residuo = [a for a in aceitos if a["residuos"]]
     r += ["## Resíduos negativos gravados como 0", "",
           "O carboidrato é calculado por diferença e, em alguns alimentos, sobra um resíduo negativo minúsculo "
@@ -274,9 +362,9 @@ def gerar_relatorio(alimentos, aceitos, descartados, contagem, sha, conferencia,
               "não estavam disponíveis. A planilha oficial vale; nenhum valor foi comparado.", ""]
     else:
         divergencias, nomes, nao_conferidos, conferidos = conferencia
-        r += [f"PDF: sha256 `{sha_pdf}` (TACO 4ª ed., 2011, Tabela 1). Compara energia, proteína, lipídeos e "
-              "carboidrato de cada alimento: o valor da planilha, arredondado como o PDF imprime (kcal inteiro, "
-              "gramas com 1 casa), precisa ser igual ao impresso; `Tr`/`NA`/`*` precisam coincidir. "
+        r += [f"PDF: sha256 `{sha_pdf}` (TACO 4ª ed., 2011, Tabela 1). Compara energia, proteína, lipídeos, "
+              "carboidrato e fibra de cada alimento: o valor da planilha, arredondado como o PDF imprime (kcal inteiro, "
+              "gramas com 1 casa; a fibra entra na conferência), precisa ser igual ao impresso; `Tr`/`NA`/`*` precisam coincidir. "
               "Nada foi corrigido: a planilha oficial vale e o Gustavo decide.", "",
               f"- Alimentos com a linha inteira lida do PDF e conferidos: **{conferidos}**.",
               f"- Divergências: **{len(divergencias)}**.",
@@ -297,6 +385,7 @@ def main():
     aceitos, descartados, contagem = montar(alimentos)
     sha = comum.sha256(PLANILHA)
     comum.escrever(SQL, gerar_sql(aceitos, sha))
+    comum.escrever(SQL_FIBRA, gerar_sql_fibra(aceitos, sha))
     pdf = ler_pdf(PDF)
     conferencia = conferir(alimentos, pdf) if pdf else None
     sha_pdf = comum.sha256(PDF) if pdf else None

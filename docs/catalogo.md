@@ -55,6 +55,11 @@ Cada exercício do catálogo pode ter duas fotos (início e fim do movimento). A
 Scripts em `scripts/catalogo/` (`gerar_taco.py`, `gerar_exercicios.py`); relatórios em `dados/relatorios/`; fontes em
 `dados/fontes/`; curadoria dos nomes em `dados/curadoria/`. Teste: `python -m unittest scripts/catalogo/test_catalogo.py`.
 
+**Fibra (V089):** `gerar_taco.py` também escreve `V089__fibra_do_alimento.sql` inteiro (colunas, fibra do catálogo por código e preenchimento da
+biblioteca pela regra da V038). Coluna "Fibra" (J); `Tr` e `NA` valem como nos macros (0, e o `Tr` entra em `tracos`), mas a fibra sem
+análise (`*` ou vazio) fica nula e **não** descarta o alimento. O relatório só ganha a seção da fibra e a conferência com o PDF quando o
+script roda com o PDF presente (ele não está no repositório; sem ele o relatório diria "não feita").
+
 O schema fica em `V001__inicial.sql` (à mão). Os dados são gerados: `gerar_taco.py` escreve `V002__catalogo_taco.sql` e
 `gerar_exercicios.py` escreve `V003__catalogo_exercicios_ptbr.sql`, só com `insert`. Os 52 exercícios próprios estão em
 `dados/fontes/proprio/exercicios-proprios.csv` (`nome;grupo_muscular;equipamento;modalidade`) e entram no início do V003.

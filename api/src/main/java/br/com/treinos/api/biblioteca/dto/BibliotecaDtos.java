@@ -54,7 +54,8 @@ public final class BibliotecaDtos {
      * estimado. Número fora da faixa ou com mais de duas casas dá 422 {@code ALIMENTO_INVALIDO} no campo.
      * {@code grupo} é texto livre opcional (até 60; no suplemento é a categoria). {@code tipo} ausente = {@code ALIMENTO}.
      * No alimento o {@code kcal} do corpo é ignorado (o servidor grava proteína×4 + carboidrato×4 + gordura×9) e os três
-     * macros são obrigatórios; kcal e macros nulos só valem no suplemento. Base ausente no suplemento vira 100 g só para preencher a coluna.
+     * macros são obrigatórios; kcal e macros nulos só valem no suplemento. {@code fibra} é opcional (nula fica nula) e
+     * não entra na kcal: fora de 0 a 99999 ou com mais de duas casas, o serviço dá 422 {@code ALIMENTO_INVALIDO} no campo (no suplemento o corpo a ignora). Base ausente no suplemento vira 100 g só para preencher a coluna.
      */
     public record AlimentoRequest(
             @NotBlank @Size(max = 160) String nome,
@@ -64,6 +65,7 @@ public final class BibliotecaDtos {
             @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal proteina,
             @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal carboidrato,
             @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal gordura,
+            BigDecimal fibra,
             @DecimalMin(value = "0", inclusive = false) @Digits(integer = 6, fraction = 2) BigDecimal gramasPorUnidade,
             @Size(max = 200) String fonte,
             BigDecimal fatorCorrecao,
@@ -80,13 +82,13 @@ public final class BibliotecaDtos {
 
     public record AlimentoResponse(UUID id, String nome, BigDecimal baseQuantidade, String baseUnidade,
                                    BigDecimal kcal, BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
-                                   BigDecimal gramasPorUnidade, String fonte, String origem,
+                                   BigDecimal fibra, BigDecimal gramasPorUnidade, String fonte, String origem,
                                    BigDecimal fatorCorrecao, BigDecimal fatorCoccao, String grupo,
                                    String tipo, String marca, String link, String cupom, List<String> sabores,
                                    String porcoesPorEmbalagem, String porcao) {
         public static AlimentoResponse de(Alimento a, List<String> sabores) {
             return new AlimentoResponse(a.getId(), a.getNome(), a.getBaseQuantidade(), a.getBaseUnidade(),
-                    a.getKcal(), a.getProteina(), a.getCarboidrato(), a.getGordura(), a.getGramasPorUnidade(),
+                    a.getKcal(), a.getProteina(), a.getCarboidrato(), a.getGordura(), a.getFibra(), a.getGramasPorUnidade(),
                     a.getFonte(), a.getOrigem().name(), a.getFatorCorrecao(), a.getFatorCoccao(), a.getGrupo(),
                     a.getTipo().name(), a.getMarca(), a.getLink(), a.getCupom(), sabores,
                     a.getPorcoesPorEmbalagem(), a.getPorcao());
@@ -115,13 +117,13 @@ public final class BibliotecaDtos {
     /** {@code tracos}: nutrientes que a fonte marca como traço ({@code Tr}); o valor vem 0 e a tela mostra "Tr". */
     public record CatalogoAlimentoResponse(UUID id, String nome, BigDecimal baseQuantidade, String baseUnidade,
                                            BigDecimal kcal, BigDecimal proteina, BigDecimal carboidrato,
-                                           BigDecimal gordura, String fonte, String grupo, String codigoFonte,
-                                           List<String> tracos, BigDecimal fatorCorrecao, BigDecimal fatorCoccao) {
+                                           BigDecimal gordura, BigDecimal fibra, String fonte, String grupo,
+                                           String codigoFonte, List<String> tracos, BigDecimal fatorCorrecao, BigDecimal fatorCoccao) {
         public static CatalogoAlimentoResponse de(CatalogoAlimento c) {
             List<String> tracos = c.getTracos() == null || c.getTracos().isBlank()
                     ? List.of() : List.of(c.getTracos().split(","));
             return new CatalogoAlimentoResponse(c.getId(), c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
-                    c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getFonte(), c.getGrupo(),
+                    c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getFibra(), c.getFonte(), c.getGrupo(),
                     c.getCodigoFonte(), tracos, c.getFatorCorrecao(), c.getFatorCoccao());
         }
     }

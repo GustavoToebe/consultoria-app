@@ -393,7 +393,7 @@ class GravadorDaImportacao {
         }
         for (Linha linha : dados) {
             conta.amostra(linha, config, List.of("nome", "quantidade", "unidade", "kcal", "proteina", "carboidrato",
-                    "gordura", "gramas", "fonte", "fc", "fcc", "grupo"));
+                    "gordura", "fibra", "gramas", "fonte", "fc", "fcc", "grupo"));
             try {
                 marcar(linha);
                 Alimento atual = porNome.get(Buscas.semAcento(obrigatoria(linha, config, "nome").texto()));
@@ -414,6 +414,9 @@ class GravadorDaImportacao {
                         BigDecimal.ZERO, new BigDecimal("99999"), 2, true);
                 BigDecimal gordura = numeroFinal(novo, atual == null ? null : atual.getGordura(), leitura(linha, config, "gordura"), linha.numero(), "gordura",
                         BigDecimal.ZERO, new BigDecimal("99999"), 2, true);
+                // Fibra é opcional: célula vazia ou coluna fora do mapeamento mantém o que já havia (nulo na criação, nunca zero).
+                BigDecimal fibra = numeroFinal(novo, atual == null ? null : atual.getFibra(), leitura(linha, config, "fibra"), linha.numero(), "fibra",
+                        BigDecimal.ZERO, new BigDecimal("99999"), 2, false);
                 BigDecimal gramas = numeroFinal(novo, atual == null ? null : atual.getGramasPorUnidade(), leitura(linha, config, "gramas"), linha.numero(), "gramas",
                         new BigDecimal("0.01"), new BigDecimal("999999.99"), 2, false);
                 String fonte = textoFinal(novo, atual == null ? null : atual.getFonte(), leitura(linha, config, "fonte"), "fonte", 200, false);
@@ -425,7 +428,7 @@ class GravadorDaImportacao {
                     fc = estimado.fatorCorrecao();
                     fcc = estimado.fatorCoccao();
                 }
-                var valores = Alimento.Valores.deAlimento(nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, gramas, fonte, fc, fcc, grupo);
+                var valores = Alimento.Valores.deAlimento(nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, fibra, gramas, fonte, fc, fcc, grupo);
                 if (novo) {
                     Alimento criado = new Alimento(valores, Exercicio.Origem.IMPORTACAO);
                     if (gravar) {
@@ -486,6 +489,7 @@ class GravadorDaImportacao {
                 var valores = new Alimento.Valores(nome, base, unidade,
                         novo ? null : atual.getKcal(), novo ? null : atual.getProteina(),
                         novo ? null : atual.getCarboidrato(), novo ? null : atual.getGordura(),
+                        novo ? null : atual.getFibra(),
                         novo ? null : atual.getGramasPorUnidade(), novo ? null : atual.getFonte(),
                         novo ? null : atual.getFatorCorrecao(), novo ? null : atual.getFatorCoccao(),
                         categoria, marca, link, cupom, porcao, porcoes, sabores, Buscas.semAcento(nome));

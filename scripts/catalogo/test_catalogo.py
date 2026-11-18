@@ -13,9 +13,10 @@ import gerar_batel  # noqa: E402
 import imagens_exercicios  # noqa: E402
 
 
-def alimento(codigo, nome, kcal=100.0, proteina=1.0, gordura=1.0, carboidrato=1.0, grupo="Grupo"):
+def alimento(codigo, nome, kcal=100.0, proteina=1.0, gordura=1.0, carboidrato=1.0, grupo="Grupo", fibra=2.7):
     return {"linha": codigo, "codigo": codigo, "nome": nome, "grupo": grupo,
-            "brutos": {"kcal": kcal, "proteina": proteina, "gordura": gordura, "carboidrato": carboidrato}}
+            "brutos": {"kcal": kcal, "proteina": proteina, "gordura": gordura, "carboidrato": carboidrato},
+            "fibra_bruta": fibra}
 
 
 class ComumTest(unittest.TestCase):
@@ -93,6 +94,50 @@ class MarcadoresTest(unittest.TestCase):
         self.assertEqual(aceitos[0]["valores"]["proteina"], Decimal("2.59"))
 
 
+class FibraTest(unittest.TestCase):
+    def fibra(self, bruto):
+        aceitos, descartados, _ = gerar_taco.montar([alimento(1, "Alimento A", fibra=bruto)])
+        self.assertEqual(descartados, [], bruto)  # a fibra nunca tira o alimento do catálogo
+        return aceitos[0]
+
+    def test_numero_arredonda_para_duas_casas(self):
+        self.assertEqual(self.fibra(2.585)["fibra"]["valor"], Decimal("2.59"))
+        self.assertEqual(self.fibra("2,5")["fibra"]["valor"], Decimal("2.50"))
+        self.assertEqual(self.fibra(0.0)["fibra"]["valor"], Decimal("0.00"))
+
+    def test_traco_vira_zero_e_entra_em_tracos_depois_dos_macros(self):
+        a = self.fibra("Tr")
+        self.assertEqual((a["fibra"]["valor"], a["fibra"]["marca"]), (Decimal("0.00"), "traco"))
+        self.assertEqual(gerar_taco.tracos_com_fibra(a), "fibra")
+        com_macro = gerar_taco.montar([alimento(1, "Alimento A", gordura="Tr", fibra="Tr")])[0][0]
+        self.assertEqual(gerar_taco.tracos_com_fibra(com_macro), "gordura,fibra")
+
+    def test_na_vira_zero_sem_marcar_traco(self):
+        a = self.fibra("NA")
+        self.assertEqual((a["fibra"]["valor"], a["fibra"]["marca"]), (Decimal("0.00"), "na"))
+        self.assertIsNone(gerar_taco.tracos_com_fibra(a))
+
+    def test_sem_analise_ou_impossivel_fica_nula_e_nunca_zero(self):
+        for ruim in ("*", None, "-", "ND", -0.2, 100.5):
+            a = self.fibra(ruim)
+            self.assertIsNone(a["fibra"]["valor"], ruim)
+            self.assertTrue(a["fibra"]["motivo"], ruim)
+
+    def test_sql_da_fibra_tem_coluna_atualizacao_por_codigo_e_biblioteca_sem_sobrescrever(self):
+        aceitos, _, _ = gerar_taco.montar([alimento(1, "Alimento A", fibra="Tr"), alimento(2, "Alimento B", fibra=3.0),
+                                           alimento(3, "Alimento C", fibra="*")])
+        sql = gerar_taco.gerar_sql_fibra(aceitos, "abc")
+        self.assertIn("ALTER TABLE alimento ADD COLUMN fibra numeric(8,2);", sql)
+        self.assertIn("ALTER TABLE catalogo_alimento ADD COLUMN fibra numeric(8,2);", sql)
+        self.assertIn("(md5('catalogo-alimento:taco:1')::uuid, 0.00, 'fibra')", sql)
+        self.assertIn("(md5('catalogo-alimento:taco:2')::uuid, 3.00, null)", sql)
+        self.assertNotIn("taco:3'", sql)  # sem fibra: nada a gravar, a coluna fica nula
+        self.assertIn("a.fibra is null", sql)
+        self.assertIn("= 1;", sql)
+        self.assertEqual(sql, gerar_taco.gerar_sql_fibra(aceitos, "abc"))
+        self.assertNotIn("delete from", sql)
+
+
 class LeituraTest(unittest.TestCase):
     def test_le_grupos_e_alimentos_e_tira_nota_de_rodape(self):
         linhas = {
@@ -132,7 +177,7 @@ class ConferenciaTest(unittest.TestCase):
         return ["70,1", kcal, "517", prot, lip, "NA", carb, "2,7", "0,5", "5", "59"]
 
     def test_valor_igual_ao_impresso_nao_diverge(self):
-        a = alimento(1, "Arroz", kcal=123.53, proteina=2.588, gordura=1.0003, carboidrato=25.81)
+        a = alimento(1, "Arroz", kcal=123.53, proteina=2.588, gordura=1.0003, carboidrato=25.81, fibra=2.74)
         div, nomes, nao, conferidos = gerar_taco.conferir([a], {1: ("Arroz", self.tokens())})
         self.assertEqual((div, nomes, nao, conferidos), ([], [], [], 1))
 
@@ -146,6 +191,11 @@ class ConferenciaTest(unittest.TestCase):
         div, _, _, _ = gerar_taco.conferir([a], {1: ("Arroz", self.tokens())})
         self.assertEqual([d[2] for d in div], ["proteina"])
 
+    def test_fibra_diferente_do_impresso_diverge(self):
+        a = alimento(1, "Arroz", kcal=123.53, proteina=2.588, gordura=1.0, carboidrato=25.81, fibra=3.5)
+        div, _, _, _ = gerar_taco.conferir([a], {1: ("Arroz", self.tokens())})
+        self.assertEqual([d[2] for d in div], ["fibra"])
+
     def test_linha_incompleta_nao_e_conferida_e_nome_diferente_e_listado(self):
         a = alimento(1, "Arroz")
         div, nomes, nao, conferidos = gerar_taco.conferir([a], {1: ("Outro", ["70,1", "124"])})
@@ -155,7 +205,7 @@ class ConferenciaTest(unittest.TestCase):
         self.assertEqual(conferidos, 0)
 
     def test_nota_de_rodape_no_pdf_e_ignorada(self):
-        a = alimento(474, "Cerveja, pilsen", kcal=40.72, proteina=0.5625, gordura="Tr", carboidrato=3.3175)
+        a = alimento(474, "Cerveja, pilsen", kcal=40.72, proteina=0.5625, gordura="Tr", carboidrato=3.3175, fibra="NA")
         tokens = ["2", "92,4", "41", "170", "0,6", "Tr", "NA", "3,3", "0,1", "5", "7"]
         # umidade 92,4 | kcal 41 | kJ 170 | proteína 0,6 | lipídeos Tr | colesterol NA | carboidrato 3,3
         tokens = ["2", "92,4", "41", "170", "0,6", "Tr", "NA", "3,3", "NA", "0,1", "5", "7"]
@@ -183,6 +233,7 @@ class PlanilhaTest(unittest.TestCase):
         aceitos, _, _ = gerar_taco.montar(alimentos)
         sha = comum.sha256(gerar_taco.PLANILHA)
         self.assertEqual(gerar_taco.gerar_sql(aceitos, sha), gerar_taco.SQL.read_text(encoding="utf-8"))
+        self.assertEqual(gerar_taco.gerar_sql_fibra(aceitos, sha), gerar_taco.SQL_FIBRA.read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as tmp:
             destino = Path(tmp) / "x.sql"
             comum.escrever(destino, "a\nb\n")

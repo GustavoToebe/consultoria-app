@@ -70,7 +70,7 @@ class DietaVariacoesIntegrationTest extends AbstractIntegrationTest {
 
     private static AlimentoRequest alimento(String nome, String fatorCorrecao, String fatorCoccao) {
         return new AlimentoRequest(nome, new BigDecimal("100"), "g", new BigDecimal("100"), BigDecimal.ONE,
-                BigDecimal.TEN, BigDecimal.ZERO, null, null, new BigDecimal(fatorCorrecao), new BigDecimal(fatorCoccao),
+                BigDecimal.TEN, BigDecimal.ZERO, null, null, null, new BigDecimal(fatorCorrecao), new BigDecimal(fatorCoccao),
                 null, null, null, null, null, null, null, null);
     }
 

@@ -315,7 +315,7 @@ public class BibliotecaService {
             String busca = Buscas.semAcento(item.nome());
             if (!nomes.add(busca)) continue;
             alimentos.save(new Alimento(new Alimento.Valores(item.nome(), BASE_DE_ARMAZENAMENTO, "g", null, null, null,
-                    null, null, null, null, null, Buscas.opcional(item.categoria()), Buscas.opcional(item.marca()),
+                    null, null, null, null, null, null, Buscas.opcional(item.categoria()), Buscas.opcional(item.marca()),
                     item.link(), null, Buscas.opcional(item.porcao()), Buscas.opcional(item.porcoesPorEmbalagem()),
                     json.writeValueAsString(item.sabores()), busca), Exercicio.Origem.MANUAL, Alimento.Tipo.SUPLEMENTO));
         }
@@ -324,13 +324,13 @@ public class BibliotecaService {
 
     /**
      * Rótulo do Whey (E-002): 30 g, 124 kcal, carboidrato 2,3 g, proteína 24 g, gordura 2,1 g, cerca de 33 porções.
-     * Sem marca. Nome que já existe não é alterado. Fibras e sódio não têm coluna.
+     * Sem marca. Nome que já existe não é alterado. O sódio não tem coluna e a fibra do rótulo não foi informada: fica nula.
      */
     private void garantirWhey(Set<String> nomesSemAcento) {
         String busca = Buscas.semAcento(WHEY);
         if (!nomesSemAcento.add(busca)) return;
         alimentos.save(new Alimento(new Alimento.Valores(WHEY, WheyDoRotulo.BASE, "g", WheyDoRotulo.KCAL,
-                WheyDoRotulo.PROTEINA, WheyDoRotulo.CARBOIDRATO, WheyDoRotulo.GORDURA, null, null, null, null, null,
+                WheyDoRotulo.PROTEINA, WheyDoRotulo.CARBOIDRATO, WheyDoRotulo.GORDURA, null, null, null, null, null, null,
                 null, null, null, WheyDoRotulo.PORCAO, WheyDoRotulo.PORCOES, WheyDoRotulo.SABORES, busca),
                 Exercicio.Origem.MANUAL, Alimento.Tipo.SUPLEMENTO));
     }
@@ -365,7 +365,7 @@ public class BibliotecaService {
             var fatores = FatoresDeRendimento.completar(c.getFatorCorrecao(), c.getFatorCoccao(), c.getNome(),
                     c.getGrupo(), c.getKcal(), c.getBaseQuantidade(), c.getBaseUnidade());
             alimentos.save(new Alimento(Alimento.Valores.deAlimento(c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
-                    c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getGramasPorUnidade(),
+                    c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getFibra(), c.getGramasPorUnidade(),
                     c.getFonte(), fatores.fatorCorrecao(), fatores.fatorCoccao(), GrupoDoAlimento.doCatalogo(c.getGrupo())),
                     Exercicio.Origem.CATALOGO));
             importados++;
@@ -390,11 +390,12 @@ public class BibliotecaService {
                 : kcalDoAlimento(r.proteina(), r.carboidrato(), r.gordura(), atual == null ? null : atual.getKcal());
         // Sem os três macros e sem kcal gravada, a kcal fica nula ("—"); só uma kcal informada passa pela faixa.
         if (kcal != null) exigirKcalNaFaixa(kcal);
+        exigirFibraNaFaixa(r.fibra());
         var fatores = FatoresDeRendimento.completar(r.fatorCorrecao(), r.fatorCoccao(), r.nome(), grupo,
                 kcal, r.baseQuantidade(), r.baseUnidade());
         exigirFatoresEGrupo(fatores.fatorCorrecao(), fatores.fatorCoccao(), grupo);
         return Alimento.Valores.deAlimento(r.nome().trim(), r.baseQuantidade(), r.baseUnidade(), kcal, r.proteina(),
-                r.carboidrato(), r.gordura(), r.gramasPorUnidade(), Buscas.opcional(r.fonte()),
+                r.carboidrato(), r.gordura(), r.fibra(), r.gramasPorUnidade(), Buscas.opcional(r.fonte()),
                 fatores.fatorCorrecao(), fatores.fatorCoccao(), grupo);
     }
 
@@ -416,6 +417,19 @@ public class BibliotecaService {
     static BigDecimal kcalDoAlimento(BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura, BigDecimal gravada) {
         BigDecimal calculada = kcalDosMacros(proteina, carboidrato, gordura);
         return calculada != null ? calculada : gravada;
+    }
+
+    /**
+     * Fibra opcional (nula fica nula, nunca zero): mesma faixa dos macros (0 a 99999, até 2 casas). Conferida aqui, e não
+     * pelo DTO, para dar 422 {@code ALIMENTO_INVALIDO} no campo {@code fibra}, sem repetir o valor (decisão do plano
+     * {@code fibra-do-alimento}). Não entra na conta da kcal.
+     */
+    private static void exigirFibraNaFaixa(BigDecimal fibra) {
+        if (fibra != null && (fibra.signum() < 0 || fibra.compareTo(KCAL_MAXIMO) > 0
+                || fibra.stripTrailingZeros().scale() > 2)) {
+            throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO", List.of(
+                    new ApiError.FieldError("fibra", "A fibra vai de 0 a 99.999, com até 2 casas decimais.")));
+        }
     }
 
     /** O kcal derivado precisa caber no mesmo teto que o DTO dava ao kcal digitado (a coluna é {@code numeric(8,2)}). */
@@ -444,6 +458,7 @@ public class BibliotecaService {
                 primeiro(r.proteina(), atual == null ? null : atual.getProteina()),
                 primeiro(r.carboidrato(), atual == null ? null : atual.getCarboidrato()),
                 primeiro(r.gordura(), atual == null ? null : atual.getGordura()),
+                atual == null ? null : atual.getFibra(), // fibra no suplemento está fora do escopo: o corpo não a muda
                 primeiro(r.gramasPorUnidade(), atual == null ? null : atual.getGramasPorUnidade()),
                 primeiroTexto(Buscas.opcional(r.fonte()), atual == null ? null : atual.getFonte()),
                 primeiro(r.fatorCorrecao(), atual == null ? null : atual.getFatorCorrecao()),

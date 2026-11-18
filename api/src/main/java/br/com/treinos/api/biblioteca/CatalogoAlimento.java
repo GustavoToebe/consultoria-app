@@ -38,6 +38,10 @@ public class CatalogoAlimento {
     @Column(nullable = true)
     private BigDecimal gordura;
 
+    /** Fibra (g por base): nula quando a fonte não analisou ou não traz. Ausente não vira zero. */
+    @Column(nullable = true)
+    private BigDecimal fibra;
+
     @Column(name = "gramas_por_unidade")
     private BigDecimal gramasPorUnidade;
 
@@ -96,6 +100,10 @@ public class CatalogoAlimento {
 
     public BigDecimal getGordura() {
         return gordura;
+    }
+
+    public BigDecimal getFibra() {
+        return fibra;
     }
 
     public BigDecimal getGramasPorUnidade() {

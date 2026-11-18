@@ -233,7 +233,7 @@ public class ValidadorDieta {
         if (Boolean.TRUE.equals(item.manual()) && item.kcal() == null) {
             c.erro(ci + ".kcal", "Item manual sem kcal.");
         }
-        for (BigDecimal valor : new BigDecimal[] {item.kcal(), item.proteina(), item.carboidrato(), item.gordura()}) {
+        for (BigDecimal valor : new BigDecimal[] {item.kcal(), item.proteina(), item.carboidrato(), item.gordura(), item.fibra()}) {
             if (valor != null && (valor.signum() < 0 || valor.compareTo(MAXIMO) > 0)) {
                 c.erro(ci, "Valores nutricionais precisam ficar entre 0 e 99999.");
                 break;

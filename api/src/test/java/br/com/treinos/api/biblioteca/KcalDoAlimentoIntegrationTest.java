@@ -188,7 +188,7 @@ class KcalDoAlimentoIntegrationTest extends AbstractIntegrationTest {
         // A coluna kcal é obrigatória no alimento: seed sem kcal era NullPointerException (500). Agora é recusa clara e nada é gravado
         // (ausente não vira zero nem é derivado).
         var semKcal = new AlimentoRequest("Seed fictício sem kcal", new BigDecimal("100"), "g", null, new BigDecimal("10"),
-                new BigDecimal("20"), new BigDecimal("5"), null, null, null, null, null, null, null, null, null, null, null, null);
+                new BigDecimal("20"), new BigDecimal("5"), null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThatThrownBy(() -> TenantContext.executarComo(consultoria, () -> biblioteca.criarAlimentoDeSeed(semKcal)))
                 .isInstanceOf(ValidacaoException.class);
         assertThat(jdbc.queryForObject("select count(*) from alimento where nome = 'Seed fictício sem kcal' and consultoria_id = ?::uuid",
@@ -196,7 +196,7 @@ class KcalDoAlimentoIntegrationTest extends AbstractIntegrationTest {
         // Com kcal, mantém o informado (não deriva dos macros).
         var comKcal = TenantContext.executarComo(consultoria, () -> biblioteca.criarAlimentoDeSeed(new AlimentoRequest(
                 "Seed fictício com kcal", new BigDecimal("100"), "g", new BigDecimal("321.5"), new BigDecimal("10"),
-                new BigDecimal("20"), new BigDecimal("5"), null, null, null, null, null, null, null, null, null, null, null, null)));
+                new BigDecimal("20"), new BigDecimal("5"), null, null, null, null, null, null, null, null, null, null, null, null, null)));
         assertThat(comKcal.kcal()).isEqualByComparingTo("321.5");
     }
 

@@ -69,6 +69,10 @@ public class Alimento {
     @Column(nullable = true)
     private BigDecimal gordura;
 
+    /** Fibra (g por base). Nula = sem dado ("—"), nunca zero por ausência; não entra na conta da kcal. */
+    @Column(nullable = true)
+    private BigDecimal fibra;
+
     @Column(name = "gramas_por_unidade")
     private BigDecimal gramasPorUnidade;
 
@@ -150,6 +154,7 @@ public class Alimento {
         this.proteina = v.proteina();
         this.carboidrato = v.carboidrato();
         this.gordura = v.gordura();
+        this.fibra = v.fibra();
         this.gramasPorUnidade = v.gramasPorUnidade();
         this.fonte = v.fonte();
         this.fatorCorrecao = v.fatorCorrecao();
@@ -202,6 +207,10 @@ public class Alimento {
 
     public BigDecimal getGordura() {
         return gordura;
+    }
+
+    public BigDecimal getFibra() {
+        return fibra;
     }
 
     public BigDecimal getGramasPorUnidade() {
@@ -277,7 +286,7 @@ public class Alimento {
      * {@link GrupoDoAlimento}).
      */
     public record Valores(String nome, BigDecimal baseQuantidade, String baseUnidade, BigDecimal kcal,
-                          BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
+                          BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura, BigDecimal fibra,
                           BigDecimal gramasPorUnidade, String fonte, BigDecimal fatorCorrecao,
                           BigDecimal fatorCoccao, String grupo, String marca, String link, String cupom,
                           String porcao, String porcoesPorEmbalagem, String saboresJson, String nomeBusca) {
@@ -285,9 +294,9 @@ public class Alimento {
         /** Alimento comum: sem marca, link, cupom, porção de rótulo nem nome de busca. */
         public static Valores deAlimento(String nome, BigDecimal baseQuantidade, String baseUnidade, BigDecimal kcal,
                                          BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
-                                         BigDecimal gramasPorUnidade, String fonte, BigDecimal fatorCorrecao,
-                                         BigDecimal fatorCoccao, String grupo) {
-            return new Valores(nome, baseQuantidade, baseUnidade, kcal, proteina, carboidrato, gordura,
+                                         BigDecimal fibra, BigDecimal gramasPorUnidade, String fonte,
+                                         BigDecimal fatorCorrecao, BigDecimal fatorCoccao, String grupo) {
+            return new Valores(nome, baseQuantidade, baseUnidade, kcal, proteina, carboidrato, gordura, fibra,
                     gramasPorUnidade, fonte, fatorCorrecao, fatorCoccao, grupo, null, null, null, null, null, null, null);
         }
     }

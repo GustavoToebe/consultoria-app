@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -515,7 +516,7 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         String pesos = config("email", "IGNORAR", colunas("aluno", "data", "peso", "observacao"));
         String exercicios = config("nome", "IGNORAR", colunas("nome", "grupo", "equipamento", "video", "observacoes"));
         String alimentos = config("nome", "IGNORAR", colunas("nome", "quantidade", "unidade", "kcal", "proteina",
-                "carboidrato", "gordura", "gramas", "fonte", "fc", "fcc"));
+                "carboidrato", "gordura", "fibra", "gramas", "fonte", "fc", "fcc"));
         String suplementos = config("nome_marca", "IGNORAR", colunas("nome", "marca", "categoria", "porcao", "porcoes", "sabores", "link"));
         String outros = config("nome", "IGNORAR", colunas("nome", "categoria", "principio", "concentracao", "apresentacao", "observacao"));
         Map<String, String> configs = new LinkedHashMap<>();
@@ -921,6 +922,51 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         JsonNode feitoAl = confirmar("alimentos", "n2.csv", alimentos.getBytes(StandardCharsets.UTF_8), configAl, previaAl.path("hash").asString());
         assertThat(feitoAl.path("novos").asInt()).isEqualTo(2);
         assertThat(feitoAl.path("comErro").asInt()).isEqualTo(4);
+    }
+
+    @Test
+    void planilhaDeAlimentosComColunaFibraOpcionalNuncaGravaZeroPorAusencia() throws Exception {
+        String sufixo = UUID.randomUUID().toString().substring(0, 8);
+        String com = "Com fibra " + sufixo;
+        String vazia = "Fibra vazia " + sufixo;
+        String zero = "Fibra zero " + sufixo;
+        String csv = "nome;quantidade;unidade;kcal;proteina;carboidrato;gordura;fibra\n"
+                + com + ";100;g;100;1;1;1;2,5\n"
+                + vazia + ";100;g;100;1;1;1;\n"
+                + zero + ";100;g;100;1;1;1;0\n"
+                + "Fibra fora " + sufixo + ";100;g;100;1;1;1;100000\n"
+                + "Fibra tres casas " + sufixo + ";100;g;100;1;1;1;1,234\n";
+        String config = config("nome", "IGNORAR", colunas("nome", "quantidade", "unidade", "kcal", "proteina",
+                "carboidrato", "gordura", "fibra"));
+        JsonNode previa = previa("alimentos", "fibra.csv", csv, config);
+        assertThat(previa.path("novos").asInt()).isEqualTo(3);
+        assertThat(previa.path("comErro").asInt()).isEqualTo(2);
+        JsonNode feito = confirmar("alimentos", "fibra.csv", csv.getBytes(StandardCharsets.UTF_8), config,
+                previa.path("hash").asString());
+        assertThat(feito.path("novos").asInt()).isEqualTo(3);
+        assertThat(feito.path("erros")).hasSize(2);
+        feito.path("erros").forEach(erro -> assertThat(erro.path("campo").asString()).isEqualTo("fibra"));
+        assertThat(feito.path("erros").toString()).doesNotContain("100000").doesNotContain("1,234");
+        assertThat(fibraDoAlimento(com)).isEqualByComparingTo("2.5");
+        assertThat(fibraDoAlimento(vazia)).isNull();
+        assertThat(fibraDoAlimento(zero)).isEqualByComparingTo("0");
+
+        // Sem a coluna no arquivo: alimento novo fica sem fibra (nulo) e o que já tinha não é apagado (ATUALIZAR).
+        String semColuna = "nome;quantidade;unidade;kcal;proteina;carboidrato;gordura\n"
+                + com + ";100;g;120;1;1;1\n"
+                + "Sem coluna " + sufixo + ";100;g;100;1;1;1\n";
+        String configSem = config("nome", "ATUALIZAR", colunas("nome", "quantidade", "unidade", "kcal", "proteina",
+                "carboidrato", "gordura"));
+        confirmar("alimentos", "sem-fibra.csv", semColuna.getBytes(StandardCharsets.UTF_8), configSem,
+                hash("alimentos", "sem-fibra.csv", semColuna, configSem));
+        assertThat(fibraDoAlimento(com)).isEqualByComparingTo("2.5");
+        assertThat(fibraDoAlimento("Sem coluna " + sufixo)).isNull();
+    }
+
+    private BigDecimal fibraDoAlimento(String nome) {
+        return jdbc.queryForObject("select fibra from alimento where nome = ? and consultoria_id = "
+                + "(select consultoria_id from usuario where email = ?)", BigDecimal.class, nome,
+                treinador.path("usuario").path("email").asString());
     }
 
     @Test
