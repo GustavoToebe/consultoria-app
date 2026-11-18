@@ -80,12 +80,11 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   // Estado do exercício na faixa, pela mesma validação da publicação, ao vivo (protótipo de 30/10).
   const estado = useMemo(() => estadoDoExercicio(e, p.config), [e, p.config]);
   const comErro = p.comProblema || estado.tipo === 'perigo';
-  // "Instruções, vídeo e cadência" fecha quando vazio e abre quando já tem algo (04/11). Até a pessoa tocar, segue o
-  // conteúdo; com erro dentro fica aberto, para o "ir ao primeiro" cair num campo visível.
-  const [escolhaDosExtras, setEscolhaDosExtras] = useState<boolean | null>(null);
+  // "Nome de exibição e instruções" nasce fechado, mesmo com conteúdo (18/11; o botão diz o que há dentro). Abre sozinho
+  // com nome vazio (exercício recém-criado, o campo é obrigatório) e com erro dentro, para o "ir ao primeiro" cair num campo visível.
+  const [escolhaDosExtras, setEscolhaDosExtras] = useState(false);
   const extrasComErro = !!(erros.nome ?? erroDoVideo(e.videoUrl) ?? erros.videoUrl ?? erroDaCadencia(e.cadencia) ?? erros.cadencia ?? erroDaIsometria(e.isometriaSegundos) ?? erros.isometriaSegundos);
-  const extrasPreenchidos = !!(e.observacao || e.videoUrl || e.cadencia || e.isometriaSegundos != null);
-  const extrasAbertos = extrasComErro || !e.nome.trim() || (escolhaDosExtras ?? extrasPreenchidos);
+  const extrasAbertos = extrasComErro || !e.nome.trim() || escolhaDosExtras;
   const foraDaBiblioteca = e.exercicioId === null && !!e.nome;
 
   const dados = <>

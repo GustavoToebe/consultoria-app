@@ -89,7 +89,7 @@ for (const largura of [390, 1280]) {
     expect(api.naoTratadas).toEqual([]);
   });
 
-  test(`treino: "Instruções, vídeo e cadência" fica fechado sem conteúdo e aberto com conteúdo (${largura}px)`, async ({ page }, testInfo) => {
+  test(`treino: "Instruções, vídeo e cadência" nasce fechado, com ou sem conteúdo (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await abrirDiaDeTreino(page, 'Desça devagar, fictício.');
     const abrirExercicio = async (n: number, nome: string) => {
@@ -112,11 +112,14 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('textbox', { name: 'Nome de exibição', exact: true }).first()).toHaveValue('Supino de teste');
     await extras.first().click();
     await expect(observacao).toHaveCount(0);
-    // Remada com observação: já abre aberto, com o texto.
+    // Remada com observação: também nasce fechada (18/11), e o botão diz que tem observação; abre no toque, com o texto.
     await abrirExercicio(2, 'Remada de teste');
-    await expect(observacao.last()).toHaveValue('Desça devagar, fictício.');
-    await expect(extras.last()).toHaveAttribute('aria-expanded', 'true');
+    await expect(extras.last()).toHaveAttribute('aria-expanded', 'false');
     await expect(extras.last()).toHaveAccessibleName('Nome de exibição e instruções (com observação)');
+    await expect(observacao).toHaveCount(0);
+    await extras.last().click();
+    await expect(extras.last()).toHaveAttribute('aria-expanded', 'true');
+    await expect(observacao.last()).toHaveValue('Desça devagar, fictício.');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('extras-abertos.png'), fullPage: true });
     expect(api.errosDaPagina).toEqual([]);

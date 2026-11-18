@@ -4,7 +4,7 @@ import { CartaoExercicio } from './CartaoExercicio';
 
 /**
  * Corpo do exercício (04/11): sem Modalidade, "Carga do exercício" nem "Progressão de carga"; "Instruções, vídeo e
- * cadência (opcional)" fecha quando vazio, abre quando já tem algo, alterna no toque e fica aberto com erro dentro.
+ * cadência (opcional)" nasce fechado (mesmo com conteúdo), abre com nome vazio, alterna no toque e fica aberto com erro dentro.
  * As peças com primitivos nativos viram falsas que só repassam rótulo, estado e toque; as séries não entram aqui.
  */
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
@@ -73,11 +73,11 @@ describe('CartaoExercicio: nome de exibição e instruções', () => {
     expect(botaoDosExtras(a).props.accessibilityLabel).toBe(`${EXTRAS} (com observação, cadência)`);
   });
 
-  it('com observação, vídeo, cadência ou isometria começa aberto', () => {
+  it('com observação, vídeo, cadência ou isometria também começa fechado (18/11)', () => {
     for (const extra of [{ observacao: 'Desça devagar.' }, { videoUrl: 'https://www.youtube.com/watch?v=abcdefghijk' }, { cadencia: '3-1-1-0' }, { isometriaSegundos: 10 }]) {
       const a = montar({ ...base, ...extra });
-      expect(aberto(a)).toBe(true);
-      expect(temCampo(a, 'Observação para o aluno')).toBe(true);
+      expect(aberto(a)).toBe(false);
+      expect(temCampo(a, 'Observação para o aluno')).toBe(false);
     }
   });
 
