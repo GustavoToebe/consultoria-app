@@ -81,9 +81,13 @@ public class PlaylistsService {
         return resumo(p);
     }
 
-    /** Os aulões ficam sem playlist (nunca são apagados): quem faz isso é a FK do banco. */
+    /**
+     * Os aulões ficam sem playlist e com {@code ordem} 0 (nunca são apagados). O UPDATE em lote vem antes do delete porque a FK do
+     * banco só zera o {@code playlist_id}; ele já nasce filtrado pela consultoria ({@code @TenantId}) e roda sob a trava da playlist.
+     */
     public void excluir(UUID id) {
         ComunidadePlaylist p = playlists.travar(id).orElseThrow(() -> new NaoEncontradoException(PLAYLIST_NAO_ENCONTRADA));
+        aulas.soltarDaPlaylist(id);
         playlists.delete(p);
         playlists.flush();
     }
@@ -109,8 +113,9 @@ public class PlaylistsService {
     }
 
     /**
-     * Nova ordem dos aulões de uma playlist (travada). Mesma regra de {@link #reordenar}: tem de trazer todos os aulões da playlist;
-     * aulão inexistente, de outra consultoria ou de outra playlist = 404 uniforme.
+     * Nova ordem dos aulões de uma playlist (travada). Mesma regra de {@link #reordenar}: aulão inexistente ou de outra consultoria
+     * = 404 uniforme; todos existem mas a lista não bate com a playlist (aulão de outra playlist, faltando ou repetido: a tela
+     * estava velha) = 409 {@code CONFLITO_EDICAO}.
      */
     public void reordenarAulas(UUID playlistId, List<UUID> ids) {
         if (playlists.travar(playlistId).isEmpty()) {
@@ -118,10 +123,11 @@ public class PlaylistsService {
         }
         Set<UUID> unicos = new LinkedHashSet<>(ids);
         List<ComunidadeAula> doLote = aulas.findAllById(unicos);
-        if (doLote.size() != unicos.size() || doLote.stream().anyMatch(a -> !playlistId.equals(a.getPlaylistId()))) {
+        if (doLote.size() != unicos.size()) {
             throw new NaoEncontradoException(AULA_NAO_ENCONTRADA);
         }
-        if (unicos.size() != ids.size() || aulas.countByPlaylistId(playlistId) != ids.size()) {
+        if (doLote.stream().anyMatch(a -> !playlistId.equals(a.getPlaylistId()))
+                || unicos.size() != ids.size() || aulas.countByPlaylistId(playlistId) != ids.size()) {
             throw listaDesatualizada();
         }
         Map<UUID, ComunidadeAula> porId = doLote.stream().collect(Collectors.toMap(ComunidadeAula::getId, Function.identity()));
@@ -134,7 +140,8 @@ public class PlaylistsService {
     /**
      * Põe os aulões na playlist, no fim e na ordem enviada ({@code playlistId} nulo tira da playlist). Aulão que já está nela não
      * muda de posição. Trava a playlist de destino e as de origem (na ordem do id); aulão ou playlist inexistente ou de outra
-     * consultoria = 404 uniforme e nada é movido. Repetir o mesmo id no pedido conta uma vez.
+     * consultoria = 404 uniforme e nada é movido. Se um aulão mudou de playlist entre a leitura das origens e a trava, 409
+     * {@code CONFLITO_EDICAO} (a origem dele não está travada). Repetir o mesmo id no pedido conta uma vez.
      */
     public void moverEmLote(List<UUID> aulaIds, UUID playlistId) {
         Set<UUID> unicos = new LinkedHashSet<>(aulaIds);
@@ -151,6 +158,9 @@ public class PlaylistsService {
                 .collect(Collectors.toMap(ComunidadeAula::getId, Function.identity()));
         if (porId.size() != unicos.size()) {
             throw new NaoEncontradoException(AULA_NAO_ENCONTRADA);
+        }
+        if (porId.values().stream().anyMatch(a -> a.getPlaylistId() != null && !aTravar.contains(a.getPlaylistId()))) {
+            throw listaDesatualizada();
         }
         int proxima = playlistId == null ? 0 : aulas.maiorOrdemDaPlaylist(playlistId) + 1;
         for (UUID id : unicos) {

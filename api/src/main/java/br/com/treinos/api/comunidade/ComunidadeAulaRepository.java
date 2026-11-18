@@ -1,6 +1,7 @@
 package br.com.treinos.api.comunidade;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import java.util.Collection;
 import java.util.List;
@@ -24,6 +25,11 @@ public interface ComunidadeAulaRepository extends JpaRepository<ComunidadeAula, 
     /** Playlist atual de cada aulão do lote (leitura escalar, fora do contexto): só para saber quais travar antes de mexer. */
     @Query("select distinct a.playlistId from ComunidadeAula a where a.id in :ids and a.playlistId is not null")
     List<UUID> playlistsDosAuloes(Collection<UUID> ids);
+
+    /** Tira todos os aulões da playlist e zera a ordem (sem playlist vale 0). Só com a playlist travada; filtrado pelo {@code @TenantId}. */
+    @Modifying
+    @Query("update ComunidadeAula a set a.playlistId = null, a.ordem = 0 where a.playlistId = :playlistId")
+    int soltarDaPlaylist(UUID playlistId);
 
     /** Posição do último aulão da playlist; -1 se está vazia (o novo vai para o fim: este valor + 1). */
     @Query("select coalesce(max(a.ordem), -1) from ComunidadeAula a where a.playlistId = :playlistId")

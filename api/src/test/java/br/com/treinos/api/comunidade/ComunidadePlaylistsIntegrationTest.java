@@ -113,7 +113,9 @@ class ComunidadePlaylistsIntegrationTest extends AbstractIntegrationTest {
         assertThat(idsDasPlaylists(admin)).containsExactly(id, segunda);
 
         String aula = aula(admin, id, true);
-        assertThat(api.put("/comunidade/playlists/" + id, admin, Map.of("nome", "Ombros"), 200).get("totalAulas").asLong()).isEqualTo(1);
+        String segundaAula = aula(admin, id, true);
+        assertThat(resumoDaAula(segundaAula).get("ordem").asInt()).isEqualTo(1);
+        assertThat(api.put("/comunidade/playlists/" + id, admin, Map.of("nome", "Ombros"), 200).get("totalAulas").asLong()).isEqualTo(2);
         assertThat(api.get("/comunidade/playlists", admin, 200).get(0).get("nome").asString()).isEqualTo("Ombros");
 
         // Nome repetido (sem diferença de maiúsculas) = 409 no código próprio, sem repetir o valor; vazio ou longo = 422 no campo.
@@ -129,10 +131,13 @@ class ComunidadePlaylistsIntegrationTest extends AbstractIntegrationTest {
             assertThat(erro.get("fieldErrors").get(0).get("field").asString()).isEqualTo("nome");
         }
 
-        // Excluir não apaga o aulão: ele só perde a playlist.
+        // Excluir não apaga o aulão: ele perde a playlist e a ordem volta a 0 (sem playlist, ordem 0).
         api.delete("/comunidade/playlists/" + id, admin, 204);
         assertThat(idsDasPlaylists(admin)).containsExactly(segunda);
         assertThat(resumoDaAula(aula).get("playlistId").isNull()).isTrue();
+        assertThat(resumoDaAula(aula).get("ordem").asInt()).isZero();
+        assertThat(resumoDaAula(segundaAula).get("playlistId").isNull()).isTrue();
+        assertThat(resumoDaAula(segundaAula).get("ordem").asInt()).isZero();
         assertThat(contar("select count(*) from comunidade_aula where id = ?::uuid and playlist_id is null and consultoria_id is not null",
                 aula)).isEqualTo(1);
         api.delete("/comunidade/playlists/" + id, admin, 404);
@@ -161,10 +166,14 @@ class ComunidadePlaylistsIntegrationTest extends AbstractIntegrationTest {
         assertThat(resumoDaAula(c).get("ordem").asInt()).isZero();
         assertThat(resumoDaAula(b).get("ordem").asInt()).isEqualTo(2);
 
-        // Lista incompleta ou com repetido: 409 e a ordem não muda. Aulão de outra playlist ou inexistente: 404.
+        // Lista incompleta, com repetido ou com aulão da mesma consultoria que está em outra playlist (a tela estava velha): 409 e a
+        // ordem não muda. Aulão inexistente: 404 (o de outra consultoria também, no teste de isolamento).
         api.put("/comunidade/playlists/" + p1 + "/aulas/ordem", admin, Map.of("ids", List.of(a, b)), 409);
         api.put("/comunidade/playlists/" + p1 + "/aulas/ordem", admin, Map.of("ids", List.of(a, a, b, c)), 409);
-        api.put("/comunidade/playlists/" + p1 + "/aulas/ordem", admin, Map.of("ids", List.of(a, b, c, solto)), 404);
+        JsonNode velha = api.put("/comunidade/playlists/" + p1 + "/aulas/ordem", admin, Map.of("ids", List.of(a, b, c, solto)), 409);
+        assertThat(velha.get("codigo").asString()).isEqualTo("CONFLITO_EDICAO");
+        api.put("/comunidade/playlists/" + p1 + "/aulas/ordem", admin, Map.of("ids", List.of(a, b, solto)), 409);
+        api.put("/comunidade/playlists/" + p2 + "/aulas/ordem", admin, Map.of("ids", List.of(a, b, c)), 409);
         api.put("/comunidade/playlists/" + p1 + "/aulas/ordem", admin, Map.of("ids", List.of(a, b, UUID.randomUUID())), 404);
         api.put("/comunidade/playlists/" + p1 + "/aulas/ordem", admin, Map.of("ids", List.of()), 400);
         assertThat(idsDa(p1)).containsExactly(c, a, b);
@@ -266,7 +275,12 @@ class ComunidadePlaylistsIntegrationTest extends AbstractIntegrationTest {
         api.put("/comunidade/playlists/" + playlistDoOutro, admin, Map.of("nome", "Invadida"), 404);
         api.delete("/comunidade/playlists/" + playlistDoOutro, admin, 404);
         api.put("/comunidade/playlists/" + playlistDoOutro + "/aulas/ordem", admin, Map.of("ids", List.of(aulaDoOutro)), 404);
-        api.put("/comunidade/playlists/" + minha + "/aulas/ordem", admin, Map.of("ids", List.of(meuAulao, aulaDoOutro)), 404);
+        JsonNode aulaDeOutro = api.put("/comunidade/playlists/" + minha + "/aulas/ordem", admin,
+                Map.of("ids", List.of(meuAulao, aulaDoOutro)), 404);
+        JsonNode aulaInexistente = api.put("/comunidade/playlists/" + minha + "/aulas/ordem", admin,
+                Map.of("ids", List.of(meuAulao, UUID.randomUUID())), 404);
+        assertThat(aulaDeOutro.get("message")).isEqualTo(aulaInexistente.get("message"));
+        assertThat(aulaDeOutro.get("codigo")).isEqualTo(aulaInexistente.get("codigo"));
         api.put("/comunidade/playlists/ordem", admin, Map.of("ids", List.of(minha, playlistDoOutro)), 404);
         api.put("/comunidade/playlists/ordem", admin, Map.of("ids", List.of(playlistDoOutro)), 404);
 

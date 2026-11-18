@@ -24,6 +24,9 @@ ALTER TABLE comunidade_aula DROP COLUMN categoria;
 -- playlist, nunca os apaga. A ordem do aulão passa a valer dentro da playlist.
 ALTER TABLE comunidade_aula ADD COLUMN playlist_id uuid;
 
+-- Todo aulão existente nasce sem playlist, e sem playlist a ordem é sempre 0 (a lista desempata pela data): a ordem antiga era global.
+UPDATE comunidade_aula SET ordem = 0;
+
 ALTER TABLE comunidade_aula ADD CONSTRAINT fk_comunidade_aula_playlist
     FOREIGN KEY (consultoria_id, playlist_id) REFERENCES comunidade_playlist (consultoria_id, id)
     ON DELETE SET NULL (playlist_id);

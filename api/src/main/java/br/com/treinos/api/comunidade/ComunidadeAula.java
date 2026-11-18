@@ -1,12 +1,19 @@
 package br.com.treinos.api.comunidade;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.TenantId;
 
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * {@code @DynamicUpdate}: o UPDATE leva só as colunas que mudaram. Reordenar (trava a playlist) e editar o aulão (sem trava) leem a
+ * linha em transações separadas; com o UPDATE de todas as colunas, quem comitasse depois regravaria o {@code publicada}, a
+ * {@code ordem} ou o {@code playlist_id} lidos antes da outra transação mudá-los.
+ */
 @Entity
+@DynamicUpdate
 @Table(name = "comunidade_aula")
 public class ComunidadeAula {
 

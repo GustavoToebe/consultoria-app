@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * V088 sobre dados da V087: a coluna {@code categoria} some e o aulão antigo fica sem playlist; a FK composta
  * {@code (consultoria_id, playlist_id)} barra playlist de outra consultoria; apagar a playlist zera só {@code playlist_id} (nunca
- * {@code consultoria_id}) e não apaga o aulão; o nome é único por consultoria sem diferença de maiúsculas; o índice de ordem cobre a
+ * {@code consultoria_id}) e não apaga o aulão; o aulão antigo (ordem global) fica com {@code ordem} 0; o nome é único por consultoria sem diferença de maiúsculas; o índice de ordem cobre a
  * playlist. Usa outro banco na mesma instância, migrado até a V087. Só dados fictícios.
  */
 class ComunidadePlaylistsMigrationTest extends AbstractIntegrationTest {
@@ -45,6 +45,9 @@ class ComunidadePlaylistsMigrationTest extends AbstractIntegrationTest {
                 }
                 st.execute("insert into comunidade_aula(id, consultoria_id, titulo, video_url, categoria) values ('" + AULA_ANTIGA + "', '"
                         + CONSULTORIA_A + "', 'Aulão fictício', 'https://exemplo.test/v', 'Mobilidade')");
+                // Antes da V088 a ordem era global: o aulão antigo tem ordem diferente de 0 e tem de nascer com 0.
+                st.execute("update comunidade_aula set ordem = 7 where id = '" + AULA_ANTIGA + "'");
+                assertThat(contar(c, "select ordem from comunidade_aula where id = '" + AULA_ANTIGA + "'")).isEqualTo(7);
                 assertThat(colunaExiste(c, "categoria")).isTrue();
 
                 assertThat(flyway(banco).target("88").load().migrate().migrationsExecuted).isEqualTo(1);
@@ -54,6 +57,7 @@ class ComunidadePlaylistsMigrationTest extends AbstractIntegrationTest {
                 // O aulão antigo fica sem playlist (sem migração de texto) e continua da consultoria dele.
                 assertThat(contar(c, "select count(*) from comunidade_aula where id = '" + AULA_ANTIGA + "' and playlist_id is null and consultoria_id = '"
                         + CONSULTORIA_A + "'")).isEqualTo(1);
+                assertThat(contar(c, "select ordem from comunidade_aula where id = '" + AULA_ANTIGA + "'")).isZero();
                 assertThat(textoDe(c, "select indexdef from pg_indexes where indexname = 'idx_comunidade_aula_consultoria_ordem'"))
                         .contains("playlist_id");
 
