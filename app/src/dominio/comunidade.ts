@@ -646,6 +646,47 @@ export function agruparPorPlaylist<T extends Pick<AulaDaComunidade, 'playlistId'
   return sem.length ? [...grupos, { playlist: null, rotulo: SEM_COLECAO, itens: sem }] : grupos;
 }
 
+/**
+ * A lista do treinador: TODAS as coleções na ordem dele, também as vazias (onde a coleção recém-criada aparece), e "Sem
+ * coleção" por último, só se houver. O aluno usa `agruparPorPlaylist` (coleção vazia não aparece para ele, D16).
+ */
+export function gruposDaEquipe<T extends Pick<AulaDaComunidade, 'playlistId' | 'ordem'>>(
+  aulas: readonly T[], playlists: readonly PlaylistDaComunidade[],
+): GrupoDePlaylist<T>[] {
+  const comVideo = agruparPorPlaylist(aulas, playlists);
+  const doGrupo = (p: PlaylistDaComunidade) => comVideo.find((g) => g.playlist?.id === p.id) ?? { playlist: p, rotulo: p.nome, itens: [] };
+  return [...playlistsEmOrdem(playlists).map(doGrupo), ...comVideo.filter((g) => !g.playlist)];
+}
+
+/** Depois de um 204 de ordem: os itens de `ids` ganham `ordem` = posição; os outros ficam como estão. */
+export function reordenados<T extends { id: string; ordem: number }>(itens: readonly T[], ids: readonly string[]): T[] {
+  const posicao = new Map(ids.map((id, i) => [id, i]));
+  return itens.map((x) => (posicao.has(x.id) ? { ...x, ordem: posicao.get(x.id) ?? x.ordem } : x));
+}
+
+/**
+ * O lote de verdade: os marcados na ordem da tela (a API põe no fim do destino "na ordem enviada"), sem os que já estão no
+ * destino (senão pulariam para o fim dele). `destino` nulo = tirar da coleção.
+ */
+export const aulasParaMover = (naOrdemDaTela: readonly Pick<AulaDaComunidade, 'id' | 'playlistId'>[], marcados: ReadonlySet<string>,
+  destino: string | null): string[] =>
+  naOrdemDaTela.filter((a) => marcados.has(a.id) && a.playlistId !== destino).map((a) => a.id);
+
+/** Contagem da barra do modo Selecionar. */
+export const textoDosMarcados = (n: number): string =>
+  (n === 0 ? 'Nenhum vídeo marcado' : n === 1 ? '1 vídeo marcado' : `${n} vídeos marcados`);
+
+/** Aviso depois do lote. */
+export const textoDoLoteMovido = (n: number, destino: string | null): string =>
+  `${resumoDosAuloes(n)} ${n === 1 ? 'movido' : 'movidos'} para “${destino ?? SEM_COLECAO}”.`;
+
+/** O painel de excluir coleção diz o que acontece com os vídeos dela (nunca são apagados). */
+export function textoDeExcluirPlaylist(totalAulas: number): string {
+  if (totalAulas === 0) return 'A coleção está vazia. Nenhum vídeo muda.';
+  if (totalAulas === 1) return `O vídeo dela passa para “${SEM_COLECAO}”; ele não é apagado.`;
+  return `Os ${totalAulas} vídeos dela passam para “${SEM_COLECAO}”; nenhum vídeo é apagado.`;
+}
+
 /** Filtro da lista do treinador: `null` = todas, `''` = sem coleção, id = a coleção. */
 export type FiltroDePlaylist = string | null;
 

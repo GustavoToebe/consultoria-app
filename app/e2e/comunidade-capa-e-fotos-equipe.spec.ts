@@ -89,7 +89,7 @@ for (const largura of [390, 1280]) {
       await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/aulas'))?.corpo)
-        .toEqual({ titulo: 'Vídeo de teste', videoUrl: YOUTUBE, capaId: 'capa-yt' });
+        .toEqual({ titulo: 'Vídeo de teste', videoUrl: YOUTUBE, playlistId: null, capaId: 'capa-yt' });
       // O navegador nunca pede nada ao YouTube (a capa vem só da nossa API).
       expect(hostsDeFora.filter((h) => /youtube|ytimg/.test(h))).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);

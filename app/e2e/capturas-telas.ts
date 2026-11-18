@@ -114,7 +114,7 @@ const mural = (p: PedidoFalso, route: Route) =>
   json(route, pagina(POSTS.filter((x) => !p.busca.get('tipo') || x.tipo === p.busca.get('tipo'))));
 const AULA = {
   id: 'a1', titulo: 'Vídeo de técnica', descricao: 'Pauta do vídeo de teste.', videoUrl: 'https://exemplo.test/video', capaId: null,
-  categoria: 'Técnica', ordem: 0, publicada: true, criadaEm: '2026-10-19T12:00:00-03:00', totalComentarios: 0,
+  playlistId: null, ordem: 0, publicada: true, criadaEm: '2026-10-19T12:00:00-03:00', totalComentarios: 0,
 };
 const COMENTARIOS: { itens: ComentarioDoMural[]; total: number } = { itens: [], total: 0 };
 const rotasDaComunidadeDaEquipe = async (page: Page): Promise<RespostasApi> => ({
