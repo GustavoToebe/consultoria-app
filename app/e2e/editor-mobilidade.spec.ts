@@ -9,7 +9,7 @@ import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, typ
  * confirmação; empilhado, o aviso fica onde estava o que saiu), adicionar seção só no bloco do fim da lista e a largura
  * usada em 1920 (configuração ao lado das Orientações, os três campos do item numa linha). Ajustes de 04/11 da `main`:
  * "Modelos" ao lado de "Seções" (usar um modelo com Desfazer e salvar o rascunho como modelo), PDF na barra, Orientações
- * recolhidas quando vazias e Nome e Prescrição do item na mesma linha onde cabem. Dados fictícios. Com `CAPTURAS=<pasta>`,
+ * e Configuração do plano recolhidas (18/11: nascem fechadas, com ou sem texto) e Nome e Prescrição do item na mesma linha onde cabem. Dados fictícios. Com `CAPTURAS=<pasta>`,
  * guarda as telas.
  */
 
@@ -131,10 +131,14 @@ test('seção sem item acende o "Corrigir" e o Desfazer o apaga (1280px)', async
 
 test('1920: configuração ao lado das Orientações e os três campos do item numa linha', async ({ page }) => {
   const { naoTratadas, errosDaPagina } = await abrir(page, 1920);
+  // Os dois cartões da linha de cima nascem recolhidos (18/11), também em duas colunas; abertos, dividem a linha.
+  await expect(page.getByRole('textbox', { name: 'Título', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Orientações (opcional)' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Configuração do plano, recolhido' }).click();
+  await page.getByRole('button', { name: 'Orientações, recolhido' }).click();
   const config = await page.getByRole('textbox', { name: 'Título', exact: true }).boundingBox();
   const orientacoes = await page.getByRole('textbox', { name: 'Orientações (opcional)' }).boundingBox();
   if (!config || !orientacoes) throw new Error('sem a linha de cima');
-  // A configuração começa aberta em duas colunas (divide a linha com as Orientações).
   expect(orientacoes.x).toBeGreaterThan(config.x + config.width);
   const caixa = async (nome: string) => (await page.getByRole('textbox', { name: nome }).boundingBox())!;
   const [nome, prescricao, video] = [await caixa('Nome do item 1'), await caixa('Prescrição do item 1'), await caixa('Vídeo do item 1 (link do YouTube, opcional)')];
@@ -211,9 +215,11 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
   });
 }
 
-test('mobilidade: Orientações com texto já abrem expandidas', async ({ page }) => {
+test('mobilidade: Orientações com texto também nascem recolhidas e abrem no toque', async ({ page }) => {
   const { naoTratadas, errosDaPagina } = await abrir(page, 1280, { conteudo: { ...MOBILIDADE, orientacoes: 'Faça antes do treino.' } });
-  await expect(page.getByRole('button', { name: 'Orientações, expandido' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Orientações, recolhido' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Orientações (opcional)' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Orientações, recolhido' }).click();
   await expect(page.getByRole('textbox', { name: 'Orientações (opcional)' })).toHaveValue('Faça antes do treino.');
   // Recolher continua possível.
   await page.getByRole('button', { name: 'Orientações, expandido' }).click();

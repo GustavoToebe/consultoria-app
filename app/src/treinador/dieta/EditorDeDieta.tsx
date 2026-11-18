@@ -27,6 +27,7 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { useCarregar } from '../../ui/useCarregar';
+import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { CartaoCicloNoPeriodo } from '../ciclo/CicloNaFicha';
 import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
 import { BarraDesfazer, type Desfazer } from '../plano/BarraDesfazer';
@@ -77,12 +78,13 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const editaErgogenicos = veErgogenicos && pode('ERGOGENICO_ALTERAR');
   const ergogenicosDaBiblioteca = useCarregar(veErgogenicos && editaErgogenicos ? 'biblioteca-ergogenicos' : null, () => listarErgogenicos()).dados ?? [];
   const porId = new Map<string, Alimento>(alimentos.map((a) => [a.id, a]));
-  const [abertas, setAbertas] = useState<Set<string>>(new Set());
   // Refeição do inspetor (duas colunas); a que sumiu da lista (desfazer, modelo aplicado) cai na primeira.
   const [escolhidaUid, setEscolhidaUid] = useState<string | null>(null);
   // Variação aberta (dieta por dia); a que sumiu (excluída, desfeita, modelo aplicado) cai na primeira.
   const [abertaUid, setAbertaUid] = useState<string | null>(null);
   const [problemas, setProblemas] = useState<ResultadoValidacao | null>(null);
+  // "Ir ao primeiro" que atinge Suplementação ou Outros: o cartão deles é sem estado de fora, então reabre remontando.
+  const [irAoComplemento, setIrAoComplemento] = useState<{ uids: string[]; vez: number } | null>(null);
   const [folha, setFolha] = useState<FolhaDaDieta | null>(null);
   // `refeicaoDaOpcao`/`indiceDaRefeicao`: onde o aviso aparece empilhado (no lugar do que saiu, para o Desfazer ficar à vista).
   const [desfazer, setDesfazer] = useState<(Desfazer<ConteudoDieta> & OndeDesfazer) | null>(null);
@@ -90,6 +92,11 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const [porcoes, setPorcoes] = useState<Record<string, string>>({});
 
   const estado = editor.estado;
+  // Refeições da seção que o editor mostra: a raiz sem variações, senão a variação aberta (antes do hook, que não pode
+  // ficar depois do retorno do carregamento).
+  const aberta = estado ? variacaoAberta(estado.conteudo, abertaUid) : null;
+  // A única seção abre sozinha (D2); a que chega depois (outra variação, refeição de modelo) entra fechada. Nova, erro e desfazer abrem à mão.
+  const refeicoesAbertas = useSecoesAbertas((estado ? refeicoesDaSecao(estado.conteudo, aberta?.uid ?? null) : []).map((r) => r.uid));
   if (!estado) {
     return (
       <Tela bordas={['top']} largura={LARGURA_EDITOR}>
@@ -101,14 +108,12 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   }
 
   const c = estado.conteudo;
-  const aberta = variacaoAberta(c, abertaUid);
   // A seção que o editor mostra: a raiz sem variações (`null`), senão a variação aberta.
   const secao = aberta?.uid ?? null;
   const refs = refeicoesDaSecao(c, secao);
   const temRefeicao = secoesDaDieta(c).some((s) => s.refeicoes.length > 0);
   const naSecao = (a: ConteudoDieta, fn: (r: Refeicao[]) => Refeicao[]) => mudarRefeicoesDaSecao(a, secao, fn);
   const comErro = uidsComProblema(c, (problemas?.erros ?? []).map((p) => p.caminho));
-  const todasAbertas = refs.length > 0 && refs.every((r) => abertas.has(r.uid));
   // Toda mudança (menos digitar no Nome da refeição, que o cartão manda direto) sai com "Refeição N" nos nomes vazios:
   // refeição nova, de modelo ou de desfazer nunca chega ao rascunho sem nome (C57; o validador recusa "Refeição sem nome").
   const mudar = (parcial: Partial<ConteudoDieta>) => editor.alterarConteudo((a) => comNomesPadrao({ ...a, ...parcial }));
@@ -118,19 +123,12 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
     setDesfazer({ rotulo, conteudo: c, variacao: secao, ...onde });
     editor.alterarConteudo((a) => comNomesPadrao(mudanca(a)));
   };
-  const alternar = (uid: string) =>
-    setAbertas((a) => {
-      const novo = new Set(a);
-      if (novo.has(uid)) novo.delete(uid);
-      else novo.add(uid);
-      return novo;
-    });
 
   const titulo = modelo ? tituloDoModelo(unica ? 'REFEICAO' : 'PLANO_DIETA') : tituloDoPlanoDoAluno('dieta', nomeDoAluno);
   const semValor = itensSemValorNoTotal(refs);
   const escolhida = refs.find((r) => r.uid === escolhidaUid) ?? refs[0];
   /** Abre (empilhado) e escolhe (duas colunas) a refeição; a rolagem, quando há, é de quem chama. */
-  const abrirRefeicao = (uid: string) => { setEscolhidaUid(uid); setAbertas((a) => new Set(a).add(uid)); };
+  const abrirRefeicao = (uid: string) => { setEscolhidaUid(uid); refeicoesAbertas.abrir(uid); };
   const adicionarRefeicao = () => {
     const nova = novaRefeicao();
     mudarRefeicoes((r) => [...r, nova]);
@@ -153,6 +151,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       aoDesfazer={() => {
         const anterior = desfazer.conteudo;
         setDesfazer(null);
+        // A refeição removida volta como estava: o estado de abertas a esqueceu quando ela saiu da lista.
+        if (desfazer.reabrir) refeicoesAbertas.abrir(desfazer.reabrir);
         editor.alterarConteudo(() => anterior);
       }}
       aoFechar={() => setDesfazer(null)}
@@ -178,7 +178,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           if (alvo?.uid) setAbertaUid(alvo.uid);
           const comProblema = (alvo?.refeicoes ?? refs).filter((r) => uids.includes(r.uid)).map((r) => r.uid);
           if (comProblema[0]) setEscolhidaUid(comProblema[0]);
-          setAbertas((a) => new Set([...a, ...comProblema]));
+          refeicoesAbertas.abrir(comProblema);
+          setIrAoComplemento((p) => ({ uids, vez: (p?.vez ?? 0) + 1 }));
         }} />}
       {/* Contexto (de quem é o plano, o ciclo da aluna) junto; depois o plano; depois as refeições. */}
       <View style={estilos.grupo}>
@@ -189,7 +190,6 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       {unica ? null : <ConfiguracaoDoPlano
         editor={editor}
         modelo={modelo}
-        recolhido={temRefeicao && estado.titulo.trim() !== ''}
         descricao="Título, período, objetivo e profissional da dieta.">
         <CamposDaDieta conteudo={c} aoMudar={mudar} modelo={modelo} />
       </ConfiguracaoDoPlano>}
@@ -204,7 +204,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         // Empilhadas, várias refeições abertas empurravam o aviso do topo para fora da janela. Opção removida: o aviso fica
         // na refeição dela (se ela está aberta); refeição removida: no lugar dela. Em duas colunas e no resto, no topo.
         const avisoNaRefeicao = !duas && desfazer?.refeicaoDaOpcao !== undefined
-          && refs.some((r) => r.uid === desfazer.refeicaoDaOpcao && (unica || abertas.has(r.uid)));
+          && refs.some((r) => r.uid === desfazer.refeicaoDaOpcao && (unica || refeicoesAbertas.estaAberta(r.uid)));
         // A posição só vale na variação de onde a refeição saiu; em outra, o aviso vai para o topo da lista.
         const avisoNoLugar = !duas && desfazer?.indiceDaRefeicao !== undefined && desfazer.variacao === secao
           ? Math.min(desfazer.indiceDaRefeicao, refs.length) : null;
@@ -214,11 +214,11 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             refeicao={r}
             posicao={ri}
             total={refs.length}
-            aberta={noInspetor || unica || abertas.has(r.uid)}
+            aberta={noInspetor || unica || refeicoesAbertas.estaAberta(r.uid)}
             comProblema={comErro}
             alimentos={porId}
             aviso={avisoNaRefeicao && desfazer?.refeicaoDaOpcao === r.uid ? barra : undefined}
-            aoAbrir={noInspetor || unica ? undefined : () => alternar(r.uid)}
+            aoAbrir={noInspetor || unica ? undefined : () => refeicoesAbertas.alternar(r.uid)}
             // Direto, sem o nome padrão: apagar o Nome para digitar outro não pode preencher na hora (preenche ao sair do campo).
             aoMudar={(nova) => editor.alterarConteudo((a) => naSecao(a, (lista) => substituir(lista, ri, nova)))}
             aoSairDoNome={() => { if (refs.some((x) => x.nome.trim() === '')) editor.alterarConteudo(comNomesPadrao); }}
@@ -238,7 +238,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             aoRemover={unica ? undefined : () => {
               const depois = remover(refs, ri);
               setEscolhidaUid(proximaSelecao(refs.map((x) => x.uid), depois.map((x) => x.uid), escolhida?.uid ?? null));
-              comDesfazer(`Refeição “${r.nome || ri + 1}” removida.`, (a) => naSecao(a, (lista) => remover(lista, ri)), { indiceDaRefeicao: ri });
+              comDesfazer(`Refeição “${r.nome || ri + 1}” removida.`, (a) => naSecao(a, (lista) => remover(lista, ri)),
+                { indiceDaRefeicao: ri, reabrir: refeicoesAbertas.estaAberta(r.uid) ? [r.uid] : undefined });
             }}
             aoSalvarModelo={unica ? undefined : () => setFolha({ tipo: 'salvarRefeicao', indice: ri })}
             aoEscolherAlimento={(opcao) => setFolha({ tipo: 'alimento', refeicao: ri, opcao })}
@@ -253,8 +254,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                 motivo="Adicione uma refeição primeiro." aoTocar={() => setFolha({ tipo: 'compras' })} />
               {/* Em duas colunas a escolhida já está aberta: não há o que abrir todas. */}
               {!duas && !unica && refs.length > 1 ? (
-                <Botao rotulo={todasAbertas ? 'Fechar todas' : 'Abrir todas'} tipo="fantasma" Icone={todasAbertas ? ChevronsDownUp : ChevronsUpDown}
-                  aoTocar={() => setAbertas(todasAbertas ? new Set() : new Set(refs.map((r) => r.uid)))} />
+                <Botao rotulo={refeicoesAbertas.todasAbertas ? 'Fechar todas' : 'Abrir todas'} tipo="fantasma" Icone={refeicoesAbertas.todasAbertas ? ChevronsDownUp : ChevronsUpDown}
+                  aoTocar={refeicoesAbertas.todasAbertas ? refeicoesAbertas.fecharTodas : refeicoesAbertas.abrirTodas} />
               ) : null}
             </LinhaDeAcoes>
           </View>
@@ -294,6 +295,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           aoMudar={mudar}
           comDesfazer={comDesfazer}
           aviso={desfazer?.secao === 'complementos' ? barra : undefined}
+          irPara={irAoComplemento}
           aoEscolherDaBiblioteca={(tipo) => setFolha({ tipo })}
           porcoes={porcoes}
           veBiblioteca={veBiblioteca}
@@ -351,6 +353,8 @@ function BotaoAdicionarRefeicao({ aoAdicionar }: { aoAdicionar: () => string }) 
 interface OndeDesfazer {
   refeicaoDaOpcao?: string;
   indiceDaRefeicao?: number;
+  /** Refeição removida que estava aberta: o "Desfazer" a abre de novo. */
+  reabrir?: string[];
   variacao?: string | null;
   secao?: 'complementos' | 'variacoes';
 }

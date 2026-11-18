@@ -105,10 +105,11 @@ export function CartaoRefeicao(p: Props) {
   const mudarItens = (indice: number, fn: (itens: ItemDieta[]) => ItemDieta[]) =>
     mudar({ opcoes: substituir(r.opcoes, indice, { ...r.opcoes[indice], itens: fn(r.opcoes[indice].itens) }) });
   const modoDePreparo = r.modoDePreparo ?? '';
-  // Observação e modo de preparo vazios ficam recolhidos num link (04/11); com texto gravado já abrem. A escolha nasce do
-  // conteúdo e não volta a fechar ao apagar o texto, para os campos não sumirem enquanto a pessoa digita.
-  const [extrasAbertos, setExtrasAbertos] = useState(() => !!r.observacao || !!r.modoDePreparo);
-  const mostrarExtras = extrasAbertos || !!r.observacao || !!r.modoDePreparo;
+  // Observação e modo de preparo ficam recolhidos num link, também com texto gravado (regra de 18/11: nasce fechado); o
+  // toque abre e não volta a fechar, para os campos não sumirem enquanto a pessoa digita. Só o modo de preparo acima do
+  // limite (erro apontado por "ir ao primeiro") os abre, para o erro aparecer.
+  const [extrasAbertos, setExtrasAbertos] = useState(false);
+  const mostrarExtras = extrasAbertos || !modoDePreparoValido(modoDePreparo);
   const titulo = tituloDaRefeicao(r, p.posicao);
   const problema = p.comProblema.has(r.uid);
   const varias = r.opcoes.length > 1;

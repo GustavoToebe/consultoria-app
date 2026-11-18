@@ -88,8 +88,9 @@ for (const [largura, ladoALado] of [[390, false], [1280, true]] as const) {
       [`GET /planos-dieta/${PLANO_ID}`]: { corpo: DETALHE },
     });
     await page.goto(`/treinador/dietas/${PLANO_ID}`);
-    // PC: a refeição da lista abre no inspetor; celular: o cartão abre ali mesmo.
-    await page.getByRole('button', { name: ladoALado ? /^Refeição 1 de 1: 12:00 · Almoço/ : /12:00 · Almoço, fechado/ }).click();
+    // PC: a refeição da lista abre no inspetor; celular: a refeição única já nasce aberta (18/11), sem clique.
+    if (ladoALado) await page.getByRole('button', { name: /^Refeição 1 de 1: 12:00 · Almoço/ }).click();
+    else await expect(page.getByRole('button', { name: /12:00 · Almoço, aberto/ })).toBeVisible();
 
     const a = page.getByRole('heading', { name: 'Opção A' });
     const b = page.getByRole('heading', { name: 'Opção B' });
@@ -110,6 +111,9 @@ for (const [largura, ladoALado] of [[390, false], [1280, true]] as const) {
       expect(caixaB.y).toBeGreaterThan(caixaA.y + 50);
       expect(Math.abs(caixaA.x - caixaB.x)).toBeLessThan(2);
     }
+    // O modo de preparo gravado também fica atrás do link (18/11): o toque abre os campos e o texto está lá.
+    await expect(page.getByLabel('Modo de preparo (opcional)')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Observação ou modo de preparo (opcional)' }).click();
     await expect(page.getByLabel('Modo de preparo (opcional)')).toHaveValue(PREPARO);
     await expect(page.getByText(/equivalente/i)).toHaveCount(0);
     // Remover uma opção leva os itens junto: dá para desfazer (04/11).
