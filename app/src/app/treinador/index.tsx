@@ -315,7 +315,7 @@ export default function InicioTreinador() {
   const motivoEditar = motivoDoEditar(semAlunos);
   const acoes = (
     <>
-      <Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Novo aluno" tipo="secundario" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} /></Permitido>
+      <Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Novo aluno" tipo="acao" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} /></Permitido>
       {permitidos.length ? (
         <View nativeID={ID_DO_EDITAR}>
           <Botao rotulo="Editar" rotuloAcessivel="Editar os blocos do Início" tipo="secundario" Icone={Pencil}
@@ -419,5 +419,6 @@ export default function InicioTreinador() {
 const estilos = StyleSheet.create({
   raiz: { flex: 1 },
   painel: { gap: espaco(2) },
-  linha: { flexDirection: 'row', gap: espaco(2), alignItems: 'flex-start' },
+  // Visual-ponytail (17/11): blocos da mesma linha com a mesma altura (a grade não quebra).
+  linha: { flexDirection: 'row', gap: espaco(2), alignItems: 'stretch' },
 });

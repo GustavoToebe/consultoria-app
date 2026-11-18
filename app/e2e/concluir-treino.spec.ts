@@ -88,7 +88,8 @@ for (const largura of [390, 1280]) {
     const voltarALista = page.getByRole('button', { name: 'Voltar à lista do dia', exact: true });
     await expect(voltarALista).toHaveCount(1);
     await expect(botoesConcluir(page)).toHaveCount(0);
-    expect(await voltarALista.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+    // visual-ponytail (17/11): o secundário ganhou o fundo de poço; o que não pode é ter o fundo do primário (`texto`, #15181D no Claro).
+    expect(await voltarALista.evaluate((e) => getComputedStyle(e).backgroundColor)).not.toBe('rgb(21, 24, 29)');
     await expect(page.getByRole('button', { name: 'Lista do dia', exact: true })).toHaveCount(0);
     // B5 com a chave desligada: marcar tudo não muda o botão.
     for (const n of [1, 2, 3]) await serie(page, n).click();

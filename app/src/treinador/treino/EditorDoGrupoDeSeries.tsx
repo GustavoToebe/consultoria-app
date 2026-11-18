@@ -23,6 +23,7 @@ import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { coresDaEdicao } from '../../ui/selecao';
 import { NumeroInvertido } from '../../ui/NumeroInvertido';
 import { type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
@@ -147,7 +148,8 @@ export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga,
   const opcoesTecnica = opcoesDeTecnica(config, s.tecnica?.tipo);
   const nomeTecnica = s.tecnica ? opcoesTecnica.find((o) => o.valor === s.tecnica?.tipo)?.rotulo ?? null : null;
   const recuo = espaco(largo ? 2.5 : 2);
-  const borda = nivel === 'perigo' ? cores.perigo : cores.bordaCampo;
+  // Visual-ponytail (17/11): o grupo aberto é o item EM EDIÇÃO: contorno na cor de ação com halo (erro continua vermelho).
+  const borda = nivel === 'perigo' ? cores.perigo : cores.acao;
   const erroDoDescanso = erros.descansoSegundos ?? (s.descansoSegundos != null && s.descansoSegundos > DESCANSO_MAXIMO_SEGUNDOS ? `Descanso: de 0 a ${DESCANSO_MAXIMO_SEGUNDOS} s.` : null);
   const resumoDoCluster = cluster ? resumoDosBlocos(s.tecnica?.blocos) : null;
   const blocos = s.tecnica?.blocos ?? null;
@@ -157,14 +159,14 @@ export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga,
   // A leitura do aluno; nula no cluster sem blocos válidos (o "Para o aluno" pede para completar).
   const leitura = cardio || !(cluster && !blocosValidos(blocos)) ? textoParaOAluno(g, config, unidade) : null;
   const titulo = cardio ? `Série ${numero}` : `Série ${numero} · ${tituloDoGrupoDeSeries(g, config)}`;
-  return <View style={[estilos.grupo, { borderWidth: bordas.item, borderColor: borda, backgroundColor: cores.superficie }]}>
+  return <View style={[estilos.grupo, { borderWidth: Math.max(bordas.item, 1.5), borderColor: borda, backgroundColor: cores.superficie, boxShadow: coresDaEdicao(cores).halo }]}>
     {/* "Editando: Série 2 · Trabalho · WS" e, embaixo, os números (reunião de 30/10). Na coluna estreita as ações descem uma
         linha, senão o título quebra palavra por palavra. */}
     <CabecalhoDeGrupo titulo={`Editando: ${titulo}`} resumo={leitura ?? undefined} selo={nivel === 'sucesso' ? undefined : SELO_DO_NIVEL[nivel]} linha="fina"
-      inicio={<NumeroInvertido numero={numero} invertido />} acoesJuntas={largo} acoes={<>
+      inicio={<NumeroInvertido numero={numero} invertido emEdicao />} acoesJuntas={largo} acoes={<>
       <IconeBotao moldura Icone={ArrowUp} rotulo={`Subir série ${numero}`} desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
       <IconeBotao moldura Icone={ArrowDown} rotulo={`Descer série ${numero}`} desabilitado={ultimo} aoTocar={() => aoMover(1)} />
-      <IconeBotao moldura Icone={Trash2} rotulo={`Remover série ${numero}`} cor={cores.perigo} aoTocar={aoRemover} />
+      <Botao tipo="perigoTexto" rotulo="Excluir série" rotuloAcessivel={`Remover série ${numero}`} Icone={Trash2} aoTocar={aoRemover} />
     </>} />
     <View style={[estilos.corpo, { padding: recuo }]}>
       {/* Faixa 1: para que a série serve (tipo) e como executar (técnica). */}

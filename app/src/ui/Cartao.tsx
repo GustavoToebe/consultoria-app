@@ -42,9 +42,9 @@ interface Props {
 }
 
 /**
- * Cartão flat: superfície, contorno discreto (`divisor`, 1 px; 2 px com "bordas reforçadas"; `bordaCampo` no contraste
- * alto, `contornoDoCartao`), cantos de 12 px, sem sombra; a faixa do título é a `superficie3` (D2: ≠ cartão e ≠ página)
- * com o filete `divisor` embaixo (divisória interna: não acompanha o contorno no contraste alto). Separa seções, dias, exercícios.
+ * Cartão do visual-ponytail (17/11): superfície, contorno sutil (`divisor`, 1 px; 2 px com "bordas reforçadas"; `bordaCampo`
+ * no contraste alto, `contornoDoCartao`), cantos de 20 px e a `sombra` do tema, que é quem separa o cartão da página; o
+ * título fica no próprio cartão, com o filete `divisor` embaixo (divisória interna: não acompanha o contorno no contraste alto). Separa seções, dias, exercícios.
  */
 export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, marcador, periodo, style }: Props) {
   const { cores, bordas, preferencias } = useTema();
@@ -58,10 +58,10 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
   const semCorpo = Children.toArray(children).length === 0;
   const soAFaixa = fechado || (semCorpo && !rodape);
   return (
-    <Card testID="cartao" style={[estilos.cartao, { borderWidth: bordas.bloco, backgroundColor: cores.superficie, borderColor: contornoDoCartao(cores, preferencias.contraste), padding: rente ? 0 : recuo }, rente ? estilos.comCabecalho : null, style]}>
+    <Card testID="cartao" style={[estilos.cartao, { borderWidth: bordas.bloco, backgroundColor: cores.superficie, borderColor: contornoDoCartao(cores, preferencias.contraste), boxShadow: cores.sombra, padding: rente ? 0 : recuo }, rente ? estilos.comCabecalho : null, style]}>
       {cabecalho ?? null}
       {titulo || acoes ? (
-        <View style={[estilos.topo, comFaixa ? [estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo }, soAFaixa ? estilos.faixaFechada : null] : null]}>
+        <View style={[estilos.topo, comFaixa ? [estilos.faixa, { backgroundColor: cores.superficie, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo }, soAFaixa ? estilos.faixaFechada : null] : null]}>
           <View style={estilos.tituloEDescricao}>
             {titulo && recolhivel ? (
               <Pressable

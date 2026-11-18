@@ -92,13 +92,13 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar
         aoMoverParaSecao={(para) => aoMudar((x) => moverParaSecao(x, { secao: si, pergunta: pi }, para))}
         aoRemover={() => setRemoverPerguntaDe({ secao: si, pergunta: pi })} />)}
       {somenteLeitura ? null : <LinhaDeAcoes>
-        <Botao rotulo="Adicionar pergunta" tipo="secundario" Icone={Plus} desabilitado={!podeAdicionar(c, si, 'TEXTO').pode}
+        <Botao rotulo="Adicionar pergunta" tipo="acao" Icone={Plus} desabilitado={!podeAdicionar(c, si, 'TEXTO').pode}
           motivo={podeAdicionar(c, si, 'TEXTO').motivo} aoTocar={() => setAdicionarEm(si)} />
       </LinhaDeAcoes>}
     </Cartao>)}
     {problemas.gerais.map((g) => <Texto key={g.caminho + g.mensagem} variante="pequeno" cor={cores.perigo}>{g.mensagem}</Texto>)}
     {somenteLeitura ? null : <LinhaDeAcoes>
-      <Botao rotulo="Adicionar seção" tipo="secundario" Icone={Plus} desabilitado={!novaSecaoPermissao.pode} motivo={novaSecaoPermissao.motivo}
+      <Botao rotulo="Adicionar seção" tipo="acao" Icone={Plus} desabilitado={!novaSecaoPermissao.pode} motivo={novaSecaoPermissao.motivo}
         aoTocar={() => aoMudar((x) => adicionarSecao(x))} />
     </LinhaDeAcoes>}
 
@@ -152,7 +152,7 @@ function CartaoDaPergunta({ pergunta: p, conteudo, posicao, total, aberta, probl
       {p.mostrarSe && somenteLeitura ? <Texto variante="pequeno">{textoDaCondicao(conteudo, p.mostrarSe)}</Texto> : null}
       <PropriedadesDaPergunta pergunta={p} conteudo={conteudo} problemas={problemas} somenteLeitura={somenteLeitura} finalidade={finalidade} aoMudar={aoMudar} />
       {somenteLeitura ? null : <LinhaDeAcoes>
-        <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} desabilitado={!duplicavel} motivo={p.tipo === 'FOTOS' ? `No máximo ${L.perguntasFotos} perguntas de fotos.` : 'Este tipo só pode aparecer uma vez.'} aoTocar={aoDuplicar} />
+        <Botao rotulo="Duplicar" tipo="acao" Icone={Copy} desabilitado={!duplicavel} motivo={p.tipo === 'FOTOS' ? `No máximo ${L.perguntasFotos} perguntas de fotos.` : 'Este tipo só pode aparecer uma vez.'} aoTocar={aoDuplicar} />
         {outras.length ? <EscolhaEmFolha rotulo="Mover para a seção" valor="" opcoes={outras} rotuloDoValor="escolher" aoMudar={(v) => aoMoverParaSecao(Number(v))} /> : null}
       </LinhaDeAcoes>}
     </View> : null}

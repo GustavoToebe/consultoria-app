@@ -150,7 +150,7 @@ export function CartaoAvaliacaoFisica(p: Props) {
       periodo={dados && !vazioDaEquipe ? periodoDesdeOPrimeiro(dados.map((a) => a.data)) : undefined}
       descricao={vazioDaEquipe ? 'Nenhuma avaliação registrada. Circunferências em centímetros, por data.'
         : daEquipe ? 'Circunferências em centímetros, por data.' : 'Suas medidas registradas pelo seu treinador, em centímetros.'}
-      acoes={podeGravar ? <Botao rotulo="Nova avaliação" tipo="secundario" Icone={Plus} aoTocar={() => abrirFolha('nova')} /> : null}>
+      acoes={podeGravar ? <Botao rotulo="Nova avaliação" tipo="acao" Icone={Plus} aoTocar={() => abrirFolha('nova')} /> : null}>
       {erro && !semConexao ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={tentarDeNovo} /> : null}
       {semConexao ? <Texto variante="suave">Sem conexão.</Texto> : null}
       {erroAcao ? <MensagemErro texto={textoDoErro(erroAcao)} /> : null}

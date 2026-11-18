@@ -5,6 +5,12 @@ Explica o que o app é, como o front está montado, os problemas de design que e
 vale acima de todas: **manter o sistema funcional, simples e rápido**. Escrito em 30/10/2026, sobre o código da
 `main` (commit `68750b2`).
 
+
+> **Visual-ponytail (17/11/2026), vale acima do que este documento diz sobre cor e superfície:** paletas novas do canvas
+> "Overtraining · proposta visual" (página quase da cor do cartão, cartão com raio 20 e `sombra`, contorno sutil), cor de
+> ação (índigo padrão, trocável em Ajustes) para ações de construção, aba ativa e item em edição, e excluir sempre com
+> texto. Detalhes em `app/src/tema/tokens.ts` e nos testes de `tema/tokens.test.ts`.
+
 ---
 
 ## 1. O produto em poucas linhas

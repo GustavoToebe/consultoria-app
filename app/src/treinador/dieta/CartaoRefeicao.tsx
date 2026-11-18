@@ -18,7 +18,7 @@ import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_EDITOR } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
@@ -145,7 +145,7 @@ export function CartaoRefeicao(p: Props) {
           posicao={p.posicao}
           total={p.total}
           aoMover={p.aoMover}
-          remover={p.aoRemover ? <IconeBotao Icone={Trash2} rotulo={`Remover ${titulo}`} cor={cores.perigo} aoTocar={p.aoRemover} /> : undefined}
+          remover={p.aoRemover ? <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${titulo}`} Icone={Trash2} aoTocar={p.aoRemover} /> : undefined}
         />
       }>
       {p.aberta ? (
@@ -285,7 +285,7 @@ function OpcaoDaRefeicao({
         <View style={estilos.cresce} aria-hidden><ValoresDaDieta totais={somar(opcao.itens)} forte /></View>
       </View>
       <LinhaDeAcoes>
-        <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="secundario" Icone={Plus} aoTocar={aoEscolherAlimento} />
+        <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="acao" Icone={Plus} aoTocar={aoEscolherAlimento} />
         <Botao rotulo="Item manual" rotuloAcessivel={`Item manual${naOpcao}`} tipo="secundario" Icone={PencilLine} aoTocar={() => aoMudarItens((itens) => [...itens, novoItem()])} />
       </LinhaDeAcoes>
     </View>
@@ -315,19 +315,40 @@ function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRem
   const faltaQuantidade = item.quantidade == null;
   const tom = faltaQuantidade ? 'atencao' : 'perigo';
   const erroDaQuantidade = semQuantidade && !faltaQuantidade ? 'Quantidade precisa ser maior que zero.' : null;
+  // Visual-ponytail (17/11): o alimento é uma LINHA da tabela da refeição (nome, quantidade, unidade, valores e ações lado a
+  // lado, separados por filete), não mais um cartão alto por item; no celular a linha quebra. Item com pendência ganha a
+  // barra lateral na cor do problema.
   return (
-    <View style={[estilos.item, { borderColor: comProblema ? cores[tom] : cores.divisor, backgroundColor: cores.superficie2 }]}>
-      <View style={estilos.topo}>
-        <View style={estilos.titulo}>
-          {item.manual ? (
-            <Campo rotulo="Item" valor={item.nome} aoMudar={(n) => mudar({ nome: n })} maxLength={160} />
-          ) : (
-            <Texto variante="subtitulo">{item.nome}</Texto>
-          )}
-          {faltaQuantidade ? <View style={estilos.selo}><Selo texto="Falta a quantidade" tipo="atencao" Icone={TriangleAlert} /></View> : null}
-          {/* A unidade escolhida não converte para a base do alimento: o valor fica "—" e não se inventa gramatura. */}
-          {semConversao(item, alimento) ? <View style={estilos.selo}><Selo texto="Informe gramas por unidade no alimento" tipo="atencao" Icone={TriangleAlert} /></View> : null}
+    <View style={[estilos.item, { borderBottomColor: cores.divisor }, comProblema ? { borderLeftWidth: 3, borderLeftColor: cores[tom], paddingLeft: espaco(1) } : null]}>
+      <View style={estilos.colunaDoNome}>
+        {item.manual ? (
+          <Campo rotulo="Item" valor={item.nome} aoMudar={(n) => mudar({ nome: n })} maxLength={160} />
+        ) : (
+          <Texto style={estilos.nomeDoItem}>{item.nome}</Texto>
+        )}
+        {faltaQuantidade ? <View style={estilos.selo}><Selo texto="Falta a quantidade" tipo="atencao" Icone={TriangleAlert} /></View> : null}
+        {/* A unidade escolhida não converte para a base do alimento: o valor fica "—" e não se inventa gramatura. */}
+        {semConversao(item, alimento) ? <View style={estilos.selo}><Selo texto="Informe gramas por unidade no alimento" tipo="atencao" Icone={TriangleAlert} /></View> : null}
+        {item.manual ? <View style={estilos.selo}><Selo texto="Item manual" tipo="neutro" /></View> : null}
+      </View>
+      <View style={estilos.quantidade}>
+        {/* Campo estreito: a caixa marca o erro e a mensagem vai na linha inteira abaixo, sem empurrar a Unidade. */}
+        <CampoNumerico rotulo="Quantidade" valor={item.quantidade} aoMudar={(quantidade) => mudar({ quantidade })} erro={erroDaQuantidade} erroSemTexto />
+      </View>
+      <EscolhaSuspensa<UnidadeAlimento> rotulo="Unidade" titulo={`Unidade de ${nome}`} opcoes={UNIDADES} valor={item.unidade}
+        aoMudar={(unidade) => mudar({ unidade })} style={estilos.unidade} />
+      {item.manual ? (
+        // Os quatro valores do item manual na própria linha; P, C e G com a marca da cor no rótulo.
+        <View style={estilos.valores}>
+          <View style={estilos.valor}><CampoNumerico rotulo="Kcal" valor={item.kcal} aoMudar={(kcal) => mudar({ kcal })} /></View>
+          <View style={estilos.valor}><CampoDoMacro macro={MACROS[0]} rotulo="P (g)" valor={item.proteina} aoMudar={(proteina) => mudar({ proteina })} /></View>
+          <View style={estilos.valor}><CampoDoMacro macro={MACROS[1]} rotulo="C (g)" valor={item.carboidrato} aoMudar={(carboidrato) => mudar({ carboidrato })} /></View>
+          <View style={estilos.valor}><CampoDoMacro macro={MACROS[2]} rotulo="G (g)" valor={item.gordura} aoMudar={(gordura) => mudar({ gordura })} /></View>
         </View>
+      ) : (
+        <View style={estilos.valoresDoItem}><ValoresDaDieta totais={somar([item])} /></View>
+      )}
+      <View style={estilos.acoesDoItem}>
         {aoTrocar ? <IconeBotao Icone={ArrowLeftRight} rotulo={`Trocar ${nome}`} aoTocar={aoTrocar} /> : null}
         {total > 1 ? (
           <>
@@ -337,28 +358,7 @@ function LinhaItem({ item, posicao, total, comProblema, alimento, aoMudar, aoRem
         ) : null}
         <IconeBotao Icone={Trash2} rotulo={`Remover ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />
       </View>
-      <View style={estilos.linha}>
-        <View style={estilos.quantidade}>
-          {/* Campo estreito: a caixa marca o erro e a mensagem vai na linha inteira abaixo, sem empurrar a Unidade. */}
-          <CampoNumerico rotulo="Quantidade" valor={item.quantidade} aoMudar={(quantidade) => mudar({ quantidade })} erro={erroDaQuantidade} erroSemTexto />
-        </View>
-        {/* Unidade numa lista suspensa ao lado da quantidade (04/11): os chips abertos repetiam em cada alimento e quebravam
-            a linha com as opções lado a lado. */}
-        <EscolhaSuspensa<UnidadeAlimento> rotulo="Unidade" titulo={`Unidade de ${nome}`} opcoes={UNIDADES} valor={item.unidade}
-          aoMudar={(unidade) => mudar({ unidade })} style={estilos.unidade} />
-        {/* Item da biblioteca: os valores ficam na mesma linha da quantidade; só o manual abre os campos de valor. */}
-        {item.manual ? null : <View style={estilos.valoresDoItem}><ValoresDaDieta totais={somar([item])} /></View>}
-      </View>
-      {erroDaQuantidade ? <MensagemDeErro erro={erroDaQuantidade} /> : null}
-      {item.manual ? (
-        // Os quatro valores numa linha só, também no celular (antes quebravam em 3 + 1); P, C e G com a marca da cor no rótulo.
-        <View style={estilos.valores}>
-          <View style={estilos.valor}><CampoNumerico rotulo="Kcal" valor={item.kcal} aoMudar={(kcal) => mudar({ kcal })} /></View>
-          <View style={estilos.valor}><CampoDoMacro macro={MACROS[0]} rotulo="P (g)" valor={item.proteina} aoMudar={(proteina) => mudar({ proteina })} /></View>
-          <View style={estilos.valor}><CampoDoMacro macro={MACROS[1]} rotulo="C (g)" valor={item.carboidrato} aoMudar={(carboidrato) => mudar({ carboidrato })} /></View>
-          <View style={estilos.valor}><CampoDoMacro macro={MACROS[2]} rotulo="G (g)" valor={item.gordura} aoMudar={(gordura) => mudar({ gordura })} /></View>
-        </View>
-      ) : null}
+      {erroDaQuantidade ? <View style={estilos.erroDaLinha}><MensagemDeErro erro={erroDaQuantidade} /></View> : null}
     </View>
   );
 }
@@ -376,15 +376,19 @@ const estilos = StyleSheet.create({
   opcaoInteira: { width: '100%' },
   tituloDaOpcao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: 44 },
   cresce: { flex: 1 },
-  item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
-  quantidade: { width: 120 },
+  item: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(1.5), rowGap: espaco(1), borderBottomWidth: 1, paddingVertical: espaco(1.25) },
+  colunaDoNome: { flexGrow: 1, flexShrink: 1, flexBasis: 220, minWidth: 180, gap: espaco(0.5), minHeight: 44, justifyContent: 'center', alignSelf: 'center' },
+  nomeDoItem: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 20 },
+  acoesDoItem: { flexDirection: 'row', alignItems: 'center', marginLeft: 'auto', alignSelf: 'center' },
+  erroDaLinha: { flexBasis: '100%' },
+  quantidade: { width: 104 },
   // Mesma altura do campo da quantidade ao lado (a lista suspensa tem 52 de mínimo), como o RIR na série.
-  unidade: { width: 112, minHeight: 44, alignSelf: 'flex-end' },
-  valores: { flexDirection: 'row', gap: espaco(1) },
-  valor: { flex: 1, minWidth: 0 },
+  unidade: { width: 104, minHeight: 44, alignSelf: 'flex-end' },
+  valores: { flexDirection: 'row', gap: espaco(1), flexGrow: 1, flexBasis: 320 },
+  valor: { flex: 1, minWidth: 64 },
   total: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5), borderTopWidth: 1, paddingTop: espaco(1) },
   selo: { flexDirection: 'row' },
   subtotal: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: 2, marginTop: 2 },
   // Sem espaço ao lado da quantidade e da unidade (opções lado a lado), os valores descem para a linha de baixo inteiros.
-  valoresDoItem: { alignSelf: 'center', flexGrow: 1, flexShrink: 1, flexBasis: 180 },
+  valoresDoItem: { alignSelf: 'center', flexGrow: 1, flexShrink: 1, flexBasis: 220 },
 });

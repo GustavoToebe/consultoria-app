@@ -192,7 +192,7 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
           ))}
           {erro('opcoes') ? <MensagemDeErro erro={erro('opcoes') as string} /> : null}
           <LinhaDeAcoes>
-            <Botao rotulo="Adicionar opção" tipo="secundario" Icone={Plus}
+            <Botao rotulo="Adicionar opção" tipo="acao" Icone={Plus}
               desabilitado={opcoesDaEnquete.length >= ENQUETE_OPCOES_MAXIMO} motivo={`Até ${ENQUETE_OPCOES_MAXIMO} opções.`}
               aoTocar={() => mudar({ opcoes: [...opcoesDaEnquete, ''] }, 'opcoes')} />
           </LinhaDeAcoes>
@@ -218,7 +218,7 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
             </View>
           ) : null}
           <LinhaDeAcoes>
-            <Botao rotulo="Adicionar foto" tipo="secundario" Icone={ImagePlus} carregando={subindoFoto}
+            <Botao rotulo="Adicionar foto" tipo="acao" Icone={ImagePlus} carregando={subindoFoto}
               desabilitado={!!motivoDaFoto} motivo={motivoDaFoto} aoTocar={() => void adicionarFoto('galeria')} />
             {Platform.OS !== 'web' ? (
               <Botao rotulo="Tirar foto" tipo="secundario" Icone={Camera} desabilitado={!!motivoDaFoto || subindoFoto}

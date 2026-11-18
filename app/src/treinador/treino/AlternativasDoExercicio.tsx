@@ -79,7 +79,7 @@ export function AlternativasDoExercicio({ exercicio: e, erros, aoMudar, aoAdicio
           {lista.length && !e.exercicioId ? (
             <Texto variante="pequeno">Para trocar em todas as sessões, ligue este exercício à biblioteca pelo “Trocar”.</Texto>
           ) : null}
-          <Botao rotulo="Adicionar alternativa" rotuloAcessivel={`Adicionar alternativa a ${nome}`} tipo="secundario" Icone={Plus}
+          <Botao rotulo="Adicionar alternativa" rotuloAcessivel={`Adicionar alternativa a ${nome}`} tipo="acao" Icone={Plus}
             aoTocar={aoAdicionar} desabilitado={!!motivo} motivo={motivo ?? undefined} />
         </View>
       ) : null}

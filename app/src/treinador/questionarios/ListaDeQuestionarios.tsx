@@ -131,7 +131,7 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
     </Cartao>
 
     {menu ? <Folha visivel titulo={menu.nome} aoFechar={() => setMenu(null)}>
-      <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} cheio desabilitado={ocupado !== null}
+      <Botao rotulo="Duplicar" tipo="acao" Icone={Copy} cheio desabilitado={ocupado !== null}
         aoTocar={() => { const q = menu; setMenu(null); setOcupado(q.id); duplicarQuestionario(q.id).then((d) => { lista.recarregar(); avisar('Questionário duplicado.', 'sucesso'); irParaEditor(d.id); }, (e: unknown) => avisar(textoDoErro(e), 'perigo')).finally(() => setOcupado(null)); }} />
       {!menu.padrao && !menu.arquivado ? <Botao rotulo="Definir como padrão" tipo="secundario" Icone={Star} cheio desabilitado={menu.versaoPublicada === 0}
         motivo="Publique o questionário antes de torná-lo o padrão." aoTocar={() => executar(menu, () => definirQuestionarioPadrao(menu.id), 'Padrão alterado.')} /> : null}

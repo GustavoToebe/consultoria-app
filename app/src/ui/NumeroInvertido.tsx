@@ -10,8 +10,16 @@ import { Texto } from './Texto';
  * cartão com o filete discreto e o número em texto secundário. O nome ficou da seleção invertida que substituiu.
  * Decorativo: quem o usa diz o número no rótulo ou no título ao lado. Cresce com o texto da pessoa e com dois dígitos.
  */
-export function NumeroInvertido({ numero, invertido }: { numero: number; invertido: boolean }) {
+export function NumeroInvertido({ numero, invertido, emEdicao = false }: { numero: number; invertido: boolean; emEdicao?: boolean }) {
   const { cores } = useTema();
+  if (emEdicao) {
+    // Item em edição (visual-ponytail): número cheio na cor de ação.
+    return (
+      <View style={[estilos.caixa, { backgroundColor: cores.acao, borderColor: cores.acao }]} aria-hidden>
+        <Texto numerico style={[estilos.texto, { color: cores.sobreAcao }]}>{numero}</Texto>
+      </View>
+    );
+  }
   return (
     <View style={[estilos.caixa, invertido ? { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo } : { backgroundColor: cores.superficie, borderColor: cores.divisor }]}
       aria-hidden>

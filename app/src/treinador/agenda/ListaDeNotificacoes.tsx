@@ -62,7 +62,7 @@ export function ListaDeNotificacoes({ lembretes, erros, erroDaLista, aoMudar }: 
         );
       }) : <Texto variante="suave">Sem notificação: ninguém recebe lembrete deste compromisso.</Texto>}
       {erroDaLista ? <MensagemDeErro erro={erroDaLista} /> : null}
-      <Botao ref={adicionarRef} rotulo="Adicionar notificação" tipo="secundario" Icone={Plus} aoTocar={() => aoMudar(adicionarLembrete(lembretes))}
+      <Botao ref={adicionarRef} rotulo="Adicionar notificação" tipo="acao" Icone={Plus} aoTocar={() => aoMudar(adicionarLembrete(lembretes))}
         desabilitado={!!motivo} motivo={motivo ?? undefined} />
     </View>
   );

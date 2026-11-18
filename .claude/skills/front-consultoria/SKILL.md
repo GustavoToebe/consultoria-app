@@ -25,6 +25,9 @@ P1 a P5 de `docs/design-e-front.md` 4.6; as regras ficam lá.
 Antes de usar uma cor, decida se é **ação** (marca), **situação** (verde, âmbar, vermelho) ou **categoria** (paleta de
 identificação); se não for nenhuma, é neutro.
 - **Marca:** um `Botao primario` por tela ou área e o indicador pequeno do item ativo. Nada mais, sem decisão nova.
+- **Ação (visual-ponytail, 17/11):** a cor de ação (índigo por padrão; cada pessoa troca em Ajustes, `preferencias.corDeAcao`)
+  pinta só três coisas: ação de construção (`Botao tipo="acao"`: adicionar, usar modelo, trocar, duplicar), aba ativa e o
+  item em edição (`coresDaEdicao` + `SeloEditando`). Excluir é `perigoTexto` com texto, nunca só o ícone.
 - **Situação:** `Selo` em pílula com ponto. Âmbar = pendência ou decisão de alguém ("Para revisar", "Falta a carga");
   vermelho = atraso, erro, valor inválido ou ação destrutiva; rascunho sem erro e quem só espera = `neutro`.
 - **Categoria:** `Selo categoria` (pílula escura, texto na cor) e as marcas de macro; nunca verde nem vermelho.
@@ -33,8 +36,8 @@ identificação); se não for nenhuma, é neutro.
   que já foi feito (verde só no recém-marcado, `aluno/useMarcadoAgora`).
 - **Contorno com peso:** contêiner em `divisor` de 1 px; campo, foco e selecionado em `bordaCampo` (3:1). Nada de
   borda de 2 px escrita na tela: a preferência "bordas reforçadas" é quem engrossa (`bordas.bloco`).
-- **Superfície:** `fundo` → `painel` → `superficie` → `superficie2` (elevada, hover, menu) → `superficie3` (seleção),
-  sem sombra; quem pinta o fundo da tela usa `useFundoDaArea()`.
+- **Superfície:** `fundo` (menu) → `painel` (página) → `superficie` (cartão, raio 20, com a `sombra` do tema, que é quem o
+  separa da página) → `superficie2` (poço, campo, hover) → `superficie3` (faixa); quem pinta o fundo da tela usa `useFundoDaArea()`.
 - **Campo:** rótulo sempre visível, ajuda abaixo, erro com ícone + mensagem + borda (`MensagemDeErro`).
 - **Medidas:** texto 4,5:1 e contorno 3:1 também no hover, na seleção e no foco, nas dez paletas e doze marcas; peça
   ou par de cor novo entra em `tema/tokens.test.ts` ou `ui/contrasteDasPecas.test.ts`.

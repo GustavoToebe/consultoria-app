@@ -55,7 +55,7 @@ export function PerfisEquipe({perfis,catalogo,recarregar}:{perfis:PerfilEquipe[]
             motivo em texto no lugar (nada de botão apagado sem explicação). */}
         {podeEditarPerfil(ator,p)?<Botao rotulo="Editar" rotuloAcessivel={`Editar ${p.nome}`} tipo="secundario" aoTocar={()=>setEditar(p)}/>
           :<Texto variante="pequeno" style={{flexBasis:'100%'}}>{motivoSemEditarPerfil(ator,p)}</Texto>}
-        {criaLiberado&&podeDuplicarPerfil(ator,p)?<Botao rotulo="Duplicar" rotuloAcessivel={`Duplicar ${p.nome}`} tipo="secundario" aoTocar={()=>void duplicar(p)}/>:null}
+        {criaLiberado&&podeDuplicarPerfil(ator,p)?<Botao rotulo="Duplicar" rotuloAcessivel={`Duplicar ${p.nome}`} tipo="acao" aoTocar={()=>void duplicar(p)}/>:null}
         {!p.sistema?<Botao rotulo="Excluir" rotuloAcessivel={`Excluir ${p.nome}`} tipo="perigoTexto" aoTocar={()=>setExcluir(p)}/>:null}
       </View></Permitido>
     </Cartao>)}

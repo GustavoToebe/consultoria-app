@@ -80,11 +80,28 @@ export interface Cores {
   fase2: string;
   fase3: string;
   fase4: string;
+  /**
+   * Cor de AÇÃO (visual-ponytail, 17/11): ações de construção (adicionar, usar modelo, trocar), aba ativa e o item em
+   * edição. Índigo por padrão; a pessoa troca em Ajustes (`preferencias.corDeAcao`, aplicada no `TemaProvider`). Não é a
+   * marca nem cor de situação ou de categoria. `acao` passa 4,5:1 sobre `acaoSuave` e o cartão; `sobreAcao` é o texto
+   * sobre o fundo sólido em `acao` (selo "Editando", número do item em edição).
+   */
+  acao: string;
+  sobreAcao: string;
+  /** Fundo do botão de ação e do item em edição: `acao` a 13% sobre o cartão. */
+  acaoSuave: string;
+  /** Sombra do cartão (`boxShadow`): a separação da página vem dela, não de um cinza mais escuro na página. */
+  sombra: string;
 }
 
-/** Situação do Escuro (D9, 17/11); as escuras da marca usam as mesmas. */
-const SITUACAO_ESCURA = { sucesso: '#00E699', atencao: '#FFB020', perigo: '#FF4D6A', informacao: '#4D9BFF', conquista: '#B57BFF' } as const;
-
+/**
+ * Paletas do visual-ponytail (17/11, canvas "Overtraining · proposta visual", aprovado pelo Gustavo): página quase da cor
+ * do cartão, cartão com raio 20 e sombra (`sombra`), contorno sutil (`divisor`); a hierarquia vem do tamanho do número, da
+ * cor da categoria e de um botão sólido por tela, não de cinzas diferentes. Escuras: página quase preta tingida no tom da
+ * paleta. Claras: menu branco, página quase branca tingida. Texto, situação e cor de ação são os mesmos em todas as
+ * escuras (os do Escuro) e em todas as claras (os do Claro; a Areia escurece um passo). O `campo` é o poço com a
+ * `bordaCampo` a 3:1 (WCAG 1.4.11). Medidas em `tokens.test.ts`.
+ */
 /** Os cinco fundos de pílula de uma situação sobre o cartão do tema. */
 function pilulasDaSituacao(s: Pick<Cores, 'sucesso' | 'atencao' | 'perigo' | 'informacao' | 'conquista'>, cartao: string) {
   return {
@@ -115,92 +132,291 @@ function comRealce(c: Escada): Cores {
 }
 
 export const ESCURO: Cores = comRealce({
-  // D5 (17/11): página, cartão, faixa e poço (mais escuro que o cartão). Contorno #34343A subiu a #36363C (1,37 → 1,42:1,
-  // piso 1,4), o painel do PC desceu a 10% do caminho até o cartão para o cartão manter 1,15:1 sobre ele, e `bordaCampo`
-  // e `textoSuave` clarearam 1% e 2% para os pares do guia (4,5:1 sobre o cartão e 7:1 sobre o poço) com o cartão novo.
-  fundo: '#09090B',
-  superficie: '#1C1C20',
-  superficie2: '#0F0F11',
-  superficie3: '#26262B',
-  faixaForte: '#28282E',
-  divisor: '#36363C',
-  borda: '#4A4A52',
-  campo: '#0F0F11',
-  bordaCampo: '#83838D',
-  painel: '#0B0B0D',
-  texto: '#FCFCFC',
-  textoSuave: '#9C9CA3',
-  ...SITUACAO_ESCURA,
-  neutro: '#9A9AA3',
-  ...pilulasDaSituacao(SITUACAO_ESCURA, '#1C1C20'),
+  fundo: '#070707',
+  painel: '#070707',
+  superficie: '#0F0F0F',
+  superficie2: '#161614',
+  superficie3: '#1F1F1C',
+  faixaForte: '#232320',
+  divisor: '#22221F',
+  borda: '#30302C',
+  campo: '#161614',
+  bordaCampo: '#70706C',
+  texto: '#F3F2EE',
+  textoSuave: '#A8A69F',
+  sucesso: '#5FE08A',
+  atencao: '#F1C96B',
+  perigo: '#FF6B5B',
+  informacao: '#4D9BFF',
+  conquista: '#B57BFF',
+  neutro: '#A3A19B',
+  ...pilulasDaSituacao({ sucesso: '#5FE08A', atencao: '#F1C96B', perigo: '#FF6B5B', informacao: '#4D9BFF', conquista: '#B57BFF' }, '#0F0F0F'),
   perigoFundo: '#C62828',
-  anelFoco: '#FCFCFC',
-  // Rosa e lavanda um pouco mais claros que antes: o `perigo` novo é mais claro e a fase não pode parecer erro.
+  anelFoco: '#F3F2EE',
   fase1: '#E7AEC1',
   fase2: '#7DCFC6',
   fase3: '#E2C56A',
   fase4: '#ADBAEB',
+  acao: '#8C9EFF',
+  sobreAcao: '#0B0B0A',
+  acaoSuave: '#1F222E',
+  sombra: 'inset 0px 1px 0px rgba(255,255,255,0.04), 0px 20px 50px rgba(0,0,0,0.35)',
 });
 
-/**
- * Situação do Claro (D9: `#0E7A43 #8A5300 #C01834 #1D5FD1 #7A2FD0`). Verde, âmbar e vermelho escurecidos o mínimo para o
- * texto da caixa `Alerta` passar 4,5:1 também direto na página nova (#D9DCE1) e o verde, sobre a série feita; informação e
- * conquista ficam como decididas (só aparecem no cartão e na pílula).
- */
-const SITUACAO_CLARA = { sucesso: '#0C6638', atencao: '#804D00', perigo: '#AB152E', informacao: '#1D5FD1', conquista: '#7A2FD0' } as const;
+export const MEIA_NOITE: Cores = comRealce({
+  fundo: '#060912',
+  painel: '#060912',
+  superficie: '#0D1220',
+  superficie2: '#131A2B',
+  superficie3: '#1A2338',
+  faixaForte: '#1E273D',
+  divisor: '#1E2638',
+  borda: '#2C3650',
+  campo: '#131A2B',
+  bordaCampo: '#6C7488',
+  texto: '#EEF2FA',
+  textoSuave: '#A3ADC2',
+  sucesso: '#5FE08A',
+  atencao: '#F1C96B',
+  perigo: '#FF6B5B',
+  informacao: '#4D9BFF',
+  conquista: '#B57BFF',
+  neutro: '#A3A19B',
+  ...pilulasDaSituacao({ sucesso: '#5FE08A', atencao: '#F1C96B', perigo: '#FF6B5B', informacao: '#4D9BFF', conquista: '#B57BFF' }, '#0D1220'),
+  perigoFundo: '#C62828',
+  anelFoco: '#EEF2FA',
+  fase1: '#E7AEC1',
+  fase2: '#7DCFC6',
+  fase3: '#E2C56A',
+  fase4: '#ADBAEB',
+  acao: '#8C9EFF',
+  sobreAcao: '#0B0B0A',
+  acaoSuave: '#1E243D',
+  sombra: 'inset 0px 1px 0px rgba(255,255,255,0.04), 0px 20px 50px rgba(0,0,0,0.35)',
+});
+
+export const OCEANO: Cores = comRealce({
+  fundo: '#050C0F',
+  painel: '#050C0F',
+  superficie: '#0B171B',
+  superficie2: '#112227',
+  superficie3: '#18303A',
+  faixaForte: '#1C343E',
+  divisor: '#1A2C31',
+  borda: '#28414A',
+  campo: '#112227',
+  bordaCampo: '#6F8288',
+  texto: '#ECF6F6',
+  textoSuave: '#9FB6B8',
+  sucesso: '#5FE08A',
+  atencao: '#F1C96B',
+  perigo: '#FF6B5B',
+  informacao: '#4D9BFF',
+  conquista: '#B57BFF',
+  neutro: '#A3A19B',
+  ...pilulasDaSituacao({ sucesso: '#5FE08A', atencao: '#F1C96B', perigo: '#FF6B5B', informacao: '#4D9BFF', conquista: '#B57BFF' }, '#0B171B'),
+  perigoFundo: '#C62828',
+  anelFoco: '#ECF6F6',
+  fase1: '#E7AEC1',
+  fase2: '#7DCFC6',
+  fase3: '#E2C56A',
+  fase4: '#ADBAEB',
+  acao: '#8C9EFF',
+  sobreAcao: '#0B0B0A',
+  acaoSuave: '#1C2939',
+  sombra: 'inset 0px 1px 0px rgba(255,255,255,0.04), 0px 20px 50px rgba(0,0,0,0.35)',
+});
+
+export const AMEIXA: Cores = comRealce({
+  fundo: '#0A070F',
+  painel: '#0A070F',
+  superficie: '#141020',
+  superficie2: '#1A1529',
+  superficie3: '#241D38',
+  faixaForte: '#28203C',
+  divisor: '#241D33',
+  borda: '#342B49',
+  campo: '#1A1529',
+  bordaCampo: '#777087',
+  texto: '#F4F0FA',
+  textoSuave: '#B0A7C2',
+  sucesso: '#5FE08A',
+  atencao: '#F1C96B',
+  perigo: '#FF6B5B',
+  informacao: '#4D9BFF',
+  conquista: '#B57BFF',
+  neutro: '#A3A19B',
+  ...pilulasDaSituacao({ sucesso: '#5FE08A', atencao: '#F1C96B', perigo: '#FF6B5B', informacao: '#4D9BFF', conquista: '#B57BFF' }, '#141020'),
+  perigoFundo: '#C62828',
+  anelFoco: '#F4F0FA',
+  fase1: '#E7AEC1',
+  fase2: '#7DCFC6',
+  fase3: '#E2C56A',
+  fase4: '#ADBAEB',
+  acao: '#8C9EFF',
+  sobreAcao: '#0B0B0A',
+  acaoSuave: '#24223D',
+  sombra: 'inset 0px 1px 0px rgba(255,255,255,0.04), 0px 20px 50px rgba(0,0,0,0.35)',
+});
 
 export const CLARO: Cores = comRealce({
-  // D3 (17/11): página, cartão branco, faixa e poço. Contorno #E4E4E7 → #D9D9DB e borda #B4B4BC → #A7A7AF, o mínimo para
-  // os pisos de 1,4 (contorno × cartão) e 1,7 (borda × página).
-  fundo: '#D9DCE1',
+  fundo: '#FFFFFF',
+  painel: '#F5F6F8',
   superficie: '#FFFFFF',
-  superficie2: '#EEF0F2',
-  superficie3: '#F2F3F5',
-  faixaForte: '#DCDCE0',
-  divisor: '#D9D9DB',
-  borda: '#A7A7AF',
-  campo: '#FFFFFF',
-  bordaCampo: '#71717A',
-  painel: '#D9DCE1',
-  texto: '#09090B',
-  textoSuave: '#52525B',
-  ...SITUACAO_CLARA,
-  neutro: '#616169',
-  ...pilulasDaSituacao(SITUACAO_CLARA, '#FFFFFF'),
+  superficie2: '#F1F3F6',
+  superficie3: '#EAEDF1',
+  faixaForte: '#E3E7EC',
+  divisor: '#E2E5EA',
+  borda: '#CBD0D8',
+  campo: '#F1F3F6',
+  bordaCampo: '#7D8188',
+  texto: '#15181D',
+  textoSuave: '#535B66',
+  sucesso: '#0C6638',
+  atencao: '#804D00',
+  perigo: '#AB152E',
+  informacao: '#1D5FD1',
+  conquista: '#7A2FD0',
+  neutro: '#5B5D63',
+  ...pilulasDaSituacao({ sucesso: '#0C6638', atencao: '#804D00', perigo: '#AB152E', informacao: '#1D5FD1', conquista: '#7A2FD0' }, '#FFFFFF'),
   perigoFundo: '#B71C1C',
-  anelFoco: '#09090B',
+  anelFoco: '#15181D',
   fase1: '#C46B86',
   fase2: '#5E8F8A',
   fase3: '#A67C2E',
   fase4: '#7A86C4',
+  acao: '#3F51D6',
+  sobreAcao: '#FFFFFF',
+  acaoSuave: '#E6E8FA',
+  sombra: '0px 1px 2px rgba(16,24,40,0.05), 0px 12px 28px -16px rgba(16,24,40,0.16)',
 });
 
-/**
- * Situação da Areia: verde, âmbar e vermelho do Claro (D9) escurecidos mais um passo, só o que a página #CDCAC3 pede para
- * o texto da caixa `Alerta` direto nela passar 4,5:1; informação e conquista ficam as decididas.
- */
-const SITUACAO_AREIA = { sucesso: '#0A5931', atencao: '#704300', perigo: '#961329', informacao: '#1D5FD1', conquista: '#7A2FD0' } as const;
-
-/**
- * Areia (D4, 17/11): página `#CDCAC3` (a do exemplo que o Saraiva aprovou em 14/11), cartão e campo brancos, faixa
- * `#EDEBE7`, poço `#F1EFEB` e `faixaForte` `#C3C0B8`. Contorno, borda e texto secundário escurecidos o mínimo para os
- * pisos (contorno × cartão 1,4, borda × página 1,7, texto secundário 4,5:1 sobre a `faixaForte`).
- */
 export const AREIA: Cores = comRealce({
-  ...CLARO,
-  fundo: '#CDCAC3',
-  painel: '#CDCAC3',
+  fundo: '#F3EEE5',
+  painel: '#EDE7DB',
+  superficie: '#FFFCF6',
+  superficie2: '#F4EEE3',
+  superficie3: '#EBE4D6',
+  faixaForte: '#E4DBCB',
+  divisor: '#E0D7C6',
+  borda: '#C9BDA6',
+  campo: '#F4EEE3',
+  bordaCampo: '#827969',
+  texto: '#211C15',
+  textoSuave: '#5E5546',
+  sucesso: '#156A3B',
+  atencao: '#704300',
+  perigo: '#961329',
+  informacao: '#1D5FD1',
+  conquista: '#7A2FD0',
+  neutro: '#5B5D63',
+  ...pilulasDaSituacao({ sucesso: '#156A3B', atencao: '#704300', perigo: '#961329', informacao: '#1D5FD1', conquista: '#7A2FD0' }, '#FFFCF6'),
+  perigoFundo: '#B71C1C',
+  anelFoco: '#211C15',
+  fase1: '#C46B86',
+  fase2: '#5E8F8A',
+  fase3: '#A67C2E',
+  fase4: '#7A86C4',
+  acao: '#3B4BC0',
+  sobreAcao: '#FFFFFF',
+  acaoSuave: '#E6E5EF',
+  sombra: '0px 1px 2px rgba(60,45,20,0.05), 0px 12px 28px -16px rgba(60,45,20,0.22)',
+});
+
+export const CEU: Cores = comRealce({
+  fundo: '#FFFFFF',
+  painel: '#F2F6FA',
   superficie: '#FFFFFF',
-  superficie2: '#F1EFEB',
-  superficie3: '#EDEBE7',
-  faixaForte: '#C3C0B8',
-  divisor: '#DED8CD',
-  borda: '#A0998B',
-  campo: '#FFFFFF',
-  bordaCampo: '#6E6659',
-  textoSuave: '#4C4C54',
-  ...SITUACAO_AREIA,
-  ...pilulasDaSituacao(SITUACAO_AREIA, '#FFFFFF'),
+  superficie2: '#EDF2F8',
+  superficie3: '#E6EDF4',
+  faixaForte: '#DEE7EF',
+  divisor: '#DDE6F0',
+  borda: '#C3D0DF',
+  campo: '#EDF2F8',
+  bordaCampo: '#75808D',
+  texto: '#111A24',
+  textoSuave: '#515C68',
+  sucesso: '#0C6638',
+  atencao: '#804D00',
+  perigo: '#AB152E',
+  informacao: '#1D5FD1',
+  conquista: '#7A2FD0',
+  neutro: '#5B5D63',
+  ...pilulasDaSituacao({ sucesso: '#0C6638', atencao: '#804D00', perigo: '#AB152E', informacao: '#1D5FD1', conquista: '#7A2FD0' }, '#FFFFFF'),
+  perigoFundo: '#B71C1C',
+  anelFoco: '#111A24',
+  fase1: '#C46B86',
+  fase2: '#5E8F8A',
+  fase3: '#A67C2E',
+  fase4: '#7A86C4',
+  acao: '#3F51D6',
+  sobreAcao: '#FFFFFF',
+  acaoSuave: '#E6E8FA',
+  sombra: '0px 1px 2px rgba(20,40,70,0.05), 0px 12px 28px -16px rgba(20,40,70,0.18)',
+});
+
+export const LAVANDA: Cores = comRealce({
+  fundo: '#FFFFFF',
+  painel: '#F5F4FA',
+  superficie: '#FFFFFF',
+  superficie2: '#F1EFF8',
+  superficie3: '#ECE9F4',
+  faixaForte: '#E5E2EF',
+  divisor: '#E5E2F0',
+  borda: '#CDC8DD',
+  campo: '#F1EFF8',
+  bordaCampo: '#817C8D',
+  texto: '#17141F',
+  textoSuave: '#57516A',
+  sucesso: '#0C6638',
+  atencao: '#804D00',
+  perigo: '#AB152E',
+  informacao: '#1D5FD1',
+  conquista: '#7A2FD0',
+  neutro: '#5B5D63',
+  ...pilulasDaSituacao({ sucesso: '#0C6638', atencao: '#804D00', perigo: '#AB152E', informacao: '#1D5FD1', conquista: '#7A2FD0' }, '#FFFFFF'),
+  perigoFundo: '#B71C1C',
+  anelFoco: '#17141F',
+  fase1: '#C46B86',
+  fase2: '#5E8F8A',
+  fase3: '#A67C2E',
+  fase4: '#7A86C4',
+  acao: '#3F51D6',
+  sobreAcao: '#FFFFFF',
+  acaoSuave: '#E6E8FA',
+  sombra: '0px 1px 2px rgba(40,30,70,0.05), 0px 12px 28px -16px rgba(40,30,70,0.18)',
+});
+
+export const ROSA: Cores = comRealce({
+  fundo: '#FFFFFF',
+  painel: '#FAF4F6',
+  superficie: '#FFFFFF',
+  superficie2: '#F7EFF2',
+  superficie3: '#F3E9ED',
+  faixaForte: '#EDE1E6',
+  divisor: '#EEE1E6',
+  borda: '#D8C5CD',
+  campo: '#F7EFF2',
+  bordaCampo: '#8C7C83',
+  texto: '#1E1418',
+  textoSuave: '#64505A',
+  sucesso: '#0C6638',
+  atencao: '#804D00',
+  perigo: '#AB152E',
+  informacao: '#1D5FD1',
+  conquista: '#7A2FD0',
+  neutro: '#5B5D63',
+  ...pilulasDaSituacao({ sucesso: '#0C6638', atencao: '#804D00', perigo: '#AB152E', informacao: '#1D5FD1', conquista: '#7A2FD0' }, '#FFFFFF'),
+  perigoFundo: '#B71C1C',
+  anelFoco: '#1E1418',
+  fase1: '#C46B86',
+  fase2: '#5E8F8A',
+  fase3: '#A67C2E',
+  fase4: '#7A86C4',
+  acao: '#3F51D6',
+  sobreAcao: '#FFFFFF',
+  acaoSuave: '#E6E8FA',
+  sombra: '0px 1px 2px rgba(70,30,45,0.05), 0px 12px 28px -16px rgba(70,30,45,0.18)',
 });
 
 /** Modo de uma paleta: decide a barra de status e o esquema do Uniwind. */
@@ -212,110 +428,6 @@ export type ModoDoTema = 'ESCURO' | 'CLARO';
  * paleta em uso (`PALETAS[...].variante`, `useTema().variante`): nenhuma tela decide a cor por conta própria.
  */
 export type VarianteDoTema = 'claro' | 'areia' | 'escuro';
-
-/**
- * Paleta escura a partir do "chão" dela: texto e situação do Escuro (fixos, nunca da marca), `painel` a 10% do fundo ao
- * cartão (a mesma regra que dá o #0B0B0D do Escuro: mais que isso derruba o cartão abaixo de 1,15:1 sobre o painel) e
- * pílulas tingidas sobre o cartão dela.
- */
-function paletaEscura(chao: Pick<Cores, 'fundo' | 'superficie' | 'superficie2' | 'superficie3' | 'faixaForte' | 'divisor' | 'borda' | 'campo' | 'bordaCampo'>, perigo: string = ESCURO.perigo): Cores {
-  return comRealce({
-    ...ESCURO,
-    ...chao,
-    perigo,
-    painel: misturar(chao.fundo, chao.superficie, 0.1),
-    ...pilulasDaSituacao({ ...ESCURO, perigo }, chao.superficie),
-  });
-}
-
-/**
- * Paletas da marca (`docs/planos/paletas-da-marca.md`, decisão 1 de 03/11): a consultoria escolhe uma da lista em Marca.
- * A paleta muda só o "chão" (fundo, cartão, faixas, divisor, bordas e campo); texto, situação, fases e foco são os do
- * Escuro ou do Claro. Escada de 17/11 (D6), uma regra só por modo:
- * - escuras: cartão e faixa clareiam juntos o mínimo para o cartão chegar a 1,15:1 sobre o painel (Meia-noite 3%,
- *   Ameixa 4%, Oceano 2,5% para o branco; clarear mais deixa mais cores prontas da marca abaixo de 3:1 no cartão), poço e
- *   campo ficam (já eram mais escuros que o cartão), contorno e `faixaForte` clareiam o mínimo para os pisos;
- * - claras: página desce o mesmo que a do Claro (−26/−24/−21) e volta o mínimo para os marcadores (agenda e laranja do
- *   perfil) manterem 3:1 sobre ela (Céu 2%, Lavanda 7%, Rosa 4% para o branco; o cartão fica a 1,37:1), faixa e poço a
- *   34% e 45% do branco à página, campo branco; contorno e borda escurecidos o mínimo para 1,4:1 sobre o cartão e 1,7:1
- *   sobre a página.
- * - o vermelho de perigo das escuras clareia o mínimo onde a faixa e a pílula dela pedem (Meia-noite 1%, Oceano 3%).
- */
-export const MEIA_NOITE: Cores = paletaEscura({
-  fundo: '#080C14',
-  superficie: '#181E29',
-  superficie2: '#060910',
-  superficie3: '#212A39',
-  faixaForte: '#232E42',
-  divisor: '#2E3849',
-  borda: '#49566B',
-  campo: '#060910',
-  bordaCampo: '#7B879B',
-}, '#FF4F6B');
-
-export const AMEIXA: Cores = paletaEscura({
-  fundo: '#0D0914',
-  superficie: '#1F1B2B',
-  superficie2: '#08050D',
-  superficie3: '#2B233B',
-  faixaForte: '#2C2341',
-  divisor: '#3B324E',
-  borda: '#514766',
-  campo: '#08050D',
-  bordaCampo: '#817796',
-});
-
-export const OCEANO: Cores = paletaEscura({
-  fundo: '#071014',
-  superficie: '#152128',
-  superficie2: '#050B0E',
-  superficie3: '#1D2D37',
-  faixaForte: '#1F3440',
-  divisor: '#283B47',
-  borda: '#475C68',
-  campo: '#050B0E',
-  bordaCampo: '#778A95',
-}, '#FF526E');
-
-export const LAVANDA: Cores = comRealce({
-  ...CLARO,
-  fundo: '#DCDBE7',
-  painel: '#DCDBE7',
-  superficie: '#FFFFFF',
-  superficie2: '#EFEFF4',
-  superficie3: '#F3F3F7',
-  faixaForte: '#D6CEE8',
-  divisor: '#DBD5E9',
-  borda: '#ACA5C0',
-  campo: '#FFFFFF',
-  bordaCampo: '#706884',
-});
-export const CEU: Cores = comRealce({
-  ...CLARO,
-  fundo: '#D5DDE6',
-  painel: '#D5DDE6',
-  superficie: '#FFFFFF',
-  superficie2: '#ECF0F4',
-  superficie3: '#F1F3F7',
-  faixaForte: '#CEDCEB',
-  divisor: '#D1DBE6',
-  borda: '#9CAABB',
-  campo: '#FFFFFF',
-  bordaCampo: '#67778A',
-});
-export const ROSA: Cores = comRealce({
-  ...CLARO,
-  fundo: '#E1DAE0',
-  painel: '#E1DAE0',
-  superficie: '#FFFFFF',
-  superficie2: '#F2EEF1',
-  superficie3: '#F5F2F4',
-  faixaForte: '#E6CFD9',
-  divisor: '#E6D3DC',
-  borda: '#BEA2AF',
-  campo: '#FFFFFF',
-  bordaCampo: '#806472',
-});
 
 /** Código da paleta (= `Tema` da API, o `temaPadrao` da consultoria) → nome na tela, cores e modo. Fonte única do modo. */
 export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTema; variante: VarianteDoTema }> = {
@@ -419,10 +531,10 @@ export const TOKENS_STNDRD_ESCURO: TokensStndrd = {
       textOnTint: '#FF4D6D',
     },
   },
-  // 0,91: o `perigo` da barra do editor (`#FF4D6A`) sobre o vidro com branco puro atrás pede isso; `textoSuave`, 0,87.
+  // 0,93 (visual-ponytail, 17/11): o `perigo` e a `bordaCampo` das escuras novas sobre o vidro com branco puro atrás.
   glass: {
     cor: '#141416',
-    opacidade: 0.91,
+    opacidade: 0.93,
     border: 'rgba(255, 255, 255, 0.08)',
     blur: 20,
   },
@@ -472,10 +584,10 @@ export const TOKENS_STNDRD_CLARO: TokensStndrd = {
       capsuleText: '#FF4D6D',
     },
   },
-  // 0,82: a `bordaCampo` do Céu sobre o vidro com preto puro atrás pede isso.
+  // 0,89 (visual-ponytail, 17/11): o `textoSuave` e a `bordaCampo` das claras novas sobre o vidro com preto puro atrás.
   glass: {
     cor: '#FFFFFF',
-    opacidade: 0.82,
+    opacidade: 0.89,
     border: 'rgba(9, 9, 11, 0.08)',
     blur: 20,
   },
@@ -612,6 +724,40 @@ export function coresDeDestaque(cores: Cores, variante: VarianteDoTema): Record<
   return { azul: de(p.azul), ciano: de(p.ciano), violeta: de(p.violeta), verde: de(cores.sucesso), ambar: de(cores.atencao), vermelho: de(cores.perigo) };
 }
 
+/**
+ * Opções da cor de ação em Ajustes (visual-ponytail, 17/11): índigo é o padrão; `MARCA` usa a cor da marca da consultoria.
+ * Os tons já vêm ajustados por variante; `coresDaAcao` ainda escurece (claras) ou clareia (escuras) o mínimo para a cor
+ * passar 4,5:1 sobre o cartão e sobre o próprio fundo do botão de ação.
+ */
+export type CorDeAcao = 'INDIGO' | 'MARCA' | 'AZUL' | 'VERDE_AGUA' | 'VIOLETA' | 'LARANJA';
+
+export const CODIGOS_DA_COR_DE_ACAO: readonly CorDeAcao[] = ['INDIGO', 'MARCA', 'AZUL', 'VERDE_AGUA', 'VIOLETA', 'LARANJA'];
+
+export const NOMES_DA_COR_DE_ACAO: Record<CorDeAcao, string> = {
+  INDIGO: 'Índigo', MARCA: 'Cor da marca', AZUL: 'Azul', VERDE_AGUA: 'Verde-água', VIOLETA: 'Violeta', LARANJA: 'Laranja',
+};
+
+export const PALETA_DA_COR_DE_ACAO: Record<Exclude<CorDeAcao, 'MARCA'>, Record<VarianteDoTema, string>> = {
+  INDIGO: { escuro: '#8C9EFF', claro: '#3F51D6', areia: '#3B4BC0' },
+  AZUL: { escuro: '#5AA9FF', claro: '#1F5FCC', areia: '#1D56B5' },
+  VERDE_AGUA: { escuro: '#3DD6C6', claro: '#086B63', areia: '#0A6E65' },
+  VIOLETA: { escuro: '#C08CFF', claro: '#7A3FD0', areia: '#6E38BD' },
+  LARANJA: { escuro: '#FFA94D', claro: '#A0480A', areia: '#A84C0A' },
+};
+
+/** A cor de ação resolvida para o tema em uso: `acao`, `sobreAcao` (texto sobre ela) e `acaoSuave` (fundo a 13%). */
+export function coresDaAcao(opcao: CorDeAcao, cores: Pick<Cores, 'superficie'>, variante: VarianteDoTema, marca: string): Pick<Cores, 'acao' | 'sobreAcao' | 'acaoSuave'> {
+  const hex = /^#[0-9a-f]{6}$/i;
+  const base = opcao === 'MARCA' && hex.test(marca.trim()) ? marca.trim() : PALETA_DA_COR_DE_ACAO[opcao === 'MARCA' ? 'INDIGO' : opcao][variante];
+  const alvo = luminancia(cores.superficie) < 0.18 ? '#FFFFFF' : '#000000';
+  let acao = base;
+  for (let t = 0; t <= 1.0001; t += 0.02) {
+    acao = misturar(base, alvo, Math.min(t, 1));
+    if (contraste(acao, cores.superficie) >= 4.5 && contraste(acao, misturar(cores.superficie, acao, 0.13)) >= 4.5) break;
+  }
+  return { acao, sobreAcao: textoSobre(acao), acaoSuave: misturar(cores.superficie, acao, 0.13) };
+}
+
 /** Cor neutra para telas sem marca (entrar, cadastro). */
 export const MARCA_NEUTRA = '#52525B';
 /**
@@ -632,10 +778,10 @@ export const CAMADA_DA_FOTO = {
 } as const;
 
 export const espaco = (n: number) => n * 8;
-/** Cantos de 12 px nos cartões, folhas e painéis. */
-export const RAIO = 12;
-/** Cantos de 8 px nos controles: botão, campo, chip, aba, item do menu, item selecionável. */
-export const RAIO_CONTROLE = 8;
+/** Cantos de 20 px nos cartões, folhas e painéis (visual-ponytail, 17/11). */
+export const RAIO = 20;
+/** Cantos de 10 px nos controles: botão, campo, chip, aba, item do menu, item selecionável. */
+export const RAIO_CONTROLE = 10;
 /**
  * Contorno de 1 px (11/11); "bordas reforçadas" sobe para 2 px pelo `useTema().bordas` (`espessurasDasBordas`). Estas
  * constantes são a espessura padrão para quem não lê o tema.
@@ -670,6 +816,9 @@ export const fontes = {
   medio: 'Geist_500Medium',
   semi: 'Geist_600SemiBold',
   negrito: 'Geist_700Bold',
+  /** Geist Mono (visual-ponytail, 17/11): números de indicador, carga, kcal e repetições. */
+  mono: 'GeistMono_500Medium',
+  monoSemi: 'GeistMono_600SemiBold',
   metal: 'MetalMania_400Regular',
   esportiva: 'BebasNeue_400Regular',
   condensada: 'Oswald_700Bold',

@@ -80,7 +80,8 @@ for (const largura of [390, 1280]) {
   test(`cor personalizada: o aviso segue a paleta escolhida em ${largura}px`, async ({ page }) => {
     const { errosDaPagina } = await abrirMarca(page, largura);
     await page.getByRole('radio', { name: /^Cor personalizada/ }).click();
-    await page.getByRole('textbox', { name: 'Cor principal (#RRGGBB)' }).fill('#3A67B5');
+    // visual-ponytail (17/11): com o cartão quase preto do Oceano e do Escuro o azul #3A67B5 já aparece; o Índigo ainda some no Oceano e passa no Escuro.
+    await page.getByRole('textbox', { name: 'Cor principal (#RRGGBB)' }).fill('#4F46E5');
     const aviso = page.getByTestId('aviso-marca-apagada-na-paleta');
     await expect(aviso).toHaveCount(0);
 

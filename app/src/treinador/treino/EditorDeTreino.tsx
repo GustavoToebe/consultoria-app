@@ -320,7 +320,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   });
 
   // Fica visível com o plano vazio e no dia de treino (sem cabeçalho de sessões): é por onde o treino colado entra.
-  const botaoDeColar = <Botao rotulo="Colar treino (Docs / PDF)" tipo="secundario" Icone={FileText} aoTocar={() => setColando(true)} />;
+  const botaoDeColar = <Botao rotulo="Colar treino (Docs / PDF)" tipo="acao" Icone={FileText} aoTocar={() => setColando(true)} />;
 
   const titulo = modelo ? tituloDoModelo(unica ? 'SESSAO_TREINO' : 'PLANO_TREINO') : tituloDoPlanoDoAluno('treino', nomeDoAluno);
   // No modelo o nome é o título (o tipo desce para o subtítulo); sem nome, o título genérico e o campo aberto.

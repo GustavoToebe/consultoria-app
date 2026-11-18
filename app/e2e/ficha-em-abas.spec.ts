@@ -356,7 +356,8 @@ const comPasta = (pasta: PastaResumo, execucoes: unknown[]): RespostasApi => ({
 // Regex, não o texto exato: o "hoje" do app é o de Brasília e o `diaLocal` é o da máquina do teste (UTC na CI).
 const VENCIDA = /^Vencida há [234] dias$/;
 const VENCE = /^Vence em [456] dias$/;
-const numeroDosTreinos = (page: Page) => page.getByText('Treinos registrados', { exact: true }).locator('..');
+// visual-ponytail (17/11): o rótulo ganhou um View com o ponto de cor; a peça é dois níveis acima.
+const numeroDosTreinos = (page: Page) => page.getByText('Treinos registrados', { exact: true }).locator('../..');
 
 for (const largura of [390, 1280]) {
   test(`${largura}px: pasta vencida em vermelho com os dias escritos, no Resumo e na lista; treinos da semana em azul`, async ({ page }) => {
@@ -368,7 +369,9 @@ for (const largura of [390, 1280]) {
     expect(await corDe(selo)).toBe(rgb(CLARO.perigo));
     const numero = numeroDosTreinos(page).getByText('1', { exact: true });
     await expect(numero).toBeVisible();
-    expect(await corDe(numero)).toBe(rgb(AZUL_CLARO));
+    // visual-ponytail (17/11): o número fica em `texto`; a cor da função (azul) vai só no ponto ao lado do rótulo.
+    expect(await corDe(numero)).toBe(rgb(CLARO.texto));
+    expect(await numeroDosTreinos(page).locator('[aria-hidden="true"]').first().evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(rgb(AZUL_CLARO));
     await expect(numeroDosTreinos(page).getByText('nesta semana', { exact: true })).toBeVisible();
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

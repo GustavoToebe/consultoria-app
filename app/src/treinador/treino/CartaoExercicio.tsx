@@ -149,7 +149,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
     <View style={estilos.tituloDasSeries}>
       <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
       {/* Sem séries, "Usar receita" fica no estado vazio do `EditorSeries` (D13), não duas vezes. */}
-      {cardio || !e.series.length ? null : <Botao rotulo="Usar receita" rotuloAcessivel="Usar receita de séries" tipo="destaque" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
+      {cardio || !e.series.length ? null : <Botao rotulo="Usar receita de séries" tipo="acao" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
     </View>
     <EditorSeries cardio={cardio} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
       aoUsarReceita={cardio ? undefined : p.aoUsarReceita}
@@ -204,11 +204,11 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
         </Pressable>
         <View style={[estilos.acoes, largo ? estilos.acoesLargas : estilos.acoesEstreitas]}>
           {largo
-            ? <Botao rotulo="Trocar" rotuloAcessivel={`Trocar ${e.nome || 'o exercício'}`} tipo="secundario" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
+            ? <Botao rotulo="Trocar" rotuloAcessivel={`Trocar ${e.nome || 'o exercício'}`} tipo="acao" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
             : <IconeBotao moldura Icone={ArrowLeftRight} rotulo={`Trocar ${e.nome || 'o exercício'}`} aoTocar={p.aoEscolherDaBiblioteca} />}
           <IconeBotao moldura Icone={ArrowUp} rotulo={`Subir ${e.nome || 'o exercício'}`} desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
           <IconeBotao moldura Icone={ArrowDown} rotulo={`Descer ${e.nome || 'o exercício'}`} desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
-          <IconeBotao moldura Icone={Trash2} rotulo={`Remover ${e.nome || 'o exercício'}`} cor={cores.perigo} aoTocar={p.aoRemover} />
+          <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${e.nome || 'o exercício'}`} Icone={Trash2} aoTocar={p.aoRemover} />
           {p.aoAbrir ? <IconeBotao moldura Icone={p.aberto ? ChevronUp : ChevronDown} rotulo={p.aberto ? 'Fechar exercício' : 'Editar exercício'} aoTocar={p.aoAbrir} /> : null}
         </View>
       </View>

@@ -69,10 +69,11 @@ const baseDaBarra = (page: Page) => page.evaluate(() => {
 test.describe('PC (1280)', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
-  test('tabela de blocos: colunas, variação, blocos × séries e teclado (setas movem o foco, Enter e Espaço escolhem)', async ({ page }) => {
+  test('tabela de blocos: colunas, variação, blocos × séries e teclado (setas movem o foco, Enter e Espaço abrem o bloco)', async ({ page }) => {
     const api = await abrirPlano(page);
     for (const coluna of ['Série', 'Tipo', 'Carga', 'Reps', 'Descanso']) await expect(page.getByText(coluna, { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole('tablist', { name: 'Blocos do exercício' })).toHaveAttribute('aria-orientation', 'vertical');
+    // Visual-ponytail (17/11): sanfona também no PC, com o editor logo abaixo do bloco escolhido.
+    await expect(page.getByRole('group', { name: 'Blocos do exercício' })).toBeVisible();
     await expect(blocos(page)).toHaveCount(3);
     // Supino: 3 FS com % diferentes, 1 WS e 1 Back off.
     await expect(bloco(page, 1)).toHaveAccessibleName(/^Série 1 · FS, 3 séries, repetições .*, Varia entre as séries: carga/);
@@ -82,23 +83,27 @@ test.describe('PC (1280)', () => {
     expect(b!.y).toBeGreaterThan(a!.y + a!.height - 1);
     expect(a!.height).toBeGreaterThanOrEqual(44);
 
+    // Visual-ponytail (17/11): sanfona (botões com `aria-expanded`); as setas movem o foco entre as linhas, Enter e Espaço abrem.
     await bloco(page, 1).focus();
+    await expect(bloco(page, 1)).toHaveAttribute('aria-expanded', 'true');
     await page.keyboard.press('ArrowDown');
-    await expect(bloco(page, 2)).toBeFocused();
     // Ativação manual: o foco andou, a escolha não.
-    await expect(bloco(page, 1)).toHaveAttribute('aria-selected', 'true');
+    await expect(bloco(page, 2)).toBeFocused();
+    await expect(bloco(page, 1)).toHaveAttribute('aria-expanded', 'true');
+    await expect(bloco(page, 2)).toHaveAttribute('aria-expanded', 'false');
     // Foco = anel do teclado; a escolhida tem outro fundo: os dois sinais não se confundem.
+    await page.keyboard.press('Shift');
     expect(await bloco(page, 2).evaluate((e) => parseFloat(getComputedStyle(e).outlineWidth))).toBeGreaterThan(0);
     const fundo = (n: number) => bloco(page, n).evaluate((e) => getComputedStyle(e).backgroundColor);
     expect(await fundo(2)).not.toBe(await fundo(1));
     await page.keyboard.press('Enter');
-    await expect(bloco(page, 2)).toHaveAttribute('aria-selected', 'true');
+    await expect(bloco(page, 2)).toHaveAttribute('aria-expanded', 'true');
+    await expect(bloco(page, 1)).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
     await page.keyboard.press('ArrowDown');
-    // A seta move o foco num `setTimeout` (Radix): sob carga o Espaço chegaria antes e cairia na Série 2.
     await expect(bloco(page, 3)).toBeFocused();
     await page.keyboard.press('Space');
-    await expect(bloco(page, 3)).toHaveAttribute('aria-selected', 'true');
+    await expect(bloco(page, 3)).toHaveAttribute('aria-expanded', 'true');
     expect(api.errosDaPagina).toEqual([]);
   });
 
@@ -122,12 +127,12 @@ test.describe('PC (1280)', () => {
     await expect(bloco(page, 2).locator('svg')).toHaveCount(0);
     await page.getByRole('button', { name: /^Exercício 2 de 7:/ }).click();
     await expect(bloco(page, 2)).toHaveAccessibleName(/, com problema a corrigir$/);
-    await expect(bloco(page, 2)).toHaveAttribute('aria-selected', 'false');
+    await expect(bloco(page, 2)).toHaveAttribute('aria-expanded', 'false');
     await expect(bloco(page, 2).locator('svg')).toHaveCount(1);
     await expect(page.getByText('Pronto para publicar', { exact: true })).toHaveCount(0);
     await estado.click();
     await expect(page.getByRole('button', { name: /^Exercício 2 de 7:/ })).toHaveAttribute('aria-current', 'true');
-    await expect(bloco(page, 2)).toHaveAttribute('aria-selected', 'true');
+    await expect(bloco(page, 2)).toHaveAttribute('aria-expanded', 'true');
     const focado = page.locator(':focus');
     await expect(focado).toHaveAttribute('aria-invalid', 'true');
     const caixa = (await focado.boundingBox())!;
@@ -136,12 +141,11 @@ test.describe('PC (1280)', () => {
     expect(api.errosDaPagina).toEqual([]);
   });
 
-  test('sem pendência, o plano do aluno diz "Pronto para publicar"; distribuição recolhida e totais na sessão', async ({ page }) => {
+  test('sem pendência, o plano do aluno diz "Pronto para publicar"; distribuição sempre à vista e totais na sessão', async ({ page }) => {
     await abrirPlano(page);
     await expect(page.getByText('Pronto para publicar', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/^\d+ exercícios · \d+ séries · \d+ séries de trabalho$/)).toBeVisible();
-    await expect(page.getByText('Séries por tipo', { exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: /^Ver distribuição da sessão/ }).click();
+    // Visual-ponytail (17/11): a distribuição não fica mais recolhida.
     await expect(page.getByText('Séries por tipo', { exact: true })).toBeVisible();
     // "Salvar como dia de treino" mora no ⋯ da sessão.
     await page.getByRole('button', { name: /^Mais ações da sessão/ }).click();

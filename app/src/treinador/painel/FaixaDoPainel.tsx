@@ -54,7 +54,7 @@ export const FaixaDoPainel = forwardRef<View, { titulo: string; descricao?: stri
     const recuo = espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2);
     return (
       <View ref={ref} collapsable={false}
-        style={[estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo },
+        style={[estilos.faixa, { backgroundColor: cores.superficie, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo },
           linha ? { minHeight: Math.max(MINIMA, linha.faixa + 2 * VERTICAL + bordas.bloco) } : null]}>
         <View onLayout={linha ? medirFaixa : undefined} style={estilos.conteudo}>
           <View style={[estilos.titulo, { flexBasis: larguraDoTitulo(fatorTexto) }, linha ? { minHeight: linha.titulo } : null]}>

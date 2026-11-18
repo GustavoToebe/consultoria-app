@@ -65,7 +65,7 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
             </View>
           ))}
           <LinhaDeAcoes>
-            <Botao rotulo="Adicionar orientação" tipo="secundario" Icone={Plus} aoTocar={() => mudar({ orientacoes: [...c.orientacoes, { titulo: '', texto: '' }] })} />
+            <Botao rotulo="Adicionar orientação" tipo="acao" Icone={Plus} aoTocar={() => mudar({ orientacoes: [...c.orientacoes, { titulo: '', texto: '' }] })} />
           </LinhaDeAcoes>
         </Cartao>
       </View>

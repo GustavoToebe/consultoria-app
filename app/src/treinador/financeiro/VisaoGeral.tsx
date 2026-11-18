@@ -216,7 +216,8 @@ function Indicador({ cartao }: { cartao: CartaoDoPainel }) {
           backgroundColor: cores.superficie,
           borderRadius: 16,
           paddingVertical: espaco(1.75),
-          paddingRight: espaco(2),
+          // visual-ponytail (17/11): o número em Geist Mono é mais largo; com texto extra grande "R$ 100.000,00" só cabe inteiro com o recuo direito menor.
+          paddingRight: espaco(1),
           gap: espaco(0.5),
         },
       ]}>

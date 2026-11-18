@@ -126,7 +126,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
     aoRemover={() => aoMudar(removerGrupo(series, g))} /> : null;
   return <View style={estilos.lista} onLayout={medir}>
     {grupos.length > 0 ? <TabelaDeBlocos ativa={uidAberto ?? grupos[0].series[0].uid} aoMudar={definirAberto}
-      empilhado={empilhado} detalhe={empilhado ? editor : null}
+      empilhado={empilhado} detalhe={editor}
       linhas={grupos.map((x, i) => {
         const faltaCarga = !cardio && faltaCargaNoGrupo(validacao.porSerieErros, x);
         const chaveCor = corDoTipoDeSerie(x.series[0].tipo, papelDe(cfg, x.series[0].tipo));
@@ -147,14 +147,13 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
       depois={cheio ? undefined : <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} style={estilos.tracejado} aoTocar={aoNova} />} />
       : <View style={estilos.vazio}>
         <Texto variante="suave">Nenhuma série ainda.</Texto>
-        {aoUsarReceita ? <LinhaDeAcoes><Botao rotulo="Usar receita" rotuloAcessivel="Usar receita de séries" tipo="destaque" Icone={NotebookTabs} aoTocar={aoUsarReceita} /></LinhaDeAcoes> : null}
+        {aoUsarReceita ? <LinhaDeAcoes><Botao rotulo="Usar receita de séries" tipo="acao" Icone={NotebookTabs} aoTocar={aoUsarReceita} /></LinhaDeAcoes> : null}
         {botoesDaNova ?? <LinhaDeAcoes>{nova}</LinhaDeAcoes>}
       </View>}
     {grupos.length > 0 && cheio ? <LinhaDeAcoes>{nova}</LinhaDeAcoes> : null}
     {grupos.length > 0 && novaAberta ? botoesDaNova : null}
     <ErroDoCampo mensagem={validacao.daLista.series} />
     <AvisoDoCampo mensagem={validacao.avisosDaLista.series} />
-    {empilhado ? null : editor}
     {/* "2 blocos · 7 séries": quantidade de blocos e total de séries não se confundem (a coluna Quantidade é do bloco). */}
     {series.length ? <Texto variante="pequeno" numerico>{`Este exercício: ${textoDeBlocosESeries(blocosESeries(series))}`}</Texto> : null}
   </View>;
