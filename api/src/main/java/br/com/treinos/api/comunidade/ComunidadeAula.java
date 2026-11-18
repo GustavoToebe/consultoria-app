@@ -27,9 +27,11 @@ public class ComunidadeAula {
     @Column(name = "video_url", nullable = false, length = 500)
     private String videoUrl;
 
-    @Column(length = 60)
-    private String categoria;
+    /** Nulo = sem playlist. A FK composta (V088) garante que é da mesma consultoria. */
+    @Column(name = "playlist_id")
+    private UUID playlistId;
 
+    /** Posição dentro da playlist (V088); sem playlist vale 0 e a lista desempata pela data. */
     @Column(nullable = false)
     private int ordem;
 
@@ -45,23 +47,30 @@ public class ComunidadeAula {
     protected ComunidadeAula() {}
 
     public ComunidadeAula(String titulo, String descricao, String videoUrl,
-                          String categoria, int ordem, boolean publicada) {
+                          UUID playlistId, int ordem, boolean publicada) {
         this.titulo = titulo;
         this.descricao = descricao;
         this.videoUrl = videoUrl;
-        this.categoria = categoria;
+        this.playlistId = playlistId;
         this.ordem = ordem;
         this.publicada = publicada;
     }
 
     public void atualizar(String titulo, String descricao, String videoUrl,
-                          String categoria, int ordem, boolean publicada) {
+                          UUID playlistId, int ordem, boolean publicada) {
         this.titulo = titulo;
         this.descricao = descricao;
         this.videoUrl = videoUrl;
-        this.categoria = categoria;
+        this.playlistId = playlistId;
         this.ordem = ordem;
         this.publicada = publicada;
+        this.atualizadaEm = Instant.now();
+    }
+
+    /** Muda só a posição (reordenar e lote). */
+    public void posicionar(UUID playlistId, int ordem) {
+        this.playlistId = playlistId;
+        this.ordem = ordem;
         this.atualizadaEm = Instant.now();
     }
 
@@ -70,7 +79,7 @@ public class ComunidadeAula {
     public String getTitulo() { return titulo; }
     public String getDescricao() { return descricao; }
     public String getVideoUrl() { return videoUrl; }
-    public String getCategoria() { return categoria; }
+    public UUID getPlaylistId() { return playlistId; }
     public int getOrdem() { return ordem; }
     public boolean isPublicada() { return publicada; }
     public Instant getCriadaEm() { return criadaEm; }
