@@ -159,12 +159,12 @@ describe('CartaoRefeicao: itens em tabela', () => {
   it('larga, mostra o cabeçalho uma vez, escondido do leitor, e os valores da biblioteca como texto', () => {
     const a = comLargura(montar(umaOpcao, { aoTrocarAlimento: () => undefined }), 1200);
     expect(textos(a).filter((t) => t === 'Alimento')).toHaveLength(1);
-    for (const titulo of ['#', 'Quantidade', 'Unidade', 'Kcal', 'P (g)', 'C (g)', 'G (g)']) expect(textos(a)).toContain(titulo);
+    for (const titulo of ['#', 'Quantidade', 'Unidade', 'Kcal', 'P (g)', 'C (g)', 'G (g)', 'Fibras (g)']) expect(textos(a)).toContain(titulo);
     const cabecalho = a.root.findAll((n) => typeof n.type === 'string' && n.props['aria-hidden'] && n.findAll((f) => f.props.children === 'Alimento').length > 0);
     expect(cabecalho.length).toBeGreaterThan(0);
     // O item da biblioteca: número solto na coluna e uma frase só para o leitor.
     expect(textos(a)).toContain('1,0 g');
-    expect(textos(a)).toContain('Pão fictício: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g');
+    expect(textos(a)).toContain('Pão fictício: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
   });
 
   it('larga, os campos mantêm os nomes de hoje (quantidade, unidade e os valores do item manual)', () => {

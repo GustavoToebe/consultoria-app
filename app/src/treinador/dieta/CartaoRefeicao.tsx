@@ -14,7 +14,6 @@ import {
   recalcularItem,
   semConversao,
   somar,
-  type Totais,
   type TotaisComFibra,
 } from '../../dominio/dieta';
 import { corDaRefeicao } from '../../dominio/corDaSerie';
