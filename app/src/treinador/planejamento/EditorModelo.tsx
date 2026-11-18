@@ -29,6 +29,7 @@ import { Texto } from '../../ui/Texto';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { useCarregar } from '../../ui/useCarregar';
+import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { FolhaReceitas } from '../FolhaReceitas';
 import { metodologiaParaSalvar, problemasDaMetodologia, type MetodologiaEmEdicao } from '../../dominio/edicaoMetodologia';
 import { CartaoMetodologia } from '../marca/CartaoMetodologia';
@@ -52,6 +53,8 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
   const metodologias = useCarregar(r.tipo === 'SERIES' ? 'metodologias' : null, () => listarReceitas('METODOLOGIA'));
   const configDaConsultoria = (metodologias.dados?.[0]?.conteudo as Configuracao | undefined) ?? CONFIGURACAO_PADRAO;
   const pasta = conteudo as ConteudoPastaModelo;
+  // Itens do pacote nascem fechados (um só nasce aberto); o que acaba de entrar no pacote abre. Id = posição na lista.
+  const itensAbertos = useSecoesAbertas(r.tipo === 'PASTA_PLANO' ? pasta.planos.map((_, i) => String(i)) : []);
   const mob = r.tipo === 'MOBILIDADE' ? (conteudo as ConteudoMobilidade) : null;
   const metodologia = r.tipo === 'METODOLOGIA' ? (conteudo as MetodologiaEmEdicao) : null;
   // Séries do modelo: as mesmas regras da publicação (a API as confere também na receita), por campo no editor.
@@ -92,6 +95,7 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
     {r.tipo === 'PASTA_PLANO' ? <Cartao titulo="Planos do pacote" descricao="Cópias dos modelos de semana, dieta e mobilidade. Mudar o modelo original depois não muda o pacote: para atualizar um item, remova e adicione de novo.">
       {pasta.planos.length === 0 ? <Texto variante="suave">Pacote vazio. Adicione uma semana de treino, uma dieta ou uma mobilidade.</Texto> : null}
       {pasta.planos.map((p, i) => <ItemDoPacote key={i} posicao={i} total={pasta.planos.length} plano={p}
+        aberto={itensAbertos.estaAberta(String(i))} aoAlternar={() => itensAbertos.alternar(String(i))}
         aoTitulo={(titulo) => mudarConteudo({ planos: pasta.planos.map((x, n) => n === i ? { ...x, titulo } : x) })}
         aoMover={(d) => mudarConteudo({ planos: mover(pasta.planos, i, d) })}
         aoRemover={() => mudarConteudo({ planos: pasta.planos.filter((_, n) => n !== i) })} />)}
@@ -101,7 +105,7 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
         <NoPlano funcionalidade="MOBILIDADE"><Botao rotulo="Adicionar mobilidade" tipo="acao" Icone={Plus} desabilitado={pasta.planos.length >= 30} motivo="No máximo 30 planos." aoTocar={() => setAdicionar('MOBILIDADE')} /></NoPlano>
       </View>
       {adicionar ? <FolhaReceitas tipo={adicionar} titulo="Adicionar ao pacote" aoFechar={() => setAdicionar(null)} aoUsar={(modelo) => {
-        mudarConteudo({ planos: [...pasta.planos, { titulo: modelo.nome, treino: adicionar === 'PLANO_TREINO' ? normalizarTreino(modelo.conteudo) : null, dieta: adicionar === 'PLANO_DIETA' ? normalizarDieta(modelo.conteudo) : null, mobilidade: adicionar === 'MOBILIDADE' ? mobilidadeParaApi(normalizarMobilidade(modelo.conteudo)) : null }] }); setAdicionar(null);
+        mudarConteudo({ planos: [...pasta.planos, { titulo: modelo.nome, treino: adicionar === 'PLANO_TREINO' ? normalizarTreino(modelo.conteudo) : null, dieta: adicionar === 'PLANO_DIETA' ? normalizarDieta(modelo.conteudo) : null, mobilidade: adicionar === 'MOBILIDADE' ? mobilidadeParaApi(normalizarMobilidade(modelo.conteudo)) : null }] }); itensAbertos.abrir(String(pasta.planos.length)); setAdicionar(null);
       }} /> : null}
     </Cartao> : null}
   </TelaDoEditor>;
@@ -110,16 +114,15 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
 type PlanoDoPacote = ConteudoPastaModelo['planos'][number];
 
 /** Um plano do pacote: linha de resumo (setas movem, chevron abre o título, lixeira remove com confirmação). */
-function ItemDoPacote({ posicao, total, plano: p, aoTitulo, aoMover, aoRemover }: {
-  posicao: number; total: number; plano: PlanoDoPacote; aoTitulo: (t: string) => void; aoMover: (d: -1 | 1) => void; aoRemover: () => void;
+function ItemDoPacote({ posicao, total, plano: p, aberto, aoAlternar, aoTitulo, aoMover, aoRemover }: {
+  posicao: number; total: number; plano: PlanoDoPacote; aberto: boolean; aoAlternar: () => void; aoTitulo: (t: string) => void; aoMover: (d: -1 | 1) => void; aoRemover: () => void;
 }) {
   const { cores } = useTema();
-  const [aberto, setAberto] = useState(false);
   const [removendo, setRemovendo] = useState(false);
   const tipo = p.treino ? 'Semana de treino' : p.mobilidade ? 'Mobilidade' : 'Dieta';
   const partes = p.treino ? p.treino.sessoes.map((x) => x.nome || 'Sessão') : p.mobilidade ? p.mobilidade.secoes.map((sec) => sec.titulo || 'Seção') : p.dieta ? partesDaDieta(p.dieta) : [];
   return <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-    <CabecalhoDoItem titulo={`${posicao + 1}. ${p.titulo || tipo}`} resumo={`${tipo} · ${partes.join(' · ') || 'vazio'}`} aberto={aberto} aoAlternar={() => setAberto((v) => !v)}
+    <CabecalhoDoItem titulo={`${posicao + 1}. ${p.titulo || tipo}`} resumo={`${tipo} · ${partes.join(' · ') || 'vazio'}`} aberto={aberto} aoAlternar={aoAlternar}
       nomeDoItem="plano" posicao={posicao} total={total} aoMover={aoMover}
       remover={<IconeBotao Icone={Trash2} rotulo={`Remover ${p.titulo || tipo} do pacote`} aoTocar={() => setRemovendo(true)} />} />
     {aberto ? <Campo rotulo="Título do plano" valor={p.titulo} maxLength={120} aoMudar={aoTitulo} /> : null}

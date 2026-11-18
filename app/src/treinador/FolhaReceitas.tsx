@@ -18,6 +18,7 @@ import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
+import { useSecoesAbertas } from '../ui/useSecoesAbertas';
 import { metadadosDoModelo } from './planejamento/modelos';
 
 /**
@@ -99,15 +100,11 @@ function ReceitasDeSeries({ receitas, config, seriesAtuais, aoUsar }: {
 }) {
   const colecoes = useCarregar('pastas-modelos', listarPastasModelos);
   const [busca, setBusca] = useState('');
-  const [recolhidas, setRecolhidas] = useState<ReadonlySet<string>>(new Set());
-  // A busca procura em todas as seções e reabre as recolhidas, como no Planejamento.
-  const buscar = (texto: string) => { setBusca(texto); if (texto.trim()) setRecolhidas(new Set()); };
-  const alternar = (chave: string) => setRecolhidas((atual) => {
-    const nova = new Set(atual);
-    if (nova.has(chave)) nova.delete(chave);
-    else nova.add(chave);
-    return nova;
-  });
+  // Seções nascem fechadas (a única nasce aberta); a busca abre as que têm resultado e limpar volta ao de antes. Os ids
+  // são os da lista completa, não os da busca. Cada abertura da folha começa de novo (nada vai ao aparelho).
+  const completas = useMemo(() => agruparReceitasDeSeries(receitas, config), [receitas, config]);
+  const abertas = useSecoesAbertas(completas.map((s) => s.chave));
+  const buscar = (texto: string) => { setBusca(texto); abertas.aoBuscar(texto, agruparReceitasDeSeries(filtrarReceitasDeSeries(receitas, texto, config), config).map((s) => s.chave)); };
   // Sequência e composição de cada receita, calculadas uma vez por lista (os uids de leitura nascem aqui, não vão ao plano).
   const leituras = useMemo(() => new Map(receitas.map((r) => [r.id, { pecas: pecasDaReceita(r.conteudo, config), composicao: composicaoDaReceita(r.conteudo, config), quantas: seriesDaReceita(r.conteudo).length }])), [receitas, config]);
   const nomeDaColecao = useMemo(() => new Map((colecoes.dados ?? []).map((c) => [c.id, c.nome])), [colecoes.dados]);
@@ -118,9 +115,9 @@ function ReceitasDeSeries({ receitas, config, seriesAtuais, aoUsar }: {
       <Campo rotulo="Buscar receita" valor={busca} aoMudar={buscar} placeholder="Nome, tipo ou técnica (ex.: back off, cluster)" autoCorrect={false} />
       {filtradas.length === 0 ? <Vazio texto="Nenhuma receita com essa busca." /> : null}
       {secoes.map((secao) => {
-        const aberto = !recolhidas.has(secao.chave);
+        const aberto = abertas.estaAberta(secao.chave);
         return (
-          <Cartao key={secao.chave} cabecalho={<CabecalhoDeGrupo titulo={secao.titulo} resumo={quantasReceitas(secao.receitas.length)} aberto={aberto} aoAlternar={() => alternar(secao.chave)} acoesJuntas />}>
+          <Cartao key={secao.chave} cabecalho={<CabecalhoDeGrupo titulo={secao.titulo} resumo={quantasReceitas(secao.receitas.length)} aberto={aberto} aoAlternar={() => abertas.alternar(secao.chave)} acoesJuntas />}>
             {aberto ? (
               <View style={estilos.lista}>
                 {secao.receitas.map((r) => (
