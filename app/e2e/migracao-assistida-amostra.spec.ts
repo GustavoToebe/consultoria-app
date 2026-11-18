@@ -160,8 +160,10 @@ for (const largura of [390, 1440]) {
       if (largura < 600) await expect(page.getByText('Etapa 5 de 6 · Amostra')).toBeVisible();
       expect(pedidos.amostra).toEqual(['0']);
 
-      // O primeiro aluno vem aberto: cadastro (ausente é "—", objetivo fica de fora pelo perfil), pesos, treino e dieta.
+      // Os alunos da página vêm fechados (regra de 18/11); aberto o primeiro: cadastro (ausente é "—", objetivo fica de fora pelo perfil), pesos, treino e dieta.
       const primeiro = page.getByTestId('aluno-da-amostra-1');
+      await expect(primeiro).toHaveCount(0);
+      await page.getByRole('button', { name: 'Aluna Fictícia Um, recolhido' }).click();
       await expect(primeiro.getByText('aluna.um@exemplo.com')).toBeVisible();
       await expect(primeiro.getByText('Fica de fora pelo seu perfil.').first()).toBeVisible();
       await expect(primeiro.getByText('3 pesos para gravar; os 2 mais recentes:')).toBeVisible();
@@ -317,6 +319,7 @@ for (const [nome, preferencias] of [['areia', { tema: 'AREIA' }], ['contraste-al
     await ateAPrevia(page);
     await page.getByRole('button', { name: 'Ver a amostra' }).click();
     await expect(page.getByText('Alunos 1 a 5 de 7')).toBeVisible();
+    await page.getByRole('button', { name: 'Aluna Fictícia Um, recolhido' }).click();
     await page.screenshot({ path: testInfo.outputPath(`amostra-1440-${nome}.png`) });
     await page.getByTestId('aluno-da-amostra-1').getByText('Creatina de exemplo · 5 g').scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`amostra-planos-1440-${nome}.png`) });

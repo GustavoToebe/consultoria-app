@@ -207,6 +207,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         titulo="Pastas de plano"
         descricao="Cada pasta junta o treino, a dieta e a mobilidade de um período."
         recolhivel
+        recolhido={false} // único bloco da aba Planos: seção única nasce aberta (design 4.8)
         acoes={<>
           {podeAplicarModelo('PASTA_PLANO', pode) ? <Botao rotulo="Usar pacote" tipo="secundario" Icone={Package} aoTocar={() => setEscolher(true)} /> : null}
           <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Nova pasta" Icone={FolderPlus} aoTocar={() => setModo({ tipo: 'nova' })} /></Permitido>
@@ -524,7 +525,7 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, pastas, aoFechar, aoSalvar
  */
 function OrdemDaRenovacao() {
   return (
-    <Cartao titulo={TITULO_ORDEM_DA_RENOVACAO} nivel={3} recolhivel recolhido>
+    <Cartao titulo={TITULO_ORDEM_DA_RENOVACAO} nivel={3} recolhivel>
       <View style={estilos.passos}>
         {PASSOS_DA_RENOVACAO.map((passo, i) => (
           <View key={passo} style={estilos.passo}>

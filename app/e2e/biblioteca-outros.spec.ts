@@ -88,6 +88,7 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
 
     test('seções do Editar alimento, pares em colunas no PC e empilhados no celular, rodapé visível com o corpo rolado', async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page, COM_CATEGORIAS);
+      await page.getByRole('button', { name: 'Medicamentos, recolhido' }).click();
       await page.getByRole('button', { name: 'Editar Lisdexanfetamina' }).click();
       const folha = page.getByRole('dialog', { name: 'Editar item' });
       for (const secao of ['Identificação', 'Concentração e apresentação', 'Observação']) {
@@ -123,8 +124,35 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
       expect(errosDaPagina).toEqual([]);
     });
 
+    test('categorias nascem fechadas, a busca abre as que casam e limpar volta ao de antes', async ({ page }) => {
+      const { naoTratadas, errosDaPagina } = await abrir(page, COM_CATEGORIAS);
+      await expect(page.getByRole('button', { name: 'Medicamentos, recolhido' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Injetáveis, recolhido' })).toBeVisible();
+      await expect(page.getByText('Testosterona', { exact: true })).toHaveCount(0);
+
+      await page.getByLabel('Buscar em Outros').fill('testo');
+      await expect(page.getByRole('button', { name: 'Injetáveis, aberto' })).toBeVisible();
+      await expect(page.getByText('Testosterona', { exact: true })).toBeVisible();
+
+      await page.getByLabel('Buscar em Outros').fill('');
+      await expect(page.getByRole('button', { name: 'Injetáveis, recolhido' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Medicamentos, recolhido' })).toBeVisible();
+      await expect(page.getByText('Testosterona', { exact: true })).toHaveCount(0);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('uma categoria só nasce aberta', async ({ page }) => {
+      const { naoTratadas, errosDaPagina } = await abrir(page, SEM_CATEGORIAS);
+      await expect(page.getByRole('button', { name: 'Sem categoria, aberto' })).toBeVisible();
+      await expect(page.getByText('Cafeína', { exact: true })).toBeVisible();
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
     test('editar um item existente mantém a categoria dele', async ({ page }) => {
       const { gravados, naoTratadas, errosDaPagina } = await abrir(page, COM_CATEGORIAS);
+      await page.getByRole('button', { name: 'Medicamentos, recolhido' }).click();
       await page.getByRole('button', { name: 'Editar Lisdexanfetamina' }).click();
       const folha = page.getByRole('dialog');
       await expect(folha.getByRole('textbox', { name: 'Categoria (opcional)' })).toHaveValue('Medicamentos');
