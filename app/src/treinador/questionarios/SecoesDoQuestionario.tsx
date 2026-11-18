@@ -29,8 +29,9 @@ type Alvo = { secao: number; pergunta: number };
 interface Props {
   conteudo: ConteudoQuestionario;
   aoMudar: (mudanca: (c: ConteudoQuestionario) => ConteudoQuestionario) => void;
-  /** Ids das perguntas abertas; o pai guarda para poder abrir a que tem problema. */
-  abertas: ReadonlySet<string>;
+  /** Quais perguntas estão abertas; o pai guarda (`useSecoesAbertas`) para poder abrir a nova e a que tem problema. */
+  estaAberta: (id: string) => boolean;
+  todasAbertas: boolean;
   aoAlternar: (id: string) => void;
   aoAlternarTodas: () => void;
   aoAbrir: (id: string) => void;
@@ -43,12 +44,11 @@ interface Props {
  * Seções e perguntas do questionário (molde: `SecoesDeMobilidade`). Cada pergunta é um cartão recolhível, como o
  * exercício no treino; PESO e Data só uma vez, FOTOS até 6. Nada é salvo aqui: o pai guarda o rascunho.
  */
-export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar, aoAlternarTodas, aoAbrir, problemas, somenteLeitura, finalidade = 'ATUALIZACAO' }: Props) {
+export function SecoesDoQuestionario({ conteudo: c, aoMudar, estaAberta, todasAbertas, aoAlternar, aoAlternarTodas, aoAbrir, problemas, somenteLeitura, finalidade = 'ATUALIZACAO' }: Props) {
   const { cores } = useTema();
   const [adicionarEm, setAdicionarEm] = useState<number | null>(null);
   const [removerPerguntaDe, setRemoverPerguntaDe] = useState<Alvo | null>(null);
   const [removerSecaoN, setRemoverSecaoN] = useState<number | null>(null);
-  const todasAbertas = c.secoes.length > 0 && c.secoes.every((s) => s.perguntas.every((p) => abertas.has(p.id)));
   const perguntaARemover = removerPerguntaDe ? c.secoes[removerPerguntaDe.secao]?.perguntas[removerPerguntaDe.pergunta] : undefined;
   const secaoARemover = removerSecaoN === null ? undefined : c.secoes[removerSecaoN];
   const novaSecaoPermissao = podeAdicionarSecao(c);
@@ -83,7 +83,7 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar
         : <EditorDeCondicao conteudo={c} secao={si} condicao={sec.mostrarSe} aoMudar={(m) => aoMudar((x) => alterarCondicaoDaSecao(x, si, m))} />}
       {sec.perguntas.length === 0 ? <Texto variante="suave">Seção sem pergunta. Adicione ao menos uma.</Texto> : null}
       {sec.perguntas.map((p, pi) => <CartaoDaPergunta key={p.id} pergunta={p} conteudo={c} posicao={pi} total={sec.perguntas.length}
-        aberta={abertas.has(p.id)} problemas={problemas.porPergunta.get(p.id) ?? []} secoes={c.secoes.map((s, i) => ({ i, titulo: s.titulo || `Seção ${i + 1}` }))} secaoAtual={si}
+        aberta={estaAberta(p.id)} problemas={problemas.porPergunta.get(p.id) ?? []} secoes={c.secoes.map((s, i) => ({ i, titulo: s.titulo || `Seção ${i + 1}` }))} secaoAtual={si}
         somenteLeitura={somenteLeitura} finalidade={finalidade} podeDuplicar={podeDuplicar(c, si, pi).pode}
         aoAlternar={() => aoAlternar(p.id)}
         aoMudar={(parcial) => aoMudar((x) => alterarPergunta(x, si, pi, parcial))}

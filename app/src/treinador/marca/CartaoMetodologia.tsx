@@ -20,6 +20,7 @@ import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { Texto } from '../../ui/Texto';
+import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { corDoTipoDeSerie } from '../../dominio/corDaSerie';
 import { TEXTO_SEQUENCIA_CLUSTER } from '../../dominio/exemplosDePrescricao';
 import { CamposDaTecnica, ErroDoCampo } from '../treino/CamposDaPrescricao';
@@ -50,7 +51,10 @@ const SECOES = [
 export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = [] }: { configuracao: MetodologiaEmEdicao; aoMudar: (c: MetodologiaEmEdicao) => void; codigosSalvos?: readonly string[] }) {
   const { cores } = useTema();
   const { rolarAte } = useRolagem();
-  const [abertos, setAbertos] = useState<ReadonlySet<string>>(new Set());
+  // Tipos, técnicas e combinações nascem fechados (um só item nasce aberto); o tipo novo e o apontado em "Ir para" abrem.
+  const { estaAberta, alternar, abrir } = useSecoesAbertas([
+    ...c.tipos.map((t) => `tipo:${t.codigo}`), ...c.tecnicas.map((t) => `tecnica:${t.tipo}`), ...(c.combinacoes ?? []).map((k) => `combinacao:${k.tipo}`),
+  ]);
   const [novo, setNovo] = useState<{ nome: string; papel: PapelDaSerie } | null>(null);
   const [folha, setFolha] = useState<'tipos' | 'tecnicas' | 'combinacoes' | null>(null);
   const [desfazer, setDesfazer] = useState<Desfazer<MetodologiaEmEdicao> | null>(null);
@@ -58,8 +62,6 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
   const linhas = listaDeProblemas(c, problemas);
   // Os campos de carga e esforço leem a metodologia só para os nomes; as faixas ainda incompletas em edição não importam.
   const config = c as unknown as Configuracao;
-  const abrir = (alvo: string) => setAbertos((a) => new Set(a).add(alvo));
-  const alternar = (alvo: string) => setAbertos((a) => { const n = new Set(a); if (n.has(alvo)) n.delete(alvo); else n.add(alvo); return n; });
   const ir = (linha: LinhaDeProblema) => { abrir(linha.alvo); rolarAte([chaveDoAlvo(linha.alvo)]); };
   const mudarTipo = (i: number, parte: Partial<TipoEmEdicao>) => aoMudar({ ...c, tipos: c.tipos.map((t, n) => (n === i ? { ...t, ...parte } : t)) });
   const adicionar = () => {
@@ -125,7 +127,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
     </AlvoDeRolagem>
     {c.tipos.map((t, i) => <AlvoDeRolagem key={t.codigo} chave={chaveDoAlvo(`tipo:${t.codigo}`)}>
       <CartaoDoTipo tipo={t} config={config} problemas={problemasDoItem(problemas, 'tipos', i)} posicao={i} total={c.tipos.length}
-        aberto={abertos.has(`tipo:${t.codigo}`)} aoAlternar={() => alternar(`tipo:${t.codigo}`)}
+        aberto={estaAberta(`tipo:${t.codigo}`)} aoAlternar={() => alternar(`tipo:${t.codigo}`)}
         aoMover={(d) => aoMudar({ ...c, tipos: mover(c.tipos, i, d) })}
         aoRemover={() => retirar(`Tipo “${t.nome.trim() || t.codigo}” retirado.`, { ...c, tipos: c.tipos.filter((_, n) => n !== i) })}
         aoMudar={(parte) => mudarTipo(i, parte)} />
@@ -149,7 +151,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
     </AlvoDeRolagem>
     {c.tecnicas.length === 0 ? <Texto variante="suave">{"Nenhuma técnica. As séries ficam só com 'Nenhuma'."}</Texto> : null}
     {c.tecnicas.map((t, i) => <AlvoDeRolagem key={t.tipo} chave={chaveDoAlvo(`tecnica:${t.tipo}`)}>
-      <CartaoDaTecnica tecnica={t} problemas={problemasDoItem(problemas, 'tecnicas', i)} aberto={abertos.has(`tecnica:${t.tipo}`)} aoAlternar={() => alternar(`tecnica:${t.tipo}`)}
+      <CartaoDaTecnica tecnica={t} problemas={problemasDoItem(problemas, 'tecnicas', i)} aberto={estaAberta(`tecnica:${t.tipo}`)} aoAlternar={() => alternar(`tecnica:${t.tipo}`)}
         aoMudar={(nova) => aoMudar({ ...c, tecnicas: c.tecnicas.map((x, n) => (n === i ? nova : x)) })}
         aoRemover={() => retirar(`Técnica “${t.nome.trim() || t.tipo}” retirada.`, { ...c, tecnicas: c.tecnicas.filter((_, n) => n !== i) })} />
     </AlvoDeRolagem>)}
@@ -161,7 +163,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
     </AlvoDeRolagem>
     {(c.combinacoes ?? []).length === 0 ? <Texto variante="suave">{"Nenhuma combinação. O 'Criar grupo' fica indisponível."}</Texto> : null}
     {(c.combinacoes ?? []).map((k, i) => <AlvoDeRolagem key={k.tipo} chave={chaveDoAlvo(`combinacao:${k.tipo}`)}>
-      <CartaoDaCombinacao combinacao={k} problemas={problemasDoItem(problemas, 'combinacoes', i)} aberto={abertos.has(`combinacao:${k.tipo}`)} aoAlternar={() => alternar(`combinacao:${k.tipo}`)}
+      <CartaoDaCombinacao combinacao={k} problemas={problemasDoItem(problemas, 'combinacoes', i)} aberto={estaAberta(`combinacao:${k.tipo}`)} aoAlternar={() => alternar(`combinacao:${k.tipo}`)}
         aoMudar={(nova) => aoMudar({ ...c, combinacoes: (c.combinacoes ?? []).map((x, n) => (n === i ? nova : x)) })}
         aoRemover={() => retirar(`Combinação “${k.nome.trim() || k.tipo}” retirada.`, { ...c, combinacoes: (c.combinacoes ?? []).filter((_, n) => n !== i) })} />
     </AlvoDeRolagem>)}
