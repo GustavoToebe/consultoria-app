@@ -16,7 +16,7 @@ export function HistoricoAtualizacoes() {
   const historico = useCarregar('atualizacoes-aluno',atualizacoesAluno);
   const { recarregar } = historico;
   useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
-  return <Cartao titulo="Atualizações" periodo={historico.dados ? periodoDesdeOPrimeiro(historico.dados.map((a) => a.dataAtualizacao)) : undefined} recolhivel>
+  return <Cartao titulo="Atualizações" periodo={historico.dados ? periodoDesdeOPrimeiro(historico.dados.map((a) => a.dataAtualizacao)) : undefined} recolhivel recolhido={false}>
     {historico.erro ? <MensagemErro texto={textoDoErro(historico.erro)} /> : null}
     {historico.carregando ? <Esqueleto texto="Carregando atualizações" cartoes={1} /> : null}
     {historico.dados?.length === 0 ? <Texto variante="suave">Você ainda não enviou atualizações.</Texto> : null}

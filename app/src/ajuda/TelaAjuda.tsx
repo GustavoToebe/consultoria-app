@@ -22,6 +22,7 @@ import { useRolagem } from '../ui/RolagemComTopo';
 import { sobre } from '../ui/sobre';
 import { Tela } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
+import { useSecoesAbertas } from '../ui/useSecoesAbertas';
 import { buscarNaAjuda, palavrasDaBusca, textoDoResultado } from './busca';
 import { GUIAS, secoesDoGuia, textoDoItem, type Guia, type Publico, type SecaoGuia } from './conteudo';
 import { TutorialGuiado } from './TutorialGuiado';
@@ -72,7 +73,6 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
   const { rolarAte } = useRolagem();
   const [tutorial, setTutorial] = useState(false);
   const [busca, setBusca] = useState('');
-  const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set());
   const [atual, setAtual] = useState(COMECAR);
   const [largura, setLargura] = useState(0);
   const campo = useRef<TextInput>(null);
@@ -81,6 +81,8 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
   const secoes: SecaoGuia[] = secoesDoGuia(guia, retornoHabilitado, vitrineHabilitada, lojaHabilitada).map((s) => ({ ...s, itens: s.itens.map((i) => ({ ...i, texto: textoDoItem(i.texto, cicloHabilitado) })) }));
   const buscando = palavrasDaBusca(busca).length > 0;
   const achado = buscarNaAjuda(secoes, guia.perguntas, busca);
+  // Lista completa (não a filtrada pela busca): as seções nascem fechadas e a busca abre as que casaram.
+  const secoesAbertas = useSecoesAbertas([...secoes.map((s) => s.id), ...(guia.perguntas.length ? [PERGUNTAS] : [])]);
   const comPrimeirosPassos = publico === 'aluno' || temPrimeirosPassos({ pode, administrador: !!perfilEquipe?.acessoTotal });
 
   const topicos: Topico[] = [
@@ -91,24 +93,17 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
 
   const buscar = (texto: string) => {
     setBusca(texto);
-    // Buscar abre tudo o que casou (inclusive o que estava recolhido); limpar deixa aberto o que estava.
-    if (palavrasDaBusca(texto).length) {
-      const r = buscarNaAjuda(secoes, guia.perguntas, texto);
-      setAbertas(new Set([...r.secoes.map((s) => s.id), ...(r.perguntas.length ? [PERGUNTAS] : [])]));
-    }
+    // Buscar abre exatamente o que casou; sem palavras (campo vazio) volta ao estado de antes da busca.
+    const r = buscarNaAjuda(secoes, guia.perguntas, texto);
+    secoesAbertas.aoBuscar(palavrasDaBusca(texto).join(' '), [...r.secoes.map((s) => s.id), ...(r.perguntas.length ? [PERGUNTAS] : [])]);
   };
   const limpar = () => {
-    setBusca('');
+    buscar('');
     campo.current?.focus();
   };
-  const alternar = (id: string) => setAbertas((atuais) => {
-    const novas = new Set(atuais);
-    if (!novas.delete(id)) novas.add(id);
-    return novas;
-  });
   const irPara = (id: string) => {
     setAtual(id);
-    setAbertas((atuais) => (atuais.has(id) ? atuais : new Set([...atuais, id])));
+    secoesAbertas.abrir(id);
     rolarAte([alvo(id)]);
   };
 
@@ -154,7 +149,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
       ) : null}
       {achado.secoes.map((s) => (
         <AlvoDeRolagem key={s.id} chave={alvo(s.id)}>
-          <SecaoRecolhivel titulo={s.titulo} quantos={s.itens.length} aberta={abertas.has(s.id)} aoAlternar={() => alternar(s.id)}>
+          <SecaoRecolhivel titulo={s.titulo} quantos={s.itens.length} aberta={secoesAbertas.estaAberta(s.id)} aoAlternar={() => secoesAbertas.alternar(s.id)}>
             <VideosDaSecao videos={videos[publico][s.id]} />
             {s.itens.map((item) => (
               <View key={item.titulo} style={estilos.item}>
@@ -168,7 +163,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
       {achado.perguntas.length ? (
         <AlvoDeRolagem chave={alvo(PERGUNTAS)}>
           <SecaoRecolhivel titulo="Perguntas frequentes" quantos={achado.perguntas.length} unidade="pergunta"
-            aberta={abertas.has(PERGUNTAS)} aoAlternar={() => alternar(PERGUNTAS)}>
+            aberta={secoesAbertas.estaAberta(PERGUNTAS)} aoAlternar={() => secoesAbertas.alternar(PERGUNTAS)}>
             {achado.perguntas.map((p: Pergunta) => (
               <View key={p.pergunta} style={estilos.item}>
                 <Texto variante="rotulo" nivel={3}>{p.pergunta}</Texto>
@@ -210,7 +205,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
   );
 }
 
-/** Seção de "Consultar": cartão com a faixa recolhível; recolhida por padrão, a busca e o índice a abrem. */
+/** Seção de "Consultar": cartão com a faixa recolhível; nasce fechada (regra de 18/11); a busca e o índice a abrem, e limpar a busca volta ao de antes. */
 function SecaoRecolhivel({ titulo, quantos, unidade = 'assunto', aberta, aoAlternar, children }: {
   titulo: string; quantos: number; unidade?: 'assunto' | 'pergunta'; aberta: boolean; aoAlternar: () => void; children: ReactNode;
 }) {
