@@ -2,13 +2,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ReactNode, RefObject } from 'react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { router, Slot, usePathname, type Href } from 'expo-router';
-import { PanelLeftClose, PanelLeftOpen, type LucideIcon } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, PanelLeftClose, PanelLeftOpen, type LucideIcon } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { urlDaApi } from '../api/cliente';
-import { gruposDoMenu, rotuloCurtoDoMenu, type GrupoDoMenu } from '../dominio/gruposDoMenu';
+import {
+  alternarGrupoRecolhido,
+  gruposDoMenu,
+  gruposRecolhidos,
+  posicaoNoMenu,
+  resumoDoGrupoRecolhido,
+  rotuloCurtoDoMenu,
+  type GrupoDoMenu,
+} from '../dominio/gruposDoMenu';
 import { mesmaTela } from '../dominio/mesmaTela';
 import type { Marca } from '../api/tipos';
 import { NOME_DO_PRODUTO } from '../dominio/produto';
@@ -79,9 +87,10 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   conta?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
-  const { cores, bordas, stndrd: stndrdTema } = useTema();
+  const { cores, bordas, stndrd: stndrdTema, preferencias, escolherPreferencia } = useTema();
   const stndrd = stndrdTema ?? TOKENS_STNDRD_ESCURO;
   const { marca } = useSessao();
+  const caminho = usePathname();
   const lateral = !sempreInferior && width >= LARGURA_MENU_LATERAL;
   // Entre 768 e 1023 o menu é só um trilho de ícones: não há largura para menu aberto e conteúdo.
   const trilho = width < LARGURA_MENU_EXPANDIDO;
@@ -109,20 +118,32 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   if (lateral) {
     const comDica = recolhido && !trilho;
     // Grupos (N29): título no menu aberto; no trilho, um fio. O leitor de tela ouve o nome do grupo nos dois.
-    const blocos = gruposDoMenu(itens.filter((item) => !item.soCelular)).map((bloco, i) => (
-      <View key={bloco.grupo ?? ''} role={bloco.grupo ? 'group' : undefined} aria-label={bloco.grupo} style={estilos.bloco}>
-        {!bloco.grupo ? null : recolhido ? (
-          i > 0 ? <View style={[estilos.fio, { backgroundColor: cores.divisor }]} /> : null
-        ) : (
-          // Título discreto, como na prévia: 12 px em peso médio, sem caixa alta.
-          <Texto variante="secao" aria-hidden numberOfLines={2} style={estilos.tituloGrupo}>{bloco.grupo}</Texto>
-        )}
-        {bloco.itens.map((item) => (
-          <ItemNavegacao key={item.caminho} item={item} lateral recolhido={recolhido} trilho={trilho}
-            aoMostrarDica={comDica ? mostrarDica : undefined} aoEsconderDica={comDica ? esconderDica : undefined} />
-        ))}
-      </View>
-    ));
+    const doMenu = gruposDoMenu(itens.filter((item) => !item.soCelular));
+    // Só o menu aberto recolhe grupo (D1); o da tela aberta nunca fica recolhido (D3) e o título dele não vira botão.
+    const grupoDaTela = posicaoNoMenu(caminho)?.grupo;
+    const fechados = recolhido ? [] : gruposRecolhidos(preferencias.gruposRecolhidos, doMenu.map((b) => b.grupo), grupoDaTela);
+    const blocos = doMenu.map((bloco, i) => {
+      const grupo = bloco.grupo;
+      const fechado = !!grupo && fechados.includes(grupo);
+      let titulo: ReactNode = null;
+      if (grupo && recolhido) titulo = i > 0 ? <View style={[estilos.fio, { backgroundColor: cores.divisor }]} /> : null;
+      else if (grupo && grupo === grupoDaTela) titulo = <TituloDoGrupo grupo={grupo} />;
+      else if (grupo) {
+        titulo = (
+          <TituloDoGrupo grupo={grupo} fechado={fechado} resumo={fechado ? resumoDoGrupoRecolhido(bloco.itens) : undefined}
+            aoAlternar={() => escolherPreferencia({ gruposRecolhidos: alternarGrupoRecolhido(preferencias.gruposRecolhidos, grupo) })} />
+        );
+      }
+      return (
+        <BlocoDoMenu key={grupo ?? ''} grupo={grupo} fechado={fechado} titulo={titulo}>
+          {/* Recolhido, os itens saem da árvore (não só da vista): o passeio deixa de apontar para eles sozinho. */}
+          {fechado ? null : bloco.itens.map((item) => (
+            <ItemNavegacao key={item.caminho} item={item} lateral recolhido={recolhido} trilho={trilho}
+              aoMostrarDica={comDica ? mostrarDica : undefined} aoEsconderDica={comDica ? esconderDica : undefined} />
+          ))}
+        </BlocoDoMenu>
+      );
+    });
     menuLateral = (
       <ContextoDoMenu.Provider value={menu}>
         <SafeAreaView edges={['top', 'bottom', 'left']}
@@ -140,7 +161,7 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
               barra de rolagem aparece só no menu aberto: nos trilhos ela comeria a largura dos ícones e dos rótulos. */}
           <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!recolhido}
             onScroll={comDica ? medirDica : undefined} scrollEventThrottle={32}
-            contentContainerStyle={[estilos.blocos, !recolhido && estilos.blocosAbertos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
+            contentContainerStyle={[estilos.blocos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
           {conta ? <View style={[estilos.rodapeDoMenu, { borderTopColor: cores.divisor }]}>{conta}</View> : null}
           {!trilho && dicaAtual ? (
             <View pointerEvents="none" accessible={false} style={[estilos.dica, { left: larguraDoMenu + 4, top: dicaAtual.topo, backgroundColor: cores.texto }]}>
@@ -249,6 +270,70 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, aoMostrarDica, aoEsco
           <Texto numerico style={[estilos.textoContagem, { color: cores.texto }]}>{inteiroComMilhar(contagem.numero)}</Texto>
         </View>
       ) : null}
+    </Pressable>
+  );
+}
+
+/** Um grupo do menu lateral (`role="group"` com o nome do grupo; o Início, sem grupo, fica num bloco sem nome). */
+function BlocoDoMenu({ grupo, fechado, titulo, children }: { grupo?: GrupoDoMenu; fechado: boolean; titulo: ReactNode; children: ReactNode }) {
+  const no = useRef<View | null>(null);
+  // Foco num item do grupo quando ele recolhe sem ser pelo botão (Voltar do navegador para uma tela de outro grupo): o item
+  // sai da árvore e o foco cairia no `body`; ele vai para o botão do grupo. Recolher pelo botão não mexe (o foco já está
+  // nele). A marca cai quando o foco passa para outro elemento (o `relatedTarget` do blur); a remoção do item não tem um.
+  const focoDentro = useRef(false);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !fechado || !focoDentro.current) return;
+    focoDentro.current = false;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    (no.current as unknown as HTMLElement | null)?.querySelector<HTMLElement>('[aria-expanded]')?.focus();
+  }, [fechado]);
+  return (
+    <View ref={no} role={grupo ? 'group' : undefined} aria-label={grupo} style={estilos.bloco}
+      onFocus={grupo ? () => { focoDentro.current = true; } : undefined}
+      onBlur={grupo ? (e) => { if ('relatedTarget' in e.nativeEvent && e.nativeEvent.relatedTarget) focoDentro.current = false; } : undefined}>
+      {titulo}
+      {children}
+    </View>
+  );
+}
+
+/**
+ * Título do grupo no menu aberto (plano `menu-grupos-recolhiveis`, D6). Com `aoAlternar` é o botão que recolhe e abre
+ * (seta para cima = aberto, para baixo = recolhido; `aria-expanded`; nome "Recolher X" / "Abrir X"). Recolhido, mostra o
+ * que os itens mostrariam: a soma das contagens (zero não aparece) ou o ponto, e o nome acessível diz as contagens. Sem
+ * `aoAlternar` (o grupo da tela aberta, que nunca recolhe) é só o título, na mesma caixa. Abre e fecha sem animação.
+ */
+function TituloDoGrupo({ grupo, fechado = false, resumo, aoAlternar }: {
+  grupo: GrupoDoMenu;
+  fechado?: boolean;
+  resumo?: ReturnType<typeof resumoDoGrupoRecolhido>;
+  aoAlternar?: () => void;
+}) {
+  const { cores } = useTema();
+  const texto = <Texto variante="secao" aria-hidden numberOfLines={2} style={estilos.textoGrupo}>{grupo}</Texto>;
+  if (!aoAlternar) return <View style={estilos.tituloGrupo}>{texto}</View>;
+  const numero = resumo?.numero ?? 0;
+  const ponto = numero <= 0 && !!resumo?.ponto;
+  const sinais = numero > 0 ? (resumo?.partes ?? []).map((p) => `${inteiroComMilhar(p.numero)} ${p.descricao}`) : ponto ? ['pendência'] : [];
+  const Seta = fechado ? ChevronDown : ChevronUp;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={[`${fechado ? 'Abrir' : 'Recolher'} ${grupo}`, ...sinais].join(', ')}
+      accessibilityState={{ expanded: !fechado }}
+      aria-expanded={!fechado}
+      onPress={aoAlternar}
+      style={(estado) => [estilos.tituloGrupo, sobre(estado) && { backgroundColor: cores.superficie2 }]}>
+      {texto}
+      <View style={estilos.sinaisDoGrupo}>
+        {numero > 0 ? (
+          <View aria-hidden style={[estilos.contagem, { borderColor: cores.divisor }]}>
+            <Texto numerico style={[estilos.textoContagem, { color: cores.texto }]}>{inteiroComMilhar(numero)}</Texto>
+          </View>
+        ) : null}
+        {ponto ? <View aria-hidden style={[estilos.pontoNoTitulo, { backgroundColor: cores.atencao }]} /> : null}
+        <Seta size={16} color={cores.textoSuave} strokeWidth={2} style={estilos.setaGrupo} />
+      </View>
     </Pressable>
   );
 }
@@ -405,10 +490,29 @@ const estilos = StyleSheet.create({
   // O anel de foco (2 px + 2 px de folga) fica por fora do item: sem esta folga a rolagem o cortaria nas bordas.
   folgaDoFoco: { padding: espaco(0.5) },
   blocos: { gap: espaco(0.5) },
-  // Menu aberto: 12 px entre os grupos, sem folga somada em cima do título (prévia: 16 entre grupos, 6 sob o título).
-  blocosAbertos: { gap: espaco(1.5) },
   bloco: { gap: espaco(0.5) },
-  tituloGrupo: { paddingHorizontal: espaco(1.5), paddingBottom: 2, textTransform: 'none', letterSpacing: 0, fontFamily: fontes.medio },
+  // Título do grupo no menu aberto: alvo de 44 com o texto embaixo, perto dos itens dele; o espaço de cima separa os grupos
+  // (cerca de 28 px do item anterior ao texto, 8 do texto ao primeiro item). Sem folga extra entre os blocos.
+  tituloGrupo: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    // O nome nunca quebra no meio da palavra: se nome, contagem e seta não cabem (texto Extra com número grande), a
+    // contagem e a seta descem para a linha de baixo, à direita. Folgas curtas para isso quase nunca acontecer.
+    flexWrap: 'wrap',
+    alignContent: 'flex-end',
+    columnGap: espaco(0.5),
+    rowGap: 2,
+    minHeight: ALVO_TOQUE,
+    paddingLeft: espaco(1.5),
+    paddingRight: espaco(1),
+    paddingBottom: espaco(0.5),
+    borderRadius: RAIO_CONTROLE,
+  },
+  textoGrupo: { flexGrow: 1, flexShrink: 0, textTransform: 'none', letterSpacing: 0, fontFamily: fontes.medio },
+  sinaisDoGrupo: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(0.5), marginLeft: 'auto' },
+  // O ponto do grupo recolhido fica na linha do título (o do item mora no canto do ícone).
+  pontoNoTitulo: { width: 9, height: 9, borderRadius: 5, marginBottom: 4 },
+  setaGrupo: { marginBottom: 1 },
   fio: { height: 1, marginVertical: espaco(0.5), marginHorizontal: espaco(1) },
   // Menu aberto: a busca ocupa o que sobra e o recolher fica à direita dela; minimizado, um embaixo do outro.
   acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), marginBottom: espaco(1) },

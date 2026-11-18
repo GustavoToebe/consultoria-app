@@ -18,7 +18,8 @@ async function abrir(page: Page, largura: number, altura: number, permissoes = T
     'GET /painel': { corpo: { atualizacoesParaRevisar: contagens.revisar } },
   });
   await page.goto('/treinador/ajuda');
-  await expect(menu(page).getByRole('link', { name: 'Alunos', exact: true })).toBeVisible();
+  // Qualquer item serve: com grupos recolhidos, Alunos pode não estar na lista.
+  await expect(menu(page).getByRole('link').first()).toBeVisible();
   return { errosDaPagina };
 }
 
@@ -286,6 +287,137 @@ test('PC minimizado em janela baixa (1280×720): o "Expandir" fica à vista e a 
   await expect(menu(page).getByText('Negócio', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Minimizar menu' })).toBeInViewport({ ratio: 1 });
   expect(errosDaPagina).toEqual([]);
+});
+
+// Grupos recolhíveis (docs/planos/menu-grupos-recolhiveis.md): só no menu aberto, escolha guardada no aparelho.
+const botaoDoGrupo = (page: Page, acao: 'Recolher' | 'Abrir', grupo: string) =>
+  menu(page).getByRole('button', { name: new RegExp(`^${acao} ${grupo}(,|$)`) });
+const comGruposRecolhidos = (page: Page, grupos: string[]) =>
+  page.addInitScript(([id, g]) => {
+    const chave = `treinos:${id}:preferencias`;
+    if (localStorage.getItem(chave) === null) localStorage.setItem(chave, JSON.stringify({ gruposRecolhidos: g }));
+  }, [TREINADOR.id, grupos] as const);
+
+test('PC (1280): recolher um grupo esconde os itens, mostra a contagem no título e continua recolhido ao recarregar', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, 900, TODAS, {}, { revisar: 3, novas: 1 });
+  const recolher = botaoDoGrupo(page, 'Recolher', 'Acompanhamento');
+  await expect(recolher).toHaveAttribute('aria-expanded', 'true');
+  const caixa = await recolher.boundingBox();
+  expect(caixa!.height).toBeGreaterThanOrEqual(44);
+  await recolher.click();
+  // O mesmo botão, agora "Abrir", com a soma das contagens no nome e o número visível no título; os itens saem.
+  const abrirGrupo = menu(page).getByRole('button', { name: 'Abrir Acompanhamento, 3 para revisar', exact: true });
+  await expect(abrirGrupo).toHaveAttribute('aria-expanded', 'false');
+  await expect(abrirGrupo).toBeFocused();
+  await expect(abrirGrupo.getByText('3', { exact: true })).toBeVisible();
+  await expect(menu(page).getByRole('link', { name: 'Alunos', exact: true })).toHaveCount(0);
+  await expect(menu(page).getByRole('group', { name: 'Acompanhamento' })).toHaveCount(1);
+
+  await page.reload();
+  await expect(menu(page).getByRole('link', { name: 'Biblioteca', exact: true })).toBeVisible();
+  await expect(botaoDoGrupo(page, 'Abrir', 'Acompanhamento')).toHaveAttribute('aria-expanded', 'false');
+  await expect(menu(page).getByRole('link', { name: 'Alunos', exact: true })).toHaveCount(0);
+
+  // Pelo teclado: Enter abre, Espaço recolhe de novo, e o foco fica no botão.
+  await botaoDoGrupo(page, 'Abrir', 'Acompanhamento').focus();
+  await page.keyboard.press('Enter');
+  await expect(botaoDoGrupo(page, 'Recolher', 'Acompanhamento')).toBeFocused();
+  await expect(menu(page).getByRole('link', { name: 'Alunos', exact: true })).toBeVisible();
+  await page.keyboard.press('Space');
+  await expect(botaoDoGrupo(page, 'Abrir', 'Acompanhamento')).toBeFocused();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PC (1280): o nome do grupo recolhido diz a contagem (plural) e, sem nada pendente, é só "Abrir X"', async ({ page }) => {
+  await comGruposRecolhidos(page, ['Negócio', 'Conteúdo']);
+  const { errosDaPagina } = await abrir(page, 1280, 900, TODAS, {}, { revisar: 0, novas: 2 });
+  await expect(menu(page).getByRole('button', { name: 'Abrir Negócio, 2 inscrições novas', exact: true })).toBeVisible();
+  await expect(menu(page).getByRole('button', { name: 'Abrir Conteúdo', exact: true })).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
+
+for (const largura of [1024, 1280]) {
+  test(`PC (${largura}), texto Extra e contagem de três dígitos: o nome do grupo recolhido não quebra no meio`, async ({ page }) => {
+    await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tamanhoTexto: 'EXTRA', gruposRecolhidos: ['Acompanhamento'] })), TREINADOR.id);
+    const { errosDaPagina } = await abrir(page, largura, 900, TODAS, {}, { revisar: 128, novas: 0 });
+    const botao = menu(page).getByRole('button', { name: 'Abrir Acompanhamento, 128 para revisar', exact: true });
+    await expect(botao.getByText('128', { exact: true })).toBeVisible();
+    const nome = botao.getByText('Acompanhamento', { exact: true });
+    const linhas = await nome.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+    expect(linhas).toBe(1);
+    expect(await nome.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('PC (1280): a tela aberta num grupo recolhido abre o grupo, sem botão; ao sair dela o grupo volta a recolher', async ({ page }) => {
+  await comGruposRecolhidos(page, ['Negócio']);
+  const { errosDaPagina } = await abrir(page, 1280, 900, TODAS, {}, { revisar: 0, novas: 1 });
+  // Na Ajuda (Configurações) o grupo da tela não vira botão: ele nunca recolhe (D3).
+  await expect(menu(page).getByRole('button', { name: /^(Recolher|Abrir) Configurações/ })).toHaveCount(0);
+  await expect(menu(page).getByText('Configurações', { exact: true })).toBeVisible();
+  await expect(menu(page).getByRole('link', { name: 'Interessados', exact: true })).toHaveCount(0);
+
+  // Pela busca (navegação dentro do app) até uma tela de Negócio: o grupo abre e o item fica ativo.
+  await page.keyboard.press('Control+k');
+  const folha = page.getByRole('dialog', { name: 'Buscar' });
+  await folha.getByRole('searchbox', { name: 'Buscar tela ou ação' }).fill('interessados');
+  await folha.getByRole('link', { name: /^Interessados, / }).first().click();
+  const interessados = menu(page).getByRole('link', { name: /^Interessados/ });
+  await expect(interessados).toHaveAttribute('aria-current', 'page');
+  await expect(menu(page).getByRole('button', { name: /^(Recolher|Abrir) Negócio/ })).toHaveCount(0);
+
+  // Voltando pelo navegador com o foco num item de Negócio: o grupo recolhe e o foco vai para o botão dele.
+  await menu(page).getByRole('link', { name: 'Financeiro', exact: true }).focus();
+  await page.goBack();
+  await expect(menu(page).getByRole('link', { name: 'Ajuda', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(menu(page).getByRole('link', { name: 'Financeiro', exact: true })).toHaveCount(0);
+  await expect(botaoDoGrupo(page, 'Abrir', 'Negócio')).toBeFocused();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PC (1280×720): com os grupos recolhidos a lista cabe sem rolar; a busca e a conta ficam onde estavam', async ({ page }) => {
+  await comGruposRecolhidos(page, ['Acompanhamento', 'Conteúdo', 'Negócio']);
+  const { errosDaPagina } = await abrir(page, 1280, 720);
+  const lista = page.locator('#rolagem-do-menu');
+  await expect(botaoDoGrupo(page, 'Abrir', 'Negócio')).toBeVisible();
+  expect(await lista.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true);
+  await expect(botaoDaBusca(page)).toBeInViewport({ ratio: 1 });
+  await expect(botaoDaConta(page)).toBeInViewport({ ratio: 1 });
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('passeio com um grupo recolhido: os passos dos itens escondidos saem, sem abrir o grupo nem mudar a escolha', async ({ page }) => {
+  await comGruposRecolhidos(page, ['Negócio']);
+  await abrir(page, 1280, 900, TODAS, { passeioVisto: false });
+  const passeio = page.getByRole('dialog');
+  await expect(passeio.getByText('Boas-vindas')).toBeVisible();
+  const passos: string[] = [];
+  for (let i = 0; i < 20; i++) {
+    const nome = ((await passeio.getAttribute('aria-label')) ?? '').replace('Passeio pelo menu: ', '');
+    passos.push(nome);
+    const proximo = passeio.getByRole('button', { name: 'Próximo' });
+    if (!(await proximo.count())) break;
+    await proximo.click();
+    await expect(passeio).not.toHaveAttribute('aria-label', `Passeio pelo menu: ${nome}`);
+  }
+  expect(passos).toContain('Alunos');
+  for (const escondido of ['Interessados', 'Financeiro', 'Números']) expect(passos).not.toContain(escondido);
+  await expect(botaoDoGrupo(page, 'Abrir', 'Negócio')).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('trilho (900) e PC minimizado: nenhum botão de grupo e todos os itens à vista, mesmo com grupo recolhido', async ({ page }) => {
+  await comGruposRecolhidos(page, ['Negócio']);
+  await abrir(page, 900, 720);
+  await expect(menu(page).getByRole('button', { name: /^(Recolher|Abrir) / })).toHaveCount(0);
+  await expect(menu(page).getByRole('link', { name: 'Financeiro', exact: true })).toHaveCount(1);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(botaoDoGrupo(page, 'Abrir', 'Negócio')).toBeVisible();
+  await page.getByRole('button', { name: 'Minimizar menu' }).click();
+  await expect(menu(page).getByRole('button', { name: /^(Recolher|Abrir) / })).toHaveCount(0);
+  await expect(menu(page).getByRole('link', { name: 'Financeiro', exact: true })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Expandir menu' }).click();
 });
 
 test('celular (390): a barra inferior é a de antes, sem grupos', async ({ page }) => {
