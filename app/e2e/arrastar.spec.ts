@@ -13,9 +13,9 @@ import { json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from
 const PLANO_ID = 'p0000000-0000-4000-8000-0000000000b1';
 const ALUNO_ID = 'a0000000-0000-4000-8000-0000000000b2';
 
-const refeicao = (uid: string, nome: string, horario: string): ConteudoDieta['refeicoes'][number] => ({
+const refeicao = (uid: string, nome: string, horario: string, alimentos = ['Alimento fictício']): ConteudoDieta['refeicoes'][number] => ({
   uid, nome, horario, observacao: null, modoDePreparo: null,
-  opcoes: [{ uid: `${uid}-a`, rotulo: 'A', itens: [{ uid: `${uid}-i`, alimentoId: null, nome: 'Alimento fictício', quantidade: 100, unidade: 'g', kcal: 120, proteina: 5, carboidrato: 20, gordura: 2, manual: false }] }],
+  opcoes: [{ uid: `${uid}-a`, rotulo: 'A', itens: alimentos.map((a, i) => ({ uid: `${uid}-i${i}`, alimentoId: null, nome: a, quantidade: 100, unidade: 'g' as const, kcal: 120, proteina: 5, carboidrato: 20, gordura: 2, manual: false })) }],
 });
 
 const DIETA: PlanoDetalhe<ConteudoDieta> = {
@@ -26,7 +26,7 @@ const DIETA: PlanoDetalhe<ConteudoDieta> = {
   rascunho: {
     objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, aguaLitros: null, variacoes: [],
     suplementacao: [], ergogenicos: [],
-    refeicoes: [refeicao('cafe', 'Café da manhã', '07:00'), refeicao('almoco', 'Almoço', '12:00'), refeicao('jantar', 'Jantar', '19:00')],
+    refeicoes: [refeicao('cafe', 'Café da manhã', '07:00', ['Pão fictício', 'Leite fictício', 'Fruta fictícia']), refeicao('almoco', 'Almoço', '12:00'), refeicao('jantar', 'Jantar', '19:00')],
   },
   versoes: [],
 };
@@ -94,6 +94,38 @@ for (const escuro of [false, true]) {
     await expect(page.getByRole('button', { name: /^Refeição 2 de 3: 12:00 · Almoço/ })).toHaveAttribute('aria-current', 'true');
     await arrastar(page, alcas.nth(1), page.getByRole('button', { name: /^Refeição 2 de 3: 12:00 · Almoço/ }));
     expect(await ordemDasRefeicoes(page)).toEqual(['Café da manhã', 'Almoço', 'Jantar']);
+    expect(errosDaPagina).toEqual([]);
+    expect(naoTratadas).toEqual([]);
+  });
+}
+
+for (const escuro of [false, true]) {
+  const tema = escuro ? 'escuro' : 'claro';
+  test(`dieta: arrastar o alimento da opção pela alça e ⋯ do alimento com Mover (1280, ${tema})`, async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const { naoTratadas, errosDaPagina } = await abrirDieta(page, escuro);
+    const refeicaoAberta = page.locator('#refeicao-cafe');
+    const alcas = refeicaoAberta.getByTestId('alca-de-arraste');
+    await expect(alcas).toHaveCount(3);
+    const nomes = () => refeicaoAberta.getByText(/^(Pão|Leite|Fruta) fictíci[oa]$/).allTextContents();
+    expect(await nomes()).toEqual(['Pão fictício', 'Leite fictício', 'Fruta fictícia']);
+    await arrastar(page, alcas.nth(2), refeicaoAberta.getByText('Pão fictício', { exact: true }), async () => {
+      if (capturas) await page.screenshot({ path: `${capturas}/alimentos-arrastando-1280-${tema}.png` });
+    });
+    expect(await nomes()).toEqual(['Fruta fictícia', 'Pão fictício', 'Leite fictício']);
+    const aviso = page.getByRole('alert').filter({ hasText: 'Ordem alterada.' });
+    await aviso.getByRole('button', { name: 'Desfazer' }).click();
+    expect(await nomes()).toEqual(['Pão fictício', 'Leite fictício', 'Fruta fictícia']);
+    // A alternativa sem arrastar: ⋯ do alimento → "Mover para baixo" (o nome acessível traz o "Descer X" de antes).
+    await page.getByRole('button', { name: 'Mais ações de Pão fictício', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Mover para cima/ })).toHaveCount(0);
+    if (capturas) await page.screenshot({ path: `${capturas}/menu-alimento-1280-${tema}.png` });
+    await page.getByRole('button', { name: /^Mover para baixo, Descer Pão fictício/ }).click();
+    expect(await nomes()).toEqual(['Leite fictício', 'Pão fictício', 'Fruta fictícia']);
+    // E o da refeição, no cabeçalho do inspetor.
+    await page.getByRole('button', { name: 'Mais ações de 07:00 · Café da manhã', exact: true }).click();
+    await page.getByRole('button', { name: /^Mover para baixo, Descer 07:00 · Café da manhã/ }).click();
+    expect(await ordemDasRefeicoes(page)).toEqual(['Almoço', 'Café da manhã', 'Jantar']);
     expect(errosDaPagina).toEqual([]);
     expect(naoTratadas).toEqual([]);
   });

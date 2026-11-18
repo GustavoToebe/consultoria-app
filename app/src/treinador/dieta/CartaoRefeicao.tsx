@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeftRight, ArrowUp, PencilLine, Plus, Trash2, TriangleAlert } from 'lucide-react-native';
+import { ArrowLeftRight, Ellipsis, PencilLine, Plus, Trash2, TriangleAlert } from 'lucide-react-native';
 import { Fragment, type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -16,11 +16,13 @@ import {
   type Totais,
 } from '../../dominio/dieta';
 import { corDaRefeicao } from '../../dominio/corDaSerie';
-import { mover, remover, substituir } from '../../dominio/editorTreino';
+import { remover, substituir } from '../../dominio/editorTreino';
+import { moverPara } from '../../dominio/reordenar';
 import { numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
+import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA as LARGURA_DA_PECA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Botao } from '../../ui/Botao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
@@ -34,6 +36,8 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { CampoDoMacro, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
+import { acoesDeMover } from '../acoesDeMover';
+import { FolhaDeAcoes } from '../FolhaDeAcoes';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
 import { rotuloSalvarComo } from '../planejamento/modelos';
@@ -115,6 +119,9 @@ export function CartaoRefeicao(p: Props) {
   const problema = p.comProblema.has(r.uid);
   const varias = r.opcoes.length > 1;
   const opcaoA = r.opcoes[0];
+  // Arrastar (18/11): subir e descer a refeição saíram da faixa e foram para o ⋯ ("Mover para cima/baixo").
+  const [menu, setMenu] = useState(false);
+  const acoesDaRefeicao = acoesDeMover({ nome: titulo, posicao: p.posicao, total: p.total, aoMover: p.aoMover });
   // Subtotal da refeição (C66): a opção A, a que entra no "Total do dia", também com a refeição aberta.
   const rotuloDoSubtotal = varias ? `Subtotal da refeição, opção ${opcaoA?.rotulo}` : 'Subtotal da refeição';
   // O leitor ouve uma frase só (rótulo e os quatro valores por extenso); o que se vê fica escondido dele.
@@ -144,10 +151,10 @@ export function CartaoRefeicao(p: Props) {
           aberto={p.aberta}
           aoAlternar={p.aoAbrir}
           nomeDoItem={titulo}
-          posicao={p.posicao}
-          total={p.total}
-          aoMover={p.aoMover}
-          remover={p.aoRemover ? <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${titulo}`} Icone={Trash2} aoTocar={p.aoRemover} /> : undefined}
+          remover={p.aoRemover || acoesDaRefeicao.length ? <>
+            {p.aoRemover ? <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${titulo}`} Icone={Trash2} aoTocar={p.aoRemover} /> : null}
+            {acoesDaRefeicao.length ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${titulo}`} aoTocar={() => setMenu(true)} /> : null}
+          </> : undefined}
         />
       }>
       {p.aberta ? (
@@ -226,7 +233,9 @@ export function CartaoRefeicao(p: Props) {
           ) : null}
         </View>
       ) : null}
-    </Cartao></View></AlvoDeRolagem>
+    </Cartao>
+    {menu ? <FolhaDeAcoes titulo={titulo} aoFechar={() => setMenu(false)} acoes={acoesDaRefeicao} /> : null}
+    </View></AlvoDeRolagem>
   );
 }
 
@@ -264,6 +273,8 @@ function OpcaoDaRefeicao({
   const acoes = acoesReservadas(!!aoTrocarAlimento);
   const modo: ModoDoItem = larguraDisponivel >= larguraDaTabela(acoes) ? 'tabela' : 'empilhado';
   const larguraDasAcoes = acoes * ALVO_TOQUE;
+  // Arrastar o alimento pela alça (18/11): a mesma regra da seta, de uma casa em uma (`moverPara`).
+  const arraste = useArrasteDaLista({ total: opcao.itens.length, folga: 3, aoSoltar: (de, para) => aoMudarItens((itens) => moverPara(itens, de, para)) });
   return (
     <View style={[estilos.opcao, largura ? { width: largura } : estilos.opcaoInteira]}>
       {varias ? (
@@ -276,8 +287,8 @@ function OpcaoDaRefeicao({
         <View style={estilos.itens}>
           {modo === 'tabela' ? <CabecalhoDosItens larguraDasAcoes={larguraDasAcoes} /> : null}
           {opcao.itens.map((item, ii) => (
-            <LinhaItem
-              key={item.uid}
+            <ItemArrastavel key={item.uid} arraste={arraste} indice={ii}><LinhaItem
+              alca={<AlcaDeArraste arraste={arraste} indice={ii} />}
               modo={modo}
               larguraDasAcoes={larguraDasAcoes}
               item={item}
@@ -287,9 +298,9 @@ function OpcaoDaRefeicao({
               alimento={item.alimentoId ? alimentos.get(item.alimentoId) : undefined}
               aoMudar={(novo) => aoMudarItens((itens) => substituir(itens, ii, recalcularItem(novo, novo.alimentoId ? alimentos.get(novo.alimentoId) : undefined)))}
               aoRemover={() => (aoRemoverItem ? aoRemoverItem(ii, item.nome || `Item ${ii + 1}`) : aoMudarItens((itens) => remover(itens, ii)))}
-              aoMover={(d) => aoMudarItens((itens) => mover(itens, ii, d))}
+              aoMover={(d) => aoMudarItens((itens) => moverPara(itens, ii, ii + d))}
               aoTrocar={aoTrocarAlimento && !item.manual ? () => aoTrocarAlimento(item.uid) : undefined}
-            />
+            /></ItemArrastavel>
           ))}
         </View>
       )}
@@ -320,7 +331,7 @@ const LARGURA_MINIMA_DO_NOME = 160;
  * largura, vira a primeira célula da faixa, nos dois modos, e mostra a prop `alca` da `LinhaItem`.
  */
 const COLUNAS_DO_ITEM: readonly { chave: string; rotulo: string; largura: number; valor?: ChaveDoValor }[] = [
-  { chave: 'alca', rotulo: '', largura: 0 },
+  { chave: 'alca', rotulo: '', largura: LARGURA_DA_PECA },
   { chave: 'numero', rotulo: '#', largura: 28 },
   { chave: 'nome', rotulo: 'Alimento', largura: LARGURA_MINIMA_DO_NOME },
   { chave: 'quantidade', rotulo: 'Quantidade', largura: 80 },
@@ -349,10 +360,11 @@ const estiloDaColuna = (c: (typeof COLUNAS)[number]) => (c.chave === 'nome' ? es
 const macroDa = (chave: ChaveDoValor | undefined) => MACROS.find((m) => m.chave === chave);
 
 /**
- * Botões que a coluna das ações reserva: Trocar (só com quem trate a troca), ↑↓ e a lixeira, mesmo com um item só (o
- * segundo item não muda o modo da opção). Mude junto com o JSX das `acoes` da `LinhaItem`.
+ * Botões que a coluna das ações reserva: Trocar (só com quem trate a troca), o ⋯ (com "Mover para cima/baixo", desde o
+ * arrastar de 18/11) e a lixeira, mesmo com um item só (o segundo item não muda o modo da opção). Mude junto com o JSX
+ * das `acoes` da `LinhaItem`.
  */
-const acoesReservadas = (comTroca: boolean) => (comTroca ? 1 : 0) + 2 + 1;
+const acoesReservadas = (comTroca: boolean) => (comTroca ? 1 : 0) + 1 + 1;
 
 /** Cabeçalho das colunas, uma vez por opção. Fora do leitor de tela: cada campo já tem nome e cada linha lê os valores. */
 function CabecalhoDosItens({ larguraDasAcoes }: { larguraDasAcoes: number }) {
@@ -407,6 +419,8 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
   const tom = faltaQuantidade ? 'atencao' : 'perigo';
   const erroDaQuantidade = semQuantidade && !faltaQuantidade ? 'Quantidade precisa ser maior que zero.' : null;
   const totais = somar([item]);
+  const [menu, setMenu] = useState(false);
+  const acoesDoMenu = acoesDeMover({ nome, posicao, total, aoMover });
 
   const nomeDoItem = (
     <>
@@ -446,12 +460,7 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
   const acoes = (
     <>
       {aoTrocar ? <IconeBotao Icone={ArrowLeftRight} rotulo={`Trocar ${nome}`} aoTocar={aoTrocar} /> : null}
-      {total > 1 ? (
-        <>
-          <IconeBotao Icone={ArrowUp} rotulo={`Subir ${nome}`} desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
-          <IconeBotao Icone={ArrowDown} rotulo={`Descer ${nome}`} desabilitado={posicao === total - 1} aoTocar={() => aoMover(1)} />
-        </>
-      ) : null}
+      {acoesDoMenu.length ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${nome}`} aoTocar={() => setMenu(true)} /> : null}
       <IconeBotao Icone={Trash2} rotulo={`Remover ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />
     </>
   );
@@ -503,6 +512,7 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
         </View>
       )}
       {erroDaQuantidade ? <View style={estilos.erroDaLinha}><MensagemDeErro erro={erroDaQuantidade} /></View> : null}
+      {menu ? <FolhaDeAcoes titulo={item.nome || 'Item sem nome'} aoFechar={() => setMenu(false)} acoes={acoesDoMenu} /> : null}
     </View>
   );
 }

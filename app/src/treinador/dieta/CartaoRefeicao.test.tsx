@@ -35,6 +35,14 @@ jest.mock('../../ui/EscolhaSuspensa', () => ({
   EscolhaSuspensa: ({ rotulo, valor }: { rotulo: string; valor: string }) => require('react').createElement(require('react-native').View, { accessibilityLabel: `suspensa ${rotulo}: ${valor}` }),
 }));
 jest.mock('../../ui/Escolha', () => ({ Escolha: () => { throw new Error('a unidade não usa mais os chips'); } }));
+jest.mock('../FolhaDeAcoes', () => ({ FolhaDeAcoes: () => null }));
+// O arraste (gesto e Reanimated) tem e2e próprio (`e2e/arrastar.spec.ts`); aqui a caixa só passa o item adiante.
+jest.mock('../../ui/ArrasteDaLista', () => ({
+  LARGURA_DA_ALCA: 24,
+  useArrasteDaLista: () => ({}),
+  ItemArrastavel: ({ children }: { children: unknown }) => children,
+  AlcaDeArraste: () => null,
+}));
 jest.mock('../biblioteca/AbaAlimentos', () => ({ UNIDADES: [{ valor: 'g', rotulo: 'g' }, { valor: 'ml', rotulo: 'ml' }, { valor: 'un', rotulo: 'un' }] }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -157,7 +165,7 @@ describe('CartaoRefeicao: itens em tabela', () => {
   });
 
   it('o limite sai das colunas: um pixel abaixo dele, volta ao item empilhado, sem cabeçalho', () => {
-    const limite = larguraDaTabela(4);
+    const limite = larguraDaTabela(3);
     expect(temCabecalho(comLargura(montar(umaOpcao, { aoTrocarAlimento: () => undefined }), limite))).toBe(true);
     expect(temCabecalho(comLargura(montar(umaOpcao, { aoTrocarAlimento: () => undefined }), limite - 1))).toBe(false);
     expect(temCabecalho(montar(umaOpcao))).toBe(false);
