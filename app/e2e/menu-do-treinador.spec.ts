@@ -164,6 +164,8 @@ test('PC minimizado (1280): a busca vira a lupa com nome e a conta, só as inici
   const caixaDoMenu = await opcoes.boundingBox();
   expect(caixaDoMenu!.x).toBeGreaterThan(caixaDaConta!.x + caixaDaConta!.width);
   expect(caixaDoMenu!.y + caixaDoMenu!.height).toBeLessThanOrEqual(900);
+  // menu: recolher e submenu (18/11): captura do menu da conta, a peça irmã do submenu dos grupos.
+  await page.screenshot({ path: test.info().outputPath('menu-conta-minimizado-1280.png') });
   await page.keyboard.press('Escape');
   await expect(opcoes).toHaveCount(0);
   await expect(conta).toBeFocused();
@@ -251,6 +253,7 @@ for (const [largura, altura] of [[900, 720], [768, 1024]] as const) {
     const auditoria = menu(page).getByRole('link', { name: 'Auditoria', exact: true });
     await auditoria.scrollIntoViewIfNeeded();
     await expect(auditoria).toBeInViewport();
+    await page.screenshot({ path: test.info().outputPath(`menu-tablet-${largura}.png`) });
     expect(errosDaPagina).toEqual([]);
   });
 }
@@ -292,6 +295,7 @@ test('PC minimizado em janela baixa (1280×720): o "Expandir" fica à vista e o 
   const [caixaDoIcone, caixaDoSubmenu] = [await configuracoes.boundingBox(), await submenu.boundingBox()];
   expect(caixaDoSubmenu!.x).toBeGreaterThan(caixaDoIcone!.x + caixaDoIcone!.width);
   expect(caixaDoSubmenu!.y + caixaDoSubmenu!.height).toBeLessThanOrEqual(720);
+  await page.screenshot({ path: test.info().outputPath('menu-submenu-ultimo-grupo-1280x720.png') });
   // A página não rola junto: só a lista do menu.
   expect(await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(0);
   await expandir.click();
@@ -451,6 +455,7 @@ test('PC minimizado (1280): o ícone do grupo abre o submenu pelo teclado, setas
   await page.keyboard.press('ArrowDown');
   const itens = submenu('Acompanhamento').getByRole('menuitem');
   await expect(itens.first()).toBeFocused();
+  await page.screenshot({ path: test.info().outputPath('menu-submenu-foco-1280.png') });
   for (const caixa of await itens.evaluateAll((ls) => ls.map((l) => l.getBoundingClientRect().height))) expect(caixa).toBeGreaterThanOrEqual(44);
   await page.keyboard.press('ArrowUp');
   await expect(itens.last()).toBeFocused();
@@ -501,7 +506,7 @@ test('PC minimizado (1280): o ícone do grupo abre o submenu pelo teclado, setas
 
 // menu: recolher e submenu (18/11): capturas para conferir o desenho (menu aberto com grupo aberto e fechado, fio
 // vertical, submenu do minimizado) nos dois temas. Só gravam a imagem; o comportamento está nos casos acima.
-for (const tema of ['CLARO', 'ESCURO'] as const) {
+for (const tema of ['CLARO', 'ESCURO', 'AREIA'] as const) {
   test(`capturas do menu em 1280 (${tema.toLowerCase()})`, async ({ page }) => {
     await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t, gruposRecolhidos: ['Negócio'] })), [TREINADOR.id, tema] as const);
     const { errosDaPagina } = await abrir(page, 1280, 800, TODAS, {}, { revisar: 3, novas: 1 });
