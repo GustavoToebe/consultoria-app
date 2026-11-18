@@ -1,7 +1,7 @@
 import { codigoApi, erroDeConexao, errosPorCampo, mensagemApi } from '@plataforma/web';
 import type {
   AulaDaComunidade, CodigoDeReacao, ConfiguracaoDoAluno, CriarPostRequest, EnqueteDoMural, FiltrosDoMural, MotivoDeDenuncia,
-  NovaAula, PodResumo, PostDoMural, TipoDePost,
+  NovaAula, PlaylistDaComunidade, PodResumo, PostDoMural, TipoDePost,
 } from '../api/comunidadeTipos';
 import { paraBusca } from './filtrosComuns';
 import { dataDaTela } from './formatos';
@@ -539,22 +539,20 @@ export const tipoPedido = (valor: string | undefined, papel: PapelNoMural): Tipo
 /** Fotos do mural: os mesmos tetos do servidor (`LADO_MAXIMO` 1600 px, `BYTES_MAXIMO` 300 KB); o reencode tira EXIF. */
 export const LIMITES_FOTO_DO_MURAL = { lados: [1600, 1200, 900, 640], bytesMaximo: 300_000 } as const;
 
-// ---- Aulões: formulário, categorias (texto livre, decisão 8 de 12/11) e coleções ----
+// ---- Vídeos (aulões) e coleções (playlists, V088; "Coleções" na tela, `playlist` no código) ----
 
 /** Tetos do `CriarAulaRequest` (o campo corta no limite; a API confere de novo). */
 export const AULA_TITULO_MAXIMO = 120;
 export const AULA_DESCRICAO_MAXIMA = 4000;
-export const AULA_CATEGORIA_MAXIMA = 60;
-export const SEM_CATEGORIA_DO_AULAO = 'Sem categoria';
 
 /** `capaId` começa com a da aula: o `PUT` sem ela apagaria a capa, então "Remover capa" é o único jeito de pôr `null`. */
-export interface RascunhoDaAula { titulo: string; link: string; categoria: string; descricao: string; capaId: string | null }
+export interface RascunhoDaAula { titulo: string; link: string; playlistId: string | null; descricao: string; capaId: string | null }
 
-export const RASCUNHO_DA_AULA_VAZIO: RascunhoDaAula = { titulo: '', link: '', categoria: '', descricao: '', capaId: null };
+export const RASCUNHO_DA_AULA_VAZIO: RascunhoDaAula = { titulo: '', link: '', playlistId: null, descricao: '', capaId: null };
 
-/** O formulário de edição começa com o que a aula tem. */
+/** O formulário de edição começa com o que a aula tem, inclusive a coleção (o `PUT` sem ela tiraria o vídeo da coleção). */
 export const rascunhoDaAula = (a: AulaDaComunidade): RascunhoDaAula =>
-  ({ titulo: a.titulo, link: a.videoUrl ?? '', categoria: a.categoria ?? '', descricao: a.descricao ?? '', capaId: a.capaId ?? null });
+  ({ titulo: a.titulo, link: a.videoUrl ?? '', playlistId: a.playlistId, descricao: a.descricao ?? '', capaId: a.capaId ?? null });
 
 /** Erros por campo (`null` = pode enviar), com as mensagens que a folha já mostrava. */
 export function errosDaAula(r: RascunhoDaAula): { titulo: string | null; link: string | null } {
@@ -565,68 +563,116 @@ export function errosDaAula(r: RascunhoDaAula): { titulo: string | null; link: s
 }
 
 /**
- * Corpo do envio. Sem `original` (criar) vai só o que a pessoa preencheu, e a API publica com ordem 0. Com `original`
- * (editar) vão os sete campos: o `PUT` substitui tudo e despublicaria (`publicada` ausente = `true`), voltaria a ordem a 0
- * e apagaria a capa se faltassem (a capa vem do rascunho, que começa com a da aula). Vazio vira nulo, para limpar a
- * descrição ou a categoria.
+ * Corpo do envio. `playlistId` vai SEMPRE (nulo = sem coleção): o `PUT` sem ele tira o vídeo da coleção. A posição nunca vai
+ * (a API põe o vídeo novo ou movido no fim e mantém a dele se a coleção não muda). Sem `original` (criar) a descrição e a
+ * capa só vão preenchidas; com `original` (editar) vão os seis campos: o `PUT` substitui tudo, despublicaria (`publicada`
+ * ausente = `true`) e apagaria a capa se faltassem. Vazio vira nulo, para limpar a descrição.
  */
 export function corpoDaAula(r: RascunhoDaAula, original?: AulaDaComunidade): NovaAula {
   const titulo = r.titulo.trim();
   const videoUrl = r.link.trim();
   const descricao = r.descricao.trim() || null;
-  const categoria = normalizarGrupo(r.categoria) || null;
   if (!original) {
-    return { titulo, descricao: descricao ?? undefined, videoUrl, categoria: categoria ?? undefined, ...(r.capaId ? { capaId: r.capaId } : {}) };
+    return { titulo, descricao: descricao ?? undefined, videoUrl, playlistId: r.playlistId, ...(r.capaId ? { capaId: r.capaId } : {}) };
   }
-  return { titulo, descricao, videoUrl, categoria, ordem: original.ordem, publicada: original.publicada, capaId: r.capaId };
+  return { titulo, descricao, videoUrl, playlistId: r.playlistId, publicada: original.publicada, capaId: r.capaId };
 }
 
-/** Categoria da aula como a API grava (espaços nas pontas e repetidos saem); vazia = `null`. */
-const categoriaDa = (a: Pick<AulaDaComunidade, 'categoria'>): string | null => normalizarGrupo(a.categoria ?? '') || null;
+/** Rótulo do grupo e da opção dos vídeos fora de qualquer coleção. */
+export const SEM_COLECAO = 'Sem coleção';
+/** O formulário do vídeo só escolhe coleção existente (D17): sem nenhuma, este texto diz onde criar. */
+export const TEXTO_CRIE_EM_COLECOES = 'Crie em Coleções';
+/** 404 ou 409 `CONFLITO_EDICAO` nas rotas de ordem e de lote: a tela recarrega e avisa com isto. */
+export const MENSAGEM_LISTA_MUDOU = 'A lista mudou. Confira e tente de novo.';
 
-/** Categorias usadas, sem repetir e em ordem alfabética (pt-BR). Grafias diferentes são categorias diferentes, como na API. */
-export function categoriasDosAuloes(aulas: readonly Pick<AulaDaComunidade, 'categoria'>[]): string[] {
-  const nomes = new Set(aulas.map(categoriaDa).filter((c): c is string => c !== null));
-  return [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+/** Coleções na ordem do treinador (`ordem`; empate pelo nome). A tela nunca confia na ordem da resposta. */
+export const playlistsEmOrdem = <P extends Pick<PlaylistDaComunidade, 'ordem' | 'nome'>>(playlists: readonly P[]): P[] =>
+  [...playlists].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, 'pt-BR'));
+
+/**
+ * Vídeos de uma coleção (`null` = os sem coleção) na ordem dela: por `ordem`, que pode ter buracos (rascunhos), e no empate a
+ * ordem que veio (o "Sem coleção" tem tudo 0). Para o `PUT .../aulas/ordem` use a lista INTEIRA da equipe (com os não
+ * publicados), nunca a filtrada por busca ou filtro: a API exige a lista completa e daria 409 sempre. Serve para uma coleção que
+ * existe: a lista "Sem coleção" da tela (que também leva os vídeos de coleção que a lista ainda não traz) vem do grupo de
+ * `agruparPorPlaylist` ou de `filtrarPorPlaylist(aulas, '', playlists)`.
+ */
+export const auloesDaPlaylist = <T extends Pick<AulaDaComunidade, 'playlistId' | 'ordem'>>(aulas: readonly T[], playlistId: string | null): T[] =>
+  aulas.filter((a) => a.playlistId === playlistId).sort((a, b) => a.ordem - b.ordem);
+
+/** O número de cada vídeo é a posição na lista (1, 2, 3…), nunca `ordem + 1` (a `ordem` pode ter buracos). */
+export const numerados = <T>(itens: readonly T[]): { item: T; numero: number }[] => itens.map((item, i) => ({ item, numero: i + 1 }));
+
+export type Direcao = 'cima' | 'baixo';
+
+/** Subir/Descer: se o `id` pode andar nessa direção (não está na ponta e está na lista). */
+export function podeMover(ids: readonly string[], id: string, direcao: Direcao): boolean {
+  const i = ids.indexOf(id);
+  return i >= 0 && (direcao === 'cima' ? i > 0 : i < ids.length - 1);
 }
 
-/** Filtro da lista do treinador: `null` = todas, `''` = sem categoria, texto = a categoria. */
-export type FiltroDeCategoria = string | null;
+/**
+ * A nova ordem depois de Subir/Descer um vídeo ou uma coleção (o corpo `{ids}` das rotas de ordem). Na ponta, ou com `id` fora
+ * da lista, devolve a mesma ordem.
+ */
+export function moverNaLista(ids: readonly string[], id: string, direcao: Direcao): string[] {
+  const nova = [...ids];
+  if (!podeMover(ids, id, direcao)) return nova;
+  const i = ids.indexOf(id);
+  const j = direcao === 'cima' ? i - 1 : i + 1;
+  [nova[i], nova[j]] = [nova[j], nova[i]];
+  return nova;
+}
 
-/** Chips do filtro com a contagem; "Sem categoria" só se alguma aula não tem. */
-export function opcoesDoFiltroDeCategoria(aulas: readonly AulaDaComunidade[]): { valor: FiltroDeCategoria; rotulo: string; contagem: number }[] {
-  const sem = aulas.filter((a) => categoriaDa(a) === null).length;
+/** A chave do vídeo: a coleção dele se ela está na lista, senão `''` (sem coleção, ou coleção que a lista ainda não traz). */
+const chaveDaPlaylist = (a: Pick<AulaDaComunidade, 'playlistId'>, conhecidas: ReadonlySet<string>): string =>
+  a.playlistId && conhecidas.has(a.playlistId) ? a.playlistId : '';
+
+export interface GrupoDePlaylist<T> { playlist: PlaylistDaComunidade | null; rotulo: string; itens: T[] }
+
+/**
+ * Os vídeos agrupados por coleção, na ordem das coleções; dentro de cada uma, na ordem dela (`auloesDaPlaylist`). Coleção sem
+ * vídeo nesta lista some (no aluno, a que não tem vídeo publicado; numa busca, a que não bateu); "Sem coleção" vai por último,
+ * só se houver. Vídeo cuja coleção não está na lista (corrida entre os dois GETs) cai em "Sem coleção" e nunca some. Se o GET
+ * das coleções falhou, a tela não agrupa (como o Planejamento): agrupar sem elas poria tudo em "Sem coleção".
+ */
+export function agruparPorPlaylist<T extends Pick<AulaDaComunidade, 'playlistId' | 'ordem'>>(
+  aulas: readonly T[], playlists: readonly PlaylistDaComunidade[],
+): GrupoDePlaylist<T>[] {
+  const conhecidas = new Set(playlists.map((p) => p.id));
+  const grupos: GrupoDePlaylist<T>[] = playlistsEmOrdem(playlists)
+    .map((p) => ({ playlist: p, rotulo: p.nome, itens: auloesDaPlaylist(aulas, p.id) }))
+    .filter((g) => g.itens.length > 0);
+  const sem = aulas.filter((a) => chaveDaPlaylist(a, conhecidas) === '');
+  return sem.length ? [...grupos, { playlist: null, rotulo: SEM_COLECAO, itens: sem }] : grupos;
+}
+
+/** Filtro da lista do treinador: `null` = todas, `''` = sem coleção, id = a coleção. */
+export type FiltroDePlaylist = string | null;
+
+/** Opções do filtro, com a contagem: Todas, cada coleção com vídeo (na ordem das coleções) e "Sem coleção" só se houver. */
+export function opcoesDoFiltroDePlaylist(aulas: readonly Pick<AulaDaComunidade, 'playlistId' | 'ordem'>[], playlists: readonly PlaylistDaComunidade[]):
+  { valor: FiltroDePlaylist; rotulo: string; contagem: number }[] {
   return [
     { valor: null, rotulo: 'Todas', contagem: aulas.length },
-    ...categoriasDosAuloes(aulas).map((c) => ({ valor: c, rotulo: c, contagem: aulas.filter((a) => categoriaDa(a) === c).length })),
-    ...(sem ? [{ valor: '', rotulo: SEM_CATEGORIA_DO_AULAO, contagem: sem }] : []),
+    ...agruparPorPlaylist(aulas, playlists).map((g) => ({ valor: g.playlist?.id ?? '', rotulo: g.rotulo, contagem: g.itens.length })),
   ];
 }
 
-/** O filtro escolhido, ou "Todas" se a categoria sumiu (a última aula dela foi editada ou excluída). */
-export const filtroDeCategoriaValido = (filtro: FiltroDeCategoria, aulas: readonly AulaDaComunidade[]): FiltroDeCategoria =>
-  opcoesDoFiltroDeCategoria(aulas).some((o) => o.valor === filtro) ? filtro : null;
+/** O filtro escolhido, ou "Todas" se a coleção sumiu (excluída, ou ficou sem vídeo). */
+export const filtroDePlaylistValido = (filtro: FiltroDePlaylist, aulas: readonly Pick<AulaDaComunidade, 'playlistId' | 'ordem'>[],
+  playlists: readonly PlaylistDaComunidade[]): FiltroDePlaylist =>
+  opcoesDoFiltroDePlaylist(aulas, playlists).some((o) => o.valor === filtro) ? filtro : null;
 
-/** Etiqueta da categoria aplicada ("Todas" não vira etiqueta). */
-export const chipDaCategoria = (filtro: FiltroDeCategoria): { chave: 'categoria'; texto: string }[] =>
-  filtro === null ? [] : [{ chave: 'categoria', texto: `Categoria: ${filtro || SEM_CATEGORIA_DO_AULAO}` }];
+/** Etiqueta da coleção aplicada ("Todas" não vira etiqueta). */
+export const chipDaPlaylist = (filtro: FiltroDePlaylist, playlists: readonly PlaylistDaComunidade[]): { chave: 'playlist'; texto: string }[] =>
+  filtro === null ? [] : [{ chave: 'playlist', texto: `Coleção: ${filtro ? playlists.find((p) => p.id === filtro)?.nome ?? SEM_COLECAO : SEM_COLECAO}` }];
 
-export function filtrarAuloesPorCategoria<T extends Pick<AulaDaComunidade, 'categoria'>>(aulas: readonly T[], filtro: FiltroDeCategoria): T[] {
+/** Os vídeos do filtro, na ordem em que vieram (`''` também pega os de coleção que a lista não traz). */
+export function filtrarPorPlaylist<T extends Pick<AulaDaComunidade, 'playlistId'>>(aulas: readonly T[], filtro: FiltroDePlaylist,
+  playlists: readonly PlaylistDaComunidade[]): T[] {
   if (filtro === null) return [...aulas];
-  return aulas.filter((a) => (categoriaDa(a) ?? '') === filtro);
-}
-
-export interface ColecaoDeAuloes<T> { categoria: string | null; rotulo: string; itens: T[] }
-
-/**
- * Coleções do aluno, uma por categoria: ordem alfabética (pt-BR), "Sem categoria" por último; dentro de cada uma, a ordem
- * da API (por `ordem` da aula). Categoria sem aula não aparece.
- */
-export function agruparAuloesPorCategoria<T extends Pick<AulaDaComunidade, 'categoria'>>(aulas: readonly T[]): ColecaoDeAuloes<T>[] {
-  const colecoes: ColecaoDeAuloes<T>[] = categoriasDosAuloes(aulas)
-    .map((c) => ({ categoria: c, rotulo: c, itens: aulas.filter((a) => categoriaDa(a) === c) }));
-  const sem = aulas.filter((a) => categoriaDa(a) === null);
-  return sem.length ? [...colecoes, { categoria: null, rotulo: SEM_CATEGORIA_DO_AULAO, itens: sem }] : colecoes;
+  const conhecidas = new Set(playlists.map((p) => p.id));
+  return aulas.filter((a) => chaveDaPlaylist(a, conhecidas) === filtro);
 }
 
 /** Busca local no título e na descrição, sem acento nem caixa (o mesmo que a API procura); vazia = todas. */
@@ -635,5 +681,61 @@ export function buscarAuloes<T extends Pick<AulaDaComunidade, 'titulo' | 'descri
   return termo ? aulas.filter((a) => paraBusca(`${a.titulo} ${a.descricao ?? ''}`).includes(termo)) : [...aulas];
 }
 
-/** "1 aulão" / "3 aulões", na faixa da coleção. */
+/**
+ * Busca do aluno: procura em todos os vídeos e devolve cada um com o nome da coleção ("Sem coleção" se não tem ou se a coleção
+ * não está na lista), na ordem das coleções e, dentro delas, na ordem de cada uma.
+ */
+export function buscarAuloesComPlaylist<T extends Pick<AulaDaComunidade, 'titulo' | 'descricao' | 'playlistId' | 'ordem'>>(
+  aulas: readonly T[], playlists: readonly PlaylistDaComunidade[], busca: string,
+): { aula: T; playlist: string }[] {
+  return agruparPorPlaylist(buscarAuloes(aulas, busca), playlists).flatMap((g) => g.itens.map((aula) => ({ aula, playlist: g.rotulo })));
+}
+
+/** "1 vídeo" / "3 vídeos", na faixa da coleção. */
 export const resumoDosAuloes = (n: number): string => (n === 1 ? '1 vídeo' : `${n} vídeos`);
+
+/** Teto do lote da API (`PUT /comunidade/aulas/playlist`, `aulaIds` de 1 a 100). */
+export const LOTE_MAXIMO = 100;
+
+/**
+ * Divide a seleção em lotes de até `tamanho` (lista vazia = nenhum lote: a API exige pelo menos 1). Lotes em sequência não são
+ * atômicos: se um falhar no meio, os anteriores já valeram, e a tela recarrega a lista.
+ */
+export function emLotes<T>(itens: readonly T[], tamanho: number = LOTE_MAXIMO): T[][] {
+  const lotes: T[][] = [];
+  for (let i = 0; i < itens.length; i += tamanho) lotes.push(itens.slice(i, i + tamanho));
+  return lotes;
+}
+
+export const PLAYLIST_NOME_MAXIMO = 60;
+export const MENSAGEM_PLAYLIST_NOME = `Use de 1 a ${PLAYLIST_NOME_MAXIMO} caracteres.`;
+
+/** O nome como a API grava (`PlaylistsService.nomeLimpo`: espaços repetidos viram um, strip e NFC). */
+export const nomeDaPlaylistParaEnviar = (texto: string): string => normalizarGrupo(texto).normalize('NFC');
+
+/** Mesma regra do servidor: de 1 a 60 em unidades UTF-16 (um emoji conta 2), depois da limpeza. */
+export function erroDoNomeDaPlaylist(texto: string): string | null {
+  const nome = nomeDaPlaylistParaEnviar(texto);
+  return !nome || nome.length > PLAYLIST_NOME_MAXIMO ? MENSAGEM_PLAYLIST_NOME : null;
+}
+
+const statusDoErro = (erro: unknown): unknown => (typeof erro === 'object' && erro !== null ? (erro as { status?: unknown }).status : null);
+
+/** 404 ou 409 `CONFLITO_EDICAO` nas rotas de ordem, de lote ou de uma coleção: a lista da tela está velha (recarregar e avisar). */
+export const listaVelha = (erro: unknown): boolean => statusDoErro(erro) === 404 || codigoApi(erro) === 'CONFLITO_EDICAO';
+
+const MENSAGEM_PADRAO_DA_PLAYLIST = 'Não foi possível concluir. Tente de novo.';
+
+/**
+ * Erro de criar, renomear, excluir ou reordenar coleção em português. `noCampoNome`: 422 `PLAYLIST_INVALIDA` (a mensagem do
+ * campo `nome`, ou a fixa) e 409 `PLAYLIST_NOME_EM_USO`. `recarregar`: lista velha (`listaVelha`). Sem conexão e 403 mostram
+ * o texto da API; o resto, frase fixa.
+ */
+export function traduzirErroDaPlaylist(erro: unknown): { mensagem: string; noCampoNome: boolean; recarregar: boolean } {
+  const codigo = codigoApi(erro);
+  if (codigo === 'PLAYLIST_INVALIDA') return { mensagem: errosPorCampo(erro).nome ?? MENSAGEM_PLAYLIST_NOME, noCampoNome: true, recarregar: false };
+  if (codigo === 'PLAYLIST_NOME_EM_USO') return { mensagem: 'Já existe uma coleção com esse nome. Escolha outro.', noCampoNome: true, recarregar: false };
+  if (listaVelha(erro)) return { mensagem: MENSAGEM_LISTA_MUDOU, noCampoNome: false, recarregar: true };
+  const daApi = erroDeConexao(erro) || statusDoErro(erro) === 403;
+  return { mensagem: daApi ? mensagemApi(erro, MENSAGEM_PADRAO_DA_PLAYLIST) : MENSAGEM_PADRAO_DA_PLAYLIST, noCampoNome: false, recarregar: false };
+}

@@ -39,6 +39,10 @@ import java.util.stream.Stream;
  * {@code Item.grupo} (grupo do alimento, que agrupa a lista de compras) segue a mesma regra: copiado do alimento atual
  * na publicação, nulo no item manual.
  *
+ * <p>{@code Item.fibra} (g na quantidade do item) vai pelo mesmo caminho dos macros: o app a calcula ao editar e a
+ * versão publicada guarda o número. Nula = sem dado ("—"), nunca zero; versões publicadas antes do campo leem como nula
+ * (sem migração do JSON). Não entra na kcal. <b>Todo método que reconstrói o {@code Item} leva {@code fibra}</b>.
+ *
  * <p>{@code variacoes} (dieta por dia da semana, ciclo de carbo; plano {@code dieta-por-dia-da-semana}): sem variação, as
  * refeições ficam em {@code refeicoes} e valem nos 7 dias; com variação, cada uma guarda {@code uid}, {@code rotulo},
  * {@code dias} (1 = segunda ... 7 = domingo) e as próprias refeições, e {@code refeicoes} da raiz fica vazia (o
@@ -121,19 +125,20 @@ public record ConteudoDieta(
             Boolean manual,
             BigDecimal fatorCorrecao,
             BigDecimal fatorCoccao,
-            @Size(max = 60) String grupo) {
+            @Size(max = 60) String grupo,
+            BigDecimal fibra) {
 
-        /** Sem os dados da biblioteca (rascunho, modelo, seed e testes: só a publicação os preenche). */
+        /** Sem os dados da biblioteca (rascunho, modelo, seed e testes: só a publicação os preenche) nem fibra. */
         public Item(UUID uid, UUID alimentoId, String nome, BigDecimal quantidade, String unidade, BigDecimal kcal,
                     BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura, Boolean manual) {
             this(uid, alimentoId, nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, manual, null, null,
-                    null);
+                    null, null);
         }
 
         /** Cópia com os fatores e o grupo trocados (a publicação põe os do alimento atual; nulos sem alimento). */
         public Item comDadosDaBiblioteca(BigDecimal correcao, BigDecimal coccao, String grupoDoAlimento) {
             return new Item(uid, alimentoId, nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, manual,
-                    correcao, coccao, grupoDoAlimento);
+                    correcao, coccao, grupoDoAlimento, fibra);
         }
     }
 
@@ -229,7 +234,7 @@ public record ConteudoDieta(
                         .map(o -> new Opcao(novo.get(), o.rotulo(), o.itensOuVazio().stream().map(i -> new Item(
                                 novo.get(), i.alimentoId(), i.nome(), i.quantidade(), i.unidade(), i.kcal(),
                                 i.proteina(), i.carboidrato(), i.gordura(), i.manual(), i.fatorCorrecao(),
-                                i.fatorCoccao(), i.grupo())).toList())).toList(), r.modoDePreparo())).toList();
+                                i.fatorCoccao(), i.grupo(), i.fibra())).toList())).toList(), r.modoDePreparo())).toList();
         ConteudoDieta base = mapearRefeicoes(novasRefeicoes,
                 v -> new Variacao(novo.get(), v.rotulo(), v.dias(), v.refeicoes()));
         List<Suplemento> suplementos = suplementacaoOuVazio().stream().map(s -> new Suplemento(novo.get(), s.nome(),

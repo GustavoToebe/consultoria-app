@@ -32,7 +32,11 @@ import { descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO, podeAplicarModelo } from
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
+import { useSecoesAbertas } from '../../../ui/useSecoesAbertas';
 import { CONFIGURACAO_PADRAO } from '../../../dominio/metodologiaPadrao';
+
+/** Chave da coleção no estado de abertura: o mesmo `pastaId` em tipos diferentes são seções diferentes. */
+const chaveDaColecao = (tipo: TipoReceita, pastaId: string | null) => `${tipo}:${pastaId ?? ''}`;
 
 export default function Planejamento() {
   const { avisar } = useAviso();
@@ -74,16 +78,18 @@ export default function Planejamento() {
   }, [pedirNovo, pedirColar, emAtualizacao]);
   // "Organizar coleções" abre a folha; o lápis de um grupo abre a mesma folha já renomeando aquela coleção.
   const [organizar, setOrganizar] = useState<{ editar: PastaModelo | null } | null>(null);
-  // Coleções recolhidas, por chave `tipo:pastaId` (pastaId vazio = "Sem coleção"): recolher numa lista não recolhe nas
-  // outras, e todas nascem abertas, porque a lista existe para achar o modelo. Buscar reabre tudo: o resultado nunca
-  // fica escondido numa coleção recolhida.
-  const [recolhidas, setRecolhidas] = useState<ReadonlySet<string>>(new Set());
-  const alternar = (chave: string) => setRecolhidas((atual) => {
-    const novo = new Set(atual);
-    if (novo.has(chave)) novo.delete(chave); else novo.add(chave);
-    return novo;
-  });
-  const buscar = (texto: string) => { setBusca(texto); if (texto.trim()) setRecolhidas(new Set()); };
+  // Coleções que abrem e fecham, por chave `tipo:pastaId` (pastaId vazio = "Sem coleção"), de TODOS os tipos e sem filtro
+  // de busca: abrir numa lista não abre nas outras e trocar de chip não perde o que a pessoa abriu. Nascem fechadas, menos
+  // a coleção única do tipo (`abrirDePartida`); buscar abre as que têm resultado e limpar a busca volta ao de antes; o
+  // modelo criado ou movido abre a coleção dele (`abrir`). Nada vai ao aparelho (docs/design-e-front.md, 4.8).
+  const gruposDosTipos = (termo: string): string[][] => {
+    const dados = modelos.dados; const pastas = colecoes.erro ? undefined : colecoes.dados;
+    if (!dados || !pastas) return [];
+    return CATEGORIAS.map((c) => agruparPorColecao(filtrarModelos(dados, c.valor, termo), pastas).map((g) => chaveDaColecao(c.valor, g.pastaId)));
+  };
+  const todasAsChaves = gruposDosTipos('');
+  const secoes = useSecoesAbertas(todasAsChaves.flat(), todasAsChaves.filter((chaves) => chaves.length === 1).flat());
+  const buscar = (texto: string) => { setBusca(texto); secoes.aoBuscar(texto, gruposDosTipos(texto).flat()); };
   const [menu, setMenu] = useState<Receita | null>(null);
   const [excluir, setExcluir] = useState<Receita | null>(null);
   const [aplicar, setAplicar] = useState<Receita | null>(null);
@@ -141,10 +147,10 @@ export default function Planejamento() {
     </Cartao>}
     {/* Um cartão por coleção (alfabética, "Sem coleção" por último), como a Biblioteca › Outros; recolhido mostra só a faixa. */}
     {porColecao?.map((g) => {
-      const chave = `${tipo}:${g.pastaId ?? ''}`;
-      const aberto = !recolhidas.has(chave);
+      const chave = chaveDaColecao(tipo, g.pastaId);
+      const aberto = secoes.estaAberta(chave);
       const colecao = g.pastaId ? colecoes.dados?.find((c) => c.id === g.pastaId) : undefined;
-      return <Cartao key={g.pastaId ?? ''} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDeModelos(g.itens.length)} aberto={aberto} aoAlternar={() => alternar(chave)} acoesJuntas
+      return <Cartao key={g.pastaId ?? ''} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDeModelos(g.itens.length)} aberto={aberto} aoAlternar={() => secoes.alternar(chave)} acoesJuntas
         acoes={colecao && pode('MODELO_ALTERAR') ? <IconeBotao Icone={Pencil} rotulo={`Renomear coleção ${g.rotulo}`} aoTocar={() => setOrganizar({ editar: colecao })} /> : undefined} />}>
         {aberto ? <ListaDeLinhas>{g.itens.map((r) => <LinhaDeModelo key={r.id} modelo={r} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)}
           ocupado={ocupado === r.id} aoAplicar={() => setAplicar(r)} aoEditar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)}
@@ -160,9 +166,10 @@ export default function Planejamento() {
       if (formulario === 'novo') {
         const novo = await criarReceita({ tipo, nome, descricao, pastaId, conteudo: conteudoInicial(tipo, CONFIGURACAO_PADRAO) });
         const colar = colarAoCriar && (tipo === 'PLANO_TREINO' || tipo === 'SESSAO_TREINO');
+        secoes.abrir(chaveDaColecao(tipo, pastaId));
         fecharFormulario(); modelos.recarregar();
         router.push(colar ? { pathname: '/treinador/planejamento/modelo/[id]', params: { id: novo.id, colar: '1' } } : `/treinador/planejamento/modelo/${novo.id}`);
-      } else { await alterarReceita(formulario.id, { ...formulario, nome, descricao, pastaId }); fecharFormulario(); modelos.recarregar(); }
+      } else { await alterarReceita(formulario.id, { ...formulario, nome, descricao, pastaId }); secoes.abrir(chaveDaColecao(formulario.tipo, pastaId)); fecharFormulario(); modelos.recarregar(); }
     }} /> : null}
     {organizar ? <OrganizarColecoes colecoes={colecoes.dados ?? []} inicial={organizar.editar} aoFechar={() => setOrganizar(null)} atualizar={atualizar} /> : null}
     {aplicar ? <AplicarAoAluno modelo={aplicar} aoFechar={() => setAplicar(null)} aoAplicar={(id, nome) => { setAplicar(null); avisar(mensagemCopiaCriada(nome), 'sucesso'); router.push(`/treinador/alunos/${id}`); }} /> : null}

@@ -2,12 +2,13 @@ import { Text } from 'react-native';
 
 import type { ItemDieta, Refeicao } from '../../api/tipos';
 import { corDaRefeicao } from '../../dominio/corDaSerie';
+import { MODO_DE_PREPARO_MAXIMO } from '../../dominio/dieta';
 import { MACROS, valoresPorExtenso } from '../../ui/ValoresDaDieta';
 import { CartaoRefeicao, larguraDaTabela } from './CartaoRefeicao';
 
 /**
- * Refeição aberta (04/11): "Observação" e "Modo de preparo" vazios ficam num link "+ Observação ou modo de preparo
- * (opcional)" e abrem no toque; com texto gravado, já abrem. A unidade do alimento é uma lista suspensa ("Unidade"), não
+ * Refeição aberta (04/11): "Observação" e "Modo de preparo" ficam num link "+ Observação ou modo de preparo
+ * (opcional)" e abrem no toque, também com texto gravado (18/11). A unidade do alimento é uma lista suspensa ("Unidade"), não
  * mais os chips. As peças com primitivos nativos viram falsas que só repassam rótulo e toque. Dados fictícios.
  */
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
@@ -94,16 +95,25 @@ describe('CartaoRefeicao: observação e modo de preparo', () => {
     expect(botaoDosExtras(a)).toHaveLength(0);
   });
 
-  it('com modo de preparo gravado, os campos já abrem', () => {
+  // Regra de 18/11: nasce fechado também com texto gravado; o toque abre.
+  it('com modo de preparo gravado, os campos nascem recolhidos e abrem no toque', () => {
     const a = montar(refeicao({ modoDePreparo: 'Bata tudo no liquidificador.' }));
+    expect(temCampo(a, 'Modo de preparo (opcional)')).toBe(false);
+    expect(botaoDosExtras(a)).toHaveLength(1);
+    Renderer.act(() => botaoDosExtras(a)[0].props.onPress());
     expect(temCampo(a, 'Modo de preparo (opcional)')).toBe(true);
-    expect(botaoDosExtras(a)).toHaveLength(0);
   });
 
-  it('com só a observação gravada, os campos também abrem', () => {
+  it('com só a observação gravada, os campos também nascem recolhidos', () => {
     const a = montar(refeicao({ observacao: 'Pode trocar a fruta.' }));
-    expect(temCampo(a, 'Observação (opcional)')).toBe(true);
+    expect(temCampo(a, 'Observação (opcional)')).toBe(false);
+    expect(botaoDosExtras(a)).toHaveLength(1);
+  });
+
+  it('modo de preparo acima do limite (erro apontado) abre os campos para o erro aparecer', () => {
+    const a = montar(refeicao({ modoDePreparo: 'x'.repeat(MODO_DE_PREPARO_MAXIMO + 1) }));
     expect(temCampo(a, 'Modo de preparo (opcional)')).toBe(true);
+    expect(botaoDosExtras(a)).toHaveLength(0);
   });
 });
 

@@ -10,56 +10,91 @@ import {
   textoDoErroDaCapaDoYoutube, TIPOS_DE_POST,
   tiposParaEscolher, chipsDoMural, MURAL_SEM_FILTRO, opcoesDoTipoDoMural, semOFiltroDoMural, filtrosParaApi, textoDoMuralVazio, textoDasDenuncias, tipoPedido,
   avisoDoPod, AVISO_DO_POD_COM_MENOR, erroDoNomeDoPod, motivoDoGrupoCheio, POD_TETO, MENSAGEM_POD_NOME, nomeDoPodParaEnviar, rotuloDoPost, traduzirErroDoPod,
-  agruparAuloesPorCategoria, buscarAuloes, categoriasDosAuloes, corpoDaAula, errosDaAula, filtrarAuloesPorCategoria,
-  chipDaCategoria, filtroDeCategoriaValido, opcoesDoFiltroDeCategoria, RASCUNHO_DA_AULA_VAZIO, rascunhoDaAula, resumoDosAuloes,
+  agruparPorPlaylist, auloesDaPlaylist, buscarAuloes, buscarAuloesComPlaylist, chipDaPlaylist, corpoDaAula, emLotes, erroDoNomeDaPlaylist,
+  errosDaAula, filtrarPorPlaylist, filtroDePlaylistValido, listaVelha, LOTE_MAXIMO, MENSAGEM_LISTA_MUDOU, MENSAGEM_PLAYLIST_NOME,
+  moverNaLista, nomeDaPlaylistParaEnviar, numerados, opcoesDoFiltroDePlaylist, playlistsEmOrdem, podeMover, RASCUNHO_DA_AULA_VAZIO,
+  rascunhoDaAula, resumoDosAuloes, SEM_COLECAO, traduzirErroDaPlaylist,
 } from './comunidade';
 import { ErroApi } from '@plataforma/web';
-import type { AulaDaComunidade, PostDoMural } from '../api/comunidadeTipos';
+import type { AulaDaComunidade, PlaylistDaComunidade, PostDoMural } from '../api/comunidadeTipos';
 
-const aula = (id: string, categoria: string | null, extra: Partial<AulaDaComunidade> = {}): AulaDaComunidade => ({
-  id, titulo: `Aula ${id}`, descricao: null, videoUrl: 'https://exemplo.com/v', capaId: null, categoria,
-  ordem: 0, publicada: true, criadaEm: '2026-11-01T10:00:00Z', totalComentarios: 0, ...extra,
+const aula = (id: string, playlistId: string | null, ordem = 0, extra: Partial<AulaDaComunidade> = {}): AulaDaComunidade => ({
+  id, titulo: `Aula ${id}`, descricao: null, videoUrl: 'https://exemplo.com/v', capaId: null, playlistId,
+  ordem, publicada: true, criadaEm: '2026-11-01T10:00:00Z', totalComentarios: 0, ...extra,
 });
+const playlist = (id: string, nome: string, ordem: number, totalAulas = 0): PlaylistDaComunidade => ({ id, nome, ordem, totalAulas });
 
-describe('vídeos', () => {
-  const aulas = [aula('1', 'Técnica'), aula('2', null), aula('3', 'alimentação'), aula('4', 'Técnica'), aula('5', '  ')];
+describe('vídeos e coleções', () => {
+  // A resposta vem fora da ordem de propósito: a tela ordena pela `ordem` das coleções e dos vídeos.
+  const playlists = [playlist('p2', 'Técnica', 2), playlist('p1', 'Alimentação', 1), playlist('p3', 'Vazia', 3)];
+  const aulas = [aula('1', 'p2', 7), aula('2', null), aula('3', 'p1', 1), aula('4', 'p2', 1), aula('5', 'p2', 3), aula('6', null), aula('7', 'sumiu', 1)];
 
-  it('agrupa em ordem alfabética pt-BR, com Sem categoria por último e a ordem da API dentro de cada uma', () => {
-    const grupos = agruparAuloesPorCategoria(aulas);
-    expect(grupos.map((g) => g.rotulo)).toEqual(['alimentação', 'Técnica', 'Sem categoria']);
-    expect(grupos[1].itens.map((a) => a.id)).toEqual(['1', '4']);
-    expect(grupos[2].itens.map((a) => a.id)).toEqual(['2', '5']);
-    expect(agruparAuloesPorCategoria([aula('1', 'B')]).map((g) => g.rotulo)).toEqual(['B']);
+  it('coleções pela ordem, empate pelo nome', () => {
+    expect(playlistsEmOrdem(playlists).map((p) => p.id)).toEqual(['p1', 'p2', 'p3']);
+    expect(playlistsEmOrdem([playlist('b', 'Bê', 0), playlist('a', 'Á', 0)]).map((p) => p.id)).toEqual(['a', 'b']);
   });
 
-  it('filtra por todas, sem categoria e por uma categoria', () => {
-    expect(filtrarAuloesPorCategoria(aulas, null)).toHaveLength(5);
-    expect(filtrarAuloesPorCategoria(aulas, '').map((a) => a.id)).toEqual(['2', '5']);
-    expect(filtrarAuloesPorCategoria(aulas, 'Técnica').map((a) => a.id)).toEqual(['1', '4']);
-    expect(categoriasDosAuloes(aulas)).toEqual(['alimentação', 'Técnica']);
+  it('vídeos da coleção pela ordem com buracos, empate na ordem que veio, e o número é a posição', () => {
+    expect(auloesDaPlaylist(aulas, 'p2').map((a) => a.id)).toEqual(['4', '5', '1']);
+    expect(auloesDaPlaylist(aulas, null).map((a) => a.id)).toEqual(['2', '6']);
+    expect(auloesDaPlaylist([aula('x', 'p', 2), aula('y', 'p', 2)], 'p').map((a) => a.id)).toEqual(['x', 'y']);
+    // ordem 1, 3 e 7: os números são 1, 2 e 3 (nunca ordem + 1).
+    expect(numerados(auloesDaPlaylist(aulas, 'p2')).map((n) => [n.item.id, n.numero])).toEqual([['4', 1], ['5', 2], ['1', 3]]);
   });
 
-  it('monta os chips com contagem e volta a Todas quando a categoria some', () => {
-    expect(opcoesDoFiltroDeCategoria(aulas)).toEqual([
-      { valor: null, rotulo: 'Todas', contagem: 5 },
-      { valor: 'alimentação', rotulo: 'alimentação', contagem: 1 },
-      { valor: 'Técnica', rotulo: 'Técnica', contagem: 2 },
-      { valor: '', rotulo: 'Sem categoria', contagem: 2 },
+  it('Subir e Descer devolvem a nova lista; na ponta ou com id ausente, a mesma', () => {
+    const ids = ['a', 'b', 'c'];
+    expect(moverNaLista(ids, 'b', 'cima')).toEqual(['b', 'a', 'c']);
+    expect(moverNaLista(ids, 'b', 'baixo')).toEqual(['a', 'c', 'b']);
+    expect(moverNaLista(ids, 'a', 'cima')).toEqual(ids);
+    expect(moverNaLista(ids, 'c', 'baixo')).toEqual(ids);
+    expect(moverNaLista(ids, 'z', 'cima')).toEqual(ids);
+    expect(ids).toEqual(['a', 'b', 'c']);
+    expect([podeMover(ids, 'a', 'cima'), podeMover(ids, 'a', 'baixo'), podeMover(ids, 'c', 'baixo'), podeMover(ids, 'z', 'baixo')])
+      .toEqual([false, true, false, false]);
+  });
+
+  it('agrupa na ordem das coleções, sem as vazias, e Sem coleção por último leva o de coleção desconhecida', () => {
+    const grupos = agruparPorPlaylist(aulas, playlists);
+    expect(grupos.map((g) => g.rotulo)).toEqual(['Alimentação', 'Técnica', SEM_COLECAO]);
+    expect(grupos[1].itens.map((a) => a.id)).toEqual(['4', '5', '1']);
+    expect(grupos[2]).toMatchObject({ playlist: null });
+    expect(grupos[2].itens.map((a) => a.id)).toEqual(['2', '6', '7']);
+    expect(agruparPorPlaylist([aula('1', 'p1')], playlists).map((g) => g.rotulo)).toEqual(['Alimentação']);
+    expect(agruparPorPlaylist([], playlists)).toEqual([]);
+  });
+
+  it('filtro do treinador: opções com contagem, filtrar, etiqueta e volta a Todas quando a coleção some', () => {
+    expect(opcoesDoFiltroDePlaylist(aulas, playlists)).toEqual([
+      { valor: null, rotulo: 'Todas', contagem: 7 },
+      { valor: 'p1', rotulo: 'Alimentação', contagem: 1 },
+      { valor: 'p2', rotulo: 'Técnica', contagem: 3 },
+      { valor: '', rotulo: SEM_COLECAO, contagem: 3 },
     ]);
-    expect(opcoesDoFiltroDeCategoria([aula('1', 'A')]).map((o) => o.valor)).toEqual([null, 'A']);
-    expect(filtroDeCategoriaValido('Técnica', aulas)).toBe('Técnica');
-    expect(filtroDeCategoriaValido('Sumiu', aulas)).toBeNull();
-    expect(filtroDeCategoriaValido('', [aula('1', 'A')])).toBeNull();
-    expect(chipDaCategoria(null)).toEqual([]);
-    expect(chipDaCategoria('Técnica')).toEqual([{ chave: 'categoria', texto: 'Categoria: Técnica' }]);
-    expect(chipDaCategoria('')).toEqual([{ chave: 'categoria', texto: 'Categoria: Sem categoria' }]);
+    expect(filtrarPorPlaylist(aulas, null, playlists)).toHaveLength(7);
+    expect(filtrarPorPlaylist(aulas, '', playlists).map((a) => a.id)).toEqual(['2', '6', '7']);
+    expect(filtrarPorPlaylist(aulas, 'p2', playlists).map((a) => a.id)).toEqual(['1', '4', '5']);
+    expect(filtroDePlaylistValido('p2', aulas, playlists)).toBe('p2');
+    expect(filtroDePlaylistValido('p3', aulas, playlists)).toBeNull();
+    expect(filtroDePlaylistValido('', [aula('1', 'p1')], playlists)).toBeNull();
+    expect(chipDaPlaylist(null, playlists)).toEqual([]);
+    expect(chipDaPlaylist('p2', playlists)).toEqual([{ chave: 'playlist', texto: 'Coleção: Técnica' }]);
+    expect(chipDaPlaylist('', playlists)).toEqual([{ chave: 'playlist', texto: 'Coleção: Sem coleção' }]);
   });
 
   it('busca no título e na descrição sem acento nem caixa', () => {
-    const lista = [aula('1', null, { titulo: 'Técnica do agachamento' }), aula('2', null, { descricao: 'Pauta: PROTEÍNA' })];
+    const lista = [aula('1', null, 0, { titulo: 'Técnica do agachamento' }), aula('2', null, 0, { descricao: 'Pauta: PROTEÍNA' })];
     expect(buscarAuloes(lista, 'tecnica').map((a) => a.id)).toEqual(['1']);
     expect(buscarAuloes(lista, 'proteina').map((a) => a.id)).toEqual(['2']);
     expect(buscarAuloes(lista, '  ')).toHaveLength(2);
+  });
+
+  it('busca do aluno procura em todos e diz a coleção de cada um', () => {
+    const lista = [aula('1', 'p2', 0, { titulo: 'Agachamento' }), aula('2', null, 0, { titulo: 'Agachar bem' }), aula('3', 'sumiu', 0, { titulo: 'Agachamento livre' }),
+      aula('4', 'p1', 0, { titulo: 'Proteína' })];
+    expect(buscarAuloesComPlaylist(lista, playlists, 'agach').map((r) => [r.aula.id, r.playlist]))
+      .toEqual([['1', 'Técnica'], ['2', SEM_COLECAO], ['3', SEM_COLECAO]]);
+    expect(buscarAuloesComPlaylist(lista, playlists, 'zzz')).toEqual([]);
   });
 
   it('valida título e link', () => {
@@ -68,28 +103,68 @@ describe('vídeos', () => {
     expect(errosDaAula({ ...RASCUNHO_DA_AULA_VAZIO, titulo: 'X', link: 'https://exemplo.com/v' })).toEqual({ titulo: null, link: null });
   });
 
-  it('cria só com o que foi preenchido e edita reenviando os sete campos', () => {
-    const r = { titulo: ' Novo ', link: 'https://exemplo.com/v', categoria: ' Técnica  de base ', descricao: '', capaId: null };
-    expect(corpoDaAula(r)).toEqual({ titulo: 'Novo', descricao: undefined, videoUrl: 'https://exemplo.com/v', categoria: 'Técnica de base' });
+  it('cria com a coleção sempre no corpo e edita reenviando os seis campos, sem ordem', () => {
+    const r = { titulo: ' Novo ', link: 'https://exemplo.com/v', playlistId: 'p1', descricao: '', capaId: null };
+    expect(corpoDaAula(r)).toEqual({ titulo: 'Novo', descricao: undefined, videoUrl: 'https://exemplo.com/v', playlistId: 'p1' });
+    expect(corpoDaAula({ ...r, playlistId: null })).toHaveProperty('playlistId', null);
     expect(corpoDaAula({ ...r, capaId: 'c1' }).capaId).toBe('c1');
-    const original = aula('9', 'Antiga', { publicada: false, ordem: 3, capaId: 'capa-9', descricao: 'Velha' });
-    expect(rascunhoDaAula(original)).toEqual({ titulo: 'Aula 9', link: 'https://exemplo.com/v', categoria: 'Antiga', descricao: 'Velha', capaId: 'capa-9' });
-    expect(corpoDaAula({ ...rascunhoDaAula(original), categoria: '', descricao: '' }, original)).toEqual({
-      titulo: 'Aula 9', descricao: null, videoUrl: 'https://exemplo.com/v', capaId: 'capa-9',
-      categoria: null, ordem: 3, publicada: false,
+    const original = aula('9', 'p2', 3, { publicada: false, capaId: 'capa-9', descricao: 'Velha' });
+    expect(rascunhoDaAula(original)).toEqual({ titulo: 'Aula 9', link: 'https://exemplo.com/v', playlistId: 'p2', descricao: 'Velha', capaId: 'capa-9' });
+    expect(corpoDaAula({ ...rascunhoDaAula(original), descricao: '' }, original)).toEqual({
+      titulo: 'Aula 9', descricao: null, videoUrl: 'https://exemplo.com/v', capaId: 'capa-9', playlistId: 'p2', publicada: false,
     });
   });
 
-  it('editar sem tocar na capa mantém a capa; remover manda nulo (o PUT sem capaId apagaria)', () => {
-    const original = aula('9', null, { capaId: 'capa-9' });
-    expect(corpoDaAula({ ...rascunhoDaAula(original), titulo: 'Outro' }, original).capaId).toBe('capa-9');
-    const semCapa = corpoDaAula({ ...rascunhoDaAula(original), capaId: null }, original);
-    expect(semCapa).toHaveProperty('capaId', null);
+  it('editar sem tocar mantém a coleção e a capa; sem coleção e sem capa vão nulas (o PUT sem elas apagaria)', () => {
+    const original = aula('9', 'p1', 2, { capaId: 'capa-9' });
+    const editado = corpoDaAula({ ...rascunhoDaAula(original), titulo: 'Outro' }, original);
+    expect(editado).toMatchObject({ playlistId: 'p1', capaId: 'capa-9' });
+    expect(editado).not.toHaveProperty('ordem');
+    const semNada = aula('8', null);
+    const corpo = corpoDaAula({ ...rascunhoDaAula(semNada), capaId: null }, semNada);
+    expect(corpo).toHaveProperty('playlistId', null);
+    expect(corpo).toHaveProperty('capaId', null);
   });
 
   it('resume a quantidade', () => {
     expect(resumoDosAuloes(1)).toBe('1 vídeo');
     expect(resumoDosAuloes(3)).toBe('3 vídeos');
+  });
+
+  it('divide em lotes de 100 (vazia = nenhum lote)', () => {
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `a${i}`);
+    expect(LOTE_MAXIMO).toBe(100);
+    expect(emLotes([])).toEqual([]);
+    expect(emLotes(ids(100)).map((l) => l.length)).toEqual([100]);
+    expect(emLotes(ids(101)).map((l) => l.length)).toEqual([100, 1]);
+    expect(emLotes(ids(101))[1]).toEqual(['a100']);
+    expect(emLotes(ids(5), 2).map((l) => l.length)).toEqual([2, 2, 1]);
+  });
+
+  it('nome da coleção: espaços repetidos, strip e NFC, de 1 a 60 em UTF-16', () => {
+    expect(nomeDaPlaylistParaEnviar('  Técnica   de  base ')).toBe('Técnica de base');
+    expect(nomeDaPlaylistParaEnviar('Técnica')).toBe('Técnica');
+    expect(erroDoNomeDaPlaylist('   ')).toBe(MENSAGEM_PLAYLIST_NOME);
+    expect(erroDoNomeDaPlaylist('a'.repeat(60))).toBeNull();
+    expect(erroDoNomeDaPlaylist(` ${'a'.repeat(60)} `)).toBeNull();
+    expect(erroDoNomeDaPlaylist('a'.repeat(61))).toBe(MENSAGEM_PLAYLIST_NOME);
+    expect(erroDoNomeDaPlaylist(`${'a'.repeat(59)}💪`)).toBe(MENSAGEM_PLAYLIST_NOME);
+  });
+
+  it('erro da coleção: nome no campo, lista velha recarrega, o resto em frase fixa', () => {
+    expect(traduzirErroDaPlaylist(new ErroApi(422, 'PLAYLIST_INVALIDA', 'Confira a coleção.', [{ field: 'nome', message: 'Use de 1 a 60 caracteres.' }])))
+      .toEqual({ mensagem: 'Use de 1 a 60 caracteres.', noCampoNome: true, recarregar: false });
+    expect(traduzirErroDaPlaylist(new ErroApi(422, 'PLAYLIST_INVALIDA', 'Confira a coleção.')).mensagem).toBe(MENSAGEM_PLAYLIST_NOME);
+    const repetido = traduzirErroDaPlaylist(new ErroApi(409, 'PLAYLIST_NOME_EM_USO', 'texto interno'));
+    expect(repetido).toMatchObject({ noCampoNome: true, recarregar: false });
+    expect(repetido.mensagem).not.toContain('texto interno');
+    for (const erro of [new ErroApi(409, 'CONFLITO_EDICAO', 'x'), new ErroApi(404, 'NAO_ENCONTRADO', 'Coleção não encontrada.')]) {
+      expect(listaVelha(erro)).toBe(true);
+      expect(traduzirErroDaPlaylist(erro)).toEqual({ mensagem: MENSAGEM_LISTA_MUDOU, noCampoNome: false, recarregar: true });
+    }
+    expect(listaVelha(new ErroApi(409, 'PLAYLIST_NOME_EM_USO', 'x'))).toBe(false);
+    expect(traduzirErroDaPlaylist(new ErroApi(403, 'PERMISSAO_NEGADA', 'Sem permissão.')).mensagem).toBe('Sem permissão.');
+    expect(traduzirErroDaPlaylist(new ErroApi(500, null, 'detalhe interno')).mensagem).toBe('Não foi possível concluir. Tente de novo.');
   });
 });
 

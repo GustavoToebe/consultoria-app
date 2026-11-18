@@ -59,6 +59,7 @@ public class ComunidadeService {
     private final XpService xp;
     private final PostsVisiveisDoMural visiveis;
     private final ComunidadePodRepository pods;
+    private final PlaylistsService playlists;
 
     public ComunidadeService(ComunidadeAulaRepository aulas,
                              ComunidadeAulaComentarioRepository aulaComentarios,
@@ -77,7 +78,9 @@ public class ComunidadeService {
                              CapasDaComunidadeService capas,
                              XpService xp,
                              PostsVisiveisDoMural visiveis,
-                             ComunidadePodRepository pods) {
+                             ComunidadePodRepository pods,
+                             PlaylistsService playlists) {
+        this.playlists = playlists;
         this.visiveis = visiveis;
         this.pods = pods;
         this.aulas = aulas;
@@ -102,12 +105,12 @@ public class ComunidadeService {
 
     @Transactional(readOnly = true)
     public List<AulaResumo> listarAulasAluno(String busca) {
-        return resumos(aulas.findByPublicadaTrueOrderByOrdemAscCriadaEmDesc().stream().filter(a -> casaComABusca(a, busca)).toList());
+        return resumos(aulas.publicadasEmOrdem().stream().filter(a -> casaComABusca(a, busca)).toList());
     }
 
     @Transactional(readOnly = true)
     public List<AulaResumo> listarAulasEquipe(String busca) {
-        return resumos(aulas.findAllByOrderByOrdemAscCriadaEmDesc().stream().filter(a -> casaComABusca(a, busca)).toList());
+        return resumos(aulas.todasEmOrdem().stream().filter(a -> casaComABusca(a, busca)).toList());
     }
 
     /**
@@ -120,20 +123,28 @@ public class ComunidadeService {
                 || Buscas.semAcento(a.getDescricao()).contains(termo);
     }
 
-    /** A capa (se vier) tem de ser uma pendente da consultoria; senão 422 no campo {@code capaId} e o aulão não é criado. */
+    /**
+     * A capa (se vier) tem de ser uma pendente da consultoria; senão 422 no campo {@code capaId} e o aulão não é criado. A playlist
+     * do corpo ({@code playlistId}) tem de ser da consultoria (senão 422 no campo) e o aulão entra no fim dela.
+     */
     public AulaResumo criarAula(CriarAulaRequest r) {
-        ComunidadeAula a = new ComunidadeAula(r.titulo().trim(), r.descricao(), linkDaEntrada("videoUrl", r.videoUrl()),
-                categoriaLimpa(r.categoria()), r.ordem() == null ? 0 : r.ordem(), r.publicada() == null || r.publicada());
+        String link = linkDaEntrada("videoUrl", r.videoUrl());
+        ComunidadeAula a = new ComunidadeAula(r.titulo().trim(), r.descricao(), link, r.playlistId(),
+                playlists.posicaoNoFim(r.playlistId()), r.publicada() == null || r.publicada());
         aulas.saveAndFlush(a);
         capas.definirDaAula(a.getId(), r.capaId());
         return resumo(a, 0, r.capaId());
     }
 
-    /** No {@code PUT}, {@code capaId} nulo ou ausente remove a capa; a mesma que já está ligada não muda. */
+    /**
+     * No {@code PUT}, {@code capaId} nulo ou ausente remove a capa; a mesma que já está ligada não muda. Trocar de playlist manda o
+     * aulão para o fim da nova (ou para a posição 0 sem playlist); com a mesma playlist, a posição fica.
+     */
     public AulaResumo alterarAula(UUID id, CriarAulaRequest r) {
         ComunidadeAula a = aulas.findById(id).orElseThrow(() -> new NaoEncontradoException("Aula não encontrada."));
-        a.atualizar(r.titulo().trim(), r.descricao(), linkDaEntrada("videoUrl", r.videoUrl()), categoriaLimpa(r.categoria()),
-                r.ordem() == null ? 0 : r.ordem(), r.publicada() == null || r.publicada());
+        String link = linkDaEntrada("videoUrl", r.videoUrl());
+        int ordem = Objects.equals(a.getPlaylistId(), r.playlistId()) ? a.getOrdem() : playlists.posicaoNoFim(r.playlistId());
+        a.atualizar(r.titulo().trim(), r.descricao(), link, r.playlistId(), ordem, r.publicada() == null || r.publicada());
         aulas.saveAndFlush(a);
         capas.definirDaAula(a.getId(), r.capaId());
         return resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId()), r.capaId());
@@ -208,7 +219,7 @@ public class ComunidadeService {
 
     private static AulaResumo resumo(ComunidadeAula a, long totalComentarios, UUID capaId) {
         // Link guardado que não passa mais na regra (linha antiga) não vai ao app: abriria o que não deveria.
-        return new AulaResumo(a.getId(), a.getTitulo(), a.getDescricao(), linkSeguro(a.getVideoUrl()), capaId, a.getCategoria(),
+        return new AulaResumo(a.getId(), a.getTitulo(), a.getDescricao(), linkSeguro(a.getVideoUrl()), capaId, a.getPlaylistId(),
                 a.getOrdem(), a.isPublicada(), a.getCriadaEm(), totalComentarios);
     }
 
@@ -630,12 +641,5 @@ public class ComunidadeService {
                 || votos.size() == LIMITE_DA_EXPORTACAO;
         return new ComunidadeExportada(aluno.getApelido(), perfil, pod, posts, deAulas, doMural, reacoesDadas, votos, fotosEnviadas,
                 denunciasFeitas, minhasConquistas, truncado);
-    }
-
-    /** Categoria é texto livre opcional: sem espaços nas pontas nem repetidos no meio; vazio vira nulo (nunca "" no banco). */
-    static String categoriaLimpa(String categoria) {
-        if (categoria == null) return null;
-        String limpa = categoria.strip().replaceAll("\\s+", " ");
-        return limpa.isEmpty() ? null : limpa;
     }
 }

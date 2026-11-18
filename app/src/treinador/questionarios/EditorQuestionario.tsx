@@ -28,6 +28,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { BarraDoEditor } from '../plano/BarraDoEditor';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { PreviaDoQuestionario } from './PreviaDoQuestionario';
@@ -49,7 +50,9 @@ export function EditorQuestionario({ id }: { id: string }) {
   const [aba, setAba] = useState<'editar' | 'previa'>('editar');
   const { width } = useWindowDimensions();
   const estreito = width < LARGURA_MENU_LATERAL;
-  const [abertas, setAbertas] = useState<Set<string>>(new Set());
+  // Perguntas nascem fechadas (uma só nasce aberta); a nova e as com problema abrem. Antes de o rascunho carregar a lista é vazia.
+  const todasAsPerguntas = editor.estado?.conteudo.secoes.flatMap((s) => s.perguntas.map((p) => p.id)) ?? [];
+  const perguntas = useSecoesAbertas(todasAsPerguntas);
   const [problemas, setProblemas] = useState<ProblemaDoQuestionario[] | null>(null);
   const [avisos, setAvisos] = useState<ProblemaDoQuestionario[] | null>(null);
   const [confirmando, setConfirmando] = useState(false);
@@ -74,16 +77,13 @@ export function EditorQuestionario({ id }: { id: string }) {
   const abaAtiva = editavel ? aba : 'previa';
   const agrupados: ProblemasAgrupados = agruparProblemas(e.conteudo, problemas ?? []);
 
-  const alternar = (pid: string) => setAbertas((a) => { const novo = new Set(a); if (novo.has(pid)) novo.delete(pid); else novo.add(pid); return novo; });
-  const todasAsPerguntas = e.conteudo.secoes.flatMap((s) => s.perguntas.map((p) => p.id));
-  const alternarTodas = () => setAbertas((a) => (todasAsPerguntas.every((x) => a.has(x)) ? new Set() : new Set(todasAsPerguntas)));
+  const alternarTodas = () => (perguntas.todasAbertas ? perguntas.fecharTodas() : perguntas.abrirTodas());
 
   /** Com erro de publicação, volta para Editar e abre as perguntas que precisam de correção. */
   const mostrarErros = (erros: ProblemaDoQuestionario[]) => {
     setProblemas(erros);
     setAba('editar');
-    const g = agruparProblemas(e.conteudo, erros);
-    setAbertas((a) => new Set([...a, ...g.porPergunta.keys()]));
+    perguntas.abrir([...agruparProblemas(e.conteudo, erros).porPergunta.keys()]);
   };
 
   const publicar = (confirmarAvisos: boolean) => {
@@ -168,8 +168,8 @@ export function EditorQuestionario({ id }: { id: string }) {
             aoTocar={() => editor.alterarConteudo((c) => alterarInstrucoes(c, [...instrucoes, '']))} />
         </LinhaDeAcoes>
       </Cartao>
-      <SecoesDoQuestionario conteudo={e.conteudo} aoMudar={editor.alterarConteudo} abertas={abertas} aoAlternar={alternar} aoAlternarTodas={alternarTodas}
-        aoAbrir={(pid) => setAbertas((a) => new Set(a).add(pid))} problemas={agrupados} finalidade={d.finalidade} />
+      <SecoesDoQuestionario conteudo={e.conteudo} aoMudar={editor.alterarConteudo} estaAberta={perguntas.estaAberta} todasAbertas={perguntas.todasAbertas} aoAlternar={perguntas.alternar} aoAlternarTodas={alternarTodas}
+        aoAbrir={perguntas.abrir} problemas={agrupados} finalidade={d.finalidade} />
     </> : <PreviaDoQuestionario conteudo={e.conteudo} anamnese={anamnese} respostas={respostas} erros={errosPrevia}
       aoMudar={(pid, valor) => { setRespostas((r) => ({ ...r, [pid]: valor })); setErrosPrevia(null); }}
       aoMudarErros={setErrosPrevia} aoLimpar={() => { setRespostas({}); setErrosPrevia(null); }} />}

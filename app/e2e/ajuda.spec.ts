@@ -4,7 +4,7 @@ import { ALUNO, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './ap
 import { sessaoDeAluno } from './aluno';
 
 /**
- * Ajuda (F16 e F17): busca sem acento que reabre o que estava recolhido e diz "Nenhum resultado" com o foco de volta no
+ * Ajuda (F16 e F17): busca sem acento que abre o que casou (e, ao limpar, volta ao estado de antes) e diz "Nenhum resultado" com o foco de volta no
  * campo, índice lateral no PC (o tópico escolhido em negrito e com o indicador; o clique rola até a seção), seletor no
  * topo do celular, sem rolagem lateral de 390 a 1920 px, com o menu aberto e recolhido, nos temas claro e escuro e com o
  * texto maior; o treinador e o aluno têm cada um o seu guia. A fonte de vídeos começa vazia: nada de bloco de vídeo.
@@ -95,6 +95,8 @@ test('treinador no PC (1280, menu aberto): índice ao lado, busca sem acento rea
   await expect(campoDaBusca(page)).toBeFocused();
   await expect(campoDaBusca(page)).toHaveValue('');
   await expect(page.getByRole('button', { name: 'Tutorial passo a passo' })).toBeVisible();
+  // Limpar a busca volta ao estado de antes dela: a seção que a busca abriu volta a ficar recolhida.
+  await expect(secao(page, 'Financeiro (cobrar seus alunos)')).toHaveAccessibleName(/recolhido$/);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -187,6 +189,8 @@ test('aluno: guia próprio, busca e seletor no celular; índice no PC, também n
   await expect(page.getByRole('heading', { name: 'Vídeos', level: 3 })).toBeVisible();
   await semRolagemLateral(page);
   await page.screenshot({ path: captura('ajuda-aluno-390-busca.png') });
+  await campoDaBusca(page).fill('');
+  await expect(secao(page, 'Comunidade')).toHaveAccessibleName(/recolhido$/);
   expect(errosDaPagina).toEqual([]);
 });
 

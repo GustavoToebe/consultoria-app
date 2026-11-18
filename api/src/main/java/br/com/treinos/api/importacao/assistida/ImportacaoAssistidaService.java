@@ -498,7 +498,7 @@ public class ImportacaoAssistidaService {
             alterou.set(true);
             return new ConteudoDieta.Item(it.uid(), it.alimentoId(), termoPara, it.quantidade(), it.unidade(),
                     it.kcal(), it.proteina(), it.carboidrato(), it.gordura(), it.manual(),
-                    it.fatorCorrecao(), it.fatorCoccao(), it.grupo());
+                    it.fatorCorrecao(), it.fatorCoccao(), it.grupo(), it.fibra());
         });
         return alterou.get() ? nova : dieta;
     }

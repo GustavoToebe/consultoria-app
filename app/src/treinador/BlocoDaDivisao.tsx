@@ -41,7 +41,7 @@ interface Props {
   /** O dia da semana pequeno em cima do título ("Quarta"), quando o nome da divisão o traz. */
   dia?: string | null;
   resumo?: string;
-  /** Com `aoAlternar` a faixa vira botão que recolhe e abre. */
+  /** Com `aoAlternar` a faixa vira botão que recolhe e abre (quem a usa decide o estado inicial; as "Cargas por divisão" nascem fechadas). Sem `aoAlternar` o bloco não recolhe e fica aberto. */
   aberto?: boolean;
   aoAlternar?: () => void;
   children?: ReactNode;

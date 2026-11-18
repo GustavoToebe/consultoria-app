@@ -123,7 +123,7 @@ function useFocarAoMudar(chave: unknown) {
 
 /**
  * A etapa "Amostra": por aluno, o que a confirmação gravaria (cadastro, pesos, treino e dieta, em rascunho), 5 por vez. Só
- * leitura; o primeiro aluno da página vem aberto e o foco vai para a faixa "Alunos N a M de T" a cada página.
+ * leitura; os alunos da página vêm fechados (um só na página vem aberto) e o foco vai para a faixa "Alunos N a M de T" a cada página.
  */
 export function EtapaDaAmostra({ amostra, partesPuladas, ignorados, aoAlternarIgnorado }: {
   amostra: AmostraNaTela; partesPuladas: readonly PartePuladaDaPlanilha[];
@@ -155,8 +155,8 @@ export function EtapaDaAmostra({ amostra, partesPuladas, ignorados, aoAlternarIg
       {pagina && pagina.alunos.length === 0 ? (
         <Vazio titulo="Nenhum aluno para mostrar" texto="A planilha não traz cadastro novo nem plano de aluno. A prévia mostra o resto do que vai ser gravado." />
       ) : null}
-      {pagina?.alunos.map((a, i) => (
-        <CartaoDoAluno key={`${pagina.inicio}-${a.numero}`} aluno={a} puladas={partesPuladas} abertoAoMontar={i === 0} aoVerComoAluno={setPrevia}
+      {pagina?.alunos.map((a) => (
+        <CartaoDoAluno key={`${pagina.inicio}-${a.numero}`} aluno={a} puladas={partesPuladas} abertoAoMontar={pagina.alunos.length === 1} aoVerComoAluno={setPrevia}
           ignorado={ignorados.includes(a.numero)} aoAlternarIgnorado={() => aoAlternarIgnorado(a.numero)} />
       ))}
       {pagina && (amostra.temAnterior || restantes > 0) ? (

@@ -65,11 +65,18 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('aba Treino: um cartão por coleção em ordem alfabética, "Sem coleção" por último, cada modelo no seu', async ({ page }) => {
+    test('aba Treino: coleções nascem fechadas, em ordem alfabética, "Sem coleção" por último, cada modelo no seu', async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page);
-      await expect(faixa(page, 'Avançados')).toBeVisible();
-      await expect(faixa(page, 'Hipertrofia')).toBeVisible();
-      await expect(faixa(page, 'Sem coleção')).toBeVisible();
+      await expect(faixa(page, 'Avançados', 'recolhido')).toBeVisible();
+      await expect(faixa(page, 'Hipertrofia', 'recolhido')).toBeVisible();
+      await expect(faixa(page, 'Sem coleção', 'recolhido')).toBeVisible();
+      // Fechadas mostram o resumo e nenhum modelo.
+      await expect(page.getByText('1 modelo', { exact: true })).toHaveCount(3);
+      for (const nome of ['Semana avançada', 'Semana de hipertrofia', 'Semana solta']) await expect(modeloNaTela(page, nome)).toHaveCount(0);
+      // Abre de baixo para cima: abrir uma não desloca as que estão acima.
+      await faixa(page, 'Sem coleção', 'recolhido').click();
+      await faixa(page, 'Hipertrofia', 'recolhido').click();
+      await faixa(page, 'Avançados', 'recolhido').click();
       const yAvancados = await topo(faixa(page, 'Avançados'));
       const yHipertrofia = await topo(faixa(page, 'Hipertrofia'));
       const ySem = await topo(faixa(page, 'Sem coleção'));
@@ -93,9 +100,12 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('a busca procura em todas as coleções (sem acento, nome e descrição) e a coleção sem resultado some', async ({ page }) => {
+    test('a busca procura em todas as coleções (sem acento, nome e descrição), abre as com resultado e limpar volta ao de antes', async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page);
-      await expect(faixa(page, 'Avançados')).toBeVisible();
+      await expect(faixa(page, 'Avançados', 'recolhido')).toBeVisible();
+      // Uma aberta à mão antes de buscar: depois de limpar a busca, só ela continua aberta.
+      await faixa(page, 'Avançados', 'recolhido').click();
+      await expect(modeloNaTela(page, 'Semana avançada')).toBeVisible();
       const busca = page.getByRole('textbox', { name: 'Buscar modelo', exact: true });
       await busca.fill('iniciacao');
       await expect(modeloNaTela(page, 'Semana solta')).toBeVisible();
@@ -109,44 +119,61 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
       await busca.fill('xyz');
       await expect(page.getByText('Nenhum modelo com essa busca.', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: /, aberto$/ })).toHaveCount(0);
+      // Limpar a busca volta ao estado de antes dela: só a que a pessoa abriu fica aberta, as outras voltam fechadas.
+      await busca.fill('');
+      await expect(faixa(page, 'Avançados')).toBeVisible();
+      await expect(modeloNaTela(page, 'Semana avançada')).toBeVisible();
+      await expect(faixa(page, 'Hipertrofia', 'recolhido')).toBeVisible();
+      await expect(faixa(page, 'Sem coleção', 'recolhido')).toBeVisible();
+      await expect(modeloNaTela(page, 'Semana solta')).toHaveCount(0);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('trocar o chip de tipo mantém o agrupamento; recolher numa lista não recolhe na outra', async ({ page }) => {
+    test('trocar o chip de tipo mantém o agrupamento; abrir ou recolher numa lista não mexe na outra', async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page);
-      await expect(faixa(page, 'Avançados')).toBeVisible();
-      await faixa(page, 'Hipertrofia').click();
-      await expect(faixa(page, 'Hipertrofia', 'recolhido')).toBeVisible();
+      await faixa(page, 'Hipertrofia', 'recolhido').click();
+      await expect(faixa(page, 'Hipertrofia')).toBeVisible();
       await page.getByLabel('Dias de treino', { exact: true }).click();
+      // Dias de treino tem uma coleção só: nasce aberta.
       await expect(modeloNaTela(page, 'Dia de pernas')).toBeVisible();
       await expect(faixa(page, 'Hipertrofia')).toBeVisible();
       await expect(faixa(page, 'Avançados')).toHaveCount(0);
       await expect(faixa(page, 'Sem coleção')).toHaveCount(0);
       await expect(modeloNaTela(page, 'Semana de hipertrofia')).toHaveCount(0);
-      // De volta às semanas, a coleção continua recolhida como ficou.
+      await faixa(page, 'Hipertrofia').click();
+      await expect(faixa(page, 'Hipertrofia', 'recolhido')).toBeVisible();
+      await expect(modeloNaTela(page, 'Dia de pernas')).toHaveCount(0);
+      // De volta às semanas, a coleção continua aberta como ficou; as outras, fechadas.
       await page.getByLabel('Semanas de treino', { exact: true }).click();
+      await expect(faixa(page, 'Hipertrofia')).toBeVisible();
+      await expect(modeloNaTela(page, 'Semana de hipertrofia')).toBeVisible();
+      await expect(faixa(page, 'Avançados', 'recolhido')).toBeVisible();
+      await page.getByLabel('Dias de treino', { exact: true }).click();
       await expect(faixa(page, 'Hipertrofia', 'recolhido')).toBeVisible();
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('recolher a coleção esconde os modelos dela; abrir ou buscar traz de volta', async ({ page }) => {
+    test('abrir mostra os modelos da coleção, recolher esconde, e buscar abre; limpar volta ao de antes', async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page);
-      await expect(modeloNaTela(page, 'Semana de hipertrofia')).toBeVisible();
-      await faixa(page, 'Hipertrofia').click();
       await expect(faixa(page, 'Hipertrofia', 'recolhido')).toBeVisible();
       await expect(modeloNaTela(page, 'Semana de hipertrofia')).toHaveCount(0);
-      await expect(modeloNaTela(page, 'Semana avançada')).toBeVisible();
       await faixa(page, 'Hipertrofia', 'recolhido').click();
       await expect(faixa(page, 'Hipertrofia')).toBeVisible();
       await expect(modeloNaTela(page, 'Semana de hipertrofia')).toBeVisible();
-      // Recolhida de novo, a busca reabre: o resultado nunca fica escondido.
+      await expect(modeloNaTela(page, 'Semana avançada')).toHaveCount(0);
       await faixa(page, 'Hipertrofia').click();
       await expect(faixa(page, 'Hipertrofia', 'recolhido')).toBeVisible();
-      await page.getByRole('textbox', { name: 'Buscar modelo', exact: true }).fill('hipertrofia');
+      await expect(modeloNaTela(page, 'Semana de hipertrofia')).toHaveCount(0);
+      // Recolhida, a busca abre: o resultado nunca fica escondido; limpar fecha de novo.
+      const busca = page.getByRole('textbox', { name: 'Buscar modelo', exact: true });
+      await busca.fill('hipertrofia');
       await expect(faixa(page, 'Hipertrofia')).toBeVisible();
       await expect(modeloNaTela(page, 'Semana de hipertrofia')).toBeVisible();
+      await busca.fill('');
+      await expect(faixa(page, 'Hipertrofia', 'recolhido')).toBeVisible();
+      await expect(modeloNaTela(page, 'Semana de hipertrofia')).toHaveCount(0);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
@@ -176,7 +203,7 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
 
     test('o lápis da faixa abre "Organizar coleções" já renomeando a coleção', async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page);
-      await expect(faixa(page, 'Hipertrofia')).toBeVisible();
+      await expect(faixa(page, 'Hipertrofia', 'recolhido')).toBeVisible();
       // "Sem coleção" não é uma coleção: não tem lápis.
       await expect(page.getByRole('button', { name: /^Renomear coleção Sem coleção/ })).toHaveCount(0);
       await page.getByRole('button', { name: 'Renomear coleção Hipertrofia', exact: true }).click();

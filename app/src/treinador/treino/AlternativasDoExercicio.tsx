@@ -35,9 +35,9 @@ export function AlternativasDoExercicio({ exercicio: e, erros, aoMudar, aoAdicio
     return erros[`${p}exercicioId`] ?? erros[`${p}nome`] ?? erros[`${p}videoUrl`] ?? null;
   };
   const comErro = !!erros.alternativas || lista.some((_, i) => erroDaLinha(i));
-  // Como o "Nome de exibição e instruções": até a pessoa tocar, abre quando já tem alguma; com erro, sempre aberto.
-  const [escolha, setEscolha] = useState<boolean | null>(null);
-  const aberto = comErro || (escolha ?? lista.length > 0);
+  // Nasce fechado, mesmo com alternativas (18/11; o botão diz quantas há); com erro, sempre aberto.
+  const [escolha, setEscolha] = useState(false);
+  const aberto = comErro || escolha;
   const motivo = motivoSemAdicionarAlternativa(e);
   const nome = e.nome || 'o exercício';
   const texto = `Alternativas de troca (${lista.length ? `${lista.length} de ${MAXIMO_DE_ALTERNATIVAS}` : 'nenhuma'})`;

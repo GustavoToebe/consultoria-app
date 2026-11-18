@@ -21,7 +21,7 @@ interface Props {
   rodape?: ReactNode;
   /** O título vira botão que recolhe e expande o conteúdo (as `acoes` ficam sempre visíveis). */
   recolhivel?: boolean;
-  /** Só vale com `recolhivel`: começa fechado. */
+  /** Só vale com `recolhivel`: padrão `true` (seção nasce fechada, regra de 18/11); `recolhido={false}` só onde a tela precisa abrir (uso do aluno). */
   recolhido?: boolean;
   /** Nível do título para o leitor de tela; padrão h2 (o h1 é o `Cabecalho` da tela). */
   nivel?: 2 | 3;
@@ -46,7 +46,7 @@ interface Props {
  * no contraste alto, `contornoDoCartao`), cantos de 20 px e a `sombra` do tema, que é quem separa o cartão da página; o
  * título fica no próprio cartão, com o filete `divisor` embaixo (divisória interna: não acompanha o contorno no contraste alto). Separa seções, dias, exercícios.
  */
-export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, marcador, periodo, style }: Props) {
+export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = true, nivel = 2, faixa = true, marcador, periodo, style }: Props) {
   const { cores, bordas, preferencias } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);

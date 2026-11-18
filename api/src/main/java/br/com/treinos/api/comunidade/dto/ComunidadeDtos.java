@@ -13,27 +13,42 @@ import tools.jackson.databind.JsonNode;
 public final class ComunidadeDtos {
     private ComunidadeDtos() {}
 
+    /**
+     * {@code playlistId} (V088): a playlist do aulão ("coleção" na tela); nulo = sem playlist. Id que não é da consultoria é 422 no
+     * campo. A posição na playlist não vem do corpo: o aulão novo ou movido vai para o fim, e editar sem trocar de playlist a mantém.
+     */
     public record CriarAulaRequest(
             @NotBlank @Size(max = 120) String titulo,
             @Size(max = 4000) String descricao,
             @NotBlank @Size(max = 500) String videoUrl,
-            @Size(max = 60) String categoria,
-            Integer ordem,
+            UUID playlistId,
             Boolean publicada,
             UUID capaId) {}
 
-    /** {@code capaId}: a capa enviada pela equipe (bytes em {@code .../capas/{id}}); nulo = sem capa. */
+    /** {@code capaId}: a capa enviada pela equipe (bytes em {@code .../capas/{id}}); nulo = sem capa. {@code ordem}: posição na playlist. */
     public record AulaResumo(
             UUID id,
             String titulo,
             String descricao,
             String videoUrl,
             UUID capaId,
-            String categoria,
+            UUID playlistId,
             int ordem,
             boolean publicada,
             Instant criadaEm,
             long totalComentarios) {}
+
+    /** Corpo do {@code POST}/{@code PUT /comunidade/playlists}; 1 a 60 caracteres depois do strip (o serviço confere). */
+    public record PlaylistRequest(@NotNull @Size(max = 200) String nome) {}
+
+    /** Playlist ("coleção" na tela); {@code totalAulas} conta todos os aulões para a equipe e só os publicados para o aluno. */
+    public record PlaylistResumo(UUID id, String nome, int ordem, long totalAulas) {}
+
+    /** Nova ordem, do primeiro ao último: tem de trazer todos os ids da lista, sem repetir (senão 409 {@code CONFLITO_EDICAO}). */
+    public record OrdemRequest(@NotNull @Size(min = 1, max = 500) List<@NotNull UUID> ids) {}
+
+    /** Põe de 1 a 100 aulões na playlist (no fim, na ordem enviada); {@code playlistId} nulo tira todos da playlist. */
+    public record AulasEmLoteRequest(@NotNull @Size(min = 1, max = 100) List<@NotNull UUID> aulaIds, UUID playlistId) {}
 
     /** Limite do comentário (aula e mural), em unidades UTF-16 ({@code String.length()}: o emoji vale 2) depois do strip. */
     public static final int LIMITE_DO_COMENTARIO = 280;

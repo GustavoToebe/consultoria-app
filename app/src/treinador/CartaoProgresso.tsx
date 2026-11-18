@@ -109,7 +109,6 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
       periodo={PERIODO_DO_PROGRESSO}
       descricao="Histórico completo de cada exercício, somando todas as pastas."
       recolhivel
-      recolhido
       acoes={<Botao rotulo={`Escolher exercícios (${mostrados.length})`} tipo="secundario" aoTocar={() => setEscolhendo(true)} />}>
       {/* Preferência pessoal deste aparelho; vale também para o gráfico de peso. */}
       <Interruptor rotulo="Mostrar gráficos" valor={preferencias.graficos} aoMudar={(graficos) => escolherPreferencia({ graficos })} />

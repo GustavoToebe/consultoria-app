@@ -29,6 +29,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { espaco } from '../../tema/tokens';
 import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 
@@ -54,7 +55,15 @@ export function AbaErgogenicos() {
   const [editando, setEditando] = useState<ErgogenicoDaBiblioteca | 'novo' | null>(null);
   const [inativar, setInativar] = useState<ErgogenicoDaBiblioteca | null>(null);
   const categorias = categoriasDosErgogenicos(dados ?? []);
+  const idDoGrupo = (g: { categoria: string | null }) => g.categoria ?? '';
+  // Categorias nascem fechadas (uma só nasce aberta); o filtro e a busca abrem as que têm resultado e limpar restaura (design 4.8).
+  const secoes = useSecoesAbertas(agruparErgogenicos(dados ?? []).map(idDoGrupo));
   const grupos = agruparErgogenicos(filtrarErgogenicos(dados ?? [], busca, categoria));
+  const filtrar = (novaBusca: string, novaCategoria: string) => {
+    setBusca(novaBusca);
+    setCategoria(novaCategoria);
+    secoes.aoBuscar(novaBusca.trim() || novaCategoria, agruparErgogenicos(filtrarErgogenicos(dados ?? [], novaBusca, novaCategoria)).map(idDoGrupo));
+  };
 
   const confirmarInativar = () => {
     const alvo = inativar;
@@ -75,8 +84,8 @@ export function AbaErgogenicos() {
         titulo="Outros"
         descricao="Medicação, ergogênicos e o que mais você quiser ter à mão, nas categorias que você criar. Só o que está no rótulo: dose, horário e prescrição quem escreve é você, na dieta do aluno."
         acoes={<Permitido codigo="ERGOGENICO_ALTERAR"><Botao rotulo="Novo item" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-        <BarraDaBiblioteca rotulo="Buscar em Outros" placeholder="Nome, princípio ativo ou categoria" valor={busca} aoMudar={setBusca} painelLateral={{ titulo: 'Filtros de outros itens' }}
-          filtro={categorias.length ? { tipo: 'uma', rotulo: 'Categoria', valor: categoria, todos: '', aoMudar: setCategoria,
+        <BarraDaBiblioteca rotulo="Buscar em Outros" placeholder="Nome, princípio ativo ou categoria" valor={busca} aoMudar={(b) => filtrar(b, categoria)} painelLateral={{ titulo: 'Filtros de outros itens' }}
+          filtro={categorias.length ? { tipo: 'uma', rotulo: 'Categoria', valor: categoria, todos: '', aoMudar: (c) => filtrar(busca, c),
             opcoes: [{ valor: '', rotulo: 'Todas' }, ...categorias.map((c) => ({ valor: c, rotulo: c }))] } : null} />
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Esqueleto /> : null}
@@ -84,19 +93,20 @@ export function AbaErgogenicos() {
           <Vazio
             titulo={dados.length ? 'Nenhum item encontrado' : 'Biblioteca vazia'}
             texto={dados.length ? 'Tente outro termo ou outra categoria.' : 'Cadastre um item ou importe a lista pelo script de importação.'}
-            acao={!dados.length ? undefined : categoria ? { rotulo: 'Limpar filtros', aoTocar: () => setCategoria('') } : { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }}
+            acao={!dados.length ? undefined : categoria ? { rotulo: 'Limpar filtros', aoTocar: () => filtrar(busca, '') } : { rotulo: 'Limpar busca', aoTocar: () => filtrar('', categoria) }}
           />
         ) : null}
       </Cartao>
       {grupos.map((g) => (
-        <Cartao key={g.categoria ?? ''} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDoGrupo(g.itens.length)} />}>
+        <Cartao key={idDoGrupo(g)} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDoGrupo(g.itens.length)}
+          aberto={secoes.estaAberta(idDoGrupo(g))} aoAlternar={() => secoes.alternar(idDoGrupo(g))} />}>
           {/* Uma superfície só, com divisórias entre os itens (sem caixa por registro): o cartão já é o contêiner. */}
-          <ListaDeLinhas divisorias>{g.itens.map((e) => (
+          {secoes.estaAberta(idDoGrupo(g)) ? <ListaDeLinhas divisorias>{g.itens.map((e) => (
             <LinhaDaLista key={e.id} titulo={nomeEPrincipio(e)}
               metadados={`Concentração: ${textoOuTraco(e.concentracao)} · Apresentação: ${textoOuTraco(e.apresentacao)}`}
               acoesAoLado
               acoes={<Permitido codigo="ERGOGENICO_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
-          ))}</ListaDeLinhas>
+          ))}</ListaDeLinhas> : null}
         </Cartao>
       ))}
       {editando ? (
@@ -105,8 +115,9 @@ export function AbaErgogenicos() {
           categorias={categorias}
           aoTirar={editando === 'novo' ? undefined : () => { const alvo = editando; setEditando(null); setInativar(alvo); }}
           aoFechar={() => setEditando(null)}
-          aoSalvar={() => {
+          aoSalvar={(categoriaSalva) => {
             setEditando(null);
+            secoes.abrir(categoriaSalva ?? '');
             recarregar();
             avisar('Item salvo.', 'sucesso');
           }}
@@ -136,7 +147,8 @@ function FolhaErgogenico({
   inicial: ErgogenicoDaBiblioteca | null;
   categorias: string[];
   aoFechar: () => void;
-  aoSalvar: () => void;
+  /** Recebe a categoria gravada: a tela abre o grupo dela. */
+  aoSalvar: (categoria: string | null) => void;
 }) {
   const [categoria, setCategoria] = useState(inicial?.categoria ?? '');
   const [nome, setNome] = useState(inicial?.nome ?? '');
@@ -162,7 +174,7 @@ function FolhaErgogenico({
     };
     setSalvando(true);
     setErro(null);
-    (inicial ? alterarErgogenico(inicial.id, dados) : criarErgogenico(dados)).then(aoSalvar, (e: unknown) => {
+    (inicial ? alterarErgogenico(inicial.id, dados) : criarErgogenico(dados)).then(() => aoSalvar(dados.categoria ?? null), (e: unknown) => {
       setSalvando(false);
       setErro(e);
     });

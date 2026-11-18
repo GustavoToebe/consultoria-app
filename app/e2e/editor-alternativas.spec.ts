@@ -114,7 +114,10 @@ test.describe('alternativas de troca no PC (1280)', () => {
         exercicioId: SUPINO.id, nome: SUPINO.nome, modalidade: 'LIVRE', series: [serie('supino-costas-1', { repsMin: 8, repsMax: 10 })],
       }));
     });
-    // Com alternativa a seção já abre.
+    // Nasce fechada mesmo com alternativa (18/11); o botão diz quantas tem.
+    await expect(secao(page)).toHaveAttribute('aria-expanded', 'false');
+    await expect(secao(page)).toHaveAccessibleName(/\(1 de 3\)/);
+    await secao(page).click();
     await expect(secao(page)).toHaveAttribute('aria-expanded', 'true');
     await page.getByRole('button', { name: `Trocar em todas as sessões: ${SUPINO.nome} por ${HALTERES.nome}`, exact: true }).click();
 
@@ -147,7 +150,7 @@ test.describe('alternativas de troca no PC (1280)', () => {
     const api = await abrir(page, (c) => {
       c.sessoes[0].exercicios[0].alternativas = [alt(BIBLIOTECA[5])];
     }, [{ field: 'sessoes[0].exercicios[0].alternativas[0].exercicioId', message: mensagem }]);
-    await secao(page).click();
+    // Fechada ao abrir (18/11); o erro apontado pela publicação a abre.
     await expect(secao(page)).toHaveAttribute('aria-expanded', 'false');
 
     await page.getByRole('button', { name: 'Publicar treino', exact: true }).click();
@@ -166,6 +169,8 @@ test.describe('alternativas de troca no celular (390)', () => {
       c.sessoes[0].exercicios[0].alternativas = [alt(HALTERES)];
     });
     await page.getByRole('button', { name: `Editar ${SUPINO.nome}`, exact: true }).click();
+    await expect(secao(page)).toHaveAttribute('aria-expanded', 'false');
+    await secao(page).click();
     await expect(secao(page)).toHaveAttribute('aria-expanded', 'true');
     // No estreito o "Trocar em todas as sessões" é só o ícone, com o mesmo nome acessível.
     const trocar = page.getByRole('button', { name: `Trocar em todas as sessões: ${SUPINO.nome} por ${HALTERES.nome}`, exact: true });

@@ -1,5 +1,5 @@
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { dataParaTela } from '../dominio/formatos';
@@ -12,6 +12,7 @@ import { espaco, fontes, RAIO } from '../tema/tokens';
 import { larguraDaData } from '../ui/larguraDaData';
 import { Tabela } from '../ui/Tabela';
 import { Texto } from '../ui/Texto';
+import { useSecoesAbertas } from '../ui/useSecoesAbertas';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { BlocoDaDivisao } from './BlocoDaDivisao';
 
@@ -23,8 +24,10 @@ const LARGURA_MINIMA_TABELA = 280;
  * Frente G, D13) e, para cada exercício, uma tabela com a data, a carga de trabalho, as repetições e as séries feitas.
  * Observação do aluno embaixo da linha. Carga na cor do texto, nunca da marca nem do tipo de série. `letras` vem da tela
  * quando a visão por semana precisa das mesmas letras; sem ela, a ordem das divisões dá a letra.
+ * As divisões nascem fechadas (a única nasce aberta; `docs/design-e-front.md` 4.8). O histórico do aluno é tela de uso
+ * e continua com tudo aberto: passa `nascemAbertas`.
  */
-export function CargasPorDivisao({ divisoes, letras: dadas }: { divisoes: DivisaoRelatorio[]; letras?: ReadonlyMap<string, string> }) {
+export function CargasPorDivisao({ divisoes, letras: dadas, nascemAbertas = false }: { divisoes: DivisaoRelatorio[]; letras?: ReadonlyMap<string, string>; nascemAbertas?: boolean }) {
   const letras = dadas ?? letrasDasDivisoes(divisoes.map((d) => d.nome));
   const { cores, fatorTexto } = useTema();
   const unidade = useUnidadeDeCarga();
@@ -34,13 +37,8 @@ export function CargasPorDivisao({ divisoes, letras: dadas }: { divisoes: Divisa
   const temSoPreparacao = divisoes.some((d) => d.exercicios.some((e) => e.linhas.some((l) => l.carga === null && !l.semCarga && l.etapas === null)));
   const larguraData = larguraDaData(fatorTexto);
   const animar = usePrimeiraLista(divisoes.length > 0, divisoes.map((d) => d.chave).join('|'));
-  const [recolhidas, setRecolhidas] = useState<ReadonlySet<string>>(new Set());
-  const alternar = (chave: string) =>
-    setRecolhidas((atual) => {
-      const novo = new Set(atual);
-      if (!novo.delete(chave)) novo.add(chave);
-      return novo;
-    });
+  const chaves = divisoes.map((d) => d.chave);
+  const secoes = useSecoesAbertas(chaves, nascemAbertas ? chaves : []);
   return (
     <View style={estilos.lista}>
       {temSoPreparacao ? (
@@ -48,7 +46,7 @@ export function CargasPorDivisao({ divisoes, letras: dadas }: { divisoes: Divisa
       ) : null}
       {divisoes.map((d, i) => (
         <EntradaEmCascata indice={i} animar={animar} key={d.chave}>
-          <FaixaDaDivisao divisao={d} letra={letraDaDivisaoNoHistorico(letras, d.nome)} aberta={!recolhidas.has(d.chave)} aoAlternar={() => alternar(d.chave)}>
+          <FaixaDaDivisao divisao={d} letra={letraDaDivisaoNoHistorico(letras, d.nome)} aberta={secoes.estaAberta(d.chave)} aoAlternar={() => secoes.alternar(d.chave)}>
           {d.exercicios.map((e) => (
             <View key={e.chave} style={[estilos.exercicio, { borderColor: cores.borda }]}>
               <View style={[estilos.cabecalho, { backgroundColor: cores.superficie3 }]}>

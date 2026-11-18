@@ -1,4 +1,7 @@
-import { comentarComoAluno, listarComentariosDaEquipe, listarComentariosDoAluno, removerComentario } from './comunidade';
+import {
+  comentarComoAluno, criarPlaylist, excluirPlaylist, listarComentariosDaEquipe, listarComentariosDoAluno, listarPlaylists,
+  listarPlaylistsDoAluno, moverAulasParaPlaylist, removerComentario, renomearPlaylist, reordenarAulasDaPlaylist, reordenarPlaylists,
+} from './comunidade';
 import { requisicao } from './cliente';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
@@ -18,5 +21,27 @@ describe('rotas dos comentários', () => {
     expect(requisicao).toHaveBeenLastCalledWith('/comunidade/aulas/comentarios/c%2F1', { metodo: 'DELETE' });
     await removerComentario('post', 'c1');
     expect(requisicao).toHaveBeenLastCalledWith('/comunidade/mural/comentarios/c1', { metodo: 'DELETE' });
+  });
+});
+
+describe('rotas das coleções', () => {
+  it('ordem, ordem dos vídeos e lote levam a lista no corpo; o id da coleção é codificado', async () => {
+    await reordenarPlaylists(['p2', 'p1']);
+    expect(requisicao).toHaveBeenLastCalledWith('/comunidade/playlists/ordem', { metodo: 'PUT', corpo: { ids: ['p2', 'p1'] } });
+    await reordenarAulasDaPlaylist('p/1', ['a2', 'a1']);
+    expect(requisicao).toHaveBeenLastCalledWith('/comunidade/playlists/p%2F1/aulas/ordem', { metodo: 'PUT', corpo: { ids: ['a2', 'a1'] } });
+    await moverAulasParaPlaylist(['a1'], null);
+    expect(requisicao).toHaveBeenLastCalledWith('/comunidade/aulas/playlist', { metodo: 'PUT', corpo: { aulaIds: ['a1'], playlistId: null } });
+  });
+
+  it('criar, renomear, excluir e a lista do aluno', async () => {
+    await criarPlaylist('Técnica');
+    expect(requisicao).toHaveBeenLastCalledWith('/comunidade/playlists', { metodo: 'POST', corpo: { nome: 'Técnica' } });
+    await renomearPlaylist('p1', 'Base');
+    expect(requisicao).toHaveBeenLastCalledWith('/comunidade/playlists/p1', { metodo: 'PUT', corpo: { nome: 'Base' } });
+    await excluirPlaylist('p1');
+    expect(requisicao).toHaveBeenLastCalledWith('/comunidade/playlists/p1', { metodo: 'DELETE' });
+    await expect(listarPlaylists()).resolves.toBe('/comunidade/playlists');
+    await expect(listarPlaylistsDoAluno()).resolves.toBe('/aluno/comunidade/playlists');
   });
 });

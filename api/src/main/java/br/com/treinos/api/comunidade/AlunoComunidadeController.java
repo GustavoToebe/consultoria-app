@@ -36,11 +36,14 @@ public class AlunoComunidadeController {
     private final ReacoesDoMuralService reacoes;
     private final EnquetesDoMuralService enquetes;
     private final CapasDaComunidadeService capas;
+    private final PlaylistsService playlists;
 
     public AlunoComunidadeController(ComunidadeService comunidade, ApelidoDoAlunoService apelidos, PerfilDoAlunoService perfil,
                                      ColegasDaComunidadeService colegas, LimiteTentativas limite, FotosDoMuralService fotos,
                                      DenunciasDoMuralService denuncias, ConfiguracaoDaComunidadeService configuracao,
-                                     ReacoesDoMuralService reacoes, EnquetesDoMuralService enquetes, CapasDaComunidadeService capas) {
+                                     ReacoesDoMuralService reacoes, EnquetesDoMuralService enquetes, CapasDaComunidadeService capas,
+                                     PlaylistsService playlists) {
+        this.playlists = playlists;
         this.reacoes = reacoes;
         this.enquetes = enquetes;
         this.capas = capas;
@@ -60,6 +63,13 @@ public class AlunoComunidadeController {
     @GetMapping("/aulas")
     public List<AulaResumo> listarAulas(@RequestParam(required = false) String busca) {
         return comunidade.listarAulasAluno(busca);
+    }
+
+    /** Só as playlists ("coleções") com aulão publicado, e o total conta só os publicados (V088). */
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/playlists")
+    public List<PlaylistResumo> listarPlaylists() {
+        return playlists.listarDoAluno();
     }
 
     @PreAuthorize("hasRole('ALUNO')")

@@ -170,7 +170,7 @@ public class SeedDemo {
             for (AlimentoDemo a : ALIMENTOS) {
                 alimentos.put(a.nome(), biblioteca.criarAlimentoDeSeed(new AlimentoRequest(a.nome(), new BigDecimal("100"),
                         "g", new BigDecimal(a.kcal()), new BigDecimal(a.proteina()), new BigDecimal(a.carboidrato()),
-                        new BigDecimal(a.gordura()), null, FONTE_ALIMENTOS, null, null, a.grupo(),
+                        new BigDecimal(a.gordura()), null, null, FONTE_ALIMENTOS, null, null, a.grupo(),
                         null, null, null, null, null, null, null)).id());
             }
 

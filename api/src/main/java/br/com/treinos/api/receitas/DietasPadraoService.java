@@ -91,13 +91,13 @@ public class DietasPadraoService {
     private static DietasPadrao.Nutrientes nutrientesDe(Alimento alimento) {
         return new DietasPadrao.Nutrientes(alimento.getId(), alimento.getBaseQuantidade(), alimento.getBaseUnidade(),
                 alimento.getKcal(), alimento.getProteina(), alimento.getCarboidrato(), alimento.getGordura(),
-                alimento.getGramasPorUnidade());
+                alimento.getFibra(), alimento.getGramasPorUnidade());
     }
 
     /** Sem {@code FatoresDeRendimento.completar}: o que o catálogo não tem continua nulo. */
     private static Alimento copiar(CatalogoAlimento c) {
         return new Alimento(Alimento.Valores.deAlimento(c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
-                c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getGramasPorUnidade(),
+                c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getFibra(), c.getGramasPorUnidade(),
                 c.getFonte(), c.getFatorCorrecao(), c.getFatorCoccao(), GrupoDoAlimento.doCatalogo(c.getGrupo())),
                 Exercicio.Origem.CATALOGO);
     }

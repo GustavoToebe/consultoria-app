@@ -14,8 +14,8 @@ interface Props<C> {
   editor: Editor<C>;
   /** Plano de modelo: o nome fica no topo do modelo, sem período. */
   modelo?: boolean;
-  /** Começa recolhido (plano que já tem conteúdo); só vale na primeira exibição. */
-  recolhido: boolean;
+  /** Nasce recolhido (regra de 18/11); `false` só onde o layout já mostra tudo. Só vale na primeira exibição. */
+  recolhido?: boolean;
   descricao?: string;
   /**
    * Resumo que fica à vista também recolhido ("Objetivo: X · Metodologia: Y"), na faixa ao lado do título.
@@ -28,9 +28,10 @@ interface Props<C> {
 
 /**
  * "Configuração do plano": título, período (quando não vem da pasta) e os campos do tipo. Recolhível: o treinador mexe
- * pouco aqui depois de montado o plano. Os campos preenchem a largura do cartão.
+ * pouco aqui depois de montado o plano. Os campos preenchem a largura do cartão. Dieta e mobilidade não passam
+ * `recolhido` (nascem fechadas); o treino passa o dele (lote do treino).
  */
-export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido, descricao, resumo, children }: Props<C>) {
+export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido = true, descricao, resumo, children }: Props<C>) {
   const e = editor.estado;
   if (!e) return null;
   return (

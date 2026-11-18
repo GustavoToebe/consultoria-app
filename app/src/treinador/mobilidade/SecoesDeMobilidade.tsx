@@ -16,6 +16,7 @@ import { Divisor } from '../../ui/Divisor';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { Texto } from '../../ui/Texto';
+import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { BarraDesfazer, type Desfazer } from '../plano/BarraDesfazer';
 import { BlocoAdicionar } from '../plano/BlocoAdicionar';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
@@ -53,9 +54,12 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
   acoes?: ReactNode;
 }) {
   const { cores } = useTema();
-  const [abertos, setAbertos] = useState<ReadonlySet<string>>(new Set());
+  // Itens (de todas as seções) que abrem e fecham: nascem fechados, o único nasce aberto; novo e erro apontado abrem.
+  const todos = mob.secoes.flatMap((x) => x.itens.map((i) => i.uid));
+  const itens = useSecoesAbertas(todos);
   // `secaoDoItem`/`indiceDaSecao`: onde o aviso aparece (no lugar do que saiu, para o Desfazer ficar à vista).
-  const [desfazer, setDesfazer] = useState<(Desfazer<ConteudoMobilidade> & { voltarPara?: string; secaoDoItem?: string; indiceDaSecao?: number }) | null>(null);
+  // `reabrir`: itens removidos que estavam abertos; o Desfazer os abre de novo (o estado esqueceu quando saíram da lista).
+  const [desfazer, setDesfazer] = useState<(Desfazer<ConteudoMobilidade> & { voltarPara?: string; secaoDoItem?: string; indiceDaSecao?: number; reabrir?: string[] }) | null>(null);
   const duas = useDuasColunas();
   const { rolarAte } = useRolagem();
   // Seção do inspetor; a que sumiu (removida, modelo recarregado) cai na primeira.
@@ -67,17 +71,14 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
     const alvo = mob.secoes.find((x) => irPara.uids.includes(x.uid) || x.itens.some((i) => irPara.uids.includes(i.uid)));
     if (alvo) {
       setEscolhidaUid(alvo.uid);
-      setAbertos((a) => new Set([...a, ...alvo.itens.filter((i) => irPara.uids.includes(i.uid) || itemComProblema(i)).map((i) => i.uid)]));
+      itens.abrir(alvo.itens.filter((i) => irPara.uids.includes(i.uid) || itemComProblema(i)).map((i) => i.uid));
     }
   }
   const escolhida = mob.secoes.find((x) => x.uid === escolhidaUid) ?? mob.secoes[0];
-  const alternar = (uid: string) => setAbertos((a) => { const novo = new Set(a); if (novo.has(uid)) novo.delete(uid); else novo.add(uid); return novo; });
   // Em duas colunas os itens da escolhida já estão abertos: "Abrir todos" só existe empilhado.
-  const todos = mob.secoes.flatMap((x) => x.itens.map((i) => i.uid));
-  const todosAbertos = todos.length > 0 && todos.every((u) => abertos.has(u));
   const alterarSecao = (si: number, mudanca: (x: SecaoMobilidade) => SecaoMobilidade) =>
     aoMudar({ ...mob, secoes: substituir(mob.secoes, si, mudanca(mob.secoes[si])) });
-  const comDesfazer = (rotulo: string, depois: ConteudoMobilidade, onde: { voltarPara?: string; secaoDoItem?: string; indiceDaSecao?: number }) => {
+  const comDesfazer = (rotulo: string, depois: ConteudoMobilidade, onde: { voltarPara?: string; secaoDoItem?: string; indiceDaSecao?: number; reabrir?: string[] }) => {
     setDesfazer({ rotulo, conteudo: mob, ...onde });
     aoMudar(depois);
   };
@@ -85,17 +86,17 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
     const sec = mob.secoes[si];
     const secoes = remover(mob.secoes, si);
     setEscolhidaUid(proximaSelecao(mob.secoes.map((x) => x.uid), secoes.map((x) => x.uid), escolhida?.uid ?? null));
-    comDesfazer(`Seção “${sec.titulo.trim() || si + 1}” removida${sec.itens.length ? `, com ${sec.itens.length} ${sec.itens.length === 1 ? 'item' : 'itens'}` : ''}.`, { ...mob, secoes }, { voltarPara: sec.uid, indiceDaSecao: si });
+    comDesfazer(`Seção “${sec.titulo.trim() || si + 1}” removida${sec.itens.length ? `, com ${sec.itens.length} ${sec.itens.length === 1 ? 'item' : 'itens'}` : ''}.`, { ...mob, secoes }, { voltarPara: sec.uid, indiceDaSecao: si, reabrir: sec.itens.map((i) => i.uid).filter(itens.estaAberta) });
   };
   const removerItem = (si: number, ii: number) => {
     const it = mob.secoes[si].itens[ii];
-    comDesfazer(`Item “${it.nome.trim() || ii + 1}” removido.`, { ...mob, secoes: substituir(mob.secoes, si, { ...mob.secoes[si], itens: remover(mob.secoes[si].itens, ii) }) }, { secaoDoItem: mob.secoes[si].uid });
+    comDesfazer(`Item “${it.nome.trim() || ii + 1}” removido.`, { ...mob, secoes: substituir(mob.secoes, si, { ...mob.secoes[si], itens: remover(mob.secoes[si].itens, ii) }) }, { secaoDoItem: mob.secoes[si].uid, reabrir: itens.estaAberta(it.uid) ? [it.uid] : [] });
   };
   const adicionarSecao = () => {
     const nova = novaSecaoMobilidade();
     aoMudar({ ...mob, secoes: [...mob.secoes, nova] });
     setEscolhidaUid(nova.uid);
-    setAbertos((a) => new Set(a).add(nova.itens[0].uid));
+    itens.abrir(nova.itens[0].uid);
     // C61: o cartão novo nasce abaixo do botão; sem rolar, o título ficava cortado na borda (web: a barra grudada é da rolagem).
     if (Platform.OS === 'web') setTimeout(() => mostrarAbaixoDaBarra(idDaSecao(nova.uid), true), ESPERA_DA_SELECAO);
     else rolarAte([nova.uid]);
@@ -103,7 +104,7 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
 
   const barra = desfazer ? (
     <BarraDesfazer key="desfazer" desfazer={desfazer}
-      aoDesfazer={() => { const anterior = desfazer; setDesfazer(null); aoMudar(anterior.conteudo); if (anterior.voltarPara) setEscolhidaUid(anterior.voltarPara); }}
+      aoDesfazer={() => { const anterior = desfazer; setDesfazer(null); if (anterior.reabrir) itens.abrir(anterior.reabrir); aoMudar(anterior.conteudo); if (anterior.voltarPara) setEscolhidaUid(anterior.voltarPara); }}
       aoFechar={() => setDesfazer(null)} />
   ) : null;
   // No celular as seções são cartões abertos um embaixo do outro: o aviso no topo ficava longe do que saiu. Item removido:
@@ -138,7 +139,7 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
           <View style={estilos.itens}>
             {sec.itens.map((it, ii) => (
               <ItemDeMobilidade key={it.uid} item={it} posicao={ii} total={sec.itens.length} comProblema={itemComProblema(it)}
-                aberto={noInspetor || abertos.has(it.uid)} aoAlternar={noInspetor ? undefined : () => alternar(it.uid)}
+                aberto={noInspetor || itens.estaAberta(it.uid)} aoAlternar={noInspetor ? undefined : () => itens.alternar(it.uid)}
                 aoMudar={(parcial) => alterarSecao(si, (x) => ({ ...x, itens: substituir(x.itens, ii, { ...it, ...parcial }) }))}
                 aoMover={(d) => alterarSecao(si, (x) => ({ ...x, itens: mover(x.itens, ii, d) }))}
                 aoRemover={() => removerItem(si, ii)} />
@@ -148,7 +149,7 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
           <View style={estilos.linha}>
             <Botao rotulo="Adicionar item" rotuloAcessivel={`Adicionar item em ${titulo}`} tipo="acao" Icone={Plus}
               desabilitado={sec.itens.length >= MAXIMO_DE_ITENS} motivo={`No máximo ${MAXIMO_DE_ITENS} itens por seção.`}
-              aoTocar={() => { const novo = novoItemMobilidade(); alterarSecao(si, (x) => ({ ...x, itens: [...x.itens, novo] })); setAbertos((a) => new Set(a).add(novo.uid)); }} />
+              aoTocar={() => { const novo = novoItemMobilidade(); alterarSecao(si, (x) => ({ ...x, itens: [...x.itens, novo] })); itens.abrir(novo.uid); }} />
           </View>
         </View>
       </Cartao></View></AlvoDeRolagem>
@@ -164,8 +165,8 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
   );
 
   const orientacoes = (
-    // Opcional: vazio, nasce recolhido para as seções subirem (o título continua dizendo que existe).
-    <Cartao titulo="Orientações" descricao="O aluno lê antes das seções (opcional)." faixa recolhivel recolhido={!mob.orientacoes.trim()}
+    // Nasce recolhido, também com texto (regra de 18/11): as seções sobem e o título continua dizendo que existe.
+    <Cartao titulo="Orientações" descricao="O aluno lê antes das seções (opcional)." faixa recolhivel
       style={duas ? estilos.metade : undefined}>
       <View style={estilos.medida}>
         <Campo rotulo="Orientações" rotuloOculto rotuloAcessivel="Orientações (opcional)" valor={mob.orientacoes} linhas={4} maxLength={2000}
@@ -183,8 +184,8 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, aoLado, aco
     <View style={estilos.cabecalhoSecoes}>
       <Texto variante="bloco" nivel={2}>Seções ({mob.secoes.length})</Texto>
       <View style={estilos.linha}>
-        {!duas && todos.length > 1 ? <Botao rotulo={todosAbertos ? 'Fechar todos' : 'Abrir todos'} tipo="fantasma" Icone={todosAbertos ? ChevronsDownUp : ChevronsUpDown}
-          aoTocar={() => setAbertos(todosAbertos ? new Set() : new Set(todos))} /> : null}
+        {!duas && todos.length > 1 ? <Botao rotulo={itens.todasAbertas ? 'Fechar todos' : 'Abrir todos'} tipo="fantasma" Icone={itens.todasAbertas ? ChevronsDownUp : ChevronsUpDown}
+          aoTocar={itens.todasAbertas ? itens.fecharTodas : itens.abrirTodas} /> : null}
         {acoes}
       </View>
     </View>

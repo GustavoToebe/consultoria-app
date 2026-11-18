@@ -45,6 +45,7 @@ class ComunidadeServiceTest {
     @Mock private CapasDaComunidadeService capas;
     @Mock private XpService xp;
     @Mock private ComunidadePodRepository pods;
+    @Mock private PlaylistsService playlists;
 
     private ComunidadeService service;
     private final UUID consultoriaId = UUID.randomUUID();
@@ -56,12 +57,12 @@ class ComunidadeServiceTest {
     void setUp() {
         service = new ComunidadeService(aulas, aulaComentarios, muralPosts, muralReacoes, muralComentarios,
                 conquistas, alunos, sessoes, usuarios, fotos, denuncias, configuracao, reacoes, enquetes, capas, xp,
-                new PostsVisiveisDoMural(muralPosts, alunos), pods);
+                new PostsVisiveisDoMural(muralPosts, alunos), pods, playlists);
         eu = new UsuarioAutenticado(usuarioId, consultoriaId, "ALUNO", alunoId);
     }
 
     private CriarAulaRequest aula(String video, UUID capaId) {
-        return new CriarAulaRequest("Aulão de Periodização", "Descrição", video, "Treino", 1, true, capaId);
+        return new CriarAulaRequest("Aulão de Periodização", "Descrição", video, null, true, capaId);
     }
 
     private static CriarPostRequest post(String tipo, String texto, String videoUrl) {
@@ -69,10 +70,30 @@ class ComunidadeServiceTest {
     }
 
     @Test
-    void categoriaDeAulaSemEspacosNasPontasEVazioViraNulo() {
-        assertThat(ComunidadeService.categoriaLimpa(null)).isNull();
-        assertThat(ComunidadeService.categoriaLimpa("   ")).isNull();
-        assertThat(ComunidadeService.categoriaLimpa("  Mobilidade   de  ombro ")).isEqualTo("Mobilidade de ombro");
+    void nomeDaColecaoSemEspacosNasPontasNemRepetidosEVazioOuLongoDa422NoCampo() {
+        assertThat(PlaylistsService.nomeLimpo("  Mobilidade   de  ombro ")).isEqualTo("Mobilidade de ombro");
+        for (String ruim : java.util.Arrays.asList(null, "", "   ", "x".repeat(61))) {
+            assertThatThrownBy(() -> PlaylistsService.nomeLimpo(ruim))
+                    .isInstanceOfSatisfying(ValidacaoException.class, e -> {
+                        assertThat(e.getProblemas()).hasSize(1);
+                        assertThat(e.getProblemas().get(0).field()).isEqualTo("nome");
+                    });
+        }
+        assertThat(PlaylistsService.nomeLimpo("y".repeat(60))).hasSize(60);
+    }
+
+    @Test
+    void criarAulaSemPlaylistNaoTravaNadaECriarComPlaylistInvalidaNaoGrava() {
+        service.criarAula(aula("https://youtube.com/watch?v=123", null));
+        verify(playlists).posicaoNoFim(null);
+
+        UUID playlistId = UUID.randomUUID();
+        when(playlists.posicaoNoFim(playlistId)).thenThrow(new ValidacaoException("Dados inválidos.", "COMUNIDADE_INVALIDA",
+                List.of(new br.com.plataforma.comum.web.ApiError.FieldError("playlistId", "Coleção não encontrada."))));
+        CriarAulaRequest comPlaylist = new CriarAulaRequest("Aulão", null, "https://youtube.com/watch?v=123", playlistId, true, null);
+        assertThatThrownBy(() -> service.criarAula(comPlaylist)).isInstanceOfSatisfying(ValidacaoException.class,
+                e -> assertThat(e.getProblemas().get(0).field()).isEqualTo("playlistId"));
+        verify(aulas, times(1)).saveAndFlush(any());
     }
 
     @Test

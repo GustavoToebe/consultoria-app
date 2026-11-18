@@ -26,7 +26,6 @@ import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { OpcaoDeModelo } from '../plano/OpcaoDeModelo';
 import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
 import { BarraDoPlano, ProblemasDoPlano } from '../plano/TopoPlano';
-import { ComColunas } from '../plano/ColunasDoEditor';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
@@ -96,10 +95,7 @@ export default function EditorDeMobilidade() {
       ) : null}
       <SecoesDeMobilidade conteudo={estado.conteudo} aoMudar={(c) => editor.alterarConteudo(() => c)} irPara={irPara}
         acoes={escritaLiberada ? <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} /> : null}
-        aoLado={<ComColunas>{(duas) => (
-          // Em duas colunas a configuração divide a linha com as Orientações: aberta não custa altura, então começa aberta.
-          <ConfiguracaoDoPlano editor={editor} recolhido={!duas && estado.titulo.trim() !== ''} descricao="Título e período da mobilidade." />
-        )}</ComColunas>} />
+        aoLado={<ConfiguracaoDoPlano editor={editor} descricao="Título e período da mobilidade." />} />
 
       {modelos ? (
         <Folha visivel titulo="Modelos" aoFechar={() => setModelos(false)}>

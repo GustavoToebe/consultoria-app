@@ -35,18 +35,30 @@ interface Props {
   editaErgogenicos: boolean;
   /** Abre a escolha da biblioteca (suplemento ou ergogênico). */
   aoEscolherDaBiblioteca: (tipo: 'suplemento' | 'ergogenico') => void;
+  /** "Ir ao primeiro" da lista de problemas: os uids do problema; `vez` muda a cada pedido. Abre Suplementação ou Outros se o problema está lá. */
+  irPara?: { uids: string[]; vez: number } | null;
 }
 
 /**
  * Complementos da dieta (orientações, observações, suplementação e "Outros"), abaixo das refeições. Cada linha da
  * suplementação e de "Outros" é um sub-cartão com "#N · Nome" e a lixeira no canto (reunião, N24/C71); em "Outros" só
- * nome, dose e horário ficam à vista e o resto mora em "Mais detalhes", aberto quando já tem algo. O modelo de uma
+ * nome, dose e horário ficam à vista e o resto mora em "Mais detalhes", fechado. O modelo de uma
  * refeição só não tem complementos (seriam descartados ao aplicar). Em janela larga, dois cartões por linha (orientações e
- * observações, suplementação e outros), e cada botão tem um nome só seu. Nada é calculado nem sugerido.
+ * observações, suplementação e outros), e cada botão tem um nome só seu. Nada é calculado nem sugerido. Os quatro cartões
+ * e o "Mais detalhes" nascem fechados, mesmo com conteúdo (regra de 18/11); só o "ir ao primeiro" abre o cartão com problema.
  */
-export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, aviso, porcoes, veBiblioteca, veErgogenicos, editaErgogenicos, aoEscolherDaBiblioteca }: Props) {
+export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, aviso, porcoes, veBiblioteca, veErgogenicos, editaErgogenicos, aoEscolherDaBiblioteca, irPara }: Props) {
   const { cores } = useTema();
   const ergogenicos = c.ergogenicos ?? [];
+  // O `Cartao` guarda sozinho se está aberto: para abri-lo de fora, remonta com outra `key` e já aberto (a cada pedido que o atinge).
+  const [remontes, setRemontes] = useState({ suplementacao: 0, ergogenicos: 0 });
+  const [vezVista, setVezVista] = useState(irPara?.vez);
+  if (irPara && irPara.vez !== vezVista) {
+    setVezVista(irPara.vez);
+    const naSuplementacao = c.suplementacao.some((s) => irPara.uids.includes(s.uid));
+    const nosOutros = ergogenicos.some((e) => irPara.uids.includes(e.uid));
+    if (naSuplementacao || nosOutros) setRemontes((r) => ({ suplementacao: r.suplementacao + (naSuplementacao ? 1 : 0), ergogenicos: r.ergogenicos + (nosOutros ? 1 : 0) }));
+  }
   return <>
     <Texto variante="bloco" nivel={2}>Complementos</Texto>
     {aviso}
@@ -54,7 +66,7 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
         passam de uns 800 px e a página fica mais curta. Abaixo de ~1170 px de conteúdo, um por linha. */}
     <View style={estilos.blocos}>
       <View style={estilos.bloco}>
-        <Cartao faixa titulo="Orientações" descricao="Títulos e textos que o aluno lê junto com a dieta." nivel={3} recolhivel recolhido={c.orientacoes.length === 0}>
+        <Cartao faixa titulo="Orientações" descricao="Títulos e textos que o aluno lê junto com a dieta." nivel={3} recolhivel>
           {c.orientacoes.map((o, oi) => (
             <View key={oi} style={[estilos.orientacao, { borderColor: cores.borda }]}>
               <View style={estilos.cresce}>
@@ -70,12 +82,13 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
         </Cartao>
       </View>
       <View style={estilos.bloco}>
-        <Cartao faixa titulo="Observações" nivel={3} recolhivel recolhido={!c.observacoes}>
+        <Cartao faixa titulo="Observações" nivel={3} recolhivel>
           <Campo rotulo="Observações (opcional)" valor={c.observacoes ?? ''} aoMudar={(t) => mudar({ observacoes: t || null })} linhas={4} maxLength={8000} />
         </Cartao>
       </View>
       <View style={estilos.bloco}>
-        <Cartao faixa titulo="Suplementação" descricao="Da biblioteca vêm o nome, o link e o cupom; a dose é a que você prescreve." nivel={3} recolhivel recolhido={c.suplementacao.length === 0}>
+        <Cartao key={`suplementacao-${remontes.suplementacao}`} faixa titulo="Suplementação" descricao="Da biblioteca vêm o nome, o link e o cupom; a dose é a que você prescreve."
+          nivel={3} recolhivel recolhido={remontes.suplementacao === 0}>
           {c.suplementacao.map((s, si) => (
             <ItemDeSuplementacao key={s.uid} item={s} posicao={si} porcao={porcoes[s.uid]}
               aoMudar={(parcial) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) })}
@@ -94,7 +107,7 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
       </View>
       {veErgogenicos ? (
         <View style={estilos.bloco}>
-          <Cartao faixa titulo="Outros (medicação e ergogênicos)" nivel={3} recolhivel recolhido={ergogenicos.length === 0}
+          <Cartao key={`outros-${remontes.ergogenicos}`} faixa titulo="Outros (medicação e ergogênicos)" nivel={3} recolhivel recolhido={remontes.ergogenicos === 0}
             descricao={editaErgogenicos ? 'Da biblioteca vêm o nome, o princípio ativo e a concentração.' : 'Seu perfil só pode ler esta lista.'}>
             {ergogenicos.map((e, ei) => (
               <ItemDeErgogenico key={e.uid} item={e} posicao={ei} editavel={editaErgogenicos}
@@ -176,8 +189,8 @@ function ItemDeErgogenico({ item: e, posicao, editavel, aoMudar, aoRemover }: {
   item: Ergogenico; posicao: number; editavel: boolean; aoMudar: (parcial: Partial<Ergogenico>) => void; aoRemover: () => void;
 }) {
   const { cores } = useTema();
-  // Nasce aberto se algum dos quatro campos secundários já tem texto (também o item que veio da biblioteca).
-  const [detalhes, setDetalhes] = useState(() => !!(e.principioAtivo || e.concentracao || e.prescricao || e.observacao));
+  // Nasce fechado, mesmo com texto nos quatro campos secundários (regra de 18/11; o item que veio da biblioteca também).
+  const [detalhes, setDetalhes] = useState(false);
   return (
     <SubCartao posicao={posicao} nome={e.nome}
       remover={editavel ? <IconeBotao Icone={Trash2} rotulo={`Remover ${e.nome || 'item'}`} cor={cores.perigo} aoTocar={aoRemover} /> : undefined}>

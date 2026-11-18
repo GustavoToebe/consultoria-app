@@ -119,10 +119,19 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toBeVisible();
     await expect(extras).toHaveCount(0);
 
-    // Almoço: o modo de preparo gravado já abre os campos.
+    // Almoço: nasce fechado também com modo de preparo gravado (18/11); o link abre os campos e o texto está lá.
     if (duas) await page.getByRole('button', { name: /^Refeição 2 de 2: 12:00 · Almoço/ }).click();
     else await page.getByRole('button', { name: '12:00 · Almoço, fechado' }).click();
+    // (empilhado, o Café segue aberto com os campos dele; em duas colunas ele saiu do inspetor)
+    await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveCount(duas ? 0 : 1);
+    await page.getByRole('button', { name: 'Observação ou modo de preparo (opcional)' }).click();
     await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true }).last()).toHaveValue('Grelhe sem óleo.');
+
+    // Complementos nascem fechados, mesmo com conteúdo (18/11): só os títulos; cada um abre no toque.
+    await expect(page.getByRole('heading', { name: '#1 · Creatina fictícia' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: '#1 · Item fictício A' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Suplementação, recolhido' }).click();
+    await page.getByRole('button', { name: 'Outros (medicação e ergogênicos), recolhido' }).click();
 
     // Suplementação: um sub-cartão por linha, "#N · Nome" e a lixeira no canto.
     await expect(page.getByRole('heading', { name: '#1 · Creatina fictícia' })).toBeVisible();
@@ -131,16 +140,18 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     await expect(page.getByRole('button', { name: 'Remover linha' })).toBeVisible();
     await capturar(page, `suplementacao-${sufixo}`, page.getByRole('heading', { name: 'Suplementação' }));
 
-    // Outros: nome, dose e horário à vista; "Mais detalhes" aberto só no item com princípio ativo.
+    // Outros: nome, dose e horário à vista; "Mais detalhes" nasce fechado em todos os itens, também no que tem princípio ativo.
     await expect(page.getByRole('heading', { name: '#1 · Item fictício A' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Remover Item fictício A' })).toBeVisible();
     const detalhes = page.getByRole('button', { name: 'Mais detalhes (princípio ativo, concentração, observação)' });
     await expect(detalhes).toHaveCount(2);
-    await expect(detalhes.first()).toHaveAttribute('aria-expanded', 'true');
+    await expect(detalhes.first()).toHaveAttribute('aria-expanded', 'false');
     await expect(detalhes.last()).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByLabel('Princípio ativo', { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel('Dose prescrita', { exact: true })).toHaveCount(4);
+    await detalhes.first().click();
     await expect(page.getByLabel('Princípio ativo', { exact: true })).toHaveCount(1);
     await expect(page.getByLabel('Princípio ativo', { exact: true })).toHaveValue('Substância fictícia');
-    await expect(page.getByLabel('Dose prescrita', { exact: true })).toHaveCount(4);
     await capturar(page, `outros-${sufixo}`, page.getByRole('heading', { name: 'Outros (medicação e ergogênicos)' }));
     await detalhes.last().click();
     await expect(page.getByLabel('Princípio ativo', { exact: true })).toHaveCount(2);
@@ -297,7 +308,8 @@ for (const largura of [390, 1280]) {
     });
     await page.goto(`/treinador/dietas/${PLANO_ID}`);
     await expect(page.getByRole('heading', { name: 'Refeições (1)' })).toBeVisible();
-    if (largura < 1280) await page.getByRole('button', { name: 'Lanche, fechado' }).click();
+    // A refeição única nasce aberta (18/11: uma seção só abre sozinha), sem o clique que o celular pedia.
+    await expect(page.getByRole('button', { name: 'Lanche, fechado' })).toHaveCount(0);
 
     // Só o item da biblioteca sem conversão leva o aviso (o manual não); o aviso fica dentro da janela e não corta.
     const aviso = page.getByText('Informe gramas por unidade no alimento');

@@ -92,7 +92,7 @@ class KcalDosMacrosParidadeTest {
     }
 
     private static AlimentoRequest pedido(String p, String c, String g) {
-        return new AlimentoRequest("Alimento fictício", new BigDecimal("100"), "g", null, bd(p), bd(c), bd(g), null, null,
+        return new AlimentoRequest("Alimento fictício", new BigDecimal("100"), "g", null, bd(p), bd(c), bd(g), null, null, null,
                 null, null, null, null, null, null, null, null, null, null);
     }
 }

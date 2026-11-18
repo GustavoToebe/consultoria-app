@@ -68,8 +68,14 @@ public final class DietasPadrao {
      * Números do alimento já gravado (catálogo copiado ou o que o treinador tem). A conta não estima o que falta.
      */
     public record Nutrientes(UUID id, BigDecimal baseQuantidade, String baseUnidade, BigDecimal kcal,
-                             BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
+                             BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura, BigDecimal fibra,
                              BigDecimal gramasPorUnidade) {
+
+        /** Sem fibra: a V062 roda antes de a coluna existir (V089), então o que ela copia não tem esse número. */
+        public Nutrientes(UUID id, BigDecimal baseQuantidade, String baseUnidade, BigDecimal kcal, BigDecimal proteina,
+                          BigDecimal carboidrato, BigDecimal gordura, BigDecimal gramasPorUnidade) {
+            this(id, baseQuantidade, baseUnidade, kcal, proteina, carboidrato, gordura, null, gramasPorUnidade);
+        }
     }
 
     /**
@@ -90,7 +96,8 @@ public final class DietasPadrao {
                     valorNaQuantidade(alimento.proteina(), alimento, item),
                     valorNaQuantidade(alimento.carboidrato(), alimento, item),
                     valorNaQuantidade(alimento.gordura(), alimento, item),
-                    item.manual(), item.fatorCorrecao(), item.fatorCoccao(), item.grupo());
+                    item.manual(), item.fatorCorrecao(), item.fatorCoccao(), item.grupo(),
+                    valorNaQuantidade(alimento.fibra(), alimento, item));
         });
     }
 

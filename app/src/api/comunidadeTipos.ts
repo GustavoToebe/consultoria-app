@@ -10,7 +10,9 @@ export interface AulaDaComunidade {
   videoUrl: string | null;
   /** Capa enviada pela equipe (bytes por `baixarCapa*`, com o token); nula = sem capa. */
   capaId: string | null;
-  categoria: string | null;
+  /** Coleção do vídeo (V088); nula = sem coleção. A API agrupa pelo id: a ordem dos grupos vem de `GET .../playlists`. */
+  playlistId: string | null;
+  /** Posição na coleção (0 sem coleção), com buracos possíveis: numere pela posição na lista, nunca por `ordem + 1`. */
   ordem: number;
   publicada: boolean;
   criadaEm: string;
@@ -18,16 +20,22 @@ export interface AulaDaComunidade {
 }
 
 /**
+ * Coleção de vídeos (`PlaylistResumo`; "Coleção" na tela). `totalAulas` conta todos os vídeos para a equipe e só os
+ * publicados para o aluno, que só recebe as que têm vídeo publicado.
+ */
+export interface PlaylistDaComunidade { id: string; nome: string; ordem: number; totalAulas: number }
+
+/**
  * Corpo do `POST` e do `PUT /comunidade/aulas[/{id}]` (`CriarAulaRequest`). O `PUT` substitui tudo: campo ausente vira
- * nulo, `ordem` ausente vira 0 e `publicada` ausente vira `true`; por isso a edição manda os sete (`dominio/comunidade.corpoDaAula`).
+ * nulo e `publicada` ausente vira `true`; por isso a edição manda os seis (`dominio/comunidade.corpoDaAula`). A posição
+ * na coleção não vai: vídeo novo ou movido vai para o fim.
  */
 export interface NovaAula {
   titulo: string;
   descricao?: string | null;
   videoUrl: string;
-  /** Até 60 depois da normalização do servidor (espaços nas pontas e repetidos saem; vazio vira nulo). */
-  categoria?: string | null;
-  ordem?: number;
+  /** Obrigatório: o `PUT` sem ele tira o vídeo da coleção. Nulo = sem coleção; id de outra consultoria = 422 no campo. */
+  playlistId: string | null;
   publicada?: boolean;
   /** Id de `POST /comunidade/capas`. No `PUT`, ausente ou nulo REMOVE a capa: a edição manda sempre a do rascunho. */
   capaId?: string | null;

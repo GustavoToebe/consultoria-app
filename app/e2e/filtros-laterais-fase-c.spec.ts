@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import type { AulaDaComunidade, PaginaDoMural, PostDoMural } from '../src/api/comunidadeTipos';
+import type { AulaDaComunidade, PaginaDoMural, PlaylistDaComunidade, PostDoMural } from '../src/api/comunidadeTipos';
 import type { CatalogoExercicio, ErgogenicoDaBiblioteca, QuestionarioResumo } from '../src/api/tipos';
 import { fixarHoje, sessaoDeAluno } from './aluno';
 import { ALUNO, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
@@ -73,10 +73,11 @@ const POST: PostDoMural = {
   totalComentarios: 0, podId: null, podNome: null,
 };
 const mural = (...content: PostDoMural[]): PaginaDoMural => ({ content, totalElements: content.length });
-const aula = (id: string, titulo: string, categoria: string | null): AulaDaComunidade => ({
-  id, titulo, descricao: null, videoUrl: 'https://exemplo.test/video', capaId: null, categoria, ordem: 0, publicada: true,
+const aula = (id: string, titulo: string, playlistId: string | null, ordem = 0): AulaDaComunidade => ({
+  id, titulo, descricao: null, videoUrl: 'https://exemplo.test/video', capaId: null, playlistId, ordem, publicada: true,
   criadaEm: '2026-10-19T12:00:00-03:00', totalComentarios: 0,
 });
+const PLAYLIST_TECNICA: PlaylistDaComunidade = { id: 'p1', nome: 'Técnica', ordem: 1, totalAulas: 2 };
 const COMUNIDADE: RespostasApi = {
   'GET /comunidade/configuracao': { corpo: { alunosPublicam: true, alunosAnexamFotos: false } },
   'GET /comunidade/pods': { corpo: [] },
@@ -169,10 +170,11 @@ const CASOS: Caso[] = [
     rotas: {
       ...COMUNIDADE,
       'GET /comunidade/mural': { corpo: mural() },
-      'GET /comunidade/aulas': { corpo: [aula('a1', 'Vídeo de técnica', 'Técnica'), aula('a2', 'Vídeo de boas-vindas', null), aula('a3', 'Vídeo de execução', 'Técnica')] },
+      'GET /comunidade/playlists': { corpo: [PLAYLIST_TECNICA] },
+      'GET /comunidade/aulas': { corpo: [aula('a1', 'Vídeo de técnica', 'p1', 1), aula('a2', 'Vídeo de boas-vindas', null), aula('a3', 'Vídeo de execução', 'p1', 2)] },
     },
     ligar: async (_page, painel) => { await painel.getByRole('radio', { name: 'Técnica, 2', exact: true }).click(); },
-    chip: 'Tirar filtro: Categoria: Técnica', vazio: null, largas: true,
+    chip: 'Tirar filtro: Coleção: Técnica', vazio: null, largas: true,
   },
   {
     tela: 'catalogo', caminho: '/treinador/biblioteca?aba=catalogo', painel: 'Filtros do catálogo', usuarioId: TREINADOR.id,
@@ -191,7 +193,8 @@ const CASOS: Caso[] = [
   {
     tela: 'outros', caminho: '/treinador/biblioteca?aba=ergogenicos', painel: 'Filtros de outros itens', usuarioId: TREINADOR.id,
     api: null, noPedido: null, noEndereco: null,
-    pronto: (page) => page.getByText('Testosterona', { exact: true }),
+    // As categorias de Outros nascem recolhidas: o item fica escondido, o cabeçalho do grupo não.
+    pronto: (page) => page.getByRole('button', { name: /^Injetáveis, (recolhido|aberto)$/ }),
     sessao: treinador(['BIBLIOTECA_LER', 'ERGOGENICO_LER', 'ERGOGENICO_ALTERAR']),
     rotas: { 'GET /ergogenicos': { corpo: [outro(1, 'Lisdexanfetamina', 'Medicamentos'), outro(2, 'Testosterona', 'Injetáveis')] } },
     ligar: async (_page, painel) => { await opcao(painel, 'Categoria', 'Medicamentos').click(); },
