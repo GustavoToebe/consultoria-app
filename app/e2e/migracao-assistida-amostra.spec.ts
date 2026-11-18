@@ -193,7 +193,9 @@ for (const largura of [390, 1440]) {
       await page.getByRole('button', { name: 'Ver os próximos 2' }).click();
       await expect(page.getByText('Alunos 6 a 7 de 7')).toBeVisible();
       await expect(page.getByTestId('faixa-da-amostra')).toBeFocused();
-      await expect(page.getByTestId('aluno-da-amostra-6')).toBeVisible();
+      // A página nova também vem fechada: o aluno 6 aparece como linha recolhida, sem o corpo.
+      await expect(page.getByRole('button', { name: 'Aluno Fictício Seis, recolhido' })).toBeVisible();
+      await expect(page.getByTestId('aluno-da-amostra-6')).toHaveCount(0);
       await page.getByRole('button', { name: 'Aluno Fictício Sete, recolhido' }).click();
       await expect(page.getByTestId('aluno-da-amostra-7').getByText('Inativo')).toBeVisible();
       expect(pedidos.amostra).toEqual(['0', '5']);

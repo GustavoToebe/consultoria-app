@@ -98,7 +98,8 @@ for (const largura of [390, 1280]) {
       },
     });
     await page.goto(`/treinador/planejamento/questionario/${QUESTIONARIO_ID}`);
-    await page.getByRole('button', { name: /^Pergunta 1: Fotos do período/ }).click();
+    // Uma pergunta só nasce aberta (docs/design-e-front.md §4.8): confere em vez de clicar, que a fecharia.
+    await expect(page.getByRole('button', { name: /^Pergunta 1: Fotos do período/ })).toHaveAccessibleName(/, aberto$/);
 
     // Sem lugares, como hoje.
     await expect(page.getByRole('radiogroup', { name: 'Quantas fotos o aluno pode anexar' })).toBeVisible();

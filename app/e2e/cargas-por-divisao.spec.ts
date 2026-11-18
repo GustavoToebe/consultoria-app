@@ -118,6 +118,8 @@ for (const largura of [390, 1280]) {
     });
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
     await page.getByText('Pasta de outubro').click();
+    // A seção "Registros e cargas" nasce fechada (docs/design-e-front.md §4.8).
+    await page.getByRole('button', { name: 'Registros e cargas, recolhido' }).click();
     await conferir(page);
     expect(errosDaPagina).toEqual([]);
   });

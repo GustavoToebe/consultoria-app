@@ -273,6 +273,10 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       // Completas primeiro, depois os papéis e as técnicas; cada receita uma vez.
       const secoes = page.getByRole('button', { name: /, (aberto|recolhido)$/ }).filter({ hasText: /^(Receitas completas|Aquecimento|Pós-trabalho|Técnica: .*)/ });
       await expect(secoes).toHaveText([/^Receitas completas/, /^Aquecimento/, /^Pós-trabalho/, /^Técnica: Rest pause/, /^Técnica: Cluster/]);
+      // As seções nascem fechadas (docs/design-e-front.md §4.8): abre as cinco antes de conferir o que há dentro.
+      for (const titulo of ['Receitas completas', 'Aquecimento', 'Pós-trabalho', 'Técnica: Rest pause', 'Técnica: Cluster']) {
+        await page.getByRole('button', { name: `${titulo}, recolhido`, exact: true }).click();
+      }
       for (const nome of ['Força com preparação', 'Aquecimento fictício', 'Back off fictício', 'Cluster fictício', 'Rest pause fictício']) {
         await expect(page.getByText(nome, { exact: true })).toHaveCount(1);
       }

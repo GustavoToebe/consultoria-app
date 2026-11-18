@@ -444,6 +444,8 @@ test('faixa do ciclo na pasta: a menstruação fica na data certa, depois dos di
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
   await page.getByText('Pasta de janeiro').click();
+  // A seção do ciclo nasce fechada (docs/design-e-front.md §4.8): abre antes de procurar a faixa.
+  await page.getByRole('button', { name: 'Ciclo no período da pasta, recolhido' }).click();
   await expect(page.getByText('Ciclo no período da pasta')).toBeVisible();
   const menstrual = page.getByRole('button', { name: 'Menstrual', exact: true }).first();
   await expect(menstrual).toBeVisible();
