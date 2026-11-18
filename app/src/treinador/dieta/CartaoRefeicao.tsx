@@ -13,6 +13,7 @@ import {
   recalcularItem,
   semConversao,
   somar,
+  type Totais,
 } from '../../dominio/dieta';
 import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
@@ -260,8 +261,7 @@ function OpcaoDaRefeicao({
   const { cores } = useTema();
   // Com várias opções, o nome acessível diz a qual delas o botão serve (o texto visível é o mesmo em cada coluna).
   const naOpcao = varias ? ` na opção ${opcao.rotulo}` : '';
-  // A coluna das ações reserva Trocar, ↑↓ e a lixeira mesmo com um item só: o segundo item não muda o modo da opção.
-  const acoes = (aoTrocarAlimento ? 1 : 0) + 3;
+  const acoes = acoesReservadas(!!aoTrocarAlimento);
   const modo: ModoDoItem = larguraDisponivel >= larguraDaTabela(acoes) ? 'tabela' : 'empilhado';
   const larguraDasAcoes = acoes * ALVO_TOQUE;
   return (
@@ -307,8 +307,8 @@ function OpcaoDaRefeicao({
   );
 }
 
-/** Os números do item que viram coluna; a fibra entra aqui e no `COLUNAS_DO_ITEM`. */
-type ChaveDoValor = 'kcal' | 'proteina' | 'carboidrato' | 'gordura';
+/** Os números do item que podem virar coluna (os do total que o item também tem): a fibra entra só no `COLUNAS_DO_ITEM`. */
+type ChaveDoValor = Extract<keyof Totais, keyof ItemDieta>;
 type ModoDoItem = 'tabela' | 'empilhado';
 /** O nome nunca fica mais estreito que isto na tabela: abaixo, a opção volta ao item empilhado. */
 const LARGURA_MINIMA_DO_NOME = 160;
@@ -347,6 +347,12 @@ export function larguraDaTabela(acoes: number): number {
 
 const estiloDaColuna = (c: (typeof COLUNAS)[number]) => (c.chave === 'nome' ? estilos.colunaDoNomeNaTabela : { width: c.largura });
 const macroDa = (chave: ChaveDoValor | undefined) => MACROS.find((m) => m.chave === chave);
+
+/**
+ * Botões que a coluna das ações reserva: Trocar (só com quem trate a troca), ↑↓ e a lixeira, mesmo com um item só (o
+ * segundo item não muda o modo da opção). Mude junto com o JSX das `acoes` da `LinhaItem`.
+ */
+const acoesReservadas = (comTroca: boolean) => (comTroca ? 1 : 0) + 2 + 1;
 
 /** Cabeçalho das colunas, uma vez por opção. Fora do leitor de tela: cada campo já tem nome e cada linha lê os valores. */
 function CabecalhoDosItens({ larguraDasAcoes }: { larguraDasAcoes: number }) {
@@ -436,6 +442,7 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
       <CampoNumerico rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave]} aoMudar={(v) => mudarValor(chave, v)} />
     );
   };
+  // Os mesmos botões contados em `acoesReservadas`.
   const acoes = (
     <>
       {aoTrocar ? <IconeBotao Icone={ArrowLeftRight} rotulo={`Trocar ${nome}`} aoTocar={aoTrocar} /> : null}
@@ -480,7 +487,7 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
             <View style={estilos.quantidade}>{quantidade}</View>
             {unidade}
             {item.manual ? (
-              // Em pares (kcal e P, C e G): sem largura para os quatro, descem dois a dois, nunca um sozinho.
+              // Em pares (kcal e P, C e G): sem largura para os quatro, descem dois a dois (com número ímpar, o último fica só).
               <View style={estilos.valores}>
                 {PARES_DE_VALOR.map((par) => (
                   <View key={par[0].chave} style={estilos.parDeValores}>
