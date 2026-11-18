@@ -112,9 +112,9 @@ for (const [largura, ladoALado] of [[390, false], [1280, true]] as const) {
       expect(Math.abs(caixaA.x - caixaB.x)).toBeLessThan(2);
     }
     // O modo de preparo gravado também fica atrás do link (18/11): o toque abre os campos e o texto está lá.
-    await expect(page.getByLabel('Modo de preparo (opcional)')).toHaveCount(0);
+    await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Observação ou modo de preparo (opcional)' }).click();
-    await expect(page.getByLabel('Modo de preparo (opcional)')).toHaveValue(PREPARO);
+    await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveValue(PREPARO);
     await expect(page.getByText(/equivalente/i)).toHaveCount(0);
     // Remover uma opção leva os itens junto: dá para desfazer (04/11).
     await page.getByRole('button', { name: 'Remover opção B' }).click();

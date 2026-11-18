@@ -57,7 +57,8 @@ describe('o CSS do CLASSICO não mudou um caractere', () => {
       });
     const esperado = {
       treino: '8a3967f877e60a3fa2894253f5e00072f40610d32baf534ed87bbdd3ab768c5a',
-      dieta: '949f39852431efe1a3e90a896991c0771d4c73fdfdd0375bdd5fb7dcc7abe507',
+      // Dieta: refeito em 18/11 com a fibra (V089) por item e no total do dia; o CSS não mudou.
+      dieta: '3b812a5b460041d2df23575c61048464cef2c4030d5c3d25fa7e3658964b90a8',
       cargas: '836b3c4e2132b5749596bf531fac767b8dab21d7ca0dcd6ebc932b545a156098',
     };
     for (const m of [marca, { ...marca, temaPdf: 'CLASSICO' }, { ...marca, temaPdf: 'inexistente' }, { ...marca, temaPdf: null }]) {

@@ -99,6 +99,7 @@ export const DESTINOS: readonly Destino[] = [
       campo('proteina', 'Proteína', true, ['proteinas', 'ptn']),
       campo('carboidrato', 'Carboidrato', true, ['carboidratos', 'cho']),
       campo('gordura', 'Gordura', true, ['gorduras', 'lipidio']),
+      campo('fibra', 'Fibra', false, ['fibras', 'fibra (g)']),
       campo('gramas', 'Gramas', false, ['gramas por unidade']),
       campo('fonte', 'Fonte', false, []),
       campo('fc', 'FC', false, ['fator de correcao', 'fator correcao']),

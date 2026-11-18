@@ -14,6 +14,7 @@ import {
   errosDaAula, filtrarPorPlaylist, filtroDePlaylistValido, listaVelha, LOTE_MAXIMO, MENSAGEM_LISTA_MUDOU, MENSAGEM_PLAYLIST_NOME,
   moverNaLista, nomeDaPlaylistParaEnviar, numerados, opcoesDoFiltroDePlaylist, playlistsEmOrdem, podeMover, RASCUNHO_DA_AULA_VAZIO,
   rascunhoDaAula, resumoDosAuloes, SEM_COLECAO, traduzirErroDaPlaylist,
+  aulasParaMover, gruposDaEquipe, reordenados, textoDeExcluirPlaylist, textoDoLoteMovido, textoDosMarcados,
 } from './comunidade';
 import { ErroApi } from '@plataforma/web';
 import type { AulaDaComunidade, PlaylistDaComunidade, PostDoMural } from '../api/comunidadeTipos';
@@ -62,6 +63,38 @@ describe('vídeos e coleções', () => {
     expect(grupos[2].itens.map((a) => a.id)).toEqual(['2', '6', '7']);
     expect(agruparPorPlaylist([aula('1', 'p1')], playlists).map((g) => g.rotulo)).toEqual(['Alimentação']);
     expect(agruparPorPlaylist([], playlists)).toEqual([]);
+  });
+
+  it('lista da equipe: todas as coleções em ordem, também a vazia, e Sem coleção por último', () => {
+    const grupos = gruposDaEquipe(aulas, playlists);
+    expect(grupos.map((g) => [g.rotulo, g.itens.map((a) => a.id)])).toEqual([
+      ['Alimentação', ['3']], ['Técnica', ['4', '5', '1']], ['Vazia', []], [SEM_COLECAO, ['2', '6', '7']],
+    ]);
+    expect(gruposDaEquipe([aula('1', 'p1')], playlists).map((g) => g.rotulo)).toEqual(['Alimentação', 'Técnica', 'Vazia']);
+    expect(gruposDaEquipe([aula('1', null)], [])).toEqual([{ playlist: null, rotulo: SEM_COLECAO, itens: [aula('1', null)] }]);
+  });
+
+  it('depois do 204 a ordem local segue a lista enviada, sem mexer nos outros', () => {
+    const antes = [aula('a', 'p', 5), aula('b', 'p', 9), aula('c', 'q', 2)];
+    const depois = reordenados(antes, ['b', 'a']);
+    expect(depois.map((a) => [a.id, a.ordem])).toEqual([['a', 1], ['b', 0], ['c', 2]]);
+    expect(antes[0].ordem).toBe(5);
+  });
+
+  it('lote: ordem da tela, sem os que já estão no destino', () => {
+    const naTela = [aula('1', 'p1'), aula('2', null), aula('3', 'p2'), aula('4', 'p1')];
+    expect(aulasParaMover(naTela, new Set(['4', '2', '1', '3']), 'p1')).toEqual(['2', '3']);
+    expect(aulasParaMover(naTela, new Set(['4', '2']), null)).toEqual(['4']);
+    expect(aulasParaMover(naTela, new Set(['x']), 'p1')).toEqual([]);
+  });
+
+  it('textos do lote e do excluir', () => {
+    expect([textoDosMarcados(0), textoDosMarcados(1), textoDosMarcados(3)]).toEqual(['Nenhum vídeo marcado', '1 vídeo marcado', '3 vídeos marcados']);
+    expect(textoDoLoteMovido(1, 'Técnica')).toBe('1 vídeo movido para “Técnica”.');
+    expect(textoDoLoteMovido(2, null)).toBe('2 vídeos movidos para “Sem coleção”.');
+    expect(textoDeExcluirPlaylist(0)).toBe('A coleção está vazia. Nenhum vídeo muda.');
+    expect(textoDeExcluirPlaylist(1)).toContain('Sem coleção');
+    expect(textoDeExcluirPlaylist(4)).toBe('Os 4 vídeos dela passam para “Sem coleção”; nenhum vídeo é apagado.');
   });
 
   it('filtro do treinador: opções com contagem, filtrar, etiqueta e volta a Todas quando a coleção some', () => {

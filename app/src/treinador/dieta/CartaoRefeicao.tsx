@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import type { Alimento, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento } from '../../api/tipos';
 import {
   colunasDasOpcoes,
+  erroDaFibra,
   ESPACO_ENTRE_OPCOES,
   MODO_DE_PREPARO_MAXIMO,
   modoDePreparoValido,
@@ -14,6 +15,7 @@ import {
   semConversao,
   somar,
   type Totais,
+  type TotaisComFibra,
 } from '../../dominio/dieta';
 import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { remover, substituir } from '../../dominio/editorTreino';
@@ -319,8 +321,8 @@ function OpcaoDaRefeicao({
   );
 }
 
-/** Os números do item que podem virar coluna (os do total que o item também tem): a fibra entra só no `COLUNAS_DO_ITEM`. */
-type ChaveDoValor = Extract<keyof Totais, keyof ItemDieta>;
+/** Os números do item que podem virar coluna (os do total que o item também tem): a fibra (V089) é a última coluna: opcional, sem cor, fora da kcal. */
+type ChaveDoValor = Extract<keyof TotaisComFibra, keyof ItemDieta>;
 type ModoDoItem = 'tabela' | 'empilhado';
 /** O nome nunca fica mais estreito que isto na tabela: abaixo, a opção volta ao item empilhado. */
 const LARGURA_MINIMA_DO_NOME = 160;
@@ -341,6 +343,7 @@ const COLUNAS_DO_ITEM: readonly { chave: string; rotulo: string; largura: number
   { chave: 'proteina', rotulo: 'P (g)', largura: 64, valor: 'proteina' },
   { chave: 'carboidrato', rotulo: 'C (g)', largura: 64, valor: 'carboidrato' },
   { chave: 'gordura', rotulo: 'G (g)', largura: 64, valor: 'gordura' },
+  { chave: 'fibra', rotulo: 'Fibras (g)', largura: 72, valor: 'fibra' },
 ];
 const COLUNAS = COLUNAS_DO_ITEM.filter((c) => c.largura > 0);
 const COLUNAS_DE_VALOR = COLUNAS.filter((c) => c.valor);
@@ -452,9 +455,9 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
     const chave = c.valor;
     if (!chave) return null;
     return macro ? (
-      <CampoDoMacro macro={macro} rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave]} aoMudar={(v) => mudarValor(chave, v)} />
+      <CampoDoMacro macro={macro} rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)} />
     ) : (
-      <CampoNumerico rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave]} aoMudar={(v) => mudarValor(chave, v)} />
+      <CampoNumerico rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)} erro={chave === 'fibra' ? erroDaFibra(item.fibra) : undefined} />
     );
   };
   // Os mesmos botões contados em `acoesReservadas`.

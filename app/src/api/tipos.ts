@@ -442,6 +442,8 @@ export interface Alimento {
   proteina: number | null;
   carboidrato: number | null;
   gordura: number | null;
+  /** Fibra (g por base), opcional (V089): nulo ou ausente = "—", nunca zero; não entra na kcal. */
+  fibra?: number | null;
   gramasPorUnidade: number | null;
   fonte: string | null;
   origem: string;
@@ -477,10 +479,12 @@ export interface CatalogoAlimento {
   proteina: number | null;
   carboidrato: number | null;
   gordura: number | null;
+  /** Fibra da fonte (g por base); nulo ou ausente = "—" (sem análise), nunca zero. */
+  fibra?: number | null;
   fonte: string | null;
   grupo: string | null;
   codigoFonte: string | null;
-  /** Nutrientes que a fonte marca como traço (`Tr`); o valor vem 0 e a tela mostra "Tr". */
+  /** Nutrientes que a fonte marca como traço (`Tr`; depois dos macros pode vir `fibra`); o valor vem 0 e a tela mostra "Tr". */
   tracos: string[];
   /** Fator de correção que a fonte do catálogo publicou; nulo = não informado (nunca 1). */
   fatorCorrecao: number | null;
@@ -870,6 +874,8 @@ export interface ItemDieta {
   proteina: number | null;
   carboidrato: number | null;
   gordura: number | null;
+  /** Fibra do item (g), calculada como os macros; nulo ou ausente (versão antiga) = "—", nunca zero; não entra na kcal. */
+  fibra?: number | null;
   manual: boolean;
   /**
    * Fatores do alimento da biblioteca, copiados pelo servidor ao publicar (só na versão publicada; no rascunho o que

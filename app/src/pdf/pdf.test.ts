@@ -404,6 +404,25 @@ describe('PDF da dieta', () => {
     expect(html).not.toContain('Acompanhamento de peso');
   });
 
+  it('fibra (V089, 18/11): "—" sem valor, nunca zero, e "(parcial)" no total quando algum item não a tem', () => {
+    expect(html).toContain('G: 1,6 g · Fibra: —');
+    expect(html).toContain('<tr><td>Fibra</td><td>—</td></tr>');
+    expect(html).not.toContain('Fibra parcial');
+    const comFibra = normalizarDieta({
+      refeicoes: [{ nome: 'Almoço', opcoes: [{ rotulo: 'A', itens: [
+        { nome: 'Arroz <i>', quantidade: 100, unidade: 'g', kcal: 128, proteina: 2.5, carboidrato: 28.1, gordura: 0.2, fibra: 1.6 },
+        { nome: 'Frango', quantidade: 100, unidade: 'g', kcal: 160, proteina: 32, carboidrato: 0, gordura: 2.5 },
+      ] }] }],
+    });
+    const corpo = documentoDieta({ ...base, versao: 1, conteudo: comFibra, pesos: [] }).corpo;
+    expect(corpo).toContain('Arroz &lt;i&gt;');
+    expect(corpo).toContain('G: 0,2 g · Fibra: 1,6 g</span>');
+    expect(corpo).toContain('Total: 288 kcal · P: 34,5 g · C: 28,1 g · G: 2,7 g · Fibra: 1,6 g (parcial)');
+    expect(corpo).toContain('<tr><td>Fibra</td><td>1,6 g (parcial)</td></tr>');
+    expect(corpo).toContain('Fibra parcial: há itens sem fibra informada.');
+    expect(corpo).toMatch(/<td>Calorias Totais<\/td><td[^>]*>288 kcal<\/td>/); // a fibra não entra na kcal
+  });
+
   it('não mostra profissional nem "Elaborado por" na capa', () => {
     expect(html).not.toContain('Profissional');
     expect(html).not.toContain('Elaborado por');

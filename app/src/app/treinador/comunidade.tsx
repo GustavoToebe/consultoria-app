@@ -1,16 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ellipsis, MessageSquare, Pencil, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, Users, UserX } from 'lucide-react-native';
+import { Library, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, Users, UserX } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
-  alternarFixadoDoPost, baixarCapaDaEquipe, baixarFotoDoMuralDaEquipe, baixarFotoDoVotanteDaEquipe, dispensarDenuncias, excluirAula,
-  listarAulasDaEquipe, listarMuralDaEquipe, listarPlaylists, listarPods, reagirComoEquipe, removerApelidoDoAutor, removerPostDoMural, votarComoEquipe,
+  alternarFixadoDoPost, baixarCapaDaEquipe, baixarFotoDoMuralDaEquipe, baixarFotoDoVotanteDaEquipe, dispensarDenuncias,
+  listarMuralDaEquipe, listarPods, reagirComoEquipe, removerApelidoDoAutor, removerPostDoMural, votarComoEquipe,
 } from '../../api/comunidade';
-import type { AlvoDosComentarios, AulaDaComunidade, FiltrosDoMural, PostDoMural, TipoDePost } from '../../api/comunidadeTipos';
+import type { AlvoDosComentarios, FiltrosDoMural, PostDoMural, TipoDePost } from '../../api/comunidadeTipos';
 import { ErroApi } from '../../api/cliente';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
-import { CapaDoVideo } from '../../comunidade/CapaDoVideo';
 import { CartaoDoPost } from '../../comunidade/CartaoDoPost';
 import { EscolhaDoGrupo } from '../../comunidade/EscolhaDoGrupo';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
@@ -18,38 +17,30 @@ import { type AlvoDosVotos, FolhaDosVotos } from '../../comunidade/FolhaDosVotos
 import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
 import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
-  chipDaPlaylist, chipsDoMural, type FiltroDePlaylist, filtroDePlaylistValido, filtrarPorPlaylist, type FiltroDoMural, filtrosParaApi,
-  MURAL_SEM_FILTRO, opcoesDoFiltroDePlaylist, type RascunhoDoPost, rotuloDoPost, TIPO_PADRAO_DO_POST,
+  chipsDoMural, type FiltroDoMural, filtrosParaApi, MURAL_SEM_FILTRO, type RascunhoDoPost, rotuloDoPost, TIPO_PADRAO_DO_POST,
 } from '../../dominio/comunidade';
 import {
   type AbaDoMural, ABAS_DO_MURAL, abaDoParametro, abaDoTipo, carregarMuralDaAba, filtroNaAba, rascunhoAoAbrir, textoDoVazioDaAba, tiposParaBuscar,
 } from '../../dominio/muralEmAbas';
 import { FolhaConfiguracoesDoMural } from '../../treinador/comunidade/FolhaConfiguracoesDoMural';
-import { FolhaDoAulao } from '../../treinador/comunidade/FolhaDoAulao';
 import { FolhaGruposDaComunidade } from '../../treinador/comunidade/FolhaGruposDaComunidade';
+import { BarraDaSelecao, FolhasDosVideos, ListaDosVideos } from '../../treinador/comunidade/ListaDosVideos';
+import { useVideosDaEquipe } from '../../treinador/comunidade/useVideosDaEquipe';
 import { FolhaDeAcoes } from '../../treinador/FolhaDeAcoes';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { Cartao } from '../../ui/Cartao';
 import { textoDoErro } from '../../ui/erros';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
-import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
-import { Grade } from '../../ui/Grade';
 import { depoisDeFecharAsFolhas } from '../../ui/historicoDasFolhas';
-import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
-import { Selo } from '../../ui/Selo';
-import { sobre } from '../../ui/sobre';
 import { Tela } from '../../ui/Tela';
-import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 
 type AbaComunidade = 'auloes' | 'mural';
@@ -78,7 +69,6 @@ const LARGURA_DAS_PUBLICACOES = 800;
 const FOLGA_NO_PC = espaco(3.5);
 
 export default function ComunidadeTreinador() {
-  const { cores } = useTema();
   const largo = useWindowDimensions().width >= LARGURA_MENU_LATERAL;
   const { pode } = useSessao();
   const { avisar } = useAviso();
@@ -94,23 +84,7 @@ export default function ComunidadeTreinador() {
   const abaDoMural = abaDoParametro(abaDoMuralPedida);
   const setAbaDoMural = (valor: AbaDoMural) => { if (valor !== abaDoMural) router.setParams({ mural: valor }); };
 
-  const auloes = useCarregar('treinador-auloes', () => listarAulasDaEquipe());
-  const [folhaNovaAula, setFolhaNovaAula] = useState(false);
-  const [editando, setEditando] = useState<AulaDaComunidade | null>(null);
-  const [menuDaAula, setMenuDaAula] = useState<AulaDaComunidade | null>(null);
-  const [excluirDe, setExcluirDe] = useState<AulaDaComunidade | null>(null);
-  const [excluindo, setExcluindo] = useState(false);
-  // Falha do DELETE: dentro do painel, porque o aviso de rodapé da tela fica atrás do véu do Modal.
-  const [erroAoExcluir, setErroAoExcluir] = useState<string | null>(null);
-  // Coleções só na aba dos vídeos; se o GET falhar, o filtro some (filtrar sem elas poria tudo em "Sem coleção").
-  // shortcut: filtro mínimo por coleção depois da V088; o passo 8 desenha o botão "Coleções", a tela delas e o selo.
-  const playlists = useCarregar(aba === 'auloes' ? 'treinador-comunidade-playlists' : null, () => listarPlaylists());
-  const listaDePlaylists = playlists.erro ? [] : playlists.dados ?? [];
-  const [filtroPedido, setFiltroPedido] = useState<FiltroDePlaylist>(null);
-  const todasAsAulas = auloes.dados ?? [];
-  // A coleção que sumiu (excluída ou sem vídeo) volta para "Todas" sem estado a corrigir.
-  const filtroDePlaylist = filtroDePlaylistValido(filtroPedido, todasAsAulas, listaDePlaylists);
-  const aulasVisiveis = filtrarPorPlaylist(todasAsAulas, filtroDePlaylist, listaDePlaylists);
+  const videos = useVideosDaEquipe({ ativa: aba === 'auloes' });
 
   const [filtroPedidoDoMural, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
   // O tipo de outra aba não vale aqui (o chip some e volta com a aba dele), sem estado a corrigir.
@@ -165,31 +139,6 @@ export default function ComunidadeTreinador() {
     }
   };
 
-  // 404 ao salvar ou excluir: outra pessoa já excluiu; fecha, avisa e a lista vem de novo sem ela.
-  const aulaSumiu = () => {
-    setEditando(null);
-    setExcluirDe(null);
-    avisar('Este vídeo já tinha sido excluído.', 'perigo');
-    auloes.recarregar();
-  };
-
-  const confirmarExcluirAula = async () => {
-    if (!excluirDe) return;
-    setExcluindo(true);
-    setErroAoExcluir(null);
-    try {
-      await excluirAula(excluirDe.id);
-      setExcluirDe(null);
-      avisar('Vídeo excluído.', 'sucesso');
-      auloes.recarregar();
-    } catch (e) {
-      if (e instanceof ErroApi && e.status === 404) aulaSumiu();
-      else setErroAoExcluir(textoDoErro(e));
-    } finally {
-      setExcluindo(false);
-    }
-  };
-
   // A folha abre com o tipo da aba (Aviso em Avisos, Conversa em Alunos) enquanto nada foi digitado.
   const comporNovaPublicacao = () => { setRascunho((r) => rascunhoAoAbrir(r, abaDoMural, 'equipe')); setCompondo(true); };
 
@@ -235,8 +184,12 @@ export default function ComunidadeTreinador() {
   };
 
   // Uma ação principal por vez, a da aba ativa, no cabeçalho (guia pág. 35); as configurações do mural ficam em segundo plano.
+  // Nos vídeos, "Coleções" (secundário, C29) ao lado do "Novo vídeo", como os dois botões do Mural.
   const acoes = !podePublicar ? undefined : aba === 'auloes' ? (
-    <Botao rotulo="Novo vídeo" tipo="primario" Icone={Plus} aoTocar={() => setFolhaNovaAula(true)} />
+    <>
+      <Botao rotulo="Coleções" tipo="secundario" Icone={Library} aoTocar={() => videos.setVendoColecoes(true)} />
+      <Botao rotulo="Novo vídeo" tipo="primario" Icone={Plus} aoTocar={() => videos.setNovoVideo(true)} />
+    </>
   ) : (
     <>
       <Botao rotulo="Configurações do mural" tipo="secundario" Icone={Settings} aoTocar={() => setConfigurando(true)} />
@@ -245,6 +198,7 @@ export default function ComunidadeTreinador() {
   );
 
   return (
+    <View style={estilos.raiz}>
     <Tela bordas={['top']} folga={largo ? FOLGA_NO_PC : undefined}>
       <Cabecalho titulo="Comunidade" subtitulo="Vídeos e mural do time." acoes={acoes} />
 
@@ -258,65 +212,8 @@ export default function ComunidadeTreinador() {
       />
 
       {aba === 'auloes' ? (
-        <View style={estilos.blocos}>
-          <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
-            textoVazio="Nenhum vídeo publicado." recarregar={auloes.recarregar} />
-
-          {/* Filtro por coleção no painel lateral (`docs/planos/filtros-laterais.md`): só quando existe alguma coleção; a
-              que sumiu volta para "Todas" (`filtroDePlaylistValido`) e a etiqueta some junto. */}
-          {!auloes.erro && listaDePlaylists.length ? (
-            <BarraDeFiltros valor={filtroDePlaylist} aoAplicar={setFiltroPedido} limpo={null}
-              chips={chipDaPlaylist(filtroDePlaylist, listaDePlaylists)}
-              aoTirar={() => setFiltroPedido(null)} painelLateral={{ titulo: 'Filtros de vídeos' }}
-              seletores={(atual, mudar) => (
-                <GrupoDoPainel titulo="Identificação" primeiro>
-                  <Escolha rotulo="Coleção do vídeo" chips valor={atual} aoMudar={mudar}
-                    opcoes={opcoesDoFiltroDePlaylist(todasAsAulas, listaDePlaylists)} />
-                </GrupoDoPainel>
-              )} />
-          ) : null}
-
-          {/* Título primeiro; o estado discreto (neutro); descrição de apoio; vídeo e comentários no rodapé.
-              Grade pela largura medida (1 coluna no celular, 2 ou 3 no PC); um vídeo só ocupa uma célula, à esquerda. */}
-          {auloes.erro ? null : aulasVisiveis.length ? (
-            <Grade gap={espaco(3)}>
-              {aulasVisiveis.map((item) => (
-                <Cartao
-                  key={item.id}
-                  titulo={item.titulo}
-                  acoes={!item.publicada || podePublicar ? (
-                    <View style={estilos.acoesDoAulao}>
-                      {/* O Selo se alinha ao início por conta própria; a caixa dele centraliza com o ⋯ de 44 px e encolhe
-                          sem empurrar o ⋯ para fora do cartão em 390 px. */}
-                      {!item.publicada ? (
-                        <View style={[estilos.linha, estilos.selosDoAulao]}>
-                          <Selo texto="Não publicado" tipo="neutro" />
-                        </View>
-                      ) : null}
-                      {/* Editar e excluir no ⋯, como a moderação do post: o rodapé do cartão fica inteiro em 390 px. */}
-                      {podePublicar ? (
-                        <IconeBotao Icone={Ellipsis} rotulo={`Ações do vídeo ${item.titulo}`} aoTocar={() => setMenuDaAula(item)} />
-                      ) : null}
-                    </View>
-                  ) : undefined}>
-                  {item.descricao ? <Texto>{item.descricao}</Texto> : null}
-                  <CapaDoVideo videoUrl={item.videoUrl} titulo={item.titulo} capaId={item.capaId ?? null} baixarCapa={baixarCapaDaEquipe}
-                    aoAbrirFora={(url) => void abrir(url)} />
-                  <View style={[estilos.linha, estilos.rodapePost, { borderTopColor: cores.divisor }]}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Ver ${item.totalComentarios} comentário(s) do vídeo ${item.titulo}`}
-                      onPress={() => setComentariosDe({ tipo: 'aula', id: item.id })}
-                      style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.sobre }]}>
-                      <MessageSquare size={18} color={cores.texto} aria-hidden />
-                      <Texto variante="suave" cor={cores.texto} numerico>{item.totalComentarios} comentário(s)</Texto>
-                    </Pressable>
-                  </View>
-                </Cartao>
-              ))}
-            </Grade>
-          ) : null}
-        </View>
+        <ListaDosVideos v={videos} podePublicar={podePublicar} aoAbrirFora={(url) => void abrir(url)}
+          aoComentarios={(aula) => setComentariosDe({ tipo: 'aula', id: aula.id })} />
       ) : null}
 
       {aba === 'mural' ? (
@@ -409,42 +306,18 @@ export default function ComunidadeTreinador() {
       />
 
       <FolhaComentarios alvo={comentariosDe} modo={{ tipo: 'equipe', podeModerar: podePublicar }}
-        aoFechar={() => setComentariosDe(null)} aoAlterar={comentariosDe?.tipo === 'aula' ? auloes.recarregar : mural.recarregar} />
+        aoFechar={() => setComentariosDe(null)} aoAlterar={comentariosDe?.tipo === 'aula' ? videos.auloes.recarregar : mural.recarregar} />
       <FolhaDosVotos alvo={votosDe} papel="equipe" aoFechar={() => setVotosDe(null)} />
 
-      {/* Criar fica montada (o rascunho sobrevive ao Cancelar); editar monta por aula, já preenchida. */}
-      <FolhaDoAulao visivel={folhaNovaAula && podePublicar} aoFechar={() => setFolhaNovaAula(false)}
-        aoSalvar={() => { setFolhaNovaAula(false); avisar('Vídeo publicado para o time.', 'sucesso'); auloes.recarregar(); }} />
-      {editando ? (
-        <FolhaDoAulao key={editando.id} visivel={podePublicar} original={editando}
-          aoFechar={() => setEditando(null)} aoSumir={aulaSumiu}
-          aoSalvar={() => { setEditando(null); avisar('Vídeo atualizado.', 'sucesso'); auloes.recarregar(); }} />
-      ) : null}
-
-      {menuDaAula ? (
-        <FolhaDeAcoes titulo="Ações do vídeo" aoFechar={() => setMenuDaAula(null)} acoes={[
-          { rotulo: 'Editar vídeo', detalhe: 'Título, link, descrição e capa.', Icone: Pencil, aoTocar: () => setEditando(menuDaAula) },
-          { rotulo: 'Excluir vídeo', detalhe: 'Sai para todos, com os comentários.', Icone: Trash2, perigo: true,
-            aoTocar: () => { setErroAoExcluir(null); setExcluirDe(menuDaAula); } },
-        ]} />
-      ) : null}
-
-      <PainelConfirmacao
-        visivel={!!excluirDe}
-        titulo="Excluir o vídeo?"
-        mensagem={excluirDe ? `Excluir o vídeo “${excluirDe.titulo}”? Os comentários dele também somem. Essa ação não pode ser desfeita.` : undefined}
-        rotuloConfirmar="Excluir vídeo"
-        perigo
-        carregando={excluindo}
-        aoConfirmar={() => void confirmarExcluirAula()}
-        aoCancelar={() => { setExcluirDe(null); setErroAoExcluir(null); }}>
-        {erroAoExcluir ? <MensagemErro texto={erroAoExcluir} /> : null}
-      </PainelConfirmacao>
+      <FolhasDosVideos v={videos} podePublicar={podePublicar} />
     </Tela>
+    {aba === 'auloes' && videos.selecionando ? <BarraDaSelecao v={videos} /> : null}
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
+  raiz: { flex: 1 },
   // 24 px entre blocos; 16 px dentro do cartão e do item.
   blocos: { gap: espaco(3) },
   grupos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5),
@@ -452,10 +325,4 @@ const estilos = StyleSheet.create({
   encolher: { flexShrink: 1, minWidth: 0 },
   abasDoMural: { width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES },
   colunaDasPublicacoes: { width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES, gap: espaco(3) },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
-  acoesDoAulao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexShrink: 1, maxWidth: '100%' },
-  selosDoAulao: { flexShrink: 1, minWidth: 0 },
-  rodapePost: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(2) },
-  // Hover e pressionado pintam `sobre` (`ui/sobre`), como no mural do aluno.
-  interacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: ALVO_TOQUE, minWidth: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), marginHorizontal: -espaco(1) },
 });

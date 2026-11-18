@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Award, Flag, Medal, Plus, WifiOff } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
@@ -80,7 +80,16 @@ export default function ComunidadeAluno() {
   const params = useLocalSearchParams<{ aba?: string; mural?: string; grupo?: string; publicar?: string; texto?: string }>();
   // A aba mora no endereço (`?aba=`). `setParams` mantém a tela montada (o rascunho fica) e preserva os outros parâmetros.
   const aba: AbaComunidade = params.aba === 'auloes' || params.aba === 'ranking' || params.aba === 'colegas' ? params.aba : 'mural';
-  const setAba = (valor: AbaComunidade) => { if (valor !== aba) router.setParams({ aba: valor }); };
+  // Coleção aberta pelo toque ocupa uma entrada do histórico (o voltar a fecha): trocar de aba a fecha primeiro e só grava a
+  // aba quando a entrada voltou, como o mural ao publicar (senão a volta chega depois e traz a aba Vídeos de novo).
+  const fecharColecao = useRef<(() => void) | null>(null);
+  const setAba = (valor: AbaComunidade) => {
+    if (valor === aba) return;
+    const fechar = fecharColecao.current;
+    if (!fechar) { router.setParams({ aba: valor }); return; }
+    fechar();
+    depoisDeFecharAsFolhas(() => router.setParams({ aba: valor }));
+  };
 
   // Avisos ou Alunos (C39) no endereço (`?mural=`; desconhecido = Avisos). As abas valem dentro do Geral e do Meu grupo.
   const abaDoMural = abaDoParametro(params.mural);
@@ -245,7 +254,7 @@ export default function ComunidadeAluno() {
               <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
                 textoVazio="Nenhum vídeo por enquanto." recarregar={auloes.recarregar} />
               {auloes.dados?.length ? (
-                <ColecoesDeAuloes aulas={auloes.dados} baixarCapa={baixarCapaDoAluno} aoAbrirFora={(url) => void abrir(url)}
+                <ColecoesDeAuloes aulas={auloes.dados} fecharRef={fecharColecao} baixarCapa={baixarCapaDoAluno} aoAbrirFora={(url) => void abrir(url)}
                   aoComentarios={(a) => setComentariosDe({ tipo: 'aula', id: a.id })} />
               ) : null}
             </View>

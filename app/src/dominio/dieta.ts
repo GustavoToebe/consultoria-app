@@ -13,6 +13,31 @@ export const MACROS: Macro[] = ['kcal', 'proteina', 'carboidrato', 'gordura'];
 
 export type Totais = Record<Macro, number | null>;
 
+/**
+ * Totais com a fibra (V089). A fibra não é um `Macro` (não entra na kcal nem nos três macros coloridos); soma só os itens
+ * COM fibra. `fibra` é `null` ("—") quando nenhum item tem; `fibraCompleta` só é `true` com total não nulo e nenhum item sem
+ * fibra: com `false` e total não nulo a soma é parcial e a tela deve dizer ("a partir de", asterisco ou similar).
+ */
+export interface TotaisComFibra extends Totais {
+  fibra: number | null;
+  fibraCompleta: boolean;
+}
+
+/** Faixa da fibra aceita pelo servidor (`BibliotecaService.exigirFibraNaFaixa`): 0 a 99999, até 2 casas. */
+export const FIBRA_MAXIMA = 99999;
+export const MENSAGEM_FIBRA_FORA_DA_FAIXA = 'Use de 0 a 99.999, com até 2 casas.';
+
+/** Vazio (nulo) é permitido; preenchida, fica na faixa e com no máximo 2 casas decimais. */
+export function fibraValida(fibra: number | null | undefined): boolean {
+  if (fibra == null) return true;
+  return Number.isFinite(fibra) && fibra >= 0 && fibra <= FIBRA_MAXIMA && Math.abs(Math.round(fibra * 100) - fibra * 100) < 1e-6;
+}
+
+/** Mensagem do campo "Fibras (g)" do formulário do alimento; `null` quando está válida (ou vazia). */
+export function erroDaFibra(fibra: number | null | undefined): string | null {
+  return fibraValida(fibra) ? null : MENSAGEM_FIBRA_FORA_DA_FAIXA;
+}
+
 /** Quantidade do item na unidade-base do alimento; `null` se não há como converter (ex.: "un" sem gramas). */
 export function quantidadeNaBase(alimento: Alimento, quantidade: number, unidade: UnidadeAlimento): number | null {
   if (unidade === alimento.baseUnidade) return quantidade;
@@ -43,6 +68,7 @@ export function recalcularItem(item: ItemDieta, alimento: Alimento | undefined):
     proteina: valor(alimento.proteina),
     carboidrato: valor(alimento.carboidrato),
     gordura: valor(alimento.gordura),
+    fibra: valor(alimento.fibra),
   };
 }
 
@@ -64,16 +90,21 @@ export function trocarAlimentoNasRefeicoes(refeicoes: Refeicao[], uid: string, a
 }
 
 /** Soma os valores sem arredondar (arredonda só na tela). Algum item sem valor → aquele total fica `null`. */
-export function somar(itens: ItemDieta[]): Totais {
+export function somar(itens: ItemDieta[]): TotaisComFibra {
   const totais: Totais = { kcal: 0, proteina: 0, carboidrato: 0, gordura: 0 };
+  let fibra: number | null = null;
+  let semFibra = false;
   for (const item of itens) {
     for (const m of MACROS) {
       const atual = totais[m];
       const valor = item[m];
       totais[m] = atual === null || valor === null || valor === undefined ? null : atual + valor;
     }
+    // Fibra é o oposto dos macros: item sem fibra não anula o total, só o marca como parcial.
+    if (item.fibra === null || item.fibra === undefined) semFibra = true;
+    else fibra = (fibra ?? 0) + item.fibra;
   }
-  return totais;
+  return { ...totais, fibra, fibraCompleta: fibra !== null && !semFibra };
 }
 
 /**
@@ -81,7 +112,7 @@ export function somar(itens: ItemDieta[]): Totais {
  * recebe as refeições do dia (`refeicoesDoDia`). shortcut: ainda aceita o conteúdo (soma só a raiz, que com variações é
  * vazia) para não quebrar os chamadores de tela/PDF/modelos que outros passos migram; trocar para só `Refeicao[]` no passo 5.
  */
-export function totalDoDia(fonte: Refeicao[] | ConteudoDieta): Totais {
+export function totalDoDia(fonte: Refeicao[] | ConteudoDieta): TotaisComFibra {
   const refeicoes = Array.isArray(fonte) ? fonte : fonte.refeicoes;
   return somar(refeicoes.flatMap((r) => r.opcoes[0]?.itens ?? []));
 }
@@ -127,6 +158,7 @@ export function novoItem(alimento?: Alimento): ItemDieta {
       proteina: null,
       carboidrato: null,
       gordura: null,
+      fibra: null,
       manual: true,
     };
   }
@@ -141,6 +173,7 @@ export function novoItem(alimento?: Alimento): ItemDieta {
       proteina: null,
       carboidrato: null,
       gordura: null,
+      fibra: null,
       manual: false,
     },
     alimento,
@@ -172,6 +205,7 @@ function normalizarRefeicoes(refeicoes: unknown): Refeicao[] {
         proteina: i.proteina ?? null,
         carboidrato: i.carboidrato ?? null,
         gordura: i.gordura ?? null,
+        fibra: i.fibra ?? null,
         manual: i.manual ?? i.alimentoId == null,
         fatorCorrecao: i.fatorCorrecao ?? null,
         fatorCoccao: i.fatorCoccao ?? null,

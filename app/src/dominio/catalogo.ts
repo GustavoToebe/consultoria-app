@@ -13,6 +13,8 @@ interface NutrientesDoCatalogo {
   proteina: number | null;
   carboidrato: number | null;
   gordura: number | null;
+  /** Ausente (`undefined`) = quem chama não conhece a fibra: o resumo não a cita. Nulo = sem análise ("—"). */
+  fibra?: number | null;
   tracos: string[];
 }
 
@@ -21,11 +23,12 @@ function nutriente(valor: number | null, nome: string, tracos: string[], casas: 
   return tracos.includes(nome) ? 'Tr' : numeroParaTela(valor, casas);
 }
 
-/** "100 g · 128 kcal · P 2,5 · C 28,1 · G Tr" */
+/** "100 g · 128 kcal · P 2,5 · C 28,1 · G Tr", com " · Fibra 1,2" (ou "Fibra —", ou "Fibra Tr") quando a fibra é conhecida. */
 export function resumoNutrientes(a: NutrientesDoCatalogo): string {
-  return `${numeroParaTela(a.baseQuantidade)} ${a.baseUnidade} · ${numeroParaTela(a.kcal, 0)} kcal · `
+  const base = `${numeroParaTela(a.baseQuantidade)} ${a.baseUnidade} · ${numeroParaTela(a.kcal, 0)} kcal · `
     + `P ${nutriente(a.proteina, 'proteina', a.tracos, 1)} · C ${nutriente(a.carboidrato, 'carboidrato', a.tracos, 1)} · `
     + `G ${nutriente(a.gordura, 'gordura', a.tracos, 1)}`;
+  return a.fibra === undefined ? base : `${base} · Fibra ${nutriente(a.fibra, 'fibra', a.tracos, 1)}`;
 }
 
 /** Rodapé da lista: só aparece quando a busca tem mais resultados do que os mostrados. */

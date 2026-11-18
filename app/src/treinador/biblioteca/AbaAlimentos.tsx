@@ -18,7 +18,8 @@ import {
   perfilFccDoValor,
   previaDeConversao,
 } from '../../dominio/fatoresDoAlimento';
-import { numeroParaTela } from '../../dominio/formatos';
+import { erroDaFibra } from '../../dominio/dieta';
+import { mascaraDeNumero, numeroParaTela } from '../../dominio/formatos';
 import { kcalDoAlimento, kcalDosMacros } from '../../dominio/kcalDosMacros';
 import { chipDeVarias } from '../../dominio/filtrosDaBiblioteca';
 import { grupoDoTexto, gruposDoCampo } from '../../dominio/gruposDaLista';
@@ -85,14 +86,15 @@ const OPCOES_PREPARO = [
 
 /**
  * "Por 100 g" e os valores dessa quantidade pela peça do aluno (`ValoresDaDieta`: kcal e P, C e G com a marca da cor, guia
- * de 13/11 pág. 10). Sem kcal (suplemento sem tabela), a porção ou "—", como antes: nunca "— kcal" inventado.
+ * de 13/11 pág. 10). Sem kcal (suplemento sem tabela), a porção ou "—", como antes: nunca "— kcal" inventado. A fibra vem
+ * depois dos macros, "Fibra —" quando o alimento não a tem (V089).
  */
-export function ValoresDoAlimento({ alimento: a }: { alimento: Pick<Alimento, 'baseQuantidade' | 'baseUnidade' | 'kcal' | 'proteina' | 'carboidrato' | 'gordura' | 'porcao'> }) {
+export function ValoresDoAlimento({ alimento: a }: { alimento: Pick<Alimento, 'baseQuantidade' | 'baseUnidade' | 'kcal' | 'proteina' | 'carboidrato' | 'gordura' | 'fibra' | 'porcao'> }) {
   if (a.kcal == null) return <Texto variante="pequeno">{a.porcao?.trim() || '—'}</Texto>;
   return (
     <View style={estilos.valoresDoAlimento}>
       <Texto variante="pequeno" numerico>{`Por ${numeroParaTela(a.baseQuantidade)} ${a.baseUnidade}`}</Texto>
-      <ValoresDaDieta totais={{ kcal: a.kcal, proteina: a.proteina, carboidrato: a.carboidrato, gordura: a.gordura }} inicio />
+      <ValoresDaDieta totais={{ kcal: a.kcal, proteina: a.proteina, carboidrato: a.carboidrato, gordura: a.gordura, fibra: a.fibra ?? null }} inicio />
     </View>
   );
 }
@@ -261,6 +263,8 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   const [proteina, setProteina] = useState<number | null>(inicial?.proteina ?? null);
   const [carboidrato, setCarboidrato] = useState<number | null>(inicial?.carboidrato ?? null);
   const [gordura, setGordura] = useState<number | null>(inicial?.gordura ?? null);
+  // Fibra (V089): opcional, vazia = nula ("—"), nunca zero; não entra na kcal.
+  const [fibra, setFibra] = useState<number | null>(inicial?.fibra ?? null);
   const [gramas, setGramas] = useState<number | null>(inicial?.gramasPorUnidade ?? null);
   const [fonte, setFonte] = useState(inicial?.fonte ?? '');
   const [fc, setFc] = useState<number | null>(inicial?.fatorCorrecao ?? null);
@@ -288,10 +292,12 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   const erroFc = erroDoFatorCorrecao(fcMostrado);
   const erroFcc = erroDoFatorCoccao(fccMostrado);
   const macroForaDaFaixa = [proteina, carboidrato, gordura].some((m) => m !== null && (m < 0 || m > MACRO_MAXIMO));
+  const erroFibra = erroDaFibra(fibra);
   const pendencia = !nome.trim() ? 'Informe o nome do alimento.'
     : !base ? 'Informe a quantidade-base.'
       : macroForaDaFaixa ? 'Confira os macros: de 0 a 99.999 g.'
-        : erroFc || erroFcc ? 'Confira os fatores do alimento.' : null;
+        : erroFibra ? 'Confira as fibras: de 0 a 99.999 g.'
+          : erroFc || erroFcc ? 'Confira os fatores do alimento.' : null;
 
   const sugerirPeloNome = () => { setTocouFatores(false); setFcLivre(false); setFccLivre(false); };
   const perfilFc = fcLivre ? 'PERSONALIZADO' : perfilFcDoValor(fcMostrado);
@@ -315,6 +321,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
       proteina,
       carboidrato,
       gordura,
+      fibra, // sempre no corpo (nula quando vazia): sem a chave, editar apagaria a fibra gravada
       gramasPorUnidade: gramas,
       fonte: fonte.trim() || null,
       fatorCorrecao: fcMostrado,
@@ -406,6 +413,12 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
               </View>
             </View>
             {kcalDosMacrosDigitados === null ? <Texto variante="pequeno">Preencha os três para o app calcular a kcal.</Texto> : null}
+            {/* A fibra não é macro: linha própria depois da ajuda dos três, sem a marca da cor e fora da kcal, na largura de
+                um campo (não estica). O erro da API (422 no campo `fibra`) vence o local. */}
+            <View style={estilos.campoFibra}>
+              <CampoNumerico rotulo="Fibras (g)" valor={fibra} aoMudar={setFibra} mascara={(t) => mascaraDeNumero(t, 2)}
+                ajuda="Opcional. Não entra na kcal." erro={campos.fibra ?? erroFibra} />
+            </View>
           </View>
         </Cartao>
 
@@ -467,6 +480,8 @@ const estilos = StyleSheet.create({
   // 180 px: FC e FCc lado a lado na folha do PC (600) e um embaixo do outro no celular.
   campoLargo: { flexGrow: 1, flexBasis: 180 },
   campoMacro: { flexGrow: 1, flexBasis: 100 },
+  // A fibra numa largura fixa (a ajuda e o erro cabem em até duas linhas), sem esticar pela folha.
+  campoFibra: { width: 200, maxWidth: '100%' },
   // Erro e ajuda colados no campo Grupo (8 px), não soltos no cartão; o mesmo no perfil do fator e no número dele.
   grupo: { gap: espaco(1) },
   fator: { gap: espaco(1) },
