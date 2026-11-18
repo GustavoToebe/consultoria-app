@@ -1,4 +1,5 @@
 import { ChevronRight } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../../tema/TemaProvider';
@@ -23,6 +24,8 @@ interface Props {
   /** Borda vermelha (erro da validação casado com o item). */
   comProblema: boolean;
   aoEscolher: () => void;
+  /** Alça de arrastar (`ui/ArrasteDaLista`), à esquerda e fora do botão: tocar nela não escolhe o item. */
+  alca?: ReactNode;
 }
 
 /**
@@ -31,11 +34,11 @@ interface Props {
  * barra na cor de ação com halo, número cheio e o selo "Editando", com `aria-current` e `selected`. Os outros ficam sem
  * fundo nem contorno (só o hover), como as linhas do canvas.
  */
-export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escolhido, comProblema, aoEscolher }: Props) {
+export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escolhido, comProblema, aoEscolher, alca }: Props) {
   const { cores, bordas } = useTema();
   const edicao = coresDaEdicao(cores);
   const borda = escolhido ? edicao.borda : comProblema ? cores.perigo : 'transparent';
-  return (
+  const item = (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: escolhido }}
@@ -44,6 +47,7 @@ export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escol
       onPress={aoEscolher}
       style={(s) => [
         estilos.item,
+        alca ? estilos.aoLado : null,
         {
           borderWidth: bordas.bloco,
           borderLeftWidth: BARRA,
@@ -64,6 +68,7 @@ export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escol
       <ChevronRight size={18} color={escolhido ? cores.acao : cores.textoSuave} strokeWidth={2} />
     </Pressable>
   );
+  return alca ? <View style={estilos.comAlca}>{alca}{item}</View> : item;
 }
 
 /** Barra da esquerda do item, sempre com a mesma largura (só a cor muda): escolher outro item não empurra o texto. */
@@ -74,4 +79,6 @@ const estilos = StyleSheet.create({
   meio: { flex: 1, gap: 4 },
   nome: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 20 },
   selo: { flexDirection: 'row' },
+  comAlca: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(0.25) },
+  aoLado: { flex: 1, minWidth: 0 },
 });

@@ -11,10 +11,12 @@ import { comNomesPadrao, itensSemValorNoTotal, novaRefeicao, normalizarDieta } f
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { dataParaTela } from '../../dominio/formatos';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
+import { moverPara } from '../../dominio/reordenar';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
 import { mudarRefeicoesDaSecao, refeicoesDaSecao, secoesDaDieta, variacaoAberta } from '../../dominio/variacoesDaDieta';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
+import { AlcaDeArraste, ItemArrastavel, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
@@ -263,19 +265,12 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           {duas && escolhida ? (
             <View style={estilos.colunas}>
               <View style={estilos.lista}>
-                <View style={estilos.itens} role="group" accessibilityLabel="Refeições do plano">
-                  {refs.map((r, ri) => {
-                    const tituloDaLinha = tituloDaRefeicao(r, ri);
-                    const resumo = resumoDaRefeicao(r);
-                    const problema = comErro.has(r.uid);
-                    return (
-                      <ItemDaListaDoEditor key={r.uid} numero={ri + 1} titulo={tituloDaLinha} linha={resumo} escolhido={r.uid === escolhida.uid}
-                        comProblema={problema} selo={problema ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
-                        rotulo={`Refeição ${ri + 1} de ${refs.length}: ${tituloDaLinha}${problema ? ', corrigir' : ''}. ${resumo}`}
-                        aoEscolher={() => setEscolhidaUid(r.uid)} />
-                    );
-                  })}
-                </View>
+                <ListaDeRefeicoes refs={refs} escolhidaUid={escolhida.uid} comErro={comErro} aoEscolher={setEscolhidaUid}
+                  aoSoltar={(de, para) => {
+                    const anterior = c;
+                    mudarRefeicoes((lista) => moverPara(lista, de, para));
+                    return () => editor.alterarConteudo(() => anterior);
+                  }} />
                 {adicionar}
               </View>
               <View style={estilos.inspetor}>{cartao(escolhida, refs.indexOf(escolhida), true)}</View>
@@ -324,6 +319,37 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         aoPorcao={(uid, porcao) => setPorcoes((atual) => ({ ...atual, [uid]: porcao }))}
       />
     </TelaDoEditor>
+  );
+}
+
+/**
+ * Lista (mestre) das refeições em duas colunas: um item por refeição, com a alça de arrastar (arrastar, 18/11). Soltar
+ * leva a refeição pela mesma regra das setas (`moverPara`, de uma casa em uma); as setas ficam no ⋯ da refeição.
+ */
+function ListaDeRefeicoes({ refs, escolhidaUid, comErro, aoEscolher, aoSoltar }: {
+  refs: Refeicao[];
+  escolhidaUid: string;
+  comErro: ReadonlySet<string>;
+  aoEscolher: (uid: string) => void;
+  aoSoltar: (de: number, para: number) => () => void;
+}) {
+  const arraste = useArrasteDaLista({ total: refs.length, aoSoltar });
+  return (
+    <View style={estilos.itens} role="group" accessibilityLabel="Refeições do plano">
+      {refs.map((r, ri) => {
+        const tituloDaLinha = tituloDaRefeicao(r, ri);
+        const resumo = resumoDaRefeicao(r);
+        const problema = comErro.has(r.uid);
+        return (
+          <ItemArrastavel key={r.uid} arraste={arraste} indice={ri}>
+            <ItemDaListaDoEditor numero={ri + 1} titulo={tituloDaLinha} linha={resumo} escolhido={r.uid === escolhidaUid}
+              comProblema={problema} selo={problema ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
+              rotulo={`Refeição ${ri + 1} de ${refs.length}: ${tituloDaLinha}${problema ? ', corrigir' : ''}. ${resumo}`}
+              aoEscolher={() => aoEscolher(r.uid)} alca={<AlcaDeArraste arraste={arraste} indice={ri} />} />
+          </ItemArrastavel>
+        );
+      })}
+    </View>
   );
 }
 
