@@ -1,3 +1,5 @@
+import { inteiroComMilhar } from './formatos';
+
 /** Nomes dos grupos do menu lateral do treinador (N29), na ordem em que aparecem. */
 export const GRUPOS_DO_MENU = ['Acompanhamento', 'Conteúdo', 'Negócio', 'Configurações'] as const;
 export type GrupoDoMenu = (typeof GRUPOS_DO_MENU)[number];
@@ -69,6 +71,53 @@ export function resumoDoGrupoRecolhido(itens: readonly SinalDoItem[]): {
     ponto: itens.some((i) => i.ponto === true && !(i.contagem && i.contagem.numero > 0)),
     partes: contagens.filter((c) => c.numero > 0),
   };
+}
+
+/** O que decide se um item do menu é o da tela aberta: o mesmo formato de `ItemMenu` (`ui/Navegacao`). */
+export interface DestinoDoItem {
+  caminho: string;
+  exato?: boolean;
+  tambem?: readonly string[];
+  tambemNoCelular?: readonly string[];
+}
+
+/**
+ * O item é o da tela aberta: o caminho dele (exato na raiz da área) ou uma subpágina, uma das telas abertas a partir dele
+ * (`tambem`) e, só na barra do celular (`lateral` falso), as de `tambemNoCelular`.
+ */
+export function itemAtivo(item: DestinoDoItem, caminho: string, lateral: boolean): boolean {
+  const casa = (base: string) => caminho === base || caminho.startsWith(`${base}/`);
+  return (item.exato ? caminho === item.caminho : casa(item.caminho)) || !!item.tambem?.some(casa)
+    || (!lateral && !!item.tambemNoCelular?.some(casa));
+}
+
+/**
+ * O que o ícone de um grupo mostra no PC minimizado (menu recolhido 18/11): `atual` quando um item dele é o da tela aberta
+ * (pelos itens que estão no menu, não por `posicaoNoMenu`: na web o Perfil não é item e as telas dele acendem a conta, não
+ * Configurações); `sinais` para o nome acessível (as contagens maiores que zero ou "pendência"); `ponto` quando algum item
+ * mostraria o ponto no minimizado (`ponto === true`, com ou sem contagem).
+ */
+export function sinaisDoIconeDoGrupo(itens: readonly (DestinoDoItem & SinalDoItem)[], caminho: string): {
+  atual: boolean;
+  ponto: boolean;
+  sinais: string[];
+} {
+  const ponto = itens.some((i) => i.ponto === true);
+  const partes = resumoDoGrupoRecolhido(itens).partes;
+  return {
+    atual: itens.some((i) => itemAtivo(i, caminho, true)),
+    ponto,
+    sinais: partes.length ? partes.map((p) => `${inteiroComMilhar(p.numero)} ${p.descricao}`) : ponto ? ['pendência'] : [],
+  };
+}
+
+/**
+ * Topo do submenu flutuante do PC minimizado, alinhado ao topo do ícone do grupo e empurrado para cima o quanto for
+ * preciso para não passar da altura disponível (com `folga` nas duas pontas). Sem a altura medida ainda, fica no ícone.
+ */
+export function topoDoSubmenu(topoDoIcone: number, alturaDoSubmenu: number | null, alturaDisponivel: number, folga = 8): number {
+  if (alturaDoSubmenu === null) return Math.max(folga, topoDoIcone);
+  return Math.max(folga, Math.min(topoDoIcone, alturaDisponivel - alturaDoSubmenu - folga));
 }
 
 /** Rótulo do trilho do tablet e da barra do celular: o curto, quando existe (cerca de 10 letras cabem embaixo do ícone). */

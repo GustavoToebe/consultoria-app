@@ -57,7 +57,7 @@ test('PC (1280): quatro grupos com título, na ordem do D6, e o fim do menu alca
 const botaoDaBusca = (page: Page) => menu(page).getByRole('button', { name: /^Buscar telas e ações, atalho/ });
 const botaoDaConta = (page: Page) => menu(page).getByRole('button', { name: /^Conta de / });
 
-test('PC (1280×720): sem barra de topo; marca sozinha, Buscar com o recolher ao lado e a conta fixa no pé, com a lista rolada', async ({ page }) => {
+test('PC (1280×720): sem barra de topo; marca com o recolher na mesma linha, Buscar embaixo e a conta fixa no pé, com a lista rolada', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, 720);
   const minimizar = menu(page).getByRole('button', { name: 'Minimizar menu' });
   // A tela aberta é a Ajuda, perto do fim da lista: o item ativo rola a lista sozinho, então o Início volta antes de medir.
@@ -68,11 +68,14 @@ test('PC (1280×720): sem barra de topo; marca sozinha, Buscar com o recolher ao
     await menu(page).getByRole('link', { name: 'Início', exact: true }).boundingBox(),
     await botaoDaConta(page).boundingBox(),
   ];
-  // Ordem de cima para baixo: marca sozinha, Buscar com o recolher à direita na mesma linha, itens, conta; alvos de 44.
+  // menu: recolher e submenu (18/11): de cima para baixo, a marca com o recolher à direita na mesma linha, Buscar embaixo
+  // na largura toda, itens, conta; alvos de 44.
   const marca = await menu(page).getByText(MARCA.nome, { exact: true }).boundingBox();
   expect(marca!.y + marca!.height).toBeLessThanOrEqual(caixaBusca!.y);
-  expect(Math.abs(caixaMin!.y - caixaBusca!.y)).toBeLessThanOrEqual(2);
-  expect(caixaMin!.x).toBeGreaterThanOrEqual(caixaBusca!.x + caixaBusca!.width);
+  expect(Math.abs(caixaMin!.y + caixaMin!.height / 2 - (marca!.y + marca!.height / 2))).toBeLessThanOrEqual(4);
+  expect(caixaMin!.x).toBeGreaterThanOrEqual(marca!.x + marca!.width);
+  expect(caixaMin!.y + caixaMin!.height).toBeLessThanOrEqual(caixaBusca!.y);
+  expect(caixaBusca!.width).toBeGreaterThan(180);
   // O selo "Ctrl K" saiu do botão: o atalho vive no nome acessível e na dica.
   await expect(botaoDaBusca(page).getByText(/Ctrl K|⌘ K/)).toHaveCount(0);
   expect(caixaBusca!.y).toBeLessThan(caixaInicio!.y);
@@ -112,7 +115,8 @@ test('PC (1280): nome longo da consultoria ocupa até duas linhas sem empurrar B
   const centro = (c: { x: number; width: number }) => c.x + c.width / 2;
   expect(Math.abs(centro(lupa!) - centro(seta!))).toBeLessThanOrEqual(1);
   expect(Math.abs(centro(lupa!) - (coluna!.x + 36))).toBeLessThanOrEqual(6);
-  expect(seta!.y).toBeGreaterThan(lupa!.y);
+  // menu: recolher e submenu (18/11): o expandir fica logo abaixo da marca, em cima da lupa.
+  expect(seta!.y).toBeLessThan(lupa!.y);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -172,8 +176,12 @@ test('PC (1280): o menu aberto mostra o número de Atualizações e Interessados
   await expect(menu(page).getByRole('link', { name: 'Atualizações, 3 para revisar', exact: true })).toBeVisible();
   await expect(menu(page).getByRole('link', { name: 'Interessados, 1 inscrição nova', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Minimizar menu' }).click();
-  await expect(menu(page).getByRole('link', { name: 'Atualizações, pendência', exact: true })).toBeVisible();
-  await expect(menu(page).getByRole('link', { name: 'Interessados, pendência', exact: true })).toBeVisible();
+  // menu: recolher e submenu (18/11): minimizado, o ícone do grupo diz as contagens e o submenu mostra o número no item.
+  const acompanhamento = menu(page).getByRole('button', { name: 'Acompanhamento, 3 para revisar', exact: true });
+  await expect(acompanhamento).toBeVisible();
+  await expect(menu(page).getByRole('button', { name: 'Negócio, 1 inscrição nova', exact: true })).toBeVisible();
+  await acompanhamento.hover();
+  await expect(menu(page).getByRole('menu', { name: 'Acompanhamento' }).getByRole('menuitem', { name: 'Atualizações, 3 para revisar', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Expandir menu' }).click();
   expect(errosDaPagina).toEqual([]);
 });
@@ -250,11 +258,12 @@ for (const [largura, altura] of [[900, 720], [768, 1024]] as const) {
 test('PC minimizado por escolha: só ícone e a dica ao passar o mouse, como antes', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, 900);
   await page.getByRole('button', { name: 'Minimizar menu' }).click();
-  const biblioteca = menu(page).getByRole('link', { name: 'Biblioteca', exact: true });
+  // menu: recolher e submenu (18/11): fora de grupo só o Início continua item do trilho, com a dica.
+  const biblioteca = menu(page).getByRole('link', { name: 'Início', exact: true });
   expect(await rotuloDoLink(biblioteca)).toBeNull();
   await biblioteca.hover();
   // A dica mora no trilho, fora da lista que rola (D20), e aparece ao lado do item.
-  const dica = menu(page).getByText('Biblioteca', { exact: true });
+  const dica = menu(page).getByText('Início', { exact: true });
   await expect(dica).toBeVisible();
   const [caixaDoItem, caixaDaDica] = [await biblioteca.boundingBox(), await dica.boundingBox()];
   expect(caixaDaDica!.x).toBeGreaterThan(caixaDoItem!.x + caixaDoItem!.width);
@@ -267,20 +276,22 @@ test('PC minimizado por escolha: só ícone e a dica ao passar o mouse, como ant
   expect(errosDaPagina).toEqual([]);
 });
 
-test('PC minimizado em janela baixa (1280×720): o "Expandir" fica à vista e a lista rola com a dica no lugar (D20)', async ({ page }) => {
+test('PC minimizado em janela baixa (1280×720): o "Expandir" fica à vista e o submenu do último grupo abre inteiro na janela (D20)', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, 720);
   await page.getByRole('button', { name: 'Minimizar menu' }).click();
   const expandir = page.getByRole('button', { name: 'Expandir menu' });
   await expect(expandir).toBeInViewport({ ratio: 1 });
-  // O último item chega rolando a lista de ícones, e a dica dele aparece ao lado, inteira, sem a rolagem cortar.
-  const auditoria = menu(page).getByRole('link', { name: 'Auditoria', exact: true });
-  await auditoria.scrollIntoViewIfNeeded();
-  await expect(auditoria).toBeInViewport({ ratio: 1 });
-  await auditoria.hover();
-  const dica = menu(page).getByText('Auditoria', { exact: true });
-  await expect(dica).toBeInViewport({ ratio: 1 });
-  const [caixaDoItem, caixaDaDica] = [await auditoria.boundingBox(), await dica.boundingBox()];
-  expect(Math.abs(caixaDaDica!.y + caixaDaDica!.height / 2 - (caixaDoItem!.y + caixaDoItem!.height / 2))).toBeLessThan(caixaDoItem!.height / 2);
+  // menu: recolher e submenu (18/11): o último grupo fica à vista e o submenu dele abre inteiro dentro da janela, ao lado
+  // do trilho, sem a rolagem nem a borda de baixo cortarem; a Auditoria, último item, está nele.
+  const configuracoes = menu(page).getByRole('button', { name: 'Configurações', exact: true });
+  await expect(configuracoes).toBeInViewport({ ratio: 1 });
+  await configuracoes.hover();
+  const submenu = menu(page).getByRole('menu', { name: 'Configurações' });
+  await expect(submenu).toBeInViewport({ ratio: 1 });
+  await expect(submenu.getByRole('menuitem', { name: 'Auditoria', exact: true })).toBeInViewport({ ratio: 1 });
+  const [caixaDoIcone, caixaDoSubmenu] = [await configuracoes.boundingBox(), await submenu.boundingBox()];
+  expect(caixaDoSubmenu!.x).toBeGreaterThan(caixaDoIcone!.x + caixaDoIcone!.width);
+  expect(caixaDoSubmenu!.y + caixaDoSubmenu!.height).toBeLessThanOrEqual(720);
   // A página não rola junto: só a lista do menu.
   expect(await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(0);
   await expandir.click();
@@ -416,9 +427,94 @@ test('trilho (900) e PC minimizado: nenhum botão de grupo e todos os itens à v
   await expect(botaoDoGrupo(page, 'Abrir', 'Negócio')).toBeVisible();
   await page.getByRole('button', { name: 'Minimizar menu' }).click();
   await expect(menu(page).getByRole('button', { name: /^(Recolher|Abrir) / })).toHaveCount(0);
-  await expect(menu(page).getByRole('link', { name: 'Financeiro', exact: true })).toHaveCount(1);
+  // menu: recolher e submenu (18/11): minimizado, o Financeiro está no submenu de Negócio, mesmo com o grupo salvo recolhido.
+  await menu(page).getByRole('button', { name: /^Negócio/ }).hover();
+  await expect(menu(page).getByRole('menuitem', { name: 'Financeiro', exact: true })).toHaveCount(1);
   await page.getByRole('button', { name: 'Expandir menu' }).click();
 });
+
+// menu: recolher e submenu (18/11): no PC minimizado cada grupo é um botão de menu (padrão "Menu Button" da WAI-ARIA APG).
+test('PC minimizado (1280): o ícone do grupo abre o submenu pelo teclado, setas andam, Esc e Tab saem, clique fora fecha', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, 900);
+  await menu(page).getByRole('button', { name: 'Minimizar menu' }).click();
+  const grupo = (nome: string) => menu(page).getByRole('button', { name: new RegExp(`^${nome}`) });
+  const submenu = (nome: string) => menu(page).getByRole('menu', { name: nome });
+  const acompanhamento = grupo('Acompanhamento');
+  await expect(acompanhamento).toHaveAttribute('aria-haspopup', 'menu');
+  await expect(acompanhamento).toHaveAttribute('aria-expanded', 'false');
+
+  // Focar mostra o submenu sem tirar o foco do ícone; ↓ entra no primeiro item.
+  await acompanhamento.focus();
+  await expect(acompanhamento).toHaveAttribute('aria-expanded', 'true');
+  await expect(submenu('Acompanhamento')).toBeVisible();
+  await expect(acompanhamento).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  const itens = submenu('Acompanhamento').getByRole('menuitem');
+  await expect(itens.first()).toBeFocused();
+  for (const caixa of await itens.evaluateAll((ls) => ls.map((l) => l.getBoundingClientRect().height))) expect(caixa).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press('ArrowUp');
+  await expect(itens.last()).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(itens.first()).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(itens.last()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(itens.first()).toBeFocused();
+
+  // Esc fecha e devolve o foco ao ícone, sem reabrir; Enter abre de novo com o foco no primeiro item.
+  await page.keyboard.press('Escape');
+  await expect(submenu('Acompanhamento')).toHaveCount(0);
+  await expect(acompanhamento).toBeFocused();
+  await expect(acompanhamento).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Enter');
+  await expect(itens.first()).toBeFocused();
+
+  // Tab sai do submenu, que fecha, e segue para o ícone do grupo seguinte.
+  await page.keyboard.press('Tab');
+  await expect(submenu('Acompanhamento')).toHaveCount(0);
+  await expect(grupo('Conteúdo')).toBeFocused();
+
+  // O grupo da tela aberta (Ajuda, em Configurações) fica marcado; dentro, o item atual tem aria-current.
+  const configuracoes = grupo('Configurações');
+  await expect(configuracoes).toHaveAttribute('aria-current', 'true');
+  await expect(acompanhamento).not.toHaveAttribute('aria-current', /.+/);
+  await configuracoes.click();
+  await expect(submenu('Configurações').getByRole('menuitem', { name: 'Ajuda', exact: true })).toHaveAttribute('aria-current', 'page');
+  // Aberto pelo clique, fica aberto com o mouse fora e fecha com o clique fora.
+  await page.mouse.move(900, 450);
+  await expect(submenu('Configurações')).toBeVisible();
+  await page.mouse.click(900, 450);
+  await expect(submenu('Configurações')).toHaveCount(0);
+
+  // Aberto pela passagem do mouse, fecha quando o mouse sai; escolher um item navega e fecha.
+  await grupo('Conteúdo').hover();
+  await expect(submenu('Conteúdo')).toBeVisible();
+  await page.mouse.move(900, 450);
+  await expect(submenu('Conteúdo')).toHaveCount(0);
+  await grupo('Conteúdo').hover();
+  await submenu('Conteúdo').getByRole('menuitem', { name: 'Biblioteca', exact: true }).click();
+  await expect(page).toHaveURL(/\/treinador\/biblioteca/);
+  await expect(submenu('Conteúdo')).toHaveCount(0);
+  await expect(grupo('Conteúdo')).toHaveAttribute('aria-current', 'true');
+  expect(errosDaPagina).toEqual([]);
+});
+
+// menu: recolher e submenu (18/11): capturas para conferir o desenho (menu aberto com grupo aberto e fechado, fio
+// vertical, submenu do minimizado) nos dois temas. Só gravam a imagem; o comportamento está nos casos acima.
+for (const tema of ['CLARO', 'ESCURO'] as const) {
+  test(`capturas do menu em 1280 (${tema.toLowerCase()})`, async ({ page }) => {
+    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t, gruposRecolhidos: ['Negócio'] })), [TREINADOR.id, tema] as const);
+    const { errosDaPagina } = await abrir(page, 1280, 800, TODAS, {}, { revisar: 3, novas: 1 });
+    await page.screenshot({ path: test.info().outputPath(`menu-aberto-1280-${tema.toLowerCase()}.png`) });
+    await menu(page).getByRole('button', { name: 'Minimizar menu' }).click();
+    await page.mouse.move(640, 400);
+    await menu(page).getByRole('button', { name: /^Acompanhamento/ }).hover();
+    await expect(menu(page).getByRole('menu', { name: 'Acompanhamento' })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath(`menu-minimizado-submenu-1280-${tema.toLowerCase()}.png`) });
+    await menu(page).getByRole('button', { name: 'Expandir menu' }).click();
+    expect(errosDaPagina).toEqual([]);
+  });
+}
 
 test('celular (390): a barra inferior é a de antes, sem grupos', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 390, 844);
@@ -432,5 +528,8 @@ test('celular (390): a barra inferior é a de antes, sem grupos', async ({ page 
   await menu(page).getByRole('link', { name: 'Perfil', exact: true }).click();
   await page.getByRole('button', { name: /^Buscar telas/ }).click();
   await expect(page.getByRole('dialog', { name: 'Buscar' }).getByRole('searchbox', { name: 'Buscar tela ou ação' })).toBeVisible();
+  // menu: recolher e submenu (18/11): captura do celular, que segue com a barra de baixo (não há gaveta).
+  await page.keyboard.press('Escape');
+  await page.screenshot({ path: test.info().outputPath('menu-celular-390.png') });
   expect(errosDaPagina).toEqual([]);
 });

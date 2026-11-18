@@ -12,9 +12,11 @@ import {
   alternarGrupoRecolhido,
   gruposDoMenu,
   gruposRecolhidos,
+  itemAtivo,
   posicaoNoMenu,
   resumoDoGrupoRecolhido,
   rotuloCurtoDoMenu,
+  sinaisDoIconeDoGrupo,
   type GrupoDoMenu,
 } from '../dominio/gruposDoMenu';
 import { mesmaTela } from '../dominio/mesmaTela';
@@ -30,6 +32,7 @@ import { FAMILIAS } from './MarcaTitulo';
 import { ROLAGEM_DO_MENU, useAlvoDoPasseio } from './Passeio';
 import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
+import { IconeDoGrupo, SubmenuDoGrupo, useSubmenuDoTrilho } from './SubmenuDoTrilho';
 import { Texto } from './Texto';
 import { Vidro } from './Vidro';
 
@@ -65,13 +68,15 @@ export interface ItemMenu {
 /**
  * Casca das áreas logadas: menu lateral fixo a partir de 768 px (um trilho com o rótulo curto embaixo de cada ícone até
  * 1024; expandido a partir daí, recolhível à escolha) e barra inferior no celular. Sem barra de topo (guia de 11/11, D1): o
- * conteúdo começa no `painel`. No menu lateral, de cima para baixo e nessa ordem de Tab: a identidade numa linha só dela,
- * a `busca` com o botão de recolher ao lado (embaixo dela no minimizado; o trilho não recolhe), a lista que rola e a `conta` num rodapé
- * fixo (os dois só existem na web do treinador). Visual de 11/11: o menu fica no `fundo`, sem contorno, e o conteúdo num
+ * conteúdo começa no `painel`. No menu lateral, de cima para baixo e nessa ordem de Tab: a identidade com o botão de recolher
+ * na mesma linha (embaixo dela, centralizado, no minimizado; o trilho não recolhe), a `busca` embaixo, a lista que rola e a
+ * `conta` num rodapé fixo (os dois só existem na web do treinador; menu: recolher e submenu, 18/11). Visual de 11/11: o menu fica no `fundo`, sem contorno, e o conteúdo num
  * `painel` destacado (contorno `divisor`, cantos de 12, 8 px de folga). Item ativo com a seleção neutra (`superficie3`,
  * texto principal) e a marca só no pequeno indicador (`marcaPeca`: barra de 3 × 16 à esquerda no menu, 20 × 2 em cima na
- * barra inferior); `aria-current="page"`. Minimizado no PC, cada ícone diz o nome ao passar o mouse ou focar
- * (`useDicaNoMenu`). Itens com `grupo` ganham título no menu aberto e um fio nos trilhos. Com `sempreInferior` (aluno) a
+ * barra inferior); `aria-current="page"`. Minimizado no PC, cada grupo vira um ícone que abre o submenu flutuante com os
+ * itens dele (`ui/SubmenuDoTrilho`, "Menu Button" da APG) e os controles só de ícone dizem o nome ao passar o mouse ou
+ * focar (`useDicaNoMenu`). Itens com `grupo` ganham título e um fio vertical à esquerda no menu aberto e um fio entre os
+ * grupos no trilho do tablet. Com `sempreInferior` (aluno) a
  * barra inferior vale em qualquer largura e, no PC, fica na mesma coluna do conteúdo (`larguraInferior`).
  */
 export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, conteudo, busca, conta }: {
@@ -97,10 +102,12 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   const [recolhidoPorEscolha, setRecolhido] = useState(false);
   const recolhido = trilho || recolhidoPorEscolha;
   const { trilho: refDoTrilho, atual: dicaAtual, mostrar: mostrarDica, esconder: esconderDica, aoRolar: medirDica } = useDicaDoTrilho();
+  const submenu = useSubmenuDoTrilho(refDoTrilho);
   useEffect(() => {
     AsyncStorage.getItem(CHAVE_MENU_RECOLHIDO).then((v) => setRecolhido(v === '1'), () => undefined);
   }, []);
   const alternar = () => {
+    submenu.fechar();
     const proximo = !recolhidoPorEscolha;
     setRecolhido(proximo);
     AsyncStorage.setItem(CHAVE_MENU_RECOLHIDO, proximo ? '1' : '0').catch(() => undefined);
@@ -116,8 +123,9 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   // saem, então cruzar os 768 px não remonta a tela (painel de filtros aberto, rascunho e formulários não se perdem).
   let menuLateral: ReactNode = null;
   if (lateral) {
+    // PC minimizado (72 px): o Início fica com a dica e cada grupo é um ícone com submenu (menu: recolher e submenu, 18/11).
     const comDica = recolhido && !trilho;
-    // Grupos (N29): título no menu aberto; no trilho, um fio. O leitor de tela ouve o nome do grupo nos dois.
+    // Grupos (N29): título no menu aberto; no trilho do tablet, um fio. O leitor de tela ouve o nome do grupo nos dois.
     const doMenu = gruposDoMenu(itens.filter((item) => !item.soCelular));
     // Só o menu aberto recolhe grupo (D1); o da tela aberta nunca fica recolhido (D3) e o título dele não vira botão.
     const grupoDaTela = posicaoNoMenu(caminho)?.grupo;
@@ -125,6 +133,16 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
     const blocos = doMenu.map((bloco, i) => {
       const grupo = bloco.grupo;
       const fechado = !!grupo && fechados.includes(grupo);
+      if (grupo && comDica) {
+        const { atual, ponto, sinais } = sinaisDoIconeDoGrupo(bloco.itens, caminho);
+        return (
+          <View key={grupo} style={estilos.bloco}>
+            {/* Um fio só, entre o Início e os grupos: os ícones dos grupos ficam juntos. */}
+            {i > 0 && !doMenu[i - 1].grupo ? <View style={[estilos.fio, { backgroundColor: cores.divisor }]} /> : null}
+            <IconeDoGrupo grupo={grupo} atual={atual} ponto={ponto} sinais={sinais} botao={submenu.doBotao(grupo)} />
+          </View>
+        );
+      }
       let titulo: ReactNode = null;
       if (grupo && recolhido) titulo = i > 0 ? <View style={[estilos.fio, { backgroundColor: cores.divisor }]} /> : null;
       else if (grupo && grupo === grupoDaTela) titulo = <TituloDoGrupo grupo={grupo} />;
@@ -135,7 +153,7 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
         );
       }
       return (
-        <BlocoDoMenu key={grupo ?? ''} grupo={grupo} fechado={fechado} titulo={titulo}>
+        <BlocoDoMenu key={grupo ?? ''} grupo={grupo} fechado={fechado} titulo={titulo} comFio={!!grupo && !recolhido}>
           {/* Recolhido, os itens saem da árvore (não só da vista): o passeio deixa de apontar para eles sozinho. */}
           {fechado ? null : bloco.itens.map((item) => (
             <ItemNavegacao key={item.caminho} item={item} lateral recolhido={recolhido} trilho={trilho}
@@ -144,29 +162,37 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
         </BlocoDoMenu>
       );
     });
+    const doSubmenu = comDica ? submenu.doSubmenu : null;
+    const itensDoSubmenu = doSubmenu ? doMenu.find((b) => b.grupo === doSubmenu.grupo)?.itens ?? [] : [];
     menuLateral = (
       <ContextoDoMenu.Provider value={menu}>
         <SafeAreaView edges={['top', 'bottom', 'left']}
           ref={refDoTrilho}
           accessibilityRole="menubar"
           style={[estilos.lateral, recolhido && (trilho ? estilos.lateralTrilho : estilos.lateralRecolhido), { backgroundColor: cores.fundo }]}>
-          {/* Marca sozinha numa linha; embaixo, a busca e o recolher lado a lado (empilhados, ícones centralizados, no
-              minimizado). O botão fica no mesmo lugar da árvore aberto ou minimizado: alternar não o desmonta e o foco continua nele. */}
-          {recolhido ? <MarcaDoTrilho marca={marca} /> : <MarcaDoMenu marca={marca} />}
-          <View style={recolhido ? estilos.acoesRecolhido : estilos.acoes}>
-            {busca ? <View style={recolhido ? null : estilos.busca}>{busca}</View> : null}
+          {/* A marca e o recolher na mesma linha (empilhados e centralizados no minimizado); a busca embaixo, na largura toda
+              (menu: recolher e submenu, 18/11). O botão fica no mesmo lugar da árvore aberto ou minimizado: alternar não o
+              desmonta e o foco continua nele. */}
+          <View style={recolhido ? estilos.topoRecolhido : estilos.topo}>
+            {recolhido ? <MarcaDoTrilho marca={marca} /> : <MarcaDoMenu marca={marca} />}
             {trilho ? null : <BotaoRecolher recolhido={recolhido} aoTocar={() => { esconderDica(); alternar(); }} />}
           </View>
+          {busca ? <View style={recolhido ? estilos.buscaRecolhida : estilos.busca}>{busca}</View> : null}
           {/* A lista rola quando não cabe na altura (D20); a dica é desenhada no menu, fora da rolagem, que a cortaria. A
               barra de rolagem aparece só no menu aberto: nos trilhos ela comeria a largura dos ícones e dos rótulos. */}
           <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!recolhido}
-            onScroll={comDica ? medirDica : undefined} scrollEventThrottle={32}
+            onScroll={comDica ? () => { medirDica(); submenu.aoRolar(); } : undefined} scrollEventThrottle={32}
             contentContainerStyle={[estilos.blocos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
           {conta ? <View style={[estilos.rodapeDoMenu, { borderTopColor: cores.divisor }]}>{conta}</View> : null}
           {!trilho && dicaAtual ? (
             <View pointerEvents="none" accessible={false} style={[estilos.dica, { left: larguraDoMenu + 4, top: dicaAtual.topo, backgroundColor: cores.texto }]}>
               <Texto numberOfLines={1} style={[estilos.textoDica, { color: cores.fundo }]}>{dicaAtual.texto}</Texto>
             </View>
+          ) : null}
+          {doSubmenu ? (
+            <SubmenuDoGrupo submenu={doSubmenu}>
+              {itensDoSubmenu.map((item) => <ItemNavegacao key={item.caminho} item={item} lateral noSubmenu aoEscolher={submenu.aoEscolher} />)}
+            </SubmenuDoGrupo>
           ) : null}
         </SafeAreaView>
       </ContextoDoMenu.Provider>
@@ -199,11 +225,14 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   );
 }
 
-function ItemNavegacao({ item, lateral, recolhido, trilho, aoMostrarDica, aoEsconderDica }: {
+function ItemNavegacao({ item, lateral, recolhido, trilho, noSubmenu, aoEscolher, aoMostrarDica, aoEsconderDica }: {
   item: ItemMenu;
   lateral?: boolean;
   recolhido?: boolean;
   trilho?: boolean;
+  /** Dentro do submenu do PC minimizado: `menuitem`, com rótulo e contagem como no menu aberto, fora do passeio. */
+  noSubmenu?: boolean;
+  aoEscolher?: () => void;
   /** PC minimizado: o nome do item ao passar o mouse ou focar, desenhado pelo trilho (fora da lista que rola). */
   aoMostrarDica?: (texto: string, no: View | null) => void;
   aoEsconderDica?: () => void;
@@ -212,9 +241,7 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, aoMostrarDica, aoEsco
   const { cores, marcaPeca } = useTema();
   const { confirmar } = useSaidaGuardada();
   const alvo = useAlvoDoPasseio(`menu:${item.caminho}`);
-  const casa = (base: string) => caminho === base || caminho.startsWith(`${base}/`);
-  const ativo = (item.exato ? caminho === item.caminho : casa(item.caminho)) || !!item.tambem?.some(casa)
-    || (!lateral && !!item.tambemNoCelular?.some(casa));
+  const ativo = itemAtivo(item, caminho, !!lateral);
   // Ativo: texto principal sobre a seleção neutra; a marca fica só no indicador (`marcaPeca`, ≥ 3:1 sobre o menu e a seleção).
   const cor = ativo ? cores.texto : cores.textoSuave;
   // Menu aberto do PC: o número no lugar do ponto (prévia); nos outros modos, o ponto de sempre.
@@ -230,22 +257,26 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, aoMostrarDica, aoEsco
   const no = useRef<View | null>(null);
   const ref = useCallback((n: View | null) => {
     no.current = n;
-    alvo(n);
-  }, [alvo]);
+    // O submenu abre e fecha com o mouse: registrar os itens dele no passeio mudaria os passos no meio do caminho.
+    if (!noSubmenu) alvo(n);
+  }, [alvo, noSubmenu]);
   // Web, menu lateral (a lista rola em todos os modos): o item da tela aberta não fica cortado no fim da lista.
   useEffect(() => {
-    if (Platform.OS === 'web' && lateral && ativo) (no.current as unknown as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
-  }, [lateral, ativo]);
+    if (Platform.OS === 'web' && lateral && ativo && !noSubmenu) (no.current as unknown as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
+  }, [lateral, ativo, noSubmenu]);
   const mostrarDica = () => aoMostrarDica?.(item.rotulo, no.current);
   return (
     <Pressable
       ref={ref}
-      accessibilityRole="link"
+      accessibilityRole={noSubmenu ? 'menuitem' : 'link'}
       accessibilityLabel={contagem ? `${nomeAcessivel}, ${inteiroComMilhar(contagem.numero)} ${contagem.descricao}` : ponto ? `${nomeAcessivel}, pendência` : nomeAcessivel}
       accessibilityState={{ selected: ativo }}
       // O leitor de tela da web não recebe o `selected` de um link: `aria-current` diz qual é a página atual.
       aria-current={ativo ? 'page' : undefined}
-      {...propsDeLink(item.href, () => { if (!mesmaTela(caminho, item.href)) confirmar(() => router.navigate(item.href)); })}
+      {...propsDeLink(item.href, () => {
+        aoEscolher?.();
+        if (!mesmaTela(caminho, item.href)) confirmar(() => router.navigate(item.href));
+      })}
       onHoverIn={comDica ? mostrarDica : undefined}
       onHoverOut={comDica ? aoEsconderDica : undefined}
       onFocus={comDica ? mostrarDica : undefined}
@@ -274,8 +305,13 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, aoMostrarDica, aoEsco
   );
 }
 
-/** Um grupo do menu lateral (`role="group"` com o nome do grupo; o Início, sem grupo, fica num bloco sem nome). */
-function BlocoDoMenu({ grupo, fechado, titulo, children }: { grupo?: GrupoDoMenu; fechado: boolean; titulo: ReactNode; children: ReactNode }) {
+/**
+ * Um grupo do menu lateral (`role="group"` com o nome do grupo; o Início, sem grupo, fica num bloco sem nome). Com `comFio`
+ * (menu aberto), um fio vertical na cor `borda` liga os itens do grupo aberto, no meio da barrinha do item atual, que fica
+ * por cima dele; é só desenho (menu: recolher e submenu, 18/11).
+ */
+function BlocoDoMenu({ grupo, fechado, titulo, comFio, children }: { grupo?: GrupoDoMenu; fechado: boolean; titulo: ReactNode; comFio: boolean; children: ReactNode }) {
+  const { cores } = useTema();
   const no = useRef<View | null>(null);
   // Foco num item do grupo quando ele recolhe sem ser pelo botão (Voltar do navegador para uma tela de outro grupo): o item
   // sai da árvore e o foco cairia no `body`; ele vai para o botão do grupo. Recolher pelo botão não mexe (o foco já está
@@ -292,7 +328,12 @@ function BlocoDoMenu({ grupo, fechado, titulo, children }: { grupo?: GrupoDoMenu
       onFocus={grupo ? () => { focoDentro.current = true; } : undefined}
       onBlur={grupo ? (e) => { if ('relatedTarget' in e.nativeEvent && e.nativeEvent.relatedTarget) focoDentro.current = false; } : undefined}>
       {titulo}
-      {children}
+      {comFio && !fechado ? (
+        <View style={estilos.itensDoGrupo}>
+          <View aria-hidden pointerEvents="none" style={[estilos.fioVertical, { backgroundColor: cores.borda }]} />
+          {children}
+        </View>
+      ) : children}
     </View>
   );
 }
@@ -398,7 +439,7 @@ export function useDicaNoMenu(texto: string, ativa: boolean, noRef: RefObject<Vi
 }
 
 /**
- * Recolher e expandir o menu, na linha da busca: à direita dela no menu aberto, embaixo dela no minimizado.
+ * Recolher e expandir o menu, na linha da marca: à direita dela no menu aberto, embaixo dela no minimizado.
  * Só ícone, com o nome na dica. A preferência fica salva no aparelho (`CHAVE_MENU_RECOLHIDO`).
  */
 function BotaoRecolher({ recolhido, aoTocar }: { recolhido: boolean; aoTocar: () => void }) {
@@ -514,15 +555,19 @@ const estilos = StyleSheet.create({
   pontoNoTitulo: { width: 9, height: 9, borderRadius: 5, marginBottom: 4 },
   setaGrupo: { marginBottom: 1 },
   fio: { height: 1, marginVertical: espaco(0.5), marginHorizontal: espaco(1) },
-  // Menu aberto: a busca ocupa o que sobra e o recolher fica à direita dela; minimizado, um embaixo do outro.
-  acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), marginBottom: espaco(1) },
-  acoesRecolhido: { gap: espaco(0.5) },
+  // Menu aberto: a marca ocupa o que sobra e o recolher fica à direita dela; minimizado, um embaixo do outro.
+  topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
+  topoRecolhido: { gap: espaco(0.5) },
+  // Fio vertical do grupo aberto: 1 px no meio da barrinha de 3 px do item atual (left 0), do primeiro ao último item.
+  itensDoGrupo: { gap: espaco(0.5) },
+  fioVertical: { position: 'absolute', left: 1, top: espaco(1), bottom: espaco(1), width: 1 },
   recolher: { minWidth: ALVO_TOQUE, minHeight: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
-  busca: { flex: 1, minWidth: 0 },
+  busca: { marginBottom: espaco(1) },
+  buscaRecolhida: { marginTop: espaco(0.5) },
   // Rodapé fixo com a conta: um fio `divisor` em cima; a lista rola acima dele sem escondê-lo.
   rodapeDoMenu: { borderTopWidth: 1, paddingTop: espaco(1), paddingBottom: espaco(1) },
   // Linha de 44 + 12 em cima e embaixo = 68 px; a logo começa na mesma coluna dos ícones do menu.
-  marca: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE + espaco(3), paddingVertical: espaco(1.5), paddingLeft: espaco(1.5), paddingRight: espaco(0.5) },
+  marca: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE + espaco(3), paddingVertical: espaco(1.5), paddingLeft: espaco(1.5), paddingRight: espaco(0.5) },
   // A logo larga ocupa o que sobra ao lado do recolher, até 200 px.
   caixaLogoLarga: { flex: 1, minWidth: 0 },
   logoLarga: { width: '100%', maxWidth: 200, height: 44 },

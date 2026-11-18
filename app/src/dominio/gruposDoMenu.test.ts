@@ -3,12 +3,15 @@ import {
   GRUPOS_DO_MENU,
   gruposDoMenu,
   gruposRecolhidos,
+  itemAtivo,
   MENU_DO_TREINADOR,
   naConta,
   naOrdemDoMenu,
   posicaoNoMenu,
   resumoDoGrupoRecolhido,
   rotuloCurtoDoMenu,
+  sinaisDoIconeDoGrupo,
+  topoDoSubmenu,
   type GrupoDoMenu,
 } from './gruposDoMenu';
 
@@ -190,5 +193,58 @@ describe('naConta', () => {
     expect(naConta('/treinador')).toBe(false);
     expect(naConta('/treinador/perfil')).toBe(false);
     expect(naConta('/treinador/marcador')).toBe(false);
+  });
+});
+
+// menu: recolher e submenu (18/11)
+describe('itemAtivo', () => {
+  it('o caminho e as subpáginas; a raiz exata só no próprio caminho', () => {
+    expect(itemAtivo({ caminho: '/treinador/alunos' }, '/treinador/alunos/123', true)).toBe(true);
+    expect(itemAtivo({ caminho: '/treinador/alunos' }, '/treinador/alunos-x', true)).toBe(false);
+    expect(itemAtivo({ caminho: '/treinador', exato: true }, '/treinador/alunos', true)).toBe(false);
+    expect(itemAtivo({ caminho: '/treinador', exato: true }, '/treinador', true)).toBe(true);
+  });
+
+  it('tambem vale nos dois; tambemNoCelular só na barra do celular', () => {
+    const ajuda = { caminho: '/treinador/ajuda', tambem: ['/treinador/termos'], tambemNoCelular: ['/treinador/equipe'] };
+    expect(itemAtivo(ajuda, '/treinador/termos', true)).toBe(true);
+    expect(itemAtivo(ajuda, '/treinador/equipe', true)).toBe(false);
+    expect(itemAtivo(ajuda, '/treinador/equipe', false)).toBe(true);
+  });
+});
+
+describe('sinaisDoIconeDoGrupo', () => {
+  const itens = [
+    { caminho: '/treinador/alunos' },
+    { caminho: '/treinador/atualizacoes', ponto: true, contagem: { numero: 1234, descricao: 'para revisar' } },
+  ];
+
+  it('atual pelo item da tela aberta; o ponto vale mesmo com contagem e o nome leva a contagem', () => {
+    expect(sinaisDoIconeDoGrupo(itens, '/treinador/alunos/1')).toEqual({ atual: true, ponto: true, sinais: ['1.234 para revisar'] });
+  });
+
+  it('tela de fora do grupo, sem pendência: nada', () => {
+    expect(sinaisDoIconeDoGrupo([{ caminho: '/treinador/alunos' }], '/treinador/meus-dados')).toEqual({ atual: false, ponto: false, sinais: [] });
+  });
+
+  it('só o ponto, sem contagem: "pendência"; o "inferior" da barra do celular não conta', () => {
+    expect(sinaisDoIconeDoGrupo([{ caminho: '/a', ponto: true }], '/b').sinais).toEqual(['pendência']);
+    expect(sinaisDoIconeDoGrupo([{ caminho: '/a', ponto: 'inferior' }], '/b')).toEqual({ atual: false, ponto: false, sinais: [] });
+  });
+});
+
+describe('topoDoSubmenu', () => {
+  it('fica no topo do ícone quando cabe', () => {
+    expect(topoDoSubmenu(100, 200, 720)).toBe(100);
+  });
+
+  it('sobe o necessário para não passar do pé, com a folga', () => {
+    expect(topoDoSubmenu(600, 200, 720)).toBe(512);
+  });
+
+  it('nunca acima da folga do topo, mesmo maior que a janela; sem medida, fica no ícone', () => {
+    expect(topoDoSubmenu(300, 900, 720)).toBe(8);
+    expect(topoDoSubmenu(-20, null, 720)).toBe(8);
+    expect(topoDoSubmenu(300, null, 720)).toBe(300);
   });
 });
