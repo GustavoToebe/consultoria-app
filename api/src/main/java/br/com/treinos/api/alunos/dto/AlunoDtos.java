@@ -3,6 +3,7 @@ package br.com.treinos.api.alunos.dto;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.consultoria.MarcaPublica;
 import br.com.treinos.api.questionarios.LimitesQuestionario;
+import br.com.treinos.api.tags.TagsDeAlunoDtos.TagResumo;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -117,7 +118,9 @@ public final class AlunoDtos {
 
     /** {@code atualizacao} sai nula sem permissão de ler atualizações ou quando o aluno não tem pasta com período. */
     public record AlunoResumo(UUID id, String nome, boolean ativo, boolean temAcesso, PlanoAtivoResumo planoAtivo,
-                              LocalDate ultimoRegistro,UUID responsavelId, SituacaoAtualizacao atualizacao) {
+                              LocalDate ultimoRegistro,UUID responsavelId, SituacaoAtualizacao atualizacao,
+                              /** Tags do aluno (V093), em ordem de nome; sempre presente (lista vazia sem tag). Só a equipe as recebe. */
+                              List<TagResumo> tags) {
     }
 
     public record PaginaAlunos(List<AlunoResumo> itens, long total) {
@@ -147,13 +150,24 @@ public final class AlunoDtos {
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
                                LocalDate dataNascimento,
                                /** Grupo (pod) atual; os dois saem nulos (presentes) sem {@code COMUNIDADE_MODERAR} ou sem grupo. */
-                               UUID podId, String podNome) {
+                               UUID podId, String podNome,
+                               /** Cabeçalho da ficha: última alteração do cadastro ({@code aluno.atualizado_em}); sempre presente no JSON. */
+                               Instant cadastroAlteradoEm,
+                               /** Último acesso conhecido; nulo sem usuário (ainda sem acesso), sem {@code ALUNO_LER} ou sem login. */
+                               UltimoAcesso ultimoAcesso,
+                               /** Última versão publicada de treino, dieta ou mobilidade que quem pede pode ler; nulo se nenhuma. */
+                               UltimoPlanoPublicado ultimoPlanoPublicado,
+                               /** O que o plano comercial da contratação ATIVA inclui; nulo sem {@code ALUNO_LER}, sem contratação ativa, anonimizado ou com o financeiro desligado. */
+                               PlanosAtivos planosAtivos,
+                               /** Tags do aluno (V093), em ordem de nome, com {@code ALUNO_LER}; sempre presente (vazia sem tag, sem permissão ou anonimizado). */
+                               List<TagResumo> tags) {
         /**
          * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
          * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
          */
         public static AlunoDetalhe de(Aluno a, br.com.treinos.api.auth.Usuario usuario,
-                                      br.com.treinos.api.comunidade.ComunidadePod pod) {
+                                      br.com.treinos.api.comunidade.ComunidadePod pod, UltimoPlanoPublicado ultimoPlano,
+                                      PlanosAtivos planosAtivos, List<TagResumo> tags) {
             boolean conviteValido = a.getConviteExpiraEm() != null && a.getConviteExpiraEm().isAfter(Instant.now());
             boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
             boolean ler = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_LER");
@@ -169,8 +183,32 @@ public final class AlunoDtos {
                     ler && a.getSexo() != null ? a.getSexo().name() : null,
                     sensivel ? a.getMetaDoPeso() : null,
                     ler ? a.getDataNascimento() : null,
-                    pod == null ? null : pod.getId(), pod == null ? null : pod.getNome());
+                    pod == null ? null : pod.getId(), pod == null ? null : pod.getNome(),
+                    a.getAtualizadoEm(), ler ? UltimoAcesso.de(a, usuario) : null,
+                    // Anonimizado: o autor e a data da publicação não são mais mostrados (como o último acesso e os planos ativos).
+                    a.isAnonimizado() ? null : ultimoPlano,
+                    ler && !a.isAnonimizado() ? planosAtivos : null,
+                    ler && !a.isAnonimizado() && tags != null ? tags : List.of());
         }
+    }
+
+    /**
+     * {@code tipo} é {@code LOGIN} (último login com senha, {@code usuario.ultimo_login_em}): o módulo de sessão do plataforma
+     * 1.10.0 não expõe o último uso do refresh, então {@code ACESSO} não é emitido (nunca se chama de acesso o que é só login).
+     */
+    public record UltimoAcesso(String tipo, Instant em) {
+        static UltimoAcesso de(Aluno a, br.com.treinos.api.auth.Usuario usuario) {
+            if (usuario == null || a.isAnonimizado() || usuario.getUltimoLoginEm() == null) return null;
+            return new UltimoAcesso("LOGIN", usuario.getUltimoLoginEm());
+        }
+    }
+
+    /** Só os dois booleanos do plano comercial (nunca valor nem nome do plano). */
+    public record PlanosAtivos(boolean incluiTreino, boolean incluiDieta) {
+    }
+
+    /** {@code porNome} é o nome do membro da equipe que publicou; nulo se ele não existe mais ou é de outra consultoria. */
+    public record UltimoPlanoPublicado(Instant em, String porNome) {
     }
 
     public record SituacaoRequest(@NotNull Boolean ativo) {

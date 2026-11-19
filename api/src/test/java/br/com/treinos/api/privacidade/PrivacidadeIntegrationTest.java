@@ -181,6 +181,19 @@ class PrivacidadeIntegrationTest extends AbstractIntegrationTest {
                 Map.of("codigo", convite.get("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
     }
 
+    /** D5 (18/11): o nome de quem publicou o plano é de um membro da equipe e não sai na exportação do aluno. */
+    @Test
+    void exportarNaoLevaOAutorDaUltimaPublicacaoNemOCampoPorNome() throws Exception {
+        JsonNode ficha = api.get("/alunos/" + alunoId, admin, 200);
+        assertThat(ficha.get("ultimoPlanoPublicado").get("porNome").asString()).as("a ficha da equipe segue com o autor").isNotBlank();
+
+        JsonNode dados = api.get("/alunos/" + alunoId + "/exportacao", admin, 200);
+
+        assertThat(dados.get("cadastro").path("ultimoPlanoPublicado").isNull()).isTrue();
+        assertThat(dados.toString()).doesNotContain("porNome").doesNotContain(ficha.get("ultimoPlanoPublicado").get("porNome").asString());
+        assertThat(dados.get("treinos").get("itens")).as("as versões publicadas continuam na seção própria").hasSize(1);
+    }
+
     @Test
     void exportarTrazOQueAConsultoriaGuardaComArquivoSemCacheEAuditoriaSemConteudo() throws Exception {
         var resposta = mvc.perform(MockMvcRequestBuilders.get("/alunos/" + alunoId + "/exportacao")

@@ -145,7 +145,11 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByRole('button', { name: 'Editar dados', exact: true })).toHaveCount(0);
       expect(new URL(page.url()).search).toBe('?aba=ficha');
 
-      // Sem passo sobrando: um voltar leva de novo à lista.
+      // Cabeçalho do aluno (18/11): a edição é um passo do histórico; o voltar sai dela para a leitura da ficha (sem
+      // `editar` no endereço, então não reabre) e o seguinte leva de novo à lista.
+      await page.goBack();
+      await expect(page.getByRole('button', { name: 'Editar dados', exact: true })).toBeVisible();
+      expect(new URL(page.url()).search).toBe('?aba=ficha');
       await page.goBack();
       await expect(page).toHaveURL(/\/treinador\/alunos$/);
       await expect(linkDe(page, 'Ana Fictícia')).toBeVisible();

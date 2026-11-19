@@ -7,6 +7,7 @@ import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoResumo;
 import br.com.treinos.api.alunos.dto.AlunoDtos.PaginaAlunos;
 import br.com.treinos.api.alunos.dto.AlunoDtos.PlanoAtivoResumo;
 import br.com.treinos.api.alunos.dto.AlunoDtos.SituacaoAtualizacao;
+import br.com.treinos.api.tags.TagsDeAlunoDtos.TagResumo;
 import br.com.treinos.api.atualizacoes.AtualizacaoRepository;
 import br.com.treinos.api.atualizacoes.RegrasAtualizacao;
 import br.com.plataforma.comum.auth.Autenticador;
@@ -69,6 +70,8 @@ public class AlunoService {
     private final br.com.treinos.api.pastas.PastaRepository pastas;
     private final LimiteDoTreinador limiteDoTreinador;
     private final br.com.treinos.api.comunidade.ComunidadePodRepository pods;
+    private final UltimoPlanoPublicadoService ultimoPlano;
+    private final br.com.treinos.api.tags.TagsDeAlunoService tags;
 
     public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                         PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria,
@@ -78,7 +81,10 @@ public class AlunoService {
                         br.com.treinos.api.agenda.AgendaService agenda, ConsultoriaRepository consultorias,
                         br.com.treinos.api.pastas.PastaRepository pastas, LimiteDoTreinador limiteDoTreinador,
                         br.com.treinos.api.push.PushService push,
-                        br.com.treinos.api.comunidade.ComunidadePodRepository pods) {
+                        br.com.treinos.api.comunidade.ComunidadePodRepository pods, UltimoPlanoPublicadoService ultimoPlano,
+                        br.com.treinos.api.tags.TagsDeAlunoService tags) {
+        this.tags = tags;
+        this.ultimoPlano = ultimoPlano;
         this.pods = pods;
         this.push = push;
         this.limiteDoTreinador = limiteDoTreinador;
@@ -126,6 +132,7 @@ public class AlunoService {
                 org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).usuarioId())
                 : filtros.responsaveis();
         if (!meus) responsaveis.forEach(this::exigirResponsavel);
+        tags.exigirExistem(filtros.tags()); // tag de outra consultoria ou inexistente = 404
         Specification<Aluno> consulta = filtros.especificacao(Buscas.padrao(busca), filtro, responsaveis);
         int numero = Math.max(0, pagina);
         int porPagina = Math.clamp(tamanho, 1, 100);
@@ -147,11 +154,12 @@ public class AlunoService {
                 .collect(Collectors.toMap(PlanoTreino::getAlunoId, p -> p));
         Map<UUID, LocalDate> ultimo = ultimosRegistros(ids);
         Map<UUID, SituacaoAtualizacao> situacoes = situacoesDasAtualizacoes(ids);
+        Map<UUID, List<TagResumo>> tagsDosAlunos = ids.isEmpty() ? Map.of() : tags.dosAlunos(ids); // uma consulta por lote, sem N+1
         List<AlunoResumo> itens = daPagina.stream().map(a -> {
             PlanoTreino p = planoAtivo.get(a.getId());
             return new AlunoResumo(a.getId(), a.getNome(), a.isAtivo(), a.getUsuarioId() != null,
                     (p == null || !br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER")) ? null : new PlanoAtivoResumo(p.getId(), p.getTitulo()), br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER") ? ultimo.get(a.getId()) : null,a.getResponsavelId(),
-                    situacoes.get(a.getId()));
+                    situacoes.get(a.getId()), tagsDosAlunos.getOrDefault(a.getId(), List.of()));
         }).toList();
         return new PaginaAlunos(itens, total);
     }
@@ -281,8 +289,23 @@ public class AlunoService {
      * passa por aqui, para o telefone nunca sumir de uma tela que o mostra.
      */
     public AlunoDetalhe detalheDe(Aluno aluno) {
+        return montarDetalhe(aluno, ultimoPlano.de(aluno.getId()));
+    }
+
+    /**
+     * A ficha para a exportação LGPD (D5, 18/11): sem {@code ultimoPlanoPublicado}, porque o nome de quem publicou é dado de um membro da
+     * equipe, não do aluno; as versões publicadas e as datas saem nas seções de treino, dieta e mobilidade.
+     */
+    @Transactional(readOnly = true)
+    public AlunoDetalhe detalheParaExportar(UUID id) {
+        return montarDetalhe(buscar(id), null);
+    }
+
+    private AlunoDetalhe montarDetalhe(Aluno aluno, br.com.treinos.api.alunos.dto.AlunoDtos.UltimoPlanoPublicado ultimoPlanoPublicado) {
         Usuario usuario = aluno.getUsuarioId() == null ? null : usuarios.findById(aluno.getUsuarioId()).orElse(null);
-        return AlunoDetalhe.de(aluno, usuario, podParaAFicha(aluno));
+        var planosAtivos = aluno.isAnonimizado() ? null : pagamentos.planosAtivos(aluno.getId()).orElse(null);
+        return AlunoDetalhe.de(aluno, usuario, podParaAFicha(aluno), ultimoPlanoPublicado, planosAtivos,
+                tags.doAluno(aluno.getId()));
     }
 
     /**

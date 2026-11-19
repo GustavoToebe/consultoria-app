@@ -488,6 +488,8 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 
+  // Cabeçalho do aluno (18/11): a seta é "Voltar para Alunos" e, na edição, sai dela para a leitura da ficha (D3); só
+  // fora da edição volta à lista.
   test(`ficha (${largura}px): editar e sair pergunta; salvar e sair não; o ⋯ tem 44×44 com a moldura de 40`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { errosDaPagina } = await simularApi(page, {
@@ -504,33 +506,39 @@ for (const largura of [390, 1280]) {
     await expect(titulosDeNivel1(page)).toHaveCount(1);
     expect(await medidas(page.getByRole('button', { name: 'Mais ações do aluno', exact: true }))).toEqual({ alvo: [44, 44], desenho: [40, 40] });
 
-    // Abrir a edição sem mexer não deixa nada pendente.
-    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
+    const voltar = page.getByRole('button', { name: 'Voltar para Alunos', exact: true });
+    const editarDados = page.getByRole('button', { name: 'Editar dados', exact: true });
+    // Abrir a edição sem mexer não deixa nada pendente: a seta fecha a edição, e a seguinte volta à lista.
+    await editarDados.click();
     await expect(page.getByLabel('Nome', { exact: true })).toHaveValue(ALUNO.nome);
-    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
-    await expect(page).toHaveURL(/\/treinador\/alunos$/);
+    await voltar.click();
+    await expect(editarDados).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?aba=ficha$`));
     await expect(sairSemSalvar(page)).toHaveCount(0);
+    await voltar.click();
+    await expect(page).toHaveURL(/\/treinador\/alunos$/);
 
-    // Com alteração: o Voltar pergunta; depois de salvar, a saída volta a ser direta.
+    // Com alteração: a seta pergunta; depois de salvar, a saída volta a ser direta.
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
-    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
+    await editarDados.click();
     await page.getByLabel('Cidade').fill('Outra Cidade');
-    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await voltar.click();
     await expect(sairSemSalvar(page)).toBeVisible();
     await page.getByRole('button', { name: 'Continuar editando', exact: true }).click();
     await page.getByRole('button', { name: 'Salvar', exact: true }).click();
     await expect(page.getByText('Dados salvos.')).toBeVisible();
-    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await voltar.click();
     await expect(page).toHaveURL(/\/treinador\/alunos$/);
     await expect(sairSemSalvar(page)).toHaveCount(0);
 
-    // E o "Sair sem salvar" de fato sai.
+    // E o "Sair sem salvar" de fato sai da edição, para a leitura da ficha.
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
-    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
+    await editarDados.click();
     await page.getByLabel('Cidade').fill('Mais Uma Cidade');
-    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await voltar.click();
     await page.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
-    await expect(page).toHaveURL(/\/treinador\/alunos$/);
+    await expect(editarDados).toBeVisible();
+    await expect(page.getByLabel('Cidade', { exact: true })).toHaveCount(0);
     expect(errosDaPagina).toEqual([]);
   });
   // D7 com as abas: a edição mora na aba Ficha do aluno e o "Revisar atualização" (Resumo) e a Folha da pasta (Planos) em
@@ -616,7 +624,8 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText(ALUNO.nome).first()).toBeVisible();
     // Descartar não grava nada, e a saída volta a ser direta.
     expect(pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
-    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    // Cabeçalho do aluno (18/11): a seta da ficha chama-se "Voltar para Alunos".
+    await page.getByRole('button', { name: 'Voltar para Alunos', exact: true }).click();
     await expect(page).toHaveURL(/\/treinador\/alunos$/);
     await expect(sairSemSalvar(page)).toHaveCount(0);
     expect(errosDaPagina).toEqual([]);
