@@ -25,6 +25,14 @@ Publicação (19/11/2026): `git merge dieta-tabela` na `main` (fast-forward) e u
 - [x] 2b. Alça de arrastar nos alimentos de cada opção (`LinhaItem`) e ⋯ da refeição, depois do passo 1 — executor-front — commit: 89a095e8 — evidência: `e2e/arrastar.spec.ts`, e2e `dieta-*` verdes
 - [x] 3. Menu: submenu flutuante dos grupos no PC minimizado (72 px, "Menu Button" da APG, `ui/SubmenuDoTrilho.tsx`) e fio vertical do grupo aberto; regra pura em `dominio/gruposDoMenu` (`itemAtivo`, `sinaisDoIconeDoGrupo`, `topoDoSubmenu`) — executor-front — commit: fdd363e8 (base `d4095696`) — evidência: `e2e/menu-do-treinador.spec.ts` 26/26, `ajuda` 8/8, `configuracoes` 18/18, `painel` 44/44, jest 115/115
 
+## Próximo passo (pedido de 19/11, Gustavo): a tabela de alimentos TEM que aparecer em 1280 com o menu aberto
+Hoje, em 1280, a opção mede ~650 px e o limite da tabela é ~910 px: tudo fica empilhado (medido no passo 1c). Meta: tabela a partir de ~640 px de largura da opção. Caminho, nesta ordem, parando quando couber:
+- a) Quantidade e Unidade num campo só: número com a unidade num seletor dentro do campo ("50 g ▾"), nomes acessíveis separados para quantidade e unidade;
+- b) colunas Kcal, P, C, G e Fibras com ~56 px, números à direita (cabe "26,0 g");
+- c) a lixeira do alimento vai para o ⋯ como "Excluir alimento" (com texto); na linha ficam só ⋯ e a alça;
+- d) se ainda faltar, lista de refeições mais estreita (~260 px) a partir de 1024.
+Nome do alimento com reticências e o nome inteiro na dica; nenhum número cortado. Entregar com capturas em 1280 com o menu aberto e recolhido (escuro) e commit próprio "dieta: tabela em 1280". Recalibrar `e2e/dieta-tabela.spec.ts` (limite medido).
+
 ## Conflitos previstos ao trazer a `main`
 - `treinador/dieta/CartaoRefeicao.tsx` e `ComplementosDaDieta.tsx` (frente "seções nascem fechadas", lote C), `treinador/treino/*` (lote D) e `treinador/plano/*`; a frente da fibra acrescenta uma coluna "Fibras" na tabela.
 

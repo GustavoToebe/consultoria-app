@@ -24,11 +24,12 @@ treino e de dieta").
 - [x] 1. Regra pura em `app/src/dominio/mobilidade.ts` com teste (`estadoDoVideo`, textos do vídeo, mover/remover/adicionar item, mover seção, resumos) — commit/run: —
 - [x] 2. Tela: `treinador/mobilidade/{SecoesDeMobilidade,ItemDeMobilidade,SobreAMobilidade,EditorDeMobilidade}.tsx` e o ramo da mobilidade em `planejamento/EditorModelo.tsx` — commit/run: —
 - [x] 3. e2e `app/e2e/editor-mobilidade.spec.ts` (arrastar com o mouse em 1280, ⋯, excluir com confirmação, tabela, vídeo, modelo, capturas) — commit/run: —
-- [ ] 4. Commit e publicação (sessão principal) — commit/run: —
+- [x] 4. Commit (sessão principal, 19/11) — commit: `74825d91`; publicação: pendente (sem push)
+- [ ] 5. D8 decidida em 19/11 (Gustavo): link inválido em vermelho (perigo), pela 4.5 do documento de design, porque trava o salvar; atualizar a D8; na coluna Vídeo em 1280, placeholder curto "Link do YouTube" e selo curto "Link inválido" (sem cortar nem quebrar); tirar a pendência solta do README — a fazer
 
 ## Fora do escopo
 - Formato dos dados (`ConteudoMobilidade` no app e `receitas/ConteudoMobilidade` na API) não muda.
 - Token para a faixa de 6 px (repetida em treino, dieta e mobilidade, `shortcut:` nos três).
 
 ## O que ficou para trás
-- D8 (âmbar ou vermelho no link inválido) espera a palavra do Gustavo.
+- D8 decidida em 19/11 (vermelho): falta aplicar (passo 5).
