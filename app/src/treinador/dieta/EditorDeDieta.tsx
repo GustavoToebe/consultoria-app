@@ -225,6 +225,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             comProblema={comErro}
             alimentos={porId}
             aviso={avisoNaRefeicao && desfazer?.refeicaoDaOpcao === r.uid ? barra : undefined}
+            avisoDoAlimento={desfazer?.doAlimento}
             aoAbrir={noInspetor || unica ? undefined : () => refeicoesAbertas.alternar(r.uid)}
             // Direto, sem o nome padrão: apagar o Nome para digitar outro não pode preencher na hora (preenche ao sair do campo).
             aoMudar={(nova) => editor.alterarConteudo((a) => naSecao(a, (lista) => substituir(lista, ri, nova)))}
@@ -240,7 +241,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                   itens: remover(lista[ri].opcoes[oi].itens, ii),
                 }),
               })),
-              { refeicaoDaOpcao: r.uid })}
+              { refeicaoDaOpcao: r.uid, doAlimento: true })}
             aoMover={(d) => mudarRefeicoes((lista) => mover(lista, ri, d))}
             aoRemover={unica ? undefined : () => {
               const depois = remover(refs, ri);
@@ -385,6 +386,8 @@ function BotaoAdicionarRefeicao({ aoAdicionar }: { aoAdicionar: () => string }) 
  */
 interface OndeDesfazer {
   refeicaoDaOpcao?: string;
+  /** Na refeição da opção, foi um alimento que saiu: o aviso fica depois da lista, não acima da opção. */
+  doAlimento?: boolean;
   indiceDaRefeicao?: number;
   /** Refeição removida que estava aberta: o "Desfazer" a abre de novo. */
   reabrir?: string[];
@@ -422,7 +425,7 @@ function CamposDaDieta({ conteudo, aoMudar, modelo }: { conteudo: ConteudoDieta;
 
 const estilos = StyleSheet.create({
   grupo: { gap: espaco(1.5) },
-  // Lista (mestre) estreita: em 1280 o inspetor fica com uns 700 px e duas opções da refeição cabem lado a lado.
+  // Lista (mestre) estreita: o inspetor fica com o resto (a opção aberta, em abas desde 19/11, tem uns 650 px em 1280).
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
   lista: { width: 280, flexShrink: 0, gap: espaco(2) },
   itens: { gap: espaco(1) },

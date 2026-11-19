@@ -385,8 +385,8 @@ Qualquer outro lugar precisa de decisão nova.
   ação, nem o mesmo título repetido (a linha aberta já é o título do bloco; o nome acessível "Editando série N, tipo"
   fica para o leitor de tela). O tingido é 8% e não o `acaoSuave` (13%) porque com a marca amarela como cor de ação nos
   temas escuros o contorno dos campos ficava abaixo de 3:1 (`treinador/treino/blocoAberto.contraste.test.ts`). A dieta já
-  seguia a regra nas opções e nos alimentos (conferido no código em 19/11: opção é seção com fio, alimento é faixa
-  `superficie2` sem cor de ação).
+  seguia a regra nas opções e nos alimentos (conferido no código em 19/11: opção é o painel da aba, sem caixa, alimento é
+  faixa `superficie2` sem cor de ação).
 - **Publicar (11/11):** o botão diz o que publica ("Publicar treino", "Publicar dieta", "Publicar mobilidade",
   "Publicar alterações da pasta", "Publicar questionário", "Publicar anamnese", "Publicar perguntas") e só é o
   principal quando há o que publicar.
@@ -650,7 +650,7 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
 
 **Blocos de séries (`TabelaDeBlocos`; séries no padrão da dieta, 19/11)**
 - O painel do exercício aberto tem a faixa de ação à esquerda (`CartaoExercicio`) e, no cabeçalho, "Exercício N de M ·
-  grupo", o nome e, à direita, "Trocar", ⋯ (mover) e "Excluir".
+  grupo", o nome e, à direita, "Trocar exercício" (nome acessível "Trocar exercício: <nome>"; abaixo de 768 px só o ícone, com o mesmo nome), ⋯ (mover) e "Excluir".
 - Linha fechada sem borda (hover `superficie2`, chevron →), linhas separadas pelo fio `divisor`. A aberta é um bloco só
   com o editor embaixo (fundo `coresDaEdicao().fundoDoBloco`, cantos 14, chevron ↓ na cor de ação), sem contorno, halo,
   selo "Editando" nem o título repetido; só uma aberta por vez e tocar na aberta (ou "Fechar edição") fecha. Alça de
@@ -666,6 +666,19 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
   série" e "Fechar edição" à direita. Subir e descer saíram do bloco: ficam no ⋯ de cada linha, fora do botão dela
   (Mover para cima/baixo, a alternativa ao arrastar pela alça, WCAG 2.5.7), como nos alimentos da dieta. O bloco é a
   região "Editando série N, tipo"; "Fechar edição" devolve o foco à linha.
+
+**Opções da refeição (`CartaoRefeicao`; opções em abas, 19/11)**
+- Com duas opções ou mais: a comparação dos totais (`ComparacaoDasOpcoes`: Opção | Kcal | P | C | G | Fibras, marcas de
+  macro no cabeçalho, números à direita, a linha abre a aba, a aberta em `superficie2` sem cor de ação; na opção em
+  tabela os números caem embaixo das colunas dos alimentos), as abas (`AbasDeOpcao`, Tabs da APG, desenho do `Abas`:
+  "Opção A · 98 kcal" com a kcal em fonte numérica, "vazia" sem item, selo neutro "Conta no total do dia" na primeira,
+  "+ Opção" no fim, fora da rolagem) e a frase de apoio; depois a opção aberta na largura toda. Com uma opção só, sem abas
+  nem comparação: o "+ Opção" discreto no lugar do "Excluir opção".
+- Opção aberta: "Alimentos (N)" com "Excluir opção" (`perigoTexto`, confirma só com itens), a tabela (abaixo de 910 px de
+  opção, o item empilhado), o total com cada número embaixo da coluna dele e "Adicionar alimento" e "Item manual". A
+  alça de arrastar aparece sempre (com um item, apagada e sem gesto) para o nome começar no mesmo lugar.
+- "Trocar alimento" (item da biblioteca): secundário compacto e neutro (desenho de 32 px, alvo de 44), nunca em cor de
+  ação; na tabela, na linha de baixo do nome, antes dos selos; empilhado, junto do ⋯ e da lixeira.
 
 **Salvamento, validação e aplicação (três estados separados)**
 - Salvamento (`seloDoEditor`, `dominio/barraDoEditor.ts`): "Alterações não salvas" em neutro com lápis (D12, não é erro),
@@ -690,6 +703,23 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
 - Largura da tabela de blocos: o plano diz 480 px; o código usa 390 px (`TabelaDeBlocos.tsx`, linha 34). Este texto segue o código.
 - Os ajustes de 11/11 (campo de nome ocupando a largura, "Criar grupo" embaixo de "Modelos prontos", "Editar sessão" na
   largura da sessão) não foram vistos na tela; só o código.
+
+**Editor de mobilidade (no padrão do treino e da dieta, 19/11; plano `docs/planos/editor-de-mobilidade-no-padrao-do-editor.md`)**
+- Topo num cartão só: no modelo, "Sobre o modelo" (`treinador/mobilidade/SobreAMobilidade`) com Nome e Descrição lado a
+  lado (a descrição maior) e as Orientações recolhidas embaixo (`BotaoDeAbrir` com `aria-expanded`; fechadas mostram
+  "(vazio)" ou o começo do texto); no plano do aluno as Orientações ficam dentro da "Configuração do plano".
+- Seções: `ItemDaListaDoEditor` com a alça (`ui/ArrasteDaLista`) na lista; empilhado, a alça vai ao cabeçalho do cartão.
+  Mover é a alça ou o ⋯ ("Mover para cima/baixo"); o selo "Editando" fica só na lista.
+- Painel da seção: faixa de 6 px na cor de ação só no inspetor; cabeçalho `superficie3` com "Seção N de M", o título
+  editável ("Título da seção N"), ⋯ e "Excluir seção" (`perigoTexto`; `PainelConfirmacao` só com itens; Desfazer).
+- Itens em tabela como os alimentos da dieta: cabeçalho "#", "Nome", "Prescrição", "Vídeo" uma vez (`aria-hidden`),
+  faixas `superficie2` de cantos 12 a 6 px, alça e número no começo, ⋯ (mover e "Excluir item") no fim; Nome e
+  Prescrição flex 1,2, Vídeo 1. Abaixo de 600 px da lista (painel de ~640), o item empilhado com os rótulos.
+- Vídeo: vazio, o campo "Cole o link do YouTube"; válido e fora do foco, "Vídeo adicionado" com Abrir (nova aba) e
+  Trocar; inválido, erro em vermelho pela 4.5 (Gustavo, 19/11: trava o salvar): contorno da faixa, borda do campo
+  (`aria-invalid`) e o selo `perigo` "Link do YouTube inválido" ligado ao campo; a seção diz "Corrigir".
+- Na tabela, a coluna Vídeo tem ~145 px em 1280 com o menu aberto: o placeholder é "Link do YouTube" e o selo
+  "Link inválido" (o rótulo oculto do campo já diz YouTube), sem cortar nem quebrar; empilhado, os textos longos.
 
 ### 4.8 Seções que abrem e fecham (Gustavo, 18/11/2026; plano `docs/planos/secoes-nascem-fechadas.md`)
 

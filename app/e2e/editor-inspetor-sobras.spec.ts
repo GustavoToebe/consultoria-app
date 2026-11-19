@@ -155,10 +155,8 @@ for (const [largura, escuro] of [[1920, false], [1920, true], [1440, false], [12
       await itemDaLista(2, '12:00 · Almoço').click();
       await expect(itemDaLista(2, '12:00 · Almoço')).toHaveAttribute('aria-current', 'true');
       await expect(page.getByRole('textbox', { name: 'Nome' }).first()).toHaveValue('Almoço');
-      // As duas opções do almoço cabem lado a lado no inspetor.
-      const [a, b] = [await page.getByRole('heading', { name: 'Opção A' }).boundingBox(), await page.getByRole('heading', { name: 'Opção B' }).boundingBox()];
-      if (!a || !b) throw new Error('sem opção');
-      expect(Math.abs(a.y - b.y)).toBeLessThan(2);
+      // As duas opções do almoço viram duas abas (opções em abas, 19/11), não colunas lado a lado.
+      await expect(page.getByRole('tablist', { name: 'Opções de 12:00 · Almoço' }).getByRole('tab')).toHaveCount(2);
       if (largura === 1920) {
         // Sem teto de 1440: a linha de "Refeições" vai até a beirada da área útil (1920 − 16 de recuo).
         const compras = await page.getByRole('button', { name: 'Lista de compras' }).boundingBox();
@@ -171,7 +169,7 @@ for (const [largura, escuro] of [[1920, false], [1920, true], [1440, false], [12
       await expect(page.getByRole('button', { name: /^Refeição \d de/ })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Abrir todas' })).toBeVisible();
       await page.getByRole('button', { name: '12:00 · Almoço, fechado' }).click();
-      await expect(page.getByRole('heading', { name: 'Opção B' })).toBeVisible();
+      await expect(page.getByRole('tab', { name: /^Opção B,/ })).toBeVisible();
       await expect(page.getByRole('button', { name: '07:00 · Café da manhã, fechado' })).toBeVisible();
     }
     await capturar(page, `dieta-${largura}${escuro ? '-escuro' : ''}`);

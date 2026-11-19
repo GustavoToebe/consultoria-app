@@ -50,10 +50,11 @@ public final class ExtratorXlsxCsv {
                 blocos.add(new BlocoTexto("Aba: " + aba.nome(), textoAba, nomeArquivo, aba.indice() + 1));
             }
         } catch (Exception e) {
-            // Em caso de erro de leitura de aba, devolve o que foi possível
+            throw new ExtracaoRecusadaException("PLANILHA_CORROMPIDA");
         }
 
+        String cobertura = blocos.isEmpty() ? "SEM_TEXTO" : "COMPLETA";
         return new ResultadoExtracao("PLANILHA", textoCompleto.toString(), List.copyOf(blocos),
-                Map.of("abas", blocos.size()));
+                Map.of("cobertura", cobertura, "abas", blocos.size(), "blocos", blocos.size()));
     }
 }

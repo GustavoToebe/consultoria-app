@@ -3,18 +3,25 @@ import { ErroApi } from '@plataforma/web';
 import type { ConfirmacaoResultado, GrupoImportavel } from '../servicos/importacaoAssistida';
 import {
   campoDoErroDoTexto,
+  gerarChaveIdempotencia,
   grupoResumido,
   idsComErro,
   idsParaGravar,
+  idsSelecionaveisProntos,
   linhasDoGrupo,
+  motivoDoErroDoArquivo,
   motivoDoErroDoGrupo,
   motivoParaNaoConfirmar,
   opcoesDoDestino,
   pedidoDoDestino,
   recarregarDepoisDoErro,
+  resumoDaCoberturaDoArquivo,
+  resumoDoModoProcessamento,
   resumoDoResultado,
   rotuloDaDuvida,
   seloDoGrupo,
+  sessaoPodeCancelar,
+  sessaoRetomavel,
   textoDoErroDaImportacao,
   textoDoEstadoDaSessao,
   tituloDoGrupoResumido,
@@ -154,4 +161,78 @@ test('resumo do resultado: só as contagens que aconteceram, peso ignorado expli
   const falhou = resumoDoResultado({ ...base, situacao: 'FALHOU', gruposImportados: 0, gruposComErro: 2 });
   expect(falhou.alerta?.tom).toBe('perigo');
   expect(falhou.descricao).toBeNull();
+});
+
+test('novos erros, estados, retomada e cancelamento da importação assistida', () => {
+  const erro = (status: number, codigo: string) => new ErroApi(status, codigo, 'msg');
+  expect(textoDoEstadoDaSessao('RASCUNHO')).toBe('Rascunho');
+  expect(textoDoEstadoDaSessao('CANCELADA')).toBe('Cancelada');
+  expect(textoDoEstadoDaSessao('EXPIRADA')).toBe('Expirada');
+  expect(textoDoErroDaImportacao(erro(400, 'SELECAO_VAZIA'))).toMatch(/Selecione pelo menos um/);
+  expect(textoDoErroDaImportacao(erro(409, 'PREVIA_DESATUALIZADA'))).toMatch(/prévia mudou/i);
+  expect(textoDoErroDaImportacao(erro(409, 'IDEMPOTENCIA_CONFLITANTE'))).toMatch(/outra seleção/);
+  expect(textoDoErroDaImportacao(erro(409, 'SESSAO_CANCELADA'))).toMatch(/cancelada/);
+  expect(textoDoErroDaImportacao(erro(409, 'SESSAO_EXPIRADA'))).toMatch(/expirou/);
+  expect(textoDoErroDaImportacao(erro(404, 'CONTEUDO_INDISPONIVEL'))).toMatch(/conteúdo original/i);
+  expect(recarregarDepoisDoErro(erro(409, 'PREVIA_DESATUALIZADA'))).toBe(true);
+  expect(recarregarDepoisDoErro(erro(400, 'SELECAO_INVALIDA'))).toBe(true);
+  expect(motivoDoErroDoArquivo('PDF_PROTEGIDO_POR_SENHA')).toMatch(/senha/);
+
+  expect(sessaoRetomavel({ estado: 'RASCUNHO' })).toBe(true);
+  expect(sessaoRetomavel({ estado: 'PROCESSANDO' })).toBe(true);
+  expect(sessaoRetomavel({ estado: 'REVISANDO' })).toBe(true);
+  expect(sessaoRetomavel({ estado: 'CONCLUIDA' })).toBe(false);
+  expect(sessaoRetomavel({ estado: 'CANCELADA' })).toBe(false);
+  expect(sessaoPodeCancelar('REVISANDO')).toBe(true);
+  expect(sessaoPodeCancelar('CONCLUIDA')).toBe(false);
+});
+
+test('resumo do modo de processamento e cobertura de leitura dos arquivos', () => {
+  const ia = resumoDoModoProcessamento({ modoEfetivo: 'IA', provedorConfigurado: 'GEMINI', fallbackParaRegras: false });
+  expect(ia.titulo).toMatch(/IA/);
+  expect(ia.alertaFallback).toBeNull();
+
+  const fallback = resumoDoModoProcessamento({
+    modoEfetivo: 'REGRAS',
+    provedorConfigurado: 'GEMINI',
+    fallbackParaRegras: true,
+    motivoFallback: 'TIMEOUT',
+  });
+  expect(fallback.titulo).toMatch(/contingência/);
+  expect(fallback.alertaFallback).toMatch(/regras fixas/);
+
+  expect(resumoDaCoberturaDoArquivo({ status: 'SEM_TEXTO', paginasTotal: 4, paginasLidas: 0, paginasSemTexto: 4 })).toEqual({
+    texto: 'Nenhuma página legível (0 de 4)',
+    tom: 'perigo',
+  });
+  expect(resumoDaCoberturaDoArquivo({
+    status: 'PARCIAL',
+    paginasTotal: 10,
+    paginasLidas: 8,
+    paginasSemTexto: 2,
+    truncado: true,
+  })).toEqual({
+    texto: '8 de 10 página(s) lida(s) · 2 sem texto · conteúdo truncado',
+    tom: 'atencao',
+  });
+  expect(resumoDaCoberturaDoArquivo({ status: 'COMPLETA', blocos: 5, truncado: false })).toEqual({
+    texto: '5 bloco(s) lido(s)',
+    tom: 'sucesso',
+  });
+});
+
+test('seleção explícita de grupos e trava de hashPrevia na confirmação', () => {
+  const g1 = grupo({ id: 'g1', estado: 'PRONTO' });
+  const g2 = grupo({ id: 'g2', estado: 'COM_DUVIDAS' });
+  const g3 = grupo({ id: 'g3', destino: 'IGNORAR' });
+  expect(idsSelecionaveisProntos([g1, g2, g3], com(TUDO))).toEqual(['g1']);
+
+  expect(motivoParaNaoConfirmar([g1, g2], com(TUDO), new Set(), new Set(), 'hash-1')).toBe('Selecione pelo menos um grupo para gravar.');
+  expect(motivoParaNaoConfirmar([g1, g2], com(TUDO), new Set(), new Set(['g1']), null)).toMatch(/prévia/i);
+  expect(motivoParaNaoConfirmar([g1, g2], com(TUDO), new Set(), new Set(['g1']), 'hash-1')).toBeNull();
+
+  const c1 = gerarChaveIdempotencia();
+  const c2 = gerarChaveIdempotencia();
+  expect(c1.length).toBeGreaterThan(8);
+  expect(c1).not.toBe(c2);
 });

@@ -94,6 +94,10 @@ export const mostrarDeNovo = (e: EstadoGuardado): EstadoGuardado => ({ ...e, dis
 
 export const TITULO_DO_BLOCO = 'Primeiros passos';
 export const DESCRICAO_DO_BLOCO = 'O que falta para começar a atender pelo app. Cada item abre a tela certa.';
+export const ATALHO_MIGRACAO = {
+  titulo: 'Trazer meus alunos e planos',
+  destino: '/treinador/importacao/assistida',
+} as const;
 
 /** Texto do `PainelConfirmacao` do "Dispensar". A confirmação é obrigatória para dispensar; o X do "Concluídos" não pede. */
 export const CONFIRMACAO_DE_DISPENSAR = {
@@ -258,6 +262,8 @@ export interface PrimeirosPassos {
   itemPrimario: IdDoItem | null;
   /** Texto da linha "Concluídos". */
   linhaConcluidos: { titulo: string; selo: string; resumo: string; rotuloFechar: string };
+  /** Atalho para a importação assistida, visível a quem pode criar alunos (`ALUNO_ALTERAR`). */
+  atalhoMigracao: { titulo: string; destino: string } | null;
 }
 
 /* ============================== cálculo ============================== */
@@ -383,6 +389,7 @@ export function montarPrimeirosPassos(e: EntradaDosPrimeirosPassos): PrimeirosPa
     },
     itemPrimario: primario ? primario.d.id : null,
     linhaConcluidos: { titulo: TITULO_DO_BLOCO, selo: 'Concluídos', resumo: `${texto} · também na Ajuda`, rotuloFechar: 'Tirar os primeiros passos do Início' },
+    atalhoMigracao: e.pode('ALUNO_ALTERAR') ? { ...ATALHO_MIGRACAO } : null,
   };
 }
 

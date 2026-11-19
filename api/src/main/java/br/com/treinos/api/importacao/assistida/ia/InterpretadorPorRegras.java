@@ -1,11 +1,19 @@
 package br.com.treinos.api.importacao.assistida.ia;
 
+import br.com.treinos.api.biblioteca.Alimento;
+import br.com.treinos.api.biblioteca.AlimentoRepository;
+import br.com.treinos.api.biblioteca.Exercicio;
+import br.com.treinos.api.biblioteca.ExercicioRepository;
 import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.importacao.assistida.BlocoTexto;
 import br.com.treinos.api.importacao.assistida.PistaDeIdentidade;
 import br.com.treinos.api.treino.ConteudoTreino;
+import br.com.treinos.api.web.Buscas;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -42,6 +50,19 @@ public class InterpretadorPorRegras implements InterpretadorIa {
     // dd/mm/aaaa ou aaaa-mm-dd
     private static final Pattern DATA_REGEX = Pattern.compile(
             "\\b(?:(\\d{1,2})/(\\d{1,2})/(\\d{4})|(\\d{4})-(\\d{2})-(\\d{2}))\\b");
+
+    private final ExercicioRepository exercicios;
+    private final AlimentoRepository alimentos;
+
+    @Autowired
+    public InterpretadorPorRegras(ExercicioRepository exercicios, AlimentoRepository alimentos) {
+        this.exercicios = exercicios;
+        this.alimentos = alimentos;
+    }
+
+    public InterpretadorPorRegras() {
+        this(null, null);
+    }
 
     @Override
     public String nomeProvedor() {
@@ -287,43 +308,122 @@ public class InterpretadorPorRegras implements InterpretadorIa {
     private void verificarDuvidasExercicios(ConteudoTreino treino, ContextoIa contexto,
                                            List<ResultadoInterpretacao.PropostaDuvida> duvidas) {
         if (treino == null || treino.sessoes() == null) return;
+        List<Exercicio> ativos = exercicios != null ? exercicios.todosAtivos() : null;
+        Map<String, List<String>> ocorrenciasPorTermo = new LinkedHashMap<>();
+        Map<String, String> originalPorChave = new LinkedHashMap<>();
+        Map<String, String> trechoPorChave = new LinkedHashMap<>();
+
         for (ConteudoTreino.Sessao s : treino.sessoes()) {
             if (s.exercicios() == null) continue;
             for (ConteudoTreino.ExercicioPlano ex : s.exercicios()) {
                 String nome = ex.nome();
-                if (nome.length() < 4 || nome.contains("/") || nome.toLowerCase(Locale.ROOT).startsWith("puxada frent")) {
-                    duvidas.add(new ResultadoInterpretacao.PropostaDuvida(
-                            "EXERCICIO_NAO_RECONHECIDO",
-                            nome,
-                            "Na sessão '" + s.nome() + "': " + nome,
-                            contexto.nomeArquivo(),
-                            List.of(new ResultadoInterpretacao.PropostaSugestao("Puxada frontal pronada", 0.92))
-                    ));
+                if (nome == null || nome.isBlank() || ex.uid() == null) continue;
+                String chave = Buscas.semAcento(nome);
+                boolean ambiguo = nome.length() < 4 || nome.contains("/");
+                boolean semMatchExato = ativos != null && ativos.stream().noneMatch(e -> Buscas.semAcento(e.getNome()).equals(chave));
+                if (ambiguo || semMatchExato) {
+                    ocorrenciasPorTermo.computeIfAbsent(chave, k -> new ArrayList<>()).add(ex.uid().toString());
+                    originalPorChave.putIfAbsent(chave, nome);
+                    trechoPorChave.putIfAbsent(chave, "Na sessão '" + s.nome() + "': " + nome);
                 }
             }
+        }
+
+        for (Map.Entry<String, List<String>> entry : ocorrenciasPorTermo.entrySet()) {
+            String chave = entry.getKey();
+            List<ResultadoInterpretacao.PropostaSugestao> sugestoes = ativos == null
+                    ? List.of()
+                    : sugerirExercicios(chave, ativos);
+            duvidas.add(new ResultadoInterpretacao.PropostaDuvida(
+                    "EXERCICIO_NAO_RECONHECIDO",
+                    originalPorChave.get(chave),
+                    trechoPorChave.get(chave),
+                    contexto.nomeArquivo(),
+                    sugestoes,
+                    List.copyOf(entry.getValue())
+            ));
         }
     }
 
     private void verificarDuvidasAlimentos(ConteudoDieta dieta, ContextoIa contexto,
                                           List<ResultadoInterpretacao.PropostaDuvida> duvidas) {
         if (dieta == null || dieta.refeicoes() == null) return;
+        List<Alimento> ativos = alimentos != null ? alimentos.buscarAtivos("%") : null;
+        Map<String, List<String>> ocorrenciasPorTermo = new LinkedHashMap<>();
+        Map<String, String> originalPorChave = new LinkedHashMap<>();
+        Map<String, String> trechoPorChave = new LinkedHashMap<>();
+
         for (ConteudoDieta.Refeicao r : dieta.refeicoes()) {
             if (r.opcoes() == null) continue;
             for (ConteudoDieta.Opcao op : r.opcoes()) {
                 if (op.itens() == null) continue;
                 for (ConteudoDieta.Item item : op.itens()) {
                     String nome = item.nome();
-                    if (nome.length() < 3 || nome.equalsIgnoreCase("whey") || nome.toLowerCase(Locale.ROOT).startsWith("arroz br")) {
-                        duvidas.add(new ResultadoInterpretacao.PropostaDuvida(
-                                "ALIMENTO_NAO_RECONHECIDO",
-                                nome,
-                                "Na refeição '" + r.nome() + "': " + item.quantidade() + item.unidade() + " " + nome,
-                                contexto.nomeArquivo(),
-                                List.of(new ResultadoInterpretacao.PropostaSugestao("Arroz branco cozido", 0.95))
-                        ));
+                    if (nome == null || nome.isBlank() || item.uid() == null) continue;
+                    String chave = Buscas.semAcento(nome);
+                    boolean ambiguo = nome.length() < 3 || nome.equalsIgnoreCase("whey");
+                    boolean semMatchExato = ativos != null && ativos.stream().noneMatch(a -> Buscas.semAcento(a.getNome()).equals(chave));
+                    if (ambiguo || semMatchExato) {
+                        ocorrenciasPorTermo.computeIfAbsent(chave, k -> new ArrayList<>()).add(item.uid().toString());
+                        originalPorChave.putIfAbsent(chave, nome);
+                        trechoPorChave.putIfAbsent(chave, "Na refeição '" + r.nome() + "': " + item.quantidade() + item.unidade() + " " + nome);
                     }
                 }
             }
         }
+
+        for (Map.Entry<String, List<String>> entry : ocorrenciasPorTermo.entrySet()) {
+            String chave = entry.getKey();
+            List<ResultadoInterpretacao.PropostaSugestao> sugestoes = ativos == null
+                    ? List.of()
+                    : sugerirAlimentos(chave, ativos);
+            duvidas.add(new ResultadoInterpretacao.PropostaDuvida(
+                    "ALIMENTO_NAO_RECONHECIDO",
+                    originalPorChave.get(chave),
+                    trechoPorChave.get(chave),
+                    contexto.nomeArquivo(),
+                    sugestoes,
+                    List.copyOf(entry.getValue())
+            ));
+        }
+    }
+
+    private static List<ResultadoInterpretacao.PropostaSugestao> sugerirExercicios(String chave, List<Exercicio> ativos) {
+        String[] tokens = tokens(chave);
+        return ativos.stream()
+                .filter(e -> casaComTokens(Buscas.semAcento(e.getNome()), chave, tokens))
+                .limit(5)
+                .map(e -> new ResultadoInterpretacao.PropostaSugestao(e.getNome(), e.getId(), null))
+                .toList();
+    }
+
+    private static List<ResultadoInterpretacao.PropostaSugestao> sugerirAlimentos(String chave, List<Alimento> ativos) {
+        String[] tokens = tokens(chave);
+        return ativos.stream()
+                .filter(a -> casaComTokens(Buscas.semAcento(a.getNome()), chave, tokens))
+                .limit(5)
+                .map(a -> new ResultadoInterpretacao.PropostaSugestao(a.getNome(), a.getId(), null))
+                .toList();
+    }
+
+    private static String[] tokens(String chave) {
+        if (chave == null || chave.isBlank()) {
+            return new String[0];
+        }
+        return java.util.Arrays.stream(chave.split("\\s+"))
+                .filter(t -> t.length() >= 3)
+                .toArray(String[]::new);
+    }
+
+    private static boolean casaComTokens(String candidato, String chave, String[] tokens) {
+        if (candidato.contains(chave) || chave.contains(candidato)) {
+            return true;
+        }
+        for (String t : tokens) {
+            if (candidato.contains(t)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

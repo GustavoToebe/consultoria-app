@@ -1,18 +1,23 @@
 package br.com.treinos.api.importacao.assistida;
 
+import br.com.treinos.api.auth.LimiteTentativas;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.AdicionarTextoRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ApelidoDto;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ArquivoResumo;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.AtualizarGrupoRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ConfirmacaoResultado;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ConfirmarSessaoRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.CriarSessaoRequisicao;
-import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.AdicionarTextoRequisicao;
-import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.RespostaDuvidaRequisicao;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ResponderDuvidaRequisicao;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.RevogarDecisaoRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SessaoDetalhe;
-import br.com.treinos.api.auth.LimiteTentativas;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SessaoListaItem;
 import br.com.treinos.api.migracao.ExigeMigracaoAssistida;
 import br.com.treinos.api.security.UsuarioAutenticado;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -42,13 +47,23 @@ public class ImportacaoAssistidaController {
 
     private final ImportacaoAssistidaService service;
     private final ConfirmacaoDaImportacaoAssistida confirmacao;
+    private final ProcessamentoAssincronoImportacao processamento;
     private final LimiteTentativas limites;
 
-    public ImportacaoAssistidaController(ImportacaoAssistidaService service, ConfirmacaoDaImportacaoAssistida confirmacao,
+    public ImportacaoAssistidaController(ImportacaoAssistidaService service,
+                                         ConfirmacaoDaImportacaoAssistida confirmacao,
+                                         ProcessamentoAssincronoImportacao processamento,
                                          LimiteTentativas limites) {
         this.service = service;
         this.confirmacao = confirmacao;
+        this.processamento = processamento;
         this.limites = limites;
+    }
+
+    @GetMapping("/sessoes")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_LER')")
+    public List<SessaoListaItem> listarSessoes() {
+        return service.listarSessoes();
     }
 
     @PostMapping("/sessoes")
@@ -78,9 +93,10 @@ public class ImportacaoAssistidaController {
 
     @PostMapping("/sessoes/{id}/processar")
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
-    public SessaoDetalhe processar(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id) {
+    public ResponseEntity<SessaoDetalhe> processar(@AuthenticationPrincipal UsuarioAutenticado eu,
+                                                   @PathVariable UUID id) {
         limites.importacaoAssistida(eu.usuarioId());
-        return service.processar(id);
+        return ResponseEntity.accepted().body(processamento.iniciar(id, eu.usuarioId()));
     }
 
     @GetMapping("/sessoes/{id}")
@@ -89,12 +105,48 @@ public class ImportacaoAssistidaController {
         return service.obterSessao(id);
     }
 
+    @GetMapping("/sessoes/{id}/arquivos/{arquivoId}/conteudo")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_LER')")
+    public ResponseEntity<byte[]> obterConteudoArquivo(@PathVariable UUID id, @PathVariable UUID arquivoId) {
+        ImportacaoAssistidaService.ConteudoArquivo conteudo = service.obterConteudoArquivo(id, arquivoId);
+        String nomeSeguro = conteudo.nomeOriginal().replaceAll("[^A-Za-z0-9._-]", "_");
+        if (nomeSeguro.isBlank()) {
+            nomeSeguro = "arquivo";
+        }
+        MediaType mediaType = switch (conteudo.formato()) {
+            case "PDF" -> MediaType.APPLICATION_PDF;
+            case "TEXTO_LIVRE", "CSV" -> new MediaType("text", "plain", java.nio.charset.StandardCharsets.UTF_8);
+            default -> MediaType.APPLICATION_OCTET_STREAM;
+        };
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header("X-Content-Type-Options", "nosniff")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nomeSeguro + "\"")
+                .contentType(mediaType)
+                .body(conteudo.bytes());
+    }
+
+    @PostMapping("/sessoes/{id}/cancelar")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
+    public SessaoDetalhe cancelarSessao(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id) {
+        limites.importacaoAssistida(eu.usuarioId());
+        return service.cancelarSessao(id);
+    }
+
     @PostMapping("/sessoes/{id}/respostas")
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
     public SessaoDetalhe responderDuvida(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id,
-                                         @RequestBody RespostaDuvidaRequisicao req) {
+                                         @RequestBody ResponderDuvidaRequisicao req) {
         limites.importacaoAssistida(eu.usuarioId());
         return service.responderDuvida(id, req);
+    }
+
+    @PostMapping("/sessoes/{id}/respostas/{decisaoId}/revogar")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
+    public SessaoDetalhe revogarDecisao(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id,
+                                        @PathVariable String decisaoId, @RequestBody RevogarDecisaoRequisicao req) {
+        limites.importacaoAssistida(eu.usuarioId());
+        return service.revogarDecisao(id, decisaoId, req.revisaoEsperada());
     }
 
     @PutMapping("/sessoes/{id}/grupos/{grupoId}")

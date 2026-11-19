@@ -48,10 +48,14 @@ class RoteadorInterpretadorIaTest {
         for (String provedor : List.of("gemini", "claude")) {
             RoteadorInterpretadorIa roteador = new RoteadorInterpretadorIa(config(provedor, false), gemini, claude, regras);
 
-            ResultadoInterpretacao r = roteador.interpretar(contexto());
+            RoteadorInterpretadorIa.ExecucaoInterpretacao exec = roteador.interpretarComModo(contexto());
 
             // Resultado local (regras): o nome saiu do bloco original, que só existe no servidor.
-            assertThat(r.grupos().getFirst().nomeAluno().toLowerCase(java.util.Locale.ROOT)).contains("sentinela zzyx");
+            assertThat(exec.modoEfetivo()).isEqualTo("REGRAS");
+            assertThat(exec.fallbackParaRegras()).isFalse();
+            assertThat(exec.motivoFallback()).isEqualTo("ENVIO_DESLIGADO");
+            assertThat(exec.resultado().grupos().getFirst().nomeAluno().toLowerCase(java.util.Locale.ROOT))
+                    .contains("sentinela zzyx");
         }
         verifyNoInteractions(gemini, claude);
     }
@@ -61,10 +65,27 @@ class RoteadorInterpretadorIaTest {
         when(gemini.interpretar(any())).thenThrow(new IllegalStateException("falha fixa"));
         RoteadorInterpretadorIa roteador = new RoteadorInterpretadorIa(config("gemini", true), gemini, claude, regras);
 
-        ResultadoInterpretacao r = roteador.interpretar(contexto());
+        RoteadorInterpretadorIa.ExecucaoInterpretacao exec = roteador.interpretarComModo(contexto());
 
         verify(gemini).interpretar(any());
-        assertThat(r.grupos()).hasSize(1);
+        assertThat(exec.modoEfetivo()).isEqualTo("REGRAS");
+        assertThat(exec.provedorConfigurado()).isEqualTo("gemini");
+        assertThat(exec.fallbackParaRegras()).isTrue();
+        assertThat(exec.motivoFallback()).isEqualTo("ERRO_PROVEDOR");
+        assertThat(exec.resultado().grupos()).hasSize(1);
+    }
+
+    @Test
+    void comAPropriedadeLigadaEProvedorComSucessoRetornaModoIa() {
+        when(gemini.interpretar(any())).thenReturn(new ResultadoInterpretacao(List.of(), List.of()));
+        RoteadorInterpretadorIa roteador = new RoteadorInterpretadorIa(config("gemini", true), gemini, claude, regras);
+
+        RoteadorInterpretadorIa.ExecucaoInterpretacao exec = roteador.interpretarComModo(contexto());
+
+        assertThat(exec.modoEfetivo()).isEqualTo("IA");
+        assertThat(exec.provedorConfigurado()).isEqualTo("gemini");
+        assertThat(exec.fallbackParaRegras()).isFalse();
+        assertThat(exec.motivoFallback()).isNull();
     }
 
     @Test

@@ -471,29 +471,66 @@ for (const largura of [1024, 1280]) {
   });
 }
 
-test('PC (1280): a tela aberta num grupo recolhido abre o grupo, sem botão; ao sair dela o grupo volta a recolher', async ({ page }) => {
-  await comGruposRecolhidos(page, ['Negócio']);
-  const { errosDaPagina } = await abrir(page, 1280, 900, TODAS, {}, { revisar: 0, novas: 1 });
-  // Na Ajuda (Configurações) o grupo da tela não vira botão: ele nunca recolhe (D3).
-  await expect(menu(page).getByRole('button', { name: /^(Recolher|Abrir) Configurações/ })).toHaveCount(0);
-  await expect(menu(page).getByText('Configurações', { exact: true })).toBeVisible();
-  await expect(menu(page).getByRole('link', { name: 'Interessados', exact: true })).toHaveCount(0);
+/** Cor da barrinha (3 × 16, `marcaPeca`) dentro do elemento: a do item atual ou a do título do grupo atual; nulo sem barrinha. */
+const corDaBarrinha = (el: Element) => {
+  const barra = [...el.querySelectorAll('*')].find((n) => {
+    const caixa = n.getBoundingClientRect();
+    return getComputedStyle(n).position === 'absolute' && Math.round(caixa.width) === 3 && Math.round(caixa.height) === 16;
+  });
+  return barra ? getComputedStyle(barra).backgroundColor : null;
+};
 
-  // Pela busca (navegação dentro do app) até uma tela de Negócio: o grupo abre e o item fica ativo.
+test('PC (1280): o grupo da tela aberta também recolhe; recolhido, o título leva a barrinha e o aria-current do item atual, e entrar em outra tela não abre o grupo (D9)', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, 900, TODAS, {}, { revisar: 0, novas: 1 });
+  // Na Ajuda (Configurações) o título do grupo da tela é botão como os outros: seta, aria-expanded e alvo de 44 px.
+  const recolher = botaoDoGrupo(page, 'Recolher', 'Configurações');
+  await expect(recolher).toHaveAttribute('aria-expanded', 'true');
+  expect((await recolher.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  // Aberto, quem tem a barrinha e o aria-current é o item atual, não o título.
+  await expect(recolher).not.toHaveAttribute('aria-current');
+  expect(await recolher.evaluate(corDaBarrinha)).toBeNull();
+  const ajuda = menu(page).getByRole('link', { name: 'Ajuda', exact: true });
+  await expect(ajuda).toHaveAttribute('aria-current', 'page');
+  const corDoItem = await ajuda.evaluate(corDaBarrinha);
+  expect(corDoItem).not.toBeNull();
+
+  await recolher.click();
+  // Recolhido: os itens saem e o título ganha a barrinha (a mesma cor do item) e o aria-current; o foco fica no botão.
+  const abrirGrupo = botaoDoGrupo(page, 'Abrir', 'Configurações');
+  await expect(abrirGrupo).toHaveAttribute('aria-expanded', 'false');
+  await expect(abrirGrupo).toHaveAttribute('aria-current', 'true');
+  await expect(abrirGrupo).toBeFocused();
+  await expect(ajuda).toHaveCount(0);
+  expect(await abrirGrupo.evaluate(corDaBarrinha)).toBe(corDoItem);
+  // Outro grupo recolhido, sem a tela aberta, não tem marca.
+  await botaoDoGrupo(page, 'Recolher', 'Conteúdo').click();
+  const conteudo = botaoDoGrupo(page, 'Abrir', 'Conteúdo');
+  await expect(conteudo).not.toHaveAttribute('aria-current');
+  expect(await conteudo.evaluate(corDaBarrinha)).toBeNull();
+
+  // A escolha fica no aparelho: recarregar mantém o grupo da tela recolhido e marcado.
+  await page.reload();
+  await expect(botaoDoGrupo(page, 'Abrir', 'Configurações')).toHaveAttribute('aria-current', 'true');
+  await expect(menu(page).getByRole('link', { name: 'Ajuda', exact: true })).toHaveCount(0);
+
+  // Pela busca até uma tela de Negócio (grupo aberto): o grupo da tela muda, a marca vai junto e nada abre sozinho.
+  await botaoDoGrupo(page, 'Recolher', 'Negócio').click();
   await page.keyboard.press('Control+k');
   const folha = page.getByRole('dialog', { name: 'Buscar' });
   await folha.getByRole('searchbox', { name: 'Buscar tela ou ação' }).fill('interessados');
   await folha.getByRole('link', { name: /^Interessados, / }).first().click();
-  const interessados = menu(page).getByRole('link', { name: /^Interessados/ });
-  await expect(interessados).toHaveAttribute('aria-current', 'page');
-  await expect(menu(page).getByRole('button', { name: /^(Recolher|Abrir) Negócio/ })).toHaveCount(0);
+  const negocio = botaoDoGrupo(page, 'Abrir', 'Negócio');
+  await expect(negocio).toHaveAttribute('aria-current', 'true');
+  await expect(negocio).toHaveAttribute('aria-expanded', 'false');
+  await expect(menu(page).getByRole('link', { name: 'Interessados', exact: true })).toHaveCount(0);
+  await expect(botaoDoGrupo(page, 'Abrir', 'Configurações')).not.toHaveAttribute('aria-current');
 
-  // Voltando pelo navegador com o foco num item de Negócio: o grupo recolhe e o foco vai para o botão dele.
-  await menu(page).getByRole('link', { name: 'Financeiro', exact: true }).focus();
-  await page.goBack();
-  await expect(menu(page).getByRole('link', { name: 'Ajuda', exact: true })).toHaveAttribute('aria-current', 'page');
-  await expect(menu(page).getByRole('link', { name: 'Financeiro', exact: true })).toHaveCount(0);
-  await expect(botaoDoGrupo(page, 'Abrir', 'Negócio')).toBeFocused();
+  // Abrir o grupo mostra o item atual com a marca dele, e o título volta a não ter a sua.
+  await negocio.click();
+  await expect(menu(page).getByRole('link', { name: /^Interessados/ })).toHaveAttribute('aria-current', 'page');
+  const recolherNegocio = botaoDoGrupo(page, 'Recolher', 'Negócio');
+  await expect(recolherNegocio).not.toHaveAttribute('aria-current');
+  expect(await recolherNegocio.evaluate(corDaBarrinha)).toBeNull();
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -525,6 +562,26 @@ test('passeio com um grupo recolhido: os passos dos itens escondidos saem, sem a
   expect(passos).toContain('Alunos');
   for (const escondido of ['Interessados', 'Financeiro', 'Números']) expect(passos).not.toContain(escondido);
   await expect(botaoDoGrupo(page, 'Abrir', 'Negócio')).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('passeio com o grupo da tela aberta recolhido: o passo do item atual sai, os dos outros grupos ficam e a escolha não muda', async ({ page }) => {
+  await comGruposRecolhidos(page, ['Configurações']);
+  await abrir(page, 1280, 900, TODAS, { passeioVisto: false });
+  const passeio = page.getByRole('dialog');
+  await expect(passeio.getByText('Boas-vindas')).toBeVisible();
+  const passos: string[] = [];
+  for (let i = 0; i < 20; i++) {
+    const nome = ((await passeio.getAttribute('aria-label')) ?? '').replace('Passeio pelo menu: ', '');
+    passos.push(nome);
+    const proximo = passeio.getByRole('button', { name: 'Próximo' });
+    if (!(await proximo.count())) break;
+    await proximo.click();
+    await expect(passeio).not.toHaveAttribute('aria-label', `Passeio pelo menu: ${nome}`);
+  }
+  expect(passos).toContain('Alunos');
+  expect(passos).toContain('Financeiro');
+  for (const escondido of ['Equipe', 'Importação', 'Ajuda']) expect(passos).not.toContain(escondido);
+  await expect(botaoDoGrupo(page, 'Abrir', 'Configurações')).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('trilho (900) e PC minimizado: nenhum botão de grupo e todos os itens à vista, mesmo com grupo recolhido', async ({ page }) => {
@@ -682,6 +739,10 @@ for (const tema of ['ESCURO', 'CLARO'] as const) {
     await recorte('1280-minimizado-trilho-72');
     await preparar(1280, { gruposRecolhidos: ['Acompanhamento'] });
     await foto('1280-grupo-recolhido');
+    // D9: o grupo da tela aberta (Configurações, na Ajuda) recolhido leva a barrinha e o resumo no título; Negócio, sem a tela, não.
+    await preparar(1280, { gruposRecolhidos: ['Configurações', 'Negócio'] });
+    await foto('1280-grupo-atual-recolhido');
+    await recorte('1280-grupo-atual-recolhido-recorte');
     await preparar(1280, { tamanhoTexto: 'EXTRA', gruposRecolhidos: ['Acompanhamento'] });
     await foto('1280-texto-extra');
     await preparar(1280, {}, { ...MARCA, logoUrl: '/publico/marcas/c0000000-0000-4000-8000-000000000001/logo?v=1' });

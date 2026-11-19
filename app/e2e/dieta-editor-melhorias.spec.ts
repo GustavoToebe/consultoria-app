@@ -123,8 +123,8 @@ for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
       await expect(subtotal.getByText('323 kcal', { exact: true })).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`aberta-${sufixo}.png`), fullPage: true });
 
-      // Só item da biblioteca tem "Trocar"; troca o 2º (leite, 200 ml) pelo iogurte.
-      await cafeAberto.getByRole('button', { name: 'Trocar Leite fictício' }).click();
+      // Só item da biblioteca tem "Trocar alimento" (botão com texto desde 19/11); troca o 2º (leite, 200 ml) pelo iogurte.
+      await cafeAberto.getByRole('button', { name: 'Trocar alimento: Leite fictício' }).click();
       await expect(page.getByText('No lugar de “Leite fictício”. A posição, a quantidade e a unidade ficam; os valores são recalculados.')).toBeVisible();
       // O alimento atual não aparece na lista da troca; a busca sem resultado diz que não achou.
       await expect(page.getByRole('button', { name: 'Escolher Leite fictício' })).toHaveCount(0);
@@ -136,7 +136,7 @@ for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
       await page.getByRole('button', { name: 'Escolher Iogurte fictício' }).click();
 
       await expect(page.getByText('“Leite fictício” trocado por “Iogurte fictício”.')).toBeVisible();
-      await expect(cafeAberto.getByRole('button', { name: 'Trocar Iogurte fictício' })).toBeVisible();
+      await expect(cafeAberto.getByRole('button', { name: 'Trocar alimento: Iogurte fictício' })).toBeVisible();
       await expect(subtotal.getByText('343 kcal', { exact: true })).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`trocado-${sufixo}.png`), fullPage: true });
 
@@ -149,7 +149,7 @@ for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
 
       // Desfazer devolve o leite.
       await page.getByRole('button', { name: 'Desfazer' }).click();
-      await expect(cafeAberto.getByRole('button', { name: 'Trocar Leite fictício' })).toBeVisible();
+      await expect(cafeAberto.getByRole('button', { name: 'Trocar alimento: Leite fictício' })).toBeVisible();
 
       if (largura >= 1280) {
         await page.getByRole('button', { name: /^Refeição 2 de 2: 12:00 · Almoço/ }).click();
@@ -172,7 +172,7 @@ for (const largura of [390, 1280]) {
     await abrirRefeicao(page, largura, '07:00 · Café da manhã');
     const cafe2 = cartao(page, 'cafe2');
     // Banana em "un" trocada por arroz (base em g, sem gramas por unidade): o valor fica "—" e o aviso diz o que falta.
-    await cafe2.getByRole('button', { name: 'Trocar Banana fictícia' }).click();
+    await cafe2.getByRole('button', { name: 'Trocar alimento: Banana fictícia' }).click();
     await page.getByRole('button', { name: 'Escolher Arroz fictício' }).click();
     await expect(cafe2.getByText('Informe gramas por unidade no alimento')).toBeVisible();
     await expect(cafe2.getByRole('group', { name: 'Subtotal da refeição' }).getByText('— kcal', { exact: true })).toBeVisible();

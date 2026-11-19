@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { Check, ChevronDown, ChevronUp, Circle, CircleAlert, Lock, Minus, X, type LucideIcon } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp, Circle, CircleAlert, FileSearch, Lock, Minus, X, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -81,6 +81,16 @@ export function PrimeirosPassosAberto({ passos, aoAcao, aoDispensar }: {
           <View accessibilityRole="list" style={estilos.lista}>
             {passos.aVista.map((i) => <ItemDoPasso key={i.id} item={i} aoAcao={aoAcao} />)}
           </View>
+          {passos.atalhoMigracao ? (
+            <View style={estilos.botoes}>
+              <Botao
+                rotulo={passos.atalhoMigracao.titulo}
+                tipo="secundario"
+                Icone={FileSearch}
+                aoTocar={() => router.push(passos.atalhoMigracao!.destino as Href)}
+              />
+            </View>
+          ) : null}
         </View>
       )}
     </Cartao>

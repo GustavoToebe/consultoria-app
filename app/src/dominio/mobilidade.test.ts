@@ -1,4 +1,8 @@
-import { aplicarModeloDeMobilidade, itemParaTela, mobilidadeParaApi, mobilidadeParaExibir, mobilidadeValida, normalizarMobilidade, novaSecaoMobilidade, secaoValida, temAbaMobilidade } from './mobilidade';
+import {
+  adicionarItem, aplicarModeloDeMobilidade, AVISO_CURTO_DO_LINK_INVALIDO, AVISO_DO_LINK_INVALIDO, estadoDoVideo, excluirSecaoPedeConfirmacao, itemParaTela,
+  mobilidadeParaApi, mobilidadeParaExibir, mobilidadeValida, moverItem, moverSecao, normalizarMobilidade, novaSecaoMobilidade, removerItem,
+  resumoDaSecao, resumoDasOrientacoes, secaoValida, temAbaMobilidade, TEXTO_DO_VIDEO_ADICIONADO,
+} from './mobilidade';
 
 it('normaliza o conteúdo da API com campos nulos e cria uma seção quando vem vazio', () => {
   expect(normalizarMobilidade(null).secoes).toHaveLength(1);
@@ -38,6 +42,64 @@ it('só valida com nome em todo item e link do YouTube quando informado', () => 
   expect(secaoValida({ ...base, itens: [] })).toBe(false);
   expect(mobilidadeValida({ orientacoes: '', secoes: [{ ...base, itens: [] }] })).toBe(false);
   expect(secaoValida({ ...base, itens: [...base.itens,{ ...base.itens[0], uid: 'c', nome: ' ' }] })).toBe(false);
+});
+
+// Mobilidade no padrão do editor (19/11): vídeo em três estados, mover/excluir seção e item, resumos.
+describe('editor de mobilidade', () => {
+  const item = (uid: string, nome: string, videoUrl = '') => ({ uid, nome, prescricao: '', videoUrl });
+  const conteudo = () => ({
+    orientacoes: '',
+    secoes: [
+      { uid: 's1', titulo: 'A', itens: [item('a', 'Um'), item('b', 'Dois'), item('c', 'Três')] },
+      { uid: 's2', titulo: 'B', itens: [] },
+    ],
+  });
+
+  it('o vídeo é vazio, válido (YouTube) ou inválido, pela regra de sempre', () => {
+    expect(estadoDoVideo('')).toBe('vazio');
+    expect(estadoDoVideo('   ')).toBe('vazio');
+    expect(estadoDoVideo('https://youtu.be/abc')).toBe('valido');
+    expect(estadoDoVideo('https://www.youtube.com/watch?v=abc')).toBe('valido');
+    expect(estadoDoVideo('https://exemplo.com/v')).toBe('invalido');
+    expect(estadoDoVideo('http://youtu.be/abc')).toBe('invalido');
+    expect(TEXTO_DO_VIDEO_ADICIONADO).toBe('Vídeo adicionado');
+    expect(AVISO_DO_LINK_INVALIDO).toBe('Link do YouTube inválido');
+    expect(AVISO_CURTO_DO_LINK_INVALIDO).toBe('Link inválido');
+  });
+
+  it('excluir seção só confirma com itens', () => {
+    const c = conteudo();
+    expect(excluirSecaoPedeConfirmacao(c.secoes[0])).toBe(true);
+    expect(excluirSecaoPedeConfirmacao(c.secoes[1])).toBe(false);
+  });
+
+  it('move seção e item de uma casa para outra, sem mexer no resto', () => {
+    const c = conteudo();
+    expect(moverSecao(c, 0, 1).secoes.map((s) => s.uid)).toEqual(['s2', 's1']);
+    expect(moverSecao(c, 0, 5)).toEqual(c);
+    const m = moverItem(c, 0, 2, 0);
+    expect(m.secoes[0].itens.map((i) => i.uid)).toEqual(['c', 'a', 'b']);
+    expect(m.secoes[1]).toBe(c.secoes[1]);
+  });
+
+  it('remove e adiciona item na seção certa; o novo volta com o uid para o foco', () => {
+    const c = conteudo();
+    expect(removerItem(c, 0, 1).secoes[0].itens.map((i) => i.uid)).toEqual(['a', 'c']);
+    const { conteudo: depois, uid } = adicionarItem(c, 1);
+    expect(depois.secoes[1].itens).toEqual([{ uid, nome: '', prescricao: '', videoUrl: '' }]);
+    expect(depois.secoes[0]).toBe(c.secoes[0]);
+  });
+
+  it('resumos: da seção na lista e das orientações recolhidas', () => {
+    expect(resumoDaSecao(conteudo().secoes[0])).toBe('3 itens: Um, Dois, Três');
+    expect(resumoDaSecao({ uid: 'x', titulo: '', itens: [item('a', ' ')] })).toBe('1 item');
+    expect(resumoDaSecao(conteudo().secoes[1])).toBe('Nenhum item');
+    expect(resumoDasOrientacoes('')).toBe('(vazio)');
+    expect(resumoDasOrientacoes('  Faça\n antes   do treino. ')).toBe('Faça antes do treino.');
+    const longo = resumoDasOrientacoes('a'.repeat(100), 10);
+    expect(longo).toHaveLength(10);
+    expect(longo.endsWith('…')).toBe(true);
+  });
 });
 
 describe('mobilidade do aluno', () => {

@@ -46,7 +46,8 @@ public final class ExtratorTextoLivre {
             blocos.add(new BlocoTexto(tituloBlocoAtual, blocoAtual.toString().strip(), tituloFinal, numBloco));
         }
 
+        String cobertura = blocos.isEmpty() ? "SEM_TEXTO" : "COMPLETA";
         return new ResultadoExtracao("TEXTO_LIVRE", conteudo, List.copyOf(blocos),
-                Map.of("blocos", blocos.size()));
+                Map.of("cobertura", cobertura, "blocos", blocos.size(), "linhas", linhas.length));
     }
 }

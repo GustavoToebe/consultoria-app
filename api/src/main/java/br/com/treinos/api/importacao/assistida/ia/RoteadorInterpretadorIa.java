@@ -4,11 +4,16 @@ import org.springframework.stereotype.Component;
 
 /**
  * Roteador dos interpretadores de IA: seleciona o provedor configurado (Gemini / Claude / Regras)
- * e garante fallback determinístico transparente para regras caso as chaves não estejam disponíveis
- * ou a chamada externa falhe.
+ * e garante fallback determinístico transparente para regras caso as chaves não estejam disponíveis,
+ * o envio esteja desligado ou a chamada externa falhe.
  */
 @Component
 public class RoteadorInterpretadorIa {
+
+    public record ExecucaoInterpretacao(ResultadoInterpretacao resultado, String modoEfetivo,
+                                        String provedorConfigurado, boolean fallbackParaRegras,
+                                        String motivoFallback) {
+    }
 
     private final ConfiguracaoIaImportacao config;
     private final InterpretadorGemini gemini;
@@ -26,31 +31,40 @@ public class RoteadorInterpretadorIa {
     }
 
     public ResultadoInterpretacao interpretar(ContextoIa contexto) {
+        return interpretarComModo(contexto).resultado();
+    }
+
+    public ExecucaoInterpretacao interpretarComModo(ContextoIa contexto) {
+        String provedor = config.getProvedor();
         // Fail-closed (LGPD): sem a chave explícita nada sai do servidor, mesmo com provedor e chave de API.
         if (!config.isEnviarDadosAoProvedor()) {
-            return regras.interpretar(contexto);
+            String motivo = "regras".equals(provedor) ? null : "ENVIO_DESLIGADO";
+            return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, false, motivo);
         }
-        String provedor = config.getProvedor();
 
-        if ("gemini".equals(provedor) && config.temChaveGemini()) {
+        if ("gemini".equals(provedor)) {
+            if (!config.temChaveGemini()) {
+                return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "CHAVE_AUSENTE");
+            }
             try {
-                return gemini.interpretar(contexto);
+                return new ExecucaoInterpretacao(gemini.interpretar(contexto), "IA", provedor, false, null);
             } catch (Exception e) {
-                // Fallback gracioso para regras em caso de falha de rede/cota
-                return regras.interpretar(contexto);
+                return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "ERRO_PROVEDOR");
             }
         }
 
-        if ("claude".equals(provedor) && config.temChaveClaude()) {
+        if ("claude".equals(provedor)) {
+            if (!config.temChaveClaude()) {
+                return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "CHAVE_AUSENTE");
+            }
             try {
-                return claude.interpretar(contexto);
+                return new ExecucaoInterpretacao(claude.interpretar(contexto), "IA", provedor, false, null);
             } catch (Exception e) {
-                // Fallback gracioso para regras em caso de falha de rede/cota
-                return regras.interpretar(contexto);
+                return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "ERRO_PROVEDOR");
             }
         }
 
         // Padrão determinístico: regras locais
-        return regras.interpretar(contexto);
+        return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, false, null);
     }
 }

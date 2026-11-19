@@ -127,10 +127,11 @@ public final class ExtratorDocx {
         } catch (ExtracaoRecusadaException e) {
             throw e;
         } catch (Exception e) {
-            // Em caso de XML corrompido, retorna o que conseguiu extrair
+            throw new ExtracaoRecusadaException("DOCX_CORROMPIDO");
         }
 
+        String cobertura = blocos.isEmpty() ? "SEM_TEXTO" : "COMPLETA";
         return new ResultadoExtracao("DOCX", textoCompleto.toString(), List.copyOf(blocos),
-                Map.of("paragrafosETabelas", blocos.size()));
+                Map.of("cobertura", cobertura, "paragrafosETabelas", blocos.size(), "blocos", blocos.size()));
     }
 }

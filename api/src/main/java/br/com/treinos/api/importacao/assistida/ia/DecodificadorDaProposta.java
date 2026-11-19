@@ -64,8 +64,9 @@ final class DecodificadorDaProposta {
                 JsonNode sugsNode = d.path("sugestoes");
                 if (sugsNode.isArray()) {
                     for (JsonNode s : sugsNode) {
+                        Double nota = s.hasNonNull("nota") ? s.get("nota").asDouble() : null;
                         sugestoes.add(new ResultadoInterpretacao.PropostaSugestao(
-                                s.path("termo").asText(), s.path("nota").asDouble(0.8)));
+                                s.path("termo").asText(), nota));
                     }
                 }
                 duvidas.add(new ResultadoInterpretacao.PropostaDuvida(

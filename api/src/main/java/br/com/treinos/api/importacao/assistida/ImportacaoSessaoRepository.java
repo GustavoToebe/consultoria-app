@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,6 +15,8 @@ import java.util.UUID;
 public interface ImportacaoSessaoRepository extends JpaRepository<ImportacaoSessao, UUID> {
 
     Optional<ImportacaoSessao> findByIdAndConsultoriaId(UUID id, UUID consultoriaId);
+
+    List<ImportacaoSessao> findTop20ByConsultoriaIdOrderByCriadoEmDesc(UUID consultoriaId);
 
     /** Trava a sessão até o fim da transação: confirmações do mesmo grupo não correm uma sobre a outra. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

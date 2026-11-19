@@ -22,10 +22,13 @@ import java.util.UUID;
 public class ImportacaoAssistidaDoAluno {
 
     private final ImportacaoSessaoRepository sessoes;
+    private final ImportacaoArquivoRepository arquivos;
     private final JsonMapper json;
 
-    public ImportacaoAssistidaDoAluno(ImportacaoSessaoRepository sessoes, JsonMapper json) {
+    public ImportacaoAssistidaDoAluno(ImportacaoSessaoRepository sessoes, ImportacaoArquivoRepository arquivos,
+                                      JsonMapper json) {
         this.sessoes = sessoes;
+        this.arquivos = arquivos;
         this.json = json;
     }
 
@@ -48,6 +51,11 @@ public class ImportacaoAssistidaDoAluno {
             }
             if (mudou) {
                 SessaoJson.gravarGrupos(json, sessao, novos);
+                boolean aindaAberta = novos.stream().anyMatch(g ->
+                        (!"IMPORTADO".equals(g.estado()) && !"IGNORAR".equals(g.destino())) || "ERRO".equals(g.estado()));
+                if (!aindaAberta) {
+                    arquivos.limparConteudoBytesDaSessao(sessao.getId());
+                }
             }
         }
         sessoes.flush();
