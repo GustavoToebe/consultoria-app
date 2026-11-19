@@ -197,8 +197,12 @@ for (const largura of [390, 1280]) {
         await expect(tabela.getByText('Sem responsável')).toBeVisible();
         // O tema pedido valeu: o texto da linha tem a cor do tema (sem isso, claro e escuro seriam o mesmo teste).
         expect(await tabela.getByText('Sem responsável').evaluate((e) => getComputedStyle(e).color)).toBe(rgb(TEMAS[tema].texto));
-        // Sem a permissão das atualizações, a API manda nulo: "—", nunca zero.
-        await expect(tabela.getByText('—')).toHaveCount(2);
+        // Sem a permissão das atualizações, a API manda nulo: "—", nunca zero (números (19/11): mais o "3 / —" de
+        // "Sem responsável", que não tem limite).
+        await expect(tabela.getByText('—', { exact: true })).toHaveCount(2);
+        await expect(tabela.getByText('3 / —', { exact: true })).toBeVisible();
+        // "Como contamos" nasce fechado (números (19/11)).
+        await page.getByRole('button', { name: /^Como contamos/ }).click();
         await expect(page.getByText(/Na equipe, atrasadas/)).toBeVisible();
         expect(naoTratadas).toEqual([]);
         expect(errosDaPagina).toEqual([]);
@@ -215,6 +219,9 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Mês a mês')).toBeVisible();
       await expect(page.getByText('Equipe hoje', { exact: true })).toHaveCount(0);
       await expect(page.getByText('Sem responsável')).toHaveCount(0);
+      // Com "Como contamos" aberto (nasce fechado, números (19/11)), a regra da equipe também não aparece.
+      await page.getByRole('button', { name: /^Como contamos/ }).click();
+      await expect(page.getByText(/^Alunos ativos no fim do mês/)).toBeVisible();
       await expect(page.getByText(/Na equipe, atrasadas/)).toHaveCount(0);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);

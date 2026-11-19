@@ -1,5 +1,5 @@
 import type { MesDeNumeros } from '../api/tipos';
-import { alunosELimite, contagemParaTela, linhasDaEquipe, MARCA_PARCIAL, resumoDasAtualizacoes, rotuloDoMes, rotuloDoMesCompleto, SEM_RESPONSAVEL, textoDoResumo, totalDoMes } from './numeros';
+import { alunosELimite, baseDoPercentualNoPrazo, contagemParaTela, linhasDaEquipe, MARCA_PARCIAL, mesAtual, paraRevisarDaEquipe, percentualNoPrazo, resumoDasAtualizacoes, rotuloDoMes, rotuloDoMesCompleto, SEM_RESPONSAVEL, textoDoResumo, totalDoMes } from './numeros';
 
 const mes = (m: string, extra: Partial<MesDeNumeros> = {}): MesDeNumeros => ({
   mes: m, parcial: false, alunosAtivos: 10, atualizacoesNoPrazo: 4, atualizacoesAtrasadas: 1, ...extra,
@@ -97,6 +97,46 @@ describe('tabela da equipe', () => {
     expect(alunosELimite({ alunosAtivos: 31, limite: 30 })).toBe('31 / 30');
     expect(alunosELimite({ alunosAtivos: 0, limite: 0 })).toBe('0 / 0');
     expect(alunosELimite({ alunosAtivos: 5, limite: null })).toBe('5 / sem limite');
-    expect(alunosELimite({ alunosAtivos: 3, limite: undefined })).toBe('3');
+    // números (19/11): "Sem responsável" não tem limite e mostra "—" depois da barra, alinhado com as outras linhas.
+    expect(alunosELimite({ alunosAtivos: 3, limite: undefined })).toBe('3 / —');
+    expect(alunosELimite({ alunosAtivos: 0, limite: undefined })).toBe('0 / —');
+  });
+});
+
+// números (19/11): indicadores do topo, só com o que a tela já mostra.
+describe('indicadores do topo', () => {
+  const mes = (parcial: boolean, noPrazo: number | null, atrasadas: number | null): MesDeNumeros =>
+    ({ mes: '2026-11', parcial, alunosAtivos: 10, atualizacoesNoPrazo: noPrazo, atualizacoesAtrasadas: atrasadas });
+
+  it('mesAtual é o parcial, não o último da lista', () => {
+    const atual = mes(true, 1, 1);
+    expect(mesAtual([atual, mes(false, 2, 2)])).toBe(atual);
+    expect(mesAtual([mes(false, 2, 2)])).toBeNull();
+    expect(mesAtual([])).toBeNull();
+  });
+
+  it('percentualNoPrazo: no prazo sobre o total; sem base ou com buraco, null', () => {
+    expect(percentualNoPrazo(mes(true, 3, 1))).toBe(75);
+    expect(percentualNoPrazo(mes(true, 2, 1))).toBeCloseTo(66.667, 2);
+    expect(percentualNoPrazo(mes(true, 0, 4))).toBe(0);
+    expect(percentualNoPrazo(mes(true, 0, 0))).toBeNull();
+    expect(percentualNoPrazo(mes(true, null, 1))).toBeNull();
+    expect(percentualNoPrazo(mes(true, 1, null))).toBeNull();
+  });
+
+  it('baseDoPercentualNoPrazo diz a base ao lado do percentual', () => {
+    expect(baseDoPercentualNoPrazo(mes(true, 3, 1))).toBe('3 de 4 atualizações');
+    expect(baseDoPercentualNoPrazo(mes(true, 1, 0))).toBe('1 de 1 atualização');
+    expect(baseDoPercentualNoPrazo(mes(true, 1000, 200))).toBe('1.000 de 1.200 atualizações');
+    expect(baseDoPercentualNoPrazo(mes(true, 0, 0))).toBeNull();
+    expect(baseDoPercentualNoPrazo(mes(true, null, 2))).toBeNull();
+  });
+
+  it('paraRevisarDaEquipe soma a coluna; sem equipe ou com nulo, null', () => {
+    expect(paraRevisarDaEquipe([{ paraRevisar: 5 }, { paraRevisar: 0 }, { paraRevisar: 1 }])).toBe(6);
+    expect(paraRevisarDaEquipe([{ paraRevisar: 0 }])).toBe(0);
+    expect(paraRevisarDaEquipe([{ paraRevisar: 5 }, { paraRevisar: null }])).toBeNull();
+    expect(paraRevisarDaEquipe(null)).toBeNull();
+    expect(paraRevisarDaEquipe([])).toBeNull();
   });
 });

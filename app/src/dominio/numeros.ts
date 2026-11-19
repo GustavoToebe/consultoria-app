@@ -114,12 +114,53 @@ export function linhasDaEquipe(n: Pick<NumerosDaConsultoria, 'equipe' | 'semResp
 
 /**
  * Coluna "Alunos ativos / limite": `12 / 30`; sem limite, `12 / sem limite` (limite nulo é "sem limite", D2, não falta de
- * dado, então não vira "—"); na linha "Sem responsável", só o número.
+ * dado, então não vira "—"); na linha "Sem responsável", que não tem limite, `3 / —` (números (19/11): a barra alinha
+ * com as outras linhas).
  */
 export function alunosELimite(l: Pick<LinhaDaTabelaDaEquipe, 'alunosAtivos' | 'limite'>): string {
   const alunos = contagemParaTela(l.alunosAtivos);
-  if (l.limite === undefined) return alunos;
+  if (l.limite === undefined) return `${alunos} / ${SEM_DADO}`;
   return `${alunos} / ${l.limite === null ? 'sem limite' : contagemParaTela(l.limite)}`;
+}
+
+/* ---------- Indicadores do topo (números (19/11)): só números que a tela já mostra, nada estimado ---------- */
+
+/** O mês corrente (o `parcial`, ainda não terminou); `null` se a API não mandou. */
+export function mesAtual(meses: readonly MesDeNumeros[]): MesDeNumeros | null {
+  return meses.find((m) => m.parcial) ?? null;
+}
+
+/**
+ * Percentual de atualizações no prazo no mês: no prazo ÷ (no prazo + atrasadas) × 100. `null` com um lado faltando ou
+ * sem nenhuma atualização no mês (percentual sem base, como no Financeiro), nunca 0% inventado.
+ */
+export function percentualNoPrazo(m: Pick<MesDeNumeros, 'atualizacoesNoPrazo' | 'atualizacoesAtrasadas'>): number | null {
+  const noPrazo = valor(m.atualizacoesNoPrazo);
+  const total = totalDoMes(m);
+  return noPrazo === null || total === null || total === 0 ? null : (noPrazo / total) * 100;
+}
+
+/** A base do percentual, ao lado dele (o percentual nunca sozinho): "3 de 4 atualizações"; sem base, `null`. */
+export function baseDoPercentualNoPrazo(m: Pick<MesDeNumeros, 'atualizacoesNoPrazo' | 'atualizacoesAtrasadas'>): string | null {
+  const noPrazo = valor(m.atualizacoesNoPrazo);
+  const total = totalDoMes(m);
+  if (noPrazo === null || total === null || total === 0) return null;
+  return `${contagemParaTela(noPrazo)} de ${contagemParaTela(total)} ${total === 1 ? 'atualização' : 'atualizações'}`;
+}
+
+/**
+ * "Para revisar" da consultoria hoje: a soma da coluna da tabela da equipe (membros e "Sem responsável" juntos cobrem
+ * todos os alunos). `null` sem a equipe (sem `EQUIPE_LER`) ou com um valor faltando (nenhuma soma com buraco).
+ */
+export function paraRevisarDaEquipe(linhas: readonly Pick<LinhaDaTabelaDaEquipe, 'paraRevisar'>[] | null): number | null {
+  if (!linhas || linhas.length === 0) return null;
+  let soma = 0;
+  for (const l of linhas) {
+    const v = valor(l.paraRevisar);
+    if (v === null) return null;
+    soma += v;
+  }
+  return soma;
 }
 
 
