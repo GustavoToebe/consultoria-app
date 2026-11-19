@@ -26,9 +26,15 @@ export const coresDoSegmento = (cores: Pick<Cores, 'superficie' | 'superficie2' 
  * Item EM EDIÇÃO (visual-ponytail, 17/11): o que a pessoa está mexendo agora (sessão, exercício, série, refeição) leva três
  * sinais juntos, todos na cor de ação: fundo `acaoSuave`, contorno `acao` com halo e o selo "Editando" (`SeloEditando`).
  * Não é a seleção neutra de chips e opções.
+ *
+ * Um nível de destaque por vez (séries no padrão da dieta, 19/11): a moldura de ação fica num nível só (o item da lista
+ * mestre, ou a faixa do painel em edição); o que se abre dentro do painel usa só `fundoDoBloco`, sem contorno, halo nem
+ * selo. `fundoDoBloco` é mais suave que `acaoSuave` (8%, não 13%): com 13% a marca amarela como cor de ação nos temas
+ * escuros deixava o contorno dos campos abaixo de 3:1 (`treinador/treino/blocoAberto.contraste.test.ts`).
  */
 export const coresDaEdicao = (cores: Pick<Cores, 'acao' | 'acaoSuave' | 'superficie'>) => ({
   fundo: cores.acaoSuave,
   borda: cores.acao,
   halo: `0px 0px 0px 4px ${misturar(cores.superficie, cores.acao, 0.18)}`,
+  fundoDoBloco: misturar(cores.superficie, cores.acao, 0.08),
 });

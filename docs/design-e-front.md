@@ -339,7 +339,7 @@ Qualquer outro lugar precisa de decisão nova.
     (é etapa; o destaque é do retorno atrasado ou de hoje), Aceita `sucesso`, encerradas `neutro`.
   - **Situação do membro da equipe** (11/11): texto neutro ao lado do perfil (convite pendente é espera).
   - **Cor da marca** (11/11): só nome e amostra, sem frase de emoção.
-  - **Prévia "Para o aluno"** do editor de séries (pedido do Gustavo, 11/11): fundo e borda na cor do estado, verde (`sucesso`) quando não há nada a corrigir, âmbar ou vermelho com aviso ou erro; o texto continua na cor do texto.
+  - **Prévia "Para o aluno"** do editor de séries (19/11, séries no padrão da dieta; antes, de 11/11, era caixa com fundo e borda na cor do estado): sem caixa, no rodapé da série aberta, com o ícone na cor do estado (✓ `sucesso` quando não há nada a corrigir, ⚠ âmbar com aviso, ⊗ vermelho com erro); o texto continua na cor do texto.
   - **Acesso do aluno** (`CartaoAcesso`, só a equipe vê; `dominio/cadastroDoAluno.seloDoAcesso`): Sem acesso `neutro`,
     Aguardando primeiro acesso `neutro` (quem age é o aluno; o treinador espera), Com acesso `sucesso`.
   - **Pagamento da inscrição** (`dominio/inscricoes.seloDoPagamento`): Aguardando `atencao` (exceção da cobrança; o
@@ -364,11 +364,29 @@ Qualquer outro lugar precisa de decisão nova.
   `gramasNaTela`; editor da dieta e dieta do aluno usam a mesma): ponto na cor de identificação e o número neutro,
   nunca o verde de `sucesso` nem o vermelho de `perigo` (a distância ΔE ≥ 40 entre categoria e status é conferida em
   `tokens.test.ts`). Tela nova de macro reutiliza a peça; não cria cor nem formato próprio.
+  **Regra (19/11, Gustavo): as cores de macro (proteína, carboidrato, gordura e fibra) são só marca, nunca cor de texto.** A
+  marca de 8 px precisa de ≥ 3:1 (`tokens.test.ts`); rótulo e valor ficam sempre em `texto` ou `textoSuave` (4,5:1). É por
+  isso que a fibra (verde-lima, `PALETA_DA_FIBRA`, fora das cores de identificação e a ΔE ≥ 40 do verde de `sucesso`) pôde
+  ser clara o bastante para diferir em luminosidade das outras três (ΔL* ≥ 10, para quem não distingue cores): no tema
+  claro e na areia ela passa 3:1, não 4,5:1, e por isso nunca vira texto. Conferido em 19/11: nenhuma das quatro aparece
+  como cor de texto no app (o `cor.cor` da dieta do aluno é a cor da refeição, outra categoria). Tela nova que precise
+  da cor de um macro em texto troca por marca + texto neutro; não escurece a marca.
 - **Feito e recém-marcado (11/11, `ui/marcar.coresDoMarcar`, `aluno/useMarcadoAgora`):** o ✓ do que já estava feito é
   neutro (`superficie3`, `bordaCampo`, ✓ em `textoSuave`); verde (`sucessoSuave`/`sucesso`) só no que a pessoa acabou
   de marcar nesta tela. Verde é comemoração curta, não o estado permanente da lista.
-- **Número (11/11):** indicador, total do dia e número da série em `texto`; a série em edição ganha contorno
-  `bordaCampo` e o rótulo "EDITANDO", não cor. Só o atrasado é `perigo` (`ui/indicador.corDoNumero`).
+- **Número (11/11):** indicador, total do dia e número da série em `texto`. Só o atrasado é `perigo`
+  (`ui/indicador.corDoNumero`). A série em edição é a regra do item seguinte (19/11), não cor no número.
+- **Um nível de destaque por vez (Gustavo, 19/11; séries no padrão da dieta):** o destaque de "em edição" (cor de
+  ação) aparece num nível só. A lista mestre marca o item escolhido (`ItemDaListaDoEditor`: fundo `acaoSuave`, contorno
+  de ação e o selo "Editando", que fica só ali); o painel que está sendo editado ganha a faixa vertical de 6 px à esquerda
+  (no treino, `CartaoExercicio` aberto, na cor de ação; na dieta, `CartaoRefeicao`, na cor de identificação da refeição);
+  o item aberto dentro do painel (a série) usa só o fundo tingido (`coresDaEdicao().fundoDoBloco`, 8% da ação sobre o
+  cartão), sem contorno, halo nem selo, com o chevron ↓ na cor de ação. Nada de moldura de ação dentro de moldura de
+  ação, nem o mesmo título repetido (a linha aberta já é o título do bloco; o nome acessível "Editando série N, tipo"
+  fica para o leitor de tela). O tingido é 8% e não o `acaoSuave` (13%) porque com a marca amarela como cor de ação nos
+  temas escuros o contorno dos campos ficava abaixo de 3:1 (`treinador/treino/blocoAberto.contraste.test.ts`). A dieta já
+  seguia a regra nas opções e nos alimentos (conferido no código em 19/11: opção é seção com fio, alimento é faixa
+  `superficie2` sem cor de ação).
 - **Publicar (11/11):** o botão diz o que publica ("Publicar treino", "Publicar dieta", "Publicar mobilidade",
   "Publicar alterações da pasta", "Publicar questionário", "Publicar anamnese", "Publicar perguntas") e só é o
   principal quando há o que publicar.
@@ -621,14 +639,24 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
   não passam a prop e seguem como antes.
 - Celular com 3 ou mais exercícios: "Exercício aberto" (`EscolhaDoExercicio`) abre a folha com todos.
 
-**Blocos de séries (`TabelaDeBlocos`)**
-- Quatro sinais que não se confundem: foco é o anel do `:focus-visible`; escolhida é a superfície de seleção neutra com
-  contorno forte e "EDITANDO"; categoria é a faixa lateral e o selo na cor do tipo; problema é o ícone na cor da gravidade
-  (carga vazia é âmbar, "Falta a carga").
+**Blocos de séries (`TabelaDeBlocos`; séries no padrão da dieta, 19/11)**
+- O painel do exercício aberto tem a faixa de ação à esquerda (`CartaoExercicio`) e, no cabeçalho, "Exercício N de M ·
+  grupo", o nome e, à direita, "Trocar", ⋯ (mover) e "Excluir".
+- Linha fechada sem borda (hover `superficie2`, chevron →), linhas separadas pelo fio `divisor`. A aberta é um bloco só
+  com o editor embaixo (fundo `coresDaEdicao().fundoDoBloco`, cantos 14, chevron ↓ na cor de ação), sem contorno, halo,
+  selo "Editando" nem o título repetido; só uma aberta por vez e tocar na aberta (ou "Fechar edição") fecha. Alça de
+  arrastar à esquerda e ⋯ (mover) à direita de cada linha, fora do botão dela.
+- Quatro sinais que não se confundem: foco é o anel do `:focus-visible`; aberta é o fundo tingido; categoria é só o selo
+  na cor do tipo (a faixa lateral da linha saiu); problema é o ícone na cor da gravidade (carga vazia é âmbar, "Falta a
+  carga").
 - Nome acessível de cada linha começa por "Série N · tipo" e traz quantidade, repetições, descanso e o que varia entre as
   séries do bloco (`textoAcessivelDoBloco`, `textoDaVariacao`). Resumo do exercício: "Este exercício: N blocos · M séries"
   (`textoDeBlocosESeries`).
-- A edição completa do bloco escolhido fica abaixo da tabela (`EditorSeries`, `EditorDoGrupoDeSeries`).
+- A edição completa do bloco aberto fica logo abaixo da linha dele (`EditorSeries`, `EditorDoGrupoDeSeries`), em seções
+  separadas por fios: Tipo e técnica, Estrutura, Carga e RIR, Observação. Rodapé: "Para o aluno" à esquerda e "Excluir
+  série" e "Fechar edição" à direita. Subir e descer saíram do bloco: ficam no ⋯ de cada linha, fora do botão dela
+  (Mover para cima/baixo, a alternativa ao arrastar pela alça, WCAG 2.5.7), como nos alimentos da dieta. O bloco é a
+  região "Editando série N, tipo"; "Fechar edição" devolve o foco à linha.
 
 **Salvamento, validação e aplicação (três estados separados)**
 - Salvamento (`seloDoEditor`, `dominio/barraDoEditor.ts`): "Alterações não salvas" em neutro com lápis (D12, não é erro),
@@ -642,7 +670,8 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
   `primeiraPendencia`, `estadoDaSessao`, `textoAcessivelDoBloco`, `textoDaVariacao`.
 
 **Cor (conferida no código)**
-- Prévia "Para o aluno" (`EditorDoGrupoDeSeries`): verde quando não há nada a corrigir; âmbar ou vermelho com aviso ou erro.
+- Prévia "Para o aluno" (`EditorDoGrupoDeSeries`): ícone ✓ `sucesso` quando não há nada a corrigir; ⚠ âmbar ou ⊗ vermelho
+  com aviso ou erro; sem caixa (19/11).
 - "Alterações não salvas" é neutro no código. A linha dessa situação na tabela de 4.5 ainda diz `atencao`: a decisão
   está pendente (plano, decisão 4 e passo 4). Não conferido qual vale.
 

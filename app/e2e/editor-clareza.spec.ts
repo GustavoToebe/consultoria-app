@@ -114,7 +114,8 @@ for (const largura of [390, 1280]) {
     await expect(linhaDaSerie(page, /^Série 1 · FS/, true)).toBeVisible();
     await expect(page.getByText(/3×3 · FS · 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
     // A série aberta diz o que se edita; a faixa "Exercício 1 · nome" saiu (o exercício já está no alto do cartão).
-    await expect(page.getByText('Editando: Série 1 · Preparação · FS', { exact: true })).toBeVisible();
+    // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
+    await expect(page.getByRole('region', { name: 'Editando série 1, Preparação · FS', exact: true })).toBeVisible();
     await expect(page.getByText('Exercício 1 · Agachamento fictício', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('textbox', { name: 'Série 3 · Mínimo (%)', exact: true })).toHaveValue('85');
     await expect(page.getByRole('textbox', { name: 'Série 3 · Máximo (%)', exact: true })).toHaveValue('90');

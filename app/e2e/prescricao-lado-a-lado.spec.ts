@@ -37,7 +37,8 @@ for (const largura of [1280, 1440, 1920]) {
   test(`Estrutura no PC: ${largura >= 1440 ? 'Séries, Repetições e Descanso numa linha' : 'Repetições e Descanso juntos'} (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     await abrir(page);
-    await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+    // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
+    await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
     const { series, maximo, descanso } = await linhaDaEstrutura(page);
     // Repetições e Descanso sempre na mesma linha, nesta ordem; a partir de 1440 as Séries também (centros alinhados: os
     // controles têm alturas diferentes).
@@ -67,7 +68,7 @@ for (const largura of [1280, 1440, 1920]) {
   test(`largura do treino: sessão e inspetor (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     await abrir(page);
-    await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
     const caixa = async (nome: RegExp | string) => (await page.getByText(nome, { exact: nome instanceof RegExp ? undefined : true }).first().boundingBox())!;
     // 10/11: nome, dia, tipo e observação da sessão moram no recolhido "Editar sessão", observação embaixo do nome.
     await page.getByRole('button', { name: /^Editar sessão/ }).click();
@@ -76,7 +77,7 @@ for (const largura of [1280, 1440, 1920]) {
     expect(observacao.y).toBeGreaterThan(nome.y + nome.height);
     await page.getByRole('button', { name: /^Nome de exibição e instruções/ }).click();
     const exibicao = (await page.getByRole('textbox', { name: 'Nome de exibição' }).boundingBox())!;
-    const series = await caixa(/^Editando: Série 1/);
+    const series = (await page.getByRole('region', { name: /^Editando série 1(,|$)/ }).boundingBox())!;
     // Uma coluna só em qualquer largura: as séries ficam abaixo dos dados do exercício, sem coluna vazia ao lado.
     expect(series.y).toBeGreaterThan(exibicao.y + exibicao.height);
   });
@@ -86,7 +87,7 @@ test('Estrutura quebra a linha no celular, sem passar da borda (390px)', async (
   await page.setViewportSize({ width: 390, height: 900 });
   await abrir(page);
   await page.getByRole('button', { name: 'Editar Supino reto com barra', exact: true }).click();
-  await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+  await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
   const { series, maximo, descanso } = await linhaDaEstrutura(page);
   // As faixas seguem uma embaixo da outra e o descanso desce para a linha seguinte.
   expect(descanso.y).toBeGreaterThan(series.y);

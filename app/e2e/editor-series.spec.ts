@@ -37,7 +37,8 @@ for (const largura of [390, 1280]) {
     await expect(campo('Série 3 · Mínimo (%)')).toHaveValue('85');
     await expect(campo('Série 3 · Máximo (%)')).toHaveValue('90');
     // O título do grupo aberto diz o que se edita (o tipo como o treinador lê); "Para o aluno" numa linha só, com os números.
-    await expect(page.getByText('Editando: Série 1 · Preparação · FS', { exact: true })).toBeVisible();
+    // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
+    await expect(page.getByRole('region', { name: 'Editando série 1, Preparação · FS', exact: true })).toBeVisible();
     await expect(page.getByText(/3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
     await novaSerie(page, 'Adicionar WS');
     // A técnica não é um tipo: a série é WS e o rest pause vai dentro dela.
@@ -47,7 +48,7 @@ for (const largura of [390, 1280]) {
     // Três grupos, três abas; a nova (a 3ª, WS com Rest pause) é a aberta.
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(3);
     await expect(linhaDaSerie(page, /^Série 3 · WS/, true)).toBeVisible();
-    await expect(page.getByText(/^Editando: Série \d · Trabalho · WS \+ Rest pause$/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série \d, Trabalho · WS \+ Rest pause$/ })).toBeVisible();
     await expect(page.getByText(/1×3 a 6 · WS \+ Rest pause/).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Técnica da série: Rest pause. Escolher.', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

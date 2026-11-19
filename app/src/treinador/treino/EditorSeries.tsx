@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import type { Configuracao, PapelDaSerie, Serie, TipoDeTecnica } from '../../api/tipos';
-import { agrupar, type GrupoDeSeries } from '../../dominio/agrupamento';
+import { agrupar, tituloDoGrupoDeSeries, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { adicionarSerie, alterarGrupo, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
 import { grupoComSerie, uidDaAbaAposMudar } from '../../dominio/inspetorDoTreino';
 import { restPauseNestaSerie } from '../../dominio/exemplosDePrescricao';
@@ -75,7 +75,10 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   const controlado = aoAbrirGrupo !== undefined;
 
   const guardado = controlado ? grupoAbertoUid ?? null : abertoInterno;
-  const grupoAberto = grupoComSerie(series, guardado);
+  // Séries no padrão da dieta (19/11): tocar na série aberta fecha. O sentinela vem antes do `grupoComSerie`, que trata
+  // uid desconhecido (e nulo) como "o primeiro grupo"; nulo continua sendo a primeira aberta, como antes.
+  const fechado = guardado === NENHUM_BLOCO_ABERTO;
+  const grupoAberto = fechado ? null : grupoComSerie(series, guardado);
   const uidAberto = grupoAberto?.series[0].uid ?? null;
   // Compara com o guardado, não com o exibido: nulo (ou a 2ª série do grupo) precisa virar o uid certo ao mover ou tirar séries.
   const definirAberto = (uid: string | null) => {
@@ -86,7 +89,9 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   /** Toda mudança nas séries passa por aqui: a aba aberta segue o grupo (ou passa ao vizinho, se ele sumiu). */
   const aoMudar = (novas: Serie[], abrir?: string | null) => {
     aoMudarFora(novas);
-    definirAberto(abrir !== undefined ? abrir : uidDaAbaAposMudar(series, novas, uidAberto));
+    // Tudo fechado continua fechado (arrastar não reabre a série 1); série nova e receita abrem a delas.
+    if (abrir !== undefined) definirAberto(abrir);
+    else if (!fechado) definirAberto(uidDaAbaAposMudar(series, novas, uidAberto));
   };
   const cheio = series.length >= LIMITE_SERIES;
   const tipos = opcoesDeTipo(cfg, series);
@@ -116,18 +121,19 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   const botoesDaNova = cardio || cheio ? null : <BotoesDeNovaSerie config={cfg} aoAdicionar={adicionar} />;
   // Estreito (390): a linha vira divulgação e o editor abre logo abaixo da série escolhida (guia premium pág. 9).
   const empilhado = largura !== null && largura < LARGURA_DAS_COLUNAS;
-  const editor = g ? <EditorGrupo key={g.series[0].uid} largo={largo} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga}
-    tipos={tipos} podeMais={!cheio} primeiro={iAberto === 0} ultimo={iAberto === grupos.length - 1} numero={iAberto + 1}
+  const editor = g ? <EditorGrupo key={g.series[0].uid} aoFechar={() => definirAberto(NENHUM_BLOCO_ABERTO)} largo={largo} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga}
+    tipos={tipos} podeMais={!cheio} numero={iAberto + 1}
     porSerie={validacao.porSerieErros}
-    aoMover={(d) => aoMudar(moverGrupo(series, iAberto, d))}
     aoAlterar={(m) => alterar(g, m)}
     aoMudarSeries={(novas) => aoMudar(novas)}
     aoQuantidade={(n) => aoMudar(mudarQuantidade(series, g, n, cfg))}
     aoRestPauseNaUltima={() => aoMudar(restPauseNestaSerie(series, g, cfg))}
     aoRemover={() => aoMudar(removerGrupo(series, g))} /> : null;
   return <View style={estilos.lista} onLayout={medir}>
-    {grupos.length > 0 ? <TabelaDeBlocos ativa={uidAberto ?? grupos[0].series[0].uid} aoMudar={definirAberto}
+    {grupos.length > 0 ? <TabelaDeBlocos ativa={uidAberto} aoMudar={(uid) => definirAberto(uid ?? NENHUM_BLOCO_ABERTO)}
       empilhado={empilhado} detalhe={editor}
+      // "Mover para cima/baixo" do ⋯ de cada linha (a alternativa ao arrastar): o bloco anda e a aberta vai junto.
+      aoMover={(i, d) => aoMudar(moverGrupo(series, i, d))}
       // Arrastar (18/11): a mesma regra da seta (`moverGrupo`), um vizinho por vez, achando o bloco pela 1ª série dele.
       aoSoltar={(de, para) => {
         const uid = grupos[de]?.series[0].uid;
@@ -147,6 +153,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
           cargaFalta: faltaCarga,
           resumo: resumoDoBloco(x, cfg),
           problema: problemaDaAba(nivelDoGrupo(validacao.porSerieErros, x)),
+          edicao: `Editando série ${i + 1}${cardio ? '' : `, ${tituloDoGrupoDeSeries(x, cfg)}`}`,
         };
       })}
       // Cheio, o botão sai do fim da tabela: desabilitado ele perdia o tracejado e o motivo ficava escondido.
@@ -194,6 +201,9 @@ function problemaDaAba(nivel: Nivel): 'perigo' | 'atencao' | undefined {
  * cabem; o inspetor de 1280 (uns 560 px) empilha.
  */
 const LARGURA_LADO_A_LADO = 640;
+/** Nenhuma série aberta (tocar na aberta ou "Fechar edição"): nunca é uid de série (`novoUid` gera UUID). */
+const NENHUM_BLOCO_ABERTO = 'nenhum-bloco-aberto';
+
 /**
  * Última largura medida: o cartão do exercício remonta ao trocar de exercício, e todos têm a mesma largura (sem piscar).
  * shortcut: na 1ª montagem ainda não há medida e vale a janela (`useCamposLadoALado`), um quadro só; se piscar, medir mais acima.

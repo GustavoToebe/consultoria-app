@@ -34,10 +34,10 @@ jest.mock('../FolhaDeAcoes', () => {
     acoes.map((a) => <Pressable key={a.rotulo} accessibilityLabel={`${a.rotulo}, ${a.detalhe}`} onPress={a.aoTocar} />) };
 });
 jest.mock('./TabelaDeBlocos', () => ({
-  TabelaDeBlocos: ({ linhas: abas, ativa, aoMudar, depois, detalhe }: { linhas: { valor: string; rotulo: string }[]; ativa: string; aoMudar: (v: string) => void; depois?: unknown; detalhe?: unknown }) => {
+  TabelaDeBlocos: ({ linhas: abas, ativa, aoMudar, depois, detalhe }: { linhas: { valor: string; rotulo: string }[]; ativa: string | null; aoMudar: (v: string | null) => void; depois?: unknown; detalhe?: unknown }) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createElement } = require('react'); const { Pressable, View } = require('react-native');
-    return createElement(View, null, ...abas.map((a) => createElement(Pressable, { key: a.valor, accessibilityRole: 'tab', accessibilityLabel: a.rotulo, accessibilityState: { selected: a.valor === ativa }, onPress: () => aoMudar(a.valor) })), detalhe, depois);
+    return createElement(View, null, ...abas.map((a) => createElement(Pressable, { key: a.valor, accessibilityRole: 'tab', accessibilityLabel: a.rotulo, accessibilityState: { selected: a.valor === ativa }, onPress: () => aoMudar(a.valor === ativa ? null : a.valor) })), detalhe, depois);
   },
 }));
 jest.mock('../../ui/Escolha', () => ({
@@ -150,9 +150,9 @@ describe('EditorSeries com a aba controlada', () => {
   it('sem nada guardado, mover o 1º grupo para baixo leva a aba junto', () => {
     const aoAbrir = jest.fn();
     const arvore = montar(<Controlado inicial={null} aoAbrir={aoAbrir} />);
-    // arrastar (18/11): subir e descer ficam no ⋯ da série aberta.
-    tocar(arvore, 'Mais ações da série 1');
-    tocar(arvore, 'Mover para baixo, Descer série 1 uma posição.');
+    // Séries no padrão da dieta (19/11): subir e descer ficam no ⋯ de cada linha da tabela (`aoMover` da `TabelaDeBlocos`).
+    const tabela = arvore.root.findAll((n) => typeof n.props.aoMover === 'function')[0];
+    Renderer.act(() => tabela.props.aoMover(0, 1));
     expect(aoAbrir).toHaveBeenLastCalledWith('a1');
     expect(abaSelecionada(arvore)).toMatch(/^Série 2/);
   });
@@ -164,6 +164,39 @@ describe('EditorSeries com a aba controlada', () => {
     expect(abaSelecionada(arvore)).toMatch(/^Série 2/);
     tocar(arvore, 'Uma série completa a menos');
     expect(aoAbrir).toHaveBeenLastCalledWith('a1');
+    expect(abaSelecionada(arvore)).toMatch(/^Série 2/);
+  });
+
+  // Séries no padrão da dieta (19/11): só uma aberta por vez e tocar na aberta fecha.
+  it('tocar na aberta e "Fechar edição" fecham; tudo fechado, mexer não reabre; o "ir ao primeiro" reabre', () => {
+    const aoAbrir = jest.fn();
+    const arvore = montar(<Controlado inicial="b1" aoAbrir={aoAbrir} />);
+    tocar(arvore, rotulosDasAbas(arvore)[1]);
+    expect(abaSelecionada(arvore)).toBeUndefined();
+    expect(arvore.root.findAll((n) => n.props.accessibilityLabel === 'Fechar edição da série 2')).toHaveLength(0);
+    // Arrastar com tudo fechado não abre a série 1 (o nulo guardado valeria "a primeira").
+    const tabela = arvore.root.findAll((n) => typeof n.props.aoSoltar === 'function')[0];
+    Renderer.act(() => tabela.props.aoSoltar(1, 0));
+    expect(arvore.root.findByType(EditorSeries).props.series.map((s: Serie) => s.uid)).toEqual(['b1', 'a1', 'a2']);
+    expect(abaSelecionada(arvore)).toBeUndefined();
+    // Abrir de novo e fechar pelo botão do rodapé.
+    tocar(arvore, rotulosDasAbas(arvore)[1]);
+    expect(abaSelecionada(arvore)).toMatch(/^Série 2/);
+    tocar(arvore, 'Fechar edição da série 2');
+    expect(abaSelecionada(arvore)).toBeUndefined();
+  });
+
+  it('fechada pelo editor de treino, o "ir ao primeiro" reabre mesmo a série que estava aberta', () => {
+    const aoAbrir = jest.fn();
+    const com = (aberto: string | null) => <EditorSeries series={SERIES} config={null} cardio={false} aoMudar={() => undefined} grupoAbertoUid={aberto} aoAbrirGrupo={aoAbrir} />;
+    const arvore = montar(com('b1'));
+    tocar(arvore, rotulosDasAbas(arvore)[1]);
+    const fechado = aoAbrir.mock.calls.at(-1)?.[0];
+    // "Fechado" não é nulo: nulo guardado é "a primeira aberta".
+    expect(fechado).not.toBeNull();
+    Renderer.act(() => arvore.update(com(fechado)));
+    expect(abaSelecionada(arvore)).toBeUndefined();
+    Renderer.act(() => arvore.update(com('b1')));
     expect(abaSelecionada(arvore)).toMatch(/^Série 2/);
   });
 

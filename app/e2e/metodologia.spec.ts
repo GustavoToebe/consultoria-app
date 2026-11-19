@@ -181,7 +181,8 @@ for (const largura of [390, 1280]) {
     await linhaDaSerie(page, /^Série 2 · WS/).click();
     await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
     await expect(page.getByText(/1×10 · WS \+ Pirâmide decrescente/).first()).toBeVisible();
-    await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
+    // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
+    await expect(page.getByRole('region', { name: /^Editando série 2(,|$)/ })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

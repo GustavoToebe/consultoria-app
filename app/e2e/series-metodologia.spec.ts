@@ -148,7 +148,8 @@ for (const largura of [390, 1280]) {
     await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
     await expect(page.getByRole('textbox', { name: 'Reps mín.', exact: true })).toHaveCount(0);
     await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
-    await expect(page.getByText(/^Editando: Série \d · Trabalho · WS com Cluster$/)).toBeVisible();
+    // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
+    await expect(page.getByRole('region', { name: /^Editando série \d, Trabalho · WS com Cluster$/ })).toBeVisible();
     await expect(page.getByText(/1×6 \(4\+2\) · WS com Cluster 15 s/).first()).toBeVisible();
     await expect(page.getByText('Blocos 4+2 = 6 reps', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -356,7 +357,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: /^Substituir as séries por / })).toHaveCount(0);
     // Dois grupos, duas abas; a aberta é a última (WS com Cluster) e o título dela traz a faixa dos números.
     await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
-    await expect(page.getByText(/^Editando: Série \d · Trabalho · WS com Cluster$/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série \d, Trabalho · WS com Cluster$/ })).toBeVisible();
     await expect(page.getByText(/1×16 \(4×4\) · WS com Cluster/).first()).toBeVisible();
     await expect(page.getByText(/1×3 a 6 · WS/)).toHaveCount(0);
     await linhaDaSerie(page, /^Série 1 · FS/).click();
@@ -600,7 +601,8 @@ for (const largura of [390, 1280]) {
     const api = await modeloDeSeries(page, [aq(1), aq(2), aq(3), serieInicial]);
     const abas = linhaDaSerie(page, /^Série \d/);
     await expect(abas).toHaveCount(2);
-    await linhaDaSerie(page, /^Série 1 · Aquecimento/).click();
+    // Séries no padrão da dieta (19/11): a Série 1 já nasce aberta, e tocar na aberta fecha; só confere que está aberta.
+    await expect(linhaDaSerie(page, /^Série 1 · Aquecimento/)).toHaveAttribute('aria-expanded', 'true');
     await page.getByRole('textbox', { name: 'Série 1 · Mínimo (%)', exact: true }).fill('40');
     // Continua uma aba só (as séries 2 e 3 seguem em branco no mesmo grupo) e nenhuma ficou com erro.
     await expect(abas).toHaveCount(2);

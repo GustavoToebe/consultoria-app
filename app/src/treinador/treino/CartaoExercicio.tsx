@@ -177,6 +177,10 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
         // cartão com contorno e faixas próprios (`EditorDoGrupoDeSeries`); aberto, o topo vira faixa para marcar onde o
         // exercício começa.
         { borderWidth: bordas.bloco, borderColor: comErro ? cores.perigo : cores.borda, backgroundColor: cores.superficie },
+        // Séries no padrão da dieta (19/11): aberto, o painel em edição ganha a faixa da esquerda na cor de ação, a mesma
+        // barra do cartão da refeição na dieta (`CartaoRefeicao`, `BARRA_DA_REFEICAO`). É o único destaque de ação do
+        // painel: a série aberta dentro dele usa só o fundo tingido. Com erro, o contorno fica vermelho e a faixa não muda.
+        p.aberto ? { borderLeftWidth: FAIXA_DO_PAINEL, borderLeftColor: cores.acao } : null,
       ]}>
       {/* A faixa do exercício é mais forte que as de dentro dele (`faixaForte`), aberto ou fechado. */}
       <View nativeID={idDoExercicio(e.uid)} style={[estilos.topo, p.alca ? estilos.topoComAlca : null, { backgroundColor: cores.faixaForte }, p.aberto && { borderBottomWidth: LINHA_DA_FAIXA, borderBottomColor: cores.bordaCampo }]}>
@@ -214,8 +218,8 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
           {largo
             ? <Botao rotulo="Trocar" rotuloAcessivel={`Trocar ${e.nome || 'o exercício'}`} tipo="acao" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
             : <IconeBotao moldura Icone={ArrowLeftRight} rotulo={`Trocar ${e.nome || 'o exercício'}`} aoTocar={p.aoEscolherDaBiblioteca} />}
-          <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${nomeDoExercicio}`} Icone={Trash2} aoTocar={p.aoRemover} />
           {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações de ${nomeDoExercicio}`} aoTocar={() => setMenu(true)} /> : null}
+          <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${nomeDoExercicio}`} Icone={Trash2} aoTocar={p.aoRemover} />
           {p.aoAbrir ? <IconeBotao moldura Icone={p.aberto ? ChevronUp : ChevronDown} rotulo={p.aberto ? 'Fechar exercício' : 'Editar exercício'} aoTocar={p.aoAbrir} /> : null}
         </View>
       </View>
@@ -231,6 +235,12 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
     </AlvoDeRolagem>
   );
 }
+
+/**
+ * Largura da faixa do painel aberto: a mesma 6 da barra da refeição na dieta (`BARRA_DA_REFEICAO`, local do `CartaoRefeicao`).
+ * shortcut: valor repetido nos dois editores; se mudar, extrair um token (`FAIXA_DO_PAINEL` em `tema/tokens.ts`) e usar nos dois.
+ */
+const FAIXA_DO_PAINEL = 6;
 
 /** "Nome de exibição e instruções", com o que já está preenchido entre parênteses (o nome sempre está). */
 function textoDosExtras(e: ExercicioPlano): string {

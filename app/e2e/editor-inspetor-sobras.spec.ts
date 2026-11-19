@@ -57,9 +57,10 @@ for (const largura of LARGURAS) {
     await expect(page.getByLabel(/Descanso depois do grupo/).first()).toHaveValue('90');
     if (duasColunas(largura)) {
       // O grupo toma o lugar do exercício no inspetor; escolher um exercício volta a ele.
-      await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toHaveCount(0);
+      // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
+      await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toHaveCount(0);
       await page.getByRole('button', { name: /^Exercício 1 de 7: Supino reto com barra/ }).click();
-      await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+      await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
       await expect(page.getByRole('button', { name: /^Desfazer o grupo Superset/ })).toHaveCount(0);
     }
     expect(naoTratadas).toEqual([]);
@@ -73,7 +74,7 @@ for (const [largura, escuro] of [[1920, false], [1920, true], [1440, false], [12
     await tema(page, escuro);
     const { naoTratadas, errosDaPagina } = await abrirTreino(page);
     if (!duasColunas(largura)) await page.getByRole('button', { name: 'Editar Supino reto com barra', exact: true }).click();
-    await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
     const caixa = async (b: ReturnType<Page['getByRole']>, nome: string) => {
       const r = await b.first().boundingBox();
       if (!r) throw new Error(`sem ${nome}`);

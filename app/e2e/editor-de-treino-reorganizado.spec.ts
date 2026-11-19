@@ -59,6 +59,19 @@ async function abrirModelo(page: Page) {
 
 const blocos = (page: Page) => linhaDaSerie(page, /^Série \d/);
 const bloco = (page: Page, n: number) => linhaDaSerie(page, new RegExp(`^Série ${n}( ·|,)`));
+/**
+ * Captura para a crítica visual (só com `CAPTURAS`, fora do repositório): a página rola dentro de um contêiner, então o
+ * `fullPage` não pega a tabela; a janela cresce, a tabela vem para o meio e a janela volta a 900 depois.
+ */
+async function capturar(page: Page, nome: string, largura: number) {
+  if (!process.env.CAPTURAS) return;
+  await page.setViewportSize({ width: largura, height: 1500 });
+  await page.getByRole('group', { name: 'Blocos do exercício' }).evaluate((e) => e.scrollIntoView({ block: 'center' }));
+  await page.screenshot({ path: `${process.env.CAPTURAS}/${nome}.png` });
+  await page.setViewportSize({ width: largura, height: 900 });
+  // De volta a 900, a tabela pode ficar sob a barra grudada; o foco do clique a rolaria no meio do toque (`focusin`).
+  await page.getByRole('group', { name: 'Blocos do exercício' }).evaluate((e) => e.scrollIntoView({ block: 'center' }));
+}
 const semRolagemLateral = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 /** Base da barra grudada do editor (a única `position: sticky` no topo). */
 const baseDaBarra = (page: Page) => page.evaluate(() => {
@@ -94,12 +107,14 @@ test.describe('PC (1280)', () => {
     // Foco = anel do teclado; a escolhida tem outro fundo: os dois sinais não se confundem.
     await page.keyboard.press('Shift');
     expect(await bloco(page, 2).evaluate((e) => parseFloat(getComputedStyle(e).outlineWidth))).toBeGreaterThan(0);
-    const fundo = (n: number) => bloco(page, n).evaluate((e) => getComputedStyle(e).backgroundColor);
-    expect(await fundo(2)).not.toBe(await fundo(1));
+    // Séries no padrão da dieta (19/11): o fundo da aberta é o do bloco dela (linha e editor juntos), não o da linha.
+    const fundoDaFocada = await bloco(page, 2).evaluate((e) => getComputedStyle(e).backgroundColor);
+    expect(fundoDaFocada).not.toBe(await page.getByTestId('bloco-aberto').evaluate((e) => getComputedStyle(e).backgroundColor));
     await page.keyboard.press('Enter');
     await expect(bloco(page, 2)).toHaveAttribute('aria-expanded', 'true');
     await expect(bloco(page, 1)).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
+    // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
+    await expect(page.getByRole('region', { name: /^Editando série 2(,|$)/ })).toBeVisible();
     await page.keyboard.press('ArrowDown');
     await expect(bloco(page, 3)).toBeFocused();
     await page.keyboard.press('Space');
@@ -124,11 +139,12 @@ test.describe('PC (1280)', () => {
     const estado = page.getByRole('button', { name: /· Ir à primeira pendência$/ });
     await expect(estado).toBeVisible();
     // Erro = ícone na cor da gravidade (e o nome acessível diz); a borda fica para a seleção e a faixa para a categoria.
-    await expect(bloco(page, 2).locator('svg')).toHaveCount(0);
+    // Séries no padrão da dieta (19/11): a linha sempre tem o chevron; o ícone do problema é o segundo desenho.
+    await expect(bloco(page, 2).locator('svg')).toHaveCount(1);
     await page.getByRole('button', { name: /^Exercício 2 de 7:/ }).click();
     await expect(bloco(page, 2)).toHaveAccessibleName(/, com problema a corrigir$/);
     await expect(bloco(page, 2)).toHaveAttribute('aria-expanded', 'false');
-    await expect(bloco(page, 2).locator('svg')).toHaveCount(1);
+    await expect(bloco(page, 2).locator('svg')).toHaveCount(2);
     await expect(page.getByText('Pronto para publicar', { exact: true })).toHaveCount(0);
     await estado.click();
     await expect(page.getByRole('button', { name: /^Exercício 2 de 7:/ })).toHaveAttribute('aria-current', 'true');
@@ -303,13 +319,25 @@ for (const largura of [390, 768, 1280, 1920]) {
         expect(c.x).toBeGreaterThanOrEqual(0);
         expect(c.x + c.width).toBeLessThanOrEqual(largura);
       }
-      // A linha escolhida é neutra (guia pág. 9): fundo de superfície (claro no claro, escuro no escuro, prova que o tema
-      // valeu), contorno na cor do texto e o marcador "Editando".
+      // Séries no padrão da dieta (19/11): a linha aberta e o editor formam um bloco só, de fundo levemente tingido (claro
+      // no claro, escuro no escuro, prova que o tema valeu), sem o marcador "Editando" (ele fica só no item da lista mestre).
       const escolhida = linhaDaSerie(page, /^Série \d/, true);
-      const fundo = await escolhida.evaluate((e) => getComputedStyle(e).backgroundColor);
+      const fundo = await page.getByTestId('bloco-aberto').evaluate((e) => getComputedStyle(e).backgroundColor);
       const soma = (fundo.match(/\d+/g) ?? []).slice(0, 3).reduce((t, v) => t + Number(v), 0);
       expect(escuro ? soma < 382 : soma > 382).toBe(true);
-      await expect(escolhida.getByText('Editando', { exact: true })).toBeVisible();
+      await expect(escolhida.getByText('Editando', { exact: true })).toHaveCount(0);
+      await capturar(page, `serie-aberta-${largura}-${tema}`, largura);
+      // Tocar na aberta fecha (um bloco por vez); sem bloco aberto, nenhuma linha fica tingida.
+      await escolhida.click();
+      await expect(page.getByTestId('bloco-aberto')).toHaveCount(0);
+      await capturar(page, `serie-fechada-${largura}-${tema}`, largura);
+      await bloco(page, 1).click();
+      await expect(page.getByTestId('bloco-aberto')).toHaveCount(1);
+      // "Fechar edição" some com o bloco: o foco volta à linha da série, não ao corpo da página (WCAG 2.4.3).
+      await page.getByRole('button', { name: 'Fechar edição da série 1', exact: true }).click();
+      await expect(page.getByTestId('bloco-aberto')).toHaveCount(0);
+      await expect(bloco(page, 1)).toBeFocused();
+      await bloco(page, 1).click();
       // Alvo de 44 px pelo estilo da própria linha (o primitivo descarta `style` em função: este teste o pegou).
       for (const n of [1, 2, 3]) expect(await bloco(page, n).evaluate((e) => parseFloat(getComputedStyle(e).minHeight))).toBeGreaterThanOrEqual(44);
       // Hover numa linha não escolhida muda o fundo dela.

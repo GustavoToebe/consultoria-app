@@ -49,7 +49,8 @@ test.describe('editor de treino em janela larga (1920)', () => {
 
   test('o conteúdo usa o espaço todo ao lado do menu, sem faixas vazias nem rolagem na horizontal', async ({ page }) => {
     await abrir(page, false);
-    await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+    // Séries no padrão da dieta (19/11): o título "Editando: Série N · tipo" saiu; vale o nome acessível do bloco aberto.
+    await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
     // Menu lateral de 240 px; com o limite antigo (1440) o título começava em ~412 px. Agora logo depois do menu e do padding (~308).
     const titulo = await page.getByRole('heading', { level: 1 }).boundingBox();
     expect(titulo!.x).toBeLessThan(340);
@@ -63,7 +64,7 @@ test.describe('editor de treino no PC (1440)', () => {
   test('lista com o escolhido realçado, inspetor, abas das séries e "Nova série"', async ({ page }) => {
     const api = await abrir(page, false);
     // Em duas colunas o inspetor já abre no 1º exercício.
-    await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(item(page, 1, 'Supino reto com barra')).toHaveAttribute('aria-current', 'true');
 
@@ -81,7 +82,7 @@ test.describe('editor de treino no PC (1440)', () => {
     await expect(abaSelecionada(page)).toHaveAccessibleName(/^Série 1 · FS/);
     await linhaDaSerie(page, /^Série 2 · WS/).click();
     await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
-    await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série 2(,|$)/ })).toBeVisible();
 
     // "+ Nova série" mostra um botão por tipo; um toque cria o grupo próprio e a aba dele fica escolhida.
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
@@ -89,7 +90,7 @@ test.describe('editor de treino no PC (1440)', () => {
     await expect(abasDasSeries(page)).toHaveCount(4);
     await expect(abaSelecionada(page)).toHaveAccessibleName(/Aquecimento/);
     const numero = (await abaSelecionada(page).getAttribute('aria-label'))?.match(/^Série (\d+)/)?.[1];
-    await expect(page.getByText(new RegExp(`^Editando: Série ${numero}( ·|$)`))).toBeVisible();
+    await expect(page.getByRole('region', { name: new RegExp(`^Editando série ${numero}(,|$)`) })).toBeVisible();
 
     // Nada vai à API sem o "Salvar rascunho" ou o "Publicar".
     await expect(page.getByRole('button', { name: 'Salvar rascunho' })).toBeEnabled();
@@ -100,17 +101,17 @@ test.describe('editor de treino no PC (1440)', () => {
 
   test('"Ir à primeira pendência" escolhe o exercício e a aba do problema', async ({ page }) => {
     const api = await abrir(page, true);
-    await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
     await page.getByRole('button', { name: /Ir à primeira pendência$/ }).click();
     await expect(item(page, 2, 'Supino inclinado com halteres')).toHaveAttribute('aria-current', 'true');
     await expect(linhaDaSerie(page, /^Série 2 · Back off/, true)).toBeVisible();
-    await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série 2(,|$)/ })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
   });
 
   test('"Publicar treino" salva o que mudou e publica', async ({ page }) => {
     const api = await abrir(page, false);
-    await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série 1(,|$)/ })).toBeVisible();
     await page.getByRole('button', { name: /^Nome de exibição e instruções/ }).click();
     await page.getByRole('textbox', { name: 'Nome de exibição' }).fill('Supino reto');
     await expect(page.getByRole('button', { name: 'Salvar rascunho' })).toBeEnabled();
@@ -136,7 +137,7 @@ test.describe('editor de treino no celular (390)', () => {
     await expect(page.getByRole('button', { name: 'Fechar Supino reto com barra', exact: true })).toBeVisible();
     await linhaDaSerie(page, /^Série 2 · WS/).click();
     await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
-    await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série 2(,|$)/ })).toBeVisible();
 
     await page.getByRole('button', { name: 'Editar Crucifixo na máquina', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Fechar Crucifixo na máquina', exact: true })).toBeVisible();
@@ -152,7 +153,7 @@ test.describe('editor de treino no celular (390)', () => {
     await page.getByRole('button', { name: /Ir à primeira pendência$/ }).click();
     await expect(page.getByRole('button', { name: 'Fechar Supino inclinado com halteres', exact: true })).toBeVisible();
     await expect(linhaDaSerie(page, /^Série 2 · Back off/, true)).toBeVisible();
-    await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Editando série 2(,|$)/ })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
   });
 
