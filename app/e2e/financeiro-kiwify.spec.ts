@@ -376,7 +376,8 @@ for (const largura of LARGURAS) {
     const financeiro = estadoFinanceiro({
       planos: [{ ...PLANO_KIWIFY }], contratacoes: [{ ...CONTRATACAO }], cobrancas: [{ ...MENSALIDADE_KIWIFY }], recebimento: { ...RECEBIMENTO_CONFIGURADO },
     });
-    const { errosDaPagina } = await abrir(page, '/treinador/financeiro?aba=cobrancas', { financeiro, infinitePay: true });
+    // As cobranças do cenário são de outros meses: sem o filtro padrão (Ativas, mês de vencimento atual), `filtro=nenhum`.
+    const { errosDaPagina } = await abrir(page, '/treinador/financeiro?aba=cobrancas&filtro=nenhum', { financeiro, infinitePay: true });
     await page.getByRole('button', { name: /^Abrir cobrança de/ }).first().click();
     const folha = page.getByRole('dialog');
     await expect(folha.getByText('Cobrada pela Kiwify', { exact: true })).toBeVisible();

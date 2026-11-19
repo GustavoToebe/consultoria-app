@@ -151,8 +151,9 @@ for (const escuro of [false, true]) {
   }
 }
 
-test('a opção em torno de 760 px (janela de 928) ainda empilha: o limite sai das colunas', async ({ page }) => {
-  await abrir(page, 928);
+// 943 = 928 + os 15 px da faixa da barra de rolagem que `RolagemComTopo` reserva a partir de 768 px (`scrollbar-gutter: stable`).
+test('a opção em torno de 760 px (janela de 943) ainda empilha: o limite sai das colunas', async ({ page }) => {
+  await abrir(page, 943);
   const largura = (await opcoes(page).boundingBox())!.width;
   expect(Math.abs(largura - 760)).toBeLessThan(12);
   await expect(page.getByText('Alimento', { exact: true })).toHaveCount(0);

@@ -36,7 +36,8 @@ const comCobrancas = (parcial: Partial<EstadoFinanceiro> = {}) =>
 async function abrir(page: Page, estado: EstadoFinanceiro, extra: RespostasApi = {}) {
   await fixarHoje(page);
   const api = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado), ...extra });
-  await page.goto('/treinador/financeiro?aba=cobrancas');
+  // filtro padrão das cobranças (19/11): `filtro=nenhum` abre a lista sem o padrão (Ativas, mês de vencimento atual); o padrão tem o spec próprio.
+  await page.goto('/treinador/financeiro?aba=cobrancas&filtro=nenhum');
   await expect(page.getByRole('button', { name: 'Nova cobrança avulsa' })).toBeVisible();
   return api;
 }
@@ -48,9 +49,9 @@ async function semRolagemHorizontal(page: Page) {
 
 /** Marca as três de Bruna (duas renegociáveis e a de saída) e abre "Renegociar" no "Mais ações". */
 async function abrirPeloLote(page: Page) {
-  await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, set\/2026/ }).click();
-  await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, out\/2026/ }).click();
-  await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, nov\/2026/ }).click();
+  await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, 09\/2026/ }).click();
+  await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, 10\/2026/ }).click();
+  await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, 11\/2026/ }).click();
   await page.getByRole('button', { name: 'Mais ações' }).click();
   await page.getByRole('dialog', { name: 'Ações com 3 cobranças' }).getByRole('button', { name: /^Renegociar/ }).click();
   return page.getByRole('dialog', { name: 'Renegociar 2 cobranças' });
@@ -128,7 +129,7 @@ for (const largura of [1280, 390]) {
     await expect(page.getByText('Renegociada', { exact: true })).toHaveCount(2);
     await expect(page.getByText('Acordo', { exact: true })).toHaveCount(3);
     await expect(page.getByText('Renegociação (Parcela 3/3)').first()).toBeVisible();
-    await expect(page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, set\/2026/ })).toHaveCount(0);
+    await expect(page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, 09\/2026/ })).toHaveCount(0);
     await expect(page.getByText(/cobranças? selecionadas?/)).toHaveCount(1);
     await expect(page.getByText(/canceladas, estornadas e renegociadas não entram/)).toBeVisible();
     await semRolagemHorizontal(page);
@@ -141,7 +142,7 @@ for (const largura of [1280, 390]) {
 test('alunos diferentes: o aviso vem antes, no menu (item apagado); só inelegíveis: a primeira etapa explica e só deixa fechar', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const { pedidos, errosDaPagina } = await abrir(page, comCobrancas());
-  await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, set\/2026/ }).click();
+  await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, 09\/2026/ }).click();
   await page.getByRole('checkbox', { name: /^Selecionar cobrança de Caio Teste/ }).click();
   await page.getByRole('button', { name: 'Mais ações' }).click();
   // O aviso vem ANTES de abrir a renegociação: o item fica apagado e a explicação é o motivo (nenhuma folha, nenhum pedido).
@@ -160,7 +161,7 @@ test('alunos diferentes: o aviso vem antes, no menu (item apagado); só inelegí
 
   // Só a de saída: nada entra.
   await page.getByRole('button', { name: 'Limpar seleção' }).click();
-  await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, nov\/2026/ }).click();
+  await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, 11\/2026/ }).click();
   await page.getByRole('button', { name: 'Mais ações' }).click();
   await page.getByRole('dialog', { name: 'Ações com 1 cobrança' }).getByRole('button', { name: /^Renegociar/ }).click();
   const uma = page.getByRole('dialog', { name: 'Renegociar cobrança' });
@@ -280,12 +281,12 @@ test('pela folha de uma cobrança: renegociar, ver o "Acordo" na original e desf
   const estado = comCobrancas();
   const { errosDaPagina } = await abrir(page, estado);
   await page.getByRole('button', { name: 'Abrir cobrança de Dora Teste' }).click();
-  await page.getByRole('dialog', { name: 'Cobrança de out/2026' }).getByRole('button', { name: 'Renegociar' }).click();
+  await page.getByRole('dialog', { name: 'Cobrança de 10/2026' }).getByRole('button', { name: 'Renegociar' }).click();
   const folha = page.getByRole('dialog', { name: 'Renegociar cobrança' });
   // "Cancelar" volta ao detalhe da cobrança, sem fechar tudo.
   await folha.getByRole('button', { name: 'Cancelar' }).click();
-  await expect(page.getByRole('dialog', { name: 'Cobrança de out/2026' })).toBeVisible();
-  await page.getByRole('dialog', { name: 'Cobrança de out/2026' }).getByRole('button', { name: 'Renegociar' }).click();
+  await expect(page.getByRole('dialog', { name: 'Cobrança de 10/2026' })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Cobrança de 10/2026' }).getByRole('button', { name: 'Renegociar' }).click();
   await folha.getByRole('button', { name: 'Continuar' }).click();
   await folha.getByLabel('Primeiro vencimento').fill('05/11/2026');
   await folha.getByLabel('Motivo', { exact: true }).fill('Novo vencimento combinado');
@@ -298,7 +299,7 @@ test('pela folha de uma cobrança: renegociar, ver o "Acordo" na original e desf
 
   // A original: selo "Renegociada", o grupo "Acordo", o motivo e "Desfazer acordo".
   await page.getByRole('button', { name: 'Abrir cobrança de Dora Teste' }).click();
-  const original = page.getByRole('dialog', { name: 'Cobrança de out/2026' });
+  const original = page.getByRole('dialog', { name: 'Cobrança de 10/2026' });
   await expect(original.getByText('Renegociada', { exact: true })).toBeVisible();
   await expect(original.getByText(/Entrou num acordo de renegociação e não é mais cobrada/)).toBeVisible();
   await expect(original.getByText('Novo vencimento combinado')).toBeVisible();
@@ -320,7 +321,7 @@ test('folha de uma cobrança em aberto em 390px com o recebimento online: o roda
   await page.setViewportSize({ width: 390, height: 844 });
   const { errosDaPagina } = await abrir(page, comCobrancas({ recebimento: { ...RECEBIMENTO_CONFIGURADO } }));
   await page.getByRole('button', { name: 'Abrir cobrança de Dora Teste' }).click();
-  const folha = page.getByRole('dialog', { name: 'Cobrança de out/2026' });
+  const folha = page.getByRole('dialog', { name: 'Cobrança de 10/2026' });
   for (const nome of ['Cancelar cobrança', 'Copiar link de pagamento', 'Renegociar', 'Registrar pagamento']) await expect(folha.getByRole('button', { name: nome })).toBeVisible();
   await expect(folha.getByText('R$ 100,00').first()).toBeInViewport();
   await semRolagemHorizontal(page);
@@ -406,7 +407,7 @@ for (const largura of [1280, 390]) {
 
     // Folha da cobrança: o botão existe, apagado, com o motivo logo abaixo; as outras ações seguem.
     await page.getByRole('button', { name: 'Abrir cobrança de Dora Teste' }).click();
-    const folha = page.getByRole('dialog', { name: 'Cobrança de nov/2026' });
+    const folha = page.getByRole('dialog', { name: 'Cobrança de 11/2026' });
     await expect(folha.getByRole('button', { name: 'Renegociar' })).toBeDisabled();
     await expect(folha.getByText(MOTIVO_AUTOMATICA)).toBeVisible();
     await expect(folha.getByRole('button', { name: 'Registrar pagamento' })).toBeEnabled();
@@ -415,8 +416,8 @@ for (const largura of [1280, 390]) {
     await folha.getByRole('button', { name: 'Fechar' }).first().click();
 
     // Lote: uma automática junto com outras deixa o item apagado, com o motivo no lugar da explicação.
-    await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, set\/2026/ }).click();
-    await page.getByRole('checkbox', { name: /^Selecionar cobrança de Dora Teste, nov\/2026/ }).click();
+    await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, 09\/2026/ }).click();
+    await page.getByRole('checkbox', { name: /^Selecionar cobrança de Dora Teste, 11\/2026/ }).click();
     await page.getByRole('button', { name: 'Mais ações' }).click();
     const menu = page.getByRole('dialog', { name: 'Ações com 2 cobranças' });
     await expect(menu.getByRole('button', { name: /^Renegociar/ })).toBeDisabled();
@@ -434,7 +435,7 @@ test('409 RENEGOCIACAO_COBRANCA_AUTOMATICA ao confirmar (a lista estava velha): 
   const estado = comCobrancas();
   const { pedidos, errosDaPagina } = await abrir(page, estado);
   await page.getByRole('button', { name: 'Abrir cobrança de Dora Teste' }).click();
-  await page.getByRole('dialog', { name: 'Cobrança de out/2026' }).getByRole('button', { name: 'Renegociar' }).click();
+  await page.getByRole('dialog', { name: 'Cobrança de 10/2026' }).getByRole('button', { name: 'Renegociar' }).click();
   const folha = page.getByRole('dialog', { name: 'Renegociar cobrança' });
   await folha.getByRole('button', { name: 'Continuar' }).click();
   await folha.getByLabel('Primeiro vencimento').fill('05/11/2026');
@@ -455,6 +456,6 @@ test('409 RENEGOCIACAO_COBRANCA_AUTOMATICA ao confirmar (a lista estava velha): 
   expect(estado.cobrancas.filter((c) => c.situacao === 'RENEGOCIADA')).toHaveLength(0);
   // A lista recarregada já sabe: agora o botão vem apagado.
   await page.getByRole('button', { name: 'Abrir cobrança de Dora Teste' }).click();
-  await expect(page.getByRole('dialog', { name: 'Cobrança de out/2026' }).getByRole('button', { name: 'Renegociar' })).toBeDisabled();
+  await expect(page.getByRole('dialog', { name: 'Cobrança de 10/2026' }).getByRole('button', { name: 'Renegociar' })).toBeDisabled();
   expect(errosDaPagina.filter((e) => !/409/.test(e))).toEqual([]);
 });
