@@ -760,6 +760,42 @@ Peça própria da ficha (`treinador/CabecalhoDaFicha`); o `ui/Cabecalho` das out
   sem salvar?".
 - E2e: `app/e2e/ficha-cabecalho.spec.ts` (390 e 1280 px; claro, escuro e Areia nas capturas).
 
+### 4.10 Tela larga (Gustavo, 19/11/2026)
+
+Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useFaixaDeLargura.ts` e
+`dominio/larguraDoConteudo.ts`.
+
+- **As 4 faixas** (`faixaDeLargura`), medidas pela largura da **área de conteúdo** (o que sobra ao lado do menu), nunca
+  pela da janela: `compacta` (< 1024 px, também antes da primeira medida), `normal` (1024 a < 1600), `larga` (1600 a
+  < 2400) e `ultralarga` (≥ 2400; `LARGURA_FAIXA_NORMAL`, `_LARGA` e `_ULTRALARGA`). A mesma tela cai em faixas
+  diferentes com o menu aberto, recolhido (trilho) ou minimizado, e isso é o esperado. Na `ultralarga` a `Tela` sobe o
+  recuo lateral para 48 px (`respiroLateralDaTela`), sem baixar um `folga` maior que a tela já peça.
+- **`useFaixaDeLargura` é a régua única.** Devolve `{ largura, faixa, aoMedir }`: o `aoMedir` vai no `onLayout` da
+  raiz da tela ou da grade. Nenhuma tela mede largura por conta própria; `useWindowDimensions` não serve para o
+  layout do conteúdo (a janela não sabe quanto o menu ocupa). A `TelaDoEditor` só usa a janela menos o menu para
+  estimar o primeiro quadro, até a medida chegar, e passa a valer a medida.
+- **Espaço extra vira colunas, nunca elementos esticados.** Campo, botão, linha de lista e cartão de texto não ganham
+  largura só porque ela existe: sobrou espaço, entra outra coluna (o `Grade` mede a si mesmo e escolhe 1, 2 ou 3 colunas;
+  o Início escolhe de 1 a 6 por `colunasDaGrade`, com teto por faixa de 3, 4, 5 e 6).
+- **Texto corrido em ~72 caracteres por linha** (parágrafo, descrição, resposta): `72ch` na web e 660 px no nativo
+  (`ESTILO_TEXTO_CORRIDO` em `ajuda/TelaAjuda.tsx`; é uma constante da Ajuda, não um token compartilhado). Quem escrever
+  texto corrido novo numa tela larga usa o mesmo limite.
+- **Formulários curtos em `LARGURA_FORMULARIO`** (640 px, `tema/tokens.ts`): a tela declarada até esse valor não estica,
+  em qualquer preferência (telas declaradas abaixo de `LARGURA_MAXIMA` mantêm o teto próprio: formulário curto 640, telas
+  do aluno 720, editor de uma coluna `LARGURA_EDITOR` 1040).
+- **Modais e folhas: sem mudança.** Seguem as larguras da variante (4.6, P1: 480, 600 e `LARGURA_EDITOR`) e não usam a régua.
+- **Preferência "Largura do conteúdo"** (Ajustes › Aparência e preferências, `ui/PreferenciasDoApp`): **Automática**
+  (padrão) deixa listas, painéis e editores em duas colunas sem teto; **Limitada** os segura em `LARGURA_MAXIMA` (1800 px).
+  Fica no aparelho, em `treinos:<usuarioId>:preferencias`, campo `larguraConteudo` (`AUTOMATICA` | `LIMITADA`,
+  `dominio/preferencias.ts`). Só decide o teto (`larguraMaximaDoConteudo`); não muda as faixas. As três colunas dos
+  editores só existem em Automática.
+- **Regra: editor de uma coluna de campos não passa de ~1400 px.** Quando o editor tem uma coluna de campos (lista à
+  esquerda, painel do item ao lado), limita-se a **largura do painel** a ~1400 px, alinhado à esquerda, junto da lista;
+  nunca se alargam as colunas nem se esticam os campos para ocupar a sobra. O que sobra à direita fica vazio.
+- **Três colunas na `ultralarga`** (exemplos que já existem): editor de treino (lista, inspetor e `ResumoDaSessao` fixo ao
+  lado) e editor de dieta (o `TotalDoDia` na coluna), ambos só com "Largura do conteúdo" Automática (`useTresColunas`);
+  Resumo do aluno (Atividade recente como 3ª coluna) e Ajuda (índice, conteúdo e "Consultar"), que seguem só a faixa.
+
 ## 5. Os problemas de design que estamos resolvendo
 
 Origem principal: a reunião gravada de 29/10, com o treinador usando o sistema por 40 minutos. Ele elogiou a
