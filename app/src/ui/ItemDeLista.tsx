@@ -29,6 +29,8 @@ interface Props {
   direita?: ReactNode;
   /** Vermelho (sair, excluir), sem seta. */
   perigo?: boolean;
+  /** Apagado e sem toque (o `detalhe` explica por quê). */
+  desabilitado?: boolean;
   children?: ReactNode;
 }
 
@@ -37,7 +39,7 @@ interface Props {
  * área do aluno, folhas de ações; nada de link de texto solto dentro de cartão). Listas de registros (alunos,
  * atualizações, modelos, biblioteca) usam `ui/LinhaDaLista`.
  */
-export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotulo, direita, perigo, children }: Props) {
+export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotulo, direita, perigo, desabilitado, children }: Props) {
   const { cores } = useTema();
   const caminho = usePathname();
   const { confirmar } = useSaidaGuardada();
@@ -54,7 +56,9 @@ export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotul
       accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={rotulo ?? [titulo, detalhe, selo?.texto].filter(Boolean).join(', ')}
       {...(href ? propsDeLink(href, abrir) : { onPress: abrir })}
-      style={(estado) => [estilos.item, { backgroundColor: sobre(estado) ? cores.sobre : cores.superficie2, borderColor: cores.divisor }]}>
+      disabled={desabilitado}
+      accessibilityState={desabilitado ? { disabled: true } : undefined}
+      style={(estado) => [estilos.item, { backgroundColor: sobre(estado) && !desabilitado ? cores.sobre : cores.superficie2, borderColor: cores.divisor, opacity: desabilitado ? 0.5 : 1 }]}>
       {Icone ? <Icone size={20} color={perigo ? cores.perigo : cores.textoSuave} strokeWidth={2} /> : null}
       <View style={estilos.textos}>
         <Texto style={[estilos.titulo, { color: corTexto }]}>{titulo}</Texto>

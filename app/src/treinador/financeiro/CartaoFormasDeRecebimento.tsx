@@ -1,11 +1,14 @@
+import { Trash2 } from 'lucide-react-native';
 import { useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View, type KeyboardTypeOptions, type TextInput, type TextInputProps } from 'react-native';
 
 import type { FormasDeRecebimento, TipoDeChavePix } from '../../api/financeiroTipos';
+import { apagarDadosDoPix } from '../../api/financeiroF1';
 import { buscarFormasDeRecebimento, salvarFormasDeRecebimento } from '../../api/rotas';
 import {
-  contadorDoPix, corpoDasFormas, estadoDasFormas, formasAlteradas, LIMITES_DO_PIX, mascaraDaChavePix, MENSAGEM_CAMPOS_DAS_FORMAS,
-  notaDoCelular, previaDoAluno, TIPOS_DE_CHAVE_PIX, traduzirErroDasFormas, type CampoDasFormas, type ErrosDasFormas, type EstadoDasFormas,
+  contadorDoPix, corpoDasFormas, DICA_DA_CHAVE_ALEATORIA, estadoDasFormas, formasAlteradas, LIMITES_DO_PIX, mascaraDaChavePix, MENSAGEM_APAGAR_PIX,
+  MENSAGEM_CAMPOS_DAS_FORMAS, MENSAGEM_PIX_APAGADO, notaDoCelular, podeApagarPix, previaDoAluno, TIPOS_DE_CHAVE_PIX, traduzirErroDasFormas,
+  traduzirErroDoApagarPix, type CampoDasFormas, type ErrosDasFormas, type EstadoDasFormas,
 } from '../../dominio/formasDeRecebimento';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -23,6 +26,7 @@ import { textoDoErro } from '../../ui/erros';
 import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo } from '../../ui/Selo';
+import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { BarraDeSalvar, ColunasDeAjustes, GrupoDeOpcoes, LinhaDeOpcao, LinkDeAba } from './AjustesDaAba';
@@ -31,7 +35,8 @@ const TITULO = 'Formas de recebimento';
 const DESCRICAO = 'Como o aluno pode pagar as cobranças, na Conta dele.';
 const TEXTO_MANUAL = 'Você combina com o aluno e registra o pagamento à mão. É o que ele vê quando nenhuma outra forma vale para a cobrança.';
 const TEXTO_PIX = 'O aluno copia um código Pix com o valor da cobrança e paga no app do banco. Você confere o extrato e registra o pagamento à mão.';
-const AVISO_DA_CHAVE = 'A chave Pix vai dentro do código que o aluno copia: quem tiver o código consegue ver a chave. Se não quiser mostrar o seu CPF, use uma chave aleatória ou o e-mail.';
+// A recomendação (chave aleatória) fica uma vez só, na ajuda do campo da chave (`DICA_DA_CHAVE_ALEATORIA`).
+const AVISO_DA_CHAVE = 'A chave Pix vai dentro do código que o aluno copia: quem tiver o código consegue ver a chave.';
 const SEM_DINHEIRO = 'O app não recebe nem guarda dinheiro.';
 
 /** O link próprio, com "Planos › Link de pagamento" levando à aba Planos (onde o link de cada plano é posto). */
@@ -59,6 +64,7 @@ const ligada = (v: boolean) => (v ? 'Ligado' : 'Desligado');
  * o que se digita vive só no estado deste formulário (e no da prévia, em memória) e some ao salvar (o formulário nasce de novo
  * pela `versao`). Ler exige `FINANCEIRO_LER` e `ALUNO_LER`; sem `FINANCEIRO_ALTERAR`, só leitura. `comInfinitePay` falso
  * (módulo da InfinitePay desligado na instalação): a linha some e o valor gravado segue igual no `PUT`.
+ * "Apagar dados do Pix" (D12) só com `FINANCEIRO_ALTERAR` e chave gravada: confirma no painel e grava na hora, fora do "Salvar".
  */
 export function CartaoFormasDeRecebimento({ podeAlterar, comInfinitePay, infinitePayConfigurada, maisAjustes }: {
   podeAlterar: boolean;
@@ -189,6 +195,9 @@ function Formulario({ dados, comInfinitePay, infinitePayConfigurada, aoSalvar, a
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [erroGeral, setErroGeral] = useState<unknown>(null);
   const [enviando, setEnviando] = useState(false);
+  const [confirmandoApagar, setConfirmandoApagar] = useState(false);
+  const [apagando, setApagando] = useState(false);
+  const [erroDoApagar, setErroDoApagar] = useState<string | null>(null);
   const refTipo = useRef<{ focus: () => void } | null>(null);
   const refChave = useRef<TextInput>(null);
   const refNome = useRef<TextInput>(null);
@@ -258,7 +267,42 @@ function Formulario({ dados, comInfinitePay, infinitePayConfigurada, aoSalvar, a
     );
   };
 
+  const apagarPix = () => {
+    if (dados.versao === null) return;
+    setApagando(true);
+    setErroDoApagar(null);
+    apagarDadosDoPix(dados.versao).then(
+      (novo) => {
+        setApagando(false);
+        setConfirmandoApagar(false);
+        avisar(MENSAGEM_PIX_APAGADO, 'sucesso');
+        aoSalvar(novo);
+      },
+      (e: unknown) => {
+        setApagando(false);
+        const t = traduzirErroDoApagarPix(e);
+        if (t.recarregar) {
+          setConfirmandoApagar(false);
+          avisar(t.mensagem, 'neutro');
+          aoRecarregar();
+          return;
+        }
+        setErroDoApagar(t.mensagem);
+      },
+    );
+  };
+  const botaoApagarPix = podeApagarPix(dados) ? (
+    <LinhaDeAcoes>
+      <Botao rotulo="Apagar dados do Pix" tipo="perigoTexto" Icone={Trash2} style={estilos.fantasmaNaColuna}
+        aoTocar={() => { setErroDoApagar(null); setConfirmandoApagar(true); }} />
+    </LinhaDeAcoes>
+  ) : null;
+
   const doTipo = estado.tipoChave ? DO_TIPO[estado.tipoChave] : null;
+  // A dica da chave aleatória some quando ela já é a escolhida.
+  const ajudaDaChave = estado.tipoChave === 'ALEATORIA'
+    ? doTipo?.ajuda
+    : `${doTipo?.ajuda ?? 'Escolha antes o tipo da chave.'} ${DICA_DA_CHAVE_ALEATORIA}`;
   const ajudaDaInfinitePay = infinitePayConfigurada === false
     ? 'O aluno paga por Pix ou cartão no link da InfinitePay. Ele só vê este "Pagar" depois que a sua InfiniteTag estiver salva, logo abaixo.'
     : 'O aluno paga por Pix ou cartão no link da InfinitePay, e o pagamento é registrado sozinho.';
@@ -290,7 +334,7 @@ function Formulario({ dados, comInfinitePay, infinitePayConfigurada, aoSalvar, a
                 <View style={estilos.chave}>
                   <Campo ref={refChave} rotulo={estado.chaveConfigurada ? 'Nova chave Pix' : 'Chave Pix'} valor={estado.chave}
                     aoMudar={(t) => mudar({ chave: mascaraDaChavePix(estado.tipoChave, t) }, 'chave')} erro={erros.chave ?? null}
-                    ajuda={doTipo?.ajuda ?? 'Escolha antes o tipo da chave.'} editable={!!estado.tipoChave}
+                    ajuda={ajudaDaChave} editable={!!estado.tipoChave}
                     keyboardType={doTipo?.teclado} inputMode={doTipo?.modo} autoCapitalize={estado.tipoChave === 'CNPJ' ? 'characters' : 'none'}
                     autoCorrect={false} autoComplete="off" spellCheck={false} maxLength={LIMITES_DO_PIX.chave} />
                   {estado.chaveConfigurada && estado.tipoChave === estado.tipoChaveGravado ? (
@@ -317,14 +361,25 @@ function Formulario({ dados, comInfinitePay, infinitePayConfigurada, aoSalvar, a
                   erro={erros.cidade ?? null} maxLength={LIMITES_DO_PIX.cidade} autoComplete="off"
                   ajuda={`A cidade da sua conta. ${contadorDoPix(estado.cidade, LIMITES_DO_PIX.cidade)}.`} />
               </CamposEmLinha>
+              {botaoApagarPix}
             </View>
           ) : estado.chaveConfigurada ? (
-            <Texto variante="suave">O Pix está desligado. A chave e os dados gravados continuam guardados para quando você ligar de novo.</Texto>
+            <View style={estilos.chave}>
+              <Texto variante="suave">O Pix está desligado. A chave e os dados gravados continuam guardados para quando você ligar de novo.</Texto>
+              {botaoApagarPix}
+            </View>
           ) : null}
         </LinhaDeOpcao>
         {/* Sempre ligado: não é um interruptor apagado (que pareceria quebrado), é um selo na mesma coluna dos interruptores. */}
         <LinhaDeOpcao titulo="Manual" descricao={TEXTO_MANUAL} controle={<Selo texto="Sempre ligado" tipo="neutro" />} />
       </GrupoDeOpcoes>
+      <PainelConfirmacao visivel={confirmandoApagar} titulo="Apagar os dados do Pix?" mensagem={MENSAGEM_APAGAR_PIX}
+        rotuloConfirmar="Apagar dados do Pix" rotuloCancelar="Voltar" perigo carregando={apagando}
+        aoConfirmar={apagarPix} aoCancelar={() => setConfirmandoApagar(false)}>
+        {/* Apagar grava na hora e o formulário nasce de novo com a resposta: o que não foi salvo some junto. */}
+        {mudou ? <Texto variante="suave">As alterações ainda não salvas neste cartão também serão descartadas.</Texto> : null}
+        {erroDoApagar ? <MensagemErro texto={erroDoApagar} /> : null}
+      </PainelConfirmacao>
     </Cartao>
   );
 }

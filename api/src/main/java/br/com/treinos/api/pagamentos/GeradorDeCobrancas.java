@@ -26,10 +26,12 @@ class GeradorDeCobrancas {
         this.geracao = geracao;
     }
 
-    /** A cobrança do início: competência = início, vencimento = primeira data a partir dele com o dia combinado. */
+    /**
+     * A primeira cobrança, na competência escolhida ao contratar ({@link CalendarioDeCobranca#primeiraCompetencia}, sempre na
+     * grade da âncora): vencimento = primeira data a partir dela com o dia combinado.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
-    CobrancaAluno primeira(ContratacaoAluno contratacao) {
-        LocalDate competencia = contratacao.getInicio();
+    CobrancaAluno primeira(ContratacaoAluno contratacao, LocalDate competencia) {
         LocalDate vencimento = CalendarioDeCobranca.vencimento(competencia, contratacao.getDiaVencimento(), null);
         return cobrancas.save(new CobrancaAluno(contratacao, competencia, vencimento));
     }

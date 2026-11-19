@@ -60,6 +60,7 @@ class GeracaoMensalIntegrationTest extends AbstractIntegrationTest {
         corpo.put("planoComercialId", plano(periodicidade).get("id").asString());
         corpo.put("inicio", inicio.toString());
         corpo.put("diaVencimento", dia);
+        corpo.put("gerarMesesAnteriores", true); // estes testes cobrem a geração desde o início (D10 está em ContratarNoPassadoIntegrationTest)
         return api.post("/alunos/" + aluno + "/contratacoes", admin, corpo, 200);
     }
 

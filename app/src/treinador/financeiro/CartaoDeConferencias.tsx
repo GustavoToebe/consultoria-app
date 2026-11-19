@@ -5,6 +5,7 @@ import type { ConferenciaDePagamento } from '../../api/financeiroTipos';
 import { listarConferencias, marcarConferido } from '../../api/rotas';
 import { rotuloDoMotivoDaConferencia, TEXTO_NADA_E_BAIXADO } from '../../dominio/financeiro';
 import { centavosParaTela, dataHoraParaTela } from '../../dominio/formatos';
+import { rotuloDoProvedor } from '../../dominio/kiwify';
 import { rotuloDoMesNumerico } from '../../dominio/mesDaCompetencia';
 import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -22,7 +23,7 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
 /**
- * "Pagamentos para conferir (N)": pagamentos que a InfinitePay avisou e o app não baixou sozinho (cobrança já cancelada
+ * "Pagamentos para conferir (N)": pagamentos que a InfinitePay ou a Kiwify (D19, coluna "Origem") avisaram e o app não baixou sozinho (cobrança já cancelada
  * ou paga, valor ou link diferente, e assim por diante) e os estornos que ela informou. Nada é baixado nem desfeito aqui:
  * "Marcar como conferido" só tira o item da lista; se o pagamento for válido, o treinador o registra à mão na cobrança, e
  * se houve estorno ele a ajusta à mão (a cobrança paga continua paga até lá). Some quando não há nada para conferir.
@@ -42,8 +43,8 @@ export function CartaoDeConferencias({ podeAlterar }: { podeAlterar: boolean }) 
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
 
-  // O recebimento online foi desligado no servidor: o cartão some como se o recurso não existisse.
-  if (codigoApi(lista.erro) === 'RECEBIMENTO_ONLINE_INDISPONIVEL') return null;
+  // O recebimento online e a Kiwify foram desligados no servidor: o cartão some como se o recurso não existisse.
+  if (codigoApi(lista.erro) === 'RECEBIMENTO_ONLINE_INDISPONIVEL' || codigoApi(lista.erro) === 'KIWIFY_INDISPONIVEL') return null;
   const itens = lista.dados?.itens ?? [];
   if (lista.erro && itens.length === 0) {
     return <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregar} />;
@@ -82,17 +83,23 @@ export function CartaoDeConferencias({ podeAlterar }: { podeAlterar: boolean }) 
           <View accessibilityRole="list" accessibilityLabel="Pagamentos para conferir" style={{ gap: espaco(1) }}>
             {itens.map((c) => (
               <ItemDeLista key={c.id} titulo={c.alunoNome ?? 'Aluno não identificado'}
-                detalhe={`Pago ${centavosParaTela(c.valorPagoCentavos)} · ${rotuloDoMotivoDaConferencia(c.motivo)}`}
+                detalhe={`${rotuloDoProvedor(c.provedor)} · Pago ${centavosParaTela(c.valorPagoCentavos)} · ${rotuloDoMotivoDaConferencia(c.motivo, c.provedor)}`}
                 aoTocar={() => setDetalhe(c)} rotulo={`Abrir pagamento para conferir de ${c.alunoNome ?? 'aluno não identificado'}`} />
             ))}
           </View>
         ) : (
           <Tabela rotulo="Pagamentos para conferir" linhas={itens} chave={(c) => c.id} larguraMinima={900} colunas={[
-            { chave: 'aluno', titulo: 'Aluno', principal: true, flex: 1.4, render: (c) => <Texto variante="bloco" numberOfLines={2}>{c.alunoNome ?? '—'}</Texto> },
+            // A origem (InfinitePay ou Kiwify) mora embaixo do nome: uma coluna a mais espremia o motivo.
+            { chave: 'aluno', titulo: 'Aluno', principal: true, flex: 1.4, render: (c) => (
+              <View>
+                <Texto variante="bloco" numberOfLines={2}>{c.alunoNome ?? '—'}</Texto>
+                <Texto variante="pequeno">{rotuloDoProvedor(c.provedor)}</Texto>
+              </View>
+            ) },
             { chave: 'competencia', titulo: 'Competência', flex: 1, render: (c) => <Texto numerico>{rotuloDoMesNumerico(c.competencia)}</Texto> },
             { chave: 'cobrada', titulo: 'Valor da cobrança', flex: 1, alinhar: 'direita', render: (c) => <Texto numerico>{centavosParaTela(c.valorCobrancaCentavos)}</Texto> },
             { chave: 'paga', titulo: 'Valor pago', flex: 1, alinhar: 'direita', render: (c) => <Texto numerico>{centavosParaTela(c.valorPagoCentavos)}</Texto> },
-            { chave: 'motivo', titulo: 'Motivo', flex: 1.6, render: (c) => <Texto>{rotuloDoMotivoDaConferencia(c.motivo)}</Texto> },
+            { chave: 'motivo', titulo: 'Motivo', flex: 1.6, render: (c) => <Texto>{rotuloDoMotivoDaConferencia(c.motivo, c.provedor)}</Texto> },
             { chave: 'recebido', titulo: 'Recebido em', flex: 1.2, render: (c) => <Texto numerico>{dataHoraParaTela(c.recebidoEm)}</Texto> },
             ...(podeAlterar ? [{ chave: 'acao', titulo: 'Ação', acao: true, largura: 210, render: (c: ConferenciaDePagamento) => (
               <Botao rotulo="Marcar como conferido" tipo="secundario" rotuloAcessivel={`Marcar como conferido o pagamento de ${c.alunoNome ?? 'aluno não identificado'}`}
@@ -109,13 +116,16 @@ export function CartaoDeConferencias({ podeAlterar }: { podeAlterar: boolean }) 
           ) : undefined}>
           <View style={{ gap: espaco(2) }}>
             <Texto variante="bloco">{detalhe.alunoNome ?? 'Aluno não identificado'}</Texto>
-            <Texto>{rotuloDoMotivoDaConferencia(detalhe.motivo)}</Texto>
+            <Texto>{rotuloDoMotivoDaConferencia(detalhe.motivo, detalhe.provedor)}</Texto>
             <CamposEmLinha>
+              <CampoLeitura rotulo="Origem" valor={rotuloDoProvedor(detalhe.provedor)} />
               <CampoLeitura rotulo="Valor pago" valor={centavosParaTela(detalhe.valorPagoCentavos)} numerico />
               <CampoLeitura rotulo="Valor da cobrança" valor={centavosParaTela(detalhe.valorCobrancaCentavos)} numerico />
               <CampoLeitura rotulo="Competência" valor={rotuloDoMesNumerico(detalhe.competencia)} numerico />
               <CampoLeitura rotulo="Recebido em" valor={dataHoraParaTela(detalhe.recebidoEm)} numerico />
             </CamposEmLinha>
+            {/* Sem aluno casado, o id da venda é o jeito de achá-la no painel do provedor. */}
+            {detalhe.idExterno ? <CampoLeitura rotulo="Venda no provedor" valor={detalhe.idExterno} /> : null}
             <Texto variante="suave">{TEXTO_NADA_E_BAIXADO}</Texto>
           </View>
         </Folha>

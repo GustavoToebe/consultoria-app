@@ -8,6 +8,8 @@ import {
   DIAS_ANTES_MAXIMO, DIAS_DEPOIS_MAXIMO, resumoDosLembretes, statusDosLembretes, TEXTO_LEMBRETES,
 } from '../../dominio/lembretesDeCobranca';
 import { useTema } from '../../tema/TemaProvider';
+import { TEXTO_KIWIFY_NOS_LEMBRETES } from '../../dominio/kiwify';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -157,11 +159,13 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
 
 /** Quem recebe e por onde: só as regras que a API aplica (`AGENTS.md`, lembretes de cobrança), em texto menor (apoio). */
 function QuemRecebe() {
+  const { kiwifyHabilitada } = useSessao();
   const regras = [
     'Vai para o e-mail do cadastro do aluno ou, se ele não tiver, para o e-mail de login.',
     'Só aluno ativo recebe. O aluno pode desligar os lembretes só para ele, na Conta do app.',
     <>Os lembretes de cada cobrança (enviados, previstos e não enviados, com o motivo) aparecem na folha da cobrança, em <LinkDeAba aba="cobrancas" texto="Cobranças" />.</>,
     'WhatsApp é manual: na folha da cobrança, o botão abre o WhatsApp com a mesma mensagem, para você enviar.',
+    ...(kiwifyHabilitada ? [TEXTO_KIWIFY_NOS_LEMBRETES] : []),
   ];
   return (
     <Cartao titulo="Quem recebe e por onde">

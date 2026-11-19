@@ -1,36 +1,29 @@
-import { MessageCircle, Plus } from 'lucide-react-native';
-import { errosPorCampo } from '@plataforma/web';
+import { Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
-import type { CobrancaResponse, ContratacaoResponse, PlanoResponse } from '../../api/financeiroTipos';
+import type { CobrancaResponse, ContratacaoResponse } from '../../api/financeiroTipos';
+import { listarCobrancasDoAluno, listarContratacoesDoAluno, mudarSituacaoDaContratacao } from '../../api/rotas';
 import {
-  alterarContratacao, contratarPlano, listarCobrancasDoAluno, listarContratacoesDoAluno, listarPlanosComerciais,
-  mudarSituacaoDaContratacao,
-} from '../../api/rotas';
-import {
-  abertasDaContratacao, hojeEmBrasilia, LIMITES, referenciaDaCobranca, resumoDaCobranca, rotuloDaPeriodicidade, rotuloDoTipoDaCobranca,
-  seloDaCobranca, seloDaContratacao, seloDoTipoDaCobranca, textoDeAbertasQueContinuam, validarContratacao,
+  abertasDaContratacao, referenciaDaCobranca, resumoDaCobranca, rotuloDaPeriodicidade, rotuloDoTipoDaCobranca,
+  seloDaCobranca, seloDaContratacao, seloDoTipoDaCobranca, textoDeAbertasQueContinuam,
 } from '../../dominio/financeiro';
-import { planoPodeTerMinimo, textoDoMinimoAte, validarMinimoAte } from '../../dominio/saidaDoPlano';
+import { planoPodeTerMinimo, textoDoMinimoAte } from '../../dominio/saidaDoPlano';
 import { primeiroNome } from '../../dominio/inscricoes';
 import { linkDoWhatsApp, MOTIVO_SEM_TELEFONE } from '../../dominio/lembretesDeCobranca';
-import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
+import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
+import { iconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
-import { CampoData, CampoNumerico } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
-import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { Folha } from '../../ui/Folha';
 import { Grade } from '../../ui/Grade';
 import { ItemDeLista } from '../../ui/ItemDeLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
@@ -40,9 +33,11 @@ import { Selo, type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { ICONE_DO_SELO } from '../iconesDosSelos';
-import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
+import { avisoDeConflito, ehConflito } from './comum';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
+import { FolhaDeContratacao } from './FolhaDeContratacao';
 import { FolhaDeEncerrar } from './FolhaDeEncerrar';
+import { ResponsavelFinanceiro } from './ResponsavelFinanceiro';
 
 /** Cobranças à vista no cartão; "Ver todas" mostra o resto (a lista do aluno só cresce, um item por competência). */
 const COBRANCAS_VISIVEIS = 4;
@@ -165,7 +160,7 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
           {planoPodeTerMinimo(vigente.periodicidade) ? <Texto variante="suave">{textoDoMinimoAte(vigente.minimoAte)}</Texto> : null}
           {emRenovacao ? (
             <LinhaDeAcoes>
-              <Botao rotulo="Cobrar renovação pelo WhatsApp" tipo="secundario" Icone={MessageCircle} aoTocar={abrirWhatsApp}
+              <Botao rotulo="Cobrar renovação pelo WhatsApp" tipo="secundario" Icone={iconeWhatsApp(!!linkDaRenovacao)} aoTocar={abrirWhatsApp}
                 desabilitado={!linkDaRenovacao} motivo={linkDaRenovacao ? undefined : MOTIVO_SEM_TELEFONE} />
             </LinhaDeAcoes>
           ) : null}
@@ -208,6 +203,8 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
       {cobrancas.dados && cobrancas.dados.length === 0 && vigente ? (
         <Texto variante="suave">{vigente.situacao === 'ATIVA' ? 'Nenhuma cobrança ainda. A mensalidade é gerada todo mês, paga ou não.' : 'Nenhuma cobrança.'}</Texto>
       ) : null}
+      {/* Fora do `vigente`: o responsável vale também sem plano (a avulsa tem lembrete). */}
+      <ResponsavelFinanceiro alunoId={alunoId} podeAlterar={podeAlterar} />
       {formulario ? (
         <FolhaDeContratacao alunoId={alunoId} contratacao={formulario === 'alterar' ? vigente : null}
           aoFechar={() => setFormulario(null)} aoMudar={recarregar} />
@@ -226,117 +223,10 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
   );
 }
 
-function FolhaDeContratacao({ alunoId, contratacao, aoFechar, aoMudar }: {
-  alunoId: string;
-  /** Preenchida = alterar esta contratação; nula = contratar um plano novo. */
-  contratacao: ContratacaoResponse | null;
-  aoFechar: () => void;
-  aoMudar: () => void;
-}) {
-  const { avisar } = useAviso();
-  const planos = useCarregar('planos-comerciais|ficha', () => listarPlanosComerciais(false));
-  const [planoId, setPlanoId] = useState<string | null>(contratacao?.planoComercialId ?? null);
-  const [valor, setValor] = useState(centavosParaCampo(contratacao?.valorCentavos));
-  const [motivo, setMotivo] = useState(contratacao?.motivoValor ?? '');
-  const [inicio, setInicio] = useState(dataParaTela(contratacao?.inicio ?? hojeEmBrasilia()));
-  const [dia, setDia] = useState<number | null>(contratacao?.diaVencimento ?? Number(hojeEmBrasilia().slice(8, 10)));
-  const [minimoTexto, setMinimoTexto] = useState(dataParaTela(contratacao?.minimoAte));
-  const [erroDoMinimoNoServidor, setErroDoMinimoNoServidor] = useState<string | null>(null);
-  const [tentou, setTentou] = useState(false);
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<unknown>(null);
-
-  const plano: PlanoResponse | undefined = planos.dados?.find((p) => p.id === planoId);
-  const centavos = centavosDaTela(valor);
-  const valorIlegivel = valor.trim() !== '' && centavos === null;
-  const iso = dataDaTela(inicio);
-  // Ao contratar, valor em branco = o do plano; ao alterar, o valor é sempre enviado.
-  const problema = valorIlegivel
-    ? 'Valor inválido. Use reais, por exemplo 150,00.'
-    : contratacao && centavos === null
-      ? 'Informe o valor da contratação.'
-      : validarContratacao({
-        planoId, valorCentavos: centavos, valorDoPlanoCentavos: plano?.valorCentavos ?? null,
-        motivoValor: motivo, inicio: iso ?? null, diaVencimento: dia,
-      });
-  const diferente = centavos !== null && (!plano || centavos !== plano.valorCentavos);
-  // O fim do mínimo só se edita em contratação mensal; nas outras o `PUT` reenvia o que já está gravado.
-  const editaMinimo = !!contratacao && planoPodeTerMinimo(contratacao.periodicidade);
-  const minimo = contratacao && editaMinimo ? validarMinimoAte(minimoTexto, contratacao.inicio) : null;
-  const erroDoMinimo = (tentou ? minimo?.erro : null) ?? erroDoMinimoNoServidor;
-  const motivoVisivel = diferente || !!contratacao?.motivoValor;
-
-  const enviar = () => {
-    setTentou(true);
-    if (problema || !planoId || dia === null || minimo?.erro) return;
-    setEnviando(true);
-    setErro(null);
-    setErroDoMinimoNoServidor(null);
-    // O `PUT` substitui inteiro: `minimoAte` vai sempre (vazio apaga).
-    const minimoAte = editaMinimo ? (minimo?.iso ?? null) : (contratacao?.minimoAte ?? null);
-    const motivoValor = motivoVisivel ? motivo.trim() || null : null;
-    const chamada = contratacao
-      ? alterarContratacao(contratacao.id, { valorCentavos: centavos as number, motivoValor, diaVencimento: dia, minimoAte, versao: contratacao.versao })
-      : contratarPlano(alunoId, { planoComercialId: planoId, valorCentavos: diferente ? centavos : null, motivoValor, inicio: iso as string, diaVencimento: dia });
-    chamada.then(
-      () => { setEnviando(false); avisar(contratacao ? 'Contratação alterada.' : 'Plano contratado.', 'sucesso'); aoMudar(); aoFechar(); },
-      (e: unknown) => {
-        setEnviando(false);
-        if (ehConflito(e)) {
-          avisar(avisoDeConflito('A contratação foi alterada'), 'neutro');
-          aoMudar();
-          aoFechar();
-          return;
-        }
-        const doMinimo = errosPorCampo(e).minimoAte;
-        if (doMinimo) { setErroDoMinimoNoServidor(doMinimo); return; }
-        setErro(e);
-      },
-    );
-  };
-
-  return (
-    <Folha visivel titulo={contratacao ? 'Alterar contratação' : 'Contratar plano'} aoFechar={aoFechar}
-      rodape={<Botao rotulo={contratacao ? 'Salvar contratação' : 'Contratar plano'} aoTocar={enviar} carregando={enviando} />}>
-      <View style={estilos.bloco}>
-        {contratacao ? (
-          <CampoLeitura rotulo="Plano" valor={contratacao.planoNome} />
-        ) : (
-          <>
-            {planos.erro ? <MensagemErro texto={textoDoErro(planos.erro)} erro={planos.erro} tentarDeNovo={planos.recarregar} /> : null}
-            <EscolhaEmFolha rotulo="Plano" titulo="Escolha o plano" valor={planoId} carregando={planos.carregando && !planos.dados}
-              textoVazio="Nenhum plano comercial ativo. Crie um na tela Financeiro."
-              opcoes={(planos.dados ?? []).map((p) => ({ valor: p.id as string | null, rotulo: p.nome, detalhe: `${centavosParaTela(p.valorCentavos)} · ${rotuloDaPeriodicidade(p.periodicidade)}` }))}
-              aoMudar={setPlanoId} rotuloDoValor="Escolher plano" />
-          </>
-        )}
-        <CampoMoeda mascara rotulo={contratacao ? 'Valor' : 'Valor, em branco usa o do plano'} texto={valor} aoMudar={setValor}
-          ajuda={plano ? `Valor do plano: ${centavosParaTela(plano.valorCentavos)}. Digite outro só se combinou diferente.` : undefined} />
-        {motivoVisivel ? (
-          <Campo rotulo="Motivo do valor diferente" valor={motivo} aoMudar={setMotivo} maxLength={LIMITES.motivoDoValor}
-            ajuda="Obrigatório quando o valor não é o do plano." />
-        ) : null}
-        {contratacao ? null : <CampoData rotulo="Início" valor={inicio} aoMudar={setInicio} />}
-        <CampoNumerico rotulo="Dia do vencimento" inteiro valor={dia} aoMudar={setDia} ajuda="De 1 a 31. Em meses mais curtos, vale o último dia do mês." />
-        {editaMinimo ? (
-          <View style={estilos.campoComAjuda}>
-            <CampoData rotulo="Fim do tempo mínimo" valor={minimoTexto} erro={erroDoMinimo}
-              aoMudar={(t) => { setMinimoTexto(t); setErroDoMinimoNoServidor(null); }} />
-            <Texto variante="pequeno">Até quando vale o tempo mínimo deste aluno. Em branco, a contratação fica sem mínimo.</Texto>
-          </View>
-        ) : null}
-        {tentou && problema ? <MensagemErro texto={problema} /> : null}
-        {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
-      </View>
-    </Folha>
-  );
-}
-
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1.5) },
   linha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   encolher: { flexShrink: 1 },
   selos: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.5) },
   seloDoTipo: { flexDirection: 'row' },
-  campoComAjuda: { gap: espaco(0.5) },
 });

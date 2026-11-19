@@ -27,8 +27,20 @@ public interface ContratacaoAlunoRepository extends JpaRepository<ContratacaoAlu
         Long getQuantidade();
     }
 
+    /** A contratação ATIVA do aluno e o plano dela, só ids (a entidade entra na sessão já travada, por {@link Travas}). */
+    interface Ativa {
+        UUID getId();
+
+        UUID getPlanoComercialId();
+    }
+
     @Query("select c.alunoId as alunoId from ContratacaoAluno c where c.id = :id")
     Optional<Dono> donoDe(UUID id);
+
+    /** No máximo uma ATIVA por aluno (o índice {@code ux_contratacao_vigente} impede duas vigentes). */
+    @Query("select c.id as id, c.planoComercialId as planoComercialId from ContratacaoAluno c "
+            + "where c.alunoId = :alunoId and c.situacao = :ativa")
+    Optional<Ativa> ativaDoAluno(UUID alunoId, ContratacaoAluno.Situacao ativa);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from ContratacaoAluno c where c.id = :id")
@@ -39,6 +51,9 @@ public interface ContratacaoAlunoRepository extends JpaRepository<ContratacaoAlu
     List<UUID> idsAtivasRecorrentes(ContratacaoAluno.Situacao ativa, PeriodoDoPlano unica);
 
     Optional<ContratacaoAluno> findFirstByAlunoIdAndSituacaoNot(UUID alunoId, ContratacaoAluno.Situacao situacao);
+
+    /** Uma só: o índice {@code ux_contratacao_vigente} (V017) impede duas ATIVA/PAUSADA do mesmo aluno. */
+    Optional<ContratacaoAluno> findFirstByAlunoIdAndSituacao(UUID alunoId, ContratacaoAluno.Situacao situacao);
 
     List<ContratacaoAluno> findByAlunoIdOrderByCriadoEmDescIdDesc(UUID alunoId);
 

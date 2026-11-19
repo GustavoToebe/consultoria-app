@@ -115,7 +115,7 @@ public class AnonimizacaoService {
                     List.of(new ApiError.FieldError("nomeConfirmado", "Digite o nome do aluno exatamente como está no cadastro.")));
         }
         // O telefone do usuário acabou de ser apagado (Usuario.anonimizar): não há o que mostrar.
-        return AlunoDetalhe.de(apagar(aluno), null, null);
+        return AlunoDetalhe.de(apagar(aluno), null, null, null, null, null);
     }
 
     /**
@@ -179,6 +179,8 @@ public class AnonimizacaoService {
         // Contratação encerrada, abertas canceladas e o texto livre do treinador sobre a cobrança apagado; valores ficam.
         pagamentos.encerrarPorAnonimizacao(alunoId);
         pagamentos.apagarDoAluno(alunoId);
+        // As tags do aluno (V093): o nome é texto livre do treinador e pode identificar a pessoa; a ligação sai e a tag da consultoria fica.
+        nativo.apagarTagsDoAluno(consultoriaId, alunoId);
         nativo.apagarObservacoesDasExecucoes(consultoriaId, alunoId);
         nativo.apagarComentariosDasSessoesConcluidas(consultoriaId, alunoId);
         // Indicações que ele fez (inscrições de outras pessoas perdem o vínculo) e o link antigo dele morre (código novo).

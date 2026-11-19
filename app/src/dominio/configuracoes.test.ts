@@ -72,6 +72,12 @@ describe('cartoesVisiveis', () => {
     expect(ids(cartoesVisiveis(com(['INSCRICAO_LER'])))).toContain('interessados');
   });
 
+  it('Tags dos alunos: abre com ALUNO_LER (a guarda da lista de alunos) e a busca acha por etiqueta', () => {
+    expect(ids(cartoesVisiveis(com(['ALUNO_LER'])))).toContain('tags-dos-alunos');
+    expect(ids(cartoesVisiveis(com(['ALUNO_ALTERAR'])))).not.toContain('tags-dos-alunos');
+    expect(ids(buscarCartoes('etiquetas', CARTOES_DE_CONFIGURACAO))).toEqual(['tags-dos-alunos']);
+  });
+
   it('importação: a planilha completa pede ALUNO_ALTERAR, a importação aceita qualquer das quatro de escrita', () => {
     expect(ids(cartoesVisiveis(com(['BIBLIOTECA_ALTERAR'])))).toEqual(expect.arrayContaining(['importacao']));
     expect(ids(cartoesVisiveis(com(['BIBLIOTECA_ALTERAR'])))).not.toContain('planilha-completa');

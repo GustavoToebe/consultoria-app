@@ -103,11 +103,11 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
   const IconeDoPasso = passo.tipo === 'perigo' ? TriangleAlert : passo.tipo === 'atencao' ? CircleAlert : null;
   const corDoPasso = passo.tipo === 'perigo' ? cores.perigo : cores.atencao;
 
-  const saiu = aluno.anonimizado || !aluno.ativo;
+  // A situação (Ativo, Inativo, Anonimizado) fica no cabeçalho da ficha (18/11), em todas as abas: aqui não se repete.
   // Com REGISTRO_LER e a busca das pastas e execuções em erro, os treinos ficam "—" com o motivo, nunca um zero.
   const treinosIndisponiveis = verRegistros && !!acompanhamento.erro && !dados;
   const prazo = planejamento?.vigente && dados ? prazoDaPasta(planejamento.vigente, dados.pastas, hoje, true) : null;
-  const temFatos = saiu || verAtualizacao || !!treinos || treinosIndisponiveis;
+  const temFatos = verAtualizacao || !!treinos || treinosIndisponiveis;
   return (
     <View style={estilos.resumo}>
       <Cartao titulo="Próximo passo">
@@ -122,12 +122,6 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
         )}
         {temFatos ? (
           <View style={[estilos.fatos, { borderTopColor: cores.divisor }]}>
-            {saiu ? (
-              <View style={estilos.fato}>
-                <Texto variante="rotulo">Situação</Texto>
-                <Selo texto={aluno.anonimizado ? 'Anonimizado' : 'Inativo'} tipo="neutro" />
-              </View>
-            ) : null}
             {verAtualizacao ? (
               <View style={estilos.fato} accessibilityLabel={`Atualização: ${selo?.curto ?? (fonteAtualizacao === 'ok' ? 'nenhuma' : fonteAtualizacao === 'erro' ? 'indisponível' : 'carregando')}`}>
                 <Texto variante="rotulo">Atualização</Texto>

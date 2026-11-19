@@ -11,6 +11,7 @@ export interface PerfilDaSessao {
   funcionalidadesDoPlano?: string[];
   pagamentosHabilitados?: boolean;
   recebimentoOnlineHabilitado?: boolean;
+  kiwifyHabilitada?: boolean;
   pagarNoIos?: boolean;
   pagarNoAndroid?: boolean;
   cicloHabilitado?: boolean;
@@ -37,6 +38,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     funcionalidadesDoPlano: eu.funcionalidadesDoPlano,
     pagamentosHabilitados: eu.pagamentosHabilitados,
     recebimentoOnlineHabilitado: eu.recebimentoOnlineHabilitado,
+    kiwifyHabilitada: eu.kiwifyHabilitada,
     pagarNoIos: eu.pagarNoIos,
     pagarNoAndroid: eu.pagarNoAndroid,
     cicloHabilitado: eu.cicloHabilitado,

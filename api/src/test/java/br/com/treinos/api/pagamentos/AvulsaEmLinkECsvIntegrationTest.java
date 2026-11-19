@@ -52,12 +52,12 @@ class AvulsaEmLinkECsvIntegrationTest extends AbstractIntegrationTest {
     void exportacaoPorPeriodoLevaAAvulsaSemContratacaoComDescricaoEValor() throws Exception {
         String nome = "Aluno Avulsa Csv " + UUID.randomUUID();
         UUID aluno = api.criarAluno(admin, nome);
-        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("alunoIds", List.of(aluno.toString()),
+        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("pedidoId", UUID.randomUUID().toString(), "alunoIds", List.of(aluno.toString()),
                 "descricao", "=Camiseta; do time", "valorCentavos", 4_567, "primeiroVencimento", hoje.plusDays(2).toString(),
                 "parcelas", 2), 201);
         JsonNode outro = api.novoTreinador();
         UUID alunoDeFora = api.criarAluno(outro, "Aluno De Fora Csv " + UUID.randomUUID());
-        api.post("/financeiro/cobrancas-avulsas", outro, Map.of("alunoIds", List.of(alunoDeFora.toString()),
+        api.post("/financeiro/cobrancas-avulsas", outro, Map.of("pedidoId", UUID.randomUUID().toString(), "alunoIds", List.of(alunoDeFora.toString()),
                 "descricao", "Segredo de outra consultoria", "valorCentavos", 999, "primeiroVencimento", hoje.plusDays(2).toString(),
                 "parcelas", 1), 201);
 

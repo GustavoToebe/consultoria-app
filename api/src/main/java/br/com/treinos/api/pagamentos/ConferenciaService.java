@@ -36,7 +36,8 @@ public class ConferenciaService {
     public Conferencias listar() {
         return new Conferencias(avisos.conferencias(consultoria(), MAXIMO_DA_LISTA).stream()
                 .map(c -> new ConferenciaDePagamento(c.id(), c.alunoId(), c.alunoNome(), c.cobrancaId(), c.competencia(),
-                        c.valorCobrancaCentavos(), c.valorPagoCentavos(), c.motivo(), c.recebidoEm())).toList());
+                        c.valorCobrancaCentavos(), c.valorPagoCentavos(), c.motivo(), c.recebidoEm(), c.provedor(), c.idExterno()))
+                .toList());
     }
 
     /**

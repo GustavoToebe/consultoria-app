@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { MessageCircle } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
+import { desfazerAcordo } from '../../api/financeiroRenegociar';
 import type { CobrancaResponse, FormaDePagamento, LembretesDaCobranca, RecebimentoOnline } from '../../api/financeiroTipos';
 import {
   buscarRecebimentoOnline, cancelarCobranca, contestarCobranca, desfazerBaixaDaCobranca, estornarCobranca, lembretesDaCobranca, linkDaCobranca,
@@ -12,17 +12,21 @@ import {
   atrasoParaTela, cpfMascarado, ehPagamentoOnline, emissaoDaCobranca, FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeCancelarCobranca, podeCopiarLink, podeDesfazerBaixa,
   nomeNaListaDaCobranca, podeManterPaga, podeMarcarContestacao, podeMarcarEstorno, podeRegistrarPagamento, referenciaDaCobranca, ROTULO_ONLINE, rotuloDaForma,
   rotuloDoTipoDaCobranca, seloDaCobranca, seloDoTipoDaCobranca,
-  temBaixaRegistrada, TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO, validarBaixa,
+  temBaixaRegistrada, temDescricaoPropria, TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO, validarBaixa,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { botaoDoWhatsApp, rotuloDoTipo, situacaoDoLembrete } from '../../dominio/lembretesDeCobranca';
+import { DETALHE_COBRADA_PELA_KIWIFY, ehCobradaPelaKiwify, TEXTO_COBRADA_PELA_KIWIFY } from '../../dominio/kiwify';
 import { linkParaAbrir } from '../../dominio/links';
 import { rotuloDoMesNumerico } from '../../dominio/mesDaCompetencia';
+import { LINHA_DOS_LEMBRETES } from '../../dominio/responsavelFinanceiro';
+import { motivoDeRenegociarDesabilitado, podeDesfazerAcordo, podeRenegociar } from '../../dominio/renegociar';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { useSaidaGuardada } from '../../ui/GuardaDeSaida';
 import { Botao } from '../../ui/Botao';
+import { iconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
@@ -38,9 +42,10 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { avisoDeConflito, copiarTexto, ehConflito } from './comum';
+import { FolhaRenegociar } from './FolhaRenegociar';
 
 type Modo = 'detalhe' | 'baixa';
-type Pergunta = 'desfazer' | 'cancelar' | 'contestar' | 'estornar' | 'manterPaga' | null;
+type Pergunta = 'desfazer' | 'cancelar' | 'contestar' | 'estornar' | 'manterPaga' | 'desfazerAcordo' | null;
 
 /**
  * O painel de cada ação que pede motivo. Estorno e contestação só registram o que aconteceu fora do app: nenhum move
@@ -70,6 +75,11 @@ const PERGUNTAS: Record<Exclude<Pergunta, null>, { titulo: string; mensagem: str
     mensagem: 'Use quando a contestação terminou a seu favor. A cobrança volta a ficar paga, com a mesma data e forma. O motivo é obrigatório.',
     confirmar: 'Manter como paga', sucesso: 'Cobrança mantida como paga.', perigo: false,
   },
+  desfazerAcordo: {
+    titulo: 'Desfazer o acordo?',
+    mensagem: 'As cobranças originais voltam a ficar em aberto e as parcelas do acordo são canceladas. Só dá para desfazer se nenhuma parcela foi paga, contestada ou estornada. O motivo é obrigatório.',
+    confirmar: 'Desfazer acordo', sucesso: 'Acordo desfeito.', perigo: false,
+  },
 };
 
 /**
@@ -95,7 +105,8 @@ export function FolhaDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, mostrarFi
   // O estado do recebimento online só é buscado quando o link pode ser copiado (em aberto, com permissão e a InfinitePay
   // ligada); fica aqui, fora do `Conteudo`, para não buscar de novo a cada versão da cobrança.
   // A cobrança de saída não tem link de pagamento nesta fase (só baixa manual e WhatsApp): nem busca o recebimento online.
-  const querLink = !!cobranca && cobranca.situacao === 'ABERTA' && cobranca.tipo !== 'SAIDA' && podeAlterar && recebimentoOnlineHabilitado;
+  // A cobrada pela Kiwify também não (D18): um link da InfinitePay ao lado da assinatura faria o aluno pagar duas vezes.
+  const querLink = !!cobranca && cobranca.situacao === 'ABERTA' && cobranca.tipo !== 'SAIDA' && !ehCobradaPelaKiwify(cobranca) && podeAlterar && recebimentoOnlineHabilitado;
   const recebimento = useCarregar(querLink ? 'recebimento-online|folha' : null, () => buscarRecebimentoOnline());
   // Os lembretes por e-mail desta cobrança e a mensagem pronta do WhatsApp; falha na busca só esconde o bloco.
   // O id sai antes: o React Compiler lê as dependências da função na renderização, e `cobranca` pode ser nula aqui.
@@ -137,6 +148,8 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
   const [copiando, setCopiando] = useState(false);
   /** Só quando o navegador recusa a cópia: o link fica na tela para a pessoa copiar à mão. */
   const [linkParaCopiarAMao, setLinkParaCopiarAMao] = useState<string | null>(null);
+  /** "Renegociar" troca o conteúdo desta folha pelo passo a passo (sem folha sobre folha); "Cancelar" volta ao detalhe. */
+  const [renegociando, setRenegociando] = useState(false);
 
   const selo = seloDaCobranca(cobranca);
   const hoje = hojeEmBrasilia();
@@ -184,6 +197,8 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
     const acoes = {
       desfazer: desfazerBaixaDaCobranca, cancelar: cancelarCobranca, contestar: contestarCobranca, estornar: estornarCobranca,
       manterPaga: manterCobrancaPaga,
+      // O acordo é desfeito inteiro (originais e parcelas); a API recusa se alguma parcela já foi paga, contestada ou estornada.
+      desfazerAcordo: (_id: string, c: { motivo: string }) => desfazerAcordo(cobranca.acordoId ?? '', { motivo: c.motivo }),
     };
     const acao = acoes[pergunta];
     concluir(() => acao(cobranca.id, corpo), PERGUNTAS[pergunta].sucesso);
@@ -229,6 +244,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
   });
 
   const whatsapp = botaoDoWhatsApp(lembretes);
+  const paraResponsavel = lembretes?.paraResponsavel ? <Texto variante="suave">{LINHA_DOS_LEMBRETES}</Texto> : null;
   // Abre fora do app, sem token; nada é registrado como enviado (é o treinador quem manda a mensagem).
   const abrirWhatsApp = () => {
     if (!whatsapp?.link) return;
@@ -241,6 +257,10 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
     aoFechar();
     router.push(`/treinador/alunos/${cobranca.alunoId}?aba=ficha`);
   });
+
+  if (renegociando) {
+    return <FolhaRenegociar cobrancas={[cobranca]} aoFechar={aoFechar} aoCancelar={() => setRenegociando(false)} aoMudar={aoMudar} />;
+  }
 
   const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
   // A mensalidade pelo mês; a saída e a avulsa pelo tipo (a descrição da avulsa vem logo abaixo do nome).
@@ -259,6 +279,11 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
       {podeDesfazerBaixa(cobranca) ? <Botao rotulo="Desfazer baixa" tipo="secundario" aoTocar={() => perguntar('desfazer')} /> : null}
       {podeMarcarContestacao(cobranca) ? <Botao rotulo="Marcar contestação" tipo="secundario" aoTocar={() => perguntar('contestar')} /> : null}
       {podeManterPaga(cobranca) ? <Botao rotulo="Manter como paga" tipo="secundario" aoTocar={() => perguntar('manterPaga')} /> : null}
+      {podeDesfazerAcordo(cobranca) ? <Botao rotulo="Desfazer acordo" tipo="secundario" aoTocar={() => perguntar('desfazerAcordo')} /> : null}
+      {podeRenegociar(cobranca) ? (
+        <Botao rotulo="Renegociar" tipo="secundario" aoTocar={() => setRenegociando(true)}
+          desabilitado={!!motivoDeRenegociarDesabilitado(cobranca)} motivo={motivoDeRenegociarDesabilitado(cobranca) ?? undefined} />
+      ) : null}
       {querLink && recebimento && podeCopiarLink(cobranca, recebimento.configurado) ? (
         <Botao rotulo="Copiar link de pagamento" tipo="secundario" carregando={copiando} aoTocar={copiarLink} />
       ) : null}
@@ -277,12 +302,13 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
             <Texto variante="bloco">{cobranca.alunoNome ?? '—'}</Texto>
             {/* CPF só quando a API manda (com `ALUNO_SENSIVEL_LER`), e só o meio dele. */}
             {cpf ? <Texto variante="suave" numerico accessibilityLabel={`CPF ${cpf}`}>CPF {cpf}</Texto> : null}
-            <Texto variante="suave">{nomeNaListaDaCobranca(cobranca)}{modo === 'baixa' && cobranca.tipo !== 'AVULSA' ? ` · ${referenciaDaCobranca(cobranca)}` : ''}</Texto>
+            <Texto variante="suave">{nomeNaListaDaCobranca(cobranca)}{modo === 'baixa' && !temDescricaoPropria(cobranca.tipo) ? ` · ${referenciaDaCobranca(cobranca)}` : ''}</Texto>
           </View>
           <View style={estilos.selos}>
             <Selo texto={selo.rotulo} tipo={selo.tom} />
             {doTipo ? <Selo texto={doTipo.rotulo} tipo={doTipo.tom} /> : null}
             {cobranca.situacao === 'PAGA' && ehPagamentoOnline(cobranca) ? <Selo texto={ROTULO_ONLINE} tipo="neutro" /> : null}
+            {ehCobradaPelaKiwify(cobranca) ? <Selo texto={TEXTO_COBRADA_PELA_KIWIFY} tipo="neutro" /> : null}
           </View>
         </View>
         <Texto variante="destaque" numerico accessibilityLabel={`Valor: ${centavosParaTela(cobranca.valorCentavos)}`}>{centavosParaTela(cobranca.valorCentavos)}</Texto>
@@ -297,15 +323,25 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
                 <CampoLeitura rotulo="Emissão" valor={dataParaTela(emissaoDaCobranca(cobranca))} numerico />
                 {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <CampoLeitura rotulo="Atraso" valor={atrasoParaTela(cobranca.diasDeAtraso)} /> : null}
               </CamposEmLinha>
+              {ehCobradaPelaKiwify(cobranca) && cobranca.situacao === 'ABERTA' ? <Texto variante="suave">{DETALHE_COBRADA_PELA_KIWIFY}</Texto> : null}
             </Grupo>
             {temBaixaRegistrada(cobranca) ? (
               <Grupo titulo="Pagamento">
                 <CamposEmLinha>
                   <CampoLeitura rotulo="Pago em" valor={dataParaTela(cobranca.pagoEm)} numerico />
                   <CampoLeitura rotulo="Forma" valor={rotuloDaForma(cobranca.forma)} />
-                  <CampoLeitura rotulo="Baixa dada por" valor={ehPagamentoOnline(cobranca) ? 'Automática (pagamento online)' : cobranca.baixaPorNome} />
+                  <CampoLeitura rotulo="Baixa dada por" valor={cobranca.provedor === 'KIWIFY' ? 'Automática (Kiwify)' : ehPagamentoOnline(cobranca) ? 'Automática (pagamento online)' : cobranca.baixaPorNome} />
                 </CamposEmLinha>
                 {cobranca.idExterno ? <CampoLeitura rotulo="Transação no provedor" valor={cobranca.idExterno} /> : null}
+              </Grupo>
+            ) : null}
+            {cobranca.situacao === 'RENEGOCIADA' || cobranca.tipo === 'RENEGOCIACAO' ? (
+              <Grupo titulo="Acordo">
+                <Texto variante="suave">
+                  {cobranca.situacao === 'RENEGOCIADA'
+                    ? 'Entrou num acordo de renegociação e não é mais cobrada. Quem se cobra agora são as parcelas, com o selo “Acordo” na lista.'
+                    : 'Parcela de um acordo de renegociação. As cobranças originais estão na lista como “Renegociada”.'}
+                </Texto>
               </Grupo>
             ) : null}
             {cobranca.observacao || cobranca.motivo ? (
@@ -327,10 +363,13 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
                 <Texto selectable>{linkParaCopiarAMao}</Texto>
               </View>
             ) : null}
+            {/* D15: sem o nome do responsável e sem prometer os dois canais (cada um cai no aluno sozinho). Junto do WhatsApp, quando há. */}
+            {!whatsapp && paraResponsavel}
             {whatsapp ? (
               <View style={estilos.aviso}>
+                {paraResponsavel}
                 <LinhaDeAcoes>
-                  <Botao rotulo="Abrir WhatsApp com a mensagem" tipo="secundario" Icone={MessageCircle} aoTocar={abrirWhatsApp}
+                  <Botao rotulo="Abrir WhatsApp com a mensagem" tipo="secundario" Icone={iconeWhatsApp(!!whatsapp.link)} aoTocar={abrirWhatsApp}
                     desabilitado={!whatsapp.link} motivo={whatsapp.motivo ?? undefined} />
                 </LinhaDeAcoes>
                 {/* Sem telefone, o botão desabilitado já mostra o porquê (`motivo`). */}

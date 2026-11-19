@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 import type { CobrancaResponse, ContratacaoResponse } from '../src/api/financeiroTipos';
 import type { AlunoResumo } from '../src/api/tipos';
@@ -75,6 +75,7 @@ async function preencherAteAEtapa3(page: Page) {
 }
 
 const ehAvulsa = (p: { metodo: string; caminho: string }) => p.metodo === 'POST' && p.caminho === '/financeiro/cobrancas-avulsas';
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 test('fluxo feliz: 2 alunos × 3 parcelas, voltar mantém o digitado, "Gerar 6 cobranças?" envia o corpo certo e a lista recarrega', async ({ page }) => {
   const estado = comCobrancas();
@@ -110,13 +111,23 @@ test('fluxo feliz: 2 alunos × 3 parcelas, voltar mantém o digitado, "Gerar 6 c
   await expect(page.getByText('6 cobranças geradas para 2 alunos.')).toBeVisible();
   await expect(folhaDaAvulsa(page)).toHaveCount(0);
   expect(estado.avulsasRecebidas).toEqual([
-    { alunoIds: [ANA.id, BRUNO.id], descricao: 'Camiseta do time', valorCentavos: 15_000, primeiroVencimento: '2026-10-31', parcelas: 3 },
+    { pedidoId: expect.stringMatching(UUID_V4), alunoIds: [ANA.id, BRUNO.id], descricao: 'Camiseta do time', valorCentavos: 15_000, primeiroVencimento: '2026-10-31', parcelas: 3 },
   ]);
   expect(pedidos.filter(ehAvulsa)).toHaveLength(1);
   // A lista recarregou e mostra as avulsas com a descrição e o selo.
   await expect(page.getByText('Camiseta do time (Parcela 2/3)').first()).toBeVisible();
   await expect(page.getByText('Avulsa', { exact: true }).first()).toBeVisible();
   await page.screenshot({ path: `${CAPTURAS}/lista-com-avulsas-1280.png`, fullPage: true });
+
+  // Reabrir depois do sucesso é outro pedido (D11): gera de novo, não devolve o anterior.
+  await preencherAteAEtapa3(page);
+  await folhaDaAvulsa(page).getByRole('button', { name: 'Revisar e gerar' }).click();
+  await page.getByRole('alertdialog', { name: 'Gerar 6 cobranças?' }).getByRole('button', { name: 'Gerar 6 cobranças' }).click();
+  await expect(folhaDaAvulsa(page)).toHaveCount(0);
+  expect(estado.avulsasRecebidas).toHaveLength(2);
+  expect(estado.avulsasRecebidas[1].pedidoId).toMatch(UUID_V4);
+  expect(estado.avulsasRecebidas[1].pedidoId).not.toBe(estado.avulsasRecebidas[0].pedidoId);
+  expect(estado.cobrancas.filter((c) => c.tipo === 'AVULSA')).toHaveLength(12);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -215,35 +226,55 @@ test('erro 422 do servidor volta à etapa do campo com a mensagem dele; 409 alun
   await page.getByRole('alertdialog', { name: 'Gerar 3 cobranças?' }).getByRole('button', { name: 'Gerar 3 cobranças' }).click();
   await expect(page.getByText('3 cobranças geradas para 1 aluno.')).toBeVisible();
   expect(estado.avulsasRecebidas.at(-1)?.alunoIds).toEqual([ANA.id]);
+  // Recusados não gravam nada: os três envios da mesma abertura levam o mesmo pedido.
+  expect(new Set(estado.avulsasRecebidas.map((c) => c.pedidoId)).size).toBe(1);
   expect(errosDaPagina).toEqual([]);
 });
 
 for (const largura of [1280, 390]) {
-  test(`sem conexão em ${largura}px: o principal deixa de ser "Gerar" e vira "Conferir a lista", que fecha e recarrega`, async ({ page }) => {
+  test(`sem conexão em ${largura}px: "Gerar" de novo manda o mesmo pedido e o servidor devolve o que já gerou, sem dobrar`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
-    const { pedidos, errosDaPagina } = await abrir(page, comCobrancas(), {
-      'POST /financeiro/cobrancas-avulsas': (_p, route) => route.abort('internetdisconnected'),
+    const estado = comCobrancas();
+    const criar = rotasDoFinanceiro(estado)['POST /financeiro/cobrancas-avulsas'];
+    if (typeof criar !== 'function') throw new Error('A rota da avulsa do falso mudou de forma.');
+    let envios = 0;
+    const { pedidos, errosDaPagina } = await abrir(page, estado, {
+      'POST /financeiro/cobrancas-avulsas': async (p, route) => {
+        envios += 1;
+        // 1º: caiu antes de chegar. 2º: o servidor gerou, mas a resposta se perdeu no caminho. 3º: chega e recebe 200.
+        if (envios === 1) return route.abort('internetdisconnected');
+        if (envios === 2) {
+          await criar(p, Object.assign(Object.create(route) as Route, { fulfill: async () => undefined }));
+          return route.abort('internetdisconnected');
+        }
+        return criar(p, route);
+      },
     });
     const folha = await preencherAteAEtapa3(page);
     await folha.getByRole('button', { name: 'Revisar e gerar' }).click();
-    await page.getByRole('alertdialog', { name: 'Gerar 6 cobranças?' }).getByRole('button', { name: 'Gerar 6 cobranças' }).click();
-    const conferir = page.getByRole('alertdialog', { name: 'Confira a lista de cobranças' });
-    await expect(conferir.getByText(/Confira a lista de cobranças antes de gerar de novo: repetir pode criar tudo em dobro\./)).toBeVisible();
-    await expect(conferir.getByRole('button', { name: /^Gerar/ })).toHaveCount(0);
-    await expect(conferir.getByRole('button', { name: 'Conferir a lista' })).toBeEnabled();
+    const confirmar = page.getByRole('alertdialog', { name: 'Gerar 6 cobranças?' });
+    await confirmar.getByRole('button', { name: 'Gerar 6 cobranças' }).click();
+    await expect(confirmar.getByText(/Sem conexão com o servidor\. .*Tente de novo: repetir não gera cobranças em dobro\./)).toBeVisible();
+    await expect(confirmar.getByRole('button', { name: 'Gerar 6 cobranças' })).toBeEnabled();
     await semRolagemHorizontal(page);
     await page.screenshot({ path: `${CAPTURAS}/sem-conexao-${largura}.png` });
 
-    // Voltar e revisar de novo não traz o "Gerar" de volta.
-    await conferir.getByRole('button', { name: 'Voltar' }).click();
+    // Voltar e revisar de novo mantém o mesmo pedido.
+    await confirmar.getByRole('button', { name: 'Voltar' }).click();
     await folha.getByRole('button', { name: 'Revisar e gerar' }).click();
-    const deNovo = page.getByRole('alertdialog', { name: 'Confira a lista de cobranças' });
-    await expect(deNovo.getByRole('button', { name: /^Gerar/ })).toHaveCount(0);
-    const listasAntes = pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/financeiro/cobrancas').length;
-    await deNovo.getByRole('button', { name: 'Conferir a lista' }).click();
+    await confirmar.getByRole('button', { name: 'Gerar 6 cobranças' }).click();
+    await expect(confirmar.getByText(/Sem conexão com o servidor\./)).toBeVisible();
+    expect(estado.cobrancas.filter((c) => c.tipo === 'AVULSA')).toHaveLength(6);
+
+    // A conexão voltou: o servidor reconhece o pedido, responde 200 com o que gerou e a tela trata como sucesso.
+    await confirmar.getByRole('button', { name: 'Gerar 6 cobranças' }).click();
+    await expect(page.getByText('6 cobranças geradas para 2 alunos.')).toBeVisible();
     await expect(folhaDaAvulsa(page)).toHaveCount(0);
-    await expect.poll(() => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/financeiro/cobrancas').length).toBeGreaterThan(listasAntes);
-    expect(pedidos.filter(ehAvulsa)).toHaveLength(1);
+    expect(estado.cobrancas.filter((c) => c.tipo === 'AVULSA')).toHaveLength(6);
+    expect(pedidos.filter(ehAvulsa)).toHaveLength(3);
+    const ids = pedidos.filter(ehAvulsa).map((p) => (p.corpo as { pedidoId?: unknown }).pedidoId);
+    expect(ids[0]).toMatch(UUID_V4);
+    expect(ids).toEqual([ids[0], ids[0], ids[0]]);
     expect(errosDaPagina.filter((e) => !/internet|Failed to fetch/i.test(e))).toEqual([]);
   });
 }

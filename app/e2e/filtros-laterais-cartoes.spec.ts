@@ -118,6 +118,8 @@ for (const largura of [390, 1280]) {
         await page.getByText('Plano 17', { exact: true }).click();
         const pasta = page.getByRole('dialog', { name: 'Plano 17' });
         const etapa = page.getByRole('dialog', { name: 'Filtros de registros' });
+        // A seção "Registros e cargas" nasce fechada (docs/design-e-front.md §4.8): abre antes de procurar o "Filtros".
+        await pasta.getByRole('button', { name: 'Registros e cargas, recolhido' }).click();
         await expect(pasta.getByText('Registros e cargas', { exact: true })).toBeVisible();
         const botao = filtros(pasta);
         await botao.scrollIntoViewIfNeeded();
@@ -195,6 +197,7 @@ for (const largura of [390, 1280]) {
         await expect(pasta).toHaveCount(0);
         await expect(filtros(page)).toHaveAccessibleName('Filtros, nenhum ligado');
         await page.getByText('Plano 17', { exact: true }).click();
+        await pasta.getByRole('button', { name: 'Registros e cargas, recolhido' }).click();
         await expect(filtros(pasta)).toHaveAccessibleName('Filtros, nenhum ligado');
         expect(errosDaPagina).toEqual([]);
       });

@@ -40,8 +40,9 @@ public class AlunoController {
      * (repetível: id de membro ou {@code nenhum}; com {@code meus=true} = 400 {@code FILTRO_INVALIDO}; membro de outra
      * consultoria = 404), {@code acesso} (repetível: COM, SEM, AGUARDANDO), {@code atualizacao} (repetível: as fases da
      * lista e SEM_PASTA; ATUALIZACAO_LER + ALUNO_SENSIVEL_LER), {@code plano} (COM, SEM; TREINO_LER), {@code pasta}
-     * (A_RENOVAR; TREINO_LER) e {@code registro} (NUNCA, HA_MAIS_DE_7, HA_MAIS_DE_14, HA_MAIS_DE_30; REGISTRO_LER). Sem a
-     * permissão do filtro = 403; valor desconhecido = 400 {@code FILTRO_INVALIDO}.
+     * (A_RENOVAR; TREINO_LER), {@code registro} (NUNCA, HA_MAIS_DE_7, HA_MAIS_DE_14, HA_MAIS_DE_30; REGISTRO_LER) e {@code tag}
+     * (repetível, ids de tag de aluno; OU entre as tags; id de outra consultoria = 404). Sem a permissão do filtro = 403; valor
+     * desconhecido ou malformado = 400 {@code FILTRO_INVALIDO}.
      */
     @PreAuthorize("hasAuthority('PERM_ALUNO_LER')")
     @GetMapping
@@ -55,9 +56,10 @@ public class AlunoController {
                                @RequestParam(required = false) List<String> atualizacao,
                                @RequestParam(required = false) String plano,
                                @RequestParam(required = false) String pasta,
-                               @RequestParam(required = false) String registro) {
+                               @RequestParam(required = false) String registro,
+                               @RequestParam(required = false) List<String> tag) {
         return alunos.listar(busca, situacao, pagina, tamanho, meus,
-                new FiltrosDaListaDeAlunos.Pedido(responsavel, acesso, atualizacao, plano, pasta, registro));
+                new FiltrosDaListaDeAlunos.Pedido(responsavel, acesso, atualizacao, plano, pasta, registro, tag));
     }
 
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")

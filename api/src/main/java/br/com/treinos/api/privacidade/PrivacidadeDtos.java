@@ -61,7 +61,9 @@ public final class PrivacidadeDtos {
                              Secao<br.com.treinos.api.agua.AguaDoDiaDtos.AguaRegistrada> agua,
                              Secao<br.com.treinos.api.push.PushDtos.PushExportado> pushDoCelular,
                              br.com.treinos.api.comunidade.dto.ComunidadeDtos.ComunidadeExportada comunidade,
-                             IndicacaoExportada indicacao) { }
+                             IndicacaoExportada indicacao,
+                             /** Os nomes das tags do aluno (V093), com {@code ALUNO_LER}; nome é texto livre do treinador, por isso sai aqui. */
+                             Secao<String> tags) { }
 
     /**
      * O código do link de indicação do próprio aluno (V081) e nada mais: a lista de quem ele indicou é dado de terceiros (nome e

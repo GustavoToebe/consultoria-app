@@ -4,14 +4,14 @@ import type { AlunoDetalhe } from '../src/api/tipos';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type PedidoFalso } from './api-falsa';
 
 /**
- * Foto de perfil do aluno pela equipe (C44), ao lado do nome no cabeçalho da ficha (guia de 11/11, pág. 31), só com
- * `ALUNO_ALTERAR` e aluno não anonimizado. O próprio círculo (56 px no PC, 44 no celular) é o botão e abre a Folha "Foto de
- * perfil" em qualquer largura. Troca pela galeria (reduzida no aparelho), remove com confirmação na tela e a foto do topo
- * baixa de novo. Dados fictícios.
+ * Foto de perfil do aluno pela equipe (C44), ao lado do nome no cabeçalho da ficha, só com `ALUNO_ALTERAR` e aluno não
+ * anonimizado. Cabeçalho do aluno (18/11): o círculo de 56 px em qualquer largura é o botão "Trocar foto" e abre a Folha
+ * "Foto de perfil"; o selo da câmera só aparece no hover e no foco; o ⋯ também tem "Trocar foto". Troca pela galeria
+ * (reduzida no aparelho), remove com confirmação na tela e a foto do topo baixa de novo. Dados fictícios.
  */
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
 const CAMINHO = `/alunos/${ALUNO_ID}/foto-perfil`;
-const CANTO = 'Foto de perfil: trocar ou remover';
+const CANTO = 'Trocar foto';
 
 const FICHA: AlunoDetalhe = {
   id: ALUNO_ID, nome: ALUNO.nome, email: ALUNO.email, telefone: null, objetivo: null,
@@ -64,9 +64,9 @@ async function abrirFicha(page: Page, o: { largura: number; permissoes: string[]
   jpeg = await jpegFicticio(page);
   // A foto fica no cabeçalho, ao lado do nome; a ficha abre no Resumo.
   await expect(page.getByRole('tab', { name: 'Resumo', exact: true })).toHaveAttribute('aria-selected', 'true');
-  // O bloco antigo de "Dados do aluno" saiu: a foto se troca só no círculo.
+  // O bloco antigo de "Dados do aluno" saiu: a foto se troca só no círculo (cabeçalho do aluno, 18/11: ele é o "Trocar foto").
   await expect(page.getByText(/Aparece no topo da ficha/)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /^(Trocar|Escolher|Tirar|Remover) foto$/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^(Escolher|Tirar|Remover) foto$/ })).toHaveCount(0);
   return { ...api, jpeg, anonimizar: () => { ficha = { ...ficha, anonimizado: true, ativo: false }; } };
 }
 
@@ -78,10 +78,11 @@ async function escolherArquivo(page: Page, jpeg: Buffer, clicar: () => Promise<v
   await seletor.setFiles({ name: 'retrato-ficticio.jpg', mimeType: 'image/jpeg', buffer: jpeg });
 }
 
-for (const [largura, tamanho] of [[1280, 56], [390, 44]] as const) {
+// Cabeçalho do aluno (18/11): 56 px também no celular.
+for (const [largura, tamanho] of [[1280, 56], [390, 56]] as const) {
   test(`${largura} px: o círculo de ${tamanho} px ao lado do nome abre a Folha "Foto de perfil" para trocar e remover`, async ({ page }) => {
     const { pedidos, errosDaPagina, jpeg } = await abrirFicha(page, { largura, permissoes: PERMISSOES_TREINADOR, comFoto: false });
-    const circulo = page.getByRole('button', { name: CANTO });
+    const circulo = page.getByRole('button', { name: CANTO, exact: true });
     const caixa = (await circulo.boundingBox())!;
     expect(Math.round(caixa.width)).toBe(tamanho);
     expect(caixa.height).toBeGreaterThanOrEqual(44);
@@ -91,6 +92,21 @@ for (const [largura, tamanho] of [[1280, 56], [390, 44]] as const) {
     expect(caixa.y).toBeLessThan(titulo.y + titulo.height);
     // Não há mais camada de hover nem a foto grande no Resumo.
     await expect(page.getByRole('button', { name: /^(Trocar|Remover) foto de perfil$/ })).toHaveCount(0);
+    // O selo da câmera: some no estado normal; aparece com o mouse em cima e com o foco do teclado.
+    const selo = page.getByTestId('selo-da-camera');
+    await page.mouse.move(0, 0);
+    await expect(selo).toHaveCount(0);
+    await circulo.hover();
+    await expect(selo).toBeVisible();
+    await page.mouse.move(0, 0);
+    await expect(selo).toHaveCount(0);
+    await circulo.focus();
+    await expect(selo).toBeVisible();
+    // Enter abre a mesma Folha que o toque.
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'Foto de perfil' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Foto de perfil' })).toHaveCount(0);
 
     // Sem foto: a Folha só oferece escolher.
     await circulo.click();
@@ -122,7 +138,12 @@ for (const [largura, tamanho] of [[1280, 56], [390, 44]] as const) {
 
     // A foto acompanha o nome em todas as abas.
     await page.getByRole('tab', { name: 'Ficha do aluno', exact: true }).click();
-    await expect(page.getByRole('button', { name: CANTO })).toBeVisible();
+    await expect(page.getByRole('button', { name: CANTO, exact: true })).toBeVisible();
+
+    // O ⋯ também tem "Trocar foto", que abre a mesma Folha.
+    await page.getByRole('button', { name: 'Mais ações do aluno', exact: true }).click();
+    await page.getByRole('dialog', { name: ALUNO.nome }).getByText('Trocar foto', { exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Foto de perfil' }).getByText('Escolher da galeria')).toBeVisible();
     expect(errosDaPagina).toEqual([]);
   });
 }

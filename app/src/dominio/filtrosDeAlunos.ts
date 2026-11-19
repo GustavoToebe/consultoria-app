@@ -1,4 +1,5 @@
 import type { FaseAtualizacao, SituacaoFiltro } from '../api/tipos';
+import { lerTagsDoEndereco, tagsParaEndereco } from './tagsDeAluno';
 
 /**
  * Filtros da lista de alunos (`docs/planos/filtros-da-lista-de-alunos.md`, 31/10): o que a tela guarda, como
@@ -28,9 +29,11 @@ export interface FiltrosDeAlunos {
   plano: PlanoDoFiltro | null;
   pastaARenovar: boolean;
   registro: RegistroDoFiltro | null;
+  /** Ids de tags (`docs/planos/tags-de-aluno.md`); OU entre elas, E com os outros filtros. Vazio = qualquer. */
+  tags: string[];
 }
 
-export type ChaveDoFiltro = 'situacao' | 'responsavel' | 'acesso' | 'atualizacao' | 'plano' | 'pasta' | 'registro';
+export type ChaveDoFiltro = 'situacao' | 'responsavel' | 'acesso' | 'tag' | 'atualizacao' | 'plano' | 'pasta' | 'registro';
 
 export const SITUACOES: readonly { valor: SituacaoFiltro; rotulo: string }[] = [
   { valor: 'ATIVO', rotulo: 'Ativos' },
@@ -66,10 +69,10 @@ export const REGISTROS: readonly { valor: RegistroDoFiltro; rotulo: string }[] =
 
 /** Nada filtrado: ativos de todos os responsáveis. É o que o "Limpar filtros" deixa. */
 export const SEM_FILTROS: FiltrosDeAlunos = {
-  situacao: 'ATIVO', responsaveis: [], acesso: [], atualizacao: [], plano: null, pastaARenovar: false, registro: null,
+  situacao: 'ATIVO', responsaveis: [], acesso: [], atualizacao: [], plano: null, pastaARenovar: false, registro: null, tags: [],
 };
 
-/** O que cada permissão libera; sem ela o filtro some (a API daria 403). Situação, responsável e acesso valem para todos. */
+/** O que cada permissão libera; sem ela o filtro some (a API daria 403). Situação, responsável, acesso e tag (`ALUNO_LER`, que a lista já exige) valem para todos. */
 export interface PermissoesDosFiltros {
   /** `ATUALIZACAO_LER` + `ALUNO_SENSIVEL_LER`. */
   atualizacao: boolean;
@@ -90,7 +93,7 @@ export function permissoesDosFiltros(pode: (codigo: string) => boolean): Permiss
 /** Os filtros do painel, na ordem em que aparecem. */
 export function filtrosVisiveis(p: PermissoesDosFiltros): ChaveDoFiltro[] {
   return [
-    'situacao', 'responsavel', 'acesso',
+    'situacao', 'responsavel', 'acesso', 'tag',
     ...(p.atualizacao ? ['atualizacao' as const] : []),
     ...(p.treino ? ['plano' as const, 'pasta' as const] : []),
     ...(p.registro ? ['registro' as const] : []),
@@ -127,13 +130,14 @@ function um<T extends string>(valor: Parametro, opcoes: readonly { valor: T }[])
 const ehId = (v: string) => /^[0-9a-z-]{8,64}$/i.test(v);
 
 /** Todas as chaves que os filtros usam no endereço (para tirar as que saíram). */
-export const CHAVES_DO_ENDERECO = ['situacao', 'meus', 'responsavel', 'acesso', 'atualizacao', 'plano', 'pasta', 'registro'] as const;
+export const CHAVES_DO_ENDERECO = ['situacao', 'meus', 'responsavel', 'acesso', 'tag', 'atualizacao', 'plano', 'pasta', 'registro'] as const;
 
 export interface ParametrosDoEndereco {
   situacao?: Parametro;
   meus?: Parametro;
   responsavel?: Parametro;
   acesso?: Parametro;
+  tag?: Parametro;
   atualizacao?: Parametro;
   plano?: Parametro;
   pasta?: Parametro;
@@ -154,6 +158,7 @@ export function lerDoEndereco(q: ParametrosDoEndereco, comecaEmMeus: boolean): F
     situacao: um(q.situacao, SITUACOES) ?? 'ATIVO',
     responsaveis,
     acesso: validos(q.acesso, ACESSOS),
+    tags: lerTagsDoEndereco(q.tag),
     atualizacao: validos(q.atualizacao, FASES),
     plano: um(q.plano, PLANOS),
     pastaARenovar: lista(q.pasta).some((v) => v.toUpperCase() === 'A_RENOVAR'),
@@ -177,6 +182,8 @@ export function paraEndereco(f: FiltrosDeAlunos, comecaEmMeus: boolean): Record<
     q.meus = 'false';
   }
   if (f.acesso.length) q.acesso = f.acesso.join(',');
+  const tags = tagsParaEndereco(f.tags);
+  if (tags.length) q.tag = tags.join(',');
   if (f.atualizacao.length) q.atualizacao = f.atualizacao.join(',');
   if (f.plano) q.plano = f.plano;
   if (f.pastaARenovar) q.pasta = 'A_RENOVAR';
@@ -204,6 +211,7 @@ export function pedidoDaApi(f: FiltrosDeAlunos, usuarioId: string | null | undef
     }
   }
   for (const a of f.acesso) q.push(['acesso', a]);
+  for (const t of tagsParaEndereco(f.tags)) q.push(['tag', t]);
   for (const a of f.atualizacao) q.push(['atualizacao', a]);
   if (f.plano) q.push(['plano', f.plano]);
   if (f.pastaARenovar) q.push(['pasta', 'A_RENOVAR']);
@@ -213,7 +221,7 @@ export function pedidoDaApi(f: FiltrosDeAlunos, usuarioId: string | null | undef
 
 /** Chave estável dos filtros (para recarregar a lista quando mudam). */
 export function chaveDosFiltros(f: FiltrosDeAlunos): string {
-  return JSON.stringify([f.situacao, [...f.responsaveis].sort(), [...f.acesso].sort(), [...f.atualizacao].sort(), f.plano, f.pastaARenovar, f.registro]);
+  return JSON.stringify([f.situacao, [...f.responsaveis].sort(), [...f.acesso].sort(), [...f.tags].sort(), [...f.atualizacao].sort(), f.plano, f.pastaARenovar, f.registro]);
 }
 
 export interface ChipDeFiltro {
@@ -233,7 +241,11 @@ export function rotuloDoResponsavel(valor: string, nomeDe: (id: string) => strin
 }
 
 /** Um chip por filtro ligado, na ordem do painel. A busca fica de fora (tem o próprio campo). */
-export function chipsDosFiltros(f: FiltrosDeAlunos, nomeDe: (id: string) => string | null = () => null): ChipDeFiltro[] {
+export function chipsDosFiltros(
+  f: FiltrosDeAlunos,
+  nomeDe: (id: string) => string | null = () => null,
+  nomeDaTag: (id: string) => string | null = () => null,
+): ChipDeFiltro[] {
   const chips: ChipDeFiltro[] = [];
   if (f.situacao !== 'ATIVO') chips.push({ chave: 'situacao', texto: `Situação: ${rotulos([f.situacao], SITUACOES)}` });
   if (f.responsaveis.length) {
@@ -241,6 +253,7 @@ export function chipsDosFiltros(f: FiltrosDeAlunos, nomeDe: (id: string) => stri
     chips.push({ chave: 'responsavel', texto: `Responsável: ${ordem.map((r) => rotuloDoResponsavel(r, nomeDe)).join(', ')}` });
   }
   if (f.acesso.length) chips.push({ chave: 'acesso', texto: `Acesso: ${rotulos(f.acesso, ACESSOS)}` });
+  if (f.tags.length) chips.push({ chave: 'tag', texto: `Tags: ${f.tags.map((id) => nomeDaTag(id) ?? 'Outra tag').join(', ')}` });
   if (f.atualizacao.length) chips.push({ chave: 'atualizacao', texto: `Atualização: ${rotulos(f.atualizacao, FASES)}` });
   if (f.plano) chips.push({ chave: 'plano', texto: `Plano: ${rotulos([f.plano], PLANOS)}` });
   if (f.pastaARenovar) chips.push({ chave: 'pasta', texto: 'Pasta a renovar' });
@@ -259,6 +272,7 @@ export function semOFiltro(f: FiltrosDeAlunos, chave: ChaveDoFiltro): FiltrosDeA
     case 'situacao': return { ...f, situacao: SEM_FILTROS.situacao };
     case 'responsavel': return { ...f, responsaveis: [] };
     case 'acesso': return { ...f, acesso: [] };
+    case 'tag': return { ...f, tags: [] };
     case 'atualizacao': return { ...f, atualizacao: [] };
     case 'plano': return { ...f, plano: null };
     case 'pasta': return { ...f, pastaARenovar: false };

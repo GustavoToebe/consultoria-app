@@ -157,6 +157,10 @@ test('destinos: os cartões abrem a tela e a aba certas', async ({ page }) => {
   await page.goBack();
   await cartao(page, 'Anamneses').click();
   await expect(page).toHaveURL(/\/treinador\/planejamento\?aba=anamnese$/);
+  await page.goBack();
+  await cartao(page, 'Tags dos alunos').click();
+  await expect(page).toHaveURL(/\/treinador\/alunos\/tags$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Tags dos alunos' })).toBeVisible();
 });
 
 test('teclado: do campo, o Tab chega ao primeiro cartão com foco visível e o Enter abre', async ({ page }) => {

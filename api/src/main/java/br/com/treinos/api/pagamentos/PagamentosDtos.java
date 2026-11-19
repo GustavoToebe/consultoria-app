@@ -32,7 +32,8 @@ public final class PagamentosDtos {
     /**
      * {@code tempoMinimoMeses} (1 a 60) só em plano mensal e {@code regraDeSaida} (até 500) são conferidos no serviço, que
      * responde 422 {@code PLANO_INVALIDO} sem repetir o valor (o erro do Bean Validation o carregaria). A regra é texto do
-     * treinador: nunca em log, auditoria nem {@code toString}.
+     * treinador: nunca em log, auditoria nem {@code toString}. {@code kiwifyAssinatura} e {@code kiwifyProdutoId} (D17) só valem
+     * com {@code TREINOS_PAGAMENTOS_KIWIFY_HABILITADO} ligada (desligada, a API os ignora e mantém o gravado); a regra é do serviço.
      */
     public record PlanoRequest(
             @NotBlank @Size(max = 80) String nome,
@@ -41,7 +42,20 @@ public final class PagamentosDtos {
             Integer tempoMinimoMeses,
             String regraDeSaida,
             String linkDePagamento,
-            Long versao) {
+            Long versao,
+            Boolean incluiTreino,
+            Boolean incluiDieta,
+            Boolean kiwifyAssinatura,
+            String kiwifyProdutoId) {
+
+        /** Ausente = incluído (corpo antigo, sem os campos, segue valendo); os dois desligados é 422 no serviço. */
+        boolean incluiTreinoOuPadrao() {
+            return incluiTreino == null || incluiTreino;
+        }
+
+        boolean incluiDietaOuPadrao() {
+            return incluiDieta == null || incluiDieta;
+        }
 
         @Override
         public String toString() {
@@ -51,7 +65,8 @@ public final class PagamentosDtos {
 
     public record PlanoResponse(UUID id, String nome, long valorCentavos, PeriodoDoPlano periodicidade, boolean arquivado,
                                 Instant criadoEm, Long versao, Short tempoMinimoMeses, String regraDeSaida,
-                                String linkDePagamento) {
+                                String linkDePagamento, boolean incluiTreino, boolean incluiDieta,
+                                boolean kiwifyAssinatura, String kiwifyProdutoId) {
 
         @Override
         public String toString() {
@@ -102,20 +117,46 @@ public final class PagamentosDtos {
 
     // ---- Contratação ----
 
-    /** {@code valorCentavos} nulo = o valor do plano; valor diferente do plano exige {@code motivoValor}. */
+    /**
+     * {@code valorCentavos} nulo = o valor do plano; valor diferente do plano exige {@code motivoValor}.
+     * {@code gerarMesesAnteriores} (D10): ausente ou {@code false} grava o início como digitado, mas as cobranças começam na
+     * competência do mês corrente; {@code true} gera também as dos meses anteriores, desde o início.
+     */
     public record ContratarRequest(
             @NotNull UUID planoComercialId,
             @Positive @Max(VALOR_MAXIMO) Long valorCentavos,
             @Size(max = 200) String motivoValor,
             @NotNull LocalDate inicio,
             @NotNull @Min(1) @Max(31) Integer diaVencimento,
-            Boolean primeiroPeriodoPago) {
+            Boolean primeiroPeriodoPago,
+            Boolean gerarMesesAnteriores) {
 
-        public ContratarRequest(UUID planoComercialId, Long valorCentavos, String motivoValor,
-                                LocalDate inicio, Integer diaVencimento) {
-            this(planoComercialId, valorCentavos, motivoValor, inicio, diaVencimento, null);
+        boolean comMesesAnteriores() {
+            return Boolean.TRUE.equals(gerarMesesAnteriores);
         }
     }
+
+    /** O mesmo corpo do contratar, mais o aluno (a rota não o tem no caminho). Só leitura. */
+    public record PreviaDeGeracaoRequest(
+            @NotNull UUID alunoId,
+            @NotNull UUID planoComercialId,
+            @Positive @Max(VALOR_MAXIMO) Long valorCentavos,
+            @NotNull LocalDate inicio,
+            @NotNull @Min(1) @Max(31) Integer diaVencimento,
+            Boolean primeiroPeriodoPago,
+            Boolean gerarMesesAnteriores) {
+
+        ContratarRequest paraContratar() {
+            return new ContratarRequest(planoComercialId, valorCentavos, null, inicio, diaVencimento, primeiroPeriodoPago,
+                    gerarMesesAnteriores);
+        }
+    }
+
+    /**
+     * O que contratar geraria em aberto agora: quantidade, soma e as competências ({@code AAAA-MM}, nulas se nada nasce
+     * aberto). O app só mostra; nunca calcula.
+     */
+    public record PreviaDeGeracao(int quantidade, long totalCentavos, String primeiraCompetencia, String ultimaCompetencia) { }
 
     public record AlterarContratacaoRequest(
             @NotNull @Positive @Max(VALOR_MAXIMO) Long valorCentavos,
@@ -208,7 +249,10 @@ public final class PagamentosDtos {
      * {@code idExterno} a transação do provedor (nulo na baixa manual). {@code alunoCpf} só vem com
      * {@code ALUNO_SENSIVEL_LER} (senão nulo) e nunca vai a log, auditoria nem {@code toString}. Na cobrança AVULSA
      * {@code contratacaoId}, {@code planoNome} e {@code competencia} vêm nulos e {@code descricao} traz o texto do treinador
-     * (nulo nas outras).
+     * (nulo nas outras). {@code acordoId} (D14) vem nas originais RENEGOCIADA e nas parcelas RENEGOCIACAO, nulo nas demais e nas
+     * originais reabertas ao desfazer; a parcela tem {@code descricao} fixa do servidor e o {@code motivo} da renegociação fica nas
+     * originais (só a equipe vê). {@code cobrancaAutomatica} (D18) é {@code KIWIFY} na mensalidade de plano com assinatura pela
+     * Kiwify, calculada na leitura e só com a chave ligada e a credencial configurada (senão nulo).
      */
     public record CobrancaResponse(UUID id, UUID contratacaoId, UUID alunoId, String alunoNome, String planoNome,
                                    LocalDate competencia, LocalDate vencimento, long valorCentavos,
@@ -216,7 +260,7 @@ public final class PagamentosDtos {
                                    FormaDePagamento forma, String provedor, LocalDate pagoEm, UUID baixaPor,
                                    String baixaPorNome, String observacao, String motivo, Long versao,
                                    Instant criadoEm, String idExterno, String alunoCpf, CobrancaAluno.Tipo tipo,
-                                   String descricao) {
+                                   String descricao, UUID acordoId, String cobrancaAutomatica) {
 
         @Override
         public String toString() {
@@ -258,7 +302,7 @@ public final class PagamentosDtos {
      * conferido em {@link CobrancaAvulsaService}, que responde 422 {@code COBRANCA_AVULSA_INVALIDA} por campo sem repetir o
      * valor. {@code descricao} é texto do treinador: fora do {@code toString}.
      */
-    public record CobrancaAvulsaRequest(List<UUID> alunoIds, String descricao, Long valorCentavos,
+    public record CobrancaAvulsaRequest(UUID pedidoId, List<UUID> alunoIds, String descricao, Long valorCentavos,
                                         LocalDate primeiroVencimento, Integer parcelas) {
 
         @Override
@@ -269,6 +313,59 @@ public final class PagamentosDtos {
 
     /** Contagens do que foi gerado: {@code alunos} e {@code cobrancas} (alunos x parcelas). */
     public record CobrancasAvulsasGeradas(int alunos, int cobrancas) { }
+
+    // ---- Renegociar (D14) ----
+
+    /** Uma original e a versão que a tela viu. Sem Bean Validation: tudo é conferido em {@link RenegociacaoService} (422 por campo). */
+    public record ItemDaRenegociacao(UUID cobrancaId, Long versao) { }
+
+    /**
+     * O que a prévia confere e calcula: 1 a 100 itens do mesmo aluno, acréscimo e desconto de 0 a {@link #VALOR_MAXIMO}, 1 a 12 parcelas
+     * e o primeiro vencimento (faixa PLANEJAMENTO). Sem Bean Validation de propósito: o erro dela carregaria o valor recusado e não traria
+     * o código {@code RENEGOCIACAO_INVALIDA}.
+     */
+    public record PreviaDaRenegociacaoRequest(List<ItemDaRenegociacao> itens, Long acrescimoCentavos, Long descontoCentavos,
+                                              Integer parcelas, LocalDate primeiroVencimento) { }
+
+    /**
+     * O confirmar: o corpo da prévia mais o {@code pedidoId} (idempotência) e o {@code motivo}, texto do treinador que só a equipe
+     * vê: fora do {@code toString}, nunca em log, auditoria, aluno nem provedor.
+     */
+    public record RenegociarRequest(List<ItemDaRenegociacao> itens, Long acrescimoCentavos, Long descontoCentavos, Integer parcelas,
+                                    LocalDate primeiroVencimento, UUID pedidoId, String motivo) {
+
+        PreviaDaRenegociacaoRequest previa() {
+            return new PreviaDaRenegociacaoRequest(itens, acrescimoCentavos, descontoCentavos, parcelas, primeiroVencimento);
+        }
+
+        @Override
+        public String toString() {
+            return "RenegociarRequest[]";
+        }
+    }
+
+    /** Uma parcela como o servidor vai gravar: valor com a sobra dos centavos na última e o vencimento já preso ao fim do mês. */
+    public record ParcelaDaPreviaDaRenegociacao(int numero, LocalDate vencimento, long valorCentavos, String descricao) { }
+
+    /** A prévia, toda do servidor: a soma das originais lida no banco, o ajuste, o total (soma + acréscimo − desconto) e as parcelas. */
+    public record PreviaDaRenegociacao(UUID alunoId, int quantidadeDeOriginais, long somaDosOriginaisCentavos,
+                                       long acrescimoCentavos, long descontoCentavos, long totalCentavos,
+                                       List<ParcelaDaPreviaDaRenegociacao> parcelas) { }
+
+    /** 201 (200 na repetição do mesmo pedido): só contagens e o total gravado. */
+    public record RenegociacaoResponse(UUID acordoId, int renegociadas, int parcelas, long totalCentavos) { }
+
+    /** O motivo (obrigatório, até 300 depois do strip) vai às parcelas canceladas; texto do treinador, fora do {@code toString}. */
+    public record DesfazerAcordoRequest(String motivo) {
+
+        @Override
+        public String toString() {
+            return "DesfazerAcordoRequest[]";
+        }
+    }
+
+    /** {@code reabertas} = originais que voltaram a ABERTA; {@code canceladas} = parcelas abertas que este desfazer cancelou. */
+    public record AcordoDesfeito(UUID acordoId, int reabertas, int canceladas) { }
 
     // ---- Lote: cancelar, link e exportar as selecionadas ----
 
@@ -378,10 +475,14 @@ public final class PagamentosDtos {
                                ContratacaoAluno.Situacao situacao, LocalDate proximoVencimento,
                                String linkDePagamento) { }
 
-    /** {@code competencia} é nula na AVULSA, que traz {@code descricao}. */
+    /**
+     * {@code competencia} é nula na AVULSA, que traz {@code descricao}. {@code cobrancaAutomatica} é {@code KIWIFY} na mensalidade
+     * de plano com assinatura pela Kiwify (só com a chave ligada e a credencial configurada; senão nulo): o aluno não a paga por
+     * aqui (sem "Pagar", link, Pix nem forma).
+     */
     public record CobrancaDoAluno(UUID id, LocalDate competencia, LocalDate vencimento, long valorCentavos,
                                   CobrancaAluno.Situacao situacao, boolean vencida, FormaDePagamento forma,
-                                  LocalDate pagoEm, CobrancaAluno.Tipo tipo, String descricao) { }
+                                  LocalDate pagoEm, CobrancaAluno.Tipo tipo, String descricao, String cobrancaAutomatica) { }
 
     /** {@code pagamentoOnline}: o aluno pode pedir o link de pagamento (módulo, InfinitePay e credencial do treinador). A Tag nunca vem. */
     public record FinanceiroDoAluno(PlanoDoAluno plano, List<CobrancaDoAluno> abertas, List<CobrancaDoAluno> historico,
@@ -395,10 +496,12 @@ public final class PagamentosDtos {
     /**
      * Um pagamento online confirmado que não se aplicou sozinho. Cobrança, competência, valores e aluno vêm nulos quando a
      * cobrança não existe nesta consultoria. {@code valorPagoCentavos} é o valor que o provedor confirmou (o do link).
+     * {@code provedor} é {@code INFINITEPAY} ou {@code KIWIFY} e {@code idExterno} a venda nele (o {@code order_id} da Kiwify, o
+     * {@code transaction_nsu} da InfinitePay), para achá-la no painel do provedor; nunca o e-mail do comprador.
      */
     public record ConferenciaDePagamento(UUID id, UUID alunoId, String alunoNome, UUID cobrancaId, LocalDate competencia,
                                          Long valorCobrancaCentavos, Long valorPagoCentavos, String motivo,
-                                         Instant recebidoEm) { }
+                                         Instant recebidoEm, String provedor, String idExterno) { }
 
     public record Conferencias(List<ConferenciaDePagamento> itens) { }
 
@@ -412,7 +515,7 @@ public final class PagamentosDtos {
     public record CobrancaExportada(UUID id, UUID contratacaoId, LocalDate competencia, LocalDate vencimento,
                                     long valorCentavos, CobrancaAluno.Situacao situacao, FormaDePagamento forma,
                                     String provedor, LocalDate pagoEm, String observacao, String motivo,
-                                    CobrancaAluno.Tipo tipo, String descricao) { }
+                                    CobrancaAluno.Tipo tipo, String descricao, UUID acordoId) { }
 
     /** Lembrete de cobrança na exportação: tipo, situação e datas (a linha não guarda endereço nem texto). */
     public record LembreteExportado(UUID cobrancaId, TipoDeLembrete tipo, LembreteDeCobranca.Situacao situacao,
@@ -421,8 +524,17 @@ public final class PagamentosDtos {
     /** A escolha do próprio aluno sobre os lembretes de cobrança: {@code desligadoEm} nulo = recebe. */
     public record EscolhaDeLembretesExportada(boolean receber, Instant desligadoEm) { }
 
+    /** Um acordo de renegociação (D14): só ids, datas, contagens e total; o motivo vai no {@code motivo} das cobranças originais. */
+    public record AcordoExportado(UUID id, Instant criadoEm, Instant desfeitoEm, int renegociadas, int parcelas, long totalCentavos) { }
+
+    /**
+     * {@code responsavelFinanceiro} (D15) é nulo quando o aluno não tem; o CPF dele só sai com {@code ALUNO_SENSIVEL_LER}.
+     * {@code acordos} (D14) traz também os desfeitos ({@code desfeitoEm}), de que as originais reabertas já não guardam o id.
+     */
     public record FinanceiroExportado(List<ContratacaoExportada> contratacoes, List<CobrancaExportada> cobrancas,
-                                      List<LembreteExportado> lembretes, EscolhaDeLembretesExportada escolhaDeLembretes) { }
+                                      List<LembreteExportado> lembretes, EscolhaDeLembretesExportada escolhaDeLembretes,
+                                      ResponsavelFinanceiroDtos.ResponsavelExportado responsavelFinanceiro,
+                                      List<AcordoExportado> acordos) { }
 
     // ---- Lembretes de cobrança por e-mail ----
 
@@ -444,7 +556,8 @@ public final class PagamentosDtos {
     /**
      * A mensagem pronta para o treinador mandar à mão pelo WhatsApp (o mesmo texto do e-mail, para hoje). Só na cobrança em
      * aberto (de aluno ativo; de inativo só a vencida ou a de saída); {@code telefone} nulo = o aluno não tem telefone (o app
-     * explica e não oferece o botão). Telefone e mensagem nunca vão a log nem {@code toString}.
+     * explica e não oferece o botão). Telefone e mensagem nunca vão a log nem {@code toString}. Com responsável financeiro que
+     * tem telefone (D15), é o dele (o texto não muda e não leva o nome dele).
      */
     public record WhatsAppDaCobranca(String telefone, String mensagem) {
 
@@ -457,10 +570,11 @@ public final class PagamentosDtos {
     /**
      * {@code alunoDesligou}: o aluno desligou os lembretes por e-mail só para ele (o job não manda mais). Só informa o
      * treinador: o botão do WhatsApp manual não muda. {@code motivoSemWhatsapp} (código fixo) diz por que {@code whatsapp} veio
-     * nulo, para o botão aparecer desabilitado com o porquê; nulo quando há mensagem.
+     * nulo, para o botão aparecer desabilitado com o porquê; nulo quando há mensagem. {@code paraResponsavel} (D15): o aluno
+     * tem responsável financeiro com e-mail e/ou telefone, que recebe no lugar dele o canal que informou (sem nome).
      */
     public record LembretesDaCobranca(List<LembreteResponse> itens, WhatsAppDaCobranca whatsapp, boolean alunoDesligou,
-                                      String motivoSemWhatsapp) { }
+                                      String motivoSemWhatsapp, boolean paraResponsavel) { }
 
     /** O pedido do aluno para receber ou não os lembretes de cobrança por e-mail; sempre vale para o aluno da sessão. */
     public record LembretesDoAlunoRequest(@NotNull Boolean receber) { }

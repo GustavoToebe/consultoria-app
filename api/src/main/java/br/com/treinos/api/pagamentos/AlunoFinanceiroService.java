@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /**
  * O financeiro do aluno logado, sempre o da sessão. Mostra o plano contratado, as cobranças em aberto e as últimas 24 do
@@ -34,11 +36,14 @@ public class AlunoFinanceiroService {
     private final CredencialPagamentoRepository credenciais;
     private final InfinitePayProperties infinitePay;
     private final FormasDeRecebimentoService formas;
+    private final CobrancaAutomatica automatica;
 
     public AlunoFinanceiroService(ContratacaoAlunoRepository contratacoes, CobrancaAlunoRepository cobrancas,
                                   PlanoComercialRepository planos, CredencialPagamentoRepository credenciais,
-                                  InfinitePayProperties infinitePay, FormasDeRecebimentoService formas) {
+                                  InfinitePayProperties infinitePay, FormasDeRecebimentoService formas,
+                                  CobrancaAutomatica automatica) {
         this.formas = formas;
+        this.automatica = automatica;
         this.contratacoes = contratacoes;
         this.cobrancas = cobrancas;
         this.planos = planos;
@@ -67,21 +72,29 @@ public class AlunoFinanceiroService {
                             proximoVencimento(abertas, c.getId(), hoje), link);
                 })
                 .orElse(null);
-        List<CobrancaDoAluno> historico = cobrancas
-                .findTop24ByAlunoIdAndSituacaoInOrderByCompetenciaDescIdDesc(alunoId, NO_HISTORICO).stream()
-                .map(c -> Respostas.cobrancaDoAluno(c, hoje)).toList();
+        List<CobrancaAluno> pagas = cobrancas
+                .findTop24ByAlunoIdAndSituacaoInOrderByCompetenciaDescIdDesc(alunoId, NO_HISTORICO);
+        // D18: a mensalidade que a Kiwify cobra só informa ao aluno (sem "Pagar", link, Pix nem forma).
+        Set<UUID> automaticas = automatica.contratacoesAutomaticas(Stream.concat(abertas.stream(), pagas.stream()).toList());
+        List<CobrancaDoAluno> historico = pagas.stream()
+                .map(c -> Respostas.cobrancaDoAluno(c, hoje, CobrancaAutomatica.eh(c, automaticas))).toList();
         // O módulo ligado já vale (o controller é fechado por ele); falta a InfinitePay ligada (no módulo e nas formas do
         // treinador) e a credencial do treinador.
-        boolean pagamentoOnline = infinitePay.habilitado() && ligadas.infinitePay()
+        // Só mensalidades da Kiwify em aberto: nenhuma forma de pagar por aqui (o app só informa "Cobrança automática").
+        boolean soDaKiwify = !abertas.isEmpty() && abertas.stream().allMatch(c -> CobrancaAutomatica.eh(c, automaticas));
+        boolean pagamentoOnline = !soDaKiwify && infinitePay.habilitado() && ligadas.infinitePay()
                 && credenciais.existsByProvedor(RecebimentoOnlineService.PROVEDOR);
         // Do aluno todo: o link próprio só vale numa mensalidade em aberto e o Pix, numa cobrança em aberto que não seja a de saída
         // (a saída só informa: nunca tem "Pagar").
-        boolean mensalidadeAberta = abertas.stream().anyMatch(c -> c.getTipo() == CobrancaAluno.Tipo.MENSALIDADE);
-        boolean pagavelAberta = abertas.stream().anyMatch(c -> c.getTipo() != CobrancaAluno.Tipo.SAIDA);
+        boolean mensalidadeAberta = abertas.stream().anyMatch(c -> c.getTipo() == CobrancaAluno.Tipo.MENSALIDADE
+                && !CobrancaAutomatica.eh(c, automaticas));
+        boolean pagavelAberta = abertas.stream().anyMatch(c -> c.getTipo() != CobrancaAluno.Tipo.SAIDA
+                && !CobrancaAutomatica.eh(c, automaticas));
         boolean planoTemLink = plano != null && plano.linkDePagamento() != null && mensalidadeAberta;
         List<FormasDePagamentoDoAluno.Forma> formasDePagamento = FormasDePagamentoDoAluno.decidir(ligadas,
                 pagamentoOnline, planoTemLink, pagavelAberta);
-        return new FinanceiroDoAluno(plano, abertas.stream().map(c -> Respostas.cobrancaDoAluno(c, hoje)).toList(), historico,
+        return new FinanceiroDoAluno(plano, abertas.stream()
+                .map(c -> Respostas.cobrancaDoAluno(c, hoje, CobrancaAutomatica.eh(c, automaticas))).toList(), historico,
                 pagamentoOnline, formasDePagamento);
     }
 
@@ -95,6 +108,7 @@ public class AlunoFinanceiroService {
         UUID alunoId = AlunoAppService.alunoDaSessao(eu);
         CobrancaAluno c = cobrancas.findById(cobrancaId).filter(x -> x.getAlunoId().equals(alunoId))
                 .orElseThrow(() -> new NaoEncontradoException("Cobrança não encontrada."));
+        automatica.exigirComum(c);
         return FormasDePagamentoDoAluno.codigoPix(formas.ligadas(), c.getId(), c.getValorCentavos(),
                 c.getSituacao() == CobrancaAluno.Situacao.ABERTA && c.getTipo() != CobrancaAluno.Tipo.SAIDA)
                 .orElseThrow(() -> new ConflictException("O Pix não está disponível para esta cobrança.", "PIX_INDISPONIVEL"));

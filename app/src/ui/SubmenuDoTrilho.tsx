@@ -10,7 +10,7 @@ import { sobre } from './sobre';
 import { Texto } from './Texto';
 import { useTeclado } from './usoWeb';
 
-/** Ícone de cada grupo no PC minimizado; nenhum repete o de um item do grupo (menu: recolher e submenu, 18/11). */
+/** Ícone de cada grupo no PC minimizado; nenhum repete o de um item do grupo (submenu dos grupos, 18/11). */
 export const ICONES_DOS_GRUPOS: Record<GrupoDoMenu, LucideIcon> = {
   Acompanhamento: Activity,
   Conteúdo: Layers,
@@ -31,7 +31,7 @@ const LARGURA_DO_SUBMENU = 240;
 const elemento = (no: unknown) => no as HTMLElement | null;
 
 /**
- * Submenu flutuante dos grupos no PC minimizado (menu: recolher e submenu, 18/11), no padrão "Menu Button" da WAI-ARIA APG:
+ * Submenu flutuante dos grupos no PC minimizado (submenu dos grupos, 18/11), no padrão "Menu Button" da WAI-ARIA APG:
  * o ícone do grupo é o botão (`aria-haspopup`, `aria-expanded`, `aria-controls`); passar o mouse ou focar mostra o submenu
  * sem tirar o foco do botão; clique, toque, Enter, Espaço e ↓ abrem com o foco no primeiro item, ↑ no último; dentro,
  * ↑ ↓ dão a volta e Home e End vão às pontas; Esc fecha e devolve o foco ao ícone; Tab fecha e segue a ordem a partir do

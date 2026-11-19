@@ -223,7 +223,7 @@ for (const tema of ['ESCURO', 'AREIA'] as const) {
     await fixarHoje(page);
     const plano: PlanoResponse = {
       id: 'b0000000-0000-4000-8000-0000000000f1', nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', arquivado: false,
-      criadoEm: '2026-09-01T12:00:00Z', versao: 0, tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: 'https://pagamento.exemplo.invalid/plano',
+      criadoEm: '2026-09-01T12:00:00Z', versao: 0, tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: 'https://pagamento.exemplo.invalid/plano', incluiTreino: true, incluiDieta: true,
     };
     const contratacao: ContratacaoResponse = {
       id: 'e0000000-0000-4000-8000-0000000000cc', alunoId: ALUNO.id, planoComercialId: plano.id, planoNome: plano.nome, periodicidade: 'MENSAL',

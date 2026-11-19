@@ -1,4 +1,4 @@
-import { Ban, Copy, Download, Ellipsis, Link2, RotateCw } from 'lucide-react-native';
+import { Ban, Copy, Download, Ellipsis, Handshake, Link2, RotateCw } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -9,6 +9,7 @@ import {
 } from '../../dominio/acoesEmLote';
 import { hojeEmBrasilia, LIMITES, problemaDoLote, referenciaDaCobranca, totalDoLote } from '../../dominio/financeiro';
 import { centavosParaTela } from '../../dominio/formatos';
+import { motivoDeLoteComAlunosDiferentes, motivoDeRenegociarOLoteDesabilitado } from '../../dominio/renegociar';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -34,12 +35,15 @@ const quantas = (n: number) => (n === 1 ? '1 cobrança' : `${n} cobranças`);
  * (só com o recebimento online ligado na plataforma) e exportar as selecionadas em CSV. A seleção é a mesma do lote de
  * baixa (só em aberto, que é o que as três aceitam). Cancelar e link mostram o resultado de cada uma, na ordem do pedido;
  * falha parcial nunca aparece como sucesso. Quem chamou recebe as canceladas (`aoCancelar`), que saem da seleção, e mostra
- * o resultado (`aoResultado` + `FolhaDoResultadoDaAcao`): esta barra some quando a seleção esvazia.
+ * o resultado (`aoResultado` + `FolhaDoResultadoDaAcao`): esta barra some quando a seleção esvazia. "Renegociar" (D14) só
+ * entrega a seleção a quem chamou (`aoRenegociar`), que abre a `FolhaRenegociar` fora desta barra pelo mesmo motivo.
  */
-export function AcoesDoLote({ lote, comLink, aoCancelar, aoResultado, estilo }: {
+export function AcoesDoLote({ lote, comLink, aoCancelar, aoRenegociar, aoResultado, estilo }: {
   lote: readonly CobrancaResponse[];
   comLink: boolean;
   aoCancelar: (cancelados: string[]) => void;
+  /** Abre a renegociação com a seleção de agora (as que não podem entrar são explicadas na primeira etapa). */
+  aoRenegociar?: (selecao: CobrancaResponse[]) => void;
   aoResultado: (resultado: ResultadoDaAcao) => void;
   /** O estilo dos botões da barra (no celular, crescer para a fileira ocupar a largura). */
   estilo?: StyleProp<ViewStyle>;
@@ -55,6 +59,8 @@ export function AcoesDoLote({ lote, comLink, aoCancelar, aoResultado, estilo }: 
   const trava = useRef(false);
   const n = lote.length;
   const problema = problemaDoLote(n);
+  // O aviso vem antes de abrir a folha: item apagado com o motivo no lugar da explicação (Kiwify, e alunos diferentes).
+  const semRenegociar = motivoDeRenegociarOLoteDesabilitado(lote) ?? motivoDeLoteComAlunosDiferentes(lote);
   const comecar = (acao: AcaoDoLote | 'EXPORTAR') => {
     if (trava.current) return false;
     trava.current = true;
@@ -111,6 +117,10 @@ export function AcoesDoLote({ lote, comLink, aoCancelar, aoResultado, estilo }: 
         <FolhaDeAcoes titulo={`Ações com ${quantas(n)}`} aoFechar={() => setMenu(false)} acoes={[
           comLink && { rotulo: 'Gerar links de pagamento', detalhe: 'Um link da InfinitePay para cada uma, para você mandar ao aluno.', Icone: Link2, aoTocar: gerarLinks },
           { rotulo: 'Exportar selecionadas', detalhe: 'Baixa um CSV só com estas cobranças.', Icone: Download, aoTocar: exportar },
+          !!aoRenegociar && {
+            rotulo: 'Renegociar', detalhe: semRenegociar ?? 'Junta as cobranças de um aluno num acordo, em parcelas.', Icone: Handshake,
+            desabilitado: !!semRenegociar, aoTocar: () => aoRenegociar([...lote]),
+          },
           { rotulo: 'Cancelar cobranças', detalhe: 'Deixam de valer. Não tem volta.', Icone: Ban, perigo: true, aoTocar: () => { setMotivo(''); setErro(null); setCancelando(true); } },
         ]} />
       ) : null}

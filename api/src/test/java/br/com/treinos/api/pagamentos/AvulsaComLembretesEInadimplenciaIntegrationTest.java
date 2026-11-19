@@ -70,7 +70,7 @@ class AvulsaComLembretesEInadimplenciaIntegrationTest extends AbstractIntegratio
     }
 
     private void avulsa(List<UUID> alunos, long valor, LocalDate vencimento) throws Exception {
-        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("alunoIds", alunos.stream().map(UUID::toString).toList(),
+        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("pedidoId", UUID.randomUUID().toString(), "alunoIds", alunos.stream().map(UUID::toString).toList(),
                 "descricao", "Camiseta fictícia", "valorCentavos", valor, "primeiroVencimento", vencimento.toString(),
                 "parcelas", 1), 201);
     }

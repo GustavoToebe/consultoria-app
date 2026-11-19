@@ -165,7 +165,10 @@ async function escolher(page: Page, botao: RegExp, opcao: RegExp) {
 
 async function abrirELer(page: Page) {
   await page.goto('/treinador/importacao');
+  // Modal da importação (18/11): a planilha completa fica no assistente da Importação manual.
   await page.getByRole('button', { name: 'Nova importação' }).click();
+  await page.getByRole('dialog', { name: 'Nova importação' }).getByRole('radio', { name: /^Importação manual/ }).click();
+  await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(page).toHaveURL(/\/treinador\/importacao\/nova$/);
   await page.getByRole('link', { name: /Planilha completa \(alunos, pesos, treinos e dietas\)/ }).click();
   await expect(page).toHaveURL(/\/treinador\/importacao\/planilha-completa$/);

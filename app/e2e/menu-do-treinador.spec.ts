@@ -3,10 +3,12 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
- * Menu do treinador (auditoria-ficha, N29 e o menu do tablet): grupos com título no PC, rótulo curto embaixo do ícone no
- * trilho de 768 a 1023 px, PC minimizado só com ícone e dica, barra do celular igual. Guia de 11/11 (p. 28, 29 e 37): sem
- * barra de topo; a marca fica numa linha só dela, "Buscar" (atalho Ctrl K só na dica) com o recolher ao lado, logo abaixo, e a conta fixa no pé do menu; o menu
- * aberto mostra as contagens. Só dados fictícios.
+ * Menu do treinador (auditoria-ficha, N29 e o menu do tablet): grupos com título e fio vertical no PC, rótulo curto embaixo
+ * do ícone no trilho de 768 a 1023 px, PC minimizado com o Início e um ícone por grupo que abre o submenu (Menu Button da
+ * APG), barra do celular igual. Guia de 11/11 (p. 28, 29 e 37): sem
+ * barra de topo; no topo a marca com o "Minimizar menu" à direita (minimizado, o "Expandir menu" sobre a logo, revelado pelo
+ * mouse ou pelo Tab), "Buscar" (atalho Ctrl K só na dica) sozinho logo abaixo e a conta fixa no pé do menu; o menu aberto
+ * mostra as contagens. Só dados fictícios.
  */
 const TODAS = [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER', 'AGENDA_LER', 'BIBLIOTECA_LER', 'MODELO_LER', 'FINANCEIRO_LER', 'EQUIPE_LER', 'AUDITORIA_LER'];
 
@@ -44,6 +46,19 @@ test('PC (1280): quatro grupos com título, na ordem do D6, e o fim do menu alca
   for (const titulo of ['Acompanhamento', 'Conteúdo', 'Negócio', 'Configurações']) await expect(menu(page).getByText(titulo, { exact: true })).toBeVisible();
   // O Início fica no topo, fora de grupo.
   await expect(menu(page).getByRole('link').first()).toHaveAttribute('aria-label', 'Início');
+  // Submenu dos grupos (18/11): no grupo aberto, um fio vertical de 1 px, só desenho, liga os itens na coluna da barrinha
+  // do item atual (a borda esquerda dos itens), do primeiro ao último.
+  const fio = await menu(page).getByRole('group', { name: 'Acompanhamento' }).evaluate((g) => {
+    const linha = [...g.querySelectorAll<HTMLElement>('[aria-hidden="true"]')].find((n) => n.getBoundingClientRect().width === 1);
+    const itens = [...g.querySelectorAll('a')].map((a) => a.getBoundingClientRect());
+    const r = linha?.getBoundingClientRect();
+    return r ? { x: r.left, topo: r.top, fim: r.bottom, esquerda: itens[0].left, primeiro: itens[0].top, ultimo: itens[itens.length - 1].bottom } : null;
+  });
+  expect(fio).not.toBeNull();
+  expect(Math.abs(fio!.x - fio!.esquerda)).toBeLessThanOrEqual(3);
+  expect(fio!.topo).toBeGreaterThanOrEqual(fio!.primeiro);
+  expect(fio!.fim).toBeLessThanOrEqual(fio!.ultimo);
+  expect(fio!.fim - fio!.topo).toBeGreaterThan(fio!.ultimo - fio!.primeiro - 44);
 
   // Com os títulos o menu passa de 720 px e só a lista do meio rola; o "Minimizar" fica na linha da marca, uma vez só.
   await expect(menu(page).getByRole('button', { name: 'Minimizar menu' })).toBeInViewport();
@@ -54,33 +69,46 @@ test('PC (1280): quatro grupos com título, na ordem do D6, e o fim do menu alca
   expect(errosDaPagina).toEqual([]);
 });
 
+// Grupos recolhíveis (docs/planos/menu-grupos-recolhiveis.md): só no menu aberto, escolha guardada no aparelho.
+const botaoDoGrupo = (page: Page, acao: 'Recolher' | 'Abrir', grupo: string) =>
+  menu(page).getByRole('button', { name: new RegExp(`^${acao} ${grupo}(,|$)`) });
+const comGruposRecolhidos = (page: Page, grupos: string[]) =>
+  page.addInitScript(([id, g]) => {
+    const chave = `treinos:${id}:preferencias`;
+    if (localStorage.getItem(chave) === null) localStorage.setItem(chave, JSON.stringify({ gruposRecolhidos: g }));
+  }, [TREINADOR.id, grupos] as const);
+
 const botaoDaBusca = (page: Page) => menu(page).getByRole('button', { name: /^Buscar telas e ações, atalho/ });
 const botaoDaConta = (page: Page) => menu(page).getByRole('button', { name: /^Conta de / });
 
-test('PC (1280×720): sem barra de topo; marca com o recolher na mesma linha, Buscar embaixo e a conta fixa no pé, com a lista rolada', async ({ page }) => {
+test('PC (1280×720): sem barra de topo; o "Minimizar" à direita da marca, Buscar sozinho embaixo e a conta fixa no pé, com a lista rolada', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, 720);
   const minimizar = menu(page).getByRole('button', { name: 'Minimizar menu' });
   // A tela aberta é a Ajuda, perto do fim da lista: o item ativo rola a lista sozinho, então o Início volta antes de medir.
   await menu(page).getByRole('link', { name: 'Início', exact: true }).scrollIntoViewIfNeeded();
-  const [caixaMin, caixaBusca, caixaInicio, caixaConta] = [
+  const [caixaMin, caixaBusca, caixaInicio, caixaConta, caixaMenu] = [
     await minimizar.boundingBox(),
     await botaoDaBusca(page).boundingBox(),
     await menu(page).getByRole('link', { name: 'Início', exact: true }).boundingBox(),
     await botaoDaConta(page).boundingBox(),
+    await menu(page).boundingBox(),
   ];
-  // menu: recolher e submenu (18/11): de cima para baixo, a marca com o recolher à direita na mesma linha, Buscar embaixo
-  // na largura toda, itens, conta; alvos de 44.
+  // Ordem de cima para baixo: marca com o recolher à direita na mesma linha, Buscar, itens, conta; alvos de 44.
   const marca = await menu(page).getByText(MARCA.nome, { exact: true }).boundingBox();
-  expect(marca!.y + marca!.height).toBeLessThanOrEqual(caixaBusca!.y);
-  expect(Math.abs(caixaMin!.y + caixaMin!.height / 2 - (marca!.y + marca!.height / 2))).toBeLessThanOrEqual(4);
+  const meio = (c: { y: number; height: number }) => c.y + c.height / 2;
+  expect(Math.abs(meio(caixaMin!) - meio(marca!))).toBeLessThanOrEqual(4);
   expect(caixaMin!.x).toBeGreaterThanOrEqual(marca!.x + marca!.width);
-  expect(caixaMin!.y + caixaMin!.height).toBeLessThanOrEqual(caixaBusca!.y);
-  expect(caixaBusca!.width).toBeGreaterThan(180);
+  expect(caixaMin!.x + caixaMin!.width).toBeLessThanOrEqual(caixaMenu!.x + caixaMenu!.width);
+  expect(Math.max(marca!.y + marca!.height, caixaMin!.y + caixaMin!.height)).toBeLessThanOrEqual(caixaBusca!.y);
+  // Buscar ocupa a linha inteira: nenhum segundo botão de recolher ao lado dele.
+  expect(caixaBusca!.width).toBeGreaterThanOrEqual(200);
+  await expect(page.getByRole('button', { name: /Minimizar menu|Expandir menu/ })).toHaveCount(1);
   // O selo "Ctrl K" saiu do botão: o atalho vive no nome acessível e na dica.
   await expect(botaoDaBusca(page).getByText(/Ctrl K|⌘ K/)).toHaveCount(0);
   expect(caixaBusca!.y).toBeLessThan(caixaInicio!.y);
   expect(caixaInicio!.y).toBeLessThan(caixaConta!.y);
   for (const caixa of [caixaMin!, caixaBusca!, caixaConta!]) expect(caixa.height).toBeGreaterThanOrEqual(44);
+  expect(caixaMin!.width).toBeGreaterThanOrEqual(44);
   // Nada de faixa no topo do conteúdo: o título da tela começa no respiro da Tela (8 de folga do painel + 16). Com a barra
   // de 52 a 56 px ele ficava abaixo de 76; o teto de 72 separa os dois casos (a Ajuda no PC não tem nada antes do título).
   const titulo = await page.getByRole('heading', { level: 1 }).boundingBox();
@@ -93,7 +121,7 @@ test('PC (1280×720): sem barra de topo; marca com o recolher na mesma linha, Bu
   expect(errosDaPagina).toEqual([]);
 });
 
-test('PC (1280): nome longo da consultoria ocupa até duas linhas sem empurrar Buscar; minimizado, lupa e recolher centralizados com nome acessível', async ({ page }) => {
+test('PC (1280): nome longo da consultoria ocupa até duas linhas ao lado do "Minimizar" sem empurrar Buscar; minimizado, o "Expandir" fica no lugar da inicial, acima da lupa', async ({ page }) => {
   const nome = 'Saraiva Team Consultoria Esportiva e Nutricional de Alta Performance';
   await page.setViewportSize({ width: 1280, height: 720 });
   const { errosDaPagina } = await simularApi(page, {
@@ -106,17 +134,103 @@ test('PC (1280): nome longo da consultoria ocupa até duas linhas sem empurrar B
   await expect(texto).toBeVisible();
   const linhas = await texto.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
   expect(linhas).toBe(2);
-  const [t, busca] = [await texto.boundingBox(), await botaoDaBusca(page).boundingBox()];
+  const minimizar = menu(page).getByRole('button', { name: 'Minimizar menu' });
+  const [t, busca, min] = [await texto.boundingBox(), await botaoDaBusca(page).boundingBox(), await minimizar.boundingBox()];
   expect(t!.y + t!.height).toBeLessThanOrEqual(busca!.y);
-  // Minimizado: a lupa e o recolher empilhados, ambos centralizados na coluna de 72 px, cada um com o nome acessível.
-  await menu(page).getByRole('button', { name: 'Minimizar menu' }).click();
+  expect(min!.x).toBeGreaterThanOrEqual(t!.x + t!.width);
+  expect(min!.width).toBeGreaterThanOrEqual(44);
+  // Minimizado: o "Expandir" no topo, no lugar da inicial, e a lupa embaixo, os dois centralizados na coluna de 72 px.
+  await minimizar.click();
   const expandir = menu(page).getByRole('button', { name: 'Expandir menu' });
   const [lupa, seta, coluna] = [await botaoDaBusca(page).boundingBox(), await expandir.boundingBox(), await menu(page).boundingBox()];
   const centro = (c: { x: number; width: number }) => c.x + c.width / 2;
   expect(Math.abs(centro(lupa!) - centro(seta!))).toBeLessThanOrEqual(1);
   expect(Math.abs(centro(lupa!) - (coluna!.x + 36))).toBeLessThanOrEqual(6);
-  // menu: recolher e submenu (18/11): o expandir fica logo abaixo da marca, em cima da lupa.
-  expect(seta!.y).toBeLessThan(lupa!.y);
+  expect(seta!.y + seta!.height).toBeLessThanOrEqual(lupa!.y);
+  // A inicial vira decoração: o leitor de tela ouve só o botão ali.
+  await expect(menu(page).getByRole('img', { name: nome })).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
+const opacidade = (botao: Locator) => botao.evaluate((el) => getComputedStyle(el).opacity);
+
+test('PC minimizado (1280): o "Expandir" sobre a logo aparece com o mouse (sem expandir) e com o Tab; Enter e Espaço alternam sem perder o foco; a escolha fica ao recarregar', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, 900);
+  const minimizar = menu(page).getByRole('button', { name: 'Minimizar menu' });
+  const expandir = menu(page).getByRole('button', { name: 'Expandir menu' });
+  const elemento = await minimizar.elementHandle();
+  await minimizar.click();
+  await expect(expandir).toHaveCount(1);
+  // Em repouso (mouse longe; o foco do clique não conta): o botão some e a inicial fica à vista, mas continua no Tab.
+  await page.mouse.move(640, 450);
+  await expect.poll(() => opacidade(expandir)).toBe('0');
+  const inicial = menu(page).getByText(MARCA.nome.charAt(0), { exact: true });
+  await expect(inicial).toBeVisible();
+  expect(await expandir.evaluate((el) => el.tabIndex)).toBe(0);
+  const larguraDoMenu = async () => (await menu(page).boundingBox())!.width;
+  expect(await larguraDoMenu()).toBeLessThanOrEqual(73);
+
+  // Mouse em cima da logo: o botão aparece no lugar dela, com a dica, e o menu continua minimizado.
+  const caixaInicial = await inicial.boundingBox();
+  await page.mouse.move(caixaInicial!.x + caixaInicial!.width / 2, caixaInicial!.y + caixaInicial!.height / 2);
+  await expect.poll(() => opacidade(expandir)).toBe('1');
+  await expect(menu(page).getByText('Expandir menu', { exact: true })).toBeVisible();
+  expect(await larguraDoMenu()).toBeLessThanOrEqual(73);
+  const caixa = await expandir.boundingBox();
+  expect(caixa!.width).toBeGreaterThanOrEqual(44);
+  expect(caixa!.height).toBeGreaterThanOrEqual(44);
+  expect(Math.abs(caixa!.x + caixa!.width / 2 - (caixaInicial!.x + caixaInicial!.width / 2))).toBeLessThanOrEqual(1);
+  await page.mouse.move(640, 450);
+  await expect.poll(() => opacidade(expandir)).toBe('0');
+
+  // Teclado: voltando da busca com Shift+Tab, o foco revela o botão; Enter expande e Espaço minimiza, e o foco continua no
+  // mesmo elemento (o botão não é desmontado ao alternar).
+  await botaoDaBusca(page).focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(expandir).toBeFocused();
+  await expect.poll(() => opacidade(expandir)).toBe('1');
+  const focado = () => elemento!.evaluate((el) => document.activeElement === el);
+  await page.keyboard.press('Enter');
+  await expect(minimizar).toBeFocused();
+  await expect(menu(page).getByText('Negócio', { exact: true })).toBeVisible();
+  expect(await focado()).toBe(true);
+  await page.keyboard.press('Space');
+  await expect(expandir).toBeFocused();
+  expect(await focado()).toBe(true);
+  await expect.poll(() => opacidade(expandir)).toBe('1');
+
+  // A escolha fica salva no aparelho: recarregar mantém minimizado; expandido, mantém expandido.
+  await page.reload();
+  await expect(expandir).toHaveCount(1);
+  await expect(menu(page).getByText('Negócio', { exact: true })).toHaveCount(0);
+  await expandir.click();
+  await expect(minimizar).toBeVisible();
+  await page.reload();
+  await expect(minimizar).toBeVisible();
+  await expect(menu(page).getByText('Negócio', { exact: true })).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PC (1280): títulos dos grupos em 14 px semibold, menores que o item de 15, e as setas na mesma coluna', async ({ page }) => {
+  await comGruposRecolhidos(page, ['Negócio']);
+  const { errosDaPagina } = await abrir(page, 1280, 900, TODAS, {}, { revisar: 0, novas: 2 });
+  const estilo = (alvo: Locator) => alvo.evaluate((el) => ({ tamanho: parseFloat(getComputedStyle(el).fontSize), familia: getComputedStyle(el).fontFamily }));
+  // O peso vem da família (cada peso da Geist é uma família, Geist_600SemiBold): o `font-weight` computado fica 400.
+  for (const titulo of ['Acompanhamento', 'Conteúdo', 'Negócio', 'Configurações']) {
+    const e = await estilo(menu(page).getByText(titulo, { exact: true }));
+    expect(e.tamanho, titulo).toBeGreaterThanOrEqual(14);
+    expect(e.familia, titulo).toMatch(/Geist_(600SemiBold|700Bold)/);
+  }
+  const item = await estilo(menu(page).getByRole('link', { name: 'Biblioteca', exact: true }).getByText('Biblioteca', { exact: true }));
+  expect(item.tamanho).toBe(15);
+  expect(item.familia).toMatch(/Geist_500Medium/);
+  // A seta dos grupos (abertos e o recolhido, com a contagem) termina na mesma coluna em todos.
+  const direitas: number[] = [];
+  for (const botao of [botaoDoGrupo(page, 'Recolher', 'Acompanhamento'), botaoDoGrupo(page, 'Recolher', 'Conteúdo'), botaoDoGrupo(page, 'Abrir', 'Negócio')]) {
+    const seta = await botao.locator('svg').last().boundingBox();
+    direitas.push(seta!.x + seta!.width);
+  }
+  expect(Math.max(...direitas) - Math.min(...direitas)).toBeLessThanOrEqual(1);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -164,7 +278,7 @@ test('PC minimizado (1280): a busca vira a lupa com nome e a conta, só as inici
   const caixaDoMenu = await opcoes.boundingBox();
   expect(caixaDoMenu!.x).toBeGreaterThan(caixaDaConta!.x + caixaDaConta!.width);
   expect(caixaDoMenu!.y + caixaDoMenu!.height).toBeLessThanOrEqual(900);
-  // menu: recolher e submenu (18/11): captura do menu da conta, a peça irmã do submenu dos grupos.
+  // submenu dos grupos (18/11): captura do menu da conta, a peça irmã do submenu dos grupos.
   await page.screenshot({ path: test.info().outputPath('menu-conta-minimizado-1280.png') });
   await page.keyboard.press('Escape');
   await expect(opcoes).toHaveCount(0);
@@ -178,7 +292,7 @@ test('PC (1280): o menu aberto mostra o número de Atualizações e Interessados
   await expect(menu(page).getByRole('link', { name: 'Atualizações, 3 para revisar', exact: true })).toBeVisible();
   await expect(menu(page).getByRole('link', { name: 'Interessados, 1 inscrição nova', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Minimizar menu' }).click();
-  // menu: recolher e submenu (18/11): minimizado, o ícone do grupo diz as contagens e o submenu mostra o número no item.
+  // submenu dos grupos (18/11): minimizado, o ícone do grupo diz as contagens e o submenu mostra o número no item.
   const acompanhamento = menu(page).getByRole('button', { name: 'Acompanhamento, 3 para revisar', exact: true });
   await expect(acompanhamento).toBeVisible();
   await expect(menu(page).getByRole('button', { name: 'Negócio, 1 inscrição nova', exact: true })).toBeVisible();
@@ -261,7 +375,7 @@ for (const [largura, altura] of [[900, 720], [768, 1024]] as const) {
 test('PC minimizado por escolha: só ícone e a dica ao passar o mouse, como antes', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, 900);
   await page.getByRole('button', { name: 'Minimizar menu' }).click();
-  // menu: recolher e submenu (18/11): fora de grupo só o Início continua item do trilho, com a dica.
+  // submenu dos grupos (18/11): fora de grupo só o Início continua item do trilho, com a dica.
   const biblioteca = menu(page).getByRole('link', { name: 'Início', exact: true });
   expect(await rotuloDoLink(biblioteca)).toBeNull();
   await biblioteca.hover();
@@ -284,7 +398,7 @@ test('PC minimizado em janela baixa (1280×720): o "Expandir" fica à vista e o 
   await page.getByRole('button', { name: 'Minimizar menu' }).click();
   const expandir = page.getByRole('button', { name: 'Expandir menu' });
   await expect(expandir).toBeInViewport({ ratio: 1 });
-  // menu: recolher e submenu (18/11): o último grupo fica à vista e o submenu dele abre inteiro dentro da janela, ao lado
+  // submenu dos grupos (18/11): o último grupo fica à vista e o submenu dele abre inteiro dentro da janela, ao lado
   // do trilho, sem a rolagem nem a borda de baixo cortarem; a Auditoria, último item, está nele.
   const configuracoes = menu(page).getByRole('button', { name: 'Configurações', exact: true });
   await expect(configuracoes).toBeInViewport({ ratio: 1 });
@@ -303,15 +417,6 @@ test('PC minimizado em janela baixa (1280×720): o "Expandir" fica à vista e o 
   await expect(page.getByRole('button', { name: 'Minimizar menu' })).toBeInViewport({ ratio: 1 });
   expect(errosDaPagina).toEqual([]);
 });
-
-// Grupos recolhíveis (docs/planos/menu-grupos-recolhiveis.md): só no menu aberto, escolha guardada no aparelho.
-const botaoDoGrupo = (page: Page, acao: 'Recolher' | 'Abrir', grupo: string) =>
-  menu(page).getByRole('button', { name: new RegExp(`^${acao} ${grupo}(,|$)`) });
-const comGruposRecolhidos = (page: Page, grupos: string[]) =>
-  page.addInitScript(([id, g]) => {
-    const chave = `treinos:${id}:preferencias`;
-    if (localStorage.getItem(chave) === null) localStorage.setItem(chave, JSON.stringify({ gruposRecolhidos: g }));
-  }, [TREINADOR.id, grupos] as const);
 
 test('PC (1280): recolher um grupo esconde os itens, mostra a contagem no título e continua recolhido ao recarregar', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, 900, TODAS, {}, { revisar: 3, novas: 1 });
@@ -431,13 +536,13 @@ test('trilho (900) e PC minimizado: nenhum botão de grupo e todos os itens à v
   await expect(botaoDoGrupo(page, 'Abrir', 'Negócio')).toBeVisible();
   await page.getByRole('button', { name: 'Minimizar menu' }).click();
   await expect(menu(page).getByRole('button', { name: /^(Recolher|Abrir) / })).toHaveCount(0);
-  // menu: recolher e submenu (18/11): minimizado, o Financeiro está no submenu de Negócio, mesmo com o grupo salvo recolhido.
+  // submenu dos grupos (18/11): minimizado, o Financeiro está no submenu de Negócio, mesmo com o grupo salvo recolhido.
   await menu(page).getByRole('button', { name: /^Negócio/ }).hover();
   await expect(menu(page).getByRole('menuitem', { name: 'Financeiro', exact: true })).toHaveCount(1);
   await page.getByRole('button', { name: 'Expandir menu' }).click();
 });
 
-// menu: recolher e submenu (18/11): no PC minimizado cada grupo é um botão de menu (padrão "Menu Button" da WAI-ARIA APG).
+// submenu dos grupos (18/11): no PC minimizado cada grupo é um botão de menu (padrão "Menu Button" da WAI-ARIA APG).
 test('PC minimizado (1280): o ícone do grupo abre o submenu pelo teclado, setas andam, Esc e Tab saem, clique fora fecha', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, 900);
   await menu(page).getByRole('button', { name: 'Minimizar menu' }).click();
@@ -504,23 +609,6 @@ test('PC minimizado (1280): o ícone do grupo abre o submenu pelo teclado, setas
   expect(errosDaPagina).toEqual([]);
 });
 
-// menu: recolher e submenu (18/11): capturas para conferir o desenho (menu aberto com grupo aberto e fechado, fio
-// vertical, submenu do minimizado) nos dois temas. Só gravam a imagem; o comportamento está nos casos acima.
-for (const tema of ['CLARO', 'ESCURO', 'AREIA'] as const) {
-  test(`capturas do menu em 1280 (${tema.toLowerCase()})`, async ({ page }) => {
-    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t, gruposRecolhidos: ['Negócio'] })), [TREINADOR.id, tema] as const);
-    const { errosDaPagina } = await abrir(page, 1280, 800, TODAS, {}, { revisar: 3, novas: 1 });
-    await page.screenshot({ path: test.info().outputPath(`menu-aberto-1280-${tema.toLowerCase()}.png`) });
-    await menu(page).getByRole('button', { name: 'Minimizar menu' }).click();
-    await page.mouse.move(640, 400);
-    await menu(page).getByRole('button', { name: /^Acompanhamento/ }).hover();
-    await expect(menu(page).getByRole('menu', { name: 'Acompanhamento' })).toBeVisible();
-    await page.screenshot({ path: test.info().outputPath(`menu-minimizado-submenu-1280-${tema.toLowerCase()}.png`) });
-    await menu(page).getByRole('button', { name: 'Expandir menu' }).click();
-    expect(errosDaPagina).toEqual([]);
-  });
-}
-
 test('celular (390): a barra inferior é a de antes, sem grupos', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 390, 844);
   const nomes = await menu(page).getByRole('link').evaluateAll((ls) => ls.map((l) => l.getAttribute('aria-label')));
@@ -533,8 +621,81 @@ test('celular (390): a barra inferior é a de antes, sem grupos', async ({ page 
   await menu(page).getByRole('link', { name: 'Perfil', exact: true }).click();
   await page.getByRole('button', { name: /^Buscar telas/ }).click();
   await expect(page.getByRole('dialog', { name: 'Buscar' }).getByRole('searchbox', { name: 'Buscar tela ou ação' })).toBeVisible();
-  // menu: recolher e submenu (18/11): captura do celular, que segue com a barra de baixo (não há gaveta).
+  // submenu dos grupos (18/11): captura do celular, que segue com a barra de baixo (não há gaveta).
   await page.keyboard.press('Escape');
   await page.screenshot({ path: test.info().outputPath('menu-celular-390.png') });
   expect(errosDaPagina).toEqual([]);
 });
+
+// Capturas para conferir o desenho (só com CAPTURAS=<pasta>, fora da suíte normal): topo do menu e títulos dos grupos.
+const LOGO_LARGA = '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="150"><rect width="600" height="150" rx="16" fill="#3F3F46"/><text x="300" y="98" font-family="Arial" font-size="72" font-weight="700" fill="#FAFAFA" text-anchor="middle">LOGO LARGA</text></svg>';
+for (const tema of ['ESCURO', 'CLARO'] as const) {
+  test(`capturas do menu no tema ${tema}`, async ({ page }) => {
+    test.skip(!process.env.CAPTURAS, 'só para gerar capturas');
+    const pasta = process.env.CAPTURAS;
+    const foto = (nome: string) => page.screenshot({ path: `${pasta}/menu-${tema.toLowerCase()}-${nome}.png` });
+    // Recorte só do menu lateral, para conferir a largura do trilho (72 minimizado, 88 no tablet) e o alinhamento.
+    const recorte = async (nome: string) => page.screenshot({ path: `${pasta}/menu-${tema.toLowerCase()}-${nome}.png`, clip: (await menu(page).boundingBox())! });
+    const preparar = async (largura: number, prefs: object, marca = MARCA) => {
+      await page.setViewportSize({ width: largura, height: 900 });
+      await page.evaluate(([id, p]) => { localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify(p)); localStorage.removeItem('menu-lateral-recolhido'); }, [TREINADOR.id, { tema, ...prefs }] as const);
+      await simularApi(page, {
+        ...(await sessao(page, TREINADOR, { permissoes: TODAS, pagamentosHabilitados: true, marca })),
+        'GET /inscricoes': { corpo: { itens: [], total: 1 } },
+        'GET /painel': { corpo: { atualizacoesParaRevisar: 3 } },
+        'GET /publico/marcas/{id}/logo': (_pedido, route) => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: LOGO_LARGA }),
+      });
+      await page.goto('/treinador/ajuda');
+      await expect(menu(page).getByRole('link').first()).toBeVisible();
+      await page.mouse.move(900, 600);
+    };
+    await page.goto('/');
+    await preparar(1280, {});
+    await foto('1280-expandido');
+    await menu(page).getByRole('button', { name: 'Minimizar menu' }).click();
+    await page.mouse.move(900, 600);
+    await expect.poll(() => opacidade(menu(page).getByRole('button', { name: 'Expandir menu' }))).toBe('0');
+    await foto('1280-minimizado-repouso');
+    await menu(page).getByRole('button', { name: 'Expandir menu' }).hover();
+    await foto('1280-minimizado-hover');
+    await page.mouse.move(900, 600);
+    await botaoDaBusca(page).focus();
+    await page.keyboard.press('Shift+Tab');
+    await foto('1280-minimizado-foco-teclado');
+    // Submenu dos grupos: aberto pela passagem do mouse e pelo teclado (↓ foca o primeiro item). Sem foco antes, para a
+    // dica do "Expandir" não aparecer junto.
+    const semFoco = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await semFoco();
+    await page.mouse.move(900, 600);
+    await menu(page).getByRole('button', { name: /^Acompanhamento/ }).hover();
+    await expect(menu(page).getByRole('menu', { name: 'Acompanhamento' })).toBeVisible();
+    await foto('1280-minimizado-submenu-mouse');
+    await page.mouse.move(900, 600);
+    await expect(menu(page).getByRole('menu', { name: 'Acompanhamento' })).toHaveCount(0);
+    await menu(page).getByRole('button', { name: /^Negócio/ }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(menu(page).getByRole('menu', { name: 'Negócio' }).getByRole('menuitem').first()).toBeFocused();
+    await foto('1280-minimizado-submenu-teclado');
+    await page.keyboard.press('Escape');
+    await semFoco();
+    await page.mouse.move(900, 600);
+    await recorte('1280-minimizado-trilho-72');
+    await preparar(1280, { gruposRecolhidos: ['Acompanhamento'] });
+    await foto('1280-grupo-recolhido');
+    await preparar(1280, { tamanhoTexto: 'EXTRA', gruposRecolhidos: ['Acompanhamento'] });
+    await foto('1280-texto-extra');
+    await preparar(1280, {}, { ...MARCA, logoUrl: '/publico/marcas/c0000000-0000-4000-8000-000000000001/logo?v=1' });
+    await expect(menu(page).getByRole('img', { name: MARCA.nome })).toBeVisible();
+    await foto('1280-logo-larga');
+    await menu(page).getByRole('button', { name: 'Minimizar menu' }).click();
+    await page.mouse.move(900, 600);
+    await foto('1280-logo-larga-minimizado');
+    await preparar(1280, {}, { ...MARCA, nome: 'Saraiva Team Consultoria Esportiva e Nutricional de Alta Performance' });
+    await foto('1280-nome-longo');
+    await preparar(800, {});
+    await foto('800-trilho');
+    await recorte('800-trilho-88');
+    await preparar(390, {});
+    await foto('390-celular');
+  });
+}

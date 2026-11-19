@@ -102,12 +102,12 @@ public class ExportacaoFinanceiraService {
                 csv.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    /** Na descrição: a de saída é fixa, a avulsa leva a do treinador e a mensalidade, o nome do plano. */
+    /** Na descrição: a de saída é fixa, a avulsa leva a do treinador, a parcela do acordo a fixa do servidor e a mensalidade, o nome do plano. */
     private static void cobranca(StringBuilder csv, LinhaDeCobranca l, String parcial) {
         CobrancaAluno c = l.cobranca();
         String descricao = switch (c.getTipo()) {
             case SAIDA -> DESCRICAO_DA_SAIDA;
-            case AVULSA -> c.getDescricao();
+            case AVULSA, RENEGOCIACAO -> c.getDescricao();
             case MENSALIDADE -> l.planoNome();
         };
         linha(csv, "COBRANCA", c.getVencimento().toString(), descricao, l.alunoNome(), c.getSituacao().name(),

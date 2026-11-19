@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 
 import type { ResponsavelEquipe } from '../api/equipeTipos';
+import type { TagDaConsultoria } from '../api/tipos';
 import {
   ACESSOS, FASES, opcoesDeResponsavel, PLANOS, REGISTROS, SITUACOES,
   type AcessoDoFiltro, type ChaveDoFiltro, type FaseDoFiltro, type FiltrosDeAlunos, type PlanoDoFiltro, type RegistroDoFiltro,
@@ -8,6 +9,8 @@ import {
 import { GrupoDoPainel } from '../ui/BarraDeFiltros';
 import { Escolha } from '../ui/Escolha';
 import { SelecaoMultiplaSuspensa } from '../ui/SelecaoMultiplaSuspensa';
+import { Texto } from '../ui/Texto';
+import { opcoesDoFiltroDeTags } from './tags/textosDasTags';
 
 interface Props {
   /** Os filtros que esta pessoa pode usar (`filtrosVisiveis`); o resto nem aparece. */
@@ -16,6 +19,10 @@ interface Props {
   aoMudar: (filtros: FiltrosDeAlunos) => void;
   responsaveis: readonly ResponsavelEquipe[];
   usuarioId: string | null | undefined;
+  /** Tags da consultoria (`GET /tags-de-alunos`); `null` = ainda não chegaram. Sem nenhuma, o seletor não aparece. */
+  tags?: readonly TagDaConsultoria[] | null;
+  /** A lista de tags falhou: no lugar do seletor, um aviso discreto (a lista de alunos segue). */
+  tagsFalharam?: boolean;
 }
 
 const TODOS = 'TODOS';
@@ -23,11 +30,11 @@ type Unico<T extends string> = T | typeof TODOS;
 
 /**
  * Seletores do painel "Filtros de alunos", em grupos (painel lateral de `docs/design-e-front.md` 4.6): Identificação (responsável,
- * acesso), Situação (situação, atualização, pasta) e Outros (plano em uso, último registro). Várias opções em
+ * acesso, tags), Situação (situação, atualização, pasta) e Outros (plano em uso, último registro). Várias opções em
  * `SelecaoMultiplaSuspensa` (nada marcado = todos) e uma em `Escolha`. Cada mudança devolve o rascunho inteiro; o
  * endereço só muda no "Aplicar filtros". Grupo sem filtro permitido some.
  */
-export function SeletoresDosFiltrosDeAlunos({ visiveis, filtros, aoMudar, responsaveis, usuarioId }: Props) {
+export function SeletoresDosFiltrosDeAlunos({ visiveis, filtros, aoMudar, responsaveis, usuarioId, tags, tagsFalharam }: Props) {
   const mostra = (c: ChaveDoFiltro) => visiveis.includes(c);
   const unico = <T extends string>(valor: T | null): Unico<T> => valor ?? TODOS;
   const deUnico = <T extends string>(valor: Unico<T>): T | null => (valor === TODOS ? null : (valor as T));
@@ -41,6 +48,11 @@ export function SeletoresDosFiltrosDeAlunos({ visiveis, filtros, aoMudar, respon
         {mostra('acesso') ? (
           <SelecaoMultiplaSuspensa rotulo="Acesso ao app" opcoes={ACESSOS} marcados={new Set(filtros.acesso)}
             aoMudar={(m) => aoMudar({ ...filtros, acesso: ACESSOS.map((o) => o.valor).filter((v) => m.has(v)) as AcessoDoFiltro[] })} style={estilos.cheio} />
+        ) : null}
+        {mostra('tag') && tagsFalharam ? <Texto variante="pequeno">Não foi possível carregar as tags para filtrar.</Texto> : null}
+        {mostra('tag') && !tagsFalharam && tags?.length ? (
+          <SelecaoMultiplaSuspensa rotulo="Tags" opcoes={opcoesDoFiltroDeTags(tags)} marcados={new Set(filtros.tags)} rotuloDeTodos="Qualquer"
+            aoMudar={(m) => aoMudar({ ...filtros, tags: [...m] })} style={estilos.cheio} />
         ) : null}
       </GrupoDoPainel>
       <GrupoDoPainel titulo="Situação">

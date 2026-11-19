@@ -1,14 +1,15 @@
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ellipsis, UserCheck, UserMinus } from 'lucide-react-native';
+import { Camera, UserCheck, UserMinus } from 'lucide-react-native';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria } from '../../../api/rotas';
 import { cicloDoAluno } from '../../../dominio/periodo';
 import { ABAS_DA_FICHA, abaDaUrl, abaParaEditar, abaParaPasta, abasVisiveis, blocosDaAba, mostraMobilidade, type AbaDaFicha, type BlocoDaFicha } from '../../../dominio/fichaDoAluno';
 import type { AlunoDetalhe } from '../../../api/tipos';
-import { espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../../tema/tokens';
+import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
+import { CabecalhoDaFicha } from '../../../treinador/CabecalhoDaFicha';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespostas';
 import { CartaoFrequencia, useAcompanhamentoDoAluno } from '../../../treinador/CartaoFrequencia';
@@ -33,12 +34,11 @@ import { AcoesDePrivacidade } from '../../../treinador/privacidade/AcoesDePrivac
 import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
 import { useSaidaGuardada } from '../../../ui/GuardaDeSaida';
-import { Cabecalho } from '../../../ui/Cabecalho';
 import { Cartao } from '../../../ui/Cartao';
 import { Esqueleto } from '../../../ui/Esqueleto';
-import { IconeBotao } from '../../../ui/IconeBotao';
 import { MensagemErro } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
+import { depoisDeFecharAsFolhas, usePassoNoHistorico } from '../../../ui/historicoDasFolhas';
 import { useAvisoDoPlano } from '../../../ui/useAvisoDoPlano';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { Tela } from '../../../ui/Tela';
@@ -46,7 +46,7 @@ import { useCarregar } from '../../../ui/useCarregar';
 
 /**
  * Ficha do aluno em cinco abas (`?aba=resumo|planos|acompanhamento|evolucao|ficha`; regra pura em `dominio/fichaDoAluno`):
- * a foto fica ao lado do nome, no cabeçalho (guia de 11/11, pág. 31); o Resumo (`ResumoDoAluno`) traz só o que decide a
+ * o cabeçalho é o da ficha (`CabecalhoDaFicha`, 18/11: foto, nome, datas, situação e ⋯); o Resumo (`ResumoDoAluno`) traz só o que decide a
  * próxima ação, numa coluna; os blocos das outras abas e a condição de cada um vêm de `blocosDaAba`, e aba sem bloco
  * permitido não aparece. Cada bloco busca e trata o próprio erro, então um que falha não derruba os outros.
  * `?secao=acesso` (o "Abrir acesso ao app" do Resumo) rola até o bloco Acesso ao app da aba Ficha e sai do endereço;
@@ -55,7 +55,6 @@ import { useCarregar } from '../../../ui/useCarregar';
  */
 export default function FichaAluno() {
   const { id, pastaId, editar, aba: abaPedida, secao } = useLocalSearchParams<{ id: string; pastaId?: string; editar?: string; aba?: string; secao?: string }>();
-  const { width } = useWindowDimensions();
   const { pode, pagamentosHabilitados, retornoHabilitado } = useSessao();
   const { confirmar } = useSaidaGuardada();
   const contexto = { pode, pagamentosHabilitados, retornoHabilitado };
@@ -92,24 +91,57 @@ export default function FichaAluno() {
     });
     return () => { vivo = false; };
   }, [pastaId]);
+  // Edição dos Dados do aluno (D3, 18/11): é um passo do histórico, como uma Folha (`usePassoNoHistorico`, só na web). O
+  // voltar do navegador, a seta e o voltar do Android saem dela para a leitura, na mesma aba; com alteração pendente, o
+  // `confirmar` pergunta "Sair sem salvar?" e, se a pessoa ficar, a entrada volta a ser empilhada.
+  const [edicaoPedida, setEditando] = useState(false);
+  const podeEditar = !!aluno && !aluno.anonimizado && pode('ALUNO_ALTERAR');
+  // Derivado: anonimizado (pelo ⋯) ou sem a permissão, a edição fecha sozinha.
+  const editando = edicaoPedida && podeEditar;
+  const sairDaEdicao = () => confirmar(() => setEditando(false));
+  usePassoNoHistorico(editando, sairDaEdicao);
+  useEffect(() => {
+    if (!editando || Platform.OS === 'web') return;
+    const assinatura = BackHandler.addEventListener('hardwareBackPress', () => { sairDaEdicao(); return true; });
+    return () => assinatura.remove();
+  });
+  // `?editar=1` (o lápis da lista de alunos) abre já editando, para quem pode, e sai do endereço antes de a edição entrar no
+  // histórico: a entrada de baixo fica sem o `editar` e o voltar cai na leitura, não reabre a edição.
+  const alunoChegou = !!aluno;
+  useEffect(() => {
+    if (editar !== '1' || !alunoChegou) return;
+    let vivo = true;
+    void Promise.resolve().then(() => {
+      if (!vivo) return;
+      router.setParams({ editar: undefined, aba: 'ficha' });
+      // Fora do `vivo`: o `setParams` tira o `editar` e o efeito roda de novo antes deste passo.
+      if (podeEditar) setTimeout(() => setEditando(true), 0);
+    });
+    return () => { vivo = false; };
+  }, [editar, alunoChegou, podeEditar]);
   // `setParams` e não `push`: o push remonta a ficha (busca tudo de novo). Com o cadastro aberto e alterado, a troca pergunta
-  // antes (a aba Ficha desmonta o formulário). Sair de Planos esquece a pasta pedida, senão a Folha reabriria ao voltar.
+  // antes. Sair de Planos esquece a pasta pedida, senão a Folha reabriria ao voltar. Saindo da edição, o endereço só muda
+  // depois de a entrada dela sair do histórico (senão a volta desfaria a troca de aba).
   const setAba = (valor: AbaDaFicha) => {
     if (valor === aba) return;
     confirmar(() => {
       if (aba === 'planos') setPedidoDePasta((p) => ({ id: undefined, vez: p.vez }));
-      router.setParams({ aba: valor });
+      if (!editando) { router.setParams({ aba: valor }); return; }
+      setEditando(false);
+      depoisDeFecharAsFolhas(() => router.setParams({ aba: valor }));
     });
   };
+  const [folhaDaFoto, setFolhaDaFoto] = useState(false);
+  const voltar = () => (editando ? sairDaEdicao()
+    : confirmar(() => (router.canGoBack() ? router.back() : router.replace('/treinador/alunos'))));
   // "Abrir acesso ao app" do Resumo: a aba Ficha abre já no bloco do acesso (só leva até lá; nada é enviado).
   const acessoRef = useRef<View>(null);
-  const comAluno = !!aluno;
   useEffect(() => {
-    if (secao !== 'acesso' || aba !== 'ficha' || !comAluno) return;
+    if (secao !== 'acesso' || aba !== 'ficha' || !alunoChegou) return;
     // shortcut: só a web rola até o bloco; no celular a aba abre no topo, rolar exige o ScrollView da Tela.
     if (Platform.OS === 'web') (acessoRef.current as unknown as HTMLElement | null)?.scrollIntoView?.({ block: 'start' });
     router.setParams({ secao: undefined });
-  }, [secao, aba, comAluno]);
+  }, [secao, aba, alunoChegou]);
   const temMenu = !!aluno &&((pode('ALUNO_ALTERAR') && !aluno.anonimizado) || pode('ALUNO_EXPORTAR') || (pode('ALUNO_ANONIMIZAR') && !aluno.ativo && !aluno.anonimizado));
 
   const bloco = (b: BlocoDaFicha, a: AlunoDetalhe): ReactNode => {
@@ -132,7 +164,7 @@ export default function FichaAluno() {
       case 'avaliacaoFisica': return <CartaoAvaliacaoFisica alunoId={a.id} alunoNome={a.nome} anonimizado={a.anonimizado} />;
       case 'fotos': return <CartaoFotos alunoId={a.id} autorizadoEm={a.usoDeImagemAutorizadoEm} aoRecarregar={recarregar} />;
       // Sem cartão em volta: as quatro seções são os cartões (dentro de um cartão vai divisor, não outro contorno).
-      case 'dadosDoAluno': return <DadosDoAluno aluno={a} padrao={padrao} aoAlterar={definir} />;
+      case 'dadosDoAluno': return <DadosDoAluno aluno={a} padrao={padrao} aoAlterar={definir} editando={editando} aoEditar={setEditando} />;
       // Bloco próprio (guia de 11/11, pág. 34): situação, conta vinculada e as duas formas de dar o acesso.
       case 'acessoAoApp':
         return <View ref={acessoRef} nativeID="acesso-ao-app"><Cartao titulo="Acesso ao app"><CartaoAcesso aluno={a} aoAlterar={definir} /></Cartao></View>;
@@ -172,25 +204,26 @@ export default function FichaAluno() {
 
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
-      <Cabecalho titulo={aluno?.nome ?? 'Aluno'} trilha={[{ rotulo: 'Alunos', href: '/treinador/alunos' }, { rotulo: aluno?.nome ?? 'Aluno' }]} voltar="/treinador/alunos"
-        acoes={temMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo="Mais ações do aluno" aoTocar={() => setMenu(true)} /> : undefined}
-        // A foto ao lado do nome (56 no PC, 44 no celular, `fotoNaFicha`), centrada na linha do título: no celular como a
-        // seta; no PC a trilha fica acima do título (32 px + 4 de vão), então a foto desce até o meio da linha do nome.
-        antesDoTitulo={aluno ? (
-          <View style={[estilos.fotoDoTopo, width < LARGURA_MENU_LATERAL ? estilos.fotoNoCelular : estilos.fotoNoPc]}>
-            <FotoDePerfilEditavel alunoId={aluno.id} alunoNome={aluno.nome} anonimizado={aluno.anonimizado} aoAnonimizado={recarregar} />
-          </View>
-        ) : undefined} />
+      <CabecalhoDaFicha aluno={aluno ?? null} aoVoltar={voltar} aoAbrirMenu={temMenu ? () => setMenu(true) : undefined}
+        foto={aluno ? (
+          <FotoDePerfilEditavel alunoId={aluno.id} alunoNome={aluno.nome} anonimizado={aluno.anonimizado} aoAnonimizado={recarregar}
+            folhaAberta={folhaDaFoto} aoMudarFolha={setFolhaDaFoto} />
+        ) : undefined}
+        abas={aluno ? <Abas abas={ABAS_DA_FICHA.filter((a) => visiveis.includes(a.valor))} ativa={aba} aoMudar={setAba} ativacao="manual" /> : undefined} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar}
         acao={{ rotulo: 'Voltar à lista', aoTocar: () => router.navigate('/treinador/alunos') }} /> : null}
       {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (
         <>
-          <Abas abas={ABAS_DA_FICHA.filter((a) => visiveis.includes(a.valor))} ativa={aba} aoMudar={setAba} ativacao="manual" />
           {conteudoDaAba(aluno)}
           {renovacao.painel}
           {menu ? (
             <FolhaDeAcoes titulo={aluno.nome} aoFechar={() => setMenu(false)} acoes={[
+              // A mesma Folha do círculo da foto (D4): quem usa o toque também acha a troca aqui.
+              podeEditar ? {
+                rotulo: 'Trocar foto', Icone: Camera,
+                aoTocar: () => (Platform.OS === 'web' ? setFolhaDaFoto(true) : setTimeout(() => setFolhaDaFoto(true), 350)),
+              } : null,
               pode('ALUNO_ALTERAR') && !aluno.anonimizado ? {
                 rotulo: aluno.ativo ? 'Inativar aluno' : 'Reativar aluno',
                 detalhe: aluno.ativo ? 'Sai do app na hora; planos e registros ficam guardados.' : 'Volta para a lista de ativos e pode entrar no app.',
@@ -255,9 +288,4 @@ const estilos = StyleSheet.create({
   // No PC as contagens alinham pelo topo (cada uma com a própria altura, sem esticar o vazio); no celular, uma sequência.
   contagens: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3), alignItems: 'flex-start' },
   contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
-  fotoDoTopo: { marginRight: espaco(0.5) },
-  fotoNoCelular: { marginTop: -7 },
-  // shortcut: deslocamento calculado das medidas do `Cabecalho` (trilha 32 px + vão 4 + metade da linha de 30 − 28), sem
-  // conferir renderizado; se o cabeçalho mudar, refazer.
-  fotoNoPc: { marginTop: 23 },
 });

@@ -358,7 +358,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       <ProblemasDoPlano editor={editor} problemas={problemas ?? validacaoLocal} aoProblemas={fecharVerificacao} aoIrAoPrimeiro={irAoPrimeiro} />
       {/* Contexto (de quem é o plano, o ciclo da aluna) junto; depois o plano; depois as sessões. */}
       <View style={estilos.grupo}>
-        {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
+        {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" alunoId={estado.plano.alunoId} />}
         {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
       </View>
       {modelo ? <NomeDoModeloDeTreino editor={editor} aberto={editandoNome} aoConcluir={() => setEditandoNome(false)} /> : null}

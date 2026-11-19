@@ -5,6 +5,8 @@ import {
 
 const ID = 'a0000000-0000-4000-8000-000000000001';
 const EU = 'u0000000-0000-4000-8000-000000000009';
+const TAG_A = 't0000000-0000-4000-8000-00000000000a';
+const TAG_B = 't0000000-0000-4000-8000-00000000000b';
 const todas = new Set(['ATUALIZACAO_LER', 'ALUNO_SENSIVEL_LER', 'TREINO_LER', 'REGISTRO_LER']);
 const tudo = permissoesDosFiltros((c) => todas.has(c));
 const nada = permissoesDosFiltros(() => false);
@@ -19,11 +21,11 @@ describe('lerDoEndereco', () => {
   it('lê cada filtro, com vírgula ou parâmetro repetido, sem diferença de caixa', () => {
     const lido = lerDoEndereco({
       situacao: 'inativo', acesso: 'SEM,aguardando', atualizacao: ['ATRASADA', 'SEM_PASTA'], plano: 'SEM', pasta: 'A_RENOVAR', registro: 'HA_MAIS_DE_14',
-      responsavel: `${ID},nenhum`,
+      responsavel: `${ID},nenhum`, tag: TAG_A,
     }, true);
     expect(lido).toEqual({
       situacao: 'INATIVO', responsaveis: [ID, SEM_RESPONSAVEL], acesso: ['SEM', 'AGUARDANDO'], atualizacao: ['ATRASADA', 'SEM_PASTA'],
-      plano: 'SEM', pastaARenovar: true, registro: 'HA_MAIS_DE_14',
+      plano: 'SEM', pastaARenovar: true, registro: 'HA_MAIS_DE_14', tags: [TAG_A],
     });
   });
 
@@ -104,8 +106,8 @@ describe('chips e contagem', () => {
 
 describe('permissões', () => {
   it('cada filtro aparece só com a permissão de quem já vê o dado', () => {
-    expect(filtrosVisiveis(tudo)).toEqual(['situacao', 'responsavel', 'acesso', 'atualizacao', 'plano', 'pasta', 'registro']);
-    expect(filtrosVisiveis(nada)).toEqual(['situacao', 'responsavel', 'acesso']);
+    expect(filtrosVisiveis(tudo)).toEqual(['situacao', 'responsavel', 'acesso', 'tag', 'atualizacao', 'plano', 'pasta', 'registro']);
+    expect(filtrosVisiveis(nada)).toEqual(['situacao', 'responsavel', 'acesso', 'tag']);
     // Atualização pede as duas.
     expect(permissoesDosFiltros((c) => c === 'ATUALIZACAO_LER').atualizacao).toBe(false);
   });
@@ -116,6 +118,30 @@ describe('permissões', () => {
     expect(limpo).toEqual(f({ acesso: ['SEM'] }));
     expect(pedidoDaApi(limpo, EU).map(([k]) => k)).toEqual(['situacao', 'meus', 'acesso']);
     expect(semOQueNaoPode(doEndereco, tudo)).toEqual(doEndereco);
+  });
+});
+
+describe('tags', () => {
+  it('vão ao endereço numa vírgula, voltam iguais e a API recebe um parâmetro por tag', () => {
+    const filtros = f({ tags: [TAG_A, TAG_B] });
+    const q = paraEndereco(filtros, false);
+    expect(q).toEqual({ tag: `${TAG_A},${TAG_B}` });
+    expect(lerDoEndereco(q, false)).toEqual(filtros);
+    expect(lerDoEndereco({ tag: [TAG_B, TAG_B, 'não é id!', ''] }, false).tags).toEqual([TAG_B]);
+    expect(pedidoDaApi(filtros, EU)).toEqual([['situacao', 'ATIVO'], ['meus', 'false'], ['tag', TAG_A], ['tag', TAG_B]]);
+  });
+
+  it('chip com o nome da tag, contagem, ✕ e chave', () => {
+    const filtros = f({ tags: [TAG_B, TAG_A] });
+    expect(chipsDosFiltros(filtros, () => null, (id) => (id === TAG_A ? 'VIP' : null)).map((c) => c.texto)).toEqual(['Tags: Outra tag, VIP']);
+    expect(quantosFiltros(filtros)).toBe(1);
+    expect(semOFiltro(filtros, 'tag').tags).toEqual([]);
+    expect(chaveDosFiltros(filtros)).toBe(chaveDosFiltros(f({ tags: [TAG_A, TAG_B] })));
+    expect(chaveDosFiltros(filtros)).not.toBe(chaveDosFiltros(SEM_FILTROS));
+  });
+
+  it('o filtro vale para toda a equipe (ALUNO_LER) e não é tirado sem permissão extra', () => {
+    expect(semOQueNaoPode(f({ tags: [TAG_A] }), nada).tags).toEqual([TAG_A]);
   });
 });
 

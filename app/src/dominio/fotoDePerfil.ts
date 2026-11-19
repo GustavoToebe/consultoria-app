@@ -9,18 +9,12 @@ export const LIMITES_FOTO_PERFIL = {
   bytesMaximo: 300_000,
 } as const;
 
-/** A partir desta largura (a do menu lateral) o círculo ao lado do nome é o maior. */
-export const LARGURA_FOTO_GRANDE = 768;
-/**
- * Círculo ao lado do nome, no cabeçalho da ficha (guia de 11/11, pág. 31): no PC acompanha a trilha e o título; no celular,
- * a seta de voltar. Os dois têm o alvo de toque de 44 px.
- */
-export const TAMANHO_FOTO_FICHA = { grande: 56, pequena: 44 } as const;
+/** Círculo ao lado do nome, no cabeçalho da ficha (18/11): 56 px em qualquer largura, acima do alvo de toque de 44. */
+export const TAMANHO_FOTO_FICHA = 56;
 
 /**
- * Como a equipe troca a foto no círculo do cabeçalho da ficha: `canto` (o círculo inteiro é o botão, com a câmera pequena
- * no canto, e abre a Folha "Foto de perfil") ou `nenhuma` (só a foto). A camada escura com dois botões saiu: no círculo
- * pequeno os dois alvos de 44 px não cabem.
+ * Como a equipe troca a foto no círculo do cabeçalho da ficha: `canto` (o círculo inteiro é o botão "Trocar foto", com a
+ * câmera pequena no canto só no hover e no foco, e abre a Folha "Foto de perfil") ou `nenhuma` (só a foto).
  */
 export type EdicaoDaFotoNaFicha = 'nenhuma' | 'canto';
 
@@ -32,8 +26,8 @@ export interface FotoNaFicha {
 }
 
 /** Regra do círculo do cabeçalho da ficha. Edita quem tem `ALUNO_ALTERAR` em aluno não anonimizado. */
-export function fotoNaFicha(o: { largura: number; podeAlterar: boolean; anonimizado: boolean; temFoto: boolean | null }): FotoNaFicha {
-  const tamanho = o.largura >= LARGURA_FOTO_GRANDE ? TAMANHO_FOTO_FICHA.grande : TAMANHO_FOTO_FICHA.pequena;
+export function fotoNaFicha(o: { podeAlterar: boolean; anonimizado: boolean; temFoto: boolean | null }): FotoNaFicha {
+  const tamanho = TAMANHO_FOTO_FICHA;
   if (!o.podeAlterar || o.anonimizado) return { tamanho, edicao: 'nenhuma', lixeira: false };
   return { tamanho, edicao: 'canto', lixeira: o.temFoto === true };
 }

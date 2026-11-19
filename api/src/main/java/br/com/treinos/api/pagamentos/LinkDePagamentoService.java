@@ -64,6 +64,7 @@ public class LinkDePagamentoService {
     private final Travas travas;
     private final Auditoria auditoria;
     private final FormasDeRecebimentoService formas;
+    private final CobrancaAutomatica automatica;
     private final String appUrl;
     private final TransactionTemplate leitura;
     private final TransactionTemplate gravacao;
@@ -73,9 +74,10 @@ public class LinkDePagamentoService {
                                   PlanoComercialRepository planos, CredencialPagamentoRepository credenciais,
                                   CifraDePagamento cifra, InfinitePayProperties infinitePay,
                                   ProvedoresDePagamento provedores, Travas travas, Auditoria auditoria,
-                                  FormasDeRecebimentoService formas, PlatformTransactionManager transacoes,
-                                  @Value("${treinos.app-url}") String appUrl) {
+                                  FormasDeRecebimentoService formas, CobrancaAutomatica automatica,
+                                  PlatformTransactionManager transacoes, @Value("${treinos.app-url}") String appUrl) {
         this.formas = formas;
+        this.automatica = automatica;
         this.alunos = alunos;
         this.cobrancas = cobrancas;
         this.contratacoes = contratacoes;
@@ -153,6 +155,8 @@ public class LinkDePagamentoService {
         if (cobranca.getTipo() == CobrancaAluno.Tipo.SAIDA) {
             throw new ConflictException("A cobrança de saída não tem link de pagamento.", "COBRANCA_SEM_LINK");
         }
+        // D18: a mensalidade que a Kiwify cobra não tem link (nem para a equipe nem para o aluno).
+        automatica.exigirComum(cobranca);
         if (cobranca.getSituacao() != CobrancaAluno.Situacao.ABERTA) {
             throw naoAberta();
         }
@@ -178,12 +182,15 @@ public class LinkDePagamentoService {
     }
 
     /**
-     * "Mensalidade: Plano (MM/aaaa)" ou, na avulsa, "Cobrança avulsa (MM/aaaa)" do vencimento: o texto livre do treinador
+     * "Mensalidade: Plano (MM/aaaa)" ou, na avulsa, "Cobrança avulsa (MM/aaaa)" e, na parcela de um acordo, "Renegociação (MM/aaaa)", do vencimento: o texto livre do treinador
      * (pode ter nome ou dado de saúde) nunca vai ao provedor, nem o nome do aluno. Texto fixo e curto: sem corte de tamanho.
      */
     private String descricao(CobrancaAluno cobranca) {
         if (cobranca.getTipo() == CobrancaAluno.Tipo.AVULSA) {
             return "Cobrança avulsa (" + MES.format(cobranca.getVencimento()) + ")";
+        }
+        if (cobranca.getTipo() == CobrancaAluno.Tipo.RENEGOCIACAO) {
+            return "Renegociação (" + MES.format(cobranca.getVencimento()) + ")";
         }
         String plano = contratacoes.findById(cobranca.getContratacaoId())
                 .flatMap(c -> planos.findById(c.getPlanoComercialId())).map(PlanoComercial::getNome).orElse(null);

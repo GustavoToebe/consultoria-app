@@ -186,7 +186,8 @@ class ConclusaoDoAviso {
                     paraConferir(aviso, "COBRANCA_JA_PAGA", cobrancaId, amount, dados);
                 }
             }
-            case CANCELADA -> paraConferir(aviso, "COBRANCA_CANCELADA", cobrancaId, amount, dados);
+            // A original renegociada (link que já estava com o aluno): o dinheiro chegou a uma cobrança que não vale mais, o treinador decide.
+            case CANCELADA, RENEGOCIADA -> paraConferir(aviso, "COBRANCA_CANCELADA", cobrancaId, amount, dados);
             case ESTORNADA, CONTESTADA -> paraConferir(aviso, "COBRANCA_JA_PAGA", cobrancaId, amount, dados);
             case ABERTA -> aplicar(aviso, consulta, cobranca, amount, dados);
         }

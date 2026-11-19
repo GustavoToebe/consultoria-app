@@ -117,7 +117,7 @@ Na reunião o treinador do piloto mostrou a agenda do celular dele e a de um con
 ## Fora do escopo
 - C23 (notificações em massa agendadas): declarado fora em `docs/planos/contato-da-consultoria.md` (linha não reconferida).
 - C09 (Kanban de alunos): sem colunas definidas. C04 e C05 (painéis novos sem definição).
-- Tags de aluno (parte de C10): campo, migration e tela de gestão; só se o Gustavo aceitar depois.
+- Tags de aluno (parte de C10): campo, migration e tela de gestão. **Aceito pelo Gustavo em 18/11/2026**; plano em [tags-de-aluno.md](tags-de-aluno.md).
 - Aviso de 30 minutos ao treinador (parte de C21): contrato grande (push ao treinador), D6.
 - Mensagem automática de aniversário ao aluno e aniversário na Agenda (C08): só o bloco no Início.
 - "Agenda mais simples" além do filtro (C22): sem definição do treinador.

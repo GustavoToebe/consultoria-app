@@ -31,6 +31,7 @@ import { useCarregar } from '../../ui/useCarregar';
 import { BarraDeSalvar } from './AjustesDaAba';
 import { CartaoFormasDeRecebimento } from './CartaoFormasDeRecebimento';
 import { avisoDeConflito, ehConflito } from './comum';
+import { KiwifyConfiguracao } from './KiwifyConfiguracao';
 
 /**
  * Aba Recebimento (lembretes e recebimento, 19/11): na coluna de ajustes, as formas de recebimento (InfinitePay, link próprio,
@@ -51,17 +52,23 @@ export function AbaRecebimentoOnline({ podeAlterar }: { podeAlterar: boolean }) 
   return (
     <View style={estilos.coluna}>
       <CartaoFormasDeRecebimento podeAlterar={podeAlterar} comInfinitePay={recebimentoOnlineHabilitado} infinitePayConfigurada={dados?.configurado}
-        maisAjustes={recebimentoOnlineHabilitado ? (
+        maisAjustes={(
           <>
-            {erro ? (
-              <MensagemErro texto={codigoApi(erro) === 'RECEBIMENTO_ONLINE_INDISPONIVEL' ? 'O recebimento online não está disponível agora.' : textoDoErro(erro)}
-                erro={erro} tentarDeNovo={recarregar} />
+            {recebimentoOnlineHabilitado ? (
+              <>
+                {erro ? (
+                  <MensagemErro texto={codigoApi(erro) === 'RECEBIMENTO_ONLINE_INDISPONIVEL' ? 'O recebimento online não está disponível agora.' : textoDoErro(erro)}
+                    erro={erro} tentarDeNovo={recarregar} />
+                ) : null}
+                {!dados && carga.carregando ? <Esqueleto /> : null}
+                {/* A chave do formulário é a versão: salvar ou remover traz outra versão e o formulário nasce de novo, sem resto de digitação. */}
+                {dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
+              </>
             ) : null}
-            {!dados && carga.carregando ? <Esqueleto /> : null}
-            {/* A chave do formulário é a versão: salvar ou remover traz outra versão e o formulário nasce de novo, sem resto de digitação. */}
-            {dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
+            {/* Só com a Kiwify ligada na plataforma (o próprio cartão confere e some sem ela). */}
+            <KiwifyConfiguracao podeAlterar={podeAlterar} />
           </>
-        ) : null} />
+        )} />
     </View>
   );
 }

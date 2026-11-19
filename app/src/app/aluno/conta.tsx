@@ -1,4 +1,4 @@
-import { BookOpen, FileText, LogOut, MessageCircle, RefreshCw, SlidersHorizontal } from 'lucide-react-native';
+import { BookOpen, FileText, LogOut, RefreshCw, SlidersHorizontal } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -23,6 +23,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { IconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { ConfirmarSaida } from '../../ui/ConfirmarSaida';
@@ -99,7 +100,7 @@ export default function ContaAluno() {
       <View style={estilos.itens}>
         <ItemDeLista titulo="Aparência e preferências" detalhe="Tema, contraste, tamanho do texto, animações e gráficos" Icone={SlidersHorizontal} aoTocar={() => abrirPreferencias(true)} />
         {linkDoTreinador ? (
-          <ItemDeLista titulo="Falar com o treinador" detalhe="Abre o WhatsApp da consultoria" Icone={MessageCircle}
+          <ItemDeLista titulo="Falar com o treinador" detalhe="Abre o WhatsApp da consultoria" Icone={IconeWhatsApp}
             aoTocar={() => void Linking.openURL(linkDoTreinador).catch(() => avisar('Não foi possível abrir o WhatsApp.', 'perigo'))} />
         ) : null}
         <ItemDeLista titulo="Ajuda" detalhe="Primeiros passos e tutorial" Icone={BookOpen} href="/aluno/ajuda" />

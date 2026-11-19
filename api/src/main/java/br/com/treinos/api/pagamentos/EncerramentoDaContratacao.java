@@ -73,8 +73,8 @@ public class EncerramentoDaContratacao {
     }
 
     /**
-     * Leitura, por aluno: o que inativá-lo faz com o financeiro. Cancela as mensalidades abertas que ainda não venceram (de
-     * qualquer contratação); as vencidas e a cobrança de saída ficam. {@code mesesQueFaltam} > 0 = o mínimo se perde.
+     * Leitura, por aluno: o que inativá-lo faz com o financeiro. Cancela as mensalidades (de qualquer contratação) e as
+     * parcelas avulsas abertas que ainda não venceram; as vencidas e a cobrança de saída ficam. {@code mesesQueFaltam} > 0 = o mínimo se perde.
      */
     @Transactional(readOnly = true)
     public ResumoDaSaidaDoAluno resumoDoAluno(UUID alunoId) {

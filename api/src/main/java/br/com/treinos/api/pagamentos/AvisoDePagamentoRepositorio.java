@@ -28,7 +28,8 @@ class AvisoDePagamentoRepositorio {
     static final String ESTORNO_INFORMADO = "ESTORNO_INFORMADO";
 
     /** Um aviso arrendado pelo conciliador. {@code revisao} é a lida na reserva: se mudar até o fim, o aviso foi rearmado. */
-    record Reservado(UUID id, UUID consultoriaId, String referencia, String transacao, String slug, int revisao) {
+    record Reservado(UUID id, UUID consultoriaId, String referencia, String transacao, String slug, int revisao,
+                     String eventoTipo) {
 
         @Override
         public String toString() {
@@ -56,7 +57,8 @@ class AvisoDePagamentoRepositorio {
     }
 
     record Conferencia(UUID id, UUID alunoId, String alunoNome, UUID cobrancaId, LocalDate competencia,
-                       Long valorCobrancaCentavos, Long valorPagoCentavos, String motivo, Instant recebidoEm) {
+                       Long valorCobrancaCentavos, Long valorPagoCentavos, String motivo, Instant recebidoEm, String provedor,
+                       String idExterno) {
 
         @Override
         public String toString() {
@@ -74,6 +76,28 @@ class AvisoDePagamentoRepositorio {
     Optional<UUID> consultoriaDoToken(String provedor, String token) {
         return jdbc.query("select consultoria_id from credencial_pagamento where provedor = ? and token_aviso = ?",
                 (rs, n) -> rs.getObject(1, UUID.class), provedor, token).stream().findFirst();
+    }
+
+    /** A consultoria dona do token do caminho do webhook da Kiwify (rota pública, antes de saber a consultoria). */
+    Optional<UUID> consultoriaDoTokenDaKiwify(String token) {
+        return jdbc.query("select consultoria_id from credencial_kiwify where token_caminho = ?",
+                (rs, n) -> rs.getObject(1, UUID.class), token).stream().findFirst();
+    }
+
+    /**
+     * O aviso da Kiwify: {@code referencia} = {@code order_id} e {@code transacao} = {@code order_id:evento}, então o mesmo
+     * pedido e evento repetidos só rearmam a consulta (mesmo upsert e mesmo teto de {@link #registrar}). Depois de gravar ou
+     * rearmar, guarda só o tipo do evento e a assinatura. Nunca o corpo nem o e-mail do comprador.
+     */
+    boolean registrarDaKiwify(UUID consultoriaId, String orderId, String evento, String assinaturaId, String hashCorpo) {
+        String transacao = orderId + ":" + evento;
+        boolean gravou = registrar(consultoriaId, KiwifyConfiguracaoService.PROVEDOR, orderId, transacao, null, hashCorpo, false);
+        if (gravou) {
+            jdbc.update("update aviso_de_pagamento set evento_tipo = ?, assinatura_id = ? "
+                    + "where consultoria_id = ? and provedor = ? and transacao = ?",
+                    evento, assinaturaId, consultoriaId, KiwifyConfiguracaoService.PROVEDOR, transacao);
+        }
+        return gravou;
     }
 
     /**
@@ -182,14 +206,16 @@ class AvisoDePagamentoRepositorio {
      * Arrenda um lote vencido num só comando (molde de {@code FotoRemocaoRepositorio.arrendarVencidas}): {@code skip locked}
      * evita dois conciliadores com o mesmo aviso, e quem não terminar em {@code segundos} o devolve à fila sozinho.
      */
-    List<Reservado> reservar(UUID dono, int limite, int segundos) {
+    List<Reservado> reservar(UUID dono, int limite, int segundos, String provedor) {
         return jdbc.query("update aviso_de_pagamento a set reservado_por = ?, reserva_ate = now() + make_interval(secs => ?) "
-                + "where a.id in (select id from aviso_de_pagamento where situacao = 'PENDENTE' and proxima_tentativa <= now() "
+                + "where a.id in (select id from aviso_de_pagamento where situacao = 'PENDENTE' and provedor = ? "
+                + "and proxima_tentativa <= now() "
                 + "and (reservado_por is null or reserva_ate < now()) order by proxima_tentativa limit ? for update skip locked) "
-                + "returning a.id, a.consultoria_id, a.referencia, a.transacao, a.slug, a.revisao",
+                + "returning a.id, a.consultoria_id, a.referencia, a.transacao, a.slug, a.revisao, a.evento_tipo",
                 (rs, n) -> new Reservado(rs.getObject("id", UUID.class), rs.getObject("consultoria_id", UUID.class),
-                        rs.getString("referencia"), rs.getString("transacao"), rs.getString("slug"), rs.getInt("revisao")),
-                dono, (double) segundos, limite);
+                        rs.getString("referencia"), rs.getString("transacao"), rs.getString("slug"), rs.getInt("revisao"),
+                        rs.getString("evento_tipo")),
+                dono, (double) segundos, provedor, limite);
     }
 
     /** Trava a linha do aviso (a primeira trava do concluir: nunca se trava o aviso depois da cobrança). */
@@ -247,7 +273,9 @@ class AvisoDePagamentoRepositorio {
      */
     List<Conferencia> conferencias(UUID consultoriaId, int limite) {
         return jdbc.query("select a.id, c.aluno_id, al.nome, a.cobranca_id, c.competencia, c.valor_centavos, "
-                + "a.valor_pago_centavos, a.motivo, a.recebido_em from aviso_de_pagamento a "
+                + "a.valor_pago_centavos, a.motivo, a.recebido_em, a.provedor, "
+                + "case when a.provedor = 'KIWIFY' then a.referencia else a.transacao end as id_externo "
+                + "from aviso_de_pagamento a "
                 + "left join cobranca_aluno c on c.consultoria_id = a.consultoria_id and c.id = a.cobranca_id "
                 + "left join aluno al on al.consultoria_id = c.consultoria_id and al.id = c.aluno_id "
                 + "where a.consultoria_id = ? and a.situacao = 'CONFERIR' order by a.recebido_em desc, a.id desc limit ?",
@@ -255,7 +283,8 @@ class AvisoDePagamentoRepositorio {
                         rs.getString("nome"), rs.getObject("cobranca_id", UUID.class),
                         rs.getObject("competencia", LocalDate.class), rs.getObject("valor_centavos", Long.class),
                         rs.getObject("valor_pago_centavos", Long.class), rs.getString("motivo"),
-                        rs.getObject("recebido_em", OffsetDateTime.class).toInstant()), consultoriaId, limite);
+                        rs.getObject("recebido_em", OffsetDateTime.class).toInstant(), rs.getString("provedor"),
+                        rs.getString("id_externo")), consultoriaId, limite);
     }
 
     /** A situação do aviso da consultoria, já com a linha travada (o "conferido" não concorre com o conciliador). */

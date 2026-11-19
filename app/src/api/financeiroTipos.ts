@@ -6,15 +6,22 @@
 
 export type PeriodoDoPlano = 'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL' | 'PARCELA_UNICA';
 export type SituacaoDaContratacao = 'ATIVA' | 'PAUSADA' | 'ENCERRADA';
-export type SituacaoDaCobranca = 'ABERTA' | 'PAGA' | 'CANCELADA' | 'ESTORNADA' | 'CONTESTADA';
-/** As quatro primeiras são do registro manual; `PIX` e `CARTAO` só vêm do recebimento online (InfinitePay). */
-export type FormaDePagamento = 'DINHEIRO' | 'PIX_DIRETO' | 'TRANSFERENCIA' | 'OUTRO' | 'PIX' | 'CARTAO';
+/** `RENEGOCIADA` (D14): entrou num acordo; fica fora de totais, vencido, lembretes e "Pagar" (contrato em `financeiroRenegociar.ts`). */
+export type SituacaoDaCobranca = 'ABERTA' | 'PAGA' | 'CANCELADA' | 'ESTORNADA' | 'CONTESTADA' | 'RENEGOCIADA';
+/**
+ * As quatro primeiras são do registro manual; `PIX` e `CARTAO` só vêm do recebimento online (InfinitePay) e `KIWIFY`, da
+ * baixa automática da assinatura na Kiwify (contrato em `financeiroKiwify.ts`).
+ */
+export type FormaDePagamento = 'DINHEIRO' | 'PIX_DIRETO' | 'TRANSFERENCIA' | 'OUTRO' | 'PIX' | 'CARTAO' | 'KIWIFY';
+/** Quem cobra a cobrança sozinho (D18): `KIWIFY` = mensalidade de plano com "Assinatura cobrada pela Kiwify"; nulo = ninguém. */
+export type CobrancaAutomatica = 'KIWIFY';
 export type TipoDeLancamento = 'ENTRADA' | 'SAIDA';
 /**
  * `SAIDA` é a cobrança de saída (criada ao encerrar o plano); não tem link de pagamento. `AVULSA` é a lançada pelo treinador
- * para vários alunos (sem contratação nem plano: `descricao` diz o que é). Não confundir com `TipoDeLancamento`.
+ * para vários alunos (sem contratação nem plano: `descricao` diz o que é). `RENEGOCIACAO` é a parcela de um acordo (D14),
+ * com as regras da avulsa e a descrição fixa do servidor. Não confundir com `TipoDeLancamento`.
  */
-export type TipoDaCobranca = 'MENSALIDADE' | 'SAIDA' | 'AVULSA';
+export type TipoDaCobranca = 'MENSALIDADE' | 'SAIDA' | 'AVULSA' | 'RENEGOCIACAO';
 /** As formas de recebimento que o treinador liga (e que o aluno vê em `FinanceiroDoAluno.formasDePagamento`). `MANUAL` só informa. */
 export type FormaDeRecebimento = 'INFINITEPAY' | 'LINK_PROPRIO' | 'PIX' | 'MANUAL';
 export type TipoDeChavePix = 'CPF' | 'CNPJ' | 'EMAIL' | 'TELEFONE' | 'ALEATORIA';
@@ -34,6 +41,13 @@ export interface PlanoRequest {
   regraDeSaida?: string | null;
   /** Link de pagamento próprio (https, opcional, até 500). O `PUT` substitui inteiro: nulo APAGA, então reenvie o atual. */
   linkDePagamento?: string | null;
+  /** O que o plano inclui (D13): obrigatórios; pelo menos um `true`, senão 422 `PLANO_INVALIDO` no `incluiTreino` (ausente vale `true`). */
+  incluiTreino: boolean;
+  incluiDieta: boolean;
+  /** "Assinatura cobrada pela Kiwify" (só plano mensal). O `PUT` substitui inteiro: reenvie o gravado (`financeiroKiwify.ts`). */
+  kiwifyAssinatura?: boolean;
+  /** O id do produto na Kiwify: obrigatório com `kiwifyAssinatura`; nulo sem ela. */
+  kiwifyProdutoId?: string | null;
   versao?: number | null;
 }
 
@@ -51,6 +65,12 @@ export interface PlanoResponse {
   regraDeSaida: string | null;
   /** Link de pagamento próprio do plano (https); nulo = sem link. */
   linkDePagamento: string | null;
+  /** O que o plano inclui (D13; os planos antigos nascem com os dois ligados). */
+  incluiTreino: boolean;
+  incluiDieta: boolean;
+  /** Assinatura cobrada pela Kiwify (D17); opcional só no tipo (fixtures antigas): ausente = desligada. */
+  kiwifyAssinatura?: boolean;
+  kiwifyProdutoId?: string | null;
 }
 
 export interface VersaoRequest {
@@ -220,8 +240,12 @@ export interface CobrancaResponse {
   alunoCpf?: string | null;
   /** `SAIDA` = cobrança de saída: sem link de pagamento; no app do aluno nunca se chama "Mensalidade". */
   tipo: TipoDaCobranca;
-  /** O que é a cobrança, só na `AVULSA` (até 150 com o "(Parcela k/n)"); nulo nas outras. */
+  /** O que é a cobrança, só na `AVULSA` (até 150 com o "(Parcela k/n)") e na `RENEGOCIACAO` (texto fixo); nulo nas outras. */
   descricao: string | null;
+  /** O acordo de renegociação (D14): nas originais RENEGOCIADA e nas parcelas RENEGOCIACAO. Opcional só no tipo (fixtures antigas). */
+  acordoId?: string | null;
+  /** `KIWIFY` = mensalidade cobrada pela Kiwify (D18); nulo ou ausente = não. */
+  cobrancaAutomatica?: CobrancaAutomatica | null;
 }
 
 /** `POST /cobrancas/baixa-em-lote`: o mesmo registro manual de cada cobrança, sem valor (o servidor decide), 1 a 100 itens. */
@@ -256,6 +280,8 @@ export interface CobrancasSelecionadasRequest {
 
 /** `POST /financeiro/cobrancas-avulsas`: `valorCentavos` é o de CADA cobrança (cada parcela, cada aluno); segunda exceção da regra do valor do servidor. */
 export interface CobrancaAvulsaRequest {
+  /** UUID do pedido, criado ao abrir a Folha (D11): repetido, a API devolve 200 com o que já gerou, sem gerar de novo. */
+  pedidoId: string;
   alunoIds: string[];
   descricao: string;
   valorCentavos: number;
@@ -263,7 +289,7 @@ export interface CobrancaAvulsaRequest {
   parcelas: number;
 }
 
-/** 201: só contagens (tudo ou nada). */
+/** 201 (ou 200 quando o `pedidoId` já foi gerado): só contagens (tudo ou nada). */
 export interface CobrancaAvulsaResponse {
   alunos: number;
   cobrancas: number;
@@ -484,6 +510,8 @@ export interface CobrancaDoAluno {
   pagoEm: string | null;
   /** `SAIDA`: só informa (sem botão de pagar nem link; a API responde 409 `COBRANCA_SEM_LINK`). */
   tipo: TipoDaCobranca;
+  /** `KIWIFY`: a Kiwify cobra sozinha (D18): o aluno vê só "Cobrança automática pela Kiwify". Nulo ou ausente = não. */
+  cobrancaAutomatica?: CobrancaAutomatica | null;
 }
 
 /**
@@ -601,7 +629,18 @@ export type MotivoDaConferencia =
   | 'FORMA_DESCONHECIDA'
   | 'COBRANCA_NAO_ENCONTRADA'
   | 'CONSULTA_FALHOU'
-  | 'ESTORNO_INFORMADO';
+  | 'ESTORNO_INFORMADO'
+  // Kiwify (D19; `financeiroKiwify.ts`). `VALOR_DIFERENTE` e `CONSULTA_FALHOU` também valem para ela.
+  | 'KIWIFY_EMAIL_SEM_ALUNO'
+  | 'KIWIFY_EMAIL_DE_VARIOS_ALUNOS'
+  | 'KIWIFY_SEM_CONTRATACAO_NO_PLANO'
+  | 'KIWIFY_SEM_MENSALIDADE_ABERTA'
+  | 'KIWIFY_ASSINATURA_CANCELADA'
+  | 'KIWIFY_REEMBOLSO'
+  | 'KIWIFY_CHARGEBACK';
+
+/** Quem avisou o pagamento. Ausente (fixtures antigas) = InfinitePay. */
+export type ProvedorDaConferencia = 'INFINITEPAY' | 'KIWIFY';
 
 /**
  * `alunoId`, `alunoNome`, `cobrancaId`, `competencia` e `valorCobrancaCentavos` são nulos quando o pagamento não casou com
@@ -619,6 +658,9 @@ export interface ConferenciaDePagamento {
   valorPagoCentavos: number | null;
   motivo: MotivoDaConferencia;
   recebidoEm: string;
+  provedor?: ProvedorDaConferencia;
+  /** A venda no provedor (`order_id` da Kiwify, `transaction_nsu` da InfinitePay), para achá-la no painel dele; nulo se não veio. */
+  idExterno?: string | null;
 }
 
 export interface ConferenciasDePagamento {
@@ -678,6 +720,11 @@ export interface LembretesDaCobranca {
   motivoSemWhatsapp: MotivoSemWhatsapp | null;
   /** O aluno desligou os lembretes por e-mail para si (`PUT /aluno/lembretes-de-cobranca`); o WhatsApp manual segue valendo. */
   alunoDesligou: boolean;
+  /**
+   * O aluno tem responsável financeiro (D15) com e-mail válido e/ou telefone: os lembretes vão a ele (cada canal cai no aluno
+   * sozinho, e `whatsapp.telefone` já é o do responsável quando ele tem telefone). O nome dele nunca vem aqui.
+   */
+  paraResponsavel: boolean;
 }
 
 /** `GET/PUT /aluno/lembretes-de-cobranca`: se o aluno quer receber os lembretes de pagamento por e-mail (ligado por padrão). */

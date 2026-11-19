@@ -273,7 +273,7 @@ class LoteDeCobrancasIntegrationTest extends AbstractIntegrationTest {
         JsonNode m1 = mensalidade(admin, plano, "Aluno Exporta Um");
         mensalidade(admin, plano, "Aluno Exporta Dois");
         UUID alunoAvulsa = api.criarAluno(admin, "Aluno Exporta Avulsa");
-        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("alunoIds", List.of(alunoAvulsa.toString()),
+        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("pedidoId", UUID.randomUUID().toString(), "alunoIds", List.of(alunoAvulsa.toString()),
                 "descricao", "Camiseta; =cmd", "valorCentavos", 4_567, "primeiroVencimento", hoje.plusDays(3).toString(),
                 "parcelas", 1), 201);
         String idAvulsa = api.get("/alunos/" + alunoAvulsa + "/cobrancas", admin, 200).get(0).get("id").asString();

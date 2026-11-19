@@ -51,13 +51,15 @@ public class LembretesService {
     private final AlunoRepository alunos;
     private final UsuarioRepository usuarios;
     private final ConsultoriaRepository consultorias;
+    private final ResponsavelFinanceiroRepository responsaveis;
     private final ObjectProvider<EnviadorDeEmail> emails;
     private final Auditoria auditoria;
     private final String appUrl;
 
     public LembretesService(ConfiguracaoDeLembretesRepository configuracoes, LembreteDeCobrancaRepository lembretes,
                             CobrancaAlunoRepository cobrancas, AlunoRepository alunos, UsuarioRepository usuarios,
-                            ConsultoriaRepository consultorias, ObjectProvider<EnviadorDeEmail> emails, Auditoria auditoria,
+                            ConsultoriaRepository consultorias, ResponsavelFinanceiroRepository responsaveis,
+                            ObjectProvider<EnviadorDeEmail> emails, Auditoria auditoria,
                             @Value("${treinos.app-url:}") String appUrl) {
         this.configuracoes = configuracoes;
         this.lembretes = lembretes;
@@ -65,6 +67,7 @@ public class LembretesService {
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.consultorias = consultorias;
+        this.responsaveis = responsaveis;
         this.emails = emails;
         this.auditoria = auditoria;
         this.appUrl = appUrl;
@@ -132,7 +135,9 @@ public class LembretesService {
         boolean alunoDesligou = aluno.map(a -> a.getLembretesCobrancaDesligadosEm() != null).orElse(false);
         String[] motivo = new String[1];
         WhatsAppDaCobranca whatsapp = whatsapp(cobranca, aluno, motivo);
-        return new LembretesDaCobranca(itens, whatsapp, alunoDesligou, whatsapp == null ? motivo[0] : null);
+        boolean paraResponsavel = aluno.flatMap(a -> responsaveis.findByAlunoId(a.getId()))
+                .filter(r -> temContato(r)).isPresent();
+        return new LembretesDaCobranca(itens, whatsapp, alunoDesligou, whatsapp == null ? motivo[0] : null, paraResponsavel);
     }
 
     /** O aluno da sessão recebe os lembretes de cobrança por e-mail? (Sem escolha gravada, sim.) */
@@ -184,9 +189,11 @@ public class LembretesService {
             motivo[0] = "ALUNO_INATIVO";
             return null;
         }
-        String telefone = aluno.get().getUsuarioId() == null ? null
-                : usuarios.findById(aluno.get().getUsuarioId()).map(Usuario::getTelefone)
-                        .filter(t -> !t.isBlank()).orElse(null);
+        // D15: o telefone do responsável financeiro, quando tem; senão o do aluno. O texto é o mesmo e não leva o nome dele.
+        String telefone = responsaveis.findByAlunoId(aluno.get().getId()).map(ResponsavelFinanceiro::getTelefone)
+                .filter(t -> !t.isBlank()).orElseGet(() -> aluno.get().getUsuarioId() == null ? null
+                        : usuarios.findById(aluno.get().getUsuarioId()).map(Usuario::getTelefone)
+                                .filter(t -> !t.isBlank()).orElse(null));
         String consultoria = consultorias.findById(TenantContext.get()).map(Consultoria::getNome).orElse(null);
         var dados = new TextoDoLembrete.Dados(aluno.get().getNome(), consultoria, cobranca.getValorCentavos(),
                 cobranca.getVencimento(), ativo && !saida ? appUrl : "", PreparoDoLembrete.emAberto(cobrancas, cobranca),
@@ -194,6 +201,10 @@ public class LembretesService {
         String mensagem = saida ? TextoDoLembrete.mensagemDeSaida(dados)
                 : TextoDoLembrete.mensagem(RegraDosLembretes.situacaoDeHoje(hoje, cobranca.getVencimento()), dados);
         return new WhatsAppDaCobranca(telefone, mensagem);
+    }
+
+    private static boolean temContato(ResponsavelFinanceiro r) {
+        return PreparoDoLembrete.valido(r.getEmail()) != null || (r.getTelefone() != null && !r.getTelefone().isBlank());
     }
 
     private LembretesResponse resposta(Optional<ConfiguracaoDeLembretes> gravada) {

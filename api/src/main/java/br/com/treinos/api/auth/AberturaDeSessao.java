@@ -31,7 +31,10 @@ public class AberturaDeSessao {
 
     @Transactional
     @Auditar(acao = "LOGIN_SUCESSO", entidade = "USUARIO", resumo = "Abriu uma sessão no aplicativo.")
-    public Usuario abriu(Usuario usuario) {
+    public Usuario abriu(Usuario criado) {
+        // O recém-criado chega solto (veio de outra transação): relê pelo id para o último acesso ser gravado como no login.
+        Usuario usuario = usuarios.findById(criado.getId()).orElseThrow(() -> new IllegalStateException("Usuário sumiu na abertura."));
+        usuario.registrarLogin(Instant.now());
         return usuario;
     }
 }

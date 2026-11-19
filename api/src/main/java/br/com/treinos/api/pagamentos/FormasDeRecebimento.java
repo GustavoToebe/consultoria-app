@@ -93,6 +93,20 @@ public class FormasDeRecebimento {
         return mudou;
     }
 
+    /** D12: desliga o Pix e zera chave, tipo, nome e cidade juntos (o CHECK exige os quatro com o Pix ligado). Devolve se mudou algo. */
+    boolean apagarPix(Instant agora) {
+        boolean mudou = pix || pixChave != null || pixTipoChave != null || pixNomeRecebedor != null || pixCidade != null;
+        this.pix = false;
+        this.pixTipoChave = null;
+        this.pixChave = null;
+        this.pixNomeRecebedor = null;
+        this.pixCidade = null;
+        if (mudou) {
+            this.atualizadoEm = agora;
+        }
+        return mudou;
+    }
+
     DadosDoPix dadosDoPix() {
         return pixChave == null ? null : new DadosDoPix(pixTipoChave, pixChave, pixNomeRecebedor, pixCidade);
     }

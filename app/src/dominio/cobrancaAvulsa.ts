@@ -57,7 +57,9 @@ function validarVencimento(texto: string, hoje: string): { iso: string | null; e
   return { iso, erro: null };
 }
 
-export type CorpoDaAvulsa = { ok: true; corpo: CobrancaAvulsaRequest } | { ok: false; erros: ErrosDaAvulsa };
+/** O corpo sem o `pedidoId`, que é da abertura da Folha (D11), não da entrada. */
+export type CorpoDaAvulsaSemPedido = Omit<CobrancaAvulsaRequest, 'pedidoId'>;
+export type CorpoDaAvulsa = { ok: true; corpo: CorpoDaAvulsaSemPedido } | { ok: false; erros: ErrosDaAvulsa };
 
 /**
  * Valida tudo e monta o corpo. Alunos: 1 a 100 sem repetir; descrição de 1 a 120 depois do strip; valor de R$ 0,01 a
@@ -137,7 +139,7 @@ export const quantidadeDeCobrancas = (c: Pick<CobrancaAvulsaRequest, 'alunoIds' 
  * O painel de confirmação: título "Gerar N cobranças?" (N = alunos × parcelas) e o detalhe com o total em reais
  * (valor × N, só conferência: cada cobrança leva o valor digitado) e o primeiro vencimento.
  */
-export function confirmacaoDaAvulsa(corpo: CobrancaAvulsaRequest): { titulo: string; detalhe: string } {
+export function confirmacaoDaAvulsa(corpo: CorpoDaAvulsaSemPedido): { titulo: string; detalhe: string } {
   const n = quantidadeDeCobrancas(corpo);
   const alunos = plural(corpo.alunoIds.length, 'aluno', 'alunos');
   const quantas = corpo.parcelas > 1 ? `${alunos} × ${corpo.parcelas} parcelas de ${centavosParaTela(corpo.valorCentavos)}` : `${alunos} × ${centavosParaTela(corpo.valorCentavos)}`;
@@ -158,8 +160,11 @@ export const MENSAGEM_CAMPOS_DA_AVULSA = 'Confira os campos destacados.';
 export const MENSAGEM_ALUNO_NAO_ENCONTRADO = 'Algum aluno da seleção não foi encontrado. Nenhuma cobrança foi gerada. Atualize a lista de alunos e tente de novo.';
 export const MENSAGEM_ALUNO_INATIVO = 'Algum aluno da seleção está inativo. Nenhuma cobrança foi gerada. Tire-o da seleção ou reative-o.';
 export const MENSAGEM_ALUNO_ANONIMIZADO = 'Algum aluno da seleção foi anonimizado e não recebe cobrança. Nenhuma cobrança foi gerada. Tire-o da seleção.';
-/** Sem retorno do servidor não dá para saber se gerou (não há chave de idempotência): conferir antes de repetir. */
-export const MENSAGEM_CONFERIR_A_LISTA = 'Não foi possível confirmar se as cobranças foram geradas. Confira a lista de cobranças antes de gerar de novo: repetir pode criar tudo em dobro.';
+/**
+ * Sem retorno do servidor não dá para saber se gerou, mas repetir é seguro: o envio leva o mesmo `pedidoId` e o servidor
+ * devolve o que já tinha gerado em vez de gerar de novo (D11).
+ */
+export const MENSAGEM_TENTE_DE_NOVO = 'Não foi possível confirmar se as cobranças foram geradas. Tente de novo: repetir não gera cobranças em dobro.';
 
 const CAMPOS_DA_API: Readonly<Record<string, CampoDaAvulsa>> = {
   descricao: 'descricao',
@@ -175,11 +180,6 @@ export interface ErroDaAvulsa {
   etapa: EtapaDaAvulsa | null;
   /** A lista de alunos mudou (404, inativo, anonimizado): a tela a busca de novo e o treinador revê a seleção. */
   recarregarAlunos: boolean;
-  /**
-   * Sem resposta do servidor (sem conexão ou erro desconhecido): pode ter gravado. A tela não oferece gerar de novo, só
-   * conferir a lista (não há chave de idempotência; repetir pode criar tudo em dobro).
-   */
-  incerto: boolean;
 }
 
 function statusDoErro(erro: unknown): number | null {
@@ -191,10 +191,10 @@ function statusDoErro(erro: unknown): number | null {
  * Tradução do erro do `POST /financeiro/cobrancas-avulsas`: 422 `COBRANCA_AVULSA_INVALIDA` por campo (`alunoIds` e
  * `alunoIds[i]` viram o campo `alunos`; campo que a tela não mostra vai ao texto geral), 404 (aluno de outra consultoria ou
  * inexistente), 409 `ALUNO_INATIVO` e `ALUNO_ANONIMIZADO`, o texto da API em 403, 503 `FINANCEIRO_INDISPONIVEL`, e sem conexão
- * ou erro desconhecido a frase de conferir a lista. Nunca repete o que foi digitado.
+ * ou erro desconhecido a frase de tentar de novo (o mesmo `pedidoId` não gera em dobro). Nunca repete o que foi digitado.
  */
 export function traduzirErroDaAvulsa(erro: unknown): ErroDaAvulsa {
-  const base = { campos: {} as ErrosDaAvulsa, etapa: null, recarregarAlunos: false, incerto: false };
+  const base = { campos: {} as ErrosDaAvulsa, etapa: null, recarregarAlunos: false };
   const codigo = codigoApi(erro);
   const status = statusDoErro(erro);
   if (codigo === 'COBRANCA_AVULSA_INVALIDA') {
@@ -213,11 +213,10 @@ export function traduzirErroDaAvulsa(erro: unknown): ErroDaAvulsa {
   if (status === 404) return { ...base, mensagem: MENSAGEM_ALUNO_NAO_ENCONTRADO, recarregarAlunos: true };
   if (codigo === 'ALUNO_INATIVO') return { ...base, mensagem: MENSAGEM_ALUNO_INATIVO, recarregarAlunos: true };
   if (codigo === 'ALUNO_ANONIMIZADO') return { ...base, mensagem: MENSAGEM_ALUNO_ANONIMIZADO, recarregarAlunos: true };
-  // 403 e 503 não gravam nada: a frase da API basta. Sem conexão pode ter gravado: a de conferir.
+  // 403 e 503 não gravam nada: a frase da API basta. Sem conexão pode ter gravado, e repetir com o mesmo pedido é seguro.
   if (status === 403 || codigo === 'FINANCEIRO_INDISPONIVEL') return { ...base, mensagem: mensagemApi(erro, 'Não foi possível gerar as cobranças agora. Nenhuma foi gerada.') };
-  // Sem o "tente de novo" da frase padrão de conexão: aqui repetir pode duplicar tudo.
-  if (erroDeConexao(erro)) return { ...base, incerto: true, mensagem: `Sem conexão com o servidor. ${MENSAGEM_CONFERIR_A_LISTA}` };
-  return { ...base, incerto: true, mensagem: MENSAGEM_CONFERIR_A_LISTA };
+  if (erroDeConexao(erro)) return { ...base, mensagem: `Sem conexão com o servidor. ${MENSAGEM_TENTE_DE_NOVO}` };
+  return { ...base, mensagem: MENSAGEM_TENTE_DE_NOVO };
 }
 
 /**

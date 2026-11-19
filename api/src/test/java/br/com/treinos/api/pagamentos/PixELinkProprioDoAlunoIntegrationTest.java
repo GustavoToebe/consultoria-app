@@ -324,6 +324,7 @@ class PixELinkProprioDoAlunoIntegrationTest extends AbstractIntegrationTest {
         corpo.put("planoComercialId", plano.get("id").asString());
         corpo.put("inicio", hoje.minusMonths(2).toString());
         corpo.put("diaVencimento", hoje.getDayOfMonth());
+        corpo.put("gerarMesesAnteriores", true);
         api.post("/alunos/" + id + "/contratacoes", admin, corpo, 200);
         List<String> ids = new ArrayList<>();
         api.get("/alunos/" + id + "/cobrancas", admin, 200).forEach(c -> ids.add(0, c.get("id").asString()));
@@ -406,6 +407,7 @@ class PixELinkProprioDoAlunoIntegrationTest extends AbstractIntegrationTest {
 
     private void avulsa(UUID aluno, long valor) throws Exception {
         Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("pedidoId", UUID.randomUUID().toString());
         corpo.put("alunoIds", List.of(aluno.toString()));
         corpo.put("descricao", "Camiseta do time");
         corpo.put("valorCentavos", valor);

@@ -9,6 +9,8 @@ import java.util.UUID;
 public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo aluno, PerfilResumo perfil, java.util.Set<String> permissoes,
                          boolean termosPendentes, String termosVersao, java.util.List<String> funcionalidadesDoPlano,
                          boolean pagamentosHabilitados, boolean recebimentoOnlineHabilitado,
+                         /* Kiwify automática ligada (financeiro e {@code TREINOS_PAGAMENTOS_KIWIFY_HABILITADO}); desligada, o app esconde tudo dela. */
+                         boolean kiwifyHabilitada,
                          boolean pagarNoIos, boolean pagarNoAndroid,
                          /* Módulo do ciclo menstrual ligado ({@code TREINOS_CICLO_HABILITADO}); desligado, o app esconde tudo dele. */
                          boolean cicloHabilitado,

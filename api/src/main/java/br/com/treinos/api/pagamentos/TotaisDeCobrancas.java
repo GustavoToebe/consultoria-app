@@ -11,14 +11,16 @@ import java.util.UUID;
 
 /**
  * Os totais do topo da lista de cobranças, calculados no banco sobre o filtro inteiro (todas as páginas, os mesmos parâmetros da
- * lista). CANCELADA e ESTORNADA ficam fora de tudo, também do total; {@code pago} é só PAGA (igual ao recebido do painel: a
+ * lista). CANCELADA, ESTORNADA e RENEGOCIADA ficam fora de tudo, também do total; {@code pago} é só PAGA (igual ao recebido do painel: a
  * CONTESTADA entra no total, mas não no pago nem no em aberto); {@code emAberto} inclui a vencida; {@code vencido} é a ABERTA com
  * vencimento antes de hoje (Brasília). Roda dentro da transação somente leitura da lista.
  */
 @Component
 class TotaisDeCobrancas {
 
-    private static final Set<CobrancaAluno.Situacao> FORA = Set.copyOf(CobrancaAluno.NAO_COBREM_PERIODO);
+    /** Não é {@code NAO_COBREM_PERIODO}: a RENEGOCIADA cobre a competência, mas o valor dela está nas parcelas do acordo. */
+    private static final Set<CobrancaAluno.Situacao> FORA = Set.of(CobrancaAluno.Situacao.CANCELADA,
+            CobrancaAluno.Situacao.ESTORNADA, CobrancaAluno.Situacao.RENEGOCIADA);
 
     private final CobrancaAlunoRepository cobrancas;
 

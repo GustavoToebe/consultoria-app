@@ -25,6 +25,8 @@ const MOTIVOS_DA_ACAO: Record<AcaoDoLote, Record<string, string>> = {
   },
   LINK: {
     COBRANCA_SEM_LINK: 'A cobrança de saída não tem link de pagamento.',
+    // Kiwify (D18): a assinatura já cobra o aluno; um link a mais o faria pagar duas vezes.
+    COBRANCA_AUTOMATICA: 'Cobrada pela Kiwify: sem link de pagamento.',
     RECEBIMENTO_ONLINE_NAO_CONFIGURADO: 'O recebimento online não está configurado.',
     PROVEDOR_INDISPONIVEL: 'A InfinitePay não respondeu. Tente de novo.',
     ALUNO_INATIVO: 'O aluno está inativo.',
@@ -111,7 +113,7 @@ function resumir(acao: AcaoDoLote, itens: ItemDoResumoDaAcao[]): ResumoDaAcaoEmL
  * recebimento online não está configurado. As outras (InfinitePay fora, sem resposta, erro inesperado) valem tentar de novo.
  */
 const FALHAS_DEFINITIVAS_DO_LINK: ReadonlySet<string> = new Set([
-  'COBRANCA_NAO_ABERTA', 'COBRANCA_NAO_ENCONTRADA', 'COBRANCA_SEM_LINK', 'ALUNO_INATIVO', 'ALUNO_ANONIMIZADO', 'RECEBIMENTO_ONLINE_NAO_CONFIGURADO',
+  'COBRANCA_NAO_ABERTA', 'COBRANCA_NAO_ENCONTRADA', 'COBRANCA_SEM_LINK', 'COBRANCA_AUTOMATICA', 'ALUNO_INATIVO', 'ALUNO_ANONIMIZADO', 'RECEBIMENTO_ONLINE_NAO_CONFIGURADO',
 ]);
 
 /** Os links que falharam e ainda podem dar certo com outra tentativa (na ordem do pedido). */

@@ -1754,7 +1754,11 @@ class InfinitePayWebhookIntegrationTest extends AbstractIntegrationTest {
         assertThat(item.get("valorPagoCentavos").asLong()).isEqualTo(VALOR - 1_000);
         assertThat(item.get("motivo").asString()).isEqualTo("VALOR_DIFERENTE");
         assertThat(item.get("recebidoEm").asString()).isNotBlank();
-        assertThat(resposta.getContentAsString()).doesNotContain(t1).doesNotContain(a.token());
+        // O id externo (o transaction_nsu) é o campo que o app mostra; o token do aviso da consultoria nunca sai.
+        assertThat(item.get("provedor").asString()).isEqualTo("INFINITEPAY");
+        assertThat(item.get("idExterno").asString()).isEqualTo(t2);
+        assertThat(itens.get(1).get("idExterno").asString()).isEqualTo(t1);
+        assertThat(resposta.getContentAsString()).doesNotContain(a.token());
         // A outra consultoria vê só o dela.
         assertThat(api.get("/financeiro/conferencias", b.login(), 200).get("itens")).hasSize(1);
     }
@@ -1771,11 +1775,11 @@ class InfinitePayWebhookIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode itens = api.get("/financeiro/conferencias", conta.login(), 200).get("itens");
 
-        // Contrato com o app (financeiroTipos.ts, ConferenciaDePagamento): estes nove campos, sempre presentes (nulos como null).
+        // Contrato com o app (financeiroTipos.ts, ConferenciaDePagamento): estes onze campos, sempre presentes (nulos como null).
         assertThat(itens).hasSize(2);
         for (JsonNode item : itens) {
             assertThat(item.propertyNames()).containsExactlyInAnyOrder("id", "alunoId", "alunoNome", "cobrancaId", "competencia",
-                    "valorCobrancaCentavos", "valorPagoCentavos", "motivo", "recebidoEm");
+                    "valorCobrancaCentavos", "valorPagoCentavos", "motivo", "recebidoEm", "provedor", "idExterno");
             // Instant ISO-8601 em UTC (o app faz new Date(...)), nunca número.
             assertThat(item.get("recebidoEm").isString()).isTrue();
             assertThat(java.time.Instant.parse(item.get("recebidoEm").asString())).isNotNull();

@@ -6,15 +6,17 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-@EnableConfigurationProperties({PagamentosProperties.class, InfinitePayProperties.class, LembretesProperties.class})
+@EnableConfigurationProperties({PagamentosProperties.class, InfinitePayProperties.class, KiwifyProperties.class,
+        LembretesProperties.class})
 public class PagamentosConfiguracao implements WebMvcConfigurer {
 
     private final PagamentosInterceptor interceptor;
 
-    /** Com a InfinitePay ligada e variável faltando, a subida cai aqui (sem chamada de rede). */
+    /** Com a InfinitePay ou a Kiwify ligada e variável faltando, a subida cai aqui (sem chamada de rede). */
     public PagamentosConfiguracao(PagamentosInterceptor interceptor, PagamentosProperties pagamentos,
-                                  InfinitePayProperties infinitePay) {
+                                  InfinitePayProperties infinitePay, KiwifyProperties kiwify) {
         infinitePay.exigirCompleta(pagamentos);
+        kiwify.exigirCompleta(pagamentos, infinitePay);
         this.interceptor = interceptor;
     }
 

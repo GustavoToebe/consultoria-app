@@ -55,7 +55,7 @@ export function ProvedorDaBuscaGlobal({ children }: { children: ReactNode }) {
 }
 
 /**
- * "Buscar" do menu lateral, na linha abaixo da identidade, com o recolher ao lado (D2). Menu aberto: linha leve, só com
+ * "Buscar" do menu lateral, na linha abaixo da identidade (o recolher mora na linha da marca). Menu aberto: linha leve, só com
  * contorno `divisor`, a lupa e "Buscar"; o atalho fica na dica e no nome acessível, sem selo. Minimizado (72): só a lupa,
  * centralizada, com o nome e o atalho na dica. Trilho do tablet (88): a lupa com "Buscar"
  * embaixo, como os itens. Não é campo de verdade: abre a folha da busca.

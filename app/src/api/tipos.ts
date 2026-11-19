@@ -53,6 +53,8 @@ export interface EuResponse {
   pagamentosHabilitados?: boolean;
   /** Módulo de pagamentos E a InfinitePay ligados na consultoria; falso ou ausente = o app esconde o recebimento online. */
   recebimentoOnlineHabilitado?: boolean;
+  /** Kiwify automática ligada na plataforma (`TREINOS_PAGAMENTOS_KIWIFY_HABILITADO`); falso ou ausente = o app esconde tudo dela. */
+  kiwifyHabilitada?: boolean;
   /** Chaves da plataforma: o "Pagar" aparece no iOS / no Android só com a respectiva ligada (a web sempre tem). Ausente = desligada. */
   pagarNoIos?: boolean;
   pagarNoAndroid?: boolean;
@@ -255,7 +257,18 @@ export interface AlunoResumo {
   responsavelId?: string | null;
   /** Atualização da pasta vigente; nula sem permissão de ler atualizações ou sem pasta com período. */
   atualizacao?: SituacaoDaAtualizacao | null;
+  /** Tags do aluno (`docs/planos/tags-de-aluno.md`); a API sempre manda a lista (vazia sem tags); opcional aqui só para não quebrar as fixtures antigas, leia com `?? []`. */
+  tags?: TagDeAluno[];
 }
+
+/** Cores das tags: as de identificação do tema (`CHAVES_DE_IDENTIFICACAO`); a cor resolvida por tema vem de `useTema().identificacao`. */
+export type CorDaTag = 'CIANO' | 'AZUL' | 'INDIGO' | 'VIOLETA' | 'MAGENTA';
+
+/** Tag como o aluno a carrega (`AlunoDetalhe.tags`, `AlunoResumo.tags`, resposta de `PUT /alunos/{id}/tags`). */
+export interface TagDeAluno { id: string; nome: string; cor: CorDaTag }
+
+/** Tag da lista da consultoria (`GET /tags-de-alunos`); `versao` vai de volta ao renomear e ao apagar. */
+export interface TagDaConsultoria extends TagDeAluno { totalAlunos: number; versao: number }
 
 /** Mesmos campos de {@link AtualizacaoDaLista} que {@link statusAtualizacaoTreinador} usa, sem o nome do aluno. */
 export type SituacaoDaAtualizacao = Omit<AtualizacaoDaLista, 'pastaId' | 'alunoId' | 'nomeAluno'>;
@@ -341,6 +354,19 @@ export interface AlunoDetalhe {
   /** Grupo (pod) da comunidade em que o aluno está; nulo = sem grupo. Só vem preenchido com `COMUNIDADE_MODERAR`. */
   podId?: string | null;
   podNome?: string | null;
+  /** Tags do aluno (`ALUNO_LER`); a API sempre manda a lista (vazia sem tags); opcional aqui só para não quebrar as fixtures antigas, leia com `?? []`. */
+  tags?: TagDeAluno[];
+  /** Última alteração do cadastro (instante ISO). Ausente ou nulo = a linha do cabeçalho não aparece. */
+  cadastroAlteradoEm?: string | null;
+  /** Último uso do app (`ACESSO`) ou, sem esse registro, o último login (`LOGIN`); nunca chamar login de acesso. Nulo = nenhum. */
+  ultimoAcesso?: { tipo: 'ACESSO' | 'LOGIN'; em: string } | null;
+  /** Só para quem lê o tipo do plano (`TREINO_LER` ou `DIETA_LER`). `porNome` nulo = sem autor gravado. */
+  ultimoPlanoPublicado?: { em: string; porNome: string | null } | null;
+  /**
+   * O que a contratação ATIVA inclui (D13; só os dois booleanos, com `ALUNO_LER`). Nulo ou ausente = sem contratação ativa,
+   * pausada ou Financeiro desligado: a ficha e os editores não dizem nada (nunca "não contratou").
+   */
+  planosAtivos?: { incluiTreino: boolean; incluiDieta: boolean } | null;
 }
 
 /** Foto já enviada na linha do tempo (`GET /alunos/{id}/fotos` e `GET /aluno/fotos/linha-do-tempo`). */

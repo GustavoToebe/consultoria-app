@@ -66,6 +66,7 @@ public class ExportacaoService {
     private final br.com.treinos.api.push.PushService push;
     private final br.com.treinos.api.comunidade.ComunidadeService comunidade;
     private final AlunoRepository alunosRepositorio;
+    private final br.com.treinos.api.tags.TagsDeAlunoService tags;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -81,7 +82,9 @@ public class ExportacaoService {
                              br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas,
                              br.com.treinos.api.agua.AguaDoDiaService agua,
                              br.com.treinos.api.push.PushService push,
-                             br.com.treinos.api.comunidade.ComunidadeService comunidade, AlunoRepository alunosRepositorio) {
+                             br.com.treinos.api.comunidade.ComunidadeService comunidade, AlunoRepository alunosRepositorio,
+                             br.com.treinos.api.tags.TagsDeAlunoService tags) {
+        this.tags = tags;
         this.alunosRepositorio = alunosRepositorio;
         this.comunidade = comunidade;
         this.push = push;
@@ -113,7 +116,7 @@ public class ExportacaoService {
     @Transactional
     @Auditar(acao = "ALUNO_EXPORTADO", entidade = "ALUNO", resumo = "Exportou os dados de um aluno.")
     public Exportacao exportar(UUID alunoId) {
-        var cadastro = alunos.detalhe(alunoId);
+        var cadastro = alunos.detalheParaExportar(alunoId);
         List<String> omitidas = new ArrayList<>();
         var pastasDoAluno = secao(true, "pastas", omitidas, () -> pastas.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream()
                 .map(p -> new PastaExportada(p.getId(), p.getTitulo(), p.getInicio(), p.getFim(), p.getConcluidaEm(),
@@ -175,9 +178,12 @@ public class ExportacaoService {
         if (indicacao == null) {
             omitidas.add("indicacao");
         }
+        // Tags do aluno (V093): os nomes, com a permissão da ficha (ALUNO_LER). Anonimizado: a ligação já saiu, a seção vai vazia.
+        var tagsDoAluno = secao(AcessoAtual.pode("ALUNO_LER"), "tags", omitidas, () -> tags.nomesDoAluno(alunoId));
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
-                cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular, comunidadeDoAluno, indicacao);
+                cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular, comunidadeDoAluno, indicacao,
+                tagsDoAluno);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

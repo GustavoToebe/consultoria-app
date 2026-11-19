@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import type { FinanceiroDoAluno, TipoDaCobranca } from '../../api/financeiroTipos';
+import type { CobrancaDoAluno, FinanceiroDoAluno } from '../../api/financeiroTipos';
 import { financeiroDoAluno } from '../../api/rotas';
 import { acoesDePagamentoDoAluno, comoPagar, plataformaDoApp, type AcaoDePagamento, type ComoPagar } from '../../dominio/financeiro';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -23,15 +23,20 @@ interface Valor {
    * chave da plataforma) ou "o treinador combina". Uma conta só para a Conta e para as pendências do Início.
    */
   modoDePagamento: ComoPagar;
-  /** O mesmo, por cobrança: a de saída nunca tem "Pagar" (só informação), em nenhuma plataforma. */
-  modoDaCobranca: (tipo: TipoDaCobranca | null | undefined) => ComoPagar;
+  /**
+   * O mesmo, por cobrança: a de saída nunca tem "Pagar" (só informação), em nenhuma plataforma; a cobrada pela Kiwify é
+   * `automatica` (D18).
+   */
+  modoDaCobranca: (c: DaCobranca) => ComoPagar;
   /**
    * As ações de pagamento de uma cobrança em aberto (`acoesDePagamentoDoAluno`): InfinitePay, link do treinador e Pix, conforme
-   * as formas que o servidor diz que se aplicam e o link do plano. Celular sem a chave da plataforma e saída: nenhuma (D7).
+   * as formas que o servidor diz que se aplicam e o link do plano. Celular sem a chave da plataforma, saída e Kiwify: nenhuma.
    */
-  acoesDaCobranca: (tipo: TipoDaCobranca | null | undefined) => AcaoDePagamento[];
+  acoesDaCobranca: (c: DaCobranca) => AcaoDePagamento[];
   recarregar: () => void;
 }
+
+type DaCobranca = Pick<CobrancaDoAluno, 'tipo' | 'cobrancaAutomatica'>;
 
 const Contexto = createContext<Valor | null>(null);
 
@@ -73,13 +78,13 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
   const temLinkProprio = chave !== null && !!carga.dados?.plano?.linkDePagamento;
   const modoDePagamento = comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, 'MENSALIDADE', { formas, temLinkProprio });
   const modoDaCobranca = useCallback(
-    (tipo: TipoDaCobranca | null | undefined) =>
-      comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, tipo, { formas, temLinkProprio }),
+    (c: DaCobranca) =>
+      comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, { formas, temLinkProprio, cobrancaAutomatica: c.cobrancaAutomatica }),
     [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio],
   );
   const acoesDaCobranca = useCallback(
-    (tipo: TipoDaCobranca | null | undefined) =>
-      acoesDePagamentoDoAluno(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, tipo, { formas, temLinkProprio }),
+    (c: DaCobranca) =>
+      acoesDePagamentoDoAluno(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, { formas, temLinkProprio, cobrancaAutomatica: c.cobrancaAutomatica }),
     [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio],
   );
   const valor = useMemo<Valor>(

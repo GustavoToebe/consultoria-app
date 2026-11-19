@@ -10,6 +10,7 @@ import {
 import { dadosEmDia } from '../../dominio/dadosEmDia';
 import { hojeEmBrasilia } from '../../dominio/financeiro';
 import { centavosDaTela, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
+import { novoUid } from '../../dominio/uid';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -71,8 +72,9 @@ async function idsDosAtivos(): Promise<Set<string> | null> {
  * servidor gera. "Continuar" confere só a etapa (erros no campo, foco no primeiro); "Revisar e gerar" abre a confirmação
  * "Gerar N cobranças?" com o total, e só ela envia. O servidor confere tudo de novo: 422 volta à etapa do campo, aluno
  * inativo, anonimizado ou sumido volta aos alunos (a lista é buscada de novo e, com os ativos inteiros, os escolhidos que
- * saíram ficam marcados, primeiro, com "Remover os que não estão ativos"); sem conexão não há como saber se gravou: a
- * confirmação troca o "Gerar" por "Conferir a lista" até a folha fechar. O app não calcula nada que o servidor grava.
+ * saíram ficam marcados, primeiro, com "Remover os que não estão ativos"); sem conexão a mensagem fica na confirmação e
+ * "Gerar" pode ser tocado de novo: todo envio desta abertura leva o mesmo `pedidoId` (D11), e o servidor devolve o que já
+ * gerou em vez de gerar em dobro. O app não calcula nada que o servidor grava.
  */
 export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => void; aoGerar: () => void }) {
   const { avisar } = useAviso();
@@ -94,10 +96,10 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
   const [enviando, setEnviando] = useState(false);
   const [erroDoEnvio, setErroDoEnvio] = useState<string | null>(null);
   /**
-   * O envio ficou sem resposta (sem conexão): pode ter gravado. Daí em diante a folha não oferece gerar de novo, só conferir
-   * a lista (repetir criaria tudo em dobro); vale até fechar, também depois de "Voltar" e "Revisar e gerar".
+   * Um pedido por abertura da folha (D11): a folha é montada ao abrir e desmontada ao fechar (sucesso ou cancelar), então
+   * reabrir gera outro; repetir depois de uma falha manda o mesmo e o servidor não gera em dobro.
    */
-  const [incerto, setIncerto] = useState(false);
+  const [pedidoId] = useState(novoUid);
   /** Os ativos buscados depois de um 404/409 do envio; nulo enquanto não se sabe (ou se não deu para saber). */
   const [ativos, setAtivos] = useState<ReadonlySet<string> | null>(null);
   // O segundo toque chega antes de a tela redesenhar: sem a trava sairiam dois pedidos (e o dobro de cobranças).
@@ -185,22 +187,13 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
     setAviso(null);
   };
 
-  /** Sem resposta do envio: fecha e a lista de trás recarrega, para conferir se as cobranças foram geradas. */
-  const conferirALista = () => {
-    aoGerar();
-    aoFechar();
-  };
-
   const enviar = () => {
-    if (incerto) {
-      conferirALista();
-      return;
-    }
     if (!corpo || ocupado.current) return;
     ocupado.current = true;
     setEnviando(true);
     setErroDoEnvio(null);
-    criarCobrancasAvulsas(corpo).then(
+    // 201 ou 200 (o pedido já tinha sido gerado): os dois são sucesso, com as contagens do servidor.
+    criarCobrancasAvulsas({ ...corpo, pedidoId }).then(
       (r) => {
         avisar(textoDaAvulsaGerada(r), 'sucesso');
         aoGerar();
@@ -215,13 +208,11 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
           marcarQuemSaiu();
         }
         if (t.etapa === null && !t.recarregarAlunos) {
-          // Nada a corrigir nos campos (sem conexão, 403, 503): a mensagem fica na própria confirmação. Sem resposta pode
-          // ter gravado: a lista de trás já recarrega e a confirmação passa a oferecer só "Conferir a lista".
+          // Nada a corrigir nos campos (sem conexão, 403, 503): a mensagem fica na própria confirmação e "Gerar" vale de novo.
+          // Sem resposta pode ter gravado: a lista de trás recarrega, para quem desistir e fechar ver o que já foi gerado
+          // (reabrir é outro pedido).
           setErroDoEnvio(t.mensagem);
-          if (t.incerto) {
-            setIncerto(true);
-            aoGerar();
-          }
+          aoGerar();
           return;
         }
         setConfirmando(false);
@@ -286,11 +277,10 @@ export function FolhaDaCobrancaAvulsa({ aoFechar, aoGerar }: { aoFechar: () => v
           </>
         ) : null}
       </View>
-      {/* Sem resposta do envio, o principal deixa de ser "Gerar" (criaria tudo em dobro) e vira "Conferir a lista". */}
-      <PainelConfirmacao visivel={confirmando} titulo={incerto ? 'Confira a lista de cobranças' : confirmacao?.titulo ?? 'Gerar cobranças?'}
+      <PainelConfirmacao visivel={confirmando} titulo={confirmacao?.titulo ?? 'Gerar cobranças?'}
         // Espaço fixo depois do "R$": o valor nunca se parte no fim da linha (390 px).
-        mensagem={confirmacao && !incerto ? `${confirmacao.detalhe.replace(/R\$ /g, 'R$\u00a0')} Cada cobrança nasce em aberto; para desfazer, cancele na lista.` : undefined}
-        rotuloConfirmar={incerto ? 'Conferir a lista' : confirmacao ? confirmacao.titulo.replace('?', '') : 'Gerar cobranças'} rotuloCancelar="Voltar"
+        mensagem={confirmacao ? `${confirmacao.detalhe.replace(/R\$ /g, 'R$\u00a0')} Cada cobrança nasce em aberto; para desfazer, cancele na lista.` : undefined}
+        rotuloConfirmar={confirmacao ? confirmacao.titulo.replace('?', '') : 'Gerar cobranças'} rotuloCancelar="Voltar"
         carregando={enviando} aoConfirmar={enviar} aoCancelar={() => { if (!enviando) setConfirmando(false); }}>
         {erroDoEnvio ? <MensagemErro texto={erroDoEnvio} /> : null}
       </PainelConfirmacao>

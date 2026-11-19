@@ -9,7 +9,7 @@ import {
   alternarNoLote, atrasoParaTela, contagemDoLote, cpfMascarado, ehPagamentoOnline, emissaoDaCobranca, estadoDaPaginaNoLote,
   hojeEmBrasilia, idCurtoDaCobranca, marcarPaginaNoLote, nomeNaListaDaCobranca, opcoesDePlanoDoFiltro, podeEntrarNoLote, problemaDoLote,
   referenciaDaCobranca, resumoDaCobranca, ROTULO_ONLINE, rotuloDaForma, rotuloDoTipoDaCobranca, seloDaCobranca, seloDoTipoDaCobranca,
-  temBaixaRegistrada,
+  temBaixaRegistrada, temDescricaoPropria,
 } from '../../dominio/financeiro';
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import { mesesDoFiltro, enderecoDasCobrancas, filtrosDaAbaDeCobrancas } from '../../dominio/filtroPadraoDasCobrancas';
@@ -50,6 +50,7 @@ import { PeriodoDoFiltro } from './FiltrosEmGrade';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
 import { FolhaDaCobrancaAvulsa } from './FolhaDaCobrancaAvulsa';
 import { FolhaDoLote } from './FolhaDoLote';
+import { FolhaRenegociar } from './FolhaRenegociar';
 import { ListaOuTabela } from './ListaOuTabela';
 
 const TAMANHO_PAGINA = 50;
@@ -108,7 +109,7 @@ const dataOuNada = (iso: string | null | undefined) => (iso ? dataParaTela(iso) 
  * o selo "Avulsa" e a descrição no lugar do plano.
  */
 export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
-  const { pode, recebimentoOnlineHabilitado } = useSessao();
+  const { pode, recebimentoOnlineHabilitado, kiwifyHabilitada } = useSessao();
   const { avisar } = useAviso();
   const parametros = useLocalSearchParams<{
     situacao?: string; meus?: string; vencimento?: string; de?: string; ate?: string; alunoId?: string; planoId?: string; forma?: string;
@@ -126,6 +127,8 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   const [novaAvulsa, setNovaAvulsa] = useState(false);
   // Fora da barra do lote: cancelar tudo esvazia a seleção e a barra some, mas o resultado continua na tela.
   const [resultadoDoLote, setResultadoDoLote] = useState<ResultadoDaAcao | null>(null);
+  // Também fora da barra: renegociar tira as cobranças do aberto, a seleção esvazia e a barra some com a folha aberta.
+  const [renegociando, setRenegociando] = useState<CobrancaResponse[] | null>(null);
   const busca = useAtrasado(buscaDigitada.trim(), 300);
   const { fatorTexto } = useTema();
   // A largura da própria lista decide a medida das colunas (folgada ou justa).
@@ -186,11 +189,11 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
     <View style={estilos.coluna}>
       {podeAlterar ? (
         <View style={estilos.topo}>
-          <Texto variante="suave" style={estilos.explicacao}>Mensalidades, cobranças de saída e avulsas dos alunos, por vencimento.</Texto>
+          <Texto variante="suave" style={estilos.explicacao}>Mensalidades, cobranças de saída, avulsas e parcelas de acordo dos alunos, por vencimento.</Texto>
           <Botao rotulo="Nova cobrança avulsa" Icone={Plus} aoTocar={() => setNovaAvulsa(true)} />
         </View>
       ) : null}
-      {recebimentoOnlineHabilitado && pode('ALUNO_LER') ? <CartaoDeConferencias podeAlterar={podeAlterar} /> : null}
+      {(recebimentoOnlineHabilitado || kiwifyHabilitada) && pode('ALUNO_LER') ? <CartaoDeConferencias podeAlterar={podeAlterar} /> : null}
       {filtros.alunoId ? <FaixaDoAluno nome={textoDoAluno} aoVerTodos={verTodos} /> : null}
       <View ref={barra}>
         <BarraDeFiltros busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); limparSelecao(); }, placeholder: 'Nome do aluno' }}
@@ -229,7 +232,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
               aoMarcarPagina={(marcar) => setSelecao((s) => marcarPaginaNoLote(s, dados.itens, marcar))}
               aoLimpar={() => setSelecao([])} aoRevisar={() => setRevisando(true)}
               acoes={(estilo) => (
-                <AcoesDoLote lote={lote} comLink={recebimentoOnlineHabilitado} aoResultado={setResultadoDoLote} estilo={estilo}
+                <AcoesDoLote lote={lote} comLink={recebimentoOnlineHabilitado} aoResultado={setResultadoDoLote} estilo={estilo} aoRenegociar={setRenegociando}
                   aoCancelar={(cancelados) => {
                     const feitos = new Set(cancelados);
                     setSelecao((s) => s.filter((x) => !feitos.has(x.id)));
@@ -255,7 +258,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
                   titulo: c.alunoNome ?? '—',
                   // A avulsa diz o que é (a descrição) antes do valor; a mensalidade segue só com o valor e a data. O "R$" vai colado
                   // ao número: no cartão de 390 px ele ficava sozinho no fim da linha.
-                  detalhe: `${c.tipo === 'AVULSA' ? `${referenciaDaCobranca(c)} · ` : ''}${resumoDaCobranca(c).replace(/R\$ /g, 'R$\u00a0')}${c.situacao === 'PAGA' && ehPagamentoOnline(c) ? ` · ${ROTULO_ONLINE}` : ''}`,
+                  detalhe: `${temDescricaoPropria(c.tipo) ? `${referenciaDaCobranca(c)} · ` : ''}${resumoDaCobranca(c).replace(/R\$ /g, 'R$\u00a0')}${c.situacao === 'PAGA' && ehPagamentoOnline(c) ? ` · ${ROTULO_ONLINE}` : ''}`,
                   selo: { texto: selo.rotulo, tipo: selo.tom },
                   extra: doTipo ? <View style={estilos.seloDoTipo}><Selo texto={doTipo.rotulo} tipo={doTipo.tom} /></View> : undefined,
                 };
@@ -295,6 +298,14 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
         }} />
       {resultadoDoLote ? <FolhaDoResultadoDaAcao {...resultadoDoLote} aoFechar={() => setResultadoDoLote(null)} /> : null}
       {novaAvulsa ? <FolhaDaCobrancaAvulsa aoFechar={() => setNovaAvulsa(false)} aoGerar={recarregar} /> : null}
+      {renegociando ? (
+        <FolhaRenegociar cobrancas={renegociando} aoFechar={() => setRenegociando(null)}
+          aoMudar={(renegociadas) => {
+            const feitas = new Set(renegociadas);
+            setSelecao((s) => s.filter((x) => !feitas.has(x.id)));
+            recarregar();
+          }} />
+      ) : null}
       {revisando ? (
         <FolhaDoLote itens={lote} aoFechar={() => setRevisando(false)}
           aoTirar={(id) => setSelecao((s) => s.filter((x) => x.id !== id))}
@@ -337,7 +348,7 @@ function BarraDoLote({ lote, pagina, aoMarcarPagina, aoLimpar, aoRevisar, acoes 
       <View style={estilos.contagem} aria-live="polite">
         <Texto variante="rotulo">{n === 0 ? 'Registrar vários pagamentos' : contagemDoLote(n)}</Texto>
         <Texto variante="suave">
-          {n === 0 ? 'Marque as cobranças em aberto para registrar o pagamento, cancelar ou gerar o link de várias de uma vez.'
+          {n === 0 ? 'Marque as cobranças em aberto para registrar o pagamento, cancelar, renegociar ou gerar o link de várias de uma vez.'
             : emOutras > 0 ? `${emOutras === 1 ? '1 está' : `${emOutras} estão`} em outra página.` : 'Revise antes de registrar.'}
         </Texto>
       </View>

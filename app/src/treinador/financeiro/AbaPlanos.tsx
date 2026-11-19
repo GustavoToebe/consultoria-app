@@ -8,13 +8,16 @@ import { alterarPlanoComercial, arquivarPlanoComercial, criarPlanoComercial, lis
 import { LIMITES, OPCOES_DE_PERIODICIDADE, rotuloDaPeriodicidade, validarPlano } from '../../dominio/financeiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela } from '../../dominio/formatos';
 import { LINK_DO_PLANO_MAXIMO, lerLinkDoPlano } from '../../dominio/formasDeRecebimento';
+import { kiwifyDoPlanoParaEnvio, perdeAKiwify, ROTULO_DO_PRODUTO, TEXTO_DO_PLANO_KIWIFY } from '../../dominio/kiwify';
+import { AJUDA_DO_QUE_INCLUI, erroDoQueInclui, textoDoQueInclui } from '../../dominio/planosAtivos';
 import {
   errosDoMinimoDoServidor, minimoDoPlanoParaEnvio, minimoDoPlanoParaForm, planoPodeTerMinimo, REGRA_DE_SAIDA_MAXIMA, textoDoMinimoDoPlano,
 } from '../../dominio/saidaDoPlano';
+import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
+import { Campo, MensagemDeErro } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { Interruptor } from '../../ui/Campos';
@@ -29,7 +32,9 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
+import { KiwifyNoPlano } from './KiwifyNoPlano';
 import { ListaOuTabela } from './ListaOuTabela';
 
 /**
@@ -37,6 +42,7 @@ import { ListaOuTabela } from './ListaOuTabela';
  * em Assinatura e faturas). Criar, editar e arquivar exigem `FINANCEIRO_ALTERAR`. Arquivar não apaga as contratações que já usam o plano.
  */
 export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
+  const { kiwifyHabilitada } = useSessao();
   const [arquivados, setArquivados] = useState(false);
   const [aberto, setAberto] = useState<PlanoResponse | 'novo' | null>(null);
   const lista = useCarregar(`planos-comerciais|${arquivados}`, () => listarPlanosComerciais(arquivados));
@@ -62,7 +68,8 @@ export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
             rotuloDaLinha={(p) => `Abrir plano ${p.nome}`}
             item={(p) => ({
               titulo: p.nome,
-              detalhe: [centavosParaTela(p.valorCentavos), rotuloDaPeriodicidade(p.periodicidade), textoDoMinimoDoPlano(p), p.linkDePagamento ? COM_LINK : null]
+              detalhe: [centavosParaTela(p.valorCentavos), rotuloDaPeriodicidade(p.periodicidade), textoDoQueInclui(p), textoDoMinimoDoPlano(p), p.linkDePagamento ? COM_LINK : null,
+                kiwifyHabilitada && p.kiwifyAssinatura ? TEXTO_DO_PLANO_KIWIFY : null]
                 .filter(Boolean).join(' · '),
               selo: p.arquivado ? { texto: 'Arquivado', tipo: 'neutro' } : undefined,
             })}
@@ -74,7 +81,10 @@ export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
                     <Texto variante="bloco" numberOfLines={2} style={estilos.encolher}>{p.nome}</Texto>
                     {p.arquivado ? <Selo texto="Arquivado" tipo="neutro" /> : null}
                   </View>
+                  {/* O que inclui: texto neutro, sem selo nem cor (é informação, não situação). */}
+                  {textoDoQueInclui(p) ? <Texto variante="pequeno">{textoDoQueInclui(p)}</Texto> : null}
                   {p.linkDePagamento ? <Texto variante="pequeno">{COM_LINK}</Texto> : null}
+                  {kiwifyHabilitada && p.kiwifyAssinatura ? <Texto variante="pequeno">{TEXTO_DO_PLANO_KIWIFY}</Texto> : null}
                 </View>
               ) },
               { chave: 'periodicidade', titulo: 'Periodicidade', flex: 1, render: (p) => {
@@ -113,6 +123,7 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
   aoMudar: () => void;
 }) {
   const { avisar } = useAviso();
+  const { cores } = useTema();
   const editavel = podeAlterar && !plano?.arquivado;
   const [nome, setNome] = useState(plano?.nome ?? '');
   const [valor, setValor] = useState(centavosParaCampo(plano?.valorCentavos));
@@ -121,7 +132,16 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
   const [tempoMinimo, setTempoMinimo] = useState(inicial.tempoMinimoTexto);
   const [regraDeSaida, setRegraDeSaida] = useState(inicial.regraDeSaidaTexto);
   const [link, setLink] = useState(plano?.linkDePagamento ?? '');
-  const [errosDoServidor, setErrosDoServidor] = useState<{ tempoMinimo?: string; regraDeSaida?: string; link?: string }>({});
+  // Plano novo inclui tudo (D1); o antigo traz o que está gravado.
+  const [incluiTreino, setIncluiTreino] = useState(plano?.incluiTreino ?? true);
+  const [incluiDieta, setIncluiDieta] = useState(plano?.incluiDieta ?? true);
+  // Assinatura pela Kiwify (D17): só com a chave ligada aparece; desligada, o corpo reenvia o gravado (o PUT substitui inteiro).
+  const { kiwifyHabilitada } = useSessao();
+  const [kiwifyLigado, setKiwifyLigado] = useState(plano?.kiwifyAssinatura === true);
+  const [produtoKiwify, setProdutoKiwify] = useState(plano?.kiwifyProdutoId ?? '');
+  const [errosDoServidor, setErrosDoServidor] = useState<{
+    tempoMinimo?: string; regraDeSaida?: string; link?: string; inclui?: string; kiwifyAssinatura?: string; kiwifyProdutoId?: string;
+  }>({});
   const [tentou, setTentou] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
@@ -139,8 +159,12 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
   };
   const linkLido = lerLinkDoPlano(link);
   const erroDoLink = errosDoServidor.link ?? (tentou ? linkLido.erro : null);
+  // Os dois desligados: o erro aparece na hora (o gesto já é a tentativa), não só ao salvar.
+  const erroDoGrupo = errosDoServidor.inclui ?? erroDoQueInclui(incluiTreino, incluiDieta);
+  const alternarInclui = (definir: (v: boolean) => void) => (v: boolean) => { definir(v); setErrosDoServidor((e) => ({ ...e, inclui: undefined })); };
   // Trocar a periodicidade de um plano que tinha mínimo apaga o mínimo e a regra ao salvar: a tela avisa antes.
   const perdeMinimo = !comMinimo && !!(plano?.tempoMinimoMeses || plano?.regraDeSaida);
+  const kiwify = kiwifyDoPlanoParaEnvio({ habilitada: kiwifyHabilitada, periodicidade, ligado: kiwifyLigado, produtoTexto: produtoKiwify, gravado: plano });
 
   const terminar = (mensagem: string) => {
     setEnviando(false);
@@ -158,21 +182,28 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
       return;
     }
     const porCampo = errosDoMinimoDoServidor(e);
-    const doLink = errosPorCampo(e).linkDePagamento;
-    if (porCampo.tempoMinimo || porCampo.regraDeSaida || doLink) { setErrosDoServidor({ ...porCampo, link: doLink }); return; }
+    const doServidor = errosPorCampo(e);
+    const doLink = doServidor.linkDePagamento;
+    const doQueInclui = doServidor.incluiTreino ?? doServidor.incluiDieta;
+    const { kiwifyAssinatura, kiwifyProdutoId } = doServidor;
+    if (porCampo.tempoMinimo || porCampo.regraDeSaida || doLink || doQueInclui || kiwifyAssinatura || kiwifyProdutoId) {
+      setErrosDoServidor({ ...porCampo, link: doLink, inclui: doQueInclui, kiwifyAssinatura, kiwifyProdutoId });
+      return;
+    }
     setErro(e);
   };
 
   const salvar = () => {
     setTentou(true);
-    if (problema || centavos === null || !minimo.ok || linkLido.erro) return;
+    if (problema || centavos === null || !minimo.ok || linkLido.erro || erroDoQueInclui(incluiTreino, incluiDieta) || kiwify.erro) return;
     setEnviando(true);
     setErro(null);
     setErrosDoServidor({});
     // O `PUT` substitui inteiro: os campos opcionais vão sempre (mínimo e regra nulos fora do plano mensal; o link nulo apaga).
     const corpo = {
       nome: nome.trim(), valorCentavos: centavos, periodicidade, tempoMinimoMeses: minimo.tempoMinimoMeses, regraDeSaida: minimo.regraDeSaida,
-      linkDePagamento: linkLido.valor, versao: plano?.versao ?? null,
+      linkDePagamento: linkLido.valor, incluiTreino, incluiDieta, kiwifyAssinatura: kiwify.kiwifyAssinatura, kiwifyProdutoId: kiwify.kiwifyProdutoId,
+      versao: plano?.versao ?? null,
     };
     (plano ? alterarPlanoComercial(plano.id, corpo) : criarPlanoComercial(corpo)).then(
       () => terminar(plano ? 'Plano salvo.' : 'Plano criado.'),
@@ -203,6 +234,13 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
         ) : <CampoLeitura rotulo="Nome do plano" valor={plano?.nome} />}
         {editavel ? (
           <>
+            <View role="group" aria-label="O que inclui" style={estilos.grupo}>
+              {/* Mesmo rótulo dos campos (cor do texto): o grupo não pode parecer mais fraco que os itens dele. */}
+              <Texto variante="rotulo" cor={cores.texto}>O que inclui</Texto>
+              <Interruptor rotulo="Treino" valor={incluiTreino} aoMudar={alternarInclui(setIncluiTreino)} />
+              <Interruptor rotulo="Dieta" valor={incluiDieta} aoMudar={alternarInclui(setIncluiDieta)} />
+              {erroDoGrupo ? <MensagemDeErro erro={erroDoGrupo} /> : <Texto variante="pequeno">{AJUDA_DO_QUE_INCLUI}</Texto>}
+            </View>
             <CampoMoeda mascara rotulo="Valor" texto={valor} aoMudar={setValor} erro={tentou && centavos === null ? 'Informe um valor maior que zero, por exemplo 150,00.' : null}
               ajuda="Valor de cada cobrança do plano. Na ficha do aluno dá para combinar outro valor, com o motivo." />
             <Escolha rotulo="Periodicidade" opcoes={OPCOES_DE_PERIODICIDADE.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))} valor={periodicidade} aoMudar={setPeriodicidade} />
@@ -217,12 +255,20 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
                   ajuda="Lembrete do que o contrato diz sobre sair antes do mínimo. Aparece só para a equipe, ao encerrar o plano; o app não calcula multa." />
               </>
             ) : null}
+            {/* Depois da periodicidade, de que ele depende (só mensal), e antes do link: as duas formas de cobrar o plano. */}
+            {kiwifyHabilitada ? (
+              <KiwifyNoPlano periodicidade={periodicidade} ligado={kiwifyLigado} perde={perdeAKiwify(plano, periodicidade)}
+                aoMudarLigado={(v) => { setKiwifyLigado(v); setErrosDoServidor((e) => ({ ...e, kiwifyAssinatura: undefined, kiwifyProdutoId: undefined })); }}
+                produto={produtoKiwify} aoMudarProduto={(t) => { setProdutoKiwify(t); setErrosDoServidor((e) => ({ ...e, kiwifyProdutoId: undefined })); }}
+                erroDoProduto={errosDoServidor.kiwifyProdutoId ?? (tentou ? kiwify.erro : null)} erroDaAssinatura={errosDoServidor.kiwifyAssinatura ?? null} />
+            ) : null}
             <Campo rotulo="Link de pagamento (opcional)" valor={link} aoMudar={(t) => { setLink(t); setErrosDoServidor((e) => ({ ...e, link: undefined })); }}
               erro={erroDoLink} maxLength={LINK_DO_PLANO_MAXIMO} keyboardType="url" inputMode="url" autoCapitalize="none" autoCorrect={false} autoComplete="off" spellCheck={false}
               placeholder="https://" ajuda={AJUDA_DO_LINK} />
           </>
         ) : (
           <>
+            {textoDoQueInclui(plano) ? <CampoLeitura rotulo="O que inclui" valor={textoDoQueInclui(plano)} /> : null}
             <CamposEmLinha>
               <CampoLeitura rotulo="Valor" valor={centavosParaTela(plano?.valorCentavos)} numerico />
               <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(plano?.periodicidade)} />
@@ -233,6 +279,7 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
                 {plano.regraDeSaida ? <CampoLeitura rotulo="Regra de saída" valor={plano.regraDeSaida} /> : null}
               </>
             ) : null}
+            {kiwifyHabilitada && plano?.kiwifyAssinatura ? <CampoLeitura rotulo={ROTULO_DO_PRODUTO} valor={plano.kiwifyProdutoId} /> : null}
             {plano?.linkDePagamento ? <CampoLeitura rotulo="Link de pagamento" valor={plano.linkDePagamento} /> : null}
           </>
         )}
@@ -255,6 +302,8 @@ const AJUDA_DO_LINK =
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
+  // Mais junto que o espaço entre campos (1,5): os dois interruptores, a ajuda e o erro são um grupo só.
+  grupo: { gap: espaco(0.5) },
   nome: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   encolher: { flexShrink: 1 },
 });
