@@ -57,7 +57,8 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   const tres = duas && faixaEfetiva === 'ultralarga' && preferencias.larguraConteudo === 'AUTOMATICA';
   const larguraUtil = larguraMaximaDoConteudo(duas ? larguraDoEditor(true) : largura, preferencias.larguraConteudo);
   const estiloLargura = larguraUtil === undefined ? undefined : { maxWidth: larguraUtil };
-  const recuoLateral = respiroLateralDaTela(faixa) ?? espaco(2);
+  // A mesma faixa do `tres` (estimada até a medida chegar): só com a medida, a ultralarga abria com 16 px de recuo e não 48.
+  const recuoLateral = respiroLateralDaTela(faixaEfetiva) ?? espaco(2);
   const web = Platform.OS === 'web';
   const barraGrudada = useRef<View>(null);
   useEffect(() => (web ? semFocoDebaixoDaBarra(barraGrudada.current as unknown as HTMLElement | null) : undefined), [web]);

@@ -37,6 +37,8 @@ const LARGURA_DO_INDICE = 232;
 const VAO = espaco(3);
 /** Índice + vão + leitura: a largura da Ajuda em 2 colunas; em `ultralarga` abre 3 colunas (índice | conteúdo | Consultar). */
 const LARGURA_DA_AJUDA = LARGURA_DO_INDICE + VAO + LARGURA_DE_LEITURA;
+/** Em 3 colunas: índice + duas colunas de leitura; o bloco fica centralizado na área, como o de 2 colunas. */
+const LARGURA_DA_AJUDA_EM_TRES = LARGURA_DA_AJUDA + VAO + LARGURA_DE_LEITURA;
 /** Abaixo disto (medido ao lado do menu) o índice vira o seletor "Ir para o tópico" no topo. */
 const LIMITE_DO_INDICE = LARGURA_DO_INDICE + VAO + MINIMO_DA_LEITURA;
 /** Texto corrido (parágrafos, descrições, respostas) limitado a ~72 caracteres por linha. */
@@ -190,37 +192,41 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
     </View>
   );
 
+  // Mede por fora do teto da Ajuda em 2 colunas (`contido`): medida por dentro nunca passava de `LARGURA_DA_AJUDA` e a
+  // faixa `ultralarga` (3 colunas) não chegava. Até esse teto as duas medidas são iguais, então o índice lateral não muda.
   return (
-    <View style={!tresColunas ? estilos.contido : undefined}>
-      <Cabecalho titulo="Ajuda" subtitulo={guia.introducao} />
-      <View style={estilos.area} onLayout={aoMedir}>
-        {/* A busca fica sempre no mesmo lugar da árvore: trocar de índice para seletor não tira o foco de quem digita. */}
-        <View style={[estilos.busca, lateral && estilos.buscaAoLadoDoIndice]}>
-          <Campo ref={campo} rotulo="Buscar na ajuda" valor={busca} aoMudar={buscar} placeholder="Palavra de um assunto, tela ou botão"
-            autoCorrect={false} inputMode="search" />
-          {/* O número de resultados é anunciado ao leitor de tela enquanto a pessoa digita. */}
-          <View accessibilityLiveRegion="polite">
-            {buscando ? <Texto variante="suave" numerico>{textoDoResultado(achado.total)}</Texto> : null}
+    <View onLayout={aoMedir}>
+      <View testID="bloco-da-ajuda" style={[estilos.contido, tresColunas && estilos.contidoEmTres]}>
+        <Cabecalho titulo="Ajuda" subtitulo={guia.introducao} />
+        <View style={estilos.area}>
+          {/* A busca fica sempre no mesmo lugar da árvore: trocar de índice para seletor não tira o foco de quem digita. */}
+          <View style={[estilos.busca, lateral && estilos.buscaAoLadoDoIndice]}>
+            <Campo ref={campo} rotulo="Buscar na ajuda" valor={busca} aoMudar={buscar} placeholder="Palavra de um assunto, tela ou botão"
+              autoCorrect={false} inputMode="search" />
+            {/* O número de resultados é anunciado ao leitor de tela enquanto a pessoa digita. */}
+            <View accessibilityLiveRegion="polite">
+              {buscando ? <Texto variante="suave" numerico>{textoDoResultado(achado.total)}</Texto> : null}
+            </View>
+            {!lateral && largura > 0 && topicos.length > 1 ? (
+              <EscolhaEmFolha rotulo="Ir para o tópico" titulo="Tópicos da ajuda" valor={atual} rotuloDoValor="Escolher"
+                opcoes={topicos.map((t) => ({ valor: t.id, rotulo: t.rotulo }))} aoMudar={irPara} />
+            ) : null}
           </View>
-          {!lateral && largura > 0 && topicos.length > 1 ? (
-            <EscolhaEmFolha rotulo="Ir para o tópico" titulo="Tópicos da ajuda" valor={atual} rotuloDoValor="Escolher"
-              opcoes={topicos.map((t) => ({ valor: t.id, rotulo: t.rotulo }))} aoMudar={irPara} />
-          ) : null}
+          {largura === 0 ? null : tresColunas ? (
+            <View style={estilos.colunas}>
+              <IndiceDaAjuda topicos={topicos} atual={atual} aoEscolher={irPara} />
+              {blocoInicial ? <View style={[estilos.leitura, estilos.colunaDeLeitura]}>{blocoInicial}</View> : null}
+              <View style={[estilos.leitura, estilos.colunaDeLeitura]}>{blocoConsultar}</View>
+            </View>
+          ) : lateral ? (
+            <View style={estilos.colunas}>
+              <IndiceDaAjuda topicos={topicos} atual={atual} aoEscolher={irPara} />
+              {conteudo}
+            </View>
+          ) : conteudo}
         </View>
-        {largura === 0 ? null : tresColunas ? (
-          <View style={estilos.colunas}>
-            <IndiceDaAjuda topicos={topicos} atual={atual} aoEscolher={irPara} />
-            {blocoInicial ? <View style={[estilos.leitura, estilos.colunaDeLeitura]}>{blocoInicial}</View> : null}
-            <View style={[estilos.leitura, estilos.colunaDeLeitura]}>{blocoConsultar}</View>
-          </View>
-        ) : lateral ? (
-          <View style={estilos.colunas}>
-            <IndiceDaAjuda topicos={topicos} atual={atual} aoEscolher={irPara} />
-            {conteudo}
-          </View>
-        ) : conteudo}
+        {tutorial ? <TutorialGuiado passos={guia.tutorial} aoFechar={() => setTutorial(false)} /> : null}
       </View>
-      {tutorial ? <TutorialGuiado passos={guia.tutorial} aoFechar={() => setTutorial(false)} /> : null}
     </View>
   );
 }
@@ -313,6 +319,7 @@ function CartaoPrimeirosPassosDoTreinador() {
 
 const estilos = StyleSheet.create({
   contido: { width: '100%', maxWidth: LARGURA_DA_AJUDA, alignSelf: 'center', gap: espaco(3) },
+  contidoEmTres: { maxWidth: LARGURA_DA_AJUDA_EM_TRES },
   area: { gap: espaco(3) },
   busca: { gap: espaco(1), maxWidth: LARGURA_DE_LEITURA, width: '100%' },
   // Sem largura fixa: ocupa o que sobra depois do índice (100% + margem passaria da borda com o texto maior).
