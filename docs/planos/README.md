@@ -451,6 +451,7 @@ Base: `e6537dc3` (95 commits locais esperando o push). Um push só, no fim, com 
 | Financeiro fase 1, sugestões de design system: indicador de etapas existe em três cópias locais (importação, planilha completa, avulsa; a renegociar, de 18/11, tem o seu); `ui/Botao cheio` não estica na web dentro de coluna flex; `Clipboard.setStringAsync` resolve `false` na web e outros "Copiar" do app podem ignorá-lo | Claude, quando o Gustavo abrir o design system | financeiro-em-fases.md (revisão de Front) |
 | Tabela da dieta só aparece a partir de 886 px (queria cerca de 760) | Gustavo | branch `dieta-tabela` (`dieta-tabela-e-arrastar.md`, só nela), 18/11 |
 | Submenu do menu só no PC minimizado: decisão registrada como D8 de `menu-grupos-recolhiveis.md` (merge de 19/11; conferir com o Gustavo se quer o trilho de 72 px em 88) | Gustavo | `menu-grupos-recolhiveis.md`, 19/11 |
+| Menu minimizado: a dica "Expandir menu" cobre o começo do título da página; abrir à direita sem cobrir | Gustavo | merge do `dieta-tabela`, 19/11 |
 | Espaço não separável em "R$ 300,00" (`centavosParaTela`, design system) | Gustavo | telas do Financeiro, 18/11 |
 | `IconeBotao` desabilitado com moldura (design system) | Gustavo | telas do Financeiro, 18/11 |
 | Abas sem preenchimento na primeira aba (design system) | Gustavo | telas do Financeiro, 18/11 |
