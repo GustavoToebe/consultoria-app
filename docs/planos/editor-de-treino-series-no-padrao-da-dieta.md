@@ -1,6 +1,6 @@
 # Editor de treino: séries no padrão do editor da dieta
 
-Situação: Concluída em 19/11/2026 (sem push nem merge) · Onde: branch `dieta-tabela` (worktree), sem push nem merge · Atualizado: 19/11/2026
+Situação: Concluída e publicada em 19/11/2026 (push `c3d3359e`, run 44559836626 verde, web `c3d3359ed612`) · Onde: `main` · Atualizado: 19/11/2026
 
 ## Objetivo
 A série aberta deixa de ter destaque em dobro (borda de ação e faixa na linha mais o quadro "Editando: Série 1"): uma faixa só no painel do exercício, como a refeição na dieta, e a série aberta é um bloco único (acordeão) só com fundo tingido.
@@ -13,11 +13,11 @@ A série aberta deixa de ter destaque em dobro (borda de ação e faixa na linha
 | D3 | Reordenar a série | Arrastar e pelo ⋯ da linha (à direita do chevron, fora do botão da linha; só com 2 ou mais blocos); as setas ↑↓ saem do bloco | Gustavo, 19/11/2026 |
 
 ## Passos
-- [x] 1. Painel do exercício com a faixa, linhas limpas, série aberta em bloco único, lista mestre, regra no guia de design e a conferência da dieta (a dieta já seguia a regra: nada a ajustar) — commit: ver `git log` da branch `dieta-tabela` ("Editor de treino: séries no padrão da dieta")
+- [x] 1. Painel do exercício com a faixa, linhas limpas, série aberta em bloco único, lista mestre, regra no guia de design e a conferência da dieta (a dieta já seguia a regra: nada a ajustar) — commit: `94ab64aa` ("Editor de treino: séries no padrão da dieta"); deploy: run 44559836626
 
 ## Fora do escopo
 - Arrastar para reordenar, se ainda não existir no código (as setas ficam no ⋯ da linha).
 
 ## O que ficou para trás
-- `editor-clareza.spec.ts:276` ("usar receita") está vermelho desde o `da01327a` (as seções da `FolhaReceitas` nascem fechadas e o spec não abre): não é desta frente.
+- `editor-clareza.spec.ts:276` ("usar receita") estava vermelho na base antiga da branch (desde o `da01327a`: as seções da `FolhaReceitas` nascem fechadas e o spec não abria); depois do merge com a `main` (19/11) ele passa, porque a `main` já tinha o conserto. Não era desta frente.
 - A faixa de 6 px do painel do exercício repete o valor de `BARRA_DA_REFEICAO` (marcado com `shortcut:`): virar token usado pelos dois cartões.

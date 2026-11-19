@@ -1,6 +1,6 @@
 # Dieta em tabela, arrastar para reordenar e menu com submenu
 
-Situação: Em andamento · Onde: branch `dieta-tabela` (worktree, base `main` em `46f74a22`) · Atualizado: 18/11/2026 (parte 3)
+Situação: Em andamento (partes 2, 2b e 3 publicadas em 19/11; parte 1 em curso) · Onde: `main` (fast-forward `224cb659`, push `c3d3359e`, run 44559836626 verde, web `c3d3359ed612`); a branch `dieta-tabela` segue como worktree · Atualizado: 19/11/2026
 
 Fonte: pedido do Gustavo em 18/11/2026 (conversa). Validade: vale enquanto `treinador/dieta/CartaoRefeicao.tsx`, `treinador/painel/EditarPainel.tsx` e `ui/Navegacao.tsx` não mudarem de forma incompatível; ao trazer a `main`, refazer a conferência dos arquivos em conflito. Só app: sem API, sem migration.
 
@@ -17,6 +17,7 @@ Três melhorias de tela, em ordem: (1) alimentos do editor de dieta numa tabela 
 | D5 | Parte 3: onde entra o submenu | Só no PC minimizado (72 px, o que o botão de recolher produz). O trilho do tablet (768 a 1023) continua com um ícone por item e o rótulo curto embaixo: os nomes dos grupos ("Acompanhamento", "Configurações") não cabem nos 80 px sem um rótulo curto novo, que é decisão de glossário. A confirmar com o Gustavo | executor-front, 18/11 |
 
 ## Passos
+Publicação (19/11/2026): `git merge dieta-tabela` na `main` (fast-forward) e um push só, `c3d3359e`; deploy no run 44559836626 (todos os jobs verdes). Os passos 2, 2b e 3 foram nesse push.
 - [ ] 1. Dieta em tabela (`CartaoRefeicao.tsx`: `OpcaoDaRefeicao` e `LinhaItem`) — executor-front — commit: —
 - [x] 2. Arrastar para reordenar: peça em `ui/` (`ArrasteDaLista`), regra em `dominio/reordenar`, refeições (lista mestre no PC), exercícios e blocos; sessões ficaram fora (ver abaixo) — executor-front — commits: 98cef762, be3a9e8a — evidência: `e2e/arrastar.spec.ts`, `editor-clareza.spec.ts`, `reordenar.test.ts`
 - [x] 2b. Alça de arrastar nos alimentos de cada opção (`LinhaItem`) e ⋯ da refeição, depois do passo 1 — executor-front — commit: 89a095e8 — evidência: `e2e/arrastar.spec.ts`, e2e `dieta-*` verdes

@@ -1,6 +1,6 @@
 # Financeiro e Números: totais com cor, colunas, MM/AAAA, filtro padrão e grade dos indicadores
 
-Situação: Entregue na branch (sem push nem merge) · Onde: branch `dieta-tabela` (worktree), sem push nem merge · Atualizado: 19/11/2026
+Situação: Entregue e publicado em 19/11/2026 (push `c3d3359e`, run 44559836626 verde, web `c3d3359ed612`) · Onde: `main` · Atualizado: 19/11/2026
 
 ## Objetivo
 Cobranças, Visão geral e Números mais legíveis: totais e indicadores com a cor da situação (a mesma das pílulas da tabela), colunas distribuídas, mês em MM/AAAA, Cobranças abrindo já filtrada (ativas do mês atual) e a grade dos indicadores sem cartão sozinho na segunda linha.
@@ -16,11 +16,11 @@ Cobranças, Visão geral e Números mais legíveis: totais e indicadores com a c
 | D5 | Mês | "11/2026" em fonte numérica em todo o Financeiro e nos Números; "11/26" só no eixo do gráfico se não couber | Gustavo, 19/11/2026 |
 
 ## Passos
-- [ ] 1. Peças compartilhadas: rótulo do mês, grade de indicadores, cartão de indicador, colunas da tabela — commit: —
-- [ ] 2. Cobranças: totais com cor, colunas, MM/AAAA, filtro padrão em chips e na URL, estado vazio — commit: —
-- [ ] 3. Visão geral: colunas da inadimplência, MM/AAAA, grade dos indicadores — commit: —
-- [ ] 4. Números: MM/AAAA, indicadores no topo, colunas da equipe, duas colunas, "Como contamos" recolhível — commit: —
-- [ ] 5. Abas Lembretes e Recebimento: duas colunas (ajustes 2fr e apoio 1fr), barra de salvar no rodapé, linhas de interruptor, linha do tempo dos lembretes e prévia "O que o aluno vê" — commit: —
+- [x] 1. Peças compartilhadas: rótulo do mês, grade de indicadores, cartão de indicador, colunas da tabela — commit: `2c7c7811`; deploy: run 44559836626
+- [x] 2. Cobranças: totais com cor, colunas, MM/AAAA, filtro padrão em chips e na URL, estado vazio — commit: `c462fcc1 (e `df961ebc`: o filtro passa a se chamar "Mês de vencimento")`; deploy: run 44559836626
+- [x] 3. Visão geral: colunas da inadimplência, MM/AAAA, grade dos indicadores — commit: `333eee61`; deploy: run 44559836626
+- [x] 4. Números: MM/AAAA, indicadores no topo, colunas da equipe, duas colunas, "Como contamos" recolhível — commit: `291d19e2`; deploy: run 44559836626
+- [x] 5. Abas Lembretes e Recebimento: duas colunas (ajustes 2fr e apoio 1fr), barra de salvar no rodapé, linhas de interruptor, linha do tempo dos lembretes e prévia "O que o aluno vê" — commit: `988489ce`; deploy: run 44559836626
 
 ## Verificação
 Linha de base da worktree (19/11, árvore limpa): typecheck e lint sem erro, jest 8.801 testes, e2e `financeiro*` 175 verdes; `financeiro.spec.ts:657` (parametrizado, 4 variantes) 19 de 20 em 5 repetições, a falha foi `net::ERR_ABORTED` no `page.goto`, do servidor de teste.

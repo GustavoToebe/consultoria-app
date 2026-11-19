@@ -1,6 +1,6 @@
 # Modal "Editar alimento": macros reorganizados, cor da fibra e modal mais largo
 
-Situação: Em andamento · Onde: branch `dieta-tabela` (worktree), sem push nem merge · Atualizado: 19/11/2026
+Situação: Entregue e publicado em 19/11/2026 (push `c3d3359e`, run 44559836626 verde, web `c3d3359ed612`) · Onde: `main` · Atualizado: 19/11/2026
 
 ## Objetivo
 No formulário do alimento da biblioteca, os quatro macros (proteína, carboidrato, gordura e fibras) numa grade de colunas iguais, com a kcal calculada à vista; a fibra ganha cor própria de macro, usada onde ela aparece; o modal fica mais largo (~800 px) e aproveita a largura.
@@ -13,8 +13,8 @@ No formulário do alimento da biblioteca, os quatro macros (proteína, carboidra
 | D3 | Largura do modal | ~800 px (largura de modal largo se já existir; senão constante em `tokens.ts`) | Gustavo, 19/11/2026 |
 
 ## Passos
-- [x] 1. Cor da fibra nos tokens e no teste; `MarcaDoMacro` da fibra em todos os lugares onde ela aparece — executor-front, 19/11, estado local sem commit — `PALETA_DA_FIBRA` (claro e areia `#6A8A00`, escuro `#B8E34A`), `tokens.test.ts` "cor da fibra" (27 temas × 3), marca em `ValoresDaDieta`, cabeçalho e campo do item manual (`CartaoRefeicao`), `TotalDoDia` e `aluno/DietaDoAluno`; o PDF não tem cor de macro e ficou sem — commit: —
-- [x] 2. Formulário do alimento: título sem corte, grade de macros, linha única da fibra, modal largo e o resto na mesma grade — executor-front, 19/11, estado local sem commit — `LARGURA_FOLHA_LARGA` (800), `treinador/biblioteca/gradeDoAlimento.ts` (5/4/2 colunas, com teste), e2e `fibra-do-alimento.spec.ts` (1280 e 390 em claro e escuro, e 560) — commit: —
+- [x] 1. Cor da fibra nos tokens e no teste; `MarcaDoMacro` da fibra em todos os lugares onde ela aparece — executor-front, 19/11, commit `f06f8d83` (publicado no run 44559836626) — `PALETA_DA_FIBRA` (claro e areia `#6A8A00`, escuro `#B8E34A`), `tokens.test.ts` "cor da fibra" (27 temas × 3), marca em `ValoresDaDieta`, cabeçalho e campo do item manual (`CartaoRefeicao`), `TotalDoDia` e `aluno/DietaDoAluno`; o PDF não tem cor de macro e ficou sem — commit: —
+- [x] 2. Formulário do alimento: título sem corte, grade de macros, linha única da fibra, modal largo e o resto na mesma grade — executor-front, 19/11, commit `f06f8d83` (publicado no run 44559836626) — `LARGURA_FOLHA_LARGA` (800), `treinador/biblioteca/gradeDoAlimento.ts` (5/4/2 colunas, com teste), e2e `fibra-do-alimento.spec.ts` (1280 e 390 em claro e escuro, e 560) — commit: —
 
 ## Fora do escopo
 - Cálculo da kcal e regras da fibra (a fibra segue fora da kcal; nula = "—").
