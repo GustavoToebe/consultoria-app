@@ -63,14 +63,14 @@ describe('WhatsApp', () => {
 
   it('o botão some sem mensagem e fica desabilitado sem telefone', () => {
     expect(botaoDoWhatsApp(undefined)).toBeNull();
-    expect(botaoDoWhatsApp({ itens: [], whatsapp: null, motivoSemWhatsapp: null, alunoDesligou: false })).toBeNull();
-    expect(botaoDoWhatsApp({ itens: [], whatsapp: { telefone: null, mensagem: 'Oi' }, motivoSemWhatsapp: null, alunoDesligou: false })).toEqual({ link: null, motivo: MOTIVO_SEM_TELEFONE });
-    expect(botaoDoWhatsApp({ itens: [], whatsapp: { telefone: '(45) 99999-8888', mensagem: 'Oi' }, motivoSemWhatsapp: null, alunoDesligou: true }))
+    expect(botaoDoWhatsApp({ itens: [], whatsapp: null, motivoSemWhatsapp: null, alunoDesligou: false, paraResponsavel: false })).toBeNull();
+    expect(botaoDoWhatsApp({ itens: [], whatsapp: { telefone: null, mensagem: 'Oi' }, motivoSemWhatsapp: null, alunoDesligou: false, paraResponsavel: false })).toEqual({ link: null, motivo: MOTIVO_SEM_TELEFONE });
+    expect(botaoDoWhatsApp({ itens: [], whatsapp: { telefone: '(45) 99999-8888', mensagem: 'Oi' }, motivoSemWhatsapp: null, alunoDesligou: true, paraResponsavel: false }))
       .toEqual({ link: 'https://wa.me/5545999998888?text=Oi', motivo: null });
   });
 
   it('o motivo da API decide: inativo fica desabilitado com o porquê; cobrança não aberta e anonimizado não mostram botão', () => {
-    const sem = (motivoSemWhatsapp: 'COBRANCA_NAO_ABERTA' | 'ALUNO_ANONIMIZADO' | 'ALUNO_INATIVO' | null) => ({ itens: [], whatsapp: null, motivoSemWhatsapp, alunoDesligou: false });
+    const sem = (motivoSemWhatsapp: 'COBRANCA_NAO_ABERTA' | 'ALUNO_ANONIMIZADO' | 'ALUNO_INATIVO' | null) => ({ itens: [], whatsapp: null, motivoSemWhatsapp, alunoDesligou: false, paraResponsavel: false });
     expect(botaoDoWhatsApp(sem('ALUNO_INATIVO'))).toEqual({ link: null, motivo: MOTIVO_ALUNO_INATIVO });
     expect(botaoDoWhatsApp(sem('COBRANCA_NAO_ABERTA'))).toBeNull();
     expect(botaoDoWhatsApp(sem('ALUNO_ANONIMIZADO'))).toBeNull();
