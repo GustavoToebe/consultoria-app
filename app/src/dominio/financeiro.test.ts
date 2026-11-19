@@ -368,8 +368,8 @@ describe('contas do painel', () => {
       resultadoCentavos: null,
     });
     expect(r.rotulo).toBe('Resultado do mês (entradas − saídas registradas)');
-    expect(r.mes).toBe('jun/2026');
-    expect(r.descricao).toBe('Mês de jun/2026 · sempre o mês de hoje, não muda com o período acima');
+    expect(r.mes).toBe('06/2026');
+    expect(r.descricao).toBe('Mês de 06/2026 · sempre o mês de hoje, não muda com o período acima');
     expect(r.entradas).toBe('—');
     expect(r.resultado).toBe('—');
     expect(r.rotulo.toLowerCase()).not.toContain('lucro');
@@ -404,9 +404,9 @@ describe('gráfico', () => {
   it('série mês a mês com realizado e previsto; nulo continua nulo', () => {
     const barras = serieDoGrafico([mes('2026-05', 1000, null), mes('2026-06', 500, 700, true), mes('2026-07', null, 900)]);
     expect(barras).toEqual([
-      { rotulo: 'mai/2026', realizado: 1000, previsto: null },
-      { rotulo: 'jun/2026 (até hoje)', realizado: 500, previsto: 700 },
-      { rotulo: 'jul/2026', realizado: null, previsto: 900 },
+      { rotulo: '05/2026', realizado: 1000, previsto: null },
+      { rotulo: '06/2026 (até hoje)', realizado: 500, previsto: 700 },
+      { rotulo: '07/2026', realizado: null, previsto: 900 },
     ]);
     expect(maiorValorDoGrafico(barras)).toBe(1000);
     expect(graficoTemDados(barras)).toBe(true);
@@ -420,8 +420,8 @@ describe('gráfico', () => {
   });
   it('descrição para leitor de tela lista cada mês', () => {
     const texto = espacos(descricaoDoGrafico(serieDoGrafico([mes('2026-05', 1000, null), mes('2026-06', 500, 700)])));
-    expect(texto).toContain('mai/2026: recebido R$ 10,00');
-    expect(texto).toContain('jun/2026: recebido R$ 5,00, previsto R$ 7,00');
+    expect(texto).toContain('05/2026: recebido R$ 10,00');
+    expect(texto).toContain('06/2026: recebido R$ 5,00, previsto R$ 7,00');
   });
   it('recebido 0 do mês é zero (barra zerada, "R$ 0,00"); nulo é sem dado ("—"), nunca zero', () => {
     const barras = serieDoGrafico([mes('2026-05', 0, null), mes('2026-06', null, null), mes('2026-07', 1000, null)]);
@@ -429,8 +429,8 @@ describe('gráfico', () => {
     expect(graficoTemDados(serieDoGrafico([mes('2026-05', 0, null)]))).toBe(true);
     expect(linhasDaTabelaDoGrafico(barras).map((l) => espacos(l.realizado))).toEqual(['R$ 0,00', '—', 'R$ 10,00']);
     const texto = espacos(descricaoDoGrafico(barras));
-    expect(texto).toContain('mai/2026: recebido R$ 0,00');
-    expect(texto).toContain('jun/2026: recebido —');
+    expect(texto).toContain('05/2026: recebido R$ 0,00');
+    expect(texto).toContain('06/2026: recebido —');
     // O resultado da série não entra no gráfico nem em soma: só recebido e previsto.
     expect(maiorValorDoGrafico(barras)).toBe(1000);
   });
@@ -1001,8 +1001,8 @@ describe('cobrança avulsa: rótulo, selo e linha da lista', () => {
     expect(nomeNaListaDaCobranca({ tipo: 'SAIDA', planoNome: null, descricao: null })).toBe('—');
   });
   it('a referência da cobrança: o mês da competência; a avulsa pela descrição, nunca "—"', () => {
-    expect(referenciaDaCobranca({ tipo: 'MENSALIDADE', competencia: '2026-10-05', descricao: null })).toBe('out/2026');
-    expect(referenciaDaCobranca({ tipo: 'SAIDA', competencia: '2026-10-19' })).toBe('out/2026');
+    expect(referenciaDaCobranca({ tipo: 'MENSALIDADE', competencia: '2026-10-05', descricao: null })).toBe('10/2026');
+    expect(referenciaDaCobranca({ tipo: 'SAIDA', competencia: '2026-10-19' })).toBe('10/2026');
     expect(referenciaDaCobranca({ tipo: 'AVULSA', competencia: null, descricao: ' Camiseta (Parcela 2/3) ' })).toBe('Camiseta (Parcela 2/3)');
     expect(referenciaDaCobranca({ tipo: 'AVULSA', competencia: null, descricao: null })).toBe('Cobrança avulsa');
     // Dado do aparelho do aluno, sem `descricao`.

@@ -59,13 +59,13 @@ test('série do mês: recebido 0 é barra zerada com "R$ 0,00"; sem dado (nulo) 
     { mes: '2026-09', parcial: false, recebidoCentavos: null, previstoCentavos: null, entradasAvulsasCentavos: null, saidasAvulsasCentavos: null, resultadoCentavos: null },
     { mes: '2026-10', parcial: true, recebidoCentavos: 45_000, previstoCentavos: 45_000, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: 45_000 },
   ];
-  // Gráfico (1280): o texto do leitor de tela traz "recebido R$ 0,00" para agosto e "recebido —" para setembro.
+  // Gráfico (1280): o texto do leitor de tela traz "recebido R$ 0,00" para 08/2026 e "recebido —" para 09/2026.
   const { errosDaPagina } = await abrir(page, { ...PAINEL_COM_DADOS, serie });
   const grafico = page.getByRole('img', { name: /^Recebido e previsto por mês/ });
   await expect(grafico).toBeVisible();
   const rotulo = (await grafico.getAttribute('aria-label')) ?? '';
-  expect(rotulo).toMatch(/ago[^:]*: recebido R\$ 0,00\./i);
-  expect(rotulo).toMatch(/set[^:]*: recebido —\./i);
+  expect(rotulo).toMatch(/08\/2026: recebido R\$\s0,00\./);
+  expect(rotulo).toMatch(/09\/2026: recebido —\./);
   // Tabela (390, abaixo da largura do gráfico; empilhada vira lista de cartões): a mesma regra em células.
   await page.setViewportSize({ width: 390, height: 1000 });
   const tabela = page.getByRole('list', { name: 'Recebido e previsto por mês' });

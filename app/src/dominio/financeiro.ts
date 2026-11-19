@@ -21,7 +21,8 @@ import type {
 import { dataSemAnoCorrente } from './datasRelativas';
 import { enfaseDaMedida, enfaseDoNumero, type EnfaseDoNumero } from './destaque';
 import { centavosParaTela, dataCurta, SEM_DADO } from './formatos';
-import { contagemParaTela, rotuloDoMes, rotuloDoMesCompleto } from './numeros';
+import { rotuloDoMesNumerico } from './mesDaCompetencia';
+import { contagemParaTela, MARCA_PARCIAL } from './numeros';
 
 /**
  * Regras puras do financeiro do aluno ao treinador. Dinheiro em centavos inteiros; `null` da API é "sem dado" e aparece
@@ -209,13 +210,13 @@ export function nomeNaListaDaCobranca(c: Pick<CobrancaResponse, 'tipo' | 'planoN
 }
 
 /**
- * Como a cobrança se identifica numa linha, num título ou num rótulo acessível: o mês da competência ("out/2026"); a
+ * Como a cobrança se identifica numa linha, num título ou num rótulo acessível: o mês da competência ("10/2026"); a
  * avulsa, que não tem competência, pela descrição ("Camiseta (Parcela 1/3)") ou "Cobrança avulsa". Nunca "—" só porque a
  * competência é nula.
  */
 export function referenciaDaCobranca(c: { competencia: string | null; descricao?: string | null; tipo?: TipoDaCobranca | null }): string {
   if (c.tipo === 'AVULSA' || !c.competencia) return c.descricao?.trim() || rotuloDoTipoDaCobranca(c.tipo);
-  return rotuloDoMes(c.competencia);
+  return rotuloDoMesNumerico(c.competencia);
 }
 
 export function seloDaContratacao(situacao: SituacaoDaContratacao): SeloFinanceiro {
@@ -798,8 +799,8 @@ export function resultadoDoMesParaTela(r: Painel['resultadoDoMes'] | null | unde
   const recebido = r ? r.recebidoCentavos : null;
   return {
     rotulo: ROTULO_RESULTADO_DO_MES,
-    mes: rotuloDoMes(r?.mes),
-    descricao: `Mês de ${rotuloDoMes(r?.mes)} · sempre o mês de hoje, não muda com o período acima`,
+    mes: rotuloDoMesNumerico(r?.mes),
+    descricao: `Mês de ${rotuloDoMesNumerico(r?.mes)} · sempre o mês de hoje, não muda com o período acima`,
     recebido: centavosParaTela(recebido),
     entradas: centavosParaTela(r?.entradasAvulsasCentavos),
     saidas: centavosParaTela(r?.saidasAvulsasCentavos),
@@ -819,7 +820,7 @@ export interface BarraDoMes {
 /** Série do painel em barras: realizado (recebido) e previsto. Valor ausente continua `null` (sem barra, "—" na tabela). */
 export function serieDoGrafico(serie: readonly MesDoPainel[] | null | undefined): BarraDoMes[] {
   return (serie ?? []).map((m) => ({
-    rotulo: rotuloDoMesCompleto(m),
+    rotulo: m.parcial ? `${rotuloDoMesNumerico(m.mes)} (${MARCA_PARCIAL})` : rotuloDoMesNumerico(m.mes),
     realizado: typeof m.recebidoCentavos === 'number' ? m.recebidoCentavos : null,
     previsto: typeof m.previstoCentavos === 'number' ? m.previstoCentavos : null,
   }));

@@ -1,4 +1,5 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
+import { aparenciaDoIndicador } from './aparenciaDoIndicador';
 import { coresDoDesabilitado } from './desabilitado';
 import { aparenciaDoNumero, contornoDoNumero, LARGURA_DA_FAIXA } from './destaqueDoNumero';
 import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
@@ -122,6 +123,24 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     expect(contraste(cor, cores.superficie)).toBeGreaterThanOrEqual(4.5);
     expect(contraste(cor, pilula)).toBeGreaterThanOrEqual(4.5);
     for (const s of [cores.superficie2, cores.superficie3]) expect(contraste(cor, s)).toBeGreaterThanOrEqual(3);
+  });
+
+  // Financeiro e Números (19/11): o cartão de indicador troca o `neon` legado pelos papéis de situação.
+  it.each(['pagina', 'cartao'] as const)('CartaoDeIndicador (%s): faixa, ponto e ícone do tom ≥ 3:1 sobre o cartão e onde ele fica; rótulo e número ≥ 4,5:1', (lugar) => {
+    const ondeFica = lugar === 'pagina' ? [cores.painel, cores.fundo] : [cores.superficie];
+    for (const tom of ['sucesso', 'atencao', 'perigo'] as const) {
+      const a = aparenciaDoIndicador(tom, 'valor', lugar, cores);
+      expect(a.faixa).toBe(cores[tom]);
+      for (const s of [a.fundo, ...ondeFica]) expect(contraste(a.faixa ?? '', s)).toBeGreaterThanOrEqual(3);
+      expect(contraste(a.rotulo, a.fundo)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(a.valor, a.fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const estado of ['zero', 'indisponivel'] as const) {
+      const a = aparenciaDoIndicador('perigo', estado, lugar, cores);
+      expect(a.faixa).toBeNull();
+      expect(contraste(a.valor, a.fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(aparenciaDoIndicador('neutro', 'valor', lugar, cores).faixa).toBeNull();
   });
 
   it('pílulas de situação: o número e o texto que ficam por cima seguem em `texto`/`textoSuave` ≥ 4,5:1 (Próximo passo, série em andamento, BadgeNivel)', () => {
