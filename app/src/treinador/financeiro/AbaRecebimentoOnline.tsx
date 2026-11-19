@@ -10,6 +10,7 @@ import {
 } from '../../dominio/financeiro';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_FORMULARIO } from '../../tema/tokens';
+import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -27,13 +28,15 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { BarraDeSalvar } from './AjustesDaAba';
 import { CartaoFormasDeRecebimento } from './CartaoFormasDeRecebimento';
 import { avisoDeConflito, ehConflito } from './comum';
 
 /**
- * Aba Recebimento: primeiro as formas de recebimento (o que o aluno vê para pagar: InfinitePay, link próprio, Pix e Manual,
- * `CartaoFormasDeRecebimento`), depois, só com o módulo da InfinitePay ligado na instalação (`recebimentoOnlineHabilitado`),
- * a conta InfinitePay. São dois cartões com títulos e "Salvar" próprios: gravam coisas diferentes, em rotas diferentes.
+ * Aba Recebimento (lembretes e recebimento, 19/11): na coluna de ajustes, as formas de recebimento (InfinitePay, link próprio,
+ * Pix e Manual, `CartaoFormasDeRecebimento`) e, embaixo, só com o módulo da InfinitePay ligado na instalação
+ * (`recebimentoOnlineHabilitado`), a conta InfinitePay; ao lado, "O que o aluno vê" (do cartão das formas). São dois cartões
+ * com barras de salvar próprias: gravam coisas diferentes, em rotas diferentes.
  *
  * Conta InfinitePay: o treinador informa a InfiniteTag (e, se quiser, uma API Key). O aluno paga por Pix ou cartão por um
  * link e o dinheiro cai direto na conta InfinitePay do treinador: o app não recebe nem guarda dinheiro. A API Key é **só de
@@ -47,14 +50,18 @@ export function AbaRecebimentoOnline({ podeAlterar }: { podeAlterar: boolean }) 
   const { dados, erro, recarregar, definir } = carga;
   return (
     <View style={estilos.coluna}>
-      <CartaoFormasDeRecebimento podeAlterar={podeAlterar} comInfinitePay={recebimentoOnlineHabilitado} infinitePayConfigurada={dados?.configurado} />
-      {recebimentoOnlineHabilitado && erro ? (
-        <MensagemErro texto={codigoApi(erro) === 'RECEBIMENTO_ONLINE_INDISPONIVEL' ? 'O recebimento online não está disponível agora.' : textoDoErro(erro)}
-          erro={erro} tentarDeNovo={recarregar} />
-      ) : null}
-      {recebimentoOnlineHabilitado && !dados && carga.carregando ? <Esqueleto /> : null}
-      {/* A chave do formulário é a versão: salvar ou remover traz outra versão e o formulário nasce de novo, sem resto de digitação. */}
-      {recebimentoOnlineHabilitado && dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
+      <CartaoFormasDeRecebimento podeAlterar={podeAlterar} comInfinitePay={recebimentoOnlineHabilitado} infinitePayConfigurada={dados?.configurado}
+        maisAjustes={recebimentoOnlineHabilitado ? (
+          <>
+            {erro ? (
+              <MensagemErro texto={codigoApi(erro) === 'RECEBIMENTO_ONLINE_INDISPONIVEL' ? 'O recebimento online não está disponível agora.' : textoDoErro(erro)}
+                erro={erro} tentarDeNovo={recarregar} />
+            ) : null}
+            {!dados && carga.carregando ? <Esqueleto /> : null}
+            {/* A chave do formulário é a versão: salvar ou remover traz outra versão e o formulário nasce de novo, sem resto de digitação. */}
+            {dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
+          </>
+        ) : null} />
     </View>
   );
 }
@@ -89,8 +96,18 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
   const temChave = temChaveParaJuros(dados.apiKeyConfigurada, campoDaChave ? chave : '');
   const jurosEscolhidos = jurosQueValem(juros, temChave);
   const erroDosJuros = tentou ? validarJurosDoParcelamento(jurosEscolhidos, temChave) : (doServidor.jurosDoParcelamento ?? null);
-  const semMudanca = dados.configurado && tagNormalizada === (dados.infiniteTag ?? '') && !chave.trim()
-    && jurosEscolhidos === (dados.jurosDoParcelamento ?? 'ALUNO');
+  // Sem nada gravado, vazio também é "sem mudança": a barra diz o que falta em vez de "Tudo salvo".
+  const mudou = podeAlterar && (tagNormalizada !== (dados.infiniteTag ?? '') || !!chave.trim()
+    || jurosEscolhidos !== (dados.jurosDoParcelamento ?? 'ALUNO'));
+  useGuardaDeSaida(mudou);
+  const descartar = () => {
+    setTag(dados.infiniteTag ?? '');
+    setChave('');
+    setTrocando(false);
+    setJuros(dados.jurosDoParcelamento ?? 'ALUNO');
+    setTentou(false);
+    setErro(null);
+  };
   const mudarChave = (nova: string) => {
     setChave(nova);
     if (!temChaveParaJuros(dados.apiKeyConfigurada, nova)) setJuros('ALUNO');
@@ -156,10 +173,10 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
       <Cartao titulo="Recebimento online pela InfinitePay" descricao={TEXTO_RECEBIMENTO_ONLINE}
         acoes={<Selo texto={dados.configurado ? 'Configurado' : 'Ainda não configurado'} tipo={dados.configurado ? 'sucesso' : 'neutro'} />}
         rodape={podeAlterar ? (
-          <LinhaDeAcoes alinhar="entre">
-            {dados.configurado ? <Botao rotulo="Remover recebimento online" tipo="perigoTexto" aoTocar={() => { setErro(null); setPergunta('tudo'); }} /> : <View />}
-            <Botao rotulo="Salvar" carregando={enviando} desabilitado={semMudanca} motivo="Nada foi alterado." aoTocar={salvar} />
-          </LinhaDeAcoes>
+          <BarraDeSalvar mudou={mudou} enviando={enviando} aoSalvar={salvar} aoDescartar={descartar}
+            semAlteracao={dados.configurado ? 'Tudo salvo' : 'Informe a InfiniteTag para salvar.'}
+            rotuloAcessivelDescartar="Descartar alterações do recebimento online"
+            erro={erro && !pergunta && Object.keys(doServidor).length === 0 ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null} />
         ) : undefined}>
         {!dados.configurado ? (
           <Texto variante="suave">Informe a sua InfiniteTag para o aluno poder pagar pelo link. Enquanto isso, você segue registrando os pagamentos à mão.</Texto>
@@ -200,7 +217,12 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
                 {erroDosJuros ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erroDosJuros}</Texto> : null}
               </View>
             </View>
-            {erro && !pergunta && Object.keys(doServidor).length === 0 ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
+            {/* Remover tudo é raro e destrutivo: fica no fim do corpo, longe do Salvar, com confirmação. */}
+            {dados.configurado ? (
+              <LinhaDeAcoes>
+                <Botao rotulo="Remover recebimento online" tipo="perigoTexto" aoTocar={() => { setErro(null); setPergunta('tudo'); }} />
+              </LinhaDeAcoes>
+            ) : null}
           </>
         ) : (
           <>
@@ -231,8 +253,8 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
 }
 
 const estilos = StyleSheet.create({
-  // Formulário curto: numa coluna de leitura confortável, não na largura toda da lista (o campo da Tag ia de ponta a ponta).
-  coluna: { gap: espaco(2), width: '100%', maxWidth: LARGURA_FORMULARIO },
-  secao: { gap: espaco(1.5) },
+  coluna: { gap: espaco(2), width: '100%' },
+  // Campos curtos numa coluna de leitura confortável, não na largura toda do cartão (o campo da Tag ia de ponta a ponta).
+  secao: { gap: espaco(1.5), maxWidth: LARGURA_FORMULARIO },
   chave: { gap: espaco(0.5) },
 });

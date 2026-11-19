@@ -19,6 +19,7 @@ import { VisaoGeral } from '../../treinador/financeiro/VisaoGeral';
 import { Abas } from '../../ui/Abas';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
+import { useSaidaGuardada } from '../../ui/GuardaDeSaida';
 import { Tela } from '../../ui/Tela';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -50,7 +51,10 @@ export default function FinanceiroDoTreinador() {
   // de partida das Cobranças (`?situacao=VENCIDA`, ou `ABERTA&vencimento=PROXIMOS_7_DIAS`) e o `?meus=true` de lá.
   const { aba: abaPedida, meus } = useLocalSearchParams<{ aba?: string; meus?: string }>();
   const aba: Aba = ABAS.find((a) => a.valor === abaPedida)?.valor ?? 'visao';
-  const setAba = (valor: Aba) => { if (valor !== aba) router.push({ pathname: '/treinador/financeiro', params: { aba: valor } }); };
+  // Com alteração não salva (Lembretes, Recebimento), trocar de aba pergunta antes: a rota é a mesma, então o `beforeRemove`
+  // da guarda não dispara sozinho (lembretes e recebimento, 19/11).
+  const { confirmar } = useSaidaGuardada();
+  const setAba = (valor: Aba) => { if (valor !== aba) confirmar(() => router.push({ pathname: '/treinador/financeiro', params: { aba: valor } })); };
   const [escopo, setEscopo] = useState<Responsabilidade>(meus === 'true' ? 'meus' : 'todos');
   const [exportando, setExportando] = useState(false);
   const podeAlterar = pode('FINANCEIRO_ALTERAR');
@@ -67,7 +71,9 @@ export default function FinanceiroDoTreinador() {
       <Cabecalho titulo="Financeiro" mostrarMarca="celular"
         subtitulo="O que os seus alunos pagam a você: planos, cobranças e recebimentos. O aluno vê o plano e as cobranças na Conta dele. O app não recebe nem guarda dinheiro."
         acoes={pode('FINANCEIRO_LER') ? <Botao rotulo="Exportar CSV" tipo="secundario" Icone={Download} aoTocar={() => setExportando(true)} /> : undefined} />
-      <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />
+      {/* Ativação manual, como na ficha do aluno: com a pergunta de saída, a aba que recebe o foco de volta (Continuar editando)
+          não pode trocar sozinha e perguntar de novo. */}
+      <Abas abas={ABAS} ativa={aba} aoMudar={setAba} ativacao="manual" />
       <View style={{ gap: espaco(2) }}>
         {ABAS_COM_VALORES.includes(aba) ? <AvisoDoHistoricoParcial painel={painelDoMes.dados} /> : null}
         {aba === 'visao' ? <VisaoGeral escopo={escopo} aoMudarEscopo={setEscopo} podeAlterar={podeAlterar} /> : null}

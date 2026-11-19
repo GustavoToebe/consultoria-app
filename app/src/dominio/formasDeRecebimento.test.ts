@@ -2,9 +2,11 @@ import { ErroApi, MENSAGEM_SEM_CONEXAO } from '@plataforma/web';
 
 import type { FormasDeRecebimento } from '../api/financeiroTipos';
 import {
-  contadorDoPix, corpoDasFormas, estadoDasFormas, FORMAS_DO_FORMULARIO, formasAlteradas, lerLinkDoPlano, mascaraDaChavePix, MENSAGEM_CONFLITO_DAS_FORMAS, normalizarChavePix,
-  rotuloDaFormaDeRecebimento, textoDaChaveGravada, traduzirErroDasFormas, type EstadoDasFormas,
+  contadorDoPix, corpoDasFormas, estadoDasFormas, FALTA_INFINITEPAY, FALTA_PIX, FORMAS_DO_FORMULARIO, formasAlteradas, lerLinkDoPlano, mascaraDaChavePix,
+  MENSAGEM_CONFLITO_DAS_FORMAS, normalizarChavePix, notaDoCelular, previaDoAluno, rotuloDaFormaDeRecebimento, textoDaChaveGravada, traduzirErroDasFormas,
+  type EstadoDasFormas,
 } from './formasDeRecebimento';
+import { TEXTO_COMBINE_COM_O_TREINADOR } from './financeiro';
 
 // Documentos de teste (dígitos verificadores válidos, ninguém real): CPF 529.982.247-25, CNPJ 11.222.333/0001-81.
 const CPF = '529.982.247-25';
@@ -190,5 +192,38 @@ describe('máscara, contador e mudança', () => {
     expect(formasAlteradas({ ...gravado, nomeRecebedor: 'Outro' }, gravado)).toBe(true);
     const desligado = { ...gravado, pix: false };
     expect(formasAlteradas({ ...desligado, cidade: 'Toledo' }, desligado)).toBe(false);
+  });
+});
+
+// Lembretes e recebimento (19/11): "O que o aluno vê" na aba Recebimento, com o que está na tela.
+describe('previaDoAluno', () => {
+  const comInfinite = { naInstalacao: true, configurada: true };
+  it('só o Manual: nenhum botão e a frase de combinar com o treinador', () => {
+    const p = previaDoAluno(estado({ infinitePay: false }), comInfinite);
+    expect(p).toEqual({ botoes: [], combinar: TEXTO_COMBINE_COM_O_TREINADOR, faltam: [], notaDoLinkProprio: false });
+  });
+  it('os rótulos são os da Conta do aluno: "Pagar" sozinho, ou o nome de cada um com os dois', () => {
+    expect(previaDoAluno(estado({ linkProprio: true, infinitePay: false }), comInfinite).botoes).toEqual(['Pagar']);
+    expect(previaDoAluno(estado({ linkProprio: true }), comInfinite).botoes).toEqual(['Pagar pela InfinitePay', 'Pagar pelo link do treinador']);
+    expect(previaDoAluno(estado({ linkProprio: true }), comInfinite).notaDoLinkProprio).toBe(true);
+  });
+  it('Pix só vale ligado e configurado; ligado sem os dados diz o que falta', () => {
+    expect(previaDoAluno(comPix({ infinitePay: false }), comInfinite).botoes).toEqual(['Copiar código Pix']);
+    const semDados = previaDoAluno(estado({ pix: true, infinitePay: false }), comInfinite);
+    expect(semDados.botoes).toEqual([]);
+    expect(semDados.faltam).toEqual([FALTA_PIX]);
+    expect(semDados.combinar).toBe(TEXTO_COMBINE_COM_O_TREINADOR);
+  });
+  it('InfinitePay ligada sem a InfiniteTag salva não vira botão; fora da instalação nem aparece', () => {
+    expect(previaDoAluno(estado(), { naInstalacao: true, configurada: false })).toMatchObject({ botoes: [], faltam: [FALTA_INFINITEPAY] });
+    expect(previaDoAluno(estado(), { naInstalacao: false, configurada: false })).toMatchObject({ botoes: [], faltam: [] });
+  });
+});
+
+describe('notaDoCelular', () => {
+  it('diz em qual celular a loja ainda não deixa pagar; com os dois liberados, nada', () => {
+    expect(notaDoCelular(true, true)).toBeNull();
+    expect(notaDoCelular(false, false)).toBe('No app do iPhone e do Android, o aluno vê só o valor e o vencimento, sem botão de pagamento (regra das lojas).');
+    expect(notaDoCelular(true, false)).toMatch(/^No app do Android, /);
   });
 });

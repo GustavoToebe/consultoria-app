@@ -1,48 +1,39 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Lembretes } from '../../api/financeiroTipos';
 import { buscarLembretes, salvarLembretes } from '../../api/rotas';
+import { Switch } from '../../components/ui/switch';
 import {
-  DIAS_ANTES_MAXIMO, DIAS_DEPOIS_MAXIMO, lerDias, resumoDosLembretes, TEXTO_EMAIL_DESLIGADO, TEXTO_LEMBRETES,
+  DIAS_ANTES_MAXIMO, DIAS_DEPOIS_MAXIMO, resumoDosLembretes, statusDosLembretes, TEXTO_LEMBRETES,
 } from '../../dominio/lembretesDeCobranca';
+import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
-import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
-import { Interruptor } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
-import { Grade } from '../../ui/Grade';
-import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { BarraDeSalvar, ColunasDeAjustes, GrupoDeOpcoes, LinhaDeOpcao, LinkDeAba } from './AjustesDaAba';
 import { avisoDeConflito, ehConflito } from './comum';
+import { LinhaDoTempoDosLembretes } from './LinhaDoTempoDosLembretes';
+import { PassoDeDias } from './PassoDeDias';
 
-/** Duas áreas lado a lado a partir de 760 px (medidos na própria grade), uma embaixo da outra abaixo disso. */
-const duasColunas = (largura: number) => (largura >= 760 ? 2 : 1);
-
-/** Da largura medida do conteúdo em diante, "Quem recebe e por onde" fica numa coluna à direita do formulário. */
-const LARGURA_PARA_LADO_A_LADO = 1100;
-
-/** Quem recebe e por onde: só as regras que a API aplica (`AGENTS.md`, lembretes de cobrança). */
-const REGRAS = [
-  'Vai para o e-mail do cadastro do aluno ou, se ele não tiver, para o e-mail de login.',
-  'Só aluno ativo recebe. O aluno pode desligar os lembretes só para ele, na Conta do app.',
-  'Os lembretes de cada cobrança (enviados, previstos e não enviados, com o motivo) aparecem na folha da cobrança, em Cobranças.',
-  'WhatsApp é manual: na folha da cobrança, o botão abre o WhatsApp com a mesma mensagem, para você enviar.',
-];
+const TITULO = 'Lembretes de cobrança';
+const ROTULO_PRINCIPAL = 'Mandar lembretes por e-mail';
 
 /**
- * Lembretes de cobrança por e-mail: o treinador liga e escolhe quantos dias antes, se no dia e quantos dias depois do
- * vencimento o aluno recebe o lembrete. Só e-mail e só com o e-mail do app ligado (a API diz em `emailDisponivel`). O
- * WhatsApp é manual, na folha de cada cobrança. Ler com `FINANCEIRO_LER`, mudar com `FINANCEIRO_ALTERAR`. Duas áreas
- * ("Lembretes de cobrança", o envio por e-mail, e "Quando lembrar") e, embaixo, quem recebe e por onde. Nada é enviado por esta tela.
+ * Lembretes de cobrança por e-mail (lembretes e recebimento, 19/11): um cartão de ajustes, com o interruptor principal no
+ * cabeçalho e "Quando lembrar" (passos de dias, no dia e a linha do tempo), e, ao lado, "Quem recebe e por onde". O treinador
+ * liga e escolhe quantos dias antes, se no dia e quantos dias depois do vencimento o aluno recebe o lembrete (0 = não manda;
+ * 0 a 15 antes, 0 a 30 depois, como a API). Só e-mail e só com o e-mail do app ligado (`emailDisponivel`); o WhatsApp é manual,
+ * na folha de cada cobrança. Ler com `FINANCEIRO_LER`, mudar com `FINANCEIRO_ALTERAR`. Nada é enviado por esta tela.
  */
 export function AbaLembretes({ podeAlterar }: { podeAlterar: boolean }) {
   const { dados, erro, carregando, recarregar, definir } = useCarregar('lembretes-de-cobranca', () => buscarLembretes());
@@ -50,7 +41,7 @@ export function AbaLembretes({ podeAlterar }: { podeAlterar: boolean }) {
     <View style={estilos.coluna}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
-      {/* A chave é a versão: salvar traz outra e o formulário nasce de novo, sem resto de digitação. */}
+      {/* A chave é a versão: salvar traz outra e o formulário nasce de novo, sem resto de alteração. */}
       {dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
     </View>
   );
@@ -63,32 +54,32 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
   aoRecarregar: () => void;
 }) {
   const { avisar } = useAviso();
+  const { cores } = useTema();
   const [ligado, setLigado] = useState(dados.ligado);
-  const [antes, setAntes] = useState(String(dados.diasAntes));
+  const [diasAntes, setDiasAntes] = useState(dados.diasAntes);
   const [noDia, setNoDia] = useState(dados.noDia);
-  const [depois, setDepois] = useState(String(dados.diasDepois));
+  const [diasDepois, setDiasDepois] = useState(dados.diasDepois);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  const [tentou, setTentou] = useState(false);
-  const [largura, setLargura] = useState(0);
-  const larga = largura >= LARGURA_PARA_LADO_A_LADO;
 
-  const diasAntes = lerDias(antes, DIAS_ANTES_MAXIMO);
-  const diasDepois = lerDias(depois, DIAS_DEPOIS_MAXIMO);
   const doServidor = errosPorCampo(erro);
-  const semMudanca = dados.versao !== null && ligado === dados.ligado && noDia === dados.noDia
-    && diasAntes.valor === dados.diasAntes && diasDepois.valor === dados.diasDepois;
-  // Prévia do que está na tela, antes de salvar; com um dos dias inválido o próprio campo mostra o erro.
-  const resumo = !ligado ? 'desligados, nenhum lembrete é enviado.'
-    : diasAntes.valor === null || diasDepois.valor === null ? null
-      : `${resumoDosLembretes({ ligado, diasAntes: diasAntes.valor, noDia, diasDepois: diasDepois.valor })}.`;
+  // Sem linha gravada (`versao` nula) vale o padrão do servidor, que é o que a tela mostra: sem mudança, "Tudo salvo".
+  const mudou = podeAlterar && (ligado !== dados.ligado || noDia !== dados.noDia || diasAntes !== dados.diasAntes || diasDepois !== dados.diasDepois);
+  useGuardaDeSaida(mudou);
+  const naTela = podeAlterar ? { ligado, diasAntes, noDia, diasDepois } : dados;
+
+  const descartar = () => {
+    setLigado(dados.ligado);
+    setDiasAntes(dados.diasAntes);
+    setNoDia(dados.noDia);
+    setDiasDepois(dados.diasDepois);
+    setErro(null);
+  };
 
   const salvar = () => {
-    setTentou(true);
-    if (diasAntes.valor === null || diasDepois.valor === null) return;
     setEnviando(true);
     setErro(null);
-    salvarLembretes({ ligado, diasAntes: diasAntes.valor, noDia, diasDepois: diasDepois.valor, versao: dados.versao }).then(
+    salvarLembretes({ ligado, diasAntes, noDia, diasDepois, versao: dados.versao }).then(
       (novo) => {
         setEnviando(false);
         avisar('Lembretes salvos.', 'sucesso');
@@ -101,89 +92,100 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
           aoRecarregar();
           return;
         }
-        setTentou(false);
         setErro(e);
       },
     );
   };
 
+  const principal = podeAlterar ? (
+    <View style={estilos.principal}>
+      {!dados.emailDisponivel ? <Selo texto="E-mail do app desligado" tipo="atencao" /> : null}
+      {/* O texto ao lado também alterna (como o `ui/Interruptor`); o nome do interruptor é o mesmo texto. */}
+      <Pressable accessible={false} tabIndex={-1} onPress={() => setLigado(!ligado)}>
+        <Texto variante="rotulo" cor={cores.texto}>{ROTULO_PRINCIPAL}</Texto>
+      </Pressable>
+      <Switch checked={ligado} onCheckedChange={setLigado} accessibilityLabel={ROTULO_PRINCIPAL} />
+    </View>
+  ) : !dados.emailDisponivel ? <Selo texto="E-mail do app desligado" tipo="atencao" /> : null;
+
+  const erroGeral = erro && Object.keys(doServidor).length === 0 ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null;
+
   return (
-    // Mesma árvore em qualquer largura (só o estilo muda), para os campos não remontarem ao redimensionar.
-    <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={[estilos.corpo, larga ? estilos.corpoLargo : null]}>
-      <View style={[estilos.formulario, larga ? estilos.formularioLargo : null]}>
-      <Grade colunas={duasColunas} gap={espaco(2)} alinhar="inicio">
-        <Cartao titulo="Lembretes de cobrança" descricao="Por e-mail, para toda a consultoria: liga ou desliga os envios automáticos.">
-          {podeAlterar ? (
-            <Interruptor rotulo="Mandar lembretes por e-mail" valor={ligado} aoMudar={setLigado}
-              ajuda="Desligado, nenhum lembrete é enviado. O que já foi enviado continua na folha de cada cobrança." />
-          ) : null}
-          {/* O estado salvo fica perto do controle, em texto neutro: o normal não leva selo. */}
-          <Texto variante="suave">Situação salva: <Texto variante="rotulo">{dados.ligado ? 'Ligados' : 'Desligados'}</Texto></Texto>
-          {dados.emailDisponivel ? (
-            <Texto variante="suave">E-mail do app ligado: os lembretes saem pelo e-mail do app.</Texto>
-          ) : (
-            <View style={estilos.aviso}>
-              <Selo texto="E-mail do app desligado" tipo="atencao" />
-              <Texto variante="suave">{TEXTO_EMAIL_DESLIGADO}</Texto>
+    <ColunasDeAjustes
+      ajustes={(
+        <Cartao titulo={TITULO} descricao={statusDosLembretes(naTela.ligado, dados.emailDisponivel)} acoes={principal}
+          rodape={podeAlterar ? (
+            <BarraDeSalvar mudou={mudou} enviando={enviando} aoSalvar={salvar} aoDescartar={descartar} erro={erroGeral}
+              rotuloAcessivelDescartar="Descartar alterações dos lembretes" />
+          ) : undefined}>
+          <View style={estilos.secao}>
+            <View style={estilos.tituloDaSecao}>
+              <Texto variante="secao" nivel={3}>Quando lembrar</Texto>
+              <Texto variante="pequeno">Contado a partir do vencimento de cada cobrança.</Texto>
             </View>
-          )}
-        </Cartao>
-        <Cartao titulo="Quando lembrar" descricao="Contado a partir do vencimento de cada cobrança. 0 = não manda.">
-          {podeAlterar ? (
-            <>
-              <CamposEmLinha>
-                <Campo rotulo="Dias antes do vencimento" valor={antes} aoMudar={setAntes} numerico keyboardType="number-pad" maxLength={2}
-                  erro={tentou ? diasAntes.erro : (doServidor.diasAntes ?? null)} ajuda={`De 0 a ${DIAS_ANTES_MAXIMO}.`} />
-                <Campo rotulo="Dias depois do vencimento" valor={depois} aoMudar={setDepois} numerico keyboardType="number-pad" maxLength={2}
-                  erro={tentou ? diasDepois.erro : (doServidor.diasDepois ?? null)} ajuda={`De 0 a ${DIAS_DEPOIS_MAXIMO}.`} />
-              </CamposEmLinha>
-              <Interruptor rotulo="Mandar no dia do vencimento" valor={noDia} aoMudar={setNoDia} />
-              {resumo ? <Texto variante="suave" aria-live="polite">Com o que está na tela: {resumo}</Texto> : null}
-            </>
-          ) : (
-            <>
-              <CampoLeitura rotulo="Lembretes" valor={resumoDosLembretes({ ...dados, ligado: true })} />
-              <Texto variante="suave">Para mudar os lembretes, peça a quem administra o financeiro.</Texto>
-            </>
-          )}
-        </Cartao>
-      </Grade>
-      {podeAlterar ? (
-        <View style={estilos.acoes}>
-          {erro && Object.keys(doServidor).length === 0 ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
-          <LinhaDeAcoes alinhar="fim">
-            <Botao rotulo="Salvar" carregando={enviando} desabilitado={semMudanca} motivo="Nada foi alterado." aoTocar={salvar} />
-          </LinhaDeAcoes>
-        </View>
-      ) : null}
-      </View>
-      <View style={larga ? estilos.regrasLargo : undefined}>
-        <Cartao titulo="Quem recebe e por onde" descricao={TEXTO_LEMBRETES}>
-          <View role="list" style={estilos.regras}>
-            {REGRAS.map((r) => (
-              <View key={r} role="listitem" style={estilos.regra}>
-                <Texto variante="suave" aria-hidden>•</Texto>
-                <Texto variante="suave" style={estilos.textoDaRegra}>{r}</Texto>
-              </View>
-            ))}
+            {podeAlterar ? (
+              <>
+                {/* Desligado: os valores ficam guardados, o bloco fica esmaecido e fora do Tab; a dica fica fora dele, legível. */}
+                {!ligado ? <Texto variante="suave" cor={cores.texto}>Ligue os lembretes para escolher quando mandar.</Texto> : null}
+                <View style={[estilos.secao, !ligado ? estilos.esmaecido : null]} aria-disabled={!ligado}>
+                  <CamposEmLinha minimo={240}>
+                    <PassoDeDias rotulo="Dias antes do vencimento" valor={diasAntes} maximo={DIAS_ANTES_MAXIMO} aoMudar={setDiasAntes}
+                      desabilitado={!ligado} erro={doServidor.diasAntes ?? null} />
+                    <PassoDeDias rotulo="Dias depois do vencimento" valor={diasDepois} maximo={DIAS_DEPOIS_MAXIMO} aoMudar={setDiasDepois}
+                      desabilitado={!ligado} erro={doServidor.diasDepois ?? null} />
+                  </CamposEmLinha>
+                  <GrupoDeOpcoes>
+                    <LinhaDeOpcao titulo="Mandar no dia do vencimento" interruptor={{ valor: noDia, aoMudar: setNoDia, desabilitado: !ligado }} />
+                  </GrupoDeOpcoes>
+                  <LinhaDoTempoDosLembretes diasAntes={diasAntes} noDia={noDia} diasDepois={diasDepois} />
+                </View>
+              </>
+            ) : (
+              <>
+                <CampoLeitura rotulo="Lembretes" valor={resumoDosLembretes({ ...dados, ligado: true })} />
+                <LinhaDoTempoDosLembretes diasAntes={dados.diasAntes} noDia={dados.noDia} diasDepois={dados.diasDepois} />
+                <Texto variante="suave">Para mudar os lembretes, peça a quem administra o financeiro.</Texto>
+              </>
+            )}
           </View>
         </Cartao>
+      )}
+      apoio={<QuemRecebe />}
+    />
+  );
+}
+
+/** Quem recebe e por onde: só as regras que a API aplica (`AGENTS.md`, lembretes de cobrança), em texto menor (apoio). */
+function QuemRecebe() {
+  const regras = [
+    'Vai para o e-mail do cadastro do aluno ou, se ele não tiver, para o e-mail de login.',
+    'Só aluno ativo recebe. O aluno pode desligar os lembretes só para ele, na Conta do app.',
+    <>Os lembretes de cada cobrança (enviados, previstos e não enviados, com o motivo) aparecem na folha da cobrança, em <LinkDeAba aba="cobrancas" texto="Cobranças" />.</>,
+    'WhatsApp é manual: na folha da cobrança, o botão abre o WhatsApp com a mesma mensagem, para você enviar.',
+  ];
+  return (
+    <Cartao titulo="Quem recebe e por onde">
+      <Texto variante="pequeno">{TEXTO_LEMBRETES}</Texto>
+      <View role="list" style={estilos.regras}>
+        {regras.map((r, i) => (
+          <View key={i} role="listitem" style={estilos.regra}>
+            <Texto variante="pequeno" aria-hidden>•</Texto>
+            <Texto variante="pequeno" style={estilos.textoDaRegra}>{r}</Texto>
+          </View>
+        ))}
       </View>
-    </View>
+    </Cartao>
   );
 }
 
 const estilos = StyleSheet.create({
   // Sem teto de largura: a tela usa o espaço útil (o corpo da página já limita em LARGURA_LISTA).
   coluna: { gap: espaco(2), width: '100%' },
-  corpo: { gap: espaco(2) },
-  corpoLargo: { flexDirection: 'row', alignItems: 'flex-start' },
-  formulario: { gap: espaco(2) },
-  formularioLargo: { flex: 1, minWidth: 0 },
-  regrasLargo: { width: 360 },
-  aviso: { gap: espaco(0.5) },
-  acoes: { gap: espaco(1) },
-  regras: { gap: espaco(0.75) },
+  principal: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1.5) },
+  secao: { gap: espaco(2) },
+  tituloDaSecao: { gap: 2 },
+  esmaecido: { opacity: 0.5 },
+  regras: { gap: espaco(1) },
   regra: { flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start' },
   textoDaRegra: { flex: 1 },
 });

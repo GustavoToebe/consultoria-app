@@ -3,6 +3,7 @@ import {
 } from '@plataforma/web';
 
 import type { FormaDeRecebimento, FormasDeRecebimento, FormasDeRecebimentoRequest, PixConfigRequest, TipoDeChavePix } from '../api/financeiroTipos';
+import { acoesDePagamentoDoAluno, rotuloDaAcaoDePagamento, TEXTO_COMBINE_COM_O_TREINADOR } from './financeiro';
 
 /**
  * Formas de recebimento do treinador (Fase 1 do financeiro, `docs/planos/financeiro-em-fases.md`): estado do formulário, validação,
@@ -179,6 +180,57 @@ export function corpoDasFormas(e: EstadoDasFormas): CorpoDasFormas {
   if (Object.keys(erros).length > 0 || !e.tipoChave) return { ok: false, erros };
   const pixConfig: PixConfigRequest = { tipoChave: e.tipoChave, ...(chave === undefined ? {} : { chave }), nomeRecebedor: nome, cidade };
   return { ok: true, corpo: { ...base, pixConfig } };
+}
+
+// ---- O que o aluno vê (prévia da aba Recebimento) ----
+
+export interface PreviaDoAluno {
+  /** Os botões da cobrança em aberto, com os rótulos da Conta do aluno na web (`rotuloDaAcaoDePagamento`). */
+  botoes: string[];
+  /** Sem nenhum botão: a frase de combinar com o treinador, a mesma do aluno. */
+  combinar: string | null;
+  /** Forma ligada na tela que o aluno ainda não vê, e por quê. */
+  faltam: string[];
+  /** O link próprio só vale para a mensalidade de plano com link: a tela não sabe quais planos têm. */
+  notaDoLinkProprio: boolean;
+}
+
+export const FALTA_INFINITEPAY = 'InfinitePay: o aluno só vê este botão depois que a sua InfiniteTag estiver salva.';
+export const FALTA_PIX = 'Pix: preencha os dados do Pix para o aluno ver o código.';
+
+/**
+ * A prévia simples de "O que o aluno vê", montada com o que está na tela (salvo ou não), pelas mesmas regras da Conta do aluno
+ * na web (`acoesDePagamentoDoAluno`, D7): InfinitePay só com o módulo na instalação e a InfiniteTag salva (`pagamentoOnline`), Pix
+ * só ligado e configurado (os dados do Pix na tela passam na validação do salvar) e o link próprio como mensalidade de plano com
+ * link. No celular a regra das lojas pode tirar todos os botões; isso a tela diz à parte.
+ */
+export function previaDoAluno(e: EstadoDasFormas, infinitePay: { naInstalacao: boolean; configurada: boolean }): PreviaDoAluno {
+  const pixValendo = e.pix && corpoDasFormas(e).ok;
+  const formas: FormaDeRecebimento[] = [];
+  if (infinitePay.naInstalacao && e.infinitePay) formas.push('INFINITEPAY');
+  if (e.linkProprio) formas.push('LINK_PROPRIO');
+  if (pixValendo) formas.push('PIX');
+  formas.push('MANUAL');
+  const acoes = acoesDePagamentoDoAluno('web', infinitePay.naInstalacao && infinitePay.configurada, {}, 'MENSALIDADE', { formas, temLinkProprio: true });
+  const faltam: string[] = [];
+  if (infinitePay.naInstalacao && e.infinitePay && !infinitePay.configurada) faltam.push(FALTA_INFINITEPAY);
+  if (e.pix && !pixValendo) faltam.push(FALTA_PIX);
+  return {
+    botoes: acoes.map((a) => rotuloDaAcaoDePagamento(a, acoes)),
+    combinar: acoes.length === 0 ? TEXTO_COMBINE_COM_O_TREINADOR : null,
+    faltam,
+    notaDoLinkProprio: e.linkProprio,
+  };
+}
+
+/**
+ * A regra das lojas na prévia (D7): no app do celular sem a chave da plataforma o aluno não vê nenhuma ação de pagamento. `null`
+ * com as duas ligadas (a prévia vale também no celular).
+ */
+export function notaDoCelular(pagarNoIos: boolean, pagarNoAndroid: boolean): string | null {
+  const fora = [!pagarNoIos ? 'iPhone' : null, !pagarNoAndroid ? 'Android' : null].filter((p) => p !== null);
+  if (fora.length === 0) return null;
+  return `No app do ${fora.join(' e do ')}, o aluno vê só o valor e o vencimento, sem botão de pagamento (regra das lojas).`;
 }
 
 // ---- Link do plano ----

@@ -208,14 +208,19 @@ test.describe('Financeiro › Lembretes', () => {
     await expect(page.getByText('Lembretes de cobrança', { exact: true })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Recebimento', exact: true })).toBeVisible();
     await expect(page.getByLabel('InfiniteTag')).toHaveCount(0);
-    // O corpo mede a própria largura (`onLayout`) e só então passa às duas colunas: na primeira passada o campo ocupa a coluna
-    // única (790 px em 1920). O limite é o mesmo; só se espera a passada que vale.
-    const dias = page.getByRole('textbox', { name: 'Dias antes do vencimento' });
-    await expect.poll(async () => (await caixa(dias)).width).toBeLessThanOrEqual(560);
+    // Lembretes e recebimento (19/11): os dias são passos (− número +), não caixas de texto; o passo não estica. No PC as duas
+    // colunas (ajustes e "Quem recebe e por onde") ficam lado a lado, alinhadas pelo topo; a área mede a própria largura antes.
+    const dias = page.getByRole('spinbutton', { name: 'Dias antes do vencimento' });
     const campo = await caixa(dias);
     const abas = await caixa(page.getByRole('tab', { name: 'Visão geral' }));
     expect(campo.width).toBeLessThanOrEqual(560);
     expect(campo.x).toBeGreaterThanOrEqual(abas.x);
+    if (largura >= 1280) {
+      const ajustes = page.getByRole('heading', { name: 'Lembretes de cobrança' });
+      const apoio = page.getByRole('heading', { name: 'Quem recebe e por onde' });
+      await expect.poll(async () => Math.abs((await caixa(ajustes)).y - (await caixa(apoio)).y)).toBeLessThan(2);
+      expect((await caixa(apoio)).x).toBeGreaterThan(campo.x + campo.width);
+    }
     await semRolagemHorizontal(page);
     await capturar(page, `lembretes-${largura}`);
     expect(errosDaPagina).toEqual([]);

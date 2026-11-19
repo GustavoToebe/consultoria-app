@@ -13,19 +13,50 @@ export const DIAS_DEPOIS_MAXIMO = 30;
 
 export const TEXTO_LEMBRETES =
   'O app manda ao aluno, por e-mail, um lembrete da mensalidade em aberto: antes do vencimento, no dia e depois. Só por e-mail e só com o e-mail do app ligado. Uma cobrança paga, cancelada ou de contratação pausada não recebe lembrete.';
-export const TEXTO_EMAIL_DESLIGADO =
-  'O e-mail do app está desligado: enquanto ele não for ligado, nenhum lembrete é enviado, mesmo com os lembretes ligados aqui.';
 
-/** Lê o campo de dias: só inteiro de 0 ao máximo. Vazio ou fora disso = erro (nunca vira 0 sozinho). */
-export function lerDias(texto: string, maximo: number): { valor: number | null; erro: string | null } {
-  const limpo = texto.trim();
-  if (!/^\d{1,3}$/.test(limpo)) return { valor: null, erro: `Use um número de 0 a ${maximo}.` };
-  const valor = Number(limpo);
-  return valor > maximo ? { valor: null, erro: `Use um número de 0 a ${maximo}.` } : { valor, erro: null };
+/**
+ * O passo de dias (− número +): soma `passo` e prende de 0 ao máximo, sempre inteiro. O valor nunca sai da faixa da API, então a
+ * tela não tem erro de digitação a mostrar (o 422 do servidor continua no campo).
+ */
+export function ajustarDias(valor: number, passo: number, maximo: number): number {
+  return Math.min(maximo, Math.max(0, Math.round(valor + passo)));
 }
 
 function dias(n: number): string {
   return n === 1 ? '1 dia' : `${n} dias`;
+}
+
+/** O valor do passo: "não manda" no 0 (0 = não manda), "1 dia", "3 dias". Também é o `aria-valuetext`. */
+export function textoDosDias(n: number): string {
+  return n === 0 ? 'não manda' : dias(n);
+}
+
+export type Lembrete = Pick<Lembretes, 'ligado' | 'diasAntes' | 'noDia' | 'diasDepois'>;
+
+/** Os pontos da linha do tempo, na ordem do eixo; o que não manda (0 dias, dia desligado) fica fora. */
+export function pontosDaLinhaDoTempo(l: Omit<Lembrete, 'ligado'>): { tipo: TipoDeLembrete; rotulo: string }[] {
+  const pontos: { tipo: TipoDeLembrete; rotulo: string }[] = [];
+  if (l.diasAntes > 0) pontos.push({ tipo: 'ANTES', rotulo: `${dias(l.diasAntes)} antes` });
+  if (l.noDia) pontos.push({ tipo: 'NO_DIA', rotulo: 'No vencimento' });
+  if (l.diasDepois > 0) pontos.push({ tipo: 'DEPOIS', rotulo: `${dias(l.diasDepois)} depois` });
+  return pontos;
+}
+
+/** O texto equivalente à linha do tempo (ela é decorativa para o leitor de tela): "Lembretes 3 dias antes, no dia e 3 dias depois do vencimento." */
+export function textoDaLinhaDoTempo(l: Omit<Lembrete, 'ligado'>): string {
+  const resumo = resumoDosLembretes({ ...l, ligado: true });
+  if (pontosDaLinhaDoTempo(l).length === 0) return `${resumo}: com os dias em 0 e o dia do vencimento desligado, nada é enviado.`;
+  return `Lembretes ${resumo.charAt(0).toLowerCase()}${resumo.slice(1)} do vencimento.`;
+}
+
+export const STATUS_LIGADOS = 'Ligados: saem pelo e-mail do app.';
+export const STATUS_DESLIGADOS = 'Desligados: nenhum lembrete é enviado. O que já foi enviado continua na folha de cada cobrança.';
+export const STATUS_LIGADOS_SEM_EMAIL = 'Ligados, mas nenhum lembrete sai enquanto o e-mail do app estiver desligado.';
+
+/** A linha sob o título do cartão, com o que está na tela (salvo ou não: a barra de salvar avisa o que falta salvar). */
+export function statusDosLembretes(ligado: boolean, emailDisponivel: boolean): string {
+  if (!ligado) return STATUS_DESLIGADOS;
+  return emailDisponivel ? STATUS_LIGADOS : STATUS_LIGADOS_SEM_EMAIL;
 }
 
 /** "3 dias antes, no dia e 3 dias depois"; "Desligados"; "Nenhum lembrete escolhido". */

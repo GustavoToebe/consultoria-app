@@ -45,6 +45,12 @@ async function semAChaveInteira(page: Page, chave: string) {
 }
 
 const salvarFormas = (page: Page) => page.getByRole('button', { name: 'Salvar formas de recebimento' });
+/** Lembretes e recebimento (19/11): sem alteração, a barra das formas só diz "Tudo salvo", sem botão desativado. */
+async function semAlteracaoNasFormas(page: Page) {
+  await expect(salvarFormas(page)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Descartar alterações das formas de recebimento' })).toHaveCount(0);
+  await expect(page.getByText('Tudo salvo', { exact: true }).first()).toBeVisible();
+}
 const tipoDaChave = (page: Page, rotulo: string) => page.getByRole('radiogroup', { name: 'Tipo da chave' }).getByRole('radio', { name: rotulo, exact: true });
 
 test('configurar o Pix pela primeira vez: erros na tela sem chamar a API, o corpo certo, a chave some e só a máscara fica', async ({ page }) => {
@@ -55,7 +61,7 @@ test('configurar o Pix pela primeira vez: erros na tela sem chamar a API, o corp
   await expect(page.getByText('Formas de recebimento', { exact: true })).toBeVisible();
   await expect(page.getByText('Recebimento online pela InfinitePay', { exact: true })).toBeVisible();
   await expect(page.getByText('Sempre ligado', { exact: true })).toBeVisible();
-  await expect(salvarFormas(page)).toBeDisabled();
+  await semAlteracaoNasFormas(page);
   await page.getByRole('switch', { name: 'Pix copia e cola' }).click();
   await expect(page.getByText(/A chave Pix vai dentro do código que o aluno copia/)).toBeVisible();
 
@@ -88,7 +94,7 @@ test('configurar o Pix pela primeira vez: erros na tela sem chamar a API, o corp
   await expect(page.getByText(CHAVE_PIX_FALSA_MASCARADA)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Trocar a chave' })).toBeVisible();
   await semAChaveInteira(page, CHAVE_PIX_FALSA);
-  await expect(salvarFormas(page)).toBeDisabled();
+  await semAlteracaoNasFormas(page);
   await page.screenshot({ path: `${CAPTURAS}/pix-salvo-1280.png`, fullPage: true });
 
   // Mudar só a cidade: o corpo vai sem a chave (o servidor mantém a gravada) e com a versão nova.
@@ -182,7 +188,7 @@ test('erros do servidor: cada campo do Pix com a mensagem dele, campo que a tela
   await expect(page.getByText(MENSAGEM_CONFLITO_DAS_FORMAS)).toBeVisible();
   await expect(page.getByRole('switch', { name: 'Pix copia e cola' })).toBeChecked();
   await expect(page.getByRole('switch', { name: 'Link de pagamento próprio' })).not.toBeChecked();
-  await expect(salvarFormas(page)).toBeDisabled();
+  await semAlteracaoNasFormas(page);
   expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/financeiro/formas-de-recebimento').length).toBeGreaterThanOrEqual(2);
   expect(errosDaPagina).toEqual([]);
 });
@@ -474,7 +480,8 @@ for (const { nome, preferencias } of TEMAS) for (const largura of [1280, 390]) {
     await salvarFormas(page).click();
     await expect(page.getByText('Informe a cidade.')).toBeVisible();
     await semRolagemHorizontal(page);
-    await page.getByText('Dados do Pix').scrollIntoViewIfNeeded();
+    // Exato: "O que o aluno vê" também fala dos dados do Pix quando eles faltam (lembretes e recebimento, 19/11).
+    await page.getByText('Dados do Pix', { exact: true }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${CAPTURAS}/${nome}-recebimento-erros-${largura}.png`, fullPage: true });
     await semAChaveInteira(page, CHAVE_PIX_FALSA);
     expect(errosDaPagina).toEqual([]);

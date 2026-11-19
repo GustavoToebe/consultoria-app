@@ -1,7 +1,8 @@
 import type { LembreteDaCobranca } from '../api/financeiroTipos';
 import {
-  botaoDoWhatsApp, lerDias, linkDoWhatsApp, MOTIVO_ALUNO_INATIVO, MOTIVO_SEM_TELEFONE, numeroDoWhatsApp, resumoDosLembretes, rotuloDoTipo,
-  situacaoDoLembrete,
+  ajustarDias, botaoDoWhatsApp, linkDoWhatsApp, MOTIVO_ALUNO_INATIVO, MOTIVO_SEM_TELEFONE, numeroDoWhatsApp, pontosDaLinhaDoTempo,
+  resumoDosLembretes, rotuloDoTipo, situacaoDoLembrete, STATUS_DESLIGADOS, STATUS_LIGADOS, STATUS_LIGADOS_SEM_EMAIL, statusDosLembretes,
+  textoDaLinhaDoTempo, textoDosDias,
 } from './lembretesDeCobranca';
 
 const lembrete = (parcial: Partial<LembreteDaCobranca>): LembreteDaCobranca => ({
@@ -9,14 +10,43 @@ const lembrete = (parcial: Partial<LembreteDaCobranca>): LembreteDaCobranca => (
   atualizadoEm: '2027-03-07T12:00:00Z', ...parcial,
 });
 
-describe('lerDias', () => {
-  it('aceita de 0 ao máximo e recusa o resto sem virar 0', () => {
-    expect(lerDias('0', 15)).toEqual({ valor: 0, erro: null });
-    expect(lerDias(' 15 ', 15)).toEqual({ valor: 15, erro: null });
-    expect(lerDias('16', 15).valor).toBeNull();
-    expect(lerDias('', 15).erro).toBe('Use um número de 0 a 15.');
-    expect(lerDias('-1', 30).valor).toBeNull();
-    expect(lerDias('2,5', 30).valor).toBeNull();
+// Lembretes e recebimento (19/11): o passo de dias substituiu o campo digitado (`lerDias` saiu).
+describe('ajustarDias e textoDosDias', () => {
+  it('prende o passo de 0 ao máximo, sempre inteiro', () => {
+    expect(ajustarDias(3, 1, 15)).toBe(4);
+    expect(ajustarDias(0, -1, 15)).toBe(0);
+    expect(ajustarDias(15, 1, 15)).toBe(15);
+    expect(ajustarDias(28, 5, 30)).toBe(30);
+    expect(ajustarDias(3, -15, 30)).toBe(0);
+  });
+  it('0 é "não manda"; 1 dia no singular', () => {
+    expect(textoDosDias(0)).toBe('não manda');
+    expect(textoDosDias(1)).toBe('1 dia');
+    expect(textoDosDias(3)).toBe('3 dias');
+  });
+});
+
+describe('linha do tempo dos lembretes', () => {
+  it('o ponto que não manda some, na ordem do eixo', () => {
+    expect(pontosDaLinhaDoTempo({ diasAntes: 3, noDia: true, diasDepois: 3 }).map((p) => p.rotulo)).toEqual(['3 dias antes', 'No vencimento', '3 dias depois']);
+    expect(pontosDaLinhaDoTempo({ diasAntes: 1, noDia: false, diasDepois: 0 }).map((p) => p.rotulo)).toEqual(['1 dia antes']);
+    expect(pontosDaLinhaDoTempo({ diasAntes: 0, noDia: true, diasDepois: 0 }).map((p) => p.tipo)).toEqual(['NO_DIA']);
+    expect(pontosDaLinhaDoTempo({ diasAntes: 0, noDia: false, diasDepois: 0 })).toEqual([]);
+  });
+  it('o texto equivalente diz o mesmo que o eixo', () => {
+    expect(textoDaLinhaDoTempo({ diasAntes: 3, noDia: true, diasDepois: 3 })).toBe('Lembretes 3 dias antes, no dia e 3 dias depois do vencimento.');
+    expect(textoDaLinhaDoTempo({ diasAntes: 1, noDia: false, diasDepois: 0 })).toBe('Lembretes 1 dia antes do vencimento.');
+    expect(textoDaLinhaDoTempo({ diasAntes: 0, noDia: true, diasDepois: 0 })).toBe('Lembretes no dia do vencimento.');
+    expect(textoDaLinhaDoTempo({ diasAntes: 0, noDia: false, diasDepois: 0 })).toMatch(/^Nenhum lembrete escolhido: /);
+  });
+});
+
+describe('statusDosLembretes', () => {
+  it('diz o que está na tela, sem prometer envio com o e-mail do app desligado', () => {
+    expect(statusDosLembretes(true, true)).toBe(STATUS_LIGADOS);
+    expect(statusDosLembretes(false, true)).toBe(STATUS_DESLIGADOS);
+    expect(statusDosLembretes(false, false)).toBe(STATUS_DESLIGADOS);
+    expect(statusDosLembretes(true, false)).toBe(STATUS_LIGADOS_SEM_EMAIL);
   });
 });
 
