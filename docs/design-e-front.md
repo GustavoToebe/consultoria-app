@@ -770,16 +770,18 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
   < 2400) e `ultralarga` (≥ 2400; `LARGURA_FAIXA_NORMAL`, `_LARGA` e `_ULTRALARGA`). A mesma tela cai em faixas
   diferentes com o menu aberto, recolhido (trilho) ou minimizado, e isso é o esperado. Na `ultralarga` a `Tela` sobe o
   recuo lateral para 48 px (`respiroLateralDaTela`), sem baixar um `folga` maior que a tela já peça.
-- **`useFaixaDeLargura` é a régua única.** Devolve `{ largura, faixa, aoMedir }`: o `aoMedir` vai no `onLayout` da
-  raiz da tela ou da grade. Nenhuma tela mede largura por conta própria; `useWindowDimensions` não serve para o
-  layout do conteúdo (a janela não sabe quanto o menu ocupa). A `TelaDoEditor` só usa a janela menos o menu para
+- **Código novo mede pela área de conteúdo com `useFaixaDeLargura`.** Devolve `{ largura, faixa, aoMedir }`: o
+  `aoMedir` vai no `onLayout` da raiz da tela ou da grade. A janela não sabe quanto o menu ocupa, então
+  `useWindowDimensions` não serve para decidir o layout do conteúdo. Os usos antigos dele (cerca de 63 arquivos hoje)
+  migram aos poucos, quando a tela for mexida: migra quem decide layout de conteúdo pela largura; modais, teclado e
+  detecção de celular podem continuar na janela. A `TelaDoEditor` só usa a janela menos o menu para
   estimar o primeiro quadro, até a medida chegar, e passa a valer a medida.
 - **Espaço extra vira colunas, nunca elementos esticados.** Campo, botão, linha de lista e cartão de texto não ganham
   largura só porque ela existe: sobrou espaço, entra outra coluna (o `Grade` mede a si mesmo e escolhe 1, 2 ou 3 colunas;
   o Início escolhe de 1 a 6 por `colunasDaGrade`, com teto por faixa de 3, 4, 5 e 6).
-- **Texto corrido em ~72 caracteres por linha** (parágrafo, descrição, resposta): `72ch` na web e 660 px no nativo
-  (`ESTILO_TEXTO_CORRIDO` em `ajuda/TelaAjuda.tsx`; é uma constante da Ajuda, não um token compartilhado). Quem escrever
-  texto corrido novo numa tela larga usa o mesmo limite.
+- **Texto corrido em ~72 caracteres por linha** (parágrafo, descrição, resposta): `LARGURA_TEXTO_CORRIDO` em
+  `tema/tokens.ts`, `72ch` na web e 660 px no nativo, usada hoje na Ajuda. Quem escrever texto corrido novo numa tela
+  larga usa a mesma constante.
 - **Formulários curtos em `LARGURA_FORMULARIO`** (640 px, `tema/tokens.ts`): a tela declarada até esse valor não estica,
   em qualquer preferência (telas declaradas abaixo de `LARGURA_MAXIMA` mantêm o teto próprio: formulário curto 640, telas
   do aluno 720, editor de uma coluna `LARGURA_EDITOR` 1040).
@@ -790,8 +792,15 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
   `dominio/preferencias.ts`). Só decide o teto (`larguraMaximaDoConteudo`); não muda as faixas. As três colunas dos
   editores só existem em Automática.
 - **Regra: editor de uma coluna de campos não passa de ~1400 px.** Quando o editor tem uma coluna de campos (lista à
-  esquerda, painel do item ao lado), limita-se a **largura do painel** a ~1400 px, alinhado à esquerda, junto da lista;
-  nunca se alargam as colunas nem se esticam os campos para ocupar a sobra. O que sobra à direita fica vazio.
+  esquerda, painel do item ao lado), limita-se a **largura do painel** a `LARGURA_EDITOR_DE_CAMPOS` (1400 px,
+  `tema/tokens.ts`), alinhado à esquerda, junto da lista; nunca se alargam as colunas nem se esticam os campos para
+  ocupar a sobra. O que sobra à direita fica vazio. Aplicada no inspetor do treino (`InspetorDoExercicio`), da dieta
+  (`EditorDeDieta`, o cartão da refeição com abas, comparação e tabela) e da mobilidade (`SecoesDeMobilidade`, plano e
+  modelo). Abaixo de 1400 px de painel nada muda (1280 e 1920 com o menu aberto); o teto só vale com ~1730 px ou mais
+  de área de conteúdo (1920 com o menu recolhido, 2400 em diante com o menu aberto, e também em Limitada nessas larguras,
+  onde o painel tinha ~1504 px). Na `ultralarga` a 3ª coluna (Total do dia, Resumo da sessão) vem logo depois
+  do painel, no mesmo grupo à esquerda; em 2400 (faixa `larga`, duas colunas) o Total do dia fica em faixa cheia acima
+  e sobram ~400 px vazios à direita do painel, o que é esperado.
 - **Três colunas na `ultralarga`** (exemplos que já existem): editor de treino (lista, inspetor e `ResumoDaSessao` fixo ao
   lado) e editor de dieta (o `TotalDoDia` na coluna), ambos só com "Largura do conteúdo" Automática (`useTresColunas`);
   Resumo do aluno (Atividade recente como 3ª coluna) e Ajuda (índice, conteúdo e "Consultar"), que seguem só a faixa.
