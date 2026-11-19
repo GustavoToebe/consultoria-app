@@ -24,7 +24,7 @@ treino e de dieta").
 - [x] 1. Regra pura em `app/src/dominio/mobilidade.ts` com teste (`estadoDoVideo`, textos do vídeo, mover/remover/adicionar item, mover seção, resumos) — commit/run: —
 - [x] 2. Tela: `treinador/mobilidade/{SecoesDeMobilidade,ItemDeMobilidade,SobreAMobilidade,EditorDeMobilidade}.tsx` e o ramo da mobilidade em `planejamento/EditorModelo.tsx` — commit/run: —
 - [x] 3. e2e `app/e2e/editor-mobilidade.spec.ts` (arrastar com o mouse em 1280, ⋯, excluir com confirmação, tabela, vídeo, modelo, capturas) — commit/run: —
-- [x] 4. Commit (sessão principal, 19/11) — commit: `74825d91`; publicação: pendente (sem push)
+- [x] 4. Commit (sessão principal, 19/11) — commit: `74825d91`; publicada no push `959fc7c2`, run `44584614442` verde
 - [x] 5. D8 decidida em 19/11 (Gustavo): link inválido em vermelho (perigo), pela 4.5 do documento de design, porque trava o salvar; atualizar a D8; na coluna Vídeo em 1280, placeholder curto "Link do YouTube" e selo curto "Link inválido" (sem cortar nem quebrar); tirar a pendência solta do README — feito em 19/11 (sem commit): `ItemDeMobilidade.tsx`, `AVISO_CURTO_DO_LINK_INVALIDO` em `dominio/mobilidade.ts` com teste; e2e `editor-mobilidade.spec.ts` 18/18 (caso novo em 1280 claro e escuro: cor igual à do "Corrigir", `aria-invalid`, selo numa linha, placeholder medido no canvas cabendo na caixa, "Salvar modelo" desabilitado com o motivo); capturas vistas em 1280 (claro e escuro) e 390 — commit: `19fd45da`
 
 ## Fora do escopo
