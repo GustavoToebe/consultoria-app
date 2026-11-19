@@ -9,7 +9,7 @@ import {
   resumoDaSecao, type SecaoMobilidade, secaoValida,
 } from '../../dominio/mobilidade';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR_DE_CAMPOS } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { AlcaDeArraste, type ArrasteDaLista, ItemArrastavel, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Botao } from '../../ui/Botao';
@@ -270,7 +270,8 @@ const estilos = StyleSheet.create({
   // Lista de 280 px (a mesma da dieta): em 1280 com o menu aberto o painel fica com ~710 px e os itens em tabela.
   lista: { width: 280, flexShrink: 0, gap: espaco(2) },
   itensDaLista: { gap: espaco(1) },
-  inspetor: { flex: 1, minWidth: 0 },
+  // Na tela larga o painel para em ~1400 px, à esquerda junto da lista; a sobra fica vazia (nunca campo esticado).
+  inspetor: { flex: 1, minWidth: 0, maxWidth: LARGURA_EDITOR_DE_CAMPOS },
   cabecalhoSecoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   cabecalho: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(0.5), paddingHorizontal: espaco(2), paddingVertical: espaco(1.25) },
   // Com a alça, o recuo da esquerda fica com ela (a alça já tem a largura do vão), como no exercício.

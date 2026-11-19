@@ -821,6 +821,16 @@ export const LARGURA_DUAS_COLUNAS = 960;
 export const LARGURA_EDITOR_DUAS_COLUNAS = LARGURA_MAXIMA;
 /** Listas e painéis (ficha do aluno, início, alunos, biblioteca, planejamento): todo o espaço útil (= `LARGURA_MAXIMA`). */
 export const LARGURA_LISTA = 1800;
+/**
+ * Texto corrido (parágrafo, descrição, resposta) em ~72 caracteres por linha: `72ch` na web e 660 px no nativo (tela
+ * larga, 19/11). Vem de `larguraTextoCorrido(.web).ts`: este arquivo não importa `react-native`, porque os e2e o leem no Node.
+ */
+export { LARGURA_TEXTO_CORRIDO } from './larguraTextoCorrido';
+/**
+ * Painel de um editor de uma coluna de campos (o inspetor do treino, da dieta e da mobilidade): não passa disto na tela
+ * larga, alinhado à esquerda junto da lista; a sobra fica vazia à direita, nunca vira campo esticado (19/11).
+ */
+export const LARGURA_EDITOR_DE_CAMPOS = 1400;
 
 export type FaixaDeLargura = 'compacta' | 'normal' | 'larga' | 'ultralarga';
 

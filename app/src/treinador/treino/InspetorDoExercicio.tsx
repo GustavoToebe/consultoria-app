@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { LARGURA_EDITOR_DE_CAMPOS } from '../../tema/tokens';
 import { Vazio } from '../../ui/Estados';
 import { CartaoExercicio, type PropsDoCartaoExercicio } from './CartaoExercicio';
 
@@ -27,5 +28,6 @@ export function InspetorDoExercicio({ props, grupo }: { props: PropsDoInspetor |
 }
 
 const estilos = StyleSheet.create({
-  coluna: { flex: 1, minWidth: 0 },
+  // Na tela larga o painel para em ~1400 px, à esquerda junto da lista; a sobra fica vazia (nunca campo esticado).
+  coluna: { flex: 1, minWidth: 0, maxWidth: LARGURA_EDITOR_DE_CAMPOS },
 });

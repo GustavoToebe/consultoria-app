@@ -7,7 +7,7 @@ import { AVISO_DE_VOLTA, mostrarDeNovo, temPrimeirosPassos } from '../dominio/pr
 import { useSessao } from '../sessao/SessaoProvider';
 import { usePrimeirosPassosGuardados } from '../treinador/painel/usePrimeirosPassosGuardados';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_LISTA, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_LISTA, LARGURA_MENU_LATERAL, LARGURA_TEXTO_CORRIDO, RAIO } from '../tema/tokens';
 import { AlvoDeRolagem } from '../ui/AlvoDeRolagem';
 import { Botao } from '../ui/Botao';
 import { Cabecalho } from '../ui/Cabecalho';
@@ -41,8 +41,6 @@ const LARGURA_DA_AJUDA = LARGURA_DO_INDICE + VAO + LARGURA_DE_LEITURA;
 const LARGURA_DA_AJUDA_EM_TRES = LARGURA_DA_AJUDA + VAO + LARGURA_DE_LEITURA;
 /** Abaixo disto (medido ao lado do menu) o índice vira o seletor "Ir para o tópico" no topo. */
 const LIMITE_DO_INDICE = LARGURA_DO_INDICE + VAO + MINIMO_DA_LEITURA;
-/** Texto corrido (parágrafos, descrições, respostas) limitado a ~72 caracteres por linha. */
-const ESTILO_TEXTO_CORRIDO = (Platform.OS === 'web' ? { maxWidth: '72ch' } : { maxWidth: 660 }) as unknown as ViewStyle;
 
 const COMECAR = 'comecar';
 const PRIMEIROS_PASSOS = 'primeiros-passos';
@@ -118,7 +116,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
     <>
       <AlvoDeRolagem chave={alvo(COMECAR)}>
         <Cartao titulo="Começar a usar">
-          <Texto variante="suave" style={ESTILO_TEXTO_CORRIDO}>
+          <Texto variante="suave" style={estilos.textoCorrido}>
             {`O tutorial passa pelas telas, na ordem em que você vai usá-las (${guia.tutorial.length} passos). "Conhecer o menu" destaca cada item do menu, como no primeiro acesso. Dá para sair dos dois a qualquer momento.`}
           </Texto>
           <LinhaDeAcoes>
@@ -141,7 +139,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
         <View style={estilos.consultar}>
           <View style={estilos.textoDoConsultar}>
             <Texto variante="bloco" nivel={2}>Consultar</Texto>
-            <Texto variante="suave" style={ESTILO_TEXTO_CORRIDO}>
+            <Texto variante="suave" style={estilos.textoCorrido}>
               {Platform.OS === 'web'
                 ? 'Os assuntos do app e as perguntas frequentes. O guia em PDF serve para ler com calma, imprimir ou enviar.'
                 : 'Os assuntos do app e as perguntas frequentes.'}
@@ -161,7 +159,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
           <SecaoRecolhivel titulo={s.titulo} quantos={s.itens.length} aberta={secoesAbertas.estaAberta(s.id)} aoAlternar={() => secoesAbertas.alternar(s.id)}>
             <VideosDaSecao videos={videos[publico][s.id]} />
             {s.itens.map((item) => (
-              <View key={item.titulo} style={[estilos.item, ESTILO_TEXTO_CORRIDO]}>
+              <View key={item.titulo} style={[estilos.item, estilos.textoCorrido]}>
                 <Texto variante="rotulo" nivel={3}>{item.titulo}</Texto>
                 <Texto>{item.texto}</Texto>
               </View>
@@ -174,7 +172,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
           <SecaoRecolhivel titulo="Perguntas frequentes" quantos={achado.perguntas.length} unidade="pergunta"
             aberta={secoesAbertas.estaAberta(PERGUNTAS)} aoAlternar={() => secoesAbertas.alternar(PERGUNTAS)}>
             {achado.perguntas.map((p: Pergunta) => (
-              <View key={p.pergunta} style={[estilos.item, ESTILO_TEXTO_CORRIDO]}>
+              <View key={p.pergunta} style={[estilos.item, estilos.textoCorrido]}>
                 <Texto variante="rotulo" nivel={3}>{p.pergunta}</Texto>
                 <Texto>{p.resposta}</Texto>
               </View>
@@ -301,7 +299,7 @@ function CartaoPrimeirosPassosDoTreinador() {
   const motivo = !estado ? 'Conferindo o que ficou salvo neste aparelho.' : noInicio && !voltou ? 'Eles já estão no Início.' : undefined;
   return (
     <Cartao titulo="Primeiros passos">
-      <Texto variante="suave" style={ESTILO_TEXTO_CORRIDO}>
+      <Texto variante="suave" style={estilos.textoCorrido}>
         No topo do Início, enquanto você monta a consultoria: marca e logo, metodologia, modelos de treino, o primeiro aluno, o acesso dele ao app e o link de inscrição. Cada item abre a tela certa. Se dispensou ou fechou, traga de volta por aqui.
       </Texto>
       {voltou ? <Alerta tom="sucesso" texto={AVISO_DE_VOLTA} /> : null}
@@ -318,6 +316,8 @@ function CartaoPrimeirosPassosDoTreinador() {
 }
 
 const estilos = StyleSheet.create({
+  /** Texto corrido (parágrafos, descrições, respostas) em ~72 caracteres por linha. */
+  textoCorrido: { maxWidth: LARGURA_TEXTO_CORRIDO },
   contido: { width: '100%', maxWidth: LARGURA_DA_AJUDA, alignSelf: 'center', gap: espaco(3) },
   contidoEmTres: { maxWidth: LARGURA_DA_AJUDA_EM_TRES },
   area: { gap: espaco(3) },

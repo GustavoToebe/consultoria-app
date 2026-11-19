@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import type { Alimento, AlunoDetalhe, Atualizacao, ConteudoDieta, ItemDeAtividade, ItemDieta, PainelTreinador, PlanoDetalhe, Refeicao } from '../src/api/tipos';
+import type { Alimento, AlunoDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, ItemDeAtividade, ItemDieta, PainelTreinador, PlanoDetalhe, Refeicao } from '../src/api/tipos';
 import { fixarHoje } from './aluno';
 import { ALUNO, erroApi, MARCA, PERMISSOES_TREINADOR, simularApi, TREINADOR, type PedidoFalso } from './api-falsa';
 import { BIBLIOTECA, PLANO_ID as TREINO_ID, planoDetalhe } from './editor-inspetor.dados';
@@ -165,7 +165,11 @@ const REFEICOES: Refeicao[] = [
     horario: '12:00',
     observacao: null,
     modoDePreparo: null,
-    opcoes: [{ uid: 'almoco-a', rotulo: 'A', itens: [itemDieta('almoco-arroz', ARROZ, 150)] }],
+    // Duas opções: as abas e a comparação dos totais aparecem (o que estica na tela larga sem o teto do painel).
+    opcoes: [
+      { uid: 'almoco-a', rotulo: 'A', itens: [itemDieta('almoco-arroz', ARROZ, 150)] },
+      { uid: 'almoco-b', rotulo: 'B', itens: [itemDieta('almoco-pao', PAO, 80)] },
+    ],
   },
 ];
 
@@ -198,6 +202,25 @@ const DIETA_DETALHE: PlanoDetalhe<ConteudoDieta> = {
   },
   rascunho: DIETA_CONTEUDO,
   versoes: [{ id: 'v1', numero: 1, publicadoEm: '2026-10-01T12:00:00Z' }],
+};
+
+const MOB_ID = 'p0000000-0000-4000-8000-0000000000b1';
+const MOBILIDADE: PlanoDetalhe<ConteudoMobilidadeApi> = {
+  plano: {
+    id: MOB_ID, alunoId: ALUNO_ID, pastaId: null, titulo: 'Mobilidade fictícia', inicio: '2026-10-01', fim: '2026-10-31', ativo: true,
+    versaoPublicada: 0, publicadoEm: null, rascunhoAlteradoDepoisDePublicar: false, versao: 1,
+  },
+  rascunho: {
+    orientacoes: 'Antes do treino.',
+    secoes: [
+      { uid: 's1', titulo: 'Aquecimento', itens: [
+        { uid: 'i1', nome: 'Gato-vaca', prescricao: '2 x 10', videoUrl: null },
+        { uid: 'i2', nome: 'Lunge', prescricao: '2 x 20s cada lado', videoUrl: null },
+      ] },
+      { uid: 's2', titulo: 'Alongamento', itens: [{ uid: 'i3', nome: 'Posterior', prescricao: '30s', videoUrl: null }] },
+    ],
+  },
+  versoes: [],
 };
 
 /** Título de cartão (h2): `getByText` pegaria antes o link de mesmo nome do menu lateral. */
@@ -291,6 +314,7 @@ async function prepararAmbiente(
     [`GET /alunos/${ALUNO_ID}/execucoes`]: { corpo: [] },
     [`GET /planos-treino/${TREINO_ID}`]: { corpo: planoDetalhe(false) },
     [`GET /planos-dieta/${DIETA_ID}`]: { corpo: DIETA_DETALHE },
+    [`GET /planos-mobilidade/${MOB_ID}`]: { corpo: MOBILIDADE },
   });
 }
 
@@ -448,3 +472,59 @@ test('capturas visuais em 1920 px (Automática), 3440 px (Automática) e 3440 px
     }
   }
 });
+
+/**
+ * Editor de uma coluna de campos (19/11): o painel do item (inspetor do treino, da dieta e da mobilidade) para em
+ * `LARGURA_EDITOR_DE_CAMPOS` (1400), alinhado à esquerda junto da lista; a sobra fica vazia à direita. Abaixo disso nada
+ * muda (em 1280 e 1920 com o menu aberto o painel já é menor). Na ultralarga, a 3ª coluna (Total do dia, Resumo da
+ * sessão) vem logo depois do painel, no mesmo grupo à esquerda.
+ */
+const TETO = 1400 + 2;
+const VAO_DAS_COLUNAS = 16;
+
+for (const largura of [1280, 1920, 2400, 2800, 3440]) {
+  test(`${largura} px (Automática): painel de campos até 1400 px, à esquerda junto da lista`, async ({ page }) => {
+    const { errosDaPagina } = await prepararAmbiente(page, largura, { altura: 1600 });
+    // Com o menu aberto (240 px) e 16 px de recuo, a partir de 2400 o painel teria mais de 1400 px sem o teto.
+    const limitado = largura >= 2400;
+    const tres = largura >= 2800;
+
+    // Mobilidade: lista de seções | painel da seção.
+    await page.goto(`/treinador/mobilidades/${MOB_ID}`);
+    await expect(page.getByRole('heading', { name: 'Seções (2)' })).toBeVisible();
+    const lista = await caixa(page.getByRole('group', { name: 'Seções da mobilidade' }));
+    const secao = await caixa(page.locator('#secao-s1'));
+    expect(secao.width).toBeLessThanOrEqual(TETO);
+    if (limitado) expect(secao.width).toBeGreaterThan(1390);
+    expect(Math.abs(secao.x - (lista.x + lista.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
+    await semRolagemHorizontal(page);
+    await capturar(page, `${largura}-automatica-mobilidade`);
+
+    // Dieta: lista de refeições | refeição com abas e comparação | (ultralarga) Total do dia logo depois.
+    await page.goto(`/treinador/dietas/${DIETA_ID}`);
+    await page.getByRole('button', { name: /^Refeição 2 de 2: 12:00 · Almoço/ }).click();
+    await expect(page.getByRole('tablist', { name: 'Opções de 12:00 · Almoço' }).getByRole('tab')).toHaveCount(2);
+    const refeicao = await caixa(page.locator('#refeicao-almoco'));
+    expect(refeicao.width).toBeLessThanOrEqual(TETO);
+    if (limitado) expect(refeicao.width).toBeGreaterThan(1390);
+    if (tres) {
+      const total = await caixa(page.getByTestId('coluna-total-dieta'));
+      expect(Math.abs(total.x - (refeicao.x + refeicao.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
+    }
+    await semRolagemHorizontal(page);
+    await capturar(page, `${largura}-automatica-dieta-abas`);
+
+    // Treino: lista de exercícios | inspetor | (ultralarga) Resumo da sessão logo depois.
+    await page.goto(`/treinador/treinos/${TREINO_ID}`);
+    const inspetor = await caixa(page.locator('#inspetor-do-exercicio'));
+    expect(inspetor.width).toBeLessThanOrEqual(TETO);
+    if (limitado) expect(inspetor.width).toBeGreaterThan(1390);
+    if (tres) {
+      const resumo = await caixa(page.getByTestId('coluna-resumo-sessao'));
+      expect(Math.abs(resumo.x - (inspetor.x + inspetor.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
+    }
+    await semRolagemHorizontal(page);
+    await capturar(page, `${largura}-automatica-treino`);
+    expect(errosDaPagina).toEqual([]);
+  });
+}

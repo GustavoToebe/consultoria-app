@@ -15,7 +15,7 @@ import { moverPara } from '../../dominio/reordenar';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
 import { mudarRefeicoesDaSecao, refeicoesDaSecao, secoesDaDieta, variacaoAberta } from '../../dominio/variacoesDaDieta';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR, LARGURA_EDITOR_DE_CAMPOS } from '../../tema/tokens';
 import { AlcaDeArraste, ItemArrastavel, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -429,7 +429,8 @@ const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
   lista: { width: 280, flexShrink: 0, gap: espaco(2) },
   itens: { gap: espaco(1) },
-  inspetor: { flex: 1, minWidth: 0 },
+  // Na tela larga o painel para em ~1400 px, à esquerda junto da lista; a sobra fica vazia (nunca campo esticado).
+  inspetor: { flex: 1, minWidth: 0, maxWidth: LARGURA_EDITOR_DE_CAMPOS },
   colunaTotal: { width: 380, flexShrink: 0, alignSelf: 'flex-start' },
   cabecalhoRefeicoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   cresce: { flex: 1, gap: espaco(1) },
