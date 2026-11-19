@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR, LARGURA_MAXIMA, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { duasColunas, larguraDoEditor } from '../../dominio/colunasDoEditor';
+import { larguraMaximaDoConteudo, respiroLateralDaTela } from '../../dominio/larguraDoConteudo';
 import { RolagemComTopo } from '../../ui/RolagemComTopo';
 import { ProvedorDeColunas } from './ColunasDoEditor';
 import { useFundoDaArea } from '../../ui/fundoDaArea';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 import { Vidro } from '../../ui/Vidro';
 
 interface Props {
@@ -44,14 +46,16 @@ const GRUDADA_EMBAIXO = { position: 'sticky', bottom: 0, zIndex: 10 } as unknown
  * `sticky`, ela fica fora da rolagem, acima do conteúdo.
  */
 export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDITOR, rodape, colunas }: Props) {
-  const { cores } = useTema();
+  const { cores, preferencias } = useTema();
   // Medida na raiz, que acompanha a janela: o `View` do conteúdo tem `maxWidth` e mediria a si mesmo (a tela oscilaria).
-  const [medida, setMedida] = useState<number | null>(null);
+  const { largura: larguraMedida, faixa, aoMedir } = useFaixaDeLargura();
   // Até a medida chegar, a janela menos o menu lateral: sem isto o 1º quadro saía em uma coluna e piscava (~90 ms) em 1280 e 1440.
   const janela = useWindowDimensions().width;
   const estimada = janela - (janela >= LARGURA_MENU_EXPANDIDO ? MENU_ABERTO : janela >= LARGURA_MENU_LATERAL ? MENU_TRILHO : 0);
-  const duas = !!colunas && duasColunas((medida ?? estimada) - 2 * espaco(2));
-  const larguraUtil = duas ? larguraDoEditor(true) : Math.min(largura, LARGURA_MAXIMA);
+  const duas = !!colunas && duasColunas((larguraMedida > 0 ? larguraMedida : estimada) - 2 * espaco(2));
+  const larguraUtil = larguraMaximaDoConteudo(duas ? larguraDoEditor(true) : largura, preferencias.larguraConteudo);
+  const estiloLargura = larguraUtil === undefined ? undefined : { maxWidth: larguraUtil };
+  const recuoLateral = respiroLateralDaTela(faixa) ?? espaco(2);
   const web = Platform.OS === 'web';
   const barraGrudada = useRef<View>(null);
   useEffect(() => (web ? semFocoDebaixoDaBarra(barraGrudada.current as unknown as HTMLElement | null) : undefined), [web]);
@@ -60,20 +64,19 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   const fundoDaBarra = { backgroundColor: fundo, ...bordaDaBarra };
   return (
     <ProvedorDeColunas value={duas}>
-    <SafeAreaView edges={['top']} style={[estilos.raiz, { backgroundColor: fundo }]}
-      onLayout={colunas ? (e) => setMedida(e.nativeEvent.layout.width) : undefined}>
+    <SafeAreaView edges={['top']} style={[estilos.raiz, { backgroundColor: fundo }]} onLayout={aoMedir}>
       <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {!web ? <View style={[estilos.barraFora, fundoDaBarra]}><View style={[estilos.largura, { maxWidth: larguraUtil }]}>{barra}</View></View> : null}
-        <RolagemComTopo preencher contentContainerStyle={estilos.rolagem}>
-          <View style={[estilos.conteudo, { maxWidth: larguraUtil }]}>
+        {!web ? <View style={[estilos.barraFora, fundoDaBarra, { paddingHorizontal: recuoLateral }]}><View style={[estilos.largura, estiloLargura]}>{barra}</View></View> : null}
+        <RolagemComTopo preencher contentContainerStyle={[estilos.rolagem, { paddingHorizontal: recuoLateral }]}>
+          <View style={[estilos.conteudo, estiloLargura]}>
             {cabecalho}
             {/* Na web o conteúdo passa por baixo das barras grudadas: vidro (D11). No nativo elas ficam fora da rolagem, sólidas. */}
-            {web ? <Vidro ref={barraGrudada} nativeID={ID_DA_BARRA} estilo={[GRUDADA, estilos.barraGrudada, bordaDaBarra]}>{barra}</Vidro> : null}
+            {web ? <Vidro ref={barraGrudada} nativeID={ID_DA_BARRA} estilo={[GRUDADA, estilos.barraGrudada, bordaDaBarra, { marginHorizontal: -recuoLateral, paddingHorizontal: recuoLateral }]}>{barra}</Vidro> : null}
             {children}
-            {web && rodape ? <Vidro estilo={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, bordaDaBarra]}>{rodape}</Vidro> : null}
+            {web && rodape ? <Vidro estilo={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, bordaDaBarra, { marginHorizontal: -recuoLateral, paddingHorizontal: recuoLateral }]}>{rodape}</Vidro> : null}
           </View>
         </RolagemComTopo>
-        {!web && rodape ? <View style={[estilos.rodapeFora, fundoDaBarra]}><View style={[estilos.largura, estilos.linhaDoRodape, { maxWidth: larguraUtil }]}>{rodape}</View></View> : null}
+        {!web && rodape ? <View style={[estilos.rodapeFora, fundoDaBarra, { paddingHorizontal: recuoLateral }]}><View style={[estilos.largura, estilos.linhaDoRodape, estiloLargura]}>{rodape}</View></View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
     </ProvedorDeColunas>

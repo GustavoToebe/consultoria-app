@@ -23,6 +23,7 @@ import {
   type PainelDoInicioPreferido,
   type TamanhoDoBloco,
 } from '../../dominio/painelDoInicio';
+import { larguraMaximaDoConteudo } from '../../dominio/larguraDoConteudo';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -263,13 +264,14 @@ export function BarraDaEdicao({ mensagem, alterado, aoCancelar, aoSalvar }: {
   aoCancelar: () => void;
   aoSalvar: () => void;
 }) {
-  const { cores, bordas } = useTema();
+  const { cores, bordas, preferencias } = useTema();
   const { width } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
+  const larguraBarra = larguraMaximaDoConteudo(LARGURA_LISTA, preferencias.larguraConteudo);
   const status = mensagem ?? (alterado ? 'Alterações ainda não salvas.' : 'Nenhuma alteração ainda.');
   return (
     <View style={[estilos.barra, { backgroundColor: cores.superficie, borderTopColor: cores.divisor, borderTopWidth: bordas.bloco, paddingBottom: espaco(1.5) + bottom }]}>
-      <View style={estilos.barraDentro}>
+      <View style={[estilos.barraDentro, { maxWidth: larguraBarra }]}>
         <RodapeDeAcoes empilhar={width < LARGURA_MENU_LATERAL}
           status={<View accessibilityLiveRegion="polite" aria-live="polite"><Texto variante="suave">{status}</Texto></View>}>
           <Botao rotulo="Cancelar" rotuloAcessivel="Cancelar a edição do Início" tipo="secundario" aoTocar={aoCancelar} />
@@ -299,5 +301,5 @@ const estilos = StyleSheet.create({
   oculto: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.5), paddingVertical: espaco(1.25), borderTopWidth: 1 },
   textosDoOculto: { flexGrow: 1, flexShrink: 1, flexBasis: 220, gap: 2 },
   barra: { paddingTop: espaco(1.5), paddingHorizontal: espaco(2) },
-  barraDentro: { width: '100%', maxWidth: LARGURA_LISTA, alignSelf: 'center' },
+  barraDentro: { width: '100%', alignSelf: 'center' },
 });
