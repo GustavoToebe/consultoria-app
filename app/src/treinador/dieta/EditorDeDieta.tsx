@@ -183,7 +183,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         }} />}
       {/* Contexto (de quem é o plano, o ciclo da aluna) junto; depois o plano; depois as refeições. */}
       <View style={estilos.grupo}>
-        {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="dieta" />}
+        {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="dieta" alunoId={estado.plano.alunoId} />}
         {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
       </View>
       {modelo ? <NomeDoModelo editor={editor} /> : null}

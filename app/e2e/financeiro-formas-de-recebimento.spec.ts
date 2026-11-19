@@ -2,7 +2,9 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
 import type { CobrancaResponse, ContratacaoResponse, PlanoResponse } from '../src/api/financeiroTipos';
 import { TEXTO_COMBINE_COM_O_TREINADOR } from '../src/dominio/financeiro';
-import { MENSAGEM_CONFLITO_DAS_FORMAS } from '../src/dominio/formasDeRecebimento';
+import {
+  DICA_DA_CHAVE_ALEATORIA, MENSAGEM_APAGAR_PIX, MENSAGEM_CONFLITO_DAS_FORMAS, MENSAGEM_CONFLITO_DO_APAGAR_PIX, MENSAGEM_PIX_APAGADO,
+} from '../src/dominio/formasDeRecebimento';
 import { ALUNO, erroApi, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 import { fixarHoje, sessaoDeAluno } from './aluno';
 import {
@@ -198,6 +200,7 @@ test('sem FINANCEIRO_ALTERAR: as formas e o Pix só em leitura, com a chave masc
   await expect(page.getByRole('switch')).toHaveCount(0);
   await expect(salvarFormas(page)).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Trocar a chave' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Apagar dados do Pix' })).toHaveCount(0);
   await semRolagemHorizontal(page);
   await page.screenshot({ path: `${CAPTURAS}/leitura-390.png`, fullPage: true });
   expect(pedidos.filter(ehPutDasFormas)).toEqual([]);
@@ -301,7 +304,7 @@ test('plano com link de pagamento: http é recusado na tela, o 422 do servidor f
 
 const PLANO_COM_LINK: PlanoResponse = {
   id: 'b0000000-0000-4000-8000-0000000000f1', nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', arquivado: false,
-  criadoEm: '2026-09-01T12:00:00Z', versao: 0, tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: LINK_DO_PLANO,
+  criadoEm: '2026-09-01T12:00:00Z', versao: 0, tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: LINK_DO_PLANO, incluiTreino: true, incluiDieta: true,
 };
 const CONTRATACAO: ContratacaoResponse = {
   id: 'e0000000-0000-4000-8000-0000000000cc', alunoId: ALUNO.id, planoComercialId: PLANO_COM_LINK.id, planoNome: PLANO_COM_LINK.nome,
@@ -446,6 +449,71 @@ test('aluno só com o Manual: nenhuma ação, o texto de combinar com o treinado
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
+// D12: apagar os dados do Pix (painel de confirmação, nada de confirm()) e a dica da chave aleatória.
+// ---------------------------------------------------------------------------------------------------------------------
+
+const apagarPix = (page: Page) => page.getByRole('button', { name: 'Apagar dados do Pix', exact: true });
+
+for (const largura of [1280, 390]) for (const tema of ['ESCURO', 'CLARO'] as const) {
+  test(`apagar os dados do Pix em ${largura}px (${tema}): painel, corpo com a versão e o cartão sem chave, com aviso`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema] as const);
+    const estado = estadoFinanceiro({ formas: structuredClone(FORMAS_COM_PIX), chavePixGuardada: CHAVE_PIX_FALSA, recebimento: { ...RECEBIMENTO_CONFIGURADO } });
+    const { errosDaPagina } = await abrirRecebimento(page, estado);
+    await expect(page.getByText(CHAVE_PIX_FALSA_MASCARADA)).toBeVisible();
+    await apagarPix(page).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${CAPTURAS}/apagar-pix-botao-${largura}-${tema}.png` });
+    expect((await apagarPix(page).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+    await apagarPix(page).click();
+    const painel = page.getByRole('alertdialog', { name: 'Apagar os dados do Pix?' });
+    await expect(painel.getByText(MENSAGEM_APAGAR_PIX)).toBeVisible();
+    await page.screenshot({ path: `${CAPTURAS}/apagar-pix-painel-${largura}-${tema}.png` });
+    // Voltar não apaga nada.
+    await painel.getByRole('button', { name: 'Voltar' }).click();
+    await expect(painel).toHaveCount(0);
+    expect(estado.apagarPixRecebidos).toEqual([]);
+
+    await apagarPix(page).click();
+    await page.getByRole('alertdialog', { name: 'Apagar os dados do Pix?' }).getByRole('button', { name: 'Apagar dados do Pix' }).click();
+    await expect(page.getByText(MENSAGEM_PIX_APAGADO)).toBeVisible();
+    expect(estado.apagarPixRecebidos).toEqual([2]);
+    // O cartão volta sem chave e com o Pix desligado; sem chave gravada, o botão some.
+    await expect(page.getByRole('switch', { name: 'Pix copia e cola' })).not.toBeChecked();
+    await expect(page.getByText(CHAVE_PIX_FALSA_MASCARADA)).toHaveCount(0);
+    await expect(apagarPix(page)).toHaveCount(0);
+    await expect(page.getByText(/O Pix está desligado. A chave e os dados gravados/)).toHaveCount(0);
+    // Ligar de novo pede tudo do zero, com a dica da chave aleatória no campo.
+    await page.getByRole('switch', { name: 'Pix copia e cola' }).click();
+    await expect(page.getByLabel('Chave Pix', { exact: true })).toHaveValue('');
+    await expect(page.getByText(DICA_DA_CHAVE_ALEATORIA)).toBeVisible();
+    await expect(page.getByLabel('Nome do recebedor')).toHaveValue('');
+    await semRolagemHorizontal(page);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('apagar os dados do Pix com o Pix desligado; o 409 recarrega e avisa, e apagar de novo vai com a versão nova', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const estado = estadoFinanceiro({ formas: { ...structuredClone(FORMAS_COM_PIX), pix: false }, chavePixGuardada: CHAVE_PIX_FALSA });
+  const { errosDaPagina } = await abrirRecebimento(page, estado);
+  await expect(page.getByText(/O Pix está desligado. A chave e os dados gravados continuam guardados/)).toBeVisible();
+  // Outra aba gravou as formas enquanto esta estava aberta: a versão da tela ficou velha.
+  estado.formas = { ...estado.formas, versao: 3 };
+  await apagarPix(page).click();
+  await page.getByRole('alertdialog', { name: 'Apagar os dados do Pix?' }).getByRole('button', { name: 'Apagar dados do Pix' }).click();
+  await expect(page.getByText(MENSAGEM_CONFLITO_DO_APAGAR_PIX)).toBeVisible();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  expect(estado.apagarPixRecebidos).toEqual([2]);
+  // Recarregou (versão 3): apagar de novo vai com ela e passa.
+  await apagarPix(page).click();
+  await page.getByRole('alertdialog', { name: 'Apagar os dados do Pix?' }).getByRole('button', { name: 'Apagar dados do Pix' }).click();
+  await expect(page.getByText(MENSAGEM_PIX_APAGADO)).toBeVisible();
+  expect(estado.apagarPixRecebidos).toEqual([2, 3]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Temas: a aba Recebimento com o Pix gravado (só a máscara) e com os erros, em 390 e 1280, claro, escuro e areia.
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -474,7 +542,7 @@ for (const { nome, preferencias } of TEMAS) for (const largura of [1280, 390]) {
     await salvarFormas(page).click();
     await expect(page.getByText('Informe a cidade.')).toBeVisible();
     await semRolagemHorizontal(page);
-    await page.getByText('Dados do Pix').scrollIntoViewIfNeeded();
+    await page.getByText('Dados do Pix', { exact: true }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${CAPTURAS}/${nome}-recebimento-erros-${largura}.png`, fullPage: true });
     await semAChaveInteira(page, CHAVE_PIX_FALSA);
     expect(errosDaPagina).toEqual([]);
