@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronsDownUp, ChevronsUpDown, NotebookTabs, Plus, ShoppingCart } from 'lucide-react-native';
 import { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 
 import { listarAlimentos, listarErgogenicos, suplementoDaResposta } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, Receita, Refeicao, ResultadoValidacao } from '../../api/tipos';
@@ -61,6 +61,8 @@ import { VariacoesDaDieta } from './VariacoesDaDieta';
  */
 export default function EditorDeDieta({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { height: alturaDaJanela } = useWindowDimensions();
+  const estiloFixo = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(10), zIndex: 1, maxHeight: alturaDaJanela - espaco(12), overflowY: 'auto' } : undefined) as ViewStyle | undefined;
   // Ao abrir: nome vazio vira "Refeição N" e o modelo não leva data de início (C57, C59; o campo nem aparece nele).
   const abrirConteudo = (c: unknown): ConteudoDieta => {
     const d = comNomesPadrao(normalizarDieta(c));
@@ -201,8 +203,11 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           comDesfazer={(rotulo, mudanca) => comDesfazer(rotulo, mudanca, { secao: 'variacoes' })}
           aviso={desfazer?.secao === 'variacoes' ? barra : undefined} />
       )}
-      <TotalDoDia conteudo={c} refeicoes={refs} rotulo={aberta?.rotulo} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} aoMudarAgua={unica ? undefined : (aguaLitros) => mudar({ aguaLitros })} />
-      <ComColunas>{(duas) => {
+      <ComColunas>{(duas, tres) => {
+        const totalDoDiaEl = (
+          <TotalDoDia conteudo={c} refeicoes={refs} rotulo={aberta?.rotulo} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} aoMudarAgua={unica ? undefined : (aguaLitros) => mudar({ aguaLitros })} />
+        );
+        const totalNaColuna = tres && !!escolhida;
         // Empilhadas, várias refeições abertas empurravam o aviso do topo para fora da janela. Opção removida: o aviso fica
         // na refeição dela (se ela está aberta); refeição removida: no lugar dela. Em duas colunas e no resto, no topo.
         const avisoNaRefeicao = !duas && desfazer?.refeicaoDaOpcao !== undefined
@@ -249,6 +254,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           />
         );
         return <>
+          {totalNaColuna ? null : totalDoDiaEl}
           <View style={estilos.cabecalhoRefeicoes}>
             <Texto variante="bloco" nivel={2}>Refeições ({refs.length})</Texto>
             <LinhaDeAcoes>
@@ -275,6 +281,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                 {adicionar}
               </View>
               <View style={estilos.inspetor}>{cartao(escolhida, refs.indexOf(escolhida), true)}</View>
+              {totalNaColuna ? <View style={[estilos.colunaTotal, estiloFixo]} testID="coluna-total-dieta">{totalDoDiaEl}</View> : null}
             </View>
           ) : <>
             {refs.flatMap((r, ri) => (ri === avisoNoLugar ? [barra, cartao(r, ri, false)] : [cartao(r, ri, false)]))}
@@ -420,6 +427,7 @@ const estilos = StyleSheet.create({
   lista: { width: 280, flexShrink: 0, gap: espaco(2) },
   itens: { gap: espaco(1) },
   inspetor: { flex: 1, minWidth: 0 },
+  colunaTotal: { width: 380, flexShrink: 0, alignSelf: 'flex-start' },
   cabecalhoRefeicoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   cresce: { flex: 1, gap: espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
