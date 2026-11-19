@@ -23,6 +23,7 @@ export type TemaEscolhido =
   | 'ROSA';
 export type Contraste = 'PADRAO' | 'ALTO';
 export type TamanhoTexto = 'PADRAO' | 'MEDIO' | 'GRANDE' | 'EXTRA';
+export type LarguraConteudo = 'AUTOMATICA' | 'LIMITADA';
 export type Movimento = 'SISTEMA' | 'REDUZIDO';
 export type ModoPdfDieta = 'simples' | 'detalhado';
 
@@ -43,6 +44,8 @@ export interface Preferencias {
   corDeAcao: CorDeAcao;
   contraste: Contraste;
   tamanhoTexto: TamanhoTexto;
+  /** Em telas largas: Automática aproveita a largura disponível; Limitada segura no teto de 1800 px. */
+  larguraConteudo: LarguraConteudo;
   movimento: Movimento;
   /** Só aparece no celular. */
   vibracao: boolean;
@@ -106,6 +109,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   corDeAcao: 'INDIGO',
   contraste: 'PADRAO',
   tamanhoTexto: 'PADRAO',
+  larguraConteudo: 'AUTOMATICA',
   movimento: 'SISTEMA',
   vibracao: true,
   graficos: true,
@@ -139,6 +143,7 @@ const TEMAS: readonly TemaEscolhido[] = [
 ];
 const CONTRASTES: readonly Contraste[] = ['PADRAO', 'ALTO'];
 const TAMANHOS: readonly TamanhoTexto[] = ['PADRAO', 'MEDIO', 'GRANDE', 'EXTRA'];
+const LARGURAS_CONTEUDO: readonly LarguraConteudo[] = ['AUTOMATICA', 'LIMITADA'];
 const MOVIMENTOS: readonly Movimento[] = ['SISTEMA', 'REDUZIDO'];
 
 function entre<T extends string>(valor: unknown, validos: readonly T[], padrao: T): T {
@@ -161,6 +166,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     corDeAcao: entre(o.corDeAcao, CODIGOS_DA_COR_DE_ACAO, PREFERENCIAS_PADRAO.corDeAcao),
     contraste: entre(o.contraste, CONTRASTES, PREFERENCIAS_PADRAO.contraste),
     tamanhoTexto: entre(o.tamanhoTexto, TAMANHOS, PREFERENCIAS_PADRAO.tamanhoTexto),
+    larguraConteudo: entre(o.larguraConteudo, LARGURAS_CONTEUDO, PREFERENCIAS_PADRAO.larguraConteudo),
     movimento: entre(o.movimento, MOVIMENTOS, PREFERENCIAS_PADRAO.movimento),
     vibracao: typeof o.vibracao === 'boolean' ? o.vibracao : PREFERENCIAS_PADRAO.vibracao,
     graficos: typeof o.graficos === 'boolean' ? o.graficos : PREFERENCIAS_PADRAO.graficos,

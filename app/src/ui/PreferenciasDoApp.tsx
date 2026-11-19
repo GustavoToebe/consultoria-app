@@ -170,6 +170,18 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
         <PreviaDoTexto nome={sessao.marca?.nome ?? 'Sua consultoria'} fator={fatorTexto} />
       </Cartao>
 
+      <Cartao titulo="Largura do conteúdo" descricao="Automática aproveita toda a tela larga; Limitada segura em 1800 px.">
+        <Escolha
+          descricao="Largura do conteúdo"
+          opcoes={[
+            { valor: 'AUTOMATICA', rotulo: 'Automática' },
+            { valor: 'LIMITADA', rotulo: 'Limitada' },
+          ]}
+          valor={preferencias.larguraConteudo}
+          aoMudar={(larguraConteudo) => mudar({ larguraConteudo })}
+        />
+      </Cartao>
+
       <Cartao titulo="Animações" descricao="Reduzir tira os movimentos de entrada, mola e contagem.">
         <Escolha
           descricao="Animações"
