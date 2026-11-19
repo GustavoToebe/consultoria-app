@@ -8,6 +8,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { ResponsavelEquipe } from '../../../api/equipeTipos';
 import { listarAlunos, responsaveisEquipe } from '../../../api/rotas';
+import { listarTagsDeAlunos } from '../../../api/tagsDeAlunos';
 import type { AlunoResumo } from '../../../api/tipos';
 import { statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { SEM_DADO } from '../../../dominio/formatos';
@@ -23,6 +24,8 @@ import { useTema } from '../../../tema/TemaProvider';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { ICONE_DO_SELO } from '../../../treinador/iconesDosSelos';
 import { SeletoresDosFiltrosDeAlunos } from '../../../treinador/SeletoresDosFiltrosDeAlunos';
+import { TagsNaLinha } from '../../../treinador/tags/ChipDeTag';
+import { rotuloDasTagsNaLinha } from '../../../treinador/tags/textosDasTags';
 import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
 import { Folha } from '../../../ui/Folha';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
@@ -130,7 +133,11 @@ export default function Alunos() {
   // A entrada em cascata segue a ordem da tela, de um grupo para o outro.
   const inicios = grupos.map((_, i) => grupos.slice(0, i).reduce((n, g) => n + g.itens.length, 0));
   const nomeCompleto = (id: string) => responsaveis.find((r) => r.id === id)?.nome ?? null;
-  const chips = chipsDosFiltros(filtros, nomeCompleto);
+  // Tags da consultoria para o seletor e os nomes do "Filtrando:" (id que não está nela = "Outra tag"). Falha aqui não
+  // derruba a lista: o seletor some e o painel avisa.
+  const tagsDaConsultoria = useCarregar('tags-da-lista-de-alunos', () => listarTagsDeAlunos());
+  const nomeDaTag = (id: string) => tagsDaConsultoria.dados?.find((t) => t.id === id)?.nome ?? null;
+  const chips = chipsDosFiltros(filtros, nomeCompleto, nomeDaTag);
   const vazio = vazioDaLista({ termo, chaves: chips.map((c) => c.chave), responsaveis: filtros.responsaveis });
 
   return (
@@ -163,7 +170,8 @@ export default function Alunos() {
         aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))}
         painelLateral={{ titulo: 'Filtros de alunos' }}
         seletores={(atuais, mudar) => (
-          <SeletoresDosFiltrosDeAlunos visiveis={visiveis} filtros={atuais} aoMudar={mudar} responsaveis={responsaveis} usuarioId={usuario?.id} />
+          <SeletoresDosFiltrosDeAlunos visiveis={visiveis} filtros={atuais} aoMudar={mudar} responsaveis={responsaveis} usuarioId={usuario?.id}
+            tags={tagsDaConsultoria.dados ?? null} tagsFalharam={!!tagsDaConsultoria.erro} />
         )}
       />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
@@ -257,6 +265,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, selec
   const atualizacao = aluno.atualizacao ? statusAtualizacaoTreinador(aluno.atualizacao) : null;
   const ultimo = ultimoRegistroDaLinha(aluno.ultimoRegistro);
   const plano = aluno.planoAtivo?.titulo ?? null;
+  const tags = aluno.tags ?? [];
   const excecoes: SeloDaLinha[] = [
     ...(!aluno.ativo ? [{ texto: 'Inativo', tipo: 'neutro' as const }] : []),
     ...(aluno.ativo && !aluno.temAcesso ? [{ texto: 'Sem acesso', tipo: 'neutro' as const }] : []),
@@ -271,6 +280,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, selec
         <View style={estilos.nomeESelos}>
           <Texto variante="bloco" numberOfLines={2}>{aluno.nome}</Texto>
           {excecoes.length ? <View style={estilos.selos}>{excecoes.map((s) => <Selo key={s.texto} texto={s.texto} tipo={s.tipo} />)}</View> : null}
+          <TagsNaLinha tags={tags} />
         </View>
       </View>
     ),
@@ -296,6 +306,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, selec
     `Abrir ${aluno.nome}`,
     atualizacao?.texto,
     ...excecoes.map((s) => s.texto),
+    rotuloDasTagsNaLinha(tags),
     plano ?? 'Sem plano ativo',
     veRegistro ? (aluno.ultimoRegistro ? `Último registro: ${ultimo.texto.toLowerCase()}` : ultimo.texto) : null,
     responsavel ? `Responsável: ${responsavel}` : null,

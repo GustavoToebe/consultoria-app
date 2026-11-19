@@ -100,6 +100,9 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     'GET /alunos/{id}/trocas-de-exercicio': { corpo: { de: '2026-10-13', ate: '2026-10-19', trocas: [] } },
     // Aniversariantes do Início (com ALUNO_LER): ninguém nos testes que não conferem isso, e o cartão não aparece.
     'GET /alunos/aniversariantes': { corpo: [] },
+    // Tags de aluno: nenhuma na consultoria nem no aluno nos testes que não conferem isso (o `e2e/tags-de-aluno.spec.ts` troca).
+    'GET /tags-de-alunos': { corpo: [] },
+    'PUT /alunos/{id}/tags': { corpo: [] },
     ...respostas,
   };
   const rotas = Object.keys(mapa).sort((a, b) => b.length - a.length);

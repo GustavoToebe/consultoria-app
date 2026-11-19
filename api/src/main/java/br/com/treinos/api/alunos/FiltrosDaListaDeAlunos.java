@@ -2,6 +2,7 @@ package br.com.treinos.api.alunos;
 
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.auth.Usuario;
+import br.com.treinos.api.tags.AlunoTag;
 import br.com.treinos.api.treino.PlanoTreino;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
@@ -27,7 +28,8 @@ import java.util.UUID;
  * registro) são aplicados em memória pelo {@link AlunoService} sobre os candidatos, e só então a página é cortada.
  */
 public record FiltrosDaListaDeAlunos(Set<UUID> responsaveis, boolean semResponsavel, Set<Acesso> acesso,
-                                     Set<String> atualizacao, Plano plano, boolean pastaARenovar, Registro registro) {
+                                     Set<String> atualizacao, Plano plano, boolean pastaARenovar, Registro registro,
+                                     Set<UUID> tags) {
 
     public static final String CODIGO = "FILTRO_INVALIDO";
     public static final String SEM_RESPONSAVEL = "nenhum";
@@ -58,10 +60,10 @@ public record FiltrosDaListaDeAlunos(Set<UUID> responsaveis, boolean semResponsa
 
     /** O que veio na URL, cru. */
     public record Pedido(List<String> responsavel, List<String> acesso, List<String> atualizacao, String plano, String pasta,
-                         String registro) {
+                         String registro, List<String> tag) {
 
         public static Pedido vazio() {
-            return new Pedido(null, null, null, null, null, null);
+            return new Pedido(null, null, null, null, null, null, null);
         }
     }
 
@@ -77,9 +79,11 @@ public record FiltrosDaListaDeAlunos(Set<UUID> responsaveis, boolean semResponsa
             if (SEM_RESPONSAVEL.equalsIgnoreCase(r)) {
                 nenhum = true;
             } else {
-                ids.add(uuid(r));
+                ids.add(uuid(r, "responsavel"));
             }
         }
+        Set<UUID> tags = new LinkedHashSet<>();
+        for (String t : limpos(p.tag())) tags.add(uuid(t, "tag"));
         Set<Acesso> acesso = EnumSet.noneOf(Acesso.class);
         for (String a : limpos(p.acesso())) acesso.add(valor(Acesso.class, a, "acesso"));
         Set<String> fases = new LinkedHashSet<>();
@@ -95,7 +99,8 @@ public record FiltrosDaListaDeAlunos(Set<UUID> responsaveis, boolean semResponsa
             aRenovar = true;
         }
         Registro registro = vazio(p.registro()) ? null : valor(Registro.class, p.registro().trim(), "registro");
-        return new FiltrosDaListaDeAlunos(Set.copyOf(ids), nenhum, acesso, Set.copyOf(fases), plano, aRenovar, registro);
+        return new FiltrosDaListaDeAlunos(Set.copyOf(ids), nenhum, acesso, Set.copyOf(fases), plano, aRenovar, registro,
+                Set.copyOf(tags));
     }
 
     /** Algum filtro que precisa de conta fora do banco: a lista inteira do escopo é lida e paginada em memória. */
@@ -140,6 +145,13 @@ public record FiltrosDaListaDeAlunos(Set<UUID> responsaveis, boolean semResponsa
                 Predicate temPlano = cb.exists(planoAtivo(root, query, cb));
                 e.add(plano == Plano.COM ? temPlano : cb.not(temPlano));
             }
+            if (!tags.isEmpty()) {
+                // OU entre as tags escolhidas (V093); o E com o resto já vem do cb.and. O @TenantId de AlunoTag vale na subconsulta.
+                Subquery<UUID> comTag = query.subquery(UUID.class);
+                Root<AlunoTag> l = comTag.from(AlunoTag.class);
+                comTag.select(l.get("alunoId")).where(cb.equal(l.get("alunoId"), root.get("id")), l.get("tagId").in(tags));
+                e.add(cb.exists(comTag));
+            }
             if (Aluno.class.equals(query.getResultType())) {
                 query.orderBy(cb.asc(cb.lower(root.get("nome"))), cb.asc(root.get("id")));
             }
@@ -162,11 +174,11 @@ public record FiltrosDaListaDeAlunos(Set<UUID> responsaveis, boolean semResponsa
         return s == null || s.isBlank();
     }
 
-    private static UUID uuid(String s) {
+    private static UUID uuid(String s, String campo) {
         try {
             return UUID.fromString(s);
         } catch (IllegalArgumentException e) {
-            throw invalido("responsavel");
+            throw invalido(campo);
         }
     }
 

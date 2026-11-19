@@ -25,6 +25,11 @@ class AnonimizacaoRepositorio {
         this.json = json;
     }
 
+    /** As tags do aluno (V093): só a ligação sai, a tag da consultoria fica para os outros alunos. O aluno não é apagado, então o cascade da FK não roda. */
+    void apagarTagsDoAluno(UUID consultoriaId, UUID alunoId) {
+        jdbc.update("delete from aluno_tag where consultoria_id = ? and aluno_id = ?", consultoriaId, alunoId);
+    }
+
     /** A observação da série é texto livre do aluno (dado sensível); carga, repetições e datas ficam. */
     void apagarObservacoesDasExecucoes(UUID consultoriaId, UUID alunoId) {
         jdbc.update("update execucao_serie set observacao = null where consultoria_id = ? and aluno_id = ?",
