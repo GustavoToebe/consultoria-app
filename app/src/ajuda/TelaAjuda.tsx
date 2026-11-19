@@ -7,7 +7,7 @@ import { AVISO_DE_VOLTA, mostrarDeNovo, temPrimeirosPassos } from '../dominio/pr
 import { useSessao } from '../sessao/SessaoProvider';
 import { usePrimeirosPassosGuardados } from '../treinador/painel/usePrimeirosPassosGuardados';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_LISTA, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
 import { AlvoDeRolagem } from '../ui/AlvoDeRolagem';
 import { Botao } from '../ui/Botao';
 import { Cabecalho } from '../ui/Cabecalho';
@@ -23,6 +23,7 @@ import { sobre } from '../ui/sobre';
 import { Tela } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
 import { useSecoesAbertas } from '../ui/useSecoesAbertas';
+import { useFaixaDeLargura } from '../ui/useFaixaDeLargura';
 import { buscarNaAjuda, palavrasDaBusca, textoDoResultado } from './busca';
 import { GUIAS, secoesDoGuia, textoDoItem, type Guia, type Publico, type SecaoGuia } from './conteudo';
 import { TutorialGuiado } from './TutorialGuiado';
@@ -34,10 +35,12 @@ const LARGURA_DE_LEITURA = 800;
 const MINIMO_DA_LEITURA = 520;
 const LARGURA_DO_INDICE = 232;
 const VAO = espaco(3);
-/** Índice + vão + leitura: a largura da tela no PC. */
+/** Índice + vão + leitura: a largura da Ajuda em 2 colunas; em `ultralarga` abre 3 colunas (índice | conteúdo | Consultar). */
 const LARGURA_DA_AJUDA = LARGURA_DO_INDICE + VAO + LARGURA_DE_LEITURA;
 /** Abaixo disto (medido ao lado do menu) o índice vira o seletor "Ir para o tópico" no topo. */
 const LIMITE_DO_INDICE = LARGURA_DO_INDICE + VAO + MINIMO_DA_LEITURA;
+/** Texto corrido (parágrafos, descrições, respostas) limitado a ~72 caracteres por linha. */
+const ESTILO_TEXTO_CORRIDO = (Platform.OS === 'web' ? { maxWidth: '72ch' } : { maxWidth: 660 }) as unknown as ViewStyle;
 
 const COMECAR = 'comecar';
 const PRIMEIROS_PASSOS = 'primeiros-passos';
@@ -59,7 +62,7 @@ interface Topico { id: string; rotulo: string }
 export function TelaAjuda({ publico, videos = VIDEOS_DA_AJUDA }: { publico: Publico; videos?: VideosDaAjuda }) {
   const { width } = useWindowDimensions();
   return (
-    <Tela bordas={['top']} largura={LARGURA_DA_AJUDA} folga={width >= LARGURA_MENU_LATERAL ? espaco(3.5) : undefined}>
+    <Tela bordas={['top']} largura={LARGURA_LISTA} folga={width >= LARGURA_MENU_LATERAL ? espaco(3.5) : undefined}>
       <CorpoDaAjuda publico={publico} videos={videos} />
     </Tela>
   );
@@ -74,7 +77,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
   const [tutorial, setTutorial] = useState(false);
   const [busca, setBusca] = useState('');
   const [atual, setAtual] = useState(COMECAR);
-  const [largura, setLargura] = useState(0);
+  const { largura, faixa, aoMedir } = useFaixaDeLargura();
   const campo = useRef<TextInput>(null);
 
   // Textos como a tela mostra (sem a frase do ciclo, sem as seções do retorno e da vitrine desligados): a busca procura no que se vê.
@@ -107,42 +110,46 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
     rolarAte([alvo(id)]);
   };
 
+  const tresColunas = faixa === 'ultralarga';
   const lateral = largura >= LIMITE_DO_INDICE;
-  const conteudo = (
-    <View style={[estilos.leitura, lateral && estilos.leituraAoLado]}>
+  const blocoInicial = buscando ? null : (
+    <>
+      <AlvoDeRolagem chave={alvo(COMECAR)}>
+        <Cartao titulo="Começar a usar">
+          <Texto variante="suave" style={ESTILO_TEXTO_CORRIDO}>
+            {`O tutorial passa pelas telas, na ordem em que você vai usá-las (${guia.tutorial.length} passos). "Conhecer o menu" destaca cada item do menu, como no primeiro acesso. Dá para sair dos dois a qualquer momento.`}
+          </Texto>
+          <LinhaDeAcoes>
+            <Botao rotulo="Tutorial passo a passo" Icone={PlayCircle} aoTocar={() => setTutorial(true)} />
+            <Botao rotulo="Conhecer o menu" tipo="secundario" Icone={MousePointerClick} aoTocar={rever} />
+          </LinhaDeAcoes>
+        </Cartao>
+      </AlvoDeRolagem>
+      {comPrimeirosPassos ? (
+        <AlvoDeRolagem chave={alvo(PRIMEIROS_PASSOS)}>
+          {publico === 'treinador' ? <CartaoPrimeirosPassosDoTreinador /> : <PrimeirosPassosDoAluno guia={guia} />}
+        </AlvoDeRolagem>
+      ) : null}
+    </>
+  );
+
+  const blocoConsultar = (
+    <>
       {buscando ? null : (
-        <>
-          <AlvoDeRolagem chave={alvo(COMECAR)}>
-            <Cartao titulo="Começar a usar">
-              <Texto variante="suave">
-                {`O tutorial passa pelas telas, na ordem em que você vai usá-las (${guia.tutorial.length} passos). "Conhecer o menu" destaca cada item do menu, como no primeiro acesso. Dá para sair dos dois a qualquer momento.`}
-              </Texto>
-              <LinhaDeAcoes>
-                <Botao rotulo="Tutorial passo a passo" Icone={PlayCircle} aoTocar={() => setTutorial(true)} />
-                <Botao rotulo="Conhecer o menu" tipo="secundario" Icone={MousePointerClick} aoTocar={rever} />
-              </LinhaDeAcoes>
-            </Cartao>
-          </AlvoDeRolagem>
-          {comPrimeirosPassos ? (
-            <AlvoDeRolagem chave={alvo(PRIMEIROS_PASSOS)}>
-              {publico === 'treinador' ? <CartaoPrimeirosPassosDoTreinador /> : <PrimeirosPassosDoAluno guia={guia} />}
-            </AlvoDeRolagem>
-          ) : null}
-          <View style={estilos.consultar}>
-            <View style={estilos.textoDoConsultar}>
-              <Texto variante="bloco" nivel={2}>Consultar</Texto>
-              <Texto variante="suave">
-                {Platform.OS === 'web'
-                  ? 'Os assuntos do app e as perguntas frequentes. O guia em PDF serve para ler com calma, imprimir ou enviar.'
-                  : 'Os assuntos do app e as perguntas frequentes.'}
-              </Texto>
-            </View>
-            {Platform.OS === 'web' ? (
-              <Botao rotulo="Abrir o guia" rotuloAcessivel={`Abrir o guia (${guia.titulo.toLowerCase()} em PDF)`} tipo="secundario" Icone={FileDown}
-                aoTocar={() => void Linking.openURL(`/guias/${guia.arquivoPdf}`)} />
-            ) : null}
+        <View style={estilos.consultar}>
+          <View style={estilos.textoDoConsultar}>
+            <Texto variante="bloco" nivel={2}>Consultar</Texto>
+            <Texto variante="suave" style={ESTILO_TEXTO_CORRIDO}>
+              {Platform.OS === 'web'
+                ? 'Os assuntos do app e as perguntas frequentes. O guia em PDF serve para ler com calma, imprimir ou enviar.'
+                : 'Os assuntos do app e as perguntas frequentes.'}
+            </Texto>
           </View>
-        </>
+          {Platform.OS === 'web' ? (
+            <Botao rotulo="Abrir o guia" rotuloAcessivel={`Abrir o guia (${guia.titulo.toLowerCase()} em PDF)`} tipo="secundario" Icone={FileDown}
+              aoTocar={() => void Linking.openURL(`/guias/${guia.arquivoPdf}`)} />
+          ) : null}
+        </View>
       )}
       {buscando && achado.total === 0 ? (
         <Vazio titulo="Nenhum resultado" texto="Tente outra palavra, um sinônimo ou o nome da tela." acao={{ rotulo: 'Limpar busca', aoTocar: limpar }} />
@@ -152,7 +159,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
           <SecaoRecolhivel titulo={s.titulo} quantos={s.itens.length} aberta={secoesAbertas.estaAberta(s.id)} aoAlternar={() => secoesAbertas.alternar(s.id)}>
             <VideosDaSecao videos={videos[publico][s.id]} />
             {s.itens.map((item) => (
-              <View key={item.titulo} style={estilos.item}>
+              <View key={item.titulo} style={[estilos.item, ESTILO_TEXTO_CORRIDO]}>
                 <Texto variante="rotulo" nivel={3}>{item.titulo}</Texto>
                 <Texto>{item.texto}</Texto>
               </View>
@@ -165,7 +172,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
           <SecaoRecolhivel titulo="Perguntas frequentes" quantos={achado.perguntas.length} unidade="pergunta"
             aberta={secoesAbertas.estaAberta(PERGUNTAS)} aoAlternar={() => secoesAbertas.alternar(PERGUNTAS)}>
             {achado.perguntas.map((p: Pergunta) => (
-              <View key={p.pergunta} style={estilos.item}>
+              <View key={p.pergunta} style={[estilos.item, ESTILO_TEXTO_CORRIDO]}>
                 <Texto variante="rotulo" nivel={3}>{p.pergunta}</Texto>
                 <Texto>{p.resposta}</Texto>
               </View>
@@ -173,13 +180,20 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
           </SecaoRecolhivel>
         </AlvoDeRolagem>
       ) : null}
+    </>
+  );
+
+  const conteudo = (
+    <View style={[estilos.leitura, lateral && estilos.leituraAoLado]}>
+      {blocoInicial}
+      {blocoConsultar}
     </View>
   );
 
   return (
-    <>
+    <View style={!tresColunas ? estilos.contido : undefined}>
       <Cabecalho titulo="Ajuda" subtitulo={guia.introducao} />
-      <View style={estilos.area} onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}>
+      <View style={estilos.area} onLayout={aoMedir}>
         {/* A busca fica sempre no mesmo lugar da árvore: trocar de índice para seletor não tira o foco de quem digita. */}
         <View style={[estilos.busca, lateral && estilos.buscaAoLadoDoIndice]}>
           <Campo ref={campo} rotulo="Buscar na ajuda" valor={busca} aoMudar={buscar} placeholder="Palavra de um assunto, tela ou botão"
@@ -193,7 +207,13 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
               opcoes={topicos.map((t) => ({ valor: t.id, rotulo: t.rotulo }))} aoMudar={irPara} />
           ) : null}
         </View>
-        {largura === 0 ? null : lateral ? (
+        {largura === 0 ? null : tresColunas ? (
+          <View style={estilos.colunas}>
+            <IndiceDaAjuda topicos={topicos} atual={atual} aoEscolher={irPara} />
+            {blocoInicial ? <View style={[estilos.leitura, estilos.colunaDeLeitura]}>{blocoInicial}</View> : null}
+            <View style={[estilos.leitura, estilos.colunaDeLeitura]}>{blocoConsultar}</View>
+          </View>
+        ) : lateral ? (
           <View style={estilos.colunas}>
             <IndiceDaAjuda topicos={topicos} atual={atual} aoEscolher={irPara} />
             {conteudo}
@@ -201,7 +221,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
         ) : conteudo}
       </View>
       {tutorial ? <TutorialGuiado passos={guia.tutorial} aoFechar={() => setTutorial(false)} /> : null}
-    </>
+    </View>
   );
 }
 
@@ -275,7 +295,7 @@ function CartaoPrimeirosPassosDoTreinador() {
   const motivo = !estado ? 'Conferindo o que ficou salvo neste aparelho.' : noInicio && !voltou ? 'Eles já estão no Início.' : undefined;
   return (
     <Cartao titulo="Primeiros passos">
-      <Texto variante="suave">
+      <Texto variante="suave" style={ESTILO_TEXTO_CORRIDO}>
         No topo do Início, enquanto você monta a consultoria: marca e logo, metodologia, modelos de treino, o primeiro aluno, o acesso dele ao app e o link de inscrição. Cada item abre a tela certa. Se dispensou ou fechou, traga de volta por aqui.
       </Texto>
       {voltou ? <Alerta tom="sucesso" texto={AVISO_DE_VOLTA} /> : null}
@@ -292,6 +312,7 @@ function CartaoPrimeirosPassosDoTreinador() {
 }
 
 const estilos = StyleSheet.create({
+  contido: { width: '100%', maxWidth: LARGURA_DA_AJUDA, alignSelf: 'center', gap: espaco(3) },
   area: { gap: espaco(3) },
   busca: { gap: espaco(1), maxWidth: LARGURA_DE_LEITURA, width: '100%' },
   // Sem largura fixa: ocupa o que sobra depois do índice (100% + margem passaria da borda com o texto maior).
@@ -299,6 +320,7 @@ const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO },
   leitura: { width: '100%', maxWidth: LARGURA_DE_LEITURA, gap: espaco(3) },
   leituraAoLado: { flex: 1, minWidth: 0, width: undefined },
+  colunaDeLeitura: { flex: 1, minWidth: 0, width: undefined, maxWidth: LARGURA_DE_LEITURA },
   // A folga de 4 px deixa o anel de foco (2 px + 2 px) inteiro: o índice rola por dentro e cortaria a borda.
   indice: { width: LARGURA_DO_INDICE, alignSelf: 'flex-start', gap: 2, padding: 4 },
   tituloDoIndice: { paddingHorizontal: espaco(1.5), paddingBottom: espaco(1) },
