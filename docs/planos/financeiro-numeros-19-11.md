@@ -8,7 +8,7 @@ Cobranças, Visão geral e Números mais legíveis: totais e indicadores com a c
 ## Decisões
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
-| D1 | Filtro padrão "Competência: mês atual" | Só no app, pelo filtro de vencimento que já existe (`de`/`ate` do mês, fuso de São Paulo); a API não muda. Avulsa e parcela de acordo (sem competência) entram pelo vencimento, então a avulsa recém-criada não some da lista | Gustavo, 19/11/2026 |
+| D1 | Filtro padrão "Mês de vencimento: mês atual" (nome na tela e no endereço `mesVencimento=`; era "Competência", renomeado em 19/11 a pedido do Gustavo porque filtra pelo vencimento; a coluna "Competência" da tabela não muda) | Só no app, pelo filtro de vencimento que já existe (`de`/`ate` do mês, fuso de São Paulo); a API não muda. Avulsa e parcela de acordo (sem competência) entram pelo vencimento, então a avulsa recém-criada não some da lista | Gustavo, 19/11/2026 |
 | D2 | "Ativas" | Tudo que não é cancelado, estornado nem renegociado (o critério dos Totais): ABERTA, PAGA e CONTESTADA | Gustavo, 19/11/2026 (texto do pedido) |
 | D3 | Cartões de totais e indicadores | O mesmo cartão de indicador da Visão geral (borda colorida, ponto e rótulo na cor, valor grande); Pago = sucesso, Em aberto = atencao, Vencido = perigo (neutro com R$ 0,00), Total = neutro | Gustavo, 19/11/2026 |
 | D4 | Grade dos indicadores | 6 por linha a partir de ~1600 px, 3 + 3 de ~1024 a 1600, 2 abaixo, 1 no celular; 4 cartões: 4, 2 + 2, 1 | Gustavo, 19/11/2026 |
@@ -26,7 +26,7 @@ Cobranças, Visão geral e Números mais legíveis: totais e indicadores com a c
 Linha de base da worktree (19/11, árvore limpa): typecheck e lint sem erro, jest 8.801 testes, e2e `financeiro*` 175 verdes; `financeiro.spec.ts:657` (parametrizado, 4 variantes) 19 de 20 em 5 repetições, a falha foi `net::ERR_ABORTED` no `page.goto`, do servidor de teste.
 
 ## Fora do escopo
-- Filtro de competência exato na API (decidido não fazer em D1).
+- Filtro de competência exato na API (o de "Mês de vencimento" só existe no app) (decidido não fazer em D1).
 
 ## O que ficou para trás
 - Seis indicadores em linha só a partir de ~1833 px de janela (menu aberto), não ~1600 (D4 mede a área útil, não a janela).

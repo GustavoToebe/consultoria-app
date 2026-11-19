@@ -6,9 +6,9 @@ import { fixarHoje } from './aluno';
 import { COBRANCA_ATRASADA, estadoFinanceiro, rotasDoFinanceiro, sessaoComFinanceiro, type EstadoFinanceiro } from './financeiro-falso';
 
 /**
- * Filtro padrão das cobranças (19/11): a aba abre em Situação: Ativas e Competência: o mês atual (relógio em 19/10/2026,
+ * Filtro padrão das cobranças (19/11): a aba abre em Situação: Ativas e Mês de vencimento: o mês atual (relógio em 19/10/2026,
  * então 10/2026), que vai à API como vencimento de 01/10 a 31/10; os chips tiram um de cada vez, "Limpar filtros" grava
- * `filtro=nenhum` e o recarregar e o voltar continuam sem filtro; o mês vazio oferece "Ver todas as competências"; quem
+ * `filtro=nenhum` e o recarregar e o voltar continuam sem filtro; o mês vazio oferece "Ver todos os meses"; quem
  * chega com filtro próprio fica com o dele. Também as capturas da tabela e dos Totais em 1920 e 1280, claro e escuro.
  * Só dados fictícios, API simulada.
  */
@@ -50,7 +50,7 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, estadoFinanceiro({ cobrancas: todas() }));
     await expect(chip(page, 'Situação: Ativas')).toBeVisible();
-    await expect(chip(page, 'Competência: 10/2026')).toBeVisible();
+    await expect(chip(page, 'Mês de vencimento: 10/2026')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Filtros, 2 ligados' })).toBeVisible();
     await expect(page.getByText('Bruna Teste', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Fabiana Albuquerque de Souza Teste', { exact: true }).first()).toBeVisible();
@@ -62,10 +62,10 @@ for (const largura of [390, 1280]) {
     // O padrão não escreve no endereço.
     await expect(page).toHaveURL(/\/treinador\/financeiro\?aba=cobrancas$/);
     await page.reload();
-    await expect(chip(page, 'Competência: 10/2026')).toBeVisible();
+    await expect(chip(page, 'Mês de vencimento: 10/2026')).toBeVisible();
 
-    // O ✕ da competência tira só ela: o mês seguinte aparece, a situação fica no endereço.
-    await chip(page, 'Competência: 10/2026').click();
+    // O ✕ do mês de vencimento tira só ele: o mês seguinte aparece, a situação fica no endereço.
+    await chip(page, 'Mês de vencimento: 10/2026').click();
     await expect(page.getByText('Elis Teste', { exact: true }).first()).toBeVisible();
     await expect(chip(page, 'Situação: Ativas')).toBeVisible();
     await expect(page).toHaveURL(/situacao=ABERTA%2CPAGA%2CCONTESTADA|situacao=ABERTA,PAGA,CONTESTADA/);
@@ -93,28 +93,28 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 
-  test(`mês sem cobrança ativa (${largura}px): "Nenhuma cobrança ativa em 10/2026" e "Ver todas as competências" tira só a competência`, async ({ page }, testInfo) => {
+  test(`mês sem cobrança ativa (${largura}px): "Nenhuma cobrança ativa em 10/2026" e "Ver todas as competências" tira só o mês de vencimento`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { naoTratadas, errosDaPagina } = await abrir(page, estadoFinanceiro({ cobrancas: [{ ...NOVEMBRO }, { ...CANCELADA }] }));
     await expect(page.getByText('Nenhuma cobrança ativa em 10/2026', { exact: true })).toBeVisible();
     await expect(page.getByText('Totais', { exact: true })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath(`vazio-${largura}.png`), fullPage: true });
-    await page.getByRole('button', { name: 'Ver todas as competências' }).click();
+    await page.getByRole('button', { name: 'Ver todos os meses' }).click();
     await expect(page.getByText('Elis Teste', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Dora Teste', { exact: true })).toHaveCount(0);
     await expect(chip(page, 'Situação: Ativas')).toBeVisible();
-    await expect(chip(page, 'Competência: 10/2026')).toHaveCount(0);
+    await expect(chip(page, 'Mês de vencimento: 10/2026')).toHaveCount(0);
     // Só as do financeiro: o `GET /inscricoes` do menu não é desta tela.
     expect(naoTratadas.filter((r) => r.includes('/financeiro'))).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
 }
 
-test('quem chega com filtro próprio fica com o dele: Vencidas do Início e o aluno da ficha, sem a competência', async ({ page }) => {
+test('quem chega com filtro próprio fica com o dele: Vencidas do Início e o aluno da ficha, sem o mês de vencimento', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const { pedidos, errosDaPagina } = await abrir(page, estadoFinanceiro({ cobrancas: todas() }), '&situacao=VENCIDA');
   await expect(chip(page, 'Situação: Vencidas')).toBeVisible();
-  await expect(chip(page, 'Competência: 10/2026')).toHaveCount(0);
+  await expect(chip(page, 'Mês de vencimento: 10/2026')).toHaveCount(0);
   expect(ultimoPedido(pedidos)?.busca.get('de')).toBeNull();
   await page.goto(`/treinador/financeiro?aba=cobrancas&alunoId=${NOVEMBRO.alunoId}`);
   await expect(page.getByRole('button', { name: 'Ver cobranças de todos os alunos' })).toBeVisible();
@@ -126,17 +126,17 @@ test('quem chega com filtro próprio fica com o dele: Vencidas do Início e o al
   expect(errosDaPagina).toEqual([]);
 });
 
-test('no painel, Competência e Vencimento não valem juntos: escolher os próximos 7 dias tira a competência', async ({ page }) => {
+test('no painel, Mês de vencimento e Vencimento não valem juntos: escolher os próximos 7 dias tira o mês de vencimento', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const { pedidos, errosDaPagina } = await abrir(page, estadoFinanceiro({ cobrancas: todas() }));
   await page.getByRole('button', { name: 'Filtros, 2 ligados' }).click();
   const painel = page.getByRole('dialog', { name: 'Filtros de cobranças' });
-  await expect(painel.getByRole('button', { name: 'Competência: 10/2026. Escolher.' })).toBeVisible();
+  await expect(painel.getByRole('button', { name: 'Mês de vencimento: 10/2026. Escolher.' })).toBeVisible();
   await painel.getByRole('radiogroup', { name: 'Vencimento' }).getByRole('radio', { name: 'Próximos 7 dias' }).click();
-  await expect(painel.getByRole('button', { name: 'Competência: Qualquer. Escolher.' })).toBeVisible();
+  await expect(painel.getByRole('button', { name: 'Mês de vencimento: Qualquer. Escolher.' })).toBeVisible();
   await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
   await expect(chip(page, 'Vencimento: de hoje até 26/10/2026')).toBeVisible();
-  await expect(chip(page, 'Competência: 10/2026')).toHaveCount(0);
+  await expect(chip(page, 'Mês de vencimento: 10/2026')).toHaveCount(0);
   expect([ultimoPedido(pedidos)?.busca.get('de'), ultimoPedido(pedidos)?.busca.get('ate')]).toEqual(['2026-10-19', '2026-10-26']);
   expect(errosDaPagina).toEqual([]);
 });
@@ -170,7 +170,7 @@ for (const largura of [1920, 1280]) {
       // Mês sem cobrança ativa, com a ação à vista.
       estado.cobrancas = [{ ...NOVEMBRO }];
       await page.goto('/treinador/financeiro?aba=cobrancas');
-      const verTodas = page.getByRole('button', { name: 'Ver todas as competências' });
+      const verTodas = page.getByRole('button', { name: 'Ver todos os meses' });
       await verTodas.scrollIntoViewIfNeeded();
       await expect(verTodas).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`vazio-${largura}-${tema.toLowerCase()}.png`), fullPage: true });

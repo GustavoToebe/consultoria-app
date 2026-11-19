@@ -5,8 +5,8 @@ import {
 import { rotuloDoMesNumerico } from './mesDaCompetencia';
 
 /**
- * Filtro padrão das cobranças (Gustavo, 19/11): a aba abre em Situação = Ativas e Competência = mês atual de Brasília.
- * Só no app, sem mudar a API: a competência vai como vencimento do dia 1 ao último dia do mês (`vencimentoDaApi`), então
+ * Filtro padrão das cobranças (Gustavo, 19/11): a aba abre em Situação = Ativas e Mês de vencimento = mês atual de Brasília.
+ * Só no app, sem mudar a API: o mês vai como vencimento do dia 1 ao último dia do mês (`vencimentoDaApi`), então
  * a avulsa e a parcela de acordo (sem competência) entram pelo mês em que vencem e a avulsa recém-criada para este mês
  * não some. O padrão só vale com o endereço sem nenhuma chave das cobranças: quem chega com filtro próprio (Vencidas e
  * Vencendo do Início, "Ver no Financeiro" da ficha) fica com o dele, mesmo com valor desconhecido. Tirar todos os filtros
@@ -14,9 +14,9 @@ import { rotuloDoMesNumerico } from './mesDaCompetencia';
  */
 export const MARCA_SEM_FILTRO = { filtro: 'nenhum' } as const;
 
-/** Situação: Ativas; Competência: o mês de `hoje` (`AAAA-MM-DD` de Brasília, `hojeEmBrasilia`). */
+/** Situação: Ativas; Mês de vencimento: o mês de `hoje` (`AAAA-MM-DD` de Brasília, `hojeEmBrasilia`). */
 export function filtroPadraoDasCobrancas(hoje: string): FiltrosDeCobrancas {
-  return { ...SEM_FILTROS_DE_COBRANCAS, situacoes: [...SITUACOES_ATIVAS], competencia: hoje.slice(0, 7) };
+  return { ...SEM_FILTROS_DE_COBRANCAS, situacoes: [...SITUACOES_ATIVAS], mesVencimento: hoje.slice(0, 7) };
 }
 
 /** O endereço traz alguma chave das cobranças (presença, não validade: `?situacao=QUALQUER` também conta). */
@@ -36,10 +36,10 @@ export function enderecoDasCobrancas(f: FiltrosDeCobrancas): Record<string, stri
 }
 
 /**
- * As competências do painel de filtros, da mais nova para a mais antiga: o mês seguinte (a cobrança do próximo mês já
+ * Os meses do painel de filtros, da mais nova para a mais antiga: o mês seguinte (a cobrança do próximo mês já
  * pode ter sido gerada), o atual e os 11 anteriores. A escolhida que ficou fora (veio do endereço) entra também.
  */
-export function competenciasDoFiltro(hoje: string, escolhida: string | null = null): { valor: string; rotulo: string }[] {
+export function mesesDoFiltro(hoje: string, escolhida: string | null = null): { valor: string; rotulo: string }[] {
   const [ano, mes] = hoje.split('-').map(Number);
   const meses = Array.from({ length: 13 }, (_, i) => {
     const indice = ano * 12 + (mes - 1) + 1 - i;

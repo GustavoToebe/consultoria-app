@@ -12,7 +12,7 @@ import {
   temBaixaRegistrada,
 } from '../../dominio/financeiro';
 import { paraSetParams } from '../../dominio/filtrosComuns';
-import { competenciasDoFiltro, enderecoDasCobrancas, filtrosDaAbaDeCobrancas } from '../../dominio/filtroPadraoDasCobrancas';
+import { mesesDoFiltro, enderecoDasCobrancas, filtrosDaAbaDeCobrancas } from '../../dominio/filtroPadraoDasCobrancas';
 import {
   CHAVES_DE_COBRANCAS, chaveDasCobrancas, chipsDasCobrancas, cobrancasParaApi, descricaoDasCobrancas,
   FORMAS_DO_FILTRO, limpoDasCobrancas, saoAsAtivas, SEM_FILTROS_DE_COBRANCAS, semOFiltroDeCobrancas, SITUACOES_DO_FILTRO, temVencimento,
@@ -87,9 +87,9 @@ const dataOuNada = (iso: string | null | undefined) => (iso ? dataParaTela(iso) 
  * Identificação (responsável, plano), Situação (situações, várias, e forma da baixa) e Datas (vencimento: próximos 7 dias
  * ou um período; emissão; pagamento), com rascunho até o "Aplicar filtros".
  * Tudo no endereço junto do `?aba=cobrancas` (`?meus=true&situacao=ABERTA,PAGA&vencimento=PROXIMOS_7_DIAS` ou `&de=&ate=`,
- * `&competencia=AAAA-MM&emissaoDe=&emissaoAte=&pagoDe=&pagoAte=&planoId=&forma=`), como os mini-cartões do Início abrem.
+ * `&mesVencimento=AAAA-MM&emissaoDe=&emissaoAte=&pagoDe=&pagoAte=&planoId=&forma=`), como os mini-cartões do Início abrem.
  * Filtro padrão (19/11, `dominio/filtroPadraoDasCobrancas.ts`): sem nenhuma chave das cobranças no endereço, a aba abre
- * em Situação: Ativas e Competência: o mês atual de Brasília. A competência é só do app (a API não a filtra): vai como
+ * em Situação: Ativas e Mês de vencimento: o mês atual de Brasília. O mês é só do app (a API não o filtra): vai como
  * vencimento do dia 1 ao último do mês, então avulsa e parcela de acordo entram pelo mês em que vencem. Tirar todos os
  * filtros grava `filtro=nenhum`, para recarregar e voltar não trazerem o padrão de novo; quem chega com filtro próprio
  * (Início, ficha) fica com o dele. Um aluno só chega pelo
@@ -112,7 +112,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   const { avisar } = useAviso();
   const parametros = useLocalSearchParams<{
     situacao?: string; meus?: string; vencimento?: string; de?: string; ate?: string; alunoId?: string; planoId?: string; forma?: string;
-    emissaoDe?: string; emissaoAte?: string; pagoDe?: string; pagoAte?: string; competencia?: string; filtro?: string;
+    emissaoDe?: string; emissaoAte?: string; pagoDe?: string; pagoAte?: string; mesVencimento?: string; filtro?: string;
   }>();
   const hoje = hojeEmBrasilia();
   // Filtro padrão das cobranças (19/11): sem chave das cobranças no endereço, Ativas e o mês atual.
@@ -205,14 +205,14 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
       {!dados && lista.carregando ? <Esqueleto /> : null}
       {/* Sem resposta (primeira carga ou erro) não há totais: nunca um zero inventado. Lista vazia: o vazio já diz tudo. */}
       {dados?.totais && dados.itens.length > 0 && !lista.erro ? <TotaisDaLista totais={dados.totais} atualizando={desatualizada} /> : null}
-      {dados && dados.itens.length === 0 && filtros.competencia ? (
+      {dados && dados.itens.length === 0 && filtros.mesVencimento ? (
         // Filtro padrão das cobranças (19/11): o mês sem cobrança diz qual mês e oferece os outros, sem tirar a situação.
-        <Vazio titulo={`Nenhuma cobrança${saoAsAtivas(filtros.situacoes) ? ' ativa' : ''} em ${rotuloDoMesNumerico(filtros.competencia)}`}
-          texto={busca ? 'Nenhum aluno com este nome tem cobrança neste mês. Tente outra busca ou veja todas as competências.'
-            : 'Nenhuma cobrança deste filtro vence neste mês. As de outros meses aparecem sem o filtro de competência.'}
-          acao={{ rotulo: 'Ver todas as competências', aoTocar: () => aplicar(semOFiltroDeCobrancas(filtros, 'competencia')) }} />
+        <Vazio titulo={`Nenhuma cobrança${saoAsAtivas(filtros.situacoes) ? ' ativa' : ''} em ${rotuloDoMesNumerico(filtros.mesVencimento)}`}
+          texto={busca ? 'Nenhum aluno com este nome tem cobrança neste mês. Tente outra busca ou veja todos os meses.'
+            : 'Nenhuma cobrança deste filtro vence neste mês. As de outros meses aparecem sem o filtro de mês de vencimento.'}
+          acao={{ rotulo: 'Ver todos os meses', aoTocar: () => aplicar(semOFiltroDeCobrancas(filtros, 'mesVencimento')) }} />
       ) : null}
-      {dados && dados.itens.length === 0 && !filtros.competencia ? (
+      {dados && dados.itens.length === 0 && !filtros.mesVencimento ? (
         <Vazio titulo="Nenhuma cobrança nesta lista"
           texto={temVencimento(filtros) ? `Nenhuma cobrança${filtros.situacoes.length ? ' nesta situação' : ''} vence ${textoDoVencimento(filtros, hoje)}.`
             : chips.length === 0 && !busca
@@ -368,7 +368,7 @@ const FORMAS: { valor: FormaDoFiltro | typeof TODOS; rotulo: string }[] = [{ val
  * Seletores das cobranças no painel lateral, numa coluna e em grupos (D2): Identificação (responsável, plano), Situação
  * (situações e forma da baixa) e Datas (vencimento: qualquer, próximos 7 dias ou período; emissão; pagamento), cada data
  * com rótulo próprio. "Escolher período" abre os campos De/Até; o modo fica aqui enquanto o período está vazio (vazio no
- * endereço é "qualquer data"). Os filtros se combinam (todos valem juntos), menos Competência e Vencimento: a competência
+ * endereço é "qualquer data"). Os filtros se combinam (todos valem juntos), menos Mês de vencimento e Vencimento: o mês
  * é o vencimento dentro do mês (só no app, 19/11), então escolher um tira o outro.
  */
 function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano, aluno: nomeDoAluno, hoje }: {
@@ -385,13 +385,13 @@ function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano, aluno: nomeDoAl
     setEscolhido(m);
     aoMudar({
       ...filtros, proximos7Dias: m === 'PROXIMOS_7_DIAS', periodo: m === 'PERIODO' ? filtros.periodo : SEM_FILTROS_DE_COBRANCAS.periodo,
-      competencia: m === 'QUALQUER' ? filtros.competencia : null,
+      mesVencimento: m === 'QUALQUER' ? filtros.mesVencimento : null,
     });
   };
-  const mudarCompetencia = (v: string) => {
-    if (v === TODOS) { aoMudar({ ...filtros, competencia: null }); return; }
+  const mudarMesVencimento = (v: string) => {
+    if (v === TODOS) { aoMudar({ ...filtros, mesVencimento: null }); return; }
     setEscolhido('QUALQUER');
-    aoMudar({ ...filtros, competencia: v, proximos7Dias: false, periodo: SEM_FILTROS_DE_COBRANCAS.periodo });
+    aoMudar({ ...filtros, mesVencimento: v, proximos7Dias: false, periodo: SEM_FILTROS_DE_COBRANCAS.periodo });
   };
   return (
     <>
@@ -415,9 +415,9 @@ function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano, aluno: nomeDoAl
       </GrupoDoPainel>
       <GrupoDoPainel titulo="Datas">
         <View style={estilos.alunoNoPainel}>
-          <UmaOpcao rotulo="Competência" valor={filtros.competencia ?? TODOS} aoMudar={mudarCompetencia}
-            opcoes={[{ valor: TODOS, rotulo: 'Qualquer' }, ...competenciasDoFiltro(hoje, filtros.competencia)]} />
-          <Texto variante="pequeno">Pelo vencimento dentro do mês. Avulsas e acordos, que não têm competência, entram pelo mês em que vencem.</Texto>
+          <UmaOpcao rotulo="Mês de vencimento" valor={filtros.mesVencimento ?? TODOS} aoMudar={mudarMesVencimento}
+            opcoes={[{ valor: TODOS, rotulo: 'Qualquer' }, ...mesesDoFiltro(hoje, filtros.mesVencimento)]} />
+          <Texto variante="pequeno">Pelo mês do vencimento. Avulsas e acordos também entram pelo mês em que vencem.</Texto>
         </View>
         <View style={estilos.coluna}>
           <Escolha rotulo="Vencimento" opcoes={MODOS_DO_VENCIMENTO} valor={modo} aoMudar={mudarModo} />
