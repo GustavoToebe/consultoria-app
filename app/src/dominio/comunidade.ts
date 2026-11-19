@@ -554,6 +554,15 @@ export const RASCUNHO_DA_AULA_VAZIO: RascunhoDaAula = { titulo: '', link: '', pl
 export const rascunhoDaAula = (a: AulaDaComunidade): RascunhoDaAula =>
   ({ titulo: a.titulo, link: a.videoUrl ?? '', playlistId: a.playlistId, descricao: a.descricao ?? '', capaId: a.capaId ?? null });
 
+/**
+ * A folha tem algo a perder? Compara com o que ela abriu: vazio no "Novo vídeo", a aula na edição (a capa trocada ou
+ * removida também conta). Qualquer caractere diferente vale, para nada digitado sair sem a pergunta.
+ */
+export function aulaAlterada(r: RascunhoDaAula, original?: AulaDaComunidade): boolean {
+  const inicial = original ? rascunhoDaAula(original) : RASCUNHO_DA_AULA_VAZIO;
+  return (Object.keys(inicial) as (keyof RascunhoDaAula)[]).some((k) => r[k] !== inicial[k]);
+}
+
 /** Erros por campo (`null` = pode enviar), com as mensagens que a folha já mostrava. */
 export function errosDaAula(r: RascunhoDaAula): { titulo: string | null; link: string | null } {
   return {

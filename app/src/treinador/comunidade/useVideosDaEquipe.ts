@@ -25,8 +25,8 @@ function devolverFoco(titulo: string, direcao: Direcao) {
 }
 
 /**
- * Estado da aba Vídeos do treinador (a tela fica montada nas duas abas, então o rascunho do "Novo vídeo" sobrevive à troca
- * de aba). Lista agrupada por coleção, filtro do painel, Subir/Descer dentro da coleção, modo Selecionar com o lote e as
+ * Estado da aba Vídeos do treinador (a tela fica montada nas duas abas; o "Novo vídeo" nasce vazio a cada abertura e
+ * fechar com alteração pergunta "Sair sem salvar?"). Lista agrupada por coleção, filtro do painel, Subir/Descer dentro da coleção, modo Selecionar com o lote e as
  * folhas (novo, editar, ⋯, excluir, coleções). Regras puras em `dominio/comunidade`.
  */
 export function useVideosDaEquipe({ ativa }: { ativa: boolean }) {

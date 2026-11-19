@@ -2,7 +2,7 @@ import type { FiltrosDoMural, PaginaDoMural, PostDoMural, TipoDePost } from '../
 import { MURAL_SEM_FILTRO, TIPOS_DE_POST } from './comunidade';
 import {
   ABA_PADRAO_DO_MURAL, abaDoParametro, abaDoTipo, carregarMuralDaAba, filtroNaAba, juntarPaginas, opcoesDoTipoNaAba,
-  PARAMETRO_DO_MEU_GRUPO, rascunhoAoAbrir, textoDoVazioDaAba, tiposDaAba, tiposParaBuscar, visaoDoParametro,
+  PARAMETRO_DO_MEU_GRUPO, postAlterado, rascunhoAoAbrir, textoDoVazioDaAba, tiposDaAba, tiposParaBuscar, visaoDoParametro,
 } from './muralEmAbas';
 
 const post = (id: string, tipo: TipoDePost, criadoEm: string, fixado = false): PostDoMural => ({
@@ -138,6 +138,28 @@ describe('nova publicação abre com o tipo da aba', () => {
 
   it('enquete com as duas opções vazias ainda conta como intocada', () => {
     expect(rascunhoAoAbrir({ tipo: 'ENQUETE', texto: '', opcoes: ['', ''] }, 'alunos', 'equipe')).toEqual({ tipo: 'CONVERSA', texto: '' });
+  });
+});
+
+describe('sair sem salvar na nova publicação (19/11)', () => {
+  const inicial = { tipo: 'AVISO' as const, texto: '' };
+  it('como abriu não tem alteração; texto, link, foto, capa, opção, prazo, várias respostas ou outro tipo têm', () => {
+    expect(postAlterado(inicial, inicial)).toBe(false);
+    expect(postAlterado({ ...inicial, texto: '   ' }, inicial)).toBe(false);
+    for (const r of [
+      { ...inicial, texto: 'Recado' }, { tipo: 'VIDEO' as const, texto: '', videoUrl: 'https://exemplo.test/v' },
+      { ...inicial, fotoIds: ['f1'] }, { ...inicial, capaId: 'c1' }, { tipo: 'ENQUETE' as const, texto: '', opcoes: ['Manhã', ''] },
+      { ...inicial, encerraEm: '01/12/2026' }, { ...inicial, variasRespostas: true }, { tipo: 'CONVERSA' as const, texto: '' },
+    ]) expect(postAlterado(r, inicial)).toBe(true);
+  });
+
+  it('sair sem salvar no aluno (19/11): o texto pronto do "Bom trabalho!" não é alteração; mudá-lo ou apagá-lo é', () => {
+    const pronto = { tipo: 'RESULTADO' as const, texto: 'Treino concluído: Treino A.' };
+    expect(postAlterado(pronto, pronto)).toBe(false);
+    expect(postAlterado({ ...pronto, texto: 'Treino concluído: Treino A. ' }, pronto)).toBe(false);
+    expect(postAlterado({ ...pronto, texto: 'Treino concluído: Treino A. Bora!' }, pronto)).toBe(true);
+    expect(postAlterado({ ...pronto, texto: '' }, pronto)).toBe(true);
+    expect(postAlterado({ ...pronto, fotoIds: ['f1'] }, pronto)).toBe(true);
   });
 });
 

@@ -87,6 +87,14 @@ export function rascunhoAoAbrir(r: RascunhoDoPost, aba: AbaDoMural, papel: Papel
   return r.tipo === tipo && !r.opcoes ? r : { tipo, texto: r.texto };
 }
 
+/**
+ * A "Nova publicação" tem algo a perder? O texto diferente do que abriu (fora espaços; o texto pronto do "Bom trabalho!"
+ * não conta), algo mais digitado ou anexado, o tipo trocado em relação ao que abriu, ou as várias respostas da enquete
+ * ligadas. `inicial` só tem tipo e texto.
+ */
+export const postAlterado = (r: RascunhoDoPost, inicial: RascunhoDoPost): boolean =>
+  r.texto.trim() !== inicial.texto.trim() || !intocado({ ...r, texto: '' }) || r.tipo !== inicial.tipo || r.variasRespostas === true;
+
 const VAZIO_DA_ABA: Record<AbaDoMural, string> = { avisos: 'Nenhum aviso, vídeo ou enquete', alunos: 'Nenhuma conversa, dúvida ou resultado' };
 
 /** Vazio da aba: sem filtro diz o que falta nela (e no grupo); com tipo ou busca, o texto do filtro; só denunciadas diz a aba. */

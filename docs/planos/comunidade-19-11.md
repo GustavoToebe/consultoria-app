@@ -1,6 +1,6 @@
 # Comunidade: conserto do "Novo vídeo", Vídeos, Coleções, Novo vídeo e Mural (só app)
 
-Situação: Em andamento (pedido de 19/11; passo 0 com agente, passos 1 a 5 ainda não começados) · Onde: main · Atualizado: 19/11/2026
+Situação: Em andamento (pedido de 19/11; passo 0 feito, sem commit; passos 1 a 5 ainda não começados) · Onde: main · Atualizado: 19/11/2026
 
 ## Objetivo
 Só apresentação (C168: escopo congelado; sem mudança de API): funções na cara e não escondidas em modal (C167), a partir da reunião de 15/11 (C24–C40). Arquivos: `treinador/comunidade/*` (`CartaoDoVideo`, `ListaDosVideos`, `FolhaColecoes`, `FolhaDoAulao`), `app/treinador/comunidade.tsx`, `comunidade/CartaoDoPost.tsx`, `aluno/ColecoesDeAuloes.tsx`. Seguir a skill `front-consultoria` e `docs/design-e-front.md` (Excluir sempre com texto; um nível de destaque). Sem push; dois commits: o passo 0 sozinho (é conserto) e o resto em "comunidade (19/11)".
@@ -16,7 +16,7 @@ Só apresentação (C168: escopo congelado; sem mudança de API): funções na c
 | D6 | App do aluno | A aba "Time" passa a se chamar "Comunidade" (C40); conferir que cabe a 390 px, e se não couber mostrar antes de encurtar. Os cartões de vídeo do aluno (`ColecoesDeAuloes`) seguem o cartão do D2, sem o ⋯ de gestão. **Texto do pedido cortado aqui: o resto do item 5 não chegou (pedir ao Gustavo)** |
 
 ## Passos
-- [ ] 0. Conserto do "Novo vídeo" (D1): agente `executor-front`, commit sozinho
+- [x] 0. Conserto do "Novo vídeo" (D1): agente `executor-front`, commit sozinho. Feito em 19/11/2026, sem commit (commit: —). O "Sair sem salvar?" (`ui/GuardaDeSaida` exporta `AvisoSairSemSalvar`, usado por `comunidade/useFecharComAviso`) vale no Novo vídeo e no Editar vídeo, na nova coleção e na Nova publicação da equipe e, por decisão do Gustavo de 19/11, também na do aluno (`app/aluno/comunidade.tsx`: a folha só existe aberta, nasce do `inicial` e o rascunho é apagado ao fechar e ao publicar; o texto pronto do "Bom trabalho!" não conta como alteração, `postAlterado` compara com o `inicial`). `FolhaComentarios` ficou como estava (decisão do Gustavo). Evidência: `muralEmAbas.test.ts` ("sair sem salvar na nova publicação (19/11)" e o caso do aluno) e `e2e/comunidade.spec.ts` ("sair sem salvar no novo vídeo (19/11)" e "sair sem salvar no aluno (19/11)"); capturas do aviso no escuro em 390 e 1280. A troca de tela com a folha alterada não foi ligada (não é simples) e foi para as Pendências soltas, com o arrastar para fechar no celular nativo e as fotos e capas descartadas
 - [ ] 1. Aba Vídeos em grade, com seções por coleção e ⋯ (D2) e coleções sem modal (D3)
 - [ ] 2. Novo vídeo / Editar vídeo na ordem nova (D4)
 - [ ] 3. Mural: barra única, folha de configurações, coluna à direita, cartão e nova publicação (D5)
@@ -27,4 +27,4 @@ Só apresentação (C168: escopo congelado; sem mudança de API): funções na c
 - Mudança de API, rota nova para ordem de vídeos (C32), filtro por autor no Mural.
 
 ## O que ficou para trás
-- Nada ainda. Depende de: o texto cortado do item 5; o arrastar com cópia translúcida (substitui a peça depois).
+- Do passo 0, em Pendências soltas do índice (origem "Comunidade, passo 0, 19/11"): conferir no celular nativo o arrastar para fechar a folha e o "Continuar editando"; a troca de tela com a folha alterada (fechar ou recarregar a aba, navegação por código), não ligada; fotos e capas enviadas e descartadas ficam no servidor até o prazo delas. Depende de: o texto cortado do item 5; o arrastar com cópia translúcida (substitui a peça depois).

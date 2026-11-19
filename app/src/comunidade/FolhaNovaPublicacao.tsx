@@ -24,13 +24,16 @@ import { Texto } from '../ui/Texto';
 import { separarErros, textoDoErro } from '../ui/erros';
 import { CampoDaCapa } from './CampoDaCapa';
 import { EscolhaDoGrupo } from './EscolhaDoGrupo';
+import { postAlterado } from '../dominio/muralEmAbas';
 import { escolherEEnviarFotoDoMural, rotasDaFotoDoMural } from './fotosDoMural';
+import { useFecharComAviso } from './useFecharComAviso';
 
 const CAMPOS: CampoDoPost[] = ['tipo', 'texto', 'videoUrl', 'fotoIds', 'capaId', 'opcoes', 'encerraEm'];
 const SEM_INTERNET = 'Sem conexão: publicar precisa de internet.';
 
 /**
- * "Nova publicação" do mural numa `Folha` (aluno e equipe). O rascunho mora na tela (fechar e reabrir mantém); os erros
+ * "Nova publicação" do mural numa `Folha` (aluno e equipe). O rascunho mora na tela, que só monta a folha aberta e o apaga
+ * ao fechar e ao publicar: fechar com alteração pergunta "Sair sem salvar?" antes (equipe e, desde 19/11, aluno); os erros
  * aparecem no envio, cada um no seu campo, com as regras de `dominio/comunidade` e o 422 da API no mesmo lugar. A equipe
  * escolhe também Aviso (nasce fixado), Vídeo (link https e capa opcional) e Enquete (a pergunta é o texto; 2 a 6 opções,
  * várias respostas e prazo opcionais, com o aviso de que o voto é identificado); fotos (0 a 4, aluno e equipe) só com
@@ -39,11 +42,13 @@ const SEM_INTERNET = 'Sem conexão: publicar precisa de internet.';
  * Grupos (pods): o aluno com pod publica no mural que está vendo (`destino`, só leitura; o servidor confere que o pod é o
  * dele); a equipe com `grupos` escolhe Geral (padrão) ou um grupo, com o aviso de menor do grupo escolhido.
  */
-export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFotos, online = true, destino, grupos, aoFechar, aoPublicar }: {
+export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, inicial, comFotos, online = true, destino, grupos, aoFechar, aoPublicar }: {
   visivel: boolean;
   papel: PapelNoMural;
   rascunho: RascunhoDoPost;
   aoMudar: (r: RascunhoDoPost) => void;
+  /** O rascunho com que a folha abriu: o que difere dele (`postAlterado`) faz o fechar perguntar "Sair sem salvar?". */
+  inicial: RascunhoDoPost;
   comFotos: boolean;
   online?: boolean;
   /** Aluno com pod: o mural onde o post vai (`podId` nulo = Geral) e o nome mostrado. */
@@ -81,7 +86,9 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
   const opcoesDaEnquete = rascunho.opcoes ?? OPCOES_INICIAIS_DA_ENQUETE;
   const mudarOpcao = (i: number, texto: string) => mudar({ opcoes: opcoesDaEnquete.map((o, j) => (j === i ? texto : o)) }, 'opcoes');
 
-  const fechar = () => { setTentou(false); setErrosApi({}); setAlerta(null); setErroDaFoto(null); aoFechar(); };
+  const descartar = () => { setTentou(false); setErrosApi({}); setAlerta(null); setErroDaFoto(null); setGrupoEscolhido(null); aoFechar(); };
+  const alterado = postAlterado(rascunho, inicial) || grupoEscolhido !== null;
+  const { fechar, aviso } = useFecharComAviso(visivel, alterado, descartar);
 
   const publicar = async () => {
     setTentou(true);
@@ -230,6 +237,7 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
       ) : null}
 
       {alerta ? <Alerta tom="perigo" texto={alerta} /> : null}
+      {aviso}
     </Folha>
   );
 }

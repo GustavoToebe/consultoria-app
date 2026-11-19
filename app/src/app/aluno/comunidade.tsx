@@ -78,7 +78,7 @@ export default function ComunidadeAluno() {
   const { avisar } = useAviso();
   const { usuario } = useSessao();
   const params = useLocalSearchParams<{ aba?: string; mural?: string; grupo?: string; publicar?: string; texto?: string }>();
-  // A aba mora no endereço (`?aba=`). `setParams` mantém a tela montada (o rascunho fica) e preserva os outros parâmetros.
+  // A aba mora no endereço (`?aba=`). `setParams` mantém a tela montada e preserva os outros parâmetros.
   const aba: AbaComunidade = params.aba === 'auloes' || params.aba === 'ranking' || params.aba === 'colegas' ? params.aba : 'mural';
   // Coleção aberta pelo toque ocupa uma entrada do histórico (o voltar a fecha): trocar de aba a fecha primeiro e só grava a
   // aba quando a entrada voltou, como o mural ao publicar (senão a volta chega depois e traz a aba Vídeos de novo).
@@ -127,7 +127,12 @@ export default function ComunidadeAluno() {
   });
   const posts = mural.dadosDeOutraChave ? undefined : mural.dados?.content;
   const [rascunho, setRascunho] = useState<RascunhoDoPost>(RASCUNHO_VAZIO);
+  // O rascunho com que a folha abriu (vazio, ou o texto pronto do "Bom trabalho!"): é o que conta como "sem alteração".
+  const [inicial, setInicial] = useState<RascunhoDoPost>(RASCUNHO_VAZIO);
   const [compondo, setCompondo] = useState(false);
+  // Sair sem salvar no aluno (19/11), como na equipe: fechar (depois do "Sair sem salvar?", se havia alteração) ou publicar
+  // apaga o rascunho, e a folha reabre vazia.
+  const pararDeCompor = () => { setRascunho(RASCUNHO_VAZIO); setInicial(RASCUNHO_VAZIO); setCompondo(false); };
   const [menuDe, setMenuDe] = useState<PostDoMural | null>(null);
   const [denunciar, setDenunciar] = useState<PostDoMural | null>(null);
 
@@ -140,7 +145,7 @@ export default function ComunidadeAluno() {
     let vivo = true;
     void Promise.resolve().then(() => {
       if (!vivo) return;
-      if (tipo) { setRascunho({ tipo, texto }); setCompondo(true); }
+      if (tipo) { setRascunho({ tipo, texto }); setInicial({ tipo, texto }); setCompondo(true); }
       // Atrás da folha, o mural na aba onde o post vai aparecer.
       router.setParams({ publicar: undefined, texto: undefined, ...(tipo ? { aba: undefined, mural: abaDoTipo(tipo) } : {}) });
     });
@@ -157,8 +162,7 @@ export default function ComunidadeAluno() {
   const publicado = (podId: string | null) => {
     // O post do aluno mora na aba Alunos: publicando de Avisos, a tela segue para lá, senão ele "some" logo depois do aviso.
     const abaDoPost = abaDoTipo(rascunho.tipo);
-    setRascunho(RASCUNHO_VAZIO);
-    setCompondo(false);
+    pararDeCompor();
     avisar(podId && podDoMural ? `Publicado no grupo ${podDoMural.nome}.` : 'Publicado no mural.', 'sucesso');
     // Grava a aba só depois de a Folha devolver a entrada dela no histórico (na web): antes, o fechar voltaria à URL sem `?mural=`.
     if (abaDoPost !== abaDoMural) depoisDeFecharAsFolhas(() => setAbaDoMural(abaDoPost));
@@ -307,9 +311,12 @@ export default function ComunidadeAluno() {
       <FolhaComentarios alvo={comentariosDe} modo={{ tipo: 'aluno', online }} aoFechar={() => setComentariosDe(null)}
         aoAlterar={comentariosDe?.tipo === 'aula' ? auloes.recarregar : mural.recarregar} />
       <FolhaDosVotos alvo={votosDe} papel="aluno" aoFechar={() => setVotosDe(null)} />
-      <FolhaNovaPublicacao visivel={compondo && publica} papel="aluno" rascunho={rascunho} aoMudar={setRascunho}
-        comFotos={podeAnexarFoto(config.dados)} online={online} aoFechar={() => setCompondo(false)} aoPublicar={publicado}
-        destino={pod ? { podId: podDoMural?.id ?? null, rotulo: podDoMural?.nome ?? ROTULO_DO_MURAL_GERAL } : undefined} />
+      {/* Só existe aberta: cada abertura nasce do zero (o estado interno da folha some ao fechar). */}
+      {compondo && publica ? (
+        <FolhaNovaPublicacao visivel papel="aluno" rascunho={rascunho} aoMudar={setRascunho} inicial={inicial}
+          comFotos={podeAnexarFoto(config.dados)} online={online} aoFechar={pararDeCompor} aoPublicar={publicado}
+          destino={pod ? { podId: podDoMural?.id ?? null, rotulo: podDoMural?.nome ?? ROTULO_DO_MURAL_GERAL } : undefined} />
+      ) : null}
       {menuDe ? (
         <FolhaDeAcoes titulo="Ações da publicação" aoFechar={() => setMenuDe(null)}
           acoes={[{ rotulo: 'Denunciar', detalhe: 'A equipe da consultoria vai olhar.', Icone: Flag, perigo: true, aoTocar: () => setDenunciar(menuDe) }]} />

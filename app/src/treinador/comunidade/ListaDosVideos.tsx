@@ -120,14 +120,19 @@ export function BarraDaSelecao({ v }: { v: VideosDaEquipe }) {
   );
 }
 
-/** As folhas da aba, montadas nas duas abas: o rascunho do "Novo vídeo" sobrevive ao Cancelar e à troca de aba. */
+/**
+ * As folhas da aba, montadas nas duas abas. "Novo vídeo" e "Coleções" só existem abertas: cada abertura nasce do zero, sem
+ * nada de antes (nem a capa em preparação); fechar com alteração pergunta "Sair sem salvar?" dentro da folha.
+ */
 export function FolhasDosVideos({ v, podePublicar }: { v: VideosDaEquipe; podePublicar: boolean }) {
   const { colecoes, playlists } = v;
   const listaDeColecoes = playlists.erro ? undefined : playlists.dados;
   return (
     <>
-      <FolhaDoAulao visivel={v.novoVideo && podePublicar} colecoes={listaDeColecoes} aoFechar={() => v.setNovoVideo(false)}
-        aoSalvar={() => { v.setNovoVideo(false); v.salvo('Vídeo publicado para o time.'); }} />
+      {v.novoVideo && podePublicar ? (
+        <FolhaDoAulao visivel colecoes={listaDeColecoes} aoFechar={() => v.setNovoVideo(false)}
+          aoSalvar={() => { v.setNovoVideo(false); v.salvo('Vídeo publicado para o time.'); }} />
+      ) : null}
       {v.editando ? (
         <FolhaDoAulao key={v.editando.id} visivel={podePublicar} original={v.editando} colecoes={listaDeColecoes}
           aoFechar={() => v.setEditando(null)} aoSumir={v.aulaSumiu}
@@ -154,8 +159,9 @@ export function FolhasDosVideos({ v, podePublicar }: { v: VideosDaEquipe; podePu
         {v.erroAoExcluir ? <MensagemErro texto={v.erroAoExcluir} /> : null}
       </PainelConfirmacao>
 
-      <FolhaColecoes visivel={v.vendoColecoes && podePublicar} colecoes={playlists} aoFechar={() => v.setVendoColecoes(false)}
-        aoMudarVideos={v.auloes.recarregar} />
+      {v.vendoColecoes && podePublicar ? (
+        <FolhaColecoes visivel colecoes={playlists} aoFechar={() => v.setVendoColecoes(false)} aoMudarVideos={v.auloes.recarregar} />
+      ) : null}
 
       {/* Destino do lote: tocar já move (a barra mostra o progresso e o aviso diz o resultado). */}
       {v.escolhendoDestino ? (

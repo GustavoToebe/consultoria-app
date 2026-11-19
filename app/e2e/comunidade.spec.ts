@@ -276,10 +276,11 @@ for (const largura of [390, 1280]) {
       await capturar(page, `aluno-publicar-resultado-${largura}`);
       expect(api.pedidos.some((p) => foiPost(p, '/aluno/comunidade/mural'))).toBe(false);
 
-      // Fechar e reabrir mantém o rascunho; o texto pronto é editável.
-      await folha.getByRole('button', { name: 'Cancelar' }).click();
-      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      // Sair sem salvar no aluno (19/11): o texto pronto é editável e, editado, fechar pergunta; continuar mantém o texto.
       await texto.fill('Treino concluído: Treino A. Bora!');
+      await folha.getByRole('button', { name: 'Cancelar' }).click();
+      await page.getByRole('alertdialog', { name: 'Sair sem salvar?' }).getByRole('button', { name: 'Continuar editando' }).click();
+      await expect(texto).toHaveValue('Treino concluído: Treino A. Bora!');
       await folha.getByRole('button', { name: /^Publicar/ }).click();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/mural'))?.corpo)
         .toEqual({ tipo: 'RESULTADO', texto: 'Treino concluído: Treino A. Bora!' });
@@ -351,9 +352,72 @@ for (const largura of [390, 1280]) {
       await expect(folha.getByText('Muitas publicações. Tente de novo em instantes.')).toBeVisible();
       await expect(folha.getByRole('textbox', { name: 'Texto', exact: true })).toHaveValue('Oi, time');
       await page.keyboard.press('Escape');
+      await page.getByRole('alertdialog', { name: 'Sair sem salvar?' }).getByRole('button', { name: 'Sair sem salvar' }).click();
+      await expect(folha).toHaveCount(0);
       await expect(page.getByText('Nenhum aviso, vídeo ou enquete ainda.')).toBeVisible();
       // Não publicou: a tela fica na aba em que estava.
       await expect(page).not.toHaveURL(/mural=alunos/);
+    });
+
+    // Sair sem salvar no aluno (19/11): fechar com alteração pergunta; continuar mantém tudo; sair zera a próxima abertura.
+    test('aluno: "Nova publicação" preenchida pergunta "Sair sem salvar?" ao fechar; sem nada digitado fecha na hora', async ({ page }) => {
+      await tema(page, ALUNO.id, 'ESCURO');
+      const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia });
+      await page.goto('/aluno/comunidade');
+      const folha = novaPublicacao(page);
+      const aviso = page.getByRole('alertdialog', { name: 'Sair sem salvar?' });
+      const texto = folha.getByRole('textbox', { name: 'Texto', exact: true });
+
+      // Sem nada digitado: fecha pelo X na hora, sem aviso.
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      await folha.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await expect(folha).toHaveCount(0);
+      await expect(aviso).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      await folha.getByRole('radio', { name: 'Dúvida', exact: true }).click();
+      await texto.fill('Rascunho de teste');
+      await folha.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await expect(aviso.getByText('Há alterações que ainda não foram salvas. Se sair agora, elas serão perdidas.')).toBeVisible();
+      await expect(aviso.getByRole('button', { name: 'Continuar editando' })).toBeVisible();
+      await expect(aviso.getByRole('button', { name: 'Sair sem salvar' })).toBeVisible();
+      await capturar(page, `aluno-sair-sem-salvar-escuro-${largura}`);
+
+      // Continuar editando: a folha fica como estava e o foco volta ao campo de texto.
+      await aviso.getByRole('button', { name: 'Continuar editando' }).click();
+      await expect(aviso).toHaveCount(0);
+      await expect(texto).toHaveValue('Rascunho de teste');
+      await expect(folha.getByRole('radio', { name: 'Dúvida', exact: true })).toBeChecked();
+      await expect(texto).toBeFocused();
+
+      // Esc pergunta do mesmo jeito; Esc no aviso só fecha o aviso.
+      await page.keyboard.press('Escape');
+      await expect(aviso).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(aviso).toHaveCount(0);
+      await expect(folha).toBeVisible();
+      await expect(texto).toHaveValue('Rascunho de teste');
+
+      // O voltar do navegador também pergunta e não sai da tela; continuar mantém a folha como estava.
+      await page.goBack();
+      await expect(aviso).toBeVisible();
+      await aviso.getByRole('button', { name: 'Continuar editando' }).click();
+      await expect(folha).toBeVisible();
+      await expect(texto).toHaveValue('Rascunho de teste');
+      await expect(page).toHaveURL(/\/aluno\/comunidade/);
+
+      // Sair sem salvar (pelo Cancelar): fecha e a próxima abertura começa em branco, em Conversa.
+      await folha.getByRole('button', { name: 'Cancelar' }).click();
+      await aviso.getByRole('button', { name: 'Sair sem salvar' }).click();
+      await expect(folha).toHaveCount(0);
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      await expect(texto).toHaveValue('');
+      await expect(folha.getByRole('radio', { name: 'Conversa', exact: true })).toBeChecked();
+      await folha.getByRole('button', { name: 'Cancelar' }).click();
+      await expect(folha).toHaveCount(0);
+      await expect(aviso).toHaveCount(0);
+      expect(api.pedidos.some((p) => foiPost(p, '/aluno/comunidade/mural'))).toBe(false);
+      expect(api.errosDaPagina).toEqual([]);
     });
 
     test('aluno: tipo (no painel) e busca vão à API; vazio com filtro diz isso e limpa', async ({ page }) => {
@@ -995,16 +1059,19 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('button', { name: 'Fogo, 6 reações, você reagiu' })).toBeVisible();
       await page.getByRole('button', { name: 'Nova publicação' }).click();
       await novaPublicacao(page).getByRole('textbox', { name: 'Texto', exact: true }).fill('Rascunho de teste');
+      // Sair sem salvar no novo vídeo (19/11): o Cancelar com texto pergunta, e sair apaga o rascunho.
       await novaPublicacao(page).getByRole('button', { name: 'Cancelar' }).click();
+      await page.getByRole('alertdialog', { name: 'Sair sem salvar?' }).getByRole('button', { name: 'Sair sem salvar' }).click();
+      await expect(novaPublicacao(page)).toHaveCount(0);
       await page.getByRole('tab', { name: 'Vídeos' }).click();
       await expect(page).toHaveURL(/aba=auloes/);
       await capturar(page, `treinador-mural-${largura}`);
-      // A aba mora no endereço e a tela continua montada: o rascunho do mural continua lá.
+      // A aba mora no endereço; a "Nova publicação" reabre vazia, no tipo da aba.
       await page.getByRole('tab', { name: 'Mural' }).click();
       await expect(page).toHaveURL(/aba=mural/);
       await expect(page).toHaveURL(/[?&]mural=alunos/);
       await page.getByRole('button', { name: 'Nova publicação' }).click();
-      await expect(novaPublicacao(page).getByRole('textbox', { name: 'Texto', exact: true })).toHaveValue('Rascunho de teste');
+      await expect(novaPublicacao(page).getByRole('textbox', { name: 'Texto', exact: true })).toHaveValue('');
       expect(api.naoTratadas.filter((r) => r.includes('/comunidade'))).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
     });
@@ -1410,6 +1477,60 @@ for (const largura of [390, 1280]) {
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect(folha.getByText('Comunidade indisponível agora.')).toBeVisible();
       await expect(folha.getByRole('textbox', { name: 'Título' })).toHaveValue('Vídeo de teste');
+    });
+
+    // Sair sem salvar no novo vídeo (19/11): fechar com alteração pergunta; continuar mantém tudo; sair zera a próxima abertura.
+    test('treinador: "Novo vídeo" preenchido pergunta "Sair sem salvar?" ao fechar; sem nada digitado fecha na hora', async ({ page }) => {
+      await tema(page, TREINADOR.id, 'ESCURO');
+      const api = await abrirTreinador(page, { ...vazia, 'GET /comunidade/playlists': { corpo: [PLAYLIST_ALIMENTACAO, PLAYLIST_TECNICA] } });
+      await page.goto('/treinador/comunidade');
+      const folha = page.getByRole('dialog', { name: 'Novo vídeo' });
+      const aviso = page.getByRole('alertdialog', { name: 'Sair sem salvar?' });
+      const titulo = folha.getByRole('textbox', { name: 'Título' });
+      const link = folha.getByRole('textbox', { name: 'Link do vídeo' });
+
+      // Sem nada digitado: fecha pelo X na hora, sem aviso.
+      await page.getByRole('button', { name: 'Novo vídeo' }).click();
+      await folha.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await expect(folha).toHaveCount(0);
+      await expect(aviso).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Novo vídeo' }).click();
+      await link.fill('https://exemplo.test/video');
+      await titulo.fill('Vídeo de teste');
+      await folha.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await expect(aviso.getByText('Há alterações que ainda não foram salvas. Se sair agora, elas serão perdidas.')).toBeVisible();
+      await expect(aviso.getByRole('button', { name: 'Continuar editando' })).toBeVisible();
+      await expect(aviso.getByRole('button', { name: 'Sair sem salvar' })).toBeVisible();
+      await capturar(page, `sair-sem-salvar-escuro-${largura}`);
+
+      // Continuar editando: a folha fica como estava e o foco volta ao campo em que a pessoa estava.
+      await aviso.getByRole('button', { name: 'Continuar editando' }).click();
+      await expect(aviso).toHaveCount(0);
+      await expect(titulo).toHaveValue('Vídeo de teste');
+      await expect(link).toHaveValue('https://exemplo.test/video');
+      await expect(titulo).toBeFocused();
+
+      // Esc pergunta do mesmo jeito; Esc no aviso só fecha o aviso.
+      await page.keyboard.press('Escape');
+      await expect(aviso).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(aviso).toHaveCount(0);
+      await expect(folha).toBeVisible();
+      await expect(titulo).toHaveValue('Vídeo de teste');
+
+      // Sair sem salvar (pelo Cancelar): fecha e a próxima abertura começa em branco.
+      await folha.getByRole('button', { name: 'Cancelar' }).click();
+      await aviso.getByRole('button', { name: 'Sair sem salvar' }).click();
+      await expect(folha).toHaveCount(0);
+      await page.getByRole('button', { name: 'Novo vídeo' }).click();
+      await expect(titulo).toHaveValue('');
+      await expect(link).toHaveValue('');
+      await folha.getByRole('button', { name: 'Cancelar' }).click();
+      await expect(folha).toHaveCount(0);
+      await expect(aviso).toHaveCount(0);
+      expect(api.pedidos.some((p) => foiPost(p, '/comunidade/aulas'))).toBe(false);
+      expect(api.errosDaPagina).toEqual([]);
     });
 
     test('treinador: erro da API vira mensagem com "Tentar de novo" e nenhum dado de exemplo', async ({ page }) => {
