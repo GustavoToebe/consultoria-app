@@ -11,6 +11,8 @@ export interface AcaoDoMenu {
   Icone?: LucideIcon;
   /** Destrutiva: vermelha, sem seta (a confirmação vem num `PainelConfirmacao`). */
   perigo?: boolean;
+  /** Apagada e sem toque; o `detalhe` deve dizer o motivo. */
+  desabilitado?: boolean;
   aoTocar: () => void;
 }
 
@@ -24,7 +26,7 @@ export function FolhaDeAcoes({ titulo, acoes, aoFechar, children }: { titulo: st
   return (
     <Folha visivel titulo={titulo} aoFechar={aoFechar}>
       {acoes.filter((a): a is AcaoDoMenu => !!a).map((a) => (
-        <ItemDeLista key={a.rotulo} titulo={a.rotulo} detalhe={a.detalhe} Icone={a.Icone} perigo={a.perigo}
+        <ItemDeLista key={a.rotulo} titulo={a.rotulo} detalhe={a.detalhe} Icone={a.Icone} perigo={a.perigo} desabilitado={a.desabilitado}
           aoTocar={() => { aoFechar(); a.aoTocar(); }} />
       ))}
       {children}

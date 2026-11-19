@@ -372,13 +372,15 @@ export function textoDoMinimoAte(minimoAte: string | null | undefined): string {
 // ---- Painel de inativar ----
 
 export const TEXTO_GENERICO_DO_INATIVAR =
-  'As cobranças que ainda não venceram serão canceladas. As vencidas e a cobrança de saída continuam em aberto.';
+  'As mensalidades e as parcelas de cobrança avulsa que vencem de hoje em diante serão canceladas. As já vencidas e a cobrança de saída continuam em aberto: a equipe ainda pode dar baixa, desfazer ou cancelar.';
 
 /**
- * As linhas do aviso do painel de inativar. Sem `FINANCEIRO_LER`, com o financeiro desligado ou sem o resumo (ainda
- * carregando ou falhou), o texto genérico, sem valores. Com o resumo: o que será cancelado, o que continua em aberto e,
- * se o mínimo se perde, o aviso (inativar nunca cobra a saída; é preciso encerrar o plano antes). Lista vazia = não há
- * nada em aberto nem mínimo: o painel não mostra nada.
+ * As linhas do aviso do painel de inativar (D9 de `docs/planos/financeiro-em-fases.md`): inativar cancela as mensalidades e
+ * as parcelas da avulsa abertas que vencem de hoje em diante (Brasília); as já vencidas e a de saída ficam. Sem
+ * `FINANCEIRO_LER`, com o financeiro desligado ou sem o resumo (ainda carregando ou falhou), o texto genérico, sem valores.
+ * Com o resumo: o que será cancelado, o que continua em aberto e, se o mínimo se perde, o aviso (inativar nunca cobra a
+ * saída; é preciso encerrar o plano antes). O resumo não separa mensalidade de avulsa: o texto nomeia as duas sem dividir
+ * a contagem. Lista vazia = não há nada em aberto nem mínimo: o painel não mostra nada.
  */
 export function linhasDoPainelDeInativar(
   resumo: ResumoDaSaidaDoAluno | null | undefined,
@@ -388,11 +390,11 @@ export function linhasDoPainelDeInativar(
   const linhas: string[] = [];
   const cancela = resumo.aCancelar;
   if (cancela.quantidade > 0) {
-    linhas.push(`${plural(cancela.quantidade, 'mensalidade a vencer será cancelada', 'mensalidades a vencer serão canceladas')} (${centavosParaTela(cancela.valorCentavos)}).`);
+    linhas.push(`${plural(cancela.quantidade, 'cobrança que vence de hoje em diante será cancelada', 'cobranças que vencem de hoje em diante serão canceladas')} (${centavosParaTela(cancela.valorCentavos)}): ${cancela.quantidade === 1 ? 'mensalidade ou parcela' : 'mensalidades ou parcelas'} de cobrança avulsa.`);
   }
   const abertas = resumo.emAberto;
   if (abertas.quantidade > 0) {
-    linhas.push(`${plural(abertas.quantidade, 'cobrança vencida ou de saída continua', 'cobranças vencidas ou de saída continuam')} em aberto (${centavosParaTela(abertas.valorCentavos)}). Dê baixa ou cancele depois, se precisar.`);
+    linhas.push(`${plural(abertas.quantidade, 'cobrança já vencida, de saída ou de acordo continua', 'cobranças já vencidas, de saída ou de acordo continuam')} em aberto (${centavosParaTela(abertas.valorCentavos)}). A equipe ainda pode dar baixa, desfazer ou cancelar.`);
   }
   const ate = dataParaTela(resumo.minimoAte);
   if (resumo.mesesQueFaltam > 0 && ate) {

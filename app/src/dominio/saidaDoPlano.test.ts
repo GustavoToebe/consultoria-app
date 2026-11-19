@@ -234,11 +234,16 @@ describe('painel de inativar', () => {
   });
   it('com o resumo: cancela, fica em aberto e o mínimo que se perde', () => {
     expect(linhasDoPainelDeInativar(resumo(), ctx).map(semEspaco)).toEqual([
-      '2 mensalidades a vencer serão canceladas (R$ 300,00).',
-      '1 cobrança vencida ou de saída continua em aberto (R$ 150,00). Dê baixa ou cancele depois, se precisar.',
+      '2 cobranças que vencem de hoje em diante serão canceladas (R$ 300,00): mensalidades ou parcelas de cobrança avulsa.',
+      '1 cobrança já vencida, de saída ou de acordo continua em aberto (R$ 150,00). A equipe ainda pode dar baixa, desfazer ou cancelar.',
       'Faltam 3 meses para o mínimo (até 05/04/2027). Inativar não cobra a saída: para cobrar, encerre o plano antes.',
     ]);
-    expect(semEspaco(linhasDoPainelDeInativar(resumo({ aCancelar: { quantidade: 1, valorCentavos: 100 }, mesesQueFaltam: 1 }), ctx)[0])).toBe('1 mensalidade a vencer será cancelada (R$ 1,00).');
+    expect(semEspaco(linhasDoPainelDeInativar(resumo({ aCancelar: { quantidade: 1, valorCentavos: 100 }, mesesQueFaltam: 1 }), ctx)[0]))
+      .toBe('1 cobrança que vence de hoje em diante será cancelada (R$ 1,00): mensalidade ou parcela de cobrança avulsa.');
+  });
+  it('o texto genérico diz que a avulsa a vencer também é cancelada e que as vencidas e a de saída ficam (D9)', () => {
+    expect(TEXTO_GENERICO_DO_INATIVAR).toMatch(/mensalidades e as parcelas de cobrança avulsa que vencem de hoje em diante serão canceladas/);
+    expect(TEXTO_GENERICO_DO_INATIVAR).toMatch(/já vencidas e a cobrança de saída continuam em aberto/);
   });
   it('nada em aberto e sem mínimo: nenhuma linha', () => {
     expect(linhasDoPainelDeInativar(resumo({ aCancelar: vazio, emAberto: vazio, minimoAte: null, mesesQueFaltam: 0 }), ctx)).toEqual([]);

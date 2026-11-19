@@ -58,7 +58,9 @@ public class FinanceiroService {
 
     private static final CobrancaAluno.Situacao ABERTA = CobrancaAluno.Situacao.ABERTA;
     private static final CobrancaAluno.Situacao PAGA = CobrancaAluno.Situacao.PAGA;
-    private static final CobrancaAluno.Situacao CANCELADA = CobrancaAluno.Situacao.CANCELADA;
+    /** O que não entra no cobrado da inadimplência: cancelada e a original renegociada (vira as parcelas, que já contam). */
+    private static final java.util.Set<CobrancaAluno.Situacao> FORA_DA_BASE = java.util.Set.of(
+            CobrancaAluno.Situacao.CANCELADA, CobrancaAluno.Situacao.RENEGOCIADA);
 
     private final CobrancaAlunoRepository cobrancas;
     private final ContratacaoAlunoRepository contratacoes;
@@ -105,7 +107,7 @@ public class FinanceiroService {
         if (ate.isBefore(de)) {
             return null;
         }
-        long cobradas = cobrancas.cobradoPorVencimento(CANCELADA, de, ate, null).getQuantidade();
+        long cobradas = cobrancas.cobradoPorVencimento(FORA_DA_BASE, de, ate, null).getQuantidade();
         if (cobradas == 0) {
             return null;
         }
@@ -143,7 +145,7 @@ public class FinanceiroService {
         LocalDate atrasoAte = fim.isBefore(hoje) ? fim : hoje.minusDays(1);
         boolean haAtraso = !atrasoAte.isBefore(inicio);
         Soma atrasadas = haAtraso ? cobrancas.abertasPorVencimento(ABERTA, inicio, atrasoAte, responsavelId) : null;
-        Soma cobradas = haAtraso ? cobrancas.cobradoPorVencimento(CANCELADA, inicio, atrasoAte, responsavelId) : null;
+        Soma cobradas = haAtraso ? cobrancas.cobradoPorVencimento(FORA_DA_BASE, inicio, atrasoAte, responsavelId) : null;
         // Pagantes e valor médio contam só mensalidade: a cobrança de saída entra no recebido, mas não vira "mais um pagante".
         Soma mensalidades = recebido == null ? null
                 : cobrancas.pagasPorPagamentoDoTipo(PAGA, CobrancaAluno.Tipo.MENSALIDADE, inicio, ateHoje, responsavelId);

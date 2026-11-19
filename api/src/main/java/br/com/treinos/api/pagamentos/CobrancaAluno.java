@@ -26,15 +26,23 @@ import java.util.UUID;
 @Table(name = "cobranca_aluno")
 public class CobrancaAluno {
 
-    public enum Situacao { ABERTA, PAGA, CANCELADA, ESTORNADA, CONTESTADA }
+    /**
+     * RENEGOCIADA (V094) é a original que virou parcelas de um acordo: o dinheiro segue devido nas parcelas, então ela fica fora de
+     * totais, vencido e lembretes, mas continua cobrindo a competência (a mensalidade renegociada não é gerada de novo).
+     */
+    public enum Situacao { ABERTA, PAGA, CANCELADA, ESTORNADA, CONTESTADA, RENEGOCIADA }
 
     /**
      * MENSALIDADE é a cobrança do período; SAIDA é a cobrança de saída antes do tempo mínimo (V074), uma viva por contratação;
      * AVULSA (V087) é a que o treinador lança direto ao aluno, sem contratação nem competência, com descrição e valor do corpo.
+     * RENEGOCIACAO (V094) é a parcela de um acordo: como a avulsa (sem contratação nem competência), mas com descrição fixa do servidor.
      */
-    public enum Tipo { MENSALIDADE, SAIDA, AVULSA }
+    public enum Tipo { MENSALIDADE, SAIDA, AVULSA, RENEGOCIACAO }
 
-    /** O dinheiro não ficou: cancelada e estornada não cobrem período (a contestada cobre, até o banco decidir). */
+    /**
+     * O dinheiro não ficou: cancelada e estornada não cobrem período (a contestada cobre, até o banco decidir). A RENEGOCIADA também
+     * cobre: o valor foi para as parcelas do acordo, e a competência não nasce de novo.
+     */
     public static final Set<Situacao> NAO_COBREM_PERIODO = Set.of(Situacao.CANCELADA, Situacao.ESTORNADA);
 
     /** Provedor da baixa manual do treinador. */
@@ -59,6 +67,14 @@ public class CobrancaAluno {
     private LocalDate competencia;
     /** Texto do treinador, só da AVULSA (nulo nas outras): nunca em log nem auditoria; a anonimização o troca por texto fixo. */
     private String descricao;
+    /** O acordo (V094): nas originais RENEGOCIADA e nas parcelas RENEGOCIACAO; nulo nas demais e nas originais reabertas ao desfazer. */
+    @Column(name = "acordo_id")
+    private UUID acordoId;
+    /** Só da AVULSA gerada pelo app (V090): o UUID do pedido (idempotência da geração) e a posição da parcela, 1 a 12. Não é dado pessoal. */
+    @Column(name = "pedido_id", updatable = false)
+    private UUID pedidoId;
+    @Column(updatable = false)
+    private Short parcela;
     @Column(name = "valor_centavos", nullable = false)
     private long valorCentavos;
     @Column(nullable = false)
@@ -127,14 +143,31 @@ public class CobrancaAluno {
     }
 
     /** Cobrança avulsa: sem contratação nem competência; valor e descrição vêm do treinador (D5, exceção à regra do valor do servidor). */
-    static CobrancaAluno avulsa(UUID alunoId, String descricao, long valorCentavos, LocalDate vencimento) {
+    static CobrancaAluno avulsa(UUID pedidoId, UUID alunoId, int parcela, String descricao, long valorCentavos,
+                                LocalDate vencimento) {
         CobrancaAluno c = new CobrancaAluno();
+        c.pedidoId = pedidoId;
+        c.parcela = (short) parcela;
         c.alunoId = alunoId;
         c.descricao = descricao;
         c.valorCentavos = valorCentavos;
         c.vencimento = vencimento;
         c.situacao = Situacao.ABERTA;
         c.tipo = Tipo.AVULSA;
+        c.provedor = MANUAL;
+        return c;
+    }
+
+    /** Parcela de um acordo: sem contratação nem competência; a descrição é fixa do servidor e valor e vencimento vêm da conta dele (D14). */
+    static CobrancaAluno renegociacao(UUID acordoId, UUID alunoId, String descricao, long valorCentavos, LocalDate vencimento) {
+        CobrancaAluno c = new CobrancaAluno();
+        c.acordoId = acordoId;
+        c.alunoId = alunoId;
+        c.descricao = descricao;
+        c.valorCentavos = valorCentavos;
+        c.vencimento = vencimento;
+        c.situacao = Situacao.ABERTA;
+        c.tipo = Tipo.RENEGOCIACAO;
         c.provedor = MANUAL;
         return c;
     }
@@ -177,6 +210,20 @@ public class CobrancaAluno {
         this.baixaPor = null;
         this.observacao = null;
         this.motivo = motivo;
+    }
+
+    /** ABERTA vira RENEGOCIADA; o motivo é texto do treinador (só a equipe vê, nunca o aluno nem o provedor). */
+    void renegociar(UUID acordoId, String motivo) {
+        this.situacao = Situacao.RENEGOCIADA;
+        this.acordoId = acordoId;
+        this.motivo = motivo;
+    }
+
+    /** O acordo foi desfeito: a original volta a ABERTA, sem acordo e sem o motivo da renegociação. */
+    void reabrirDoAcordo() {
+        this.situacao = Situacao.ABERTA;
+        this.acordoId = null;
+        this.motivo = null;
     }
 
     void cancelar(String motivo) {
@@ -222,6 +269,7 @@ public class CobrancaAluno {
     public UUID getAlunoId() { return alunoId; }
     public LocalDate getCompetencia() { return competencia; }
     public String getDescricao() { return descricao; }
+    public UUID getAcordoId() { return acordoId; }
     public long getValorCentavos() { return valorCentavos; }
     public LocalDate getVencimento() { return vencimento; }
     public Situacao getSituacao() { return situacao; }

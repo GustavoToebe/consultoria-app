@@ -61,6 +61,10 @@ class PagamentosDesligadosIntegrationTest extends AbstractIntegrationTest {
         api.post("/financeiro/lancamentos", admin,
                 Map.of("data", hoje.toString(), "descricao", "x", "valorCentavos", 1, "tipo", "ENTRADA"), 503);
         api.post("/cobrancas/" + UUID.randomUUID() + "/cancelar", admin, Map.of("motivo", "x", "versao", 0), 503);
+        // Renegociar (D14): as três rotas também fecham com o financeiro desligado.
+        api.post("/cobrancas/renegociar/previa", admin, Map.of(), 503);
+        api.post("/cobrancas/renegociar", admin, Map.of(), 503);
+        api.post("/cobrancas/acordos/" + UUID.randomUUID() + "/desfazer", admin, Map.of("motivo", "x"), 503);
         // O lote de baixas também fica atrás do financeiro, antes de qualquer item.
         assertThat(api.post("/cobrancas/baixa-em-lote", admin, Map.of("itens",
                 java.util.List.of(Map.of("cobrancaId", UUID.randomUUID().toString(), "versao", 0)), "data", hoje.toString(),

@@ -2,6 +2,8 @@ package br.com.treinos.api.pagamentos;
 
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.alunos.dto.AlunoDtos.PlanosAtivos;
+import br.com.treinos.api.pagamentos.PagamentosDtos.AcordoExportado;
 import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancaExportada;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoExportada;
 import br.com.treinos.api.pagamentos.PagamentosDtos.EscolhaDeLembretesExportada;
@@ -19,6 +21,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -39,16 +42,40 @@ public class PagamentosDoAluno {
     private final AvisoDePagamentoRepositorio avisos;
     private final LembreteDeCobrancaRepository lembretes;
     private final AlunoRepository alunos;
+    private final PagamentosProperties propriedades;
+    private final ResponsavelFinanceiroService responsaveis;
+    private final AcordoDeCobrancaRepository acordos;
 
     PagamentosDoAluno(ContratacaoAlunoRepository contratacoes, CobrancaAlunoRepository cobrancas,
                       PlanoComercialRepository planos, AvisoDePagamentoRepositorio avisos,
-                      LembreteDeCobrancaRepository lembretes, AlunoRepository alunos) {
+                      LembreteDeCobrancaRepository lembretes, AlunoRepository alunos,
+                      PagamentosProperties propriedades, ResponsavelFinanceiroService responsaveis,
+                      AcordoDeCobrancaRepository acordos) {
         this.contratacoes = contratacoes;
         this.cobrancas = cobrancas;
         this.planos = planos;
         this.avisos = avisos;
         this.lembretes = lembretes;
         this.alunos = alunos;
+        this.propriedades = propriedades;
+        this.responsaveis = responsaveis;
+        this.acordos = acordos;
+    }
+
+    /**
+     * O que o plano comercial da contratação ATIVA do aluno inclui (D1 a D4 de {@code planos-ativos-do-aluno}). Só os dois
+     * booleanos, nunca valor nem nome do plano. Vazio (a ficha mostra nada, sem "não contratou") quando o financeiro está desligado
+     * ({@code TREINOS_PAGAMENTOS_HABILITADO=false}), não há contratação ATIVA (pausada e encerrada não contam) ou o plano não é
+     * achado. Há no máximo uma ATIVA por aluno (índice {@code ux_contratacao_vigente}), então não há o que unir.
+     */
+    @Transactional(readOnly = true)
+    public Optional<PlanosAtivos> planosAtivos(UUID alunoId) {
+        if (!propriedades.habilitado()) {
+            return Optional.empty();
+        }
+        return contratacoes.findFirstByAlunoIdAndSituacao(alunoId, ContratacaoAluno.Situacao.ATIVA)
+                .flatMap(c -> planos.findById(c.getPlanoComercialId()))
+                .map(p -> new PlanosAtivos(p.isIncluiTreino(), p.isIncluiDieta()));
     }
 
     @Transactional(readOnly = true)
@@ -67,17 +94,24 @@ public class PagamentosDoAluno {
                                 .reversed())
                         .map(c -> new CobrancaExportada(c.getId(), c.getContratacaoId(), c.getCompetencia(),
                                 c.getVencimento(), c.getValorCentavos(), c.getSituacao(), c.getForma(), c.getProvedor(),
-                                c.getPagoEm(), c.getObservacao(), c.getMotivo(), c.getTipo(), c.getDescricao())).toList(),
+                                c.getPagoEm(), c.getObservacao(), c.getMotivo(), c.getTipo(), c.getDescricao(), c.getAcordoId())).toList(),
                 lembretes.doAluno(alunoId).stream()
                         .map(l -> new LembreteExportado(l.getCobrancaId(), l.getTipo(), l.getSituacao(), l.getDataPrevista(),
                                 l.getEnviadoEm())).toList(),
-                new EscolhaDeLembretesExportada(desligadoEm == null, desligadoEm));
+                new EscolhaDeLembretesExportada(desligadoEm == null, desligadoEm),
+                responsaveis.exportar(alunoId),
+                acordos.findByAlunoIdOrderByCriadoEmDescIdDesc(alunoId).stream()
+                        .map(a -> new AcordoExportado(a.getId(), a.getCriadoEm(), a.getDesfeitoEm(), a.getRenegociadas(), a.getParcelas(),
+                                a.getTotalCentavos())).toList());
     }
 
     /**
-     * Inativar: a contratação vigente é encerrada e só as mensalidades abertas que ainda não venceram (vencimento de hoje em
-     * diante, Brasília) são canceladas, com motivo fixo. As vencidas ficam em aberto (o treinador dá baixa ou cancela) e a
-     * cobrança de saída também (nasce com vencimento hoje: sem o filtro de tipo seria cancelada aqui). Quem chama já trava o
+     * Inativar: a contratação vigente é encerrada e só as mensalidades e as parcelas avulsas abertas que ainda não venceram
+     * (vencimento de hoje em diante, Brasília) são canceladas, com motivo fixo. As vencidas ficam em aberto (o treinador dá
+     * baixa ou cancela) e a
+     * cobrança de saída também (nasce com vencimento hoje: sem o filtro de tipo seria cancelada aqui). As parcelas de um acordo de
+     * renegociação (RENEGOCIACAO) sobrevivem à inativação, a vencer ou vencidas: só anonimizar ou excluir a conta as cancela
+     * ({@link #encerrarPorAnonimizacao}). Quem chama já trava o
      * aluno ({@code buscarParaAlterar}), a primeira trava da ordem do financeiro. Os lembretes pendentes não são tocados: o job
      * confere a cobrança antes de enviar. Roda sempre, sem permissão nem chave do financeiro.
      */
@@ -103,9 +137,13 @@ public class PagamentosDoAluno {
         cobrancas.flush();
     }
 
-    /** A mensalidade aberta que ainda não venceu é a que a inativação cancela; o resto (vencida, saída) fica. */
+    /**
+     * A mensalidade e a parcela avulsa abertas que ainda não venceram (D9) são as que a inativação cancela; o resto (vencida,
+     * saída e parcela de acordo de renegociação, vencida ou a vencer: D2 de 18/11) fica.
+     */
     static boolean cancelaAoInativar(CobrancaAluno c, LocalDate hoje) {
-        return c.getTipo() == CobrancaAluno.Tipo.MENSALIDADE && !c.getVencimento().isBefore(hoje);
+        return c.getTipo() != CobrancaAluno.Tipo.SAIDA && c.getTipo() != CobrancaAluno.Tipo.RENEGOCIACAO
+                && !c.getVencimento().isBefore(hoje);
     }
 
     private void encerrarVigente(UUID alunoId) {
@@ -119,7 +157,8 @@ public class PagamentosDoAluno {
      * caixa de entrada da InfinitePay o slug do aviso é o do link do pagador e sai junto; a transação, a referência (id da
      * cobrança) e o hash do corpo são só identificadores e não dizem nada de ninguém, então ficam até a limpeza de 180 dias.
      * Os lembretes de cobrança ficam: guardam só tipo, situação e datas (nem endereço, nem nome, nem texto). A escolha do
-     * aluno de não recebê-los mora em {@code aluno} e é zerada por {@code Aluno.anonimizar}.
+     * aluno de não recebê-los mora em {@code aluno} e é zerada por {@code Aluno.anonimizar}. O responsável financeiro (dado
+     * pessoal de terceiro, D15) é apagado: o aluno continua existindo, então o cascade da FK não roda.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void apagarDoAluno(UUID alunoId) {
@@ -128,5 +167,6 @@ public class PagamentosDoAluno {
         contratacoes.flush();
         cobrancas.flush();
         avisos.limparSlugsDoAluno(TenantContext.get(), alunoId);
+        responsaveis.apagarDoAluno(alunoId);
     }
 }
