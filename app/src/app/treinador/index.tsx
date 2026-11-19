@@ -1,7 +1,7 @@
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { Lock, Pencil, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { aniversariantesDosAlunos, configuracaoInscricao } from '../../api/rotas';
 import type { ContagensInscricoes } from '../../api/inscricoesTipos';
@@ -73,6 +73,7 @@ import { Permitido } from '../../ui/Permitido';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 
 /** Próximo passo da consultoria ainda sem alunos (o `inicioTreinador` não fala disso: só conta pendências). */
 const PASSO_SEM_ALUNOS = { texto: 'Nenhum aluno ainda. Cadastre o primeiro para começar.', acao: 'Cadastrar aluno' };
@@ -269,13 +270,12 @@ export default function InicioTreinador() {
   };
 
   // ---- Grade ----
-  const [largura, setLargura] = useState(0);
-  const aoMedir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
+  const { largura, faixa, aoMedir } = useFaixaDeLargura();
   const blocos = ressalvaUmaVez(visiveis
     .map((id) => montarBloco(id, ctx, { ...opcoes(id), fontes: fontesDe(porBloco.get(id) ?? []) }))
     .filter((b): b is NonNullable<typeof b> => b !== null));
   const porId = new Map(blocos.map((b) => [b.id, b]));
-  const colunas = colunasDaGrade(largura, fatorTexto);
+  const colunas = colunasDaGrade(largura, fatorTexto, faixa);
   const linhas = linhasDaGrade(blocos.map((b) => b.id), colunas, pref.tamanhos);
   const esperandoTodos = verPainel && fonteTodos.situacao === 'carregando';
 

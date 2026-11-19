@@ -1,4 +1,5 @@
 import { tamanhoDoBloco, type BlocoDoPainelId, type PainelDoInicioPreferido } from '../../dominio/painelBlocos';
+import { faixaDeLargura, type FaixaDeLargura } from '../../tema/tokens';
 
 /** Espaço entre os blocos (o `gap` da linha no Início). */
 const ESPACO = 16;
@@ -14,16 +15,24 @@ export function larguraDoTitulo(fatorTexto = 1): number {
   return Math.round(TITULO * fatorTexto);
 }
 
+const MAXIMO_DE_COLUNAS: Record<FaixaDeLargura, number> = {
+  compacta: 3,
+  normal: 4,
+  larga: 5,
+  ultralarga: 6,
+};
+
 /**
- * Quantas colunas cabem na largura medida do painel (que já desconta o menu aberto ou recolhido): de 1 (celular) a 4
- * (PC largo). A coluna mínima é a de uma faixa com o título e os três ícones na mesma linha (F01 de 12/11): a grade perde
- * coluna antes de espremer o cabeçalho, e com o texto ampliado perde mais cedo. Em 1280 e 1440 px com o menu aberto, 3; em
- * 1920, 4; no celular, 1.
+ * Quantas colunas cabem na largura medida do painel (que já desconta o menu aberto ou recolhido): de 1 (celular) até
+ * 6 na faixa `ultralarga` (3 em `compacta`, 4 em `normal`, 5 em `larga`, 6 em `ultralarga`). A coluna mínima é a de uma
+ * faixa com o título e os três ícones na mesma linha (F01 de 12/11): a grade perde coluna antes de espremer o cabeçalho,
+ * e com o texto ampliado perde mais cedo.
  */
-export function colunasDaGrade(largura: number, fatorTexto = 1): number {
+export function colunasDaGrade(largura: number, fatorTexto = 1, faixa: FaixaDeLargura = faixaDeLargura(largura)): number {
   if (!(largura > 0)) return 1;
   const coluna = larguraDoTitulo(fatorTexto) + ACOES + MOLDURA;
-  return Math.max(1, Math.min(4, Math.floor((largura + ESPACO) / (coluna + ESPACO))));
+  const teto = MAXIMO_DE_COLUNAS[faixa];
+  return Math.max(1, Math.min(teto, Math.floor((largura + ESPACO) / (coluna + ESPACO))));
 }
 
 /** Quantas colunas o bloco pede: o tamanho escolhido no "Editar" ou o de fábrica (Agenda e Financeiro 2, as barras 3, o resto 1). */
@@ -58,5 +67,18 @@ export function linhasDaGrade(ids: readonly BlocoDoPainelId[], colunas: number, 
     usadas += n;
   }
   if (atual.length) linhas.push(atual);
+  // Evita cartão sozinho na última linha (mesma regra da grade de indicadores): puxa o último bloco da linha anterior
+  // quando ela tem pelo menos 3 blocos (para não criar outro órfão) e a soma cabe na grade.
+  if (colunas > 1 && linhas.length >= 2) {
+    const ultima = linhas[linhas.length - 1];
+    const penultima = linhas[linhas.length - 2];
+    if (ultima.length === 1 && penultima.length >= 3) {
+      const candidato = penultima[penultima.length - 1];
+      if (candidato.colunas + ultima[0].colunas <= colunas) {
+        penultima.pop();
+        ultima.unshift(candidato);
+      }
+    }
+  }
   return linhas;
 }
