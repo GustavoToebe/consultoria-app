@@ -26,17 +26,13 @@ export function gruposDoMenu<T extends { grupo?: GrupoDoMenu }>(itens: readonly 
 }
 
 /**
- * Grupos recolhidos no menu lateral aberto (D2, D3 e D5 de `docs/planos/menu-grupos-recolhiveis.md`), na ordem de
+ * Grupos recolhidos no menu lateral aberto (D2, D5 e D9 de `docs/planos/menu-grupos-recolhiveis.md`), na ordem de
  * `GRUPOS_DO_MENU`. `ids` é a preferência `gruposRecolhidos`; `visiveis` são os grupos que têm item permitido agora (os
- * `grupo` dos blocos de `gruposDoMenu`). Id desconhecido é ignorado, grupo sem item permitido nem entra (continua sumindo) e o
- * grupo da tela aberta nunca fica recolhido, mesmo salvo como recolhido.
+ * `grupo` dos blocos de `gruposDoMenu`). Id desconhecido é ignorado e grupo sem item permitido nem entra (continua sumindo).
+ * Todo grupo recolhe, inclusive o da tela aberta (D9, 19/11): abrir uma tela não mexe na escolha.
  */
-export function gruposRecolhidos(
-  ids: readonly string[],
-  visiveis: readonly (GrupoDoMenu | undefined)[],
-  grupoDaTela?: GrupoDoMenu,
-): GrupoDoMenu[] {
-  return GRUPOS_DO_MENU.filter((g) => g !== grupoDaTela && ids.includes(g) && visiveis.includes(g));
+export function gruposRecolhidos(ids: readonly string[], visiveis: readonly (GrupoDoMenu | undefined)[]): GrupoDoMenu[] {
+  return GRUPOS_DO_MENU.filter((g) => ids.includes(g) && visiveis.includes(g));
 }
 
 /**

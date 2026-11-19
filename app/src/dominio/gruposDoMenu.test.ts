@@ -67,10 +67,10 @@ describe('gruposRecolhidos', () => {
     expect(gruposRecolhidos([], todos)).toEqual([]);
   });
 
-  it('o grupo da tela aberta nunca fica recolhido, mesmo salvo como recolhido', () => {
-    expect(gruposRecolhidos(['Acompanhamento', 'Negócio'], todos, 'Negócio')).toEqual(['Acompanhamento']);
-    // Tela aberta no Início (sem grupo): nada é protegido.
-    expect(gruposRecolhidos(['Negócio'], [undefined, ...todos], undefined)).toEqual(['Negócio']);
+  it('o grupo da tela aberta recolhe como os outros: a função não conhece a tela (D9, 19/11)', () => {
+    expect(gruposRecolhidos(['Acompanhamento', 'Negócio'], todos)).toEqual(['Acompanhamento', 'Negócio']);
+    // Início (sem grupo) entre os blocos não muda nada.
+    expect(gruposRecolhidos(['Negócio'], [undefined, ...todos])).toEqual(['Negócio']);
   });
 
   it('id desconhecido é ignorado', () => {

@@ -127,9 +127,10 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
     const comDica = recolhido && !trilho;
     // Grupos (N29): título no menu aberto; no trilho do tablet, um fio. O leitor de tela ouve o nome do grupo nos dois.
     const doMenu = gruposDoMenu(itens.filter((item) => !item.soCelular));
-    // Só o menu aberto recolhe grupo (D1); o da tela aberta nunca fica recolhido (D3) e o título dele não vira botão.
+    // Só o menu aberto recolhe grupo (D1) e todo grupo recolhe, o da tela aberta também (D9, 19/11): abrir uma tela não mexe
+    // na escolha. Recolhido, o título do grupo da tela leva a barrinha e o `aria-current` do item atual.
     const grupoDaTela = posicaoNoMenu(caminho)?.grupo;
-    const fechados = recolhido ? [] : gruposRecolhidos(preferencias.gruposRecolhidos, doMenu.map((b) => b.grupo), grupoDaTela);
+    const fechados = recolhido ? [] : gruposRecolhidos(preferencias.gruposRecolhidos, doMenu.map((b) => b.grupo));
     const blocos = doMenu.map((bloco, i) => {
       const grupo = bloco.grupo;
       const fechado = !!grupo && fechados.includes(grupo);
@@ -145,10 +146,9 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
       }
       let titulo: ReactNode = null;
       if (grupo && recolhido) titulo = i > 0 ? <View style={[estilos.fio, { backgroundColor: cores.divisor }]} /> : null;
-      else if (grupo && grupo === grupoDaTela) titulo = <TituloDoGrupo grupo={grupo} />;
       else if (grupo) {
         titulo = (
-          <TituloDoGrupo grupo={grupo} fechado={fechado} resumo={fechado ? resumoDoGrupoRecolhido(bloco.itens) : undefined}
+          <TituloDoGrupo grupo={grupo} fechado={fechado} atual={grupo === grupoDaTela} resumo={fechado ? resumoDoGrupoRecolhido(bloco.itens) : undefined}
             aoAlternar={() => escolherPreferencia({ gruposRecolhidos: alternarGrupoRecolhido(preferencias.gruposRecolhidos, grupo) })} />
         );
       }
@@ -314,21 +314,8 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, noSubmenu, aoEscolher
  */
 function BlocoDoMenu({ grupo, fechado, titulo, comFio, children }: { grupo?: GrupoDoMenu; fechado: boolean; titulo: ReactNode; comFio: boolean; children: ReactNode }) {
   const { cores } = useTema();
-  const no = useRef<View | null>(null);
-  // Foco num item do grupo quando ele recolhe sem ser pelo botão (Voltar do navegador para uma tela de outro grupo): o item
-  // sai da árvore e o foco cairia no `body`; ele vai para o botão do grupo. Recolher pelo botão não mexe (o foco já está
-  // nele). A marca cai quando o foco passa para outro elemento (o `relatedTarget` do blur); a remoção do item não tem um.
-  const focoDentro = useRef(false);
-  useEffect(() => {
-    if (Platform.OS !== 'web' || !fechado || !focoDentro.current) return;
-    focoDentro.current = false;
-    if (document.activeElement && document.activeElement !== document.body) return;
-    (no.current as unknown as HTMLElement | null)?.querySelector<HTMLElement>('[aria-expanded]')?.focus();
-  }, [fechado]);
   return (
-    <View ref={no} role={grupo ? 'group' : undefined} aria-label={grupo} style={estilos.bloco}
-      onFocus={grupo ? () => { focoDentro.current = true; } : undefined}
-      onBlur={grupo ? (e) => { if ('relatedTarget' in e.nativeEvent && e.nativeEvent.relatedTarget) focoDentro.current = false; } : undefined}>
+    <View role={grupo ? 'group' : undefined} aria-label={grupo} style={estilos.bloco}>
       {titulo}
       {comFio && !fechado ? (
         <View style={estilos.itensDoGrupo}>
@@ -341,20 +328,22 @@ function BlocoDoMenu({ grupo, fechado, titulo, comFio, children }: { grupo?: Gru
 }
 
 /**
- * Título do grupo no menu aberto (plano `menu-grupos-recolhiveis`, D6). Com `aoAlternar` é o botão que recolhe e abre
- * (seta para cima = aberto, para baixo = recolhido; `aria-expanded`; nome "Recolher X" / "Abrir X"). Recolhido, mostra o
- * que os itens mostrariam: a soma das contagens (zero não aparece) ou o ponto, e o nome acessível diz as contagens. Sem
- * `aoAlternar` (o grupo da tela aberta, que nunca recolhe) é só o título, na mesma caixa. Abre e fecha sem animação.
+ * Título do grupo no menu aberto (plano `menu-grupos-recolhiveis`, D6 e D9): sempre o botão que recolhe e abre (seta para cima
+ * = aberto, para baixo = recolhido; `aria-expanded`; nome "Recolher X" / "Abrir X"), também no grupo da tela aberta. Recolhido,
+ * mostra o que os itens mostrariam: a soma das contagens (zero não aparece) ou o ponto, e o nome acessível diz as contagens.
+ * `atual` (o grupo da tela aberta) recolhido leva a barrinha `marcaPeca` à esquerda e `aria-current`, como o item ativo; aberto,
+ * o item atual já tem a dele. Abre e fecha sem animação.
  */
-function TituloDoGrupo({ grupo, fechado = false, resumo, aoAlternar }: {
+function TituloDoGrupo({ grupo, fechado, atual, resumo, aoAlternar }: {
   grupo: GrupoDoMenu;
-  fechado?: boolean;
+  fechado: boolean;
+  atual: boolean;
   resumo?: ReturnType<typeof resumoDoGrupoRecolhido>;
-  aoAlternar?: () => void;
+  aoAlternar: () => void;
 }) {
-  const { cores } = useTema();
+  const { cores, marcaPeca } = useTema();
   const texto = <Texto variante="secao" aria-hidden numberOfLines={2} style={estilos.textoGrupo}>{grupo}</Texto>;
-  if (!aoAlternar) return <View style={estilos.tituloGrupo}>{texto}</View>;
+  const marcado = atual && fechado;
   const numero = resumo?.numero ?? 0;
   const ponto = numero <= 0 && !!resumo?.ponto;
   const sinais = numero > 0 ? (resumo?.partes ?? []).map((p) => `${inteiroComMilhar(p.numero)} ${p.descricao}`) : ponto ? ['pendência'] : [];
@@ -365,8 +354,10 @@ function TituloDoGrupo({ grupo, fechado = false, resumo, aoAlternar }: {
       accessibilityLabel={[`${fechado ? 'Abrir' : 'Recolher'} ${grupo}`, ...sinais].join(', ')}
       accessibilityState={{ expanded: !fechado }}
       aria-expanded={!fechado}
+      aria-current={marcado ? true : undefined}
       onPress={aoAlternar}
       style={(estado) => [estilos.tituloGrupo, sobre(estado) && { backgroundColor: cores.superficie2 }]}>
+      {marcado ? <View aria-hidden style={[estilos.indicadorDoGrupo, { backgroundColor: marcaPeca }]} /> : null}
       {texto}
       <View style={estilos.sinaisDoGrupo}>
         {numero > 0 ? (
@@ -576,6 +567,8 @@ const estilos = StyleSheet.create({
   // O ponto do grupo recolhido fica na linha do título (o do item mora no canto do ícone).
   pontoNoTitulo: { width: 9, height: 9, borderRadius: 5, marginBottom: 4 },
   setaGrupo: { marginBottom: 1 },
+  // Barrinha do item atual (3 × 16, à esquerda), na linha do texto do título: o texto fica embaixo da caixa de 44.
+  indicadorDoGrupo: { position: 'absolute', left: 0, bottom: 6, width: 3, height: 16, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
   fio: { height: 1, marginVertical: espaco(0.5), marginHorizontal: espaco(1) },
   // Fio vertical do grupo aberto: 1 px no meio da barrinha de 3 px do item atual (left 0), do primeiro ao último item.
   itensDoGrupo: { gap: espaco(0.5) },

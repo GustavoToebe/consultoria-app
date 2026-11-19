@@ -74,8 +74,8 @@ export interface Preferencias {
   agendasOcultas: string[];
   /**
    * Só treinador, só no menu lateral aberto: grupos recolhidos neste aparelho (D2). Nenhum é o padrão (tudo aberto). Fica
-   * depois do "Sair" (a chave `preferencias` inteira sobrevive); quem usa filtra com `gruposRecolhidos` (o grupo da tela
-   * aberta nunca fica recolhido).
+   * depois do "Sair" (a chave `preferencias` inteira sobrevive); quem usa filtra com `gruposRecolhidos` (todo grupo recolhe,
+   * o da tela aberta também: D9, 19/11).
    */
   gruposRecolhidos: GrupoDoMenu[];
   /**
