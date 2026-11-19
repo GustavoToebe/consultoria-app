@@ -704,6 +704,22 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
 - Os ajustes de 11/11 (campo de nome ocupando a largura, "Criar grupo" embaixo de "Modelos prontos", "Editar sessão" na
   largura da sessão) não foram vistos na tela; só o código.
 
+**Editor de mobilidade (no padrão do treino e da dieta, 19/11; plano `docs/planos/editor-de-mobilidade-no-padrao-do-editor.md`)**
+- Topo num cartão só: no modelo, "Sobre o modelo" (`treinador/mobilidade/SobreAMobilidade`) com Nome e Descrição lado a
+  lado (a descrição maior) e as Orientações recolhidas embaixo (`BotaoDeAbrir` com `aria-expanded`; fechadas mostram
+  "(vazio)" ou o começo do texto); no plano do aluno as Orientações ficam dentro da "Configuração do plano".
+- Seções: `ItemDaListaDoEditor` com a alça (`ui/ArrasteDaLista`) na lista; empilhado, a alça vai ao cabeçalho do cartão.
+  Mover é a alça ou o ⋯ ("Mover para cima/baixo"); o selo "Editando" fica só na lista.
+- Painel da seção: faixa de 6 px na cor de ação só no inspetor; cabeçalho `superficie3` com "Seção N de M", o título
+  editável ("Título da seção N"), ⋯ e "Excluir seção" (`perigoTexto`; `PainelConfirmacao` só com itens; Desfazer).
+- Itens em tabela como os alimentos da dieta: cabeçalho "#", "Nome", "Prescrição", "Vídeo" uma vez (`aria-hidden`),
+  faixas `superficie2` de cantos 12 a 6 px, alça e número no começo, ⋯ (mover e "Excluir item") no fim; Nome e
+  Prescrição flex 1,2, Vídeo 1. Abaixo de 600 px da lista (painel de ~640), o item empilhado com os rótulos.
+- Vídeo: vazio, o campo "Cole o link do YouTube"; válido e fora do foco, "Vídeo adicionado" com Abrir (nova aba) e
+  Trocar; inválido, o selo de atenção "Link do YouTube inválido" ligado ao campo. **Divergência aberta:** a 4.5 manda
+  vermelho para valor inválido; o pedido de 19/11 pediu atenção. O salvar continua travado e a seção diz "Corrigir".
+- Limite visto na captura: em 1280 a coluna Vídeo tem ~145 px e o texto de exemplo aparece cortado.
+
 ### 4.8 Seções que abrem e fecham (Gustavo, 18/11/2026; plano `docs/planos/secoes-nascem-fechadas.md`)
 
 Padrão das telas novas e das reformadas. Vale para seção que abre e fecha: `CabecalhoDeGrupo` com `aoAlternar`, cartão

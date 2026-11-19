@@ -31,6 +31,7 @@ import { FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 import { usePlanoEditor } from '../plano/usePlanoEditor';
 import { SecoesDeMobilidade } from './SecoesDeMobilidade';
+import { OrientacoesDaMobilidade } from './SobreAMobilidade';
 
 /**
  * Editor do plano de mobilidade do aluno: mesmo ciclo do treino e da dieta (salvar rascunho, validar, publicar
@@ -81,6 +82,10 @@ export default function EditorDeMobilidade() {
       <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas}
         aoIrAoPrimeiro={(uids) => setIrPara((p) => ({ uids, vez: (p?.vez ?? 0) + 1 }))} />
       <FaixaDoPlanoDoAluno tipo="mobilidade" />
+      {/* Um cartão só no topo (19/11): título, período e as Orientações recolhidas (as do plano, que o modelo aplicado não troca). */}
+      <ConfiguracaoDoPlano editor={editor} descricao="Título, período e orientações da mobilidade.">
+        <OrientacoesDaMobilidade valor={estado.conteudo.orientacoes} aoMudar={(orientacoes) => editor.alterarConteudo((c) => ({ ...c, orientacoes }))} />
+      </ConfiguracaoDoPlano>
       {/* O modelo aplicado troca as seções inteiras: o Desfazer fica logo acima delas. */}
       {desfazer ? (
         <BarraDesfazer
@@ -94,8 +99,7 @@ export default function EditorDeMobilidade() {
         />
       ) : null}
       <SecoesDeMobilidade conteudo={estado.conteudo} aoMudar={(c) => editor.alterarConteudo(() => c)} irPara={irPara}
-        acoes={escritaLiberada ? <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} /> : null}
-        aoLado={<ConfiguracaoDoPlano editor={editor} descricao="Título e período da mobilidade." />} />
+        acoes={escritaLiberada ? <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} /> : null} />
 
       {modelos ? (
         <Folha visivel titulo="Modelos" aoFechar={() => setModelos(false)}>
