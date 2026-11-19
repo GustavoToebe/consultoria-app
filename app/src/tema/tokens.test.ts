@@ -358,7 +358,11 @@ describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, c
     }
   });
 
-  // Macros do alimento e cor da fibra (19/11): a fibra é verde-lima, só marca (nunca texto no claro e na areia).
+  // Macros do alimento e cor da fibra (19/11): a fibra é verde-lima e SÓ MARCA (quadradinho de 8 px; rótulo e valor ficam em
+  // texto neutro). Por isso o teste exige 3:1 (não-texto, WCAG 1.4.11) e não 4,5:1: no claro e na areia a lima mais escura que
+  // passaria 4,5:1 perderia a diferença de luminosidade das outras três marcas (Gustavo, 19/11: vale a luminosidade) e se
+  // pareceria com o verde de sucesso. Regra em docs/design-e-front.md: cor de macro nunca é cor de texto. Se alguém usar a cor
+  // da fibra em texto, este teste não protege: troque por marca + texto neutro.
   describe('cor da fibra', () => {
     const fibra = PALETA_DA_FIBRA[variante];
 
