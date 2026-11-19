@@ -1,15 +1,16 @@
 import { Link, router } from 'expo-router';
-import { Children, useRef, useState, type ReactNode } from 'react';
+import { Children, useRef, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Switch } from '../../components/ui/switch';
 import { deixarParaONavegador, type CliqueDoNavegador } from '../../dominio/cliqueDeLink';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, LARGURA_DUAS_COLUNAS, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_DUAS_COLUNAS, LARGURA_FORMULARIO, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { useSaidaGuardada } from '../../ui/GuardaDeSaida';
 import { RodapeDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 
 /**
  * Peças das abas de ajustes do Financeiro (Lembretes e Recebimento; lembretes e recebimento, 19/11): as duas colunas
@@ -23,12 +24,12 @@ import { Texto } from '../../ui/Texto';
  * recolhido ~1060. Abaixo, uma coluna, ajustes primeiro. A mesma árvore nas duas formas: só o estilo muda e os campos não remontam.
  */
 export function ColunasDeAjustes({ ajustes, apoio }: { ajustes: ReactNode; apoio: ReactNode }) {
-  const [largura, setLargura] = useState(0);
+  const { largura, aoMedir } = useFaixaDeLargura();
   const lado = largura >= LARGURA_DUAS_COLUNAS;
   return (
-    <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={[estilos.colunas, lado ? estilos.lado : null]}>
-      <View style={[estilos.coluna, lado ? estilos.ajustes : null]}>{ajustes}</View>
-      <View style={[estilos.coluna, lado ? estilos.apoio : null]}>{apoio}</View>
+    <View onLayout={aoMedir} style={[estilos.colunas, lado ? estilos.lado : null]}>
+      <View style={[estilos.coluna, estilos.colunaAjustes, lado ? estilos.ajustes : null]}>{ajustes}</View>
+      <View style={[estilos.coluna, estilos.colunaApoio, lado ? estilos.apoio : null]}>{apoio}</View>
     </View>
   );
 }
@@ -151,6 +152,8 @@ const estilos = StyleSheet.create({
   colunas: { gap: espaco(2) },
   lado: { flexDirection: 'row', alignItems: 'flex-start' },
   coluna: { gap: espaco(2) },
+  colunaAjustes: { width: '100%', maxWidth: LARGURA_FORMULARIO },
+  colunaApoio: { width: '100%', maxWidth: LARGURA_FORMULARIO },
   ajustes: { flex: 2, minWidth: 0 },
   apoio: { flex: 1, minWidth: 0 },
   opcao: { paddingVertical: espaco(1.5), gap: espaco(1.5) },

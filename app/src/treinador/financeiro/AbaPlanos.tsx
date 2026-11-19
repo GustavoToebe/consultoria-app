@@ -14,7 +14,7 @@ import {
   errosDoMinimoDoServidor, minimoDoPlanoParaEnvio, minimoDoPlanoParaForm, planoPodeTerMinimo, REGRA_DE_SAIDA_MAXIMA, textoDoMinimoDoPlano,
 } from '../../dominio/saidaDoPlano';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_MAXIMA } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
@@ -63,7 +63,7 @@ export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
           texto={arquivados ? 'Os planos arquivados aparecem aqui.' : podeAlterar ? 'Crie um plano (nome, valor e periodicidade) para depois contratá-lo na ficha de um aluno.' : 'Peça a quem gerencia o financeiro para criar os planos.'} />
       ) : null}
       {dados && dados.length > 0 ? (
-        <Cartao descricao={`${dados.length} ${dados.length === 1 ? 'plano' : 'planos'}. Toque no plano para ${podeAlterar ? 'editar' : 'ver os detalhes'}.`}>
+        <Cartao style={estilos.cartaoLimitado} descricao={`${dados.length} ${dados.length === 1 ? 'plano' : 'planos'}. Toque no plano para ${podeAlterar ? 'editar' : 'ver os detalhes'}.`}>
           <ListaOuTabela rotulo="Planos comerciais" linhas={dados} chave={(p) => p.id} aoTocar={setAberto}
             rotuloDaLinha={(p) => `Abrir plano ${p.nome}`}
             item={(p) => ({
@@ -306,4 +306,5 @@ const estilos = StyleSheet.create({
   grupo: { gap: espaco(0.5) },
   nome: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   encolher: { flexShrink: 1 },
+  cartaoLimitado: { maxWidth: LARGURA_MAXIMA },
 });

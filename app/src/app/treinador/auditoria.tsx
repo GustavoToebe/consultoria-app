@@ -8,7 +8,7 @@ import {
   type ChaveDoFiltro, type FiltrosDeAuditoria, type ParametrosDoEndereco,
 } from '../../dominio/filtrosDeAuditoria';
 import { dataHoraParaTela } from '../../dominio/formatos';
-import { LARGURA_LISTA,espaco,fontes } from '../../tema/tokens';
+import { LARGURA_LISTA, LARGURA_MAXIMA, espaco, fontes } from '../../tema/tokens';
 import { CamposDePeriodo } from '../../treinador/SeletoresDeFiltro';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -58,7 +58,7 @@ export default function Auditoria() {
       </>}/>
     {erro?<MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar}/>:null}{carregando&&!dados?<Esqueleto/>:null}
     {dados?.itens.length===0?<Vazio titulo="Sem eventos neste filtro" texto="Tente outro período, pessoa ou ação." acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>aplicar(SEM_FILTROS)}:undefined}/>:null}
-    {dados?.itens.length ? <Cartao titulo="Eventos" descricao={`${dados.total} ${dados.total===1?'evento':'eventos'} neste filtro.`}>
+    {dados?.itens.length ? <Cartao style={{ maxWidth: LARGURA_MAXIMA }} titulo="Eventos" descricao={`${dados.total} ${dados.total===1?'evento':'eventos'} neste filtro.`}>
     {/* Linhas de tabela a partir de 760 px (quando/quem/ação/resumo); no celular, cartões com os mesmos campos. Evento
         antes de decoração: nome em peso médio, data e resumo em texto secundário, nenhum selo nas linhas de rotina. */}
     <Tabela rotulo="Eventos da auditoria" larguraMinima={760} linhas={dados.itens} chave={e=>e.id} colunas={[

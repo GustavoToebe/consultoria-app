@@ -48,6 +48,8 @@ interface Props<T> {
   vao?: number;
   /** `topo`: linhas de alturas diferentes alinham as células pelo topo do texto (padrão: centro). */
   alinharLinhas?: 'centro' | 'topo';
+  /** Teto opcional de largura da tabela em telas largas/ultralargas (no modo empilhado não limita). */
+  larguraMaxima?: number;
 }
 
 /** Largura em que a tabela ainda cabe em colunas; abaixo disso vira cartões. */
@@ -58,7 +60,7 @@ export const LARGURA_TABELA = 520;
  * empilhados no celular, cada um com os pares "rótulo: valor" (nenhuma coluna some, nada rola na horizontal). A
  * coluna `principal` é o título do cartão e a coluna `acao` fica no canto dele.
  */
-export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABELA, detalhe, rotulo, aoTocarLinha, rotuloDaLinha, inicio, vao, alinharLinhas }: Props<T>) {
+export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABELA, detalhe, rotulo, aoTocarLinha, rotuloDaLinha, inicio, vao, alinharLinhas, larguraMaxima }: Props<T>) {
   const { cores, bordas } = useTema();
   const [largura, setLargura] = useState<number | null>(null);
   const empilhada = largura !== null && largura < larguraMinima;
@@ -76,7 +78,7 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
       role={empilhada ? undefined : 'table'}
       accessibilityLabel={rotulo}
       onLayout={(e) => setLargura(e.nativeEvent.layout.width)}
-      style={empilhada ? estilos.cartoes : [estilos.tabela, { borderWidth: bordas.bloco, borderColor: cores.divisor }]}>
+      style={empilhada ? estilos.cartoes : [estilos.tabela, larguraMaxima !== undefined ? { maxWidth: larguraMaxima } : null, { borderWidth: bordas.bloco, borderColor: cores.divisor }]}>
       {largura === null ? null : empilhada ? (
         linhas.map((l) => (
           <ComInicio key={chave(l)} inicio={inicio?.(l)} estilo={estilos.cartaoComInicio}>

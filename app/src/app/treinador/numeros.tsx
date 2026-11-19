@@ -2,14 +2,14 @@ import { useFocusEffect } from 'expo-router';
 import { Lock } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { numerosDaConsultoria } from '../../api/rotas';
-import { type LayoutChangeEvent, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { percentualParaTela } from '../../dominio/financeiro';
 import { SEM_DADO } from '../../dominio/formatos';
 import { situacaoDoLimite } from '../../dominio/limiteDeAlunos';
 import { rotuloDoMesNumerico } from '../../dominio/mesDaCompetencia';
 import { escalar } from '../../dominio/preferencias';
 import { alunosELimite, baseDoPercentualNoPrazo, contagemParaTela, linhasDaEquipe, MARCA_PARCIAL, mesAtual, paraRevisarDaEquipe, percentualNoPrazo, REGRA_ALUNOS_ATIVOS, REGRA_ATUALIZACOES, REGRA_DA_EQUIPE, REGRA_DA_EQUIPE_ATUALIZACOES, resumoDasAtualizacoes, textoDoResumo, totalDoMes, type LinhaDaTabelaDaEquipe } from '../../dominio/numeros';
-import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { espaco, LARGURA_FORMULARIO, LARGURA_MAXIMA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { ICONE_DO_SELO } from '../../treinador/iconesDosSelos';
 import { useTema } from '../../tema/TemaProvider';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -26,6 +26,7 @@ import { Tabela } from '../../ui/Tabela';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 
 /**
  * Números da consultoria: só contagens dos últimos 6 meses (`GET /numeros`, `PAINEL_VER`, a guarda é `podeAcessarTela`).
@@ -54,8 +55,7 @@ export default function NumerosDoTreinador() {
   const minimoDosMeses = escalar(LARGURA_DA_TABELA, fatorTexto);
   const minimoDaEquipe = escalar(LARGURA_DA_EQUIPE, fatorTexto);
   // Medido no contêiner, não na janela: o menu lateral come parte da largura.
-  const [larguraDasColunas, setLarguraDasColunas] = useState(0);
-  const aoMedir = (e: LayoutChangeEvent) => setLarguraDasColunas(e.nativeEvent.layout.width);
+  const { largura: larguraDasColunas, aoMedir } = useFaixaDeLargura();
   // A largura da tabela da equipe, para saber se ela está em cartões (o mesmo limite da `Tabela`): no cartão o nome quebra
   // em linhas (no celular não há a dica do mouse); na tabela fica numa linha só, com reticências.
   const [larguraDaEquipe, setLarguraDaEquipe] = useState(0);
@@ -204,13 +204,13 @@ function AlunosELimite({ linha }: { linha: LinhaDaTabelaDaEquipe }) {
 }
 
 const estilos = StyleSheet.create({
-  colunas: { gap: ESPACO_ENTRE },
+  colunas: { gap: ESPACO_ENTRE, width: '100%', maxWidth: LARGURA_MAXIMA },
   // Lado a lado cada coluna termina junto com o seu conteúdo (sem esticar até a altura da vizinha): "Como contamos" fica
   // logo abaixo de "Equipe hoje", sem buraco.
   ladoALado: { flexDirection: 'row', alignItems: 'flex-start' },
   coluna: { gap: ESPACO_ENTRE },
   direita: { flex: 1, minWidth: 0 },
-  regras: { gap: espaco(1) },
+  regras: { gap: espaco(1), maxWidth: LARGURA_FORMULARIO },
   mes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   // O número e o selo à direita da célula; na coluna apertada o selo quebra para baixo, também à direita.
   alunos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: espaco(1) },

@@ -24,7 +24,7 @@ import { selecaoDepoisDosFiltros } from '../../dominio/painelDeFiltros';
 import { escalar } from '../../dominio/preferencias';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_FAIXA_ULTRALARGA, LARGURA_FORMULARIO, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { OPCOES_RESPONSABILIDADE } from '../EscolhaResponsabilidade';
 import { UmaOpcao } from '../SeletoresDeFiltro';
 import { useAviso } from '../../ui/Aviso';
@@ -44,6 +44,7 @@ import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 import { AcoesDoLote, FolhaDoResultadoDaAcao, type ResultadoDaAcao } from './AcoesDoLote';
 import { CartaoDeConferencias } from './CartaoDeConferencias';
 import { PeriodoDoFiltro } from './FiltrosEmGrade';
@@ -132,7 +133,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   const busca = useAtrasado(buscaDigitada.trim(), 300);
   const { fatorTexto } = useTema();
   // A largura da própria lista decide a medida das colunas (folgada ou justa).
-  const [larguraDaLista, setLarguraDaLista] = useState(0);
+  const { largura: larguraDaLista, aoMedir: aoMedirLista } = useFaixaDeLargura();
   const medida = larguraDaLista >= escalar(LARGURA_FOLGADA, fatorTexto) ? FOLGADA : JUSTA;
   const lista = useCarregar(`cobrancas|${chaveDasCobrancas(filtros, busca)}|${hoje}|${pagina}`, () =>
     listarCobrancas({ ...cobrancasParaApi(filtros, hoje), busca: busca || undefined, pagina }));
@@ -226,7 +227,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
           acao={chips.length ? { rotulo: 'Limpar filtros', aoTocar: () => aplicar(limpoDasCobrancas(filtros)) } : undefined} />
       ) : null}
       {dados && dados.itens.length > 0 ? (
-        <Cartao descricao={desatualizada ? undefined : descricaoDasCobrancas(filtros, hoje, dados.total)}>
+        <Cartao style={estilos.cartaoLimitado} descricao={desatualizada ? undefined : descricaoDasCobrancas(filtros, hoje, dados.total)}>
           {comLote ? (
             <BarraDoLote lote={lote} pagina={dados.itens}
               aoMarcarPagina={(marcar) => setSelecao((s) => marcarPaginaNoLote(s, dados.itens, marcar))}
@@ -241,7 +242,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
               )} />
           ) : null}
           <View style={lista.carregando ? estilos.esmaecido : null} pointerEvents={desatualizada ? 'none' : 'auto'}
-            onLayout={(e) => setLarguraDaLista(e.nativeEvent.layout.width)}>
+            onLayout={aoMedirLista}>
             <ListaOuTabela rotulo="Cobranças" linhas={dados.itens} chave={(c) => c.id} aoTocar={setAberta} larguraMinima={LARGURA_DA_TABELA}
               vao={medida === FOLGADA ? FOLGADA.vao : vaoDaJusta(larguraDaLista)} alinharLinhas="topo"
               rotuloDaLinha={(c) => `Abrir ${c.tipo === 'MENSALIDADE' ? 'cobrança' : rotuloDoTipoDaCobranca(c.tipo).toLowerCase()} de ${c.alunoNome ?? 'aluno'}`}
@@ -537,7 +538,8 @@ function TotaisDaLista({ totais, atualizando }: { totais: TotaisDasCobrancas; at
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
-  explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
+  explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 240, maxWidth: LARGURA_FORMULARIO },
+  cartaoLimitado: { maxWidth: LARGURA_FAIXA_ULTRALARGA },
   cheio: { alignSelf: 'stretch' },
   esmaecido: { opacity: 0.6 },
   selos: { gap: espaco(0.25), alignItems: 'flex-start' },

@@ -14,7 +14,7 @@ import {
   type ChaveDoFiltroDeLancamentos, type FiltrosDeLancamentos,
 } from '../../dominio/filtrosDoFinanceiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_FORMULARIO, LARGURA_MAXIMA } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -155,7 +155,7 @@ export function AbaLancamentos({ podeAlterar, resultado }: {
           : <Vazio titulo="Nenhum lançamento" texto={podeAlterar ? 'Toque em Novo lançamento para registrar a primeira entrada ou saída.' : 'Os lançamentos registrados pela equipe aparecem aqui.'} />
       ) : null}
       {dados && dados.itens.length > 0 ? (
-        <Cartao descricao={`${dados.total} ${dados.total === 1 ? 'lançamento' : 'lançamentos'}, do mais recente ao mais antigo. Toque na linha para abrir.`}>
+        <Cartao style={estilos.cartaoLimitado} descricao={`${dados.total} ${dados.total === 1 ? 'lançamento' : 'lançamentos'}, do mais recente ao mais antigo. Toque na linha para abrir.`}>
           <View style={lista.carregando ? estilos.esmaecido : null}>
             <ListaOuTabela rotulo="Lançamentos avulsos" linhas={dados.itens} chave={(l) => l.id} aoTocar={setAberto}
               rotuloDaLinha={(l) => `Abrir lançamento ${l.descricao}, ${rotuloDoTipo(l.tipo)} de ${centavosParaTela(l.valorCentavos)}`}
@@ -304,7 +304,8 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
-  explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 260 },
+  explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 260, maxWidth: LARGURA_FORMULARIO },
+  cartaoLimitado: { maxWidth: LARGURA_MAXIMA },
   esmaecido: { opacity: 0.6 },
   cheio: { alignSelf: 'stretch' },
   tipo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },

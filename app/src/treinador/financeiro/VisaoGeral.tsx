@@ -14,7 +14,7 @@ import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { rotuloDoMesNumerico } from '../../dominio/mesDaCompetencia';
 import { contagemParaTela } from '../../dominio/numeros';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_FORMULARIO, LARGURA_MAXIMA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -32,6 +32,7 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 import { EscolhaResponsabilidade, type Responsabilidade } from '../EscolhaResponsabilidade';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
 import { ResultadoDoMes } from './ResultadoDoMes';
@@ -96,7 +97,7 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
       {!dados && painel.carregando ? <Esqueleto /> : null}
       {dados ? (
         <>
-          <Texto variante="suave">
+          <Texto variante="suave" style={estilos.textoCorrido}>
             {dataParaTela(dados.periodo.de)} a {dataParaTela(dados.periodo.ate)}
             {dados.somenteMeus ? ' · só os seus alunos' : ''}. Onde aparece “—”, o número não está disponível. {NOTA_REGISTROS_DISPONIVEIS}
           </Texto>
@@ -108,7 +109,7 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
           </GradeDeIndicadores>
           <Inadimplencia painel={dados.inadimplencia} vencidasNoPeriodo={vencidasDoPeriodo(dados.cartoes.emAtraso)} lista={atrasados}
             buscando={buscando} podeAlterar={podeAlterar} aoAbrir={(i) => abrirCobrancaDe(i, false)} aoRegistrar={(i) => abrirCobrancaDe(i, true)} />
-          <LinhaDeBlocos nome="mensal" minimo={MINIMO_MENSAL}>
+          <LinhaDeBlocos nome="mensal" minimo={MINIMO_MENSAL} larguraMaxima={LARGURA_MAXIMA}>
             <Cartao titulo="Recebido e previsto por mês" descricao={`O previsto ${NOTA_CONSIDERA_GERADAS}.`} style={estilos.esticar}>
               {dados.serie.length === 0 ? <Texto variante="suave">Nenhum valor recebido ou previsto no período.</Texto> : <GraficoBarras barras={serieDoGrafico(dados.serie)} />}
             </Cartao>
@@ -146,7 +147,7 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
           </LinhaDeBlocos>
           {/* O resultado do mês não acompanha o filtro de período: a pílula junto ao título diz isso antes da descrição. */}
           <ResultadoDoMes resultado={dados.resultadoDoMes} somenteMeus={dados.somenteMeus} periodo="Mês atual" />
-          <LinhaDeBlocos nome="quebras" minimo={MINIMO_TABELA}>
+          <LinhaDeBlocos nome="quebras" minimo={MINIMO_TABELA} larguraMaxima={LARGURA_MAXIMA}>
             <Cartao titulo="Por forma de pagamento" style={estilos.esticar}>
               {dados.porForma.length === 0 ? <Texto variante="suave">Nenhum pagamento recebido no período.</Texto> : (
                 <Tabela rotulo="Recebido por forma de pagamento" linhas={dados.porForma} chave={(f) => f.forma} larguraMinima={300} colunas={[
@@ -193,12 +194,13 @@ function tomDoIndicador(c: CartaoDoPainel): TomDoIndicador {
  * dois dividem a linha ao meio e três que não cabem empilham, em vez de deixar um sozinho embaixo. Bloco ausente (`null`)
  * não ocupa lugar. Antes da medida, uma coluna.
  */
-function LinhaDeBlocos({ nome, minimo, children }: { nome: string; minimo: number; children: ReactNode }) {
-  const [largura, setLargura] = useState(0);
+function LinhaDeBlocos({ nome, minimo, larguraMaxima, children }: { nome: string; minimo: number; larguraMaxima?: number; children: ReactNode }) {
+  const { largura, aoMedir } = useFaixaDeLargura();
   const itens = Children.toArray(children);
   const lado = itens.length > 1 && largura >= minimo * itens.length + VAO * (itens.length - 1);
   return (
-    <View testID={`linha-${nome}`} onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={[lado ? estilos.linha : null, { gap: VAO }]}>
+    <View testID={`linha-${nome}`} onLayout={aoMedir}
+      style={[lado ? estilos.linha : null, larguraMaxima !== undefined ? { maxWidth: larguraMaxima } : null, { gap: VAO }]}>
       {/* Mesma árvore empilhada e lado a lado (a chave é a do filho): mudar de largura não remonta o gráfico nem a tabela. */}
       {itens.map((item, i) => (
         <View key={isValidElement(item) ? item.key : i} testID={`linha-${nome}-${i}`} style={lado ? estilos.celula : null}>{item}</View>
@@ -209,16 +211,17 @@ function LinhaDeBlocos({ nome, minimo, children }: { nome: string; minimo: numbe
 
 /**
  * Corpo de "Como calculamos estes números": um glossário (o nome do indicador em destaque e a explicação embaixo; são
- * definições, não passos, então sem número) em duas colunas quando o cartão tem largura e, depois de uma divisória, as
+ * definições, não passos, então sem número) em 2 a 4 colunas conforme a largura do cartão e, depois de uma divisória, as
  * regras que valem para vários números ao mesmo tempo.
  */
 function ComoCalculamos() {
   const { cores, bordas } = useTema();
-  const [largura, setLargura] = useState(0);
-  const celula = largura >= LARGURA_GLOSSARIO_DUAS ? (largura - VAO_GLOSSARIO) / 2 : undefined;
+  const { largura, aoMedir } = useFaixaDeLargura();
+  const colunas = largura >= 2000 ? 4 : largura >= 1200 ? 3 : largura >= LARGURA_GLOSSARIO_DUAS ? 2 : 1;
+  const celula = colunas > 1 ? (largura - VAO_GLOSSARIO * (colunas - 1)) / colunas : undefined;
   return (
     <>
-      <View testID="glossario" onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={estilos.glossario}>
+      <View testID="glossario" onLayout={aoMedir} style={estilos.glossario}>
         {DEFINICOES_DO_PAINEL.map((d) => (
           <View key={d.termo} style={[estilos.definicao, celula === undefined ? estilos.inteira : { width: celula }]}>
             <Texto variante="subtitulo">{d.termo}</Texto>
@@ -282,7 +285,7 @@ function Inadimplencia({ painel, vencidasNoPeriodo, lista, buscando, podeAlterar
   // cartão; quando traz mais (vencidas antes do período), a frase diz que a base é outra.
   const outraBase = listaTrazOutraBase(lista.dados, vencidasNoPeriodo, painel?.vencidoCentavos);
   return (
-    <Cartao titulo="Inadimplência e cobranças vencidas" descricao={i.detalhe}>
+    <Cartao titulo="Inadimplência e cobranças vencidas" descricao={i.detalhe} style={estilos.blocoLimitado}>
       {/* Resumo compacto, tudo do mesmo conjunto (vencidas no período): percentual, valor de quanto venceu e quantidade. */}
       <View style={estilos.resumo} accessible accessibilityLabel={`Inadimplência: ${i.comBase}${quantas}`}>
         <Texto variante="destaque" numerico>{i.percentual}</Texto>
@@ -367,7 +370,9 @@ const estilos = StyleSheet.create({
   glossario: { flexDirection: 'row', flexWrap: 'wrap', columnGap: VAO_GLOSSARIO, rowGap: espaco(2) },
   definicao: { gap: espaco(0.5) },
   inteira: { width: '100%' },
-  limites: { gap: espaco(1) },
+  limites: { gap: espaco(1), maxWidth: LARGURA_FORMULARIO },
+  textoCorrido: { maxWidth: LARGURA_FORMULARIO },
+  blocoLimitado: { maxWidth: LARGURA_MAXIMA },
   filtros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5), alignItems: 'flex-end' },
   caber: { flexShrink: 1, maxWidth: '100%' },
   lista: { gap: espaco(1) },
