@@ -385,8 +385,8 @@ Qualquer outro lugar precisa de decisão nova.
   ação, nem o mesmo título repetido (a linha aberta já é o título do bloco; o nome acessível "Editando série N, tipo"
   fica para o leitor de tela). O tingido é 8% e não o `acaoSuave` (13%) porque com a marca amarela como cor de ação nos
   temas escuros o contorno dos campos ficava abaixo de 3:1 (`treinador/treino/blocoAberto.contraste.test.ts`). A dieta já
-  seguia a regra nas opções e nos alimentos (conferido no código em 19/11: opção é seção com fio, alimento é faixa
-  `superficie2` sem cor de ação).
+  seguia a regra nas opções e nos alimentos (conferido no código em 19/11: opção é o painel da aba, sem caixa, alimento é
+  faixa `superficie2` sem cor de ação).
 - **Publicar (11/11):** o botão diz o que publica ("Publicar treino", "Publicar dieta", "Publicar mobilidade",
   "Publicar alterações da pasta", "Publicar questionário", "Publicar anamnese", "Publicar perguntas") e só é o
   principal quando há o que publicar.
@@ -666,6 +666,19 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
   série" e "Fechar edição" à direita. Subir e descer saíram do bloco: ficam no ⋯ de cada linha, fora do botão dela
   (Mover para cima/baixo, a alternativa ao arrastar pela alça, WCAG 2.5.7), como nos alimentos da dieta. O bloco é a
   região "Editando série N, tipo"; "Fechar edição" devolve o foco à linha.
+
+**Opções da refeição (`CartaoRefeicao`; opções em abas, 19/11)**
+- Com duas opções ou mais: a comparação dos totais (`ComparacaoDasOpcoes`: Opção | Kcal | P | C | G | Fibras, marcas de
+  macro no cabeçalho, números à direita, a linha abre a aba, a aberta em `superficie2` sem cor de ação; na opção em
+  tabela os números caem embaixo das colunas dos alimentos), as abas (`AbasDeOpcao`, Tabs da APG, desenho do `Abas`:
+  "Opção A · 98 kcal" com a kcal em fonte numérica, "vazia" sem item, selo neutro "Conta no total do dia" na primeira,
+  "+ Opção" no fim, fora da rolagem) e a frase de apoio; depois a opção aberta na largura toda. Com uma opção só, sem abas
+  nem comparação: o "+ Opção" discreto no lugar do "Excluir opção".
+- Opção aberta: "Alimentos (N)" com "Excluir opção" (`perigoTexto`, confirma só com itens), a tabela (abaixo de 910 px de
+  opção, o item empilhado), o total com cada número embaixo da coluna dele e "Adicionar alimento" e "Item manual". A
+  alça de arrastar aparece sempre (com um item, apagada e sem gesto) para o nome começar no mesmo lugar.
+- "Trocar alimento" (item da biblioteca): secundário compacto e neutro (desenho de 32 px, alvo de 44), nunca em cor de
+  ação; na tabela, na linha de baixo do nome, antes dos selos; empilhado, junto do ⋯ e da lixeira.
 
 **Salvamento, validação e aplicação (três estados separados)**
 - Salvamento (`seloDoEditor`, `dominio/barraDoEditor.ts`): "Alterações não salvas" em neutro com lápis (D12, não é erro),

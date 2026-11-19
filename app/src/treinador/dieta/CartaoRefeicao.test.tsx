@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Text } from 'react-native';
 
 import type { ItemDieta, Refeicao } from '../../api/tipos';
@@ -37,6 +38,36 @@ jest.mock('../../ui/EscolhaSuspensa', () => ({
 }));
 jest.mock('../../ui/Escolha', () => ({ Escolha: () => { throw new Error('a unidade não usa mais os chips'); } }));
 jest.mock('../FolhaDeAcoes', () => ({ FolhaDeAcoes: () => null }));
+// Opções em abas (19/11): as abas falsas guardam o "aoMudar" do Tabs num contexto e o toque na aba o chama; o painel é uma
+// caixa simples. A confirmação vira um botão com o rótulo de confirmar, só quando visível.
+jest.mock('../../components/ui/tabs', () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const React = require('react');
+  const { Pressable, View } = require('react-native');
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  const Contexto = React.createContext(() => undefined);
+  type MockFilhos = { children?: unknown };
+  return {
+    Tabs: ({ children, onValueChange }: MockFilhos & { onValueChange: (v: string) => void }) => React.createElement(Contexto.Provider, { value: onValueChange }, children),
+    TabsList: ({ children, accessibilityLabel }: MockFilhos & { accessibilityLabel: string }) => React.createElement(View, { accessibilityRole: 'tablist', accessibilityLabel }, children),
+    TabsTrigger: function Aba({ children, value, accessibilityLabel, accessibilityState }: MockFilhos & { value: string; accessibilityLabel: string; accessibilityState: object }) {
+      const aoMudar = React.useContext(Contexto);
+      return React.createElement(Pressable, { accessibilityRole: 'tab', accessibilityLabel, accessibilityState, onPress: () => aoMudar(value) }, children);
+    },
+    TabsContent: ({ children }: MockFilhos) => React.createElement(View, null, children),
+  };
+});
+jest.mock('../../ui/useMovimentoReduzido', () => ({ useMovimentoReduzido: () => true }));
+// O expo-crypto falso não gera uid: a opção nova precisa de um para a aba e a chave.
+jest.mock('../../dominio/uid', () => {
+  let n = 0;
+  return { ...jest.requireActual('../../dominio/uid'), novoUid: () => `novo-${++n}` };
+});
+jest.mock('../../ui/PainelConfirmacao', () => ({
+  PainelConfirmacao: ({ visivel, rotuloConfirmar, aoConfirmar }: { visivel: boolean; rotuloConfirmar: string; aoConfirmar: () => void }) =>
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    (visivel ? require('react').createElement(require('react-native').Pressable, { accessibilityLabel: `confirmar ${rotuloConfirmar}`, onPress: aoConfirmar }) : null),
+}));
 // O arraste (gesto e Reanimated) tem e2e próprio (`e2e/arrastar.spec.ts`); aqui a caixa só passa o item adiante.
 jest.mock('../../ui/ArrasteDaLista', () => ({
   LARGURA_DA_ALCA: 24,
@@ -62,20 +93,38 @@ function refeicao(extra: Partial<Refeicao> = {}): Refeicao {
   };
 }
 
-function montar(r: Refeicao, extra: { posicao?: number; aberta?: boolean; aoTrocarAlimento?: (uid: string) => void } = {}): Arvore {
+type Extra = { posicao?: number; aberta?: boolean; aoTrocarAlimento?: (uid: string) => void; comProblema?: Set<string>; aoRemoverOpcao?: (i: number) => void };
+
+/** O editor de verdade guarda a refeição; aqui o `useState` faz o papel dele (criar e excluir opção mudam a refeição). */
+function ComEstado({ inicial, extra }: { inicial: Refeicao; extra: Extra }) {
+  const [r, setR] = useState(inicial);
+  return (
+    <CartaoRefeicao refeicao={r} posicao={extra.posicao ?? 0} total={1} aberta={extra.aberta ?? true} comProblema={extra.comProblema ?? new Set()} alimentos={new Map()}
+      aoMudar={setR} aoRemoverOpcao={(i) => { extra.aoRemoverOpcao?.(i); setR((a) => ({ ...a, opcoes: a.opcoes.filter((_, j) => j !== i) })); }}
+      aoMover={() => undefined} aoRemover={() => undefined} aoEscolherAlimento={() => undefined} aoTrocarAlimento={extra.aoTrocarAlimento} />
+  );
+}
+
+function montar(r: Refeicao, extra: Extra = {}): Arvore {
   let arvore: Arvore | undefined;
   Renderer.act(() => {
-    arvore = Renderer.create(
-      <CartaoRefeicao refeicao={r} posicao={extra.posicao ?? 0} total={1} aberta={extra.aberta ?? true} comProblema={new Set()} alimentos={new Map()}
-        aoMudar={() => undefined} aoRemoverOpcao={() => undefined} aoMover={() => undefined} aoRemover={() => undefined} aoEscolherAlimento={() => undefined}
-        aoTrocarAlimento={extra.aoTrocarAlimento} />,
-    );
+    arvore = Renderer.create(<ComEstado inicial={r} extra={extra} />);
   });
   return arvore as Arvore;
 }
 const comRotulo = (a: Arvore, rotulo: string) => a.root.findAll((n) => n.props.accessibilityLabel === rotulo && typeof n.type === 'string');
 const temCampo = (a: Arvore, rotulo: string) => comRotulo(a, `campo ${rotulo}`).length > 0;
 const botaoDosExtras = (a: Arvore) => a.root.findAll((n) => n.props.accessibilityLabel === EXTRAS && typeof n.props.onPress === 'function');
+/** Toca o primeiro com esse nome e um `onPress`. */
+const tocar = (a: Arvore, rotulo: string | RegExp) => {
+  const alvo = a.root.findAll((n) => typeof n.props.onPress === 'function'
+    && (typeof rotulo === 'string' ? n.props.accessibilityLabel === rotulo : rotulo.test(n.props.accessibilityLabel ?? '')))[0];
+  if (!alvo) throw new Error(`nada para tocar: ${rotulo}`);
+  Renderer.act(() => alvo.props.onPress());
+};
+const abas = (a: Arvore) => a.root.findAll((n) => n.props.accessibilityRole === 'tab' && typeof n.type === 'string').map((n) => n.props.accessibilityLabel as string);
+const abaAberta = (a: Arvore) => a.root.findAll((n) => n.props.accessibilityRole === 'tab' && typeof n.type === 'string' && n.props.accessibilityState?.selected)
+  .map((n) => n.props.accessibilityLabel as string);
 
 describe('CartaoRefeicao: observação e modo de preparo', () => {
   it('vazios ficam recolhidos no link, abaixo de Nome e Horário', () => {
@@ -118,19 +167,81 @@ describe('CartaoRefeicao: observação e modo de preparo', () => {
 });
 
 describe('CartaoRefeicao: unidade do alimento', () => {
-  it('cada alimento tem a quantidade e a unidade atual numa escolha suspensa, nas duas opções', () => {
+  it('cada alimento tem a quantidade e a unidade atual numa escolha suspensa (só os da opção aberta)', () => {
     const a = montar(refeicao());
-    expect(comRotulo(a, 'campo Quantidade')).toHaveLength(2);
-    expect(comRotulo(a, 'suspensa Unidade: ml')).toHaveLength(2);
+    expect(comRotulo(a, 'campo Quantidade')).toHaveLength(1);
+    expect(comRotulo(a, 'suspensa Unidade: ml')).toHaveLength(1);
+  });
+});
+
+// Opções em abas (19/11): no lugar das colunas lado a lado.
+describe('CartaoRefeicao: opções em abas', () => {
+  const tres = () => refeicao({ opcoes: [
+    { uid: 'a', rotulo: 'A', itens: [item('i1', 'Suco fictício'), item('i2', 'Pão fictício')] },
+    { uid: 'b', rotulo: 'B', itens: [item('i3', 'Leite fictício')] },
+    { uid: 'c', rotulo: 'C', itens: [] },
+  ] });
+
+  it('com uma opção só: sem abas nem comparação, só o "+ Opção"', () => {
+    const a = montar(refeicao({ opcoes: [{ uid: 'a', rotulo: 'A', itens: [item('i1', 'Suco fictício')] }] }));
+    expect(abas(a)).toEqual([]);
+    expect(comRotulo(a, 'Opção')).toHaveLength(1);
+    expect(a.root.findAll((n) => n.props['aria-label'] === 'Comparação das opções')).toHaveLength(0);
+  });
+
+  it('com três: uma aba por opção com a kcal, a primeira conta no total do dia, a vazia diz "vazia"; abre na A', () => {
+    const a = montar(tres());
+    expect(abas(a)).toEqual(['Opção A, 100 kcal, conta no total do dia', 'Opção B, 50 kcal', 'Opção C, vazia']);
+    expect(abaAberta(a)).toEqual(['Opção A, 100 kcal, conta no total do dia']);
+    expect(comRotulo(a, 'campo Item')).toHaveLength(2);
+  });
+
+  it('tocar na aba (ou na linha da comparação) abre a opção; só ela mostra os alimentos', () => {
+    const a = montar(tres());
+    tocar(a, 'Opção B, 50 kcal');
+    expect(abaAberta(a)).toEqual(['Opção B, 50 kcal']);
+    expect(comRotulo(a, 'campo Item')).toHaveLength(1);
+    tocar(a, /^Opção C: vazia/);
+    expect(abaAberta(a)).toEqual(['Opção C, vazia']);
+    expect(comRotulo(a, 'campo Item')).toHaveLength(0);
+    // Vazia não tem total (nunca "0 kcal").
+    expect(a.root.findAll((n) => n.props['aria-label'] === 'Total da opção C')).toHaveLength(0);
+  });
+
+  it('"+ Opção" cria a opção e ela abre selecionada', () => {
+    const a = montar(tres());
+    tocar(a, 'Opção');
+    expect(abas(a)).toHaveLength(4);
+    expect(abaAberta(a)).toEqual(['Opção D, vazia']);
+  });
+
+  it('excluir pede confirmação só com itens; a aberta excluída abre a vizinha', () => {
+    const aoRemoverOpcao = jest.fn();
+    const a = montar(tres(), { aoRemoverOpcao });
+    tocar(a, 'Opção B, 50 kcal');
+    tocar(a, 'Excluir opção');
+    expect(aoRemoverOpcao).not.toHaveBeenCalled();
+    tocar(a, 'confirmar Excluir opção');
+    expect(aoRemoverOpcao).toHaveBeenCalledWith(1);
+    expect(abaAberta(a)).toEqual(['Opção C, vazia']);
+    // A C está vazia: sai sem perguntar; com uma opção só, as abas somem.
+    tocar(a, 'Excluir opção');
+    expect(aoRemoverOpcao).toHaveBeenLastCalledWith(1);
+    expect(abas(a)).toEqual([]);
+  });
+
+  it('a opção com problema da validação abre sozinha e a aba avisa', () => {
+    const a = montar(tres(), { comProblema: new Set(['r1', 'b', 'i3']) });
+    expect(abaAberta(a)).toEqual(['Opção B, 50 kcal, com problema a corrigir']);
   });
 });
 
 describe('CartaoRefeicao: trocar alimento (C56)', () => {
   const biblioteca = (uid: string, nome: string): ItemDieta => ({ ...item(uid, nome), alimentoId: `al-${uid}`, manual: false });
   const comItens = (itens: ItemDieta[]) => refeicao({ opcoes: [{ uid: 'a', rotulo: 'A', itens }] });
-  const trocar = (a: Arvore, nome: string) => a.root.findAll((n) => n.props.accessibilityLabel === `Trocar ${nome}` && typeof n.props.onPress === 'function');
+  const trocar = (a: Arvore, nome: string) => a.root.findAll((n) => n.props.accessibilityLabel === `Trocar alimento: ${nome}` && typeof n.props.onPress === 'function');
 
-  it('só o item da biblioteca tem "Trocar", e o toque manda o uid dele', () => {
+  it('só o item da biblioteca tem "Trocar alimento", e o toque manda o uid dele', () => {
     const aoTrocarAlimento = jest.fn();
     const a = montar(comItens([biblioteca('i1', 'Pão fictício'), item('i2', 'Suco fictício')]), { aoTrocarAlimento });
     expect(trocar(a, 'Pão fictício')).toHaveLength(1);
@@ -156,7 +267,7 @@ describe('CartaoRefeicao: itens em tabela', () => {
   const textos = (a: Arvore) => a.root.findAllByType(Text).map((t) => t.props.children);
   const temCabecalho = (a: Arvore) => textos(a).includes('Alimento');
 
-  it('larga, mostra o cabeçalho uma vez, escondido do leitor, e os valores da biblioteca como texto', () => {
+  it('larga, mostra o cabeçalho uma vez, escondido do leitor, os valores da biblioteca como texto e o "Trocar alimento"', () => {
     const a = comLargura(montar(umaOpcao, { aoTrocarAlimento: () => undefined }), 1200);
     expect(textos(a).filter((t) => t === 'Alimento')).toHaveLength(1);
     for (const titulo of ['#', 'Quantidade', 'Unidade', 'Kcal', 'P (g)', 'C (g)', 'G (g)', 'Fibras (g)']) expect(textos(a)).toContain(titulo);
@@ -165,6 +276,10 @@ describe('CartaoRefeicao: itens em tabela', () => {
     // O item da biblioteca: número solto na coluna e uma frase só para o leitor.
     expect(textos(a)).toContain('1,0 g');
     expect(textos(a)).toContain('Pão fictício: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
+    expect(textos(a)).toContain('Trocar alimento');
+    // O total da opção embaixo das colunas: os números soltos, a frase só para o leitor.
+    expect(textos(a)).toContain('100');
+    expect(textos(a)).toContain('Total da opção A: 100 kcal, proteína 2,0 g, carboidrato 20,0 g, gordura 0,0 g, fibra sem dado');
   });
 
   it('larga, os campos mantêm os nomes de hoje (quantidade, unidade e os valores do item manual)', () => {
@@ -175,7 +290,7 @@ describe('CartaoRefeicao: itens em tabela', () => {
   });
 
   it('o limite sai das colunas: um pixel abaixo dele, volta ao item empilhado, sem cabeçalho', () => {
-    const limite = larguraDaTabela(3);
+    const limite = larguraDaTabela();
     expect(temCabecalho(comLargura(montar(umaOpcao, { aoTrocarAlimento: () => undefined }), limite))).toBe(true);
     expect(temCabecalho(comLargura(montar(umaOpcao, { aoTrocarAlimento: () => undefined }), limite - 1))).toBe(false);
     expect(temCabecalho(montar(umaOpcao))).toBe(false);
@@ -220,7 +335,9 @@ describe('CartaoRefeicao: subtotal e cor (C66, C63)', () => {
     const a = montar(refeicao());
     const textos = a.root.findAllByType(Text).map((t) => t.props.children);
     expect(textos).toContain('Subtotal da refeição, opção A: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
-    expect(textos).toContain('Total da opção B: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
+    expect(textos).toContain('Total da opção A: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
+    tocar(a, 'Opção B, 50 kcal');
+    expect(a.root.findAllByType(Text).map((t) => t.props.children)).toContain('Total da opção B: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
   });
 });
 

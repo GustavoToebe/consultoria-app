@@ -100,19 +100,21 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveCount(0);
     await expect(page.getByLabel('Observação (opcional)', { exact: true })).toHaveCount(0);
 
-    // Unidade: a atual ao lado da quantidade, numa lista suspensa; nenhum chip de unidade.
+    // Unidade: a atual ao lado da quantidade, numa lista suspensa; nenhum chip de unidade. Opções em abas (19/11): a A
+    // aberta mostra só os alimentos dela (g e ml); a fruta em "un" fica na aba B.
     await expect(page.getByRole('button', { name: 'Unidade: g. Escolher.' })).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Unidade: ml. Escolher.' })).toHaveCount(1);
-    await expect(page.getByRole('button', { name: 'Unidade: un. Escolher.' })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Unidade: un. Escolher.' })).toHaveCount(0);
     await expect(page.getByRole('radio', { name: 'ml' })).toHaveCount(0);
-    const [a, b] = [await page.getByRole('heading', { name: 'Opção A' }).boundingBox(), await page.getByRole('heading', { name: 'Opção B' }).boundingBox()];
-    if (!a || !b) throw new Error('sem opção');
-    if (duas) expect(Math.abs(a.y - b.y)).toBeLessThan(2);
     const [qtd, unidade] = [await page.getByLabel('Quantidade', { exact: true }).first().boundingBox(), await page.getByRole('button', { name: 'Unidade: g. Escolher.' }).boundingBox()];
     if (!qtd || !unidade) throw new Error('sem campo');
     expect(unidade.x).toBeGreaterThan(qtd.x + qtd.width - 1);
     expect(Math.abs(unidade.y + unidade.height - (qtd.y + qtd.height))).toBeLessThan(12);
     await capturar(page, `refeicao-${sufixo}`, page.getByRole('heading', { name: 'Refeições (2)' }));
+    const abas = page.getByRole('tablist', { name: 'Opções de 07:00 · Café da manhã' });
+    await abas.getByRole('tab', { name: /^Opção B,/ }).click();
+    await expect(page.getByRole('button', { name: 'Unidade: un. Escolher.' })).toHaveCount(1);
+    await abas.getByRole('tab', { name: /^Opção A,/ }).click();
 
     await extras.click();
     await expect(page.getByLabel('Observação (opcional)', { exact: true })).toBeVisible();

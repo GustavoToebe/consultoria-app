@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta, Refeicao } from '../api/tipos';
-import { aguaValida, aplicarReceitaDeDieta, colunasDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
+import { aguaValida, aplicarReceitaDeDieta, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -232,16 +232,6 @@ describe('modo de preparo da refeição (28/10)', () => {
 });
 
 describe('opções da refeição: só apresentação (28/10)', () => {
-  it('lado a lado só com duas opções ou mais e espaço para colunas de 300 px', () => {
-    expect(colunasDasOpcoes(1200, 1)).toBe(1);
-    expect(colunasDasOpcoes(0, 3)).toBe(1);
-    expect(colunasDasOpcoes(358, 2)).toBe(1); // celular: empilhadas
-    expect(colunasDasOpcoes(612, 2)).toBe(2);
-    expect(colunasDasOpcoes(700, 3)).toBe(2); // a terceira desce
-    expect(colunasDasOpcoes(960, 3)).toBe(3);
-    expect(colunasDasOpcoes(2000, 2)).toBe(2); // nunca mais colunas que opções
-  });
-
   it('o aluno lê que deve escolher uma, sem a palavra "equivalente"', () => {
     expect(textoEscolhaDasOpcoes(['A'])).toBeNull();
     expect(textoEscolhaDasOpcoes(['A', 'B'])).toBe('Escolha uma das opções: A ou B.');

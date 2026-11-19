@@ -75,8 +75,9 @@ const DETALHE: PlanoDetalhe<ConteudoDieta> = {
   versoes: [{ id: 'v0000000-0000-4000-8000-000000000001', numero: 1, publicadoEm: '2026-10-01T12:00:00Z' }],
 };
 
-for (const [largura, ladoALado] of [[390, false], [1280, true]] as const) {
-  test(`treinador: opções ${ladoALado ? 'lado a lado' : 'empilhadas'} com o total de cada uma e o modo de preparo (${largura}px)`, async ({ page }) => {
+// Opções em abas (19/11): no lugar das colunas lado a lado; a opção é achada pela aba.
+for (const [largura, inspetor] of [[390, false], [1280, true]] as const) {
+  test(`treinador: opções em abas com o total de cada uma e o modo de preparo (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { naoTratadas, errosDaPagina } = await simularApi(page, {
       ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR'] })),
@@ -89,35 +90,31 @@ for (const [largura, ladoALado] of [[390, false], [1280, true]] as const) {
     });
     await page.goto(`/treinador/dietas/${PLANO_ID}`);
     // PC: a refeição da lista abre no inspetor; celular: a refeição única já nasce aberta (18/11), sem clique.
-    if (ladoALado) await page.getByRole('button', { name: /^Refeição 1 de 1: 12:00 · Almoço/ }).click();
+    if (inspetor) await page.getByRole('button', { name: /^Refeição 1 de 1: 12:00 · Almoço/ }).click();
     else await expect(page.getByRole('button', { name: /12:00 · Almoço, aberto/ })).toBeVisible();
 
-    const a = page.getByRole('heading', { name: 'Opção A' });
-    const b = page.getByRole('heading', { name: 'Opção B' });
-    await expect(a).toBeVisible();
-    await expect(b).toBeVisible();
-    await expect(page.getByText('Cada opção substitui a refeição inteira: o aluno escolhe uma. O total do dia soma só a opção A.')).toBeVisible();
-    // Total de cada opção, separado dos itens, gramas com uma casa; o que falta (gordura da batata) é "—".
+    const abas = page.getByRole('tablist', { name: 'Opções de 12:00 · Almoço' });
+    const a = abas.getByRole('tab', { name: /^Opção A,/ });
+    const b = abas.getByRole('tab', { name: /^Opção B,/ });
+    await expect(a).toHaveAttribute('aria-selected', 'true');
+    await expect(b).toHaveAttribute('aria-selected', 'false');
+    await expect(page.getByText('Cada opção substitui a refeição inteira: o aluno escolhe uma.')).toBeVisible();
+    // Total de cada opção (com a aba dela aberta), separado dos itens, gramas com uma casa; o que falta (gordura da batata) é "—".
     const totalA = page.getByRole('group', { name: 'Total da opção A' });
     const totalB = page.getByRole('group', { name: 'Total da opção B' });
     for (const texto of ['190 kcal', 'P 4,0 g', 'C 30,0 g', 'G 0,4 g']) await expect(totalA.getByText(texto, { exact: true })).toBeVisible();
+    await expect(totalB).toHaveCount(0);
+    await b.click();
     for (const texto of ['170 kcal', 'P 4,0 g', 'C 30,0 g', 'G —']) await expect(totalB.getByText(texto, { exact: true })).toBeVisible();
-    const [caixaA, caixaB] = [await a.boundingBox(), await b.boundingBox()];
-    if (!caixaA || !caixaB) throw new Error('sem caixa');
-    if (ladoALado) {
-      expect(Math.abs(caixaA.y - caixaB.y)).toBeLessThan(2);
-      expect(caixaB.x).toBeGreaterThan(caixaA.x + 200);
-    } else {
-      expect(caixaB.y).toBeGreaterThan(caixaA.y + 50);
-      expect(Math.abs(caixaA.x - caixaB.x)).toBeLessThan(2);
-    }
+    await expect(totalA).toHaveCount(0);
     // O modo de preparo gravado também fica atrás do link (18/11): o toque abre os campos e o texto está lá.
     await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Observação ou modo de preparo (opcional)' }).click();
     await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveValue(PREPARO);
     await expect(page.getByText(/equivalente/i)).toHaveCount(0);
-    // Remover uma opção leva os itens junto: dá para desfazer (04/11).
-    await page.getByRole('button', { name: 'Remover opção B' }).click();
+    // Excluir a opção (com itens, pede confirmação) leva os itens junto: dá para desfazer (04/11).
+    await page.getByRole('button', { name: 'Excluir opção B' }).click();
+    await page.getByRole('alertdialog', { name: 'Excluir a opção B?' }).getByRole('button', { name: 'Excluir opção' }).click();
     await expect(b).toHaveCount(0);
     await expect(page.getByText('Opção B removida.')).toBeVisible();
     await page.getByRole('button', { name: 'Desfazer' }).click();
@@ -156,7 +153,13 @@ for (const [largura, escuro] of [[390, false], [390, true], [1280, false]] as co
     await page.goto(`/treinador/dietas/${PLANO_ID}`);
     const cabecalho = page.getByRole('heading', { name: 'Refeições (3)' });
     await expect(cabecalho).toBeVisible();
-    const opcoesB = page.getByRole('heading', { name: 'Opção B' });
+    const opcoesB = page.getByRole('tab', { name: /^Opção B,/ });
+    /** Abre a aba B (a última, no celular: a do jantar), exclui e confirma (a opção tem itens). */
+    const excluirB = async () => {
+      await opcoesB.last().click();
+      await page.getByRole('button', { name: 'Excluir opção B' }).click();
+      await page.getByRole('alertdialog', { name: 'Excluir a opção B?' }).getByRole('button', { name: 'Excluir opção' }).click();
+    };
     const capturar = async (nome: string) => {
       if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/${nome}-${largura}${escuro ? '-escuro' : ''}.png` });
     };
@@ -164,7 +167,7 @@ for (const [largura, escuro] of [[390, false], [390, true], [1280, false]] as co
     if (largura === 390) {
       await page.getByRole('button', { name: 'Abrir todas' }).click();
       // A opção B do jantar, lá embaixo: o aviso aparece no jantar, não no topo (que ficou fora da janela).
-      await page.getByRole('button', { name: 'Remover opção B' }).last().click();
+      await excluirB();
       await expect(opcoesB).toHaveCount(2);
       await expect(page.getByText('Opção B removida.')).toBeInViewport();
       await expect(cabecalho).not.toBeInViewport();
@@ -183,7 +186,7 @@ for (const [largura, escuro] of [[390, false], [390, true], [1280, false]] as co
     } else {
       // Duas colunas: o aviso fica entre "Refeições (N)" e a lista, como antes.
       await page.getByRole('button', { name: /^Refeição 3 de 3: 19:00 · Jantar/ }).click();
-      await page.getByRole('button', { name: 'Remover opção B' }).click();
+      await excluirB();
       const aviso = page.getByText('Opção B removida.');
       await expect(aviso).toBeInViewport();
       const [topo, caixa, lista] = [await cabecalho.boundingBox(), await aviso.boundingBox(),

@@ -346,21 +346,6 @@ export function textoItensSemValor(n: number): string {
 }
 
 /**
- * Opções lado a lado no editor da refeição (pedido de 28/10): com duas opções ou mais e espaço para colunas de pelo
- * menos {@link LARGURA_COLUNA_OPCAO} px, cada opção vira uma coluna (as que não cabem descem para a linha seguinte).
- * A medida é a largura do próprio cartão: no PC, com o menu lateral, isso começa por volta de 1024 px de janela; no
- * celular fica sempre uma coluna (empilhadas). Só apresentação: nada é somado nem comparado entre opções.
- */
-export const LARGURA_COLUNA_OPCAO = 300;
-export const ESPACO_ENTRE_OPCOES = 12;
-
-export function colunasDasOpcoes(largura: number, quantidade: number): number {
-  if (quantidade < 2 || !(largura > 0)) return 1;
-  const cabem = Math.floor((largura + ESPACO_ENTRE_OPCOES) / (LARGURA_COLUNA_OPCAO + ESPACO_ENTRE_OPCOES));
-  return Math.max(1, Math.min(quantidade, cabem));
-}
-
-/**
  * "Escolha uma das opções: A ou B." / "…: A, B ou C." para o aluno ver que são alternativas, não itens somados.
  * Uma opção só não pede escolha (`null`). Nunca fala em "equivalente": o sistema não compara as opções.
  */

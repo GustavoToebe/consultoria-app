@@ -151,11 +151,18 @@ for (const escuro of [false, true]) {
   }
 }
 
-// 943 = 928 + os 15 px da faixa da barra de rolagem que `RolagemComTopo` reserva a partir de 768 px (`scrollbar-gutter: stable`).
-test('a opção em torno de 760 px (janela de 943) ainda empilha: o limite sai das colunas', async ({ page }) => {
-  await abrir(page, 943);
-  const largura = (await opcoes(page).boundingBox())!.width;
-  expect(Math.abs(largura - 760)).toBeLessThan(12);
+// O limite é a largura da OPÇÃO, `larguraDaTabela()` = 910 px desde 19/11 (o "Trocar alimento" saiu da coluna das ações,
+// que reserva só o ⋯ e a lixeira). Opções em abas (19/11): a opção aberta tem a largura toda do inspetor, então o limite
+// em janela cai no layout de duas colunas: a opção acompanha a janela 1:1 (medido em 19/11: 1520 → 889 px), então a tabela
+// começa em ~1541 px de janela; 1536 (905 px) ainda empilha e 1546 (915 px) já é tabela.
+test('o limite sai das colunas: a opção abaixo de 910 px empilha e a partir dele vira tabela (janelas de 1536 e 1546)', async ({ page }) => {
+  await abrir(page, 1536);
+  const estreita = (await opcoes(page).boundingBox())!.width;
+  expect(estreita).toBeLessThan(910);
+  expect(estreita).toBeGreaterThan(900);
   await expect(page.getByText('Alimento', { exact: true })).toHaveCount(0);
-  await capturar(page, 'opcao-760-claro');
+  await page.setViewportSize({ width: 1546, height: 1000 });
+  await expect.poll(async () => (await opcoes(page).boundingBox())!.width).toBeGreaterThanOrEqual(910);
+  await expect(page.getByText('Alimento', { exact: true })).toHaveCount(1);
+  await capturar(page, 'opcao-910-claro');
 });

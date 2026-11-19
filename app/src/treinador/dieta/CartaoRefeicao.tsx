@@ -1,12 +1,10 @@
-import { ArrowLeftRight, Ellipsis, PencilLine, Plus, Trash2, TriangleAlert } from 'lucide-react-native';
-import { Fragment, type ReactNode, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ArrowLeftRight, Ellipsis, GripVertical, PencilLine, Plus, Trash2, TriangleAlert } from 'lucide-react-native';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Alimento, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento } from '../../api/tipos';
 import {
-  colunasDasOpcoes,
   erroDaFibra,
-  ESPACO_ENTRE_OPCOES,
   MODO_DE_PREPARO_MAXIMO,
   modoDePreparoValido,
   novaOpcao,
@@ -18,10 +16,12 @@ import {
 } from '../../dominio/dieta';
 import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { remover, substituir } from '../../dominio/editorTreino';
+import { proximaSelecao } from '../../dominio/inspetorDoTreino';
+import { abaComProblema, chaveDosProblemas, MAXIMO_DE_OPCOES, MOTIVO_NO_LIMITE_DE_OPCOES } from '../../dominio/opcoesDaRefeicao';
 import { moverPara } from '../../dominio/reordenar';
 import { numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO_CONTROLE } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA as LARGURA_DA_PECA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Botao } from '../../ui/Botao';
@@ -33,15 +33,19 @@ import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { NumeroInvertido } from '../../ui/NumeroInvertido';
+import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
+import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
-import { CampoDoMacro, FIBRA, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../../ui/ValoresDaDieta';
+import { CampoDoMacro, FIBRA, fibraParcial, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta, type ValoresComFibra } from '../../ui/ValoresDaDieta';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
 import { acoesDeMover } from '../acoesDeMover';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
 import { rotuloSalvarComo } from '../planejamento/modelos';
+import { AbasDeOpcao } from './AbasDeOpcao';
+import { type ColunasDaTabela, ComparacaoDasOpcoes } from './ComparacaoDasOpcoes';
 
 /** Id no DOM (web) do cartão da refeição: `mostrarAbaixoDaBarra` rola até ele ao adicionar uma refeição. */
 export const idDaRefeicao = (uid: string) => `refeicao-${uid}`;
@@ -81,8 +85,13 @@ interface Props {
   /** Remove a opção com "Desfazer" (leva os itens dela junto). */
   aoRemoverOpcao: (indice: number) => void;
   aoRemoverItem?: (opcaoIndice: number, itemIndice: number, nomeItem: string) => void;
-  /** O "Desfazer" da opção removida, logo abaixo das opções (empilhado, para ficar à vista). */
+  /**
+   * O "Desfazer" da opção ou do alimento removido (empilhado, para ficar à vista): o da opção logo acima da opção aberta,
+   * embaixo das abas, onde ficava o "Excluir opção" tocado; o do alimento depois da lista (`avisoDoAlimento`).
+   */
   aviso?: ReactNode;
+  /** O aviso é do alimento removido: fica depois da opção aberta, perto da lista (o da opção fica acima dela). */
+  avisoDoAlimento?: boolean;
   aoMover: (delta: -1 | 1) => void;
   /** Lixeira no cabeçalho; sem ele, a refeição não se remove (modelo de uma refeição só). */
   aoRemover?: () => void;
@@ -96,9 +105,10 @@ interface Props {
 /**
  * Refeição: o cabeçalho (posição, título, um selo, ↑↓ e a lixeira com o nome), os dados dela (nome, horário, observação,
  * modo de preparo) e as opções (A, B...) com os itens e o total de cada uma. As opções são alternativas (o aluno escolhe
- * uma; o total do dia usa só a A): ficam lado a lado quando o cartão é largo (`colunasDasOpcoes`, no PC) e empilhadas no
- * celular. Duas molduras no máximo (S4 de `editor-treino-inspetor.md`): a refeição e o item; a opção é uma seção com o
- * título e um fio, sem caixa. Nada é comparado nem calculado entre as opções.
+ * uma; o total do dia usa só a primeira). Opções em abas (19/11): com duas ou mais, a comparação dos totais, as abas
+ * (`AbasDeOpcao`) e a opção aberta na largura toda; com uma só, nada de abas, só o "+ Opção" discreto. Duas molduras no
+ * máximo (S4 de `editor-treino-inspetor.md`): a refeição e o item; a opção é o painel da aba, sem caixa. Nada é
+ * calculado entre as opções: cada uma mostra o próprio total.
  */
 export function CartaoRefeicao(p: Props) {
   const { cores, identificacao } = useTema();
@@ -107,8 +117,29 @@ export function CartaoRefeicao(p: Props) {
   const r = p.refeicao;
   const [largura, setLargura] = useState(0);
   const mudar = (parcial: Partial<Refeicao>) => p.aoMudar({ ...r, ...parcial });
-  const colunas = colunasDasOpcoes(largura, r.opcoes.length);
-  const larguraDaColuna = colunas > 1 ? (largura - ESPACO_ENTRE_OPCOES * (colunas - 1)) / colunas : undefined;
+  // A aba aberta é estado da tela; a que sumiu (excluída, desfeita, modelo aplicado) cai na primeira.
+  const [abertaUid, setAbertaUid] = useState<string | null>(null);
+  const aberta = r.opcoes.find((o) => o.uid === abertaUid) ?? r.opcoes[0];
+  // Problemas novos da validação: a opção com erro abre sozinha, para ele não ficar escondido atrás de uma aba fechada.
+  // Pela chave (o conjunto chega outro a cada desenho), então digitar ou validar de novo com os mesmos erros não muda a aba.
+  // Começa vazia: a refeição que abre já com erro (o "Ir ao primeiro" monta o cartão no inspetor) também vai à opção dele.
+  const chaveDeProblemas = chaveDosProblemas(r.opcoes, p.comProblema);
+  const [problemasVistos, setProblemasVistos] = useState('');
+  if (chaveDeProblemas !== problemasVistos) {
+    setProblemasVistos(chaveDeProblemas);
+    if (aberta) setAbertaUid(abaComProblema(r.opcoes, aberta.uid, p.comProblema));
+  }
+  // Foco depois de criar ou excluir uma opção: na aba dela (ou no "+ Opção" quando as abas somem). O botão que a pessoa
+  // tocou muda de lugar ou some, e sem isto o foco cairia no fim da página. Na web, depois do diálogo devolver o foco.
+  const alvosDoFoco = useRef(new Map<string, View | null>());
+  const focoPendente = useRef<string | null>(null);
+  useEffect(() => {
+    const alvo = focoPendente.current;
+    if (!alvo || Platform.OS !== 'web') return;
+    const espera = setTimeout(() => { focoPendente.current = null; alvosDoFoco.current.get(alvo)?.focus(); }, 0);
+    return () => clearTimeout(espera);
+  });
+  const [confirmarExclusao, setConfirmarExclusao] = useState<OpcaoRefeicao | null>(null);
   const mudarItens = (indice: number, fn: (itens: ItemDieta[]) => ItemDieta[]) =>
     mudar({ opcoes: substituir(r.opcoes, indice, { ...r.opcoes[indice], itens: fn(r.opcoes[indice].itens) }) });
   const modoDePreparo = r.modoDePreparo ?? '';
@@ -136,6 +167,48 @@ export function CartaoRefeicao(p: Props) {
       </View>
     </View>
   ) : undefined;
+
+  // A opção nova abre selecionada, com o foco na aba dela.
+  const adicionarOpcao = () => {
+    const nova = novaOpcao(r.opcoes);
+    mudar({ opcoes: [...r.opcoes, nova] });
+    setAbertaUid(nova.uid);
+    focoPendente.current = nova.uid;
+  };
+  // Excluir a aberta abre a vizinha (a da direita; sendo a última, a da esquerda), como a refeição removida no inspetor.
+  const excluirOpcao = (o: OpcaoRefeicao) => {
+    const depois = r.opcoes.filter((x) => x.uid !== o.uid);
+    const proxima = proximaSelecao(r.opcoes.map((x) => x.uid), depois.map((x) => x.uid), o.uid);
+    setAbertaUid(proxima);
+    focoPendente.current = depois.length > 1 ? proxima : MAIS_OPCAO;
+    p.aoRemoverOpcao(r.opcoes.indexOf(o));
+  };
+  const maisOpcao = (
+    <Botao ref={(b) => { alvosDoFoco.current.set(MAIS_OPCAO, b); }} rotulo="Opção" rotuloAcessivel={`Adicionar opção em ${titulo}`} tipo="fantasma" Icone={Plus}
+      aoTocar={adicionarOpcao} desabilitado={r.opcoes.length >= MAXIMO_DE_OPCOES} motivo={MOTIVO_NO_LIMITE_DE_OPCOES} />
+  );
+  const indiceAberto = aberta ? r.opcoes.indexOf(aberta) : -1;
+  // `key`: o arraste, o ⋯ e a confirmação de cada opção não passam para a outra ao trocar de aba.
+  const opcaoAberta = aberta ? (
+    <OpcaoDaRefeicao
+      key={aberta.uid}
+      opcao={aberta}
+      larguraDisponivel={largura}
+      varias={varias}
+      comProblema={p.comProblema}
+      alimentos={p.alimentos}
+      acao={varias ? (
+        <Botao tipo="perigoTexto" rotulo="Excluir opção" rotuloAcessivel={`Excluir opção ${aberta.rotulo}`} Icone={Trash2}
+          aoTocar={() => (aberta.itens.length ? setConfirmarExclusao(aberta) : excluirOpcao(aberta))} />
+      ) : maisOpcao}
+      aoMudarItens={(fn) => mudarItens(indiceAberto, fn)}
+      aoEscolherAlimento={() => p.aoEscolherAlimento(indiceAberto)}
+      aoTrocarAlimento={p.aoTrocarAlimento}
+      aoRemoverItem={p.aoRemoverItem ? (ii, nome) => p.aoRemoverItem!(indiceAberto, ii, nome) : undefined}
+    />
+  ) : null;
+  const itensDaExclusao = confirmarExclusao?.itens.length ?? 0;
+  const avisoAcima = p.avisoDoAlimento ? null : p.aviso;
 
   return (
     <AlvoDeRolagem chave={r.uid}><View nativeID={idDaRefeicao(r.uid)}><Cartao
@@ -189,47 +262,26 @@ export function CartaoRefeicao(p: Props) {
             )}
           </View>
           <Divisor />
-          {varias ? (
-            <Texto variante="suave">Cada opção substitui a refeição inteira: o aluno escolhe uma. O total do dia soma só a opção {r.opcoes[0].rotulo}.</Texto>
-          ) : (
-            <Texto variante="secao">Alimentos ({r.opcoes[0]?.itens.length ?? 0})</Texto>
-          )}
           <View testID="opcoes-da-refeicao" style={estilos.opcoes} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
-            {r.opcoes.map((opcao, indice) => (
-              <Fragment key={opcao.uid}>
-                {/* Empilhadas, um fio entre as opções; lado a lado, a coluna e o título já separam. */}
-                {indice > 0 && colunas === 1 ? <Divisor style={estilos.opcaoInteira} /> : null}
-                <OpcaoDaRefeicao
-                  opcao={opcao}
-                  largura={larguraDaColuna}
-                  larguraDisponivel={larguraDaColuna ?? largura}
-                  varias={varias}
-                  comProblema={p.comProblema}
-                  alimentos={p.alimentos}
-                  aoMudarItens={(fn) => mudarItens(indice, fn)}
-                  aoEscolherAlimento={() => p.aoEscolherAlimento(indice)}
-                  aoTrocarAlimento={p.aoTrocarAlimento}
-                  aoRemover={varias ? () => p.aoRemoverOpcao(indice) : undefined}
-                  aoRemoverItem={p.aoRemoverItem ? (ii, nome) => p.aoRemoverItem!(indice, ii, nome) : undefined}
-                />
-              </Fragment>
-            ))}
+            {varias && aberta ? <>
+              <ComparacaoDasOpcoes opcoes={r.opcoes} aberta={aberta.uid} aoAbrir={setAbertaUid}
+                colunas={largura >= larguraDaTabela() ? COLUNAS_DA_COMPARACAO : undefined} />
+              <AbasDeOpcao rotulo={`Opções de ${titulo}`} opcoes={r.opcoes} aberta={aberta.uid} comProblema={p.comProblema} aoAbrir={setAbertaUid}
+                depois={maisOpcao} registrar={(uid, aba) => alvosDoFoco.current.set(uid, aba)}
+                apoio={<>
+                  <Texto variante="suave">Cada opção substitui a refeição inteira: o aluno escolhe uma.</Texto>
+                  {avisoAcima}
+                </>}>
+                {opcaoAberta}
+              </AbasDeOpcao>
+            </> : <>{avisoAcima}{opcaoAberta}</>}
           </View>
-          {p.aviso}
-          {r.opcoes.length < 6 || p.aoSalvarModelo ? (
+          {p.avisoDoAlimento ? p.aviso : null}
+          {p.aoSalvarModelo ? (
             <>
               <Divisor />
               <LinhaDeAcoes>
-                {r.opcoes.length < 6 ? (
-                  <Botao
-                    rotulo="Adicionar opção"
-                    rotuloAcessivel={`Adicionar opção em ${titulo}`}
-                    tipo="secundario"
-                    Icone={Plus}
-                    aoTocar={() => mudar({ opcoes: [...r.opcoes, novaOpcao(r.opcoes)] })}
-                  />
-                ) : null}
-                {p.aoSalvarModelo ? <Botao rotulo={rotuloSalvarComo('REFEICAO')} rotuloAcessivel={`${rotuloSalvarComo('REFEICAO')}: ${titulo}`} tipo="fantasma" aoTocar={p.aoSalvarModelo} /> : null}
+                <Botao rotulo={rotuloSalvarComo('REFEICAO')} rotuloAcessivel={`${rotuloSalvarComo('REFEICAO')}: ${titulo}`} tipo="fantasma" aoTocar={p.aoSalvarModelo} />
               </LinhaDeAcoes>
             </>
           ) : null}
@@ -237,60 +289,76 @@ export function CartaoRefeicao(p: Props) {
       ) : null}
     </Cartao>
     {menu ? <FolhaDeAcoes titulo={titulo} aoFechar={() => setMenu(false)} acoes={acoesDaRefeicao} /> : null}
+    <PainelConfirmacao
+      visivel={!!confirmarExclusao}
+      titulo={`Excluir a opção ${confirmarExclusao?.rotulo ?? ''}?`}
+      mensagem={`${itensDaExclusao === 1 ? 'O alimento dela sai' : `Os ${itensDaExclusao} alimentos dela saem`} junto. Dá para desfazer logo depois.`}
+      rotuloConfirmar="Excluir opção"
+      perigo
+      aoConfirmar={() => {
+        const o = confirmarExclusao;
+        setConfirmarExclusao(null);
+        if (o) excluirOpcao(o);
+      }}
+      aoCancelar={() => setConfirmarExclusao(null)}
+    />
     </View></AlvoDeRolagem>
   );
 }
 
-/** Uma opção da refeição: título com a lixeira (só com várias), itens, total da opção ("—" no que faltar) e os botões dela. */
+/** Alvo do foco do "+ Opção" (as outras chaves são os uids das opções). */
+const MAIS_OPCAO = 'mais-opcao';
+
+/**
+ * A opção aberta: "Alimentos (N)" com a ação do cabeçalho (o "Excluir opção" com várias, o "+ Opção" com uma só), os
+ * itens, o total da opção ("—" no que faltar, alinhado às colunas na tabela) e os botões de adicionar.
+ */
 function OpcaoDaRefeicao({
   opcao,
-  largura,
   larguraDisponivel,
   varias,
   comProblema,
   alimentos,
+  acao,
   aoMudarItens,
   aoEscolherAlimento,
   aoTrocarAlimento,
-  aoRemover,
   aoRemoverItem,
 }: {
   opcao: OpcaoRefeicao;
-  /** Largura da coluna no PC; sem ela, a opção ocupa a linha toda (celular). */
-  largura: number | undefined;
-  /** Largura medida da opção (a coluna, ou a linha inteira): decide entre a tabela e o item empilhado. */
+  /** Largura medida da opção (a do editor, sem colunas): decide entre a tabela e o item empilhado. */
   larguraDisponivel: number;
   varias: boolean;
   comProblema: Set<string>;
   alimentos: Map<string, Alimento>;
+  acao: ReactNode;
   aoMudarItens: (fn: (itens: ItemDieta[]) => ItemDieta[]) => void;
   aoEscolherAlimento: () => void;
   aoTrocarAlimento?: (uid: string) => void;
-  aoRemover?: () => void;
   aoRemoverItem?: (itemIndice: number, nomeItem: string) => void;
 }) {
   const { cores } = useTema();
-  // Com várias opções, o nome acessível diz a qual delas o botão serve (o texto visível é o mesmo em cada coluna).
+  // Com várias opções, o nome acessível diz a qual delas o botão serve (o texto visível é o mesmo em cada aba).
   const naOpcao = varias ? ` na opção ${opcao.rotulo}` : '';
-  const acoes = acoesReservadas(!!aoTrocarAlimento);
-  const modo: ModoDoItem = larguraDisponivel >= larguraDaTabela(acoes) ? 'tabela' : 'empilhado';
-  const larguraDasAcoes = acoes * ALVO_TOQUE;
+  const modo: ModoDoItem = larguraDisponivel >= larguraDaTabela() ? 'tabela' : 'empilhado';
+  const larguraDasAcoes = ACOES_RESERVADAS * ALVO_TOQUE;
+  const rotuloDoTotal = `Total da opção ${opcao.rotulo}`;
+  const totais = somar(opcao.itens);
   // Arrastar o alimento pela alça (18/11): a mesma regra da seta, de uma casa em uma (`moverPara`).
   const arraste = useArrasteDaLista({ total: opcao.itens.length, folga: 3, aoSoltar: (de, para) => aoMudarItens((itens) => moverPara(itens, de, para)) });
   return (
-    <View style={[estilos.opcao, largura ? { width: largura } : estilos.opcaoInteira]}>
-      {varias ? (
-        <View style={estilos.tituloDaOpcao}>
-          <Texto variante="secao" nivel={3} style={estilos.cresce}>Opção {opcao.rotulo}</Texto>
-          {aoRemover ? <IconeBotao Icone={Trash2} rotulo={`Remover opção ${opcao.rotulo}`} cor={cores.perigo} aoTocar={aoRemover} /> : null}
-        </View>
-      ) : null}
-      {opcao.itens.length === 0 ? <Texto variante="suave">Nenhum item nesta opção.</Texto> : (
+    <View style={estilos.opcao}>
+      <View style={estilos.tituloDaOpcao}>
+        <Texto variante="secao" style={estilos.cresce}>Alimentos ({opcao.itens.length})</Texto>
+        {acao}
+      </View>
+      {opcao.itens.length === 0 ? <Texto variante="suave">Nenhum alimento nesta opção ainda. Adicione um da biblioteca ou um item manual.</Texto> : (
         <View style={estilos.itens}>
           {modo === 'tabela' ? <CabecalhoDosItens larguraDasAcoes={larguraDasAcoes} /> : null}
           {opcao.itens.map((item, ii) => (
             <ItemArrastavel key={item.uid} arraste={arraste} indice={ii}><LinhaItem
-              alca={<AlcaDeArraste arraste={arraste} indice={ii} />}
+              // Com um item só a alça aparece desativada: o nome começa sempre no mesmo lugar.
+              alca={opcao.itens.length > 1 ? <AlcaDeArraste arraste={arraste} indice={ii} /> : <AlcaDesativada />}
               modo={modo}
               larguraDasAcoes={larguraDasAcoes}
               item={item}
@@ -306,12 +374,15 @@ function OpcaoDaRefeicao({
           ))}
         </View>
       )}
-      {/* Total separado dos itens por um fio suave: o nome à esquerda, os números à direita (guia pág. 10). */}
-      <View role="group" aria-label={`Total da opção ${opcao.rotulo}`} style={[estilos.total, { borderTopColor: cores.divisor }]}>
-        <TotalParaLeitor rotulo={`Total da opção ${opcao.rotulo}`} totais={somar(opcao.itens)} />
-        <Texto variante="rotulo" cor={cores.texto} aria-hidden>Total da opção {opcao.rotulo}</Texto>
-        <View style={estilos.cresce} aria-hidden><ValoresDaDieta totais={somar(opcao.itens)} forte /></View>
-      </View>
+      {/* Total separado dos itens por um fio suave. Na tabela, cada número embaixo da coluna dele; empilhado, o nome à
+          esquerda e os números à direita (guia pág. 10). O leitor ouve uma frase só. Opção vazia não tem total (seria "0 kcal"). */}
+      {opcao.itens.length === 0 ? null : <View role="group" aria-label={rotuloDoTotal} style={[estilos.total, { borderTopColor: cores.divisor }]}>
+        <TotalParaLeitor rotulo={rotuloDoTotal} totais={totais} />
+        {modo === 'tabela' ? <TotalNaTabela rotulo={rotuloDoTotal} totais={totais} larguraDasAcoes={larguraDasAcoes} /> : <>
+          <Texto variante="rotulo" cor={cores.texto} aria-hidden>{rotuloDoTotal}</Texto>
+          <View style={estilos.cresce} aria-hidden><ValoresDaDieta totais={totais} forte /></View>
+        </>}
+      </View>}
       <LinhaDeAcoes>
         <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="acao" Icone={Plus} aoTocar={aoEscolherAlimento} />
         <Botao rotulo="Item manual" rotuloAcessivel={`Item manual${naOpcao}`} tipo="secundario" Icone={PencilLine} aoTocar={() => aoMudarItens((itens) => [...itens, novoItem()])} />
@@ -353,22 +424,74 @@ const VAO_DA_TABELA = espaco(1);
 const RECUO_DA_FAIXA = espaco(1);
 const CONTORNO_DA_FAIXA = 1;
 
-/** Largura da opção a partir da qual os itens viram tabela: as colunas, os vãos, o recuo da faixa e `acoes` botões de 44. */
-export function larguraDaTabela(acoes: number): number {
-  const colunas = COLUNAS.reduce((soma, c) => soma + c.largura, 0) + acoes * ALVO_TOQUE;
+/**
+ * Botões de 44 que a coluna das ações reserva na tabela: o ⋯ (com "Mover para cima/baixo", desde o arrastar de 18/11) e a
+ * lixeira, mesmo com um item só. O "Trocar alimento" (19/11) fica embaixo do nome, então as colunas não mudam com ele.
+ * Mude junto com o JSX das `acoes` da `LinhaItem`.
+ */
+const ACOES_RESERVADAS = 2;
+/** Na opção em tabela, os números da comparação ficam embaixo das colunas de valor dos alimentos. */
+const COLUNAS_DA_COMPARACAO: ColunasDaTabela = { larguras: COLUNAS_DE_VALOR.map((c) => c.largura), fim: ACOES_RESERVADAS * ALVO_TOQUE };
+
+/** Largura da opção a partir da qual os itens viram tabela: as colunas, os vãos, o recuo da faixa e os botões das ações. */
+export function larguraDaTabela(): number {
+  const colunas = COLUNAS.reduce((soma, c) => soma + c.largura, 0) + ACOES_RESERVADAS * ALVO_TOQUE;
   return colunas + VAO_DA_TABELA * COLUNAS.length + 2 * (RECUO_DA_FAIXA + CONTORNO_DA_FAIXA);
 }
 
 const estiloDaColuna = (c: (typeof COLUNAS)[number]) => (c.chave === 'nome' ? estilos.colunaDoNomeNaTabela : { width: c.largura });
 // A fibra também tem marca (19/11); a kcal não.
 const macroDa = (chave: ChaveDoValor | undefined) => (chave === 'fibra' ? FIBRA : MACROS.find((m) => m.chave === chave));
+const valorNaTela = (chave: ChaveDoValor, v: number | null) => (chave === 'kcal' ? kcalNaTela(v) : gramasNaTela(v));
 
 /**
- * Botões que a coluna das ações reserva: Trocar (só com quem trate a troca), o ⋯ (com "Mover para cima/baixo", desde o
- * arrastar de 18/11) e a lixeira, mesmo com um item só (o segundo item não muda o modo da opção). Mude junto com o JSX
- * das `acoes` da `LinhaItem`.
+ * O total da opção na tabela: o rótulo na coluna do nome e cada número embaixo da coluna dele, com o mesmo recuo do
+ * cabeçalho. A fibra parcial leva "(parcial)" embaixo do número (inteiro não cabe nos 72 px da coluna).
  */
-const acoesReservadas = (comTroca: boolean) => (comTroca ? 1 : 0) + 1 + 1;
+function TotalNaTabela({ rotulo, totais, larguraDasAcoes }: { rotulo: string; totais: ValoresComFibra & TotaisComFibra; larguraDasAcoes: number }) {
+  const { cores } = useTema();
+  return (
+    <View aria-hidden style={[estilos.linhaDaTabela, estilos.cabecalhoDosItens, estilos.cresce]}>
+      {COLUNAS.map((c) => (
+        <View key={c.chave} style={[estiloDaColuna(c), c.valor ? estilos.aDireita : null]}>
+          {c.chave === 'nome' ? <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto> : null}
+          {c.valor ? <Texto numerico cor={cores.texto} style={[estilos.textoADireita, estilos.numeroDoTotal]}>{valorNaTela(c.valor, totais[c.valor])}</Texto> : null}
+          {c.valor === 'fibra' && fibraParcial(totais) ? <Texto variante="pequeno" style={estilos.textoADireita}>(parcial)</Texto> : null}
+        </View>
+      ))}
+      <View style={{ width: larguraDasAcoes }} />
+    </View>
+  );
+}
+
+/** A alça com um item só: o mesmo ícone, apagado e sem gesto (não há para onde arrastar), no mesmo lugar da de verdade. */
+function AlcaDesativada() {
+  const { cores } = useTema();
+  return (
+    <View aria-hidden style={estilos.alcaDesativada}>
+      <GripVertical size={18} color={cores.borda} strokeWidth={2} />
+    </View>
+  );
+}
+
+/**
+ * "Trocar alimento" do item da biblioteca (19/11): secundário compacto e neutro (contorno, sem cor de ação), porque
+ * aparece em todo alimento e não pode competir com o "Adicionar alimento". O desenho tem 32 px e o alvo, 44 (como o
+ * `IconeBotao compacto`); o `Botao` não tem tamanho compacto.
+ */
+function BotaoTrocar({ nome, aoTocar }: { nome: string; aoTocar: () => void }) {
+  const { cores } = useTema();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`Trocar alimento: ${nome}`} onPress={aoTocar} style={estilos.alvoDoTrocar}>
+      {(estado) => (
+        <View style={[estilos.desenhoDoTrocar, { backgroundColor: cores.superficie2, borderColor: sobre(estado) ? cores.bordaCampo : cores.borda }]}>
+          <ArrowLeftRight size={14} color={cores.texto} strokeWidth={2} />
+          <Texto style={[estilos.textoDoTrocar, { color: cores.texto }]}>Trocar alimento</Texto>
+        </View>
+      )}
+    </Pressable>
+  );
+}
 
 /** Cabeçalho das colunas, uma vez por opção. Fora do leitor de tela: cada campo já tem nome e cada linha lê os valores. */
 function CabecalhoDosItens({ larguraDasAcoes }: { larguraDasAcoes: number }) {
@@ -425,6 +548,9 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
   const totais = somar([item]);
   const [menu, setMenu] = useState(false);
   const acoesDoMenu = acoesDeMover({ nome, posicao, total, aoMover });
+  // Na tabela, o "Trocar alimento" fica embaixo do nome, sempre primeiro (os selos vêm depois dele); empilhado, nas ações.
+  const trocar = aoTrocar ? <BotaoTrocar nome={nome} aoTocar={aoTrocar} /> : null;
+  const semGramas = semConversao(item, alimento);
 
   const nomeDoItem = (
     <>
@@ -433,10 +559,15 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
       ) : (
         <Texto style={estilos.nomeDoItem}>{item.nome}</Texto>
       )}
-      {faltaQuantidade ? <View style={estilos.selo}><Selo texto="Falta a quantidade" tipo="atencao" Icone={TriangleAlert} /></View> : null}
-      {/* A unidade escolhida não converte para a base do alimento: o valor fica "—" e não se inventa gramatura. */}
-      {semConversao(item, alimento) ? <View style={estilos.selo}><Selo texto="Informe gramas por unidade no alimento" tipo="atencao" Icone={TriangleAlert} /></View> : null}
-      {item.manual ? <View style={estilos.selo}><Selo texto="Item manual" tipo="neutro" /></View> : null}
+      {(emTabela && trocar) || faltaQuantidade || semGramas || item.manual ? (
+        <View style={estilos.linhaDeBaixo}>
+          {emTabela ? trocar : null}
+          {faltaQuantidade ? <Selo texto="Falta a quantidade" tipo="atencao" Icone={TriangleAlert} /> : null}
+          {/* A unidade escolhida não converte para a base do alimento: o valor fica "—" e não se inventa gramatura. */}
+          {semGramas ? <Selo texto="Informe gramas por unidade no alimento" tipo="atencao" Icone={TriangleAlert} /> : null}
+          {item.manual ? <Selo texto="Item manual" tipo="neutro" /> : null}
+        </View>
+      ) : null}
       {/* Na tabela os valores da biblioteca são números soltos nas colunas: o leitor ouve a linha numa frase só. */}
       {emTabela && !item.manual ? <TotalParaLeitor rotulo={nome} totais={totais} /> : null}
     </>
@@ -461,10 +592,10 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
       <CampoNumerico rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)} />
     );
   };
-  // Os mesmos botões contados em `acoesReservadas`.
+  // Na tabela, os botões contados em `ACOES_RESERVADAS`.
   const acoes = (
     <>
-      {aoTrocar ? <IconeBotao Icone={ArrowLeftRight} rotulo={`Trocar ${nome}`} aoTocar={aoTrocar} /> : null}
+      {emTabela ? null : trocar}
       {acoesDoMenu.length ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${nome}`} aoTocar={() => setMenu(true)} /> : null}
       <IconeBotao Icone={Trash2} rotulo={`Remover ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />
     </>
@@ -530,9 +661,9 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-end' },
   nome: { flex: 1, minWidth: 200 },
   horario: { width: 100 },
-  opcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO_ENTRE_OPCOES, alignItems: 'flex-start' },
+  // Comparação, abas e a opção aberta: 16 entre os blocos, o dobro do que há dentro deles.
+  opcoes: { gap: espaco(2) },
   opcao: { gap: espaco(1), minWidth: 0 },
-  opcaoInteira: { width: '100%' },
   tituloDaOpcao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: 44 },
   cresce: { flex: 1 },
   // Os itens ficam a 6 px um do outro: cada faixa já separa pelo fundo.
@@ -562,8 +693,14 @@ const estilos = StyleSheet.create({
   parDeValores: { flexDirection: 'row', gap: espaco(1), flexGrow: 1, flexBasis: 2 * 64 + espaco(1) },
   valor: { flex: 1, minWidth: 64 },
   total: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5), borderTopWidth: 1, paddingTop: espaco(1) },
-  selo: { flexDirection: 'row' },
+  // Embaixo do nome: o "Trocar alimento" (na tabela) e os selos do item, quebrando linha quando não cabem.
+  linhaDeBaixo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: espaco(0.5) },
+  numeroDoTotal: { fontFamily: fontes.monoSemi },
+  alcaDesativada: { width: LARGURA_DA_PECA, minHeight: ALVO_TOQUE, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  alvoDoTrocar: { minHeight: ALVO_TOQUE, justifyContent: 'center', alignSelf: 'flex-start', borderRadius: RAIO_CONTROLE },
+  desenhoDoTrocar: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, paddingHorizontal: espaco(1.25), borderWidth: 1, borderRadius: RAIO_CONTROLE },
+  textoDoTrocar: { fontFamily: fontes.semi, fontSize: 13, lineHeight: 18 },
   subtotal: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: 2, marginTop: 2 },
-  // Sem espaço ao lado da quantidade e da unidade (opções lado a lado), os valores descem para a linha de baixo inteiros.
+  // Sem espaço ao lado da quantidade e da unidade (opção estreita), os valores descem para a linha de baixo inteiros.
   valoresDoItem: { alignSelf: 'center', flexGrow: 1, flexShrink: 1, flexBasis: 220 },
 });
