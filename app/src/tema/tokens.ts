@@ -822,6 +822,23 @@ export const LARGURA_EDITOR_DUAS_COLUNAS = LARGURA_MAXIMA;
 /** Listas e painéis (ficha do aluno, início, alunos, biblioteca, planejamento): todo o espaço útil (= `LARGURA_MAXIMA`). */
 export const LARGURA_LISTA = 1800;
 
+export type FaixaDeLargura = 'compacta' | 'normal' | 'larga' | 'ultralarga';
+
+export const LARGURA_FAIXA_NORMAL = 1024;
+export const LARGURA_FAIXA_LARGA = 1600;
+export const LARGURA_FAIXA_ULTRALARGA = 2400;
+
+/**
+ * Classifica a largura útil da área de conteúdo (nunca da janela inteira, porque o menu lateral aberto ou recolhido
+ * muda o espaço disponível). Valores ausentes, zero ou negativos caem em `compacta`.
+ */
+export function faixaDeLargura(largura: number): FaixaDeLargura {
+  if (!(largura >= LARGURA_FAIXA_NORMAL)) return 'compacta';
+  if (largura < LARGURA_FAIXA_LARGA) return 'normal';
+  if (largura < LARGURA_FAIXA_ULTRALARGA) return 'larga';
+  return 'ultralarga';
+}
+
 /** Geist (11/11) no texto; Metal Mania só no nome da marca. Peso médio dá a hierarquia; negrito em nome, número central e ação. */
 export const fontes = {
   normal: 'Geist_400Regular',

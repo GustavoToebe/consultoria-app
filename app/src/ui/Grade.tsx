@@ -1,8 +1,9 @@
-import { Children, useState, type ReactNode } from 'react';
-import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { Children, type ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { colunasPorLargura } from '../dominio/grade';
 import { espaco } from '../tema/tokens';
+import { useFaixaDeLargura } from './useFaixaDeLargura';
 
 /**
  * Itens de uma lista em colunas, pela largura da própria grade (medida com onLayout, como o cartão do Progresso):
@@ -17,10 +18,9 @@ export function Grade({ children, gap = espaco(1), colunas: regra = colunasPorLa
   colunas?: (largura: number) => number;
   alinhar?: 'esticar' | 'inicio';
 }) {
-  const [largura, setLargura] = useState(0);
+  const { largura, aoMedir } = useFaixaDeLargura();
   const colunas = largura > 0 ? regra(largura) : 1;
   const itens = Children.toArray(children);
-  const aoMedir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
   // Largura exata da célula: o espaço total entre colunas sai da largura medida. A mesma árvore em 1 e em várias colunas
   // (cada item numa célula com a mesma chave): passar de 1 para 2 colunas depois da medida não remonta os campos, que
   // perderiam o foco e o que estava sendo digitado.
