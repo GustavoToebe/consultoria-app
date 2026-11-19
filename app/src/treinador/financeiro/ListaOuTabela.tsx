@@ -19,7 +19,7 @@ export interface ItemDoCelular {
  * o toque). Toda linha abre o registro; os botões ficam na folha que abre. `inicio` (a caixa de marcar do lote) fica ao
  * lado do toque da linha, nunca dentro dele.
  */
-export function ListaOuTabela<T>({ rotulo, linhas, chave, colunas, item, aoTocar, rotuloDaLinha, larguraMinima = 760, inicio }: {
+export function ListaOuTabela<T>({ rotulo, linhas, chave, colunas, item, aoTocar, rotuloDaLinha, larguraMinima = 760, inicio, vao, alinharLinhas }: {
   rotulo: string;
   linhas: readonly T[];
   chave: (linha: T) => string;
@@ -29,6 +29,10 @@ export function ListaOuTabela<T>({ rotulo, linhas, chave, colunas, item, aoTocar
   rotuloDaLinha: (linha: T) => string;
   larguraMinima?: number;
   inicio?: (linha: T) => ReactNode;
+  /** Espaço entre as colunas da tabela (`Tabela.vao`). */
+  vao?: number;
+  /** Linhas de duas alturas alinhadas pelo topo do texto (`Tabela.alinharLinhas`). */
+  alinharLinhas?: 'centro' | 'topo';
 }) {
   const { width } = useWindowDimensions();
   if (width < LARGURA_MENU_LATERAL) {
@@ -49,7 +53,7 @@ export function ListaOuTabela<T>({ rotulo, linhas, chave, colunas, item, aoTocar
     );
   }
   return <Tabela rotulo={rotulo} larguraMinima={larguraMinima} linhas={linhas} chave={chave} colunas={colunas}
-    aoTocarLinha={aoTocar} rotuloDaLinha={rotuloDaLinha} inicio={inicio} />;
+    aoTocarLinha={aoTocar} rotuloDaLinha={rotuloDaLinha} inicio={inicio} vao={vao} alinharLinhas={alinharLinhas} />;
 }
 
 const estilos = StyleSheet.create({

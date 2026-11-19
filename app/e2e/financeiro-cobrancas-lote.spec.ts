@@ -31,7 +31,8 @@ const estadoComCobrancas = (parcial: Partial<EstadoFinanceiro> = {}) =>
 async function abrir(page: Page, estado: EstadoFinanceiro, aba = 'cobrancas') {
   await fixarHoje(page);
   const api = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
-  await page.goto(`/treinador/financeiro?aba=${aba}`);
+  // filtro padrão das cobranças (19/11): `filtro=nenhum` abre a lista sem o padrão (Ativas, competência do mês); o padrão tem o spec próprio.
+  await page.goto(`/treinador/financeiro?aba=${aba}${aba === 'cobrancas' ? '&filtro=nenhum' : ''}`);
   return api;
 }
 
@@ -186,7 +187,8 @@ test('lote: tirar da revisão atualiza o total; sem permissão de alterar não h
   const leitura = await page.context().newPage();
   await fixarHoje(leitura);
   const api = await simularApi(leitura, { ...(await sessaoComFinanceiro(leitura, ['FINANCEIRO_LER'])), ...rotasDoFinanceiro(estadoComCobrancas()) });
-  await leitura.goto('/treinador/financeiro?aba=cobrancas');
+  // filtro padrão das cobranças (19/11): `filtro=nenhum` abre a lista sem o padrão (Ativas, competência do mês); o padrão tem o spec próprio.
+  await leitura.goto('/treinador/financeiro?aba=cobrancas&filtro=nenhum');
   await expect(leitura.getByRole('button', { name: /^Abrir cobrança de/ }).first()).toBeVisible();
   await expect(leitura.getByRole('checkbox', { name: /^Selecionar cobrança de/ })).toHaveCount(0);
   await expect(leitura.getByText('Registrar vários pagamentos')).toHaveCount(0);

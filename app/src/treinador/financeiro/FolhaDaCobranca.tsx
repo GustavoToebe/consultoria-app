@@ -17,7 +17,7 @@ import {
 import { centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { botaoDoWhatsApp, rotuloDoTipo, situacaoDoLembrete } from '../../dominio/lembretesDeCobranca';
 import { linkParaAbrir } from '../../dominio/links';
-import { rotuloDoMes } from '../../dominio/numeros';
+import { rotuloDoMesNumerico } from '../../dominio/mesDaCompetencia';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -244,7 +244,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
 
   const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
   // A mensalidade pelo mês; a saída e a avulsa pelo tipo (a descrição da avulsa vem logo abaixo do nome).
-  const titulo = modo === 'baixa' ? 'Registrar pagamento' : doTipo ? rotuloDoTipoDaCobranca(cobranca.tipo) : `Cobrança de ${rotuloDoMes(cobranca.competencia)}`;
+  const titulo = modo === 'baixa' ? 'Registrar pagamento' : doTipo ? rotuloDoTipoDaCobranca(cobranca.tipo) : `Cobrança de ${rotuloDoMesNumerico(cobranca.competencia)}`;
   const cpf = cpfMascarado(cobranca.alunoCpf);
   const rodape = modo === 'baixa' ? (
     <>
@@ -292,7 +292,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
             <Grupo titulo="Datas">
               <CamposEmLinha>
                 {/* A avulsa não tem competência: a descrição já está no topo, abaixo do nome. */}
-                {cobranca.competencia ? <CampoLeitura rotulo="Competência" valor={rotuloDoMes(cobranca.competencia)} /> : null}
+                {cobranca.competencia ? <CampoLeitura rotulo="Competência" valor={rotuloDoMesNumerico(cobranca.competencia)} numerico /> : null}
                 <CampoLeitura rotulo="Vencimento" valor={dataParaTela(cobranca.vencimento)} numerico />
                 <CampoLeitura rotulo="Emissão" valor={dataParaTela(emissaoDaCobranca(cobranca))} numerico />
                 {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <CampoLeitura rotulo="Atraso" valor={atrasoParaTela(cobranca.diasDeAtraso)} /> : null}

@@ -1185,7 +1185,8 @@ test('cobrança paga: marcar contestação, manter como paga e marcar estorno, s
   };
   const estado = estadoFinanceiro({ cobrancas: [paga], recebimento: { ...RECEBIMENTO_CONFIGURADO } });
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
-  await page.goto('/treinador/financeiro?aba=cobrancas');
+  // filtro padrão das cobranças (19/11): sem o padrão (Ativas), para a estornada continuar na lista depois do estorno.
+  await page.goto('/treinador/financeiro?aba=cobrancas&filtro=nenhum');
   const abrir = () => page.getByRole('button', { name: /^Abrir cobrança de/ }).click();
   const caminho = (acao: string) => `/cobrancas/${paga.id}/${acao}`;
 
@@ -1464,8 +1465,8 @@ test('juros do parcelamento: "Você" fica apagado sem chave, com o motivo; com a
   });
   expect(estado.recebimento.jurosDoParcelamento).toBe('TREINADOR');
   await expect(opcao(page, JUROS, 'Você')).toHaveAttribute('aria-checked', 'true');
-  // Nada mudou desde o salvar: o botão fica apagado.
-  await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeDisabled();
+  // Nada mudou desde o salvar: a barra só diz "Tudo salvo", sem botão (lembretes e recebimento, 19/11).
+  await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toHaveCount(0);
 
   // Voltar para Aluno é uma alteração que se salva sozinha (sem mexer na Tag nem na chave).
   await opcao(page, JUROS, 'Aluno').click();
@@ -1556,30 +1557,41 @@ test('estorno informado pela InfinitePay: o texto manda conferir e ajustar à m�
   expect(errosDaPagina).toEqual([]);
 });
 
-test('lembretes de cobrança: liga, muda os dias e salva com a versão; dia fora do limite é recusado na tela', async ({ page }) => {
+// Lembretes e recebimento (19/11): os dias são passos (− número +) que param em 0 e no máximo; status sob o título e barra de salvar.
+test('lembretes de cobrança: liga, muda os dias e salva com a versão; o passo não passa do máximo', async ({ page }) => {
   await fixarHoje(page);
   const estado = estadoFinanceiro();
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=lembretes');
 
   await expect(page.getByRole('tab', { name: 'Lembretes', selected: true })).toBeVisible();
-  await expect(page.getByText('Desligados', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Desligados: nenhum lembrete é enviado/)).toBeVisible();
   await expect(page.getByText(/Só por e-mail e só com o e-mail do app ligado/)).toBeVisible();
   await expect(page.getByText('E-mail do app desligado')).toHaveCount(0);
+  await expect(page.getByText('Tudo salvo', { exact: true })).toBeVisible();
 
-  await page.getByLabel('Mandar lembretes por e-mail').click();
-  const antes = page.getByRole('textbox', { name: 'Dias antes do vencimento' });
-  await antes.fill('16');
-  await page.getByRole('button', { name: 'Salvar' }).click();
-  await expect(page.getByText('Use um número de 0 a 15.')).toBeVisible();
+  await page.getByRole('switch', { name: 'Mandar lembretes por e-mail' }).click();
+  await expect(page.getByText('Ligados: saem pelo e-mail do app.', { exact: true })).toBeVisible();
+  const antes = page.getByRole('spinbutton', { name: 'Dias antes do vencimento' });
+  await antes.focus();
+  await page.keyboard.press('End');
+  await expect(antes).toHaveAttribute('aria-valuenow', '15');
+  await expect(page.getByRole('button', { name: 'Aumentar dias antes do vencimento' })).toBeDisabled();
+  await page.keyboard.press('ArrowUp');
+  await expect(antes).toHaveAttribute('aria-valuenow', '15');
+  await page.keyboard.press('Home');
+  await expect(antes).toHaveAttribute('aria-valuetext', 'não manda');
+  for (let i = 0; i < 5; i += 1) await page.getByRole('button', { name: 'Aumentar dias antes do vencimento' }).click();
+  await expect(antes).toHaveAttribute('aria-valuetext', '5 dias');
   expect(pedidos.filter((x) => x.metodo === 'PUT')).toEqual([]);
 
-  await antes.fill('5');
-  await page.getByRole('button', { name: 'Salvar' }).click();
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(page.getByText('Lembretes salvos.')).toBeVisible();
   const put = pedidos.find((x) => x.metodo === 'PUT' && x.caminho === '/financeiro/lembretes');
   expect(put?.corpo).toEqual({ ligado: true, diasAntes: 5, noDia: true, diasDepois: 3, versao: null });
-  await expect(page.getByText('Ligados', { exact: true })).toBeVisible();
+  await expect(page.getByText('Ligados: saem pelo e-mail do app.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Tudo salvo', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -1590,7 +1602,8 @@ test('lembretes com o e-mail do app desligado: o cartão avisa que nenhum lembre
   await page.goto('/treinador/financeiro?aba=lembretes');
 
   await expect(page.getByText('E-mail do app desligado')).toBeVisible();
-  await expect(page.getByText(/O e-mail do app está desligado: enquanto ele não for ligado/)).toBeVisible();
+  await page.getByRole('switch', { name: 'Mandar lembretes por e-mail' }).click();
+  await expect(page.getByText('Ligados, mas nenhum lembrete sai enquanto o e-mail do app estiver desligado.')).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });
 

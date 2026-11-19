@@ -47,7 +47,8 @@ async function abrirCobrancas(page: Page, largura: number, { preferencias, temaD
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     ...rotasDoFinanceiro(estado),
   });
-  await page.goto('/treinador/financeiro?aba=cobrancas');
+  // filtro padrão das cobranças (19/11): `filtro=nenhum` abre a lista sem o padrão (Ativas, competência do mês); o padrão tem o spec próprio.
+  await page.goto('/treinador/financeiro?aba=cobrancas&filtro=nenhum');
   await expect(page.getByText('Bruna Teste').first()).toBeVisible();
   return api;
 }

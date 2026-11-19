@@ -44,7 +44,8 @@ const comCobrancas = (parcial: Partial<EstadoFinanceiro> = {}) =>
 async function abrir(page: Page, estado: EstadoFinanceiro, extra: RespostasApi = {}) {
   await fixarHoje(page);
   const api = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado), ...extra });
-  await page.goto('/treinador/financeiro?aba=cobrancas');
+  // filtro padrão das cobranças (19/11): `filtro=nenhum` abre a lista sem o padrão (Ativas, competência do mês); o padrão tem o spec próprio.
+  await page.goto('/treinador/financeiro?aba=cobrancas&filtro=nenhum');
   await expect(page.getByRole('button', { name: 'Nova cobrança avulsa' })).toBeVisible();
   return api;
 }
@@ -365,7 +366,8 @@ test('sem recebimento online na plataforma não há "Gerar links"; exportar as s
   await fixarHoje(page);
   const estado = comCobrancas();
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page, undefined, false)), ...rotasDoFinanceiro(estado) });
-  await page.goto('/treinador/financeiro?aba=cobrancas');
+  // filtro padrão das cobranças (19/11): `filtro=nenhum` abre a lista sem o padrão (Ativas, competência do mês); o padrão tem o spec próprio.
+  await page.goto('/treinador/financeiro?aba=cobrancas&filtro=nenhum');
   await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna/ }).click();
   await page.getByRole('checkbox', { name: /^Selecionar cobrança de Dora/ }).click();
   await page.getByRole('button', { name: 'Mais ações' }).click();

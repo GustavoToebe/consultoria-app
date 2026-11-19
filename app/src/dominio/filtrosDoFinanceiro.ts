@@ -2,8 +2,9 @@ import type { FiltroDeSituacao, TipoDeLancamento } from '../api/financeiroTipos'
 import {
   ehId, lista, periodoDoEndereco, periodoParaEndereco, SEM_PERIODO, temPeriodo, textoDoPeriodo, um, validos, type Parametro, type Periodo,
 } from './filtrosComuns';
-import { FILTROS_DE_SITUACAO } from './financeiro';
+import { FILTROS_DE_SITUACAO, periodoDoMes } from './financeiro';
 import { dataParaTela, somarDias } from './formatos';
+import { rotuloDoMesNumerico } from './mesDaCompetencia';
 
 /**
  * Filtros do Financeiro (`docs/planos/filtros-nas-listas.md`, D7, D8 e lote 2): Cobranças (responsável, situações,
@@ -18,6 +19,18 @@ export const DIAS_DA_JANELA = 7;
 /** As situações do filtro (sem "Todas": nada marcado = todas). */
 export type SituacaoDoFiltro = Exclude<FiltroDeSituacao, 'TODAS'>;
 export const SITUACOES_DO_FILTRO = FILTROS_DE_SITUACAO.filter((o): o is { valor: SituacaoDoFiltro; rotulo: string } => o.valor !== 'TODAS');
+
+/**
+ * "Ativas" (filtro padrão das cobranças, 19/11): as mesmas que entram nos Totais da API, ABERTA (com as vencidas), PAGA e
+ * CONTESTADA. Cancelada, estornada e renegociada ficam fora (a renegociada nem é opção do filtro).
+ */
+export const SITUACOES_ATIVAS: readonly SituacaoDoFiltro[] = ['ABERTA', 'PAGA', 'CONTESTADA'];
+
+/** As situações marcadas são exatamente as ativas (o chip e a descrição dizem "Ativas"). */
+export const saoAsAtivas = (situacoes: readonly SituacaoDoFiltro[]) =>
+  situacoes.length === SITUACOES_ATIVAS.length && SITUACOES_ATIVAS.every((s) => situacoes.includes(s));
+
+const MES = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /** Forma da baixa: registrada pelo treinador ou confirmada pelo provedor. */
 export type FormaDoFiltro = 'MANUAL' | 'ONLINE';
@@ -42,13 +55,19 @@ export interface FiltrosDeCobrancas {
   emissao: Periodo;
   /** Pagamento: a data da baixa. */
   pagamento: Periodo;
+  /**
+   * Competência `AAAA-MM` (financeiro, 19/11). Só no app: a API não filtra por competência, então vai como vencimento do
+   * dia 1 ao último dia do mês (`vencimentoDaApi`); a avulsa e a parcela de acordo, que não têm competência, entram pelo
+   * mês em que vencem. Não convive com o filtro de vencimento (um ou outro): os dois mexem no mesmo `de`/`ate`.
+   */
+  competencia: string | null;
 }
 
-export type ChaveDoFiltroDeCobrancas = 'responsavel' | 'situacao' | 'vencimento' | 'aluno' | 'plano' | 'forma' | 'emissao' | 'pagamento';
+export type ChaveDoFiltroDeCobrancas = 'responsavel' | 'situacao' | 'competencia' | 'vencimento' | 'aluno' | 'plano' | 'forma' | 'emissao' | 'pagamento';
 
 export const SEM_FILTROS_DE_COBRANCAS: FiltrosDeCobrancas = {
   situacoes: [], meus: false, proximos7Dias: false, periodo: SEM_PERIODO, alunoId: null, planoId: null, forma: null,
-  emissao: SEM_PERIODO, pagamento: SEM_PERIODO,
+  emissao: SEM_PERIODO, pagamento: SEM_PERIODO, competencia: null,
 };
 
 /**
@@ -58,8 +77,12 @@ export const SEM_FILTROS_DE_COBRANCAS: FiltrosDeCobrancas = {
  */
 export const limpoDasCobrancas = (f: FiltrosDeCobrancas): FiltrosDeCobrancas => ({ ...SEM_FILTROS_DE_COBRANCAS, alunoId: f.alunoId });
 
+/**
+ * As chaves das cobranças no endereço. `filtro=nenhum` não é filtro: registra que a pessoa tirou todos (filtro padrão das
+ * cobranças, 19/11; `dominio/filtroPadraoDasCobrancas.ts`), para o recarregar e o voltar não trazerem o padrão de volta.
+ */
 export const CHAVES_DE_COBRANCAS = [
-  'situacao', 'meus', 'vencimento', 'de', 'ate', 'alunoId', 'planoId', 'forma', 'emissaoDe', 'emissaoAte', 'pagoDe', 'pagoAte',
+  'situacao', 'meus', 'competencia', 'vencimento', 'de', 'ate', 'alunoId', 'planoId', 'forma', 'emissaoDe', 'emissaoAte', 'pagoDe', 'pagoAte', 'filtro',
 ] as const;
 
 /** O período com os nomes da API e do endereço (`emissaoDe`/`emissaoAte`, `pagoDe`/`pagoAte`). */
@@ -80,16 +103,22 @@ export interface ParametrosDeCobrancas {
   emissaoAte?: Parametro;
   pagoDe?: Parametro;
   pagoAte?: Parametro;
+  competencia?: Parametro;
+  filtro?: Parametro;
 }
 
 export function lerCobrancasDoEndereco(q: ParametrosDeCobrancas): FiltrosDeCobrancas {
   const proximos7Dias = lista(q.vencimento)[0] === PROXIMOS_7_DIAS;
   const id = (v: Parametro) => lista(v).find(ehId) ?? null;
+  const periodo = proximos7Dias ? SEM_PERIODO : periodoDoEndereco(q.de, q.ate);
+  const mes = lista(q.competencia)[0];
   return {
     situacoes: validos(q.situacao, SITUACOES_DO_FILTRO),
     meus: lista(q.meus)[0] === 'true',
     proximos7Dias,
-    periodo: proximos7Dias ? SEM_PERIODO : periodoDoEndereco(q.de, q.ate),
+    periodo,
+    // O vencimento do endereço vale mais que a competência (os dois viram o mesmo `de`/`ate`).
+    competencia: !proximos7Dias && !temPeriodo(periodo) && mes && MES.test(mes) ? mes : null,
     alunoId: id(q.alunoId),
     planoId: id(q.planoId),
     forma: um(q.forma, FORMAS_DO_FILTRO),
@@ -102,6 +131,7 @@ export function cobrancasParaEndereco(f: FiltrosDeCobrancas): Record<string, str
   return {
     ...(f.situacoes.length ? { situacao: f.situacoes.join(',') } : {}),
     ...(f.meus ? { meus: 'true' } : {}),
+    ...(f.competencia ? { competencia: f.competencia } : {}),
     ...(f.proximos7Dias ? { vencimento: PROXIMOS_7_DIAS } : periodoParaEndereco(f.periodo)),
     ...(f.alunoId ? { alunoId: f.alunoId } : {}),
     ...(f.planoId ? { planoId: f.planoId } : {}),
@@ -128,12 +158,13 @@ export function cobrancasParaApi(f: FiltrosDeCobrancas, hoje: string) {
 /** O vencimento que vai à API (`de`/`ate`), com a data de hoje de Brasília. */
 export function vencimentoDaApi(f: FiltrosDeCobrancas, hoje: string): { de?: string; ate?: string } {
   if (f.proximos7Dias) return { de: hoje, ate: somarDias(hoje, DIAS_DA_JANELA) };
+  if (f.competencia && !temPeriodo(f.periodo)) return periodoDoMes(f.competencia);
   return { ...(f.periodo.de ? { de: f.periodo.de } : {}), ...(f.periodo.ate ? { ate: f.periodo.ate } : {}) };
 }
 
 export const chaveDasCobrancas = (f: FiltrosDeCobrancas, busca = '') =>
   JSON.stringify([[...f.situacoes].sort(), f.meus, f.proximos7Dias, f.periodo.de, f.periodo.ate, f.alunoId, f.planoId, f.forma,
-    f.emissao.de, f.emissao.ate, f.pagamento.de, f.pagamento.ate, busca.trim()]);
+    f.emissao.de, f.emissao.ate, f.pagamento.de, f.pagamento.ate, f.competencia, busca.trim()]);
 
 export const temVencimento = (f: FiltrosDeCobrancas) => f.proximos7Dias || temPeriodo(f.periodo);
 
@@ -156,6 +187,7 @@ export function chipsDasCobrancas(f: FiltrosDeCobrancas, hoje: string, nomes: No
   return [
     ...(f.meus ? [{ chave: 'responsavel' as const, texto: 'Responsável: Meus' }] : []),
     ...(f.situacoes.length ? [{ chave: 'situacao' as const, texto: `Situação: ${textoDasSituacoes(f.situacoes)}` }] : []),
+    ...(f.competencia ? [{ chave: 'competencia' as const, texto: `Competência: ${rotuloDoMesNumerico(f.competencia)}` }] : []),
     ...(temVencimento(f) ? [{ chave: 'vencimento' as const, texto: `Vencimento: ${textoDoVencimento(f, hoje)}` }] : []),
     ...(f.planoId ? [{ chave: 'plano' as const, texto: `Plano: ${nomes.plano?.(f.planoId) ?? 'escolhido'}` }] : []),
     ...(f.forma ? [{ chave: 'forma' as const, texto: `Forma: ${FORMAS_DO_FILTRO.find((o) => o.valor === f.forma)?.rotulo ?? f.forma}` }] : []),
@@ -168,6 +200,7 @@ export function semOFiltroDeCobrancas(f: FiltrosDeCobrancas, chave: ChaveDoFiltr
   switch (chave) {
     case 'responsavel': return { ...f, meus: false };
     case 'situacao': return { ...f, situacoes: [] };
+    case 'competencia': return { ...f, competencia: null };
     case 'vencimento': return { ...f, proximos7Dias: false, periodo: SEM_PERIODO };
     case 'aluno': return { ...f, alunoId: null };
     case 'plano': return { ...f, planoId: null };
@@ -177,8 +210,9 @@ export function semOFiltroDeCobrancas(f: FiltrosDeCobrancas, chave: ChaveDoFiltr
   }
 }
 
-/** "Em aberto, Pagas", na ordem das opções; vazio = "Todas". */
+/** "Em aberto, Pagas", na ordem das opções; vazio = "Todas"; as três ativas = "Ativas". */
 export function textoDasSituacoes(situacoes: readonly SituacaoDoFiltro[]): string {
+  if (saoAsAtivas(situacoes)) return 'Ativas';
   const texto = SITUACOES_DO_FILTRO.filter((o) => situacoes.includes(o.valor)).map((o) => o.rotulo).join(', ');
   return texto || 'Todas';
 }
@@ -186,7 +220,8 @@ export function textoDasSituacoes(situacoes: readonly SituacaoDoFiltro[]): strin
 /** Texto da contagem do cartão ("Em aberto, vencimento de hoje até 26/10/2026: 3 cobranças"). */
 export function descricaoDasCobrancas(f: FiltrosDeCobrancas, hoje: string, total: number): string {
   const situacao = textoDasSituacoes(f.situacoes);
-  const vencimento = temVencimento(f) ? `, vencimento ${textoDoVencimento(f, hoje)}` : '';
+  const vencimento = temVencimento(f) ? `, vencimento ${textoDoVencimento(f, hoje)}`
+    : f.competencia ? `, competência ${rotuloDoMesNumerico(f.competencia)}` : '';
   return `${situacao}${vencimento}: ${total} ${total === 1 ? 'cobrança' : 'cobranças'}, por vencimento. Toque na linha para abrir.`;
 }
 

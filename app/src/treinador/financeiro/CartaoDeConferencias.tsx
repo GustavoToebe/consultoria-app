@@ -5,7 +5,7 @@ import type { ConferenciaDePagamento } from '../../api/financeiroTipos';
 import { listarConferencias, marcarConferido } from '../../api/rotas';
 import { rotuloDoMotivoDaConferencia, TEXTO_NADA_E_BAIXADO } from '../../dominio/financeiro';
 import { centavosParaTela, dataHoraParaTela } from '../../dominio/formatos';
-import { rotuloDoMes } from '../../dominio/numeros';
+import { rotuloDoMesNumerico } from '../../dominio/mesDaCompetencia';
 import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -89,7 +89,7 @@ export function CartaoDeConferencias({ podeAlterar }: { podeAlterar: boolean }) 
         ) : (
           <Tabela rotulo="Pagamentos para conferir" linhas={itens} chave={(c) => c.id} larguraMinima={900} colunas={[
             { chave: 'aluno', titulo: 'Aluno', principal: true, flex: 1.4, render: (c) => <Texto variante="bloco" numberOfLines={2}>{c.alunoNome ?? '—'}</Texto> },
-            { chave: 'competencia', titulo: 'Competência', flex: 1, render: (c) => <Texto numerico>{rotuloDoMes(c.competencia)}</Texto> },
+            { chave: 'competencia', titulo: 'Competência', flex: 1, render: (c) => <Texto numerico>{rotuloDoMesNumerico(c.competencia)}</Texto> },
             { chave: 'cobrada', titulo: 'Valor da cobrança', flex: 1, alinhar: 'direita', render: (c) => <Texto numerico>{centavosParaTela(c.valorCobrancaCentavos)}</Texto> },
             { chave: 'paga', titulo: 'Valor pago', flex: 1, alinhar: 'direita', render: (c) => <Texto numerico>{centavosParaTela(c.valorPagoCentavos)}</Texto> },
             { chave: 'motivo', titulo: 'Motivo', flex: 1.6, render: (c) => <Texto>{rotuloDoMotivoDaConferencia(c.motivo)}</Texto> },
@@ -113,7 +113,7 @@ export function CartaoDeConferencias({ podeAlterar }: { podeAlterar: boolean }) 
             <CamposEmLinha>
               <CampoLeitura rotulo="Valor pago" valor={centavosParaTela(detalhe.valorPagoCentavos)} numerico />
               <CampoLeitura rotulo="Valor da cobrança" valor={centavosParaTela(detalhe.valorCobrancaCentavos)} numerico />
-              <CampoLeitura rotulo="Competência" valor={rotuloDoMes(detalhe.competencia)} />
+              <CampoLeitura rotulo="Competência" valor={rotuloDoMesNumerico(detalhe.competencia)} numerico />
               <CampoLeitura rotulo="Recebido em" valor={dataHoraParaTela(detalhe.recebidoEm)} numerico />
             </CamposEmLinha>
             <Texto variante="suave">{TEXTO_NADA_E_BAIXADO}</Texto>
