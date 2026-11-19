@@ -99,6 +99,12 @@ for (const largura of [390, 1280]) {
     await escolherExercicio(page, largura, 1, 2, 'Agachamento fictício');
     // arrastar (18/11): subir e descer saíram da linha e ficam no ⋯ ("Mover para cima/baixo"), com o nome do exercício
     // ("Subir X") ou "série N" no nome acessível. O primeiro não sobe: a ação some do menu.
+    // "Trocar exercício" (19/11): o nome acessível começa pelo texto visível (WCAG 2.5.3); a partir de 768 px é botão com texto,
+    // abaixo disso só o ícone com o mesmo nome. O nome antigo ("Trocar <nome>") não existe mais.
+    const trocar = page.getByRole('button', { name: 'Trocar exercício: Agachamento fictício', exact: true });
+    await expect(trocar).toBeVisible();
+    await expect(trocar.getByText('Trocar exercício', { exact: true })).toHaveCount(largura >= 768 ? 1 : 0);
+    await expect(page.getByRole('button', { name: 'Trocar Agachamento fictício', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Mais ações de Agachamento fictício', exact: true }).click();
     await expect(page.getByRole('button', { name: /^Mover para cima, Subir Agachamento fictício/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Mover para baixo, Descer Agachamento fictício/ })).toBeVisible();

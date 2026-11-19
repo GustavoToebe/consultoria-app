@@ -650,7 +650,7 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
 
 **Blocos de séries (`TabelaDeBlocos`; séries no padrão da dieta, 19/11)**
 - O painel do exercício aberto tem a faixa de ação à esquerda (`CartaoExercicio`) e, no cabeçalho, "Exercício N de M ·
-  grupo", o nome e, à direita, "Trocar", ⋯ (mover) e "Excluir".
+  grupo", o nome e, à direita, "Trocar exercício" (nome acessível "Trocar exercício: <nome>"; abaixo de 768 px só o ícone, com o mesmo nome), ⋯ (mover) e "Excluir".
 - Linha fechada sem borda (hover `superficie2`, chevron →), linhas separadas pelo fio `divisor`. A aberta é um bloco só
   com o editor embaixo (fundo `coresDaEdicao().fundoDoBloco`, cantos 14, chevron ↓ na cor de ação), sem contorno, halo,
   selo "Editando" nem o título repetido; só uma aberta por vez e tocar na aberta (ou "Fechar edição") fecha. Alça de

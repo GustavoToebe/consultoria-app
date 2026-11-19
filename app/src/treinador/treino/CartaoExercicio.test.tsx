@@ -62,6 +62,17 @@ const textos = (a: Arvore) => JSON.stringify(a.toJSON());
 
 const base = exercicio('ex', { nome: 'Supino de teste', modalidade: 'LIVRE', series: [serie('s1')] });
 
+describe('CartaoExercicio: botão Trocar exercício (19/11)', () => {
+  it('o nome acessível começa por "Trocar exercício" e leva o nome; o nome antigo não existe', () => {
+    const a = montar(base);
+    const toque = (rotulo: string) => a.root.findAll((n) => n.props.accessibilityLabel === rotulo && typeof n.props.onPress === 'function');
+    expect(toque('Trocar exercício: Supino de teste').length).toBeGreaterThan(0);
+    expect(toque('Trocar Supino de teste')).toHaveLength(0);
+    expect(toque('Trocar exercício: o exercício')).toHaveLength(0);
+    expect(montar({ ...base, nome: '' }).root.findAll((n) => n.props.accessibilityLabel === 'Trocar exercício: o exercício').length).toBeGreaterThan(0);
+  });
+});
+
 describe('CartaoExercicio: nome de exibição e instruções', () => {
   it('só com o nome começa fechado, sem marcador; sem nome abre no campo', () => {
     const a = montar(base);
