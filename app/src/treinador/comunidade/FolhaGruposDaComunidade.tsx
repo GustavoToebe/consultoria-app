@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { criarPod, renomearPod } from '../../api/comunidade';
 import type { PodResumo } from '../../api/comunidadeTipos';
+import { useFecharComAviso } from '../../comunidade/useFecharComAviso';
 import {
   avisoDoPod, erroDoNomeDoPod, nomeDoPodParaEnviar, POD_NOME_MAXIMO, POD_NOME_MINIMO, POD_TETO, traduzirErroDoPod,
 } from '../../dominio/comunidade';
@@ -61,7 +62,10 @@ export function FolhaGruposDaComunidade({ visivel, grupos, aoFechar }: { visivel
   const [salvando, setSalvando] = useState(false);
   const [recusa, setRecusa] = useState<string | null>(null);
 
-  const fechar = () => { setRecusa(null); setErroDoNovo(null); setEditando(null); setErroDoNome(null); aoFechar(); };
+  // O que se perde ao fechar: o nome do novo grupo digitado e o novo nome de uma renomeação aberta.
+  const alterado = novo !== '' || (!!editando && editando.nome !== grupos.dados?.find((p) => p.id === editando.id)?.nome);
+  const descartar = () => { setNovo(''); setRecusa(null); setErroDoNovo(null); setEditando(null); setErroDoNome(null); aoFechar(); };
+  const { fechar, aviso: avisoAoSair } = useFecharComAviso(visivel, alterado, descartar);
 
   const criar = async () => {
     setRecusa(null);
@@ -153,6 +157,7 @@ export function FolhaGruposDaComunidade({ visivel, grupos, aoFechar }: { visivel
           })}
         </ListaDeLinhas>
       )}
+      {avisoAoSair}
     </Folha>
   );
 }

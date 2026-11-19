@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { criarPlaylist, excluirPlaylist, renomearPlaylist, reordenarPlaylists } from '../../api/comunidade';
 import type { PlaylistDaComunidade } from '../../api/comunidadeTipos';
+import { useFecharComAviso } from '../../comunidade/useFecharComAviso';
 import {
   type Direcao, erroDoNomeDaPlaylist, moverNaLista, nomeDaPlaylistParaEnviar, PLAYLIST_NOME_MAXIMO, playlistsEmOrdem, podeMover,
   reordenados, resumoDosAuloes, textoDeExcluirPlaylist, traduzirErroDaPlaylist,
@@ -52,7 +53,10 @@ export function FolhaColecoes({ visivel, colecoes, aoFechar, aoMudarVideos }: {
   const [recusa, setRecusa] = useState<string | null>(null);
 
   const lista = colecoes.dados ? playlistsEmOrdem(colecoes.dados) : undefined;
-  const fechar = () => { setRecusa(null); setErroDoNovo(null); setEditando(null); setErroDoNome(null); aoFechar(); };
+  // O que se perde ao fechar: o nome da nova coleção digitado e o novo nome de uma renomeação aberta.
+  const alterado = novo !== '' || (!!editando && editando.nome !== lista?.find((p) => p.id === editando.id)?.nome);
+  const descartar = () => { setNovo(''); setRecusa(null); setErroDoNovo(null); setEditando(null); setErroDoNome(null); aoFechar(); };
+  const { fechar, aviso } = useFecharComAviso(visivel, alterado, descartar);
 
   /** Erro fora do campo: no alerta; a lista velha vem de novo (a frase já diz). */
   const recusar = (e: unknown) => {
@@ -202,6 +206,7 @@ export function FolhaColecoes({ visivel, colecoes, aoFechar, aoMudarVideos }: {
         aoCancelar={() => { setExcluir(null); setErroAoExcluir(null); }}>
         {erroAoExcluir ? <MensagemErro texto={erroAoExcluir} /> : null}
       </PainelConfirmacao>
+      {aviso}
     </Folha>
   );
 }

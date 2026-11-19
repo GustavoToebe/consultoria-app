@@ -13,7 +13,7 @@ import {
   agruparPorPlaylist, auloesDaPlaylist, buscarAuloes, buscarAuloesComPlaylist, chipDaPlaylist, corpoDaAula, emLotes, erroDoNomeDaPlaylist,
   errosDaAula, filtrarPorPlaylist, filtroDePlaylistValido, listaVelha, LOTE_MAXIMO, MENSAGEM_LISTA_MUDOU, MENSAGEM_PLAYLIST_NOME,
   moverNaLista, nomeDaPlaylistParaEnviar, numerados, opcoesDoFiltroDePlaylist, playlistsEmOrdem, podeMover, RASCUNHO_DA_AULA_VAZIO,
-  rascunhoDaAula, resumoDosAuloes, SEM_COLECAO, traduzirErroDaPlaylist,
+  rascunhoDaAula, resumoDosAuloes, SEM_COLECAO, traduzirErroDaPlaylist, aulaAlterada,
   aulasParaMover, gruposDaEquipe, reordenados, textoDeExcluirPlaylist, textoDoLoteMovido, textoDosMarcados,
 } from './comunidade';
 import { ErroApi } from '@plataforma/web';
@@ -24,6 +24,28 @@ const aula = (id: string, playlistId: string | null, ordem = 0, extra: Partial<A
   ordem, publicada: true, criadaEm: '2026-11-01T10:00:00Z', totalComentarios: 0, ...extra,
 });
 const playlist = (id: string, nome: string, ordem: number, totalAulas = 0): PlaylistDaComunidade => ({ id, nome, ordem, totalAulas });
+
+describe('sair sem salvar no novo vídeo (19/11)', () => {
+  it('novo vazio não tem alteração; qualquer campo ou a capa tem', () => {
+    expect(aulaAlterada(RASCUNHO_DA_AULA_VAZIO)).toBe(false);
+    for (const parte of [{ titulo: 'T' }, { link: 'h' }, { descricao: ' ' }, { playlistId: 'p1' }, { capaId: 'c1' }]) {
+      expect(aulaAlterada({ ...RASCUNHO_DA_AULA_VAZIO, ...parte })).toBe(true);
+    }
+  });
+
+  it('na edição, igual ao original não tem alteração; capa trocada ou removida e coleção trocada têm', () => {
+    const original = aula('a1', 'p1', 0, { descricao: 'Pauta', capaId: 'c1' });
+    const r = rascunhoDaAula(original);
+    expect(aulaAlterada(r, original)).toBe(false);
+    expect(aulaAlterada({ ...r, capaId: null }, original)).toBe(true);
+    expect(aulaAlterada({ ...r, capaId: 'c2' }, original)).toBe(true);
+    expect(aulaAlterada({ ...r, playlistId: null }, original)).toBe(true);
+    expect(aulaAlterada({ ...r, titulo: `${r.titulo}!` }, original)).toBe(true);
+    // A aula sem descrição nem capa abre com '' e null: reabrir sem mexer continua sem alteração.
+    const simples = aula('a2', null);
+    expect(aulaAlterada(rascunhoDaAula(simples), simples)).toBe(false);
+  });
+});
 
 describe('vídeos e coleções', () => {
   // A resposta vem fora da ordem de propósito: a tela ordena pela `ordem` das coleções e dos vídeos.

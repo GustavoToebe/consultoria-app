@@ -5,8 +5,9 @@ import { ErroApi } from '../../api/cliente';
 import { alterarAula, criarAula } from '../../api/comunidade';
 import type { AulaDaComunidade, PlaylistDaComunidade } from '../../api/comunidadeTipos';
 import { CampoDaCapa } from '../../comunidade/CampoDaCapa';
+import { useFecharComAviso } from '../../comunidade/useFecharComAviso';
 import {
-  AULA_DESCRICAO_MAXIMA, AULA_TITULO_MAXIMO, corpoDaAula, errosDaAula, playlistsEmOrdem, RASCUNHO_DA_AULA_VAZIO, type RascunhoDaAula,
+  aulaAlterada, AULA_DESCRICAO_MAXIMA, AULA_TITULO_MAXIMO, corpoDaAula, errosDaAula, playlistsEmOrdem, RASCUNHO_DA_AULA_VAZIO, type RascunhoDaAula,
   rascunhoDaAula, SEM_COLECAO, TEXTO_CRIE_EM_COLECOES,
 } from '../../dominio/comunidade';
 import { Botao } from '../../ui/Botao';
@@ -42,8 +43,8 @@ interface Props {
 
 /**
  * Formulário do aulão (P1/P2 da 4.6), o mesmo para criar e editar: corpo rolável, rodapé fixo Cancelar + uma ação
- * primária, erro no campo e o que não tem campo no status do rodapé (o aviso da tela fica atrás do véu do Modal). Quem
- * cria mantém a folha montada (o rascunho sobrevive ao Cancelar); quem edita monta com `key` da aula.
+ * primária, erro no campo e o que não tem campo no status do rodapé (o aviso da tela fica atrás do véu do Modal). Monta a
+ * cada abertura; fechar com alteração pergunta "Sair sem salvar?" e sair apaga o rascunho (19/11).
  */
 export function FolhaDoAulao({ visivel, original, colecoes, aoFechar, aoSalvar, aoSumir }: Props) {
   const [r, setR] = useState<RascunhoDaAula>(() => (original ? rascunhoDaAula(original) : RASCUNHO_DA_AULA_VAZIO));
@@ -64,12 +65,15 @@ export function FolhaDoAulao({ visivel, original, colecoes, aoFechar, aoSalvar, 
     setErrosApi((a) => (chaveDaApi in a ? Object.fromEntries(Object.entries(a).filter(([k]) => k !== chaveDaApi)) : a));
   };
 
-  const fechar = () => {
+  // Sair zera tudo (a folha também nasce de novo a cada abertura, em `FolhasDosVideos`): a próxima abre como a primeira.
+  const descartar = () => {
+    setR(original ? rascunhoDaAula(original) : RASCUNHO_DA_AULA_VAZIO);
     setTentou(false);
     setErrosApi({});
     setErroGeral(null);
     aoFechar();
   };
+  const { fechar, aviso } = useFecharComAviso(visivel, aulaAlterada(r, original), descartar);
 
   const salvar = async () => {
     setTentou(true);
@@ -129,6 +133,7 @@ export function FolhaDoAulao({ visivel, original, colecoes, aoFechar, aoSalvar, 
         setR((atual) => ({ ...atual, capaId }));
         setErrosApi((a) => Object.fromEntries(Object.entries(a).filter(([k]) => k !== 'capaId')));
       }} />
+      {aviso}
     </Folha>
   );
 }

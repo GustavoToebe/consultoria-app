@@ -289,10 +289,14 @@ export default function ComunidadeTreinador() {
       />
 
       <FolhaConfiguracoesDoMural visivel={configurando && podePublicar} aoFechar={() => setConfigurando(false)} />
-      <FolhaGruposDaComunidade visivel={vendoGrupos && podePublicar} grupos={pods} aoFechar={() => setVendoGrupos(false)} />
+      {/* Grupos e "Nova publicação" só existem abertas: cada abertura nasce do zero. Fechar com alteração pergunta "Sair
+          sem salvar?" na própria folha; fechar (sem alteração ou depois de sair) apaga o rascunho. */}
+      {vendoGrupos && podePublicar ? <FolhaGruposDaComunidade visivel grupos={pods} aoFechar={() => setVendoGrupos(false)} /> : null}
 
-      <FolhaNovaPublicacao visivel={compondo && podePublicar} papel="equipe" rascunho={rascunho} aoMudar={setRascunho}
-        comFotos grupos={podePublicar ? pods.dados : undefined} aoFechar={() => setCompondo(false)} aoPublicar={publicado} />
+      {compondo && podePublicar ? (
+        <FolhaNovaPublicacao visivel papel="equipe" rascunho={rascunho} aoMudar={setRascunho} inicial={rascunhoAoAbrir(RASCUNHO_VAZIO, abaDoMural, 'equipe')}
+          comFotos grupos={pods.dados} aoFechar={() => { setRascunho(RASCUNHO_VAZIO); setCompondo(false); }} aoPublicar={publicado} />
+      ) : null}
 
       <PainelConfirmacao
         visivel={!!removerApelidoDe}

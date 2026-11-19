@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 import { criarGuarda, SEM_GUARDA, type Guarda } from './guarda';
 import { devolverGuardaDoHistorico, portalDaFolhaDoTopo, useGuardaNoHistorico } from './historicoDasFolhas';
+import type { PortalDaFolhaValor } from './Folha';
 import { PainelConfirmacao } from './PainelConfirmacao';
 
 const Contexto = createContext<Guarda>(SEM_GUARDA);
@@ -36,20 +37,38 @@ export function GuardaDeSaida({ children }: { children: ReactNode }) {
   return (
     <Contexto.Provider value={guarda}>
       {children}
-      <PainelConfirmacao
+      <AvisoSairSemSalvar
         visivel={acao !== null}
-        titulo="Sair sem salvar?"
-        mensagem="Há alterações que ainda não foram salvas. Se sair agora, elas serão perdidas."
-        rotuloConfirmar="Sair sem salvar"
-        rotuloCancelar="Continuar editando"
-        perigo
         // Com uma Folha aberta a pergunta iria para trás do Modal dela. No celular, a que está fechando fica de fora
         // (a de baixo, ou a raiz). Na web, vai para dentro da Folha do topo.
         portal={acao !== null ? portalDaFolhaDoTopo() : undefined}
-        aoConfirmar={sair}
-        aoCancelar={() => setAcao(null)}
+        aoSair={sair}
+        aoContinuar={() => setAcao(null)}
       />
     </Contexto.Provider>
+  );
+}
+
+/**
+ * O "Sair sem salvar?" da guarda, com os textos num lugar só. Também serve a quem pergunta ao fechar uma Folha que guarda
+ * rascunho (as da Comunidade): ali ele vai como filho da Folha, que fica aberta se a pessoa continuar. A guarda não serve
+ * para isso porque o fechar da Folha a marca como "fechando" e, no celular, a pergunta iria para trás do Modal dela.
+ */
+export function AvisoSairSemSalvar({ visivel, portal, aoSair, aoContinuar }: {
+  visivel: boolean; portal?: PortalDaFolhaValor; aoSair: () => void; aoContinuar: () => void;
+}) {
+  return (
+    <PainelConfirmacao
+      visivel={visivel}
+      titulo="Sair sem salvar?"
+      mensagem="Há alterações que ainda não foram salvas. Se sair agora, elas serão perdidas."
+      rotuloConfirmar="Sair sem salvar"
+      rotuloCancelar="Continuar editando"
+      perigo
+      portal={portal}
+      aoConfirmar={aoSair}
+      aoCancelar={aoContinuar}
+    />
   );
 }
 
