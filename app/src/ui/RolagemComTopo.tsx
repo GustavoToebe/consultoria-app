@@ -1,9 +1,9 @@
 import { ArrowUp } from 'lucide-react-native';
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 
 /** Quem está dentro de uma rolagem registra pontos (`AlvoDeRolagem`) e pede para rolar até eles. */
@@ -28,6 +28,17 @@ const DIFERENCA_MINIMA = 4;
 /** Espaço no fim da rolagem para o botão flutuante não cobrir o último item. */
 const FOLGA_DO_BOTAO = espaco(2) + ALVO_TOQUE + espaco(1);
 
+/**
+ * Web: reserva a faixa da barra de rolagem mesmo quando ela não aparece (`scrollbar-gutter: stable`). Sem isto, perto do limite de
+ * altura a barra surge e tira ~15 px de largura; o que tem altura proporcional à largura (a capa 16:9 do vídeo, medida por `onLayout`
+ * na `Grade`) fica mais baixo, o conteúdo passa a caber, a barra some, a largura volta e o ciclo recomeça: a tela piscava. Com a faixa
+ * fixa a largura útil não depende de a barra existir. Barra overlay (celular, macOS) não ocupa espaço e não muda nada.
+ * Só nas telas (`preencher`; numa folha a faixa vazia deixaria 32 px à direita contra 16 à esquerda do conteúdo) e a partir de
+ * `LARGURA_MENU_LATERAL`: abaixo disso o aparelho é de toque (barra sobreposta) e 15 px a menos quebrariam as barras de 390 px.
+ * shortcut: folha com altura que depende da largura e perto da altura máxima ainda pode piscar; nenhuma conhecida, trocar quando aparecer.
+ */
+const FAIXA_DA_BARRA: StyleProp<ViewStyle> = Platform.OS === 'web' ? ({ scrollbarGutter: 'stable' } as ViewStyle) : undefined;
+
 interface Props {
   children: ReactNode;
   contentContainerStyle?: StyleProp<ViewStyle>;
@@ -42,6 +53,7 @@ interface Props {
  */
 export function RolagemComTopo({ children, contentContainerStyle, preencher }: Props) {
   const { cores } = useTema();
+  const { width } = useWindowDimensions();
   const reduzido = useMovimentoReduzido();
   const rolagem = useRef<ScrollView>(null);
   const [longe, setLonge] = useState(false);
@@ -78,6 +90,7 @@ export function RolagemComTopo({ children, contentContainerStyle, preencher }: P
     <View ref={area} style={[estilos.area, preencher && estilos.preencher]}>
       <ScrollView
         ref={rolagem}
+        style={preencher && width >= LARGURA_MENU_LATERAL ? FAIXA_DA_BARRA : undefined}
         contentContainerStyle={[contentContainerStyle, folga && estilos.fim]}
         keyboardShouldPersistTaps="handled"
         onLayout={(e) => { medidas.current.janela = e.nativeEvent.layout.height; conferirFolga(); }}

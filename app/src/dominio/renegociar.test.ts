@@ -6,7 +6,7 @@ import {
 } from './financeiro';
 import {
   corpoDaPrevia, lerAjuste, MENSAGEM_REPETIR_SEM_DOBRAR, mesmaPrevia, MOTIVO_RENEGOCIACAO_AUTOMATICA, motivoDeFicarDeFora,
-  motivoDeRenegociarDesabilitado, motivoDeRenegociarOLoteDesabilitado, oQueAcontece, podeDesfazerAcordo, podeRenegociar,
+  motivoDeLoteComAlunosDiferentes, motivoDeRenegociarDesabilitado, motivoDeRenegociarOLoteDesabilitado, oQueAcontece, podeDesfazerAcordo, podeRenegociar,
   rotuloDoConfirmar, separarParaRenegociar, textoDaRenegociacaoFeita, tituloDaRenegociacao, traduzirErroDaRenegociacao, validarCondicoes,
   type CondicoesDigitadas,
 } from './renegociar';
@@ -44,6 +44,10 @@ describe('quais cobranças entram', () => {
     const dois = separarParaRenegociar([c('1'), c('2', { alunoId: 'aluno-2', alunoNome: 'Bia' })]);
     expect(dois.problema).toMatch(/alunos diferentes/);
     expect(dois.alunoNome).toBeNull();
+    // O mesmo motivo vale antes de abrir a folha (item apagado do "Mais ações"); a de outro aluno que ficaria de fora não conta.
+    expect(motivoDeLoteComAlunosDiferentes([c('1'), c('2', { alunoId: 'aluno-2', alunoNome: 'Bia' })])).toBe(dois.problema);
+    expect(motivoDeLoteComAlunosDiferentes([c('1'), c('2', { alunoId: 'aluno-2', tipo: 'SAIDA' })])).toBeNull();
+    expect(motivoDeLoteComAlunosDiferentes([c('1'), c('3')])).toBeNull();
     // A de outro aluno que já ficaria de fora não conta.
     expect(separarParaRenegociar([c('1'), c('2', { alunoId: 'aluno-2', tipo: 'SAIDA' })]).problema).toBeNull();
     expect(separarParaRenegociar([c('1', { situacao: 'PAGA' })]).problema).toBe('Esta cobrança não pode ser renegociada.');

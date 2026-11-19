@@ -1,5 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
-import { Copy, MessageCircle } from 'lucide-react-native';
+import { Copy } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -15,6 +15,7 @@ import {
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { iconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { Campo } from '../../ui/Campo';
 import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
@@ -96,7 +97,7 @@ export function RespostaComModelo({ visivel, dados, consultoria, aoFechar, aoReg
     <>
       <Botao rotulo="Copiar" Icone={Copy} tipo="secundario" aoTocar={copiar} desabilitado={bloqueado || !!registrando}
         carregando={registrando === 'COPIADA'} motivo={motivo} />
-      <Botao rotulo="Abrir WhatsApp" Icone={MessageCircle} aoTocar={abrir} desabilitado={bloqueado || !link || !!registrando}
+      <Botao rotulo="Abrir WhatsApp" Icone={iconeWhatsApp(!(bloqueado || !link || !!registrando))} aoTocar={abrir} desabilitado={bloqueado || !link || !!registrando}
         carregando={registrando === 'WHATSAPP_ABERTO'} motivo={motivo ?? 'O número não tem DDD válido.'} />
     </>
   );

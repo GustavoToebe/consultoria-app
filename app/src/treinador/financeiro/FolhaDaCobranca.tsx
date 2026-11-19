@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { MessageCircle } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -27,6 +26,7 @@ import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { useSaidaGuardada } from '../../ui/GuardaDeSaida';
 import { Botao } from '../../ui/Botao';
+import { iconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
@@ -369,7 +369,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
               <View style={estilos.aviso}>
                 {paraResponsavel}
                 <LinhaDeAcoes>
-                  <Botao rotulo="Abrir WhatsApp com a mensagem" tipo="secundario" Icone={MessageCircle} aoTocar={abrirWhatsApp}
+                  <Botao rotulo="Abrir WhatsApp com a mensagem" tipo="secundario" Icone={iconeWhatsApp(!!whatsapp.link)} aoTocar={abrirWhatsApp}
                     desabilitado={!whatsapp.link} motivo={whatsapp.motivo ?? undefined} />
                 </LinhaDeAcoes>
                 {/* Sem telefone, o botão desabilitado já mostra o porquê (`motivo`). */}

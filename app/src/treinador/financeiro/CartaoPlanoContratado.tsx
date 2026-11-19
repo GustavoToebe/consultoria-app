@@ -1,4 +1,4 @@
-import { MessageCircle, Plus } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -17,6 +17,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { iconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { Cartao } from '../../ui/Cartao';
@@ -159,7 +160,7 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
           {planoPodeTerMinimo(vigente.periodicidade) ? <Texto variante="suave">{textoDoMinimoAte(vigente.minimoAte)}</Texto> : null}
           {emRenovacao ? (
             <LinhaDeAcoes>
-              <Botao rotulo="Cobrar renovação pelo WhatsApp" tipo="secundario" Icone={MessageCircle} aoTocar={abrirWhatsApp}
+              <Botao rotulo="Cobrar renovação pelo WhatsApp" tipo="secundario" Icone={iconeWhatsApp(!!linkDaRenovacao)} aoTocar={abrirWhatsApp}
                 desabilitado={!linkDaRenovacao} motivo={linkDaRenovacao ? undefined : MOTIVO_SEM_TELEFONE} />
             </LinhaDeAcoes>
           ) : null}

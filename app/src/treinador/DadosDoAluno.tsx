@@ -1,4 +1,4 @@
-import { Copy, MessageCircle, Pencil } from 'lucide-react-native';
+import { Copy, Pencil } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -23,6 +23,7 @@ import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { IconeBotao } from '../ui/IconeBotao';
+import { IconeWhatsApp } from '../ui/IconeWhatsApp';
 import { LinkTexto } from '../ui/LinkTexto';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Texto } from '../ui/Texto';
@@ -247,7 +248,7 @@ function BotoesDeContato({ tipo, valor, nome }: { tipo: 'email' | 'telefone'; va
     <View style={estilos.botoes}>
       <IconeBotao Icone={Copy} moldura rotulo={`Copiar ${oQue.toLowerCase()} de ${nome}`} aoTocar={copiar} />
       {whatsapp ? (
-        <IconeBotao Icone={MessageCircle} moldura rotulo={`Abrir WhatsApp de ${nome}`}
+        <IconeBotao Icone={IconeWhatsApp} moldura rotulo={`Abrir WhatsApp de ${nome}`}
           aoTocar={() => { void abrirLinkExterno(whatsapp).then((ok) => { if (!ok) avisar('Não foi possível abrir o WhatsApp. Copie o telefone e chame pelo aplicativo.', 'perigo'); }); }} />
       ) : null}
     </View>

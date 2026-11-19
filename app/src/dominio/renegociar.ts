@@ -46,6 +46,15 @@ export const MOTIVO_RENEGOCIACAO_AUTOMATICA = 'Esta cobrança é cobrada automat
 export const motivoDeRenegociarDesabilitado = (c: Pick<CobrancaResponse, 'situacao' | 'tipo' | 'cobrancaAutomatica'>): string | null =>
   podeRenegociar(c) && ehCobradaPelaKiwify(c) ? MOTIVO_RENEGOCIACAO_AUTOMATICA : null;
 
+export const MOTIVO_ALUNOS_DIFERENTES = 'As cobranças são de alunos diferentes. Renegocie um aluno por vez: filtre pelo aluno e marque só as dele.';
+
+/**
+ * Antes de abrir a renegociação: as que entrariam são de mais de um aluno. O "Mais ações" apaga o item com este motivo no lugar da
+ * explicação (como no caso da Kiwify), em vez de abrir a folha só para dar a notícia. A folha confere de novo (`separarParaRenegociar`).
+ */
+export const motivoDeLoteComAlunosDiferentes = (lote: readonly Cobranca[]): string | null =>
+  new Set(separarParaRenegociar(lote).entram.map((c) => c.alunoId)).size > 1 ? MOTIVO_ALUNOS_DIFERENTES : null;
+
 /** O mesmo para um lote: alguma que entraria é automática, então o lote todo não segue (a API recusa o pedido inteiro). */
 export const motivoDeRenegociarOLoteDesabilitado = (lote: readonly Pick<CobrancaResponse, 'situacao' | 'tipo' | 'cobrancaAutomatica'>[]): string | null =>
   lote.some((c) => motivoDeRenegociarDesabilitado(c) !== null) ? MOTIVO_RENEGOCIACAO_AUTOMATICA : null;
@@ -86,7 +95,7 @@ export function separarParaRenegociar<C extends Cobranca>(selecao: readonly C[])
     // Uma automática barra o acordo inteiro (a API recusa o pedido todo): nada de oferecer o resto.
     problema = MOTIVO_RENEGOCIACAO_AUTOMATICA;
   } else if (alunos.size > 1) {
-    problema = 'As cobranças são de alunos diferentes. Renegocie um aluno por vez: filtre pelo aluno e marque só as dele.';
+    problema = MOTIVO_ALUNOS_DIFERENTES;
   } else if (entram.length > LIMITES_DA_RENEGOCIACAO.cobrancas) {
     problema = `O limite é de ${LIMITES_DA_RENEGOCIACAO.cobrancas} cobranças por acordo. Tire ${quantasCobrancas(entram.length - LIMITES_DA_RENEGOCIACAO.cobrancas)} da seleção.`;
   }

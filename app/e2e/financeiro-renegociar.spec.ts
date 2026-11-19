@@ -138,21 +138,23 @@ for (const largura of [1280, 390]) {
   });
 }
 
-test('alunos diferentes e só inelegíveis: a primeira etapa explica uma vez e só deixa fechar', async ({ page }) => {
+test('alunos diferentes: o aviso vem antes, no menu (item apagado); só inelegíveis: a primeira etapa explica e só deixa fechar', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const { pedidos, errosDaPagina } = await abrir(page, comCobrancas());
   await page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, set\/2026/ }).click();
   await page.getByRole('checkbox', { name: /^Selecionar cobrança de Caio Teste/ }).click();
   await page.getByRole('button', { name: 'Mais ações' }).click();
-  await page.getByRole('dialog', { name: 'Ações com 2 cobranças' }).getByRole('button', { name: /^Renegociar/ }).click();
-  const folha = page.getByRole('dialog', { name: 'Renegociar 2 cobranças' });
-  // A frase uma vez só, no corpo; sem nada a seguir, o rodapé só tem "Fechar".
-  await expect(folha.getByText('As cobranças são de alunos diferentes. Renegocie um aluno por vez: filtre pelo aluno e marque só as dele.')).toHaveCount(1);
-  await expect(folha.getByRole('button', { name: 'Continuar' })).toHaveCount(0);
-  await expect(folha.getByText(/Caio Teste · out\/2026/)).toBeVisible();
+  // O aviso vem ANTES de abrir a renegociação: o item fica apagado e a explicação é o motivo (nenhuma folha, nenhum pedido).
+  const menu = page.getByRole('dialog', { name: 'Ações com 2 cobranças' });
+  const item = menu.getByRole('button', { name: /^Renegociar/ });
+  await expect(item).toBeDisabled();
+  await expect(menu.getByText('As cobranças são de alunos diferentes. Renegocie um aluno por vez: filtre pelo aluno e marque só as dele.')).toHaveCount(1);
+  await expect(menu.getByRole('button', { name: /^Exportar selecionadas/ })).toBeEnabled();
   await page.screenshot({ path: `${CAPTURAS}/alunos-diferentes-1280.png` });
-  await folha.getByRole('button', { name: 'Fechar' }).last().click();
-  await expect(folha).toHaveCount(0);
+  await item.click({ force: true });
+  await expect(page.getByRole('dialog', { name: 'Renegociar 2 cobranças' })).toHaveCount(0);
+  expect(pedidos.filter((p) => ehPrevia(p) || ehConfirmar(p))).toHaveLength(0);
+  await menu.getByRole('button', { name: 'Fechar' }).first().click();
   // A seleção continua para a pessoa ajustar.
   await expect(page.getByText('2 cobranças selecionadas')).toBeVisible();
 

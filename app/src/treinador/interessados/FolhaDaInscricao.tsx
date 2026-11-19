@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { Check, Copy, MessageCircle, MessageSquareText } from 'lucide-react-native';
+import { Check, Copy, MessageSquareText } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -61,6 +61,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, LARGURA_EDITOR, LARGURA_FORMULARIO, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { iconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -389,7 +390,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
         <CampoLeitura rotulo="E-mail" valor={dados.email} />
         <LinhaDeAcoes>
           {podeAlterar ? <Botao rotulo="Responder com modelo" Icone={MessageSquareText} tipo="secundario" aoTocar={() => setRespondendo(true)} /> : null}
-          <Botao rotulo="Abrir WhatsApp" Icone={MessageCircle} tipo="secundario" aoTocar={abrirWhatsApp}
+          <Botao rotulo="Abrir WhatsApp" Icone={iconeWhatsApp(!!whatsapp)} tipo="secundario" aoTocar={abrirWhatsApp}
             desabilitado={!whatsapp} motivo="O número não tem DDD válido." />
           <Botao rotulo="Copiar WhatsApp" Icone={Copy} tipo="secundario" aoTocar={() => copiar(dados.whatsapp, 'WhatsApp')} />
         </LinhaDeAcoes>

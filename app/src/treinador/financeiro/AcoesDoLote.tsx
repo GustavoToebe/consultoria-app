@@ -9,7 +9,7 @@ import {
 } from '../../dominio/acoesEmLote';
 import { hojeEmBrasilia, LIMITES, problemaDoLote, referenciaDaCobranca, totalDoLote } from '../../dominio/financeiro';
 import { centavosParaTela } from '../../dominio/formatos';
-import { motivoDeRenegociarOLoteDesabilitado } from '../../dominio/renegociar';
+import { motivoDeLoteComAlunosDiferentes, motivoDeRenegociarOLoteDesabilitado } from '../../dominio/renegociar';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -59,7 +59,8 @@ export function AcoesDoLote({ lote, comLink, aoCancelar, aoRenegociar, aoResulta
   const trava = useRef(false);
   const n = lote.length;
   const problema = problemaDoLote(n);
-  const semRenegociar = motivoDeRenegociarOLoteDesabilitado(lote);
+  // O aviso vem antes de abrir a folha: item apagado com o motivo no lugar da explicação (Kiwify, e alunos diferentes).
+  const semRenegociar = motivoDeRenegociarOLoteDesabilitado(lote) ?? motivoDeLoteComAlunosDiferentes(lote);
   const comecar = (acao: AcaoDoLote | 'EXPORTAR') => {
     if (trava.current) return false;
     trava.current = true;
