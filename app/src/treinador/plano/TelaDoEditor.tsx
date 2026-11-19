@@ -3,11 +3,11 @@ import { KeyboardAvoidingView, Platform, StyleSheet, useWindowDimensions, View, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { espaco, faixaDeLargura, LARGURA_EDITOR, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { duasColunas, larguraDoEditor } from '../../dominio/colunasDoEditor';
 import { larguraMaximaDoConteudo, respiroLateralDaTela } from '../../dominio/larguraDoConteudo';
 import { RolagemComTopo } from '../../ui/RolagemComTopo';
-import { ProvedorDeColunas } from './ColunasDoEditor';
+import { ProvedorDeColunas, ProvedorDeTresColunas } from './ColunasDoEditor';
 import { useFundoDaArea } from '../../ui/fundoDaArea';
 import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 import { Vidro } from '../../ui/Vidro';
@@ -53,6 +53,8 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   const janela = useWindowDimensions().width;
   const estimada = janela - (janela >= LARGURA_MENU_EXPANDIDO ? MENU_ABERTO : janela >= LARGURA_MENU_LATERAL ? MENU_TRILHO : 0);
   const duas = !!colunas && duasColunas((larguraMedida > 0 ? larguraMedida : estimada) - 2 * espaco(2));
+  const faixaEfetiva = larguraMedida > 0 ? faixa : faixaDeLargura(estimada);
+  const tres = duas && faixaEfetiva === 'ultralarga' && preferencias.larguraConteudo === 'AUTOMATICA';
   const larguraUtil = larguraMaximaDoConteudo(duas ? larguraDoEditor(true) : largura, preferencias.larguraConteudo);
   const estiloLargura = larguraUtil === undefined ? undefined : { maxWidth: larguraUtil };
   const recuoLateral = respiroLateralDaTela(faixa) ?? espaco(2);
@@ -64,6 +66,7 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   const fundoDaBarra = { backgroundColor: fundo, ...bordaDaBarra };
   return (
     <ProvedorDeColunas value={duas}>
+    <ProvedorDeTresColunas value={tres}>
     <SafeAreaView edges={['top']} style={[estilos.raiz, { backgroundColor: fundo }]} onLayout={aoMedir}>
       <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {!web ? <View style={[estilos.barraFora, fundoDaBarra, { paddingHorizontal: recuoLateral }]}><View style={[estilos.largura, estiloLargura]}>{barra}</View></View> : null}
@@ -79,6 +82,7 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
         {!web && rodape ? <View style={[estilos.rodapeFora, fundoDaBarra, { paddingHorizontal: recuoLateral }]}><View style={[estilos.largura, estilos.linhaDoRodape, estiloLargura]}>{rodape}</View></View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </ProvedorDeTresColunas>
     </ProvedorDeColunas>
   );
 }

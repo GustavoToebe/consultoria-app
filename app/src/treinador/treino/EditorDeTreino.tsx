@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { FileText, Pencil } from 'lucide-react-native';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 
 import { baixarFotoDePerfilDoAluno, listarExercicios } from '../../api/rotas';
 import type { AlternativaDeExercicio, ConteudoTreino, ExercicioPlano, Receita, ResultadoValidacao, Sessao } from '../../api/tipos';
@@ -74,6 +74,7 @@ import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Cabecalho } from '../../ui/Cabecalho';
+import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { useCarregar } from '../../ui/useCarregar';
 import { MensagemErro, Vazio } from '../../ui/Estados';
@@ -114,6 +115,8 @@ const contar = (n: number, um: string, varios: string) => (n === 1 ? `1 ${um}` :
 export default function EditorDeTreino({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
   const { id, colar } = useLocalSearchParams<{ id: string; colar?: string }>();
   const { avisar } = useAviso();
+  const { height: alturaDaJanela } = useWindowDimensions();
+  const estiloFixo = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(10), zIndex: 1, maxHeight: alturaDaJanela - espaco(12), overflowY: 'auto' } : undefined) as ViewStyle | undefined;
   // "Colar treino (Docs / PDF)": a Folha abre pelo botão ou, vinda do atalho da Importação, já na chegada (`?colar=1`,
   // consumido ao abrir para o voltar não ter passo sobrando).
   const [colando, setColando] = useState(false);
@@ -394,7 +397,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de uma semana de treino pronta."
           acao={unica ? undefined : { rotulo: 'Modelos prontos', aoTocar: () => setFolha({ tipo: 'modelos' }) }} />
       ) : null}
-      {sessaoAtual ? <ComColunas>{(duas) => <ListaArrastavel total={sessaoAtual.exercicios.length} aoSoltar={soltarExercicio}>{(arraste) => {
+      {sessaoAtual ? <ComColunas>{(duas, tres) => <ListaArrastavel total={sessaoAtual.exercicios.length} aoSoltar={soltarExercicio}>{(arraste) => {
         // Com um grupo de exercícios escolhido, nenhum exercício fica realçado e o inspetor mostra o grupo.
         const escolhido = grupoEscolhido ? null : escolhidoEm(duas);
         let noInspetor: PropsDoInspetor | null = null;
@@ -461,10 +464,11 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           motivoSemGrupo: motivoSemGrupo(sessaoAtual, config),
         };
         const vazia = estadoDaSessao(sessaoAtual);
+        const resumo = resumoDaSessaoPorContagem(sessaoAtual, config, (e) => (e.exercicioId ? demonstracoes.get(e.exercicioId)?.grupoMuscular ?? null : null));
         return (
           <CartaoSessao
             key={sessaoAtual.uid}
-            resumo={<ResumoDaSessao resumo={resumoDaSessaoPorContagem(sessaoAtual, config, (e) => (e.exercicioId ? demonstracoes.get(e.exercicioId)?.grupoMuscular ?? null : null))} />}
+            resumo={tres ? undefined : <ResumoDaSessao resumo={resumo} />}
             comErroNosDados={erroNosDadosDaSessao}
             sessao={sessaoAtual}
             posicao={indiceSelecionado}
@@ -485,12 +489,19 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
               // Sem exercício: o convite (ou a frase do descanso) no lugar da lista e do editor vazios.
               <SessaoVazia estado={vazia} aoNovoExercicio={adicionar.aoNovoExercicio} aoNovoCardio={adicionar.aoNovoCardio} aoAbrirModelos={adicionar.aoAbrirModelos} />
             ) : duas ? (
-              // Lista (mestre) com largura fixa à esquerda; o inspetor (detalhe) do escolhido no resto.
+              // Lista (mestre) com largura fixa à esquerda; o inspetor (detalhe) do escolhido no meio; na faixa ultralarga, o resumo fixo ao lado.
               <View style={estilos.colunas}>
                 <ListaDeExercicios adicionar={adicionar}>
                   {itens}
                 </ListaDeExercicios>
                 <InspetorDoExercicio props={noInspetor} grupo={grupoNoInspetor} />
+                {tres ? (
+                  <View style={[estilos.colunaResumo, estiloFixo]} testID="coluna-resumo-sessao">
+                    <Cartao faixa titulo="Resumo da sessão">
+                      <ResumoDaSessao resumo={resumo} />
+                    </Cartao>
+                  </View>
+                ) : null}
               </View>
             ) : (
               <>
@@ -640,6 +651,7 @@ function FotoNaBarra({ alunoId, nome }: { alunoId: string; nome: string | null }
 
 const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
+  colunaResumo: { width: 380, flexShrink: 0, alignSelf: 'flex-start' },
   // Partes que andam juntas ficam mais perto entre si que dos outros blocos da tela (24).
   grupo: { gap: espaco(1.5) },
 });
