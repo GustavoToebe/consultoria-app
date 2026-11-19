@@ -26,7 +26,7 @@ import { FolhaPdfDieta } from '../ui/FolhaPdfDieta';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { NumeroAnimado } from '../ui/NumeroAnimado';
-import { AJUDA_DA_FIBRA_PARCIAL, fibraParcial, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../ui/ValoresDaDieta';
+import { AJUDA_DA_FIBRA_PARCIAL, FIBRA, fibraParcial, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../ui/ValoresDaDieta';
 import { ModoDePreparo } from './ModoDePreparo';
 import { useDiaDeHojeEmBrasilia } from './useDiaDeHoje';
 
@@ -262,7 +262,7 @@ function VariacaoDoDia({ variacoes, mostrada, deHoje, aoEscolher }: {
 
 /**
  * Total do dia: kcal em destaque na cor do texto e, por macro, a marca de cor da peça única (`ui/ValoresDaDieta`, a mesma do
- * editor) com o valor e o nome por extenso ("—" sem valor). A fibra vem depois, neutra, só quando há valor (recurso que não
+ * editor) com o valor e o nome por extenso ("—" sem valor). A fibra vem depois, com a marca dela e o texto neutro, só quando há valor (recurso que não
  * existe não aparece), com "(parcial)" e a ajuda quando algum item não a tem.
  */
 function TotalDoDia({ totais }: { totais: TotaisComFibra }) {
@@ -283,6 +283,7 @@ function TotalDoDia({ totais }: { totais: TotaisComFibra }) {
         ))}
         {totais.fibra === null ? null : (
           <View style={estilos.macro}>
+            <MarcaDoMacro cor={FIBRA.cor} />
             <NumeroAnimado valor={totais.fibra} casas={1} sufixo={` g de fibra${parcial ? ' (parcial)' : ''}`} />
           </View>
         )}

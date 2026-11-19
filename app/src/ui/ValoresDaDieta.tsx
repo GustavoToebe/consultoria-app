@@ -4,7 +4,7 @@ import type { Totais } from '../dominio/dieta';
 import { numeroParaTela, SEM_DADO } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
 import type { ChaveDeIdentificacao } from '../tema/tokens';
-import { espaco, fontes } from '../tema/tokens';
+import { espaco, fontes, PALETA_DA_FIBRA } from '../tema/tokens';
 import { CampoNumerico } from './Campos';
 import { Texto } from './Texto';
 
@@ -20,6 +20,14 @@ export const MACROS = [
   { chave: 'gordura', nome: 'Gordura', curto: 'G', cor: 'VIOLETA' },
 ] as const satisfies readonly { chave: keyof Totais; nome: string; curto: string; cor: ChaveDeIdentificacao }[];
 
+/** Cor de uma marca de macro: uma das de identificação, ou a da fibra (`PALETA_DA_FIBRA`, fora da identificação). */
+export type CorDoMacro = ChaveDeIdentificacao | 'FIBRA';
+/**
+ * A fibra (V089) com a marca verde-lima (19/11), só no rótulo, no cabeçalho e ao lado do "Fibra X g": o texto e o número
+ * continuam neutros. Fica fora de `MACROS` porque não é macro da kcal nem dos `Totais` (legenda, leitor e soma seguem só P, C e G).
+ */
+export const FIBRA = { chave: 'fibra', nome: 'Fibras', cor: 'FIBRA' } as const;
+
 /** kcal sem casas; "—" sem valor (nunca zero inventado). */
 export const kcalNaTela = (v: number | null) => (v === null ? SEM_DADO : numeroParaTela(v, 0));
 /** Gramas sempre com uma casa ("30,0 g"), para a coluna alinhar; "—" sem valor, sem unidade. */
@@ -28,8 +36,8 @@ export const gramasNaTela = (v: number | null) => (v === null ? SEM_DADO : `${v.
 export const macroPorExtenso = (nome: string, v: number | null) => `${nome} ${v === null ? 'sem dado' : gramasNaTela(v)}`;
 
 /**
- * Valores com a fibra (V089), quando quem chama a conhece (`somar`, `totalDoDia`, o alimento). A fibra não é macro: sem
- * marca de cor, fora da kcal e da legenda. Ausente (`undefined`) = não se fala dela; nula = "—".
+ * Valores com a fibra (V089), quando quem chama a conhece (`somar`, `totalDoDia`, o alimento). A fibra fica fora de
+ * `MACROS`, da kcal e da legenda; tem só a marca própria (`FIBRA`). Ausente (`undefined`) = não se fala dela; nula = "—".
  */
 export type ValoresComFibra = Totais & { fibra?: number | null; fibraCompleta?: boolean };
 /** Ajuda do total parcial, uma vez por total do dia (o "(parcial)" vai junto de cada número). */
@@ -57,10 +65,10 @@ export function TotalParaLeitor({ rotulo, totais, omitirFibraSemValor = false }:
   return <Texto style={estilos.soParaLeitor}>{`${rotulo}: ${valoresPorExtenso(totais, omitirFibraSemValor)}`}</Texto>;
 }
 
-/** Quadradinho de 8 px na cor do macro; sem a cor (tema de teste), não aparece. */
-export function MarcaDoMacro({ cor }: { cor: ChaveDeIdentificacao }) {
-  const { identificacao } = useTema();
-  const c = identificacao?.[cor]?.cor;
+/** Quadradinho de 8 px na cor do macro; sem a cor (tema de teste, sem `identificacao`), não aparece, a da fibra também não. */
+export function MarcaDoMacro({ cor }: { cor: CorDoMacro }) {
+  const { identificacao, variante } = useTema();
+  const c = cor === 'FIBRA' ? (identificacao ? PALETA_DA_FIBRA[variante] : undefined) : identificacao?.[cor]?.cor;
   return c ? <View aria-hidden style={[estilos.marca, { backgroundColor: c }]} /> : null;
 }
 
@@ -68,8 +76,9 @@ export function MarcaDoMacro({ cor }: { cor: ChaveDeIdentificacao }) {
  * Linha dos valores de um item ou de uma opção: kcal e P, C e G, números tabulares, cada macro com a marca. À direita no
  * editor (coluna), à esquerda (`inicio`) embaixo do nome na dieta do aluno. Sem espaço, os macros descem juntos.
  * A letra é só visual: o leitor de tela ouve o nome inteiro, num texto que não aparece (`aria-label` num texto solto não
- * é lido de forma confiável na web). A fibra, quando os valores a trazem, vem depois dos macros, solta e neutra (sem marca
- * nem negrito: é dado de apoio); `omitirFibraSemValor` (dieta do aluno) some com ela quando é "—".
+ * é lido de forma confiável na web). A fibra, quando os valores a trazem, vem depois dos macros com a marca dela e o
+ * texto neutro e sem negrito (é dado de apoio; "Fibra 12,0 g (parcial)" anda inteiro, como o macro);
+ * `omitirFibraSemValor` (dieta do aluno) some com ela quando é "—".
  */
 export function ValoresDaDieta({ totais: t, forte = false, inicio = false, omitirFibraSemValor = false }: {
   totais: ValoresComFibra; forte?: boolean; inicio?: boolean; omitirFibraSemValor?: boolean;
@@ -90,7 +99,12 @@ export function ValoresDaDieta({ totais: t, forte = false, inicio = false, omiti
           </View>
         ))}
       </View>
-      {fibra ? <Texto variante={variante} numerico numberOfLines={1} style={[estilos.fibra, forte ? estilos.fibraNoTotal : null]}>{fibra}</Texto> : null}
+      {fibra ? (
+        <View style={estilos.macro}>
+          <MarcaDoMacro cor={FIBRA.cor} />
+          <Texto variante={variante} numerico numberOfLines={1} style={forte ? estilos.fibraNoTotal : null}>{fibra}</Texto>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -114,10 +128,13 @@ export function LegendaDosMacros() {
  * acessível começa pelo texto visível (WCAG 2.5.3, quem fala "P (g)" acha o campo) e traz o nome inteiro quando o rótulo é
  * só a sigla: "P (g), proteína". A cor não entra na caixa nem no número.
  */
-export function CampoDoMacro({ macro, rotulo, valor, aoMudar, erro, rotuloOculto = false }: {
-  macro: (typeof MACROS)[number]; rotulo: string; valor: number | null; aoMudar: (v: number | null) => void; erro?: string | null;
+export function CampoDoMacro({ macro, rotulo, valor, aoMudar, erro, rotuloOculto = false, mascara, ajudaForaDoCampo }: {
+  macro: { nome: string; cor: CorDoMacro }; rotulo: string; valor: number | null; aoMudar: (v: number | null) => void; erro?: string | null;
   /** Sem a marca e o rótulo em cima (tabela da dieta: o cabeçalho da coluna já os mostra); o nome acessível não muda. */
   rotuloOculto?: boolean;
+  mascara?: (texto: string) => string;
+  /** Ajuda escrita noutro lugar da tela (linha abaixo da grade): o leitor de tela a ouve no campo. */
+  ajudaForaDoCampo?: { id: string; texto: string };
 }) {
   const { cores } = useTema();
   return (
@@ -128,7 +145,8 @@ export function CampoDoMacro({ macro, rotulo, valor, aoMudar, erro, rotuloOculto
           <Texto variante="rotulo" cor={cores.texto} numberOfLines={1}>{rotulo}</Texto>
         </View>
       )}
-      <CampoNumerico rotulo={rotulo} rotuloOculto rotuloAcessivel={rotulo.includes(macro.nome) ? rotulo : `${rotulo}, ${macro.nome.toLowerCase()}`} valor={valor} aoMudar={aoMudar} erro={erro} />
+      <CampoNumerico rotulo={rotulo} rotuloOculto rotuloAcessivel={rotulo.includes(macro.nome) ? rotulo : `${rotulo}, ${macro.nome.toLowerCase()}`} valor={valor} aoMudar={aoMudar} erro={erro}
+        mascara={mascara} ajudaForaDoCampo={ajudaForaDoCampo} />
     </View>
   );
 }
@@ -143,8 +161,6 @@ const estilos = StyleSheet.create({
   macro: { flexDirection: 'row', alignItems: 'center', flexShrink: 0, gap: espaco(0.5) },
   marca: { width: 8, height: 8, borderRadius: 2 },
   forte: { fontFamily: fontes.semi },
-  // "Fibra 12,0 g (parcial)" anda inteiro, como o macro.
-  fibra: { flexShrink: 0 },
   // No total (forte), a mesma família dos números ao lado, um peso abaixo: a fibra é apoio, não disputa com os macros.
   fibraNoTotal: { fontFamily: fontes.medio },
   // Fora da vista e sem ocupar lugar, mas na árvore de acessibilidade (opacidade 0 continua sendo lida).

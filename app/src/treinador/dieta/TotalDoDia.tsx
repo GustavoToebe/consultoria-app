@@ -10,7 +10,7 @@ import { Cartao } from '../../ui/Cartao';
 import { Incompleto } from '../../ui/Estados';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { Texto } from '../../ui/Texto';
-import { AJUDA_DA_FIBRA_PARCIAL, fibraParcial, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro } from '../../ui/ValoresDaDieta';
+import { AJUDA_DA_FIBRA_PARCIAL, FIBRA, fibraParcial, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro } from '../../ui/ValoresDaDieta';
 
 /**
  * "Total do dia" (opção A de cada refeição; guia premium pág. 10), compacto: kcal em destaque neutro (a maior variante de
@@ -47,10 +47,10 @@ export function TotalDoDia({ conteudo: c, refeicoes, rotulo, semValor, aoAbrirRe
               </View>
             ))}
           </View>
-          {/* Fibra (V089) depois dos macros, neutra e sem marca: não é macro nem entra na kcal. */}
+          {/* Fibra (V089) depois dos macros, com a marca dela (19/11) e o número neutro; não entra na kcal. */}
           <View style={estilos.macro} role="listitem" accessibilityLabel={`Fibra: ${gramasNaTela(t.fibra)}${parcial ? ', parcial' : ''}`}>
             <Texto variante="bloco" numerico>{gramasNaTela(t.fibra)}</Texto>
-            <Texto variante="pequeno">{parcial ? 'Fibra (parcial)' : 'Fibra'}</Texto>
+            <View style={estilos.nomeDoMacro}><MarcaDoMacro cor={FIBRA.cor} /><Texto variante="pequeno">{parcial ? 'Fibra (parcial)' : 'Fibra'}</Texto></View>
           </View>
         </View>
         {aoMudarAgua ? (

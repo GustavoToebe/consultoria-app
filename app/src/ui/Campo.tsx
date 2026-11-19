@@ -20,6 +20,11 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   aoMudar: (texto: string) => void;
   erro?: string | null;
   ajuda?: string;
+  /**
+   * Ajuda escrita fora do campo (uma linha só abaixo de uma grade de campos): o texto com `nativeID={id}` fica com quem usa;
+   * aqui o campo aponta para ele (`aria-describedby` na web, `accessibilityHint` no celular).
+   */
+  ajudaForaDoCampo?: { id: string; texto: string };
   /** Campo de várias linhas (observações). */
   linhas?: number;
   /** Botão dentro do campo, à direita (ex.: calendário). */
@@ -47,7 +52,7 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
  * leitor de tela: `aria-invalid` na web, região viva no Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de
  * foco (a cor da marca não contrasta no escuro).
  */
-export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, sufixo, erroSemTexto, grande, corDoTexto, ...resto }: Props) {
+export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, sufixo, erroSemTexto, grande, corDoTexto, ...resto }: Props) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
   const cinza = coresDoDesabilitado(cores);
@@ -62,7 +67,9 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
       <Input
         {...resto}
         accessibilityLabel={rotuloAcessivel ?? rotulo}
-        accessibilityHint={erro ?? ajuda}
+        accessibilityHint={erro ?? ajuda ?? ajudaForaDoCampo?.texto}
+        // O RN não tipa `aria-describedby`; o react-native-web o leva ao `input`.
+        {...(ajudaForaDoCampo ? ({ 'aria-describedby': ajudaForaDoCampo.id } as object) : null)}
         aria-invalid={!!erro}
         value={valor}
         onChangeText={aoMudar}

@@ -673,6 +673,16 @@ export const PALETA_DE_IDENTIFICACAO: Record<VarianteDoTema, Record<ChaveDeIdent
   escuro: { CIANO: '#3CC3D6', AZUL: '#62A0F8', INDIGO: '#A196F5', VIOLETA: '#CF8DEE', MAGENTA: '#F07AC8' },
 };
 
+/**
+ * Cor do macro FIBRA (19/11, Gustavo: verde-lima): a marca de 8 px da fibra ao lado das de proteína (CIANO), carboidrato
+ * (AZUL) e gordura (VIOLETA). Fica fora de `CHAVES_DE_IDENTIFICACAO` de propósito: é verde (aquela paleta não tem verde)
+ * e não pode virar cor de tipo de série, divisão, refeição nem tag. É bem mais clara que as outras três nos três modos,
+ * para quem não distingue o tom ainda ver a diferença, e fica longe do `sucesso` (ΔE ≥ 40). Só marca:
+ * no claro e na areia passa 3:1, não 4,5:1, então nunca vira texto (o nome "Fibra" ao lado segue neutro). No escuro também
+ * passaria como texto. `tokens.test.ts` confere os 9 temas, com contraste alto e bordas reforçadas.
+ */
+export const PALETA_DA_FIBRA: Record<VarianteDoTema, string> = { claro: '#6A8A00', areia: '#6A8A00', escuro: '#B8E34A' };
+
 /** Uma cor de identificação já resolvida para o tema: `cor` (texto, ícone, barra lateral) e `fundo` (selo, opaco). */
 export interface CorDeIdentificacao {
   cor: string;
@@ -799,6 +809,8 @@ export const LARGURA_MENU_LATERAL = 768;
 export const LARGURA_MENU_EXPANDIDO = 1024;
 /** Editores e formulários longos (treino, dieta, modelo, marca, perfil). */
 export const LARGURA_EDITOR = 1040;
+/** Folha de formulário com campos lado a lado (Editar alimento, 19/11): mais larga que a de 600, menor que a do editor. */
+export const LARGURA_FOLHA_LARGA = 800;
 /** Largura de conteúdo medida a partir da qual o editor de treino usa duas colunas (lista e inspetor). */
 export const LARGURA_DUAS_COLUNAS = 960;
 /**

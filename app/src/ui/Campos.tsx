@@ -108,10 +108,13 @@ export function CampoNumerico({
   sufixoNaCaixa,
   erroSemTexto,
   aoDigitar,
+  ajudaForaDoCampo,
 }: {
   rotulo: string;
   valor: number | null;
   aoMudar: (valor: number | null) => void;
+  /** Ajuda escrita fora do campo (id do texto dela): o mesmo `ajudaForaDoCampo` do `Campo`. */
+  ajudaForaDoCampo?: { id: string; texto: string };
   /** Avisa a cada digitação, mesmo que o texto ainda não seja número (",", "-"): `aoMudar` só vem com número válido. */
   aoDigitar?: () => void;
   /** Nome para o leitor de tela quando o rótulo visível se repete na tela. */
@@ -147,6 +150,7 @@ export function CampoNumerico({
       keyboardType={inteiro ? 'number-pad' : 'decimal-pad'}
       inputMode={inteiro ? 'numeric' : 'decimal'}
       ajuda={ajuda}
+      ajudaForaDoCampo={ajudaForaDoCampo}
       erro={erro ?? (lido === undefined ? (inteiro ? 'Use só números inteiros.' : 'Número inválido.') : null)}
       autoFocus={autoFocus}
     />

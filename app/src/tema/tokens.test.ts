@@ -7,6 +7,7 @@ import {
   CODIGOS_DA_COR_DE_ACAO,
   ESCURO,
   PALETA_DA_AGENDA,
+  PALETA_DA_FIBRA,
   PALETA_SO_DO_PERFIL,
   PALETAS,
   corDoTomDoPerfil,
@@ -355,6 +356,33 @@ describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, c
         expect(distanciaDeCor(a, b)).toBeGreaterThanOrEqual(DISTANCIA_ENTRE_AGENDAS);
       }
     }
+  });
+
+  // Macros do alimento e cor da fibra (19/11): a fibra é verde-lima, só marca (nunca texto no claro e na areia).
+  describe('cor da fibra', () => {
+    const fibra = PALETA_DA_FIBRA[variante];
+
+    it('a marca aparece (3:1) sobre o cartão, a folha, o poço, a faixa e o hover; no escuro serviria até de texto (4,5:1)', () => {
+      for (const base of [cores.superficie, cores.superficie2, cores.superficie3, cores.sobre]) {
+        expect(contraste(fibra, base)).toBeGreaterThanOrEqual(3);
+        if (variante === 'escuro') expect(contraste(fibra, base)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it('não se parece com sucesso, atenção, perigo nem com o cinza neutro', () => {
+      for (const status of [cores.sucesso, cores.atencao, cores.perigo, cores.perigoFundo]) {
+        expect(distanciaDeCor(fibra, status)).toBeGreaterThanOrEqual(DISTANCIA_DA_IDENTIFICACAO_AO_STATUS);
+      }
+      expect(distanciaDeCor(fibra, cores.neutro)).toBeGreaterThanOrEqual(DISTANCIA_DA_IDENTIFICACAO_AO_NEUTRO);
+      expect(distanciaDeCor(fibra, cores.textoSuave)).toBeGreaterThanOrEqual(DISTANCIA_DA_IDENTIFICACAO_AO_NEUTRO);
+    });
+
+    it('difere das marcas de proteína, carboidrato e gordura também na luminosidade (ΔL* ≥ 10), não só no tom', () => {
+      for (const chave of ['CIANO', 'AZUL', 'VIOLETA'] as const) {
+        expect(Math.abs(lab(fibra)[0] - lab(identificacao[chave].cor)[0])).toBeGreaterThanOrEqual(10);
+      }
+      for (const chave of CHAVES_DE_IDENTIFICACAO) expect(distanciaDeCor(fibra, identificacao[chave].cor)).toBeGreaterThanOrEqual(DISTANCIA_ENTRE_AGENDAS);
+    });
   });
 });
 // ---- Visual de 11/11 (guia em PDF, págs. 4, 5, 6, 12 e 13) ----

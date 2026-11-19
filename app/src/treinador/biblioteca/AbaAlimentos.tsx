@@ -1,7 +1,7 @@
 import { Permitido } from '../../ui/Permitido';
 import { Pencil, Plus, ShoppingCart, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useId, useState, type ReactNode } from 'react';
+import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { alterarAlimento, criarAlimento, gruposDoCatalogo, inativarAlimento, listarAlimentos } from '../../api/rotas';
 import type { Alimento, AlimentoRequest, UnidadeAlimento } from '../../api/tipos';
@@ -19,18 +19,17 @@ import {
   previaDeConversao,
 } from '../../dominio/fatoresDoAlimento';
 import { erroDaFibra } from '../../dominio/dieta';
-import { mascaraDeNumero, numeroParaTela } from '../../dominio/formatos';
+import { mascaraDeNumero, numeroParaTela, SEM_DADO } from '../../dominio/formatos';
 import { kcalDoAlimento, kcalDosMacros } from '../../dominio/kcalDosMacros';
 import { chipDeVarias } from '../../dominio/filtrosDaBiblioteca';
 import { grupoDoTexto, gruposDoCampo } from '../../dominio/gruposDaLista';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_FOLHA_LARGA, LARGURA_MENU_LATERAL, RAIO, RAIO_CONTROLE } from '../../tema/tokens';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
-import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Cartao } from '../../ui/Cartao';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
@@ -45,8 +44,9 @@ import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
-import { CampoDoMacro, LegendaDosMacros, MACROS, ValoresDaDieta } from '../../ui/ValoresDaDieta';
+import { CampoDoMacro, FIBRA, LegendaDosMacros, MACROS, ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { normalizar } from '../treino/FolhaBiblioteca';
+import { colunasDaGrade, larguraDaCelula, VAO_DA_GRADE, type ColunasDaGrade } from './gradeDoAlimento';
 
 export const UNIDADES: { valor: UnidadeAlimento; rotulo: string }[] = [
   { valor: 'g', rotulo: 'g' },
@@ -248,6 +248,16 @@ export function AbaAlimentos() {
   );
 }
 
+/** Ajuda da fibra, numa linha só abaixo da grade dos macros; o campo de fibras aponta para ela. */
+const NOTA_DA_FIBRA = 'Fibras são opcionais e não entram na kcal.';
+
+interface Grade { largura: number; colunas: ColunasDaGrade }
+
+/** Célula da grade do formulário: a largura de `ocupa` colunas; o que não cabe na linha desce, na mesma grade. */
+function Celula({ grade, ocupa, style, children }: { grade: Grade; ocupa: number; style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  return <View style={[{ width: larguraDaCelula(grade.largura, grade.colunas, ocupa) }, style]}>{children}</View>;
+}
+
 function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTirar }: {
   aoTirar?: () => void;
   inicial: Alimento | null;
@@ -286,6 +296,16 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   const kcalDosMacrosDigitados = kcalDosMacros(proteina, carboidrato, gordura);
   const kcal = kcalDoAlimento(proteina, carboidrato, gordura, inicial?.kcal ?? null);
   const kcalDaFonte = kcalDosMacrosDigitados === null && kcal !== null;
+  const rotuloDaKcal = kcalDaFonte ? 'Kcal (da fonte)' : 'Kcal (calculada)';
+  const textoDaKcal = kcal === null ? SEM_DADO : numeroParaTela(kcal);
+  const idDaNotaDaFibra = useId();
+  // Grade pela largura do conteúdo do cartão. Antes da primeira medida, a estimativa pela janela (folha de até 800 no PC,
+  // folha de baixo no celular, menos as margens) evita o salto de layout ao abrir.
+  const { width: janela } = useWindowDimensions();
+  const [larguraMedida, setLarguraMedida] = useState<number | null>(null);
+  const largura = larguraMedida ?? (janela >= LARGURA_MENU_LATERAL ? Math.min(janela - espaco(4), LARGURA_FOLHA_LARGA) - 76 : janela - 68);
+  const grade: Grade = { largura, colunas: colunasDaGrade(largura) };
+  const g5 = grade.colunas === 5;
   const sugerido = estimarFatoresDoAlimento(nome, grupo, kcal, base, unidade);
   const fcMostrado = tocouFatores ? fc : sugerido.fatorCorrecao;
   const fccMostrado = tocouFatores ? fcc : sugerido.fatorCoccao;
@@ -339,6 +359,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   return (
     <Folha
       visivel
+      largura={LARGURA_FOLHA_LARGA}
       titulo={inicial ? 'Editar alimento' : 'Novo alimento'}
       aoFechar={aoFechar}
       rodape={
@@ -352,13 +373,14 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
           linha, e dentro da faixa ela ficava numa fileira só, cortada na borda da folha. */}
       <View style={estilos.partes}>
         <Cartao titulo="Identificação" nivel={3}>
-          <View style={estilos.linhaDeCampos}>
-            <View style={estilos.campoNome}>
+          {/* Esta linha mede a largura do conteúdo do cartão; todos os cartões da folha têm a mesma, então a grade é uma só. */}
+          <View style={estilos.linhaDaGrade} onLayout={(e) => setLarguraMedida(e.nativeEvent.layout.width)}>
+            <Celula grade={grade} ocupa={g5 ? 3 : 2}>
               <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={160} />
-            </View>
-            <View style={estilos.campoLargo}>
+            </Celula>
+            <Celula grade={grade} ocupa={2}>
               <Campo rotulo="Fonte dos valores (opcional)" valor={fonte} aoMudar={setFonte} maxLength={200} placeholder="ex.: TACO, rótulo" />
-            </View>
+            </Celula>
           </View>
           <View style={estilos.grupo}>
             {/* Um campo só: busca nos grupos da consultoria e do catálogo, aceita um grupo próprio ("Usar “…”") e
@@ -376,14 +398,16 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
         </Cartao>
 
         <Cartao titulo="Porção e macronutrientes" descricao="Como no rótulo ou na tabela nutricional." nivel={3}>
-          <View style={estilos.linhaDeCampos}>
-            <View style={estilos.campoCurto}>
+          {/* Uma linha só no modal largo (1 + 2 + 2 colunas, a Unidade começa onde começa a Proteína); no estreito, as
+              Gramas descem. A Unidade tem duas colunas no largo: as três opções não cabem numa. */}
+          <View style={estilos.linhaDaGrade}>
+            <Celula grade={grade} ocupa={1}>
               <CampoNumerico rotulo="Quantidade-base" valor={base} aoMudar={setBase} erro={campos.baseQuantidade} />
-            </View>
-            <View style={estilos.campoUnidade}>
+            </Celula>
+            <Celula grade={grade} ocupa={grade.colunas === 2 ? 1 : 2}>
               <Escolha rotulo="Unidade" opcoes={UNIDADES} valor={unidade} aoMudar={setUnidade} />
-            </View>
-            <View style={estilos.campoLargo}>
+            </Celula>
+            <Celula grade={grade} ocupa={2}>
               <CampoNumerico
                 rotulo="Gramas por unidade (opcional)"
                 valor={gramas}
@@ -391,33 +415,50 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
                 ajuda={'Para usar em unidades (1 fatia = 25 g).'}
                 erro={campos.gramasPorUnidade}
               />
-            </View>
+            </Celula>
           </View>
-          {/* Os macros dizem a que quantidade se referem: a ligação com a quantidade-base fica escrita. */}
+          {/* Os macros dizem a que quantidade se referem: a ligação com a quantidade-base fica escrita. Sem `numerico` no
+              sobretítulo: a fonte de números, na caixa alta de 12 px, cortava o pé das letras. */}
           <View style={[estilos.macros, { borderTopColor: cores.borda }]}>
-            <Texto variante="secao" numerico>{base ? `Valores por ${numeroParaTela(base)} ${unidade}` : 'Valores pela quantidade-base'}</Texto>
-            <View style={estilos.linhaDeCampos}>
-              <View style={estilos.campoMacro}>
-                <CampoLeitura rotulo={kcalDaFonte ? 'Kcal (da fonte)' : 'Kcal (calculada)'}
-                  valor={kcal === null ? null : numeroParaTela(kcal)} numerico />
-              </View>
-              {/* Marca da cor só no rótulo (a mesma das listas e do aluno); a caixa e o número seguem neutros. */}
-              <View style={estilos.campoMacro}>
-                <CampoDoMacro macro={MACROS[0]} rotulo="Proteína (g)" valor={proteina} aoMudar={setProteina} erro={campos.proteina} />
-              </View>
-              <View style={estilos.campoMacro}>
-                <CampoDoMacro macro={MACROS[1]} rotulo="Carboidrato (g)" valor={carboidrato} aoMudar={setCarboidrato} erro={campos.carboidrato} />
-              </View>
-              <View style={estilos.campoMacro}>
-                <CampoDoMacro macro={MACROS[2]} rotulo="Gordura (g)" valor={gordura} aoMudar={setGordura} erro={campos.gordura} />
-              </View>
+            <View style={estilos.tituloDosValores}>
+              <Texto variante="secao" style={estilos.textoDoTitulo}>{base ? `Valores por ${numeroParaTela(base)} ${unidade}` : 'Valores pela quantidade-base'}</Texto>
+              {g5 ? null : (
+                <View style={estilos.kcalNoTitulo} accessibilityLabel={`${rotuloDaKcal}: ${textoDaKcal}`}>
+                  <Texto numerico style={estilos.forte}>{`${textoDaKcal} kcal`}</Texto>
+                  <Texto variante="pequeno">{kcalDaFonte ? 'da fonte' : 'calculada'}</Texto>
+                </View>
+              )}
             </View>
-            {kcalDosMacrosDigitados === null ? <Texto variante="pequeno">Preencha os três para o app calcular a kcal.</Texto> : null}
-            {/* A fibra não é macro: linha própria depois da ajuda dos três, sem a marca da cor e fora da kcal, na largura de
-                um campo (não estica). O erro da API (422 no campo `fibra`) vence o local. */}
-            <View style={estilos.campoFibra}>
-              <CampoNumerico rotulo="Fibras (g)" valor={fibra} aoMudar={setFibra} mascara={(t) => mascaraDeNumero(t, 2)}
-                ajuda="Opcional. Não entra na kcal." erro={campos.fibra ?? erroFibra} />
+            {/* Marca da cor só no rótulo (a mesma das listas e do aluno); a caixa e o número seguem neutros. A fibra tem a
+                marca dela e o erro da API (422 no campo `fibra`) vence o local. */}
+            <View style={estilos.linhaDaGrade}>
+              {g5 ? (
+                <Celula grade={grade} ocupa={1}>
+                  {/* Só leitura e sem cara de campo: poço em `superficie2`, sem contorno, na altura da caixa ao lado. */}
+                  <View style={estilos.kcalLida} accessibilityLabel={`${rotuloDaKcal}: ${textoDaKcal}`}>
+                    <Texto variante="rotulo" cor={cores.texto} numberOfLines={1}>{rotuloDaKcal}</Texto>
+                    <View style={[estilos.pocoDaKcal, { backgroundColor: cores.superficie2 }]}><Texto numerico>{textoDaKcal}</Texto></View>
+                  </View>
+                </Celula>
+              ) : null}
+              <Celula grade={grade} ocupa={1}>
+                <CampoDoMacro macro={MACROS[0]} rotulo="Proteína (g)" valor={proteina} aoMudar={setProteina} erro={campos.proteina} />
+              </Celula>
+              <Celula grade={grade} ocupa={1}>
+                <CampoDoMacro macro={MACROS[1]} rotulo="Carboidrato (g)" valor={carboidrato} aoMudar={setCarboidrato} erro={campos.carboidrato} />
+              </Celula>
+              <Celula grade={grade} ocupa={1}>
+                <CampoDoMacro macro={MACROS[2]} rotulo="Gordura (g)" valor={gordura} aoMudar={setGordura} erro={campos.gordura} />
+              </Celula>
+              <Celula grade={grade} ocupa={1}>
+                <CampoDoMacro macro={FIBRA} rotulo="Fibras (g)" valor={fibra} aoMudar={setFibra} mascara={(t) => mascaraDeNumero(t, 2)}
+                  erro={campos.fibra ?? erroFibra} ajudaForaDoCampo={{ id: idDaNotaDaFibra, texto: NOTA_DA_FIBRA }} />
+              </Celula>
+            </View>
+            {/* As duas notas da grade juntas, mais perto uma da outra do que da grade. */}
+            <View style={estilos.notas}>
+              {kcalDosMacrosDigitados === null ? <Texto variante="pequeno">Preencha os três para o app calcular a kcal.</Texto> : null}
+              <Texto variante="pequeno" nativeID={idDaNotaDaFibra}>{NOTA_DA_FIBRA}</Texto>
             </View>
           </View>
         </Cartao>
@@ -427,22 +468,26 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
           {/* O fator está no nome do perfil; o "Personalizado" abre o número logo abaixo, já com o valor de agora. FC são
               cinco opções (sem busca); FCc, dez (com busca). Duas linhas no valor: no celular o nome longo do perfil não
               esconde o fator do fim. */}
-          <View style={estilos.fator}>
-            <EscolhaSuspensa<string> rotulo="Descarte e limpeza antes do preparo (FC)" titulo="Descarte e limpeza (FC)" valor={perfilFc} semBusca linhasDoValor={2}
-              opcoes={[...PERFIS_FC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), personalizado(perfilFc === 'PERSONALIZADO', fcMostrado)]}
-              aoMudar={(c) => { const perfil = PERFIS_FC.find((p) => p.codigo === c); setFcLivre(!perfil); if (perfil) escolherFc(perfil.valor); else travarFatores(); }} />
-            {numeroDoFc ? (
-              <CampoNumerico rotulo="Fator de correção (FC)" valor={fcMostrado} aoMudar={(v) => { setFc(v); setFcc(fccMostrado); setTocouFatores(true); }} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
-            ) : null}
-          </View>
-          <View style={estilos.fator}>
-            <EscolhaSuspensa<string> rotulo="Estado na dieta e cocção (FCc)" valor={perfilFcc} linhasDoValor={2}
-              rotuloDaBusca="Buscar perfil" textoVazio="Nenhum perfil encontrado."
-              opcoes={[...PERFIS_FCC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), personalizado(perfilFcc === 'PERSONALIZADO', fccMostrado)]}
-              aoMudar={(c) => { const perfil = PERFIS_FCC.find((p) => p.codigo === c); setFccLivre(!perfil); if (perfil) escolherFcc(perfil.valor); else travarFatores(); }} />
-            {numeroDoFcc ? (
-              <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fccMostrado} aoMudar={(v) => { setFc(fcMostrado); setFcc(v); setTocouFatores(true); }} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
-            ) : null}
+          {/* FC e FCc lado a lado na grade (3 + 2 colunas no largo: o rótulo do FC é o longo e não pode cortar o "(FC)"; os
+              perfis do FCc quebram em até duas linhas); no estreito, um embaixo do outro. */}
+          <View style={estilos.linhaDaGrade}>
+            <Celula grade={grade} ocupa={g5 ? 3 : 2} style={estilos.fator}>
+              <EscolhaSuspensa<string> rotulo="Descarte e limpeza antes do preparo (FC)" titulo="Descarte e limpeza (FC)" valor={perfilFc} semBusca linhasDoValor={2}
+                opcoes={[...PERFIS_FC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), personalizado(perfilFc === 'PERSONALIZADO', fcMostrado)]}
+                aoMudar={(c) => { const perfil = PERFIS_FC.find((p) => p.codigo === c); setFcLivre(!perfil); if (perfil) escolherFc(perfil.valor); else travarFatores(); }} />
+              {numeroDoFc ? (
+                <CampoNumerico rotulo="Fator de correção (FC)" valor={fcMostrado} aoMudar={(v) => { setFc(v); setFcc(fccMostrado); setTocouFatores(true); }} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
+              ) : null}
+            </Celula>
+            <Celula grade={grade} ocupa={2} style={estilos.fator}>
+              <EscolhaSuspensa<string> rotulo="Estado na dieta e cocção (FCc)" valor={perfilFcc} linhasDoValor={2}
+                rotuloDaBusca="Buscar perfil" textoVazio="Nenhum perfil encontrado."
+                opcoes={[...PERFIS_FCC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), personalizado(perfilFcc === 'PERSONALIZADO', fccMostrado)]}
+                aoMudar={(c) => { const perfil = PERFIS_FCC.find((p) => p.codigo === c); setFccLivre(!perfil); if (perfil) escolherFcc(perfil.valor); else travarFatores(); }} />
+              {numeroDoFcc ? (
+                <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fccMostrado} aoMudar={(v) => { setFc(fcMostrado); setFcc(v); setTocouFatores(true); }} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
+              ) : null}
+            </Celula>
           </View>
           {fcMostrado !== null && fccMostrado !== null && fccMostrado !== 0 ? (
             <View style={[estilos.exemplo, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
@@ -474,14 +519,17 @@ const estilos = StyleSheet.create({
   valoresDoAlimento: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5) },
   // 24 px entre os cartões da folha (seção 4.3 do design); dentro de cada cartão, os 16 px do próprio `Cartao`.
   partes: { gap: espaco(3) },
-  linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
-  campoNome: { flexGrow: 2, flexBasis: 240 },
-  campoCurto: { flexGrow: 1, flexBasis: 120 },
-  // 180 px: FC e FCc lado a lado na folha do PC (600) e um embaixo do outro no celular.
-  campoLargo: { flexGrow: 1, flexBasis: 180 },
-  campoMacro: { flexGrow: 1, flexBasis: 100 },
-  // A fibra numa largura fixa (a ajuda e o erro cabem em até duas linhas), sem esticar pela folha.
-  campoFibra: { width: 200, maxWidth: '100%' },
+  // Linha da grade (`gradeDoAlimento`): células de largura medida e o mesmo vão nas duas direções, para as colunas baterem.
+  linhaDaGrade: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: VAO_DA_GRADE },
+  // Sobretítulo à esquerda e a kcal à direita; com a kcal comprida, ela desce inteira.
+  tituloDosValores: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', columnGap: espaco(2), rowGap: espaco(0.5) },
+  textoDoTitulo: { flexShrink: 1 },
+  kcalNoTitulo: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(0.75), flexShrink: 0 },
+  forte: { fontFamily: fontes.monoSemi },
+  // Rótulo e poço na mesma medida do `CampoDoMacro` ao lado (gap de 4 e caixa de 44), para as caixas ficarem alinhadas.
+  kcalLida: { gap: espaco(0.5) },
+  notas: { gap: espaco(0.5) },
+  pocoDaKcal: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.5), borderRadius: RAIO_CONTROLE },
   // Erro e ajuda colados no campo Grupo (8 px), não soltos no cartão; o mesmo no perfil do fator e no número dele.
   grupo: { gap: espaco(1) },
   fator: { gap: espaco(1) },
@@ -490,8 +538,6 @@ const estilos = StyleSheet.create({
   exemplo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5) },
   iconeDoExemplo: { flexShrink: 0, paddingTop: 2 },
   textoDoExemplo: { flexShrink: 1 },
-  // As três unidades numa linha só, sem o "un" cair embaixo.
-  campoUnidade: { flexShrink: 0 },
   tirar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   textoDoTirar: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
 });

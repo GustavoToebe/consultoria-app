@@ -35,7 +35,7 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { NumeroInvertido } from '../../ui/NumeroInvertido';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
-import { CampoDoMacro, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../../ui/ValoresDaDieta';
+import { CampoDoMacro, FIBRA, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
 import { acoesDeMover } from '../acoesDeMover';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
@@ -320,7 +320,7 @@ function OpcaoDaRefeicao({
   );
 }
 
-/** Os números do item que podem virar coluna (os do total que o item também tem): a fibra (V089) é a última coluna: opcional, sem cor, fora da kcal. */
+/** Os números do item que podem virar coluna (os do total que o item também tem): a fibra (V089) é a última coluna: opcional, com a marca própria, fora da kcal. */
 type ChaveDoValor = Extract<keyof TotaisComFibra, keyof ItemDieta>;
 type ModoDoItem = 'tabela' | 'empilhado';
 /** O nome nunca fica mais estreito que isto na tabela: abaixo, a opção volta ao item empilhado. */
@@ -360,7 +360,8 @@ export function larguraDaTabela(acoes: number): number {
 }
 
 const estiloDaColuna = (c: (typeof COLUNAS)[number]) => (c.chave === 'nome' ? estilos.colunaDoNomeNaTabela : { width: c.largura });
-const macroDa = (chave: ChaveDoValor | undefined) => MACROS.find((m) => m.chave === chave);
+// A fibra também tem marca (19/11); a kcal não.
+const macroDa = (chave: ChaveDoValor | undefined) => (chave === 'fibra' ? FIBRA : MACROS.find((m) => m.chave === chave));
 
 /**
  * Botões que a coluna das ações reserva: Trocar (só com quem trate a troca), o ⋯ (com "Mover para cima/baixo", desde o
@@ -448,15 +449,16 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
     <EscolhaSuspensa<UnidadeAlimento> rotulo="Unidade" titulo={`Unidade de ${nome}`} opcoes={UNIDADES} valor={item.unidade}
       aoMudar={(u) => mudar({ unidade: u })} style={estilos.unidade} />
   );
-  // Os valores do item manual são campos; P, C e G com a marca da cor no rótulo (na tabela, no cabeçalho).
+  // Os valores do item manual são campos; P, C, G e a fibra com a marca da cor no rótulo (na tabela, no cabeçalho).
   const campoDoValor = (c: (typeof COLUNAS)[number]) => {
     const macro = macroDa(c.valor);
     const chave = c.valor;
     if (!chave) return null;
     return macro ? (
-      <CampoDoMacro macro={macro} rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)} />
+      <CampoDoMacro macro={macro} rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)}
+        erro={chave === 'fibra' ? erroDaFibra(item.fibra) : undefined} />
     ) : (
-      <CampoNumerico rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)} erro={chave === 'fibra' ? erroDaFibra(item.fibra) : undefined} />
+      <CampoNumerico rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)} />
     );
   };
   // Os mesmos botões contados em `acoesReservadas`.
