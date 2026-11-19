@@ -84,6 +84,8 @@ export type EstadoDoVideo = 'vazio' | 'valido' | 'invalido';
 export const estadoDoVideo = (url: string): EstadoDoVideo => (!url.trim() ? 'vazio' : videoValido(url) ? 'valido' : 'invalido');
 export const TEXTO_DO_VIDEO_ADICIONADO = 'Vídeo adicionado';
 export const AVISO_DO_LINK_INVALIDO = 'Link do YouTube inválido';
+/** Na tabela (coluna Vídeo de ~145 px em 1280 com o menu aberto) o texto longo cortaria; o rótulo oculto já diz YouTube. */
+export const AVISO_CURTO_DO_LINK_INVALIDO = 'Link inválido';
 
 /** Excluir seção pede confirmação só quando leva itens junto (a vazia sai direto, com Desfazer). */
 export const excluirSecaoPedeConfirmacao = (s: SecaoMobilidade): boolean => s.itens.length > 0;

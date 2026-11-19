@@ -1,5 +1,5 @@
 import {
-  adicionarItem, aplicarModeloDeMobilidade, AVISO_DO_LINK_INVALIDO, estadoDoVideo, excluirSecaoPedeConfirmacao, itemParaTela,
+  adicionarItem, aplicarModeloDeMobilidade, AVISO_CURTO_DO_LINK_INVALIDO, AVISO_DO_LINK_INVALIDO, estadoDoVideo, excluirSecaoPedeConfirmacao, itemParaTela,
   mobilidadeParaApi, mobilidadeParaExibir, mobilidadeValida, moverItem, moverSecao, normalizarMobilidade, novaSecaoMobilidade, removerItem,
   resumoDaSecao, resumoDasOrientacoes, secaoValida, temAbaMobilidade, TEXTO_DO_VIDEO_ADICIONADO,
 } from './mobilidade';
@@ -64,6 +64,7 @@ describe('editor de mobilidade', () => {
     expect(estadoDoVideo('http://youtu.be/abc')).toBe('invalido');
     expect(TEXTO_DO_VIDEO_ADICIONADO).toBe('Vídeo adicionado');
     expect(AVISO_DO_LINK_INVALIDO).toBe('Link do YouTube inválido');
+    expect(AVISO_CURTO_DO_LINK_INVALIDO).toBe('Link inválido');
   });
 
   it('excluir seção só confirma com itens', () => {

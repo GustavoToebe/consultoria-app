@@ -17,19 +17,19 @@ treino e de dieta").
 | D4 | Painel da seção | Faixa de 6 px na cor de ação só no inspetor (empilhado, todas as seções estão abertas: faixa em todas quebraria "um nível de destaque por vez"). Cabeçalho com "Seção N de M", o título editável (nome acessível "Título da seção N", único no empilhado), ⋯ e "Excluir seção" (`perigoTexto`; confirma com `PainelConfirmacao` só se tiver itens; Desfazer depois). A única seção não tem "Excluir seção" (como "Remover sessão" no treino). | Gustavo (pedido) + executor-front (detalhes) |
 | D5 | Itens | Tabela como a da dieta: cabeçalho "#", "Nome", "Prescrição", "Vídeo" (`aria-hidden`), faixas `superficie2` de cantos 12 a 6 px, alça e número no começo e ⋯ no fim (mover e "Excluir item"); Nome e Prescrição flex 1,2, Vídeo flex 1. Itens sempre abertos (o abrir e fechar por item e o "Abrir todos" saíram). | Gustavo (pedido) |
 | D6 | Limiar da tabela | Lista dos itens com 600 px medidos (painel de ~640 px); abaixo, cartão empilhado com os rótulos. O pedido falava em ~760 px de painel, mas em 1280 com o menu aberto o painel tem ~710 px (lista de seções de 280 px): com 760 o PC comum ficaria sem a tabela. | Executor-front (medido) |
-| D7 | Vídeo | Vazio: campo com "Cole o link do YouTube". Válido e fora do foco: "Vídeo adicionado" com Abrir (nova aba) e Trocar (volta ao campo com o foco). Inválido: o campo e o selo de atenção "Link do YouTube inválido" ligado por `aria-describedby`. Regra: `videoValido` de sempre (`dominio/mobilidade.estadoDoVideo`). | Gustavo (pedido) |
-| D8 | Cor do link inválido | Âmbar (atenção), como o pedido; a regra geral do documento de design diz vermelho para valor inválido. O salvar continua travado e a seção mostra "Corrigir" em vermelho. Divergência registrada para o Gustavo decidir. | Gustavo (pedido); divergência aberta |
+| D7 | Vídeo | Vazio: campo com "Cole o link do YouTube" (na tabela, "Link do YouTube"). Válido e fora do foco: "Vídeo adicionado" com Abrir (nova aba) e Trocar (volta ao campo com o foco). Inválido: o campo em erro e o selo de perigo "Link do YouTube inválido" (na tabela, "Link inválido") ligado por `aria-describedby`. Regra: `videoValido` de sempre (`dominio/mobilidade.estadoDoVideo`). | Gustavo (pedido; textos curtos em 19/11) |
+| D8 | Cor do link inválido | **Decidida: vermelho** (perigo), pela 4.5 do documento de design, porque trava o salvar: contorno da faixa do item, borda do campo (`erro` com `erroSemTexto`, `aria-invalid`) e selo `perigo` com o ícone do erro (`CircleAlert`). Na coluna Vídeo da tabela (1280 com o menu aberto), placeholder "Link do YouTube" e selo "Link inválido", sem cortar nem quebrar; empilhado, os textos longos. | Gustavo (19/11) |
 
 ## Passos
 - [x] 1. Regra pura em `app/src/dominio/mobilidade.ts` com teste (`estadoDoVideo`, textos do vídeo, mover/remover/adicionar item, mover seção, resumos) — commit/run: —
 - [x] 2. Tela: `treinador/mobilidade/{SecoesDeMobilidade,ItemDeMobilidade,SobreAMobilidade,EditorDeMobilidade}.tsx` e o ramo da mobilidade em `planejamento/EditorModelo.tsx` — commit/run: —
 - [x] 3. e2e `app/e2e/editor-mobilidade.spec.ts` (arrastar com o mouse em 1280, ⋯, excluir com confirmação, tabela, vídeo, modelo, capturas) — commit/run: —
 - [x] 4. Commit (sessão principal, 19/11) — commit: `74825d91`; publicação: pendente (sem push)
-- [ ] 5. D8 decidida em 19/11 (Gustavo): link inválido em vermelho (perigo), pela 4.5 do documento de design, porque trava o salvar; atualizar a D8; na coluna Vídeo em 1280, placeholder curto "Link do YouTube" e selo curto "Link inválido" (sem cortar nem quebrar); tirar a pendência solta do README — a fazer
+- [x] 5. D8 decidida em 19/11 (Gustavo): link inválido em vermelho (perigo), pela 4.5 do documento de design, porque trava o salvar; atualizar a D8; na coluna Vídeo em 1280, placeholder curto "Link do YouTube" e selo curto "Link inválido" (sem cortar nem quebrar); tirar a pendência solta do README — feito em 19/11 (sem commit): `ItemDeMobilidade.tsx`, `AVISO_CURTO_DO_LINK_INVALIDO` em `dominio/mobilidade.ts` com teste; e2e `editor-mobilidade.spec.ts` 18/18 (caso novo em 1280 claro e escuro: cor igual à do "Corrigir", `aria-invalid`, selo numa linha, placeholder medido no canvas cabendo na caixa, "Salvar modelo" desabilitado com o motivo); capturas vistas em 1280 (claro e escuro) e 390 — commit: `138dac40`
 
 ## Fora do escopo
 - Formato dos dados (`ConteudoMobilidade` no app e `receitas/ConteudoMobilidade` na API) não muda.
 - Token para a faixa de 6 px (repetida em treino, dieta e mobilidade, `shortcut:` nos três).
 
 ## O que ficou para trás
-- D8 decidida em 19/11 (vermelho): falta aplicar (passo 5).
+- Commit do passo 5 (sessão principal) e publicação.

@@ -9,7 +9,8 @@ import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, typ
  * Orientações dentro). Seções na lista com a alça de arrastar (mouse em 1280), "Ordem alterada." com Desfazer e as setas
  * no ⋯ ("Mover para cima/baixo"); o painel da seção com "Seção N de M", o título editável no cabeçalho, ⋯ e "Excluir
  * seção" (confirma com itens). Itens em tabela (cabeçalho uma vez, faixas, alça, número e ⋯ com mover e "Excluir item");
- * o vídeo vazio, "Vídeo adicionado" (Abrir e Trocar) ou o aviso "Link do YouTube inválido"; estreito, o item empilhado com
+ * o vídeo vazio, "Vídeo adicionado" (Abrir e Trocar) ou o erro em vermelho ("Link inválido" na tabela, "Link do YouTube
+ * inválido" empilhado), que trava o salvar; estreito, o item empilhado com
  * os rótulos. "Adicionar item" leva o foco ao Nome do novo. Dados fictícios. Com `CAPTURAS=<pasta>`, guarda as telas.
  */
 
@@ -205,7 +206,7 @@ test('itens em tabela: cabeçalho uma vez, ⋯ com mover e excluir, Adicionar it
   // Nome e Prescrição maiores que o Vídeo.
   expect(nome.width).toBeGreaterThan(video.width);
   expect(Math.abs(nome.width - prescricao.width)).toBeLessThan(2);
-  await expect(page.getByRole('textbox', { name: 'Vídeo do item 1 (link do YouTube, opcional)' })).toHaveAttribute('placeholder', 'Cole o link do YouTube');
+  await expect(page.getByRole('textbox', { name: 'Vídeo do item 1 (link do YouTube, opcional)' })).toHaveAttribute('placeholder', 'Link do YouTube');
 
   await noMenu(page, 'Lunge', 'Mover para cima');
   await expect(page.getByRole('textbox', { name: 'Nome do item 1' })).toHaveValue('Lunge');
@@ -234,7 +235,7 @@ test('vídeo: vazio com o placeholder, válido vira "Vídeo adicionado" (Abrir e
   await page.context().route('https://youtu.be/**', (r) => r.fulfill({ body: '' }));
   await expect(page.getByText('Vídeo adicionado', { exact: true })).toHaveCount(1);
   await expect(page.getByRole('textbox', { name: 'Vídeo do item 1 (link do YouTube, opcional)' })).toHaveCount(0);
-  await expect(page.getByText('Link do YouTube inválido', { exact: true })).toBeVisible();
+  await expect(page.getByText('Link inválido', { exact: true })).toBeVisible();
   // Abrir: nova aba com o link, fora do app.
   const [aba] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Abrir vídeo do item 1 (nova aba)' }).click()]);
   expect(aba.url()).toContain('youtu.be/exemploFicticio');
@@ -255,10 +256,50 @@ test('vídeo: vazio com o placeholder, válido vira "Vídeo adicionado" (Abrir e
   await expect(page.getByText('Vídeo adicionado', { exact: true })).toHaveCount(2);
   // Corrigir o inválido apaga o aviso.
   await page.getByRole('textbox', { name: 'Vídeo do item 3 (link do YouTube, opcional)' }).fill('');
-  await expect(page.getByText('Link do YouTube inválido', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Link inválido', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Vídeo do item 3 (link do YouTube, opcional)' })).toHaveAttribute('aria-invalid', 'false');
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
+
+// D8 decidida em 19/11: link inválido é erro (vermelho, 4.5), porque trava o salvar; na coluna Vídeo de 1280 tudo curto.
+for (const escuro of [false, true]) {
+  test(`vídeo: link inválido em vermelho, "Link inválido" e "Link do YouTube" sem corte nem quebra, salvar travado (1280px, ${escuro ? 'escuro' : 'claro'})`, async ({ page }) => {
+    const { naoTratadas, errosDaPagina } = await abrirModelo(page, 1280, { escuro });
+    const selo = page.getByText('Link inválido', { exact: true });
+    await expect(selo).toHaveCount(1);
+    await expect(page.getByText('Link do YouTube inválido', { exact: true })).toHaveCount(0);
+    // Mesma cor do "Corrigir" da seção (token `perigo`), no texto do selo e na borda do campo; o campo vai ao leitor como inválido.
+    const perigo = await page.getByText('Corrigir', { exact: true }).first().evaluate((e) => getComputedStyle(e).color);
+    expect(await selo.evaluate((e) => getComputedStyle(e).color)).toBe(perigo);
+    const invalido = page.getByRole('textbox', { name: 'Vídeo do item 3 (link do YouTube, opcional)' });
+    await expect(invalido).toHaveAttribute('aria-invalid', 'true');
+    expect(await invalido.evaluate((e) => getComputedStyle(e).borderTopColor)).toBe(perigo);
+    const idDoSelo = await invalido.getAttribute('aria-describedby');
+    await expect(page.locator(`[id="${idDoSelo}"]`)).toHaveText('Link inválido');
+    // O selo numa linha só, sem cortar.
+    const seloInteiro = await selo.evaluate((e) => e.scrollWidth <= e.clientWidth && e.getBoundingClientRect().height < parseFloat(getComputedStyle(e).lineHeight) * 1.5);
+    expect(seloInteiro).toBe(true);
+    // O placeholder curto cabe na caixa (o `scrollWidth` do input não mede o placeholder: mede no canvas com a fonte dele).
+    const vazio = page.getByRole('textbox', { name: 'Vídeo do item 2 (link do YouTube, opcional)' });
+    await expect(vazio).toHaveAttribute('placeholder', 'Link do YouTube');
+    const folga = await vazio.evaluate((e) => {
+      const input = e as HTMLInputElement;
+      const s = getComputedStyle(input);
+      const ctx = document.createElement('canvas').getContext('2d')!;
+      ctx.font = s.font;
+      return input.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight) - ctx.measureText(input.placeholder).width;
+    });
+    expect(folga).toBeGreaterThanOrEqual(0);
+    // Salvar travado, com o motivo à vista.
+    await expect(page.getByRole('button', { name: 'Salvar modelo', exact: true })).toBeDisabled();
+    await expect(page.getByText('Toda seção precisa de item, todo item de nome e o vídeo precisa ser do YouTube.')).toBeVisible();
+    await semEstouro(page);
+    await capturar(page, `mobilidade-link-invalido-1280-${escuro ? 'escuro' : 'claro'}`, 1000);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
 
 test('1920: os três campos do item numa linha e o painel até a beirada', async ({ page }) => {
   const { naoTratadas, errosDaPagina } = await abrir(page, 1920);
@@ -341,7 +382,8 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
   test(`modelo: seção com vídeo válido, vazio e inválido, Orientações fechado e aberto (${largura}px, ${escuro ? 'escuro' : 'claro'})`, async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await abrirModelo(page, largura, { escuro });
     await expect(page.getByText('Vídeo adicionado', { exact: true })).toHaveCount(1);
-    await expect(page.getByText('Link do YouTube inválido', { exact: true })).toHaveCount(1);
+    // Na tabela (1280) o selo curto; empilhado (390) o longo, com o rótulo do campo à vista.
+    await expect(page.getByText(largura < 1280 ? 'Link do YouTube inválido' : 'Link inválido', { exact: true })).toHaveCount(1);
     await expect(page.getByRole('textbox', { name: 'Vídeo do item 2 (link do YouTube, opcional)' })).toBeVisible();
     const botao = page.getByRole('button', { name: /^Orientações: Faça antes do treino/ });
     await expect(botao).toHaveAttribute('aria-expanded', 'false');

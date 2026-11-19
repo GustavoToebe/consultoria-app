@@ -1,8 +1,8 @@
-import { ArrowLeftRight, Ellipsis, ExternalLink, type LucideIcon, PlayCircle, Trash2, TriangleAlert } from 'lucide-react-native';
+import { ArrowLeftRight, CircleAlert, Ellipsis, ExternalLink, type LucideIcon, PlayCircle, Trash2 } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { AVISO_DO_LINK_INVALIDO, estadoDoVideo, type ItemMobilidade, TEXTO_DO_VIDEO_ADICIONADO } from '../../dominio/mobilidade';
+import { AVISO_CURTO_DO_LINK_INVALIDO, AVISO_DO_LINK_INVALIDO, estadoDoVideo, type ItemMobilidade, TEXTO_DO_VIDEO_ADICIONADO } from '../../dominio/mobilidade';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../../tema/tokens';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
@@ -114,8 +114,8 @@ function LinhaDoItem({ modo, item: it, posicao, total, focar, alca, aoMudar, aoM
   );
   const campoVideo = <VideoDoItem tabela={tabela} uid={it.uid} numero={n} url={it.videoUrl} aoMudar={(videoUrl) => aoMudar({ videoUrl })} />;
   const mais = <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${nome}`} aoTocar={() => setMenu(true)} />;
-  // Nome vazio é o erro do campo (vermelho); link inválido é atenção (âmbar, pedido de 19/11). Os dois travam o salvar.
-  const contorno = semNome ? cores.perigo : video === 'invalido' ? cores.atencao : 'transparent';
+  // Nome vazio e link inválido são erro (vermelho, 4.5; D8 decidida em 19/11): os dois travam o salvar.
+  const contorno = semNome || video === 'invalido' ? cores.perigo : 'transparent';
 
   return (
     <View style={[estilos.faixa, { backgroundColor: cores.superficie2, borderColor: contorno }]}>
@@ -150,8 +150,10 @@ function LinhaDoItem({ modo, item: it, posicao, total, focar, alca, aoMudar, aoM
 
 /**
  * Vídeo do item: vazio, o campo com "Cole o link do YouTube"; com link válido e fora do foco, uma linha compacta
- * ("Vídeo adicionado", Abrir em nova aba e Trocar); link inválido, o campo e o aviso de atenção embaixo, ligado ao campo
- * (`aria-describedby`). Enquanto o campo tem o foco ele não vira a linha compacta (o link ainda está sendo digitado).
+ * ("Vídeo adicionado", Abrir em nova aba e Trocar); link inválido, o campo em erro (borda vermelha, `aria-invalid`) e o
+ * selo de perigo embaixo, ligado ao campo (`aria-describedby`). Na tabela o placeholder e o selo são curtos ("Link do
+ * YouTube", "Link inválido"), para caber na coluna sem cortar nem quebrar. Enquanto o campo tem o foco ele não vira a
+ * linha compacta (o link ainda está sendo digitado).
  */
 function VideoDoItem({ tabela, uid, numero, url, aoMudar }: { tabela: boolean; uid: string; numero: number; url: string; aoMudar: (url: string) => void }) {
   const { cores } = useTema();
@@ -161,6 +163,7 @@ function VideoDoItem({ tabela, uid, numero, url, aoMudar }: { tabela: boolean; u
   // "Trocar" monta o campo com o foco; sem isso o foco cairia no fim da página quando a linha compacta some.
   const [focar, setFocar] = useState(false);
   const idDoAviso = `aviso-do-video-${uid}`;
+  const aviso = tabela ? AVISO_CURTO_DO_LINK_INVALIDO : AVISO_DO_LINK_INVALIDO;
   if (estado === 'valido' && !editando) {
     return (
       <View style={estilos.videoAdicionado}>
@@ -179,11 +182,12 @@ function VideoDoItem({ tabela, uid, numero, url, aoMudar }: { tabela: boolean; u
   return (
     <View style={estilos.video}>
       <Campo rotulo="Vídeo (link do YouTube, opcional)" rotuloOculto={tabela} rotuloAcessivel={`Vídeo do item ${numero} (link do YouTube, opcional)`}
-        valor={url} maxLength={500} placeholder="Cole o link do YouTube" autoCapitalize="none" autoCorrect={false} keyboardType="url"
-        autoFocus={focar} ajudaForaDoCampo={estado === 'invalido' ? { id: idDoAviso, texto: AVISO_DO_LINK_INVALIDO } : undefined}
+        valor={url} maxLength={500} placeholder={tabela ? 'Link do YouTube' : 'Cole o link do YouTube'} autoCapitalize="none" autoCorrect={false} keyboardType="url"
+        autoFocus={focar} erro={estado === 'invalido' ? aviso : null} erroSemTexto
+        ajudaForaDoCampo={estado === 'invalido' ? { id: idDoAviso, texto: aviso } : undefined}
         onFocus={() => setEditando(true)} onBlur={() => { setEditando(false); setFocar(false); }} aoMudar={aoMudar} />
       {estado === 'invalido' ? (
-        <View nativeID={idDoAviso} style={estilos.aviso}><Selo texto={AVISO_DO_LINK_INVALIDO} tipo="atencao" Icone={TriangleAlert} /></View>
+        <View nativeID={idDoAviso} style={estilos.aviso}><Selo texto={aviso} tipo="perigo" Icone={CircleAlert} /></View>
       ) : null}
     </View>
   );

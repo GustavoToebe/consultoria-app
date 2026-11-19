@@ -716,9 +716,10 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
   faixas `superficie2` de cantos 12 a 6 px, alça e número no começo, ⋯ (mover e "Excluir item") no fim; Nome e
   Prescrição flex 1,2, Vídeo 1. Abaixo de 600 px da lista (painel de ~640), o item empilhado com os rótulos.
 - Vídeo: vazio, o campo "Cole o link do YouTube"; válido e fora do foco, "Vídeo adicionado" com Abrir (nova aba) e
-  Trocar; inválido, o selo de atenção "Link do YouTube inválido" ligado ao campo. **Divergência aberta:** a 4.5 manda
-  vermelho para valor inválido; o pedido de 19/11 pediu atenção. O salvar continua travado e a seção diz "Corrigir".
-- Limite visto na captura: em 1280 a coluna Vídeo tem ~145 px e o texto de exemplo aparece cortado.
+  Trocar; inválido, erro em vermelho pela 4.5 (Gustavo, 19/11: trava o salvar): contorno da faixa, borda do campo
+  (`aria-invalid`) e o selo `perigo` "Link do YouTube inválido" ligado ao campo; a seção diz "Corrigir".
+- Na tabela, a coluna Vídeo tem ~145 px em 1280 com o menu aberto: o placeholder é "Link do YouTube" e o selo
+  "Link inválido" (o rótulo oculto do campo já diz YouTube), sem cortar nem quebrar; empilhado, os textos longos.
 
 ### 4.8 Seções que abrem e fecham (Gustavo, 18/11/2026; plano `docs/planos/secoes-nascem-fechadas.md`)
 
