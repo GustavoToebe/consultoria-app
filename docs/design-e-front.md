@@ -653,6 +653,45 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
 - Os ajustes de 11/11 (campo de nome ocupando a largura, "Criar grupo" embaixo de "Modelos prontos", "Editar sessão" na
   largura da sessão) não foram vistos na tela; só o código.
 
+### 4.8 Seções que abrem e fecham (Gustavo, 18/11/2026; plano `docs/planos/secoes-nascem-fechadas.md`)
+
+Padrão das telas novas e das reformadas. Vale para seção que abre e fecha: `CabecalhoDeGrupo` com `aoAlternar`, cartão
+recolhível e "Mostrar mais".
+
+- Nasce **fechada**. Se há uma seção só, nasce **aberta**.
+- **Buscar** abre as seções com resultado; **limpar** a busca volta ao estado de antes da busca (não deixa tudo aberto).
+- Abrem sozinhos: o item que a pessoa acabou de criar, o que tem erro apontado por "ir ao primeiro problema" e o destino
+  de um link (`?secao=`, `?pastaId=`).
+- **Não se guarda no aparelho**: cada vez que a tela abre, começa fechada.
+- Exceção: telas de uso do aluno (treino do dia, dieta, lista de compras, histórico) ficam como estão.
+- O menu lateral do treinador (grupos de navegação) é caso à parte: ver `docs/planos/menu-grupos-recolhiveis.md`.
+
+### 4.9 Cabeçalho da ficha do aluno (Gustavo, 18/11/2026; plano `docs/planos/ficha-do-aluno-cabecalho.md`)
+
+Peça própria da ficha (`treinador/CabecalhoDaFicha`); o `ui/Cabecalho` das outras telas não muda.
+
+- **Linha 1:** seta de voltar sem moldura ("Voltar para Alunos", alvo de 44 px) e a trilha "Alunos › nome", a 8 px,
+  centradas na vertical, também no celular. O desenho da seta fica na borda esquerda de tudo.
+- **Linha 2, 16 px abaixo:** foto ou iniciais de **56 px em qualquer largura**, 16 px, o nome (`titulo`, o único h1) e, em
+  texto suave, só as datas que existem (`dominio/cabecalhoDaFicha.linhaDeDatas`, fuso de Brasília): "Cadastro alterado
+  em", "Último acesso ao app em" ou "Último login em" (login nunca é chamado de acesso) e "Último plano publicado em … por
+  …". Dado ausente tira a parte; nunca "—" nem data inventada. Cada parte quebra inteira, com o "·" no fim dela.
+- **À direita:** o selo da situação (`seloDaSituacao`: Ativo `sucesso`, Inativo e Anonimizado `neutro`, tabela 4.5) e o ⋯.
+  Com o cabeçalho abaixo de 600 px (medido nele, não na janela), os dois descem para baixo do nome. O Resumo não repete a
+  situação.
+- **Linha 3, 20 px abaixo:** as abas. **Uma borda esquerda só** para seta, foto, abas e cartões.
+- **Foto (muda a regra de 11/11):** o círculo continua sendo o botão "Trocar foto" (abre a Folha "Foto de perfil"), mas o
+  selo da câmera **some no estado normal** e só aparece com o mouse em cima ou com o foco do teclado (anel de foco visível
+  no círculo; Enter e Espaço abrem a Folha). No toque não há hover: o selo não aparece, o nome acessível e a ação ficam.
+  "Trocar foto" também está no ⋯, para quem não descobre o círculo.
+- **Contato nos Dados do aluno:** "Copiar telefone", "Abrir WhatsApp" (`wa.me/55…` fora do app, sem token e sem texto) e
+  "Copiar e-mail" como botões de ícone com moldura ao lado do valor, com o nome do aluno no nome acessível; sem valor, não
+  aparecem.
+- **Editar dados é um passo do histórico** (`ui/historicoDasFolhas.usePassoNoHistorico`, como uma Folha): o voltar do
+  navegador, a seta e o voltar do Android saem da edição para a leitura, na mesma aba; com alteração pendente vale o "Sair
+  sem salvar?".
+- E2e: `app/e2e/ficha-cabecalho.spec.ts` (390 e 1280 px; claro, escuro e Areia nas capturas).
+
 ## 5. Os problemas de design que estamos resolvendo
 
 Origem principal: a reunião gravada de 29/10, com o treinador usando o sistema por 40 minutos. Ele elogiou a

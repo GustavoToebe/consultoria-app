@@ -1,6 +1,6 @@
 # Menu do treinador: grupos recolhíveis
 
-Situação: Em andamento · Onde: main · Atualizado: 18/11/2026
+Situação: Em andamento · Onde: main (parte 3 nova só na branch `dieta-tabela`, sem merge) · Atualizado: 18/11/2026
 
 Fonte: pedido da reunião de 15/11/2026 que não tinha sido registrado, repassado pelo Gustavo em 18/11/2026. Base: `main` em `9443481e`. Validade: vale enquanto `dominio/gruposDoMenu.ts`, `ui/Navegacao.tsx`, `ui/Passeio.tsx` e `dominio/preferencias.ts` não mudarem; se mudarem, refazer "Conferido no código".
 
@@ -25,11 +25,12 @@ O treinador recolhe e reabre os grupos do menu lateral (Acompanhamento, Negócio
 ## Passos
 Subagentes não comitam; a sessão principal comita e anota o commit aqui.
 
-- [ ] 0. Plano e índice (este arquivo e a entrada no README) — sessão principal — commit: —
+- [x] 0. Plano e índice (este arquivo e a entrada no README) — sessão principal — commit: 1af8c940
 - [x] 1. Regra pura em `dominio/` (grupos recolhidos, grupo da tela aberta nunca recolhido, contagem somada, grupo vazio some) + `gruposRecolhidos` em `preferencias.ts` + testes — executor — commit: `46f74a22` (jest 63 testes, typecheck e eslint ✅)
 - [x] 2. Tela em `ui/Navegacao.tsx` (botão com seta, aria, 44 px, foco, movimento reduzido, contagem no título recolhido), Passeio, rolagem a 1280×720, busca e cartão da conta intactos — executor-front (depende do 1) — commit: `69ee16b3`. **Passeio (D7): o passo some** (os itens de um grupo recolhido não estão na tela e o filtro `passosVisiveis` já tira o passo; zero código no Passeio, a preferência não muda, e2e prova). Decisões a confirmar com o Gustavo: o grupo da tela aberta mostra só o título, sem botão nem seta (pela D3 nunca recolhe; foge em parte da letra da D6); o menu aberto ficou ~18 px mais alto por grupo (~72 px no total: título de 44 px, saiu a folga de 12 px entre grupos); sem animação (o menu não animava nada)
 - [x] 3. e2e em `menu-do-treinador.spec.ts` (recolher, recarregar e continuar recolhido; tela num grupo recolhido abre o grupo; contagem no título) e conferência 1024, 1280 e 1440 px, claro, Areia e escuro, texto Extra — executor-front (junto do 2) — commit: `69ee16b3` (e2e do menu 23/23 na porta 8147; capturas em claro 1024, Areia 1280, escuro com foco, Extra com contagem 128 e ficha vista; não vistas: Areia 1024/1440, claro 1280/1440, escuro 1024/1280 geradas e não abertas; não conferido: título só com ponto, tablet nativo, carga inicial com atraso real)
 - [ ] 4. `AGENTS.md` (parágrafo "Menu do treinador") e Ajuda (`ajuda/conteudo.ts`, "Menu e busca"), `npm run typecheck && npm run lint && npm test` e o e2e do menu — sessão principal — commit: —
+- [x] 5. Parte 3 nova (18/11): botão recolher no topo e submenu flutuante no PC minimizado; só na branch `dieta-tabela` (worktree `.claude/worktrees/dieta-tabela`), sem merge na `main` e sem push — commit: fdd363e8, 800383f0, b99ae2f5 (só na branch `dieta-tabela`)
 
 ## Critérios de aceite
 - Recolher um grupo esconde os itens, mostra a contagem neutra ou o ponto e persiste ao recarregar e depois do "Sair".
@@ -43,4 +44,4 @@ Subagentes não comitam; a sessão principal comita e anota o commit aqui.
 - Mudar a ordem ou o conteúdo dos grupos.
 
 ## O que ficou para trás
-- (nada ainda)
+- Submenu flutuante só no PC minimizado (citado como D5 da frente do menu): esta D5 é "grupo sem item permitido"; conferir onde a decisão está registrada.
