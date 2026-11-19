@@ -3,6 +3,8 @@ package br.com.treinos.api.pagamentos;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * As datas de uma contratação, sem banco nem relógio. A competência de ordem {@code n} é sempre {@code âncora + n·k meses}
@@ -39,6 +41,37 @@ final class CalendarioDeCobranca {
                 return competencia;
             }
         }
+    }
+
+    /**
+     * A competência da primeira cobrança (D10). Com os meses anteriores, é o próprio início. Sem eles, é a última da grade
+     * da âncora (o início) que não passa do mês de {@code hoje}: o período que cobre o mês corrente, e o que ficou para trás
+     * não é cobrado. Início no mês corrente ou depois, e parcela única, ficam no início.
+     */
+    static LocalDate primeiraCompetencia(LocalDate inicio, PeriodoDoPlano periodo, LocalDate hoje, boolean mesesAnteriores) {
+        YearMonth atual = YearMonth.from(hoje);
+        if (mesesAnteriores || !periodo.recorrente() || !YearMonth.from(inicio).isBefore(atual)) {
+            return inicio;
+        }
+        long passo = periodo.meses();
+        long meses = ChronoUnit.MONTHS.between(YearMonth.from(inicio), atual);
+        return inicio.plusMonths(meses / passo * passo);
+    }
+
+    /**
+     * As competências que contratar cria agora, em ordem: a primeira e, em plano recorrente, cada seguinte até a primeira com
+     * vencimento a partir de {@code hoje} (a mesma regra de {@code GeradorDeCobrancas.garantirAteHoje}, sem banco).
+     */
+    static List<LocalDate> competenciasAoContratar(LocalDate inicio, PeriodoDoPlano periodo, int diaVencimento,
+                                                   LocalDate hoje, boolean mesesAnteriores) {
+        List<LocalDate> competencias = new ArrayList<>();
+        LocalDate ultima = primeiraCompetencia(inicio, periodo, hoje, mesesAnteriores);
+        competencias.add(ultima);
+        while (periodo.recorrente() && vencimento(ultima, diaVencimento, null).isBefore(hoje)) {
+            ultima = proximaCompetencia(inicio, periodo, ultima, ultima);
+            competencias.add(ultima);
+        }
+        return competencias;
     }
 
     /**

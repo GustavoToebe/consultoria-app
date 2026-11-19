@@ -256,3 +256,28 @@ export function traduzirErroDasFormas(erro: unknown): ErroDasFormas {
   const daApi = erroDeConexao(erro) || statusDoErro(erro) === 403 || codigo === 'FINANCEIRO_INDISPONIVEL';
   return { ...base, mensagem: daApi ? mensagemApi(erro, MENSAGEM_PADRAO_DAS_FORMAS) : MENSAGEM_PADRAO_DAS_FORMAS };
 }
+
+// ---- Apagar os dados do Pix (D12) ----
+
+/** Dica do campo da chave (texto decidido pelo Gustavo, D12). Sai quando o tipo escolhido já é a chave aleatória. */
+export const DICA_DA_CHAVE_ALEATORIA = 'Prefira a chave aleatória: o aluno vê a chave no código copia e cola.';
+export const MENSAGEM_APAGAR_PIX =
+  'A chave, o nome do recebedor e a cidade serão apagados e o Pix será desligado. O aluno deixa de ver o Pix copia e cola. Para usar o Pix de novo, informe os dados outra vez.';
+export const MENSAGEM_PIX_APAGADO = 'Dados do Pix apagados. O Pix foi desligado.';
+export const MENSAGEM_CONFLITO_DO_APAGAR_PIX = 'As formas de recebimento foram alteradas por outra pessoa ou aba. Mostramos as mais recentes: confira antes de apagar.';
+const MENSAGEM_PADRAO_DO_APAGAR_PIX = 'Não foi possível apagar os dados do Pix. Tente de novo.';
+
+/** O botão "Apagar dados do Pix" só existe com chave gravada e as formas já gravadas (há `versao` para mandar). */
+export function podeApagarPix(r: FormasDeRecebimento | null | undefined): boolean {
+  return r?.pixConfig?.chaveConfigurada === true && r.versao !== null;
+}
+
+/**
+ * Erro do `POST .../pix/apagar`: 409 `CONFLITO_EDICAO` recarrega as formas e avisa; 403, 503 e sem conexão mostram o texto da
+ * API; o resto, uma frase fixa (nunca com a chave).
+ */
+export function traduzirErroDoApagarPix(erro: unknown): { mensagem: string; recarregar: boolean } {
+  if (codigoApi(erro) === 'CONFLITO_EDICAO') return { mensagem: MENSAGEM_CONFLITO_DO_APAGAR_PIX, recarregar: true };
+  const daApi = erroDeConexao(erro) || statusDoErro(erro) === 403 || codigoApi(erro) === 'FINANCEIRO_INDISPONIVEL';
+  return { mensagem: daApi ? mensagemApi(erro, MENSAGEM_PADRAO_DO_APAGAR_PIX) : MENSAGEM_PADRAO_DO_APAGAR_PIX, recarregar: false };
+}

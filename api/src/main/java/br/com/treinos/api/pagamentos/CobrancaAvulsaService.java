@@ -30,6 +30,7 @@ import java.util.UUID;
  * primeira trava da ordem do financeiro) antes de gravar; de outra consultoria ou inexistente é 404, anonimizado 409
  * {@code ALUNO_ANONIMIZADO} e inativo 409 {@code ALUNO_INATIVO}, como no resto do financeiro. Auditoria: um evento
  * {@code COBRANCAS_AVULSAS_GERADAS} por aluno ({@code entidadeId} = id do aluno), com resumo fixo (sem valor, nome nem descrição).
+ * Idempotente por {@code pedidoId} (D11, V090, obrigatório): ver {@link #gerar}.
  */
 @Service
 public class CobrancaAvulsaService {
@@ -48,13 +49,23 @@ public class CobrancaAvulsaService {
         this.auditoria = auditoria;
     }
 
+    /** {@code repetido}: o pedido já tinha sido gerado e {@code geradas} é o que ele gerou na primeira vez (200 em vez de 201). */
+    public record Resultado(CobrancasAvulsasGeradas geradas, boolean repetido) { }
+
     @Transactional
-    public CobrancasAvulsasGeradas gerar(CobrancaAvulsaRequest r) {
+    public Resultado gerar(CobrancaAvulsaRequest r) {
         String descricao = r.descricao() == null ? null : r.descricao().strip();
         conferir(r, descricao);
         List<UUID> ids = r.alunoIds();
         Map<UUID, Aluno> doBanco = new HashMap<>();
         alunos.buscarParaAlterarVarios(ids).forEach(a -> doBanco.put(a.getId(), a));
+        // D11: o pedido repetido devolve o que já foi gerado, sem comparar o corpo (outros alunos ou valor são ignorados), sem gravar nem
+        // auditar. Fica DEPOIS da trava dos alunos: a segunda de duas chamadas simultâneas espera a primeira terminar e a enxerga aqui
+        // (READ COMMITTED), então a unique ux_cobranca_avulsa_pedido nunca estoura por corrida do mesmo aluno. O @TenantId isola o UUID.
+        CobrancaAlunoRepository.DoPedido jaGerado = cobrancas.doPedido(r.pedidoId());
+        if (jaGerado.getCobrancas() > 0) {
+            return new Resultado(new CobrancasAvulsasGeradas(jaGerado.getAlunos().intValue(), jaGerado.getCobrancas().intValue()), true);
+        }
         for (UUID id : ids) {
             Aluno aluno = doBanco.get(id);
             if (aluno == null) {
@@ -70,7 +81,7 @@ public class CobrancaAvulsaService {
         for (UUID id : ids) {
             for (int k = 1; k <= parcelas; k++) {
                 // Cada vencimento parte do primeiro (não do anterior): o dia 31 volta ao 31 nos meses que o têm.
-                novas.add(CobrancaAluno.avulsa(id, parcelas > 1 ? descricao + " (Parcela " + k + "/" + parcelas + ")" : descricao,
+                novas.add(CobrancaAluno.avulsa(r.pedidoId(), id, k, parcelas > 1 ? descricao + " (Parcela " + k + "/" + parcelas + ")" : descricao,
                         r.valorCentavos(), r.primeiroVencimento().plusMonths(k - 1L)));
             }
         }
@@ -80,12 +91,15 @@ public class CobrancaAvulsaService {
         for (UUID id : ids) {
             auditoria.registrarEvento("COBRANCAS_AVULSAS_GERADAS", "ALUNO", id, "Gerou cobranças avulsas para o aluno.");
         }
-        return new CobrancasAvulsasGeradas(ids.size(), novas.size());
+        return new Resultado(new CobrancasAvulsasGeradas(ids.size(), novas.size()), false);
     }
 
     /** 422 com um erro por campo; nenhuma mensagem repete o que a pessoa digitou. */
     private static void conferir(CobrancaAvulsaRequest r, String descricao) {
         List<ApiError.FieldError> erros = new ArrayList<>();
+        if (r.pedidoId() == null) {
+            erros.add(new ApiError.FieldError("pedidoId", "Informe o identificador do pedido."));
+        }
         List<UUID> ids = r.alunoIds();
         if (ids == null || ids.isEmpty() || ids.size() > MAXIMO_DE_ALUNOS) {
             erros.add(new ApiError.FieldError("alunoIds", "Escolha de 1 a " + MAXIMO_DE_ALUNOS + " alunos."));

@@ -94,6 +94,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         corpo.put("planoComercialId", plano.get("id").asString());
         corpo.put("inicio", inicio.toString());
         corpo.put("diaVencimento", dia);
+        corpo.put("gerarMesesAnteriores", true); // estes testes cobrem a geração desde o início (D10: ContratarNoPassadoIntegrationTest)
         return api.post("/alunos/" + aluno + "/contratacoes", quem, corpo, 200);
     }
 

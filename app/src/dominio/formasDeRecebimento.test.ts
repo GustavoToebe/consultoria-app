@@ -3,7 +3,8 @@ import { ErroApi, MENSAGEM_SEM_CONEXAO } from '@plataforma/web';
 import type { FormasDeRecebimento } from '../api/financeiroTipos';
 import {
   contadorDoPix, corpoDasFormas, estadoDasFormas, FORMAS_DO_FORMULARIO, formasAlteradas, lerLinkDoPlano, mascaraDaChavePix, MENSAGEM_CONFLITO_DAS_FORMAS, normalizarChavePix,
-  rotuloDaFormaDeRecebimento, textoDaChaveGravada, traduzirErroDasFormas, type EstadoDasFormas,
+  MENSAGEM_CONFLITO_DO_APAGAR_PIX, podeApagarPix, rotuloDaFormaDeRecebimento, textoDaChaveGravada, traduzirErroDasFormas, traduzirErroDoApagarPix,
+  type EstadoDasFormas,
 } from './formasDeRecebimento';
 
 // Documentos de teste (dígitos verificadores válidos, ninguém real): CPF 529.982.247-25, CNPJ 11.222.333/0001-81.
@@ -165,6 +166,24 @@ describe('traduzirErroDasFormas', () => {
     const fixa = 'Não foi possível salvar as formas de recebimento. Tente de novo.';
     expect(traduzirErroDasFormas(new ErroApi(500, null, 'detalhe interno')).mensagem).toBe(fixa);
     expect(traduzirErroDasFormas(new ErroApi(503, 'OUTRO', 'detalhe interno')).mensagem).toBe(fixa);
+  });
+});
+
+describe('apagar os dados do Pix (D12)', () => {
+  const pixConfig = { tipoChave: 'EMAIL' as const, chaveMascarada: 't***@exemplo.com', chaveConfigurada: true, nomeRecebedor: 'Treino', cidade: 'Cascavel' };
+  it('o botão só existe com chave gravada e as formas já gravadas, ligado ou desligado o Pix', () => {
+    expect(podeApagarPix(resposta({ pix: true, pixConfig }))).toBe(true);
+    expect(podeApagarPix(resposta({ pix: false, pixConfig }))).toBe(true);
+    expect(podeApagarPix(resposta({ pixConfig: null }))).toBe(false);
+    expect(podeApagarPix(resposta({ pixConfig: { ...pixConfig, chaveConfigurada: false, chaveMascarada: null } }))).toBe(false);
+    expect(podeApagarPix(resposta({ pixConfig, versao: null }))).toBe(false);
+    expect(podeApagarPix(null)).toBe(false);
+  });
+  it('409 recarrega e avisa; 403, 503 e sem conexão com o texto da API; o resto, frase fixa', () => {
+    expect(traduzirErroDoApagarPix(new ErroApi(409, 'CONFLITO_EDICAO', 'x'))).toEqual({ mensagem: MENSAGEM_CONFLITO_DO_APAGAR_PIX, recarregar: true });
+    expect(traduzirErroDoApagarPix(new ErroApi(403, 'PERMISSAO_NEGADA', 'Sem permissão.'))).toEqual({ mensagem: 'Sem permissão.', recarregar: false });
+    expect(traduzirErroDoApagarPix(new ErroApi(0, null, MENSAGEM_SEM_CONEXAO)).mensagem).toContain('Sem conexão');
+    expect(traduzirErroDoApagarPix(new ErroApi(500, null, 'detalhe interno')).mensagem).toBe('Não foi possível apagar os dados do Pix. Tente de novo.');
   });
 });
 

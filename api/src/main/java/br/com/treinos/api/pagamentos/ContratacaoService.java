@@ -10,6 +10,8 @@ import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.pagamentos.PagamentosDtos.AlterarContratacaoRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratarRequest;
+import br.com.treinos.api.pagamentos.PagamentosDtos.PreviaDeGeracao;
+import br.com.treinos.api.pagamentos.PagamentosDtos.PreviaDeGeracaoRequest;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -74,9 +77,7 @@ public class ContratacaoService {
             throw vigente();
         }
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        if (r.inicio().isBefore(hoje.minusYears(10)) || r.inicio().isAfter(hoje.plusYears(1))) {
-            throw invalido("inicio", "O início precisa estar entre os últimos 10 anos e o próximo ano.");
-        }
+        exigirInicioValido(r.inicio(), hoje);
         long valor = r.valorCentavos() == null ? plano.getValorCentavos() : r.valorCentavos();
         String motivo = motivoDoValor(valor, plano.getValorCentavos(), r.motivoValor());
         ContratacaoAluno contratacao = new ContratacaoAluno(alunoId, plano, valor, motivo, r.inicio(), r.diaVencimento());
@@ -91,16 +92,47 @@ public class ContratacaoService {
             }
             throw e;
         }
-        CobrancaAluno primeira = gerador.primeira(contratacao);
+        CobrancaAluno primeira = gerador.primeira(contratacao, CalendarioDeCobranca.primeiraCompetencia(
+                r.inicio(), plano.getPeriodicidade(), hoje, r.comMesesAnteriores()));
         if (Boolean.TRUE.equals(r.primeiroPeriodoPago())) {
             primeira.pagar(CobrancaAluno.MANUAL, FormaDePagamento.OUTRO, LocalDate.now(Fuso.BRASILIA), null,
                     "Período inicial já pago", null);
             cobrancas.save(primeira);
         }
-        // Início no passado: as competências até hoje nascem já (a rotina diária faria o mesmo no dia seguinte).
+        // Segue até o primeiro vencimento de hoje em diante (a rotina diária faria o mesmo no dia seguinte).
         gerador.garantirAteHoje(contratacao, hoje);
         cobrancas.flush();
         return Respostas.contratacao(contratacao, plano.getNome());
+    }
+
+    /**
+     * D10: o que contratar com este corpo geraria em aberto agora, sem gravar nada (o app não calcula). Usa as mesmas datas da
+     * geração ({@link CalendarioDeCobranca#competenciasAoContratar}); com {@code primeiroPeriodoPago} a primeira nasce paga e
+     * não entra. Valor, mínimo e vigência não são conferidos aqui: quem recusa é o contratar.
+     */
+    @Transactional(readOnly = true)
+    public PreviaDeGeracao previaDeGeracao(PreviaDeGeracaoRequest p) {
+        Travas.exigirAluno(alunos, p.alunoId());
+        PlanoComercial plano = planos.findById(p.planoComercialId())
+                .orElseThrow(() -> new NaoEncontradoException("Plano comercial não encontrado."));
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        exigirInicioValido(p.inicio(), hoje);
+        long valor = p.valorCentavos() == null ? plano.getValorCentavos() : p.valorCentavos();
+        List<LocalDate> competencias = CalendarioDeCobranca.competenciasAoContratar(p.inicio(), plano.getPeriodicidade(),
+                p.diaVencimento(), hoje, Boolean.TRUE.equals(p.gerarMesesAnteriores()));
+        List<LocalDate> abertas = Boolean.TRUE.equals(p.primeiroPeriodoPago())
+                ? competencias.subList(1, competencias.size()) : competencias;
+        if (abertas.isEmpty()) {
+            return new PreviaDeGeracao(0, 0, null, null);
+        }
+        return new PreviaDeGeracao(abertas.size(), Math.multiplyExact(valor, (long) abertas.size()),
+                YearMonth.from(abertas.get(0)).toString(), YearMonth.from(abertas.get(abertas.size() - 1)).toString());
+    }
+
+    private static void exigirInicioValido(LocalDate inicio, LocalDate hoje) {
+        if (inicio.isBefore(hoje.minusYears(10)) || inicio.isAfter(hoje.plusYears(1))) {
+            throw invalido("inicio", "O início precisa estar entre os últimos 10 anos e o próximo ano.");
+        }
     }
 
     /**

@@ -78,7 +78,7 @@ public class ConciliadorInfinitePay {
     /** Uma rodada: reserva até {@link #TAMANHO_DO_LOTE} avisos vencidos e conclui cada um. Devolve quantos reservou. */
     public int processarPendentes() {
         UUID dono = UUID.randomUUID();
-        List<Reservado> lote = transacao.execute(status -> avisos.reservar(dono, TAMANHO_DO_LOTE, RESERVA_EM_SEGUNDOS));
+        List<Reservado> lote = transacao.execute(status -> avisos.reservar(dono, TAMANHO_DO_LOTE, RESERVA_EM_SEGUNDOS, RecebimentoOnlineService.PROVEDOR));
         if (lote == null || lote.isEmpty()) {
             return 0;
         }

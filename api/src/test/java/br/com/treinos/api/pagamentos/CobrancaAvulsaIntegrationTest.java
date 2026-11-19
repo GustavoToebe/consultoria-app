@@ -48,6 +48,7 @@ class CobrancaAvulsaIntegrationTest extends AbstractIntegrationTest {
 
     private Map<String, Object> corpo(List<UUID> alunos, String descricao, long valor, LocalDate primeiro, int parcelas) {
         Map<String, Object> m = new LinkedHashMap<>();
+        m.put("pedidoId", UUID.randomUUID().toString());
         m.put("alunoIds", alunos.stream().map(UUID::toString).toList());
         m.put("descricao", descricao);
         m.put("valorCentavos", valor);
@@ -189,7 +190,7 @@ class CobrancaAvulsaIntegrationTest extends AbstractIntegrationTest {
                 .containsExactly("primeiroVencimento");
         Map<String, Object> vazio = new LinkedHashMap<>();
         assertThat(campos(api.post(ROTA, admin, vazio, 422)))
-                .containsExactlyInAnyOrder("alunoIds", "descricao", "valorCentavos", "primeiroVencimento", "parcelas");
+                .containsExactlyInAnyOrder("pedidoId", "alunoIds", "descricao", "valorCentavos", "primeiroVencimento", "parcelas");
         // Os limites de dentro passam: 120 caracteres, R$ 10.000.000,00, 12 parcelas.
         api.post(ROTA, admin, corpo(List.of(a), "d".repeat(120), 1_000_000_000L, hoje, 12), 201);
         assertThat(cobrancasDoAluno(admin, a)).isEqualTo(12);

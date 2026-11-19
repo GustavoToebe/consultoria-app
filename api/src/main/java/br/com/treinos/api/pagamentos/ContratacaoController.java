@@ -4,6 +4,8 @@ import br.com.treinos.api.pagamentos.PagamentosDtos.AlterarContratacaoRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratarRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.EncerrarRequest;
+import br.com.treinos.api.pagamentos.PagamentosDtos.PreviaDeGeracao;
+import br.com.treinos.api.pagamentos.PagamentosDtos.PreviaDeGeracaoRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PreviaDoEncerramento;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ResumoDaSaidaDoAluno;
 import br.com.treinos.api.pagamentos.PagamentosDtos.VersaoRequest;
@@ -45,6 +47,13 @@ public class ContratacaoController {
     @PostMapping("/alunos/{id}/contratacoes")
     public ContratacaoResponse contratar(@PathVariable UUID id, @Valid @RequestBody ContratarRequest r) {
         return contratacoes.contratar(id, r);
+    }
+
+    /** D10: o que contratar geraria em aberto (só leitura; o app não calcula). */
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/contratacoes/previa-de-geracao")
+    public PreviaDeGeracao previaDeGeracao(@Valid @RequestBody PreviaDeGeracaoRequest r) {
+        return contratacoes.previaDeGeracao(r);
     }
 
     @PreAuthorize(ALTERAR)

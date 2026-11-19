@@ -276,7 +276,7 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
                 Map.of("nome", "Plano varias " + UUID.randomUUID(), "valorCentavos", 9000, "periodicidade", "MENSAL"), 200);
         // Início há 2 meses: a geração já cria as três mensalidades (hoje-2m, hoje-1m e hoje), todas abertas.
         api.post("/alunos/" + alunoId + "/contratacoes", admin, Map.of("planoComercialId", plano.get("id").asString(),
-                "inicio", hoje.minusMonths(2).toString(), "diaVencimento", hoje.getDayOfMonth()), 200);
+                "inicio", hoje.minusMonths(2).toString(), "diaVencimento", hoje.getDayOfMonth(), "gerarMesesAnteriores", true), 200);
         List<JsonNode> abertas = new ArrayList<>();
         api.get("/alunos/" + alunoId + "/cobrancas", admin, 200).forEach(c -> abertas.add(0, c));
         assertThat(abertas).hasSize(3);
@@ -345,7 +345,7 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
 
     private JsonNode avulsaDe(JsonNode cobranca, LocalDate vencimento) throws Exception {
         String alunoId = cobranca.get("alunoId").asString();
-        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("alunoIds", List.of(alunoId), "descricao", "Camiseta fictícia",
+        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("pedidoId", UUID.randomUUID().toString(), "alunoIds", List.of(alunoId), "descricao", "Camiseta fictícia",
                 "valorCentavos", 3000, "primeiroVencimento", vencimento.toString(), "parcelas", 1), 201);
         for (JsonNode c : api.get("/alunos/" + alunoId + "/cobrancas", admin, 200)) {
             if ("AVULSA".equals(c.get("tipo").asString())) {
@@ -388,7 +388,7 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
         JsonNode plano = api.post("/financeiro/planos", admin,
                 Map.of("nome", "Plano folga " + UUID.randomUUID(), "valorCentavos", 9000, "periodicidade", "MENSAL"), 200);
         api.post("/alunos/" + alunoId + "/contratacoes", admin, Map.of("planoComercialId", plano.get("id").asString(),
-                "inicio", hoje.minusMonths(1).toString(), "diaVencimento", hoje.getDayOfMonth()), 200);
+                "inicio", hoje.minusMonths(1).toString(), "diaVencimento", hoje.getDayOfMonth(), "gerarMesesAnteriores", true), 200);
         List<JsonNode> abertas = new ArrayList<>();
         api.get("/alunos/" + alunoId + "/cobrancas", admin, 200).forEach(c -> abertas.add(0, c));
         assertThat(abertas).hasSize(2);

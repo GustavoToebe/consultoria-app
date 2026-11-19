@@ -5,6 +5,7 @@ import br.com.treinos.api.pagamentos.FormasDeRecebimentoDtos.FormasDeRecebimento
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,5 +37,12 @@ public class FormasDeRecebimentoController {
     @PutMapping("/financeiro/formas-de-recebimento")
     public FormasDeRecebimentoResponse salvar(@Valid @RequestBody FormasDeRecebimentoRequest r) {
         return formas.salvar(r);
+    }
+
+    /** D12: apaga a chave, o nome e a cidade do Pix e o desliga. A chave nunca aparece em corpo, log nem erro. */
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/financeiro/formas-de-recebimento/pix/apagar")
+    public FormasDeRecebimentoResponse apagarPix(@Valid @RequestBody PagamentosDtos.VersaoRequest r) {
+        return formas.apagarPix(r.versao());
     }
 }

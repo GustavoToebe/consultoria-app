@@ -66,7 +66,7 @@ class CobrancaAvulsaBaixaECancelamentoIntegrationTest extends AbstractIntegratio
     /** Aluno novo com uma avulsa; devolve a cobrança. */
     private JsonNode avulsa(String descricao, long valor) throws Exception {
         UUID aluno = api.criarAluno(admin, "Aluno Avulsa " + UUID.randomUUID());
-        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("alunoIds", List.of(aluno.toString()), "descricao", descricao,
+        api.post("/financeiro/cobrancas-avulsas", admin, Map.of("pedidoId", UUID.randomUUID().toString(), "alunoIds", List.of(aluno.toString()), "descricao", descricao,
                 "valorCentavos", valor, "primeiroVencimento", hoje.plusDays(5).toString(), "parcelas", 1), 201);
         return api.get("/alunos/" + aluno + "/cobrancas", admin, 200).get(0);
     }

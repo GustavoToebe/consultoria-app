@@ -47,6 +47,7 @@ class TotaisDeCobrancasIntegrationTest extends AbstractIntegrationTest {
     private String avulsa(JsonNode quem, String nomeDoAluno, long valor, LocalDate vencimento) throws Exception {
         UUID aluno = api.criarAluno(quem, nomeDoAluno);
         Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("pedidoId", UUID.randomUUID().toString());
         corpo.put("alunoIds", List.of(aluno.toString()));
         corpo.put("descricao", "Avulsa fictícia");
         corpo.put("valorCentavos", valor);
@@ -132,6 +133,7 @@ class TotaisDeCobrancasIntegrationTest extends AbstractIntegrationTest {
             alunos.add(api.criarAluno(admin, "Aluno Página " + i + " " + UUID.randomUUID()).toString());
         }
         Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("pedidoId", UUID.randomUUID().toString());
         corpo.put("alunoIds", alunos);
         corpo.put("descricao", "Parcelada");
         corpo.put("valorCentavos", 100);

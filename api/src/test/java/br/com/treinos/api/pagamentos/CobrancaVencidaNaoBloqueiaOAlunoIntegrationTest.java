@@ -124,8 +124,9 @@ class CobrancaVencidaNaoBloqueiaOAlunoIntegrationTest extends AbstractIntegratio
         contratar.put("planoComercialId", plano.get("id").asString());
         contratar.put("inicio", hoje.minusMonths(3).toString());
         contratar.put("diaVencimento", hoje.getDayOfMonth());
+        contratar.put("gerarMesesAnteriores", true);
         api.post("/alunos/" + alunoId + "/contratacoes", treinador, contratar, 200);
-        api.post("/financeiro/cobrancas-avulsas", treinador, Map.of("alunoIds", List.of(alunoId.toString()),
+        api.post("/financeiro/cobrancas-avulsas", treinador, Map.of("pedidoId", UUID.randomUUID().toString(), "alunoIds", List.of(alunoId.toString()),
                 "descricao", "Camiseta fictícia", "valorCentavos", 3_000, "primeiroVencimento", hoje.minusDays(20).toString(),
                 "parcelas", 1), 201);
         jdbc.update("update cobranca_aluno set vencimento = ? where aluno_id = ?::uuid and tipo = 'MENSALIDADE'",

@@ -87,6 +87,24 @@ public class FormasDeRecebimentoService {
     }
 
     /**
+     * D12: apaga chave, nome e cidade e desliga o Pix, com a {@code versao} conferida (sem linha ou versão velha = 409
+     * {@code CONFLITO_EDICAO}). Já sem Pix nem dados não grava nem audita (idempotente). A auditoria tem resumo fixo: nunca a
+     * chave, o nome nem a cidade.
+     */
+    @Transactional
+    public FormasDeRecebimentoResponse apagarPix(Long versao) {
+        FormasDeRecebimento f = formas.daConsultoria().orElseThrow(FormasDeRecebimentoService::conflito);
+        if (versao == null || !versao.equals(f.getVersao())) {
+            throw conflito();
+        }
+        if (f.apagarPix(Instant.now())) {
+            f = formas.saveAndFlush(f);
+            auditoria.registrarEvento("PIX_APAGADO", "FORMAS_DE_RECEBIMENTO", f.getConsultoriaId(), "Apagou os dados do Pix.");
+        }
+        return resposta(Optional.of(f));
+    }
+
+    /**
      * Confere o corpo e devolve os dados do Pix a gravar ({@code null} = manter os gravados). Mensagens fixas, sem repetir valor.
      */
     private static DadosDoPix validar(FormasDeRecebimentoRequest r, DadosDoPix gravado) {

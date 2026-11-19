@@ -126,9 +126,10 @@ public class CobrancaController {
      */
     @PreAuthorize(ALTERAR)
     @PostMapping("/financeiro/cobrancas-avulsas")
-    @ResponseStatus(HttpStatus.CREATED)
-    public CobrancasAvulsasGeradas gerarAvulsas(@RequestBody CobrancaAvulsaRequest r) {
-        return avulsas.gerar(r);
+    public ResponseEntity<CobrancasAvulsasGeradas> gerarAvulsas(@RequestBody CobrancaAvulsaRequest r) {
+        var resultado = avulsas.gerar(r);
+        // 201 na primeira vez; o mesmo pedido de novo (D11) devolve o que já foi gerado em 200.
+        return ResponseEntity.status(resultado.repetido() ? HttpStatus.OK : HttpStatus.CREATED).body(resultado.geradas());
     }
 
     /** O CSV só das cobranças escolhidas (as mesmas colunas da exportação por período); id de outra consultoria some. */
