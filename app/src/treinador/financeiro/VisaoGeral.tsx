@@ -11,20 +11,21 @@ import {
 } from '../../dominio/financeiro';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
-import { contagemParaTela, rotuloDoMes } from '../../dominio/numeros';
+import { rotuloDoMesNumerico } from '../../dominio/mesDaCompetencia';
+import { contagemParaTela } from '../../dominio/numeros';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, type TokenNeon, type TokensStndrd } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { Cartao } from '../../ui/Cartao';
-import { contornoDoNumero } from '../../ui/destaqueDoNumero';
+import { CartaoDeIndicador, type TomDoIndicador } from '../../ui/CartaoDeIndicador';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
-import { MotivoDoIndisponivel } from '../../ui/NumeroDeDestaque';
 import { textoDoErro } from '../../ui/erros';
+import { GradeDeIndicadores } from '../../ui/GradeDeIndicadores';
 import { GraficoBarras } from '../../ui/GraficoBarras';
 import { ItemDeLista } from '../../ui/ItemDeLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
@@ -99,11 +100,12 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
             {dataParaTela(dados.periodo.de)} a {dataParaTela(dados.periodo.ate)}
             {dados.somenteMeus ? ' · só os seus alunos' : ''}. Onde aparece “—”, o número não está disponível. {NOTA_REGISTROS_DISPONIVEIS}
           </Texto>
-          <View style={estilos.indicadores}>
+          <GradeDeIndicadores>
             {cartoesDoPainel(dados.cartoes).map((c) => (
-              <Indicador key={c.chave} cartao={c} />
+              <CartaoDeIndicador key={c.chave} rotulo={c.titulo} valor={c.valor} detalhe={c.detalhe} motivo={c.motivo} nivelDoRotulo={2}
+                tom={tomDoIndicador(c)} estado={c.enfase === 'zero' || c.enfase === 'indisponivel' ? c.enfase : 'valor'} />
             ))}
-          </View>
+          </GradeDeIndicadores>
           <Inadimplencia painel={dados.inadimplencia} vencidasNoPeriodo={vencidasDoPeriodo(dados.cartoes.emAtraso)} lista={atrasados}
             buscando={buscando} podeAlterar={podeAlterar} aoAbrir={(i) => abrirCobrancaDe(i, false)} aoRegistrar={(i) => abrirCobrancaDe(i, true)} />
           <LinhaDeBlocos nome="mensal" minimo={MINIMO_MENSAL}>
@@ -113,7 +115,7 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
             <Cartao titulo="Movimento de alunos" descricao="Contratações novas e encerradas em cada mês." style={estilos.esticar}>
               {dados.movimentoDeAlunos.length === 0 ? <Texto variante="suave">Nenhuma contratação nova ou encerrada no período.</Texto> : (
                 <Tabela rotulo="Movimento de alunos por mês" linhas={dados.movimentoDeAlunos} chave={(m) => m.mes} larguraMinima={300} colunas={[
-                  { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: (m) => <Texto>{rotuloDoMes(m.mes)}</Texto> },
+                  { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: (m) => <Texto numerico>{rotuloDoMesNumerico(m.mes)}</Texto> },
                   { chave: 'novas', titulo: 'Novas', alinhar: 'direita', render: (m) => <Texto numerico>{contagemParaTela(m.contratacoesNovas)}</Texto> },
                   { chave: 'encerradas', titulo: 'Encerradas', alinhar: 'direita', render: (m) => <Texto numerico>{contagemParaTela(m.contratacoesEncerradas)}</Texto> },
                 ]} />
@@ -176,60 +178,13 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
 }
 
 /**
- * Um número do período na peça de destaque (D6 de `docs/planos/cores-de-destaque.md`): recebido azul, a receber ciano,
- * em atraso vermelho, recorrente violeta, os demais neutros; zero e "—" sem cor (D5). Cor com significado, nunca a
- * marca, e sempre com o título. Três por linha no PC; no celular um por linha, para "R$ 100.000,00" caber inteiro no
- * tamanho normal (dois por linha só cabiam até a casa dos milhares, encolhendo a fonte).
+ * Tom de um número do período (cor como sinal, financeiro 19/11): o recebido é sucesso e o em atraso, perigo; a receber,
+ * recorrente, pagantes e valor médio ficam neutros (não são situação). Negativo fica neutro: a cor não diz o sentido. Zero
+ * e "—" já saem sem tom pelo `estado`. Os seis dividem a linha em colunas iguais (`GradeDeIndicadores`): 6, 3 + 3, 2 ou 1.
  */
-function neonDoIndicador(cartao: CartaoDoPainel, stndrd: TokensStndrd): TokenNeon | null {
-  if (cartao.enfase === 'zero' || cartao.enfase === 'indisponivel' || cartao.enfase === 'neutro') return null;
-  switch (cartao.chave) {
-    case 'recebido':
-      return stndrd.neon.emerald;
-    case 'emAtraso':
-      return stndrd.neon.crimson;
-    case 'recorrente':
-      return stndrd.neon.electricBlue;
-    case 'aReceber':
-      return stndrd.neon.acidLime;
-    default:
-      return stndrd.neon.electricPurple;
-  }
-}
-
-function Indicador({ cartao }: { cartao: CartaoDoPainel }) {
-  const { width } = useWindowDimensions();
-  const { cores, bordas, fatorTexto, stndrd } = useTema();
-  const celular = width < LARGURA_MENU_LATERAL;
-  const neon = neonDoIndicador(cartao, stndrd);
-  const indisponivel = cartao.enfase === 'indisponivel';
-  const zero = cartao.enfase === 'zero';
-  const corValor = indisponivel || zero ? cores.textoSuave : cores.texto;
-  return (
-    <View
-      accessibilityLabel={`${cartao.titulo}: ${cartao.valor}${cartao.detalhe ? `. ${cartao.detalhe}` : ''}`}
-      style={[
-        estilos.indicador,
-        contornoDoNumero(neon?.accent ?? null, { divisor: neon ? neon.tintBorder : cores.divisor }, bordas.bloco, espaco(2)),
-        {
-          flexBasis: celular ? '100%' : Math.round(280 * fatorTexto),
-          backgroundColor: cores.superficie,
-          borderRadius: 16,
-          paddingVertical: espaco(1.75),
-          // visual-ponytail (17/11): o número em Geist Mono é mais largo; com texto extra grande "R$ 100.000,00" só cabe inteiro com o recuo direito menor.
-          paddingRight: espaco(1),
-          gap: espaco(0.5),
-        },
-      ]}>
-      <View style={estilos.indicadorTopo}>
-        {neon ? <View aria-hidden style={[estilos.pontoNeon, { backgroundColor: neon.accent }]} /> : null}
-        <Texto variante="rotulo" cor={cores.textoSuave} nivel={2}>{cartao.titulo}</Texto>
-      </View>
-      <Texto variante="destaque" numerico cor={corValor}>{cartao.valor}</Texto>
-      {indisponivel ? <MotivoDoIndisponivel texto={cartao.motivo} /> : null}
-      {cartao.detalhe ? <Texto variante="pequeno" cor={cores.textoSuave}>{cartao.detalhe}</Texto> : null}
-    </View>
-  );
+function tomDoIndicador(c: CartaoDoPainel): TomDoIndicador {
+  if (c.enfase === 'neutro') return 'neutro';
+  return c.chave === 'recebido' ? 'sucesso' : c.chave === 'emAtraso' ? 'perigo' : 'neutro';
 }
 
 /**
@@ -307,7 +262,18 @@ function Inadimplencia({ painel, vencidasNoPeriodo, lista, buscando, podeAlterar
   aoRegistrar: (i: Inadimplente) => void;
 }) {
   const { width } = useWindowDimensions();
+  const { fatorTexto } = useTema();
   const celular = width < LARGURA_MENU_LATERAL;
+  // A `Tabela` não tem largura "automática" (o cabeçalho da coluna de ações é vazio e não acompanharia as linhas):
+  // a largura dos dois botões (conferida nas capturas de 19/11; a de um só, sem `FINANCEIRO_ALTERAR`, é estimada) cresce
+  // com o texto ampliado.
+  const acoes = Math.round((podeAlterar ? LARGURA_DOS_DOIS_BOTOES : LARGURA_DE_UM_BOTAO) * fatorTexto);
+  const larguraMinima = larguraMinimaDaTabela(acoes);
+  // Mesma largura que a `Tabela` mede: decide se ela está em colunas ou em cartões.
+  const [larguraDaTabela, setLarguraDaTabela] = useState(0);
+  // Em colunas, botão de 44 centrado na primeira linha do nome (22): com as linhas alinhadas pelo topo, o rótulo do botão
+  // ficaria 11 px abaixo do nome. No cartão empilhado o topo já os centra, e a margem encostaria o botão na borda.
+  const recuoDosBotoes = larguraDaTabela >= larguraMinima ? -Math.max(0, (ALVO_TOQUE - LINHA_DO_NOME * fatorTexto) / 2) : 0;
   const i = inadimplenciaParaTela(painel);
   const itens = lista.dados?.itens ?? [];
   const temBase = !!painel && painel.percentual !== null && painel.vencidoCentavos !== null && painel.cobradoCentavos !== null;
@@ -341,26 +307,45 @@ function Inadimplencia({ painel, vencidasNoPeriodo, lista, buscando, podeAlterar
         </View>
       ) : null}
       {itens.length > 0 && !celular ? (
-        <Tabela rotulo="Cobranças vencidas em aberto" linhas={itens} chave={(x) => x.cobrancaId} larguraMinima={600} colunas={[
-          { chave: 'aluno', titulo: 'Aluno', principal: true, flex: 1.6, render: (x) => <Texto variante="bloco" numberOfLines={2}>{x.alunoNome ?? '—'}</Texto> },
-          { chave: 'valor', titulo: 'Valor', alinhar: 'direita', flex: 1, render: (x) => <Texto numerico>{centavosParaTela(x.valorCentavos)}</Texto> },
-          { chave: 'vencimento', titulo: 'Venceu em', flex: 1, render: (x) => <Texto numerico>{dataParaTela(x.vencimento)}</Texto> },
-          { chave: 'atraso', titulo: 'Atraso', flex: 1, render: (x) => <Texto>{atrasoParaTela(x.diasDeAtraso)}</Texto> },
-          { chave: 'acoes', titulo: 'Ações', acao: true, largura: 330, render: (x) => (
-            <LinhaDeAcoes alinhar="fim">
-              {podeAlterar ? <Botao rotulo="Registrar pagamento" tipo="secundario" carregando={buscando === x.cobrancaId}
-                rotuloAcessivel={`Registrar pagamento de ${x.alunoNome ?? 'aluno'}, vencida em ${dataParaTela(x.vencimento)}`} aoTocar={() => aoRegistrar(x)} /> : null}
-              <Botao rotulo="Abrir ficha" tipo="fantasma" rotuloAcessivel={`Abrir ficha de ${x.alunoNome ?? 'aluno'}`}
-                aoTocar={() => router.push(`/treinador/alunos/${x.alunoId}?aba=ficha`)} />
-            </LinhaDeAcoes>
-          ) },
-        ]} />
+        <View onLayout={(e) => setLarguraDaTabela(e.nativeEvent.layout.width)}>
+          <Tabela rotulo="Cobranças vencidas em aberto" linhas={itens} chave={(x) => x.cobrancaId} vao={VAO_DA_TABELA} alinharLinhas="topo"
+            larguraMinima={larguraMinima} colunas={[
+            { chave: 'aluno', titulo: 'Aluno', principal: true, flex: 2, minimo: MINIMOS.aluno, render: (x) => <Texto variante="bloco" numberOfLines={2}>{x.alunoNome ?? '—'}</Texto> },
+            { chave: 'valor', titulo: 'Valor', alinhar: 'direita', flex: 1, minimo: MINIMOS.valor, render: (x) => <Texto numerico>{centavosParaTela(x.valorCentavos)}</Texto> },
+            { chave: 'vencimento', titulo: 'Venceu em', flex: 1, minimo: MINIMOS.vencimento, render: (x) => <Texto numerico>{dataParaTela(x.vencimento)}</Texto> },
+            { chave: 'atraso', titulo: 'Atraso', flex: 1, minimo: MINIMOS.atraso, render: (x) => <Texto>{atrasoParaTela(x.diasDeAtraso)}</Texto> },
+            { chave: 'acoes', titulo: 'Ações', acao: true, largura: acoes, render: (x) => (
+              <LinhaDeAcoes alinhar="fim" style={{ marginVertical: recuoDosBotoes }}>
+                {podeAlterar ? <Botao rotulo="Registrar pagamento" tipo="secundario" carregando={buscando === x.cobrancaId}
+                  rotuloAcessivel={`Registrar pagamento de ${x.alunoNome ?? 'aluno'}, vencida em ${dataParaTela(x.vencimento)}`} aoTocar={() => aoRegistrar(x)} /> : null}
+                <Botao rotulo="Abrir ficha" tipo="fantasma" rotuloAcessivel={`Abrir ficha de ${x.alunoNome ?? 'aluno'}`}
+                  aoTocar={() => router.push(`/treinador/alunos/${x.alunoId}?aba=ficha`)} />
+              </LinhaDeAcoes>
+            ) },
+          ]} />
+        </View>
       ) : null}
     </Cartao>
   );
 }
 
 const VAO = espaco(2);
+/**
+ * Tabela de inadimplência (financeiro 19/11): Aluno flex 2, Valor, Venceu em e Atraso flex 1, ações na largura dos
+ * botões, 24 px entre colunas. Mínimos: o nome em duas linhas, "R$ 100.000,00" e "05/10/2026" na fonte numérica de 15 px
+ * e o atraso que quebra em duas linhas ("197 dias / de atraso"). Abaixo da soma (mínimos + ações + vãos + 24 de recuo da
+ * linha), a `Tabela` vira cartões, como antes; no celular, a lista de itens.
+ */
+const VAO_DA_TABELA = espaco(3);
+const MINIMOS = { aluno: 160, valor: 120, vencimento: 96, atraso: 96 };
+const LARGURA_DOS_DOIS_BOTOES = 320;
+const LARGURA_DE_UM_BOTAO = 124;
+/** Altura da linha da variante `bloco` (o nome do aluno). */
+const LINHA_DO_NOME = 22;
+function larguraMinimaDaTabela(acoes: number): number {
+  const m = MINIMOS.aluno + MINIMOS.valor + MINIMOS.vencimento + MINIMOS.atraso;
+  return m + acoes + VAO_DA_TABELA * 4 + espaco(3);
+}
 /**
  * Largura mínima de cada bloco para ficar lado a lado. Mensal: o gráfico vira tabela abaixo de 420 px de desenho
  * (`GraficoBarras`), e 480 por cartão o mantém de pé com o recuo. Tabela das quebras: a `Tabela` empilha abaixo de 300
@@ -385,10 +370,6 @@ const estilos = StyleSheet.create({
   limites: { gap: espaco(1) },
   filtros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5), alignItems: 'flex-end' },
   caber: { flexShrink: 1, maxWidth: '100%' },
-  indicadores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
-  indicador: { flexShrink: 1, paddingVertical: espaco(2) },
-  indicadorTopo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  pontoNeon: { width: 6, height: 6, borderRadius: 3 },
   lista: { gap: espaco(1) },
   esticar: { flexGrow: 1 },
 });

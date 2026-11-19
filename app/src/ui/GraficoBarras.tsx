@@ -6,7 +6,7 @@ import { escalar } from '../dominio/preferencias';
 import { descricaoDoGrafico, graficoTemDados, linhasDaTabelaDoGrafico, maiorValorDoGrafico, reaisCompactos, type BarraDoMes } from '../dominio/financeiro';
 import { marcasDoEixo } from '../dominio/grafico';
 import { useTema } from '../tema/TemaProvider';
-import { espaco } from '../tema/tokens';
+import { espaco, fontes } from '../tema/tokens';
 import { useDestaques } from './NumeroDeDestaque';
 import { MarcaDeZero } from './MarcaDeZero';
 import { Tabela } from './Tabela';
@@ -47,9 +47,9 @@ export function GraficoBarras({ barras, rotulo = 'Recebido e previsto por mês' 
           linhas={linhasDaTabelaDoGrafico(barras)}
           chave={(l) => l.rotulo}
           colunas={[
-            { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: (l) => <Texto>{l.rotulo}</Texto> },
-            { chave: 'realizado', titulo: 'Recebido', alinhar: 'direita', render: (l) => <Texto>{l.realizado}</Texto> },
-            { chave: 'previsto', titulo: 'Previsto', alinhar: 'direita', render: (l) => <Texto>{l.previsto}</Texto> },
+            { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: (l) => <Texto numerico>{l.rotulo}</Texto> },
+            { chave: 'realizado', titulo: 'Recebido', alinhar: 'direita', render: (l) => <Texto numerico>{l.realizado}</Texto> },
+            { chave: 'previsto', titulo: 'Previsto', alinhar: 'direita', render: (l) => <Texto numerico>{l.previsto}</Texto> },
           ]}
         />
       ) : largura > 0 ? (
@@ -124,7 +124,8 @@ function desenho({ barras, largura, ALTURA, MARGEM, fonte, cores, destaques }: {
       })}
       {barras.map((b, i) =>
         i % passoRotulo === 0 || i === barras.length - 1 ? (
-          <SvgTexto key={`r${i}`} x={MARGEM.esq + faixa * i + faixa / 2} y={ALTURA - 6} fontSize={fonte} fill={cores.textoSuave} textAnchor="middle">
+          // Mês em MM/AAAA na fonte numérica (financeiro 19/11): "11/2026" em 11 px ocupa ~46 px, dentro da faixa mínima de 64.
+          <SvgTexto key={`r${i}`} x={MARGEM.esq + faixa * i + faixa / 2} y={ALTURA - 6} fontSize={fonte} fontFamily={fontes.mono} fill={cores.textoSuave} textAnchor="middle">
             {b.rotulo.replace(' (até hoje)', '')}
           </SvgTexto>
         ) : null,
