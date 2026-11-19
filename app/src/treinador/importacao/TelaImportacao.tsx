@@ -1,5 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { Apple, Check, Download, Dumbbell, FileSearch, FileSpreadsheet, FileText, FileUp, FlaskConical, Pill, Scale, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
+import { Apple, Check, Download, Dumbbell, FileSpreadsheet, FileUp, FlaskConical, Pill, Scale, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { createElement, useId, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
@@ -35,7 +35,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
 import { useGuardaDeSaida, useSaidaGuardada } from '../../ui/GuardaDeSaida';
-import { ItemDeLista } from '../../ui/ItemDeLista';
+import { FolhaNovaImportacao } from './FolhaNovaImportacao';
 import { corDoNumero } from '../../ui/indicador';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo, type TipoSelo } from '../../ui/Selo';
@@ -79,8 +79,8 @@ function abrirModelo(nome: string) {
 const rotuloDoDestino = (id: string) => DESTINOS.find((d) => d.id === id)?.rotulo ?? (id === DESTINO_PLANILHA_COMPLETA ? ROTULO_PLANILHA_COMPLETA : id);
 
 /**
- * Lista do que já foi importado; "Nova importação" abre o assistente em etapas numa tela inteira
- * (`/treinador/importacao/nova`). O arquivo não fica guardado: o histórico guarda só a extensão, por isso cada
+ * Lista do que já foi importado; "Nova importação" abre a escolha entre a manual (o assistente em etapas numa tela
+ * inteira, `/treinador/importacao/nova`) e a assistida (`/treinador/importacao/assistida`), na `FolhaNovaImportacao`. O arquivo não fica guardado: o histórico guarda só a extensão, por isso cada
  * importação é identificada pelo destino e pela data. Destino, situação, tipo do arquivo e período ficam na barra de
  * filtros, no endereço (`?destino=&situacao=&arquivo=&de=&ate=`; `docs/planos/filtros-nas-listas.md`, D10 e lote 2).
  */
@@ -91,6 +91,7 @@ export function TelaImportacao() {
   const filtros = lerDoEndereco(useLocalSearchParams<Record<keyof ParametrosDoEndereco, string>>(), permitidos);
   const [pagina, setPagina] = useState(0);
   const [modelos, setModelos] = useState(false);
+  const [escolhendo, setEscolhendo] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const filtro = { ...pedidoDaApi(filtros), pagina };
   const lista = useCarregar(JSON.stringify(filtro), () => listarImportacoes(filtro));
@@ -106,17 +107,9 @@ export function TelaImportacao() {
   return (
     <>
       <LinhaDeAcoes>
-        <Botao rotulo="Nova importação" Icone={FileUp} aoTocar={() => router.push('/treinador/importacao/nova')} />
+        <Botao rotulo="Nova importação" Icone={FileUp} aoTocar={() => setEscolhendo(true)} />
         <Botao rotulo="Modelos de planilha" tipo="secundario" aoTocar={() => setModelos(true)} />
-        {/* Treino que está num PDF ou Google Docs: vira um modelo de semana de treino já com a Folha de colar aberta. */}
-        {pode('MODELO_LER') && pode('MODELO_ALTERAR') ? (
-          <Botao rotulo="Colar treino de PDF / Docs" tipo="acao" Icone={FileText}
-            aoTocar={() => router.push({ pathname: '/treinador/planejamento', params: { aba: 'treino', tipo: 'plano_treino', novo: '1', colar: '1' } })} />
-        ) : null}
       </LinhaDeAcoes>
-      {/* Um caminho principal (Nova importação); o de documentos fica descrito ao lado, sem outro botão primário. */}
-      <ItemDeLista titulo="Importação assistida" Icone={FileSearch}
-        detalhe="PDFs, DOCX, planilhas e texto colado num lote só. Você confere tudo antes de gravar." href="/treinador/importacao/assistida" />
       <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips}
         aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))}
         painelLateral={{ titulo: 'Filtros de importações' }}
@@ -158,6 +151,7 @@ export function TelaImportacao() {
           ) : null}
         </Cartao>
       ) : null}
+      {escolhendo ? <FolhaNovaImportacao aoFechar={() => setEscolhendo(false)} /> : null}
       {modelos ? <FolhaModelos destinos={permitidos} aoFechar={() => setModelos(false)} /> : null}
       {detalheId ? <FolhaDetalhe id={detalheId} aoFechar={() => setDetalheId(null)} /> : null}
     </>
@@ -167,7 +161,7 @@ export function TelaImportacao() {
 function FolhaModelos({ destinos, aoFechar }: { destinos: Destino[]; aoFechar: () => void }) {
   return (
     <Folha visivel titulo="Modelos de planilha" aoFechar={aoFechar}>
-      <Texto variante="suave">Três linhas fictícias em cada arquivo. CPF, telefone e CEP vão como texto. Baixe, troque pelos seus dados e envie em Nova importação.</Texto>
+      <Texto variante="suave">Três linhas fictícias em cada arquivo. CPF, telefone e CEP vão como texto. Baixe, troque pelos seus dados e envie em Nova importação, Importação manual.</Texto>
       {destinos.map((d) => (
         <View key={d.id} style={estilos.linha}>
           <Texto variante="bloco">{d.rotulo}</Texto>

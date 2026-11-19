@@ -86,6 +86,15 @@ async function escolherCampo(page: Page, botao: RegExp, coluna: string, campo: s
   await expect(lista).toHaveCount(0);
 }
 
+/** Modal da importação (18/11): "Nova importação" abre a escolha; "Importação manual" + Continuar leva ao assistente. */
+async function abrirAssistente(page: Page) {
+  await page.getByRole('button', { name: 'Nova importação' }).click();
+  const modal = page.getByRole('dialog', { name: 'Nova importação' });
+  await modal.getByRole('radio', { name: /^Importação manual/ }).click();
+  await modal.getByRole('button', { name: 'Continuar' }).click();
+  await expect(page).toHaveURL(/\/treinador\/importacao\/nova$/);
+}
+
 for (const largura of [390, 1280]) {
   test(`lista, modelos e histórico em ${largura}px`, async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await preparar(page, largura);
@@ -115,8 +124,7 @@ for (const largura of [390, 1280]) {
   test(`assistente em etapas, do destino ao resultado, em ${largura}px`, async ({ page }) => {
     const { naoTratadas, errosDaPagina, pedidos } = await preparar(page, largura);
     await page.goto('/treinador/importacao');
-    await page.getByRole('button', { name: 'Nova importação' }).click();
-    await expect(page).toHaveURL(/\/treinador\/importacao\/nova$/);
+    await abrirAssistente(page);
     const folha = page.locator('body');
     await expect(folha.getByText(/Destino e arquivo/).first()).toBeVisible();
 
@@ -222,8 +230,7 @@ for (const largura of [390, 1280]) {
   test(`planilha maior que a amostra: aviso do corte, páginas e busca em ${largura}px`, async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await preparar(page, largura, COLUNAS_GRANDES);
     await page.goto('/treinador/importacao');
-    await page.getByRole('button', { name: 'Nova importação' }).click();
-    await expect(page).toHaveURL(/\/treinador\/importacao\/nova$/);
+    await abrirAssistente(page);
     const folha = page.locator('body');
     await folha.getByRole('radiogroup', { name: 'O que vai importar' }).getByRole('radio', { name: 'Alunos' }).click();
     await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'alunos.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
@@ -272,7 +279,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Cancelar' }).click();
     await expect(page).toHaveURL(/\/treinador\/importacao$/);
 
-    await page.getByRole('button', { name: 'Nova importação' }).click();
+    await abrirAssistente(page);
     await page.getByRole('radiogroup', { name: 'O que vai importar' }).getByRole('radio', { name: 'Alunos' }).click();
     await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'alunos.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
     // Com arquivo escolhido, Cancelar pergunta; "Continuar editando" fica.

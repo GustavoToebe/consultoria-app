@@ -175,7 +175,9 @@ test('atalho da Importação: cria o modelo de semana de treino e abre o editor 
     [`GET /receitas/${ID_NOVO}`]: (_p, route) => json(route, criado),
   });
   await page.goto('/treinador/importacao');
-  await page.getByRole('button', { name: 'Colar treino de PDF / Docs', exact: true }).click();
+  // Modal da importação (18/11): o atalho fica no cartão da Importação assistida, dentro de "Nova importação".
+  await page.getByRole('button', { name: 'Nova importação', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Nova importação' }).getByRole('link', { name: 'Colar treino de PDF / Docs', exact: true }).click();
   // O modelo é novo: pede o nome antes de criar.
   await page.getByRole('textbox', { name: 'Nome do modelo', exact: true }).fill('Semana colada fictícia');
   await page.getByRole('button', { name: 'Criar e editar', exact: true }).click();
