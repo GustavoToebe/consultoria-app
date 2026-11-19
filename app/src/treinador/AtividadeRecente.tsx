@@ -1,5 +1,5 @@
 import { ClipboardCheck, Dumbbell, FileCheck, History, Scale, type LucideIcon } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { atividadeRecenteDoAluno } from '../api/rotas';
 import type { ItemDeAtividade, TipoDeAtividade } from '../api/tipos';
@@ -28,12 +28,18 @@ const ICONE: Record<TipoDeAtividade, LucideIcon> = {
  * na aba Planos), o sem destino é só leitura. Vazio é só uma linha de apoio, sem cartão (guia de 11/11, pág. 31): nada é
  * inventado quando não há evento, e a falta de evento recente não diz que o aluno não tem histórico.
  */
-export function AtividadeRecente({ alunoId, aoAbrirPasta }: { alunoId: string; aoAbrirPasta: (pastaId: string) => void }) {
+export function AtividadeRecente({ alunoId, aoAbrirPasta, style }: { alunoId: string; aoAbrirPasta: (pastaId: string) => void; style?: StyleProp<ViewStyle> }) {
   const { dados, erro, carregando, recarregar } = useCarregar(`atividade-recente:${alunoId}`, () => atividadeRecenteDoAluno(alunoId));
   const itens = dados?.itens ?? [];
-  if (dados && itens.length === 0 && !erro) return <Texto variante="suave">Atividade recente: nenhum evento disponível.</Texto>;
+  if (dados && itens.length === 0 && !erro) {
+    return (
+      <View style={style}>
+        <Texto variante="suave">Atividade recente: nenhum evento disponível.</Texto>
+      </View>
+    );
+  }
   return (
-    <Cartao titulo="Atividade recente">
+    <Cartao titulo="Atividade recente" style={style}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto cartoes={1} texto="Carregando a atividade recente" /> : null}
       {itens.length > 0 ? (

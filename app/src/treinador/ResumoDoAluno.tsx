@@ -28,6 +28,7 @@ import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
+import { useFaixaDeLargura } from '../ui/useFaixaDeLargura';
 import { AtividadeRecente } from './AtividadeRecente';
 import type { useAcompanhamentoDoAluno } from './CartaoFrequencia';
 import { ICONE_DO_SELO } from './iconesDosSelos';
@@ -58,6 +59,8 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
   aoAbrirPasta: (pastaId: string) => void;
 }) {
   const { pode, temFuncionalidade } = useSessao();
+  const { faixa, aoMedir } = useFaixaDeLargura();
+  const tresColunas = faixa === 'ultralarga';
   const verRegistros = pode('REGISTRO_LER');
   const { confirmar } = useSaidaGuardada();
   const { cores } = useTema();
@@ -109,7 +112,7 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
   const prazo = planejamento?.vigente && dados ? prazoDaPasta(planejamento.vigente, dados.pastas, hoje, true) : null;
   const temFatos = verAtualizacao || !!treinos || treinosIndisponiveis;
   return (
-    <View style={estilos.resumo}>
+    <View onLayout={aoMedir} style={estilos.resumo}>
       <Cartao titulo="Próximo passo">
         {passo.carregando ? <Esqueleto cartoes={1} texto={passo.texto} /> : (
           <View style={estilos.passo}>
@@ -144,7 +147,9 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
         ) : null}
       </Cartao>
 
-      {/* Planejamento e medição lado a lado no PC; no celular, um embaixo do outro (a ordem de leitura é a mesma). */}
+      {tresColunas && sensivel ? <AvisoDeLesoesNoResumo alunoId={aluno.id} aoVerLesoes={() => aoAbrirAba('ficha')} /> : null}
+
+      {/* Planejamento e medição lado a lado no PC; em ultralarga, Atividade recente entra como 3ª coluna. */}
       <View style={estilos.linha}>
         <Cartao titulo="Planejamento" style={estilos.bloco}>
           {acompanhamento.erro && !dados ? <MensagemErro texto={textoDoErro(acompanhamento.erro)} erro={acompanhamento.erro} tentarDeNovo={acompanhamento.recarregar} /> : null}
@@ -175,10 +180,11 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
           ) : null}
         </Cartao>
         {sensivel ? <UltimaMedicao alunoId={aluno.id} aoVerEvolucao={abas.includes('evolucao') ? () => aoAbrirAba('evolucao') : null} /> : null}
+        {tresColunas ? <AtividadeRecente alunoId={aluno.id} aoAbrirPasta={(p) => confirmar(() => aoAbrirPasta(p))} style={estilos.bloco} /> : null}
       </View>
 
-      {sensivel ? <AvisoDeLesoesNoResumo alunoId={aluno.id} aoVerLesoes={() => aoAbrirAba('ficha')} /> : null}
-      <AtividadeRecente alunoId={aluno.id} aoAbrirPasta={(p) => confirmar(() => aoAbrirPasta(p))} />
+      {!tresColunas && sensivel ? <AvisoDeLesoesNoResumo alunoId={aluno.id} aoVerLesoes={() => aoAbrirAba('ficha')} /> : null}
+      {!tresColunas ? <AtividadeRecente alunoId={aluno.id} aoAbrirPasta={(p) => confirmar(() => aoAbrirPasta(p))} /> : null}
     </View>
   );
 }
