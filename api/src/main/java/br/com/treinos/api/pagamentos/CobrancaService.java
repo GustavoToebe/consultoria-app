@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -48,10 +49,12 @@ public class CobrancaService {
     private final CancelamentoDeUma cancelamento;
     private final TotaisDeCobrancas totais;
     private final Auditoria auditoria;
+    private final CobrancaAutomatica automatica;
 
     public CobrancaService(CobrancaAlunoRepository cobrancas, AlunoRepository alunos, PlanoComercialRepository planos,
                            BaixaDeCobranca baixa, BaixaManualDeUma baixaManual, CancelamentoDeUma cancelamento,
-                           TotaisDeCobrancas totais, Auditoria auditoria) {
+                           TotaisDeCobrancas totais, Auditoria auditoria, CobrancaAutomatica automatica) {
+        this.automatica = automatica;
         this.cobrancas = cobrancas;
         this.alunos = alunos;
         this.planos = planos;
@@ -159,7 +162,10 @@ public class CobrancaService {
             alunos.findAllById(linhas.stream().map(l -> l.cobranca().getAlunoId()).collect(Collectors.toSet()))
                     .forEach(a -> cpfs.put(a.getId(), a.getCpf()));
         }
-        return linhas.stream().map(l -> Respostas.cobranca(l, hoje, cpfs.get(l.cobranca().getAlunoId()))).toList();
+        // D18: a mensalidade cobrada pela Kiwify é marcada na leitura (uma consulta para a página, só com a Kiwify ativa).
+        Set<UUID> automaticas = automatica.contratacoesAutomaticas(linhas.stream().map(LinhaDeCobranca::cobranca).toList());
+        return linhas.stream().map(l -> Respostas.cobranca(l, hoje, cpfs.get(l.cobranca().getAlunoId()),
+                CobrancaAutomatica.eh(l.cobranca(), automaticas))).toList();
     }
 
     /** Todas as cobranças de um aluno (a ficha), da competência mais nova para a mais antiga. */

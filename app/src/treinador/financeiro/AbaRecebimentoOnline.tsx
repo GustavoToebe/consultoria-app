@@ -29,6 +29,7 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { CartaoFormasDeRecebimento } from './CartaoFormasDeRecebimento';
 import { avisoDeConflito, ehConflito } from './comum';
+import { KiwifyConfiguracao } from './KiwifyConfiguracao';
 
 /**
  * Aba Recebimento: primeiro as formas de recebimento (o que o aluno vê para pagar: InfinitePay, link próprio, Pix e Manual,
@@ -55,6 +56,8 @@ export function AbaRecebimentoOnline({ podeAlterar }: { podeAlterar: boolean }) 
       {recebimentoOnlineHabilitado && !dados && carga.carregando ? <Esqueleto /> : null}
       {/* A chave do formulário é a versão: salvar ou remover traz outra versão e o formulário nasce de novo, sem resto de digitação. */}
       {recebimentoOnlineHabilitado && dados ? <Formulario key={dados.versao ?? 'novo'} dados={dados} podeAlterar={podeAlterar} aoMudar={definir} aoRecarregar={recarregar} /> : null}
+      {/* Só com a Kiwify ligada na plataforma (o próprio cartão confere e some sem ela). */}
+      <KiwifyConfiguracao podeAlterar={podeAlterar} />
     </View>
   );
 }

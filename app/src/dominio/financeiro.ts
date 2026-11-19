@@ -1,5 +1,6 @@
 import type {
   CartoesDoPainel,
+  CobrancaAutomatica,
   CobrancaDoAluno,
   CobrancaResponse,
   FormaDeRecebimento,
@@ -12,6 +13,7 @@ import type {
   Painel,
   PeriodoDoPlano,
   PlanoResponse,
+  ProvedorDaConferencia,
   RetornoDoPagamento,
   SituacaoDaCobranca,
   SituacaoDaContratacao,
@@ -21,6 +23,7 @@ import type {
 import { dataSemAnoCorrente } from './datasRelativas';
 import { enfaseDaMedida, enfaseDoNumero, type EnfaseDoNumero } from './destaque';
 import { centavosParaTela, dataCurta, SEM_DADO } from './formatos';
+import { ehCobradaPelaKiwify, motivoComProvedor, MOTIVOS_DA_KIWIFY } from './kiwify';
 import { contagemParaTela, rotuloDoMes, rotuloDoMesCompleto } from './numeros';
 
 /**
@@ -138,6 +141,7 @@ const FORMAS: Record<FormaDePagamento, string> = {
   OUTRO: 'Outro',
   PIX: 'Pix',
   CARTAO: 'Cartão',
+  KIWIFY: 'Kiwify',
 };
 
 export function rotuloDaForma(f: FormaDePagamento | null | undefined): string {
@@ -173,6 +177,9 @@ export function seloDaCobranca(c: { situacao: SituacaoDaCobranca; vencida?: bool
     case 'CONTESTADA':
       // Ainda espera o banco decidir: atenção, não encerrada.
       return { tom: 'atencao', rotulo: 'Contestada' };
+    case 'RENEGOCIADA':
+      // Entrou num acordo (D14): não se cobra mais esta; quem se cobra são as parcelas do acordo.
+      return { tom: 'neutro', rotulo: 'Renegociada' };
     default:
       return { tom: 'neutro', rotulo: SEM_DADO };
   }
@@ -184,27 +191,35 @@ export const ROTULO_COBRANCA_DE_SAIDA = 'Cobrança de saída';
 /** Cobrança lançada pelo treinador, sem plano (Fase 1 do financeiro): o nome no app inteiro. */
 export const ROTULO_COBRANCA_AVULSA = 'Cobrança avulsa';
 
-/** "Mensalidade", "Cobrança de saída" ou "Cobrança avulsa". Sem `tipo` (dado antigo do aparelho), a mensalidade. */
+/** Parcela de um acordo de renegociação (D14): o nome no app inteiro. A descrição dela ("Renegociação (Parcela 1/3)") é do servidor. */
+export const ROTULO_PARCELA_DO_ACORDO = 'Parcela do acordo';
+
+/** "Mensalidade", "Cobrança de saída", "Cobrança avulsa" ou "Parcela do acordo". Sem `tipo` (dado antigo do aparelho), a mensalidade. */
 export function rotuloDoTipoDaCobranca(tipo: TipoDaCobranca | null | undefined): string {
   if (tipo === 'SAIDA') return ROTULO_COBRANCA_DE_SAIDA;
+  if (tipo === 'RENEGOCIACAO') return ROTULO_PARCELA_DO_ACORDO;
   return tipo === 'AVULSA' ? ROTULO_COBRANCA_AVULSA : 'Mensalidade';
 }
 
+/** Avulsa e parcela do acordo não têm plano nem competência: a `descricao` diz o que são. */
+export const temDescricaoPropria = (tipo: TipoDaCobranca | null | undefined): boolean => tipo === 'AVULSA' || tipo === 'RENEGOCIACAO';
+
 /**
- * O selo que marca o TIPO da cobranca ao lado do selo da situação: a de saída ("Saída") e a avulsa ("Avulsa"), neutros (a
- * cor é da situação, não do tipo). Mensalidade não ganha selo.
+ * O selo que marca o TIPO da cobranca ao lado do selo da situação: a de saída ("Saída"), a avulsa ("Avulsa") e a parcela do
+ * acordo ("Acordo"), neutros (a cor é da situação, não do tipo). Mensalidade não ganha selo.
  */
 export function seloDoTipoDaCobranca(tipo: TipoDaCobranca | null | undefined): SeloFinanceiro | null {
   if (tipo === 'SAIDA') return { tom: 'neutro', rotulo: 'Saída' };
+  if (tipo === 'RENEGOCIACAO') return { tom: 'neutro', rotulo: 'Acordo' };
   return tipo === 'AVULSA' ? { tom: 'neutro', rotulo: 'Avulsa' } : null;
 }
 
 /**
- * A coluna "Plano" da lista do treinador: o nome do plano; na avulsa (sem plano) a descrição ("Camiseta (Parcela 1/3)"), ou
- * "Cobrança avulsa" se ela não veio. Sem dado, "—".
+ * A coluna "Plano" da lista do treinador: o nome do plano; na avulsa e na parcela do acordo (sem plano) a descrição
+ * ("Camiseta (Parcela 1/3)", "Renegociação (Parcela 1/3)"), ou o nome do tipo se ela não veio. Sem dado, "—".
  */
 export function nomeNaListaDaCobranca(c: Pick<CobrancaResponse, 'tipo' | 'planoNome' | 'descricao'>): string {
-  if (c.tipo === 'AVULSA') return c.descricao?.trim() || ROTULO_COBRANCA_AVULSA;
+  if (temDescricaoPropria(c.tipo)) return c.descricao?.trim() || rotuloDoTipoDaCobranca(c.tipo);
   return c.planoNome ?? SEM_DADO;
 }
 
@@ -214,7 +229,7 @@ export function nomeNaListaDaCobranca(c: Pick<CobrancaResponse, 'tipo' | 'planoN
  * competência é nula.
  */
 export function referenciaDaCobranca(c: { competencia: string | null; descricao?: string | null; tipo?: TipoDaCobranca | null }): string {
-  if (c.tipo === 'AVULSA' || !c.competencia) return c.descricao?.trim() || rotuloDoTipoDaCobranca(c.tipo);
+  if (temDescricaoPropria(c.tipo) || !c.competencia) return c.descricao?.trim() || rotuloDoTipoDaCobranca(c.tipo);
   return rotuloDoMes(c.competencia);
 }
 
@@ -351,7 +366,11 @@ export function pagarPermitidoNaPlataforma(plataforma: PlataformaDoApp, chaves: 
   return (plataforma === 'ios' ? chaves.pagarNoIos : chaves.pagarNoAndroid) === true;
 }
 
-export type ComoPagar = 'botao' | 'informar' | 'combinar';
+/**
+ * `automatica`: a Kiwify cobra sozinha (D18): nenhuma ação nem frase de pagamento, só "Cobrança automática pela Kiwify".
+ * Só onde o "Pagar" existe (web, ou celular com a chave ligada); no celular com a chave desligada vale `informar` (D16).
+ */
+export type ComoPagar = 'botao' | 'informar' | 'combinar' | 'automatica';
 
 /** Ação de pagamento que o aluno pode ter numa cobrança em aberto. A `MANUAL` não é ação: só informa. */
 export type AcaoDePagamento = 'PAGAR_INFINITEPAY' | 'PAGAR_LINK_PROPRIO' | 'COPIAR_PIX';
@@ -361,6 +380,8 @@ export interface OpcoesDePagamentoDoAluno {
   formas?: readonly FormaDeRecebimento[];
   /** O plano da cobrança tem `linkDePagamento`. Sem ele o "Pagar" do link próprio não aparece (não há para onde abrir). */
   temLinkProprio?: boolean;
+  /** `CobrancaDoAluno.cobrancaAutomatica`: com `KIWIFY` não há ação nenhuma, em plataforma nenhuma (D18); no celular com a chave desligada, nem a frase (D16). */
+  cobrancaAutomatica?: CobrancaAutomatica | null;
 }
 
 /**
@@ -377,7 +398,7 @@ export function acoesDePagamentoDoAluno(
   opcoes: OpcoesDePagamentoDoAluno = {},
 ): AcaoDePagamento[] {
   const t = tipo ?? 'MENSALIDADE';
-  if (t === 'SAIDA' || !pagarPermitidoNaPlataforma(plataforma, chaves)) return [];
+  if (t === 'SAIDA' || opcoes.cobrancaAutomatica === 'KIWIFY' || !pagarPermitidoNaPlataforma(plataforma, chaves)) return [];
   const formas = opcoes.formas ?? (pagamentoOnline ? ['INFINITEPAY'] : []);
   const acoes: AcaoDePagamento[] = [];
   if (pagamentoOnline && formas.includes('INFINITEPAY')) acoes.push('PAGAR_INFINITEPAY');
@@ -409,7 +430,10 @@ export function comoPagar(
   tipo: TipoDaCobranca | null | undefined = 'MENSALIDADE',
   opcoes: OpcoesDePagamentoDoAluno = {},
 ): ComoPagar {
-  if (tipo === 'SAIDA' || !pagarPermitidoNaPlataforma(plataforma, chaves)) return 'informar';
+  const pagarPermitido = pagarPermitidoNaPlataforma(plataforma, chaves);
+  // D16 (18/11): celular com a chave desligada só informa a cobrança, sem citar Kiwify nem forma de pagamento.
+  if (opcoes.cobrancaAutomatica === 'KIWIFY' && pagarPermitido) return 'automatica';
+  if (tipo === 'SAIDA' || !pagarPermitido) return 'informar';
   return acoesDePagamentoDoAluno(plataforma, pagamentoOnline, chaves, tipo, opcoes).length > 0 ? 'botao' : 'combinar';
 }
 
@@ -425,7 +449,10 @@ export function textoDeComoPagar(modo: ComoPagar): string | null {
  */
 export function textoDasAbertasDoAluno(modo: ComoPagar, modosDasAbertas: readonly ComoPagar[]): string | null {
   if (modo === 'informar') return null;
-  return modosDasAbertas.some((m) => m !== 'botao') ? TEXTO_COMBINE_COM_O_TREINADOR : textoDeComoPagar(modo);
+  // A da Kiwify não é "combinar": ela se paga sozinha (D18) e não pede frase nenhuma; só ela em aberto, nenhuma frase.
+  const outras = modosDasAbertas.filter((m) => m !== 'automatica');
+  if (modosDasAbertas.length > 0 && outras.length === 0) return null;
+  return outras.some((m) => m !== 'botao') ? TEXTO_COMBINE_COM_O_TREINADOR : textoDeComoPagar(modo);
 }
 
 /**
@@ -463,10 +490,12 @@ const MOTIVOS_DA_CONFERENCIA: Record<MotivoDaConferencia, string> = {
   COBRANCA_NAO_ENCONTRADA: 'Cobrança não encontrada',
   CONSULTA_FALHOU: 'Não foi possível confirmar com a InfinitePay',
   ESTORNO_INFORMADO: 'A InfinitePay informou estorno deste pagamento. Confira na sua conta e, se for o caso, ajuste a cobrança à mão.',
+  ...MOTIVOS_DA_KIWIFY,
 };
 
-export function rotuloDoMotivoDaConferencia(m: MotivoDaConferencia | null | undefined): string {
-  return (m && MOTIVOS_DA_CONFERENCIA[m]) || 'Conferir manualmente';
+/** O texto do motivo; o mesmo motivo pode citar o provedor (a falha de consulta da Kiwify não fala da InfinitePay). */
+export function rotuloDoMotivoDaConferencia(m: MotivoDaConferencia | null | undefined, provedor?: ProvedorDaConferencia | null): string {
+  return (m && (motivoComProvedor(m, provedor) ?? MOTIVOS_DA_CONFERENCIA[m])) || 'Conferir manualmente';
 }
 
 /** Limites da InfiniteTag e da API Key (a API confere de novo). */
@@ -961,8 +990,9 @@ export const DIAS_DE_AVISO_DO_PAGAMENTO = 3;
  * "em breve" se ainda está aberta; paga ou cancelada nunca aparece.
  */
 export function pagamentoPendente(abertas: readonly CobrancaDoAluno[] | null | undefined, hoje: string): CobrancaDoAluno[] {
+  // A cobrada pela Kiwify não é pendência do aluno (D18): ela se paga sozinha e ele não tem por onde pagar no app.
   return (abertas ?? []).filter(
-    (c) => c.situacao === 'ABERTA' && (c.vencida || diasEntre(hoje, c.vencimento) <= DIAS_DE_AVISO_DO_PAGAMENTO),
+    (c) => c.situacao === 'ABERTA' && !ehCobradaPelaKiwify(c) && (c.vencida || diasEntre(hoje, c.vencimento) <= DIAS_DE_AVISO_DO_PAGAMENTO),
   );
 }
 

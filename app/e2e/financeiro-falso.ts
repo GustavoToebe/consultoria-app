@@ -2,10 +2,13 @@ import type { Page, Route } from '@playwright/test';
 
 import type { AlunoResumo } from '../src/api/tipos';
 import type {
-  CobrancaAvulsaRequest, CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, FormaDeRecebimento,
+  CobrancaAvulsaRequest, CobrancaAvulsaResponse, CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, FormaDeRecebimento,
   FormasDeRecebimento, FormasDeRecebimentoRequest, Inadimplente, JurosDoParcelamento, EncerrarContratacaoRequest, LancamentoResponse, Lembretes,
   LembretesDaCobranca, Painel, PlanoResponse, PreviaDoEncerramento, RecebimentoOnline, ResumoDaSaidaDoAluno, TipoDeChavePix, VisaoGeralDoFinanceiro,
 } from '../src/api/financeiroTipos';
+import type { PreviaDeGeracao } from '../src/api/financeiroF1';
+import type { ResponsavelFinanceiro, ResponsavelFinanceiroRequest } from '../src/api/financeiroResponsavel';
+import type { PreviaDaRenegociacao, PreviaDaRenegociacaoRequest, RenegociacaoResponse, RenegociarRequest } from '../src/api/financeiroRenegociar';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, TREINADOR, type PedidoFalso, type RespostasApi } from './api-falsa';
 
 /**
@@ -186,6 +189,8 @@ export interface EstadoFinanceiro {
   alunos: AlunoResumo[];
   /** Os corpos recebidos pelo `POST /financeiro/cobrancas-avulsas`, na ordem (inclusive os recusados). */
   avulsasRecebidas: CobrancaAvulsaRequest[];
+  /** Os pedidos já gerados (D11), com a resposta dada: o mesmo `pedidoId` de novo responde 200 com ela, sem gerar nada. */
+  avulsasGeradas: Record<string, CobrancaAvulsaResponse>;
   /** O que `GET /financeiro/formas-de-recebimento` devolve (sem `versao` = nunca gravadas: o padrão do servidor). */
   formas: FormasDeRecebimento;
   /** A chave Pix gravada (canônica). Fica só aqui, no falso: nenhuma resposta a devolve, só a máscara. */
@@ -196,6 +201,25 @@ export interface EstadoFinanceiro {
   recusaDasFormas: { field: string; message: string }[] | null;
   /** Os ids recebidos pelo `POST /aluno/financeiro/cobrancas/{id}/pix`. */
   pixPedidos: string[];
+  /** O que `POST /contratacoes/previa-de-geracao` devolve (D10); a API calcula, o falso só devolve o que o teste pôs. */
+  previaDeGeracao: PreviaDeGeracao;
+  /** Quantas das próximas prévias respondem 500 (o "Tentar de novo"). */
+  falhasDaPrevia: number;
+  /** Espera antes de responder a prévia, em ms (o "Contratar plano" fica desabilitado enquanto ela carrega). */
+  atrasoDaPreviaMs: number;
+  /** Os corpos recebidos pela prévia, na ordem (inclusive os que falharam). */
+  previasRecebidas: unknown[];
+  /** Os `versao` recebidos pelo `POST /financeiro/formas-de-recebimento/pix/apagar` (D12). */
+  apagarPixRecebidos: unknown[];
+  /** Os corpos recebidos pela prévia e pelo confirmar do Renegociar (D14), na ordem (inclusive os recusados). */
+  previasDaRenegociacao: PreviaDaRenegociacaoRequest[];
+  renegociacoesRecebidas: RenegociarRequest[];
+  /** Os pedidos de renegociação já feitos (idempotência): o mesmo `pedidoId` de novo responde 200 com a mesma resposta. */
+  renegociacoesFeitas: Record<string, RenegociacaoResponse>;
+  /** Preenchida: a próxima chamada daquela rota do Renegociar responde este erro (uma vez). */
+  recusaDaRenegociacao: { rota: 'previa' | 'confirmar' | 'desfazer'; status: number; codigo: string; fieldErrors?: { field: string; message: string }[] } | null;
+  /** Os ids de acordo recebidos pelo desfazer. */
+  acordosDesfeitos: string[];
 }
 
 const SEM_ABERTAS = { quantidade: 0, valorCentavos: 0 };
@@ -281,8 +305,11 @@ export function estadoFinanceiro(parcial: Partial<EstadoFinanceiro> = {}): Estad
     recebimento: { ...RECEBIMENTO_NAO_CONFIGURADO }, chaveGuardada: null, conferencias: [], pagamentoOnline: false, retornos: [],
     lembretes: { ...LEMBRETES_PADRAO }, lembretesDasCobrancas: {}, alunoRecebeLembretes: true, falhaAoDefinirLembretesDoAluno: null,
     pedidosDeLembretesDoAluno: [], renovacoes: null, renovacoesMeus: null, recusasDoLote: {}, lotesRecebidos: [], previas: {}, previaQueMuda: null,
-    encerramentos: [], resumoDaSaida: RESUMO_DA_SAIDA_VAZIO, alunos: [], avulsasRecebidas: [], formas: { ...FORMAS_PADRAO }, chavePixGuardada: null,
-    formasRecebidas: [], recusaDasFormas: null, pixPedidos: [], ...parcial,
+    encerramentos: [], resumoDaSaida: RESUMO_DA_SAIDA_VAZIO, alunos: [], avulsasRecebidas: [], avulsasGeradas: {}, formas: { ...FORMAS_PADRAO }, chavePixGuardada: null,
+    formasRecebidas: [], recusaDasFormas: null, pixPedidos: [],
+    previaDeGeracao: { quantidade: 0, totalCentavos: 0, primeiraCompetencia: null, ultimaCompetencia: null }, falhasDaPrevia: 0, atrasoDaPreviaMs: 0,
+    previasRecebidas: [], apagarPixRecebidos: [], previasDaRenegociacao: [], renegociacoesRecebidas: [], renegociacoesFeitas: {},
+    recusaDaRenegociacao: null, acordosDesfeitos: [], ...parcial,
   };
 }
 
@@ -338,7 +365,7 @@ const diasEntre = (de: string, ate: string) => Math.round((Date.parse(`${ate}T00
  * só PAGA, a mesma regra do recebido do painel), então total ≠ pago + em aberto.
  */
 function totaisDoFalso(itens: readonly CobrancaResponse[]) {
-  const validas = itens.filter((c) => c.situacao !== 'CANCELADA' && c.situacao !== 'ESTORNADA');
+  const validas = itens.filter((c) => c.situacao !== 'CANCELADA' && c.situacao !== 'ESTORNADA' && c.situacao !== 'RENEGOCIADA');
   const soma = (lista: readonly CobrancaResponse[]) => lista.reduce((s, c) => s + c.valorCentavos, 0);
   const abertas = validas.filter((c) => c.situacao === 'ABERTA');
   return {
@@ -374,13 +401,93 @@ function marcarSituacao(estado: EstadoFinanceiro, p: PedidoFalso, route: Route, 
 
 type PlanoDoCorpo = {
   nome: string; valorCentavos: number; periodicidade: PlanoResponse['periodicidade']; tempoMinimoMeses?: number | null; regraDeSaida?: string | null;
-  linkDePagamento?: string | null;
+  linkDePagamento?: string | null; incluiTreino?: boolean; incluiDieta?: boolean; kiwifyAssinatura?: boolean; kiwifyProdutoId?: string | null;
 };
+/**
+ * Kiwify (D17, `financeiroKiwify.ts`): só no mensal (422 em `kiwifyAssinatura`), ligado com produto e o produto em um plano só
+ * entre os não arquivados (422 em `kiwifyProdutoId`). `outros` = os planos da consultoria menos o que está sendo salvo.
+ */
+function recusaDaKiwify(c: PlanoDoCorpo, route: Route, outros: readonly PlanoResponse[]) {
+  const repetido = !!c.kiwifyAssinatura && outros.some((o) => !o.arquivado && o.kiwifyAssinatura && o.kiwifyProdutoId === c.kiwifyProdutoId?.trim());
+  const campo = c.kiwifyAssinatura && c.periodicidade !== 'MENSAL' ? { field: 'kiwifyAssinatura', message: 'A assinatura pela Kiwify só vale em plano mensal.' }
+    : c.kiwifyAssinatura && !c.kiwifyProdutoId?.trim() ? { field: 'kiwifyProdutoId', message: 'Informe o produto da Kiwify.' }
+      : repetido ? { field: 'kiwifyProdutoId', message: 'Outro plano já usa este produto da Kiwify.' } : null;
+  return campo ? json(route, { status: 422, message: 'Confira os dados do plano.', codigo: 'PLANO_INVALIDO', fieldErrors: [campo] }, 422) : null;
+}
+const kiwifyDoCorpo = (c: PlanoDoCorpo) => ({ kiwifyAssinatura: c.kiwifyAssinatura === true, kiwifyProdutoId: c.kiwifyAssinatura ? (c.kiwifyProdutoId ?? null) : null });
+/** Como a API (D13, V091): ausente vale `true`; os dois `false` = 422 `PLANO_INVALIDO` no campo `incluiTreino`. */
+const semNadaIncluido = (c: PlanoDoCorpo) => c.incluiTreino === false && c.incluiDieta === false;
+const nadaIncluido = (route: Route) => json(route, {
+  status: 422, message: 'Confira os dados do plano.', codigo: 'PLANO_INVALIDO',
+  fieldErrors: [{ field: 'incluiTreino', message: 'Marque pelo menos um: treino ou dieta.' }],
+}, 422);
 const minimoForaDoMensal = (c: PlanoDoCorpo) => c.periodicidade !== 'MENSAL' && (c.tempoMinimoMeses != null || c.regraDeSaida != null);
 const minimoSoNoMensal = (route: Route) => json(route, {
   status: 422, message: 'Confira os dados do plano.', codigo: 'PLANO_INVALIDO',
   fieldErrors: [{ field: 'tempoMinimoMeses', message: 'O tempo mínimo só vale em plano mensal.' }],
 }, 422);
+
+type ErroDoFalso = { status: number; codigo: string; mensagem: string; fieldErrors?: { field: string; message: string }[] };
+
+/**
+ * O Renegociar (D14) como o servidor: confere o corpo (422 `RENEGOCIACAO_INVALIDA`), as originais (404, 409 não aberta, tipo,
+ * versão, alunos diferentes) e calcula total = soma + acréscimo − desconto, em parcelas iguais com a sobra na última e o
+ * vencimento contado do primeiro (dia preso ao fim do mês). Só o falso calcula: ele faz o papel do servidor.
+ */
+function contaDaRenegociacao(estado: EstadoFinanceiro, c: PreviaDaRenegociacaoRequest, comMotivo?: string):
+  { erro: ErroDoFalso } | { originais: CobrancaResponse[]; previa: PreviaDaRenegociacao } {
+  const campos: { field: string; message: string }[] = [];
+  const ajusteValido = (v: unknown) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 1_000_000_000;
+  if (!Array.isArray(c.itens) || c.itens.length < 1 || c.itens.length > 100) campos.push({ field: 'itens', message: 'Escolha de 1 a 100 cobranças.' });
+  else if (new Set(c.itens.map((i) => i.cobrancaId)).size !== c.itens.length) campos.push({ field: 'itens', message: 'Há cobrança repetida.' });
+  if (!ajusteValido(c.acrescimoCentavos)) campos.push({ field: 'acrescimoCentavos', message: 'Acréscimo fora da faixa.' });
+  if (!ajusteValido(c.descontoCentavos)) campos.push({ field: 'descontoCentavos', message: 'Desconto fora da faixa.' });
+  if (!Number.isInteger(c.parcelas) || c.parcelas < 1 || c.parcelas > 12) campos.push({ field: 'parcelas', message: 'As parcelas vão de 1 a 12.' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(c.primeiroVencimento ?? '')) campos.push({ field: 'primeiroVencimento', message: 'Data inválida.' });
+  if (comMotivo !== undefined && (!comMotivo.trim() || comMotivo.trim().length > 300)) campos.push({ field: 'motivo', message: 'Informe o motivo, até 300 caracteres.' });
+  const invalida = (fieldErrors: { field: string; message: string }[]) => ({ erro: { status: 422, codigo: 'RENEGOCIACAO_INVALIDA', mensagem: 'Confira os dados da renegociação.', fieldErrors } });
+  if (campos.length) return invalida(campos);
+  const originais: CobrancaResponse[] = [];
+  for (const item of c.itens) {
+    const cobranca = estado.cobrancas.find((x) => x.id === item.cobrancaId);
+    if (!cobranca) return { erro: { status: 404, codigo: 'COBRANCA_NAO_ENCONTRADA', mensagem: 'Cobrança não encontrada.' } };
+    if (cobranca.situacao !== 'ABERTA') return { erro: { status: 409, codigo: 'COBRANCA_NAO_ABERTA', mensagem: 'A cobrança não está em aberto.' } };
+    if (cobranca.tipo !== 'MENSALIDADE' && cobranca.tipo !== 'AVULSA') return { erro: { status: 409, codigo: 'COBRANCA_NAO_RENEGOCIAVEL', mensagem: 'Esta cobrança não se renegocia.' } };
+    // D3 (18/11): qualquer automática no lote barra o pedido todo, na prévia e no confirmar, com esta mensagem fixa.
+    if (cobranca.cobrancaAutomatica === 'KIWIFY') {
+      return { erro: { status: 409, codigo: 'RENEGOCIACAO_COBRANCA_AUTOMATICA', mensagem: 'Esta cobrança é cobrada automaticamente pela Kiwify e não pode ser renegociada.' } };
+    }
+    if (cobranca.versao !== item.versao) return { erro: { status: 409, codigo: 'CONFLITO_EDICAO', mensagem: 'Alguém alterou este registro.' } };
+    originais.push(cobranca);
+  }
+  if (new Set(originais.map((o) => o.alunoId)).size > 1) return { erro: { status: 409, codigo: 'COBRANCAS_DE_ALUNOS_DIFERENTES', mensagem: 'Alunos diferentes.' } };
+  const soma = originais.reduce((t, o) => t + o.valorCentavos, 0);
+  const total = soma + c.acrescimoCentavos - c.descontoCentavos;
+  if (total < c.parcelas) return invalida([{ field: 'descontoCentavos', message: 'O desconto não pode zerar o total.' }]);
+  const base = Math.floor(total / c.parcelas);
+  const parcelas = Array.from({ length: c.parcelas }, (_, i) => ({
+    numero: i + 1, vencimento: somarMesesNoFalso(c.primeiroVencimento, i),
+    valorCentavos: i === c.parcelas - 1 ? total - base * (c.parcelas - 1) : base,
+    descricao: c.parcelas > 1 ? `Renegociação (Parcela ${i + 1}/${c.parcelas})` : 'Renegociação',
+  }));
+  return {
+    originais,
+    previa: {
+      alunoId: originais[0].alunoId, quantidadeDeOriginais: originais.length, somaDosOriginaisCentavos: soma, acrescimoCentavos: c.acrescimoCentavos,
+      descontoCentavos: c.descontoCentavos, totalCentavos: total, parcelas,
+    },
+  };
+}
+
+const respostaDeErro = (route: Route, e: ErroDoFalso) => json(route, erroApi(e.status, e.mensagem, e.codigo, e.fieldErrors ?? []).corpo, e.status);
+
+/** A recusa forçada do teste para a rota (uma vez). */
+function recusaForcada(estado: EstadoFinanceiro, rota: 'previa' | 'confirmar' | 'desfazer', route: Route) {
+  const r = estado.recusaDaRenegociacao;
+  if (!r || r.rota !== rota) return null;
+  estado.recusaDaRenegociacao = null;
+  return respostaDeErro(route, { ...r, mensagem: 'Recusado pelo servidor.' });
+}
 
 /** Rotas do financeiro para somar ao mapa de `simularApi`. */
 export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
@@ -393,10 +500,13 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       const c = p.corpo as PlanoDoCorpo;
       if (minimoForaDoMensal(c)) return minimoSoNoMensal(route);
       if (c.linkDePagamento && !linkAceito(c.linkDePagamento)) return linkRecusado(route);
+      if (semNadaIncluido(c)) return nadaIncluido(route);
+      const recusaKiwify = recusaDaKiwify(c, route, estado.planos);
+      if (recusaKiwify) return recusaKiwify;
       const plano: PlanoResponse = {
         id: idFalso('b'), nome: c.nome, valorCentavos: c.valorCentavos, periodicidade: c.periodicidade,
         arquivado: false, criadoEm: '2026-10-19T12:00:00Z', versao: 0, tempoMinimoMeses: c.tempoMinimoMeses ?? null, regraDeSaida: c.regraDeSaida ?? null,
-        linkDePagamento: c.linkDePagamento ?? null,
+        linkDePagamento: c.linkDePagamento ?? null, incluiTreino: c.incluiTreino !== false, incluiDieta: c.incluiDieta !== false, ...kiwifyDoCorpo(c),
       };
       estado.planos.push(plano);
       return json(route, plano, 201);
@@ -410,10 +520,14 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       if (plano.versao !== c.versao) return conflito(route);
       if (minimoForaDoMensal(c)) return minimoSoNoMensal(route);
       if (c.linkDePagamento && !linkAceito(c.linkDePagamento)) return linkRecusado(route);
-      // Substitui inteiro, como a API: o link ausente ou nulo APAGA o que havia.
+      if (semNadaIncluido(c)) return nadaIncluido(route);
+      const recusaKiwify = recusaDaKiwify(c, route, estado.planos.filter((x) => x.id !== id));
+      if (recusaKiwify) return recusaKiwify;
+      // Substitui inteiro, como a API: o link ausente ou nulo APAGA o que havia (os campos da Kiwify, ausentes, ficam: chave desligada).
       Object.assign(plano, {
         nome: c.nome, valorCentavos: c.valorCentavos, periodicidade: c.periodicidade, tempoMinimoMeses: c.tempoMinimoMeses ?? null,
-        regraDeSaida: c.regraDeSaida ?? null, linkDePagamento: c.linkDePagamento ?? null, versao: plano.versao + 1,
+        regraDeSaida: c.regraDeSaida ?? null, linkDePagamento: c.linkDePagamento ?? null, incluiTreino: c.incluiTreino !== false,
+        incluiDieta: c.incluiDieta !== false, versao: plano.versao + 1, ...('kiwifyAssinatura' in c ? kiwifyDoCorpo(c) : {}),
       });
       return json(route, plano);
     },
@@ -496,10 +610,14 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       return json(route, { itens: lista.slice(pagina * tamanho, pagina * tamanho + tamanho), total: lista.length });
     },
     // Avulsa, tudo ou nada: 422 por campo, 404 aluno que não existe, 409 inativo; a parcela k vence no primeiro + (k-1) meses.
+    // Idempotente pelo `pedidoId` (D11): o pedido já gerado responde 200 com a mesma resposta e nada novo; só o sucesso o guarda.
     'POST /financeiro/cobrancas-avulsas': (p, route) => {
       const c = p.corpo as CobrancaAvulsaRequest;
       estado.avulsasRecebidas.push(c);
+      const jaGerado = estado.avulsasGeradas[c.pedidoId];
+      if (jaGerado) return json(route, jaGerado, 200);
       const erros: { field: string; message: string }[] = [];
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.pedidoId ?? '')) erros.push({ field: 'pedidoId', message: 'Pedido inválido.' });
       if (!Array.isArray(c.alunoIds) || c.alunoIds.length < 1 || c.alunoIds.length > 100) erros.push({ field: 'alunoIds', message: 'Escolha de 1 a 100 alunos.' });
       else if (new Set(c.alunoIds).size !== c.alunoIds.length) erros.push({ field: 'alunoIds', message: 'Há aluno repetido.' });
       const descricao = (c.descricao ?? '').trim();
@@ -523,7 +641,9 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
           });
         }
       }
-      return json(route, { alunos: alunos.length, cobrancas: alunos.length * c.parcelas }, 201);
+      const resposta = { alunos: alunos.length, cobrancas: alunos.length * c.parcelas };
+      estado.avulsasGeradas[c.pedidoId] = resposta;
+      return json(route, resposta, 201);
     },
     // Lotes de cancelar e de link: cada item em separado, na ordem do pedido; `recusasDoLote` força a recusa de um item.
     'POST /cobrancas/cancelar-em-lote': (p, route) => {
@@ -553,6 +673,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
         if (!cobranca) return { cobrancaId, ok: false, codigo: 'COBRANCA_NAO_ENCONTRADA', url: null };
         if (cobranca.situacao !== 'ABERTA') return { cobrancaId, ok: false, codigo: 'COBRANCA_NAO_ABERTA', url: null };
         if (cobranca.tipo === 'SAIDA') return { cobrancaId, ok: false, codigo: 'COBRANCA_SEM_LINK', url: null };
+        if (cobranca.cobrancaAutomatica === 'KIWIFY') return { cobrancaId, ok: false, codigo: 'COBRANCA_AUTOMATICA', url: null };
         if (!estado.recebimento.configurado) return { cobrancaId, ok: false, codigo: 'RECEBIMENTO_ONLINE_NAO_CONFIGURADO', url: null };
         return { cobrancaId, ok: true, codigo: null, url: `${LINK_DE_PAGAMENTO}-${cobrancaId.slice(-4)}` };
       });
@@ -601,8 +722,18 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       return json(route, novo, 201);
     },
     'GET /alunos/{id}/contratacoes': (_p, route) => json(route, estado.contratacoes),
+    // Só leitura, como a API: o falso não conta mensalidade nenhuma, devolve a prévia que o teste montou.
+    'POST /contratacoes/previa-de-geracao': async (p, route) => {
+      estado.previasRecebidas.push(p.corpo);
+      if (estado.atrasoDaPreviaMs > 0) await new Promise((r) => setTimeout(r, estado.atrasoDaPreviaMs));
+      if (estado.falhasDaPrevia > 0) {
+        estado.falhasDaPrevia -= 1;
+        return json(route, erroApi(500, 'Erro inesperado.', 'ERRO_INTERNO').corpo, 500);
+      }
+      return json(route, estado.previaDeGeracao);
+    },
     'POST /alunos/{id}/contratacoes': (p, route) => {
-      const c = p.corpo as { planoComercialId: string; valorCentavos?: number | null; motivoValor?: string | null; inicio: string; diaVencimento: number };
+      const c = p.corpo as { planoComercialId: string; valorCentavos?: number | null; motivoValor?: string | null; inicio: string; diaVencimento: number; gerarMesesAnteriores?: boolean };
       const plano = estado.planos.find((x) => x.id === c.planoComercialId);
       if (!plano) return json(route, erroApi(404, 'Plano comercial não encontrado.', 'NAO_ENCONTRADO').corpo, 404);
       if (estado.contratacoes.some((x) => x.situacao !== 'ENCERRADA')) {
@@ -615,13 +746,15 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
         criadoEm: '2026-10-19T12:00:00Z', versao: 0, minimoAte: null,
       };
       estado.contratacoes.push(contratacao);
-      const [ano, mes] = c.inicio.split('-').map(Number);
+      // D10: sem gerar os meses anteriores, a primeira cobrança é a do mês corrente (o início fica gravado como veio).
+      const competencia = !c.gerarMesesAnteriores && c.inicio.slice(0, 7) < HOJE.slice(0, 7) ? `${HOJE.slice(0, 7)}-01` : c.inicio;
+      const [ano, mes] = competencia.split('-').map(Number);
       const dia = Math.min(c.diaVencimento, ultimoDia(ano, mes));
       const vencimento = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
       const vencida = vencimento < HOJE;
       estado.cobrancas.push({
         id: idFalso('c'), contratacaoId: contratacao.id, alunoId: ALUNO_FINANCEIRO_ID, alunoNome: ALUNO.nome, planoNome: plano.nome,
-        competencia: c.inicio, vencimento, valorCentavos, situacao: 'ABERTA', vencida, diasDeAtraso: vencida ? 1 : null, forma: null, provedor: null,
+        competencia, vencimento, valorCentavos, situacao: 'ABERTA', vencida, diasDeAtraso: vencida ? 1 : null, forma: null, provedor: null,
         pagoEm: null, baixaPor: null, baixaPorNome: null, observacao: null, motivo: null, versao: 0, tipo: 'MENSALIDADE', descricao: null,
       });
       return json(route, contratacao, 201);
@@ -664,6 +797,62 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       });
       return json(route, { resultados });
     },
+    'POST /cobrancas/renegociar/previa': (p, route) => {
+      const c = p.corpo as PreviaDaRenegociacaoRequest;
+      estado.previasDaRenegociacao.push(c);
+      const forcada = recusaForcada(estado, 'previa', route);
+      if (forcada) return forcada;
+      const r = contaDaRenegociacao(estado, c);
+      return 'erro' in r ? respostaDeErro(route, r.erro) : json(route, r.previa);
+    },
+    // Tudo ou nada; o mesmo `pedidoId` de novo devolve 200 com a mesma resposta, sem mexer em nada (como a D11).
+    'POST /cobrancas/renegociar': (p, route) => {
+      const c = p.corpo as RenegociarRequest;
+      estado.renegociacoesRecebidas.push(c);
+      const feita = estado.renegociacoesFeitas[c.pedidoId];
+      if (feita) return json(route, feita, 200);
+      const forcada = recusaForcada(estado, 'confirmar', route);
+      if (forcada) return forcada;
+      const r = contaDaRenegociacao(estado, c, c.motivo ?? '');
+      if ('erro' in r) return respostaDeErro(route, r.erro);
+      const acordoId = idFalso('f');
+      for (const o of r.originais) Object.assign(o, { situacao: 'RENEGOCIADA', acordoId, motivo: c.motivo.trim(), vencida: false, diasDeAtraso: null, versao: o.versao + 1 });
+      estado.inadimplentes = estado.inadimplentes.filter((i) => !r.originais.some((o) => o.id === i.cobrancaId));
+      const modelo = r.originais[0];
+      for (const parcela of r.previa.parcelas) {
+        const vencida = parcela.vencimento < HOJE;
+        estado.cobrancas.push({
+          ...modelo, id: idFalso('c'), contratacaoId: null, planoNome: null, competencia: null, vencimento: parcela.vencimento,
+          valorCentavos: parcela.valorCentavos, situacao: 'ABERTA', vencida, diasDeAtraso: vencida ? diasEntre(parcela.vencimento, HOJE) : null,
+          forma: null, provedor: null, pagoEm: null, baixaPor: null, baixaPorNome: null, observacao: null, motivo: null, versao: 0,
+          criadoEm: '2026-10-19T12:00:00Z', tipo: 'RENEGOCIACAO', descricao: parcela.descricao, acordoId,
+        });
+      }
+      const resposta: RenegociacaoResponse = { acordoId, renegociadas: r.originais.length, parcelas: r.previa.parcelas.length, totalCentavos: r.previa.totalCentavos };
+      estado.renegociacoesFeitas[c.pedidoId] = resposta;
+      return json(route, resposta, 201);
+    },
+    // Desfazer: só sem parcela paga, contestada ou estornada; as originais voltam a abertas e as parcelas abertas são canceladas.
+    'POST /cobrancas/acordos/{id}/desfazer': (p, route) => {
+      const acordoId = p.caminho.split('/')[3];
+      estado.acordosDesfeitos.push(acordoId);
+      const forcada = recusaForcada(estado, 'desfazer', route);
+      if (forcada) return forcada;
+      const doAcordo = estado.cobrancas.filter((x) => x.acordoId === acordoId);
+      if (!doAcordo.length) return json(route, erroApi(404, 'Acordo não encontrado.', 'NAO_ENCONTRADO').corpo, 404);
+      const parcelas = doAcordo.filter((x) => x.tipo === 'RENEGOCIACAO');
+      if (parcelas.some((x) => x.situacao === 'PAGA' || x.situacao === 'CONTESTADA' || x.situacao === 'ESTORNADA')) {
+        return json(route, erroApi(409, 'Alguma parcela do acordo já foi paga, contestada ou estornada.', 'ACORDO_NAO_DESFAZIVEL').corpo, 409);
+      }
+      const { motivo } = p.corpo as { motivo: string };
+      const originais = doAcordo.filter((x) => x.situacao === 'RENEGOCIADA');
+      for (const o of originais) {
+        const vencida = o.vencimento < HOJE;
+        Object.assign(o, { situacao: 'ABERTA', acordoId: null, motivo: null, vencida, diasDeAtraso: vencida ? diasEntre(o.vencimento, HOJE) : null, versao: o.versao + 1 });
+      }
+      for (const x of parcelas) Object.assign(x, { situacao: 'CANCELADA', motivo, vencida: false, diasDeAtraso: null, versao: x.versao + 1 });
+      return json(route, { acordoId, reabertas: originais.length, canceladas: parcelas.length });
+    },
     'POST /cobrancas/{id}/contestar': (p, route) => marcar(p, route, ['PAGA'], 'CONTESTADA', 'COBRANCA_NAO_PAGA'),
     'POST /cobrancas/{id}/estornar': (p, route) => marcar(p, route, ['PAGA', 'CONTESTADA'], 'ESTORNADA', 'COBRANCA_NAO_PAGA'),
     'POST /cobrancas/{id}/manter-paga': (p, route) => marcar(p, route, ['CONTESTADA'], 'PAGA', 'COBRANCA_NAO_CONTESTADA'),
@@ -672,6 +861,8 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       const doAluno = (c: CobrancaResponse): CobrancaDoAluno => ({
         id: c.id, competencia: c.competencia, vencimento: c.vencimento, valorCentavos: c.valorCentavos, situacao: c.situacao, vencida: c.vencida,
         forma: c.forma, pagoEm: c.pagoEm, tipo: c.tipo, descricao: c.descricao,
+        // Kiwify (D18): a marca vem da cobrança, como a API calcula na leitura.
+        ...(c.cobrancaAutomatica ? { cobrancaAutomatica: c.cobrancaAutomatica } : {}),
       });
       const linkDoPlano = vigente ? (estado.planos.find((x) => x.id === vigente.planoComercialId)?.linkDePagamento ?? null) : null;
       const corpo: FinanceiroDoAluno = {
@@ -737,6 +928,15 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
         infinitePay: c.infinitePay, linkProprio: c.linkProprio, pix: c.pix, manual: true, pixConfig,
         versao: estado.formas.versao === null ? 0 : estado.formas.versao + 1,
       };
+      return json(route, estado.formas);
+    },
+    // D12: zera chave, nome e cidade e desliga o Pix; a resposta é o corpo do `GET`. Versão diferente da gravada = 409.
+    'POST /financeiro/formas-de-recebimento/pix/apagar': (p, route) => {
+      const { versao } = p.corpo as { versao: number };
+      estado.apagarPixRecebidos.push(versao);
+      if (versao !== estado.formas.versao) return conflito(route);
+      estado.chavePixGuardada = null;
+      estado.formas = { ...estado.formas, pix: false, pixConfig: null, versao: (estado.formas.versao ?? 0) + 1 };
       return json(route, estado.formas);
     },
     'GET /financeiro/recebimento-online': (_p, route) => json(route, estado.recebimento),
@@ -839,7 +1039,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
     'GET /cobrancas/{id}/lembretes': (p, route) => {
       const id = p.caminho.split('/')[2];
       if (!estado.cobrancas.some((x) => x.id === id)) return json(route, erroApi(404, 'Cobrança não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
-      return json(route, estado.lembretesDasCobrancas[id] ?? { itens: [], whatsapp: null, motivoSemWhatsapp: null, alunoDesligou: false });
+      return json(route, estado.lembretesDasCobrancas[id] ?? { itens: [], whatsapp: null, motivoSemWhatsapp: null, alunoDesligou: false, paraResponsavel: false });
     },
     'GET /financeiro/conferencias': (_p, route) => json(route, { itens: estado.conferencias }),
     'POST /financeiro/conferencias/{id}/conferido': (p, route) => {
@@ -848,6 +1048,57 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
         return json(route, erroApi(404, 'Conferência não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
       }
       estado.conferencias = estado.conferencias.filter((x) => x.id !== id);
+      return route.fulfill({ status: 204 });
+    },
+  };
+}
+
+/**
+ * Responsável financeiro do aluno (D15) em memória, à parte do `EstadoFinanceiro` (some a outra pessoa mudando no meio:
+ * o teste troca `responsavel` e a `versao` velha da tela dá 409, como no servidor). `veCpf` imita `ALUNO_SENSIVEL_LER`:
+ * sem ela o GET manda `cpf` nulo e o PUT ignora o do corpo. Só dados fictícios.
+ */
+export interface EstadoDoResponsavel {
+  responsavel: ResponsavelFinanceiro;
+  veCpf: boolean;
+  /** Preenchida: o próximo PUT ou DELETE responde este erro (uma vez). */
+  recusa: { status: number; codigo: string; fieldErrors?: { field: string; message: string }[] } | null;
+  puts: ResponsavelFinanceiroRequest[];
+  deletes: (string | null)[];
+}
+
+export const SEM_RESPONSAVEL: ResponsavelFinanceiro = { nome: null, parentesco: null, cpf: null, telefone: null, email: null, versao: null, atualizadoEm: null };
+
+export const estadoDoResponsavel = (parcial: Partial<EstadoDoResponsavel> = {}): EstadoDoResponsavel =>
+  ({ responsavel: { ...SEM_RESPONSAVEL }, veCpf: true, recusa: null, puts: [], deletes: [], ...parcial });
+
+export function rotasDoResponsavel(estado: EstadoDoResponsavel): RespostasApi {
+  const visto = () => (estado.veCpf ? estado.responsavel : { ...estado.responsavel, cpf: null });
+  const recusar = (route: Route) => {
+    const r = estado.recusa;
+    if (!r) return null;
+    estado.recusa = null;
+    return json(route, erroApi(r.status, 'Recusado pelo servidor.', r.codigo, r.fieldErrors ?? []).corpo, r.status);
+  };
+  return {
+    'GET /alunos/{id}/responsavel-financeiro': (_p, route) => json(route, visto()),
+    'PUT /alunos/{id}/responsavel-financeiro': (p, route) => {
+      const c = p.corpo as ResponsavelFinanceiroRequest;
+      estado.puts.push(c);
+      const recusa = recusar(route);
+      if (recusa) return recusa;
+      if (c.versao !== estado.responsavel.versao) return conflito(route);
+      const cpf = estado.veCpf ? c.cpf : estado.responsavel.cpf;
+      estado.responsavel = { ...c, cpf, versao: (estado.responsavel.versao ?? -1) + 1, atualizadoEm: '2026-10-19T15:00:00Z' };
+      return json(route, visto());
+    },
+    'DELETE /alunos/{id}/responsavel-financeiro': (p, route) => {
+      estado.deletes.push(p.busca.get('versao'));
+      const recusa = recusar(route);
+      if (recusa) return recusa;
+      const versao = p.busca.get('versao');
+      if (versao !== null && Number(versao) !== estado.responsavel.versao && estado.responsavel.versao !== null) return conflito(route);
+      estado.responsavel = { ...SEM_RESPONSAVEL };
       return route.fulfill({ status: 204 });
     },
   };

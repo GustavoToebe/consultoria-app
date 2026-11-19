@@ -56,6 +56,7 @@ public class AuthService {
     private final Auditoria auditoria;
     private final br.com.treinos.api.pagamentos.PagamentosProperties pagamentos;
     private final br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay;
+    private final br.com.treinos.api.pagamentos.KiwifyProperties kiwify;
     private final br.com.treinos.api.ciclo.CicloProperties ciclo;
     private final br.com.treinos.api.retorno.RetornoProperties retorno;
     private final br.com.treinos.api.push.PushProperties push;
@@ -79,7 +80,9 @@ public class AuthService {
                        br.com.treinos.api.push.PushProperties push, br.com.treinos.api.push.PushService pushTokens,
                        br.com.treinos.api.unidadecarga.UnidadeDeCargaProperties unidadeDeCarga,
                        br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao,
-                       br.com.treinos.api.vitrine.VitrineProperties vitrine) {
+                       br.com.treinos.api.vitrine.VitrineProperties vitrine,
+                       br.com.treinos.api.pagamentos.KiwifyProperties kiwify) {
+        this.kiwify = kiwify;
         this.vitrine = vitrine;
         this.pagamentos = pagamentos;
         this.ciclo = ciclo;
@@ -194,7 +197,8 @@ public class AuthService {
                 usuario.getPapel() == Papel.TREINADOR ? permissoes.codigos(usuario) : null,
                 termos.pendente(usuario.getId()), Termos.VERSAO,
                 plano.funcionalidadesLiberadas(usuario.getConsultoriaId()), pagamentos.habilitado(),
-                pagamentos.habilitado() && infinitePay.habilitado(), pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
+                pagamentos.habilitado() && infinitePay.habilitado(), pagamentos.habilitado() && kiwify.habilitado(),
+                pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
                 ciclo.habilitado(), retorno.habilitado(), push.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado(),
                 vitrine.habilitada(), vitrine.lojaEfetiva(), vitrine.marketplaceEfetivo(),
                 usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())

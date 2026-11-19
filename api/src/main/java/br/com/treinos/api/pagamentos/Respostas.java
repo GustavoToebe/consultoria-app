@@ -19,7 +19,7 @@ final class Respostas {
     static PlanoResponse plano(PlanoComercial p) {
         return new PlanoResponse(p.getId(), p.getNome(), p.getValorCentavos(), p.getPeriodicidade(),
                 p.isArquivado(), p.getCriadoEm(), p.getVersao(), p.getTempoMinimoMeses(), p.getRegraDeSaida(),
-                p.getLinkDePagamento());
+                p.getLinkDePagamento(), p.isIncluiTreino(), p.isIncluiDieta(), p.isKiwifyAssinatura(), p.getKiwifyProdutoId());
     }
 
     static ContratacaoResponse contratacao(ContratacaoAluno c, String planoNome) {
@@ -61,20 +61,21 @@ final class Respostas {
     }
 
     /** {@code alunoCpf}: o do aluno, já decidido por quem chama (nulo sem {@code ALUNO_SENSIVEL_LER}). */
-    static CobrancaResponse cobranca(LinhaDeCobranca l, LocalDate hoje, String alunoCpf) {
+    static CobrancaResponse cobranca(LinhaDeCobranca l, LocalDate hoje, String alunoCpf, boolean automatica) {
         CobrancaAluno c = l.cobranca();
         boolean vencida = c.vencida(hoje);
         return new CobrancaResponse(c.getId(), c.getContratacaoId(), c.getAlunoId(), l.alunoNome(), l.planoNome(),
                 c.getCompetencia(), c.getVencimento(), c.getValorCentavos(), c.getSituacao(), vencida,
                 vencida ? diasDeAtraso(c, hoje) : null, c.getForma(), c.getProvedor(), c.getPagoEm(), c.getBaixaPor(),
                 l.baixaPorNome(), c.getObservacao(), c.getMotivo(), c.getVersao(), c.getCriadoEm(), c.getIdExterno(),
-                alunoCpf, c.getTipo(), c.getDescricao());
+                alunoCpf, c.getTipo(), c.getDescricao(), c.getAcordoId(), automatica ? CobrancaAutomatica.KIWIFY : null);
     }
 
     /** Só o que o aluno pode ver: sem observação, motivo, quem deu a baixa nem o provedor. */
-    static CobrancaDoAluno cobrancaDoAluno(CobrancaAluno c, LocalDate hoje) {
+    static CobrancaDoAluno cobrancaDoAluno(CobrancaAluno c, LocalDate hoje, boolean automatica) {
         return new CobrancaDoAluno(c.getId(), c.getCompetencia(), c.getVencimento(), c.getValorCentavos(),
-                c.getSituacao(), c.vencida(hoje), c.getForma(), c.getPagoEm(), c.getTipo(), c.getDescricao());
+                c.getSituacao(), c.vencida(hoje), c.getForma(), c.getPagoEm(), c.getTipo(), c.getDescricao(),
+                automatica ? CobrancaAutomatica.KIWIFY : null);
     }
 
     static LancamentoResponse lancamento(LancamentoFinanceiro l) {

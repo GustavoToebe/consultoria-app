@@ -175,6 +175,14 @@ treinos:
       url-publica: ${TREINOS_PAGAMENTOS_URL_PUBLICA:}
       # Só os testes desligam o conciliador agendado (eles o chamam à mão).
       conciliacao-ativa: ${TREINOS_PAGAMENTOS_CONCILIACAO_ATIVA:true}
+    # Kiwify automática (a Kiwify cobra a assinatura do aluno e avisa por webhook assinado; a API confere a venda e dá a baixa).
+    # Desligada por padrão: as rotas dela respondem 503 KIWIFY_INDISPONIVEL e GET /eu traz kiwifyHabilitada=false. Ligada, a API só
+    # sobe com TREINOS_PAGAMENTOS_CHAVES, TREINOS_PAGAMENTOS_CHAVE_ATIVA e TREINOS_PAGAMENTOS_URL_PUBLICA (as mesmas da InfinitePay).
+    # A URL da API é https (só localhost e 127.0.0.1 aceitam http, para os testes). Só os testes desligam o conciliador agendado.
+    kiwify:
+      habilitado: ${TREINOS_PAGAMENTOS_KIWIFY_HABILITADO:false}
+      url-api: ${TREINOS_PAGAMENTOS_KIWIFY_URL_API:https://public-api.kiwify.com}
+      conciliacao-ativa: ${TREINOS_PAGAMENTOS_KIWIFY_CONCILIACAO_ATIVA:true}
     # Lembretes de cobrança por e-mail (a configuração é de cada consultoria, no Financeiro, e nasce desligada). Só os testes
     # desligam o job agendado (eles o chamam à mão). Sem o e-mail do app ligado (TREINOS_EMAIL_HABILITADO) nada é enviado.
     lembretes:

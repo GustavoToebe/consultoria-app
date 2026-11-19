@@ -125,3 +125,44 @@ describe('CartaoMeuPlano: ações de pagamento por plataforma (D7)', () => {
     expect(t.match(/\[Pagar pelo link do treinador\]/g)).toHaveLength(1);
   });
 });
+
+describe('CartaoMeuPlano: mensalidade cobrada pela Kiwify (D18)', () => {
+  const KIWIFY: CobrancaDoAluno = { ...MENSALIDADE, id: 'c-3', cobrancaAutomatica: 'KIWIFY' };
+
+  it.each([
+    ['android', { pagarNoIos: false, pagarNoAndroid: true }],
+    ['ios', { pagarNoIos: true, pagarNoAndroid: false }],
+    ['web', { pagarNoIos: false, pagarNoAndroid: false }],
+  ] as const)('%s (chaves %o): só "Cobrança automática pela Kiwify", sem ação, forma nem frase de pagamento', async (os, chaves) => {
+    mockDados = financeiro({ abertas: [KIWIFY] });
+    mockChaves = { ...chaves };
+    const t = await textos(os);
+    expect(t).toContain('Cobrança automática pela Kiwify');
+    expect(t).not.toMatch(/\[Pagar|\[Copiar código Pix/);
+    expect(t).not.toContain(TEXTO_COMBINE_COM_O_TREINADOR);
+    expect(t).not.toMatch(/Mensalidade de R\$/);
+  });
+
+  it.each([
+    ['android', { pagarNoIos: true, pagarNoAndroid: false }],
+    ['ios', { pagarNoIos: false, pagarNoAndroid: true }],
+    ['ios', { pagarNoIos: false, pagarNoAndroid: false }],
+  ] as const)('D16, %s (chaves %o): celular com a chave desligada só informa a cobrança, sem Kiwify nem forma de pagamento', async (os, chaves) => {
+    mockDados = financeiro({ abertas: [KIWIFY, { ...KIWIFY, id: 'c-4', situacao: 'PAGA', pagoEm: '2026-10-19', forma: 'KIWIFY' }] });
+    mockChaves = { ...chaves };
+    const t = await textos(os);
+    expect(t).not.toMatch(/Kiwify|automática/i);
+    expect(t).not.toMatch(/\[Pagar|\[Copiar código Pix/);
+    expect(t).not.toContain(TEXTO_COMBINE_COM_O_TREINADOR);
+    expect(t).toMatch(/Mensalidade de R\$ .*, vence em/);
+    expect(t).toContain('Paga em 19/10');
+  });
+
+  it('web, Kiwify ao lado de uma avulsa: a avulsa mantém as ações dela e a Kiwify continua sem nenhuma', async () => {
+    mockDados = financeiro({ abertas: [KIWIFY, AVULSA] });
+    const t = await textos('web');
+    expect(t.match(/\[Pagar\]/g)).toHaveLength(1);
+    expect(t.match(/\[Copiar código Pix\]/g)).toHaveLength(1);
+    expect(t).toContain('Cobrança automática pela Kiwify');
+  });
+});

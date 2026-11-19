@@ -92,6 +92,11 @@ treinos:
       habilitado: true
       url-publica: https://api.teste.local
       conciliacao-ativa: false
+    # Kiwify DESLIGADA na suíte (ligada sem as variáveis a API não sobe, e várias classes esvaziam as chaves): as classes Kiwify*
+    # a ligam com @DynamicPropertySource, apontando para a Kiwify de mentira. O conciliador agendado fica desligado.
+    kiwify:
+      habilitado: false
+      conciliacao-ativa: false
     # O job dos lembretes de cobrança também: os testes chamam LembretesDeCobranca.rodar à mão.
     lembretes:
       agendados: false

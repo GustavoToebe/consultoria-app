@@ -1,8 +1,10 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
-import type { CobrancaResponse, ContratacaoResponse, Inadimplente, PreviaDoEncerramento } from '../src/api/financeiroTipos';
+import type { CobrancaResponse, ContratacaoResponse, Inadimplente, PlanoResponse, PreviaDoEncerramento } from '../src/api/financeiroTipos';
 import type { AlunoDetalhe } from '../src/api/tipos';
 import { TEXTO_COMBINE_COM_O_TREINADOR, TEXTO_NADA_E_BAIXADO } from '../src/dominio/financeiro';
+import { ROTULO_GERAR_MESES_ANTERIORES } from '../src/dominio/contratarNoPassado';
+import { TEXTO_GENERICO_DO_INATIVAR } from '../src/dominio/saidaDoPlano';
 import { ALUNO, erroApi, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 import { fixarHoje, sessaoDeAluno } from './aluno';
 import {
@@ -407,7 +409,7 @@ test('fluxo completo: o treinador cria o plano, contrata na ficha e dá a baixa;
   await expect(page.getByText('Plano criado.')).toBeVisible();
   await expect(page.getByText('Consultoria mensal').first()).toBeVisible();
   expect(pedidos.find((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos')?.corpo)
-    .toEqual({ nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: null, versao: null });
+    .toEqual({ nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: null, incluiTreino: true, incluiDieta: true, kiwifyAssinatura: false, kiwifyProdutoId: null, versao: null });
   const planoId = estado.planos[0].id;
 
   // 2. Contratação na ficha do aluno.
@@ -422,7 +424,9 @@ test('fluxo completo: o treinador cria o plano, contrata na ficha e dá a baixa;
   await expect(page.getByText('Plano contratado.')).toBeVisible();
   // Valor em branco = o do plano: o app não manda valor.
   expect(pedidos.find((p) => p.metodo === 'POST' && p.caminho.endsWith('/contratacoes'))?.corpo)
-    .toEqual({ planoComercialId: planoId, valorCentavos: null, motivoValor: null, inicio: '2026-10-19', diaVencimento: 25 });
+    .toEqual({ planoComercialId: planoId, valorCentavos: null, motivoValor: null, inicio: '2026-10-19', diaVencimento: 25, gerarMesesAnteriores: false });
+  // Início neste mês: o interruptor dos meses anteriores nem aparece e nenhuma prévia é pedida (D10).
+  expect(estado.previasRecebidas).toEqual([]);
 
   // 3. Baixa manual da primeira cobrança.
   await page.getByRole('button', { name: /^Abrir cobrança de/ }).click();
@@ -578,7 +582,7 @@ for (const largura of [390, 1280]) {
     await folha.getByRole('button', { name: 'Criar plano' }).click();
     await expect(page.getByText('Plano criado.')).toBeVisible();
     expect(pedidos.find((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos')?.corpo).toEqual({
-      nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', tempoMinimoMeses: 6, regraDeSaida: REGRA, linkDePagamento: null, versao: null,
+      nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', tempoMinimoMeses: 6, regraDeSaida: REGRA, linkDePagamento: null, incluiTreino: true, incluiDieta: true, kiwifyAssinatura: false, kiwifyProdutoId: null, versao: null,
     });
     await expect(page.getByText(/Mínimo de 6 meses/)).toBeVisible();
 
@@ -593,7 +597,7 @@ for (const largura of [390, 1280]) {
     await outro.getByRole('button', { name: 'Criar plano' }).click();
     await expect.poll(() => pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos').length).toBe(2);
     expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/financeiro/planos').at(-1)?.corpo).toEqual({
-      nome: 'Consultoria trimestral', valorCentavos: 40_000, periodicidade: 'TRIMESTRAL', tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: null, versao: null,
+      nome: 'Consultoria trimestral', valorCentavos: 40_000, periodicidade: 'TRIMESTRAL', tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: null, incluiTreino: true, incluiDieta: true, kiwifyAssinatura: false, kiwifyProdutoId: null, versao: null,
     });
 
     // Editar o mensal e trocar para trimestral avisa que o mínimo será apagado.
@@ -799,10 +803,11 @@ test('encerrar sem mínimo com "Outro valor": a tela valida o valor e o vencimen
   expect(errosDaPagina).toEqual([]);
 });
 
-for (const largura of [390, 1280]) {
-  test(`inativar em ${largura}px: o painel mostra o que acontece com as cobranças, pela API`, async ({ page }, testInfo) => {
+for (const [largura, tema] of [[390, 'CLARO'], [1280, 'ESCURO']] as const) {
+  test(`inativar em ${largura}px (${tema}): o painel mostra o que acontece com as cobranças, pela API`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     await fixarHoje(page);
+    await comTema(page, tema);
     const estado = estadoFinanceiro({
       contratacoes: [{ ...COM_MINIMO }], cobrancas: cobrancasComMinimo(),
       resumoDaSaida: { aCancelar: { quantidade: 2, valorCentavos: 30_000 }, emAberto: { quantidade: 1, valorCentavos: 15_000 }, minimoAte: '2027-02-05', mesesQueFaltam: 4 },
@@ -812,14 +817,96 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Mais ações do aluno', exact: true }).click();
     await page.getByText('Inativar aluno', { exact: true }).click();
     const painel = page.getByRole('alertdialog', { name: `Inativar ${ALUNO.nome}?` });
-    await expect(painel.getByText('2 mensalidades a vencer serão canceladas (R$ 300,00).')).toBeVisible();
-    await expect(painel.getByText('1 cobrança vencida ou de saída continua em aberto (R$ 150,00). Dê baixa ou cancele depois, se precisar.')).toBeVisible();
+    await expect(painel.getByText('2 cobranças que vencem de hoje em diante serão canceladas (R$ 300,00): mensalidades ou parcelas de cobrança avulsa.')).toBeVisible();
+    await expect(painel.getByText('1 cobrança já vencida, de saída ou de acordo continua em aberto (R$ 150,00). A equipe ainda pode dar baixa, desfazer ou cancelar.')).toBeVisible();
     await expect(painel.getByText('Faltam 4 meses para o mínimo (até 05/02/2027). Inativar não cobra a saída: para cobrar, encerre o plano antes.')).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath(`inativar-${largura}.png`) });
+    await page.screenshot({ path: testInfo.outputPath(`inativar-${largura}-${tema}.png`) });
     expect(pedidos.filter((p) => p.caminho === `/alunos/${ALUNO_FINANCEIRO_ID}/resumo-da-saida`)).toHaveLength(1);
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+const PLANO_MENSAL: PlanoResponse = {
+  id: 'f0000000-0000-4000-8000-0000000000d1', nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', arquivado: false,
+  criadoEm: '2026-10-01T12:00:00Z', versao: 0, tempoMinimoMeses: null, regraDeSaida: null, linkDePagamento: null, incluiTreino: true, incluiDieta: true,
+};
+
+for (const [largura, tema] of [[390, 'ESCURO'], [390, 'CLARO'], [1280, 'ESCURO'], [1280, 'CLARO']] as const) {
+  test(`contratar com início no passado em ${largura}px (${tema}): interruptor desligado, prévia da API com erro e de novo, e o corpo`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await fixarHoje(page);
+    await comTema(page, tema);
+    // A primeira prévia falha (o "Tentar de novo"); todas demoram um pouco (o "Contratar plano" espera a prévia).
+    const estado = estadoFinanceiro({
+      planos: [{ ...PLANO_MENSAL }], falhasDaPrevia: 1, atrasoDaPreviaMs: 600,
+      previaDeGeracao: { quantidade: 3, totalCentavos: 45_000, primeiraCompetencia: '2026-08', ultimaCompetencia: '2026-10' },
+    });
+    const { errosDaPagina } = await fichaComFinanceiro(page, estado);
+    await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
+    await page.getByRole('button', { name: 'Contratar plano' }).click();
+    await page.getByRole('button', { name: /^Plano:/ }).click();
+    await page.getByRole('radio', { name: /^Consultoria mensal/ }).click();
+    const folha = page.getByRole('dialog');
+    const chave = folha.getByRole('switch', { name: ROTULO_GERAR_MESES_ANTERIORES });
+    await expect(chave).toHaveCount(0);
+    await folha.getByLabel('Início').fill('05/08/2026');
+    await folha.getByLabel('Dia do vencimento').fill('5');
+    await expect(chave).toBeVisible();
+    await expect(chave).not.toBeChecked();
+    await expect(folha.getByText(/Desligado, a data de início fica gravada \(vale para o tempo mínimo\)/)).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`contratar-passado-desligado-${largura}-${tema}.png`) });
+
+    await chave.click();
+    const contratar = folha.getByRole('button', { name: 'Contratar plano', exact: true });
+    await expect(folha.getByText('Calculando as mensalidades que vão nascer…').first()).toBeVisible();
+    await expect(contratar).toBeDisabled();
+    await expect(folha.getByText('Não foi possível calcular as mensalidades que vão nascer.')).toBeVisible();
+    await expect(contratar).toBeEnabled();
+    await page.screenshot({ path: testInfo.outputPath(`contratar-passado-erro-${largura}-${tema}.png`) });
+    await folha.getByRole('button', { name: 'Tentar de novo' }).click();
+    await expect(folha.getByText('3 mensalidades vão nascer em aberto, total R$ 450,00 (08/2026 a 10/2026).')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`contratar-passado-ligado-${largura}-${tema}.png`) });
+    const corpoDaPrevia = { alunoId: ALUNO_FINANCEIRO_ID, planoComercialId: PLANO_MENSAL.id, valorCentavos: null, motivoValor: null, inicio: '2026-08-05', diaVencimento: 5, gerarMesesAnteriores: true };
+    expect(estado.previasRecebidas.at(-1)).toEqual(corpoDaPrevia);
+
+    // Início neste mês: o interruptor some e vale desligado; de volta ao passado, a prévia é refeita (quantidade 0 agora).
+    await folha.getByLabel('Início').fill('05/10/2026');
+    await expect(chave).toHaveCount(0);
+    estado.previaDeGeracao = { quantidade: 0, totalCentavos: 0, primeiraCompetencia: null, ultimaCompetencia: null };
+    await folha.getByLabel('Início').fill('05/09/2026');
+    await expect(chave).toBeChecked();
+    await expect(folha.getByText('Nenhuma mensalidade nova vai nascer: o período já tem cobrança.')).toBeVisible();
+    expect(estado.previasRecebidas.at(-1)).toEqual({ ...corpoDaPrevia, inicio: '2026-09-05' });
+
+    await contratar.click();
+    await expect(page.getByText('Plano contratado.')).toBeVisible();
+    expect(estado.contratacoes).toHaveLength(1);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('contratar no passado com a chave desligada: o início vai como digitado e gerarMesesAnteriores false, sem prévia', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({ planos: [{ ...PLANO_MENSAL }] });
+  const { pedidos, errosDaPagina } = await fichaComFinanceiro(page, estado);
+  await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
+  await page.getByRole('button', { name: 'Contratar plano' }).click();
+  await page.getByRole('button', { name: /^Plano:/ }).click();
+  await page.getByRole('radio', { name: /^Consultoria mensal/ }).click();
+  const folha = page.getByRole('dialog');
+  await folha.getByLabel('Início').fill('05/08/2026');
+  await folha.getByLabel('Dia do vencimento').fill('5');
+  await expect(folha.getByRole('switch', { name: ROTULO_GERAR_MESES_ANTERIORES })).not.toBeChecked();
+  await folha.getByRole('button', { name: 'Contratar plano', exact: true }).click();
+  await expect(page.getByText('Plano contratado.')).toBeVisible();
+  expect(pedidos.find((p) => p.metodo === 'POST' && p.caminho.endsWith('/contratacoes'))?.corpo)
+    .toEqual({ planoComercialId: PLANO_MENSAL.id, valorCentavos: null, motivoValor: null, inicio: '2026-08-05', diaVencimento: 5, gerarMesesAnteriores: false });
+  expect(estado.previasRecebidas).toEqual([]);
+  // A cobrança da API falsa nasce no mês corrente, como a API faz com a chave desligada.
+  await expect(page.getByRole('button', { name: /^Abrir cobrança de/ })).toHaveCount(1);
+  expect(estado.cobrancas[0].competencia).toBe('2026-10-01');
+  expect(errosDaPagina).toEqual([]);
+});
 
 test('inativar sem a permissão do Financeiro: a linha genérica, sem valores e sem chamar o resumo; nada em aberto = nenhuma linha', async ({ page, context }) => {
   await fixarHoje(page);
@@ -828,7 +915,7 @@ test('inativar sem a permissão do Financeiro: a linha genérica, sem valores e 
   await page.getByRole('button', { name: 'Mais ações do aluno', exact: true }).click();
   await page.getByText('Inativar aluno', { exact: true }).click();
   const painel = page.getByRole('alertdialog', { name: `Inativar ${ALUNO.nome}?` });
-  await expect(painel.getByText('As cobranças que ainda não venceram serão canceladas. As vencidas e a cobrança de saída continuam em aberto.')).toBeVisible();
+  await expect(painel.getByText(TEXTO_GENERICO_DO_INATIVAR)).toBeVisible();
   expect(pedidos.filter((p) => p.caminho.endsWith('/resumo-da-saida'))).toHaveLength(0);
   expect(errosDaPagina).toEqual([]);
 
@@ -1609,7 +1696,7 @@ test('folha da cobrança: lista os lembretes e abre o WhatsApp com a mensagem pr
         ],
         whatsapp: { telefone: '(45) 99999-8888', mensagem },
         motivoSemWhatsapp: null,
-        alunoDesligou: false,
+        alunoDesligou: false, paraResponsavel: false,
       },
     },
   });
@@ -1635,7 +1722,7 @@ test('folha da cobrança sem telefone do aluno: o botão do WhatsApp fica desabi
   await fixarHoje(page);
   const estado = estadoFinanceiro({
     cobrancas: [{ ...COBRANCA_ATRASADA }],
-    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: null, mensagem: 'Olá, Aluna.' }, motivoSemWhatsapp: null, alunoDesligou: false } },
+    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: null, mensagem: 'Olá, Aluna.' }, motivoSemWhatsapp: null, alunoDesligou: false, paraResponsavel: false } },
   });
   const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=cobrancas');
@@ -1652,7 +1739,7 @@ test('folha da cobrança: o aluno que desligou os lembretes aparece em texto sua
   await fixarHoje(page);
   const estado = estadoFinanceiro({
     cobrancas: [{ ...COBRANCA_ATRASADA }],
-    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: '(45) 99999-8888', mensagem: 'Olá, Aluna.' }, motivoSemWhatsapp: null, alunoDesligou: true } },
+    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: '(45) 99999-8888', mensagem: 'Olá, Aluna.' }, motivoSemWhatsapp: null, alunoDesligou: true, paraResponsavel: false } },
   });
   const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=cobrancas');

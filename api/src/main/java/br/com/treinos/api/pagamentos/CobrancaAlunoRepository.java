@@ -121,6 +121,19 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
     @Query("select c.contratacaoId as contratacaoId, c.alunoId as alunoId from CobrancaAluno c where c.id = :id")
     Optional<Referencias> referenciasDe(UUID id);
 
+    /**
+     * Só ids, ordenados da competência mais antiga para a mais nova ({@code pagina} de 1 item = a mais antiga): a conciliação da
+     * Kiwify escolhe a mensalidade aberta a baixar e só depois a trava (a entidade entra na sessão já travada).
+     */
+    @Query("select c.id from CobrancaAluno c where c.contratacaoId = :contratacaoId and c.tipo = :tipo "
+            + "and c.situacao = :situacao order by c.competencia asc, c.id asc")
+    List<UUID> idsDaContratacao(UUID contratacaoId, CobrancaAluno.Tipo tipo, CobrancaAluno.Situacao situacao,
+                                org.springframework.data.domain.Pageable pagina);
+
+    /** A cobrança que já foi baixada por esta venda do provedor ({@code id_externo} é único por consultoria e provedor). */
+    @Query("select c.id from CobrancaAluno c where c.provedor = :provedor and c.idExterno = :idExterno")
+    Optional<UUID> idDaBaixaDoProvedor(String provedor, String idExterno);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from CobrancaAluno c where c.id = :id")
     Optional<CobrancaAluno> buscarParaAlterar(UUID id);
@@ -204,6 +217,36 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
 
     long countByVencimentoBetween(LocalDate de, LocalDate ate);
 
+    /** O aluno de cada cobrança pedida (sem travar): o que sobra do pedido é de outra consultoria ou não existe (o {@code @TenantId} filtra). */
+    interface Dono {
+        UUID getId();
+
+        UUID getAlunoId();
+    }
+
+    @Query("select c.id as id, c.alunoId as alunoId from CobrancaAluno c where c.id in :ids")
+    List<Dono> donosDe(Collection<UUID> ids);
+
+    /** As originais de uma renegociação, travadas numa consulta só e em ordem fixa de id (a trava do aluno já foi tomada antes). */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from CobrancaAluno c where c.id in :ids order by c.id")
+    List<CobrancaAluno> travarPorIds(Collection<UUID> ids);
+
+    /** As cobranças de um acordo (originais RENEGOCIADA e parcelas), travadas em ordem fixa de id. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from CobrancaAluno c where c.acordoId = :acordoId order by c.id")
+    List<CobrancaAluno> travarDoAcordo(UUID acordoId);
+
+    /** O que um pedido da avulsa já gerou nesta consultoria (o {@code @TenantId} filtra): cobranças e alunos distintos. */
+    interface DoPedido {
+        Long getCobrancas();
+
+        Long getAlunos();
+    }
+
+    @Query("select count(c) as cobrancas, count(distinct c.alunoId) as alunos from CobrancaAluno c where c.pedidoId = :pedidoId")
+    DoPedido doPedido(UUID pedidoId);
+
     // ---- Listas ----
 
     /** Em aberto e vencidas: as mais antigas primeiro. */
@@ -259,11 +302,14 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
             + "and (:responsavelId is null or a.responsavelId = :responsavelId)")
     Soma abertasPorVencimento(CobrancaAluno.Situacao aberta, LocalDate de, LocalDate ate, UUID responsavelId);
 
-    /** Tudo o que foi cobrado no intervalo de vencimento, menos o cancelado: a base da inadimplência. */
+    /**
+     * Tudo o que foi cobrado no intervalo de vencimento, menos as situações {@code fora} (cancelada e renegociada: a original
+     * renegociada vira as parcelas do acordo e contaria em dobro): a base da inadimplência.
+     */
     @Query("select sum(c.valorCentavos) as total, count(c) as quantidade from CobrancaAluno c "
-            + "join Aluno a on a.id = c.alunoId where c.situacao <> :cancelada and c.vencimento between :de and :ate "
+            + "join Aluno a on a.id = c.alunoId where c.situacao not in :fora and c.vencimento between :de and :ate "
             + "and (:responsavelId is null or a.responsavelId = :responsavelId)")
-    Soma cobradoPorVencimento(CobrancaAluno.Situacao cancelada, LocalDate de, LocalDate ate, UUID responsavelId);
+    Soma cobradoPorVencimento(Collection<CobrancaAluno.Situacao> fora, LocalDate de, LocalDate ate, UUID responsavelId);
 
     @Query("select sum(c.valorCentavos) as total, count(c) as quantidade from CobrancaAluno c "
             + "join Aluno a on a.id = c.alunoId where c.situacao = :paga and c.pagoEm between :de and :ate "

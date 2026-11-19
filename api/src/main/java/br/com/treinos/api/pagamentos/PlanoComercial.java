@@ -46,6 +46,16 @@ public class PlanoComercial {
     /** Link de pagamento próprio do treinador (https por {@code LinksExternos}); nulo = sem link. O app o abre fora, sem token. */
     @Column(name = "link_de_pagamento", length = 500)
     private String linkDePagamento;
+    /** O que o plano vende (V091): ao menos um dos dois (CHECK no banco e 422 no serviço). */
+    @Column(name = "inclui_treino", nullable = false)
+    private boolean incluiTreino = true;
+    @Column(name = "inclui_dieta", nullable = false)
+    private boolean incluiDieta = true;
+    /** Assinatura cobrada pela Kiwify (V095): só plano mensal; o produto dela só existe com a assinatura ligada. */
+    @Column(name = "kiwify_assinatura", nullable = false)
+    private boolean kiwifyAssinatura;
+    @Column(name = "kiwify_produto_id", length = 100)
+    private String kiwifyProdutoId;
     @Column(name = "arquivado_em")
     private Instant arquivadoEm;
     /** Do {@code default now()} da coluna; o Hibernate lê de volta no insert, para a resposta de criação já trazer. */
@@ -60,22 +70,29 @@ public class PlanoComercial {
 
     PlanoComercial(String nome, long valorCentavos, PeriodoDoPlano periodicidade, Short tempoMinimoMeses,
                    String regraDeSaida) {
-        this(nome, valorCentavos, periodicidade, tempoMinimoMeses, regraDeSaida, null);
+        this(nome, valorCentavos, periodicidade, tempoMinimoMeses, regraDeSaida, null, true, true);
     }
 
     PlanoComercial(String nome, long valorCentavos, PeriodoDoPlano periodicidade, Short tempoMinimoMeses,
-                   String regraDeSaida, String linkDePagamento) {
-        alterar(nome, valorCentavos, periodicidade, tempoMinimoMeses, regraDeSaida, linkDePagamento);
+                   String regraDeSaida, String linkDePagamento, boolean incluiTreino, boolean incluiDieta) {
+        alterar(nome, valorCentavos, periodicidade, tempoMinimoMeses, regraDeSaida, linkDePagamento, incluiTreino, incluiDieta);
     }
 
     void alterar(String nome, long valorCentavos, PeriodoDoPlano periodicidade, Short tempoMinimoMeses,
-                 String regraDeSaida, String linkDePagamento) {
+                 String regraDeSaida, String linkDePagamento, boolean incluiTreino, boolean incluiDieta) {
+        this.incluiTreino = incluiTreino;
+        this.incluiDieta = incluiDieta;
         this.linkDePagamento = linkDePagamento;
         this.nome = nome;
         this.valorCentavos = valorCentavos;
         this.periodicidade = periodicidade;
         this.tempoMinimoMeses = tempoMinimoMeses;
         this.regraDeSaida = regraDeSaida;
+    }
+
+    void definirKiwify(boolean assinatura, String produtoId) {
+        this.kiwifyAssinatura = assinatura;
+        this.kiwifyProdutoId = assinatura ? produtoId : null;
     }
 
     void arquivar(Instant quando) {
@@ -94,6 +111,10 @@ public class PlanoComercial {
     public Short getTempoMinimoMeses() { return tempoMinimoMeses; }
     public String getRegraDeSaida() { return regraDeSaida; }
     public String getLinkDePagamento() { return linkDePagamento; }
+    public boolean isIncluiTreino() { return incluiTreino; }
+    public boolean isIncluiDieta() { return incluiDieta; }
+    public boolean isKiwifyAssinatura() { return kiwifyAssinatura; }
+    public String getKiwifyProdutoId() { return kiwifyProdutoId; }
     public Instant getArquivadoEm() { return arquivadoEm; }
     public Instant getCriadoEm() { return criadoEm; }
     public Long getVersao() { return versao; }

@@ -36,9 +36,11 @@ class LembretesRepositorio {
     }
 
     private final JdbcTemplate jdbc;
+    private final KiwifyProperties kiwify;
 
-    LembretesRepositorio(JdbcTemplate jdbc) {
+    LembretesRepositorio(JdbcTemplate jdbc, KiwifyProperties kiwify) {
         this.jdbc = jdbc;
+        this.kiwify = kiwify;
     }
 
     /**
@@ -50,6 +52,8 @@ class LembretesRepositorio {
      * primeira for paga entre duas rodadas, a seguinte não recebe um segundo e-mail no mesmo dia). Da mais antiga para a mais
      * nova; o planejamento fica com a mais antiga de cada aluno <b>que ainda não tem o lembrete devido hoje</b> ({@code jaTem}),
      * senão ela gastaria a vaga sem gravar nada (o insert é {@code on conflict do nothing}) e o lembrete das outras se perderia.
+     * D18: com a Kiwify ligada, a mensalidade de plano com assinatura pela Kiwify, de consultoria com a credencial configurada
+     * (a mesma regra de {@link CobrancaAutomatica}), nunca é candidata: nem antes nem depois de vencer.
      */
     List<Candidata> candidatas(LocalDate de, LocalDate ate, LocalDate hoje) {
         return jdbc.query("select c.consultoria_id, c.aluno_id, c.id, c.vencimento, l.dias_antes, l.no_dia, l.dias_depois, "
@@ -65,12 +69,16 @@ class LembretesRepositorio {
                 + "on x.consultoria_id = o.consultoria_id and x.id = o.cobranca_id "
                 + "where o.consultoria_id = c.consultoria_id and x.aluno_id = c.aluno_id and o.cobranca_id <> c.id "
                 + "and o.situacao in ('PENDENTE', 'ENVIADO') and o.data_prevista = ?) "
+                + "and not (?::boolean and c.tipo = 'MENSALIDADE' "
+                + "and exists (select 1 from plano_comercial p where p.consultoria_id = c.consultoria_id "
+                + "and p.id = k.plano_comercial_id and p.kiwify_assinatura) "
+                + "and exists (select 1 from credencial_kiwify ck where ck.consultoria_id = c.consultoria_id)) "
                 + "order by c.vencimento, c.id",
                 (rs, n) -> new Candidata(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
                         rs.getObject(3, UUID.class), rs.getObject(4, LocalDate.class),
                         new RegraDosLembretes.Configuracao(true, rs.getInt(5), rs.getBoolean(6), rs.getInt(7)),
                         tipos(rs.getString(8))),
-                Date.valueOf(de), Date.valueOf(ate), Date.valueOf(hoje));
+                Date.valueOf(de), Date.valueOf(ate), Date.valueOf(hoje), kiwify.habilitado());
     }
 
     private static Set<TipoDeLembrete> tipos(String lista) {

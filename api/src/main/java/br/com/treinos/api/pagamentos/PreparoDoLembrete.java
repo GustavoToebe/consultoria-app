@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
  * dele (quem chama abre o {@code TenantContext}): a cobrança ainda está ABERTA, a regra ainda diz que este tipo é devido
  * hoje (configuração desligada, alterada ou vencimento reajustado cancelam), a contratação, quando a cobrança tem uma (a avulsa
  * não tem), está ATIVA, o aluno está ativo e
- * não anonimizado, que não desligou os lembretes para si ({@code ALUNO_DESLIGOU}), e há um e-mail. Devolve a mensagem pronta ou o motivo do cancelamento. O envio fica fora daqui (e de
+ * não anonimizado, que não desligou os lembretes para si ({@code ALUNO_DESLIGOU}), e há um e-mail (o do responsável financeiro, se tiver, senão o do aluno; desligar vale também para o responsável). Devolve a mensagem pronta ou o motivo do cancelamento. O envio fica fora daqui (e de
  * qualquer transação). Nada daqui vai a log.
  */
 @Service
@@ -34,6 +34,8 @@ class PreparoDoLembrete {
     static final String SEM_EMAIL = "SEM_EMAIL";
     /** Defesa: a cobrança de saída nunca recebe e-mail (o planejamento já a pula); mensalidade e avulsa recebem. */
     static final String NAO_E_MENSALIDADE = "NAO_E_MENSALIDADE";
+    /** D18: a mensalidade que a Kiwify cobra não recebe lembrete por e-mail (a Kiwify tenta de novo por conta própria). */
+    static final String COBRANCA_AUTOMATICA = "COBRANCA_AUTOMATICA";
 
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@<>\"(),;:]+@[^\\s@<>\"(),;:]+\\.[^\\s@<>\"(),;:]+$");
 
@@ -60,17 +62,22 @@ class PreparoDoLembrete {
     private final AlunoRepository alunos;
     private final UsuarioRepository usuarios;
     private final ConsultoriaRepository consultorias;
+    private final ResponsavelFinanceiroRepository responsaveis;
+    private final CobrancaAutomatica automatica;
     private final String appUrl;
 
     PreparoDoLembrete(CobrancaAlunoRepository cobrancas, ContratacaoAlunoRepository contratacoes,
                       ConfiguracaoDeLembretesRepository configuracoes, AlunoRepository alunos, UsuarioRepository usuarios,
-                      ConsultoriaRepository consultorias, @Value("${treinos.app-url:}") String appUrl) {
+                      ConsultoriaRepository consultorias, ResponsavelFinanceiroRepository responsaveis,
+                      CobrancaAutomatica automatica, @Value("${treinos.app-url:}") String appUrl) {
+        this.automatica = automatica;
         this.cobrancas = cobrancas;
         this.contratacoes = contratacoes;
         this.configuracoes = configuracoes;
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.consultorias = consultorias;
+        this.responsaveis = responsaveis;
         this.appUrl = appUrl;
     }
 
@@ -83,6 +90,9 @@ class PreparoDoLembrete {
         CobrancaAluno cobranca = achada.get();
         if (cobranca.getTipo() == CobrancaAluno.Tipo.SAIDA) {
             return Preparo.cancelar(NAO_E_MENSALIDADE);
+        }
+        if (automatica.eh(cobranca)) {
+            return Preparo.cancelar(COBRANCA_AUTOMATICA);
         }
         RegraDosLembretes.Configuracao configuracao = configuracoes.daConsultoria()
                 .map(ConfiguracaoDeLembretes::configuracao).orElse(RegraDosLembretes.Configuracao.PADRAO);
@@ -119,8 +129,16 @@ class PreparoDoLembrete {
                 .filter(c -> c.getTipo() != CobrancaAluno.Tipo.SAIDA).count();
     }
 
-    /** O e-mail do cadastro do aluno; sem ele, o de login. Nulo se nenhum serve. */
+    /**
+     * Quem recebe: o e-mail do responsável financeiro, quando o aluno tem um com e-mail (D15; o texto não muda e não leva o nome
+     * dele); senão o e-mail do cadastro do aluno e, sem ele, o de login. Nulo se nenhum serve.
+     */
     private String destino(Aluno aluno) {
+        String doResponsavel = responsaveis.findByAlunoId(aluno.getId()).map(ResponsavelFinanceiro::getEmail)
+                .map(PreparoDoLembrete::valido).orElse(null);
+        if (doResponsavel != null) {
+            return doResponsavel;
+        }
         String doCadastro = valido(aluno.getEmail());
         if (doCadastro != null || aluno.getUsuarioId() == null) {
             return doCadastro;

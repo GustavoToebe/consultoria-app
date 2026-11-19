@@ -10,6 +10,7 @@ import {
   seloDaContratacao, seloDoTipoDaCobranca, textoDasAbertasDoAluno, type AcaoDePagamento, type ComoPagar,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
+import { TEXTO_COBRANCA_AUTOMATICA } from '../../dominio/kiwify';
 import { espaco, RAIO } from '../../tema/tokens';
 import { useTema } from '../../tema/TemaProvider';
 import { ICONE_DO_SELO } from '../../treinador/iconesDosSelos';
@@ -68,11 +69,11 @@ export function CartaoMeuPlano() {
   const historico = dados?.historico ?? [];
   const situacao = dados?.plano ? seloDaContratacao(dados.plano.situacao) : null;
   const vigencia = dados?.plano ? textoDaVigencia(dados.plano.situacao, dados.plano.diasRestantesVigencia) : null;
-  const textoDoModo = textoDasAbertasDoAluno(modo, (dados?.abertas ?? []).map((c) => modoDaCobranca(c.tipo)));
+  const textoDoModo = textoDasAbertasDoAluno(modo, (dados?.abertas ?? []).map((c) => modoDaCobranca(c)));
   const visiveis = todas ? historico : historico.slice(0, HISTORICO_VISIVEL);
   // O nome da ação vem de todas as cobranças do cartão: a avulsa (sem o link do plano) não vira "Pagar" ao lado de uma
   // mensalidade com "Pagar pela InfinitePay"; a mesma ação tem o mesmo nome no cartão inteiro.
-  const acoesDoCartao = [...new Set((dados?.abertas ?? []).flatMap((c) => acoesDaCobranca(c.tipo)))];
+  const acoesDoCartao = [...new Set((dados?.abertas ?? []).flatMap((c) => acoesDaCobranca(c)))];
   return (
     <Cartao titulo="Meu plano" descricao="Seu plano comercial com o seu treinador.">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
@@ -105,9 +106,9 @@ export function CartaoMeuPlano() {
               <Texto variante="secao">Em aberto</Texto>
               {/* As ações moram dentro da própria cobrança: soltas embaixo, pareciam de outra. */}
               {dados.abertas.map((c) => {
-                const acoes = acoesDaCobranca(c.tipo);
+                const acoes = acoesDaCobranca(c);
                 return (
-                  <LinhaDaCobranca key={c.id} cobranca={c} modo={modoDaCobranca(c.tipo)} empilhar={acoes.length > 1 || acoes.includes('COPIAR_PIX')}>
+                  <LinhaDaCobranca key={c.id} cobranca={c} modo={modoDaCobranca(c)} empilhar={acoes.length > 1 || acoes.includes('COPIAR_PIX')}>
                     {acoes.length > 0 ? (
                       <AcoesDaCobranca cobranca={c} acoes={acoes} doCartao={acoesDoCartao} linkProprio={dados.plano?.linkDePagamento ?? null} aoMudar={recarregar} />
                     ) : null}
@@ -120,7 +121,7 @@ export function CartaoMeuPlano() {
           {historico.length > 0 ? (
             <View style={estilos.bloco}>
               <Texto variante="secao">Histórico</Texto>
-              {visiveis.map((c) => <LinhaDaCobranca key={c.id} cobranca={c} modo={modoDaCobranca(c.tipo)} />)}
+              {visiveis.map((c) => <LinhaDaCobranca key={c.id} cobranca={c} modo={modoDaCobranca(c)} />)}
               {historico.length > HISTORICO_VISIVEL && !todas ? (
                 <LinhaDeAcoes><Botao rotulo={`Ver todas (${historico.length})`} tipo="fantasma" aoTocar={() => setTodas(true)} /></LinhaDeAcoes>
               ) : null}
@@ -284,8 +285,11 @@ function LinhaDaCobranca({ cobranca, modo, empilhar, children }: {
 }) {
   const { cores } = useTema();
   const selo = seloDaCobranca(cobranca);
-  // Celular sem o "Pagar" (`informar`): só a linha de informação; sem ela (cancelada...), o texto de sempre.
-  const detalhe = (modo === 'informar' ? informacaoDaCobranca(cobranca) : null) ?? textoDaData(cobranca);
+  // Celular sem o "Pagar" (`informar`): só a linha de informação; sem ela (cancelada...), o texto de sempre. A cobrada pela
+  // Kiwify em aberto diz só quem cobra e a data, em qualquer plataforma (D18): nada de forma, link nem frase de pagamento.
+  const detalhe = modo === 'automatica' && cobranca.situacao === 'ABERTA'
+    ? `${TEXTO_COBRANCA_AUTOMATICA} · ${textoDaData(cobranca)}`
+    : (modo === 'informar' ? informacaoDaCobranca(cobranca) : null) ?? textoDaData(cobranca);
   const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
   const mes = referenciaDaCobranca(cobranca);
   const valor = centavosParaTela(cobranca.valorCentavos);
@@ -314,6 +318,8 @@ function textoDaData(c: CobrancaDoAluno): string {
     return `Pago em ${dataParaTela(c.pagoEm)}${c.forma ? ` · ${rotuloDaForma(c.forma)}` : ''}`;
   }
   if (c.situacao === 'CANCELADA') return `Vencia em ${dataParaTela(c.vencimento)}`;
+  // Entrou num acordo (D14): só informa, sem frase de pagamento (regra das lojas); as parcelas aparecem com o selo "Acordo".
+  if (c.situacao === 'RENEGOCIADA') return `Vencia em ${dataParaTela(c.vencimento)} · entrou num acordo de renegociação`;
   return `${c.situacao === 'ABERTA' && c.vencida ? 'Venceu' : 'Vence'} em ${dataParaTela(c.vencimento)}`;
 }
 

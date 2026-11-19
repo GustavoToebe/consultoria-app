@@ -13,10 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-/** Pagamentos online confirmados que ficaram para o treinador conferir. Nunca dá baixa. */
+/** Pagamentos online (InfinitePay ou Kiwify) confirmados que ficaram para o treinador conferir. Nunca dá baixa. */
 @RestController
 @ExigePagamentos
-@ExigeInfinitePay
+@ExigeRecebimentoOnline
 public class ConferenciaController {
 
     private final ConferenciaService conferencias;

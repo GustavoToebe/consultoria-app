@@ -73,14 +73,17 @@ class ArquiteturaTest {
      * descrição, tipo, preço e data da foto, nunca bytes, cupom, link nem dado de equipe ou de aluno) e filtros explícitos em toda
      * consulta: opt-in da consultoria e do item, página ligada, item ativo, digital e na página, e consultoria não suspensa em
      * {@code direitos_locais});
-     * {@code VerificacaoDasCredenciais} (na subida, sem tenant: lê só os ids de chave das API Keys cifradas do recebimento online,
-     * de todas as consultorias, para a API não subir sem a chave que decifra o que já está gravado; nunca lê o segredo);
-     * {@code AvisoDePagamentoRepositorio} (caixa de entrada dos avisos da InfinitePay: a busca do token do webhook roda antes de
-     * se saber a consultoria, e a fila do conciliador e a limpeza dos avisos antigos são globais, sem tenant; todo o resto
-     * leva {@code consultoria_id} explícito e nada guarda nem devolve o corpo do aviso, só ids, o hash e o andamento);
+     * {@code VerificacaoDasCredenciais} (na subida, sem tenant: lê só os ids de chave das API Keys cifradas do recebimento online e
+     * das quatro credenciais da Kiwify (V095), de todas as consultorias, para a API não subir sem a chave que decifra o que já está
+     * gravado; nunca lê o segredo);
+     * {@code AvisoDePagamentoRepositorio} (caixa de entrada dos avisos da InfinitePay e da Kiwify (V095, provedor {@code KIWIFY}):
+     * a busca do token do webhook de cada uma roda antes de se saber a consultoria, e a fila do conciliador (uma por provedor) e a
+     * limpeza dos avisos antigos são globais, sem tenant; todo o resto leva {@code consultoria_id} explícito e nada guarda nem
+     * devolve o corpo do aviso nem o e-mail do comprador, só ids, o hash e o andamento);
      * {@code LembretesRepositorio} (fila dos lembretes de cobrança por e-mail: o job planeja e reserva de todas as consultorias,
      * sem tenant; toda escrita depois da reserva leva {@code consultoria_id} explícito e confere a posse, e nada lê ou grava
-     * endereço, nome ou texto, só ids, datas, a configuração e o andamento);
+     * endereço, nome ou texto, só ids, datas, a configuração e o andamento; a Kiwify (D18) só acrescenta a exclusão da mensalidade de
+     * plano com assinatura, pelas tabelas da própria consultoria da cobrança);
      * {@code PushRepositorio} (token de push do aparelho do aluno e fila dos envios do Expo: o job reserva e envia de todas as
      * consultorias, sem tenant; toda escrita leva {@code consultoria_id} explícito e confere a posse da reserva, menos duas,
      * globais de propósito: registrar apaga o MESMO token de qualquer outra conta ou consultoria (o token é único no banco: um
@@ -118,10 +121,14 @@ class ArquiteturaTest {
     private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario",
             "CatalogoExercicio", "CatalogoAlimento", "AtualizacaoModelo");
 
-    /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo, inscrição pelo link, aviso da InfinitePay, termos sem login, lista pública de lojas do marketplace). */
+    /**
+     * Controllers das rotas públicas (login, refresh, cadastro, convite, logo, inscrição pelo link, aviso da InfinitePay, aviso da
+     * Kiwify (V095: autenticado pelo token do caminho e pelo HMAC-SHA1 do corpo cru, conferidos no serviço antes de gravar), termos sem
+     * login, lista pública de lojas do marketplace).
+     */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
             "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController",
-            "InscricaoPublicaController", "AvisoInfinitePayController", "TermosPublicoController", "VitrinePublicaController", "MarketplaceController");
+            "InscricaoPublicaController", "AvisoInfinitePayController", "AvisoKiwifyController", "TermosPublicoController", "VitrinePublicaController", "MarketplaceController");
 
     @BeforeAll
     static void importar() {

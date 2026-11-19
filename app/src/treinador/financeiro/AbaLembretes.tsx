@@ -6,6 +6,8 @@ import { buscarLembretes, salvarLembretes } from '../../api/rotas';
 import {
   DIAS_ANTES_MAXIMO, DIAS_DEPOIS_MAXIMO, lerDias, resumoDosLembretes, TEXTO_EMAIL_DESLIGADO, TEXTO_LEMBRETES,
 } from '../../dominio/lembretesDeCobranca';
+import { TEXTO_KIWIFY_NOS_LEMBRETES } from '../../dominio/kiwify';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -63,6 +65,7 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
   aoRecarregar: () => void;
 }) {
   const { avisar } = useAviso();
+  const { kiwifyHabilitada } = useSessao();
   const [ligado, setLigado] = useState(dados.ligado);
   const [antes, setAntes] = useState(String(dados.diasAntes));
   const [noDia, setNoDia] = useState(dados.noDia);
@@ -160,7 +163,7 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
       <View style={larga ? estilos.regrasLargo : undefined}>
         <Cartao titulo="Quem recebe e por onde" descricao={TEXTO_LEMBRETES}>
           <View role="list" style={estilos.regras}>
-            {REGRAS.map((r) => (
+            {(kiwifyHabilitada ? [...REGRAS, TEXTO_KIWIFY_NOS_LEMBRETES] : REGRAS).map((r) => (
               <View key={r} role="listitem" style={estilos.regra}>
                 <Texto variante="suave" aria-hidden>•</Texto>
                 <Texto variante="suave" style={estilos.textoDaRegra}>{r}</Texto>

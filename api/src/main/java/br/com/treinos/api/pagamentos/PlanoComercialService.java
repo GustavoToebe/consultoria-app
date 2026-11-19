@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Os planos comerciais da consultoria (o que o treinador vende). Editar um plano não muda quem já contratou: a contratação
@@ -27,13 +28,20 @@ import java.util.UUID;
 public class PlanoComercialService {
 
     private static final int REGRA_MAXIMA = 500;
+    private static final Pattern PRODUTO_DA_KIWIFY = Pattern.compile("^[A-Za-z0-9_-]{1,100}$");
+
+    /** O que fica gravado de Kiwify no plano depois das regras (D17). */
+    private record DaKiwify(boolean assinatura, String produtoId) {
+    }
 
     private final PlanoComercialRepository planos;
     private final Auditoria auditoria;
+    private final KiwifyProperties kiwify;
 
-    public PlanoComercialService(PlanoComercialRepository planos, Auditoria auditoria) {
+    public PlanoComercialService(PlanoComercialRepository planos, Auditoria auditoria, KiwifyProperties kiwify) {
         this.planos = planos;
         this.auditoria = auditoria;
+        this.kiwify = kiwify;
     }
 
     @Transactional(readOnly = true)
@@ -45,9 +53,12 @@ public class PlanoComercialService {
     @Auditar(acao = "PLANO_COMERCIAL_CRIADO", entidade = "PLANO_COMERCIAL", resumo = "Criou um plano comercial.")
     public PlanoResponse criar(PlanoRequest r) {
         String nome = r.nome().trim();
+        exigirIncluiAlgo(r);
         exigirNomeLivre(nome, null);
         PlanoComercial plano = new PlanoComercial(nome, r.valorCentavos(), r.periodicidade(), minimo(r),
-                Buscas.opcional(r.regraDeSaida()), link(r));
+                Buscas.opcional(r.regraDeSaida()), link(r), r.incluiTreinoOuPadrao(), r.incluiDietaOuPadrao());
+        DaKiwify daKiwify = daKiwify(r, null, null);
+        plano.definirKiwify(daKiwify.assinatura(), daKiwify.produtoId());
         return Respostas.plano(gravar(plano));
     }
 
@@ -60,9 +71,12 @@ public class PlanoComercialService {
         }
         conferirVersao(plano, r.versao());
         String nome = r.nome().trim();
+        exigirIncluiAlgo(r);
         exigirNomeLivre(nome, id);
         plano.alterar(nome, r.valorCentavos(), r.periodicidade(), minimo(r), Buscas.opcional(r.regraDeSaida()),
-                link(r));
+                link(r), r.incluiTreinoOuPadrao(), r.incluiDietaOuPadrao());
+        DaKiwify daKiwify = daKiwify(r, id, plano);
+        plano.definirKiwify(daKiwify.assinatura(), daKiwify.produtoId());
         return Respostas.plano(gravar(plano));
     }
 
@@ -99,6 +113,50 @@ public class PlanoComercialService {
             throw invalido("tempoMinimoMeses", "O tempo mínimo vai de 1 a 60 meses.");
         }
         return meses.shortValue();
+    }
+
+    /** O plano vende treino, dieta ou os dois (D1 de planos-ativos-do-aluno): nenhum dos dois é 422 no campo {@code incluiTreino}. */
+    private static void exigirIncluiAlgo(PlanoRequest r) {
+        if (!r.incluiTreinoOuPadrao() && !r.incluiDietaOuPadrao()) {
+            throw invalido("incluiTreino", "Marque pelo menos um: treino ou dieta.");
+        }
+    }
+
+    /**
+     * "Assinatura cobrada pela Kiwify" e o produto dela (D17). Com a chave desligada a API ignora os dois campos do corpo e
+     * mantém o gravado (a tela reenvia o que leu, porque o PUT substitui inteiro); só um plano que deixa de ser mensal os perde,
+     * porque o banco só aceita assinatura em plano mensal. Com a chave ligada: só plano MENSAL (422 em
+     * {@code kiwifyAssinatura}); ligada, o produto é obrigatório (1 a 100 caracteres: letras, números, hífen e sublinhado) e não
+     * pode estar em outro plano NÃO arquivado (422 em {@code kiwifyProdutoId}); desligada, o produto é apagado. Nenhuma
+     * mensagem repete o valor.
+     */
+    private DaKiwify daKiwify(PlanoRequest r, UUID id, PlanoComercial atual) {
+        boolean mensal = r.periodicidade() == PeriodoDoPlano.MENSAL;
+        if (!kiwify.habilitado()) {
+            return atual != null && atual.isKiwifyAssinatura() && mensal
+                    ? new DaKiwify(true, atual.getKiwifyProdutoId()) : new DaKiwify(false, null);
+        }
+        if (!Boolean.TRUE.equals(r.kiwifyAssinatura())) {
+            return new DaKiwify(false, null);
+        }
+        if (!mensal) {
+            throw invalido("kiwifyAssinatura", "A assinatura pela Kiwify só vale em plano mensal.");
+        }
+        String produto = Buscas.opcional(r.kiwifyProdutoId());
+        if (produto == null) {
+            throw invalido("kiwifyProdutoId", "Informe o ID do produto na Kiwify.");
+        }
+        if (!PRODUTO_DA_KIWIFY.matcher(produto).matches()) {
+            throw invalido("kiwifyProdutoId", "Use de 1 a 100 caracteres: letras, números, hífen e sublinhado.");
+        }
+        if (planos.produtoDaKiwifyEmUso(produto, id)) {
+            throw produtoEmUso();
+        }
+        return new DaKiwify(true, produto);
+    }
+
+    private static ValidacaoException produtoEmUso() {
+        return invalido("kiwifyProdutoId", "Este produto da Kiwify já está em outro plano.");
     }
 
     /** Link próprio de pagamento: opcional, https pelo {@link LinksExternos}; vazio apaga; inválido é 422 no campo, sem repetir o valor. */
@@ -138,6 +196,10 @@ public class PlanoComercialService {
                 if (t instanceof org.hibernate.exception.ConstraintViolationException c
                         && "ux_plano_comercial_nome".equals(c.getConstraintName())) {
                     throw nomeEmUso();
+                }
+                if (t instanceof org.hibernate.exception.ConstraintViolationException c
+                        && "ux_plano_kiwify_produto".equals(c.getConstraintName())) {
+                    throw produtoEmUso();
                 }
             }
             throw e;
