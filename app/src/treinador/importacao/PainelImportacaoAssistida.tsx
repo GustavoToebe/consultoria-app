@@ -1,13 +1,15 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import { CheckCircle2, FileSearch, FileText, FileUp, RotateCcw } from 'lucide-react-native';
 import { Platform, StyleSheet, View } from 'react-native';
 
+import { dataHoraParaTela } from '../../dominio/formatos';
 import {
   campoDoErroDoTexto,
+  gerarChaveIdempotencia,
   grupoResumido,
   idsComErro,
-  idsParaGravar,
+  idsSelecionaveisProntos,
   linhasDoGrupo,
   motivoDoErroDoArquivo,
   motivoDoErroDoGrupo,
@@ -16,9 +18,13 @@ import {
   pedidoDoDestino,
   precisaEscolherAluno,
   recarregarDepoisDoErro,
+  resumoDaCoberturaDoArquivo,
+  resumoDoModoProcessamento,
   resumoDoResultado,
   rotuloDaDuvida,
   seloDoGrupo,
+  sessaoPodeCancelar,
+  sessaoRetomavel,
   textoDoErroDaImportacao,
   textoDoEstadoDaSessao,
   tituloDoGrupoResumido,
@@ -29,21 +35,27 @@ import {
   adicionarArquivo,
   adicionarTexto,
   atualizarGrupo,
+  cancelarSessao,
   confirmarSessao,
   criarSessao,
+  listarSessoes,
   obterSessao,
   processarSessao,
   responderDuvida,
+  revogarDecisao,
   type ConfirmacaoResultado,
+  type DecisaoImportacao,
   type DuvidaImportacao,
   type GrupoImportavel,
   type ObjetivoImportacao,
   type SessaoDetalhe,
+  type SessaoListaItem,
 } from '../../servicos/importacaoAssistida';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
+import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { Campo } from '../../ui/Campo';
 import { Interruptor } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
@@ -56,16 +68,17 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 
 /** Qual ação está em andamento: cada botão mostra o próprio carregando, e só o processar mostra o cartão de espera. */
-type Acao = 'arquivos' | 'texto' | 'processar' | 'responder' | 'destino' | 'confirmar';
+type Acao = 'arquivos' | 'texto' | 'processar' | 'responder' | 'revogar' | 'destino' | 'confirmar' | 'cancelar' | 'retomar';
 /** Cartão onde o erro aparece: perto do botão que o causou, não no topo da página (no celular ficaria fora da vista). */
 type Onde = 'entrada' | 'duvidas' | 'grupos';
 
-export function PainelImportacaoAssistida() {
+export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial?: string } = {}) {
   const { cores } = useTema();
   const { pode } = useSessao();
 
   const [objetivo, setObjetivo] = useState<ObjetivoImportacao>('CADASTROS_E_PLANOS_ATUAIS');
   const [sessao, setSessao] = useState<SessaoDetalhe | null>(null);
+  const [sessoesAbertas, setSessoesAbertas] = useState<SessaoListaItem[]>([]);
   const [acao, setAcao] = useState<Acao | null>(null);
   const [erro, setErro] = useState<{ texto: string; tom: 'perigo' | 'atencao'; onde: Onde; causa: unknown } | null>(null);
   const [descartar, setDescartar] = useState(false);
@@ -79,13 +92,61 @@ export function PainelImportacaoAssistida() {
   // Resolução de dúvida ativa
   const [duvidaAtiva, setDuvidaAtiva] = useState<DuvidaImportacao | null>(null);
   const [respostaEscolhida, setRespostaEscolhida] = useState('');
+  const [referenciaEscolhida, setReferenciaEscolhida] = useState<string | null>(null);
   const [salvarDicionario, setSalvarDicionario] = useState(true);
+
+  // Seleção explícita de grupos para gravar e chave de idempotência estável por tentativa
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const chaveIdempotenciaRef = useRef<{ assinatura: string; chave: string } | null>(null);
 
   // Grupos em que o treinador já disse se o aluno parecido é a mesma pessoa (só nesta tela; a API não guarda).
   const [conferidos, setConferidos] = useState<ReadonlySet<string>>(new Set());
   const [resultado, setResultado] = useState<ConfirmacaoResultado | null>(null);
   // Qual botão de gravar foi tocado, para o carregando girar só nele.
   const [gravando, setGravando] = useState<'pendentes' | 'erros'>('pendentes');
+
+  const carregarSessoesAbertas = async () => {
+    const lista = await listarSessoes().catch(() => [] as SessaoListaItem[]);
+    setSessoesAbertas(lista.filter(sessaoRetomavel));
+  };
+
+  useEffect(() => {
+    let ativo = true;
+    const iniciar = async () => {
+      if (sessaoIdInicial) {
+        try {
+          const s = await obterSessao(sessaoIdInicial);
+          if (ativo) setSessao(s);
+          return;
+        } catch {
+          // Se falhar ao abrir a sessão da URL, lista as abertas.
+        }
+      }
+      const lista = await listarSessoes().catch(() => [] as SessaoListaItem[]);
+      if (ativo) setSessoesAbertas(lista.filter(sessaoRetomavel));
+    };
+    void iniciar();
+    return () => { ativo = false; };
+  }, [sessaoIdInicial]);
+
+  const sessaoId = sessao?.id;
+  const sessaoEstado = sessao?.estado;
+
+  useEffect(() => {
+    if (!sessaoId || sessaoEstado !== 'PROCESSANDO') return;
+    let ativo = true;
+    const timer = setInterval(() => {
+      void obterSessao(sessaoId)
+        .then((atual) => {
+          if (ativo) setSessao(atual);
+        })
+        .catch(() => undefined);
+    }, 2000);
+    return () => {
+      ativo = false;
+      clearInterval(timer);
+    };
+  }, [sessaoId, sessaoEstado]);
 
   /**
    * Roda uma ação com o carregando dela. Erro de sessão que mudou no servidor busca a sessão de novo e avisa em âmbar;
@@ -176,15 +237,42 @@ export function PainelImportacaoAssistida() {
         respostaEscolhida.trim(),
         salvarDicionario,
         duvidaAtiva.tipo,
-        duvidaAtiva.termoOriginal
+        duvidaAtiva.termoOriginal,
+        referenciaEscolhida,
+        duvidaAtiva.ocorrenciaIds ?? null
       );
       setSessao(atualizada);
       setDuvidaAtiva(null);
       setRespostaEscolhida('');
+      setReferenciaEscolhida(null);
+    });
+  };
+
+  const revogar = (decisao: DecisaoImportacao) => {
+    if (!sessao) return;
+    void executar('revogar', 'duvidas', async () => {
+      const atualizada = await revogarDecisao(sessao.id, decisao.decisaoId, sessao.revisao);
+      setSessao(atualizada);
+    });
+  };
+
+  const retomar = (id: string) => {
+    void executar('retomar', 'entrada', async () => {
+      setResultado(null);
+      setSessao(await obterSessao(id));
     });
   };
 
   const conferir = (grupoId: string) => setConferidos((atual) => new Set(atual).add(grupoId));
+
+  const alternarSelecao = (grupoId: string, marcado: boolean) => {
+    setSelecionados((atual) => {
+      const proximo = new Set(atual);
+      if (marcado) proximo.add(grupoId);
+      else proximo.delete(grupoId);
+      return proximo;
+    });
+  };
 
   const alterarDestinoDoGrupo = (grupo: GrupoImportavel, valor: ValorDoDestino | null) => {
     if (!sessao || valor === null) return;
@@ -196,14 +284,28 @@ export function PainelImportacaoAssistida() {
     });
   };
 
+  const chaveParaTentativa = (ids: string[]): string => {
+    if (!sessao) return gerarChaveIdempotencia();
+    const assinatura = `${sessao.id}:${sessao.revisao}:${[...ids].sort().join(',')}:${sessao.hashPrevia ?? ''}`;
+    if (chaveIdempotenciaRef.current?.assinatura === assinatura) {
+      return chaveIdempotenciaRef.current.chave;
+    }
+    const chave = gerarChaveIdempotencia();
+    chaveIdempotenciaRef.current = { assinatura, chave };
+    return chave;
+  };
+
   /** Grava os grupos dados e busca a sessão de novo: com erro ela volta à revisão, com os gravados já resumidos. */
   const gravar = (ids: string[], quais: 'pendentes' | 'erros') => {
-    if (!sessao || ids.length === 0) return;
+    if (!sessao || ids.length === 0 || !sessao.hashPrevia) return;
     setGravando(quais);
+    const chave = chaveParaTentativa(ids);
+    const hashPrevia = sessao.hashPrevia;
     void executar('confirmar', 'grupos', async () => {
-      setResultado(await confirmarSessao(sessao.id, ids, sessao.revisao));
+      setResultado(await confirmarSessao(sessao.id, ids, sessao.revisao, hashPrevia, chave));
       const atual = await obterSessao(sessao.id).catch(() => null);
       setSessao(atual && atual.estado !== 'CONCLUIDA' ? atual : null);
+      void carregarSessoesAbertas();
     });
   };
 
@@ -212,9 +314,25 @@ export function PainelImportacaoAssistida() {
     setResultado(null);
     setErro(null);
     setDuvidaAtiva(null);
+    setReferenciaEscolhida(null);
     setDescartar(false);
     setConferidos(new Set());
+    setSelecionados(new Set());
+    chaveIdempotenciaRef.current = null;
     sessaoReservada.current = null;
+    void carregarSessoesAbertas();
+  };
+
+  const confirmarCancelamento = () => {
+    if (!sessao) {
+      resetar();
+      return;
+    }
+    setDescartar(false);
+    void executar('cancelar', 'entrada', async () => {
+      await cancelarSessao(sessao.id);
+      resetar();
+    });
   };
 
   const erroEm = (onde: Onde) => {
@@ -238,20 +356,63 @@ export function PainelImportacaoAssistida() {
     );
   }
 
-  const gravaveis = sessao ? idsParaGravar(sessao.grupos) : [];
+  const idsSelecionaveis = new Set(
+    (sessao?.grupos ?? []).filter((g) => !grupoResumido(g) && g.destino !== 'IGNORAR').map((g) => g.id)
+  );
+  const selecionadosAtivos = new Set([...selecionados].filter((id) => idsSelecionaveis.has(id)));
+  const gravaveisSelecionados = sessao ? [...selecionadosAtivos] : [];
+  const prontosIds = sessao ? idsSelecionaveisProntos(sessao.grupos, pode, conferidos) : [];
   const comErro = sessao ? idsComErro(sessao.grupos) : [];
-  // Só ignorados e erros: a ação da vez é tentar de novo; "Gravar" volta quando algum grupo ganhar destino.
   const temPendentes =
-    !!sessao?.grupos.some((g) => !grupoResumido(g)) && (gravaveis.length > 0 || comErro.length === 0);
-  const motivoConfirmar = sessao ? motivoParaNaoConfirmar(sessao.grupos, pode, conferidos) : null;
+    !!sessao?.grupos.some((g) => !grupoResumido(g) && g.destino !== 'IGNORAR');
+  const motivoConfirmar = sessao
+    ? motivoParaNaoConfirmar(sessao.grupos, pode, conferidos, selecionadosAtivos, sessao.hashPrevia)
+    : null;
+  const modo = sessao ? resumoDoModoProcessamento(sessao.modoProcessamento) : null;
+  const decisoesAtivasPorDuvida = new Map<string, DecisaoImportacao>();
+  for (const dec of sessao?.decisoes ?? []) {
+    if (dec.ativa) decisoesAtivasPorDuvida.set(dec.duvidaId, dec);
+  }
 
   return (
     <View style={estilos.blocos}>
       {!sessao ? (
-        <Cartao
-          titulo="Enviar arquivos ou texto"
-          descricao="Envie PDFs de treino, DOCX de dieta, planilhas e mensagens de texto num lote só. O servidor lê os arquivos por regras fixas, separa os alunos e mostra o que entendeu. Nada é gravado antes de você conferir."
-        >
+        <>
+          {sessoesAbertas.length > 0 ? (
+            <Cartao
+              titulo="Importações em aberto"
+              descricao="Você pode retomar uma importação anterior antes que ela expire ou começar uma nova abaixo."
+            >
+              <View style={estilos.lista}>
+                {sessoesAbertas.map((s) => (
+                  <View key={s.id} style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+                    <View style={estilos.cabecalhoItem}>
+                      <Texto variante="bloco" nivel={3} style={estilos.encolher}>
+                        {dataHoraParaTela(s.criadoEm)}
+                      </Texto>
+                      <Selo texto={textoDoEstadoDaSessao(s.estado)} tipo={s.estado === 'ERRO' ? 'perigo' : s.estado === 'PROCESSANDO' ? 'atencao' : 'neutro'} />
+                    </View>
+                    <Texto variante="suave" numerico>
+                      {s.totalArquivos} arquivo(s) · {s.totalGrupos} grupo(s) · {s.duvidasAbertas} dúvida(s) em aberto
+                    </Texto>
+                    <LinhaDeAcoes>
+                      <Botao
+                        rotulo="Retomar"
+                        tipo="secundario"
+                        carregando={acao === 'retomar'}
+                        aoTocar={() => retomar(s.id)}
+                      />
+                    </LinhaDeAcoes>
+                  </View>
+                ))}
+              </View>
+            </Cartao>
+          ) : null}
+
+          <Cartao
+            titulo="Enviar arquivos ou texto"
+            descricao="Envie PDFs de treino, DOCX de dieta, planilhas e mensagens de texto num lote só. Você confere os termos e escolhe o que gravar antes de confirmar."
+          >
           <Escolha
             rotulo="O que importar"
             valor={objetivo}
@@ -280,7 +441,7 @@ export function PainelImportacaoAssistida() {
             />
           </LinhaDeAcoes>
           <Texto variante="pequeno" cor={cores.textoSuave}>
-            PDF, DOCX, XLSX ou CSV. Do PDF sai só o texto simples; página escaneada não é lida.
+            PDF, DOCX, XLSX ou CSV. Arquivos escaneados sem texto selecionável serão sinalizados na leitura.
           </Texto>
 
           {mostrarTexto ? (
@@ -311,30 +472,40 @@ export function PainelImportacaoAssistida() {
               </LinhaDeAcoes>
             </View>
           ) : null}
-        </Cartao>
+          </Cartao>
+        </>
       ) : (
         <>
           <Cartao
             titulo="Arquivos da importação"
-            descricao={`${textoDoEstadoDaSessao(sessao.estado)} · ${sessao.arquivos.length} arquivo(s) ou texto(s)`}
-            acoes={sessao.estado === 'RECEBENDO' ? (
-              <Botao rotulo="Descartar" tipo="perigoTexto" aoTocar={() => setDescartar(true)} />
+            descricao={`${textoDoEstadoDaSessao(sessao.estado)} · ${sessao.arquivos.length} arquivo(s) ou texto(s)${modo ? ` · ${modo.titulo}` : ''}`}
+            acoes={sessaoPodeCancelar(sessao.estado) ? (
+              <Botao rotulo="Cancelar importação" tipo="perigoTexto" carregando={acao === 'cancelar'} aoTocar={() => setDescartar(true)} />
             ) : undefined}
           >
+            {modo?.alertaFallback ? <Alerta tom="atencao" texto={modo.alertaFallback} /> : null}
             <View style={estilos.lista}>
-              {sessao.arquivos.map((arq) => (
-                <View key={arq.id} style={[estilos.arquivo, { borderBottomColor: cores.divisor }]}>
-                  <View style={estilos.linha}>
-                    <Texto style={estilos.encolher}>{arq.nomeOriginal}</Texto>
-                    {arq.erroCodigo ? <Selo texto="Não lido" tipo="perigo" /> : <Selo texto={arq.formato} tipo="neutro" />}
+              {sessao.arquivos.map((arq) => {
+                const cobertura = resumoDaCoberturaDoArquivo(arq.cobertura);
+                return (
+                  <View key={arq.id} style={[estilos.arquivo, { borderBottomColor: cores.divisor }]}>
+                    <View style={estilos.linha}>
+                      <Texto style={estilos.encolher}>{arq.nomeOriginal}</Texto>
+                      {arq.erroCodigo ? <Selo texto="Não lido" tipo="perigo" /> : <Selo texto={arq.formato} tipo="neutro" />}
+                    </View>
+                    {cobertura ? (
+                      <Texto variante="pequeno" cor={cobertura.tom === 'perigo' ? cores.perigo : cobertura.tom === 'atencao' ? cores.atencao : cores.textoSuave}>
+                        {cobertura.texto}
+                      </Texto>
+                    ) : null}
+                    {arq.erroCodigo ? <Texto variante="suave">{motivoDoErroDoArquivo(arq.erroCodigo)}</Texto> : null}
                   </View>
-                  {arq.erroCodigo ? <Texto variante="suave">{motivoDoErroDoArquivo(arq.erroCodigo)}</Texto> : null}
-                </View>
-              ))}
+                );
+              })}
             </View>
 
             {erroEm('entrada')}
-            {sessao.estado === 'RECEBENDO' ? (
+            {sessao.estado === 'RECEBENDO' || sessao.estado === 'RASCUNHO' ? (
               <LinhaDeAcoes>
                 <Botao
                   rotulo="Ler os arquivos"
@@ -347,8 +518,8 @@ export function PainelImportacaoAssistida() {
             ) : null}
           </Cartao>
 
-          {acao === 'processar' ? (
-            <Cartao titulo="Lendo os arquivos…">
+          {acao === 'processar' || sessao.estado === 'PROCESSANDO' ? (
+            <Cartao titulo="Lendo os arquivos…" descricao="Acompanhando o processamento no servidor automaticamente.">
               <Esqueleto />
             </Cartao>
           ) : null}
@@ -359,94 +530,156 @@ export function PainelImportacaoAssistida() {
               descricao="Abreviações e nomes de exercícios ou alimentos que o sistema não reconheceu com certeza."
             >
               {erroEm('duvidas')}
-              {sessao.duvidas.map((d) => (
-                <View key={d.id} style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
-                  <View style={estilos.cabecalhoItem}>
-                    <Texto variante="bloco" nivel={3} style={estilos.encolher}>{rotuloDaDuvida(d.tipo)}</Texto>
-                    <Selo texto={d.resolvida ? 'Resolvida' : 'Conferir'} tipo={d.resolvida ? 'sucesso' : 'atencao'} />
-                  </View>
+              {sessao.duvidas.map((d) => {
+                const qtdOcorrencias = d.ocorrenciaIds?.length ?? d.ocorrencias;
+                const decisaoAtiva = decisoesAtivasPorDuvida.get(d.id);
+                const editandoEsta = duvidaAtiva?.id === d.id;
+                return (
+                  <View key={d.id} style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+                    <View style={estilos.cabecalhoItem}>
+                      <Texto variante="bloco" nivel={3} style={estilos.encolher}>{rotuloDaDuvida(d.tipo)}</Texto>
+                      <Selo texto={d.resolvida ? 'Resolvida' : 'Conferir'} tipo={d.resolvida ? 'sucesso' : 'atencao'} />
+                    </View>
 
-                  <Texto>Termo: “{d.termoOriginal}” · no trecho “{d.trechoOriginal}”</Texto>
+                    <Texto>Termo: “{d.termoOriginal}” · no trecho “{d.trechoOriginal}”</Texto>
+                    <Texto variante="pequeno" cor={cores.textoSuave} numerico>
+                      {qtdOcorrencias} ocorrência(s) afetada(s)
+                    </Texto>
 
-                  {d.resolvida ? (
-                    <Texto variante="suave">Ficou como: {d.respostaEscolhida ?? '—'}</Texto>
-                  ) : (
-                    <View style={estilos.blocoInterno}>
-                      {d.sugestoes && d.sugestoes.length > 0 ? (
-                        <View style={estilos.blocoInterno}>
-                          <Texto variante="rotulo">Sugestões do catálogo</Texto>
-                          <LinhaDeAcoes>
-                            {d.sugestoes.map((sug) => (
-                              <Botao
-                                key={sug.termo}
-                                rotulo={`${sug.termo} (${Math.round(sug.nota * 100)}%)`}
-                                tipo="secundario"
-                                aoTocar={() => {
-                                  setDuvidaAtiva(d);
-                                  setRespostaEscolhida(sug.termo);
-                                }}
-                              />
-                            ))}
-                          </LinhaDeAcoes>
-                        </View>
-                      ) : null}
-
-                      {duvidaAtiva?.id === d.id ? (
-                        <View style={estilos.blocoInterno}>
-                          <Campo
-                            rotulo="Nome correto do exercício ou alimento"
-                            valor={respostaEscolhida}
-                            aoMudar={setRespostaEscolhida}
-                          />
-                          <Interruptor
-                            rotulo="Lembrar nas próximas importações"
-                            ajuda="Fica no dicionário da consultoria."
-                            valor={salvarDicionario}
-                            aoMudar={setSalvarDicionario}
-                          />
-                          <LinhaDeAcoes>
-                            <Botao
-                              rotulo="Salvar resposta"
-                              tipo="primario"
-                              Icone={CheckCircle2}
-                              carregando={acao === 'responder'}
-                              desabilitado={!respostaEscolhida.trim()}
-                              motivo="Escreva o nome correto."
-                              aoTocar={resolverDuvida}
-                            />
-                            <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={() => setDuvidaAtiva(null)} />
-                          </LinhaDeAcoes>
-                        </View>
-                      ) : (
+                    {d.resolvida && !editandoEsta ? (
+                      <View style={estilos.blocoInterno}>
+                        <Texto variante="suave">Ficou como: {d.respostaEscolhida ?? '—'}</Texto>
                         <LinhaDeAcoes>
                           <Botao
-                            rotulo="Corrigir o termo"
+                            rotulo="Alterar resposta"
                             tipo="secundario"
                             aoTocar={() => {
                               setDuvidaAtiva(d);
-                              setRespostaEscolhida(d.termoOriginal);
+                              setRespostaEscolhida(d.respostaEscolhida ?? d.termoOriginal);
+                              setReferenciaEscolhida(decisaoAtiva?.referenciaId ?? null);
                             }}
                           />
+                          {decisaoAtiva ? (
+                            <Botao
+                              rotulo="Revogar"
+                              tipo="fantasma"
+                              carregando={acao === 'revogar'}
+                              aoTocar={() => revogar(decisaoAtiva)}
+                            />
+                          ) : null}
                         </LinhaDeAcoes>
-                      )}
-                    </View>
-                  )}
-                </View>
-              ))}
+                      </View>
+                    ) : (
+                      <View style={estilos.blocoInterno}>
+                        {d.sugestoes && d.sugestoes.length > 0 ? (
+                          <View style={estilos.blocoInterno}>
+                            <Texto variante="rotulo">Sugestões do catálogo</Texto>
+                            <LinhaDeAcoes>
+                              {d.sugestoes.map((sug) => (
+                                <Botao
+                                  key={`${sug.termo}-${sug.referenciaId ?? ''}`}
+                                  rotulo={sug.nota != null ? `${sug.termo} (${Math.round(sug.nota * 100)}%)` : sug.termo}
+                                  tipo="secundario"
+                                  aoTocar={() => {
+                                    setDuvidaAtiva(d);
+                                    setRespostaEscolhida(sug.termo);
+                                    setReferenciaEscolhida(sug.referenciaId ?? null);
+                                  }}
+                                />
+                              ))}
+                            </LinhaDeAcoes>
+                          </View>
+                        ) : null}
+
+                        {editandoEsta ? (
+                          <View style={estilos.blocoInterno}>
+                            <Campo
+                              rotulo="Nome correto do exercício ou alimento"
+                              valor={respostaEscolhida}
+                              aoMudar={(texto) => {
+                                setRespostaEscolhida(texto);
+                                setReferenciaEscolhida(null);
+                              }}
+                            />
+                            <Interruptor
+                              rotulo="Lembrar nas próximas importações"
+                              ajuda="Fica no dicionário da consultoria."
+                              valor={salvarDicionario}
+                              aoMudar={setSalvarDicionario}
+                            />
+                            <LinhaDeAcoes>
+                              <Botao
+                                rotulo="Salvar resposta"
+                                tipo="primario"
+                                Icone={CheckCircle2}
+                                carregando={acao === 'responder'}
+                                desabilitado={!respostaEscolhida.trim()}
+                                motivo="Escreva o nome correto."
+                                aoTocar={resolverDuvida}
+                              />
+                              <Botao
+                                rotulo="Cancelar"
+                                tipo="fantasma"
+                                aoTocar={() => {
+                                  setDuvidaAtiva(null);
+                                  setReferenciaEscolhida(null);
+                                }}
+                              />
+                            </LinhaDeAcoes>
+                          </View>
+                        ) : (
+                          <LinhaDeAcoes>
+                            <Botao
+                              rotulo="Corrigir o termo"
+                              tipo="secundario"
+                              aoTocar={() => {
+                                setDuvidaAtiva(d);
+                                setRespostaEscolhida(d.termoOriginal);
+                                setReferenciaEscolhida(null);
+                              }}
+                            />
+                          </LinhaDeAcoes>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </Cartao>
           ) : null}
 
           {sessao.grupos && sessao.grupos.length > 0 ? (
             <Cartao
               titulo="Alunos encontrados"
-              descricao="Confira cada aluno e escolha o destino antes de gravar. O que já foi gravado aparece resumido."
+              descricao="Confira cada aluno, escolha o destino e selecione quais grupos gravar."
             >
+              {temPendentes ? (
+                <LinhaDeAcoes>
+                  <Botao
+                    rotulo={`Selecionar prontos (${prontosIds.length})`}
+                    tipo="secundario"
+                    desabilitado={prontosIds.length === 0}
+                    motivo="Nenhum grupo pronto disponível."
+                    aoTocar={() => setSelecionados(new Set(prontosIds))}
+                  />
+                  <Botao
+                    rotulo="Limpar seleção"
+                    tipo="fantasma"
+                    desabilitado={selecionadosAtivos.size === 0}
+                    motivo="Nenhum grupo selecionado."
+                    aoTocar={() => setSelecionados(new Set())}
+                  />
+                </LinhaDeAcoes>
+              ) : null}
+
               {sessao.grupos.map((g) => (grupoResumido(g) ? <LinhaResumida key={g.id} grupo={g} /> : (
                 <GrupoParaConferir
                   key={g.id}
                   grupo={g}
                   pode={pode}
                   conferidos={conferidos}
+                  selecionado={selecionadosAtivos.has(g.id)}
+                  aoSelecionar={g.destino !== 'IGNORAR' ? (m) => alternarSelecao(g.id, m) : undefined}
                   aoMudar={(v) => alterarDestinoDoGrupo(g, v)}
                 />
               )))}
@@ -469,13 +702,13 @@ export function PainelImportacaoAssistida() {
               <LinhaDeAcoes>
                 {temPendentes ? (
                   <Botao
-                    rotulo="Gravar rascunhos"
+                    rotulo={gravaveisSelecionados.length > 0 ? `Gravar selecionados (${gravaveisSelecionados.length})` : 'Gravar selecionados'}
                     tipo="primario"
                     Icone={CheckCircle2}
                     carregando={acao === 'confirmar' && gravando === 'pendentes'}
                     desabilitado={!!motivoConfirmar || acao === 'destino' || acao === 'confirmar'}
                     motivo={motivoConfirmar ?? (acao === 'destino' ? 'Salvando o destino…' : 'Aguarde a gravação terminar.')}
-                    aoTocar={() => gravar(gravaveis, 'pendentes')}
+                    aoTocar={() => gravar(gravaveisSelecionados, 'pendentes')}
                   />
                 ) : null}
                 {comErro.length > 0 ? (
@@ -484,8 +717,8 @@ export function PainelImportacaoAssistida() {
                     tipo={temPendentes ? 'secundario' : 'primario'}
                     Icone={RotateCcw}
                     carregando={acao === 'confirmar' && gravando === 'erros'}
-                    desabilitado={acao === 'confirmar' || acao === 'destino'}
-                    motivo="Aguarde a gravação terminar."
+                    desabilitado={acao === 'confirmar' || acao === 'destino' || !sessao.hashPrevia}
+                    motivo={!sessao.hashPrevia ? 'Atualize a sessão antes de tentar de novo.' : 'Aguarde a gravação terminar.'}
                     aoTocar={() => gravar(comErro, 'erros')}
                   />
                 ) : null}
@@ -497,11 +730,11 @@ export function PainelImportacaoAssistida() {
 
       <PainelConfirmacao
         visivel={descartar}
-        titulo="Descartar a importação?"
-        mensagem="Os arquivos enviados saem desta tela e nada é gravado nos alunos."
-        rotuloConfirmar="Descartar"
+        titulo="Cancelar a importação?"
+        mensagem="A sessão será cancelada e os arquivos temporários serão descartados. O que já foi gravado permanece."
+        rotuloConfirmar="Cancelar importação"
         perigo
-        aoConfirmar={resetar}
+        aoConfirmar={confirmarCancelamento}
         aoCancelar={() => setDescartar(false)}
       />
     </View>
@@ -524,10 +757,12 @@ function LinhaResumida({ grupo }: { grupo: GrupoImportavel }) {
 }
 
 /** Grupo ainda não gravado: o que foi lido ("—" onde não há dado ou a pessoa não pode ver) e o destino. */
-function GrupoParaConferir({ grupo, pode, conferidos, aoMudar }: {
+function GrupoParaConferir({ grupo, pode, conferidos, selecionado, aoSelecionar, aoMudar }: {
   grupo: GrupoImportavel;
   pode: (codigo: string) => boolean;
   conferidos: ReadonlySet<string>;
+  selecionado: boolean;
+  aoSelecionar?: (marcado: boolean) => void;
   aoMudar: (valor: ValorDoDestino | null) => void;
 }) {
   const { cores } = useTema();
@@ -555,6 +790,14 @@ function GrupoParaConferir({ grupo, pode, conferidos, aoMudar }: {
         aoMudar={aoMudar}
         opcoes={opcoesDoDestino(grupo, pode)}
       />
+
+      {aoSelecionar ? (
+        <CaixaSelecao
+          rotulo="Incluir na gravação"
+          marcado={selecionado}
+          aoMudar={aoSelecionar}
+        />
+      ) : null}
     </View>
   );
 }

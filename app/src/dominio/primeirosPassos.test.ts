@@ -461,3 +461,18 @@ test('perfil sem nenhum item dos Primeiros passos: a Ajuda não oferece trazê-l
   expect(temPrimeirosPassos({ ...soLeitura, administrador: true })).toBe(true);
   expect(temPrimeirosPassos({ pode: (c) => c === 'INSCRICAO_ALTERAR', administrador: false })).toBe(true);
 });
+
+describe('atalho da importação assistida', () => {
+  it('aparece para quem tem ALUNO_ALTERAR, mesmo sem marca ou logo', () => {
+    const r = montar({ pode: (c) => c === 'ALUNO_ALTERAR', administrador: false, temLogo: false });
+    expect(r.atalhoMigracao).toEqual({
+      titulo: 'Trazer meus alunos e planos',
+      destino: '/treinador/importacao/assistida',
+    });
+  });
+
+  it('fica oculto sem ALUNO_ALTERAR', () => {
+    const r = montar({ pode: (c) => c === 'MODELO_ALTERAR', administrador: true, temLogo: false });
+    expect(r.atalhoMigracao).toBeNull();
+  });
+});

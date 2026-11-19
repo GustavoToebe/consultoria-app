@@ -39,13 +39,18 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Gravação dos grupos revisados da importação assistida. Sem {@code @Transactional} no topo, de propósito: exceção de
@@ -73,6 +78,7 @@ public class ConfirmacaoDaImportacaoAssistida {
     private static final Pattern EMAIL_SIMPLES = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
 
     private final ImportacaoSessaoRepository sessoes;
+    private final ImportacaoArquivoRepository arquivos;
     private final JsonMapper json;
     private final AlunoService alunoService;
     private final AlunoRepository alunos;
@@ -85,13 +91,15 @@ public class ConfirmacaoDaImportacaoAssistida {
     private final Auditoria auditoria;
     private final TransactionTemplate transacao;
 
-    public ConfirmacaoDaImportacaoAssistida(ImportacaoSessaoRepository sessoes, JsonMapper json, AlunoService alunoService,
+    public ConfirmacaoDaImportacaoAssistida(ImportacaoSessaoRepository sessoes, ImportacaoArquivoRepository arquivos,
+                                            JsonMapper json, AlunoService alunoService,
                                             AlunoRepository alunos, ConsultoriaRepository consultorias,
                                             RegistroPesoRepository pesos, PastaRepository pastas,
                                             PlanoTreinoRepository treinos, PlanoDietaRepository dietas,
                                             ReceitaService receitas, Auditoria auditoria,
                                             PlatformTransactionManager transacoes) {
         this.sessoes = sessoes;
+        this.arquivos = arquivos;
         this.json = json;
         this.alunoService = alunoService;
         this.alunos = alunos;
@@ -111,8 +119,25 @@ public class ConfirmacaoDaImportacaoAssistida {
         static final Gravado NADA = new Gravado(0, 0, 0, 0, 0, 0, 0, false);
     }
 
+    private record PreparoConfirmacao(List<String> gruposIds, String hashPedido, ConfirmacaoResultado resultadoIdempotente) {
+    }
+
     public ConfirmacaoResultado confirmar(UUID sessaoId, UUID usuarioId, ConfirmarSessaoRequisicao req) {
-        List<String> escolhidos = transacao.execute(status -> prepararEscolha(sessaoId, req));
+        if (req.gruposIds() == null || req.gruposIds().isEmpty()) {
+            throw new BadRequestException("Selecione ao menos um grupo para confirmar.", "SELECAO_VAZIA");
+        }
+        if (new HashSet<>(req.gruposIds()).size() != req.gruposIds().size()) {
+            throw new BadRequestException("Seleção de grupos inválida.", "SELECAO_INVALIDA");
+        }
+        if (req.chaveIdempotencia() == null || req.chaveIdempotencia().isBlank()) {
+            throw new BadRequestException("Chave de idempotência obrigatória.", "CHAVE_IDEMPOTENCIA_OBRIGATORIA");
+        }
+
+        PreparoConfirmacao preparo = transacao.execute(status -> prepararEscolha(sessaoId, req));
+        if (preparo != null && preparo.resultadoIdempotente() != null) {
+            return preparo.resultadoIdempotente();
+        }
+        List<String> escolhidos = preparo != null ? preparo.gruposIds() : List.of();
 
         int importados = 0;
         int criados = 0;
@@ -143,22 +168,38 @@ public class ConfirmacaoDaImportacaoAssistida {
             }
         }
         int totalImportados = importados;
-        transacao.executeWithoutResult(status -> fechar(sessaoId, totalImportados));
         String situacao = comErro == 0 ? "CONCLUIDA" : importados == 0 ? "FALHOU" : "CONCLUIDA_COM_ERROS";
-        return new ConfirmacaoResultado(sessaoId, situacao, importados, criados, vinculados, treinosCriados, dietasCriadas,
-                modelos, comErro, pesosGravados, pesosIgnorados);
+        ConfirmacaoResultado resultado = new ConfirmacaoResultado(sessaoId, situacao, importados, criados, vinculados,
+                treinosCriados, dietasCriadas, modelos, comErro, pesosGravados, pesosIgnorados);
+        String hashPedido = preparo != null ? preparo.hashPedido() : null;
+        transacao.executeWithoutResult(status -> fechar(sessaoId, totalImportados, req.chaveIdempotencia().strip(),
+                hashPedido, resultado));
+        return resultado;
     }
 
     // ------------------------------------------------------------------------------------------------ fase 1
 
-    /** Sessão (404 de outra consultoria), revisão, estado, escolha dos grupos e permissões: nada é gravado aqui. */
-    private List<String> prepararEscolha(UUID sessaoId, ConfirmarSessaoRequisicao req) {
-        ImportacaoSessao sessao = sessoes.findByIdAndConsultoriaId(sessaoId, TenantContext.get())
+    /** Sessão (404 de outra consultoria), idempotência, revisão, hashPrevia, estado, escolha dos grupos e permissões: nada é gravado aqui. */
+    private PreparoConfirmacao prepararEscolha(UUID sessaoId, ConfirmarSessaoRequisicao req) {
+        ImportacaoSessao sessao = sessoes.buscarParaAlterar(sessaoId, TenantContext.get())
                 .orElseThrow(() -> new NaoEncontradoException("Sessão de importação não encontrada."));
-        if ("CONCLUIDA".equals(sessao.getEstado())) {
+        String chave = req.chaveIdempotencia().strip();
+        String hashPedido = HashPreviaImportacao.hashPedido(req.revisaoEsperada(), req.hashPrevia(), req.gruposIds());
+        ConfirmacaoResultado jaSalvo = verificarIdempotencia(sessao, chave, hashPedido);
+        if (jaSalvo != null) {
+            return new PreparoConfirmacao(List.of(), hashPedido, jaSalvo);
+        }
+        String estadoAtual = SessaoJson.estadoEfetivo(json, sessao);
+        if ("CANCELADA".equals(estadoAtual)) {
+            throw new ConflictException("A importação foi cancelada.", "SESSAO_CANCELADA");
+        }
+        if ("CONCLUIDA".equals(estadoAtual)) {
             throw new ConflictException("A importação já foi concluída.", "SESSAO_CONCLUIDA");
         }
-        if (!"REVISANDO".equals(sessao.getEstado())) {
+        if ("EXPIRADA".equals(estadoAtual) || sessao.getExpiraEm().isBefore(Instant.now())) {
+            throw new ConflictException("A importação expirou.", "SESSAO_EXPIRADA");
+        }
+        if (!"REVISANDO".equals(estadoAtual)) {
             throw new ConflictException("Processe os arquivos antes de confirmar.", "SESSAO_NAO_PROCESSADA");
         }
         if (req.revisaoEsperada() != sessao.getRevisao()) {
@@ -166,20 +207,46 @@ public class ConfirmacaoDaImportacaoAssistida {
                     "CONFLITO_EDICAO");
         }
         List<GrupoImportavel> grupos = SessaoJson.grupos(json, sessao);
+        String hashAtual = HashPreviaImportacao.calcular(sessao, grupos);
+        if (req.hashPrevia() == null || !req.hashPrevia().equals(hashAtual)) {
+            throw new ConflictException("A prévia mudou desde o carregamento. Recarregue e confira de novo.",
+                    "PREVIA_DESATUALIZADA");
+        }
         List<GrupoImportavel> escolhidos = new ArrayList<>();
-        if (req.gruposIds() == null || req.gruposIds().isEmpty()) {
-            grupos.stream().filter(ConfirmacaoDaImportacaoAssistida::pendente).forEach(escolhidos::add);
-        } else {
-            for (String id : new HashSet<>(req.gruposIds())) {
-                GrupoImportavel g = grupos.stream().filter(x -> x.id().equals(id)).findFirst()
-                        .orElseThrow(() -> new NaoEncontradoException("Grupo não encontrado na sessão."));
-                if (pendente(g)) {
-                    escolhidos.add(g);
-                }
+        for (String id : req.gruposIds()) {
+            GrupoImportavel g = grupos.stream().filter(x -> x.id().equals(id)).findFirst()
+                    .orElseThrow(() -> new BadRequestException("Grupo não encontrado na sessão.", "SELECAO_INVALIDA"));
+            if (pendente(g)) {
+                escolhidos.add(g);
             }
         }
         escolhidos.forEach(ConfirmacaoDaImportacaoAssistida::exigirPermissoes);
-        return escolhidos.stream().map(GrupoImportavel::id).toList();
+        return new PreparoConfirmacao(escolhidos.stream().map(GrupoImportavel::id).toList(), hashPedido, null);
+    }
+
+    private ConfirmacaoResultado verificarIdempotencia(ImportacaoSessao sessao, String chave, String hashPedido) {
+        String raw = sessao.getProgressoJson();
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = json.readTree(raw);
+            JsonNode confs = root.get("confirmacoes");
+            if (confs == null || !confs.has(chave)) {
+                return null;
+            }
+            JsonNode entrada = confs.get(chave);
+            String hashSalvo = entrada.hasNonNull("hashPedido") ? entrada.get("hashPedido").asString() : "";
+            if (!hashPedido.equals(hashSalvo)) {
+                throw new ConflictException("Chave de idempotência já utilizada com dados diferentes.",
+                        "IDEMPOTENCIA_CONFLITANTE");
+            }
+            return json.treeToValue(entrada.get("resultado"), ConfirmacaoResultado.class);
+        } catch (ConflictException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     private static boolean pendente(GrupoImportavel g) {
@@ -187,15 +254,16 @@ public class ConfirmacaoDaImportacaoAssistida {
     }
 
     /**
-     * Cada parte do grupo pede a permissão da rota que a grava, como no resto da API: peso, objetivo e observações =
-     * {@code ALUNO_SENSIVEL_ALTERAR}; treino = {@code TREINO_ALTERAR} + {@code PASTA_ALTERAR}; dieta = {@code DIETA_ALTERAR}
-     * + {@code PASTA_ALTERAR}; modelo = {@code MODELO_ALTERAR}.
+     * Cada parte do grupo pede a permissão da rota que a grava, como no resto da API: aluno = {@code ALUNO_ALTERAR};
+     * peso, objetivo e observações = {@code ALUNO_SENSIVEL_ALTERAR}; treino = {@code TREINO_ALTERAR} + {@code PASTA_ALTERAR};
+     * dieta = {@code DIETA_ALTERAR} + {@code PASTA_ALTERAR}; modelo = {@code MODELO_ALTERAR}.
      */
     private static void exigirPermissoes(GrupoImportavel g) {
         if ("MODELO_BIBLIOTECA".equals(g.destino())) {
             AcessoAtual.exigir("MODELO_ALTERAR");
             return;
         }
+        AcessoAtual.exigir("ALUNO_ALTERAR");
         CadastroImportavel c = g.cadastro();
         boolean sensivel = (c != null && (temTexto(c.objetivo()) || temTexto(c.observacoes())))
                 || (g.pesos() != null && !g.pesos().isEmpty());
@@ -383,7 +451,8 @@ public class ConfirmacaoDaImportacaoAssistida {
      * Fecha a sessão: sem grupo pendente nem com erro ela está concluída e perde tudo que ainda tinha dado do arquivo
      * (grupos ignorados, dúvidas e respostas); senão volta a {@code REVISANDO}. Audita uma vez, só se algo foi gravado.
      */
-    private void fechar(UUID sessaoId, int importados) {
+    private void fechar(UUID sessaoId, int importados, String chaveIdempotencia, String hashPedido,
+                        ConfirmacaoResultado resultado) {
         ImportacaoSessao sessao = sessoes.buscarParaAlterar(sessaoId, TenantContext.get())
                 .orElseThrow(() -> new NaoEncontradoException("Sessão de importação não encontrada."));
         List<GrupoImportavel> grupos = SessaoJson.grupos(json, sessao);
@@ -396,13 +465,38 @@ public class ConfirmacaoDaImportacaoAssistida {
             SessaoJson.gravarGrupos(json, sessao, limpos);
             sessao.aplicarRespostas("[]", null, "[]");
             sessao.atualizarEstado("CONCLUIDA");
+            arquivos.limparConteudoBytesDaSessao(sessaoId);
         } else {
             sessao.atualizarEstado("REVISANDO");
         }
+        registrarConfirmacaoEmProgresso(sessao, chaveIdempotencia, hashPedido, resultado);
         if (importados > 0) {
             auditoria.registrarEvento("IMPORTACAO_ASSISTIDA_CONCLUIDA", "IMPORTACAO", sessaoId,
                     "Importou dados pela importação assistida.");
         }
+    }
+
+    private void registrarConfirmacaoEmProgresso(ImportacaoSessao sessao, String chave, String hashPedido,
+                                                 ConfirmacaoResultado resultado) {
+        if (chave == null || hashPedido == null || resultado == null) {
+            return;
+        }
+        ObjectNode root;
+        try {
+            JsonNode lido = sessao.getProgressoJson() == null || sessao.getProgressoJson().isBlank()
+                    ? json.createObjectNode()
+                    : json.readTree(sessao.getProgressoJson());
+            root = lido instanceof ObjectNode o ? o : json.createObjectNode();
+        } catch (RuntimeException e) {
+            root = json.createObjectNode();
+        }
+        ObjectNode confs = root.get("confirmacoes") instanceof ObjectNode c ? c : json.createObjectNode();
+        Map<String, Object> registro = new HashMap<>();
+        registro.put("hashPedido", hashPedido);
+        registro.put("resultado", resultado);
+        confs.set(chave, json.valueToTree(registro));
+        root.set("confirmacoes", confs);
+        sessao.atualizarResultados(null, null, json.writeValueAsString(root));
     }
 
     // ------------------------------------------------------------------------------------------------ auxiliares

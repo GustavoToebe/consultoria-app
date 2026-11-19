@@ -107,7 +107,7 @@ class ImportacaoAssistidaServiceTest {
     }
 
     @Test
-    void processarGravaGrupoApagaOsBytesENuncaVinculaSoPeloNome() {
+    void processarGravaGrupoRetemOsBytesNaRevisaoENuncaVinculaSoPeloNome() {
         ImportacaoSessao sessao = sessaoAberta();
         ImportacaoArquivo arq = texto(sessao, "Treino_Felipe.txt", "Aluno: Felipe Santos\nTreino A - Peito\n1. Supino Reto 4x10\n");
         Aluno homonimo = aluno("Felipe Santos", null);
@@ -124,10 +124,14 @@ class ImportacaoAssistidaServiceTest {
         assertThat(g.candidatos()).hasSize(1);
         assertThat(g.candidatos().getFirst().motivo()).isEqualTo("NOME");
         assertThat(g.candidatos().getFirst().alunoId()).isEqualTo(homonimo.getId());
-        // O conteúdo do arquivo não fica depois de processado.
-        assertThat(arq.getConteudoBytes()).isNull();
+        // Os bytes ficam retidos durante a revisão e são limpos só quando a sessão conclui/expira/anonimiza.
+        assertThat(arq.getConteudoBytes()).isNotNull();
         assertThat(arq.getEstado()).isEqualTo("PROCESSADO");
         assertThat(detalhe.estado()).isEqualTo("REVISANDO");
+        assertThat(detalhe.modoProcessamento()).isNotNull();
+        assertThat(detalhe.modoProcessamento().modoEfetivo()).isEqualTo("REGRAS");
+        assertThat(detalhe.arquivos().getFirst().cobertura()).isNotNull();
+        assertThat(detalhe.arquivos().getFirst().cobertura().status()).isEqualTo("COMPLETA");
     }
 
     @Test
@@ -325,6 +329,16 @@ class ImportacaoAssistidaServiceTest {
         when(sessoes.countByCriadoPorAndExpiraEmAfter(any(), any())).thenReturn(
                 (long) ImportacaoAssistidaService.SESSOES_ABERTAS_POR_USUARIO);
         assertThatThrownBy(() -> service.criarSessao(usuarioId, null)).isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void sessaoVencidaDevolveEstadoEfetivoExpirada() {
+        ImportacaoSessao sessao = sessaoAberta();
+        ReflectionTestUtils.setField(sessao, "expiraEm", Instant.now().minusSeconds(60));
+        when(sessoes.findTop20ByConsultoriaIdOrderByCriadoEmDesc(consultoriaId)).thenReturn(List.of(sessao));
+
+        assertThat(service.obterSessao(sessao.getId()).estado()).isEqualTo("EXPIRADA");
+        assertThat(service.listarSessoes().getFirst().estado()).isEqualTo("EXPIRADA");
     }
 
     private static String grupoPronto(String id) {

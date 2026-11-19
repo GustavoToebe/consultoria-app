@@ -2,6 +2,7 @@ package br.com.treinos.api.importacao.assistida;
 
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
+import br.com.plataforma.comum.web.ResourceNotFoundException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
@@ -13,11 +14,17 @@ import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ArquivoRe
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.AtualizarGrupoRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.CadastroImportavel;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.CandidatoAluno;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.CoberturaArquivo;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.DecisaoImportacao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.DuvidaImportacao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.GrupoImportavel;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ModoProcessamentoResumo;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.OcorrenciaOrigem;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.PesoImportavel;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ResponderDuvidaRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.RespostaDuvidaRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SessaoDetalhe;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SessaoListaItem;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SugestaoDuvida;
 import br.com.treinos.api.importacao.assistida.ia.ContextoIa;
 import br.com.treinos.api.importacao.assistida.ia.ResultadoInterpretacao;
@@ -30,16 +37,19 @@ import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,8 +61,8 @@ import java.util.regex.Pattern;
 /**
  * Importação assistida (lote de PDF, DOCX, planilha e texto): recebe, interpreta e deixa em rascunho de revisão. A
  * gravação dos grupos é da {@link ConfirmacaoDaImportacaoAssistida}. Dado do aluno só vive na sessão por 7 dias
- * ({@link ImportacaoAssistidaRetencao}); os bytes do arquivo saem logo depois de processados e o grupo gravado perde o
- * conteúdo. Nada sai do servidor sem {@code treinos.importacao.ia.enviar-dados-ao-provedor}, e então só o texto extraído (sem máscara).
+ * ({@link ImportacaoAssistidaRetencao}); os bytes do arquivo ficam retidos durante a revisão e saem na conclusão,
+ * cancelamento, expiração ou anonimização.
  */
 @Service
 public class ImportacaoAssistidaService {
@@ -92,8 +102,17 @@ public class ImportacaoAssistidaService {
         this.roteador = roteador;
     }
 
+    /** Política conservadora para o piloto: entrada/leitura de sessão mista exige as permissões de leitura do conteúdo. */
+    void exigirPermissoesSessaoMista() {
+        AcessoAtual.exigir("ALUNO_ALTERAR");
+        AcessoAtual.exigir("ALUNO_SENSIVEL_LER");
+        AcessoAtual.exigir("TREINO_LER");
+        AcessoAtual.exigir("DIETA_LER");
+    }
+
     @Transactional
     public SessaoDetalhe criarSessao(UUID usuarioId, String objetivo) {
+        exigirPermissoesSessaoMista();
         String obj = objetivo == null || objetivo.isBlank() ? null : objetivo.strip();
         if (obj != null && (obj.length() > OBJETIVO_DA_SESSAO || !OBJETIVO_VALIDO.matcher(obj).matches())) {
             throw new BadRequestException("Objetivo da importação inválido.", "OBJETIVO_INVALIDO");
@@ -107,8 +126,24 @@ public class ImportacaoAssistidaService {
         return detalheDaSessao(sessao);
     }
 
+    @Transactional(readOnly = true)
+    public List<SessaoListaItem> listarSessoes() {
+        AcessoAtual.exigir("ALUNO_LER");
+        UUID consultoriaId = TenantContext.get();
+        return sessoes.findTop20ByConsultoriaIdOrderByCriadoEmDesc(consultoriaId).stream()
+                .map(s -> {
+                    int totalArquivos = (int) arquivos.countBySessaoId(s.getId());
+                    int totalGrupos = SessaoJson.grupos(json, s).size();
+                    int duvidasAbertas = (int) SessaoJson.duvidas(json, s).stream().filter(d -> !d.resolvida()).count();
+                    return new SessaoListaItem(s.getId(), SessaoJson.estadoEfetivo(json, s), s.getRevisao(),
+                            totalArquivos, totalGrupos, duvidasAbertas, s.getCriadoEm(), s.getExpiraEm());
+                })
+                .toList();
+    }
+
     @Transactional
     public ArquivoResumo adicionarArquivo(UUID sessaoId, MultipartFile arquivo) throws IOException {
+        exigirPermissoesSessaoMista();
         ImportacaoSessao sessao = sessaoAberta(sessaoId);
         if (arquivo.isEmpty()) {
             throw new BadRequestException("O arquivo enviado está vazio.", "ARQUIVO_VAZIO");
@@ -124,6 +159,7 @@ public class ImportacaoAssistidaService {
 
     @Transactional
     public ArquivoResumo adicionarTexto(UUID sessaoId, String titulo, String conteudo) {
+        exigirPermissoesSessaoMista();
         ImportacaoSessao sessao = sessaoAberta(sessaoId);
         if (conteudo == null || conteudo.isBlank()) {
             throw new BadRequestException("O texto enviado está vazio.", "TEXTO_VAZIO");
@@ -152,16 +188,12 @@ public class ImportacaoAssistidaService {
         return resumo(arq);
     }
 
-    /**
-     * Interpreta os arquivos ainda não processados e acrescenta os grupos e as dúvidas aos que a sessão já tem. O conteúdo
-     * do arquivo é apagado ao fim, com sucesso ou erro: reenviar é adicionar de novo.
-     */
+    /** Processamento síncrono (usado em testes unitários de serviço). */
     @Transactional
     public SessaoDetalhe processar(UUID sessaoId) {
+        exigirPermissoesSessaoMista();
         ImportacaoSessao sessao = sessaoTravada(sessaoId);
-        if ("CONCLUIDA".equals(sessao.getEstado())) {
-            throw new ConflictException("A importação já foi concluída.", "SESSAO_CONCLUIDA");
-        }
+        exigirNaoEncerrada(sessao);
         List<ImportacaoArquivo> todos = arquivos.findBySessaoIdOrderByCriadoEmAsc(sessaoId);
         if (todos.isEmpty()) {
             throw new BadRequestException("Adicione ao menos um arquivo ou texto para processar.", "SEM_ARQUIVOS");
@@ -170,71 +202,151 @@ public class ImportacaoAssistidaService {
         if (pendentes.isEmpty()) {
             return detalheDaSessao(sessao);
         }
+        sessao.atualizarEstado("PROCESSANDO");
+        PreparoProcessamento preparo = montarPreparo(sessao, pendentes);
+        ResultadoProcessamentoLote resultado = executarProcessamentoSemTransacao(preparo);
+        aplicarResultadoNaSessao(sessao, todos, resultado);
+        return detalheDaSessao(sessao);
+    }
 
+    static final class ArquivoPendente {
+        private final UUID id;
+        private final String nomeOriginal;
+        private final String formato;
+        private final byte[] conteudoBytes;
+
+        ArquivoPendente(UUID id, String nomeOriginal, String formato, byte[] conteudoBytes) {
+            this.id = id;
+            this.nomeOriginal = nomeOriginal;
+            this.formato = formato;
+            this.conteudoBytes = conteudoBytes;
+        }
+
+        UUID id() { return id; }
+        String nomeOriginal() { return nomeOriginal; }
+        String formato() { return formato; }
+        byte[] conteudoBytes() { return conteudoBytes; }
+    }
+
+    record PreparoProcessamento(UUID sessaoId, String objetivo, Map<String, String> dicionario,
+                                List<ArquivoPendente> pendentes, List<Aluno> existentes) {
+    }
+
+    record ResultadoArquivoProcessado(UUID arquivoId, boolean sucesso, String extracaoJson, String erroCodigo,
+                                      RoteadorInterpretadorIa.ExecucaoInterpretacao execucao,
+                                      RedatorLgpdImportacao.RedacaoResultado redacao) {
+    }
+
+    record ResultadoProcessamentoLote(List<ResultadoArquivoProcessado> itens, List<Aluno> existentes) {
+    }
+
+    PreparoProcessamento prepararProcessamentoForaDeTransacao(UUID sessaoId) {
+        ImportacaoSessao sessao = sessoes.findByIdAndConsultoriaId(sessaoId, TenantContext.get()).orElse(null);
+        if (sessao == null || !"PROCESSANDO".equals(sessao.getEstado())) {
+            return null;
+        }
+        List<ImportacaoArquivo> pendentes = arquivos.findBySessaoIdOrderByCriadoEmAsc(sessaoId).stream()
+                .filter(a -> "RECEBIDO".equals(a.getEstado()))
+                .toList();
+        if (pendentes.isEmpty()) {
+            return null;
+        }
+        return montarPreparo(sessao, pendentes);
+    }
+
+    private PreparoProcessamento montarPreparo(ImportacaoSessao sessao, List<ImportacaoArquivo> pendentes) {
         Map<String, String> dicionario = carregarDicionarioConsultoria();
+        List<ArquivoPendente> itens = pendentes.stream()
+                .map(a -> new ArquivoPendente(a.getId(), a.getNomeOriginal(), a.getFormato(), a.getConteudoBytes()))
+                .toList();
+        List<Aluno> existentes = alunos.findAll();
+        return new PreparoProcessamento(sessao.getId(), sessao.getObjetivo(), dicionario, itens, existentes);
+    }
+
+    ResultadoProcessamentoLote executarProcessamentoSemTransacao(PreparoProcessamento preparo) {
+        List<ResultadoArquivoProcessado> itens = new ArrayList<>();
+        for (ArquivoPendente arq : preparo.pendentes()) {
+            try {
+                ResultadoExtracao extracao = extrairArquivo(arq.formato(), arq.nomeOriginal(), arq.conteudoBytes());
+                RedatorLgpdImportacao.RedacaoResultado redacao = RedatorLgpdImportacao.redigir(extracao.textoCompleto());
+                ContextoIa contexto = new ContextoIa(arq.nomeOriginal(), arq.formato(), extracao.blocos(),
+                        extracao.textoCompleto(), preparo.objetivo(), SIGLAS_METODOLOGIA, preparo.dicionario());
+                RoteadorInterpretadorIa.ExecucaoInterpretacao execucao = roteador.interpretarComModo(contexto);
+                itens.add(new ResultadoArquivoProcessado(arq.id(), true, json.writeValueAsString(extracao.metadados()),
+                        null, execucao, redacao));
+            } catch (ExtracaoRecusadaException e) {
+                itens.add(new ResultadoArquivoProcessado(arq.id(), false, null, e.codigo(), null, null));
+            } catch (RuntimeException e) {
+                itens.add(new ResultadoArquivoProcessado(arq.id(), false, null, "ERRO_PROCESSAMENTO", null, null));
+            }
+        }
+        return new ResultadoProcessamentoLote(List.copyOf(itens), preparo.existentes());
+    }
+
+    void concluirProcessamentoEmTransacao(UUID sessaoId, ResultadoProcessamentoLote resultado) {
+        ImportacaoSessao sessao = sessoes.buscarParaAlterar(sessaoId, TenantContext.get()).orElse(null);
+        if (sessao == null || !"PROCESSANDO".equals(sessao.getEstado())) {
+            return;
+        }
+        if ("CANCELADA".equals(sessao.getEstado()) || sessao.getExpiraEm().isBefore(Instant.now())) {
+            return;
+        }
+        List<ImportacaoArquivo> todos = arquivos.findBySessaoIdOrderByCriadoEmAsc(sessaoId);
+        aplicarResultadoNaSessao(sessao, todos, resultado);
+    }
+
+    private void aplicarResultadoNaSessao(ImportacaoSessao sessao, List<ImportacaoArquivo> todos,
+                                          ResultadoProcessamentoLote resultado) {
+        Map<UUID, ImportacaoArquivo> porId = new HashMap<>();
+        for (ImportacaoArquivo a : todos) {
+            porId.put(a.getId(), a);
+        }
+
         List<GrupoImportavel> grupos = new ArrayList<>(SessaoJson.grupos(json, sessao));
         List<DuvidaImportacao> duvidas = new ArrayList<>(SessaoJson.duvidas(json, sessao));
-        List<Aluno> existentes = null;
         int seqGrupo = grupos.size();
         int seqDuvida = duvidas.size();
+        ModoProcessamentoResumo modo = lerModoProcessamento(sessao);
 
-        for (ImportacaoArquivo arq : pendentes) {
-            Interpretado ok = interpretar(arq, sessao.getObjetivo(), dicionario);
-            arq.limparConteudoBytes();
-            if (ok == null) {
+        for (ResultadoArquivoProcessado item : resultado.itens()) {
+            ImportacaoArquivo arq = porId.get(item.arquivoId());
+            if (arq == null) {
                 continue;
             }
-            if (existentes == null) {
-                existentes = alunos.findAll();
+            if (!item.sucesso()) {
+                arq.marcarErro(item.erroCodigo());
+                arq.limparConteudoBytes();
+                continue;
             }
-            // E-mail e telefone do arquivo só valem para o grupo quando o arquivo tem um único grupo e um único contato.
-            boolean unico = ok.resultado().grupos().size() == 1;
-            String email = unico ? unico(ok.redacao().emails(), false) : null;
-            String telefone = unico ? unico(ok.redacao().telefones(), true) : null;
-            for (ResultadoInterpretacao.PropostaGrupo pg : ok.resultado().grupos()) {
+            arq.marcarProcessado(item.extracaoJson());
+            modo = consolidarModo(modo, item.execucao());
+            boolean unico = item.execucao().resultado().grupos().size() == 1;
+            String email = unico ? unico(item.redacao().emails(), false) : null;
+            String telefone = unico ? unico(item.redacao().telefones(), true) : null;
+            for (ResultadoInterpretacao.PropostaGrupo pg : item.execucao().resultado().grupos()) {
                 seqGrupo++;
-                grupos.add(montarGrupo(pg, arq, "grupo-" + seqGrupo, email, telefone, existentes));
+                grupos.add(montarGrupo(pg, arq, "grupo-" + seqGrupo, email, telefone, resultado.existentes()));
             }
-            for (ResultadoInterpretacao.PropostaDuvida pd : ok.resultado().duvidas()) {
+            for (ResultadoInterpretacao.PropostaDuvida pd : item.execucao().resultado().duvidas()) {
                 List<SugestaoDuvida> sugs = new ArrayList<>();
                 if (pd.sugestoes() != null) {
                     for (ResultadoInterpretacao.PropostaSugestao ps : pd.sugestoes()) {
-                        sugs.add(new SugestaoDuvida(ps.termo(), null, "IA", ps.nota()));
+                        String origemSug = ps.referenciaId() != null ? "BIBLIOTECA" : "IA";
+                        sugs.add(new SugestaoDuvida(ps.termo(), ps.referenciaId(), origemSug, ps.nota()));
                     }
                 }
                 seqDuvida++;
+                List<String> ocIds = pd.ocorrenciaIds() == null ? List.of() : pd.ocorrenciaIds();
+                int qtdOc = ocIds.isEmpty() ? 1 : ocIds.size();
                 duvidas.add(new DuvidaImportacao("duvida-" + seqDuvida, pd.tipo(), pd.termoOriginal(), pd.trechoOriginal(),
-                        arq.getNomeOriginal(), 1, sugs, false, null));
+                        arq.getNomeOriginal(), qtdOc, sugs, false, null, ocIds));
             }
         }
 
         long processados = todos.stream().filter(a -> !"RECEBIDO".equals(a.getEstado())).count();
         sessao.atualizarResultados(json.writeValueAsString(grupos), json.writeValueAsString(duvidas),
-                "{\"processados\": " + processados + "}");
+                serializarProgresso(sessao, processados, modo));
         sessao.atualizarEstado("REVISANDO");
-        return detalheDaSessao(sessao);
-    }
-
-    private record Interpretado(ResultadoInterpretacao resultado, RedatorLgpdImportacao.RedacaoResultado redacao) {
-    }
-
-    /** Extrai, redige e interpreta um arquivo; falha vira {@code erro_codigo} fixo (nunca a mensagem da exceção). */
-    private Interpretado interpretar(ImportacaoArquivo arq, String objetivo, Map<String, String> dicionario) {
-        try {
-            ResultadoExtracao extracao = extrairArquivo(arq);
-            RedatorLgpdImportacao.RedacaoResultado redacao = RedatorLgpdImportacao.redigir(extracao.textoCompleto());
-            // A redação fica só para vincular o aluno aqui; ao provedor vai o texto inteiro (decisão de 10/11/2026).
-            ContextoIa contexto = new ContextoIa(arq.getNomeOriginal(), arq.getFormato(), extracao.blocos(),
-                    extracao.textoCompleto(), objetivo, SIGLAS_METODOLOGIA, dicionario);
-            ResultadoInterpretacao resultado = roteador.interpretar(contexto);
-            arq.marcarProcessado(json.writeValueAsString(extracao.metadados()));
-            return new Interpretado(resultado, redacao);
-        } catch (ExtracaoRecusadaException e) {
-            arq.marcarErro(e.codigo());
-        } catch (RuntimeException e) {
-            arq.marcarErro("ERRO_PROCESSAMENTO");
-        }
-        return null;
     }
 
     private GrupoImportavel montarGrupo(ResultadoInterpretacao.PropostaGrupo pg, ImportacaoArquivo arq, String id,
@@ -260,9 +372,36 @@ public class ImportacaoAssistidaService {
         }
         CadastroImportavel cadastro = new CadastroImportavel(nome, emailValido(email != null ? email : pg.email()),
                 telefoneValido(telefone != null ? telefone : pg.telefone()), pg.objetivo(), pg.observacoes(), true);
+        Map<UUID, OcorrenciaOrigem> ocorrencias = extrairOcorrencias(arq.getNomeOriginal(), pg.treino(), pg.dieta());
         return new GrupoImportavel(id, arq.getNomeOriginal(), nome, destino, alunoExistente,
                 List.of(arq.getNomeOriginal()), cadastro, pesos, pg.treino(), pg.dieta(), List.of(), "PRONTO", null,
-                candidatos);
+                candidatos, ocorrencias);
+    }
+
+    private static Map<UUID, OcorrenciaOrigem> extrairOcorrencias(String nomeArquivo, ConteudoTreino treino,
+                                                                   ConteudoDieta dieta) {
+        Map<UUID, OcorrenciaOrigem> mapa = new LinkedHashMap<>();
+        if (treino != null && treino.sessoes() != null) {
+            for (ConteudoTreino.Sessao s : treino.sessoes()) {
+                for (ConteudoTreino.ExercicioPlano ex : s.exerciciosOuVazio()) {
+                    if (ex.uid() != null && ex.nome() != null) {
+                        mapa.put(ex.uid(), new OcorrenciaOrigem(ex.uid(), nomeArquivo + " — " + s.nome(), ex.nome()));
+                    }
+                }
+            }
+        }
+        if (dieta != null && dieta.refeicoes() != null) {
+            for (ConteudoDieta.Refeicao r : dieta.refeicoes()) {
+                for (ConteudoDieta.Opcao op : r.opcoesOuVazio()) {
+                    for (ConteudoDieta.Item it : op.itensOuVazio()) {
+                        if (it.uid() != null && it.nome() != null) {
+                            mapa.put(it.uid(), new OcorrenciaOrigem(it.uid(), nomeArquivo + " — " + r.nome(), it.nome()));
+                        }
+                    }
+                }
+            }
+        }
+        return Map.copyOf(mapa);
     }
 
     /** E-mail só com forma de e-mail e até 254 caracteres; senão o campo fica vazio e o treinador preenche. */
@@ -329,20 +468,28 @@ public class ImportacaoAssistidaService {
 
     @Transactional
     public SessaoDetalhe responderDuvida(UUID sessaoId, RespostaDuvidaRequisicao req) {
+        return responderDuvida(sessaoId, req.paraRequisicao());
+    }
+
+    @Transactional
+    public SessaoDetalhe responderDuvida(UUID sessaoId, ResponderDuvidaRequisicao req) {
         ImportacaoSessao sessao = sessaoTravada(sessaoId);
+        exigirNaoEncerrada(sessao);
         if (req.duvidaId() == null || req.respostaEscolhida() == null || req.respostaEscolhida().isBlank()
                 || req.respostaEscolhida().strip().length() > TERMO_DO_APELIDO) {
             throw new BadRequestException("Resposta da dúvida inválida.", "RESPOSTA_INVALIDA");
         }
         List<DuvidaImportacao> duvidas = SessaoJson.duvidas(json, sessao);
         List<GrupoImportavel> grupos = SessaoJson.grupos(json, sessao);
+        List<DecisaoImportacao> decisoes = new ArrayList<>(SessaoJson.decisoes(json, sessao));
 
         DuvidaImportacao encontrada = null;
         List<DuvidaImportacao> atualizadas = new ArrayList<>();
+        String termoPara = req.respostaEscolhida().strip();
         for (DuvidaImportacao d : duvidas) {
             if (d.id().equals(req.duvidaId())) {
                 encontrada = new DuvidaImportacao(d.id(), d.tipo(), d.termoOriginal(), d.trechoOriginal(),
-                        d.arquivoOrigem(), d.ocorrencias(), d.sugestoes(), true, req.respostaEscolhida().strip());
+                        d.arquivoOrigem(), d.ocorrencias(), d.sugestoes(), true, termoPara, d.ocorrenciaIds());
                 atualizadas.add(encontrada);
             } else {
                 atualizadas.add(d);
@@ -352,25 +499,167 @@ public class ImportacaoAssistidaService {
             throw new NaoEncontradoException("Dúvida não encontrada na sessão.");
         }
 
-        // Aplica o termo escolhido no treino ou dieta dos grupos ainda não gravados
-        String termoDe = encontrada.termoOriginal();
-        String termoPara = req.respostaEscolhida().strip();
-        List<GrupoImportavel> gruposAtualizados = new ArrayList<>();
-        for (GrupoImportavel g : grupos) {
-            if ("IMPORTADO".equals(g.estado())) {
-                gruposAtualizados.add(g);
-                continue;
+        List<String> alvos = resolverAlvos(encontrada, req.ocorrenciaIds());
+        Set<String> alvosSet = new HashSet<>(alvos);
+        for (int i = 0; i < decisoes.size(); i++) {
+            DecisaoImportacao ant = decisoes.get(i);
+            if (ant.ativa() && ant.duvidaId().equals(encontrada.id())
+                    && (alvosSet.isEmpty() || ant.ocorrenciaIds().stream().anyMatch(alvosSet::contains))) {
+                decisoes.set(i, ant.desativada());
             }
-            gruposAtualizados.add(g.comTreinoEDieta(substituirTermoNoTreino(g.treino(), termoDe, termoPara),
-                    substituirTermoNaDieta(g.dieta(), termoDe, termoPara)));
         }
+        decisoes.add(new DecisaoImportacao(UUID.randomUUID().toString(), encontrada.id(), alvos,
+                encontrada.tipo(), encontrada.termoOriginal(), termoPara, req.referenciaId(), true));
+
+        List<GrupoImportavel> gruposAtualizados = reconstruirGrupos(grupos, decisoes, encontrada.termoOriginal(), termoPara);
 
         if (req.salvarNoDicionario() && req.tipo() != null && req.termoOriginal() != null) {
             salvarApelido(req.tipo(), req.termoOriginal(), termoPara, req.referenciaId());
         }
-        sessao.aplicarRespostas(json.writeValueAsString(atualizadas), json.writeValueAsString(gruposAtualizados),
+        sessao.aplicarRespostas(json.writeValueAsString(decisoes), json.writeValueAsString(gruposAtualizados),
                 json.writeValueAsString(atualizadas));
         return detalheDaSessao(sessao);
+    }
+
+    @Transactional
+    public SessaoDetalhe revogarDecisao(UUID sessaoId, String decisaoId, long revisaoEsperada) {
+        ImportacaoSessao sessao = sessaoTravada(sessaoId);
+        exigirNaoEncerrada(sessao);
+        if (revisaoEsperada != sessao.getRevisao()) {
+            throw new ConflictException("A importação mudou desde a sua revisão. Recarregue e confira de novo.",
+                    "CONFLITO_EDICAO");
+        }
+        List<DecisaoImportacao> decisoes = new ArrayList<>(SessaoJson.decisoes(json, sessao));
+        DecisaoImportacao alvo = null;
+        for (int i = 0; i < decisoes.size(); i++) {
+            DecisaoImportacao d = decisoes.get(i);
+            if (d.decisaoId().equals(decisaoId) && d.ativa()) {
+                alvo = d.desativada();
+                decisoes.set(i, alvo);
+                break;
+            }
+        }
+        if (alvo == null) {
+            throw new NaoEncontradoException("Decisão não encontrada ou já revogada.");
+        }
+        String duvidaId = alvo.duvidaId();
+        boolean temOutraAtiva = decisoes.stream().anyMatch(d -> d.ativa() && d.duvidaId().equals(duvidaId));
+        List<DuvidaImportacao> duvidas = new ArrayList<>(SessaoJson.duvidas(json, sessao));
+        if (!temOutraAtiva) {
+            for (int i = 0; i < duvidas.size(); i++) {
+                DuvidaImportacao d = duvidas.get(i);
+                if (d.id().equals(duvidaId)) {
+                    duvidas.set(i, new DuvidaImportacao(d.id(), d.tipo(), d.termoOriginal(), d.trechoOriginal(),
+                            d.arquivoOrigem(), d.ocorrencias(), d.sugestoes(), false, null, d.ocorrenciaIds()));
+                    break;
+                }
+            }
+        }
+        List<GrupoImportavel> gruposAtualizados = reconstruirGrupos(SessaoJson.grupos(json, sessao), decisoes, null, null);
+        sessao.aplicarRespostas(json.writeValueAsString(decisoes), json.writeValueAsString(gruposAtualizados),
+                json.writeValueAsString(duvidas));
+        return detalheDaSessao(sessao);
+    }
+
+    private static List<String> resolverAlvos(DuvidaImportacao duvida, List<String> solicitados) {
+        List<String> validos = duvida.ocorrenciaIds();
+        if (solicitados == null) {
+            return validos;
+        }
+        if (solicitados.isEmpty() || !validos.containsAll(solicitados)) {
+            throw new BadRequestException("Ocorrências inválidas para esta dúvida.", "OCORRENCIA_INVALIDA");
+        }
+        return List.copyOf(solicitados);
+    }
+
+    private List<GrupoImportavel> reconstruirGrupos(List<GrupoImportavel> grupos, List<DecisaoImportacao> decisoes,
+                                                    String termoLegadoDe, String termoLegadoPara) {
+        Map<String, DecisaoImportacao> ativasPorOcorrencia = new HashMap<>();
+        for (DecisaoImportacao d : decisoes) {
+            if (!d.ativa()) {
+                continue;
+            }
+            for (String ocId : d.ocorrenciaIds()) {
+                ativasPorOcorrencia.put(ocId, d);
+            }
+        }
+        List<GrupoImportavel> saida = new ArrayList<>();
+        for (GrupoImportavel g : grupos) {
+            if ("IMPORTADO".equals(g.estado())) {
+                saida.add(g);
+                continue;
+            }
+            if (g.ocorrencias() != null && !g.ocorrencias().isEmpty()) {
+                saida.add(g.comTreinoEDieta(
+                        reconstruirTreino(g.treino(), g.ocorrencias(), ativasPorOcorrencia),
+                        reconstruirDieta(g.dieta(), g.ocorrencias(), ativasPorOcorrencia)));
+            } else if (termoLegadoDe != null && termoLegadoPara != null) {
+                saida.add(g.comTreinoEDieta(
+                        substituirTermoNoTreino(g.treino(), termoLegadoDe, termoLegadoPara),
+                        substituirTermoNaDieta(g.dieta(), termoLegadoDe, termoLegadoPara)));
+            } else {
+                saida.add(g);
+            }
+        }
+        return saida;
+    }
+
+    private static ConteudoTreino reconstruirTreino(ConteudoTreino treino, Map<UUID, OcorrenciaOrigem> origens,
+                                                    Map<String, DecisaoImportacao> ativas) {
+        if (treino == null || treino.sessoes() == null) {
+            return treino;
+        }
+        List<ConteudoTreino.Sessao> novasSessoes = new ArrayList<>();
+        boolean alterou = false;
+        for (ConteudoTreino.Sessao s : treino.sessoes()) {
+            List<ConteudoTreino.ExercicioPlano> novosExs = new ArrayList<>();
+            for (ConteudoTreino.ExercicioPlano ex : s.exerciciosOuVazio()) {
+                OcorrenciaOrigem orig = ex.uid() != null ? origens.get(ex.uid()) : null;
+                if (orig == null) {
+                    novosExs.add(ex);
+                    continue;
+                }
+                DecisaoImportacao dec = ativas.get(ex.uid().toString());
+                String novoNome = dec != null ? dec.valorAplicado() : orig.valorExtraido();
+                UUID novoId = dec != null ? dec.referenciaId() : null;
+                if (!java.util.Objects.equals(ex.nome(), novoNome) || !java.util.Objects.equals(ex.exercicioId(), novoId)) {
+                    novosExs.add(new ConteudoTreino.ExercicioPlano(ex.uid(), novoId, novoNome, ex.modalidade(),
+                            ex.videoUrl(), ex.observacao(), ex.progressao(), ex.unidade(), ex.series(),
+                            ex.cadencia(), ex.isometriaSegundos(), ex.grupoUid(), ex.equipamento(), ex.alternativas()));
+                    alterou = true;
+                } else {
+                    novosExs.add(ex);
+                }
+            }
+            novasSessoes.add(new ConteudoTreino.Sessao(s.uid(), s.nome(), s.diaSemana(), s.tipo(),
+                    s.frequenciaSemanal(), s.observacao(), s.cardio(), novosExs, s.grupos()));
+        }
+        return alterou ? new ConteudoTreino(treino.objetivo(), treino.orientacoes(), novasSessoes, treino.metodologia()) : treino;
+    }
+
+    private static ConteudoDieta reconstruirDieta(ConteudoDieta dieta, Map<UUID, OcorrenciaOrigem> origens,
+                                                  Map<String, DecisaoImportacao> ativas) {
+        if (dieta == null) {
+            return null;
+        }
+        java.util.concurrent.atomic.AtomicBoolean alterou = new java.util.concurrent.atomic.AtomicBoolean();
+        ConteudoDieta nova = dieta.comItens(it -> {
+            OcorrenciaOrigem orig = it.uid() != null ? origens.get(it.uid()) : null;
+            if (orig == null) {
+                return it;
+            }
+            DecisaoImportacao dec = ativas.get(it.uid().toString());
+            String novoNome = dec != null ? dec.valorAplicado() : orig.valorExtraido();
+            UUID novoAlimentoId = dec != null ? dec.referenciaId() : null;
+            if (java.util.Objects.equals(it.nome(), novoNome) && java.util.Objects.equals(it.alimentoId(), novoAlimentoId)) {
+                return it;
+            }
+            alterou.set(true);
+            return new ConteudoDieta.Item(it.uid(), novoAlimentoId, novoNome, it.quantidade(), it.unidade(),
+                    it.kcal(), it.proteina(), it.carboidrato(), it.gordura(), it.manual(),
+                    it.fatorCorrecao(), it.fatorCoccao(), it.grupo(), it.fibra());
+        });
+        return alterou.get() ? nova : dieta;
     }
 
     /**
@@ -380,6 +669,7 @@ public class ImportacaoAssistidaService {
     @Transactional
     public SessaoDetalhe atualizarGrupo(UUID sessaoId, String grupoId, AtualizarGrupoRequisicao req) {
         ImportacaoSessao sessao = sessaoTravada(sessaoId);
+        exigirNaoEncerrada(sessao);
         List<GrupoImportavel> grupos = SessaoJson.grupos(json, sessao);
         GrupoImportavel alvo = grupos.stream().filter(g -> g.id().equals(grupoId)).findFirst()
                 .orElseThrow(() -> new NaoEncontradoException("Grupo não encontrado na sessão."));
@@ -414,6 +704,60 @@ public class ImportacaoAssistidaService {
         SessaoJson.gravarGrupos(json, sessao, atualizados);
         sessao.incrementarRevisao();
         return detalheDaSessao(sessao);
+    }
+
+    @Transactional
+    public SessaoDetalhe cancelarSessao(UUID sessaoId) {
+        ImportacaoSessao sessao = sessaoTravada(sessaoId);
+        String estadoAtual = SessaoJson.estadoEfetivo(json, sessao);
+        if ("CANCELADA".equals(estadoAtual)) {
+            return detalheDaSessao(sessao);
+        }
+        if ("CONCLUIDA".equals(estadoAtual)) {
+            throw new ConflictException("A importação já foi concluída.", "SESSAO_CONCLUIDA");
+        }
+        List<GrupoImportavel> grupos = SessaoJson.grupos(json, sessao);
+        List<GrupoImportavel> limpos = new ArrayList<>();
+        for (GrupoImportavel g : grupos) {
+            limpos.add("IMPORTADO".equals(g.estado()) ? g : g.limpo("IGNORADO", "IGNORAR"));
+        }
+        SessaoJson.gravarGrupos(json, sessao, limpos);
+        sessao.aplicarRespostas("[]", null, "[]");
+        SessaoJson.marcarFlagProgresso(json, sessao, "cancelada", true);
+        sessao.atualizarEstado("CONCLUIDA");
+        arquivos.limparConteudoBytesDaSessao(sessaoId);
+        return detalheDaSessao(sessao);
+    }
+
+    public static final class ConteudoArquivo {
+        private final String nomeOriginal;
+        private final String formato;
+        private final byte[] bytes;
+
+        ConteudoArquivo(String nomeOriginal, String formato, byte[] bytes) {
+            this.nomeOriginal = nomeOriginal;
+            this.formato = formato;
+            this.bytes = bytes;
+        }
+
+        public String nomeOriginal() { return nomeOriginal; }
+        public String formato() { return formato; }
+        public byte[] bytes() { return bytes; }
+    }
+
+    @Transactional(readOnly = true)
+    public ConteudoArquivo obterConteudoArquivo(UUID sessaoId, UUID arquivoId) {
+        AcessoAtual.exigir("ALUNO_LER");
+        AcessoAtual.exigir("ALUNO_SENSIVEL_LER");
+        AcessoAtual.exigir("TREINO_LER");
+        AcessoAtual.exigir("DIETA_LER");
+        buscarSessao(sessaoId);
+        ImportacaoArquivo arq = arquivos.findByIdAndSessaoId(arquivoId, sessaoId)
+                .orElseThrow(() -> new NaoEncontradoException("Arquivo não encontrado na sessão."));
+        if (arq.getConteudoBytes() == null) {
+            throw new ResourceNotFoundException("Conteúdo do arquivo indisponível.", "CONTEUDO_INDISPONIVEL");
+        }
+        return new ConteudoArquivo(arq.getNomeOriginal(), arq.getFormato(), arq.getConteudoBytes());
     }
 
     /** Aluno da consultoria da sessão ({@code @TenantId}; outra consultoria dá 404), ativo e não anonimizado. */
@@ -516,23 +860,32 @@ public class ImportacaoAssistidaService {
                 .orElseThrow(() -> new NaoEncontradoException("Sessão de importação não encontrada."));
     }
 
-    /** Sessão travada que ainda aceita arquivos: depois de concluída não aceita mais. */
+    /** Sessão travada que ainda aceita arquivos: depois de concluída, cancelada ou expirada não aceita mais. */
     private ImportacaoSessao sessaoAberta(UUID id) {
         ImportacaoSessao sessao = sessaoTravada(id);
-        if ("CONCLUIDA".equals(sessao.getEstado())) {
-            throw new ConflictException("A importação já foi concluída.", "SESSAO_CONCLUIDA");
-        }
+        exigirNaoEncerrada(sessao);
         return sessao;
     }
 
-    private ResultadoExtracao extrairArquivo(ImportacaoArquivo arq) {
-        String formato = arq.getFormato();
-        byte[] bytes = arq.getConteudoBytes();
+    private void exigirNaoEncerrada(ImportacaoSessao sessao) {
+        String estadoAtual = SessaoJson.estadoEfetivo(json, sessao);
+        if ("CANCELADA".equals(estadoAtual)) {
+            throw new ConflictException("A importação foi cancelada.", "SESSAO_CANCELADA");
+        }
+        if ("CONCLUIDA".equals(estadoAtual)) {
+            throw new ConflictException("A importação já foi concluída.", "SESSAO_CONCLUIDA");
+        }
+        if ("EXPIRADA".equals(estadoAtual) || sessao.getExpiraEm().isBefore(Instant.now())) {
+            throw new ConflictException("A importação expirou.", "SESSAO_EXPIRADA");
+        }
+    }
+
+    private static ResultadoExtracao extrairArquivo(String formato, String nomeOriginal, byte[] bytes) {
         return switch (formato) {
-            case "DOCX" -> ExtratorDocx.extrair(arq.getNomeOriginal(), bytes);
-            case "PDF" -> ExtratorPdf.extrair(arq.getNomeOriginal(), bytes);
-            case "XLSX", "CSV" -> ExtratorXlsxCsv.extrair(arq.getNomeOriginal(), bytes);
-            case "TEXTO_LIVRE" -> ExtratorTextoLivre.extrair(arq.getNomeOriginal(),
+            case "DOCX" -> ExtratorDocx.extrair(nomeOriginal, bytes);
+            case "PDF" -> ExtratorPdf.extrair(nomeOriginal, bytes);
+            case "XLSX", "CSV" -> ExtratorXlsxCsv.extrair(nomeOriginal, bytes);
+            case "TEXTO_LIVRE" -> ExtratorTextoLivre.extrair(nomeOriginal,
                     bytes != null ? new String(bytes, StandardCharsets.UTF_8) : "");
             default -> new ResultadoExtracao(formato, "", List.of(), Map.of());
         };
@@ -612,9 +965,79 @@ public class ImportacaoAssistidaService {
         return Map.copyOf(mapa);
     }
 
-    private static ArquivoResumo resumo(ImportacaoArquivo a) {
+    private ArquivoResumo resumo(ImportacaoArquivo a) {
         return new ArquivoResumo(a.getId(), a.getNomeOriginal(), a.getFormato(), a.getTamanhoBytes(), a.getEstado(),
-                a.getErroCodigo(), a.getCriadoEm());
+                a.getErroCodigo(), a.getCriadoEm(), lerCobertura(a));
+    }
+
+    private CoberturaArquivo lerCobertura(ImportacaoArquivo a) {
+        String raw = a.getExtracaoJson();
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode n = json.readTree(raw);
+            String status = n.hasNonNull("cobertura") ? n.get("cobertura").asString() : null;
+            Integer paginasTotal = n.hasNonNull("paginasTotal") ? n.get("paginasTotal").asInt() : null;
+            Integer paginasLidas = n.hasNonNull("paginasLidas") ? n.get("paginasLidas").asInt() : null;
+            Integer paginasSemTexto = n.hasNonNull("paginasSemTexto") ? n.get("paginasSemTexto").asInt() : null;
+            Integer blocos = n.hasNonNull("blocos") ? n.get("blocos").asInt() : null;
+            Boolean truncado = n.hasNonNull("truncado") ? n.get("truncado").asBoolean() : null;
+            if (status == null && paginasTotal == null && blocos == null) {
+                return null;
+            }
+            return new CoberturaArquivo(status, paginasTotal, paginasLidas, paginasSemTexto, blocos, truncado);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private ModoProcessamentoResumo consolidarModo(ModoProcessamentoResumo atual,
+                                                   RoteadorInterpretadorIa.ExecucaoInterpretacao exec) {
+        if (atual == null) {
+            return new ModoProcessamentoResumo(exec.modoEfetivo(), exec.provedorConfigurado(),
+                    exec.fallbackParaRegras(), exec.motivoFallback());
+        }
+        String modoEfetivo = "IA".equals(atual.modoEfetivo()) || "IA".equals(exec.modoEfetivo()) ? "IA" : "REGRAS";
+        boolean fallback = atual.fallbackParaRegras() || exec.fallbackParaRegras();
+        String motivo = exec.motivoFallback() != null ? exec.motivoFallback() : atual.motivoFallback();
+        return new ModoProcessamentoResumo(modoEfetivo, exec.provedorConfigurado(), fallback, motivo);
+    }
+
+    private String serializarProgresso(ImportacaoSessao sessao, long processados, ModoProcessamentoResumo modo) {
+        Map<String, Object> map = new HashMap<>();
+        try {
+            if (sessao.getProgressoJson() != null && !sessao.getProgressoJson().isBlank()) {
+                JsonNode n = json.readTree(sessao.getProgressoJson());
+                if (n.has("confirmacoes")) {
+                    map.put("confirmacoes", n.get("confirmacoes"));
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // mantém mapa limpo
+        }
+        map.put("processados", processados);
+        if (modo != null) {
+            map.put("modoProcessamento", modo);
+        }
+        return json.writeValueAsString(map);
+    }
+
+    private ModoProcessamentoResumo lerModoProcessamento(ImportacaoSessao sessao) {
+        String raw = sessao.getProgressoJson();
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode n = json.readTree(raw);
+            JsonNode m = n.get("modoProcessamento");
+            if (m == null || m.isNull()) {
+                return null;
+            }
+            return json.treeToValue(m, ModoProcessamentoResumo.class);
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /**
@@ -626,14 +1049,22 @@ public class ImportacaoAssistidaService {
         boolean treinoLer = AcessoAtual.pode("TREINO_LER");
         boolean dietaLer = AcessoAtual.pode("DIETA_LER");
         List<ArquivoResumo> arqs = arquivos.findBySessaoIdOrderByCriadoEmAsc(sessao.getId()).stream()
-                .map(ImportacaoAssistidaService::resumo).toList();
-        List<GrupoImportavel> grupos = SessaoJson.grupos(json, sessao).stream()
+                .map(this::resumo).toList();
+        List<GrupoImportavel> gruposBrutos = SessaoJson.grupos(json, sessao);
+        List<GrupoImportavel> grupos = gruposBrutos.stream()
                 .map(g -> g.paraLeitura(sensivel, treinoLer, dietaLer)).toList();
         List<DuvidaImportacao> duvidas = SessaoJson.duvidas(json, sessao).stream()
                 .filter(d -> dietaLer || d.tipo() == null || !d.tipo().startsWith("ALIMENTO"))
                 .filter(d -> treinoLer || d.tipo() == null || !d.tipo().startsWith("EXERCICIO"))
                 .toList();
-        return new SessaoDetalhe(sessao.getId(), sessao.getObjetivo(), sessao.getEstado(), sessao.getRevisao(), arqs,
-                grupos, duvidas, sessao.getCriadoEm(), sessao.getExpiraEm());
+        List<DecisaoImportacao> decisoes = SessaoJson.decisoes(json, sessao).stream()
+                .filter(d -> dietaLer || d.tipo() == null || !d.tipo().startsWith("ALIMENTO"))
+                .filter(d -> treinoLer || d.tipo() == null || !d.tipo().startsWith("EXERCICIO"))
+                .toList();
+        String estadoAtual = SessaoJson.estadoEfetivo(json, sessao);
+        String hashPrevia = "REVISANDO".equals(estadoAtual) ? HashPreviaImportacao.calcular(sessao, gruposBrutos) : null;
+        return new SessaoDetalhe(sessao.getId(), sessao.getObjetivo(), estadoAtual, sessao.getRevisao(), arqs,
+                grupos, duvidas, sessao.getCriadoEm(), sessao.getExpiraEm(), lerModoProcessamento(sessao),
+                decisoes, hashPrevia);
     }
 }

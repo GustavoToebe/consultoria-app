@@ -1,7 +1,15 @@
 import { requisicao } from '../api/cliente';
 
 export type ObjetivoImportacao = 'SOMENTE_CADASTROS' | 'CADASTROS_E_PLANOS_ATUAIS' | 'INCLUIR_HISTORICO';
-export type EstadoSessao = 'RECEBENDO' | 'PROCESSANDO' | 'REVISANDO' | 'CONCLUIDA';
+export type EstadoSessao =
+  | 'RASCUNHO'
+  | 'RECEBENDO'
+  | 'PROCESSANDO'
+  | 'REVISANDO'
+  | 'CONCLUIDA'
+  | 'CANCELADA'
+  | 'ERRO'
+  | 'EXPIRADA';
 export type DestinoGrupo = 'CRIAR_ALUNO' | 'VINCULAR_EXISTENTE' | 'MODELO_BIBLIOTECA' | 'IGNORAR';
 export type TipoDuvida =
   | 'EXERCICIO_NAO_RECONHECIDO'
@@ -9,6 +17,22 @@ export type TipoDuvida =
   | 'ALUNO_AMBIGUO'
   | 'UNIDADE_CARGA'
   | 'CONFLITO_VERSAO';
+
+export interface ModoProcessamentoResumo {
+  modoEfetivo: string;
+  provedorConfigurado?: string | null;
+  fallbackParaRegras: boolean;
+  motivoFallback?: string | null;
+}
+
+export interface CoberturaArquivo {
+  status: string;
+  paginasTotal?: number | null;
+  paginasLidas?: number | null;
+  paginasSemTexto?: number | null;
+  blocos?: number | null;
+  truncado?: boolean | null;
+}
 
 export interface ArquivoResumo {
   id: string;
@@ -18,6 +42,7 @@ export interface ArquivoResumo {
   estado: string;
   erroCodigo?: string | null;
   criadoEm: string;
+  cobertura?: CoberturaArquivo | null;
 }
 
 export interface CadastroImportavel {
@@ -39,7 +64,7 @@ export interface SugestaoDuvida {
   termo: string;
   referenciaId?: string | null;
   origem: string;
-  nota: number;
+  nota: number | null;
 }
 
 export interface DuvidaImportacao {
@@ -49,9 +74,21 @@ export interface DuvidaImportacao {
   trechoOriginal: string;
   arquivoOrigem: string;
   ocorrencias: number;
+  ocorrenciaIds?: string[];
   sugestoes: SugestaoDuvida[];
   resolvida: boolean;
   respostaEscolhida?: string | null;
+}
+
+export interface DecisaoImportacao {
+  decisaoId: string;
+  duvidaId: string;
+  ocorrenciaIds: string[];
+  tipo: string;
+  valorExtraido: string;
+  valorAplicado: string;
+  referenciaId?: string | null;
+  ativa: boolean;
 }
 
 /** Aluno já cadastrado que pode ser o mesmo do arquivo. Por nome o servidor nunca vincula sozinho: o treinador escolhe. */
@@ -91,6 +128,20 @@ export interface SessaoDetalhe {
   arquivos: ArquivoResumo[];
   grupos: GrupoImportavel[];
   duvidas: DuvidaImportacao[];
+  decisoes?: DecisaoImportacao[];
+  hashPrevia?: string | null;
+  modoProcessamento?: ModoProcessamentoResumo | null;
+  criadoEm: string;
+  expiraEm: string;
+}
+
+export interface SessaoListaItem {
+  id: string;
+  estado: EstadoSessao;
+  revisao: number;
+  totalArquivos: number;
+  totalGrupos: number;
+  duvidasAbertas: number;
   criadoEm: string;
   expiraEm: string;
 }
@@ -162,6 +213,20 @@ export async function obterSessao(sessaoId: string): Promise<SessaoDetalhe> {
   });
 }
 
+/** Lista as sessões recentes/abertas de importação assistida da consultoria */
+export async function listarSessoes(): Promise<SessaoListaItem[]> {
+  return requisicao<SessaoListaItem[]>('/importacoes/assistidas/sessoes', {
+    metodo: 'GET',
+  });
+}
+
+/** Cancela uma sessão de importação assistida em aberto */
+export async function cancelarSessao(sessaoId: string): Promise<SessaoDetalhe> {
+  return requisicao<SessaoDetalhe>(`/importacoes/assistidas/sessoes/${sessaoId}/cancelar`, {
+    metodo: 'POST',
+  });
+}
+
 /** Envia resposta a uma dúvida, atualiza grupos e opcionalmente salva no dicionário */
 export async function responderDuvida(
   sessaoId: string,
@@ -170,7 +235,8 @@ export async function responderDuvida(
   salvarNoDicionario: boolean,
   tipo?: string,
   termoOriginal?: string,
-  referenciaId?: string
+  referenciaId?: string | null,
+  ocorrenciaIds?: string[] | null
 ): Promise<SessaoDetalhe> {
   return requisicao<SessaoDetalhe>(`/importacoes/assistidas/sessoes/${sessaoId}/respostas`, {
     metodo: 'POST',
@@ -180,8 +246,21 @@ export async function responderDuvida(
       salvarNoDicionario,
       tipo,
       termoOriginal,
-      referenciaId,
+      referenciaId: referenciaId ?? undefined,
+      ocorrenciaIds: ocorrenciaIds ?? undefined,
     },
+  });
+}
+
+/** Revoga uma decisão aplicada anteriormente e reabre a dúvida correspondente */
+export async function revogarDecisao(
+  sessaoId: string,
+  decisaoId: string,
+  revisaoEsperada: number
+): Promise<SessaoDetalhe> {
+  return requisicao<SessaoDetalhe>(`/importacoes/assistidas/sessoes/${sessaoId}/respostas/${decisaoId}/revogar`, {
+    metodo: 'POST',
+    corpo: { revisaoEsperada },
   });
 }
 
@@ -197,17 +276,21 @@ export async function atualizarGrupo(
   });
 }
 
-/** Grava os grupos escolhidos (nunca vazio: vazio grava todos os pendentes) como rascunhos ou modelos */
+/** Grava os grupos explicitamente selecionados como rascunhos ou modelos, com trava de prévia e idempotência */
 export async function confirmarSessao(
   sessaoId: string,
   gruposIds: string[],
-  revisaoEsperada: number
+  revisaoEsperada: number,
+  hashPrevia: string,
+  chaveIdempotencia: string
 ): Promise<ConfirmacaoResultado> {
   return requisicao<ConfirmacaoResultado>(`/importacoes/assistidas/sessoes/${sessaoId}/confirmar`, {
     metodo: 'POST',
     corpo: {
       gruposIds,
       revisaoEsperada,
+      hashPrevia,
+      chaveIdempotencia,
     },
   });
 }

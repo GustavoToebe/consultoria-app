@@ -6,6 +6,7 @@ import br.com.treinos.api.treino.ConteudoTreino;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Estrutura proposta pela interpretação (IA ou Regras) contendo os grupos de alunos/documentos
@@ -31,14 +32,27 @@ public record ResultadoInterpretacao(List<PropostaGrupo> grupos, List<PropostaDu
     }
 
     public record PropostaDuvida(String tipo, String termoOriginal, String trechoOriginal,
-                                 String arquivoOrigem, List<PropostaSugestao> sugestoes) {
+                                 String arquivoOrigem, List<PropostaSugestao> sugestoes,
+                                 List<String> ocorrenciaIds) {
+        public PropostaDuvida {
+            ocorrenciaIds = ocorrenciaIds == null ? List.of() : ocorrenciaIds;
+        }
+
+        public PropostaDuvida(String tipo, String termoOriginal, String trechoOriginal,
+                              String arquivoOrigem, List<PropostaSugestao> sugestoes) {
+            this(tipo, termoOriginal, trechoOriginal, arquivoOrigem, sugestoes, List.of());
+        }
+
         @Override
         public String toString() {
             return "PropostaDuvida[tipo=" + tipo + "]";
         }
     }
 
-    public record PropostaSugestao(String termo, double nota) {
+    public record PropostaSugestao(String termo, UUID referenciaId, Double nota) {
+        public PropostaSugestao(String termo, Double nota) {
+            this(termo, null, nota);
+        }
     }
 
     @Override

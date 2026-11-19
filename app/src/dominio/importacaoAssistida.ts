@@ -1,20 +1,27 @@
 import { codigoApi, ErroApi, mensagemApi } from '@plataforma/web';
 
 import type {
+  CoberturaArquivo,
   ConfirmacaoResultado,
   DestinoGrupo,
   EstadoSessao,
   GrupoImportavel,
+  ModoProcessamentoResumo,
+  SessaoListaItem,
   TipoDuvida,
 } from '../servicos/importacaoAssistida';
 import type { TipoSelo } from '../ui/Selo';
 
 /** Textos da tela da importação assistida: os códigos da API nunca aparecem crus. */
 const ESTADOS: Record<EstadoSessao, string> = {
+  RASCUNHO: 'Rascunho',
   RECEBENDO: 'Recebendo arquivos',
   PROCESSANDO: 'Processando',
   REVISANDO: 'Em revisão',
   CONCLUIDA: 'Concluída',
+  CANCELADA: 'Cancelada',
+  ERRO: 'Com erro',
+  EXPIRADA: 'Expirada',
 };
 
 export const textoDoEstadoDaSessao = (estado: string): string => ESTADOS[estado as EstadoSessao] ?? estado;
@@ -80,6 +87,12 @@ export const motivoDoErroDoGrupo = (codigo: string | null | undefined): string =
 /** Arquivo que não foi lido (`erroCodigo` do arquivo). */
 const ERROS_DO_ARQUIVO: Record<string, string> = {
   DOCX_COMPACTADO_DEMAIS: 'O DOCX está compactado demais para ser lido com segurança.',
+  DOCX_CORROMPIDO: 'Não foi possível abrir o arquivo DOCX.',
+  PLANILHA_CORROMPIDA: 'Não foi possível ler a planilha.',
+  PDF_PROTEGIDO_POR_SENHA: 'O PDF está protegido por senha. Envie uma cópia sem senha.',
+  PDF_SEM_PAGINAS: 'O PDF não tem páginas.',
+  PDF_PAGINAS_DEMAIS: 'O PDF passa do limite máximo de páginas por arquivo.',
+  PDF_CORROMPIDO: 'Não foi possível abrir o arquivo PDF.',
   FORMATO_NAO_CONFERE: 'O conteúdo não confere com a extensão do arquivo.',
   FORMATO_NAO_SUPORTADO: 'Formato não aceito.',
 };
@@ -112,6 +125,14 @@ const ERROS_DA_API: Record<string, string> = {
   CONFLITO_EDICAO: 'A importação mudou desde que você abriu. A lista foi atualizada: confira e grave de novo.',
   ALUNO_JA_EXISTE: 'Já existe um aluno com este e-mail. Escolha esse aluno em vez de criar outro.',
   MIGRACAO_INDISPONIVEL: 'A importação assistida está desligada no momento.',
+  SELECAO_VAZIA: 'Selecione pelo menos um grupo para gravar.',
+  SELECAO_INVALIDA: 'Alguns grupos selecionados mudaram ou já foram gravados. A lista foi atualizada.',
+  PREVIA_DESATUALIZADA: 'A prévia mudou desde que você abriu. Confira a lista atualizada e tente gravar de novo.',
+  CHAVE_IDEMPOTENCIA_OBRIGATORIA: 'Não foi possível identificar esta tentativa de gravação. Tente de novo.',
+  IDEMPOTENCIA_CONFLITANTE: 'Esta tentativa já foi enviada com outra seleção. Confira a lista antes de tentar de novo.',
+  SESSAO_CANCELADA: 'Esta importação foi cancelada.',
+  SESSAO_EXPIRADA: 'Esta importação expirou. Comece uma nova importação.',
+  CONTEUDO_INDISPONIVEL: 'O conteúdo original deste arquivo não está mais disponível.',
 };
 
 /** Erro de uma ação da tela em português. `confirmar` muda o texto do 403 (nada foi gravado). */
@@ -132,7 +153,13 @@ export function textoDoErroDaImportacao(erro: unknown, acao?: 'confirmar'): stri
 /** Erros em que a sessão no servidor mudou: a tela busca a sessão de novo e avisa em âmbar, sem tratar como falha. */
 export function recarregarDepoisDoErro(erro: unknown): boolean {
   const codigo = codigoApi(erro);
-  return codigo === 'CONFLITO_EDICAO' || codigo === 'GRUPO_JA_IMPORTADO' || codigo === 'SESSAO_CONCLUIDA';
+  return (
+    codigo === 'CONFLITO_EDICAO' ||
+    codigo === 'PREVIA_DESATUALIZADA' ||
+    codigo === 'SELECAO_INVALIDA' ||
+    codigo === 'GRUPO_JA_IMPORTADO' ||
+    codigo === 'SESSAO_CONCLUIDA'
+  );
 }
 
 /** Campo do texto colado que recebe o erro do envio; `null` = vai ao alerta. */
@@ -239,17 +266,50 @@ export function pedidoDoDestino(valor: ValorDoDestino): { destino: DestinoGrupo;
   return { destino: valor as DestinoGrupo };
 }
 
+/** Grupos pendentes que podem ser selecionados para gravação (não resumidos e não marcados como Ignorar). */
+export const gruposSelecionaveis = (grupos: GrupoImportavel[]): GrupoImportavel[] =>
+  grupos.filter((g) => !grupoResumido(g) && g.destino !== 'IGNORAR');
+
 /** Grupos que "Gravar rascunhos" manda: os pendentes que não são ignorados nem estão com erro. Nunca vazio na API (vazio = todos). */
 export const idsParaGravar = (grupos: GrupoImportavel[]): string[] =>
-  grupos.filter((g) => !grupoResumido(g) && g.destino !== 'IGNORAR').map((g) => g.id);
+  gruposSelecionaveis(grupos).map((g) => g.id);
+
+/** IDs dos grupos prontos (sem dúvidas nem escolha pendente e com permissão) para o atalho "Selecionar prontos". */
+export function idsSelecionaveisProntos(
+  grupos: GrupoImportavel[],
+  pode: Pode,
+  conferidos: ReadonlySet<string> = new Set()
+): string[] {
+  return gruposSelecionaveis(grupos)
+    .filter((g) => {
+      if (g.estado !== 'PRONTO') return false;
+      if (precisaEscolherAluno(g, conferidos)) return false;
+      if (g.destino === 'VINCULAR_EXISTENTE' && !g.alunoExistenteId) return false;
+      const faltam = g.destino === 'MODELO_BIBLIOTECA' ? (pode('MODELO_ALTERAR') ? [] : ['MODELO_ALTERAR']) : faltamParaAluno(g, pode);
+      return faltam.length === 0;
+    })
+    .map((g) => g.id);
+}
 
 /** Grupos que "Tentar de novo" manda: só os que ficaram com erro na gravação. */
 export const idsComErro = (grupos: GrupoImportavel[]): string[] => grupos.filter((g) => g.estado === 'ERRO').map((g) => g.id);
 
-/** Por que "Gravar rascunhos" está desabilitado; `null` = pode gravar. */
-export function motivoParaNaoConfirmar(grupos: GrupoImportavel[], pode: Pode, conferidos: ReadonlySet<string> = new Set()): string | null {
-  const vao = grupos.filter((g) => !grupoResumido(g) && g.destino !== 'IGNORAR');
-  if (vao.length === 0) return 'Escolha o destino de pelo menos um grupo.';
+/** Por que "Gravar selecionados" está desabilitado; `null` = pode gravar. */
+export function motivoParaNaoConfirmar(
+  grupos: GrupoImportavel[],
+  pode: Pode,
+  conferidos: ReadonlySet<string> = new Set(),
+  selecionados?: ReadonlySet<string>,
+  hashPrevia?: string | null
+): string | null {
+  const selecionaveis = gruposSelecionaveis(grupos);
+  const vao = selecionados ? selecionaveis.filter((g) => selecionados.has(g.id)) : selecionaveis;
+  if (vao.length === 0) {
+    return selecionados ? 'Selecione pelo menos um grupo para gravar.' : 'Escolha o destino de pelo menos um grupo.';
+  }
+  if (selecionados && !hashPrevia) {
+    return 'A prévia da sessão ainda não está pronta para gravar. Atualize a sessão.';
+  }
   const semEscolha = vao.find((g) => precisaEscolherAluno(g, conferidos));
   if (semEscolha) return `Diga se ${semEscolha.nomeDetectado} é um aluno já cadastrado ou um aluno novo.`;
   const semAluno = vao.find((g) => g.destino === 'VINCULAR_EXISTENTE' && !g.alunoExistenteId);
@@ -259,6 +319,89 @@ export function motivoParaNaoConfirmar(grupos: GrupoImportavel[], pode: Pode, co
     if (faltam.length) return `${motivoDaFalta(faltam)} Escolha outro destino para ${g.nomeDetectado}.`;
   }
   return null;
+}
+
+/** Sessões que ainda podem ser retomadas pelo treinador na tela inicial. */
+export const sessaoRetomavel = (s: Pick<SessaoListaItem, 'estado'>): boolean =>
+  s.estado === 'RASCUNHO' || s.estado === 'RECEBENDO' || s.estado === 'PROCESSANDO' || s.estado === 'REVISANDO' || s.estado === 'ERRO';
+
+/** Sessões que ainda aceitam cancelamento explícito. */
+export const sessaoPodeCancelar = (estado: EstadoSessao): boolean =>
+  estado === 'RASCUNHO' || estado === 'RECEBENDO' || estado === 'PROCESSANDO' || estado === 'REVISANDO' || estado === 'ERRO';
+
+/**
+ * Resumo honesto de como o lote foi processado (`modoEfetivo` e `fallbackParaRegras`).
+ * Nunca exibe texto fixo afirmando um modo que não corresponde ao que o servidor executou.
+ */
+export function resumoDoModoProcessamento(modo?: ModoProcessamentoResumo | null): {
+  titulo: string;
+  descricao: string;
+  alertaFallback: string | null;
+} {
+  if (!modo) {
+    return {
+      titulo: 'Leitura no servidor',
+      descricao: 'Os arquivos enviados são lidos no servidor para separar alunos e planos.',
+      alertaFallback: null,
+    };
+  }
+  if (modo.fallbackParaRegras) {
+    return {
+      titulo: 'Leitura por regras fixas (contingência)',
+      descricao: 'A leitura por IA não pôde ser concluída neste lote; o servidor usou regras fixas para separar os dados.',
+      alertaFallback: 'A leitura por IA não ficou disponível neste lote e o servidor usou regras fixas. Confira os termos e grupos com atenção.',
+    };
+  }
+  if (modo.modoEfetivo === 'IA') {
+    return {
+      titulo: 'Leitura assistida por IA',
+      descricao: 'Os arquivos foram interpretados com apoio de IA. Confira tudo antes de gravar.',
+      alertaFallback: null,
+    };
+  }
+  return {
+    titulo: 'Leitura por regras fixas',
+    descricao: 'O servidor leu os arquivos por regras fixas, separou os alunos e listou os termos para você conferir.',
+    alertaFallback: null,
+  };
+}
+
+/** Diagnóstico legível da cobertura de leitura de um arquivo (páginas lidas vs. sem texto / truncamento). */
+export function resumoDaCoberturaDoArquivo(cobertura?: CoberturaArquivo | null): {
+  texto: string;
+  tom: 'sucesso' | 'atencao' | 'perigo' | 'neutro';
+} | null {
+  if (!cobertura) return null;
+  if (cobertura.status === 'SEM_TEXTO') {
+    return {
+      texto: cobertura.paginasTotal ? `Nenhuma página legível (0 de ${cobertura.paginasTotal})` : 'Sem texto legível no arquivo',
+      tom: 'perigo',
+    };
+  }
+  if (cobertura.paginasTotal != null && cobertura.paginasLidas != null) {
+    const partes = [`${cobertura.paginasLidas} de ${cobertura.paginasTotal} página(s) lida(s)`];
+    if ((cobertura.paginasSemTexto ?? 0) > 0) partes.push(`${cobertura.paginasSemTexto} sem texto`);
+    if (cobertura.truncado) partes.push('conteúdo truncado');
+    return {
+      texto: partes.join(' · '),
+      tom: cobertura.status === 'COMPLETA' && !cobertura.truncado ? 'sucesso' : 'atencao',
+    };
+  }
+  if (cobertura.blocos != null) {
+    const texto = `${cobertura.blocos} bloco(s) lido(s)${cobertura.truncado ? ' · conteúdo truncado' : ''}`;
+    return {
+      texto,
+      tom: cobertura.status === 'COMPLETA' && !cobertura.truncado ? 'sucesso' : 'atencao',
+    };
+  }
+  return null;
+}
+
+/** Gera chave única para idempotência de uma tentativa de confirmação. */
+export function gerarChaveIdempotencia(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  return `imp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 /** Resumo do resultado da gravação: título, alerta pela situação e só as contagens que aconteceram. */

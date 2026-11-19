@@ -27,6 +27,7 @@
         <jackson-bom.version>3.1.7</jackson-bom.version>
         <!-- Cliente S3 das fotos de atualização (R2 em produção, MinIO nos testes). Só o cliente HTTP do JDK: sem Netty nem Apache. -->
         <awssdk.version>2.56.0</awssdk.version>
+        <pdfbox.version>3.0.4</pdfbox.version>
     </properties>
 
     <repositories>
@@ -118,6 +119,11 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>url-connection-client</artifactId>
             <version>${awssdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
         </dependency>
         <dependency>
             <groupId>com.tngtech.archunit</groupId>

@@ -71,8 +71,20 @@ class ImportacaoAssistidaIntegrationTest extends AbstractIntegrationTest {
             n++;
             api.post(BASE + "/" + id + "/textos", login, Map.of("titulo", "Texto " + n, "conteudo", texto), 200);
         }
-        api.post(BASE + "/" + id + "/processar", login, null, 200);
-        return id;
+        api.post(BASE + "/" + id + "/processar", login, null, 202);
+        return aguardarProcessamento(login, id);
+    }
+
+    private String aguardarProcessamento(JsonNode login, String id) throws Exception {
+        long fim = System.currentTimeMillis() + 10_000;
+        while (System.currentTimeMillis() < fim) {
+            JsonNode s = detalhe(login, id);
+            if (!"PROCESSANDO".equals(s.path("estado").asString())) {
+                return id;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("Processamento assíncrono não terminou no prazo.");
     }
 
     private JsonNode detalhe(JsonNode login, String sessaoId) throws Exception {
@@ -80,9 +92,19 @@ class ImportacaoAssistidaIntegrationTest extends AbstractIntegrationTest {
     }
 
     private JsonNode confirmar(JsonNode login, String sessaoId, int esperado) throws Exception {
-        int revisao = detalhe(admin, sessaoId).path("revisao").asInt();
+        JsonNode det = detalhe(admin, sessaoId);
+        int revisao = det.path("revisao").asInt();
+        String hashPrevia = det.path("hashPrevia").asString("");
+        List<String> gruposIds = new java.util.ArrayList<>();
+        for (JsonNode g : det.path("grupos")) {
+            if (!"IMPORTADO".equals(g.path("estado").asString()) && !"IGNORAR".equals(g.path("destino").asString())) {
+                gruposIds.add(g.path("id").asString());
+            }
+        }
         return api.post(BASE + "/" + sessaoId + "/confirmar", login,
-                Map.of("gruposIds", List.of(), "revisaoEsperada", revisao), esperado);
+                Map.of("gruposIds", gruposIds, "revisaoEsperada", revisao,
+                        "hashPrevia", hashPrevia, "chaveIdempotencia", UUID.randomUUID().toString()),
+                esperado);
     }
 
     private long alunosComNome(String nome) {
@@ -110,7 +132,8 @@ class ImportacaoAssistidaIntegrationTest extends AbstractIntegrationTest {
         api.post(BASE + "/" + sessao + "/textos", outra, Map.of("titulo", "x", "conteudo", "y"), 404);
         api.post(BASE + "/" + sessao + "/processar", outra, null, 404);
         api.put(BASE + "/" + sessao + "/grupos/" + grupo.path("id").asString(), outra, Map.of("destino", "IGNORAR"), 404);
-        api.post(BASE + "/" + sessao + "/confirmar", outra, Map.of("gruposIds", List.of(), "revisaoEsperada", 1), 404);
+        api.post(BASE + "/" + sessao + "/confirmar", outra, Map.of("gruposIds", List.of("grupo-1"),
+                "revisaoEsperada", 1, "hashPrevia", "h", "chaveIdempotencia", "k"), 404);
         // O dono segue vendo a sua.
         assertThat(detalhe(admin, sessao).path("estado").asString()).isEqualTo("REVISANDO");
     }
@@ -196,13 +219,16 @@ class ImportacaoAssistidaIntegrationTest extends AbstractIntegrationTest {
         assertThat(antes.path("grupos")).hasSize(2);
         String n1 = antes.path("grupos").get(0).path("nomeDetectado").asString();
         String n2 = antes.path("grupos").get(1).path("nomeDetectado").asString();
-        // Bytes do arquivo não ficam depois de processar.
+        // Bytes do arquivo ficam retidos durante a revisão.
         assertThat(banco.queryForObject("select count(*) from importacao_arquivo where sessao_id = ?::uuid "
-                + "and conteudo_bytes is not null", Long.class, sessao)).isZero();
+                + "and conteudo_bytes is not null", Long.class, sessao)).isEqualTo(2);
 
         JsonNode r = confirmar(admin, sessao, 200);
 
         assertThat(r.path("situacao").asString()).isEqualTo("CONCLUIDA");
+        // Após conclusão integral da sessão, os bytes dos arquivos são apagados.
+        assertThat(banco.queryForObject("select count(*) from importacao_arquivo where sessao_id = ?::uuid "
+                + "and conteudo_bytes is not null", Long.class, sessao)).isZero();
         assertThat(r.path("gruposImportados").asInt()).isEqualTo(2);
         assertThat(r.path("alunosCriados").asInt()).isEqualTo(2);
         assertThat(r.path("pesosGravados").asInt()).isEqualTo(2);
@@ -217,7 +243,8 @@ class ImportacaoAssistidaIntegrationTest extends AbstractIntegrationTest {
             assertThat(g.path("cadastro").isNull()).isTrue();
         }
         // Reenviar depois de concluída: 409, sem gravar de novo.
-        api.post(BASE + "/" + sessao + "/confirmar", admin, Map.of("gruposIds", List.of(), "revisaoEsperada", 1), 409);
+        api.post(BASE + "/" + sessao + "/confirmar", admin, Map.of("gruposIds", List.of("grupo-1"),
+                "revisaoEsperada", 1, "hashPrevia", "h", "chaveIdempotencia", "k-pos"), 409);
         assertThat(alunosComNome(n1)).isEqualTo(1);
         // Auditoria com resumo fixo (nunca nome, peso nem código do aluno).
         assertThat(banco.queryForObject("select count(*) from auditoria where acao = 'IMPORTACAO_ASSISTIDA_CONCLUIDA'",
@@ -296,5 +323,132 @@ class ImportacaoAssistidaIntegrationTest extends AbstractIntegrationTest {
         assertThat(depois.get(0).path("pesos")).isEmpty();
         assertThat(depois.get(1).path("candidatos")).isEmpty();
         assertThat(depois.toString()).doesNotContain(alvo.toString());
+    }
+
+    // ------------------------------------------------------------------------------------------------ blocos 2 e 3
+
+    @Test
+    void semSugestoesHardcodedECandidatosReaisDaBiblioteca() throws Exception {
+        String nomeExercicio = "Puxada Neutra Barra Reta " + UUID.randomUUID().toString().substring(0, 6);
+        String exId = api.post("/exercicios", admin, Map.of("nome", nomeExercicio, "modalidade", "MAQUINA"), 200)
+                .path("id").asString();
+
+        String sessao = sessaoProcessada(admin,
+                "Aluno: " + nomeUnico() + "\nTreino A - Costas\n1. Puxada neutra 4x10\n");
+        JsonNode det = detalhe(admin, sessao);
+        JsonNode duvidas = det.path("duvidas");
+        assertThat(duvidas).isNotEmpty();
+        JsonNode primeira = duvidas.get(0);
+        assertThat(primeira.path("ocorrenciaIds")).isNotEmpty();
+        assertThat(det.toString()).doesNotContain("Puxada frontal pronada");
+        assertThat(det.toString()).doesNotContain("Arroz branco cozido");
+
+        boolean achouDaBiblioteca = false;
+        for (JsonNode s : primeira.path("sugestoes")) {
+            if (exId.equals(s.path("referenciaId").asString())) {
+                achouDaBiblioteca = true;
+                assertThat(s.path("origem").asString()).isEqualTo("BIBLIOTECA");
+                assertThat(s.path("nota").isNull()).isTrue();
+            }
+        }
+        assertThat(achouDaBiblioteca).isTrue();
+    }
+
+    @Test
+    void responderABERevogarDecisaoReconstroiDoValorExtraido() throws Exception {
+        String sessao = sessaoProcessada(admin,
+                "Aluno: " + nomeUnico() + "\nTreino A\n1. Supino inclinado halteres 4x10\n");
+        JsonNode det = detalhe(admin, sessao);
+        String duvidaId = det.path("duvidas").get(0).path("id").asString();
+        String valorExtraido = det.path("duvidas").get(0).path("termoOriginal").asString();
+
+        // Resposta A -> B
+        JsonNode aposB = api.post(BASE + "/" + sessao + "/respostas", admin,
+                Map.of("duvidaId", duvidaId, "respostaEscolhida", "Supino Inclinado B", "salvarNoDicionario", false), 200);
+        assertThat(aposB.path("grupos").get(0).path("treino").path("sessoes").get(0).path("exercicios").get(0)
+                .path("nome").asString()).isEqualTo("Supino Inclinado B");
+        assertThat(aposB.path("decisoes")).hasSize(1);
+        assertThat(aposB.path("decisoes").get(0).path("ativa").asBoolean()).isTrue();
+
+        // Re-responder B -> C
+        JsonNode aposC = api.post(BASE + "/" + sessao + "/respostas", admin,
+                Map.of("duvidaId", duvidaId, "respostaEscolhida", "Supino Inclinado C", "salvarNoDicionario", false), 200);
+        assertThat(aposC.path("grupos").get(0).path("treino").path("sessoes").get(0).path("exercicios").get(0)
+                .path("nome").asString()).isEqualTo("Supino Inclinado C");
+        assertThat(aposC.path("decisoes")).hasSize(2);
+        assertThat(aposC.path("decisoes").get(0).path("ativa").asBoolean()).isFalse();
+        assertThat(aposC.path("decisoes").get(1).path("ativa").asBoolean()).isTrue();
+
+        // Revogar C -> volta exatamente para valorExtraido
+        String decisaoC = aposC.path("decisoes").get(1).path("decisaoId").asString();
+        int rev = aposC.path("revisao").asInt();
+        JsonNode aposRevogar = api.post(BASE + "/" + sessao + "/respostas/" + decisaoC + "/revogar", admin,
+                Map.of("revisaoEsperada", rev), 200);
+        assertThat(aposRevogar.path("grupos").get(0).path("treino").path("sessoes").get(0).path("exercicios").get(0)
+                .path("nome").asString()).isEqualTo(valorExtraido);
+        assertThat(aposRevogar.path("duvidas").get(0).path("resolvida").asBoolean()).isFalse();
+    }
+
+    @Test
+    void confirmacaoTravadaValidacoesEIdempotencia() throws Exception {
+        String sessao = sessaoProcessada(admin, "Aluno: " + nomeUnico() + "\n");
+        JsonNode det = detalhe(admin, sessao);
+        String grupoId = det.path("grupos").get(0).path("id").asString();
+        int rev = det.path("revisao").asInt();
+        String hash = det.path("hashPrevia").asString();
+
+        // SELECAO_VAZIA -> 400
+        JsonNode vazia = api.post(BASE + "/" + sessao + "/confirmar", admin,
+                Map.of("gruposIds", List.of(), "revisaoEsperada", rev, "hashPrevia", hash, "chaveIdempotencia", "k1"), 400);
+        assertThat(vazia.path("codigo").asString()).isEqualTo("SELECAO_VAZIA");
+
+        // PREVIA_DESATUALIZADA -> 409
+        JsonNode hashErrado = api.post(BASE + "/" + sessao + "/confirmar", admin,
+                Map.of("gruposIds", List.of(grupoId), "revisaoEsperada", rev, "hashPrevia", "hash-velho", "chaveIdempotencia", "k2"), 409);
+        assertThat(hashErrado.path("codigo").asString()).isEqualTo("PREVIA_DESATUALIZADA");
+
+        // Confirmar com sucesso usando chaveIdempotencia
+        String chave = "idem-" + UUID.randomUUID();
+        JsonNode ok1 = api.post(BASE + "/" + sessao + "/confirmar", admin,
+                Map.of("gruposIds", List.of(grupoId), "revisaoEsperada", rev, "hashPrevia", hash, "chaveIdempotencia", chave), 200);
+        JsonNode ok2 = api.post(BASE + "/" + sessao + "/confirmar", admin,
+                Map.of("gruposIds", List.of(grupoId), "revisaoEsperada", rev, "hashPrevia", hash, "chaveIdempotencia", chave), 200);
+        assertThat(ok2).isEqualTo(ok1);
+
+        // Mesma chave com payload diferente -> 409 IDEMPOTENCIA_CONFLITANTE
+        JsonNode conflito = api.post(BASE + "/" + sessao + "/confirmar", admin,
+                Map.of("gruposIds", List.of("outro-grupo"), "revisaoEsperada", rev, "hashPrevia", hash, "chaveIdempotencia", chave), 409);
+        assertThat(conflito.path("codigo").asString()).isEqualTo("IDEMPOTENCIA_CONFLITANTE");
+    }
+
+    @Test
+    void listarSessoesCancelarEConteudoDoArquivoComPermissoes() throws Exception {
+        String sessao = sessaoProcessada(admin, "Aluno: " + nomeUnico() + "\n");
+        JsonNode lista = api.get(BASE, admin, 200);
+        assertThat(lista.toString()).contains(sessao);
+
+        String arquivoId = detalhe(admin, sessao).path("arquivos").get(0).path("id").asString();
+        String rotaConteudo = BASE + "/" + sessao + "/arquivos/" + arquivoId + "/conteudo";
+
+        // Membro sem permissão sensível/treino/dieta -> 403
+        LimiteDoTreinadorDeTeste.Membro membro = new LimiteDoTreinadorDeTeste(api, admin, banco).membro();
+        api.get(rotaConteudo, membro.login(), 403);
+
+        // Outro tenant -> 404
+        JsonNode outra = api.novoTreinador();
+        api.get(rotaConteudo, outra, 404);
+
+        // Admin -> 200 com Cache-Control: no-store
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(rotaConteudo)
+                        .header("Authorization", ApiDeTeste.bearer(admin)))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")));
+
+        // Cancelar sessão -> limpa bytes; depois /conteudo dá 404 CONTEUDO_INDISPONIVEL
+        JsonNode cancelada = api.post(BASE + "/" + sessao + "/cancelar", admin, null, 200);
+        assertThat(cancelada.path("estado").asString()).isEqualTo("CANCELADA");
+        JsonNode semConteudo = api.get(rotaConteudo, admin, 404);
+        assertThat(semConteudo.path("codigo").asString()).isEqualTo("CONTEUDO_INDISPONIVEL");
     }
 }
