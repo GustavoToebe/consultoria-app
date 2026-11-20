@@ -108,8 +108,14 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     await expect(page.getByRole('radio', { name: 'ml' })).toHaveCount(0);
     const [qtd, unidade] = [await page.getByLabel('Quantidade', { exact: true }).first().boundingBox(), await page.getByRole('button', { name: 'Unidade: g. Escolher.' }).boundingBox()];
     if (!qtd || !unidade) throw new Error('sem campo');
-    expect(unidade.x).toBeGreaterThan(qtd.x + qtd.width - 1);
-    expect(Math.abs(unidade.y + unidade.height - (qtd.y + qtd.height))).toBeLessThan(12);
+    if (duas) {
+      // Tabela (1280, 20/11): quantidade e unidade num campo só, a sigla dentro da caixa, à direita.
+      expect(unidade.x).toBeGreaterThan(qtd.x);
+      expect(unidade.x + unidade.width).toBeLessThanOrEqual(qtd.x + qtd.width + 1);
+    } else {
+      expect(unidade.x).toBeGreaterThan(qtd.x + qtd.width - 1);
+      expect(Math.abs(unidade.y + unidade.height - (qtd.y + qtd.height))).toBeLessThan(12);
+    }
     await capturar(page, `refeicao-${sufixo}`, page.getByRole('heading', { name: 'Refeições (2)' }));
     const abas = page.getByRole('tablist', { name: 'Opções de 07:00 · Café da manhã' });
     await abas.getByRole('tab', { name: /^Opção B,/ }).click();

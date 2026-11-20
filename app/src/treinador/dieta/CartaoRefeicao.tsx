@@ -17,11 +17,11 @@ import {
 import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { remover, substituir } from '../../dominio/editorTreino';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
-import { abaComProblema, chaveDosProblemas, MAXIMO_DE_OPCOES, MOTIVO_NO_LIMITE_DE_OPCOES } from '../../dominio/opcoesDaRefeicao';
+import { abaComProblema, chaveDosProblemas, gramasSemUnidade, MAXIMO_DE_OPCOES, MOTIVO_NO_LIMITE_DE_OPCOES } from '../../dominio/opcoesDaRefeicao';
 import { moverPara } from '../../dominio/reordenar';
 import { numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO_CONTROLE } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, misturar, RAIO_CONTROLE } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA as LARGURA_DA_PECA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Botao } from '../../ui/Botao';
@@ -37,14 +37,15 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
-import { CampoDoMacro, FIBRA, fibraParcial, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta, type ValoresComFibra } from '../../ui/ValoresDaDieta';
+import { CampoDoMacro, FIBRA, fibraParcial, kcalNaTela, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta, type ValoresComFibra } from '../../ui/ValoresDaDieta';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
 import { acoesDeMover } from '../acoesDeMover';
-import { FolhaDeAcoes } from '../FolhaDeAcoes';
+import { type AcaoDoMenu, FolhaDeAcoes } from '../FolhaDeAcoes';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AbasDeOpcao } from './AbasDeOpcao';
+import { CampoDaQuantidade } from './CampoDaQuantidade';
 import { type ColunasDaTabela, ComparacaoDasOpcoes } from './ComparacaoDasOpcoes';
 
 /** Id no DOM (web) do cartão da refeição: `mostrarAbaixoDaBarra` rola até ele ao adicionar uma refeição. */
@@ -184,7 +185,7 @@ export function CartaoRefeicao(p: Props) {
     p.aoRemoverOpcao(r.opcoes.indexOf(o));
   };
   const maisOpcao = (
-    <Botao ref={(b) => { alvosDoFoco.current.set(MAIS_OPCAO, b); }} rotulo="Opção" rotuloAcessivel={`Adicionar opção em ${titulo}`} tipo="fantasma" Icone={Plus}
+    <Botao ref={(b) => { alvosDoFoco.current.set(MAIS_OPCAO, b); }} rotulo="Opção" rotuloAcessivel={`Adicionar opção em ${titulo}`} tipo="acao" Icone={Plus}
       aoTocar={adicionarOpcao} desabilitado={r.opcoes.length >= MAXIMO_DE_OPCOES} motivo={MOTIVO_NO_LIMITE_DE_OPCOES} />
   );
   const indiceAberto = aberta ? r.opcoes.indexOf(aberta) : -1;
@@ -394,44 +395,51 @@ function OpcaoDaRefeicao({
 /** Os números do item que podem virar coluna (os do total que o item também tem): a fibra (V089) é a última coluna: opcional, com a marca própria, fora da kcal. */
 type ChaveDoValor = Extract<keyof TotaisComFibra, keyof ItemDieta>;
 type ModoDoItem = 'tabela' | 'empilhado';
-/** O nome nunca fica mais estreito que isto na tabela: abaixo, a opção volta ao item empilhado. */
-const LARGURA_MINIMA_DO_NOME = 160;
+/**
+ * O nome nunca fica mais estreito que isto na tabela: abaixo, a opção volta ao item empilhado. É a largura do "Trocar
+ * alimento" embaixo dele (139 px, medida em 20/11); o nome mais longo corta com reticências e fica inteiro na dica.
+ */
+const LARGURA_MINIMA_DO_NOME = 140;
 
 /**
- * Colunas da tabela de itens da opção (dieta em tabela, 18/11): o cabeçalho, a linha e a largura mínima da tabela leem
- * daqui, então uma coluna nova é uma linha a mais. `largura` é fixa, menos a do `nome`, que é o mínimo dela (estica).
- * `valor` liga a coluna ao número do item. A `alca` é o encaixe da alça de arrastar: com largura 0 não aparece; com
- * largura, vira a primeira célula da faixa, nos dois modos, e mostra a prop `alca` da `LinhaItem`.
+ * Colunas da tabela de itens da opção (dieta em tabela, 18/11; em 1280 desde 20/11): o cabeçalho, a linha e a largura
+ * mínima da tabela leem daqui, então uma coluna nova é uma linha a mais. `largura` é fixa, menos a do `nome`, que é o
+ * mínimo dela (estica). `valor` liga a coluna ao número do item. A `alca` é o encaixe da alça de arrastar: com largura 0
+ * não aparece; com largura, vira a primeira célula da faixa, nos dois modos, e mostra a prop `alca` da `LinhaItem`.
+ * Quantidade e unidade são um campo só ("50 g ▾", 100 px: cabe "1.000"). Os números vão sem o "g", que está no título
+ * da coluna (como na comparação): "126,5" e "1.234" cabem em 48 na fonte numérica; a fibra tem 56 para o título
+ * "Fibras (g)" quebrar em duas linhas ao lado da marca.
  */
 const COLUNAS_DO_ITEM: readonly { chave: string; rotulo: string; largura: number; valor?: ChaveDoValor }[] = [
   { chave: 'alca', rotulo: '', largura: LARGURA_DA_PECA },
   { chave: 'numero', rotulo: '#', largura: 28 },
   { chave: 'nome', rotulo: 'Alimento', largura: LARGURA_MINIMA_DO_NOME },
-  { chave: 'quantidade', rotulo: 'Quantidade', largura: 80 },
-  { chave: 'unidade', rotulo: 'Unidade', largura: 104 },
-  { chave: 'kcal', rotulo: 'Kcal', largura: 64, valor: 'kcal' },
-  { chave: 'proteina', rotulo: 'P (g)', largura: 64, valor: 'proteina' },
-  { chave: 'carboidrato', rotulo: 'C (g)', largura: 64, valor: 'carboidrato' },
-  { chave: 'gordura', rotulo: 'G (g)', largura: 64, valor: 'gordura' },
-  { chave: 'fibra', rotulo: 'Fibras (g)', largura: 72, valor: 'fibra' },
+  { chave: 'quantidade', rotulo: 'Quantidade', largura: 100 },
+  { chave: 'kcal', rotulo: 'Kcal', largura: 48, valor: 'kcal' },
+  { chave: 'proteina', rotulo: 'P (g)', largura: 48, valor: 'proteina' },
+  { chave: 'carboidrato', rotulo: 'C (g)', largura: 48, valor: 'carboidrato' },
+  { chave: 'gordura', rotulo: 'G (g)', largura: 48, valor: 'gordura' },
+  { chave: 'fibra', rotulo: 'Fibras (g)', largura: 56, valor: 'fibra' },
 ];
 const COLUNAS = COLUNAS_DO_ITEM.filter((c) => c.largura > 0);
 const COLUNAS_DE_VALOR = COLUNAS.filter((c) => c.valor);
 const PARES_DE_VALOR = COLUNAS_DE_VALOR.flatMap((c, i, todas) => (i % 2 === 0 ? [todas.slice(i, i + 2)] : []));
 const LARGURA_DA_ALCA = COLUNAS_DO_ITEM[0].largura;
-const VAO_DA_TABELA = espaco(1);
+const VAO_DA_TABELA = 6;
 /** Recuo da faixa do item (e do cabeçalho, para as colunas baterem) mais o contorno de 1 px. */
 const RECUO_DA_FAIXA = espaco(1);
 const CONTORNO_DA_FAIXA = 1;
+/** Os campos do item manual, na tabela, descem para a linha de baixo a partir da coluna do nome (não cabem nas colunas). */
+const RECUO_DOS_CAMPOS_DO_MANUAL = LARGURA_DA_ALCA + 28 + 2 * VAO_DA_TABELA;
 
 /**
- * Botões de 44 que a coluna das ações reserva na tabela: o ⋯ (com "Mover para cima/baixo", desde o arrastar de 18/11) e a
- * lixeira, mesmo com um item só. O "Trocar alimento" (19/11) fica embaixo do nome, então as colunas não mudam com ele.
- * Mude junto com o JSX das `acoes` da `LinhaItem`.
+ * Botões de 44 que a coluna das ações reserva na tabela: só o ⋯ (20/11), sempre, com "Mover para cima/baixo" (desde o
+ * arrastar de 18/11) e "Excluir alimento". O "Trocar alimento" (19/11) fica embaixo do nome, então as colunas não mudam
+ * com ele. Mude junto com o JSX das `acoes` da `LinhaItem`.
  */
-const ACOES_RESERVADAS = 2;
+const ACOES_RESERVADAS = 1;
 /** Na opção em tabela, os números da comparação ficam embaixo das colunas de valor dos alimentos. */
-const COLUNAS_DA_COMPARACAO: ColunasDaTabela = { larguras: COLUNAS_DE_VALOR.map((c) => c.largura), fim: ACOES_RESERVADAS * ALVO_TOQUE };
+const COLUNAS_DA_COMPARACAO: ColunasDaTabela = { larguras: COLUNAS_DE_VALOR.map((c) => c.largura), fim: ACOES_RESERVADAS * ALVO_TOQUE, vao: VAO_DA_TABELA };
 
 /** Largura da opção a partir da qual os itens viram tabela: as colunas, os vãos, o recuo da faixa e os botões das ações. */
 export function larguraDaTabela(): number {
@@ -442,11 +450,12 @@ export function larguraDaTabela(): number {
 const estiloDaColuna = (c: (typeof COLUNAS)[number]) => (c.chave === 'nome' ? estilos.colunaDoNomeNaTabela : { width: c.largura });
 // A fibra também tem marca (19/11); a kcal não.
 const macroDa = (chave: ChaveDoValor | undefined) => (chave === 'fibra' ? FIBRA : MACROS.find((m) => m.chave === chave));
-const valorNaTela = (chave: ChaveDoValor, v: number | null) => (chave === 'kcal' ? kcalNaTela(v) : gramasNaTela(v));
+/** Na tabela, sem o "g" (está no título da coluna); empilhado, com ele (`ValoresDaDieta`). */
+const valorNaTela = (chave: ChaveDoValor, v: number | null) => (chave === 'kcal' ? kcalNaTela(v) : gramasSemUnidade(v));
 
 /**
  * O total da opção na tabela: o rótulo na coluna do nome e cada número embaixo da coluna dele, com o mesmo recuo do
- * cabeçalho. A fibra parcial leva "(parcial)" embaixo do número (inteiro não cabe nos 72 px da coluna).
+ * cabeçalho. A fibra parcial leva "parcial" embaixo do número (como na comparação).
  */
 function TotalNaTabela({ rotulo, totais, larguraDasAcoes }: { rotulo: string; totais: ValoresComFibra & TotaisComFibra; larguraDasAcoes: number }) {
   const { cores } = useTema();
@@ -456,7 +465,7 @@ function TotalNaTabela({ rotulo, totais, larguraDasAcoes }: { rotulo: string; to
         <View key={c.chave} style={[estiloDaColuna(c), c.valor ? estilos.aDireita : null]}>
           {c.chave === 'nome' ? <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto> : null}
           {c.valor ? <Texto numerico cor={cores.texto} style={[estilos.textoADireita, estilos.numeroDoTotal]}>{valorNaTela(c.valor, totais[c.valor])}</Texto> : null}
-          {c.valor === 'fibra' && fibraParcial(totais) ? <Texto variante="pequeno" style={estilos.textoADireita}>(parcial)</Texto> : null}
+          {c.valor === 'fibra' && fibraParcial(totais) ? <Texto variante="pequeno" style={estilos.textoADireita}>parcial</Texto> : null}
         </View>
       ))}
       <View style={{ width: larguraDasAcoes }} />
@@ -475,22 +484,34 @@ function AlcaDesativada() {
 }
 
 /**
- * "Trocar alimento" do item da biblioteca (19/11): secundário compacto e neutro (contorno, sem cor de ação), porque
- * aparece em todo alimento e não pode competir com o "Adicionar alimento". O desenho tem 32 px e o alvo, 44 (como o
- * `IconeBotao compacto`); o `Botao` não tem tamanho compacto.
+ * "Trocar alimento" do item da biblioteca: compacto e na cor de ação (Gustavo, 20/11; antes, 19/11, secundário neutro),
+ * com as cores do `Botao tipo="acao"`: fundo `acaoSuave` (opaco: o rótulo passa 4,5:1 também sobre a faixa
+ * `superficie2`), rótulo e ícone `acao`, contorno a 35% e cheio com o mouse em cima. O desenho tem 32 px e o alvo, 44
+ * (como o `IconeBotao compacto`); o `Botao` não tem tamanho compacto (o padding e a fonte dele não cabem embaixo do nome).
  */
 function BotaoTrocar({ nome, aoTocar }: { nome: string; aoTocar: () => void }) {
   const { cores } = useTema();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`Trocar alimento: ${nome}`} onPress={aoTocar} style={estilos.alvoDoTrocar}>
       {(estado) => (
-        <View style={[estilos.desenhoDoTrocar, { backgroundColor: cores.superficie2, borderColor: sobre(estado) ? cores.bordaCampo : cores.borda }]}>
-          <ArrowLeftRight size={14} color={cores.texto} strokeWidth={2} />
-          <Texto style={[estilos.textoDoTrocar, { color: cores.texto }]}>Trocar alimento</Texto>
+        <View style={[estilos.desenhoDoTrocar, { backgroundColor: cores.acaoSuave, borderColor: sobre(estado) ? cores.acao : misturar(cores.acaoSuave, cores.acao, 0.35) }]}>
+          <ArrowLeftRight size={14} color={cores.acao} strokeWidth={2} />
+          <Texto style={[estilos.textoDoTrocar, { color: cores.acao }]}>Trocar alimento</Texto>
         </View>
       )}
     </Pressable>
   );
+}
+
+/**
+ * O nome do alimento na tabela: uma linha com reticências; o leitor de tela lê o texto inteiro e, na web, o nome completo
+ * fica na dica do mouse (o react-native-web não repassa `title`; vai direto no elemento, como o `NomeDoMembro` dos Números).
+ */
+function NomeNaTabela({ nome }: { nome: string }) {
+  const comDica = (el: View | null) => {
+    if (Platform.OS === 'web' && el && 'setAttribute' in el && typeof el.setAttribute === 'function') el.setAttribute('title', nome);
+  };
+  return <View ref={comDica}><Texto numberOfLines={1} style={estilos.nomeDoItem}>{nome}</Texto></View>;
 }
 
 /** Cabeçalho das colunas, uma vez por opção. Fora do leitor de tela: cada campo já tem nome e cada linha lê os valores. */
@@ -503,7 +524,7 @@ function CabecalhoDosItens({ larguraDasAcoes }: { larguraDasAcoes: number }) {
           <View key={c.chave} style={[estiloDaColuna(c), c.valor ? estilos.aDireita : null, estilos.celulaDoCabecalho]}>
             {macro ? <MarcaDoMacro cor={macro.cor} /> : null}
             {/* O mesmo texto do rótulo do campo empilhado: na tabela ele só sobe para o cabeçalho. */}
-            {c.rotulo ? <Texto variante="rotulo" numberOfLines={1}>{c.rotulo}</Texto> : null}
+            {c.rotulo ? <Texto variante="rotulo" numberOfLines={2} style={estilos.tituloDaColuna}>{c.rotulo}</Texto> : null}
           </View>
         );
       })}
@@ -547,7 +568,9 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
   const erroDaQuantidade = semQuantidade && !faltaQuantidade ? 'Quantidade precisa ser maior que zero.' : null;
   const totais = somar([item]);
   const [menu, setMenu] = useState(false);
-  const acoesDoMenu = acoesDeMover({ nome, posicao, total, aoMover });
+  // Na tabela, a lixeira foi para o ⋯ (20/11): o mesmo `aoRemover` (aviso com Desfazer), por isso o ⋯ aparece sempre.
+  const excluir: AcaoDoMenu = { rotulo: 'Excluir alimento', detalhe: 'Dá para desfazer logo depois.', Icone: Trash2, perigo: true, aoTocar: aoRemover };
+  const acoesDoMenu = [...acoesDeMover({ nome, posicao, total, aoMover }), ...(emTabela ? [excluir] : [])];
   // Na tabela, o "Trocar alimento" fica embaixo do nome, sempre primeiro (os selos vêm depois dele); empilhado, nas ações.
   const trocar = aoTrocar ? <BotaoTrocar nome={nome} aoTocar={aoTrocar} /> : null;
   const semGramas = semConversao(item, alimento);
@@ -556,7 +579,7 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
     <>
       {item.manual ? (
         <Campo rotulo="Item" rotuloOculto={emTabela} valor={item.nome} aoMudar={(n) => mudar({ nome: n })} maxLength={160} />
-      ) : (
+      ) : emTabela ? <NomeNaTabela nome={item.nome} /> : (
         <Texto style={estilos.nomeDoItem}>{item.nome}</Texto>
       )}
       {(emTabela && trocar) || faltaQuantidade || semGramas || item.manual ? (
@@ -572,8 +595,12 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
       {emTabela && !item.manual ? <TotalParaLeitor rotulo={nome} totais={totais} /> : null}
     </>
   );
-  // Campo estreito: a caixa marca o erro e a mensagem vai na linha inteira abaixo, sem empurrar a Unidade.
-  const quantidade = (
+  // Campo estreito: a caixa marca o erro e a mensagem vai na linha inteira abaixo, sem empurrar a Unidade. Na tabela,
+  // quantidade e unidade num campo só ("50 g ▾").
+  const quantidade = emTabela ? (
+    <CampoDaQuantidade quantidade={item.quantidade} unidade={item.unidade} erro={erroDaQuantidade}
+      aoMudarQuantidade={(q) => mudar({ quantidade: q })} aoMudarUnidade={(u) => mudar({ unidade: u })} />
+  ) : (
     <CampoNumerico rotulo="Quantidade" rotuloOculto={emTabela} valor={item.quantidade} aoMudar={(q) => mudar({ quantidade: q })} erro={erroDaQuantidade} erroSemTexto />
   );
   const unidade = (
@@ -586,30 +613,38 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
     const chave = c.valor;
     if (!chave) return null;
     return macro ? (
-      <CampoDoMacro macro={macro} rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)}
+      <CampoDoMacro macro={macro} rotulo={c.rotulo} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)}
         erro={chave === 'fibra' ? erroDaFibra(item.fibra) : undefined} />
     ) : (
-      <CampoNumerico rotulo={c.rotulo} rotuloOculto={emTabela} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)} />
+      <CampoNumerico rotulo={c.rotulo} valor={item[chave] ?? null} aoMudar={(v) => mudarValor(chave, v)} />
     );
   };
-  // Na tabela, os botões contados em `ACOES_RESERVADAS`.
+  // Na tabela, só o ⋯ (`ACOES_RESERVADAS`); empilhado, o de antes: o "Trocar", o ⋯ (com dois ou mais) e a lixeira.
   const acoes = (
     <>
       {emTabela ? null : trocar}
       {acoesDoMenu.length ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${nome}`} aoTocar={() => setMenu(true)} /> : null}
-      <IconeBotao Icone={Trash2} rotulo={`Remover ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />
+      {emTabela ? null : <IconeBotao Icone={Trash2} rotulo={`Remover ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />}
     </>
+  );
+  // Em pares (kcal e P, C e G): sem largura para os quatro, descem dois a dois (com número ímpar, o último fica só).
+  const camposDoManual = (
+    <View style={estilos.valores}>
+      {PARES_DE_VALOR.map((par) => (
+        <View key={par[0].chave} style={estilos.parDeValores}>
+          {par.map((c) => <View key={c.chave} style={estilos.valor}>{campoDoValor(c)}</View>)}
+        </View>
+      ))}
+    </View>
   );
   const celula = (c: (typeof COLUNAS)[number]): ReactNode => {
     if (c.chave === 'alca') return alca;
     if (c.chave === 'numero') return <NumeroInvertido numero={posicao + 1} invertido={false} />;
     if (c.chave === 'nome') return nomeDoItem;
     if (c.chave === 'quantidade') return quantidade;
-    if (c.chave === 'unidade') return unidade;
-    if (!c.valor) return null;
-    if (item.manual) return campoDoValor(c);
-    const v = totais[c.valor];
-    return <Texto numerico cor={cores.texto} style={estilos.textoADireita} aria-hidden>{c.valor === 'kcal' ? kcalNaTela(v) : gramasNaTela(v)}</Texto>;
+    // O item manual digita os valores na linha de baixo (os campos não cabem nas colunas de 48).
+    if (!c.valor || item.manual) return null;
+    return <Texto numerico cor={cores.texto} style={estilos.textoADireita} aria-hidden>{valorNaTela(c.valor, totais[c.valor])}</Texto>;
   };
 
   return (
@@ -631,22 +666,14 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
             <View style={estilos.colunaDoNome}>{nomeDoItem}</View>
             <View style={estilos.quantidade}>{quantidade}</View>
             {unidade}
-            {item.manual ? (
-              // Em pares (kcal e P, C e G): sem largura para os quatro, descem dois a dois (com número ímpar, o último fica só).
-              <View style={estilos.valores}>
-                {PARES_DE_VALOR.map((par) => (
-                  <View key={par[0].chave} style={estilos.parDeValores}>
-                    {par.map((c) => <View key={c.chave} style={estilos.valor}>{campoDoValor(c)}</View>)}
-                  </View>
-                ))}
-              </View>
-            ) : (
+            {item.manual ? camposDoManual : (
               <View style={estilos.valoresDoItem}><ValoresDaDieta totais={totais} /></View>
             )}
             <View style={estilos.acoesDoItem}>{acoes}</View>
           </View>
         </View>
       )}
+      {emTabela && item.manual ? <View style={estilos.camposDoManualNaTabela}>{camposDoManual}</View> : null}
       {erroDaQuantidade ? <View style={estilos.erroDaLinha}><MensagemDeErro erro={erroDaQuantidade} /></View> : null}
       {menu ? <FolhaDeAcoes titulo={item.nome || 'Item sem nome'} aoFechar={() => setMenu(false)} acoes={acoesDoMenu} /> : null}
     </View>
@@ -673,6 +700,9 @@ const estilos = StyleSheet.create({
   // Mesmo recuo e contorno da faixa, para cada título ficar em cima da sua coluna.
   cabecalhoDosItens: { paddingHorizontal: RECUO_DA_FAIXA + CONTORNO_DA_FAIXA },
   celulaDoCabecalho: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
+  // "Fibras (g)" quebra em duas linhas ao lado da marca, sem sair da coluna; à esquerda, as duas linhas ficam coladas à
+  // marca (à direita, a marca ficava mais perto do "G (g)" da coluna ao lado que do próprio título).
+  tituloDaColuna: { flexShrink: 1, textAlign: 'left' },
   colunaDoNomeNaTabela: { flex: 1, minWidth: LARGURA_MINIMA_DO_NOME },
   celulaDoNome: { gap: espaco(0.5), justifyContent: 'center', minHeight: 44 },
   aDireita: { alignItems: 'flex-end', justifyContent: 'flex-end' },
@@ -686,6 +716,7 @@ const estilos = StyleSheet.create({
   nomeDoItem: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 20 },
   acoesDoItem: { flexDirection: 'row', alignItems: 'center', marginLeft: 'auto', alignSelf: 'center' },
   erroDaLinha: { flexBasis: '100%' },
+  camposDoManualNaTabela: { flexDirection: 'row', paddingLeft: RECUO_DOS_CAMPOS_DO_MANUAL },
   quantidade: { width: 104 },
   // Mesma altura do campo da quantidade ao lado (a lista suspensa tem 52 de mínimo), como o RIR na série.
   unidade: { width: 104, minHeight: 44, alignSelf: 'flex-end' },

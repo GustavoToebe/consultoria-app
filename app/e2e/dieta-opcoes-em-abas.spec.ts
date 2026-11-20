@@ -135,8 +135,9 @@ for (const largura of [1280, 390, 1920]) {
     if (largura >= 1280) for (const r of ['A', 'C']) expect(await dentro(r)).toBe(true);
     await capturar(page, 'almoco', `3-opcoes-aba-B-${largura}-escuro`);
 
-    if (largura === 1920) {
-      // Tabela: o "Trocar alimento" embaixo do nome, e cada número do total embaixo da coluna dele.
+    if (largura >= 1280) {
+      // Tabela (em 1280 com o menu aberto desde 20/11): o "Trocar alimento" embaixo do nome, e cada número do total
+      // embaixo da coluna dele.
       await aba(page, 'A').click();
       const titulo = (await page.getByRole('tabpanel').getByText('Kcal', { exact: true }).boundingBox())!;
       const total = (await almoco.getByRole('group', { name: 'Total da opção A' }).getByText('383', { exact: true }).boundingBox())!;

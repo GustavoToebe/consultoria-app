@@ -425,10 +425,11 @@ function CamposDaDieta({ conteudo, aoMudar, modelo }: { conteudo: ConteudoDieta;
 
 const estilos = StyleSheet.create({
   grupo: { gap: espaco(1.5) },
-  // Lista (mestre) estreita: o inspetor fica com o resto (a opção aberta, em abas desde 19/11, tem uns 650 px em 1280).
+  // Lista (mestre) estreita: o inspetor fica com o resto (a opção aberta, em abas desde 19/11, tem uns 668 px em 1280 com o menu aberto).
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
-  // 280 px de base; só cresce (até 400) quando o painel já parou no teto e sobra espaço, para ele terminar na borda dos cartões de cima.
-  lista: { flexGrow: 1, flexShrink: 0, flexBasis: 280, maxWidth: 400, gap: espaco(2) },
+  // 260 px de base (20/11, era 280: os 20 px a mais deixam a tabela de alimentos aparecer em 1280 com o menu aberto); só
+  // cresce (até 400) quando o painel já parou no teto e sobra espaço, para ele terminar na borda dos cartões de cima.
+  lista: { flexGrow: 1, flexShrink: 0, flexBasis: 260, maxWidth: 400, gap: espaco(2) },
   itens: { gap: espaco(1) },
   // Na tela larga o painel para em ~1400 px, junto da lista; o peso 1000 faz a sobra ir primeiro à lista (nunca campo esticado).
   inspetor: { flexGrow: 1000, flexShrink: 1, flexBasis: 0, minWidth: 0, maxWidth: LARGURA_EDITOR_DE_CAMPOS },

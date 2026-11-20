@@ -214,13 +214,21 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     if (largura >= 1280) await page.getByRole('button', { name: /^Refeição 1 de 1: 12:00 · Almoço/ }).click();
     else await expect(page.getByRole('button', { name: /12:00 · Almoço, aberto/ })).toBeVisible();
 
-    // Item da biblioteca: a fibra calculada nos valores; sem ela, "Fibra —". O manual tem o campo, vazio.
-    await expect(page.getByText('Fibra 1,6 g', { exact: true })).toBeVisible();
-    await expect(page.getByText('Fibra —', { exact: true }).first()).toBeVisible();
+    // Item da biblioteca: a fibra calculada nos valores; sem ela, "Fibra —". O manual tem o campo, vazio. No PC a opção é
+    // tabela (20/11): a fibra é o número da coluna "Fibras (g)", sem a unidade, e o "parcial" embaixo dele no total.
+    const tabela = largura >= 1280;
+    if (tabela) await expect(page.getByText('1,6', { exact: true }).first()).toBeVisible();
+    else {
+      await expect(page.getByText('Fibra 1,6 g', { exact: true })).toBeVisible();
+      await expect(page.getByText('Fibra —', { exact: true }).first()).toBeVisible();
+    }
     await expect(page.getByLabel('Fibras (g)', { exact: true })).toHaveValue('');
     // Total da opção: parcial (o frango e a salada não têm fibra), com a frase para o leitor.
     const totalA = page.getByRole('group', { name: 'Total da opção A' });
-    await expect(totalA.getByText('Fibra 1,6 g (parcial)', { exact: true })).toBeVisible();
+    if (tabela) {
+      await expect(totalA.getByText('1,6', { exact: true })).toBeVisible();
+      await expect(totalA.getByText('parcial', { exact: true })).toBeVisible();
+    } else await expect(totalA.getByText('Fibra 1,6 g (parcial)', { exact: true })).toBeVisible();
     await expect(totalA.getByText(/fibra 1,6 g, parcial$/)).toHaveCount(1);
     // Total do dia: a fibra depois dos macros, com o texto e a ajuda uma vez só; a kcal não muda (128 + 159 + 15).
     await expect(page.getByRole('listitem', { name: 'Fibra: 1,6 g, parcial' })).toBeVisible();
@@ -233,7 +241,7 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
 
     // Digitar a fibra da salada soma no total, que segue parcial (o frango continua sem).
     await page.getByLabel('Fibras (g)', { exact: true }).fill('1,4');
-    await expect(totalA.getByText('Fibra 3,0 g (parcial)', { exact: true })).toBeVisible();
+    await expect(totalA.getByText(tabela ? '3,0' : 'Fibra 3,0 g (parcial)', { exact: true })).toBeVisible();
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

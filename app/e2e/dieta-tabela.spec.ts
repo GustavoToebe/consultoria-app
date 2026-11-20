@@ -4,8 +4,9 @@ import type { Alimento, ConteudoDieta, ItemDieta, PlanoDetalhe } from '../src/ap
 import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
- * Dieta em tabela (18/11): os alimentos da opção numa tabela (cabeçalho de colunas uma vez, cada item numa faixa com o
- * número), com a opção larga; estreita, o item empilhado com os rótulos de sempre. Só dados fictícios.
+ * Dieta em tabela (18/11; em 1280 com o menu aberto desde 20/11): os alimentos da opção numa tabela (cabeçalho de colunas
+ * uma vez, cada item numa faixa com o número, quantidade e unidade num campo só, os números sem o "g" e só o ⋯ no fim),
+ * com a opção larga; estreita (390), o item empilhado com os rótulos de sempre. Só dados fictícios.
  */
 const PLANO_ID = 'p0000000-0000-4000-8000-0000000000b1';
 const ALUNO_ID = 'a0000000-0000-4000-8000-0000000000b2';
@@ -108,33 +109,49 @@ async function capturar(page: Page, nome: string) {
   await page.screenshot({ path: `${pasta}/${nome}.png` });
 }
 
-// Em 1920 a opção passa de 1300 px: tabela. Em 1280 (664 px, com o inspetor ao lado) e 390, empilhado.
+// Em 1920 a opção passa de 1300 px e em 1280 tem 668 (o inspetor ao lado, o menu aberto): tabela. Em 390, empilhado.
 for (const escuro of [false, true]) {
   const sufixo = escuro ? 'escuro' : 'claro';
-  test(`opção larga: cabeçalho uma vez, colunas alinhadas e contorno do problema (1920, ${sufixo})`, async ({ page }) => {
-    const { naoTratadas, errosDaPagina } = await abrir(page, 1920, escuro);
-    expect((await opcoes(page).boundingBox())!.width).toBeGreaterThan(900);
-    await expect(page.getByText('Alimento', { exact: true })).toHaveCount(1);
-    // O título de cada coluna fica em cima do campo dela, nas duas espécies de item.
-    const titulo = (await page.getByText('Quantidade', { exact: true }).boundingBox())!;
-    const campos = page.getByRole('textbox', { name: 'Quantidade', exact: true });
-    await expect(campos).toHaveCount(4);
-    for (const i of [0, 2]) expect(Math.abs((await campos.nth(i).boundingBox())!.x - titulo.x)).toBeLessThan(2);
-    const kcal = (await page.getByText('Kcal', { exact: true }).boundingBox())!;
-    const campoKcal = (await page.getByRole('textbox', { name: 'Kcal', exact: true }).first().boundingBox())!;
-    expect(Math.abs(campoKcal.x + campoKcal.width - (kcal.x + kcal.width))).toBeLessThan(2);
-    // Item da biblioteca: os valores como texto, sem rótulo por linha; o manual com o selo.
-    await expect(page.getByText('192', { exact: true })).toBeVisible();
-    // Dois selos "Item manual" e o botão "Item manual" da opção.
-    await expect(page.getByText('Item manual', { exact: true })).toHaveCount(3);
-    expect(await contornoDaFaixa(page, ARROZ.nome)).toBe(TRANSPARENTE);
-    await validarComProblemas(page);
-    await capturar(page, `tabela-1920-${sufixo}`);
-    expect(naoTratadas).toEqual([]);
-    expect(errosDaPagina).toEqual([]);
-  });
+  for (const largura of [1920, 1280]) {
+    test(`opção larga: cabeçalho uma vez, colunas alinhadas e contorno do problema (${largura}, ${sufixo})`, async ({ page }) => {
+      const { naoTratadas, errosDaPagina } = await abrir(page, largura, escuro);
+      expect((await opcoes(page).boundingBox())!.width).toBeGreaterThan(660);
+      await expect(page.getByText('Alimento', { exact: true })).toHaveCount(1);
+      // O título de cada coluna fica em cima do campo dela, nas duas espécies de item; a unidade fica dentro do campo.
+      const titulo = (await page.getByText('Quantidade', { exact: true }).boundingBox())!;
+      const campos = page.getByRole('textbox', { name: 'Quantidade', exact: true });
+      await expect(campos).toHaveCount(4);
+      for (const i of [0, 2]) expect(Math.abs((await campos.nth(i).boundingBox())!.x - titulo.x)).toBeLessThan(2);
+      const unidades = page.getByRole('button', { name: 'Unidade: g. Escolher.' });
+      await expect(unidades).toHaveCount(4);
+      const campo = (await campos.first().boundingBox())!;
+      const unidade = (await unidades.first().boundingBox())!;
+      expect(unidade.x).toBeGreaterThan(campo.x);
+      expect(unidade.x + unidade.width).toBeLessThanOrEqual(campo.x + campo.width + 1);
+      // O número do item fica embaixo do título da coluna, à direita, sem o "g" (está no título).
+      const kcal = (await page.getByText('Kcal', { exact: true }).first().boundingBox())!;
+      const numero = (await page.getByText('192', { exact: true }).boundingBox())!;
+      expect(Math.abs(numero.x + numero.width - (kcal.x + kcal.width))).toBeLessThan(2);
+      await expect(page.getByText('3,8', { exact: true })).toBeVisible();
+      // O item manual digita os valores na linha de baixo, com o rótulo à vista (os campos não cabem nas colunas).
+      const nomeDoManual = (await page.getByRole('textbox', { name: 'Item', exact: true }).first().boundingBox())!;
+      const campoKcal = (await page.getByRole('textbox', { name: 'Kcal', exact: true }).first().boundingBox())!;
+      expect(campoKcal.y).toBeGreaterThan(nomeDoManual.y + nomeDoManual.height);
+      // Dois selos "Item manual" e o botão "Item manual" da opção.
+      await expect(page.getByText('Item manual', { exact: true })).toHaveCount(3);
+      // Na linha, só o ⋯ e a alça: a lixeira foi para o ⋯ ("Excluir alimento").
+      await expect(page.getByRole('button', { name: `Remover ${ARROZ.nome}` })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^Mais ações de / })).toHaveCount(4);
+      expect(await contornoDaFaixa(page, ARROZ.nome)).toBe(TRANSPARENTE);
+      await validarComProblemas(page);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(largura);
+      await capturar(page, `tabela-${largura}-${sufixo}`);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
 
-  for (const largura of [1280, 390]) {
+  for (const largura of [390]) {
     test(`opção estreita: item empilhado com os rótulos, sem cabeçalho (${largura}, ${sufixo})`, async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page, largura, escuro);
       await expect(page.getByText('Alimento', { exact: true })).toHaveCount(0);
@@ -151,18 +168,49 @@ for (const escuro of [false, true]) {
   }
 }
 
-// O limite é a largura da OPÇÃO, `larguraDaTabela()` = 910 px desde 19/11 (o "Trocar alimento" saiu da coluna das ações,
-// que reserva só o ⋯ e a lixeira). Opções em abas (19/11): a opção aberta tem a largura toda do inspetor, então o limite
-// em janela cai no layout de duas colunas: a opção acompanha a janela 1:1 (medido em 19/11: 1520 → 889 px), então a tabela
-// começa em ~1541 px de janela; 1536 (905 px) ainda empilha e 1546 (915 px) já é tabela.
-test('o limite sai das colunas: a opção abaixo de 910 px empilha e a partir dele vira tabela (janelas de 1536 e 1546)', async ({ page }) => {
-  await abrir(page, 1536);
+// O limite é a largura da OPÇÃO, `larguraDaTabela()` = 656 px desde 20/11 (quantidade e unidade num campo só, números
+// em 48 px sem o "g", só o ⋯ no fim, vão de 6 e o nome no mínimo da largura do "Trocar alimento"). No layout de duas
+// colunas a opção acompanha a janela 1:1 (medido em 20/11, com o menu aberto e a lista de 260: 1270 → 658, 1280 → 668),
+// então a tabela começa em ~1268 px de janela; 1263 (651 px) ainda empilha e 1273 (661 px) já é tabela.
+test('o limite sai das colunas: a opção abaixo de 656 px empilha e a partir dele vira tabela (janelas de 1263 e 1273)', async ({ page }) => {
+  await abrir(page, 1263);
   const estreita = (await opcoes(page).boundingBox())!.width;
-  expect(estreita).toBeLessThan(910);
-  expect(estreita).toBeGreaterThan(900);
+  expect(estreita).toBeLessThan(656);
+  expect(estreita).toBeGreaterThan(646);
   await expect(page.getByText('Alimento', { exact: true })).toHaveCount(0);
-  await page.setViewportSize({ width: 1546, height: 1000 });
-  await expect.poll(async () => (await opcoes(page).boundingBox())!.width).toBeGreaterThanOrEqual(910);
+  await page.setViewportSize({ width: 1273, height: 1000 });
+  await expect.poll(async () => (await opcoes(page).boundingBox())!.width).toBeGreaterThanOrEqual(656);
   await expect(page.getByText('Alimento', { exact: true })).toHaveCount(1);
-  await capturar(page, 'opcao-910-claro');
+  await capturar(page, 'opcao-656-claro');
+});
+
+// Na tabela, a linha fica com a alça e o ⋯ (20/11): a lixeira é o "Excluir alimento" do ⋯, com o mesmo Desfazer; a unidade
+// é um botão de menu dentro do campo da quantidade (Menu Button da APG); o nome longo corta e fica inteiro na dica.
+test('na tabela (1280): "Excluir alimento" no ⋯ com Desfazer, a unidade pelo menu do campo e o nome inteiro na dica', async ({ page }) => {
+  const { naoTratadas, errosDaPagina } = await abrir(page, 1280);
+  await expect(page.locator(`[title="${FRANGO.nome}"]`)).toHaveCount(1);
+  await page.getByRole('button', { name: `Mais ações de ${ARROZ.nome}`, exact: true }).click();
+  await page.getByText('Excluir alimento', { exact: true }).click();
+  await expect(page.getByText(`Alimento “${ARROZ.nome}” removido.`)).toBeVisible();
+  await expect(page.getByText(ARROZ.nome, { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Desfazer' }).click();
+  await expect(page.getByText(ARROZ.nome, { exact: true })).toBeVisible();
+
+  const unidade = page.getByRole('button', { name: 'Unidade: g. Escolher.' }).first();
+  await unidade.click();
+  const gramas = page.getByRole('menuitemradio', { name: 'Gramas (g)' });
+  await expect(gramas).toBeFocused();
+  await expect(gramas).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu', { name: 'Unidade' })).toHaveCount(0);
+  await expect(unidade).toBeFocused();
+  await unidade.click();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitemradio', { name: 'Mililitros (ml)' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  const ml = page.getByRole('button', { name: 'Unidade: ml. Escolher.' });
+  await expect(ml).toHaveCount(1);
+  await expect(ml).toBeFocused();
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
 });

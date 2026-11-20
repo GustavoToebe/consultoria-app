@@ -100,12 +100,15 @@ for (const [largura, inspetor] of [[390, false], [1280, true]] as const) {
     await expect(b).toHaveAttribute('aria-selected', 'false');
     await expect(page.getByText('Cada opção substitui a refeição inteira: o aluno escolhe uma.')).toBeVisible();
     // Total de cada opção (com a aba dela aberta), separado dos itens, gramas com uma casa; o que falta (gordura da batata) é "—".
+    // No PC a opção é tabela (20/11): cada número embaixo da coluna dele, sem a unidade (está no título da coluna).
     const totalA = page.getByRole('group', { name: 'Total da opção A' });
     const totalB = page.getByRole('group', { name: 'Total da opção B' });
-    for (const texto of ['190 kcal', 'P 4,0 g', 'C 30,0 g', 'G 0,4 g']) await expect(totalA.getByText(texto, { exact: true })).toBeVisible();
+    const textosA = inspetor ? ['190', '4,0', '30,0', '0,4'] : ['190 kcal', 'P 4,0 g', 'C 30,0 g', 'G 0,4 g'];
+    for (const texto of textosA) await expect(totalA.getByText(texto, { exact: true }).first()).toBeVisible();
     await expect(totalB).toHaveCount(0);
     await b.click();
-    for (const texto of ['170 kcal', 'P 4,0 g', 'C 30,0 g', 'G —']) await expect(totalB.getByText(texto, { exact: true })).toBeVisible();
+    const textosB = inspetor ? ['170', '4,0', '30,0', '—'] : ['170 kcal', 'P 4,0 g', 'C 30,0 g', 'G —'];
+    for (const texto of textosB) await expect(totalB.getByText(texto, { exact: true }).first()).toBeVisible();
     await expect(totalA).toHaveCount(0);
     // O modo de preparo gravado também fica atrás do link (18/11): o toque abre os campos e o texto está lá.
     await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveCount(0);

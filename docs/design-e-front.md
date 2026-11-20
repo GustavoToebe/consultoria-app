@@ -673,12 +673,18 @@ Decisões e passos em `docs/planos/editor-de-treino-reorganizado.md`.
   tabela os números caem embaixo das colunas dos alimentos), as abas (`AbasDeOpcao`, Tabs da APG, desenho do `Abas`:
   "Opção A · 98 kcal" com a kcal em fonte numérica, "vazia" sem item, selo neutro "Conta no total do dia" na primeira,
   "+ Opção" no fim, fora da rolagem) e a frase de apoio; depois a opção aberta na largura toda. Com uma opção só, sem abas
-  nem comparação: o "+ Opção" discreto no lugar do "Excluir opção".
-- Opção aberta: "Alimentos (N)" com "Excluir opção" (`perigoTexto`, confirma só com itens), a tabela (abaixo de 910 px de
-  opção, o item empilhado), o total com cada número embaixo da coluna dele e "Adicionar alimento" e "Item manual". A
-  alça de arrastar aparece sempre (com um item, apagada e sem gesto) para o nome começar no mesmo lugar.
-- "Trocar alimento" (item da biblioteca): secundário compacto e neutro (desenho de 32 px, alvo de 44), nunca em cor de
-  ação; na tabela, na linha de baixo do nome, antes dos selos; empilhado, junto do ⋯ e da lixeira.
+  nem comparação: o "+ Opção" no lugar do "Excluir opção". O "+ Opção" é `Botao tipo="acao"` (Gustavo, 20/11).
+- Opção aberta: "Alimentos (N)" com "Excluir opção" (`perigoTexto`, confirma só com itens), a tabela (abaixo de 656 px de
+  opção, o item empilhado; em 1280 com o menu aberto a opção tem 668, 20/11), o total com cada número embaixo da coluna
+  dele e "Adicionar alimento" e "Item manual". A alça de arrastar aparece sempre (com um item, apagada e sem gesto) para o
+  nome começar no mesmo lugar. Na tabela (20/11): quantidade e unidade num campo só ("50 g ▾", a sigla abre o menu das
+  unidades; nomes acessíveis "Quantidade" e "Unidade: g. Escolher."), Kcal, P, C e G em 48 px e Fibras em 56, números à
+  direita na fonte numérica e sem o "g" (está no título da coluna, como na comparação), nome do alimento numa linha com
+  reticências e o nome inteiro na dica, só a alça e o ⋯ na linha (a lixeira virou "Excluir alimento" no ⋯, com o mesmo
+  Desfazer) e os campos do item manual na linha de baixo, com o rótulo à vista. Empilhado, o de antes, com a lixeira.
+- "Trocar alimento" (item da biblioteca): compacto (desenho de 32 px, alvo de 44) na cor de ação, com as cores do
+  `Botao tipo="acao"` (Gustavo, 20/11; antes, 19/11, secundário neutro); na tabela, na linha de baixo do nome, antes dos
+  selos; empilhado, junto do ⋯ e da lixeira.
 
 **Salvamento, validação e aplicação (três estados separados)**
 - Salvamento (`seloDoEditor`, `dominio/barraDoEditor.ts`): "Alterações não salvas" em neutro com lápis (D12, não é erro),

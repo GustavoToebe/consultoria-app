@@ -270,11 +270,14 @@ describe('CartaoRefeicao: itens em tabela', () => {
   it('larga, mostra o cabeçalho uma vez, escondido do leitor, os valores da biblioteca como texto e o "Trocar alimento"', () => {
     const a = comLargura(montar(umaOpcao, { aoTrocarAlimento: () => undefined }), 1200);
     expect(textos(a).filter((t) => t === 'Alimento')).toHaveLength(1);
-    for (const titulo of ['#', 'Quantidade', 'Unidade', 'Kcal', 'P (g)', 'C (g)', 'G (g)', 'Fibras (g)']) expect(textos(a)).toContain(titulo);
+    // Quantidade e unidade num campo só (20/11): sem a coluna "Unidade".
+    for (const titulo of ['#', 'Quantidade', 'Kcal', 'P (g)', 'C (g)', 'G (g)', 'Fibras (g)']) expect(textos(a)).toContain(titulo);
+    expect(textos(a)).not.toContain('Unidade');
     const cabecalho = a.root.findAll((n) => typeof n.type === 'string' && n.props['aria-hidden'] && n.findAll((f) => f.props.children === 'Alimento').length > 0);
     expect(cabecalho.length).toBeGreaterThan(0);
-    // O item da biblioteca: número solto na coluna e uma frase só para o leitor.
-    expect(textos(a)).toContain('1,0 g');
+    // O item da biblioteca: número solto na coluna, sem o "g" (está no título), e uma frase só para o leitor.
+    expect(textos(a)).toContain('1,0');
+    expect(textos(a)).not.toContain('1,0 g');
     expect(textos(a)).toContain('Pão fictício: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
     expect(textos(a)).toContain('Trocar alimento');
     // O total da opção embaixo das colunas: os números soltos, a frase só para o leitor.
@@ -282,10 +285,11 @@ describe('CartaoRefeicao: itens em tabela', () => {
     expect(textos(a)).toContain('Total da opção A: 100 kcal, proteína 2,0 g, carboidrato 20,0 g, gordura 0,0 g, fibra sem dado');
   });
 
-  it('larga, os campos mantêm os nomes de hoje (quantidade, unidade e os valores do item manual)', () => {
+  it('larga, os campos mantêm os nomes de hoje (quantidade e os valores do item manual); a unidade fica dentro do campo', () => {
     const a = comLargura(montar(umaOpcao), 1200);
     expect(comRotulo(a, 'campo Quantidade')).toHaveLength(2);
-    expect(comRotulo(a, 'suspensa Unidade: ml')).toHaveLength(2);
+    // A sigla da unidade é a `acao` do campo da quantidade (o `Campo` falso não a desenha; o e2e confere o botão).
+    expect(comRotulo(a, 'suspensa Unidade: ml')).toHaveLength(0);
     for (const campo of ['Item', 'Kcal', 'P (g)', 'C (g)', 'G (g)']) expect(temCampo(a, campo)).toBe(true);
   });
 

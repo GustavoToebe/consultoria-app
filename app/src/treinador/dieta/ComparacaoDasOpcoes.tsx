@@ -25,8 +25,10 @@ const RECUO = espaco(1) + 1;
 export interface ColunasDaTabela {
   /** Larguras das colunas Kcal, P, C, G e Fibras, na ordem. */
   larguras: readonly number[];
-  /** Largura das ações no fim da linha (o ⋯ e a lixeira). */
+  /** Largura das ações no fim da linha (o ⋯). */
   fim: number;
+  /** O vão entre as colunas da tabela de alimentos. */
+  vao: number;
 }
 
 /**
@@ -43,15 +45,16 @@ export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas }: {
   const compacta = largura > 0 && largura < LARGURA_COMPACTA;
   const coluna = (i: number) => (colunas ? { width: colunas.larguras[i] } : estilos.numero);
   const fim = colunas ? <View style={{ width: colunas.fim }} /> : null;
+  const vao = colunas ? { columnGap: colunas.vao } : null;
   return (
     <View role="group" aria-label="Comparação das opções" style={estilos.tabela} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
       {/* O cabeçalho é só visual: cada linha diz ao leitor de tela os valores por extenso. */}
-      <View aria-hidden style={[estilos.linha, compacta && estilos.linhaJusta, estilos.cabecalho, { borderBottomColor: cores.divisor }]}>
+      <View aria-hidden style={[estilos.linha, compacta && estilos.linhaJusta, vao, estilos.cabecalho, { borderBottomColor: cores.divisor }]}>
         <View style={compacta ? estilos.letra : estilos.nome}><Texto variante="rotulo">Opção</Texto></View>
         {COLUNAS.map((c, ci) => (
           <View key={c.chave} style={[coluna(ci), estilos.celulaDoCabecalho]}>
             {c.cor ? <MarcaDoMacro cor={c.cor} /> : null}
-            <Texto variante="rotulo" style={estilos.aDireita}>{c.rotulo}</Texto>
+            <Texto variante="rotulo" style={estilos.encolhe}>{c.rotulo}</Texto>
           </View>
         ))}
         {fim}
@@ -65,7 +68,7 @@ export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas }: {
           <Pressable key={o.uid} accessibilityRole="button" accessibilityLabel={nome} accessibilityHint="Abre a opção nas abas."
             aria-current={sel ? 'true' : undefined} onPress={() => aoAbrir(o.uid)}
             style={(st) => [estilos.opcao, { backgroundColor: sel ? cores.superficie2 : sobre(st) ? cores.sobre : 'transparent' }]}>
-            <View style={[estilos.linha, compacta && estilos.linhaJusta]}>
+            <View style={[estilos.linha, compacta && estilos.linhaJusta, vao]}>
               <View style={compacta ? estilos.letra : estilos.nome}>
                 <Texto style={[estilos.textoDoNome, { fontFamily: sel ? fontes.semi : fontes.medio }]}>{compacta ? o.rotulo : tituloDaOpcao(o)}</Texto>
                 {compacta ? null : selo}
@@ -91,7 +94,7 @@ export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas }: {
 
 const estilos = StyleSheet.create({
   tabela: { gap: 2 },
-  // O vão da tabela de alimentos (8), para as colunas baterem; no celular, 6.
+  // Sem a tabela, 8 de vão; no celular, 6; com ela, o vão da tabela de alimentos (`colunas.vao`), para as colunas baterem.
   linha: { flexDirection: 'row', alignItems: 'center', columnGap: espaco(1) },
   linhaJusta: { columnGap: espaco(0.75) },
   // O recuo é o da faixa do item (8 + o contorno de 1), para as colunas baterem com as da tabela de alimentos.
@@ -107,5 +110,7 @@ const estilos = StyleSheet.create({
   textoDoNome: { fontSize: 15 },
   valor: { fontSize: 14, lineHeight: 20 },
   aDireita: { textAlign: 'right' },
+  // "Fibras (g)" quebra em duas linhas ao lado da marca na coluna estreita, coladas a ela (como na tabela de alimentos).
+  encolhe: { flexShrink: 1, textAlign: 'left' },
   seloAbaixo: { flexDirection: 'row', marginTop: 2 },
 });
