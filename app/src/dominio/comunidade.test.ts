@@ -4,7 +4,7 @@ import {
   proximaPaginaDeComentarios, semOComentario, tamanhoDoComentario,
   comReacao, reagiu, REACOES, rotuloDaReacao, totalDaReacao, erroDoApelido, MENSAGEM_APELIDO_FORMATO, MENSAGEM_APELIDO_LINK, textoDaPosicao,
   AVISO_AO_CRIAR_ENQUETE, AVISO_ANTES_DO_VOTO, erroDasOpcoes, erroDoPrazo, MENSAGEM_PRAZO_DA_ENQUETE, nomeDoVotante, percentualDaOpcao,
-  prazoDaEnquete, textoDosParticipantes, textoDosVotos, votosAoTocar,
+  prazoDaEnquete, textoDeComentarios, textoDosParticipantes, textoDosVotos, votosAoTocar,
   ATRIBUTOS_DO_PLAYER, htmlDoPlayer, idDoYoutube, navegacaoDoPlayerPermitida, urlDoEmbed, urlNoYoutube,
   errosDoPost, MOTIVOS_DE_DENUNCIA, podeAnexarFoto, podePublicar, podeUsarCapaDoYoutube, postParaEnviar, rotuloDoMotivo, rotuloDoTipo,
   textoDoErroDaCapaDoYoutube, TIPOS_DE_POST,
@@ -312,6 +312,15 @@ describe('enquete', () => {
     expect(nomeDoVotante({ nome: 'Ana Souza', ehVoce: true })).toBe('Você');
     expect(nomeDoVotante({ nome: 'Ana Souza', apelido: 'Aninha' })).toBe('Ana Souza (Aninha)');
     expect(nomeDoVotante({ nome: 'Ana Souza' })).toBe('Ana Souza');
+  });
+});
+
+describe('texto dos comentários (19/11)', () => {
+  it('frase no singular, no plural e sem comentário, com milhar', () => {
+    expect(textoDeComentarios(0)).toBe('Nenhum comentário');
+    expect(textoDeComentarios(1)).toBe('1 comentário');
+    expect(textoDeComentarios(2)).toBe('2 comentários');
+    expect(textoDeComentarios(1234)).toBe('1.234 comentários');
   });
 });
 

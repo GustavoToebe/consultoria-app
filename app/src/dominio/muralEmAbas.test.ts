@@ -1,7 +1,7 @@
 import type { FiltrosDoMural, PaginaDoMural, PostDoMural, TipoDePost } from '../api/comunidadeTipos';
 import { MURAL_SEM_FILTRO, TIPOS_DE_POST } from './comunidade';
 import {
-  ABA_PADRAO_DO_MURAL, abaDoParametro, abaDoTipo, carregarMuralDaAba, filtroNaAba, juntarPaginas, opcoesDoTipoNaAba,
+  ABA_PADRAO_DO_MURAL, abaDoParametro, abaDoTipo, carregarMuralDaAba, destaquesDoMural, filtroNaAba, juntarPaginas, opcoesDoTipoNaAba,
   PARAMETRO_DO_MEU_GRUPO, postAlterado, rascunhoAoAbrir, textoDoVazioDaAba, tiposDaAba, tiposParaBuscar, visaoDoParametro,
 } from './muralEmAbas';
 
@@ -174,5 +174,35 @@ describe('vazio da aba', () => {
     expect(textoDoVazioDaAba('alunos', { tipo: 'DUVIDA', denunciados: false }, '')).toBe('Nenhuma publicação encontrada com esse filtro.');
     expect(textoDoVazioDaAba('avisos', MURAL_SEM_FILTRO, 'supino')).toBe('Nenhuma publicação encontrada com esse filtro.');
     expect(textoDoVazioDaAba('avisos', { tipo: null, denunciados: true }, '')).toBe('Nenhuma publicação denunciada em Avisos.');
+  });
+});
+
+describe('destaques do mural (19/11)', () => {
+  const enquete = (id: string, encerrada: boolean, fixado = false): PostDoMural => ({
+    ...post(id, 'ENQUETE', '2026-11-10T10:00:00Z', fixado),
+    enquete: { variasRespostas: false, encerrada, encerraEm: null, opcoes: [], meusVotos: [], participantes: 0 },
+  });
+
+  it('fixados sem a enquete aberta, que vai só para o outro bloco; encerrada fixada fica nos fixados', () => {
+    const d = destaquesDoMural([
+      post('a', 'AVISO', '2026-11-12T10:00:00Z', true), enquete('e1', false, true), enquete('e2', true, true),
+      enquete('e3', false), post('v', 'VIDEO', '2026-11-09T10:00:00Z'),
+    ]);
+    expect(d.fixados.map((p) => p.id)).toEqual(['a', 'e2']);
+    expect(d.enquetes.map((p) => p.id)).toEqual(['e1', 'e3']);
+    expect(d.fixadosAMais).toBe(0);
+    expect(d.enquetesAMais).toBe(0);
+  });
+
+  it('enquete sem o bloco da enquete não conta como aberta; nada fixado nem aberto = blocos vazios', () => {
+    expect(destaquesDoMural([post('x', 'ENQUETE', '2026-11-10T10:00:00Z')]).enquetes).toEqual([]);
+    expect(destaquesDoMural([])).toEqual({ fixados: [], enquetes: [], fixadosAMais: 0, enquetesAMais: 0 });
+  });
+
+  it('corta no limite, na ordem que veio, e conta o resto', () => {
+    const avisos = ['1', '2', '3', '4'].map((id) => post(id, 'AVISO', '2026-11-10T10:00:00Z', true));
+    const d = destaquesDoMural(avisos, 3);
+    expect(d.fixados.map((p) => p.id)).toEqual(['1', '2', '3']);
+    expect(d.fixadosAMais).toBe(1);
   });
 });

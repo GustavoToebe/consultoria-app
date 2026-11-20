@@ -200,7 +200,7 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('button', { name: 'Risada, 0 reações', exact: true })).toHaveCount(2);
       const curtidoP2 = page.getByRole('button', { name: 'Curtir, 1 reação, você reagiu' });
       await expect(curtidoP2).toHaveAttribute('aria-pressed', 'true');
-      await expect(page.getByText('4 comentário(s)')).toBeVisible();
+      await expect(page.getByText('4 comentários', { exact: true })).toBeVisible();
       await capturar(page, `aluno-mural-${largura}`);
 
       // Sem otimismo: a contagem muda quando a API confirma (204).
@@ -259,7 +259,7 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('No momento, só a equipe publica no mural. Você pode reagir, votar nas enquetes e comentar.')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Curtir, 2 reações', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Ver 4 comentário(s)' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ver comentários: 4 comentários' })).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
     });
 
@@ -701,7 +701,7 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto(MURAL_DOS_ALUNOS);
-      const abrir = page.getByRole('button', { name: 'Ver 2 comentário(s)' });
+      const abrir = page.getByRole('button', { name: 'Ver comentários: 2 comentários' });
       expect((await abrir.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await abrir.click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
@@ -734,7 +734,7 @@ for (const largura of [390, 1280]) {
       await expect(folha).toBeVisible();
       await page.keyboard.press('Escape');
       await expect(folha).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Ver 3 comentário(s)' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ver comentários: 3 comentários' })).toBeVisible();
       expect(api.naoTratadas).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
     });
@@ -749,7 +749,7 @@ for (const largura of [390, 1280]) {
         }),
       });
       await page.goto(MURAL_DOS_ALUNOS);
-      await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+      await page.getByRole('button', { name: 'Ver comentários: 2 comentários' }).click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       const campo = folha.getByRole('textbox', { name: 'Seu comentário' });
       await campo.fill('Oi, time');
@@ -772,7 +772,7 @@ for (const largura of [390, 1280]) {
         }),
       });
       await page.goto(MURAL_DOS_ALUNOS);
-      await page.getByRole('button', { name: 'Ver 3 comentário(s)' }).click();
+      await page.getByRole('button', { name: 'Ver comentários: 3 comentários' }).click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText(ANTIGO)).toBeVisible();
       const campo = folha.getByRole('textbox', { name: 'Seu comentário' });
@@ -825,7 +825,7 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto(MURAL_DOS_ALUNOS);
-      await page.getByRole('button', { name: 'Ver 35 comentário(s)' }).click();
+      await page.getByRole('button', { name: 'Ver comentários: 35 comentários' }).click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Comentário de teste 30', { exact: true })).toBeVisible();
       await expect(folha.getByText('Comentário de teste 31', { exact: true })).toHaveCount(0);
@@ -955,7 +955,7 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto(MURAL_DOS_ALUNOS);
-      await page.getByRole('button', { name: 'Ver 4 comentário(s)' }).click();
+      await page.getByRole('button', { name: 'Ver comentários: 4 comentários' }).click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Post não disponível')).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0);
@@ -964,7 +964,7 @@ for (const largura of [390, 1280]) {
       await page.keyboard.press('Escape');
 
       lista = 'ok';
-      await page.getByRole('button', { name: 'Ver 4 comentário(s)' }).click();
+      await page.getByRole('button', { name: 'Ver comentários: 4 comentários' }).click();
       await expect(folha.getByText('Bora, time!')).toBeVisible();
       const campo = folha.getByRole('textbox', { name: 'Seu comentário' });
       await campo.fill('Rascunho');
@@ -980,7 +980,7 @@ for (const largura of [390, 1280]) {
     test('aluno: post sem comentários mostra "Ninguém comentou ainda."', async ({ page }) => {
       await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/mural/{id}/comentarios': { corpo: { itens: [], total: 0 } } });
       await page.goto(MURAL_DOS_ALUNOS);
-      await page.getByRole('button', { name: 'Ver 0 comentário(s)' }).click();
+      await page.getByRole('button', { name: 'Ver comentários: Nenhum comentário' }).click();
       await expect(page.getByRole('dialog', { name: 'Comentários' }).getByText('Ninguém comentou ainda.')).toBeVisible();
       await capturar(page, `aluno-comentarios-vazio-${largura}`);
     });
@@ -991,7 +991,7 @@ for (const largura of [390, 1280]) {
         const { rotas } = comComentarios('/aluno/comunidade/mural', '/aluno/comunidade/mural/{id}/comentarios');
         await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, ...rotas });
         await page.goto(MURAL_DOS_ALUNOS);
-        await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+        await page.getByRole('button', { name: 'Ver comentários: 2 comentários' }).click();
         await expect(page.getByRole('dialog', { name: 'Comentários' }).getByText('Mandou bem.')).toBeVisible();
         await capturar(page, `aluno-comentarios-tema-${nome}-${largura}`);
       });
@@ -1259,7 +1259,7 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto(MURAL_DOS_ALUNOS_DA_EQUIPE);
-      await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+      await page.getByRole('button', { name: 'Ver comentários: 2 comentários' }).click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Equipe', { exact: true })).toHaveCount(1);
       await folha.getByRole('textbox', { name: 'Responder como equipe' }).fill('Resposta de teste da equipe.');
@@ -1285,7 +1285,7 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto(MURAL_DOS_ALUNOS_DA_EQUIPE);
-      await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+      await page.getByRole('button', { name: 'Ver comentários: 2 comentários' }).click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Bora, time!')).toBeVisible();
       await expect(folha.getByText('«Fictí»')).toBeVisible();
@@ -1316,7 +1316,7 @@ for (const largura of [390, 1280]) {
         .toEqual(['/comunidade/mural/comentarios/c1', '/comunidade/mural/comentarios/c2']);
       await page.keyboard.press('Escape');
       // O post de teste e o outro post do mural ficam com zero.
-      await expect(page.getByRole('button', { name: 'Ver 0 comentário(s)' })).toHaveCount(2);
+      await expect(page.getByRole('button', { name: 'Ver comentários: Nenhum comentário' })).toHaveCount(2);
       expect(api.errosDaPagina).toEqual([]);
     });
 
@@ -1324,7 +1324,7 @@ for (const largura of [390, 1280]) {
       const { rotas } = comComentarios('/comunidade/mural', '/comunidade/mural/{id}/comentarios');
       await abrirTreinador(page, { ...cheia, ...rotas }, [...PERMISSOES_TREINADOR, 'TREINO_LER', 'TREINO_ALTERAR']);
       await page.goto(MURAL_DOS_ALUNOS_DA_EQUIPE);
-      await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+      await page.getByRole('button', { name: 'Ver comentários: 2 comentários' }).click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Mandou bem.')).toBeVisible();
       await expect(folha.getByRole('button', { name: /Remover comentário/ })).toHaveCount(0);
@@ -1401,7 +1401,7 @@ for (const largura of [390, 1280]) {
         const { rotas } = comComentarios('/comunidade/mural', '/comunidade/mural/{id}/comentarios');
         await abrirTreinador(page, { ...cheia, ...rotas });
         await page.goto(MURAL_DOS_ALUNOS_DA_EQUIPE);
-        await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+        await page.getByRole('button', { name: 'Ver comentários: 2 comentários' }).click();
         await expect(page.getByRole('dialog', { name: 'Comentários' }).getByText('Mandou bem.')).toBeVisible();
         await capturar(page, `treinador-comentarios-tema-${nome}-${largura}`);
       });
@@ -2155,24 +2155,26 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 2], [1920, 
       await capturar(page, `treinador-auloes-um-${largura}`);
     });
 
-    test('mural: barra de filtros e publicações numa coluna de leitura na borda esquerda do cabeçalho', async ({ page }) => {
+    test('mural: barra única de controles e publicações numa coluna de leitura na borda esquerda do cabeçalho', async ({ page }) => {
       await abrir(page, {});
       await page.goto(MURAL_DOS_ALUNOS_DA_EQUIPE);
       await expect(page.getByText('Treino feito.')).toBeVisible();
       const { esquerda, direita } = await bordasDoConteudo(page, 'Nova publicação');
       const coluna = (await page.getByTestId('coluna-das-publicacoes').boundingBox())!;
       expect(Math.abs(coluna.x - esquerda)).toBeLessThanOrEqual(1);
-      expect(coluna.width).toBeLessThanOrEqual(800);
-      // Avisos | Alunos na largura da coluna, na mesma borda esquerda.
+      expect(coluna.width).toBeLessThanOrEqual(720);
+      // Barra única (D5, 19/11): sem grupo, o seletor é só o "Gerenciar grupos", na borda esquerda; depois Avisos | Alunos,
+      // a busca e o "Filtros", na mesma linha no PC (quebram no celular). No celular a ação do cabeçalho desce para baixo
+      // do título e não marca a borda direita.
+      const gerenciar = (await page.getByRole('button', { name: 'Gerenciar grupos' }).boundingBox())!;
+      expect(Math.abs(gerenciar.x - esquerda)).toBeLessThanOrEqual(2);
       const abas = (await page.getByRole('radiogroup', { name: 'Publicações', exact: true }).boundingBox())!;
-      expect(Math.abs(abas.x - esquerda)).toBeLessThanOrEqual(2);
       expect(abas.width).toBeLessThanOrEqual(800 + 1);
       const busca = (await page.getByRole('searchbox', { name: 'Buscar na comunidade' }).boundingBox())!;
       const filtros = (await botaoFiltros(page).boundingBox())!;
-      // A barra de filtros (busca e botão "Filtros", na largura da peça compartilhada) começa na borda esquerda e cabe no
-      // conteúdo. No celular a ação do cabeçalho desce para baixo do título e não marca a borda direita.
-      expect(Math.abs(busca.x - esquerda)).toBeLessThanOrEqual(2);
+      expect(busca.x).toBeGreaterThanOrEqual(esquerda - 1);
       expect(filtros.x).toBeGreaterThan(busca.x + busca.width);
+      if (largura >= 1440) expect(Math.abs(abas.y - busca.y)).toBeLessThanOrEqual(30);
       if (largura >= 768) expect(filtros.x + filtros.width).toBeLessThanOrEqual(direita + 1);
       expect(await semRolagemHorizontal(page)).toBe(true);
       await capturar(page, `treinador-mural-largura-${largura}`);

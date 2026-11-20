@@ -1,4 +1,4 @@
-import type { FiltrosDoMural, PaginaDoMural, TipoDePost } from '../api/comunidadeTipos';
+import type { FiltrosDoMural, PaginaDoMural, PostDoMural, TipoDePost } from '../api/comunidadeTipos';
 import { type FiltroDoMural, opcoesDoTipoDoMural, type PapelNoMural, type RascunhoDoPost, textoDoMuralVazio } from './comunidade';
 
 /**
@@ -102,4 +102,32 @@ export function textoDoVazioDaAba(aba: AbaDoMural, filtro: FiltroDoMural, busca:
   if (filtro.tipo || busca.trim()) return textoDoMuralVazio(filtro, busca);
   if (filtro.denunciados) return `Nenhuma publicação denunciada em ${rotuloDaAba(aba)}.`;
   return `${VAZIO_DA_ABA[aba]}${grupo ? ` no grupo ${grupo}` : ''} ainda.`;
+}
+
+/** Itens de cada bloco de destaques (Fixados, Enquetes abertas); o resto diz "Mais N" e fica no mural. */
+export const LIMITE_DOS_DESTAQUES = 5;
+
+export interface DestaquesDoMural {
+  fixados: PostDoMural[];
+  enquetes: PostDoMural[];
+  fixadosAMais: number;
+  enquetesAMais: number;
+}
+
+const enqueteAberta = (p: PostDoMural): boolean => p.tipo === 'ENQUETE' && !!p.enquete && !p.enquete.encerrada;
+
+/**
+ * Os destaques do mural da equipe (D5 de 19/11), na ordem da API (fixados primeiro, mais novos antes): "Fixados" são os
+ * posts fixados que não são enquete aberta (essa já está no outro bloco, sem repetir) e "Enquetes abertas", as enquetes
+ * não encerradas. Cada bloco leva até `limite`; quem passa disso só conta.
+ */
+export function destaquesDoMural(posts: readonly PostDoMural[], limite = LIMITE_DOS_DESTAQUES): DestaquesDoMural {
+  const fixados = posts.filter((p) => p.fixado && !enqueteAberta(p));
+  const enquetes = posts.filter(enqueteAberta);
+  return {
+    fixados: fixados.slice(0, limite),
+    enquetes: enquetes.slice(0, limite),
+    fixadosAMais: Math.max(0, fixados.length - limite),
+    enquetesAMais: Math.max(0, enquetes.length - limite),
+  };
 }

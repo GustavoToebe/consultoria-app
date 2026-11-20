@@ -89,7 +89,7 @@ export function FolhaDosVotos({ alvo, papel, aoFechar }: { alvo: AlvoDosVotos; p
         <View style={estilos.conteudo}>
           <View style={estilos.cabeca}>
             <Texto variante="bloco" nivel={3}>{resumo.pergunta}</Texto>
-            <Texto variante="suave" numerico>{textoDosParticipantes(resumo.participantes)}</Texto>
+            <Texto variante="suave">{textoDosParticipantes(resumo.participantes)}</Texto>
           </View>
           {resumo.opcoes.length > 1 ? (
             <Escolha chips rotulo="Mostrar" valor={opcaoId} aoMudar={setOpcaoId}

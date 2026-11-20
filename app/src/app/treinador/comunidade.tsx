@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Library, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, Users, UserX } from 'lucide-react-native';
-import { useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Library, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, UserX } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 
 import {
   alternarFixadoDoPost, baixarCapaDaEquipe, baixarFotoDoMuralDaEquipe, baixarFotoDoVotanteDaEquipe, dispensarDenuncias,
@@ -11,7 +11,6 @@ import type { AlvoDosComentarios, FiltrosDoMural, PostDoMural, TipoDePost } from
 import { ErroApi } from '../../api/cliente';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
 import { CartaoDoPost } from '../../comunidade/CartaoDoPost';
-import { EscolhaDoGrupo } from '../../comunidade/EscolhaDoGrupo';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
 import { type AlvoDosVotos, FolhaDosVotos } from '../../comunidade/FolhaDosVotos';
 import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
@@ -20,16 +19,19 @@ import {
   chipsDoMural, type FiltroDoMural, filtrosParaApi, MURAL_SEM_FILTRO, type RascunhoDoPost, rotuloDoPost, TIPO_PADRAO_DO_POST,
 } from '../../dominio/comunidade';
 import {
-  type AbaDoMural, ABAS_DO_MURAL, abaDoParametro, abaDoTipo, carregarMuralDaAba, filtroNaAba, rascunhoAoAbrir, textoDoVazioDaAba, tiposParaBuscar,
+  type AbaDoMural, ABAS_DO_MURAL, abaDoParametro, abaDoTipo, carregarMuralDaAba, destaquesDoMural, filtroNaAba, rascunhoAoAbrir,
+  textoDoVazioDaAba, tiposDaAba, tiposParaBuscar,
 } from '../../dominio/muralEmAbas';
-import { FolhaConfiguracoesDoMural } from '../../treinador/comunidade/FolhaConfiguracoesDoMural';
-import { FolhaGruposDaComunidade } from '../../treinador/comunidade/FolhaGruposDaComunidade';
+import { DestaquesDoMural } from '../../treinador/comunidade/DestaquesDoMural';
+import { FolhaConfiguracoesDoMural, type SecaoDasConfiguracoes } from '../../treinador/comunidade/FolhaConfiguracoesDoMural';
+import { SeletorDoMural } from '../../treinador/comunidade/SeletorDoMural';
 import { BarraDaSelecao, FolhasDosVideos, ListaDosVideos } from '../../treinador/comunidade/ListaDosVideos';
 import { useVideosDaEquipe } from '../../treinador/comunidade/useVideosDaEquipe';
 import { FolhaDeAcoes } from '../../treinador/FolhaDeAcoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
+import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -40,6 +42,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { depoisDeFecharAsFolhas } from '../../ui/historicoDasFolhas';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { useRolagem } from '../../ui/RolagemComTopo';
 import { Tela } from '../../ui/Tela';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 
@@ -60,16 +63,52 @@ const RASCUNHO_VAZIO: RascunhoDoPost = { tipo: TIPO_PADRAO_DO_POST, texto: '' };
 const PREFIXO_DO_MURAL = 'treinador-mural:';
 const fixadosPrimeiro = (posts: PostDoMural[]) => [...posts].sort((a, b) => Number(b.fixado) - Number(a.fixado));
 /**
- * Só as publicações do mural têm coluna de leitura (D10, guia pág. 35: 760 a 960 px): 800 deixa o parágrafo perto de
- * 95 caracteres por linha. Cabeçalho, abas, busca e a grade dos aulões usam a largura útil, e a coluna fica à esquerda,
+ * Só as publicações do mural têm coluna de leitura: ~720 px (D5 de 19/11, a mesma do mural do aluno), perto de 85
+ * caracteres por linha. Cabeçalho, barra, busca e a grade dos aulões usam a largura útil, e a coluna fica à esquerda,
  * na borda do cabeçalho, para não abrir margem entre o menu e o conteúdo.
  */
-const LARGURA_DAS_PUBLICACOES = 800;
+const LARGURA_DAS_PUBLICACOES = 720;
 /** Respiro das laterais no PC (24 a 32 px, plano larguras-das-telas); o celular fica com os 16 da `Tela`. */
 const FOLGA_NO_PC = espaco(3.5);
+/**
+ * Área do mural (medida no `onLayout` do bloco do mural, não na janela: o menu lateral come largura) a partir da qual
+ * "Fixados" e "Enquetes abertas" vão para uma coluna à direita, grudada ao rolar (D5, 19/11); abaixo, ficam no topo do
+ * feed. Na janela de 1280 com o menu aberto a área tem ~984 px, então a coluna aparece a partir de ~1576 px de janela.
+ * shortcut: medida local; trocar pela régua de largura do app (`useFaixaDeLargura`) quando ela chegar à `main`.
+ */
+const AREA_PARA_A_COLUNA = 1280;
+const LARGURA_DA_COLUNA = 340;
+const VAO_DA_COLUNA = espaco(4);
+/** `position: sticky` existe no react-native-web (CSS), mas não no tipo do React Native (o mesmo de `FormMarca`). */
+const GRUDADA = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), overflowY: 'auto' } : {}) as unknown as ViewStyle;
+const alvoDoPost = (id: string) => `mural-post:${id}`;
+const idDoPost = (id: string) => `mural-post-${id}`;
+
+/**
+ * Leva à publicação escolhida nos destaques (precisa estar dentro da rolagem da `Tela`): rola quando ela está no feed e,
+ * na web, põe o foco nela (o cartão tem `tabIndex` -1), para o teclado e o leitor de tela seguirem dali. Se o feed já
+ * carregou sem ela (removida no meio), desiste.
+ */
+function IrAoPost({ id, noFeed, perdido, aoTerminar }: { id: string | null; noFeed: boolean; perdido: boolean; aoTerminar: (id: null) => void }) {
+  const { rolarAte } = useRolagem();
+  useEffect(() => {
+    if (!id) return;
+    if (perdido) { aoTerminar(null); return; }
+    if (!noFeed) return;
+    rolarAte([alvoDoPost(id)]);
+    // Depois da rolagem (o `rolarAte` espera 80 ms para medir): o foco sem rolar de novo.
+    const relogio = setTimeout(() => {
+      if (Platform.OS === 'web') document.getElementById(idDoPost(id))?.focus({ preventScroll: true });
+      aoTerminar(null);
+    }, 400);
+    return () => clearTimeout(relogio);
+  }, [id, noFeed, perdido, rolarAte, aoTerminar]);
+  return null;
+}
 
 export default function ComunidadeTreinador() {
-  const largo = useWindowDimensions().width >= LARGURA_MENU_LATERAL;
+  const janela = useWindowDimensions();
+  const largo = janela.width >= LARGURA_MENU_LATERAL;
   const { pode } = useSessao();
   const { avisar } = useAviso();
   // A tela abre com TREINO_LER; publicar e moderar (aulões, mural, apelidos) pedem COMUNIDADE_MODERAR (a API confere de novo).
@@ -96,20 +135,35 @@ export default function ComunidadeTreinador() {
   const pods = useCarregar(podePublicar && aba === 'mural' ? 'treinador-comunidade-pods' : null, () => listarPods());
   const [grupoDoMural, setGrupoDoMural] = useState<string | null>(null);
   const podDoMural = filtro.denunciados ? null : pods.dados?.find((p) => p.id === grupoDoMural) ?? null;
-  const [vendoGrupos, setVendoGrupos] = useState(false);
   // A chave leva os tipos que a aba pede: trocar de aba ou de chip busca de novo, e a resposta de outra aba não entra.
   const chaveDoMural = `${PREFIXO_DO_MURAL}${JSON.stringify({ tipos: tiposParaBuscar(filtro, abaDoMural), filtros: filtrosParaApi(filtro, buscaAtrasada, podDoMural?.id) })}`;
-  const mural = useCarregar(chaveDoMural, (c) => {
+  const carregarDaChave = (c: string) => {
     const pedido: { tipos: TipoDePost[]; filtros: FiltrosDoMural } = JSON.parse(c.slice(PREFIXO_DO_MURAL.length));
     return carregarMuralDaAba(listarMuralDaEquipe, pedido.filtros, pedido.tipos);
-  });
+  };
+  const mural = useCarregar(chaveDoMural, carregarDaChave);
+  // Fixados e enquetes abertas vêm da aba Avisos do mural escolhido, sem busca nem filtro (os destaques não somem ao
+  // buscar). Na aba Avisos sem filtro é a mesma chave do feed: usa o que já veio, sem pedir de novo.
+  const chaveDosDestaques = `${PREFIXO_DO_MURAL}${JSON.stringify({ tipos: tiposDaAba('avisos'), filtros: filtrosParaApi(MURAL_SEM_FILTRO, '', podDoMural?.id) })}`;
+  const destaquesProprios = chaveDosDestaques !== chaveDoMural;
+  const fonteDosDestaques = useCarregar(aba === 'mural' && destaquesProprios ? chaveDosDestaques : null, carregarDaChave);
+  const recarregarMural = () => { mural.recarregar(); fonteDosDestaques.recarregar(); };
   const acoesDoPost = useAcoesDoPost({ mural, chave: chaveDoMural, reagir: podePublicar ? reagirComoEquipe : undefined,
     votar: podeVotar ? votarComoEquipe : undefined });
   const [votosDe, setVotosDe] = useState<AlvoDosVotos>(null);
   const posts = mural.dadosDeOutraChave ? undefined : mural.dados?.content;
+  const postsDosDestaques = destaquesProprios ? (fonteDosDestaques.dadosDeOutraChave ? undefined : fonteDosDestaques.dados?.content) : posts;
+  const destaques = destaquesDoMural(postsDosDestaques ?? []);
+  // Largura do bloco do mural; `null` até medir, para os destaques não nascerem no topo e pularem para a coluna.
+  const [larguraDoMural, setLarguraDoMural] = useState<number | null>(null);
+  const comColuna = larguraDoMural !== null && larguraDoMural >= AREA_PARA_A_COLUNA;
+  // Publicação a mostrar, escolhida nos destaques (`IrAoPost`).
+  const [irPara, setIrPara] = useState<string | null>(null);
+  const noFeed = !!irPara && !!posts?.some((p) => p.id === irPara);
   const [rascunho, setRascunho] = useState<RascunhoDoPost>(RASCUNHO_VAZIO);
   const [compondo, setCompondo] = useState(false);
-  const [configurando, setConfigurando] = useState(false);
+  // A folha "Configurações do mural" aberta e por onde (o botão do cabeçalho ou o "Gerenciar grupos" do seletor).
+  const [configurando, setConfigurando] = useState<SecaoDasConfiguracoes | null>(null);
   const [menuDe, setMenuDe] = useState<PostDoMural | null>(null);
   const [removerPost, setRemoverPost] = useState<PostDoMural | null>(null);
   const [removendoPost, setRemovendoPost] = useState(false);
@@ -126,13 +180,13 @@ export default function ComunidadeTreinador() {
       await removerApelidoDoAutor(removerApelidoDe.autorId);
       setRemoverApelidoDe(null);
       avisar('Apelido removido.', 'sucesso');
-      mural.recarregar();
+      recarregarMural();
     } catch (e) {
       avisar(textoDoErro(e), 'perigo');
       // 404: o aluno saiu (conta excluída ou anonimizada) depois de o mural carregar; nada a remover, e o botão some ao recarregar.
       if (e instanceof ErroApi && e.status === 404) {
         setRemoverApelidoDe(null);
-        mural.recarregar();
+        recarregarMural();
       }
     } finally {
       setRemovendoApelido(false);
@@ -151,7 +205,7 @@ export default function ComunidadeTreinador() {
     avisar(grupo ? `Publicado no grupo ${grupo.nome}.` : pods.dados?.length ? 'Publicado no mural Geral.' : 'Publicado no mural.', 'sucesso');
     // Grava a aba só depois de a Folha devolver a entrada dela no histórico (na web): antes, o fechar voltaria à URL sem `?mural=`.
     if (abaDoPost !== abaDoMural) depoisDeFecharAsFolhas(() => setAbaDoMural(abaDoPost));
-    else mural.recarregar();
+    else recarregarMural();
   };
 
   // Fixar, desafixar e dispensar: o aviso confirma e o mural vem de novo (404 = o post já saiu, e some ao recarregar).
@@ -162,7 +216,7 @@ export default function ComunidadeTreinador() {
     } catch (e) {
       avisar(textoDoErro(e), 'perigo');
     }
-    mural.recarregar();
+    recarregarMural();
   };
 
   const confirmarRemoverPost = async () => {
@@ -176,7 +230,18 @@ export default function ComunidadeTreinador() {
     }
     setRemovendoPost(false);
     setRemoverPost(null);
-    mural.recarregar();
+    recarregarMural();
+  };
+
+  // Destaque tocado: com a publicação no feed, rola até ela; senão (aba Alunos, filtro ou busca), volta à aba Avisos sem
+  // filtro nem busca e rola quando ela chegar.
+  const irAoPost = (post: PostDoMural) => {
+    if (!posts?.some((p) => p.id === post.id)) {
+      setFiltro(MURAL_SEM_FILTRO);
+      setBusca('');
+      setAbaDoMural('avisos');
+    }
+    setIrPara(post.id);
   };
 
   const abrir = async (url: string | null | undefined) => {
@@ -192,7 +257,7 @@ export default function ComunidadeTreinador() {
     </>
   ) : (
     <>
-      <Botao rotulo="Configurações do mural" tipo="secundario" Icone={Settings} aoTocar={() => setConfigurando(true)} />
+      <Botao rotulo="Configurações do mural" tipo="secundario" Icone={Settings} aoTocar={() => setConfigurando('quemPublica')} />
       <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={comporNovaPublicacao} />
     </>
   );
@@ -217,52 +282,65 @@ export default function ComunidadeTreinador() {
       ) : null}
 
       {aba === 'mural' ? (
-        <View style={estilos.blocos}>
-          {/* Os grupos moram junto do seletor do mural (não no cabeçalho, que em 390 px quebraria em três linhas). */}
-          {podePublicar ? (
-            <View style={estilos.grupos}>
-              {pods.dados?.length ? (
-                <View style={estilos.encolher}>
-                  <EscolhaDoGrupo rotulo="Mural" rotuloDoNulo="Geral" grupos={pods.dados} valor={podDoMural?.id ?? null}
-                    aoMudar={setGrupoDoMural} motivo={filtro.denunciados ? 'As denunciadas vêm de todos os grupos.' : undefined} />
-                </View>
-              ) : null}
-              <Botao rotulo="Grupos" tipo="secundario" Icone={Users} aoTocar={() => setVendoGrupos(true)} />
+        <View style={estilos.blocos} onLayout={(e) => setLarguraDoMural(e.nativeEvent.layout.width)}>
+          {/* Barra única (D5): qual mural, Avisos | Alunos, a busca e os filtros, na largura da área (como o cabeçalho);
+              quebra em linhas só quando não cabe. */}
+          <View style={estilos.barra}>
+            {podePublicar ? (
+              <SeletorDoMural grupos={pods.dados ?? []} valor={podDoMural?.id ?? null} aoMudar={setGrupoDoMural}
+                travado={filtro.denunciados ? 'As denunciadas vêm de todos os grupos.' : undefined}
+                aoGerenciar={() => setConfigurando('grupos')} />
+            ) : null}
+            <Escolha<AbaDoMural> rotulo="Publicações" valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
+            <View style={estilos.buscaDaBarra}>
+              <BarraDoMural aba={abaDoMural} filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={podePublicar} />
             </View>
-          ) : null}
-          {/* Avisos | Alunos (C39): o segmento na largura da coluna lê como a divisão do conteúdo, abaixo do grupo (o escopo). */}
-          <View style={estilos.abasDoMural}>
-            <Escolha<AbaDoMural> descricao="Publicações" distribuida valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
           </View>
-          <BarraDoMural aba={abaDoMural} filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={podePublicar} />
 
-          <View testID="coluna-das-publicacoes" style={estilos.colunaDasPublicacoes}>
-            <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
-              textoVazio={textoDoVazioDaAba(abaDoMural, filtro, busca, podDoMural?.nome)}
-              recarregar={mural.recarregar}
-              acaoVazio={chipsDoMural(filtro).length ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) }
-                : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }
-                // Avisos vazio (a aba padrão) não é beco: o próximo passo é a outra aba.
-                : abaDoMural === 'avisos' ? { rotulo: 'Ver publicações dos alunos', aoTocar: () => setAbaDoMural('alunos') } : undefined} />
+          <View style={comColuna ? estilos.ladoALado : estilos.blocos}>
+            <View testID="coluna-das-publicacoes" style={estilos.colunaDasPublicacoes}>
+              {larguraDoMural !== null && !comColuna ? (
+                <DestaquesDoMural destaques={destaques} comFixados={abaDoMural === 'avisos'} aoIr={irAoPost} />
+              ) : null}
+              <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
+                textoVazio={textoDoVazioDaAba(abaDoMural, filtro, busca, podDoMural?.nome)}
+                recarregar={mural.recarregar}
+                acaoVazio={chipsDoMural(filtro).length ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) }
+                  : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }
+                  // Avisos vazio (a aba padrão) não é beco: o próximo passo é a outra aba.
+                  : abaDoMural === 'avisos' ? { rotulo: 'Ver publicações dos alunos', aoTocar: () => setAbaDoMural('alunos') } : undefined} />
 
-            {posts ? fixadosPrimeiro(posts).map((post) => (
-              <CartaoDoPost
-                key={post.id}
-                post={post}
-                baixarFoto={baixarFotoDoMuralDaEquipe}
-                aoComentarios={() => setComentariosDe({ tipo: 'post', id: post.id })}
-                aoAbrirMenu={podePublicar ? () => setMenuDe(post) : undefined}
-                baixarCapa={baixarCapaDaEquipe}
-                aoAbrirFora={(url) => void abrir(url)}
-                aoReagir={acoesDoPost.aoReagir ? (codigo, ligar) => acoesDoPost.aoReagir?.(post.id, codigo, ligar) : undefined}
-                aoVotar={acoesDoPost.aoVotar ? (ids) => acoesDoPost.aoVotar?.(post.id, ids) : undefined}
-                ocupado={acoesDoPost.ocupados.has(post.id)}
-                aoMostrarVotos={() => setVotosDe({ postId: post.id })}
-                baixarFotoDoVotante={baixarFotoDoVotanteDaEquipe}
-                grupo={post.podId ? rotuloDoPost(post) : undefined}
-              />
-            )) : null}
+              {posts ? fixadosPrimeiro(posts).map((post) => (
+                <AlvoDeRolagem key={post.id} chave={alvoDoPost(post.id)}>
+                  {/* `tabIndex` -1: recebe o foco quando um destaque leva até aqui, sem entrar na ordem do Tab. */}
+                  <View nativeID={idDoPost(post.id)} tabIndex={-1}>
+                    <CartaoDoPost
+                      post={post}
+                      baixarFoto={baixarFotoDoMuralDaEquipe}
+                      aoComentarios={() => setComentariosDe({ tipo: 'post', id: post.id })}
+                      aoAbrirMenu={podePublicar ? () => setMenuDe(post) : undefined}
+                      baixarCapa={baixarCapaDaEquipe}
+                      aoAbrirFora={(url) => void abrir(url)}
+                      aoReagir={acoesDoPost.aoReagir ? (codigo, ligar) => acoesDoPost.aoReagir?.(post.id, codigo, ligar) : undefined}
+                      aoVotar={acoesDoPost.aoVotar ? (ids) => acoesDoPost.aoVotar?.(post.id, ids) : undefined}
+                      ocupado={acoesDoPost.ocupados.has(post.id)}
+                      aoMostrarVotos={() => setVotosDe({ postId: post.id })}
+                      baixarFotoDoVotante={baixarFotoDoVotanteDaEquipe}
+                      grupo={post.podId ? rotuloDoPost(post) : undefined}
+                    />
+                  </View>
+                </AlvoDeRolagem>
+              )) : null}
+            </View>
+            {comColuna && (destaques.enquetes.length || (abaDoMural === 'avisos' && destaques.fixados.length)) ? (
+              <View testID="coluna-dos-destaques" style={[estilos.colunaDosDestaques, GRUDADA, Platform.OS === 'web' && { maxHeight: janela.height - espaco(4) }]}>
+                <DestaquesDoMural destaques={destaques} comFixados={abaDoMural === 'avisos'} aoIr={irAoPost} />
+              </View>
+            ) : null}
           </View>
+          <IrAoPost id={irPara} noFeed={noFeed} aoTerminar={setIrPara}
+            // Perdida só no feed que os destaques usaram (Avisos sem filtro nem busca), já carregado e sem ela.
+            perdido={!!irPara && !destaquesProprios && !!posts && !mural.carregando && !noFeed} />
         </View>
       ) : null}
 
@@ -288,10 +366,9 @@ export default function ComunidadeTreinador() {
         aoCancelar={() => setRemoverPost(null)}
       />
 
-      <FolhaConfiguracoesDoMural visivel={configurando && podePublicar} aoFechar={() => setConfigurando(false)} />
-      {/* Grupos e "Nova publicação" só existem abertas: cada abertura nasce do zero. Fechar com alteração pergunta "Sair
-          sem salvar?" na própria folha; fechar (sem alteração ou depois de sair) apaga o rascunho. */}
-      {vendoGrupos && podePublicar ? <FolhaGruposDaComunidade visivel grupos={pods} aoFechar={() => setVendoGrupos(false)} /> : null}
+      {/* Configurações e "Nova publicação" só existem abertas: cada abertura nasce do zero. Fechar com alteração pergunta
+          "Sair sem salvar?" na própria folha; fechar (sem alteração ou depois de sair) apaga o rascunho. */}
+      {configurando && podePublicar ? <FolhaConfiguracoesDoMural grupos={pods} secao={configurando} aoFechar={() => setConfigurando(null)} /> : null}
 
       {compondo && podePublicar ? (
         <FolhaNovaPublicacao visivel papel="equipe" rascunho={rascunho} aoMudar={setRascunho} inicial={rascunhoAoAbrir(RASCUNHO_VAZIO, abaDoMural, 'equipe')}
@@ -310,7 +387,7 @@ export default function ComunidadeTreinador() {
       />
 
       <FolhaComentarios alvo={comentariosDe} modo={{ tipo: 'equipe', podeModerar: podePublicar }}
-        aoFechar={() => setComentariosDe(null)} aoAlterar={comentariosDe?.tipo === 'aula' ? videos.auloes.recarregar : mural.recarregar} />
+        aoFechar={() => setComentariosDe(null)} aoAlterar={comentariosDe?.tipo === 'aula' ? videos.auloes.recarregar : recarregarMural} />
       <FolhaDosVotos alvo={votosDe} papel="equipe" aoFechar={() => setVotosDe(null)} />
 
       <FolhasDosVideos v={videos} podePublicar={podePublicar} />
@@ -324,9 +401,12 @@ const estilos = StyleSheet.create({
   raiz: { flex: 1 },
   // 24 px entre blocos; 16 px dentro do cartão e do item.
   blocos: { gap: espaco(3) },
-  grupos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5),
-    width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES },
-  encolher: { flexShrink: 1, minWidth: 0 },
-  abasDoMural: { width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES },
-  colunaDasPublicacoes: { width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES, gap: espaco(3) },
+  // Os controles da barra alinham pelo topo: todos têm o rótulo à vista em cima, e os "Filtrando:" da busca ficam embaixo
+  // dela sem empurrar os vizinhos.
+  barra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(2), rowGap: espaco(1.5), width: '100%' },
+  buscaDaBarra: { flexGrow: 1, flexShrink: 1, flexBasis: 360, minWidth: 0 },
+  // `flex-start`: sem ele a coluna estica até a altura do feed e o `sticky` não tem para onde andar.
+  ladoALado: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO_DA_COLUNA },
+  colunaDasPublicacoes: { width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES, flexShrink: 1, gap: espaco(3) },
+  colunaDosDestaques: { width: LARGURA_DA_COLUNA, alignSelf: 'flex-start', gap: espaco(3) },
 });

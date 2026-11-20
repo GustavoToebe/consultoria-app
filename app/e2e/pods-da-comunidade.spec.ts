@@ -6,8 +6,8 @@ import { sessaoDeAluno } from './aluno';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type PedidoFalso, type RespostasApi } from './api-falsa';
 
 /**
- * Pods da comunidade (`docs/planos/pods-da-comunidade.md`, passo 3): "Geral" e "Meu grupo" no mural do aluno, a folha
- * "Grupos" e o filtro do mural da equipe, o "Publicar em" da equipe com o aviso de menor e o "Mudar grupo" da ficha, com o
+ * Pods da comunidade (`docs/planos/pods-da-comunidade.md`, passo 3): "Geral" e "Meu grupo" no mural do aluno, a seção
+ * "Grupos" das "Configurações do mural" (aberta pelo "Gerenciar grupos" do seletor) e o filtro do mural da equipe, o "Publicar em" da equipe com o aviso de menor e o "Mudar grupo" da ficha, com o
  * 409 `POD_CHEIO`. A API simulada segue os formatos reais (`/comunidade/pods`, `/alunos/{id}/pod`, `?podId=`). Só dados
  * fictícios; o grupo do aluno vem do servidor (`pod` da configuração), nunca de uma escolha do app.
  */
@@ -201,8 +201,8 @@ for (const largura of [390, 1280]) {
     test('treinador: cria e renomeia grupos, com N de 12 e o aviso de menor', async ({ page }) => {
       const pods = comPods([POD_A]);
       const api = await abrirMuralDaEquipe(page, pods.rotas);
-      await page.getByRole('button', { name: 'Grupos', exact: true }).click();
-      const folha = page.getByRole('dialog', { name: 'Grupos da comunidade' });
+      await page.getByRole('button', { name: 'Gerenciar grupos' }).click();
+      const folha = page.getByRole('dialog', { name: 'Configurações do mural' });
       await expect(folha.getByText('5 de 12 alunos')).toBeVisible();
       await expect(folha.getByText(AVISO_DE_MENOR)).toBeVisible();
 
@@ -264,8 +264,9 @@ for (const largura of [390, 1280]) {
       const painel = page.getByRole('dialog', { name: 'Filtros do mural' });
       await painel.getByRole('checkbox', { name: /Só denunciadas/ }).click();
       await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+      // Só denunciadas: no lugar da escolha, o motivo (os grupos voltam ao tirar o filtro).
       await expect(page.getByText('As denunciadas vêm de todos os grupos.')).toBeVisible();
-      await expect(mural.getByRole('radio', { name: POD_A.nome })).toBeDisabled();
+      await expect(mural).toHaveCount(0);
       await expect.poll(() => api.pedidos.filter((p) => foi(p, 'GET', '/comunidade/mural')).at(-1)?.busca.toString()).not.toContain('podId');
       expect(api.naoTratadas).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
@@ -277,8 +278,8 @@ for (const largura of [390, 1280]) {
         'GET /comunidade/pods': (_p, route) => (falhar ? json(route, erroApi(500, 'Falha no servidor.').corpo, 500) : json(route, [])),
       });
       await expect(page.getByRole('radiogroup', { name: 'Mural' })).toHaveCount(0);
-      await page.getByRole('button', { name: 'Grupos', exact: true }).click();
-      const folha = page.getByRole('dialog', { name: 'Grupos da comunidade' });
+      await page.getByRole('button', { name: 'Gerenciar grupos' }).click();
+      const folha = page.getByRole('dialog', { name: 'Configurações do mural' });
       await expect(folha.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
       await capturar(page, `treinador-grupos-erro-${largura}`);
       falhar = false;
@@ -289,7 +290,7 @@ for (const largura of [390, 1280]) {
 
     test('sem COMUNIDADE_MODERAR: nem grupos no mural nem na ficha', async ({ page }) => {
       const api = await abrirMuralDaEquipe(page, {}, [...PERMISSOES_TREINADOR, 'TREINO_LER']);
-      await expect(page.getByRole('button', { name: 'Grupos', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Gerenciar grupos' })).toHaveCount(0);
       await expect(page.getByRole('radiogroup', { name: 'Mural' })).toHaveCount(0);
       expect(api.pedidos.some((p) => p.caminho === '/comunidade/pods')).toBe(false);
 
@@ -313,8 +314,9 @@ for (const largura of [390, 1280]) {
       const equipe = await page.context().newPage();
       await equipe.setViewportSize({ width: largura, height: 900 });
       const api = await abrirMuralDaEquipe(equipe, comPods(nove).rotas);
-      // Acima de oito opções o seletor vira escolha em folha, com busca e o "N de 12" de cada grupo.
+      // Acima de quatro grupos o seletor do mural vira lista suspensa (D5, 19/11).
       await expect(equipe.getByRole('radiogroup', { name: 'Mural' })).toHaveCount(0);
+      await expect(equipe.getByRole('button', { name: 'Mural: Geral. Escolher.' })).toBeVisible();
       await capturar(equipe, `extremo-mural-nove-grupos-${largura}`);
       await equipe.getByRole('button', { name: /^Filtros, / }).click();
       const painel = equipe.getByRole('dialog', { name: 'Filtros do mural' });
@@ -323,8 +325,8 @@ for (const largura of [390, 1280]) {
       await expect(equipe.getByText('As denunciadas vêm de todos os grupos.')).toBeVisible();
       await capturar(equipe, `extremo-mural-denunciadas-${largura}`);
 
-      await equipe.getByRole('button', { name: 'Grupos', exact: true }).click();
-      await expect(equipe.getByRole('dialog', { name: 'Grupos da comunidade' }).getByText(LONGO.nome, { exact: true })).toBeVisible();
+      await equipe.getByRole('button', { name: 'Gerenciar grupos' }).click();
+      await expect(equipe.getByRole('dialog', { name: 'Configurações do mural' }).getByText(LONGO.nome, { exact: true })).toBeVisible();
       await capturar(equipe, `extremo-folha-grupos-${largura}`);
       expect(api.errosDaPagina).toEqual([]);
 
@@ -455,10 +457,10 @@ for (const largura of [390, 1280]) {
       await tema(outra, TREINADOR.id, id);
       await abrirMuralDaEquipe(outra, comPods([POD_A, POD_B]).rotas);
       await capturar(outra, `treinador-mural-grupos-${nome}-${largura}`);
-      await outra.getByRole('button', { name: 'Grupos', exact: true }).click();
-      await expect(outra.getByRole('dialog', { name: 'Grupos da comunidade' }).getByText(AVISO_DE_MENOR)).toBeVisible();
+      await outra.getByRole('button', { name: 'Gerenciar grupos' }).click();
+      await expect(outra.getByRole('dialog', { name: 'Configurações do mural' }).getByText(AVISO_DE_MENOR)).toBeVisible();
       await capturar(outra, `treinador-folha-grupos-${nome}-${largura}`);
-      await outra.getByRole('dialog', { name: 'Grupos da comunidade' }).getByRole('button', { name: 'Fechar' }).click();
+      await outra.getByRole('dialog', { name: 'Configurações do mural' }).getByRole('button', { name: 'Fechar' }).click();
       await outra.getByRole('button', { name: 'Nova publicação' }).click();
       const nova = outra.getByRole('dialog', { name: 'Nova publicação' });
       await nova.getByRole('radio', { name: POD_A.nome }).click();

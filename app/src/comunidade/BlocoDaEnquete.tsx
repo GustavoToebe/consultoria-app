@@ -72,7 +72,7 @@ export function BlocoDaEnquete({ postId, enquete, aoVotar, motivo, ocupado, aoMo
       <View style={[estilos.meta, estilos.rodape]}>
         <View style={estilos.participantes}>
           <Users size={16} color={cores.textoSuave} aria-hidden />
-          <Texto variante="suave" numerico>{textoDosParticipantes(enquete.participantes)}</Texto>
+          <Texto variante="suave">{textoDosParticipantes(enquete.participantes)}</Texto>
         </View>
         {enquete.participantes > 0 ? <Botao rotulo="Mostrar votos" tipo="fantasma" aoTocar={aoMostrarVotos} /> : null}
       </View>
