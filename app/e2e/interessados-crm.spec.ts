@@ -61,7 +61,7 @@ for (const largura of process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280])
 
       await page.getByRole('button', { name: 'Mover Pessoa Fictícia 1 para' }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Em contato', exact: true }).click();
-      await expect(page.getByText('Pessoa Fictícia 1: Em contato.')).toBeVisible();
+      await expect(page.getByText('Movido para Em contato.')).toBeVisible();
       const etapa = pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith('/etapa'));
       expect(etapa?.corpo).toEqual({ situacao: 'EM_CONTATO', versao: 1 });
 
@@ -422,14 +422,16 @@ for (const largura of process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280])
   });
 }
 
-/** Toque longo no cartão e arraste até perto do topo da coluna; `noMeio` roda com o botão ainda apertado. */
+/**
+ * Segura o cartão e arrasta até perto do topo da coluna; `noMeio` roda com o botão ainda apertado. No mouse o arraste
+ * começa depois de 4 px (a espera de antes do toque longo continua valendo: segurar e depois mover também arrasta).
+ */
 async function arrastar(page: Page, cartao: Locator, destino: Locator, noMeio?: () => Promise<void>) {
   const de = await cartao.boundingBox();
   const para = await destino.boundingBox();
   if (!de || !para) throw new Error('sem medidas');
   await page.mouse.move(de.x + de.width / 2, de.y + de.height / 2);
   await page.mouse.down();
-  // Segura antes de mover: o arraste só começa depois do toque longo (250 ms).
   await page.waitForTimeout(450);
   const passos = 12;
   for (let k = 1; k <= passos; k += 1) {
@@ -456,7 +458,7 @@ async function abrirComUmaNova(page: Page) {
 test('Kanban no PC: arrastar o cartão para outra coluna aberta manda PUT /etapa com a versão', async ({ page }) => {
   const { pedidos, naoTratadas, errosDaPagina, cartao, destino } = await abrirComUmaNova(page);
   await arrastar(page, cartao, destino);
-  await expect(page.getByText('Pessoa Fictícia 1: Em negociação.')).toBeVisible();
+  await expect(page.getByText('Movido para Em negociação.')).toBeVisible();
   const etapa = pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith('/etapa'));
   expect(etapa?.corpo).toEqual({ situacao: 'EM_NEGOCIACAO', versao: 1 });
   // Soltar não abre a folha: o detalhe da inscrição nem é pedido.
@@ -465,17 +467,19 @@ test('Kanban no PC: arrastar o cartão para outra coluna aberta manda PUT /etapa
   expect(errosDaPagina).toEqual([]);
 });
 
-test('Kanban com movimento reduzido: o cartão não segue o mouse, e soltar na coluna ainda move', async ({ page }) => {
+test('Kanban com movimento reduzido: a cópia segue o mouse (D2), o cartão fica no lugar e soltar na coluna ainda move', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const { pedidos, naoTratadas, errosDaPagina, cartao, destino } = await abrirComUmaNova(page);
   const antes = (await cartao.boundingBox())!;
   await arrastar(page, cartao, destino, async () => {
-    // No meio do arraste o cartão continua onde estava.
+    // No meio do arraste o cartão continua onde estava (vira o espaço tracejado) e a cópia translúcida está longe dele.
     const agora = (await cartao.boundingBox())!;
     expect(Math.abs(agora.x - antes.x)).toBeLessThan(2);
     expect(Math.abs(agora.y - antes.y)).toBeLessThan(2);
+    const copia = (await page.locator('[data-copia-do-arraste]').boundingBox())!;
+    expect(copia.x - antes.x).toBeGreaterThan(100);
   });
-  await expect(page.getByText('Pessoa Fictícia 1: Em negociação.')).toBeVisible();
+  await expect(page.getByText('Movido para Em negociação.')).toBeVisible();
   expect(pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith('/etapa'))?.corpo).toEqual({ situacao: 'EM_NEGOCIACAO', versao: 1 });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);

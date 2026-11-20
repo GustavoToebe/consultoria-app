@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { ConteudoDieta, ExercicioPlano, PlanoDetalhe, Receita, Serie } from '../src/api/tipos';
 import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
 import { json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { contagensFalsas, detalheFalso, idDe, resumoFalso, rotasDaTela } from './inscricoes-falsas';
 
 /**
  * Arrastar para reordenar (18/11, plano `docs/planos/dieta-tabela-e-arrastar.md`): a alça ≡ no começo do item, a linha
@@ -229,3 +230,153 @@ for (const escuro of [false, true]) {
     expect(naoTratadas).toEqual([]);
   });
 }
+
+// ---- arrastar com cópia translúcida (19/11, `docs/planos/arrastar-com-copia-translucida.md`) ----
+
+const copia = (page: Page) => page.locator('[data-copia-do-arraste]');
+
+test('Esc cancela o arraste: a cópia some, a origem volta e a ordem não muda (dieta, 1280)', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { naoTratadas, errosDaPagina } = await abrirDieta(page);
+  const grupo = page.getByRole('group', { name: 'Refeições do plano' });
+  await grupo.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(300);
+  const alca = (await grupo.getByTestId('alca-de-arraste').nth(2).boundingBox())!;
+  const alvo = (await page.getByRole('button', { name: /^Refeição 1 de 3/ }).boundingBox())!;
+  const x = alca.x + alca.width / 2;
+  const y0 = alca.y + alca.height / 2;
+  await page.mouse.move(x, y0);
+  await page.mouse.down();
+  for (let k = 1; k <= 8; k += 1) await page.mouse.move(x, y0 + ((alvo.y + 4 - y0) * k) / 8);
+  // No meio: a cópia translúcida (0,6) existe, fora da árvore de acessibilidade.
+  await expect(copia(page)).toHaveCount(1);
+  await expect(copia(page)).toHaveAttribute('aria-hidden', 'true');
+  expect(await copia(page).evaluate((el) => getComputedStyle(el).opacity)).toBe('0.6');
+  await page.keyboard.press('Escape');
+  // Volta para a origem (encaixe curto) e some; soltar depois não muda nada nem avisa.
+  await expect(copia(page)).toHaveCount(0);
+  await page.mouse.up();
+  expect(await ordemDasRefeicoes(page)).toEqual(['Café da manhã', 'Almoço', 'Jantar']);
+  await expect(page.getByRole('alert').filter({ hasText: 'Ordem alterada.' })).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+  expect(naoTratadas).toEqual([]);
+});
+
+/** Kanban com duas novas, nenhuma em contato e uma em negociação; o PUT /etapa devolve a versão seguinte. */
+async function abrirKanban(page: Page, largura: number, escuro = false) {
+  await page.setViewportSize({ width: largura, height: 900 });
+  if (escuro) await page.addInitScript(([id]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'ESCURO' })), [TREINADOR.id]);
+  const novas = [resumoFalso(1, { proximoRetorno: null }), resumoFalso(2)];
+  const negociacao = [resumoFalso(3, { situacao: 'EM_NEGOCIACAO' })];
+  let versao = 1;
+  const api = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...rotasDaTela(),
+    'GET /questionarios/opcoes': { corpo: [] },
+    'GET /inscricoes/contagens': { corpo: contagensFalsas({ NOVA: 2, EM_NEGOCIACAO: 1 }) },
+    'GET /inscricoes': (p, route) => {
+      const situacao = p.busca.get('situacao');
+      if (situacao === 'NOVA') return json(route, { itens: novas, total: 2 });
+      if (situacao === 'EM_NEGOCIACAO') return json(route, { itens: negociacao, total: 1 });
+      return json(route, { itens: [], total: 0 });
+    },
+    [`PUT /inscricoes/${idDe(1)}/etapa`]: (p, route) => {
+      versao += 1;
+      const { situacao } = p.corpo as { situacao: 'NOVA' | 'EM_CONTATO' };
+      return json(route, detalheFalso(novas[0], { situacao, versao }));
+    },
+  });
+  await page.goto('/treinador/interessados?visao=kanban');
+  await expect(page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 1' })).toBeVisible();
+  return api;
+}
+
+for (const escuro of [false, true]) {
+  const tema = escuro ? 'escuro' : 'claro';
+  test(`kanban: arrastar o cartão para outra coluna, coluna destacada com "Solte aqui", Movido para e Desfazer (1280, ${tema})`, async ({ page }) => {
+    const { pedidos, naoTratadas, errosDaPagina } = await abrirKanban(page, 1280, escuro);
+    await expect(page.getByText('Arraste pelo ⋮⋮ ou use o ⋯ do cartão.')).toBeVisible();
+    const cartao = page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 1' });
+    const emContato = page.getByRole('list', { name: /^Em contato/ });
+    // Sem arraste, a coluna vazia diz "Nenhuma inscrição."; durante, "Solte aqui".
+    await expect(emContato.getByText('Nenhuma inscrição.')).toBeVisible();
+    if (capturas) await page.screenshot({ path: `${capturas}/kanban-parado-1280-${tema}.png` });
+    const de = (await cartao.boundingBox())!;
+    const para = (await emContato.boundingBox())!;
+    const x0 = de.x + de.width / 2;
+    const y0 = de.y + 20;
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    for (let k = 1; k <= 12; k += 1) await page.mouse.move(x0 + ((para.x + para.width / 2 - x0) * k) / 12, y0 + ((para.y + 90 - y0) * k) / 12);
+    await expect(copia(page)).toHaveCount(1);
+    await expect(emContato.getByText('Solte aqui')).toBeVisible();
+    // A coluna de destino ganha a borda na cor de ação; as outras seguem com a borda comum.
+    const bordas = await page.getByRole('list').evaluateAll((els) => els.map((el) => getComputedStyle(el).borderTopColor));
+    expect(new Set(bordas).size).toBe(2);
+    if (capturas) await page.screenshot({ path: `${capturas}/kanban-arrastando-1280-${tema}.png` });
+    await page.mouse.up();
+    await expect(page.getByText('Movido para Em contato.')).toBeVisible();
+    await expect(copia(page)).toHaveCount(0);
+    const etapas = () => pedidos.filter((p) => p.metodo === 'PUT' && p.caminho.endsWith('/etapa')).map((p) => p.corpo);
+    expect(etapas()).toEqual([{ situacao: 'EM_CONTATO', versao: 1 }]);
+    // Soltar não abre a folha da inscrição (o clique depois do arraste é ignorado).
+    expect(pedidos.some((p) => p.metodo === 'GET' && p.caminho === `/inscricoes/${idDe(1)}`)).toBe(false);
+    await page.getByRole('alert').filter({ hasText: 'Movido para Em contato.' }).getByRole('button', { name: 'Desfazer' }).click();
+    await expect(page.getByText('Voltou para Novas.')).toBeVisible();
+    expect(etapas()).toEqual([{ situacao: 'EM_CONTATO', versao: 1 }, { situacao: 'NOVA', versao: 2 }]);
+    // O ⋯ do cartão abre os destinos ("Mover para"), com o nome acessível de antes.
+    await page.getByRole('button', { name: 'Mover Pessoa Fictícia 2 para', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Mover Pessoa Fictícia 2' }).getByRole('button', { name: 'Em contato', exact: true })).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+    expect(naoTratadas).toEqual([]);
+  });
+}
+
+test('kanban no celular (390): sem arrastar (uma coluna por vez), ⋯ no canto do cartão e sem ⋮⋮', async ({ page }) => {
+  const { naoTratadas, errosDaPagina } = await abrirKanban(page, 390);
+  await expect(page.getByText('Use o ⋯ do cartão para mudar de etapa.')).toBeVisible();
+  const cartao = page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 1' });
+  const mais = page.getByRole('button', { name: 'Mover Pessoa Fictícia 1 para', exact: true });
+  const c = (await cartao.boundingBox())!;
+  const m = (await mais.boundingBox())!;
+  // O ⋯ fica à direita do conteúdo, no alto do cartão, com 44 px de alvo.
+  expect(m.x).toBeGreaterThan(c.x + c.width - 2);
+  expect(Math.abs(m.y - c.y)).toBeLessThan(12);
+  expect(Math.min(m.width, m.height)).toBeGreaterThanOrEqual(43.5);
+  expect(await page.evaluate(() => [...document.querySelectorAll('*')].filter((e) => getComputedStyle(e).touchAction === 'none').length)).toBe(0);
+  if (capturas) await page.screenshot({ path: `${capturas}/kanban-parado-390-claro.png` });
+  expect(errosDaPagina).toEqual([]);
+  expect(naoTratadas).toEqual([]);
+});
+
+test('rolagem automática perto da borda de baixo: a página rola com o mouse parado, o tracejado acompanha a origem e soltar cai no fim (dieta, 1280×600)', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  const { naoTratadas, errosDaPagina } = await abrirDieta(page);
+  const grupo = page.getByRole('group', { name: 'Refeições do plano' });
+  // No centro: com `start` a lista fica embaixo da barra fixa do editor e o clique cai nela.
+  await grupo.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(300);
+  const titulo = page.getByRole('heading', { name: 'Refeições (3)' });
+  const antes = (await titulo.boundingBox())!.y;
+  const alca = (await grupo.getByTestId('alca-de-arraste').first().boundingBox())!;
+  const x = alca.x + alca.width / 2;
+  const y0 = alca.y + alca.height / 2;
+  await page.mouse.move(x, y0);
+  await page.mouse.down();
+  for (let k = 1; k <= 8; k += 1) await page.mouse.move(x, y0 + ((590 - y0) * k) / 8);
+  await expect(copia(page)).toHaveCount(1);
+  // Parado perto da borda: a página continua rolando sozinha.
+  await page.waitForTimeout(600);
+  const depois = (await titulo.boundingBox())!.y;
+  expect(antes - depois).toBeGreaterThan(60);
+  // O espaço tracejado acompanhou a origem (que subiu com a rolagem), em vez de ficar onde ela estava.
+  const origem = (await page.getByRole('button', { name: /^Refeição 1 de 3/ }).boundingBox())!;
+  const espaco = (await page.locator('[data-espaco-do-arraste]').boundingBox())!;
+  expect(origem.y + origem.height / 2).toBeGreaterThan(espaco.y);
+  expect(origem.y + origem.height / 2).toBeLessThan(espaco.y + espaco.height);
+  await page.mouse.up();
+  expect(await ordemDasRefeicoes(page)).toEqual(['Almoço', 'Jantar', 'Café da manhã']);
+  await expect(page.locator('[data-espaco-do-arraste]')).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+  expect(naoTratadas).toEqual([]);
+});

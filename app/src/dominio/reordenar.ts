@@ -29,6 +29,48 @@ export function destinoDoArraste(caixas: readonly (CaixaDoItem | undefined)[], d
   return antes;
 }
 
+/**
+ * A linha guia de 2 px no vão onde o item `de` cai se for solto em `para` (coordenadas da janela, como as caixas): no
+ * vertical, horizontal na largura do item de destino; em `linhas`, vertical na altura dele. `folga` é a metade do espaço
+ * entre os itens (a linha fica no meio do vão). Nula quando cai no mesmo lugar ou falta medida.
+ */
+export function linhaGuia(caixas: readonly (CaixaDoItem | undefined)[], de: number, para: number, eixo: 'vertical' | 'linhas', folga: number): CaixaDoItem | null {
+  const c = caixas[para];
+  if (para === de || !c || !caixas[de]) return null;
+  if (eixo === 'linhas') {
+    const x = para < de ? c.x - folga : c.x + c.w + folga;
+    return { x: x - 1, y: c.y, w: 2, h: c.h };
+  }
+  const y = para < de ? c.y - folga : c.y + c.h + folga;
+  return { x: c.x, y: y - 1, w: c.w, h: 2 };
+}
+
+/**
+ * O alvo sob o ponteiro (modo "sob o ponteiro": colunas do Kanban, células do Início em edição), ou `null` no vão entre
+ * eles. `soNaHorizontal`: só a faixa de x conta (colunas lado a lado têm alturas diferentes; soltar abaixo de uma coluna
+ * curta ainda é nela). Com caixas sobrepostas, vale a última.
+ */
+export function alvoSobOPonteiro<D>(alvos: readonly (readonly [D, CaixaDoItem])[], ponto: { x: number; y: number }, soNaHorizontal = false): D | null {
+  let achado: D | null = null;
+  for (const [chave, c] of alvos) {
+    const naLargura = ponto.x >= c.x && ponto.x <= c.x + c.w;
+    if (naLargura && (soNaHorizontal || (ponto.y >= c.y && ponto.y <= c.y + c.h))) achado = chave;
+  }
+  return achado;
+}
+
+/**
+ * Rolagem automática perto da borda da área que rola, por quadro: negativa sobe, positiva desce, zero fora da margem.
+ * Cresce até `maximo` px por quadro conforme o ponteiro chega na borda (ou passa dela).
+ */
+export function passoDaRolagem(y: number, area: { topo: number; base: number }, margem = 48, maximo = 18): number {
+  if (area.base - area.topo <= 2 * margem) return 0;
+  const perto = (distancia: number) => Math.round(maximo * Math.min(1, (margem - distancia) / margem));
+  if (y < area.topo + margem) return -perto(Math.max(0, y - area.topo));
+  if (y > area.base - margem) return perto(Math.max(0, area.base - y));
+  return 0;
+}
+
 /** Leva o item de `de` para `para` numa lista simples (os outros andam uma casa). Fora dos limites devolve a mesma lista. */
 export function moverPara<T>(lista: readonly T[], de: number, para: number): T[] {
   if (de === para || de < 0 || para < 0 || de >= lista.length || para >= lista.length) return lista as T[];

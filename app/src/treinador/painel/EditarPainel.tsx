@@ -1,10 +1,6 @@
-import { ArrowDown, ArrowUp, GripVertical, Plus, RotateCcw } from 'lucide-react-native';
-import { useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, Plus, RotateCcw } from 'lucide-react-native';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleOnRN } from 'react-native-worklets';
 
 import { Switch } from '../../components/ui/switch';
 import {
@@ -24,14 +20,15 @@ import {
   type TamanhoDoBloco,
 } from '../../dominio/painelDoInicio';
 import { larguraMaximaDoConteudo } from '../../dominio/larguraDoConteudo';
+import { alvoSobOPonteiro } from '../../dominio/reordenar';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { AlcaDeArraste, comItensComoAlvos, ItemArrastavel, useArraste, type ArrasteDoItem } from '../../ui/ArrasteDaLista';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { LinhaDeAcoes, RodapeDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
-import { useMovimentoReduzido } from '../../ui/useMovimentoReduzido';
 import { FaixaDoPainel, LinhaDeBlocos } from './FaixaDoPainel';
 import { linhasDaGrade } from './grade';
 
@@ -91,23 +88,18 @@ export function GradeEmEdicao({ ctx, rascunho, colunas, aoMudar }: {
   // Na web, com o dedo, segurar a faixa trava a rolagem dela (`touch-action: none`): em 1 coluna (celular) ficam só os botões.
   const arrastavel = Platform.OS !== 'web' || colunas > 1;
 
-  // ---- Arrastar: mede os cartões na janela ao começar e solta no cartão que está sob o dedo ----
-  const nos = useRef(new Map<BlocoDoPainelId, View | null>());
-  const caixas = useRef(new Map<BlocoDoPainelId, { x: number; y: number; w: number; h: number }>());
-  const [arrastando, setArrastando] = useState<BlocoDoPainelId | null>(null);
-  const comecar = (id: BlocoDoPainelId) => {
-    setArrastando(id);
-    caixas.current.clear();
-    nos.current.forEach((no, b) => no?.measureInWindow((x, y, w, h) => caixas.current.set(b, { x, y, w, h })));
-  };
-  const soltar = (id: BlocoDoPainelId, x: number, y: number) => {
-    setArrastando(null);
-    let destino: BlocoDoPainelId | null = null;
-    caixas.current.forEach((r, b) => { if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) destino = b; });
-    const i = destino ? visiveis.indexOf(destino) : -1;
-    if (i < 0 || destino === id) return;
-    aoMudar(moverBlocoPara(rascunho, id, i, visiveis), `${porId.get(id)?.titulo}: posição ${i + 1} de ${visiveis.length}.`);
-  };
+  // ---- Arrastar (peça `ui/ArrasteDaLista`): solta no bloco que está sob o ponteiro, que ganha a borda na cor de ação ----
+  // Sem o aviso "Ordem alterada" com Desfazer: aqui tudo é rascunho, a frase vai no rodapé e Cancelar descarta.
+  const arraste = comItensComoAlvos(useArraste<BlocoDoPainelId, BlocoDoPainelId>({
+    ativo: arrastavel && visiveis.length > 1,
+    destino: (_de, ponto, blocos) => alvoSobOPonteiro([...blocos], ponto),
+    aoSoltar: (id, destino) => {
+      const i = visiveis.indexOf(destino);
+      if (i < 0 || destino === id) return false;
+      aoMudar(moverBlocoPara(rascunho, id, i, visiveis), `${porId.get(id)?.titulo}: posição ${i + 1} de ${visiveis.length}.`);
+      return true;
+    },
+  }));
 
   const mover = (b: BlocoParaEditar, sentido: -1 | 1) => {
     const posicao = (b.posicao ?? 1) + sentido;
@@ -137,7 +129,7 @@ export function GradeEmEdicao({ ctx, rascunho, colunas, aoMudar }: {
     <View style={estilos.edicao}>
       <View style={estilos.intro}>
         <Texto variante="suave">
-          {arrastavel ? 'Segure a faixa do título para arrastar, ou use Subir e Descer. ' : 'Use Subir e Descer para mudar a ordem. '}
+          {arrastavel ? 'Arraste pelo ⋮⋮ da faixa do título, ou use Subir e Descer. ' : 'Use Subir e Descer para mudar a ordem. '}
           Nada muda até você salvar; fica salvo neste aparelho.
         </Texto>
         {notaDasColunas ? <Texto variante="pequeno">{notaDasColunas}</Texto> : null}
@@ -154,15 +146,15 @@ export function GradeEmEdicao({ ctx, rascunho, colunas, aoMudar }: {
           <Texto variante="suave">Nenhum bloco aparece no Início. Adicione um em Blocos ocultos.</Texto>
         ) : linhas.map((linha) => (
           <LinhaDeBlocos key={linha.map((c) => c.id).join(':')}
-            style={[estilos.linha, linha.some((c) => c.id === arrastando) ? estilos.linhaPorCima : null]}>
+            style={[estilos.linha, linha.some((c) => c.id === arraste.de) ? estilos.linhaPorCima : null]}>
             {linha.map((c) => {
               const b = porId.get(c.id);
               if (!b) return null;
               return (
-                <View key={c.id} ref={(no) => { nos.current.set(c.id, no); }} collapsable={false} style={{ flex: c.colunas, flexBasis: 0, minWidth: 0 }}>
-                  <CartaoEmEdicao bloco={b} arrastavel={arrastavel} emArraste={arrastando === b.id} aoComecar={() => comecar(b.id)} aoSoltar={(x, y) => soltar(b.id, x, y)}
+                <ItemArrastavel key={c.id} arraste={arraste} indice={c.id} style={{ flex: c.colunas, flexBasis: 0, minWidth: 0 }}>
+                  <CartaoEmEdicao bloco={b} arraste={arraste} destino={arraste.para === b.id && arraste.de !== b.id}
                     aoMover={(s) => mover(b, s)} aoRedimensionar={(t) => redimensionar(b, t)} aoOcultar={() => ocultar(b)} />
-                </View>
+                </ItemArrastavel>
               );
             })}
           </LinhaDeBlocos>
@@ -192,43 +184,22 @@ export function GradeEmEdicao({ ctx, rascunho, colunas, aoMudar }: {
 }
 
 /** O cartão de um bloco no modo de edição: faixa (alça do arraste), descrição, tamanho, ordem e "Aparece no Início". */
-function CartaoEmEdicao({ bloco: b, arrastavel, emArraste, aoComecar, aoSoltar, aoMover, aoRedimensionar, aoOcultar }: {
+function CartaoEmEdicao({ bloco: b, arraste, destino, aoMover, aoRedimensionar, aoOcultar }: {
   bloco: BlocoParaEditar;
-  arrastavel: boolean;
-  /** Este cartão está sendo arrastado: ganha o contorno do foco (também com o movimento reduzido, quando não segue o dedo). */
-  emArraste: boolean;
-  aoComecar: () => void;
-  aoSoltar: (x: number, y: number) => void;
+  arraste: ArrasteDoItem<BlocoDoPainelId>;
+  /** O bloco em arraste cai aqui se for solto agora: borda na cor de ação. */
+  destino: boolean;
   aoMover: (sentido: -1 | 1) => void;
   aoRedimensionar: (t: TamanhoDoBloco) => void;
   aoOcultar: () => void;
 }) {
   const { cores } = useTema();
-  const reduzido = useMovimentoReduzido();
-  const x = useSharedValue(0);
-  const y = useSharedValue(0);
-  const ativo = useSharedValue(0);
-  // Movimento reduzido: o cartão não segue o dedo; fica no lugar com o contorno do foco, e soltar continua valendo.
-  const estilo = useAnimatedStyle(() => (ativo.get() && !reduzido ? { transform: [{ translateX: x.get() }, { translateY: y.get() }], opacity: 0.92 } : {}));
-  // Segurar antes de arrastar: o toque rápido e a rolagem da página continuam livres.
-  const gesto = Gesture.Pan().enabled(arrastavel).activateAfterLongPress(250)
-    .onStart(() => { ativo.set(1); scheduleOnRN(aoComecar); })
-    .onUpdate((e) => { x.set(e.translationX); y.set(e.translationY); })
-    .onEnd((e) => { scheduleOnRN(aoSoltar, e.absoluteX, e.absoluteY); })
-    .onFinalize(() => { ativo.set(0); x.set(0); y.set(0); });
   const posicao = `Posição ${b.posicao} de ${b.total}`;
-  const faixa = (
-    <GestureDetector gesture={gesto}>
-      {/* A faixa é só a alça do arraste: Subir e Descer fazem o mesmo pelo teclado e pelo leitor de tela. */}
-      <View collapsable={false} style={arrastavel && Platform.OS === 'web' ? estilos.alca : null}>
-        <FaixaDoPainel titulo={b.titulo} descricao={posicao}
-          acoes={arrastavel ? <View aria-hidden importantForAccessibility="no-hide-descendants" style={estilos.grip}><GripVertical size={20} color={cores.textoSuave} /></View> : null} />
-      </View>
-    </GestureDetector>
-  );
+  // A alça ⋮⋮ da faixa só serve ao ponteiro: Subir e Descer fazem o mesmo pelo teclado e pelo leitor de tela.
+  const faixa = <FaixaDoPainel titulo={b.titulo} descricao={posicao} acoes={<AlcaDeArraste arraste={arraste} indice={b.id} />} />;
   return (
-    <Animated.View style={estilo}>
-      <Cartao cabecalho={faixa} style={{ borderColor: emArraste ? cores.anelFoco : cores.bordaCampo }}>
+    <View>
+      <Cartao cabecalho={faixa} style={{ borderColor: destino ? cores.acao : cores.bordaCampo }}>
         <Texto variante="pequeno">{b.descricao}</Texto>
         <View nativeID={alvo(b.id, 'tamanho')} style={estilos.campo}>
           <Texto variante="rotulo" cor={cores.texto}>Tamanho</Texto>
@@ -250,7 +221,7 @@ function CartaoEmEdicao({ bloco: b, arrastavel, emArraste, aoComecar, aoSoltar, 
           <Switch checked onCheckedChange={(v) => { if (!v) aoOcultar(); }} accessibilityLabel={`${b.titulo} aparece no Início`} />
         </View>
       </Cartao>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -291,9 +262,6 @@ const estilos = StyleSheet.create({
   topo: { alignItems: 'flex-start' },
   // A linha do cartão arrastado passa por cima das de baixo enquanto ele anda.
   linhaPorCima: { zIndex: 10 },
-  // Segurar e arrastar com o mouse não seleciona o título.
-  alca: { cursor: 'grab', userSelect: 'none' } as never,
-  grip: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(0.5) },
   campo: { gap: espaco(0.5) },
   aparece: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE },
   textoAparece: { flex: 1 },

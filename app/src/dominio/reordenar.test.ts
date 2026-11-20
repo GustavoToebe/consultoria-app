@@ -2,7 +2,7 @@ import type { ExercicioPlano } from '../api/tipos';
 import { moverExercicio, type ExerciciosEGrupos } from './combinacoes';
 import { mover } from './editorTreino';
 import { exercicio, grupo } from './exemplosDeTreino.apoioTeste';
-import { destinoDoArraste, moverPara, reordenarPorPassos } from './reordenar';
+import { alvoSobOPonteiro, destinoDoArraste, linhaGuia, moverPara, passoDaRolagem, reordenarPorPassos } from './reordenar';
 
 const lista = ['A', 'B', 'C', 'D'];
 // Quatro itens de 40 px de altura, um embaixo do outro, com 8 px entre eles (meios em 20, 68, 116, 164).
@@ -33,6 +33,65 @@ describe('destinoDoArraste', () => {
     expect(destinoDoArraste(chips, 0, { x: 120, y: 70 }, 'linhas')).toBe(3);
     expect(destinoDoArraste(chips, 5, { x: 5, y: 20 }, 'linhas')).toBe(0);
     expect(destinoDoArraste(chips, 0, { x: 280, y: 20 }, 'linhas')).toBe(2);
+  });
+});
+
+describe('linhaGuia', () => {
+  it('vertical: acima do destino ao subir, abaixo ao descer, no meio do vão', () => {
+    expect(linhaGuia(coluna, 3, 1, 'vertical', 4)).toEqual({ x: 0, y: 48 - 4 - 1, w: 300, h: 2 });
+    expect(linhaGuia(coluna, 0, 2, 'vertical', 4)).toEqual({ x: 0, y: 96 + 40 + 4 - 1, w: 300, h: 2 });
+  });
+
+  it('linhas: vertical à esquerda ao voltar, à direita ao avançar', () => {
+    const chips = [0, 1, 2].map((i) => ({ x: i * 110, y: 0, w: 100, h: 40 }));
+    expect(linhaGuia(chips, 2, 0, 'linhas', 5)).toEqual({ x: -5 - 1, y: 0, w: 2, h: 40 });
+    expect(linhaGuia(chips, 0, 1, 'linhas', 5)).toEqual({ x: 110 + 100 + 5 - 1, y: 0, w: 2, h: 40 });
+  });
+
+  it('mesmo lugar ou sem medida: sem linha', () => {
+    expect(linhaGuia(coluna, 1, 1, 'vertical', 4)).toBeNull();
+    expect(linhaGuia([coluna[0], undefined], 0, 1, 'vertical', 4)).toBeNull();
+    expect(linhaGuia([undefined, coluna[1]], 0, 1, 'vertical', 4)).toBeNull();
+  });
+});
+
+describe('alvoSobOPonteiro', () => {
+  // Três colunas lado a lado de 200 px com 12 px de vão; a do meio é curta.
+  const colunas = [['NOVA', { x: 0, y: 0, w: 200, h: 600 }], ['EM_CONTATO', { x: 212, y: 0, w: 200, h: 120 }], ['EM_NEGOCIACAO', { x: 424, y: 0, w: 200, h: 600 }]] as const;
+
+  it('acha a coluna pela faixa de x, também abaixo de uma coluna curta', () => {
+    expect(alvoSobOPonteiro(colunas, { x: 300, y: 50 }, true)).toBe('EM_CONTATO');
+    expect(alvoSobOPonteiro(colunas, { x: 300, y: 500 }, true)).toBe('EM_CONTATO');
+    expect(alvoSobOPonteiro(colunas, { x: 500, y: 10 }, true)).toBe('EM_NEGOCIACAO');
+  });
+
+  it('sem soNaHorizontal, o ponto precisa estar dentro da caixa (células do Início)', () => {
+    expect(alvoSobOPonteiro(colunas, { x: 300, y: 500 })).toBeNull();
+    expect(alvoSobOPonteiro(colunas, { x: 300, y: 100 })).toBe('EM_CONTATO');
+  });
+
+  it('no vão entre os alvos, fora deles ou sem alvo: nenhum', () => {
+    expect(alvoSobOPonteiro(colunas, { x: 206, y: 50 }, true)).toBeNull();
+    expect(alvoSobOPonteiro(colunas, { x: 900, y: 50 }, true)).toBeNull();
+    expect(alvoSobOPonteiro([], { x: 0, y: 0 })).toBeNull();
+  });
+});
+
+describe('passoDaRolagem', () => {
+  const area = { topo: 100, base: 700 };
+
+  it('fora da margem não rola; perto da borda rola mais quanto mais perto', () => {
+    expect(passoDaRolagem(400, area)).toBe(0);
+    expect(passoDaRolagem(100 + 48, area)).toBe(0);
+    expect(passoDaRolagem(100 + 24, area)).toBe(-9);
+    expect(passoDaRolagem(700 - 24, area)).toBe(9);
+    expect(passoDaRolagem(100, area)).toBe(-18);
+  });
+
+  it('além da borda fica no máximo; área pequena demais não rola', () => {
+    expect(passoDaRolagem(20, area)).toBe(-18);
+    expect(passoDaRolagem(900, area)).toBe(18);
+    expect(passoDaRolagem(110, { topo: 100, base: 180 })).toBe(0);
   });
 });
 
