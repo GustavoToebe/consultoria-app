@@ -1194,8 +1194,10 @@ for (const largura of [390, 1280]) {
       await page.goto('/treinador/comunidade');
       await expect(page.getByRole('heading', { name: 'Vídeo de técnica' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Novo vídeo' })).toHaveCount(0);
-      // Sem COMUNIDADE_MODERAR o cartão do vídeo não tem ⋯ (decisão de 20/11); a capa continua abrindo o vídeo.
+      // Sem COMUNIDADE_MODERAR o cartão do vídeo não tem ⋯ (decisão de 20/11): o botão visível abre o vídeo fora do app
+      // (link que não é do YouTube: "Abrir vídeo"), como manda o AGENTS.md.
       await expect(page.getByRole('button', { name: /^Ações do vídeo/ })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Abrir vídeo fora do app: Vídeo de técnica' })).toHaveText('Abrir vídeo');
       await page.getByRole('tab', { name: 'Mural' }).click();
       await page.getByRole('radio', { name: 'Alunos', exact: true }).click();
       await expect(page.getByText('Treino feito.')).toBeVisible();
@@ -1968,8 +1970,9 @@ for (const largura of [390, 1280]) {
       for (const nome of ['Nova coleção', 'Novo vídeo', 'Selecionar']) await expect(page.getByRole('button', { name: nome, exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: /^(Adicionar vídeo|Ações da coleção)/ })).toHaveCount(0);
       await expect(page.getByTestId('alca-de-arraste')).toHaveCount(0);
-      // Sem COMUNIDADE_MODERAR o vídeo também não tem ⋯ (decisão de 20/11).
+      // Sem COMUNIDADE_MODERAR o vídeo não tem ⋯ (decisão de 20/11) e todo cartão ganha o botão visível de abrir fora do app.
       await expect(page.getByRole('button', { name: /^Ações do vídeo / })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^(Abrir no YouTube|Abrir vídeo fora do app): / })).toHaveCount(5);
       await expect(botaoFiltros(page)).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
     });

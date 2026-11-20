@@ -821,7 +821,8 @@ Aba Vídeos do treinador (`treinador/comunidade/ListaDosVideos`, `SecaoDaColecao
 - **Cartão do vídeo:** capa 16:9 com o play "Assistir: <título>" e a posição num selo no canto; sem capa, fundo
   `superficie2` com ícone e o título. Título até 2 linhas; descrição até 2 linhas em texto suave, omitida se repetir o
   título; linha de dados "Nenhum comentário", "1 comentário" ou "N comentários" em texto comum; ⋯ no fim. "Abrir no YouTube"
-  saiu do cartão e vai para o ⋯, que só existe com `COMUNIDADE_MODERAR` (quem só lê não tem ⋯; a capa toca o vídeo).
+  saiu do cartão e vai para o ⋯, que só existe com `COMUNIDADE_MODERAR`. Quem só lê não tem ⋯: no lugar dele o cartão mostra
+  o botão visível "Abrir no YouTube" ("Abrir vídeo", se o link não é do YouTube), que abre fora do app, sem token (AGENTS.md).
 - **Ordem:** arrastando pela alça ou pelo ⋯ ("Mover para cima/baixo"). Uma linha fixa abaixo das abas diz ao treinador que
   o aluno vê as coleções nessa ordem, com os vídeos numerados, e que coleção sem vídeo publicado não aparece para ele.
 - **Folha Novo vídeo / Editar vídeo:** ordem Link do vídeo, capa, Título, Coleção e Descrição. Ações "Publicar" e, na

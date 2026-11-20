@@ -1,13 +1,15 @@
-import { Ellipsis } from 'lucide-react-native';
+import { Ellipsis, ExternalLink } from 'lucide-react-native';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import type { AulaDaComunidade } from '../../api/comunidadeTipos';
-import { textoDeComentarios } from '../../dominio/comunidade';
+import { idDoYoutube, textoDeComentarios, urlNoYoutube } from '../../dominio/comunidade';
 import { descricaoDoCartao } from '../../dominio/gradeDosVideos';
+import { linkParaAbrir } from '../../dominio/links';
 import { contornoDoCartao } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
 import { AlcaDeArraste, type ArrasteDaLista } from '../../ui/ArrasteDaLista';
+import { Botao } from '../../ui/Botao';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { CaixaDaLinha } from '../../ui/LinhaDaLista';
 import { Selo } from '../../ui/Selo';
@@ -21,7 +23,8 @@ interface Props {
   /** Posição na coleção ("1", "2"…), no selo da capa; ausente em "Sem coleção" (que não tem ordem). */
   numero?: number;
   /**
-   * ⋯ do vídeo (Abrir no YouTube, editar, mover e excluir): só com `COMUNIDADE_MODERAR`; ausente para quem só lê.
+   * ⋯ do vídeo (Abrir no YouTube, editar, mover e excluir): só com `COMUNIDADE_MODERAR`. Ausente para quem só lê: no lugar dele o
+   * cartão mostra o botão "Abrir no YouTube" (ou "Abrir vídeo", se o link não é do YouTube), que abre fora do app.
    */
   aoMenu?: () => void;
   aoComentarios: () => void;
@@ -49,6 +52,8 @@ export function CartaoDoVideo({ aula, numero, aoMenu, aoComentarios, aoAbrirFora
   const { cores, bordas, preferencias } = useTema();
   const descricao = descricaoDoCartao(aula.titulo, aula.descricao);
   const comentarios = textoDeComentarios(aula.totalComentarios);
+  const youtube = idDoYoutube(aula.videoUrl);
+  const externo = youtube ? urlNoYoutube(youtube) : linkParaAbrir(aula.videoUrl);
   return (
     <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: contornoDoCartao(cores, preferencias.contraste), borderWidth: bordas.bloco, boxShadow: cores.sombra }]}>
       <CapaDoCartao videoUrl={aula.videoUrl} titulo={aula.titulo} capaId={aula.capaId ?? null} numero={numero} aoAbrirFora={aoAbrirFora} />
@@ -71,7 +76,10 @@ export function CartaoDoVideo({ aula, numero, aoMenu, aoComentarios, aoAbrirFora
           {marcar ? <CaixaDaLinha rotulo={`Selecionar ${aula.titulo}`} marcado={marcar.marcado} aoMudar={marcar.aoMudar} /> : (
             <>
               {arraste ? <AlcaDeArraste arraste={arraste.lista} indice={arraste.indice} /> : null}
-              {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={rotuloDoMenuDoVideo(aula.titulo)} aoTocar={aoMenu} /> : null}
+              {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={rotuloDoMenuDoVideo(aula.titulo)} aoTocar={aoMenu} />
+                : externo ? <Botao tipo="fantasma" Icone={ExternalLink} rotulo={youtube ? 'Abrir no YouTube' : 'Abrir vídeo'}
+                  rotuloAcessivel={`${youtube ? 'Abrir no YouTube' : 'Abrir vídeo fora do app'}: ${aula.titulo}`}
+                  aoTocar={() => aoAbrirFora(externo)} /> : null}
             </>
           )}
         </View>

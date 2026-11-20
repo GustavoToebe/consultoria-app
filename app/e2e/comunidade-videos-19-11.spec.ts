@@ -350,7 +350,7 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
       await expect(page.getByRole('heading', { level: 2, name: 'Técnica' })).toBeVisible();
     });
 
-    test('só leitura (sem COMUNIDADE_MODERAR): seções, sem ⋯ do vídeo; sem criar, adicionar, arrastar nem selecionar', async ({ page }) => {
+    test('só leitura (sem COMUNIDADE_MODERAR): seções, sem ⋯ do vídeo mas com "Abrir no YouTube" no cartão; sem criar, adicionar, arrastar nem selecionar', async ({ page, context }) => {
       const { rotas } = comEstado([TECNICA, MOBILIDADE], AULAS);
       await abrir(page, rotas, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER'] });
       await expect(page.getByRole('heading', { level: 2, name: 'Técnica' })).toBeVisible();
@@ -359,9 +359,15 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
       await expect(page.getByRole('button', { name: /^Ações da coleção/ })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Selecionar' })).toHaveCount(0);
       await expect(page.getByTestId('alca-de-arraste')).toHaveCount(0);
-      // Sem COMUNIDADE_MODERAR o cartão não tem ⋯ (a capa continua tocando o vídeo).
+      // Sem COMUNIDADE_MODERAR o cartão não tem ⋯: no lugar dele, o "Abrir no YouTube" visível (abre fora do app, pelo id).
       await expect(page.getByRole('button', { name: /^Ações do vídeo/ })).toHaveCount(0);
       await expect(page.getByRole('button', { name: /^Assistir: Vídeo de técnica/ })).toBeVisible();
+      const abrirFora = page.getByRole('button', { name: 'Abrir no YouTube: Vídeo de técnica' });
+      await expect(abrirFora).toBeVisible();
+      await expect(abrirFora).toHaveText('Abrir no YouTube');
+      const [popup] = await Promise.all([page.waitForEvent('popup'), abrirFora.click()]);
+      expect(popup.url()).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      await popup.close();
     });
   });
 }
