@@ -807,7 +807,7 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
 
 ### 4.11 Aba Vídeos da Comunidade (Gustavo, 20/11/2026; plano `docs/planos/comunidade-19-11.md`)
 
-Aba Vídeos do treinador (`treinador/comunidade/ListaDosVideos`, `SecaoDaColecao`, `CartaoDoVideo`; grade em
+Aba Vídeos do treinador (`treinador/comunidade/ListaDosVideos`, `SecaoDaColecao`; o `CartaoDoVideo` e a `CapaDoCartao` moram em `comunidade/` e são os mesmos no aluno, em `aluno/ColecoesDeAuloes`, sem ⋯ nem alça e com "Abrir no YouTube"/"Abrir vídeo" visível; grade em
 `dominio/gradeDosVideos.ts`, `colunasDosVideos`). Só quem modera a comunidade organiza; os demais leem.
 
 - **Uma seção por coleção, sem cartão em volta.** O cabeçalho tem a alça de arrastar, o nome (h2), "N vídeos", "Adicionar
