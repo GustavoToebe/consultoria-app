@@ -1,83 +1,92 @@
-import { ArrowDown, ArrowUp, Ellipsis, MessageSquare } from 'lucide-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Ellipsis } from 'lucide-react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { baixarCapaDaEquipe } from '../../api/comunidade';
 import type { AulaDaComunidade } from '../../api/comunidadeTipos';
-import { CapaDoVideo } from '../../comunidade/CapaDoVideo';
-import type { Direcao } from '../../dominio/comunidade';
+import { textoDeComentarios } from '../../dominio/comunidade';
+import { descricaoDoCartao } from '../../dominio/gradeDosVideos';
+import { contornoDoCartao } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
-import { Cartao } from '../../ui/Cartao';
+import { AlcaDeArraste, type ArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { CaixaDaLinha } from '../../ui/LinhaDaLista';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
+import { CapaDoCartao } from './CapaDoCartao';
+import { rotuloDoMenuDoVideo } from './useVideosDaEquipe';
 
 interface Props {
   aula: AulaDaComunidade;
-  /** Posição na coleção ("1", "2"…); ausente fora de coleção (o "Sem coleção" não tem ordem). */
+  /** Posição na coleção ("1", "2"…), no selo da capa; ausente em "Sem coleção" (que não tem ordem). */
   numero?: number;
-  /** ⋯ (editar e excluir), só com `COMUNIDADE_MODERAR`. */
+  /**
+   * ⋯ do vídeo (Abrir no YouTube para todos; editar, mover e excluir só com `COMUNIDADE_MODERAR`); ausente quando não
+   * haveria nada nele (só leitura e sem link que abra fora).
+   */
   aoMenu?: () => void;
   aoComentarios: () => void;
-  aoAbrirFora: (url: string | null | undefined) => void;
-  /** Subir/Descer dentro da coleção; cada direção já diz se pode andar. */
-  mover?: { podeSubir: boolean; podeDescer: boolean; travado: boolean; aoMover: (d: Direcao) => void };
-  /** Modo Selecionar: a caixa toma o lugar do ⋯ e das setas. */
+  aoAbrirFora: (url: string) => void;
+  /** Alça de arrastar dentro da coleção; ausente fora dela, sem permissão ou no modo Selecionar. */
+  arraste?: { lista: ArrasteDaLista; indice: number };
+  /** Modo Selecionar: a caixa toma o lugar do ⋯. */
   marcar?: { marcado: boolean; aoMudar: () => void };
+  /** h3 dentro da seção da coleção (h2); h2 na grade plana, sem seções (coleções em erro). */
+  nivel?: 2 | 3;
 }
 
+/** O título inteiro na dica do mouse (o react-native-web não repassa `title`; vai direto no elemento, como nos Números). */
+const comDica = (titulo: string) => (el: View | null) => {
+  if (Platform.OS === 'web' && el && 'setAttribute' in el && typeof el.setAttribute === 'function') el.setAttribute('title', titulo);
+};
+
 /**
- * Cartão do vídeo na grade do treinador: título primeiro (com o número da posição na coleção ao lado), o estado discreto
- * (neutro), a descrição de apoio, a capa e, no rodapé, comentários à esquerda e Subir/Descer à direita.
+ * Cartão do vídeo na grade do treinador (D2, 19/11), de cima para baixo: capa 16:9 com o play e a posição no canto,
+ * título em até 2 linhas (inteiro na dica e no nome acessível), descrição de apoio em até 2 linhas (some se repete o
+ * título) e a linha de dados: comentários à esquerda e, à direita, a alça de arrastar e o ⋯. Cresce até a altura do
+ * vizinho da linha, com a linha de dados embaixo.
  */
-export function CartaoDoVideo({ aula, numero, aoMenu, aoComentarios, aoAbrirFora, mover, marcar }: Props) {
-  const { cores } = useTema();
-  const acoes = !aula.publicada || aoMenu || marcar ? (
-    <View style={estilos.acoes}>
-      {/* O Selo encolhe sem empurrar o ⋯ (ou a caixa) para fora do cartão em 390 px. */}
-      {!aula.publicada ? <View style={[estilos.linha, estilos.encolher]}><Selo texto="Não publicado" tipo="neutro" /></View> : null}
-      {marcar ? <CaixaDaLinha rotulo={`Selecionar ${aula.titulo}`} marcado={marcar.marcado} aoMudar={marcar.aoMudar} />
-        : aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Ações do vídeo ${aula.titulo}`} aoTocar={aoMenu} /> : null}
-    </View>
-  ) : undefined;
+export function CartaoDoVideo({ aula, numero, aoMenu, aoComentarios, aoAbrirFora, arraste, marcar, nivel = 3 }: Props) {
+  const { cores, bordas, preferencias } = useTema();
+  const descricao = descricaoDoCartao(aula.titulo, aula.descricao);
+  const comentarios = textoDeComentarios(aula.totalComentarios);
   return (
-    <Cartao titulo={aula.titulo} acoes={acoes}
-      marcador={numero ? <Texto variante="bloco" cor={cores.textoSuave} style={estilos.numero}>{`${numero}.`}</Texto> : undefined}>
-      {aula.descricao ? <Texto>{aula.descricao}</Texto> : null}
-      <CapaDoVideo videoUrl={aula.videoUrl} titulo={aula.titulo} capaId={aula.capaId ?? null} baixarCapa={baixarCapaDaEquipe} aoAbrirFora={aoAbrirFora} />
-      <View style={[estilos.linha, estilos.rodape, { borderTopColor: cores.divisor }]}>
+    <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: contornoDoCartao(cores, preferencias.contraste), borderWidth: bordas.bloco, boxShadow: cores.sombra }]}>
+      <CapaDoCartao videoUrl={aula.videoUrl} titulo={aula.titulo} capaId={aula.capaId ?? null} numero={numero} aoAbrirFora={aoAbrirFora} />
+      <View style={estilos.corpo}>
+        <View ref={comDica(aula.titulo)}>
+          <Texto variante="subtitulo" nivel={nivel} numberOfLines={2}>{aula.titulo}</Texto>
+        </View>
+        {descricao ? <Texto variante="suave" numberOfLines={2}>{descricao}</Texto> : null}
+        {!aula.publicada ? <View style={estilos.selo}><Selo texto="Não publicado" tipo="neutro" /></View> : null}
+      </View>
+      <View style={estilos.dados}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Ver ${aula.totalComentarios} comentário(s) do vídeo ${aula.titulo}`}
+          accessibilityLabel={`Ver comentários do vídeo ${aula.titulo}: ${comentarios}`}
           onPress={aoComentarios}
-          style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.sobre }]}>
-          <MessageSquare size={18} color={cores.texto} aria-hidden />
-          <Texto variante="suave" cor={cores.texto} numerico>{aula.totalComentarios} comentário(s)</Texto>
+          style={(estado) => [estilos.comentarios, sobre(estado) && { backgroundColor: cores.sobre }]}>
+          <Texto variante="suave" cor={cores.texto} numberOfLines={1}>{comentarios}</Texto>
         </Pressable>
-        {mover && !marcar ? (
-          <View style={estilos.setas}>
-            {/* Na ponta a seta não existe (a vaga segura a outra no lugar): o desabilitado com moldura quase não se distingue. */}
-            {mover.podeSubir ? <IconeBotao Icone={ArrowUp} moldura rotulo={`Subir ${aula.titulo}`} desabilitado={mover.travado}
-              aoTocar={() => mover.aoMover('cima')} /> : <View style={estilos.vaga} />}
-            {mover.podeDescer ? <IconeBotao Icone={ArrowDown} moldura rotulo={`Descer ${aula.titulo}`} desabilitado={mover.travado}
-              aoTocar={() => mover.aoMover('baixo')} /> : <View style={estilos.vaga} />}
-          </View>
-        ) : null}
+        <View style={estilos.acoes}>
+          {marcar ? <CaixaDaLinha rotulo={`Selecionar ${aula.titulo}`} marcado={marcar.marcado} aoMudar={marcar.aoMudar} /> : (
+            <>
+              {arraste ? <AlcaDeArraste arraste={arraste.lista} indice={arraste.indice} /> : null}
+              {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={rotuloDoMenuDoVideo(aula.titulo)} aoTocar={aoMenu} /> : null}
+            </>
+          )}
+        </View>
       </View>
-    </Cartao>
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexShrink: 1, maxWidth: '100%' },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
-  encolher: { flexShrink: 1, minWidth: 0 },
-  numero: { fontSize: 17, lineHeight: 22 },
-  rodape: { borderTopWidth: 1, paddingTop: espaco(1), justifyContent: 'space-between' },
-  vaga: { width: ALVO_TOQUE, height: ALVO_TOQUE },
-  setas: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), marginLeft: 'auto' },
-  // Hover e pressionado pintam `sobre` (`ui/sobre`), como no mural do aluno.
-  interacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: ALVO_TOQUE, minWidth: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), marginHorizontal: -espaco(1) },
+  cartao: { flexGrow: 1, borderRadius: RAIO, overflow: 'hidden' },
+  corpo: { gap: espaco(0.5), paddingHorizontal: espaco(1.5), paddingTop: espaco(1.5) },
+  selo: { flexDirection: 'row', marginTop: espaco(0.5) },
+  // `marginTop: auto`: na linha da grade os cartões têm a mesma altura e a linha de dados fica sempre embaixo.
+  dados: { marginTop: 'auto', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), paddingHorizontal: espaco(0.5) },
+  comentarios: { flexShrink: 1, minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1), borderRadius: RAIO },
+  acoes: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
 });

@@ -562,13 +562,60 @@ export const rascunhoDaAula = (a: AulaDaComunidade): RascunhoDaAula =>
   ({ titulo: a.titulo, link: a.videoUrl ?? '', playlistId: a.playlistId, descricao: a.descricao ?? '', capaId: a.capaId ?? null });
 
 /**
- * A folha tem algo a perder? Compara com o que ela abriu: vazio no "Novo vídeo", a aula na edição (a capa trocada ou
- * removida também conta). Qualquer caractere diferente vale, para nada digitado sair sem a pergunta.
+ * Com o que a folha abre: a aula na edição (a coleção inicial é ignorada); no "Novo vídeo", vazio, já na coleção do
+ * "Adicionar vídeo" do cabeçalho dela (D4). A coleção que não existe mais vira "Sem coleção" na tela (`sumiu`).
  */
-export function aulaAlterada(r: RascunhoDaAula, original?: AulaDaComunidade): boolean {
-  const inicial = original ? rascunhoDaAula(original) : RASCUNHO_DA_AULA_VAZIO;
+export const rascunhoInicialDaAula = (original?: AulaDaComunidade, colecaoInicialId?: string | null): RascunhoDaAula =>
+  original ? rascunhoDaAula(original) : { ...RASCUNHO_DA_AULA_VAZIO, playlistId: colecaoInicialId ?? null };
+
+/**
+ * A folha tem algo a perder? Compara com o que ela abriu (`rascunhoInicialDaAula`; a capa trocada, removida ou vinda do
+ * link também conta). Qualquer caractere diferente vale, para nada digitado sair sem a pergunta.
+ */
+export function aulaAlterada(r: RascunhoDaAula, inicial: RascunhoDaAula): boolean {
   return (Object.keys(inicial) as (keyof RascunhoDaAula)[]).some((k) => r[k] !== inicial[k]);
 }
+
+/**
+ * De onde vem a capa do vídeo (D4). `automatica`: acompanha o link (`video` = o id do YouTube já atendido, com a capa dele
+ * ou a tentativa feita). `fixa`: a pessoa decidiu (escolheu da galeria, removeu, ou é a capa da aula na edição) e o link
+ * nunca a troca; `video` = o id do link quando ela decidiu, para saber se o link mudou de vídeo depois.
+ */
+export interface OrigemDaCapa { tipo: 'automatica' | 'fixa'; video: string | null }
+
+/**
+ * Abrir nunca busca nada (cada busca gasta uma das 100 capas do dia da consultoria e marcaria a folha como alterada): o
+ * vídeo novo começa sem vídeo atendido; na edição, a capa da aula é fixa, e a aula sem capa só busca se o link mudar de vídeo.
+ */
+export const origemInicialDaCapa = (original?: AulaDaComunidade): OrigemDaCapa =>
+  ({ tipo: original?.capaId ? 'fixa' : 'automatica', video: original ? idDoYoutube(original.videoUrl) : null });
+
+/**
+ * O link mudou: com a capa automática e outro vídeo (ou nenhum), a capa do vídeo anterior sai (`limpar`) e, sendo do
+ * YouTube, a do novo é buscada (`buscar` = o id). O mesmo vídeo com outro parâmetro não muda nada; a capa fixa nunca muda.
+ */
+export function capaAoMudarOLink(origem: OrigemDaCapa, link: string): { origem: OrigemDaCapa; buscar: string | null; limpar: boolean } {
+  const video = idDoYoutube(link);
+  if (origem.tipo === 'fixa' || video === origem.video) return { origem, buscar: null, limpar: false };
+  return { origem: { tipo: 'automatica', video }, buscar: video, limpar: true };
+}
+
+export const AVISO_CAPA_DE_OUTRO_VIDEO = 'O link mudou, mas a capa continua a que estava. Para usar a do vídeo novo, toque em “Usar a capa do YouTube”.';
+
+/**
+ * "Usar a capa do YouTube" aparece com link do YouTube e sem capa (a busca automática falhou, estava sem internet ou a
+ * pessoa removeu) ou com a capa fixa de outro vídeo: aí, com o aviso de que o link não a trocou.
+ */
+export function capaDoYoutubeNaTela(origem: OrigemDaCapa, link: string, capaId: string | null): { oferecer: boolean; aviso: string | null } {
+  const video = idDoYoutube(link);
+  if (!video) return { oferecer: false, aviso: null };
+  if (!capaId) return { oferecer: true, aviso: null };
+  const deOutroVideo = origem.tipo === 'fixa' && origem.video !== video;
+  return { oferecer: deOutroVideo, aviso: deOutroVideo ? AVISO_CAPA_DE_OUTRO_VIDEO : null };
+}
+
+/** Link preenchido e fora do que a API aceita (https, `LinksExternos`): o Publicar fica desativado. O vazio deixa tocar e mostra o erro. */
+export const linkTravaOEnvio = (link: string): boolean => !!link.trim() && erroDoLink(link) !== null;
 
 /** Erros por campo (`null` = pode enviar), com as mensagens que a folha já mostrava. */
 export function errosDaAula(r: RascunhoDaAula): { titulo: string | null; link: string | null } {
@@ -597,7 +644,7 @@ export function corpoDaAula(r: RascunhoDaAula, original?: AulaDaComunidade): Nov
 /** Rótulo do grupo e da opção dos vídeos fora de qualquer coleção. */
 export const SEM_COLECAO = 'Sem coleção';
 /** O formulário do vídeo só escolhe coleção existente (D17): sem nenhuma, este texto diz onde criar. */
-export const TEXTO_CRIE_EM_COLECOES = 'Crie em Coleções';
+export const TEXTO_CRIE_EM_COLECOES = 'Crie em “+ Nova coleção”, no fim da aba Vídeos.';
 /** 404 ou 409 `CONFLITO_EDICAO` nas rotas de ordem e de lote: a tela recarrega e avisa com isto. */
 export const MENSAGEM_LISTA_MUDOU = 'A lista mudou. Confira e tente de novo.';
 

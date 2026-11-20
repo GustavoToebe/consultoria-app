@@ -50,7 +50,7 @@ for (const largura of [390, 1280]) {
   test.describe(`${largura} px`, () => {
     test.use({ viewport: { width: largura, height: 900 } });
 
-    test('vídeo: "Usar a capa do YouTube" só com link do YouTube; busca pela API, mostra a capa e salva com o capaId', async ({ page }) => {
+    test('vídeo: com link do YouTube a capa vem sozinha pela API (D4), mostra a prévia e salva com o capaId', async ({ page }) => {
       let jpeg: Buffer = Buffer.alloc(0);
       let soltar: () => void = () => {};
       const resposta = new Promise<void>((resolve) => { soltar = resolve; });
@@ -74,20 +74,26 @@ for (const largura of [390, 1280]) {
       await expect(botao).toHaveCount(0);
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://video.exemplo.invalid/aula');
       await expect(botao).toHaveCount(0);
+      expect(api.pedidos.some((p) => foiPost(p, '/comunidade/capas/youtube'))).toBe(false);
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill(YOUTUBE);
-      await expect(botao).toBeVisible();
 
-      await botao.click();
-      // Carregando: o botão fica desabilitado com o texto novo, e o pedido leva só o link.
+      // Carregando: o botão diz "Buscando a capa…", o Publicar espera com o motivo, e o pedido leva só o link.
       await expect(folha.getByRole('button', { name: 'Buscando a capa…' })).toBeDisabled();
+      await expect(folha.getByRole('button', { name: 'Publicar', exact: true })).toBeDisabled();
+      await expect(folha.getByText('Espere a capa terminar de carregar.')).toBeVisible();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/capas/youtube'))?.corpo).toEqual({ videoUrl: YOUTUBE });
       soltar();
       await expect(folha.getByRole('img', { name: 'Capa do vídeo' })).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Usar a capa do YouTube' })).toHaveCount(0);
+      await expect(folha.getByRole('button', { name: 'Trocar capa' })).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Remover capa' })).toBeVisible();
+      // O mesmo vídeo com outro parâmetro não busca de novo (cada busca gasta uma capa da cota do dia).
+      await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill(`${YOUTUBE}?t=30`);
+      await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill(YOUTUBE);
+      expect(api.pedidos.filter((p) => foiPost(p, '/comunidade/capas/youtube')).length).toBe(1);
 
       await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
-      await folha.getByRole('button', { name: 'Publicar para o time' }).click();
+      await folha.getByRole('button', { name: 'Publicar', exact: true }).click();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/aulas'))?.corpo)
         .toEqual({ titulo: 'Vídeo de teste', videoUrl: YOUTUBE, playlistId: null, capaId: 'capa-yt' });
       // O navegador nunca pede nada ao YouTube (a capa vem só da nossa API).
@@ -130,10 +136,11 @@ for (const largura of [390, 1280]) {
       await page.goto('/treinador/comunidade');
       await page.getByRole('button', { name: 'Novo vídeo' }).click();
       const folha = novoAulao(page);
+      // A busca automática (D4) falha com 503; "Usar a capa do YouTube" fica para tentar de novo e o Publicar não trava.
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill(YOUTUBE);
-      await folha.getByRole('button', { name: 'Usar a capa do YouTube' }).click();
       await expect(folha.getByText('Não foi possível buscar a capa agora. Tente enviar a imagem.')).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Escolher capa' })).toBeEnabled();
+      await expect(folha.getByRole('button', { name: 'Publicar', exact: true })).toBeEnabled();
       await folha.getByRole('button', { name: 'Usar a capa do YouTube' }).click();
       await expect(folha.getByText('Esse vídeo não tem capa disponível.')).toBeVisible();
       await expect(folha.getByRole('textbox', { name: 'Link do vídeo' })).toHaveValue(YOUTUBE);

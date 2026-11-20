@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
 import { excluirAula, listarAulasDaEquipe, listarPlaylists, moverAulasParaPlaylist, reordenarAulasDaPlaylist } from '../../api/comunidade';
@@ -9,25 +8,22 @@ import {
   filtroDePlaylistValido, gruposDaEquipe, listaVelha, MENSAGEM_LISTA_MUDOU, moverNaLista, reordenados, SEM_COLECAO, textoDoLoteMovido,
   traduzirErroDaPlaylist,
 } from '../../dominio/comunidade';
+import { moverPara } from '../../dominio/reordenar';
 import { useAviso } from '../../ui/Aviso';
 import { textoDoErro } from '../../ui/erros';
 import { useCarregar } from '../../ui/useCarregar';
+import { focarNaWeb } from './focarNaWeb';
+import { useColecoesDaEquipe } from './useColecoesDaEquipe';
+
+/** Nome acessível do ⋯ do vídeo: o foco volta para ele depois de mover pelo menu. */
+export const rotuloDoMenuDoVideo = (titulo: string) => `Ações do vídeo ${titulo}`;
 
 /**
- * Web: o cartão que andou muda de lugar no DOM e o foco cairia no `body` (conferido no e2e); volta ao botão do mesmo vídeo
- * na mesma direção ou, se ele virou a ponta (a seta some), ao da outra. No nativo o leitor de tela segue o elemento.
- */
-function devolverFoco(titulo: string, direcao: Direcao) {
-  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-  const [mesma, outra] = direcao === 'cima' ? ['Subir', 'Descer'] : ['Descer', 'Subir'];
-  const achar = (acao: string) => document.querySelector<HTMLElement>(`[aria-label="${CSS.escape(`${acao} ${titulo}`)}"]`);
-  (achar(mesma) ?? achar(outra))?.focus();
-}
-
-/**
- * Estado da aba Vídeos do treinador (a tela fica montada nas duas abas; o "Novo vídeo" nasce vazio a cada abertura e
- * fechar com alteração pergunta "Sair sem salvar?"). Lista agrupada por coleção, filtro do painel, Subir/Descer dentro da coleção, modo Selecionar com o lote e as
- * folhas (novo, editar, ⋯, excluir, coleções). Regras puras em `dominio/comunidade`.
+ * Estado da aba Vídeos do treinador (a tela fica montada nas duas abas; o "Novo vídeo" nasce vazio a cada abertura, com a
+ * coleção do "Adicionar vídeo" de uma seção, e fechar com alteração pergunta "Sair sem salvar?"). Seções por coleção
+ * (D2, 19/11), filtro do painel, ordem dentro da coleção (⋯ ou arrastando), mover para outra coleção, modo Selecionar com
+ * o lote, as coleções (`useColecoesDaEquipe`) e as folhas (novo, editar, ⋯, excluir). Regras puras em `dominio/comunidade`
+ * e `dominio/gradeDosVideos`.
  */
 export function useVideosDaEquipe({ ativa }: { ativa: boolean }) {
   const { avisar } = useAviso();
@@ -36,8 +32,9 @@ export function useVideosDaEquipe({ ativa }: { ativa: boolean }) {
   const playlists = useCarregar(ativa ? 'treinador-comunidade-playlists' : null, () => listarPlaylists());
   const colecoes = playlists.erro ? [] : playlists.dados ?? [];
   const todas = auloes.dados ?? [];
-  // Agrupa só com as duas fontes prontas e alguma coleção: sem isso a grade é a de sempre (sem número nem setas).
-  const agrupar = !playlists.erro && !!playlists.dados?.length;
+  // Agrupa com as duas fontes prontas, também sem coleção nenhuma (tudo em "Sem coleção", com "+ Nova coleção" embaixo).
+  // Com o GET das coleções em erro, a grade plana (agrupar sem elas poria tudo em "Sem coleção" sem o usuário saber).
+  const agrupar = !playlists.erro && !!playlists.dados;
   const esperandoColecoes = !playlists.dados && !playlists.erro && playlists.carregando;
 
   const [filtroPedido, setFiltroPedido] = useState<FiltroDePlaylist>(null);
@@ -48,30 +45,58 @@ export function useVideosDaEquipe({ ativa }: { ativa: boolean }) {
   const grupos = !agrupar ? [] : filtro === null ? gruposDaEquipe(todas, colecoes) : agruparPorPlaylist(visiveis, colecoes);
   const naOrdemDaTela = agrupar ? grupos.flatMap((g) => g.itens) : visiveis;
 
-  // ---- Subir/Descer: o PUT leva a lista INTEIRA da coleção (com os não publicados), nunca a filtrada. Não otimista. ----
+  // ---- Ordem dentro da coleção: o PUT leva a lista INTEIRA da coleção (com os não publicados), nunca a filtrada. Não
+  // otimista: o cartão anda depois do 204. ----
   const [movendo, setMovendo] = useState<string | null>(null);
-  // O foco volta depois do commit com a ordem nova e as setas já destravadas (antes disso o botão ainda está desabilitado).
-  const focarDepois = useRef<{ titulo: string; direcao: Direcao } | null>(null);
+  // O foco volta ao ⋯ do vídeo depois do commit com a ordem nova (o cartão mudou de lugar no DOM).
+  const focarDepois = useRef<string | null>(null);
   useEffect(() => {
     if (!focarDepois.current || movendo) return;
-    devolverFoco(focarDepois.current.titulo, focarDepois.current.direcao);
+    focarNaWeb(rotuloDoMenuDoVideo(focarDepois.current));
     focarDepois.current = null;
   });
-  const moverVideo = async (aula: AulaDaComunidade, direcao: Direcao) => {
-    const playlistId = aula.playlistId;
-    if (!playlistId || movendo || auloes.carregando) return;
-    const nova = moverNaLista(auloesDaPlaylist(todas, playlistId).map((a) => a.id), aula.id, direcao);
-    setMovendo(aula.id);
+  const reordenarVideos = async (playlistId: string, nova: string[], id: string): Promise<boolean> => {
+    if (movendo || auloes.carregando) return false;
+    setMovendo(id);
     try {
       await reordenarAulasDaPlaylist(playlistId, nova);
       auloes.definir(reordenados(todas, nova));
-      focarDepois.current = { titulo: aula.titulo, direcao };
+      return true;
     } catch (e) {
       const { mensagem, recarregar } = traduzirErroDaPlaylist(e);
       avisar(mensagem, 'perigo');
       if (recarregar) { auloes.recarregar(); playlists.recarregar(); }
+      return false;
     } finally {
       setMovendo(null);
+    }
+  };
+  const moverVideo = async (aula: AulaDaComunidade, direcao: Direcao) => {
+    if (!aula.playlistId) return;
+    const nova = moverNaLista(auloesDaPlaylist(todas, aula.playlistId).map((a) => a.id), aula.id, direcao);
+    if (await reordenarVideos(aula.playlistId, nova, aula.id)) focarDepois.current = aula.titulo;
+  };
+  /** Arrastar na grade de uma coleção: índices da ordem dela; o desfazer manda a ordem de antes. */
+  const soltarVideo = (playlistId: string, de: number, para: number) => {
+    const antes = auloesDaPlaylist(todas, playlistId).map((a) => a.id);
+    const id = antes[de];
+    if (!id) return undefined;
+    void reordenarVideos(playlistId, moverPara(antes, de, para), id);
+    return () => { void reordenarVideos(playlistId, antes, id); };
+  };
+
+  // ---- Mover um vídeo para outra coleção (⋯): a mesma rota do lote; ele entra no fim do destino. ----
+  const [moverDe, setMoverDe] = useState<AulaDaComunidade | null>(null);
+  const moverParaColecao = async (aula: AulaDaComunidade, destino: string | null) => {
+    const nome = destino ? colecoes.find((p) => p.id === destino)?.nome ?? null : null;
+    try {
+      await moverAulasParaPlaylist([aula.id], destino);
+      avisar(`“${aula.titulo}” foi para “${nome ?? SEM_COLECAO}”.`, 'sucesso');
+    } catch (e) {
+      avisar(listaVelha(e) ? MENSAGEM_LISTA_MUDOU : textoDoErro(e), 'perigo');
+    } finally {
+      auloes.recarregar();
+      playlists.recarregar();
     }
   };
 
@@ -125,14 +150,17 @@ export function useVideosDaEquipe({ ativa }: { ativa: boolean }) {
   };
 
   // ---- Folhas ----
-  const [novoVideo, setNovoVideo] = useState(false);
+  // Aberto com a coleção já escolhida (o "Adicionar vídeo" da seção) ou sem nenhuma (o "Novo vídeo" do topo).
+  const [novoVideo, setNovoVideo] = useState<{ colecaoId: string | null } | null>(null);
+  // Cada abertura monta a folha de novo (o rascunho nasce da coleção escolhida).
+  const [aberturaDoNovo, setAberturaDoNovo] = useState(0);
+  const abrirNovoVideo = (colecaoId: string | null = null) => { setAberturaDoNovo((n) => n + 1); setNovoVideo({ colecaoId }); };
   const [editando, setEditando] = useState<AulaDaComunidade | null>(null);
   const [menuDaAula, setMenuDaAula] = useState<AulaDaComunidade | null>(null);
   const [excluirDe, setExcluirDe] = useState<AulaDaComunidade | null>(null);
   const [excluindo, setExcluindo] = useState(false);
   // Falha do DELETE: dentro do painel, porque o aviso de rodapé da tela fica atrás do véu do Modal.
   const [erroAoExcluir, setErroAoExcluir] = useState<string | null>(null);
-  const [vendoColecoes, setVendoColecoes] = useState(false);
 
   // 404 ao salvar ou excluir: outra pessoa já excluiu; fecha, avisa e a lista vem de novo sem ela.
   const aulaSumiu = () => {
@@ -160,15 +188,17 @@ export function useVideosDaEquipe({ ativa }: { ativa: boolean }) {
     }
   };
 
+  const colecoesDaAba = useColecoesDaEquipe({ colecoes: playlists, aoMudarVideos: auloes.recarregar });
+
   const salvo = (mensagem: string) => { avisar(mensagem, 'sucesso'); auloes.recarregar(); playlists.recarregar(); };
 
   return {
     auloes, playlists, colecoes, todas, agrupar, esperandoColecoes, filtro, aplicarFiltro, visiveis, grupos,
-    movendo, moverVideo,
+    movendo, moverVideo, soltarVideo, moverDe, setMoverDe, moverParaColecao,
     selecionando, entrarNaSelecao: () => setSelecionando(true), sairDaSelecao, marcados, alternarMarcado, marcarTodos, todosMarcados,
     marcadosAVista, escolhendoDestino, setEscolhendoDestino, movendoLote, moverMarcados,
-    novoVideo, setNovoVideo, editando, setEditando, menuDaAula, setMenuDaAula, excluirDe, setExcluirDe, excluindo, erroAoExcluir,
-    setErroAoExcluir, confirmarExcluir, aulaSumiu, vendoColecoes, setVendoColecoes, salvo,
+    novoVideo, abrirNovoVideo, fecharNovoVideo: () => setNovoVideo(null), aberturaDoNovo, editando, setEditando, menuDaAula, setMenuDaAula, excluirDe, setExcluirDe, excluindo, erroAoExcluir,
+    setErroAoExcluir, confirmarExcluir, aulaSumiu, salvo, colecoesDaAba,
   };
 }
 

@@ -72,7 +72,7 @@ export function CapaDoVideo({ videoUrl, titulo, capaId, baixarCapa, aoAbrirFora 
 }
 
 /** A capa é decorativa (o botão diz o que é); se não carregar, fica o quadro neutro, sem erro na tela. */
-function ImagemDaCapa({ id, baixar }: { id: string; baixar: (id: string) => Promise<Blob> }) {
+export function ImagemDaCapa({ id, baixar }: { id: string; baixar: (id: string) => Promise<Blob> }) {
   const [endereco, setEndereco] = useState<string | null>(null);
   const baixarAtual = useRef(baixar);
   useEffect(() => {

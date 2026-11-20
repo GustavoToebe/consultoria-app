@@ -14,6 +14,7 @@ import {
   errosDaAula, filtrarPorPlaylist, filtroDePlaylistValido, listaVelha, LOTE_MAXIMO, MENSAGEM_LISTA_MUDOU, MENSAGEM_PLAYLIST_NOME,
   moverNaLista, nomeDaPlaylistParaEnviar, numerados, opcoesDoFiltroDePlaylist, playlistsEmOrdem, podeMover, RASCUNHO_DA_AULA_VAZIO,
   rascunhoDaAula, resumoDosAuloes, SEM_COLECAO, traduzirErroDaPlaylist, aulaAlterada,
+  AVISO_CAPA_DE_OUTRO_VIDEO, capaAoMudarOLink, capaDoYoutubeNaTela, linkTravaOEnvio, origemInicialDaCapa, rascunhoInicialDaAula,
   aulasParaMover, gruposDaEquipe, reordenados, textoDeExcluirPlaylist, textoDoLoteMovido, textoDosMarcados,
 } from './comunidade';
 import { ErroApi } from '@plataforma/web';
@@ -27,23 +28,98 @@ const playlist = (id: string, nome: string, ordem: number, totalAulas = 0): Play
 
 describe('sair sem salvar no novo vídeo (19/11)', () => {
   it('novo vazio não tem alteração; qualquer campo ou a capa tem', () => {
-    expect(aulaAlterada(RASCUNHO_DA_AULA_VAZIO)).toBe(false);
+    expect(aulaAlterada(RASCUNHO_DA_AULA_VAZIO, rascunhoInicialDaAula())).toBe(false);
     for (const parte of [{ titulo: 'T' }, { link: 'h' }, { descricao: ' ' }, { playlistId: 'p1' }, { capaId: 'c1' }]) {
-      expect(aulaAlterada({ ...RASCUNHO_DA_AULA_VAZIO, ...parte })).toBe(true);
+      expect(aulaAlterada({ ...RASCUNHO_DA_AULA_VAZIO, ...parte }, RASCUNHO_DA_AULA_VAZIO)).toBe(true);
     }
   });
 
   it('na edição, igual ao original não tem alteração; capa trocada ou removida e coleção trocada têm', () => {
     const original = aula('a1', 'p1', 0, { descricao: 'Pauta', capaId: 'c1' });
-    const r = rascunhoDaAula(original);
-    expect(aulaAlterada(r, original)).toBe(false);
-    expect(aulaAlterada({ ...r, capaId: null }, original)).toBe(true);
-    expect(aulaAlterada({ ...r, capaId: 'c2' }, original)).toBe(true);
-    expect(aulaAlterada({ ...r, playlistId: null }, original)).toBe(true);
-    expect(aulaAlterada({ ...r, titulo: `${r.titulo}!` }, original)).toBe(true);
+    const r = rascunhoInicialDaAula(original);
+    expect(r).toEqual(rascunhoDaAula(original));
+    expect(aulaAlterada(r, r)).toBe(false);
+    expect(aulaAlterada({ ...r, capaId: null }, r)).toBe(true);
+    expect(aulaAlterada({ ...r, capaId: 'c2' }, r)).toBe(true);
+    expect(aulaAlterada({ ...r, playlistId: null }, r)).toBe(true);
+    expect(aulaAlterada({ ...r, titulo: `${r.titulo}!` }, r)).toBe(true);
     // A aula sem descrição nem capa abre com '' e null: reabrir sem mexer continua sem alteração.
-    const simples = aula('a2', null);
-    expect(aulaAlterada(rascunhoDaAula(simples), simples)).toBe(false);
+    const simples = rascunhoInicialDaAula(aula('a2', null));
+    expect(aulaAlterada(simples, simples)).toBe(false);
+  });
+
+  it('aberto pelo "Adicionar vídeo" da coleção: nasce nela, e sem mexer não tem alteração (D4)', () => {
+    const inicial = rascunhoInicialDaAula(undefined, 'p1');
+    expect(inicial).toEqual({ ...RASCUNHO_DA_AULA_VAZIO, playlistId: 'p1' });
+    expect(aulaAlterada(inicial, inicial)).toBe(false);
+    expect(aulaAlterada({ ...inicial, playlistId: null }, inicial)).toBe(true);
+    // Na edição a coleção inicial é ignorada: vale a da aula.
+    expect(rascunhoInicialDaAula(aula('a1', 'p2'), 'p1').playlistId).toBe('p2');
+    expect(rascunhoInicialDaAula(undefined, null)).toEqual(RASCUNHO_DA_AULA_VAZIO);
+  });
+
+  it('a capa que veio sozinha do link conta como alteração (o link também mudou)', () => {
+    const inicial = rascunhoInicialDaAula();
+    expect(aulaAlterada({ ...inicial, link: YT_A, capaId: 'auto' }, inicial)).toBe(true);
+  });
+});
+
+const YT_A = 'https://youtu.be/aaaaaaaaaaa';
+const YT_B = 'https://www.youtube.com/watch?v=bbbbbbbbbbb';
+
+describe('capa automática do vídeo (D4)', () => {
+  it('o vídeo novo acompanha o link: busca no id novo, limpa a capa ao sair do YouTube e não busca de novo no mesmo id', () => {
+    let origem = origemInicialDaCapa();
+    expect(origem).toEqual({ tipo: 'automatica', video: null });
+    let passo = capaAoMudarOLink(origem, YT_A);
+    expect(passo).toEqual({ origem: { tipo: 'automatica', video: 'aaaaaaaaaaa' }, buscar: 'aaaaaaaaaaa', limpar: true });
+    origem = passo.origem;
+    // Mesmo vídeo com outro parâmetro: nada muda (não gasta outra capa da cota).
+    expect(capaAoMudarOLink(origem, `${YT_A}?t=10`)).toEqual({ origem, buscar: null, limpar: false });
+    passo = capaAoMudarOLink(origem, YT_B);
+    expect(passo).toEqual({ origem: { tipo: 'automatica', video: 'bbbbbbbbbbb' }, buscar: 'bbbbbbbbbbb', limpar: true });
+    // Link fora do YouTube (ou ainda incompleto): a capa do outro vídeo sai e nada é buscado.
+    expect(capaAoMudarOLink(passo.origem, 'https://video.exemplo.invalid/aula')).toEqual({ origem: { tipo: 'automatica', video: null }, buscar: null, limpar: true });
+    expect(capaAoMudarOLink(passo.origem, '')).toEqual({ origem: { tipo: 'automatica', video: null }, buscar: null, limpar: true });
+  });
+
+  it('capa fixa (escolhida, removida ou a da aula na edição) nunca é trocada pelo link', () => {
+    const fixa = { tipo: 'fixa', video: 'aaaaaaaaaaa' } as const;
+    for (const link of [YT_B, '', 'https://video.exemplo.invalid/aula']) {
+      expect(capaAoMudarOLink(fixa, link)).toEqual({ origem: fixa, buscar: null, limpar: false });
+    }
+  });
+
+  it('editar: a capa da aula é fixa; a aula sem capa só busca se o link mudar de vídeo (abrir não busca)', () => {
+    const comCapa = aula('a1', null, 0, { videoUrl: YT_A, capaId: 'c1' });
+    expect(origemInicialDaCapa(comCapa)).toEqual({ tipo: 'fixa', video: 'aaaaaaaaaaa' });
+    const semCapa = origemInicialDaCapa(aula('a2', null, 0, { videoUrl: YT_A }));
+    expect(semCapa).toEqual({ tipo: 'automatica', video: 'aaaaaaaaaaa' });
+    expect(capaAoMudarOLink(semCapa, YT_A).buscar).toBeNull();
+    expect(capaAoMudarOLink(semCapa, YT_B).buscar).toBe('bbbbbbbbbbb');
+    expect(origemInicialDaCapa(aula('a3', null))).toEqual({ tipo: 'automatica', video: null });
+  });
+
+  it('"Usar a capa do YouTube": sem capa com link do YouTube, ou com a capa fixa de outro vídeo (com aviso)', () => {
+    const auto = { tipo: 'automatica', video: 'aaaaaaaaaaa' } as const;
+    expect(capaDoYoutubeNaTela(auto, YT_A, 'c1')).toEqual({ oferecer: false, aviso: null });
+    // A busca automática falhou ou está sem internet: o botão fica para tentar de novo.
+    expect(capaDoYoutubeNaTela(auto, YT_A, null)).toEqual({ oferecer: true, aviso: null });
+    expect(capaDoYoutubeNaTela(auto, 'https://video.exemplo.invalid/aula', null)).toEqual({ oferecer: false, aviso: null });
+    const fixa = { tipo: 'fixa', video: 'aaaaaaaaaaa' } as const;
+    expect(capaDoYoutubeNaTela(fixa, YT_A, 'c1')).toEqual({ oferecer: false, aviso: null });
+    expect(capaDoYoutubeNaTela(fixa, YT_A, null)).toEqual({ oferecer: true, aviso: null });
+    expect(capaDoYoutubeNaTela(fixa, YT_B, 'c1')).toEqual({ oferecer: true, aviso: AVISO_CAPA_DE_OUTRO_VIDEO });
+    expect(capaDoYoutubeNaTela(fixa, 'https://video.exemplo.invalid/aula', 'c1')).toEqual({ oferecer: false, aviso: null });
+  });
+
+  it('o link inválido trava o Publicar (o vazio não: o toque mostra o que falta)', () => {
+    expect(linkTravaOEnvio('')).toBe(false);
+    expect(linkTravaOEnvio('  ')).toBe(false);
+    expect(linkTravaOEnvio('http://exemplo.com')).toBe(true);
+    expect(linkTravaOEnvio('https://')).toBe(true);
+    expect(linkTravaOEnvio('https://exemplo.com/v')).toBe(false);
+    expect(linkTravaOEnvio(YT_A)).toBe(false);
   });
 });
 

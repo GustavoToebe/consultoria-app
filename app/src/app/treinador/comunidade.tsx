@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Library, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, UserX } from 'lucide-react-native';
+import { Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, UserX } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 
@@ -45,6 +45,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { Tela } from '../../ui/Tela';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 
 type AbaComunidade = 'auloes' | 'mural';
 
@@ -124,6 +125,8 @@ export default function ComunidadeTreinador() {
   const setAbaDoMural = (valor: AbaDoMural) => { if (valor !== abaDoMural) router.setParams({ mural: valor }); };
 
   const videos = useVideosDaEquipe({ ativa: aba === 'auloes' });
+  // Colunas dos vídeos (D2) pela área ao lado do menu, a mesma largura que a `Tela` mede para a faixa (não a janela).
+  const areaDosVideos = useFaixaDeLargura();
 
   const [filtroPedidoDoMural, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
   // O tipo de outra aba não vale aqui (o chip some e volta com a aba dele), sem estado a corrigir.
@@ -249,12 +252,9 @@ export default function ComunidadeTreinador() {
   };
 
   // Uma ação principal por vez, a da aba ativa, no cabeçalho (guia pág. 35); as configurações do mural ficam em segundo plano.
-  // Nos vídeos, "Coleções" (secundário, C29) ao lado do "Novo vídeo", como os dois botões do Mural.
+  // Nos vídeos o "Coleções" saiu (D3, 19/11): criar, renomear, ordenar e excluir coleção é na própria aba.
   const acoes = !podePublicar ? undefined : aba === 'auloes' ? (
-    <>
-      <Botao rotulo="Coleções" tipo="secundario" Icone={Library} aoTocar={() => videos.setVendoColecoes(true)} />
-      <Botao rotulo="Novo vídeo" tipo="primario" Icone={Plus} aoTocar={() => videos.setNovoVideo(true)} />
-    </>
+    <Botao rotulo="Novo vídeo" tipo="primario" Icone={Plus} aoTocar={() => videos.abrirNovoVideo()} />
   ) : (
     <>
       <Botao rotulo="Configurações do mural" tipo="secundario" Icone={Settings} aoTocar={() => setConfigurando('quemPublica')} />
@@ -263,7 +263,7 @@ export default function ComunidadeTreinador() {
   );
 
   return (
-    <View style={estilos.raiz}>
+    <View style={estilos.raiz} onLayout={areaDosVideos.aoMedir}>
     <Tela bordas={['top']} folga={largo ? FOLGA_NO_PC : undefined}>
       <Cabecalho titulo="Comunidade" subtitulo="Vídeos e mural do time." acoes={acoes} />
 
@@ -277,7 +277,7 @@ export default function ComunidadeTreinador() {
       />
 
       {aba === 'auloes' ? (
-        <ListaDosVideos v={videos} podePublicar={podePublicar} aoAbrirFora={(url) => void abrir(url)}
+        <ListaDosVideos v={videos} podePublicar={podePublicar} area={areaDosVideos.largura} aoAbrirFora={(url) => void abrir(url)}
           aoComentarios={(aula) => setComentariosDe({ tipo: 'aula', id: aula.id })} />
       ) : null}
 
@@ -390,7 +390,7 @@ export default function ComunidadeTreinador() {
         aoFechar={() => setComentariosDe(null)} aoAlterar={comentariosDe?.tipo === 'aula' ? videos.auloes.recarregar : recarregarMural} />
       <FolhaDosVotos alvo={votosDe} papel="equipe" aoFechar={() => setVotosDe(null)} />
 
-      <FolhasDosVideos v={videos} podePublicar={podePublicar} />
+      <FolhasDosVideos v={videos} podePublicar={podePublicar} aoAbrirFora={(url) => void abrir(url)} />
     </Tela>
     {aba === 'auloes' && videos.selecionando ? <BarraDaSelecao v={videos} /> : null}
     </View>

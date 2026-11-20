@@ -1017,21 +1017,17 @@ for (const largura of [390, 1280]) {
       const api = await abrirTreinador(page, { ...cheia, 'PUT /comunidade/mural/{id}/reacoes/{codigo}': { status: 204 } });
       await page.goto('/treinador/comunidade');
       await expect(page.getByRole('heading', { level: 1, name: 'Comunidade' })).toBeVisible();
-      // Sem coleção nenhuma: a grade de sempre, sem filtro nem "Selecionar"; "Coleções" fica no cabeçalho, ao lado do principal.
+      // Sem coleção nenhuma: os vídeos em "Sem coleção", sem filtro nem "Selecionar"; o "Coleções" do topo saiu (D3, 19/11:
+      // elas se organizam na própria aba).
       await expect(page.getByRole('button', { name: 'Abrir vídeo: Vídeo de técnica' })).toBeVisible();
       await expect(botaoFiltros(page)).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Selecionar' })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Coleções' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Coleções' })).toHaveCount(0);
       await expect(page.getByRole('tab', { name: 'Ranking' })).toHaveCount(0);
       // Uma ação principal por vez, a da aba ativa, no cabeçalho (guia pág. 35).
       await expect(page.getByRole('button', { name: 'Novo vídeo' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Configurações do mural' })).toHaveCount(0);
-      if (largura < 768) {
-        // Em 390 px as duas ações do cabeçalho cabem numa linha só.
-        const [colecoes, novo] = await Promise.all(['Coleções', 'Novo vídeo'].map((n) => page.getByRole('button', { name: n }).boundingBox()));
-        expect(Math.abs(colecoes!.y - novo!.y)).toBeLessThanOrEqual(1);
-      }
       // Cabeçalho na largura útil (plano larguras-das-telas): a ação vai até a borda direita, sem faixa estreita no meio.
       if (largura >= 1280) {
         const titulo = await page.getByRole('heading', { level: 1, name: 'Comunidade' }).boundingBox();
@@ -1196,10 +1192,16 @@ for (const largura of [390, 1280]) {
     test('treinador: sem COMUNIDADE_MODERAR (mesmo com TREINO_ALTERAR) lê, mas não publica nem remove apelido', async ({ page }) => {
       await abrirTreinador(page, cheia, [...PERMISSOES_TREINADOR, 'TREINO_LER', 'TREINO_ALTERAR']);
       await page.goto('/treinador/comunidade');
-      await expect(page.getByText('Vídeo de técnica')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Vídeo de técnica' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Novo vídeo' })).toHaveCount(0);
-      // Editar e excluir moram no ⋯ do aulão, que só aparece com COMUNIDADE_MODERAR.
-      await expect(page.getByRole('button', { name: /^Ações do vídeo/ })).toHaveCount(0);
+      // O ⋯ do vídeo aparece para todos (o "Abrir vídeo" fora do app mora nele desde 19/11, D2); editar, mover e excluir
+      // só com COMUNIDADE_MODERAR.
+      await page.getByRole('button', { name: 'Ações do vídeo Vídeo de técnica' }).click();
+      const acoesDoVideo = page.getByRole('dialog', { name: 'Ações do vídeo' });
+      await expect(acoesDoVideo.getByRole('button', { name: /^Abrir vídeo/ })).toBeVisible();
+      await expect(acoesDoVideo.getByRole('button', { name: /^(Editar|Mover|Excluir)/ })).toHaveCount(0);
+      await page.keyboard.press('Escape');
+      await expect(acoesDoVideo).toHaveCount(0);
       await page.getByRole('tab', { name: 'Mural' }).click();
       await page.getByRole('radio', { name: 'Alunos', exact: true }).click();
       await expect(page.getByText('Treino feito.')).toBeVisible();
@@ -1342,7 +1344,7 @@ for (const largura of [390, 1280]) {
       });
       await page.goto('/treinador/comunidade');
       await capturar(page, `treinador-auloes-comentarios-${largura}`);
-      await page.getByRole('button', { name: 'Ver 31 comentário(s) do vídeo Vídeo de técnica' }).click();
+      await page.getByRole('button', { name: 'Ver comentários do vídeo Vídeo de técnica: 31 comentários' }).click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Comentário de teste 1', { exact: true })).toBeVisible();
       await expect(folha.getByText('Mostrando 30 de 31 comentários.')).toBeVisible();
@@ -1364,7 +1366,7 @@ for (const largura of [390, 1280]) {
       expect(api.pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual(['/comunidade/aulas/comentarios/v1']);
       expect(api.pedidos.some((p) => foiPost(p, '/comunidade/aulas/a1/comentarios'))).toBe(false);
       await page.keyboard.press('Escape');
-      await expect(page.getByRole('button', { name: 'Ver 30 comentário(s) do vídeo Vídeo de técnica' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ver comentários do vídeo Vídeo de técnica: 30 comentários' })).toBeVisible();
       // Só as rotas dos comentários importam aqui (o menu do treinador consulta outras, como nos demais casos da equipe).
       expect(api.naoTratadas.filter((r) => r.includes('/comunidade'))).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
@@ -1382,7 +1384,7 @@ for (const largura of [390, 1280]) {
         },
       }, [...PERMISSOES_TREINADOR, 'TREINO_LER']);
       await page.goto('/treinador/comunidade');
-      const abrir = page.getByRole('button', { name: 'Ver 2 comentário(s) do vídeo Vídeo de técnica' });
+      const abrir = page.getByRole('button', { name: 'Ver comentários do vídeo Vídeo de técnica: 2 comentários' });
       await abrir.click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Vídeo não disponível')).toBeVisible();
@@ -1413,27 +1415,35 @@ for (const largura of [390, 1280]) {
         'GET /comunidade/playlists': { corpo: [PLAYLIST_ALIMENTACAO, PLAYLIST_TECNICA] },
       });
       await page.goto('/treinador/comunidade');
-      await expect(page.getByText('Nenhum vídeo publicado.')).toBeVisible();
+      // Com coleções e sem vídeo, cada seção diz que está vazia (D2, 19/11).
+      await expect(page.getByText('Nenhum vídeo nesta coleção', { exact: true }).first()).toBeVisible();
       await page.getByRole('button', { name: 'Novo vídeo' }).click();
       const folha = page.getByRole('dialog', { name: 'Novo vídeo' });
-      await folha.getByRole('button', { name: 'Publicar para o time' }).click();
+      await folha.getByRole('button', { name: 'Publicar', exact: true }).click();
       await expect(folha.getByText('Escreva o título.')).toBeVisible();
       await expect(folha.getByText('Cole o link do vídeo.')).toBeVisible();
+      // O primeiro campo com erro (o link, que vem primeiro: D4) recebe o foco.
+      await expect(folha.getByRole('textbox', { name: 'Link do vídeo' })).toBeFocused();
       await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('http://exemplo.test');
-      await folha.getByRole('button', { name: 'Publicar para o time' }).click();
+      // Link inválido: erro sob o campo e o Publicar desativado com o motivo (D4).
       await expect(folha.getByText('Use um link https completo.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Publicar', exact: true })).toBeDisabled();
+      await expect(folha.getByText('Corrija o link do vídeo.')).toBeVisible();
       await capturar(page, `treinador-folha-erros-${largura}`);
       expect(api.pedidos.some((p) => foiPost(p, '/comunidade/aulas'))).toBe(false);
 
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video');
+      // Link fora do YouTube: sem prévia e sem busca de capa; a capa continua opcional pela galeria.
+      await expect(folha.getByRole('button', { name: 'Escolher capa' })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Usar a capa do YouTube' })).toHaveCount(0);
       // Coleção: só escolhe uma existente (D17), na ordem do treinador, com "Sem coleção" primeiro; o vídeo entra no fim dela.
-      await expect(folha.getByText('O vídeo entra no fim da coleção.')).toBeVisible();
+      await expect(folha.getByText('Entra no fim da coleção.')).toBeVisible();
       await escolherColecao(page, folha, 'Sem coleção', 'Técnica');
       await expect(folha.getByRole('button', { name: 'Coleção: Técnica. Escolher.' })).toBeVisible();
       await folha.getByRole('textbox', { name: /^Descrição/ }).fill('Pauta de teste.');
       await capturar(page, `treinador-folha-colecao-${largura}`);
-      await folha.getByRole('button', { name: 'Publicar para o time' }).click();
+      await folha.getByRole('button', { name: 'Publicar', exact: true }).click();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/aulas'))?.corpo)
         .toEqual({ titulo: 'Vídeo de teste', descricao: 'Pauta de teste.', videoUrl: 'https://exemplo.test/video', playlistId: 'p1' });
       await expect(folha).toHaveCount(0);
@@ -1445,10 +1455,10 @@ for (const largura of [390, 1280]) {
       await page.goto('/treinador/comunidade');
       await page.getByRole('button', { name: 'Novo vídeo' }).click();
       const folha = page.getByRole('dialog', { name: 'Novo vídeo' });
-      await expect(folha.getByText('Nenhuma coleção ainda. Crie em Coleções, no topo da aba Vídeos.')).toBeVisible();
+      await expect(folha.getByText('Nenhuma coleção ainda. Crie em “+ Nova coleção”, no fim da aba Vídeos.')).toBeVisible();
       await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video');
-      await folha.getByRole('button', { name: 'Publicar para o time' }).click();
+      await folha.getByRole('button', { name: 'Publicar', exact: true }).click();
       await expect(folha.getByText('Escolha uma coleção da consultoria.')).toBeVisible();
       await expect(folha).toBeVisible();
     });
@@ -1461,8 +1471,9 @@ for (const largura of [390, 1280]) {
       const folha = page.getByRole('dialog', { name: 'Novo vídeo' });
       await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video');
-      await folha.getByRole('button', { name: 'Publicar para o time' }).click();
+      await folha.getByRole('button', { name: 'Publicar', exact: true }).click();
       await expect(folha.getByText('Use um link https sem usuário e senha.')).toBeVisible();
+      await expect(folha.getByRole('textbox', { name: 'Link do vídeo' })).toBeFocused();
       await expect(folha).toBeVisible();
     });
 
@@ -1474,7 +1485,7 @@ for (const largura of [390, 1280]) {
       const folha = page.getByRole('dialog', { name: 'Novo vídeo' });
       await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video');
-      await folha.getByRole('button', { name: 'Publicar para o time' }).click();
+      await folha.getByRole('button', { name: 'Publicar', exact: true }).click();
       await expect(folha.getByText('Comunidade indisponível agora.')).toBeVisible();
       await expect(folha.getByRole('textbox', { name: 'Título' })).toHaveValue('Vídeo de teste');
     });
@@ -1568,8 +1579,13 @@ const AULAS_VARIADAS: AulaDaComunidade[] = [
 ];
 const PLAYLISTS_VARIADAS = [PLAYLIST_ALIMENTACAO, { ...PLAYLIST_TECNICA, totalAulas: 3 }];
 
-/** Títulos (h2) dos vídeos na ordem da tela. */
-const titulosNaTela = (page: Page) => page.getByRole('heading', { level: 2, name: /^Vídeo de/ }).allInnerTexts();
+/** Títulos dos vídeos na ordem da tela (h3 dentro da seção da coleção, h2 na grade plana das coleções em erro). */
+const titulosNaTela = (page: Page) => page.getByRole('heading', { name: /^Vídeo de/ }).allInnerTexts();
+/** "Mover para cima/baixo" pelo ⋯ do vídeo (D2, 19/11: as setas do cartão saíram). */
+async function moverPeloMenu(page: Page, titulo: string, direcao: 'cima' | 'baixo') {
+  await page.getByRole('button', { name: `Ações do vídeo ${titulo}` }).click();
+  await page.getByRole('dialog', { name: 'Ações do vídeo' }).getByRole('button', { name: new RegExp(`^Mover para ${direcao}`) }).click();
+}
 
 /** Escolhe a coleção do vídeo (lista suspensa no PC, folha no celular). */
 async function escolherColecao(page: Page, folha: ReturnType<Page['getByRole']>, atual: string, nova: string) {
@@ -1671,20 +1687,21 @@ for (const largura of [390, 1280]) {
       await expect(folha.getByRole('textbox', { name: /^Descrição/ })).toHaveValue('Pauta do vídeo de teste.');
       await expect(folha.getByRole('button', { name: 'Coleção: Técnica. Escolher.' })).toBeVisible();
       await expect(folha.getByText('Trocar de coleção leva o vídeo para o fim da nova.')).toBeVisible();
-      await expect(folha.getByRole('button', { name: 'Publicar para o time' })).toHaveCount(0);
+      await expect(folha.getByRole('button', { name: 'Publicar', exact: true })).toHaveCount(0);
       await capturar(page, `treinador-editar-aulao-${largura}`);
 
-      // Link inválido não sai do aparelho.
+      // Link inválido não sai do aparelho: ao sair do campo o erro aparece e o Salvar fica desativado (D4).
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('http://exemplo.test');
-      await folha.getByRole('button', { name: 'Salvar alterações' }).click();
+      await folha.getByRole('textbox', { name: 'Link do vídeo' }).blur();
       await expect(folha.getByText('Use um link https completo.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Salvar', exact: true })).toBeDisabled();
       expect(api.pedidos.some((p) => p.metodo === 'PUT')).toBe(false);
 
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video-novo');
       await folha.getByRole('textbox', { name: 'Título' }).fill('Vídeo de técnica avançada');
       await escolherColecao(page, folha, 'Técnica', 'Mobilidade');
       await folha.getByRole('textbox', { name: /^Descrição/ }).fill('');
-      await folha.getByRole('button', { name: 'Salvar alterações' }).click();
+      await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
       await expect.poll(() => api.pedidos.find((p) => p.metodo === 'PUT')?.corpo).toEqual({
         titulo: 'Vídeo de técnica avançada', descricao: null, videoUrl: 'https://exemplo.test/video-novo',
         capaId: 'capa-1', playlistId: 'p3', publicada: false,
@@ -1692,10 +1709,10 @@ for (const largura of [390, 1280]) {
       expect(api.pedidos.find((p) => p.metodo === 'PUT')?.caminho).toBe('/comunidade/aulas/a1');
       await expect(folha).toHaveCount(0);
       await expect(page.getByText('Vídeo atualizado.')).toBeVisible();
-      await expect(page.getByRole('heading', { level: 2, name: 'Vídeo de técnica avançada' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 3, name: 'Vídeo de técnica avançada' })).toBeVisible();
 
       await page.reload();
-      await expect(page.getByRole('heading', { level: 2, name: 'Vídeo de técnica avançada' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 3, name: 'Vídeo de técnica avançada' })).toBeVisible();
       await expect(page.getByText('Não publicado', { exact: true })).toBeVisible();
       const filtros = await abrirPainel(page, 'Filtros de vídeos');
       await expect(filtros.getByRole('radio', { name: 'Mobilidade, 1' })).toBeVisible();
@@ -1711,10 +1728,10 @@ for (const largura of [390, 1280]) {
       await page.goto('/treinador/comunidade');
       await page.getByRole('button', { name: 'Ações do vídeo Vídeo de técnica' }).click();
       await page.getByRole('dialog', { name: 'Ações do vídeo' }).getByRole('button', { name: /^Editar vídeo/ }).click();
-      await page.getByRole('dialog', { name: 'Editar vídeo' }).getByRole('button', { name: 'Salvar alterações' }).click();
+      await page.getByRole('dialog', { name: 'Editar vídeo' }).getByRole('button', { name: 'Salvar', exact: true }).click();
       await expect(page.getByRole('dialog', { name: 'Editar vídeo' })).toHaveCount(0);
       await expect(page.getByText('Este vídeo já tinha sido excluído.')).toBeVisible();
-      await expect(page.getByText('Nenhum vídeo publicado.')).toBeVisible();
+      await expect(page.getByText(/^Nenhum vídeo nem coleção ainda\./)).toBeVisible();
     });
 
     test('excluir pede confirmação com o aviso dos comentários; Cancelar não apaga; a falha fica no painel; confirmar chama o DELETE', async ({ page }) => {
@@ -1748,10 +1765,10 @@ for (const largura of [390, 1280]) {
       await painel.getByRole('button', { name: 'Excluir vídeo' }).click();
       await expect(painel).toHaveCount(0);
       await expect(page.getByText('Vídeo excluído.')).toBeVisible();
-      await expect(page.getByRole('heading', { level: 2, name: 'Vídeo de proteína' })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Vídeo de proteína' })).toHaveCount(0);
       expect(pedidosDe(api, 'DELETE', '/comunidade/aulas/a2')).toHaveLength(2);
       // A coleção que ficou sem vídeo sai do filtro (e continua na lista, vazia).
-      await expect(page.getByText(/^Nenhum vídeo nesta coleção\./)).toBeVisible();
+      await expect(page.getByText('Nenhum vídeo nesta coleção', { exact: true })).toBeVisible();
       const filtros = await abrirPainel(page, 'Filtros de vídeos');
       await expect(filtros.getByRole('radio', { name: /^Técnica/ })).toBeVisible();
       await expect(filtros.getByRole('radio', { name: /^Alimentação/ })).toHaveCount(0);
@@ -1766,7 +1783,7 @@ for (const largura of [390, 1280]) {
       return simularApi(page, { ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES_DE_MODERAR })), ...cheia, ...respostas });
     };
 
-    test('lista por coleção na ordem do treinador (a vazia também), numerada com o rascunho; Subir manda a coleção inteira; 409 recarrega com o aviso', async ({ page }) => {
+    test('lista por coleção na ordem do treinador (a vazia também), numerada com o rascunho; "Mover para cima" manda a coleção inteira; 409 recarrega com o aviso', async ({ page }) => {
       const { estado, rotas } = colecoesComEstado([...PLAYLISTS_VARIADAS, { id: 'p3', nome: 'Mobilidade', ordem: 2, totalAulas: 0 }]);
       const api = await abrir(page, rotas);
       await page.goto('/treinador/comunidade');
@@ -1774,28 +1791,32 @@ for (const largura of [390, 1280]) {
       await expect.poll(() => titulosNaTela(page))
         .toEqual(['Vídeo de técnica', 'Vídeo de rascunho', 'Vídeo de execução', 'Vídeo de proteína', 'Vídeo de boas-vindas']);
       await expect(page.getByText('3 vídeos', { exact: true })).toBeVisible();
-      await expect(page.getByText('Mobilidade', { exact: true })).toBeVisible();
-      await expect(page.getByText(/^Nenhum vídeo nesta coleção\. Escolha esta coleção/)).toBeVisible();
-      await expect(page.getByText('Sem coleção', { exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 2, name: 'Mobilidade' })).toBeVisible();
+      await expect(page.getByText('Nenhum vídeo nesta coleção', { exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 2, name: 'Sem coleção' })).toBeVisible();
       await expect(page.getByText('Não publicado', { exact: true })).toBeVisible();
-      // Só a coleção com dois ou mais vídeos tem setas; na ponta a seta não existe; "Sem coleção" não tem ordem.
-      await expect(page.getByRole('button', { name: 'Subir Vídeo de técnica' })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Descer Vídeo de execução' })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Subir Vídeo de proteína' })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Subir Vídeo de boas-vindas' })).toHaveCount(0);
+      // O número é a posição na coleção (o rascunho conta): 1, 2 e 3 em Técnica, 1 em Alimentação, nada em "Sem coleção".
+      await expect(page.getByLabel(/^Posição \d+$/)).toHaveText(['1', '2', '3', '1']);
       await capturar(page, `treinador-colecoes-lista-${largura}`);
 
-      await page.getByRole('button', { name: 'Subir Vídeo de execução' }).click();
+      // Na ponta o "Mover para cima" não existe; "Sem coleção" não tem ordem.
+      await page.getByRole('button', { name: 'Ações do vídeo Vídeo de técnica' }).click();
+      await expect(page.getByRole('dialog', { name: 'Ações do vídeo' }).getByRole('button', { name: /^Mover para cima/ })).toHaveCount(0);
+      await page.keyboard.press('Escape');
+      await page.getByRole('button', { name: 'Ações do vídeo Vídeo de boas-vindas' }).click();
+      await expect(page.getByRole('dialog', { name: 'Ações do vídeo' }).getByRole('button', { name: /^Mover para (cima|baixo)/ })).toHaveCount(0);
+      await page.keyboard.press('Escape');
+
+      await moverPeloMenu(page, 'Vídeo de execução', 'cima');
       // A lista INTEIRA da coleção, com o não publicado, na ordem nova.
       await expect.poll(() => pedidosDe(api, 'PUT', '/comunidade/playlists/p1/aulas/ordem').map((p) => p.corpo)).toEqual([{ ids: ['a1', 'a4', 'a5'] }]);
       await expect.poll(() => titulosNaTela(page))
         .toEqual(['Vídeo de técnica', 'Vídeo de execução', 'Vídeo de rascunho', 'Vídeo de proteína', 'Vídeo de boas-vindas']);
-      await expect(page.getByRole('button', { name: 'Descer Vídeo de rascunho' })).toHaveCount(0);
 
       // Lista velha (409): aviso fixo e a lista vem de novo.
       estado.recusar = true;
       const antes = pedidosDe(api, 'GET', '/comunidade/aulas').length;
-      await page.getByRole('button', { name: 'Descer Vídeo de técnica' }).click();
+      await moverPeloMenu(page, 'Vídeo de técnica', 'baixo');
       await expect(page.getByText('A lista mudou. Confira e tente de novo.')).toBeVisible();
       await expect.poll(() => pedidosDe(api, 'GET', '/comunidade/aulas').length).toBeGreaterThan(antes);
       await expect.poll(() => titulosNaTela(page))
@@ -1805,70 +1826,74 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('"Coleções": cria vazia, nome repetido no campo, renomeia (422 no campo), reordena e exclui com confirmação', async ({ page }) => {
+    test('coleções na própria aba (D3): cria vazia, nome repetido no campo, renomeia no título (422 no campo), reordena e exclui com confirmação', async ({ page }) => {
       const { estado, rotas } = colecoesComEstado();
       const api = await abrir(page, rotas);
       await page.goto('/treinador/comunidade');
-      await page.getByRole('button', { name: 'Coleções' }).click();
-      const folha = page.getByRole('dialog', { name: 'Coleções' });
-      await expect(folha.getByText(/^O aluno vê as coleções nesta ordem/)).toBeVisible();
-      await expect(folha.getByText('Técnica', { exact: true })).toBeVisible();
+      await expect(page.getByText(/^O aluno vê as coleções nesta ordem/)).toBeVisible();
+      await expect(page.getByRole('heading', { level: 2, name: 'Técnica' })).toBeVisible();
 
       // Nome repetido: o erro fica no campo (a pessoa corrige ali) e nada é criado.
-      const nome = folha.getByRole('textbox', { name: 'Nome da nova coleção' });
+      await page.getByRole('button', { name: 'Nova coleção' }).click();
+      const nome = page.getByRole('textbox', { name: 'Nome da nova coleção' });
       await nome.fill('técnica');
-      await folha.getByRole('button', { name: 'Criar coleção' }).click();
-      await expect(folha.getByText('Já existe uma coleção com esse nome. Escolha outro.')).toBeVisible();
+      await page.getByRole('button', { name: 'Criar coleção' }).click();
+      await expect(page.getByText('Já existe uma coleção com esse nome. Escolha outro.')).toBeVisible();
       await nome.fill('   ');
-      await folha.getByRole('button', { name: 'Criar coleção' }).click();
-      await expect(folha.getByText('Use de 1 a 60 caracteres.')).toBeVisible();
+      await page.getByRole('button', { name: 'Criar coleção' }).click();
+      await expect(page.getByText('Use de 1 a 60 caracteres.')).toBeVisible();
       expect(pedidosDe(api, 'POST', '/comunidade/playlists')).toHaveLength(1);
       // Vazia vale (C28).
       await nome.fill('  Mobilidade   e  alongamento ');
-      await folha.getByRole('button', { name: 'Criar coleção' }).click();
+      await page.getByRole('button', { name: 'Criar coleção' }).click();
       await expect.poll(() => pedidosDe(api, 'POST', '/comunidade/playlists').at(-1)?.corpo).toEqual({ nome: 'Mobilidade e alongamento' });
-      await expect(folha.getByText('Mobilidade e alongamento', { exact: true })).toBeVisible();
-      await expect(folha.getByText('0 vídeos', { exact: true })).toBeVisible();
-      await expect(nome).toHaveValue('');
-      await capturar(page, `treinador-colecoes-folha-${largura}`);
+      await expect(page.getByRole('heading', { level: 2, name: 'Mobilidade e alongamento' })).toBeVisible();
+      await expect(page.getByText('0 vídeos', { exact: true })).toBeVisible();
+      await expect(nome).toHaveCount(0);
+      await capturar(page, `treinador-colecoes-criada-${largura}`);
 
-      // Renomear na linha: 422 PLAYLIST_INVALIDA no campo; depois salva.
-      await folha.getByRole('button', { name: 'Renomear a coleção Alimentação' }).click();
-      const novoNome = folha.getByRole('textbox', { name: 'Novo nome de Alimentação' });
+      // Renomear no título: 422 PLAYLIST_INVALIDA no campo; depois salva.
+      await page.getByRole('button', { name: 'Ações da coleção Alimentação' }).click();
+      await page.getByRole('dialog', { name: 'Ações da coleção “Alimentação”' }).getByRole('button', { name: /^Renomear/ }).click();
+      const novoNome = page.getByRole('textbox', { name: 'Nome da coleção Alimentação' });
       await novoNome.fill('Nome recusado');
-      await folha.getByRole('button', { name: 'Salvar nome' }).click();
-      await expect(folha.getByText('Use outro nome para a coleção.')).toBeVisible();
+      await page.getByRole('button', { name: 'Salvar nome' }).click();
+      await expect(page.getByText('Use outro nome para a coleção.')).toBeVisible();
       await novoNome.fill('Nutrição');
-      await folha.getByRole('button', { name: 'Salvar nome' }).click();
-      await expect(folha.getByText('Nutrição', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Salvar nome' }).click();
+      await expect(page.getByRole('heading', { level: 2, name: 'Nutrição' })).toBeVisible();
       expect(pedidosDe(api, 'PUT', '/comunidade/playlists/p2').map((p) => p.corpo)).toEqual([{ nome: 'Nome recusado' }, { nome: 'Nutrição' }]);
 
-      // Subir/Descer da coleção manda a lista inteira; na ponta a seta não existe.
-      await expect(folha.getByRole('button', { name: 'Subir a coleção Técnica' })).toHaveCount(0);
-      await folha.getByRole('button', { name: 'Descer a coleção Técnica' }).click();
+      // "Mover para baixo" da coleção manda a lista inteira; na ponta o "Mover para cima" não existe.
+      await page.getByRole('button', { name: 'Ações da coleção Técnica' }).click();
+      const menuDaTecnica = page.getByRole('dialog', { name: 'Ações da coleção “Técnica”' });
+      await expect(menuDaTecnica.getByRole('button', { name: /^Mover para cima/ })).toHaveCount(0);
+      await menuDaTecnica.getByRole('button', { name: /^Mover para baixo/ }).click();
       await expect.poll(() => pedidosDe(api, 'PUT', '/comunidade/playlists/ordem').map((p) => p.corpo)).toEqual([{ ids: ['p2', 'p1', 'n1'] }]);
-      await expect(folha.getByRole('button', { name: 'Subir a coleção Nutrição' })).toHaveCount(0);
+      await expect.poll(() => page.getByRole('heading', { level: 2 }).allInnerTexts()).toEqual(['Nutrição', 'Técnica', 'Mobilidade e alongamento', 'Sem coleção']);
 
       // Excluir pede confirmação, diz que os vídeos ficam em "Sem coleção"; Cancelar não apaga.
       const painel = page.getByRole('alertdialog', { name: 'Excluir a coleção “Técnica”?' });
-      await folha.getByRole('button', { name: 'Excluir a coleção Técnica' }).click();
-      await expect(painel.getByText('Os 3 vídeos dela passam para “Sem coleção”; nenhum vídeo é apagado.')).toBeVisible();
+      const pedirExcluir = async () => {
+        await page.getByRole('button', { name: 'Ações da coleção Técnica' }).click();
+        await page.getByRole('dialog', { name: 'Ações da coleção “Técnica”' }).getByRole('button', { name: /^Excluir coleção/ }).click();
+      };
+      await pedirExcluir();
+      await expect(painel.getByText(/^Os 3 vídeos dela passam para “Sem coleção”; nenhum vídeo é apagado\./)).toBeVisible();
       await capturar(page, `treinador-colecoes-excluir-${largura}`);
       await painel.getByRole('button', { name: 'Cancelar' }).click();
       expect(api.pedidos.some((p) => p.metodo === 'DELETE')).toBe(false);
-      await folha.getByRole('button', { name: 'Excluir a coleção Técnica' }).click();
+      await pedirExcluir();
       await painel.getByRole('button', { name: 'Excluir coleção' }).click();
       await expect(painel).toHaveCount(0);
-      await expect(folha.getByText('Técnica', { exact: true })).toHaveCount(0);
+      await expect(page.getByRole('heading', { level: 2, name: 'Técnica' })).toHaveCount(0);
       expect(pedidosDe(api, 'DELETE', '/comunidade/playlists/p1')).toHaveLength(1);
       expect(estado.aulas.filter((a) => a.playlistId === null).map((a) => a.id)).toEqual(['a1', 'a3', 'a4', 'a5']);
 
-      // A lista da tela vem de novo: os vídeos da excluída estão em "Sem coleção" (sem número nem setas); a nova aparece vazia.
-      await folha.getByRole('button', { name: 'Fechar', exact: true }).click();
-      await expect(folha).toHaveCount(0);
-      await expect(page.getByText('Mobilidade e alongamento', { exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Subir Vídeo de execução' })).toHaveCount(0);
+      // A lista vem de novo: os vídeos da excluída estão em "Sem coleção" (sem número); a nova aparece vazia.
+      await expect(page.getByRole('heading', { level: 2, name: 'Mobilidade e alongamento' })).toBeVisible();
       await expect.poll(() => titulosNaTela(page)).toEqual(['Vídeo de proteína', 'Vídeo de técnica', 'Vídeo de boas-vindas', 'Vídeo de execução', 'Vídeo de rascunho']);
+      await expect(page.getByLabel(/^Posição \d+$/)).toHaveText(['1']);
       expect(api.naoTratadas.filter((r) => r.includes('/comunidade'))).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
     });
@@ -1939,34 +1964,43 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText(/^Não foi possível carregar as coleções/)).toHaveCount(0);
     });
 
-    test('sem COMUNIDADE_MODERAR (só TREINO_LER) vê a lista por coleção, sem Coleções, Selecionar, setas nem ⋯', async ({ page }) => {
+    test('sem COMUNIDADE_MODERAR (só TREINO_LER) vê a lista por coleção, sem Nova coleção, Selecionar, alça nem ⋯ de coleção', async ({ page }) => {
       await tema(page, TREINADOR.id, 'CLARO');
       const { rotas } = colecoesComEstado([...PLAYLISTS_VARIADAS, { id: 'p3', nome: 'Mobilidade', ordem: 2, totalAulas: 0 }]);
       const api = await simularApi(page, { ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER'] })), ...cheia, ...rotas });
       await page.goto('/treinador/comunidade');
       await expect.poll(() => titulosNaTela(page)).toHaveLength(5);
-      await expect(page.getByText('Nenhum vídeo nesta coleção.', { exact: true })).toBeVisible();
-      for (const nome of ['Coleções', 'Novo vídeo', 'Selecionar']) await expect(page.getByRole('button', { name: nome, exact: true })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: /^(Subir|Descer|Ações do vídeo) / })).toHaveCount(0);
+      await expect(page.getByText('Nenhum vídeo nesta coleção', { exact: true })).toBeVisible();
+      for (const nome of ['Nova coleção', 'Novo vídeo', 'Selecionar']) await expect(page.getByRole('button', { name: nome, exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^(Adicionar vídeo|Ações da coleção)/ })).toHaveCount(0);
+      await expect(page.getByTestId('alca-de-arraste')).toHaveCount(0);
+      // O ⋯ do vídeo fica (só com "Abrir vídeo", fora do app): ver o teste do cabeçalho.
+      await expect(page.getByRole('button', { name: /^Ações do vídeo / })).toHaveCount(5);
       await expect(botaoFiltros(page)).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('teclado: Enter no Subir move o vídeo e o foco fica no botão dele (na ponta, no Descer)', async ({ page }) => {
+    test('teclado: Enter no ⋯ e em "Mover para cima" move o vídeo e o foco volta ao ⋯ dele', async ({ page }) => {
       const { rotas } = colecoesComEstado();
       await abrir(page, rotas);
       await page.goto('/treinador/comunidade');
-      await page.getByRole('button', { name: 'Subir Vídeo de execução' }).focus();
-      await page.keyboard.press('Enter');
-      await expect.poll(() => titulosNaTela(page))
-        .toEqual(['Vídeo de técnica', 'Vídeo de execução', 'Vídeo de rascunho', 'Vídeo de proteína', 'Vídeo de boas-vindas']);
-      // O cartão mudou de lugar no DOM: o foco volta ao Subir do mesmo vídeo (sem isso cairia no body).
-      await expect(page.getByRole('button', { name: 'Subir Vídeo de execução' })).toBeFocused();
-      await page.keyboard.press('Enter');
-      await expect.poll(() => titulosNaTela(page))
-        .toEqual(['Vídeo de execução', 'Vídeo de técnica', 'Vídeo de rascunho', 'Vídeo de proteína', 'Vídeo de boas-vindas']);
-      // Na ponta o Subir some: o foco vai ao Descer do mesmo vídeo.
-      await expect(page.getByRole('button', { name: 'Descer Vídeo de execução' })).toBeFocused();
+      const menu = page.getByRole('button', { name: 'Ações do vídeo Vídeo de execução' });
+      for (const esperado of [
+        ['Vídeo de técnica', 'Vídeo de execução', 'Vídeo de rascunho', 'Vídeo de proteína', 'Vídeo de boas-vindas'],
+        ['Vídeo de execução', 'Vídeo de técnica', 'Vídeo de rascunho', 'Vídeo de proteína', 'Vídeo de boas-vindas'],
+      ]) {
+        await menu.focus();
+        await page.keyboard.press('Enter');
+        const acoes = page.getByRole('dialog', { name: 'Ações do vídeo' });
+        await acoes.getByRole('button', { name: /^Mover para cima/ }).focus();
+        await page.keyboard.press('Enter');
+        await expect.poll(() => titulosNaTela(page)).toEqual(esperado);
+        // O cartão mudou de lugar no DOM: o foco volta ao ⋯ do mesmo vídeo (sem isso cairia no body).
+        await expect(menu).toBeFocused();
+      }
+      // Na ponta o "Mover para cima" some do menu.
+      await menu.press('Enter');
+      await expect(page.getByRole('dialog', { name: 'Ações do vídeo' }).getByRole('button', { name: /^Mover para cima/ })).toHaveCount(0);
     });
 
     test('a coleção vazia e o "Sem coleção" no fim da lista', async ({ page }) => {
@@ -1975,13 +2009,13 @@ for (const largura of [390, 1280]) {
         await abrir(page, rotas, t);
         await page.goto('/treinador/comunidade');
         await page.getByText('Sem coleção', { exact: true }).scrollIntoViewIfNeeded();
-        await expect(page.getByText(/^Nenhum vídeo nesta coleção\./)).toBeVisible();
+        await expect(page.getByText('Nenhum vídeo nesta coleção', { exact: true })).toBeVisible();
         if (CAPTURAS) await page.screenshot({ path: `${CAPTURAS}/treinador-colecoes-fim-${nome}-${largura}.png` });
       }
     });
 
     for (const [nome, t] of [['claro', 'CLARO'], ['escuro', 'ESCURO']] as const) {
-      test(`lista, folha e seleção no tema ${nome}`, async ({ page }) => {
+      test(`lista, seleção e menu da coleção no tema ${nome}`, async ({ page }) => {
         const { rotas } = colecoesComEstado();
         const api = await abrir(page, rotas, t);
         await page.goto('/treinador/comunidade');
@@ -1991,9 +2025,9 @@ for (const largura of [390, 1280]) {
         await page.getByRole('checkbox', { name: 'Selecionar Vídeo de proteína' }).click();
         await capturar(page, `treinador-colecoes-selecao-tema-${nome}-${largura}`);
         await page.getByRole('button', { name: 'Sair da seleção' }).click();
-        await page.getByRole('button', { name: 'Coleções' }).click();
-        await expect(page.getByRole('dialog', { name: 'Coleções' }).getByText('Alimentação', { exact: true })).toBeVisible();
-        await capturar(page, `treinador-colecoes-folha-tema-${nome}-${largura}`);
+        await page.getByRole('button', { name: 'Ações da coleção Alimentação' }).click();
+        await expect(page.getByRole('dialog', { name: 'Ações da coleção “Alimentação”' }).getByRole('button', { name: /^Renomear/ })).toBeVisible();
+        await capturar(page, `treinador-colecoes-menu-tema-${nome}-${largura}`);
         expect(api.errosDaPagina).toEqual([]);
       });
     }
@@ -2024,8 +2058,11 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 10
       await aplicarFiltros(painel);
       await expect.poll(() => titulosNaTela(page)).toEqual(['Vídeo de técnica', 'Vídeo de rascunho', 'Vídeo de execução']);
       await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, 1 ligado');
-      // Filtrada, a coleção continua numerada e com as setas.
-      await expect(page.getByRole('button', { name: 'Subir Vídeo de execução' })).toBeEnabled();
+      // Filtrada, a coleção continua numerada e o ⋯ continua movendo (a ordem vai com a coleção inteira).
+      await expect(page.getByLabel(/^Posição \d+$/)).toHaveText(['1', '2', '3']);
+      await page.getByRole('button', { name: 'Ações do vídeo Vídeo de execução' }).click();
+      await expect(page.getByRole('dialog', { name: 'Ações do vídeo' }).getByRole('button', { name: /^Mover para cima/ })).toBeVisible();
+      await page.keyboard.press('Escape');
       await capturar(page, `treinador-filtro-colecao-${largura}`);
       await filtrarColecao(page, 'Sem coleção, 1');
       await expect.poll(() => titulosNaTela(page)).toEqual(['Vídeo de boas-vindas']);
@@ -2052,11 +2089,11 @@ test.describe('vídeos: estados', () => {
       'GET /comunidade/aulas': { corpo: [aula] },
     });
     await page.goto('/treinador/comunidade');
-    await expect(page.getByRole('heading', { level: 2, name: aula.titulo })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 3, name: aula.titulo })).toBeVisible();
     await expect(page.getByText(longa, { exact: true })).toBeVisible();
     expect(await semRolagemHorizontal(page)).toBe(true);
     // O título continua com largura de leitura (não espremido pelo selo e pelo ⋯).
-    expect((await page.getByRole('heading', { level: 2, name: aula.titulo }).boundingBox())!.width).toBeGreaterThan(200);
+    expect((await page.getByRole('heading', { level: 3, name: aula.titulo }).boundingBox())!.width).toBeGreaterThan(200);
     // O ⋯ continua inteiro dentro da tela.
     const menu = (await page.getByRole('button', { name: `Ações do vídeo ${aula.titulo}` }).boundingBox())!;
     expect(menu.x + menu.width).toBeLessThanOrEqual(390);
@@ -2079,7 +2116,7 @@ test.describe('vídeos: estados', () => {
     await expect(page.getByRole('progressbar').first()).toBeVisible();
     await capturar(page, 'treinador-auloes-carregando-390');
     liberar();
-    await expect(page.getByRole('heading', { level: 2, name: /^Vídeo de/ })).toHaveCount(5);
+    await expect(page.getByRole('heading', { name: /^Vídeo de/ })).toHaveCount(5);
   });
 
   test('aluno: carregando mostra o esqueleto; falha tem "Tentar de novo", que busca de novo', async ({ page }) => {
@@ -2111,7 +2148,7 @@ const aulas = (n: number): AulaDaComunidade[] => Array.from({ length: n }, (_, i
 
 /** Colunas da grade dos aulões: quantos `x` distintos têm os botões de comentários (à esquerda de cada cartão). */
 async function colunasDosAuloes(page: Page) {
-  const caixas = await Promise.all((await page.getByRole('button', { name: /comentário\(s\) do vídeo/ }).all()).map((b) => b.boundingBox()));
+  const caixas = await Promise.all((await page.getByRole('button', { name: /^Ver comentários do vídeo/ }).all()).map((b) => b.boundingBox()));
   return new Set(caixas.map((c) => Math.round(c!.x))).size;
 }
 
@@ -2124,7 +2161,8 @@ async function bordasDoConteudo(page: Page, acao: string) {
 
 const semRolagemHorizontal = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
-for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 2], [1920, 1080, 3]] as const) {
+// Colunas dos vídeos pela área ao lado do menu (D2, 19/11): 1440 com o menu aberto tem ~1200 px (3) e 1920, ~1680 (4).
+for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 3], [1920, 1080, 4]] as const) {
   test.describe(`treinador: larguras da Comunidade em ${largura} px`, () => {
     test.use({ viewport: { width: largura, height: altura } });
     const abrir = async (page: Page, respostas: RespostasApi) => {
@@ -2147,7 +2185,7 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 2], [1920, 
       const video = page.getByRole('button', { name: 'Abrir vídeo: Vídeo de teste 1' });
       await expect(video).toBeVisible();
       const { esquerda, direita } = await bordasDoConteudo(page, 'Novo vídeo');
-      const comentarios = (await page.getByRole('button', { name: /comentário\(s\) do vídeo Vídeo de teste 1/ }).boundingBox())!;
+      const comentarios = (await page.getByRole('button', { name: /^Ver comentários do vídeo Vídeo de teste 1:/ }).boundingBox())!;
       // O botão de comentários fica rente ao recuo do cartão, colado à borda esquerda do conteúdo.
       expect(comentarios.x - esquerda).toBeLessThanOrEqual(32);
       const fimDoCartao = (await video.boundingBox())!;
@@ -2447,6 +2485,7 @@ for (const largura of [390, 1280]) {
       let jpeg: Buffer = Buffer.alloc(0);
       const api = await abrirEquipe(page, {
         'POST /comunidade/capas': (_p, route) => json(route, { id: `capa-${++n}` }),
+        'POST /comunidade/capas/youtube': { corpo: { id: 'capa-yt' } },
         'GET /comunidade/capas/{id}': (_p, route) => route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg }),
         'POST /comunidade/mural': { corpo: { ...VIDEO_YT, id: 'novo' } },
         'POST /comunidade/aulas': { corpo: { ...AULA, id: 'novo' } },
@@ -2480,13 +2519,15 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: 'Novo vídeo' }).click();
       const aulao = page.getByRole('dialog', { name: 'Novo vídeo' });
       await aulao.getByRole('textbox', { name: 'Título' }).fill('Vídeo de teste');
+      // Link do YouTube: a capa vem sozinha (D4); trocar pela da galeria fica valendo.
       await aulao.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://youtu.be/abcDEF12345');
-      await escolherCapa(aulao, 'Escolher capa');
       await expect(aulao.getByRole('button', { name: 'Trocar capa' })).toBeVisible();
-      await aulao.getByRole('button', { name: 'Publicar para o time' }).click();
+      await escolherCapa(aulao, 'Trocar capa');
+      await expect.poll(() => api.pedidos.filter((p) => foiPost(p, '/comunidade/capas')).length).toBe(3);
+      await aulao.getByRole('button', { name: 'Publicar', exact: true }).click();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/aulas'))?.corpo)
         .toEqual({ titulo: 'Vídeo de teste', videoUrl: 'https://youtu.be/abcDEF12345', playlistId: null, capaId: 'capa-3' });
-      expect(api.pedidos.filter((p) => foiPost(p, '/comunidade/capas')).length).toBe(3);
+      expect(api.pedidos.filter((p) => foiPost(p, '/comunidade/capas/youtube')).length).toBe(1);
       expect(api.errosDaPagina).toEqual([]);
     });
 

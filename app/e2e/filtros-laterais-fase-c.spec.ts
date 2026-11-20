@@ -165,7 +165,8 @@ const CASOS: Caso[] = [
   {
     tela: 'auloes', caminho: '/treinador/comunidade', painel: 'Filtros de vídeos', usuarioId: TREINADOR.id,
     api: null, noPedido: null, noEndereco: null,
-    pronto: (page) => page.getByRole('heading', { level: 2, name: 'Vídeo de boas-vindas' }),
+    // O título do vídeo é h3, dentro da seção da coleção (h2), desde a aba em grade (D2, 19/11).
+    pronto: (page) => page.getByRole('heading', { level: 3, name: 'Vídeo de boas-vindas' }),
     sessao: treinador(['TREINO_LER', 'COMUNIDADE_MODERAR']),
     rotas: {
       ...COMUNIDADE,
