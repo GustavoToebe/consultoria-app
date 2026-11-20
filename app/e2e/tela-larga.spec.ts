@@ -546,3 +546,18 @@ for (const largura of [1280, 1920, 2400, 2800, 3440]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+test('1920 px, menu recolhido: o painel da refeição termina na borda dos cartões de cima', async ({ page }) => {
+  await prepararAmbiente(page, 1920, { altura: 1600, menuRecolhido: true });
+  await page.goto(`/treinador/dietas/${DIETA_ID}`);
+  await page.getByRole('button', { name: /^Refeição 2 de 2: 12:00 · Almoço/ }).click();
+  await expect(page.getByRole('tablist', { name: 'Opções de 12:00 · Almoço' }).getByRole('tab')).toHaveCount(2);
+  await expect(async () => {
+    const refeicao = await caixa(page.locator('#refeicao-almoco'));
+    // "Lista de compras" é o último item da linha de "Refeições", que vai até a borda direita da área (a dos cartões de cima).
+    const listaDeCompras = await caixa(page.getByRole('button', { name: 'Lista de compras' }));
+    expect(refeicao.width).toBeLessThanOrEqual(TETO);
+    expect(Math.abs(refeicao.x + refeicao.width - (listaDeCompras.x + listaDeCompras.width))).toBeLessThanOrEqual(3);
+  }).toPass({ timeout: 10_000 });
+  await semRolagemHorizontal(page);
+});

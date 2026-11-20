@@ -427,10 +427,11 @@ const estilos = StyleSheet.create({
   grupo: { gap: espaco(1.5) },
   // Lista (mestre) estreita: o inspetor fica com o resto (a opção aberta, em abas desde 19/11, tem uns 650 px em 1280).
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
-  lista: { width: 280, flexShrink: 0, gap: espaco(2) },
+  // 280 px de base; só cresce (até 400) quando o painel já parou no teto e sobra espaço, para ele terminar na borda dos cartões de cima.
+  lista: { flexGrow: 1, flexShrink: 0, flexBasis: 280, maxWidth: 400, gap: espaco(2) },
   itens: { gap: espaco(1) },
-  // Na tela larga o painel para em ~1400 px, à esquerda junto da lista; a sobra fica vazia (nunca campo esticado).
-  inspetor: { flex: 1, minWidth: 0, maxWidth: LARGURA_EDITOR_DE_CAMPOS },
+  // Na tela larga o painel para em ~1400 px, junto da lista; o peso 1000 faz a sobra ir primeiro à lista (nunca campo esticado).
+  inspetor: { flexGrow: 1000, flexShrink: 1, flexBasis: 0, minWidth: 0, maxWidth: LARGURA_EDITOR_DE_CAMPOS },
   colunaTotal: { width: 380, flexShrink: 0, alignSelf: 'flex-start' },
   cabecalhoRefeicoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   cresce: { flex: 1, gap: espaco(1) },
