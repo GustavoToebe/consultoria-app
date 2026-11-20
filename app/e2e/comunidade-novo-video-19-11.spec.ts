@@ -133,6 +133,8 @@ for (const largura of [390, 1280]) {
       await expect(folha.getByRole('img', { name: 'Capa do vídeo' })).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Trocar capa' })).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Remover capa' })).toBeVisible();
+      // A tela diz o que o "Remover capa" faz: sem capa e sem seguir o link.
+      await expect(folha.getByText('Remover a capa deixa o vídeo sem capa, e ela deixa de seguir o link.')).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Usar a capa do YouTube' })).toHaveCount(0);
       expect(api.pedidos.find((p) => foiPost(p, '/comunidade/capas/youtube'))?.corpo).toEqual({ videoUrl: YT_A });
       // A capa fica entre o link e o título.

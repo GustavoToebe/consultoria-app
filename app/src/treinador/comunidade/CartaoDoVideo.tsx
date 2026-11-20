@@ -21,8 +21,7 @@ interface Props {
   /** Posição na coleção ("1", "2"…), no selo da capa; ausente em "Sem coleção" (que não tem ordem). */
   numero?: number;
   /**
-   * ⋯ do vídeo (Abrir no YouTube para todos; editar, mover e excluir só com `COMUNIDADE_MODERAR`); ausente quando não
-   * haveria nada nele (só leitura e sem link que abra fora).
+   * ⋯ do vídeo (Abrir no YouTube, editar, mover e excluir): só com `COMUNIDADE_MODERAR`; ausente para quem só lê.
    */
   aoMenu?: () => void;
   aoComentarios: () => void;

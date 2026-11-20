@@ -600,6 +600,8 @@ export function capaAoMudarOLink(origem: OrigemDaCapa, link: string): { origem: 
   return { origem: { tipo: 'automatica', video }, buscar: video, limpar: true };
 }
 
+/** Sob os botões da capa, com link do YouTube e capa já escolhida: o que "Remover capa" faz (decisão de 20/11). */
+export const AJUDA_REMOVER_CAPA = 'Remover a capa deixa o vídeo sem capa, e ela deixa de seguir o link. Para voltar, toque em “Usar a capa do YouTube”.';
 export const AVISO_CAPA_DE_OUTRO_VIDEO = 'O link mudou, mas a capa continua a que estava. Para usar a do vídeo novo, toque em “Usar a capa do YouTube”.';
 
 /**

@@ -350,7 +350,7 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
       await expect(page.getByRole('heading', { level: 2, name: 'Técnica' })).toBeVisible();
     });
 
-    test('só leitura (sem COMUNIDADE_MODERAR): seções e o ⋯ só com "Abrir no YouTube"; sem criar, adicionar, arrastar nem selecionar', async ({ page }) => {
+    test('só leitura (sem COMUNIDADE_MODERAR): seções, sem ⋯ do vídeo; sem criar, adicionar, arrastar nem selecionar', async ({ page }) => {
       const { rotas } = comEstado([TECNICA, MOBILIDADE], AULAS);
       await abrir(page, rotas, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER'] });
       await expect(page.getByRole('heading', { level: 2, name: 'Técnica' })).toBeVisible();
@@ -359,10 +359,9 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
       await expect(page.getByRole('button', { name: /^Ações da coleção/ })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Selecionar' })).toHaveCount(0);
       await expect(page.getByTestId('alca-de-arraste')).toHaveCount(0);
-      await page.getByRole('button', { name: 'Ações do vídeo Vídeo de técnica' }).click();
-      const menu = acoesDoVideo(page);
-      await expect(menu.getByRole('button', { name: /^Abrir no YouTube/ })).toBeVisible();
-      await expect(menu.getByRole('button', { name: /^(Editar|Mover|Excluir)/ })).toHaveCount(0);
+      // Sem COMUNIDADE_MODERAR o cartão não tem ⋯ (a capa continua tocando o vídeo).
+      await expect(page.getByRole('button', { name: /^Ações do vídeo/ })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^Assistir: Vídeo de técnica/ })).toBeVisible();
     });
   });
 }

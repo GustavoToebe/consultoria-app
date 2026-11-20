@@ -8,7 +8,7 @@ import type { AulaDaComunidade } from '../../api/comunidadeTipos';
 import { FotoRecusada } from '../../aluno/atualizacao/fotos/prepararFoto';
 import { escolherEEnviarCapa } from '../../comunidade/fotosDoMural';
 import {
-  capaAoMudarOLink, capaDoYoutubeNaTela, idDoYoutube, origemInicialDaCapa, type OrigemDaCapa, ROTULO_BUSCANDO_A_CAPA,
+  AJUDA_REMOVER_CAPA, capaAoMudarOLink, capaDoYoutubeNaTela, idDoYoutube, origemInicialDaCapa, type OrigemDaCapa, ROTULO_BUSCANDO_A_CAPA,
   ROTULO_CAPA_DO_YOUTUBE, textoDoErroDaCapaDoYoutube,
 } from '../../dominio/comunidade';
 import { useTema } from '../../tema/TemaProvider';
@@ -159,7 +159,8 @@ export function CapaDoAulao({ link, capaId, origem, buscando, enviando, erro, er
         {capaId ? <Botao rotulo="Remover capa" tipo="perigoTexto" Icone={Trash2} desabilitado={enviando}
           motivo="Espere a capa terminar de enviar." aoTocar={remover} /> : null}
       </LinhaDeAcoes>
-      {aviso ? <Texto variante="pequeno" accessibilityLiveRegion="polite">{aviso}</Texto> : null}
+      {aviso ? <Texto variante="pequeno" accessibilityLiveRegion="polite">{aviso}</Texto>
+        : capaId && idDoYoutube(link) ? <Texto variante="pequeno">{AJUDA_REMOVER_CAPA}</Texto> : null}
       {mensagem ? <MensagemDeErro erro={mensagem} /> : null}
     </View>
   );

@@ -62,7 +62,7 @@ export function ListaDosVideos({ v, podePublicar, area, aoComentarios, aoAbrirFo
 
   const cartao = (aula: AulaDaComunidade, numero?: number, arraste?: Parameters<typeof CartaoDoVideo>[0]['arraste']) => (
     <CartaoDoVideo aula={aula} numero={numero} nivel={v.agrupar ? 3 : 2} aoAbrirFora={aoAbrirFora} aoComentarios={() => aoComentarios(aula)}
-      aoMenu={podePublicar || linkParaAbrir(aula.videoUrl) ? () => v.setMenuDaAula(aula) : undefined} arraste={v.selecionando ? undefined : arraste}
+      aoMenu={podePublicar ? () => v.setMenuDaAula(aula) : undefined} arraste={v.selecionando ? undefined : arraste}
       marcar={v.selecionando ? { marcado: v.marcados.has(aula.id), aoMudar: () => v.alternarMarcado(aula.id) } : undefined} />
   );
 

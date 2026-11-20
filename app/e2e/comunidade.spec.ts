@@ -1194,14 +1194,8 @@ for (const largura of [390, 1280]) {
       await page.goto('/treinador/comunidade');
       await expect(page.getByRole('heading', { name: 'Vídeo de técnica' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Novo vídeo' })).toHaveCount(0);
-      // O ⋯ do vídeo aparece para todos (o "Abrir vídeo" fora do app mora nele desde 19/11, D2); editar, mover e excluir
-      // só com COMUNIDADE_MODERAR.
-      await page.getByRole('button', { name: 'Ações do vídeo Vídeo de técnica' }).click();
-      const acoesDoVideo = page.getByRole('dialog', { name: 'Ações do vídeo' });
-      await expect(acoesDoVideo.getByRole('button', { name: /^Abrir vídeo/ })).toBeVisible();
-      await expect(acoesDoVideo.getByRole('button', { name: /^(Editar|Mover|Excluir)/ })).toHaveCount(0);
-      await page.keyboard.press('Escape');
-      await expect(acoesDoVideo).toHaveCount(0);
+      // Sem COMUNIDADE_MODERAR o cartão do vídeo não tem ⋯ (decisão de 20/11); a capa continua abrindo o vídeo.
+      await expect(page.getByRole('button', { name: /^Ações do vídeo/ })).toHaveCount(0);
       await page.getByRole('tab', { name: 'Mural' }).click();
       await page.getByRole('radio', { name: 'Alunos', exact: true }).click();
       await expect(page.getByText('Treino feito.')).toBeVisible();
@@ -1974,8 +1968,8 @@ for (const largura of [390, 1280]) {
       for (const nome of ['Nova coleção', 'Novo vídeo', 'Selecionar']) await expect(page.getByRole('button', { name: nome, exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: /^(Adicionar vídeo|Ações da coleção)/ })).toHaveCount(0);
       await expect(page.getByTestId('alca-de-arraste')).toHaveCount(0);
-      // O ⋯ do vídeo fica (só com "Abrir vídeo", fora do app): ver o teste do cabeçalho.
-      await expect(page.getByRole('button', { name: /^Ações do vídeo / })).toHaveCount(5);
+      // Sem COMUNIDADE_MODERAR o vídeo também não tem ⋯ (decisão de 20/11).
+      await expect(page.getByRole('button', { name: /^Ações do vídeo / })).toHaveCount(0);
       await expect(botaoFiltros(page)).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
     });
