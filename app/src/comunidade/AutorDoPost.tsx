@@ -14,11 +14,14 @@ import { Texto } from '../ui/Texto';
  * Cabeçalho do post no mural (aluno e equipe): iniciais, o nome como a API manda (para o aluno, já montado pela escolha do
  * autor) e, só quando a API manda `autorApelido` (a equipe), o apelido em texto suave entre aspas; "Fixado" e a data. Com `aoAbrirPerfil`, iniciais e nome viram um botão só (alvo de
  * 44 px, foco do `global.css`) que abre o perfil do colega; sem ele, nada é tocável. `acao` fica no fim da linha.
+ * `selos` (o cartão do mural: tipo e "Fixado") vão ao lado da data, fora do botão do perfil, e tomam o lugar do "Fixado"
+ * solto do fim da linha (os comentários seguem com ele).
  */
-export function AutorDoPost({ post, aoAbrirPerfil, acao }: {
+export function AutorDoPost({ post, aoAbrirPerfil, acao, selos }: {
   post: Pick<PostDoMural, 'autorNome' | 'autorApelido' | 'fixado' | 'criadoEm'>;
   aoAbrirPerfil?: () => void;
   acao?: ReactNode;
+  selos?: ReactNode;
 }) {
   const { cores } = useTema();
   const identidade = (
@@ -29,11 +32,11 @@ export function AutorDoPost({ post, aoAbrirPerfil, acao }: {
           <Texto variante="bloco" nivel={3}>{post.autorNome}</Texto>
           {post.autorApelido ? <Texto variante="suave" accessibilityLabel={`apelido ${post.autorApelido}`}>«{post.autorApelido}»</Texto> : null}
         </View>
-        <Texto variante="pequeno" cor={cores.textoSuave} numerico>{dataHoraParaTela(post.criadoEm)}</Texto>
+        {selos ? null : <Texto variante="pequeno" cor={cores.textoSuave} numerico>{dataHoraParaTela(post.criadoEm)}</Texto>}
       </View>
     </>
   );
-  return (
+  const cabeca = (
     <View style={estilos.linha}>
       {aoAbrirPerfil ? (
         <Pressable accessibilityRole="button" accessibilityLabel={`Ver perfil de ${post.autorNome}`} onPress={aoAbrirPerfil}
@@ -41,8 +44,19 @@ export function AutorDoPost({ post, aoAbrirPerfil, acao }: {
           {identidade}
         </Pressable>
       ) : <View style={[estilos.linha, estilos.identidade]}>{identidade}</View>}
-      {post.fixado ? <Selo texto="Fixado" tipo="neutro" /> : null}
+      {!selos && post.fixado ? <Selo texto="Fixado" tipo="neutro" /> : null}
       {acao}
+    </View>
+  );
+  if (!selos) return cabeca;
+  // A data e os selos numa linha só, alinhada ao nome (depois das iniciais), que quebra no celular.
+  return (
+    <View style={estilos.bloco}>
+      {cabeca}
+      <View style={[estilos.linha, estilos.meta]}>
+        <Texto variante="pequeno" cor={cores.textoSuave} numerico>{dataHoraParaTela(post.criadoEm)}</Texto>
+        {selos}
+      </View>
     </View>
   );
 }
@@ -50,6 +64,9 @@ export function AutorDoPost({ post, aoAbrirPerfil, acao }: {
 const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   encolher: { flex: 1, minWidth: 0, gap: 2 },
+  bloco: { gap: 2 },
+  // Iniciais de 36 px + o espaço da linha: a data começa na borda do nome.
+  meta: { paddingLeft: 36 + espaco(1), rowGap: 2 },
   // Base de 180 px: no celular a `acao` desce para a linha de baixo em vez de espremer o nome.
   identidade: { flexGrow: 1, flexShrink: 1, flexBasis: 180, minWidth: 0 },
   // Nunca abaixo do alvo de toque; o fundo do toque usa o mesmo raio dos cartões.

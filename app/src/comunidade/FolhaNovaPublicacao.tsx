@@ -166,6 +166,8 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, inicial
       <Escolha rotulo="Tipo" opcoes={opcoes} valor={rascunho.tipo} chips={opcoes.length > 3}
         aoMudar={mudarTipo} erro={erro('tipo')} />
       {rascunho.tipo === 'AVISO' ? <Texto variante="suave">O aviso nasce fixado no topo do mural. Dá para desafixar depois, no ⋯ da publicação.</Texto> : null}
+      {/* O vídeo do mural é um post (abre fora do app); o vídeo da aba Vídeos é outra coisa, com coleção e ordem. */}
+      {rascunho.tipo === 'VIDEO' ? <Texto variante="suave">Para organizar em coleção, publique na aba Vídeos.</Texto> : null}
       {rascunho.tipo === 'VIDEO' ? (
         <Campo rotulo="Link do vídeo" placeholder="https://" valor={rascunho.videoUrl ?? ''} autoCapitalize="none" autoCorrect={false}
           inputMode="url" ajuda="Link do YouTube toca aqui mesmo; outro link abre fora do app." aoMudar={(videoUrl) => mudar({ videoUrl }, 'videoUrl')} erro={erro('videoUrl')} />
@@ -173,7 +175,7 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, inicial
       {rascunho.tipo === 'ENQUETE' ? <Alerta tom="atencao" texto={AVISO_AO_CRIAR_ENQUETE} /> : null}
       <Campo
         rotulo={rascunho.tipo === 'VIDEO' ? 'Título do vídeo' : rascunho.tipo === 'ENQUETE' ? 'Pergunta' : 'Texto'}
-        placeholder={rascunho.tipo === 'DUVIDA' ? 'Qual é a sua dúvida?' : rascunho.tipo === 'ENQUETE' ? 'O que você quer perguntar ao time?' : 'Escreva para o time'}
+        placeholder={rascunho.tipo === 'DUVIDA' ? 'Qual é a sua dúvida?' : rascunho.tipo === 'ENQUETE' ? 'O que você quer perguntar ao time?' : rascunho.tipo === 'VIDEO' ? 'Do que trata o vídeo?' : 'Escreva para a comunidade'}
         valor={rascunho.texto}
         aoMudar={(texto) => mudar({ texto }, 'texto')}
         linhas={rascunho.tipo === 'VIDEO' || rascunho.tipo === 'ENQUETE' ? 2 : 4}

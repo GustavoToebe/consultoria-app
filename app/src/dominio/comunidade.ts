@@ -4,7 +4,7 @@ import type {
   NovaAula, PlaylistDaComunidade, PodResumo, PostDoMural, TipoDePost,
 } from '../api/comunidadeTipos';
 import { paraBusca } from './filtrosComuns';
-import { dataDaTela } from './formatos';
+import { dataDaTela, inteiroComMilhar } from './formatos';
 import { normalizarGrupo } from './gruposDaLista';
 import { erroDoLink, linkExternoSeguro, MENSAGEM_LINK } from './links';
 
@@ -109,6 +109,13 @@ export function textoDosParticipantes(n: number): string {
   if (n === 0) return 'Ninguém votou ainda';
   return n === 1 ? '1 pessoa votou' : `${n} pessoas votaram`;
 }
+
+/**
+ * Comentários de um post do mural ou de um vídeo, em frase: "Nenhum comentário", "1 comentário", "N comentários". É texto
+ * comum (a fonte numérica é só para número solto, como "40% · 4 votos").
+ */
+export const textoDeComentarios = (n: number): string =>
+  n <= 0 ? 'Nenhum comentário' : n === 1 ? '1 comentário' : `${inteiroComMilhar(n)} comentários`;
 
 /** Nome do votante na lista: o próprio é "Você"; o apelido (só a equipe o recebe à parte) vem ao lado, nunca no lugar. */
 export const nomeDoVotante = (v: { nome: string; apelido?: string | null; ehVoce?: boolean }): string =>

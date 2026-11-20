@@ -1,8 +1,8 @@
-import { Ellipsis, Megaphone, MessageSquare, Users } from 'lucide-react-native';
+import { Ellipsis, Megaphone, MessageSquare, Pin, Users } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CodigoDeReacao, PostDoMural } from '../api/comunidadeTipos';
-import { rotuloDoTipo, textoDasDenuncias } from '../dominio/comunidade';
+import { rotuloDoTipo, textoDasDenuncias, textoDeComentarios } from '../dominio/comunidade';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../tema/tokens';
 import { Cartao } from '../ui/Cartao';
@@ -17,7 +17,8 @@ import { BotoesDeReacao } from './BotoesDeReacao';
 import { CapaDoVideo } from './CapaDoVideo';
 
 /**
- * Um post do mural (aluno e equipe). O tipo vai num selo discreto; só o Aviso se destaca. "Respondida" na dúvida que a
+ * Um post do mural (aluno e equipe). O tipo vai num selo ao lado da data (só o Aviso se destaca), com "Fixado" junto
+ * quando fixado (D5, 19/11); os comentários em frase ("Nenhum comentário", "2 comentários"). "Respondida" na dúvida que a
  * equipe respondeu; o número de denúncias só para a equipe (`post.denuncias`). O vídeo é o texto como título e a
  * `CapaDoVideo` (player só depois do toque, "Abrir no YouTube" sempre); a enquete, a pergunta como título e o
  * `BlocoDaEnquete`. Fotos e capa só pela rota com token. `grupo` (só a equipe) = nome do pod do post, num selo neutro.
@@ -54,16 +55,20 @@ export function CartaoDoPost({
     <Cartao>
       <AutorDoPost post={post} aoAbrirPerfil={aoAbrirPerfil} acao={aoAbrirMenu ? (
         <IconeBotao Icone={Ellipsis} rotulo={`Ações da publicação de ${post.autorNome}`} aoTocar={aoAbrirMenu} />
-      ) : undefined} />
-
-      <View style={estilos.linha}>
+      ) : undefined} selos={<>
         {post.tipo === 'AVISO'
           ? <Selo texto="Aviso" tipo="atencao" Icone={Megaphone} />
           : <Selo texto={rotuloDoTipo(post.tipo)} tipo="neutro" />}
-        {grupo ? <Selo texto={`Grupo: ${grupo}`} tipo="neutro" Icone={Users} /> : null}
-        {post.tipo === 'DUVIDA' && post.respondida ? <Selo texto="Respondida" tipo="sucesso" /> : null}
-        {denuncias > 0 ? <Selo texto={textoDasDenuncias(denuncias)} tipo="perigo" /> : null}
-      </View>
+        {post.fixado ? <Selo texto="Fixado" tipo="neutro" Icone={Pin} /> : null}
+      </>} />
+
+      {grupo || (post.tipo === 'DUVIDA' && post.respondida) || denuncias > 0 ? (
+        <View style={estilos.linha}>
+          {grupo ? <Selo texto={`Grupo: ${grupo}`} tipo="neutro" Icone={Users} /> : null}
+          {post.tipo === 'DUVIDA' && post.respondida ? <Selo texto="Respondida" tipo="sucesso" /> : null}
+          {denuncias > 0 ? <Selo texto={textoDasDenuncias(denuncias)} tipo="perigo" /> : null}
+        </View>
+      ) : null}
 
       {video || enquete ? <Texto variante="bloco" nivel={3}>{post.texto}</Texto> : <Texto>{post.texto}</Texto>}
       {video ? (
@@ -87,11 +92,11 @@ export function CartaoDoPost({
         <BotoesDeReacao post={post} aoReagir={aoReagir} ocupado={ocupado} />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Ver ${post.totalComentarios} comentário(s)`}
+          accessibilityLabel={`Ver comentários: ${textoDeComentarios(post.totalComentarios)}`}
           onPress={aoComentarios}
           style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.sobre }]}>
           <MessageSquare size={18} color={cores.texto} aria-hidden />
-          <Texto variante="suave" cor={cores.texto} numerico>{post.totalComentarios} comentário(s)</Texto>
+          <Texto variante="suave" cor={cores.texto}>{textoDeComentarios(post.totalComentarios)}</Texto>
         </Pressable>
       </View>
     </Cartao>
