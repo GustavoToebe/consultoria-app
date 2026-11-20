@@ -1,21 +1,19 @@
-import { MessageSquare } from 'lucide-react-native';
 import { type RefObject, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { listarPlaylistsDoAluno } from '../api/comunidade';
 import type { AulaDaComunidade } from '../api/comunidadeTipos';
-import { CapaDoVideo } from '../comunidade/CapaDoVideo';
+import { CartaoDoVideo } from '../comunidade/CartaoDoVideo';
 import { chaveDoGrupo, numerosNaColecao } from '../dominio/colecoesDoAluno';
 import { agruparPorPlaylist, buscarAuloes, resumoDosAuloes } from '../dominio/comunidade';
-import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, RAIO } from '../tema/tokens';
+import { colunasDosVideos } from '../dominio/gradeDosVideos';
+import { espaco } from '../tema/tokens';
 import { CabecalhoDeGrupo } from '../ui/CabecalhoDeGrupo';
 import { Campo } from '../ui/Campo';
 import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
-import { sobre } from '../ui/sobre';
-import { Texto } from '../ui/Texto';
+import { Grade } from '../ui/Grade';
 import { useCarregar } from '../ui/useCarregar';
 import { useSecoesAbertas } from '../ui/useSecoesAbertas';
 import { useVoltarFechaColecao } from './useVoltarFechaColecao';
@@ -30,9 +28,12 @@ interface AcoesDoVideo {
  * Vídeos do aluno agrupados por coleção (passo 10 do `docs/planos/comunidade-playlists.md`): um cartão por coleção na ordem
  * do treinador, com o nome e "N vídeos"; "Sem coleção" por último e só se houver; coleção sem vídeo não aparece (D16). Os
  * cartões nascem fechados (uma coleção só nasce aberta, design 4.8) e, abertos, mostram os vídeos numerados pela posição na
- * coleção. A busca procura em todas, abre as que têm resultado e limpar volta ao de antes. O voltar (navegador e Android)
- * fecha as coleções abertas sem sair da Comunidade. Se `GET /aluno/comunidade/playlists` falhar, os vídeos aparecem numa
- * lista só, na ordem da API e sem número: agrupar sem as coleções poria tudo em "Sem coleção".
+ * coleção, no número do selo da capa. Os vídeos são os cartões da grade do treinador (D6, 20/11), sem ⋯ nem alça: o "Abrir no
+ * YouTube" (ou "Abrir vídeo") fica visível no cartão. A grade usa a régua do treinador (`colunasDosVideos`) medida na própria
+ * grade: com a tela do aluno em 720 px, 1 coluna no celular e 2 no PC. A busca procura em todas, abre as que têm resultado e
+ * limpar volta ao de antes. O voltar (navegador e Android) fecha as coleções abertas sem sair da Comunidade. Se
+ * `GET /aluno/comunidade/playlists` falhar, os vídeos aparecem numa grade só, na ordem da API e sem número: agrupar sem as
+ * coleções poria tudo em "Sem coleção".
  */
 export function ColecoesDeAuloes({ aulas, fecharRef, ...acoes }: {
   aulas: readonly AulaDaComunidade[];
@@ -77,9 +78,7 @@ export function ColecoesDeAuloes({ aulas, fecharRef, ...acoes }: {
           erro={colecoes.erro} tentarDeNovo={colecoes.recarregar} />
         {campoDeBusca}
         {encontrados.length ? (
-          <Cartao>
-            {encontrados.map((a, i) => <VideoDaColecao key={a.id} aula={a} primeiro={i === 0} {...acoes} />)}
-          </Cartao>
+          <GradeDeVideos aulas={encontrados} {...acoes} />
         ) : vazioDaBusca}
       </View>
     );
@@ -95,9 +94,7 @@ export function ColecoesDeAuloes({ aulas, fecharRef, ...acoes }: {
         return (
           <Cartao key={chave} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDosAuloes(g.itens.length)}
             aberto={aberta} aoAlternar={() => secoes.alternar(chave)} />}>
-            {aberta ? g.itens.map((a, i) => (
-              <VideoDaColecao key={a.id} aula={a} primeiro={i === 0} numero={numeros.get(a.id)} {...acoes} />
-            )) : null}
+            {aberta ? <GradeDeVideos aulas={g.itens} numeros={numeros} {...acoes} /> : null}
           </Cartao>
         );
       })}
@@ -105,33 +102,22 @@ export function ColecoesDeAuloes({ aulas, fecharRef, ...acoes }: {
   );
 }
 
-/** Um vídeo da lista: "3. Título" (o número só dentro de uma coleção), descrição, a capa (player depois do toque) e os comentários. */
-function VideoDaColecao({ aula: a, primeiro, numero, baixarCapa, aoAbrirFora, aoComentarios }: { aula: AulaDaComunidade; primeiro: boolean; numero?: number } & AcoesDoVideo) {
-  const { cores } = useTema();
+/** Os cartões de vídeo; o número (posição na coleção) só dentro de uma coleção, nunca em "Sem coleção" nem sem agrupar. */
+function GradeDeVideos({ aulas, numeros, baixarCapa, aoAbrirFora, aoComentarios }: {
+  aulas: readonly AulaDaComunidade[];
+  numeros?: ReadonlyMap<string, number>;
+} & AcoesDoVideo) {
   return (
-    // Itens separados por divisória, sem cartão dentro de cartão.
-    <View style={[estilos.aula, !primeiro && { borderTopWidth: 1, borderTopColor: cores.divisor, paddingTop: espaco(2) }]}>
-      <Texto variante="bloco" nivel={2}>{numero ? `${numero}. ${a.titulo}` : a.titulo}</Texto>
-      {a.descricao ? <Texto>{a.descricao}</Texto> : null}
-      <CapaDoVideo videoUrl={a.videoUrl} titulo={a.titulo} capaId={a.capaId ?? null} baixarCapa={baixarCapa} aoAbrirFora={aoAbrirFora} />
-      <View style={estilos.linha}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Ver ${a.totalComentarios} comentário(s) do vídeo ${a.titulo}`}
-          onPress={() => aoComentarios(a)}
-          style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.sobre }]}>
-          <MessageSquare size={18} color={cores.texto} aria-hidden />
-          <Texto variante="suave" cor={cores.texto} numerico>{a.totalComentarios} comentário(s)</Texto>
-        </Pressable>
-      </View>
-    </View>
+    <Grade gap={espaco(2)} colunas={colunasDosVideos}>
+      {aulas.map((a) => (
+        // h2: o cabeçalho da coleção é botão, não título.
+        <CartaoDoVideo key={a.id} aula={a} numero={numeros?.get(a.id)} nivel={2} baixarCapa={baixarCapa} aoAbrirFora={aoAbrirFora}
+          aoComentarios={() => aoComentarios(a)} />
+      ))}
+    </Grade>
   );
 }
 
 const estilos = StyleSheet.create({
   blocos: { gap: espaco(3) },
-  aula: { gap: espaco(1.5) },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
-  // Hover e pressionado pintam `superficie3` (`ui/sobre`), como nos comentários do mural.
-  interacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: ALVO_TOQUE, minWidth: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), marginHorizontal: -espaco(1), alignSelf: 'flex-start' },
 });

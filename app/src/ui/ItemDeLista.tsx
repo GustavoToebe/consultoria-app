@@ -14,8 +14,10 @@ import { Texto } from './Texto';
 
 interface Props {
   titulo: string;
-  /** Linha `suave` abaixo do título (data, resumo). */
+  /** Linha `suave` abaixo do título (data, resumo). Em texto comum; a fonte numérica só vale em dado numérico (`numerico`). */
   detalhe?: string;
+  /** O `detalhe` é dado numérico (valor, data, hora): usa a fonte numérica. Padrão: texto comum. */
+  numerico?: boolean;
   Icone?: LucideIcon;
   /** `Icone` opcional: o selo vira a pílula com ícone ("Pronta", "Atrasada"), como na lista de alunos. */
   selo?: { texto: string; tipo: TipoSelo; Icone?: LucideIcon };
@@ -39,7 +41,7 @@ interface Props {
  * área do aluno, folhas de ações; nada de link de texto solto dentro de cartão). Listas de registros (alunos,
  * atualizações, modelos, biblioteca) usam `ui/LinhaDaLista`.
  */
-export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotulo, direita, perigo, desabilitado, children }: Props) {
+export function ItemDeLista({ titulo, detalhe, numerico, Icone, selo, href, aoTocar, rotulo, direita, perigo, desabilitado, children }: Props) {
   const { cores } = useTema();
   const caminho = usePathname();
   const { confirmar } = useSaidaGuardada();
@@ -62,7 +64,7 @@ export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotul
       {Icone ? <Icone size={20} color={perigo ? cores.perigo : cores.textoSuave} strokeWidth={2} /> : null}
       <View style={estilos.textos}>
         <Texto style={[estilos.titulo, { color: corTexto }]}>{titulo}</Texto>
-        {detalhe ? <Texto variante="suave" numerico>{detalhe}</Texto> : null}
+        {detalhe ? <Texto variante="suave" numerico={numerico}>{detalhe}</Texto> : null}
         {children}
       </View>
       {selo ? <Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} /> : null}

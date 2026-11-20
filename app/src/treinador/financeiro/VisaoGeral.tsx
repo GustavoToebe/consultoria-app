@@ -304,7 +304,7 @@ function Inadimplencia({ painel, vencidasNoPeriodo, lista, buscando, podeAlterar
         <View accessibilityRole="list" accessibilityLabel="Cobranças vencidas em aberto" style={estilos.lista}>
           {itens.map((x) => (
             <ItemDeLista key={x.cobrancaId} titulo={x.alunoNome ?? '—'}
-              detalhe={`${centavosParaTela(x.valorCentavos)} · venceu ${dataSemAnoCorrente(x.vencimento, hojeEmBrasilia())} · ${atrasoParaTela(x.diasDeAtraso)}`}
+              detalhe={`${centavosParaTela(x.valorCentavos)} · venceu ${dataSemAnoCorrente(x.vencimento, hojeEmBrasilia())} · ${atrasoParaTela(x.diasDeAtraso)}`} numerico
               aoTocar={() => aoAbrir(x)} rotulo={`Abrir cobrança vencida de ${x.alunoNome ?? 'aluno'}, ${dataParaTela(x.vencimento)}`} />
           ))}
         </View>

@@ -40,7 +40,7 @@ export function ListaOuTabela<T>({ rotulo, linhas, chave, colunas, item, aoTocar
       <View accessibilityRole="list" accessibilityLabel={rotulo} style={{ gap: espaco(1) }}>
         {linhas.map((l) => {
           const i = item(l);
-          const linha = <ItemDeLista key={chave(l)} titulo={i.titulo} detalhe={i.detalhe} selo={i.selo} aoTocar={() => aoTocar(l)} rotulo={rotuloDaLinha(l)}>{i.extra}</ItemDeLista>;
+          const linha = <ItemDeLista key={chave(l)} titulo={i.titulo} detalhe={i.detalhe} numerico selo={i.selo} aoTocar={() => aoTocar(l)} rotulo={rotuloDaLinha(l)}>{i.extra}</ItemDeLista>;
           if (!inicio) return linha;
           return (
             <View key={chave(l)} style={estilos.comInicio}>

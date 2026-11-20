@@ -44,7 +44,8 @@ export function BlocoDaEnquete({ postId, enquete, aoVotar, motivo, ocupado, aoMo
   return (
     <View style={estilos.bloco}>
       <View style={estilos.meta}>
-        <Texto variante="suave">{varias ? 'Escolha uma ou mais opções' : 'Escolha uma opção'}</Texto>
+        {/* Enquete encerrada não pede escolha (decisão de 20/11): fica só o selo "Encerrada" e o resultado. */}
+        {enquete.encerrada ? null : <Texto variante="suave">{varias ? 'Escolha uma ou mais opções' : 'Escolha uma opção'}</Texto>}
         {enquete.encerrada
           ? <Selo texto="Encerrada" tipo="neutro" />
           : enquete.encerraEm ? <Texto variante="suave">{`Encerra em ${dataHoraParaTela(enquete.encerraEm)}`}</Texto> : null}

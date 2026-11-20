@@ -2,7 +2,9 @@ import { ArrowDown, ArrowUp, ExternalLink, FolderInput, FolderMinus, Pencil, Plu
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { baixarCapaDaEquipe } from '../../api/comunidade';
 import type { AulaDaComunidade, PlaylistDaComunidade } from '../../api/comunidadeTipos';
+import { CartaoDoVideo } from '../../comunidade/CartaoDoVideo';
 import {
   auloesDaPlaylist, chipDaPlaylist, idDoYoutube, numerados, opcoesDoFiltroDePlaylist, playlistsEmOrdem, podeMover, resumoDosAuloes, SEM_COLECAO,
   textoDeExcluirPlaylist, textoDosMarcados, urlNoYoutube,
@@ -23,7 +25,6 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
-import { CartaoDoVideo } from './CartaoDoVideo';
 import { FolhaDoAulao } from './FolhaDoAulao';
 import { NovaColecao } from './NovaColecao';
 import { SecaoDaColecao } from './SecaoDaColecao';
@@ -61,7 +62,7 @@ export function ListaDosVideos({ v, podePublicar, area, aoComentarios, aoAbrirFo
   if ((!auloes.dados && auloes.carregando) || v.esperandoColecoes) return <Esqueleto />;
 
   const cartao = (aula: AulaDaComunidade, numero?: number, arraste?: Parameters<typeof CartaoDoVideo>[0]['arraste']) => (
-    <CartaoDoVideo aula={aula} numero={numero} nivel={v.agrupar ? 3 : 2} aoAbrirFora={aoAbrirFora} aoComentarios={() => aoComentarios(aula)}
+    <CartaoDoVideo aula={aula} numero={numero} nivel={v.agrupar ? 3 : 2} aoAbrirFora={aoAbrirFora} baixarCapa={baixarCapaDaEquipe} aoComentarios={() => aoComentarios(aula)}
       aoMenu={podePublicar ? () => v.setMenuDaAula(aula) : undefined} arraste={v.selecionando ? undefined : arraste}
       marcar={v.selecionando ? { marcado: v.marcados.has(aula.id), aoMudar: () => v.alternarMarcado(aula.id) } : undefined} />
   );

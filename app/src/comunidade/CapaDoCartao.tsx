@@ -2,28 +2,30 @@ import { Play } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { baixarCapaDaEquipe } from '../../api/comunidade';
-import { ImagemDaCapa } from '../../comunidade/CapaDoVideo';
-import { PlayerDeVideo } from '../../comunidade/PlayerDeVideo';
-import { idDoYoutube } from '../../dominio/comunidade';
-import { linkParaAbrir } from '../../dominio/links';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, RAIO, RAIO_CONTROLE } from '../../tema/tokens';
-import { sobre } from '../../ui/sobre';
-import { Texto } from '../../ui/Texto';
+import { idDoYoutube } from '../dominio/comunidade';
+import { linkParaAbrir } from '../dominio/links';
+import { useTema } from '../tema/TemaProvider';
+import { espaco, fontes, RAIO, RAIO_CONTROLE } from '../tema/tokens';
+import { sobre } from '../ui/sobre';
+import { Texto } from '../ui/Texto';
+import { ImagemDaCapa } from './CapaDoVideo';
+import { PlayerDeVideo } from './PlayerDeVideo';
 
 const DIAMETRO_DO_PLAY = 48;
 
 /**
- * Capa 16:9 do cartão da grade (D2, 19/11): a nossa capa (bytes pela API com o token) ou, sem capa, o poço `superficie2`
+ * Capa 16:9 do cartão da grade (D2, 19/11; também no aluno, D6): a nossa capa (bytes pela API com o token, pela rota de
+ * quem vê: `baixarCapa`) ou, sem capa, o poço `superficie2`
  * com o título; no centro, o play. O quadro inteiro é o botão "Assistir: <título>": no YouTube o player monta no mesmo
  * quadro só depois do toque; outro link abre fora do app ("Abrir vídeo: <título>"). A posição na coleção fica num selo no
  * canto. O "Abrir no YouTube" saiu daqui para o ⋯ do cartão.
  */
-export function CapaDoCartao({ videoUrl, titulo, capaId, numero, aoAbrirFora }: {
+export function CapaDoCartao({ videoUrl, titulo, capaId, baixarCapa, numero, aoAbrirFora }: {
   videoUrl: string | null;
   titulo: string;
   capaId: string | null;
+  /** Rota da capa de quem vê: a da equipe ou a do aluno. */
+  baixarCapa: (id: string) => Promise<Blob>;
   numero?: number;
   aoAbrirFora: (url: string) => void;
 }) {
@@ -44,7 +46,7 @@ export function CapaDoCartao({ videoUrl, titulo, capaId, numero, aoAbrirFora }: 
           style={StyleSheet.absoluteFill}>
           {(estado) => (
             <>
-              {capaId ? <ImagemDaCapa id={capaId} baixar={baixarCapaDaEquipe} /> : null}
+              {capaId ? <ImagemDaCapa id={capaId} baixar={baixarCapa} /> : null}
               <View style={[estilos.centro, !capaId && sobre(estado) ? { backgroundColor: cores.sobre } : null]}>
                 <View style={[estilos.play, { backgroundColor: sobre(estado) ? cores.superficie2 : cores.superficie, borderColor: cores.bordaCampo }]}>
                   <Play size={20} color={cores.texto} fill={cores.texto} aria-hidden />

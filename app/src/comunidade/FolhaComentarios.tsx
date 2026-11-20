@@ -181,7 +181,7 @@ export function FolhaComentarios({ alvo, modo, aoFechar, aoAlterar }: {
     <View style={estilos.escrever}>
       <Campo
         rotulo={aluno ? 'Seu comentário' : 'Responder como equipe'}
-        placeholder={aluno ? 'Escreva para o time' : 'Resposta da equipe'}
+        placeholder={aluno ? 'Escreva um comentário' : 'Resposta da equipe'}
         valor={meu.texto}
         aoMudar={(t) => setRascunho({ chave, texto: t })}
         linhas={3}

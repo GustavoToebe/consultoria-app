@@ -875,7 +875,7 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto('/aluno/comunidade?aba=auloes');
-      const abrir = page.getByRole('button', { name: 'Ver 2 comentário(s) do vídeo Vídeo de técnica' });
+      const abrir = page.getByRole('button', { name: 'Ver comentários do vídeo Vídeo de técnica: 2 comentários' });
       expect((await abrir.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await capturar(page, `aluno-aulao-com-comentarios-${largura}`);
       await abrir.click();
@@ -887,7 +887,7 @@ for (const largura of [390, 1280]) {
       await expect(folha.getByText('Vídeo excelente', { exact: true })).toBeVisible();
       await capturar(page, `aluno-aulao-comentarios-${largura}`);
       await page.keyboard.press('Escape');
-      await expect(page.getByRole('button', { name: 'Ver 3 comentário(s) do vídeo Vídeo de técnica' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ver comentários do vídeo Vídeo de técnica: 3 comentários' })).toBeVisible();
       expect(api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho.endsWith('/comentarios')).map((p) => p.caminho))
         .toEqual(['/aluno/comunidade/aulas/a1/comentarios']);
       expect(api.naoTratadas).toEqual([]);
@@ -905,7 +905,7 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto('/aluno/comunidade?aba=auloes');
-      const abrir = page.getByRole('button', { name: /^Ver 0 comentário\(s\) do vídeo/ });
+      const abrir = page.getByRole('button', { name: /^Ver comentários do vídeo .*: Nenhum comentário$/ });
       await abrir.click();
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Vídeo não disponível')).toBeVisible();
@@ -931,7 +931,7 @@ for (const largura of [390, 1280]) {
         const { rotas } = comComentariosDaAula('/aluno/comunidade/aulas', '/aluno/comunidade/aulas/{id}/comentarios', varios(32));
         await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, ...rotas });
         await page.goto('/aluno/comunidade?aba=auloes');
-        const verComentarios = page.getByRole('button', { name: /^Ver 32 comentário\(s\) do vídeo/ });
+        const verComentarios = page.getByRole('button', { name: /^Ver comentários do vídeo .*: 32 comentários$/ });
         await expect(verComentarios).toBeVisible();
         await capturar(page, `aluno-auloes-tema-${nome}-${largura}`);
         await verComentarios.click();
@@ -2220,14 +2220,19 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 3], [1920, 
 test.describe('barra inferior do aluno em 390 px', () => {
   test.use({ viewport: { width: 390, height: 900 } });
 
-  test('o rótulo curto "Time" do item Comunidade cabe inteiro, sem corte', async ({ page }) => {
+  // C40 (D6, 20/11): a aba "Time" virou "Comunidade", sem rótulo curto. Em 390 px o item ativo mostra "Comunid…": pela
+  // decisão, não se encurta sem o Gustavo ver; o teste fica marcado como falha esperada até ele decidir.
+  test('o rótulo "Comunidade" do item cabe inteiro, sem corte', async ({ page }) => {
+    test.fail(true, 'D6: "Comunidade" não cabe inteiro em 390 px; aguarda decisão do Gustavo (não encurtar sozinho).');
     await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia });
     await page.goto('/aluno/comunidade');
-    const item = page.getByRole('link', { name: 'Time (Comunidade)' });
+    const item = page.getByRole('link', { name: 'Comunidade', exact: true });
     await expect(item).toBeVisible();
-    const rotulo = item.getByText('Time', { exact: true });
-    expect(await rotulo.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+    const rotulo = item.getByText('Comunidade', { exact: true });
     await capturar(page, 'aluno-barra-390');
+    const medida = await rotulo.evaluate((e) => ({ total: e.scrollWidth, visivel: e.clientWidth }));
+    test.info().annotations.push({ type: 'medida', description: `scrollWidth ${medida.total} / clientWidth ${medida.visivel}` });
+    expect(medida.total).toBeLessThanOrEqual(medida.visivel);
   });
 });
 
@@ -2374,6 +2379,8 @@ for (const largura of [390, 1280]) {
       await opcaoDaEnquete(page, /^Manhã/).click();
       await expect(page.getByText('A enquete foi encerrada. Seu voto não mudou.')).toBeVisible();
       await expect(page.getByText('Encerrada', { exact: true })).toBeVisible();
+      // Enquete encerrada não pede escolha (decisão de 20/11): só o selo e o resultado.
+      await expect(page.getByText(/^Escolha uma/)).toHaveCount(0);
       await expect(page.getByText(/^Seu nome, suas escolhas/)).toHaveCount(0);
       await expect(opcaoDaEnquete(page, /^Manhã/)).toBeDisabled();
       expect(api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/comunidade/mural').length).toBeGreaterThanOrEqual(2);

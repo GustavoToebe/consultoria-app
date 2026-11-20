@@ -57,9 +57,9 @@ function Evento({ item, aoAbrirPasta }: { item: ItemDeAtividade; aoAbrirPasta: (
   const quando = instanteRelativo(item.quando);
   const destino = destinoDoEvento(item);
   const Icone = ICONE[item.tipo] ?? History;
-  if (destino?.tipo === 'rota') return <ItemDeLista titulo={titulo} detalhe={quando} Icone={Icone} href={destino.href} />;
+  if (destino?.tipo === 'rota') return <ItemDeLista titulo={titulo} detalhe={quando} numerico Icone={Icone} href={destino.href} />;
   if (destino?.tipo === 'pasta') {
-    return <ItemDeLista titulo={titulo} detalhe={quando} Icone={Icone} rotulo={`${titulo}, ${quando}, abrir a pasta`} aoTocar={() => aoAbrirPasta(destino.pastaId)} />;
+    return <ItemDeLista titulo={titulo} detalhe={quando} numerico Icone={Icone} rotulo={`${titulo}, ${quando}, abrir a pasta`} aoTocar={() => aoAbrirPasta(destino.pastaId)} />;
   }
   // Sem tela de detalhe (treino concluído, peso): a mesma linha, sem toque nem seta.
   return (

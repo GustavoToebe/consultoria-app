@@ -1,22 +1,24 @@
 import { Ellipsis, ExternalLink } from 'lucide-react-native';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import type { AulaDaComunidade } from '../../api/comunidadeTipos';
-import { idDoYoutube, textoDeComentarios, urlNoYoutube } from '../../dominio/comunidade';
-import { descricaoDoCartao } from '../../dominio/gradeDosVideos';
-import { linkParaAbrir } from '../../dominio/links';
-import { contornoDoCartao } from '../../dominio/preferencias';
-import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
-import { AlcaDeArraste, type ArrasteDaLista } from '../../ui/ArrasteDaLista';
-import { Botao } from '../../ui/Botao';
-import { IconeBotao } from '../../ui/IconeBotao';
-import { CaixaDaLinha } from '../../ui/LinhaDaLista';
-import { Selo } from '../../ui/Selo';
-import { sobre } from '../../ui/sobre';
-import { Texto } from '../../ui/Texto';
+import type { AulaDaComunidade } from '../api/comunidadeTipos';
+import { idDoYoutube, textoDeComentarios, urlNoYoutube } from '../dominio/comunidade';
+import { descricaoDoCartao } from '../dominio/gradeDosVideos';
+import { linkParaAbrir } from '../dominio/links';
+import { contornoDoCartao } from '../dominio/preferencias';
+import { useTema } from '../tema/TemaProvider';
+import { ALVO_TOQUE, espaco, RAIO } from '../tema/tokens';
+import { AlcaDeArraste, type ArrasteDaLista } from '../ui/ArrasteDaLista';
+import { Botao } from '../ui/Botao';
+import { IconeBotao } from '../ui/IconeBotao';
+import { CaixaDaLinha } from '../ui/LinhaDaLista';
+import { Selo } from '../ui/Selo';
+import { sobre } from '../ui/sobre';
+import { Texto } from '../ui/Texto';
 import { CapaDoCartao } from './CapaDoCartao';
-import { rotuloDoMenuDoVideo } from './useVideosDaEquipe';
+
+/** Nome do ⋯ do vídeo; a aba do treinador devolve o foco a ele depois de mover. */
+export const rotuloDoMenuDoVideo = (titulo: string) => `Ações do vídeo ${titulo}`;
 
 interface Props {
   aula: AulaDaComunidade;
@@ -29,6 +31,8 @@ interface Props {
   aoMenu?: () => void;
   aoComentarios: () => void;
   aoAbrirFora: (url: string) => void;
+  /** Rota da capa de quem vê: a da equipe ou a do aluno. */
+  baixarCapa: (id: string) => Promise<Blob>;
   /** Alça de arrastar dentro da coleção; ausente fora dela, sem permissão ou no modo Selecionar. */
   arraste?: { lista: ArrasteDaLista; indice: number };
   /** Modo Selecionar: a caixa toma o lugar do ⋯. */
@@ -43,12 +47,12 @@ const comDica = (titulo: string) => (el: View | null) => {
 };
 
 /**
- * Cartão do vídeo na grade do treinador (D2, 19/11), de cima para baixo: capa 16:9 com o play e a posição no canto,
+ * Cartão do vídeo na grade (D2, 19/11; o aluno usa o mesmo, sem ⋯ nem alça, D6), de cima para baixo: capa 16:9 com o play e a posição no canto,
  * título em até 2 linhas (inteiro na dica e no nome acessível), descrição de apoio em até 2 linhas (some se repete o
  * título) e a linha de dados: comentários à esquerda e, à direita, a alça de arrastar e o ⋯. Cresce até a altura do
  * vizinho da linha, com a linha de dados embaixo.
  */
-export function CartaoDoVideo({ aula, numero, aoMenu, aoComentarios, aoAbrirFora, arraste, marcar, nivel = 3 }: Props) {
+export function CartaoDoVideo({ aula, numero, aoMenu, aoComentarios, aoAbrirFora, baixarCapa, arraste, marcar, nivel = 3 }: Props) {
   const { cores, bordas, preferencias } = useTema();
   const descricao = descricaoDoCartao(aula.titulo, aula.descricao);
   const comentarios = textoDeComentarios(aula.totalComentarios);
@@ -56,7 +60,7 @@ export function CartaoDoVideo({ aula, numero, aoMenu, aoComentarios, aoAbrirFora
   const externo = youtube ? urlNoYoutube(youtube) : linkParaAbrir(aula.videoUrl);
   return (
     <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: contornoDoCartao(cores, preferencias.contraste), borderWidth: bordas.bloco, boxShadow: cores.sombra }]}>
-      <CapaDoCartao videoUrl={aula.videoUrl} titulo={aula.titulo} capaId={aula.capaId ?? null} numero={numero} aoAbrirFora={aoAbrirFora} />
+      <CapaDoCartao videoUrl={aula.videoUrl} titulo={aula.titulo} capaId={aula.capaId ?? null} baixarCapa={baixarCapa} numero={numero} aoAbrirFora={aoAbrirFora} />
       <View style={estilos.corpo}>
         <View ref={comDica(aula.titulo)}>
           <Texto variante="subtitulo" nivel={nivel} numberOfLines={2}>{aula.titulo}</Texto>

@@ -183,7 +183,7 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
               const selo = seloDaCobranca(c);
               const doTipo = seloDoTipoDaCobranca(c.tipo);
               return (
-                <ItemDeLista key={c.id} titulo={referenciaDaCobranca(c)} detalhe={resumoDaCobranca(c)}
+                <ItemDeLista key={c.id} titulo={referenciaDaCobranca(c)} detalhe={resumoDaCobranca(c)} numerico
                   selo={{ texto: selo.rotulo, tipo: selo.tom, Icone: ICONE_DO_SELO[selo.tom] }} aoTocar={() => setCobrancaAberta(c)}
                   rotulo={`Abrir ${doTipo ? rotuloDoTipoDaCobranca(c.tipo).toLowerCase() : 'cobrança'}${c.tipo === 'AVULSA' ? ':' : ' de'} ${referenciaDaCobranca(c)}, ${selo.rotulo}`}>
                   {doTipo ? <View style={estilos.seloDoTipo}><Selo texto={doTipo.rotulo} tipo={doTipo.tom} /></View> : null}

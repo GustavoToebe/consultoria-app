@@ -43,6 +43,19 @@ const CAPTURAS = process.env.CAPTURAS_DIR;
 async function capturar(page: Page, nome: string) {
   if (CAPTURAS) await page.screenshot({ path: `${CAPTURAS}/${nome}.png`, fullPage: true });
 }
+/** JPEG fictício desenhado na página (a capa simulada), como em `comunidade.spec.ts`. */
+async function jpegFicticio(page: Page): Promise<Buffer> {
+  const base64 = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#5a7d9a';
+    ctx.fillRect(0, 0, 64, 64);
+    return canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+  });
+  return Buffer.from(base64, 'base64');
+}
 async function tema(page: Page, t: 'CLARO' | 'ESCURO') {
   await page.addInitScript(([id, tm]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: tm, contraste: 'PADRAO' })), [ALUNO.id, t]);
 }
@@ -50,6 +63,8 @@ async function tema(page: Page, t: 'CLARO' | 'ESCURO') {
 const cabecalhos = (page: Page) => page.getByRole('button', { name: /, (aberto|recolhido)$/ });
 const colecao = (page: Page, nome: string) => page.getByRole('button', { name: new RegExp(`^${nome}, (aberto|recolhido)$`) });
 const titulos = (page: Page) => page.getByRole('heading', { level: 2 });
+/** O selo da posição na capa ("Posição 3"). */
+const posicoes = (page: Page) => page.getByLabel(/^Posição \d+$/);
 
 for (const largura of [390, 1280]) {
   test.describe(`${largura} px`, () => {
@@ -72,9 +87,13 @@ for (const largura of [390, 1280]) {
 
       await colecao(page, 'Base de força').click();
       await expect(colecao(page, 'Base de força')).toHaveAttribute('aria-expanded', 'true');
-      await expect(titulos(page)).toHaveText(['1. Agachamento livre', '2. Remada curvada', '3. Supino com pausa']);
+      // Cartão do D2 (D6, 20/11): o título sem número; a posição fica no selo da capa.
+      await expect(titulos(page)).toHaveText(['Agachamento livre', 'Remada curvada', 'Supino com pausa']);
+      await expect(posicoes(page)).toHaveText(['1', '2', '3']);
       await colecao(page, 'Sem coleção').click();
       await expect(page.getByRole('heading', { level: 2, name: 'Recado da equipe', exact: true })).toBeVisible();
+      // "Sem coleção" não tem número.
+      await expect(posicoes(page)).toHaveCount(3);
       await capturar(page, `colecoes-abertas-${largura}-claro`);
       expect(api.naoTratadas).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
@@ -85,7 +104,8 @@ for (const largura of [390, 1280]) {
       await page.goto(VIDEOS);
       await page.getByLabel('Buscar nos vídeos').fill('supino');
       // O 3º vídeo da coleção continua "3.", com o nome da coleção no cabeçalho do grupo.
-      await expect(page.getByRole('heading', { level: 2 })).toHaveText(['3. Supino com pausa']);
+      await expect(page.getByRole('heading', { level: 2 })).toHaveText(['Supino com pausa']);
+      await expect(posicoes(page)).toHaveText(['3']);
       await expect(cabecalhos(page)).toHaveCount(1);
       await expect(colecao(page, 'Base de força')).toHaveAttribute('aria-expanded', 'true');
       await expect(page.getByText('1 vídeo', { exact: true })).toBeVisible();
@@ -104,7 +124,7 @@ for (const largura of [390, 1280]) {
       await page.goto(VIDEOS);
       await colecao(page, 'Base de força').click();
       await expect(titulos(page)).toHaveCount(3);
-      await page.getByRole('button', { name: 'Ver 0 comentário(s) do vídeo Remada curvada' }).click();
+      await page.getByRole('button', { name: 'Ver comentários do vídeo Remada curvada: Nenhum comentário' }).click();
       await expect(page.getByRole('dialog')).toBeVisible();
 
       await page.goBack();
@@ -146,6 +166,7 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Não foi possível carregar as coleções. Os vídeos aparecem abaixo, sem agrupar.')).toBeVisible();
       // Na ordem da API, sem número e sem "Sem coleção" (agrupar sem as coleções poria tudo lá).
       await expect(titulos(page)).toHaveText(AULAS.map((a) => a.titulo));
+      await expect(posicoes(page)).toHaveCount(0);
       await expect(page.getByText('Sem coleção')).toHaveCount(0);
       await expect(cabecalhos(page)).toHaveCount(0);
       await capturar(page, `colecoes-erro-${largura}`);
@@ -154,6 +175,76 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: 'Tentar de novo' }).click();
       await expect(cabecalhos(page)).toHaveCount(3);
     });
+
+    // D6 (20/11): o cartão do D2 sem ⋯ nem alça, com o botão visível "Abrir no YouTube" ou "Abrir vídeo", que abre fora do
+    // app sem token; a capa vem pela rota do aluno e o player só monta depois do toque em "Assistir". O YouTube e o outro site
+    // são interceptados, nunca os reais.
+    for (const t of ['CLARO', 'ESCURO'] as const) {
+      test(`cartões do vídeo: YouTube com "Abrir no YouTube", outro site com "Abrir vídeo" (${t.toLowerCase()})`, async ({ page, context }) => {
+        await context.route('https://www.youtube-nocookie.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>player de teste</p>' }));
+        await context.route('https://www.youtube.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>YouTube de teste</p>' }));
+        await context.route('https://video.exemplo.invalid/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>Outro site de teste</p>' }));
+        await tema(page, t);
+        const youtube: AulaDaComunidade = {
+          ...aula('y1', 'Técnica do agachamento com pausa longa no fundo e subida controlada', 'pl-base', 0),
+          descricao: 'Pausa de dois segundos no fundo.', videoUrl: 'https://www.youtube.com/watch?v=abcDEF12345', capaId: 'capa-1', totalComentarios: 2,
+        };
+        const outroSite: AulaDaComunidade = {
+          ...aula('o1', 'Remada no outro site', 'pl-base', 1), descricao: 'Remada no outro site', videoUrl: 'https://video.exemplo.invalid/aula', totalComentarios: 1,
+        };
+        let jpeg: Buffer = Buffer.alloc(0);
+        const api = await simularApi(page, {
+          ...(await sessaoDeAluno(page)),
+          ...comunidade({
+            'GET /aluno/comunidade/aulas': { corpo: [youtube, outroSite, aula('m1', 'Alongamento de quadril', 'pl-mob', 0), aula('s1', 'Recado da equipe', null, 0)] },
+            'GET /aluno/comunidade/playlists': { corpo: [{ ...COLECOES[0], totalAulas: 2 }, COLECOES[1]] },
+            'GET /aluno/comunidade/capas/{id}': (_p, route) => route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg }),
+          }),
+        });
+        jpeg = await jpegFicticio(page);
+        await page.goto(VIDEOS);
+        await colecao(page, 'Base de força').click();
+        await expect(titulos(page)).toHaveText([youtube.titulo, outroSite.titulo]);
+        await expect(posicoes(page)).toHaveText(['1', '2']);
+        // A descrição aparece (a que repete o título some: `descricaoDoCartao`, testada no jest).
+        await expect(page.getByText('Pausa de dois segundos no fundo.')).toBeVisible();
+        await expect(page.getByText('2 comentários', { exact: true })).toBeVisible();
+        await expect(page.getByText('1 comentário', { exact: true })).toBeVisible();
+        // Sem gestão no aluno: nem ⋯ nem alça.
+        await expect(page.getByRole('button', { name: /^Ações do vídeo/ })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /arrastar|Mover/i })).toHaveCount(0);
+        // Capa pela rota do aluno; nada do YouTube carrega antes do toque.
+        await expect.poll(() => api.pedidos.some((p) => p.caminho === '/aluno/comunidade/capas/capa-1')).toBe(true);
+        await expect(page.locator('img[src^="blob:"]')).toHaveCount(1);
+        await expect(page.locator('iframe')).toHaveCount(0);
+        // 1 coluna no celular, 2 no PC (a tela do aluno tem 720 px).
+        const xs = await Promise.all((await page.getByRole('button', { name: /^Ver comentários do vídeo/ }).all()).map((b) => b.boundingBox()));
+        expect(new Set(xs.map((c) => Math.round(c!.x))).size).toBe(largura >= 1024 ? 2 : 1);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+        await capturar(page, `cartoes-${largura}-${t.toLowerCase()}`);
+
+        const noYoutube = page.getByRole('button', { name: `Abrir no YouTube: ${youtube.titulo}` });
+        await expect(noYoutube).toHaveText('Abrir no YouTube');
+        const [popup] = await Promise.all([page.waitForEvent('popup'), noYoutube.click()]);
+        await popup.waitForURL('https://www.youtube.com/watch?v=abcDEF12345');
+        expect(await popup.evaluate(() => window.opener)).toBeNull();
+        await popup.close();
+
+        const foraDoApp = page.getByRole('button', { name: `Abrir vídeo fora do app: ${outroSite.titulo}` });
+        await expect(foraDoApp).toHaveText('Abrir vídeo');
+        const [outro] = await Promise.all([page.waitForEvent('popup'), foraDoApp.click()]);
+        await outro.waitForURL('https://video.exemplo.invalid/aula');
+        expect(await outro.evaluate(() => window.opener)).toBeNull();
+        await outro.close();
+
+        // Erros da página conferidos antes do player: o script de preparação do e2e (api-falsa) roda também dentro do iframe de
+        // teste, que não pode ler `localStorage`; esse SecurityError é do teste, não do app.
+        expect(api.errosDaPagina).toEqual([]);
+        await page.getByRole('button', { name: `Assistir: ${youtube.titulo}` }).click();
+        await expect(page.locator('iframe')).toHaveAttribute('src', 'https://www.youtube-nocookie.com/embed/abcDEF12345');
+        expect(api.naoTratadas).toEqual([]);
+      });
+    }
 
     test('escuro: coleção aberta', async ({ page }) => {
       await tema(page, 'ESCURO');

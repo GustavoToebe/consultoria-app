@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ErroApi } from '../../api/cliente';
 import { excluirAula, listarAulasDaEquipe, listarPlaylists, moverAulasParaPlaylist, reordenarAulasDaPlaylist } from '../../api/comunidade';
 import type { AulaDaComunidade } from '../../api/comunidadeTipos';
+import { rotuloDoMenuDoVideo } from '../../comunidade/CartaoDoVideo';
 import {
   agruparPorPlaylist, aulasParaMover, auloesDaPlaylist, type Direcao, emLotes, type FiltroDePlaylist, filtrarPorPlaylist,
   filtroDePlaylistValido, gruposDaEquipe, listaVelha, MENSAGEM_LISTA_MUDOU, moverNaLista, reordenados, SEM_COLECAO, textoDoLoteMovido,
@@ -14,9 +15,6 @@ import { textoDoErro } from '../../ui/erros';
 import { useCarregar } from '../../ui/useCarregar';
 import { focarNaWeb } from './focarNaWeb';
 import { useColecoesDaEquipe } from './useColecoesDaEquipe';
-
-/** Nome acessível do ⋯ do vídeo: o foco volta para ele depois de mover pelo menu. */
-export const rotuloDoMenuDoVideo = (titulo: string) => `Ações do vídeo ${titulo}`;
 
 /**
  * Estado da aba Vídeos do treinador (a tela fica montada nas duas abas; o "Novo vídeo" nasce vazio a cada abertura, com a
