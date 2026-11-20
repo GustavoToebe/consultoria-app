@@ -805,6 +805,31 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
   lado) e editor de dieta (o `TotalDoDia` na coluna), ambos só com "Largura do conteúdo" Automática (`useTresColunas`);
   Resumo do aluno (Atividade recente como 3ª coluna) e Ajuda (índice, conteúdo e "Consultar"), que seguem só a faixa.
 
+### 4.11 Aba Vídeos da Comunidade (Gustavo, 20/11/2026; plano `docs/planos/comunidade-19-11.md`)
+
+Aba Vídeos do treinador (`treinador/comunidade/ListaDosVideos`, `SecaoDaColecao`, `CartaoDoVideo`; grade em
+`dominio/gradeDosVideos.ts`, `colunasDosVideos`). Só quem modera a comunidade organiza; os demais leem.
+
+- **Uma seção por coleção, sem cartão em volta.** O cabeçalho tem a alça de arrastar, o nome (h2), "N vídeos", "Adicionar
+  vídeo" (que já escolhe a coleção) e o ⋯ (Renomear, Mover para cima, Mover para baixo, Excluir coleção). "Sem coleção" usa
+  a mesma seção, sem ⋯, alça nem "Adicionar vídeo", e fica por último. Fim da aba: "+ Nova coleção", com o campo ali mesmo.
+  Coleção vazia mostra "Nenhum vídeo nesta coleção" e "Adicionar vídeo" no corpo, não no cabeçalho.
+- **Excluir coleção sempre com texto:** o painel diz que os vídeos passam para "Sem coleção". Nenhum vídeo é apagado. Os
+  publicados continuam para o aluno, sem a numeração.
+- **Grade pela área de conteúdo** (4.10): 4 colunas a partir de 1600 px, 3 de 1024 a 1600, 2 abaixo, 1 abaixo de 600 px.
+  Poucos vídeos ficam com a largura de uma coluna, à esquerda.
+- **Cartão do vídeo:** capa 16:9 com o play "Assistir: <título>" e a posição num selo no canto; sem capa, fundo
+  `superficie2` com ícone e o título. Título até 2 linhas; descrição até 2 linhas em texto suave, omitida se repetir o
+  título; linha de dados "Nenhum comentário", "1 comentário" ou "N comentários" em texto comum; ⋯ no fim. "Abrir no YouTube"
+  saiu do cartão e vai para o ⋯, que também aparece para quem só lê (com essa ação).
+- **Ordem:** arrastando pela alça ou pelo ⋯ ("Mover para cima/baixo"). Uma linha fixa abaixo das abas diz ao treinador que
+  o aluno vê as coleções nessa ordem, com os vídeos numerados, e que coleção sem vídeo publicado não aparece para ele.
+- **Folha Novo vídeo / Editar vídeo:** ordem Link do vídeo, capa, Título, Coleção e Descrição. Ações "Publicar" e, na
+  edição, "Salvar". Com link do YouTube válido, a capa vem sozinha, com "Trocar capa" e "Remover capa" (depois de
+  "Remover capa" o vídeo fica sem capa e o link deixa de acompanhar a capa). Capa trocada à mão nunca é sobrescrita pelo
+  link; se o link mudar de vídeo, aparece um aviso. Link inválido: erro em vermelho embaixo do campo, com "Publicar"
+  desativado. Link de fora do YouTube não tem prévia. Com "Sair sem salvar?" quando há alteração.
+
 ## 5. Os problemas de design que estamos resolvendo
 
 Origem principal: a reunião gravada de 29/10, com o treinador usando o sistema por 40 minutos. Ele elogiou a
