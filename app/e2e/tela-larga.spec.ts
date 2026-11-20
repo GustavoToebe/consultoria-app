@@ -360,72 +360,90 @@ test('3440 px (ultralarga): Automática abre 3 colunas e supera 1800 px; Limitad
   // ---- Automática em 3440 px ----
   await prepararAmbiente(page, 3440, { larguraConteudo: 'AUTOMATICA' });
 
+  // As posições só valem com o layout assentado (a faixa de largura chega depois do primeiro desenho): cada conferência repete até estabilizar.
+  const assentado = (conferir: () => Promise<void>) => expect(conferir).toPass({ timeout: 10_000 });
+
   // 1. Início (> 1800 px)
   await page.goto('/treinador');
-  const cabecalhoInicio = await caixa(page.getByRole('heading', { name: 'Início', level: 1 }));
-  expect(cabecalhoInicio.x).toBeGreaterThan(200);
-  const blocoAtualizacoes = await caixa(titulo(page, 'Atualizações'));
-  const blocoAlunos = await caixa(titulo(page, 'Alunos'));
-  expect(blocoAlunos.x).toBeGreaterThan(blocoAtualizacoes.x);
+  await assentado(async () => {
+    const cabecalhoInicio = await caixa(page.getByRole('heading', { name: 'Início', level: 1 }));
+    expect(cabecalhoInicio.x).toBeGreaterThan(200);
+    const blocoAtualizacoes = await caixa(titulo(page, 'Atualizações'));
+    const blocoAlunos = await caixa(titulo(page, 'Alunos'));
+    expect(blocoAlunos.x).toBeGreaterThan(blocoAtualizacoes.x);
+  });
 
   // 2. Resumo do aluno (3 colunas: Planejamento | Última medição | Atividade recente)
   await page.goto(`/treinador/alunos/${ALUNO_ID}`);
-  const planejamento = await caixa(titulo(page, 'Planejamento'));
-  const medicao = await caixa(titulo(page, 'Última medição'));
-  const atividade = await caixa(titulo(page, 'Atividade recente'));
-  expect(medicao.x).toBeGreaterThan(planejamento.x + planejamento.width);
-  expect(atividade.x).toBeGreaterThan(medicao.x + medicao.width);
-  expect(Math.abs(planejamento.y - medicao.y)).toBeLessThan(8);
-  expect(Math.abs(medicao.y - atividade.y)).toBeLessThan(8);
+  await assentado(async () => {
+    const planejamento = await caixa(titulo(page, 'Planejamento'));
+    const medicao = await caixa(titulo(page, 'Última medição'));
+    const atividade = await caixa(titulo(page, 'Atividade recente'));
+    expect(medicao.x).toBeGreaterThan(planejamento.x + planejamento.width);
+    expect(atividade.x).toBeGreaterThan(medicao.x + medicao.width);
+    expect(Math.abs(planejamento.y - medicao.y)).toBeLessThan(8);
+    expect(Math.abs(medicao.y - atividade.y)).toBeLessThan(8);
+  });
 
   // 3. Editor de treino (3 colunas: lista | inspetor | ResumoDaSessao ao lado)
   await page.goto(`/treinador/treinos/${TREINO_ID}`);
   await expect(page.getByRole('button', { name: /^Editar sessão/ })).toBeVisible();
   // Em ultralarga o resumo sai do cartão da sessão e vira a 3ª coluna (`coluna-resumo-sessao`), à direita da lista.
-  const resumoSessao = await caixa(page.getByTestId('coluna-resumo-sessao'));
-  const listaTreino = await caixa(page.getByRole('button', { name: 'Adicionar exercício' }).first());
-  expect(resumoSessao.x).toBeGreaterThan(listaTreino.x + listaTreino.width);
-  // O recuo lateral sai da mesma régua nos dois editores: o título começa no mesmo x no treino e na dieta.
-  const tituloTreino = await caixa(page.getByRole('heading', { level: 1 }));
+  let tituloTreinoX = 0;
+  await assentado(async () => {
+    const resumoSessao = await caixa(page.getByTestId('coluna-resumo-sessao'));
+    const listaTreino = await caixa(page.getByRole('button', { name: 'Adicionar exercício' }).first());
+    expect(resumoSessao.x).toBeGreaterThan(listaTreino.x + listaTreino.width);
+    // O recuo lateral sai da mesma régua nos dois editores: o título começa no mesmo x no treino e na dieta.
+    tituloTreinoX = (await caixa(page.getByRole('heading', { level: 1 }))).x;
+  });
 
   // 4. Editor de dieta (3 colunas: lista | refeição | TotalDoDia ao lado)
   await page.goto(`/treinador/dietas/${DIETA_ID}`);
   await expect(page.getByRole('heading', { name: /^Refeições \(/ })).toBeVisible();
-  const totalDia = await caixa(titulo(page, 'Total do dia'));
-  const listaRefeicoes = await caixa(page.getByRole('heading', { name: /^Refeições \(/ }));
-  expect(totalDia.x).toBeGreaterThan(listaRefeicoes.x + listaRefeicoes.width);
-  const tituloDieta = await caixa(page.getByRole('heading', { level: 1 }));
-  expect(Math.abs(tituloTreino.x - tituloDieta.x)).toBeLessThanOrEqual(1);
+  await assentado(async () => {
+    const totalDia = await caixa(titulo(page, 'Total do dia'));
+    const listaRefeicoes = await caixa(page.getByRole('heading', { name: /^Refeições \(/ }));
+    expect(totalDia.x).toBeGreaterThan(listaRefeicoes.x + listaRefeicoes.width);
+    const tituloDieta = await caixa(page.getByRole('heading', { level: 1 }));
+    expect(Math.abs(tituloTreinoX - tituloDieta.x)).toBeLessThanOrEqual(1);
+  });
 
   // 5. Ajuda (3 colunas: índice | conteúdo | Consultar, com texto corrido limitado)
   await page.goto('/treinador/ajuda');
-  const indice = await caixa(page.getByRole('navigation', { name: 'Tópicos da ajuda' }));
-  const comecar = await caixa(titulo(page, 'Começar a usar'));
-  const consultar = await caixa(page.getByRole('heading', { name: 'Consultar', level: 2 }));
-  expect(comecar.x).toBeGreaterThan(indice.x + indice.width);
-  expect(consultar.x).toBeGreaterThan(comecar.x + comecar.width);
-  expect(comecar.width).toBeLessThanOrEqual(800);
-  // O bloco de 3 colunas fica centralizado na área (margem esquerda igual à direita), como o de 2 colunas.
-  const margens = await page.getByTestId('bloco-da-ajuda').evaluate((bloco) => {
-    const b = bloco.getBoundingClientRect();
-    const area = bloco.parentElement!.getBoundingClientRect();
-    return { esquerda: b.left - area.left, direita: area.right - b.right };
+  await assentado(async () => {
+    const indice = await caixa(page.getByRole('navigation', { name: 'Tópicos da ajuda' }));
+    const comecar = await caixa(titulo(page, 'Começar a usar'));
+    const consultar = await caixa(page.getByRole('heading', { name: 'Consultar', level: 2 }));
+    expect(comecar.x).toBeGreaterThan(indice.x + indice.width);
+    expect(consultar.x).toBeGreaterThan(comecar.x + comecar.width);
+    expect(comecar.width).toBeLessThanOrEqual(800);
+    // O bloco de 3 colunas fica centralizado na área (margem esquerda igual à direita), como o de 2 colunas.
+    const margens = await page.getByTestId('bloco-da-ajuda').evaluate((bloco) => {
+      const b = bloco.getBoundingClientRect();
+      const area = bloco.parentElement!.getBoundingClientRect();
+      return { esquerda: b.left - area.left, direita: area.right - b.right };
+    });
+    expect(margens.esquerda).toBeGreaterThan(100);
+    expect(Math.abs(margens.esquerda - margens.direita)).toBeLessThanOrEqual(2);
   });
-  expect(margens.esquerda).toBeGreaterThan(100);
-  expect(Math.abs(margens.esquerda - margens.direita)).toBeLessThanOrEqual(2);
 
   // 6. Financeiro › Visão geral (6 indicadores na mesma linha, tabela <= 1800 px)
   await page.goto('/treinador/financeiro');
-  const tabelaInadimplencia = await caixa(page.getByRole('table', { name: 'Cobranças vencidas em aberto' }));
-  expect(tabelaInadimplencia.width).toBeLessThanOrEqual(1800);
+  await assentado(async () => {
+    const tabelaInadimplencia = await caixa(page.getByRole('table', { name: 'Cobranças vencidas em aberto' }));
+    expect(tabelaInadimplencia.width).toBeLessThanOrEqual(1800);
+  });
 
   // ---- Limitada em 3440 px ----
   await prepararAmbiente(page, 3440, { larguraConteudo: 'LIMITADA' });
   await page.goto(`/treinador/alunos/${ALUNO_ID}`);
-  const planejamentoLim = await caixa(titulo(page, 'Planejamento'));
-  const atividadeLim = await caixa(titulo(page, 'Atividade recente'));
   // Em Limitada (teto 1800 px), Resumo do aluno não entra em `ultralarga` e Atividade recente volta para baixo.
-  expect(atividadeLim.y).toBeGreaterThan(planejamentoLim.y + planejamentoLim.height);
+  await assentado(async () => {
+    const planejamentoLim = await caixa(titulo(page, 'Planejamento'));
+    const atividadeLim = await caixa(titulo(page, 'Atividade recente'));
+    expect(atividadeLim.y).toBeGreaterThan(planejamentoLim.y + planejamentoLim.height);
+  });
 });
 
 test('capturas visuais em 1920 px (Automática), 3440 px (Automática) e 3440 px (Limitada)', async ({ page }) => {
