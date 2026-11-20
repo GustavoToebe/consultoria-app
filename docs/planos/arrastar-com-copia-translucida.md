@@ -15,14 +15,17 @@ O treinador arrasta itens com uma cópia translúcida que segue o ponteiro, um e
 | D5 | Kanban (`QuadroKanban.tsx`) | Alça ⋮⋮ à esquerda do nome; no mouse o cartão inteiro arrasta depois de ~4 px (clicar abre a inscrição), no toque, toque longo; "Mover para" sai do cartão e vai para o ⋯ (canto superior direito), "Mover para > Novas / Em contato / Em negociação…", com o nome acessível atual; coluna de destino destacada (borda `cores.acao`, fundo `acaoSuave` leve), espaço tracejado na posição de entrada, coluna vazia diz "Solte aqui" (no lugar de "Nenhuma inscrição."); ao soltar em outra coluna, aviso "Movido para Em contato" com Desfazer; o texto "Segure o cartão para arrastar, ou use 'Mover para'." vira "Arraste pelo ⋮⋮ ou use o ⋯ do cartão." | Gustavo, 19/11 |
 
 ## Passos
-- [ ] 1. Regra pura em `dominio/reordenar` (reordenar e mover entre colunas, origem → destino) com teste
-- [ ] 2. Peça em `ui/ArrasteDaLista` com a cópia translúcida e a rolagem automática; trocar `EditarPainel` e `QuadroKanban` para ela
-- [ ] 3. Aplicar em dieta, treino, mobilidade e Kanban (alça, ⋯, destaque da coluna, "Solte aqui")
-- [ ] 4. e2e com o mouse em 1280 (uma lista da dieta, o Kanban entre colunas, Esc cancelando; comentário "arrastar com cópia translúcida (19/11)"); ajustar os e2e que clicavam em "Mover para"; typecheck, lint, jest e os e2e de dieta, treino, mobilidade, interessados e painel
-- [ ] 5. Capturas no meio do arraste (dieta e Kanban, 1280, escuro e claro) e o cartão do Kanban parado em 1280 e 390; Ajuda, `AGENTS.md`, `design-e-front.md` e guias em PDF
+- [x] 1. Regra pura em `dominio/reordenar` (reordenar e mover entre colunas, origem → destino) com teste
+- [x] 2. Peça em `ui/ArrasteDaLista` com a cópia translúcida e a rolagem automática; trocar `EditarPainel` e `QuadroKanban` para ela
+- [x] 3. Aplicar em dieta, treino, mobilidade e Kanban (alça, ⋯, destaque da coluna, "Solte aqui")
+- [x] 4. e2e com o mouse em 1280 (uma lista da dieta, o Kanban entre colunas, Esc cancelando; comentário "arrastar com cópia translúcida (19/11)"); ajustar os e2e que clicavam em "Mover para"; typecheck, lint, jest e os e2e de dieta, treino, mobilidade, interessados e painel
+- [x] 5. (20/11) Capturas no meio do arraste (dieta e Kanban, 1280, escuro e claro) e o cartão do Kanban parado em 1280 e 390; Ajuda, `AGENTS.md`, `design-e-front.md` e guias em PDF
 
 ## Fora do escopo
 - Biblioteca nova de arrastar; `ui/Folha` e `ui/EscalaDeNota` (usam `Gesture` para outra coisa).
 
 ## O que ficou para trás
-- Nada ainda. Não conferível aqui: toque longo no aparelho (nativo).
+- Nada conferido em aparelho nativo: toque longo, recorte pelo `ScrollView`, `zIndex` entre colunas num tablet; no nativo, sem rolagem automática nem Esc (`shortcut:`).
+- Temas areia e contraste alto durante o arraste, cartão do Kanban em 390 no escuro e arraste por toque na web num tablet largo.
+- Tracejado em `cores.borda` fraco no tema claro (fixado no D1): decidir com o Gustavo.
+- Início em edição sem "Ordem alterada" com Desfazer (tudo é rascunho; Cancelar descarta).

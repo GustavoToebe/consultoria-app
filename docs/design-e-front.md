@@ -555,7 +555,7 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   uma grade têm a mesma altura; a opção escolhida é reconhecível sem a cor.
 - **Status:** todas as peças acima = **Peça existe** (`Escolha`, `GradeDeOpcoes`, `OpcaoCartao` lidas em 10/11).
   Regra de quando usar `distribuida` = **Proposto**. Lista de ações com `ItemDeLista` em grupos ("Mudar de etapa", que
-  vale na hora, e "Aceitar ou encerrar", que abre a confirmação) = **Verificado só no "Mover para" dos Interessados**
+  vale na hora, e "Aceitar ou encerrar", que abre a confirmação) = **Verificado só no ⋯ (antigo "Mover para") dos Interessados**
   (passo 4c, 10/11): 390 e 1280 px nos 4 temas, nome longo, linhas de mesma borda e largura com
   44 px ou mais, foco inicial (X na folha de baixo, primeira ação na centrada), Esc devolve o foco ao botão, Recusar
   abre a confirmação sem gravar, encerrada só com "Reabrir atendimento": `app/e2e/interessados-composicao.spec.ts`.
@@ -836,6 +836,16 @@ Aba Vídeos do treinador (`treinador/comunidade/ListaDosVideos`, `SecaoDaColecao
   "Remover capa" o vídeo fica sem capa e o link deixa de acompanhar a capa). Capa trocada à mão nunca é sobrescrita pelo
   link; se o link mudar de vídeo, aparece um aviso. Link inválido: erro em vermelho embaixo do campo, com "Publicar"
   desativado. Link de fora do YouTube não tem prévia. Com "Sair sem salvar?" quando há alteração.
+
+### 4.12 Arrastar com cópia translúcida (Gustavo, 20/11/2026; plano `docs/planos/arrastar-com-copia-translucida.md`)
+
+Uma peça só (`ui/ArrasteDaLista`, núcleo `useArraste`; web em `ui/arrasteNaWeb`) para dieta, treino, mobilidade, Início em edição e Kanban dos Interessados.
+
+- **Começo:** no mouse, pela alça ⋮⋮ depois de 4 px (clicar continua sendo clicar; no Kanban o cartão inteiro arrasta); no aparelho, toque longo de 250 ms.
+- **Durante (web):** cópia do item a 0,6 de opacidade, escala 1,02 e sombra seguindo o ponteiro; origem invisível com contorno tracejado em `cores.borda`; linha guia de 2 px em `cores.acao`; rolagem automática a menos de 48 px da borda; Esc cancela. Movimento reduzido: a cópia segue o ponteiro e só some no fim, sem encaixe.
+- **Kanban:** a coluna que aceita o cartão ganha borda `acao`, fundo `acaoSuave` e o espaço tracejado "Solte aqui"; colunas vazias dizem "Solte aqui" só durante o arraste. O ⋯ do cartão (canto superior direito, "Mover X para") abre direto os destinos e é a via do teclado; abaixo de 760 px não há arraste ("Use o ⋯ do cartão para mudar de etapa.").
+- **Ao soltar:** "Ordem alterada." ou "Movido para …" com Desfazer. No Início em edição não há aviso (tudo é rascunho; Cancelar descarta) e o destino é o bloco sob o ponteiro com borda `acao`.
+- **Status:** **Verificado na web** com mouse em 1280 (claro e escuro) e 390; **não conferido** no aparelho nativo, nos temas areia e contraste alto, nem por toque num tablet largo. O tracejado em `cores.borda` fica fraco no tema claro (decisão do D1; pendente com o Gustavo).
 
 ## 5. Os problemas de design que estamos resolvendo
 
