@@ -62,7 +62,7 @@ function CicloLigado({ ciclo }: { ciclo: ReturnType<typeof useCicloDaAluna> }) {
     hoje,
   } : null;
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Cabecalho titulo="Ciclo menstrual" voltar="/aluno/conta" />
       {!ciclo.online ? <Texto>Precisa de conexão.</Texto> : null}
       {ciclo.online && !dados && ciclo.erro ? <MensagemErro texto={textoDoErro(ciclo.erro)} tentarDeNovo={ciclo.recarregar} /> : null}

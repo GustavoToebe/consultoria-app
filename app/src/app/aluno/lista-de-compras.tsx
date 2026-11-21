@@ -25,7 +25,7 @@ export default function ListaDeComprasAluno() {
   const { dados, erro, carregando, recarregar } = useDietaDoAluno();
   const versao = escolhida ? escolhida.planos.dieta : dados?.dieta;
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Cabecalho titulo="Lista de compras" voltar="/aluno/dieta" />
       {!escolhida && erro && !dados ? (
         <MensagemErro

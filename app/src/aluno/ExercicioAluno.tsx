@@ -7,6 +7,7 @@ import { cargaIlegivel as cargaDeFormaDesconhecida } from '../dominio/modoDeCarg
 import { ajustarCarga, calcularCargasDoExercicio, cargaQueContaComoReferencia, ehSerieDeTrabalho, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { avisoDeRepeticoes } from '../dominio/avisoDeRepeticoes';
 import { avisoDeSerieSemCarga, textoDoNumeroInvalido } from '../dominio/avisoDaSerie';
+import { duasColunasCom } from '../dominio/grade';
 import { papelDe } from '../dominio/metodologia';
 import { dicaDeCarga, TEXTO_PRIMEIRA_VEZ } from '../dominio/dicaDeCarga';
 import { contagemDoExercicio } from '../dominio/semana';
@@ -32,6 +33,7 @@ import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { CampoNumericoGrande } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
 import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
+import { Grade } from '../ui/Grade';
 import { IconeBotao } from '../ui/IconeBotao';
 import { ProvedorDaPrevia } from '../ui/emPrevia';
 import { sobre } from '../ui/sobre';
@@ -70,6 +72,8 @@ interface Props {
   acaoDescanso?: ReactNode;
   /** Outros ícones da mesma linha, antes do vídeo ("Trocar", "Histórico"); somem na prévia. */
   acoes?: ReactNode;
+  /** Atalho visível para o histórico junto ao título das séries; some na prévia. */
+  acaoHistorico?: ReactNode;
   /** Inicia o cronômetro com a pausa da técnica (cluster, rest pause); sem ele, o botão não aparece. `rotulo` vai na barra; `origem` liga o cronômetro à etapa. */
   aoIniciarPausa?: (segundos: number, rotulo?: string, opcoes?: { origem?: string; automatica?: boolean }) => void;
   /** Encerra a pausa que nasceu da etapa desfeita (só a dela). */
@@ -102,7 +106,7 @@ const SEM_EFEITO = () => undefined;
  */
 export function ExercicioAluno(props: Props) {
   const p: Props = props.previa
-    ? { ...props, registroDe: SEM_EFEITO, aoMudarCargaDoDia: props.aoMudarCargaDoDia ?? SEM_EFEITO, aoRegistrar: SEM_EFEITO, aoIniciarPausa: undefined, aoCancelarPausa: undefined, acaoDescanso: undefined, acoes: undefined, demonstracao: null }
+    ? { ...props, registroDe: SEM_EFEITO, aoMudarCargaDoDia: props.aoMudarCargaDoDia ?? SEM_EFEITO, aoRegistrar: SEM_EFEITO, aoIniciarPausa: undefined, aoCancelarPausa: undefined, acaoDescanso: undefined, acoes: undefined, acaoHistorico: undefined, demonstracao: null }
     : props;
   return (
     <ProvedorDaPrevia value={!!props.previa}>
@@ -244,14 +248,18 @@ function CorpoDoExercicio(p: Props) {
         </Cartao>
       ) : null}
       <View style={estilos.tituloSeries}>
-        <Texto variante="bloco">Séries</Texto>
-        {contagem.total > 0 ? (
-          <Texto numerico variante="pequeno">
-            {contagem.feitas} de {contagem.total} feitas
-          </Texto>
-        ) : null}
+        <View style={estilos.tituloSeriesEsq}>
+          <Texto variante="bloco">Séries</Texto>
+          {contagem.total > 0 ? (
+            <Texto numerico variante="pequeno">
+              {contagem.feitas} de {contagem.total} feitas
+            </Texto>
+          ) : null}
+        </View>
+        {p.acaoHistorico}
       </View>
       {textoDaUltimaVez(ultima) ? <Texto numerico variante="pequeno">{textoDaUltimaVez(ultima)}</Texto> : null}
+      <Grade gap={espaco(1.5)} colunas={duasColunasCom(440, espaco(1.5))} alinhar="inicio">
       {calculadas.map((c, i) =>
         cardio ? (
           <CartaoSerieDeCardio
@@ -308,6 +316,7 @@ function CorpoDoExercicio(p: Props) {
           />
         ),
       )}
+      </Grade>
     </View>
   );
 }
@@ -538,6 +547,18 @@ function CartaoSerie({
         </Texto>
       ) : null}
       <RotuloDeHoje />
+      {dica || (calculada.sugestao != null && carga === null && !feita && !semCampoDePeso) ? (
+        <View style={[estilos.faixaSugestao, { backgroundColor: ativa && !feita ? cores.superficie : cores.superficie3, borderColor: cores.bordaCampo }]}>
+          {dica ? <DicaDoCampo dica={dica} origem={origem} numero={numero} /> : null}
+          {calculada.sugestao != null && carga === null && !feita && !semCampoDePeso ? (
+            <View style={estilos.usarSugestao}>
+              <Botao tipo="secundario" rotulo={`Usar sugestão: ${textoDaCarga(calculada.sugestao, unidade)}`}
+                rotuloAcessivel={`Usar sugestão de ${textoDaCarga(calculada.sugestao, unidade)}, série ${numero}`}
+                aoTocar={() => mudar({ carga: calculada.sugestao })} />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
       {/* D5: a meta de repetições, grande, ao lado do campo de carga. Largo: meta, peso, reps e ✓ numa linha; estreito,
           meta e peso em cima e reps e ✓ embaixo (para os números nos campos continuarem legíveis). */}
       <View style={estilos.hoje} onLayout={(ev) => setLargura(ev.nativeEvent.layout.width)}>
@@ -559,14 +580,6 @@ function CartaoSerie({
       </View>
       {invalido ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{textoDoNumeroInvalido(cargaInvalida, repsInvalidas)}</Texto> : null}
       {semCargaNaSerie ? <Texto variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{semCargaNaSerie}</Texto> : null}
-      {dica ? <DicaDoCampo dica={dica} origem={origem} numero={numero} /> : null}
-      {calculada.sugestao != null && carga === null && !feita && !semCampoDePeso ? (
-        <View style={estilos.usarSugestao}>
-          <Botao tipo="secundario" rotulo={`Usar sugestão: ${textoDaCarga(calculada.sugestao, unidade)}`}
-            rotuloAcessivel={`Usar sugestão de ${textoDaCarga(calculada.sugestao, unidade)}, série ${numero}`}
-            aoTocar={() => mudar({ carga: calculada.sugestao })} />
-        </View>
-      ) : null}
       {avisoDasReps ? <Texto numerico variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{avisoDasReps}</Texto> : null}
       {painelAberto ? (
         <PainelDoCheck sugestaoKg={painel} numero={numero} aoEscolher={escolher}
@@ -598,8 +611,10 @@ const estilos = StyleSheet.create({
   espaco: { flex: 1 },
   observacao: { fontStyle: 'italic' },
   linhaPasso: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), maxWidth: 360 },
-  tituloSeries: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: espaco(0.5), gap: espaco(1) },
+  tituloSeries: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', marginTop: espaco(0.5), gap: espaco(1) },
+  tituloSeriesEsq: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(1) },
   serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
+  faixaSugestao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1), gap: espaco(0.75) },
   tecnica: { gap: espaco(1), alignItems: 'flex-start' },
   tecnicaTexto: { fontFamily: fontes.semi },
   hoje: { gap: espaco(1), maxWidth: 560 },

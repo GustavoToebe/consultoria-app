@@ -80,7 +80,7 @@ export default function TreinoAluno() {
   };
 
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Cabecalho titulo="Treino" subtitulo="As divisões da semana, do jeito que o treinador montou." />
       {!pacote && pacoteRecusado ? <View testID="pacote-recusado"><Alerta tom="atencao" texto={TEXTO_PACOTE_RECUSADO} /></View> : null}
       {!pacote && !pacoteRecusado && carregando ? <Esqueleto texto="Carregando seu treino" cartoes={2} /> : null}

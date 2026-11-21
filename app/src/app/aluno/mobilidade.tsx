@@ -40,7 +40,7 @@ export default function MobilidadeAluno() {
   const { mobilidade, escolhida, pacote, pacoteRecusado, carregando, erroPacote, tentarDeNovo } = useAluno();
   const versao = mobilidadeParaExibir(mobilidade, escolhida ? { mobilidade: escolhida.planos.mobilidade } : null);
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Cabecalho titulo="Mobilidade" />
       <Texto variante="suave">Mobilidade e alongamentos do seu treinador, com vídeo quando houver.</Texto>
       <SeletorPlano rotulo={null} />

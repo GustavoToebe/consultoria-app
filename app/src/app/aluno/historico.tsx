@@ -125,7 +125,7 @@ export default function HistoricoAluno() {
   };
 
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Cabecalho titulo="Histórico" />
       <CartaoFotos />
       <HistoricoAtualizacoes />

@@ -46,7 +46,7 @@ export default function SessaoAluno() {
 
   if (!dia.carregado) {
     return (
-      <Tela bordas={['top']} largura={720}>
+      <Tela bordas={['top']} largura={1120}>
         <Cabecalho titulo="Treino" voltar="/aluno/treino" />
         <Esqueleto />
       </Tela>
@@ -54,7 +54,7 @@ export default function SessaoAluno() {
   }
   if (!dia.treino || !sessao) {
     return (
-      <Tela bordas={['top']} largura={720}>
+      <Tela bordas={['top']} largura={1120}>
         <Cabecalho titulo="Treino" voltar="/aluno/treino" />
         <Vazio texto="Esta sessão não está mais no seu plano. Volte para ver o treino atual."
           acao={{ rotulo: 'Ver meu treino', aoTocar: () => router.replace('/aluno/treino') }} />
@@ -74,7 +74,7 @@ export default function SessaoAluno() {
   const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje, metodologia: dia.config.metodologia, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
 
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Animated.View entering={reduzido ? undefined : FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}>
       <Cabecalho
         titulo={nomeComDia(sessao)}

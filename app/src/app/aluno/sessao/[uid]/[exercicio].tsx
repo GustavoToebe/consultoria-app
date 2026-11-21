@@ -62,7 +62,7 @@ export default function ExercicioDaSessao() {
 
   if (!dia.carregado) {
     return (
-      <Tela bordas={['top']} largura={720}>
+      <Tela bordas={['top']} largura={1120}>
         <Cabecalho titulo="Exercício" voltar={voltar} />
         <Esqueleto />
       </Tela>
@@ -72,7 +72,7 @@ export default function ExercicioDaSessao() {
   const principal = sessao && posicao >= 0 ? sessao.exercicios[posicao] : undefined;
   if (!dia.treino || !sessao || !principal) {
     return (
-      <Tela bordas={['top']} largura={720}>
+      <Tela bordas={['top']} largura={1120}>
         <Cabecalho titulo="Exercício" voltar="/aluno/treino" />
         <Vazio texto="Este exercício não está mais no seu plano. Volte para ver o treino atual."
           acao={{ rotulo: 'Ver meu treino', aoTocar: () => router.replace('/aluno/treino') }} />
@@ -127,7 +127,7 @@ export default function ExercicioDaSessao() {
   return (
     <View style={estilos.raiz}>
     <AlvoDoVidro ref={alvoDoVidro} style={estilos.raiz}>
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Cabecalho
         titulo={e.nome}
         subtitulo={`${modalidade}Exercício ${posicao + 1} de ${sessao.exercicios.length} · ${nomeDoDia} (${dataCurta(data)})`}
@@ -167,6 +167,7 @@ export default function ExercicioDaSessao() {
             <HistoricoDoExercicio exercicio={e} ultimaVez={dia.ultimaVezDe(e)} ultima={dia.ultimaCarga(e.exercicioId)} cardio={ehExercicioDeCardio(e)} />
           </>
         }
+        acaoHistorico={<HistoricoDoExercicio variante="botao" exercicio={e} ultimaVez={dia.ultimaVezDe(e)} ultima={dia.ultimaCarga(e.exercicioId)} cardio={ehExercicioDeCardio(e)} />}
         key={`${e.uid}|${data}|${e.exercicioId ?? ''}`}
         exercicio={e}
         data={data}

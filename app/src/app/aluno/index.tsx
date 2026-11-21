@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
 import { CabecalhoDoInicio } from '../../aluno/CabecalhoDoInicio';
 import { CartaoCompromissos } from '../../aluno/CartaoCompromissos';
@@ -23,7 +24,10 @@ import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { textoDoErro } from '../../ui/erros';
 import { Esqueleto } from '../../ui/Esqueleto';
+import { Grade } from '../../ui/Grade';
 import { Tela } from '../../ui/Tela';
+import { duasColunasCom } from '../../dominio/grade';
+import { espaco } from '../../tema/tokens';
 
 /**
  * Início do aluno: o resumo do dia. Marca e "Olá", a dieta compacta com a água, a água do dia (só com meta na dieta),
@@ -59,30 +63,40 @@ export default function InicioAluno() {
   const andamentoNoHoje = !!andamento && estadoHoje.tipo === 'treino' && estadoHoje.sessao.uid === andamento.sessao.uid;
 
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <CabecalhoDoInicio nome={nome} hoje={hoje} />
       {/* Treino começado e não concluído que não é o do Hoje: antes de tudo, para voltar a ele num toque. */}
       {andamento && !andamentoNoHoje ? <FaixaTreinoEmAndamento andamento={andamento} hoje={hoje} /> : null}
-      <CartaoDietaDoInicio estado={estadoDaDieta} aoTentarDeNovo={dieta.recarregar} />
-      {dietaDoPlano?.conteudo.aguaLitros ? <CartaoAguaDoDia compacto metaLitros={dietaDoPlano.conteudo.aguaLitros} /> : null}
-      <SecaoHojeDoInicio
-        estado={estadoHoje}
-        proximo={estadoHoje.tipo === 'descanso' ? proximoTreino(conteudo, hoje, treino?.fim ?? null) : null}
-        hoje={hoje}
-        concluido={concluido}
-        emAndamento={andamentoNoHoje ? andamento.texto : null}
-        carregando={semPacote && carregando}
-        erro={semPacote && erroPacote ? { texto: `${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`, aoTentarDeNovo: () => void tentarDeNovo(), causa: erroPacote } : undefined}
-      />
-      {pacote ? <ParaFazer /> : null}
-      <CartaoCompromissos />
-      {pacote ? <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} /> : null}
-      <NivelDoAluno />
-      <CartaoVitrineDoInicio />
+      <Grade gap={espaco(2)} colunas={duasColunasCom(360, espaco(2))} alinhar="inicio">
+        <View style={estilos.coluna}>
+          <CartaoDietaDoInicio estado={estadoDaDieta} aoTentarDeNovo={dieta.recarregar} />
+          {dietaDoPlano?.conteudo.aguaLitros ? <CartaoAguaDoDia compacto metaLitros={dietaDoPlano.conteudo.aguaLitros} /> : null}
+          <SecaoHojeDoInicio
+            estado={estadoHoje}
+            proximo={estadoHoje.tipo === 'descanso' ? proximoTreino(conteudo, hoje, treino?.fim ?? null) : null}
+            hoje={hoje}
+            concluido={concluido}
+            emAndamento={andamentoNoHoje ? andamento.texto : null}
+            carregando={semPacote && carregando}
+            erro={semPacote && erroPacote ? { texto: `${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`, aoTentarDeNovo: () => void tentarDeNovo(), causa: erroPacote } : undefined}
+          />
+        </View>
+        <View style={estilos.coluna}>
+          {pacote ? <ParaFazer /> : null}
+          <CartaoCompromissos />
+          {pacote ? <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} /> : null}
+          <NivelDoAluno />
+          <CartaoVitrineDoInicio />
+        </View>
+      </Grade>
       <MapaDeTreinos />
     </Tela>
   );
 }
+
+const estilos = StyleSheet.create({
+  coluna: { gap: espaco(2) },
+});
 
 /** Título "Hoje" e o cartão do dia. "Escolher treino" abre a aba Treino, onde estão as divisões. */
 function SecaoHojeDoInicio({

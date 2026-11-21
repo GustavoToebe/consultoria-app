@@ -9,6 +9,7 @@ import { MACROS as CHAVES_DOS_MACROS, normalizarDieta, somar, textoDaAgua, texto
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { linhasDoComplemento } from '../dominio/linhasDoComplemento';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
+import { duasColunasCom } from '../dominio/grade';
 import { linkParaAbrir } from '../dominio/links';
 import { textoDosDiasCurtos, variacaoDoDia, variacaoMostrada } from '../dominio/variacoesDaDieta';
 import type { DadosPdfDieta } from '../pdf/pdfDieta';
@@ -23,6 +24,7 @@ import { Alerta, Incompleto } from '../ui/Estados';
 import { Escolha } from '../ui/Escolha';
 import { Selo } from '../ui/Selo';
 import { FolhaPdfDieta } from '../ui/FolhaPdfDieta';
+import { Grade } from '../ui/Grade';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { NumeroAnimado } from '../ui/NumeroAnimado';
@@ -120,9 +122,13 @@ export function DietaDoAluno({
           {CHAVES_DOS_MACROS.some((m) => totais[m] === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
         </Cartao>
       )}
-      {refeicoes.map((r, i) => (
-        <CartaoRefeicaoAluno key={r.uid} refeicao={r} indice={i} />
-      ))}
+      {refeicoes.length ? (
+        <Grade gap={espaco(2)} colunas={duasColunasCom(360, espaco(2))} alinhar="inicio">
+          {refeicoes.map((r, i) => (
+            <CartaoRefeicaoAluno key={r.uid} refeicao={r} indice={i} />
+          ))}
+        </Grade>
+      ) : null}
       {ergogenicos.length ? (
         <Cartao titulo="Medicação e ergogênicos">
           {ergogenicos.map((e) => (

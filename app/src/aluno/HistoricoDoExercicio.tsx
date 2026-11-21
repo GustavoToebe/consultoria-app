@@ -40,14 +40,19 @@ export function HistoricoDoExercicio(p: {
   ultimaVez: AnteriorDoExercicio | null;
   ultima: UltimaCarga | null;
   cardio: boolean;
+  variante?: 'icone' | 'botao';
 }) {
   const [aberta, setAberta] = useState(false);
   if (!p.exercicio.exercicioId || p.cardio) return null;
   return (
     <>
-      <RotuloDoIcone texto="Histórico">
-        <IconeBotao Icone={History} rotulo={`Histórico de ${p.exercicio.nome}`} aoTocar={() => setAberta(true)} />
-      </RotuloDoIcone>
+      {p.variante === 'botao' ? (
+        <Botao rotulo="Histórico" rotuloAcessivel={`Histórico de ${p.exercicio.nome}`} tipo="fantasma" Icone={History} aoTocar={() => setAberta(true)} />
+      ) : (
+        <RotuloDoIcone texto="Histórico">
+          <IconeBotao Icone={History} rotulo={`Histórico de ${p.exercicio.nome}`} aoTocar={() => setAberta(true)} />
+        </RotuloDoIcone>
+      )}
       {aberta ? (
         <Folha visivel titulo="Histórico" aoFechar={() => setAberta(false)}>
           <ConteudoDoHistorico {...p} exercicioId={p.exercicio.exercicioId} />

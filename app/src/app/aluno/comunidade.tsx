@@ -177,7 +177,7 @@ export default function ComunidadeAluno() {
   };
 
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Cabecalho titulo="Comunidade" subtitulo="Mural do time, vídeos, conquistas e colegas da sua consultoria." />
       <AvisoDoPerfilNaComunidade online={online} />
 

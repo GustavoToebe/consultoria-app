@@ -26,7 +26,7 @@ export default function DietaAluno() {
   const { dados, erro, carregando, recarregar } = useDietaDoAluno();
 
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Cabecalho titulo="Dieta" />
       <Texto variante="suave">A dieta que o seu treinador publicou, só para consulta.</Texto>
       <SeletorPlano rotulo={null} />

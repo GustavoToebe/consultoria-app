@@ -73,7 +73,7 @@ export default function TreinoConcluido() {
 
   if (!dia.carregado) {
     return (
-      <Tela bordas={['top']} largura={720}>
+      <Tela bordas={['top']} largura={1120}>
         <Cabecalho titulo="Bom trabalho!" voltar={voltar} />
         <Esqueleto />
       </Tela>
@@ -82,7 +82,7 @@ export default function TreinoConcluido() {
   const conclusao = dia.treino && sessao ? aluno.sessaoConcluidaDe(dia.treino.versaoId, sessao.uid, data) : null;
   if (!retornoHabilitado || !dia.treino || !sessao || !conclusao?.concluida) {
     return (
-      <Tela bordas={['top']} largura={720}>
+      <Tela bordas={['top']} largura={1120}>
         <Cabecalho titulo="Treino" voltar={voltar} />
         <Vazio texto="Este treino não está concluído. Volte à lista do dia para concluir." />
         <Botao rotulo="Voltar à lista do dia" tipo="secundario" Icone={ArrowLeft} aoTocar={() => router.replace(voltar)} />
@@ -126,7 +126,7 @@ export default function TreinoConcluido() {
   const medir = (e: LayoutChangeEvent) => setLargura(Math.min(PREVIA_MAXIMA, Math.floor(e.nativeEvent.layout.width)));
 
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Cabecalho titulo="Bom trabalho!" subtitulo={`${nomeComDia(sessao)} · ${dataParaTela(data)}`} voltar={voltar} />
       <Cartao>
         {frase ? <Texto style={estilos.frase}>{frase}</Texto> : null}

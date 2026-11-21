@@ -18,7 +18,7 @@ export default function VitrineDoAluno() {
   useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
   if (!vitrineHabilitada) return <Redirect href="/aluno" />;
   return (
-    <Tela largura={720}>
+    <Tela largura={1120}>
       <Cabecalho titulo="Vitrine" subtitulo="Produtos e serviços da sua consultoria." voltar="/aluno" />
       {!online ? <Vazio Icone={WifiOff} titulo="Sem conexão" texto="A vitrine precisa de internet. Conecte-se e volte aqui." /> : null}
       {online && erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}

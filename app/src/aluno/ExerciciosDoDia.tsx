@@ -4,10 +4,12 @@ import { StyleSheet, View } from 'react-native';
 
 import type { ExercicioPlano, Configuracao, Sessao, UltimaCarga } from '../api/tipos';
 import { gruposDaSessao } from '../dominio/combinacoes';
+import { duasColunasCom } from '../dominio/grade';
 import { descansoSoDoGrupo } from '../dominio/textoDoGrupo';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { EntradaEmCascata } from '../ui/EntradaEmCascata';
+import { Grade } from '../ui/Grade';
 import { CabecalhoDoGrupo } from './CabecalhoDoGrupo';
 import { CartaoExercicioDoDia } from './CartaoExercicioDoDia';
 
@@ -42,7 +44,7 @@ export function ExerciciosDoDia({
 }) {
   const { cores } = useTema();
   return (
-    <>
+    <Grade gap={espaco(1.5)} colunas={duasColunasCom(360, espaco(1.5))} alinhar="inicio">
       {gruposDaSessao(sessao, metodologia).map((g) => {
         // Nos grupos em que o descanso é depois da volta, a série não mostra o descanso dela.
         const descansoNaSerie = !(g.nome && g.grupo && descansoSoDoGrupo(g.grupo));
@@ -74,7 +76,7 @@ export function ExerciciosDoDia({
           <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>
         );
       })}
-    </>
+    </Grade>
   );
 }
 
