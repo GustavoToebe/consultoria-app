@@ -30,6 +30,9 @@ public class Consultoria {
     /** Paletas da marca (V055); o modo escuro ou claro de cada uma é decidido no app (`tema/tokens.PALETAS`). */
     public enum Tema { ESCURO, MEIA_NOITE, AMEIXA, OCEANO, CLARO, AREIA, LAVANDA, CEU, ROSA }
 
+    /** Temas dos PDFs da consultoria (V096, lista fechada igual a `pdf/temas.ts`). */
+    public enum TemaPdf { CLASSICO, MINIMALISTA, MARCANTE }
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -50,6 +53,10 @@ public class Consultoria {
     @Enumerated(EnumType.STRING)
     @Column(name = "tema_padrao", nullable = false)
     private Tema temaPadrao = Tema.CLARO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tema_pdf", nullable = false)
+    private TemaPdf temaPdf = TemaPdf.CLASSICO;
 
     /** Ciclo de atualização padrão (V009): aluno sem valor próprio usa este; nulo = sem padrão. */
     @Column(name = "dias_atualizacao_padrao")
@@ -135,6 +142,14 @@ public class Consultoria {
 
     public Tema getTemaPadrao() {
         return temaPadrao;
+    }
+
+    public TemaPdf getTemaPdf() {
+        return temaPdf;
+    }
+
+    public void definirTemaPdf(TemaPdf temaPdf) {
+        this.temaPdf = temaPdf;
     }
 
     public Integer getDiasAtualizacaoPadrao() {

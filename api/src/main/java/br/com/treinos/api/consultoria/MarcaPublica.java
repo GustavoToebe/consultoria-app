@@ -7,11 +7,12 @@ import java.util.UUID;
  * {@code logoUrl} é relativo à API (o app junta com a URL base) e muda de versão a cada envio, para o cache.
  */
 public record MarcaPublica(UUID id, String nome, String corPrimaria, String fonteTitulo,
-                           String temaPadrao, String logoUrl) {
+                           String temaPadrao, String logoUrl, String temaPdf) {
 
     public static MarcaPublica de(Consultoria c) {
         return new MarcaPublica(c.getId(), c.getNome(), c.getCorPrimaria(), c.getFonteTitulo().name(),
-                c.getTemaPadrao().name(), logoUrl(c.getId(), c.getLogoTipo(), c.getLogoVersao()));
+                c.getTemaPadrao().name(), logoUrl(c.getId(), c.getLogoTipo(), c.getLogoVersao()),
+                c.getTemaPdf().name());
     }
 
     /** O caminho da logo pública; nulo sem logo ({@code logoTipo} nulo). Quem não carrega a entidade (marketplace) usa este. */

@@ -47,17 +47,22 @@ public class MarcaService {
             /** Meta do peso padrão dos alunos; nulo = não muda a gravada (a coluna nunca é nula). */
             MetaDoPeso metaDoPeso,
             /** Contato (V076): nulo (ausente) mantém o gravado, em branco apaga. Validado no serviço (422 {@code MARCA_INVALIDA} por campo, sem repetir o valor). */
-            String whatsapp, String emailRemetenteNome, String emailResponderPara) {
+            String whatsapp, String emailRemetenteNome, String emailResponderPara,
+            /** Tema dos PDFs (V096); nulo = não muda o gravado (a coluna nunca é nula). */
+            Consultoria.TemaPdf temaPdf) {
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null, null, null, null, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null, null, null, null, null, null);
         }
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao, Integer diasAtualizacaoPadrao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null, null, null, null, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null, null, null, null, null, null);
         }
+    }
+
+    public record TemaPdfRequest(@NotNull Consultoria.TemaPdf temaPdf) {
     }
 
     /** O contato fica fora de {@link MarcaPublica} (pública): só a equipe o lê aqui; o aluno recebe o número em {@code GET /eu}. */
@@ -110,12 +115,24 @@ public class MarcaService {
         conferirContato(c, r);
         c.alterarMarca(r.nome().trim(), r.corPrimaria().toUpperCase(java.util.Locale.ROOT),
                 r.fonteTitulo(), r.temaPadrao(), r.diasAtualizacaoPadrao());
+        if (r.temaPdf() != null) {
+            c.definirTemaPdf(r.temaPdf());
+        }
         c.definirTextosFasesCiclo(ciclo.textosParaGravar(r.textosFasesCiclo()));
         if (r.metaDoPeso() != null && r.metaDoPeso() != c.getMetaDoPeso()) {
             c.definirMetaDoPeso(r.metaDoPeso());
             auditoria.registrarEvento("CONSULTORIA_META_DO_PESO_ALTERADA", "CONSULTORIA", c.getId(),
                     "Alterou a meta do peso padrão dos alunos.");
         }
+        consultorias.saveAndFlush(c);
+        return resposta(c);
+    }
+
+    @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="MARCA_ALTERADA",entidade="CONSULTORIA",resumo="Alterou o tema dos PDFs da consultoria.")
+    public ConsultoriaResponse alterarTemaPdf(UUID consultoriaId, Consultoria.TemaPdf temaPdf) {
+        Consultoria c = buscar(consultoriaId);
+        c.definirTemaPdf(temaPdf);
         consultorias.saveAndFlush(c);
         return resposta(c);
     }

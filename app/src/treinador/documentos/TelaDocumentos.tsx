@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import { FileDown, Info, Lock } from 'lucide-react-native';
+import { FileDown, Lock } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { consultoria } from '../../api/rotas';
+import { alterarTemaPdf, consultoria } from '../../api/rotas';
 import { MOTIVO_FORA_DO_PLANO } from '../../dominio/funcionalidadesDoPlano';
 import { documentoDeExemploDeDieta, documentoDeExemploDeTreino } from '../../pdf/exemplos';
 import { imprimir } from '../../pdf/imprimir';
@@ -17,7 +17,7 @@ import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
-import { Bloqueado, MensagemErro, Vazio } from '../../ui/Estados';
+import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { OpcaoCartao } from '../../ui/OpcaoCartao';
 import { Tela } from '../../ui/Tela';
@@ -37,10 +37,9 @@ const PREVIA_AO_LADO = 760;
 const GRUDADA = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), zIndex: 1 } : {}) as unknown as ViewStyle;
 
 /**
- * Documentos (PDF), primeira entrega de `docs/planos/documentos-pdf-motor.md`: prévia dos PDFs de treino e dieta nos três
- * temas, só com dados de exemplo (D9), e o PDF de exemplo. O tema escolhido não é gravado (a Fase 2 ainda não existe): os
- * PDFs reais seguem no Clássico, e a tela diz isso. A guarda da rota já exige administrador com MARCA_ALTERAR; o plano sem
- * PDF é conferido aqui, porque a guarda não conhece as funcionalidades do plano.
+ * Documentos (PDF): escolha e prévia do tema dos PDFs da consultoria nos três temas (treino e dieta com dados de exemplo)
+ * e download do PDF de exemplo. A guarda da rota já exige administrador com MARCA_ALTERAR; o plano sem PDF é conferido aqui,
+ * porque a guarda não conhece as funcionalidades do plano.
  */
 export function TelaDocumentos() {
   const { temFuncionalidade } = useSessao();
@@ -61,18 +60,22 @@ export function TelaDocumentos() {
 }
 
 function Documentos() {
+  const { atualizarMarca } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar('consultoria', () => consultoria());
   const { avisar } = useAviso();
   const [aba, setAba] = useState<Aba>('treino');
   const [tema, setTema] = useState<TemaPdf | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [largura, setLargura] = useState(0);
   // Uma data por visita: a prévia não muda sozinha a cada troca de tema.
   const [emitidoEm] = useState(() => new Date());
 
   const marca = dados?.marca;
-  const temaAtual = tema ?? temaValido(marca?.temaPdf);
+  const temaSalvo = temaValido(marca?.temaPdf);
+  const temaAtual = tema ?? temaSalvo;
+  const alterado = temaAtual !== temaSalvo;
   const nomeDoTema = TEMAS_PDF.find((t) => t.id === temaAtual)?.nome ?? '';
 
   // A logo vem à parte e não segura a prévia: sem ela (ou sem internet), a faixa mostra o nome da consultoria.
@@ -91,6 +94,20 @@ function Documentos() {
     return gerar({ ...marca, temaPdf: temaAtual }, emitidoEm, logo);
   }, [marca, aba, temaAtual, emitidoEm, logo]);
 
+  const salvar = () => {
+    if (!marca || salvando || !alterado) return;
+    setSalvando(true);
+    alterarTemaPdf(temaAtual)
+      .then((c) => {
+        atualizarMarca(c.marca);
+        setTema(null);
+        recarregar();
+        avisar('Tema dos PDFs salvo.', 'sucesso');
+      })
+      .catch((e: unknown) => avisar(textoDoErro(e), 'perigo'))
+      .finally(() => setSalvando(false));
+  };
+
   const baixar = () => {
     if (!documento) return;
     setBaixando(true);
@@ -103,7 +120,7 @@ function Documentos() {
 
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
-      <Cabecalho titulo="Documentos (PDF)" subtitulo="Veja como ficam os PDFs de treino e dieta em cada tema, com dados de exemplo." />
+      <Cabecalho titulo="Documentos (PDF)" subtitulo="Escolha o tema aplicado aos PDFs da consultoria e veja a prévia com dados de exemplo." />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {documento ? (
@@ -111,18 +128,14 @@ function Documentos() {
           <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />
           <View style={[estilos.area, aoLado ? estilos.areaAoLado : null]} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
             <View style={aoLado ? [estilos.ajustesAoLado, GRUDADA] : null}>
-              <Cartao titulo="Tema" descricao="Escolha um tema para ver na prévia.">
+              <Cartao titulo="Tema" descricao="Escolha o tema dos PDFs de treino, dieta e demais documentos da consultoria.">
                 <View role="radiogroup" aria-label="Tema do PDF" style={estilos.temas}>
                   {TEMAS_PDF.map((t) => (
                     <OpcaoCartao key={t.id} titulo={t.nome} descricao={t.descricao} selecionada={temaAtual === t.id} aoEscolher={() => setTema(t.id)} />
                   ))}
                 </View>
-                <Bloqueado
-                  Icone={Info}
-                  titulo="Esta escolha não é gravada"
-                  texto="O tema vale só para a prévia e para o PDF de exemplo. Os PDFs dos seus alunos continuam saindo no tema Clássico por enquanto."
-                />
-                <Botao rotulo="Baixar PDF de exemplo" Icone={FileDown} carregando={baixando} aoTocar={baixar} />
+                <Botao rotulo="Salvar tema" desabilitado={!alterado} carregando={salvando} aoTocar={salvar} />
+                <Botao rotulo="Baixar PDF de exemplo" tipo="secundario" Icone={FileDown} carregando={baixando} aoTocar={baixar} />
               </Cartao>
             </View>
             <View style={aoLado ? estilos.colunaDaPrevia : null}>

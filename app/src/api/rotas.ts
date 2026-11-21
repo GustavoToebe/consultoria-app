@@ -721,6 +721,9 @@ export const enviarLogo = (arquivo: FormData) =>
 
 export const removerLogo = () => requisicao<Marca>('/consultoria/marca/logo', { metodo: 'DELETE' });
 
+export const alterarTemaPdf = (temaPdf: import('../pdf/temas').TemaPdf) =>
+  requisicao<ConsultoriaResponse>('/consultoria/tema-pdf', { metodo: 'PUT', corpo: { temaPdf } });
+
 // ---- Treinador: início ----
 
 export const painelTreinador = (meus=false, diasSemRegistro=7) => requisicao<PainelTreinador>(`/painel?meus=${meus}&dias=${diasSemRegistro}`);

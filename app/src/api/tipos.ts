@@ -15,7 +15,7 @@ export interface Marca {
   temaPadrao: Tema;
   /** Relativo à API (o app junta com a URL base). */
   logoUrl: string | null;
-  /** Tema dos PDFs da consultoria (`pdf/temas.ts`); ausente ou desconhecido = `CLASSICO`. A API ainda não o envia. */
+  /** Tema dos PDFs da consultoria (`pdf/temas.ts`); ausente ou desconhecido = `CLASSICO`. */
   temaPdf?: string | null;
 }
 
@@ -74,6 +74,8 @@ export interface EuResponse {
   unidadeDeCargaHabilitada?: boolean;
   /** Migração assistida (diagnóstico do arquivo antes de importar) ligada na plataforma; falso ou ausente = o app esconde tudo. */
   migracaoAssistidaHabilitada?: boolean;
+  /** Avisos pelo WhatsApp oficial da Meta ligados na plataforma; falso ou ausente = o app esconde tudo. */
+  whatsappHabilitado?: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos (DDD + número, sem 55); ausente = sem número, sem "Falar com o treinador". */
   whatsappDaConsultoria?: string;
   usuario: UsuarioResumo;
