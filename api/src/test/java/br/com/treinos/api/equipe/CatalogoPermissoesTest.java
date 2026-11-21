@@ -86,4 +86,9 @@ class CatalogoPermissoesTest {
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("AGENDA_ALTERAR","ALUNO_LER"))).isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("AGENDA_LER"))).isInstanceOf(BadRequestException.class);
     }
+    @Test void whatsappAlterarESensivelESemDependencia() {
+        assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().equals("WHATSAPP_ALTERAR"))
+                .extracting(CatalogoPermissoes.Permissao::sensivel).containsExactly(true);
+        assertThat(CatalogoPermissoes.validar(Set.of("WHATSAPP_ALTERAR"))).containsExactly("WHATSAPP_ALTERAR");
+    }
 }

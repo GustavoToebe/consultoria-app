@@ -13,7 +13,7 @@ export type GrupoDeConfiguracao = (typeof GRUPOS_DE_CONFIGURACAO)[number];
  * usa `recebimentoOnlineHabilitado`, e isso é da tela, não do cartão do hub. Nenhum cartão usa chave hoje.
  * `pagamentosHabilitados` não entra: já vive dentro de `podeAcessarTela`.
  */
-export type ChaveDeConfiguracao = 'recebimentoOnlineHabilitado';
+export type ChaveDeConfiguracao = 'recebimentoOnlineHabilitado' | 'whatsappHabilitado';
 
 export interface CartaoDeConfiguracao {
   id: string;
@@ -52,6 +52,7 @@ export const CARTOES_DE_CONFIGURACAO: readonly CartaoDeConfiguracao[] = [
   { id: 'marca', grupo: 'Consultoria', titulo: 'Marca', descricao: 'Nome, logo e cores que o aluno vê, e o acompanhamento.', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome', 'acompanhamento', 'dias de atualizacao', 'fases do ciclo'], permissao: 'MARCA_ALTERAR' },
   // Bloco "Contato" da tela Marca (C1 de `contato-da-consultoria.md`): a mesma regra de visibilidade do cartão da Marca.
   { id: 'contato', grupo: 'Consultoria', titulo: 'Contato', descricao: 'WhatsApp que o aluno vê e o remetente dos e-mails.', href: '/treinador/marca', palavras: ['whatsapp', 'telefone', 'remetente', 'responder para', 'email', 'e-mail', 'falar com o treinador'], permissao: 'MARCA_ALTERAR' },
+  { id: 'whatsapp-oficial', grupo: 'Consultoria', titulo: 'WhatsApp oficial', descricao: 'Conexão com a Meta e modelos de avisos automáticos.', href: '/treinador/whatsapp', palavras: ['whatsapp', 'meta', 'cloud api', 'modelos', 'avisos', 'lembretes', 'waba'], permissao: 'WHATSAPP_ALTERAR', chave: 'whatsappHabilitado' },
   // A mesma regra da Marca e, além dela, o PDF no plano (como os botões de PDF).
   { id: 'documentos-pdf', grupo: 'Consultoria', titulo: 'Documentos (PDF)', descricao: 'Tema dos PDFs de treino e dieta, com prévia de exemplo.', href: '/treinador/documentos', palavras: ['pdf', 'documentos', 'tema', 'modelo', 'tema do pdf', 'impressao'], permissao: 'MARCA_ALTERAR', funcionalidade: 'PDF' },
   { id: 'equipe-membros', grupo: 'Equipe', titulo: 'Membros e convites', descricao: 'Quem trabalha com você e os convites pendentes.', href: '/treinador/equipe?aba=membros', palavras: ['equipe', 'usuarios', 'convidar', 'novo membro', 'desativar'] },

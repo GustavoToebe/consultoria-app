@@ -54,6 +54,7 @@ public final class CatalogoPermissoes {
         new Permissao("CONTA_LER","Consultoria","Conta","Consultar: plano e cobranças.",false),
         new Permissao("FINANCEIRO_LER","Consultoria","Financeiro","Consultar: planos comerciais, cobranças dos alunos, painel e lançamentos.",true),
         new Permissao("FINANCEIRO_ALTERAR","Consultoria","Financeiro","Criar, editar e registrar pagamento: planos comerciais, contratações, cobranças e lançamentos.",true),
+        new Permissao("WHATSAPP_ALTERAR","Consultoria","WhatsApp","Configurar: conexão e modelos de mensagem do WhatsApp da consultoria.",true),
         new Permissao("VITRINE_LER","Consultoria","Vitrine","Consultar: itens da vitrine.",false),
         new Permissao("VITRINE_ALTERAR","Consultoria","Vitrine","Criar, editar, ordenar e apagar: itens da vitrine e fotos.",false));
     public static final Set<String> CODIGOS=CATALOGO.stream().map(Permissao::codigo).collect(Collectors.toUnmodifiableSet());

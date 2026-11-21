@@ -28,13 +28,13 @@ const textoDoResultado = (n: number) => (n === 1 ? '1 configuração encontrada'
  * vem da sessão, então não há carregando nem erro e a tela abre sem internet. Sem botão principal: nada aqui é ação.
  */
 export function TelaConfiguracoes() {
-  const { pode, perfilEquipe, pagamentosHabilitados, funcionalidadesDoPlano, recebimentoOnlineHabilitado } = useSessao();
+  const { pode, perfilEquipe, pagamentosHabilitados, funcionalidadesDoPlano, recebimentoOnlineHabilitado, whatsappHabilitado } = useSessao();
   const [busca, setBusca] = useState('');
   const campo = useRef<TextInput>(null);
   const administrador = !!perfilEquipe?.acessoTotal;
   const visiveis = useMemo(
-    () => cartoesVisiveis({ pode, administrador, pagamentosHabilitados, liberadas: funcionalidadesDoPlano, chaves: { recebimentoOnlineHabilitado } }),
-    [pode, administrador, pagamentosHabilitados, funcionalidadesDoPlano, recebimentoOnlineHabilitado],
+    () => cartoesVisiveis({ pode, administrador, pagamentosHabilitados, liberadas: funcionalidadesDoPlano, chaves: { recebimentoOnlineHabilitado, whatsappHabilitado } }),
+    [pode, administrador, pagamentosHabilitados, funcionalidadesDoPlano, recebimentoOnlineHabilitado, whatsappHabilitado],
   );
   const achados = buscarCartoes(busca, visiveis);
   const grupos = gruposDeCartoes(achados);

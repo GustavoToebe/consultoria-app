@@ -11,6 +11,7 @@ import { CartaoFotoDePerfil } from '../../aluno/CartaoFotoDePerfil';
 import { CartaoMeuPerfil } from '../../aluno/CartaoMeuPerfil';
 import { CartaoMeusDados } from '../../aluno/CartaoMeusDados';
 import { InterruptorDeLembretesDeCompromisso } from '../../aluno/compromissos/InterruptorDeLembretesDeCompromisso';
+import { InterruptorDeWhatsApp } from '../../aluno/InterruptorDeWhatsApp';
 import { InterruptorDeAvisoNoCelular } from '../../aluno/push/InterruptorDeAvisoNoCelular';
 import { CartaoMeuPlano } from '../../aluno/financeiro/CartaoMeuPlano';
 import { useRetornoDoPagamento } from '../../aluno/financeiro/useRetornoDoPagamento';
@@ -53,7 +54,7 @@ export default function ContaAluno() {
   // Abre fora do app, sem token nem texto pronto (C3 de `docs/planos/contato-da-consultoria.md`).
   const linkDoTreinador = linkParaFalarComOTreinador(sessao.whatsappDaConsultoria);
   return (
-    <Tela bordas={['top']} largura={720}>
+    <Tela bordas={['top']} largura={1120}>
       <Cabecalho titulo="Conta" subtitulo={[sessao.usuario?.nome, sessao.usuario?.email].filter(Boolean).join(' · ') || undefined} />
       <CartaoFotoDePerfil />
       <CartaoMeusDados />
@@ -111,7 +112,7 @@ export default function ContaAluno() {
       <CartaoUsoDeImagem />
       <CartaoExcluirConta />
       <Folha visivel={preferencias} titulo="Aparência e preferências" aoFechar={() => abrirPreferencias(false)}>
-        <PreferenciasDoApp comTitulo={false} extras={<><InterruptorDeLembretesDeCompromisso /><InterruptorDeAvisoNoCelular /></>} />
+        <PreferenciasDoApp comTitulo={false} extras={<><InterruptorDeLembretesDeCompromisso /><InterruptorDeAvisoNoCelular /><InterruptorDeWhatsApp /></>} />
       </Folha>
     </Tela>
   );

@@ -117,6 +117,18 @@ treinos:
     expo-url: ${TREINOS_PUSH_EXPO_URL:https://exp.host/--/api/v2/push/send}
     expo-token: ${TREINOS_PUSH_EXPO_TOKEN:}
     envio-agendado: ${TREINOS_PUSH_ENVIO_AGENDADO:true}
+  # Avisos pelo WhatsApp oficial da Meta (lembrete de cobrança e compromisso, por modelo aprovado; o aluno autoriza). Desligado por
+  # padrão: as rotas respondem 503 WHATSAPP_INDISPONIVEL, nada é enfileirado ou enviado e a API sobe sem nenhuma variável abaixo
+  # (GET /eu traz whatsappHabilitado). Ligado, a subida exige as chaves de cifra do token de acesso de cada consultoria, o app
+  # secret (assina o webhook) e o verify token, todos sem valor padrão. A URL da Graph API só muda em teste (servidor de mentira).
+  whatsapp:
+    habilitado: ${TREINOS_WHATSAPP_HABILITADO:false}
+    chaves: ${TREINOS_WHATSAPP_CHAVES:}
+    chave-ativa: ${TREINOS_WHATSAPP_CHAVE_ATIVA:}
+    meta-app-secret: ${TREINOS_WHATSAPP_META_APP_SECRET:}
+    meta-verify-token: ${TREINOS_WHATSAPP_META_VERIFY_TOKEN:}
+    meta-url: ${TREINOS_WHATSAPP_META_URL:https://graph.facebook.com}
+    envio-agendado: ${TREINOS_WHATSAPP_ENVIO_AGENDADO:true}
   # Vitrine da consultoria (itens com preço, preço especial e cupom que o treinador mostra ao aluno; sem pagamento). Desligada por
   # padrão: as rotas respondem 503 VITRINE_INDISPONIVEL e o app esconde tudo (GET /eu traz vitrineHabilitada).
   vitrine:

@@ -84,6 +84,8 @@ interface ValorSessao {
   unidadeDeCargaHabilitada: boolean;
   /** Diagnóstico do arquivo antes de importar ligado? Desligado ou desconhecido, a tela de importação não o mostra. */
   migracaoAssistidaHabilitada: boolean;
+  /** Avisos pelo WhatsApp oficial da Meta ligados? Desligado ou desconhecido, o app esconde a configuração e o opt-in. */
+  whatsappHabilitado: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos; nulo = sem "Falar com o treinador". */
   whatsappDaConsultoria: string | null;
   recarregarPerfil: () => Promise<void>;
@@ -442,6 +444,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       pushHabilitado:perfil?.pushHabilitado===true,
       unidadeDeCargaHabilitada:perfil?.unidadeDeCargaHabilitada===true,
       migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,
+      whatsappHabilitado:perfil?.whatsappHabilitado===true,
       whatsappDaConsultoria:perfil?.whatsappDaConsultoria??null,
       recarregarPerfil,
       situacao,

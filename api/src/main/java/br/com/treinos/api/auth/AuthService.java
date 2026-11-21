@@ -64,6 +64,7 @@ public class AuthService {
     private final br.com.treinos.api.unidadecarga.UnidadeDeCargaProperties unidadeDeCarga;
     private final br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao;
     private final br.com.treinos.api.vitrine.VitrineProperties vitrine;
+    private final br.com.treinos.api.whatsapp.WhatsAppProperties whatsapp;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
 
@@ -81,7 +82,9 @@ public class AuthService {
                        br.com.treinos.api.unidadecarga.UnidadeDeCargaProperties unidadeDeCarga,
                        br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao,
                        br.com.treinos.api.vitrine.VitrineProperties vitrine,
-                       br.com.treinos.api.pagamentos.KiwifyProperties kiwify) {
+                       br.com.treinos.api.pagamentos.KiwifyProperties kiwify,
+                       br.com.treinos.api.whatsapp.WhatsAppProperties whatsapp) {
+        this.whatsapp = whatsapp;
         this.kiwify = kiwify;
         this.vitrine = vitrine;
         this.pagamentos = pagamentos;
@@ -200,7 +203,7 @@ public class AuthService {
                 pagamentos.habilitado() && infinitePay.habilitado(), pagamentos.habilitado() && kiwify.habilitado(),
                 pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
                 ciclo.habilitado(), retorno.habilitado(), push.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado(),
-                vitrine.habilitada(), vitrine.lojaEfetiva(), vitrine.marketplaceEfetivo(),
+                vitrine.habilitada(), vitrine.lojaEfetiva(), vitrine.marketplaceEfetivo(), whatsapp.habilitado(),
                 usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())
                         .map(br.com.treinos.api.consultoria.Consultoria::whatsappParaLink).orElse(null) : null);
     }

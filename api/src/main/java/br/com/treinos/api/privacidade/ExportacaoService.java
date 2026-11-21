@@ -67,6 +67,7 @@ public class ExportacaoService {
     private final br.com.treinos.api.comunidade.ComunidadeService comunidade;
     private final AlunoRepository alunosRepositorio;
     private final br.com.treinos.api.tags.TagsDeAlunoService tags;
+    private final br.com.treinos.api.whatsapp.AvisosDoAlunoService avisosPeloWhatsApp;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -83,7 +84,9 @@ public class ExportacaoService {
                              br.com.treinos.api.agua.AguaDoDiaService agua,
                              br.com.treinos.api.push.PushService push,
                              br.com.treinos.api.comunidade.ComunidadeService comunidade, AlunoRepository alunosRepositorio,
-                             br.com.treinos.api.tags.TagsDeAlunoService tags) {
+                             br.com.treinos.api.tags.TagsDeAlunoService tags,
+                             br.com.treinos.api.whatsapp.AvisosDoAlunoService avisosPeloWhatsApp) {
+        this.avisosPeloWhatsApp = avisosPeloWhatsApp;
         this.tags = tags;
         this.alunosRepositorio = alunosRepositorio;
         this.comunidade = comunidade;
@@ -180,10 +183,16 @@ public class ExportacaoService {
         }
         // Tags do aluno (V093): os nomes, com a permissão da ficha (ALUNO_LER). Anonimizado: a ligação já saiu, a seção vai vazia.
         var tagsDoAluno = secao(AcessoAtual.pode("ALUNO_LER"), "tags", omitidas, () -> tags.nomesDoAluno(alunoId));
+        // Quando o aluno autorizou os avisos pelo WhatsApp e o histórico deles (tipo, situação, datas; nunca texto nem telefone),
+        // com a permissão da ficha (ALUNO_LER). Roda com a chave do WhatsApp ligada ou não: o dado fica.
+        var avisosWhatsApp = AcessoAtual.pode("ALUNO_LER") ? avisosPeloWhatsApp.exportarDoAluno(alunoId) : null;
+        if (avisosWhatsApp == null) {
+            omitidas.add("avisosPeloWhatsApp");
+        }
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
                 cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular, comunidadeDoAluno, indicacao,
-                tagsDoAluno);
+                tagsDoAluno, avisosWhatsApp);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

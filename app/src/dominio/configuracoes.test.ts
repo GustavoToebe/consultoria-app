@@ -10,7 +10,7 @@ import {
 } from './configuracoes';
 import { pode, podeAcessarTela } from './permissoes';
 
-const TUDO: ContextoDeConfiguracoes = { pode: () => true, administrador: true, pagamentosHabilitados: true, chaves: { recebimentoOnlineHabilitado: true } };
+const TUDO: ContextoDeConfiguracoes = { pode: () => true, administrador: true, pagamentosHabilitados: true, chaves: { recebimentoOnlineHabilitado: true, whatsappHabilitado: true } };
 const com = (codigos: string[], resto: Partial<ContextoDeConfiguracoes> = {}): ContextoDeConfiguracoes => ({
   pode: (c) => pode(codigos, c), administrador: false, pagamentosHabilitados: false, chaves: {}, ...resto,
 });

@@ -89,6 +89,10 @@ public class Aluno {
     @Column(name = "lembretes_cobranca_desligados_em")
     private Instant lembretesCobrancaDesligadosEm;
 
+    /** Quando o aluno autorizou os avisos pelo WhatsApp da consultoria (cobrança e compromisso). Nulo = não recebe. */
+    @Column(name = "whatsapp_avisos_autorizado_em")
+    private Instant whatsappAvisosAutorizadoEm;
+
     /** Nulo = não informado. Dado pessoal: nunca em log. */
     @Enumerated(EnumType.STRING)
     private Sexo sexo;
@@ -377,6 +381,7 @@ public class Aluno {
         this.anonimizadoEm = quando;
         this.usoDeImagemAutorizadoEm = null;
         this.lembretesCobrancaDesligadosEm = null;
+        this.whatsappAvisosAutorizadoEm = null;
         this.sexo = null;
         this.apelido = null;
         this.exibicaoDoNome = null;
@@ -520,6 +525,15 @@ public class Aluno {
     /** Grava o instante em que o aluno desligou os lembretes de cobrança, ou nulo quando volta a recebê-los. */
     public void definirLembretesCobrancaDesligadosEm(Instant quando) {
         this.lembretesCobrancaDesligadosEm = quando;
+    }
+
+    public Instant getWhatsappAvisosAutorizadoEm() {
+        return whatsappAvisosAutorizadoEm;
+    }
+
+    /** Grava o instante em que o aluno autorizou os avisos pelo WhatsApp, ou nulo quando deixa de recebê-los. */
+    public void definirWhatsappAvisosAutorizadoEm(Instant quando) {
+        this.whatsappAvisosAutorizadoEm = quando;
     }
 
     public void novoConvite(String hash, Instant expiraEm) {

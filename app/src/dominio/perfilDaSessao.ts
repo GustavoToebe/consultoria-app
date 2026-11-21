@@ -22,6 +22,7 @@ export interface PerfilDaSessao {
   pushHabilitado?: boolean;
   unidadeDeCargaHabilitada?: boolean;
   migracaoAssistidaHabilitada?: boolean;
+  whatsappHabilitado?: boolean;
   /** Só do aluno (dígitos, sem 55); ausente = a consultoria não tem número. */
   whatsappDaConsultoria?: string;
   usuario: UsuarioResumo;
@@ -49,6 +50,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     pushHabilitado: eu.pushHabilitado,
     unidadeDeCargaHabilitada: eu.unidadeDeCargaHabilitada,
     migracaoAssistidaHabilitada: eu.migracaoAssistidaHabilitada,
+    whatsappHabilitado: eu.whatsappHabilitado,
     whatsappDaConsultoria: eu.whatsappDaConsultoria,
     termosPendentes: eu.termosPendentes,
   };

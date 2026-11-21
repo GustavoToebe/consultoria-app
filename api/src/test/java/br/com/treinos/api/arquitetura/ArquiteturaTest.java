@@ -111,7 +111,9 @@ class ArquiteturaTest {
             "br.com.treinos.api.pagamentos.VerificacaoDasCredenciais",
             "br.com.treinos.api.pagamentos.AvisoDePagamentoRepositorio",
             "br.com.treinos.api.pagamentos.LembretesRepositorio",
-            "br.com.treinos.api.push.PushRepositorio");
+            "br.com.treinos.api.push.PushRepositorio",
+            "br.com.treinos.api.whatsapp.WhatsAppRepositorio",
+            "br.com.treinos.api.whatsapp.VerificacaoDasConexoes");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario}
@@ -128,7 +130,8 @@ class ArquiteturaTest {
      */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
             "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController",
-            "InscricaoPublicaController", "AvisoInfinitePayController", "AvisoKiwifyController", "TermosPublicoController", "VitrinePublicaController", "MarketplaceController");
+            "InscricaoPublicaController", "AvisoInfinitePayController", "AvisoKiwifyController", "TermosPublicoController", "VitrinePublicaController", "MarketplaceController",
+            "WhatsAppWebhookController");
 
     @BeforeAll
     static void importar() {
@@ -217,7 +220,9 @@ class ArquiteturaTest {
                                 // Link de indicação do próprio aluno, só o link (hasRole ALUNO, sempre o da sessão).
                                 "IndicacaoDoAlunoController",
                                 // Vitrine vista pelo próprio aluno, só os itens ativos (hasRole ALUNO); a equipe declara PERM_VITRINE_LER/ALTERAR.
-                                "VitrineAlunoController").contains(c.getSimpleName())))
+                                "VitrineAlunoController",
+                                // Opt-in do próprio aluno aos avisos pelo WhatsApp (hasRole ALUNO, sempre o da sessão); a conexão e os modelos declaram PERM_WHATSAPP_ALTERAR.
+                                "AlunoAvisosPeloWhatsAppController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {
@@ -227,6 +232,16 @@ class ArquiteturaTest {
                         });
                     }
                 }).check(codigo);
+    }
+
+    @Test
+    void controllerDoWhatsAppExigeWhatsAppHabilitado() {
+        classes().that().areAnnotatedWith(RestController.class)
+                .and().resideInAPackage("br.com.treinos.api.whatsapp..")
+                .should().beAnnotatedWith(br.com.treinos.api.whatsapp.ExigeWhatsApp.class)
+                .because("com TREINOS_WHATSAPP_HABILITADO=false toda rota do WhatsApp (webhook inclusive, que nunca aceita assinatura com "
+                        + "app secret vazio) responde 503 (WhatsAppConfiguracao); controller novo sem a anotação ficaria aberto com o módulo desligado")
+                .check(codigo);
     }
 
     @Test

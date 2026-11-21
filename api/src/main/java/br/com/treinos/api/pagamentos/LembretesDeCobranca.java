@@ -64,16 +64,18 @@ public class LembretesDeCobranca {
     private final ObjectProvider<EnviadorDeEmail> emails;
     private final PagamentosProperties pagamentos;
     private final LembretesProperties propriedades;
+    private final br.com.treinos.api.whatsapp.FilaDeAvisos whatsapp;
     private final TransactionTemplate transacao;
 
     LembretesDeCobranca(LembretesRepositorio fila, PreparoDoLembrete preparo, ObjectProvider<EnviadorDeEmail> emails,
                         PagamentosProperties pagamentos, LembretesProperties propriedades,
-                        PlatformTransactionManager transacoes) {
+                        br.com.treinos.api.whatsapp.FilaDeAvisos whatsapp, PlatformTransactionManager transacoes) {
         this.fila = fila;
         this.preparo = preparo;
         this.emails = emails;
         this.pagamentos = pagamentos;
         this.propriedades = propriedades;
+        this.whatsapp = whatsapp;
         this.transacao = new TransactionTemplate(transacoes);
     }
 
@@ -104,10 +106,13 @@ public class LembretesDeCobranca {
     /** Uma rodada com {@code hoje} (Brasília) e o envio dado; {@code enviador} nulo = e-mail do app desligado. */
     public Resultado rodar(LocalDate hoje, EnviadorDeEmail enviador) {
         if (enviador == null) {
-            Integer cancelados = transacao.execute(s -> fila.cancelarPendentes(EMAIL_DESLIGADO));
+            Integer cancelados = transacao.execute(s -> {
+                planejar(hoje, false);
+                return fila.cancelarPendentes(EMAIL_DESLIGADO);
+            });
             return new Resultado(true, 0, 0, cancelados == null ? 0 : cancelados, 0);
         }
-        Integer planejados = transacao.execute(s -> planejar(hoje));
+        Integer planejados = transacao.execute(s -> planejar(hoje, true));
         int enviados = 0;
         int cancelados = 0;
         int falhas = 0;
@@ -135,17 +140,28 @@ public class LembretesDeCobranca {
      * mesmo dia não manda outro e-mail: o lembrete de hoje já gravado tira as demais cobranças do aluno da lista
      * ({@link LembretesRepositorio#candidatas}). O texto diz quantas estão em aberto ({@link TextoDoLembrete}).
      */
-    private int planejar(LocalDate hoje) {
+    private int planejar(LocalDate hoje, boolean comEmail) {
         List<Novo> novos = new ArrayList<>();
+        List<br.com.treinos.api.whatsapp.FilaDeAvisos.AvisoDeLembrete> pelosWhatsApp = new ArrayList<>();
+        boolean comWhatsApp = whatsapp.habilitado();
+        if (!comEmail && !comWhatsApp) {
+            return 0;
+        }
         Set<UUID> alunosDeHoje = new HashSet<>();
         for (Candidata c : fila.candidatas(RegraDosLembretes.menorVencimento(hoje), RegraDosLembretes.maiorVencimento(hoje), hoje)) {
             Optional<TipoDeLembrete> tipo = RegraDosLembretes.devido(hoje, c.vencimento(), c.configuracao())
                     .filter(t -> !c.jaTem().contains(t));
             if (tipo.isPresent() && alunosDeHoje.add(c.alunoId())) {
                 novos.add(new Novo(c.consultoriaId(), c.cobrancaId(), tipo.get(), hoje));
+                pelosWhatsApp.add(new br.com.treinos.api.whatsapp.FilaDeAvisos.AvisoDeLembrete(
+                        c.consultoriaId(), c.alunoId(), c.cobrancaId(),
+                        br.com.treinos.api.whatsapp.TipoDeAviso.valueOf(tipo.get().name())));
             }
         }
-        return fila.planejar(novos);
+        if (comWhatsApp) {
+            whatsapp.enfileirarDeLembretes(pelosWhatsApp);
+        }
+        return comEmail ? fila.planejar(novos) : 0;
     }
 
     private enum Fim { ENVIADO, CANCELADO, FALHOU }

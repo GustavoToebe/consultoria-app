@@ -63,7 +63,8 @@ public final class PrivacidadeDtos {
                              br.com.treinos.api.comunidade.dto.ComunidadeDtos.ComunidadeExportada comunidade,
                              IndicacaoExportada indicacao,
                              /** Os nomes das tags do aluno (V093), com {@code ALUNO_LER}; nome é texto livre do treinador, por isso sai aqui. */
-                             Secao<String> tags) { }
+                             Secao<String> tags,
+                             br.com.treinos.api.whatsapp.WhatsAppDtos.AvisosExportados avisosPeloWhatsApp) { }
 
     /**
      * O código do link de indicação do próprio aluno (V081) e nada mais: a lista de quem ele indicou é dado de terceiros (nome e

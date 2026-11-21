@@ -89,11 +89,12 @@ public class AgendaService {
     private final ConsultoriaRepository consultorias;
     private final Auditoria auditoria;
     private final br.com.treinos.api.push.PushService push;
+    private final br.com.treinos.api.whatsapp.FilaDeAvisos whatsapp;
 
     public AgendaService(CompromissoRepository compromissos, CompromissoAlunoRepository participantes,
                          AvisoCompromissoRepository avisos, AlunoRepository alunos, UsuarioRepository usuarios,
                          ConsultoriaRepository consultorias, Auditoria auditoria,
-                         br.com.treinos.api.push.PushService push) {
+                         br.com.treinos.api.push.PushService push, br.com.treinos.api.whatsapp.FilaDeAvisos whatsapp) {
         this.compromissos = compromissos;
         this.participantes = participantes;
         this.avisos = avisos;
@@ -102,6 +103,7 @@ public class AgendaService {
         this.consultorias = consultorias;
         this.auditoria = auditoria;
         this.push = push;
+        this.whatsapp = whatsapp;
     }
 
     // ---- Equipe ----
@@ -737,6 +739,19 @@ public class AgendaService {
         avisos.saveAll(novos);
         // Push do celular (se ligado e se o aluno registrou token): a linha da fila nasce na mesma transação; o envio é fora dela.
         push.enfileirarParaAlunos(TenantContext.get(), primeiras.keySet());
+        // WhatsApp (se ligado, se o aluno autorizou e a consultoria tem conexão e modelo): só ids, na mesma transação.
+        whatsapp.enfileirarDeCompromissos(TenantContext.get(), primeiras.values().stream()
+                .map(m -> new br.com.treinos.api.whatsapp.FilaDeAvisos.AvisoDeCompromisso(m.alunoId(), m.compromissoId(),
+                        tipoDoWhatsApp(m.mudanca())))
+                .toList());
+    }
+
+    private static br.com.treinos.api.whatsapp.TipoDeAviso tipoDoWhatsApp(Mudanca mudanca) {
+        return switch (mudanca) {
+            case ENTROU, REABERTO -> br.com.treinos.api.whatsapp.TipoDeAviso.COMPROMISSO_NOVO;
+            case REMARCADO -> br.com.treinos.api.whatsapp.TipoDeAviso.COMPROMISSO_REMARCADO;
+            case SAIU, CANCELADO -> br.com.treinos.api.whatsapp.TipoDeAviso.COMPROMISSO_CANCELADO;
+        };
     }
 
     private static TipoAvisoCompromisso tipoDoAviso(Mudanca mudanca) {
