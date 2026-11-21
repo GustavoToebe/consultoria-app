@@ -30,6 +30,7 @@ public final class ExtratorXlsxCsv {
             for (LeituraDasAbas.AbaLida aba : leitura.abas()) {
                 StringBuilder conteudoAba = new StringBuilder();
                 conteudoAba.append("=== ABA: ").append(aba.nome()).append(" ===\n");
+                boolean temConteudo = false;
 
                 for (Linha linha : aba.linhas()) {
                     List<String> valores = new ArrayList<>();
@@ -41,13 +42,16 @@ public final class ExtratorXlsxCsv {
                     if (valores.stream().allMatch(String::isEmpty)) {
                         continue;
                     }
+                    temConteudo = true;
                     String linhaFormatada = String.join(" | ", valores);
                     conteudoAba.append(linhaFormatada).append('\n');
                 }
 
-                String textoAba = conteudoAba.toString();
-                textoCompleto.append(textoAba).append('\n');
-                blocos.add(new BlocoTexto("Aba: " + aba.nome(), textoAba, nomeArquivo, aba.indice() + 1));
+                if (temConteudo) {
+                    String textoAba = conteudoAba.toString();
+                    textoCompleto.append(textoAba).append('\n');
+                    blocos.add(new BlocoTexto("Aba: " + aba.nome(), textoAba, nomeArquivo, aba.indice() + 1));
+                }
             }
         } catch (Exception e) {
             throw new ExtracaoRecusadaException("PLANILHA_CORROMPIDA");

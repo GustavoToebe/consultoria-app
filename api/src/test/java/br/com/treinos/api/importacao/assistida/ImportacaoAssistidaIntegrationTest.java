@@ -379,9 +379,14 @@ class ImportacaoAssistidaIntegrationTest extends AbstractIntegrationTest {
         assertThat(aposC.path("decisoes").get(0).path("ativa").asBoolean()).isFalse();
         assertThat(aposC.path("decisoes").get(1).path("ativa").asBoolean()).isTrue();
 
-        // Revogar C -> volta exatamente para valorExtraido
+        // Revogar com revisão desatualizada -> 409 CONFLITO_EDICAO
         String decisaoC = aposC.path("decisoes").get(1).path("decisaoId").asString();
         int rev = aposC.path("revisao").asInt();
+        JsonNode conflitoRev = api.post(BASE + "/" + sessao + "/respostas/" + decisaoC + "/revogar", admin,
+                Map.of("revisaoEsperada", rev - 1), 409);
+        assertThat(conflitoRev.path("codigo").asString()).isEqualTo("CONFLITO_EDICAO");
+
+        // Revogar C -> volta exatamente para valorExtraido
         JsonNode aposRevogar = api.post(BASE + "/" + sessao + "/respostas/" + decisaoC + "/revogar", admin,
                 Map.of("revisaoEsperada", rev), 200);
         assertThat(aposRevogar.path("grupos").get(0).path("treino").path("sessoes").get(0).path("exercicios").get(0)
@@ -401,6 +406,11 @@ class ImportacaoAssistidaIntegrationTest extends AbstractIntegrationTest {
         JsonNode vazia = api.post(BASE + "/" + sessao + "/confirmar", admin,
                 Map.of("gruposIds", List.of(), "revisaoEsperada", rev, "hashPrevia", hash, "chaveIdempotencia", "k1"), 400);
         assertThat(vazia.path("codigo").asString()).isEqualTo("SELECAO_VAZIA");
+
+        // IDs duplicados -> 400 SELECAO_INVALIDA
+        JsonNode duplicada = api.post(BASE + "/" + sessao + "/confirmar", admin,
+                Map.of("gruposIds", List.of(grupoId, grupoId), "revisaoEsperada", rev, "hashPrevia", hash, "chaveIdempotencia", "k1b"), 400);
+        assertThat(duplicada.path("codigo").asString()).isEqualTo("SELECAO_INVALIDA");
 
         // PREVIA_DESATUALIZADA -> 409
         JsonNode hashErrado = api.post(BASE + "/" + sessao + "/confirmar", admin,

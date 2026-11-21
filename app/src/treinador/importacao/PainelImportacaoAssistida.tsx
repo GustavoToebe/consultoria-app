@@ -256,9 +256,22 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
     });
   };
 
+  const limparEstadoLocalDaSessao = () => {
+    setResultado(null);
+    setErro(null);
+    setErroDoTexto(null);
+    setDuvidaAtiva(null);
+    setRespostaEscolhida('');
+    setReferenciaEscolhida(null);
+    setDescartar(false);
+    setConferidos(new Set());
+    setSelecionados(new Set());
+    chaveIdempotenciaRef.current = null;
+  };
+
   const retomar = (id: string) => {
     void executar('retomar', 'entrada', async () => {
-      setResultado(null);
+      limparEstadoLocalDaSessao();
       setSessao(await obterSessao(id));
     });
   };
@@ -311,14 +324,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
 
   const resetar = () => {
     setSessao(null);
-    setResultado(null);
-    setErro(null);
-    setDuvidaAtiva(null);
-    setReferenciaEscolhida(null);
-    setDescartar(false);
-    setConferidos(new Set());
-    setSelecionados(new Set());
-    chaveIdempotenciaRef.current = null;
+    limparEstadoLocalDaSessao();
     sessaoReservada.current = null;
     void carregarSessoesAbertas();
   };
@@ -441,7 +447,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
             />
           </LinhaDeAcoes>
           <Texto variante="pequeno" cor={cores.textoSuave}>
-            PDF, DOCX, XLSX ou CSV. Arquivos escaneados sem texto selecionável serão sinalizados na leitura.
+            PDF, DOCX, XLSX ou CSV (até 20 arquivos e 8 MB no lote). Arquivos escaneados sem texto selecionável serão sinalizados na leitura.
           </Texto>
 
           {mostrarTexto ? (
@@ -483,7 +489,11 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
               <Botao rotulo="Cancelar importação" tipo="perigoTexto" carregando={acao === 'cancelar'} aoTocar={() => setDescartar(true)} />
             ) : undefined}
           >
-            {modo?.alertaFallback ? <Alerta tom="atencao" texto={modo.alertaFallback} /> : null}
+            {modo?.alertaFallback ? (
+              <Alerta tom="atencao" texto={modo.alertaFallback} />
+            ) : modo ? (
+              <Texto variante="suave">{modo.descricao}</Texto>
+            ) : null}
             <View style={estilos.lista}>
               {sessao.arquivos.map((arq) => {
                 const cobertura = resumoDaCoberturaDoArquivo(arq.cobertura);
@@ -645,6 +655,24 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
                   </View>
                 );
               })}
+            </Cartao>
+          ) : null}
+
+          {sessao.estado === 'REVISANDO' && sessao.grupos.length === 0 ? (
+            <Cartao titulo="Nenhum aluno ou plano encontrado">
+              <Alerta
+                tom={sessao.arquivos.length > 0 && sessao.arquivos.every((a) => !!a.erroCodigo) ? 'perigo' : 'atencao'}
+                texto={
+                  sessao.arquivos.some((a) => a.cobertura?.status === 'SEM_TEXTO')
+                    ? 'O arquivo enviado não tem texto selecionável (como um PDF escaneado). Envie um arquivo com texto selecionável ou cole o texto manualmente.'
+                    : sessao.arquivos.length > 0 && sessao.arquivos.every((a) => !!a.erroCodigo)
+                      ? 'Não foi possível ler nenhum dos arquivos enviados. Confira o motivo em cada arquivo acima.'
+                      : 'Não foi possível identificar alunos, treinos ou dietas nos arquivos enviados.'
+                }
+              />
+              <LinhaDeAcoes>
+                <Botao rotulo="Cancelar e começar outra" tipo="secundario" aoTocar={() => setDescartar(true)} />
+              </LinhaDeAcoes>
             </Cartao>
           ) : null}
 

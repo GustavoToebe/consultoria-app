@@ -49,4 +49,29 @@ class ExtratorDocxTest {
         assertThat(res.textoCompleto()).contains("Supino Reto | 4x8-10");
         assertThat(res.blocos()).hasSize(3);
     }
+
+    @Test
+    void extraiMultiplosParagrafosNaMesmaCelulaSemColarPalavras() throws IOException {
+        String xml = """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+                    <w:body>
+                        <w:tbl>
+                            <w:tr>
+                                <w:tc>
+                                    <w:p><w:r><w:t>Supino</w:t></w:r></w:p>
+                                    <w:p><w:r><w:t>Inclinado</w:t></w:r></w:p>
+                                </w:tc>
+                                <w:tc><w:p><w:r><w:t>3x12</w:t></w:r></w:p></w:tc>
+                            </w:tr>
+                        </w:tbl>
+                    </w:body>
+                </w:document>
+                """;
+
+        ResultadoExtracao res = ExtratorDocx.extrair("celulas.docx", criarDocxFicticio(xml));
+
+        assertThat(res.textoCompleto()).contains("Supino Inclinado | 3x12");
+        assertThat(res.metadados()).containsEntry("cobertura", "COMPLETA");
+    }
 }

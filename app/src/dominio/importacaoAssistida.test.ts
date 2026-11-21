@@ -173,6 +173,7 @@ test('novos erros, estados, retomada e cancelamento da importação assistida', 
   expect(textoDoErroDaImportacao(erro(409, 'IDEMPOTENCIA_CONFLITANTE'))).toMatch(/outra seleção/);
   expect(textoDoErroDaImportacao(erro(409, 'SESSAO_CANCELADA'))).toMatch(/cancelada/);
   expect(textoDoErroDaImportacao(erro(409, 'SESSAO_EXPIRADA'))).toMatch(/expirou/);
+  expect(textoDoErroDaImportacao(erro(409, 'SESSAO_PROCESSANDO'))).toMatch(/processada/);
   expect(textoDoErroDaImportacao(erro(404, 'CONTEUDO_INDISPONIVEL'))).toMatch(/conteúdo original/i);
   expect(recarregarDepoisDoErro(erro(409, 'PREVIA_DESATUALIZADA'))).toBe(true);
   expect(recarregarDepoisDoErro(erro(400, 'SELECAO_INVALIDA'))).toBe(true);

@@ -56,16 +56,17 @@ public final class ExtratorDocx {
                     StringBuilder paragrafoAtual = new StringBuilder();
                     StringBuilder celulaAtual = new StringBuilder();
                     List<String> celulasLinha = new ArrayList<>();
-                    boolean emTabela = false;
+                    int tabelaProfundidade = 0;
                     boolean emTexto = false;
 
                     while (reader.hasNext()) {
                         int event = reader.next();
+                        boolean emTabela = tabelaProfundidade > 0;
                         switch (event) {
                             case XMLStreamConstants.START_ELEMENT -> {
                                 String localName = reader.getLocalName();
                                 if ("tbl".equals(localName)) {
-                                    emTabela = true;
+                                    tabelaProfundidade++;
                                 } else if ("tr".equals(localName)) {
                                     celulasLinha.clear();
                                     celulaAtual.setLength(0);
@@ -106,10 +107,19 @@ public final class ExtratorDocx {
                                     }
                                     celulasLinha.clear();
                                 } else if ("tbl".equals(localName)) {
-                                    emTabela = false;
-                                    textoCompleto.append('\n');
-                                } else if ("p".equals(localName) && !emTabela) {
-                                    if (paragrafoAtual.length() > 0) {
+                                    if (tabelaProfundidade > 0) {
+                                        tabelaProfundidade--;
+                                    }
+                                    if (tabelaProfundidade == 0) {
+                                        textoCompleto.append('\n');
+                                    }
+                                } else if ("p".equals(localName)) {
+                                    if (emTabela) {
+                                        if (celulaAtual.length() > 0
+                                                && !Character.isWhitespace(celulaAtual.charAt(celulaAtual.length() - 1))) {
+                                            celulaAtual.append(' ');
+                                        }
+                                    } else if (paragrafoAtual.length() > 0) {
                                         String p = paragrafoAtual.toString().strip();
                                         if (!p.isEmpty()) {
                                             textoCompleto.append(p).append('\n');

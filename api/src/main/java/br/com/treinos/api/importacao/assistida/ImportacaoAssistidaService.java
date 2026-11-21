@@ -566,10 +566,13 @@ public class ImportacaoAssistidaService {
         if (solicitados == null) {
             return validos;
         }
+        if (validos.isEmpty() && solicitados.isEmpty()) {
+            return List.of();
+        }
         if (solicitados.isEmpty() || !validos.containsAll(solicitados)) {
             throw new BadRequestException("Ocorrências inválidas para esta dúvida.", "OCORRENCIA_INVALIDA");
         }
-        return List.copyOf(solicitados);
+        return solicitados.stream().distinct().toList();
     }
 
     private List<GrupoImportavel> reconstruirGrupos(List<GrupoImportavel> grupos, List<DecisaoImportacao> decisoes,
@@ -877,6 +880,9 @@ public class ImportacaoAssistidaService {
         }
         if ("EXPIRADA".equals(estadoAtual) || sessao.getExpiraEm().isBefore(Instant.now())) {
             throw new ConflictException("A importação expirou.", "SESSAO_EXPIRADA");
+        }
+        if ("PROCESSANDO".equals(estadoAtual)) {
+            throw new ConflictException("A importação está sendo processada. Aguarde concluir.", "SESSAO_PROCESSANDO");
         }
     }
 

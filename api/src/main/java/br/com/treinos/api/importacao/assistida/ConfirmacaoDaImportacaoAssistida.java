@@ -126,7 +126,8 @@ public class ConfirmacaoDaImportacaoAssistida {
         if (req.gruposIds() == null || req.gruposIds().isEmpty()) {
             throw new BadRequestException("Selecione ao menos um grupo para confirmar.", "SELECAO_VAZIA");
         }
-        if (new HashSet<>(req.gruposIds()).size() != req.gruposIds().size()) {
+        if (req.gruposIds().stream().anyMatch(id -> id == null || id.isBlank())
+                || new HashSet<>(req.gruposIds()).size() != req.gruposIds().size()) {
             throw new BadRequestException("Seleção de grupos inválida.", "SELECAO_INVALIDA");
         }
         if (req.chaveIdempotencia() == null || req.chaveIdempotencia().isBlank()) {
@@ -216,9 +217,10 @@ public class ConfirmacaoDaImportacaoAssistida {
         for (String id : req.gruposIds()) {
             GrupoImportavel g = grupos.stream().filter(x -> x.id().equals(id)).findFirst()
                     .orElseThrow(() -> new BadRequestException("Grupo não encontrado na sessão.", "SELECAO_INVALIDA"));
-            if (pendente(g)) {
-                escolhidos.add(g);
+            if (!pendente(g)) {
+                throw new BadRequestException("Alguns grupos selecionados já foram gravados ou ignorados.", "SELECAO_INVALIDA");
             }
+            escolhidos.add(g);
         }
         escolhidos.forEach(ConfirmacaoDaImportacaoAssistida::exigirPermissoes);
         return new PreparoConfirmacao(escolhidos.stream().map(GrupoImportavel::id).toList(), hashPedido, null);

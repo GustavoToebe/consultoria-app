@@ -341,6 +341,34 @@ class ImportacaoAssistidaServiceTest {
         assertThat(service.listarSessoes().getFirst().estado()).isEqualTo("EXPIRADA");
     }
 
+    @Test
+    void revogarComRevisaoDesatualizadaDa409EManterSessaoIntacta() {
+        ImportacaoSessao sessao = sessaoAberta();
+        String respostasJson = """
+                [{"decisaoId":"dec-1","duvidaId":"duvida-1","ocorrenciaIds":[],"tipo":"EXERCICIO_NAO_RECONHECIDO",
+                "valorExtraido":"puxada","valorAplicado":"Puxada frontal","referenciaId":null,"ativa":true}]
+                """;
+        sessao.aplicarRespostas(respostasJson, grupoPronto("grupo-1"), "[]");
+
+        assertThatThrownBy(() -> service.revogarDecisao(sessao.getId(), "dec-1", sessao.getRevisao() - 1L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("mudou");
+    }
+
+    @Test
+    void sessaoEmProcessamentoRecusaAlteracoes() {
+        ImportacaoSessao sessao = sessaoAberta();
+        sessao.atualizarEstado("PROCESSANDO");
+
+        assertThatThrownBy(() -> service.adicionarTexto(sessao.getId(), "Titulo", "Conteudo"))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("processada");
+        assertThatThrownBy(() -> service.atualizarGrupo(sessao.getId(), "grupo-1",
+                new AtualizarGrupoRequisicao("IGNORAR", null, null)))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("processada");
+    }
+
     private static String grupoPronto(String id) {
         return """
                 [{"id":"%s","identificadorOrigem":"a.txt","nomeDetectado":"Pessoa Teste","destino":"CRIAR_ALUNO",

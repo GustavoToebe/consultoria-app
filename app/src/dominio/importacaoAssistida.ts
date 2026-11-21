@@ -132,6 +132,7 @@ const ERROS_DA_API: Record<string, string> = {
   IDEMPOTENCIA_CONFLITANTE: 'Esta tentativa já foi enviada com outra seleção. Confira a lista antes de tentar de novo.',
   SESSAO_CANCELADA: 'Esta importação foi cancelada.',
   SESSAO_EXPIRADA: 'Esta importação expirou. Comece uma nova importação.',
+  SESSAO_PROCESSANDO: 'A importação ainda está sendo processada. Aguarde concluir.',
   CONTEUDO_INDISPONIVEL: 'O conteúdo original deste arquivo não está mais disponível.',
 };
 
