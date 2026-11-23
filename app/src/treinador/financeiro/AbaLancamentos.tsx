@@ -238,14 +238,23 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
     setErro(e);
   };
 
-  const salvar = () => {
+  /** Com `continuar` (só em lançamento novo), a Folha fica aberta: tipo, data e categoria ficam, descrição e valor voltam vazios. */
+  const salvar = (continuar = false) => {
     setTentou(true);
     if (problema || !iso || centavos === null) return;
     setEnviando(true);
     setErro(null);
     const corpo = { data: iso, descricao: descricao.trim(), valorCentavos: centavos, tipo, categoria: categoria.trim() || null, versao: lancamento?.versao ?? null };
     (lancamento ? alterarLancamento(lancamento.id, corpo) : criarLancamento(corpo)).then(
-      () => terminar(lancamento ? 'Lançamento salvo.' : 'Lançamento registrado.'),
+      () => {
+        if (!continuar) return terminar(lancamento ? 'Lançamento salvo.' : 'Lançamento registrado.');
+        setEnviando(false);
+        avisar('Lançamento registrado. Pode incluir o próximo.', 'sucesso');
+        aoMudar();
+        setDescricao('');
+        setValor('');
+        setTentou(false);
+      },
       falhar,
     );
   };
@@ -262,7 +271,8 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
       rodape={podeAlterar ? (
         <LinhaDeAcoes alinhar="fim">
           {lancamento ? <Botao rotulo="Excluir" tipo="perigoTexto" aoTocar={() => { setErro(null); setExcluindo(true); }} desabilitado={enviando} /> : null}
-          <Botao rotulo={lancamento ? 'Salvar lançamento' : 'Registrar lançamento'} aoTocar={salvar} carregando={enviando} />
+          {lancamento ? null : <Botao rotulo="Registrar e continuar incluindo" tipo="secundario" aoTocar={() => salvar(true)} desabilitado={enviando} />}
+          <Botao rotulo={lancamento ? 'Salvar lançamento' : 'Registrar lançamento'} aoTocar={() => salvar()} carregando={enviando} />
         </LinhaDeAcoes>
       ) : undefined}>
       <View style={{ gap: espaco(1.5) }}>

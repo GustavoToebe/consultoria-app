@@ -344,6 +344,57 @@ test('lançamento de saída: o app envia centavos e o resultado do mês acompanh
   expect(errosDaPagina).toEqual([]);
 });
 
+test('lançamento: "Registrar e continuar incluindo" mantém a Folha aberta com tipo, data e categoria e limpa descrição e valor', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({ painel: PAINEL_COM_DADOS });
+  const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=lancamentos');
+
+  await page.getByRole('button', { name: 'Novo lançamento' }).click();
+  const folha = page.getByRole('dialog');
+  await folha.getByLabel('Descrição').fill('Aluguel da sala');
+  await folha.getByLabel('Valor', { exact: true }).fill('350,00');
+  await folha.getByLabel('Categoria (opcional)').fill('Aluguel');
+  await folha.getByRole('button', { name: 'Registrar e continuar incluindo' }).click();
+
+  await expect(page.getByText('Lançamento registrado. Pode incluir o próximo.')).toBeVisible();
+  await expect(folha).toBeVisible();
+  await expect(folha.getByLabel('Descrição')).toHaveValue('');
+  await expect(folha.getByLabel('Valor', { exact: true })).toHaveValue('');
+  await expect(folha.getByLabel('Categoria (opcional)')).toHaveValue('Aluguel');
+  // Folha limpa não mostra erro de campo vazio antes de a pessoa tentar de novo.
+  await expect(folha.getByText('Descreva o lançamento.')).toHaveCount(0);
+
+  await folha.getByLabel('Descrição').fill('Internet');
+  await folha.getByLabel('Valor', { exact: true }).fill('120,00');
+  await folha.getByRole('button', { name: 'Registrar lançamento' }).click();
+  await expect(page.getByText('Lançamento registrado.', { exact: true })).toBeVisible();
+  await expect(folha).toHaveCount(0);
+
+  const envios = pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/financeiro/lancamentos');
+  expect(envios.map((e) => e.corpo)).toEqual([
+    { data: '2026-10-19', descricao: 'Aluguel da sala', valorCentavos: 35_000, tipo: 'SAIDA', categoria: 'Aluguel', versao: null },
+    { data: '2026-10-19', descricao: 'Internet', valorCentavos: 12_000, tipo: 'SAIDA', categoria: 'Aluguel', versao: null },
+  ]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('lançamento existente não oferece "continuar incluindo": só Salvar e Excluir', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({
+    painel: PAINEL_COM_DADOS,
+    lancamentos: [{ id: 'd0000000-0000-4000-8000-000000000001', data: '2026-10-10', descricao: 'Água', valorCentavos: 8_000, tipo: 'SAIDA', categoria: null, criadoEm: '2026-10-10T12:00:00Z', versao: 0 }],
+  });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=lancamentos');
+
+  await page.getByText('Água').first().click();
+  const folha = page.getByRole('dialog');
+  await expect(folha.getByRole('button', { name: 'Salvar lançamento' })).toBeVisible();
+  await expect(folha.getByRole('button', { name: 'Registrar e continuar incluindo' })).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('inadimplentes contam cobranças: o mesmo aluno com duas vencidas aparece em duas linhas, cada uma abre a própria cobrança', async ({ page }) => {
   await fixarHoje(page);
   await page.setViewportSize({ width: 1280, height: 900 });
