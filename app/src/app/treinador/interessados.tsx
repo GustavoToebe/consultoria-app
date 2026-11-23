@@ -266,8 +266,8 @@ function SeletoresDeInteressados({ visiveis, filtros, aoMudar, opcoesDeSituacao,
         </GrupoDoPainel>
       ) : null}
       <GrupoDoPainel titulo="Datas">
-        <CamposDePeriodo rotulo="Entrada" regra="PLANEJAMENTO" valor={filtros.entrada} aoMudar={(entrada) => aoMudar({ ...filtros, entrada })} />
-        <CamposDePeriodo rotulo="Última atividade" regra="PLANEJAMENTO" valor={filtros.atividade} aoMudar={(atividade) => aoMudar({ ...filtros, atividade })} />
+        <CamposDePeriodo nomeUnico rotulo="Entrada" regra="PLANEJAMENTO" valor={filtros.entrada} aoMudar={(entrada) => aoMudar({ ...filtros, entrada })} />
+        <CamposDePeriodo nomeUnico rotulo="Última atividade" regra="PLANEJAMENTO" valor={filtros.atividade} aoMudar={(atividade) => aoMudar({ ...filtros, atividade })} />
       </GrupoDoPainel>
     </>
   );

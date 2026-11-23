@@ -26,7 +26,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_FAIXA_ULTRALARGA, LARGURA_FORMULARIO, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { OPCOES_RESPONSABILIDADE } from '../EscolhaResponsabilidade';
-import { UmaOpcao } from '../SeletoresDeFiltro';
+import { CamposDePeriodo, UmaOpcao } from '../SeletoresDeFiltro';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -47,7 +47,6 @@ import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 import { AcoesDoLote, FolhaDoResultadoDaAcao, type ResultadoDaAcao } from './AcoesDoLote';
 import { CartaoDeConferencias } from './CartaoDeConferencias';
-import { PeriodoDoFiltro } from './FiltrosEmGrade';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
 import { FolhaDaCobrancaAvulsa } from './FolhaDaCobrancaAvulsa';
 import { FolhaDoLote } from './FolhaDoLote';
@@ -434,11 +433,11 @@ function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano, aluno: nomeDoAl
         <View style={estilos.coluna}>
           <Escolha rotulo="Vencimento" opcoes={MODOS_DO_VENCIMENTO} valor={modo} aoMudar={mudarModo} />
           {modo === 'PERIODO' ? (
-            <PeriodoDoFiltro nomeUnico rotulo="Vencimento entre" valor={filtros.periodo} aoMudar={(periodo) => aoMudar({ ...filtros, proximos7Dias: false, periodo })} />
+            <CamposDePeriodo nomeUnico rotulo="Vencimento entre" valor={filtros.periodo} aoMudar={(periodo) => aoMudar({ ...filtros, proximos7Dias: false, periodo })} />
           ) : null}
         </View>
-        <PeriodoDoFiltro nomeUnico rotulo="Emissão" valor={filtros.emissao} aoMudar={(emissao) => aoMudar({ ...filtros, emissao })} />
-        <PeriodoDoFiltro nomeUnico rotulo="Pagamento" valor={filtros.pagamento} aoMudar={(pagamento) => aoMudar({ ...filtros, pagamento })} />
+        <CamposDePeriodo nomeUnico rotulo="Emissão" valor={filtros.emissao} aoMudar={(emissao) => aoMudar({ ...filtros, emissao })} />
+        <CamposDePeriodo nomeUnico rotulo="Pagamento" valor={filtros.pagamento} aoMudar={(pagamento) => aoMudar({ ...filtros, pagamento })} />
       </GrupoDoPainel>
     </>
   );

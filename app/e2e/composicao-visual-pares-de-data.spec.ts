@@ -142,12 +142,11 @@ const CASOS: Caso[] = [
       await expect(page.getByText('Cadastrou um aluno.').first()).toBeVisible();
       await page.getByRole('button', { name: /^Filtros/ }).click();
       const dialogo = page.getByRole('dialog', { name: 'Filtros de eventos' });
-      const inicio = dialogo.getByRole('textbox', { name: 'Período: data inicial', exact: true });
+      const inicio = dialogo.getByRole('textbox', { name: 'De', exact: true });
       await expect(inicio).toBeVisible();
-      // Um rótulo de grupo à vista e nenhum "De"/"Até" solto (o nome inteiro fica no campo).
-      await expect(dialogo.getByRole('textbox', { name: 'De', exact: true })).toHaveCount(0);
+      // Rótulo de grupo à vista e, dentro dele, os rótulos "De" e "Até" à vista (WCAG 3.3.2).
       await expect(dialogo.getByRole('group', { name: 'Período' })).toBeVisible();
-      return { dialogo, inicio, fim: dialogo.getByRole('textbox', { name: 'Período: data final', exact: true }), principal: dialogo.getByRole('button', { name: 'Aplicar filtros' }), errosDaPagina };
+      return { dialogo, inicio, fim: dialogo.getByRole('textbox', { name: 'Até', exact: true }), principal: dialogo.getByRole('button', { name: 'Aplicar filtros' }), errosDaPagina };
     },
     erro: async (inicio, fim) => {
       await inicio.fill('10/10/2026');

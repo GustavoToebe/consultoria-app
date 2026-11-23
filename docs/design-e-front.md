@@ -450,9 +450,11 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   fica embaixo dele sem desalinhar o outro, e a faixa vem de `dominio/datasValidas`. Duas variantes nomeadas:
   **`formulario`** (padrão; 190 px por data): lado a lado na folha do PC, empilhados no celular (rótulos à vista
   "Início"/"Fim", com "(opcional)" quando é); **`filtro`** (150 px por data, `treinador/SeletoresDeFiltro.CamposDePeriodo`):
-  lado a lado também no celular, um rótulo de grupo à vista ("Entrada") e os rótulos individuais ocultos para o olho e
-  lidos pelo leitor de tela ("Entrada: data inicial", "Entrada: data final"). Nos dois, empilham só quando a largura não
-  dá duas datas (texto grande, cartão estreito).
+  lado a lado também no celular, um rótulo de grupo à vista ("Entrada") e os rótulos "De" e "Até" também à vista em
+  cada data (24/11, decisão do Gustavo; WCAG 3.3.2). **Regra nas duas variantes: todo campo de data tem rótulo visível,
+  nunca só o nome para o leitor de tela.** Quando há vários períodos no mesmo painel (`nomeUnico`: Cobranças e
+  Interessados), o nome para o leitor de tela é "De (Entrada)" e "Até (Entrada)", que começa pelo texto visível. Nos
+  dois, empilham só quando a largura não dá duas datas (texto grande, cartão estreito).
 - **Estrutura da barra de filtros:** busca · "Filtros" com contagem · etiquetas "Filtrando" (✕ por filtro) · "Limpar
   filtros". Os seletores só existem no painel lateral abaixo, no PC e no celular: não há cartão "Filtros avançados" na
   página nem folha "Filtros" com efeito na hora.
@@ -534,8 +536,8 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   (formulário), com os e2e funcionais delas verdes (`filtros-laterais-fase-b`/`-c`, `filtros-nas-listas`,
   `pasta-periodo`, `datas-validas`); Replicar/Duplicar plano e as datas da Configuração do plano não têm e2e que as
   abra (só typecheck e jest). **Não
-  conferido:** app nativo (Android e iOS), leitor de tela, texto grande e o par do financeiro (`FiltrosEmGrade`, que
-  ainda tem rótulo de grupo mais "De"/"Até").
+  conferido:** app nativo (Android e iOS), leitor de tela e texto grande. O par do financeiro passou ao
+  `CamposDePeriodo` em 24/11 (o `FiltrosEmGrade` saiu).
   Painel lateral = **Verificado em** (Chromium, só web, API simulada; capturas fora do repositório):
   Financeiro › Cobranças e Biblioteca › Exercícios/Alimentos (12/11): 390, 1024, 1280, 1440 e 1920 px no escuro (topo,
   fim, calendário perto do rodapé), menu recolhido, e em 390 e 1280 px nos temas Claro, Areia, Lavanda, Céu, Rosa,
@@ -552,7 +554,7 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   `treinador/SeletoresDeFiltro.CamposDePeriodo` empilhava De e Até até em 1280 px (base de 280 px por célula) e tinha
   dois níveis de rótulo (grupo mais "De"/"Até"); em 23/11 a base já era 150 px e sobravam os dois níveis e uma linha
   própria fora da `CamposEmLinha`. Corrigido no passo 6: Atualizações, Auditoria, Importação e Interessados usam o
-  `CamposDePeriodo` sobre o `ParDeDatas`; Cobranças e Lançamentos seguem no `financeiro/FiltrosEmGrade` (fora do recorte).
+  `CamposDePeriodo` sobre o `ParDeDatas`; Cobranças e Lançamentos passaram ao mesmo `CamposDePeriodo` em 24/11 (o `financeiro/FiltrosEmGrade` saiu).
   A caixa do `SelecaoMultiplaSuspensa` (rótulo dentro, 52 px) e a do `Campo`/`CampoData` (rótulo em cima, 44 px) têm
   alturas e idiomas de rótulo diferentes: na mesma linha a base não fecha; por isso os Interessados usam duas linhas.
 

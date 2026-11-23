@@ -124,8 +124,8 @@ const CASOS: Caso[] = [
     ligar: async (_page, painel) => { await opcao(painel, 'Situação', 'Falhou').click(); },
     chip: 'Tirar filtro: Situação: Falhou', vazio: /^Nenhuma importação com esses filtros/,
     periodo: async (painel) => {
-      await painel.getByRole('textbox', { name: 'Data da importação: data inicial', exact: true }).fill('01/1');
-      return painel.getByRole('textbox', { name: 'Data da importação: data inicial', exact: true });
+      await painel.getByRole('textbox', { name: 'De', exact: true }).fill('01/1');
+      return painel.getByRole('textbox', { name: 'De', exact: true });
     },
     largas: true,
   },

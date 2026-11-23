@@ -78,20 +78,21 @@ export function usePeriodoDoFiltro({ rotulo, valor, aoMudar, osDois = false, max
 
 /**
  * Período de um filtro (P2 de `docs/design-e-front.md` 4.6): um rótulo de grupo à vista ("Entrada") e as duas datas no
- * `ParDeDatas` de filtro, cada uma com o nome inteiro só para o leitor de tela ("Entrada: data inicial"), sem um segundo
- * nível de rótulo à vista. Texto, sincronização e erros são os de `usePeriodoDoFiltro`; aqui só o desenho.
+ * `ParDeDatas` de filtro, cada uma com o rótulo "De" ou "Até" à vista (WCAG 3.3.2). `nomeUnico`: vários períodos no
+ * mesmo painel ganham nomes para o leitor de tela "De (Entrada)" e "Até (Entrada)", que seguem começando pelo texto
+ * visível. Texto, sincronização e erros são os de `usePeriodoDoFiltro`; aqui só o desenho.
  */
-export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois, maximoDias, regra }: RegrasDoCampo & {
-  rotulo?: string; valor: Periodo; aoMudar: (p: Periodo) => void;
+export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois, maximoDias, regra, nomeUnico }: RegrasDoCampo & {
+  rotulo?: string; valor: Periodo; aoMudar: (p: Periodo) => void; nomeUnico?: boolean;
 }) {
   const p = usePeriodoDoFiltro({ rotulo, valor, aoMudar, osDois, maximoDias, regra });
   return (
     <View style={estilos.periodo} role="group" aria-label={rotulo}>
       <Texto variante="rotulo">{rotulo}</Texto>
       <ParDeDatas variante="filtro">
-        <CampoData rotulo={`${rotulo}: data inicial`} rotuloOculto nome={`${rotulo}, data inicial`} regra={regra} valor={p.texto.de} aoMudar={(t) => p.mudar('de', t)} erro={p.erroDe} />
+        <CampoData rotulo="De" rotuloAcessivel={nomeUnico ? `De (${rotulo})` : undefined} nome={`${rotulo}, data inicial`} regra={regra} valor={p.texto.de} aoMudar={(t) => p.mudar('de', t)} erro={p.erroDe} />
         {/* Data impossível ou fora da faixa o próprio campo avisa ("Entrada, data final: use uma data entre…"). */}
-        <CampoData rotulo={`${rotulo}: data final`} rotuloOculto nome={`${rotulo}, data final`} regra={regra} valor={p.texto.ate} aoMudar={(t) => p.mudar('ate', t)} erro={p.erroAte} />
+        <CampoData rotulo="Até" rotuloAcessivel={nomeUnico ? `Até (${rotulo})` : undefined} nome={`${rotulo}, data final`} regra={regra} valor={p.texto.ate} aoMudar={(t) => p.mudar('ate', t)} erro={p.erroAte} />
       </ParDeDatas>
       {p.aviso ? <Texto variante="pequeno">{p.aviso}</Texto> : null}
     </View>

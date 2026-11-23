@@ -140,8 +140,8 @@ const CASOS: Caso[] = [
       chip: `Tirar filtro: Pessoa: ${TREINADOR.nome}`, mostra: (page) => page.getByText('Cadastrou um aluno.').first(),
     },
     periodo: async (painel) => {
-      await painel.getByRole('textbox', { name: 'Período: data inicial', exact: true }).fill('01/1');
-      return painel.getByRole('textbox', { name: 'Período: data inicial', exact: true });
+      await painel.getByRole('textbox', { name: 'De', exact: true }).fill('01/1');
+      return painel.getByRole('textbox', { name: 'De', exact: true });
     },
     largas: true,
   },
@@ -163,8 +163,8 @@ const CASOS: Caso[] = [
     },
     // A rota só aceita o par: só o De deixa o erro no Até.
     periodo: async (painel) => {
-      await painel.getByRole('textbox', { name: 'Data da atualização: data inicial', exact: true }).fill('01/10/2026');
-      return painel.getByRole('textbox', { name: 'Data da atualização: data final', exact: true });
+      await painel.getByRole('textbox', { name: 'De', exact: true }).fill('01/10/2026');
+      return painel.getByRole('textbox', { name: 'Até', exact: true });
     },
   },
   {
@@ -184,8 +184,8 @@ const CASOS: Caso[] = [
       chip: 'Tirar filtro: Origem: Indicação', mostra: (page) => page.getByText('Pessoa Fictícia 1', { exact: true }).first(),
     },
     periodo: async (painel) => {
-      await painel.getByRole('textbox', { name: 'Entrada: data inicial', exact: true }).fill('01/1');
-      return painel.getByRole('textbox', { name: 'Entrada: data inicial', exact: true });
+      await painel.getByRole('textbox', { name: 'De (Entrada)', exact: true }).fill('01/1');
+      return painel.getByRole('textbox', { name: 'De (Entrada)', exact: true });
     },
     largas: true,
   },

@@ -35,7 +35,7 @@ import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
-import { PeriodoDoFiltro } from './FiltrosEmGrade';
+import { CamposDePeriodo } from '../SeletoresDeFiltro';
 import { ListaOuTabela } from './ListaOuTabela';
 import { ResultadoDoMes } from './ResultadoDoMes';
 
@@ -143,7 +143,7 @@ export function AbaLancamentos({ podeAlterar, resultado }: {
             </GrupoDoPainel>
             <GrupoDoPainel titulo="Datas">
               {/* O mesmo par De/Até das Cobranças (intervalo aberto vale, como antes). */}
-              <PeriodoDoFiltro rotulo="Data do lançamento" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} />
+              <CamposDePeriodo rotulo="Data do lançamento" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} />
             </GrupoDoPainel>
           </>
         )} />

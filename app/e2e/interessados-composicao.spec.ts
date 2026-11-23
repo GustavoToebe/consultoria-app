@@ -13,7 +13,7 @@ type Caixa = { x: number; y: number; width: number; height: number };
 type Tema = { tema: 'CLARO' | 'ESCURO' | 'AREIA'; contraste?: 'ALTO' };
 
 const NOME_LONGO = 'Pessoa Fictícia Com Um Nome Bem Comprido Para Conferir A Quebra Do Título Da Folha';
-const DATAS = ['Entrada: data inicial', 'Entrada: data final', 'Última atividade: data inicial', 'Última atividade: data final'] as const;
+const DATAS = ['De (Entrada)', 'Até (Entrada)', 'De (Última atividade)', 'Até (Última atividade)'] as const;
 
 const QUATRO_TEMAS: Tema[] = [{ tema: 'CLARO' }, { tema: 'ESCURO' }, { tema: 'AREIA' }, { tema: 'CLARO', contraste: 'ALTO' }];
 const DOIS_TEMAS: Tema[] = [{ tema: 'CLARO' }, { tema: 'ESCURO' }];
@@ -71,7 +71,7 @@ for (const { largura, temas } of CASOS) {
         const { naoTratadas, errosDaPagina } = await abrir(page, largura, tema, `/treinador/interessados?visao=${visao}`);
         await abrirFiltros(page);
 
-        // Nome acessível inequívoco: um campo por nome, sem "De"/"Até" soltos.
+        // Nome acessível inequívoco: um campo por nome, começando pelo rótulo à vista ("De (Entrada)"), sem "De"/"Até" soltos.
         for (const nome of DATAS) await expect(page.getByRole('textbox', { name: nome, exact: true })).toHaveCount(1);
         await expect(page.getByRole('textbox', { name: 'De', exact: true })).toHaveCount(0);
         // Tudo medido de uma vez: as contagens dos chips chegam depois e podem quebrar a linha da Situação entre duas medidas.

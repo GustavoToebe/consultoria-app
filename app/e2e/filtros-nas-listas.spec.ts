@@ -126,15 +126,15 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // Data: só vale com as duas pontas (a rota só aceita o par). Só o De segura o Aplicar: erro no Até, que recebe o
       // foco, e nada vai ao endereço nem à API.
       const painel2 = await abrirPainelLateral(page, 'Filtros de atualizações');
-      await painel2.getByRole('textbox', { name: 'Data da atualização: data inicial', exact: true }).fill('01/10/2026');
+      await painel2.getByRole('textbox', { name: 'De', exact: true }).fill('01/10/2026');
       const antesDaData = pedidos.length;
       await painel2.getByRole('button', { name: 'Aplicar filtros' }).click();
       await expect(painel2).toBeVisible();
-      await expect(painel2.getByRole('textbox', { name: 'Data da atualização: data final', exact: true })).toHaveAttribute('aria-invalid', 'true');
-      await expect(painel2.getByRole('textbox', { name: 'Data da atualização: data final', exact: true })).toBeFocused();
+      await expect(painel2.getByRole('textbox', { name: 'Até', exact: true })).toHaveAttribute('aria-invalid', 'true');
+      await expect(painel2.getByRole('textbox', { name: 'Até', exact: true })).toBeFocused();
       await expect(page).not.toHaveURL(/de=/);
       expect(pedidos.slice(antesDaData).some((p) => p.caminho === '/atualizacoes/pagina')).toBe(false);
-      await painel2.getByRole('textbox', { name: 'Data da atualização: data final', exact: true }).fill('31/10/2026');
+      await painel2.getByRole('textbox', { name: 'Até', exact: true }).fill('31/10/2026');
       await aplicarFiltros(painel2);
       await expect.poll(() => ultimo(pedidos, '/atualizacoes/pagina')?.get('ate')).toBe('2026-10-31');
       expect(ultimo(pedidos, '/atualizacoes/pagina')?.get('de')).toBe('2026-10-01');
@@ -223,8 +223,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const painel = await abrirPainelLateral(page, 'Filtros de inscrições');
       await marcar(page, painel, 'Responsável', 'Toda a equipe', ['Meus', 'Bia Fictícia'], false);
       await marcar(page, painel, 'Origem', 'Todas', ['Instagram', 'Não informada'], false);
-      await painel.getByRole('textbox', { name: 'Entrada: data inicial', exact: true }).fill('01/10/2026');
-      await painel.getByRole('textbox', { name: 'Última atividade: data final', exact: true }).fill('31/10/2026');
+      await painel.getByRole('textbox', { name: 'De (Entrada)', exact: true }).fill('01/10/2026');
+      await painel.getByRole('textbox', { name: 'Até (Última atividade)', exact: true }).fill('31/10/2026');
       // Rascunho: nada no endereço antes do Aplicar.
       await expect(page).not.toHaveURL(/origem=/);
       await aplicarFiltros(painel);
@@ -415,7 +415,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
       const painel = await abrirPainelLateral(page, 'Filtros de importações');
       await opcao(painel, 'Situação', 'Falhou').click();
-      await painel.getByRole('textbox', { name: 'Data da importação: data inicial', exact: true }).fill('01/10/2026');
+      await painel.getByRole('textbox', { name: 'De', exact: true }).fill('01/10/2026');
       await aplicarFiltros(painel);
       await expect.poll(() => ultimo(pedidos, '/importacoes')?.get('situacao')).toBe('FALHOU');
       await expect.poll(() => ultimo(pedidos, '/importacoes')?.get('de')).toBe('2026-10-01');

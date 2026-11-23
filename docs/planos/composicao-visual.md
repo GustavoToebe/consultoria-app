@@ -28,7 +28,7 @@ Fonte: `C:\Users\GustavoToebe\Desktop\orientacoes-correcao-visual-front.pdf` (oi
 | 05 | Editar exercício (Biblioteca) | P1 | Investigar a faixa vazia entre "Tirar da biblioteca" e o rodapé (padding, altura mínima, área segura, compensação do rodapé); remoção como ação secundária de risco separada dos campos; Cancelar e Salvar no rodapé comum |
 | 06 | Ação indisponível com motivo ("Criar e editar", "Informe o nome do modelo.") | P5, P1 | Grupo ação + mensagem padronizado, motivo sempre visível e colado, quebra de linha, sem tooltip, sem salto; conferir os outros rodapés com motivo |
 | 07 | Mover interessado | P3, P1 | Lista de ações de largura uniforme, mudar de etapa separado de aceitar e de encerrar; **manter o comportamento atual** (se hoje confirma, continua confirmando; se é imediato, continua imediato) |
-| 08 | Filtros de data dos Interessados | P2 | Rótulos e altura padronizados, De e Até como grupo, base comum com Responsável e Origem, nome acessível inequívoco ("Entrada: data inicial"), sem data comprimida nem calendário cortado |
+| 08 | Filtros de data dos Interessados | P2 | Rótulos e altura padronizados, De e Até como grupo, base comum com Responsável e Origem, nome acessível inequívoco ("De (Entrada)", desde 24/11; antes "Entrada: data inicial"), sem data comprimida nem calendário cortado |
 
 ## Passos
 - [x] 1. Padrões P1 a P5 em `docs/design-e-front.md` 4.6 e conferência em 6.4 (só documento; nada verificado na tela) — commit: —
@@ -125,12 +125,20 @@ Fonte: `C:\Users\GustavoToebe\Desktop\orientacoes-correcao-visual-front.pdf` (oi
     - Não conferido: app nativo, leitor de tela, texto grande; posição de Atualizações, Importação, Nova pasta e Lesão
       (só os e2e funcionais: `filtros-laterais-fase-b`/`-c`, `filtros-nas-listas`, `pasta-periodo`, `datas-validas`);
       Replicar/Duplicar plano e as datas da Configuração do plano não têm e2e que as abra (só typecheck e jest).
-    - Dúvida para o Gustavo: os rótulos ocultos do filtro (Atualizações, Auditoria, Importação já como os Interessados)
+    - **Resolvida em 24/11 (6b abaixo): os rótulos "De"/"Até" voltaram à vista.** Dúvida para o Gustavo, como estava: os rótulos ocultos do filtro (Atualizações, Auditoria, Importação já como os Interessados)
       deixam para quem enxerga só o rótulo do grupo, a ordem e o "DD/MM/AAAA"; a 4.6 permite, mas a WCAG 3.3.2 (A) pede
       rótulo ou instrução visível. Proposta: rótulos pequenos "Data inicial"/"Data final" à vista nas duas variantes.
     - Validade: refazer o spec se `ui/CamposEmLinha`, `ui/Campos` (`CampoData`), `ui/Campo`, `ui/Folha` ou
       `treinador/SeletoresDeFiltro` mudarem.
 - [ ] 6. Aplicar às demais ocorrências (Grep pela peça, tela por tela) — commit: —
+  - [x] 6b. Decisão do Gustavo de 24/11: rótulos visíveis e par do financeiro no compartilhado (commits locais, sem push).
+    `CamposDePeriodo` volta a mostrar "De" e "Até" em cada data (rótulo de grupo mais "De"/"Até", WCAG 3.3.2) e ganha
+    `nomeUnico` (nome para o leitor de tela "De (<grupo>)"/"Até (<grupo>)", que começa pelo texto visível; usado em
+    Cobranças e Interessados, onde há vários períodos no painel); sem ele o nome é só "De"/"Até", como antes do 6a. A
+    regra P2 do `docs/design-e-front.md` agora exige rótulo visível nas duas variantes. `financeiro/FiltrosEmGrade.tsx`
+    (`PeriodoDoFiltro`) saiu: Cobranças e Lançamentos usam o `CamposDePeriodo` (mesmo mínimo de 150 px, mesmos
+    nomes acessíveis de antes). Seletores dos e2e voltaram a "De"/"Até" (Auditoria, Atualizações, Importação) e a
+    "De (Entrada)"/"Até (Última atividade)" (Interessados).
   - [x] 6a. Só o par de datas (23/11, mesma árvore local, sem commit). Peça nova `ParDeDatas` em `ui/CamposEmLinha.tsx`
     (variantes `formulario`, 190 px por data, e `filtro`, 150 px). `CamposDePeriodo` passou a ser o par dos filtros
     (rótulo de grupo à vista, nomes "<grupo>: data inicial/final" só para o leitor de tela, no `ParDeDatas filtro`) e o
