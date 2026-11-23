@@ -161,7 +161,7 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         String versaoDoTexto = pagina.path("textoVersao").asString();
         assertThat(versaoDoTexto).hasSize(64);
         assertThat(pagina.path("consultoria").propertyNames()).containsExactlyInAnyOrder("id", "nome", "corPrimaria",
-                "fonteTitulo", "temaPadrao", "logoUrl");
+                "fonteTitulo", "temaPadrao", "logoUrl", "temaPdf");
 
         // Com texto, a ciência é obrigatória; telefone sem DDD é recusado.
         Map<String, Object> semCiencia = inscricao("Pessoa Fictícia", null);
