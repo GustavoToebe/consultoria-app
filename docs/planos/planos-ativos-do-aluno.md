@@ -1,6 +1,6 @@
 # Planos ativos do aluno, vindos do plano comercial
 
-Situação: Em andamento (18/11/2026): passos 1 e 2 prontos sem commit; passo 3 com os testes prontos, AGENTS.md e Ajuda em andamento por outro agente · Onde: main (sem commit até o Gustavo pedir) · Atualizado: 18/11/2026
+Situação: Concluída (23/11/2026): passos 1 a 3 na `main` (commit `812448ff`, V091); conferido em 23/11 que os testes de integração, o `AGENTS.md` e a Ajuda já estavam entregues · Onde: main · Atualizado: 23/11/2026
 
 Fonte: pedido do Gustavo em 18/11/2026 (conversa); faz parte de [financeiro-em-fases.md](financeiro-em-fases.md) (D13). Validade: vale enquanto `plano_comercial`, `ContratacaoAluno*` e o cabeçalho/Dados do aluno da ficha não mudarem de forma incompatível; ao começar, refazer "Conferido no código".
 
@@ -22,9 +22,9 @@ O plano comercial diz o que inclui (Treino e/ou Dieta). A ficha mostra os "Plano
 | D7 | Esconder do aluno o que ele não contratou | Não faz parte; vai para Pendências soltas para o Gustavo decidir | Gustavo, 18/11 |
 
 ## Passos
-- [x] 1. Migration (próximo número livre na fila: D11 vem antes) e API: colunas em `plano_comercial`, 422 no campo, método do pacote `pagamentos/` que devolve os dois booleanos da contratação ATIVA, `AlunoDetalhe` com o resultado — executor — commit: — (sem commit, estado local em 18/11/2026) (sem commit, estado local em 18/11/2026)
-- [x] 2. App: "O que inclui" no formulário do plano (Financeiro › Planos), linha "Planos ativos" na ficha (só depois da frente "ficha do aluno"), alerta nos editores de treino e dieta; regra pura em `dominio/` com teste — executor-front — commit: — (sem commit, estado local em 18/11/2026) (sem commit, estado local em 18/11/2026)
-- [ ] 3. Teste de integração com o Financeiro ligado e desligado; `AGENTS.md` e Ajuda — executor e sessão principal — commit: — (parte de testes pronta sem commit; AGENTS.md e Ajuda em andamento por outro agente) (parte de testes pronta sem commit; AGENTS.md e Ajuda em andamento por outro agente)
+- [x] 1. Migration (próximo número livre na fila: D11 vem antes) e API: colunas em `plano_comercial`, 422 no campo, método do pacote `pagamentos/` que devolve os dois booleanos da contratação ATIVA, `AlunoDetalhe` com o resultado — executor — commit: 812448ff
+- [x] 2. App: "O que inclui" no formulário do plano (Financeiro › Planos), linha "Planos ativos" na ficha (só depois da frente "ficha do aluno"), alerta nos editores de treino e dieta; regra pura em `dominio/` com teste — executor-front — commit: 812448ff
+- [x] 3. Teste de integração com o Financeiro ligado e desligado; `AGENTS.md` e Ajuda — executor e sessão principal — commit: 812448ff (testes) · evidência de 23/11/2026: `PlanosAtivosDoAlunoIntegrationTest` (6, Financeiro ligado), `PlanosAtivosFinanceiroDesligadoIntegrationTest` (1, desligado) e `PlanosAtivosMigrationTest` (1) rodados com `mvn verify -Dtest=...`: 8 testes, 0 falhas (o `jacoco:check` falha só porque o subconjunto cobre 33%); `mvn verify` completo de 23/11/2026 (HEAD `d003c28e`): BUILD SUCCESS, 3.214 testes, 0 falhas, JaCoCo atendido. `AGENTS.md` (item Financeiro Fase 1, \"Planos ativos (D13, V091)\") e Ajuda (`app/src/ajuda/conteudo.ts`, Planos comerciais, \"O que inclui\") já estavam na `main`.
 
 ## Critérios de aceite
 - Plano comercial novo e antigo: "inclui tudo" por padrão; desligar os dois = 422 no campo.

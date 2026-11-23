@@ -1,6 +1,6 @@
 # Lembretes de cobrança (e-mail automático e WhatsApp manual)
 
-Situação: Código pronto na branch, falta rodar os testes de integração (Docker) e juntar · Onde: branch `evo-lembretes` · Atualizado: 28/10/2026
+Situação: Concluída (código na `main`; passo 3 conferido em 23/11/2026 com o `mvn verify` completo e o e2e do financeiro) · Onde: main · Atualizado: 23/11/2026
 
 ## Objetivo
 O treinador liga, no Financeiro, lembretes automáticos por e-mail para o aluno (antes do vencimento, no dia e depois), sem
@@ -26,7 +26,7 @@ atrasado continua sem bloquear nada do aluno: o lembrete só informa.
 ## Passos
 - [x] 1. API: migration V037, regra pura, texto, job, rotas, exportação, testes — commit: 83c2d09
 - [x] 2. App: aba "Lembretes" do Financeiro (cartão "Lembretes de cobrança"), lista na folha da cobrança, botão do WhatsApp, regra pura com teste, ajuda e e2e — commit: d3e7ad9
-- [ ] 3. Rodar `mvn verify` com Docker (os testes de integração novos não rodaram nesta máquina) e o e2e no checkout principal depois de juntar as frentes — Gustavo/coordenador
+- [x] 3. Rodar `mvn verify` com Docker (os testes de integração novos não rodaram nesta máquina) e o e2e no checkout principal depois de juntar as frentes — Gustavo/coordenador — evidência de 23/11/2026 (HEAD `d003c28e`): `mvn verify` completo em `api/`, BUILD SUCCESS, 3.214 testes, 0 falhas, JaCoCo atendido; e2e do financeiro (13 specs: `e2e/financeiro*.spec.ts` e `inicio-ressalva-financeiro-oculto.spec.ts`), 279 passaram, 0 falharam. Antes: `mvn verify` integrado da noite de 16/11 (2.461 testes, 0 falhas) e o de 17/11 (2.903 testes, Financeiro fase 1), ambos citados no `README.md`.
 
 ## Fora do escopo
 - WhatsApp automático (precisa de provedor pago e autorização do aluno).
