@@ -2,7 +2,7 @@ import { ErroApi, MENSAGEM_SEM_CONEXAO as SEM_CONEXAO_DA_API } from '@plataforma
 
 import type { ResponsavelFinanceiro } from '../api/financeiroResponsavel';
 import {
-  acoesDoResponsavel, corpoDoResponsavel, errosDoResponsavel, formDoResponsavel, houveMudanca, leituraDoResponsavel, MENSAGEM_ANONIMIZADO,
+  acoesDoResponsavel, corpoDoResponsavel, errosDoResponsavel, formDoResponsavel, houveMudanca, linhaDoResponsavel, MENSAGEM_ANONIMIZADO,
   MENSAGEM_CONFIRA, MENSAGEM_CONFLITO, MENSAGEM_NAO_ENCONTRADO, MENSAGEM_SEM_CONEXAO, SEM_RESPONSAVEL_NA_RESPOSTA, temResponsavel, traduzirErroDoResponsavel,
 } from './responsavelFinanceiro';
 
@@ -27,15 +27,15 @@ describe('temResponsavel e ações do cartão', () => {
   });
 });
 
-describe('leituraDoResponsavel', () => {
-  it('"Não informado" onde falta; o CPF só com a permissão de vê-lo', () => {
-    const parcial = { ...GRAVADO, parentesco: null, email: '  ', cpf: null };
-    expect(leituraDoResponsavel(parcial, true)).toEqual([
-      [{ rotulo: 'Nome', valor: 'Responsável Teste' }, { rotulo: 'Parentesco', valor: 'Não informado' }],
-      [{ rotulo: 'Telefone', valor: '(45) 99999-8888', numerico: true }, { rotulo: 'E-mail', valor: 'Não informado' }],
-      [{ rotulo: 'CPF', valor: 'Não informado', numerico: true }],
-    ]);
-    expect(leituraDoResponsavel(parcial, false).flat().map((p) => p.rotulo)).toEqual(['Nome', 'Parentesco', 'Telefone', 'E-mail']);
+describe('linhaDoResponsavel', () => {
+  // ficha do aluno: dados (23/11)
+  it('o que falta some da linha; o CPF só com a permissão de vê-lo', () => {
+    expect(linhaDoResponsavel({ ...GRAVADO, parentesco: null, email: '  ', cpf: null }, true))
+      .toEqual({ quem: 'Responsável Teste', contato: '(45) 99999-8888', cpf: null });
+    expect(linhaDoResponsavel({ ...GRAVADO, parentesco: 'Mãe', email: 'r@exemplo.test', cpf: '529.982.247-25' }, true))
+      .toEqual({ quem: 'Responsável Teste · Mãe', contato: '(45) 99999-8888 · r@exemplo.test', cpf: '529.982.247-25' });
+    expect(linhaDoResponsavel({ ...GRAVADO, cpf: '529.982.247-25' }, false).cpf).toBeNull();
+    expect(linhaDoResponsavel({ ...GRAVADO, telefone: null, email: null }, true).contato).toBeNull();
   });
 });
 

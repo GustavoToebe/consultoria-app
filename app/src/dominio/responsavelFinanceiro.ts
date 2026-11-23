@@ -1,7 +1,7 @@
 import { codigoApi, emailValido, erroDeConexao, errosPorCampo, mensagemApi } from '@plataforma/web';
 
 import type { ResponsavelFinanceiro, ResponsavelFinanceiroRequest } from '../api/financeiroResponsavel';
-import { erroDoCpf, erroDoTelefone, mascaraCpf, mascaraTelefone, NAO_INFORMADO } from './cadastroDoAluno';
+import { erroDoCpf, erroDoTelefone, mascaraCpf, mascaraTelefone } from './cadastroDoAluno';
 
 /**
  * Responsável financeiro do aluno (D15): regras da ficha (leitura, formulário, corpo do PUT e erros). A validação espelha
@@ -22,7 +22,7 @@ export type ErrosDoResponsavel = Partial<Record<CampoDoResponsavel, string>>;
 export const TITULO_DO_RESPONSAVEL = 'Responsável financeiro';
 export const AJUDA_DO_RESPONSAVEL = 'É dado de outra pessoa: o app usa só nos lembretes de pagamento. O lembrete por e-mail vai ao e-mail do '
   + 'responsável e o WhatsApp, ao telefone dele; o que faltar continua indo ao aluno. O aluno segue vendo e pagando as cobranças.';
-export const SEM_RESPONSAVEL = 'Nenhum responsável financeiro. Os lembretes de pagamento vão ao próprio aluno.';
+export const SEM_RESPONSAVEL = 'Os lembretes de pagamento vão ao próprio aluno.';
 export const LINHA_DOS_LEMBRETES = 'Os lembretes vão ao responsável.';
 
 /** `versao` nula = o aluno não tem responsável (o GET responde 200 com tudo nulo). */
@@ -32,20 +32,21 @@ export const SEM_RESPONSAVEL_NA_RESPOSTA: ResponsavelFinanceiro = {
   nome: null, parentesco: null, cpf: null, telefone: null, email: null, versao: null, atualizadoEm: null,
 };
 
-export interface ParDeLeitura { rotulo: string; valor: string; numerico?: boolean }
+/** A linha compacta do responsável na ficha (23/11): quem é, o contato que os lembretes usam e o CPF. */
+export interface LinhaDoResponsavel {
+  /** "Responsável Teste · Mãe" (o parentesco só se houver). */
+  quem: string;
+  /** "(45) 99999-8888 · resp@exemplo.test"; `null` sem telefone nem e-mail. */
+  contato: string | null;
+  /** Só com `veCpf` e CPF gravado: sem a permissão a API o manda nulo mesmo gravado, e dizer "sem CPF" ali seria falso. */
+  cpf: string | null;
+}
 
-/**
- * Os pares da leitura em linhas de duas colunas (a mesma borda do cartão "Acesso ao app"): quem é, o contato que os lembretes
- * usam e o CPF. O CPF só entra quando a pessoa pode vê-lo (`veCpf`): sem a permissão a API o manda nulo mesmo gravado, e
- * "Não informado" ali seria falso (a linha fica vazia e quem desenha a pula).
- */
-export function leituraDoResponsavel(r: ResponsavelFinanceiro, veCpf: boolean): ParDeLeitura[][] {
-  const ou = (v: string | null) => (v?.trim() ? v : NAO_INFORMADO);
-  return [
-    [{ rotulo: 'Nome', valor: ou(r.nome) }, { rotulo: 'Parentesco', valor: ou(r.parentesco) }],
-    [{ rotulo: 'Telefone', valor: ou(r.telefone), numerico: true }, { rotulo: 'E-mail', valor: ou(r.email) }],
-    veCpf ? [{ rotulo: 'CPF', valor: ou(r.cpf), numerico: true }] : [],
-  ];
+/** O que falta some da linha (nunca "Não informado"): a Folha de editar mostra cada campo. */
+export function linhaDoResponsavel(r: ResponsavelFinanceiro, veCpf: boolean): LinhaDoResponsavel {
+  const so = (...v: (string | null)[]) => v.map((x) => x?.trim()).filter((x): x is string => !!x);
+  const contato = so(r.telefone, r.email);
+  return { quem: so(r.nome, r.parentesco).join(' · '), contato: contato.length ? contato.join(' · ') : null, cpf: veCpf ? r.cpf?.trim() || null : null };
 }
 
 /** O formulário com tudo o que o GET trouxe: o PUT substitui tudo, então um campo vazio aqui apagaria o gravado. */

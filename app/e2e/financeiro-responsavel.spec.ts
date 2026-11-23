@@ -17,7 +17,8 @@ import {
 
 const CAPTURAS = 'test-results/financeiro-responsavel';
 // Os textos de `dominio/responsavelFinanceiro` (o domínio puxa o Expo, que o Playwright não carrega): mudou lá, mude aqui.
-const SEM_RESPONSAVEL = 'Nenhum responsável financeiro. Os lembretes de pagamento vão ao próprio aluno.';
+// ficha do aluno: dados (23/11): a linha própria do responsável, com Editar e Remover no ⋯.
+const SEM_RESPONSAVEL = 'Os lembretes de pagamento vão ao próprio aluno.';
 const LINHA_DOS_LEMBRETES = 'Os lembretes vão ao responsável.';
 const MENSAGEM_CONFLITO = 'O responsável financeiro foi alterado em outro lugar. Recarregamos para você conferir.';
 
@@ -33,6 +34,13 @@ const GRAVADO: ResponsavelFinanceiro = {
 };
 
 const COBRANCA = { ...COBRANCA_ATRASADA, alunoId: ALUNO_FINANCEIRO_ID, alunoNome: ALUNO.nome };
+
+const MAIS_ACOES = 'Mais ações do responsável financeiro';
+/** Editar e Remover moram no ⋯ da linha do responsável. */
+async function noMenu(page: Page, acao: 'Editar responsável' | 'Remover responsável') {
+  await page.getByRole('button', { name: MAIS_ACOES }).click();
+  await page.getByRole('dialog', { name: 'Responsável financeiro' }).getByRole('button', { name: acao }).click();
+}
 
 async function abrir(page: Page, responsavel: EstadoDoResponsavel, o: { largura?: number; tema?: 'CLARO' | 'ESCURO'; permissoes?: string[]; paraResponsavel?: boolean } = {}) {
   await page.setViewportSize({ width: o.largura ?? 1280, height: 900 });
@@ -97,7 +105,8 @@ for (const largura of [1280, 390]) {
       await expect(folha).toHaveCount(0);
       expect(estado.puts).toEqual([{ nome: 'Responsável Teste', parentesco: 'Mãe', cpf: '529.982.247-25', telefone: '(45) 99999-8888', email: 'responsavel@exemplo.invalid', versao: null }]);
       await expect(page.getByText('responsavel@exemplo.invalid')).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Editar responsável' })).toBeVisible();
+      await expect(page.getByRole('button', { name: MAIS_ACOES })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Adicionar responsável' })).toHaveCount(0);
       await semRolagemHorizontal(page);
       await capturarSecao(page, `com-responsavel-${largura}-${tema}`);
       expect(errosDaPagina).toEqual([]);
@@ -107,7 +116,7 @@ for (const largura of [1280, 390]) {
   test(`${largura}px: editar com 409 recarrega com aviso e mostra o que a outra pessoa gravou`, async ({ page }) => {
     const estado = estadoDoResponsavel({ responsavel: { ...GRAVADO } });
     const { errosDaPagina } = await abrir(page, estado, { largura });
-    await page.getByRole('button', { name: 'Editar responsável' }).click();
+    await noMenu(page, 'Editar responsável');
     const folha = page.getByRole('dialog', { name: 'Editar responsável financeiro' });
     // Nasce com tudo o que o GET trouxe, inclusive o CPF (o PUT substitui tudo).
     await expect(folha.getByLabel('CPF (opcional)')).toHaveValue('529.982.247-25');
@@ -118,7 +127,7 @@ for (const largura of [1280, 390]) {
     await folha.getByRole('button', { name: 'Salvar responsável' }).click();
     await expect(page.getByText(MENSAGEM_CONFLITO)).toBeVisible();
     await expect(folha).toHaveCount(0);
-    await expect(page.getByText('Pai', { exact: true })).toBeVisible();
+    await expect(page.getByText('Responsável Teste · Pai', { exact: true })).toBeVisible();
     expect(estado.puts.at(-1)).toMatchObject({ parentesco: 'Tia', versao: 3 });
     expect(errosDaPagina).toEqual([]);
   });
@@ -129,7 +138,7 @@ for (const largura of [1280, 390]) {
       recusa: { status: 422, codigo: 'RESPONSAVEL_INVALIDO', fieldErrors: [{ field: 'telefone', message: 'Telefone inválido. Informe o DDD e o número.' }, { field: 'email', message: 'E-mail inválido.' }] },
     });
     const { errosDaPagina } = await abrir(page, estado, { largura });
-    await page.getByRole('button', { name: 'Editar responsável' }).click();
+    await noMenu(page, 'Editar responsável');
     const folha = page.getByRole('dialog', { name: 'Editar responsável financeiro' });
     await folha.getByLabel('E-mail (opcional)').fill('outro@exemplo.invalid');
     await folha.getByRole('button', { name: 'Salvar responsável' }).click();
@@ -149,7 +158,7 @@ for (const largura of [1280, 390]) {
   test(`${largura}px: remover pede confirmação e manda a versão vista`, async ({ page }) => {
     const estado = estadoDoResponsavel({ responsavel: { ...GRAVADO } });
     const { errosDaPagina } = await abrir(page, estado, { largura });
-    await page.getByRole('button', { name: 'Remover responsável' }).click();
+    await noMenu(page, 'Remover responsável');
     const painel = page.getByRole('alertdialog', { name: 'Remover o responsável financeiro?' });
     await expect(painel.getByText(/voltam a ir ao próprio aluno/)).toBeVisible();
     await page.screenshot({ path: `${CAPTURAS}/remover-${largura}.png` });
@@ -165,9 +174,9 @@ for (const largura of [1280, 390]) {
 test('só leitura: sem FINANCEIRO_ALTERAR mostra os dados e nenhuma ação', async ({ page }) => {
   const estado = estadoDoResponsavel({ responsavel: { ...GRAVADO, parentesco: null } });
   const { errosDaPagina } = await abrir(page, estado, { permissoes: [...PERMISSOES_TREINADOR, 'FINANCEIRO_LER'] });
-  await expect(page.getByText('Responsável Teste')).toBeVisible();
-  await expect(page.getByLabel('Parentesco: Não informado')).toBeVisible();
-  await expect(page.getByRole('button', { name: /responsável$/ })).toHaveCount(0);
+  // Sem parentesco, a linha diz só o nome (nada de "Não informado"); sem a permissão, nem ⋯ nem Adicionar.
+  await expect(page.getByText('Responsável Teste', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /responsável( financeiro)?$/ })).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -180,7 +189,7 @@ for (const largura of [1280, 390]) {
     await expect(page.getByText('(45) 99999-8888')).toBeVisible();
     await expect(page.getByLabel(/^CPF:/)).toHaveCount(0);
     await expect(page.getByText('529.982.247-25')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Editar responsável' }).click();
+    await noMenu(page, 'Editar responsável');
     const folha = page.getByRole('dialog', { name: 'Editar responsável financeiro' });
     await expect(folha.getByLabel('CPF (opcional)')).toHaveCount(0);
     await folha.getByLabel('Parentesco (opcional)').fill('Avó');

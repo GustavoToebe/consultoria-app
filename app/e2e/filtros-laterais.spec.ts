@@ -404,7 +404,8 @@ async function chegarPelaFicha(page: Page, largura: number, tema: 'ESCURO' | 'CL
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
   });
   await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
-  await page.getByRole('link', { name: 'Ver no Financeiro' }).click();
+  // ficha do aluno: dados (23/11): o link do cartão Plano contratado diz "Ver todas no Financeiro".
+  await page.getByRole('link', { name: 'Ver todas no Financeiro' }).click();
   await expect(page).toHaveURL(new RegExp(`alunoId=${ALUNO_FINANCEIRO_ID}`));
   return api;
 }

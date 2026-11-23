@@ -1,14 +1,17 @@
-import { Permitido } from '../ui/Permitido';
-import { Pencil, Plus, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Ellipsis, Pencil, Plus, Trash2 } from 'lucide-react-native';
+import { useState, type ReactNode } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { alterarLesao, excluirLesao, listarLesoes, registrarLesao } from '../api/rotas';
 import type { Lesao, SituacaoLesao } from '../api/tipos';
 import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
-import { dataParaTela } from '../dominio/formatos';
+import {
+  contagemDeLesoes, lesoesNaOrdem, observacaoLonga, periodoDaLesao, RECUPERADAS_VISIVEIS, seloDaLesao,
+} from '../dominio/fichaDados';
+import { dataParaTela, SEM_DADO } from '../dominio/formatos';
+import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, RAIO } from '../tema/tokens';
+import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
@@ -21,28 +24,41 @@ import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { IconeBotao } from '../ui/IconeBotao';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
-import { Selo, type TipoSelo } from '../ui/Selo';
+import { Selo } from '../ui/Selo';
+import { superficiePintada } from '../ui/superficiePintada';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
+import { FolhaDeAcoes } from './FolhaDeAcoes';
 
-const SITUACOES: { valor: SituacaoLesao; rotulo: string; selo: TipoSelo }[] = [
-  { valor: 'ATIVA', rotulo: 'Ativa', selo: 'atencao' },
-  { valor: 'EM_RECUPERACAO', rotulo: 'Em recuperação', selo: 'neutro' },
-  { valor: 'RECUPERADA', rotulo: 'Recuperada', selo: 'sucesso' },
+const SITUACOES: { valor: SituacaoLesao; rotulo: string }[] = [
+  { valor: 'ATIVA', rotulo: 'Ativa' },
+  { valor: 'EM_RECUPERACAO', rotulo: 'Em recuperação' },
+  { valor: 'RECUPERADA', rotulo: 'Recuperada' },
 ];
 
-function periodoDaLesao(l: Lesao): string {
-  if (!l.dataInicio && !l.dataFim) return 'Sem datas';
-  return `${dataParaTela(l.dataInicio) || '—'} a ${dataParaTela(l.dataFim) || 'em aberto'}`;
+/** As lesões do aluno, buscadas uma vez pela aba (as ativas do topo, no celular, e o histórico usam a mesma carga). */
+export function useLesoes(alunoId: string | null) {
+  return useCarregar(alunoId ? `lesoes:${alunoId}` : null, (chave) => listarLesoes(chave.slice('lesoes:'.length)));
 }
+type CargaDasLesoes = ReturnType<typeof useLesoes>;
 
-/** Histórico de lesões do aluno (dado sensível): o treinador registra; o sistema só guarda e mostra. */
-export function CartaoLesoes({ alunoId }: { alunoId: string }) {
-  const { cores } = useTema();
-  const { dados, erro, carregando, recarregar } = useCarregar(`lesoes:${alunoId}`, () => listarLesoes(alunoId));
+/**
+ * Histórico de lesões do aluno (dado sensível: só na tela, nunca em log; o sistema só guarda e mostra). Ficha › Dados
+ * (23/11): cabeçalho com a contagem ("1 ativa · 3 no total") e "Registrar lesão"; tabela com Região, Descrição (e a
+ * observação), Período, Situação e ⋯ (Editar, Excluir lesão com confirmação). As ativas vêm primeiro, tingidas de
+ * `atencao` (`ui/superficiePintada`, liso: fundo `forte`, borda na cor, texto em `texto`); as recuperadas depois, neutras,
+ * 5 à vista e "Ver todas". `parte`: `tudo` (PC); no celular as ativas sobem para o topo da aba (`ativas`, "Lesões ativas") e
+ * o histórico embaixo fica com as recuperadas (`recuperadas`), para nenhuma aparecer duas vezes.
+ */
+export function CartaoLesoes({ alunoId, carga, parte = 'tudo' }: { alunoId: string; carga: CargaDasLesoes; parte?: 'tudo' | 'ativas' | 'recuperadas' }) {
+  const { pode } = useSessao();
+  const podeAlterar = pode('ALUNO_SENSIVEL_ALTERAR');
+  const { dados, erro, carregando, recarregar } = carga;
   const [editando, setEditando] = useState<Lesao | 'nova' | null>(null);
   const [excluir, setExcluir] = useState<Lesao | null>(null);
   const [erroExcluir, setErroExcluir] = useState<unknown>(null);
+  const [todas, setTodas] = useState(false);
+  const { ativas, recuperadas } = lesoesNaOrdem(dados ?? []);
 
   const confirmarExclusao = () => {
     const alvo = excluir;
@@ -50,57 +66,192 @@ export function CartaoLesoes({ alunoId }: { alunoId: string }) {
     if (!alvo) return;
     excluirLesao(alunoId, alvo.id).then(recarregar, (e: unknown) => setErroExcluir(e));
   };
-
-  return (
-    <Cartao titulo="Histórico de lesões" descricao="Lesões registradas na ficha do aluno.">
-      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {erroExcluir ? <MensagemErro texto={textoDoErro(erroExcluir)} /> : null}
-      {!dados && carregando ? <Esqueleto cartoes={1} texto="Carregando lesões" /> : null}
-      {dados && dados.length === 0 ? <Texto variante="suave">Nenhuma lesão registrada.</Texto> : null}
-      {dados?.map((l) => {
-        const situacao = SITUACOES.find((s) => s.valor === l.situacao);
-        return (
-          <View key={l.id} style={[estilos.item, { borderColor: cores.borda }]}>
-            <View style={estilos.dados}>
-              <Texto variante="subtitulo">{l.regiao}</Texto>
-              <View style={estilos.linha}>
-                {situacao ? <Selo texto={situacao.rotulo} tipo={situacao.selo} /> : null}
-                <Texto numerico variante="suave">{periodoDaLesao(l)}</Texto>
-              </View>
-              {l.descricao ? <Texto>{l.descricao}</Texto> : null}
-              {l.observacao ? <Texto variante="suave">{l.observacao}</Texto> : null}
-            </View>
-            <View style={estilos.acoes}>
-              <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar lesão em ${l.regiao}`} aoTocar={() => setEditando(l)} /></Permitido>
-              <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Trash2} rotulo={`Excluir lesão em ${l.regiao}`} cor={cores.textoSuave} aoTocar={() => setExcluir(l)} /></Permitido>
-            </View>
-          </View>
-        );
-      })}
+  const acoesDaLinha = { podeAlterar, aoEditar: setEditando, aoExcluir: (l: Lesao) => { setErroExcluir(null); setExcluir(l); } };
+  const folhas = (
+    <>
       {editando ? (
-        <FolhaLesao
-          alunoId={alunoId}
-          lesao={editando === 'nova' ? null : editando}
-          aoFechar={() => setEditando(null)}
-          aoSalvar={() => {
-            setEditando(null);
-            recarregar();
-          }}
-        />
+        <FolhaLesao alunoId={alunoId} lesao={editando === 'nova' ? null : editando} aoFechar={() => setEditando(null)}
+          aoSalvar={() => { setEditando(null); recarregar(); }} />
       ) : null}
-      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR">
-        <Botao rotulo="Registrar lesão" tipo="secundario" Icone={Plus} aoTocar={() => setEditando('nova')} />
-      </Permitido>
       <PainelConfirmacao
         visivel={excluir !== null}
         titulo="Excluir este registro de lesão?"
         mensagem={excluir ? excluir.regiao : undefined}
-        rotuloConfirmar="Excluir"
+        rotuloConfirmar="Excluir lesão"
         perigo
         aoConfirmar={confirmarExclusao}
         aoCancelar={() => setExcluir(null)}
       />
+    </>
+  );
+
+  // No topo da aba (celular): só com ativas; carregando, erro e vazio ficam com o histórico, embaixo.
+  if (parte === 'ativas') {
+    if (ativas.length === 0) return null;
+    return (
+      <Cartao titulo="Lesões ativas">
+        {erroExcluir ? <MensagemErro texto={textoDoErro(erroExcluir)} /> : null}
+        <TabelaDeLesoes ativas={ativas} recuperadas={[]} {...acoesDaLinha} />
+        {folhas}
+      </Cartao>
+    );
+  }
+
+  const mostrarAtivas = parte === 'tudo' ? ativas : [];
+  const recuperadasVisiveis = todas ? recuperadas : recuperadas.slice(0, RECUPERADAS_VISIVEIS);
+  const contagem = dados ? contagemDeLesoes(dados) : null;
+  return (
+    <Cartao titulo="Histórico de lesões" descricao={contagem ?? undefined}
+      acoes={podeAlterar ? <Botao rotulo="Registrar lesão" tipo="acao" Icone={Plus} aoTocar={() => setEditando('nova')} /> : undefined}>
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
+      {erroExcluir ? <MensagemErro texto={textoDoErro(erroExcluir)} /> : null}
+      {!dados && carregando ? <Esqueleto cartoes={1} texto="Carregando lesões" /> : null}
+      {dados && dados.length === 0 ? <Texto variante="suave">Nenhuma lesão registrada.</Texto> : null}
+      {mostrarAtivas.length + recuperadasVisiveis.length > 0 ? (
+        <TabelaDeLesoes ativas={mostrarAtivas} recuperadas={recuperadasVisiveis} {...acoesDaLinha} />
+      ) : dados && dados.length > 0 ? <Texto variante="suave">Nenhuma lesão recuperada.</Texto> : null}
+      {recuperadas.length > RECUPERADAS_VISIVEIS ? (
+        <View style={estilos.verTodas}>
+          <Botao rotulo={todas ? 'Ver menos' : `Ver todas as recuperadas (${recuperadas.length})`} tipo="fantasma" aoTocar={() => setTodas((v) => !v)} />
+        </View>
+      ) : null}
+      {folhas}
     </Cartao>
+  );
+}
+
+/** A partir desta largura (medida na própria lista) as lesões ficam em colunas; abaixo, uma por cartão com os rótulos à vista. */
+const LARGURA_EM_COLUNAS = 800;
+
+interface AcoesDaLinha { podeAlterar: boolean; aoEditar: (l: Lesao) => void; aoExcluir: (l: Lesao) => void }
+
+/**
+ * Tabela das lesões: cabeçalho e colunas quando cabe, cartões empilhados com "Rótulo: valor" abaixo disso, como a `Tabela`
+ * de `ui/`. Peça própria porque a `Tabela` não pinta uma linha (a ativa é tingida) e mudar a peça compartilhada mexeria
+ * nas outras telas.
+ */
+function TabelaDeLesoes({ ativas, recuperadas, ...acoes }: { ativas: Lesao[]; recuperadas: Lesao[] } & AcoesDaLinha) {
+  const { cores, bordas } = useTema();
+  const [largura, setLargura] = useState<number | null>(null);
+  const emColunas = largura !== null && largura >= LARGURA_EM_COLUNAS;
+  const linhas = [...ativas.map((l) => ({ l, ativa: true })), ...recuperadas.map((l) => ({ l, ativa: false }))];
+  return (
+    <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)}
+      role={emColunas ? 'table' : undefined} accessibilityRole={emColunas ? undefined : 'list'} accessibilityLabel="Lesões"
+      style={emColunas ? [estilos.tabela, { borderWidth: bordas.bloco, borderColor: cores.divisor }] : estilos.cartoes}>
+      {largura === null ? null : emColunas ? (
+        <>
+          <View role="row" style={[estilos.linha, estilos.cabecalho, { backgroundColor: cores.superficie3, borderColor: cores.divisor }]}>
+            {COLUNAS.map((c) => (
+              <View key={c.chave} role="columnheader" style={c.estilo}>
+                {c.titulo ? <Texto variante="secao">{c.titulo}</Texto> : null}
+              </View>
+            ))}
+          </View>
+          {linhas.map(({ l, ativa }, i) => (
+            <LinhaDaLesao key={l.id} lesao={l} ativa={ativa} ultima={i === linhas.length - 1} {...acoes} />
+          ))}
+        </>
+      ) : linhas.map(({ l, ativa }) => <CartaoDaLesao key={l.id} lesao={l} ativa={ativa} {...acoes} />)}
+    </View>
+  );
+}
+
+const COLUNAS = [
+  { chave: 'regiao', titulo: 'Região', estilo: { flex: 2, minWidth: 120 } },
+  { chave: 'descricao', titulo: 'Descrição', estilo: { flex: 3, minWidth: 160 } },
+  // 232: cabe "01/03/2026 a 15/05/2026" numa linha (Geist Mono).
+  { chave: 'periodo', titulo: 'Período', estilo: { flex: 2, minWidth: 232 } },
+  { chave: 'situacao', titulo: 'Situação', estilo: { width: 140 } },
+  { chave: 'acoes', titulo: '', estilo: { width: 44 } },
+] as const;
+
+/** Fundo e borda da ativa: o tingido de `atencao` sobre a base onde ela fica (o texto segue `texto`/`textoSuave`). */
+function useTingido(ativa: boolean, base: 'superficie' | 'superficie2') {
+  const { cores, variante } = useTema();
+  if (!ativa) return null;
+  const p = superficiePintada(cores.atencao, cores[base], variante, cores);
+  return { backgroundColor: p.forte, borderColor: p.borda };
+}
+
+function LinhaDaLesao({ lesao, ativa, ultima, ...acoes }: { lesao: Lesao; ativa: boolean; ultima: boolean } & AcoesDaLinha) {
+  const { cores } = useTema();
+  const tingido = useTingido(ativa, 'superficie');
+  const selo = seloDaLesao(lesao.situacao);
+  return (
+    <View role="row" style={[estilos.linha, estilos.corpoDaLinha, tingido ? [estilos.linhaTingida, tingido] : !ultima ? { borderBottomWidth: 1, borderColor: cores.divisor } : null]}>
+      <View role="cell" style={COLUNAS[0].estilo}><Texto variante="subtitulo">{lesao.regiao}</Texto></View>
+      <View role="cell" style={[COLUNAS[1].estilo, estilos.celula]}>
+        <Texto variante={lesao.descricao ? 'corpo' : 'suave'}>{lesao.descricao || SEM_DADO}</Texto>
+        {lesao.observacao ? <Observacao texto={lesao.observacao} /> : null}
+      </View>
+      <View role="cell" style={COLUNAS[2].estilo}><Texto numerico>{periodoDaLesao(lesao)}</Texto></View>
+      <View role="cell" style={COLUNAS[3].estilo}><View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} /></View></View>
+      <View role="cell" style={COLUNAS[4].estilo}><MaisAcoes lesao={lesao} {...acoes} /></View>
+    </View>
+  );
+}
+
+function CartaoDaLesao({ lesao, ativa, ...acoes }: { lesao: Lesao; ativa: boolean } & AcoesDaLinha) {
+  const { cores } = useTema();
+  const tingido = useTingido(ativa, 'superficie2');
+  const selo = seloDaLesao(lesao.situacao);
+  return (
+    <View role="listitem" style={[estilos.cartao, tingido ?? { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+      <View style={estilos.topoDoCartao}>
+        <Texto variante="subtitulo" style={estilos.encolher}>{lesao.regiao}</Texto>
+        <MaisAcoes lesao={lesao} {...acoes} />
+      </View>
+      <Par rotulo="Descrição"><Texto variante={lesao.descricao ? 'corpo' : 'suave'}>{lesao.descricao || SEM_DADO}</Texto></Par>
+      <Par rotulo="Período"><Texto numerico>{periodoDaLesao(lesao)}</Texto></Par>
+      <Par rotulo="Situação"><View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} /></View></Par>
+      {lesao.observacao ? <Observacao texto={lesao.observacao} /> : null}
+    </View>
+  );
+}
+
+function Par({ rotulo, children }: { rotulo: string; children: ReactNode }) {
+  return (
+    <View style={estilos.par}>
+      <Texto variante="pequeno" style={estilos.rotuloDoPar}>{rotulo}</Texto>
+      <View style={estilos.valorDoPar}>{children}</View>
+    </View>
+  );
+}
+
+/** "Observação: …" em até duas linhas; a longa ganha "Ver observação inteira" (o leitor de tela sempre ouve o texto todo). */
+function Observacao({ texto }: { texto: string }) {
+  const [inteira, setInteira] = useState(false);
+  const longa = observacaoLonga(texto);
+  return (
+    <View style={estilos.observacao}>
+      <Texto variante="pequeno" numberOfLines={longa && !inteira ? 2 : undefined} accessibilityLabel={`Observação: ${texto}`}>
+        <Texto variante="pequeno" style={estilos.rotuloDaObservacao}>Observação: </Texto>{texto}
+      </Texto>
+      {longa ? (
+        <View style={estilos.verObservacao}>
+          <Botao rotulo={inteira ? 'Ver menos' : 'Ver observação inteira'} tipo="fantasma" aoTocar={() => setInteira((v) => !v)} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** ⋯ da lesão (Editar, Excluir lesão), só com `ALUNO_SENSIVEL_ALTERAR`. No celular, o que abre depois espera o menu fechar. */
+function MaisAcoes({ lesao, podeAlterar, aoEditar, aoExcluir }: { lesao: Lesao } & AcoesDaLinha) {
+  const [menu, setMenu] = useState(false);
+  if (!podeAlterar) return null;
+  const depois = (f: () => void) => (Platform.OS === 'web' ? f() : setTimeout(f, 350));
+  return (
+    <>
+      <IconeBotao Icone={Ellipsis} rotulo={`Mais ações da lesão em ${lesao.regiao}`} aoTocar={() => setMenu(true)} />
+      {menu ? (
+        <FolhaDeAcoes titulo={lesao.regiao} aoFechar={() => setMenu(false)} acoes={[
+          { rotulo: 'Editar', Icone: Pencil, aoTocar: () => depois(() => aoEditar(lesao)) },
+          { rotulo: 'Excluir lesão', Icone: Trash2, perigo: true, aoTocar: () => depois(() => aoExcluir(lesao)) },
+        ]} />
+      ) : null}
+    </>
   );
 }
 
@@ -160,8 +311,23 @@ function FolhaLesao({ alunoId, lesao, aoFechar, aoSalvar }: { alunoId: string; l
 }
 
 const estilos = StyleSheet.create({
-  item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start', justifyContent: 'space-between' },
-  dados: { flexShrink: 1, gap: espaco(0.5) },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
-  acoes: { flexDirection: 'row' },
+  verTodas: { flexDirection: 'row' },
+  tabela: { borderRadius: RAIO, overflow: 'hidden' },
+  linha: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2), paddingHorizontal: espaco(1.5) },
+  cabecalho: { borderBottomWidth: 1, minHeight: 40, alignItems: 'center' },
+  corpoDaLinha: { paddingVertical: espaco(1.5), minHeight: 48 },
+  // A ativa tingida: a borda na cor fecha a linha nos quatro lados (1 px, `ui/superficiePintada`).
+  linhaTingida: { borderWidth: 1 },
+  celula: { gap: espaco(0.5) },
+  selo: { flexDirection: 'row' },
+  cartoes: { gap: espaco(1) },
+  cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(0.75) },
+  topoDoCartao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  encolher: { flexShrink: 1 },
+  par: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
+  rotuloDoPar: { width: 96, paddingTop: 2 },
+  valorDoPar: { flex: 1, alignItems: 'flex-start' },
+  observacao: { gap: espaco(0.25), alignItems: 'flex-start' },
+  rotuloDaObservacao: { fontFamily: fontes.semi },
+  verObservacao: { marginLeft: -espaco(1.5) },
 });

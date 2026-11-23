@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react-native';
+import { ChevronRight, Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -9,73 +9,60 @@ import {
   abertasDaContratacao, referenciaDaCobranca, resumoDaCobranca, rotuloDaPeriodicidade, rotuloDoTipoDaCobranca,
   seloDaCobranca, seloDaContratacao, seloDoTipoDaCobranca, textoDeAbertasQueContinuam,
 } from '../../dominio/financeiro';
+import { repeteAPeriodicidade, ultimasCobrancas, valorPorPeriodo, vigenciaDaContratacao } from '../../dominio/fichaDados';
 import { planoPodeTerMinimo, textoDoMinimoAte } from '../../dominio/saidaDoPlano';
 import { primeiroNome } from '../../dominio/inscricoes';
 import { linkDoWhatsApp, MOTIVO_SEM_TELEFONE } from '../../dominio/lembretesDeCobranca';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco } from '../../tema/tokens';
+import { useTema } from '../../tema/TemaProvider';
+import { espaco, fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { iconeWhatsApp } from '../../ui/IconeWhatsApp';
-import { CampoLeitura } from '../../ui/CampoLeitura';
-import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { Grade } from '../../ui/Grade';
-import { ItemDeLista } from '../../ui/ItemDeLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
-import { Selo, type TipoSelo } from '../../ui/Selo';
+import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { ICONE_DO_SELO } from '../iconesDosSelos';
+import { SituacaoDaCobranca } from './AbaCobrancas';
 import { avisoDeConflito, ehConflito } from './comum';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
 import { FolhaDeContratacao } from './FolhaDeContratacao';
 import { FolhaDeEncerrar } from './FolhaDeEncerrar';
+import { ListaOuTabela } from './ListaOuTabela';
 import { ResponsavelFinanceiro } from './ResponsavelFinanceiro';
-
-/** Cobranças à vista no cartão; "Ver todas" mostra o resto (a lista do aluno só cresce, um item por competência). */
-const COBRANCAS_VISIVEIS = 4;
-
-const dias = (n: number) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
-
-/**
- * Selo da vigência pelo alerta que a API calcula (`alertaRenovacao`, a janela de renovação mora lá). Âmbar porque quem
- * renova é o treinador; vencida é problema. Sem alerta (contratação sem término) não há selo.
- */
-function seloDaVigencia(c: ContratacaoResponse): { texto: string; tipo: TipoSelo } | null {
-  const n = c.diasRestantesVigencia;
-  if (n == null || !c.alertaRenovacao) return null;
-  if (c.alertaRenovacao === 'VENCIDO') return { texto: `Vigência vencida há ${dias(Math.abs(n))}`, tipo: 'perigo' };
-  if (c.alertaRenovacao === 'PROXIMO_VENCIMENTO') return { texto: n === 0 ? 'Renovar hoje' : `Renovar em ${dias(n)}`, tipo: 'atencao' };
-  return { texto: `Vigente · ${dias(n)} restantes`, tipo: 'neutro' };
-}
 
 function mensagemDeRenovacao(alunoNome: string | undefined, planoNome: string | null | undefined): string {
   const nome = primeiroNome(alunoNome);
   return `Olá${nome ? `, ${nome}` : ''}! Seu plano${planoNome ? ` ${planoNome}` : ''} está no período de renovação. Vamos combinar a continuidade para o próximo ciclo?`;
 }
 
-/** Em aberto primeiro (a que vence antes no topo), depois as outras da mais nova para a mais antiga. */
-function emOrdemDeAtencao(lista: readonly CobrancaResponse[]): CobrancaResponse[] {
-  const abertas = lista.filter((c) => c.situacao === 'ABERTA').sort((a, b) => a.vencimento.localeCompare(b.vencimento));
-  const outras = lista.filter((c) => c.situacao !== 'ABERTA').sort((a, b) => b.vencimento.localeCompare(a.vencimento));
-  return [...abertas, ...outras];
+/** O nome da linha da cobrança (contrato dos e2e do Financeiro): "Abrir cobrança de 11/2026, Paga". */
+function rotuloDaCobranca(c: CobrancaResponse): string {
+  const selo = seloDaCobranca(c);
+  const doTipo = seloDoTipoDaCobranca(c.tipo);
+  return `Abrir ${doTipo ? rotuloDoTipoDaCobranca(c.tipo).toLowerCase() : 'cobrança'}${c.tipo === 'AVULSA' ? ':' : ' de'} ${referenciaDaCobranca(c)}, ${selo.rotulo}`;
 }
 
 /**
  * Cartão "Plano contratado" da ficha do aluno (`FINANCEIRO_LER` e módulo de pagamentos ligado; quem chama confere os
- * dois). Mostra o plano comercial vigente, as cobranças do aluno e, com `FINANCEIRO_ALTERAR`, contrata, altera,
- * pausa, retoma e encerra, e registra pagamento. Aluno inativo ou anonimizado não ganha contratação nova. O valor da
- * cobrança nunca é digitado aqui: sai do plano ou da contratação, no servidor.
+ * dois). Ficha › Dados (23/11): o plano vigente com nome, situação e ações numa linha, o valor em destaque, a vigência
+ * (barra decorativa com o texto equivalente; âmbar com 15 dias ou menos, vermelha vencida), os detalhes menores, as
+ * últimas 3 cobranças numa tabela compacta (as colunas das Cobranças do Financeiro) com "Ver todas no Financeiro" já
+ * filtrado pelo aluno, e o responsável financeiro numa linha própria. Com `FINANCEIRO_ALTERAR`: contrata, altera, pausa,
+ * retoma e encerra, e registra pagamento na folha da cobrança. Aluno inativo ou anonimizado não ganha contratação nova.
+ * O valor da cobrança nunca é digitado aqui: sai do plano ou da contratação, no servidor.
  */
 export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, telefoneAluno }: { alunoId: string; ativo: boolean; anonimizado: boolean; alunoNome?: string; telefoneAluno?: string | null }) {
   const { pode } = useSessao();
+  const { cores } = useTema();
   const { avisar } = useAviso();
   const podeAlterar = pode('FINANCEIRO_ALTERAR') && !anonimizado;
   const contratacoes = useCarregar(`contratacoes:${alunoId}`, () => listarContratacoesDoAluno(alunoId));
@@ -88,7 +75,6 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
   const [cobrancaAberta, setCobrancaAberta] = useState<CobrancaResponse | null>(null);
   const [confirmando, setConfirmando] = useState<'pausar' | 'encerrar' | null>(null);
   const [mudando, setMudando] = useState<string | null>(null);
-  const [todas, setTodas] = useState(false);
 
   const lista = contratacoes.dados;
   const vigente = lista?.find((c) => c.situacao !== 'ENCERRADA') ?? null;
@@ -96,11 +82,11 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
   // Pausar mantém as cobranças abertas da contratação (inclui as vencidas); o painel avisa só quando há alguma. O encerrar
   // tem a própria conta, vinda da prévia da API (`FolhaDeEncerrar`).
   const avisoDasAbertas = vigente ? textoDeAbertasQueContinuam(abertasDaContratacao(cobrancas.dados, vigente.id)) : null;
-  const ordenadas = emOrdemDeAtencao(cobrancas.dados ?? []);
-  const visiveis = todas ? ordenadas : ordenadas.slice(0, COBRANCAS_VISIVEIS);
+  const ultimas = ultimasCobrancas(cobrancas.dados ?? []);
   const podeContratar = !!lista && !vigente && podeAlterar && ativo;
-  const selo = vigente ? seloDaVigencia(vigente) : null;
   const situacao = vigente ? seloDaContratacao(vigente.situacao) : null;
+  const periodicidade = vigente ? rotuloDaPeriodicidade(vigente.periodicidade) : null;
+  const porPeriodo = vigente ? valorPorPeriodo(vigente.periodicidade) : null;
   // O WhatsApp só aparece na janela de renovação (ou vencida) da contratação ativa; quem envia é o treinador.
   const emRenovacao = vigente?.situacao === 'ATIVA' && (vigente.alertaRenovacao === 'PROXIMO_VENCIMENTO' || vigente.alertaRenovacao === 'VENCIDO');
   const linkDaRenovacao = emRenovacao ? linkDoWhatsApp(telefoneAluno, mensagemDeRenovacao(alunoNome, vigente.planoNome)) : null;
@@ -139,69 +125,67 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
       ) : null}
       {vigente ? (
         <View style={estilos.bloco}>
-          <View style={estilos.linha}>
-            <Texto variante="bloco" style={estilos.encolher}>{vigente.planoNome ?? 'Plano'}</Texto>
-            <View style={estilos.selos}>
+          <View style={estilos.cabecalhoDoPlano}>
+            <View style={estilos.nomeESelo}>
+              <Texto variante="bloco" nivel={3} style={estilos.encolher}>{vigente.planoNome ?? 'Plano'}</Texto>
               {situacao ? <Selo texto={situacao.rotulo} tipo={situacao.tom} Icone={ICONE_DO_SELO[situacao.tom]} /> : null}
-              {selo ? <Selo texto={selo.texto} tipo={selo.tipo} Icone={ICONE_DO_SELO[selo.tipo]} /> : null}
             </View>
-          </View>
-          <CamposEmLinha>
-            <CampoLeitura rotulo="Valor" valor={centavosParaTela(vigente.valorCentavos)} numerico />
-            <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(vigente.periodicidade)} />
-            <CampoLeitura rotulo="Vencimento" valor={`Todo dia ${vigente.diaVencimento}`} />
-            <CampoLeitura rotulo="Início" valor={dataParaTela(vigente.inicio)} numerico />
-            {vigente.terminoVigencia ? (
-              <CampoLeitura rotulo="Término da vigência" valor={dataParaTela(vigente.terminoVigencia)} numerico />
+            {podeAlterar ? (
+              <View style={estilos.acoesDoPlano}>
+                <Botao rotulo="Alterar" tipo="secundario" aoTocar={() => setFormulario('alterar')} />
+                {vigente.situacao === 'ATIVA' ? <Botao rotulo="Pausar" tipo="secundario" aoTocar={() => setConfirmando('pausar')} /> : null}
+                {vigente.situacao === 'PAUSADA' ? <Botao rotulo="Retomar" tipo="secundario" carregando={mudando === 'retomar'} aoTocar={() => mudarSituacao('retomar', 'Contratação retomada.')} /> : null}
+                <Botao rotulo="Encerrar" tipo="perigoTexto" aoTocar={() => setConfirmando('encerrar')} />
+              </View>
             ) : null}
-          </CamposEmLinha>
-          {vigente.motivoValor ? <CampoLeitura rotulo="Motivo do valor" valor={vigente.motivoValor} /> : null}
+          </View>
+          <View style={estilos.valor} accessibilityLabel={`Valor: ${centavosParaTela(vigente.valorCentavos)}${porPeriodo ? ` ${porPeriodo}` : ''}`}>
+            <Texto variante="destaque" numerico>{centavosParaTela(vigente.valorCentavos)}</Texto>
+            {porPeriodo ? <Texto variante="suave">{porPeriodo}</Texto> : null}
+          </View>
+          {vigente.motivoValor ? <Texto variante="pequeno">Motivo do valor: {vigente.motivoValor}</Texto> : null}
+          <Vigencia contratacao={vigente} />
+          <View style={estilos.detalhes}>
+            <Texto variante="pequeno">Vence todo dia {vigente.diaVencimento}</Texto>
+            {periodicidade && !repeteAPeriodicidade(vigente.planoNome, periodicidade) ? <Texto variante="pequeno">Periodicidade: {periodicidade}</Texto> : null}
+          </View>
           {/* O tempo mínimo só existe em contratação mensal: nas outras, a linha nem aparece. */}
-          {planoPodeTerMinimo(vigente.periodicidade) ? <Texto variante="suave">{textoDoMinimoAte(vigente.minimoAte)}</Texto> : null}
+          {planoPodeTerMinimo(vigente.periodicidade) ? <Texto variante="pequeno">{textoDoMinimoAte(vigente.minimoAte)}</Texto> : null}
           {emRenovacao ? (
             <LinhaDeAcoes>
               <Botao rotulo="Cobrar renovação pelo WhatsApp" tipo="secundario" Icone={iconeWhatsApp(!!linkDaRenovacao)} aoTocar={abrirWhatsApp}
                 desabilitado={!linkDaRenovacao} motivo={linkDaRenovacao ? undefined : MOTIVO_SEM_TELEFONE} />
             </LinhaDeAcoes>
           ) : null}
-          {podeAlterar ? (
-            <LinhaDeAcoes>
-              <Botao rotulo="Alterar" tipo="secundario" aoTocar={() => setFormulario('alterar')} desabilitado={vigente.situacao === 'ENCERRADA'} />
-              {vigente.situacao === 'ATIVA' ? <Botao rotulo="Pausar" tipo="secundario" aoTocar={() => setConfirmando('pausar')} /> : null}
-              {vigente.situacao === 'PAUSADA' ? <Botao rotulo="Retomar" tipo="secundario" carregando={mudando === 'retomar'} aoTocar={() => mudarSituacao('retomar', 'Contratação retomada.')} /> : null}
-              <Botao rotulo="Encerrar" tipo="perigoTexto" aoTocar={() => setConfirmando('encerrar')} />
-            </LinhaDeAcoes>
-          ) : null}
         </View>
       ) : null}
       {cobrancas.erro ? <MensagemErro texto={textoDoErro(cobrancas.erro)} erro={cobrancas.erro} tentarDeNovo={recarregarCobrancas} /> : null}
-      {ordenadas.length > 0 ? (
+      {ultimas.length > 0 || (cobrancas.dados && vigente) ? (
         <View style={estilos.bloco}>
-          <Texto variante="secao">Cobranças</Texto>
-          <Grade>
-            {visiveis.map((c) => {
-              const selo = seloDaCobranca(c);
-              const doTipo = seloDoTipoDaCobranca(c.tipo);
-              return (
-                <ItemDeLista key={c.id} titulo={referenciaDaCobranca(c)} detalhe={resumoDaCobranca(c)} numerico
-                  selo={{ texto: selo.rotulo, tipo: selo.tom, Icone: ICONE_DO_SELO[selo.tom] }} aoTocar={() => setCobrancaAberta(c)}
-                  rotulo={`Abrir ${doTipo ? rotuloDoTipoDaCobranca(c.tipo).toLowerCase() : 'cobrança'}${c.tipo === 'AVULSA' ? ':' : ' de'} ${referenciaDaCobranca(c)}, ${selo.rotulo}`}>
-                  {doTipo ? <View style={estilos.seloDoTipo}><Selo texto={doTipo.rotulo} tipo={doTipo.tom} /></View> : null}
-                </ItemDeLista>
-              );
-            })}
-          </Grade>
-          {ordenadas.length > COBRANCAS_VISIVEIS ? (
-            <LinhaDeAcoes>
-              <Botao rotulo={todas ? 'Ver menos' : `Ver todas (${ordenadas.length})`} tipo="fantasma" aoTocar={() => setTodas((v) => !v)} />
-            </LinhaDeAcoes>
-          ) : null}
+          <Texto variante="secao" nivel={3}>Cobranças</Texto>
+          {ultimas.length > 0 ? (
+            <ListaOuTabela rotulo="Últimas cobranças" linhas={ultimas} chave={(c) => c.id} aoTocar={setCobrancaAberta} larguraMinima={LARGURA_DA_TABELA}
+              vao={espaco(3)} rotuloDaLinha={rotuloDaCobranca}
+              item={(c) => {
+                const selo = seloDaCobranca(c);
+                const doTipo = seloDoTipoDaCobranca(c.tipo);
+                return {
+                  titulo: referenciaDaCobranca(c), detalhe: resumoDaCobranca(c), selo: { texto: selo.rotulo, tipo: selo.tom },
+                  extra: doTipo ? <View style={estilos.seloDoTipo}><Selo texto={doTipo.rotulo} tipo={doTipo.tom} /></View> : undefined,
+                };
+              }}
+              colunas={[
+                // A competência (MM/AAAA); a avulsa e a parcela de acordo, que não têm, dizem o que são.
+                { chave: 'competencia', titulo: 'Competência', flex: 1, minimo: 96, principal: true, render: (c) => <Texto numerico numberOfLines={2}>{referenciaDaCobranca(c)}</Texto> },
+                { chave: 'valor', titulo: 'Valor', flex: 1, minimo: 112, alinhar: 'direita', render: (c) => <Texto numerico>{centavosParaTela(c.valorCentavos)}</Texto> },
+                { chave: 'vencimento', titulo: 'Vencimento', flex: 1, minimo: 92, render: (c) => <Texto numerico numberOfLines={1}>{dataParaTela(c.vencimento)}</Texto> },
+                { chave: 'situacao', titulo: 'Situação', largura: 150, render: (c) => <SituacaoDaCobranca cobranca={c} /> },
+                { chave: 'abrir', titulo: 'Abrir', largura: 24, acao: true, render: () => <View aria-hidden><ChevronRight size={18} color={cores.textoSuave} /></View> },
+              ]} />
+          ) : <Texto variante="suave">Nenhuma cobrança gerada ainda.</Texto>}
           {/* As cobranças deste aluno na tela Financeiro, com os filtros de lá (`?alunoId=`). */}
-          <LinkTexto texto="Ver no Financeiro" href={`/treinador/financeiro?aba=cobrancas&alunoId=${encodeURIComponent(alunoId)}` as never} />
+          {ultimas.length > 0 ? <LinkTexto texto="Ver todas no Financeiro" href={`/treinador/financeiro?aba=cobrancas&alunoId=${encodeURIComponent(alunoId)}` as never} /> : null}
         </View>
-      ) : null}
-      {cobrancas.dados && cobrancas.dados.length === 0 && vigente ? (
-        <Texto variante="suave">{vigente.situacao === 'ATIVA' ? 'Nenhuma cobrança ainda. A mensalidade é gerada todo mês, paga ou não.' : 'Nenhuma cobrança.'}</Texto>
       ) : null}
       {/* Fora do `vigente`: o responsável vale também sem plano (a avulsa tem lembrete). */}
       <ResponsavelFinanceiro alunoId={alunoId} podeAlterar={podeAlterar} />
@@ -223,10 +207,47 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
   );
 }
 
+/** Abaixo disso (medido na própria tabela) as cobranças viram cartões: cabem Competência, Valor, Vencimento e Situação. */
+const LARGURA_DA_TABELA = 560;
+
+/**
+ * Vigência: os dias restantes acima da barra, à direita, e "Início" e "Término" nas pontas, embaixo. A barra é decorativa
+ * (`aria-hidden`); o leitor de tela ouve a frase equivalente. Âmbar com 15 dias ou menos e vermelha vencida, na barra e no
+ * texto; neutra no resto (`dominio/fichaDados.vigenciaDaContratacao`).
+ */
+function Vigencia({ contratacao }: { contratacao: ContratacaoResponse }) {
+  const { cores } = useTema();
+  const v = vigenciaDaContratacao(contratacao);
+  if (!v) return null;
+  const comTom = v.tom !== 'neutro';
+  const cor = comTom ? cores[v.tom] : cores.textoSuave;
+  return (
+    <View style={estilos.vigencia} accessibilityLabel={v.falado}>
+      <Texto variante="pequeno" cor={comTom ? cor : undefined} style={[estilos.restantes, comTom ? estilos.forte : null]}>{v.restantes}</Texto>
+      <View aria-hidden style={[estilos.trilho, { backgroundColor: cores.divisor }]}>
+        <View style={[estilos.cheio, { width: `${v.fracao * 100}%`, backgroundColor: cor }]} />
+      </View>
+      <View style={estilos.pontas}>
+        <Texto variante="pequeno" numerico>Início {v.inicio}</Texto>
+        <Texto variante="pequeno" numerico>Término {v.termino}</Texto>
+      </View>
+    </View>
+  );
+}
+
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1.5) },
-  linha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  cabecalhoDoPlano: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  nomeESelo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), flexShrink: 1, minWidth: 0 },
+  acoesDoPlano: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   encolher: { flexShrink: 1 },
-  selos: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.5) },
+  valor: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: espaco(1) },
+  vigencia: { gap: espaco(0.75) },
+  restantes: { alignSelf: 'flex-end' },
+  forte: { fontFamily: fontes.semi },
+  trilho: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  cheio: { height: '100%', borderRadius: 3 },
+  pontas: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: espaco(1) },
+  detalhes: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(0.5) },
   seloDoTipo: { flexDirection: 'row' },
 });

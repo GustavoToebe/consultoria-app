@@ -34,9 +34,9 @@ test('Resumo de quem não entra no app: "Abrir acesso ao app" leva ao bloco do a
   await expect(page).not.toHaveURL(/secao=/);
   const acesso = acessoDoAluno(page);
   await expect(acesso).toBeInViewport();
-  // O convite continua em destaque e a senha é a alternativa explícita; nada foi enviado.
+  // O convite continua em destaque e a senha é a alternativa, ao lado, no cabeçalho do cartão; nada foi enviado.
+  // ficha do aluno: dados (23/11): sem o "ou" entre os dois botões.
   await expect(acesso.getByRole('button', { name: 'Gerar convite' })).toBeVisible();
-  await expect(acesso.getByText('ou', { exact: true })).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Definir e-mail e senha' })).toBeVisible();
   expect(pedidos.filter((p) => p.metodo !== 'GET' && p.caminho !== '/auth/refresh')).toEqual([]);
   expect(errosDaPagina).toEqual([]);
@@ -79,7 +79,9 @@ test('aluno sem conta: define e-mail e senha gerada, mostra o e-mail em uso no c
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(page.getByText('Passe ao aluno o e-mail e esta senha. Ela não aparece de novo.')).toBeVisible();
   await expect(acesso.getByText(senha, { exact: true })).toBeVisible();
-  await expect(acesso.getByLabel(`Usuário no app: ${EMAIL_LOGIN}`)).toBeVisible();
+  // ficha do aluno: dados (23/11): o "Usuário no app" repetido saiu; o e-mail aparece uma vez, no destaque da senha.
+  await expect(acesso.getByText(EMAIL_LOGIN, { exact: true })).toBeVisible();
+  await expect(acesso.getByText('Usuário no app')).toHaveCount(0);
   await expect(acesso.getByText('Aguardando primeiro acesso', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Acesso ao app: Aguardando primeiro acesso')).toBeVisible();
   const envios = pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === `/alunos/${ALUNO_ID}/acesso`);
@@ -132,7 +134,7 @@ test('cartão de lesões vazio segue o formato dos outros cartões da ficha', as
   const cartaoDe = (nome: string) => page.getByRole('heading', { name: nome }).locator('xpath=ancestor::div[3]');
   const lesoes = cartaoDe('Histórico de lesões');
   const peso = cartaoDe('Anamnese');
-  await expect(lesoes.getByText('Lesões registradas na ficha do aluno.')).toBeVisible();
+  // ficha do aluno: dados (23/11): sem a descrição fixa; a contagem só existe com lesões.
   await expect(lesoes.getByText('Nenhuma lesão registrada.')).toBeVisible();
   await expect(lesoes.getByRole('button', { name: 'Registrar lesão' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Histórico de lesões, (recolhido|expandido)/ })).toHaveCount(0);
