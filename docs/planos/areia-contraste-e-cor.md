@@ -80,8 +80,28 @@ O treinador do piloto só usa tema claro e, na paleta Areia, não distingue cart
   - Cuidado com "um `primario` por área": a barra do editor já tem "Salvar modelo" como primário; "Adicionar" só vira primário no estado vazio, nunca ao lado do Salvar. Vermelho avulso não cabe (é a marca e `perigo`).
   - Não mexer no tipo `secundario` (usado no app inteiro): só a instância. Padrão de aba ou segmento é design system: lista de telas e capturas antes/depois como no passo 4.
   - Medir o contraste de cada controle escolhido na Areia nova e registrar aqui.
-- [ ] 10. C130: conferência renderizada em tela larga e, se o Gustavo decidir, mudar o teto — executor: executor-front (capturas) e Gustavo (decide) · tamanho: P a M · migration: não · APK: não · API: nenhuma · commit: —
+- [ ] 10. C130: conferência renderizada em tela larga e, se o Gustavo decidir, mudar o teto — executor: executor-front (capturas) e Gustavo (decide) · tamanho: P a M · migration: não · APK: não · API: nenhuma · commit: — · **23/11/2026: as capturas foram feitas (só leitura, sem mudar o teto); falta o Gustavo decidir o que mudar, ver "Conferência renderizada de 23/11/2026 (C130)" abaixo.**
   - Capturar Agenda e ficha do aluno em 1920, 2560 e 3440 px, em Claro e Areia, e olhar a largura das colunas internas da ficha. Se subir, `tokens.ts:564` e `:582` (o `:580` acompanha) e conferir todas as telas que usam `Tela` e `largura={LARGURA_LISTA}`; atualizar `docs/design-e-front.md` (capturas até 1920 px).
+
+## Conferência renderizada de 23/11/2026 (C130)
+Fonte: `executor-front`, só leitura, `main` em `b82990f9`; 7 telas do treinador (Alunos, Ficha no Resumo, Editor de treino, Editor de dieta, Financeiro na Visão geral e nas Cobranças, Agenda) em 768, 1024, 1280, 1440, 1920 e 2560 px, tema padrão (Claro da marca), menu aberto, dados fictícios, 1000 px de altura sem rolar. As 44 imagens ficaram fora do repositório (pasta temporária da sessão, podem sumir): refazer se o Gustavo quiser vê-las. Validade: vale enquanto `LARGURA_MAXIMA`, `larguraMaximaDoConteudo` e as constantes de largura de `tokens.ts` não mudarem. Não houve rolagem horizontal nem erro de página em nenhuma.
+
+**Achado que muda a D10:** o teto de 1800 px **não age no padrão**. Desde 19/11 a "Largura do conteúdo" padrão é Automática (`dominio/preferencias.ts:112`) e `larguraMaximaDoConteudo` (`dominio/larguraDoConteudo.ts:12-13`) deixa sem teto qualquer tela declarada em 1800 ou mais; o 1800 só vale na preferência Limitada e onde está escrito direto no código (Visão geral). As linhas que a D10 cita (`tokens.ts:564,580,582`) hoje são 803, 821 e 823. Baixar só o `LARGURA_MAXIMA` não corrige as tabelas no padrão.
+
+| Tela | 768 | 1024 | 1280 | 1440 | 1920 | 2560 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Alunos | ✅ cartões | ⚠ colunas apertadas, "Último re…" e "Respons…" cortados | ✅ | ✅ | ⚠ leve, colunas espalhadas | ⚠ colunas de ~470 px; o lápis a ~2100 px do nome |
+| Ficha (Resumo) | ✅ | ✅ | ✅ | ✅ | ⚠ leve, Atividade recente com 1590 px | ⚠ cartões de 1100 a 2270 px com conteúdo de ~400 px, sem 3ª coluna |
+| Editor de treino | ✅ | ✅ | ✅ (lista estreita corta "Descanso 120…") | ✅ | ✅ | ⚠ inspetor para em ~2030 e os cartões vão a ~2528 |
+| Editor de dieta | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠ painel para em ~2070 e os cartões vão a ~2528 |
+| Financeiro, Visão geral | ✅ | ✅ | ✅ 3 + 3 | ✅ | ✅ 6 numa linha | ⚠ indicadores a ~2528, Inadimplência e gráficos a ~2055 |
+| Financeiro, Cobranças | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠ ~270 px entre colunas, Totais quase vazios |
+| Agenda | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+Causas prováveis: (1) listas e tabelas sem largura máxima no padrão, as colunas crescem por proporção (`app/treinador/alunos/index.tsx:54-60,145`, `ui/LinhaDaLista.tsx:353`, `treinador/financeiro/AbaCobrancas.tsx:74,137`); (2) em 2560 com o menu aberto a área útil é ~2290 px, abaixo de `LARGURA_FAIXA_ULTRALARGA` 2400 (`tokens.ts:839`), então nenhuma tela ganha a 3ª coluna (`treinador/ResumoDoAluno.tsx:63`, `treinador/plano/ColunasDoEditor.tsx:18`); (3) na Visão geral o 1800 está fixo mesmo na Automática (`treinador/financeiro/VisaoGeral.tsx:112,150,288,375`) e a grade de indicadores de `:104` não tem limite, por isso as bordas desalinham; (4) inspetor do treino e da dieta param em `LARGURA_EDITOR_DE_CAMPOS` 1400 enquanto os cartões de cima não têm limite (`treinador/treino/InspetorDoExercicio.tsx:32`, `treinador/dieta/EditorDeDieta.tsx:435`; o vazio à direita está documentado como esperado em `docs/design-e-front.md` 4.10); (5) o campo Nome da refeição ocupa ~930 px por causa de `LARGURA_EDITOR` 1040 (`CartaoRefeicao.tsx:687`); (6) Alunos em 1024 cai logo acima do ponto em que a lista troca colunas por cartões.
+
+**O que tocaria o teto (decide o Gustavo):** mudar `LARGURA_MAXIMA`; tornar Limitada o padrão; dar a Alunos, Cobranças e Ficha um teto próprio menor que 1800; escolher como alinhar a Visão geral (tirar o 1800 de `VisaoGeral.tsx` ou aplicá-lo também à grade e ao "Exportar CSV"). **O que não toca o teto:** largura máxima por conteúdo nas colunas de Alunos e Cobranças; Alunos virar cartões um pouco mais cedo (resolve o 1024); abrir a 3ª coluna do Resumo já na faixa "larga"; mudar o limiar de 2400 é design system (afeta Início, Ajuda e os editores).
+Limitações: não capturei a preferência Limitada, nem 3440 px (`e2e/tela-larga.spec.ts` cobre 3440 nos dois modos), nem outro tema, nem o menu recolhido, nem a ficha fora do Resumo; só a parte de cima de cada tela.
 
 ## Critérios de aceite
 - Na Areia, `superficie` e `campo` são `#FFFFFF`; `superficie2`, `faixaForte` e a página seguem o valor aprovado, e os testes de contraste do passo 3 passam sem afrouxar piso. As outras paletas estão idênticas.
