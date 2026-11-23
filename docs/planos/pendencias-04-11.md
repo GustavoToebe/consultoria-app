@@ -1,6 +1,6 @@
 # Pendências de 04/11
 
-Situação: Em andamento · Onde: branches `pendencias-04-11-a`, `pendencias-04-11-b` e `pendencias-04-11-c` · Atualizado: 04/11/2026
+Situação: Concluída, menos a conferência local · Onde: `main` (lotes A e C mesclados; B descartado em 23/11) · Atualizado: 23/11/2026
 
 ## Objetivo
 Fechar a limpeza e os prazos de 14/11, os defeitos pequenos do app e os dois e2e que falham com a máquina carregada. Um PR por lote, saindo da `main`.
@@ -14,8 +14,8 @@ Fechar a limpeza e os prazos de 14/11, os defeitos pequenos do app e os dois e2e
 
 ## Passos
 - [x] A. Guia do treinador, Trivy/Dependabot, `AGENTS.md`, decisões confirmadas e branches mescladas — commit: 42a9f92e
-- [ ] B. Publicar tudo, `BotaoMarcar`, etapas, inscrição, agenda e cupom no PDF — commit: —
-- [ ] C. e2e intermitentes (`links-do-menu` e `agenda-calendario`) — commit: —
+- [x] B. Publicar tudo, `BotaoMarcar`, etapas, inscrição, agenda e cupom no PDF — branch `pendencias-04-11-b` (PR #86, fechado) descartada em 23/11, sem merge. Publicar tudo/etapas (`baseDaProximaAcao`), cupom no PDF, foco do erro na inscrição e `erro`/`ref` no `Escolha` já estão na `main` por outros commits. Superados, não aplicar: ✓ feito em verde no `BotaoMarcar` (a `main` usa o feito neutro, `superficie3` + `textoSuave`, pela cor como sinal) e fundo tingido na lista da Agenda no celular (a grade da `main` não pinta mais o fundo). Se quiser algum dos dois, vira pedido novo depois do piloto
+- [x] C. e2e intermitentes (`links-do-menu` e `agenda-calendario`) — PR #87 mesclado
 - [ ] Conferência local (importação da planilha completa e Cluster/Rest-pause). Sem PR. Se houver defeito, lote D — commit: —
 
 ## Branches apagadas em 04/11

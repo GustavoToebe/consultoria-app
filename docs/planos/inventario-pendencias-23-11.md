@@ -8,6 +8,21 @@
 
 ---
 
+## Atualização de 23/11 (outro PC, depois do push)
+
+Fonte: `git`/`gh` só leitura na `main` em `193e96bd` mais a inspeção do PC antigo. Vale até a próxima mudança nas branches remotas.
+
+- **Bloco 0:** `"temaPdf"` no teste (`193e96bd`). Testes restantes da API (inscricoes, tenant, termos, treino, unidadecarga, vitrine, web, whatsapp) 328/328. `npm test` 385 suítes, 9.212 testes. Push da `main` feito (`3b600afb..193e96bd`) e este inventário trazido por cherry-pick. **Falta:** e2e `comunidade.spec.ts`, APK preview, apagar `origin/handoff-23-11`.
+- **Itens "abertos" que eram só branch já entregue (fechar no plano de cada um quando for mexer nele):** agenda-calendario (#16), atualizacao-visual-app-full (#18), clareza-do-treinador (#17), historico-ajustes-g (#51), cupom-suplemento (#52), ver-como-aluno (#53), interessados-busca-vazia (#73), foco-da-folha-nativo (#75, falta só o aparelho), auditorias (#54, #55, #63, #64, #67, #68, #70), paginas-publicas (#95), miudos-sem-api (entrou no #96 `lote-04-11-b`), copiar-periodo-na-pasta (#92 fechado, conteúdo na `main`), agua-do-aluno (V046 na `main`). Prováveis, sem conferir a ponta: `evo-*` (via #13) e `wt-editores-revisao-2`.
+- **infra-04-11:** mesclada na Central (#35) e no Servirea (#17). No consultoria-app nunca houve branch.
+- **grupos-do-menu:** o código está na `main`. Faltam só PDFs, Ajuda e docs.
+- **Descartadas sem merge:** `pendencias-04-11-b` (detalhe em [pendencias-04-11.md](pendencias-04-11.md)) e `foto-no-circulo` (#90 fechado, a `main` tem outra implementação).
+- **Branches remotas já na `main` (podem ser apagadas):** biblioteca-unificada, dietas-padrao, modelos-padrao, correcoes-lote-04-11-b, escolha-receita, pendencias-04-11-a/c, editor-treino-alinhamento, editor-treino-inspetor, inscricao-saraiva, libras-fase-2, migracao-assistida-fase-2, lote-04-11, lote-04-11-b, pos-lote-04-11, miudos-com-api, paginas-publicas, top-set-restaurado. Sem PR ou com PR fechado (criar tag `arquivo/<nome>` antes de apagar): paletas-previa, copiar-periodo-na-pasta, montador-de-telas, grupos-do-menu, nome-overtraining, cores-por-tipo-previa, foto-no-circulo.
+- **PC antigo:** nenhum commit fora dos remotos além de `f638a1f7` (`noite-n2`, já integrado em `0b1064d6`). A `main` de lá (`aa0861aa`) diverge da `origin/main`: rodar `git fetch` e depois `git reset --hard origin/main`. O arquivo não rastreado `docs/teste-infinitepay-16-11-2026.md` continua só lá.
+- Os planos individuais acima **não** foram atualizados, exceto `pendencias-04-11.md`.
+
+---
+
 ## Bloco 0 — Bloqueio imediato para subir `main`
 
 1. **Corrigir `InscricoesIntegrationTest.java:163`:** o método `paginaPublicaMostraAMarcaEOTextoEFechadoOuDesconhecidoDa404` espera exatamente `["id", "nome", "corPrimaria", "fonteTitulo", "temaPadrao", "logoUrl"]` na `marca` pública, mas `MarcaPublica` passou a expor `"temaPdf"` (`V096`). Adicionar `"temaPdf"` na asserção.
