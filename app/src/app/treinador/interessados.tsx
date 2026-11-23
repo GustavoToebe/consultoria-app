@@ -33,7 +33,7 @@ import { Indicadores } from '../../treinador/interessados/Indicadores';
 import { QuadroKanban, type FiltrosDoQuadro } from '../../treinador/interessados/QuadroKanban';
 import { EscolhaResponsabilidade } from '../../treinador/EscolhaResponsabilidade';
 import { FiltroDoEndereco } from '../../treinador/FiltroDoEndereco';
-import { PeriodoDoFiltro } from '../../treinador/interessados/PeriodoDoFiltro';
+import { CamposDePeriodo } from '../../treinador/SeletoresDeFiltro';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Abas } from '../../ui/Abas';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
@@ -266,8 +266,8 @@ function SeletoresDeInteressados({ visiveis, filtros, aoMudar, opcoesDeSituacao,
         </GrupoDoPainel>
       ) : null}
       <GrupoDoPainel titulo="Datas">
-        <PeriodoDoFiltro rotulo="Entrada" valor={filtros.entrada} aoMudar={(entrada) => aoMudar({ ...filtros, entrada })} />
-        <PeriodoDoFiltro rotulo="Última atividade" valor={filtros.atividade} aoMudar={(atividade) => aoMudar({ ...filtros, atividade })} />
+        <CamposDePeriodo rotulo="Entrada" regra="PLANEJAMENTO" valor={filtros.entrada} aoMudar={(entrada) => aoMudar({ ...filtros, entrada })} />
+        <CamposDePeriodo rotulo="Última atividade" regra="PLANEJAMENTO" valor={filtros.atividade} aoMudar={(atividade) => aoMudar({ ...filtros, atividade })} />
       </GrupoDoPainel>
     </>
   );

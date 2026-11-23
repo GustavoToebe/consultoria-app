@@ -12,6 +12,7 @@ import { espaco, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
+import { ParDeDatas } from '../ui/CamposEmLinha';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
 import { Esqueleto } from '../ui/Esqueleto';
@@ -148,14 +149,10 @@ function FolhaLesao({ alunoId, lesao, aoFechar, aoSalvar }: { alunoId: string; l
       <Campo rotulo="Região do corpo" valor={regiao} aoMudar={setRegiao} maxLength={80} placeholder="Ex.: Ombro direito" />
       <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} maxLength={500} multiline />
       <Escolha rotulo="Situação" opcoes={SITUACOES} valor={situacao} aoMudar={setSituacao} />
-      <View style={estilos.datas}>
-        <View style={estilos.data}>
-          <CampoData rotulo="Início (opcional)" nome="Início da lesão" regra="REGISTRO" valor={inicio} aoMudar={setInicio} />
-        </View>
-        <View style={estilos.data}>
-          <CampoData rotulo="Fim (opcional)" nome="Fim da lesão" regra="REGISTRO" valor={fim} aoMudar={setFim} />
-        </View>
-      </View>
+      <ParDeDatas>
+        <CampoData rotulo="Início (opcional)" nome="Início da lesão" regra="REGISTRO" valor={inicio} aoMudar={setInicio} />
+        <CampoData rotulo="Fim (opcional)" nome="Fim da lesão" regra="REGISTRO" valor={fim} aoMudar={setFim} />
+      </ParDeDatas>
       <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={500} multiline />
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>
@@ -167,6 +164,4 @@ const estilos = StyleSheet.create({
   dados: { flexShrink: 1, gap: espaco(0.5) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   acoes: { flexDirection: 'row' },
-  datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
-  data: { flex: 1, minWidth: 190 },
 });

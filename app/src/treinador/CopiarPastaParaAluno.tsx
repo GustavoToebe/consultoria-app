@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { copiarPastaParaAluno } from '../api/rotas';
@@ -7,10 +6,10 @@ import type { PastaResumo, PlanoPuladoNaCopia } from '../api/tipos';
 import { dataDaTela } from '../dominio/formatos';
 import { AVISO_DA_COPIA_DA_PASTA, motivoParaNaoCopiar, textoDoErroDaCopia, type PlanosDaPasta } from '../dominio/publicarPasta';
 import { useSessao } from '../sessao/SessaoProvider';
-import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
+import { ParDeDatas } from '../ui/CamposEmLinha';
 import { Alerta, MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
@@ -86,20 +85,11 @@ export function CopiarPastaParaAluno({ pasta, planos, carregandoPlanos, aoFechar
       {semPermissao ? <Alerta tom="perigo" titulo="Não dá para copiar esta pasta" texto={semPermissao} /> : null}
       <EscolhaDeAlunoEPasta escolha={escolha} />
       <Campo rotulo="Título da nova pasta" valor={titulo} aoMudar={setTitulo} maxLength={120} />
-      <View style={estilos.datas}>
-        <View style={estilos.data}>
-          <CampoData rotulo="Início (opcional)" valor={inicio} aoMudar={setInicio} />
-        </View>
-        <View style={estilos.data}>
-          <CampoData rotulo="Fim (opcional)" valor={fim} aoMudar={setFim} erro={fimAntes ? 'O fim vem antes do início.' : null} />
-        </View>
-      </View>
+      <ParDeDatas>
+        <CampoData rotulo="Início (opcional)" valor={inicio} aoMudar={setInicio} />
+        <CampoData rotulo="Fim (opcional)" valor={fim} aoMudar={setFim} erro={fimAntes ? 'O fim vem antes do início.' : null} />
+      </ParDeDatas>
       {erro ? <MensagemErro texto={erro} /> : null}
     </Folha>
   );
 }
-
-const estilos = StyleSheet.create({
-  datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
-  data: { flex: 1, minWidth: 190 },
-});

@@ -33,6 +33,7 @@ import { BarraDeFiltros, GrupoDoPainel } from '../ui/BarraDeFiltros';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData, CampoNumerico } from '../ui/Campos';
+import { ParDeDatas } from '../ui/CamposEmLinha';
 import { CampoLeitura } from '../ui/CampoLeitura';
 import { CartaoCicloNoPeriodo } from './ciclo/CicloNaFicha';
 import { Cartao } from '../ui/Cartao';
@@ -499,14 +500,10 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, pastas, aoFechar, aoSalvar
         </>
       ) : null}
       <Campo rotulo="Título" valor={titulo} aoMudar={setTitulo} maxLength={120} placeholder="Ex.: Plano 17" />
-      <View style={estilos.datas}>
-        <View style={estilos.data}>
-          <CampoData rotulo="Início" nome="Início da pasta" regra="PLANEJAMENTO" valor={inicio} aoMudar={mudarInicio} />
-        </View>
-        <View style={estilos.data}>
-          <CampoData rotulo="Fim" nome="Fim da pasta" regra="PLANEJAMENTO" valor={fim} aoMudar={mudarFim} erro={fimAntes ? 'O fim vem antes do início.' : null} />
-        </View>
-      </View>
+      <ParDeDatas>
+        <CampoData rotulo="Início" nome="Início da pasta" regra="PLANEJAMENTO" valor={inicio} aoMudar={mudarInicio} />
+        <CampoData rotulo="Fim" nome="Fim da pasta" regra="PLANEJAMENTO" valor={fim} aoMudar={mudarFim} erro={fimAntes ? 'O fim vem antes do início.' : null} />
+      </ParDeDatas>
       {dias ? <Texto variante="suave" numerico>Período: {inicio} a {fim} · {dias === 1 ? '1 dia' : `${dias} dias`}</Texto> : null}
       {fimManual && duracao ? (
         <View style={estilos.fimManual}>
@@ -647,9 +644,7 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
 }
 
 const estilos = StyleSheet.create({
-  datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
   fimManual: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
-  data: { flex: 1, minWidth: 190 },
   resumo: { gap: espaco(0.75) },
   // O mesmo espaço do conteúdo da `Folha` (`gap` de 1,5): embrulhar o corpo não muda a pasta.
   corpoDaPasta: { gap: espaco(1.5) },

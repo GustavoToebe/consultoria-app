@@ -19,6 +19,7 @@ import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
+import { ParDeDatas } from '../ui/CamposEmLinha';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
 import { EscolhaEmFolha } from '../ui/EscolhaEmFolha';
@@ -362,14 +363,10 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar, aoCriar }: {
       </Texto>
       <Campo rotulo="Título" valor={titulo} aoMudar={setTitulo} maxLength={120} />
       {naPasta ? null : (
-        <View style={estilos.datas}>
-          <View style={estilos.data}>
-            <CampoData rotulo="Início" nome="Início do plano" regra="PLANEJAMENTO" valor={inicio} aoMudar={setInicio} />
-          </View>
-          <View style={estilos.data}>
-            <CampoData rotulo="Fim" nome="Fim do plano" regra="PLANEJAMENTO" valor={fim} aoMudar={setFim} />
-          </View>
-        </View>
+        <ParDeDatas>
+          <CampoData rotulo="Início" nome="Início do plano" regra="PLANEJAMENTO" valor={inicio} aoMudar={setInicio} />
+          <CampoData rotulo="Fim" nome="Fim do plano" regra="PLANEJAMENTO" valor={fim} aoMudar={setFim} />
+        </ParDeDatas>
       )}
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>
@@ -389,6 +386,4 @@ const estilos = StyleSheet.create({
   },
   dadosPlano: { gap: espaco(0.5), flexShrink: 1, minWidth: 200 },
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap', flexShrink: 1, maxWidth: '100%' },
-  datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
-  data: { flex: 1, minWidth: 190 },
 });

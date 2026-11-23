@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { espaco } from '../../tema/tokens';
 import { Campo } from '../../ui/Campo';
 import { CampoData } from '../../ui/Campos';
+import { ParDeDatas } from '../../ui/CamposEmLinha';
 import { Cartao } from '../../ui/Cartao';
 import { Texto } from '../../ui/Texto';
 import type { usePlanoEditor } from './usePlanoEditor';
@@ -52,14 +53,10 @@ export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido = true, descr
             Período: {e.inicio || e.fim ? `${e.inicio || '—'} a ${e.fim || '—'}` : '—'}. Vem da pasta; para mudar, edite a pasta na ficha do aluno.
           </Texto>
         ) : (
-          <View style={estilos.datas}>
-            <View style={estilos.data}>
-              <CampoData rotulo="Início" nome="Início do plano" regra="PLANEJAMENTO" valor={e.inicio} aoMudar={(inicio) => editor.alterar(() => ({ inicio }))} />
-            </View>
-            <View style={estilos.data}>
-              <CampoData rotulo="Fim" nome="Fim do plano" regra="PLANEJAMENTO" valor={e.fim} aoMudar={(fim) => editor.alterar(() => ({ fim }))} />
-            </View>
-          </View>
+          <ParDeDatas>
+            <CampoData rotulo="Início" nome="Início do plano" regra="PLANEJAMENTO" valor={e.inicio} aoMudar={(inicio) => editor.alterar(() => ({ inicio }))} />
+            <CampoData rotulo="Fim" nome="Fim do plano" regra="PLANEJAMENTO" valor={e.fim} aoMudar={(fim) => editor.alterar(() => ({ fim }))} />
+          </ParDeDatas>
         )}
         {children}
       </View>
@@ -70,6 +67,4 @@ export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido = true, descr
 const estilos = StyleSheet.create({
   medida: { width: '100%', gap: espaco(2) },
   resumo: { flexShrink: 1 },
-  datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
-  data: { flex: 1, minWidth: 190 },
 });

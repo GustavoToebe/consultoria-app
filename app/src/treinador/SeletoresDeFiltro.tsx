@@ -8,6 +8,7 @@ import { errosDoPeriodoDigitado } from '../dominio/painelDeFiltros';
 import { espaco } from '../tema/tokens';
 import { useProblemaNoPainel } from '../ui/BarraDeFiltros';
 import { CampoData } from '../ui/Campos';
+import { ParDeDatas } from '../ui/CamposEmLinha';
 import { Escolha } from '../ui/Escolha';
 import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../ui/EscolhaEmFolha';
 import { Texto } from '../ui/Texto';
@@ -38,8 +39,7 @@ interface RegrasDoCampo {
 }
 
 /**
- * O par De/Até digitado de um filtro, para as peças de período (`CamposDePeriodo`, o período do financeiro e o dos
- * Interessados). O texto fica aqui; o período só vai para quem usa quando os dois campos fazem sentido (vazio ou data
+ * O par De/Até digitado de um filtro, para as peças de período (`CamposDePeriodo` e o período do financeiro). O texto fica aqui; o período só vai para quem usa quando os dois campos fazem sentido (vazio ou data
  * válida, fim depois do início; com `osDois`, as duas datas ou nenhuma; até `maximoDias`), então uma data pela metade não
  * apaga o filtro em vigor. Quando o período muda por fora (✕ do chip, "Limpar filtros"), os campos acompanham.
  *
@@ -76,7 +76,11 @@ export function usePeriodoDoFiltro({ rotulo, valor, aoMudar, osDois = false, max
   };
 }
 
-/** Período De/Até de um filtro, De e Até empilhados quando não cabem lado a lado (`usePeriodoDoFiltro`). */
+/**
+ * Período de um filtro (P2 de `docs/design-e-front.md` 4.6): um rótulo de grupo à vista ("Entrada") e as duas datas no
+ * `ParDeDatas` de filtro, cada uma com o nome inteiro só para o leitor de tela ("Entrada: data inicial"), sem um segundo
+ * nível de rótulo à vista. Texto, sincronização e erros são os de `usePeriodoDoFiltro`; aqui só o desenho.
+ */
 export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois, maximoDias, regra }: RegrasDoCampo & {
   rotulo?: string; valor: Periodo; aoMudar: (p: Periodo) => void;
 }) {
@@ -84,15 +88,11 @@ export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois, m
   return (
     <View style={estilos.periodo} role="group" aria-label={rotulo}>
       <Texto variante="rotulo">{rotulo}</Texto>
-      <View style={estilos.datas}>
-        <View style={estilos.data}>
-          <CampoData rotulo="De" nome={`${rotulo}, data inicial`} regra={regra} valor={p.texto.de} aoMudar={(t) => p.mudar('de', t)} erro={p.erroDe} />
-        </View>
-        <View style={estilos.data}>
-          {/* Data impossível o próprio campo avisa ("Data inválida."). */}
-          <CampoData rotulo="Até" nome={`${rotulo}, data final`} regra={regra} valor={p.texto.ate} aoMudar={(t) => p.mudar('ate', t)} erro={p.erroAte} />
-        </View>
-      </View>
+      <ParDeDatas variante="filtro">
+        <CampoData rotulo={`${rotulo}: data inicial`} rotuloOculto nome={`${rotulo}, data inicial`} regra={regra} valor={p.texto.de} aoMudar={(t) => p.mudar('de', t)} erro={p.erroDe} />
+        {/* Data impossível ou fora da faixa o próprio campo avisa ("Entrada, data final: use uma data entre…"). */}
+        <CampoData rotulo={`${rotulo}: data final`} rotuloOculto nome={`${rotulo}, data final`} regra={regra} valor={p.texto.ate} aoMudar={(t) => p.mudar('ate', t)} erro={p.erroAte} />
+      </ParDeDatas>
       {p.aviso ? <Texto variante="pequeno">{p.aviso}</Texto> : null}
     </View>
   );
@@ -100,6 +100,4 @@ export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois, m
 
 const estilos = StyleSheet.create({
   periodo: { gap: espaco(1) },
-  datas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
-  data: { flexGrow: 1, flexShrink: 1, flexBasis: 150, minWidth: 0 },
 });

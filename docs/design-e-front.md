@@ -414,7 +414,7 @@ hierarquia e comportamento em qualquer tela.** O que muda de uma tela para outra
 | --- | --- |
 | **Peça existe** | A peça compartilhada existe e foi **lida no código** em 10/11/2026 (não foi conferida na tela). |
 | **Proposto** | A regra ainda não existe em código: é decisão a aprovar e implementar. |
-| **Verificado** | Conferido na tela renderizada em 390 e 1280 px, nos 4 temas, com o e2e ou a conferência citada em `docs/planos/composicao-visual.md` (sem capturas salvas: decisão do Gustavo, 10/11). **Nenhum padrão está verificado na peça compartilhada**; P2 e P3 têm partes "Verificado só em" uma tela, com a tela, as larguras e os temas citados. |
+| **Verificado** | Conferido na tela renderizada em 390 e 1280 px, nos 4 temas, com o e2e ou a conferência citada em `docs/planos/composicao-visual.md` (sem capturas salvas: decisão do Gustavo, 10/11). Na peça compartilhada só o intervalo de datas do P2 está verificado (23/11, com o escopo citado nele); P2 e P3 têm outras partes "Verificado só em" uma tela, com a tela, as larguras e os temas citados. |
 
 Cada padrão só sobe de "Proposto" para "Verificado" depois da captura; quem implementar atualiza esta tabela e o plano.
 A seção "Observado no código" de cada padrão são **hipóteses de causa** achadas na leitura, a confirmar na tela.
@@ -445,9 +445,14 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
 - **Quando usar:** formulário de cadastro ou edição (`Campo`, `CamposEmLinha`); filtro de lista (`BarraDeFiltros`).
 - **Estrutura do formulário:** rótulo em cima, campo, ajuda ou erro embaixo (`Campo`); campos relacionados na mesma
   linha por `CamposEmLinha` e **sempre com o mesmo número de colunas** num mesmo formulário. O erro fica junto do campo.
-- **Estrutura do intervalo de datas (Proposto):** dois `CampoData`, "Data inicial" e "Data final", lado a lado no
-  PC e empilhados no celular, na mesma `CamposEmLinha`, com a faixa de `dominio/datasValidas`. Um único rótulo de grupo
-  ("Período") só se os dois rótulos individuais ficarem ocultos para o olho e continuarem para o leitor de tela.
+- **Estrutura do intervalo de datas (`ui/CamposEmLinha.ParDeDatas`, 23/11):** dois `CampoData` (início e fim) no
+  `ParDeDatas`, que é uma `CamposEmLinha` com a largura mínima da variante: mesma largura e mesmo topo, o erro de um
+  fica embaixo dele sem desalinhar o outro, e a faixa vem de `dominio/datasValidas`. Duas variantes nomeadas:
+  **`formulario`** (padrão; 190 px por data): lado a lado na folha do PC, empilhados no celular (rótulos à vista
+  "Início"/"Fim", com "(opcional)" quando é); **`filtro`** (150 px por data, `treinador/SeletoresDeFiltro.CamposDePeriodo`):
+  lado a lado também no celular, um rótulo de grupo à vista ("Entrada") e os rótulos individuais ocultos para o olho e
+  lidos pelo leitor de tela ("Entrada: data inicial", "Entrada: data final"). Nos dois, empilham só quando a largura não
+  dá duas datas (texto grande, cartão estreito).
 - **Estrutura da barra de filtros:** busca · "Filtros" com contagem · etiquetas "Filtrando" (✕ por filtro) · "Limpar
   filtros". Os seletores só existem no painel lateral abaixo, no PC e no celular: não há cartão "Filtros avançados" na
   página nem folha "Filtros" com efeito na hora.
@@ -508,7 +513,7 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   - **Divergência com o guia de 11/11 (pág. 7):** o guia pedia os atalhos com contagem Todos / Para revisar / Atrasados
     na lista de Alunos; eles viraram as opções "Para revisar" e "Atrasada" do filtro Atualização, no painel (um modo só
     de filtrar; a contagem por atalho saiu junto). Decisão do plano `filtros-laterais.md`, passo 4.
-- **Peça:** `Campo`, `CamposEmLinha`, `CampoData`, `CampoSenha`, `BarraDeFiltros`, `SelecaoMultiplaSuspensa`, `EscolhaEmFolha`.
+- **Peça:** `Campo`, `CamposEmLinha`, `ParDeDatas`, `CampoData`, `CampoSenha`, `BarraDeFiltros`, `SelecaoMultiplaSuspensa`, `EscolhaEmFolha`.
 - **Senha:** `CampoSenha` tem o olho como botão de alternar (WAI-ARIA APG): o nome fixo "Mostrar senha" e o estado em
   `aria-pressed` na web e em `checked` no celular, nunca o nome que troca junto com o estado (10/11, `e2e/entrada-por-publico.spec.ts`).
 - **Responsivo:** a partir de `LARGURA_TABELA` os campos relacionados ficam em linha; abaixo disso, uma coluna.
@@ -516,12 +521,21 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   um deles); intervalo de datas: os dois campos têm o mesmo tamanho; a linha de filtros não deixa buraco quando um
   seletor some por permissão.
 - **Status:** `Campo`, `CamposEmLinha`, `CampoData` e `BarraDeFiltros` = **Peça existe**. Intervalo de datas como par
-  padrão e o alinhamento por base com erro em só um campo = **Proposto** na peça compartilhada.
-  **Verificado só nos Interessados** (passo 4c, 10/11; peça local `treinador/interessados/PeriodoDoFiltro`, ainda não
-  promovida): painel de filtros do Kanban e da Lista em 390 e 1280 px nos 4 temas e em 768 e 1920 px no claro e no
-  escuro, com De e Até lado a lado de mesmo topo, altura e largura (também com "Fim antes do início." no Até), nomes
-  "Entrada: data inicial" etc., data inteira sem corte, calendário dentro da janela, Responsável e Origem numa linha e
-  os períodos embaixo nas mesmas colunas, sem sobreposição: `app/e2e/interessados-composicao.spec.ts`.
+  padrão e o alinhamento com erro em só um campo = **Verificado na peça compartilhada** (`ParDeDatas` e
+  `CamposDePeriodo`, passos 5 e 6, 23/11; Chromium, só web, API simulada, sem capturas), por posição e tamanho
+  (as duas caixas com o mesmo tamanho e pelo menos 44 px; lado a lado com o mesmo topo ou empilhadas com a mesma borda
+  conforme a variante; "31/12/2026" sem corte; erro num campo só sem desalinhar; ação do rodapé à vista e sem nada por
+  cima; página sem rolagem lateral), em 390 e 1280 px nos temas Claro, Escuro, Areia e Claro com contraste alto:
+  variante `filtro` na Auditoria (`app/e2e/composicao-visual-pares-de-data.spec.ts`) e nos Interessados, Kanban e Lista,
+  também em 768 e 1920 px no claro e no escuro, com o calendário dentro da janela (`app/e2e/interessados-composicao.spec.ts`,
+  agora sobre a peça compartilhada); variante `formulario` nas folhas Copiar pasta para outro aluno, Copiar para outro
+  aluno (plano), Aplicar modelo ao aluno e Registrar outra data do ciclo (aluna) (`composicao-visual-pares-de-data.spec.ts`).
+  **Só estrutura migrada, posição não conferida por e2e:** Atualizações e Importação (filtro) e Nova pasta e Lesão
+  (formulário), com os e2e funcionais delas verdes (`filtros-laterais-fase-b`/`-c`, `filtros-nas-listas`,
+  `pasta-periodo`, `datas-validas`); Replicar/Duplicar plano e as datas da Configuração do plano não têm e2e que as
+  abra (só typecheck e jest). **Não
+  conferido:** app nativo (Android e iOS), leitor de tela, texto grande e o par do financeiro (`FiltrosEmGrade`, que
+  ainda tem rótulo de grupo mais "De"/"Até").
   Painel lateral = **Verificado em** (Chromium, só web, API simulada; capturas fora do repositório):
   Financeiro › Cobranças e Biblioteca › Exercícios/Alimentos (12/11): 390, 1024, 1280, 1440 e 1920 px no escuro (topo,
   fim, calendário perto do rodapé), menu recolhido, e em 390 e 1280 px nos temas Claro, Areia, Lavanda, Céu, Rosa,
@@ -534,9 +548,11 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   1280 e 1920 px no claro. **Não conferido:** os temas Areia e alto contraste fora das telas da fase 1, o leitor de
   tela e o app nativo (Android e iOS).
 - **Observado no código (antes do painel lateral; no painel os campos ficam numa coluna):** a `BarraDeFiltros`
-  posicionava seletores em grade com `columnGap` e `rowGap`, mas não define nada para o par de datas. O par compartilhado já existe, `treinador/SeletoresDeFiltro.CamposDePeriodo` (Atualizações,
-  Auditoria, Importação, Cobranças, Lançamentos), e é ele que empilha De e Até até em 1280 px: rótulo de grupo mais o
-  rótulo "De"/"Até" de cada campo (dois níveis) e base de 280 px por célula. Confirmado na tela dos Interessados em 10/11.
+  posicionava seletores em grade com `columnGap` e `rowGap`, mas não define nada para o par de datas. Em 10/11 o par
+  `treinador/SeletoresDeFiltro.CamposDePeriodo` empilhava De e Até até em 1280 px (base de 280 px por célula) e tinha
+  dois níveis de rótulo (grupo mais "De"/"Até"); em 23/11 a base já era 150 px e sobravam os dois níveis e uma linha
+  própria fora da `CamposEmLinha`. Corrigido no passo 6: Atualizações, Auditoria, Importação e Interessados usam o
+  `CamposDePeriodo` sobre o `ParDeDatas`; Cobranças e Lançamentos seguem no `financeiro/FiltrosEmGrade` (fora do recorte).
   A caixa do `SelecaoMultiplaSuspensa` (rótulo dentro, 52 px) e a do `Campo`/`CampoData` (rótulo em cima, 44 px) têm
   alturas e idiomas de rótulo diferentes: na mesma linha a base não fecha; por isso os Interessados usam duas linhas.
 

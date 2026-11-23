@@ -16,6 +16,7 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { CalendarioDoCiclo, mesSeguinte, rotuloDoMes } from '../../ui/CalendarioDoCiclo';
 import { Campo } from '../../ui/Campo';
 import { CampoData, CampoNumerico, Interruptor } from '../../ui/Campos';
+import { ParDeDatas } from '../../ui/CamposEmLinha';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Carregando, MensagemErro } from '../../ui/Estados';
@@ -228,8 +229,10 @@ function FolhaRegistro({ registro, aoFechar, aoSalvar }: {
   return (
     <Folha visivel titulo={registro ? 'Editar ciclo' : 'Registrar outra data'} aoFechar={aoFechar}
       rodape={<Botao rotulo="Salvar" desabilitado={!ini || (fim.trim() !== '' && !fi)} aoTocar={() => ini && aoSalvar(ini, fi, registro?.id ?? null)} />}>
-      <CampoData rotulo="Início" valor={inicio} aoMudar={setInicio} />
-      <CampoData rotulo="Fim (opcional)" valor={fim} aoMudar={setFim} />
+      <ParDeDatas>
+        <CampoData rotulo="Início" valor={inicio} aoMudar={setInicio} />
+        <CampoData rotulo="Fim (opcional)" valor={fim} aoMudar={setFim} />
+      </ParDeDatas>
     </Folha>
   );
 }

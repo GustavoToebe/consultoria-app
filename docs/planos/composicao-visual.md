@@ -1,6 +1,6 @@
 # Composição visual: padrões compartilhados (modais, formulários, opções, prévia, mensagens)
 
-Situação: Em andamento (4a, 4b e 4c feitos; 5 e 6 abertos) · Onde: `main`, publicado (4a `04cb44ea`, 4b `6a726e29`, 4c `f9790e2c`) · Atualizado: 15/11/2026
+Situação: Em andamento (4a, 4b e 4c feitos; 5 e 6 feitos só no recorte do par de datas, árvore local sem commit) · Onde: `main`, publicado (4a `04cb44ea`, 4b `6a726e29`, 4c `f9790e2c`) · Atualizado: 23/11/2026
 
 ## Objetivo
 A mesma função tem o mesmo alinhamento, espaçamento, hierarquia e comportamento em todas as telas: modal com cabeçalho,
@@ -113,7 +113,43 @@ Fonte: `C:\Users\GustavoToebe\Desktop\orientacoes-correcao-visual-front.pdf` (oi
     nativo não conferidos. A tabela da 4.6/P2 em `docs/design-e-front.md` lista as telas e larguras; a promoção do
     padrão P2 a **Verificado** na peça compartilhada continua dependendo do passo 5 deste plano.
 - [ ] 5. Conferência visual e promoção de **Proposto** para **Verificado** na 4.6, com o e2e ou a conferência que a sustenta (sem capturas) — commit: —
+  - [x] 5a. Só o intervalo de datas do P2 (23/11, `executor-front`; árvore local sobre `00047b37`, sem commit): novo
+    `app/e2e/composicao-visual-pares-de-data.spec.ts` (40 casos, permanente, sem capturas): Auditoria (filtro), Copiar
+    pasta para outro aluno, Copiar para outro aluno (plano), Aplicar modelo ao aluno e Registrar outra data do ciclo, em
+    390 e 1280 px nos temas Claro, Escuro, Areia e Claro com contraste alto; asserções de posição e tamanho (mesma
+    largura e altura, ≥ 44 px; lado a lado com o mesmo topo em 1280 e no filtro em 390, empilhadas com a mesma borda no
+    formulário em 390; "31/12/2026" sem corte; erro num campo só sem desalinhar; ação do rodapé à vista e sem nada por
+    cima; sem rolagem lateral). Conferido que o spec pega o defeito: com o ciclo de volta ao par empilhado, o caso de
+    1280 cai ("mesmo topo: 392 e 470"). Promovido na 4.6/P2 com o escopo exato (telas, larguras, temas); o resto do P2
+    e os P1, P3, P4 e P5 continuam como estavam.
+    - Não conferido: app nativo, leitor de tela, texto grande; posição de Atualizações, Importação, Nova pasta e Lesão
+      (só os e2e funcionais: `filtros-laterais-fase-b`/`-c`, `filtros-nas-listas`, `pasta-periodo`, `datas-validas`);
+      Replicar/Duplicar plano e as datas da Configuração do plano não têm e2e que as abra (só typecheck e jest).
+    - Dúvida para o Gustavo: os rótulos ocultos do filtro (Atualizações, Auditoria, Importação já como os Interessados)
+      deixam para quem enxerga só o rótulo do grupo, a ordem e o "DD/MM/AAAA"; a 4.6 permite, mas a WCAG 3.3.2 (A) pede
+      rótulo ou instrução visível. Proposta: rótulos pequenos "Data inicial"/"Data final" à vista nas duas variantes.
+    - Validade: refazer o spec se `ui/CamposEmLinha`, `ui/Campos` (`CampoData`), `ui/Campo`, `ui/Folha` ou
+      `treinador/SeletoresDeFiltro` mudarem.
 - [ ] 6. Aplicar às demais ocorrências (Grep pela peça, tela por tela) — commit: —
+  - [x] 6a. Só o par de datas (23/11, mesma árvore local, sem commit). Peça nova `ParDeDatas` em `ui/CamposEmLinha.tsx`
+    (variantes `formulario`, 190 px por data, e `filtro`, 150 px). `CamposDePeriodo` passou a ser o par dos filtros
+    (rótulo de grupo à vista, nomes "<grupo>: data inicial/final" só para o leitor de tela, no `ParDeDatas filtro`) e o
+    local `treinador/interessados/PeriodoDoFiltro.tsx` saiu (Interessados usam o compartilhado; fim do item do 4c).
+    No formulário: `CartaoPlanos` (Replicar), `CartaoPastas` (Nova/Editar pasta), `CopiarPastaParaAluno`,
+    `plano/ConfiguracaoDoPlano` e `CartaoLesoes` trocaram a linha própria (`datas`/`data`, 190 px) pelo `ParDeDatas`,
+    sem mudar o desenho; `CopiarParaAluno`, `planejamento/AplicarAoAluno` e `aluno/ciclo` (Registrar outra data / Editar
+    ciclo) tinham as datas sempre empilhadas e agora ficam lado a lado no PC. `aluno/historico.tsx:163-167` não é par
+    de datas (`Escolha` de período): não se aplica. Testes ajustados só no seletor (mesmo comportamento):
+    `SeletoresDeFiltro.periodo.test.tsx`, `filtros-laterais-fase-b` (Auditoria, Atualizações), `filtros-laterais-fase-c`
+    (Importação) e `filtros-nas-listas` (Atualizações, Importação), de "De"/"Até" para "<grupo>: data inicial/final".
+    - Verificação (23/11, porta 8107): `typecheck` sem erro; `lint` 0 erros (11 avisos em arquivos não tocados);
+      `npm test` 386 suítes, 9215 verdes; e2e novo 40 verdes; e2e das telas mexidas (interessados-composicao, -crm,
+      -estabilidade, filtros-laterais-fase-b, -fase-c, -cartoes, filtros-nas-listas, filtros-do-endereco,
+      pasta-e-atualizacao, pasta-periodo, ciclo-menstrual, datas-validas, auditoria-aluno, importacao,
+      importacao-modal, editor-clareza, editor-de-treino-reorganizado, planejamento-colecoes, ficha-em-abas,
+      peso-historico-aluno): 390 verdes, 8 skipped, 2 falhas de causa alheia provável, não reproduzidas em HEAD
+      (`importacao-modal.spec.ts:31`, 390 e 1280: `GET /importacoes/assistidas/sessoes` sem resposta simulada, `naoTratadas`;
+      o diff não toca a assistida).
 
 ## Fora do escopo
 - Mudar token, tipografia ou tema; regra de negócio, permissão, contrato da API, fila offline.
@@ -136,3 +172,16 @@ Fonte: `C:\Users\GustavoToebe\Desktop\orientacoes-correcao-visual-front.pdf` (oi
   commit 6fe06a1e (09/11). A mesma causa derruba 5 casos de `e2e/filtros-do-endereco.spec.ts` (`opcao()` na linha 22;
   Interessados `?retornos=` e `?etapas=`, Financeiro `?situacao=VENCIDA` e valores desconhecidos). Não vem do 4c;
   próximo responsável: quem cuida desses specs.
+- Fora do recorte dos passos 5 e 6 (23/11), para o Gustavo decidir (redesenho ou decisão, não mexidos): escolhas de
+  radio/checkbox montadas à mão em `app/src/treinador/importacao/TelaImportacao.tsx:590`,
+  `app/src/treinador/importacao/FolhaNovaImportacao.tsx:106`, `app/src/treinador/agenda/CamposDoCompromisso.tsx:268`,
+  `app/src/aluno/DatasDaMobilidade.tsx:46`, `app/src/treinador/dieta/CampoDaQuantidade.tsx:128` e
+  `app/src/treinador/dieta/VariacoesDaDieta.tsx` (P3); folhas sem `rodape`, botões de PDF no corpo (P4) e mensagens
+  (P5) não levantados aqui. Do próprio par: `app/src/treinador/financeiro/FiltrosEmGrade.tsx:21-33` (Cobranças e
+  Lançamentos) ainda tem rótulo de grupo mais "De"/"Até" à vista (dois níveis, contra a regra da 4.6) e repete o mínimo
+  de 150 px fora do `ParDeDatas`: promover ao `CamposDePeriodo` muda os nomes acessíveis e os seletores de
+  `filtros-laterais.spec.ts` e `financeiro-cobrancas-lote.spec.ts`; `app/src/treinador/CopiarPastaParaAluno.tsx` não
+  passa `regra` às datas (sem faixa de planejamento, ao contrário das outras cópias: mudar é regra de validação).
+  Próximo responsável: Gustavo (decisão), depois `executor-front`.
+- Em 23/11 `e2e/filtros-nas-listas.spec.ts` e `e2e/filtros-do-endereco.spec.ts` passaram inteiros (os `opcao()` de
+  `button` citados acima já foram corrigidos por alguém); a falha nova vista foi só a do `importacao-modal` (acima).

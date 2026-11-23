@@ -13,7 +13,8 @@ jest.mock('../ui/BarraDeFiltros', () => ({
 }));
 const campos: Record<string, { erro?: string | null; aoMudar: (t: string) => void }> = {};
 jest.mock('../ui/Campos', () => ({
-  CampoData: (p: { rotulo: string; erro?: string | null; aoMudar: (t: string) => void }) => { campos[p.rotulo] = p; return null; },
+  // Os nomes do par são "<rótulo>: data inicial" e "<rótulo>: data final"; aqui guardados como De e Até.
+  CampoData: (p: { rotulo: string; erro?: string | null; aoMudar: (t: string) => void }) => { campos[p.rotulo.endsWith('inicial') ? 'De' : 'Até'] = p; return null; },
 }));
 const frases: string[] = [];
 jest.mock('../ui/Texto', () => ({ Texto: ({ children }: { children?: unknown }) => { frases.push(String(children)); return null; } }));

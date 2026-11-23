@@ -6,6 +6,7 @@ import { descricaoDoModelo, resumoDoDestino } from '../../dominio/modelos';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoData } from '../../ui/Campos';
+import { ParDeDatas } from '../../ui/CamposEmLinha';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
@@ -43,7 +44,7 @@ export function AplicarAoAluno({ modelo, alunoInicial, aoFechar, aoAplicar }: {
     <EscolhaDeAlunoEPasta escolha={escolha} />
     {escolha.destinoEscolhido ? <>
       <Campo rotulo={destino ? 'Título do plano' : 'Título da pasta nova (o plano usa o mesmo)'} valor={titulo} aoMudar={setTitulo} maxLength={120} />
-      {!destino ? <><CampoData rotulo="Início (opcional)" nome="Início do período" regra="PLANEJAMENTO" valor={inicio} aoMudar={setInicio} /><CampoData rotulo="Fim (opcional)" nome="Fim do período" regra="PLANEJAMENTO" valor={fim} aoMudar={setFim} /></> : <Texto variante="pequeno">O período será o da pasta selecionada.</Texto>}
+      {!destino ? <ParDeDatas><CampoData rotulo="Início (opcional)" nome="Início do período" regra="PLANEJAMENTO" valor={inicio} aoMudar={setInicio} /><CampoData rotulo="Fim (opcional)" nome="Fim do período" regra="PLANEJAMENTO" valor={fim} aoMudar={setFim} /></ParDeDatas> : <Texto variante="pequeno">O período será o da pasta selecionada.</Texto>}
       <Texto>{resumoDoDestino(true, destino, escolha.destinos.opcoes, titulo)}</Texto>
     </> : null}
     {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
