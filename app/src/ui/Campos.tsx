@@ -21,6 +21,7 @@ export function CampoData({
   aoMudar,
   erro,
   rotuloOculto,
+  rotuloDiscreto,
   regra,
   nome,
   rotuloAcessivel,
@@ -43,6 +44,8 @@ export function CampoData({
   rotuloAcessivel?: string;
   /** Sem o rótulo em cima (o ícone ao lado já diz o que é); o leitor de tela continua lendo o `rotulo`. */
   rotuloOculto?: boolean;
+  /** Rótulo em peso normal e cor suave, para o campo que está sob um rótulo de grupo (o par De/Até do filtro). */
+  rotuloDiscreto?: boolean;
 }) {
   const invalida = valor.length === 10 && dataDaTela(valor) === undefined;
   const [ancora, setAncora] = useState<Ancora | null>(null);
@@ -56,6 +59,7 @@ export function CampoData({
       rotulo={rotulo}
       rotuloAcessivel={rotuloAcessivel}
       rotuloOculto={rotuloOculto}
+      rotuloDiscreto={rotuloDiscreto}
       valor={valor}
       aoMudar={(t) => aoMudar(mascaraData(t))}
       placeholder="DD/MM/AAAA"

@@ -451,7 +451,7 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   **`formulario`** (padrão; 190 px por data): lado a lado na folha do PC, empilhados no celular (rótulos à vista
   "Início"/"Fim", com "(opcional)" quando é); **`filtro`** (150 px por data, `treinador/SeletoresDeFiltro.CamposDePeriodo`):
   lado a lado também no celular, um rótulo de grupo à vista ("Entrada") e os rótulos "De" e "Até" também à vista em
-  cada data (24/11, decisão do Gustavo; WCAG 3.3.2). **Regra nas duas variantes: todo campo de data tem rótulo visível,
+  cada data (24/11, decisão do Gustavo; WCAG 3.3.2). **Regra nas duas variantes: todo campo de data tem rótulo visível (no `filtro`, "De"/"Até" em peso normal e `textoSuave`, para o rótulo do grupo mandar),
   nunca só o nome para o leitor de tela.** Quando há vários períodos no mesmo painel (`nomeUnico`: Cobranças e
   Interessados), o nome para o leitor de tela é "De (Entrada)" e "Até (Entrada)", que começa pelo texto visível. Nos
   dois, empilham só quando a largura não dá duas datas (texto grande, cartão estreito).

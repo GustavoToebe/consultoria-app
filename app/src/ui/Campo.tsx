@@ -33,6 +33,8 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   rotuloAcessivel?: string;
   /** Sem o rótulo em cima: o que é o campo já está ao lado dele; o leitor de tela lê `rotuloAcessivel`. */
   rotuloOculto?: boolean;
+  /** Rótulo secundário (peso normal e `textoSuave`): o par De/Até do filtro, sob o rótulo do grupo que é quem manda. */
+  rotuloDiscreto?: boolean;
   /** Unidade dentro da caixa, depois do número ("%"). */
   sufixo?: string;
   /**
@@ -52,7 +54,7 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
  * leitor de tela: `aria-invalid` na web, região viva no Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de
  * foco (a cor da marca não contrasta no escuro).
  */
-export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, sufixo, erroSemTexto, grande, corDoTexto, ...resto }: Props) {
+export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, rotuloDiscreto, sufixo, erroSemTexto, grande, corDoTexto, ...resto }: Props) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
   const cinza = coresDoDesabilitado(cores);
@@ -62,7 +64,7 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, l
   useAnunciarErro(erro, rotulo);
   return (
     <View style={estilos.campo}>
-      {rotuloOculto ? null : <Label style={[ESTILOS_TEXTO.rotulo, { color: cores.texto }]}>{rotulo}</Label>}
+      {rotuloOculto ? null : <Label style={[ESTILOS_TEXTO.rotulo, rotuloDiscreto ? { fontFamily: fontes.normal } : null, { color: rotuloDiscreto ? cores.textoSuave : cores.texto }]}>{rotulo}</Label>}
       <View>
       <Input
         {...resto}

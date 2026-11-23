@@ -90,9 +90,9 @@ export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois, m
     <View style={estilos.periodo} role="group" aria-label={rotulo}>
       <Texto variante="rotulo">{rotulo}</Texto>
       <ParDeDatas variante="filtro">
-        <CampoData rotulo="De" rotuloAcessivel={nomeUnico ? `De (${rotulo})` : undefined} nome={`${rotulo}, data inicial`} regra={regra} valor={p.texto.de} aoMudar={(t) => p.mudar('de', t)} erro={p.erroDe} />
+        <CampoData rotulo="De" rotuloDiscreto rotuloAcessivel={nomeUnico ? `De (${rotulo})` : undefined} nome={`${rotulo}, data inicial`} regra={regra} valor={p.texto.de} aoMudar={(t) => p.mudar('de', t)} erro={p.erroDe} />
         {/* Data impossível ou fora da faixa o próprio campo avisa ("Entrada, data final: use uma data entre…"). */}
-        <CampoData rotulo="Até" rotuloAcessivel={nomeUnico ? `Até (${rotulo})` : undefined} nome={`${rotulo}, data final`} regra={regra} valor={p.texto.ate} aoMudar={(t) => p.mudar('ate', t)} erro={p.erroAte} />
+        <CampoData rotulo="Até" rotuloDiscreto rotuloAcessivel={nomeUnico ? `Até (${rotulo})` : undefined} nome={`${rotulo}, data final`} regra={regra} valor={p.texto.ate} aoMudar={(t) => p.mudar('ate', t)} erro={p.erroAte} />
       </ParDeDatas>
       {p.aviso ? <Texto variante="pequeno">{p.aviso}</Texto> : null}
     </View>

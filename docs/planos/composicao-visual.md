@@ -138,7 +138,15 @@ Fonte: `C:\Users\GustavoToebe\Desktop\orientacoes-correcao-visual-front.pdf` (oi
     regra P2 do `docs/design-e-front.md` agora exige rótulo visível nas duas variantes. `financeiro/FiltrosEmGrade.tsx`
     (`PeriodoDoFiltro`) saiu: Cobranças e Lançamentos usam o `CamposDePeriodo` (mesmo mínimo de 150 px, mesmos
     nomes acessíveis de antes). Seletores dos e2e voltaram a "De"/"Até" (Auditoria, Atualizações, Importação) e a
-    "De (Entrada)"/"Até (Última atividade)" (Interessados).
+    "De (Entrada)"/"Até (Última atividade)" (Interessados). Publicado em `6011d8d5` (CI "Testar e publicar" verde).
+    - Ajuste de hierarquia (24/11, pedido do Gustavo, commit local): nas capturas o "De"/"Até" em semi-negrito e cor de
+      texto pleno pesava mais que o rótulo do grupo ("Emissão", "Entrada"). `Campo` e `CampoData` ganharam
+      `rotuloDiscreto` (peso normal, `cores.textoSuave`, token existente) e o `CamposDePeriodo` (única peça com
+      `ParDeDatas variante="filtro"`) o liga. Medido no navegador: rótulo do grupo `Geist_600SemiBold`, "De"/"Até"
+      `Geist_400Regular`, mesma cor suave. Conferido em captura (fora do repositório) nos painéis de Cobranças
+      (Vencimento entre, Emissão, Pagamento) e de Interessados (Entrada, Última atividade), 390 e 1280 px, claro e
+      escuro: caixas de data com o mesmo topo e altura, data `31/12/2026` sem corte, sem rolagem lateral. Não conferido:
+      Areia e alto contraste (o `textoSuave` cumpre 4,5:1 por regra dos tokens, mas não medi nesses dois temas aqui).
   - [x] 6a. Só o par de datas (23/11, mesma árvore local, sem commit). Peça nova `ParDeDatas` em `ui/CamposEmLinha.tsx`
     (variantes `formulario`, 190 px por data, e `filtro`, 150 px). `CamposDePeriodo` passou a ser o par dos filtros
     (rótulo de grupo à vista, nomes "<grupo>: data inicial/final" só para o leitor de tela, no `ParDeDatas filtro`) e o
