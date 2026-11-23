@@ -11,7 +11,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -26,7 +28,7 @@ import java.util.concurrent.TimeoutException;
  * caminho fixo {@code /vi/<id>/hqdefault.jpg}. A base só muda pelo construtor de teste (nunca por propriedade nem variável de
  * ambiente). Sem proxy, sem seguir redirecionamento, 3 s de conexão e 4 s no total (cabeçalho e corpo), corpo de até 300 KB
  * lido com limite (o {@code Content-Length} não vale como garantia), status 200, {@code Content-Type: image/jpeg} e
- * assinatura JPEG. Qualquer falha devolve {@code null}; o log não leva URL nem id.
+ * assinatura JPEG. Qualquer falha devolve {@code null}; o log leva só um motivo fixo e curto, nunca URL, id nem mensagem de exceção.
  */
 @Component
 class YoutubeCapaCliente {
@@ -75,58 +77,105 @@ class YoutubeCapaCliente {
         } catch (IllegalArgumentException e) {
             return null;
         }
-        byte[] jpeg;
+        Resultado resultado;
         try {
-            jpeg = ler(endereco);
+            resultado = ler(endereco);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return null;
         }
-        if (jpeg == null) {
-            log.warn("Falha ao buscar capa.");
+        if (resultado.bytes() == null) {
+            // só o motivo fixo: nunca URL, id, mensagem da exceção nem nada vindo do corpo
+            log.warn("Falha ao buscar capa: {}", resultado.motivo());
         }
-        return jpeg;
+        return resultado.bytes();
     }
 
-    /**
-     * Chama e confere status, tipo e {@code Content-Length} antes de ler; lê no máximo {@link #CORPO_MAX_BYTES} + 1 byte dentro
-     * do tempo total e confere a assinatura JPEG. Qualquer coisa fora disso: {@code null}.
-     */
-    private byte[] ler(URI endereco) throws InterruptedException {
+    /** Os bytes do JPEG ou, se falhou, o motivo de um conjunto fechado (TEMPO, STATUS n, TIPO, TAMANHO, ASSINATURA, REDE classe, CABECALHO). */
+    @SuppressWarnings("ArrayRecordComponent")
+    record Resultado(byte[] bytes, String motivo) {
+        static Resultado falha(String motivo) {
+            return new Resultado(null, motivo);
+        }
+    }
+
+    /** Motivo da falha de rede: o tempo, ou só o nome simples da classe da causa (a mensagem pode ter host ou IP). */
+    private static String motivoDe(Throwable causa) {
+        if (causa instanceof HttpTimeoutException) {
+            return "TEMPO";
+        }
+        return "REDE " + (causa == null ? "?" : causa.getClass().getSimpleName());
+    }
+
+    private Resultado ler(URI endereco) throws InterruptedException {
         long limite = System.nanoTime() + total.toNanos();
         CompletableFuture<HttpResponse<InputStream>> envio;
         try {
             HttpRequest requisicao = HttpRequest.newBuilder(endereco).timeout(total).header("Accept", "image/jpeg").GET().build();
             envio = http.sendAsync(requisicao, HttpResponse.BodyHandlers.ofInputStream());
         } catch (RuntimeException e) {
-            return null;
+            return Resultado.falha(motivoDe(e));
         }
+        return receber(envio, limite);
+    }
+
+    /** Espera a resposta no tempo total; cancelamento do envio vale como tempo. Package-private para teste com envio falso. */
+    Resultado receber(CompletableFuture<HttpResponse<InputStream>> envio, long limite) throws InterruptedException {
         HttpResponse<InputStream> resposta;
         try {
             resposta = envio.get(total.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (TimeoutException | ExecutionException e) {
+        } catch (TimeoutException | CancellationException e) {
             descartar(envio);
-            return null;
+            return Resultado.falha("TEMPO");
+        } catch (ExecutionException e) {
+            descartar(envio);
+            return Resultado.falha(motivoDe(e.getCause()));
         } catch (InterruptedException e) {
             descartar(envio);
             throw e; // quem chama restaura a flag de interrupção
         }
+        return conferir(resposta, limite);
+    }
+
+    /**
+     * Confere status, tipo e {@code Content-Length} antes de ler; lê no máximo {@link #CORPO_MAX_BYTES} + 1 byte dentro do tempo
+     * total e confere a assinatura JPEG. Qualquer coisa fora disso: o motivo, com o corpo sempre fechado. Package-private para
+     * teste com resposta falsa (o cliente do JDK recusa um {@code Content-Length} torto antes de chegar aqui).
+     */
+    Resultado conferir(HttpResponse<InputStream> resposta, long limite) throws InterruptedException {
         InputStream entrada = resposta.body();
-        String tipo = resposta.headers().firstValue("Content-Type").orElse("").split(";", 2)[0].trim();
-        // Redirecionamento não é seguido: 3xx cai aqui. O Content-Length só adianta a recusa; o limite real é o da leitura.
-        if (resposta.statusCode() != 200 || !"image/jpeg".equalsIgnoreCase(tipo)
-                || resposta.headers().firstValueAsLong("Content-Length").orElse(0L) > CORPO_MAX_BYTES) {
+        Future<byte[]> leitura;
+        try {
+            // Redirecionamento não é seguido: 3xx cai aqui. O Content-Length só adianta a recusa; o limite real é o da leitura.
+            if (resposta.statusCode() != 200) {
+                fechar(entrada);
+                return Resultado.falha("STATUS " + resposta.statusCode());
+            }
+            String tipo = resposta.headers().firstValue("Content-Type").orElse("").split(";", 2)[0].trim();
+            if (!"image/jpeg".equalsIgnoreCase(tipo)) {
+                fechar(entrada);
+                return Resultado.falha("TIPO");
+            }
+            if (resposta.headers().firstValueAsLong("Content-Length").orElse(0L) > CORPO_MAX_BYTES) {
+                fechar(entrada);
+                return Resultado.falha("TAMANHO");
+            }
+            leitura = LEITURA.submit(() -> entrada.readNBytes(CORPO_MAX_BYTES + 1));
+        } catch (RuntimeException e) {
             fechar(entrada);
-            return null;
+            return Resultado.falha(e instanceof NumberFormatException ? "CABECALHO" : motivoDe(e));
         }
-        Future<byte[]> leitura = LEITURA.submit(() -> entrada.readNBytes(CORPO_MAX_BYTES + 1));
         try {
             byte[] c = leitura.get(Math.max(1, limite - System.nanoTime()), TimeUnit.NANOSECONDS);
-            boolean jpeg = c.length >= 3 && c.length <= CORPO_MAX_BYTES && (c[0] & 0xFF) == 0xFF && (c[1] & 0xFF) == 0xD8
-                    && (c[2] & 0xFF) == 0xFF;
-            return jpeg ? c : null;
-        } catch (TimeoutException | ExecutionException e) {
-            return null;
+            if (c.length > CORPO_MAX_BYTES) {
+                return Resultado.falha("TAMANHO");
+            }
+            boolean jpeg = c.length >= 3 && (c[0] & 0xFF) == 0xFF && (c[1] & 0xFF) == 0xD8 && (c[2] & 0xFF) == 0xFF;
+            return jpeg ? new Resultado(c, null) : Resultado.falha("ASSINATURA");
+        } catch (TimeoutException e) {
+            return Resultado.falha("TEMPO");
+        } catch (ExecutionException e) {
+            return Resultado.falha(motivoDe(e.getCause()));
         } finally {
             leitura.cancel(true);
             fechar(entrada);

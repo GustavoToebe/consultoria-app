@@ -1,13 +1,19 @@
 package br.com.treinos.api.comunidade;
 
 import br.com.treinos.api.fotos.FotosDeTeste;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
@@ -18,10 +24,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -59,6 +67,7 @@ class YoutubeCapaClienteTest {
     private final List<String> pedidos = new CopyOnWriteArrayList<>();
     private final AtomicInteger acertosDoAlvo = new AtomicInteger();
     private byte[] jpeg;
+    private ListAppender<ILoggingEvent> saidaDoLog;
 
     @BeforeEach
     void subir() throws IOException {
@@ -73,8 +82,16 @@ class YoutubeCapaClienteTest {
         servidor.start();
     }
 
+    @BeforeEach
+    void capturarOLog() {
+        saidaDoLog = new ListAppender<>();
+        saidaDoLog.start();
+        ((Logger) LoggerFactory.getLogger(YoutubeCapaCliente.class)).addAppender(saidaDoLog);
+    }
+
     @AfterEach
     void descer() {
+        ((Logger) LoggerFactory.getLogger(YoutubeCapaCliente.class)).detachAppender(saidaDoLog);
         servidor.stop(0);
     }
 
@@ -307,11 +324,126 @@ class YoutubeCapaClienteTest {
 
     @Test
     void servidorForaDoArEhFalha() throws IOException {
+        var cliente = clienteSemServidor();
+        assertThat(cliente.baixar(OK)).isNull();
+    }
+
+    private static YoutubeCapaCliente clienteSemServidor() throws IOException {
         int porta;
         try (var livre = new java.net.ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
             porta = livre.getLocalPort();
         }
-        var cliente = new YoutubeCapaCliente("http://127.0.0.1:" + porta, Duration.ofSeconds(1), Duration.ofSeconds(1));
-        assertThat(cliente.baixar(OK)).isNull();
+        return new YoutubeCapaCliente("http://127.0.0.1:" + porta, Duration.ofSeconds(1), Duration.ofSeconds(1));
+    }
+
+    private static InputStream corpoQueRegistraOFechamento(AtomicBoolean fechado) {
+        return new ByteArrayInputStream(new byte[0]) {
+            @Override
+            public void close() throws IOException {
+                fechado.set(true);
+                super.close();
+            }
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpResponse<InputStream> respostaFalsa(int status, Map<String, List<String>> cabecalhos, InputStream corpo) {
+        HttpResponse<InputStream> resposta = mock(HttpResponse.class);
+        when(resposta.statusCode()).thenReturn(status);
+        when(resposta.headers()).thenReturn(HttpHeaders.of(cabecalhos, (a, b) -> true));
+        when(resposta.body()).thenReturn(corpo);
+        return resposta;
+    }
+
+    private long prazo() {
+        return System.nanoTime() + Duration.ofSeconds(1).toNanos();
+    }
+
+    @Test
+    void contentLengthNaoNumericoEhFalhaNeutraEFechaOCorpo() throws InterruptedException {
+        var fechado = new AtomicBoolean();
+        var resposta = respostaFalsa(200, Map.of("Content-Type", List.of("image/jpeg"), "Content-Length", List.of("abc")),
+                corpoQueRegistraOFechamento(fechado));
+
+        var resultado = cliente().conferir(resposta, prazo());
+
+        assertThat(resultado.bytes()).isNull();
+        assertThat(resultado.motivo()).isEqualTo("CABECALHO");
+        assertThat(fechado).isTrue();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void falhaInesperadaAoLerOsCabecalhosFechaOCorpoEViraRede() throws InterruptedException {
+        var fechado = new AtomicBoolean();
+        HttpResponse<InputStream> resposta = mock(HttpResponse.class);
+        when(resposta.statusCode()).thenReturn(200);
+        when(resposta.headers()).thenThrow(new IllegalStateException("host interno 10.0.0.1"));
+        when(resposta.body()).thenReturn(corpoQueRegistraOFechamento(fechado));
+
+        var resultado = cliente().conferir(resposta, prazo());
+
+        assertThat(resultado.bytes()).isNull();
+        assertThat(resultado.motivo()).isEqualTo("REDE IllegalStateException");
+        assertThat(fechado).isTrue();
+    }
+
+    @Test
+    void envioCanceladoEhFalhaNeutraSemExcecao() {
+        var envio = new CompletableFuture<HttpResponse<InputStream>>();
+        envio.cancel(true);
+
+        assertThatCode(() -> {
+            var resultado = cliente().receber(envio, prazo());
+            assertThat(resultado.bytes()).isNull();
+            assertThat(resultado.motivo()).isEqualTo("TEMPO");
+        }).doesNotThrowAnyException();
+    }
+
+    @Test
+    void falhaDoEnvioViraRedeComSoONomeDaClasse() throws InterruptedException {
+        var envio = CompletableFuture.<HttpResponse<InputStream>>failedFuture(new java.net.ConnectException("10.1.2.3 recusou"));
+
+        var resultado = cliente().receber(envio, prazo());
+
+        assertThat(resultado.motivo()).isEqualTo("REDE ConnectException");
+    }
+
+    /** Roda {@code baixar} e devolve a única mensagem de log que ele escreveu. */
+    private String logDe(String id) {
+        saidaDoLog.list.clear();
+        assertThat(cliente().baixar(id)).isNull();
+        assertThat(saidaDoLog.list).hasSize(1);
+        assertThat(saidaDoLog.list.getFirst().getLevel()).isEqualTo(Level.WARN);
+        return saidaDoLog.list.getFirst().getFormattedMessage();
+    }
+
+    @ParameterizedTest
+    @CsvSource({NAO_EXISTE + ",STATUS 404", ERRO_500 + ",STATUS 500", REDIRECIONA + ",STATUS 302", TIPO_ERRADO + ",TIPO",
+            PNG_COMO_JPEG + ",ASSINATURA", DECLARA_GRANDE + ",TAMANHO", UM_BYTE_ACIMA + ",TAMANHO", SEM_RESPOSTA + ",TEMPO",
+            CORPO_PARADO + ",TEMPO"})
+    void logDaFalhaTrazSoOMotivoFixoSemUrlNemId(String id, String motivo) {
+        String mensagem = logDe(id);
+
+        assertThat(mensagem).isEqualTo("Falha ao buscar capa: " + motivo);
+        assertThat(mensagem).doesNotContain(id).doesNotContainIgnoringCase("ytimg").doesNotContainIgnoringCase("http")
+                .doesNotContain("127.0.0.1");
+    }
+
+    @Test
+    void logDeRedeTrazSoONomeDaClasseDaCausa() throws IOException {
+        saidaDoLog.list.clear();
+        assertThat(clienteSemServidor().baixar(OK)).isNull();
+
+        assertThat(saidaDoLog.list).hasSize(1);
+        String mensagem = saidaDoLog.list.getFirst().getFormattedMessage();
+        assertThat(mensagem).isEqualTo("Falha ao buscar capa: REDE ConnectException");
+        assertThat(mensagem).doesNotContain(OK).doesNotContainIgnoringCase("http").doesNotContain("127.0.0.1");
+    }
+
+    @Test
+    void sucessoNaoLogaFalha() {
+        assertThat(cliente().baixar(OK)).isEqualTo(jpeg);
+        assertThat(saidaDoLog.list).isEmpty();
     }
 }
