@@ -308,11 +308,9 @@ public class FinanceiroService {
         long renovacoesCentavos = 0;
         long projecaoAnual = 0;
 
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         for (ContratacaoAluno c : ativas) {
-            LocalDate base = c.getAncora() != null && c.getAncora().isAfter(c.getInicio()) ? c.getAncora() : c.getInicio();
-            LocalDate termino = Respostas.calcularTerminoVigencia(base, c.getPeriodicidade());
-            Long diasRestantes = Respostas.calcularDiasRestantes(termino);
-            if (diasRestantes != null && diasRestantes <= 40) {
+            if (VigenciaDoPlano.de(c, hoje).renovacaoProxima()) {
                 renovacoesCount++;
                 renovacoesCentavos += c.getValorCentavos();
             }

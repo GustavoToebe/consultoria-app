@@ -92,6 +92,25 @@ final class CalendarioDeCobranca {
     }
 
     /**
+     * O fim do ciclo em curso em {@code referencia}, <b>exclusivo</b>: o primeiro dia do ciclo seguinte, a menor
+     * {@code âncora + k·período} (k ≥ 0, sempre contado da âncora, preso ao último dia do mês) que vem depois da referência.
+     * No dia exato da competência o ciclo seguinte já começou, então o fim é o da seguinte. Âncora no futuro (retomada dentro
+     * de período já pago) é o próprio fim do ciclo: k = 0. Não há "vencido" em plano recorrente.
+     */
+    static LocalDate fimDoCicloAtual(LocalDate ancora, PeriodoDoPlano periodo, LocalDate referencia) {
+        if (!periodo.recorrente()) {
+            throw new IllegalArgumentException("Parcela única não tem ciclo.");
+        }
+        long passo = periodo.meses();
+        // Todo k abaixo de meses/passo termina em ou antes da referência (plusMonths não decresce): o laço parte dele.
+        long k = Math.max(0, ChronoUnit.MONTHS.between(ancora, referencia) / passo);
+        while (!ancora.plusMonths(k * passo).isAfter(referencia)) {
+            k++;
+        }
+        return ancora.plusMonths(k * passo);
+    }
+
+    /**
      * O dia seguinte ao último dia coberto pela competência: a seguinte da grade da âncora quando ela é da grade (dia 31 em
      * mês curto não deixa dias descobertos) ou, se vier de uma grade antiga (antes de uma retomada), {@code competência + passo}.
      */

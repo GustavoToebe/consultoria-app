@@ -170,20 +170,7 @@ public final class PagamentosDtos {
                                       int diaVencimento, ContratacaoAluno.Situacao situacao, Instant encerradaEm,
                                       Instant criadoEm, Long versao,
                                       LocalDate terminoVigencia, Long diasRestantesVigencia, String alertaRenovacao,
-                                      LocalDate minimoAte) {
-
-        public ContratacaoResponse(UUID id, UUID alunoId, UUID planoComercialId, String planoNome,
-                                   PeriodoDoPlano periodicidade, long valorCentavos, String motivoValor, LocalDate inicio,
-                                   int diaVencimento, ContratacaoAluno.Situacao situacao, Instant encerradaEm,
-                                   Instant criadoEm, Long versao) {
-            this(id, alunoId, planoComercialId, planoNome, periodicidade, valorCentavos, motivoValor, inicio, diaVencimento,
-                    situacao, encerradaEm, criadoEm, versao,
-                    Respostas.calcularTerminoVigencia(inicio, periodicidade),
-                    Respostas.calcularDiasRestantes(Respostas.calcularTerminoVigencia(inicio, periodicidade)),
-                    Respostas.calcularAlerta(Respostas.calcularDiasRestantes(Respostas.calcularTerminoVigencia(inicio, periodicidade))),
-                    null);
-        }
-    }
+                                      LocalDate minimoAte) { }
 
     // ---- Encerrar com cobrança de saída ----
 
