@@ -59,10 +59,14 @@ async function jpegFicticio(page: Page): Promise<Buffer> {
 async function tema(page: Page, t: 'CLARO' | 'ESCURO') {
   await page.addInitScript(([id, tm]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: tm, contraste: 'PADRAO' })), [ALUNO.id, t]);
 }
-/** Os cabeçalhos das coleções, na ordem da tela ("Base de força, recolhido"). */
-const cabecalhos = (page: Page) => page.getByRole('button', { name: /, (aberto|recolhido)$/ });
-const colecao = (page: Page, nome: string) => page.getByRole('button', { name: new RegExp(`^${nome}, (aberto|recolhido)$`) });
-const titulos = (page: Page) => page.getByRole('heading', { level: 2 });
+/**
+ * Cabeçalho de coleção (23/11): os cabeçalhos são botões dentro do h2, com o nome "Coleção 2: Base de força, 3 vídeos" (ou
+ * "Sem coleção, 1 vídeo") e o estado só no `aria-expanded`.
+ */
+const cabecalhos = (page: Page) => page.getByRole('button', { name: /^(Coleção \d+: .+|Sem coleção), \d+ vídeos?$/ });
+const colecao = (page: Page, nome: string) => page.getByRole('button', { name: new RegExp(`^(Coleção \\d+: ${nome}|${nome}), \\d+ vídeos?$`) });
+/** Os títulos dos vídeos: h3 dentro da coleção (h2); na grade sem agrupar, h2. */
+const titulos = (page: Page) => page.getByRole('heading', { level: 3 });
 /** O selo da posição na capa ("Posição 3"). */
 const posicoes = (page: Page) => page.getByLabel(/^Posição \d+$/);
 
@@ -77,8 +81,13 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('heading', { level: 1, name: 'Comunidade' })).toBeVisible();
       await expect(colecao(page, 'Mobilidade')).toBeVisible();
       await expect(cabecalhos(page)).toHaveText([/Mobilidade/, /Base de força/, /Sem coleção/]);
-      await expect.poll(() => cabecalhos(page).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label'))))
-        .toEqual(['Mobilidade, recolhido', 'Base de força, recolhido', 'Sem coleção, recolhido']);
+      // cabeçalho de coleção (23/11): "Coleção N" pela ordem que o aluno vê (a vazia não aparece nem conta), fechadas.
+      await expect.poll(() => cabecalhos(page).evaluateAll((els) => els.map((e) => [e.getAttribute('aria-label'), e.getAttribute('aria-expanded')])))
+        .toEqual([['Coleção 1: Mobilidade, 1 vídeo', 'false'], ['Coleção 2: Base de força, 3 vídeos', 'false'], ['Sem coleção, 1 vídeo', 'false']]);
+      await expect(page.getByRole('heading', { level: 2, name: 'Coleção 2: Base de força, 3 vídeos', exact: true })).toBeVisible();
+      await expect(page.getByText('Coleção 2', { exact: true })).toHaveText('COLEÇÃO 2', { useInnerText: true });
+      await expect(colecao(page, 'Sem coleção')).toHaveText(/^SEM COLEÇÃO\s*1 vídeo$/, { useInnerText: true });
+      await expect(page.getByTestId('fio-entre-colecoes')).toHaveCount(2);
       await expect(page.getByText('Coleção sem vídeo')).toHaveCount(0);
       await expect(page.getByText('3 vídeos', { exact: true })).toBeVisible();
       // Fechadas, nenhum vídeo aparece.
@@ -91,7 +100,8 @@ for (const largura of [390, 1280]) {
       await expect(titulos(page)).toHaveText(['Agachamento livre', 'Remada curvada', 'Supino com pausa']);
       await expect(posicoes(page)).toHaveText(['1', '2', '3']);
       await colecao(page, 'Sem coleção').click();
-      await expect(page.getByRole('heading', { level: 2, name: 'Recado da equipe', exact: true })).toBeVisible();
+      // cabeçalho de coleção (23/11): o vídeo é h3 dentro da coleção (h2).
+      await expect(page.getByRole('heading', { level: 3, name: 'Recado da equipe', exact: true })).toBeVisible();
       // "Sem coleção" não tem número.
       await expect(posicoes(page)).toHaveCount(3);
       await capturar(page, `colecoes-abertas-${largura}-claro`);
@@ -104,9 +114,12 @@ for (const largura of [390, 1280]) {
       await page.goto(VIDEOS);
       await page.getByLabel('Buscar nos vídeos').fill('supino');
       // O 3º vídeo da coleção continua "3.", com o nome da coleção no cabeçalho do grupo.
-      await expect(page.getByRole('heading', { level: 2 })).toHaveText(['Supino com pausa']);
+      await expect(titulos(page)).toHaveText(['Supino com pausa']);
       await expect(posicoes(page)).toHaveText(['3']);
       await expect(cabecalhos(page)).toHaveCount(1);
+      // cabeçalho de coleção (23/11): a busca também não renumera a coleção; sem a primeira seção, nenhum fio.
+      await expect(colecao(page, 'Base de força')).toHaveAttribute('aria-label', 'Coleção 2: Base de força, 1 vídeo');
+      await expect(page.getByTestId('fio-entre-colecoes')).toHaveCount(0);
       await expect(colecao(page, 'Base de força')).toHaveAttribute('aria-expanded', 'true');
       await expect(page.getByText('1 vídeo', { exact: true })).toBeVisible();
       await capturar(page, `colecoes-busca-${largura}`);
@@ -165,7 +178,8 @@ for (const largura of [390, 1280]) {
       await page.goto(VIDEOS);
       await expect(page.getByText('Não foi possível carregar as coleções. Os vídeos aparecem abaixo, sem agrupar.')).toBeVisible();
       // Na ordem da API, sem número e sem "Sem coleção" (agrupar sem as coleções poria tudo lá).
-      await expect(titulos(page)).toHaveText(AULAS.map((a) => a.titulo));
+      // cabeçalho de coleção (23/11): sem agrupar não há cabeçalho, e o vídeo volta a ser h2.
+      await expect(page.getByRole('heading', { level: 2 })).toHaveText(AULAS.map((a) => a.titulo));
       await expect(posicoes(page)).toHaveCount(0);
       await expect(page.getByText('Sem coleção')).toHaveCount(0);
       await expect(cabecalhos(page)).toHaveCount(0);

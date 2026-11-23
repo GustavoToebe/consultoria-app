@@ -797,8 +797,11 @@ export function buscarAuloesComPlaylist<T extends Pick<AulaDaComunidade, 'titulo
   return agruparPorPlaylist(buscarAuloes(aulas, busca), playlists).flatMap((g) => g.itens.map((aula) => ({ aula, playlist: g.rotulo })));
 }
 
-/** "1 vídeo" / "3 vídeos", na faixa da coleção. */
-export const resumoDosAuloes = (n: number): string => (n === 1 ? '1 vídeo' : `${n} vídeos`);
+/** "vídeo" / "vídeos": a palavra da contagem, sem o número (a pílula da coleção põe o número na fonte numérica). */
+export const palavraDosAuloes = (n: number): string => (n === 1 ? 'vídeo' : 'vídeos');
+
+/** "1 vídeo" / "3 vídeos" / "0 vídeos", na faixa da coleção. */
+export const resumoDosAuloes = (n: number): string => `${n} ${palavraDosAuloes(n)}`;
 
 /** Teto do lote da API (`PUT /comunidade/aulas/playlist`, `aulaIds` de 1 a 100). */
 export const LOTE_MAXIMO = 100;

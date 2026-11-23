@@ -1866,7 +1866,9 @@ for (const largura of [390, 1280]) {
       await expect(menuDaTecnica.getByRole('button', { name: /^Mover para cima/ })).toHaveCount(0);
       await menuDaTecnica.getByRole('button', { name: /^Mover para baixo/ }).click();
       await expect.poll(() => pedidosDe(api, 'PUT', '/comunidade/playlists/ordem').map((p) => p.corpo)).toEqual([{ ids: ['p2', 'p1', 'n1'] }]);
-      await expect.poll(() => page.getByRole('heading', { level: 2 }).allInnerTexts()).toEqual(['Nutrição', 'Técnica', 'Mobilidade e alongamento', 'Sem coleção']);
+      // cabeçalho de coleção (23/11): a ordem pelo nome acessível de cada seção.
+      await expect.poll(() => page.getByRole('heading', { level: 2 }).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label'))))
+        .toEqual(['Coleção 1: Nutrição, 1 vídeo', 'Coleção 2: Técnica, 3 vídeos', 'Coleção: Mobilidade e alongamento, 0 vídeos', 'Sem coleção, 1 vídeo']);
 
       // Excluir pede confirmação, diz que os vídeos ficam em "Sem coleção"; Cancelar não apaga.
       const painel = page.getByRole('alertdialog', { name: 'Excluir a coleção “Técnica”?' });

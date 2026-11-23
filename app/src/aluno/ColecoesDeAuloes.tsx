@@ -1,16 +1,16 @@
-import { type RefObject, useEffect, useState } from 'react';
+import { Fragment, type RefObject, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { listarPlaylistsDoAluno } from '../api/comunidade';
 import type { AulaDaComunidade } from '../api/comunidadeTipos';
+import { CabecalhoDaColecao, FioEntreColecoes, VAO_DO_CABECALHO } from '../comunidade/CabecalhoDaColecao';
 import { CartaoDoVideo } from '../comunidade/CartaoDoVideo';
+import { numerosDasColecoes, textosDoCabecalho } from '../dominio/cabecalhoDaColecao';
 import { chaveDoGrupo, numerosNaColecao } from '../dominio/colecoesDoAluno';
-import { agruparPorPlaylist, buscarAuloes, resumoDosAuloes } from '../dominio/comunidade';
+import { agruparPorPlaylist, buscarAuloes } from '../dominio/comunidade';
 import { colunasDosVideos } from '../dominio/gradeDosVideos';
 import { espaco } from '../tema/tokens';
-import { CabecalhoDeGrupo } from '../ui/CabecalhoDeGrupo';
 import { Campo } from '../ui/Campo';
-import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { Grade } from '../ui/Grade';
@@ -25,9 +25,11 @@ interface AcoesDoVideo {
 }
 
 /**
- * Vídeos do aluno agrupados por coleção (passo 10 do `docs/planos/comunidade-playlists.md`): um cartão por coleção na ordem
- * do treinador, com o nome e "N vídeos"; "Sem coleção" por último e só se houver; coleção sem vídeo não aparece (D16). Os
- * cartões nascem fechados (uma coleção só nasce aberta, design 4.8) e, abertos, mostram os vídeos numerados pela posição na
+ * Vídeos do aluno agrupados por coleção (passo 10 do `docs/planos/comunidade-playlists.md`): uma seção por coleção na ordem
+ * do treinador, sem cartão em volta, com o mesmo cabeçalho do treinador (cabeçalho de coleção, 23/11: "COLEÇÃO N", nome e
+ * pílula "N vídeos", o fio acima das seguintes), que aqui é o botão de abrir e fechar; "Sem coleção" por último e só se
+ * houver; coleção sem vídeo não aparece (D16). As
+ * seções nascem fechadas (uma coleção só nasce aberta, design 4.8) e, abertas, mostram os vídeos numerados pela posição na
  * coleção, no número do selo da capa. Os vídeos são os cartões da grade do treinador (D6, 20/11), sem ⋯ nem alça: o "Abrir no
  * YouTube" (ou "Abrir vídeo") fica visível no cartão. A grade usa a régua do treinador (`colunasDosVideos`) medida na própria
  * grade: com a tela do aluno em 720 px, 1 coluna no celular e 2 no PC. A busca procura em todas, abre as que têm resultado e
@@ -85,33 +87,43 @@ export function ColecoesDeAuloes({ aulas, fecharRef, ...acoes }: {
   }
   if (!colecoes.dados) return <Esqueleto />;
 
+  // "Coleção N" pela ordem das coleções que o aluno vê, sem a busca (a busca não renumera).
+  const numerosDasSecoes = numerosDasColecoes(todos.flatMap((g) => (g.playlist ? [g.playlist] : [])));
   return (
     <View style={estilos.blocos}>
       {campoDeBusca}
-      {grupos.length === 0 ? vazioDaBusca : grupos.map((g) => {
-        const chave = chaveDoGrupo(g);
-        const aberta = secoes.estaAberta(chave);
-        return (
-          <Cartao key={chave} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDosAuloes(g.itens.length)}
-            aberto={aberta} aoAlternar={() => secoes.alternar(chave)} />}>
-            {aberta ? <GradeDeVideos aulas={g.itens} numeros={numeros} {...acoes} /> : null}
-          </Cartao>
-        );
-      })}
+      {grupos.length === 0 ? vazioDaBusca : (
+        <View>
+          {grupos.map((g, i) => {
+            const chave = chaveDoGrupo(g);
+            const aberta = secoes.estaAberta(chave);
+            return (
+              <Fragment key={chave}>
+                {i > 0 ? <FioEntreColecoes /> : null}
+                <View style={estilos.secao}>
+                  <CabecalhoDaColecao textos={textosDoCabecalho(g, numerosDasSecoes)} alternar={{ aberta, aoAlternar: () => secoes.alternar(chave) }} />
+                  {aberta ? <GradeDeVideos aulas={g.itens} numeros={numeros} nivel={3} {...acoes} /> : null}
+                </View>
+              </Fragment>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
 
 /** Os cartões de vídeo; o número (posição na coleção) só dentro de uma coleção, nunca em "Sem coleção" nem sem agrupar. */
-function GradeDeVideos({ aulas, numeros, baixarCapa, aoAbrirFora, aoComentarios }: {
+function GradeDeVideos({ aulas, numeros, nivel = 2, baixarCapa, aoAbrirFora, aoComentarios }: {
   aulas: readonly AulaDaComunidade[];
   numeros?: ReadonlyMap<string, number>;
+  /** h3 dentro da coleção (o cabeçalho dela é o h2); h2 na grade sem agrupar. */
+  nivel?: 2 | 3;
 } & AcoesDoVideo) {
   return (
     <Grade gap={espaco(2)} colunas={colunasDosVideos}>
       {aulas.map((a) => (
-        // h2: o cabeçalho da coleção é botão, não título.
-        <CartaoDoVideo key={a.id} aula={a} numero={numeros?.get(a.id)} nivel={2} baixarCapa={baixarCapa} aoAbrirFora={aoAbrirFora}
+        <CartaoDoVideo key={a.id} aula={a} numero={numeros?.get(a.id)} nivel={nivel} baixarCapa={baixarCapa} aoAbrirFora={aoAbrirFora}
           aoComentarios={() => aoComentarios(a)} />
       ))}
     </Grade>
@@ -120,4 +132,5 @@ function GradeDeVideos({ aulas, numeros, baixarCapa, aoAbrirFora, aoComentarios 
 
 const estilos = StyleSheet.create({
   blocos: { gap: espaco(3) },
+  secao: { gap: VAO_DO_CABECALHO },
 });

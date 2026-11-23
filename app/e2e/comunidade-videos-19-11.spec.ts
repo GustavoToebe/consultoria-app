@@ -97,7 +97,8 @@ async function abrir(page: Page, rotas: RespostasApi, { t = 'CLARO', permissoes 
   return api;
 }
 const pedidos = (api: { pedidos: PedidoFalso[] }, metodo: string, caminho: string) => api.pedidos.filter((p) => p.metodo === metodo && p.caminho === caminho);
-const secoes = (page: Page) => page.getByRole('heading', { level: 2 }).allInnerTexts();
+/** Cabeçalho de coleção (23/11): o nome acessível de cada seção ("Coleção 1: Técnica, 3 vídeos"), na ordem da tela. */
+const secoes = (page: Page) => page.getByRole('heading', { level: 2 }).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
 const semRolagemHorizontal = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 const acoesDoVideo = (page: Page) => page.getByRole('dialog', { name: 'Ações do vídeo' });
 
@@ -117,7 +118,8 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
           ...[6, 7, 8].map((n) => ({ ...AULA, id: `a${n}`, titulo: `Vídeo extra ${n}`, playlistId: 'p1', ordem: n }))]);
         const api = await abrir(page, rotas, { t });
         await expect(page.getByRole('heading', { level: 2, name: 'Técnica' })).toBeVisible();
-        expect(await secoes(page)).toEqual(['Técnica', 'Alimentação', 'Mobilidade', 'Sem coleção']);
+        // cabeçalho de coleção (23/11): "Coleção N" pela ordem, a vazia também; "Sem coleção" sem número.
+        expect(await secoes(page)).toEqual(['Coleção 1: Técnica, 6 vídeos', 'Coleção 2: Alimentação, 1 vídeo', 'Coleção: Mobilidade, 0 vídeos', 'Sem coleção, 1 vídeo']);
         await expect(page.getByText('O aluno vê as coleções nesta ordem, com os vídeos numerados. Coleção sem vídeo publicado não aparece para ele.')).toBeVisible();
         // O botão "Coleções" do topo saiu (D3); só o "Novo vídeo" fica no cabeçalho.
         await expect(page.getByRole('button', { name: 'Coleções', exact: true })).toHaveCount(0);
@@ -151,7 +153,7 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
     }
 
     for (const [nomeTema, t] of [['claro', 'CLARO'], ['escuro', 'ESCURO']] as const) {
-      test(`um vídeo só fica à esquerda, com a largura de uma coluna; em 1280, duas coleções de 1 vídeo cabem sem rolar (${nomeTema})`, async ({ page }) => {
+      test(`um vídeo só fica à esquerda, com a largura de uma coluna; em 1280, a capa do vídeo da segunda coleção aparece sem rolar (${nomeTema})`, async ({ page }) => {
         // Sem descrição: cada linha de descrição soma 24 px ao cartão (a medida vai na anotação do teste).
         const { rotas } = comEstado([TECNICA, ALIMENTACAO], [{ ...AULAS[0], descricao: null }, AULAS[3]]);
         await abrir(page, rotas, { t });
@@ -164,9 +166,12 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
         expect(capa.x - titulo.x).toBeLessThanOrEqual(4);
         if (colunas > 1) expect(capa.width).toBeLessThanOrEqual(area / colunas + 2);
         if (largura >= 1280) {
+          // cabeçalho de coleção (23/11): o fio, os ~40 px entre as seções e o sobretítulo somam ~56 px; em 900 de altura o
+          // cartão inteiro passa ~15 px da janela, então a garantia é a capa do segundo vídeo à vista sem rolar.
           const fim = (await ultimo.boundingBox())!;
           test.info().annotations.push({ type: 'fim do segundo cartão', description: `${Math.round(fim.y + fim.height)} px de ${altura}` });
-          expect(fim.y + fim.height).toBeLessThanOrEqual(altura);
+          const capaDoSegundo = (await page.getByRole('button', { name: 'Abrir vídeo: Proteína no café' }).boundingBox())!;
+          expect(capaDoSegundo.y + capaDoSegundo.height).toBeLessThanOrEqual(altura);
         }
         await capturar(page, `videos-um-por-colecao-${largura}-${nomeTema}`);
       });
@@ -224,7 +229,8 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
         await campo.fill('Mobilidade');
         await campo.press('Enter');
         await expect(page.getByRole('heading', { level: 2, name: 'Mobilidade' })).toBeVisible();
-        expect(await secoes(page)).toEqual(['Técnica', 'Alimentação', 'Mobilidade', 'Sem coleção']);
+        // cabeçalho de coleção (23/11): a nova entra no fim, com o próximo número.
+        expect(await secoes(page)).toEqual(['Coleção 1: Técnica, 3 vídeos', 'Coleção 2: Alimentação, 1 vídeo', 'Coleção: Mobilidade, 0 vídeos', 'Sem coleção, 1 vídeo']);
         await expect(page.getByRole('button', { name: 'Nova coleção' })).toBeVisible();
 
         // Renomear no título: o campo toma o lugar do nome; Enter salva e o foco volta ao ⋯.
@@ -246,7 +252,8 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
         await page.getByRole('dialog', { name: 'Ações da coleção “Nutrição”' }).getByRole('button', { name: /^Mover para cima/ }).click();
         await expect.poll(() => pedidos(api, 'PUT', '/comunidade/playlists/ordem').length).toBe(1);
         expect(pedidos(api, 'PUT', '/comunidade/playlists/ordem')[0].corpo).toEqual({ ids: ['p2', 'p1', 'n1'] });
-        await expect.poll(() => secoes(page)).toEqual(['Nutrição', 'Técnica', 'Mobilidade', 'Sem coleção']);
+        // cabeçalho de coleção (23/11): mover renumera pela ordem nova.
+        await expect.poll(() => secoes(page)).toEqual(['Coleção 1: Nutrição, 1 vídeo', 'Coleção 2: Técnica, 3 vídeos', 'Coleção: Mobilidade, 0 vídeos', 'Sem coleção, 1 vídeo']);
 
         // Excluir: perigo com texto e confirmação; Cancelar não apaga; os vídeos passam para "Sem coleção".
         await page.getByRole('button', { name: 'Ações da coleção Técnica' }).click();
@@ -260,7 +267,8 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
         await page.getByRole('dialog', { name: 'Ações da coleção “Técnica”' }).getByRole('button', { name: /^Excluir coleção/ }).click();
         await page.getByRole('alertdialog', { name: 'Excluir a coleção “Técnica”?' }).getByRole('button', { name: 'Excluir coleção' }).click();
         await expect(page.getByText('Coleção “Técnica” excluída.')).toBeVisible();
-        await expect.poll(() => secoes(page)).toEqual(['Nutrição', 'Mobilidade', 'Sem coleção']);
+        // cabeçalho de coleção (23/11).
+        await expect.poll(() => secoes(page)).toEqual(['Coleção 1: Nutrição, 1 vídeo', 'Coleção: Mobilidade, 0 vídeos', 'Sem coleção, 4 vídeos']);
         await expect(page.getByText('4 vídeos', { exact: true })).toBeVisible();
         expect(estado.aulas.filter((a) => a.playlistId === null)).toHaveLength(4);
         expect(api.errosDaPagina).toEqual([]);
@@ -372,6 +380,79 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
   });
 }
 
+// cabeçalho de coleção (23/11): sobretítulo "COLEÇÃO N" em caixa alta, nome em 20 px acima do título do vídeo, pílula com a
+// contagem (fonte numérica só no número), "SEM COLEÇÃO" sem nome, o nome acessível da seção e o fio acima de cada seção menos
+// a primeira, com ~40 px entre elas e 16 px até a grade.
+for (const largura of [390, 1280] as const) {
+  test.describe(`cabeçalho de coleção (23/11) em ${largura} px`, () => {
+    test.use({ viewport: { width: largura, height: 900 } });
+    test('sobretítulo, nome, pílula, nome acessível e o fio entre as seções', async ({ page }) => {
+      // Bastidores vem antes de todas e só tem rascunho: o aluno não a vê, então ela não consome número (Gustavo, 23/11).
+      const bastidores: PlaylistDaComunidade = { id: 'p4', nome: 'Bastidores', ordem: -1, totalAulas: 0 };
+      const { rotas } = comEstado([bastidores, TECNICA, ALIMENTACAO, MOBILIDADE],
+        [...AULAS, { ...AULA, id: 'a9', titulo: 'Bastidor em gravação', playlistId: 'p4', ordem: 0, publicada: false }]);
+      const api = await abrir(page, rotas);
+      const tecnica = page.getByRole('heading', { level: 2, name: 'Coleção 1: Técnica, 3 vídeos', exact: true });
+      await expect(tecnica).toBeVisible();
+      // O título não vira parada do Tab.
+      await expect(tecnica).not.toHaveAttribute('tabindex');
+      expect(await secoes(page)).toEqual(['Coleção: Bastidores, 1 vídeo', 'Coleção 1: Técnica, 3 vídeos', 'Coleção 2: Alimentação, 1 vídeo',
+        'Coleção: Mobilidade, 0 vídeos', 'Sem coleção, 1 vídeo']);
+      // O texto fica em caixa normal no DOM (o leitor de tela não soletra) e aparece em caixa alta.
+      await expect(page.getByText('Coleção 1', { exact: true })).toHaveText('COLEÇÃO 1', { useInnerText: true });
+      await expect(page.getByText('Coleção 2', { exact: true })).toHaveText('COLEÇÃO 2', { useInnerText: true });
+      // A que o aluno não vê: "COLEÇÃO" sem número, com o nome e a pílula.
+      await expect(page.getByRole('heading', { level: 2, name: 'Coleção: Mobilidade, 0 vídeos', exact: true }))
+        .toHaveText(/^COLEÇÃO\s*Mobilidade\s*0 vídeos$/, { useInnerText: true });
+      // "Sem coleção": só o sobretítulo e a pílula, sem nome embaixo.
+      const sem = page.getByRole('heading', { level: 2, name: 'Sem coleção, 1 vídeo', exact: true });
+      await expect(sem).toHaveText(/^SEM COLEÇÃO\s*1 vídeo$/, { useInnerText: true });
+      // Nome em 20 px, maior que o título do vídeo.
+      const nome = page.getByText('Técnica', { exact: true });
+      await expect(nome).toHaveCSS('font-size', '20px');
+      const tituloDoVideo = await page.getByRole('heading', { level: 3 }).first().evaluate((e) => parseFloat(getComputedStyle(e).fontSize));
+      expect(tituloDoVideo).toBeLessThan(20);
+      // Pílula neutra: fundo próprio e fonte numérica só no número.
+      const pilula = page.getByText('3 vídeos', { exact: true });
+      await expect(pilula).toBeVisible();
+      const [fonteDaPalavra, fonteDoNumero] = await pilula.evaluate((e) => [getComputedStyle(e).fontFamily, getComputedStyle(e.firstElementChild!).fontFamily]);
+      expect(fonteDoNumero).not.toBe(fonteDaPalavra);
+      await expect(pilula.locator('..')).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      await expect(page.getByText('0 vídeos', { exact: true })).toBeVisible();
+
+      // O fio: um acima de cada seção menos a primeira, de 1 px, com ~20 px de cada lado; 16 px do cabeçalho até a grade.
+      const topos = await page.getByRole('heading', { level: 2 }).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top));
+      const fios = await page.getByTestId('fio-entre-colecoes').evaluateAll((els) => els.map((e) => {
+        const r = e.getBoundingClientRect();
+        return { topo: r.top, altura: r.height, largura: r.width };
+      }));
+      expect(fios).toHaveLength(topos.length - 1);
+      const larguraDaSecao = (await page.getByRole('button', { name: 'Assistir: Vídeo de técnica' }).evaluate((e) => {
+        let el: Element | null = e;
+        while (el && !el.querySelector('[data-testid="fio-entre-colecoes"]')) el = el.parentElement;
+        return el?.getBoundingClientRect().width ?? 0;
+      }));
+      fios.forEach((f, i) => {
+        expect(f.altura).toBe(1);
+        expect(f.largura).toBeCloseTo(larguraDaSecao, 0);
+        expect(f.topo).toBeGreaterThan(topos[i]);
+        expect(f.topo).toBeLessThan(topos[i + 1]);
+        expect(topos[i + 1] - (f.topo + f.altura)).toBeGreaterThanOrEqual(19);
+      });
+      const fimDoCabecalho = (await tecnica.boundingBox())!;
+      const capa = (await page.getByRole('button', { name: 'Assistir: Vídeo de técnica' }).boundingBox())!;
+      expect(capa.y - (fimDoCabecalho.y + fimDoCabecalho.height)).toBeGreaterThanOrEqual(15);
+      // No PC o ⋯ e o "Adicionar vídeo" ficam centrados na altura do bloco sobretítulo + nome.
+      if (largura >= 1280) {
+        const menu = (await page.getByRole('button', { name: 'Ações da coleção Técnica' }).boundingBox())!;
+        expect(Math.abs(menu.y + menu.height / 2 - (fimDoCabecalho.y + fimDoCabecalho.height / 2))).toBeLessThanOrEqual(2);
+      }
+      expect(await semRolagemHorizontal(page)).toBe(true);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+  });
+}
+
 test.describe('vídeos em grade (19/11): arrastar no PC', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
   test('arrastar o cartão pela alça manda a ordem nova da coleção, e o ⋯ continua como alternativa', async ({ page }) => {
@@ -391,5 +472,29 @@ test.describe('vídeos em grade (19/11): arrastar no PC', () => {
     await expect.poll(() => pedidos(api, 'PUT', '/comunidade/playlists/p1/aulas/ordem').length).toBe(1);
     expect(pedidos(api, 'PUT', '/comunidade/playlists/p1/aulas/ordem')[0].corpo).toEqual({ ids: ['a2', 'a3', 'a1'] });
     await expect(page.getByText('Ordem alterada.')).toBeVisible();
+  });
+
+  // cabeçalho de coleção (23/11): no arraste da seção a cópia é só o cabeçalho (sobretítulo e nome), não a grade.
+  test('arrastar a seção pela alça move só o cabeçalho e manda a ordem nova das coleções', async ({ page }) => {
+    const { rotas } = comEstado([TECNICA, ALIMENTACAO], AULAS);
+    const api = await abrir(page, rotas);
+    const alimentacao = page.getByRole('heading', { level: 2, name: 'Coleção 2: Alimentação, 1 vídeo', exact: true });
+    await expect(alimentacao).toBeVisible();
+    const alca = alimentacao.locator('xpath=..').getByTestId('alca-de-arraste');
+    const de = (await alca.boundingBox())!;
+    const cabecalho = (await alimentacao.locator('xpath=..').boundingBox())!;
+    const alvo = (await page.getByRole('heading', { level: 2, name: /^Coleção 1: Técnica/ }).boundingBox())!;
+    await page.mouse.move(de.x + de.width / 2, de.y + de.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(de.x + 10, de.y - 10, { steps: 4 });
+    await page.mouse.move(alvo.x + 40, alvo.y, { steps: 12 });
+    const copia = page.locator('[data-copia-do-arraste]');
+    await expect(copia).toHaveCount(1);
+    await expect(copia).toContainText('Alimentação');
+    await expect(copia.getByText('Proteína no café')).toHaveCount(0);
+    expect((await copia.boundingBox())!.height).toBeLessThan(cabecalho.height * 1.1);
+    await page.mouse.up();
+    await expect.poll(() => pedidos(api, 'PUT', '/comunidade/playlists/ordem').map((p) => p.corpo)).toEqual([{ ids: ['p2', 'p1'] }]);
+    await expect.poll(() => secoes(page)).toEqual(['Coleção 1: Alimentação, 1 vídeo', 'Coleção 2: Técnica, 3 vídeos', 'Sem coleção, 1 vídeo']);
   });
 });

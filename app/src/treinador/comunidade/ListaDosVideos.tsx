@@ -1,10 +1,12 @@
 import { ArrowDown, ArrowUp, ExternalLink, FolderInput, FolderMinus, Pencil, Plus, Trash2 } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { baixarCapaDaEquipe } from '../../api/comunidade';
 import type { AulaDaComunidade, PlaylistDaComunidade } from '../../api/comunidadeTipos';
+import { FioEntreColecoes, FOLGA_ENTRE_COLECOES } from '../../comunidade/CabecalhoDaColecao';
 import { CartaoDoVideo } from '../../comunidade/CartaoDoVideo';
+import { colecoesQueOAlunoVe, numerosDasColecoes, textosDoCabecalho } from '../../dominio/cabecalhoDaColecao';
 import {
   auloesDaPlaylist, chipDaPlaylist, idDoYoutube, numerados, opcoesDoFiltroDePlaylist, playlistsEmOrdem, podeMover, resumoDosAuloes, SEM_COLECAO,
   textoDeExcluirPlaylist, textoDosMarcados, urlNoYoutube,
@@ -48,14 +50,19 @@ interface PropsDaLista {
  * Conteúdo da aba Vídeos (D2 e D3, 19/11): a linha do que o aluno vê com Filtros e Selecionar, e uma seção por coleção na
  * ordem do treinador (também a vazia), "Sem coleção" por último e "+ Nova coleção" no fim. Cada seção tem a grade de 4,
  * 3, 2 ou 1 coluna pela área; poucos vídeos ficam com a largura de uma coluna, à esquerda. Coleções e vídeos se
- * reordenam arrastando pela alça ou pelo ⋯ (Mover para cima/baixo). Com o GET das coleções em erro, a grade plana.
+ * reordenam arrastando pela alça ou pelo ⋯ (Mover para cima/baixo). Com o GET das coleções em erro, a grade plana. Cada seção
+ * abre com o cabeçalho de coleção (23/11): "COLEÇÃO N" igual ao do aluno ("COLEÇÃO" sem número na que ele não vê), o nome e a
+ * pílula, com o fio acima das seguintes.
  */
 export function ListaDosVideos({ v, podePublicar, area, aoComentarios, aoAbrirFora }: PropsDaLista) {
   const { auloes, playlists, colecoes, todas, colecoesDaAba: c } = v;
   const colunas = () => colunasDosVideos(area);
   // As seções que se arrastam são as coleções (sem o "Sem coleção"), sem filtro e fora do Selecionar.
   const ordenaveis = v.filtro === null && !v.selecionando && podePublicar && c.renomeando === null ? c.lista.length : 0;
-  const arrasteDasSecoes = useArrasteDaLista({ total: c.movendo ? 0 : ordenaveis, aoSoltar: c.soltar });
+  const arrasteDasSecoes = useArrasteDaLista({ total: c.movendo ? 0 : ordenaveis, aoSoltar: c.soltar, folga: FOLGA_ENTRE_COLECOES });
+  // "Coleção N" igual ao do aluno (Gustavo, 23/11): só as coleções com vídeo publicado numeram; a vazia fica "Coleção". O
+  // filtro não renumera (a conta usa a lista inteira).
+  const numeros = numerosDasColecoes(colecoesQueOAlunoVe(c.lista, todas));
 
   if (auloes.erro) return <MensagemErro texto={textoDoErro(auloes.erro)} erro={auloes.erro} tentarDeNovo={auloes.recarregar} />;
   // As seções esperam as duas buscas: sem as coleções, a grade apareceria plana por um instante.
@@ -109,19 +116,25 @@ export function ListaDosVideos({ v, podePublicar, area, aoComentarios, aoAbrirFo
         <Grade gap={VAO_DA_GRADE} colunas={colunas}>{v.visiveis.map((a) => cartao(a))}</Grade>
       ) : null}
 
-      {v.agrupar ? v.grupos.map((g) => {
+      {/* As seções num bloco só: entre elas o fio e ~40 px (`FioEntreColecoes`), não o vão de 24 da aba. */}
+      {v.agrupar && v.grupos.length ? <View>{v.grupos.map((g, i) => {
         const p = g.playlist;
+        const fio = i > 0 ? <FioEntreColecoes /> : null;
+        const textos = textosDoCabecalho(g, numeros);
         if (!p) {
           return (
-            <SecaoDaColecao key="sem-colecao" nome={SEM_COLECAO} resumo={resumoDosAuloes(g.itens.length)}>
-              <Grade gap={VAO_DA_GRADE} colunas={colunas}>{g.itens.map((a) => cartao(a))}</Grade>
-            </SecaoDaColecao>
+            <Fragment key="sem-colecao">
+              {fio}
+              <SecaoDaColecao nome={SEM_COLECAO} textos={textos}>
+                <Grade gap={VAO_DA_GRADE} colunas={colunas}>{g.itens.map((a) => cartao(a))}</Grade>
+              </SecaoDaColecao>
+            </Fragment>
           );
         }
         const indice = c.lista.findIndex((x) => x.id === p.id);
         const aberto = c.renomeando?.id === p.id;
         const secao = (
-          <SecaoDaColecao nome={p.nome} resumo={resumoDosAuloes(g.itens.length)}
+          <SecaoDaColecao nome={p.nome} textos={textos}
             alca={ordenaveis > 1 && indice >= 0 ? { lista: arrasteDasSecoes, indice } : undefined}
             aoMenu={podePublicar ? () => c.setMenuDe(p) : undefined}
             aoAdicionar={podePublicar && g.itens.length ? () => v.abrirNovoVideo(p.id) : undefined}
@@ -140,10 +153,8 @@ export function ListaDosVideos({ v, podePublicar, area, aoComentarios, aoAbrirFo
             )}
           </SecaoDaColecao>
         );
-        return indice >= 0 && ordenaveis > 1
-          ? <ItemArrastavel key={p.id} arraste={arrasteDasSecoes} indice={indice}>{secao}</ItemArrastavel>
-          : <View key={p.id}>{secao}</View>;
-      }) : null}
+        return <Fragment key={p.id}>{fio}{secao}</Fragment>;
+      })}</View> : null}
 
       {v.agrupar && podePublicar ? <NovaColecao c={c} /> : null}
     </View>
@@ -313,7 +324,7 @@ export function FolhasDosVideos({ v, podePublicar, aoAbrirFora }: { v: VideosDaE
 }
 
 const estilos = StyleSheet.create({
-  // 24 px entre as seções, o triplo dos 8 entre o cabeçalho e a grade (em 1280, duas coleções de 1 vídeo cabem sem rolar).
+  // 24 px entre os blocos da aba (aviso, linha do aluno, seções, "+ Nova coleção"); entre as seções vale o fio.
   blocos: { gap: espaco(3) },
   barra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', columnGap: espaco(2), rowGap: espaco(1.5) },
   explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 320 },
