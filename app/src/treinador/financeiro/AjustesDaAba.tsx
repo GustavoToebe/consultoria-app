@@ -26,8 +26,10 @@ import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 export function ColunasDeAjustes({ ajustes, apoio }: { ajustes: ReactNode; apoio: ReactNode }) {
   const { largura, aoMedir } = useFaixaDeLargura();
   const lado = largura >= LARGURA_DUAS_COLUNAS;
+  // A largura nasce 0 e só vem do `onLayout`, depois da primeira pintura: sem isto a aba aparecia numa coluna e saltava para
+  // duas (a "piscada" do Lembretes e do Recebimento). Medido e invisível no primeiro quadro, sem remontar nada.
   return (
-    <View onLayout={aoMedir} style={[estilos.colunas, lado ? estilos.lado : null]}>
+    <View onLayout={aoMedir} style={[estilos.colunas, lado ? estilos.lado : null, largura === 0 ? estilos.semMedida : null]}>
       <View style={[estilos.coluna, estilos.colunaAjustes, lado ? estilos.ajustes : null]}>{ajustes}</View>
       <View style={[estilos.coluna, estilos.colunaApoio, lado ? estilos.apoio : null]}>{apoio}</View>
     </View>
@@ -150,6 +152,7 @@ export function LinkDeAba({ aba, texto }: { aba: Aba; texto: string }) {
 
 const estilos = StyleSheet.create({
   colunas: { gap: espaco(2) },
+  semMedida: { opacity: 0 },
   lado: { flexDirection: 'row', alignItems: 'flex-start' },
   coluna: { gap: espaco(2) },
   colunaAjustes: { width: '100%', maxWidth: LARGURA_FORMULARIO },
