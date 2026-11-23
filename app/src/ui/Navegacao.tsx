@@ -187,7 +187,7 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
             contentContainerStyle={[estilos.blocos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
           {conta ? <View style={[estilos.rodapeDoMenu, { borderTopColor: cores.divisor }]}>{conta}</View> : null}
           {!trilho && dicaAtual ? (
-            <View pointerEvents="none" accessible={false} style={[estilos.dica, { left: larguraDoMenu + 4, top: dicaAtual.topo, backgroundColor: cores.texto }]}>
+            <View pointerEvents="none" accessible={false} style={[estilos.dica, { left: dicaAtual.esquerda ?? larguraDoMenu + 4, top: dicaAtual.topo, backgroundColor: cores.texto }]}>
               <Texto numberOfLines={1} style={[estilos.textoDica, { color: cores.fundo }]}>{dicaAtual.texto}</Texto>
             </View>
           ) : null}
@@ -380,20 +380,26 @@ function TituloDoGrupo({ grupo, fechado, atual, resumo, aoAlternar }: {
  */
 function useDicaDoTrilho() {
   const trilho = useRef<View | null>(null);
-  const alvo = useRef<{ texto: string; no: View } | null>(null);
-  const [atual, setAtual] = useState<{ texto: string; topo: number } | null>(null);
+  const alvo = useRef<{ texto: string; no: View; abaixo: boolean } | null>(null);
+  const [atual, setAtual] = useState<{ texto: string; topo: number; esquerda?: number } | null>(null);
   const medir = useCallback(() => {
     const pedido = alvo.current;
     if (!pedido || !trilho.current) return;
     pedido.no.measureLayout(
       trilho.current as never,
-      (_x, y) => { if (alvo.current === pedido) setAtual({ texto: pedido.texto, topo: y + DICA_ABAIXO_DO_TOPO }); },
+      (x, y, _largura, altura) => {
+        if (alvo.current !== pedido) return;
+        // Abaixo do controle, na coluna do menu: à direita ela cobriria o título da tela (o "Expandir menu" fica na linha dele).
+        setAtual(pedido.abaixo
+          ? { texto: pedido.texto, topo: y + altura + DICA_ABAIXO_DO_CONTROLE, esquerda: x }
+          : { texto: pedido.texto, topo: y + DICA_ABAIXO_DO_TOPO });
+      },
       () => undefined,
     );
   }, []);
-  const mostrar = useCallback((texto: string, no: View | null) => {
+  const mostrar = useCallback((texto: string, no: View | null, abaixo = false) => {
     if (!no) return;
-    alvo.current = { texto, no };
+    alvo.current = { texto, no, abaixo };
     medir();
   }, [medir]);
   const esconder = useCallback(() => {
@@ -409,7 +415,7 @@ interface MenuLateral {
   recolhido: boolean;
   /** Trilho do tablet (768 a 1023 px): rótulo embaixo do ícone, sem dica e sem recolher. */
   trilho: boolean;
-  mostrarDica?: (texto: string, no: View | null) => void;
+  mostrarDica?: (texto: string, no: View | null, abaixo?: boolean) => void;
   esconderDica?: () => void;
 }
 const ContextoDoMenu = createContext<MenuLateral>({ recolhido: false, trilho: false });
@@ -419,7 +425,7 @@ export const useMenuLateral = () => useContext(ContextoDoMenu);
  * Dica de um controle só de ícone do menu lateral (o nome ao passar o mouse ou focar), desenhada pelo menu. `ativa` falsa
  * ou fora do menu lateral: sem eventos. `noRef` é o `ref` do próprio controle (o menu mede onde ele está).
  */
-export function useDicaNoMenu(texto: string, ativa: boolean, noRef: RefObject<View | null>): {
+export function useDicaNoMenu(texto: string, ativa: boolean, noRef: RefObject<View | null>, abaixo = false): {
   onHoverIn?: () => void;
   onHoverOut?: () => void;
   onFocus?: () => void;
@@ -427,7 +433,7 @@ export function useDicaNoMenu(texto: string, ativa: boolean, noRef: RefObject<Vi
 } {
   const { mostrarDica, esconderDica } = useContext(ContextoDoMenu);
   if (!ativa || !mostrarDica) return {};
-  const mostrar = () => mostrarDica(texto, noRef.current);
+  const mostrar = () => mostrarDica(texto, noRef.current, abaixo);
   return { onHoverIn: mostrar, onHoverOut: esconderDica, onFocus: mostrar, onBlur: esconderDica };
 }
 
@@ -440,7 +446,7 @@ function BotaoRecolher({ recolhido, aoTocar }: { recolhido: boolean; aoTocar: ()
   const { cores } = useTema();
   const rotulo = recolhido ? 'Expandir menu' : 'Minimizar menu';
   const noRef = useRef<View | null>(null);
-  const dica = useDicaNoMenu(rotulo, true, noRef);
+  const dica = useDicaNoMenu(rotulo, true, noRef, true);
   // Só o foco do teclado revela: depois de um clique o botão continua focado, e a logo não deve sumir com o mouse longe.
   // Sem mouse (nativo, ou tablet de toque na web) o botão fica sempre à vista no lugar da logo (`SEM_MOUSE`).
   const [focoDoTeclado, setFocoDoTeclado] = useState(false);
@@ -525,6 +531,8 @@ const LARGURA_RECOLHIDO = 72;
 const LARGURA_TRILHO = 88;
 /** A dica fica 8 px abaixo do topo do item, como quando morava dentro dele. */
 const DICA_ABAIXO_DO_TOPO = 8;
+/** A dica do botão de recolher fica 4 px abaixo dele. */
+const DICA_ABAIXO_DO_CONTROLE = 4;
 
 const estilos = StyleSheet.create({
   linha: { flex: 1, flexDirection: 'row' },

@@ -175,6 +175,12 @@ test('PC minimizado (1280): o "Expandir" sobre a logo aparece com o mouse (sem e
   await page.mouse.move(caixaInicial!.x + caixaInicial!.width / 2, caixaInicial!.y + caixaInicial!.height / 2);
   await expect.poll(() => opacidade(expandir)).toBe('1');
   await expect(menu(page).getByText('Expandir menu', { exact: true })).toBeVisible();
+  // A dica fica abaixo do botão, na coluna do menu: à direita ela cobria o título da tela (23/11).
+  const dica = (await menu(page).getByText('Expandir menu', { exact: true }).boundingBox())!;
+  const tituloDaTela = (await page.getByRole('heading', { name: 'Ajuda', exact: true }).first().boundingBox())!;
+  const sobrepoe = dica.x < tituloDaTela.x + tituloDaTela.width && dica.x + dica.width > tituloDaTela.x
+    && dica.y < tituloDaTela.y + tituloDaTela.height && dica.y + dica.height > tituloDaTela.y;
+  expect(sobrepoe).toBe(false);
   expect(await larguraDoMenu()).toBeLessThanOrEqual(73);
   const caixa = await expandir.boundingBox();
   expect(caixa!.width).toBeGreaterThanOrEqual(44);

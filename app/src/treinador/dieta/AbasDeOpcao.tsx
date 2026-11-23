@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes } from '../../tema/tokens';
 import { Esmaecido, LARGURA_ESMAECIDO, useEsmaecimento } from '../../ui/FaixaDeChips';
-import { useFundoDaArea } from '../../ui/fundoDaArea';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useMovimentoReduzido } from '../../ui/useMovimentoReduzido';
@@ -47,8 +46,9 @@ const INDICADOR = 2;
  */
 export function AbasDeOpcao({ rotulo, opcoes, aberta, comProblema, aoAbrir, depois, apoio, registrar, children }: Props) {
   const { cores } = useTema();
-  // O esmaecido das bordas pinta com o fundo de quem contém as abas (a superfície do cartão).
-  const fundo = useFundoDaArea();
+  // O esmaecido das bordas pinta com o fundo de quem contém as abas: o cartão da refeição (`superficie`), não o fundo da
+  // página (`useFundoDaArea`), que no escuro deixava um retângulo mais escuro ao lado da aba.
+  const fundo = cores.superficie;
   const { direita, esquerda, medidas } = useEsmaecimento();
   const reduzido = useMovimentoReduzido();
   const rolagem = useRef<ScrollView>(null);
