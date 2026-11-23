@@ -20,7 +20,7 @@ export function caixaNaWeb(no: unknown): CaixaDoItem | undefined {
 export interface CoresDaCamada {
   superficie: string;
   sombra: string;
-  borda: string;
+  bordaCampo: string;
   acao: string;
 }
 
@@ -72,7 +72,7 @@ export function abrirCamada(no: unknown, cores: CoresDaCamada): CamadaDoArraste 
   });
   document.body.appendChild(copia);
 
-  const espaco = caixaFixa({ border: `1px dashed ${cores.borda}`, borderRadius: `${RAIO_DA_COPIA}px` });
+  const espaco = caixaFixa({ border: `1px dashed ${cores.bordaCampo}`, borderRadius: `${RAIO_DA_COPIA}px` });
   espaco.setAttribute('data-espaco-do-arraste', '');
   posicionar(espaco, inicio);
   const linha = caixaFixa({ backgroundColor: cores.acao, borderRadius: '1px', display: 'none' });

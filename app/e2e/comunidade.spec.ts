@@ -2220,15 +2220,13 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 3], [1920, 
 test.describe('barra inferior do aluno em 390 px', () => {
   test.use({ viewport: { width: 390, height: 900 } });
 
-  // C40 (D6, 20/11): a aba "Time" virou "Comunidade", sem rótulo curto. Em 390 px o item ativo mostra "Comunid…": pela
-  // decisão, não se encurta sem o Gustavo ver; o teste fica marcado como falha esperada até ele decidir.
-  test('o rótulo "Comunidade" do item cabe inteiro, sem corte', async ({ page }) => {
-    test.fail(true, 'D6: "Comunidade" não cabe inteiro em 390 px; aguarda decisão do Gustavo (não encurtar sozinho).');
+  // C40 (D6, 20/11): na barra inferior do celular (< 768 px) usa o rótulo curto "Mural", mantendo "Comunidade" no menu lateral (>= 768 px).
+  test('o rótulo curto "Mural" do item cabe inteiro em 390 px, sem corte', async ({ page }) => {
     await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia });
     await page.goto('/aluno/comunidade');
-    const item = page.getByRole('link', { name: 'Comunidade', exact: true });
+    const item = page.getByRole('link', { name: 'Mural (Comunidade)', exact: true });
     await expect(item).toBeVisible();
-    const rotulo = item.getByText('Comunidade', { exact: true });
+    const rotulo = item.getByText('Mural', { exact: true });
     await capturar(page, 'aluno-barra-390');
     const medida = await rotulo.evaluate((e) => ({ total: e.scrollWidth, visivel: e.clientWidth }));
     test.info().annotations.push({ type: 'medida', description: `scrollWidth ${medida.total} / clientWidth ${medida.visivel}` });

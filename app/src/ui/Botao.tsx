@@ -38,14 +38,15 @@ interface Props {
 
 /**
  * Ação principal neutra (D7, 17/11: fundo `texto`, rótulo `fundo`; no máximo uma por área; mouse em cima ou apertado =
- * `coresDoBotaoPrincipal().fundoAoPassar`); a marca não pinta botão. Secundária com o contorno forte (`bordaCampo`,
- * ≥ 3:1); fantasma só texto, para ação rara ou de baixo risco; `perigoTexto` é o fantasma com texto vermelho (remover,
- * inativar), sempre com confirmação. `perigo` (contorno e rótulo em `perigo`, sem fundo cheio; hover `perigoSuave`) é só
- * para o botão de confirmação do painel. `acao` (visual-ponytail, 17/11; `destaque` é o mesmo, nome antigo) é a ação de
- * construção que precisa ser achada sem ser a principal ("Adicionar exercício", "Usar receita de séries", "Trocar",
- * "Modelos prontos", "Adicionar refeição"): fundo `acaoSuave`, rótulo e ícone na cor de ação (índigo por padrão, a
- * pessoa troca em Ajustes) e contorno a 35%; com o mouse em cima o contorno fica cheio. Secundária: poço com a `borda`. O rótulo quebra em até duas linhas e nunca estoura o cartão; vários botões lado
- * a lado vão numa `LinhaDeAcoes`.
+ * `coresDoBotaoPrincipal().fundoAoPassar`); a marca não pinta botão. Secundária: poço (`superficie2`) com contorno
+ * `borda` (`bordaCampo` ao passar o mouse); fantasma só texto, para ação rara ou de baixo risco; `perigoTexto` é o
+ * fantasma com texto vermelho (remover, inativar), sempre com confirmação. `perigo` (contorno e rótulo em `perigo`, sem
+ * fundo cheio; hover `perigoSuave`) é só para o botão de confirmação do painel. `acao` (visual-ponytail, 17/11;
+ * `destaque` é o mesmo, nome antigo) é a ação de construção que precisa ser achada sem ser a principal ("Adicionar
+ * exercício", "Usar receita de séries", "+ Opção", "Modelos prontos", "Adicionar refeição"): fundo `acaoSuave`, rótulo e
+ * ícone na cor de ação (índigo por padrão, a pessoa troca em Ajustes) e contorno a 35%; com o mouse em cima o contorno
+ * fica cheio. O rótulo quebra em até duas linhas e nunca estoura o cartão; vários botões lado a lado vão numa
+ * `LinhaDeAcoes`.
  */
 export const Botao = forwardRef<View, Props>(function Botao(
   { rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Icone, desabilitado, motivo, carregando, cheio, autoFocus, style, testID }: Props,

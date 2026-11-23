@@ -247,7 +247,7 @@ export function ItemArrastavel<K>({ arraste: a, indice, style, children }: {
       style={[style, andando ? [estilos.porCima, { backgroundColor: cores.superficie, boxShadow: cores.sombra, opacity: 0.6 }] : null, andar]}>
       {children}
       {andando ? (
-        <Animated.View pointerEvents="none" aria-hidden style={[StyleSheet.absoluteFill, estilos.espaco, { borderColor: cores.borda }, ficar]}>
+        <Animated.View pointerEvents="none" aria-hidden style={[StyleSheet.absoluteFill, estilos.espaco, { borderColor: cores.bordaCampo }, ficar]}>
           {g && o ? <View style={[estilos.guia, { backgroundColor: cores.acao, left: g.x - o.x, top: g.y - o.y, width: g.w, height: g.h }]} /> : null}
         </Animated.View>
       ) : null}

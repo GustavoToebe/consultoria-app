@@ -27,5 +27,4 @@ O treinador arrasta itens com uma cópia translúcida que segue o ponteiro, um e
 ## O que ficou para trás
 - Nada conferido em aparelho nativo: toque longo, recorte pelo `ScrollView`, `zIndex` entre colunas num tablet; no nativo, sem rolagem automática nem Esc (`shortcut:`).
 - Temas areia e contraste alto durante o arraste, cartão do Kanban em 390 no escuro e arraste por toque na web num tablet largo.
-- Tracejado em `cores.borda` fraco no tema claro (fixado no D1): decidir com o Gustavo.
-- Início em edição sem "Ordem alterada" com Desfazer (tudo é rascunho; Cancelar descarta).
+- **Fechado em 23/11/2026:** mantidos o ⋯ do Kanban abrindo direto a folha de destinos e `"Solte aqui"` só durante o arraste; tracejado de origem passou a usar `cores.bordaCampo` para melhorar o contraste no tema claro (sem quebrar escuro, areia ou contraste alto); Início em edição (`GradeEmEdicao`) ganhou o aviso `"Ordem alterada."` com ação `Desfazer`, no padrão do Kanban e das listas.

@@ -21,7 +21,7 @@ import { abaComProblema, chaveDosProblemas, gramasSemUnidade, MAXIMO_DE_OPCOES, 
 import { moverPara } from '../../dominio/reordenar';
 import { numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, misturar, RAIO_CONTROLE } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO_CONTROLE } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA as LARGURA_DA_PECA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Botao } from '../../ui/Botao';
@@ -484,19 +484,19 @@ function AlcaDesativada() {
 }
 
 /**
- * "Trocar alimento" do item da biblioteca: compacto e na cor de ação (Gustavo, 20/11; antes, 19/11, secundário neutro),
- * com as cores do `Botao tipo="acao"`: fundo `acaoSuave` (opaco: o rótulo passa 4,5:1 também sobre a faixa
- * `superficie2`), rótulo e ícone `acao`, contorno a 35% e cheio com o mouse em cima. O desenho tem 32 px e o alvo, 44
- * (como o `IconeBotao compacto`); o `Botao` não tem tamanho compacto (o padding e a fonte dele não cabem embaixo do nome).
+ * "Trocar alimento" do item da biblioteca: compacto e secundário neutro (`superficie2`, contorno `borda` / `bordaCampo`
+ * ao passar o mouse, rótulo e ícone `texto`), para não multiplicar a cor de ação com "+ Opção" e os demais botões. O
+ * desenho tem 32 px e o alvo, 44 (como o `IconeBotao compacto`); o `Botao` não tem tamanho compacto (o padding e a
+ * fonte dele não cabem embaixo do nome).
  */
 function BotaoTrocar({ nome, aoTocar }: { nome: string; aoTocar: () => void }) {
   const { cores } = useTema();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`Trocar alimento: ${nome}`} onPress={aoTocar} style={estilos.alvoDoTrocar}>
       {(estado) => (
-        <View style={[estilos.desenhoDoTrocar, { backgroundColor: cores.acaoSuave, borderColor: sobre(estado) ? cores.acao : misturar(cores.acaoSuave, cores.acao, 0.35) }]}>
-          <ArrowLeftRight size={14} color={cores.acao} strokeWidth={2} />
-          <Texto style={[estilos.textoDoTrocar, { color: cores.acao }]}>Trocar alimento</Texto>
+        <View style={[estilos.desenhoDoTrocar, { backgroundColor: cores.superficie2, borderColor: sobre(estado) ? cores.bordaCampo : cores.borda }]}>
+          <ArrowLeftRight size={14} color={cores.texto} strokeWidth={2} />
+          <Texto style={[estilos.textoDoTrocar, { color: cores.texto }]}>Trocar alimento</Texto>
         </View>
       )}
     </Pressable>

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ArrowDown, ArrowUp, Plus, RotateCcw } from 'lucide-react-native';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +25,7 @@ import { alvoSobOPonteiro } from '../../dominio/reordenar';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { AlcaDeArraste, comItensComoAlvos, ItemArrastavel, useArraste, type ArrasteDoItem } from '../../ui/ArrasteDaLista';
+import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
@@ -80,6 +82,11 @@ export function GradeEmEdicao({ ctx, rascunho, colunas, aoMudar }: {
   aoMudar: MudancaDoPainel;
 }) {
   const { cores } = useTema();
+  const { avisar } = useAviso();
+  const aoMudarAtual = useRef(aoMudar);
+  const montada = useRef(false);
+  useEffect(() => { aoMudarAtual.current = aoMudar; });
+  useEffect(() => { montada.current = true; return () => { montada.current = false; }; }, []);
   const lista = blocosParaEditar(ctx, rascunho);
   const porId = new Map(lista.map((b) => [b.id, b]));
   const visiveis = blocosVisiveis(ctx, rascunho);
@@ -89,14 +96,20 @@ export function GradeEmEdicao({ ctx, rascunho, colunas, aoMudar }: {
   const arrastavel = Platform.OS !== 'web' || colunas > 1;
 
   // ---- Arrastar (peça `ui/ArrasteDaLista`): solta no bloco que está sob o ponteiro, que ganha a borda na cor de ação ----
-  // Sem o aviso "Ordem alterada" com Desfazer: aqui tudo é rascunho, a frase vai no rodapé e Cancelar descarta.
+  // Ao soltar em outro bloco, mostra também o aviso "Ordem alterada." com Desfazer (mesmo padrão da lista e do Kanban).
   const arraste = comItensComoAlvos(useArraste<BlocoDoPainelId, BlocoDoPainelId>({
     ativo: arrastavel && visiveis.length > 1,
     destino: (_de, ponto, blocos) => alvoSobOPonteiro([...blocos], ponto),
     aoSoltar: (id, destino) => {
       const i = visiveis.indexOf(destino);
       if (i < 0 || destino === id) return false;
-      aoMudar(moverBlocoPara(rascunho, id, i, visiveis), `${porId.get(id)?.titulo}: posição ${i + 1} de ${visiveis.length}.`);
+      const anterior = rascunho;
+      const titulo = porId.get(id)?.titulo;
+      aoMudar(moverBlocoPara(rascunho, id, i, visiveis), `${titulo}: posição ${i + 1} de ${visiveis.length}.`);
+      avisar('Ordem alterada.', 'neutro', {
+        rotulo: 'Desfazer',
+        aoTocar: () => { if (montada.current) aoMudarAtual.current(anterior, `${titulo}: voltou à posição anterior.`); },
+      });
       return true;
     },
   }));
