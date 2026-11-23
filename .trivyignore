@@ -1,42 +1,27 @@
-# Binário do Caddy da imagem oficial caddy:2-alpine. Conferido em 04/11/2026 na imagem puxada nesse dia
-# (caddy v2.11.7, digest sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5):
-# Go 1.26.8, golang.org/x/net v0.59.0 e go-jose v4.1.5. A correção publicada (Go 1.26.10, x/net 0.60.0, go-jose 4.1.6)
-# ainda não está na imagem. Negação de serviço no servidor HTTP. Este contêiner só serve arquivos estáticos, não publica
-# porta e só recebe tráfego do proxy da VPS. A validade (exp) faz o Trivy voltar a bloquear sozinho: ao vencer, refaça a
-# imagem (a base é puxada de novo a cada build) ou renove com nova justificativa. Próxima conferência em 28/11/2026.
-CVE-2026-78667 exp:2026-11-28
-CVE-2026-78669 exp:2026-11-28
-CVE-2026-97031 exp:2026-11-28
-# CVE-2026-111943 (Go crypto/x509, corrigida no Go 1.26.10): mesmo binário do Caddy oficial (ainda Go 1.26.8 em 04/11).
-# Este contêiner não termina TLS nem valida certificado de cliente (só HTTP atrás do proxy da VPS), então crypto/x509
-# não é exercitado. Mesma validade.
-CVE-2026-111943 exp:2026-11-28
-# CVE-2026-116587 (go-jose v4.1.5, corrigida na 4.1.6; GHSA-mgcc-cww5-fp2q): negação de serviço ao ler uma chave RSA forjada
-# dentro de um JWK (jose.ParseSigned / leitura de JWK), só consumo de CPU (CVSS 7.5, disponibilidade). Vem dentro do mesmo
-# binário do Caddy oficial, que usa o go-jose nas partes de certificado e assinatura (ACME, PKI, módulos de JWT). Este contêiner
-# só serve arquivos estáticos (Caddyfile com `admin off` e `auto_https off`, sem `tls`, ACME, `pki`, `acme_server` nem
-# autenticação por JWT), então nunca lê JWK de fonte externa. Este arquivo vale também para a imagem da API, que é Java e
-# não tem go-jose: a exceção não muda nada nela. Em 04/11 a imagem ainda traz v4.1.5. Mesma validade.
-CVE-2026-116587 exp:2026-11-28
+# Conferido em 23/11/2026 com a imagem caddy:2-alpine puxada de novo (caddy v2.11.9, Go 1.27.3, go-jose v4.1.6, x/net v0.60.0;
+# `docker build --pull --no-cache` e Trivy 0.76.2, banco de 23/11). Saíram as exceções que a base nova corrigiu ou que a CI já não
+# barra: CVE-2026-78667, 78669, 97031 e 111943 (o Trivy não as acusa mais), 97054 (agora MEDIUM; a CI só barra HIGH e CRITICAL) e
+# 116587 (corrigida no go-jose v4.1.6; o go-jose v3.0.5, que também vem no binário, segue afetado SEM correção publicada, e a CI usa
+# --ignore-unfixed: no dia em que sair correção para a v3, o Trivy volta a bloquear sozinho). A imagem da API (eclipse-temurin JRE +
+# jar, sem binário Go) não é afetada por nenhuma dessas saídas. A validade (exp) faz o Trivy voltar a bloquear sozinho: ao vencer,
+# refaça a imagem (a base é puxada de novo a cada build) ou renove com nova justificativa. Próxima conferência em 14/12/2026.
+
 # CVE-2026-78661 (golang.org/x/net v0.60.0, corrigida na 0.62.0): negação de serviço por HTML malformado (x/net/html).
-# Vem dentro do mesmo binário do Caddy oficial. Em 07/11/2026 o Caddy mais novo publicado era o 2.11.9, que ainda pede a
-# x/net 0.60.0; a 0.62.0 só está na master deles, então não há versão para fixar. Este contêiner só serve arquivos
-# estáticos, atrás do proxy da VPS. Exceção temporária decidida pelo Gustavo em 07/11. Mesma validade.
-CVE-2026-78661 exp:2026-11-28
-# CVE-2023-54404 / GHSA-mrhx-c7xc-m3w5 (zod 3.25.76, corrigida na 4.6.6): negação de serviço por memória ao validar um array
-# grande sem limite de tamanho. O zod vem só do @expo/cli, a ferramenta de build do `expo export` e do EAS, e dos plugins de lint;
-# nenhum arquivo do app importa zod, então ele não vai no bundle. Forçar o zod 4 pode quebrar o @expo/cli (exige ^3.25.76).
-# Revisão de 04/11: o Expo SDK 57 ainda pede zod ^3.25.76 (`npm audit` continua alto). Próxima conferência em 28/11,
-# junto do SDK 58. Se o Expo já trouxer zod 4.6.6, tirar a exceção.
-CVE-2023-54404 exp:2026-11-28
+# Vem dentro do binário do Caddy oficial. Em 23/11/2026 o Caddy mais novo publicado era o 2.11.9 (05/11), que ainda traz a x/net 0.60.0;
+# a 0.62.0 só está na master deles, então não há versão para fixar. Este contêiner só serve arquivos estáticos (sem parsear HTML),
+# não publica porta e só recebe tráfego do proxy da VPS. Exceção decidida pelo Gustavo em 07/11 e renovada em 23/11.
+CVE-2026-78661 exp:2026-12-14
 # CVE-2026-118664 (decode-uri-component 0.2.2, corrigida na 0.5.1): negação de serviço por tempo quadrático ao decodificar
 # sequências longas de %XX. Vem do query-string 7, que o expo-router usa para ler a query do endereço do próprio app, no
 # aparelho de quem abre a tela; não roda no servidor. O pior caso é um link forjado travar a aba de quem o abriu. A 0.5.1 é só
 # ESM e o query-string 7 a carrega com require(), então forçar a versão quebra o roteador. Exceção aprovada pelo Gustavo em
-# 29/10. Revisão de 04/11: o expo-router 57.0.28 ainda depende de query-string 7.1.3, que pede decode-uri-component ^0.2.2
-# (instalado 0.2.2). A corrigida 0.5.1 continua só ESM. Próxima conferência em 28/11, ou quando o SDK 58 tirar o query-string.
-CVE-2026-118664 exp:2026-11-28
-# CVE-2026-97054 (Go net/http, MaxBytesReader em servidor HTTP/1): vem dentro do binário do Caddy oficial. A imagem caddy:2-alpine de 19/11/2026
-# (v2.11.9) ainda traz Go 1.27.3; a correção está no Go 1.27.4 e no 1.26.11. Este contêiner só serve arquivos estáticos, sem corpo de
-# requisição útil, não publica porta e só recebe tráfego do proxy da VPS. Exceção decidida pelo Gustavo em 19/11/2026. Mesma validade.
-CVE-2026-97054 exp:2026-11-28
+# 29/10. Revisão de 23/11: o expo-router 57.0.28 segue com query-string 7.1.3 (decode-uri-component ^0.2.2); só o expo-router 58
+# (SDK 58, docs/planos/expo-sdk-58.md) tira o query-string. Próxima conferência em 14/12, ou quando o SDK 58 entrar.
+CVE-2026-118664 exp:2026-12-14
+# CVE-2023-54404 / GHSA-mrhx-c7xc-m3w5 (zod 3.25.76, corrigida na 4.6.6): negação de serviço por memória ao validar um array
+# grande sem limite de tamanho. O zod vem só do @expo/cli, a ferramenta de build do `expo export` e do EAS, e dos plugins de lint;
+# nenhum arquivo do app importa zod, então ele não vai no bundle. Forçar o zod 4 pode quebrar o @expo/cli (exige ^3.25.76).
+# Em 23/11/2026 o Trivy (banco de 23/11) deixou de listar o zod 3.25.76 no lock, mas o aviso do GitHub continua válido e aberto
+# (GHSA não retirada, alta, zod < 4.6.6; alerta 6 do Dependabot): o sumiço parece lacuna do banco do Trivy, não correção. Por isso
+# a exceção fica, renovada. Próxima conferência em 14/12, junto do SDK 58; se o Expo já trouxer zod 4.6.6, tirar.
+CVE-2023-54404 exp:2026-12-14
