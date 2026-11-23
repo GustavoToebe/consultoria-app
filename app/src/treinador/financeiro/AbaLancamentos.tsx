@@ -1,7 +1,7 @@
 import { ArrowDownLeft, ArrowUpRight, Plus } from 'lucide-react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import type { LancamentoResponse, Painel, TipoDeLancamento } from '../../api/financeiroTipos';
 import { alterarLancamento, categoriasDeLancamentos, criarLancamento, excluirLancamento, listarLancamentos } from '../../api/rotas';
@@ -215,6 +215,10 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const [excluindo, setExcluindo] = useState(false);
+  // "Continuar incluindo": qual botão disparou o envio (o indicador vai nele) e o recado dentro da Folha (o `avisar` fica atrás do véu dela).
+  const [continuando, setContinuando] = useState(false);
+  const [registrado, setRegistrado] = useState<string | null>(null);
+  const campoDescricao = useRef<TextInput>(null);
 
   const iso = dataDaTela(data);
   const centavos = centavosDaTela(valor);
@@ -243,17 +247,20 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
     setTentou(true);
     if (problema || !iso || centavos === null) return;
     setEnviando(true);
+    setContinuando(continuar);
     setErro(null);
+    setRegistrado(null);
     const corpo = { data: iso, descricao: descricao.trim(), valorCentavos: centavos, tipo, categoria: categoria.trim() || null, versao: lancamento?.versao ?? null };
     (lancamento ? alterarLancamento(lancamento.id, corpo) : criarLancamento(corpo)).then(
       () => {
         if (!continuar) return terminar(lancamento ? 'Lançamento salvo.' : 'Lançamento registrado.');
         setEnviando(false);
-        avisar('Lançamento registrado. Pode incluir o próximo.', 'sucesso');
+        setRegistrado(`Lançamento registrado: ${descricao.trim()}. Pode incluir o próximo.`);
         aoMudar();
         setDescricao('');
         setValor('');
         setTentou(false);
+        campoDescricao.current?.focus();
       },
       falhar,
     );
@@ -268,11 +275,12 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
 
   return (
     <Folha visivel titulo={lancamento ? (podeAlterar ? 'Editar lançamento' : 'Lançamento') : 'Novo lançamento'} aoFechar={aoFechar}
+      statusDoRodape={registrado ? <Texto variante="pequeno" accessibilityLiveRegion="polite">{registrado}</Texto> : undefined}
       rodape={podeAlterar ? (
         <LinhaDeAcoes alinhar="fim">
           {lancamento ? <Botao rotulo="Excluir" tipo="perigoTexto" aoTocar={() => { setErro(null); setExcluindo(true); }} desabilitado={enviando} /> : null}
-          {lancamento ? null : <Botao rotulo="Registrar e continuar incluindo" tipo="secundario" aoTocar={() => salvar(true)} desabilitado={enviando} />}
-          <Botao rotulo={lancamento ? 'Salvar lançamento' : 'Registrar lançamento'} aoTocar={() => salvar()} carregando={enviando} />
+          {lancamento ? null : <Botao rotulo="Registrar e continuar incluindo" tipo="secundario" aoTocar={() => salvar(true)} desabilitado={enviando} carregando={enviando && continuando} />}
+          <Botao rotulo={lancamento ? 'Salvar lançamento' : 'Registrar lançamento'} aoTocar={() => salvar()} desabilitado={enviando} carregando={enviando && !continuando} />
         </LinhaDeAcoes>
       ) : undefined}>
       <View style={{ gap: espaco(1.5) }}>
@@ -280,7 +288,7 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
           <>
             <Escolha rotulo="Tipo" opcoes={TIPOS} valor={tipo} aoMudar={setTipo} />
             <CampoData rotulo="Data" valor={data} aoMudar={setData} erro={tentou && !iso ? 'Informe a data do lançamento.' : null} />
-            <Campo rotulo="Descrição" valor={descricao} aoMudar={setDescricao} maxLength={LIMITES.descricaoDoLancamento}
+            <Campo ref={campoDescricao} rotulo="Descrição" valor={descricao} aoMudar={(v) => { setDescricao(v); setRegistrado(null); }} maxLength={LIMITES.descricaoDoLancamento}
               erro={tentou && !descricao.trim() ? 'Descreva o lançamento.' : null} />
             <CampoMoeda mascara rotulo="Valor" texto={valor} aoMudar={setValor} corDoTexto={corDoTipo(tipo)}
               erro={tentou && centavos === null ? 'Informe um valor maior que zero, por exemplo 150,00.' : null} />

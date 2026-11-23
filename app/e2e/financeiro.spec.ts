@@ -344,7 +344,7 @@ test('lançamento de saída: o app envia centavos e o resultado do mês acompanh
   expect(errosDaPagina).toEqual([]);
 });
 
-test('lançamento: "Registrar e continuar incluindo" mantém a Folha aberta com tipo, data e categoria e limpa descrição e valor', async ({ page }) => {
+test('lançamento: "Registrar e continuar incluindo" mantém a Folha aberta com tipo, data e categoria, limpa descrição e valor e devolve o foco', async ({ page }) => {
   await fixarHoje(page);
   const estado = estadoFinanceiro({ painel: PAINEL_COM_DADOS });
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
@@ -352,20 +352,30 @@ test('lançamento: "Registrar e continuar incluindo" mantém a Folha aberta com 
 
   await page.getByRole('button', { name: 'Novo lançamento' }).click();
   const folha = page.getByRole('dialog');
-  await folha.getByLabel('Descrição').fill('Aluguel da sala');
+  // Fora do padrão (Saída, hoje): o que ficar para o segundo lançamento tem de ser o que a pessoa escolheu.
+  await folha.getByRole('radiogroup', { name: 'Tipo' }).getByRole('radio', { name: 'Entrada', exact: true }).click();
+  await folha.getByLabel('Data').fill('10/10/2026');
+  await folha.getByLabel('Descrição').fill('Venda de camiseta');
   await folha.getByLabel('Valor', { exact: true }).fill('350,00');
-  await folha.getByLabel('Categoria (opcional)').fill('Aluguel');
+  await folha.getByLabel('Categoria (opcional)').fill('Loja');
   await folha.getByRole('button', { name: 'Registrar e continuar incluindo' }).click();
 
-  await expect(page.getByText('Lançamento registrado. Pode incluir o próximo.')).toBeVisible();
-  await expect(folha).toBeVisible();
+  // O recado fica dentro da Folha: o aviso do app ficaria atrás do véu dela.
+  await expect(folha.getByText('Lançamento registrado: Venda de camiseta. Pode incluir o próximo.')).toBeVisible();
   await expect(folha.getByLabel('Descrição')).toHaveValue('');
+  await expect(folha.getByLabel('Descrição')).toBeFocused();
   await expect(folha.getByLabel('Valor', { exact: true })).toHaveValue('');
-  await expect(folha.getByLabel('Categoria (opcional)')).toHaveValue('Aluguel');
+  await expect(folha.getByLabel('Categoria (opcional)')).toHaveValue('Loja');
+  await expect(folha.getByLabel('Data')).toHaveValue('10/10/2026');
+  await expect(folha.getByRole('radio', { name: 'Entrada', exact: true })).toBeChecked();
   // Folha limpa não mostra erro de campo vazio antes de a pessoa tentar de novo.
   await expect(folha.getByText('Descreva o lançamento.')).toHaveCount(0);
+  // A lista e o resultado do mês já foram recarregados por trás da Folha.
+  await expect.poll(() => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/financeiro/lancamentos').length).toBeGreaterThanOrEqual(2);
 
-  await folha.getByLabel('Descrição').fill('Internet');
+  // Digitar de novo apaga o recado.
+  await folha.getByLabel('Descrição').fill('Venda de boné');
+  await expect(folha.getByText(/Lançamento registrado: /)).toHaveCount(0);
   await folha.getByLabel('Valor', { exact: true }).fill('120,00');
   await folha.getByRole('button', { name: 'Registrar lançamento' }).click();
   await expect(page.getByText('Lançamento registrado.', { exact: true })).toBeVisible();
@@ -373,8 +383,8 @@ test('lançamento: "Registrar e continuar incluindo" mantém a Folha aberta com 
 
   const envios = pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/financeiro/lancamentos');
   expect(envios.map((e) => e.corpo)).toEqual([
-    { data: '2026-10-19', descricao: 'Aluguel da sala', valorCentavos: 35_000, tipo: 'SAIDA', categoria: 'Aluguel', versao: null },
-    { data: '2026-10-19', descricao: 'Internet', valorCentavos: 12_000, tipo: 'SAIDA', categoria: 'Aluguel', versao: null },
+    { data: '2026-10-10', descricao: 'Venda de camiseta', valorCentavos: 35_000, tipo: 'ENTRADA', categoria: 'Loja', versao: null },
+    { data: '2026-10-10', descricao: 'Venda de boné', valorCentavos: 12_000, tipo: 'ENTRADA', categoria: 'Loja', versao: null },
   ]);
   expect(errosDaPagina).toEqual([]);
 });
