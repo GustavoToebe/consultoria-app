@@ -1,34 +1,49 @@
-import type { Cores } from '../tema/tokens';
+import type { Cores, VarianteDoTema } from '../tema/tokens';
+import { superficiePintada, type SuperficiePintada } from './superficiePintada';
 
 /** Regra pura do `CartaoDeIndicador` (sem React, para o Jest medir os pares em `contrasteDasPecas.test.ts`). */
 
-/** Situação que o número sinaliza (cor como sinal): recebido = sucesso, pendência = atenção, atraso = perigo. */
-export type TomDoIndicador = 'sucesso' | 'atencao' | 'perigo' | 'neutro';
-/** `zero` ("R$ 0,00", "0") e `indisponivel` ("—" com o motivo) nunca levam o tom: zero não é alerta nem sucesso. */
+/**
+ * Situação que o número sinaliza (cor como sinal): recebido = sucesso, pendência = atenção, atraso = perigo, medida sem
+ * juízo que precisa ser achada = informação, recorde = conquista. O resto é `neutro`. Categoria vem por `corDeCategoria`.
+ */
+export type TomDoIndicador = 'sucesso' | 'atencao' | 'perigo' | 'informacao' | 'conquista' | 'neutro';
+/** `zero` ("R$ 0,00", "0") e `indisponivel` ("—" com o motivo) nunca levam a cor: zero não é alerta nem sucesso. */
 export type EstadoDoIndicador = 'valor' | 'zero' | 'indisponivel';
 
 export interface AparenciaDoIndicador {
-  /** Faixa de 4 px à esquerda, ponto e ícone: a cor do tom (≥ 3:1 sobre o fundo do cartão); `null` sem tom. */
-  faixa: string | null;
-  /** Número: `texto`, ou `textoSuave` no zero e no indisponível (4,5:1). */
-  valor: string;
-  /** Rótulo: sempre `textoSuave` (o tom fica na faixa e no ponto; o rótulo diz o que é). */
+  /** Fundo, borda e cor de texto pintados (`ui/superficiePintada`); `null` no neutro, no zero e no indisponível. */
+  pintura: SuperficiePintada | null;
+  /** Ponto e ícone: a cor (≥ 3:1 sobre o ponto mais forte do fundo); `null` sem cor. */
+  marca: string | null;
+  /** Rótulo: a cor quando ela passa 4,5:1 (senão `texto`); sem cor, `textoSuave`. */
   rotulo: string;
-  /** `superficie` solto na página; `superficie2` (poço) dentro de um `Cartao`. */
+  /** Número: a cor quando ela passa 4,5:1 (senão `texto`); sem cor, `texto`; zero e indisponível, `textoSuave`. */
+  valor: string;
+  /** Base neutra: `superficie` solto na página; `superficie2` (poço) dentro de um `Cartao`. */
   fundo: string;
+  /** Contorno de 1 px: a cor a 50% com cor; `divisor` sem. */
+  borda: string;
 }
 
+/** `cor` = a da situação (`cores[tom]`) ou a de categoria; `null` = neutro. */
 export function aparenciaDoIndicador(
-  tom: TomDoIndicador,
+  cor: string | null,
   estado: EstadoDoIndicador,
   lugar: 'pagina' | 'cartao',
-  cores: Pick<Cores, 'texto' | 'textoSuave' | 'superficie' | 'superficie2' | 'sucesso' | 'atencao' | 'perigo'>,
+  cores: Pick<Cores, 'texto' | 'textoSuave' | 'superficie' | 'superficie2' | 'divisor'>,
+  variante: VarianteDoTema,
 ): AparenciaDoIndicador {
+  const fundo = lugar === 'cartao' ? cores.superficie2 : cores.superficie;
   const apagado = estado !== 'valor';
-  return {
-    faixa: apagado || tom === 'neutro' ? null : cores[tom],
-    valor: apagado ? cores.textoSuave : cores.texto,
-    rotulo: cores.textoSuave,
-    fundo: lugar === 'cartao' ? cores.superficie2 : cores.superficie,
-  };
+  if (apagado || !cor) {
+    return { pintura: null, marca: null, rotulo: cores.textoSuave, valor: apagado ? cores.textoSuave : cores.texto, fundo, borda: cores.divisor };
+  }
+  const pintura = superficiePintada(cor, fundo, variante, cores);
+  return { pintura, marca: cor, rotulo: pintura.texto, valor: pintura.texto, fundo, borda: pintura.borda };
+}
+
+/** A cor do tom no tema (`null` no neutro). */
+export function corDoTom(tom: TomDoIndicador, cores: Pick<Cores, 'sucesso' | 'atencao' | 'perigo' | 'informacao' | 'conquista'>): string | null {
+  return tom === 'neutro' ? null : cores[tom];
 }

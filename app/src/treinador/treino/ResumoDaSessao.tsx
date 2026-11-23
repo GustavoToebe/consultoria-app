@@ -4,6 +4,7 @@ import { corDoTipoDeSerie } from '../../dominio/corDaSerie';
 import type { ResumoDaSessaoPorContagem } from '../../dominio/inspetorDoTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes } from '../../tema/tokens';
+import { fundoPintado, superficiePintada } from '../../ui/superficiePintada';
 import { Texto } from '../../ui/Texto';
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
@@ -15,13 +16,15 @@ export function textoDosTotaisDaSessao(r: Pick<ResumoDaSessaoPorContagem, 'exerc
 
 /**
  * Totais da sessão e a distribuição sempre à vista (visual-ponytail, 17/11: o "Ver distribuição da sessão" recolhido
- * passava despercebido e deixava um buraco): séries por tipo em blocos com o número grande e o ponto na cor do tipo, e
+ * passava despercebido e deixava um buraco): séries por tipo em blocos com o número grande, pintados na cor do tipo
+ * (cartão de indicador pintado, 23/11, `ui/superficiePintada`; ficam fora do `CartaoDeIndicador` porque são ladrilhos de
+ * 22 px que dividem a linha a partir de 90 px, menores que a célula da `GradeDeIndicadores`; tipo sem cor fica neutro), e
  * séries de trabalho por grupo muscular em barras. Só contagens de `resumoDaSessaoPorContagem`: nada de meta, média,
  * percentual ou cor de bom/ruim (a barra é da cor de identificação, não de situação); lista vazia é "—". Sessão sem
  * exercício não mostra nada.
  */
 export function ResumoDaSessao({ resumo }: { resumo: ResumoDaSessaoPorContagem }) {
-  const { cores, identificacao } = useTema();
+  const { cores, identificacao, variante } = useTema();
   if (resumo.exercicios === 0) return null;
   const maior = Math.max(1, ...resumo.porGrupoMuscular.map((g) => g.seriesDeTrabalho));
   return (
@@ -34,13 +37,16 @@ export function ResumoDaSessao({ resumo }: { resumo: ResumoDaSessaoPorContagem }
             <View style={estilos.tipos}>
               {resumo.porTipo.map((t) => {
                 const chave = corDoTipoDeSerie(t.codigo, null);
+                const cor = chave ? identificacao[chave].cor : null;
+                const p = cor ? superficiePintada(cor, cores.superficie2, variante, cores) : null;
                 return (
-                  <View key={t.codigo} style={[estilos.tipo, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]} accessible accessibilityLabel={`${t.nome || t.codigo}: ${t.quantidade}`}>
+                  <View key={t.codigo} style={[estilos.tipo, { borderColor: p?.borda ?? cores.divisor }, p ? fundoPintado(p) : { backgroundColor: cores.superficie2 }]}
+                    accessible accessibilityLabel={`${t.nome || t.codigo}: ${t.quantidade}`}>
                     <View style={estilos.cabecaDoTipo}>
-                      <View style={[estilos.ponto, { backgroundColor: chave ? identificacao[chave].cor : cores.textoSuave }]} />
-                      <Texto variante="pequeno" cor="suave" numberOfLines={1} style={estilos.flexivel}>{t.nome || t.codigo}</Texto>
+                      {cor ? <View style={[estilos.ponto, { backgroundColor: cor, boxShadow: `0px 0px 10px ${cor}` }]} /> : null}
+                      <Texto variante="pequeno" cor={p?.texto ?? 'suave'} numberOfLines={1} style={estilos.flexivel}>{t.nome || t.codigo}</Texto>
                     </View>
-                    <Texto numerico style={estilos.numeroDoTipo}>{t.quantidade}</Texto>
+                    <Texto numerico cor={p?.texto} style={estilos.numeroDoTipo}>{t.quantidade}</Texto>
                   </View>
                 );
               })}

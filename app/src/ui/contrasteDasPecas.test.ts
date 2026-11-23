@@ -1,7 +1,7 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import { aparenciaDoIndicador } from './aparenciaDoIndicador';
 import { coresDoDesabilitado } from './desabilitado';
-import { aparenciaDoNumero, contornoDoNumero, LARGURA_DA_FAIXA } from './destaqueDoNumero';
+import { aparenciaDoNumero } from './destaqueDoNumero';
 import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
 import { coresDoInterruptor } from './interruptor';
 import { coresDoMarcar } from './marcar';
@@ -125,24 +125,6 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     for (const s of [cores.superficie2, cores.superficie3]) expect(contraste(cor, s)).toBeGreaterThanOrEqual(3);
   });
 
-  // Financeiro e Números (19/11): o cartão de indicador troca o `neon` legado pelos papéis de situação.
-  it.each(['pagina', 'cartao'] as const)('CartaoDeIndicador (%s): faixa, ponto e ícone do tom ≥ 3:1 sobre o cartão e onde ele fica; rótulo e número ≥ 4,5:1', (lugar) => {
-    const ondeFica = lugar === 'pagina' ? [cores.painel, cores.fundo] : [cores.superficie];
-    for (const tom of ['sucesso', 'atencao', 'perigo'] as const) {
-      const a = aparenciaDoIndicador(tom, 'valor', lugar, cores);
-      expect(a.faixa).toBe(cores[tom]);
-      for (const s of [a.fundo, ...ondeFica]) expect(contraste(a.faixa ?? '', s)).toBeGreaterThanOrEqual(3);
-      expect(contraste(a.rotulo, a.fundo)).toBeGreaterThanOrEqual(4.5);
-      expect(contraste(a.valor, a.fundo)).toBeGreaterThanOrEqual(4.5);
-    }
-    for (const estado of ['zero', 'indisponivel'] as const) {
-      const a = aparenciaDoIndicador('perigo', estado, lugar, cores);
-      expect(a.faixa).toBeNull();
-      expect(contraste(a.valor, a.fundo)).toBeGreaterThanOrEqual(4.5);
-    }
-    expect(aparenciaDoIndicador('neutro', 'valor', lugar, cores).faixa).toBeNull();
-  });
-
   it('pílulas de situação: o número e o texto que ficam por cima seguem em `texto`/`textoSuave` ≥ 4,5:1 (Próximo passo, série em andamento, BadgeNivel)', () => {
     for (const fundo of [cores.sucessoSuave, cores.atencaoSuave, cores.perigoSuave, cores.informacaoSuave, cores.conquistaSuave]) {
       expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
@@ -254,6 +236,38 @@ describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].ma
   });
 });
 
+/**
+ * Cartão de indicador pintado (23/11): o `CartaoDeIndicador` com situação ou categoria leva o degradê e a borda da cor
+ * (`ui/superficiePintada`); rótulo e número na cor só quando ela passa 4,5:1 sobre o ponto mais forte, senão `texto`.
+ * Os pares do degradê nos 9 temas ficam em `tema/tokens.test.ts`; aqui, a regra da peça (lugar, zero, neutro).
+ */
+describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].map((alto): [string, Cores, VarianteDoTema] => [
+  `${nome}${alto ? ', contraste alto e bordas reforçadas' : ''}`,
+  alto ? coresComBordasReforcadas(coresComContraste(base, 'ALTO', escuro), true) : base,
+  variante,
+])))('CartaoDeIndicador no tema %s', (_nome, cores, variante) => {
+  it.each(['pagina', 'cartao'] as const)('%s: com cor, pintado sobre a base do lugar; rótulo, número e detalhe ≥ 4,5:1, ponto ≥ 3:1', (lugar) => {
+    for (const tom of ['sucesso', 'atencao', 'perigo', 'informacao', 'conquista'] as const) {
+      const a = aparenciaDoIndicador(cores[tom], 'valor', lugar, cores, variante);
+      expect(a.fundo).toBe(lugar === 'cartao' ? cores.superficie2 : cores.superficie);
+      expect(a.pintura?.base).toBe(a.fundo);
+      const forte = a.pintura?.forte ?? '';
+      expect(a.marca).toBe(cores[tom]);
+      expect(contraste(a.marca ?? '', forte)).toBeGreaterThanOrEqual(3);
+      for (const texto of [a.rotulo, a.valor, cores.textoSuave]) expect(contraste(texto, forte)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('zero, indisponível e neutro: sem pintura, contorno `divisor`, número legível', () => {
+    for (const estado of ['zero', 'indisponivel'] as const) {
+      const a = aparenciaDoIndicador(cores.perigo, estado, 'pagina', cores, variante);
+      expect(a).toMatchObject({ pintura: null, marca: null, borda: cores.divisor, valor: cores.textoSuave });
+      expect(contraste(a.valor, a.fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(aparenciaDoIndicador(null, 'valor', 'cartao', cores, variante)).toMatchObject({ pintura: null, marca: null, borda: cores.divisor, valor: cores.texto, rotulo: cores.textoSuave });
+  });
+});
+
 /** Cor com alfa sobre um fundo opaco (o que o aparelho pinta), para conferir o contraste de um fundo translúcido. */
 function sobreposta(cor: string, alfa: number, base: string): string {
   const a = parseInt(cor.slice(1), 16);
@@ -335,15 +349,5 @@ describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].ma
     expect(contraste(apagado.numero, apagado.fundo)).toBeGreaterThanOrEqual(4.5);
     expect(contraste(apagado.numero, apagado.fundoSobre)).toBeGreaterThanOrEqual(4.5);
     expect(aparenciaDoNumero('neutro', cores, destaques).numero).toBe(cores.texto);
-  });
-
-  it('o conteúdo fica no mesmo lugar com e sem faixa', () => {
-    for (const bloco of [1, 2]) {
-      const com = contornoDoNumero('#000000', cores, bloco, 16);
-      const sem = contornoDoNumero(null, cores, bloco, 16);
-      expect(com.borderLeftWidth).toBe(LARGURA_DA_FAIXA);
-      expect((com.borderLeftWidth as number) + (com.paddingLeft as number)).toBe((sem.borderLeftWidth as number) + (sem.paddingLeft as number));
-      expect(sem.borderLeftColor).toBe(cores.divisor);
-    }
   });
 });

@@ -17,6 +17,7 @@ import { LinhaDoCicloNaAtualizacao } from './ciclo/CicloNaFicha';
 import { Cartao } from '../ui/Cartao';
 import { ImagemProtegida } from '../ui/ImagemProtegida';
 import { Selo, type TipoSelo } from '../ui/Selo';
+import { fundoPintado, superficiePintada } from '../ui/superficiePintada';
 import { Texto } from '../ui/Texto';
 
 /**
@@ -26,7 +27,7 @@ import { Texto } from '../ui/Texto';
  * da meta efetiva do aluno, que vem da lista de pesos (`GET /alunos/{id}/pesos`); sem ela, fica sem cor.
  */
 export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atualizacao:Atualizacao;modelo:ConteudoQuestionario;selo?:{texto:string;tipo:TipoSelo;Icone?:LucideIcon}|null;descricao?:string}) {
-  const {cores}=useTema();
+  const {cores,variante}=useTema();
   const {pode}=useSessao();
   const resumo=resumoDoTreinador(modelo,a.respostas,a.resumo);
   // Com uma casa, como o número da tela: "0" nunca ganha seta nem cor.
@@ -36,6 +37,8 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
     ()=>pesosDoAluno(a.alunoId).then(l=>l.find(p=>p.metaDoPeso)?.metaDoPeso??null,()=>null)).dados??null;
   const tom=tomDaVariacaoDoPeso(variacao,meta);
   const corDaVariacao=tom==='positivo'?cores.sucesso:tom==='problema'?cores.perigo:undefined;
+  // Cartão de indicador pintado (23/11): a caixa da variação com meta ganha a cor da situação (`ui/superficiePintada`).
+  const pintar=(cor?:string)=>cor?superficiePintada(cor,cores.superficie2,variante,cores):null;
   const sinal=(valor:number)=>valor>0?`▲ ${textoDaDiferenca(valor)}`:valor<0?`▼ ${textoDaDiferenca(valor)}`:textoDaDiferenca(0);
   const linha=variacao?linhaDaMeta(meta,'equipe'):null;
   const numeros:[string,string,string?,string?][]=[
@@ -49,9 +52,9 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
   const perguntasFotos=modelo.secoes.flatMap(s=>s.perguntas).filter(p=>p.tipo==='FOTOS');
   return <Cartao titulo="Resumo do período" descricao={descricao} acoes={selo?<Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} />:undefined}>
     {numeros.length?<View style={estilos.numeros}>
-      {numeros.map(([rotulo,valor,cor,escala],i)=><View key={`${i}:${rotulo}`} style={[estilos.numero,{backgroundColor:cores.superficie2,borderColor:cores.borda}]}>
-        <Texto variante="rotulo">{rotulo}</Texto><Texto variante="destaque" numerico cor={cor}>{valor}</Texto>{escala?<Texto variante="pequeno">{escala}</Texto>:null}
-      </View>)}
+      {numeros.map(([rotulo,valor,cor,escala],i)=>{const p=pintar(cor);return <View key={`${i}:${rotulo}`} style={[estilos.numero,{backgroundColor:cores.superficie2,borderColor:p?.borda??cores.borda},p?fundoPintado(p):null]}>
+        <Texto variante="rotulo" cor={p?.texto}>{rotulo}</Texto><Texto variante="destaque" numerico cor={p?.texto}>{valor}</Texto>{escala?<Texto variante="pequeno">{escala}</Texto>:null}
+      </View>;})}
     </View>:null}
     <Texto>{fraseDeTreinosNoPeriodo(resumo.diasComTreino,resumo.mediaDiasPorSemana)}</Texto>
     <LinhaDoCicloNaAtualizacao alunoId={a.alunoId} pastaId={a.pastaId} data={a.dataAtualizacao} />

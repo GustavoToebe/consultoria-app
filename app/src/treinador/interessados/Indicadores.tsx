@@ -3,7 +3,6 @@ import { StyleSheet, View } from 'react-native';
 
 import { indicadoresInscricoes } from '../../api/rotas';
 import { hojeEmBrasilia } from '../../dominio/agendaPresencial';
-import { enfaseDaMedida, enfaseDoNumero, type FuncaoDeDestaque } from '../../dominio/destaque';
 import { dataParaTela, SEM_DADO } from '../../dominio/formatos';
 import { contagemParaTela } from '../../dominio/numeros';
 import { colunasDosIndicadores, duasColunasCom } from '../../dominio/grade';
@@ -19,10 +18,10 @@ import {
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { Cartao } from '../../ui/Cartao';
+import { CartaoDeIndicador, type TomDoIndicador } from '../../ui/CartaoDeIndicador';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
-import { NumeroDeDestaque } from '../../ui/NumeroDeDestaque';
 import { textoDoErro } from '../../ui/erros';
 import { Grade } from '../../ui/Grade';
 import { Tabela } from '../../ui/Tabela';
@@ -93,17 +92,17 @@ export function Indicadores() {
         <>
           <View style={dados.carregando ? estilos.esmaecido : null} accessibilityState={{ busy: dados.carregando }}>
             <Grade gap={espaco(1.5)} colunas={(l) => colunasDosIndicadores(l, fatorTexto)}>
-              <Numero rotulo="Entradas" valor={ind.entradas} destaque="ciano" />
-              <Numero rotulo="Pessoas" valor={ind.pessoas} destaque="azul" />
-              <Numero rotulo="Aceites" valor={ind.aceites} destaque="verde" />
-              <Numero rotulo="Conversão das entradas" valor={ind.conversao} texto={porcentagem(ind.conversao)} destaque="violeta" medida motivo="Sem entradas no período"
+              <Numero rotulo="Entradas" valor={ind.entradas} />
+              <Numero rotulo="Pessoas" valor={ind.pessoas} />
+              <Numero rotulo="Aceites" valor={ind.aceites} tom="sucesso" />
+              <Numero rotulo="Conversão das entradas" valor={ind.conversao} texto={porcentagem(ind.conversao)} medida motivo="Sem entradas no período"
                 detalhe={ind.entradas > 0 ? `${ind.aceitesDasEntradas} de ${ind.entradas} já viraram aluno` : undefined} />
-              <Numero rotulo="Dias até o aceite (mediana)" valor={ind.diasAteAceite.mediana} texto={dias(ind.diasAteAceite.mediana)} destaque="azul" medida motivo="Sem aceites no período"
+              <Numero rotulo="Dias até o aceite (mediana)" valor={ind.diasAteAceite.mediana} texto={dias(ind.diasAteAceite.mediana)} medida motivo="Sem aceites no período"
                 detalhe={`Média: ${dias(ind.diasAteAceite.media)}`} />
               {/* D6: recusas e desistências neutras, para não tratar como falha. */}
-              <Numero rotulo="Recusadas" valor={ind.recusadas} destaque={null} />
-              <Numero rotulo="Desistências" valor={ind.desistencias} destaque={null} />
-              <Numero rotulo="Reaberturas" valor={ind.reaberturas} destaque="ciano" />
+              <Numero rotulo="Recusadas" valor={ind.recusadas} />
+              <Numero rotulo="Desistências" valor={ind.desistencias} />
+              <Numero rotulo="Reaberturas" valor={ind.reaberturas} />
             </Grade>
           </View>
           {/* Cada análise com a própria altura: o vazio curto não estica até a altura da tabela vizinha. */}
@@ -146,12 +145,14 @@ export function Indicadores() {
 }
 
 /**
- * Um número do período na peça de destaque (D6 de `docs/planos/cores-de-destaque.md`): a cor diz o que o número mede,
- * nunca se é bom ou ruim; zero de contagem e "—" ficam sem cor (D5). `medida` (conversão, mediana) é cálculo: o zero com
- * base válida mantém a cor. O número cru decide a cor; `texto` é o que aparece.
+ * Um número do período no `CartaoDeIndicador` (cartão pintado, 23/11): cor só onde significa algo, o aceite em
+ * `sucesso`; as outras contagens e medidas são neutras (antes, cores de destaque por medida, D6 de
+ * `docs/planos/cores-de-destaque.md`). Zero de contagem fica apagado e "—" diz o motivo; `medida` (conversão, mediana) é
+ * cálculo: o zero com base válida é um número como outro. O número cru decide o estado; `texto` é o que aparece.
  */
-function Numero({ rotulo, valor, texto, destaque, medida, detalhe, motivo }: { rotulo: string; valor: number | null; texto?: string; destaque: FuncaoDeDestaque | null; medida?: boolean; detalhe?: string; motivo?: string }) {
-  return <NumeroDeDestaque rotulo={rotulo} valor={texto ?? contagemParaTela(valor)} enfase={(medida ? enfaseDaMedida : enfaseDoNumero)(destaque, valor)} detalhe={detalhe} motivo={motivo} tamanho="medio" />;
+function Numero({ rotulo, valor, texto, tom = 'neutro', medida, detalhe, motivo }: { rotulo: string; valor: number | null; texto?: string; tom?: TomDoIndicador; medida?: boolean; detalhe?: string; motivo?: string }) {
+  const estado = valor === null ? 'indisponivel' : valor === 0 && !medida ? 'zero' : 'valor';
+  return <CartaoDeIndicador rotulo={rotulo} valor={texto ?? contagemParaTela(valor)} tom={tom} estado={estado} detalhe={detalhe} motivo={motivo} tamanho="medio" />;
 }
 
 const estilos = StyleSheet.create({

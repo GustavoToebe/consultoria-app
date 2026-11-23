@@ -18,6 +18,10 @@ const ARQUIVOS = [
   'ui/NumeroDeDestaque.tsx',
   'ui/destaqueDoNumero.ts',
   'treinador/painel/CartaoMini.tsx',
+  // Cartão de indicador pintado (23/11): o degradê e a borda saem só dos tokens.
+  'ui/superficiePintada.ts',
+  'ui/aparenciaDoIndicador.ts',
+  'ui/CartaoDeIndicador.tsx',
 ];
 const COR_FIXA = /rgba?\(|['"`]#[0-9a-fA-F]{3,8}['"`]|\b(?:bg|text|border)-(?:black|white)\b/;
 

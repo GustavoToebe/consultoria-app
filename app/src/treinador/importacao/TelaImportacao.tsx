@@ -42,6 +42,7 @@ import { Selo, type TipoSelo } from '../../ui/Selo';
 import { coresDaSelecao } from '../../ui/selecao';
 import { sobre } from '../../ui/sobre';
 import { Tabela } from '../../ui/Tabela';
+import { fundoPintado, superficiePintada } from '../../ui/superficiePintada';
 import { Texto } from '../../ui/Texto';
 import { textoDoErro as textoDoErroDaApi } from '../../ui/erros';
 import { CamposDePeriodo, UmaOpcao } from '../SeletoresDeFiltro';
@@ -233,19 +234,24 @@ function FolhaDetalhe({ id, aoFechar }: { id: string; aoFechar: () => void }) {
 
 /**
  * Números lado a lado (quebram linha no celular), como o resumo da validação. Neutros (`ui/indicador`): só o "com erro"
- * acima de zero ganha o vermelho; zero fica em `textoSuave`. Nunca verde: o número não é selo de sucesso.
+ * acima de zero é pintado de `perigo` (cartão de indicador pintado, 23/11, `ui/superficiePintada`; fora do
+ * `CartaoDeIndicador` porque o número vem antes do rótulo, como no resumo da validação); zero fica em `textoSuave`.
+ * Nunca verde: o número não é selo de sucesso.
  */
 export function Numeros({ itens }: { itens: { rotulo: string; valor: number; tipo?: 'perigo' }[] }) {
-  const { cores } = useTema();
+  const { cores, variante } = useTema();
   return (
     <View style={estilos.numeros}>
-      {itens.map((i) => (
-        <View key={i.rotulo} style={[estilos.numero, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}
-          accessible accessibilityLabel={`${i.rotulo}: ${i.valor}`}>
-          <Texto variante="destaque" numerico cor={corDoNumero(cores, i.tipo === 'perigo' && i.valor > 0 ? 'atraso' : i.valor === 0 ? 'zero' : 'geral')}>{i.valor}</Texto>
-          <Texto variante="suave">{i.rotulo}</Texto>
-        </View>
-      ))}
+      {itens.map((i) => {
+        const p = i.tipo === 'perigo' && i.valor > 0 ? superficiePintada(cores.perigo, cores.superficie2, variante, cores) : null;
+        return (
+          <View key={i.rotulo} style={[estilos.numero, { borderColor: p?.borda ?? cores.divisor }, p ? fundoPintado(p) : { backgroundColor: cores.superficie2 }]}
+            accessible accessibilityLabel={`${i.rotulo}: ${i.valor}`}>
+            <Texto variante="destaque" numerico cor={p?.texto ?? corDoNumero(cores, i.valor === 0 ? 'zero' : 'geral')}>{i.valor}</Texto>
+            <Texto variante="suave" cor={p?.texto}>{i.rotulo}</Texto>
+          </View>
+        );
+      })}
     </View>
   );
 }

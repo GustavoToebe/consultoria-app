@@ -18,6 +18,7 @@ import {
   coresDeDestaque,
   coresDeIdentificacao,
   luminancia,
+  misturar,
   marcaAoPassar,
   marcaParaPeca,
   marcaParaTexto,
@@ -28,6 +29,7 @@ import {
   type VarianteDoTema,
 } from './tokens';
 import { variaveisDoTema } from './variaveis';
+import { superficiePintada, TINTA_DA_PINTURA } from '../ui/superficiePintada';
 import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
 
 /** Todas as paletas da marca (decisão 1 do plano `paletas-da-marca`): cada teste de contraste percorre a lista inteira. */
@@ -569,6 +571,38 @@ describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, variante) => {
       for (const vizinho of [fundo, fundoSobre, cores.superficie, cores.painel, cores.fundo]) {
         expect(contraste(cor, vizinho)).toBeGreaterThanOrEqual(3);
       }
+    }
+  });
+});
+
+// ---- Cartão de indicador pintado (Gustavo, 23/11; `ui/superficiePintada`) ----
+
+/**
+ * Degradê de 135° da cor misturada à base (14% nas escuras, 8% nas claras e na Areia) até a base pura, borda a 50%. O texto
+ * que leva a cor (rótulo e número do `CartaoDeIndicador`, ladrilhos das Séries por tipo, mini-cartões do Início) fica na
+ * cor só quando ela passa 4,5:1 no ponto mais forte do degradê; senão cai para `texto`. Nas 9 paletas, com contraste alto
+ * e com bordas reforçadas, sobre as bases onde a pintura aparece (cartão solto, poço, faixa e o hover do mini-cartão, `sobre`).
+ */
+describe.each(VARIANTES)('superfície pintada (%s)', (_nome, cores, variante) => {
+  const identificacao = coresDeIdentificacao(cores, variante);
+  const cores11 = [
+    ...(['sucesso', 'atencao', 'perigo', 'informacao', 'conquista'] as const).map((papel) => cores[papel]),
+    ...CHAVES_DE_IDENTIFICACAO.map((chave) => identificacao[chave].cor),
+    coresDeDestaque(cores, variante).azul.cor,
+  ];
+
+  it.each([['superficie'], ['superficie2'], ['superficie3'], ['sobre']] as const)('sobre %s: texto da cor (ou `texto`), `textoSuave` e o ponto legíveis no ponto mais forte', (chave) => {
+    const base = cores[chave];
+    for (const cor of cores11) {
+      const p = superficiePintada(cor, base, variante, cores);
+      expect(p.forte).toBe(misturar(base, cor, TINTA_DA_PINTURA[variante]));
+      expect(p.degrade).toBe(`linear-gradient(135deg, ${p.forte} 0%, ${base} 70%)`);
+      expect(p.borda).toBe(misturar(base, cor, 0.5));
+      expect(p.texto).toBe(contraste(cor, p.forte) >= 4.5 ? cor : cores.texto);
+      expect(contraste(p.texto, p.forte)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(p.texto, base)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.textoSuave, p.forte)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cor, p.forte)).toBeGreaterThanOrEqual(3);
     }
   });
 });

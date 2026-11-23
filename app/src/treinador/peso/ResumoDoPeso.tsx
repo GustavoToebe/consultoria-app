@@ -5,14 +5,16 @@ import { tomDaVariacaoDoPeso } from '../../dominio/corDaVariacaoDoPeso';
 import { resumoDoPeso, SEM_REGISTRO_ANTERIOR } from '../../dominio/resumoDoPeso';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO_CONTROLE } from '../../tema/tokens';
-import { useDestaques } from '../../ui/NumeroDeDestaque';
+import { fundoPintado, superficiePintada } from '../../ui/superficiePintada';
 import { Texto } from '../../ui/Texto';
-import { direcaoFalada, SETA_DO_PESO, useCorDoTom } from '../VariacaoDoPeso';
+import { direcaoFalada, SETA_DO_PESO } from '../VariacaoDoPeso';
 
 /**
  * Resumo acima de Lista e Gráfico (peso-visual D3): o último registro com a data em que foi medido (nunca "peso atual"
  * nem a data de hoje) e a diferença desde o registro anterior, com a referência ("51,0 kg em 19/08/2026"). O peso é
- * medida, no azul de indicador; a diferença leva seta, sinal e a cor da meta (D2). A frase da meta fica logo abaixo.
+ * medida, neutra (cartão de indicador pintado, 23/11: cor só onde significa algo); a diferença leva seta, sinal e, com
+ * meta, a caixa pintada na cor dela (D2; `ui/superficiePintada`, sem migrar para o `CartaoDeIndicador`: a caixa é um
+ * elemento só para o leitor de tela e diz "Sem registro anterior" por extenso). A frase da meta fica logo abaixo.
  * Tudo vem de `dominio/resumoDoPeso`: aqui nada é calculado.
  */
 export function ResumoDoPeso({ registros, meta, linhaDaMeta }: {
@@ -21,30 +23,32 @@ export function ResumoDoPeso({ registros, meta, linhaDaMeta }: {
   /** "Cores pela meta: reduzir o peso" (equipe) ou "Verde: no caminho da sua meta" (aluno); `null` sem meta. */
   linhaDaMeta: string | null;
 }) {
-  const { cores, bordas } = useTema();
-  const azul = useDestaques().azul.cor;
+  const { cores, bordas, variante } = useTema();
   const resumo = resumoDoPeso(registros);
   const desde = resumo.vazio ? null : resumo.desdeAnterior;
-  const corDaDiferenca = useCorDoTom(desde ? tomDaVariacaoDoPeso(desde.diferenca, meta) : 'neutro');
+  const tom = desde ? tomDaVariacaoDoPeso(desde.diferenca, meta) : 'neutro';
+  const corDoTom = tom === 'positivo' ? cores.sucesso : tom === 'problema' ? cores.perigo : null;
+  const pintura = corDoTom ? superficiePintada(corDoTom, cores.superficie2, variante, cores) : null;
   if (resumo.vazio) return null;
   const caixa = [estilos.caixa, { backgroundColor: cores.superficie2, borderColor: cores.divisor, borderWidth: bordas.bloco }];
+  const caixaDaDiferenca = pintura ? [...caixa, { borderColor: pintura.borda }, fundoPintado(pintura)] : caixa;
   const seta = desde ? SETA_DO_PESO[desde.seta] : '';
   return (
     <View style={estilos.resumo}>
       <View style={estilos.caixas}>
         <View style={caixa} accessible accessibilityLabel={`${resumo.rotuloUltimo}: ${resumo.ultimo.texto} em ${resumo.ultimo.dataTexto}`}>
           <Texto variante="secao">{resumo.rotuloUltimo}</Texto>
-          <Texto variante="titulo" numerico cor={azul}>{resumo.ultimo.texto}</Texto>
+          <Texto variante="titulo" numerico>{resumo.ultimo.texto}</Texto>
           <Texto variante="pequeno" numerico>{resumo.ultimo.dataTexto}</Texto>
         </View>
-        <View style={caixa} accessible
+        <View style={caixaDaDiferenca} accessible
           accessibilityLabel={desde
             ? `${resumo.rotuloDiferenca}: ${direcaoFalada(desde.seta, desde.texto).toLowerCase()}, comparado a ${desde.referencia}`
             : `${resumo.rotuloDiferenca}: ${SEM_REGISTRO_ANTERIOR.toLowerCase()}`}>
-          <Texto variante="secao">{resumo.rotuloDiferenca}</Texto>
+          <Texto variante="secao" cor={pintura?.texto}>{resumo.rotuloDiferenca}</Texto>
           {desde ? (
             <>
-              <Texto variante="titulo" numerico cor={corDaDiferenca}>{seta ? `${seta} ${desde.texto}` : desde.texto}</Texto>
+              <Texto variante="titulo" numerico cor={pintura?.texto}>{seta ? `${seta} ${desde.texto}` : desde.texto}</Texto>
               <Texto variante="pequeno" numerico>{desde.referencia}</Texto>
             </>
           ) : (

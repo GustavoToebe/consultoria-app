@@ -8,8 +8,8 @@
  */
 
 /**
- * Célula mínima padrão: "R$ 100.000,00" na variante `destaque` (30 px, Geist Mono, ~222 px) mais o recuo do cartão (faixa
- * de 4, 16 à esquerda e 8 à direita). Com 12 de vão: 6 colunas a partir de 1560 px de grade (janela de ~1830 com o menu
+ * Célula mínima padrão: "R$ 100.000,00" na variante `destaque` (30 px, Geist Mono, ~222 px) mais o recuo do cartão (borda
+ * de 1, 16 à esquerda e 8 à direita; a faixa de 4 saiu no cartão pintado, 23/11, e a folga ficou). Com 12 de vão: 6 colunas a partir de 1560 px de grade (janela de ~1830 com o menu
  * aberto; 1920 dá ~1648), 3 a partir de 774 (janela de ~1050 com o menu aberto), 2 a partir de 512.
  */
 export const MINIMO_DA_CELULA = 250;

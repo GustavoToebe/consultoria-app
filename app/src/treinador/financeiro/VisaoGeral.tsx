@@ -183,9 +183,12 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
  * recorrente, pagantes e valor médio ficam neutros (não são situação). Negativo fica neutro: a cor não diz o sentido. Zero
  * e "—" já saem sem tom pelo `estado`. Os seis dividem a linha em colunas iguais (`GradeDeIndicadores`): 6, 3 + 3, 2 ou 1.
  */
+/** Cartão de indicador pintado (23/11): cor só onde significa algo; alunos pagantes e valor médio ficam neutros. */
+const TOM_DO_CARTAO: Partial<Record<string, TomDoIndicador>> = { recebido: 'sucesso', aReceber: 'atencao', emAtraso: 'perigo', recorrente: 'informacao' };
+
 function tomDoIndicador(c: CartaoDoPainel): TomDoIndicador {
   if (c.enfase === 'neutro') return 'neutro';
-  return c.chave === 'recebido' ? 'sucesso' : c.chave === 'emAtraso' ? 'perigo' : 'neutro';
+  return TOM_DO_CARTAO[c.chave] ?? 'neutro';
 }
 
 /**

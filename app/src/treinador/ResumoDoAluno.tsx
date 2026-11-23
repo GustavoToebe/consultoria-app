@@ -7,7 +7,6 @@ import { atualizacaoDoAluno } from '../api/rotas';
 import type { AlunoDetalhe, PastaResumo } from '../api/tipos';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { periodoCurto } from '../dominio/datasRelativas';
-import { enfaseDoNumero } from '../dominio/destaque';
 import type { AbaDaFicha } from '../dominio/fichaDoAluno';
 import { hojeIso } from '../dominio/formatos';
 import { pastaSoComRascunho } from '../dominio/pastaEmRascunho';
@@ -20,9 +19,9 @@ import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { CampoLeitura } from '../ui/CampoLeitura';
+import { CartaoDeIndicador } from '../ui/CartaoDeIndicador';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
-import { NumeroDeDestaque } from '../ui/NumeroDeDestaque';
 import { textoDoErro } from '../ui/erros';
 import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Selo } from '../ui/Selo';
@@ -43,7 +42,8 @@ import { usePlanosDaPasta, type CargaDosPlanos } from './usePlanosDaPasta';
  * publicado daqui. Carregando, erro, sem permissão e sem registro têm apresentações próprias, e o próximo passo nunca diz
  * "Tudo em dia" sem as fontes. Cores (`docs/planos/cores-de-destaque.md`, D12 e D13): os selos da atualização e do prazo
  * da pasta são os mesmos da lista de alunos e da lista de pastas (com o ícone do tom); os treinos da semana são medida de
- * atividade, em azul, com "0" neutro e "—" com o motivo quando não carregou (D14).
+ * atividade, num `CartaoDeIndicador` neutro (cartão pintado, 23/11: cor só onde há situação), com "0" apagado e "—" com o
+ * motivo quando não carregou (D14).
  */
 export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirAba, aoAbrirAcesso, aoAbrirPasta }: {
   aluno: AlunoDetalhe;
@@ -134,13 +134,17 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
             ) : null}
             {treinos && 'semana' in treinos ? (
               <>
-                <NumeroDeDestaque rotulo="Treinos registrados" valor={String(treinos.semana)} detalhe="nesta semana" tamanho="medio"
-                  enfase={enfaseDoNumero('azul', treinos.semana)} style={estilos.numero} />
+                <View style={estilos.numero}>
+                  <CartaoDeIndicador rotulo="Treinos registrados" valor={String(treinos.semana)} detalhe="nesta semana" tamanho="medio" lugar="cartao"
+                    estado={treinos.semana === 0 ? 'zero' : 'valor'} />
+                </View>
                 <CampoLeitura rotulo="Último registro" valor={treinos.ultimo} numerico />
               </>
             ) : null}
             {treinosIndisponiveis ? (
-              <NumeroDeDestaque rotulo="Treinos registrados" valor="—" motivo="Não foi possível carregar" tamanho="medio" enfase="indisponivel" style={estilos.numero} />
+              <View style={estilos.numero}>
+                <CartaoDeIndicador rotulo="Treinos registrados" valor="—" motivo="Não foi possível carregar" tamanho="medio" lugar="cartao" estado="indisponivel" />
+              </View>
             ) : null}
             {treinos && 'apoio' in treinos ? <Texto variante="suave" style={estilos.apoio}>{treinos.apoio}</Texto> : null}
           </View>

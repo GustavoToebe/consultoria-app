@@ -4,6 +4,7 @@ import { motivoDoResultadoNulo, resultadoDoMesParaTela } from '../../dominio/fin
 import { Cartao } from '../../ui/Cartao';
 import { CartaoDeIndicador, type TomDoIndicador } from '../../ui/CartaoDeIndicador';
 import { GradeDeIndicadores } from '../../ui/GradeDeIndicadores';
+import { useDestaques } from '../../ui/NumeroDeDestaque';
 import { Texto } from '../../ui/Texto';
 
 /** Com "Meus" os avulsos (e a conta que depende deles) vêm sem valor de propósito: o motivo diz isso. */
@@ -19,8 +20,8 @@ const MINIMO_DA_PARCELA = 211;
  * Resultado do mês: o que entrou menos o que saiu, só do que foi registrado ("entradas − saídas registradas"). Não é
  * lucro nem resultado contábil. Com o filtro "Meus" os lançamentos avulsos ficam de fora e aparecem como "—". Os quatro
  * números na ordem da conta, em colunas iguais (`GradeDeIndicadores`: 4, 2 + 2 ou 1, todos com a mesma altura na linha).
- * Cor como sinal (financeiro 19/11): o recebido das cobranças é sucesso; entradas, saídas e o resultado ficam neutros (saída
- * não é atraso nem erro, e o vermelho diria isso).
+ * Cor como sinal (cartão pintado, Gustavo, 23/11): recebido das cobranças `sucesso`, entradas avulsas no azul que a aba
+ * Lançamentos já usa para entrada, saídas avulsas `perigo` (o vermelho da saída nos Lançamentos) e o resultado neutro.
  */
 export function ResultadoDoMes({ resultado, somenteMeus, periodo }: {
   resultado: ResultadoApi | null | undefined;
@@ -28,6 +29,7 @@ export function ResultadoDoMes({ resultado, somenteMeus, periodo }: {
   /** Pílula sob o título (a do `Cartao`): na Visão geral diz que o cartão é o mês atual, não o período do filtro. */
   periodo?: string;
 }) {
+  const azulDaEntrada = useDestaques().azul.cor;
   const r = resultadoDoMesParaTela(resultado);
   const motivo = somenteMeus ? MOTIVO_DO_FILTRO_MEUS : undefined;
   // Resultado nulo: o motivo fica escrito sob o "—" (nunca zero). Resultado 0 de verdade segue "R$ 0,00".
@@ -38,8 +40,8 @@ export function ResultadoDoMes({ resultado, somenteMeus, periodo }: {
     <Cartao titulo={r.rotulo} descricao={r.descricao} periodo={periodo}>
       <GradeDeIndicadores minimo={MINIMO_DA_PARCELA}>
         <Parcela rotulo="Recebido das cobranças" valor={r.recebido} centavos={r.centavos.recebido} tom="sucesso" />
-        <Parcela rotulo="Entradas avulsas" valor={r.entradas} centavos={r.centavos.entradas} motivo={motivo} />
-        <Parcela rotulo="Saídas avulsas" valor={r.saidas} centavos={r.centavos.saidas} motivo={motivo} />
+        <Parcela rotulo="Entradas avulsas" valor={r.entradas} centavos={r.centavos.entradas} motivo={motivo} cor={azulDaEntrada} />
+        <Parcela rotulo="Saídas avulsas" valor={r.saidas} centavos={r.centavos.saidas} motivo={motivo} tom="perigo" />
         <Parcela rotulo="Resultado" valor={r.resultado} centavos={r.centavos.resultado} motivo={motivoDoResultado} />
       </GradeDeIndicadores>
       {somenteMeus ? <Texto variante="suave">Com o filtro “Meus”, os lançamentos avulsos não entram, porque não pertencem a um aluno.</Texto> : null}
@@ -47,14 +49,14 @@ export function ResultadoDoMes({ resultado, somenteMeus, periodo }: {
   );
 }
 
-/** Uma parcela da conta: poço dentro do cartão, número `titulo`; zero e "—" sem tom (o "—" com o motivo embaixo). */
-function Parcela({ rotulo, valor, centavos, tom = 'neutro', motivo }: {
-  rotulo: string; valor: string; centavos: number | null | undefined; tom?: TomDoIndicador; motivo?: string;
+/** Uma parcela da conta: poço dentro do cartão, número `titulo`; zero e "—" sem cor (o "—" com o motivo embaixo). */
+function Parcela({ rotulo, valor, centavos, tom = 'neutro', cor, motivo }: {
+  rotulo: string; valor: string; centavos: number | null | undefined; tom?: TomDoIndicador; cor?: string; motivo?: string;
 }) {
-  const enfase = enfaseDoNumero(tom === 'neutro' ? null : 'azul', centavos);
+  const enfase = enfaseDoNumero(tom === 'neutro' && !cor ? null : 'azul', centavos);
   const estado = enfase === 'zero' || enfase === 'indisponivel' ? enfase : 'valor';
   return (
-    <CartaoDeIndicador rotulo={rotulo} valor={valor} estado={estado} tom={enfase === 'neutro' ? 'neutro' : tom} motivo={motivo}
+    <CartaoDeIndicador rotulo={rotulo} valor={valor} estado={estado} tom={tom} corDeCategoria={cor} motivo={motivo}
       tamanho="medio" lugar="cartao" />
   );
 }

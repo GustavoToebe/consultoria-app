@@ -67,7 +67,8 @@ for (const [largura, colunas] of [[1920, 4], [1280, 4], [900, 2], [390, 1]] as c
     // Período e intervalo efetivo juntos.
     await expect(page.getByText('De 30/09/2026 a 29/10/2026')).toBeVisible();
     const ordem = ['Entradas', 'Pessoas', 'Aceites', 'Conversão das entradas', 'Dias até o aceite (mediana)', 'Recusadas', 'Desistências', 'Reaberturas'];
-    const caixas = await posicoes(page, ordem);
+    // Cartão de indicador pintado (23/11): o Aceites ganhou o ponto antes do rótulo; mede o cartão, não o texto.
+    const caixas = await Promise.all(ordem.map(async (r) => (await page.getByLabel(new RegExp(`^${r.replace(/[()]/g, '\\$&')}: `)).first().boundingBox())!));
     const naLinhaDaPrimeira = caixas.filter((c) => Math.abs(c.y - caixas[0].y) < 2).length;
     expect(naLinhaDaPrimeira).toBe(colunas);
     // Nunca três por linha: a segunda linha começa alinhada à primeira.

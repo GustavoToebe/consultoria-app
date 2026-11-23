@@ -1,12 +1,7 @@
-import type { ViewStyle } from 'react-native';
-
 import type { EnfaseDoNumero, FuncaoDeDestaque } from '../dominio/destaque';
-import { RAIO, type CorDeDestaque, type Cores } from '../tema/tokens';
+import type { CorDeDestaque, Cores } from '../tema/tokens';
 
-/** Regras puras da peça `NumeroDeDestaque` (sem React, para o Jest medir os pares em `contrasteDasPecas.test.ts`). */
-
-/** Largura da faixa lateral do número com destaque; sem destaque o recuo compensa, para o conteúdo não pular. */
-export const LARGURA_DA_FAIXA = 4;
+/** Regras puras do número com destaque (`useAparenciaDoNumero`; sem React, para o Jest medir os pares em `contrasteDasPecas.test.ts`). */
 
 export interface AparenciaDoNumero {
   /** Cor do número: a da função, `texto` (neutro) ou `textoSuave` (zero ou sem dado, D5; o que os distingue é o texto, D14). */
@@ -27,16 +22,4 @@ export function aparenciaDoNumero(enfase: EnfaseDoNumero, cores: Pick<Cores, 'te
   }
   const d = destaques[enfase];
   return { numero: d.cor, fundo: d.fundo, fundoSobre: d.fundoSobre, faixa: d.cor };
-}
-
-/**
- * Contorno do contêiner: `divisor` na espessura do bloco e, com destaque, a faixa de 4 px à esquerda. Sem faixa o recuo
- * da esquerda cresce o que a borda não ocupa, e o conteúdo fica no mesmo lugar com e sem destaque.
- */
-export function contornoDoNumero(faixa: string | null, cores: Pick<Cores, 'divisor'>, bloco: number, recuo: number): ViewStyle {
-  return {
-    borderWidth: bloco, borderColor: cores.divisor, borderRadius: RAIO,
-    borderLeftWidth: faixa ? LARGURA_DA_FAIXA : bloco, borderLeftColor: faixa ?? cores.divisor,
-    paddingLeft: recuo + (faixa ? 0 : LARGURA_DA_FAIXA - bloco),
-  };
 }
