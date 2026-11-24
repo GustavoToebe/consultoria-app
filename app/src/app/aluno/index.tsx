@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { CabecalhoDoInicio } from '../../aluno/CabecalhoDoInicio';
 import { CartaoCompromissos } from '../../aluno/CartaoCompromissos';
+import { useCompromissosDoAluno } from '../../aluno/compromissos/CompromissosDoAlunoProvider';
 import { CartaoAguaDoDia } from '../../aluno/CartaoAguaDoDia';
 import { CartaoDietaDoInicio } from '../../aluno/CartaoDietaDoInicio';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
@@ -31,8 +32,9 @@ import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { duasColunasCom } from '../../dominio/grade';
 import { faixasDaTelaDoInicio, pilhasDoInicio, type PecaDoInicio } from '../../dominio/arranjoDoInicio';
 import { telaLargaDoAluno } from '../../dominio/telaLargaDoAluno';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_FAIXA_NORMAL } from '../../tema/tokens';
 import { useFaixaDaTela } from '../../ui/Tela';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 
 /**
  * Início do aluno: o resumo do dia. Marca e "Olá", a dieta compacta com a água, a água do dia (só com meta na dieta),
@@ -41,7 +43,7 @@ import { useFaixaDaTela } from '../../ui/Tela';
  * a mobilidade ficam na aba Treino. Sempre o plano em uso. Em 390 o botão do treino de hoje precisa aparecer na primeira tela.
  */
 export default function InicioAluno() {
-  const { pacote, carregando, erroPacote, pacoteRecusado, tentarDeNovo, sessaoConcluidaDe, online } = useAluno();
+  const { pacote, carregando, erroPacote, pacoteRecusado, tentarDeNovo, sessaoConcluidaDe } = useAluno();
   const { usuario, retornoHabilitado } = useSessao();
   const dieta = useDietaDoAluno();
   const vitrine = useVitrineDoAluno().dados;
@@ -68,7 +70,8 @@ export default function InicioAluno() {
   const andamento = useTreinoEmAndamento(treino?.versaoId ?? null, conteudo, hoje);
   const andamentoNoHoje = !!andamento && estadoHoje.tipo === 'treino' && estadoHoje.sessao.uid === andamento.sessao.uid;
 
-  const situacao = { treino: !!treino, retorno: retornoHabilitado, online, vitrine: !!vitrine?.length };
+  const situacao = { retorno: retornoHabilitado, vitrine: !!vitrine?.length };
+  const temCompromissos = !!useCompromissosDoAluno().compromissos?.length;
   const bloco = (peca: PecaDoInicio): ReactNode => {
     switch (peca) {
       case 'hoje':
@@ -95,13 +98,15 @@ export default function InicioAluno() {
       case 'semanaENivel':
         return (
           <View style={estilos.linha}>
-            <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} style={estilos.metade} />
+            {/* Sem plano de treino a semana não aparece e o nível ocupa a linha; ele fica na mesma posição (não remonta). */}
+            {pacote ? <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} style={estilos.metade} /> : null}
             <NivelDoAluno style={estilos.metade} />
           </View>
         );
       // Na primeira das duas faixas, na borda da semana; a segunda fica vazia (é o fim da pilha, nada vem embaixo).
+      // Sem nenhum dos dois, nada: um bloco vazio ainda abriria o vão da pilha.
       case 'compromissosEVitrine':
-        return (
+        return !temCompromissos && !vitrine?.length ? null : (
           <View style={estilos.linhaDoFim}>
             <View style={[estilos.metade, estilos.coluna]}>
               <CartaoCompromissos />
@@ -123,8 +128,9 @@ export default function InicioAluno() {
         // Tela larga (revisão 2, 24/11): Hoje primeiro e pilhas independentes, sem nada embaixo de todas (`arranjoDoInicio`).
         largo={(
           <View style={estilos.pilhas}>
-            {pilhasDoInicio(situacao).map((pilha) => (
-              <View key={pilha.pecas[0]} style={[estilos.coluna, { flex: pilha.faixas, minWidth: 0 }]}>{pecas(pilha.pecas)}</View>
+            {pilhasDoInicio(situacao).map((pilha, i) => (
+              // A chave é a posição: a pilha nunca remonta quando o que ela mostra muda.
+              <View key={i} style={[estilos.coluna, { flex: pilha.faixas, minWidth: 0 }]}>{pecas(pilha.pecas)}</View>
             ))}
           </View>
         )}
@@ -141,12 +147,22 @@ export default function InicioAluno() {
   );
 }
 
-/** Escolhe o arranjo pela faixa que a `Tela` mede (a da área ao lado do menu, 4.10): o largo da `larga` em diante. */
+/**
+ * Escolhe o arranjo pela faixa que a `Tela` mede (a da área ao lado do menu, 4.10): o largo da `larga` em diante. Antes de a
+ * `Tela` medir, a faixa é `compacta`; montar o arranjo do celular e trocar pelo largo um instante depois remontava o nível e
+ * o mapa, que liam a API de novo. Por isso nada é montado enquanto a faixa não bate com a largura do próprio corpo (que
+ * nunca passa da área): corpo de `LARGURA_FAIXA_NORMAL` ou mais com a faixa ainda `compacta` = a `Tela` não mediu.
+ */
 function CorpoDoInicio({ largo, comum }: { largo: ReactNode; comum: ReactNode }) {
-  return telaLargaDoAluno(useFaixaDaTela()) ? largo : comum;
+  const faixa = useFaixaDaTela();
+  const { largura, aoMedir } = useFaixaDeLargura();
+  const medido = largura > 0 && !(faixa === 'compacta' && largura >= LARGURA_FAIXA_NORMAL);
+  return <View onLayout={aoMedir} style={estilos.corpo}>{medido ? (telaLargaDoAluno(faixa) ? largo : comum) : null}</View>;
 }
 
 const estilos = StyleSheet.create({
+  // O mesmo vão que a `TelaDoAluno` põe entre os blocos (a grade e o mapa, abaixo da faixa larga).
+  corpo: { gap: espaco(3) },
   coluna: { gap: espaco(2) },
   // Pilhas lado a lado, cada uma do tamanho do que tem: a sobra fica só no fim da mais curta.
   pilhas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },

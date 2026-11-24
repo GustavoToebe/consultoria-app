@@ -70,7 +70,7 @@ interface Props {
   aoRegistrar: (serieUid: string, dados: DadosSerie) => void;
   /** Botão de descanso (ícone) na linha do "Como fazer", ao lado do vídeo. */
   acaoDescanso?: ReactNode;
-  /** Outros ícones da mesma linha, antes do vídeo ("Trocar", "Histórico"); somem na prévia. */
+  /** Outros ícones da mesma linha, antes do vídeo (o "Trocar"); somem na prévia. O histórico fica em `acaoHistorico`. */
   acoes?: ReactNode;
   /** Atalho visível para o histórico junto ao título das séries; some na prévia. */
   acaoHistorico?: ReactNode;

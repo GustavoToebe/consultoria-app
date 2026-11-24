@@ -178,14 +178,16 @@ test('2560: o Histórico em duas colunas, registros à esquerda e peso ao lado',
 
 for (const largura of [1920, 2560, 3440]) {
   test(`${largura} com o retorno: Hoje primeiro, semana e nível lado a lado com o mapa embaixo, e nada abaixo das pilhas`, async ({ page }) => {
-    const { errosDaPagina } = await abrir(page, largura, '/aluno');
+    const { errosDaPagina, pedidos } = await abrir(page, largura, '/aluno');
     const hojeT = page.getByRole('heading', { name: 'Hoje', level: 2, exact: true });
     const semana = cartaoCom(page, page.getByRole('heading', { name: 'Sua semana' }));
-    const nivel = cartaoCom(page, page.getByRole('heading', { name: 'Seu nível' }));
+    const nivel = cartaoCom(page, page.getByRole('heading', { name: 'Seu nível', exact: true }));
     const agua = cartaoCom(page, page.getByRole('heading', { name: 'Água de hoje' }));
     const mapa = cartaoCom(page, grade(page));
-    // A medida da área e as entradas mexem nas caixas por um instante: espera o arranjo assentar.
-    await expect.poll(async () => (await caixa(mapa)).y > (await caixa(semana)).y + 50).toBe(true);
+    // O pacote (a semana), o nível e o mapa chegaram: o arranjo é o final e nenhum bloco trocou de pilha no caminho.
+    await expect(page.getByRole('heading', { name: 'Sua semana' })).toBeVisible();
+    await expect(page.getByText(/^Nível \d/)).toBeVisible();
+    await expect(grade(page)).toBeVisible();
     const [h, d, sem, niv, ag, m] = await Promise.all([hojeT, page.getByRole('link', { name: /^Dieta,/ }), semana, nivel, agua, mapa].map(caixa));
     // O Hoje é o primeiro bloco: o mais alto e o mais à esquerda, antes da dieta.
     for (const outro of [d, sem, niv, ag, m]) { expect(h.y).toBeLessThanOrEqual(outro.y); expect(h.x).toBeLessThanOrEqual(outro.x + 1); }
@@ -202,6 +204,8 @@ for (const largura of [1920, 2560, 3440]) {
     expect(Math.abs(fimDia - fimProgresso)).toBeLessThan(200);
     const fins = await Promise.all((await page.getByTestId('cartao').all()).map(async (c) => { const b = await c.boundingBox(); return b ? b.y + b.height : 0; }));
     expect(Math.max(...fins)).toBeLessThanOrEqual(Math.max(fimDia, fimProgresso) + 1);
+    // O nível não remontou quando o pacote chegou (antes ele trocava de pilha e lia o ranking de novo).
+    expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/comunidade/ranking')).toHaveLength(1);
     expect(await semRolagemDeLado(page)).toBe(true);
     expect(errosDaPagina).toEqual([]);
   });

@@ -20,12 +20,8 @@ export type PecaDoInicio = BlocoDoInicio | 'semanaENivel' | 'compromissosEVitrin
 export interface PilhaDoInicio { faixas: 1 | 2; pecas: PecaDoInicio[] }
 
 export interface SituacaoDoInicio {
-  /** Há plano de treino (sem ele, "Sua semana" não aparece). */
-  treino: boolean;
   /** `retornoHabilitado`: o mapa do ano e o nível existem. */
   retorno: boolean;
-  /** O nível só é lido com internet (aberto já sem ela, não aparece). */
-  online: boolean;
   /** A vitrine tem itens para mostrar. */
   vitrine: boolean;
 }
@@ -33,16 +29,17 @@ export interface SituacaoDoInicio {
 /** Faixas do teto da tela (`TelaDoAluno`): três quando há mapa ou vitrine; sem nenhum, as duas de 1120. */
 export const faixasDaTelaDoInicio = (s: SituacaoDoInicio): 2 | 3 => (s.retorno || s.vitrine ? 3 : 2);
 
-/** As pilhas do Início na tela larga, da esquerda para a direita; a soma das faixas é `faixasDaTelaDoInicio`. */
+/**
+ * As pilhas do Início na tela larga, da esquerda para a direita; a soma das faixas é `faixasDaTelaDoInicio`. Só depende de
+ * chaves que não mudam enquanto a tela carrega (o pacote e a internet ficam de fora): nenhum bloco troca de pilha (nem
+ * remonta) quando o pacote chega ou a conexão cai. O nível fica sempre ao lado da semana; sem internet ele mesmo mostra o
+ * último valor lido, e sem plano de treino a semana não aparece e o nível ocupa a linha.
+ */
 export function pilhasDoInicio(s: SituacaoDoInicio): PilhaDoInicio[] {
   if (s.retorno) {
-    const nivel = s.online;
-    const lado = s.treino && nivel;
-    // Só um dos dois: vai para a pilha do dia, logo depois do Hoje (sozinho numa linha de duas faixas ficaria esticado).
-    const sozinho: BlocoDoInicio[] = lado ? [] : [...(s.treino ? ['semana' as const] : []), ...(nivel ? ['nivel' as const] : [])];
     return [
-      { faixas: 1, pecas: ['hoje', ...sozinho, 'dieta', 'agua', 'pendencias'] },
-      { faixas: 2, pecas: [...(lado ? ['semanaENivel' as const] : []), 'mapa', 'compromissosEVitrine'] },
+      { faixas: 1, pecas: ['hoje', 'dieta', 'agua', 'pendencias'] },
+      { faixas: 2, pecas: ['semanaENivel', 'mapa', 'compromissosEVitrine'] },
     ];
   }
   const dia: PilhaDoInicio = { faixas: 1, pecas: ['hoje', 'dieta', 'agua'] };
