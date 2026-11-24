@@ -269,6 +269,8 @@ Base: `e6537dc3` (95 commits locais esperando o push). Um push só, no fim, com 
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
+| Pós-lançamento (aceitas pelo Gustavo em 24/11, não fazer agora): painel da inscrição em Interessados (IFI-S1); mostrar "Cuidados no treino" das lesões ativas no editor de treino; demais sugestões da seção 8 do relatório (`capturas/24-11/RELATORIO.md`, fora do git) | Gustavo (decide quando) | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
+| Histórico da importação, Auditoria e Membros ficam com a sobra na ultralarga (uso raro; aceito) | — | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | Estabilizar os e2e instáveis conhecidos, que passam sozinhos e falham sob carga ou em rodada paralela: `app/e2e/painel.spec.ts:391` ("Editar só pelo teclado"), `app/e2e/financeiro.spec.ts:657` e `app/e2e/links-do-menu.spec.ts:20` (conferir a causa de cada um: espera, ordem ou dado compartilhado; não aumentar timeout sem achar a causa) | Gustavo | lote de 24/11 |
 | Barra inferior em 320 px com texto Extra (1,4): a palavra quebra no meio sem reticências ("Históric/o", "Con/ta") e o item cresce até ~85 px de altura; decidir se vale reduzir o padding, abreviar o rótulo ou aceitar (`app/src/ui/Navegacao.tsx`, `ItemNavegacao`, comentário `shortcut:`) | Gustavo | `529bbceb` |
 | Testar a barra inferior do treinador no celular com texto grande e Extra (usa o mesmo `ItemNavegacao` da barra do aluno, mas não foi testada; o trilho do tablet, de 768 a 1023 px, mantém `numberOfLines={1}`) | Gustavo | `529bbceb` |

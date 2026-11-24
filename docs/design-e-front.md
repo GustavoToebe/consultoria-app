@@ -879,6 +879,13 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
   - **Equipe, Configurações, WhatsApp, Ajustes:** hub de Configurações em colunas de 508 px, até 4, pelo número de grupos e sem cartão sozinho na última linha (`dominio/colunasPorCelula.colunasDoHub`); listas curtas de configuração (Equipe › Membros e Perfis, Auditoria) param em `LARGURA_MAXIMA` e, da faixa larga em diante, Membros é `Tabela`; WhatsApp oficial: Conexão em `LARGURA_FORMULARIO` com os Modelos ao lado; Ajustes centra em 1464 px.
   - **Ficha do aluno:** Dados em duas colunas 3:2 que não passam de `LARGURA_EDITOR_DE_CAMPOS`, à esquerda (tabela das lesões a partir de 760 px); Resumo com a Atividade recente como 3ª coluna quando cabem três de 640 px; Planos em `ListaEmColunas` (mínimo de 720 px); Acompanhamento e Evolução em duas pilhas independentes 1:1 quando cada uma tem pelo menos 1000 px (2560 e 3440); campo "Medida" até `LARGURA_FORMULARIO`.
   - **Telas do aluno na web:** teto próprio por faixa (`aluno/TelaDoAluno`, `dominio/telaLargaDoAluno`): 1120 (duas faixas de 552) até a `normal` e 1688 (três) da `larga` em diante, nunca quatro; grade de cartões por `colunasDaGradeDoAluno` (célula mínima 360, sem cartão sozinho na última linha), coluna lateral de 400 nas telas de trabalho (sessão do dia, dieta) e duas colunas no Histórico; botão e campo não esticam. Peças reusadas na folha "Ver como o aluno" recebem o arranjo largo só por prop (`largo`), nunca por contexto. A Conta segue a regra de formulário.
+- **Decisões de 24/11 (revisão 2)** (`docs/planos/tela-larga-revisao-2.md`):
+  - Dados em 1280 px ficam 3:2, com os rótulos empilhados na coluna da direita.
+  - Atualização: a situação vence a categoria.
+  - Cores (2b): contagens genéricas ficam neutras; cor de categoria só quando o cartão representa uma área do app (ex.: Treinos registrados). Nada a restaurar.
+  - Lesões: tabela a partir de 760 px.
+  - Histórico da importação, Auditoria e Membros aceitam a sobra na ultralarga (uso raro).
+  - Os "antes" sobrescritos das capturas não serão refeitos.
 
 ### 4.11 Aba Vídeos da Comunidade (Gustavo, 20/11/2026; plano `docs/planos/comunidade-19-11.md`)
 
