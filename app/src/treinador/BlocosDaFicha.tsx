@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { colunasDaAbaDados, larguraMaximaDasColunas, ordemNumaColuna, type SecaoDosDados } from '../dominio/colunasDaFicha';
 import type { BlocoDaFicha } from '../dominio/fichaDoAluno';
-import { espaco, LARGURA_EDITOR_DE_CAMPOS } from '../tema/tokens';
+import { espaco, LARGURA_EDITOR_DE_CAMPOS, LARGURA_FAIXA_NORMAL } from '../tema/tokens';
 import { useFaixaDaTela } from '../ui/Tela';
 import { CartaoLesoes, useLesoes } from './CartaoLesoes';
 
@@ -33,6 +33,11 @@ export function BlocosDaFicha({ alunoId, blocos, largura, bloco }: {
   const faixa = useFaixaDaTela();
   const tem = (b: BlocoDaFicha) => blocos.includes(b);
   const lesoes = useLesoes(tem('lesoes') ? alunoId : null);
+  // A faixa da `Tela` ainda `compacta` com a aba já medida larga é medida atrasada (o `onLayout` da `Tela` às vezes vem depois
+  // do do cabeçalho): espera, em vez de montar numa coluna e remontar em duas, buscando tudo de novo (o guarda do Início do
+  // aluno, `CorpoDoInicio`). Fora da `ultralarga` a área da `Tela` é a aba mais o recuo de `espaco(2)` de cada lado.
+  // shortcut: a conta deduz o atraso pelo recuo da `Tela`; trocar por um contexto da `Tela` que diga "ainda não medi" quando o recuo mudar.
+  const atrasada = faixa === 'compacta' && largura + 2 * espaco(2) >= LARGURA_FAIXA_NORMAL;
   const arranjo = colunasDaAbaDados(faixa, largura, VAO, blocos);
   // Sem embrulho em volta do bloco: um que não desenha nada (as lesões fora do `CartaoLesoes`) não ocupa um vão da pilha.
   const colunas = arranjo?.map((c) => ({
@@ -41,6 +46,7 @@ export function BlocosDaFicha({ alunoId, blocos, largura, bloco }: {
       ? <CartaoLesoes key={b} alunoId={alunoId} carga={lesoes} parte="tudo" />
       : <Fragment key={b}>{bloco(b)}</Fragment>)),
   }));
+  if (atrasada) return null;
   return (
     // Em duas colunas a aba inteira (título, formulário e colunas) fica no teto do editor de campos, à esquerda (4.10, 24/11);
     // em três, cada coluna.

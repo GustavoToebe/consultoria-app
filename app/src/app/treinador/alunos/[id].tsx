@@ -239,7 +239,9 @@ export default function FichaAluno() {
       {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (
         <>
-          {conteudoDaAba(aluno)}
+          {/* Só depois de medir: o aluno pode chegar antes do `onLayout` (largura 0), e a aba montaria numa coluna para
+              remontar no arranjo certo (busca tudo de novo). Um quadro sem conteúdo, nunca um salto. */}
+          {largura > 0 ? conteudoDaAba(aluno) : null}
           {renovacao.painel}
           {menu ? (
             <FolhaDeAcoes titulo={aluno.nome} aoFechar={() => setMenu(false)} acoes={[
