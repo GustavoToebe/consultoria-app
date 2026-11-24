@@ -1,9 +1,10 @@
 // Gera os guias do usuário em PDF (treinador e aluno) a partir de app/src/ajuda/conteudo.ts, o mesmo texto da tela
-// de Ajuda. Saída: app/public/guias/*.pdf (a web serve em /guias/...). Precisa do Edge ou do Chrome instalado.
+// de Ajuda. Saída: app/public/guias/*.pdf (a web serve em /guias/...). Usa o chrome-headless-shell do Playwright
+// se achar (NAVEGADOR_PDF manda sobre tudo), senão o Edge ou o Chrome instalado.
 //   node scripts/guias/gerar.mjs
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -11,8 +12,26 @@ const raiz = resolve(import.meta.dirname, '..', '..');
 const saida = join(raiz, 'app', 'public', 'guias');
 const { GUIAS, textoDoItem, secoesDoGuia } = await import(pathToFileURL(join(raiz, 'app', 'src', 'ajuda', 'conteudo.ts')).href);
 
+// chrome-headless-shell do Playwright (revisão mais alta): o Edge e o chrome.exe completo travam ou não gravam o PDF no Windows.
+function headlessShellDoPlaywright() {
+  const pasta =
+    process.env.PLAYWRIGHT_BROWSERS_PATH ||
+    (process.platform === 'win32' ? join(process.env.LOCALAPPDATA ?? '', 'ms-playwright')
+      : process.platform === 'darwin' ? join(homedir(), 'Library', 'Caches', 'ms-playwright')
+      : join(homedir(), '.cache', 'ms-playwright'));
+  if (!existsSync(pasta)) return undefined;
+  const exe = process.platform === 'win32' ? 'chrome-headless-shell.exe' : 'chrome-headless-shell';
+  return readdirSync(pasta)
+    .map((nome) => ({ nome, revisao: Number(/^chromium_headless_shell-(\d+)$/.exec(nome)?.[1]) }))
+    .filter((r) => r.revisao)
+    .sort((a, b) => b.revisao - a.revisao)
+    .flatMap((r) => readdirSync(join(pasta, r.nome)).filter((d) => d.startsWith('chrome-headless-shell-')).map((d) => join(pasta, r.nome, d, exe)))
+    .find((c) => existsSync(c));
+}
+
 const NAVEGADORES = [
   process.env.NAVEGADOR_PDF,
+  ...(process.env.NAVEGADOR_PDF ? [] : [headlessShellDoPlaywright()]),
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -58,16 +77,19 @@ try {
   for (const guia of Object.values(GUIAS)) {
     const origem = join(temp, `${guia.arquivoPdf}.html`);
     const destino = join(saida, guia.arquivoPdf);
+    const novo = join(temp, guia.arquivoPdf); // a pasta temporária é nova: um PDF aqui é deste navegador, nunca o velho
     writeFileSync(origem, html(guia), 'utf8');
-    rmSync(destino, { force: true }); // sem isto, um navegador que não escreve nada passaria com o PDF velho
     execFileSync(
       navegador,
-      ['--headless=new', '--disable-gpu', '--no-pdf-header-footer', `--user-data-dir=${join(temp, 'perfil')}`, `--print-to-pdf=${destino}`, pathToFileURL(origem).href],
-      { stdio: 'ignore', timeout: 60_000 },
+      ['--headless=new', '--disable-gpu', '--no-pdf-header-footer', `--user-data-dir=${join(temp, 'perfil')}`, `--print-to-pdf=${novo}`, pathToFileURL(origem).href],
+      { stdio: 'ignore', timeout: 180_000 },
     );
-    if (!existsSync(destino)) throw new Error(`PDF não gerado: ${destino}`);
+    if (!existsSync(novo) || statSync(novo).size === 0) throw new Error(`PDF não gerado: ${guia.arquivoPdf}`);
+    copyFileSync(novo, `${destino}.novo`);
+    renameSync(`${destino}.novo`, destino); // só troca o PDF do repositório depois de o novo estar completo
     console.log(`ok  ${destino}`);
   }
 } finally {
-  rmSync(temp, { recursive: true, force: true });
+  // No Windows o perfil do navegador pode ficar preso um instante; sobra só lixo em %TEMP%, não vale falhar com os PDFs já gravados.
+  try { rmSync(temp, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { /* shortcut: lixo em %TEMP% tolerado, limpar à mão se pesar */ }
 }
