@@ -152,7 +152,7 @@ test('2560 px com o menu recolhido: na cobrança paga o rodapé do painel segue 
   expect(errosDaPagina).toEqual([]);
 });
 
-test('Planos: grade de 1 a 4 colunas pela largura, sem cartão sozinho na última linha; arquivados com o selo', async ({ page }) => {
+test('Planos: grade de 1 a 6 colunas pela largura, sem cartão sozinho na última linha; arquivados com o selo', async ({ page }) => {
   const colunas = async () => new Set(await page.getByRole('button', { name: /^Abrir plano / }).evaluateAll((els) =>
     els.map((el) => Math.round(el.getBoundingClientRect().left)))).size;
   const estado = estadoFinanceiro({
@@ -161,17 +161,18 @@ test('Planos: grade de 1 a 4 colunas pela largura, sem cartão sozinho na últim
   });
   const { errosDaPagina } = await abrir(page, 2560, estado, 'planos');
   await expect(page.getByRole('button', { name: 'Abrir plano Plano 1' })).toBeVisible();
-  await expect.poll(colunas).toBe(4);
+  // tela larga: revisão (24/11): 2560 com o menu aberto (~2250 px de grade) tem teto 5; 8 planos ficam em 5 + 3.
+  await expect.poll(colunas).toBe(5);
   const segundo = page.getByRole('button', { name: 'Abrir plano Plano 2' });
   await expect(segundo.getByText('Mínimo de 5 meses · Treino e dieta')).toBeVisible();
   await expect(segundo.getByText('Com link de pagamento')).toBeVisible();
   await expect(segundo.getByText('R$ 152,00')).toBeVisible();
 
-  // Com os arquivados (9 planos, teto 4): 3 colunas, para a última linha não ficar com um cartão sozinho.
+  // Com os arquivados (9 planos, teto 5): 5 + 4, sem cartão sozinho (o corte do teto está no jest de `colunasDosPlanos`).
   await page.getByRole('switch', { name: 'Mostrar arquivados' }).click();
   const antigo = page.getByRole('button', { name: 'Abrir plano Plano antigo' });
   await expect(antigo.getByText('Arquivado', { exact: true })).toBeVisible();
-  await expect.poll(colunas).toBe(3);
+  await expect.poll(colunas).toBe(5);
 
   // O cartão abre o plano, como a linha da tabela de antes.
   await antigo.click();

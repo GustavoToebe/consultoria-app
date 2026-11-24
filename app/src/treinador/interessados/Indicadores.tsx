@@ -5,7 +5,8 @@ import { indicadoresInscricoes } from '../../api/rotas';
 import { hojeEmBrasilia } from '../../dominio/agendaPresencial';
 import { dataParaTela, SEM_DADO } from '../../dominio/formatos';
 import { contagemParaTela } from '../../dominio/numeros';
-import { colunasDosIndicadores, duasColunasCom } from '../../dominio/grade';
+import { analisesEmUmaLinha, colunasDoGlossario, colunasDosOitoIndicadores } from '../../dominio/colunasDeInteressados';
+import { duasColunasCom } from '../../dominio/grade';
 import {
   dias,
   intervaloDoPeriodo,
@@ -16,7 +17,7 @@ import {
   type PeriodoDosIndicadores,
 } from '../../dominio/inscricoes';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_TEXTO_CORRIDO } from '../../tema/tokens';
 import { Cartao } from '../../ui/Cartao';
 import { CartaoDeIndicador, type TomDoIndicador } from '../../ui/CartaoDeIndicador';
 import { Escolha } from '../../ui/Escolha';
@@ -27,6 +28,7 @@ import { Grade } from '../../ui/Grade';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 
 /**
  * "Como contamos" (F15 de 12/11): o que cada número conta, conferido com `IndicadoresDeInscricoes` na API. São
@@ -61,9 +63,8 @@ const LIMITES_DOS_DADOS = [
   `"${SEM_DADO}" quer dizer sem dado (conversão sem entradas, tempo sem nenhum aceite); zero é zero de verdade.`,
 ];
 
-/** Vão do glossário (o mesmo do "Como calculamos" do Financeiro) e a coluna mínima para a explicação não quebrar palavra a palavra. */
+/** Vão do glossário (o mesmo do "Como calculamos" do Financeiro); as colunas vêm de `colunasDoGlossario` (1 a 4). */
 const VAO_GLOSSARIO = espaco(3);
-const COLUNAS_DO_GLOSSARIO = duasColunasCom(260, VAO_GLOSSARIO);
 /** Perdas e origens lado a lado só quando as duas tabelas cabem com ~360 px cada (abaixo disso, a `Tabela` vira cartões). */
 const VAO_ANALISES = espaco(2);
 const COLUNAS_DAS_ANALISES = duasColunasCom(360, VAO_ANALISES);
@@ -71,7 +72,7 @@ const COLUNAS_DAS_ANALISES = duasColunasCom(360, VAO_ANALISES);
 /**
  * Indicadores de conversão dos interessados: entradas, pessoas, aceites, conversão, tempo até o aceite, perdas por motivo
  * e entradas por origem, num período de datas de Brasília. Só contagens; sem dado vira "—", nunca zero inventado. Os oito
- * números ficam em duas linhas de quatro no PC, em duas colunas na largura média e em uma no celular (nunca três, que
+ * números ficam numa linha de oito na tela larga (24/11), em duas linhas de quatro no PC, em duas colunas na largura média e em uma no celular (nunca três, que
  * deixaria um buraco); o período e o intervalo efetivo andam juntos; trocar o período esmaece os números até a resposta.
  */
 export function Indicadores() {
@@ -80,6 +81,46 @@ export function Indicadores() {
   const { de, ate } = intervaloDoPeriodo(periodo, hojeEmBrasilia());
   const dados = useCarregar(`inscricoes:indicadores:${de}:${ate}`, () => indicadoresInscricoes(de, ate));
   const ind = dados.dados;
+  // Tela larga (24/11): medida da área das análises, que decide se as quatro ficam numa linha só.
+  const { largura, aoMedir } = useFaixaDeLargura();
+  const perdas = ind ? (
+    <Cartao titulo="Perdas por motivo">
+      {ind.porMotivo.length === 0 ? <Texto variante="suave">Nenhuma recusa ou desistência no período.</Texto> : (
+        <Tabela rotulo="Perdas por motivo" linhas={linhasPorMotivo(ind)} chave={(l) => l.rotulo} colunas={[
+          { chave: 'motivo', titulo: 'Motivo', flex: 2, principal: true, render: (l) => <Texto>{l.rotulo}</Texto> },
+          { chave: 'quantidade', titulo: 'Quantidade', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{contagemParaTela(l.quantidade)}</Texto> },
+        ]} />
+      )}
+    </Cartao>
+  ) : null;
+  const origens = ind ? (
+    <Cartao titulo="Entradas por origem">
+      {ind.porOrigem.length === 0 ? <Texto variante="suave">Nenhuma entrada no período.</Texto> : (
+        <Tabela rotulo="Entradas por origem" linhas={linhasPorOrigem(ind)} chave={(l) => l.rotulo} colunas={[
+          { chave: 'origem', titulo: 'Origem', flex: 2, principal: true, render: (l) => <Texto>{l.rotulo}</Texto> },
+          { chave: 'entradas', titulo: 'Entradas', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{contagemParaTela(l.entradas)}</Texto> },
+          { chave: 'aceites', titulo: 'Aceites', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{contagemParaTela(l.aceites)}</Texto> },
+        ]} />
+      )}
+    </Cartao>
+  ) : null;
+  const glossario = (
+    <Cartao titulo="Como contamos">
+      <Grade gap={VAO_GLOSSARIO} colunas={colunasDoGlossario} alinhar="inicio">
+        {COMO_CONTAMOS.map((d) => (
+          <View key={d.termo} style={estilos.definicao}>
+            <Texto variante="subtitulo">{d.termo}</Texto>
+            <Texto variante="suave">{d.explicacao}</Texto>
+          </View>
+        ))}
+      </Grade>
+    </Cartao>
+  );
+  const limites = (
+    <Cartao titulo="Limites dos dados">
+      {LIMITES_DOS_DADOS.map((t) => <Texto key={t} variante="suave" style={estilos.textoCorrido}>{t}</Texto>)}
+    </Cartao>
+  );
   return (
     <>
       <View style={estilos.periodo}>
@@ -91,7 +132,7 @@ export function Indicadores() {
       {ind ? (
         <>
           <View style={dados.carregando ? estilos.esmaecido : null} accessibilityState={{ busy: dados.carregando }}>
-            <Grade gap={espaco(1.5)} colunas={(l) => colunasDosIndicadores(l, fatorTexto)}>
+            <Grade gap={espaco(1.5)} colunas={(l) => colunasDosOitoIndicadores(l, fatorTexto)}>
               <Numero rotulo="Entradas" valor={ind.entradas} />
               <Numero rotulo="Pessoas" valor={ind.pessoas} />
               <Numero rotulo="Aceites" valor={ind.aceites} tom="sucesso" />
@@ -105,39 +146,21 @@ export function Indicadores() {
               <Numero rotulo="Reaberturas" valor={ind.reaberturas} />
             </Grade>
           </View>
-          {/* Cada análise com a própria altura: o vazio curto não estica até a altura da tabela vizinha. */}
-          <Grade gap={VAO_ANALISES} colunas={COLUNAS_DAS_ANALISES} alinhar="inicio">
-            <Cartao titulo="Perdas por motivo">
-              {ind.porMotivo.length === 0 ? <Texto variante="suave">Nenhuma recusa ou desistência no período.</Texto> : (
-                <Tabela rotulo="Perdas por motivo" linhas={linhasPorMotivo(ind)} chave={(l) => l.rotulo} colunas={[
-                  { chave: 'motivo', titulo: 'Motivo', flex: 2, principal: true, render: (l) => <Texto>{l.rotulo}</Texto> },
-                  { chave: 'quantidade', titulo: 'Quantidade', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{contagemParaTela(l.quantidade)}</Texto> },
-                ]} />
-              )}
-            </Cartao>
-            <Cartao titulo="Entradas por origem">
-              {ind.porOrigem.length === 0 ? <Texto variante="suave">Nenhuma entrada no período.</Texto> : (
-                <Tabela rotulo="Entradas por origem" linhas={linhasPorOrigem(ind)} chave={(l) => l.rotulo} colunas={[
-                  { chave: 'origem', titulo: 'Origem', flex: 2, principal: true, render: (l) => <Texto>{l.rotulo}</Texto> },
-                  { chave: 'entradas', titulo: 'Entradas', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{contagemParaTela(l.entradas)}</Texto> },
-                  { chave: 'aceites', titulo: 'Aceites', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{contagemParaTela(l.aceites)}</Texto> },
-                ]} />
-              )}
-            </Cartao>
-          </Grade>
-          <Cartao titulo="Como contamos">
-            <Grade gap={VAO_GLOSSARIO} colunas={COLUNAS_DO_GLOSSARIO} alinhar="inicio">
-              {COMO_CONTAMOS.map((d) => (
-                <View key={d.termo} style={estilos.definicao}>
-                  <Texto variante="subtitulo">{d.termo}</Texto>
-                  <Texto variante="suave">{d.explicacao}</Texto>
-                </View>
-              ))}
-            </Grade>
-          </Cartao>
-          <Cartao titulo="Limites dos dados">
-            {LIMITES_DOS_DADOS.map((t) => <Texto key={t} variante="suave">{t}</Texto>)}
-          </Cartao>
+          {/* Cada análise com a própria altura: o vazio curto não estica até a altura da tabela vizinha. Na tela larga as
+              quatro ficam numa linha só (24/11); antes disso, as duas tabelas lado a lado e os textos em faixa inteira. */}
+          <View onLayout={aoMedir} style={estilos.analises}>
+            {analisesEmUmaLinha(largura) ? (
+              <Grade gap={VAO_ANALISES} colunas={() => 4} alinhar="inicio">
+                {perdas}{origens}{glossario}{limites}
+              </Grade>
+            ) : (
+              <>
+                <Grade gap={VAO_ANALISES} colunas={COLUNAS_DAS_ANALISES} alinhar="inicio">{perdas}{origens}</Grade>
+                {glossario}
+                {limites}
+              </>
+            )}
+          </View>
         </>
       ) : null}
     </>
@@ -162,4 +185,6 @@ const estilos = StyleSheet.create({
   intervalo: { paddingBottom: espaco(1.25) },
   esmaecido: { opacity: 0.6 },
   definicao: { gap: espaco(0.5) },
+  analises: { gap: espaco(3) },
+  textoCorrido: { maxWidth: LARGURA_TEXTO_CORRIDO },
 });

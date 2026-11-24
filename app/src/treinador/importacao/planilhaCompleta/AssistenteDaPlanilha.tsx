@@ -22,7 +22,7 @@ import {
 } from '../../../dominio/planilhaCompleta';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { useTema } from '../../../tema/TemaProvider';
-import { LARGURA_MAXIMA, RAIO, espaco } from '../../../tema/tokens';
+import { LARGURA_EDITOR_DE_CAMPOS, LARGURA_FORMULARIO, LARGURA_MAXIMA, RAIO, espaco } from '../../../tema/tokens';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
@@ -226,7 +226,7 @@ export function AssistenteDaPlanilha() {
   // Na amostra, a confirmação espera só a primeira página (o hash); se ela falhou, vale o hash da prévia.
   const esperandoAmostra = etapa === ETAPA_AMOSTRA && !amostra.hash && amostra.carregando;
   const semAlunoMarcado = etapa === ETAPA_AMOSTRA && !!amostra.pagina && todosIgnorados(amostra.pagina.total, ignorados);
-  const rodape = etapa === ETAPA_RESULTADO ? (
+  const botoes = etapa === ETAPA_RESULTADO ? (
     <Botao rotulo="Concluir" aoTocar={aoConcluir} />
   ) : (
     <>
@@ -244,12 +244,16 @@ export function AssistenteDaPlanilha() {
     </>
   );
 
+  // Tela larga (24/11): as etapas são um editor de campos (nome à esquerda, resposta à direita) e param em
+  // `LARGURA_EDITOR_DE_CAMPOS`, alinhadas à esquerda; os botões do rodapé acompanham a borda do conteúdo.
+  const rodape = <View style={[estilos.rodape, estilos.limite]}>{botoes}</View>;
+
   return (
     <TelaDoEditor largura={LARGURA_MAXIMA} rodape={rodape}
       cabecalho={<Cabecalho titulo="Planilha completa" subtitulo="Alunos, pesos, treinos e dietas de uma vez. Nada é gravado antes de Confirmar importação; treinos e dietas entram em rascunho."
         trilha={[{ rotulo: 'Importação', href: '/treinador/importacao' }]} />}
-      barra={<Etapas etapa={etapa} estreita={estreita} comAmostra={comAmostra} />}>
-      <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={estilos.coluna}>
+      barra={<View style={estilos.limite}><Etapas etapa={etapa} estreita={estreita} comAmostra={comAmostra} /></View>}>
+      <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={[estilos.coluna, estilos.limite]}>
         {/* Sem conexão na leitura ou na prévia, o "Tentar de novo" repete o pedido; a confirmação o treinador refaz. */}
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro}
           tentarDeNovo={etapa === ETAPA_PREVIA && !previa ? gerarPrevia : etapa === 1 && !analise ? ler : undefined} /> : null}
@@ -469,7 +473,7 @@ function ListaDeNomes({ titulo, lista, perguntas, respostas, aoMudar, biblioteca
   return (
     <Cartao titulo={titulo} descricao={`${perguntas.length} ${perguntas.length === 1 ? 'nome' : 'nomes'} sem par certo na biblioteca (${provaveis} com sugestão).`}
       acoes={provaveis > 0 ? <Botao rotulo="Aceitar todos os prováveis" tipo="secundario" aoTocar={() => aoMudar(aceitarTodosOsProvaveis(respostas, lista, perguntas))} /> : undefined}>
-      <Campo rotulo={`Buscar em ${titulo.toLowerCase()}`} valor={busca} aoMudar={setBusca} autoCorrect={false} />
+      <View style={estilos.busca}><Campo rotulo={`Buscar em ${titulo.toLowerCase()}`} valor={busca} aoMudar={setBusca} autoCorrect={false} /></View>
       {mostradas.map((x) => {
         const r = respostas[lista][x.nome];
         const valor = valorDaResposta(r);
@@ -502,7 +506,7 @@ function ListaDeSuplementos({ analise, respostas, aoMudar }: { analise: AnaliseD
   return (
     <Cartao titulo="Suplementos e medicação" descricao="Diga para onde vai cada nome na dieta: Suplementação ou Medicação e ergogênicos."
       acoes={comSugestao > 0 ? <Botao rotulo="Aceitar as sugestões" tipo="secundario" aoTocar={() => aoMudar(aceitarSugestoesDeSuplemento(respostas, analise.suplementos))} /> : undefined}>
-      <Campo rotulo="Buscar em suplementos" valor={busca} aoMudar={setBusca} autoCorrect={false} />
+      <View style={estilos.busca}><Campo rotulo="Buscar em suplementos" valor={busca} aoMudar={setBusca} autoCorrect={false} /></View>
       {mostradas.map((x) => {
         const valor = respostas.suplementos[x.nome] ?? '';
         const opcoes = opcoesDoSuplemento(x);
@@ -577,6 +581,11 @@ function Resultado({ resultado }: { resultado: ConfirmacaoDaPlanilha }) {
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
+  limite: { width: '100%', maxWidth: LARGURA_EDITOR_DE_CAMPOS },
+  // O rodapé do editor alinha à direita; `marginRight: auto` traz a linha de 1400 px para a esquerda, junto do conteúdo.
+  rodape: { width: '100%', marginRight: 'auto', flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: espaco(1) },
+  // A busca não estica com o cartão: a largura de um campo de formulário.
+  busca: { maxWidth: LARGURA_FORMULARIO },
   etapas: { flexDirection: 'row' },
   etapa: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), paddingBottom: espaco(1), paddingRight: espaco(0.5), borderBottomWidth: 2 },
   bolinha: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },

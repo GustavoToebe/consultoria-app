@@ -22,7 +22,7 @@ import { dataHoraParaTela } from '../../dominio/formatos';
 import { DESTINO_PLANILHA_COMPLETA, ROTULO_PLANILHA_COMPLETA } from '../../dominio/planilhaCompleta';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, LARGURA_FOLHA_LARGA, LARGURA_MAXIMA, RAIO, espaco, fontes } from '../../tema/tokens';
+import { ALVO_TOQUE, LARGURA_EDITOR_DE_CAMPOS, LARGURA_FOLHA_LARGA, LARGURA_MAXIMA, RAIO, espaco, fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -458,7 +458,7 @@ export function AssistenteDaImportacao() {
   const titulo = destino ? `Nova importação · ${destino.rotulo}` : 'Nova importação';
   const tituloDeDado = colunas ? avisoDeTituloDeDado(colunasComTituloDeDado(colunas.colunas)) : null;
 
-  const rodape = etapa === 5 ? (
+  const botoes = etapa === 5 ? (
     <Botao rotulo="Concluir" aoTocar={aoConcluir} />
   ) : (
     <>
@@ -472,12 +472,17 @@ export function AssistenteDaImportacao() {
     </>
   );
 
+  // Tela larga (24/11): fora do Mapeamento (a planilha precisa da largura), as etapas são um editor de campos e param em
+  // `LARGURA_EDITOR_DE_CAMPOS`, alinhadas à esquerda; os botões do rodapé acompanham a borda do conteúdo.
+  const limitada = etapa !== 3;
+  const rodape = <View style={[estilos.rodape, limitada && estilos.limite]}>{botoes}</View>;
+
   return (
     <TelaDoEditor largura={LARGURA_MAXIMA} rodape={rodape}
       cabecalho={<Cabecalho titulo={titulo} subtitulo="Nada é gravado antes de Confirmar importação. O arquivo não fica guardado."
         trilha={[{ rotulo: 'Importação', href: '/treinador/importacao' }]} />}
-      barra={<Etapas etapa={etapa} estreita={estreita} />}>
-      <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={estilos.coluna}>
+      barra={<View style={estilos.limite}><Etapas etapa={etapa} estreita={estreita} /></View>}>
+      <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={[estilos.coluna, limitada && estilos.limite]}>
         {/* Sem conexão na leitura ou na validação, o "Tentar de novo" repete o mesmo pedido (a confirmação não: o
             treinador confere e toca em Confirmar de novo). */}
         {erro ? <MensagemErro texto={textoDoErroDaApi(erro)} erro={erro}
@@ -848,6 +853,9 @@ export function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhi
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
+  limite: { width: '100%', maxWidth: LARGURA_EDITOR_DE_CAMPOS },
+  // O rodapé do editor alinha à direita; `marginRight: auto` traz a linha de 1400 px para a esquerda, junto do conteúdo.
+  rodape: { width: '100%', marginRight: 'auto', flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: espaco(1) },
   linha: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', alignItems: 'center' },
   campo: { gap: espaco(0.5) },
   etapas: { flexDirection: 'row' },
