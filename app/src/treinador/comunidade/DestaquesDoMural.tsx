@@ -13,6 +13,9 @@ import { Texto } from '../../ui/Texto';
 
 const DICA = 'Mostra a publicação no mural.';
 
+/** O bloco tem o que mostrar (a mesma conta do componente): sem isto a coluna do mural nem ocupa lugar. */
+export const temDestaques = (d: Destaques, comFixados: boolean) => d.enquetes.length > 0 || (comFixados && d.fixados.length > 0);
+
 /**
  * "Fixados" e "Enquetes abertas" do mural da equipe (D5, 19/11), compactos: cada item é um botão que leva à publicação
  * (`aoIr`). Na coluna da direita (área larga) ou no topo do feed; bloco vazio some, e sem nenhum o componente não desenha
@@ -25,7 +28,7 @@ export function DestaquesDoMural({ destaques, comFixados, aoIr }: {
 }) {
   const fixados = comFixados ? destaques.fixados : [];
   const { enquetes } = destaques;
-  if (!fixados.length && !enquetes.length) return null;
+  if (!temDestaques(destaques, comFixados)) return null;
   return (
     <>
       {fixados.length ? (

@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Award, Flag, Medal, Plus, WifiOff } from 'lucide-react-native';
+import { Flag, Plus, WifiOff } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -18,20 +18,20 @@ import { type AlvoDosVotos, FolhaDosVotos } from '../../comunidade/FolhaDosVotos
 import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
 import { FolhaPerfilDoColega } from '../../comunidade/FolhaPerfilDoColega';
 import { ListaDeColegas } from '../../comunidade/ListaDeColegas';
+import { MuralComLateral } from '../../comunidade/MuralComLateral';
+import { CartaoDaConquista, LinhaDaPosicao, NumerosDoMural, temNumeros } from '../../comunidade/NumerosDoAluno';
 import { PainelDeDenuncia } from '../../comunidade/PainelDeDenuncia';
 import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
-  type FiltroDoMural, filtrosParaApi, MURAL_SEM_FILTRO, podeAnexarFoto, ROTULO_DO_MURAL_GERAL, podePublicar, type RascunhoDoPost, textoDaPosicao,
+  type FiltroDoMural, filtrosParaApi, MURAL_SEM_FILTRO, podeAnexarFoto, ROTULO_DO_MURAL_GERAL, podePublicar, type RascunhoDoPost,
   TIPO_PADRAO_DO_POST, tipoPedido,
 } from '../../dominio/comunidade';
 import {
   type AbaDoMural, ABAS_DO_MURAL, abaDoParametro, abaDoTipo, carregarMuralDaAba, filtroNaAba, PARAMETRO_DO_MEU_GRUPO, textoDoVazioDaAba, tiposParaBuscar, visaoDoParametro,
 } from '../../dominio/muralEmAbas';
-import { dataParaTela } from '../../dominio/formatos';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { espaco } from '../../tema/tokens';
 import { FolhaDeAcoes } from '../../treinador/FolhaDeAcoes';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { Abas } from '../../ui/Abas';
@@ -44,10 +44,7 @@ import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { depoisDeFecharAsFolhas } from '../../ui/historicoDasFolhas';
-import { Selo } from '../../ui/Selo';
-import { Grade } from '../../ui/Grade';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
-import { colunasDaGradeDoAluno } from '../../dominio/telaLargaDoAluno';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 
@@ -75,7 +72,6 @@ const fixadosPrimeiro = (posts: PostDoMural[]) => [...posts].sort((a, b) => Numb
  * sem conexão a tela só avisa. O nome do autor chega montado pela API (a escolha dele, V085); tocar num autor que é aluno abre o perfil dele.
  */
 export default function ComunidadeAluno() {
-  const { cores } = useTema();
   const { online } = useAluno();
   const { avisar } = useAviso();
   const { usuario } = useSessao();
@@ -248,17 +244,18 @@ export default function ComunidadeAluno() {
               <Escolha<AbaDoMural> descricao="Publicações" distribuida={!largo} valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
               <BarraDoMural aba={abaDoMural} filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={false} />
 
-              <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
-                textoVazio={textoDoVazioDaAba(abaDoMural, filtro, busca, podDoMural?.nome)}
-                recarregar={mural.recarregar}
-                acaoVazio={filtro.tipo ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) } : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }
-                  // Avisos vazio (a aba padrão) não é beco: o próximo passo é a outra aba.
-                  : abaDoMural === 'avisos' ? { rotulo: 'Ver publicações dos alunos', aoTocar: () => setAbaDoMural('alunos') } : undefined} />
-
-              {/* Tela larga (24/11): o mural vira quadro em colunas (cartão de ~550, o texto em ~72 caracteres), do mais novo ao mais antigo. */}
-              {posts && largo ? (
-                <Grade gap={espaco(3)} alinhar="inicio" colunas={(l) => colunasDaGradeDoAluno(l, posts.length, espaco(3))}>{cartoesDoMural(posts)}</Grade>
-              ) : posts ? cartoesDoMural(posts) : null}
+              {/* Feed de ~720 px e, a partir de 1280 px de área, "Sua posição" e as conquistas numa coluna ao lado; abaixo, no
+                  topo do feed (decisão 3 de 24/11, a mesma do mural da equipe). */}
+              <MuralComLateral idDaLateral="coluna-dos-numeros" rotulo="Seus números" temLateral={temNumeros(ranking.dados, conquistas.dados)}
+                lateral={(noTopo) => <NumerosDoMural compacto={noTopo} ranking={ranking.dados} conquistas={conquistas.dados} aoVerConquistas={() => setAba('ranking')} />}>
+                <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
+                  textoVazio={textoDoVazioDaAba(abaDoMural, filtro, busca, podDoMural?.nome)}
+                  recarregar={mural.recarregar}
+                  acaoVazio={filtro.tipo ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) } : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }
+                    // Avisos vazio (a aba padrão) não é beco: o próximo passo é a outra aba.
+                    : abaDoMural === 'avisos' ? { rotulo: 'Ver publicações dos alunos', aoTocar: () => setAbaDoMural('alunos') } : undefined} />
+                {posts ? cartoesDoMural(posts) : null}
+              </MuralComLateral>
             </View>
           ) : null}
 
@@ -280,17 +277,7 @@ export default function ComunidadeAluno() {
                   textoVazio="Nenhuma conquista por enquanto." recarregar={conquistas.recarregar} />
                 {conquistas.dados?.length ? (
                   <View style={estilos.grade}>
-                    {conquistas.dados.map((c) => (
-                      <View key={c.id} style={[estilos.item, estilos.conquista, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-                        <Award size={24} color={cores.texto} aria-hidden />
-                        <Texto variante="bloco" nivel={3} style={estilos.centro}>{c.titulo}</Texto>
-                        <Texto variante="suave" style={estilos.centro}>{c.descricao}</Texto>
-                        <View style={estilos.seloCentral}>
-                          <Selo texto="Conquistada" tipo="neutro" />
-                        </View>
-                        <Texto variante="pequeno" cor={cores.textoSuave} numerico style={estilos.centro}>{dataParaTela(c.conquistadaEm)}</Texto>
-                      </View>
-                    ))}
+                    {conquistas.dados.map((c) => <CartaoDaConquista key={c.id} conquista={c} />)}
                   </View>
                 ) : null}
               </Cartao>
@@ -298,17 +285,7 @@ export default function ComunidadeAluno() {
               <Cartao style={largo ? estilos.estreito : undefined} titulo="Sua posição" descricao="Pelo número de treinos concluídos. Só você vê a sua posição; nomes de outros alunos não aparecem.">
                 <EstadoDaFonte carregando={ranking.carregando} erro={ranking.erro} vazio={!ranking.dados}
                   textoVazio="A sua posição ainda não está disponível." recarregar={ranking.recarregar} />
-                {ranking.dados ? (
-                  <View style={[estilos.item, estilos.linha, { backgroundColor: cores.superficie3, borderColor: cores.borda }]}>
-                    <Medal size={24} color={cores.texto} aria-hidden />
-                    <View style={estilos.encolher}>
-                      <Texto variante="bloco" numerico>{textoDaPosicao(ranking.dados.posicao, ranking.dados.participantes)}</Texto>
-                      <Texto variante="suave" numerico>
-                        {ranking.dados.treinosConcluidos} treino(s) concluído(s) · {ranking.dados.pontuacao} pts
-                      </Texto>
-                    </View>
-                  </View>
-                ) : null}
+                {ranking.dados ? <LinhaDaPosicao ranking={ranking.dados} /> : null}
               </Cartao>
             </View>
           ) : null}
@@ -345,12 +322,5 @@ const estilos = StyleSheet.create({
   estreito: { flex: 1, minWidth: 0 },
   // Seletor do mural à esquerda e a ação principal à direita; no celular estreito, o botão desce para a linha de baixo.
   topoDoMural: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(2) },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
-  encolher: { flex: 1, minWidth: 0, gap: 2 },
-  item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
-  conquista: { flexGrow: 1, flexBasis: 150, alignItems: 'center', gap: espaco(1) },
-  centro: { textAlign: 'center' },
-  // O Selo se alinha ao início por conta própria; a linha o centraliza no cartão da conquista.
-  seloCentral: { flexDirection: 'row', justifyContent: 'center', alignSelf: 'stretch' },
 });

@@ -3,17 +3,18 @@ import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AgendaPessoal, Compromisso, OcorrenciaDeEvento } from '../src/api/agendaTipos';
-import type { AulaDaComunidade, PaginaDoMural, PlaylistDaComunidade, PodResumo, PostDoMural } from '../src/api/comunidadeTipos';
+import type { AulaDaComunidade, ConquistaDoAluno, PaginaDoMural, PlaylistDaComunidade, PodResumo, PosicaoNoRanking, PostDoMural } from '../src/api/comunidadeTipos';
 import type { AlunoResumo, AtualizacaoDaLista } from '../src/api/tipos';
 import type { ItemDaVitrine } from '../src/api/vitrineTipos';
-import { fixarHoje } from './aluno';
-import { json, PERMISSOES_TREINADOR, type PedidoFalso, sessao, simularApi, TREINADOR } from './api-falsa';
+import { fixarHoje, sessaoDeAluno } from './aluno';
+import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, type PedidoFalso, sessao, simularApi, TREINADOR } from './api-falsa';
 import { pngDeCor } from './imagens-falsas';
 
 /**
  * tela larga: revisão (24/11). Agenda (Dia, Semana, Mês, Ano), Comunidade (Vídeos e Mural) e Vitrine em 1920, 2560 e
  * 3440 px com o menu aberto: o espaço extra vira colunas, nada estica além do limite e não sobra cartão sozinho na linha.
- * Relógio em segunda, 19/10/2026, 12:00 de Brasília. API simulada, só dados fictícios. As capturas só saem com
+ * Mural (treinador e aluno, decisão 3 de 24/11): feed de ~720 px e coluna fixa à direita a partir de 1280 px de área, no topo
+ * do feed abaixo disso, sem coluna quando vazia; também em 1280 e 390. Relógio em segunda, 19/10/2026, 12:00 de Brasília. API simulada, só dados fictícios. As capturas só saem com
  * `CAPTURAS_TELA_LARGA` (pasta base, fora do git) e `CAPTURAS_FASE` (`antes` ou `depois`): `<base>/<tela>/<fase>/<largura>.png`.
  */
 
@@ -33,7 +34,7 @@ async function capturar(page: Page, tela: string, largura: number) {
   await page.screenshot({ path: path.join(pasta, `${largura}.png`), fullPage: false });
 }
 
-async function preparar(page: Page, largura: number, altura: number, tema: 'ESCURO' | 'CLARO' | 'AREIA' = 'ESCURO', extraPrefs: Record<string, unknown> = {}) {
+async function preparar(page: Page, largura: number, altura: number, tema: 'ESCURO' | 'CLARO' | 'AREIA' = 'ESCURO', extraPrefs: Record<string, unknown> = {}, usuarioId = TREINADOR.id) {
   await page.setViewportSize({ width: largura, height: altura });
   await fixarHoje(page);
   await page.addInitScript(([id, prefs]) => {
@@ -41,7 +42,7 @@ async function preparar(page: Page, largura: number, altura: number, tema: 'ESCU
       localStorage.removeItem('menu-lateral-recolhido');
       localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify(prefs));
     } catch { /* quadro sem armazenamento (iframe do player) */ }
-  }, [TREINADOR.id, { tema, contraste: 'PADRAO', larguraConteudo: 'AUTOMATICA', ...extraPrefs }] as const);
+  }, [usuarioId, { tema, contraste: 'PADRAO', larguraConteudo: 'AUTOMATICA', ...extraPrefs }] as const);
 }
 
 const caixa = async (l: Locator) => {
@@ -192,6 +193,30 @@ async function abrirComunidade(page: Page, aba: 'videos' | 'mural', aulas = AULA
   return api;
 }
 
+/** Mural do aluno: seis conversas (aba Alunos), quatro conquistas e a posição; `semNumeros` = nenhuma conquista e posição com erro. */
+const CONQUISTAS: ConquistaDoAluno[] = ['Primeiro treino', 'Dez treinos', 'Semana completa', 'Novo recorde'].map((titulo, i) => ({
+  id: `c${i}`, tipo: `T${i}`, titulo, descricao: `Conquista fictícia ${i + 1}.`, icone: 'award', conquistadaEm: `2026-10-1${i}T12:00:00-03:00`,
+}));
+const RANKING: PosicaoNoRanking = { posicao: 2, treinosConcluidos: 8, pontuacao: 80, participantes: 12, nivel: 2, xp: 130, xpNoNivel: 30, faltam: 70 };
+const POSTS_DO_ALUNO: PostDoMural[] = Array.from({ length: 6 }, (_, i) => ({
+  ...POST, id: `a${i}`, tipo: 'CONVERSA', autorId: `u${i + 2}`, autorNome: 'Aluno Fictício', autorEhAluno: true, totalComentarios: i,
+  texto: `Publicação fictícia ${i + 1}: treino de teste concluído, cargas registradas e a semana fechada com constância.`,
+}));
+
+async function abrirMuralDoAluno(page: Page, { semNumeros = false } = {}) {
+  const api = await simularApi(page, {
+    ...(await sessaoDeAluno(page)),
+    'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: true, podeAnexarFoto: false } },
+    'GET /aluno/comunidade/mural': (p, route) => json(route, pagina(POSTS_DO_ALUNO.filter((x) => x.tipo === p.busca.get('tipo')))),
+    'GET /aluno/comunidade/aulas': { corpo: [] },
+    'GET /aluno/comunidade/conquistas': { corpo: semNumeros ? [] : CONQUISTAS },
+    'GET /aluno/comunidade/ranking': semNumeros ? erroApi(500, 'Falha no servidor.') : { corpo: RANKING },
+  });
+  await page.goto('/aluno/comunidade?mural=alunos');
+  await expect(page.getByRole('heading', { name: 'Comunidade', level: 1 })).toBeVisible();
+  return api;
+}
+
 // ---------------------------------------------------------------- Vitrine
 
 function item(n: number, extra: Partial<ItemDaVitrine> = {}): ItemDaVitrine {
@@ -260,6 +285,37 @@ test.describe('capturas da tela larga (24/11)', () => {
       await page.waitForTimeout(400);
       await capturar(page, 'treinador-vitrine-poucos', largura);
     });
+  }
+});
+
+test.describe('capturas do mural com a coluna (24/11)', () => {
+  test.skip(!BASE_CAPTURAS, 'só com CAPTURAS_TELA_LARGA');
+  for (const [largura, altura] of [[390, 844], [1280, 900], ...LARGURAS] as const) {
+    for (const tema of ['ESCURO', 'CLARO', 'AREIA'] as const) {
+      const sufixo = tema === 'ESCURO' ? '' : `-${tema.toLowerCase()}`;
+      test(`mural do treinador e do aluno, com e sem a coluna, em ${largura} px${sufixo}`, async ({ page }) => {
+        test.slow();
+        await preparar(page, largura, altura, tema);
+        await abrirComunidade(page, 'mural');
+        await expect(page.getByTestId('coluna-das-publicacoes').getByText(POSTS[0].texto).last()).toBeVisible();
+        await page.waitForTimeout(400);
+        await capturar(page, `treinador-mural${sufixo}`, largura);
+        await page.getByRole('radiogroup', { name: 'Mural' }).getByRole('radio', { name: PODS[0].nome }).click();
+        await expect(page.getByText(`Nenhum aviso, vídeo ou enquete no grupo ${PODS[0].nome} ainda.`)).toBeVisible();
+        await page.waitForTimeout(300);
+        await capturar(page, `treinador-mural-sem-destaques${sufixo}`, largura);
+        await preparar(page, largura, altura, tema, {}, ALUNO.id);
+        await abrirMuralDoAluno(page);
+        await expect(page.getByText(POSTS_DO_ALUNO[0].texto)).toBeVisible();
+        await expect(page.getByRole('heading', { name: /^(Sua posição|Seus números)$/ })).toBeVisible();
+        await page.waitForTimeout(400);
+        await capturar(page, `aluno-mural${sufixo}`, largura);
+        await abrirMuralDoAluno(page, { semNumeros: true });
+        await expect(page.getByText(POSTS_DO_ALUNO[0].texto)).toBeVisible();
+        await page.waitForTimeout(400);
+        await capturar(page, `aluno-mural-sem-numeros${sufixo}`, largura);
+      });
+    }
   }
 });
 
@@ -353,6 +409,86 @@ for (const [largura, altura] of [[1280, 900], ...LARGURAS] as const) {
       await expect(page.getByRole('heading', { level: 2, name: 'Técnica' })).toBeVisible();
       const esperado = largura >= 3440 ? 6 : largura >= 2560 ? 5 : largura >= 1920 ? 4 : 3;
       await expect.poll(() => naPrimeiraLinha(page.getByRole('heading', { level: 3 }))).toBe(esperado);
+      await semRolagemHorizontal(page);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    for (const lado of ['treinador', 'aluno'] as const) {
+      test(`Mural do ${lado}: feed de ~720 px e a coluna ${largura >= 1920 ? 'à direita, fixa ao rolar' : 'no topo do feed'}`, async ({ page }) => {
+        const aluno = lado === 'aluno';
+        await preparar(page, largura, altura, 'ESCURO', {}, aluno ? ALUNO.id : TREINADOR.id);
+        const { errosDaPagina } = aluno ? await abrirMuralDoAluno(page) : await abrirComunidade(page, 'mural');
+        const feed = page.getByTestId('coluna-das-publicacoes');
+        const coluna = page.getByTestId(aluno ? 'coluna-dos-numeros' : 'coluna-dos-destaques');
+        // No topo o aluno vê um cartão só ("Seus números"), para o feed começar na primeira dobra.
+        const titulo = page.getByRole('heading', { name: aluno ? (largura >= 1920 ? 'Sua posição' : 'Seus números') : 'Fixados' });
+        // A primeira publicação na tela (a ordem é a da API, a mais nova em cima).
+        const primeiro = aluno ? feed.getByText(/^Publicação fictícia \d/).first() : feed.getByText(POSTS[0].texto, { exact: true }).last();
+        await expect(primeiro).toBeVisible();
+        await expect(titulo).toBeVisible();
+        await assentado(async () => {
+          const f = await caixa(feed);
+          // A coluna de leitura: 720 px (o conteúdo de 1280 com o menu aberto já passa disso).
+          expect(f.width).toBeGreaterThanOrEqual(700);
+          expect(f.width).toBeLessThanOrEqual(721);
+          if (largura >= 1920) {
+            const c = await caixa(coluna);
+            expect(c.x).toBeGreaterThanOrEqual(f.x + f.width + 24);
+            expect(Math.abs(c.y - f.y)).toBeLessThan(4);
+            expect(c.width).toBeLessThanOrEqual(341);
+          } else {
+            await expect(coluna).toHaveCount(0);
+            // No topo do feed, na mesma borda, antes da primeira publicação.
+            const t = await caixa(titulo);
+            expect(t.y).toBeLessThan((await caixa(primeiro)).y);
+            expect(t.x).toBeGreaterThanOrEqual(f.x);
+            expect(t.x).toBeLessThan(f.x + 40);
+          }
+        });
+        if (aluno) {
+          // Ao lado, as três mais recentes; no topo, só a mais recente. Os dois levam à aba Conquistas, que mostra todas.
+          const lateral = largura >= 1920 ? coluna : feed;
+          await expect(lateral.getByText('Novo recorde', { exact: true })).toBeVisible();
+          await expect(lateral.getByText('Primeiro treino', { exact: true })).toHaveCount(0);
+          await expect(lateral.getByText('2º de 12 participantes')).toBeVisible();
+          await expect(lateral.getByRole('button', { name: largura >= 1920 ? 'Ver todas as 4 conquistas' : 'Ver conquistas' })).toBeVisible();
+          if (largura < 1920) await expect(lateral.getByText('Semana completa', { exact: true })).toHaveCount(0);
+        }
+        await semRolagemHorizontal(page);
+        if (largura >= 1920) {
+          // Fixa ao rolar: numa janela baixa o feed passa da altura; a rolagem da `Tela` leva o feed e a coluna fica.
+          await page.setViewportSize({ width: largura, height: 560 });
+          await page.mouse.move(Math.round((await caixa(feed)).x + 200), 400);
+          await page.mouse.wheel(0, 1200);
+          await expect.poll(async () => (await primeiro.boundingBox())?.y ?? 0).toBeLessThan(0);
+          await expect(coluna).toBeInViewport();
+          await assentado(async () => expect((await caixa(coluna)).y).toBeGreaterThanOrEqual(0));
+          await expect(titulo).toBeInViewport();
+        }
+        if (aluno) {
+          // O botão leva à aba Conquistas, com todas (a mais antiga, que não cabe na coluna, também).
+          await page.getByRole('button', { name: /^Ver (todas as 4 )?conquistas$/ }).click();
+          await expect(page).toHaveURL(/[?&]aba=ranking/);
+          await expect(page.getByRole('heading', { name: 'Suas conquistas' })).toBeVisible();
+          await expect(page.getByText('Primeiro treino', { exact: true })).toBeVisible();
+        }
+        expect(errosDaPagina).toEqual([]);
+      });
+    }
+
+    test('Mural do aluno sem conquistas e sem a posição: nenhuma coluna e nenhum vão acima do feed', async ({ page }) => {
+      await preparar(page, largura, altura, 'ESCURO', {}, ALUNO.id);
+      const { errosDaPagina } = await abrirMuralDoAluno(page, { semNumeros: true });
+      const feed = page.getByTestId('coluna-das-publicacoes');
+      const primeiro = feed.getByText(/^Publicação fictícia \d/).first();
+      await expect(primeiro).toBeVisible();
+      await expect(page.getByTestId('coluna-dos-numeros')).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Sua posição' })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Suas conquistas' })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Seus números' })).toHaveCount(0);
+      // A primeira publicação abre o feed: acima do texto só o recuo, o autor e a data do próprio cartão (~115 px), sem o vão
+      // nem a altura de um bloco vazio.
+      await assentado(async () => expect((await caixa(primeiro)).y - (await caixa(feed)).y).toBeLessThan(140));
       await semRolagemHorizontal(page);
       expect(errosDaPagina).toEqual([]);
     });

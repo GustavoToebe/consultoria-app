@@ -122,6 +122,7 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1920, 1080]] as const
         const caixaDaColuna = (await coluna.boundingBox())!;
         expect(caixaDaColuna.x).toBeGreaterThanOrEqual(caixaDoFeed.x + caixaDoFeed.width);
         expect(caixaDoFeed.width).toBeLessThanOrEqual(720);
+        expect(caixaDoFeed.width).toBeGreaterThanOrEqual(700);
       } else {
         await expect(page.getByTestId('coluna-dos-destaques')).toHaveCount(0);
         // No topo do feed, antes da primeira publicação.
@@ -212,9 +213,10 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1920, 1080]] as const
       await page.getByRole('radiogroup', { name: 'Mural' }).getByRole('radio', { name: POD.nome }).click();
       await expect(page.getByText(`Nenhum aviso, vídeo ou enquete no grupo ${POD.nome} ainda.`)).toBeVisible();
       await expect(page.getByRole('button', { name: 'Ver publicações dos alunos' })).toBeVisible();
-      // O grupo não tem fixados nem enquetes: os destaques somem.
+      // O grupo não tem fixados nem enquetes: os destaques somem, e a coluna da direita também (sem vão ao lado do feed).
       await expect(page.getByRole('heading', { name: 'Fixados' })).toHaveCount(0);
       await expect(page.getByRole('heading', { name: 'Enquetes abertas' })).toHaveCount(0);
+      await expect(page.getByTestId('coluna-dos-destaques')).toHaveCount(0);
       await capturar(page, `grupo-vazio-${largura}`);
 
       falhar = true;
