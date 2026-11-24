@@ -15,6 +15,9 @@ const CELULA_NO_CELULAR = 22;
 const FOLGA_NO_CELULAR = 4;
 /** O ano inteiro (53 colunas) só quando cabe com pelo menos 11 px por coluna; abaixo disso, o modo do celular. */
 const PASSO_MINIMO_DO_ANO = 11;
+/** Teto do passo no ano inteiro: célula de 22 px, a mesma do celular. Com 18 (célula de 16) a grade parava em ~950 px e o
+ * cartão de 1688 da tela larga sobrava vazio à direita (tela larga: revisão, 24/11). */
+const PASSO_MAXIMO_DO_ANO = 24;
 const FOLGA_NO_ANO = 2;
 const COLUNA_DOS_DIAS = 30;
 const ALTURA_DOS_MESES = 18;
@@ -51,7 +54,7 @@ function GradeDoMapa({ mapa }: { mapa: Mapa }) {
   const anoInteiro = passoDoAno >= PASSO_MINIMO_DO_ANO;
   const semanas = anoInteiro ? mapa.semanas : semanasParaCelular(mapa, SEMANAS_NO_CELULAR);
   const folga = anoInteiro ? FOLGA_NO_ANO : FOLGA_NO_CELULAR;
-  const celula = anoInteiro ? Math.min(passoDoAno, 18) - folga : CELULA_NO_CELULAR;
+  const celula = anoInteiro ? Math.min(passoDoAno, PASSO_MAXIMO_DO_ANO) - folga : CELULA_NO_CELULAR;
   const passo = celula + folga;
 
   const dias = semanas.flatMap((s) => s.dias);

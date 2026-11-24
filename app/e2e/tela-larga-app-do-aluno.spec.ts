@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AulaDaComunidade, PaginaDoMural, PostDoMural } from '../src/api/comunidadeTipos';
+import type { ItemDaVitrineDoAluno } from '../src/api/vitrineTipos';
 import type { ConteudoDieta, DiaDeTreino, ItemDieta, PastaDoAluno, RegistroPeso, VersaoDetalhe } from '../src/api/tipos';
 import { ALUNO, erroApi, json, sessao, simularApi, type RespostasApi } from './api-falsa';
 import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, SESSOES_COM_DIAS } from './aluno';
@@ -138,6 +139,20 @@ test('1920: a dieta tem o resumo (água, total, lista de compras) à esquerda e 
   expect((await caixa(page.getByRole('button', { name: 'Lista de compras' }))).width).toBeLessThanOrEqual(400 + 1);
 });
 
+test('1920 com seis refeições: 3 + 3', async ({ page }) => {
+  const seis = { ...DIETA, conteudo: { ...DIETA.conteudo, refeicoes: [...DIETA.conteudo.refeicoes, { ...DIETA.conteudo.refeicoes[0], uid: 'r5', nome: 'Refeição 6' }] } };
+  await abrir(page, 1920, '/aluno/dieta', { 'GET /aluno/dieta': { corpo: { dieta: seis } } });
+  const refeicoes = page.getByText(/^Refeição \d$/);
+  await expect(refeicoes).toHaveCount(6);
+  await expect.poll(async () => (await arranjo(refeicoes)).linhas).toEqual([3, 3]);
+});
+
+test('3440: o mapa de treinos ocupa o cartão (célula de 22, não para em ~950 px)', async ({ page }) => {
+  await abrir(page, 3440, '/aluno');
+  const grade = page.getByLabel(/^Mapa de treinos:/);
+  await expect.poll(async () => (await caixa(grade)).width).toBeGreaterThan(1100);
+});
+
 test('2560: o Histórico em duas colunas, registros à esquerda e peso ao lado', async ({ page }) => {
   await abrir(page, 2560, '/aluno/historico');
   const lado = async () => {
@@ -159,6 +174,76 @@ test('1920 com o retorno ligado: o Início em três colunas (Hoje, pendências e
   await expect.poll(emTres).toBe(true);
   await page.setViewportSize({ width: 1280, height: 1080 });
   await expect.poll(async () => Math.round((await page.getByRole('heading', { name: 'Seu nível' }).boundingBox())!.x)).toBe(Math.round((await page.getByRole('heading', { name: 'Sua semana' }).boundingBox())!.x));
+});
+
+const VITRINE: ItemDaVitrineDoAluno[] = [{
+  id: 'v0000000-0000-4000-8000-000000000001', nome: 'Item fictício', descricao: 'Descrição fictícia.', tipo: 'FISICO',
+  precoCentavos: null, precoVigenteCentavos: null, especialAte: null, cupom: null, linkUrl: null, temFoto: false, fotoAtualizadaEm: null,
+}];
+
+test('1920 sem nível e sem vitrine: o Início não reserva a terceira coluna, fica em duas e no teto de 1120', async ({ page }) => {
+  await abrir(page, 1920, '/aluno', await sessao(page, ALUNO, { retornoHabilitado: false }));
+  const emDuas = async () => {
+    const hoje = await caixa(page.getByRole('heading', { name: 'Hoje', level: 2, exact: true }));
+    const semana = await caixa(page.getByRole('heading', { name: 'Sua semana' }));
+    return hoje.x < semana.x && semana.x - hoje.x < 1120 / 2 + 40;
+  };
+  await expect.poll(emDuas).toBe(true);
+  await expect(page.getByRole('heading', { name: 'Seu nível' })).toHaveCount(0);
+});
+
+test('1920 sem o retorno e com itens na vitrine: a terceira coluna existe e leva a vitrine', async ({ page }) => {
+  await abrir(page, 1920, '/aluno', { ...(await sessao(page, ALUNO, { retornoHabilitado: false, vitrineHabilitada: true })), 'GET /aluno/vitrine': { corpo: VITRINE } });
+  const emTres = async () => {
+    const semana = await caixa(page.getByRole('heading', { name: 'Sua semana' }));
+    const vitrine = await caixa(page.getByRole('heading', { name: 'Vitrine' }));
+    return semana.x < vitrine.x;
+  };
+  await expect.poll(emTres).toBe(true);
+});
+
+// Sem regressão no celular e no PC comum (rodam sempre, sem depender das capturas).
+for (const largura of [390, 1280]) {
+  for (const caminho of ['/aluno', '/aluno/treino', '/aluno/dieta', '/aluno/historico', '/aluno/comunidade']) {
+    test(`${largura} ${caminho}: sem rolagem de lado e sem erro na página`, async ({ page }) => {
+      const { errosDaPagina } = await abrir(page, largura, caminho);
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+      expect(await semRolagemDeLado(page)).toBe(true);
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
+}
+
+test('390: divisões, refeições e mural numa coluna só; o Hoje antes da semana', async ({ page }) => {
+  await abrir(page, 390, '/aluno/treino');
+  await expect(divisoes(page)).toHaveCount(5);
+  await expect.poll(async () => (await arranjo(divisoes(page))).colunas).toBe(1);
+  await page.goto('/aluno/dieta');
+  const refeicoes = page.getByText(/^Refeição \d$/);
+  await expect(refeicoes).toHaveCount(5);
+  await expect.poll(async () => (await arranjo(refeicoes)).colunas).toBe(1);
+  await page.goto('/aluno/comunidade?mural=alunos');
+  const posts = page.getByText(/^Publicação fictícia \d$/);
+  await expect(posts).toHaveCount(5);
+  await expect.poll(async () => (await arranjo(posts)).colunas).toBe(1);
+  await page.goto('/aluno');
+  const hoje = await caixa(page.getByRole('heading', { name: 'Hoje', level: 2, exact: true }));
+  expect(hoje.y).toBeLessThan((await caixa(page.getByRole('heading', { name: 'Sua semana' }))).y);
+});
+
+test('1280: a dieta sem coluna lateral (água, total e refeições na mesma borda, refeições 2 + 2 + 1 como antes) e o mural numa coluna', async ({ page }) => {
+  await abrir(page, 1280, '/aluno/dieta');
+  const refeicoes = page.getByText(/^Refeição \d$/);
+  await expect(refeicoes).toHaveCount(5);
+  await expect.poll(async () => (await arranjo(refeicoes)).linhas).toEqual([2, 2, 1]);
+  const agua = await caixa(page.getByRole('heading', { name: 'Água de hoje' }));
+  const total = await caixa(page.getByRole('heading', { name: 'Total do dia' }));
+  expect(Math.abs(agua.x - total.x)).toBeLessThan(2);
+  expect(Math.abs((await caixa(refeicoes.first())).x - total.x)).toBeLessThan(4);
+  await page.goto('/aluno/comunidade?mural=alunos');
+  const posts = page.getByText(/^Publicação fictícia \d$/);
+  await expect(posts).toHaveCount(5);
+  await expect.poll(async () => (await arranjo(posts)).colunas).toBe(1);
 });
 
 test('1920: o mural vira quadro em colunas sem cartão sozinho e a busca dos vídeos fica na largura de formulário', async ({ page }) => {

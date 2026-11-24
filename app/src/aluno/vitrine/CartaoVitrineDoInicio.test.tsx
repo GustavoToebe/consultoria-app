@@ -3,8 +3,6 @@ import type { ItemDaVitrineDoAluno } from '../../api/vitrineTipos';
 import { CartaoVitrineDoInicio } from './CartaoVitrineDoInicio';
 
 /** Regra das lojas (D6) no Início do aluno: no celular, item DIGITAL não mostra preço; FISICO e a web mostram. */
-let mockItens: ItemDaVitrineDoAluno[] = [];
-jest.mock('./useVitrineDoAluno', () => ({ useVitrineDoAluno: () => ({ dados: mockItens }) }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('../../api/rotas', () => ({ baixarFotoDoItemDoAluno: jest.fn() }));
 jest.mock('../../tema/TemaProvider', () => ({
@@ -38,9 +36,8 @@ const ITEM: ItemDaVitrineDoAluno = {
 
 function textos(item: ItemDaVitrineDoAluno, os: 'android' | 'ios' | 'web'): string {
   jest.replaceProperty(Platform, 'OS', os);
-  mockItens = [item];
   let raiz!: import('react-test-renderer').ReactTestRenderer;
-  Renderer.act(() => { raiz = Renderer.create(<CartaoVitrineDoInicio />); });
+  Renderer.act(() => { raiz = Renderer.create(<CartaoVitrineDoInicio itens={[item]} />); });
   const { Text } = require('react-native') as typeof import('react-native');
   const tudo = raiz.root.findAllByType(Text).map((t) => [t.props.children].flat().join('')).join(' | ');
   Renderer.act(() => raiz.unmount());
@@ -48,7 +45,6 @@ function textos(item: ItemDaVitrineDoAluno, os: 'android' | 'ios' | 'web'): stri
 }
 
 afterEach(() => {
-  mockItens = [];
   jest.restoreAllMocks();
 });
 

@@ -11,14 +11,14 @@ import { Texto } from '../../ui/Texto';
 import { SecaoDoInicio } from '../SecaoDoInicio';
 import { MiniaturaDoItem } from './MiniaturaDoItem';
 import { PrecoDoItem } from './CartaoDoItem';
-import { useVitrineDoAluno } from './useVitrineDoAluno';
+import type { ItemDaVitrineDoAluno } from '../../api/vitrineTipos';
 
 /**
  * "Vitrine" no início do aluno: até dois itens (o de preço especial valendo primeiro) e "Ver tudo". Sem item, sem
- * internet, com erro ou com a chave desligada, o bloco some (como "Seus compromissos").
+ * internet, com erro ou com a chave desligada, o bloco some (como "Seus compromissos"). Os itens vêm do Início
+ * (`useVitrineDoAluno`), que também precisa saber se o bloco aparece para montar as colunas da tela larga.
  */
-export function CartaoVitrineDoInicio() {
-  const { dados } = useVitrineDoAluno();
+export function CartaoVitrineDoInicio({ itens: dados }: { itens: ItemDaVitrineDoAluno[] | undefined }) {
   if (!dados?.length) return null;
   const plataforma = plataformaDoApp(Platform.OS);
   return (

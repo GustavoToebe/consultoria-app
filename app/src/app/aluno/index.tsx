@@ -12,6 +12,7 @@ import { NivelDoAluno } from '../../aluno/NivelDoAluno';
 import { ParaFazer } from '../../aluno/ParaFazer';
 import { ProgressoSemana } from '../../aluno/ProgressoSemana';
 import { CartaoVitrineDoInicio } from '../../aluno/vitrine/CartaoVitrineDoInicio';
+import { useVitrineDoAluno } from '../../aluno/vitrine/useVitrineDoAluno';
 import { SecaoDoInicio } from '../../aluno/SecaoDoInicio';
 import { useDiaDeHojeEmBrasilia } from '../../aluno/useDiaDeHoje';
 import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
@@ -27,6 +28,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { Grade } from '../../ui/Grade';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { duasColunasCom } from '../../dominio/grade';
+import { faixasDoInicio } from '../../dominio/telaLargaDoAluno';
 import { espaco } from '../../tema/tokens';
 
 /**
@@ -36,9 +38,10 @@ import { espaco } from '../../tema/tokens';
  * a mobilidade ficam na aba Treino. Sempre o plano em uso. Em 390 o botão do treino de hoje precisa aparecer na primeira tela.
  */
 export default function InicioAluno() {
-  const { pacote, carregando, erroPacote, pacoteRecusado, tentarDeNovo, sessaoConcluidaDe } = useAluno();
+  const { pacote, carregando, erroPacote, pacoteRecusado, tentarDeNovo, sessaoConcluidaDe, online } = useAluno();
   const { usuario, retornoHabilitado } = useSessao();
   const dieta = useDietaDoAluno();
+  const vitrine = useVitrineDoAluno().dados;
   const hoje = hojeIso();
   const treino = pacote?.pacote.treino ?? null;
   const conteudo = treino ? normalizarTreino(treino.conteudo) : null;
@@ -85,21 +88,23 @@ export default function InicioAluno() {
     </>
   );
 
+  const faixas = faixasDoInicio({ retornoHabilitado, online, itensNaVitrine: vitrine?.length ?? 0 });
+
   return (
-    // Tela larga (24/11): com o retorno ligado (nível e mapa existem), a terceira coluna leva o nível e a vitrine; sem ele, o
-    // Início não tem o que pôr nela e fica nas duas colunas de 1120.
-    <TelaDoAluno bordas={['top']} faixas={retornoHabilitado ? 3 : 2}>
+    // Tela larga (24/11): a terceira coluna leva o nível e a vitrine e só existe quando um dos dois aparece; sem nenhum, o
+    // Início fica nas duas colunas de 1120 (nunca uma coluna vazia).
+    <TelaDoAluno bordas={['top']} faixas={faixas}>
       {(largo) => (<>
       <CabecalhoDoInicio nome={nome} hoje={hoje} />
       {/* Treino começado e não concluído que não é o do Hoje: antes de tudo, para voltar a ele num toque. */}
       {andamento && !andamentoNoHoje ? <FaixaTreinoEmAndamento andamento={andamento} hoje={hoje} /> : null}
-      {largo ? (
+      {largo && faixas === 3 ? (
         <View style={estilos.tresColunas}>
           <View style={estilos.faixa}>{hojeEDieta}</View>
           <View style={[estilos.faixa, estilos.coluna]}>{pendenciasESemana}</View>
           <View style={[estilos.faixa, estilos.coluna]}>
             <NivelDoAluno />
-            <CartaoVitrineDoInicio />
+            <CartaoVitrineDoInicio itens={vitrine} />
           </View>
         </View>
       ) : (
@@ -108,7 +113,7 @@ export default function InicioAluno() {
           <View style={estilos.coluna}>
             {pendenciasESemana}
             <NivelDoAluno />
-            <CartaoVitrineDoInicio />
+            <CartaoVitrineDoInicio itens={vitrine} />
           </View>
         </Grade>
       )}

@@ -1,4 +1,4 @@
-import { colunasDaGradeDoAluno, LARGURA_TELA_DO_ALUNO, larguraDaTelaDoAluno, telaLargaDoAluno } from './telaLargaDoAluno';
+import { colunasDaGradeDoAluno, faixasDoInicio, LARGURA_TELA_DO_ALUNO, larguraDaTelaDoAluno, telaLargaDoAluno } from './telaLargaDoAluno';
 
 // tela larga: revisão (24/11)
 describe('larguraDaTelaDoAluno', () => {
@@ -43,5 +43,19 @@ describe('colunasDaGradeDoAluno', () => {
 
   it('sem divisão sem sobra, fica com as que cabem em vez de esticar numa coluna só', () => {
     expect(colunasDaGradeDoAluno(1072, 5, 12)).toBe(2); // 2 + 2 + 1, nunca 5 cartões de 1072
+  });
+});
+
+// tela larga: revisão (24/11)
+describe('faixasDoInicio', () => {
+  it('reserva a terceira coluna só quando o nível ou a vitrine vão aparecer', () => {
+    expect(faixasDoInicio({ retornoHabilitado: true, online: true, itensNaVitrine: 0 })).toBe(3);
+    expect(faixasDoInicio({ retornoHabilitado: false, online: true, itensNaVitrine: 2 })).toBe(3);
+    expect(faixasDoInicio({ retornoHabilitado: true, online: false, itensNaVitrine: 1 })).toBe(3);
+  });
+
+  it('sem nível (retorno desligado ou sem internet) e sem itens na vitrine, fica em duas colunas', () => {
+    expect(faixasDoInicio({ retornoHabilitado: false, online: true, itensNaVitrine: 0 })).toBe(2);
+    expect(faixasDoInicio({ retornoHabilitado: true, online: false, itensNaVitrine: 0 })).toBe(2);
   });
 });
