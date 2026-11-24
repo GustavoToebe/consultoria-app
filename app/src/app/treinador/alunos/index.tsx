@@ -44,8 +44,12 @@ import { Selo } from '../../../ui/Selo';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../../ui/useCarregar';
+import { useFaixaDeLargura } from '../../../ui/useFaixaDeLargura';
+import { gruposNaEsquerda } from '../../../dominio/gruposEmDuasColunas';
 
 const TAMANHO_PAGINA = 30;
+/** Espaço entre os cartões de grupo (24 px, o da `Tela` entre blocos). */
+const VAO_DOS_GRUPOS = espaco(3);
 
 /**
  * Colunas da lista no PC (guia de 11/11, pág. 18, e a grade da prévia `visual-vendavel`): a situação logo depois do nome
@@ -66,7 +70,7 @@ export default function Alunos() {
   const [selecionando, setSelecionando] = useState(false);
   const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
   const [acoesAbertas, setAcoesAbertas] = useState(false);
-  const { cores } = useTema();
+  const { cores, fatorTexto } = useTema();
   // Sem as duas permissões a API manda a atualização nula: um grupo só ("Alunos") e sem a coluna Atualização.
   const veAtualizacao = pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER');
   const podeEditar = pode('ALUNO_ALTERAR');
@@ -139,6 +143,23 @@ export default function Alunos() {
   const nomeDaTag = (id: string) => tagsDaConsultoria.dados?.find((t) => t.id === id)?.nome ?? null;
   const chips = chipsDosFiltros(filtros, nomeCompleto, nomeDaTag);
   const vazio = vazioDaLista({ termo, chaves: chips.map((c) => c.chave), responsaveis: filtros.responsaveis });
+  // Tela larga: revisão (24/11): com espaço para duas listas inteiras, os cartões de grupo vão em duas colunas (a esquerda
+  // com os primeiros grupos), medidas pela largura da própria lista; senão, um embaixo do outro como sempre.
+  const { largura: larguraDaLista, aoMedir: medirLista } = useFaixaDeLargura();
+  const naEsquerda = gruposNaEsquerda(grupos.map((g) => g.itens.length), larguraDaLista, { vao: VAO_DOS_GRUPOS, fatorTexto });
+  const cartaoDoGrupo = (g: (typeof grupos)[number], gi: number) => (
+    <Cartao key={g.chave} titulo={g.titulo} descricao={g.resumo} marcador={g.tom ? <Bolinha tom={g.tom} /> : undefined}>
+      <CabecalhoDasColunas colunas={colunas} marcar={selecionando} aoLado={!selecionando && podeEditar} />
+      <ListaDeLinhas emColunas>
+        {g.itens.map((a, i) => (
+          <EntradaEmCascata key={a.id} indice={inicios[gi] + i} animar={animar}>
+            <LinhaAluno aluno={a} colunas={colunas} responsavel={nomeDoResponsavel(a.responsavelId)} podeEditar={podeEditar} veRegistro={veRegistro}
+              selecionando={selecionando} marcado={marcados.has(a.id)} aoMarcar={() => alternar(a.id)} />
+          </EntradaEmCascata>
+        ))}
+      </ListaDeLinhas>
+    </Cartao>
+  );
 
   return (
     <View style={estilos.raiz}>
@@ -185,20 +206,14 @@ export default function Alunos() {
         />
       ) : null}
       {/* Filtro novo ainda carregando: as linhas à vista são do anterior; esmaecidas e sem toque, como em Cobranças. */}
-      <View style={[estilos.lista, carregando && dados ? estilos.esmaecido : null]} pointerEvents={dadosDeOutraChave ? 'none' : 'auto'}>
-        {grupos.map((g, gi) => (
-          <Cartao key={g.chave} titulo={g.titulo} descricao={g.resumo} marcador={g.tom ? <Bolinha tom={g.tom} /> : undefined}>
-            <CabecalhoDasColunas colunas={colunas} marcar={selecionando} aoLado={!selecionando && podeEditar} />
-            <ListaDeLinhas emColunas>
-              {g.itens.map((a, i) => (
-                <EntradaEmCascata key={a.id} indice={inicios[gi] + i} animar={animar}>
-                  <LinhaAluno aluno={a} colunas={colunas} responsavel={nomeDoResponsavel(a.responsavelId)} podeEditar={podeEditar} veRegistro={veRegistro}
-                    selecionando={selecionando} marcado={marcados.has(a.id)} aoMarcar={() => alternar(a.id)} />
-                </EntradaEmCascata>
-              ))}
-            </ListaDeLinhas>
-          </Cartao>
-        ))}
+      <View onLayout={medirLista} style={[estilos.lista, naEsquerda !== null ? estilos.duasColunas : null, carregando && dados ? estilos.esmaecido : null]}
+        pointerEvents={dadosDeOutraChave ? 'none' : 'auto'}>
+        {naEsquerda === null ? grupos.map(cartaoDoGrupo) : (
+          <>
+            <View style={estilos.colunaDosGrupos}>{grupos.slice(0, naEsquerda).map((g, i) => cartaoDoGrupo(g, i))}</View>
+            <View style={estilos.colunaDosGrupos}>{grupos.slice(naEsquerda).map((g, i) => cartaoDoGrupo(g, naEsquerda + i))}</View>
+          </>
+        )}
       </View>
       {dados && paginas > 1 ? (
         <View style={estilos.paginacao}>
@@ -333,8 +348,11 @@ const estilos = StyleSheet.create({
   barraLote: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), borderTopWidth: 1, paddingHorizontal: espaco(2), paddingVertical: espaco(1.25) },
   textoLote: { flexShrink: 1 },
   acoesDoTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
-  // 24 px entre os blocos dos grupos.
-  lista: { gap: espaco(3) },
+  // 24 px entre os blocos dos grupos (também entre as duas colunas da tela larga).
+  lista: { gap: VAO_DOS_GRUPOS },
+  // Cada coluna termina com o seu conteúdo (sem esticar até a altura da vizinha).
+  duasColunas: { flexDirection: 'row', alignItems: 'flex-start' },
+  colunaDosGrupos: { flex: 1, minWidth: 0, gap: VAO_DOS_GRUPOS },
   bolinha: { width: 10, height: 10, borderRadius: 5 },
   celulaAluno: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minWidth: 0 },
   nomeESelos: { flexShrink: 1, gap: espaco(0.5) },

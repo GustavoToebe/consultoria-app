@@ -23,7 +23,10 @@ import { Cartao } from '../../../ui/Cartao';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
-import { LinhaDaLista, ListaDeLinhas } from '../../../ui/LinhaDaLista';
+import { LinhaDaLista } from '../../../ui/LinhaDaLista';
+import { Grade } from '../../../ui/Grade';
+import { colunasDaListaDeAtualizacoes, VAO_DA_LISTA } from '../../../dominio/colunasDaListaDeAtualizacoes';
+import { useTema } from '../../../tema/TemaProvider';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../../ui/useCarregar';
@@ -50,6 +53,7 @@ export default function ListaAtualizacoes() {
   const filtro=ABAS.find(a=>a.valor===parametros.situacao)?.valor??'PARA_REVISAR';
   const filtros=lerDoEndereco(parametros);
   const {usuario}=useSessao();
+  const {fatorTexto}=useTema();
   // A busca vem do endereço só ao abrir (o "Voltar para a lista" da fila a traz); depois é digitada aqui.
   const [busca,setBusca]=useState(()=>typeof parametros.busca==='string'?parametros.busca.slice(0,100):'');
   const buscaAtrasada=useAtrasado(busca.trim(),300);
@@ -111,7 +115,8 @@ export default function ListaAtualizacoes() {
     {/* A aba já diz a lista: a faixa do cartão leva a contagem, não repete o nome da aba. Mais antiga primeiro (é a
         que espera há mais tempo). Sem título o cartão não tinha faixa e a descrição nem aparecia. */}
     {itens.length?<Cartao titulo={`${total} ${total===1?'atualização':'atualizações'}`} descricao="Da mais antiga para a mais nova.">
-      <ListaDeLinhas>{itens.map(a=>{const selo=statusAtualizacaoTreinador(a);const data=dataSemAnoCorrente(a.dataAtualizacao);return <LinhaDaLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} metadados={`Data: ${data}`} selos={[{texto:selo.curto,tipo:selo.tipo,Icone:ICONE_DO_SELO[selo.tipo]}]} href={caminhoAtualizacaoTreinador(a,fila)} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${data}, ${selo.curto}`} />;})}</ListaDeLinhas>
+      {/* Tela larga: revisão (24/11): as linhas em caixa ganham colunas com o espaço (antes esticavam até a borda). */}
+      <Grade gap={VAO_DA_LISTA} colunas={(l)=>colunasDaListaDeAtualizacoes(l,fatorTexto)}>{itens.map(a=>{const selo=statusAtualizacaoTreinador(a);const data=dataSemAnoCorrente(a.dataAtualizacao);return <LinhaDaLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} metadados={`Data: ${data}`} selos={[{texto:selo.curto,tipo:selo.tipo,Icone:ICONE_DO_SELO[selo.tipo]}]} href={caminhoAtualizacaoTreinador(a,fila)} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${data}, ${selo.curto}`} />;})}</Grade>
       {total>TAMANHO_DA_PAGINA_DE_ATUALIZACOES?<View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:espaco(1),flexWrap:'wrap'}}>
         <Botao rotulo="Anterior" tipo="secundario" desabilitado={pagina===0} aoTocar={()=>irParaPagina(pagina-1)} />
         <Texto variante="suave">Página {pagina+1} de {paginas} · {total} atualizações</Texto>

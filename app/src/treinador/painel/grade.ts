@@ -15,16 +15,19 @@ export function larguraDoTitulo(fatorTexto = 1): number {
   return Math.round(TITULO * fatorTexto);
 }
 
+// Tela larga: revisão (24/11): a `larga` também chega a 6. Com os tamanhos de fábrica (1,1,1,1,2,2,3,1) as linhas de 5
+// colunas fechavam em 4 e a 5ª nunca era usada: 2560 com o menu aberto (~2290 px de painel) era o desenho de 1920 esticado.
+// Quem limita é a coluna mínima: 6 só a partir de ~1916 px; 1920 com o menu aberto (~1650) continua com 5.
 const MAXIMO_DE_COLUNAS: Record<FaixaDeLargura, number> = {
   compacta: 3,
   normal: 4,
-  larga: 5,
+  larga: 6,
   ultralarga: 6,
 };
 
 /**
  * Quantas colunas cabem na largura medida do painel (que já desconta o menu aberto ou recolhido): de 1 (celular) até
- * 6 na faixa `ultralarga` (3 em `compacta`, 4 em `normal`, 5 em `larga`, 6 em `ultralarga`). A coluna mínima é a de uma
+ * 6 (3 em `compacta`, 4 em `normal`, 6 em `larga` e `ultralarga`, sempre limitado pela coluna mínima). A coluna mínima é a de uma
  * faixa com o título e os três ícones na mesma linha (F01 de 12/11): a grade perde coluna antes de espremer o cabeçalho,
  * e com o texto ampliado perde mais cedo.
  */

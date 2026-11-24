@@ -1,7 +1,7 @@
 import { colunasDaGrade, larguraDoTitulo, linhasDaGrade } from './grade';
 
 describe('grade do painel', () => {
-  it('colunas pela largura e faixa: 1 no celular, 3 em 1280/1440, 4 em normal, 5 em larga e 6 em ultralarga', () => {
+  it('colunas pela largura e faixa: 1 no celular, 3 em 1280/1440, 4 em normal, 5 em 1920 e 6 em 2560+', () => {
     expect(colunasDaGrade(0)).toBe(1);
     expect(colunasDaGrade(358)).toBe(1);
     expect(colunasDaGrade(640)).toBe(2);
@@ -14,6 +14,20 @@ describe('grade do painel', () => {
     expect(colunasDaGrade(1640)).toBe(5);
     expect(colunasDaGrade(2400)).toBe(6);
     expect(colunasDaGrade(3200)).toBe(6);
+  });
+
+  // tela larga: revisão (24/11): a faixa larga chega a 6 quando 6 colunas mínimas cabem; abaixo disso a coluna mínima decide.
+  it('na faixa larga, 6 colunas a partir de ~1916 px (2560 com o menu aberto) e 5 em 1920', () => {
+    expect(colunasDaGrade(1640, 1, 'larga')).toBe(5);
+    expect(colunasDaGrade(1915, 1, 'larga')).toBe(5);
+    expect(colunasDaGrade(1916, 1, 'larga')).toBe(6);
+    expect(colunasDaGrade(2288, 1, 'larga')).toBe(6);
+    // Com o texto ampliado a coluna mínima cresce e a 6ª só entra mais tarde.
+    expect(colunasDaGrade(2000, 1, 'larga')).toBe(6);
+    expect(colunasDaGrade(2000, 1.4, 'larga')).toBe(5);
+    // Em 6 colunas a ordem de fábrica fecha as duas linhas inteiras (o mesmo desenho de 3440).
+    const linhas = linhasDaGrade(['atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'financeiro', 'recebido', 'alunos'], 6);
+    expect(linhas.map((l) => l.reduce((s, c) => s + c.colunas, 0))).toEqual([6, 6]);
   });
 
   it('cada coluna cabe o título e os três ícones numa linha, também com o texto ampliado', () => {

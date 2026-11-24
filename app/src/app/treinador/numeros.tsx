@@ -79,7 +79,9 @@ export default function NumerosDoTreinador() {
     {numeros.carregando && !meses ? <Esqueleto /> : null}
     {meses && meses.length === 0 ? <Vazio titulo="Sem números ainda" texto="Quando houver alunos e atualizações, as contagens aparecem aqui." /> : null}
     {/* Quatro por linha, 2 + 2 ou 1 (a mesma grade da Visão geral do Financeiro); "Para revisar" só existe com a equipe. */}
-    {temMeses ? <GradeDeIndicadores minimo={211}>
+    {/* Tela larga: revisão (24/11): no mesmo teto das colunas de baixo (`LARGURA_MAXIMA`), para as bordas direitas
+        coincidirem; antes os indicadores iam até o fim da área e as tabelas paravam em 1800 px. */}
+    {temMeses ? <View style={estilos.teto}><GradeDeIndicadores minimo={211}>
       <CartaoDeIndicador rotulo="Alunos ativos hoje" valor={contagemParaTela(atual?.alunosAtivos)} estado={estadoDe(atual?.alunosAtivos)} />
       <CartaoDeIndicador rotulo="No prazo no mês atual" valor={percentualParaTela(percentual)} tom="sucesso"
         estado={percentual === null ? 'indisponivel' : percentual === 0 ? 'zero' : 'valor'}
@@ -89,7 +91,7 @@ export default function NumerosDoTreinador() {
         estado={estadoDe(atual?.atualizacoesAtrasadas)} detalhe="No mês atual" />
       {equipe ? <CartaoDeIndicador rotulo="Para revisar" valor={contagemParaTela(paraRevisar)} tom="atencao"
         estado={estadoDe(paraRevisar)} detalhe="Hoje, somando a equipe" /> : null}
-    </GradeDeIndicadores> : null}
+    </GradeDeIndicadores></View> : null}
     {/* A mesma árvore empilhada e lado a lado (só o estilo muda): as tabelas não remontam ao trocar de modo. Empilhado, a
         ordem é Mês a mês, Equipe hoje, Como contamos. */}
     {temMeses || equipe ? <View onLayout={aoMedir} style={[estilos.colunas, ladoALado ? estilos.ladoALado : null]}>
@@ -204,6 +206,7 @@ function AlunosELimite({ linha }: { linha: LinhaDaTabelaDaEquipe }) {
 }
 
 const estilos = StyleSheet.create({
+  teto: { width: '100%', maxWidth: LARGURA_MAXIMA },
   colunas: { gap: ESPACO_ENTRE, width: '100%', maxWidth: LARGURA_MAXIMA },
   // Lado a lado cada coluna termina junto com o seu conteúdo (sem esticar até a altura da vizinha): "Como contamos" fica
   // logo abaixo de "Equipe hoje", sem buraco.
