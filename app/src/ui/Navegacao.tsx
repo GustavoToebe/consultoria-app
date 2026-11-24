@@ -240,7 +240,7 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, noSubmenu, aoEscolher
   aoEsconderDica?: () => void;
 }) {
   const caminho = usePathname();
-  const { cores, marcaPeca } = useTema();
+  const { cores, marcaPeca, fatorTexto } = useTema();
   const { confirmar } = useSaidaGuardada();
   const alvo = useAlvoDoPasseio(`menu:${item.caminho}`);
   const ativo = itemAtivo(item, caminho, !!lateral);
@@ -266,6 +266,8 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, noSubmenu, aoEscolher
   useEffect(() => {
     if (Platform.OS === 'web' && lateral && ativo && !noSubmenu) (no.current as unknown as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
   }, [lateral, ativo, noSubmenu]);
+  // Texto grande na barra inferior: o rótulo quebra em até duas linhas e o item cresce com a palavra (nada de reticências).
+  const textoGrande = fatorTexto > 1;
   const mostrarDica = () => aoMostrarDica?.(item.rotulo, no.current);
   return (
     <Pressable
@@ -285,6 +287,7 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, noSubmenu, aoEscolher
       onBlur={comDica ? aoEsconderDica : undefined}
       style={(estado) => [
         lateral ? estilos.itemLateral : estilos.itemInferior,
+        !lateral && textoGrande && estilos.itemInferiorGrande,
         lateral && recolhido && (rotuloEmbaixo ? estilos.itemTrilho : estilos.itemRecolhido),
         lateral && sobre(estado) && { backgroundColor: cores.superficie2 },
         lateral && ativo && { backgroundColor: cores.superficie2 },
@@ -296,7 +299,7 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, noSubmenu, aoEscolher
         {ponto ? <View style={[estilos.ponto, lateral ? null : estilos.pontoNaPilula, { backgroundColor: cores.atencao, borderColor: lateral ? cores.fundo : cores.superficie }]} /> : null}
       </View>
       {recolhido && !rotuloEmbaixo ? null : (
-        <Texto numberOfLines={1} style={[lateral && !rotuloEmbaixo ? estilos.rotuloLateral : estilos.rotuloInferior, rotuloEmbaixo && estilos.rotuloTrilho, { color: cor, fontFamily: ativo ? fontes.semi : fontes.medio }]}>{rotulo}</Texto>
+        <Texto numberOfLines={!lateral && textoGrande ? 2 : 1} style={[lateral && !rotuloEmbaixo ? estilos.rotuloLateral : estilos.rotuloInferior, !lateral && textoGrande && estilos.rotuloInferiorGrande, rotuloEmbaixo && estilos.rotuloTrilho, { color: cor, fontFamily: ativo ? fontes.semi : fontes.medio }]}>{rotulo}</Texto>
       )}
       {contagem ? (
         <View aria-hidden style={[estilos.contagem, { borderColor: cores.divisor }]}>
@@ -621,6 +624,10 @@ const estilos = StyleSheet.create({
   itensInferiores: { flexDirection: 'row', width: '100%' },
   itemInferior: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 56, gap: 3, paddingVertical: espaco(0.5), paddingHorizontal: 2 },
   rotuloInferior: { fontSize: 12, lineHeight: 16 },
+  // Texto grande: largura pelo conteúdo (a palavra inteira cabe) e o que sobra da barra se reparte; a altura cresce com as linhas.
+  // Em janela estreita (< 360 px) o item encolhe em vez de sair da tela (shortcut: a palavra mais longa pode cortar ali; trocar se houver telefone assim).
+  itemInferiorGrande: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto' },
+  rotuloInferiorGrande: { textAlign: 'center' },
   // Esticado na largura do item: com `numberOfLines`, nome que não coube vira reticências em vez de vazar do trilho.
   rotuloTrilho: { alignSelf: 'stretch', textAlign: 'center' },
   ponto: { position: 'absolute', right: -5, top: -3, width: 9, height: 9, borderRadius: 5, borderWidth: 1 },

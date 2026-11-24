@@ -377,3 +377,41 @@ test('sem o retorno ligado o mapa de treinos não aparece', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Sua semana' })).toBeVisible();
   await expect(page.getByRole('heading', { name: /dias? de treino no último ano|Seu ano de treinos/ })).toHaveCount(0);
 });
+
+// Texto grande (Ajustes › Aparência): nenhum rótulo da barra inferior corta. Padrão = uma linha como sempre; Grande e Extra
+// deixam o item crescer com a palavra e o rótulo quebrar em até duas linhas, sem reticências e com alvo de toque de 44 px.
+for (const tema of ['CONSULTORIA', 'AREIA'] as const) {
+  for (const [texto, fator] of [['PADRAO', 1], ['GRANDE', 1.25], ['EXTRA', 1.4]] as const) {
+    test(`barra inferior do aluno (390px, texto ${texto.toLowerCase()}, ${tema.toLowerCase()}): nenhum rótulo corta`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.addInitScript(([id, t, x]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t, tamanhoTexto: x })), [ALUNO.id, tema, texto] as const);
+      await abrirInicio(page);
+      await expect(page.getByRole('link', { name: 'Histórico', exact: true })).toBeVisible();
+      const itens = await page.getByRole('menubar').locator('a').evaluateAll((links) => links.map((a) => {
+        const rotulo = [...a.querySelectorAll('*')].filter((e) => e.children.length === 0 && (e.textContent ?? '').trim() !== '').pop() as HTMLElement;
+        const estilo = getComputedStyle(rotulo);
+        return {
+          nome: rotulo.textContent!.trim(),
+          largura: a.getBoundingClientRect().width,
+          altura: a.getBoundingClientRect().height,
+          cortaNaLargura: rotulo.scrollWidth > rotulo.clientWidth,
+          cortaNaAltura: rotulo.scrollHeight > rotulo.clientHeight,
+          linhas: Math.round(rotulo.clientHeight / parseFloat(estilo.lineHeight)),
+          reticencias: estilo.textOverflow === 'ellipsis' && rotulo.scrollWidth > rotulo.clientWidth,
+        };
+      }));
+      expect(itens.map((i) => i.nome)).toContain('Histórico');
+      for (const i of itens) {
+        expect(i.cortaNaLargura, `${i.nome} corta na largura`).toBe(false);
+        expect(i.cortaNaAltura, `${i.nome} corta na altura`).toBe(false);
+        expect(i.reticencias, `${i.nome} com reticências`).toBe(false);
+        expect(i.altura, `${i.nome}: alvo de toque`).toBeGreaterThanOrEqual(44);
+        expect(i.linhas, `${i.nome}: linhas`).toBeLessThanOrEqual(fator === 1 ? 1 : 2);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const ultimo = (await page.getByRole('link', { name: 'Conta', exact: true }).boundingBox())!;
+      expect(ultimo.x + ultimo.width).toBeLessThanOrEqual(390.5);
+      await page.screenshot({ path: test.info().outputPath(`${texto.toLowerCase()}-${tema.toLowerCase()}-390.png`) });
+    });
+  }
+}
