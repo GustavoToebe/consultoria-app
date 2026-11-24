@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
@@ -15,9 +16,9 @@ import { estadoFinanceiro, INADIMPLENTE, PAINEL_COM_DADOS, PERMISSOES_FINANCEIRO
  * ao lado, Ajuda com 3 colunas e texto corrido limitado, Financeiro › Visão geral). Gera capturas em pasta fora do git.
  */
 
-const PASTA_CAPTURAS =
-  process.env.CAPTURAS_TELA_LARGA ??
-  'C:/Users/GustavoToebe/.gemini/antigravity/brain/30e14d50-ba90-41ff-8926-15bdb4c80a47/scratch/capturas-tela-larga';
+// Sem CAPTURAS_TELA_LARGA, as capturas vão para um diretório temporário criado só quando o teste captura (nada de caminho fixo).
+let pastaTemporaria: string | undefined;
+const pastaDasCapturas = () => process.env.CAPTURAS_TELA_LARGA ?? (pastaTemporaria ??= fs.mkdtempSync(path.join(os.tmpdir(), 'capturas-tela-larga-')));
 
 const TODAS_PERMISSOES = [
   ...PERMISSOES_TREINADOR,
@@ -241,8 +242,9 @@ async function semRolagemHorizontal(page: Page) {
 }
 
 async function capturar(page: Page, nome: string) {
-  fs.mkdirSync(PASTA_CAPTURAS, { recursive: true });
-  await page.screenshot({ path: path.join(PASTA_CAPTURAS, `${nome}.png`), fullPage: false });
+  const pasta = pastaDasCapturas();
+  fs.mkdirSync(pasta, { recursive: true });
+  await page.screenshot({ path: path.join(pasta, `${nome}.png`), fullPage: false });
 }
 
 async function prepararAmbiente(
@@ -447,6 +449,7 @@ test('3440 px (ultralarga): Automática abre 3 colunas e supera 1800 px; Limitad
 });
 
 test('capturas visuais em 1920 px (Automática), 3440 px (Automática) e 3440 px (Limitada)', async ({ page }) => {
+  test.setTimeout(180_000); // vários cenários e telas em sequência: o tempo padrão (60 s) não basta
   const cenarios: { largura: number; modo: 'AUTOMATICA' | 'LIMITADA'; incluirImportacao?: boolean }[] = [
     { largura: 1920, modo: 'AUTOMATICA' },
     { largura: 3440, modo: 'AUTOMATICA', incluirImportacao: true },

@@ -102,9 +102,12 @@ describe('uma cor por situação, no aluno e no treinador', () => {
 
   // Casos fora da tabela, cada um com a sua linha na seção 4.5.
   it('acesso do aluno: "Aguardando primeiro acesso" é neutro (o aluno age, o treinador espera)', () => {
-    expect(seloDoAcesso({ temAcesso: false, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Sem acesso', tipo: 'neutro' });
-    expect(seloDoAcesso({ temAcesso: true, aguardandoPrimeiroAcesso: true })).toEqual({ texto: 'Aguardando primeiro acesso', tipo: 'neutro' });
-    expect(seloDoAcesso({ temAcesso: true, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Com acesso', tipo: 'sucesso' });
+    const ativo = { ativo: true, anonimizado: false };
+    expect(seloDoAcesso({ ...ativo, temAcesso: false, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Sem acesso', tipo: 'neutro' });
+    // Inativo com conta mostra a situação, não "Com acesso".
+    expect(seloDoAcesso({ ativo: false, anonimizado: false, temAcesso: true, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Inativo', tipo: 'neutro' });
+    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: true })).toEqual({ texto: 'Aguardando primeiro acesso', tipo: 'neutro' });
+    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Com acesso', tipo: 'sucesso' });
   });
 
   it('pagamento da inscrição: Aguardando é âmbar (exceção da cobrança; o treinador confirma à mão)', () => {

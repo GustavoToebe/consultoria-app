@@ -161,13 +161,10 @@ export default function ExercicioDaSessao() {
       <ExercicioAluno
         acaoDescanso={<DescansoManual sugeridoSegundos={descansoDoPlano} />}
         acoes={
-          <>
-            <TrocarSoHoje principal={principal} doDia={e} podeTrocar={dia.podeTrocar(principal)} outroDia={data === dia.hoje ? undefined : dataCurta(data)}
-              aoEscolher={(exercicioId) => setEscolha({ chave: chaveDaEscolha, exercicioId })} />
-            <HistoricoDoExercicio exercicio={e} ultimaVez={dia.ultimaVezDe(e)} ultima={dia.ultimaCarga(e.exercicioId)} cardio={ehExercicioDeCardio(e)} />
-          </>
+          <TrocarSoHoje principal={principal} doDia={e} podeTrocar={dia.podeTrocar(principal)} outroDia={data === dia.hoje ? undefined : dataCurta(data)}
+            aoEscolher={(exercicioId) => setEscolha({ chave: chaveDaEscolha, exercicioId })} />
         }
-        acaoHistorico={<HistoricoDoExercicio variante="botao" exercicio={e} ultimaVez={dia.ultimaVezDe(e)} ultima={dia.ultimaCarga(e.exercicioId)} cardio={ehExercicioDeCardio(e)} />}
+        acaoHistorico={<HistoricoDoExercicio exercicio={e} ultimaVez={dia.ultimaVezDe(e)} ultima={dia.ultimaCarga(e.exercicioId)} cardio={ehExercicioDeCardio(e)} />}
         key={`${e.uid}|${data}|${e.exercicioId ?? ''}`}
         exercicio={e}
         data={data}

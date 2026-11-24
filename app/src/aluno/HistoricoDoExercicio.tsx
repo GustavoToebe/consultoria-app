@@ -19,12 +19,10 @@ import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { GraficoLinha } from '../ui/GraficoLinha';
-import { IconeBotao } from '../ui/IconeBotao';
 import { larguraDaData } from '../ui/larguraDaData';
 import { Texto } from '../ui/Texto';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useCarregar } from '../ui/useCarregar';
-import { RotuloDoIcone } from './RotuloDoIcone';
 
 /** Datas mostradas antes de "Ver todos os registros" (as mesmas do Progresso). */
 const DATAS_RECENTES = 5;
@@ -40,19 +38,12 @@ export function HistoricoDoExercicio(p: {
   ultimaVez: AnteriorDoExercicio | null;
   ultima: UltimaCarga | null;
   cardio: boolean;
-  variante?: 'icone' | 'botao';
 }) {
   const [aberta, setAberta] = useState(false);
   if (!p.exercicio.exercicioId || p.cardio) return null;
   return (
     <>
-      {p.variante === 'botao' ? (
-        <Botao rotulo="Histórico" rotuloAcessivel={`Histórico de ${p.exercicio.nome}`} tipo="fantasma" Icone={History} aoTocar={() => setAberta(true)} />
-      ) : (
-        <RotuloDoIcone texto="Histórico">
-          <IconeBotao Icone={History} rotulo={`Histórico de ${p.exercicio.nome}`} aoTocar={() => setAberta(true)} />
-        </RotuloDoIcone>
-      )}
+      <Botao rotulo="Histórico" rotuloAcessivel={`Histórico de ${p.exercicio.nome}`} tipo="fantasma" Icone={History} aoTocar={() => setAberta(true)} />
       {aberta ? (
         <Folha visivel titulo="Histórico" aoFechar={() => setAberta(false)}>
           <ConteudoDoHistorico {...p} exercicioId={p.exercicio.exercicioId} />

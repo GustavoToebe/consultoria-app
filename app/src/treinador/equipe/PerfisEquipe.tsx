@@ -54,7 +54,7 @@ export function PerfisEquipe({perfis,catalogo,recarregar}:{perfis:PerfilEquipe[]
     {erro?<MensagemErro texto={textoDoErro(erro)}/>:null}
     <Grade gap={espaco(2)} colunas={COLUNAS_DOS_PERFIS}>
     {perfis.map(p=><Cartao key={p.id} titulo={p.nome} style={{flexGrow:1}} acoes={<>
-      {p.sistema?<Selo texto="Acesso total · perfil do sistema" tipo="neutro"/>:null}
+      {p.acessoTotal?<Selo texto="Acesso total · perfil do sistema" tipo="neutro"/>:null}
       {!p.ativo?<Selo texto="Inativo" tipo="neutro"/>:null}
     </>}>
       <Texto variante="suave">{p.descricao||DESCRICOES_PADRAO[p.nome]||'—'}</Texto><Texto variante="suave">{p.usuarios} {p.usuarios===1?'usuário':'usuários'}</Texto>
