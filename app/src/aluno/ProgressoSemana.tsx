@@ -1,5 +1,5 @@
 import { Trophy } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
 import { progressoSemana, semanaCompleta } from '../dominio/progressoSemana';
@@ -19,7 +19,7 @@ import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
  * todos os treinos com dia fixo têm registro ganha o "Semana completa" (Engajamento 0.6, P5); sem dia fixo, nada. Com
  * treino em andamento hoje a comemoração espera a conclusão (`semanaCompleta`). O verde fica só no selo (guia de 11/11, pág. 4: nunca a faixa inteira); o contêiner e o troféu são neutros.
  */
-export function ProgressoSemana({ hoje, treinoEmAndamento = false }: { hoje: string; treinoEmAndamento?: boolean }) {
+export function ProgressoSemana({ hoje, treinoEmAndamento = false, style }: { hoje: string; treinoEmAndamento?: boolean; style?: StyleProp<ViewStyle> }) {
   const { pacote, registros, semanaDoAparelho } = useAluno();
   const { retornoHabilitado } = useSessao();
   const { cores } = useTema();
@@ -30,7 +30,7 @@ export function ProgressoSemana({ hoje, treinoEmAndamento = false }: { hoje: str
   const completa = retornoHabilitado && semanaCompleta(progresso, treinoEmAndamento);
   const rotulo = `${progresso.feitas} de ${progresso.total} ${progresso.total === 1 ? 'treino' : 'treinos'}`;
   return (
-    <Cartao titulo="Sua semana">
+    <Cartao titulo="Sua semana" style={style}>
       <View style={estilos.linha}>
         <AnelProgresso proporcao={progresso.total ? progresso.feitas / progresso.total : 0} rotulo={`${rotulo} nesta semana`} />
         <View style={estilos.textos}>

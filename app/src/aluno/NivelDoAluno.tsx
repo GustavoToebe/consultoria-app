@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { obterMeuRanking } from '../api/comunidade';
 import { textoDoNivel, textoDoQueFalta } from '../dominio/perfilDoColega';
@@ -22,9 +22,9 @@ import { useCarregar } from '../ui/useCarregar';
  * Some com o retorno desligado (sem conclusão de treino todo mundo fica no nível 1). Nada fica no aparelho: sem internet
  * mostra o último valor lido nesta abertura, avisando; aberto já sem internet, não aparece. Lê de novo a cada vez que a
  * aba ganha o foco (a volta do "Bom trabalho!"), não a cada série sincronizada: cada leitura recalcula o histórico todo.
- * Sem props, como o `MapaDeTreinos`: vai no Início e no topo do próprio perfil.
+ * Vai no Início e no topo do próprio perfil; `style` é o lugar dele numa linha (a tela larga do Início o põe ao lado do "Sua semana").
  */
-export function NivelDoAluno() {
+export function NivelDoAluno({ style }: { style?: StyleProp<ViewStyle> } = {}) {
   const { online } = useAluno();
   const { retornoHabilitado } = useSessao();
   const { cores, marcaPeca } = useTema();
@@ -42,18 +42,18 @@ export function NivelDoAluno() {
   if (!dados) {
     if (leitura.erro) {
       return (
-        <Cartao titulo="Seu nível">
+        <Cartao titulo="Seu nível" style={style}>
           <MensagemErro texto={textoDoErro(leitura.erro)} erro={leitura.erro} tentarDeNovo={recarregar} />
         </Cartao>
       );
     }
-    return leitura.carregando ? <Esqueleto texto="Carregando seu nível" cartoes={1} /> : null;
+    return leitura.carregando ? <View style={style}><Esqueleto texto="Carregando seu nível" cartoes={1} /></View> : null;
   }
 
   const nivel = textoDoNivel(dados.nivel);
   const falta = textoDoQueFalta(dados.nivel, dados.faltam);
   return (
-    <Cartao titulo="Seu nível">
+    <Cartao titulo="Seu nível" style={style}>
       <View style={estilos.textos}>
         <View style={estilos.linha}>
           <Texto variante="subtitulo" numerico>{nivel}</Texto>

@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { Fragment, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CabecalhoDoInicio } from '../../aluno/CabecalhoDoInicio';
@@ -28,8 +29,10 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { Grade } from '../../ui/Grade';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { duasColunasCom } from '../../dominio/grade';
-import { faixasDoInicio } from '../../dominio/telaLargaDoAluno';
+import { faixasDaTelaDoInicio, pilhasDoInicio, type PecaDoInicio } from '../../dominio/arranjoDoInicio';
+import { telaLargaDoAluno } from '../../dominio/telaLargaDoAluno';
 import { espaco } from '../../tema/tokens';
+import { useFaixaDaTela } from '../../ui/Tela';
 
 /**
  * Início do aluno: o resumo do dia. Marca e "Olá", a dieta compacta com a água, a água do dia (só com meta na dieta),
@@ -65,69 +68,91 @@ export default function InicioAluno() {
   const andamento = useTreinoEmAndamento(treino?.versaoId ?? null, conteudo, hoje);
   const andamentoNoHoje = !!andamento && estadoHoje.tipo === 'treino' && estadoHoje.sessao.uid === andamento.sessao.uid;
 
-  const hojeEDieta = (
-    <View style={estilos.coluna}>
-      <CartaoDietaDoInicio estado={estadoDaDieta} aoTentarDeNovo={dieta.recarregar} />
-      {dietaDoPlano?.conteudo.aguaLitros ? <CartaoAguaDoDia compacto metaLitros={dietaDoPlano.conteudo.aguaLitros} /> : null}
-      <SecaoHojeDoInicio
-        estado={estadoHoje}
-        proximo={estadoHoje.tipo === 'descanso' ? proximoTreino(conteudo, hoje, treino?.fim ?? null) : null}
-        hoje={hoje}
-        concluido={concluido}
-        emAndamento={andamentoNoHoje ? andamento.texto : null}
-        carregando={semPacote && carregando}
-        erro={semPacote && erroPacote ? { texto: `${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`, aoTentarDeNovo: () => void tentarDeNovo(), causa: erroPacote } : undefined}
-      />
-    </View>
-  );
-  const pendenciasESemana = (
-    <>
-      {pacote ? <ParaFazer /> : null}
-      <CartaoCompromissos />
-      {pacote ? <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} /> : null}
-    </>
-  );
-
-  const faixas = faixasDoInicio({ retornoHabilitado, online, itensNaVitrine: vitrine?.length ?? 0 });
+  const situacao = { treino: !!treino, retorno: retornoHabilitado, online, vitrine: !!vitrine?.length };
+  const bloco = (peca: PecaDoInicio): ReactNode => {
+    switch (peca) {
+      case 'hoje':
+        return (
+          <SecaoHojeDoInicio
+            estado={estadoHoje}
+            proximo={estadoHoje.tipo === 'descanso' ? proximoTreino(conteudo, hoje, treino?.fim ?? null) : null}
+            hoje={hoje}
+            concluido={concluido}
+            emAndamento={andamentoNoHoje ? andamento.texto : null}
+            carregando={semPacote && carregando}
+            erro={semPacote && erroPacote ? { texto: `${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`, aoTentarDeNovo: () => void tentarDeNovo(), causa: erroPacote } : undefined}
+          />
+        );
+      case 'dieta': return <CartaoDietaDoInicio estado={estadoDaDieta} aoTentarDeNovo={dieta.recarregar} />;
+      case 'agua': return dietaDoPlano?.conteudo.aguaLitros ? <CartaoAguaDoDia compacto metaLitros={dietaDoPlano.conteudo.aguaLitros} /> : null;
+      case 'pendencias': return pacote ? <ParaFazer /> : null;
+      case 'compromissos': return <CartaoCompromissos />;
+      case 'semana': return pacote ? <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} /> : null;
+      case 'nivel': return <NivelDoAluno />;
+      case 'vitrine': return <CartaoVitrineDoInicio itens={vitrine} />;
+      case 'mapa': return <MapaDeTreinos />;
+      // Lado a lado e da mesma altura (a linha estica os dois): nenhum vão embaixo do mais curto.
+      case 'semanaENivel':
+        return (
+          <View style={estilos.linha}>
+            <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} style={estilos.metade} />
+            <NivelDoAluno style={estilos.metade} />
+          </View>
+        );
+      // Na primeira das duas faixas, na borda da semana; a segunda fica vazia (é o fim da pilha, nada vem embaixo).
+      case 'compromissosEVitrine':
+        return (
+          <View style={estilos.linhaDoFim}>
+            <View style={[estilos.metade, estilos.coluna]}>
+              <CartaoCompromissos />
+              <CartaoVitrineDoInicio itens={vitrine} />
+            </View>
+            <View style={estilos.metade} aria-hidden />
+          </View>
+        );
+    }
+  };
+  const pecas = (lista: readonly PecaDoInicio[]) => lista.map((p) => <Fragment key={p}>{bloco(p)}</Fragment>);
 
   return (
-    // Tela larga (24/11): a terceira coluna leva o nível e a vitrine e só existe quando um dos dois aparece; sem nenhum, o
-    // Início fica nas duas colunas de 1120 (nunca uma coluna vazia).
-    <TelaDoAluno bordas={['top']} faixas={faixas}>
-      {(largo) => (<>
+    <TelaDoAluno bordas={['top']} faixas={faixasDaTelaDoInicio(situacao)}>
       <CabecalhoDoInicio nome={nome} hoje={hoje} />
       {/* Treino começado e não concluído que não é o do Hoje: antes de tudo, para voltar a ele num toque. */}
       {andamento && !andamentoNoHoje ? <FaixaTreinoEmAndamento andamento={andamento} hoje={hoje} /> : null}
-      {largo && faixas === 3 ? (
-        <View style={estilos.tresColunas}>
-          <View style={estilos.faixa}>{hojeEDieta}</View>
-          <View style={[estilos.faixa, estilos.coluna]}>{pendenciasESemana}</View>
-          <View style={[estilos.faixa, estilos.coluna]}>
-            <NivelDoAluno />
-            <CartaoVitrineDoInicio itens={vitrine} />
+      <CorpoDoInicio
+        // Tela larga (revisão 2, 24/11): Hoje primeiro e pilhas independentes, sem nada embaixo de todas (`arranjoDoInicio`).
+        largo={(
+          <View style={estilos.pilhas}>
+            {pilhasDoInicio(situacao).map((pilha) => (
+              <View key={pilha.pecas[0]} style={[estilos.coluna, { flex: pilha.faixas, minWidth: 0 }]}>{pecas(pilha.pecas)}</View>
+            ))}
           </View>
-        </View>
-      ) : (
-        <Grade gap={espaco(2)} colunas={duasColunasCom(360, espaco(2))} alinhar="inicio">
-          {hojeEDieta}
-          <View style={estilos.coluna}>
-            {pendenciasESemana}
-            <NivelDoAluno />
-            <CartaoVitrineDoInicio itens={vitrine} />
-          </View>
-        </Grade>
-      )}
-      <MapaDeTreinos />
-      </>)}
+        )}
+        // Celular, tablet e PC até a faixa `normal`: Dieta → Água → Hoje à esquerda, o resto à direita e o mapa embaixo.
+        comum={(<>
+          <Grade gap={espaco(2)} colunas={duasColunasCom(360, espaco(2))} alinhar="inicio">
+            <View style={estilos.coluna}>{pecas(['dieta', 'agua', 'hoje'])}</View>
+            <View style={estilos.coluna}>{pecas(['pendencias', 'compromissos', 'semana', 'nivel', 'vitrine'])}</View>
+          </Grade>
+          <MapaDeTreinos />
+        </>)}
+      />
     </TelaDoAluno>
   );
 }
 
+/** Escolhe o arranjo pela faixa que a `Tela` mede (a da área ao lado do menu, 4.10): o largo da `larga` em diante. */
+function CorpoDoInicio({ largo, comum }: { largo: ReactNode; comum: ReactNode }) {
+  return telaLargaDoAluno(useFaixaDaTela()) ? largo : comum;
+}
+
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
-  // Três faixas iguais com o mesmo vão da grade de duas.
-  tresColunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
-  faixa: { flex: 1, minWidth: 0 },
+  // Pilhas lado a lado, cada uma do tamanho do que tem: a sobra fica só no fim da mais curta.
+  pilhas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
+  linha: { flexDirection: 'row', gap: espaco(2) },
+  linhaDoFim: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
+  metade: { flex: 1, minWidth: 0 },
 });
 
 /** Título "Hoje" e o cartão do dia. "Escolher treino" abre a aba Treino, onde estão as divisões. */

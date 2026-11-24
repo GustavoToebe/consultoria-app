@@ -43,12 +43,3 @@ export function colunasDaGradeDoAluno(largura: number, total: number, vao: numbe
  * à esquerda, com a lista em colunas ao lado. 400 deixa três colunas de cartão ao lado já em 1920 com o menu aberto.
  */
 export const LARGURA_LATERAL_DO_ALUNO = 400;
-
-/**
- * Faixas do Início na tela larga. A terceira coluna leva o nível e a vitrine, então só existe quando algo dela vai aparecer.
- * O nível aparece com o retorno ligado e internet (aberto já sem internet, some). A vitrine aparece quando tem itens. Sem
- * nenhum dos dois, o Início fica nas duas colunas de 1120 em vez de reservar uma coluna vazia.
- */
-export function faixasDoInicio(o: { retornoHabilitado: boolean; online: boolean; itensNaVitrine: number }): 2 | 3 {
-  return (o.retornoHabilitado && o.online) || o.itensNaVitrine > 0 ? 3 : 2;
-}
