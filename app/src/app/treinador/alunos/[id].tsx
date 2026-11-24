@@ -137,6 +137,9 @@ export default function FichaAluno() {
   // Evolução e as três colunas do Resumo já nascem no arranjo certo, sem montar numa coluna e remontar em duas (o que
   // buscaria tudo de novo).
   const { largura, aoMedir } = useFaixaDeLargura();
+  // Medida uma vez, fica medida: a largura volta a 0 com o cabeçalho escondido (mídia de impressão), e a aba não pode desmontar (o bloco do PDF mora nela).
+  const [mediu, setMediu] = useState(false);
+  if (largura > 0 && !mediu) setMediu(true);
   const voltar = () => (editando ? sairDaEdicao()
     : confirmar(() => (router.canGoBack() ? router.back() : router.replace('/treinador/alunos'))));
   // "Abrir acesso ao app" do Resumo: a aba Ficha abre já no bloco do acesso (só leva até lá; nada é enviado).
@@ -241,7 +244,7 @@ export default function FichaAluno() {
         <>
           {/* Só depois de medir: o aluno pode chegar antes do `onLayout` (largura 0), e a aba montaria numa coluna para
               remontar no arranjo certo (busca tudo de novo). Um quadro sem conteúdo, nunca um salto. */}
-          {largura > 0 ? conteudoDaAba(aluno) : null}
+          {mediu ? conteudoDaAba(aluno) : null}
           {renovacao.painel}
           {menu ? (
             <FolhaDeAcoes titulo={aluno.nome} aoFechar={() => setMenu(false)} acoes={[
