@@ -81,6 +81,8 @@ async function arranjo(cartoes: Locator) {
   return { colunas: xs.size, linhas: [...porLinha.entries()].sort((a, b) => a[0] - b[0]).map(([, n]) => n) };
 }
 const semRolagemDeLado = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+/** Os GETs do ranking (o nível): um só por abertura, em qualquer largura (o nível não remonta). */
+const ranking = (pedidos: { metodo: string; caminho: string }[]) => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/comunidade/ranking');
 const divisoes = (page: Page) => page.getByRole('link', { name: /^Divisão [A-E],/ });
 
 test('1280 (faixa normal): nada muda, divisões em duas colunas e o PDF cheio como antes', async ({ page }) => {
@@ -205,7 +207,7 @@ for (const largura of [1920, 2560, 3440]) {
     const fins = await Promise.all((await page.getByTestId('cartao').all()).map(async (c) => { const b = await c.boundingBox(); return b ? b.y + b.height : 0; }));
     expect(Math.max(...fins)).toBeLessThanOrEqual(Math.max(fimDia, fimProgresso) + 1);
     // O nível não remontou quando o pacote chegou (antes ele trocava de pilha e lia o ranking de novo).
-    expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/comunidade/ranking')).toHaveLength(1);
+    expect(ranking(pedidos)).toHaveLength(1);
     expect(await semRolagemDeLado(page)).toBe(true);
     expect(errosDaPagina).toEqual([]);
   });
@@ -263,13 +265,52 @@ test('1920 com tudo (pendências, compromissos e vitrine): compromissos e vitrin
   expect(errosDaPagina).toEqual([]);
 });
 
-test('1280 com o retorno: nada muda (Dieta antes do Hoje, nível embaixo da semana e o mapa de largura cheia)', async ({ page }) => {
-  await abrir(page, 1280, '/aluno');
-  await expect.poll(async () => Math.round((await caixa(page.getByRole('heading', { name: 'Seu nível' }))).x)).toBe(Math.round((await caixa(page.getByRole('heading', { name: 'Sua semana' }))).x));
-  expect((await caixa(page.getByRole('link', { name: /^Dieta,/ }))).y).toBeLessThan((await caixa(page.getByRole('heading', { name: 'Hoje', level: 2, exact: true }))).y);
-  const m = await caixa(cartaoCom(page, grade(page)));
-  expect(m.y).toBeGreaterThan((await caixa(page.getByRole('heading', { name: 'Seu nível' }))).y);
-  expect(Math.abs(m.x - (await caixa(page.getByRole('link', { name: /^Dieta,/ }))).x)).toBeLessThan(2);
+test('1280 com o retorno: Hoje primeiro; Hoje e Dieta | Água; semana e nível lado a lado sem vão embaixo; o mapa logo abaixo', async ({ page }) => {
+  const { errosDaPagina, pedidos } = await abrir(page, 1280, '/aluno');
+  await expect(page.getByRole('heading', { name: 'Sua semana' })).toBeVisible();
+  await expect(page.getByText(/^Nível \d/)).toBeVisible();
+  await expect(grade(page)).toBeVisible();
+  const [h, d, ag, sem, niv, m] = await Promise.all([
+    page.getByRole('heading', { name: 'Hoje', level: 2, exact: true }), page.getByRole('link', { name: /^Dieta,/ }),
+    cartaoCom(page, page.getByRole('heading', { name: 'Água de hoje' })), cartaoCom(page, page.getByRole('heading', { name: 'Sua semana' })),
+    cartaoCom(page, page.getByRole('heading', { name: 'Seu nível', exact: true })), cartaoCom(page, grade(page)),
+  ].map(caixa));
+  // O Hoje é o primeiro bloco: o mais alto e o mais à esquerda; a Dieta embaixo dele e a Água no topo da outra coluna.
+  for (const outro of [d, ag, sem, niv, m]) { expect(h.y).toBeLessThanOrEqual(outro.y); expect(h.x).toBeLessThanOrEqual(outro.x + 1); }
+  expect(d.y).toBeGreaterThan(h.y);
+  expect(Math.abs(d.x - h.x)).toBeLessThan(2);
+  expect(ag.x).toBeGreaterThan(h.x + 300);
+  expect(Math.abs(ag.y - h.y)).toBeLessThan(40);
+  // As duas pilhas de cima acabam perto (antes, ~210 px vazios sob o nível) e a semana começa depois das duas.
+  expect(Math.abs(d.y + d.height - (ag.y + ag.height))).toBeLessThan(100);
+  expect(sem.y).toBeGreaterThanOrEqual(Math.max(d.y + d.height, ag.y + ag.height));
+  // Semana e nível na mesma linha e da mesma altura; o mapa logo embaixo, na largura toda.
+  expect(Math.abs(sem.y - niv.y)).toBeLessThan(2);
+  expect(Math.abs(sem.height - niv.height)).toBeLessThan(2);
+  expect(niv.x).toBeGreaterThan(sem.x + 300);
+  expect(m.y - (niv.y + niv.height)).toBeGreaterThanOrEqual(0);
+  expect(m.y - (niv.y + niv.height)).toBeLessThanOrEqual(24);
+  expect(Math.abs(m.x - sem.x)).toBeLessThan(2);
+  expect(m.x + m.width).toBeCloseTo(niv.x + niv.width, 0);
+  expect(ranking(pedidos)).toHaveLength(1);
+  expect(await semRolagemDeLado(page)).toBe(true);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('390 com o retorno: uma coluna, Hoje → Dieta → Água → semana → nível → mapa, e o ranking lido uma vez', async ({ page }) => {
+  const { errosDaPagina, pedidos } = await abrir(page, 390, '/aluno');
+  await expect(page.getByText(/^Nível \d/)).toBeVisible();
+  await expect(grade(page)).toBeVisible();
+  const caixas = await Promise.all([
+    page.getByRole('heading', { name: 'Hoje', level: 2, exact: true }), page.getByRole('link', { name: /^Dieta,/ }),
+    page.getByRole('heading', { name: 'Água de hoje' }), page.getByRole('heading', { name: 'Sua semana' }),
+    page.getByRole('heading', { name: 'Seu nível', exact: true }), grade(page),
+  ].map(caixa));
+  const ys = caixas.map((c) => c.y);
+  expect(ys).toEqual([...ys].sort((x, y) => x - y));
+  expect(ranking(pedidos)).toHaveLength(1);
+  expect(await semRolagemDeLado(page)).toBe(true);
+  expect(errosDaPagina).toEqual([]);
 });
 
 

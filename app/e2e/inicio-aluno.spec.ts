@@ -5,7 +5,8 @@ import { ALUNO, erroApi, sessao, simularApi, type RespostasApi } from './api-fal
 import { dietaFalsa, fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, SESSOES_COM_DIAS } from './aluno';
 
 /**
- * Início do aluno: Dieta compacta → Água de hoje (com meta na dieta) → Hoje → Suas pendências → Sua semana. As divisões ficam na aba Treino.
+ * Início do aluno: Hoje → Dieta compacta → Água de hoje (com meta na dieta) → Suas pendências → Sua semana, em qualquer largura (o Hoje
+ * primeiro desde 24/11). As divisões ficam na aba Treino.
  * O relógio fica em segunda-feira, 19/10/2026 (o treino de hoje é o A).
  */
 
@@ -81,16 +82,16 @@ async function topo(page: Page, nome: string | RegExp, papel: 'heading' | 'link'
   return caixa!.y;
 }
 
-/** Caixas do Dieta, da Água de hoje, do Hoje, das pendências e do Sua semana, nessa ordem. */
+/** Caixas do Hoje, do Dieta, da Água de hoje, das pendências e do Sua semana, nessa ordem. */
 async function ordemDoInicio(page: Page) {
   const caixa = async (nome: string | RegExp, papel: 'heading' | 'link') => (await page.getByRole(papel, { name: nome }).first().boundingBox())!;
   return [
-    await caixa(/^Dieta,/, 'link'), await caixa('Água de hoje', 'heading'), await caixa(/^Hoje$/, 'heading'),
+    await caixa(/^Hoje$/, 'heading'), await caixa(/^Dieta,/, 'link'), await caixa('Água de hoje', 'heading'),
     await caixa('Suas pendências', 'heading'), await caixa('Sua semana', 'heading'),
   ];
 }
 
-test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta → Hoje → pendências → Sua semana', async ({ page }) => {
+test('com dieta e água, anamnese e atualização atrasada: a ordem é Hoje → Dieta → Água → pendências → Sua semana', async ({ page }) => {
   const { errosDaPagina } = await abrirInicio(page, {
     extra: { 'GET /aluno/anamnese': { corpo: ANAMNESE_PENDENTE }, 'GET /aluno/atualizacao': { corpo: ATUALIZACAO_ATRASADA } },
   });
@@ -122,11 +123,17 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta →
   // As divisões saíram do resumo.
   await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toHaveCount(0);
 
-  // No PC (1280) o início tem duas colunas (21/11): Dieta → Água → Hoje à esquerda e pendências → Sua semana à direita.
-  const caixas = await ordemDoInicio(page);
-  expect(caixas.map((c) => c.y).slice(0, 3)).toEqual(caixas.map((c) => c.y).slice(0, 3).sort((a, b) => a - b));
-  expect(caixas[3].y).toBeLessThan(caixas[4].y);
-  expect(caixas[3].x).toBeGreaterThan(caixas[2].x);
+  // No PC (1280) o início tem duas colunas independentes (24/11): Hoje → Dieta → pendências à esquerda e, sem o retorno,
+  // Água → Sua semana à direita (as duas pilhas acabam perto; com o retorno, semana e nível vão lado a lado embaixo).
+  const [hoje, cartaoDieta, agua, pendencias, semana] = await ordemDoInicio(page);
+  expect(hoje.y).toBeLessThan(cartaoDieta.y);
+  expect(cartaoDieta.y).toBeLessThan(pendencias.y);
+  expect(Math.abs(cartaoDieta.x - hoje.x)).toBeLessThan(2);
+  expect(Math.abs(pendencias.x - hoje.x)).toBeLessThan(2);
+  expect(agua.x).toBeGreaterThan(hoje.x + 300);
+  expect(Math.abs(agua.y - hoje.y)).toBeLessThan(40);
+  expect(semana.y).toBeGreaterThan(agua.y);
+  expect(Math.abs(semana.x - agua.x)).toBeLessThan(2);
 
   await page.getByRole('link', { name: 'Treino', exact: true }).click();
   await expect(page).toHaveURL(/\/aluno\/treino$/);
@@ -138,7 +145,7 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta →
   expect(errosDaPagina).toEqual([]);
 });
 
-test('no celular (390px) o início é uma coluna só: Dieta → Água → Hoje → pendências → Sua semana', async ({ page }) => {
+test('no celular (390px) o início é uma coluna só: Hoje → Dieta → Água → pendências → Sua semana', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await abrirInicio(page, {
     extra: { 'GET /aluno/anamnese': { corpo: ANAMNESE_PENDENTE }, 'GET /aluno/atualizacao': { corpo: ATUALIZACAO_ATRASADA } },

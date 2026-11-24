@@ -27,19 +27,19 @@ import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { textoDoErro } from '../../ui/erros';
 import { Esqueleto } from '../../ui/Esqueleto';
-import { Grade } from '../../ui/Grade';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { duasColunasCom } from '../../dominio/grade';
-import { faixasDaTelaDoInicio, pilhasDoInicio, type PecaDoInicio } from '../../dominio/arranjoDoInicio';
+import { faixasDaTelaDoInicio, linhasDoInicio, MINIMO_DA_COLUNA_DO_INICIO, pilhasDoInicio, type PecaDoInicio } from '../../dominio/arranjoDoInicio';
 import { telaLargaDoAluno } from '../../dominio/telaLargaDoAluno';
 import { espaco, LARGURA_FAIXA_NORMAL } from '../../tema/tokens';
 import { useFaixaDaTela } from '../../ui/Tela';
 import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 
 /**
- * Início do aluno: o resumo do dia. Marca e "Olá", a dieta compacta com a água, a água do dia (só com meta na dieta),
- * a faixa "Treino em andamento" (só com o retorno ligado e só quando o treino começado não é o do Hoje), o cartão Hoje (o único primário),
- * as pendências, os próximos compromissos presenciais (só leitura), a faixa da semana, o nível (só com o retorno ligado) e o mapa de treinos do ano (só com o retorno ligado). A lista de divisões, o PDF e
+ * Início do aluno: o resumo do dia. Marca e "Olá", a faixa "Treino em andamento" (só com o retorno ligado e só quando o
+ * treino começado não é o do Hoje) e, em qualquer largura, o cartão Hoje primeiro (o único primário); depois a dieta compacta
+ * com a água, a água do dia (só com meta na dieta), as pendências, os próximos compromissos presenciais (só leitura), a
+ * semana, o nível e o mapa de treinos do ano (os dois só com o retorno ligado). Arranjo por largura em `dominio/arranjoDoInicio`. A lista de divisões, o PDF e
  * a mobilidade ficam na aba Treino. Sempre o plano em uso. Em 390 o botão do treino de hoje precisa aparecer na primeira tela.
  */
 export default function InicioAluno() {
@@ -134,14 +134,18 @@ export default function InicioAluno() {
             ))}
           </View>
         )}
-        // Celular, tablet e PC até a faixa `normal`: Dieta → Água → Hoje à esquerda, o resto à direita e o mapa embaixo.
-        comum={(<>
-          <Grade gap={espaco(2)} colunas={duasColunasCom(360, espaco(2))} alinhar="inicio">
-            <View style={estilos.coluna}>{pecas(['dieta', 'agua', 'hoje'])}</View>
-            <View style={estilos.coluna}>{pecas(['pendencias', 'compromissos', 'semana', 'nivel', 'vitrine'])}</View>
-          </Grade>
-          <MapaDeTreinos />
-        </>)}
+        // Celular, tablet e PC até a faixa `normal` (24/11): o Hoje também primeiro, em uma ou duas colunas (`linhasDoInicio`).
+        comum={(duasColunas) => (
+          <View style={estilos.coluna}>
+            {linhasDoInicio({ retorno: retornoHabilitado, duasColunas }).map((linha, i) => (linha.length === 1 ? (
+              <View key={i} style={estilos.coluna}>{pecas(linha[0])}</View>
+            ) : (
+              <View key={i} style={estilos.pilhas}>
+                {linha.map((pilha, j) => <View key={j} style={[estilos.coluna, estilos.metade]}>{pecas(pilha)}</View>)}
+              </View>
+            )))}
+          </View>
+        )}
       />
     </TelaDoAluno>
   );
@@ -153,16 +157,15 @@ export default function InicioAluno() {
  * o mapa, que liam a API de novo. Por isso nada é montado enquanto a faixa não bate com a largura do próprio corpo (que
  * nunca passa da área): corpo de `LARGURA_FAIXA_NORMAL` ou mais com a faixa ainda `compacta` = a `Tela` não mediu.
  */
-function CorpoDoInicio({ largo, comum }: { largo: ReactNode; comum: ReactNode }) {
+function CorpoDoInicio({ largo, comum }: { largo: ReactNode; comum: (duasColunas: boolean) => ReactNode }) {
   const faixa = useFaixaDaTela();
   const { largura, aoMedir } = useFaixaDeLargura();
   const medido = largura > 0 && !(faixa === 'compacta' && largura >= LARGURA_FAIXA_NORMAL);
-  return <View onLayout={aoMedir} style={estilos.corpo}>{medido ? (telaLargaDoAluno(faixa) ? largo : comum) : null}</View>;
+  const duasColunas = duasColunasCom(MINIMO_DA_COLUNA_DO_INICIO, espaco(2))(largura) === 2;
+  return <View onLayout={aoMedir}>{medido ? (telaLargaDoAluno(faixa) ? largo : comum(duasColunas)) : null}</View>;
 }
 
 const estilos = StyleSheet.create({
-  // O mesmo vão que a `TelaDoAluno` põe entre os blocos (a grade e o mapa, abaixo da faixa larga).
-  corpo: { gap: espaco(3) },
   coluna: { gap: espaco(2) },
   // Pilhas lado a lado, cada uma do tamanho do que tem: a sobra fica só no fim da mais curta.
   pilhas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },

@@ -1,8 +1,8 @@
 /**
  * Arranjo do Início do aluno na tela larga (revisão 2 de 24/11, decisão 2 de `docs/planos/tela-larga-revisao-2.md`): o
  * "Hoje" é o primeiro bloco e o resto vai em pilhas independentes (como a ficha › Dados, 4.10), cada uma com o mesmo vão;
- * nada fica embaixo de todas, então a sobra de altura só existe no fim da pilha mais curta. Só da faixa `larga` em diante
- * (`telaLargaDoAluno`); abaixo dela o Início segue a grade de duas colunas de sempre (Dieta → Hoje, mapa embaixo).
+ * nada fica embaixo de todas, então a sobra de altura só existe no fim da pilha mais curta. Da faixa `larga` em diante
+ * (`telaLargaDoAluno`); abaixo dela, `linhasDoInicio` (o Hoje também primeiro, pedido do Gustavo de 24/11).
  *
  * Com o retorno ligado o mapa do ano existe e precisa de duas faixas (numa de 552 ele cai no modo do celular, com rolagem):
  * uma pilha de uma faixa com o dia (Hoje, dieta, água, pendências) e uma de duas com o progresso ("Sua semana" e "Seu nível"
@@ -45,4 +45,25 @@ export function pilhasDoInicio(s: SituacaoDoInicio): PilhaDoInicio[] {
   const dia: PilhaDoInicio = { faixas: 1, pecas: ['hoje', 'dieta', 'agua'] };
   const tarefas: PilhaDoInicio = { faixas: 1, pecas: ['pendencias', 'compromissos', 'semana'] };
   return s.vitrine ? [dia, tarefas, { faixas: 1, pecas: ['vitrine'] }] : [dia, tarefas];
+}
+
+/** Abaixo da faixa larga: uma linha tem uma pilha (largura toda) ou duas (colunas iguais, independentes). */
+export type LinhaDoInicio = PecaDoInicio[][];
+
+/** Duas colunas no corpo do Início abaixo da faixa larga: cabem duas de 360 com o vão (tablet deitado e PC até 1280). */
+export const MINIMO_DA_COLUNA_DO_INICIO = 360;
+
+/**
+ * O Início abaixo da faixa larga (24/11, pedido do Gustavo): o Hoje primeiro em qualquer largura, depois Dieta e Água, Sua
+ * semana e Seu nível e o mapa do ano.
+ * - Uma coluna (celular): Hoje › Dieta › Água › pendências › compromissos › semana › nível › mapa › vitrine.
+ * - Duas colunas (PC até 1280): Hoje e Dieta à esquerda, Água à direita (as duas pilhas acabam perto: ~280 e ~230 px), com
+ *   pendências e compromissos embaixo de cada uma; depois semana e nível lado a lado e da mesma altura, e o mapa na largura
+ *   toda. Antes, Dieta, Água e Hoje à esquerda e semana e nível à direita deixavam ~210 px vazios sob o nível.
+ * - Sem o retorno (sem nível nem mapa) a semana vai para a pilha da Água, para não esticar sozinha na largura toda.
+ */
+export function linhasDoInicio(o: { retorno: boolean; duasColunas: boolean }): LinhaDoInicio[] {
+  if (!o.duasColunas) return [[['hoje', 'dieta', 'agua', 'pendencias', 'compromissos', 'semana', 'nivel', 'mapa', 'vitrine']]];
+  if (!o.retorno) return [[['hoje', 'dieta', 'pendencias'], ['agua', 'compromissos', 'semana', 'vitrine']]];
+  return [[['hoje', 'dieta', 'pendencias'], ['agua', 'compromissos', 'vitrine']], [['semanaENivel']], [['mapa']]];
 }

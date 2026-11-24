@@ -1,4 +1,4 @@
-import { faixasDaTelaDoInicio, pilhasDoInicio, type SituacaoDoInicio } from './arranjoDoInicio';
+import { faixasDaTelaDoInicio, linhasDoInicio, pilhasDoInicio, type PecaDoInicio, type SituacaoDoInicio } from './arranjoDoInicio';
 
 const TUDO: SituacaoDoInicio = { retorno: true, vitrine: true };
 const pecas = (s: SituacaoDoInicio) => pilhasDoInicio(s).map((p) => [p.faixas, p.pecas]);
@@ -37,5 +37,40 @@ describe('faixasDaTelaDoInicio', () => {
     expect(faixasDaTelaDoInicio({ retorno: true, vitrine: false })).toBe(3);
     expect(faixasDaTelaDoInicio({ retorno: false, vitrine: true })).toBe(3);
     expect(faixasDaTelaDoInicio({ retorno: false, vitrine: false })).toBe(2);
+  });
+});
+
+/** Os blocos na ordem do leitor de tela (linha a linha, pilha a pilha), com as peças compostas abertas. */
+const emOrdem = (pecas: readonly PecaDoInicio[]) => pecas.flatMap((p) => (p === 'semanaENivel' ? ['semana', 'nivel'] : p === 'compromissosEVitrine' ? ['compromissos', 'vitrine'] : [p]));
+
+describe('linhasDoInicio', () => {
+  it('celular: uma coluna com o Hoje primeiro, depois Dieta e Água, pendências e compromissos, semana e nível, o mapa e a vitrine', () => {
+    for (const retorno of [true, false]) {
+      expect(linhasDoInicio({ retorno, duasColunas: false })).toEqual([[['hoje', 'dieta', 'agua', 'pendencias', 'compromissos', 'semana', 'nivel', 'mapa', 'vitrine']]]);
+    }
+  });
+
+  it('duas colunas com o retorno: Hoje e Dieta | Água; depois semana e nível lado a lado; o mapa na largura toda', () => {
+    expect(linhasDoInicio({ retorno: true, duasColunas: true })).toEqual([
+      [['hoje', 'dieta', 'pendencias'], ['agua', 'compromissos', 'vitrine']],
+      [['semanaENivel']],
+      [['mapa']],
+    ]);
+  });
+
+  it('duas colunas sem o retorno: sem linha de nível nem de mapa (nada de linha vazia); a semana vai para a pilha da Água', () => {
+    expect(linhasDoInicio({ retorno: false, duasColunas: true })).toEqual([[['hoje', 'dieta', 'pendencias'], ['agua', 'compromissos', 'semana', 'vitrine']]]);
+  });
+
+  it('em todo arranjo o Hoje vem primeiro, a Dieta antes da Água e cada bloco aparece uma vez', () => {
+    for (const retorno of [true, false]) for (const duasColunas of [true, false]) {
+      const ordem = emOrdem(linhasDoInicio({ retorno, duasColunas }).flat(2));
+      expect(ordem[0]).toBe('hoje');
+      expect(ordem.indexOf('dieta')).toBeLessThan(ordem.indexOf('agua'));
+      expect(ordem.indexOf('semana')).toBeLessThan(ordem.indexOf('nivel') === -1 ? Infinity : ordem.indexOf('nivel'));
+      expect(new Set(ordem).size).toBe(ordem.length);
+      for (const b of ['hoje', 'dieta', 'agua', 'pendencias', 'compromissos', 'semana', 'vitrine']) expect(ordem).toContain(b);
+      if (retorno) expect(ordem).toEqual(expect.arrayContaining(['nivel', 'mapa']));
+    }
   });
 });
