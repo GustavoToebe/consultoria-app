@@ -60,7 +60,7 @@ export function SecaoDaColecao({ nome, textos, renomear, aoAdicionar, aoMenu, al
       inicio={alca ? <AlcaDeArraste arraste={alca.lista} indice={alca.indice} /> : null}
       acoes={aoAdicionar || aoMenu ? (
         <>
-          {aoAdicionar ? <Botao rotulo="Adicionar vídeo" rotuloAcessivel={`Adicionar vídeo à coleção ${nome}`} tipo="acao" Icone={Plus} aoTocar={aoAdicionar} /> : null}
+          {aoAdicionar ? <Botao rotulo="Adicionar vídeo" rotuloAcessivel={`Adicionar vídeo à coleção ${nome}`} tipo="secundario" Icone={Plus} aoTocar={aoAdicionar} /> : null}
           {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={rotuloDoMenuDaColecao(nome)} aoTocar={aoMenu} /> : null}
         </>
       ) : null} />

@@ -187,7 +187,7 @@ function CartaoDoAluno({ aluno, puladas, abertoAoMontar, aoVerComoAluno, ignorad
         selo={ignorado ? { texto: SELO_IGNORADO, tipo: 'atencao' } : { texto: SELO_INCLUIDO, tipo: 'sucesso' }}
         aoAlternar={() => setAberto(!aberto)} aberto={aberto}
         acoes={ignorado
-          ? <Botao rotulo="Incluir aluno" rotuloAcessivel={`Incluir ${nome} na importação`} tipo="acao" aoTocar={aoAlternarIgnorado} testID={`incluir-aluno-${aluno.numero}`} />
+          ? <Botao rotulo="Incluir aluno" rotuloAcessivel={`Incluir ${nome} na importação`} tipo="secundario" aoTocar={aoAlternarIgnorado} testID={`incluir-aluno-${aluno.numero}`} />
           : <Botao rotulo="Ignorar aluno" rotuloAcessivel={`Ignorar ${nome} na importação`} tipo="secundario" aoTocar={aoAlternarIgnorado} testID={`ignorar-aluno-${aluno.numero}`} />} />
     }>
       {aberto ? (

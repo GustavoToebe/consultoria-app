@@ -254,7 +254,7 @@ function PainelDaSecao({ secao: sec, posicao, total, noInspetor, itemNovo, alca,
         )}
         {aviso}
         <View style={estilos.linha}>
-          <Botao rotulo="Adicionar item" rotuloAcessivel={`Adicionar item em ${titulo}`} tipo="acao" Icone={Plus}
+          <Botao rotulo="Adicionar item" rotuloAcessivel={`Adicionar item em ${titulo}`} tipo="secundario" Icone={Plus}
             desabilitado={sec.itens.length >= MAXIMO_DE_ITENS} motivo={`No máximo ${MAXIMO_DE_ITENS} itens por seção.`} aoTocar={aoAdicionarItem} />
         </View>
       </View>

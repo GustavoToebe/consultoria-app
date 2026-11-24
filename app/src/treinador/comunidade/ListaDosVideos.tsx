@@ -195,7 +195,7 @@ function ColecaoVazia({ aoAdicionar, nome }: { aoAdicionar?: () => void; nome: s
       <Texto variante="suave">Nenhum vídeo nesta coleção</Texto>
       {aoAdicionar ? (
         <LinhaDeAcoes>
-          <Botao rotulo="Adicionar vídeo" rotuloAcessivel={`Adicionar vídeo à coleção ${nome}`} tipo="acao" Icone={Plus} aoTocar={aoAdicionar} />
+          <Botao rotulo="Adicionar vídeo" rotuloAcessivel={`Adicionar vídeo à coleção ${nome}`} tipo="secundario" Icone={Plus} aoTocar={aoAdicionar} />
         </LinhaDeAcoes>
       ) : null}
     </View>

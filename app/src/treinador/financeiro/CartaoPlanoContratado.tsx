@@ -115,7 +115,7 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
 
   return (
     <Cartao titulo="Plano contratado" descricao="O plano comercial deste aluno com você."
-      acoes={podeContratar ? <Botao rotulo="Contratar plano" tipo="secundario" Icone={Plus} aoTocar={() => setFormulario('contratar')} /> : undefined}>
+      acoes={podeContratar ? <Botao rotulo="Contratar plano" tipo="acao" Icone={Plus} aoTocar={() => setFormulario('contratar')} /> : undefined}>
       {contratacoes.erro ? <MensagemErro texto={textoDoErro(contratacoes.erro)} erro={contratacoes.erro} tentarDeNovo={recarregarContratacoes} /> : null}
       {!lista && contratacoes.carregando ? <Esqueleto /> : null}
       {lista && !vigente ? (
@@ -156,7 +156,7 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
           </ListaDeDados>
           {emRenovacao ? (
             <LinhaDeAcoes>
-              <Botao rotulo="Cobrar renovação pelo WhatsApp" tipo="secundario" Icone={iconeWhatsApp(!!linkDaRenovacao)} aoTocar={abrirWhatsApp}
+              <Botao rotulo="Cobrar renovação pelo WhatsApp" tipo="acao" Icone={iconeWhatsApp(!!linkDaRenovacao)} aoTocar={abrirWhatsApp}
                 desabilitado={!linkDaRenovacao} motivo={linkDaRenovacao ? undefined : MOTIVO_SEM_TELEFONE} />
             </LinhaDeAcoes>
           ) : null}

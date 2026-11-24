@@ -117,7 +117,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   const rotuloDaNova = cardio ? 'Novo cardio' : 'Nova série';
   // Cardio não tem tipo: "Novo cardio" já adiciona. Na musculação, "Nova série" mostra os botões de 1 clique.
   const aoNova = cardio ? () => adicionar(undefined, null) : () => setNovaAberta(!novaAberta);
-  const nova = <Botao rotulo={rotuloDaNova} tipo="acao" Icone={Plus} desabilitado={cheio} motivo={motivoCheio} aoTocar={aoNova} />;
+  const nova = <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} desabilitado={cheio} motivo={motivoCheio} aoTocar={aoNova} />;
   const botoesDaNova = cardio || cheio ? null : <BotoesDeNovaSerie config={cfg} aoAdicionar={adicionar} />;
   // Estreito (390): a linha vira divulgação e o editor abre logo abaixo da série escolhida (guia premium pág. 9).
   const empilhado = largura !== null && largura < LARGURA_DAS_COLUNAS;
@@ -157,7 +157,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
         };
       })}
       // Cheio, o botão sai do fim da tabela: desabilitado ele perdia o tracejado e o motivo ficava escondido.
-      depois={cheio ? undefined : <Botao rotulo={rotuloDaNova} tipo="acao" Icone={Plus} style={estilos.tracejado} aoTocar={aoNova} />} />
+      depois={cheio ? undefined : <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} style={estilos.tracejado} aoTocar={aoNova} />} />
       : <View style={estilos.vazio}>
         <Texto variante="suave">Nenhuma série ainda.</Texto>
         {aoUsarReceita ? <LinhaDeAcoes><Botao rotulo="Usar receita de séries" tipo="acao" Icone={NotebookTabs} aoTocar={aoUsarReceita} /></LinhaDeAcoes> : null}

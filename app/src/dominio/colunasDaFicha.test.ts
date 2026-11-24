@@ -1,5 +1,5 @@
 import { LARGURA_EDITOR_DE_CAMPOS } from '../tema/tokens';
-import { ABAIXO_DAS_DUAS_COLUNAS, abaixoDasColunas, colunasDaAbaDados, COLUNAS_DA_FICHA, emDuasColunas, larguraMaximaDasColunas, ordemNumaColuna, pilhasDaAba, PROPORCAO_DAS_COLUNAS, resumoEmTresColunas, TRES_COLUNAS_DA_FICHA } from './colunasDaFicha';
+import { ABAIXO_DAS_DUAS_COLUNAS, abaixoDasColunas, colunaUnica, colunasDaAbaDados, COLUNAS_DA_FICHA, emDuasColunas, larguraMaximaDasColunas, ordemNumaColuna, pilhasDaAba, PROPORCAO_DAS_COLUNAS, resumoEmTresColunas, tetoDaColunaUnica, TRES_COLUNAS_DA_FICHA } from './colunasDaFicha';
 import type { BlocoDaFicha } from './fichaDoAluno';
 
 // ficha: colunas independentes (24/11)
@@ -101,6 +101,34 @@ describe('colunasDaFicha', () => {
     expect(larguraMaximaDasColunas(colunasDaAbaDados('normal', 928, VAO, TODOS), VAO)).toBe(LARGURA_EDITOR_DE_CAMPOS);
     expect(larguraMaximaDasColunas(colunasDaAbaDados('larga', 1632, VAO, TODOS), VAO)).toBe(LARGURA_EDITOR_DE_CAMPOS);
     expect(larguraMaximaDasColunas(colunasDaAbaDados('ultralarga', 3150, VAO, TODOS), VAO)).toBe(3 * LARGURA_EDITOR_DE_CAMPOS + 2 * VAO);
+  });
+
+  it('coluna única: só com a esquerda vazia em duas colunas (na leitura as seções 1 e 2 a seguram)', () => {
+    const SEM_PLANO: BlocoDaFicha[] = ['dadosDoAluno', 'acessoAoApp', 'anamnese', 'lesoes'];
+    const SEM_SENSIVEL: BlocoDaFicha[] = ['dadosDoAluno', 'acessoAoApp', 'planoContratado'];
+    const SEM_OS_DOIS: BlocoDaFicha[] = ['dadosDoAluno', 'acessoAoApp'];
+    for (const largura of [928, 1632]) {
+      // Leitura: sem plano contratado, sem sensível ou sem os dois, a esquerda continua com Identificação e Contato.
+      for (const blocos of [TODOS, SEM_PLANO, SEM_SENSIVEL, SEM_OS_DOIS]) expect(colunaUnica(colunasDaAbaDados('normal', largura, VAO, blocos), false)).toBe(false);
+      // Edição: as seções saem; sem o Plano contratado a esquerda fica vazia.
+      expect(colunaUnica(colunasDaAbaDados('normal', largura, VAO, SEM_PLANO), true)).toBe(true);
+      expect(colunaUnica(colunasDaAbaDados('normal', largura, VAO, SEM_OS_DOIS), true)).toBe(true);
+      expect(colunaUnica(colunasDaAbaDados('normal', largura, VAO, SEM_SENSIVEL), true)).toBe(false);
+      expect(colunaUnica(colunasDaAbaDados('normal', largura, VAO, TODOS), true)).toBe(false);
+    }
+    // Sem os Dados na aba nem o plano, também na leitura.
+    expect(colunaUnica(colunasDaAbaDados('larga', 1632, VAO, ['acessoAoApp', 'lesoes']), false)).toBe(true);
+    // Três pilhas com a do meio vazia (sem financeiro nem lesões) voltam às duas: na edição, também a coluna única.
+    expect(colunaUnica(colunasDaAbaDados('larga', 2272, VAO, ['dadosDoAluno', 'acessoAoApp']), true)).toBe(true);
+    // Três colunas e compacta não mudam.
+    expect(colunaUnica(colunasDaAbaDados('larga', 2272, VAO, TODOS), true)).toBe(false);
+    expect(colunaUnica(null, true)).toBe(false);
+  });
+
+  it('teto da coluna única: a largura da esquerda (3/5) no arranjo de duas com a mesma aba, nunca o teto de 1400', () => {
+    expect(tetoDaColunaUnica(928, VAO)).toBeCloseTo(542.4);
+    expect(tetoDaColunaUnica(1632, VAO)).toBeCloseTo(825.6);
+    expect(tetoDaColunaUnica(5000, VAO)).toBeCloseTo((LARGURA_EDITOR_DE_CAMPOS - VAO) * 0.6);
   });
 
   it('Resumo em três colunas pela largura medida: 2560 abre, 1920 não', () => {

@@ -112,7 +112,8 @@ export function CartaoLesoes({ alunoId, carga, parte = 'tudo' }: { alunoId: stri
 /**
  * A partir desta largura (medida na própria tabela) as lesões ficam em colunas; abaixo, uma por cartão com os rótulos à vista.
  * 760 (a da Auditoria) e não 800: o Histórico fica embaixo das duas colunas da aba Dados (~928 px em 1280, até 1400 no
- * teto) e na pilha do meio das três; só no celular a tabela não cabe e viram cartões.
+ * teto) e na pilha do meio das três; no celular a tabela não cabe e viram cartões, e também em 1280 na coluna única da
+ * edição sem o Plano contratado (~580 px, `colunaUnica` de `dominio/colunasDaFicha`).
  */
 const LARGURA_EM_COLUNAS = 760;
 

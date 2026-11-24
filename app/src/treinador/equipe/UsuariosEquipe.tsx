@@ -49,7 +49,7 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
   // `LARGURA_MAXIMA`, como o da Auditoria: seis colunas em 3000 px ficariam soltas.
   const faixa=useFaixaDaTela();const emTabela=faixa==='larga'||faixa==='ultralarga';
   const acoesDoMembro=(m:MembroEquipe)=><>
-    {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?'Renovar convite':'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo={m.convitePendente?'acao':'secundario'} aoTocar={()=>setEditar(m)}/></Permitido>:null}
+    {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?'Renovar convite':'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}
     {podeCancelarConvite(ator,m,perfis)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Cancelar convite" rotuloAcessivel={`Cancelar convite de ${m.nome}`} tipo="perigoTexto" aoTocar={()=>setCancelar(m)}/></Permitido>:null}
   </>;
   const cancelarConvite=async()=>{if(!cancelar)return;setOcupado(true);try{await api.cancelarConviteEquipe(cancelar.id);avisar('Convite cancelado.','sucesso');setCancelar(null);recarregar();}catch(e){avisar(textoDoErro(e),'perigo');setCancelar(null);}finally{setOcupado(false);}};

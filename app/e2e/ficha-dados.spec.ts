@@ -11,7 +11,8 @@ import { ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, estadoDoResponsavel, estadoFina
  * Ficha do aluno › Dados (23/11, `docs/planos/ficha-do-aluno-dados.md`): duas colunas independentes (3:2) a partir da faixa
  * normal da `Tela` (24/11, `docs/planos/ficha-dados-colunas-independentes.md`: Identificação › Contato › Plano à
  * esquerda; Acompanhamento › Objetivo › Acesso › Anamnese à direita; o Histórico de lesões embaixo das duas, na largura
- * delas; nas três colunas de 2560 e 3440, na pilha do meio, também no `tela-larga-ficha.spec.ts`) e, no celular, uma coluna na ordem Lesões ativas ›
+ * delas; nas três colunas de 2560 e 3440, na pilha do meio, também no `tela-larga-ficha.spec.ts`; na edição sem o financeiro,
+ * uma coluna só na largura da esquerda, com o Histórico) e, no celular, uma coluna na ordem Lesões ativas ›
  * Plano › Acesso › Anamnese › Histórico;
  * acesso compacto com o último login; vigência com o texto equivalente, âmbar a 15 dias e "Encerrado em" na parcela única passada do término; as últimas 3
  * cobranças com "Ver todas no Financeiro"; lesões com as ativas tingidas primeiro, "Desde"/"a", ⋯ com Editar e Excluir
@@ -54,6 +55,9 @@ interface Opcoes {
   contratacoes?: ContratacaoResponse[];
   cobrancas?: CobrancaResponse[];
   lesoes?: Lesao[];
+  /** Perfil sem o financeiro (sem o Plano contratado) e, com `semSensivel`, sem `ALUNO_SENSIVEL_LER`/`_ALTERAR`. */
+  semFinanceiro?: boolean;
+  semSensivel?: boolean;
 }
 
 async function abrir(page: Page, o: Opcoes) {
@@ -63,10 +67,15 @@ async function abrir(page: Page, o: Opcoes) {
   let lesoes = [...(o.lesoes ?? [])];
   const financeiro = estadoFinanceiro({ contratacoes: o.contratacoes ?? [], cobrancas: o.cobrancas ?? [] });
   const api = await simularApi(page, {
-    ...(await sessao(page, TREINADOR, { pagamentosHabilitados: true, recebimentoOnlineHabilitado: false, permissoes: [...PERMISSOES_TREINADOR, 'FINANCEIRO_LER', 'FINANCEIRO_ALTERAR'] })),
+    ...(await sessao(page, TREINADOR, {
+      pagamentosHabilitados: !o.semFinanceiro, recebimentoOnlineHabilitado: false,
+      permissoes: [...PERMISSOES_TREINADOR.filter((p) => !o.semSensivel || !p.startsWith('ALUNO_SENSIVEL_')), ...(o.semFinanceiro ? [] : ['FINANCEIRO_LER', 'FINANCEIRO_ALTERAR'])],
+    })),
     ...rotasDoFinanceiro(financeiro), ...rotasDoResponsavel(estadoDoResponsavel()),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     [`GET /alunos/${ID}`]: { corpo: FICHA },
+    'GET /responsaveis': { corpo: [] },
+    'GET /questionarios/opcoes': { corpo: [] },
     [`GET /alunos/${ID}/anamneses`]: { corpo: [] },
     [`GET /alunos/${ID}/lesoes`]: (_p, route) => route.fulfill({ json: lesoes }),
     [`DELETE /alunos/${ID}/lesoes/{id}`]: (p, route) => {
@@ -123,6 +132,59 @@ for (const largura of [1280, 1920]) {
     expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `/alunos/${ID}/anamneses`)).toHaveLength(1);
     expect(errosDaPagina).toEqual([]);
   });
+}
+
+// Coluna única (24/11): na edição sem o financeiro a coluna da esquerda fica vazia (as seções saem e não há Plano contratado);
+// a aba fica numa coluna só, na largura que a esquerda tem nas duas colunas com os mesmos dados (3/5 da aba, ~580 px em 1280
+// e ~826 em 1920), e o Histórico de lesões a acompanha. Na leitura a esquerda tem Identificação e Contato: duas colunas.
+for (const semSensivel of [false, true]) {
+  for (const [largura, tema] of [[1280, 'CLARO'], [1280, 'ESCURO'], [1920, 'ESCURO']] as const) {
+    const perfil = semSensivel ? 'sem financeiro e sem sensível' : 'sem financeiro';
+    test(`${largura}px (${tema.toLowerCase()}), ${perfil}: na edição uma coluna só, na largura da esquerda, e o Histórico junto`, async ({ page }) => {
+      const { pedidos, errosDaPagina } = await abrir(page, { largura, tema, semFinanceiro: true, semSensivel, lesoes: [ATIVA, RECUPERADA] });
+      await expect(page.getByRole('heading', { name: 'Acesso ao app', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Plano contratado', exact: true })).toHaveCount(0);
+      if (!semSensivel) await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
+      // Leitura: as mesmas duas colunas 3:2; a largura da esquerda é o teto da coluna única.
+      const ident = await caixaDoCartao(page, 'Identificação');
+      const config = await caixaDoCartao(page, 'Configuração do acompanhamento');
+      expect(Math.abs(ident.y - config.y)).toBeLessThanOrEqual(1);
+      expect(ident.width / config.width).toBeGreaterThan(1.45);
+      expect(ident.width / config.width).toBeLessThan(1.55);
+      if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/leitura-${semSensivel ? 'sem-sensivel' : 'com-sensivel'}-${largura}-${tema.toLowerCase()}.png` });
+
+      await page.getByRole('button', { name: 'Editar dados' }).click();
+      await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeVisible();
+      await expect(async () => {
+        const acesso = await caixaDoCartao(page, 'Acesso ao app');
+        // A coluna única começa na borda da aba e para na largura da esquerda (nunca até 1400).
+        expect(Math.abs(acesso.x - ident.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(acesso.width - ident.width)).toBeLessThanOrEqual(1);
+        if (semSensivel) return;
+        const anamnese = await caixaDoCartao(page, 'Anamnese');
+        const historico = await caixaDoCartao(page, 'Histórico de lesões');
+        for (const c of [anamnese, historico]) {
+          expect(Math.abs(c.x - acesso.x)).toBeLessThanOrEqual(1);
+          expect(Math.abs(c.width - acesso.width)).toBeLessThanOrEqual(1);
+        }
+        expect(Math.abs(historico.y - (anamnese.y + anamnese.height) - 24)).toBeLessThanOrEqual(1);
+      }).toPass({ timeout: 10_000 });
+      if (semSensivel) {
+        await expect(page.getByRole('heading', { name: 'Anamnese', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toHaveCount(0);
+      } else {
+        // Na largura da coluna única: em 1280 (~580 px) a tabela das lesões não cabe (760) e vira cartões; em 1920, tabela.
+        await expect(page.getByRole(largura >= 1920 ? 'table' : 'list', { name: 'Lesões' }).first()).toBeVisible();
+        // Entrar na edição não remonta os blocos (não buscam de novo).
+        expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `/alunos/${ID}/anamneses`)).toHaveLength(1);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      // Captura com a coluna única no meio da tela (o formulário em cima é alto; a página rola por dentro).
+      if (process.env.CAPTURAS) await page.getByRole('heading', { name: semSensivel ? 'Acesso ao app' : 'Anamnese', exact: true }).evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/edicao-${semSensivel ? 'sem-sensivel' : 'com-sensivel'}-${largura}-${tema.toLowerCase()}.png`, });
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
 }
 
 // 2560 e 3440 (três pilhas, inalterado): o Histórico segue na pilha do meio, logo abaixo do Plano, e nada fica embaixo.

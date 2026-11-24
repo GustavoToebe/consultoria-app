@@ -152,7 +152,7 @@ function CartaoDaPergunta({ pergunta: p, conteudo, posicao, total, aberta, probl
       {p.mostrarSe && somenteLeitura ? <Texto variante="pequeno">{textoDaCondicao(conteudo, p.mostrarSe)}</Texto> : null}
       <PropriedadesDaPergunta pergunta={p} conteudo={conteudo} problemas={problemas} somenteLeitura={somenteLeitura} finalidade={finalidade} aoMudar={aoMudar} />
       {somenteLeitura ? null : <LinhaDeAcoes>
-        <Botao rotulo="Duplicar" tipo="acao" Icone={Copy} desabilitado={!duplicavel} motivo={p.tipo === 'FOTOS' ? `No máximo ${L.perguntasFotos} perguntas de fotos.` : 'Este tipo só pode aparecer uma vez.'} aoTocar={aoDuplicar} />
+        <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} desabilitado={!duplicavel} motivo={p.tipo === 'FOTOS' ? `No máximo ${L.perguntasFotos} perguntas de fotos.` : 'Este tipo só pode aparecer uma vez.'} aoTocar={aoDuplicar} />
         {outras.length ? <EscolhaEmFolha rotulo="Mover para a seção" valor="" opcoes={outras} rotuloDoValor="escolher" aoMudar={(v) => aoMoverParaSecao(Number(v))} /> : null}
       </LinhaDeAcoes>}
     </View> : null}

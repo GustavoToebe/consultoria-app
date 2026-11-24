@@ -169,7 +169,7 @@ function LugaresDasFotos({ lugares, mostrarVazios, aoMudar }: {
       </View>;
     })}
     <View style={estilos.linha}>
-      <Botao rotulo="Adicionar lugar" tipo="acao" Icone={Plus} desabilitado={lugares.length >= L.fotosPorPergunta}
+      <Botao rotulo="Adicionar lugar" tipo="secundario" Icone={Plus} desabilitado={lugares.length >= L.fotosPorPergunta}
         motivo={`No máximo ${L.fotosPorPergunta} lugares.`} aoTocar={() => mudar([...lugares, ''])} />
     </View>
   </View>;
@@ -250,7 +250,7 @@ function ImagemDoItem({ imagemId, rotulo, aoMudar, compacta }: { imagemId?: stri
     {compacta ? null : <Texto variante="rotulo">{rotulo}</Texto>}
     {imagemId ? <ImagemDaPergunta id={imagemId} descricao={rotulo} pequena={compacta} /> : null}
     <View style={estilos.linha}>
-      <Botao rotulo={imagemId ? 'Trocar imagem' : compacta ? 'Imagem' : 'Enviar imagem'} tipo={imagemId ? 'secundario' : 'acao'} Icone={ImagePlus} carregando={enviando} aoTocar={enviar} />
+      <Botao rotulo={imagemId ? 'Trocar imagem' : compacta ? 'Imagem' : 'Enviar imagem'} tipo="secundario" Icone={ImagePlus} carregando={enviando} aoTocar={enviar} />
       {imagemId ? <Botao rotulo="Tirar imagem" tipo="perigoTexto" aoTocar={() => aoMudar(undefined)} /> : null}
     </View>
     {compacta || imagemId ? null : <Texto variante="pequeno">PNG ou JPEG; o app reduz para caber em 300 KB. {AVISO_LICENCA}</Texto>}
@@ -278,7 +278,7 @@ function ListaDeItens({ titulo, itens, minimo, maximo, nome, comImagem, sexo, ao
         opcoes={[{ valor: '', rotulo: '—' }, { valor: 'MASCULINO', rotulo: 'Masculino' }, { valor: 'FEMININO', rotulo: 'Feminino' }, { valor: 'OUTRO', rotulo: 'Outro' }]} /> : null}
     </View>)}
     <View style={estilos.linha}>
-      <Botao rotulo={`Adicionar ${nome}`} tipo="acao" Icone={Plus} desabilitado={itens.length >= maximo}
+      <Botao rotulo={`Adicionar ${nome}`} tipo="secundario" Icone={Plus} desabilitado={itens.length >= maximo}
         motivo={`No máximo ${maximo}.`} aoTocar={() => aoMudar([...itens, novaOpcao()])} />
     </View>
     {comImagem ? <Texto variante="pequeno">{AVISO_LICENCA}</Texto> : null}

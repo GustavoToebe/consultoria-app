@@ -5,7 +5,8 @@ import type { AbaDaFicha, BlocoDaFicha } from './fichaDoAluno';
  * Arranjo da aba Ficha do aluno › Dados em colunas independentes (24/11, `docs/planos/ficha-dados-colunas-independentes.md`).
  * A partir da faixa `normal` da `Tela` (4.10, `useFaixaDaTela`): duas pilhas verticais, cada uma com o mesmo vão entre os
  * cartões, sem alinhar os cartões de uma coluna com os da outra; a sobra de altura fica só no fim da mais curta. Uma
- * proporção para a página toda (3 à esquerda, 2 à direita), e o Histórico de lesões embaixo, na largura das duas. Abaixo da `normal`, uma coluna na ordem do celular (23/11).
+ * proporção para a página toda (3 à esquerda, 2 à direita), e o Histórico de lesões embaixo, na largura das duas (com a
+ * esquerda vazia, uma coluna só, `colunaUnica`). Abaixo da `normal`, uma coluna na ordem do celular (23/11).
  * Com largura medida para três colunas (2560 e 3440 com o menu aberto), três pilhas (`colunasDaAbaDados`, 24/11).
  */
 
@@ -75,6 +76,22 @@ export function colunasDaAbaDados(faixa: FaixaDeLargura, largura: number, vao: n
     tirarSecoes(coluna(COLUNAS_DA_FICHA.direita, blocos, PROPORCAO_DAS_COLUNAS.direita)),
   ];
 }
+
+/**
+ * Duas colunas com a esquerda sem nada para mostrar (24/11): na edição as seções saem (o formulário fica em cima) e, sem o
+ * financeiro, a esquerda fica sem o Plano contratado; na leitura só sem os Dados na aba (as seções 1 e 2 estão sempre lá).
+ * A aba fica numa coluna só, que não passa de `tetoDaColunaUnica`. O arranjo continua o de duas (as chaves das colunas não
+ * mudam: nada remonta ao entrar e sair da edição). Em três colunas, uma vazia já volta às duas; na compacta não há colunas.
+ */
+export const colunaUnica = (colunas: readonly ColunaDaAbaDados[] | null, editando: boolean): boolean =>
+  colunas?.length === 2 && colunas[0].blocos.length + (editando ? 0 : colunas[0].secoes.length) === 0;
+
+/**
+ * Teto da coluna única: a largura que a coluna da esquerda (a maior, 3 de 5) teria no arranjo de duas com a mesma aba
+ * (`largura` medida, até `LARGURA_EDITOR_DE_CAMPOS`, menos o vão). ~580 px em 1280 e ~826 em 1920 com o menu aberto.
+ */
+export const tetoDaColunaUnica = (largura: number, vao: number): number =>
+  (PROPORCAO_DAS_COLUNAS.esquerda / (PROPORCAO_DAS_COLUNAS.esquerda + PROPORCAO_DAS_COLUNAS.direita)) * (Math.min(largura, LARGURA_EDITOR_DE_CAMPOS) - vao);
 
 /** Os blocos que vão abaixo das colunas, na largura toda delas: só no arranjo de duas e só os que a aba mostra. */
 export const abaixoDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, blocos: readonly BlocoDaFicha[]): BlocoDaAbaDados[] =>

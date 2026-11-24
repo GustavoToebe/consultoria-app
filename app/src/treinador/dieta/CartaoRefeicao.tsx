@@ -185,7 +185,7 @@ export function CartaoRefeicao(p: Props) {
     p.aoRemoverOpcao(r.opcoes.indexOf(o));
   };
   const maisOpcao = (
-    <Botao ref={(b) => { alvosDoFoco.current.set(MAIS_OPCAO, b); }} rotulo="Opção" rotuloAcessivel={`Adicionar opção em ${titulo}`} tipo="acao" Icone={Plus}
+    <Botao ref={(b) => { alvosDoFoco.current.set(MAIS_OPCAO, b); }} rotulo="Opção" rotuloAcessivel={`Adicionar opção em ${titulo}`} tipo="secundario" Icone={Plus}
       aoTocar={adicionarOpcao} desabilitado={r.opcoes.length >= MAXIMO_DE_OPCOES} motivo={MOTIVO_NO_LIMITE_DE_OPCOES} />
   );
   const indiceAberto = aberta ? r.opcoes.indexOf(aberta) : -1;
@@ -385,7 +385,7 @@ function OpcaoDaRefeicao({
         </>}
       </View>}
       <LinhaDeAcoes>
-        <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="acao" Icone={Plus} aoTocar={aoEscolherAlimento} />
+        <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="secundario" Icone={Plus} aoTocar={aoEscolherAlimento} />
         <Botao rotulo="Item manual" rotuloAcessivel={`Item manual${naOpcao}`} tipo="secundario" Icone={PencilLine} aoTocar={() => aoMudarItens((itens) => [...itens, novoItem()])} />
       </LinhaDeAcoes>
     </View>

@@ -198,7 +198,7 @@ export default function FichaAluno() {
     }
     const lista = blocosDaAba(aba, contexto);
     // Ficha › Dados (24/11): as colunas independentes (duas, ou três pela largura medida) e a ordem no celular moram no `BlocosDaFicha`.
-    if (aba === 'ficha') return <BlocosDaFicha alunoId={a.id} blocos={lista} largura={largura} bloco={(b, colunas) => bloco(b, a, colunas)} />;
+    if (aba === 'ficha') return <BlocosDaFicha alunoId={a.id} blocos={lista} largura={largura} editando={editando} bloco={(b, colunas) => bloco(b, a, colunas)} />;
     // Tela larga (24/11): Acompanhamento e Evolução em duas pilhas independentes quando cada uma tem 1000 px (2560 em diante).
     const pilhas = pilhasDaAba(aba, lista, largura, espaco(3));
     if (pilhas) {

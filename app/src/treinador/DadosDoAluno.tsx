@@ -206,7 +206,7 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
   if (!colunas) return <View style={estilos.numaColuna}>{SECOES_DOS_DADOS.map((s) => <Fragment key={s}>{secoes[s]}</Fragment>)}</View>;
   return (
     <ColunasDaFicha colunas={colunas.map((c) => ({
-      proporcao: c.proporcao,
+      proporcao: c.proporcao, teto: c.teto,
       conteudo: [
         ...(editando ? [] : c.secoes.filter((s) => secoes[s]).map((s) => <Fragment key={s}>{secoes[s]}</Fragment>)),
         ...c.blocos,

@@ -211,7 +211,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         recolhivel
         recolhido={false} // único bloco da aba Planos: seção única nasce aberta (design 4.8)
         acoes={<>
-          {podeAplicarModelo('PASTA_PLANO', pode) ? <Botao rotulo="Usar pacote" tipo="secundario" Icone={Package} aoTocar={() => setEscolher(true)} /> : null}
+          {podeAplicarModelo('PASTA_PLANO', pode) ? <Botao rotulo="Usar pacote" tipo="acao" Icone={Package} aoTocar={() => setEscolher(true)} /> : null}
           <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Nova pasta" Icone={FolderPlus} aoTocar={() => setModo({ tipo: 'nova' })} /></Permitido>
         </>}>
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}

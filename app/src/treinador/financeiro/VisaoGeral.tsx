@@ -377,7 +377,7 @@ function Inadimplencia({ painel, vencidasNoPeriodo, lista, buscando, podeAlterar
             { chave: 'atraso', titulo: 'Atraso', flex: 1, minimo: MINIMOS.atraso, render: (x) => <Texto>{atrasoParaTela(x.diasDeAtraso)}</Texto> },
             { chave: 'acoes', titulo: 'Ações', acao: true, largura: acoes, render: (x) => (
               <LinhaDeAcoes alinhar="fim" style={{ marginVertical: recuoDosBotoes }}>
-                {podeAlterar ? <Botao rotulo="Registrar pagamento" tipo="acao" carregando={buscando === x.cobrancaId}
+                {podeAlterar ? <Botao rotulo="Registrar pagamento" tipo="secundario" carregando={buscando === x.cobrancaId}
                   rotuloAcessivel={`Registrar pagamento de ${x.alunoNome ?? 'aluno'}, vencida em ${dataParaTela(x.vencimento)}`} aoTocar={() => aoRegistrar(x)} /> : null}
                 <Botao rotulo="Abrir ficha" tipo="fantasma" rotuloAcessivel={`Abrir ficha de ${x.alunoNome ?? 'aluno'}`}
                   aoTocar={() => router.push(`/treinador/alunos/${x.alunoId}?aba=ficha`)} />

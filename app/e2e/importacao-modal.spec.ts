@@ -96,19 +96,23 @@ for (const largura of [390, 1280]) {
   });
 }
 
-// tamanho das folhas (24/11): a escolha usa a folha média, a mesma do resultado da planilha completa (uma constante só,
-// `LARGURA_FOLHA_LARGA`), na altura do conteúdo; os dois cartões lado a lado e da mesma altura no PC, empilhados no celular.
+// tamanho das folhas (24/11): a escolha usa a folha média, a mesma dos dois resultados (planilha completa e comum; uma
+// constante só, `LARGURA_FOLHA_LARGA`), na altura do conteúdo; os dois cartões lado a lado e da mesma altura no PC,
+// empilhados no celular.
 for (const largura of [390, 1280]) {
-  test(`folha média igual à do resultado da planilha completa e cartões da mesma altura em ${largura}px`, async ({ page }) => {
+  test(`folha média igual à dos dois resultados e cartões da mesma altura em ${largura}px`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 900 });
     const id = 'i0000000-0000-4000-8000-000000000098';
     const item = { id, destino: 'planilha-completa', nomeArquivo: '.xlsx', criadoEm: '2026-10-31T15:00:00Z', linhas: 4, novos: 4, atualizados: 0, ignorados: 0, comErro: 0, situacao: 'CONCLUIDA' };
+    const idComum = 'i0000000-0000-4000-8000-000000000097';
+    const comum = { id: idComum, destino: 'alunos', nomeArquivo: '.csv', criadoEm: '2026-10-30T15:00:00Z', linhas: 3, novos: 3, atualizados: 0, ignorados: 0, comErro: 0, situacao: 'CONCLUIDA' };
     const { errosDaPagina } = await simularApi(page, {
       ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
       'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
       'GET /inscricoes': { corpo: { itens: [], total: 0 } },
-      'GET /importacoes': { corpo: { itens: [item], total: 1, pagina: 0 } },
+      'GET /importacoes': { corpo: { itens: [item, comum], total: 2, pagina: 0 } },
       [`GET /importacoes/${id}`]: { corpo: { ...item, configuracao: {}, erros: [] } },
+      [`GET /importacoes/${idComum}`]: { corpo: { ...comum, configuracao: {}, erros: [] } },
     });
     await page.goto('/treinador/importacao');
     await page.getByRole('button', { name: 'Nova importação' }).click();
@@ -138,7 +142,18 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: /^Abrir a importação de Planilha completa/ }).click();
     const resultado = page.getByRole('dialog', { name: 'Importação de Planilha completa' });
     await expect(resultado.getByText('Registros criados')).toBeVisible();
-    expect(Math.round((await resultado.boundingBox())!.width)).toBe(Math.round(nova.width));
+    const larguraDaCompleta = Math.round((await resultado.boundingBox())!.width);
+    await page.keyboard.press('Escape');
+    await expect(resultado).toHaveCount(0);
+    // O resultado comum: a mesma folha média, na altura do conteúdo (curto), sem faixa vazia até o fim.
+    await page.getByRole('button', { name: /^Abrir a importação de Alunos/ }).click();
+    const resultadoComum = page.getByRole('dialog', { name: 'Importação de Alunos' });
+    await expect(resultadoComum.getByText('Com erro (ficaram de fora)')).toBeVisible();
+    const caixaComum = (await resultadoComum.boundingBox())!;
+    // As três folhas da importação têm a mesma largura medida: `LARGURA_FOLHA_LARGA` no PC, a janela no celular.
+    const esperada = largura === 1280 ? LARGURA_FOLHA_LARGA : 390;
+    expect([Math.round(nova.width), larguraDaCompleta, Math.round(caixaComum.width)]).toEqual([esperada, esperada, esperada]);
+    if (largura === 1280) expect(caixaComum.height).toBeLessThan(560);
     expect(errosDaPagina).toEqual([]);
   });
 }
