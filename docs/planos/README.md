@@ -269,6 +269,7 @@ Base: `e6537dc3` (95 commits locais esperando o push). Um push só, no fim, com 
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
+| `app/e2e/documentos-pdf.spec.ts:45` falha na `main` em 390 e 1280 ("Esta escolha não é gravada" não aparece na prévia do treino); já falhava em `82202480`, antes da revisão 2 | Executor | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | `Tela` expor que ainda não mediu (contexto `null` até o primeiro `onLayout`) e trocar os guardas de `BlocosDaFicha` e `CorpoDoInicio`, que deduzem o atraso pela largura e pelo recuo | Executor | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | Mural do aluno: o cartão "Seus números" salta por cima do feed quando chega depois; decidir esqueleto reservado × aceitar; confirmar o cartão único "Seus números" no topo abaixo de 1280 px | Gustavo | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | Início do aluno: `GET /aluno/sessoes-concluidas` sai duas vezes em 1280 (outro consumidor, não o mapa); "Hoje" primeiro só da faixa `larga` em diante (em 1280 e no celular segue Dieta › Água › Hoje) | Executor / Gustavo | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
