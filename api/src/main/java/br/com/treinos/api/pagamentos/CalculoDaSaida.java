@@ -36,6 +36,8 @@ final class CalculoDaSaida {
         }
     }
 
+    static final String MOTIVO_CONTRATO_FECHADO = "Não vale em contrato fechado.";
+
     private CalculoDaSaida() {
     }
 
@@ -59,7 +61,7 @@ final class CalculoDaSaida {
                 (m.getVencimento().isBefore(hoje) ? vencidas : aVencer).add(m);
             }
         }
-        boolean elegivel = c.getPeriodicidade() == PeriodoDoPlano.MENSAL && c.getMinimoAte() != null;
+        boolean elegivel = c.recorrente() && c.getPeriodicidade() == PeriodoDoPlano.MENSAL && c.getMinimoAte() != null;
         if (!elegivel) {
             return new Calculo(vencidas, List.of(), aVencer, 0, 0, 0, mesVigenteCoberto, false);
         }
@@ -94,6 +96,14 @@ final class CalculoDaSaida {
     /** As quatro opções com o valor calculado e, quando indisponíveis, o motivo (texto fixo, sem dado de pessoa). */
     static List<OpcaoDaPrevia> opcoes(ContratacaoAluno c, Calculo k) {
         List<OpcaoDaPrevia> opcoes = new ArrayList<>();
+        if (c.fechado()) {
+            // Contrato fechado (V098): sem mínimo nem mensalidade; a multa é o OUTRO, com valor e vencimento do treinador.
+            opcoes.add(indisponivel(OpcaoDeSaida.FALTAM, MOTIVO_CONTRATO_FECHADO));
+            opcoes.add(indisponivel(OpcaoDeSaida.VIGENTE, MOTIVO_CONTRATO_FECHADO));
+            opcoes.add(new OpcaoDaPrevia(OpcaoDeSaida.OUTRO, true, null, null));
+            opcoes.add(new OpcaoDaPrevia(OpcaoDeSaida.NAO_COBRAR, true, null, null));
+            return opcoes;
+        }
         opcoes.add(faltam(k));
         opcoes.add(vigente(c, k));
         opcoes.add(c.getPeriodicidade().recorrente()

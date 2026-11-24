@@ -246,8 +246,11 @@ export interface CicloDoTreinador {
 
 export type SituacaoFiltro = 'ATIVO' | 'INATIVO' | 'TODOS';
 
-/** Resposta das ações em lote: quantos alunos foram escolhidos e em quantos algo mudou de fato. */
-export interface ResultadoLote { selecionados: number; alterados: number }
+/**
+ * Resposta das ações em lote: quantos alunos foram escolhidos e em quantos algo mudou de fato. `recusados`: quem a API não
+ * alterou e por quê (só o desativar recusa, com `CONTRATO_FECHADO_VIGENTE`; os outros lotes mandam a lista vazia).
+ */
+export interface ResultadoLote { selecionados: number; alterados: number; recusados?: { alunoId: string; codigo: string; mensagem: string }[] }
 
 export interface AlunoResumo {
   id: string;

@@ -872,7 +872,7 @@ for (const [largura, tema] of [[390, 'CLARO'], [1280, 'ESCURO']] as const) {
     await comTema(page, tema);
     const estado = estadoFinanceiro({
       contratacoes: [{ ...COM_MINIMO }], cobrancas: cobrancasComMinimo(),
-      resumoDaSaida: { aCancelar: { quantidade: 2, valorCentavos: 30_000 }, emAberto: { quantidade: 1, valorCentavos: 15_000 }, minimoAte: '2027-02-05', mesesQueFaltam: 4 },
+      resumoDaSaida: { aCancelar: { quantidade: 2, valorCentavos: 30_000 }, emAberto: { quantidade: 1, valorCentavos: 15_000 }, minimoAte: '2027-02-05', mesesQueFaltam: 4, contratoFechadoVigente: null },
     });
     const { pedidos, errosDaPagina } = await fichaComFinanceiro(page, estado);
     await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);

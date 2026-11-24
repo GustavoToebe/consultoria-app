@@ -39,7 +39,7 @@ class GeradorDeCobrancas {
     /**
      * Garante uma cobrança para cada competência até a primeira com vencimento a partir de {@code hoje}, sem olhar se as
      * anteriores estão pagas, abertas ou canceladas (a competência cancelada continua ocupada). Contratação pausada,
-     * encerrada ou de parcela única não gera. Repetir no mesmo dia não faz nada. Devolve quantas criou.
+     * encerrada, de parcela única ou de contrato fechado (V098) não gera. Repetir no mesmo dia não faz nada. Devolve quantas criou.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     int garantirAteHoje(ContratacaoAluno contratacao, LocalDate hoje) {
@@ -62,7 +62,7 @@ class GeradorDeCobrancas {
      * nada para contratação parada, encerrada ou parcela única.
      */
     private Optional<CobrancaAluno> proxima(ContratacaoAluno contratacao) {
-        if (contratacao.getSituacao() != ContratacaoAluno.Situacao.ATIVA || !contratacao.getPeriodicidade().recorrente()) {
+        if (contratacao.getSituacao() != ContratacaoAluno.Situacao.ATIVA || !contratacao.recorrente()) {
             return Optional.empty();
         }
         LocalDate maior = cobrancas.maiorCompetencia(contratacao.getId()).orElse(null);

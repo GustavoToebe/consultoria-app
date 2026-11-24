@@ -31,6 +31,7 @@ describe('seloDoPlano', () => {
     expect(seloDoPlano({ periodicidade: 'TRIMESTRAL', situacao: 'ATIVA' })).toEqual({ texto: 'Trimestral · Ativo', tom: 'sucesso' });
     expect(seloDoPlano({ periodicidade: 'MENSAL', situacao: 'PAUSADA' })).toEqual({ texto: 'Mensal · Pausado', tom: 'atencao' });
     expect(seloDoPlano({ periodicidade: 'ANUAL', situacao: 'ENCERRADA' })).toEqual({ texto: 'Anual · Encerrado', tom: 'neutro' });
+    expect(seloDoPlano({ periodicidade: 'TRIMESTRAL', situacao: 'ATIVA', contratoFechado: true })).toEqual({ texto: 'Contrato · Ativo', tom: 'sucesso' });
     expect(seloDoPlano(null)).toBeNull();
   });
 });

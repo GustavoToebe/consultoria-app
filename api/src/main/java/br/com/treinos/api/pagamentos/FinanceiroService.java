@@ -11,6 +11,7 @@ import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Cartoes;
 import br.com.treinos.api.pagamentos.PagamentosDtos.EncerradoSemRenovar;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Inadimplencia;
+import br.com.treinos.api.pagamentos.PagamentosDtos.AlunosEmAtraso;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Inadimplente;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Liquido;
 import br.com.treinos.api.pagamentos.PagamentosDtos.MesDoPainel;
@@ -330,7 +331,8 @@ public class FinanceiroService {
                 encerradas.add(c);
                 termino.put(c.getId(), vigencia.termino());
             }
-            int multiplicador = switch (c.getPeriodicidade()) {
+            // Contrato fechado (V098): o valor é o total, não uma receita que se repete.
+            int multiplicador = c.fechado() ? 0 : switch (c.getPeriodicidade()) {
                 case MENSAL -> 12;
                 case TRIMESTRAL -> 4;
                 case SEMESTRAL -> 2;
@@ -372,11 +374,29 @@ public class FinanceiroService {
         return new PaginaInadimplentes(itens, page.getTotalElements(), total, Math.max(0, pagina));
     }
 
+    // ---- GET /financeiro/alunos-em-atraso ----
+
+    // shortcut: teto de 2000 alunos (sem paginação), a lista de alunos do app pede tudo de uma vez; paginar se uma consultoria passar disso.
+    static final int TETO_DE_ALUNOS_EM_ATRASO = 2000;
+
+    /**
+     * Os alunos com ao menos uma cobrança ABERTA vencida (Brasília), em ordem de id; o mesmo "meus" dos inadimplentes. Pede um a mais
+     * que o teto para saber se cortou ({@code truncado}); nunca traz nome nem valor.
+     */
+    @Transactional(readOnly = true)
+    public AlunosEmAtraso alunosEmAtraso(UUID responsavelId) {
+        List<UUID> ids = cobrancas.alunosEmAtraso(ABERTA, LocalDate.now(Fuso.BRASILIA), responsavelId,
+                PageRequest.of(0, TETO_DE_ALUNOS_EM_ATRASO + 1));
+        boolean truncado = ids.size() > TETO_DE_ALUNOS_EM_ATRASO;
+        return new AlunosEmAtraso(truncado ? ids.subList(0, TETO_DE_ALUNOS_EM_ATRASO) : ids, truncado);
+    }
+
     // ---- Contas comuns ----
 
     /** Contratações ativas e recorrentes: valor ÷ meses da periodicidade, arredondado ao centavo em cada contratação. */
     private long receitaRecorrente(UUID responsavelId) {
-        var grupos = contratacoes.recorrentes(ContratacaoAluno.Situacao.ATIVA, PeriodoDoPlano.PARCELA_UNICA, responsavelId);
+        var grupos = contratacoes.recorrentes(ContratacaoAluno.Situacao.ATIVA, PeriodoDoPlano.PARCELA_UNICA,
+                ModoDeCobranca.RECORRENTE, responsavelId);
         long soma = 0; // sem contratação recorrente ativa a consulta é válida e a soma é 0
         for (var g : grupos) {
             long mensal = BigDecimal.valueOf(g.getValor())

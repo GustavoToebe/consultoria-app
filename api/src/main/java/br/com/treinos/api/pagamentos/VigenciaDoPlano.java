@@ -27,11 +27,25 @@ record VigenciaDoPlano(LocalDate termino, Long diasRestantes, String alerta) {
     static final int ENCERRADO_RECENTE_EM_DIAS = 30;
 
     static VigenciaDoPlano de(ContratacaoAluno c, LocalDate hoje) {
+        if (c.fechado()) {
+            return doContrato(c, hoje);
+        }
         boolean retomada = c.getAncora() != null && c.getAncora().isAfter(c.getInicio());
         LocalDate base = retomada ? c.getAncora() : c.getInicio();
         // Contratação que ainda não começou: o ciclo é o primeiro, contado do início.
         LocalDate referencia = retomada || !hoje.isBefore(base) ? hoje : base;
         return de(base, c.getPeriodicidade(), referencia, hoje);
+    }
+
+    /**
+     * Contrato fechado (V098): um ciclo só, do início até início + período do plano (parcela única: + 1 mês, como a regra dela), que
+     * não se renova nem se move com pausa ou retomada. Quitar não encerra a contratação (D6), então ela segue ATIVA depois do término
+     * e, como a parcela única, entra em "Encerraram sem renovar" por 30 dias.
+     */
+    private static VigenciaDoPlano doContrato(ContratacaoAluno c, LocalDate hoje) {
+        LocalDate termino = c.getInicio().plusMonths(Math.max(1, c.getPeriodicidade().meses()));
+        long dias = ChronoUnit.DAYS.between(hoje, termino);
+        return new VigenciaDoPlano(termino, dias, c.getPeriodicidade() == PeriodoDoPlano.MENSAL || dias < 0 ? null : alerta(dias));
     }
 
     /** @param referencia o dia em que se procura o ciclo em curso ({@code hoje}, ou o início de uma contratação futura). */

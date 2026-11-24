@@ -237,6 +237,46 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
     @Query("select c from CobrancaAluno c where c.acordoId = :acordoId order by c.id")
     List<CobrancaAluno> travarDoAcordo(UUID acordoId);
 
+    /** As cobranças do contrato fechado (entrada, parcelas, saldo), em ordem fixa; a multa de saída não entra (V098). */
+    @Query("select c from CobrancaAluno c where c.contratacaoId = :contratacaoId and c.tipo in :tipos "
+            + "order by c.vencimento asc, c.id asc")
+    List<CobrancaAluno> doContrato(UUID contratacaoId, Collection<CobrancaAluno.Tipo> tipos);
+
+    /** As mesmas, travadas numa consulta só e em ordem fixa (depois da trava do aluno e da contratação, como em {@link Travas}). */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from CobrancaAluno c where c.contratacaoId = :contratacaoId and c.tipo in :tipos "
+            + "order by c.vencimento asc, c.id asc")
+    List<CobrancaAluno> doContratoTravadas(UUID contratacaoId, Collection<CobrancaAluno.Tipo> tipos);
+
+    default List<CobrancaAluno> doContrato(UUID contratacaoId) {
+        return doContrato(contratacaoId, CobrancaAluno.DO_CONTRATO);
+    }
+
+    default List<CobrancaAluno> doContratoTravadas(UUID contratacaoId) {
+        return doContratoTravadas(contratacaoId, CobrancaAluno.DO_CONTRATO);
+    }
+
+    /** O bloco {@code contrato} da resposta; nulo no recorrente (nada é lido). */
+    default PagamentosDtos.ContratoDaContratacao contratoDe(ContratacaoAluno c, LocalDate hoje) {
+        if (!c.fechado()) {
+            return null;
+        }
+        return ContaDoContrato.bloco(c.getModoCobranca(), c.getValorTotalCentavos(),
+                doContrato(c.getId()).stream().map(ContaDoContrato.Linha::de).toList(), hoje);
+    }
+
+    /** A cobrança que já nasceu deste pedido do pagamento do saldo (o {@code @TenantId} filtra a consultoria). */
+    Optional<CobrancaAluno> findFirstByPedidoId(UUID pedidoId);
+
+    /**
+     * Os alunos com ao menos uma cobrança ABERTA vencida (antes de {@code hoje}); o mesmo escopo "meus" dos inadimplentes
+     * ({@code responsavelId} nulo = todos). Em ordem de id, limitada pela página, para o teto ser fixo.
+     */
+    @Query("select distinct c.alunoId from CobrancaAluno c join Aluno a on a.id = c.alunoId "
+            + "where c.situacao = :aberta and c.vencimento < :hoje "
+            + "and (:responsavelId is null or a.responsavelId = :responsavelId) order by c.alunoId")
+    List<UUID> alunosEmAtraso(CobrancaAluno.Situacao aberta, LocalDate hoje, UUID responsavelId, Pageable pagina);
+
     /** O que um pedido da avulsa já gerou nesta consultoria (o {@code @TenantId} filtra): cobranças e alunos distintos. */
     interface DoPedido {
         Long getCobrancas();

@@ -35,6 +35,8 @@ public class EncerramentoDaContratacao {
 
     /** Motivo fixo das mensalidades canceladas pela cobrança de saída: sem dado de pessoa. */
     static final String MOTIVO_DA_SAIDA_ANTECIPADA = "Cancelada pela cobrança de saída.";
+    /** Motivo fixo das cobranças futuras de um contrato fechado canceladas ao encerrá-lo (V098): sem dado de pessoa. */
+    static final String MOTIVO_DO_CONTRATO_ENCERRADO = "Cancelada ao encerrar o contrato.";
 
     private final AlunoRepository alunos;
     private final PlanoComercialRepository planos;
@@ -64,17 +66,25 @@ public class EncerramentoDaContratacao {
                 CobrancaAluno.Tipo.MENSALIDADE, CobrancaAluno.NAO_COBREM_PERIODO), maiorCompetencia(c));
         String regra = planos.findById(c.getPlanoComercialId()).map(PlanoComercial::getRegraDeSaida).orElse(null);
         Instant agora = Instant.now();
-        int comLink = (int) calculo.aCancelar().stream().filter(m -> linkVivo(m, agora)).count();
+        // Contrato fechado (V098): as mensalidades não existem; o que o encerrar cancela são as cobranças futuras do contrato.
+        List<CobrancaAluno> abertasDoContrato = c.fechado() ? abertasDoContrato(cobrancas.doContrato(c.getId())) : List.of();
+        List<CobrancaAluno> doContratoACancelar = abertasDoContrato.stream().filter(m -> !m.getVencimento().isBefore(hoje)).toList();
+        List<CobrancaAluno> doContratoVencidas = abertasDoContrato.stream().filter(m -> m.getVencimento().isBefore(hoje)).toList();
+        List<CobrancaAluno> aCancelar = c.fechado() ? doContratoACancelar : calculo.aCancelar();
+        int comLink = (int) aCancelar.stream().filter(m -> linkVivo(m, agora)).count();
         return new PreviaDoEncerramento(c.getId(), c.getPeriodicidade(), c.getSituacao(), c.getMinimoAte(),
                 calculo.mesesQueFaltam(), regra, grupo(calculo.vencidas()), grupo(calculo.aCancelar()),
                 grupo(calculo.aVencerQueFicam()),
-                calculo.aCancelar().stream().map(CobrancaAluno::getId).toList(), comLink, calculo.mesesNaoGerados(),
-                calculo.valorNaoGerados(), CalculoDaSaida.opcoes(c, calculo));
+                aCancelar.stream().map(CobrancaAluno::getId).toList(), comLink, calculo.mesesNaoGerados(),
+                calculo.valorNaoGerados(), CalculoDaSaida.opcoes(c, calculo),
+                doContratoACancelar.stream().map(EncerramentoDaContratacao::naPrevia).toList(),
+                doContratoVencidas.stream().map(EncerramentoDaContratacao::naPrevia).toList());
     }
 
     /**
      * Leitura, por aluno: o que inativá-lo faz com o financeiro. Cancela as mensalidades (de qualquer contratação) e as
      * parcelas avulsas abertas que ainda não venceram; as vencidas e a cobrança de saída ficam. {@code mesesQueFaltam} > 0 = o mínimo se perde.
+     * {@code contratoFechadoVigente} (a contratação ATIVA fechada) avisa que inativar será recusado até encerrar o contrato.
      */
     @Transactional(readOnly = true)
     public ResumoDaSaidaDoAluno resumoDoAluno(UUID alunoId) {
@@ -92,7 +102,9 @@ public class EncerramentoDaContratacao {
             meses = CalculoDaSaida.calcular(c, hoje, cobrancas.mensalidadesDaContratacao(c.getId(),
                     CobrancaAluno.Tipo.MENSALIDADE, CobrancaAluno.NAO_COBREM_PERIODO), maiorCompetencia(c)).mesesQueFaltam();
         }
-        return new ResumoDaSaidaDoAluno(grupo(aCancelar), grupo(ficam), minimoAte, meses);
+        var fechado = contratacoes.findFirstByAlunoIdAndSituacao(alunoId, ContratacaoAluno.Situacao.ATIVA)
+                .filter(ContratacaoAluno::fechado).map(f -> new PagamentosDtos.ContratoFechadoVigente(f.getId())).orElse(null);
+        return new ResumoDaSaidaDoAluno(grupo(aCancelar), grupo(ficam), minimoAte, meses, fechado);
     }
 
     /**
@@ -108,9 +120,12 @@ public class EncerramentoDaContratacao {
             if (saida != null) {
                 throw encerrada();
             }
-            return Respostas.contratacao(c, nomeDoPlano(c));
+            return resposta(c);
         }
         conferirVersao(c, r.versao());
+        if (c.fechado()) {
+            return encerrarContrato(c, r.saida());
+        }
         if (saida == null) {
             c.encerrar(Instant.now());
             return gravar(c, null);
@@ -126,6 +141,48 @@ public class EncerramentoDaContratacao {
             nova = encerrarComConta(c, saida, hoje, vencimento, valor);
         }
         return gravar(c, nova);
+    }
+
+    /**
+     * Contrato fechado (V098): só {@code NAO_COBRAR} e {@code OUTRO}. Sempre cancela as cobranças do contrato ABERTAS com vencimento de
+     * hoje em diante (as vencidas e as pagas ficam), direto na entidade e depois de encerrar a contratação (nunca por
+     * {@link BaixaDeCobranca#cancelar}), e em {@code OUTRO} cria a saída (a multa) com valor e vencimento do treinador. O servidor
+     * confere o conjunto que a tela viu ({@code saida.cobrancasACancelar}; sem {@code saida} vale o conjunto vazio): se mudou,
+     * 409 {@code VALOR_DA_SAIDA_MUDOU} e nada é gravado.
+     */
+    private ContratacaoResponse encerrarContrato(ContratacaoAluno c, SaidaRequest saida) {
+        OpcaoDeSaida opcao = saida == null ? OpcaoDeSaida.NAO_COBRAR : saida.opcao();
+        if (opcao == OpcaoDeSaida.FALTAM || opcao == OpcaoDeSaida.VIGENTE) {
+            throw invalido("saida.opcao", "Esta opção não vale em contrato fechado.");
+        }
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        LocalDate vencimento = null;
+        long valor = 0;
+        if (opcao == OpcaoDeSaida.OUTRO) {
+            vencimento = vencimentoDaSaida(saida, hoje);
+            valor = valorDaSaida(c, saida);
+        }
+        List<CobrancaAluno> futuras = abertasDoContrato(cobrancas.doContratoTravadas(c.getId())).stream()
+                .filter(m -> !m.getVencimento().isBefore(hoje)).toList();
+        Set<UUID> vistos = saida == null || saida.cobrancasACancelar() == null ? Set.of() : new HashSet<>(saida.cobrancasACancelar());
+        if (!vistos.equals(futuras.stream().map(CobrancaAluno::getId).collect(Collectors.toSet()))) {
+            throw mudou();
+        }
+        c.encerrar(Instant.now());
+        futuras.forEach(m -> m.cancelar(MOTIVO_DO_CONTRATO_ENCERRADO));
+        return gravar(c, opcao == OpcaoDeSaida.OUTRO ? CobrancaAluno.saida(c, hoje, vencimento, valor) : null);
+    }
+
+    private static List<CobrancaAluno> abertasDoContrato(List<CobrancaAluno> doContrato) {
+        return doContrato.stream().filter(m -> m.getSituacao() == CobrancaAluno.Situacao.ABERTA).toList();
+    }
+
+    private static PagamentosDtos.CobrancaDoContratoNaPrevia naPrevia(CobrancaAluno c) {
+        return new PagamentosDtos.CobrancaDoContratoNaPrevia(c.getId(), c.getDescricao(), c.getVencimento(), c.getValorCentavos());
+    }
+
+    private ContratacaoResponse resposta(ContratacaoAluno c) {
+        return Respostas.contratacao(c, nomeDoPlano(c), cobrancas.contratoDe(c, LocalDate.now(Fuso.BRASILIA)));
     }
 
     /** FALTAM e VIGENTE: confere a conta do servidor com o que a tela viu, cancela as a vencer (FALTAM) e devolve a saída. */
@@ -160,11 +217,12 @@ public class EncerramentoDaContratacao {
     private ContratacaoResponse gravar(ContratacaoAluno c, CobrancaAluno saida) {
         ContratacaoResponse resposta;
         try {
-            resposta = Respostas.contratacao(contratacoes.saveAndFlush(c), nomeDoPlano(c));
+            contratacoes.saveAndFlush(c);
             if (saida != null) {
                 cobrancas.saveAndFlush(saida);
             }
             cobrancas.flush();
+            resposta = resposta(c);
         } catch (DataIntegrityViolationException e) {
             if (ContratacaoService.violou(e, "ux_cobranca_saida_viva")) {
                 throw encerrada();
@@ -180,7 +238,7 @@ public class EncerramentoDaContratacao {
 
     /** O valor da saída é sempre maior que zero (o banco exige) e até R$ 1 milhão; 422 sem repetir o número. */
     private static long valorDaSaida(ContratacaoAluno c, SaidaRequest saida) {
-        if (!c.getPeriodicidade().recorrente()) {
+        if (!c.fechado() && !c.getPeriodicidade().recorrente()) {
             throw invalido("saida.opcao", "Parcela única não tem cobrança de saída.");
         }
         Long valor = saida.valorCentavos();

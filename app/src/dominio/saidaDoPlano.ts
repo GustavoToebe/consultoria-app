@@ -200,14 +200,19 @@ export type CorpoDoEncerrar = { ok: true; corpo: EncerrarContratacaoRequest } | 
  * `FALTAM` leva o valor e os `cobrancasACancelar` da prévia; `VIGENTE` leva o valor da prévia e nenhuma lista (a API
  * responderia 409 com lista); `OUTRO` leva o valor digitado (> 0 e <= R$ 1.000.000,00). Opção indisponível ou "Vence em"
  * fora de hoje..+1 ano = `ok: false` com a mensagem por campo, e nada é enviado.
+ * Contrato fechado (`fechado`): SEMPRE manda `saida` com os `cobrancasACancelar` da prévia, também em `NAO_COBRAR` (a API
+ * confere a lista e responde 409 `VALOR_DA_SAIDA_MUDOU` se as futuras mudaram).
  */
 export function corpoDoEncerrar(
   previa: Pick<PreviaDoEncerramento, 'opcoes' | 'cobrancasACancelar'>,
   entrada: EntradaDoEncerrar,
   versao: number,
   hoje: string = hojeEmBrasilia(),
+  fechado = false,
 ): CorpoDoEncerrar {
-  if (entrada.opcao === 'NAO_COBRAR') return { ok: true, corpo: { versao } };
+  if (entrada.opcao === 'NAO_COBRAR') {
+    return { ok: true, corpo: fechado ? { versao, saida: { opcao: 'NAO_COBRAR', cobrancasACancelar: previa.cobrancasACancelar } } : { versao } };
+  }
   const erros: ErrosDoEncerrar = {};
   const vencimento = validarVencimentoDaSaida(entrada.vencimentoTexto, hoje);
   if (vencimento.erro) erros.vencimento = vencimento.erro;
@@ -229,7 +234,7 @@ export function corpoDoEncerrar(
         opcao: entrada.opcao,
         valorCentavos,
         vencimento: vencimento.iso,
-        ...(entrada.opcao === 'FALTAM' ? { cobrancasACancelar: previa.cobrancasACancelar } : {}),
+        ...(entrada.opcao === 'FALTAM' || fechado ? { cobrancasACancelar: previa.cobrancasACancelar } : {}),
       },
     },
   };
@@ -373,6 +378,27 @@ export function textoDoMinimoAte(minimoAte: string | null | undefined): string {
 
 export const TEXTO_GENERICO_DO_INATIVAR =
   'As mensalidades e as parcelas de cobrança avulsa que vencem de hoje em diante serão canceladas. As já vencidas e a cobrança de saída continuam em aberto: a equipe ainda pode dar baixa, desfazer ou cancelar.';
+
+/** O código do 409 do inativar (aluno ou lote) com contrato fechado vigente (D13 de `docs/planos/contrato-fechado.md`). */
+export const CODIGO_CONTRATO_FECHADO_VIGENTE = 'CONTRATO_FECHADO_VIGENTE';
+/** O aviso do painel de inativar com contrato fechado vigente (o mesmo texto da API). */
+export const AVISO_CONTRATO_FECHADO_VIGENTE = 'Encerre o contrato antes de inativar (com ou sem multa).';
+/** O motivo sob o "Inativar" desabilitado: diz o que falta, sem repetir o aviso (P5, uma mensagem uma vez). */
+export const MOTIVO_DO_INATIVAR_COM_CONTRATO = 'Falta encerrar o contrato.';
+
+/**
+ * A trava do inativar (D13): o contrato fechado vigente que o resumo trouxe (com o id, para o "Encerrar contrato") ou, sem
+ * ele, a mensagem do 409 da API (quem não lê o financeiro, o resumo que falhou, o contrato criado com o painel aberto).
+ * Nulo = o inativar segue. O resumo vale mais que a recusa: assim a mensagem não aparece duas vezes.
+ */
+export function travaDoInativar(
+  resumo: Pick<ResumoDaSaidaDoAluno, 'contratoFechadoVigente'> | null | undefined,
+  recusaDaApi: string | null,
+): { aviso: string; motivo: string; contratacaoId: string | null } | null {
+  const contratacaoId = resumo?.contratoFechadoVigente?.contratacaoId ?? null;
+  if (contratacaoId) return { aviso: AVISO_CONTRATO_FECHADO_VIGENTE, motivo: MOTIVO_DO_INATIVAR_COM_CONTRATO, contratacaoId };
+  return recusaDaApi ? { aviso: recusaDaApi, motivo: MOTIVO_DO_INATIVAR_COM_CONTRATO, contratacaoId: null } : null;
+}
 
 /**
  * As linhas do aviso do painel de inativar (D9 de `docs/planos/financeiro-em-fases.md`): inativar cancela as mensalidades e

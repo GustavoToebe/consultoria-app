@@ -9,6 +9,8 @@ import { cicloDoAluno } from '../../../dominio/periodo';
 import { pilhasDaAba } from '../../../dominio/colunasDaFicha';
 import { ABAS_DA_FICHA, abaDaUrl, abaParaEditar, abaParaPasta, abasVisiveis, blocosDaAba, mostraMobilidade, type AbaDaFicha, type BlocoDaFicha } from '../../../dominio/fichaDoAluno';
 import type { AlunoDetalhe } from '../../../api/tipos';
+import type { ContratacaoResponse } from '../../../api/financeiroTipos';
+import { CODIGO_CONTRATO_FECHADO_VIGENTE, travaDoInativar } from '../../../dominio/saidaDoPlano';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { CabecalhoDaFicha } from '../../../treinador/CabecalhoDaFicha';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
@@ -16,7 +18,8 @@ import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespos
 import { CartaoFrequencia, useAcompanhamentoDoAluno } from '../../../treinador/CartaoFrequencia';
 import { CartaoAgua } from '../../../treinador/CartaoAgua';
 import { CartaoRecordesDaSemana } from '../../../treinador/CartaoRecordesDaSemana';
-import { AvisoDoInativar } from '../../../treinador/financeiro/AvisoDoInativar';
+import { AvisoDoInativar, useResumoDoInativar } from '../../../treinador/financeiro/AvisoDoInativar';
+import { FolhaDeEncerrar } from '../../../treinador/financeiro/FolhaDeEncerrar';
 import { CartaoTreinosConcluidos } from '../../../treinador/CartaoTreinosConcluidos';
 import { CartaoTrocasDeExercicio } from '../../../treinador/CartaoTrocasDeExercicio';
 import { FolhaDeAcoes } from '../../../treinador/FolhaDeAcoes';
@@ -37,7 +40,7 @@ import { useAviso } from '../../../ui/Aviso';
 import { useSaidaGuardada } from '../../../ui/GuardaDeSaida';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { MensagemErro } from '../../../ui/Estados';
-import { textoDoErro } from '../../../ui/erros';
+import { codigoApi, textoDoErro } from '../../../ui/erros';
 import { depoisDeFecharAsFolhas, usePassoNoHistorico } from '../../../ui/historicoDasFolhas';
 import { useAvisoDoPlano } from '../../../ui/useAvisoDoPlano';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
@@ -70,6 +73,8 @@ export default function FichaAluno() {
   // Mudou alguma pasta (aqui ou pelo resumo): resumo, frequência e lista de pastas buscam de novo.
   const [geracaoPastas, setGeracaoPastas] = useState(0);
   const mudouPastas = () => setGeracaoPastas((g) => g + 1);
+  // Encerrar o contrato ou inativar pelo painel do menu ⋯ muda as cobranças: o cartão Plano contratado é remontado.
+  const [geracaoFinanceiro, setGeracaoFinanceiro] = useState(0);
   const acompanhamento = useAcompanhamentoDoAluno(id ?? '', geracaoPastas);
   const renovacao = useRenovarPasta(aluno ? cicloDoAluno(aluno.diasAtualizacao, padrao) : null, mudouPastas);
   const [menu, setMenu] = useState(false);
@@ -180,7 +185,7 @@ export default function FichaAluno() {
       case 'acessoAoApp':
         return <View ref={acessoRef} nativeID="acesso-ao-app" onLayout={() => setAcessoMedido((n) => n + 1)}><CartaoAcesso aluno={a} aoAlterar={definir} /></View>;
       case 'planoContratado':
-        return <CartaoPlanoContratado alunoId={a.id} ativo={a.ativo} anonimizado={a.anonimizado} alunoNome={a.nome} telefoneAluno={a.telefone} />;
+        return <CartaoPlanoContratado key={geracaoFinanceiro} alunoId={a.id} ativo={a.ativo} anonimizado={a.anonimizado} alunoNome={a.nome} telefoneAluno={a.telefone} />;
       case 'anamnese':
         return <CartaoAnamnese alunoId={a.id} anonimizado={a.anonimizado} aoMudarCadastro={() => { recarregar(); setGeracaoPeso((g) => g + 1); }} />;
       // As lesões são do `BlocosDaFicha`: ele as busca uma vez e põe as ativas no topo quando a aba fica numa coluna.
@@ -263,7 +268,8 @@ export default function FichaAluno() {
               <AcoesDePrivacidade aluno={aluno} aoAnonimizar={(a) => { setMenu(false); definir(a); }} />
             </FolhaDeAcoes>
           ) : null}
-          <ConfirmarSituacao aluno={aluno} visivel={confirmarSituacao} aoFechar={() => setConfirmarSituacao(false)} aoAlterar={definir} />
+          <ConfirmarSituacao aluno={aluno} visivel={confirmarSituacao} aoFechar={() => setConfirmarSituacao(false)} aoAlterar={definir}
+            aoMudarFinanceiro={() => setGeracaoFinanceiro((g) => g + 1)} />
         </>
       ) : null}
     </Tela>
@@ -273,43 +279,75 @@ export default function FichaAluno() {
 /** Contagens da aba Acompanhamento que dividem uma linha. */
 const CONTAGENS: readonly BlocoDaFicha[] = ['frequencia', 'agua'];
 
-/** Inativar ou reativar (do menu ⋯ da ficha). Inativar encerra o acesso na hora; nada é apagado. */
-function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar }: { aluno: AlunoDetalhe; visivel: boolean; aoFechar: () => void; aoAlterar: (a: AlunoDetalhe) => void }) {
+/**
+ * Inativar ou reativar (do menu ⋯ da ficha). Inativar encerra o acesso na hora; nada é apagado. Com contrato fechado vigente
+ * (resumo da saída ou o 409 `CONTRATO_FECHADO_VIGENTE` da API) o "Inativar" fica desabilitado com o motivo, e o "Encerrar
+ * contrato" do aviso troca o painel pela `FolhaDeEncerrar` (um diálogo por vez); ao fechar a folha o painel volta com o
+ * resumo de novo. `aoMudarFinanceiro` recarrega o cartão Plano contratado da ficha.
+ */
+function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar, aoMudarFinanceiro }: {
+  aluno: AlunoDetalhe; visivel: boolean; aoFechar: () => void; aoAlterar: (a: AlunoDetalhe) => void; aoMudarFinanceiro: () => void;
+}) {
   const { avisar } = useAviso();
   const avisarDoPlano = useAvisoDoPlano();
   const [mudando, setMudando] = useState(false);
+  const [encerrando, setEncerrando] = useState<ContratacaoResponse | null>(null);
+  // A mensagem do 409 do inativar: trava o botão quando o resumo não diz (sem `FINANCEIRO_LER` ou o resumo falhou).
+  const [recusaDaApi, setRecusaDaApi] = useState<string | null>(null);
+  const inativando = visivel && aluno.ativo;
+  const resumo = useResumoDoInativar(aluno.id, inativando && !encerrando);
+  const trava = inativando ? travaDoInativar(resumo.dados, recusaDaApi) : null;
+  const fechar = () => { setRecusaDaApi(null); aoFechar(); };
   const mudarSituacao = () => {
     setMudando(true);
     alterarSituacaoAluno(aluno.id, !aluno.ativo).then(
       (a) => {
         setMudando(false);
-        aoFechar();
+        fechar();
         aoAlterar(a);
+        // Inativar cancela as cobranças a vencer: o cartão Plano contratado busca de novo.
+        if (!a.ativo) aoMudarFinanceiro();
         avisar(a.ativo ? 'Aluno reativado.' : 'Aluno inativado. O acesso ao app foi encerrado.', 'sucesso');
       },
       (e: unknown) => {
         setMudando(false);
-        aoFechar();
+        // Contrato fechado vigente: o painel fica aberto, com o aviso no lugar das linhas e o botão travado.
+        if (codigoApi(e) === CODIGO_CONTRATO_FECHADO_VIGENTE) {
+          setRecusaDaApi(textoDoErro(e));
+          resumo.recarregar();
+          return;
+        }
+        fechar();
         if (!avisarDoPlano(e)) avisar(textoDoErro(e), 'perigo');
       },
     );
   };
   return (
-    <PainelConfirmacao
-      visivel={visivel}
-      titulo={aluno.ativo ? `Inativar ${aluno.nome}?` : `Reativar ${aluno.nome}?`}
-      mensagem={
-        aluno.ativo
-          ? 'O aluno sai do app na hora e não entra mais. Planos e registros ficam guardados; dá para reativar depois.'
-          : 'O aluno volta para a lista de ativos e pode entrar no app de novo.'
-      }
-      rotuloConfirmar={aluno.ativo ? 'Inativar' : 'Reativar'}
-      perigo={aluno.ativo}
-      carregando={mudando}
-      aoConfirmar={mudarSituacao}
-      aoCancelar={aoFechar}>
-      {visivel && aluno.ativo ? <AvisoDoInativar alunoId={aluno.id} /> : null}
-    </PainelConfirmacao>
+    <>
+      <PainelConfirmacao
+        visivel={visivel && !encerrando}
+        titulo={aluno.ativo ? `Inativar ${aluno.nome}?` : `Reativar ${aluno.nome}?`}
+        mensagem={
+          aluno.ativo
+            ? 'O aluno sai do app na hora e não entra mais. Planos e registros ficam guardados; dá para reativar depois.'
+            : 'O aluno volta para a lista de ativos e pode entrar no app de novo.'
+        }
+        rotuloConfirmar={aluno.ativo ? 'Inativar' : 'Reativar'}
+        perigo={aluno.ativo}
+        carregando={mudando}
+        desabilitado={!!trava}
+        motivo={trava?.motivo}
+        aoConfirmar={mudarSituacao}
+        // Esconder o painel para abrir a folha não é cancelar: o painel volta quando a folha fecha.
+        aoCancelar={() => { if (!encerrando) fechar(); }}>
+        {inativando ? <AvisoDoInativar alunoId={aluno.id} resumo={resumo} trava={trava} aoEncerrar={setEncerrando} /> : null}
+      </PainelConfirmacao>
+      {encerrando ? (
+        <FolhaDeEncerrar contratacao={encerrando}
+          aoFechar={() => { setEncerrando(null); setRecusaDaApi(null); }}
+          aoMudar={() => { resumo.recarregar(); aoMudarFinanceiro(); }} />
+      ) : null}
+    </>
   );
 }
 

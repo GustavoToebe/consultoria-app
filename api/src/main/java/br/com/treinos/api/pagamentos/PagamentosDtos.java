@@ -121,15 +121,29 @@ public final class PagamentosDtos {
      * {@code valorCentavos} nulo = o valor do plano; valor diferente do plano exige {@code motivoValor}.
      * {@code gerarMesesAnteriores} (D10): ausente ou {@code false} grava o início como digitado, mas as cobranças começam na
      * competência do mês corrente; {@code true} gera também as dos meses anteriores, desde o início.
+     *
+     * <p>Contrato fechado (V098, {@code docs/planos/contrato-fechado.md}): {@code modoCobranca} ausente = {@code RECORRENTE}. Nos modos
+     * {@code PARCELADO_FIXO} e {@code SALDO_ABERTO} vêm {@code valorTotalCentavos} e {@code entrada} (opcional); só no primeiro vêm as
+     * {@code parcelas}, cuja soma com a entrada fecha o total. {@code valorCentavos}, {@code motivoValor},
+     * {@code primeiroPeriodoPago} e {@code gerarMesesAnteriores} não valem no contrato fechado (ignorados), e {@code diaVencimento} só
+     * é obrigatório no recorrente. Tudo do contrato é conferido no serviço (422 {@code CONTRATO_INVALIDO} por campo, sem repetir valor).
      */
     public record ContratarRequest(
             @NotNull UUID planoComercialId,
             @Positive @Max(VALOR_MAXIMO) Long valorCentavos,
             @Size(max = 200) String motivoValor,
             @NotNull LocalDate inicio,
-            @NotNull @Min(1) @Max(31) Integer diaVencimento,
+            @Min(1) @Max(31) Integer diaVencimento,
             Boolean primeiroPeriodoPago,
-            Boolean gerarMesesAnteriores) {
+            Boolean gerarMesesAnteriores,
+            ModoDeCobranca modoCobranca,
+            Long valorTotalCentavos,
+            EntradaDoContrato entrada,
+            List<ParcelaDoContrato> parcelas) {
+
+        ModoDeCobranca modo() {
+            return modoCobranca == null ? ModoDeCobranca.RECORRENTE : modoCobranca;
+        }
 
         boolean comMesesAnteriores() {
             return Boolean.TRUE.equals(gerarMesesAnteriores);
@@ -148,7 +162,7 @@ public final class PagamentosDtos {
 
         ContratarRequest paraContratar() {
             return new ContratarRequest(planoComercialId, valorCentavos, null, inicio, diaVencimento, primeiroPeriodoPago,
-                    gerarMesesAnteriores);
+                    gerarMesesAnteriores, null, null, null, null);
         }
     }
 
@@ -165,12 +179,73 @@ public final class PagamentosDtos {
             LocalDate minimoAte,
             @NotNull Long versao) { }
 
+    /**
+     * {@code contrato} (V098) só vem no contrato fechado, para a equipe (nulo no recorrente e nas rotas do aluno, que nunca veem o
+     * saldo). Toda conta é do servidor.
+     */
     public record ContratacaoResponse(UUID id, UUID alunoId, UUID planoComercialId, String planoNome,
                                       PeriodoDoPlano periodicidade, long valorCentavos, String motivoValor, LocalDate inicio,
                                       int diaVencimento, ContratacaoAluno.Situacao situacao, Instant encerradaEm,
                                       Instant criadoEm, Long versao,
                                       LocalDate terminoVigencia, Long diasRestantesVigencia, String alertaRenovacao,
-                                      LocalDate minimoAte) { }
+                                      LocalDate minimoAte, ContratoDaContratacao contrato) { }
+
+    // ---- Contrato fechado (V098) ----
+
+    /**
+     * A entrada do contrato: {@code valorCentavos} nulo ou zero = sem entrada; {@code data} é o vencimento da cobrança (obrigatória
+     * com valor); {@code jaPaga} (padrão {@code false}) dá a baixa manual na mesma transação, com {@code forma} (padrão {@code OUTRO}).
+     */
+    public record EntradaDoContrato(Long valorCentavos, LocalDate data, Boolean jaPaga, FormaDePagamento forma) { }
+
+    /** Uma parcela do contrato {@code PARCELADO_FIXO}: o valor é do corpo (4ª exceção à regra do valor do servidor), conferido na soma. */
+    public record ParcelaDoContrato(LocalDate vencimento, Long valorCentavos) { }
+
+    /** A cobrança vencida mais antiga do contrato (a que o alerta da ficha cita). */
+    public record MaisAntigaVencida(UUID cobrancaId, String descricao, LocalDate vencimento, long diasDeAtraso) { }
+
+    /**
+     * O bloco {@code contrato} da contratação fechada, todo do servidor ({@link ContaDoContrato}). Cobranças do contrato = AVULSA e
+     * RENEGOCIACAO ligadas à contratação (a multa de saída não entra). {@code pagoCentavos} = PAGA; {@code saldoCentavos} = total menos
+     * pago, nunca negativo; {@code limiteDeLancamentoCentavos} = total menos PAGA, ABERTA e CONTESTADA, nunca negativo (o que ainda
+     * cabe num novo pagamento do saldo); {@code cobrancasTotal} não conta CANCELADA nem ESTORNADA; {@code vencidas} e
+     * {@code valorVencidoCentavos} são ABERTAS com vencimento antes de hoje (Brasília); {@code maisAntigaVencida} é nulo sem vencida.
+     */
+    public record ContratoDaContratacao(ModoDeCobranca modo, long valorTotalCentavos, long pagoCentavos, long saldoCentavos,
+                                        long limiteDeLancamentoCentavos, int cobrancasPagas, int cobrancasTotal, int vencidas,
+                                        long valorVencidoCentavos, MaisAntigaVencida maisAntigaVencida) { }
+
+    /**
+     * Prévia do contrato (só leitura). Sem {@code parcelas}: o servidor divide (total menos entrada) em {@code quantidade} parcelas
+     * por {@code ContaDaRenegociacao}, a partir de {@code primeiroVencimento}; com {@code parcelas}: só soma e confere (ordenadas por
+     * vencimento). Parcela depois do fim do contrato vale (plano de 3 meses em 6x é venda normal). Sem Bean
+     * Validation de propósito (422 {@code CONTRATO_INVALIDO} por campo, sem repetir valor).
+     */
+    public record PreviaDoContratoRequest(ModoDeCobranca modoCobranca, Long valorTotalCentavos, EntradaDoContrato entrada,
+                                          Integer quantidade, LocalDate primeiroVencimento, List<ParcelaDoContrato> parcelas) { }
+
+    /** Uma linha da prévia: a entrada tem {@code numero} nulo e descrição "Entrada"; a parcela, "Parcela k/n". */
+    public record LinhaDaPreviaDoContrato(Integer numero, LocalDate vencimento, long valorCentavos, String descricao) { }
+
+    /**
+     * {@code somaCentavos} = entrada + parcelas; {@code diferencaCentavos} = total menos soma (positivo = falta, negativo = passa);
+     * {@code fecha} = diferença zero em {@code PARCELADO_FIXO} e, em {@code SALDO_ABERTO}, soma dentro do total (o resto é o saldo livre).
+     */
+    public record PreviaDoContrato(List<LinhaDaPreviaDoContrato> parcelas, long somaCentavos, boolean fecha, long diferencaCentavos) { }
+
+    /**
+     * Um pagamento do saldo de um contrato {@code SALDO_ABERTO}: AVULSA nova ligada à contratação. {@code pedidoId} (UUID) torna a
+     * chamada idempotente; {@code jaPaga} dá a baixa manual na mesma transação ({@code forma} padrão {@code OUTRO}). Sem Bean
+     * Validation de propósito: o 422 vai por campo e nunca repete valor.
+     */
+    public record PagamentoDoSaldoRequest(UUID pedidoId, Long valorCentavos, LocalDate vencimento, Boolean jaPaga,
+                                          FormaDePagamento forma) { }
+
+    /** O pagamento criado (ou o que o mesmo {@code pedidoId} já criou) e a contratação como ficou, com o bloco {@code contrato}. */
+    public record PagamentoDoSaldoResponse(UUID cobrancaId, ContratacaoResponse contratacao) { }
+
+    /** {@code GET /financeiro/alunos-em-atraso}: alunos com ao menos uma cobrança ABERTA vencida; {@code truncado} se passou do teto. */
+    public record AlunosEmAtraso(List<UUID> alunoIds, boolean truncado) { }
 
     // ---- Encerrar com cobrança de saída ----
 
@@ -192,6 +267,14 @@ public final class PagamentosDtos {
     public record OpcaoDaPrevia(OpcaoDeSaida opcao, boolean disponivel, Long valorCentavos, String motivo) { }
 
     /**
+     * Cobrança do contrato fechado na prévia do encerramento (V098). No contrato fechado {@code aCancelar} são as AVULSA e RENEGOCIACAO
+     * abertas com vencimento de hoje em diante (Brasília), que o encerrar cancela (e {@code cobrancasACancelar} traz os mesmos ids, que a
+     * tela devolve em {@code saida.cobrancasACancelar} para o servidor conferir); {@code vencidasQueFicam} são as abertas vencidas, que
+     * continuam. As pagas ficam e não aparecem. No recorrente as duas listas vêm vazias.
+     */
+    public record CobrancaDoContratoNaPrevia(UUID cobrancaId, String descricao, LocalDate vencimento, long valorCentavos) { }
+
+    /**
      * O que acontece se o plano for encerrado agora. {@code vencidas} ficam em aberto; {@code aVencerNoMinimo} são canceladas
      * pela opção {@code FALTAM} (ids em {@code cobrancasACancelar}, {@code comLinkVivo} delas têm link de pagamento que ainda vale:
      * pagar depois do cancelamento cai em "para conferir"). {@code mesesQueFaltam} = a vencer dentro do mínimo + meses ainda
@@ -203,7 +286,9 @@ public final class PagamentosDtos {
                                        LocalDate minimoAte, int mesesQueFaltam, String regraDeSaida,
                                        GrupoDeAbertas vencidas, GrupoDeAbertas aVencerNoMinimo,
                                        GrupoDeAbertas aVencerQueFicam, List<UUID> cobrancasACancelar, int comLinkVivo, int mesesNaoGerados,
-                                       long valorDosNaoGeradosCentavos, List<OpcaoDaPrevia> opcoes) {
+                                       long valorDosNaoGeradosCentavos, List<OpcaoDaPrevia> opcoes,
+                                       List<CobrancaDoContratoNaPrevia> aCancelar,
+                                       List<CobrancaDoContratoNaPrevia> vencidasQueFicam) {
 
         @Override
         public String toString() {
@@ -217,7 +302,10 @@ public final class PagamentosDtos {
      * {@code mesesQueFaltam} > 0 avisa que o mínimo se perde: sem cobrança de saída, inativar não cobra o que falta.
      */
     public record ResumoDaSaidaDoAluno(GrupoDeAbertas aCancelar, GrupoDeAbertas emAberto, LocalDate minimoAte,
-                                       int mesesQueFaltam) { }
+                                       int mesesQueFaltam, ContratoFechadoVigente contratoFechadoVigente) { }
+
+    /** A contratação ATIVA em contrato fechado: enquanto existir, inativar o aluno é recusado (409 {@code CONTRATO_FECHADO_VIGENTE}). */
+    public record ContratoFechadoVigente(UUID contratacaoId) { }
 
     // ---- Cobrança ----
 
@@ -468,19 +556,25 @@ public final class PagamentosDtos {
 
     // ---- Aluno ----
 
-    /** O que o aluno vê do próprio plano: sem observação interna, motivo nem quem deu a baixa. */
+    /**
+     * O que o aluno vê do próprio plano: sem observação interna, motivo nem quem deu a baixa. {@code contratoFechado} (V098) é
+     * verdadeiro no contrato com entrada e parcelas ou saldo livre: {@code valorCentavos} é o total e {@code periodicidade} não é
+     * a cobrança dele (a tela não a mostra); o aluno nunca vê o saldo.
+     */
     public record PlanoDoAluno(UUID contratacaoId, String planoNome, long valorCentavos, PeriodoDoPlano periodicidade,
                                ContratacaoAluno.Situacao situacao, LocalDate proximoVencimento,
-                               String linkDePagamento) { }
+                               String linkDePagamento, boolean contratoFechado) { }
 
     /**
      * {@code competencia} é nula na AVULSA, que traz {@code descricao}. {@code cobrancaAutomatica} é {@code KIWIFY} na mensalidade
      * de plano com assinatura pela Kiwify (só com a chave ligada e a credencial configurada; senão nulo): o aluno não a paga por
-     * aqui (sem "Pagar", link, Pix nem forma).
+     * aqui (sem "Pagar", link, Pix nem forma). {@code doContrato} (V098) é verdadeiro na entrada, na parcela e no pagamento do saldo de
+     * um contrato fechado (AVULSA ou RENEGOCIACAO ligadas à contratação): a tela não os rotula "Avulsa" nem "Acordo".
      */
     public record CobrancaDoAluno(UUID id, LocalDate competencia, LocalDate vencimento, long valorCentavos,
                                   CobrancaAluno.Situacao situacao, boolean vencida, FormaDePagamento forma,
-                                  LocalDate pagoEm, CobrancaAluno.Tipo tipo, String descricao, String cobrancaAutomatica) { }
+                                  LocalDate pagoEm, CobrancaAluno.Tipo tipo, String descricao, String cobrancaAutomatica,
+                                  boolean doContrato) { }
 
     /** {@code pagamentoOnline}: o aluno pode pedir o link de pagamento (módulo, InfinitePay e credencial do treinador). A Tag nunca vem. */
     public record FinanceiroDoAluno(PlanoDoAluno plano, List<CobrancaDoAluno> abertas, List<CobrancaDoAluno> historico,
@@ -508,7 +602,7 @@ public final class PagamentosDtos {
     public record ContratacaoExportada(UUID id, String planoNome, PeriodoDoPlano periodicidade, long valorCentavos,
                                        String motivoValor, LocalDate inicio, int diaVencimento,
                                        ContratacaoAluno.Situacao situacao, Instant encerradaEm, Instant criadoEm,
-                                       LocalDate minimoAte) { }
+                                       LocalDate minimoAte, ModoDeCobranca modoCobranca, Long valorTotalCentavos) { }
 
     public record CobrancaExportada(UUID id, UUID contratacaoId, LocalDate competencia, LocalDate vencimento,
                                     long valorCentavos, CobrancaAluno.Situacao situacao, FormaDePagamento forma,

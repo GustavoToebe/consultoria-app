@@ -20,6 +20,20 @@ describe('loteDeAlunos', () => {
     expect(textoDoResultado('responsavel', { selecionados: 2, alterados: 0 })).toContain('Nenhuma mudança');
   });
 
+  it('desativar com recusados (contrato fechado vigente): diz quantos e por quê, sem contar como "já estava assim"', () => {
+    const recusa = (alunoId: string) => ({ alunoId, codigo: 'CONTRATO_FECHADO_VIGENTE', mensagem: 'Encerre o contrato antes de inativar (com ou sem multa).' });
+    expect(textoDoResultado('desativar', { selecionados: 2, alterados: 1, recusados: [recusa('a')] }))
+      .toBe('1 aluno desativado. 1 não foi desativado: encerre o contrato antes (com ou sem multa).');
+    expect(textoDoResultado('desativar', { selecionados: 3, alterados: 0, recusados: [recusa('a'), recusa('b')] }))
+      .toBe('Nenhum aluno desativado. 2 não foram desativados: encerre os contratos antes (com ou sem multa). 1 já estava assim.');
+    expect(textoDoResultado('desativar', { selecionados: 1, alterados: 0, recusados: [recusa('a')] }))
+      .toBe('Nenhum aluno desativado. 1 não foi desativado: encerre o contrato antes (com ou sem multa).');
+    // Outro código: o porquê vem da mensagem da API.
+    expect(textoDoResultado('desativar', { selecionados: 1, alterados: 0, recusados: [{ alunoId: 'a', codigo: 'OUTRO', mensagem: 'Motivo da API.' }] }))
+      .toBe('Nenhum aluno desativado. 1 não foi desativado: Motivo da API.');
+    expect(textoDoResultado('desativar', { selecionados: 2, alterados: 2, recusados: [] })).toBe('2 alunos desativados.');
+  });
+
   it('desativar avisa que as sessões são encerradas', () => {
     expect(mensagemDaConfirmacao('desativar', 3)).toContain('sessões abertas deles são encerradas');
     expect(mensagemDaConfirmacao('desativar', 1)).toContain('sessões abertas dele são encerradas');

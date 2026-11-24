@@ -1,4 +1,5 @@
 import type { CobrancaResponse } from '../api/financeiroTipos';
+import { ehDoContratoFechado } from './contratoFechado';
 import { atrasoParaTela, rotuloDaForma } from './financeiro';
 import { dataParaTela, SEM_DADO } from './formatos';
 
@@ -55,11 +56,13 @@ const PARCELA = /\s*\(Parcela (\d+)\/(\d+)\)\s*$/;
  * "Avulsa · Camiseta · Parcela 1 de 3" e "Parcela 2 de 3 do acordo". Sem o plano ou a descrição, só o tipo. A descrição
  * fora do formato fixo vai como veio.
  */
-export function origemDaCobranca(c: Pick<CobrancaResponse, 'tipo' | 'planoNome' | 'descricao'>): string {
+export function origemDaCobranca(c: Pick<CobrancaResponse, 'tipo' | 'planoNome' | 'descricao'> & { contratacaoId?: string | null }): string {
   const descricao = c.descricao?.trim() ?? '';
   const parcela = PARCELA.exec(descricao);
   const semParcela = parcela ? descricao.slice(0, parcela.index).trim() : descricao;
   const deN = parcela ? `Parcela ${parcela[1]} de ${parcela[2]}` : null;
+  // Contrato fechado: entrada, pagamento do saldo e parcelas (descrição fixa do servidor) são do contrato, não avulsa nem acordo.
+  if (ehDoContratoFechado(c)) return [descricao || 'Cobrança do contrato', c.planoNome ? `contrato ${c.planoNome}` : 'contrato fechado'].join(' · ');
   switch (c.tipo) {
     case 'RENEGOCIACAO':
       return deN ? `${deN} do acordo` : 'Parcela de acordo';

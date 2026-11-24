@@ -762,7 +762,10 @@ export const alterarAluno = (id: string, dados: AlunoRequest) =>
 export const alterarSituacaoAluno = (id: string, ativo: boolean) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/situacao`, { metodo: 'PATCH', corpo: { ativo } });
 
-/** Ações em lote da lista de alunos: tudo ou nada; `alterados` deixa de fora quem já estava como pedido. */
+/**
+ * Ações em lote da lista de alunos: `alterados` deixa de fora quem já estava como pedido. O desativar pula quem tem contrato
+ * fechado vigente (vai em `recusados`) e aplica nos outros; erro da requisição = nada mudou.
+ */
 export const trocarResponsavelEmLote = (alunoIds: string[], responsavelId: string) =>
   requisicao<ResultadoLote>('/alunos/lote/responsavel', { metodo: 'POST', corpo: { alunoIds, responsavelId } });
 

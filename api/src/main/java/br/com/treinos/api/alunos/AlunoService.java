@@ -379,8 +379,22 @@ public class AlunoService {
                 limiteDoTreinador.exigirVaga(aluno.getResponsavelId(), 1, aluno.getId()); // e uma vaga do responsável (D7)
             }
         }
+        if (!ativo && aluno.isAtivo() && temContratoFechadoVigente(aluno)) { // inativo segue idempotente; antes de qualquer efeito
+            throw new ConflictException(MENSAGEM_CONTRATO_FECHADO_VIGENTE, CODIGO_CONTRATO_FECHADO_VIGENTE);
+        }
         aplicarSituacao(aluno, ativo);
         return detalheDe(alunos.saveAndFlush(aluno));
+    }
+
+    static final String CODIGO_CONTRATO_FECHADO_VIGENTE = "CONTRATO_FECHADO_VIGENTE";
+    static final String MENSAGEM_CONTRATO_FECHADO_VIGENTE = "Encerre o contrato antes de inativar (com ou sem multa).";
+
+    /**
+     * Contrato fechado vigente impede o treinador de inativar (rota e lote); o aluno já deve estar travado. Fora de
+     * {@link #aplicarSituacao}, que a importação também usa e não passa por esta recusa.
+     */
+    boolean temContratoFechadoVigente(Aluno aluno) {
+        return pagamentos.temContratoFechadoVigente(aluno.getId());
     }
 
     /**

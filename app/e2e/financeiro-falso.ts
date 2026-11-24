@@ -1,14 +1,17 @@
 import type { Page, Route } from '@playwright/test';
 
-import type { AlunoResumo } from '../src/api/tipos';
+import type { AlunoDetalhe, AlunoResumo, ResultadoLote } from '../src/api/tipos';
 import type {
   CobrancaAvulsaRequest, CobrancaAvulsaResponse, CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, FormaDeRecebimento,
   FormasDeRecebimento, FormasDeRecebimentoRequest, Inadimplente, JurosDoParcelamento, EncerrarContratacaoRequest, LancamentoResponse, Lembretes,
-  LembretesDaCobranca, Painel, PlanoResponse, PreviaDoEncerramento, RecebimentoOnline, ResumoDaSaidaDoAluno, TipoDeChavePix, VisaoGeralDoFinanceiro,
+  LembretesDaCobranca, Painel, PlanoResponse, PreviaDoEncerramento, RecebimentoOnline, ResumoDaSaidaDoAluno, ResumoDoContrato, TipoDeChavePix, VisaoGeralDoFinanceiro,
 } from '../src/api/financeiroTipos';
 import type { PreviaDeGeracao } from '../src/api/financeiroF1';
 import type { ResponsavelFinanceiro, ResponsavelFinanceiroRequest } from '../src/api/financeiroResponsavel';
 import type { PreviaDaRenegociacao, PreviaDaRenegociacaoRequest, RenegociacaoResponse, RenegociarRequest } from '../src/api/financeiroRenegociar';
+import type {
+  AlunosEmAtraso, ContratarContratoRequest, ModoFechado, PagamentoDoSaldoRequest, PagamentoDoSaldoResponse, PreviaDoContrato, PreviaDoContratoRequest,
+} from '../src/api/financeiroContrato';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, TREINADOR, type PedidoFalso, type RespostasApi } from './api-falsa';
 
 /**
@@ -220,10 +223,26 @@ export interface EstadoFinanceiro {
   recusaDaRenegociacao: { rota: 'previa' | 'confirmar' | 'desfazer'; status: number; codigo: string; fieldErrors?: { field: string; message: string }[] } | null;
   /** Os ids de acordo recebidos pelo desfazer. */
   acordosDesfeitos: string[];
+  /**
+   * Contrato fechado (`api/financeiroContrato.ts`): o modo e o total de cada contratação fechada; o bloco `contrato` da
+   * resposta é calculado aqui, das cobranças ligadas a ela (o falso faz o papel do servidor). Sem entrada = recorrente.
+   */
+  contratos: Record<string, { modo: ModoFechado; valorTotalCentavos: number }>;
+  /** Os corpos recebidos pela prévia do contrato, na ordem. */
+  previasDoContrato: PreviaDoContratoRequest[];
+  /** Espera antes de responder a prévia do contrato, em ms (o "Criar contrato" fica desabilitado enquanto ela carrega). */
+  atrasoDaPreviaDoContratoMs: number;
+  /** Os corpos recebidos pelo `POST /contratacoes/{id}/pagamentos-do-saldo` e os pedidos já feitos (idempotência). */
+  pagamentosDoSaldo: PagamentoDoSaldoRequest[];
+  pagamentosDoSaldoFeitos: Record<string, { assinatura: string; resposta: PagamentoDoSaldoResponse }>;
+  /** Verdadeiro: o próximo pagamento do saldo responde 409 `PEDIDO_JA_USADO` uma vez (o pedido já existia com outros dados). */
+  pedidoDoSaldoJaUsado: boolean;
+  /** O que `GET /financeiro/alunos-em-atraso` devolve; nulo = 503 `FINANCEIRO_INDISPONIVEL` (a pílula some sem erro). */
+  alunosEmAtraso: AlunosEmAtraso | null;
 }
 
 const SEM_ABERTAS = { quantidade: 0, valorCentavos: 0 };
-export const RESUMO_DA_SAIDA_VAZIO: ResumoDaSaidaDoAluno = { aCancelar: SEM_ABERTAS, emAberto: SEM_ABERTAS, minimoAte: null, mesesQueFaltam: 0 };
+export const RESUMO_DA_SAIDA_VAZIO: ResumoDaSaidaDoAluno = { aCancelar: SEM_ABERTAS, emAberto: SEM_ABERTAS, minimoAte: null, mesesQueFaltam: 0, contratoFechadoVigente: null };
 
 /** Os lembretes como a API devolve numa consultoria que nunca os configurou. */
 export const LEMBRETES_PADRAO: Lembretes = { ligado: false, diasAntes: 3, noDia: true, diasDepois: 3, versao: null, emailDisponivel: true };
@@ -309,7 +328,8 @@ export function estadoFinanceiro(parcial: Partial<EstadoFinanceiro> = {}): Estad
     formasRecebidas: [], recusaDasFormas: null, pixPedidos: [],
     previaDeGeracao: { quantidade: 0, totalCentavos: 0, primeiraCompetencia: null, ultimaCompetencia: null }, falhasDaPrevia: 0, atrasoDaPreviaMs: 0,
     previasRecebidas: [], apagarPixRecebidos: [], previasDaRenegociacao: [], renegociacoesRecebidas: [], renegociacoesFeitas: {},
-    recusaDaRenegociacao: null, acordosDesfeitos: [], ...parcial,
+    recusaDaRenegociacao: null, acordosDesfeitos: [], contratos: {}, previasDoContrato: [], atrasoDaPreviaDoContratoMs: 0, pagamentosDoSaldo: [],
+    pagamentosDoSaldoFeitos: {}, pedidoDoSaldoJaUsado: false, alunosEmAtraso: { alunoIds: [], truncado: false }, ...parcial,
   };
 }
 
@@ -489,6 +509,130 @@ function recusaForcada(estado: EstadoFinanceiro, rota: 'previa' | 'confirmar' | 
   return respostaDeErro(route, { ...r, mensagem: 'Recusado pelo servidor.' });
 }
 
+/** O bloco `contrato` como o servidor (D5): pago = PAGA; saldo = total − pago; limite = total − PAGA − ABERTA − CONTESTADA. */
+function resumoDoContratoFalso(estado: EstadoFinanceiro, contratacao: ContratacaoResponse): ResumoDoContrato | null {
+  const contrato = estado.contratos[contratacao.id];
+  if (!contrato) return null;
+  const doContrato = estado.cobrancas.filter((c) => c.contratacaoId === contratacao.id && ehDoContratoFalso(estado, c) && c.situacao !== 'CANCELADA' && c.situacao !== 'ESTORNADA');
+  const soma = (lista: CobrancaResponse[]) => lista.reduce((t, c) => t + c.valorCentavos, 0);
+  const pagas = doContrato.filter((c) => c.situacao === 'PAGA');
+  const reservam = doContrato.filter((c) => c.situacao === 'PAGA' || c.situacao === 'ABERTA' || c.situacao === 'CONTESTADA');
+  const vencidas = doContrato.filter((c) => c.situacao === 'ABERTA' && c.vencida).sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+  const antiga = vencidas[0];
+  return {
+    modo: contrato.modo, valorTotalCentavos: contrato.valorTotalCentavos, pagoCentavos: soma(pagas),
+    saldoCentavos: Math.max(0, contrato.valorTotalCentavos - soma(pagas)), limiteDeLancamentoCentavos: Math.max(0, contrato.valorTotalCentavos - soma(reservam)),
+    cobrancasPagas: pagas.length, cobrancasTotal: doContrato.length, vencidas: vencidas.length, valorVencidoCentavos: soma(vencidas),
+    maisAntigaVencida: antiga ? { cobrancaId: antiga.id, descricao: antiga.descricao ?? '', vencimento: antiga.vencimento, diasDeAtraso: antiga.diasDeAtraso ?? 0 } : null,
+  };
+}
+
+const MESES_DO_PERIODO: Record<PlanoResponse['periodicidade'], number> = { MENSAL: 1, TRIMESTRAL: 3, SEMESTRAL: 6, ANUAL: 12, PARCELA_UNICA: 1 };
+const MENSAGEM_CONTRATO_FECHADO_VIGENTE = 'Encerre o contrato antes de inativar (com ou sem multa).';
+
+/** A contratação ATIVA de contrato fechado do aluno (D13: trava o inativar), ou nula. */
+const contratoFechadoVigenteFalso = (estado: EstadoFinanceiro, alunoId: string) =>
+  estado.contratacoes.find((c) => c.alunoId === alunoId && c.situacao === 'ATIVA' && !!estado.contratos[c.id]) ?? null;
+
+/** Como a API: as parcelas por vencimento (estável) antes de conferir e de rotular "Parcela k/n"; os índices dos erros são desta ordem. */
+const ordenadasPorVencimento = <T extends { vencimento: string }>(parcelas: readonly T[]): T[] =>
+  parcelas.map((p, i) => ({ p, i })).sort((a, b) => a.p.vencimento.localeCompare(b.p.vencimento) || a.i - b.i).map((x) => x.p);
+
+/** Cobrança de contrato fechado, como a API (`CobrancaAluno.DO_CONTRATO`): AVULSA/RENEGOCIACAO ligadas; a multa SAIDA fica fora. */
+const ehDoContratoFalso = (estado: EstadoFinanceiro, c: CobrancaResponse) =>
+  !!c.contratacaoId && !!estado.contratos[c.contratacaoId] && (c.tipo === 'AVULSA' || c.tipo === 'RENEGOCIACAO');
+
+/**
+ * A prévia do contrato como o servidor: sem parcelas divide o restante (sobra na última, um mês por parcela); com parcelas
+ * só soma. A Entrada vem como primeira linha (`numero` nulo); soma errada das parcelas é 200 com `fecha: false`; entrada
+ * acima do total é 422 `CONTRATO_INVALIDO` em `entrada.valorCentavos`. Parcela depois do fim da vigência passa (a API não trava).
+ */
+function previaDoContratoFalsa(c: PreviaDoContratoRequest): PreviaDoContrato | ErroDoFalso {
+  const invalido = (field: string, message: string): ErroDoFalso => ({ status: 422, codigo: 'CONTRATO_INVALIDO', mensagem: 'Confira os dados do contrato.', fieldErrors: [{ field, message }] });
+  if (!Number.isInteger(c.valorTotalCentavos) || c.valorTotalCentavos < 1) return invalido('valorTotalCentavos', 'Informe o valor total.');
+  const entrada = c.entrada?.valorCentavos ?? 0;
+  // Como a API (nos dois modos): entrada acima do total é 422 no campo (não `fecha: false`).
+  if (entrada > c.valorTotalCentavos) return invalido('entrada.valorCentavos', 'A entrada não pode passar do valor total.');
+  let parcelas: PreviaDoContrato['parcelas'];
+  if (c.modoCobranca === 'SALDO_ABERTO') {
+    parcelas = [];
+  } else if (c.parcelas) {
+    if (c.parcelas.length < 1 || c.parcelas.length > 12) return invalido('parcelas', 'Escolha de 1 a 12 parcelas.');
+    parcelas = ordenadasPorVencimento(c.parcelas).map((p, i, todas) => ({ ...p, numero: i + 1, descricao: `Parcela ${i + 1}/${todas.length}` }));
+  } else {
+    const n = c.quantidade ?? 0;
+    if (!Number.isInteger(n) || n < 1 || n > 12) return invalido('quantidade', 'Escolha de 1 a 12 parcelas.');
+    const restante = c.valorTotalCentavos - entrada;
+    if (restante < n) return invalido('valorTotalCentavos', 'O valor total precisa cobrir a entrada e ao menos 1 centavo por parcela.');
+    const base = Math.floor(restante / n);
+    parcelas = Array.from({ length: n }, (_, i) => ({
+      vencimento: somarMesesNoFalso(c.primeiroVencimento ?? HOJE, i), valorCentavos: i === n - 1 ? restante - base * (n - 1) : base, numero: i + 1, descricao: `Parcela ${i + 1}/${n}`,
+    }));
+  }
+  const somaCentavos = entrada + parcelas.reduce((t, p) => t + p.valorCentavos, 0);
+  const linhas = c.entrada ? [{ numero: null, descricao: 'Entrada', vencimento: c.entrada.data, valorCentavos: c.entrada.valorCentavos }, ...parcelas] : parcelas;
+  const fecha = c.modoCobranca === 'SALDO_ABERTO' ? somaCentavos <= c.valorTotalCentavos : somaCentavos === c.valorTotalCentavos;
+  return { parcelas: linhas, somaCentavos, fecha, diferencaCentavos: c.valorTotalCentavos - somaCentavos };
+}
+
+/** A prévia de encerramento do contrato fechado (D7): só "Não cobrar" e "Outro valor" (a multa); as de hoje em diante são canceladas. */
+function previaDoContratoFechado(estado: EstadoFinanceiro, contratacao: ContratacaoResponse): PreviaDoEncerramento {
+  const base = previaSemMinimo(estado, contratacao);
+  const abertas = estado.cobrancas.filter((c) => c.contratacaoId === contratacao.id && c.situacao === 'ABERTA')
+    .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+  const item = (c: CobrancaResponse) => ({ cobrancaId: c.id, descricao: c.descricao ?? '', vencimento: c.vencimento, valorCentavos: c.valorCentavos });
+  const motivo = 'O contrato fechado não tem tempo mínimo.';
+  return {
+    ...base,
+    opcoes: [
+      { opcao: 'FALTAM', disponivel: false, valorCentavos: null, motivo },
+      { opcao: 'VIGENTE', disponivel: false, valorCentavos: null, motivo },
+      { opcao: 'OUTRO', disponivel: true, valorCentavos: null, motivo: null },
+      { opcao: 'NAO_COBRAR', disponivel: true, valorCentavos: null, motivo: null },
+    ],
+    aCancelar: abertas.filter((c) => c.vencimento >= HOJE).map(item),
+    vencidasQueFicam: abertas.filter((c) => c.vencimento < HOJE).map(item),
+    cobrancasACancelar: abertas.filter((c) => c.vencimento >= HOJE).map((c) => c.id),
+    comLinkVivo: 0,
+  };
+}
+
+/**
+ * Contratar no modo fechado, como o servidor: plano da Kiwify recusado (D11), soma conferida (parcelas) ou entrada até o
+ * total (saldo livre); nasce a entrada AVULSA "Entrada" (paga ou aberta) e, nas fixas, as parcelas RENEGOCIACAO "Parcela k/n".
+ */
+function contratarContratoFalso(estado: EstadoFinanceiro, c: ContratarContratoRequest, plano: PlanoResponse, route: Route) {
+  const invalido = (field: string, message: string) => respostaDeErro(route, { status: 422, codigo: 'CONTRATO_INVALIDO', mensagem: 'Confira o contrato.', fieldErrors: [{ field, message }] });
+  if (plano.kiwifyAssinatura) return invalido('modoCobranca', 'Plano com assinatura pela Kiwify só aceita cobrança recorrente.');
+  const entrada = c.entrada?.valorCentavos ?? 0;
+  if (c.modoCobranca === 'PARCELADO_FIXO') {
+    const soma = entrada + (c.parcelas ?? []).reduce((t, x) => t + x.valorCentavos, 0);
+    if (!c.parcelas?.length || soma !== c.valorTotalCentavos) return invalido('parcelas', 'A soma das cobranças não fecha com o valor total.');
+  } else if (entrada > c.valorTotalCentavos) return invalido('entrada.valorCentavos', 'A entrada não pode passar do valor total.');
+  const contratacao: ContratacaoResponse = {
+    id: idFalso('e'), alunoId: ALUNO_FINANCEIRO_ID, planoComercialId: plano.id, planoNome: plano.nome, periodicidade: plano.periodicidade,
+    valorCentavos: c.valorTotalCentavos, motivoValor: null, inicio: c.inicio, diaVencimento: Number(c.inicio.slice(8)), situacao: 'ATIVA', encerradaEm: null,
+    criadoEm: '2026-10-19T12:00:00Z', versao: 0, minimoAte: null, terminoVigencia: somarMesesNoFalso(c.inicio, MESES_DO_PERIODO[plano.periodicidade]),
+  };
+  estado.contratacoes.push(contratacao);
+  estado.contratos[contratacao.id] = { modo: c.modoCobranca, valorTotalCentavos: c.valorTotalCentavos };
+  const nova = (extra: Partial<CobrancaResponse>): CobrancaResponse => ({
+    ...COBRANCA_ATRASADA, id: idFalso('c'), contratacaoId: contratacao.id, alunoId: ALUNO_FINANCEIRO_ID, alunoNome: ALUNO.nome, planoNome: plano.nome,
+    competencia: null, vencida: false, diasDeAtraso: null, criadoEm: '2026-10-19T12:00:00Z', ...extra,
+  });
+  if (c.entrada) {
+    estado.cobrancas.push(nova({
+      vencimento: c.entrada.data, valorCentavos: c.entrada.valorCentavos, tipo: 'AVULSA', descricao: 'Entrada',
+      ...(c.entrada.jaPaga ? { situacao: 'PAGA', forma: c.entrada.forma ?? null, provedor: 'MANUAL', pagoEm: c.entrada.data } : { situacao: 'ABERTA' }),
+    }));
+  }
+  const acordoId = idFalso('f');
+  ordenadasPorVencimento(c.parcelas ?? []).forEach((x, i, todas) => estado.cobrancas.push(nova({
+    vencimento: x.vencimento, valorCentavos: x.valorCentavos, situacao: 'ABERTA', tipo: 'RENEGOCIACAO', descricao: `Parcela ${i + 1}/${todas.length}`, acordoId,
+  })));
+  return json(route, { ...contratacao, contrato: resumoDoContratoFalso(estado, contratacao) }, 201);
+}
+
 /** Rotas do financeiro para somar ao mapa de `simularApi`. */
 export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
   const marcar = (p: PedidoFalso, route: Route, de: CobrancaResponse['situacao'][], para: CobrancaResponse['situacao'], codigo: string) =>
@@ -547,7 +691,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       const contratacao = estado.contratacoes.find((x) => x.id === id);
       if (!contratacao) return json(route, erroApi(404, 'Contratação não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
       if (contratacao.situacao === 'ENCERRADA') return json(route, erroApi(409, 'A contratação já foi encerrada.', 'CONTRATACAO_ENCERRADA').corpo, 409);
-      return json(route, estado.previas[id] ?? previaSemMinimo(estado, contratacao));
+      return json(route, estado.previas[id] ?? (estado.contratos[id] ? previaDoContratoFechado(estado, contratacao) : previaSemMinimo(estado, contratacao)));
     },
     // Encerrar com a saída opcional: a conta é a da prévia (o valor de FALTAM e VIGENTE é conferido), cancela as a vencer do
     // FALTAM e cria a cobrança `tipo=SAIDA`. Sem `saida`, encerra como antes (as abertas ficam).
@@ -558,8 +702,18 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       const contratacao = estado.contratacoes.find((x) => x.id === id);
       if (!contratacao) return json(route, erroApi(404, 'Contratação não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
       if (contratacao.versao !== c.versao) return conflito(route);
-      const previa = estado.previas[id] ?? previaSemMinimo(estado, contratacao);
+      const previa = estado.previas[id] ?? (estado.contratos[id] ? previaDoContratoFechado(estado, contratacao) : previaSemMinimo(estado, contratacao));
       const saida = c.saida;
+      if (estado.contratos[id]) {
+        // Contrato fechado: `saida` obrigatória, só NAO_COBRAR ou OUTRO, com os mesmos ids de `cobrancasACancelar` da prévia.
+        if (saida && saida.opcao !== 'NAO_COBRAR' && saida.opcao !== 'OUTRO') {
+          return respostaDeErro(route, { status: 422, codigo: 'SAIDA_INVALIDA', mensagem: 'Confira a saída.', fieldErrors: [{ field: 'saida.opcao', message: 'O contrato fechado não tem tempo mínimo.' }] });
+        }
+        const esperados = [...previa.cobrancasACancelar].sort().join(',');
+        if (!saida || [...(saida.cobrancasACancelar ?? [])].sort().join(',') !== esperados) {
+          return json(route, erroApi(409, 'A conta da saída mudou.', 'VALOR_DA_SAIDA_MUDOU').corpo, 409);
+        }
+      }
       const da = saida ? previa.opcoes.find((o) => o.opcao === saida.opcao) : undefined;
       const calculada = !!saida && (saida.opcao === 'FALTAM' || saida.opcao === 'VIGENTE');
       if (saida && (estado.previaQueMuda !== null || (calculada && da?.valorCentavos !== saida.valorCentavos))) {
@@ -568,6 +722,11 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
         return json(route, erroApi(409, 'A conta da saída mudou.', 'VALOR_DA_SAIDA_MUDOU').corpo, 409);
       }
       Object.assign(contratacao, { situacao: 'ENCERRADA', encerradaEm: HOJE, versao: contratacao.versao + 1 });
+      // Contrato fechado (D7): encerrar sempre cancela as abertas de hoje em diante; as vencidas e as pagas ficam.
+      for (const item of estado.contratos[id] ? (previa.aCancelar ?? []) : []) {
+        const cobranca = estado.cobrancas.find((x) => x.id === item.cobrancaId);
+        if (cobranca) Object.assign(cobranca, { situacao: 'CANCELADA', motivo: 'Contrato encerrado', versao: cobranca.versao + 1 });
+      }
       if (saida?.opcao === 'FALTAM') {
         for (const cobranca of estado.cobrancas) {
           if (saida.cobrancasACancelar?.includes(cobranca.id)) Object.assign(cobranca, { situacao: 'CANCELADA', motivo: 'Cobrança de saída', versao: cobranca.versao + 1 });
@@ -582,7 +741,32 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       }
       return json(route, contratacao);
     },
-    'GET /alunos/{id}/resumo-da-saida': (_p, route) => json(route, estado.resumoDaSaida),
+    // Como a API (D13): o resumo traz o contrato fechado vigente do aluno; inativar com ele é 409 e o lote o pula (`recusados`).
+    'GET /alunos/{id}/resumo-da-saida': (p, route) => {
+      const vigente = contratoFechadoVigenteFalso(estado, p.caminho.split('/')[2]);
+      return json(route, { ...estado.resumoDaSaida, contratoFechadoVigente: vigente ? { contratacaoId: vigente.id } : null });
+    },
+    'PATCH /alunos/{id}/situacao': (p, route) => {
+      const alunoId = p.caminho.split('/')[2];
+      const { ativo } = p.corpo as { ativo: boolean };
+      if (!ativo && contratoFechadoVigenteFalso(estado, alunoId)) {
+        return json(route, erroApi(409, MENSAGEM_CONTRATO_FECHADO_VIGENTE, 'CONTRATO_FECHADO_VIGENTE').corpo, 409);
+      }
+      const ficha: AlunoDetalhe = {
+        id: alunoId, nome: ALUNO.nome, email: ALUNO.email, telefone: null, objetivo: null, cpf: null, endereco: null, ativo, temAcesso: ativo,
+        conviteExpiraEm: null, versao: 2, diasAtualizacao: null, anonimizado: false, emailDeAcesso: ALUNO.email, aguardandoPrimeiroAcesso: false,
+      };
+      return json(route, ficha);
+    },
+    'POST /alunos/lote/desativar': (p, route) => {
+      const { alunoIds } = p.corpo as { alunoIds: string[] };
+      const recusados = alunoIds.filter((id) => contratoFechadoVigenteFalso(estado, id))
+        .map((alunoId) => ({ alunoId, codigo: 'CONTRATO_FECHADO_VIGENTE', mensagem: MENSAGEM_CONTRATO_FECHADO_VIGENTE }));
+      const mudam = estado.alunos.filter((a) => a.ativo && alunoIds.includes(a.id) && !recusados.some((r) => r.alunoId === a.id));
+      for (const a of mudam) a.ativo = false;
+      const resposta: ResultadoLote = { selecionados: alunoIds.length, alterados: mudam.length, recusados };
+      return json(route, resposta);
+    },
     'GET /financeiro/cobrancas': (p, route) => {
       // Várias situações em OU (VENCIDA = aberta já vencida) e a busca pelo nome do aluno, como a API.
       const situacoes = p.busca.getAll('situacao');
@@ -721,7 +905,53 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       };
       return json(route, novo, 201);
     },
-    'GET /alunos/{id}/contratacoes': (_p, route) => json(route, estado.contratacoes),
+    'GET /alunos/{id}/contratacoes': (_p, route) => json(route, estado.contratacoes.map((c) => ({ ...c, contrato: resumoDoContratoFalso(estado, c) }))),
+    'POST /contratacoes/previa-do-contrato': async (p, route) => {
+      const c = p.corpo as PreviaDoContratoRequest;
+      estado.previasDoContrato.push(c);
+      if (estado.atrasoDaPreviaDoContratoMs > 0) await new Promise((r) => setTimeout(r, estado.atrasoDaPreviaDoContratoMs));
+      const r = previaDoContratoFalsa(c);
+      return 'status' in r ? respostaDeErro(route, r) : json(route, r);
+    },
+    // D4: só SALDO_ABERTO ATIVA (409); acima do limite 422 `SALDO_INVALIDO` no campo; o mesmo `pedidoId` = 200 com a mesma
+    // resposta (`{cobrancaId, contratacao}`), ou 409 `PEDIDO_JA_USADO` se valor, vencimento, jaPaga ou forma mudaram.
+    'POST /contratacoes/{id}/pagamentos-do-saldo': (p, route) => {
+      const id = p.caminho.split('/')[2];
+      const c = p.corpo as PagamentoDoSaldoRequest;
+      estado.pagamentosDoSaldo.push(c);
+      const feito = estado.pagamentosDoSaldoFeitos[c.pedidoId];
+      const assinatura = JSON.stringify([c.valorCentavos, c.vencimento, c.jaPaga, c.forma ?? null]);
+      const jaUsado = estado.pedidoDoSaldoJaUsado;
+      estado.pedidoDoSaldoJaUsado = false;
+      if (jaUsado || (feito && feito.assinatura !== assinatura)) {
+        return json(route, erroApi(409, 'Este pedido já foi usado em outra cobrança.', 'PEDIDO_JA_USADO').corpo, 409);
+      }
+      if (feito) return json(route, feito.resposta, 200);
+      const contratacao = estado.contratacoes.find((x) => x.id === id);
+      if (!contratacao) return json(route, erroApi(404, 'Contratação não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
+      if (contratacao.situacao === 'ENCERRADA') return json(route, erroApi(409, 'A contratação já foi encerrada.', 'CONTRATACAO_ENCERRADA').corpo, 409);
+      if (estado.contratos[id]?.modo !== 'SALDO_ABERTO' || contratacao.situacao !== 'ATIVA') {
+        return json(route, erroApi(409, 'Esta contratação não recebe pagamento do saldo.', 'CONTRATO_NAO_ACEITA_SALDO').corpo, 409);
+      }
+      const resumo = resumoDoContratoFalso(estado, contratacao);
+      if (!resumo || !Number.isInteger(c.valorCentavos) || c.valorCentavos < 1 || c.valorCentavos > resumo.limiteDeLancamentoCentavos) {
+        return respostaDeErro(route, { status: 422, codigo: 'SALDO_INVALIDO', mensagem: 'Confira o valor.', fieldErrors: [{ field: 'valorCentavos', message: 'O valor passa do que falta pagar no contrato.' }] });
+      }
+      const vencida = !c.jaPaga && c.vencimento < HOJE;
+      const cobranca: CobrancaResponse = {
+        ...COBRANCA_ATRASADA, id: idFalso('c'), contratacaoId: id, alunoId: contratacao.alunoId, alunoNome: ALUNO.nome, planoNome: contratacao.planoNome,
+        competencia: null, vencimento: c.vencimento, valorCentavos: c.valorCentavos, situacao: c.jaPaga ? 'PAGA' : 'ABERTA', vencida,
+        diasDeAtraso: vencida ? diasEntre(c.vencimento, HOJE) : null, forma: c.jaPaga ? (c.forma ?? null) : null, provedor: c.jaPaga ? 'MANUAL' : null,
+        pagoEm: c.jaPaga ? HOJE : null, criadoEm: '2026-10-19T12:00:00Z', tipo: 'AVULSA', descricao: 'Pagamento do saldo',
+      };
+      estado.cobrancas.push(cobranca);
+      const resposta: PagamentoDoSaldoResponse = { cobrancaId: cobranca.id, contratacao: { ...contratacao, contrato: resumoDoContratoFalso(estado, contratacao) } };
+      estado.pagamentosDoSaldoFeitos[c.pedidoId] = { assinatura, resposta };
+      return json(route, resposta, 201);
+    },
+    'GET /financeiro/alunos-em-atraso': (_p, route) => (estado.alunosEmAtraso
+      ? json(route, estado.alunosEmAtraso)
+      : json(route, erroApi(503, 'O financeiro está desligado.', 'FINANCEIRO_INDISPONIVEL').corpo, 503)),
     // Só leitura, como a API: o falso não conta mensalidade nenhuma, devolve a prévia que o teste montou.
     'POST /contratacoes/previa-de-geracao': async (p, route) => {
       estado.previasRecebidas.push(p.corpo);
@@ -739,10 +969,12 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       if (estado.contratacoes.some((x) => x.situacao !== 'ENCERRADA')) {
         return json(route, erroApi(409, 'O aluno já tem um plano vigente.', 'CONTRATACAO_VIGENTE').corpo, 409);
       }
+      const fechado = p.corpo as Partial<ContratarContratoRequest>;
+      if (fechado.modoCobranca) return contratarContratoFalso(estado, p.corpo as ContratarContratoRequest, plano, route);
       const valorCentavos = c.valorCentavos ?? plano.valorCentavos;
       const contratacao: ContratacaoResponse = {
         id: idFalso('e'), alunoId: ALUNO_FINANCEIRO_ID, planoComercialId: plano.id, planoNome: plano.nome, periodicidade: plano.periodicidade,
-        valorCentavos, motivoValor: c.motivoValor ?? null, inicio: c.inicio, diaVencimento: c.diaVencimento, situacao: 'ATIVA', encerradaEm: null,
+        valorCentavos, motivoValor: c.motivoValor ?? null, inicio: c.inicio, diaVencimento: Number(c.inicio.slice(8)), situacao: 'ATIVA', encerradaEm: null,
         criadoEm: '2026-10-19T12:00:00Z', versao: 0, minimoAte: null,
       };
       estado.contratacoes.push(contratacao);
@@ -861,6 +1093,8 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       const doAluno = (c: CobrancaResponse): CobrancaDoAluno => ({
         id: c.id, competencia: c.competencia, vencimento: c.vencimento, valorCentavos: c.valorCentavos, situacao: c.situacao, vencida: c.vencida,
         forma: c.forma, pagoEm: c.pagoEm, tipo: c.tipo, descricao: c.descricao,
+        // Contrato fechado: a API marca a cobrança dele (sem selo de tipo para o aluno).
+        doContrato: ehDoContratoFalso(estado, c),
         // Kiwify (D18): a marca vem da cobrança, como a API calcula na leitura.
         ...(c.cobrancaAutomatica ? { cobrancaAutomatica: c.cobrancaAutomatica } : {}),
       });
@@ -870,7 +1104,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
           ? {
               contratacaoId: vigente.id, planoNome: vigente.planoNome, valorCentavos: vigente.valorCentavos, periodicidade: vigente.periodicidade,
               situacao: vigente.situacao, proximoVencimento: estado.cobrancas.find((c) => c.situacao === 'ABERTA')?.vencimento ?? null,
-              linkDePagamento: linkDoPlano,
+              linkDePagamento: linkDoPlano, contratoFechado: !!estado.contratos[vigente.id],
             }
           : null,
         abertas: estado.cobrancas.filter((c) => c.situacao === 'ABERTA').map(doAluno),

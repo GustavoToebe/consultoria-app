@@ -45,6 +45,9 @@ public class CobrancaAluno {
      */
     public static final Set<Situacao> NAO_COBREM_PERIODO = Set.of(Situacao.CANCELADA, Situacao.ESTORNADA);
 
+    /** As cobranças que um contrato fechado (V098) liga à contratação: a entrada, as parcelas e os pagamentos do saldo (a multa de saída fica de fora). */
+    public static final Set<Tipo> DO_CONTRATO = Set.of(Tipo.AVULSA, Tipo.RENEGOCIACAO);
+
     /** Provedor da baixa manual do treinador. */
     public static final String MANUAL = "MANUAL";
 
@@ -57,7 +60,7 @@ public class CobrancaAluno {
     @TenantId
     @Column(name = "consultoria_id", nullable = false, updatable = false)
     private UUID consultoriaId;
-    /** Nulo só na AVULSA (CHECK da V087). */
+    /** Nulo na AVULSA e na RENEGOCIACAO comuns; o contrato fechado (V098) liga as suas à contratação. */
     @Column(name = "contratacao_id", updatable = false)
     private UUID contratacaoId;
     @Column(name = "aluno_id", nullable = false, updatable = false)
@@ -169,6 +172,23 @@ public class CobrancaAluno {
         c.situacao = Situacao.ABERTA;
         c.tipo = Tipo.RENEGOCIACAO;
         c.provedor = MANUAL;
+        return c;
+    }
+
+    /**
+     * Liga a cobrança AVULSA ou RENEGOCIACAO recém-criada a um contrato fechado (V098). Só antes de gravar (a coluna não é atualizável);
+     * a FK composta do banco garante que a contratação é do mesmo aluno e da mesma consultoria.
+     */
+    CobrancaAluno ligadaAoContrato(UUID contratacaoId) {
+        this.contratacaoId = contratacaoId;
+        return this;
+    }
+
+    /** A entrada do contrato: AVULSA sem pedido nem parcela (não é lote do app), com descrição fixa do servidor. */
+    static CobrancaAluno entradaDoContrato(UUID alunoId, String descricao, long valorCentavos, LocalDate vencimento) {
+        CobrancaAluno c = avulsa(null, alunoId, 1, descricao, valorCentavos, vencimento);
+        c.pedidoId = null;
+        c.parcela = null;
         return c;
     }
 

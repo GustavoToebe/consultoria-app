@@ -5,7 +5,7 @@ import {
   abertasQueContinuamNaSaida, avisoDeLinkVivo, corpoDoEncerrar, errosDoMinimoDoServidor, fraseDasAbertasQueContinuam, linhasDaConta,
   linhasDoPainelDeInativar, MENSAGEM_OPCAO_ESCOLHIDA_INDISPONIVEL, minimoDoPlanoParaEnvio, minimoDoPlanoParaForm, motivoDaOpcaoEscolhidaIndisponivel, opcoesDoPainel, planoPodeTerMinimo, somarMeses,
   TEXTO_GENERICO_DO_INATIVAR, textoDoMinimoAte, textoDoMinimoDoPlano, textoDosMesesQueFaltam, traduzirErroDoEncerrar,
-  validarMinimoAte, validarVencimentoDaSaida,
+  AVISO_CONTRATO_FECHADO_VIGENTE, MOTIVO_DO_INATIVAR_COM_CONTRATO, travaDoInativar, validarMinimoAte, validarVencimentoDaSaida,
 } from './saidaDoPlano';
 
 const HOJE = '2026-11-16';
@@ -87,6 +87,11 @@ describe('painel de encerrar', () => {
 describe('corpo do encerrar', () => {
   it('Não cobrar manda só a versão', () => {
     expect(corpoDoEncerrar(previa(), { opcao: 'NAO_COBRAR', valorTexto: '', vencimentoTexto: '' }, 4, HOJE)).toEqual({ ok: true, corpo: { versao: 4 } });
+    // Contrato fechado: sempre a saída com os ids da prévia, também sem cobrar.
+    expect(corpoDoEncerrar(previa(), { opcao: 'NAO_COBRAR', valorTexto: '', vencimentoTexto: '' }, 4, HOJE, true))
+      .toEqual({ ok: true, corpo: { versao: 4, saida: { opcao: 'NAO_COBRAR', cobrancasACancelar: ['a', 'b'] } } });
+    expect(corpoDoEncerrar(previa(), { opcao: 'OUTRO', valorTexto: '300,00', vencimentoTexto: '' }, 4, HOJE, true))
+      .toEqual({ ok: true, corpo: { versao: 4, saida: { opcao: 'OUTRO', valorCentavos: 30_000, vencimento: null, cobrancasACancelar: ['a', 'b'] } } });
   });
   it('FALTAM leva o valor e os ids da prévia; vencimento vazio vai nulo', () => {
     expect(corpoDoEncerrar(previa(), { opcao: 'FALTAM', valorTexto: '', vencimentoTexto: '' }, 4, HOJE)).toEqual({
@@ -222,7 +227,7 @@ describe('minimoAte da contratação', () => {
 
 describe('painel de inativar', () => {
   const resumo = (extra: Partial<ResumoDaSaidaDoAluno> = {}): ResumoDaSaidaDoAluno => ({
-    aCancelar: { quantidade: 2, valorCentavos: 30_000 }, emAberto: { quantidade: 1, valorCentavos: 15_000 }, minimoAte: '2027-04-05', mesesQueFaltam: 3, ...extra,
+    aCancelar: { quantidade: 2, valorCentavos: 30_000 }, emAberto: { quantidade: 1, valorCentavos: 15_000 }, minimoAte: '2027-04-05', mesesQueFaltam: 3, contratoFechadoVigente: null, ...extra,
   });
   const ctx = { podeLerFinanceiro: true, financeiroLigado: true };
   it('sem permissão, com o financeiro desligado ou sem resumo: texto genérico, sem valores', () => {
@@ -248,5 +253,23 @@ describe('painel de inativar', () => {
   it('nada em aberto e sem mínimo: nenhuma linha', () => {
     expect(linhasDoPainelDeInativar(resumo({ aCancelar: vazio, emAberto: vazio, minimoAte: null, mesesQueFaltam: 0 }), ctx)).toEqual([]);
     expect(linhasDoPainelDeInativar(resumo({ aCancelar: vazio, emAberto: vazio, mesesQueFaltam: 0 }), ctx)).toEqual([]);
+  });
+});
+
+describe('trava do inativar (contrato fechado vigente)', () => {
+  it('o resumo com o contrato trava, com o id para o "Encerrar contrato"; sem ele, a recusa da API trava sem id', () => {
+    expect(travaDoInativar({ contratoFechadoVigente: { contratacaoId: 'c1' } }, null))
+      .toEqual({ aviso: 'Encerre o contrato antes de inativar (com ou sem multa).', motivo: 'Falta encerrar o contrato.', contratacaoId: 'c1' });
+    expect(travaDoInativar(null, 'Mensagem da API.')).toEqual({ aviso: 'Mensagem da API.', motivo: MOTIVO_DO_INATIVAR_COM_CONTRATO, contratacaoId: null });
+    // O resumo vale mais que a recusa: a mensagem aparece uma vez.
+    expect(travaDoInativar({ contratoFechadoVigente: { contratacaoId: 'c1' } }, 'Outra.')?.aviso).toBe(AVISO_CONTRATO_FECHADO_VIGENTE);
+  });
+  it('sem contrato vigente (nulo, ausente ou sem resumo) e sem recusa: o inativar segue', () => {
+    expect(travaDoInativar({ contratoFechadoVigente: null }, null)).toBeNull();
+    expect(travaDoInativar({} as never, null)).toBeNull();
+    expect(travaDoInativar(undefined, null)).toBeNull();
+  });
+  it('aviso e motivo dizem coisas diferentes (P5)', () => {
+    expect(MOTIVO_DO_INATIVAR_COM_CONTRATO).not.toBe(AVISO_CONTRATO_FECHADO_VIGENTE);
   });
 });

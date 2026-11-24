@@ -7,6 +7,7 @@ import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -16,14 +17,19 @@ import java.util.UUID;
  * Ações em lote na lista de alunos: trocar responsável, trocar questionário e desativar. Tudo ou nada numa transação:
  * qualquer id que não seja da consultoria (ou não exista) responde 404 e nada muda, e um aluno anonimizado recusa o
  * lote inteiro (409). Cada aluno alterado gera a sua linha de auditoria, com as mesmas ações das rotas individuais.
- * Não confere a versão (lock otimista) do aluno: vale a última escrita.
+ * Não confere a versão (lock otimista) do aluno: vale a última escrita. Exceção do desativar: o aluno ativo com contrato
+ * fechado vigente não é inativado e volta em {@code recusados} (código {@code CONTRATO_FECHADO_VIGENTE}), sem auditoria nem efeito,
+ * e os demais seguem; as outras ações devolvem a lista vazia.
  */
 @Service
 public class AlunoLoteService {
 
     public static final int LIMITE = 100;
 
-    public record Resultado(int selecionados, int alterados) { }
+    /** {@code alunoId} recusado no lote, com o {@code codigo} e a {@code mensagem} que a rota individual daria. */
+    public record Recusado(UUID alunoId, String codigo, String mensagem) { }
+
+    public record Resultado(int selecionados, int alterados, List<Recusado> recusados) { }
 
     private final AlunoRepository alunos;
     private final AlunoService alunoService;
@@ -64,7 +70,7 @@ public class AlunoLoteService {
             }
         }
         alunos.flush();
-        return new Resultado(selecionados.size(), alterados);
+        return new Resultado(selecionados.size(), alterados, List.of());
     }
 
     /** {@code questionarioId} nulo devolve os alunos ao padrão da consultoria. */
@@ -84,20 +90,24 @@ public class AlunoLoteService {
             }
         }
         alunos.flush();
-        return new Resultado(selecionados.size(), alterados);
+        return new Resultado(selecionados.size(), alterados, List.of());
     }
 
     /**
      * Quem já está inativo (inclusive anonimizado) fica como está; os demais perdem o acesso e as sessões e têm os
-     * compromissos futuros cancelados (D18).
+     * compromissos futuros cancelados (D18). Quem tem contrato fechado vigente é recusado (ver a classe), sem derrubar o lote.
      */
     @Transactional
     public Resultado desativar(List<UUID> ids) {
         alunoService.travarConsultoria(); // antes de travar os alunos (D18: a agenda trava a consultoria primeiro)
         List<Aluno> selecionados = travar(ids);
         int alterados = 0;
+        List<Recusado> recusados = new ArrayList<>();
         for (Aluno aluno : selecionados) {
-            if (aluno.isAtivo()) {
+            if (aluno.isAtivo() && alunoService.temContratoFechadoVigente(aluno)) {
+                recusados.add(new Recusado(aluno.getId(), AlunoService.CODIGO_CONTRATO_FECHADO_VIGENTE,
+                        AlunoService.MENSAGEM_CONTRATO_FECHADO_VIGENTE));
+            } else if (aluno.isAtivo()) {
                 alunoService.aplicarSituacao(aluno, false);
                 alunos.save(aluno);
                 auditoria.registrarEvento("ALUNO_SITUACAO", "ALUNO", aluno.getId(), "Alterou a situação do aluno.");
@@ -105,7 +115,7 @@ public class AlunoLoteService {
             }
         }
         alunos.flush();
-        return new Resultado(selecionados.size(), alterados);
+        return new Resultado(selecionados.size(), alterados, List.copyOf(recusados));
     }
 
     /** Ids repetidos contam uma vez; id fora da consultoria atual não volta da consulta e derruba o lote com 404. */

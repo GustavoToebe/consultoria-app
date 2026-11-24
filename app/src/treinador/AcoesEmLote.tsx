@@ -24,7 +24,8 @@ interface Props {
 
 /**
  * Ações em lote sobre os alunos marcados: trocar responsável, trocar questionário e desativar. Cada uma tem a sua
- * confirmação; a API faz tudo ou nada e responde só contagens, então o aviso também só traz contagens.
+ * confirmação; a API responde só contagens (o desativar pula quem tem contrato fechado vigente e o conta em `recusados`),
+ * então o aviso também só traz contagens.
  */
 export function AcoesEmLote({ alunoIds, aoConcluir }: Props) {
   const { avisar } = useAviso();
@@ -48,11 +49,12 @@ export function AcoesEmLote({ alunoIds, aoConcluir }: Props) {
     setAplicando(true);
     chamada.then(
       (r) => {
-        avisar(textoDoResultado(acao, r), 'sucesso');
+        // Recusado (contrato fechado vigente) é pendência de alguém: âmbar, não verde.
+        avisar(textoDoResultado(acao, r), r.recusados?.length ? 'atencao' : 'sucesso');
         setAberta(null);
         aoConcluir();
       },
-      // Nada mudou (tudo ou nada): a seleção fica para o treinador tentar de novo ou desmarcar.
+      // A requisição falhou e nada mudou: a seleção fica para o treinador tentar de novo ou desmarcar.
       (e: unknown) => avisar(textoDoErro(e), 'perigo'),
     ).finally(() => setAplicando(false));
   };

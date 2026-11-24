@@ -16,19 +16,25 @@ import { Texto } from '../../ui/Texto';
  * número (os botões ficam fora do Tab na web e servem ao toque e ao leitor de tela). No celular o leitor de tela ajusta pelas
  * ações de aumentar e diminuir. Desabilitado: fora do Tab, sem ação.
  */
-export function PassoDeDias({ rotulo, valor, maximo, aoMudar, desabilitado, erro }: {
+export function PassoDeDias({ rotulo, valor, maximo, aoMudar, desabilitado, erro, minimo = 0, texto = textoDosDias, ajuda }: {
   rotulo: string;
   valor: number;
   maximo: number;
   aoMudar: (n: number) => void;
   desabilitado?: boolean;
   erro?: string | null;
+  /** Padrão 0 (os lembretes); as parcelas do contrato começam em 1. */
+  minimo?: number;
+  /** O número como aparece e é falado; padrão "3 dias" / "não manda". */
+  texto?: (n: number) => string;
+  /** A linha de ajuda; padrão a dos lembretes. */
+  ajuda?: string;
 }) {
   const { cores } = useTema();
   const [foco, setFoco] = useState(false);
   const mudar = (passo: number) => {
     if (desabilitado) return;
-    const novo = ajustarDias(valor, passo, maximo);
+    const novo = Math.max(minimo, ajustarDias(valor, passo, maximo));
     if (novo !== valor) aoMudar(novo);
   };
   const teclas: Record<string, () => void> = {
@@ -41,17 +47,17 @@ export function PassoDeDias({ rotulo, valor, maximo, aoMudar, desabilitado, erro
     e.preventDefault();
     acao();
   };
-  const textoDoValor = textoDosDias(valor);
+  const textoDoValor = texto(valor);
   const borda = erro ? cores.perigo : foco ? cores.anelFoco : cores.bordaCampo;
   return (
     <View style={estilos.campo}>
       <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
       <View style={estilos.linha}>
-        <BotaoDoPasso Icone={Minus} rotulo={`Diminuir ${rotulo.toLowerCase()}`} desabilitado={desabilitado || valor <= 0} aoTocar={() => mudar(-1)} />
+        <BotaoDoPasso Icone={Minus} rotulo={`Diminuir ${rotulo.toLowerCase()}`} desabilitado={desabilitado || valor <= minimo} aoTocar={() => mudar(-1)} />
         <View
           role="spinbutton"
           aria-label={rotulo}
-          aria-valuemin={0}
+          aria-valuemin={minimo}
           aria-valuemax={maximo}
           aria-valuenow={valor}
           aria-valuetext={textoDoValor}
@@ -64,11 +70,11 @@ export function PassoDeDias({ rotulo, valor, maximo, aoMudar, desabilitado, erro
           onFocus={() => setFoco(true)}
           onBlur={() => setFoco(false)}
           style={[estilos.valor, { backgroundColor: cores.campo, borderColor: borda, borderWidth: foco || erro ? 2 : 1 }, semContornoNaWeb]}>
-          <Texto cor={valor === 0 ? cores.textoSuave : cores.texto} style={estilos.numero}>{textoDoValor}</Texto>
+          <Texto cor={valor === 0 && minimo === 0 ? cores.textoSuave : cores.texto} style={estilos.numero}>{textoDoValor}</Texto>
         </View>
         <BotaoDoPasso Icone={Plus} rotulo={`Aumentar ${rotulo.toLowerCase()}`} desabilitado={desabilitado || valor >= maximo} aoTocar={() => mudar(1)} />
       </View>
-      {erro ? <MensagemDeErro erro={erro} /> : <Texto variante="pequeno">{`De 0 a ${maximo}. 0 = não manda.`}</Texto>}
+      {erro ? <MensagemDeErro erro={erro} /> : <Texto variante="pequeno">{ajuda ?? `De 0 a ${maximo}. 0 = não manda.`}</Texto>}
     </View>
   );
 }

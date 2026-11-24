@@ -144,6 +144,10 @@ public class RenegociacaoService {
         if (acordo.getDesfeitoEm() != null) {
             throw new ConflictException("Este acordo já foi desfeito.", "ACORDO_JA_DESFEITO");
         }
+        if (acordo.getContratacaoId() != null) {
+            // O acordo de parcelas de um contrato fechado (V098) acaba com o contrato, não se desfaz por aqui.
+            throw new ConflictException("O acordo de parcelas de um contrato não pode ser desfeito.", "ACORDO_NAO_DESFAZIVEL");
+        }
         List<CobrancaAluno> doAcordo = cobrancas.travarDoAcordo(acordoId);
         List<CobrancaAluno> parcelas = doAcordo.stream().filter(c -> c.getTipo() == CobrancaAluno.Tipo.RENEGOCIACAO).toList();
         if (parcelas.stream().anyMatch(p -> p.getSituacao() == CobrancaAluno.Situacao.PAGA
@@ -207,8 +211,11 @@ public class RenegociacaoService {
             if (c.getSituacao() != CobrancaAluno.Situacao.ABERTA) {
                 throw new ConflictException("Alguma cobrança não está em aberto.", "COBRANCA_NAO_ABERTA");
             }
-            if (c.getTipo() != CobrancaAluno.Tipo.MENSALIDADE && c.getTipo() != CobrancaAluno.Tipo.AVULSA) {
-                throw new ConflictException("A cobrança de saída e a parcela de um acordo não se renegociam.",
+            // A entrada e os pagamentos do saldo de um contrato fechado (AVULSA ligada à contratação, V098) também não: o contrato
+            // tem a sua própria conta e renegociar tiraria a cobrança do total.
+            if ((c.getTipo() != CobrancaAluno.Tipo.MENSALIDADE && c.getTipo() != CobrancaAluno.Tipo.AVULSA)
+                    || (c.getTipo() == CobrancaAluno.Tipo.AVULSA && c.getContratacaoId() != null)) {
+                throw new ConflictException("A cobrança de saída, a parcela de um acordo e a cobrança de um contrato não se renegociam.",
                         "COBRANCA_NAO_RENEGOCIAVEL");
             }
             if (CobrancaAutomatica.eh(c, automaticas)) { // D3: uma só recusa o lote inteiro; nada foi gravado até aqui

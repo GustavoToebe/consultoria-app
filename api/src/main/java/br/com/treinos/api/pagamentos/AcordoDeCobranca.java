@@ -37,6 +37,9 @@ public class AcordoDeCobranca {
     private short parcelas;
     @Column(name = "total_centavos", nullable = false, updatable = false)
     private long totalCentavos;
+    /** V098: só o acordo de parcelas de um contrato fechado tem (e então {@code renegociadas} é 0); nulo nos de renegociação. */
+    @Column(name = "contratacao_id", updatable = false)
+    private UUID contratacaoId;
     @Column(name = "desfeito_em")
     private Instant desfeitoEm;
     @Column(name = "criado_em", insertable = false, updatable = false)
@@ -55,6 +58,13 @@ public class AcordoDeCobranca {
         this.totalCentavos = totalCentavos;
     }
 
+    /** O acordo das parcelas de um contrato fechado: nada foi renegociado, as parcelas nascem ligadas à contratação. */
+    static AcordoDeCobranca doContrato(UUID alunoId, UUID contratacaoId, int parcelas, long totalCentavos) {
+        AcordoDeCobranca a = new AcordoDeCobranca(alunoId, UUID.randomUUID(), 0, parcelas, totalCentavos);
+        a.contratacaoId = contratacaoId;
+        return a;
+    }
+
     void desfazer(Instant quando) {
         this.desfeitoEm = quando;
     }
@@ -62,6 +72,7 @@ public class AcordoDeCobranca {
     public UUID getId() { return id; }
     public UUID getAlunoId() { return alunoId; }
     public UUID getPedidoId() { return pedidoId; }
+    public UUID getContratacaoId() { return contratacaoId; }
     public int getRenegociadas() { return renegociadas; }
     public int getParcelas() { return parcelas; }
     public long getTotalCentavos() { return totalCentavos; }

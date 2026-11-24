@@ -26,7 +26,7 @@ export const avisoDeConflito = (sujeito: string): string => `${sujeito} em outro
  * `mascara`: formata enquanto digita (`mascaraDeMoeda`, "R$ 1.000,00"), e o rótulo não repete o "R$". Sem ela, o
  * texto fica como a pessoa digitou.
  */
-export function CampoMoeda({ ref, rotulo, texto, aoMudar, erro, ajuda, mascara, corDoTexto }: {
+export function CampoMoeda({ ref, rotulo, texto, aoMudar, erro, ajuda, mascara, corDoTexto, rotuloOculto, rotuloAcessivel }: {
   /** Para levar o foco ao campo quando ele tem erro. */
   ref?: Ref<TextInput>;
   /** Cor do número digitado (lançamento: azul de entrada, vermelho de saída). */
@@ -37,6 +37,9 @@ export function CampoMoeda({ ref, rotulo, texto, aoMudar, erro, ajuda, mascara, 
   erro?: string | null;
   ajuda?: string;
   mascara?: boolean;
+  /** Na célula de uma tabela: o título da coluna já diz o que é; o leitor de tela ouve o `rotuloAcessivel`. */
+  rotuloOculto?: boolean;
+  rotuloAcessivel?: string;
 }) {
   const invalido = texto.trim() !== '' && centavosDaTela(texto) === null;
   if (mascara) {
@@ -46,7 +49,8 @@ export function CampoMoeda({ ref, rotulo, texto, aoMudar, erro, ajuda, mascara, 
     // shortcut: a máscara reescreve o texto inteiro e o cursor vai para o fim (editar no meio não é preservado); trocar por seleção controlada se pedirem.
     return (
       <Campo ref={ref} numerico rotulo={rotulo} valor={exibido} aoMudar={(novo) => aoMudar(mascaraDeMoeda(exibido, novo))}
-        placeholder="R$ 0,00" keyboardType="number-pad" inputMode="numeric" ajuda={ajuda} erro={erro ?? null} corDoTexto={corDoTexto} />
+        placeholder="R$ 0,00" keyboardType="number-pad" inputMode="numeric" ajuda={ajuda} erro={erro ?? null} corDoTexto={corDoTexto}
+        rotuloOculto={rotuloOculto} rotuloAcessivel={rotuloAcessivel} />
     );
   }
   return (

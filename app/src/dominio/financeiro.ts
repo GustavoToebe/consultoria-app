@@ -12,6 +12,7 @@ import type {
   MesDoPainel,
   Painel,
   PeriodoDoPlano,
+  PlanoDoAluno,
   PlanoResponse,
   ProvedorDaConferencia,
   RetornoDoPagamento,
@@ -209,8 +210,10 @@ export const temDescricaoPropria = (tipo: TipoDaCobranca | null | undefined): bo
  * O selo que marca o TIPO da cobranca ao lado do selo da situação: a de saída ("Saída"), a avulsa ("Avulsa") e a parcela do
  * acordo ("Acordo"), neutros (a cor é da situação, não do tipo). Mensalidade não ganha selo.
  */
-export function seloDoTipoDaCobranca(tipo: TipoDaCobranca | null | undefined): SeloFinanceiro | null {
+export function seloDoTipoDaCobranca(tipo: TipoDaCobranca | null | undefined, contratacaoId?: string | null): SeloFinanceiro | null {
   if (tipo === 'SAIDA') return { tom: 'neutro', rotulo: 'Saída' };
+  // Contrato fechado: a entrada, o pagamento do saldo e a parcela são do contrato, não avulsa nem acordo (a descrição já diz o que são).
+  if (contratacaoId && (tipo === 'AVULSA' || tipo === 'RENEGOCIACAO')) return null;
   if (tipo === 'RENEGOCIACAO') return { tom: 'neutro', rotulo: 'Acordo' };
   return tipo === 'AVULSA' ? { tom: 'neutro', rotulo: 'Avulsa' } : null;
 }
@@ -462,7 +465,7 @@ export function textoDasAbertasDoAluno(modo: ComoPagar, modosDasAbertas: readonl
  * paga = "Paga em 19/10" (data da baixa). Qualquer outra situação (ou paga sem data) fica sem linha: só o selo.
  */
 export function informacaoDaCobranca(
-  c: Pick<CobrancaDoAluno, 'situacao' | 'vencida' | 'vencimento' | 'valorCentavos' | 'pagoEm'> & { tipo?: TipoDaCobranca | null },
+  c: Pick<CobrancaDoAluno, 'situacao' | 'vencida' | 'vencimento' | 'valorCentavos' | 'pagoEm' | 'descricao' | 'doContrato'> & { tipo?: TipoDaCobranca | null },
 ): string | null {
   if (c.situacao === 'PAGA') {
     const quando = c.pagoEm ? dataCurta(c.pagoEm) : '';
@@ -471,7 +474,18 @@ export function informacaoDaCobranca(
   if (c.situacao !== 'ABERTA') return null;
   const vence = dataCurta(c.vencimento);
   if (!vence) return null;
-  return c.vencida ? `Em aberto desde ${vence}` : `${rotuloDoTipoDaCobranca(c.tipo)} de ${centavosParaTela(c.valorCentavos)}, vence em ${vence}`;
+  const nome = c.doContrato ? (c.descricao?.trim() || rotuloDoTipoDaCobranca(c.tipo)) : rotuloDoTipoDaCobranca(c.tipo);
+  return c.vencida ? `Em aberto desde ${vence}` : `${nome} de ${centavosParaTela(c.valorCentavos)}, vence em ${vence}`;
+}
+
+/** O selo do tipo no "Meu plano": a cobrança do contrato fechado não ganha "Avulsa" nem "Acordo" (a descrição já diz o que é). */
+export const seloDoTipoNoMeuPlano = (c: Pick<CobrancaDoAluno, 'tipo' | 'doContrato'>) => (c.doContrato ? null : seloDoTipoDaCobranca(c.tipo));
+
+/** Valor e periodicidade do plano no "Meu plano": no contrato fechado o valor é o total e não há periodicidade. */
+export function camposDoMeuPlano(p: Pick<PlanoDoAluno, 'valorCentavos' | 'periodicidade' | 'contratoFechado'>): { rotuloDoValor: string; periodicidade: string | null } {
+  return p.contratoFechado
+    ? { rotuloDoValor: 'Valor do contrato', periodicidade: null }
+    : { rotuloDoValor: 'Valor', periodicidade: rotuloDaPeriodicidade(p.periodicidade) };
 }
 
 export const TEXTO_RECEBIMENTO_ONLINE =

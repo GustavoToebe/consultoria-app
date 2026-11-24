@@ -69,7 +69,7 @@ public class AlunoFinanceiroService {
                     String link = ligadas.linkProprio() ? comercial.map(PlanoComercial::getLinkDePagamento).orElse(null) : null;
                     return new PlanoDoAluno(c.getId(), comercial.map(PlanoComercial::getNome).orElse(null),
                             c.getValorCentavos(), c.getPeriodicidade(), c.getSituacao(),
-                            proximoVencimento(abertas, c.getId(), hoje), link);
+                            proximoVencimento(abertas, c, hoje), link, c.fechado());
                 })
                 .orElse(null);
         List<CobrancaAluno> pagas = cobrancas
@@ -120,9 +120,11 @@ public class AlunoFinanceiroService {
      * aparecendo como "Pagamento em aberto". A cobrança de saída não é "o próximo vencimento do plano". {@code abertas} já vem
      * ordenada por vencimento.
      */
-    private static LocalDate proximoVencimento(List<CobrancaAluno> abertas, UUID contratacaoId, LocalDate hoje) {
-        List<LocalDate> vencimentos = abertas.stream().filter(a -> a.getTipo() == CobrancaAluno.Tipo.MENSALIDADE
-                && contratacaoId.equals(a.getContratacaoId())).map(CobrancaAluno::getVencimento).toList();
+    private static LocalDate proximoVencimento(List<CobrancaAluno> abertas, ContratacaoAluno contratacao, LocalDate hoje) {
+        // Contrato fechado (V098): não há mensalidade; valem a entrada, as parcelas e os pagamentos do saldo ligados a ele.
+        List<LocalDate> vencimentos = abertas.stream().filter(a -> contratacao.getId().equals(a.getContratacaoId())
+                && (contratacao.fechado() ? CobrancaAluno.DO_CONTRATO.contains(a.getTipo()) : a.getTipo() == CobrancaAluno.Tipo.MENSALIDADE))
+                .map(CobrancaAluno::getVencimento).toList();
         return vencimentos.stream().filter(v -> !v.isBefore(hoje)).findFirst()
                 .orElse(vencimentos.isEmpty() ? null : vencimentos.get(0));
     }

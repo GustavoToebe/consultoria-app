@@ -1,5 +1,6 @@
 package br.com.treinos.api.pagamentos;
 
+import br.com.treinos.api.pagamentos.PagamentosDtos.AlunosEmAtraso;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Numeros;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PaginaInadimplentes;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Painel;
@@ -66,6 +67,14 @@ public class FinanceiroController {
                                              @RequestParam(defaultValue = "0") int pagina,
                                              @AuthenticationPrincipal UsuarioAutenticado eu) {
         return financeiro.inadimplentes(meus ? eu.usuarioId() : null, pagina);
+    }
+
+    /** Quem tem cobrança aberta vencida (a lista de alunos mostra a pílula de atraso; {@code alunos/} não lê o financeiro). */
+    @PreAuthorize(LER_COM_ALUNO)
+    @GetMapping("/financeiro/alunos-em-atraso")
+    public AlunosEmAtraso alunosEmAtraso(@RequestParam(defaultValue = "false") boolean meus,
+                                         @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return financeiro.alunosEmAtraso(meus ? eu.usuarioId() : null);
     }
 
     /** CSV de cobranças (por vencimento) e lançamentos (por data); mostra o nome do aluno, por isso pede também ALUNO_LER. */

@@ -55,6 +55,13 @@ public class ContratacaoAluno {
     /** Fim do tempo mínimo (início + N meses do plano, ou o que o treinador pôs); nulo = sem mínimo. Só data, nada pessoal. */
     @Column(name = "minimo_ate")
     private LocalDate minimoAte;
+    /** V098: RECORRENTE é o de sempre; nos modos fechados o contrato tem {@code valorTotalCentavos} e nenhuma mensalidade. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "modo_cobranca", nullable = false, updatable = false)
+    private ModoDeCobranca modoCobranca = ModoDeCobranca.RECORRENTE;
+    /** Só nos modos fechados (nulo no recorrente); {@code valorCentavos} guarda o mesmo número. */
+    @Column(name = "valor_total_centavos", updatable = false)
+    private Long valorTotalCentavos;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Situacao situacao;
@@ -81,6 +88,12 @@ public class ContratacaoAluno {
         this.ancora = inicio;
         this.diaVencimento = diaVencimento;
         this.situacao = Situacao.ATIVA;
+    }
+
+    /** Contrato fechado: chamado logo depois de criar, antes de gravar. O valor da contratação é o total. */
+    void comoContrato(ModoDeCobranca modo, long valorTotalCentavos) {
+        this.modoCobranca = modo;
+        this.valorTotalCentavos = valorTotalCentavos;
     }
 
     void alterar(long valorCentavos, String motivoValor, int diaVencimento, LocalDate minimoAte) {
@@ -115,6 +128,15 @@ public class ContratacaoAluno {
         this.motivoValor = null;
     }
 
+    /** Gera mensalidade todo período: modo recorrente e plano que não é parcela única. Contrato fechado nunca gera. */
+    public boolean recorrente() {
+        return modoCobranca == ModoDeCobranca.RECORRENTE && periodicidade.recorrente();
+    }
+
+    public boolean fechado() {
+        return modoCobranca.fechado();
+    }
+
     public boolean isVigente() {
         return situacao != Situacao.ENCERRADA;
     }
@@ -130,6 +152,8 @@ public class ContratacaoAluno {
     public LocalDate getAncora() { return ancora; }
     public int getDiaVencimento() { return diaVencimento; }
     public LocalDate getMinimoAte() { return minimoAte; }
+    public ModoDeCobranca getModoCobranca() { return modoCobranca; }
+    public Long getValorTotalCentavos() { return valorTotalCentavos; }
     public Situacao getSituacao() { return situacao; }
     public Instant getEncerradaEm() { return encerradaEm; }
     public Instant getCriadoEm() { return criadoEm; }

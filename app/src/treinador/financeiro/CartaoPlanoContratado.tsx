@@ -34,9 +34,11 @@ import { useCarregar } from '../../ui/useCarregar';
 import { ICONE_DO_SELO } from '../iconesDosSelos';
 import { SituacaoDaCobranca } from './AbaCobrancas';
 import { avisoDeConflito, ehConflito } from './comum';
+import { ContratoNoCartao } from './ContratoNoCartao';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
 import { FolhaDeContratacao } from './FolhaDeContratacao';
 import { FolhaDeEncerrar } from './FolhaDeEncerrar';
+import { FolhaPagamentoDoSaldo } from './FolhaPagamentoDoSaldo';
 import { ListaOuTabela } from './ListaOuTabela';
 import { ResponsavelFinanceiro } from './ResponsavelFinanceiro';
 
@@ -48,7 +50,7 @@ function mensagemDeRenovacao(alunoNome: string | undefined, planoNome: string | 
 /** O nome da linha da cobrança (contrato dos e2e do Financeiro): "Abrir cobrança de 11/2026, Paga". */
 function rotuloDaCobranca(c: CobrancaResponse): string {
   const selo = seloDaCobranca(c);
-  const doTipo = seloDoTipoDaCobranca(c.tipo);
+  const doTipo = seloDoTipoDaCobranca(c.tipo, c.contratacaoId);
   return `Abrir ${doTipo ? rotuloDoTipoDaCobranca(c.tipo).toLowerCase() : 'cobrança'}${c.tipo === 'AVULSA' ? ':' : ' de'} ${referenciaDaCobranca(c)}, ${selo.rotulo}`;
 }
 
@@ -74,8 +76,11 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
   useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
   const [formulario, setFormulario] = useState<'contratar' | 'alterar' | null>(null);
   const [cobrancaAberta, setCobrancaAberta] = useState<CobrancaResponse | null>(null);
+  // Cobrança criada pelo pagamento do saldo (a API devolve só o id): a folha abre quando a lista recarregada a trouxer.
+  const [abrirAoCarregar, setAbrirAoCarregar] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<'pausar' | 'encerrar' | null>(null);
   const [mudando, setMudando] = useState<string | null>(null);
+  const [pagandoSaldo, setPagandoSaldo] = useState(false);
 
   const lista = contratacoes.dados;
   const vigente = lista?.find((c) => c.situacao !== 'ENCERRADA') ?? null;
@@ -86,6 +91,8 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
   const ultimas = ultimasCobrancas(cobrancas.dados ?? []);
   const podeContratar = !!lista && !vigente && podeAlterar && ativo;
   const situacao = vigente ? seloDaContratacao(vigente.situacao) : null;
+  // Contrato fechado (`docs/planos/contrato-fechado.md`): indicadores, barra, atraso e as cobranças do contrato no lugar do valor por período.
+  const contrato = vigente?.contrato ?? null;
   const periodicidade = vigente ? rotuloDaPeriodicidade(vigente.periodicidade) : null;
   const porPeriodo = vigente ? valorPorPeriodo(vigente.periodicidade) : null;
   // O WhatsApp só aparece na janela de renovação da contratação ativa (a parcela única encerrada não alerta); quem envia é o treinador.
@@ -133,13 +140,20 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
             </View>
             {podeAlterar ? (
               <View style={estilos.acoesDoPlano}>
-                <Botao rotulo="Alterar" tipo="secundario" aoTocar={() => setFormulario('alterar')} />
-                {vigente.situacao === 'ATIVA' ? <Botao rotulo="Pausar" tipo="secundario" aoTocar={() => setConfirmando('pausar')} /> : null}
-                {vigente.situacao === 'PAUSADA' ? <Botao rotulo="Retomar" tipo="secundario" carregando={mudando === 'retomar'} aoTocar={() => mudarSituacao('retomar', 'Contratação retomada.')} /> : null}
+                {/* shortcut: "Alterar" (reajuste das abertas) fica escondido no contrato fechado (D11); trocar quando o contrato fechado tiver edição própria. */}
+                {contrato ? null : <Botao rotulo="Alterar" tipo="secundario" aoTocar={() => setFormulario('alterar')} />}
+                {/* shortcut: "Pausar"/"Retomar" ficam escondidos no contrato fechado (não há mensalidade a suspender e pausado trava o saldo e os lembretes); trocar se o contrato fechado ganhar pausa própria. */}
+                {!contrato && vigente.situacao === 'ATIVA' ? <Botao rotulo="Pausar" tipo="secundario" aoTocar={() => setConfirmando('pausar')} /> : null}
+                {!contrato && vigente.situacao === 'PAUSADA' ? <Botao rotulo="Retomar" tipo="secundario" carregando={mudando === 'retomar'} aoTocar={() => mudarSituacao('retomar', 'Contratação retomada.')} /> : null}
                 <Botao rotulo="Encerrar" tipo="perigoTexto" aoTocar={() => setConfirmando('encerrar')} />
               </View>
             ) : null}
           </View>
+          {contrato ? (
+            <ContratoNoCartao contratacao={vigente} contrato={contrato} cobrancas={cobrancas.dados} alunoId={alunoId}
+              podeRegistrar={podeAlterar && vigente.situacao === 'ATIVA'} aoAbrirCobranca={setCobrancaAberta} aoRegistrarPagamento={() => setPagandoSaldo(true)} />
+          ) : null}
+          {contrato ? null : <>
           <View style={estilos.valor} accessibilityLabel={`Valor: ${centavosParaTela(vigente.valorCentavos)}${porPeriodo ? ` ${porPeriodo}` : ''}`}>
             <Texto variante="destaque" numerico>{centavosParaTela(vigente.valorCentavos)}</Texto>
             {porPeriodo ? <Texto variante="suave">{porPeriodo}</Texto> : null}
@@ -160,10 +174,11 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
                 desabilitado={!linkDaRenovacao} motivo={linkDaRenovacao ? undefined : MOTIVO_SEM_TELEFONE} />
             </LinhaDeAcoes>
           ) : null}
+          </>}
         </View>
       ) : null}
       {cobrancas.erro ? <MensagemErro texto={textoDoErro(cobrancas.erro)} erro={cobrancas.erro} tentarDeNovo={recarregarCobrancas} /> : null}
-      {ultimas.length > 0 || (cobrancas.dados && vigente) ? (
+      {!contrato && (ultimas.length > 0 || (cobrancas.dados && vigente)) ? (
         <View style={estilos.bloco}>
           <Texto variante="secao" nivel={3}>Cobranças</Texto>
           {ultimas.length > 0 ? (
@@ -171,7 +186,7 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
               vao={espaco(3)} rotuloDaLinha={rotuloDaCobranca}
               item={(c) => {
                 const selo = seloDaCobranca(c);
-                const doTipo = seloDoTipoDaCobranca(c.tipo);
+                const doTipo = seloDoTipoDaCobranca(c.tipo, c.contratacaoId);
                 return {
                   titulo: referenciaDaCobranca(c), detalhe: resumoDaCobranca(c), selo: { texto: selo.rotulo, tipo: selo.tom },
                   extra: doTipo ? <View style={estilos.seloDoTipo}><Selo texto={doTipo.rotulo} tipo={doTipo.tom} /></View> : undefined,
@@ -196,13 +211,17 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
         <FolhaDeContratacao alunoId={alunoId} contratacao={formulario === 'alterar' ? vigente : null}
           aoFechar={() => setFormulario(null)} aoMudar={recarregar} />
       ) : null}
-      <FolhaDaCobranca cobranca={cobrancaAberta} podeAlterar={podeAlterar} aoFechar={() => setCobrancaAberta(null)} aoMudar={recarregar} />
+      <FolhaDaCobranca cobranca={cobrancaAberta ?? (abrirAoCarregar ? cobrancas.dados?.find((c) => c.id === abrirAoCarregar) ?? null : null)}
+        podeAlterar={podeAlterar} aoFechar={() => { setCobrancaAberta(null); setAbrirAoCarregar(null); }} aoMudar={recarregar} />
       <PainelConfirmacao visivel={confirmando === 'pausar'} titulo="Pausar este plano?"
         mensagem="Enquanto estiver pausado, o aluno não recebe novas mensalidades. Você pode retomar quando quiser."
         rotuloConfirmar="Pausar plano" rotuloCancelar="Voltar" carregando={mudando === 'pausar'}
         aoConfirmar={() => mudarSituacao('pausar', 'Contratação pausada.')} aoCancelar={() => setConfirmando(null)}>
         {avisoDasAbertas ? <Texto variante="suave">{avisoDasAbertas}</Texto> : null}
       </PainelConfirmacao>
+      {pagandoSaldo && vigente && contrato ? (
+        <FolhaPagamentoDoSaldo contratacao={vigente} contrato={contrato} aoFechar={() => setPagandoSaldo(false)} aoMudar={recarregar} aoAbrirCobranca={setAbrirAoCarregar} />
+      ) : null}
       {confirmando === 'encerrar' && vigente ? (
         <FolhaDeEncerrar contratacao={vigente} aoFechar={() => setConfirmando(null)} aoMudar={recarregar} />
       ) : null}

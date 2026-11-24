@@ -78,6 +78,19 @@ public class PagamentosDoAluno {
                 .map(p -> new PlanosAtivos(p.isIncluiTreino(), p.isIncluiDieta()));
     }
 
+    /**
+     * Inativar pelo treinador (rota e lote) recusa o aluno com contrato fechado vigente: contratação ATIVA e {@code fechado()}, sem
+     * olhar a data do fim (o contrato fechado só sai de ATIVA ao encerrar). Com o financeiro desligado não há como encerrar o
+     * contrato, então não bloqueia (senão não haveria saída). Só leitura: quem chama já travou o aluno (a ordem consultoria, aluno,
+     * contratação), e todo encerrar/contratar trava o mesmo aluno antes.
+     */
+    @Transactional(readOnly = true)
+    public boolean temContratoFechadoVigente(UUID alunoId) {
+        return propriedades.habilitado()
+                && contratacoes.findFirstByAlunoIdAndSituacao(alunoId, ContratacaoAluno.Situacao.ATIVA)
+                        .filter(ContratacaoAluno::fechado).isPresent();
+    }
+
     @Transactional(readOnly = true)
     public FinanceiroExportado exportar(UUID alunoId) {
         List<ContratacaoAluno> doAluno = contratacoes.findByAlunoIdOrderByCriadoEmDescIdDesc(alunoId);
@@ -88,7 +101,8 @@ public class PagamentosDoAluno {
         return new FinanceiroExportado(
                 doAluno.stream().map(c -> new ContratacaoExportada(c.getId(), nomes.get(c.getPlanoComercialId()),
                         c.getPeriodicidade(), c.getValorCentavos(), c.getMotivoValor(), c.getInicio(),
-                        c.getDiaVencimento(), c.getSituacao(), c.getEncerradaEm(), c.getCriadoEm(), c.getMinimoAte())).toList(),
+                        c.getDiaVencimento(), c.getSituacao(), c.getEncerradaEm(), c.getCriadoEm(), c.getMinimoAte(), c.getModoCobranca(),
+                        c.getValorTotalCentavos())).toList(),
                 cobrancas.findByAlunoId(alunoId).stream()
                         .sorted(Comparator.comparing((CobrancaAluno c) -> c.getCompetencia() != null ? c.getCompetencia() : c.getVencimento())
                                 .reversed())

@@ -7,6 +7,7 @@ import type {
 import { dataNaFaixa, mensagemDaFaixa } from './datasValidas';
 import { hojeEmBrasilia, LIMITES, VALOR_MAXIMO_CENTAVOS } from './financeiro';
 import { centavosDaTela, dataDaTela } from './formatos';
+import { ehDoContratoFechado, MOTIVO_COBRANCA_DO_CONTRATO } from './contratoFechado';
 import { ehCobradaPelaKiwify } from './kiwify';
 
 /**
@@ -23,18 +24,20 @@ export const quantasParcelas = (n: number): string => plural(n, 'parcela', 'parc
 
 // ---- Quais cobranças da seleção entram ----
 
-type Cobranca = Pick<CobrancaResponse, 'id' | 'situacao' | 'tipo' | 'alunoId' | 'alunoNome' | 'versao' | 'cobrancaAutomatica'>;
+type Cobranca = Pick<CobrancaResponse, 'id' | 'situacao' | 'tipo' | 'alunoId' | 'alunoNome' | 'versao' | 'cobrancaAutomatica'> & { contratacaoId?: string | null };
 
 /** Por que uma cobrança não entra; `null` = entra. A API confere de novo (409 `COBRANCA_NAO_ABERTA`/`COBRANCA_NAO_RENEGOCIAVEL`). */
-export function motivoDeFicarDeFora(c: Pick<CobrancaResponse, 'situacao' | 'tipo'>): string | null {
+export function motivoDeFicarDeFora(c: Pick<CobrancaResponse, 'situacao' | 'tipo'> & { contratacaoId?: string | null }): string | null {
   if (c.situacao !== 'ABERTA') return 'Não está em aberto.';
+  // D11 do contrato fechado: a API recusa com 409 `COBRANCA_NAO_RENEGOCIAVEL`.
+  if (ehDoContratoFechado(c)) return MOTIVO_COBRANCA_DO_CONTRATO;
   if (c.tipo === 'SAIDA') return 'Cobrança de saída não entra em renegociação.';
   if (c.tipo === 'RENEGOCIACAO') return 'Já é parcela de um acordo. Para mudar, desfaça o acordo antes.';
   return null;
 }
 
 /** "Renegociar" na folha de uma cobrança: só em aberto (vencida incluída), mensalidade ou avulsa. */
-export const podeRenegociar = (c: Pick<CobrancaResponse, 'situacao' | 'tipo'>): boolean => motivoDeFicarDeFora(c) === null;
+export const podeRenegociar = (c: Pick<CobrancaResponse, 'situacao' | 'tipo'> & { contratacaoId?: string | null }): boolean => motivoDeFicarDeFora(c) === null;
 
 /** D3 (18/11): a mensalidade com cobrança automática da Kiwify não se renegocia; a API recusa com o mesmo texto (409 `RENEGOCIACAO_COBRANCA_AUTOMATICA`). */
 export const MOTIVO_RENEGOCIACAO_AUTOMATICA = 'Esta cobrança é cobrada automaticamente pela Kiwify e não pode ser renegociada.';
@@ -60,8 +63,8 @@ export const motivoDeRenegociarOLoteDesabilitado = (lote: readonly Pick<Cobranca
   lote.some((c) => motivoDeRenegociarDesabilitado(c) !== null) ? MOTIVO_RENEGOCIACAO_AUTOMATICA : null;
 
 /** "Desfazer acordo": na original renegociada e na parcela do acordo ainda em aberto. A API confere se alguma foi paga. */
-export const podeDesfazerAcordo = (c: Pick<CobrancaResponse, 'situacao' | 'tipo' | 'acordoId'>): boolean =>
-  !!c.acordoId && (c.situacao === 'RENEGOCIADA' || (c.tipo === 'RENEGOCIACAO' && c.situacao === 'ABERTA'));
+export const podeDesfazerAcordo = (c: Pick<CobrancaResponse, 'situacao' | 'tipo' | 'acordoId'> & { contratacaoId?: string | null }): boolean =>
+  !!c.acordoId && !ehDoContratoFechado(c) && (c.situacao === 'RENEGOCIADA' || (c.tipo === 'RENEGOCIACAO' && c.situacao === 'ABERTA'));
 
 export interface SeparacaoDaRenegociacao<C extends Cobranca> {
   /** As que vão para o acordo, na ordem da seleção. */

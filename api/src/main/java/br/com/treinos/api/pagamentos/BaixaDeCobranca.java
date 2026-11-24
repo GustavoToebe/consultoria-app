@@ -74,7 +74,7 @@ public class BaixaDeCobranca {
         exigirAberta(c);
         conferirVersao(c, baixa.versaoEsperada());
         c.pagar(baixa.provedor(), baixa.forma(), baixa.pagoEm(), baixa.baixaPor(), baixa.observacao(), baixa.idExterno());
-        encerrarSeParcelaUnica(t.contratacao());
+        encerrarSeParcelaUnica(c, t.contratacao());
         return resultado(t, true);
     }
 
@@ -95,8 +95,7 @@ public class BaixaDeCobranca {
         if (!CobrancaAluno.MANUAL.equals(c.getProvedor())) {
             throw new ConflictException("Só a baixa manual pode ser desfeita.", "BAIXA_NAO_MANUAL");
         }
-        if (t.contratacao() != null && !t.contratacao().getPeriodicidade().recorrente()
-                && t.contratacao().getSituacao() == ContratacaoAluno.Situacao.ENCERRADA) {
+        if (ehParcelaUnica(c, t.contratacao()) && t.contratacao().getSituacao() == ContratacaoAluno.Situacao.ENCERRADA) {
             throw new ConflictException("Esta cobrança era a parcela única de um plano já encerrado; para cobrar de novo, "
                     + "contrate o plano outra vez.", "PARCELA_UNICA_ENCERRADA");
         }
@@ -120,7 +119,7 @@ public class BaixaDeCobranca {
         conferirVersao(c, versaoEsperada);
         c.cancelar(motivo);
         // Parcela única cancelada: não há mais o que cobrar, e a contratação vigente bloquearia uma nova.
-        encerrarSeParcelaUnica(t.contratacao());
+        encerrarSeParcelaUnica(c, t.contratacao());
         return resultado(t, true);
     }
 
@@ -183,8 +182,17 @@ public class BaixaDeCobranca {
         return resultado(t, true);
     }
 
-    private static void encerrarSeParcelaUnica(ContratacaoAluno contratacao) {
-        if (contratacao != null && !contratacao.getPeriodicidade().recorrente() && contratacao.isVigente()) {
+    /**
+     * Só a mensalidade da parcela única (a única cobrança dela) encerra a contratação. A entrada, as parcelas e os pagamentos do
+     * saldo de um contrato fechado (V098) também têm contratação, e quitar um contrato não o encerra (D6).
+     */
+    private static boolean ehParcelaUnica(CobrancaAluno cobranca, ContratacaoAluno contratacao) {
+        return contratacao != null && cobranca.getTipo() == CobrancaAluno.Tipo.MENSALIDADE
+                && !contratacao.getPeriodicidade().recorrente();
+    }
+
+    private static void encerrarSeParcelaUnica(CobrancaAluno cobranca, ContratacaoAluno contratacao) {
+        if (ehParcelaUnica(cobranca, contratacao) && contratacao.isVigente()) {
             contratacao.encerrar(Instant.now());
         }
     }

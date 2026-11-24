@@ -47,8 +47,9 @@ public interface ContratacaoAlunoRepository extends JpaRepository<ContratacaoAlu
     Optional<ContratacaoAluno> buscarParaAlterar(UUID id);
 
     /** Só os ids das contratações que a rotina diária de geração percorre (ativas e recorrentes), numa ordem fixa. */
-    @Query("select c.id from ContratacaoAluno c where c.situacao = :ativa and c.periodicidade <> :unica order by c.id")
-    List<UUID> idsAtivasRecorrentes(ContratacaoAluno.Situacao ativa, PeriodoDoPlano unica);
+    @Query("select c.id from ContratacaoAluno c where c.situacao = :ativa and c.periodicidade <> :unica "
+            + "and c.modoCobranca = :recorrente order by c.id")
+    List<UUID> idsAtivasRecorrentes(ContratacaoAluno.Situacao ativa, PeriodoDoPlano unica, ModoDeCobranca recorrente);
 
     Optional<ContratacaoAluno> findFirstByAlunoIdAndSituacaoNot(UUID alunoId, ContratacaoAluno.Situacao situacao);
 
@@ -63,10 +64,11 @@ public interface ContratacaoAlunoRepository extends JpaRepository<ContratacaoAlu
 
     @Query("select c.periodicidade as periodicidade, c.valorCentavos as valor, count(c) as quantidade "
             + "from ContratacaoAluno c join Aluno a on a.id = c.alunoId "
-            + "where c.situacao = :ativa and c.periodicidade <> :unica "
+            + "where c.situacao = :ativa and c.periodicidade <> :unica and c.modoCobranca = :recorrente "
             + "and (:responsavelId is null or a.responsavelId = :responsavelId) "
             + "group by c.periodicidade, c.valorCentavos")
-    List<GrupoRecorrente> recorrentes(ContratacaoAluno.Situacao ativa, PeriodoDoPlano unica, UUID responsavelId);
+    List<GrupoRecorrente> recorrentes(ContratacaoAluno.Situacao ativa, PeriodoDoPlano unica, ModoDeCobranca recorrente,
+            UUID responsavelId);
 
     /** Só o instante da criação de cada contratação da janela (o mês de Brasília é contado em Java). */
     @Query("select c.criadoEm from ContratacaoAluno c join Aluno a on a.id = c.alunoId "

@@ -96,7 +96,8 @@ public class RotinaDeGeracaoDeCobrancas {
     /** Uma rodada só numa consultoria (a rodada inteira chama uma por uma; os testes chamam a do próprio dado). */
     public Resultado rodarNa(UUID consultoriaId, LocalDate hoje) {
         List<UUID> ids = TenantContext.executarComo(consultoriaId, () -> transacao.execute(
-                s -> contratacoes.idsAtivasRecorrentes(ContratacaoAluno.Situacao.ATIVA, PeriodoDoPlano.PARCELA_UNICA)));
+                s -> contratacoes.idsAtivasRecorrentes(ContratacaoAluno.Situacao.ATIVA, PeriodoDoPlano.PARCELA_UNICA,
+                        ModoDeCobranca.RECORRENTE)));
         int criadas = 0;
         int falhas = 0;
         for (UUID id : ids == null ? List.<UUID>of() : ids) {

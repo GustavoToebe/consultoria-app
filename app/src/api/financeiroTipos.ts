@@ -122,6 +122,29 @@ export interface ContratacaoResponse {
   versao: number;
   /** Fim do tempo mínimo (`AAAA-MM-DD`); nulo = sem mínimo. É a competência N+1 (início + N meses), não o último dia. */
   minimoAte: string | null;
+  /** Contrato fechado (`docs/planos/contrato-fechado.md`): nulo ou ausente no recorrente. Toda conta é do servidor. */
+  contrato?: ResumoDoContrato | null;
+}
+
+/** Como a contratação cobra (D1): ausente no corpo do contratar = `RECORRENTE`. */
+export type ModoDeCobranca = 'RECORRENTE' | 'PARCELADO_FIXO' | 'SALDO_ABERTO';
+
+/**
+ * O bloco `contrato` da contratação fechada, todo calculado no servidor (D5): `saldoCentavos` = total − pagas (nunca
+ * negativo); `limiteDeLancamentoCentavos` = total − pagas − abertas − contestadas (o teto de um novo pagamento do saldo);
+ * `vencidas`/`valorVencidoCentavos` = abertas vencidas (Brasília); `maisAntigaVencida` nula sem vencida.
+ */
+export interface ResumoDoContrato {
+  modo: Exclude<ModoDeCobranca, 'RECORRENTE'>;
+  valorTotalCentavos: number;
+  pagoCentavos: number;
+  saldoCentavos: number;
+  limiteDeLancamentoCentavos: number;
+  cobrancasPagas: number;
+  cobrancasTotal: number;
+  vencidas: number;
+  valorVencidoCentavos: number;
+  maisAntigaVencida: { cobrancaId: string; descricao: string; vencimento: string; diasDeAtraso: number } | null;
 }
 
 // ---- Encerrar com cobrança de saída ----
@@ -140,7 +163,11 @@ export interface SaidaRequest {
   cobrancasACancelar?: string[] | null;
 }
 
-/** `saida` ausente (ou `NAO_COBRAR`) encerra como sempre: as cobranças abertas ficam. `versao` é a da contratação. */
+/**
+ * `saida` ausente (ou `NAO_COBRAR`) encerra como sempre: as cobranças abertas ficam. `versao` é a da contratação.
+ * Contrato fechado (`contrato` não nulo): `saida` é obrigatória, `NAO_COBRAR` ou `OUTRO` (a multa, SAIDA sem link), sempre com
+ * `cobrancasACancelar` = os ids da prévia; ausente ou lista diferente = 409 `VALOR_DA_SAIDA_MUDOU`; `FALTAM`/`VIGENTE` = 422.
+ */
 export interface EncerrarContratacaoRequest {
   versao: number;
   saida?: SaidaRequest | null;
@@ -181,18 +208,32 @@ export interface PreviaDoEncerramento {
   mesesNaoGerados: number;
   valorDosNaoGeradosCentavos: number;
   opcoes: OpcaoDaPrevia[];
+  /** Só no contrato fechado (D7): as abertas de hoje em diante, que encerrar SEMPRE cancela. */
+  aCancelar?: CobrancaDoEncerramento[] | null;
+  /** Só no contrato fechado: as abertas vencidas, que continuam em aberto depois de encerrar. */
+  vencidasQueFicam?: CobrancaDoEncerramento[] | null;
+}
+
+/** Uma cobrança da prévia do encerramento do contrato fechado (descrição fixa do servidor, ex.: "Parcela 3/3"). */
+export interface CobrancaDoEncerramento {
+  cobrancaId: string;
+  descricao: string;
+  vencimento: string;
+  valorCentavos: number;
 }
 
 /**
  * `GET /alunos/{id}/resumo-da-saida` (`FINANCEIRO_LER`; 503 com o financeiro desligado): o que inativar o aluno faz com o
  * financeiro (todas as contratações). `aCancelar` = mensalidades abertas que ainda não venceram; `emAberto` = fica (vencidas e
  * cobrança de saída). `mesesQueFaltam` > 0 = o mínimo se perde sem cobrança de saída. `minimoAte` nulo = sem mínimo.
+ * `contratoFechadoVigente` preenchido = o inativar é recusado (409 `CONTRATO_FECHADO_VIGENTE`, D13 do contrato fechado).
  */
 export interface ResumoDaSaidaDoAluno {
   aCancelar: GrupoDeAbertas;
   emAberto: GrupoDeAbertas;
   minimoAte: string | null;
   mesesQueFaltam: number;
+  contratoFechadoVigente: { contratacaoId: string } | null;
 }
 
 // ---- Cobrança ----
@@ -501,6 +542,11 @@ export interface PlanoDoAluno {
   periodicidade: PeriodoDoPlano;
   situacao: SituacaoDaContratacao;
   proximoVencimento: string | null;
+  /**
+   * Contrato fechado (entrada + parcelas ou saldo livre): `valorCentavos` é o total do contrato e a periodicidade não se
+   * aplica. Sem saldo para o aluno (D12). Ausente = falso (campo novo da API).
+   */
+  contratoFechado?: boolean;
   /** Link de pagamento próprio do plano (https), aberto fora do app, sem token; nulo = sem link. */
   linkDePagamento: string | null;
   // A API ainda não manda a vigência no plano do aluno (só `GET /aluno/contratacao`, que o app não usa): hoje não chega.
@@ -524,6 +570,8 @@ export interface CobrancaDoAluno {
   tipo: TipoDaCobranca;
   /** `KIWIFY`: a Kiwify cobra sozinha (D18): o aluno vê só "Cobrança automática pela Kiwify". Nulo ou ausente = não. */
   cobrancaAutomatica?: CobrancaAutomatica | null;
+  /** Cobrança de contrato fechado ("Entrada", "Parcela k/n", "Pagamento do saldo"): a descrição é o rótulo, sem selo de tipo. */
+  doContrato?: boolean;
 }
 
 /**

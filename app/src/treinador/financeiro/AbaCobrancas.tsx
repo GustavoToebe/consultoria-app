@@ -273,7 +273,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
               ) : null) : undefined}
               item={(c) => {
                 const selo = seloDaCobranca(c);
-                const doTipo = seloDoTipoDaCobranca(c.tipo);
+                const doTipo = seloDoTipoDaCobranca(c.tipo, c.contratacaoId);
                 return {
                   titulo: c.alunoNome ?? '—',
                   // A avulsa diz o que é (a descrição) antes do valor; a mensalidade segue só com o valor e a data. O "R$" vai colado
@@ -509,7 +509,7 @@ function PagamentoDaCobranca({ cobranca }: { cobranca: CobrancaResponse }) {
 /** Selo da situação; vencida mostra os dias de atraso que a API calculou. */
 export function SituacaoDaCobranca({ cobranca }: { cobranca: CobrancaResponse }) {
   const selo = seloDaCobranca(cobranca);
-  const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
+  const doTipo = seloDoTipoDaCobranca(cobranca.tipo, cobranca.contratacaoId);
   return (
     <View style={estilos.selos}>
       <Selo texto={selo.rotulo} tipo={selo.tom} />

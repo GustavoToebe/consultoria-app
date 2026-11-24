@@ -23,12 +23,18 @@ final class Respostas {
                 p.getLinkDePagamento(), p.isIncluiTreino(), p.isIncluiDieta(), p.isKiwifyAssinatura(), p.getKiwifyProdutoId());
     }
 
+    /** Sem o bloco {@code contrato}: a resposta do aluno (que nunca vê o saldo) e a do recorrente. */
     static ContratacaoResponse contratacao(ContratacaoAluno c, String planoNome) {
+        return contratacao(c, planoNome, null);
+    }
+
+    /** {@code contrato} é o bloco do contrato fechado, lido por quem chama ({@code CobrancaAlunoRepository.contratoDe}). */
+    static ContratacaoResponse contratacao(ContratacaoAluno c, String planoNome, PagamentosDtos.ContratoDaContratacao contrato) {
         VigenciaDoPlano v = VigenciaDoPlano.de(c, LocalDate.now(Fuso.BRASILIA));
         return new ContratacaoResponse(c.getId(), c.getAlunoId(), c.getPlanoComercialId(), planoNome, c.getPeriodicidade(),
                 c.getValorCentavos(), c.getMotivoValor(), c.getInicio(), c.getDiaVencimento(), c.getSituacao(),
                 c.getEncerradaEm(), c.getCriadoEm(), c.getVersao(), v.termino(), v.diasRestantes(), v.alerta(),
-                c.getMinimoAte());
+                c.getMinimoAte(), contrato);
     }
 
     /** {@code alunoCpf}: o do aluno, já decidido por quem chama (nulo sem {@code ALUNO_SENSIVEL_LER}). */
@@ -46,7 +52,12 @@ final class Respostas {
     static CobrancaDoAluno cobrancaDoAluno(CobrancaAluno c, LocalDate hoje, boolean automatica) {
         return new CobrancaDoAluno(c.getId(), c.getCompetencia(), c.getVencimento(), c.getValorCentavos(),
                 c.getSituacao(), c.vencida(hoje), c.getForma(), c.getPagoEm(), c.getTipo(), c.getDescricao(),
-                automatica ? CobrancaAutomatica.KIWIFY : null);
+                automatica ? CobrancaAutomatica.KIWIFY : null, doContrato(c));
+    }
+
+    /** Entrada, parcela e pagamento do saldo de um contrato fechado: AVULSA ou RENEGOCIACAO só têm contratação nele (V098). */
+    static boolean doContrato(CobrancaAluno c) {
+        return c.getContratacaoId() != null && CobrancaAluno.DO_CONTRATO.contains(c.getTipo());
     }
 
     static LancamentoResponse lancamento(LancamentoFinanceiro l) {

@@ -222,6 +222,47 @@ test('1280 px: duas colunas, o cabeçalho fica à vista ao rolar e os detalhes a
   expect(Math.round((await folha.boundingBox())!.width)).toBe(460);
 });
 
+// Contrato fechado no "Meu plano": "Valor do contrato" sem periodicidade, cobranças pela descrição, sem selo "Avulsa"/"Acordo"
+// e sem saldo (D12). Sem "Pagar" (só Manual), como o resto da Conta.
+const CONTRATO: FinanceiroDoAluno = {
+  plano: {
+    contratacaoId: 'c1', planoNome: 'Plano Trimestral', valorCentavos: 300_000, periodicidade: 'TRIMESTRAL', situacao: 'ATIVA',
+    proximoVencimento: '2026-11-24', linkDePagamento: null, contratoFechado: true,
+  },
+  abertas: [
+    { id: 'p2', competencia: null, descricao: 'Parcela 2/3', vencimento: '2026-09-24', valorCentavos: 80_000, situacao: 'ABERTA', vencida: true, forma: null, pagoEm: null, tipo: 'RENEGOCIACAO', doContrato: true },
+    { id: 'p3', competencia: null, descricao: 'Parcela 3/3', vencimento: '2026-11-24', valorCentavos: 80_000, situacao: 'ABERTA', vencida: false, forma: null, pagoEm: null, tipo: 'RENEGOCIACAO', doContrato: true },
+  ],
+  historico: [
+    { id: 'en', competencia: null, descricao: 'Entrada', vencimento: '2026-08-24', valorCentavos: 60_000, situacao: 'PAGA', vencida: false, forma: 'PIX_DIRETO', pagoEm: '2026-08-24', tipo: 'AVULSA', doContrato: true },
+    { id: 'p1', competencia: null, descricao: 'Parcela 1/3', vencimento: '2026-09-01', valorCentavos: 80_000, situacao: 'PAGA', vencida: false, forma: 'PIX_DIRETO', pagoEm: '2026-09-01', tipo: 'RENEGOCIACAO', doContrato: true },
+  ],
+  pagamentoOnline: false, formasDePagamento: ['MANUAL'],
+};
+
+for (const largura of [390, 1280]) {
+  for (const tema of ['ESCURO', 'CLARO'] as const) {
+    test(`Meu plano com contrato fechado em ${largura} ${tema.toLowerCase()}: valor do contrato, sem periodicidade nem selo de tipo`, async ({ page }) => {
+      await page.setViewportSize({ width: largura, height: 900 });
+      await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [ALUNO.id, tema] as const);
+      await abrir(page, { financeiro: CONTRATO });
+      const plano = page.getByTestId('secao-plano');
+      await expect(plano.getByText('Plano Trimestral')).toBeVisible();
+      await expect(cabecalho(page).getByText('Contrato · Ativo')).toBeVisible();
+      await expect(plano.getByLabel('Valor do contrato: R$ 3.000,00')).toBeVisible();
+      await expect(plano.getByLabel('Próximo vencimento: 24/11/2026')).toBeVisible();
+      await expect(plano.getByText('Periodicidade')).toHaveCount(0);
+      for (const descricao of ['Parcela 2/3', 'Parcela 3/3', 'Entrada', 'Parcela 1/3']) await expect(plano.getByText(descricao, { exact: true })).toBeVisible();
+      await expect(plano.getByText('Avulsa', { exact: true })).toHaveCount(0);
+      await expect(plano.getByText('Acordo', { exact: true })).toHaveCount(0);
+      await expect(plano.getByText(/saldo/i)).toHaveCount(0);
+      await expect(plano.getByText('Vencida', { exact: true })).toBeVisible();
+      await semRolagemHorizontal(page);
+      await plano.screenshot({ path: `test-results/contrato-fechado/meu-plano-${largura}-${tema.toLowerCase()}.png` });
+    });
+  }
+}
+
 test('390 px: uma coluna, sem índice', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await abrir(page);

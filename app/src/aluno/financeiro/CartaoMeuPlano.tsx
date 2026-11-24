@@ -6,8 +6,8 @@ import { Platform, StyleSheet, View } from 'react-native';
 import type { CobrancaDoAluno } from '../../api/financeiroTipos';
 import { codigoPixDoAluno, linkDePagamentoDoAluno } from '../../api/rotas';
 import {
-  informacaoDaCobranca, referenciaDaCobranca, rotuloDaAcaoDePagamento, rotuloDaForma, rotuloDaPeriodicidade, rotuloDoTipoDaCobranca, seloDaCobranca,
-  seloDaContratacao, seloDoTipoDaCobranca, textoDasAbertasDoAluno, type AcaoDePagamento, type ComoPagar,
+  camposDoMeuPlano, informacaoDaCobranca, referenciaDaCobranca, rotuloDaAcaoDePagamento, rotuloDaForma, rotuloDoTipoDaCobranca, seloDaCobranca,
+  seloDaContratacao, seloDoTipoNoMeuPlano, textoDasAbertasDoAluno, type AcaoDePagamento, type ComoPagar,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { TEXTO_COBRANCA_AUTOMATICA } from '../../dominio/kiwify';
@@ -46,7 +46,8 @@ function textoDaVigencia(situacao: string, restantes: number | null | undefined)
 }
 
 /**
- * "Meu plano" na Conta do aluno: o plano comercial com o treinador (nome, valor, periodicidade, próximo vencimento), as
+ * "Meu plano" na Conta do aluno: o plano comercial com o treinador (nome, valor, periodicidade, próximo vencimento; no
+ * contrato fechado, "Valor do contrato" sem periodicidade e as cobranças pela descrição, sem selo de tipo nem saldo), as
  * cobranças em aberto e o histórico. Só online: nada fica guardado no aparelho. Como pagar depende da plataforma, da chave
  * da plataforma e das formas de recebimento ligadas (`acoesDaCobranca`, de `acoesDePagamentoDoAluno`): com o "Pagar" permitido,
  * cada cobrança em aberto tem as suas ações (InfinitePay, link do treinador e "Copiar código Pix"), abertas fora do app e sem
@@ -70,6 +71,7 @@ export function CartaoMeuPlano() {
   const historico = dados?.historico ?? [];
   const situacao = dados?.plano ? seloDaContratacao(dados.plano.situacao) : null;
   const vigencia = dados?.plano ? textoDaVigencia(dados.plano.situacao, dados.plano.diasRestantesVigencia) : null;
+  const campos = dados?.plano ? camposDoMeuPlano(dados.plano) : null;
   const textoDoModo = textoDasAbertasDoAluno(modo, (dados?.abertas ?? []).map((c) => modoDaCobranca(c)));
   const visiveis = todas ? historico : historico.slice(0, HISTORICO_VISIVEL);
   // O nome da ação vem de todas as cobranças do cartão: a avulsa (sem o link do plano) não vira "Pagar" ao lado de uma
@@ -91,8 +93,8 @@ export function CartaoMeuPlano() {
                 </View>
               </View>
               <CamposEmLinha minimo={110}>
-                <CampoLeitura rotulo="Valor" valor={centavosParaTela(dados.plano.valorCentavos)} numerico />
-                <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(dados.plano.periodicidade)} />
+                <CampoLeitura rotulo={campos?.rotuloDoValor ?? 'Valor'} valor={centavosParaTela(dados.plano.valorCentavos)} numerico />
+                {campos?.periodicidade ? <CampoLeitura rotulo="Periodicidade" valor={campos.periodicidade} /> : null}
                 <CampoLeitura rotulo="Próximo vencimento" valor={dados.plano.proximoVencimento ? dataParaTela(dados.plano.proximoVencimento) : null} numerico />
                 {dados.plano.terminoVigencia ? (
                   <CampoLeitura rotulo="Término da vigência" valor={dataParaTela(dados.plano.terminoVigencia)} numerico />
@@ -291,7 +293,7 @@ function LinhaDaCobranca({ cobranca, modo, empilhar, children }: {
   const detalhe = modo === 'automatica' && cobranca.situacao === 'ABERTA'
     ? `${TEXTO_COBRANCA_AUTOMATICA} · ${textoDaData(cobranca)}`
     : (modo === 'informar' ? informacaoDaCobranca(cobranca) : null) ?? textoDaData(cobranca);
-  const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
+  const doTipo = seloDoTipoNoMeuPlano(cobranca);
   const mes = referenciaDaCobranca(cobranca);
   const valor = centavosParaTela(cobranca.valorCentavos);
   return (

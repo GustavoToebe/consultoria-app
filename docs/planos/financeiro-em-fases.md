@@ -153,3 +153,5 @@ Fontes: docs.kiwify.com.br (a mesma que o Context7 indexa) e help.kiwify.com; p�
 - **Sem sandbox:** só "Testar Webhook" (dados fictícios com a mesma estrutura) e vendas reais; os testes do projeto usam uma Kiwify de mentira.
 - **Lacunas a fechar antes da baixa automática ir para produção:** payload real de `compra_aprovada` (chaves de `Customer`, `Product`, `Commissions`, unidade monetária), `client_id` no painel, `page_size` máximo, número de reenvios.
 
+## Contrato fechado (24/11/2026)
+Entrada + parcelas fixas ou saldo livre, multa rescisória e destaque de atraso: ver [contrato-fechado.md](contrato-fechado.md) (Fase 1 pós-piloto; em andamento). Ressalva sobre a D14: as cobranças `AVULSA` e `RENEGOCIACAO` do contrato fechado carregam `contratacao_id`.

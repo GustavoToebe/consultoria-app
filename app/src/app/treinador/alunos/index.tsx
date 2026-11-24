@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { ResponsavelEquipe } from '../../../api/equipeTipos';
+import { alunosEmAtraso } from '../../../api/financeiroContrato';
 import { listarAlunos, responsaveisEquipe } from '../../../api/rotas';
 import { listarTagsDeAlunos } from '../../../api/tagsDeAlunos';
 import type { AlunoResumo } from '../../../api/tipos';
@@ -15,7 +16,7 @@ import { SEM_DADO } from '../../../dominio/formatos';
 import { agruparAlunos, colunasDaLista, metadadosDaLinha, primeiroNome, ultimoRegistroDaLinha, vazioDaLista, type TomDoGrupo } from '../../../dominio/gruposDeAlunos';
 import { LIMITE_LOTE, textoDaSelecao } from '../../../dominio/loteDeAlunos';
 import {
-  chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
+  chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, MEUS, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
   CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
 } from '../../../dominio/filtrosDeAlunos';
 import { SELECAO_DE_ALUNOS, selecaoDepoisDosFiltros } from '../../../dominio/painelDeFiltros';
@@ -64,7 +65,7 @@ const COLUNAS: readonly ColunaDaLista[] = [
 ];
 
 export default function Alunos() {
-  const { pode, perfilEquipe, usuario } = useSessao();
+  const { pode, perfilEquipe, usuario, pagamentosHabilitados } = useSessao();
   const { avisar } = useAviso();
   // Modo "Selecionar" (ações em lote): os marcados valem entre páginas, mas mudar busca ou filtro limpa a marcação.
   const [selecionando, setSelecionando] = useState(false);
@@ -89,6 +90,13 @@ export default function Alunos() {
   const parametros = useLocalSearchParams<Record<keyof ParametrosDoEndereco, string | string[]>>();
   const filtros = semOQueNaoPode(lerDoEndereco(parametros, comecaEmMeus), permissoes);
   const chaveFiltros = chaveDosFiltros(filtros);
+  // Atraso (D8 do contrato fechado): a pílula "Vencida" ao lado de quem tem cobrança aberta vencida, no escopo do filtro
+  // Meus/Todos atual. Só com o financeiro ligado e as permissões; 403/503 ou falha de rede somem sem erro.
+  // shortcut: a rota devolve até 2000 ids (`truncado`); acima disso alguns alunos ficam sem a pílula; paginar pela lista se a consultoria passar disso.
+  const veAtraso = !!pagamentosHabilitados && pode('FINANCEIRO_LER') && pode('ALUNO_LER');
+  const soMeus = filtros.responsaveis.length === 1 && filtros.responsaveis[0] === MEUS;
+  const emAtraso = useCarregar(veAtraso ? `alunos-em-atraso|${soMeus}` : null, () => alunosEmAtraso(soMeus).catch(() => null)).dados;
+  const idsEmAtraso = new Set(emAtraso?.alunoIds ?? []);
   const [busca, setBusca] = useState('');
   const [pagina, setPagina] = useState(0);
   const termo = useAtrasado(busca.trim(), 300);
@@ -153,7 +161,7 @@ export default function Alunos() {
       <ListaDeLinhas emColunas>
         {g.itens.map((a, i) => (
           <EntradaEmCascata key={a.id} indice={inicios[gi] + i} animar={animar}>
-            <LinhaAluno aluno={a} colunas={colunas} responsavel={nomeDoResponsavel(a.responsavelId)} podeEditar={podeEditar} veRegistro={veRegistro}
+            <LinhaAluno aluno={a} colunas={colunas} responsavel={nomeDoResponsavel(a.responsavelId)} podeEditar={podeEditar} veRegistro={veRegistro} emAtraso={idsEmAtraso.has(a.id)}
               selecionando={selecionando} marcado={marcados.has(a.id)} aoMarcar={() => alternar(a.id)} />
           </EntradaEmCascata>
         ))}
@@ -264,6 +272,8 @@ interface PropsDaLinhaAluno {
   responsavel: string | null;
   podeEditar: boolean;
   veRegistro: boolean;
+  /** Tem cobrança aberta vencida (`GET /financeiro/alunos-em-atraso`): a pílula "Vencida" da folha da cobrança. */
+  emAtraso: boolean;
   selecionando: boolean;
   marcado: boolean;
   aoMarcar: () => void;
@@ -276,12 +286,14 @@ interface PropsDaLinhaAluno {
  * da seta, fora do link. No PC a linha é linha de tabela (divisória e realce, sem caixa). No Selecionar a linha inteira
  * vira a caixa de marcar (sem link, sem lápis).
  */
-function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, selecionando, marcado, aoMarcar }: PropsDaLinhaAluno) {
+function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtraso, selecionando, marcado, aoMarcar }: PropsDaLinhaAluno) {
   const atualizacao = aluno.atualizacao ? statusAtualizacaoTreinador(aluno.atualizacao) : null;
   const ultimo = ultimoRegistroDaLinha(aluno.ultimoRegistro);
   const plano = aluno.planoAtivo?.titulo ?? null;
   const tags = aluno.tags ?? [];
+  // A mesma pílula e o mesmo `perigo` da cobrança vencida (`seloDaCobranca`), sem cor nova.
   const excecoes: SeloDaLinha[] = [
+    ...(emAtraso ? [{ texto: 'Vencida', tipo: 'perigo' as const }] : []),
     ...(!aluno.ativo ? [{ texto: 'Inativo', tipo: 'neutro' as const }] : []),
     ...(aluno.ativo && !aluno.temAcesso ? [{ texto: 'Sem acesso', tipo: 'neutro' as const }] : []),
   ];
@@ -310,6 +322,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, selec
   };
   // Celular: o que as colunas mostram vira uma linha de metadados e o selo da atualização embaixo do nome.
   const metadados = metadadosDaLinha(plano, aluno.ultimoRegistro, veRegistro);
+  // A pílula "Vencida" já vai na célula do aluno com as outras exceções (também empilhada); aqui só a da atualização.
   const selos = seloDaAtualizacao ? [seloDaAtualizacao] : [];
   const comColunas = { definicao: colunas, celulas };
   if (selecionando) {
@@ -320,7 +333,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, selec
   const rotulo = [
     `Abrir ${aluno.nome}`,
     atualizacao?.texto,
-    ...excecoes.map((s) => s.texto),
+    ...excecoes.map((s) => (s.texto === 'Vencida' ? 'Cobrança vencida' : s.texto)),
     rotuloDasTagsNaLinha(tags),
     plano ?? 'Sem plano ativo',
     veRegistro ? (aluno.ultimoRegistro ? `Último registro: ${ultimo.texto.toLowerCase()}` : ultimo.texto) : null,

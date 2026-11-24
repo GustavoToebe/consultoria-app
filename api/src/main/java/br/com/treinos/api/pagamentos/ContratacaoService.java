@@ -40,16 +40,19 @@ public class ContratacaoService {
     private final CobrancaAlunoRepository cobrancas;
     private final Travas travas;
     private final GeradorDeCobrancas gerador;
+    private final ContratoFechadoService fechados;
     private final Auditoria auditoria;
 
     ContratacaoService(AlunoRepository alunos, PlanoComercialRepository planos, ContratacaoAlunoRepository contratacoes,
-                       CobrancaAlunoRepository cobrancas, Travas travas, GeradorDeCobrancas gerador, Auditoria auditoria) {
+                       CobrancaAlunoRepository cobrancas, Travas travas, GeradorDeCobrancas gerador,
+                       ContratoFechadoService fechados, Auditoria auditoria) {
         this.alunos = alunos;
         this.planos = planos;
         this.contratacoes = contratacoes;
         this.cobrancas = cobrancas;
         this.travas = travas;
         this.gerador = gerador;
+        this.fechados = fechados;
         this.auditoria = auditoria;
     }
 
@@ -57,12 +60,12 @@ public class ContratacaoService {
     public List<ContratacaoResponse> doAluno(UUID alunoId) {
         Travas.exigirAluno(alunos, alunoId);
         return contratacoes.findByAlunoIdOrderByCriadoEmDescIdDesc(alunoId).stream()
-                .map(c -> Respostas.contratacao(c, nomeDoPlano(c))).toList();
+                .map(c -> resposta(c, nomeDoPlano(c))).toList();
     }
 
     @Transactional
     @Auditar(acao = "CONTRATACAO_CRIADA", entidade = "CONTRATACAO", resumo = "Contratou um plano comercial para um aluno.")
-    public ContratacaoResponse contratar(UUID alunoId, ContratarRequest r) {
+    public ContratacaoResponse contratar(UUID alunoId, ContratarRequest r, UUID usuarioId) {
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(Travas::alunoNaoEncontrado);
         AlunoService.exigirNaoAnonimizado(aluno);
         if (!aluno.isAtivo()) {
@@ -78,10 +81,25 @@ public class ContratacaoService {
         }
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         exigirInicioValido(r.inicio(), hoje);
-        long valor = r.valorCentavos() == null ? plano.getValorCentavos() : r.valorCentavos();
-        String motivo = motivoDoValor(valor, plano.getValorCentavos(), r.motivoValor());
-        ContratacaoAluno contratacao = new ContratacaoAluno(alunoId, plano, valor, motivo, r.inicio(), r.diaVencimento());
-        if (plano.getTempoMinimoMeses() != null && plano.getPeriodicidade() == PeriodoDoPlano.MENSAL) {
+        ModoDeCobranca modo = r.modo();
+        ContratoFechadoService.Conferido contrato = null;
+        if (modo.fechado()) {
+            contrato = fechados.conferir(r, plano, hoje);
+        } else {
+            fechados.exigirSemCamposDoContrato(r);
+            if (r.diaVencimento() == null) {
+                throw invalido("diaVencimento", "Informe o dia do vencimento.");
+            }
+        }
+        // Contrato fechado: o valor da contratação é o total, sem o motivo de "valor diferente do plano" e sem mínimo.
+        long valor = contrato != null ? contrato.totalCentavos()
+                : r.valorCentavos() == null ? plano.getValorCentavos() : r.valorCentavos();
+        String motivo = contrato != null ? null : motivoDoValor(valor, plano.getValorCentavos(), r.motivoValor());
+        int dia = r.diaVencimento() != null ? r.diaVencimento() : r.inicio().getDayOfMonth();
+        ContratacaoAluno contratacao = new ContratacaoAluno(alunoId, plano, valor, motivo, r.inicio(), dia);
+        if (contrato != null) {
+            contratacao.comoContrato(modo, contrato.totalCentavos());
+        } else if (plano.getTempoMinimoMeses() != null && plano.getPeriodicidade() == PeriodoDoPlano.MENSAL) {
             contratacao.definirMinimo(r.inicio().plusMonths(plano.getTempoMinimoMeses()));
         }
         try {
@@ -91,6 +109,11 @@ public class ContratacaoService {
                 throw vigente();
             }
             throw e;
+        }
+        if (contrato != null) {
+            fechados.gerarCobrancas(contratacao, contrato, usuarioId, hoje);
+            cobrancas.flush();
+            return resposta(contratacao, plano.getNome());
         }
         CobrancaAluno primeira = gerador.primeira(contratacao, CalendarioDeCobranca.primeiraCompetencia(
                 r.inicio(), plano.getPeriodicidade(), hoje, r.comMesesAnteriores()));
@@ -102,7 +125,7 @@ public class ContratacaoService {
         // Segue até o primeiro vencimento de hoje em diante (a rotina diária faria o mesmo no dia seguinte).
         gerador.garantirAteHoje(contratacao, hoje);
         cobrancas.flush();
-        return Respostas.contratacao(contratacao, plano.getNome());
+        return resposta(contratacao, plano.getNome());
     }
 
     /**
@@ -145,6 +168,11 @@ public class ContratacaoService {
     public ContratacaoResponse alterar(UUID id, AlterarContratacaoRequest r) {
         ContratacaoAluno c = travas.daContratacao(id).contratacao();
         exigirNaoEncerrada(c);
+        if (c.fechado()) {
+            // O PUT mudaria o valor da contratação sem mudar o total do contrato (V098) e quebraria a conta dele.
+            throw new ConflictException("Contrato fechado não se altera por aqui: encerre o contrato.",
+                    "CONTRATO_FECHADO_NAO_ALTERA");
+        }
         conferirVersao(c, r.versao());
         PlanoComercial plano = planos.findById(c.getPlanoComercialId())
                 .orElseThrow(() -> new NaoEncontradoException("Plano comercial não encontrado."));
@@ -162,10 +190,11 @@ public class ContratacaoService {
     @Transactional
     public ContratacaoResponse pausar(UUID id, Long versao) {
         ContratacaoAluno c = travas.daContratacao(id).contratacao();
+        exigirNaoEncerrada(c);
+        exigirNaoFechada(c);
         if (c.getSituacao() == ContratacaoAluno.Situacao.PAUSADA) {
             return resposta(c, nomeDoPlano(c));
         }
-        exigirNaoEncerrada(c);
         conferirVersao(c, versao);
         c.pausar();
         return mudou(c, "CONTRATACAO_PAUSADA", "Pausou a contratação de um aluno.");
@@ -180,10 +209,11 @@ public class ContratacaoService {
     @Transactional
     public ContratacaoResponse retomar(UUID id, Long versao) {
         ContratacaoAluno c = travas.daContratacao(id).contratacao();
+        exigirNaoEncerrada(c);
+        exigirNaoFechada(c);
         if (c.getSituacao() == ContratacaoAluno.Situacao.ATIVA) {
             return resposta(c, nomeDoPlano(c));
         }
-        exigirNaoEncerrada(c);
         conferirVersao(c, versao);
         LocalDate maiorCoberta = cobrancas.maiorCompetenciaCoberta(c.getId(), CobrancaAluno.NAO_COBREM_PERIODO)
                 .orElse(null);
@@ -215,8 +245,9 @@ public class ContratacaoService {
         return minimoAte;
     }
 
-    private static ContratacaoResponse resposta(ContratacaoAluno c, String planoNome) {
-        return Respostas.contratacao(c, planoNome);
+    /** Com o bloco {@code contrato} no contrato fechado (nulo no recorrente). */
+    private ContratacaoResponse resposta(ContratacaoAluno c, String planoNome) {
+        return Respostas.contratacao(c, planoNome, cobrancas.contratoDe(c, LocalDate.now(Fuso.BRASILIA)));
     }
 
     private String nomeDoPlano(ContratacaoAluno c) {
@@ -233,6 +264,14 @@ public class ContratacaoService {
             throw invalido("motivoValor", "Informe o motivo do valor diferente do plano.");
         }
         return limpo;
+    }
+
+    /** Contrato fechado só termina por encerrar: pausado, o saldo seria recusado e os lembretes cairiam (V098). */
+    private static void exigirNaoFechada(ContratacaoAluno c) {
+        if (c.fechado()) {
+            throw new ConflictException("Contrato fechado não se pausa nem se retoma: encerre o contrato.",
+                    "CONTRATO_FECHADO_NAO_ALTERA");
+        }
     }
 
     private static void exigirNaoEncerrada(ContratacaoAluno c) {

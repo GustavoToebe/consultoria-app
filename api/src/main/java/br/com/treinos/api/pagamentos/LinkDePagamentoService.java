@@ -186,6 +186,10 @@ public class LinkDePagamentoService {
      * (pode ter nome ou dado de saúde) nunca vai ao provedor, nem o nome do aluno. Texto fixo e curto: sem corte de tamanho.
      */
     private String descricao(CobrancaAluno cobranca) {
+        if (Respostas.doContrato(cobranca)) {
+            // Entrada, parcela ou pagamento do saldo de um contrato fechado (V098): nem "Renegociação" nem o rótulo da cobrança.
+            return "Contrato (" + MES.format(cobranca.getVencimento()) + ")";
+        }
         if (cobranca.getTipo() == CobrancaAluno.Tipo.AVULSA) {
             return "Cobrança avulsa (" + MES.format(cobranca.getVencimento()) + ")";
         }

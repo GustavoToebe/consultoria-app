@@ -45,10 +45,11 @@ const SITUACAO_DO_PLANO: Record<SituacaoDaContratacao, { texto: string; tom: 'su
 };
 
 /** Selo do cabeçalho ("Trimestral · Ativo", no tom da situação do plano); sem plano contratado, nada. */
-export function seloDoPlano(plano: { periodicidade: PeriodoDoPlano; situacao: SituacaoDaContratacao } | null | undefined) {
+export function seloDoPlano(plano: { periodicidade: PeriodoDoPlano; situacao: SituacaoDaContratacao; contratoFechado?: boolean } | null | undefined) {
   if (!plano) return null;
   const situacao = SITUACAO_DO_PLANO[plano.situacao] ?? { texto: '—', tom: 'neutro' as const };
-  return { texto: `${rotuloDaPeriodicidade(plano.periodicidade)} · ${situacao.texto}`, tom: situacao.tom };
+  // No contrato fechado a periodicidade não se aplica: o selo diz que é um contrato.
+  return { texto: `${plano.contratoFechado ? 'Contrato' : rotuloDaPeriodicidade(plano.periodicidade)} · ${situacao.texto}`, tom: situacao.tom };
 }
 
 const destaques = (n: number) => (n === 0 ? 'sem destaques' : n === 1 ? '1 destaque' : `${n} destaques`);

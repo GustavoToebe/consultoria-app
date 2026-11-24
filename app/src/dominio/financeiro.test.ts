@@ -40,7 +40,9 @@ import {
   graficoTemDados,
   hojeEmBrasilia,
   inadimplenciaParaTela,
+  camposDoMeuPlano,
   informacaoDaCobranca,
+  seloDoTipoNoMeuPlano,
   jurosQueValem,
   lerRetornoDoPagamento,
   LIMITES_DOS_DADOS,
@@ -654,6 +656,14 @@ describe('informacaoDaCobranca (celular sem o "Pagar")', () => {
   const semEspaco = (t: string | null) => (t ?? '').replace(/ /g, ' ');
   it('aberta no prazo: valor e vencimento', () => {
     expect(semEspaco(informacaoDaCobranca(cobranca({})))).toBe('Mensalidade de R$ 150,00, vence em 05/11');
+  });
+  it('cobrança do contrato fechado: a descrição no lugar do tipo, sem selo de tipo', () => {
+    expect(semEspaco(informacaoDaCobranca(cobranca({ tipo: 'RENEGOCIACAO', competencia: null, descricao: 'Parcela 2/3', doContrato: true }))))
+      .toBe('Parcela 2/3 de R$ 150,00, vence em 05/11');
+    expect(seloDoTipoNoMeuPlano({ tipo: 'AVULSA', doContrato: true })).toBeNull();
+    expect(seloDoTipoNoMeuPlano({ tipo: 'AVULSA' })).not.toBeNull();
+    expect(camposDoMeuPlano({ valorCentavos: 1, periodicidade: 'TRIMESTRAL', contratoFechado: true })).toEqual({ rotuloDoValor: 'Valor do contrato', periodicidade: null });
+    expect(camposDoMeuPlano({ valorCentavos: 1, periodicidade: 'MENSAL' })).toEqual({ rotuloDoValor: 'Valor', periodicidade: 'Mensal' });
   });
   it('aberta vencida (a API decide): desde a data do vencimento', () => {
     expect(informacaoDaCobranca(cobranca({ vencida: true, vencimento: '2026-10-05' }))).toBe('Em aberto desde 05/10');

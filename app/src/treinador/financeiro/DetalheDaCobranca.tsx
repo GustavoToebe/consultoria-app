@@ -338,7 +338,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
   const renegociar = <FolhaRenegociar cobrancas={[cobranca]} aoFechar={aoFechar} aoCancelar={() => setRenegociando(false)} aoMudar={aoMudar} />;
   if (renegociando && !casca.renegociarPorCima) return renegociar;
 
-  const doTipo = seloDoTipoDaCobranca(cobranca.tipo);
+  const doTipo = seloDoTipoDaCobranca(cobranca.tipo, cobranca.contratacaoId);
   // A mensalidade pelo mês; a saída e a avulsa pelo tipo (a origem diz o resto, logo abaixo do nome).
   const titulo = modo === 'baixa' ? 'Registrar pagamento' : doTipo ? rotuloDoTipoDaCobranca(cobranca.tipo) : `Cobrança de ${rotuloDoMesNumerico(cobranca.competencia)}`;
   const cpf = cpfMascarado(cobranca.alunoCpf);
