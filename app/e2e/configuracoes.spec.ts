@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { CARTOES_DE_CONFIGURACAO, cartoesVisiveis, gruposDeCartoes } from '../src/dominio/configuracoes';
+import { cartoesVisiveis, gruposDeCartoes } from '../src/dominio/configuracoes';
 import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
@@ -13,10 +13,10 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 const ACESSO_TOTAL = [
   ...PERMISSOES_TREINADOR, 'MARCA_ALTERAR', 'CONTA_LER', 'EQUIPE_LER', 'AUDITORIA_LER', 'MODELO_LER', 'FINANCEIRO_LER',
-  'BIBLIOTECA_ALTERAR', 'AGENDA_LER', 'BIBLIOTECA_LER', 'ATUALIZACAO_LER',
+  'BIBLIOTECA_ALTERAR', 'AGENDA_LER', 'BIBLIOTECA_LER', 'ATUALIZACAO_LER', 'WHATSAPP_ALTERAR',
 ];
 
-interface Perfil { permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO' }
+interface Perfil { permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; whatsapp?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO' }
 
 async function abrir(page: Page, largura: number, perfil: Perfil, caminho = '/treinador/configuracoes') {
   await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 800 });
@@ -27,6 +27,7 @@ async function abrir(page: Page, largura: number, perfil: Perfil, caminho = '/tr
       perfil: { id: 'p1', nome: perfil.administrador ? 'Administrador' : 'Treinador', acessoTotal: !!perfil.administrador },
       pagamentosHabilitados: perfil.pagamentos ?? false,
       recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false,
+      whatsappHabilitado: perfil.whatsapp ?? false,
     })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
@@ -41,7 +42,7 @@ function esperado(perfil: Perfil) {
     pode: (c) => perfil.permissoes.includes(c),
     administrador: !!perfil.administrador,
     pagamentosHabilitados: perfil.pagamentos ?? false,
-    chaves: { recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false },
+    chaves: { recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false, whatsappHabilitado: perfil.whatsapp ?? false },
   });
   return { grupos: gruposDeCartoes(visiveis).map((g) => g.grupo), titulos: visiveis.map((c) => c.titulo), visiveis };
 }
@@ -65,20 +66,90 @@ async function capturar(page: Page, nome: string) {
   if (process.env.E2E_CAPTURAS) await page.screenshot({ path: `${process.env.E2E_CAPTURAS}/configuracoes-${nome}.png`, fullPage: true });
 }
 
-const ADMIN: Perfil = { permissoes: ACESSO_TOTAL, administrador: true, pagamentos: true, recebimentoOnline: true };
+const ADMIN: Perfil = { permissoes: ACESSO_TOTAL, administrador: true, pagamentos: true, recebimentoOnline: true, whatsapp: true };
 
-test('acesso total (1280): um h1, os sete grupos na ordem e os vinte e dois cartões, cada um com o destino do catálogo', async ({ page }) => {
+/**
+ * O que o acesso total vê, por grupo (na ordem da tela): título → destino. Conferido pelo nome, não pela contagem: cartão novo,
+ * removido ou renomeado no catálogo (`dominio/configuracoes`) faz este teste dizer qual é, e quem muda o hub atualiza a lista.
+ */
+const HUB_DO_ACESSO_TOTAL: Record<string, Record<string, string>> = {
+  'Sua conta': {
+    'Meus dados': '/treinador/meus-dados',
+    'Segurança': '/treinador/seguranca',
+    'Aparência e preferências': '/treinador/ajustes',
+    'Assinatura e faturas': '/treinador/minha-conta',
+  },
+  Consultoria: {
+    Marca: '/treinador/marca',
+    Contato: '/treinador/marca',
+    'WhatsApp oficial': '/treinador/whatsapp',
+    'Documentos (PDF)': '/treinador/documentos',
+  },
+  Equipe: {
+    'Membros e convites': '/treinador/equipe?aba=membros',
+    'Perfis e permissões': '/treinador/equipe?aba=perfis',
+    Auditoria: '/treinador/auditoria',
+  },
+  'Alunos e atendimento': {
+    'Questionários de atualização': '/treinador/planejamento?aba=atualizacao',
+    Anamneses: '/treinador/planejamento?aba=anamnese',
+    'Perguntas da inscrição': '/treinador/planejamento?aba=inscricao',
+    'Link de inscrição e respostas prontas': '/treinador/interessados',
+    Metodologias: '/treinador/planejamento?tipo=metodologia',
+    'Tags dos alunos': '/treinador/alunos/tags',
+    'Aniversários dos alunos': '/treinador/ajustes',
+  },
+  Financeiro: {
+    'Planos comerciais': '/treinador/financeiro?aba=planos',
+    'Lembretes de cobrança': '/treinador/financeiro?aba=lembretes',
+    'Recebimento online': '/treinador/financeiro?aba=recebimento',
+  },
+  Dados: {
+    'Importação': '/treinador/importacao',
+    'Importar planilha completa': '/treinador/importacao/planilha-completa',
+  },
+  Ajuda: {
+    Ajuda: '/treinador/ajuda',
+    'Termos e privacidade': '/treinador/termos',
+  },
+};
+
+/** Lê o hub da tela: por grupo (h2 do cartão), título (nome acessível antes da vírgula) → href de cada link. */
+async function lerOHub(page: Page): Promise<Record<string, Record<string, string>>> {
+  return page.evaluate(() => {
+    const lido: Record<string, Record<string, string>> = {};
+    for (const h2 of document.querySelectorAll('h2, [role="heading"][aria-level="2"]')) {
+      let caixa: Element | null = h2;
+      while (caixa && caixa.querySelectorAll('a[href]').length === 0) caixa = caixa.parentElement;
+      const grupo = (h2.textContent ?? '').trim();
+      lido[grupo] = {};
+      for (const a of caixa?.querySelectorAll('a[href]') ?? []) {
+        lido[grupo][(a.getAttribute('aria-label') ?? a.textContent ?? '').split(', ')[0].trim()] = a.getAttribute('href') ?? '';
+      }
+    }
+    return lido;
+  });
+}
+
+test('acesso total (1280): um h1, os sete grupos na ordem e, em cada grupo, os cartões esperados pelo nome e destino', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, ADMIN);
   await expect(page.getByRole('heading', { level: 1, name: 'Configurações' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   const { grupos, visiveis } = esperado(ADMIN);
-  expect(visiveis).toHaveLength(CARTOES_DE_CONFIGURACAO.length);
   expect(grupos).toEqual(['Sua conta', 'Consultoria', 'Equipe', 'Alunos e atendimento', 'Financeiro', 'Dados', 'Ajuda']);
   await expect.poll(() => titulosDosCartoes(page)).toEqual(grupos);
-  // Cada cartão é um link inteiro (ícone, título e descrição) com o href do catálogo, aba inclusive.
-  for (const c of visiveis) {
-    const link = cartao(page, c.titulo);
-    await expect(link, c.id).toHaveAttribute('href', c.href);
+  // A regra pura e a lista acima dizem os mesmos cartões, pelo nome.
+  const nomes = (porGrupo: Record<string, Record<string, string>>) => Object.values(porGrupo).flatMap((g) => Object.keys(g)).sort();
+  expect(nomes(HUB_DO_ACESSO_TOTAL), `catálogo: ${visiveis.map((c) => c.titulo).join(', ')}`).toEqual(visiveis.map((c) => c.titulo).sort());
+  const lido = await lerOHub(page);
+  for (const grupo of grupos) {
+    const esperados = HUB_DO_ACESSO_TOTAL[grupo] ?? {};
+    const naTela = lido[grupo] ?? {};
+    const faltando = Object.keys(esperados).filter((t) => !(t in naTela));
+    const sobrando = Object.keys(naTela).filter((t) => !(t in esperados));
+    expect(faltando, `${grupo}: cartão esperado que não está na tela`).toEqual([]);
+    expect(sobrando, `${grupo}: cartão na tela que não está na lista esperada`).toEqual([]);
+    for (const [titulo, href] of Object.entries(esperados)) expect(naTela[titulo], `${grupo} › ${titulo}: destino`).toBe(href);
   }
   await semRolagemLateral(page);
   expect(errosDaPagina).toEqual([]);
