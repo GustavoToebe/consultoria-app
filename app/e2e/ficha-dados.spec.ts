@@ -8,8 +8,10 @@ import { fixarHoje } from './aluno';
 import { ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, estadoDoResponsavel, estadoFinanceiro, rotasDoFinanceiro, rotasDoResponsavel } from './financeiro-falso';
 
 /**
- * Ficha do aluno › Dados (23/11, `docs/planos/ficha-do-aluno-dados.md`): duas colunas a partir da faixa normal (Plano à
- * esquerda; Acesso e Anamnese à direita) e uma coluna na ordem Lesões ativas › Plano › Acesso › Anamnese › Histórico;
+ * Ficha do aluno › Dados (23/11, `docs/planos/ficha-do-aluno-dados.md`): duas colunas independentes (3:2) a partir da faixa
+ * normal da `Tela` (24/11, `docs/planos/ficha-dados-colunas-independentes.md`: Identificação › Contato › Plano › Lesões à
+ * esquerda; Acompanhamento › Objetivo › Acesso › Anamnese à direita) e, no celular, uma coluna na ordem Lesões ativas ›
+ * Plano › Acesso › Anamnese › Histórico;
  * acesso compacto com o último login; vigência com o texto equivalente, âmbar a 15 dias e "Encerrado em" na parcela única passada do término; as últimas 3
  * cobranças com "Ver todas no Financeiro"; lesões com as ativas tingidas primeiro, "Desde"/"a", ⋯ com Editar e Excluir
  * (confirmação), 5 recuperadas + "Ver todas" e a observação com rótulo; e o vazio. Relógio em 19/10/2026; só dados
@@ -76,48 +78,69 @@ async function abrir(page: Page, o: Opcoes) {
   return api;
 }
 
-const caixa = async (page: Page, titulo: string) => (await page.getByRole('heading', { name: titulo, exact: true }).boundingBox())!;
 const rgb = (hex: string) => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
 
-test('1920px: duas colunas (Plano à esquerda; Acesso e Anamnese à direita) e o histórico de lesões na largura toda, abaixo', async ({ page }) => {
-  const { errosDaPagina } = await abrir(page, { largura: 1920, contratacoes: [CONTRATACAO], cobrancas: [cobranca(1, '2026-10-19', 'ABERTA')], lesoes: [ATIVA, RECUPERADA] });
-  await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
-  const plano = await caixa(page, 'Plano contratado');
-  const acesso = await caixa(page, 'Acesso ao app');
-  const anamnese = await caixa(page, 'Anamnese');
-  const historico = await caixa(page, 'Histórico de lesões');
-  // Mesma faixa de topo (o título do Plano tem a descrição embaixo, então não alinha ao pixel).
-  expect(Math.abs(plano.y - acesso.y)).toBeLessThan(24);
-  expect(acesso.x).toBeGreaterThan(plano.x + 200);
-  expect(Math.abs(anamnese.x - acesso.x)).toBeLessThan(4);
-  expect(anamnese.y).toBeGreaterThan(acesso.y);
-  expect(historico.y).toBeGreaterThan(anamnese.y);
-  expect(Math.abs(historico.x - plano.x)).toBeLessThan(4);
-  // Em duas colunas não há o cartão "Lesões ativas" separado: as ativas ficam no topo do histórico.
-  await expect(page.getByRole('heading', { name: 'Lesões ativas' })).toHaveCount(0);
-  expect(errosDaPagina).toEqual([]);
-});
+// ficha: colunas independentes (24/11). Medido no contorno do cartão (o título do Plano tem a descrição embaixo).
+const ESQUERDA = ['Identificação', 'Contato e endereço', 'Plano contratado', 'Histórico de lesões'];
+const DIREITA = ['Configuração do acompanhamento', 'Objetivo e observações', 'Acesso ao app', 'Anamnese'];
+const caixaDoCartao = async (page: Page, titulo: string) =>
+  (await page.getByTestId('cartao').filter({ has: page.getByRole('heading', { name: titulo, exact: true }) }).first().boundingBox())!;
+const vaos = (caixas: { y: number; height: number }[]) => caixas.slice(1).map((c, i) => Math.round(c.y - (caixas[i].y + caixas[i].height)));
 
-for (const largura of [390, 1280]) {
-  test(`${largura}px: uma coluna na ordem Lesões ativas › Plano › Acesso › Anamnese › Histórico, sem repetir a lesão`, async ({ page }) => {
+for (const largura of [1280, 1920]) {
+  test(`${largura}px: duas colunas independentes (3:2), mesmo topo, ordem de cada coluna e o mesmo vão entre os cartões`, async ({ page }) => {
+    const { pedidos, errosDaPagina } = await abrir(page, { largura, contratacoes: [CONTRATACAO], cobrancas: [cobranca(1, '2026-10-19', 'ABERTA')], lesoes: [ATIVA, RECUPERADA] });
+    await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Anamnese', exact: true })).toBeVisible();
+    await expect(page.getByLabel('Valor: R$ 997,00 por trimestre')).toBeVisible();
+    const esquerda = await Promise.all(ESQUERDA.map((t) => caixaDoCartao(page, t)));
+    const direita = await Promise.all(DIREITA.map((t) => caixaDoCartao(page, t)));
+    // As duas colunas começam no mesmo topo e a direita vem depois da esquerda.
+    expect(Math.abs(esquerda[0].y - direita[0].y)).toBeLessThanOrEqual(1);
+    expect(direita[0].x).toBeGreaterThan(esquerda[0].x + esquerda[0].width);
+    for (const coluna of [esquerda, direita]) {
+      // Uma pilha: mesma borda esquerda, na ordem, e o mesmo vão (24 px) entre cada par, sem alinhar com a outra coluna.
+      for (const c of coluna) expect(Math.abs(c.x - coluna[0].x)).toBeLessThanOrEqual(1);
+      for (const v of vaos(coluna)) expect(Math.abs(v - 24)).toBeLessThanOrEqual(1);
+    }
+    // Uma proporção para a página toda: 3 para 2.
+    expect(esquerda[0].width / direita[0].width).toBeGreaterThan(1.45);
+    expect(esquerda[0].width / direita[0].width).toBeLessThan(1.55);
+    // Em duas colunas não há o cartão "Lesões ativas" separado: as ativas ficam no topo do histórico.
+    await expect(page.getByRole('heading', { name: 'Lesões ativas' })).toHaveCount(0);
+    // Montou uma vez só, já no arranjo certo (sem montar numa coluna e remontar em duas).
+    expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `/alunos/${ID}/anamneses`)).toHaveLength(1);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+// 1200: a faixa compacta com a aba ainda larga (~928 px): os Dados também numa coluna, sem vão ao lado.
+for (const largura of [390, 1200]) {
+  test(`${largura}px: uma coluna, os Dados e depois Lesões ativas › Plano › Acesso › Anamnese › Histórico, sem repetir a lesão`, async ({ page }) => {
     const { errosDaPagina } = await abrir(page, { largura, contratacoes: [CONTRATACAO], lesoes: [ATIVA, RECUPERADA] });
     await expect(page.getByRole('heading', { name: 'Lesões ativas' })).toBeVisible();
-    const ordem = await Promise.all(['Lesões ativas', 'Plano contratado', 'Acesso ao app', 'Anamnese', 'Histórico de lesões'].map((t) => caixa(page, t)));
+    const ordem = await Promise.all([...ESQUERDA.slice(0, 2), ...DIREITA.slice(0, 2), 'Lesões ativas', 'Plano contratado', 'Acesso ao app', 'Anamnese', 'Histórico de lesões'].map((t) => caixaDoCartao(page, t)));
     for (let i = 1; i < ordem.length; i++) expect(ordem[i].y).toBeGreaterThan(ordem[i - 1].y);
+    for (const c of ordem) expect(Math.abs(c.x - ordem[0].x)).toBeLessThanOrEqual(1);
     await expect(page.getByText('Ombro direito', { exact: true })).toHaveCount(1);
     await expect(page.getByText('Joelho esquerdo', { exact: true })).toHaveCount(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(errosDaPagina).toEqual([]);
   });
+}
 
-  test(`${largura}px: acesso compacto com "Entra com" uma vez e o último login relativo, com a data exata`, async ({ page }) => {
+for (const largura of [390, 1280]) {
+  // ficha: acesso ao app (24/11): lista de dados (Situação, E-mail de acesso, Último login, Senha), ações na coluna da direita.
+  test(`${largura}px: acesso em lista, o e-mail uma vez com o copiar e o último login em Brasília, com a data exata`, async ({ page }) => {
     const { errosDaPagina } = await abrir(page, { largura });
     const acesso = page.getByLabel('Acesso ao app', { exact: true });
-    await expect(acesso.getByText('Com acesso', { exact: true })).toBeVisible();
-    await expect(acesso.getByText(`Entra com ${ALUNO.email}.`)).toBeVisible();
+    await expect(acesso.getByLabel('Situação: Com acesso', { exact: true })).toBeVisible();
+    await expect(acesso.getByText(/Entra com/)).toHaveCount(0);
     await expect(acesso.getByText(ALUNO.email)).toHaveCount(1);
-    await expect(acesso.getByText('Último login: há 2 dias', { exact: true })).toBeVisible();
-    await expect(acesso.getByLabel('Último login: há 2 dias (17/10/2026 às 12:30)')).toBeVisible();
+    await expect(acesso.getByRole('button', { name: 'Copiar e-mail de acesso' })).toBeVisible();
+    await expect(acesso.getByLabel('Último login: 17/10 12:30 (17/10/2026 às 12:30)', { exact: true })).toBeVisible();
+    await expect(acesso.getByLabel('Senha: definida', { exact: true })).toBeVisible();
+    await expect(acesso.getByText('••••••', { exact: true })).toBeVisible();
     await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toBeVisible();
     expect(errosDaPagina).toEqual([]);
   });
@@ -129,9 +152,9 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('R$ 997,00', { exact: true }).first()).toBeVisible();
     await expect(page.getByLabel('Vigência de 19/10/2026 a 19/01/2027: 92 dias restantes')).toBeVisible();
     await expect(page.getByText('92 dias restantes', { exact: true })).toBeVisible();
-    await expect(page.getByText('Vence todo dia 19', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Vencimento: Todo dia 19', { exact: true })).toBeVisible();
     // O nome do plano já é a periodicidade: a linha "Periodicidade" some.
-    await expect(page.getByText('Periodicidade: Trimestral')).toHaveCount(0);
+    await expect(page.getByLabel('Periodicidade: Trimestral')).toHaveCount(0);
     for (const nome of ['Alterar', 'Pausar', 'Encerrar']) await expect(page.getByRole('button', { name: nome, exact: true })).toBeVisible();
     // As 3 mais recentes por vencimento; a de julho fica no Financeiro.
     const linhas = page.getByRole('button', { name: /^Abrir cobrança de/ });
@@ -191,8 +214,8 @@ for (const largura of [390, 1280]) {
     const { errosDaPagina } = await abrir(page, { largura, contratacoes: [mensal], cobrancas: [cobranca(1, '2026-10-05', 'ABERTA')] });
     await expect(page.getByText('Consultoria mensal', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Valor: R$ 150,00 por mês')).toBeVisible();
-    await expect(page.getByText('Vence todo dia 5', { exact: true })).toBeVisible();
-    await expect(page.getByText('Periodicidade: Mensal', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Vencimento: Todo dia 5', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Periodicidade: Mensal', { exact: true })).toBeVisible();
     await expect(page.getByLabel(/^Vigência de/)).toHaveCount(0);
     await expect(page.getByText(/dias restantes|Vencida há|Encerrado em|^Término /)).toHaveCount(0);
     for (const nome of ['Alterar', 'Pausar', 'Encerrar']) await expect(page.getByRole('button', { name: nome, exact: true })).toBeVisible();
@@ -207,7 +230,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Trimestral', { exact: true })).toBeVisible();
     await expect(page.getByText('Pausada', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Valor: R$ 997,00 por trimestre')).toBeVisible();
-    await expect(page.getByText('Vence todo dia 19', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Vencimento: Todo dia 19', { exact: true })).toBeVisible();
     await expect(page.getByLabel(/^Vigência de/)).toHaveCount(0);
     await expect(page.getByText(/dias? restantes?|Vencida há|Encerrado em|^Término /)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Retomar', exact: true })).toBeVisible();
@@ -235,18 +258,21 @@ for (const largura of [390, 1280]) {
     // Sem os ícones soltos de lápis e lixeira: só o ⋯.
     await expect(page.getByRole('button', { name: /^(Editar|Excluir) lesão em/ })).toHaveCount(0);
     // A ativa tem fundo tingido; a recuperada, não.
-    const item = (regiao: string) => page.getByRole(largura >= 1024 ? 'row' : 'listitem').filter({ hasText: regiao });
+    // Na tabela, a linha (`row`); empilhado (`ui/Tabela`), o cartão filho direto da lista "Lesões".
+    // Em colunas só quando a tabela cabe (24/11: em 1280 a coluna da esquerda tem ~580 px e a tabela vira cartões).
+    const emTabela = (await page.getByRole('table', { name: 'Lesões' }).count()) > 0;
+    const item = (regiao: string) => (emTabela ? page.getByRole('row') : page.getByRole('list', { name: 'Lesões' }).locator('xpath=./div')).filter({ hasText: regiao });
     const fundo = (regiao: string) => item(regiao).evaluate((el) => getComputedStyle(el).backgroundColor);
     expect(await fundo('Ombro direito')).not.toBe('rgba(0, 0, 0, 0)');
-    if (largura >= 1024) expect(await fundo('Joelho esquerdo')).toBe('rgba(0, 0, 0, 0)');
+    if (emTabela) expect(await fundo('Joelho esquerdo')).toBe('rgba(0, 0, 0, 0)');
     // A ativa vem antes da recuperada (no celular, no cartão do topo).
     const ativa = (await page.getByText('Ombro direito', { exact: true }).boundingBox())!;
     const recuperada = (await page.getByText('Joelho esquerdo', { exact: true }).boundingBox())!;
     expect(ativa.y).toBeLessThan(recuperada.y);
     // Observação com rótulo, em duas linhas, e o texto inteiro ao pedir.
-    const observacao = page.getByLabel(`Observação: ${OBSERVACAO_LONGA}`);
+    const observacao = page.getByLabel(`Cuidados no treino: ${OBSERVACAO_LONGA}`);
     await expect(observacao).toBeVisible();
-    await expect(observacao).toContainText('Observação:');
+    await expect(observacao).toContainText('Cuidados no treino:');
     const fechada = (await observacao.boundingBox())!.height;
     expect(fechada).toBeLessThanOrEqual(40);
     await page.getByRole('button', { name: 'Ver observação inteira' }).click();

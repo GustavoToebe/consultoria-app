@@ -235,7 +235,8 @@ for (const largura of [390, 1280]) {
     });
     // A linha do ciclo fica nos Dados do aluno (aba Ficha), o peso na Evolução e a pasta em Planos.
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
-    await expect(page.getByText('Ciclo menstrual: acompanhamento ligado pela aluna')).toBeVisible();
+    await expect(page.getByText('Acompanhamento ligado pela aluna.', { exact: true })).toBeVisible();
+    await expect(page.getByLabel(/^Ciclo menstrual: /)).toBeVisible();
     await page.getByRole('button', { name: 'Ver ciclo' }).click();
     const [ano, mes] = DIA_SINTOMA.split('-');
     const nomeDoMes = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][Number(mes) - 1];

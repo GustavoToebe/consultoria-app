@@ -16,6 +16,7 @@ import { CalendarioDoCiclo, mesSeguinte, rotuloDoMes } from '../../ui/Calendario
 import { Cartao } from '../../ui/Cartao';
 import { FaixaDoCiclo, corDaFase } from '../../ui/FaixaDoCiclo';
 import { Folha } from '../../ui/Folha';
+import { LinhaDeDado } from '../../ui/ListaDeDados';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
@@ -34,20 +35,22 @@ function configDe(dados: { duracaoHabitual: number | null; mostrarFases: boolean
   return { duracaoHabitual: dados.duracaoHabitual, mostrarFases: dados.mostrarFases !== false, hoje: hojeDoCiclo() };
 }
 
-/** Linha da ficha. Some com o acompanhamento desligado ou sem permissão de dado sensível. */
+/** Linha da ficha (último item do grupo Acompanhamento: pode não aparecer). Some com o acompanhamento desligado ou sem permissão de dado sensível. */
 export function LinhaDoCicloNaFicha({ alunoId }: { alunoId: string }) {
   const ciclo = useCicloDoTreinador(alunoId);
   const [aberto, setAberto] = useState(false);
   if (!ciclo.ativo || !ciclo.dados) return null;
   const config = configDe(ciclo.dados);
   const leitura = faseNaData(ciclo.dados.registros, config, config.hoje);
+  // Linha da `ListaDeDados` (24/11): a leitura de hoje como valor e "Ver ciclo" na coluna de ações.
   return (
-    <View style={estilos.linha}>
-      <Texto>Ciclo menstrual: acompanhamento ligado pela aluna</Texto>
-      <Texto>{textoDaLeitura(leitura)}</Texto>
-      <Botao rotulo="Ver ciclo" tipo="secundario" aoTocar={() => setAberto(true)} />
-      {aberto ? <FolhaDoCiclo alunoId={alunoId} aoFechar={() => setAberto(false)} /> : null}
-    </View>
+    <LinhaDeDado rotulo="Ciclo menstrual" valor={textoDaLeitura(leitura)} nota="Acompanhamento ligado pela aluna."
+      acoes={(
+        <>
+          <Botao rotulo="Ver ciclo" tipo="secundario" aoTocar={() => setAberto(true)} />
+          {aberto ? <FolhaDoCiclo alunoId={alunoId} aoFechar={() => setAberto(false)} /> : null}
+        </>
+      )} />
   );
 }
 

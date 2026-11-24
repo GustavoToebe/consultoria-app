@@ -10,7 +10,7 @@ import {
   seloDaCobranca, seloDaContratacao, seloDoTipoDaCobranca, textoDeAbertasQueContinuam,
 } from '../../dominio/financeiro';
 import { repeteAPeriodicidade, ultimasCobrancas, valorPorPeriodo, vigenciaDaContratacao } from '../../dominio/fichaDados';
-import { planoPodeTerMinimo, textoDoMinimoAte } from '../../dominio/saidaDoPlano';
+import { planoPodeTerMinimo } from '../../dominio/saidaDoPlano';
 import { primeiroNome } from '../../dominio/inscricoes';
 import { linkDoWhatsApp, MOTIVO_SEM_TELEFONE } from '../../dominio/lembretesDeCobranca';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
@@ -26,6 +26,7 @@ import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { LinkTexto } from '../../ui/LinkTexto';
+import { LinhaDeDado, ListaDeDados } from '../../ui/ListaDeDados';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
@@ -54,7 +55,7 @@ function rotuloDaCobranca(c: CobrancaResponse): string {
 /**
  * Cartão "Plano contratado" da ficha do aluno (`FINANCEIRO_LER` e módulo de pagamentos ligado; quem chama confere os
  * dois). Ficha › Dados (23/11): o plano vigente com nome, situação e ações numa linha, o valor em destaque, a vigência
- * (barra decorativa com o texto equivalente; âmbar com 15 dias ou menos, vermelha vencida), os detalhes menores, as
+ * (barra decorativa com o texto equivalente; âmbar com 15 dias ou menos, vermelha vencida), os detalhes numa `ListaDeDados`, as
  * últimas 3 cobranças numa tabela compacta (as colunas das Cobranças do Financeiro) com "Ver todas no Financeiro" já
  * filtrado pelo aluno, e o responsável financeiro numa linha própria. Com `FINANCEIRO_ALTERAR`: contrata, altera, pausa,
  * retoma e encerra, e registra pagamento na folha da cobrança. Aluno inativo ou anonimizado não ganha contratação nova.
@@ -143,14 +144,16 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
             <Texto variante="destaque" numerico>{centavosParaTela(vigente.valorCentavos)}</Texto>
             {porPeriodo ? <Texto variante="suave">{porPeriodo}</Texto> : null}
           </View>
-          {vigente.motivoValor ? <Texto variante="pequeno">Motivo do valor: {vigente.motivoValor}</Texto> : null}
           <Vigencia contratacao={vigente} />
-          <View style={estilos.detalhes}>
-            <Texto variante="pequeno">Vence todo dia {vigente.diaVencimento}</Texto>
-            {periodicidade && !repeteAPeriodicidade(vigente.planoNome, periodicidade) ? <Texto variante="pequeno">Periodicidade: {periodicidade}</Texto> : null}
-          </View>
-          {/* O tempo mínimo só existe em contratação mensal: nas outras, a linha nem aparece. */}
-          {planoPodeTerMinimo(vigente.periodicidade) ? <Texto variante="pequeno">{textoDoMinimoAte(vigente.minimoAte)}</Texto> : null}
+          {/* Os detalhes na `ListaDeDados` (24/11), como os Dados do aluno. O tempo mínimo só existe em contratação mensal. */}
+          <ListaDeDados>
+            <LinhaDeDado rotulo="Vencimento" valor={`Todo dia ${vigente.diaVencimento}`} numerico />
+            {periodicidade && !repeteAPeriodicidade(vigente.planoNome, periodicidade) ? <LinhaDeDado rotulo="Periodicidade" valor={periodicidade} /> : null}
+            {planoPodeTerMinimo(vigente.periodicidade) ? (
+              <LinhaDeDado rotulo="Tempo mínimo" valor={vigente.minimoAte ? `Até ${dataParaTela(vigente.minimoAte)}` : 'Nenhum'} numerico />
+            ) : null}
+            {vigente.motivoValor ? <LinhaDeDado rotulo="Motivo do valor" valor={vigente.motivoValor} /> : null}
+          </ListaDeDados>
           {emRenovacao ? (
             <LinhaDeAcoes>
               <Botao rotulo="Cobrar renovação pelo WhatsApp" tipo="secundario" Icone={iconeWhatsApp(!!linkDaRenovacao)} aoTocar={abrirWhatsApp}
@@ -248,6 +251,5 @@ const estilos = StyleSheet.create({
   trilho: { height: 6, borderRadius: 3, overflow: 'hidden' },
   cheio: { height: '100%', borderRadius: 3 },
   pontas: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: espaco(1) },
-  detalhes: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(0.5) },
   seloDoTipo: { flexDirection: 'row' },
 });
