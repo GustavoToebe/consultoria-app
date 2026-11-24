@@ -9,6 +9,7 @@ import {
   type ValorDaOpcaoDeRepeticao,
 } from '../../dominio/agendaPresencial';
 import { dataDaTela } from '../../dominio/formatos';
+import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco } from '../../tema/tokens';
 import { MensagemDeErro } from '../../ui/Campo';
@@ -76,6 +77,7 @@ interface PropsDoHorario {
  * texto suave ("1 h"). Sem início (evento que era de dia inteiro), o fim fica apagado com "—" até escolher o início.
  */
 export function CamposDoHorario(p: PropsDoHorario) {
+  const { fatorTexto } = useTema();
   const inicios = opcoesDoInicio(p.hora || undefined);
   // Na lista e no botão do fim vai só a hora; a duração é o detalhe da opção e o texto suave ao lado do botão.
   const naLista = (o: OpcaoDoFim) => ({ valor: o.valor, rotulo: o.fim, detalhe: textoDaDuracaoDoHorario(p.hora, o.valor) ?? undefined });
@@ -83,15 +85,17 @@ export function CamposDoHorario(p: PropsDoHorario) {
   const fimAtual = fimDaHora(p.hora, p.duracao);
   const duracao = textoDaDuracaoDoHorario(p.hora, p.duracao);
   const data = (
-    <View style={p.compacto ? estilos.dataCompacta : estilos.data}>
+    <View style={[p.compacto ? estilos.dataCompacta : estilos.data, { width: escalar(p.compacto ? 170 : 190, fatorTexto) }]}>
       <CampoData rotulo="Data" nome={p.nomeDaData} regra="PLANEJAMENTO" valor={p.data} aoMudar={p.aoMudarData} erro={p.erros.data} />
     </View>
   );
-  // Início – fim e a duração não se separam ao quebrar a linha (no celular a data fica em cima).
+  // O traço fica com o início; com o texto grande o fim (e a duração) desce para a linha de baixo em vez de sair da tela.
   const horas = p.semHoras ? null : <View style={estilos.horas}>
-    <EscolhaEmFolha rotulo="Início" titulo="Início (Brasília)" valor={p.hora} opcoes={inicios} rotuloDoValor="Escolher" style={estilos.naBase}
-      aoMudar={p.aoMudarHora} digitado={{ rotulo: DIGITAR_HORA, opcao: opcaoDigitadaDoInicio }} />
-    <Texto variante="suave" aria-hidden style={estilos.traco}>–</Texto>
+    <View style={estilos.inicioETraco}>
+      <EscolhaEmFolha rotulo="Início" titulo="Início (Brasília)" valor={p.hora} opcoes={inicios} rotuloDoValor="Escolher" style={estilos.naBase}
+        aoMudar={p.aoMudarHora} digitado={{ rotulo: DIGITAR_HORA, opcao: opcaoDigitadaDoInicio }} />
+      <Texto variante="suave" aria-hidden style={estilos.traco}>–</Texto>
+    </View>
     <EscolhaEmFolha rotulo="Fim" titulo="Fim (Brasília)" valor={p.duracao.trim()} opcoes={fins} desabilitado={!fins.length}
       rotuloDoValor={fimAtual ?? '—'} aoMudar={p.aoMudarDuracao} style={estilos.naBase}
       digitado={{ rotulo: DIGITAR_HORA, opcao: (texto) => { const r = opcaoDigitadaDoFim(p.hora, texto, p.limites); return r && 'opcao' in r ? { opcao: naLista(r.opcao) } : r; } }} />
@@ -146,12 +150,14 @@ const estilos = StyleSheet.create({
   conteudo: { flex: 1, minWidth: 0, gap: espaco(1) },
   horario: { gap: espaco(1) },
   linhaDoHorario: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
-  horas: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), maxWidth: '100%' },
-  data: { width: 190, maxWidth: '100%' },
-  dataCompacta: { width: 170, maxWidth: '100%' },
+  horas: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1), maxWidth: '100%' },
+  inicioETraco: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1) },
+  // A largura (190 ou 170 px) cresce com o tamanho do texto: é escrita em `CamposDoHorario`.
+  data: { maxWidth: '100%' },
+  dataCompacta: { maxWidth: '100%' },
   // Na base da linha, com o campo da data (o rótulo dela, sempre visível, a deixa mais alta que os botões).
   naBase: { alignSelf: 'flex-end' },
   // O traço e a duração ficam no meio da altura dos botões (44 px), na base da linha.
   traco: { alignSelf: 'flex-end', minHeight: ALVO_TOQUE, lineHeight: ALVO_TOQUE },
-  duracao: { alignSelf: 'flex-end', minHeight: ALVO_TOQUE, lineHeight: ALVO_TOQUE },
+  duracao: { alignSelf: 'flex-end', minHeight: ALVO_TOQUE, lineHeight: ALVO_TOQUE, flexShrink: 0 },
 });

@@ -18,8 +18,8 @@ import {
   type AoAbrirItem, horarioDoItem, IconeDoStatus, rotuloDoItem, seloCurtoDoItem, toqueDoItem, useCorDaAgenda, useCoresDoItem,
 } from './itemDaAgenda';
 
-/** Altura de uma hora: 48 px, como no Google Agenda. O item tem no mínimo o alvo de toque (44 px). */
-const ALTURA_DA_HORA = 48;
+/** Altura de uma hora: 48 px, como no Google Agenda, vezes o tamanho do texto (o bloco de 1 h precisa de título e horário). O item tem no mínimo o alvo de toque (44 px). */
+const ALTURA_BASE_DA_HORA = 48;
 const LARGURA_DAS_HORAS = 52;
 /** Quantos itens de dia inteiro cada dia mostra na faixa do topo da Semana antes do "+N". */
 const DIA_INTEIRO_NA_SEMANA = 2;
@@ -49,10 +49,11 @@ interface Props {
  * bloco) e a linha dos dias é a faixa dele (`superficie3` com a linha forte embaixo); os itens são o nível de item.
  */
 export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbrir, aoAbrirDia, aoCriarNoHorario, escolhido = null, vazio }: Props) {
-  const { cores, bordas, marcaTexto } = useTema();
+  const { cores, bordas, marcaTexto, fatorTexto } = useTema();
+  const alturaDaHora = escalar(ALTURA_BASE_DA_HORA, fatorTexto);
   const { height } = useWindowDimensions();
-  const colunas = colunasDaGrade(itens, dias, { alturaPorHora: ALTURA_DA_HORA, alturaMinima: ALVO_TOQUE });
-  const altura = alturaDaGrade(ALTURA_DA_HORA);
+  const colunas = colunasDaGrade(itens, dias, { alturaPorHora: alturaDaHora, alturaMinima: ALVO_TOQUE });
+  const altura = alturaDaGrade(alturaDaHora);
   const alturaDaJanela = Math.max(360, Math.min(altura, height - 320));
   const rolagem = useRef<ScrollView>(null);
   const rolouPara = useRef<string | null>(null);
@@ -67,8 +68,8 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
     if (rolouPara.current === chaveDoPeriodo) return;
     rolouPara.current = chaveDoPeriodo;
     const minuto = dias.includes(hoje) && itens.length === 0 ? Math.max(0, minutoDeAgora - 60) : minutoInicialDaGrade(itens, dias);
-    rolagem.current?.scrollTo({ y: posicaoDoMinuto(minuto, ALTURA_DA_HORA), animated: false });
-  }, [chaveDoPeriodo, dias, hoje, itens, minutoDeAgora]);
+    rolagem.current?.scrollTo({ y: posicaoDoMinuto(minuto, alturaDaHora), animated: false });
+  }, [alturaDaHora, chaveDoPeriodo, dias, hoje, itens, minutoDeAgora]);
 
   return (
     <View style={[estilos.moldura, { borderWidth: bordas.bloco, borderColor: cores.borda, backgroundColor: cores.superficie }]}>
@@ -124,21 +125,21 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
         <View style={[estilos.calha, { height: altura }]} aria-hidden>
           {ROTULOS_DAS_HORAS.map((h, i) => i === 0 ? null : (
             <Texto key={h} variante="pequeno" numerico cor={cores.textoSuave}
-              style={[estilos.hora, { top: i * ALTURA_DA_HORA - 9 }]}>{h}</Texto>
+              style={[estilos.hora, { top: i * alturaDaHora - 9 }]}>{h}</Texto>
           ))}
         </View>
         {colunas.map((c) => (
           <View key={c.data} style={[estilos.coluna, { height: altura, borderLeftColor: cores.divisor }]}>
             {/* Linhas das horas (decorativas) e o fundo clicável do horário vazio. */}
             {ROTULOS_DAS_HORAS.map((h, i) => <View key={h} pointerEvents="none"
-              style={[estilos.linhaDaHora, { top: i * ALTURA_DA_HORA, borderTopColor: cores.divisor }]} />)}
+              style={[estilos.linhaDaHora, { top: i * alturaDaHora, borderTopColor: cores.divisor }]} />)}
             {aoCriarNoHorario && Platform.OS === 'web' ? (
               <Pressable accessible={false} focusable={false} tabIndex={-1} style={StyleSheet.absoluteFill}
-                onPress={(e) => aoCriarNoHorario(c.data, horaDoPontoDaGrade(pontoY(e), ALTURA_DA_HORA))} />
+                onPress={(e) => aoCriarNoHorario(c.data, horaDoPontoDaGrade(pontoY(e), alturaDaHora))} />
             ) : null}
             {c.segmentos.map((s) => <Bloco key={s.chave} segmento={s} hoje={hoje} meus={meus} aoAbrir={aoAbrir} escolhido={s.item.chave === escolhido} />)}
             {c.data === hoje ? (
-              <View pointerEvents="none" aria-hidden style={[estilos.agora, { top: posicaoDoMinuto(minutoDeAgora, ALTURA_DA_HORA) }]}>
+              <View pointerEvents="none" aria-hidden style={[estilos.agora, { top: posicaoDoMinuto(minutoDeAgora, alturaDaHora) }]}>
                 <View style={[estilos.pontoDoAgora, { backgroundColor: cores.texto }]} />
                 <View style={[estilos.linhaDoAgora, { backgroundColor: cores.texto }]} />
               </View>
