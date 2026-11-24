@@ -20,7 +20,7 @@ import { FolhaPerfilDoColega } from '../../comunidade/FolhaPerfilDoColega';
 import { ListaDeColegas } from '../../comunidade/ListaDeColegas';
 import { MuralComLateral } from '../../comunidade/MuralComLateral';
 import { CartaoDaConquista, FaixaDosNumeros, LinhaDaPosicao, NumerosDoMural } from '../../comunidade/NumerosDoAluno';
-import { existemNumeros, faixaDosNumeros } from '../../dominio/arranjoDoMural';
+import { estadoDosNumeros } from '../../dominio/arranjoDoMural';
 import { PainelDeDenuncia } from '../../comunidade/PainelDeDenuncia';
 import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
@@ -157,6 +157,7 @@ export default function ComunidadeAluno() {
   const auloes = useCarregar(online ? 'auloes-lista' : null, () => listarAulasDoAluno());
   const ranking = useCarregar(online ? 'ranking-lista' : null, () => obterMeuRanking());
   const conquistas = useCarregar(online ? 'conquistas-lista' : null, () => listarMinhasConquistas());
+  const numeros = estadoDosNumeros(ranking, conquistas, online);
 
   const publicado = (podId: string | null) => {
     // O post do aluno mora na aba Alunos: publicando de Avisos, a tela segue para lá, senão ele "some" logo depois do aviso.
@@ -245,12 +246,12 @@ export default function ComunidadeAluno() {
               <Escolha<AbaDoMural> descricao="Publicações" distribuida={!largo} valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
               <BarraDoMural aba={abaDoMural} filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={false} />
 
-              {/* Feed de ~720 px e, a partir de 1280 px de área, "Sua posição" e as conquistas numa coluna ao lado; abaixo, uma
-                  faixa de uma linha e altura fixa no topo do feed, sempre presente (esqueleto dentro dela enquanto carrega). */}
-              <MuralComLateral idDaLateral="coluna-dos-numeros" rotulo="Seus números" temLateral={existemNumeros(ranking, conquistas)} topoSempre
-                lateral={(noTopo) => noTopo
-                  ? <FaixaDosNumeros estado={faixaDosNumeros(ranking, conquistas, online)} aoVerConquistas={() => setAba('ranking')} />
-                  : <NumerosDoMural ranking={ranking.dados} conquistas={conquistas.dados} aoVerConquistas={() => setAba('ranking')} />}>
+              {/* Feed de ~720 px e os números do aluno, sempre presentes e com a mesma regra: a partir de 1280 px de área numa
+                  coluna ao lado; abaixo, numa faixa de altura fixa no topo do feed (esqueleto dentro dela enquanto carrega). */}
+              <MuralComLateral idDaLateral="coluna-dos-numeros" rotulo="Seus números" temLateral
+                lateral={(noTopo, largura) => noTopo
+                  ? <FaixaDosNumeros estado={numeros} largura={largura} aoVerConquistas={() => setAba('ranking')} />
+                  : <NumerosDoMural estado={numeros} conquistas={conquistas.dados} aoVerConquistas={() => setAba('ranking')} />}>
                 <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
                   textoVazio={textoDoVazioDaAba(abaDoMural, filtro, busca, podDoMural?.nome)}
                   recarregar={mural.recarregar}

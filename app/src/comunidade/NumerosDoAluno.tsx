@@ -1,12 +1,12 @@
 import { Award, ChevronRight, Medal } from 'lucide-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { ConquistaDoAluno, PosicaoNoRanking } from '../api/comunidadeTipos';
-import { conquistasRecentes, type EstadoDaFaixa } from '../dominio/arranjoDoMural';
+import { alturaDaFaixa, conquistasRecentes, type EstadoDosNumeros, rotuloNaFaixa } from '../dominio/arranjoDoMural';
 import { textoDaPosicao } from '../dominio/comunidade';
 import { dataParaTela, plural } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { Selo } from '../ui/Selo';
@@ -45,22 +45,40 @@ export function CartaoDaConquista({ conquista }: { conquista: ConquistaDoAluno }
 }
 
 /**
- * Coluna do mural do aluno (decisão 3 de 24/11): "Sua posição" e as conquistas mais recentes, compactas, com o caminho
- * para a aba Conquistas. Só o que já chegou: carregando, com erro ou vazio, o bloco some (a aba Conquistas mostra esses
- * estados), para a coluna não abrir vão ao lado do feed. Acima do feed (abaixo de 1280 px de área) vai a `FaixaDosNumeros`.
+ * Coluna do mural do aluno ao lado do feed (a partir de 1280 px de área), sempre presente, com a mesma regra da faixa
+ * (`estadoDosNumeros`): carregando, um cartão com o esqueleto; com números, "Sua posição" (só com treino concluído) e as
+ * conquistas mais recentes, com o caminho para a aba Conquistas; sem números, o mesmo texto da faixa e "Ver conquistas".
  */
-export function NumerosDoMural({ ranking, conquistas, aoVerConquistas }: {
-  ranking: PosicaoNoRanking | undefined;
+export function NumerosDoMural({ estado, conquistas, aoVerConquistas }: {
+  estado: EstadoDosNumeros<PosicaoNoRanking>;
   conquistas: readonly ConquistaDoAluno[] | undefined;
   aoVerConquistas: () => void;
 }) {
   const { cores } = useTema();
   const recentes = conquistasRecentes(conquistas ?? []);
+  if (estado.tipo === 'carregando') {
+    return (
+      <Cartao titulo="Seus números">
+        <View testID="coluna-dos-numeros-carregando" accessibilityRole="progressbar" accessibilityLabel="Carregando seus números" style={estilos.lista}>
+          <View style={[estilos.esqueleto, { backgroundColor: cores.superficie2 }]} />
+          <View style={[estilos.esqueleto, estilos.esqueletoCurto, { backgroundColor: cores.superficie2 }]} />
+        </View>
+      </Cartao>
+    );
+  }
+  if (estado.tipo === 'sem') {
+    return (
+      <Cartao titulo="Seus números">
+        <Texto>{estado.texto}</Texto>
+        <Botao tipo="fantasma" Icone={ChevronRight} aoTocar={aoVerConquistas} rotulo="Ver conquistas" />
+      </Cartao>
+    );
+  }
   return (
     <>
-      {ranking ? (
+      {estado.posicao ? (
         <Cartao titulo="Sua posição">
-          <LinhaDaPosicao ranking={ranking} />
+          <LinhaDaPosicao ranking={estado.posicao} />
           <Texto variante="pequeno">Pelo número de treinos concluídos. Só você vê a sua posição.</Texto>
         </Cartao>
       ) : null}
@@ -86,37 +104,41 @@ export function NumerosDoMural({ ranking, conquistas, aoVerConquistas }: {
 }
 
 /**
- * Faixa de uma linha no topo do feed (abaixo de 1280 px), sempre presente e sempre o botão para a aba Conquistas: o texto
- * vem de `faixaDosNumeros` ("2º de 12 · 4 conquistas", o convite neutro ou o aviso de indisponível) e, enquanto carrega, um
- * esqueleto ocupa o lugar dele. A altura é fixa (`ALTURA_DA_FAIXA`) em todos os estados: nada abaixo anda.
+ * Faixa no topo do feed (abaixo de 1280 px), sempre presente e sempre o botão para a aba Conquistas: o texto vem de
+ * `estadoDosNumeros` e, enquanto carrega, um esqueleto ocupa o lugar dele. A altura (`alturaDaFaixa`) segue a escala do
+ * texto (a do sistema, no mesmo teto do `Texto`, vezes o "Tamanho do texto" do app) e é a mesma em todos os estados: o
+ * texto quebra em até duas linhas dentro dela e nada abaixo anda. Faixa estreita para a escala: só a seta, sem o rótulo.
  */
-export function FaixaDosNumeros({ estado, aoVerConquistas }: { estado: EstadoDaFaixa; aoVerConquistas: () => void }) {
-  const { cores } = useTema();
+export function FaixaDosNumeros({ estado, largura, aoVerConquistas }: { estado: EstadoDosNumeros<unknown>; largura: number; aoVerConquistas: () => void }) {
+  const { cores, fatorTexto } = useTema();
+  const { fontScale } = useWindowDimensions();
+  const escala = fatorTexto * Math.min(fontScale, TETO_FONTE_DO_SISTEMA);
+  const carregando = estado.tipo === 'carregando';
   return (
     <Pressable testID="faixa-dos-numeros" accessibilityRole="button" onPress={aoVerConquistas}
-      accessibilityLabel={`Seus números: ${estado.carregando ? 'carregando' : estado.texto}. Ver conquistas`}
-      accessibilityHint="Abre a aba Conquistas." accessibilityState={{ busy: estado.carregando }}
-      style={(e) => [estilos.faixa, { backgroundColor: sobre(e) ? cores.sobre : cores.superficie, borderColor: cores.borda }]}>
-      {/* Sem ícone à esquerda: em 390 px os números e a ação cabem numa linha; as frases sem número quebram em duas, dentro
-          da mesma altura. */}
-      {estado.carregando
+      accessibilityLabel={`Seus números: ${carregando ? 'carregando' : estado.texto}. Ver conquistas`}
+      accessibilityHint="Abre a aba Conquistas." accessibilityState={{ busy: carregando }}
+      style={(e) => [estilos.faixa, { height: alturaDaFaixa(escala), backgroundColor: sobre(e) ? cores.sobre : cores.superficie, borderColor: cores.borda }]}>
+      {/* Sem ícone à esquerda: o texto fica com a largura que sobra. */}
+      {carregando
         ? <View style={estilos.encolher}><View testID="faixa-dos-numeros-carregando" style={[estilos.esqueleto, { backgroundColor: cores.superficie2 }]} /></View>
-        : <Texto numberOfLines={2} style={estilos.textoDaFaixa}>{estado.texto}</Texto>}
-      <Texto style={estilos.acaoDaFaixa}>Ver conquistas</Texto>
-      <ChevronRight size={18} color={cores.texto} aria-hidden />
+        : <Texto testID="faixa-dos-numeros-texto" numberOfLines={2} style={estilos.textoDaFaixa}>{estado.texto}</Texto>}
+      {rotuloNaFaixa(largura, escala) ? <Texto style={estilos.acaoDaFaixa}>Ver conquistas</Texto> : null}
+      <ChevronRight size={Math.round(18 * escala)} color={cores.texto} aria-hidden />
     </Pressable>
   );
 }
 
-/** Altura fixa da faixa (com ou sem texto): o alvo de toque de 44 mais o respiro da borda. */
-const ALTURA_DA_FAIXA = ALVO_TOQUE + espaco(1.5);
+/** O mesmo teto do `maxFontSizeMultiplier` do `Texto` para a fonte do sistema. */
+const TETO_FONTE_DO_SISTEMA = 1.5;
 
 const estilos = StyleSheet.create({
   faixa: {
-    height: ALTURA_DA_FAIXA, flexDirection: 'row', alignItems: 'center', gap: espaco(1),
+    flexDirection: 'row', alignItems: 'center', gap: espaco(1),
     borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(2),
   },
   esqueleto: { height: 14, width: '60%', borderRadius: 7 },
+  esqueletoCurto: { width: '40%' },
   textoDaFaixa: { flex: 1, minWidth: 0, fontFamily: fontes.medio },
   acaoDaFaixa: { fontFamily: fontes.semi },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },

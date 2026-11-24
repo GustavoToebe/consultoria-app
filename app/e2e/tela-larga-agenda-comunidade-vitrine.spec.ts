@@ -317,22 +317,46 @@ test.describe('capturas do mural com a coluna (24/11)', () => {
         await preparar(page, largura, altura, tema, {}, ALUNO.id);
         await abrirMuralDoAluno(page);
         await expect(page.getByText(POSTS_DO_ALUNO[0].texto)).toBeVisible();
-        await expect(page.getByTestId(largura >= 1920 ? 'coluna-dos-numeros' : 'faixa-dos-numeros')).toBeVisible();
+        const numeros = page.getByTestId(largura >= 1920 ? 'coluna-dos-numeros' : 'faixa-dos-numeros');
+        await expect(numeros).toContainText(largura >= 1920 ? '2º de 12 participantes' : '2º de 12 · 4 conquistas');
         await page.waitForTimeout(400);
         await capturar(page, `aluno-mural${sufixo}`, largura);
         await abrirMuralDoAluno(page, { numeros: 'sem' });
         await expect(page.getByText(POSTS_DO_ALUNO[0].texto)).toBeVisible();
-        if (largura < 1920) await expect(page.getByTestId('faixa-dos-numeros')).toContainText('Treine para entrar no ranking');
+        await expect(numeros).toContainText('Treine para entrar no ranking');
         await page.waitForTimeout(400);
         await capturar(page, `aluno-mural-sem-numeros${sufixo}`, largura);
-        // Carregando: as publicações já na tela e o esqueleto só dentro da faixa (os números demoram 3 s).
+        // Carregando: as publicações já na tela e o esqueleto só dentro da faixa ou do cartão da coluna (3 s de atraso).
         await abrirMuralDoAluno(page, { atraso: { ranking: 3000, conquistas: 3000 } });
         await expect(page.getByText(POSTS_DO_ALUNO[0].texto)).toBeVisible();
-        if (largura < 1920) await expect(page.getByTestId('faixa-dos-numeros-carregando')).toBeVisible();
+        await expect(page.getByTestId(largura >= 1920 ? 'coluna-dos-numeros-carregando' : 'faixa-dos-numeros-carregando')).toBeVisible();
         await capturar(page, `aluno-mural-carregando${sufixo}`, largura);
       });
     }
   }
+});
+
+test.describe('capturas do mural do aluno com o texto grande em 390 px (24/11)', () => {
+  test.skip(!BASE_CAPTURAS, 'só com CAPTURAS_TELA_LARGA');
+  for (const tamanhoTexto of ['GRANDE', 'EXTRA'] as const) test(`com números, sem números e carregando, texto ${tamanhoTexto}`, async ({ page }) => {
+    const sufixo = `-${tamanhoTexto.toLowerCase()}`;
+    await preparar(page, 390, 844, 'ESCURO', { tamanhoTexto }, ALUNO.id);
+    const faixa = page.getByTestId('faixa-dos-numeros');
+    for (const [nome, opcoes, espera] of [
+      [`aluno-mural${sufixo}`, {}, '2º de 12 · 4 conquistas'],
+      [`aluno-mural-sem-numeros${sufixo}`, { numeros: 'sem' }, 'Treine para entrar no ranking'],
+      [`aluno-mural-erro${sufixo}`, { numeros: 'erro' }, 'Seus números indisponíveis agora'],
+    ] as const) {
+      await abrirMuralDoAluno(page, opcoes);
+      await expect(faixa).toContainText(espera);
+      await page.waitForTimeout(400);
+      await capturar(page, nome, 390);
+    }
+    await abrirMuralDoAluno(page, { atraso: { ranking: 3000, conquistas: 3000 } });
+    await expect(page.getByText(POSTS_DO_ALUNO[0].texto)).toBeVisible();
+    await expect(page.getByTestId('faixa-dos-numeros-carregando')).toBeVisible();
+    await capturar(page, `aluno-mural-carregando${sufixo}`, 390);
+  });
 });
 
 // ---------------------------------------------------------------- Conferência em 1280 e 390 (temas e texto grande)
@@ -497,30 +521,34 @@ for (const [largura, altura] of [[1280, 900], ...LARGURAS] as const) {
       });
     }
 
-    test(`Mural do aluno sem números: ${largura >= 1920 ? 'nenhuma coluna e nenhum vão' : 'a faixa com o convite neutro'} acima do feed`, async ({ page }) => {
+    test(`Mural do aluno sem treino e sem conquistas: ${largura >= 1920 ? 'a coluna' : 'a faixa'} com o convite neutro, nunca "1º de 1"`, async ({ page }) => {
       await preparar(page, largura, altura, 'ESCURO', {}, ALUNO.id);
-      // Ao lado (não mudou em 24/11) a coluna nasce com qualquer posição, até a sem treino; sem nenhuma, não há coluna.
-      const { errosDaPagina } = await abrirMuralDoAluno(page, { numeros: largura >= 1920 ? 'erro' : 'sem' });
+      const { errosDaPagina } = await abrirMuralDoAluno(page, { numeros: 'sem' });
       const feed = page.getByTestId('coluna-das-publicacoes');
       const primeiro = feed.getByText(/^Publicação fictícia \d/).first();
-      const faixa = page.getByTestId('faixa-dos-numeros');
       await expect(primeiro).toBeVisible();
-      await expect(page.getByTestId('coluna-dos-numeros')).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Sua posição' })).toHaveCount(0);
       await expect(page.getByRole('heading', { name: 'Suas conquistas' })).toHaveCount(0);
+      await expect(page.getByText(/participante/)).toHaveCount(0);
       if (largura >= 1920) {
-        await expect(faixa).toHaveCount(0);
-        // A primeira publicação abre o feed: acima do texto só o recuo, o autor e a data do próprio cartão (~115 px), sem o
-        // vão nem a altura de um bloco vazio.
+        // A coluna sempre existe ao lado, com o mesmo texto da faixa e o caminho para a aba Conquistas.
+        const coluna = page.getByTestId('coluna-dos-numeros');
+        await expect(coluna).toContainText('Treine para entrar no ranking');
+        await expect(page.getByTestId('faixa-dos-numeros')).toHaveCount(0);
+        // A primeira publicação abre o feed: acima do texto só o recuo, o autor e a data do próprio cartão (~115 px).
         await assentado(async () => expect((await caixa(primeiro)).y - (await caixa(feed)).y).toBeLessThan(140));
+        await coluna.getByRole('button', { name: 'Ver conquistas' }).click();
       } else {
-        // Abaixo de 1280 px de área a faixa sempre existe; sem número, diz o que fazer, sem mentir posição.
+        const faixa = page.getByTestId('faixa-dos-numeros');
         await expect(faixa).toHaveAccessibleName('Seus números: Treine para entrar no ranking. Ver conquistas');
         await assentado(async () => {
           const f = await caixa(faixa);
           expect(f.y - (await caixa(feed)).y).toBeLessThan(2);
           expect((await caixa(primeiro)).y - (f.y + f.height)).toBeLessThan(140);
         });
+        await faixa.click();
       }
+      await expect(page).toHaveURL(/[?&]aba=ranking/);
       await semRolagemHorizontal(page);
       expect(errosDaPagina).toEqual([]);
     });
@@ -578,7 +606,6 @@ for (const [largura, altura] of [[1280, 900], ...LARGURAS] as const) {
 for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
   test.describe(`mural do aluno sem salto em ${largura} px`, () => {
     const ATRASO = { ranking: 3000, conquistas: 3000 };
-    const ALTURA_DA_FAIXA = 56;
     const faixa = (page: Page) => page.getByTestId('faixa-dos-numeros');
     const esqueleto = (page: Page) => page.getByTestId('faixa-dos-numeros-carregando');
     const primeiroPost = (page: Page) => page.getByTestId('coluna-das-publicacoes').getByText(/^Publicação fictícia \d/).first();
@@ -593,13 +620,13 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         return Math.max(Math.abs(agora.faixaY - antes.faixaY), Math.abs(agora.faixaAltura - antes.faixaAltura), Math.abs(agora.postY - antes.postY));
       }).toBeLessThan(1);
     };
-    /** As publicações já na tela e os números ainda carregando (o esqueleto dentro da faixa, na altura fixa). */
-    const publicacoesAntesDosNumeros = async (page: Page) => {
+    /** As publicações já na tela e os números ainda carregando (o esqueleto dentro da faixa, na altura reservada). */
+    const publicacoesAntesDosNumeros = async (page: Page, alturaDaFaixa = 56) => {
       await expect(esqueleto(page)).toBeVisible();
       await expect(primeiroPost(page)).toBeVisible();
       await expect(esqueleto(page)).toBeVisible();
       const antes = await posicoes(page);
-      expect(Math.abs(antes.faixaAltura - ALTURA_DA_FAIXA)).toBeLessThan(1);
+      expect(Math.abs(antes.faixaAltura - alturaDaFaixa)).toBeLessThan(1);
       expect(antes.faixaY).toBeLessThan(antes.postY);
       return antes;
     };
@@ -639,5 +666,53 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         expect(errosDaPagina).toEqual([]);
       });
     }
+
+    if (largura === 390) {
+      // Texto Extra (1,4): a faixa reserva 56 × 1,4 = 78 px desde o primeiro quadro, o texto quebra em até duas linhas sem
+      // cortar (só a seta, sem o rótulo, na faixa estreita) e nada anda quando os números chegam.
+      for (const [numeros, texto] of [['com', '2º de 12 · 4 conquistas'], ['sem', 'Treine para entrar no ranking'], ['erro', 'Seus números indisponíveis agora']] as const) {
+        test(`texto Extra, ${numeros} números: a faixa de 78 px não cresce, o texto não corta e nada anda`, async ({ page }) => {
+          await preparar(page, largura, altura, 'ESCURO', { tamanhoTexto: 'EXTRA' }, ALUNO.id);
+          const { errosDaPagina } = await abrirMuralDoAluno(page, { numeros, atraso: ATRASO });
+          const antes = await publicacoesAntesDosNumeros(page, 78);
+          await expect(faixa(page)).toHaveAccessibleName(`Seus números: ${texto}. Ver conquistas`);
+          await noLugar(page, antes);
+          const textoDaFaixa = page.getByTestId('faixa-dos-numeros-texto');
+          await expect(textoDaFaixa).toHaveText(texto);
+          const medida = await textoDaFaixa.evaluate((el) => ({ rola: el.scrollHeight, cabe: el.clientHeight }));
+          expect(medida.rola).toBeLessThanOrEqual(medida.cabe);
+          const t = await caixa(textoDaFaixa);
+          const f = await caixa(faixa(page));
+          expect(t.y).toBeGreaterThanOrEqual(f.y);
+          expect(t.y + t.height).toBeLessThanOrEqual(f.y + f.height);
+          await semRolagemHorizontal(page);
+          expect(errosDaPagina).toEqual([]);
+        });
+      }
+    }
   });
 }
+
+// A coluna ao lado (1920; a área do aluno passa de 1280): nasce com o esqueleto dentro do cartão e nenhuma publicação anda
+// quando os números chegam (a coluna fica à direita do feed).
+test.describe('mural do aluno sem salto em 1920 px (coluna ao lado)', () => {
+  test('números lentos: o cartão da coluna com o esqueleto, as publicações antes e nada anda', async ({ page }) => {
+    await preparar(page, 1920, 1080, 'ESCURO', {}, ALUNO.id);
+    const { errosDaPagina } = await abrirMuralDoAluno(page, { atraso: { ranking: 3000, conquistas: 3000 } });
+    const coluna = page.getByTestId('coluna-dos-numeros');
+    const esqueleto = page.getByTestId('coluna-dos-numeros-carregando');
+    const primeiro = page.getByTestId('coluna-das-publicacoes').getByText(/^Publicação fictícia \d/).first();
+    await expect(esqueleto).toBeVisible();
+    await expect(primeiro).toBeVisible();
+    await expect(esqueleto).toBeVisible();
+    const antes = await caixa(primeiro);
+    expect((await caixa(coluna)).x).toBeGreaterThan(antes.x + 600);
+    await expect(coluna).toContainText('2º de 12 participantes');
+    await expect(esqueleto).toHaveCount(0);
+    await expect.poll(async () => {
+      const agora = await caixa(primeiro);
+      return Math.max(Math.abs(agora.y - antes.y), Math.abs(agora.x - antes.x));
+    }).toBeLessThan(1);
+    expect(errosDaPagina).toEqual([]);
+  });
+});

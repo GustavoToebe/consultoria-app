@@ -11,15 +11,13 @@ const GRUDADA = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), o
  * Feed do mural com a coluna de apoio (`dominio/arranjoDoMural`), igual no treinador e no aluno. Mede a própria área: a
  * partir de 1280 px a coluna fica à direita do feed de ~720 px, grudada ao rolar na web (a altura dela não passa da janela
  * e rola por dentro); abaixo, ela vai para o topo do feed (`lateral(true)`: a tela pode mostrar uma versão mais curta ali,
- * para o feed não sair da primeira dobra). Sem conteúdo (`temLateral` falso) não desenha nada, nem o vão, salvo no topo com
- * `topoSempre` (o aluno: a faixa de altura fixa existe desde o início e se preenche depois). O feed nunca espera a coluna.
- * O feed fica à esquerda, na borda do cabeçalho.
+ * para o feed não sair da primeira dobra). Sem conteúdo (`temLateral` falso) não desenha nada, nem o vão. O feed nunca
+ * espera a coluna. O feed fica à esquerda, na borda do cabeçalho.
  */
-export function MuralComLateral({ lateral, temLateral, topoSempre = false, rotulo, idDaLateral, children }: {
-  /** O conteúdo da coluna; `noTopo` verdadeiro quando vai acima do feed. */
-  lateral: (noTopo: boolean) => ReactNode;
+export function MuralComLateral({ lateral, temLateral, rotulo, idDaLateral, children }: {
+  /** O conteúdo da coluna; `noTopo` verdadeiro quando vai acima do feed, com a `largura` do feed (já medida). */
+  lateral: (noTopo: boolean, largura: number) => ReactNode;
   temLateral: boolean;
-  topoSempre?: boolean;
   /** Nome da região ao lado (leitor de tela). */
   rotulo: string;
   idDaLateral: string;
@@ -27,17 +25,17 @@ export function MuralComLateral({ lateral, temLateral, topoSempre = false, rotul
 }) {
   const [area, setArea] = useState<number | null>(null);
   const janela = useWindowDimensions();
-  const arranjo = arranjoDoMural(area, temLateral, topoSempre);
+  const arranjo = arranjoDoMural(area, temLateral);
   return (
     <View onLayout={(e) => setArea(e.nativeEvent.layout.width)} style={arranjo === 'lado' ? estilos.ladoALado : undefined}>
       <View testID="coluna-das-publicacoes" style={estilos.feed}>
-        {arranjo === 'topo' ? lateral(true) : null}
+        {arranjo === 'topo' && area ? lateral(true, Math.min(area, LARGURA_DO_FEED)) : null}
         {children}
       </View>
       {arranjo === 'lado' ? (
         <View testID={idDaLateral} role="complementary" aria-label={rotulo}
           style={[estilos.lateral, GRUDADA, Platform.OS === 'web' && { maxHeight: janela.height - espaco(4) }]}>
-          {lateral(false)}
+          {lateral(false, LARGURA_DA_LATERAL)}
         </View>
       ) : null}
     </View>

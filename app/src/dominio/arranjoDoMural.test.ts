@@ -1,7 +1,7 @@
 import type { ConquistaDoAluno } from '../api/comunidadeTipos';
 import {
-  AREA_PARA_A_LATERAL, arranjoDoMural, conquistasRecentes, existemNumeros, faixaDosNumeros, LARGURA_DA_LATERAL, LARGURA_DO_FEED,
-  textoDaFaixaDosNumeros, TEXTO_NUMEROS_INDISPONIVEIS, TEXTO_SEM_NUMEROS, VAO_DA_LATERAL,
+  ALTURA_BASE_DA_FAIXA, alturaDaFaixa, AREA_PARA_A_LATERAL, arranjoDoMural, conquistasRecentes, estadoDosNumeros, LARGURA_DA_LATERAL,
+  LARGURA_DO_FEED, rotuloNaFaixa, textoDaFaixaDosNumeros, TEXTO_NUMEROS_INDISPONIVEIS, TEXTO_SEM_NUMEROS, VAO_DA_LATERAL,
 } from './arranjoDoMural';
 
 describe('arranjoDoMural', () => {
@@ -17,16 +17,10 @@ describe('arranjoDoMural', () => {
     expect(arranjoDoMural(3100, true)).toBe('lado');
   });
 
-  it('coluna vazia não ocupa lugar, em qualquer largura', () => {
+  it('coluna vazia não ocupa lugar, em qualquer largura e antes da medida', () => {
+    expect(arranjoDoMural(null, false)).toBe('sem');
     expect(arranjoDoMural(390, false)).toBe('sem');
     expect(arranjoDoMural(2000, false)).toBe('sem');
-  });
-
-  it('topo sempre (aluno): abaixo de 1280 a faixa existe mesmo sem conteúdo; ao lado, nada até o conteúdo chegar', () => {
-    expect(arranjoDoMural(390, false, true)).toBe('topo');
-    expect(arranjoDoMural(AREA_PARA_A_LATERAL - 1, false, true)).toBe('topo');
-    expect(arranjoDoMural(AREA_PARA_A_LATERAL, false, true)).toBe('sem');
-    expect(arranjoDoMural(AREA_PARA_A_LATERAL, true, true)).toBe('lado');
   });
 
   it('o feed, o vão e a coluna cabem na área em que a coluna abre', () => {
@@ -34,40 +28,62 @@ describe('arranjoDoMural', () => {
   });
 });
 
-describe('existemNumeros', () => {
-  it('verdadeiro só quando a posição ou alguma conquista chegou', () => {
-    expect(existemNumeros({ dados: { posicao: 2, participantes: 12 } }, {})).toBe(true);
-    expect(existemNumeros({ erro: new Error('x') }, { dados: [{}] })).toBe(true);
-    expect(existemNumeros({}, {})).toBe(false);
-    expect(existemNumeros({ erro: new Error('x') }, { dados: [] })).toBe(false);
+describe('estadoDosNumeros (a faixa e a coluna)', () => {
+  const RANKING = { posicao: 2, participantes: 12, treinosConcluidos: 8 };
+  const SEM_TREINO = { posicao: 1, participantes: 1, treinosConcluidos: 0 };
+  const QUATRO = [{}, {}, {}, {}];
+  const erro = new Error('rede');
+  const sem = (texto: string) => ({ tipo: 'sem', texto });
+
+  it('sem treino e sem conquista: o convite neutro, nunca "1º de 1"', () => {
+    expect(estadoDosNumeros({ dados: SEM_TREINO }, { dados: [] })).toEqual(sem(TEXTO_SEM_NUMEROS));
+  });
+  it('só a posição com treino', () => {
+    expect(estadoDosNumeros({ dados: RANKING }, { dados: [] })).toEqual({ tipo: 'com', posicao: RANKING, texto: '2º de 12' });
+    expect(estadoDosNumeros({ dados: RANKING }, {})).toEqual({ tipo: 'com', posicao: RANKING, texto: '2º de 12' });
+  });
+  it('só as conquistas: a posição sem treino não entra', () => {
+    expect(estadoDosNumeros({ dados: SEM_TREINO }, { dados: QUATRO })).toEqual({ tipo: 'com', posicao: undefined, texto: '4 conquistas' });
+    expect(estadoDosNumeros({ erro }, { dados: QUATRO })).toEqual({ tipo: 'com', posicao: undefined, texto: '4 conquistas' });
+  });
+  it('os dois', () => {
+    expect(estadoDosNumeros({ dados: RANKING }, { dados: QUATRO })).toEqual({ tipo: 'com', posicao: RANKING, texto: '2º de 12 · 4 conquistas' });
+  });
+  it('falha de leitura ou sem rede: o texto verdadeiro, nunca o convite a treinar', () => {
+    expect(estadoDosNumeros({ erro }, { dados: [] })).toEqual(sem(TEXTO_NUMEROS_INDISPONIVEIS));
+    expect(estadoDosNumeros({ erro }, { erro })).toEqual(sem(TEXTO_NUMEROS_INDISPONIVEIS));
+    expect(estadoDosNumeros({ dados: SEM_TREINO }, { erro })).toEqual(sem(TEXTO_NUMEROS_INDISPONIVEIS));
+    expect(estadoDosNumeros({}, {}, false)).toEqual(sem(TEXTO_NUMEROS_INDISPONIVEIS));
+    expect(estadoDosNumeros({ dados: RANKING }, {}, false)).toEqual({ tipo: 'com', posicao: RANKING, texto: '2º de 12' });
+  });
+  it('carregando enquanto alguma leitura não respondeu e nada chegou', () => {
+    expect(estadoDosNumeros({}, {})).toEqual({ tipo: 'carregando' });
+    expect(estadoDosNumeros({ dados: SEM_TREINO }, {})).toEqual({ tipo: 'carregando' });
+    expect(estadoDosNumeros({ erro }, {})).toEqual({ tipo: 'carregando' });
   });
 });
 
-describe('faixaDosNumeros', () => {
-  const RANKING = { posicao: 2, participantes: 12, treinosConcluidos: 8 };
-  const SEM_TREINO = { posicao: 1, participantes: 1, treinosConcluidos: 0 };
-  const erro = new Error('rede');
-  const pronta = (texto: string) => ({ carregando: false, texto });
+describe('alturaDaFaixa', () => {
+  it('56 × escala, arredondado', () => {
+    expect(alturaDaFaixa(1)).toBe(56);
+    expect(alturaDaFaixa(1.15)).toBe(64); // 64,4
+    expect(alturaDaFaixa(1.3)).toBe(73); // 72,8
+    expect(alturaDaFaixa(1.4)).toBe(78); // Extra: 78,4
+    expect(alturaDaFaixa(1.4 * 1.5)).toBe(118); // Extra com a fonte do sistema no teto do `Texto`: 117,6
+  });
+  it('cabe sempre as duas linhas do texto (altura de linha 21, arredondada como no `Texto`) e a borda', () => {
+    for (const escala of [1, 1.12, 1.15, 1.25, 1.3, 1.4, 1.5, 1.4 * 1.5]) {
+      expect(alturaDaFaixa(escala)).toBeGreaterThanOrEqual(2 * Math.round(21 * escala) + 2);
+    }
+    expect(ALTURA_BASE_DA_FAIXA).toBe(56);
+  });
+});
 
-  it('com dado, só o que existe, mesmo com a outra leitura carregando', () => {
-    expect(faixaDosNumeros({ dados: RANKING }, { dados: [{}, {}, {}, {}] })).toEqual(pronta('2º de 12 · 4 conquistas'));
-    expect(faixaDosNumeros({ dados: RANKING }, {})).toEqual(pronta('2º de 12'));
-    expect(faixaDosNumeros({ erro }, { dados: [{}, {}, {}, {}] })).toEqual(pronta('4 conquistas'));
-  });
-  it('carregando enquanto alguma leitura não respondeu e nada chegou', () => {
-    expect(faixaDosNumeros({}, {})).toEqual({ carregando: true });
-    expect(faixaDosNumeros({ dados: SEM_TREINO }, {})).toEqual({ carregando: true });
-    expect(faixaDosNumeros({ erro }, {})).toEqual({ carregando: true });
-  });
-  it('sem treino e sem conquista: o convite neutro (a posição sem treino não conta)', () => {
-    expect(faixaDosNumeros({ dados: SEM_TREINO }, { dados: [] })).toEqual(pronta(TEXTO_SEM_NUMEROS));
-  });
-  it('falha de leitura ou sem rede: o texto verdadeiro, nunca o convite a treinar', () => {
-    expect(faixaDosNumeros({ erro }, { dados: [] })).toEqual(pronta(TEXTO_NUMEROS_INDISPONIVEIS));
-    expect(faixaDosNumeros({ erro }, { erro })).toEqual(pronta(TEXTO_NUMEROS_INDISPONIVEIS));
-    expect(faixaDosNumeros({ dados: SEM_TREINO }, { erro })).toEqual(pronta(TEXTO_NUMEROS_INDISPONIVEIS));
-    expect(faixaDosNumeros({}, {}, false)).toEqual(pronta(TEXTO_NUMEROS_INDISPONIVEIS));
-    expect(faixaDosNumeros({ dados: RANKING }, {}, false)).toEqual(pronta('2º de 12'));
+describe('rotuloNaFaixa', () => {
+  it('"Ver conquistas" escrito só quando a faixa é larga para a escala', () => {
+    expect(rotuloNaFaixa(358, 1)).toBe(true); // 390 px, padrão
+    expect(rotuloNaFaixa(358, 1.4)).toBe(false); // 390 px, Extra: só a seta
+    expect(rotuloNaFaixa(720, 1.4)).toBe(true); // feed de 720, Extra
   });
 });
 

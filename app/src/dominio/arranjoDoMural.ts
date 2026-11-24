@@ -19,46 +19,54 @@ export const AREA_PARA_A_LATERAL = 1280;
  */
 export type ArranjoDoMural = 'medindo' | 'sem' | 'topo' | 'lado';
 
-/**
- * `topoSempre` (mural do aluno): abaixo de 1280 px o topo existe desde o início, com ou sem conteúdo (a faixa de altura
- * fixa que se preenche quando os números chegam), e o feed desenha na hora sem nada andar. Ao lado, só com conteúdo.
- */
-export function arranjoDoMural(area: number | null, temLateral: boolean, topoSempre = false): ArranjoDoMural {
+export function arranjoDoMural(area: number | null, temLateral: boolean): ArranjoDoMural {
+  if (!temLateral) return 'sem';
   if (area === null || !(area > 0)) return 'medindo';
-  if (area >= AREA_PARA_A_LATERAL) return temLateral ? 'lado' : 'sem';
-  return temLateral || topoSempre ? 'topo' : 'sem';
+  return area >= AREA_PARA_A_LATERAL ? 'lado' : 'topo';
 }
 
 interface Fonte<T> { dados?: T; erro?: unknown }
-
-/** A coluna ao lado (a partir de 1280 px) só nasce quando a posição ou alguma conquista chegou. */
-export const existemNumeros = (ranking: Fonte<unknown>, conquistas: Fonte<readonly unknown[]>): boolean =>
-  !!ranking.dados || !!conquistas.dados?.length;
+interface Posicao { posicao: number; participantes: number; treinosConcluidos: number }
 
 export const TEXTO_SEM_NUMEROS = 'Treine para entrar no ranking';
 export const TEXTO_NUMEROS_INDISPONIVEIS = 'Seus números indisponíveis agora';
 
-export type EstadoDaFaixa = { carregando: true } | { carregando: false; texto: string };
+/**
+ * `com`: há posição (com treino) ou conquista, e `texto` é a linha da faixa; `sem`: nenhum número, e `texto` é o convite
+ * neutro ou o aviso de indisponível.
+ */
+export type EstadoDosNumeros<P> = { tipo: 'carregando' } | { tipo: 'com'; posicao: P | undefined; texto: string } | { tipo: 'sem'; texto: string };
 
 /**
- * O que a faixa do topo diz (abaixo de 1280 px). Com dado, só o que existe ("2º de 12 · 4 conquistas", "4 conquistas",
- * "2º de 12"; a posição só conta com treino concluído). Sem dado: carregando enquanto alguma leitura não respondeu; a
- * leitura falhou ou não há rede, "Seus números indisponíveis agora" (nunca "treine" por falha); respondeu sem treino e
- * sem conquista, "Treine para entrar no ranking".
+ * Os números do aluno no mural, a mesma regra na faixa do topo e na coluna ao lado. Com dado, só o que existe ("2º de 12 ·
+ * 4 conquistas", "4 conquistas", "2º de 12"; a posição só conta com treino concluído, nunca "1º de 1" de quem não treinou).
+ * Sem dado: carregando enquanto alguma leitura não respondeu; leitura com falha ou sem rede, "Seus números indisponíveis
+ * agora" (nunca "treine" por falha); respondeu sem treino e sem conquista, "Treine para entrar no ranking".
  */
-export function faixaDosNumeros(
-  ranking: Fonte<{ posicao: number; participantes: number; treinosConcluidos: number }>,
-  conquistas: Fonte<readonly unknown[]>,
-  conectado = true,
-): EstadoDaFaixa {
-  const comTreino = ranking.dados && ranking.dados.treinosConcluidos > 0 ? ranking.dados : undefined;
-  const texto = textoDaFaixaDosNumeros(comTreino, conquistas.dados?.length ?? 0);
-  if (texto) return { carregando: false, texto };
+export function estadoDosNumeros<P extends Posicao>(ranking: Fonte<P>, conquistas: Fonte<readonly unknown[]>, conectado = true): EstadoDosNumeros<P> {
+  const posicao = ranking.dados && ranking.dados.treinosConcluidos > 0 ? ranking.dados : undefined;
+  const texto = textoDaFaixaDosNumeros(posicao, conquistas.dados?.length ?? 0);
+  if (texto) return { tipo: 'com', posicao, texto };
   const esperando = (f: Fonte<unknown>) => f.dados === undefined && f.erro === undefined;
-  if (conectado && (esperando(ranking) || esperando(conquistas))) return { carregando: true };
+  if (conectado && (esperando(ranking) || esperando(conquistas))) return { tipo: 'carregando' };
   const falhou = !conectado || (!ranking.dados && ranking.erro !== undefined) || conquistas.erro !== undefined;
-  return { carregando: false, texto: falhou ? TEXTO_NUMEROS_INDISPONIVEIS : TEXTO_SEM_NUMEROS };
+  return { tipo: 'sem', texto: falhou ? TEXTO_NUMEROS_INDISPONIVEIS : TEXTO_SEM_NUMEROS };
 }
+
+/** Altura da faixa no tamanho padrão do texto: o alvo de toque de 44 mais o respiro da borda. */
+export const ALTURA_BASE_DA_FAIXA = 56;
+
+/**
+ * Altura reservada da faixa para a escala do texto (a do sistema vezes o "Tamanho do texto" do app), igual em todos os
+ * estados: 56 × escala cabe as duas linhas do texto (2 × 21 × escala, mais 2 px de borda) com folga em qualquer escala.
+ */
+export const alturaDaFaixa = (escala: number): number => Math.round(ALTURA_BASE_DA_FAIXA * escala);
+
+/**
+ * "Ver conquistas" escrito ao lado do texto só quando a faixa é larga para a escala; senão fica só a seta (o nome
+ * acessível continua dizendo "Ver conquistas"), para as frases sem número caberem em duas linhas.
+ */
+export const rotuloNaFaixa = (largura: number, escala: number): boolean => largura >= 340 * escala;
 
 /** A faixa de uma linha do topo: "2º de 12 · 4 conquistas" (só o que existe). */
 export function textoDaFaixaDosNumeros(ranking: { posicao: number; participantes: number } | undefined, conquistas: number): string {
