@@ -68,7 +68,7 @@ interface Props {
 
 /**
  * Campos do compromisso com aluno, em dois jeitos (D4): o painel rápido do Google Agenda (linhas com o ícone à esquerda:
- * alunos, data e horário com a repetição, responsável, local, observação) e o formulário completo nas partes "Quem",
+ * alunos; "Quando" com data e início – fim numa linha e a repetição embaixo; responsável; local; observação) e o formulário completo nas partes "Quem",
  * "Quando" e "Detalhes" (F12, a mesma ordem; as notificações só aqui, no fim de "Detalhes"), com os dias da semana do semanal. Rótulos sempre à vista. O horário é início–fim (D5) e a repetição, a lista com os rótulos do Google
  * (D6). Os botões ficam no rodapé da folha, fora da rolagem, para o teclado do celular não cobri-los. Toda regra vem de
  * `dominio/agendaPresencial`.
@@ -184,7 +184,8 @@ function Participantes({ alunoIds, nomes, erro, aoAdicionar, aoRemover }: {
   const opcoes = itens.filter((a) => !alunoIds.includes(a.id)).map((a) => ({ valor: a.id, rotulo: a.nome }));
   return (
     <View style={estilos.grupo}>
-      <Texto variante="rotulo" numerico>{`Alunos · ${alunoIds.length} de ${ALUNOS_MAXIMO}`}</Texto>
+      {/* Só os números em fonte numérica; o resto fica na fonte do texto. */}
+      <Texto variante="rotulo">Alunos · <Texto variante="rotulo" numerico>{String(alunoIds.length)}</Texto> de <Texto variante="rotulo" numerico>{String(ALUNOS_MAXIMO)}</Texto></Texto>
       {alunoIds.length ? (
         <View style={estilos.chips} accessibilityRole="list" accessibilityLabel="Alunos do compromisso">
           {alunoIds.map((id) => {

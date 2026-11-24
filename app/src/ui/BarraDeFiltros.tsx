@@ -45,6 +45,12 @@ interface Props<T> {
    * painel empilhado por cima. O botão só chama `abrir`; o rascunho e o rodapé são da etapa.
    */
   naFolha?: { abrir: () => void };
+  /**
+   * Na mesma linha do botão "Filtros": `antes` à esquerda, ocupando o que sobra (a barra do calendário da Agenda), e `depois`
+   * logo depois dele (o segmento da visão). As etiquetas "Filtrando" continuam embaixo da linha inteira.
+   */
+  antes?: ReactNode;
+  depois?: ReactNode;
 }
 
 /** Campos com problema dentro do painel lateral: quem tem erro se registra, o "Aplicar filtros" soma. */
@@ -92,7 +98,7 @@ export function rotuloDoBotaoDeFiltros(quantos: number, rotulo = 'Filtros'): str
  * (B3): o rascunho copiaria o valor antigo e a gravação atrasada cairia na entrada da folha nova. Se a tela sai antes de a
  * gravação correr (saída confirmada de um editor com a guarda ativa), ela é descartada: o `setParams` cairia na rota nova.
  */
-export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, painelLateral, naFolha }: Props<T>) {
+export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, painelLateral, naFolha, antes, depois }: Props<T>) {
   const { cores } = useTema();
   // O que foi escolhido e ainda não foi aplicado; `null` = painel fechado.
   const [rascunho, setRascunho] = useState<{ filtros: T } | null>(null);
@@ -121,7 +127,8 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
 
   return (
     <View style={estilos.raiz}>
-      <View style={estilos.linha}>
+      <View style={[estilos.linha, antes ? estilos.linhaComAntes : null]}>
+        {antes ? <View style={estilos.antes}>{antes}</View> : null}
         {busca ? (
           <View style={estilos.busca}>
             <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} placeholder={busca.placeholder} inputMode={busca.inputMode}
@@ -145,6 +152,7 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
             </View>
           ) : null}
         </Pressable>
+        {depois}
       </View>
       {/* Montado só aberto: cada abertura começa sem erro à vista. */}
       {rascunho ? (
@@ -234,6 +242,8 @@ const estilos = StyleSheet.create({
   raiz: { gap: espaco(1.5) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(1.5), rowGap: espaco(1) },
   busca: { flexGrow: 1, flexShrink: 1, flexBasis: 240, maxWidth: 480 },
+  linhaComAntes: { alignItems: 'center' },
+  antes: { flexGrow: 1, flexShrink: 1, flexBasis: 280, minWidth: 0 },
   filtros: {
     minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5),
     borderWidth: 1, borderRadius: RAIO_CONTROLE,

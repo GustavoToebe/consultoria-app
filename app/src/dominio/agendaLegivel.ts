@@ -91,6 +91,25 @@ export function arranjoDoBloco(altura: number, largura: number, temStatus: boole
 }
 
 /**
+ * Largura mínima do bloco (com a faixa de 8 px, bordas e respiro) para o intervalo "09:00–10:00" caber inteiro na linha do
+ * horário; cresce com o tamanho do texto. Medida no Chromium (23/11): o intervalo ocupa 75 px na fonte numérica de 13 px,
+ * mais 17 de faixa, bordas e respiro, e 4 de folga.
+ */
+export const LARGURA_PARA_INTERVALO = 96;
+/** O ícone do status (14 px) e o vão (4 px) dividem a linha do horário. */
+const LARGURA_DO_ICONE = 18;
+
+/**
+ * O horário escrito no bloco (agenda: retoques, 23/11): o intervalo quando cabe; no bloco estreito (sobrepostos, coluna da
+ * Semana), só o início ("09:00"), para não cortar no meio. O intervalo inteiro fica no nome acessível e no bloco aberto.
+ * Largura 0 (antes de medir) = só o início.
+ */
+export function horarioNoBloco(horario: string, largura: number, comIcone: boolean, linha = 16): string {
+  const minima = ((LARGURA_PARA_INTERVALO + (comIcone ? LARGURA_DO_ICONE : 0)) * linha) / 16;
+  return largura >= minima ? horario : horario.split('–')[0];
+}
+
+/**
  * Item de dia inteiro (uma linha de 44 px): o selo vai ao lado do título quando a largura medida deixa (o Dia, no PC); na
  * Semana, a coluna é estreita e o status fica no ícone antes do título (e escrito no nome acessível e na ficha).
  */

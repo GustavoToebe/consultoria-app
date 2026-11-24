@@ -160,9 +160,12 @@ describe('visões, endereço e período', () => {
 
   it('títulos em pt-BR', () => {
     expect(tituloDoCalendario('dia', HOJE)).toBe('29 de outubro de 2026');
-    expect(tituloDoCalendario('semana', HOJE)).toBe('26 de out. – 1 de nov. de 2026');
-    expect(tituloDoCalendario('semana', '2026-11-04')).toBe('2 – 8 de nov. de 2026');
-    expect(tituloDoCalendario('semana', '2026-12-30')).toBe('28 de dez. de 2026 – 3 de jan. de 2027');
+    // agenda: retoques (23/11): semana curta, numa linha.
+    expect(tituloDoCalendario('semana', HOJE)).toBe('26 out.–1 nov. 2026');
+    expect(tituloDoCalendario('semana', '2026-10-19')).toBe('19–25 out. 2026');
+    expect(tituloDoCalendario('semana', '2026-10-28')).toBe('26 out.–1 nov. 2026');
+    expect(tituloDoCalendario('semana', '2026-11-04')).toBe('2–8 nov. 2026');
+    expect(tituloDoCalendario('semana', '2026-12-30')).toBe('28 dez. 2026–3 jan. 2027');
     expect(tituloDoCalendario('mes', HOJE)).toBe('outubro de 2026');
     expect(tituloDoCalendario('ano', HOJE)).toBe('2026');
   });

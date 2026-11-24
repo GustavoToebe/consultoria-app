@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { AgendaPessoal, EscopoDaSerie, EventoDetalhe, EventoRequest } from '../../api/agendaTipos';
-import { alterarEvento, criarAgendaPessoal, criarEvento, detalheDoEvento, excluirEvento, listarAgendasPessoais } from '../../api/rotas';
+import type { AgendaPessoal, EscopoDaSerie, EventoDetalhe } from '../../api/agendaTipos';
+import { detalheDoEvento, excluirEvento } from '../../api/rotas';
 import { dataComDiaDaSemana } from '../../dominio/agendaCalendario';
 import {
-  agendaDoFormulario, alvoDoEvento, ehSerieDeEventos, type ErrosDaRepeticaoDoEvento, type ErrosDoEvento, escoposDoEvento, escoposParaExcluirEvento,
-  explicacaoDoEscopoDoEvento, type FormularioDaRepeticaoDoEvento, type FormularioDoEvento, formularioDeEventoNovo, formularioDoEvento,
-  garantirAgendaPadrao, linhaDoCompletoDoEvento, mudouAAgendaDoEvento, mudouADataDoEvento, NOME_DA_AGENDA_PADRAO, pedidoDeCruzamento, pedidoDoEvento,
-  ROTULOS_DAS_CORES_DA_AGENDA, ROTULOS_DO_ESCOPO_DO_EVENTO, textoDaRepeticaoDoEvento, textoDeExcluirEvento, textoDoCruzamento, textoDoErroDoCalendario,
+  alvoDoEvento, ehSerieDeEventos, escoposDoEvento, escoposParaExcluirEvento, explicacaoDoEscopoDoEvento, formularioDeEventoNovo, formularioDoEvento,
+  mudouAAgendaDoEvento, mudouADataDoEvento, NOME_DA_AGENDA_PADRAO, ROTULOS_DAS_CORES_DA_AGENDA, ROTULOS_DO_ESCOPO_DO_EVENTO, textoDaRepeticaoDoEvento,
+  textoDeExcluirEvento, textoDoErroDoCalendario,
 } from '../../dominio/agendaEvento';
-import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -22,14 +20,11 @@ import { Folha } from '../../ui/Folha';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
-import { CamposDoEvento } from './CamposDoEvento';
 import { MarcadorDaAgenda } from './itemDaAgenda';
-import { useAvisoDeCruzamento } from './useAvisoDeCruzamento';
+import { useFormularioDoEvento } from './useFormularioDoEvento';
 
-/** Evento novo (com o dia e, se veio da grade, a hora) ou um evento da agenda (a regra e a ocorrência tocada). */
-export type EventoAberto =
-  | { tipo: 'novo'; data: string; hora?: string }
-  | { tipo: 'abrir'; eventoId: string; ocorrencia: string | null };
+/** Um evento da agenda (a regra e a ocorrência tocada). O novo é da `FolhaCriar`. */
+export interface EventoAberto { eventoId: string; ocorrencia: string | null }
 
 interface Props {
   aberto: EventoAberto | null;
@@ -48,17 +43,13 @@ interface Props {
 
 /**
  * Folha do evento pessoal: detalhe (título, quando, agenda, repetição, local, descrição; Editar e Excluir com
- * `AGENDA_ALTERAR`) ou formulário. O evento novo abre no painel rápido do Google Agenda (título grande "Adicionar título",
- * linhas com ícone) com "Mais opções" + "Salvar" no rodapé; "Mais opções", o "Personalizar…" da repetição e a edição usam o
- * formulário completo, em `LARGURA_EDITOR` (sem a lista de agendas, a folha comum basta). No evento novo, "Menos opções"
- * volta ao painel rápido sem apagar o que foi digitado. Se sobrou campo do completo diferente do padrão, o rodapé diz
- * o que será salvo. A edição já abre no completo e não tem esse botão. Numa série, salvar e excluir perguntam o escopo; mudar a data só vale em "Somente este" e
- * a agenda só na série toda. 409 de versão relê o evento e avisa. Cada evento aberto é uma folha nova (a `key`).
+ * `AGENDA_ALTERAR`) ou a edição, no formulário completo em `LARGURA_EDITOR` (o formulário mora em `useFormularioDoEvento`;
+ * o novo é a `FolhaCriar`). Numa série, salvar e excluir perguntam o escopo; mudar a data só vale em "Somente este" e a
+ * agenda só na série toda. 409 de versão relê o evento e avisa. Cada evento aberto é uma folha nova (a `key`).
  */
 export function FolhaEvento(props: Props) {
   const a = props.aberto;
-  const chave = !a ? 'fechada' : a.tipo === 'novo' ? `novo:${a.data}:${a.hora ?? ''}` : `${a.eventoId}:${a.ocorrencia ?? ''}`;
-  return <FolhaAberta key={chave} {...props} />;
+  return <FolhaAberta key={a ? `${a.eventoId}:${a.ocorrencia ?? ''}` : 'fechada'} {...props} />;
 }
 
 type Pergunta =
@@ -66,117 +57,62 @@ type Pergunta =
   | { tipo: 'excluir'; escopos: EscopoDaSerie[] };
 
 function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje, podeAlterar, aoFechar, aoMudar }: Props) {
-  const { offline } = useSessao();
-  const novo = aberto?.tipo === 'novo' ? aberto : null;
-  const abrir = aberto?.tipo === 'abrir' ? aberto : null;
-  const detalhe = useCarregar(abrir ? `evento:${abrir.eventoId}:${abrir.ocorrencia ?? ''}` : null,
-    () => detalheDoEvento(abrir?.eventoId ?? '', abrir?.ocorrencia));
+  const detalhe = useCarregar(aberto ? `evento:${aberto.eventoId}:${aberto.ocorrencia ?? ''}` : null,
+    () => detalheDoEvento(aberto?.eventoId ?? '', aberto?.ocorrencia));
   const e = detalhe.dados ?? null;
   const serie = !!e && ehSerieDeEventos(e);
   const lista = agendas ?? [];
 
-  const [modo, setModo] = useState<'detalhe' | 'formulario'>(novo ? 'formulario' : 'detalhe');
-  // O novo abre no painel rápido (D4); "Mais opções" e a edição mostram o formulário completo.
-  const [completo, setCompleto] = useState(!novo);
-  const [form, setForm] = useState<FormularioDoEvento>(() => formularioDeEventoNovo(agendaDoFormulario(lista)?.id ?? '', novo?.data ?? hoje, novo?.hora ?? ''));
-  const [erros, setErros] = useState<ErrosDoEvento>({});
-  const [errosDaRepeticao, setErrosDaRepeticao] = useState<ErrosDaRepeticaoDoEvento>({});
-  const [conferir, setConferir] = useState(false);
-  const [erro, setErro] = useState<unknown>(null);
+  const [modo, setModo] = useState<'detalhe' | 'formulario'>('detalhe');
+  // Formulário da edição (sempre o completo): o estado mora no hook para os botões irem ao rodapé fixo da folha.
+  const f = useFormularioDoEvento({
+    evento: e, inicial: () => formularioDeEventoNovo('', hoje), agendas, ativo: modo === 'formulario', hoje, completoInicial: true,
+  });
   const [aviso, setAviso] = useState<string | null>(null);
-  const [salvando, setSalvando] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erro, setErro] = useState<unknown>(null);
   const [pergunta, setPergunta] = useState<Pergunta | null>(null);
   const [escopo, setEscopo] = useState<EscopoDaSerie>('ESTA');
 
-  const limpar = () => { setErro(null); setConferir(false); setAviso(null); };
-  const mudar = <K extends keyof FormularioDoEvento>(campo: K, valor: FormularioDoEvento[K]) => {
-    setForm((f) => ({ ...f, [campo]: valor }));
-    setErros((x) => ({ ...x, [campo]: undefined }));
-    limpar();
-  };
-  const mudarRepeticao = (r: FormularioDaRepeticaoDoEvento) => {
-    setForm((f) => ({ ...f, repeticao: r }));
-    setErrosDaRepeticao({});
-    setErros((x) => ({ ...x, repeticao: undefined }));
-    limpar();
-  };
+  const limpar = () => { setErro(null); setAviso(null); f.limparMensagens(); };
   const editar = () => {
     if (!e) return;
-    setForm(formularioDoEvento(e));
-    setErros({});
-    setErrosDaRepeticao({});
+    f.substituir(formularioDoEvento(e));
     limpar();
     setModo('formulario');
   };
 
-  // A agenda do formulário: a escolhida ou, se as agendas chegaram depois de abrir, a sugerida (sem efeito nem setState).
-  // Sem agenda nenhuma, a "Pessoal" nasce ao salvar: o formulário confere o resto com um id provisório.
-  const semAgendas = agendas !== null && lista.length === 0;
-  const agendaEfetiva = form.agendaId || agendaDoFormulario(lista)?.id || '';
-  const formComAgenda = agendaEfetiva === form.agendaId ? form : { ...form, agendaId: agendaEfetiva };
-  const formParaConferir = semAgendas && !agendaEfetiva ? { ...form, agendaId: 'pessoal' } : formComAgenda;
   const ocorrencia = e?.ocorrencia ?? null;
-  const restricoes = e && ocorrencia ? { mudouData: mudouADataDoEvento(form, ocorrencia), mudouAgenda: mudouAAgendaDoEvento(form, e) } : {};
+  const restricoes = e && ocorrencia ? { mudouData: mudouADataDoEvento(f.form, ocorrencia), mudouAgenda: mudouAAgendaDoEvento(f.form, e) } : {};
   const escopos = e ? escoposDoEvento(serie, restricoes) : (['ESTA'] as EscopoDaSerie[]);
   const opcoesDoPedido = (escolhido: EscopoDaSerie) => ({
     versao: e?.versao,
     serie: e && serie ? { escopo: escolhido, ocorrencia: ocorrencia?.dataOriginal ?? null, primeiroDia: e.data } : undefined,
   });
 
-  // Aviso de outro evento no mesmo horário (só aviso, P5): a API confere a repetição por um ano. Pergunta com o horário e a
-  // repetição completos; na edição o próprio evento não conta. Sem internet ou com falha, nenhum aviso (e nada trava o salvar).
-  const perguntaDoAviso = modo === 'formulario' && agendas !== null ? pedidoDeCruzamento(form, e?.id ?? null) : null;
-  const cruzamento = useAvisoDeCruzamento(perguntaDoAviso, offline);
-  const textoDoAviso = textoDoCruzamento(cruzamento, hoje);
-
-  const enviar = async (escolhido: EscopoDaSerie) => {
-    const r = pedidoDoEvento(formParaConferir, opcoesDoPedido(escolhido));
-    setErros(r.erros);
-    setErrosDaRepeticao(r.errosDaRepeticao);
-    if (!r.pedido) { setPergunta(null); setConferir(true); return; }
-    setSalvando(true);
-    setErro(null);
-    let criouAgenda = false;
-    try {
-      let pedido: EventoRequest = r.pedido;
-      if (semAgendas && !agendaEfetiva) {
-        const pessoal = await garantirAgendaPadrao({ criar: criarAgendaPessoal, listar: listarAgendasPessoais });
-        criouAgenda = true;
-        pedido = { ...pedido, agendaId: pessoal.id };
-      }
-      if (e) await alterarEvento(e.id, pedido, alvoDoEvento(serie, escolhido, ocorrencia?.dataOriginal ?? null));
-      else await criarEvento(pedido);
-      setPergunta(null);
-      aoMudar({ agendas: criouAgenda });
-      aoFechar();
-    } catch (x) {
-      setPergunta(null);
-      if (criouAgenda) aoMudar({ agendas: true });
-      tratarErro(x);
-    } finally {
-      setSalvando(false);
-    }
-  };
   // 409 de versão: relê o evento, volta ao detalhe e diz o que houve (o que estava digitado não serve mais).
-  const tratarErro = (x: unknown) => {
+  const tratarErro = (x: unknown, noFormulario: boolean) => {
     if ((x as { codigo?: unknown } | null)?.codigo === 'CONFLITO_EDICAO' && e) {
       detalhe.recarregar();
       aoMudar({ agendas: false });
       setModo('detalhe');
+      f.limparMensagens();
       setErro(null);
       setAviso('Este evento mudou em outra aba ou aparelho. Esta é a versão atual: confira e edite de novo, se precisar.');
       return;
     }
-    setErro(x);
+    if (noFormulario) f.mostrarErro(x); else setErro(x);
+  };
+  const enviar = async (escolhido: EscopoDaSerie) => {
+    const r = await f.enviar(opcoesDoPedido(escolhido), alvoDoEvento(serie, escolhido, ocorrencia?.dataOriginal ?? null));
+    setPergunta(null);
+    if (r.criouAgenda || r.ok) aoMudar({ agendas: r.criouAgenda });
+    if (r.ok) aoFechar();
+    else if (r.erro) tratarErro(r.erro, true);
   };
   const salvar = () => {
-    const r = pedidoDoEvento(formParaConferir, opcoesDoPedido(escopos[0] ?? 'ESTA'));
-    setErros(r.erros);
-    setErrosDaRepeticao(r.errosDaRepeticao);
-    setErro(null);
     setAviso(null);
-    if (!r.pedido) { setConferir(true); return; }
-    setConferir(false);
+    if (!f.conferirPedido(opcoesDoPedido(escopos[0] ?? 'ESTA'))) return;
     if (escopos.length === 0) {
       setAviso('Mude a data ou a agenda, uma de cada vez: a data vale só para este evento e a agenda, para a série toda.');
       return;
@@ -187,7 +123,7 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
 
   const excluir = async (escolhido: EscopoDaSerie) => {
     if (!e) return;
-    setSalvando(true);
+    setExcluindo(true);
     setErro(null);
     try {
       await excluirEvento(e.id, e.versao, alvoDoEvento(serie, escolhido, ocorrencia?.dataOriginal ?? null));
@@ -196,9 +132,9 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
       aoFechar();
     } catch (x) {
       setPergunta(null);
-      tratarErro(x);
+      tratarErro(x, false);
     } finally {
-      setSalvando(false);
+      setExcluindo(false);
     }
   };
   const pedirExcluir = () => {
@@ -207,27 +143,24 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
     setPergunta({ tipo: 'excluir', escopos: lista });
   };
 
-  const mensagem = erro ? textoDoErroDoCalendario(erro, 'evento') ?? textoDoErro(erro) : conferir ? 'Confira os campos destacados.' : aviso;
-  const linhaDaMensagem = mensagem ? (erro || conferir ? <MensagemErro texto={mensagem} erro={erro ?? undefined} />
-    : <Texto variante="suave" accessibilityLiveRegion="polite">{mensagem}</Texto>) : null;
+  const ocupado = f.salvando || excluindo;
+  const textoDaFalha = erro ? textoDoErroDoCalendario(erro, 'evento') ?? textoDoErro(erro) : null;
+  const linhaDaMensagem = modo === 'formulario' && f.mensagem ? f.mensagem
+    : textoDaFalha ? <MensagemErro texto={textoDaFalha} erro={erro} />
+      : aviso ? <Texto variante="suave" accessibilityLiveRegion="polite">{aviso}</Texto> : null;
 
   // O formulário só abre sabendo as agendas: carregando, espera; falhou, diz e deixa tentar de novo (sem beco sem saída).
   const semListaDeAgendas = modo === 'formulario' && agendas === null;
-  const titulo = novo ? 'Novo evento' : modo === 'formulario' ? 'Editar evento' : 'Evento';
-  const avisoDoCompleto = novo && !completo && !semListaDeAgendas ? linhaDoCompletoDoEvento(formComAgenda) : null;
-  // Mensagem e aviso vão no status do rodapé, acima das ações no celular (P1).
-  const avisoNoRodape = modo === 'formulario' && avisoDoCompleto ? <Texto variante="suave">{avisoDoCompleto}</Texto> : null;
-  const statusDoRodape = !semListaDeAgendas && (linhaDaMensagem || avisoNoRodape) ? <>{linhaDaMensagem}{avisoNoRodape}</> : undefined;
+  const titulo = modo === 'formulario' ? 'Editar evento' : 'Evento';
+  const voltar = () => { limpar(); setModo('detalhe'); };
   const rodape = semListaDeAgendas ? <>
-    <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : () => { limpar(); setModo('detalhe'); }} />
+    <Botao rotulo="Cancelar" tipo="secundario" aoTocar={voltar} />
   </> : modo === 'formulario' ? <>
-    {novo && completo ? <Botao rotulo="Menos opções" tipo="secundario" aoTocar={() => setCompleto(false)} /> : null}
-    {completo ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : () => { limpar(); setModo('detalhe'); }} />
-      : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
-    <Botao rotulo={e ? 'Salvar alterações' : 'Salvar'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />
+    <Botao rotulo="Cancelar" tipo="secundario" aoTocar={voltar} />
+    <Botao rotulo="Salvar alterações" aoTocar={salvar} carregando={f.salvando} desabilitado={f.salvando} motivo="Salvando." />
   </> : e && podeAlterar ? <>
-    <Botao rotulo="Excluir" tipo="perigoTexto" aoTocar={pedirExcluir} desabilitado={salvando} motivo="Salvando." />
-    <Botao rotulo="Editar" tipo="secundario" aoTocar={editar} desabilitado={salvando} motivo="Salvando." />
+    <Botao rotulo="Excluir" tipo="perigoTexto" aoTocar={pedirExcluir} desabilitado={ocupado} motivo="Salvando." />
+    <Botao rotulo="Editar" tipo="secundario" aoTocar={editar} desabilitado={ocupado} motivo="Salvando." />
   </> : undefined;
 
   const dataDaOcorrencia = ocorrencia?.data ?? e?.data ?? hoje;
@@ -239,16 +172,15 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
   </Texto> : null;
 
   return (
-    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape} statusDoRodape={statusDoRodape}
-      largura={modo === 'formulario' && completo && !semListaDeAgendas ? LARGURA_EDITOR : undefined}>
+    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape}
+      statusDoRodape={!semListaDeAgendas && linhaDaMensagem ? linhaDaMensagem : undefined}
+      largura={modo === 'formulario' && !semListaDeAgendas ? LARGURA_EDITOR : undefined}>
       {semListaDeAgendas ? (
         erroDasAgendas ? <MensagemErro texto={`Não deu para carregar as suas agendas. ${textoDoErro(erroDasAgendas)}`} erro={erroDasAgendas}
           tentarDeNovo={recarregarAgendas} />
           : <Esqueleto texto="Carregando as suas agendas" cartoes={1} />
       ) : modo === 'formulario' ? (
-        <CamposDoEvento form={formComAgenda} erros={erros} errosDaRepeticao={errosDaRepeticao} mudar={mudar} mudarRepeticao={mudarRepeticao}
-          agendas={lista} comRepeticao={!e || serie} hoje={hoje} sobreASerie={sobreASerie} aviso={textoDoAviso}
-          completo={completo} aoMaisOpcoes={() => setCompleto(true)} />
+        f.campos({ comRepeticao: serie, sobreASerie })
       ) : e ? (
         <DetalheDoEvento evento={e} agendas={lista} hoje={hoje} />
       ) : detalhe.erro ? (
@@ -258,7 +190,7 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
         <PainelConfirmacao visivel perigo={pergunta.tipo === 'excluir'}
           titulo={pergunta.tipo === 'excluir' ? (serie ? 'Excluir quais eventos da série?' : 'Excluir o evento?') : 'Salvar em quais eventos da série?'}
           mensagem={pergunta.tipo === 'excluir' ? textoDeExcluirEvento(escopo, serie) : undefined}
-          rotuloConfirmar={pergunta.tipo === 'excluir' ? 'Excluir' : 'Salvar alterações'} rotuloCancelar="Voltar" carregando={salvando}
+          rotuloConfirmar={pergunta.tipo === 'excluir' ? 'Excluir' : 'Salvar alterações'} rotuloCancelar="Voltar" carregando={ocupado}
           aoCancelar={() => setPergunta(null)} aoConfirmar={() => void (pergunta.tipo === 'excluir' ? excluir(escopo) : enviar(escopo))}>
           {pergunta.escopos.length > 1 ? <View style={estilos.escopo}>
             <Escolha<EscopoDaSerie> rotulo="Aplicar a" valor={escopo} aoMudar={setEscopo}

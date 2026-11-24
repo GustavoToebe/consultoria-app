@@ -5,7 +5,7 @@ import {
   alturaDaGrade, colunasDaGrade, DIAS_DA_SEMANA_CURTOS, dataComDiaDaSemana, horaDoPontoDaGrade, type ItemDoCalendario, minutoDoDiaEmBrasilia,
   minutoInicialDaGrade, posicaoDoMinuto, ROTULOS_DAS_HORAS, type SegmentoNaGrade, tituloCompleto,
 } from '../../dominio/agendaCalendario';
-import { arranjoDoBloco, LARGURA_DA_FAIXA, statusNoDiaInteiro } from '../../dominio/agendaLegivel';
+import { arranjoDoBloco, horarioNoBloco, LARGURA_DA_FAIXA, statusNoDiaInteiro } from '../../dominio/agendaLegivel';
 import { diaDaSemanaIso } from '../../dominio/formatos';
 import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
@@ -38,6 +38,8 @@ interface Props {
   aoCriarNoHorario?: (data: string, hora: string) => void;
   /** Chave do item aberto na folha (`ItemDoCalendario.chave`): ganha o contorno forte. */
   escolhido?: string | null;
+  /** Período sem nada: a dica no meio da janela da grade (`dicaDaGradeVazia`), que não segura o clique no horário. */
+  vazio?: string | null;
 }
 
 /**
@@ -46,7 +48,7 @@ interface Props {
  * período) e a linha do "agora" no dia de hoje. O cabeçalho e a faixa ficam fora da rolagem. A grade é um bloco (borda do
  * bloco) e a linha dos dias é a faixa dele (`superficie3` com a linha forte embaixo); os itens são o nível de item.
  */
-export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbrir, aoAbrirDia, aoCriarNoHorario, escolhido = null }: Props) {
+export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbrir, aoAbrirDia, aoCriarNoHorario, escolhido = null, vazio }: Props) {
   const { cores, bordas, marcaTexto } = useTema();
   const { height } = useWindowDimensions();
   const colunas = colunasDaGrade(itens, dias, { alturaPorHora: ALTURA_DA_HORA, alturaMinima: ALVO_TOQUE });
@@ -117,6 +119,7 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
         </View>
       ) : null}
 
+      <View>
       <ScrollView ref={rolagem} style={{ height: alturaDaJanela }} contentContainerStyle={estilos.corpo}>
         <View style={[estilos.calha, { height: altura }]} aria-hidden>
           {ROTULOS_DAS_HORAS.map((h, i) => i === 0 ? null : (
@@ -143,6 +146,15 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
           </View>
         ))}
       </ScrollView>
+      {/* Por cima da janela da rolagem (não do conteúdo de 24 h), sem pegar o clique: o horário embaixo continua criando. */}
+      {vazio ? (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, estilos.vazio]}>
+          <View style={[estilos.dica, { backgroundColor: cores.superficie, borderColor: cores.divisor }]} accessibilityLiveRegion="polite" aria-live="polite">
+            <Texto variante="suave" style={estilos.textoDaDica}>{vazio}</Texto>
+          </View>
+        </View>
+      ) : null}
+      </View>
     </View>
   );
 }
@@ -189,6 +201,8 @@ function Bloco({ segmento: s, hoje, meus, aoAbrir, escolhido }: { segmento: Segm
   const arranjo = arranjoDoBloco(s.altura, largura, !!status, escalar(16, fatorTexto));
   const faixa = corDe(item.cor);
   const horario = horarioDoItem(item);
+  // Aberto (a dica do mouse ou do foco), o bloco cresce por cima da grade e mostra o intervalo inteiro.
+  const horarioEscrito = aberto ? horario : horarioNoBloco(horario, largura, arranjo.status === 'icone' && !!status, escalar(16, fatorTexto));
   const titulo = aberto ? tituloCompleto(item) : item.titulo;
   const icone = arranjo.status === 'icone' && status ? <IconeDoStatus selo={status} /> : null;
   return (
@@ -206,7 +220,7 @@ function Bloco({ segmento: s, hoje, meus, aoAbrir, escolhido }: { segmento: Segm
         {arranjo.horarioSeparado ? (
           <View style={estilos.linhaDoBloco}>
             {icone}
-            <Texto variante="pequeno" numerico cor={cores.texto} numberOfLines={1} style={estilos.encolhe}>{horario}</Texto>
+            <Texto variante="pequeno" numerico cor={cores.texto} numberOfLines={aberto ? undefined : 1} style={estilos.encolhe}>{horarioEscrito}</Texto>
           </View>
         ) : null}
         {/* Numa linha: o selo com ícone se centraliza no eixo cruzado, e aqui ele fica rente à esquerda, sob o horário. */}
@@ -263,6 +277,9 @@ const estilos = StyleSheet.create({
   seloAoLado: { flexShrink: 0, marginLeft: 'auto' },
   mais: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(0.75), borderRadius: 4 },
   corpo: { flexDirection: 'row' },
+  vazio: { alignItems: 'center', justifyContent: 'center', paddingLeft: LARGURA_DAS_HORAS, paddingHorizontal: espaco(2) },
+  dica: { maxWidth: 420, paddingHorizontal: espaco(2), paddingVertical: espaco(1.5), borderRadius: RAIO, borderWidth: 1 },
+  textoDaDica: { textAlign: 'center' },
   hora: { position: 'absolute', right: espaco(1), fontFamily: fontes.normal },
   coluna: { flex: 1, minWidth: 0, borderLeftWidth: 1, position: 'relative' },
   linhaDaHora: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1 },

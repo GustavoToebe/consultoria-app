@@ -1,10 +1,9 @@
-import { CalendarPlus, Plus, UserPlus } from 'lucide-react-native';
+import { CalendarPlus, ChevronDown, Plus, UserPlus } from 'lucide-react-native';
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
-import { Botao } from '../../ui/Botao';
+import { ALVO_TOQUE, coresDoBotaoPrincipal, espaco, fontes, RAIO, RAIO_CONTROLE } from '../../tema/tokens';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { proximoItemDoMenu } from '../../dominio/agendaCalendario';
@@ -14,6 +13,8 @@ interface Props {
   aoEvento: () => void;
   /** Avisa a tela que o menu está aberto (os atalhos de teclado esperam ele fechar). */
   aoMudarAberto?: (aberto: boolean) => void;
+  /** No topo da coluna da esquerda (PC): o botão ocupa a largura da coluna e o menu abre alinhado pela esquerda. */
+  naColuna?: boolean;
 }
 
 interface Ancora { x: number; y: number; w: number; h: number }
@@ -21,12 +22,13 @@ interface Ancora { x: number; y: number; w: number; h: number }
 const LARGURA_DO_MENU = 260;
 
 /**
- * "Criar" da Agenda (o primário da tela): um menu com "Compromisso com aluno" e "Evento", colado ao botão (embaixo, alinhado
- * à direita, sem sair da janela). Abre com o foco no primeiro item; na web as setas para cima e para baixo andam entre os
- * itens (dando a volta) e Home e End vão às pontas, como num menu do sistema. Fecha com Esc, tocando fora ou escolhendo, e o
- * foco volta ao "Criar".
+ * "Criar" da Agenda (o primário da tela, com a seta do menu; Menu Button da WAI-ARIA APG): um menu com "Compromisso com
+ * aluno" e "Evento pessoal", colado ao botão (embaixo, alinhado à direita no cabeçalho ou à esquerda no topo da coluna, sem
+ * sair da janela). Abre com o foco no primeiro item; na web as setas para cima e para baixo andam entre os itens (dando a
+ * volta) e Home e End vão às pontas, como num menu do sistema. Fecha com Esc, tocando fora ou escolhendo, e o foco volta ao
+ * "Criar". Os dois itens pedem a mesma permissão (`AGENDA_ALTERAR`), então o menu sempre tem os dois.
  */
-export function MenuCriar({ aoCompromisso, aoEvento, aoMudarAberto }: Props) {
+export function MenuCriar({ aoCompromisso, aoEvento, aoMudarAberto, naColuna }: Props) {
   const { cores, bordas } = useTema();
   const { width } = useWindowDimensions();
   const [ancora, setAncora] = useState<Ancora | null>(null);
@@ -66,12 +68,18 @@ export function MenuCriar({ aoCompromisso, aoEvento, aoMudarAberto }: Props) {
     return () => document.removeEventListener('keydown', ouvir, true);
   }, [aberto]);
 
-  const esquerda = ancora ? Math.max(espaco(1), Math.min(ancora.x + ancora.w - LARGURA_DO_MENU, width - LARGURA_DO_MENU - espaco(1))) : 0;
+  const inicio = ancora ? (naColuna ? ancora.x : ancora.x + ancora.w - LARGURA_DO_MENU) : 0;
+  const esquerda = ancora ? Math.max(espaco(1), Math.min(inicio, width - LARGURA_DO_MENU - espaco(1))) : 0;
+  const principal = coresDoBotaoPrincipal(cores);
   return (
     <>
-      <View ref={botao} collapsable={false}>
-        <Botao rotulo="Criar" Icone={Plus} aoTocar={abrir} />
-      </View>
+      <Pressable ref={botao} collapsable={false} onPress={abrir} accessibilityRole="button" accessibilityLabel="Criar"
+        aria-haspopup="menu" aria-expanded={aberto} accessibilityState={{ expanded: aberto }}
+        style={(e) => [estilos.botao, naColuna && estilos.botaoNaColuna, { backgroundColor: sobre(e) ? principal.fundoAoPassar : principal.fundo }]}>
+        <Plus size={18} color={principal.texto} strokeWidth={2} />
+        <Texto style={[estilos.rotuloDoBotao, { color: principal.texto }]}>Criar</Texto>
+        <ChevronDown size={18} color={principal.texto} strokeWidth={2} />
+      </Pressable>
       {ancora ? (
         <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={() => fechar()}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => fechar()} accessibilityLabel="Fechar o menu Criar" />
@@ -81,19 +89,13 @@ export function MenuCriar({ aoCompromisso, aoEvento, aoMudarAberto }: Props) {
             }]}>
             <Item refDoItem={primeiro} Icone={UserPlus} rotulo="Compromisso com aluno" descricao="Consulta, retorno ou avaliação" aoTocar={() => fechar(aoCompromisso)} />
             <View style={[estilos.divisor, { backgroundColor: cores.divisor }]} />
-            <Item refDoItem={segundo} Icone={CalendarPlus} rotulo="Evento" descricao="Só seu, sem aluno" aoTocar={() => fechar(aoEvento)} />
+            <Item refDoItem={segundo} Icone={CalendarPlus} rotulo="Evento pessoal" descricao="Só seu, sem aluno" aoTocar={() => fechar(aoEvento)} />
           </View>
         </Modal>
       ) : null}
     </>
   );
 }
-
-/**
- * Para onde o foco vai com a tecla, a partir do item `atual` (-1 = nenhum item com o foco): setas dão a volta, Home e End
- * vão às pontas; outra tecla, `null` (o menu não a trata).
- */
-
 
 function Item({ Icone, rotulo, descricao, aoTocar, refDoItem }: {
   Icone: typeof Plus; rotulo: string; descricao: string; aoTocar: () => void; refDoItem?: RefObject<View | null>;
@@ -114,6 +116,13 @@ function Item({ Icone, rotulo, descricao, aoTocar, refDoItem }: {
 }
 
 const estilos = StyleSheet.create({
+  // O molde do `Botao` primário (fundo `texto`, rótulo `fundo`), com a seta do menu à direita.
+  botao: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: espaco(1), alignSelf: 'flex-start', minHeight: ALVO_TOQUE,
+    paddingHorizontal: espaco(2), borderRadius: RAIO_CONTROLE,
+  },
+  botaoNaColuna: { alignSelf: 'stretch' },
+  rotuloDoBotao: { fontFamily: fontes.semi, fontSize: 15 },
   menu: { position: 'absolute', width: LARGURA_DO_MENU, borderRadius: RAIO, paddingVertical: espaco(0.5), overflow: 'hidden' },
   item: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE + espaco(1.5), paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5) },
   icone: { width: 36, height: 36, borderRadius: RAIO, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },

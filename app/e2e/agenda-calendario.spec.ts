@@ -35,7 +35,8 @@ const PAINEL = { atualizacoesParaRevisar: 0, atualizacoesAtrasadas: 0, atualizac
 const RGB_AZUL = 'rgb(27, 111, 214)';
 const RGB_INDIGO = 'rgb(75, 63, 191)';
 
-const PRIVACIDADE = 'O evento é só seu e não faz parte do cadastro do aluno. Evite nome de aluno e dado de saúde no título e na descrição: a anonimização do aluno não apaga o que você escrever aqui.';
+// agenda: criar unificado (23/11): o aviso encurtou.
+const PRIVACIDADE = 'Só você vê. Evite nome de aluno e dado de saúde: isto não faz parte do cadastro do aluno.';
 
 /** Brasília = UTC−3 (sem horário de verão em 2026). */
 const instante = (data: string, hora: string) => new Date(`${data}T${hora}:00-03:00`);
@@ -189,14 +190,23 @@ const DIAS_UTEIS = 'Todos os dias da semana (segunda a sexta-feira)';
 /** Uma opção de `Escolha` (grupo com o rótulo dado). */
 const opcao = (onde: Locator | Page, grupo: string, rotulo: string) =>
   onde.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
-/** O botão "Mês ▾" da barra: o nome diz a visão atual. */
-const botaoDaVisao = (page: Page, rotulo: string) => page.getByRole('button', { name: `Visão do calendário: ${rotulo}`, exact: true });
-/** Troca a visão pelo menu suspenso da barra (o item é `menuitemradio`; o menu fecha ao escolher). */
+// agenda: criar unificado (23/11): a visão é um segmento (Dia | Semana | Mês | Ano) na barra única, não mais o menu "Semana ▾".
+/** A visão marcada no segmento da barra (só acha a opção se ela é a escolhida). */
+const botaoDaVisao = (page: Page, rotulo: string) =>
+  page.getByRole('radiogroup', { name: 'Visão do calendário' }).getByRole('radio', { name: rotulo, exact: true, checked: true });
+/** Troca a visão pelo segmento da barra. */
 async function escolherVisao(page: Page, rotulo: string) {
-  await page.getByRole('button', { name: /^Visão do calendário: / }).click();
-  const menu = page.getByRole('menu', { name: 'Visão do calendário', exact: true });
-  await menu.getByRole('menuitemradio', { name: rotulo, exact: true }).click();
-  await expect(menu).toBeHidden();
+  await page.getByRole('radiogroup', { name: 'Visão do calendário' }).getByRole('radio', { name: rotulo, exact: true }).click();
+  await expect(botaoDaVisao(page, rotulo)).toBeVisible();
+}
+/** Abre a janela de criação pelo "Criar" (menu com os dois tipos); devolve a folha "Criar". */
+async function abrirCriar(page: Page, tipo: 'Compromisso com aluno' | 'Evento pessoal'): Promise<Locator> {
+  await page.getByRole('button', { name: 'Criar', exact: true }).click();
+  await page.getByRole('menu', { name: 'Criar' }).getByRole('menuitem', { name: new RegExp(`^${tipo}\\.`) }).click();
+  const folha = page.getByRole('dialog', { name: 'Criar', exact: true });
+  await expect(folha).toBeVisible();
+  await expect(folha.getByRole('radio', { name: tipo, exact: true, checked: true })).toBeVisible();
+  return folha;
 }
 
 /**
@@ -266,7 +276,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // Um h1 só; a Semana de hoje (o padrão). O "Hoje" fica sempre habilitado (a barra não muda de altura com um motivo).
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('Agenda');
-      await expect(page.getByRole('heading', { name: '19 – 25 de out. de 2026', exact: true })).toBeVisible();
+      // agenda: retoques (23/11): o título da semana é curto ("19–25 out. 2026"), para caber numa linha.
+      await expect(page.getByRole('heading', { name: '19–25 out. 2026', exact: true })).toBeVisible();
       await expect(botaoDaVisao(page, 'Semana')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Hoje', exact: true })).toBeEnabled();
       await expect(page.getByText('Hoje já está na tela.')).toHaveCount(0);
@@ -279,7 +290,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // Seta: troca a data sem empilhar.
       await page.getByRole('button', { name: 'Próxima semana', exact: true }).click();
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?data=2026-10-26');
-      await expect(page.getByRole('heading', { name: '26 de out. – 1 de nov. de 2026', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '26 out.–1 nov. 2026', exact: true })).toBeVisible();
 
       // Mês pela barra (empilha) e o voltar do navegador volta à Semana na mesma data.
       await escolherVisao(page, 'Mês');
@@ -293,7 +304,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // "Hoje" tira a data do endereço.
       await page.getByRole('button', { name: 'Hoje', exact: true }).click();
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda');
-      await expect(page.getByRole('heading', { name: '19 – 25 de out. de 2026', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '19–25 out. 2026', exact: true })).toBeVisible();
 
       // Ano: as setas andam um ano; voltar ao ano de hoje tira a data.
       await escolherVisao(page, 'Ano');
@@ -315,31 +326,11 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(botaoDaVisao(page, 'Ano')).toBeVisible();
 
       if (!celular) {
-        // O menu da visão: ✓ (aria-checked) na atual, a letra do atalho ao lado; setas andam, Enter escolhe, Esc fecha e o
-        // foco volta ao botão.
-        const menu = page.getByRole('menu', { name: 'Visão do calendário', exact: true });
-        await botaoDaVisao(page, 'Ano').click();
-        await expect(menu.getByRole('menuitemradio')).toHaveCount(4);
-        await expect(menu.getByRole('menuitemradio', { name: 'Ano', exact: true })).toHaveAttribute('aria-checked', 'true');
-        await expect(menu.getByRole('menuitemradio', { name: 'Dia', exact: true })).toHaveAttribute('aria-checked', 'false');
-        await expect(menu.getByText('Y', { exact: true })).toBeVisible();
-        await expect(menu.getByRole('menuitemradio', { name: 'Ano', exact: true })).toBeFocused();
-        await page.keyboard.press('Escape');
-        await expect(menu).toBeHidden();
-        await expect(botaoDaVisao(page, 'Ano')).toBeFocused();
-        await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
-        await botaoDaVisao(page, 'Ano').click();
-        // O menu abre depois do clique (`measureInWindow` do react-native-web é um `setTimeout(0)`): o atalho só vale "com o menu
-        // aberto" depois que ele abriu e o foco entrou na visão atual (o efeito que avisa a tela já rodou).
-        await expect(menu.getByRole('menuitemradio', { name: 'Ano', exact: true })).toBeFocused();
-        // Com o menu aberto, a letra do atalho não troca a visão por trás dele.
-        await page.keyboard.press('m');
-        await expect(menu).toBeVisible();
-        await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
-        await page.keyboard.press('ArrowUp');
-        await expect(menu.getByRole('menuitemradio', { name: 'Mês', exact: true })).toBeFocused();
-        await page.keyboard.press('Enter');
-        await expect(menu).toBeHidden();
+        // O segmento da visão: quatro opções, a atual marcada (aria-checked); escolher empilha como antes.
+        const segmento = page.getByRole('radiogroup', { name: 'Visão do calendário' });
+        await expect(segmento.getByRole('radio')).toHaveCount(4);
+        await expect(segmento.getByRole('radio', { name: 'Dia', exact: true })).toHaveAttribute('aria-checked', 'false');
+        await escolherVisao(page, 'Mês');
         await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=mes');
         await page.goBack();
         await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
@@ -405,7 +396,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         await expect.poll(() => endereco(page)).toBe('/treinador/agenda');
         await page.getByRole('button', { name: 'quinta-feira, 5 de novembro de 2026', exact: true }).click();
         await expect.poll(() => endereco(page)).toBe('/treinador/agenda?data=2026-11-05');
-        await expect(page.getByRole('heading', { name: '2 – 8 de nov. de 2026', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: '2–8 nov. 2026', exact: true })).toBeVisible();
         await expect.poll(() => ultimo(pedidos, '/agenda/compromissos')?.busca.get('de')).toBe('2026-11-02');
 
         // Mês no PC: célula com os itens do dia; o toque abre o Dia.
@@ -561,11 +552,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // Sem agenda pessoal, os eventos nem são pedidos.
       expect(pedidos.some((p) => p.caminho === '/agenda/eventos')).toBe(false);
 
-      await page.getByRole('button', { name: 'Criar', exact: true }).click();
-      await expect(page.getByRole('menuitem', { name: /^Compromisso com aluno/ })).toBeVisible();
-      await page.getByRole('menuitem', { name: /^Evento\./ }).click();
-      const folha = page.getByRole('dialog', { name: 'Novo evento', exact: true });
-      await expect(folha).toBeVisible();
+      const folha = await abrirCriar(page, 'Evento pessoal');
       await expect(folha.getByText('Pessoal (criada ao salvar)', { exact: true })).toBeVisible();
       await expect(folha.getByText(PRIVACIDADE, { exact: true })).toBeVisible();
       await expect(folha.getByLabel('Data', { exact: true })).toHaveValue('19/10/2026');
@@ -574,15 +561,20 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(folha.getByPlaceholder('Adicionar título')).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Mais opções', exact: true })).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Repetição: Não se repete. Escolher.', exact: true })).toBeVisible();
-      // Sem título e hora: o erro fica junto do campo e nada vai à API.
-      await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
+      // agenda: criar unificado (23/11): o início já vem na próxima meia hora (12:00) e o fim, com a duração padrão (1 h).
+      await expect(folha.getByRole('button', { name: 'Início: 12:00. Escolher.', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Fim: 13:00. Escolher.', exact: true })).toBeVisible();
+      await expect(folha.getByText('1 h', { exact: true })).toBeVisible();
+      await expect(folha.getByText('Escolha o início para ver o fim.')).toHaveCount(0);
+      // Sem título: o erro fica junto do campo e nada vai à API.
+      await folha.getByRole('button', { name: 'Salvar evento', exact: true }).click();
       await expect(folha.getByText('Informe o título.')).toBeVisible();
       await expect(folha.getByText('Confira os campos destacados.')).toBeVisible();
       expect(doCaminho(pedidos, 'POST', '/agenda/agendas')).toEqual([]);
 
       await folha.getByLabel('Título', { exact: true }).fill('Estudo de teste');
       await escolherInicio(page, folha, '09:00');
-      await expect(folha.getByRole('button', { name: 'Fim: 10:00 (1 h). Escolher.', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Fim: 10:00. Escolher.', exact: true })).toBeVisible();
       await escolherRepeticao(page, folha, DIAS_UTEIS);
       await expect(folha.getByText('Feriados não são pulados: cancele só a ocorrência do feriado.', { exact: true })).toBeVisible();
       await expect(opcao(folha, 'Termina', 'Nunca')).toHaveAttribute('aria-checked', 'true');
@@ -590,7 +582,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await escolherRepeticao(page, folha, 'Todos os dias');
       await expect(folha.getByText('Feriados não são pulados: cancele só a ocorrência do feriado.')).toHaveCount(0);
       await escolherRepeticao(page, folha, DIAS_UTEIS);
-      await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
+      await folha.getByRole('button', { name: 'Salvar evento', exact: true }).click();
       await expect(folha).toBeHidden();
 
       // A "Pessoal" vai antes, e o evento leva o id que a API devolveu.
@@ -886,7 +878,7 @@ test.describe('filtros em Folha e preferências (1280 px)', () => {
     const estado: Estado = { agendas: [agenda('g1', 'Pessoal', 'AZUL')], eventos: [], compromissos: [] };
     await abrirAgenda(page, estado);
     await page.goto('/treinador/agenda?novo=evento');
-    await expect(page.getByRole('dialog', { name: 'Novo evento', exact: true })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Criar', exact: true })).toBeVisible();
     await expect.poll(() => endereco(page), { timeout: 3000 }).toBe('/treinador/agenda');
   });
 
@@ -934,9 +926,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const estado: Estado = { agendas: [agenda('g1', 'Pessoal', 'AZUL')], eventos: [], compromissos: [] };
       const { pedidos, naoTratadas, errosDaPagina } = await abrirAgenda(page, estado);
       await page.goto('/treinador/agenda');
-      await page.getByRole('button', { name: 'Criar', exact: true }).click();
-      await page.getByRole('menuitem', { name: /^Evento\./ }).click();
-      const folha = page.getByRole('dialog', { name: 'Novo evento', exact: true });
+      const folha = await abrirCriar(page, 'Evento pessoal');
       // Rápido: sem os dias da semana nem as partes do completo.
       await expect(folha.getByRole('button', { name: 'Mais opções', exact: true })).toBeVisible();
       await expect(folha.getByRole('heading', { name: 'Quando', exact: true })).toHaveCount(0);
@@ -960,7 +950,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
       await folha.getByRole('checkbox', { name: 'Quarta-feira' }).click();
       await expect(folha.getByRole('button', { name: 'Repetição: Semanal: segunda e quarta. Escolher.', exact: true })).toBeVisible();
-      await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
+      await folha.getByRole('button', { name: 'Salvar evento', exact: true }).click();
       await expect(folha).toBeHidden();
       expect(doCaminho(pedidos, 'POST', '/agenda/eventos').map((p) => (p.corpo as EventoRequest).repeticao)).toEqual([
         { tipo: 'SEMANAL', diasDaSemana: ['MONDAY', 'WEDNESDAY'] },
@@ -1060,15 +1050,17 @@ test.describe('filtros da agenda no painel (1280 px)', () => {
     await expect(page.getByRole('button', { name: 'Nova agenda', exact: true })).toBeVisible();
     const lateral = (await page.getByTestId('lateral-da-agenda').boundingBox())!;
     const ultimoDia = (await dias.last().boundingBox())!;
-    const visao = (await page.getByRole('button', { name: /^Visão do calendário/ }).boundingBox())!;
+    const visao = (await page.getByRole('radiogroup', { name: 'Visão do calendário' }).boundingBox())!;
     const hojeBotao = (await page.getByRole('button', { name: 'Hoje', exact: true }).boundingBox())!;
     const filtros = (await botaoDeFiltros(page).boundingBox())!;
     // A grade vai até a borda direita da barra, e a área da agenda começa logo depois da lateral (24 px de vão).
     expect(Math.abs(ultimoDia.x + ultimoDia.width - (visao.x + visao.width))).toBeLessThanOrEqual(4);
     expect(hojeBotao.x - (lateral.x + lateral.width)).toBeLessThanOrEqual(32);
-    // O botão Filtros na coluna da agenda, entre a barra do calendário e a grade.
-    expect(filtros.x).toBeGreaterThanOrEqual(lateral.x + lateral.width);
-    expect(filtros.y).toBeGreaterThan(hojeBotao.y);
+    // agenda: criar unificado (23/11): barra única; "Filtros" na mesma linha do "Hoje", à direita, antes da visão e acima da grade.
+    const centro = (b: { y: number; height: number }) => b.y + b.height / 2;
+    expect(Math.abs(centro(filtros) - centro(hojeBotao))).toBeLessThanOrEqual(4);
+    expect(filtros.x).toBeGreaterThan(hojeBotao.x);
+    expect(filtros.x + filtros.width).toBeLessThanOrEqual(visao.x);
     expect(filtros.y).toBeLessThan((await dias.first().boundingBox())!.y);
     await semRolagemHorizontal(page);
   });
@@ -1133,7 +1125,7 @@ test.describe('menu Criar pelo teclado (1280 px)', () => {
     await page.goto('/treinador/agenda');
     const criar = page.getByRole('button', { name: 'Criar', exact: true });
     const compromissoItem = page.getByRole('menuitem', { name: /^Compromisso com aluno/ });
-    const eventoItem = page.getByRole('menuitem', { name: /^Evento\./ });
+    const eventoItem = page.getByRole('menuitem', { name: /^Evento pessoal\./ });
     await criar.click();
     await expect(compromissoItem).toBeFocused();
     await page.keyboard.press('ArrowDown');
@@ -1155,7 +1147,7 @@ test.describe('menu Criar pelo teclado (1280 px)', () => {
     await page.keyboard.press('ArrowDown');
     await expect(page).toHaveURL(/\/treinador\/agenda$/);
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('dialog', { name: 'Novo evento', exact: true })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Criar', exact: true })).toBeVisible();
   });
 });
 
@@ -1176,10 +1168,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const estado: Estado = { agendas: [agenda('g1', 'Pessoal', 'AZUL')], eventos: [], compromissos: [] };
       const api = await abrirAgenda(page, estado, { extra: { 'POST /agenda/eventos/cruzamentos': cruzamento } });
       await page.goto('/treinador/agenda');
-      await page.getByRole('button', { name: 'Criar', exact: true }).click();
-      await page.getByRole('menuitem', { name: /^Evento\./ }).click();
-      const folha = page.getByRole('dialog', { name: 'Novo evento', exact: true });
-      await expect(folha).toBeVisible();
+      const folha = await abrirCriar(page, 'Evento pessoal');
       return { ...api, folha };
     }
     const cruzamentos = (pedidos: PedidoFalso[]) =>
@@ -1190,10 +1179,9 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const { folha, pedidos, naoTratadas, errosDaPagina } = await abrirNovoEvento(page, (p, route) =>
         json(route, (p.corpo as CruzamentoRequest).repeticao
           ? { quantidade: 3, datas: ['2026-10-20', '2026-10-21', '2026-10-22'], incompleto: false } : SEM_CRUZAMENTO));
-      // Sem hora não há pergunta.
+      // agenda: criar unificado (23/11): o início já vem preenchido (12:00), então a pergunta pode sair antes de escolher.
       await folha.getByLabel('Título', { exact: true }).fill('Estudo de teste');
       await escolherRepeticao(page, folha, 'Todos os dias');
-      expect(cruzamentos(pedidos)).toEqual([]);
 
       const resposta = page.waitForResponse(URL_DO_CRUZAMENTO);
       await escolherInicio(page, folha, '09:00');
@@ -1219,7 +1207,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(cruzamentos(pedidos).slice(antes).every((c) => !c.diaInteiro)).toBe(true);
 
       // O aviso não trava: "Salvar" salva direto, sem pergunta nem espera.
-      await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
+      await folha.getByRole('button', { name: 'Salvar evento', exact: true }).click();
       await expect(folha).toBeHidden();
       expect(doCaminho(pedidos, 'POST', '/agenda/eventos').map((p) => (p.corpo as EventoRequest).repeticao)).toEqual([{ tipo: 'DIARIA' }]);
       expect(naoTratadas).toEqual([]);
@@ -1242,7 +1230,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const resposta = page.waitForResponse(URL_DO_CRUZAMENTO);
       await escolherInicio(page, folha, '09:00');
       await resposta;
-      expect(cruzamentos(pedidos)).toHaveLength(1);
+      await expect.poll(() => cruzamentos(pedidos).at(-1)?.hora).toBe('09:00');
       await expect(folha.getByText(AVISO)).toHaveCount(0);
     });
 
@@ -1261,10 +1249,10 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         ]);
         await escolherInicio(page, folha, '09:00');
         await terminou;
-        expect(cruzamentos(pedidos)).toHaveLength(1);
+        expect(cruzamentos(pedidos).length).toBeGreaterThanOrEqual(1);
         await expect(folha.getByText(AVISO)).toHaveCount(0);
         await expect(folha.getByRole('alert')).toHaveCount(0);
-        await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
+        await folha.getByRole('button', { name: 'Salvar evento', exact: true }).click();
         await expect(folha).toBeHidden();
         expect(doCaminho(pedidos, 'POST', '/agenda/eventos')).toHaveLength(1);
         await expect(page.getByRole('alert')).toHaveCount(0);

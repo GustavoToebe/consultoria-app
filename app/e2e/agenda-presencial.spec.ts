@@ -119,7 +119,7 @@ async function adicionarAluno(page: Page, folha: Locator, nome: string) {
   await expect(folha.getByRole('button', { name: `Remover ${nome}`, exact: true })).toBeVisible();
 }
 
-/** O compromisso novo sai do "Criar" (menu com "Compromisso com aluno" e "Evento"). */
+/** O compromisso novo sai do "Criar" (menu com "Compromisso com aluno" e "Evento pessoal"; a janela "Criar"). */
 async function novoCompromisso(page: Page) {
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
   await page.getByRole('menuitem', { name: /^Compromisso com aluno/ }).click();
@@ -182,7 +182,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(consulta?.busca.get('ate')).toBe('2026-10-25');
 
       await novoCompromisso(page);
-      const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+      const folha = page.getByRole('dialog', { name: 'Criar', exact: true });
       await expect(folha).toBeVisible();
       await expect(folha.getByText('Alunos · 0 de 20')).toBeVisible();
       await adicionarAluno(page, folha, 'Bruno Exemplo');
@@ -201,18 +201,20 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // O responsável já vem com quem está marcando; a data, com o dia da agenda.
       await expect(folha.getByRole('button', { name: /^Responsável: Treinadora Teste/ })).toBeVisible();
       await expect(folha.getByLabel('Data', { exact: true })).toHaveValue('19/10/2026');
-      // Painel rápido: início "até" fim em listas (o fim acompanha o início, com a duração no rótulo); "Mais opções" no rodapé.
+      // Painel rápido: início "até" fim em listas (o fim acompanha o início; a duração fica ao lado); "Mais opções" no rodapé.
+      // agenda: criar unificado (23/11): o início já vem na próxima meia hora e o fim aparece desde o começo.
       await expect(folha.getByRole('button', { name: 'Mais opções', exact: true })).toBeVisible();
-      await expect(folha.getByText('Escolha o início para ver o fim.')).toBeVisible();
+      await expect(folha.getByText('Escolha o início para ver o fim.')).toHaveCount(0);
+      await expect(folha.getByRole('button', { name: 'Fim: 13:00. Escolher.', exact: true })).toBeVisible();
       await escolherInicio(page, folha, '09:30');
       await expect(folha.getByRole('button', { name: 'Início: 09:30. Escolher.', exact: true })).toBeVisible();
-      await expect(folha.getByRole('button', { name: 'Fim: 10:30 (1 h). Escolher.', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Fim: 10:30. Escolher.', exact: true })).toBeVisible();
       // O fim vai de início + 15 min até o máximo do compromisso (8 h); não há mais duração digitada.
-      await folha.getByRole('button', { name: 'Fim: 10:30 (1 h). Escolher.', exact: true }).click();
+      await folha.getByRole('button', { name: 'Fim: 10:30. Escolher.', exact: true }).click();
       const fins = page.getByRole('dialog', { name: 'Fim (Brasília)', exact: true }).getByRole('radio');
-      await expect(fins.first()).toHaveAccessibleName('09:45 (15 min)');
-      await expect(fins.last()).toHaveAccessibleName('17:30 (8 h)');
-      await page.getByRole('dialog', { name: 'Fim (Brasília)', exact: true }).getByRole('radio', { name: '10:30 (1 h)', exact: true }).click();
+      await expect(fins.first()).toHaveAccessibleName('09:45, 15 min');
+      await expect(fins.last()).toHaveAccessibleName('17:30, 8 h');
+      await page.getByRole('dialog', { name: 'Fim (Brasília)', exact: true }).getByRole('radio', { name: '10:30, 1 h', exact: true }).click();
       await expect(folha.getByRole('textbox', { name: 'Duração em minutos' })).toHaveCount(0);
       // Avisos que não bloqueiam: o responsável com outro compromisso na lista e o aluno ocupado (a API diz quem).
       await expect(folha.getByText(/já tem um compromisso das 09:00 às 10:00/)).toBeVisible();
@@ -256,7 +258,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       });
       await page.goto('/treinador/agenda');
       await novoCompromisso(page);
-      const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+      const folha = page.getByRole('dialog', { name: 'Criar', exact: true });
       await adicionarAluno(page, folha, 'Ana Fictícia');
       await escolherInicio(page, folha, '09:30');
       const data = folha.getByLabel('Data', { exact: true });
@@ -300,7 +302,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       });
       await page.goto('/treinador/agenda');
       await novoCompromisso(page);
-      const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+      const folha = page.getByRole('dialog', { name: 'Criar', exact: true });
       await adicionarAluno(page, folha, 'Ana Fictícia');
       await escolherInicio(page, folha, '08:00');
 
@@ -375,7 +377,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       });
       await page.goto('/treinador/agenda');
       await novoCompromisso(page);
-      const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+      const folha = page.getByRole('dialog', { name: 'Criar', exact: true });
       await adicionarAluno(page, folha, 'Ana Fictícia');
 
       // Início: a busca aceita qualquer minuto, e o digitado vira a opção do topo.
@@ -385,7 +387,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(inicios.getByRole('radio').first()).toHaveAccessibleName('09:10');
       await inicios.getByRole('radio', { name: '09:10', exact: true }).click();
       await expect(inicios).toBeHidden();
-      await expect(folha.getByRole('button', { name: 'Fim: 10:10 (1 h). Escolher.', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Fim: 10:10. Escolher.', exact: true })).toBeVisible();
 
       // Fim: abaixo do mínimo avisa e não vira opção; 09:30 vira 20 min.
       await folha.getByRole('button', { name: /^Fim: / }).click();
@@ -393,9 +395,9 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await fins.getByLabel('Buscar ou digitar (HH:MM)').fill('09:12');
       await expect(fins.getByText('A duração mínima é 5 min.')).toBeVisible();
       await fins.getByLabel('Buscar ou digitar (HH:MM)').fill('09:30');
-      await fins.getByRole('radio', { name: '09:30 (20 min)', exact: true }).click();
+      await fins.getByRole('radio', { name: '09:30, 20 min', exact: true }).click();
       await expect(fins).toBeHidden();
-      await expect(folha.getByRole('button', { name: 'Fim: 09:30 (20 min). Escolher.', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Fim: 09:30. Escolher.', exact: true })).toBeVisible();
 
       // "Personalizar…": o completo com o semanal da segunda-feira (dia da data) e o foco na repetição; o horário fica.
       await escolherNaLista(page, folha, 'Repetição', 'Personalizar…');
@@ -403,7 +405,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const repeticao = folha.getByRole('button', { name: 'Repetição: Semanal: cada segunda-feira. Escolher.', exact: true });
       await expect(repeticao).toBeFocused();
       await expect(folha.getByRole('checkbox', { name: 'Segunda-feira' })).toBeChecked();
-      await expect(folha.getByRole('button', { name: 'Fim: 09:30 (20 min). Escolher.', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Fim: 09:30. Escolher.', exact: true })).toBeVisible();
       await folha.getByLabel('Quantas vezes').fill('4');
       await folha.getByRole('button', { name: 'Marcar compromisso', exact: true }).click();
       await expect(folha).toBeHidden();
@@ -445,7 +447,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // A edição abre direto no formulário completo; remarcar nunca repete: sem a lista da repetição.
       await expect(folha.getByRole('heading', { name: 'Quando', exact: true })).toBeVisible();
       await expect(folha.getByRole('button', { name: /^Repetição: / })).toHaveCount(0);
-      await expect(folha.getByRole('button', { name: 'Fim: 16:00 (1 h). Escolher.', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Fim: 16:00. Escolher.', exact: true })).toBeVisible();
       await folha.getByRole('button', { name: 'Remover Davi Modelo', exact: true }).click();
       await escolherInicio(page, folha, '16:00');
       // Ao remarcar, o aviso de aluno ocupado ignora o próprio compromisso (consulta depois de parar de digitar).

@@ -68,7 +68,8 @@ const TELAS: readonly (readonly [string, string, RegExp])[] = [
   ['Interessados (Lista)', '/treinador/interessados', /Nenhuma inscrição nesta lista/],
   ['Interessados (Kanban)', '/treinador/interessados?visao=kanban', /Nenhuma inscrição\./],
   ['Interessados (Indicadores)', '/treinador/interessados?visao=indicadores', /Conversão das entradas/],
-  ['Agenda', '/treinador/agenda', /Nada neste período/],
+  // agenda: criar unificado (23/11): a semana vazia mostra a dica no meio da grade (PC) ou o "Nada marcado" de cada dia (celular).
+  ['Agenda', '/treinador/agenda', /Nenhum compromisso nesta semana|Nada marcado/],
   ['Alunos', '/treinador/alunos', /Nenhum aluno seu/],
 ];
 

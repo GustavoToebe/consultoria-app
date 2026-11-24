@@ -1,6 +1,6 @@
 import type { Participante } from '../api/agendaTipos';
 import {
-  arranjoDoBloco, horarioNoRotuloDoCompromisso, LARGURA_PARA_SELO, LARGURA_PARA_SELO_AO_LADO, statusNoDiaInteiro, statusNoRotuloDoCompromisso, textoDoItemNoMes,
+  arranjoDoBloco, horarioNoBloco, horarioNoRotuloDoCompromisso, LARGURA_PARA_INTERVALO, LARGURA_PARA_SELO, LARGURA_PARA_SELO_AO_LADO, statusNoDiaInteiro, statusNoRotuloDoCompromisso, textoDoItemNoMes,
 } from './agendaLegivel';
 
 const p = (situacao: Participante['situacao'], n = 1): Participante => ({ id: `a${n}`, nome: `Aluno ${n}`, situacao });
@@ -110,5 +110,22 @@ describe('statusNoDiaInteiro', () => {
     expect(statusNoDiaInteiro(LARGURA_PARA_SELO_AO_LADO - 1, true)).toBe('icone');
     expect(statusNoDiaInteiro(0, true)).toBe('icone');
     expect(statusNoDiaInteiro(LARGURA_PARA_SELO_AO_LADO, true, 20)).toBe('icone');
+  });
+});
+
+// agenda: retoques (23/11): no bloco estreito da Semana, só o início; o intervalo fica no nome acessível e no bloco aberto.
+describe('horarioNoBloco', () => {
+  it('intervalo quando cabe, só o início no bloco estreito e antes de medir', () => {
+    expect(horarioNoBloco('09:00–10:00', LARGURA_PARA_INTERVALO, false)).toBe('09:00–10:00');
+    expect(horarioNoBloco('09:00–10:00', LARGURA_PARA_INTERVALO - 1, false)).toBe('09:00');
+    expect(horarioNoBloco('09:00–10:00', 0, false)).toBe('09:00');
+  });
+  it('o ícone do status e o texto maior pedem mais largura', () => {
+    expect(horarioNoBloco('09:00–10:00', LARGURA_PARA_INTERVALO, true)).toBe('09:00');
+    expect(horarioNoBloco('09:00–10:00', LARGURA_PARA_INTERVALO + 18, true)).toBe('09:00–10:00');
+    expect(horarioNoBloco('09:00–10:00', LARGURA_PARA_INTERVALO, false, 20)).toBe('09:00');
+  });
+  it('texto sem intervalo fica como está', () => {
+    expect(horarioNoBloco('Dia inteiro', 0, false)).toBe('Dia inteiro');
   });
 });

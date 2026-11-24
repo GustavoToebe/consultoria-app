@@ -179,9 +179,9 @@ export const dataComDiaDaSemana = (iso: string): string => `${DIAS_DA_SEMANA_POR
 export const nomeDoMes = (mes: number): string => MESES[mes - 1] ?? '';
 
 /**
- * Título do período em pt-BR, sem `Intl` (a saída muda entre o Jest e o Hermes): Dia "29 de outubro de 2026"; Semana
- * "26 de out. – 1 de nov. de 2026" (no mesmo mês "2 – 8 de nov. de 2026"; entre anos "28 de dez. de 2026 – 3 de jan. de 2027");
- * Mês "outubro de 2026"; Ano "2026".
+ * Título do período em pt-BR, sem `Intl` (a saída muda entre o Jest e o Hermes): Dia "29 de outubro de 2026"; Semana curta,
+ * para caber numa linha da barra (agenda: retoques, 23/11): "19–25 out. 2026", entre meses "26 out.–1 nov. 2026", entre anos
+ * "28 dez. 2026–3 jan. 2027"; Mês "outubro de 2026"; Ano "2026".
  */
 export function tituloDoCalendario(visao: VisaoDoCalendario, data: string): string {
   if (visao === 'dia') return dataPorExtenso(data);
@@ -190,9 +190,9 @@ export function tituloDoCalendario(visao: VisaoDoCalendario, data: string): stri
   const { de, ate } = periodoDoCalendario('semana', data);
   const [a1, m1, d1] = partes(de);
   const [a2, m2, d2] = partes(ate);
-  if (a1 !== a2) return `${d1} de ${MESES_CURTOS[m1 - 1]} de ${a1} – ${d2} de ${MESES_CURTOS[m2 - 1]} de ${a2}`;
-  if (m1 !== m2) return `${d1} de ${MESES_CURTOS[m1 - 1]} – ${d2} de ${MESES_CURTOS[m2 - 1]} de ${a2}`;
-  return `${d1} – ${d2} de ${MESES_CURTOS[m2 - 1]} de ${a2}`;
+  if (a1 !== a2) return `${d1} ${MESES_CURTOS[m1 - 1]} ${a1}–${d2} ${MESES_CURTOS[m2 - 1]} ${a2}`;
+  if (m1 !== m2) return `${d1} ${MESES_CURTOS[m1 - 1]}–${d2} ${MESES_CURTOS[m2 - 1]} ${a2}`;
+  return `${d1}–${d2} ${MESES_CURTOS[m2 - 1]} ${a2}`;
 }
 
 // ---- Células do Mês, os 12 meses do Ano e o mini calendário ----

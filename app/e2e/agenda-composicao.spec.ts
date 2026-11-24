@@ -153,7 +153,7 @@ test.describe('F12: formulário do compromisso novo', () => {
       const { pedidos, errosDaPagina } = await abrir(page, { compromissos: lista, extra: criarNaLista(lista) });
       await page.getByRole('button', { name: 'Criar', exact: true }).click();
       await page.getByRole('menuitem', { name: /^Compromisso com aluno/ }).click();
-      const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+      const folha = page.getByRole('dialog', { name: 'Criar', exact: true });
       await expect(folha).toBeVisible();
 
       // Padrões: o dia da agenda, quem marca como responsável, sem repetição.
@@ -184,7 +184,8 @@ test.describe('F12: formulário do compromisso novo', () => {
       await marcar.click();
       await expect(folha.getByText('Confira os campos destacados.')).toBeVisible();
       await expect(folha.getByText('Escolha ao menos um aluno.')).toBeVisible();
-      await expect(folha.getByText('Início: Informe a hora.')).toBeVisible();
+      // agenda: criar unificado (23/11): o início já vem preenchido (a próxima meia hora), então não há erro nele.
+      await expect(folha.getByText('Início: Informe a hora.')).toHaveCount(0);
       expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([]);
       await page.screenshot({ path: captura(`f12-erros-${largura}.png`) });
 
@@ -194,7 +195,7 @@ test.describe('F12: formulário do compromisso novo', () => {
       await busca.getByRole('radio', { name: NOME_LONGO.nome }).click();
       await expect(busca).toBeHidden();
       await escolherNaLista(page, folha, 'Início', '09:30', 'Início (Brasília)');
-      await expect(folha.getByRole('button', { name: 'Fim: 10:30 (1 h). Escolher.', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Fim: 10:30. Escolher.', exact: true })).toBeVisible();
       const chip = (await folha.getByRole('button', { name: `Remover ${NOME_LONGO.nome}`, exact: true }).boundingBox())!;
       const caixa = (await folha.boundingBox())!;
       expect(chip.x + chip.width).toBeLessThanOrEqual(caixa.x + caixa.width);
@@ -215,7 +216,7 @@ test.describe('F12: formulário do compromisso novo', () => {
     const { pedidos } = await abrir(page);
     await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await page.getByRole('menuitem', { name: /^Compromisso com aluno/ }).click();
-    const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+    const folha = page.getByRole('dialog', { name: 'Criar', exact: true });
     await folha.getByRole('button', { name: 'Cancelar', exact: true }).click();
     await expect(folha).toBeHidden();
     expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([]);
@@ -233,7 +234,7 @@ test.describe('Notificações do compromisso', () => {
   async function novoCompleto(page: Page) {
     await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await page.getByRole('menuitem', { name: /^Compromisso com aluno/ }).click();
-    const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+    const folha = page.getByRole('dialog', { name: 'Criar', exact: true });
     await folha.getByRole('button', { name: /^Aluno: Adicionar/ }).click();
     const busca = page.getByRole('dialog', { name: 'Adicionar aluno' });
     await busca.getByRole('radio', { name: ANA.nome }).click();
@@ -480,7 +481,7 @@ test.describe('F13: resumo ao tocar no compromisso', () => {
     await expect(resumo).toBeHidden();
     await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await page.getByRole('menuitem', { name: /^Compromisso com aluno/ }).click();
-    const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+    const folha = page.getByRole('dialog', { name: 'Criar', exact: true });
     await folha.getByRole('button', { name: 'Marcar compromisso', exact: true }).click();
     await expect(folha.getByText('Escolha ao menos um aluno.')).toBeVisible();
     await page.screenshot({ path: captura('f12-erros-1280-escuro.png') });
@@ -525,11 +526,11 @@ test.describe('F13: resumo ao tocar no compromisso', () => {
     const dia = (await page.getByRole('button', { name: /^Abrir o dia quarta-feira, 21 de outubro de 2026/ }).boundingBox())!;
     const hora = (await page.getByText('14:00', { exact: true }).first().boundingBox())!;
     await page.mouse.click(dia.x + dia.width / 2, hora.y + hora.height / 2 + 12);
-    const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+    const folha = page.getByRole('dialog', { name: 'Criar', exact: true });
     await expect(folha).toBeVisible();
     await expect(folha.getByLabel('Data', { exact: true })).toHaveValue('21/10/2026');
     await expect(folha.getByRole('button', { name: 'Início: 14:00. Escolher.', exact: true })).toBeVisible();
-    await expect(folha.getByRole('button', { name: 'Fim: 15:00 (1 h). Escolher.', exact: true })).toBeVisible();
+    await expect(folha.getByRole('button', { name: 'Fim: 15:00. Escolher.', exact: true })).toBeVisible();
     await page.screenshot({ path: captura('f13-horario-vazio-1280.png') });
   });
 

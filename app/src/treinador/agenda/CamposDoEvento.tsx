@@ -1,24 +1,22 @@
-import { AlignLeft, CalendarDays, Clock, MapPin } from 'lucide-react-native';
+import { AlignLeft, CalendarDays, Clock, MapPin, Type } from 'lucide-react-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import type { AgendaPessoal, TipoDeRepeticaoDeEvento } from '../../api/agendaTipos';
 import {
   AJUDA_DIAS_UTEIS, avisoDoPrimeiroDia, type ErrosDaRepeticaoDoEvento, type ErrosDoEvento, type FormularioDaRepeticaoDoEvento,
-  type FormularioDoEvento, LIMITES_DO_EVENTO, NOME_DA_AGENDA_PADRAO, OPCOES_DE_FIM_DA_REPETICAO,
-  PRIVACIDADE_DO_EVENTO, ROTULOS_DAS_CORES_DA_AGENDA, trocarTipoDaRepeticaoDoEvento,
+  type FormularioDoEvento, LIMITES_DO_EVENTO, OPCOES_DE_FIM_DA_REPETICAO, PRIVACIDADE_DO_EVENTO, trocarTipoDaRepeticaoDoEvento,
 } from '../../dominio/agendaEvento';
 import { dataDaTela } from '../../dominio/formatos';
 import { espaco } from '../../tema/tokens';
 import { Campo } from '../../ui/Campo';
-import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CampoData, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
-import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { Grade } from '../../ui/Grade';
 import { depoisDeFecharAsFolhas } from '../../ui/historicoDasFolhas';
 import { Texto } from '../../ui/Texto';
 import { DiasDaSemana, ErroDoCampo, focarDentro } from './CamposDoCompromisso';
+import { EscolhaDaAgenda } from './EscolhaDaAgenda';
 import { CamposDoHorario, LinhaComIcone, SeletorDaRepeticao, TituloDaParte } from './PecasDoFormulario';
 
 interface Props {
@@ -43,15 +41,15 @@ interface Props {
 }
 
 /**
- * Campos do evento pessoal, em dois jeitos (D4, D7): o painel rápido do Google Agenda (o título grande no topo e linhas com
- * o ícone à esquerda: horário, dia inteiro e repetição, agenda, local, descrição) e o formulário completo em duas partes
- * ("Quando" e "Detalhes"), com os dias da semana do semanal. O horário é início–fim (D5) e a repetição, a lista com os
- * rótulos do Google (D6). O aviso fixo de privacidade (P6) fica nos dois. Os botões ficam no rodapé da folha.
+ * Campos do evento pessoal, em dois jeitos (D4, D7): o painel rápido do Google Agenda (linhas com o ícone à esquerda: o
+ * título grande; "Quando" com data, início – fim e dia inteiro numa linha e a repetição embaixo; a agenda; local;
+ * descrição) e o formulário completo em duas partes ("Quando" e "Detalhes"), com os dias da semana do semanal. O horário é
+ * início–fim (D5) e a repetição, a lista com os rótulos do Google (D6). Todo campo tem o rótulo à vista (criar unificado,
+ * 23/11). O aviso fixo de privacidade (P6) fica nos dois. Os botões ficam no rodapé da folha.
  */
 export function CamposDoEvento(p: Props) {
   const { form, erros, mudar, completo } = p;
   const r = form.repeticao;
-  const opcoesDeAgenda = p.agendas.map((a) => ({ valor: a.id, rotulo: `${a.nome} (${ROTULOS_DAS_CORES_DA_AGENDA[a.cor]})` }));
 
   // "Personalizar…": como no compromisso (semanal do dia da data, formulário completo, foco na repetição).
   const repeticaoRef = useRef<View>(null);
@@ -67,12 +65,13 @@ export function CamposDoEvento(p: Props) {
     setFocarRepeticao((n) => n + 1);
   });
 
-  const titulo = <Campo rotulo="Título" rotuloOculto grande valor={form.titulo} aoMudar={(t) => mudar('titulo', t)} erro={erros.titulo}
+  const titulo = <Campo rotulo="Título" grande valor={form.titulo} aoMudar={(t) => mudar('titulo', t)} erro={erros.titulo}
     maxLength={LIMITES_DO_EVENTO.titulo} placeholder="Adicionar título" />;
+  // O "Dia inteiro" fecha a linha do horário (Data | Início – Fim | Dia inteiro).
+  const diaInteiro = <View style={estilos.diaInteiro}><Interruptor rotulo="Dia inteiro" valor={form.diaInteiro} aoMudar={(v) => mudar('diaInteiro', v)} /></View>;
   const horario = <CamposDoHorario data={form.data} hora={form.hora} duracao={form.duracao} limites={LIMITES_DO_EVENTO} compacto={!completo}
     semHoras={form.diaInteiro} erros={{ data: erros.data, hora: erros.hora, duracao: erros.duracao }} aoMudarData={(t) => mudar('data', t)} nomeDaData="Data do evento"
-    aoMudarHora={(h) => mudar('hora', h)} aoMudarDuracao={(d) => mudar('duracao', d)} />;
-  const diaInteiro = <Interruptor rotulo="Dia inteiro" valor={form.diaInteiro} aoMudar={(v) => mudar('diaInteiro', v)} />;
+    aoMudarHora={(h) => mudar('hora', h)} aoMudarDuracao={(d) => mudar('duracao', d)} depois={diaInteiro} />;
   const aviso = p.aviso ? <View accessibilityLiveRegion="polite" aria-live="polite"><Texto variante="suave">{p.aviso}</Texto></View> : null;
   const repeticao = p.comRepeticao ? (
     <View ref={repeticaoRef} style={estilos.grupo}>
@@ -81,28 +80,19 @@ export function CamposDoEvento(p: Props) {
       <DetalhesDaRepeticao repeticao={r} data={form.data} erros={p.errosDaRepeticao} hoje={p.hoje} comDias={completo} aoMudar={p.mudarRepeticao} />
     </View>
   ) : null;
-  const agenda = <View style={estilos.grupo}>
-    {p.agendas.length === 0 ? (
-      <CampoLeitura rotulo="Agenda" valor={`${NOME_DA_AGENDA_PADRAO} (criada ao salvar)`} />
-    ) : opcoesDeAgenda.length > OPCOES_PARA_BUSCAR ? (
-      <EscolhaEmFolha rotulo="Agenda" titulo="Escolher agenda" valor={form.agendaId} opcoes={opcoesDeAgenda} aoMudar={(id) => mudar('agendaId', id)} />
-    ) : (
-      <Escolha rotulo="Agenda" valor={form.agendaId} opcoes={opcoesDeAgenda} aoMudar={(id) => mudar('agendaId', id)} />
-    )}
-    {erros.agendaId ? <ErroDoCampo texto={erros.agendaId} /> : null}
-  </View>;
-  const local = <Campo rotulo="Local (opcional)" rotuloOculto={!completo} valor={form.local} aoMudar={(t) => mudar('local', t)} erro={erros.local}
-    maxLength={LIMITES_DO_EVENTO.local} placeholder={completo ? undefined : 'Adicionar local'} />;
-  const descricao = <Campo rotulo="Descrição (opcional)" rotuloOculto={!completo} valor={form.descricao} aoMudar={(t) => mudar('descricao', t)}
-    erro={erros.descricao} linhas={3} maxLength={LIMITES_DO_EVENTO.descricao} placeholder={completo ? undefined : 'Adicionar descrição'} />;
+  const agenda = <EscolhaDaAgenda agendas={p.agendas} valor={form.agendaId} aoMudar={(id) => mudar('agendaId', id)} erro={erros.agendaId} />;
+  const local = <Campo rotulo="Local (opcional)" valor={form.local} aoMudar={(t) => mudar('local', t)} erro={erros.local}
+    maxLength={LIMITES_DO_EVENTO.local} />;
+  const descricao = <Campo rotulo="Descrição (opcional)" valor={form.descricao} aoMudar={(t) => mudar('descricao', t)}
+    erro={erros.descricao} linhas={3} maxLength={LIMITES_DO_EVENTO.descricao} />;
   const privacidade = <Texto variante={completo ? 'suave' : 'pequeno'}>{PRIVACIDADE_DO_EVENTO}</Texto>;
 
   if (!completo) {
     return (
       <View style={estilos.coluna}>
         {p.sobreASerie}
-        {titulo}
-        <LinhaComIcone Icone={Clock}>{horario}{diaInteiro}{aviso}{repeticao}</LinhaComIcone>
+        <LinhaComIcone Icone={Type}>{titulo}</LinhaComIcone>
+        <LinhaComIcone Icone={Clock}>{horario}{aviso}{repeticao}</LinhaComIcone>
         <LinhaComIcone Icone={CalendarDays}>{agenda}</LinhaComIcone>
         <LinhaComIcone Icone={MapPin}>{local}</LinhaComIcone>
         <LinhaComIcone Icone={AlignLeft}>{descricao}{privacidade}</LinhaComIcone>
@@ -116,7 +106,6 @@ export function CamposDoEvento(p: Props) {
       <Grade gap={espaco(3)}>
         <View style={estilos.parte}>
           <TituloDaParte texto="Quando" />
-          {diaInteiro}
           {horario}
           {aviso}
           {repeticao}
@@ -167,4 +156,5 @@ const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
   parte: { gap: espaco(2) },
   grupo: { gap: espaco(1) },
+  diaInteiro: { alignSelf: 'flex-end' },
 });

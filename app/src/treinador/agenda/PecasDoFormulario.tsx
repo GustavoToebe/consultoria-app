@@ -3,8 +3,9 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { DiaDaSemana, TipoDeRepeticao } from '../../api/agendaTipos';
+import { textoDaDuracaoDoHorario } from '../../dominio/agendaCriacao';
 import {
-  fimDaHora, type LimitesDeDuracao, opcaoDigitadaDoFim, opcaoDigitadaDoInicio, opcoesDaRepeticao, opcoesDoFim, opcoesDoInicio, PERSONALIZAR_REPETICAO, rotuloDaRepeticaoAtual,
+  fimDaHora, type LimitesDeDuracao, type OpcaoDoFim, opcaoDigitadaDoFim, opcaoDigitadaDoInicio, opcoesDaRepeticao, opcoesDoFim, opcoesDoInicio, PERSONALIZAR_REPETICAO, rotuloDaRepeticaoAtual,
   type ValorDaOpcaoDeRepeticao,
 } from '../../dominio/agendaPresencial';
 import { dataDaTela } from '../../dominio/formatos';
@@ -63,39 +64,46 @@ interface PropsDoHorario {
   semHoras?: boolean;
   /** O nome da data na mensagem da faixa ("Data do compromisso"); sem ele, "Data". */
   nomeDaData?: string;
+  /** No fim da linha do horário (o "Dia inteiro" do evento). */
+  depois?: ReactNode;
 }
 
 /**
  * Data, início e fim no lugar de hora + chips + minutos (D5): o início vai de 15 em 15 min e o fim lista as horas a partir
  * do início com a duração no rótulo ("17:30 (1 h)", "00:30 (1 h, dia seguinte)"). Na busca das duas listas dá para digitar
  * qualquer hora ("09:10"), que vira a opção do topo (`opcaoDigitadaDoInicio`/`opcaoDigitadaDoFim`). O formulário continua com `hora` e
- * `duracao`; nada é calculado aqui (as regras são de `dominio/agendaPresencial`). Sem início, o fim espera.
+ * `duracao`; nada é calculado aqui (as regras são de `dominio/agendaPresencial`). A duração fica escrita depois do fim, em
+ * texto suave ("1 h"). Sem início (evento que era de dia inteiro), o fim fica apagado com "—" até escolher o início.
  */
 export function CamposDoHorario(p: PropsDoHorario) {
   const inicios = opcoesDoInicio(p.hora || undefined);
-  const fins = opcoesDoFim(p.hora, p.limites, p.duracao);
+  // Na lista e no botão do fim vai só a hora; a duração é o detalhe da opção e o texto suave ao lado do botão.
+  const naLista = (o: OpcaoDoFim) => ({ valor: o.valor, rotulo: o.fim, detalhe: textoDaDuracaoDoHorario(p.hora, o.valor) ?? undefined });
+  const fins = opcoesDoFim(p.hora, p.limites, p.duracao).map(naLista);
   const fimAtual = fimDaHora(p.hora, p.duracao);
+  const duracao = textoDaDuracaoDoHorario(p.hora, p.duracao);
   const data = (
     <View style={p.compacto ? estilos.dataCompacta : estilos.data}>
       <CampoData rotulo="Data" nome={p.nomeDaData} regra="PLANEJAMENTO" valor={p.data} aoMudar={p.aoMudarData} erro={p.erros.data} />
     </View>
   );
-  const horas = p.semHoras ? null : <>
+  // Início – fim e a duração não se separam ao quebrar a linha (no celular a data fica em cima).
+  const horas = p.semHoras ? null : <View style={estilos.horas}>
     <EscolhaEmFolha rotulo="Início" titulo="Início (Brasília)" valor={p.hora} opcoes={inicios} rotuloDoValor="Escolher" style={estilos.naBase}
       aoMudar={p.aoMudarHora} digitado={{ rotulo: DIGITAR_HORA, opcao: opcaoDigitadaDoInicio }} />
-    {fins.length ? (
-      <EscolhaEmFolha rotulo="Fim" titulo="Fim (Brasília)" valor={p.duracao.trim()} opcoes={fins}
-        rotuloDoValor={fimAtual ?? 'Escolher'} aoMudar={p.aoMudarDuracao} style={estilos.naBase}
-        digitado={{ rotulo: DIGITAR_HORA, opcao: (texto) => opcaoDigitadaDoFim(p.hora, texto, p.limites) }} />
-    ) : <Texto variante="suave" style={estilos.semFim}>Escolha o início para ver o fim.</Texto>}
-  </>;
+    <Texto variante="suave" aria-hidden style={estilos.traco}>–</Texto>
+    <EscolhaEmFolha rotulo="Fim" titulo="Fim (Brasília)" valor={p.duracao.trim()} opcoes={fins} desabilitado={!fins.length}
+      rotuloDoValor={fimAtual ?? '—'} aoMudar={p.aoMudarDuracao} style={estilos.naBase}
+      digitado={{ rotulo: DIGITAR_HORA, opcao: (texto) => { const r = opcaoDigitadaDoFim(p.hora, texto, p.limites); return r && 'opcao' in r ? { opcao: naLista(r.opcao) } : r; } }} />
+    {duracao ? <Texto variante="suave" style={estilos.duracao} accessibilityLiveRegion="polite">{duracao}</Texto> : null}
+  </View>;
   // Rápido: data, início e fim numa linha (como no Google). Completo: a data com o rótulo em cima numa linha e o início e
   // o fim na de baixo, para os três não ficarem desencontrados (o rótulo da data muda a altura dela).
   return (
     <View style={estilos.horario}>
-      {p.compacto ? <View style={estilos.linhaDoHorario}>{data}{horas}</View> : <>
+      {p.compacto ? <View style={estilos.linhaDoHorario}>{data}{horas}{p.depois}</View> : <>
         {data}
-        {horas ? <View style={estilos.linhaDoHorario}>{horas}</View> : null}
+        {horas || p.depois ? <View style={estilos.linhaDoHorario}>{horas}{p.depois}</View> : null}
       </>}
       {!p.semHoras && p.erros.hora ? <MensagemDeErro erro={`Início: ${p.erros.hora}`} /> : null}
       {!p.semHoras && p.erros.duracao ? <MensagemDeErro erro={`Fim: ${p.erros.duracao}`} /> : null}
@@ -138,9 +146,12 @@ const estilos = StyleSheet.create({
   conteudo: { flex: 1, minWidth: 0, gap: espaco(1) },
   horario: { gap: espaco(1) },
   linhaDoHorario: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
+  horas: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), maxWidth: '100%' },
   data: { width: 190, maxWidth: '100%' },
   dataCompacta: { width: 170, maxWidth: '100%' },
   // Na base da linha, com o campo da data (o rótulo dela, sempre visível, a deixa mais alta que os botões).
   naBase: { alignSelf: 'flex-end' },
-  semFim: { alignSelf: 'center' },
+  // O traço e a duração ficam no meio da altura dos botões (44 px), na base da linha.
+  traco: { alignSelf: 'flex-end', minHeight: ALVO_TOQUE, lineHeight: ALVO_TOQUE },
+  duracao: { alignSelf: 'flex-end', minHeight: ALVO_TOQUE, lineHeight: ALVO_TOQUE },
 });

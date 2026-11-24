@@ -1,42 +1,32 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { Compromisso, CompromissoRequest, EscopoDaSerie, FiltroAlunosOcupados, Participante, SituacaoCompromisso } from '../../api/agendaTipos';
+import type { Compromisso, CompromissoRequest, EscopoDaSerie, Participante, SituacaoCompromisso } from '../../api/agendaTipos';
 import type { ResponsavelEquipe } from '../../api/equipeTipos';
+import { alterarCancelamentoCompromisso, alterarSituacaoDoAluno } from '../../api/rotas';
 import {
-  alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, criarCompromisso, listarAlunosOcupados,
-} from '../../api/rotas';
-import {
-  type AcaoDeSituacao, acaoDeCancelamento, adicionarParticipante, conflitoNaLista, type ErrosDaRepeticao, type ErrosDoCompromisso, type ErrosDosLembretes,
-  escoposPermitidos, explicacaoDoEscopo, filtroDeAlunosOcupados, type FormularioDaRepeticao, type FormularioDoCompromisso,
-  formularioDoCompromisso, formularioNovo, intervaloDoPedido, linhaDoCompletoDoCompromisso, mudouAData, pedidoDoFormulario, removerParticipante, ROTULOS_DO_ESCOPO,
-  textoDaOcorrencia, textoDeAlunosOcupados, textoDoCancelamentoDoAluno, textoDoCancelamentoInteiro, textoDoErroDaAgenda,
+  type AcaoDeSituacao, acaoDeCancelamento, escoposPermitidos, explicacaoDoEscopo, formularioDoCompromisso, formularioNovo, mudouAData, ROTULOS_DO_ESCOPO,
+  textoDaOcorrencia, textoDoCancelamentoDoAluno, textoDoCancelamentoInteiro, textoDoErroDaAgenda,
 } from '../../dominio/agendaPresencial';
-import { errosDosLembretesDaApi, type LinhaDeLembrete } from '../../dominio/antecedenciaDoLembrete';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Escolha } from '../../ui/Escolha';
-import { Alerta, MensagemErro } from '../../ui/Estados';
-import { errosPorCampo, textoDoErro } from '../../ui/erros';
+import { MensagemErro } from '../../ui/Estados';
+import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
-import { useAtrasado, useCarregar } from '../../ui/useCarregar';
-import { CamposDoCompromisso } from './CamposDoCompromisso';
 import { DetalheDoCompromisso } from './DetalheDoCompromisso';
+import { useFormularioDoCompromisso } from './useFormularioDoCompromisso';
 
 /** Vindo do resumo (F13): abre já no formulário de edição ou na confirmação do cancelamento. */
 export type AcaoInicial = 'editar' | 'cancelar';
 
 interface Props {
-  /** `'novo'` abre o formulário vazio; um compromisso abre o detalhe; `null` fecha. */
-  aberto: Compromisso | 'novo' | null;
+  /** Um compromisso abre o detalhe (ou a edição, pela `acaoInicial`); `null` fecha. O novo é da `FolhaCriar`. */
+  aberto: Compromisso | null;
   acaoInicial?: AcaoInicial;
-  /** Dia sugerido no compromisso novo (AAAA-MM-DD, Brasília). */
-  dataSugerida: string;
-  /** Início sugerido no compromisso novo (HH:MM): o horário clicado na grade. */
-  horaSugerida?: string;
   hoje: string;
   responsaveis: readonly ResponsavelEquipe[];
   /** Compromissos já na tela, só para avisar de sobreposição do responsável antes de salvar (quem decide é a API). */
@@ -48,16 +38,13 @@ interface Props {
 
 /**
  * Folha do compromisso com aluno: detalhe (participantes com a situação de cada um, editar, cancelar ou reabrir o
- * compromisso inteiro) ou formulário (novo, com repetição; editar). O novo abre no painel rápido do Google Agenda (linhas
- * com ícone, largura da folha comum) e o rodapé tem "Mais opções", "Cancelar" e "Marcar compromisso"; "Mais opções", o "Personalizar…" da
- * repetição e a edição usam o formulário completo, em `LARGURA_EDITOR`. No compromisso novo, "Menos opções" volta ao
- * painel rápido sem apagar o que foi digitado. Se sobrou campo do completo diferente do padrão, o rodapé diz o que
- * será salvo. A edição já abre no completo e não tem esse botão. Cada compromisso aberto é uma folha nova (a `key` é o id), então nada do anterior sobra. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita com
+ * compromisso inteiro) ou a edição, no formulário completo em `LARGURA_EDITOR` (o formulário mora em
+ * `useFormularioDoCompromisso`; o novo é a `FolhaCriar`). Cada compromisso aberto é uma folha nova (a `key` é o id), então
+ * nada do anterior sobra. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita com
  * `ALUNO_SENSIVEL_ALTERAR` (a API também ignora sem a permissão).
  */
 export function FolhaCompromisso(props: Props) {
-  const chave = props.aberto === null ? 'fechada' : props.aberto === 'novo' ? 'novo' : props.aberto.id;
-  return <FolhaAberta key={chave} {...props} />;
+  return <FolhaAberta key={props.aberto?.id ?? 'fechada'} {...props} />;
 }
 
 /** A pergunta antes de gravar: o escopo numa série e/ou a confirmação de cancelar. */
@@ -66,27 +53,15 @@ type Pergunta =
   | { tipo: 'aluno'; aluno: Participante; acao: AcaoDeSituacao; escopos: EscopoDaSerie[] }
   | { tipo: 'inteiro'; cancelado: boolean; escopos: EscopoDaSerie[] };
 
-function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, responsaveis, carregados, aoFechar, aoMudar }: Props) {
-  const { pode, usuario } = useSessao();
-  const comObservacao = pode('ALUNO_SENSIVEL_ALTERAR');
-  const c = aberto && aberto !== 'novo' ? aberto : null;
-  const novo = aberto === 'novo';
-  const [modo, setModo] = useState<'detalhe' | 'formulario'>(novo || (c && acaoInicial === 'editar') ? 'formulario' : 'detalhe');
-  // O novo abre no painel rápido (D4); "Mais opções" e a edição mostram o formulário completo.
-  const [completo, setCompleto] = useState(!novo);
-
-  // Formulário (novo ou editar): o estado mora aqui para os botões irem ao rodapé fixo da folha.
-  const formInicial = (): FormularioDoCompromisso => (c ? formularioDoCompromisso(c)
-    : formularioNovo(responsaveis.some((r) => r.id === usuario?.id) ? usuario?.id ?? '' : '', dataSugerida, horaSugerida));
-  const nomesIniciais = () => Object.fromEntries((c?.participantes ?? []).map((p) => [p.id, p.nome ?? 'Aluno']));
-  const [form, setForm] = useState<FormularioDoCompromisso>(formInicial);
-  const [nomes, setNomes] = useState<Record<string, string>>(nomesIniciais);
-  const [erros, setErros] = useState<ErrosDoCompromisso>({});
-  const [errosDaRepeticao, setErrosDaRepeticao] = useState<ErrosDaRepeticao>({});
-  const [errosDosLembretes, setErrosDosLembretes] = useState<ErrosDosLembretes>({});
-  const [conferir, setConferir] = useState(false);
+function FolhaAberta({ aberto: c, acaoInicial, hoje, responsaveis, carregados, aoFechar, aoMudar }: Props) {
+  const { pode } = useSessao();
+  const [modo, setModo] = useState<'detalhe' | 'formulario'>(c && acaoInicial === 'editar' ? 'formulario' : 'detalhe');
+  // Formulário da edição (sempre o completo): o estado mora no hook para os botões irem ao rodapé fixo da folha.
+  const f = useFormularioDoCompromisso({
+    compromisso: c, inicial: () => (c ? formularioDoCompromisso(c) : formularioNovo('', hoje)), ativo: modo === 'formulario',
+    hoje, responsaveis, carregados, completoInicial: true,
+  });
   const [erro, setErro] = useState<unknown>(null);
-  const [salvando, setSalvando] = useState(false);
   // Detalhe: a ação em andamento e a pergunta aberta (escopo e/ou confirmação).
   const [enviando, setEnviando] = useState<string | null>(null);
   // "Cancelar compromisso" do resumo abre direto a confirmação (cancelar sempre confirma; reabrir fica no detalhe).
@@ -95,29 +70,10 @@ function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, re
   const [escopo, setEscopo] = useState<EscopoDaSerie>('ESTA');
   const agora = new Date();
 
-  const limparMensagens = () => { setErro(null); setConferir(false); };
-  const mudar = <K extends keyof FormularioDoCompromisso>(campo: K, valor: FormularioDoCompromisso[K]) => {
-    setForm((f) => ({ ...f, [campo]: valor }));
-    setErros((e) => ({ ...e, [campo]: undefined }));
-    limparMensagens();
-  };
-  const mudarRepeticao = (r: FormularioDaRepeticao) => {
-    setForm((f) => ({ ...f, repeticao: r }));
-    setErrosDaRepeticao({});
-    setErros((e) => ({ ...e, repeticao: undefined }));
-    limparMensagens();
-  };
-  const mudarLembretes = (lembretes: LinhaDeLembrete[]) => {
-    mudar('lembretes', lembretes);
-    setErrosDosLembretes({});
-  };
+  const limparMensagens = () => { setErro(null); f.limparMensagens(); };
   const editar = () => {
-    setForm(formInicial());
-    setNomes(nomesIniciais());
-    setErros({});
-    setErrosDaRepeticao({});
-    setErrosDosLembretes({});
-    limparMensagens();
+    f.recomecar();
+    setErro(null);
     setModo('formulario');
   };
   const voltarAoDetalhe = () => { limparMensagens(); setModo('detalhe'); };
@@ -125,61 +81,22 @@ function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, re
   // primeira ação concluída; depois disso a folha se comporta como a aberta pelo detalhe.
   const [doResumo, setDoResumo] = useState(!!acaoInicial);
 
-  // Aviso de aluno ocupado (só aviso, D11/P5): com alunos, data, hora e duração válidas, depois de parar de digitar.
-  const filtro = modo === 'formulario' ? filtroDeAlunosOcupados(form, c?.id) : null;
-  const chaveOcupados = filtro ? JSON.stringify(filtro) : null;
-  const chaveAtrasada = useAtrasado(chaveOcupados, 400);
-  const ocupados = useCarregar(chaveAtrasada,
-    async (k) => ({ chave: k, itens: await listarAlunosOcupados(JSON.parse(k) as FiltroAlunosOcupados) }));
-  const ocupadosAtuais = ocupados.dados?.chave === chaveOcupados ? ocupados.dados.itens : null;
-  const textoOcupados = ocupadosAtuais ? textoDeAlunosOcupados(ocupadosAtuais) : null;
-  const falhouOcupados = !!ocupados.erro && chaveAtrasada === chaveOcupados && chaveOcupados !== null;
-  // Responsável com outro compromisso na lista desta tela (também só aviso; quem decide é a API, 409).
-  const previa = modo === 'formulario' ? pedidoDoFormulario(form, comObservacao).pedido : null;
-  const conflito = previa ? conflitoNaLista(carregados, { id: c?.id, responsavelId: previa.responsavelId, ...intervaloDoPedido(previa) }) : null;
-
+  // 409 HORARIO_OCUPADO (com as datas), ALUNO_INATIVO, CONFLITO_EDICAO...: o formulário fica como está, com a mensagem.
   const enviarFormulario = async (pedido: CompromissoRequest, escolhido: EscopoDaSerie) => {
-    setSalvando(true);
-    setErro(null);
-    try {
-      const salvo = c ? await alterarCompromisso(c.id, pedido, escolhido) : await criarCompromisso(pedido);
-      setPergunta(null);
-      aoMudar(salvo);
-      if (novo) aoFechar();
-      else { setDoResumo(false); setModo('detalhe'); }
-    } catch (e) {
-      // 409 HORARIO_OCUPADO (com as datas), ALUNO_INATIVO, CONFLITO_EDICAO...: o formulário fica como está.
-      setPergunta(null);
-      // 422 nos lembretes (`lembretesMinutos[i]` = a linha i enviada, a ordem da tela): a mensagem vai ao campo, uma vez (D2),
-      // e o formulário completo abre para ela estar à vista.
-      const campos = errosPorCampo(e);
-      const daApi = errosDosLembretesDaApi(campos, form.lembretes);
-      const nosLembretes = Object.keys(daApi.porLinha).length > 0 || !!daApi.lista;
-      if (nosLembretes) {
-        setErrosDosLembretes(daApi.porLinha);
-        setErros((x) => ({ ...x, lembretes: daApi.lista }));
-        setCompleto(true);
-        setConferir(true);
-      }
-      // Outro motivo (ou outro campo junto) continua no rodapé, com a mensagem da API.
-      if (!nosLembretes || Object.keys(campos).some((k) => !k.startsWith('lembretesMinutos'))) setErro(e);
-    } finally {
-      setSalvando(false);
-    }
+    const salvo = await f.enviar(pedido, escolhido);
+    setPergunta(null);
+    if (!salvo) return;
+    aoMudar(salvo);
+    setDoResumo(false);
+    setModo('detalhe');
   };
   const salvar = () => {
-    const r = pedidoDoFormulario(form, comObservacao, c ? c.versao : undefined);
-    setErros(r.erros);
-    setErrosDaRepeticao(r.errosDaRepeticao);
-    setErrosDosLembretes(r.errosDosLembretes);
-    setErro(null);
-    // As notificações só aparecem no completo: com erro nelas, ele abre para o erro não ficar escondido.
-    if (r.erros.lembretes || Object.keys(r.errosDosLembretes).length) setCompleto(true);
-    if (!r.pedido) { setConferir(true); return; }
-    setConferir(false);
-    const escopos = c ? escoposPermitidos(c, { mudouData: mudouAData(form, c) }) : ['ESTA' as const];
-    if (escopos.length > 1) { setEscopo('ESTA'); setPergunta({ tipo: 'salvar', pedido: r.pedido, escopos }); return; }
-    void enviarFormulario(r.pedido, 'ESTA');
+    if (!c) return;
+    const pedido = f.conferirPedido();
+    if (!pedido) return;
+    const escopos = escoposPermitidos(c, { mudouData: mudouAData(f.form, c) });
+    if (escopos.length > 1) { setEscopo('ESTA'); setPergunta({ tipo: 'salvar', pedido, escopos }); return; }
+    void enviarFormulario(pedido, 'ESTA');
   };
 
   const mudarAluno = async (aluno: Participante, situacao: SituacaoCompromisso, escolhido: EscopoDaSerie) => {
@@ -224,20 +141,14 @@ function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, re
     void mudarInteiro(acaoInteiro.cancelado, 'ESTA');
   };
 
-  const mensagem = erro ? textoDoErroDaAgenda(erro, hoje) ?? textoDoErro(erro) : conferir ? 'Confira os campos destacados.' : null;
-  const linhaDaMensagem = mensagem ? <MensagemErro texto={mensagem} erro={erro ?? undefined} /> : null;
-  const ocupado = salvando || enviando !== null;
+  const mensagem = erro ? textoDoErroDaAgenda(erro, hoje) ?? textoDoErro(erro) : null;
+  const linhaDaMensagem = modo === 'formulario' ? f.mensagem : mensagem ? <MensagemErro texto={mensagem} erro={erro} /> : null;
+  const ocupado = f.salvando || enviando !== null;
 
-  const titulo = novo ? 'Novo compromisso' : modo === 'formulario' ? 'Editar compromisso' : 'Compromisso';
-  const avisoDoCompleto = novo && !completo ? linhaDoCompletoDoCompromisso(form) : null;
-  // Mensagem e aviso vão no status do rodapé, acima das ações no celular (P1).
-  const avisoNoRodape = modo === 'formulario' && avisoDoCompleto ? <Texto variante="suave">{avisoDoCompleto}</Texto> : null;
-  const statusDoRodape = linhaDaMensagem || avisoNoRodape ? <>{linhaDaMensagem}{avisoNoRodape}</> : undefined;
+  const titulo = modo === 'formulario' ? 'Editar compromisso' : 'Compromisso';
   const rodape = modo === 'formulario' ? <>
-    {novo && completo ? <Botao rotulo="Menos opções" tipo="secundario" aoTocar={() => setCompleto(false)} /> : null}
-    {completo ? null : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
-    <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo || doResumo ? aoFechar : voltarAoDetalhe} />
-    <Botao rotulo={c ? 'Salvar alterações' : 'Marcar compromisso'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />
+    <Botao rotulo="Cancelar" tipo="secundario" aoTocar={doResumo ? aoFechar : voltarAoDetalhe} />
+    <Botao rotulo="Salvar alterações" aoTocar={salvar} carregando={f.salvando} desabilitado={f.salvando} motivo="Salvando." />
   </> : c && pode('AGENDA_ALTERAR') && acaoInteiro ? <>
     <Botao rotulo={acaoInteiro.rotulo} tipo={acaoInteiro.perigo ? 'perigoTexto' : 'secundario'} aoTocar={pedirInteiro}
       carregando={enviando === `inteiro:${acaoInteiro.cancelado}`} desabilitado={ocupado} motivo="Salvando." />
@@ -245,28 +156,16 @@ function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, re
   </> : undefined;
 
   const ocorrencia = c ? textoDaOcorrencia(c) : null;
-  const dataMudou = !!c && !!c.serieId && mudouAData(form, c);
+  const dataMudou = !!c && !!c.serieId && mudouAData(f.form, c);
   const sobreASerie = c && ocorrencia ? <Texto variante="suave" accessibilityLiveRegion="polite">
     {dataMudou ? `${ocorrencia}. Mudar a data vale só para este compromisso da série.`
       : `${ocorrencia}. Ao salvar, você escolhe se vale só para este, para os seguintes ou para todos.`}
   </Texto> : null;
-  // Só avisos (não impedem salvar): caixa de atenção, como os outros avisos do app.
-  const avisos = textoOcupados || conflito || falhouOcupados ? <View style={estilos.avisos} accessibilityLiveRegion="polite" aria-live="polite">
-    {conflito ? <Alerta tom="atencao" texto={`Atenção: este responsável já tem um compromisso das ${conflito.hora} às ${conflito.horaFim} nesse período.`} /> : null}
-    {textoOcupados ? <Alerta tom="atencao" texto={`Atenção: ${textoOcupados}`} /> : null}
-    {falhouOcupados ? <Alerta tom="atencao" texto="Não deu para conferir se os alunos estão livres nesse horário." /> : null}
-  </View> : null;
-
   return (
-    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape} statusDoRodape={statusDoRodape}
-      largura={modo === 'formulario' && completo ? LARGURA_EDITOR : undefined}>
+    <Folha visivel={c !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape} statusDoRodape={linhaDaMensagem ?? undefined}
+      largura={modo === 'formulario' ? LARGURA_EDITOR : undefined}>
       {modo === 'formulario' ? (
-        <CamposDoCompromisso form={form} erros={erros} errosDaRepeticao={errosDaRepeticao} mudar={mudar} mudarRepeticao={mudarRepeticao}
-          errosDosLembretes={errosDosLembretes} mudarLembretes={mudarLembretes}
-          nomes={nomes} responsaveis={responsaveis} nomeDoResponsavel={c?.responsavelNome ?? null} comObservacao={comObservacao}
-          comRepeticao={!c} hoje={hoje} avisos={avisos} sobreASerie={sobreASerie} completo={completo} aoMaisOpcoes={() => setCompleto(true)}
-          aoAdicionarAluno={(id, nome) => { setNomes((n) => ({ ...n, [id]: nome })); mudar('alunoIds', adicionarParticipante(form.alunoIds, id)); }}
-          aoRemoverAluno={(id) => mudar('alunoIds', removerParticipante(form.alunoIds, id))} />
+        f.campos({ comRepeticao: false, sobreASerie })
       ) : c ? (
         <DetalheDoCompromisso compromisso={c} hoje={hoje} agora={agora} enviando={enviando} aoAgirNoAluno={agirNoAluno} />
       ) : null}
@@ -315,7 +214,5 @@ function Confirmacao({ pergunta, compromisso: c, hoje, agora, escopo, aoEscolher
 }
 
 const estilos = StyleSheet.create({
-  // O rodapé é uma linha alinhada à direita: a mensagem ocupa a linha inteira, logo acima dos botões que acabaram de ser tocados.
-  avisos: { gap: espaco(0.5) },
   escopo: { gap: espaco(1) },
 });

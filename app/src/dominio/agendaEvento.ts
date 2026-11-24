@@ -34,7 +34,7 @@ export const LIMITES_DA_AGENDA = { nome: 40, agendas: 20 } as const;
 export const DURACAO_PADRAO_DO_EVENTO = 60;
 
 /** Aviso fixo do formulário (P6): só orienta, nunca bloqueia nem confere o texto. */
-export const PRIVACIDADE_DO_EVENTO = 'O evento é só seu e não faz parte do cadastro do aluno. Evite nome de aluno e dado de saúde no título e na descrição: a anonimização do aluno não apaga o que você escrever aqui.';
+export const PRIVACIDADE_DO_EVENTO = 'Só você vê. Evite nome de aluno e dado de saúde: isto não faz parte do cadastro do aluno.';
 
 /** A agenda que o app cria quando a pessoa ainda não tem nenhuma. */
 export const NOME_DA_AGENDA_PADRAO = 'Pessoal';

@@ -8,6 +8,7 @@ import {
   alternarAgendaOculta, deslocarCalendario, diasDoPeriodo, type ItemDoCalendario, lerEnderecoDoCalendario, modoDaVisao, periodoDoCalendario,
   type RetanguloNaJanela, type VisaoDoCalendario, visaoDoAtalho,
 } from '../../dominio/agendaCalendario';
+import { dicaDaGradeVazia, type TipoDaCriacao } from '../../dominio/agendaCriacao';
 import { hojeEmBrasilia, OPCOES_SITUACAO } from '../../dominio/agendaPresencial';
 import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
 import {
@@ -17,8 +18,9 @@ import {
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
-import { BarraDoCalendario } from '../../treinador/agenda/BarraDoCalendario';
+import { PeriodoDoCalendario, SegmentoDaVisao } from '../../treinador/agenda/BarraDoCalendario';
 import { type AcaoInicial, FolhaCompromisso } from '../../treinador/agenda/FolhaCompromisso';
+import { type CriacaoAberta, FolhaCriar } from '../../treinador/agenda/FolhaCriar';
 import { type EventoAberto, FolhaEvento } from '../../treinador/agenda/FolhaEvento';
 import { GradeDeHorarios } from '../../treinador/agenda/GradeDeHorarios';
 import { CartaoSemData, ListaDoCalendario } from '../../treinador/agenda/ListaDoCalendario';
@@ -74,7 +76,10 @@ function algoPorCima(menuAberto: boolean): boolean {
  * (`ATUALIZACAO_LER` + `ALUNO_SENSIVEL_LER`). No PC, Dia e Semana são a grade de horários e o mini calendário, as agendas e
  * os filtros ficam à esquerda; no celular, a lista por dia e o painel abre numa folha. Setas e "Hoje" trocam a data sem
  * empilhar passos; trocar de visão e abrir um dia empilham (o voltar desfaz). Atalhos D, W, M e Y (só web). Datas e horas
- * de Brasília. `?novo=1` (atalho da busca) abre o compromisso novo e `?novo=evento`, o evento novo; os dois saem do endereço.
+ * de Brasília. `?novo=1` (atalho da busca) abre a janela de criação no compromisso e `?novo=evento`, no evento; os dois saem
+ * do endereço. Criar (agenda: criar unificado, 23/11): o "Criar" fica no topo da coluna da esquerda no PC (no cabeçalho sem
+ * ela) e abre a `FolhaCriar`, a mesma do clique num horário vazio da grade. Uma barra só acima da grade: "Hoje", setas e o
+ * período à esquerda; "Filtros" e o segmento da visão à direita.
  */
 export default function AgendaDoTreinador() {
   const p = useLocalSearchParams<Parametros>();
@@ -146,11 +151,14 @@ export default function AgendaDoTreinador() {
     return () => document.removeEventListener('keydown', ouvir, true);
   }, []);
 
-  // Folhas: compromisso (`?novo=1` abre o novo e sai do endereço na hora), evento e, no celular, as agendas.
-  const [compromisso, setCompromisso] = useState<Compromisso | 'novo' | null>(null);
-  // O que a folha do compromisso faz ao abrir pelo resumo (Editar, Cancelar) e o dia e a hora do horário clicado na grade.
+  // Folhas: a criação (`?novo=` abre e sai do endereço na hora), o compromisso, o evento e, no celular, as agendas.
+  const [criar, setCriar] = useState<CriacaoAberta | null>(null);
+  // Cada abertura ganha um número novo: a folha começa limpa mesmo no mesmo dia e na mesma hora.
+  const vezes = useRef(0);
+  const abrirCriacao = (tipo: TipoDaCriacao, dia: string, hora?: string) => { vezes.current += 1; setCriar({ tipo, data: dia, hora, vez: vezes.current }); };
+  const [compromisso, setCompromisso] = useState<Compromisso | null>(null);
+  // O que a folha do compromisso faz ao abrir pelo resumo (Editar, Cancelar).
   const [acaoInicial, setAcaoInicial] = useState<AcaoInicial | undefined>(undefined);
-  const [novoNoHorario, setNovoNoHorario] = useState<{ data: string; hora: string } | null>(null);
   const [resumo, setResumo] = useState<{ compromisso: Compromisso; origem: HTMLElement | null; ancora: RetanguloNaJanela | null } | null>(null);
   const [evento, setEvento] = useState<EventoAberto | null>(null);
   const [agendasAbertas, setAgendasAbertas] = useState(false);
@@ -161,17 +169,18 @@ export default function AgendaDoTreinador() {
   useEffect(() => {
     if ((p.novo !== '1' && p.novo !== 'evento') || !podeAlterar) return;
     let vivo = true;
-    const comoEvento = p.novo === 'evento';
+    const tipo: TipoDaCriacao = p.novo === 'evento' ? 'evento' : 'compromisso';
     void Promise.resolve().then(() => {
       if (!vivo) return;
-      if (comoEvento) setEvento({ tipo: 'novo', data: diaSugerido }); else { setNovoNoHorario(null); setAcaoInicial(undefined); setCompromisso('novo'); }
+      vezes.current += 1;
+      setCriar({ tipo, data: diaSugerido, vez: vezes.current });
       router.setParams({ novo: undefined });
     });
     return () => { vivo = false; };
   }, [p.novo, podeAlterar, diaSugerido]);
   // O item aberto na folha fica marcado na grade e na lista (contorno forte), só enquanto a folha dele está aberta.
   const [chaveAberta, setChaveAberta] = useState<string | null>(null);
-  const escolhido = resumo || (compromisso && compromisso !== 'novo') || evento?.tipo === 'abrir' ? chaveAberta : null;
+  const escolhido = resumo || compromisso || evento ? chaveAberta : null;
   // F13: o compromisso tocado abre o resumo (ao lado do item no PC, numa folha no celular); o evento, a folha dele.
   const abrirItem = (item: ItemDoCalendario, origem?: HTMLElement | null) => {
     const f = item.fonte;
@@ -180,7 +189,7 @@ export default function AgendaDoTreinador() {
       const caixa = Platform.OS === 'web' && larguraDaJanela >= LARGURA_MENU_LATERAL ? origem?.getBoundingClientRect?.() : undefined;
       const ancora = caixa && caixa.width > 0 ? { x: caixa.left, y: caixa.top, w: caixa.width, h: caixa.height } : null;
       setResumo({ compromisso: f.compromisso, origem: origem ?? null, ancora });
-    } else if (f.origem === 'EVENTO') setEvento({ tipo: 'abrir', eventoId: f.ocorrencia.eventoId, ocorrencia: item.ocorrencia });
+    } else if (f.origem === 'EVENTO') setEvento({ eventoId: f.ocorrencia.eventoId, ocorrencia: item.ocorrencia });
   };
   /**
    * Fecha o resumo e, se `depois` vier, abre a folha do compromisso. No PC o foco volta ao item antes de a folha abrir
@@ -197,17 +206,15 @@ export default function AgendaDoTreinador() {
     if (!c) return;
     fecharResumo(() => { setAcaoInicial(acao); setCompromisso(c); });
   };
-  const abrirNovo = (noHorario: { data: string; hora: string } | null) => {
-    setNovoNoHorario(noHorario);
-    setAcaoInicial(undefined);
-    setCompromisso('novo');
-  };
   const alternar = (chave: string) => escolherPreferencia({ agendasOcultas: alternarAgendaOculta(cal.ocultas, chave) });
 
   const { de, ate } = periodoDoCalendario(visao, data);
   const nomesDasAgendas = useMemo(() => new Map((cal.agendas ?? []).map((a) => [a.id, a.nome])), [cal.agendas]);
   const itens = cal.itens ?? [];
   const vazio = cal.pronto && itens.length === 0 && cal.semData.length === 0 && (visao !== 'ano' || (cal.contagem?.size ?? 0) === 0);
+  // O clique num horário vazio cria só na grade da web, com `AGENDA_ALTERAR` (`GradeDeHorarios`): a dica só fala nele aí.
+  const criaNoHorario = podeAlterar && Platform.OS === 'web';
+  const dicaDoVazio = vazio && modo === 'grade' && (visao === 'dia' || visao === 'semana') ? dicaDaGradeVazia(visao, criaNoHorario) : null;
   const comSemData = cal.semData.length > 0 && de <= hoje && hoje <= ate;
 
   const nomeDoMembro = (id: string) => cal.equipe.find((r) => r.id === id)?.nome;
@@ -216,10 +223,6 @@ export default function AgendaDoTreinador() {
     { valor: SO_OS_MEUS, rotulo: 'Só os meus' },
     ...(permissoes.equipe ? cal.equipe.filter((r) => r.id !== usuario?.id).map((r) => ({ valor: r.id, rotulo: r.nome })) : []),
   ];
-  const barraDeFiltros = <BarraDeFiltros valor={filtros} aoAplicar={aplicarFiltros} limpo={AGENDA_SEM_FILTRO}
-    chips={chipsDaAgenda(filtros, nomeDoMembro)} aoTirar={(chave) => aplicarFiltros(semOFiltroDaAgenda(filtros, chave as ChaveDoFiltroDaAgenda))}
-    painelLateral={{ titulo: 'Filtros da agenda' }}
-    seletores={(atuais, mudar) => <SeletoresDaAgenda filtros={atuais} aoMudar={mudar} opcoesDeResponsavel={opcoesDeResponsavel} comSituacao={permissoes.agenda} />} />;
   const atrasadas = cal.atrasadas ? <SecaoDaLateral titulo="Atualizações" divisoria={cal.painelDeAgendas.length > 0}>
     <View style={estilos.atrasadas}>
       <Selo texto={cal.atrasadas} tipo="perigo" Icone={iconeDoTom('perigo')} />
@@ -230,11 +233,11 @@ export default function AgendaDoTreinador() {
     podeAlterar={podeAlterar} aoAlternar={alternar} aoMudar={() => { cal.recarregarAgendas(); cal.recarregarEventos(); }} /> : null;
 
   const conteudo = !cal.pronto && !cal.erros.length ? <Esqueleto texto="Carregando a agenda" /> : <>
-    {/* Na lista os dias continuam todos à vista (nunca esconder datas), cada um com o seu "Nada marcado". */}
-    {vazio ? <Texto variante="suave" accessibilityLiveRegion="polite">Nada neste período.</Texto> : null}
+    {/* Grade: a dica fica no meio dela. Lista: cada dia com o seu "Nada marcado" (nunca esconder datas). Mês e Ano: a linha. */}
+    {vazio && (modo === 'mes' || modo === 'mesCompacto' || modo === 'ano') ? <Texto variante="suave" accessibilityLiveRegion="polite">Nada neste período.</Texto> : null}
     {modo === 'grade' ? <GradeDeHorarios dias={diasDoPeriodo(de, ate)} itens={itens} hoje={hoje} meus={meus} chaveDoPeriodo={`${visao}:${de}`}
-      aoAbrir={abrirItem} aoAbrirDia={visao === 'semana' ? abrirDia : undefined}
-      aoCriarNoHorario={podeAlterar ? (d, hora) => abrirNovo({ data: d, hora }) : undefined} escolhido={escolhido} /> : null}
+      aoAbrir={abrirItem} aoAbrirDia={visao === 'semana' ? abrirDia : undefined} vazio={dicaDoVazio}
+      aoCriarNoHorario={podeAlterar ? (d, hora) => abrirCriacao('compromisso', d, hora) : undefined} escolhido={escolhido} /> : null}
     {modo === 'lista' ? <ListaDoCalendario itens={itens} de={de} ate={ate} hoje={hoje} meus={meus} nomesDasAgendas={nomesDasAgendas}
       semData={cal.semData} aoAbrir={abrirItem} escolhido={escolhido} /> : null}
     {modo === 'mes' ? <VisaoDoMes data={data} hoje={hoje} itens={itens} compacta={false} aoTocarDia={abrirDia} /> : null}
@@ -252,14 +255,24 @@ export default function AgendaDoTreinador() {
     {offline ? null : cal.erros.map((e) => <MensagemErro key={e.chave} texto={`${NOMES_DAS_FONTES[e.chave] ?? 'Agenda'}: ${textoDoErro(e.erro)}`} erro={e.erro}
       tentarDeNovo={e.tentarDeNovo} />)}
   </>;
-  const barra = <BarraDoCalendario visao={visao} data={data} aoMudarVisao={mudarVisao} aoMudarMenuAberto={setMenuAberto}
-    aoDeslocar={(s) => escolherData(deslocarCalendario(visao, data, s))} aoHoje={() => { if (data !== hoje) ir({ data: undefined }, 'replace'); }}
-    extra={lateral || (!painel && !atrasadas) ? undefined : <Botao rotulo="Agendas" tipo="secundario" Icone={CalendarDays} aoTocar={() => setAgendasAbertas(true)} />} />;
+  // A barra única: "Hoje", setas e período à esquerda; "Filtros" (com o contador) e a visão à direita. As etiquetas
+  // "Filtrando" ficam embaixo da linha inteira. Uma árvore só nas duas larguras (o painel aberto sobrevive à troca).
+  const barra = <BarraDeFiltros valor={filtros} aoAplicar={aplicarFiltros} limpo={AGENDA_SEM_FILTRO}
+    chips={chipsDaAgenda(filtros, nomeDoMembro)} aoTirar={(chave) => aplicarFiltros(semOFiltroDaAgenda(filtros, chave as ChaveDoFiltroDaAgenda))}
+    painelLateral={{ titulo: 'Filtros da agenda' }}
+    seletores={(atuais, mudar) => <SeletoresDaAgenda filtros={atuais} aoMudar={mudar} opcoesDeResponsavel={opcoesDeResponsavel} comSituacao={permissoes.agenda} />}
+    antes={<PeriodoDoCalendario visao={visao} data={data} aoDeslocar={(s) => escolherData(deslocarCalendario(visao, data, s))}
+      aoHoje={() => { if (data !== hoje) ir({ data: undefined }, 'replace'); }} />}
+    depois={<>
+      <SegmentoDaVisao visao={visao} aoMudar={mudarVisao} />
+      {lateral || (!painel && !atrasadas) ? null : <Botao rotulo="Agendas" tipo="secundario" Icone={CalendarDays} aoTocar={() => setAgendasAbertas(true)} />}
+    </>} />;
+  // PC com a coluna da esquerda: o Criar no topo dela; sem ela (celular, PC estreito), no cabeçalho.
+  const menuCriar = (naColuna: boolean) => (podeAlterar ? <MenuCriar naColuna={naColuna} aoMudarAberto={setMenuAberto}
+    aoCompromisso={() => abrirCriacao('compromisso', diaSugerido)} aoEvento={() => abrirCriacao('evento', diaSugerido)} /> : undefined);
 
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
-    <Cabecalho titulo="Agenda" mostrarMarca="celular"
-      acoes={podeAlterar ? <MenuCriar aoCompromisso={() => abrirNovo(null)} aoEvento={() => setEvento({ tipo: 'novo', data: diaSugerido })}
-        aoMudarAberto={setMenuAberto} /> : undefined} />
+    <Cabecalho titulo="Agenda" mostrarMarca="celular" acoes={lateral ? undefined : menuCriar(false)} />
     <View onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}>
       {/* Uma árvore só nas duas larguras: a coluna principal (barra de filtros, grade) fica no mesmo lugar e só a lateral entra e
           sai, então cruzar o limite não remonta a barra (o painel de filtros aberto e o rascunho sobrevivem). */}
@@ -267,6 +280,7 @@ export default function AgendaDoTreinador() {
         <View style={lateral ? estilos.colunas : undefined}>
           {lateral ? (
             <View testID="lateral-da-agenda" style={estilos.lateral}>
+              {menuCriar(true)}
               <MiniCalendario visao={visao} data={data} hoje={hoje} aoEscolher={escolherData} />
               {painel}
               {atrasadas}
@@ -274,7 +288,6 @@ export default function AgendaDoTreinador() {
           ) : null}
           <View style={estilos.principal}>
             {barra}
-            {barraDeFiltros}
             {avisos}
             {conteudo}
           </View>
@@ -290,10 +303,13 @@ export default function AgendaDoTreinador() {
     </Folha>}
     {resumo ? <ResumoDoCompromisso compromisso={resumo.compromisso} hoje={hoje} ancora={resumo.ancora} aoFechar={() => fecharResumo()}
       aoAbrirDetalhes={() => doResumo()} aoEditar={() => doResumo('editar')} aoCancelar={() => doResumo('cancelar')} /> : null}
-    {permissoes.agenda ? <FolhaCompromisso aberto={compromisso} acaoInicial={acaoInicial} dataSugerida={novoNoHorario?.data ?? diaSugerido}
-      horaSugerida={novoNoHorario?.hora} hoje={hoje} responsaveis={cal.equipe}
+    {permissoes.agenda ? <FolhaCompromisso aberto={compromisso} acaoInicial={acaoInicial} hoje={hoje} responsaveis={cal.equipe}
       carregados={cal.compromissosCarregados} aoFechar={() => setCompromisso(null)}
-      aoMudar={(c) => { setCompromisso((atual) => (atual && atual !== 'novo' ? c : atual)); cal.recarregarCompromissos(); }} /> : null}
+      aoMudar={(c) => { setCompromisso((atual) => (atual ? c : atual)); cal.recarregarCompromissos(); }} /> : null}
+    {podeAlterar ? <FolhaCriar aberto={criar} hoje={hoje} responsaveis={cal.equipe} carregados={cal.compromissosCarregados}
+      agendas={cal.agendas} erroDasAgendas={cal.erros.find((x) => x.chave === 'agendas')?.erro} recarregarAgendas={cal.recarregarAgendas}
+      aoFechar={() => setCriar(null)} aoCriarCompromisso={() => cal.recarregarCompromissos()}
+      aoCriarEvento={(o) => { cal.recarregarEventos(); if (o.agendas) cal.recarregarAgendas(); }} /> : null}
     {permissoes.agenda ? <FolhaEvento aberto={evento} agendas={cal.agendas} erroDasAgendas={cal.erros.find((x) => x.chave === 'agendas')?.erro}
       recarregarAgendas={cal.recarregarAgendas} hoje={hoje} podeAlterar={podeAlterar}
       aoFechar={() => setEvento(null)}

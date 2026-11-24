@@ -337,8 +337,8 @@ for (const largura of [390, 1280]) {
     await page.goto(agenda.caminho);
     await expect(agenda.pronto(page)).toBeVisible();
     // Um passo no histórico pela barra (a troca de visão empilha): Semana → Mês.
-    await page.getByRole('button', { name: /^Visão do calendário: / }).click();
-    await page.getByRole('menu', { name: 'Visão do calendário', exact: true }).getByRole('menuitemradio', { name: 'Mês', exact: true }).click();
+    // agenda: criar unificado (23/11): a visão é um segmento na barra única.
+    await page.getByRole('radiogroup', { name: 'Visão do calendário' }).getByRole('radio', { name: 'Mês', exact: true }).click();
     await expect.poll(() => new URL(page.url()).searchParams.get('visao')).toBe('mes');
 
     const botao = page.getByRole('button', { name: /^Filtros, / });
@@ -354,7 +354,7 @@ for (const largura of [390, 1280]) {
     // Voltar: se o Aplicar tivesse empilhado, cairia no Mês sem o filtro; cai na Semana de antes.
     await page.goBack();
     await expect.poll(() => new URL(page.url()).searchParams.get('visao')).toBe('semana');
-    await expect(page.getByRole('button', { name: 'Visão do calendário: Semana', exact: true })).toBeVisible();
+    await expect(page.getByRole('radiogroup', { name: 'Visão do calendário' }).getByRole('radio', { name: 'Semana', exact: true })).toHaveAttribute('aria-checked', 'true');
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
