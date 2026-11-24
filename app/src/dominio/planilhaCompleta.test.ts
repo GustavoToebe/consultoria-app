@@ -1,7 +1,7 @@
 import type { AnaliseDaPlanilha, CriacaoDaPlanilha } from '../api/tipos';
 import { agruparErros, textoDoGrupoDeErros } from './assistenteDaImportacao';
 import {
-  SEM_RESPOSTAS, aceitarSugestoesDeSuplemento, aceitarTodosOsProvaveis, destinoSemResposta, errosDoHistorico,
+  SEM_RESPOSTAS, aceitarSugestoesDeSuplemento, aceitarTodosOsProvaveis, destinoSemResposta,
   errosDosProblemas, escolherLigacao, escolherTipo, filtrarPorNome, frasesDaCriacao, linhasAmbiguas, motivoParaNaoAvancar,
   ondeDaAba, opcoesDaPergunta, opcoesDoTipoDaAba, pendencias, respostaDoValor, responderNome, responderSuplemento,
   respostasParaApi, resumoDoDesfazer, rotuloDoTipoDeAba, textoDaLeitura, textoDaLigacao, textoDaParteDesfeita,
@@ -9,6 +9,7 @@ import {
   AVISO_RESPONDIDO_ANTES, abaRespondidaAntes, alunosDaAba, blocoFicaDeFora, nomeRespondidoAntes, quantasRespostasSalvasMarcadas,
   respostasSalvasMarcadas, semRespostasSalvas, suplementoRespondidoAntes, textoDaSituacaoDoAluno, textoDasRespostasSalvas,
   textoDoBloco, textoDoFormato, textoDosAlunosDaAba, preencherSugestoes, alertaDoResultado,
+  AVISO_NOME_DE_ABA_INVALIDO, temNomeDeAbaInvalido,
 } from './planilhaCompleta';
 
 const ANALISE: AnaliseDaPlanilha = {
@@ -147,8 +148,6 @@ test('parte pulada e problemas em português, agrupados por aba', () => {
   ]));
   expect(textoDoGrupoDeErros(grupos[0], ondeDaAba(grupos[0].campo))).toBe('Aba “Alunos”: E-mail inválido: o aluno entra sem e-mail. · 2 linhas: 3, 5');
   expect(textoDoGrupoDeErros(grupos[1], ondeDaAba(grupos[1].campo))).toBe('Linha 2 · Aba “Pesos”: Sem data.');
-  expect(errosDoHistorico([{ linha: 4, campo: 'DATA', motivo: 'Histórico Pesos: SEM_DATA' }]))
-    .toEqual([{ linha: 4, campo: 'Histórico Pesos', motivo: 'Sem data.' }]);
 });
 
 test('desfazer: cada parte em texto e o resumo', () => {
@@ -306,5 +305,14 @@ describe('aviso do resultado', () => {
     expect(alertaDoResultado({ situacao: 'CONCLUIDA_COM_ERROS', problemas: 3 })).toMatchObject({ tom: 'atencao', texto: expect.stringMatching(/^Importação concluída com erros: 3 linhas tiveram problema;/) });
     expect(alertaDoResultado({ situacao: 'CONCLUIDA', problemas: 1 }).texto).toContain('1 linha teve problema');
     expect(alertaDoResultado({ situacao: 'CONCLUIDA_COM_ERROS', problemas: 0 })).toMatchObject({ tom: 'atencao', texto: expect.stringContaining('Algumas linhas tiveram problema') });
+  });
+});
+
+describe('nome de aba com caracteres inválidos', () => {
+  it('"?" em nome de aba (o Excel não aceita) é arquivo com codificação errada; acentos certos e nomes comuns não', () => {
+    expect(temNomeDeAbaInvalido(['Alunos', 'Refei????es'])).toBe(true);
+    expect(temNomeDeAbaInvalido(['Alunos', 'Refeições', 'Histórico Pesos'])).toBe(false);
+    expect(temNomeDeAbaInvalido([])).toBe(false);
+    expect(AVISO_NOME_DE_ABA_INVALIDO).toBe('Os nomes de aba deste arquivo vieram com caracteres inválidos. Salve a planilha de novo no Excel e importe.');
   });
 });

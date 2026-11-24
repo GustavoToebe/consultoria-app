@@ -145,6 +145,10 @@ export const SEM_RESPOSTAS: EstadoDasRespostas = { tipos: {}, ligacoes: {}, exer
 /** O aviso discreto ao lado do que veio marcado pela importação anterior. */
 export const AVISO_RESPONDIDO_ANTES = 'Respondido na importação anterior';
 
+/** O Excel não aceita "?" em nome de aba; se veio, o arquivo foi gravado ou convertido com a codificação errada (os acentos viraram "?"). */
+export const AVISO_NOME_DE_ABA_INVALIDO = 'Os nomes de aba deste arquivo vieram com caracteres inválidos. Salve a planilha de novo no Excel e importe.';
+export const temNomeDeAbaInvalido = (nomes: readonly string[]): boolean => nomes.some((nome) => nome.includes('?'));
+
 /** A resposta salva de um nome, se ela ainda vale aqui ("aceitar" só com sugestão; "biblioteca" só com o item). */
 function respostaSalvaDoNome(p: PerguntaDaPlanilha): RespostaDoNome | null {
   if (!p.respostaSalva) return null;
@@ -467,7 +471,7 @@ export function textoDaPartePulada(p: PartePuladaDaPlanilha): string {
   return `${PARTES[p.parte] ?? p.parte} ficam de fora: seu perfil não tem a permissão de ${PERMISSOES[p.permissao] ?? p.permissao}.`;
 }
 
-const PROBLEMAS: Record<string, string> = {
+export const PROBLEMAS: Readonly<Record<string, string>> = {
   ABA_SEM_LIGACAO: 'A aba não está ligada a nenhum aluno.',
   ALUNO_ANONIMIZADO: 'O aluno já foi anonimizado e não recebe dados.',
   ALUNO_DO_BLOCO_AMBIGUO: 'Há mais de um aluno com esse nome na aba de alunos: o bloco não entra.',
@@ -557,14 +561,6 @@ export function textoDoProblema(tipo: string): string {
 /** Os problemas no formato que `agruparErros` junta: o "campo" é a aba. */
 export function errosDosProblemas(problemas: readonly ProblemaDaPlanilha[]): { linha: number; campo: string; motivo: string }[] {
   return problemas.map((p) => ({ linha: p.linha, campo: p.aba, motivo: textoDoProblema(p.tipo) }));
-}
-
-/** No histórico o motivo vem "<aba>: <CÓDIGO>"; volta aos dois. */
-export function errosDoHistorico(erros: readonly { linha: number; campo: string; motivo: string }[]): { linha: number; campo: string; motivo: string }[] {
-  return erros.map((e) => {
-    const i = e.motivo.lastIndexOf(': ');
-    return i > 0 ? { linha: e.linha, campo: e.motivo.slice(0, i), motivo: textoDoProblema(e.motivo.slice(i + 2)) } : e;
-  });
 }
 
 export function ondeDaAba(aba: string): string {

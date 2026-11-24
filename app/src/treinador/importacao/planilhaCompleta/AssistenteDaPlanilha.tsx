@@ -15,6 +15,7 @@ import {
   aceitarSugestoesDeSuplemento, aceitarTodosOsProvaveis, blocoFicaDeFora, chaveDaLigacao, errosDosProblemas, escolherLigacao, etapasDaPlanilha,
   escolherTipo, filtrarPorNome, frasesDaCriacao, linhasAmbiguas, motivoParaNaoAvancar, nomeRespondidoAntes, opcoesDaPergunta,
   opcoesDoSuplemento, opcoesDoTipoDaAba, pendencias, preencherSugestoes, respostaDoValor, respostasParaApi, respostasSalvasMarcadas, responderNome,
+  AVISO_NOME_DE_ABA_INVALIDO, temNomeDeAbaInvalido,
   responderSuplemento, rotuloDoTipoDeAba, semRespostasSalvas, suplementoRespondidoAntes, textoDaLeitura, textoDaLigacao,
   textoDaPartePulada, textoDasRespostasSalvas, textoDoBloco, textoDoFormato, textoDosAlunosDaAba, tipoDaAba, valorDaResposta,
   type EstadoDasRespostas, type EtapaDaPlanilha, type TipoEscolhido,
@@ -372,6 +373,7 @@ function EtapaDasAbas({ analise, respostas, aoMudar, aoEsquecer }: {
   return (
     <>
       <Texto>{textoDaLeitura(analise)}</Texto>
+      {temNomeDeAbaInvalido(analise.abas.map((a) => a.nome)) ? <Alerta tom="atencao" texto={AVISO_NOME_DE_ABA_INVALIDO} /> : null}
       <RespostasSalvas analise={analise} respostas={respostas} aoEsquecer={aoEsquecer} />
       <Cartao titulo="Abas da planilha" descricao="Cada aba foi reconhecida pelos títulos das colunas. Troque o tipo se estiver errado, ou ignore a aba.">
         {analise.abas.map((a) => {

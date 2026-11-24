@@ -22,7 +22,7 @@ import { dataHoraParaTela } from '../../dominio/formatos';
 import { DESTINO_PLANILHA_COMPLETA, ROTULO_PLANILHA_COMPLETA } from '../../dominio/planilhaCompleta';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, LARGURA_MAXIMA, RAIO, espaco, fontes } from '../../tema/tokens';
+import { ALVO_TOQUE, LARGURA_FOLHA_LARGA, LARGURA_MAXIMA, RAIO, espaco, fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -93,7 +93,7 @@ export function TelaImportacao() {
   const [pagina, setPagina] = useState(0);
   const [modelos, setModelos] = useState(false);
   const [escolhendo, setEscolhendo] = useState(false);
-  const [detalheId, setDetalheId] = useState<string | null>(null);
+  const [detalhe, setDetalhe] = useState<{ id: string; destino: string } | null>(null);
   const filtro = { ...pedidoDaApi(filtros), pagina };
   const lista = useCarregar(JSON.stringify(filtro), () => listarImportacoes(filtro));
   // Trocar um filtro troca o endereço sem empilhar histórico e volta à página 1.
@@ -136,7 +136,7 @@ export function TelaImportacao() {
         : <Vazio titulo="Nenhuma importação" texto="Quando você confirmar uma planilha, ela aparece aqui. O arquivo em si não fica guardado." />) : null}
       {lista.dados && lista.dados.itens.length > 0 ? (
         <Cartao titulo="Histórico" descricao={`${lista.dados.total} ${lista.dados.total === 1 ? 'importação' : 'importações'}.`}>
-          <Tabela rotulo="Importações" linhas={lista.dados.itens} chave={(i) => i.id} aoTocarLinha={(i) => setDetalheId(i.id)}
+          <Tabela rotulo="Importações" linhas={lista.dados.itens} chave={(i) => i.id} aoTocarLinha={(i) => setDetalhe({ id: i.id, destino: i.destino })}
             rotuloDaLinha={(i) => `Abrir a importação de ${rotuloDoDestino(i.destino)} de ${dataHoraParaTela(i.criadoEm)}`} colunas={[
             { chave: 'destino', titulo: 'Destino', flex: 1.5, principal: true, render: (i) => <Texto variante="bloco">{rotuloDoDestino(i.destino)}</Texto> },
             { chave: 'quando', titulo: 'Quando', flex: 1.2, render: (i) => <Texto numerico>{dataHoraParaTela(i.criadoEm)}</Texto> },
@@ -154,7 +154,7 @@ export function TelaImportacao() {
       ) : null}
       {escolhendo ? <FolhaNovaImportacao aoFechar={() => setEscolhendo(false)} /> : null}
       {modelos ? <FolhaModelos destinos={permitidos} aoFechar={() => setModelos(false)} /> : null}
-      {detalheId ? <FolhaDetalhe id={detalheId} aoFechar={() => setDetalheId(null)} /> : null}
+      {detalhe ? <FolhaDetalhe id={detalhe.id} destino={detalhe.destino} aoFechar={() => setDetalhe(null)} /> : null}
     </>
   );
 }
@@ -219,15 +219,21 @@ function ListaDeErros({ erros, onde }: { erros: readonly { linha: number; campo:
   );
 }
 
-function FolhaDetalhe({ id, aoFechar }: { id: string; aoFechar: () => void }) {
+/**
+ * Detalhe de uma importação. A planilha completa (resultado da importação, 23/11) abre já na folha larga (o destino vem
+ * da linha da lista, sem pulo de largura) e leva o selo para baixo do título, junto da data e do arquivo.
+ */
+function FolhaDetalhe({ id, destino, aoFechar }: { id: string; destino: string; aoFechar: () => void }) {
   const { dados, erro, carregando, recarregar } = useCarregar(`importacao:${id}`, () => detalheDaImportacao(id));
-  const selo = dados ? SITUACAO[dados.situacao] : undefined;
+  const situacao = dados ? SITUACAO[dados.situacao] : undefined;
+  const selo = situacao ? <Selo texto={situacao.texto} tipo={situacao.tipo} /> : null;
+  const completa = destino === DESTINO_PLANILHA_COMPLETA;
   return (
-    <Folha visivel titulo={dados ? `Importação de ${rotuloDoDestino(dados.destino)}` : 'Importação'} aoFechar={aoFechar}
-      acaoNoTopo={selo ? <Selo texto={selo.texto} tipo={selo.tipo} /> : undefined}>
+    <Folha visivel titulo={`Importação de ${rotuloDoDestino(dados?.destino ?? destino)}`} aoFechar={aoFechar}
+      largura={completa ? LARGURA_FOLHA_LARGA : undefined} acaoNoTopo={completa ? undefined : selo ?? undefined}>
       {erro ? <MensagemErro texto={textoDoErroDaApi(erro)} tentarDeNovo={recarregar} /> : null}
-      {carregando && !dados ? <Esqueleto cartoes={1} /> : null}
-      {dados ? (dados.destino === DESTINO_PLANILHA_COMPLETA ? <DetalheDaPlanilha dados={dados} /> : <ResultadoDaImportacao dados={dados} />) : null}
+      {carregando && !dados ? <Esqueleto cartoes={completa ? 3 : 1} /> : null}
+      {dados ? (dados.destino === DESTINO_PLANILHA_COMPLETA ? <DetalheDaPlanilha dados={dados} selo={selo} /> : <ResultadoDaImportacao dados={dados} />) : null}
     </Folha>
   );
 }

@@ -117,7 +117,20 @@ function respostasDoPedido(corpo: string): unknown {
   return JSON.parse(corpo.slice(inicio, corpo.indexOf('\r\n--', inicio)));
 }
 
-async function preparar(page: Page, largura: number, opcoes: { desatualizadaUmaVez?: boolean; analise?: unknown } = {}) {
+// resultado da importação (23/11): abas acentuadas, uma linha com ajuste e de fora ao mesmo tempo (conta só de fora) e 25
+// linhas num problema (8 + "e mais 17").
+const ERROS_ACENTUADOS = [
+  ...Array.from({ length: 25 }, (_, i) => ({ linha: i + 2, campo: 'KCAL', motivo: 'Refeições: ITEM_SEM_KCAL' })),
+  { linha: 30, campo: 'ALIMENTO', motivo: 'Refeições: ITEM_SEM_ALIMENTO' },
+  { linha: 4, campo: 'DATA', motivo: 'Histórico Pesos: SEM_DATA' },
+  { linha: 5, campo: 'DATA', motivo: 'Histórico Pesos: SEM_DATA' },
+  { linha: 5, campo: 'PESO', motivo: 'Histórico Pesos: PESO_INVALIDO' },
+  { linha: 7, campo: 'EXERCICIO', motivo: 'Exercícios: NOME_DO_EXERCICIO_CORTADO' },
+];
+const DETALHE_ACENTUADO = { ...ITEM, novos: 1258, atualizados: 2, comErro: ERROS_ACENTUADOS.length, configuracao: {}, erros: ERROS_ACENTUADOS };
+const DETALHE_SEM_ERROS = { ...ITEM, novos: 42, comErro: 0, situacao: 'CONCLUIDA', configuracao: {}, erros: [] };
+
+async function preparar(page: Page, largura: number, opcoes: { desatualizadaUmaVez?: boolean; analise?: unknown; detalhe?: unknown } = {}) {
   await page.setViewportSize({ width: largura, height: 900 });
   const pedidos = { analisar: 0, previa: 0, confirmar: [] as string[], desfazer: 0, respostas: null as unknown, esquecer: 0 };
   let desatualizada = opcoes.desatualizadaUmaVez ?? false;
@@ -126,7 +139,7 @@ async function preparar(page: Page, largura: number, opcoes: { desatualizadaUmaV
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /importacoes': { corpo: { itens: [ITEM], total: 1, pagina: 0 } },
-    [`GET /importacoes/${ID}`]: { corpo: DETALHE },
+    [`GET /importacoes/${ID}`]: { corpo: opcoes.detalhe ?? DETALHE },
     'GET /exercicios': { corpo: [{ id: 'e1', nome: 'Supino reto com halteres', grupoMuscular: 'Peito' }, { id: 'e2', nome: 'Remada curvada fictícia', grupoMuscular: 'Costas' }] },
     'POST /importacoes/planilha-completa/analisar': (_p, route) => {
       pedidos.analisar += 1;
@@ -270,9 +283,13 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: /^Abrir a importação de Planilha completa de 31\/10\/2026/ }).click();
     const folha = page.getByRole('dialog');
     await expect(folha.getByText('Importação de Planilha completa').first()).toBeVisible();
-    await expect(folha.getByText('Aba “Alunos”: E-mail inválido: o aluno entra sem e-mail. · 2 linhas: 3, 4')).toBeVisible();
+    // resultado da importação (23/11): uma aba só já nasce aberta, em tabela.
+    await expect(folha.getByRole('button', { name: 'Aba “Alunos” · 2 linhas, expandido' })).toBeVisible();
+    await expect(folha.getByText('E-mail inválido: o aluno entra sem e-mail.')).toBeVisible();
+    await expect(folha.getByText('3, 4', { exact: true })).toBeVisible();
     await folha.getByRole('button', { name: 'Desfazer importação' }).click();
     await expect(page.getByText('Desfazer a importação?')).toBeVisible();
+    await expect(page.getByRole('alertdialog').getByText('Apaga o que a importação criou e ninguém mexeu: planos nunca publicados, pastas vazias, pesos, exercícios sem uso e alunos sem acesso nem registros. O resto fica, com o motivo. Não dá para voltar atrás: para ter de novo, importe a planilha outra vez.')).toBeVisible();
     // Cancelar não desfaz.
     await page.getByRole('button', { name: 'Cancelar' }).click();
     expect(pedidos.desfazer).toBe(0);
@@ -336,6 +353,99 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Vai criar 3 alunos, sem convite.')).toBeVisible();
     // Esquecidas as respostas salvas, só sobra o que o app preenche sozinho (N20): a "Creatina" já tinha sugestão.
     expect(pedidos.respostas).toEqual({ abas: [], ligacoes: [], exercicios: [], alimentos: [], suplementos: [{ nome: 'Creatina', destino: 'SUPLEMENTO' }] });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`resultado da importação (23/11): resumo, problemas por aba acentuada, linhas e copiar em ${largura}px`, async ({ page }) => {
+    // O navegador de teste não deixa ler a área de transferência: um substituto guarda o que foi copiado.
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: (texto: string) => { (window as unknown as { __copiado?: string }).__copiado = texto; return Promise.resolve(); } },
+      });
+    });
+    const { naoTratadas, errosDaPagina } = await preparar(page, largura, { detalhe: DETALHE_ACENTUADO });
+    await page.goto('/treinador/importacao');
+    await page.getByRole('button', { name: /^Abrir a importação de Planilha completa de 31\/10\/2026/ }).click();
+    const folha = page.getByRole('dialog');
+
+    // Folha larga no PC (até 800 px) e o selo sob o título, ao lado da data e do arquivo (não no topo, junto do X).
+    await expect(folha.getByText('Registros criados')).toBeVisible();
+    if (largura === 1280) {
+      const caixa = await folha.boundingBox();
+      expect(caixa?.width ?? 0).toBeGreaterThan(700);
+      expect(caixa?.width ?? 0).toBeLessThanOrEqual(800);
+    }
+    const selo = folha.getByText('Concluída com erros', { exact: true });
+    const meta = folha.getByText(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · arquivo \.xlsx$/);
+    await expect(selo).toBeVisible();
+    await expect(meta).toBeVisible();
+    const [caixaDoSelo, caixaDaMeta, caixaDoTitulo] = await Promise.all([selo.boundingBox(), meta.boundingBox(), folha.getByText('Importação de Planilha completa').first().boundingBox()]);
+    expect(caixaDoSelo!.y).toBeGreaterThan(caixaDoTitulo!.y + caixaDoTitulo!.height - 1);
+    expect(Math.abs((caixaDoSelo!.y + caixaDoSelo!.height / 2) - (caixaDaMeta!.y + caixaDaMeta!.height / 2))).toBeLessThan(largura === 390 ? 40 : 6);
+
+    // Três indicadores, contados por linha: a linha 5 do Histórico Pesos tem dois problemas de fora e conta uma vez.
+    await expect(folha.getByLabel(/^Registros criados: 1\.258\./)).toBeVisible();
+    await expect(folha.getByLabel(/^Linhas com ajuste: 26\./)).toBeVisible();
+    await expect(folha.getByLabel(/^Linhas que ficaram de fora: 3\./)).toBeVisible();
+    await expect(folha.getByText('2 alunos que já existiam receberam dados.', { exact: false })).toBeVisible();
+
+    // Abas acentuadas inteiras, recolhidas, com a contagem; abrir mostra a tabela com a classificação.
+    const refeicoes = folha.getByRole('button', { name: 'Aba “Refeições” · 26 linhas, recolhido' });
+    await expect(refeicoes).toBeVisible();
+    await expect(folha.getByRole('button', { name: 'Aba “Histórico Pesos” · 2 linhas, recolhido' })).toBeVisible();
+    await expect(folha.getByRole('button', { name: 'Aba “Exercícios” · 1 linha, recolhido' })).toBeVisible();
+    await expect(folha.getByText(/\?\?/)).toHaveCount(0);
+    await refeicoes.click();
+    await expect(folha.getByText('Item da dieta sem alimento.')).toBeVisible();
+    await expect(folha.getByText('Ficou de fora', { exact: true })).toBeVisible();
+    await expect(folha.getByText('Ajustado', { exact: true })).toBeVisible();
+    await expect(folha.getByText('2, 3, 4, 5, 6, 7, 8, 9', { exact: true })).toBeVisible();
+    await folha.getByRole('button', { name: 'Mostrar as outras 17 linhas de “Item sem calorias: fica "—".” na aba “Refeições”' }).click();
+    await expect(folha.getByText(`${Array.from({ length: 25 }, (_, i) => i + 2).join(', ')}`, { exact: true })).toBeVisible();
+    await folha.getByRole('button', { name: /^Mostrar menos linhas/ }).click();
+    await expect(folha.getByText('2, 3, 4, 5, 6, 7, 8, 9', { exact: true })).toBeVisible();
+
+    // Copiar: texto simples, por aba, com todas as linhas.
+    await folha.getByRole('button', { name: 'Copiar lista de problemas' }).click();
+    await expect(page.getByText('Lista de problemas copiada.', { exact: false })).toBeVisible();
+    const copiado = await page.evaluate(() => (window as unknown as { __copiado?: string }).__copiado) ?? '';
+    expect(copiado).toMatch(/^Problemas da importação da planilha completa de \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}\n/);
+    expect(copiado.split('\n').slice(1)).toEqual([
+      '',
+      'Aba “Refeições” · 26 linhas',
+      '- Item da dieta sem alimento. (Ficou de fora) Linha: 30',
+      `- Item sem calorias: fica "—". (Ajustado) Linhas: ${Array.from({ length: 25 }, (_, i) => i + 2).join(', ')}`,
+      '',
+      'Aba “Histórico Pesos” · 2 linhas',
+      '- Sem data. (Ficou de fora) Linhas: 4, 5',
+      '- Peso inválido. (Ficou de fora) Linha: 5',
+      '',
+      'Aba “Exercícios” · 1 linha',
+      '- Nome do exercício longo: o nome inteiro foi para a observação. (Ajustado) Linha: 7',
+    ]);
+
+    // Desfazer em vermelho, com confirmação (Cancelar não desfaz).
+    await folha.getByRole('button', { name: 'Desfazer importação' }).click();
+    await expect(page.getByText('Desfazer a importação?')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancelar' }).click();
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`resultado da importação (23/11): importação sem erros em ${largura}px`, async ({ page }) => {
+    const { naoTratadas, errosDaPagina } = await preparar(page, largura, { detalhe: DETALHE_SEM_ERROS });
+    await page.goto('/treinador/importacao');
+    await page.getByRole('button', { name: /^Abrir a importação de Planilha completa de 31\/10\/2026/ }).click();
+    const folha = page.getByRole('dialog');
+    await expect(folha.getByText('Concluída', { exact: true })).toBeVisible();
+    await expect(folha.getByLabel(/^Registros criados: 42\./)).toBeVisible();
+    await expect(folha.getByLabel('Linhas com ajuste: 0', { exact: true })).toBeVisible();
+    await expect(folha.getByLabel('Linhas que ficaram de fora: 0', { exact: true })).toBeVisible();
+    await expect(folha.getByText('Nenhum problema: tudo entrou como estava na planilha.')).toBeVisible();
+    await expect(folha.getByRole('button', { name: 'Copiar lista de problemas' })).toHaveCount(0);
+    await expect(folha.getByRole('button', { name: 'Desfazer importação' })).toBeVisible();
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
