@@ -1,0 +1,232 @@
+import { expect, test, type Page, type Route } from '@playwright/test';
+
+import type { PreferenciasDoPerfil } from '../src/api/comunidadeTipos';
+import type { FinanceiroDoAluno } from '../src/api/financeiroTipos';
+import type { MeusDadosResponse } from '../src/api/tipos';
+import { MEUS_DADOS_VAZIOS, sessaoDeAluno } from './aluno';
+import { ALUNO, erroApi, json, sessao, simularApi, type PedidoFalso, type RespostasApi } from './api-falsa';
+
+/**
+ * Conta do aluno reorganizada (23/11, `docs/planos/conta-do-aluno.md`): cabeçalho de perfil (foto, nome como os colegas veem,
+ * e-mail de acesso, selo do plano), seções na ordem do pedido, os detalhes em folha (lateral no PC) e as duas colunas da
+ * web com o cabeçalho fixo. Só dados fictícios; 529.982.247-25 é um CPF de teste válido, sem dono.
+ */
+const LINK = 'https://exemplo.test/inscricao/codigo-ficticio#indicacao=00000000-0000-4000-8000-0000000000aa';
+const ORDEM = ['Meu plano', 'Perfil na Comunidade', 'Meus dados', 'Convidar um amigo', 'Privacidade', 'Segurança', 'App'];
+const conquista = (tipo: string, titulo: string) => ({ id: `c-${tipo}`, tipo, titulo, descricao: `Conquista fictícia: ${titulo}.`, icone: 'award', conquistadaEm: '2026-11-01T12:00:00-03:00' });
+const PERFIL: PreferenciasDoPerfil = {
+  perfilReservado: false, reservadoEfetivo: false, destaques: ['PRIMEIRO_TREINO', 'DEZ_TREINOS'], cor: 'ROXO', moldura: 'DUPLA', exibicaoDoNome: 'NOME_E_APELIDO',
+  opcoesDeDestaque: [conquista('PRIMEIRO_TREINO', 'Primeiro treino'), conquista('DEZ_TREINOS', 'Dez treinos'), conquista('SEMANA_COMPLETA', 'Semana completa')],
+};
+const DADOS: MeusDadosResponse = {
+  ...MEUS_DADOS_VAZIOS, nome: 'Aluno Teste da Silva', telefone: '(45) 99999-8888', cpf: '529.982.247-25', apelido: 'Testinho',
+  email: 'cadastro@exemplo.test', emailDeAcesso: ALUNO.email, versao: 2,
+};
+const FINANCEIRO: FinanceiroDoAluno = {
+  plano: { contratacaoId: 'c1', planoNome: 'Plano Trimestral', valorCentavos: 45000, periodicidade: 'TRIMESTRAL', situacao: 'ATIVA', proximoVencimento: '2026-12-05', linkDePagamento: null },
+  abertas: [{ id: 'cb1', competencia: '2026-11', vencimento: '2026-11-28', valorCentavos: 45000, situacao: 'ABERTA', vencida: false, forma: null, pagoEm: null, tipo: 'MENSALIDADE' }],
+  historico: [], pagamentoOnline: false, formasDePagamento: ['MANUAL'],
+};
+
+interface Estado { perfil: PreferenciasDoPerfil; dados: MeusDadosResponse }
+
+async function abrir(page: Page, extra: { financeiro?: FinanceiroDoAluno; dados?: Partial<MeusDadosResponse>; rotas?: RespostasApi } = {}) {
+  const estado: Estado = { perfil: { ...PERFIL }, dados: { ...DADOS, ...extra.dados } };
+  const api = await simularApi(page, {
+    ...(await sessaoDeAluno(page)),
+    ...(await sessao(page, ALUNO, { pagamentosHabilitados: true })),
+    'GET /aluno/foto-perfil': erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
+    'GET /aluno/uso-de-imagem': { corpo: { autorizadoEm: '2026-11-10T12:00:00-03:00' } },
+    'GET /aluno/meus-dados': (_p: PedidoFalso, route: Route) => json(route, estado.dados),
+    'GET /aluno/comunidade/perfil': (_p: PedidoFalso, route: Route) => json(route, estado.perfil),
+    'PUT /aluno/comunidade/perfil': (p: PedidoFalso, route: Route) => {
+      estado.perfil = { ...estado.perfil, ...(p.corpo as Partial<PreferenciasDoPerfil>) };
+      return json(route, estado.perfil);
+    },
+    'PUT /aluno/comunidade/apelido': (p: PedidoFalso, route: Route) => {
+      estado.dados = { ...estado.dados, apelido: (p.corpo as { apelido: string | null }).apelido };
+      return route.fulfill({ status: 204 });
+    },
+    'GET /aluno/indicacao': { corpo: { link: LINK } },
+    'GET /aluno/financeiro': { corpo: extra.financeiro ?? FINANCEIRO },
+    'GET /aluno/lembretes-de-cobranca': { corpo: { receber: true } },
+    ...extra.rotas,
+  });
+  await page.goto('/aluno/conta');
+  await expect(page.getByRole('heading', { level: 1, name: 'Conta' })).toBeVisible();
+  await expect(page.getByText('Plano Trimestral').or(page.getByText('Você ainda não tem um plano comercial contratado com o seu treinador.'))).toBeVisible();
+  return { api, estado };
+}
+
+const cabecalho = (page: Page) => page.getByTestId('cabecalho-do-perfil');
+const pedidosDe = (pedidos: PedidoFalso[], metodo: string, caminho: string) => pedidos.filter((p) => p.metodo === metodo && p.caminho === caminho);
+
+async function semRolagemHorizontal(page: Page) {
+  const { rolagem, janela } = await page.evaluate(() => ({ rolagem: document.documentElement.scrollWidth, janela: document.documentElement.clientWidth }));
+  expect(rolagem).toBeLessThanOrEqual(janela);
+}
+
+// Conta do aluno reorganizada (23/11).
+for (const largura of [390, 1280]) {
+  test.describe(`${largura} px`, () => {
+    test.use({ viewport: { width: largura, height: 900 } });
+
+    test('cabeçalho de perfil, seções na ordem e o "Meu plano" visível sem abrir', async ({ page }) => {
+      const { api } = await abrir(page);
+      await expect(cabecalho(page).getByLabel('Nome para os colegas: Aluno (Testinho)')).toBeVisible();
+      await expect(cabecalho(page).getByText(ALUNO.email, { exact: true })).toBeVisible();
+      await expect(cabecalho(page).getByText('Trimestral · Ativo')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Trocar foto' })).toBeEnabled();
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+
+      const titulos = await page.getByRole('heading', { level: 2 }).allTextContents();
+      expect(titulos.filter((t) => ORDEM.includes(t))).toEqual(ORDEM);
+
+      // a) Meu plano: plano, valor, próximo vencimento, a cobrança em aberto e o interruptor dos lembretes.
+      const plano = page.getByTestId('secao-plano');
+      await expect(plano.getByText('Plano Trimestral')).toBeVisible();
+      await expect(plano.getByLabel('Próximo vencimento: 05/12/2026')).toBeVisible();
+      await expect(plano.getByText('Vence em 28/11/2026')).toBeVisible();
+      await expect(plano.getByRole('switch', { name: 'Receber lembretes de pagamento por e-mail' })).toBeChecked();
+
+      // d) Convite: o link não aparece; só copiar e compartilhar.
+      await expect(page.getByText(LINK)).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Copiar link de convite' })).toBeVisible();
+
+      // e) Privacidade: uso das fotos com o estado e os termos.
+      await expect(page.getByRole('switch', { name: /^Autorizo a consultoria/ })).toBeChecked();
+      await expect(page.getByText('Autorizado em 10/11/2026')).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Termos e privacidade' })).toBeVisible();
+
+      // g) App: sincronização com o selo e o botão à direita; Ajuda.
+      const app = page.getByTestId('secao-app');
+      await expect(app.getByText('Sincronizado', { exact: true })).toBeVisible();
+      await expect(app.getByRole('button', { name: 'Sincronizar agora' })).toBeVisible();
+      await expect(app.getByRole('link', { name: /^Ajuda/ })).toBeVisible();
+
+      // h) Excluir minha conta, por último, com a mesma confirmação.
+      await page.getByRole('button', { name: 'Excluir minha conta' }).click();
+      await expect(page.getByRole('alertdialog', { name: 'Excluir a sua conta?' })).toBeVisible();
+      await page.getByRole('button', { name: 'Cancelar' }).click();
+
+      // Meus dados é lido uma vez para o cabeçalho, as linhas e as folhas.
+      expect(pedidosDe(api.pedidos, 'GET', '/aluno/meus-dados')).toHaveLength(1);
+      await semRolagemHorizontal(page);
+      expect(api.naoTratadas).toEqual([]);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('sem plano contratado, o cabeçalho não tem selo', async ({ page }) => {
+      await abrir(page, { financeiro: { ...FINANCEIRO, plano: null, abertas: [] } });
+      await expect(cabecalho(page).getByText(/ · /)).toHaveCount(0);
+      await expect(cabecalho(page).getByLabel('Nome para os colegas: Aluno (Testinho)')).toBeVisible();
+    });
+
+    test('Meu perfil: uma barra de salvar só, "Sair sem salvar?" e o apelido no mesmo Salvar', async ({ page }) => {
+      const { api } = await abrir(page);
+      await page.getByRole('button', { name: /^Meu perfil, Aluno \(Testinho\) · Apelido: Testinho, 2 destaques/ }).click();
+      const folha = page.getByRole('dialog', { name: 'Meu perfil' });
+      await expect(folha.getByText('Tudo salvo')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Salvar perfil' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Salvar apelido' })).toHaveCount(0);
+      await expect(page.getByText(/cartão Comunidade/)).toHaveCount(0);
+
+      await folha.getByRole('radio', { name: 'Laranja' }).click();
+      await expect(folha.getByRole('radio', { name: 'Laranja' })).toBeChecked();
+      await expect(folha.getByText('Alterações não salvas')).toBeVisible();
+      await folha.getByRole('button', { name: 'Fechar' }).click();
+      await expect(page.getByRole('alertdialog', { name: 'Sair sem salvar?' })).toBeVisible();
+      await page.getByRole('button', { name: 'Continuar editando' }).click();
+      await expect(folha.getByRole('radio', { name: 'Laranja' })).toBeChecked();
+
+      await folha.getByRole('textbox', { name: 'Apelido (opcional)' }).fill('Testão');
+      await expect(folha.getByText('Aluno (Testão)').first()).toBeVisible();
+      await folha.getByRole('button', { name: 'Salvar perfil' }).click();
+      await expect(page.getByText('Perfil salvo.')).toBeVisible();
+      await expect(folha.getByText('Tudo salvo')).toBeVisible();
+      expect(pedidosDe(api.pedidos, 'PUT', '/aluno/comunidade/apelido').map((p) => p.corpo)).toEqual([{ apelido: 'Testão' }]);
+      expect(pedidosDe(api.pedidos, 'PUT', '/aluno/comunidade/perfil').map((p) => p.corpo)).toEqual([
+        { perfilReservado: false, destaques: ['PRIMEIRO_TREINO', 'DEZ_TREINOS'], cor: 'LARANJA', moldura: 'DUPLA', exibicaoDoNome: 'NOME_E_APELIDO' },
+      ]);
+      await folha.getByRole('button', { name: 'Fechar' }).click();
+      await expect(folha).toHaveCount(0);
+      // O cabeçalho e a linha já mostram o apelido novo, sem ler de novo.
+      await expect(cabecalho(page).getByLabel('Nome para os colegas: Aluno (Testão)')).toBeVisible();
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('Meus dados: CPF mascarado com "Mostrar CPF" e o aviso do e-mail do cadastro', async ({ page }) => {
+      await abrir(page);
+      await page.getByRole('button', { name: /^Meus dados, Aluno Teste da Silva · \(45\) 99999-8888/ }).click();
+      const folha = page.getByRole('dialog', { name: 'Meus dados' });
+      await expect(folha.getByLabel('CPF: ***.982.247-**')).toBeVisible();
+      await expect(folha.getByText('529.982.247-25')).toHaveCount(0);
+      await folha.getByRole('button', { name: 'Mostrar CPF' }).click();
+      await expect(folha.getByLabel('CPF: 529.982.247-25')).toBeVisible();
+      await expect(folha.getByText('E-mail no cadastro do seu treinador: cadastro@exemplo.test. Para mudar, fale com ele.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Editar' })).toBeVisible();
+    });
+
+    test('Meus dados: sem o aviso quando o e-mail do cadastro é o de acesso', async ({ page }) => {
+      await abrir(page, { dados: { email: ALUNO.email } });
+      await page.getByRole('button', { name: /^Meus dados/ }).click();
+      const folha = page.getByRole('dialog', { name: 'Meus dados' });
+      await expect(folha.getByLabel(`E-mail de acesso: ${ALUNO.email}`)).toBeVisible();
+      await expect(folha.getByText(/E-mail no cadastro do seu treinador/)).toHaveCount(0);
+    });
+
+    test('Segurança: "Trocar senha" abre a folha com as regras; "Sair" confirma', async ({ page }) => {
+      await abrir(page);
+      await page.getByRole('button', { name: /^Trocar senha/ }).click();
+      const folha = page.getByRole('dialog', { name: 'Trocar senha' });
+      await expect(folha.getByLabel('Senha atual')).toBeVisible();
+      await expect(folha.getByText('Mínimo de 8 caracteres. As outras sessões são encerradas.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Trocar senha' })).toBeDisabled();
+      await folha.getByLabel('Senha atual').fill('senha-ficticia-1');
+      await folha.getByLabel('Nova senha').fill('curta');
+      await folha.getByRole('button', { name: 'Trocar senha' }).click();
+      await expect(folha.getByText('A nova senha precisa ter pelo menos 8 caracteres.')).toBeVisible();
+      await folha.getByRole('button', { name: 'Fechar' }).click();
+
+      await page.getByRole('button', { name: 'Sair', exact: true }).click();
+      await expect(page.getByRole('alertdialog')).toBeVisible();
+    });
+
+    test('App: "Aparência e preferências" abre a folha', async ({ page }) => {
+      await abrir(page);
+      await page.getByRole('button', { name: /^Aparência e preferências/ }).click();
+      await expect(page.getByRole('dialog', { name: 'Aparência e preferências' })).toBeVisible();
+    });
+  });
+}
+
+test('1280 px: duas colunas, o cabeçalho fica à vista ao rolar e os detalhes abrem em folha lateral', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await abrir(page);
+  const topo = (await cabecalho(page).boundingBox())!;
+  const secoes = (await page.getByTestId('secao-plano').boundingBox())!;
+  // Lado a lado: o cabeçalho à esquerda, com ~320 px; as seções à direita, na largura de formulário.
+  expect(topo.x + topo.width).toBeLessThan(secoes.x);
+  expect(Math.abs(secoes.y - topo.y)).toBeLessThan(40);
+  expect(secoes.width).toBeLessThanOrEqual(640);
+  await expect(page.getByRole('navigation', { name: 'Seções da conta' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Ir para App' }).click();
+  await expect(page.getByTestId('secao-app')).toBeInViewport();
+  await expect(cabecalho(page)).toBeInViewport();
+
+  await page.getByRole('button', { name: /^Meus dados/ }).click();
+  // Folha lateral: encostada à direita (depois da entrada de 180 ms), com 460 px.
+  const folha = page.getByRole('dialog', { name: 'Meus dados' });
+  await expect.poll(async () => { const c = (await folha.boundingBox())!; return Math.round(c.x + c.width); }).toBe(1280);
+  expect(Math.round((await folha.boundingBox())!.width)).toBe(460);
+});
+
+test('390 px: uma coluna, sem índice', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await abrir(page);
+  const topo = (await cabecalho(page).boundingBox())!;
+  const secoes = (await page.getByTestId('secao-plano').boundingBox())!;
+  expect(secoes.y).toBeGreaterThan(topo.y + topo.height);
+  await expect(page.getByRole('navigation', { name: 'Seções da conta' })).toHaveCount(0);
+});

@@ -28,7 +28,7 @@ describe('texto de só leitura', () => {
 
 describe('emailParaLeitura', () => {
   it('o de acesso é o principal; a nota só aparece quando o do cadastro é outro', () => {
-    expect(emailParaLeitura(RESP)).toEqual({ rotulo: 'E-mail de acesso', valor: 'acesso@exemplo.test', nota: 'Seu treinador usa outro e-mail no seu cadastro.' });
+    expect(emailParaLeitura(RESP)).toEqual({ rotulo: 'E-mail de acesso', valor: 'acesso@exemplo.test', nota: `E-mail no cadastro do seu treinador: ${RESP.email}. Para mudar, fale com ele.` });
     expect(emailParaLeitura({ email: 'A@exemplo.test', emailDeAcesso: 'a@exemplo.test' }).nota).toBeNull();
   });
 

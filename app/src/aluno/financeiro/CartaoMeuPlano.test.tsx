@@ -35,7 +35,7 @@ jest.mock('../../ui/Botao', () => ({
   Botao: ({ rotulo }: { rotulo: string }) => require('react').createElement(require('react-native').Text, null, `[${rotulo}]`),
 }));
 const passa = ({ children }: { children?: unknown }) => require('react').createElement(require('react-native').View, null, children);
-jest.mock('../../ui/Cartao', () => ({ Cartao: passa }));
+jest.mock('../conta/SecaoDaConta', () => ({ BlocoDaConta: passa }));
 jest.mock('../../ui/LinhaDeAcoes', () => ({ LinhaDeAcoes: passa }));
 jest.mock('../../ui/CamposEmLinha', () => ({ CamposEmLinha: passa }));
 jest.mock('../../ui/CampoLeitura', () => ({ CampoLeitura: () => null }));

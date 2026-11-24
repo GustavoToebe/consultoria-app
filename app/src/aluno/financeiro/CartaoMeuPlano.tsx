@@ -19,13 +19,13 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
-import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { codigoApi, textoDoErro } from '../../ui/erros';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { BlocoDaConta } from '../conta/SecaoDaConta';
 import { InterruptorDeLembretes } from './InterruptorDeLembretes';
 import { useFinanceiroDoAluno, useRecarregarFinanceiroAoFocar } from './FinanceiroDoAlunoProvider';
 
@@ -52,7 +52,8 @@ function textoDaVigencia(situacao: string, restantes: number | null | undefined)
  * cada cobrança em aberto tem as suas ações (InfinitePay, link do treinador e "Copiar código Pix"), abertas fora do app e sem
  * token; no celular sem a chave da plataforma não há botão, link, Pix nem frase mandando pagar: só informação por cobrança
  * (`informacaoDaCobranca`); só com o Manual o treinador combina a forma e dá a baixa. Não leva observação interna
- * nem quem registrou o pagamento. Aparece só com o módulo de pagamentos ligado para a consultoria.
+ * nem quem registrou o pagamento. Aparece só com o módulo de pagamentos ligado para a consultoria. Desde 23/11 é o conteúdo
+ * da seção "Meu plano" da Conta (o título é da seção; o bloco fica visível, sem abrir).
  */
 export function CartaoMeuPlano() {
   const { habilitado, online, dados, erro, carregando, modoDePagamento: modo, modoDaCobranca, acoesDaCobranca, recarregar } = useFinanceiroDoAluno();
@@ -61,9 +62,9 @@ export function CartaoMeuPlano() {
   if (!habilitado) return null;
   if (!online) {
     return (
-      <Cartao titulo="Meu plano">
+      <BlocoDaConta>
         <Texto variante="suave">Os dados do seu plano aparecem quando você estiver conectado à internet.</Texto>
-      </Cartao>
+      </BlocoDaConta>
     );
   }
   const historico = dados?.historico ?? [];
@@ -75,7 +76,7 @@ export function CartaoMeuPlano() {
   // mensalidade com "Pagar pela InfinitePay"; a mesma ação tem o mesmo nome no cartão inteiro.
   const acoesDoCartao = [...new Set((dados?.abertas ?? []).flatMap((c) => acoesDaCobranca(c)))];
   return (
-    <Cartao titulo="Meu plano" descricao="Seu plano comercial com o seu treinador.">
+    <BlocoDaConta>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados ? (
@@ -131,7 +132,7 @@ export function CartaoMeuPlano() {
         </>
       ) : null}
       <InterruptorDeLembretes />
-    </Cartao>
+    </BlocoDaConta>
   );
 }
 

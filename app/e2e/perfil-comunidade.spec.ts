@@ -6,7 +6,8 @@ import { MEUS_DADOS_VAZIOS, sessaoDeAluno } from './aluno';
 import { ALUNO, erroApi, json, simularApi, type PedidoFalso, type RespostasApi } from './api-falsa';
 
 /**
- * "Meu perfil" da Comunidade na Conta do aluno (`aluno/CartaoMeuPerfil`) e o aviso único no topo da Comunidade, com a API
+ * "Meu perfil" da Comunidade na Conta do aluno (conta do aluno reorganizada (23/11): o detalhe `aluno/conta/DetalheMeuPerfil`,
+ * que abre pela linha "Meu perfil", com a barra de salvar no rodapé) e o aviso único no topo da Comunidade, com a API
  * simulada no formato real de `GET`/`PUT /aluno/comunidade/perfil` (o PUT substitui as cinco preferências e devolve o que
  * ficou). Só dados fictícios.
  */
@@ -50,7 +51,9 @@ async function tema(page: Page, t: string, contraste = 'PADRAO') {
 async function abrirConta(page: Page, estado: { atual: PreferenciasDoPerfil; falha?: { status: number; corpo: unknown } }, extras: RespostasApi = {}) {
   const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...rotasDoPerfil(estado), ...extras });
   await page.goto('/aluno/conta');
-  const cartao = page.getByTestId('cartao-meu-perfil');
+  // Conta do aluno reorganizada (23/11): o perfil abre em folha pela linha "Meu perfil".
+  await page.getByRole('button', { name: /^Meu perfil/ }).click();
+  const cartao = page.getByRole('dialog', { name: 'Meu perfil' });
   await expect(cartao.getByRole('switch', { name: 'Reservar meu perfil' })).toBeVisible();
   return { api, cartao };
 }
@@ -126,7 +129,9 @@ for (const largura of [390, 1280]) {
       await expect.poll(() => puts(api.pedidos)).toEqual([{
         perfilReservado: false, destaques: ['SEMANA_COMPLETA', 'PRIMEIRO_TREINO', 'NOVO_RECORDE_CARGA', 'DEZ_TREINOS'], cor: 'ROSA', moldura: 'TRACEJADA', exibicaoDoNome: 'NOME',
       }]);
-      await expect(cartao.getByRole('button', { name: 'Salvar perfil' })).toBeDisabled();
+      // Salvo: a barra diz "Tudo salvo" e não mostra botão.
+      await expect(cartao.getByRole('button', { name: 'Salvar perfil' })).toHaveCount(0);
+      await expect(cartao.getByText('Tudo salvo')).toBeVisible();
     });
 
     test('sem conquistas: estado vazio', async ({ page }) => {
@@ -186,7 +191,7 @@ for (const largura of [390, 1280]) {
       if (CAPTURAS) await page.screenshot({ path: `${CAPTURAS}/comunidade-aviso-perfil-${largura}.png` });
       await page.getByRole('button', { name: 'Reservar meu perfil' }).click();
       await expect(page).toHaveURL(/\/aluno\/conta/);
-      await expect(page.getByTestId('cartao-meu-perfil').getByRole('switch', { name: 'Reservar meu perfil' })).toBeInViewport();
+      await expect(page.getByRole('dialog', { name: 'Meu perfil' }).getByRole('switch', { name: 'Reservar meu perfil' })).toBeInViewport();
 
       await page.goto('/aluno/comunidade');
       await page.getByRole('button', { name: 'Entendi, manter visível' }).click();
@@ -207,7 +212,7 @@ for (const largura of [390, 1280]) {
       await expect(grupo.getByRole('radio', { name: 'Apelido. Testinho', exact: true })).toBeVisible();
       await expect(grupo.getByRole('radio', { name: 'Nome e apelido. Aluno (Testinho)' })).toBeVisible();
       await expect(cartao.getByText(NOTA_SEM_APELIDO)).toHaveCount(0);
-      await expect(cartao.getByRole('button', { name: 'Salvar perfil' })).toBeDisabled();
+      await expect(cartao.getByRole('button', { name: 'Salvar perfil' })).toHaveCount(0);
 
       await grupo.getByRole('radio', { name: /^Nome e apelido/ }).click();
       await expect(grupo.getByRole('radio', { name: /^Nome e apelido/ })).toBeChecked();

@@ -12,7 +12,7 @@ import { Alerta } from '../ui/Estados';
 import { codigoApi, textoDoErro } from '../ui/erros';
 import { useCarregar } from '../ui/useCarregar';
 
-/** Destino do atalho do aviso da Comunidade (`/aluno/conta?secao=meu-perfil`), registrado pelo cartão "Meu perfil". */
+/** Destino do atalho do aviso da Comunidade (`/aluno/conta?secao=meu-perfil`), que abre o detalhe "Meu perfil" no interruptor (`aluno/conta/TelaDaConta`). */
 export const CHAVE_DO_MEU_PERFIL = 'meu-perfil';
 
 /** Erro do PUT do perfil: 429 com texto fixo (a API fala de "tentativas"), sem conexão com o que fazer; o resto, o da API. */
@@ -47,7 +47,7 @@ const estilos = StyleSheet.create({
 
 /**
  * O aviso no topo da Comunidade: lê o perfil (só com internet) e some se não precisa, se a leitura falhou ou depois do
- * "Entendi". O atalho leva ao cartão "Meu perfil" na Conta, que rola até o interruptor.
+ * "Entendi". O atalho abre o detalhe "Meu perfil" da Conta, que rola até o interruptor.
  */
 export function AvisoDoPerfilNaComunidade({ online }: { online: boolean }) {
   const { avisar } = useAviso();

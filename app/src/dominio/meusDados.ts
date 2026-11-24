@@ -24,10 +24,11 @@ export function emailParaLeitura(resp: Pick<MeusDadosResponse, 'email' | 'emailD
   const acesso = resp.emailDeAcesso?.trim() || null;
   const cadastro = resp.email?.trim() || null;
   const diferente = !!acesso && !!cadastro && acesso.toLowerCase() !== cadastro.toLowerCase();
-  return { rotulo: acesso ? 'E-mail de acesso' : 'E-mail do cadastro', valor: acesso ?? cadastro, nota: diferente ? NOTA_OUTRO_EMAIL : null };
+  return { rotulo: acesso ? 'E-mail de acesso' : 'E-mail do cadastro', valor: acesso ?? cadastro, nota: diferente && cadastro ? notaDoOutroEmail(cadastro) : null };
 }
 
-export const NOTA_OUTRO_EMAIL = 'Seu treinador usa outro e-mail no seu cadastro.';
+/** Conta do aluno reorganizada (23/11): a nota diz qual é o outro e-mail e quem muda. */
+export const notaDoOutroEmail = (cadastro: string) => `E-mail no cadastro do seu treinador: ${cadastro}. Para mudar, fale com ele.`;
 
 /** Formulário: tudo texto; sexo vazio = "Não informado". */
 export interface FormMeusDados {

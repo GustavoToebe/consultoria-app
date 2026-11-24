@@ -8,18 +8,18 @@ import {
 import { ehCicloDesligado } from '../dominio/cicloDesligado';
 import { Botao } from '../ui/Botao';
 import { CampoNumerico } from '../ui/Campos';
-import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Texto } from '../ui/Texto';
 import { useAviso } from '../ui/Aviso';
+import { BlocoDaConta, SecaoDaConta } from './conta/SecaoDaConta';
 import { useCicloDaAluna } from './useCicloDaAluna';
 
 /**
  * Cartão da Conta. Some quando o sexo não é Feminino (o servidor decide em `disponivel`). O sexo mora em "Meus dados"
- * (`CartaoMeusDados`); salvar um sexo diferente faz este cartão consultar de novo (`versaoDoSexo`). Ligar pede o
- * consentimento.
+ * (`conta/DetalheMeusDados`); salvar um sexo diferente faz este cartão consultar de novo (`versaoDoSexo`). Ligar pede o
+ * consentimento. Desde 23/11 é uma seção da Conta, depois de "Meus dados".
  */
 export function CartaoCiclo() {
   const ciclo = useCicloDaAluna();
@@ -36,9 +36,9 @@ function CartaoCicloLigado({ ciclo }: { ciclo: ReturnType<typeof useCicloDaAluna
   if (!ciclo.dados.disponivel) return null;
   if (!ciclo.online) {
     return (
-      <Cartao titulo="Ciclo menstrual">
-        <Texto>Precisa de conexão.</Texto>
-      </Cartao>
+      <SecaoDaConta chave="ciclo" titulo="Ciclo menstrual">
+        <BlocoDaConta><Texto>Precisa de conexão.</Texto></BlocoDaConta>
+      </SecaoDaConta>
     );
   }
   const ligado = ciclo.dados.ativo === true;
@@ -57,7 +57,8 @@ function CartaoCicloLigado({ ciclo }: { ciclo: ReturnType<typeof useCicloDaAluna
     );
   };
   return (
-    <Cartao titulo="Ciclo menstrual">
+    <SecaoDaConta chave="ciclo" titulo="Ciclo menstrual">
+      <BlocoDaConta>
       {ligado && leitura ? (
         <>
           <Texto>{textoDaLeitura(leitura)}</Texto>
@@ -77,6 +78,7 @@ function CartaoCicloLigado({ ciclo }: { ciclo: ReturnType<typeof useCicloDaAluna
         <CampoNumerico rotulo="Duração habitual do ciclo (opcional)" inteiro valor={duracao} aoMudar={setDuracao} sufixo="dias"
           ajuda={AJUDA_MOSTRAR_FASES} erro={duracaoInvalida ? 'Use de 21 a 45 dias.' : null} />
       </PainelConfirmacao>
-    </Cartao>
+      </BlocoDaConta>
+    </SecaoDaConta>
   );
 }

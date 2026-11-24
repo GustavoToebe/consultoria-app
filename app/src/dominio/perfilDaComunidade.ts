@@ -153,7 +153,7 @@ export const AJUDA_DO_RESERVAR = 'Esconde dos colegas sua foto, nível, insígni
 export const AJUDA_DO_NOME = 'Seu treinador e a equipe sempre veem seu nome completo.';
 
 /** Sem apelido, as duas opções com apelido mostram o primeiro nome (a API faz o mesmo); a opção continua escolhível. */
-export const NOTA_SEM_APELIDO = 'Você ainda não tem apelido: "Apelido" e "Nome e apelido" mostram o primeiro nome até você criar um no cartão Comunidade.';
+export const NOTA_SEM_APELIDO = 'Você ainda não tem apelido: "Apelido" e "Nome e apelido" mostram o primeiro nome até você escrever um no campo Apelido.';
 
 /** Explicação extra quando a reserva é o padrão (menor de idade ou sem data de nascimento) e o aluno ainda não escolheu. */
 export function notaDoReservar(lido: PreferenciasLidas, edicao: EdicaoDoPerfil): string | null {

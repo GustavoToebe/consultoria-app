@@ -1,0 +1,88 @@
+import type { PeriodoDoPlano, SituacaoDaContratacao } from '../api/financeiroTipos';
+import { apelidoParaEnviar } from './comunidade';
+import { rotuloDaPeriodicidade } from './financeiro';
+import { corpoDoPerfil, perfilMudou, type CorpoDoPerfil, type EdicaoDoPerfil, type PreferenciasLidas } from './perfilDaComunidade';
+
+// Conta do aluno reorganizada (23/11, `docs/planos/conta-do-aluno.md`): só apresentação. As regras de cada dado continuam
+// nos domínios dele (meusDados, perfilDaComunidade, financeiro); aqui ficam a ordem das seções, os resumos das linhas, a
+// máscara de leitura do CPF e o que o "Salvar" do Meu perfil manda.
+
+export type ChaveDaSecao = 'plano' | 'perfil' | 'dados' | 'convite' | 'privacidade' | 'seguranca' | 'app';
+
+/** Ordem do pedido de 23/11; o título vai em caixa alta pela variante `secao` (o texto fica em caixa normal). */
+export const SECOES_DA_CONTA: readonly { chave: ChaveDaSecao; titulo: string }[] = [
+  { chave: 'plano', titulo: 'Meu plano' },
+  { chave: 'perfil', titulo: 'Perfil na Comunidade' },
+  { chave: 'dados', titulo: 'Meus dados' },
+  { chave: 'convite', titulo: 'Convidar um amigo' },
+  { chave: 'privacidade', titulo: 'Privacidade' },
+  { chave: 'seguranca', titulo: 'Segurança' },
+  { chave: 'app', titulo: 'App' },
+];
+
+/**
+ * As seções que existem agora, na ordem (a tela e o índice da web usam a mesma lista). As quatro primeiras dependem do que a
+ * tela já sabe e seguem as regras de sempre: o plano só com o financeiro ligado (sem internet ele diz que espera a conexão);
+ * perfil, dados e convite só com internet ou com o dado já lido (o convite também some com o 404 da consultoria sem link).
+ * Privacidade, Segurança e App sempre têm linha (Termos, Sair, Aparência).
+ */
+export function secoesVisiveis(existe: { plano: boolean; perfil: boolean; dados: boolean; convite: boolean }) {
+  return SECOES_DA_CONTA.filter((s) => (s.chave in existe ? existe[s.chave as keyof typeof existe] : true));
+}
+
+/** Leitura do CPF (o cadastro guarda `123.456.789-09`): só os 6 dígitos do meio, como `***.456.789-**`. */
+export function cpfMascarado(cpf: string | null | undefined): string | null {
+  const digitos = (cpf ?? '').replace(/\D/g, '');
+  if (!digitos) return null;
+  if (digitos.length !== 11) return '*'.repeat(digitos.length);
+  return `***.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-**`;
+}
+
+const SITUACAO_DO_PLANO: Record<SituacaoDaContratacao, { texto: string; tom: 'sucesso' | 'atencao' | 'neutro' }> = {
+  ATIVA: { texto: 'Ativo', tom: 'sucesso' },
+  PAUSADA: { texto: 'Pausado', tom: 'atencao' },
+  ENCERRADA: { texto: 'Encerrado', tom: 'neutro' },
+};
+
+/** Selo do cabeçalho ("Trimestral · Ativo", no tom da situação do plano); sem plano contratado, nada. */
+export function seloDoPlano(plano: { periodicidade: PeriodoDoPlano; situacao: SituacaoDaContratacao } | null | undefined) {
+  if (!plano) return null;
+  const situacao = SITUACAO_DO_PLANO[plano.situacao] ?? { texto: '—', tom: 'neutro' as const };
+  return { texto: `${rotuloDaPeriodicidade(plano.periodicidade)} · ${situacao.texto}`, tom: situacao.tom };
+}
+
+const destaques = (n: number) => (n === 0 ? 'sem destaques' : n === 1 ? '1 destaque' : `${n} destaques`);
+
+/** Resumo da linha "Meu perfil": "Apelido: —, 2 destaques"; reservado, diz isso no lugar dos destaques (eles não aparecem). */
+export function resumoDoPerfil(apelido: string | null | undefined, quantosDestaques: number, reservado: boolean): string {
+  return `Apelido: ${apelido?.trim() || '—'}, ${reservado ? 'perfil reservado' : destaques(quantosDestaques)}`;
+}
+
+/** Resumo da linha "Meus dados": nome e telefone. */
+export const resumoDosDados = (nome: string, telefone: string | null | undefined) => `${nome} · ${telefone?.trim() || 'Sem telefone'}`;
+
+/** O que o aluno mexeu no detalhe "Meu perfil": apelido (`null` = o campo mostra o salvo) e as escolhas do perfil. */
+export interface EdicaoDoMeuPerfil {
+  apelido: string | null;
+  perfil: EdicaoDoPerfil;
+}
+
+export const SEM_EDICAO_DO_PERFIL: EdicaoDoMeuPerfil = { apelido: null, perfil: {} };
+
+/**
+ * O "Salvar" único do detalhe junta duas rotas: o apelido (`PUT /aluno/comunidade/apelido`) e o perfil (`PUT
+ * /aluno/comunidade/perfil`). Só manda o que mudou; `apelido` ausente = não manda, `null` = apaga. O apelido vai primeiro
+ * (o nome da prévia depende dele) e cada parte é gravada quando a sua rota responde: falha parcial mantém só o que falhou.
+ */
+export function envioDoMeuPerfil(salvo: string | null, lido: PreferenciasLidas, edicao: EdicaoDoMeuPerfil): { apelido?: string | null; perfil?: CorpoDoPerfil } {
+  const envio: { apelido?: string | null; perfil?: CorpoDoPerfil } = {};
+  if (edicao.apelido !== null) {
+    const novo = apelidoParaEnviar(edicao.apelido);
+    if (novo !== (salvo ?? null)) envio.apelido = novo;
+  }
+  if (perfilMudou(lido, edicao.perfil)) envio.perfil = corpoDoPerfil(lido, edicao.perfil);
+  return envio;
+}
+
+export const meuPerfilMudou = (salvo: string | null, lido: PreferenciasLidas, edicao: EdicaoDoMeuPerfil) =>
+  Object.keys(envioDoMeuPerfil(salvo, lido, edicao)).length > 0;

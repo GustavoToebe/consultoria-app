@@ -5,7 +5,8 @@ import { ALUNO, erroApi, json, simularApi, type PedidoFalso, type RespostasApi }
 import { MEUS_DADOS_VAZIOS, sessaoDeAluno } from './aluno';
 
 /**
- * "Meus dados" na Conta do aluno (`aluno/CartaoMeusDados`): leitura primeiro, "Editar" com telefone, sexo, CPF (só se
+ * "Meus dados" na Conta do aluno (conta do aluno reorganizada, 23/11: o detalhe `aluno/conta/DetalheMeusDados`, aberto pela
+ * linha "Meus dados", com o CPF mascarado e a barra de salvar no rodapé): leitura primeiro, "Editar" com telefone, sexo, CPF (só se
  * vazio) e endereço com a busca de CEP; 409 de versão recarrega com aviso neutro; 422 marca o campo; o cartão não depende
  * do ciclo e o ciclo reflete o sexo salvo. Só dados fictícios; 529.982.247-25 é um CPF de teste válido, sem dono.
  */
@@ -45,7 +46,14 @@ function rotasDosMeusDados(estado: { atual: MeusDadosResponse }): RespostasApi {
   };
 }
 
-const cartao = (page: Page) => page.getByRole('heading', { name: 'Meus dados', level: 2 });
+const cartao = (page: Page) => page.getByRole('heading', { name: 'Meus dados', level: 2 }).first();
+/** O CPF aparece mascarado na leitura (`***.982.247-**`). */
+const CPF_MASCARADO = '***.982.247-**';
+async function abrirMeusDados(page: Page) {
+  await page.goto('/aluno/conta');
+  await page.getByRole('button', { name: /^Meus dados/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Meus dados' })).toBeVisible();
+}
 const envios = (pedidos: PedidoFalso[]) => pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === '/aluno/meus-dados');
 
 async function semRolagemHorizontal(page: Page) {
@@ -58,7 +66,7 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const estado = { atual: { ...MEUS_DADOS_VAZIOS, telefone: '(45) 99999-8888', cpf: CPF, sexo: 'MASCULINO', versao: 3 } };
     const { pedidos, errosDaPagina, naoTratadas } = await simularApi(page, { ...(await rotasDaConta(page, false)), ...rotasDosMeusDados(estado) });
-    await page.goto('/aluno/conta');
+    await abrirMeusDados(page);
 
     // Leitura: nome e e-mails só leitura com a frase; nada do ciclo aparece nem é consultado.
     await expect(cartao(page)).toBeVisible();
@@ -67,14 +75,16 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText(SO_LEITURA)).toBeVisible();
     await expect(page.getByLabel('Telefone: (45) 99999-8888')).toBeVisible();
     await expect(page.getByLabel('Sexo: Masculino')).toBeVisible();
-    await expect(page.getByLabel(`CPF: ${CPF}`)).toBeVisible();
+    await expect(page.getByLabel(`CPF: ${CPF_MASCARADO}`)).toBeVisible();
     await expect(page.getByLabel('Endereço: —')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Ciclo menstrual' })).toHaveCount(0);
     await semRolagemHorizontal(page);
 
     await page.getByRole('button', { name: 'Editar', exact: true }).click();
     const salvar = page.getByRole('button', { name: 'Salvar', exact: true });
-    await expect(salvar).toBeDisabled();
+    // Barra de salvar: sem alteração, "Tudo salvo" e nenhum Salvar.
+    await expect(salvar).toHaveCount(0);
+    await expect(page.getByText('Tudo salvo')).toBeVisible();
     // CPF preenchido: só leitura, sem campo, com a mesma frase.
     await expect(page.getByLabel('CPF (opcional)')).toHaveCount(0);
     await expect(page.getByText(SO_LEITURA)).toHaveCount(2);
@@ -118,7 +128,7 @@ for (const largura of [390, 1280]) {
 test('CPF vazio é editável, confere os dígitos e, salvo, fica só leitura', async ({ page }) => {
   const estado = { atual: { ...MEUS_DADOS_VAZIOS, versao: 1 } };
   const { pedidos, errosDaPagina, naoTratadas } = await simularApi(page, { ...(await rotasDaConta(page, false)), ...rotasDosMeusDados(estado) });
-  await page.goto('/aluno/conta');
+  await abrirMeusDados(page);
   await expect(page.getByLabel('CPF: Não informado')).toBeVisible();
 
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
@@ -134,6 +144,8 @@ test('CPF vazio é editável, confere os dígitos e, salvo, fica só leitura', a
   await salvar.click();
   await expect(page.getByText('Seus dados foram salvos.')).toBeVisible();
   expect(envios(pedidos)[0].corpo).toEqual({ telefone: null, cpf: CPF, endereco: null, sexo: null, versao: 1 });
+  await expect(page.getByLabel(`CPF: ${CPF_MASCARADO}`)).toBeVisible();
+  await page.getByRole('button', { name: 'Mostrar CPF' }).click();
   await expect(page.getByLabel(`CPF: ${CPF}`)).toBeVisible();
 
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
@@ -162,7 +174,7 @@ test('409 de versão recarrega com aviso neutro; 422 marca o campo e some ao cor
       }, 422);
     },
   });
-  await page.goto('/aluno/conta');
+  await abrirMeusDados(page);
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
   await page.getByLabel('Telefone (opcional)').fill('45988887777');
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
@@ -170,9 +182,8 @@ test('409 de versão recarrega com aviso neutro; 422 marca o campo e some ao cor
   await expect(page.getByText(CONFLITO)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Telefone: (11) 97777-6666')).toBeVisible();
-  // Duas leituras do cartão (abrir e recarregar depois do 409) e uma de cada cartão que lê a mesma rota ao abrir:
-  // o do apelido e o Meu perfil (prévia do nome, V085). O 409 só recarrega o Meus dados.
-  expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/meus-dados')).toHaveLength(4);
+  // Conta do aluno reorganizada (23/11): a tela lê uma vez (cabeçalho, linhas e folhas usam a mesma) e o 409 lê de novo.
+  expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/meus-dados')).toHaveLength(2);
 
   // A edição seguinte leva a versão recarregada; o servidor recusa o telefone: erro no campo e aviso geral.
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
@@ -202,6 +213,7 @@ test('ciclo ligado e sexo Feminino mantém o cartão do ciclo; salvar Masculino 
   await expect(page.getByRole('heading', { name: 'Ciclo menstrual' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ativar acompanhamento' })).toBeVisible();
 
+  await page.getByRole('button', { name: /^Meus dados/ }).click();
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
   await page.getByRole('radiogroup', { name: 'Sexo' }).getByRole('radio', { name: 'Masculino', exact: true }).click();
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();

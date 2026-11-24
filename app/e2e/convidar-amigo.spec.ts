@@ -5,7 +5,8 @@ import { ALUNO, erroApi, json, simularApi, type PedidoFalso, type RespostasApi }
 
 /**
  * "Convidar um amigo" na Conta do aluno (passo 3 de `docs/planos/indicacao-de-alunos.md`): o link de `GET /aluno/indicacao`
- * para copiar e compartilhar, sem contagem nem nome de quem se inscreveu; some sem link aberto (404) e sem internet.
+ * para copiar e compartilhar, sem contagem nem nome de quem se inscreveu; some sem link aberto (404) e sem internet. Conta do
+ * aluno reorganizada (23/11): o link não aparece na tela (vai no copiar e no compartilhar); só aparece se a cópia falhar.
  * Só dados fictícios.
  */
 const CAPTURAS = process.env.CAPTURAS_DIR;
@@ -23,12 +24,20 @@ async function capturar(page: Page, nome: string) {
 }
 
 /** O navegador de teste não deixa ler a área de transferência nem abrir a folha do sistema: substitutos guardam o pedido. */
-async function substitutos(page: Page, share: 'guarda' | 'cancela' | 'falha' | 'nenhum') {
-  await page.addInitScript((modo) => {
+async function substitutos(page: Page, share: 'guarda' | 'cancela' | 'falha' | 'nenhum', copia: 'aceita' | 'recusa' = 'aceita') {
+  await page.addInitScript(([modo, copiar]) => {
     const w = window as unknown as Janela;
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
-      value: { writeText: (texto: string) => { w.__copiado = texto; return Promise.resolve(); } },
+      value: {
+        writeText: (texto: string) => {
+          // Recusada: o expo-clipboard cai no `execCommand('copy')`, que também falha (navegador que nega a cópia).
+          if (copiar === 'recusa') document.execCommand = () => { throw new Error('Negado'); };
+          if (copiar === 'recusa') return Promise.reject(new DOMException('Negado', 'NotAllowedError'));
+          w.__copiado = texto;
+          return Promise.resolve();
+        },
+      },
     });
     const valor = modo === 'nenhum'
       ? undefined
@@ -39,11 +48,11 @@ async function substitutos(page: Page, share: 'guarda' | 'cancela' | 'falha' | '
           return Promise.resolve();
         };
     Object.defineProperty(navigator, 'share', { configurable: true, value: valor });
-  }, share);
+  }, [share, copia] as const);
 }
 
-async function abrirConta(page: Page, indicacao: RespostasApi[string], share: 'guarda' | 'cancela' | 'falha' | 'nenhum' = 'guarda') {
-  await substitutos(page, share);
+async function abrirConta(page: Page, indicacao: RespostasApi[string], share: 'guarda' | 'cancela' | 'falha' | 'nenhum' = 'guarda', copia: 'aceita' | 'recusa' = 'aceita') {
+  await substitutos(page, share, copia);
   const api = await simularApi(page, {
     ...(await sessaoDeAluno(page)),
     'GET /aluno/foto-perfil': erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
@@ -63,13 +72,13 @@ for (const largura of [390, 1280]) {
     test.use({ viewport: { width: largura, height: 900 } });
 
     for (const [nome, t] of TEMAS) {
-      test(`tema ${nome}: mostra o link e a frase de privacidade, copia com aviso e não mostra contagem`, async ({ page }) => {
+      test(`tema ${nome}: frase de privacidade sem o link na tela, copia com aviso e não mostra contagem`, async ({ page }) => {
         await tema(page, t);
         const api = await abrirConta(page, { corpo: { link: LINK } });
         await expect(titulo(page)).toBeVisible();
         const cartao = page.locator('div').filter({ has: titulo(page) }).filter({ hasText: PRIVACIDADE }).last();
         await expect(cartao.getByText(PRIVACIDADE, { exact: true })).toBeVisible();
-        await expect(cartao.getByText(LINK, { exact: true })).toBeVisible();
+        await expect(page.getByText(LINK, { exact: true })).toHaveCount(0);
         // Só o link: nada de "N inscritos", nome ou situação de quem se inscreveu.
         await expect(cartao.getByText(/inscrit[oa]s?\b|\d+ (pessoa|amigo)/i)).toHaveCount(0);
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
@@ -113,6 +122,14 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Não foi possível compartilhar. Use "Copiar link".')).toBeVisible();
     });
 
+    test('a cópia recusada mostra o link para copiar à mão', async ({ page }) => {
+      await abrirConta(page, { corpo: { link: LINK } }, 'guarda', 'recusa');
+      await expect(page.getByText(LINK, { exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Copiar link de convite' }).click();
+      await expect(page.getByText('Não foi possível copiar. O link apareceu abaixo: selecione e copie à mão.')).toBeVisible();
+      await expect(page.getByText(LINK, { exact: true })).toBeVisible();
+    });
+
     test('na web sem navigator.share só existe "Copiar link"', async ({ page }) => {
       await abrirConta(page, { corpo: { link: LINK } }, 'nenhum');
       await expect(page.getByRole('button', { name: 'Copiar link de convite' })).toBeVisible();
@@ -147,7 +164,7 @@ for (const largura of [390, 1280]) {
       await capturar(page, `convidar-erro-${largura}`);
       falhar = false;
       await tentar.click();
-      await expect(page.getByText(LINK, { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Copiar link de convite' })).toBeVisible();
       await expect(tentar).toHaveCount(0);
       expect(api.errosDaPagina).toEqual([]);
     });

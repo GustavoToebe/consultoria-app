@@ -101,10 +101,12 @@ for (const largura of [390, 1280]) {
       'GET /aluno/meus-dados': { corpo: { ...MEUS_DADOS_VAZIOS, email: 'cadastro@exemplo.test', emailDeAcesso: ALUNO.email } },
     });
     await page.goto('/aluno/conta');
-    await expect(page.getByLabel(`E-mail de acesso: ${ALUNO.email}`)).toBeVisible();
-    await expect(page.getByLabel(/^E-mail do cadastro/)).toHaveCount(0);
-    await expect(page.getByText('cadastro@exemplo.test')).toHaveCount(0);
-    await expect(page.getByText('Seu treinador usa outro e-mail no seu cadastro.', { exact: true })).toBeVisible();
+    // Conta do aluno reorganizada (23/11): os dados abrem em folha e a nota diz qual é o e-mail do cadastro e quem muda.
+    await page.getByRole('button', { name: /^Meus dados/ }).click();
+    const folha = page.getByRole('dialog', { name: 'Meus dados' });
+    await expect(folha.getByLabel(`E-mail de acesso: ${ALUNO.email}`)).toBeVisible();
+    await expect(folha.getByLabel(/^E-mail do cadastro/)).toHaveCount(0);
+    await expect(folha.getByText('E-mail no cadastro do seu treinador: cadastro@exemplo.test. Para mudar, fale com ele.', { exact: true })).toBeVisible();
     await semEstourar(page);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
