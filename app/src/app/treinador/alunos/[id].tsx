@@ -6,6 +6,7 @@ import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria } from '../../../api/rotas';
 import { cicloDoAluno } from '../../../dominio/periodo';
+import { pilhasDaAba } from '../../../dominio/colunasDaFicha';
 import { ABAS_DA_FICHA, abaDaUrl, abaParaEditar, abaParaPasta, abasVisiveis, blocosDaAba, mostraMobilidade, type AbaDaFicha, type BlocoDaFicha } from '../../../dominio/fichaDoAluno';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
@@ -42,6 +43,7 @@ import { useAvisoDoPlano } from '../../../ui/useAvisoDoPlano';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { Tela } from '../../../ui/Tela';
 import { useCarregar } from '../../../ui/useCarregar';
+import { useFaixaDeLargura } from '../../../ui/useFaixaDeLargura';
 
 /**
  * Ficha do aluno em cinco abas (`?aba=resumo|planos|acompanhamento|evolucao|ficha`; regra pura em `dominio/fichaDoAluno`):
@@ -131,6 +133,10 @@ export default function FichaAluno() {
     });
   };
   const [folhaDaFoto, setFolhaDaFoto] = useState(false);
+  // Largura da área da ficha, medida no cabeçalho (que existe antes de o aluno chegar): as pilhas do Acompanhamento e da
+  // Evolução e as três colunas do Resumo já nascem no arranjo certo, sem montar numa coluna e remontar em duas (o que
+  // buscaria tudo de novo).
+  const { largura, aoMedir } = useFaixaDeLargura();
   const voltar = () => (editando ? sairDaEdicao()
     : confirmar(() => (router.canGoBack() ? router.back() : router.replace('/treinador/alunos'))));
   // "Abrir acesso ao app" do Resumo: a aba Ficha abre já no bloco do acesso (só leva até lá; nada é enviado).
@@ -182,7 +188,7 @@ export default function FichaAluno() {
   const conteudoDaAba = (a: AlunoDetalhe): ReactNode => {
     if (aba === 'resumo') {
       return (
-        <ResumoDoAluno aluno={a} acompanhamento={acompanhamento} abas={visiveis} aoRenovar={renovacao.pedir} aoAbrirAba={setAba}
+        <ResumoDoAluno aluno={a} largura={largura} acompanhamento={acompanhamento} abas={visiveis} aoRenovar={renovacao.pedir} aoAbrirAba={setAba}
           aoAbrirAcesso={() => confirmar(() => router.setParams({ aba: 'ficha', secao: 'acesso' }))}
           aoAbrirPasta={(p) => router.setParams({ pastaId: p })} />
       );
@@ -190,6 +196,17 @@ export default function FichaAluno() {
     const lista = blocosDaAba(aba, contexto);
     // Ficha › Dados (24/11): as colunas independentes e a ordem no celular moram no `BlocosDaFicha`.
     if (aba === 'ficha') return <BlocosDaFicha alunoId={a.id} blocos={lista} bloco={(b, colunas) => bloco(b, a, colunas)} />;
+    // Tela larga (24/11): Acompanhamento e Evolução em duas pilhas independentes quando cada uma tem 1000 px (2560 em diante).
+    const pilhas = pilhasDaAba(aba, lista, largura, espaco(3));
+    if (pilhas) {
+      return (
+        <View style={estilos.pilhas}>
+          {(['esquerda', 'direita'] as const).map((lado) => (
+            <View key={lado} style={estilos.pilha}>{pilhas[lado].map((b) => <Fragment key={b}>{bloco(b, a)}</Fragment>)}</View>
+          ))}
+        </View>
+      );
+    }
     const contagens = lista.filter((b) => CONTAGENS.includes(b));
     return (
       <>
@@ -209,12 +226,14 @@ export default function FichaAluno() {
 
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
+      <View onLayout={aoMedir}>
       <CabecalhoDaFicha aluno={aluno ?? null} aoVoltar={voltar} aoAbrirMenu={temMenu ? () => setMenu(true) : undefined}
         foto={aluno ? (
           <FotoDePerfilEditavel alunoId={aluno.id} alunoNome={aluno.nome} anonimizado={aluno.anonimizado} aoAnonimizado={recarregar}
             folhaAberta={folhaDaFoto} aoMudarFolha={setFolhaDaFoto} />
         ) : undefined}
         abas={aluno ? <Abas abas={ABAS_DA_FICHA.filter((a) => visiveis.includes(a.valor))} ativa={aba} aoMudar={setAba} ativacao="manual" /> : undefined} />
+      </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar}
         acao={{ rotulo: 'Voltar à lista', aoTocar: () => router.navigate('/treinador/alunos') }} /> : null}
       {!aluno && carregando ? <Esqueleto /> : null}
@@ -293,4 +312,7 @@ const estilos = StyleSheet.create({
   // No PC as contagens alinham pelo topo (cada uma com a própria altura, sem esticar o vazio); no celular, uma sequência.
   contagens: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3), alignItems: 'flex-start' },
   contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
+  // Duas pilhas 1:1 alinhadas pelo topo, cada uma com a própria altura (o mesmo arranjo das colunas dos Dados).
+  pilhas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
+  pilha: { flex: 1, minWidth: 0, gap: espaco(3) },
 });

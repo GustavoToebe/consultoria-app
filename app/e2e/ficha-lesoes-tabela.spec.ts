@@ -6,19 +6,24 @@ import { abrirLesoes, CENAS } from './lesoes-falsas';
  * ficha: tabela com linha tingida (24/11, `docs/planos/tabela-linha-tingida.md`). A `ui/Tabela` recorta pelo próprio raio,
  * a linha tingida (a lesão ativa) não leva borda própria (só o fundo; o fio entre duas linhas é o de baixo da de cima, na
  * cor da tinta se qualquer das duas é tingida) e o ⋯ fica na altura da primeira linha de texto. As ativas vêm sempre
- * primeiro: com recuperadas embaixo só nas colunas largas. A tabela (colunas) só cabe a partir de 800 px na própria lista, o que hoje
- * acontece em 1920; em 1280 e 390 a lista vira cartões. Só dados fictícios, API simulada.
+ * primeiro: com recuperadas embaixo só nas colunas largas. A tabela (colunas) só cabe a partir de 760 px na própria lista, o que hoje
+ * acontece de 1920 em diante (a aba Dados no teto de 1400, tela larga 24/11); em 1280 e 390 a lista vira cartões. Só dados fictícios, API simulada.
  */
 
 const lado = (el: Locator, ...lados: ('Top' | 'Right' | 'Bottom' | 'Left')[]) =>
   el.evaluate((e, ls) => ls.map((l) => parseFloat(getComputedStyle(e)[`border${l}Width` as 'borderTopWidth'])), lados);
 const corDoFio = (el: Locator) => el.evaluate((e) => getComputedStyle(e).borderBottomColor);
 
-/** Diferença vertical entre o centro do ⋯ e o da primeira linha de texto (o nome da região). */
+/**
+ * Diferença vertical entre o centro do ⋯ e o da primeira linha de texto (o nome da região). Mede a primeira linha pela
+ * altura de linha: na coluna de 1400 px (tela larga, 24/11) o nome pode quebrar em duas.
+ */
 async function desvioDoMais(page: Page, linha: Locator, regiao: string) {
-  const texto = (await linha.getByText(regiao, { exact: true }).boundingBox())!;
+  const nome = linha.getByText(regiao, { exact: true });
+  const texto = (await nome.boundingBox())!;
+  const altura = await nome.evaluate((e) => parseFloat(getComputedStyle(e).lineHeight) || e.getBoundingClientRect().height);
   const mais = (await page.getByRole('button', { name: `Mais ações da lesão em ${regiao}` }).boundingBox())!;
-  return Math.abs(mais.y + mais.height / 2 - (texto.y + texto.height / 2));
+  return Math.abs(mais.y + mais.height / 2 - (texto.y + Math.min(altura, texto.height) / 2));
 }
 
 test('1920px: ativa como última linha da tabela, sem borda própria, ⋯ na altura da primeira linha de texto', async ({ page }) => {

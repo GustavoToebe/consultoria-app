@@ -7,7 +7,7 @@ import { formatadorDeDatas, resumoDaMedida, type ResumoDaMedida } from '../../do
 import { dataParaTela } from '../../dominio/formatos';
 import { TEXTO_GRAFICOS_DESLIGADOS, TEXTO_GRAFICOS_DESLIGADOS_ALUNO } from '../../dominio/relatorio';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_FORMULARIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Interruptor } from '../../ui/Campos';
 import { OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
@@ -56,16 +56,19 @@ export function EvolucaoDaMedida({ avaliacoes, daEquipe, opcoes, campo, aoEscolh
 
   return (
     <View style={estilos.bloco}>
-      {opcoes.length > 1 ? (
-        <EscolhaSuspensa rotulo="Medida" valor={campo} opcoes={opcoes} aoMudar={aoEscolher} titulo="Escolher a medida"
-          semBusca={opcoes.length <= OPCOES_PARA_BUSCAR} rotuloDaBusca="Buscar medida" textoVazio="Nenhuma medida encontrada." />
-      ) : (
-        <Texto variante="bloco">{nome}</Texto>
-      )}
-      {par ? (
-        <Interruptor rotulo={`${par.direita.rotulo} e ${par.esquerda.rotulo.toLowerCase()} juntos`} valor={verPar} aoMudar={aoVerPar}
-          ajuda="Direito em linha contínua, esquerdo em linha tracejada, na mesma escala." />
-      ) : null}
+      {/* Campo e interruptor não esticam na tela larga (4.10): param na largura de formulário. */}
+      <View style={estilos.escolha}>
+        {opcoes.length > 1 ? (
+          <EscolhaSuspensa rotulo="Medida" valor={campo} opcoes={opcoes} aoMudar={aoEscolher} titulo="Escolher a medida"
+            semBusca={opcoes.length <= OPCOES_PARA_BUSCAR} rotuloDaBusca="Buscar medida" textoVazio="Nenhuma medida encontrada." />
+        ) : (
+          <Texto variante="bloco">{nome}</Texto>
+        )}
+        {par ? (
+          <Interruptor rotulo={`${par.direita.rotulo} e ${par.esquerda.rotulo.toLowerCase()} juntos`} valor={verPar} aoMudar={aoVerPar}
+            ajuda="Direito em linha contínua, esquerdo em linha tracejada, na mesma escala." />
+        ) : null}
+      </View>
       {series.semOutroLado ? <Texto variante="pequeno">{series.semOutroLado}</Texto> : null}
 
       {/* Anuncia a troca de medida sem mover o foco (WCAG 4.1.3). */}
@@ -170,6 +173,7 @@ function DatasDaMedida({ avaliacoes, series, campo, azul }: { avaliacoes: Avalia
 
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1.5) },
+  escolha: { gap: espaco(1.5), maxWidth: LARGURA_FORMULARIO },
   resumos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   resumo: { flexGrow: 1, flexBasis: 260, minWidth: 0, gap: espaco(0.5) },
   numeros: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },

@@ -8,6 +8,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ListaEmColunas, MINIMO_DA_COLUNA_COM_ACOES } from './ListaEmColunas';
 import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, escolherQuestionarioDaPasta, listarPastas, pastaVigenteDoAluno, pesosDoAluno, pesoSugeridoDaPasta, replicarPasta } from '../api/rotas';
 import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 import type { Atualizacao, PastaResumo, PlanoResumo, Receita } from '../api/tipos';
@@ -228,11 +229,14 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           <Vazio titulo="Nenhuma pasta nesta situação" texto={filtro === 'abertas' ? 'Todas as pastas estão concluídas.' : 'Nenhuma pasta foi concluída ainda.'}
             acao={{ rotulo: 'Limpar filtros', aoTocar: () => setFiltro(PASTAS_SEM_FILTRO) }} />
         ) : null}
+        {/* Tela larga (24/11): as pastas ganham colunas (de cima para baixo) em vez de linhas esticadas. */}
+        {visiveis.length > 0 ? <ListaEmColunas minimo={MINIMO_DA_COLUNA_COM_ACOES}>
         {visiveis.map((p) => (
           <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} rascunho={!p.concluidaEm && emRascunho(p.id)} prazo={prazoDaPasta(p, dados ?? [], hoje, p.id === idDaVigente)} aoAbrir={() => setAbertaId(p.id)} hoje={hoje}
             aoRevisar={(a) => confirmar(() => router.push(caminhoAtualizacaoTreinador(a)))}
             aoRenovar={pode('PASTA_ALTERAR') && precisaRenovar(p, dados ?? [], hoje) ? () => renovacao.pedir(p) : undefined} />
         ))}
+        </ListaEmColunas> : null}
       </Cartao>
       {aberta ? (
         // Com a etapa dos Registros aberta, a mesma folha (mesma largura e rolagem) mostra só ela; o resto fica escondido,

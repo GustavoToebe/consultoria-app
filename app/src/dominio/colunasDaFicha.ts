@@ -1,5 +1,5 @@
 import { LARGURA_EDITOR_DE_CAMPOS, type FaixaDeLargura } from '../tema/tokens';
-import type { BlocoDaFicha } from './fichaDoAluno';
+import type { AbaDaFicha, BlocoDaFicha } from './fichaDoAluno';
 
 /**
  * Arranjo da aba Ficha do aluno › Dados em colunas independentes (24/11, `docs/planos/ficha-dados-colunas-independentes.md`).
@@ -41,9 +41,46 @@ export function ordemNumaColuna(blocos: readonly BlocoDaFicha[]): PecaNumaColuna
 }
 
 /**
- * Teto da aba em duas colunas: na `ultralarga` o título, o formulário e as colunas não passam de `LARGURA_EDITOR_DE_CAMPOS`
- * (a regra do editor de campos, 4.10), alinhados à esquerda, e a sobra fica vazia à direita; nas outras faixas, a largura
- * toda (`undefined`).
+ * Teto da aba em duas colunas (revisão de tela larga, 24/11, `docs/planos/tela-larga-revisao-ficha.md`): a partir da faixa
+ * `normal` o título, o formulário e as colunas não passam de `LARGURA_EDITOR_DE_CAMPOS` (a regra do editor de campos, 4.10),
+ * alinhados à esquerda, e a sobra fica vazia à direita. Abaixo de 1400 px de aba (1280) não muda nada; antes, só a
+ * `ultralarga` tinha teto e a `larga` (1920 e 2560 com o menu aberto) esticava as colunas até ~2270 px. Numa coluna
+ * (`compacta`), a largura toda (`undefined`).
  */
 export const larguraMaximaDasColunas = (faixa: FaixaDeLargura): number | undefined =>
-  (faixa === 'ultralarga' ? LARGURA_EDITOR_DE_CAMPOS : undefined);
+  (emDuasColunas(faixa) ? LARGURA_EDITOR_DE_CAMPOS : undefined);
+
+/** Largura mínima de cada uma das três colunas do Resumo (Planejamento, Última medição e Atividade recente). */
+export const MINIMO_DA_COLUNA_DO_RESUMO = 640;
+
+/**
+ * Resumo em três colunas (Atividade recente ao lado do Planejamento e da Última medição) quando cabem três colunas de
+ * `MINIMO_DA_COLUNA_DO_RESUMO` com o vão: a largura é a medida do próprio Resumo, não a faixa. Abre em 2560 com o menu
+ * aberto (~2270 px de Resumo) e não em 1920 (~1630); antes só na `ultralarga`, e em 2560 a Atividade recente esticava.
+ */
+export const resumoEmTresColunas = (largura: number, vao: number): boolean => largura >= 3 * MINIMO_DA_COLUNA_DO_RESUMO + 2 * vao;
+
+/** Blocos das abas Acompanhamento e Evolução que podem ir lado a lado, em duas pilhas independentes (como os Dados). */
+const PILHAS: Partial<Record<AbaDaFicha, Readonly<Record<'esquerda' | 'direita', readonly BlocoDaFicha[]>>>> = {
+  // Registros de treino à esquerda; água e respostas das atualizações à direita.
+  acompanhamento: { esquerda: ['frequencia', 'treinosConcluidos', 'recordesDaSemana', 'trocasDeExercicio'], direita: ['agua', 'evolucaoDasRespostas'] },
+  // Peso, progresso e fotos à esquerda; a avaliação física (o bloco mais alto) sozinha à direita.
+  evolucao: { esquerda: ['peso', 'progresso', 'fotos'], direita: ['avaliacaoFisica'] },
+};
+
+/** Largura mínima de cada pilha: abaixo disso as tabelas e gráficos dos cartões apertam (a mesma régua dos grupos de Alunos). */
+export const MINIMO_DA_PILHA = 1000;
+
+/**
+ * Duas pilhas independentes (1:1) nas abas Acompanhamento e Evolução quando cada uma tem pelo menos `MINIMO_DA_PILHA` px
+ * (2560 e 3440 com o menu aberto; 1920 continua numa coluna). Só os blocos que a aba mostra, na ordem de cada pilha; um
+ * bloco sem lugar definido vai para o fim da esquerda (nunca some). `null` = uma coluna: largura pequena, aba sem
+ * pilhas ou uma das pilhas vazia (sem cartão sozinho de um lado e vão do outro).
+ */
+export function pilhasDaAba(aba: AbaDaFicha, blocos: readonly BlocoDaFicha[], largura: number, vao: number): Record<'esquerda' | 'direita', BlocoDaFicha[]> | null {
+  const pilhas = PILHAS[aba];
+  if (!pilhas || largura < 2 * MINIMO_DA_PILHA + vao) return null;
+  const direita = pilhas.direita.filter((b) => blocos.includes(b));
+  const esquerda = [...pilhas.esquerda.filter((b) => blocos.includes(b)), ...blocos.filter((b) => !pilhas.esquerda.includes(b) && !pilhas.direita.includes(b))];
+  return esquerda.length && direita.length ? { esquerda, direita } : null;
+}

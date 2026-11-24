@@ -33,7 +33,7 @@ export function BlocosDaFicha({ alunoId, blocos, bloco }: {
     : <Fragment key={b}>{bloco(b)}</Fragment>));
   const colunas = emDuasColunas(faixa) ? { esquerda: pilha('esquerda'), direita: pilha('direita') } : undefined;
   return (
-    // Na `ultralarga` a aba inteira (título, formulário e colunas) fica no teto, alinhada à esquerda (4.10).
+    // Em duas colunas a aba inteira (título, formulário e colunas) fica no teto do editor de campos, à esquerda (4.10, 24/11).
     <View style={[estilos.aba, { maxWidth: larguraMaximaDasColunas(faixa) }]}>
       {tem('dadosDoAluno') ? bloco('dadosDoAluno', colunas) : colunas ? <ColunasDaFicha {...colunas} /> : null}
       {!colunas ? ordemNumaColuna(blocos).map((p) => (

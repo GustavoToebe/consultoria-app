@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { atualizacaoDoAluno } from '../api/rotas';
 import type { AlunoDetalhe, PastaResumo } from '../api/tipos';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
+import { resumoEmTresColunas } from '../dominio/colunasDaFicha';
 import { periodoCurto } from '../dominio/datasRelativas';
 import type { AbaDaFicha } from '../dominio/fichaDoAluno';
 import { hojeIso } from '../dominio/formatos';
@@ -28,7 +29,6 @@ import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
-import { useFaixaDeLargura } from '../ui/useFaixaDeLargura';
 import { AtividadeRecente } from './AtividadeRecente';
 import type { useAcompanhamentoDoAluno } from './CartaoFrequencia';
 import { ICONE_DO_SELO } from './iconesDosSelos';
@@ -47,8 +47,10 @@ import { usePlanosDaPasta, type CargaDosPlanos } from './usePlanosDaPasta';
  * situação do selo (âmbar, vermelho, verde) ou, sem situação, a categoria (ciano); o último registro é neutro, em fonte
  * normal (é frase); "0" e o que não carregou ficam apagados, com o motivo escrito (D14).
  */
-export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirAba, aoAbrirAcesso, aoAbrirPasta }: {
+export function ResumoDoAluno({ aluno, largura, acompanhamento, abas, aoRenovar, aoAbrirAba, aoAbrirAcesso, aoAbrirPasta }: {
   aluno: AlunoDetalhe;
+  /** Largura da área da ficha, medida pela tela antes de o aluno chegar: a 3ª coluna já nasce no lugar, sem remontar. */
+  largura: number;
   acompanhamento: ReturnType<typeof useAcompanhamentoDoAluno>;
   /** Abas que a pessoa vê: o atalho para uma aba escondida não aparece. */
   abas: readonly AbaDaFicha[];
@@ -61,8 +63,8 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
   aoAbrirPasta: (pastaId: string) => void;
 }) {
   const { pode, temFuncionalidade } = useSessao();
-  const { faixa, aoMedir } = useFaixaDeLargura();
-  const tresColunas = faixa === 'ultralarga';
+  // Atividade recente como 3ª coluna quando cabem três de 640 px (2560 com o menu aberto em diante; tela larga, 24/11).
+  const tresColunas = resumoEmTresColunas(largura, espaco(3));
   const verRegistros = pode('REGISTRO_LER');
   const { confirmar } = useSaidaGuardada();
   const { cores } = useTema();
@@ -118,7 +120,7 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
   const prazo = planejamento?.vigente && dados ? prazoDaPasta(planejamento.vigente, dados.pastas, hoje, true) : null;
   const temFatos = verAtualizacao || !!treinos || treinosIndisponiveis;
   return (
-    <View onLayout={aoMedir} style={estilos.resumo}>
+    <View style={estilos.resumo}>
       <Cartao titulo="Próximo passo">
         {passo.carregando ? <Esqueleto cartoes={1} texto={passo.texto} /> : (
           <View style={estilos.passo}>

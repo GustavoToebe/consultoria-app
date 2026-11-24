@@ -109,8 +109,12 @@ export function CartaoLesoes({ alunoId, carga, parte = 'tudo' }: { alunoId: stri
   );
 }
 
-/** A partir desta largura (medida na própria tabela) as lesões ficam em colunas; abaixo, uma por cartão com os rótulos à vista. */
-const LARGURA_EM_COLUNAS = 800;
+/**
+ * A partir desta largura (medida na própria tabela) as lesões ficam em colunas; abaixo, uma por cartão com os rótulos à vista.
+ * 760 (a da Auditoria) e não 800: com a aba Dados no teto de 1400 px (tela larga, 24/11) a tabela tem ~785 px na coluna da
+ * esquerda, e fica tabela em 1920, 2560 e 3440 (em 1280, ~540 px, continuam os cartões).
+ */
+const LARGURA_EM_COLUNAS = 760;
 
 interface AcoesDaLinha { podeAlterar: boolean; aoEditar: (l: Lesao) => void; aoExcluir: (l: Lesao) => void }
 
