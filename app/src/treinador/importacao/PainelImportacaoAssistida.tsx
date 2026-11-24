@@ -3,7 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { CheckCircle2, FileSearch, FileText, FileUp, RotateCcw } from 'lucide-react-native';
 import { Platform, StyleSheet, View } from 'react-native';
 
-import { dataHoraParaTela } from '../../dominio/formatos';
+import { dataHoraParaTela, plural } from '../../dominio/formatos';
 import {
   campoDoErroDoTexto,
   gerarChaveIdempotencia,
@@ -399,7 +399,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
                       <Selo texto={textoDoEstadoDaSessao(s.estado)} tipo={s.estado === 'ERRO' ? 'perigo' : s.estado === 'PROCESSANDO' ? 'atencao' : 'neutro'} />
                     </View>
                     <Texto variante="suave" numerico>
-                      {s.totalArquivos} arquivo(s) · {s.totalGrupos} grupo(s) · {s.duvidasAbertas} dúvida(s) em aberto
+                      {plural(s.totalArquivos, 'arquivo', 'arquivos')} · {plural(s.totalGrupos, 'grupo', 'grupos')} · {plural(s.duvidasAbertas, 'dúvida em aberto', 'dúvidas em aberto')}
                     </Texto>
                     <LinhaDeAcoes>
                       <Botao
@@ -484,7 +484,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
         <>
           <Cartao
             titulo="Arquivos da importação"
-            descricao={`${textoDoEstadoDaSessao(sessao.estado)} · ${sessao.arquivos.length} arquivo(s) ou texto(s)${modo ? ` · ${modo.titulo}` : ''}`}
+            descricao={`${textoDoEstadoDaSessao(sessao.estado)} · ${plural(sessao.arquivos.length, 'arquivo ou texto', 'arquivos ou textos')}${modo ? ` · ${modo.titulo}` : ''}`}
             acoes={sessaoPodeCancelar(sessao.estado) ? (
               <Botao rotulo="Cancelar importação" tipo="perigoTexto" carregando={acao === 'cancelar'} aoTocar={() => setDescartar(true)} />
             ) : undefined}
@@ -553,7 +553,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
 
                     <Texto>Termo: “{d.termoOriginal}” · no trecho “{d.trechoOriginal}”</Texto>
                     <Texto variante="pequeno" cor={cores.textoSuave} numerico>
-                      {qtdOcorrencias} ocorrência(s) afetada(s)
+                      {plural(qtdOcorrencias, 'ocorrência afetada', 'ocorrências afetadas')}
                     </Texto>
 
                     {d.resolvida && !editandoEsta ? (

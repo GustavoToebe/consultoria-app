@@ -1,4 +1,10 @@
-import { centavosDaTela, centavosParaCampo, centavosParaTela, inteiroComMilhar, mascaraDeMoeda, mascaraDeNumero, moedaParaTela } from './formatos';
+import { centavosDaTela, centavosParaCampo, centavosParaTela, inteiroComMilhar, mascaraDeMoeda, mascaraDeNumero, moedaParaTela, plural } from './formatos';
+
+describe('plural', () => {
+  it('usa a forma do singular só com 1; zero e mais de um vão ao plural', () => {
+    expect([0, 1, 2, 8].map((n) => plural(n, 'treino concluído', 'treinos concluídos'))).toEqual(['0 treinos concluídos', '1 treino concluído', '2 treinos concluídos', '8 treinos concluídos']);
+  });
+});
 
 describe('moeda em reais', () => {
   it('usa vírgula, ponto de milhar e duas casas', () => {

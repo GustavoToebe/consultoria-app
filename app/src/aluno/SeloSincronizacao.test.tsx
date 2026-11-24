@@ -76,7 +76,7 @@ describe('SeloSincronizacao no rodapé', () => {
   it('pendente e falha aparecem na hora, mesmo sem rede', async () => {
     mockAtual = { ...estado, online: false, pendentes: 2 };
     await montar();
-    expect(texto()).toContain('Sem conexão — 2 salvo(s) no aparelho');
+    expect(texto()).toContain('Sem conexão — 2 salvos no aparelho');
     await remontar({ online: true, pendentes: 0, falhas: [{}] });
     expect(texto()).toContain('Falha ao enviar');
   });

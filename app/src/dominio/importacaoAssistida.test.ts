@@ -88,9 +88,9 @@ test('erros da API em português: código, 403 do confirmar, 429 e 503', () => {
 test('sem a permissão de ler, peso, treino e dieta aparecem como "—", nunca zero', () => {
   const g = grupo({ pesos: [{ data: '2026-10-01', kg: 70 }], treino: { sessoes: [{}, {}] }, dieta: { refeicoes: [{}] } });
   const valor = (lista: string[], rotulo: string) => linhasDoGrupo(g, com(lista)).find((l) => l.rotulo === rotulo)?.valor;
-  expect(valor(TUDO, 'Peso')).toBe('1 pesagem(ns)');
-  expect(valor(TUDO, 'Treino')).toBe('2 divisão(ões)');
-  expect(valor(TUDO, 'Dieta')).toBe('1 refeição(ões)');
+  expect(valor(TUDO, 'Peso')).toBe('1 pesagem');
+  expect(valor(TUDO, 'Treino')).toBe('2 divisões');
+  expect(valor(TUDO, 'Dieta')).toBe('1 refeição');
   expect(valor([], 'Peso')).toBe('—');
   expect(valor([], 'Treino')).toBe('—');
   expect(valor(TUDO, 'WhatsApp')).toBe('—');
@@ -153,8 +153,8 @@ test('resumo do resultado: só as contagens que aconteceram, peso ignorado expli
   const ok = resumoDoResultado(base);
   expect(ok.titulo).toBe('Importação concluída');
   expect(ok.alerta).toBeNull();
-  expect(ok.linhas).toContain('3 peso(s) gravado(s)');
-  expect(ok.linhas).toContain('1 peso(s) não gravado(s): sem data legível, fora da faixa ou já registrado nessa data');
+  expect(ok.linhas).toContain('3 pesos gravados');
+  expect(ok.linhas).toContain('1 peso não gravado: sem data legível, fora da faixa ou já registrado nessa data');
   expect(ok.linhas.some((l) => l.includes('dieta'))).toBe(false);
 
   expect(resumoDoResultado({ ...base, situacao: 'CONCLUIDA_COM_ERROS', gruposComErro: 1 }).alerta?.tom).toBe('atencao');
@@ -213,11 +213,11 @@ test('resumo do modo de processamento e cobertura de leitura dos arquivos', () =
     paginasSemTexto: 2,
     truncado: true,
   })).toEqual({
-    texto: '8 de 10 página(s) lida(s) · 2 sem texto · conteúdo truncado',
+    texto: '8 de 10 páginas lidas · 2 sem texto · conteúdo truncado',
     tom: 'atencao',
   });
   expect(resumoDaCoberturaDoArquivo({ status: 'COMPLETA', blocos: 5, truncado: false })).toEqual({
-    texto: '5 bloco(s) lido(s)',
+    texto: '5 blocos lidos',
     tom: 'sucesso',
   });
 });

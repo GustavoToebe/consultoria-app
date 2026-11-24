@@ -113,7 +113,7 @@ async function colarELer(page: Page) {
   await expect(page.getByText('Cole o texto antes de adicionar.')).toBeVisible();
   await page.getByRole('textbox', { name: /^Texto colado/ }).fill('Aluno de teste\nTreino A\nsup inc 4x10');
   await adicionar.click();
-  await expect(page.getByText('Recebendo arquivos · 1 arquivo(s) ou texto(s)')).toBeVisible();
+  await expect(page.getByText('Recebendo arquivos · 1 arquivo ou texto')).toBeVisible();
   // O modo da leitura só aparece com a sessão aberta (o servidor diz que leu por regras fixas).
   await expect(page.getByText(/O servidor leu os arquivos por regras fixas/)).toBeVisible();
 }
@@ -121,7 +121,7 @@ async function colarELer(page: Page) {
 async function lerEConferir(page: Page) {
   await colarELer(page);
   await page.getByRole('button', { name: 'Ler os arquivos' }).click();
-  await expect(page.getByText('Em revisão · 1 arquivo(s) ou texto(s)')).toBeVisible();
+  await expect(page.getByText('Em revisão · 1 arquivo ou texto')).toBeVisible();
 }
 
 const corpoDoGravar = (api: Awaited<ReturnType<typeof abrir>>) =>
@@ -149,8 +149,8 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: 'Ler os arquivos' }).click();
 
       await expect(page.getByText('Exercício não reconhecido')).toBeVisible();
-      await expect(page.getByText('Treino: 2 divisão(ões)')).toBeVisible();
-      await expect(page.getByText('Peso: 2 pesagem(ns)')).toBeVisible();
+      await expect(page.getByText('Treino: 2 divisões')).toBeVisible();
+      await expect(page.getByText('Peso: 2 pesagens')).toBeVisible();
       await expect(page.getByText('Dieta: —').first()).toBeVisible();
       await expect(page.getByRole('radio', { name: 'Criar aluno novo' }).first()).toBeChecked();
       // Grupo que a API devolveu ignorado: linha resumida, selo neutro e nenhuma escolha de destino.
@@ -178,8 +178,8 @@ for (const largura of [390, 1280]) {
       await gravar(page).click();
       // O resultado aparece onde a pessoa tocou, não no topo da página.
       await expect(page.getByText('Importação gravada em parte')).toBeInViewport();
-      await expect(page.getByText('1 grupo(s) não foram gravados. O motivo aparece em cada um, na lista acima.')).toBeVisible();
-      await expect(page.getByText('1 peso(s) não gravado(s): sem data legível, fora da faixa ou já registrado nessa data')).toBeVisible();
+      await expect(page.getByText('1 grupo não foi gravado. O motivo aparece em cada um, na lista acima.')).toBeVisible();
+      await expect(page.getByText('1 peso não gravado: sem data legível, fora da faixa ou já registrado nessa data')).toBeVisible();
       await expect(page.getByText('Aluno novo criado')).toBeVisible();
       await expect(page.getByText('Importado', { exact: true })).toBeVisible();
       await expect(page.getByText('Com erro', { exact: true })).toBeVisible();
@@ -192,7 +192,7 @@ for (const largura of [390, 1280]) {
 
       await page.getByRole('button', { name: 'Tentar de novo os que deram erro' }).click();
       await expect(page.getByText('Importação concluída')).toBeVisible();
-      await expect(page.getByText('1 aluno(s) já cadastrado(s) receberam os dados')).toBeVisible();
+      await expect(page.getByText('1 aluno já cadastrado recebeu os dados')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Fazer outra importação' })).toBeVisible();
       expect(corpoDoGravar(api)[1]).toMatchObject({ gruposIds: ['g2'], revisaoEsperada: 4, hashPrevia: 'h4' });
       await capturar(page, `importacao-concluida-${largura}`);

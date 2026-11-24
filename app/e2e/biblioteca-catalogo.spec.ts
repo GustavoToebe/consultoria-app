@@ -154,7 +154,7 @@ test('catálogo de alimentos mostra o fator, a importação copia e a biblioteca
   await expect(page.getByText('FC 1,75')).toBeVisible();
   await page.getByText('Abacaxi com casca', { exact: true }).click();
   await page.getByRole('button', { name: 'Importar selecionados (1)' }).click();
-  await expect(page.getByText('1 importado(s).')).toBeVisible();
+  await expect(page.getByText('1 importado.')).toBeVisible();
 
   await page.goto('/treinador/biblioteca?aba=alimentos');
   await expect(page.getByText('Abacaxi com casca', { exact: true })).toBeVisible();

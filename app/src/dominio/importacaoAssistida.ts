@@ -11,6 +11,7 @@ import type {
   TipoDuvida,
 } from '../servicos/importacaoAssistida';
 import type { TipoSelo } from '../ui/Selo';
+import { plural } from './formatos';
 
 /** Textos da tela da importação assistida: os códigos da API nunca aparecem crus. */
 const ESTADOS: Record<EstadoSessao, string> = {
@@ -178,9 +179,9 @@ type Pode = (codigo: string) => boolean;
  * a tela não sabe se existe e mostra "—", nunca zero.
  */
 export function linhasDoGrupo(g: GrupoImportavel, pode: Pode): { rotulo: string; valor: string }[] {
-  const pesos = pode('ALUNO_SENSIVEL_LER') && g.pesos?.length ? `${g.pesos.length} pesagem(ns)` : '—';
-  const treino = pode('TREINO_LER') && g.treino ? `${g.treino.sessoes?.length ?? 0} divisão(ões)` : '—';
-  const dieta = pode('DIETA_LER') && g.dieta ? `${g.dieta.refeicoes?.length ?? 0} refeição(ões)` : '—';
+  const pesos = pode('ALUNO_SENSIVEL_LER') && g.pesos?.length ? plural(g.pesos.length, 'pesagem', 'pesagens') : '—';
+  const treino = pode('TREINO_LER') && g.treino ? plural(g.treino.sessoes?.length ?? 0, 'divisão', 'divisões') : '—';
+  const dieta = pode('DIETA_LER') && g.dieta ? plural(g.dieta.refeicoes?.length ?? 0, 'refeição', 'refeições') : '—';
   return [
     { rotulo: 'E-mail', valor: g.cadastro?.email || '—' },
     { rotulo: 'WhatsApp', valor: g.cadastro?.telefone || '—' },
@@ -380,7 +381,7 @@ export function resumoDaCoberturaDoArquivo(cobertura?: CoberturaArquivo | null):
     };
   }
   if (cobertura.paginasTotal != null && cobertura.paginasLidas != null) {
-    const partes = [`${cobertura.paginasLidas} de ${cobertura.paginasTotal} página(s) lida(s)`];
+    const partes = [`${cobertura.paginasLidas} de ${cobertura.paginasTotal} ${cobertura.paginasTotal === 1 ? 'página lida' : 'páginas lidas'}`];
     if ((cobertura.paginasSemTexto ?? 0) > 0) partes.push(`${cobertura.paginasSemTexto} sem texto`);
     if (cobertura.truncado) partes.push('conteúdo truncado');
     return {
@@ -389,7 +390,7 @@ export function resumoDaCoberturaDoArquivo(cobertura?: CoberturaArquivo | null):
     };
   }
   if (cobertura.blocos != null) {
-    const texto = `${cobertura.blocos} bloco(s) lido(s)${cobertura.truncado ? ' · conteúdo truncado' : ''}`;
+    const texto = `${plural(cobertura.blocos, 'bloco lido', 'blocos lidos')}${cobertura.truncado ? ' · conteúdo truncado' : ''}`;
     return {
       texto,
       tom: cobertura.status === 'COMPLETA' && !cobertura.truncado ? 'sucesso' : 'atencao',
@@ -412,26 +413,26 @@ export function resumoDoResultado(r: ConfirmacaoResultado): {
   alerta: { tom: 'atencao' | 'perigo'; texto: string } | null;
   linhas: string[];
 } {
-  const linhas = [`${r.gruposImportados} grupo(s) gravado(s)`];
-  const se = (n: number, texto: string) => { if (n > 0) linhas.push(`${n} ${texto}`); };
-  se(r.alunosCriados, 'aluno(s) novo(s)');
-  se(r.alunosVinculados, 'aluno(s) já cadastrado(s) receberam os dados');
-  se(r.treinosCriados, 'rascunho(s) de treino');
-  se(r.dietasCriadas, 'rascunho(s) de dieta');
-  se(r.modelosCriados, 'modelo(s) salvo(s)');
-  se(r.pesosGravados, 'peso(s) gravado(s)');
-  se(r.pesosIgnorados, 'peso(s) não gravado(s): sem data legível, fora da faixa ou já registrado nessa data');
+  const linhas = [plural(r.gruposImportados, 'grupo gravado', 'grupos gravados')];
+  const se = (n: number, um: string, varios: string) => { if (n > 0) linhas.push(plural(n, um, varios)); };
+  se(r.alunosCriados, 'aluno novo', 'alunos novos');
+  se(r.alunosVinculados, 'aluno já cadastrado recebeu os dados', 'alunos já cadastrados receberam os dados');
+  se(r.treinosCriados, 'rascunho de treino', 'rascunhos de treino');
+  se(r.dietasCriadas, 'rascunho de dieta', 'rascunhos de dieta');
+  se(r.modelosCriados, 'modelo salvo', 'modelos salvos');
+  se(r.pesosGravados, 'peso gravado', 'pesos gravados');
+  se(r.pesosIgnorados, 'peso não gravado: sem data legível, fora da faixa ou já registrado nessa data', 'pesos não gravados: sem data legível, fora da faixa ou já registrados nessa data');
   const descricao = r.gruposImportados > 0 ? 'Treino e dieta entraram como rascunho. Nada foi publicado para os alunos.' : null;
   if (r.situacao === 'FALHOU') {
     return {
       titulo: 'Nada foi gravado', descricao, linhas,
-      alerta: { tom: 'perigo', texto: `${r.gruposComErro} grupo(s) ficaram com erro. O motivo aparece em cada um, na lista acima.` },
+      alerta: { tom: 'perigo', texto: `${plural(r.gruposComErro, 'grupo ficou', 'grupos ficaram')} com erro. O motivo aparece em cada um, na lista acima.` },
     };
   }
   if (r.situacao === 'CONCLUIDA_COM_ERROS') {
     return {
       titulo: 'Importação gravada em parte', descricao, linhas,
-      alerta: { tom: 'atencao', texto: `${r.gruposComErro} grupo(s) não foram gravados. O motivo aparece em cada um, na lista acima.` },
+      alerta: { tom: 'atencao', texto: `${plural(r.gruposComErro, 'grupo não foi gravado', 'grupos não foram gravados')}. O motivo aparece em cada um, na lista acima.` },
     };
   }
   return { titulo: 'Importação concluída', descricao, linhas, alerta: null };

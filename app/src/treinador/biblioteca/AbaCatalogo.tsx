@@ -6,6 +6,7 @@ import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'reac
 import { catalogoAlimentos, catalogoExercicios, gruposDoCatalogo, importarDoCatalogo, listarAlimentos, listarExercicios, type TipoBiblioteca } from '../../api/rotas';
 import { CREDITOS_CATALOGO, passosDasInstrucoes, resumoNutrientes, textoMostrando } from '../../dominio/catalogo';
 import { textoDosFatores } from '../../dominio/fatoresDoAlimento';
+import { plural } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO, RAIO_CONTROLE } from '../../tema/tokens';
 import { sobre } from '../../ui/sobre';
@@ -111,7 +112,7 @@ export function AbaCatalogo() {
         setImportando(false);
         setMarcados(new Set());
         daBiblioteca.recarregar();
-        avisar(`${r.importados} importado(s)${r.ignorados ? `, ${r.ignorados} já estava(m) na biblioteca` : ''}.`, 'sucesso');
+        avisar(`${plural(r.importados, 'importado', 'importados')}${r.ignorados ? `, ${plural(r.ignorados, 'já estava', 'já estavam')} na biblioteca` : ''}.`, 'sucesso');
       },
       (e: unknown) => {
         setImportando(false);

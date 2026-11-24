@@ -5,6 +5,9 @@
 
 export const SEM_DADO = '—';
 
+/** Quantidade com a palavra certa: `plural(1, 'treino', 'treinos')` → "1 treino", `plural(8, …)` → "8 treinos". Nada de "treino(s)" na interface. */
+export const plural = (n: number, um: string, varios: string): string => `${n} ${n === 1 ? um : varios}`;
+
 /** `2026-10-11` → `11/10/2026`; nulo → "". */
 export function dataParaTela(iso: string | null | undefined): string {
   if (!iso) return '';
