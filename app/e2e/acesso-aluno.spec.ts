@@ -172,6 +172,21 @@ test('aluno aguardando o primeiro acesso: "Definir outra senha"; inativo não mo
   await expect(page.getByRole('button', { name: 'Gerar convite' })).toHaveCount(0);
 });
 
+// revisão 24/11: aluno inativo com conta mostra a situação dele, não "Com acesso".
+test('aluno inativo com conta: a situação é "Inativo" e não "Com acesso"', async ({ page }) => {
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: { ...COM_CONTA, ativo: false } },
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+  const acesso = acessoDoAluno(page);
+  await expect(acesso.getByLabel('Situação: Inativo', { exact: true })).toBeVisible();
+  await expect(acesso.getByText('Inativo', { exact: true })).toBeVisible();
+  await expect(acesso.getByText('Com acesso', { exact: true })).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
 // ficha: acesso ao app (24/11): lista de dados com o cabeçalho só com o título, o último login relativo em Brasília e "—"
 // para quem nunca entrou; sem conta, o convite e o e-mail e senha ficam nas linhas Convite e Senha.
 for (const largura of [390, 1280]) {

@@ -204,6 +204,24 @@ for (const largura of [390, 1280]) {
   });
 }
 
+// revisão 24/11: o selo "Acesso total · perfil do sistema" é do perfil com `acessoTotal`, não de todo perfil do sistema.
+test('lista de perfis: o selo "Acesso total" só aparece no perfil do sistema com acesso total', async ({ page }) => {
+  const TREINADOR_DO_SISTEMA: PerfilEquipe = { id: 'p-tre', nome: 'Treinador', descricao: null, acessoTotal: false, sistema: true, ativo: true, permissoes: [], usuarios: 2, versao: 1 };
+  let perfis: PerfilEquipe[] = [TREINADOR_DO_SISTEMA];
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessao(page, TREINADOR, ADMIN)), ...BASE, 'GET /perfis': (_p, route) => json(route, perfis) });
+  await page.goto('/treinador/equipe?aba=perfis');
+  const selo = page.getByText('Acesso total · perfil do sistema', { exact: true });
+  await expect(page.getByText('2 usuários', { exact: true })).toBeVisible();
+  await expect(selo).toHaveCount(0);
+
+  perfis = [TREINADOR_DO_SISTEMA, SISTEMA];
+  await page.reload();
+  await expect(page.getByText('1 usuário', { exact: true })).toBeVisible();
+  await expect(selo).toHaveCount(1);
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('teto: o que quem edita não tem fica travado, com o motivo, e "Marcar toda a seção" não o marca', async ({ page }) => {
   const gestor = { perfil: { id: 'p-gestor', nome: 'Gestor', acessoTotal: false }, permissoes: [...PARCIAL, 'EQUIPE_LER', 'PERFIL_ALTERAR'] };
   const { folha } = await abrir(page, 1280, {}, gestor);
