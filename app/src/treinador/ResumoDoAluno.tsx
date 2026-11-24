@@ -12,16 +12,17 @@ import { hojeIso } from '../dominio/formatos';
 import { pastaSoComRascunho } from '../dominio/pastaEmRascunho';
 import { periodoDaSemana } from '../dominio/progressoSemana';
 import { planosDaPasta } from '../dominio/publicarPasta';
-import { planejamentoDoResumo, prazoDaPasta, proximoPassoDoAluno, treinosDoResumo, type SituacaoDaFonte } from '../dominio/resumoDoAluno';
+import { corDosTreinosDoResumo, fatoDaAtualizacao, planejamentoDoResumo, prazoDaPasta, proximoPassoDoAluno, treinosDoResumo, type CorDoFato, type SituacaoDaFonte } from '../dominio/resumoDoAluno';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
-import { CampoLeitura } from '../ui/CampoLeitura';
 import { CartaoDeIndicador } from '../ui/CartaoDeIndicador';
 import { Esqueleto } from '../ui/Esqueleto';
+import { GradeDeIndicadores } from '../ui/GradeDeIndicadores';
 import { MensagemErro } from '../ui/Estados';
+import { useDestaques } from '../ui/NumeroDeDestaque';
 import { textoDoErro } from '../ui/erros';
 import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Selo } from '../ui/Selo';
@@ -40,10 +41,11 @@ import { usePlanosDaPasta, type CargaDosPlanos } from './usePlanosDaPasta';
  * medição, lado a lado no PC; por fim o histórico recente. Vazio é linha de apoio, não cartão. Os atalhos só levam a
  * fluxos que já existem (aba Ficha no Acesso ao app, pasta ou aba Planos, aba Evolução): nada é enviado, renovado ou
  * publicado daqui. Carregando, erro, sem permissão e sem registro têm apresentações próprias, e o próximo passo nunca diz
- * "Tudo em dia" sem as fontes. Cores (`docs/planos/cores-de-destaque.md`, D12 e D13): os selos da atualização e do prazo
- * da pasta são os mesmos da lista de alunos e da lista de pastas (com o ícone do tom); os treinos da semana são medida de
- * atividade, num `CartaoDeIndicador` neutro (cartão pintado, 23/11: cor só onde há situação), com "0" apagado e "—" com o
- * motivo quando não carregou (D14).
+ * "Tudo em dia" sem as fontes. Cores (`docs/planos/cores-de-destaque.md`, D12 e D13, e ficha-resumo-em-cartoes, 24/11): o
+ * prazo da pasta usa o mesmo selo da lista de pastas; os três fatos do próximo passo (Atualização, Treinos registrados e
+ * Último registro) são `CartaoDeIndicador` lado a lado na mesma grade. Treinos é categoria (azul) e a Atualização leva a
+ * situação do selo (âmbar, vermelho, verde) ou, sem situação, a categoria (ciano); o último registro é neutro, em fonte
+ * normal (é frase); "0" e o que não carregou ficam apagados, com o motivo escrito (D14).
  */
 export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirAba, aoAbrirAcesso, aoAbrirPasta }: {
   aluno: AlunoDetalhe;
@@ -64,6 +66,7 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
   const verRegistros = pode('REGISTRO_LER');
   const { confirmar } = useSaidaGuardada();
   const { cores } = useTema();
+  const destaques = useDestaques();
   const hoje = hojeIso();
   const verAtualizacao = pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER');
   const sensivel = pode('ALUNO_SENSIVEL_LER');
@@ -74,6 +77,8 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
   const a = atual.dados?.alunoId === aluno.id && atual.dados.dataAtualizacao ? atual.dados : null;
   const dados = acompanhamento.dados;
   const fonteAtualizacao: SituacaoDaFonte = !verAtualizacao ? 'sem-permissao' : atual.dados !== undefined ? 'ok' : atual.erro ? 'erro' : 'carregando';
+  // A situação do selo vence a categoria; azul (treino) e ciano (atualização) são os destaques de indicador (`dominio/resumoDoAluno`).
+  const corDoFato = (c: CorDoFato) => (c === null ? null : c === 'azul' || c === 'ciano' ? destaques[c].cor : cores[c]);
   const fontePastas = dados ? 'ok' : acompanhamento.erro ? 'erro' : 'carregando';
   const passo = proximoPassoDoAluno({
     aluno, atualizacao: a, pasta: dados?.pasta ?? null, pastas: dados?.pastas ?? [], hoje,
@@ -91,6 +96,7 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
   const listas = { treino: lista(cargas.treino), dieta: lista(cargas.dieta), mobilidade: lista(cargas.mobilidade) };
   const rascunhos = new Set(abertas.filter((p) => pastaSoComRascunho(planosDaPasta(p.id, listas, temFuncionalidade('MOBILIDADE')))).map((p) => p.id));
   const planejamento = dados ? planejamentoDoResumo(pasta, dados.pastas, rascunhos) : null;
+  const atualizacao = fatoDaAtualizacao(fonteAtualizacao === 'sem-permissao' ? 'ok' : fonteAtualizacao, selo);
   const falhou = fonteAtualizacao === 'erro' || fontePastas === 'erro';
 
   const tentarDeNovo = () => { if (fonteAtualizacao === 'erro') atual.recarregar(); if (fontePastas === 'erro') acompanhamento.recarregar(); };
@@ -125,27 +131,23 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
         )}
         {temFatos ? (
           <View style={[estilos.fatos, { borderTopColor: cores.divisor }]}>
-            {verAtualizacao ? (
-              <View style={estilos.fato} accessibilityLabel={`Atualização: ${selo?.curto ?? (fonteAtualizacao === 'ok' ? 'nenhuma' : fonteAtualizacao === 'erro' ? 'indisponível' : 'carregando')}`}>
-                <Texto variante="rotulo">Atualização</Texto>
-                {selo ? <Selo texto={selo.curto} tipo={selo.tipo} Icone={ICONE_DO_SELO[selo.tipo]} />
-                  : <Texto variante={fonteAtualizacao === 'ok' ? undefined : 'suave'}>{fonteAtualizacao === 'ok' ? '—' : fonteAtualizacao === 'erro' ? 'Indisponível' : 'Carregando…'}</Texto>}
-              </View>
-            ) : null}
-            {treinos && 'semana' in treinos ? (
-              <>
-                <View style={estilos.numero}>
-                  <CartaoDeIndicador rotulo="Treinos registrados" valor={String(treinos.semana)} detalhe="nesta semana" tamanho="medio" lugar="cartao"
-                    estado={treinos.semana === 0 ? 'zero' : 'valor'} />
-                </View>
-                <CampoLeitura rotulo="Último registro" valor={treinos.ultimo} numerico />
-              </>
-            ) : null}
-            {treinosIndisponiveis ? (
-              <View style={estilos.numero}>
+            {/* Os três fatos são cartões de indicador filhos diretos da grade: mesma altura, nunca um sozinho na última linha. `minimo` 211 (como as grades de 4): o valor é `titulo` (26), não `destaque`, e com texto grande ainda cabem três colunas. */}
+            <GradeDeIndicadores minimo={211}>
+              {verAtualizacao ? (
+                <CartaoDeIndicador rotulo="Atualização" valor={atualizacao.valor} estado={atualizacao.estado} motivo={atualizacao.motivo}
+                  corDeCategoria={corDoFato(atualizacao.cor)} textual tamanho="medio" lugar="cartao" />
+              ) : null}
+              {treinos && 'semana' in treinos ? (
+                <CartaoDeIndicador rotulo="Treinos registrados" valor={String(treinos.semana)} detalhe="nesta semana" tamanho="medio" lugar="cartao"
+                  estado={treinos.semana === 0 ? 'zero' : 'valor'} corDeCategoria={corDoFato(corDosTreinosDoResumo(treinos.semana))} />
+              ) : null}
+              {treinos && 'semana' in treinos ? (
+                <CartaoDeIndicador rotulo="Último registro" valor={treinos.ultimo} detalhe={treinos.escopo} textual tamanho="medio" lugar="cartao" />
+              ) : null}
+              {treinosIndisponiveis ? (
                 <CartaoDeIndicador rotulo="Treinos registrados" valor="—" motivo="Não foi possível carregar" tamanho="medio" lugar="cartao" estado="indisponivel" />
-              </View>
-            ) : null}
+              ) : null}
+            </GradeDeIndicadores>
             {treinos && 'apoio' in treinos ? <Texto variante="suave" style={estilos.apoio}>{treinos.apoio}</Texto> : null}
           </View>
         ) : null}
@@ -198,12 +200,7 @@ const estilos = StyleSheet.create({
   passo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   passoTexto: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), flexGrow: 1, flexShrink: 1, flexBasis: 240 },
   frase: { flexShrink: 1 },
-  fatos: {
-    flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(4), rowGap: espaco(1.5),
-    borderTopWidth: StyleSheet.hairlineWidth, paddingTop: espaco(2),
-  },
-  fato: { gap: espaco(0.25) },
-  numero: { flexGrow: 0 },
+  fatos: { gap: espaco(1.5), borderTopWidth: StyleSheet.hairlineWidth, paddingTop: espaco(2) },
   apoio: { alignSelf: 'flex-end' },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3), alignItems: 'stretch' },
   bloco: { flexGrow: 1, flexShrink: 1, flexBasis: 280, minWidth: 0 },

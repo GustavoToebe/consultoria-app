@@ -1,4 +1,4 @@
-import { planejamentoDoResumo, prazoDaPasta, precisaRenovar, proximoPassoDoAluno, treinosDoResumo, type SituacaoDaFonte } from './resumoDoAluno';
+import { corDosTreinosDoResumo, fatoDaAtualizacao, planejamentoDoResumo, prazoDaPasta, precisaRenovar, proximoPassoDoAluno, SEM_ATUALIZACAO_PENDENTE, treinosDoResumo, type SituacaoDaFonte } from './resumoDoAluno';
 
 const HOJE = '2026-10-19';
 const pasta = (id: string, inicio: string | null, fim: string | null, concluidaEm: string | null = null) => ({ id, titulo: `Ciclo ${id}`, inicio, fim, concluidaEm });
@@ -148,9 +148,31 @@ describe('treinosDoResumo', () => {
     expect(treinosDoResumo({ semana: 0, ultimo: null, pasta: { de: '2026-10-01' } }, SEGUNDA, HOJE)).toEqual({ apoio: 'Treinos: ainda sem registros desde 01/10.' });
   });
   it('com registro: a contagem da semana e o último, com o escopo da consulta', () => {
-    expect(treinosDoResumo({ semana: 3, ultimo: '2026-10-18', pasta: { de: '2026-10-01' } }, SEGUNDA, HOJE)).toEqual({ semana: 3, ultimo: 'Ontem · desde 01/10' });
-    expect(treinosDoResumo({ semana: 0, ultimo: '2026-10-15', pasta: { de: '2026-10-01' } }, SEGUNDA, HOJE)).toEqual({ semana: 0, ultimo: 'Há 4 dias · desde 01/10' });
+    expect(treinosDoResumo({ semana: 3, ultimo: '2026-10-18', pasta: { de: '2026-10-01' } }, SEGUNDA, HOJE)).toEqual({ semana: 3, ultimo: 'Ontem', escopo: 'desde 01/10' });
+    expect(treinosDoResumo({ semana: 0, ultimo: '2026-10-15', pasta: { de: '2026-10-01' } }, SEGUNDA, HOJE)).toEqual({ semana: 0, ultimo: 'Há 4 dias', escopo: 'desde 01/10' });
     // Pasta que começou depois da segunda: a consulta é a semana.
-    expect(treinosDoResumo({ semana: 1, ultimo: '2026-10-19', pasta: { de: '2026-10-19' } }, SEGUNDA, HOJE)).toEqual({ semana: 1, ultimo: 'Hoje · nesta semana' });
+    expect(treinosDoResumo({ semana: 1, ultimo: '2026-10-19', pasta: { de: '2026-10-19' } }, SEGUNDA, HOJE)).toEqual({ semana: 1, ultimo: 'Hoje', escopo: 'nesta semana' });
+  });
+});
+
+// ficha: resumo em cartões (24/11)
+describe('cartões do Resumo: Atualização e Treinos registrados', () => {
+  it('sem atualização a mostrar: "Sem atualização pendente" na cor da categoria, nunca "—"', () => {
+    expect(SEM_ATUALIZACAO_PENDENTE).toBe('Sem atualização pendente');
+    expect(fatoDaAtualizacao('ok', null)).toEqual({ valor: 'Sem atualização pendente', estado: 'valor', cor: 'ciano' });
+  });
+  it('com atualização: o valor é o selo; a situação vence a categoria e o neutro leva a categoria', () => {
+    expect(fatoDaAtualizacao('ok', { curto: 'Para revisar', tipo: 'atencao' })).toEqual({ valor: 'Para revisar', estado: 'valor', cor: 'atencao' });
+    expect(fatoDaAtualizacao('ok', { curto: 'Atrasada há 3 dias', tipo: 'perigo' }).cor).toBe('perigo');
+    expect(fatoDaAtualizacao('ok', { curto: 'Revisada', tipo: 'sucesso' }).cor).toBe('sucesso');
+    expect(fatoDaAtualizacao('ok', { curto: 'Em 5 dias', tipo: 'neutro' })).toEqual({ valor: 'Em 5 dias', estado: 'valor', cor: 'ciano' });
+  });
+  it('sem dado (erro) ou carregando: neutro, e o erro diz o motivo', () => {
+    expect(fatoDaAtualizacao('erro', null)).toEqual({ valor: 'Indisponível', estado: 'indisponivel', motivo: 'Não foi possível carregar', cor: null });
+    expect(fatoDaAtualizacao('carregando', null)).toEqual({ valor: 'Carregando…', estado: 'zero', cor: null });
+  });
+  it('treinos: azul com registro na semana; zero neutro', () => {
+    expect(corDosTreinosDoResumo(1)).toBe('azul');
+    expect(corDosTreinosDoResumo(0)).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AlunoDetalhe, Atualizacao, ItemDeAtividade, Lesao, PastaResumo } from '../src/api/tipos';
-import { CLARO, coresDeDestaque } from '../src/tema/tokens';
+import { CLARO, contraste, coresDeDestaque, misturar } from '../src/tema/tokens';
 import { ALUNO, erroApi, PERMISSOES_TREINADOR as BASE, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
 /**
@@ -360,7 +360,7 @@ const VENCE = /^Vence em [456] dias$/;
 const numeroDosTreinos = (page: Page) => page.getByLabel(/^Treinos registrados: /);
 
 for (const largura of [390, 1280]) {
-  test(`${largura}px: pasta vencida em vermelho com os dias escritos, no Resumo e na lista; treinos da semana neutros`, async ({ page }) => {
+  test(`${largura}px: pasta vencida em vermelho com os dias escritos, no Resumo e na lista; treinos da semana na cor da categoria`, async ({ page }) => {
     await temaClaro(page);
     const pasta = pastaQueTermina(-3);
     const { errosDaPagina } = await abrir(page, { largura, pastas: [pasta], extra: comPasta(pasta, [TREINO_DE_HOJE]) });
@@ -369,10 +369,12 @@ for (const largura of [390, 1280]) {
     expect(await corDe(selo)).toBe(rgb(CLARO.perigo));
     const numero = numeroDosTreinos(page).getByText('1', { exact: true });
     await expect(numero).toBeVisible();
-    // Cartão de indicador pintado (23/11): contagem sem juízo é neutra, número em `texto`, sem ponto nem degradê.
-    expect(await corDe(numero)).toBe(rgb(CLARO.texto));
-    await expect(numeroDosTreinos(page).locator('[aria-hidden="true"]')).toHaveCount(0);
-    expect(await numeroDosTreinos(page).evaluate((e) => getComputedStyle(e).backgroundImage)).toBe('none');
+    // ficha: resumo em cartões (24/11): treino é categoria, então o cartão é pintado de azul (ponto, degradê, borda); o
+    // número fica na cor se passar 4,5:1 sobre o fundo mais forte, senão em `texto` (a regra do cartão pintado).
+    const forte = misturar(CLARO.superficie2, AZUL_CLARO, 0.08 /* TINTA_DA_PINTURA.claro: ui/superficiePintada importa o RN, que o Playwright não carrega */);
+    expect(await corDe(numero)).toBe(rgb(contraste(AZUL_CLARO, forte) >= 4.5 ? AZUL_CLARO : CLARO.texto));
+    expect(await numeroDosTreinos(page).locator('[aria-hidden="true"]').first().evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(rgb(AZUL_CLARO));
+    expect(await numeroDosTreinos(page).evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('linear-gradient');
     await expect(numeroDosTreinos(page).getByText('nesta semana', { exact: true })).toBeVisible();
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

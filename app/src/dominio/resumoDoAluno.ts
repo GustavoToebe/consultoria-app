@@ -160,13 +160,49 @@ export function planejamentoDoResumo(pasta: PastaDoResumo | null, pastas: readon
 /**
  * Treinos no Resumo, com o período explícito (guia de 11/11, pág. 32): a contagem é da semana corrente e o último
  * registro vale para o que a frequência consulta (a semana e, com pasta vigente contável, desde o início dela). Sem
- * nenhum registro nesse período, os dois viram uma linha de apoio só. A contagem vai crua (`semana`), para a tela dar a
- * ênfase pelo número (`dominio/destaque.enfaseDoNumero`: azul com treinos, "0" neutro sem nenhum na semana).
+ * nenhum registro nesse período, os dois viram uma linha de apoio só. A contagem vai crua (`semana`), para a tela dar o
+ * estado pelo número ("0" apagado, neutro); o último registro vem em duas partes ("Ontem" e o escopo "nesta semana" ou
+ * "desde 01/10"), cada uma numa linha do cartão (ficha: resumo em cartões, 24/11).
  */
 export function treinosDoResumo(f: { semana: number; ultimo: string | null; pasta: { de: string } | null }, inicioDaSemana: string, hoje: string):
-  { apoio: string } | { semana: number; ultimo: string } {
+  { apoio: string } | { semana: number; ultimo: string; escopo: string } {
   const desde = f.pasta && f.pasta.de < inicioDaSemana ? f.pasta.de : null;
   const escopo = desde ? `desde ${dataCurta(desde)}` : 'nesta semana';
   if (!f.ultimo) return { apoio: `Treinos: ainda sem registros ${escopo}.` };
-  return { semana: f.semana, ultimo: `${comMaiuscula(dataRelativa(f.ultimo, hoje))} · ${escopo}` };
+  return { semana: f.semana, ultimo: comMaiuscula(dataRelativa(f.ultimo, hoje)), escopo };
+}
+
+/** Texto do cartão Atualização quando não há data de atualização a mostrar (antes aparecia um "—" solto). */
+export const SEM_ATUALIZACAO_PENDENTE = 'Sem atualização pendente';
+
+/**
+ * Cor de um fato do Resumo em cartão de indicador (ficha: resumo em cartões, 24/11). Os três primeiros são as situações do
+ * tema (`sucesso`, `atencao`, `perigo`); `azul` e `ciano` são as cores de destaque de indicador (`useDestaques()`),
+ * usadas aqui como cor de CATEGORIA (treino e atualização): o app não tem token de categoria para eles. `null` = neutro.
+ * O domínio devolve só a chave; quem desenha resolve a cor no tema.
+ */
+export type CorDoFato = 'sucesso' | 'atencao' | 'perigo' | 'azul' | 'ciano' | null;
+
+/** "Treinos registrados": a categoria treino (azul). Zero fica neutro (zero não é sinal). */
+export const corDosTreinosDoResumo = (semana: number): CorDoFato => (semana > 0 ? 'azul' : null);
+
+export interface FatoDaAtualizacao {
+  valor: string;
+  /** `zero` só apaga o texto (carregando); `indisponivel` também escreve o `motivo`. */
+  estado: 'valor' | 'zero' | 'indisponivel';
+  motivo?: string;
+  cor: CorDoFato;
+}
+
+/**
+ * Cartão Atualização do Resumo: o valor é o estado da próxima atualização (o mesmo selo da lista de alunos). A situação
+ * vence a categoria, como no Início e nos Números (D13 de `cores-de-destaque.md`: a mesma informação, a mesma cor): "Para
+ * revisar" `atencao`, "Atrasada há N dias" `perigo`, "Revisada" `sucesso`. Sem situação (data próxima, adiada, nenhuma
+ * pendente) vale a categoria atualização (ciano). Fonte que falhou ou ainda carrega fica neutra.
+ */
+export function fatoDaAtualizacao(fonte: Exclude<SituacaoDaFonte, 'sem-permissao'>, selo: { curto: string; tipo: 'atencao' | 'sucesso' | 'perigo' | 'neutro' } | null): FatoDaAtualizacao {
+  if (fonte === 'carregando') return { valor: 'Carregando…', estado: 'zero', cor: null };
+  if (fonte === 'erro') return { valor: 'Indisponível', estado: 'indisponivel', motivo: 'Não foi possível carregar', cor: null };
+  if (!selo) return { valor: SEM_ATUALIZACAO_PENDENTE, estado: 'valor', cor: 'ciano' };
+  return { valor: selo.curto, estado: 'valor', cor: selo.tipo === 'neutro' ? 'ciano' : selo.tipo };
 }

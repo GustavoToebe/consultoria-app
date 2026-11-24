@@ -15,11 +15,11 @@ export type { EstadoDoIndicador, TomDoIndicador } from './aparenciaDoIndicador';
  * numérica e detalhe em `textoSuave`. Cor só onde significa algo (pintado, 23/11): com `tom` (situação) ou
  * `corDeCategoria` (identificação), o cartão é pintado (`ui/superficiePintada`: degradê de 135° da cor à base, borda de
  * 1 px na cor a 50%, rótulo e número na cor quando ela passa 4,5:1) e ganha o ponto com brilho (ou o `Icone`, como o
- * alerta do Vencido). Neutro: base, contorno `divisor`, sem ponto. Zero e indisponível ficam neutros, com o número em
+ * alerta do Vencido). `textual` põe o valor em fonte normal (frase). Neutro: base, contorno `divisor`, sem ponto. Zero e indisponível ficam neutros, com o número em
  * `textoSuave`; o indisponível escreve o `motivo` sob o "—". `flexGrow: 1`: na `GradeDeIndicadores` todos da linha têm a
  * mesma altura.
  */
-export function CartaoDeIndicador({ rotulo, valor, tom = 'neutro', corDeCategoria, estado = 'valor', detalhe, motivo, Icone, tamanho = 'grande', lugar = 'pagina', nivelDoRotulo, rotuloAcessivel }: {
+export function CartaoDeIndicador({ rotulo, valor, tom = 'neutro', corDeCategoria, estado = 'valor', detalhe, motivo, Icone, textual, tamanho = 'grande', lugar = 'pagina', nivelDoRotulo, rotuloAcessivel }: {
   rotulo: string;
   /** Já formatado ("R$ 1.200,00", "12", "—"). */
   valor: string;
@@ -33,6 +33,8 @@ export function CartaoDeIndicador({ rotulo, valor, tom = 'neutro', corDeCategori
   motivo?: string;
   /** No lugar do ponto, na cor do tom (só aparece com cor). */
   Icone?: LucideIcon;
+  /** O valor é uma frase ou uma palavra ("Ontem", "Sem atualização pendente"), não um número: fonte normal, não a mono. */
+  textual?: boolean;
   /** `grande` = `destaque` (30); `medio` = `titulo` (26), para cartão dentro de outro cartão. */
   tamanho?: 'grande' | 'medio';
   /** `pagina`: base `superficie`; `cartao`: poço `superficie2`, dentro de um `Cartao`. */
@@ -54,7 +56,7 @@ export function CartaoDeIndicador({ rotulo, valor, tom = 'neutro', corDeCategori
         {a.marca && !Icone ? <View aria-hidden style={[estilos.ponto, { backgroundColor: a.marca, boxShadow: `0px 0px 10px ${a.marca}` }]} /> : null}
         <Texto variante="rotulo" cor={a.rotulo} nivel={nivelDoRotulo} style={estilos.encolher}>{rotulo}</Texto>
       </View>
-      <Texto variante={tamanho === 'grande' ? 'destaque' : 'titulo'} numerico cor={a.valor}>{valor}</Texto>
+      <Texto variante={tamanho === 'grande' && !textual ? 'destaque' : 'titulo'} numerico={!textual} cor={a.valor}>{valor}</Texto>
       {indisponivel ? <MotivoDoIndisponivel texto={motivo} /> : null}
       {detalhe ? <Texto variante="pequeno" cor={cores.textoSuave}>{detalhe}</Texto> : null}
     </View>
