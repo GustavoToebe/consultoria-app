@@ -29,6 +29,8 @@ import { Vazio } from '../../../../ui/Estados';
 import { Selo } from '../../../../ui/Selo';
 import { Tela } from '../../../../ui/Tela';
 import { Texto } from '../../../../ui/Texto';
+import { TelaDoAluno } from '../../../../aluno/TelaDoAluno';
+import { LARGURA_LATERAL_DO_ALUNO } from '../../../../dominio/telaLargaDoAluno';
 
 /** Dia de treino: os exercícios da sessão em cartões, com o progresso da data escolhida. */
 export default function SessaoAluno() {
@@ -74,7 +76,8 @@ export default function SessaoAluno() {
   const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje, metodologia: dia.config.metodologia, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
 
   return (
-    <Tela bordas={['top']} largura={1120}>
+    <TelaDoAluno bordas={['top']}>
+      {(largo) => (<>
       <Animated.View entering={reduzido ? undefined : FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}>
       <Cabecalho
         titulo={nomeComDia(sessao)}
@@ -82,6 +85,10 @@ export default function SessaoAluno() {
         voltar="/aluno/treino"
       />
       </Animated.View>
+      {/* Tela larga (24/11): o dia, o começar e as datas numa coluna fixa à esquerda e os exercícios em colunas ao lado. A mesma
+          árvore nas duas formas (só o estilo muda); na pilha, o vão é o da `Tela`. */}
+      <View style={largo ? estilos.colunas : estilos.pilha}>
+      <View style={largo ? [estilos.pilha, estilos.lateral] : estilos.pilha}>
       <Cartao>
         <View style={estilos.linhaResumo}>
           <Selo texto={data === hoje ? `Hoje · ${dataParaTela(data)}` : dataParaTela(data)} tipo="neutro" />
@@ -92,7 +99,7 @@ export default function SessaoAluno() {
             </Texto>
           )}
         </View>
-        <FaixaDoTreino versaoId={dia.treino.versaoId} sessao={sessao} data={data} hoje={hoje} feitas={feitas} total={total} registroDe={dia.registroDe} />
+        <FaixaDoTreino versaoId={conclusao.versaoId} sessao={sessao} data={data} hoje={hoje} feitas={feitas} total={total} registroDe={dia.registroDe} />
         <BarraProgresso feitas={feitas} total={total} cor={marcaPeca} trilho={cores.superficie3} />
         {dia.recordesNoDia ? (
           <View style={estilos.recordes}>
@@ -143,6 +150,8 @@ export default function SessaoAluno() {
           {sessao.observacao ? <Texto variante="suave">{sessao.observacao}</Texto> : null}
         </Cartao>
       ) : null}
+      </View>
+      <View style={largo ? [estilos.pilha, estilos.principal] : estilos.pilha}>
       <ExerciciosDoDia
         sessao={doDia}
         metodologia={dia.config.metodologia}
@@ -153,15 +162,23 @@ export default function SessaoAluno() {
         href={(e) => caminhoDaSessao(sessao.uid, data, e.uid)}
         aoAbrir={(e) => abrir(e.uid)}
         animar={animar}
+        largo={largo}
       />
       {/* Rodapé: primário só quando já não há o "Começar/Continuar" lá em cima (um primário por área). */}
-      <ConcluirTreino {...conclusao} tipo={pendente ? 'secundario' : 'primario'} cheio />
+      <ConcluirTreino {...conclusao} tipo={pendente ? 'secundario' : 'primario'} cheio={!largo} />
       <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
-    </Tela>
+      </View>
+      </View>
+      </>)}
+    </TelaDoAluno>
   );
 }
 
 const estilos = StyleSheet.create({
+  pilha: { gap: espaco(3) },
+  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
+  lateral: { width: LARGURA_LATERAL_DO_ALUNO, flexShrink: 0 },
+  principal: { flex: 1, minWidth: 0 },
   recordes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   linhaResumo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   ctaTreino: {

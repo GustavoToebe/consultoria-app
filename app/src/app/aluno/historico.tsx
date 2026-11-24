@@ -29,7 +29,7 @@ import type { RegistroLocal } from '../../offline/repositorioLocal';
 import { imprimir } from '../../pdf/imprimir';
 import { logoComoDataUri } from '../../pdf/logo';
 import { documentoCargas } from '../../pdf/pdfCargas';
-import { fontes } from '../../tema/tokens';
+import { espaco, fontes } from '../../tema/tokens';
 import { CargasPorDivisao } from '../../treinador/CargasPorDivisao';
 import { CartaoAvaliacaoFisica } from '../../treinador/CartaoAvaliacaoFisica';
 import { CartaoPeso } from '../../treinador/CartaoPeso';
@@ -48,8 +48,9 @@ import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { TelaDoAluno } from '../../aluno/TelaDoAluno';
+import { FAIXA_DO_ALUNO } from '../../dominio/telaLargaDoAluno';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -124,75 +125,102 @@ export default function HistoricoAluno() {
       .finally(() => setGerando(false));
   };
 
-  return (
-    <Tela bordas={['top']} largura={1120}>
-      <Cabecalho titulo="Histórico" />
-      <CartaoFotos />
-      <HistoricoAtualizacoes />
-      {naoEnviados.length ? (
-        <Cartao titulo="Ainda não enviados">
-          <Texto numerico variante="suave">Salvos neste aparelho. Vão para o seu treinador quando houver internet.</Texto>
-          {agrupar(naoEnviados).map(([chave, lista]) => {
-            const info = nomes.get(lista[0].exercicioUid);
-            return (
-              <View key={chave} style={estilos.linha}>
-                <Texto numerico style={estilos.forte}>
-                  {dataParaTela(lista[0].data)} · {info?.exercicio.nome ?? 'Exercício de outra versão do plano'}
-                </Texto>
-                <Texto numerico variante="suave">
-                  {lista
-                    .map((r) => {
-                      const serie = info?.exercicio.series.find((s) => s.uid === r.serieUid);
-                      if (serie?.cardio) return 'Cardio feito';
-                      return textoSerie({ ...r, tipo: nomeDaSerieNoHistorico(serie, metodologia), unidade: info?.exercicio.unidade ?? 'kg' }, unidadeDeCarga);
-                    })
-                    .join(' · ')}
-                </Texto>
-              </View>
-            );
-          })}
-          {falhas.length ? <Botao rotulo="Tentar enviar de novo" tipo="secundario" cheio aoTocar={() => void tentarDeNovo()} /> : null}
-        </Cartao>
+  const ainda = naoEnviados.length ? (
+    <Cartao titulo="Ainda não enviados">
+      <Texto numerico variante="suave">Salvos neste aparelho. Vão para o seu treinador quando houver internet.</Texto>
+      {agrupar(naoEnviados).map(([chave, lista]) => {
+        const info = nomes.get(lista[0].exercicioUid);
+        return (
+          <View key={chave} style={estilos.linha}>
+            <Texto numerico style={estilos.forte}>
+              {dataParaTela(lista[0].data)} · {info?.exercicio.nome ?? 'Exercício de outra versão do plano'}
+            </Texto>
+            <Texto numerico variante="suave">
+              {lista
+                .map((r) => {
+                  const serie = info?.exercicio.series.find((s) => s.uid === r.serieUid);
+                  if (serie?.cardio) return 'Cardio feito';
+                  return textoSerie({ ...r, tipo: nomeDaSerieNoHistorico(serie, metodologia), unidade: info?.exercicio.unidade ?? 'kg' }, unidadeDeCarga);
+                })
+                .join(' · ')}
+            </Texto>
+          </View>
+        );
+      })}
+      {falhas.length ? <Botao rotulo="Tentar enviar de novo" tipo="secundario" cheio aoTocar={() => void tentarDeNovo()} /> : null}
+    </Cartao>
+  ) : null;
+  const cartaoDeRegistros = (
+    <Cartao
+      titulo="Registros e cargas"
+      periodo={rotuloDoPeriodo(periodo, de, ate)}
+      acoes={divisoes.length ? <NoPlano funcionalidade="PDF"><Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /></NoPlano> : null}>
+      {opcoesDoPeriodo.length > 1 ? (
+        <BarraDeFiltros<PeriodoDoHistorico | null> valor={escolhido} limpo={null} aoAplicar={setEscolhido}
+          chips={chipsDoPeriodoDoHistorico(periodo, opcoesDoPeriodo)} aoTirar={() => setEscolhido(null)}
+          painelLateral={{ titulo: 'Filtros de registros' }}
+          seletores={(f, mudar) => (
+            <GrupoDoPainel titulo="Datas" primeiro>
+              <Escolha rotulo="Período" opcoes={opcoesDoPeriodo} valor={periodoValido(f, pasta, anterior)} aoMudar={mudar} />
+            </GrupoDoPainel>
+          )} />
       ) : null}
+      <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
+      {historico.dados && historico.dados.length ? <Texto numerico variante="pequeno">{fraseDoHistorico(visao, de, ate)}</Texto> : null}
+      {semConexao ? <Texto numerico variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}
+      {historico.erro && !semConexao ? <MensagemErro texto={textoDoErro(historico.erro)} erro={historico.erro} tentarDeNovo={historico.recarregar} /> : null}
+      {!historico.dados && historico.carregando ? <Esqueleto /> : null}
+      {historico.dados && historico.dados.length === 0 ? (
+        // B6: o motivo do vazio sai do domínio (o mesmo texto da ficha do treinador).
+        <>
+          <Vazio titulo={vazio ?? 'Sem registros'} texto={periodo === 'ULTIMOS_30' ? 'Os treinos que você registrar aparecem aqui.' : 'Os treinos que você registrar neste plano aparecem aqui.'} />
+          {periodo !== 'ULTIMOS_30' ? <Botao rotulo={`Ver os últimos ${DIAS_DO_HISTORICO} dias`} tipo="secundario" aoTocar={() => setEscolhido('ULTIMOS_30')} /> : null}
+        </>
+      ) : null}
+      {historico.dados && periodoMisturaVersoes(historico.dados) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
+      {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} letras={letras} nascemAbertas /> : null}
+      {historico.dados && visao === 'dia' ? <HistoricoPorSemana dias={historico.dados} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} hoje={hoje} /> : null}
+    </Cartao>
+  );
+  const fotos = <CartaoFotos />;
+  const atualizacoes = <HistoricoAtualizacoes />;
+  const progresso = <CartaoProgresso />;
+  // O mesmo cartão da ficha, só leitura (lista e gráfico); o peso não fica guardado no aparelho.
+  const peso = <CartaoPeso />;
+  const avaliacao = <CartaoAvaliacaoFisica online={online} />;
 
-      <Cartao
-        titulo="Registros e cargas"
-        periodo={rotuloDoPeriodo(periodo, de, ate)}
-        acoes={divisoes.length ? <NoPlano funcionalidade="PDF"><Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /></NoPlano> : null}>
-        {opcoesDoPeriodo.length > 1 ? (
-          <BarraDeFiltros<PeriodoDoHistorico | null> valor={escolhido} limpo={null} aoAplicar={setEscolhido}
-            chips={chipsDoPeriodoDoHistorico(periodo, opcoesDoPeriodo)} aoTirar={() => setEscolhido(null)}
-            painelLateral={{ titulo: 'Filtros de registros' }}
-            seletores={(f, mudar) => (
-              <GrupoDoPainel titulo="Datas" primeiro>
-                <Escolha rotulo="Período" opcoes={opcoesDoPeriodo} valor={periodoValido(f, pasta, anterior)} aoMudar={mudar} />
-              </GrupoDoPainel>
-            )} />
-        ) : null}
-        <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
-        {historico.dados && historico.dados.length ? <Texto numerico variante="pequeno">{fraseDoHistorico(visao, de, ate)}</Texto> : null}
-        {semConexao ? <Texto numerico variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}
-        {historico.erro && !semConexao ? <MensagemErro texto={textoDoErro(historico.erro)} erro={historico.erro} tentarDeNovo={historico.recarregar} /> : null}
-        {!historico.dados && historico.carregando ? <Esqueleto /> : null}
-        {historico.dados && historico.dados.length === 0 ? (
-          // B6: o motivo do vazio sai do domínio (o mesmo texto da ficha do treinador).
-          <>
-            <Vazio titulo={vazio ?? 'Sem registros'} texto={periodo === 'ULTIMOS_30' ? 'Os treinos que você registrar aparecem aqui.' : 'Os treinos que você registrar neste plano aparecem aqui.'} />
-            {periodo !== 'ULTIMOS_30' ? <Botao rotulo={`Ver os últimos ${DIAS_DO_HISTORICO} dias`} tipo="secundario" aoTocar={() => setEscolhido('ULTIMOS_30')} /> : null}
-          </>
-        ) : null}
-        {historico.dados && periodoMisturaVersoes(historico.dados) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
-        {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} letras={letras} nascemAbertas /> : null}
-        {historico.dados && visao === 'dia' ? <HistoricoPorSemana dias={historico.dados} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} hoje={hoje} /> : null}
-      </Cartao>
-
-      <CartaoProgresso />
-
-      {/* O mesmo cartão da ficha, só leitura (lista e gráfico); o peso não fica guardado no aparelho. */}
-      <CartaoPeso />
-
-      <CartaoAvaliacaoFisica online={online} />
-    </Tela>
+  return (
+    <TelaDoAluno bordas={['top']}>
+      {(largo) => (<>
+      <Cabecalho titulo="Histórico" />
+      {largo ? (
+        // Tela larga (24/11): registros e progresso (o que mais se lê) à esquerda; fotos, atualizações, peso e avaliação ao lado.
+        <View style={estilos.colunas}>
+          <View style={[estilos.pilha, estilos.principal]}>
+            {ainda}
+            {cartaoDeRegistros}
+            {progresso}
+          </View>
+          <View style={[estilos.pilha, estilos.lateral]}>
+            {fotos}
+            {atualizacoes}
+            {peso}
+            {avaliacao}
+          </View>
+        </View>
+      ) : (
+        <>
+          {fotos}
+          {atualizacoes}
+          {ainda}
+          {cartaoDeRegistros}
+          {progresso}
+          {peso}
+          {avaliacao}
+        </>
+      )}
+      </>)}
+    </TelaDoAluno>
   );
 }
 
@@ -206,6 +234,10 @@ function agrupar(lista: RegistroLocal[]): [string, RegistroLocal[]][] {
 }
 
 const estilos = StyleSheet.create({
+  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
+  pilha: { gap: espaco(3) },
+  principal: { flex: 1, minWidth: 0 },
+  lateral: { width: FAIXA_DO_ALUNO, flexShrink: 0 },
   linha: { gap: 2 },
   forte: { fontFamily: fontes.semi },
 });

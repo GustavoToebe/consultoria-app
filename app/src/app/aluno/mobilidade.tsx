@@ -16,7 +16,7 @@ import { logoComoDataUri } from '../../pdf/logo';
 import { documentoMobilidade } from '../../pdf/pdfMobilidade';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_TEXTO_CORRIDO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { BotaoMarcar } from '../../ui/BotaoMarcar';
@@ -28,8 +28,10 @@ import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { Tela } from '../../ui/Tela';
+import { Grade } from '../../ui/Grade';
 import { Texto } from '../../ui/Texto';
+import { TelaDoAluno } from '../../aluno/TelaDoAluno';
+import { colunasDaGradeDoAluno } from '../../dominio/telaLargaDoAluno';
 
 /**
  * Mobilidade publicada: nome, prescrição e vídeo, e o aluno marca cada item como feito no dia (sem cronômetro: só feito
@@ -40,7 +42,8 @@ export default function MobilidadeAluno() {
   const { mobilidade, escolhida, pacote, pacoteRecusado, carregando, erroPacote, tentarDeNovo } = useAluno();
   const versao = mobilidadeParaExibir(mobilidade, escolhida ? { mobilidade: escolhida.planos.mobilidade } : null);
   return (
-    <Tela bordas={['top']} largura={1120}>
+    <TelaDoAluno bordas={['top']}>
+      {(largo) => (<>
       <Cabecalho titulo="Mobilidade" />
       <Texto variante="suave">Mobilidade e alongamentos do seu treinador, com vídeo quando houver.</Texto>
       <SeletorPlano rotulo={null} />
@@ -49,13 +52,17 @@ export default function MobilidadeAluno() {
       {!pacote && !pacoteRecusado && !carregando && erroPacote ? (
         <MensagemErro texto={`${textoDoErro(erroPacote)} Conecte-se uma vez para baixar a mobilidade; depois ela funciona sem internet.`} erro={erroPacote} tentarDeNovo={() => void tentarDeNovo()} />
       ) : null}
-      {versao ? <ConteudoDaMobilidade versao={versao} /> : pacote ? <Vazio titulo="Sem mobilidade" texto={escolhida ? 'Este plano não tem mobilidade publicada.' : 'Seu treinador ainda não publicou a mobilidade.'} /> : null}
-    </Tela>
+      {versao ? <ConteudoDaMobilidade versao={versao} largo={largo} /> : pacote ? <Vazio titulo="Sem mobilidade" texto={escolhida ? 'Este plano não tem mobilidade publicada.' : 'Seu treinador ainda não publicou a mobilidade.'} /> : null}
+      </>)}
+    </TelaDoAluno>
   );
 }
 
-/** O bloco da mobilidade, usado na aba Treino e no endereço antigo `/aluno/mobilidade`. */
-export function ConteudoDaMobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }) {
+/**
+ * O bloco da mobilidade, usado na aba Treino e no endereço antigo `/aluno/mobilidade`. `largo` (tela larga, 24/11): as seções
+ * ganham colunas e o PDF fica do tamanho do texto, em vez de cartões e botão da largura da tela.
+ */
+export function ConteudoDaMobilidade({ versao, largo = false }: { versao: VersaoDetalhe<ConteudoMobilidadeApi>; largo?: boolean }) {
   const { avisar } = useAviso();
   const { cores } = useTema();
   const { temFuncionalidade } = useSessao();
@@ -99,6 +106,31 @@ export function ConteudoDaMobilidade({ versao }: { versao: VersaoDetalhe<Conteud
     // Abre fora do app (navegador ou app do YouTube), sem token nem cookie; só link https seguro.
     void abrirLinkExterno(url).then((ok) => { if (!ok) avisar('Não foi possível abrir o vídeo.', 'perigo'); });
   };
+  const secoes = c.secoes.map((secao) => (
+    <Cartao key={secao.uid} cabecalho={<CabecalhoDeGrupo titulo={secao.titulo?.trim() || 'Mobilidade'} />}>
+      {secao.itens.map((item) => {
+        const i = itemParaTela(item);
+        const feito = feitos.has(item.uid);
+        return (
+          <View key={item.uid} style={estilos.linha}>
+            <View style={estilos.item}>
+              <Texto numerico style={estilos.nome}>{i.nome}</Texto>
+              <Texto numerico variante="suave">{i.prescricao}</Texto>
+              {i.video ? <Botao rotulo="Ver vídeo" tipo="secundario" Icone={PlayCircle} aoTocar={() => abrirVideo(i.video!)} /> : null}
+            </View>
+            {podeMarcar && data ? (
+              <MarcarItem
+                key={data}
+                feito={feito}
+                rotulo={`${i.nome}: ${feito ? 'feito' : 'não feito'} em ${data === hoje ? 'hoje' : dataCurta(data)}`}
+                aoTocar={() => void marcarMobilidade({ planoVersaoId: versao.id, secaoUid: secao.uid, itemUid: item.uid, data, feito: !feito })}
+              />
+            ) : null}
+          </View>
+        );
+      })}
+    </Cartao>
+  ));
   return (
     <>
       {/* O plano em uso e o dia que se marca num cartão só, no topo (o título ficava solto no fim da tela). */}
@@ -122,35 +154,13 @@ export function ConteudoDaMobilidade({ versao }: { versao: VersaoDetalhe<Conteud
       </Cartao>
       {c.orientacoes?.trim() ? (
         <Cartao titulo="Orientações">
-          <Texto numerico>{c.orientacoes}</Texto>
+          <Texto numerico style={estilos.corrido}>{c.orientacoes}</Texto>
         </Cartao>
       ) : null}
-      {c.secoes.map((secao) => (
-        <Cartao key={secao.uid} cabecalho={<CabecalhoDeGrupo titulo={secao.titulo?.trim() || 'Mobilidade'} />}>
-          {secao.itens.map((item) => {
-            const i = itemParaTela(item);
-            const feito = feitos.has(item.uid);
-            return (
-              <View key={item.uid} style={estilos.linha}>
-                <View style={estilos.item}>
-                  <Texto numerico style={estilos.nome}>{i.nome}</Texto>
-                  <Texto numerico variante="suave">{i.prescricao}</Texto>
-                  {i.video ? <Botao rotulo="Ver vídeo" tipo="secundario" Icone={PlayCircle} aoTocar={() => abrirVideo(i.video!)} /> : null}
-                </View>
-                {podeMarcar && data ? (
-                  <MarcarItem
-                    key={data}
-                    feito={feito}
-                    rotulo={`${i.nome}: ${feito ? 'feito' : 'não feito'} em ${data === hoje ? 'hoje' : dataCurta(data)}`}
-                    aoTocar={() => void marcarMobilidade({ planoVersaoId: versao.id, secaoUid: secao.uid, itemUid: item.uid, data, feito: !feito })}
-                  />
-                ) : null}
-              </View>
-            );
-          })}
-        </Cartao>
-      ))}
-      <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da mobilidade" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} /></NoPlano>
+      {largo ? (
+        <Grade gap={espaco(2)} alinhar="inicio" colunas={(l) => colunasDaGradeDoAluno(l, c.secoes.length, espaco(2))}>{secoes}</Grade>
+      ) : secoes}
+      <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da mobilidade" tipo="secundario" cheio={!largo} Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} /></NoPlano>
     </>
   );
 }
@@ -174,4 +184,5 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   item: { flex: 1, minWidth: 0, gap: 4 },
   nome: { fontFamily: fontes.semi },
+  corrido: { maxWidth: LARGURA_TEXTO_CORRIDO },
 });

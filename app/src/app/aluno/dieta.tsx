@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { CartaoAguaDoDia } from '../../aluno/CartaoAguaDoDia';
 import { DietaDoAluno } from '../../aluno/DietaDoAluno';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
@@ -14,8 +16,8 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 
 /**
  * Dieta publicada (só leitura). Busca online; sem conexão mostra a última vista neste aparelho, avisando que pode
@@ -24,17 +26,22 @@ import { Texto } from '../../ui/Texto';
 export default function DietaAluno() {
   const { escolhida } = useAluno();
   const { dados, erro, carregando, recarregar } = useDietaDoAluno();
+  // A água marcada é por dia, contra a meta da dieta em uso (a pasta escolhida para consulta não muda o registro).
+  const agua = dados?.dieta?.conteudo.aguaLitros ? <CartaoAguaDoDia metaLitros={dados.dieta.conteudo.aguaLitros} /> : null;
+  // Tela larga (24/11): a água vai para o topo da coluna do resumo, junto da dieta; sem dieta na tela, fica onde sempre esteve.
+  const temDieta = escolhida ? !!escolhida.planos.dieta : !!dados?.dieta;
 
   return (
-    <Tela bordas={['top']} largura={1120}>
+    <TelaDoAluno bordas={['top']}>
+      {(largo) => (<>
       <Cabecalho titulo="Dieta" />
       <Texto variante="suave">A dieta que o seu treinador publicou, só para consulta.</Texto>
       <SeletorPlano rotulo={null} />
-      {/* A água marcada é por dia, contra a meta da dieta em uso (a pasta escolhida para consulta não muda o registro). */}
-      {dados?.dieta?.conteudo.aguaLitros ? <CartaoAguaDoDia metaLitros={dados.dieta.conteudo.aguaLitros} /> : null}
+      {largo && temDieta ? null : agua}
       {escolhida ? (
         escolhida.planos.dieta ? (
-          <Dieta versao={escolhida.planos.dieta} salva={false} aguaNoCartao={!!dados?.dieta?.conteudo.aguaLitros && dados.dieta.id === escolhida.planos.dieta.id} />
+          <Dieta versao={escolhida.planos.dieta} salva={false} aguaNoCartao={!!dados?.dieta?.conteudo.aguaLitros && dados.dieta.id === escolhida.planos.dieta.id}
+            largo={largo} lado={agua} />
         ) : (
           <Vazio titulo="Sem dieta neste plano" texto="Este plano só tem treino publicado." />
         )
@@ -47,13 +54,14 @@ export default function DietaAluno() {
       ) : null}
       {escolhida ? null : !dados && carregando ? <Esqueleto /> : null}
       {escolhida ? null : dados && !dados.dieta ? <Vazio titulo="Sem plano de dieta" texto="Seu treinador ainda não publicou a dieta." /> : null}
-      {!escolhida && dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} aguaNoCartao={!!dados.dieta.conteudo.aguaLitros} /> : null}
-    </Tela>
+      {!escolhida && dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} aguaNoCartao={!!dados.dieta.conteudo.aguaLitros} largo={largo} lado={agua} /> : null}
+      </>)}
+    </TelaDoAluno>
   );
 }
 
 /** A dieta do aluno com o PDF montado pelo pacote (marca e nome do aluno) e o peso dele, que só o servidor tem. */
-function Dieta({ versao, salva, aguaNoCartao }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean; aguaNoCartao: boolean }) {
+function Dieta({ versao, salva, aguaNoCartao, largo, lado }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean; aguaNoCartao: boolean; largo: boolean; lado: ReactNode }) {
   const { pacote } = useAluno();
   const pdf = async (lista?: DadosPdfDieta['lista'], variacaoUid: string | null = null) => {
     if (!pacote) return;
@@ -76,5 +84,5 @@ function Dieta({ versao, salva, aguaNoCartao }: { versao: VersaoDetalhe<Conteudo
       }),
     );
   };
-  return <DietaDoAluno versao={versao} salva={salva} aguaNoCartao={aguaNoCartao} aoBaixarPdf={pdf} />;
+  return <DietaDoAluno versao={versao} salva={salva} aguaNoCartao={aguaNoCartao} aoBaixarPdf={pdf} largo={largo} lado={largo ? lado : undefined} />;
 }

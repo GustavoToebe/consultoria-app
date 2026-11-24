@@ -25,7 +25,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { textoDoErro } from '../../ui/erros';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Grade } from '../../ui/Grade';
-import { Tela } from '../../ui/Tela';
+import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { duasColunasCom } from '../../dominio/grade';
 import { espaco } from '../../tema/tokens';
 
@@ -37,7 +37,7 @@ import { espaco } from '../../tema/tokens';
  */
 export default function InicioAluno() {
   const { pacote, carregando, erroPacote, pacoteRecusado, tentarDeNovo, sessaoConcluidaDe } = useAluno();
-  const { usuario } = useSessao();
+  const { usuario, retornoHabilitado } = useSessao();
   const dieta = useDietaDoAluno();
   const hoje = hojeIso();
   const treino = pacote?.pacote.treino ?? null;
@@ -62,40 +62,67 @@ export default function InicioAluno() {
   const andamento = useTreinoEmAndamento(treino?.versaoId ?? null, conteudo, hoje);
   const andamentoNoHoje = !!andamento && estadoHoje.tipo === 'treino' && estadoHoje.sessao.uid === andamento.sessao.uid;
 
+  const hojeEDieta = (
+    <View style={estilos.coluna}>
+      <CartaoDietaDoInicio estado={estadoDaDieta} aoTentarDeNovo={dieta.recarregar} />
+      {dietaDoPlano?.conteudo.aguaLitros ? <CartaoAguaDoDia compacto metaLitros={dietaDoPlano.conteudo.aguaLitros} /> : null}
+      <SecaoHojeDoInicio
+        estado={estadoHoje}
+        proximo={estadoHoje.tipo === 'descanso' ? proximoTreino(conteudo, hoje, treino?.fim ?? null) : null}
+        hoje={hoje}
+        concluido={concluido}
+        emAndamento={andamentoNoHoje ? andamento.texto : null}
+        carregando={semPacote && carregando}
+        erro={semPacote && erroPacote ? { texto: `${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`, aoTentarDeNovo: () => void tentarDeNovo(), causa: erroPacote } : undefined}
+      />
+    </View>
+  );
+  const pendenciasESemana = (
+    <>
+      {pacote ? <ParaFazer /> : null}
+      <CartaoCompromissos />
+      {pacote ? <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} /> : null}
+    </>
+  );
+
   return (
-    <Tela bordas={['top']} largura={1120}>
+    // Tela larga (24/11): com o retorno ligado (nível e mapa existem), a terceira coluna leva o nível e a vitrine; sem ele, o
+    // Início não tem o que pôr nela e fica nas duas colunas de 1120.
+    <TelaDoAluno bordas={['top']} faixas={retornoHabilitado ? 3 : 2}>
+      {(largo) => (<>
       <CabecalhoDoInicio nome={nome} hoje={hoje} />
       {/* Treino começado e não concluído que não é o do Hoje: antes de tudo, para voltar a ele num toque. */}
       {andamento && !andamentoNoHoje ? <FaixaTreinoEmAndamento andamento={andamento} hoje={hoje} /> : null}
-      <Grade gap={espaco(2)} colunas={duasColunasCom(360, espaco(2))} alinhar="inicio">
-        <View style={estilos.coluna}>
-          <CartaoDietaDoInicio estado={estadoDaDieta} aoTentarDeNovo={dieta.recarregar} />
-          {dietaDoPlano?.conteudo.aguaLitros ? <CartaoAguaDoDia compacto metaLitros={dietaDoPlano.conteudo.aguaLitros} /> : null}
-          <SecaoHojeDoInicio
-            estado={estadoHoje}
-            proximo={estadoHoje.tipo === 'descanso' ? proximoTreino(conteudo, hoje, treino?.fim ?? null) : null}
-            hoje={hoje}
-            concluido={concluido}
-            emAndamento={andamentoNoHoje ? andamento.texto : null}
-            carregando={semPacote && carregando}
-            erro={semPacote && erroPacote ? { texto: `${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`, aoTentarDeNovo: () => void tentarDeNovo(), causa: erroPacote } : undefined}
-          />
+      {largo ? (
+        <View style={estilos.tresColunas}>
+          <View style={estilos.faixa}>{hojeEDieta}</View>
+          <View style={[estilos.faixa, estilos.coluna]}>{pendenciasESemana}</View>
+          <View style={[estilos.faixa, estilos.coluna]}>
+            <NivelDoAluno />
+            <CartaoVitrineDoInicio />
+          </View>
         </View>
-        <View style={estilos.coluna}>
-          {pacote ? <ParaFazer /> : null}
-          <CartaoCompromissos />
-          {pacote ? <ProgressoSemana hoje={hoje} treinoEmAndamento={andamentoNoHoje} /> : null}
-          <NivelDoAluno />
-          <CartaoVitrineDoInicio />
-        </View>
-      </Grade>
+      ) : (
+        <Grade gap={espaco(2)} colunas={duasColunasCom(360, espaco(2))} alinhar="inicio">
+          {hojeEDieta}
+          <View style={estilos.coluna}>
+            {pendenciasESemana}
+            <NivelDoAluno />
+            <CartaoVitrineDoInicio />
+          </View>
+        </Grade>
+      )}
       <MapaDeTreinos />
-    </Tela>
+      </>)}
+    </TelaDoAluno>
   );
 }
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
+  // Três faixas iguais com o mesmo vão da grade de duas.
+  tresColunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
+  faixa: { flex: 1, minWidth: 0 },
 });
 
 /** Título "Hoje" e o cartão do dia. "Escolher treino" abre a aba Treino, onde estão as divisões. */

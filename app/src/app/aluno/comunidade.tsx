@@ -45,7 +45,9 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { depoisDeFecharAsFolhas } from '../../ui/historicoDasFolhas';
 import { Selo } from '../../ui/Selo';
-import { Tela } from '../../ui/Tela';
+import { Grade } from '../../ui/Grade';
+import { TelaDoAluno } from '../../aluno/TelaDoAluno';
+import { colunasDaGradeDoAluno } from '../../dominio/telaLargaDoAluno';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 
@@ -176,8 +178,28 @@ export default function ComunidadeAluno() {
     if (!(await abrirLinkExterno(url))) avisar('Não foi possível abrir o link.', 'perigo');
   };
 
+  const cartoesDoMural = (lista: PostDoMural[]) => fixadosPrimeiro(lista).map((p) => (
+    <CartaoDoPost
+      key={p.id}
+      post={p}
+      baixarFoto={baixarFotoDoMuralDoAluno}
+      aoAbrirPerfil={p.autorEhAluno ? () => setPerfilAberto(p.autorId) : undefined}
+      baixarCapa={baixarCapaDoAluno}
+      aoReagir={(codigo, ligar) => acoes.aoReagir?.(p.id, codigo, ligar)}
+      aoVotar={(ids) => acoes.aoVotar?.(p.id, ids)}
+      ocupado={acoes.ocupados.has(p.id)}
+      aoMostrarVotos={() => setVotosDe({ postId: p.id })}
+      baixarFotoDoVotante={baixarFotoDoColega}
+      aoComentarios={() => setComentariosDe({ tipo: 'post', id: p.id })}
+      // O próprio post não tem ação para o aluno: denunciar é só de post de outra pessoa.
+      aoAbrirMenu={p.autorId !== usuario?.id ? () => setMenuDe(p) : undefined}
+      aoAbrirFora={(url) => void abrir(url)}
+    />
+  ));
+
   return (
-    <Tela bordas={['top']} largura={1120}>
+    <TelaDoAluno bordas={['top']}>
+      {(largo) => (<>
       <Cabecalho titulo="Comunidade" subtitulo="Mural do time, vídeos, conquistas e colegas da sua consultoria." />
       <AvisoDoPerfilNaComunidade online={online} />
 
@@ -222,7 +244,8 @@ export default function ComunidadeAluno() {
 
               {/* Avisos | Alunos (C39) numa linha própria, depois do grupo (o escopo): o segmento na largura toda lê como a
                   divisão do conteúdo e não espreme a linha do grupo com o botão em 390 px. */}
-              <Escolha<AbaDoMural> descricao="Publicações" distribuida valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
+              {/* Na tela larga o segmento fica do tamanho das opções, em vez de cruzar a tela. */}
+              <Escolha<AbaDoMural> descricao="Publicações" distribuida={!largo} valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
               <BarraDoMural aba={abaDoMural} filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={false} />
 
               <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
@@ -232,24 +255,10 @@ export default function ComunidadeAluno() {
                   // Avisos vazio (a aba padrão) não é beco: o próximo passo é a outra aba.
                   : abaDoMural === 'avisos' ? { rotulo: 'Ver publicações dos alunos', aoTocar: () => setAbaDoMural('alunos') } : undefined} />
 
-              {posts ? fixadosPrimeiro(posts).map((p) => (
-                <CartaoDoPost
-                  key={p.id}
-                  post={p}
-                  baixarFoto={baixarFotoDoMuralDoAluno}
-                  aoAbrirPerfil={p.autorEhAluno ? () => setPerfilAberto(p.autorId) : undefined}
-                  baixarCapa={baixarCapaDoAluno}
-                  aoReagir={(codigo, ligar) => acoes.aoReagir?.(p.id, codigo, ligar)}
-                  aoVotar={(ids) => acoes.aoVotar?.(p.id, ids)}
-                  ocupado={acoes.ocupados.has(p.id)}
-                  aoMostrarVotos={() => setVotosDe({ postId: p.id })}
-                  baixarFotoDoVotante={baixarFotoDoColega}
-                  aoComentarios={() => setComentariosDe({ tipo: 'post', id: p.id })}
-                  // O próprio post não tem ação para o aluno: denunciar é só de post de outra pessoa.
-                  aoAbrirMenu={p.autorId !== usuario?.id ? () => setMenuDe(p) : undefined}
-                  aoAbrirFora={(url) => void abrir(url)}
-                />
-              )) : null}
+              {/* Tela larga (24/11): o mural vira quadro em colunas (cartão de ~550, o texto em ~72 caracteres), do mais novo ao mais antigo. */}
+              {posts && largo ? (
+                <Grade gap={espaco(3)} alinhar="inicio" colunas={(l) => colunasDaGradeDoAluno(l, posts.length, espaco(3))}>{cartoesDoMural(posts)}</Grade>
+              ) : posts ? cartoesDoMural(posts) : null}
             </View>
           ) : null}
 
@@ -265,8 +274,8 @@ export default function ComunidadeAluno() {
           ) : null}
 
           {aba === 'ranking' ? (
-            <View style={estilos.blocos}>
-              <Cartao titulo="Suas conquistas" descricao="Liberadas conforme você conclui treinos.">
+            <View style={largo ? estilos.ladoALado : estilos.blocos}>
+              <Cartao titulo="Suas conquistas" descricao="Liberadas conforme você conclui treinos." style={largo ? estilos.largo : undefined}>
                 <EstadoDaFonte carregando={conquistas.carregando} erro={conquistas.erro} vazio={!conquistas.dados?.length}
                   textoVazio="Nenhuma conquista por enquanto." recarregar={conquistas.recarregar} />
                 {conquistas.dados?.length ? (
@@ -286,7 +295,7 @@ export default function ComunidadeAluno() {
                 ) : null}
               </Cartao>
 
-              <Cartao titulo="Sua posição" descricao="Pelo número de treinos concluídos. Só você vê a sua posição; nomes de outros alunos não aparecem.">
+              <Cartao style={largo ? estilos.estreito : undefined} titulo="Sua posição" descricao="Pelo número de treinos concluídos. Só você vê a sua posição; nomes de outros alunos não aparecem.">
                 <EstadoDaFonte carregando={ranking.carregando} erro={ranking.erro} vazio={!ranking.dados}
                   textoVazio="A sua posição ainda não está disponível." recarregar={ranking.recarregar} />
                 {ranking.dados ? (
@@ -322,13 +331,18 @@ export default function ComunidadeAluno() {
           acoes={[{ rotulo: 'Denunciar', detalhe: 'A equipe da consultoria vai olhar.', Icone: Flag, perigo: true, aoTocar: () => setDenunciar(menuDe) }]} />
       ) : null}
       <PainelDeDenuncia post={denunciar} aoFechar={() => setDenunciar(null)} aoSumir={mural.recarregar} />
-    </Tela>
+      </>)}
+    </TelaDoAluno>
   );
 }
 
 const estilos = StyleSheet.create({
   // 24 px entre blocos; 16 px dentro do cartão e do item.
   blocos: { gap: espaco(3) },
+  // Tela larga: conquistas e posição lado a lado (2 para 1).
+  ladoALado: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
+  largo: { flex: 2, minWidth: 0 },
+  estreito: { flex: 1, minWidth: 0 },
   // Seletor do mural à esquerda e a ação principal à direita; no celular estreito, o botão desce para a linha de baixo.
   topoDoMural: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(2) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },

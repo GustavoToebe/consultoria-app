@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { CartaoDivisaoLeitura, LinhaDaDivisao } from '../../aluno/LinhaDaDivisao';
 import { SecaoDoInicio } from '../../aluno/SecaoDoInicio';
@@ -28,8 +28,10 @@ import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Grade } from '../../ui/Grade';
 import { NoPlano } from '../../ui/NoPlano';
-import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { TelaDoAluno } from '../../aluno/TelaDoAluno';
+import { colunasDaGradeDoAluno } from '../../dominio/telaLargaDoAluno';
+import { espaco, LARGURA_TEXTO_CORRIDO } from '../../tema/tokens';
 import { ConteudoDaMobilidade } from './mobilidade';
 
 /**
@@ -79,8 +81,10 @@ export default function TreinoAluno() {
     }
   };
 
+  const divisoes = conteudo ? sessoesDaSemana(conteudo) : [];
   return (
-    <Tela bordas={['top']} largura={1120}>
+    <TelaDoAluno bordas={['top']}>
+      {(largo) => (<>
       <Cabecalho titulo="Treino" subtitulo="As divisões da semana, do jeito que o treinador montou." />
       {!pacote && pacoteRecusado ? <View testID="pacote-recusado"><Alerta tom="atencao" texto={TEXTO_PACOTE_RECUSADO} /></View> : null}
       {!pacote && !pacoteRecusado && carregando ? <Esqueleto texto="Carregando seu treino" cartoes={2} /> : null}
@@ -93,8 +97,9 @@ export default function TreinoAluno() {
       {conteudo && treino ? (
         <>
           <SecaoDoInicio titulo="Divisões da semana">
-            <Grade>
-              {sessoesDaSemana(conteudo).map((s, i) => (
+            {/* Tela larga: as divisões ganham colunas (nunca cartão esticado nem sozinho na última linha). */}
+            <Grade colunas={largo ? (l) => colunasDaGradeDoAluno(l, divisoes.length, espaco(1)) : undefined}>
+              {divisoes.map((s, i) => (
                 <EntradaEmCascata key={s.uid} indice={i} animar={animar}>
                   {somenteLeitura ? (
                     <CartaoDivisaoLeitura sessao={s} />
@@ -113,21 +118,27 @@ export default function TreinoAluno() {
           </SecaoDoInicio>
           {conteudo.objetivo || conteudo.orientacoes ? (
             <Cartao titulo="Orientações do treinador">
-              {conteudo.objetivo ? <Texto>Objetivo: {conteudo.objetivo}</Texto> : null}
-              {conteudo.orientacoes ? <Texto variante="suave">{conteudo.orientacoes}</Texto> : null}
+              {conteudo.objetivo ? <Texto style={estilos.corrido}>Objetivo: {conteudo.objetivo}</Texto> : null}
+              {conteudo.orientacoes ? <Texto variante="suave" style={estilos.corrido}>{conteudo.orientacoes}</Texto> : null}
             </Cartao>
           ) : null}
           <NoPlano funcionalidade="PDF">
-            <Botao rotulo="Baixar PDF do treino" tipo="secundario" cheio Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} />
+            <Botao rotulo="Baixar PDF do treino" tipo="secundario" cheio={!largo} Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} />
           </NoPlano>
         </>
       ) : null}
       {mostrarMobilidade ? (
         <SecaoDoInicio titulo="Mobilidade">
           <Texto variante="suave">Mobilidade e alongamentos do seu treinador, com vídeo quando houver.</Texto>
-          {versaoMobilidade ? <ConteudoDaMobilidade versao={versaoMobilidade} /> : <Vazio titulo="Sem mobilidade" texto="Este plano não tem mobilidade publicada." />}
+          {versaoMobilidade ? <ConteudoDaMobilidade versao={versaoMobilidade} largo={largo} /> : <Vazio titulo="Sem mobilidade" texto="Este plano não tem mobilidade publicada." />}
         </SecaoDoInicio>
       ) : null}
-    </Tela>
+      </>)}
+    </TelaDoAluno>
   );
 }
+
+const estilos = StyleSheet.create({
+  // Texto corrido do treinador em ~72 caracteres por linha (4.10).
+  corrido: { maxWidth: LARGURA_TEXTO_CORRIDO },
+});

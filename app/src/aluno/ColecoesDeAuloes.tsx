@@ -9,7 +9,7 @@ import { numerosDasColecoes, textosDoCabecalho } from '../dominio/cabecalhoDaCol
 import { chaveDoGrupo, numerosNaColecao } from '../dominio/colecoesDoAluno';
 import { agruparPorPlaylist, buscarAuloes } from '../dominio/comunidade';
 import { colunasDosVideos } from '../dominio/gradeDosVideos';
-import { espaco } from '../tema/tokens';
+import { espaco, LARGURA_FORMULARIO } from '../tema/tokens';
 import { Campo } from '../ui/Campo';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
@@ -66,9 +66,12 @@ export function ColecoesDeAuloes({ aulas, fecharRef, ...acoes }: {
     return () => { fecharRef.current = null; };
   });
 
+  // O campo não estica com a tela (4.10): fica na largura de formulário.
   const campoDeBusca = (
-    <Campo rotulo="Buscar nos vídeos" valor={busca} aoMudar={buscar} placeholder="Palavra do título ou da descrição"
-      autoCorrect={false} inputMode="search" />
+    <View style={estilos.busca}>
+      <Campo rotulo="Buscar nos vídeos" valor={busca} aoMudar={buscar} placeholder="Palavra do título ou da descrição"
+        autoCorrect={false} inputMode="search" />
+    </View>
   );
   const vazioDaBusca = <Vazio texto="Nenhum vídeo encontrado com essa busca." acao={{ rotulo: 'Limpar busca', aoTocar: () => buscar('') }} />;
 
@@ -132,5 +135,6 @@ function GradeDeVideos({ aulas, numeros, nivel = 2, baixarCapa, aoAbrirFora, aoC
 
 const estilos = StyleSheet.create({
   blocos: { gap: espaco(3) },
+  busca: { maxWidth: LARGURA_FORMULARIO },
   secao: { gap: VAO_DO_CABECALHO },
 });

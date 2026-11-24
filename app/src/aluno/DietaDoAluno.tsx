@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Droplet, FileDown, ShoppingCart } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta, Refeicao, VariacaoDaDieta, VersaoDetalhe } from '../api/tipos';
@@ -10,6 +10,7 @@ import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { linhasDoComplemento } from '../dominio/linhasDoComplemento';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { duasColunasCom } from '../dominio/grade';
+import { colunasDaGradeDoAluno, LARGURA_LATERAL_DO_ALUNO } from '../dominio/telaLargaDoAluno';
 import { linkParaAbrir } from '../dominio/links';
 import { textoDosDiasCurtos, variacaoDoDia, variacaoMostrada } from '../dominio/variacoesDaDieta';
 import type { DadosPdfDieta } from '../pdf/pdfDieta';
@@ -48,6 +49,10 @@ const MOTIVO_NA_PREVIA = 'Só o aluno abre isto no app dele.';
  *
  * Dieta por dia da semana: abre na variação de hoje (data de Brasília, relida na virada do dia e na volta do app) e o
  * aluno troca à mão; total e refeições são os da variação mostrada. Sem variação, nada muda.
+ *
+ * `largo` (tela larga, 24/11; só a aba Dieta passa, a folha da prévia não muda): o resumo (`lado`, a água do dia, o plano,
+ * o total, a lista de compras, o PDF e as orientações) numa coluna fixa à esquerda e as refeições em colunas ao lado, com a
+ * medicação e a suplementação embaixo delas, no lugar de cartões e botões da largura da tela.
  */
 export function DietaDoAluno({
   versao,
@@ -55,6 +60,8 @@ export function DietaDoAluno({
   aguaNoCartao = false,
   previa = false,
   aoBaixarPdf,
+  largo = false,
+  lado,
 }: {
   versao: VersaoDetalhe<ConteudoDieta>;
   salva: boolean;
@@ -62,6 +69,9 @@ export function DietaDoAluno({
   previa?: boolean;
   /** Gera o PDF (a tela do aluno monta o documento com o pacote); fora da prévia, sem ele o botão não aparece. */
   aoBaixarPdf?: (lista?: DadosPdfDieta['lista'], variacaoUid?: string | null) => Promise<void>;
+  largo?: boolean;
+  /** Vai no topo da coluna do resumo na tela larga (a água do dia); fora dela quem chama põe acima da dieta. */
+  lado?: ReactNode;
 }) {
   const { cores } = useTema();
   const [folhaPdf, setFolhaPdf] = useState(false);
@@ -79,84 +89,122 @@ export function DietaDoAluno({
   const ergogenicos = ergogenicosPreenchidos(c.ergogenicos);
   const inicioEProfissional = [c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ');
 
+  const selo = salva ? <Selo texto="Sem conexão — mostrando a última versão salva" tipo="neutro" /> : null;
+  const plano = (
+    <Cartao>
+      <Texto numerico variante="subtitulo">{versao.titulo}</Texto>
+      {c.objetivo ? <Texto numerico>Objetivo: {c.objetivo}</Texto> : null}
+      {!aguaNoCartao && textoDaAgua(c.aguaLitros) ? (
+        <View style={estilos.agua}>
+          <Droplet size={20} color={cores.texto} />
+          <Texto numerico style={estilos.forte}>Água: {textoDaAgua(c.aguaLitros)}</Texto>
+        </View>
+      ) : null}
+      {inicioEProfissional ? <Texto numerico variante="suave">{inicioEProfissional}</Texto> : null}
+    </Cartao>
+  );
+  // Orientações e observações logo abaixo do plano (ficavam no fim, depois de todas as refeições), recolhíveis.
+  const orientacoes = c.orientacoes.length ? (
+    <Cartao titulo="Orientações" recolhivel recolhido>
+      {c.orientacoes.map((o, i) => (
+        <View key={i} style={estilos.orientacao}>
+          {o.titulo ? <Texto numerico style={estilos.forte}>{o.titulo}</Texto> : null}
+          <Texto numerico variante="suave">{o.texto}</Texto>
+        </View>
+      ))}
+    </Cartao>
+  ) : null;
+  const observacoes = c.observacoes ? (
+    <Cartao titulo="Observações" recolhivel recolhido>
+      <Texto numerico>{c.observacoes}</Texto>
+    </Cartao>
+  ) : null;
+  const listaDeCompras = <Botao rotulo="Lista de compras" tipo="secundario" cheio Icone={ShoppingCart} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) router.push('/aluno/lista-de-compras'); }} />;
+  const variacao = c.variacoes.length > 0 ? (
+    <VariacaoDoDia variacoes={c.variacoes} mostrada={mostrada} deHoje={deHoje}
+      aoEscolher={(uid) => setEscolha(uid === deHoje?.uid ? null : { uid, dia })} />
+  ) : null;
+  const total = semDietaHoje ? null : (
+    <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
+      <TotalDoDia totais={totais} />
+      <Texto variante="pequeno">P = proteína · C = carboidrato · G = gordura</Texto>
+      {/* Só os macros e a kcal: a fibra é opcional e nula não deixa o total incompleto. */}
+      {CHAVES_DOS_MACROS.some((m) => totais[m] === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
+    </Cartao>
+  );
+  const listaDeRefeicoes = refeicoes.length ? (
+    <Grade gap={espaco(2)} colunas={largo ? (l) => colunasDaGradeDoAluno(l, refeicoes.length, espaco(2)) : duasColunasCom(360, espaco(2))} alinhar="inicio">
+      {refeicoes.map((r, i) => (
+        <CartaoRefeicaoAluno key={r.uid} refeicao={r} indice={i} />
+      ))}
+    </Grade>
+  ) : null;
+  const medicacao = ergogenicos.length ? (
+    <Cartao titulo="Medicação e ergogênicos">
+      {ergogenicos.map((e) => (
+        <View key={e.uid} style={[estilos.item, { borderColor: cores.divisor }]}>
+          <Texto numerico style={estilos.forte}>{e.nome || '—'}</Texto>
+          {e.principioAtivo ? <Texto numerico variante="suave">{e.principioAtivo}</Texto> : null}
+          <LinhasDoComplemento item={e} />
+          {e.prescricao ? <Texto numerico variante="suave">Prescrição: {e.prescricao}</Texto> : null}
+        </View>
+      ))}
+    </Cartao>
+  ) : null;
+  const suplementacao = c.suplementacao.length ? (
+    <Cartao titulo="Suplementação">
+      {c.suplementacao.map((s) => (
+        <View key={s.uid} style={[estilos.item, { borderColor: cores.divisor }]}>
+          <Texto numerico style={estilos.forte}>{s.nome || '—'}</Texto>
+          <LinhasDoComplemento item={s} />
+          {linkParaAbrir(s.link) ? <VerProduto link={s.link} /> : null}
+          {s.cupom?.trim() ? <CupomDoProduto uid={s.uid} nome={s.nome} cupom={s.cupom.trim()} /> : null}
+        </View>
+      ))}
+    </Cartao>
+  ) : null;
+  const botaoPdf = previa || aoBaixarPdf ? (
+    <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) setFolhaPdf(true); }} /></NoPlano>
+  ) : null;
+  const folha = previa || !aoBaixarPdf ? null : <FolhaPdfDieta visivel={folhaPdf} aoFechar={() => setFolhaPdf(false)} conteudo={c} versao={versao.numero} aoBaixar={aoBaixarPdf} />;
+
+  if (largo) {
+    return (
+      <View style={estilos.colunas}>
+        <View style={[estilos.pilha, estilos.lateral]}>
+          {selo}
+          {lado}
+          {plano}
+          {variacao}
+          {total}
+          {listaDeCompras}
+          {botaoPdf}
+          {orientacoes}
+          {observacoes}
+        </View>
+        <View style={[estilos.pilha, estilos.principal]}>
+          {listaDeRefeicoes}
+          {medicacao}
+          {suplementacao}
+        </View>
+        {folha}
+      </View>
+    );
+  }
   return (
     <>
-      {salva ? <Selo texto="Sem conexão — mostrando a última versão salva" tipo="neutro" /> : null}
-      <Cartao>
-        <Texto numerico variante="subtitulo">{versao.titulo}</Texto>
-        {c.objetivo ? <Texto numerico>Objetivo: {c.objetivo}</Texto> : null}
-        {!aguaNoCartao && textoDaAgua(c.aguaLitros) ? (
-          <View style={estilos.agua}>
-            <Droplet size={20} color={cores.texto} />
-            <Texto numerico style={estilos.forte}>Água: {textoDaAgua(c.aguaLitros)}</Texto>
-          </View>
-        ) : null}
-        {inicioEProfissional ? <Texto numerico variante="suave">{inicioEProfissional}</Texto> : null}
-      </Cartao>
-      {/* Orientações e observações logo abaixo do plano (ficavam no fim, depois de todas as refeições), recolhíveis. */}
-      {c.orientacoes.length ? (
-        <Cartao titulo="Orientações" recolhivel recolhido>
-          {c.orientacoes.map((o, i) => (
-            <View key={i} style={estilos.orientacao}>
-              {o.titulo ? <Texto numerico style={estilos.forte}>{o.titulo}</Texto> : null}
-              <Texto numerico variante="suave">{o.texto}</Texto>
-            </View>
-          ))}
-        </Cartao>
-      ) : null}
-      {c.observacoes ? (
-        <Cartao titulo="Observações" recolhivel recolhido>
-          <Texto numerico>{c.observacoes}</Texto>
-        </Cartao>
-      ) : null}
-      <Botao rotulo="Lista de compras" tipo="secundario" cheio Icone={ShoppingCart} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) router.push('/aluno/lista-de-compras'); }} />
-      {c.variacoes.length > 0 ? (
-        <VariacaoDoDia variacoes={c.variacoes} mostrada={mostrada} deHoje={deHoje}
-          aoEscolher={(uid) => setEscolha(uid === deHoje?.uid ? null : { uid, dia })} />
-      ) : null}
-      {semDietaHoje ? null : (
-        <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
-          <TotalDoDia totais={totais} />
-          <Texto variante="pequeno">P = proteína · C = carboidrato · G = gordura</Texto>
-          {/* Só os macros e a kcal: a fibra é opcional e nula não deixa o total incompleto. */}
-          {CHAVES_DOS_MACROS.some((m) => totais[m] === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
-        </Cartao>
-      )}
-      {refeicoes.length ? (
-        <Grade gap={espaco(2)} colunas={duasColunasCom(360, espaco(2))} alinhar="inicio">
-          {refeicoes.map((r, i) => (
-            <CartaoRefeicaoAluno key={r.uid} refeicao={r} indice={i} />
-          ))}
-        </Grade>
-      ) : null}
-      {ergogenicos.length ? (
-        <Cartao titulo="Medicação e ergogênicos">
-          {ergogenicos.map((e) => (
-            <View key={e.uid} style={[estilos.item, { borderColor: cores.divisor }]}>
-              <Texto numerico style={estilos.forte}>{e.nome || '—'}</Texto>
-              {e.principioAtivo ? <Texto numerico variante="suave">{e.principioAtivo}</Texto> : null}
-              <LinhasDoComplemento item={e} />
-              {e.prescricao ? <Texto numerico variante="suave">Prescrição: {e.prescricao}</Texto> : null}
-            </View>
-          ))}
-        </Cartao>
-      ) : null}
-      {c.suplementacao.length ? (
-        <Cartao titulo="Suplementação">
-          {c.suplementacao.map((s) => (
-            <View key={s.uid} style={[estilos.item, { borderColor: cores.divisor }]}>
-              <Texto numerico style={estilos.forte}>{s.nome || '—'}</Texto>
-              <LinhasDoComplemento item={s} />
-              {linkParaAbrir(s.link) ? <VerProduto link={s.link} /> : null}
-              {s.cupom?.trim() ? <CupomDoProduto uid={s.uid} nome={s.nome} cupom={s.cupom.trim()} /> : null}
-            </View>
-          ))}
-        </Cartao>
-      ) : null}
-      {previa || aoBaixarPdf ? (
-        <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) setFolhaPdf(true); }} /></NoPlano>
-      ) : null}
-      {previa || !aoBaixarPdf ? null : <FolhaPdfDieta visivel={folhaPdf} aoFechar={() => setFolhaPdf(false)} conteudo={c} versao={versao.numero} aoBaixar={aoBaixarPdf} />}
+      {selo}
+      {plano}
+      {orientacoes}
+      {observacoes}
+      {listaDeCompras}
+      {variacao}
+      {total}
+      {listaDeRefeicoes}
+      {medicacao}
+      {suplementacao}
+      {botaoPdf}
+      {folha}
     </>
   );
 }
@@ -303,6 +351,11 @@ function TotalDoDia({ totais }: { totais: TotaisComFibra }) {
 const BARRA_DA_REFEICAO = 6;
 
 const estilos = StyleSheet.create({
+  // Tela larga: o vão da pilha é o da `Tela` (24), o mesmo de quando os blocos ficam soltos nela.
+  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
+  pilha: { gap: espaco(3) },
+  lateral: { width: LARGURA_LATERAL_DO_ALUNO, flexShrink: 0 },
+  principal: { flex: 1, minWidth: 0 },
   itemComQuantidade: { borderTopWidth: 1, paddingTop: espaco(1), flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
   nomeDoItem: { flex: 1, minWidth: 0, gap: 2 },
   quantidade: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(0.5), borderWidth: 1, borderRadius: 10, paddingVertical: espaco(0.75), paddingHorizontal: espaco(1.5), flexShrink: 0, maxWidth: '50%' },
