@@ -269,6 +269,7 @@ Base: `e6537dc3` (95 commits locais esperando o push). Um push só, no fim, com 
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
+| API: a mensagem de `ConfiguracaoConsultoria.java` (linhas ~352-353) escreve "série(s)" e "percentual(is)"; na próxima mudança da API, usar plural de verdade (1 série / 2 séries, 1 percentual / 2 percentuais), sem criar função só para isso se já houver uma em `api/` | Executor (na próxima mudança da API) | pedido do Gustavo em 24/11/2026; [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | `app/e2e/documentos-pdf.spec.ts:45` falha na `main` em 390 e 1280 ("Esta escolha não é gravada" não aparece na prévia do treino); já falhava em `82202480`, antes da revisão 2 | Executor | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | `Tela` expor que ainda não mediu (contexto `null` até o primeiro `onLayout`) e trocar os guardas de `BlocosDaFicha` e `CorpoDoInicio`, que deduzem o atraso pela largura e pelo recuo | Executor | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | Início do aluno: `GET /aluno/sessoes-concluidas` sai duas vezes em 1280 (outro consumidor, não o mapa) | Executor | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |

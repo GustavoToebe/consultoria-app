@@ -36,7 +36,7 @@ Fechar as decisões do relatório: ficha › Dados em três colunas na ultralarg
 - "Hoje" primeiro: na primeira entrega só da faixa `larga` em diante; pedido final do Gustavo (24/11): em todas as larguras (ver `RELATORIO-3.md`).
 - Corrigido de passagem (`4c8465a8`, `fc5374be`): remontagem intermitente da Anamnese na ficha (já existia na base: 4 de 20 falhas; agora 80 de 80) e remontagem/GET duplicado do ranking no Início do aluno.
 - Atalho (`shortcut:` em `BlocosDaFicha`): o guarda de "aba ainda não medida" deduz o atraso pelo recuo da `Tela`; trocar por um contexto da `Tela` que diga "ainda não medi" (o `CorpoDoInicio` usa a mesma ideia).
-- Mural do aluno abaixo de 1280 px: resolvido no pedido final (faixa compacta com altura reservada; o feed espera as duas leituras, `shortcut:` em `MuralComLateral`).
+- Mural do aluno abaixo de 1280 px: faixa fixa de 56 px com esqueleto só dentro dela; o feed não espera os números (pedido final do Gustavo, 24/11).
 - `GET /aluno/sessoes-concluidas` sai duas vezes no Início em 1280 (outro consumidor, não o mapa).
 - `e2e/tela-larga.spec.ts` deixa uma pasta temporária por execução (o `mkdtemp` não é apagado).
 - Mural do aluno em 3440: o bloco feed + coluna fica à esquerda dos 1688 centralizados e sobram ~600 px à direita.
