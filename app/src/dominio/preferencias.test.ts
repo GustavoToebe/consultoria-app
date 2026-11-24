@@ -21,7 +21,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', larguraConteudo: 'LIMITADA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, diasAniversario: 3, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], gruposRecolhidos: ['Acompanhamento', 'Negócio'], unidadeDeCarga: 'lb', corDeAcao: 'VIOLETA', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false }, tamanhos: { alunos: 3 } } };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', larguraConteudo: 'LIMITADA', detalhesAbrem: 'CENTRO', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, diasAniversario: 3, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], gruposRecolhidos: ['Acompanhamento', 'Negócio'], unidadeDeCarga: 'lb', corDeAcao: 'VIOLETA', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false }, tamanhos: { alunos: 3 } } };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -43,6 +43,15 @@ describe('preferências pessoais', () => {
     expect(normalizarPreferencias({ larguraConteudo: 'AUTOMATICA' }).larguraConteudo).toBe('AUTOMATICA');
     for (const v of ['automatica', 'LARGA', 1800, null, true, undefined]) {
       expect(normalizarPreferencias({ larguraConteudo: v }).larguraConteudo).toBe('AUTOMATICA');
+    }
+  });
+
+  it('detalhes abrem: Na lateral por padrão; só LATERAL ou CENTRO valem e o resto volta ao padrão', () => {
+    expect(PREFERENCIAS_PADRAO.detalhesAbrem).toBe('LATERAL');
+    expect(normalizarPreferencias({ detalhesAbrem: 'CENTRO' }).detalhesAbrem).toBe('CENTRO');
+    expect(normalizarPreferencias(JSON.stringify({ detalhesAbrem: 'CENTRO' })).detalhesAbrem).toBe('CENTRO');
+    for (const v of ['centro', 'DIREITA', 1, null, true, undefined]) {
+      expect(normalizarPreferencias({ detalhesAbrem: v }).detalhesAbrem).toBe('LATERAL');
     }
   });
 

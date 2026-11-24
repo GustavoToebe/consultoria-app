@@ -2,7 +2,7 @@ import { Folha } from '../../ui/Folha';
 import { DetalheDaCobranca, type CascaDoDetalhe, type PropsDaCasca, type PropsDoDetalhe } from './DetalheDaCobranca';
 
 function CascaDeFolha({ titulo, aoFechar, rodape, children }: PropsDaCasca) {
-  return <Folha visivel titulo={titulo} aoFechar={aoFechar} rodape={rodape}>{children}</Folha>;
+  return <Folha visivel detalhe titulo={titulo} aoFechar={aoFechar} rodape={rodape}>{children}</Folha>;
 }
 
 /** A cobrança numa `Folha` por cima da tela; "Renegociar" troca o conteúdo da folha (sem folha sobre folha). */

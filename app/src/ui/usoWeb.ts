@@ -2,7 +2,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { Platform } from 'react-native';
 
 /** Chamado a cada tecla enquanto ativo. Devolver `true` diz que a tecla foi tratada (o navegador não faz o padrão dela). */
-export type AoTeclar = (evento: { key: string; ctrl: boolean }) => boolean | void;
+export type AoTeclar = (evento: { key: string; ctrl: boolean; shift: boolean; alt: boolean; alvo: HTMLElement | null }) => boolean | void;
 
 /**
  * Escuta o teclado da página inteira enquanto `ativo` (só na web; no celular não há teclado de atalhos).
@@ -20,7 +20,8 @@ export function useTeclado(ativo: boolean, aoTeclar: AoTeclar): void {
   useEffect(() => {
     if (Platform.OS !== 'web' || !ativo) return undefined;
     const ouvir = (e: KeyboardEvent) => {
-      const tratada = ultimo.current({ key: e.key, ctrl: e.ctrlKey || e.metaKey });
+      const alvo = e.target instanceof HTMLElement ? e.target : null;
+      const tratada = ultimo.current({ key: e.key, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey, alt: e.altKey, alvo });
       if (tratada) {
         e.preventDefault();
         e.stopPropagation();

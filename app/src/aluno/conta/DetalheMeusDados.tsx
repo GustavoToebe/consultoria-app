@@ -118,7 +118,7 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
   );
 
   return (
-    <Folha visivel lateral titulo="Meus dados" aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape}>
+    <Folha visivel lateral detalhe titulo="Meus dados" aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape}>
       <View testID="detalhe-meus-dados" style={estilos.bloco}>
         {!resp ? (
           dados.erro ? <MensagemErro texto={textoDoErro(dados.erro)} erro={dados.erro} tentarDeNovo={dados.recarregar} /> : <Esqueleto cartoes={1} texto="Carregando seus dados" />

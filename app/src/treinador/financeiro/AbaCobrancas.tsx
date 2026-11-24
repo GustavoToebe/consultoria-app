@@ -136,12 +136,13 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   // Também fora da barra: renegociar tira as cobranças do aberto, a seleção esvazia e a barra some com a folha aberta.
   const [renegociando, setRenegociando] = useState<CobrancaResponse[] | null>(null);
   const busca = useAtrasado(buscaDigitada.trim(), 300);
-  const { fatorTexto } = useTema();
+  const { fatorTexto, preferencias } = useTema();
   // A largura da própria lista decide a medida das colunas (folgada ou justa).
   const { largura: larguraDaLista, aoMedir: aoMedirLista } = useFaixaDeLargura();
   const medida = larguraDaLista >= escalar(LARGURA_FOLGADA, fatorTexto) ? FOLGADA : JUSTA;
   // Painel fixo só na `ultralarga` da área inteira; abaixo, a folha. A mesma `aberta` serve aos dois.
-  const comPainel = useFaixaDaTela() === 'ultralarga';
+  // "Detalhes abrem: No centro" (24/11) vale também na ultralarga: sem painel fixo, a folha central de 800 px.
+  const comPainel = useFaixaDaTela() === 'ultralarga' && preferencias.detalhesAbrem !== 'CENTRO';
   const lista = useCarregar(`cobrancas|${chaveDasCobrancas(filtros, busca)}|${hoje}|${pagina}`, () =>
     listarCobrancas({ ...cobrancasParaApi(filtros, hoje), busca: busca || undefined, pagina }));
   // Planos ativos e arquivados (uma cobrança antiga pode ser de um plano já arquivado); falha deixa o filtro sem opções.

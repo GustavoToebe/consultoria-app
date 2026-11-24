@@ -184,7 +184,7 @@ export function TelaDaConta() {
       {detalhe === 'perfil' ? <DetalheMeuPerfil perfil={perfil} dados={dados} online={online} focarReservar={pedidoDoAtalho} aoFechar={fechar} /> : null}
       {detalhe === 'dados' ? <DetalheMeusDados dados={dados} aoFechar={fechar} /> : null}
       {detalhe === 'senha' ? <FolhaTrocarSenha aoFechar={fechar} /> : null}
-      <Folha visivel={detalhe === 'aparencia'} lateral titulo="Aparência e preferências" aoFechar={fechar}>
+      <Folha visivel={detalhe === 'aparencia'} lateral detalhe titulo="Aparência e preferências" aoFechar={fechar}>
         <PreferenciasDoApp comTitulo={false} extras={<><InterruptorDeLembretesDeCompromisso /><InterruptorDeAvisoNoCelular /><InterruptorDeWhatsApp /></>} />
       </Folha>
     </View>

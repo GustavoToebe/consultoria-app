@@ -135,7 +135,7 @@ test('treinador no PC: o clique no índice rola até a seção, abre e marca o t
 for (const largura of [1280, 1920]) {
   test(`treinador em ${largura} com o menu recolhido: índice ao lado e sem rolagem lateral`, async ({ page }) => {
     const { errosDaPagina } = await abrirTreinador(page, largura, { menuRecolhido: largura === 1280 });
-    if (largura === 1280) await expect(page.getByRole('menubar').getByRole('button', { name: 'Expandir menu' })).toBeVisible();
+    if (largura === 1280) await expect(page.getByRole('menubar').getByRole('button', { name: 'Expandir barra lateral' })).toBeVisible();
     await expect(indice(page)).toBeVisible();
     await semRolagemLateral(page);
     // A coluna de leitura não passa de 800 px.

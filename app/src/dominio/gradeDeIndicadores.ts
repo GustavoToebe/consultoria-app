@@ -1,10 +1,9 @@
 /**
- * Colunas de uma grade de indicadores (Gustavo, 19/11): colunas iguais que dividem o total, sem cartão sozinho na última
- * linha (nunca 5 + 1). Vale a primeira quebra, da mais larga para a mais estreita, em que cada célula tem ao menos
- * `minimo` px: 6 cartões dão 6, 3 (3 + 3), 2 ou 1; 4 dão 4, 2 (2 + 2) ou 1; 5 dão 5, 3 (3 + 2) ou 1. Total que não divide
- * aceita a última linha com um a menos (3 + 2), nunca com um só. Mede a largura da própria grade (já sem o menu e sem a
- * folga da `Tela`), não a da janela. O texto ampliado (`fatorTexto`) aumenta o mínimo: a grade perde colunas antes de
- * cortar o número.
+ * Colunas de uma grade de indicadores (Gustavo, 19/11 e 24/11): todas as linhas cheias, nunca cartão sozinho nem linha com
+ * buraco. Vale o maior divisor do total, do próprio total para baixo, em que cada célula tem ao menos `minimo` px: 6 cartões
+ * dão 6, 3 (3 + 3), 2 ou 1; 4 dão 4, 2 (2 + 2) ou 1; 3 dão 3 ou 1; 5 (e 7) não têm divisão sem sobra: todos numa linha ou
+ * 1 coluna, nunca 3 + 2 nem 4 + 1. Mede a largura da própria grade (já sem o menu e sem a folga da `Tela`), não a da janela.
+ * O texto ampliado (`fatorTexto`) aumenta o mínimo: a grade perde colunas antes de cortar o número.
  */
 
 /**
@@ -22,11 +21,8 @@ export function colunasDaGradeDeIndicadores(
 ): number {
   if (!(largura > 0) || total <= 1) return 1;
   const celula = Math.round(minimo * fatorTexto);
-  for (let linhas = 1; linhas <= total; linhas++) {
-    const colunas = Math.ceil(total / linhas);
-    if (colunas === 1) return 1;
-    if (total % colunas === 1) continue; // sobraria um cartão sozinho
-    if (total % colunas !== 0 && total % colunas !== colunas - 1) continue; // última linha desequilibrada (8 em 5 + 3)
+  for (let colunas = total; colunas > 1; colunas--) {
+    if (total % colunas !== 0) continue; // sobraria linha incompleta
     if ((largura - vao * (colunas - 1)) / colunas >= celula) return colunas;
   }
   return 1;

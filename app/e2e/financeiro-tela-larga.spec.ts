@@ -152,6 +152,20 @@ test('2560 px com o menu recolhido: na cobrança paga o rodapé do painel segue 
   expect(errosDaPagina).toEqual([]);
 });
 
+test('3440 x 1440 com zoom do navegador: os quatro Totais numa linha, nunca 3 + 1 (largura fracionária da grade)', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 3440, estadoFinanceiro({ cobrancas: COBRANCAS }), 'cobrancas');
+  await page.setViewportSize({ width: 3440, height: 1440 });
+  const totais = ['Total', 'Pago', 'Em aberto', 'Vencido'].map((r) => page.locator(`[aria-label^="${r}:"]`).first());
+  await expect(totais[3]).toBeVisible();
+  const topos = () => Promise.all(totais.map(async (t) => Math.round((await t.boundingBox())!.y)));
+  // Com 110% e 125% a grade mede 3008,4 e 2952 px; o onLayout arredondava para cima e o "Vencido" caía sozinho para baixo.
+  for (const zoom of ['1.1', '1.25', '0.8']) {
+    await page.evaluate((z) => { document.documentElement.style.zoom = z; }, zoom);
+    await expect.poll(async () => new Set(await topos()).size).toBe(1);
+  }
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('Planos: grade de 1 a 6 colunas pela largura, sem cartão sozinho na última linha; arquivados com o selo', async ({ page }) => {
   const colunas = async () => new Set(await page.getByRole('button', { name: /^Abrir plano / }).evaluateAll((els) =>
     els.map((el) => Math.round(el.getBoundingClientRect().left)))).size;

@@ -39,7 +39,7 @@ export function FolhaTrocarSenha({ aoFechar }: { aoFechar: () => void }) {
   };
 
   return (
-    <Folha visivel lateral titulo="Trocar senha" aoFechar={aoFechar}
+    <Folha visivel lateral detalhe titulo="Trocar senha" aoFechar={aoFechar}
       rodape={(
         <Botao rotulo="Trocar senha" carregando={trocando} desabilitado={!senhaAtual || !senhaNova || sessao.offline}
           motivo={sessao.offline ? 'Sem conexão.' : 'Preencha a senha atual e a nova.'} aoTocar={() => void trocar()} />

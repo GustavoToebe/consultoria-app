@@ -182,6 +182,18 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
         />
       </Cartao>
 
+      <Cartao titulo="Detalhes abrem" descricao="No computador: na lateral, ao lado da tela, ou numa janela no centro. No celular abrem sempre de baixo.">
+        <Escolha
+          descricao="Detalhes abrem"
+          opcoes={[
+            { valor: 'LATERAL', rotulo: 'Na lateral' },
+            { valor: 'CENTRO', rotulo: 'No centro' },
+          ]}
+          valor={preferencias.detalhesAbrem}
+          aoMudar={(detalhesAbrem) => mudar({ detalhesAbrem })}
+        />
+      </Cartao>
+
       <Cartao titulo="Animações" descricao="Reduzir tira os movimentos de entrada, mola e contagem.">
         <Escolha
           descricao="Animações"

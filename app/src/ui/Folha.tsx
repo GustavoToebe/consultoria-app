@@ -9,7 +9,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindow
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO, VEU } from '../tema/tokens';
+import { espaco, LARGURA_FOLHA_LARGA, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO, VEU } from '../tema/tokens';
 import { marcarFolhaDoTopoFechando, useFolhaNoHistorico } from './historicoDasFolhas';
 import { capturaDoGatilho, useDevolverFocoNoNativo } from './focoDaFolha';
 import { IconeBotao } from './IconeBotao';
@@ -59,6 +59,12 @@ interface Props {
    * com o rodapé no pé; no celular é a folha de baixo de sempre, que já ocupa a largura. Ignora `largura`.
    */
   lateral?: boolean;
+  /**
+   * Folha de detalhe (com `lateral`): no PC abre onde a preferência "Detalhes abrem" manda, na lateral (padrão) ou no centro,
+   * com `LARGURA_FOLHA_LARGA`, véu e altura do conteúdo; sem `lateral`, "Na lateral" mantém a folha central de sempre. Lida
+   * ao abrir: trocar a preferência com a folha aberta vale na próxima. No celular não muda nada. O painel de filtros não a usa.
+   */
+  detalhe?: boolean;
   /** No celular ocupa a tela inteira (editor longo, como o do perfil de acesso), com o rodapé no pé; no PC não muda nada. */
   telaCheiaNoCelular?: boolean;
   /**
@@ -74,7 +80,7 @@ interface Props {
  * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo e, ao fechar,
  * volta a quem abriu a folha; no celular, com leitor de tela, também volta (`ui/focoDaFolha.ts`).
  */
-export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRodape, largura, acaoNoTopo, faixa, lateral, telaCheiaNoCelular, alturaDoConteudo }: Props) {
+export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRodape, largura, acaoNoTopo, faixa, lateral, detalhe, telaCheiaNoCelular, alturaDoConteudo }: Props) {
   // Quem estava com o foco ao abrir (web). Ao fechar, o foco volta para ele (C3): na hora em que o painel sai (a folha
   // inteira deixou a tela) e de novo no `onDismiss`, quando a camada do Modal some. Antes disso a trava de foco do Modal,
   // que fica um render a mais depois do `visible={false}`, puxaria o foco de volta para dentro.
@@ -88,7 +94,7 @@ export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRod
   // duas vezes. As outras folhas aninhadas do sistema seguem como antes até haver captura de cada uma.
   const dentroDeOutra = usePortalDaFolha()?.lateral === true;
   return <Modal ref={semPapelNoModal} transparent visible={visivel} animationType="none" onRequestClose={fechar} onDismiss={() => devolverFoco(quemAbriuRef)}>
-    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} lateral={lateral} telaCheiaNoCelular={telaCheiaNoCelular} alturaDoConteudo={alturaDoConteudo} semVeu={dentroDeOutra} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
+    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} lateral={lateral} detalhe={detalhe} telaCheiaNoCelular={telaCheiaNoCelular} alturaDoConteudo={alturaDoConteudo} semVeu={dentroDeOutra} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
   </Modal>;
 }
 
@@ -121,13 +127,21 @@ function devolverFoco(quemAbriuRef: RefObject<HTMLElement | null>) {
 }
 
 /** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo: no PC move a folha, no celular fecha. */
-function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTopo,faixa,lateral,telaCheiaNoCelular,alturaDoConteudo,semVeu,quemAbriuRef}:Omit<Props,'visivel'> & { semVeu: boolean; quemAbriuRef: RefObject<HTMLElement | null> }) {
-  const { cores, bordas } = useTema();
+function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraPedida,acaoNoTopo,faixa,lateral:lateralPedida,detalhe,telaCheiaNoCelular,alturaDoConteudo:alturaPedida,semVeu,quemAbriuRef}:Omit<Props,'visivel'> & { semVeu: boolean; quemAbriuRef: RefObject<HTMLElement | null> }) {
+  const { cores, bordas, preferencias } = useTema();
   const { width, height } = useWindowDimensions();
+  // "Detalhes abrem" lido ao abrir (a folha "Aparência e preferências" é ela mesma um detalhe: não pula de lugar ao escolher).
+  // `preferencias?.`: só a folha de detalhe lê, e os testes de outras folhas não a simulam.
+  const [noCentro] = useState(() => !!detalhe && preferencias?.detalhesAbrem === 'CENTRO');
   // No Android o `Modal` já fica acima da barra do sistema; somar a margem de baixo do provider (que está fora dele)
   // deixava um vão sob o rodapé.
   const margem = useSafeAreaInsets();
   const centralizado = width >= LARGURA_MENU_LATERAL;
+  // Detalhe no centro (só no PC): janela de `LARGURA_FOLHA_LARGA` na altura do conteúdo, no lugar da lateral ou da de 600.
+  const centroDoDetalhe = centralizado && noCentro;
+  const lateral = !!lateralPedida && !centroDoDetalhe;
+  const largura = centroDoDetalhe ? LARGURA_FOLHA_LARGA : larguraPedida;
+  const alturaDoConteudo = centroDoDetalhe || alturaPedida;
   // Painel lateral no PC (no celular a folha de baixo já serve: ocupa a largura, topo e rodapé fixos).
   const aDireita = centralizado && !!lateral;
   // Com `largura` no PC a altura é fixa (a folha não muda de tamanho ao trocar o conteúdo); o corpo ocupa o que sobra

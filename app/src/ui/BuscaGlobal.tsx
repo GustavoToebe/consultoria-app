@@ -1,8 +1,9 @@
 import { router, type Href } from 'expo-router';
 import { Search, Star } from 'lucide-react-native';
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { Platform, Pressable, StyleSheet, View, type PressableProps, type TextInput } from 'react-native';
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { Pressable, StyleSheet, View, type PressableProps, type TextInput } from 'react-native';
 
+import { acaoDoAtalho } from '../dominio/atalhosDoMenu';
 import { atalhosPadrao, buscarTelas, favoritosVisiveis, legendaDaTela, telasPermitidas, type TelaDoCatalogo } from '../dominio/telas';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -10,16 +11,13 @@ import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../tema/tokens';
 import { Campo } from './Campo';
 import { Folha } from './Folha';
 import { useSaidaGuardada } from './GuardaDeSaida';
-import { useDicaNoMenu, useMenuLateral } from './Navegacao';
+import { ATALHO_DA_BUSCA, BotaoDoTopo, useMenuLateral } from './Navegacao';
 import { useAlvoDoPasseio } from './Passeio';
 import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 import { useFavoritos } from './useFavoritos';
 import { useTeclado } from './usoWeb';
-
-/** Texto da dica de atalho; no Mac o atalho é Cmd + K, e o rótulo mostra o que vale ali. */
-export const ATALHO = Platform.OS === 'web' && typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
 
 const Contexto = createContext<{ abrir: () => void } | null>(null);
 
@@ -35,8 +33,9 @@ export function ProvedorDaBuscaGlobal({ children }: { children: ReactNode }) {
   const [aberta, setAberta] = useState(false);
   const { favoritos, alternar } = useFavoritos();
   const campo = useRef<TextInput>(null);
-  useTeclado(true, ({ key, ctrl }) => {
-    if (!ctrl || key.toLowerCase() !== 'k') return undefined;
+  // Com o foco num campo de texto o atalho fica com o campo (`acaoDoAtalho`); `preventDefault` só quando agiu.
+  useTeclado(true, (tecla) => {
+    if (acaoDoAtalho(tecla) !== 'buscar') return undefined;
     // Já aberta: o atalho volta o foco ao campo (de uma estrela ou de um resultado).
     if (aberta) campo.current?.focus();
     else setAberta(true);
@@ -55,43 +54,27 @@ export function ProvedorDaBuscaGlobal({ children }: { children: ReactNode }) {
 }
 
 /**
- * "Buscar" do menu lateral, na linha abaixo da identidade (o recolher mora na linha da marca). Menu aberto: linha leve, só com
- * contorno `divisor`, a lupa e "Buscar"; o atalho fica na dica e no nome acessível, sem selo. Minimizado (72): só a lupa,
- * centralizada, com o nome e o atalho na dica. Trilho do tablet (88): a lupa com "Buscar"
- * embaixo, como os itens. Não é campo de verdade: abre a folha da busca.
+ * "Buscar" do menu lateral (ícones ao lado do logo, 24/11): no menu aberto, a lupa à direita do recolher, na linha da marca;
+ * minimizado (72), a lupa sob o "Expandir barra lateral". Nos dois, só ícone (`BotaoDoTopo`), com "Buscar" e o atalho na
+ * dica e no nome acessível. Trilho do tablet (88): a lupa com "Buscar" embaixo, como os itens. Abre a folha da busca.
  */
 export function BotaoDaBusca() {
   const busca = useBuscaGlobal();
-  const { recolhido, trilho } = useMenuLateral();
+  const { trilho } = useMenuLateral();
   const { cores } = useTema();
-  const soIcone = recolhido && !trilho;
-  const noRef = useRef<View | null>(null);
-  // O atalho não aparece mais no botão: a dica (no menu aberto e no minimizado) e o nome acessível o dizem.
-  const dica = useDicaNoMenu(`Buscar (${ATALHO})`, !trilho, noRef);
   const alvo = useAlvoDoPasseio('menu:busca');
-  const ref = useCallback((n: View | null) => {
-    noRef.current = n;
-    alvo(n);
-  }, [alvo]);
   if (!busca) return null;
+  const nome = `Buscar telas e ações, atalho ${ATALHO_DA_BUSCA}`;
+  if (!trilho) return <BotaoDoTopo Icone={Search} rotulo="Buscar" nome={nome} atalho={ATALHO_DA_BUSCA} aoTocar={busca.abrir} aoMontar={alvo} />;
   return (
     <Pressable
-      ref={ref}
+      ref={alvo}
       accessibilityRole="button"
-      accessibilityLabel={`Buscar telas e ações, atalho ${ATALHO}`}
+      accessibilityLabel={nome}
       onPress={busca.abrir}
-      {...dica}
-      style={(estado) => [
-        estilos.gatilho,
-        recolhido
-          ? [estilos.gatilhoIcone, trilho && estilos.gatilhoTrilho]
-          : [estilos.gatilhoAberto, { borderColor: cores.divisor }],
-        sobre(estado) && { backgroundColor: cores.superficie2 },
-      ]}>
-      <Search size={recolhido ? 20 : 16} color={cores.textoSuave} strokeWidth={2} />
-      {soIcone ? null : (
-        <Texto numberOfLines={1} style={[trilho ? estilos.rotuloTrilho : estilos.rotuloAberto, { color: cores.textoSuave }]}>Buscar</Texto>
-      )}
+      style={(estado) => [estilos.gatilhoTrilho, sobre(estado) && { backgroundColor: cores.superficie2 }]}>
+      <Search size={20} color={cores.textoSuave} strokeWidth={2} />
+      <Texto numberOfLines={1} style={[estilos.rotuloTrilho, { color: cores.textoSuave }]}>Buscar</Texto>
     </Pressable>
   );
 }
@@ -221,11 +204,7 @@ function LinkDeTela({ href, navegar, ...resto }: PressableProps & { href?: Href;
 }
 
 const estilos = StyleSheet.create({
-  gatilho: { flexDirection: 'row', alignItems: 'center', minHeight: ALVO_TOQUE, borderRadius: RAIO_CONTROLE },
-  gatilhoAberto: { gap: espaco(1), paddingLeft: espaco(1.5), paddingRight: espaco(1), borderWidth: 1 },
-  gatilhoIcone: { justifyContent: 'center' },
-  gatilhoTrilho: { flexDirection: 'column', gap: 2, paddingVertical: espaco(0.5) },
-  rotuloAberto: { flex: 1, fontSize: 15 },
+  gatilhoTrilho: { alignItems: 'center', justifyContent: 'center', minHeight: ALVO_TOQUE, borderRadius: RAIO_CONTROLE, gap: 2, paddingVertical: espaco(0.5) },
   rotuloTrilho: { alignSelf: 'stretch', textAlign: 'center', fontSize: 12, lineHeight: 16, fontFamily: fontes.medio },
   painel: { gap: espaco(1.5) },
   cabeca: { gap: 2 },

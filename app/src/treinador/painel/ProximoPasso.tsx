@@ -1,15 +1,16 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
+import { fundoPintado, superficiePintada } from '../../ui/superficiePintada';
 import { Texto } from '../../ui/Texto';
 
 export interface ProximoPassoDaTela {
   texto: string;
   /** Botão (o único primário do Início); `null` quando está tudo em dia. */
   acao: { rotulo: string; aoTocar: () => void } | null;
-  /** A pendência é um atraso: a borda acende em `perigo`, o mesmo do indicador "Atrasadas" (guia de 11/11, pág. 16). */
+  /** A pendência é um atraso: a pintura acende em `perigo`, o mesmo do indicador "Atrasadas" (guia de 11/11, pág. 16). */
   atraso?: boolean;
   /** Linha pequena sob o texto ("Não foi possível conferir tudo."): a verificação foi parcial (D9). */
   aviso?: string | null;
@@ -17,31 +18,42 @@ export interface ProximoPassoDaTela {
 
 /**
  * A primeira coisa do painel, quando os Primeiros passos não ocupam o lugar: a pendência mais importante e um botão.
- * A borda à esquerda acende em âmbar com pendência (em `perigo` se for atraso); sem nada, fica neutra e sem botão.
+ * Pintado como os cartões do Início (24/11, `ui/superficiePintada`): com pendência, degradê e borda inteira em âmbar
+ * (`perigo` se for atraso) e a bolinha antes do rótulo; sem nada, neutro e sem botão. Raio e recuo dos blocos de baixo
+ * (`BlocoDoPainel`, 16 e o recuo do `Cartao`), para o texto alinhar com o conteúdo deles.
  */
 export function ProximoPasso({ passo }: { passo: ProximoPassoDaTela }) {
-  const { cores, bordas } = useTema();
-  // Situação (D9, 17/11): a cor fica na barra, no tingido e no rótulo "Próximo passo"; o texto da pendência segue em `texto`.
-  const tom = !passo.acao ? null : passo.atraso ? { cor: cores.perigo, fundo: cores.perigoSuave } : { cor: cores.atencao, fundo: cores.atencaoSuave };
+  const { cores, bordas, variante } = useTema();
+  const { width } = useWindowDimensions();
+  // Situação (D9, 17/11): a cor fica na pintura, na bolinha e no rótulo "Próximo passo"; o texto da pendência segue em `texto`.
+  const cor = !passo.acao ? null : passo.atraso ? cores.perigo : cores.atencao;
+  const p = cor ? superficiePintada(cor, cores.superficie, variante, cores) : null;
   return (
-    <View accessibilityRole="summary"
+    <View accessibilityRole="summary" testID="proximo-passo"
       style={[estilos.passo, {
         borderWidth: bordas.bloco,
-        borderColor: cores.divisor,
-        borderLeftColor: tom ? tom.cor : cores.divisor,
-        backgroundColor: tom ? tom.fundo : cores.superficie,
-      }]}>
+        borderColor: p?.borda ?? cores.divisor,
+        paddingHorizontal: espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2),
+      }, p ? fundoPintado(p) : { backgroundColor: cores.superficie }]}>
       <View style={estilos.texto}>
-        <Texto variante="secao" cor={tom ? tom.cor : cores.textoSuave}>Próximo passo</Texto>
+        <View style={estilos.rotulo}>
+          {cor ? <View aria-hidden testID="proximo-passo-ponto" style={[estilos.ponto, { backgroundColor: cor, boxShadow: `0px 0px 10px ${cor}` }]} /> : null}
+          <Texto variante="secao" cor={p?.texto ?? cores.textoSuave}>Próximo passo</Texto>
+        </View>
         <Texto variante="bloco">{passo.texto}</Texto>
         {passo.aviso ? <Texto variante="pequeno">{passo.aviso}</Texto> : null}
       </View>
-      {passo.acao ? <Botao tipo="primario" rotulo={passo.acao.rotulo} aoTocar={passo.acao.aoTocar} /> : null}
+      {passo.acao ? <Botao tipo="primario" rotulo={passo.acao.rotulo} aoTocar={passo.acao.aoTocar} style={estilos.botao} /> : null}
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  passo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5), borderLeftWidth: 5, borderRadius: RAIO, paddingVertical: espaco(1.5), paddingHorizontal: espaco(2) },
-  texto: { flexGrow: 1, flexShrink: 1, flexBasis: 220, gap: 2 },
+  // Com texto ampliado ou largura curta o botão desce para a linha de baixo, sempre à direita (`marginLeft: 'auto'`);
+  // `alignSelf: 'center'` desfaz o `flex-start` do `Botao` para ele ficar no meio da altura do texto.
+  passo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5), borderRadius: 16, paddingVertical: espaco(1.5) },
+  texto: { flexGrow: 1, flexShrink: 1, flexBasis: 140, gap: 2 },
+  rotulo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ponto: { width: 7, height: 7, borderRadius: 4 },
+  botao: { marginLeft: 'auto', alignSelf: 'center' },
 });

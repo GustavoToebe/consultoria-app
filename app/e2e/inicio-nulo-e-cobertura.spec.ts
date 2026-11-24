@@ -40,8 +40,8 @@ async function abrir(page: Page, o: { permissoes: string[]; painel?: PainelTrein
   return api;
 }
 
-/** A caixa do "Próximo passo" (título, texto, aviso e botão): dois níveis acima do título. */
-const passo = (page: Page) => page.getByText('Próximo passo', { exact: true }).locator('xpath=../..');
+/** A caixa do "Próximo passo" (título, texto, aviso e botão). */
+const passo = (page: Page) => page.getByTestId('proximo-passo');
 const capturar = async (page: Page, nome: string) => {
   if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/${nome}.png`, fullPage: true });
 };
@@ -125,6 +125,54 @@ test('pendência numa fonte consultada continua aparecendo, com o aviso quando o
   await expect(passo(page).getByText('2 atualizações estão atrasadas.')).toBeVisible();
   await expect(passo(page).getByText('Não foi possível conferir tudo.')).toBeVisible();
   await expect(passo(page).getByRole('button', { name: 'Ver atrasadas' })).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
+
+/**
+ * Próximo passo pintado (24/11): sem a faixa lateral, as quatro bordas iguais, a bolinha antes do rótulo, o raio e o recuo
+ * dos blocos de baixo (o texto começa na mesma coluna do título do primeiro bloco) e o botão à direita, centrado na altura.
+ */
+for (const largura of [390, 1280, 1920] as const) {
+  test(`Próximo passo pintado: bordas iguais, bolinha, raio e recuo dos blocos, "Ver alunos" à direita e centrado (${largura})`, async ({ page }) => {
+    const { errosDaPagina } = await abrir(page, { permissoes: PERMISSOES_DO_RESUMO, painel: { ...PAINEL, alunosSemRegistroTotal: 4 }, largura });
+    await expect(passo(page).getByText('4 alunos estão sem registro há 7 dias.')).toBeVisible();
+    await expect(passo(page).getByTestId('proximo-passo-ponto')).toBeVisible();
+    await expect(async () => {
+      const m = await page.evaluate(() => {
+        const caixa = document.querySelector('[data-testid="proximo-passo"]')!;
+        const estilo = getComputedStyle(caixa);
+        const lados = ['Top', 'Right', 'Bottom', 'Left'].map((l) => `${estilo.getPropertyValue(`border-${l.toLowerCase()}-width`)} ${estilo.getPropertyValue(`border-${l.toLowerCase()}-color`)}`);
+        const r = (e: Element) => e.getBoundingClientRect();
+        const bloco = document.querySelector('[data-testid="cartao"]')!;
+        const tituloDoBloco = bloco.querySelector('[role="heading"][aria-level="2"]')!;
+        const botao = [...caixa.querySelectorAll('[role="button"]')].find((b) => b.textContent === 'Ver alunos')!;
+        const texto = [...caixa.querySelectorAll('div')].find((d) => d.textContent === '4 alunos estão sem registro há 7 dias.' && !d.children.length)!;
+        return {
+          lados, raio: estilo.borderTopLeftRadius, raioDoBloco: getComputedStyle(bloco).borderTopLeftRadius,
+          recuo: estilo.paddingLeft, recuoDireito: estilo.paddingRight, borda: parseFloat(estilo.borderRightWidth),
+          caixa: r(caixa).toJSON(), ponto: r(caixa.querySelector('[data-testid="proximo-passo-ponto"]')!).toJSON(),
+          texto: r(texto).toJSON(), titulo: r(tituloDoBloco).toJSON(), botao: r(botao).toJSON(),
+        };
+      });
+      expect(new Set(m.lados).size).toBe(1);
+      expect(m.raio).toBe(m.raioDoBloco);
+      expect(m.recuo).toBe(m.recuoDireito);
+      // A bolinha e o texto começam na mesma coluna do título do bloco de baixo.
+      expect(Math.abs(m.ponto.x - m.titulo.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(m.texto.x - m.titulo.x)).toBeLessThanOrEqual(1);
+      // "Ver alunos" encostado no recuo direito e centrado na altura da caixa.
+      const direita = m.caixa.x + m.caixa.width - m.borda - parseFloat(m.recuoDireito);
+      expect(Math.abs(m.botao.x + m.botao.width - direita)).toBeLessThanOrEqual(1);
+      expect(Math.abs(m.botao.y + m.botao.height / 2 - (m.caixa.y + m.caixa.height / 2))).toBeLessThanOrEqual(1);
+    }).toPass({ timeout: 10_000 });
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('Próximo passo em dia: neutro, sem bolinha', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, { permissoes: PERMISSOES_DO_RESUMO });
+  await expect(passo(page).getByText(EM_DIA)).toBeVisible();
+  await expect(passo(page).getByTestId('proximo-passo-ponto')).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
 });
 

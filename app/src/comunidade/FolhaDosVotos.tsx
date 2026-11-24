@@ -78,7 +78,7 @@ export function FolhaDosVotos({ alvo, papel, aoFechar }: { alvo: AlvoDosVotos; p
   const textoDaOpcao = new Map(resumo?.opcoes.map((o) => [o.opcaoId, o.texto]) ?? []);
 
   return (
-    <Folha visivel={!!alvo} titulo="Votos da enquete" aoFechar={aoFechar} lateral>
+    <Folha visivel={!!alvo} titulo="Votos da enquete" aoFechar={aoFechar} lateral detalhe>
       {saiu ? (
         <Vazio Icone={BarChart3} titulo="Enquete não disponível" texto="Esta enquete saiu do mural." />
       ) : lista.erro && !dados ? (

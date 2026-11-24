@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ReactNode, RefObject } from 'react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { acaoDoAtalho, ehMac, rotuloDoAtalho } from '../dominio/atalhosDoMenu';
 import { router, Slot, usePathname, type Href } from 'expo-router';
 import { ChevronDown, ChevronUp, PanelLeftClose, PanelLeftOpen, type LucideIcon } from 'lucide-react-native';
 import { Image } from 'expo-image';
@@ -34,6 +35,7 @@ import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
 import { IconeDoGrupo, SubmenuDoGrupo, useSubmenuDoTrilho } from './SubmenuDoTrilho';
 import { Texto } from './Texto';
+import { useTeclado } from './usoWeb';
 import { Vidro } from './Vidro';
 
 export interface ItemMenu {
@@ -68,9 +70,9 @@ export interface ItemMenu {
 /**
  * Casca das áreas logadas: menu lateral fixo a partir de 768 px (um trilho com o rótulo curto embaixo de cada ícone até
  * 1024; expandido a partir daí, recolhível à escolha) e barra inferior no celular. Sem barra de topo (guia de 11/11, D1): o
- * conteúdo começa no `painel`. No menu lateral, de cima para baixo e nessa ordem de Tab: a identidade com o botão de recolher
- * à direita (no minimizado, sobre a logo; o trilho não recolhe), a `busca`, a lista que rola e a `conta` num rodapé
- * fixo (os dois só existem na web do treinador). Visual de 11/11: o menu fica no `fundo`, sem contorno, e o conteúdo num
+ * conteúdo começa no `painel`. No menu lateral, de cima para baixo e nessa ordem de Tab: a identidade com os ícones de
+ * recolher e da `busca` à direita (no minimizado, empilhados sob a logo; o trilho não recolhe), a lista que rola e a `conta`
+ * num rodapé fixo (busca e conta só existem na web do treinador). Ctrl+B / Cmd+B alterna a barra. Visual de 11/11: o menu fica no `fundo`, sem contorno, e o conteúdo num
  * `painel` destacado (contorno `divisor`, cantos de 12, 8 px de folga). Item ativo com a seleção neutra (`superficie3`,
  * texto principal) e a marca só no pequeno indicador (`marcaPeca`: barra de 3 × 16 à esquerda no menu, 20 × 2 em cima na
  * barra inferior); `aria-current="page"`. Minimizado no PC, cada grupo vira um ícone que abre o submenu flutuante com os
@@ -112,6 +114,19 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
     setRecolhido(proximo);
     AsyncStorage.setItem(CHAVE_MENU_RECOLHIDO, proximo ? '1' : '0').catch(() => undefined);
   };
+  // Ctrl+B / Cmd+B alterna a barra, como o botão, só onde ela recolhe (o trilho do tablet e a barra de baixo não recolhem);
+  // um ouvinte só, aqui. Com o foco num campo o atalho fica com ele (negrito); `preventDefault` só quando agiu.
+  useTeclado(lateral && !trilho, (tecla) => {
+    if (acaoDoAtalho(tecla) !== 'alternar-barra') return undefined;
+    esconderDica();
+    alternar();
+    return true;
+  });
+  // Esc dispensa a dica sem mover o mouse nem o foco (WCAG 1.4.13); não consome a tecla, que segue para a folha ou o submenu.
+  useTeclado(!!dicaAtual, ({ key }) => {
+    if (key === 'Escape') esconderDica();
+    return undefined;
+  });
   const larguraDoMenu = trilho ? LARGURA_TRILHO : recolhido ? LARGURA_RECOLHIDO : LARGURA_ABERTO;
   // No trilho tudo tem o rótulo embaixo: não há dica. Fora dele, o controle só de ícone (lupa, recolher, avatar) a usa.
   const menu = useMemo<MenuLateral>(
@@ -170,16 +185,23 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
           ref={refDoTrilho}
           accessibilityRole="menubar"
           style={[estilos.lateral, recolhido && (trilho ? estilos.lateralTrilho : estilos.lateralRecolhido), { backgroundColor: cores.fundo }]}>
-          {/* Topo: a marca e, à direita dela, o "Minimizar menu"; minimizado, o "Expandir menu" fica sobre a logo e aparece
-              com o mouse ou o foco do teclado. O botão é sempre o segundo filho desta caixa, aberto ou minimizado: alternar
-              não o desmonta e o foco continua nele. O trilho do tablet não recolhe (sem botão). Embaixo, a busca. */}
-          {trilho ? <MarcaDoTrilho marca={marca} /> : (
+          {/* Topo (padrão "ícones ao lado do logo", 24/11): aberto, uma linha com a marca à esquerda e, à direita, o recolher
+              e a busca, só ícones; minimizado, a logo e os dois ícones empilhados embaixo. Os filhos desta caixa são os
+              mesmos nos dois modos (só o estilo muda): alternar não desmonta os botões e o foco continua neles. O trilho do
+              tablet não recolhe: a logo e a busca com o rótulo embaixo, como os itens. */}
+          {trilho ? (
+            <>
+              <MarcaDoTrilho marca={marca} />
+              {busca}
+            </>
+          ) : (
             <View style={recolhido ? estilos.topoRecolhido : estilos.topo}>
-              {recolhido ? <MarcaDoTrilho marca={marca} decorativa /> : <MarcaDoMenu marca={marca} />}
-              <BotaoRecolher recolhido={recolhido} aoTocar={() => { esconderDica(); alternar(); }} />
+              {recolhido ? <MarcaDoTrilho marca={marca} /> : <MarcaDoMenu marca={marca} />}
+              <BotaoDoTopo Icone={recolhido ? PanelLeftOpen : PanelLeftClose} rotulo={recolhido ? 'Expandir barra lateral' : 'Recolher barra lateral'}
+                atalho={ATALHO_DA_BARRA} expandido={!recolhido} aoTocar={() => { esconderDica(); alternar(); }} />
+              {busca}
             </View>
           )}
-          {busca ? <View style={recolhido ? null : estilos.acoes}>{busca}</View> : null}
           {/* A lista rola quando não cabe na altura (D20); a dica é desenhada no menu, fora da rolagem, que a cortaria. A
               barra de rolagem aparece só no menu aberto: nos trilhos ela comeria a largura dos ícones e dos rótulos. */}
           <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!recolhido}
@@ -187,8 +209,13 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
             contentContainerStyle={[estilos.blocos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
           {conta ? <View style={[estilos.rodapeDoMenu, { borderTopColor: cores.divisor }]}>{conta}</View> : null}
           {!trilho && dicaAtual ? (
-            <View pointerEvents="none" accessible={false} style={[estilos.dica, { left: dicaAtual.esquerda ?? larguraDoMenu + 4, top: dicaAtual.topo, backgroundColor: cores.texto }]}>
+            <View pointerEvents="none" accessible={false} style={[
+              estilos.dica,
+              dicaAtual.abaixo ? { right: espaco(1.5) } : { left: larguraDoMenu + 4 },
+              { top: dicaAtual.topo, backgroundColor: cores.texto },
+            ]}>
               <Texto numberOfLines={1} style={[estilos.textoDica, { color: cores.fundo }]}>{dicaAtual.texto}</Texto>
+              {dicaAtual.atalho ? <Texto numberOfLines={1} style={[estilos.atalhoDica, { color: cores.fundo }]}>{dicaAtual.atalho}</Texto> : null}
             </View>
           ) : null}
           {doSubmenu ? (
@@ -383,26 +410,27 @@ function TituloDoGrupo({ grupo, fechado, atual, resumo, aoAlternar }: {
  */
 function useDicaDoTrilho() {
   const trilho = useRef<View | null>(null);
-  const alvo = useRef<{ texto: string; no: View; abaixo: boolean } | null>(null);
-  const [atual, setAtual] = useState<{ texto: string; topo: number; esquerda?: number } | null>(null);
+  const alvo = useRef<{ texto: string; no: View; abaixo: boolean; atalho?: string } | null>(null);
+  const [atual, setAtual] = useState<{ texto: string; topo: number; abaixo?: boolean; atalho?: string } | null>(null);
   const medir = useCallback(() => {
     const pedido = alvo.current;
     if (!pedido || !trilho.current) return;
     pedido.no.measureLayout(
       trilho.current as never,
-      (x, y, _largura, altura) => {
+      (_x, y, _largura, altura) => {
         if (alvo.current !== pedido) return;
-        // Abaixo do controle, na coluna do menu: à direita ela cobriria o título da tela (o "Expandir menu" fica na linha dele).
+        // Abaixo do controle, terminando no fim da linha dos ícones do topo (a borda direita útil do menu aberto): à direita
+        // do menu ela cobriria o título da tela, e alinhada pelo recolher encostaria na borda da janela.
         setAtual(pedido.abaixo
-          ? { texto: pedido.texto, topo: y + altura + DICA_ABAIXO_DO_CONTROLE, esquerda: x }
-          : { texto: pedido.texto, topo: y + DICA_ABAIXO_DO_TOPO });
+          ? { texto: pedido.texto, atalho: pedido.atalho, topo: y + altura + DICA_ABAIXO_DO_CONTROLE, abaixo: true }
+          : { texto: pedido.texto, atalho: pedido.atalho, topo: y + DICA_ABAIXO_DO_TOPO });
       },
       () => undefined,
     );
   }, []);
-  const mostrar = useCallback((texto: string, no: View | null, abaixo = false) => {
+  const mostrar = useCallback((texto: string, no: View | null, abaixo = false, atalho?: string) => {
     if (!no) return;
-    alvo.current = { texto, no, abaixo };
+    alvo.current = { texto, no, abaixo, atalho };
     medir();
   }, [medir]);
   const esconder = useCallback(() => {
@@ -418,7 +446,7 @@ interface MenuLateral {
   recolhido: boolean;
   /** Trilho do tablet (768 a 1023 px): rótulo embaixo do ícone, sem dica e sem recolher. */
   trilho: boolean;
-  mostrarDica?: (texto: string, no: View | null, abaixo?: boolean) => void;
+  mostrarDica?: (texto: string, no: View | null, abaixo?: boolean, atalho?: string) => void;
   esconderDica?: () => void;
 }
 const ContextoDoMenu = createContext<MenuLateral>({ recolhido: false, trilho: false });
@@ -426,9 +454,10 @@ export const useMenuLateral = () => useContext(ContextoDoMenu);
 
 /**
  * Dica de um controle só de ícone do menu lateral (o nome ao passar o mouse ou focar), desenhada pelo menu. `ativa` falsa
- * ou fora do menu lateral: sem eventos. `noRef` é o `ref` do próprio controle (o menu mede onde ele está).
+ * ou fora do menu lateral: sem eventos. `noRef` é o `ref` do próprio controle (o menu mede onde ele está). `abaixo`: a dica
+ * fica abaixo do controle, terminando no fim da linha do topo (senão, à direita do menu). `atalho` aparece depois do texto, mais suave.
  */
-export function useDicaNoMenu(texto: string, ativa: boolean, noRef: RefObject<View | null>, abaixo = false): {
+export function useDicaNoMenu(texto: string, ativa: boolean, noRef: RefObject<View | null>, abaixo = false, atalho?: string): {
   onHoverIn?: () => void;
   onHoverOut?: () => void;
   onFocus?: () => void;
@@ -436,51 +465,63 @@ export function useDicaNoMenu(texto: string, ativa: boolean, noRef: RefObject<Vi
 } {
   const { mostrarDica, esconderDica } = useContext(ContextoDoMenu);
   if (!ativa || !mostrarDica) return {};
-  const mostrar = () => mostrarDica(texto, noRef.current, abaixo);
+  const mostrar = () => mostrarDica(texto, noRef.current, abaixo, atalho);
   return { onHoverIn: mostrar, onHoverOut: esconderDica, onFocus: mostrar, onBlur: esconderDica };
 }
 
+/** Atalhos da barra (Cmd no Mac). Detectados uma vez no carregamento: a web é SPA (`web.output: single`), sem HTML pré-gerado. */
+const MAC = Platform.OS === 'web' && typeof navigator !== 'undefined' && ehMac(navigator.platform);
+export const ATALHO_DA_BARRA = rotuloDoAtalho('b', MAC);
+export const ATALHO_DA_BUSCA = rotuloDoAtalho('k', MAC);
+
 /**
- * Recolher e expandir o menu, no topo: à direita da marca no menu aberto; no minimizado, sobre a logo, invisível
- * (opacidade 0, ainda no Tab) até o mouse passar ou o foco do teclado chegar, e então no lugar dela. Passar o mouse só
- * revela; quem expande é o clique. Só ícone, com o nome na dica. A preferência fica salva no aparelho (`CHAVE_MENU_RECOLHIDO`).
+ * Botão só de ícone do topo do menu lateral (recolher e busca; 24/11): neutro, ícone `textoSuave`, realce `superficie2` com o
+ * mouse. Aberto, 32 de largura por 44 de altura, com o desenho de 32 × 32, lado a lado à direita da marca e a dica abaixo;
+ * minimizado, a largura do trilho por 44, empilhado sob a logo como os itens, e a dica à direita do menu. `rotulo` é o texto
+ * da dica e, sem `nome`, o nome acessível; `atalho` vai na dica. `aoMontar` recebe o nó (o alvo do passeio).
  */
-function BotaoRecolher({ recolhido, aoTocar }: { recolhido: boolean; aoTocar: () => void }) {
+export function BotaoDoTopo({ Icone, rotulo, nome, atalho, expandido, aoTocar, aoMontar }: {
+  Icone: LucideIcon;
+  rotulo: string;
+  nome?: string;
+  atalho: string;
+  /** Só o recolher: diz ao leitor de tela se a barra está aberta. */
+  expandido?: boolean;
+  aoTocar: () => void;
+  aoMontar?: (no: View | null) => void;
+}) {
   const { cores } = useTema();
-  const rotulo = recolhido ? 'Expandir menu' : 'Minimizar menu';
+  const { recolhido } = useContext(ContextoDoMenu);
   const noRef = useRef<View | null>(null);
-  const dica = useDicaNoMenu(rotulo, true, noRef, true);
-  // Só o foco do teclado revela: depois de um clique o botão continua focado, e a logo não deve sumir com o mouse longe.
-  // Sem mouse (nativo, ou tablet de toque na web) o botão fica sempre à vista no lugar da logo (`SEM_MOUSE`).
-  const [focoDoTeclado, setFocoDoTeclado] = useState(false);
+  const ref = useCallback((no: View | null) => {
+    noRef.current = no;
+    aoMontar?.(no);
+  }, [aoMontar]);
+  const dica = useDicaNoMenu(rotulo, true, noRef, !recolhido, atalho);
   // O mouse é acompanhado aqui, não pelo `hovered` do Pressable: alternar tira o botão de baixo do ponteiro sem o navegador
-  // avisar a saída, e o `hovered` ficaria preso (o "Expandir" cobriria a logo com o mouse longe). Tocar zera.
+  // avisar a saída, e o `hovered` ficaria preso (o realce ficava no botão com o mouse longe). Tocar zera.
   const [mouse, setMouse] = useState(false);
-  const Icone = recolhido ? PanelLeftOpen : PanelLeftClose;
   return (
-    <Pressable ref={noRef} accessibilityRole="button" accessibilityLabel={rotulo} {...dica}
+    <Pressable ref={ref} accessibilityRole="button" accessibilityLabel={nome ?? rotulo} {...dica}
+      {...(expandido === undefined ? null : { accessibilityState: { expanded: expandido }, 'aria-expanded': expandido })}
       onPress={() => { setMouse(false); aoTocar(); }}
       onHoverIn={() => { setMouse(true); dica.onHoverIn?.(); }}
       onHoverOut={() => { setMouse(false); dica.onHoverOut?.(); }}
-      onFocus={() => {
-        setFocoDoTeclado(Platform.OS === 'web' && !!document.activeElement?.matches(':focus-visible'));
-        dica.onFocus?.();
-      }}
-      onBlur={() => { setFocoDoTeclado(false); dica.onBlur?.(); }}
-      style={(estado) => [
-        estilos.recolher,
-        recolhido && [estilos.recolherSobreALogo, { backgroundColor: cores.fundo, opacity: mouse || estado.pressed || focoDoTeclado || SEM_MOUSE ? 1 : 0 }],
-        (mouse || estado.pressed) && { backgroundColor: cores.superficie2 },
-      ]}>
-      <Icone size={20} color={cores.textoSuave} strokeWidth={2} />
+      style={[estilos.botaoDoTopo, recolhido && estilos.botaoDoTopoRecolhido]}>
+      {(estado) => (
+        <View style={[estilos.desenhoDoTopo, recolhido && estilos.desenhoDoTopoRecolhido, (mouse || estado.pressed) && { backgroundColor: cores.superficie2 }]}>
+          <Icone size={20} color={cores.textoSuave} strokeWidth={2} />
+        </View>
+      )}
     </Pressable>
   );
 }
 
 /**
- * Identidade do menu aberto (prévia de 11/11): a logo (ou a inicial) e o nome numa linha só deles, 68 px no conjunto. Logo
- * larga (mais de 1,5 vez a altura) já traz o nome e fica sozinha, até 200 px, para a marca real continuar inteira. Nome
- * longo ocupa até duas linhas e depois trunca, sem empurrar o menu. O padrão do `MarcaTitulo` (telas públicas, aluno, Marca) não muda.
+ * Identidade do menu aberto (prévia de 11/11; ícones ao lado, 24/11): a logo (ou a inicial) e o nome, à esquerda dos ícones
+ * do topo, 68 px no conjunto. Logo larga (mais de 1,5 vez a altura) já traz o nome e fica sozinha no espaço que sobra, para
+ * a marca real continuar inteira. Nome longo fica numa linha e trunca com reticências: os ícones nunca saem do menu. O
+ * padrão do `MarcaTitulo` (telas públicas, aluno, Marca) não muda.
  */
 function MarcaDoMenu({ marca }: { marca: Marca | null }) {
   const { cores, marca: cor, sobreMarca } = useTema();
@@ -501,17 +542,14 @@ function MarcaDoMenu({ marca }: { marca: Marca | null }) {
         )}
       </View>
       {larga ? null : (
-        <Texto numberOfLines={2} style={[estilos.nomeMenu, fonte ? { fontFamily: fonte } : null, metal && estilos.nomeMetal]}>{nome}</Texto>
+        <Texto numberOfLines={1} style={[estilos.nomeMenu, fonte ? { fontFamily: fonte } : null, metal && estilos.nomeMetal]}>{nome}</Texto>
       )}
     </View>
   );
 }
 
-/**
- * Topo do trilho: a logo da consultoria ou a inicial do nome, para o menu de ícones não ficar sem dono. `decorativa` (PC
- * minimizado): o "Expandir menu" fica por cima e é o único item do leitor de tela ali, então a logo some para ele.
- */
-function MarcaDoTrilho({ marca, decorativa }: { marca: Marca | null; decorativa?: boolean }) {
+/** Topo do trilho e do PC minimizado: a logo da consultoria ou a inicial do nome, para o menu de ícones não ficar sem dono. */
+function MarcaDoTrilho({ marca }: { marca: Marca | null }) {
   const { cores, marca: cor, sobreMarca } = useTema();
   const nome = marca?.nome?.trim() || NOME_DO_PRODUTO;
   const figura = marca?.logoUrl ? (
@@ -521,20 +559,17 @@ function MarcaDoTrilho({ marca, decorativa }: { marca: Marca | null; decorativa?
       <Texto style={[estilos.textoInicial, { color: sobreMarca }]}>{nome.charAt(0).toUpperCase()}</Texto>
     </View>
   );
-  if (decorativa) return <View aria-hidden style={estilos.figuraDoTopo}>{figura}</View>;
   return <View accessibilityRole="image" accessibilityLabel={nome} style={estilos.topoTrilho}>{figura}</View>;
 }
 
 const CHAVE_MENU_RECOLHIDO = 'menu-lateral-recolhido';
-/** Aparelho sem "passar o mouse" (nativo, ou toque na web): nada revelaria o "Expandir menu" escondido sobre a logo. */
-const SEM_MOUSE = Platform.OS !== 'web' || (typeof window !== 'undefined' && !window.matchMedia?.('(hover: hover)').matches);
 const LARGURA_ABERTO = 240;
 const LARGURA_RECOLHIDO = 72;
 // 88 px: 80 de rótulo embaixo do ícone; os maiores, "Atualizações" e "Interessados" (cerca de 75 px em 12 px semi), cabem sem cortar.
 const LARGURA_TRILHO = 88;
 /** A dica fica 8 px abaixo do topo do item, como quando morava dentro dele. */
 const DICA_ABAIXO_DO_TOPO = 8;
-/** A dica do botão de recolher fica 4 px abaixo dele. */
+/** A dica dos ícones do topo do menu aberto fica 4 px abaixo deles. */
 const DICA_ABAIXO_DO_CONTROLE = 4;
 
 const estilos = StyleSheet.create({
@@ -584,20 +619,21 @@ const estilos = StyleSheet.create({
   // Fio vertical do grupo aberto: 1 px no meio da barrinha de 3 px do item atual (left 0), do primeiro ao último item.
   itensDoGrupo: { gap: espaco(0.5) },
   fioVertical: { position: 'absolute', left: 1, top: espaco(1), bottom: espaco(1), width: 1 },
-  // A busca, sozinha na linha abaixo da marca.
-  acoes: { marginBottom: espaco(1) },
-  // Topo do menu aberto: a marca ocupa o que sobra e o recolher, 44 px, fica à direita dela, na mesma linha.
-  topo: { flexDirection: 'row', alignItems: 'center' },
-  // Topo do minimizado: a caixa de 44 da logo, centralizada; o recolher cobre a caixa inteira.
-  topoRecolhido: { alignSelf: 'center', width: ALVO_TOQUE, height: ALVO_TOQUE, marginBottom: espaco(1) },
-  figuraDoTopo: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
-  recolher: { flexShrink: 0, minWidth: ALVO_TOQUE, minHeight: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
-  recolherSobreALogo: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  // Topo do menu aberto: uma linha, a marca ocupa o que sobra e os ícones (32 cada) ficam colados à direita, sem encolher.
+  topo: { flexDirection: 'row', alignItems: 'center', marginBottom: espaco(0.5) },
+  // Topo do minimizado: a logo e, embaixo, os ícones empilhados na largura do trilho, como os itens.
+  topoRecolhido: { gap: espaco(0.5), marginBottom: espaco(1) },
+  // 32 de largura (cabem dois ao lado do nome sem alargar o menu) por 44 de altura; o desenho de 32 × 32 recebe o realce.
+  // shortcut: largura abaixo do ALVO_TOQUE de 44 (passa os 24 da WCAG 2.5.8), só no menu aberto do PC, que é de mouse; trocar se o menu aberto chegar ao toque.
+  botaoDoTopo: { flexShrink: 0, width: 32, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
+  botaoDoTopoRecolhido: { width: 'auto', alignSelf: 'stretch' },
+  desenhoDoTopo: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
+  desenhoDoTopoRecolhido: { alignSelf: 'stretch', width: 'auto', height: ALVO_TOQUE },
   // Rodapé fixo com a conta: um fio `divisor` em cima; a lista rola acima dele sem escondê-lo.
   rodapeDoMenu: { borderTopWidth: 1, paddingTop: espaco(1), paddingBottom: espaco(1) },
   // Linha de 44 + 12 em cima e embaixo = 68 px; a logo começa na mesma coluna dos ícones do menu.
-  marca: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE + espaco(3), paddingVertical: espaco(1.5), paddingLeft: espaco(1.5), paddingRight: espaco(0.5) },
-  // A logo larga ocupa o que sobra ao lado do recolher, até 200 px.
+  marca: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE + espaco(3), paddingVertical: espaco(1.5), paddingLeft: espaco(1.5), paddingRight: espaco(0.5) },
+  // A logo larga ocupa o que sobra ao lado dos ícones do topo.
   caixaLogoLarga: { flex: 1, minWidth: 0 },
   logoLarga: { width: '100%', maxWidth: 200, height: 44 },
   nomeMenu: { flexShrink: 1, fontFamily: fontes.semi, fontSize: 15, lineHeight: 20 },
@@ -632,8 +668,10 @@ const estilos = StyleSheet.create({
   rotuloTrilho: { alignSelf: 'stretch', textAlign: 'center' },
   ponto: { position: 'absolute', right: -5, top: -3, width: 9, height: 9, borderRadius: 5, borderWidth: 1 },
   // À direita do menu, 4 px depois da borda dele (o `left` vem da largura do menu agora).
-  dica: { position: 'absolute', paddingHorizontal: espaco(1), paddingVertical: 4, borderRadius: 6, zIndex: 50 },
+  dica: { position: 'absolute', flexDirection: 'row', alignItems: 'baseline', gap: espaco(1), paddingHorizontal: espaco(1), paddingVertical: 4, borderRadius: 6, zIndex: 50 },
   textoDica: { fontFamily: fontes.semi, fontSize: 13 },
+  // O atalho, depois do nome, mais leve (o mesmo texto da dica a 70%: continua acima de 4,5:1 sobre o fundo dela).
+  atalhoDica: { fontFamily: fontes.medio, fontSize: 12, opacity: 0.7 },
   topoTrilho: { alignItems: 'center', marginBottom: espaco(1) },
   logoTrilho: { width: 44, height: 44 },
   inicial: { width: 40, height: 40, borderRadius: RAIO, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },

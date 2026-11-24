@@ -205,7 +205,7 @@ export function DetalheMeuPerfil({ perfil, dados, online, focarReservar, aoFecha
   ) : undefined;
 
   return (
-    <Folha visivel lateral titulo="Meu perfil" aoFechar={fechar} faixa={previa} rodape={rodape} statusDoRodape={statusDoRodape}>
+    <Folha visivel lateral detalhe titulo="Meu perfil" aoFechar={fechar} faixa={previa} rodape={rodape} statusDoRodape={statusDoRodape}>
       <View testID="detalhe-meu-perfil" style={estilos.corpo}>
         {!carregado ? (
           perfil.erro || dados.erro

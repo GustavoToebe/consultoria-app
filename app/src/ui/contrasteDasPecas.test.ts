@@ -1,5 +1,6 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import { aparenciaDoIndicador } from './aparenciaDoIndicador';
+import { superficiePintada } from './superficiePintada';
 import { coresDoDesabilitado } from './desabilitado';
 import { aparenciaDoNumero } from './destaqueDoNumero';
 import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
@@ -277,6 +278,31 @@ describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].ma
       expect(contraste(a.valor, a.fundo)).toBeGreaterThanOrEqual(4.5);
     }
     expect(aparenciaDoIndicador(null, 'valor', 'cartao', cores, variante)).toMatchObject({ pintura: null, marca: null, borda: cores.divisor, valor: cores.texto, rotulo: cores.textoSuave });
+  });
+});
+
+/**
+ * Avisos pintados (24/11, sem a faixa lateral): o "Próximo passo" do Início (solto na página, `superficie`; âmbar, ou
+ * `perigo` no atraso) e a pergunta da duração curta do Concluir treino (no poço `superficie2` da Folha, âmbar). Rótulo na
+ * cor (`p.texto`), texto da pendência (`texto`) e linha do aviso (`textoSuave`) ≥ 4,5:1 e a bolinha ≥ 3:1 sobre o ponto
+ * mais forte do degradê, em todos os temas, com contraste alto e bordas reforçadas.
+ */
+describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].map((alto): [string, Cores, VarianteDoTema] => [
+  `${nome}${alto ? ', contraste alto e bordas reforçadas' : ''}`,
+  alto ? coresComBordasReforcadas(coresComContraste(base, 'ALTO', escuro), true) : base,
+  variante,
+])))('avisos pintados no tema %s', (_nome, cores, variante) => {
+  it.each([
+    ['Próximo passo, pendência', 'atencao', 'superficie'],
+    ['Próximo passo, atraso', 'perigo', 'superficie'],
+    ['pergunta do Concluir treino', 'atencao', 'superficie2'],
+  ] as const)('%s: rótulo, texto e aviso ≥ 4,5:1, bolinha ≥ 3:1', (_peca, tom, base) => {
+    const p = superficiePintada(cores[tom], cores[base], variante, cores);
+    for (const texto of [p.texto, cores.texto, cores.textoSuave]) {
+      expect(contraste(texto, p.forte)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(texto, p.base)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(contraste(cores[tom], p.forte)).toBeGreaterThanOrEqual(3);
   });
 });
 

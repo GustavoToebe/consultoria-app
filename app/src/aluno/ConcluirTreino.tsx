@@ -37,6 +37,7 @@ import { Escolha } from '../ui/Escolha';
 import { Folha } from '../ui/Folha';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { Selo } from '../ui/Selo';
+import { fundoPintado, superficiePintada } from '../ui/superficiePintada';
 import { Texto } from '../ui/Texto';
 import { textoDoErro } from '../ui/erros';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
@@ -77,7 +78,9 @@ export function ConcluirTreino({ versaoId, sessao, data, hoje, metodologia, feit
   const { retornoHabilitado } = useSessao();
   const { sessaoConcluidaDe, inicioDoTreino, concluirTreino, reabrirTreino } = useAluno();
   const { avisar } = useAviso();
-  const { cores } = useTema();
+  const { cores, variante } = useTema();
+  // A pergunta fica no poço (`superficie2`) da Folha, como antes; a pintura termina nele.
+  const pinturaDaPergunta = superficiePintada(cores.atencao, cores.superficie2, variante, cores);
   const reduzido = useMovimentoReduzido();
   const campoMinutos = useRef<TextInput>(null);
 
@@ -263,7 +266,7 @@ export function ConcluirTreino({ versaoId, sessao, data, hoje, metodologia, feit
           />
           {perguntando ? (
             <View
-              style={[estilos.pergunta, { backgroundColor: cores.superficie2, borderColor: cores.bordaCampo, borderLeftColor: cores.atencao }]}
+              style={[estilos.pergunta, { borderColor: pinturaDaPergunta.borda }, fundoPintado(pinturaDaPergunta)]}
               accessibilityRole="alert">
               <Texto accessibilityLiveRegion="polite">{PERGUNTA_DURACAO_CURTA}</Texto>
               <LinhaDeAcoes>
@@ -301,6 +304,7 @@ const estilos = StyleSheet.create({
   concluido: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   textosConcluido: { flexGrow: 1, flexShrink: 1, flexBasis: 180, gap: espaco(0.5) },
   selo: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
-  pergunta: { borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
+  // Aviso pintado em âmbar (24/11, `ui/superficiePintada`), sem a faixa lateral que fazia a curva no canto.
+  pergunta: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   contador: { alignSelf: 'flex-end' },
 });
