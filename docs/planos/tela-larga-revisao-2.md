@@ -1,6 +1,6 @@
 # Tela larga (24/11): revisão 2 do relatório da noite
 
-Situação: Em andamento · Onde: branch `tela-larga-revisao` (worktree `tela-larga-24-11`) · Atualizado: 24/11/2026
+Situação: Entregue em 24/11/2026 (push e run: ver `capturas/24-11/RELATORIO-2.md`) · Onde: branch `tela-larga-revisao` (worktree `tela-larga-24-11`) · Atualizado: 24/11/2026
 
 Fonte: revisão do Gustavo sobre `capturas/24-11/RELATORIO.md` (24/11/2026), base `82202480` (main; a branch contém a `ficha-24-11`).
 
@@ -26,7 +26,7 @@ Fechar as decisões do relatório: ficha › Dados em três colunas na ultralarg
 - [x] 3. Mural (treinador e aluno): feed + coluna lateral — commit: `3c3e2272`
 - [ ] 4. Defeitos: `seloDoAcesso` (inativo), selo "Acesso total" da Equipe, captura do `tela-larga.spec.ts`, botão "Histórico de …" duplicado (defeito da tela: ícone e botão rotulado; ficou o botão) — commits: `6e79f200`, `257bf57c` (e2e dos selos)
 - [x] 5. Decisões em AGENTS.md, `design-e-front.md` e planos — commits: `4f81a7de` e o de docs desta entrega
-- [ ] 6. Guias em PDF, verificações, fast-forward da `main`, push — commit/run: —
+- [x] 6. Guias em PDF (`14534303`), verificações (typecheck, lint, jest 409/9517, e2e completo), fast-forward da `main`, push — run: ver `RELATORIO-2.md`
 
 ## Fora do escopo
 - Pós-lançamento (sugestões aceitas, não fazer agora): painel da inscrição em Interessados (IFI-S1); mostrar "Cuidados no treino" das lesões ativas no editor de treino; demais sugestões da seção 8 do relatório. Anotadas em "Pendências soltas" do README.
@@ -34,4 +34,9 @@ Fechar as decisões do relatório: ficha › Dados em três colunas na ultralarg
 ## O que ficou para trás
 - Decisão a confirmar pelo Gustavo: no mural do aluno, abaixo de 1280 px a coluna vira um cartão só "Seus números" no topo (com os dois cartões, o feed ficava abaixo da primeira dobra).
 - "Hoje" primeiro vale da faixa `larga` em diante; em 1280 e no celular a ordem segue Dieta › Água › Hoje (specs existentes conferem essa ordem).
+- Corrigido de passagem (`4c8465a8`, `fc5374be`): remontagem intermitente da Anamnese na ficha (já existia na base: 4 de 20 falhas; agora 80 de 80) e remontagem/GET duplicado do ranking no Início do aluno.
+- Atalho (`shortcut:` em `BlocosDaFicha`): o guarda de "aba ainda não medida" deduz o atraso pelo recuo da `Tela`; trocar por um contexto da `Tela` que diga "ainda não medi" (o `CorpoDoInicio` usa a mesma ideia).
+- Mural do aluno: o cartão "Seus números" entra por cima do feed quando ranking e conquistas chegam depois dos posts (salto em 390 e 1280); decidir entre esqueleto reservado e aceitar.
+- `GET /aluno/sessoes-concluidas` sai duas vezes no Início em 1280 (outro consumidor, não o mapa).
+- `e2e/tela-larga.spec.ts` deixa uma pasta temporária por execução (o `mkdtemp` não é apagado).
 - Mural do aluno em 3440: o bloco feed + coluna fica à esquerda dos 1688 centralizados e sobram ~600 px à direita.
