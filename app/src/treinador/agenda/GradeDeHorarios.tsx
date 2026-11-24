@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { type GestureResponderEvent, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { type GestureResponderEvent, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 
 import {
   alturaDaGrade, colunasDaGrade, DIAS_DA_SEMANA_CURTOS, dataComDiaDaSemana, horaDoPontoDaGrade, type ItemDoCalendario, minutoDoDiaEmBrasilia,
@@ -9,7 +9,7 @@ import { arranjoDoBloco, horarioNoBloco, LARGURA_DA_FAIXA, statusNoDiaInteiro } 
 import { diaDaSemanaIso } from '../../dominio/formatos';
 import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_TEXTO_CORRIDO, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -137,7 +137,11 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
               <Pressable accessible={false} focusable={false} tabIndex={-1} style={StyleSheet.absoluteFill}
                 onPress={(e) => aoCriarNoHorario(c.data, horaDoPontoDaGrade(pontoY(e), alturaDaHora))} />
             ) : null}
-            {c.segmentos.map((s) => <Bloco key={s.chave} segmento={s} hoje={hoje} meus={meus} aoAbrir={aoAbrir} escolhido={s.item.chave === escolhido} />)}
+            {/* A pista dos blocos para em ~72 caracteres (tela larga: o Dia não estica o bloco por 2000 px); o fundo clicável e
+                as linhas seguem na coluna toda. `box-none`: o clique fora dos blocos chega ao fundo e cria no horário. */}
+            <View testID="pista-dos-blocos" pointerEvents="box-none" style={[estilos.pista, PISTA_SEM_CAMADA]}>
+              {c.segmentos.map((s) => <Bloco key={s.chave} segmento={s} hoje={hoje} meus={meus} aoAbrir={aoAbrir} escolhido={s.item.chave === escolhido} />)}
+            </View>
             {c.data === hoje ? (
               <View pointerEvents="none" aria-hidden style={[estilos.agora, { top: posicaoDoMinuto(minutoDeAgora, alturaDaHora) }]}>
                 <View style={[estilos.pontoDoAgora, { backgroundColor: cores.texto }]} />
@@ -159,6 +163,13 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
     </View>
   );
 }
+
+/**
+ * O react-native-web dá `z-index: 0` a toda View, e a pista viraria uma camada própria: o bloco aberto pelo rótulo
+ * (`zIndex` 10) ficaria embaixo da linha do "agora". `auto` devolve os blocos à camada da coluna, como antes da pista.
+ * `auto` não está no tipo do React Native (o mesmo jeito do `sticky` na Comunidade).
+ */
+const PISTA_SEM_CAMADA = (Platform.OS === 'web' ? { zIndex: 'auto' } : {}) as unknown as ViewStyle;
 
 /** Y do clique dentro da coluna (o fundo não tem filhos: `offsetY` na web é relativo a ele). */
 function pontoY(e: GestureResponderEvent): number {
@@ -268,11 +279,13 @@ const estilos = StyleSheet.create({
   botaoDoDia: { minHeight: ALVO_TOQUE + espaco(2), alignItems: 'center', justifyContent: 'center', paddingVertical: espaco(0.5), gap: 2 },
   numero: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   faixaDoDia: { flex: 1, minWidth: 0, borderLeftWidth: 1, padding: 2, gap: 2 },
+  pista: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, maxWidth: LARGURA_TEXTO_CORRIDO },
   diaInteiro: {
     minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), paddingHorizontal: espaco(0.75), borderWidth: 1,
     borderLeftWidth: LARGURA_DA_FAIXA, borderRadius: 4,
   },
-  reserva: { minHeight: ALVO_TOQUE },
+  // O item de dia inteiro para na mesma largura da pista dos blocos.
+  reserva: { minHeight: ALVO_TOQUE, maxWidth: LARGURA_TEXTO_CORRIDO },
   porCima: { zIndex: 30 },
   soltoDoFluxo: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30 },
   seloAoLado: { flexShrink: 0, marginLeft: 'auto' },

@@ -1,5 +1,5 @@
 import type { PlaylistDaComunidade } from '../api/comunidadeTipos';
-import { LARGURA_FAIXA_LARGA, LARGURA_FAIXA_NORMAL } from '../tema/tokens';
+import { LARGURA_FAIXA_LARGA, LARGURA_FAIXA_NORMAL, LARGURA_FAIXA_ULTRALARGA } from '../tema/tokens';
 import { playlistsEmOrdem, SEM_COLECAO } from './comunidade';
 
 /**
@@ -10,8 +10,19 @@ import { playlistsEmOrdem, SEM_COLECAO } from './comunidade';
 /** Abaixo disto a área é de celular (ou janela estreita): uma coluna. D2 não fixou o valor; 600 px é a classe compacta. */
 export const LARGURA_DOIS_VIDEOS = 600;
 
-/** 4 por linha a partir de 1600 px de área, 3 de 1024 a 1600, 2 abaixo e 1 no celular (régua `faixaDeLargura`). */
-export function colunasDosVideos(area: number): 1 | 2 | 3 | 4 {
+/**
+ * A partir daqui a faixa larga ganha a 5ª coluna (tela larga: revisão, 24/11): o cartão fica entre ~400 e ~520 px, como
+ * em 1920, e não cresce até 760 px no monitor grande. 2560 com o menu aberto deixa ~2320 px de área.
+ */
+export const LARGURA_CINCO_VIDEOS = 2000;
+
+/**
+ * 6 por linha a partir de 2400 px de área (`ultralarga`), 5 de 2000 a 2400, 4 de 1600 a 2000, 3 de 1024 a 1600, 2 abaixo e
+ * 1 no celular (régua `faixaDeLargura`).
+ */
+export function colunasDosVideos(area: number): 1 | 2 | 3 | 4 | 5 | 6 {
+  if (area >= LARGURA_FAIXA_ULTRALARGA) return 6;
+  if (area >= LARGURA_CINCO_VIDEOS) return 5;
   if (area >= LARGURA_FAIXA_LARGA) return 4;
   if (area >= LARGURA_FAIXA_NORMAL) return 3;
   if (area >= LARGURA_DOIS_VIDEOS) return 2;

@@ -11,7 +11,12 @@ describe('colunasDosVideos', () => {
     expect(colunasDosVideos(1040)).toBe(3);
     expect(colunasDosVideos(1599)).toBe(3);
     expect(colunasDosVideos(1600)).toBe(4);
-    expect(colunasDosVideos(2600)).toBe(4);
+    // tela larga: revisão (24/11): 5 e 6 colunas no monitor grande.
+    expect(colunasDosVideos(1999)).toBe(4);
+    expect(colunasDosVideos(2000)).toBe(5);
+    expect(colunasDosVideos(2399)).toBe(5);
+    expect(colunasDosVideos(2400)).toBe(6);
+    expect(colunasDosVideos(3200)).toBe(6);
   });
 });
 

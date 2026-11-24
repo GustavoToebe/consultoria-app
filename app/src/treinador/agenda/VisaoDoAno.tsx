@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { type ContagemDoDia, DIAS_DA_SEMANA_CURTOS, dataComDiaDaSemana, mesesDoAno } from '../../dominio/agendaCalendario';
+import { type ContagemDoDia, DIAS_DA_SEMANA_CURTOS, dataComDiaDaSemana, mesesDoAno, mesesPorLinhaDoAno } from '../../dominio/agendaCalendario';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { sobre } from '../../ui/sobre';
@@ -32,17 +32,20 @@ function resumoDoDia(c: ContagemDoDia | undefined): string {
 }
 
 /**
- * Ano: os 12 meses em mini calendários, quantos couberem por linha (1 no celular, 2 a 3 no PC), rolando com a tela. Dia com
- * algo marcado ganha um ponto embaixo e o número em negrito; o toque abre o Dia; o nome do mês abre o Mês. A contagem vem do
- * resumo da API (só números) mais as atualizações do ano. Cada mês é um bloco, com o nome (o botão que abre o Mês) na faixa.
+ * Ano: os 12 meses em mini calendários, por linha o maior divisor de 12 que cabe (1 no celular; 3, 4 ou 6 no PC, linhas
+ * sempre cheias), rolando com a tela. Dia com algo marcado ganha um ponto embaixo e o número em negrito; o toque abre o
+ * Dia; o nome do mês abre o Mês. A contagem vem do resumo da API (só números) mais as atualizações do ano. Cada mês é um
+ * bloco, com o nome (o botão que abre o Mês) na faixa.
  */
 export function VisaoDoAno({ ano, hoje, contagem, aoAbrirDia, aoAbrirMes }: Props) {
   const { cores, bordas, marcaTexto } = useTema();
   const [largura, setLargura] = useState(0);
-  const porLinha = Math.max(1, Math.floor((largura + espaco(2)) / (LARGURA_DO_MES + espaco(2))));
+  const porLinha = mesesPorLinhaDoAno(Math.floor((largura + espaco(2)) / (LARGURA_DO_MES + espaco(2))));
   const meses = mesesDoAno(ano, hoje);
   return (
-    <View style={estilos.grade} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
+    // Mede por fora: a grade abaixo fica só da largura das colunas escolhidas (o resto da linha quebra para baixo).
+    <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
+    <View testID="grade-do-ano" style={[estilos.grade, porLinha > 1 && { maxWidth: porLinha * LARGURA_DO_MES + (porLinha - 1) * espaco(2) }]}>
       {largura > 0 ? meses.map((m) => (
         <View key={m.mes} style={[estilos.mes, {
           width: porLinha === 1 ? '100%' : LARGURA_DO_MES, borderWidth: bordas.bloco, borderColor: cores.borda, backgroundColor: cores.superficie,
@@ -77,6 +80,7 @@ export function VisaoDoAno({ ano, hoje, contagem, aoAbrirDia, aoAbrirMes }: Prop
           ))}
         </View>
       )) : null}
+    </View>
     </View>
   );
 }

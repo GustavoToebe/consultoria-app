@@ -246,6 +246,14 @@ export interface MesDoAno {
   semanas: CelulaDoDia[][];
 }
 
+/**
+ * Quantos mini meses o Ano põe por linha, dos `cabem` na largura: o maior divisor de 12 (12, 6, 4, 3, 2, 1), para as
+ * linhas saírem cheias (6 + 6, 4 + 4 + 4), nunca 8 + 4 nem 5 + 5 + 2 (tela larga: revisão, 24/11).
+ */
+export function mesesPorLinhaDoAno(cabem: number): number {
+  return [12, 6, 4, 3, 2].find((n) => n <= cabem) ?? 1;
+}
+
 /** Os 12 mini meses do Ano (cada um com as 6 semanas de {@link semanasDoMes}). */
 export function mesesDoAno(ano: number, hoje: string, selecao: Selecao = {}): MesDoAno[] {
   return Array.from({ length: 12 }, (_, i) => {

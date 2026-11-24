@@ -26,6 +26,7 @@ import {
   lerVisaoDoCalendario,
   mesclarItens,
   mesesDoAno,
+  mesesPorLinhaDoAno,
   minutoDoDiaEmBrasilia,
   minutoInicialDaGrade,
   miniCalendario,
@@ -423,5 +424,21 @@ describe('proximoItemDoMenu (navegação por setas)', () => {
   it('outra tecla devolve null', () => {
     expect(proximoItemDoMenu('Enter', 0, 2)).toBeNull();
     expect(proximoItemDoMenu('Tab', 0, 2)).toBeNull();
+  });
+});
+
+// tela larga: revisão (24/11)
+describe('mesesPorLinhaDoAno', () => {
+  it('fica com o maior divisor de 12 que cabe: as linhas do Ano saem cheias', () => {
+    expect(mesesPorLinhaDoAno(0)).toBe(1);
+    expect(mesesPorLinhaDoAno(1)).toBe(1);
+    expect(mesesPorLinhaDoAno(2)).toBe(2);
+    expect(mesesPorLinhaDoAno(3)).toBe(3);
+    expect(mesesPorLinhaDoAno(5)).toBe(4);
+    expect(mesesPorLinhaDoAno(7)).toBe(6);
+    expect(mesesPorLinhaDoAno(8)).toBe(6);
+    expect(mesesPorLinhaDoAno(11)).toBe(6);
+    expect(mesesPorLinhaDoAno(12)).toBe(12);
+    expect(mesesPorLinhaDoAno(20)).toBe(12);
   });
 });

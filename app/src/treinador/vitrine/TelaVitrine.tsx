@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, Eye, Pencil, Plus, Store } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { baixarFotoDoItem, itensDaVitrine, ordenarItensDaVitrine } from '../../api/rotas';
@@ -8,7 +8,7 @@ import type { ItemDaVitrine } from '../../api/vitrineTipos';
 import { MiniaturaDoItem } from '../../aluno/vitrine/MiniaturaDoItem';
 import { contagemDeItens, moverItem, podeAdicionarItem, rotuloDoTipo, textoDoPreco } from '../../dominio/vitrine';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco, LARGURA_LISTA } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR, LARGURA_EDITOR_DE_CAMPOS, LARGURA_LISTA } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -18,7 +18,7 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
-import { Tela } from '../../ui/Tela';
+import { Tela, useFaixaDaTela } from '../../ui/Tela';
 import { useCarregar } from '../../ui/useCarregar';
 import { ehConflito } from '../financeiro/comum';
 import { CartaoPaginaPublica } from './CartaoPaginaPublica';
@@ -65,7 +65,7 @@ export function TelaVitrine() {
           <Botao rotulo="Novo item" Icone={Plus} aoTocar={() => setAberto('novo')} desabilitado={!adicionar.pode}
             motivo={adicionar.motivo ?? undefined} />
         ) : undefined} />
-      {lojaHabilitada ? <CartaoPaginaPublica podeAlterar={podeAlterar} /> : null}
+      <Colunas lateral={lojaHabilitada ? <CartaoPaginaPublica podeAlterar={podeAlterar} /> : null}>
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregar} /> : null}
       {!itens && lista.carregando ? <Esqueleto texto="Carregando a vitrine" /> : null}
       {itens && itens.length === 0 ? (
@@ -97,9 +97,27 @@ export function TelaVitrine() {
           </ListaDeLinhas>
         </Cartao>
       ) : null}
+      </Colunas>
       <FolhaDoItem item={aberto} podeAlterar={podeAlterar} aoFechar={() => setAberto(null)} aoMudar={recarregar}
         aoCriar={(novo) => { recarregar(); setAberto(novo); }} />
     </Tela>
+  );
+}
+
+/**
+ * Tela larga (revisão de 24/11): na faixa larga ou maior a Página pública vira a coluna da esquerda (1fr) e os itens a da
+ * direita (2fr), o par até `LARGURA_EDITOR_DE_CAMPOS`; sem a página, a lista para em `LARGURA_EDITOR`. Abaixo, empilhados
+ * como antes. Uma árvore só nas duas formas: cruzar a faixa não remonta a página nem a lista.
+ */
+function Colunas({ lateral, children }: { lateral: ReactNode; children: ReactNode }) {
+  const faixa = useFaixaDaTela();
+  const larga = faixa === 'larga' || faixa === 'ultralarga';
+  const lado = larga && !!lateral;
+  return (
+    <View testID="colunas-da-vitrine" style={[estilos.empilhado, lado && estilos.ladoALado, larga && { maxWidth: lateral ? LARGURA_EDITOR_DE_CAMPOS : LARGURA_EDITOR }]}>
+      {lateral ? <View style={lado ? estilos.lateral : undefined}>{lateral}</View> : null}
+      <View style={[estilos.empilhado, lado && estilos.principal]}>{children}</View>
+    </View>
   );
 }
 
@@ -112,4 +130,9 @@ function seloDoItem(item: ItemDaVitrine, lojaHabilitada: boolean): { texto: stri
 
 const estilos = StyleSheet.create({
   setas: { flexDirection: 'row', gap: espaco(0.5) },
+  // O mesmo vão da `Tela` entre blocos (24 px), também entre as duas colunas.
+  empilhado: { gap: espaco(3) },
+  ladoALado: { flexDirection: 'row', alignItems: 'flex-start' },
+  lateral: { flex: 1, minWidth: 0 },
+  principal: { flex: 2, minWidth: 0 },
 });
