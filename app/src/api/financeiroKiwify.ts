@@ -70,7 +70,7 @@ import { requisicao } from './cliente';
  * `POST /aluno/financeiro/cobrancas/{id}/link` e `/pix` respondem 409 `COBRANCA_AUTOMATICA` (escolha), o
  * `POST /cobrancas/{id}/link` da equipe também e o `POST /cobrancas/link-em-lote` devolve o item com `ok:false`,
  * `codigo:'COBRANCA_AUTOMATICA'` (falha definitiva, sem nova tentativa). Lembrete por e-mail (aluno e responsável) NÃO sai para ela, nem antes nem
- * depois de vencida, na primeira versão (D18); o "Abrir WhatsApp com a mensagem" da equipe continua. A equipe dá baixa
+ * depois de vencida, na primeira versão (D18); o "Enviar pelo WhatsApp" da equipe continua. A equipe dá baixa
  * manual, desfaz a manual e cancela como em qualquer cobrança.
  *
  * ---- Mudanças em contratos existentes ----

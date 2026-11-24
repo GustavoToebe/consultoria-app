@@ -1,10 +1,10 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { larguraMaximaDoConteudo, respiroLateralDaTela } from '../dominio/larguraDoConteudo';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, LARGURA_MAXIMA } from '../tema/tokens';
+import { espaco, LARGURA_MAXIMA, type FaixaDeLargura } from '../tema/tokens';
 import { useFundoDaArea } from './fundoDaArea';
 import { RolagemComTopo } from './RolagemComTopo';
 import { useFaixaDeLargura } from './useFaixaDeLargura';
@@ -21,6 +21,15 @@ interface Props {
   /** Folga das laterais e do topo; padrão `espaco(2)` (16). Só as telas que pedem respiro maior no PC passam outro valor. */
   folga?: number;
 }
+
+const FaixaDaTela = createContext<FaixaDeLargura>('compacta');
+
+/**
+ * A faixa da área de conteúdo como a `Tela` a mede (o que sobra ao lado do menu, antes do recuo lateral): a régua de 4.10
+ * para quem decide o layout dentro da tela. Medir por dentro do recuo nunca chegaria à `ultralarga` em 2560 px (o recuo
+ * de 48 px tira 96). Fora de uma `Tela`, `compacta`.
+ */
+export const useFaixaDaTela = () => useContext(FaixaDaTela);
 
 /**
  * Base de toda tela: SafeAreaView do react-native-safe-area-context (o do react-native está obsoleto e quebrou o
@@ -40,7 +49,7 @@ export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas 
       : { ...(folga !== undefined ? { padding: folga } : null), ...(lateral !== undefined ? { paddingHorizontal: lateral } : null) };
   const conteudo = (
     <View style={[estilos.conteudo, larguraUtil === undefined ? null : { maxWidth: larguraUtil }, !rolar && { flex: 1, minHeight: 0 }]}>
-      {children}
+      <FaixaDaTela.Provider value={faixa}>{children}</FaixaDaTela.Provider>
     </View>
   );
   return (

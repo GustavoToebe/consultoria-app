@@ -24,7 +24,7 @@ import { selecaoDepoisDosFiltros } from '../../dominio/painelDeFiltros';
 import { escalar } from '../../dominio/preferencias';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, LARGURA_FAIXA_ULTRALARGA, LARGURA_FORMULARIO, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_FORMULARIO, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { OPCOES_RESPONSABILIDADE } from '../EscolhaResponsabilidade';
 import { CamposDePeriodo, UmaOpcao } from '../SeletoresDeFiltro';
 import { useAviso } from '../../ui/Aviso';
@@ -45,6 +45,7 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
+import { useFaixaDaTela } from '../../ui/Tela';
 import { AcoesDoLote, FolhaDoResultadoDaAcao, type ResultadoDaAcao } from './AcoesDoLote';
 import { CartaoDeConferencias } from './CartaoDeConferencias';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
@@ -52,6 +53,7 @@ import { FolhaDaCobrancaAvulsa } from './FolhaDaCobrancaAvulsa';
 import { FolhaDoLote } from './FolhaDoLote';
 import { FolhaRenegociar } from './FolhaRenegociar';
 import { ListaOuTabela } from './ListaOuTabela';
+import { PainelDaCobranca } from './PainelDaCobranca';
 
 const TAMANHO_PAGINA = 50;
 
@@ -107,6 +109,10 @@ const dataOuNada = (iso: string | null | undefined) => (iso ? dataParaTela(iso) 
  * No topo, "Nova cobrança avulsa" (`FINANCEIRO_ALTERAR`) abre o passo a passo (`FolhaDaCobrancaAvulsa`); acima da lista, os
  * totais do filtro inteiro (todas as páginas), calculados pelo servidor (`PaginaCobrancas.totais`); a avulsa aparece com
  * o selo "Avulsa" e a descrição no lugar do plano.
+ *
+ * Tela larga (financeiro em tela larga, 23/11): a tabela ocupa a largura toda. Na faixa `ultralarga` da área (a régua de
+ * 4.10, medida pela `Tela`), a cobrança tocada abre num painel fixo à direita (`PainelDaCobranca`, o mesmo conteúdo da
+ * folha) e a tabela encolhe; abrir outra troca o conteúdo. Abaixo dela, a `FolhaDaCobranca` de sempre.
  */
 export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   const { pode, recebimentoOnlineHabilitado, kiwifyHabilitada } = useSessao();
@@ -134,6 +140,8 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   // A largura da própria lista decide a medida das colunas (folgada ou justa).
   const { largura: larguraDaLista, aoMedir: aoMedirLista } = useFaixaDeLargura();
   const medida = larguraDaLista >= escalar(LARGURA_FOLGADA, fatorTexto) ? FOLGADA : JUSTA;
+  // Painel fixo só na `ultralarga` da área inteira; abaixo, a folha. A mesma `aberta` serve aos dois.
+  const comPainel = useFaixaDaTela() === 'ultralarga';
   const lista = useCarregar(`cobrancas|${chaveDasCobrancas(filtros, busca)}|${hoje}|${pagina}`, () =>
     listarCobrancas({ ...cobrancasParaApi(filtros, hoje), busca: busca || undefined, pagina }));
   // Planos ativos e arquivados (uma cobrança antiga pode ser de um plano já arquivado); falha deixa o filtro sem opções.
@@ -184,6 +192,15 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   const lote = selecao.map((s) => naPagina.get(s.id) ?? s).filter(podeEntrarNoLote);
   const marcadas = new Set(lote.map((c) => c.id));
   const comLote = podeAlterar && !!dados && dados.itens.length > 0 && !desatualizada;
+  // A versão que a lista recarregou (a cobrança mexida em outro lugar), senão a que foi tocada.
+  const abertaAgora = aberta ? (dados?.itens.find((c) => c.id === aberta.id) ?? aberta) : null;
+  const aoMudarAAberta = () => {
+    // A cobrança mexida no detalhe sai do lote (a versão mudou ou não está mais em aberto).
+    const id = aberta?.id;
+    if (id) setSelecao((s) => s.filter((x) => x.id !== id));
+    recarregar();
+  };
+  const painelAberto = comPainel && !!abertaAgora;
 
   return (
     <View style={estilos.coluna}>
@@ -204,6 +221,8 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
             <SeletoresDeCobrancas filtros={atuais} aoMudar={mudar} opcoesDePlano={opcoesDePlano} aluno={atuais.alunoId ? textoDoAluno : null} hoje={hoje} />
           )} />
       </View>
+      <View style={painelAberto ? estilos.comPainel : estilos.coluna}>
+      <View style={painelAberto ? estilos.ladoDaTabela : estilos.coluna}>
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregar} /> : null}
       {!dados && lista.carregando ? <Esqueleto /> : null}
       {/* Sem resposta (primeira carga ou erro) não há totais: nunca um zero inventado. Lista vazia: o vazio já diz tudo. */}
@@ -226,7 +245,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
           acao={chips.length ? { rotulo: 'Limpar filtros', aoTocar: () => aplicar(limpoDasCobrancas(filtros)) } : undefined} />
       ) : null}
       {dados && dados.itens.length > 0 ? (
-        <Cartao style={estilos.cartaoLimitado} descricao={desatualizada ? undefined : descricaoDasCobrancas(filtros, hoje, dados.total)}>
+        <Cartao descricao={desatualizada ? undefined : descricaoDasCobrancas(filtros, hoje, dados.total)}>
           {comLote ? (
             <BarraDoLote lote={lote} pagina={dados.itens}
               aoMarcarPagina={(marcar) => setSelecao((s) => marcarPaginaNoLote(s, dados.itens, marcar))}
@@ -289,13 +308,10 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
           ) : null}
         </Cartao>
       ) : null}
-      <FolhaDaCobranca cobranca={aberta} podeAlterar={podeAlterar} mostrarFicha aoFechar={() => setAberta(null)}
-        aoMudar={() => {
-          // A cobrança mexida na folha sai do lote (a versão mudou ou não está mais em aberto).
-          const id = aberta?.id;
-          if (id) setSelecao((s) => s.filter((x) => x.id !== id));
-          recarregar();
-        }} />
+      </View>
+      {painelAberto ? <PainelDaCobranca cobranca={abertaAgora} podeAlterar={podeAlterar} mostrarFicha aoFechar={() => setAberta(null)} aoMudar={aoMudarAAberta} /> : null}
+      </View>
+      <FolhaDaCobranca cobranca={comPainel ? null : abertaAgora} podeAlterar={podeAlterar} mostrarFicha aoFechar={() => setAberta(null)} aoMudar={aoMudarAAberta} />
       {resultadoDoLote ? <FolhaDoResultadoDaAcao {...resultadoDoLote} aoFechar={() => setResultadoDoLote(null)} /> : null}
       {novaAvulsa ? <FolhaDaCobrancaAvulsa aoFechar={() => setNovaAvulsa(false)} aoGerar={recarregar} /> : null}
       {renegociando ? (
@@ -538,7 +554,9 @@ const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 240, maxWidth: LARGURA_FORMULARIO },
-  cartaoLimitado: { maxWidth: LARGURA_FAIXA_ULTRALARGA },
+  // A tabela e o painel fixo lado a lado; a tabela fica com o que sobra (o vão é o de entre blocos).
+  comPainel: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
+  ladoDaTabela: { flex: 1, minWidth: 0, gap: espaco(2) },
   cheio: { alignSelf: 'stretch' },
   esmaecido: { opacity: 0.6 },
   selos: { gap: espaco(0.25), alignItems: 'flex-start' },

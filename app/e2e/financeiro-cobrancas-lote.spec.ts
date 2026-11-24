@@ -238,14 +238,14 @@ for (const { nome, preferencias } of TEMAS) for (const largura of [1280, 390]) {
     await page.screenshot({ path: `${CAPTURAS}/${nome}-resultado-${largura}.png` });
     await resultado.getByRole('button', { name: 'Fechar' }).last().click();
 
-    // A folha refeita: datas, pagamento com a transação, ID inteiro no fim e CPF mascarado.
+    // A folha refeita: datas, pagamento com a transação, ID no fim (encurtado na tela, inteiro no nome acessível; folha da cobrança, 23/11) e CPF mascarado.
     await page.getByRole('button', { name: 'Abrir cobrança de Bruna Teste' }).click();
     const folha = page.getByRole('dialog');
     await expect(folha.getByText('CPF ***.456.789-**')).toBeVisible();
     await expect(folha.getByText('123.456.789-09')).toHaveCount(0);
     await expect(folha.getByText('Datas', { exact: true })).toBeVisible();
-    await expect(folha.getByText('Pagamento', { exact: true })).toBeVisible();
-    await expect(folha.getByText(BRUNA.id, { exact: true })).toBeVisible();
+    await expect(folha.getByRole('heading', { name: 'Pagamento' })).toBeVisible();
+    await expect(folha.getByLabel(`ID da cobrança: ${BRUNA.id}`)).toBeVisible();
     await semRolagemHorizontal(page);
     await page.screenshot({ path: `${CAPTURAS}/${nome}-folha-${largura}.png`, fullPage: true });
     expect(errosDaPagina).toEqual([]);

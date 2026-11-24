@@ -431,8 +431,9 @@ for (const largura of [1280, 390]) {
 
     await page.getByRole('button', { name: 'Abrir cobrança avulsa de Ana Avulsa' }).click();
     const folha = page.getByRole('dialog', { name: 'Cobrança avulsa' });
-    await expect(folha.getByText('Camiseta do time (Parcela 1/3)')).toBeVisible();
-    await expect(folha.getByText('Competência', { exact: true })).toHaveCount(0);
+    // folha da cobrança (23/11): a origem por extenso e a competência "—" na linha das datas.
+    await expect(folha.getByText('Avulsa · Camiseta do time · Parcela 1 de 3')).toBeVisible();
+    await expect(folha.getByLabel('Competência: —')).toBeVisible();
     await expect(folha.getByRole('button', { name: /Pausar|Encerrar/ })).toHaveCount(0);
     await semRolagemHorizontal(page);
     await page.screenshot({ path: `${CAPTURAS}/folha-avulsa-${largura}.png`, fullPage: true });

@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { PeriodoDoPlano, PlanoResponse } from '../../api/financeiroTipos';
 import { alterarPlanoComercial, arquivarPlanoComercial, criarPlanoComercial, listarPlanosComerciais } from '../../api/rotas';
@@ -9,12 +9,13 @@ import { LIMITES, OPCOES_DE_PERIODICIDADE, rotuloDaPeriodicidade, validarPlano }
 import { centavosDaTela, centavosParaCampo, centavosParaTela } from '../../dominio/formatos';
 import { LINK_DO_PLANO_MAXIMO, lerLinkDoPlano } from '../../dominio/formasDeRecebimento';
 import { kiwifyDoPlanoParaEnvio, perdeAKiwify, ROTULO_DO_PRODUTO, TEXTO_DO_PLANO_KIWIFY } from '../../dominio/kiwify';
+import { colunasDosPlanos } from '../../dominio/gradeDosPlanos';
 import { AJUDA_DO_QUE_INCLUI, erroDoQueInclui, textoDoQueInclui } from '../../dominio/planosAtivos';
 import {
   errosDoMinimoDoServidor, minimoDoPlanoParaEnvio, minimoDoPlanoParaForm, planoPodeTerMinimo, REGRA_DE_SAIDA_MAXIMA, textoDoMinimoDoPlano,
 } from '../../dominio/saidaDoPlano';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MAXIMA } from '../../tema/tokens';
+import { espaco, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
@@ -27,15 +28,16 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
+import { Grade } from '../../ui/Grade';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
+import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
 import { KiwifyNoPlano } from './KiwifyNoPlano';
-import { ListaOuTabela } from './ListaOuTabela';
 
 /**
  * Planos comerciais da consultoria (o que o aluno contrata do treinador; não confundir com a assinatura da consultoria
@@ -63,45 +65,46 @@ export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
           texto={arquivados ? 'Os planos arquivados aparecem aqui.' : podeAlterar ? 'Crie um plano (nome, valor e periodicidade) para depois contratá-lo na ficha de um aluno.' : 'Peça a quem gerencia o financeiro para criar os planos.'} />
       ) : null}
       {dados && dados.length > 0 ? (
-        <Cartao style={estilos.cartaoLimitado} descricao={`${dados.length} ${dados.length === 1 ? 'plano' : 'planos'}. Toque no plano para ${podeAlterar ? 'editar' : 'ver os detalhes'}.`}>
-          <ListaOuTabela rotulo="Planos comerciais" linhas={dados} chave={(p) => p.id} aoTocar={setAberto}
-            rotuloDaLinha={(p) => `Abrir plano ${p.nome}`}
-            item={(p) => ({
-              titulo: p.nome,
-              detalhe: [centavosParaTela(p.valorCentavos), rotuloDaPeriodicidade(p.periodicidade), textoDoQueInclui(p), textoDoMinimoDoPlano(p), p.linkDePagamento ? COM_LINK : null,
-                kiwifyHabilitada && p.kiwifyAssinatura ? TEXTO_DO_PLANO_KIWIFY : null]
-                .filter(Boolean).join(' · '),
-              selo: p.arquivado ? { texto: 'Arquivado', tipo: 'neutro' } : undefined,
-            })}
-            colunas={[
-              // Selo só na exceção (arquivado), como na lista de alunos.
-              { chave: 'nome', titulo: 'Plano', flex: 2, principal: true, render: (p) => (
-                <View>
-                  <View style={estilos.nome}>
-                    <Texto variante="bloco" numberOfLines={2} style={estilos.encolher}>{p.nome}</Texto>
-                    {p.arquivado ? <Selo texto="Arquivado" tipo="neutro" /> : null}
-                  </View>
-                  {/* O que inclui: texto neutro, sem selo nem cor (é informação, não situação). */}
-                  {textoDoQueInclui(p) ? <Texto variante="pequeno">{textoDoQueInclui(p)}</Texto> : null}
-                  {p.linkDePagamento ? <Texto variante="pequeno">{COM_LINK}</Texto> : null}
-                  {kiwifyHabilitada && p.kiwifyAssinatura ? <Texto variante="pequeno">{TEXTO_DO_PLANO_KIWIFY}</Texto> : null}
-                </View>
-              ) },
-              { chave: 'periodicidade', titulo: 'Periodicidade', flex: 1, render: (p) => {
-                const minimo = textoDoMinimoDoPlano(p);
-                return (
-                  <View>
-                    <Texto>{rotuloDaPeriodicidade(p.periodicidade)}</Texto>
-                    {minimo ? <Texto variante="pequeno">{minimo}</Texto> : null}
-                  </View>
-                );
-              } },
-              { chave: 'valor', titulo: 'Valor', flex: 1, alinhar: 'direita', render: (p) => <Texto numerico>{centavosParaTela(p.valorCentavos)}</Texto> },
-            ]} />
+        <Cartao descricao={`${dados.length} ${dados.length === 1 ? 'plano' : 'planos'}. Toque no plano para ${podeAlterar ? 'editar' : 'ver os detalhes'}.`}>
+          {/* Grade de cartões (financeiro em tela larga, 23/11): o espaço extra vira coluna, de 1 a 4 pela régua. */}
+          <Grade gap={espaco(2)} colunas={(largura) => colunasDosPlanos(largura, dados.length)}>
+            {dados.map((p) => <CartaoDoPlano key={p.id} plano={p} kiwify={kiwifyHabilitada} aoAbrir={() => setAberto(p)} />)}
+          </Grade>
         </Cartao>
       ) : null}
       <FolhaDoPlano plano={aberto} podeAlterar={podeAlterar} aoFechar={() => setAberto(null)} aoMudar={recarregar} />
     </View>
+  );
+}
+
+/**
+ * Um plano na grade: nome, valor em destaque e a periodicidade, o mínimo, o que inclui e, quando há, "Com link de pagamento"
+ * e a Kiwify. O cartão inteiro abre o plano (o mesmo nome acessível da lista de antes). Arquivado: selo "Arquivado" e o
+ * valor em texto secundário, sem opacidade (o texto continua a 4,5:1 e o cartão continua tocável).
+ */
+function CartaoDoPlano({ plano: p, kiwify, aoAbrir }: { plano: PlanoResponse; kiwify: boolean; aoAbrir: () => void }) {
+  const { cores, bordas } = useTema();
+  const minimo = textoDoMinimoDoPlano(p);
+  const inclui = textoDoQueInclui(p);
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`Abrir plano ${p.nome}`} onPress={aoAbrir}
+      style={(estado) => [estilos.plano, { borderWidth: bordas.bloco, borderColor: cores.divisor, backgroundColor: sobre(estado) ? cores.sobre : cores.superficie2 }]}>
+      <View style={estilos.nome}>
+        <Texto variante="bloco" numberOfLines={2} style={estilos.encolher}>{p.nome}</Texto>
+        {p.arquivado ? <Selo texto="Arquivado" tipo="neutro" /> : null}
+      </View>
+      <View style={estilos.preco}>
+        <Texto variante="destaque" numerico cor={p.arquivado ? cores.textoSuave : undefined}>{centavosParaTela(p.valorCentavos)}</Texto>
+        <Texto variante="suave">{rotuloDaPeriodicidade(p.periodicidade)}</Texto>
+      </View>
+      {minimo || inclui ? <Texto variante="pequeno">{[minimo, inclui].filter(Boolean).join(' · ')}</Texto> : null}
+      {p.linkDePagamento || (kiwify && p.kiwifyAssinatura) ? (
+        <View style={estilos.selosDoPlano}>
+          {p.linkDePagamento ? <Selo texto={COM_LINK} tipo="neutro" /> : null}
+          {kiwify && p.kiwifyAssinatura ? <Texto variante="pequeno">{TEXTO_DO_PLANO_KIWIFY}</Texto> : null}
+        </View>
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -306,5 +309,7 @@ const estilos = StyleSheet.create({
   grupo: { gap: espaco(0.5) },
   nome: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   encolher: { flexShrink: 1 },
-  cartaoLimitado: { maxWidth: LARGURA_MAXIMA },
+  plano: { gap: espaco(1), padding: espaco(2), borderRadius: RAIO, flexGrow: 1 },
+  preco: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: espaco(1) },
+  selosDoPlano: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
 });

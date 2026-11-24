@@ -7,7 +7,7 @@ import { rotuloDoMotivoDaConferencia, TEXTO_NADA_E_BAIXADO } from '../../dominio
 import { centavosParaTela, dataHoraParaTela } from '../../dominio/formatos';
 import { rotuloDoProvedor } from '../../dominio/kiwify';
 import { rotuloDoMesNumerico } from '../../dominio/mesDaCompetencia';
-import { espaco, LARGURA_MAXIMA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -78,7 +78,7 @@ export function CartaoDeConferencias({ podeAlterar }: { podeAlterar: boolean }) 
 
   return (
     <>
-      <Cartao style={{ maxWidth: LARGURA_MAXIMA }} titulo={`Pagamentos para conferir (${itens.length})`} descricao={TEXTO_NADA_E_BAIXADO}>
+      <Cartao titulo={`Pagamentos para conferir (${itens.length})`} descricao={TEXTO_NADA_E_BAIXADO}>
         {celular ? (
           <View accessibilityRole="list" accessibilityLabel="Pagamentos para conferir" style={{ gap: espaco(1) }}>
             {itens.map((c) => (

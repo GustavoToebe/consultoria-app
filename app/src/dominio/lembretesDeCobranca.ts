@@ -139,7 +139,7 @@ export const MOTIVO_SEM_TELEFONE = 'O aluno não tem telefone no cadastro.';
 export const MOTIVO_ALUNO_INATIVO = 'O aluno está inativo: só a cobrança vencida e a de saída têm mensagem.';
 
 /**
- * O botão "Abrir WhatsApp com a mensagem" na folha. Some (`null`) quando não há o que enviar: cobrança que não está em aberto
+ * O botão "Enviar pelo WhatsApp" na folha (o nome acessível mantém "abrir WhatsApp com a mensagem"). Some (`null`) quando não há o que enviar: cobrança que não está em aberto
  * (`COBRANCA_NAO_ABERTA`) ou aluno anonimizado (`ALUNO_ANONIMIZADO`). Fica desabilitado, com o porquê, quando a API não manda
  * a mensagem por o aluno estar inativo (`ALUNO_INATIVO`) e quando falta telefone válido. Nada é registrado como enviado.
  */
