@@ -29,7 +29,7 @@ interface Fonte<T> { dados?: T; erro?: unknown }
 interface Posicao { posicao: number; participantes: number; treinosConcluidos: number }
 
 export const TEXTO_SEM_NUMEROS = 'Treine para entrar no ranking';
-export const TEXTO_NUMEROS_INDISPONIVEIS = 'Seus números indisponíveis agora';
+export const TEXTO_NUMEROS_INDISPONIVEIS = 'Números indisponíveis';
 
 /**
  * `com`: há posição (com treino) ou conquista, e `texto` é a linha da faixa; `sem`: nenhum número, e `texto` é o convite
@@ -40,8 +40,8 @@ export type EstadoDosNumeros<P> = { tipo: 'carregando' } | { tipo: 'com'; posica
 /**
  * Os números do aluno no mural, a mesma regra na faixa do topo e na coluna ao lado. Com dado, só o que existe ("2º de 12 ·
  * 4 conquistas", "4 conquistas", "2º de 12"; a posição só conta com treino concluído, nunca "1º de 1" de quem não treinou).
- * Sem dado: carregando enquanto alguma leitura não respondeu; leitura com falha ou sem rede, "Seus números indisponíveis
- * agora" (nunca "treine" por falha); respondeu sem treino e sem conquista, "Treine para entrar no ranking".
+ * Sem dado: carregando enquanto alguma leitura não respondeu; leitura com falha ou sem rede, "Números indisponíveis" (nunca
+ * "treine" por falha); respondeu sem treino e sem conquista, "Treine para entrar no ranking".
  */
 export function estadoDosNumeros<P extends Posicao>(ranking: Fonte<P>, conquistas: Fonte<readonly unknown[]>, conectado = true): EstadoDosNumeros<P> {
   const posicao = ranking.dados && ranking.dados.treinosConcluidos > 0 ? ranking.dados : undefined;
@@ -63,10 +63,10 @@ export const ALTURA_BASE_DA_FAIXA = 56;
 export const alturaDaFaixa = (escala: number): number => Math.round(ALTURA_BASE_DA_FAIXA * escala);
 
 /**
- * "Ver conquistas" escrito ao lado do texto só quando a faixa é larga para a escala; senão fica só a seta (o nome
- * acessível continua dizendo "Ver conquistas"), para as frases sem número caberem em duas linhas.
+ * "Ver conquistas ›" (sempre visível) desce para a linha de baixo, dentro da mesma altura, quando a faixa é estreita para a
+ * escala: ao lado, o texto teria pouco lugar e passaria de duas linhas.
  */
-export const rotuloNaFaixa = (largura: number, escala: number): boolean => largura >= 340 * escala;
+export const rotuloEmbaixo = (largura: number, escala: number): boolean => largura < 340 * escala;
 
 /** A faixa de uma linha do topo: "2º de 12 · 4 conquistas" (só o que existe). */
 export function textoDaFaixaDosNumeros(ranking: { posicao: number; participantes: number } | undefined, conquistas: number): string {

@@ -2,7 +2,7 @@ import { Award, ChevronRight, Medal } from 'lucide-react-native';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { ConquistaDoAluno, PosicaoNoRanking } from '../api/comunidadeTipos';
-import { alturaDaFaixa, conquistasRecentes, type EstadoDosNumeros, rotuloNaFaixa } from '../dominio/arranjoDoMural';
+import { alturaDaFaixa, conquistasRecentes, type EstadoDosNumeros, rotuloEmbaixo } from '../dominio/arranjoDoMural';
 import { textoDaPosicao } from '../dominio/comunidade';
 import { dataParaTela, plural } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
@@ -107,28 +107,34 @@ export function NumerosDoMural({ estado, conquistas, aoVerConquistas }: {
  * Faixa no topo do feed (abaixo de 1280 px), sempre presente e sempre o botão para a aba Conquistas: o texto vem de
  * `estadoDosNumeros` e, enquanto carrega, um esqueleto ocupa o lugar dele. A altura (`alturaDaFaixa`) segue a escala do
  * texto (a do sistema, no mesmo teto do `Texto`, vezes o "Tamanho do texto" do app) e é a mesma em todos os estados: o
- * texto quebra em até duas linhas dentro dela e nada abaixo anda. Faixa estreita para a escala: só a seta, sem o rótulo.
+ * texto quebra em até duas linhas dentro dela e nada abaixo anda. "Ver conquistas ›" está sempre visível: ao lado do texto
+ * ou, na faixa estreita para a escala (`rotuloEmbaixo`), na linha de baixo, dentro da mesma altura.
  */
 export function FaixaDosNumeros({ estado, largura, aoVerConquistas }: { estado: EstadoDosNumeros<unknown>; largura: number; aoVerConquistas: () => void }) {
   const { cores, fatorTexto } = useTema();
   const { fontScale } = useWindowDimensions();
   const escala = fatorTexto * Math.min(fontScale, TETO_FONTE_DO_SISTEMA);
   const carregando = estado.tipo === 'carregando';
+  const embaixo = rotuloEmbaixo(largura, escala);
   return (
     <Pressable testID="faixa-dos-numeros" accessibilityRole="button" onPress={aoVerConquistas}
       accessibilityLabel={`Seus números: ${carregando ? 'carregando' : estado.texto}. Ver conquistas`}
       accessibilityHint="Abre a aba Conquistas." accessibilityState={{ busy: carregando }}
-      style={(e) => [estilos.faixa, { height: alturaDaFaixa(escala), backgroundColor: sobre(e) ? cores.sobre : cores.superficie, borderColor: cores.borda }]}>
+      style={(e) => [estilos.faixa, embaixo && estilos.faixaEmColuna, { height: alturaDaFaixa(escala), backgroundColor: sobre(e) ? cores.sobre : cores.superficie, borderColor: cores.borda }]}>
       {/* Sem ícone à esquerda: o texto fica com a largura que sobra. */}
       {carregando
-        ? <View style={estilos.encolher}><View testID="faixa-dos-numeros-carregando" style={[estilos.esqueleto, { backgroundColor: cores.superficie2 }]} /></View>
-        : <Texto testID="faixa-dos-numeros-texto" numberOfLines={2} style={estilos.textoDaFaixa}>{estado.texto}</Texto>}
-      {rotuloNaFaixa(largura, escala) ? <Texto style={estilos.acaoDaFaixa}>Ver conquistas</Texto> : null}
-      <ChevronRight size={Math.round(18 * escala)} color={cores.texto} aria-hidden />
+        ? <View style={[embaixo ? estilos.lugarEmColuna : estilos.encolher, estilos.lugarDoEsqueleto, { height: Math.round(ALTURA_DA_LINHA * escala) }]}><View testID="faixa-dos-numeros-carregando" style={[estilos.esqueleto, { backgroundColor: cores.superficie2 }]} /></View>
+        : <Texto testID="faixa-dos-numeros-texto" numberOfLines={2} style={[estilos.textoDaFaixa, embaixo ? estilos.lugarEmColuna : estilos.encolher]}>{estado.texto}</Texto>}
+      <View testID="faixa-dos-numeros-rotulo" style={estilos.acao}>
+        <Texto style={estilos.acaoDaFaixa}>Ver conquistas</Texto>
+        <ChevronRight size={Math.round(18 * escala)} color={cores.texto} aria-hidden />
+      </View>
     </Pressable>
   );
 }
 
+/** Altura de linha do corpo (`tipografia`): o esqueleto ocupa uma linha do texto, e o rótulo não anda quando ele chega. */
+const ALTURA_DA_LINHA = 21;
 /** O mesmo teto do `maxFontSizeMultiplier` do `Texto` para a fonte do sistema. */
 const TETO_FONTE_DO_SISTEMA = 1.5;
 
@@ -137,9 +143,15 @@ const estilos = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: espaco(1),
     borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(2),
   },
+  // Estreita: o texto numa linha e "Ver conquistas ›" na de baixo, centrados na mesma altura.
+  faixaEmColuna: { flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: 2 },
+  // Sem `flex`: na coluna a base 0 do `flex: 1` zeraria a altura do esqueleto.
+  lugarEmColuna: { alignSelf: 'stretch' },
+  acao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  lugarDoEsqueleto: { justifyContent: 'center' },
   esqueleto: { height: 14, width: '60%', borderRadius: 7 },
   esqueletoCurto: { width: '40%' },
-  textoDaFaixa: { flex: 1, minWidth: 0, fontFamily: fontes.medio },
+  textoDaFaixa: { fontFamily: fontes.medio },
   acaoDaFaixa: { fontFamily: fontes.semi },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   encolher: { flex: 1, minWidth: 0, gap: 2 },

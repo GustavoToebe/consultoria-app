@@ -1,7 +1,7 @@
 import type { ConquistaDoAluno } from '../api/comunidadeTipos';
 import {
   ALTURA_BASE_DA_FAIXA, alturaDaFaixa, AREA_PARA_A_LATERAL, arranjoDoMural, conquistasRecentes, estadoDosNumeros, LARGURA_DA_LATERAL,
-  LARGURA_DO_FEED, rotuloNaFaixa, textoDaFaixaDosNumeros, TEXTO_NUMEROS_INDISPONIVEIS, TEXTO_SEM_NUMEROS, VAO_DA_LATERAL,
+  LARGURA_DO_FEED, rotuloEmbaixo, textoDaFaixaDosNumeros, TEXTO_NUMEROS_INDISPONIVEIS, TEXTO_SEM_NUMEROS, VAO_DA_LATERAL,
 } from './arranjoDoMural';
 
 describe('arranjoDoMural', () => {
@@ -79,11 +79,12 @@ describe('alturaDaFaixa', () => {
   });
 });
 
-describe('rotuloNaFaixa', () => {
-  it('"Ver conquistas" escrito só quando a faixa é larga para a escala', () => {
-    expect(rotuloNaFaixa(358, 1)).toBe(true); // 390 px, padrão
-    expect(rotuloNaFaixa(358, 1.4)).toBe(false); // 390 px, Extra: só a seta
-    expect(rotuloNaFaixa(720, 1.4)).toBe(true); // feed de 720, Extra
+describe('rotuloEmbaixo', () => {
+  it('"Ver conquistas" desce para a linha de baixo só quando a faixa é estreita para a escala', () => {
+    expect(rotuloEmbaixo(358, 1)).toBe(false); // 390 px, padrão: ao lado
+    expect(rotuloEmbaixo(358, 1.25)).toBe(true); // 390 px, Grande
+    expect(rotuloEmbaixo(358, 1.4)).toBe(true); // 390 px, Extra
+    expect(rotuloEmbaixo(720, 1.4)).toBe(false); // feed de 720, Extra: ao lado
   });
 });
 

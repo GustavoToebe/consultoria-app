@@ -345,7 +345,7 @@ test.describe('capturas do mural do aluno com o texto grande em 390 px (24/11)',
     for (const [nome, opcoes, espera] of [
       [`aluno-mural${sufixo}`, {}, '2º de 12 · 4 conquistas'],
       [`aluno-mural-sem-numeros${sufixo}`, { numeros: 'sem' }, 'Treine para entrar no ranking'],
-      [`aluno-mural-erro${sufixo}`, { numeros: 'erro' }, 'Seus números indisponíveis agora'],
+      [`aluno-mural-erro${sufixo}`, { numeros: 'erro' }, 'Números indisponíveis'],
     ] as const) {
       await abrirMuralDoAluno(page, opcoes);
       await expect(faixa).toContainText(espera);
@@ -653,7 +653,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(errosDaPagina).toEqual([]);
     });
 
-    for (const [numeros, texto] of [['sem', 'Treine para entrar no ranking'], ['erro', 'Seus números indisponíveis agora']] as const) {
+    for (const [numeros, texto] of [['sem', 'Treine para entrar no ranking'], ['erro', 'Números indisponíveis']] as const) {
       test(`${numeros === 'sem' ? 'sem treino e sem conquistas' : 'as leituras falham'}: a faixa fica no lugar com "${texto}"`, async ({ page }) => {
         await preparar(page, largura, altura, 'ESCURO', {}, ALUNO.id);
         const { errosDaPagina } = await abrirMuralDoAluno(page, { numeros, atraso: ATRASO });
@@ -668,26 +668,43 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
     }
 
     if (largura === 390) {
-      // Texto Extra (1,4): a faixa reserva 56 × 1,4 = 78 px desde o primeiro quadro, o texto quebra em até duas linhas sem
-      // cortar (só a seta, sem o rótulo, na faixa estreita) e nada anda quando os números chegam.
-      for (const [numeros, texto] of [['com', '2º de 12 · 4 conquistas'], ['sem', 'Treine para entrar no ranking'], ['erro', 'Seus números indisponíveis agora']] as const) {
-        test(`texto Extra, ${numeros} números: a faixa de 78 px não cresce, o texto não corta e nada anda`, async ({ page }) => {
-          await preparar(page, largura, altura, 'ESCURO', { tamanhoTexto: 'EXTRA' }, ALUNO.id);
-          const { errosDaPagina } = await abrirMuralDoAluno(page, { numeros, atraso: ATRASO });
-          const antes = await publicacoesAntesDosNumeros(page, 78);
-          await expect(faixa(page)).toHaveAccessibleName(`Seus números: ${texto}. Ver conquistas`);
-          await noLugar(page, antes);
-          const textoDaFaixa = page.getByTestId('faixa-dos-numeros-texto');
-          await expect(textoDaFaixa).toHaveText(texto);
-          const medida = await textoDaFaixa.evaluate((el) => ({ rola: el.scrollHeight, cabe: el.clientHeight }));
-          expect(medida.rola).toBeLessThanOrEqual(medida.cabe);
-          const t = await caixa(textoDaFaixa);
-          const f = await caixa(faixa(page));
-          expect(t.y).toBeGreaterThanOrEqual(f.y);
-          expect(t.y + t.height).toBeLessThanOrEqual(f.y + f.height);
-          await semRolagemHorizontal(page);
-          expect(errosDaPagina).toEqual([]);
-        });
+      // Tamanho do texto: a faixa reserva 56 × escala desde o primeiro quadro (Grande 70, Extra 78); o texto (até duas
+      // linhas) e "Ver conquistas ›" (sempre visível; na faixa estreita para a escala, na linha de baixo) ficam inteiros
+      // dentro dela, em todos os estados, e nada anda quando os números chegam.
+      const dentroDaFaixa = async (page: Page, alvo: Locator) => {
+        const a = await caixa(alvo);
+        const f = await caixa(faixa(page));
+        expect(a.y).toBeGreaterThanOrEqual(f.y);
+        expect(a.y + a.height).toBeLessThanOrEqual(f.y + f.height);
+        expect(a.x).toBeGreaterThanOrEqual(f.x);
+        expect(a.x + a.width).toBeLessThanOrEqual(f.x + f.width);
+        const medida = await alvo.evaluate((el) => ({ rola: el.scrollHeight, cabe: el.clientHeight }));
+        expect(medida.rola).toBeLessThanOrEqual(medida.cabe);
+      };
+      for (const [tamanhoTexto, alturaDaFaixa] of [['PADRAO', 56], ['GRANDE', 70], ['EXTRA', 78]] as const) {
+        for (const [numeros, texto] of [['com', '2º de 12 · 4 conquistas'], ['sem', 'Treine para entrar no ranking'], ['erro', 'Números indisponíveis']] as const) {
+          test(`texto ${tamanhoTexto}, ${numeros} números: a faixa de ${alturaDaFaixa} px não cresce, nada corta e nada anda`, async ({ page }) => {
+            await preparar(page, largura, altura, 'ESCURO', { tamanhoTexto }, ALUNO.id);
+            const { errosDaPagina } = await abrirMuralDoAluno(page, { numeros, atraso: ATRASO });
+            const rotulo = page.getByTestId('faixa-dos-numeros-rotulo');
+            const antes = await publicacoesAntesDosNumeros(page, alturaDaFaixa);
+            // Carregando: o rótulo já está inteiro na faixa.
+            await expect(rotulo).toBeVisible();
+            await dentroDaFaixa(page, rotulo);
+            const rotuloAntes = await caixa(rotulo);
+            await expect(faixa(page)).toHaveAccessibleName(`Seus números: ${texto}. Ver conquistas`);
+            await noLugar(page, antes);
+            const textoDaFaixa = page.getByTestId('faixa-dos-numeros-texto');
+            await expect(textoDaFaixa).toHaveText(texto);
+            await expect(rotulo).toHaveText('Ver conquistas');
+            await dentroDaFaixa(page, textoDaFaixa);
+            await dentroDaFaixa(page, rotulo);
+            // Texto de uma linha: o rótulo fica onde estava com o esqueleto (o esqueleto ocupa uma linha do texto).
+            if ((await caixa(textoDaFaixa)).height < alturaDaFaixa / 2) expect(Math.abs((await caixa(rotulo)).y - rotuloAntes.y)).toBeLessThan(1);
+            await semRolagemHorizontal(page);
+            expect(errosDaPagina).toEqual([]);
+          });
+        }
       }
     }
   });
