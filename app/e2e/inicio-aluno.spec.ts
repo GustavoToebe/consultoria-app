@@ -81,6 +81,15 @@ async function topo(page: Page, nome: string | RegExp, papel: 'heading' | 'link'
   return caixa!.y;
 }
 
+/** Caixas do Dieta, da Água de hoje, do Hoje, das pendências e do Sua semana, nessa ordem. */
+async function ordemDoInicio(page: Page) {
+  const caixa = async (nome: string | RegExp, papel: 'heading' | 'link') => (await page.getByRole(papel, { name: nome }).first().boundingBox())!;
+  return [
+    await caixa(/^Dieta,/, 'link'), await caixa('Água de hoje', 'heading'), await caixa(/^Hoje$/, 'heading'),
+    await caixa('Suas pendências', 'heading'), await caixa('Sua semana', 'heading'),
+  ];
+}
+
 test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta → Hoje → pendências → Sua semana', async ({ page }) => {
   const { errosDaPagina } = await abrirInicio(page, {
     extra: { 'GET /aluno/anamnese': { corpo: ANAMNESE_PENDENTE }, 'GET /aluno/atualizacao': { corpo: ATUALIZACAO_ATRASADA } },
@@ -113,15 +122,11 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta →
   // As divisões saíram do resumo.
   await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toHaveCount(0);
 
-  const y = [
-    await topo(page, /^Dieta,/, 'link'),
-    // A água do dia (a dieta tem 3 L) vem logo depois da dieta, antes do Hoje.
-    await topo(page, 'Água de hoje'),
-    await topo(page, /^Hoje$/),
-    await topo(page, 'Suas pendências'),
-    await topo(page, 'Sua semana'),
-  ];
-  expect(y).toEqual([...y].sort((a, b) => a - b));
+  // No PC (1280) o início tem duas colunas (21/11): Dieta → Água → Hoje à esquerda e pendências → Sua semana à direita.
+  const caixas = await ordemDoInicio(page);
+  expect(caixas.map((c) => c.y).slice(0, 3)).toEqual(caixas.map((c) => c.y).slice(0, 3).sort((a, b) => a - b));
+  expect(caixas[3].y).toBeLessThan(caixas[4].y);
+  expect(caixas[3].x).toBeGreaterThan(caixas[2].x);
 
   await page.getByRole('link', { name: 'Treino', exact: true }).click();
   await expect(page).toHaveURL(/\/aluno\/treino$/);
@@ -131,6 +136,16 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta →
   await expect(page.getByRole('link', { name: /^Divisão C, Pernas, Sexta · 6 exercícios$/ })).toBeVisible();
 
   expect(errosDaPagina).toEqual([]);
+});
+
+test('no celular (390px) o início é uma coluna só: Dieta → Água → Hoje → pendências → Sua semana', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await abrirInicio(page, {
+    extra: { 'GET /aluno/anamnese': { corpo: ANAMNESE_PENDENTE }, 'GET /aluno/atualizacao': { corpo: ATUALIZACAO_ATRASADA } },
+  });
+  await expect(page.getByRole('heading', { name: 'Suas pendências' })).toBeVisible();
+  const y = (await ordemDoInicio(page)).map((c) => c.y);
+  expect(y).toEqual([...y].sort((a, b) => a - b));
 });
 
 test('"Ver meu treino" abre a lista do dia de hoje', async ({ page }) => {
@@ -262,9 +277,9 @@ for (const largura of [390, 1280]) {
     const comecar = page.getByRole('button', { name: 'Começar treino', exact: true });
     await expect(comecar).toBeVisible();
     const caixa = (await comecar.boundingBox())!;
-    // Sem rolar: o botão inteiro acima da barra inferior do aluno.
+    // Sem rolar: o botão inteiro acima da barra inferior do aluno (no celular) ou da borda da janela (menu lateral, desde 768 px).
     const barra = (await page.getByRole('link', { name: 'Início', exact: true }).boundingBox())!;
-    expect(caixa.y + caixa.height).toBeLessThanOrEqual(barra.y);
+    expect(caixa.y + caixa.height).toBeLessThanOrEqual(largura < 768 ? barra.y : 844);
     expect(caixa.y).toBeLessThan(await topo(page, 'Outras datas'));
     await page.screenshot({ path: test.info().outputPath(`sessao-comecar-${largura}.png`) });
   });

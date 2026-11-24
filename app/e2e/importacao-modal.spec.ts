@@ -18,6 +18,8 @@ async function abrir(page: Page, largura: number, { preferencias, permissoes = P
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /importacoes': { corpo: { itens: [], total: 0, pagina: 0 } },
+    // A tela da assistida lista as importações em aberto ao abrir.
+    'GET /importacoes/assistidas/sessoes': { corpo: [] },
   });
   await page.goto('/treinador/importacao');
   await expect(page.getByRole('heading', { name: 'Importação', level: 1 })).toBeVisible();

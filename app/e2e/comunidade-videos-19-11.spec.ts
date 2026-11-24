@@ -189,7 +189,8 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
         await expect(menu.getByRole('button', { name: /^Mover para cima/ })).toHaveCount(0);
         await capturar(page, `videos-menu-do-video-${largura}-${nomeTema}`);
         const [popup] = await Promise.all([page.waitForEvent('popup'), menu.getByRole('button', { name: /^Abrir no YouTube/ }).click()]);
-        expect(popup.url()).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+        // A aba nova nasce em branco e só depois navega: espera a URL em vez de lê-la na hora.
+        await popup.waitForURL('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
         await popup.close();
 
         await page.getByRole('button', { name: 'Ações do vídeo Vídeo de técnica' }).click();
@@ -359,6 +360,8 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
     });
 
     test('só leitura (sem COMUNIDADE_MODERAR): seções, sem ⋯ do vídeo mas com "Abrir no YouTube" no cartão; sem criar, adicionar, arrastar nem selecionar', async ({ page, context }) => {
+      // O YouTube de mentira: a aba nova não depende de rede (a rota da página não vale para ela).
+      await context.route('https://www.youtube.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>YouTube de teste</p>' }));
       const { rotas } = comEstado([TECNICA, MOBILIDADE], AULAS);
       await abrir(page, rotas, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER'] });
       await expect(page.getByRole('heading', { level: 2, name: 'Técnica' })).toBeVisible();
@@ -374,7 +377,8 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1280, 900, 3], [1920, 
       await expect(abrirFora).toBeVisible();
       await expect(abrirFora).toHaveText('Abrir no YouTube');
       const [popup] = await Promise.all([page.waitForEvent('popup'), abrirFora.click()]);
-      expect(popup.url()).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      // A aba nova nasce em branco e só depois navega: espera a URL em vez de lê-la na hora.
+      await popup.waitForURL('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
       await popup.close();
     });
   });

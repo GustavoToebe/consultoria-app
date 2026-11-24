@@ -630,11 +630,11 @@ for (const largura of [390, 1280]) {
       resposta = 'meu';
       await folha.getByRole('button', { name: 'Tentar de novo' }).click();
       await expect(folha.getByText('8 treinos concluídos')).toBeVisible();
-      // O próprio perfil leva ao cartão "Meu perfil" da Conta, fechando a folha.
+      // O próprio perfil leva ao "Meu perfil" da Conta, fechando a folha (conta do aluno reorganizada, 23/11: o `?secao=`
+      // abre o detalhe "Meu perfil" em folha, como o atalho do aviso).
       await folha.getByRole('button', { name: 'Editar meu perfil' }).click();
-      // A Conta consome o `?secao=` ao rolar até o cartão (como o atalho do aviso).
       await expect(page).toHaveURL(/\/aluno\/conta/);
-      await expect(page.getByTestId('cartao-meu-perfil')).toBeInViewport();
+      await expect(page.getByRole('dialog', { name: 'Meu perfil' })).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
     });
 
@@ -659,25 +659,32 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto('/aluno/conta');
-      const campo = page.getByRole('textbox', { name: 'Apelido (opcional)' });
+      // Conta do aluno reorganizada (23/11): o apelido mora no detalhe "Meu perfil", com o mesmo "Salvar perfil" do resto;
+      // apagar é deixar o campo vazio e salvar (saíram "Salvar apelido" e "Remover apelido").
+      await page.getByRole('button', { name: /^Meu perfil/ }).click();
+      const folha = page.getByRole('dialog', { name: 'Meu perfil' });
+      const campo = folha.getByRole('textbox', { name: 'Apelido (opcional)' });
       await expect(campo).toBeVisible();
-      await expect(page.getByText('Os colegas veem o apelido se você escolher mostrá-lo em Meu perfil, logo abaixo.')).toBeVisible();
-      const salvar = page.getByRole('button', { name: 'Salvar apelido' });
-      await expect(salvar).toBeDisabled();
+      await expect(folha.getByText('Os colegas veem o apelido se você escolher mostrá-lo logo abaixo. Em branco, ele é apagado.')).toBeVisible();
+      const salvar = folha.getByRole('button', { name: 'Salvar perfil' });
+      await expect(salvar).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Salvar apelido' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Remover apelido' })).toHaveCount(0);
 
       await campo.fill('meu.site.com');
-      await expect(page.getByText('O apelido não pode ser um link.')).toBeVisible();
+      await expect(folha.getByText('O apelido não pode ser um link.')).toBeVisible();
       await expect(salvar).toBeDisabled();
       await campo.fill('Fictí');
       await salvar.click();
-      await expect(page.getByText('Esse apelido não pode ser usado.')).toBeVisible();
+      await expect(folha.getByText('Esse apelido não pode ser usado.')).toBeVisible();
       await capturar(page, `aluno-conta-apelido-422-${largura}`);
       await salvar.click();
-      await expect(page.getByText('Apelido salvo.')).toBeVisible();
+      await expect(page.getByText('Perfil salvo.')).toBeVisible();
+      await expect(folha.getByText('Tudo salvo')).toBeVisible();
       await capturar(page, `aluno-conta-apelido-salvo-${largura}`);
-      await page.getByRole('button', { name: 'Remover apelido' }).click();
-      await expect(page.getByText('Apelido removido.')).toBeVisible();
+      await campo.fill('');
+      await folha.getByRole('button', { name: 'Salvar perfil' }).click();
+      await expect(folha.getByText('Tudo salvo')).toBeVisible();
       await expect(campo).toHaveValue('');
       const enviados = api.pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === '/aluno/comunidade/apelido').map((p) => p.corpo);
       expect(enviados).toEqual([{ apelido: 'Fictí' }, { apelido: 'Fictí' }, { apelido: null }]);

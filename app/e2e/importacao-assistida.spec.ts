@@ -4,10 +4,11 @@ import type { ConfirmacaoResultado, GrupoImportavel, SessaoDetalhe } from '../sr
 import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
 /**
- * Importação assistida (texto colado → ler → conferir → gravar rascunhos), com a API simulada e só dados fictícios.
+ * Importação assistida (texto colado → ler → conferir → escolher → gravar rascunhos), com a API simulada e só dados fictícios.
  * Confere o destino numa escolha só (aluno parecido, criar novo, modelo, ignorar), o aluno parecido que precisa de
- * resposta, o resultado com erro e o "tentar de novo" só dos grupos com erro, as linhas resumidas (importado, ignorado,
- * erro), o "—" sem permissão de ler, a opção desabilitada com motivo sem permissão de alterar, e os 409/403 do gravar.
+ * resposta, a seleção explícita ("Incluir na gravação") com a prévia (`hashPrevia`) e a chave de idempotência no corpo,
+ * o resultado com erro e o "tentar de novo" só dos grupos com erro, as linhas resumidas (importado, ignorado, erro),
+ * o "—" sem permissão de ler, a opção desabilitada com motivo sem permissão de alterar, e os 409/403 do gravar.
  */
 const BASE = '/importacoes/assistidas/sessoes';
 const TODAS = [...PERMISSOES_TREINADOR, 'TREINO_LER', 'TREINO_ALTERAR', 'DIETA_LER', 'DIETA_ALTERAR', 'PASTA_ALTERAR', 'MODELO_ALTERAR'];
@@ -27,9 +28,10 @@ const recebendo: SessaoDetalhe = {
   id: 's1', objetivo: 'CADASTROS_E_PLANOS_ATUAIS', estado: 'RECEBENDO', revisao: 1,
   arquivos: [{ id: 'f1', nomeOriginal: 'Mensagens de teste', formato: 'TEXTO', tamanhoBytes: 40, estado: 'RECEBIDO', criadoEm: '2026-10-19T12:00:00Z' }],
   grupos: [], duvidas: [], criadoEm: '2026-10-19T12:00:00Z', expiraEm: '2026-10-20T12:00:00Z',
+  modoProcessamento: { modoEfetivo: 'REGRAS', fallbackParaRegras: false },
 };
 const revisando: SessaoDetalhe = {
-  ...recebendo, estado: 'REVISANDO', revisao: 2,
+  ...recebendo, estado: 'REVISANDO', revisao: 2, hashPrevia: 'h2',
   grupos: [
     grupo('g1', 'Aluna Fictícia', 'PRONTO', { treino: { sessoes: [{}, {}] }, pesos: [{ data: '2026-10-01', kg: 70 }, { data: '', kg: 71 }] }),
     grupo('g2', 'Aluno Fictício', 'COM_DUVIDAS', { candidatos: [{ alunoId: 'a1', nome: 'Aluno Fictício', motivo: 'NOME' }] }),
@@ -71,18 +73,21 @@ async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permiss
     ...(await sessao(page, TREINADOR, { permissoes })),
     [`POST ${BASE}`]: { corpo: { ...recebendo, arquivos: [] } },
     [`POST ${BASE}/{id}/textos`]: { corpo: recebendo.arquivos[0] },
+    [`GET ${BASE}`]: { corpo: [] },
     [`GET ${BASE}/{id}`]: (_p, route) => json(route, atual),
+    [`POST ${BASE}/{id}/cancelar`]: (_p, route) => json(route, { ...atual, estado: 'CANCELADA' }),
     [`POST ${BASE}/{id}/processar`]: (_p, route) => { atual = revisando; return json(route, atual); },
     [`PUT ${BASE}/{id}/grupos/{g}`]: (p, route) => {
       const { destino, alunoExistenteId } = p.corpo as { destino: GrupoImportavel['destino']; alunoExistenteId?: string };
       const id = p.caminho.split('/').pop();
-      atual = { ...atual, revisao: atual.revisao + 1, grupos: atual.grupos.map((g) => (g.id === id ? { ...g, destino, alunoExistenteId: alunoExistenteId ?? null } : g)) };
+      const revisao = atual.revisao + 1;
+      atual = { ...atual, revisao, hashPrevia: `h${revisao}`, grupos: atual.grupos.map((g) => (g.id === id ? { ...g, destino, alunoExistenteId: alunoExistenteId ?? null } : g)) };
       return json(route, atual);
     },
     [`POST ${BASE}/{id}/confirmar`]: confirmar ?? ((_p, route) => {
       gravacoes++;
       if (gravacoes === 1) {
-        atual = { ...atual, revisao: atual.revisao + 1, grupos: [
+        atual = { ...atual, revisao: atual.revisao + 1, hashPrevia: `h${atual.revisao + 1}`, grupos: [
           esqueleto('g1', 'IMPORTADO', 'CRIAR_ALUNO'),
           { ...atual.grupos[1], estado: 'ERRO', erroCodigo: 'ALUNO_INATIVO' },
           atual.grupos[2],
@@ -102,7 +107,6 @@ async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permiss
 async function colarELer(page: Page) {
   await page.goto('/treinador/importacao/assistida');
   await expect(page.getByText('Enviar arquivos ou texto')).toBeVisible();
-  await expect(page.getByText(/lê os arquivos por regras fixas/)).toBeVisible();
   await page.getByRole('button', { name: 'Colar texto' }).click();
   const adicionar = page.getByRole('button', { name: 'Adicionar o texto' });
   await expect(adicionar).toBeDisabled();
@@ -110,6 +114,8 @@ async function colarELer(page: Page) {
   await page.getByRole('textbox', { name: /^Texto colado/ }).fill('Aluno de teste\nTreino A\nsup inc 4x10');
   await adicionar.click();
   await expect(page.getByText('Recebendo arquivos · 1 arquivo(s) ou texto(s)')).toBeVisible();
+  // O modo da leitura só aparece com a sessão aberta (o servidor diz que leu por regras fixas).
+  await expect(page.getByText(/O servidor leu os arquivos por regras fixas/)).toBeVisible();
 }
 
 async function lerEConferir(page: Page) {
@@ -119,7 +125,18 @@ async function lerEConferir(page: Page) {
 }
 
 const corpoDoGravar = (api: Awaited<ReturnType<typeof abrir>>) =>
-  api.pedidos.filter((p) => p.caminho === `${BASE}/s1/confirmar`).map((p) => p.corpo as { gruposIds: string[]; revisaoEsperada: number });
+  api.pedidos.filter((p) => p.caminho === `${BASE}/s1/confirmar`).map((p) => p.corpo as { gruposIds: string[]; revisaoEsperada: number; hashPrevia: string; chaveIdempotencia: string });
+
+/** Marca "Incluir na gravação" dos grupos pendentes que ainda têm a caixa (o ignorado não tem), na ordem da lista. */
+async function incluirNaGravacao(page: Page, quantos: number) {
+  const caixas = page.getByRole('checkbox', { name: 'Incluir na gravação' });
+  await expect(caixas).toHaveCount(quantos);
+  for (let i = 0; i < quantos; i++) {
+    await caixas.nth(i).click();
+    await expect(caixas.nth(i)).toBeChecked();
+  }
+}
+const gravar = (page: Page) => page.getByRole('button', { name: /^Gravar selecionados/ });
 
 for (const largura of [390, 1280]) {
   test.describe(`${largura} px`, () => {
@@ -140,11 +157,14 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Não gravado', { exact: true })).toBeVisible();
       await expect(page.getByText('Ignorado', { exact: true })).toBeVisible();
       await expect(page.getByRole('radio', { name: 'Ignorar' })).toHaveCount(3);
-      // Aluno parecido: nada marcado e o gravar espera a resposta.
+      // Aluno parecido: nada marcado. Sem seleção o gravar pede escolher; com o grupo incluído, espera a resposta.
       await expect(page.getByText(/Já existe aluno cadastrado parecido/)).toBeVisible();
       await expect(page.getByRole('radio', { name: 'Aluno Fictício · mesmo nome' })).not.toBeChecked();
-      const gravarRascunhos = page.getByRole('button', { name: 'Gravar rascunhos' });
-      await expect(gravarRascunhos).toBeDisabled();
+      await expect(gravar(page)).toBeDisabled();
+      await expect(page.getByText('Selecione pelo menos um grupo para gravar.')).toBeVisible();
+      // Os grupos com destino Ignorar não têm a caixa: só g1 e g2.
+      await incluirNaGravacao(page, 2);
+      await expect(gravar(page)).toBeDisabled();
       await expect(page.getByText('Diga se Aluno Fictício é um aluno já cadastrado ou um aluno novo.')).toBeVisible();
       await capturar(page, `importacao-revisando-${largura}`);
 
@@ -154,7 +174,8 @@ for (const largura of [390, 1280]) {
       expect(put?.corpo).toEqual({ destino: 'VINCULAR_EXISTENTE', alunoExistenteId: 'a1' });
       await expect(page.getByText(/Já existe aluno cadastrado parecido/)).toHaveCount(0);
 
-      await gravarRascunhos.click();
+      await expect(gravar(page)).toBeEnabled();
+      await gravar(page).click();
       // O resultado aparece onde a pessoa tocou, não no topo da página.
       await expect(page.getByText('Importação gravada em parte')).toBeInViewport();
       await expect(page.getByText('1 grupo(s) não foram gravados. O motivo aparece em cada um, na lista acima.')).toBeVisible();
@@ -163,30 +184,32 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Importado', { exact: true })).toBeVisible();
       await expect(page.getByText('Com erro', { exact: true })).toBeVisible();
       await expect(page.getByText('O aluno escolhido está inativo. Reative-o na ficha antes de tentar de novo.')).toBeVisible();
-      // Gravou só os não ignorados, com a revisão que a tela tinha.
-      expect(corpoDoGravar(api)[0]).toEqual({ gruposIds: ['g1', 'g2'], revisaoEsperada: 3 });
+      // Gravou só os incluídos, com a revisão e a prévia que a tela tinha e uma chave de idempotência.
+      expect(corpoDoGravar(api)[0]).toEqual({ gruposIds: ['g1', 'g2'], revisaoEsperada: 3, hashPrevia: 'h3', chaveIdempotencia: expect.any(String) });
       // Sobraram só o erro e o ignorado: a ação da vez é tentar de novo, sem "Gravar" desabilitado ao lado.
-      await expect(page.getByRole('button', { name: 'Gravar rascunhos' })).toHaveCount(0);
+      await expect(gravar(page)).toHaveCount(0);
       await capturar(page, `importacao-com-erro-${largura}`);
 
       await page.getByRole('button', { name: 'Tentar de novo os que deram erro' }).click();
       await expect(page.getByText('Importação concluída')).toBeVisible();
       await expect(page.getByText('1 aluno(s) já cadastrado(s) receberam os dados')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Fazer outra importação' })).toBeVisible();
-      expect(corpoDoGravar(api)[1].gruposIds).toEqual(['g2']);
+      expect(corpoDoGravar(api)[1]).toMatchObject({ gruposIds: ['g2'], revisaoEsperada: 4, hashPrevia: 'h4' });
       await capturar(page, `importacao-concluida-${largura}`);
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('todos ignorados: gravar fica desabilitado com o motivo', async ({ page }) => {
+    test('todos ignorados: não sobra nada para gravar e o botão de gravar some', async ({ page }) => {
       const api = await abrir(page);
       await lerEConferir(page);
       await page.getByRole('radio', { name: 'Ignorar' }).nth(0).click();
       await expect(page.getByRole('radio', { name: 'Ignorar' }).nth(0)).toBeChecked();
       await page.getByRole('radio', { name: 'Ignorar' }).nth(1).click();
       await expect(page.getByRole('radio', { name: 'Ignorar' }).nth(1)).toBeChecked();
-      await expect(page.getByRole('button', { name: 'Gravar rascunhos' })).toBeDisabled();
-      await expect(page.getByText('Escolha o destino de pelo menos um grupo.')).toBeVisible();
+      // Sem grupo pendente (todos Ignorar) a tela não oferece gravar, nem selecionar: só cancelar a importação.
+      await expect(gravar(page)).toHaveCount(0);
+      await expect(page.getByRole('checkbox', { name: 'Incluir na gravação' })).toHaveCount(0);
+      expect(api.pedidos.some((p) => p.caminho === `${BASE}/s1/confirmar`)).toBe(false);
       expect(api.errosDaPagina).toEqual([]);
     });
 
@@ -197,9 +220,10 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Dieta: —').first()).toBeVisible();
       await expect(page.getByText('Seu perfil não permite gravar treino e pasta.').first()).toBeVisible();
       await expect(page.getByText('Seu perfil não permite gravar modelos.').first()).toBeVisible();
+      await incluirNaGravacao(page, 2);
       await page.getByRole('radio', { name: 'Criar aluno novo' }).nth(1).click();
       await expect(page.getByText('Seu perfil não permite gravar treino e pasta. Escolha outro destino para Aluna Fictícia.')).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Gravar rascunhos' })).toBeDisabled();
+      await expect(gravar(page)).toBeDisabled();
       await capturar(page, `importacao-sem-permissao-${largura}`);
       expect(api.pedidos.some((p) => p.caminho === `${BASE}/s1/confirmar`)).toBe(false);
       expect(api.errosDaPagina).toEqual([]);
@@ -216,27 +240,29 @@ for (const largura of [390, 1280]) {
         },
       });
       await lerEConferir(page);
+      await incluirNaGravacao(page, 2);
       await page.getByRole('radio', { name: 'Criar aluno novo' }).nth(1).click();
       const leiturasAntes = api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `${BASE}/s1`).length;
-      await page.getByRole('button', { name: 'Gravar rascunhos' }).click();
+      await gravar(page).click();
       await expect(page.getByText('A importação mudou desde que você abriu. A lista foi atualizada: confira e grave de novo.')).toBeVisible();
       expect(api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `${BASE}/s1`).length).toBeGreaterThan(leiturasAntes);
 
-      await page.getByRole('button', { name: 'Gravar rascunhos' }).click();
+      await gravar(page).click();
       await expect(page.getByRole('alert').filter({ hasText: /Nada foi gravado\. Escolha Ignorar nesses grupos/ })).toBeVisible();
       await capturar(page, `importacao-403-${largura}`);
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('descartar pede confirmação num painel e volta ao começo', async ({ page }) => {
-      await abrir(page);
+    test('cancelar pede confirmação num painel e volta ao começo', async ({ page }) => {
+      const api = await abrir(page);
       await colarELer(page);
-      await page.getByRole('button', { name: 'Descartar' }).click();
-      const painel = page.getByRole('alertdialog', { name: 'Descartar a importação?' });
+      await page.getByRole('button', { name: 'Cancelar importação' }).click();
+      const painel = page.getByRole('alertdialog', { name: 'Cancelar a importação?' });
       await expect(painel).toBeVisible();
       await capturar(page, `importacao-descartar-${largura}`);
-      await painel.getByRole('button', { name: 'Descartar' }).click();
+      await painel.getByRole('button', { name: 'Cancelar importação' }).click();
       await expect(page.getByText('Enviar arquivos ou texto')).toBeVisible();
+      expect(api.pedidos.some((p) => p.metodo === 'POST' && p.caminho === `${BASE}/s1/cancelar`)).toBe(true);
     });
 
     for (const [nome, t, contraste] of [['escuro', 'ESCURO', 'PADRAO'], ['areia', 'AREIA', 'PADRAO'], ['contraste', 'CLARO', 'ALTO']] as const) {
@@ -247,7 +273,8 @@ for (const largura of [390, 1280]) {
         await capturar(page, `importacao-tema-${nome}-revisando-${largura}`);
         await page.getByRole('radio', { name: 'Aluno Fictício · mesmo nome' }).click();
         await expect(page.getByRole('radio', { name: 'Aluno Fictício · mesmo nome' })).toBeChecked();
-        await page.getByRole('button', { name: 'Gravar rascunhos' }).click();
+        await incluirNaGravacao(page, 2);
+        await gravar(page).click();
         await expect(page.getByText('Importação gravada em parte')).toBeVisible();
         await capturar(page, `importacao-tema-${nome}-com-erro-${largura}`);
         expect(api.errosDaPagina).toEqual([]);
