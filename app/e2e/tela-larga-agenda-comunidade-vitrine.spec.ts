@@ -568,7 +568,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
     test('números lentos: a faixa reservada no topo, o feed espera e a primeira publicação não anda', async ({ page }) => {
       await preparar(page, largura, altura, 'ESCURO', {}, ALUNO.id);
-      const { errosDaPagina } = await abrirMuralDoAluno(page, { atraso: { ranking: 1500, conquistas: 1500 } });
+      const { errosDaPagina } = await abrirMuralDoAluno(page, { atraso: { ranking: 3000, conquistas: 3000 } });
       await expect(page.getByTestId('faixa-dos-numeros-reservada')).toBeVisible();
       await expect(primeiroPost(page)).toHaveCount(0);
       const reservada = await caixa(page.getByTestId('faixa-dos-numeros-reservada'));
@@ -587,7 +587,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
     test('a posição chega antes e as conquistas depois das publicações: a linha muda o texto e o feed fica parado', async ({ page }) => {
       await preparar(page, largura, altura, 'ESCURO', {}, ALUNO.id);
-      const { errosDaPagina } = await abrirMuralDoAluno(page, { atraso: { conquistas: 1500 } });
+      const { errosDaPagina } = await abrirMuralDoAluno(page, { atraso: { conquistas: 3000 } });
       const faixa = page.getByTestId('faixa-dos-numeros');
       await expect(primeiroPost(page)).toBeVisible();
       await expect(faixa).toHaveText(/^2º de 12Ver conquistas$/);
@@ -599,7 +599,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
     test('sem posição (erro) e sem conquistas: a faixa não existe e a primeira publicação não anda', async ({ page }) => {
       await preparar(page, largura, altura, 'ESCURO', {}, ALUNO.id);
-      const { errosDaPagina } = await abrirMuralDoAluno(page, { semNumeros: true, atraso: { ranking: 1500, conquistas: 1500 } });
+      const { errosDaPagina } = await abrirMuralDoAluno(page, { semNumeros: true, atraso: { ranking: 3000, conquistas: 3000 } });
       await expect(page.getByTestId('faixa-dos-numeros-reservada')).toBeVisible();
       await expect(primeiroPost(page)).toHaveCount(0);
       await expect(primeiroPost(page)).toBeVisible();
