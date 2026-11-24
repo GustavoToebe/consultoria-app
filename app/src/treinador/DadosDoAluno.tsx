@@ -1,11 +1,12 @@
 import { Copy, Pencil } from 'lucide-react-native';
-import { useState, type ComponentProps, type ReactNode } from 'react';
+import { Fragment, useState, type ComponentProps, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { alterarAluno, escolherQuestionarioDoAluno, opcoesDeQuestionario, responsaveisEquipe } from '../api/rotas';
 import type { AlunoDetalhe } from '../api/tipos';
 import { enderecoParaLeitura, NAO_INFORMADO, NOTA_TELEFONE_SEM_ACESSO, SECOES_DO_ALUNO } from '../dominio/cadastroDoAluno';
+import { SECOES_DOS_DADOS, type SecaoDosDados } from '../dominio/colunasDaFicha';
 import { linkParaFalarComOTreinador } from '../dominio/contatoDaConsultoria';
 import { dataParaTela } from '../dominio/formatos';
 import { textoDaMeta } from '../dominio/metaDoPesoNaFicha';
@@ -14,7 +15,7 @@ import { linhaDosPlanosAtivos } from '../dominio/planosAtivos';
 import { textoDoQuestionarioEscolhido } from '../dominio/seletorQuestionario';
 import { rotuloDoSexo } from '../dominio/sexo';
 import { useSessao } from '../sessao/SessaoProvider';
-import { espaco } from '../tema/tokens';
+import { espaco, LARGURA_EDITOR_DE_CAMPOS } from '../tema/tokens';
 import { abrirLinkExterno } from '../ui/abrirLinkExterno';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
@@ -29,7 +30,7 @@ import { LinhaDeDado, ListaDeDados, SubtituloDeDados } from '../ui/ListaDeDados'
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
-import { ColunasDaFicha, type BlocosAoLado } from './BlocosDaFicha';
+import { ColunasDaFicha, type ColunaDaFicha } from './BlocosDaFicha';
 import { LinhaDoCicloNaFicha } from './ciclo/CicloNaFicha';
 import { copiarTexto } from './financeiro/comum';
 import { GrupoDoAlunoNaFicha } from './comunidade/GrupoDoAlunoNaFicha';
@@ -43,8 +44,8 @@ const PADRAO = 'Padrão da consultoria';
 
 /**
  * Dados do aluno, no topo da aba Ficha do aluno: as quatro seções de `SECOES_DO_ALUNO`, iguais na consulta e na edição
- * (pedido do Gustavo de 12/11), em duas colunas quando cabem (1 e 2 à esquerda, 3 e 4 à direita) e numa só no celular,
- * na mesma ordem. Leitura numa `ListaDeDados` por cartão (24/11): rótulo à esquerda, valor e a coluna de ações à direita,
+ * (pedido do Gustavo de 12/11), nas colunas da aba quando cabem (o lugar de cada seção vem de `colunasDaAbaDados`: em duas,
+ * 1 e 2 à esquerda, 3 e 4 à direita; em três, 1, 2 e 4 na primeira e 3 na última) e numa só no celular, na mesma ordem. Leitura numa `ListaDeDados` por cartão (24/11): rótulo à esquerda, valor e a coluna de ações à direita,
  * fio entre as linhas; dado ausente é "Não informado" e o herdado, "Padrão da consultoria".
  * CPF, endereço e a seção 4 inteira só com `ALUNO_SENSIVEL_LER`: sem ela a linha ou a seção somem, sem título vazio.
  * Um único "Editar dados" abre o formulário no lugar (`FormAluno`). A edição é da ficha (`editando`): ela é um passo do
@@ -54,8 +55,8 @@ const PADRAO = 'Padrão da consultoria';
  */
 export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar, colunas }: {
   aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void; editando: boolean; aoEditar: (editando: boolean) => void;
-  /** Os blocos da aba que seguem cada coluna (Ficha › Dados em duas colunas, `BlocosDaFicha`). */
-  colunas?: BlocosAoLado;
+  /** As colunas da aba: as seções de cada uma e os blocos que as seguem (Ficha › Dados em duas ou três, `BlocosDaFicha`). */
+  colunas?: ColunaDaFicha[];
 }) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
@@ -75,8 +76,9 @@ export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar, col
         <Texto variante="bloco" nivel={2} style={estilos.titulo}>Dados do aluno</Texto>
         {editando || !podeEditar ? null : <Botao rotulo="Editar dados" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} />}
       </View>
+      {/* O formulário fica no teto do editor de campos também com a aba em três colunas (4.10). */}
       {editando ? (
-        <FormAluno
+        <View style={estilos.formulario}><FormAluno
           inicial={aluno}
           nivel={3}
           diasPadrao={padrao}
@@ -101,7 +103,7 @@ export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar, col
             setEditando(false);
             avisar('Dados salvos.', 'sucesso');
           }}
-        />
+        /></View>
       ) : null}
       {!editando || colunas ? (
         <Leitura aluno={aluno} padrao={padrao} questionario={comQuestionario ? questionarios : null} aoAlterar={aoAlterar} editando={editando} colunas={colunas} />
@@ -124,7 +126,7 @@ type Questionarios = ReturnType<typeof useCarregar<Awaited<ReturnType<typeof opc
 
 function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: {
   aluno: AlunoDetalhe; padrao: number | null; questionario: Questionarios | null; aoAlterar: (a: AlunoDetalhe) => void;
-  editando: boolean; colunas?: BlocosAoLado;
+  editando: boolean; colunas?: ColunaDaFicha[];
 }) {
   const { pode, pagamentosHabilitados } = useSessao();
   const sensivel = pode('ALUNO_SENSIVEL_LER');
@@ -142,10 +144,10 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
   const comGrupo = pode('COMUNIDADE_MODERAR');
   // A coluna de ações só existe com ação dentro (uma vazia tiraria o vão do valor).
   const comFinanceiro = pode('FINANCEIRO_LER') && pagamentosHabilitados;
-  // Em duas colunas os cartões da aba ficam lado a lado com as seções: o mesmo nível de título, na ordem do DOM.
+  // Em colunas os cartões da aba ficam lado a lado com as seções: o mesmo nível de título, na ordem do DOM.
   const nivel = colunas ? 2 : 3;
-  return (
-    <Colunas colunas={colunas} editando={editando} esquerda={<>
+  const secoes: Record<SecaoDosDados, ReactNode> = {
+    identificacao: (
         <Cartao titulo={SECOES_DO_ALUNO.identificacao} nivel={nivel}>
           <ListaDeDados>
             <Par rotulo="Nome" valor={aluno.nome} />
@@ -154,6 +156,8 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
             {sensivel ? <Par rotulo="CPF" valor={aluno.cpf} numerico /> : null}
           </ListaDeDados>
         </Cartao>
+    ),
+    contato: (
         <Cartao titulo={SECOES_DO_ALUNO.contato} nivel={nivel}>
           <ListaDeDados>
             <Par rotulo="E-mail" valor={aluno.email} acoes={aluno.email?.trim() ? <BotoesDeContato tipo="email" valor={aluno.email} nome={aluno.nome} /> : undefined} />
@@ -163,7 +167,8 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
             {sensivel ? <Par rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} /> : null}
           </ListaDeDados>
         </Cartao>
-      </>} direita={<>
+    ),
+    acompanhamento: (
         <Cartao titulo={SECOES_DO_ALUNO.acompanhamento} nivel={nivel}>
           {/* Os grupos e a ordem do pedido de 24/11; PLANO e COMUNIDADE só aparecem com a linha deles. */}
           <ListaDeDados>
@@ -184,7 +189,8 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
             {comGrupo ? <GrupoDoAlunoNaFicha aluno={aluno} aoAlterar={aoAlterar} /> : null}
           </ListaDeDados>
         </Cartao>
-        {sensivel ? (
+    ),
+    objetivo: sensivel ? (
           <Cartao titulo={SECOES_DO_ALUNO.objetivo} nivel={nivel}>
             <ListaDeDados>
               <Par rotulo="Objetivo" valor={aluno.objetivo} />
@@ -192,21 +198,21 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
               <Par rotulo="Observações" valor={aluno.observacoes} />
             </ListaDeDados>
           </Cartao>
-        ) : null}
-      </>} />
+    ) : null,
+  };
+  // Com `colunas` (a aba em duas ou três colunas, `BlocosDaFicha`, 24/11) as seções abrem cada coluna e os blocos da aba vêm
+  // logo embaixo, na mesma pilha; editando, o formulário fica em cima e as colunas só com os blocos, que continuam montados
+  // (as chaves não mudam). Sem `colunas` (a faixa compacta), uma coluna só: 1, 2, 3 e 4, na ordem do celular.
+  if (!colunas) return <View style={estilos.numaColuna}>{SECOES_DOS_DADOS.map((s) => <Fragment key={s}>{secoes[s]}</Fragment>)}</View>;
+  return (
+    <ColunasDaFicha colunas={colunas.map((c) => ({
+      proporcao: c.proporcao,
+      conteudo: [
+        ...(editando ? [] : c.secoes.filter((s) => secoes[s]).map((s) => <Fragment key={s}>{secoes[s]}</Fragment>)),
+        ...c.blocos,
+      ],
+    }))} />
   );
-}
-
-/**
- * Com `colunas` (a aba em duas colunas, `BlocosDaFicha`, 24/11) as seções abrem cada coluna e os blocos da aba vêm logo
- * embaixo, na mesma pilha; editando, o formulário fica em cima e as colunas só com os blocos, que continuam montados (o
- * lugar deles na árvore não muda). Sem `colunas` (a faixa compacta), uma coluna só: 1, 2, 3 e 4, na ordem do celular.
- */
-function Colunas({ esquerda, direita, colunas, editando }: { esquerda: ReactNode; direita: ReactNode; colunas?: BlocosAoLado; editando: boolean }) {
-  if (colunas) {
-    return <ColunasDaFicha esquerda={<>{editando ? null : esquerda}{colunas.esquerda}</>} direita={<>{editando ? null : direita}{colunas.direita}</>} />;
-  }
-  return <View style={estilos.numaColuna}>{esquerda}{direita}</View>;
 }
 
 /** Linha dos Dados do aluno: a `LinhaDeDado` com o "Não informado" da ficha no lugar do valor ausente. */
@@ -252,7 +258,8 @@ const estilos = StyleSheet.create({
   dados: { gap: espaco(2) },
   topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: espaco(1), minHeight: 44 },
   titulo: { flexShrink: 1 },
-  // Faixa compacta: as quatro seções numa coluna, na ordem do celular (24/11; em duas colunas, `ColunasDaFicha`).
+  formulario: { maxWidth: LARGURA_EDITOR_DE_CAMPOS },
+  // Faixa compacta: as quatro seções numa coluna, na ordem do celular (24/11; em colunas, `ColunasDaFicha`).
   numaColuna: { gap: espaco(3) },
   comAjuda: { gap: espaco(0.5) },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75), paddingTop: 2 },

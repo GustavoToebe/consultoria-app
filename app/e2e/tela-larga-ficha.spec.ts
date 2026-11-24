@@ -10,8 +10,9 @@ import { ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, estadoDoResponsavel, estadoFina
 
 /**
  * Tela larga: revisão (24/11) das abas da Ficha do aluno (plano `docs/planos/tela-larga-revisao-ficha.md`). Confere por
- * geometria, em 1280, 1920, 2560 e 3440 px com o menu aberto, que a aba Dados não estica: as mesmas duas colunas (3:2) até
- * `LARGURA_EDITOR_DE_CAMPOS`, alinhadas à esquerda (4.10 de `docs/design-e-front.md`). Capturas só com
+ * geometria, em 1280, 1920, 2560 e 3440 px com o menu aberto, que a aba Dados não estica: em 1280 e 1920 as duas colunas
+ * (3:2) até `LARGURA_EDITOR_DE_CAMPOS`, alinhadas à esquerda (4.10 de `docs/design-e-front.md`); em 2560 e 3440 três pilhas
+ * (revisão 2, `docs/planos/tela-larga-revisao-2.md`), cada uma até `LARGURA_EDITOR_DE_CAMPOS`. Capturas só com
  * `CAPTURAS_TELA_LARGA_GRUPO` (pasta fora do git) e `FASE` (`antes` ou `depois`). Relógio em 19/10/2026; só dados fictícios.
  */
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
@@ -108,7 +109,7 @@ const COBRANCA: CobrancaResponse = {
   pagoEm: null, forma: null,
 };
 
-async function abrir(page: Page, largura: number, aba: string, opcoes: { tamanhoTexto?: string; tema?: string; altura?: number; enviada?: boolean } = {}) {
+async function abrir(page: Page, largura: number, aba: string, opcoes: { tamanhoTexto?: string; tema?: string; altura?: number; enviada?: boolean; vazio?: boolean } = {}) {
   await page.setViewportSize({ width: largura, height: opcoes.altura ?? (largura >= 2560 ? 1440 : largura >= 1920 ? 1080 : 900) });
   await fixarHoje(page);
   await page.addInitScript(([id, prefs]) => {
@@ -118,7 +119,8 @@ async function abrir(page: Page, largura: number, aba: string, opcoes: { tamanho
     } catch { /* quadro sem armazenamento */ }
   }, [TREINADOR.id, JSON.stringify({ tema: opcoes.tema ?? 'ESCURO', larguraConteudo: 'AUTOMATICA', ...(opcoes.tamanhoTexto ? { tamanhoTexto: opcoes.tamanhoTexto } : {}) })] as const);
   const atualizacao: Atualizacao = opcoes.enviada ? { ...ATUALIZACAO, fase: 'ENVIADA', enviadaEm: '2026-10-18T12:00:00Z' } : ATUALIZACAO;
-  const financeiro = estadoFinanceiro({ contratacoes: [CONTRATACAO], cobrancas: [COBRANCA] });
+  // `vazio`: sem plano contratado e sem lesões (o estado que não é o de sucesso, nas capturas).
+  const financeiro = estadoFinanceiro(opcoes.vazio ? { contratacoes: [], cobrancas: [] } : { contratacoes: [CONTRATACAO], cobrancas: [COBRANCA] });
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { pagamentosHabilitados: true, recebimentoOnlineHabilitado: false, permissoes: PERMISSOES, retornoHabilitado: true })),
     ...rotasDoFinanceiro(financeiro), ...rotasDoResponsavel(estadoDoResponsavel()),
@@ -127,7 +129,7 @@ async function abrir(page: Page, largura: number, aba: string, opcoes: { tamanho
     'GET /consultoria': { corpo: { marca: null, versao: 1, diasAtualizacaoPadrao: 30 } },
     [`GET /alunos/${ID}`]: { corpo: FICHA },
     [`GET /alunos/${ID}/anamneses`]: { corpo: [] },
-    [`GET /alunos/${ID}/lesoes`]: { corpo: LESOES },
+    [`GET /alunos/${ID}/lesoes`]: { corpo: opcoes.vazio ? [] : LESOES },
     [`GET /alunos/${ID}/pastas`]: { corpo: [PASTA_ATUAL, PASTA_ANTIGA] },
     [`GET /alunos/${ID}/pastas/vigente`]: { corpo: { pasta: PASTA_ATUAL } },
     [`GET /alunos/${ID}/planos-treino`]: { corpo: [plano('t1', 'Treino de outubro', PASTA_ATUAL.id), plano('t0', 'Treino de setembro', PASTA_ANTIGA.id)] },
@@ -213,6 +215,21 @@ test.describe('capturas', () => {
         await page.screenshot({ path: `${PASTA_DAS_CAPTURAS}/ficha/${FASE}/${largura}-texto-extra.png` });
       });
     }
+    if (largura >= 2560) {
+      test(`ficha ${largura} editando`, async ({ page }) => {
+        await abrir(page, largura, 'ficha', { altura: 2400 });
+        await page.getByRole('button', { name: 'Editar dados' }).click();
+        await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeVisible();
+        await page.waitForTimeout(600);
+        await page.screenshot({ path: `${PASTA_DAS_CAPTURAS}/ficha/${FASE}/${largura}-editando.png` });
+      });
+      test(`ficha ${largura} vazio claro`, async ({ page }) => {
+        await abrir(page, largura, 'ficha', { altura: 1600, vazio: true, tema: 'CLARO' });
+        await expect(page.getByText('Nenhuma lesão registrada.', { exact: true })).toBeVisible();
+        await page.waitForTimeout(600);
+        await page.screenshot({ path: `${PASTA_DAS_CAPTURAS}/ficha/${FASE}/${largura}-vazio-claro.png` });
+      });
+    }
   }
   // Sem regressão no que já existia: 1280 (duas colunas nos Dados, uma no resto) e 390 (celular).
   for (const largura of [1280, 390]) {
@@ -241,7 +258,57 @@ async function semRolagemHorizontal(page: Page) {
 
 const LARGURAS = [1280, 1920, 2560, 3440];
 
-for (const largura of LARGURAS) {
+// Três colunas (revisão 2, decisão 1): pela largura medida da aba, a mesma régua do Resumo (2560 com o menu aberto é `larga`).
+const TRES_COLUNAS = [
+  ['Identificação', 'Contato e endereço', 'Objetivo e observações'],
+  ['Plano contratado', 'Histórico de lesões'],
+  ['Configuração do acompanhamento', 'Acesso ao app', 'Anamnese'],
+];
+
+for (const largura of [2560, 3440]) {
+  test(`${largura} px: Dados em três pilhas independentes, cada cartão até 1400 px, e a edição no teto`, async ({ page }) => {
+    const { errosDaPagina, pedidos } = await abrir(page, largura, 'ficha');
+    await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Anamnese', exact: true })).toBeVisible();
+    await assentado(async () => {
+      const colunas = await Promise.all(TRES_COLUNAS.map((c) => Promise.all(c.map((t) => caixaDe(cartaoCom(page, t))))));
+      const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
+      const editar = await caixaDe(page.getByRole('button', { name: 'Editar dados' }));
+      for (const [i, coluna] of colunas.entries()) {
+        // Uma pilha: mesma borda esquerda, na ordem, 24 px entre cada par; nenhum cartão passa do editor de campos.
+        for (const c of coluna) {
+          expect(Math.abs(c.x - coluna[0].x)).toBeLessThanOrEqual(1);
+          expect(c.width).toBeLessThanOrEqual(1401);
+        }
+        for (let k = 1; k < coluna.length; k++) expect(Math.abs(coluna[k].y - (coluna[k - 1].y + coluna[k - 1].height) - 24)).toBeLessThanOrEqual(1);
+        // As três no mesmo topo, lado a lado, sem se sobrepor.
+        expect(Math.abs(coluna[0].y - colunas[0][0].y)).toBeLessThanOrEqual(1);
+        if (i) expect(coluna[0].x).toBeGreaterThanOrEqual(colunas[i - 1][0].x + colunas[i - 1][0].width + 23);
+      }
+      // O título começa na 1ª coluna e o "Editar dados" termina na borda da 3ª.
+      expect(Math.abs(colunas[0][0].x - titulo.x)).toBeLessThanOrEqual(1);
+      const ultima = colunas[2][0];
+      expect(Math.abs(editar.x + editar.width - (ultima.x + ultima.width))).toBeLessThanOrEqual(1);
+    });
+    // A coluna do meio é a mais larga (1,2): as lesões continuam em tabela já em 2560.
+    await expect(page.getByRole('table', { name: 'Lesões' })).toHaveCount(1);
+    await semRolagemHorizontal(page);
+
+    // Editando: o formulário no teto do editor de campos e os blocos das colunas continuam montados (não buscam de novo).
+    await page.getByRole('button', { name: 'Editar dados' }).click();
+    const salvar = page.getByRole('button', { name: 'Salvar', exact: true });
+    await expect(salvar).toBeVisible();
+    const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
+    expect((await caixaDe(salvar)).x + (await caixaDe(salvar)).width - titulo.x).toBeLessThanOrEqual(1401);
+    await expect(page.getByRole('heading', { name: 'Plano contratado', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Acesso ao app', exact: true })).toBeVisible();
+    expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `/alunos/${ID}/anamneses`)).toHaveLength(1);
+    await semRolagemHorizontal(page);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+for (const largura of [1280, 1920]) {
   test(`${largura} px: Dados nas mesmas duas colunas (3:2), sem passar de 1400 px, à esquerda`, async ({ page }) => {
     const { errosDaPagina } = await abrir(page, largura, 'ficha');
     await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
@@ -267,7 +334,9 @@ for (const largura of LARGURAS) {
     await semRolagemHorizontal(page);
     expect(errosDaPagina).toEqual([]);
   });
+}
 
+for (const largura of LARGURAS) {
   test(`${largura} px: Planos com as pastas em colunas, nunca linhas esticadas`, async ({ page }) => {
     await abrir(page, largura, 'planos', { enviada: true });
     const outubro = page.getByRole('button', { name: /^Pasta Pasta de outubro/ });

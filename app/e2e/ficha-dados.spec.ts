@@ -10,7 +10,8 @@ import { ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, estadoDoResponsavel, estadoFina
 /**
  * Ficha do aluno › Dados (23/11, `docs/planos/ficha-do-aluno-dados.md`): duas colunas independentes (3:2) a partir da faixa
  * normal da `Tela` (24/11, `docs/planos/ficha-dados-colunas-independentes.md`: Identificação › Contato › Plano › Lesões à
- * esquerda; Acompanhamento › Objetivo › Acesso › Anamnese à direita) e, no celular, uma coluna na ordem Lesões ativas ›
+ * esquerda; Acompanhamento › Objetivo › Acesso › Anamnese à direita; as três colunas de 2560 e 3440 estão no
+ * `tela-larga-ficha.spec.ts`) e, no celular, uma coluna na ordem Lesões ativas ›
  * Plano › Acesso › Anamnese › Histórico;
  * acesso compacto com o último login; vigência com o texto equivalente, âmbar a 15 dias e "Encerrado em" na parcela única passada do término; as últimas 3
  * cobranças com "Ver todas no Financeiro"; lesões com as ativas tingidas primeiro, "Desde"/"a", ⋯ com Editar e Excluir

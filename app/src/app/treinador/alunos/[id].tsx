@@ -28,7 +28,7 @@ import { CartaoFotos } from '../../../fotos/CartaoFotos';
 import { CartaoProgresso } from '../../../treinador/CartaoProgresso';
 import { CartaoPastas, useRenovarPasta } from '../../../treinador/CartaoPastas';
 import { CartaoAnamnese } from '../../../treinador/anamnese/CartaoAnamnese';
-import { BlocosDaFicha, type BlocosAoLado } from '../../../treinador/BlocosDaFicha';
+import { BlocosDaFicha, type ColunaDaFicha } from '../../../treinador/BlocosDaFicha';
 import { CartaoPlanoContratado } from '../../../treinador/financeiro/CartaoPlanoContratado';
 import { DadosDoAluno } from '../../../treinador/DadosDoAluno';
 import { AcoesDePrivacidade } from '../../../treinador/privacidade/AcoesDePrivacidade';
@@ -151,7 +151,7 @@ export default function FichaAluno() {
   }, [secao, aba, alunoChegou, acessoMedido]);
   const temMenu = !!aluno &&((pode('ALUNO_ALTERAR') && !aluno.anonimizado) || pode('ALUNO_EXPORTAR') || (pode('ALUNO_ANONIMIZAR') && !aluno.ativo && !aluno.anonimizado));
 
-  const bloco = (b: BlocoDaFicha, a: AlunoDetalhe, colunas?: BlocosAoLado): ReactNode => {
+  const bloco = (b: BlocoDaFicha, a: AlunoDetalhe, colunas?: ColunaDaFicha[]): ReactNode => {
     switch (b) {
       case 'pastas':
         return <CartaoPastas key={`${a.id}:${pedidoDePasta.vez}`} pastaInicialId={pedidoDePasta.id} alunoId={a.id} alunoNome={a.nome} diasAtualizacao={cicloDoAluno(a.diasAtualizacao, padrao)}
@@ -194,8 +194,8 @@ export default function FichaAluno() {
       );
     }
     const lista = blocosDaAba(aba, contexto);
-    // Ficha › Dados (24/11): as colunas independentes e a ordem no celular moram no `BlocosDaFicha`.
-    if (aba === 'ficha') return <BlocosDaFicha alunoId={a.id} blocos={lista} bloco={(b, colunas) => bloco(b, a, colunas)} />;
+    // Ficha › Dados (24/11): as colunas independentes (duas, ou três pela largura medida) e a ordem no celular moram no `BlocosDaFicha`.
+    if (aba === 'ficha') return <BlocosDaFicha alunoId={a.id} blocos={lista} largura={largura} bloco={(b, colunas) => bloco(b, a, colunas)} />;
     // Tela larga (24/11): Acompanhamento e Evolução em duas pilhas independentes quando cada uma tem 1000 px (2560 em diante).
     const pilhas = pilhasDaAba(aba, lista, largura, espaco(3));
     if (pilhas) {
