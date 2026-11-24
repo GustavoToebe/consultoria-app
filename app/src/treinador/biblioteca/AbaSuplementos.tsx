@@ -25,7 +25,8 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
-import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
+import { LinhaDaLista } from '../../ui/LinhaDaLista';
+import { ListaEmColunas } from '../ListaEmColunas';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { BarraDaBiblioteca } from './BarraDaBiblioteca';
@@ -81,7 +82,7 @@ export function AbaSuplementos() {
             : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar suplemento', aoTocar: () => setEditando('novo') } : undefined}
         />
       ) : null}
-      {lista.length ? <ListaDeLinhas divisorias>{lista.map((s) => (
+      {lista.length ? <ListaEmColunas divisorias>{lista.map((s) => (
         <LinhaDaLista key={s.id} titulo={s.nome} metadados={marcaECategoria(s)}
           descricao={[`Porção: ${descricaoDaPorcao(s)}`, saboresParaTela(s) !== '—' ? `Sabores: ${saboresParaTela(s)}` : null].filter(Boolean).join(' · ')}
           acoesAoLado={!s.link}
@@ -89,7 +90,7 @@ export function AbaSuplementos() {
             {s.link ? <Botao rotulo="Ver produto" tipo="secundario" Icone={ExternalLink} aoTocar={() => abrir(s)} /> : null}
             <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${s.nome}`} aoTocar={() => setEditando(s)} /></Permitido>
           </>} />
-      ))}</ListaDeLinhas> : null}
+      ))}</ListaEmColunas> : null}
       {editando ? (
         <FolhaSuplemento
           inicial={editando === 'novo' ? null : editando}

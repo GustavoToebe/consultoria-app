@@ -43,7 +43,8 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
-import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
+import { LinhaDaLista } from '../../ui/LinhaDaLista';
+import { ListaEmColunas } from '../ListaEmColunas';
 import { CampoDoMacro, FIBRA, LegendaDosMacros, MACROS, ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { normalizar } from '../treino/FolhaBiblioteca';
 import { colunasDaGrade, larguraDaCelula, VAO_DA_GRADE, type ColunasDaGrade } from './gradeDoAlimento';
@@ -217,11 +218,11 @@ export function AbaAlimentos() {
         />
       ) : null}
       {lista.length ? <LegendaDosMacros /> : null}
-      {lista.length ? <ListaDeLinhas divisorias>{lista.map((a) => (
+      {lista.length ? <ListaEmColunas divisorias>{lista.map((a) => (
         <LinhaDaLista key={a.id} titulo={a.nome} valores={<ValoresDoAlimento alimento={a} />} descricao={descricaoDoAlimento(a) ?? undefined}
           acoesAoLado
           acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>} />
-      ))}</ListaDeLinhas> : null}
+      ))}</ListaEmColunas> : null}
       {editando ? (
         <FolhaAlimento
           inicial={editando === 'novo' ? null : editando}

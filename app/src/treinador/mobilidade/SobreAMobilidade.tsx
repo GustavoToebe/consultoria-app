@@ -2,7 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { resumoDasOrientacoes } from '../../dominio/mobilidade';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { Texto } from '../../ui/Texto';
@@ -54,7 +54,8 @@ const estilos = StyleSheet.create({
   orientacoes: { gap: espaco(1) },
   linhaDoBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minWidth: 0 },
   resumo: { flex: 1, minWidth: 0 },
-  campos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(2), rowGap: espaco(2) },
+  // Tela larga (24/11): Nome e Descrição param no teto do nome do modelo de treino (`NomeDoModeloDeTreino`), sem esticar.
+  campos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(2), rowGap: espaco(2), maxWidth: LARGURA_EDITOR },
   // Lado a lado a partir de ~600 px de cartão; a descrição é a maior.
   nome: { flexGrow: 1, flexShrink: 1, flexBasis: 240, minWidth: 0 },
   descricao: { flexGrow: 2, flexShrink: 1, flexBasis: 340, minWidth: 0 },

@@ -23,7 +23,8 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
-import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
+import { LinhaDaLista } from '../../ui/LinhaDaLista';
+import { ListaEmColunas } from '../ListaEmColunas';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
@@ -101,12 +102,12 @@ export function AbaErgogenicos() {
         <Cartao key={idDoGrupo(g)} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDoGrupo(g.itens.length)}
           aberto={secoes.estaAberta(idDoGrupo(g))} aoAlternar={() => secoes.alternar(idDoGrupo(g))} />}>
           {/* Uma superfície só, com divisórias entre os itens (sem caixa por registro): o cartão já é o contêiner. */}
-          {secoes.estaAberta(idDoGrupo(g)) ? <ListaDeLinhas divisorias>{g.itens.map((e) => (
+          {secoes.estaAberta(idDoGrupo(g)) ? <ListaEmColunas divisorias>{g.itens.map((e) => (
             <LinhaDaLista key={e.id} titulo={nomeEPrincipio(e)}
               metadados={`Concentração: ${textoOuTraco(e.concentracao)} · Apresentação: ${textoOuTraco(e.apresentacao)}`}
               acoesAoLado
               acoes={<Permitido codigo="ERGOGENICO_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
-          ))}</ListaDeLinhas> : null}
+          ))}</ListaEmColunas> : null}
         </Cartao>
       ))}
       {editando ? (

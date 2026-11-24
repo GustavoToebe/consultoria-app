@@ -26,7 +26,8 @@ import { Esqueleto } from '../../../ui/Esqueleto';
 import { textoDoErro } from '../../../ui/erros';
 import { Folha } from '../../../ui/Folha';
 import { IconeBotao } from '../../../ui/IconeBotao';
-import { LinhaDaLista, ListaDeLinhas } from '../../../ui/LinhaDaLista';
+import { LinhaDaLista } from '../../../ui/LinhaDaLista';
+import { ListaEmColunas, MINIMO_DA_COLUNA_COM_ACOES } from '../../../treinador/ListaEmColunas';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO, podeAplicarModelo } from '../../../dominio/modelos';
 import { Tela } from '../../../ui/Tela';
@@ -152,9 +153,9 @@ export default function Planejamento() {
       const colecao = g.pastaId ? colecoes.dados?.find((c) => c.id === g.pastaId) : undefined;
       return <Cartao key={g.pastaId ?? ''} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDeModelos(g.itens.length)} aberto={aberto} aoAlternar={() => secoes.alternar(chave)} acoesJuntas
         acoes={colecao && pode('MODELO_ALTERAR') ? <IconeBotao Icone={Pencil} rotulo={`Renomear coleção ${g.rotulo}`} aoTocar={() => setOrganizar({ editar: colecao })} /> : undefined} />}>
-        {aberto ? <ListaDeLinhas>{g.itens.map((r) => <LinhaDeModelo key={r.id} modelo={r} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)}
+        {aberto ? <ListaEmColunas minimo={MINIMO_DA_COLUNA_COM_ACOES}>{g.itens.map((r) => <LinhaDeModelo key={r.id} modelo={r} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)}
           ocupado={ocupado === r.id} aoAplicar={() => setAplicar(r)} aoEditar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)}
-          aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}</ListaDeLinhas> : null}
+          aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}</ListaEmColunas> : null}
       </Cartao>;
     })}
     {menu ? <Folha visivel titulo={menu.nome} aoFechar={() => setMenu(null)}>
@@ -236,7 +237,9 @@ function OrganizarColecoes({ colecoes: pastas, inicial = null, aoFechar, atualiz
 
 const estilos = StyleSheet.create({
   busca: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
-  campoBusca: { flexGrow: 1, flexBasis: 240 },
+  // Teto da busca da Biblioteca (`BarraDaBiblioteca`): na tela larga o campo não estica e os botões vêm logo depois dele.
+  campoBusca: { flexGrow: 1, flexBasis: 240, maxWidth: 480 },
   // Os botões ficam na base, rentes ao campo de busca; quebram juntos para baixo dele no celular.
-  acoesDaBusca: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
+  // `maxWidth` faz os botões quebrarem entre si em 390 (sem ele a fileira media o conteúdo e cortava "Nova …" na borda).
+  acoesDaBusca: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1), maxWidth: '100%' },
 });

@@ -13,7 +13,8 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
-import { CaixaDaLinha, LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
+import { CaixaDaLinha, LinhaDaLista } from '../../ui/LinhaDaLista';
+import { ListaEmColunas } from '../ListaEmColunas';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -151,7 +152,7 @@ export function AbaCatalogo() {
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? <Vazio titulo="Nenhum resultado no catálogo" texto="Tente outro nome ou ajuste o filtro de grupo."
         acao={gruposDoFiltro.length ? { rotulo: 'Limpar filtros', aoTocar: () => setGruposMarcados(new Set()) } : busca ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : undefined} /> : null}
-      {dados && dados.itens.length > 0 ? <ListaDeLinhas divisorias>{dados.itens.map((item) => {
+      {dados && dados.itens.length > 0 ? <ListaEmColunas divisorias>{dados.itens.map((item) => {
         const sel = marcados.has(item.id);
         const expandido = aberto === item.id;
         const jaTem = nomesNaBiblioteca.has(normalizar(item.nome.trim()));
@@ -203,7 +204,7 @@ export function AbaCatalogo() {
             ) : null}
           </LinhaDaLista>
         );
-      })}</ListaDeLinhas> : null}
+      })}</ListaEmColunas> : null}
       {dados && textoMostrando(dados.itens.length, dados.total) ? (
         <Texto variante="pequeno" accessibilityLiveRegion="polite">{textoMostrando(dados.itens.length, dados.total)}</Texto>
       ) : null}

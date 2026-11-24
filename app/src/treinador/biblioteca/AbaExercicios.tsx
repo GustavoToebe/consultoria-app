@@ -19,7 +19,8 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
-import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
+import { LinhaDaLista } from '../../ui/LinhaDaLista';
+import { ListaEmColunas } from '../ListaEmColunas';
 import { espaco } from '../../tema/tokens';
 import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES } from '../../dominio/modalidades';
@@ -97,13 +98,13 @@ export function AbaExercicios() {
       {dados && total === 0 ? (
         <Vazio titulo={!semFiltro ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={!semFiltro ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={gruposAtivos.size > 0 ? { rotulo: 'Limpar filtros', aoTocar: () => mudarGrupos(new Set()) } : !semFiltro ? { rotulo: 'Limpar busca', aoTocar: () => mudarBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
-      {lista.length ? <ListaDeLinhas divisorias>{lista.map((e) => (
+      {lista.length ? <ListaEmColunas divisorias>{lista.map((e) => (
         <LinhaDaLista key={e.id} titulo={e.nome}
           metadados={[MODALIDADES[e.modalidade], e.grupoMuscular, e.equipamento, e.videoUrl ? 'com vídeo' : null].filter(Boolean).join(' · ')}
           inicio={<DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />}
           acoesAoLado
           acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
-      ))}</ListaDeLinhas> : null}
+      ))}</ListaEmColunas> : null}
       {total > TAMANHO_DA_PAGINA_DE_EXERCICIOS ? (
         <View style={estilos.paginacao}>
           <Botao rotulo="Anterior" tipo="secundario" desabilitado={pagina === 0} aoTocar={() => setPagina(pagina - 1)} />

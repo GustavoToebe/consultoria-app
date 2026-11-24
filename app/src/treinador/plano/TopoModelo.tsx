@@ -1,12 +1,14 @@
 import { router } from 'expo-router';
 import { Save, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import type { Receita } from '../../api/tipos';
 import { seloDoEditor, type SituacaoDoEditor } from '../../dominio/barraDoEditor';
 import { podeAplicarModelo } from '../../dominio/modelos';
 import { mensagemCopiaCriada } from '../../dominio/planoDoAluno';
 import { useSessao } from '../../sessao/SessaoProvider';
+import { LARGURA_EDITOR } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -81,8 +83,11 @@ export function NomeDoModelo<C>({ editor }: { editor: ReturnType<typeof usePlano
   if (!e) return null;
   return (
     <Cartao>
-      <Campo rotulo="Nome do modelo" valor={e.titulo} aoMudar={(titulo) => editor.alterar(() => ({ titulo }))} maxLength={120}
-        erro={e.titulo.trim() ? null : 'Informe o nome do modelo.'} />
+      {/* Tela larga (24/11): o campo para no teto do nome do modelo de treino (`NomeDoModeloDeTreino`), sem esticar. */}
+      <View style={{ maxWidth: LARGURA_EDITOR }}>
+        <Campo rotulo="Nome do modelo" valor={e.titulo} aoMudar={(titulo) => editor.alterar(() => ({ titulo }))} maxLength={120}
+          erro={e.titulo.trim() ? null : 'Informe o nome do modelo.'} />
+      </View>
     </Cartao>
   );
 }
