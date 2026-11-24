@@ -56,6 +56,8 @@ interface Props {
    * com o rodapé no pé; no celular é a folha de baixo de sempre, que já ocupa a largura. Ignora `largura`.
    */
   lateral?: boolean;
+  /** No celular ocupa a tela inteira (editor longo, como o do perfil de acesso), com o rodapé no pé; no PC não muda nada. */
+  telaCheiaNoCelular?: boolean;
 }
 
 /**
@@ -64,7 +66,7 @@ interface Props {
  * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo e, ao fechar,
  * volta a quem abriu a folha; no celular, com leitor de tela, também volta (`ui/focoDaFolha.ts`).
  */
-export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRodape, largura, acaoNoTopo, faixa, lateral }: Props) {
+export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRodape, largura, acaoNoTopo, faixa, lateral, telaCheiaNoCelular }: Props) {
   // Quem estava com o foco ao abrir (web). Ao fechar, o foco volta para ele (C3): na hora em que o painel sai (a folha
   // inteira deixou a tela) e de novo no `onDismiss`, quando a camada do Modal some. Antes disso a trava de foco do Modal,
   // que fica um render a mais depois do `visible={false}`, puxaria o foco de volta para dentro.
@@ -78,7 +80,7 @@ export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRod
   // duas vezes. As outras folhas aninhadas do sistema seguem como antes até haver captura de cada uma.
   const dentroDeOutra = usePortalDaFolha()?.lateral === true;
   return <Modal ref={semPapelNoModal} transparent visible={visivel} animationType="none" onRequestClose={fechar} onDismiss={() => devolverFoco(quemAbriuRef)}>
-    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} lateral={lateral} semVeu={dentroDeOutra} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
+    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} lateral={lateral} telaCheiaNoCelular={telaCheiaNoCelular} semVeu={dentroDeOutra} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
   </Modal>;
 }
 
@@ -111,7 +113,7 @@ function devolverFoco(quemAbriuRef: RefObject<HTMLElement | null>) {
 }
 
 /** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo: no PC move a folha, no celular fecha. */
-function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTopo,faixa,lateral,semVeu,quemAbriuRef}:Omit<Props,'visivel'> & { semVeu: boolean; quemAbriuRef: RefObject<HTMLElement | null> }) {
+function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTopo,faixa,lateral,telaCheiaNoCelular,semVeu,quemAbriuRef}:Omit<Props,'visivel'> & { semVeu: boolean; quemAbriuRef: RefObject<HTMLElement | null> }) {
   const { cores, bordas } = useTema();
   const { width, height } = useWindowDimensions();
   // No Android o `Modal` já fica acima da barra do sistema; somar a margem de baixo do provider (que está fora dele)
@@ -123,7 +125,8 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
   // Com `largura` no PC a altura é fixa (a folha não muda de tamanho ao trocar o conteúdo); o corpo ocupa o que sobra
   // entre o topo e o rodapé, para o rodapé ficar no pé da folha e não sobrar faixa vazia embaixo dele. O painel lateral
   // tem a altura da janela, pelo mesmo motivo.
-  const alturaFixa = (centralizado && !!largura) || aDireita;
+  const telaCheia = !centralizado && !!telaCheiaNoCelular;
+  const alturaFixa = (centralizado && !!largura) || aDireita || telaCheia;
   const reduzido = useMovimentoReduzido();
   const portal = useId();
   const [elementoPortal, setElementoPortal] = useState<HTMLElement | null>(null);
@@ -225,7 +228,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
               ? [estilos.painelLateral, { borderLeftWidth: bordas.bloco }]
               : centralizado
                 ? [estilos.painelCentral, largura ? { width: largura, height: '90%' as const } : null]
-                : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }],
+                : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }, telaCheia ? [estilos.painelTelaCheia, { paddingTop: margem.top }] : null],
             { backgroundColor: cores.superficie, borderColor: cores.divisor },
             aDireita ? null : { borderWidth: bordas.bloco },
           ]}>
@@ -270,6 +273,7 @@ const estilos = StyleSheet.create({
   painel: { overflow: 'hidden' },
   painelCentral: { width: LARGURA_FOLHA, maxWidth: '100%', maxHeight: '90%', borderRadius: RAIO },
   painelInferior: { maxHeight: '88%', borderTopLeftRadius: RAIO, borderTopRightRadius: RAIO },
+  painelTelaCheia: { height: '100%', maxHeight: '100%', borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   // Colado à direita e na altura da janela: sem cantos nem bordas onde encosta na janela, só a da esquerda.
   painelLateral: { flex: 1, width: LARGURA_PAINEL_LATERAL, maxWidth: '100%' },
   topo: {

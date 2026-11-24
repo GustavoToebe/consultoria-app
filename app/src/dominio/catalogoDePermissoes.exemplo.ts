@@ -1,0 +1,56 @@
+import type { PermissaoEquipe } from '../api/equipeTipos';
+
+/**
+ * Cópia do `CatalogoPermissoes.CATALOGO` da API (`api/.../equipe/CatalogoPermissoes.java`, 23/11/2026), só para os testes
+ * (jest e e2e). O app recebe o catálogo de `GET /permissoes/catalogo`; mudou o da API, mude aqui junto.
+ */
+const p = (codigo: string, secao: string, modulo: string, descricao: string, sensivel = false): PermissaoEquipe => ({ codigo, secao, modulo, descricao, sensivel });
+
+export const CATALOGO_DE_EXEMPLO: PermissaoEquipe[] = [
+  p('PAINEL_VER', 'Início', 'Painel', 'Ver: painel.'),
+  p('ALUNO_LER', 'Alunos', 'Cadastro', 'Consultar: cadastro.'),
+  p('ALUNO_ALTERAR', 'Alunos', 'Cadastro', 'Criar e editar: cadastro.'),
+  p('ALUNO_CONVITE', 'Alunos', 'Cadastro', 'Gerar convite: cadastro.'),
+  p('ALUNO_SENSIVEL_LER', 'Alunos', 'Dados sensíveis', 'Consultar: dados sensíveis.', true),
+  p('ALUNO_SENSIVEL_ALTERAR', 'Alunos', 'Dados sensíveis', 'Criar e editar: dados sensíveis.', true),
+  p('ALUNO_EXPORTAR', 'Alunos', 'Privacidade', 'Exportar: dados do aluno.', true),
+  p('ALUNO_ANONIMIZAR', 'Alunos', 'Privacidade', 'Anonimizar: aluno que saiu.', true),
+  p('REGISTRO_LER', 'Alunos', 'Registros', 'Consultar: registros.'),
+  p('REGISTRO_REAGIR', 'Alunos', 'Registros', 'Marcar como visto: treinos concluídos.'),
+  p('INSCRICAO_LER', 'Alunos', 'Interessados', 'Consultar: interessados e link de inscrição.'),
+  p('INSCRICAO_ALTERAR', 'Alunos', 'Interessados', 'Atender, aceitar e recusar: interessados; configurar o link de inscrição.'),
+  p('AGENDA_LER', 'Alunos', 'Agenda', 'Consultar: agenda (compromissos com alunos, agendas e eventos pessoais).'),
+  p('AGENDA_ALTERAR', 'Alunos', 'Agenda', 'Marcar, remarcar e cancelar: compromissos com alunos, agendas e eventos pessoais.'),
+  p('PASTA_ALTERAR', 'Planos', 'Pastas', 'Criar e editar: pastas.'),
+  p('TREINO_LER', 'Planos', 'Treino', 'Consultar: treino.'),
+  p('TREINO_ALTERAR', 'Planos', 'Treino', 'Criar e editar: treino.'),
+  p('TREINO_PUBLICAR', 'Planos', 'Treino', 'Publicar versões: treino.'),
+  p('DIETA_LER', 'Planos', 'Dieta', 'Consultar: dieta.'),
+  p('DIETA_ALTERAR', 'Planos', 'Dieta', 'Criar e editar: dieta.'),
+  p('DIETA_PUBLICAR', 'Planos', 'Dieta', 'Publicar versões: dieta.'),
+  p('ATUALIZACAO_LER', 'Atualizações', 'Check-in', 'Consultar: check-in.', true),
+  p('ATUALIZACAO_RESPONDER', 'Atualizações', 'Check-in', 'Enviar e editar feedback: check-in.'),
+  p('ANAMNESE_LER', 'Atualizações', 'Anamnese', 'Consultar: anamnese dos alunos.', true),
+  p('ANAMNESE_ALTERAR', 'Atualizações', 'Anamnese', 'Enviar, dispensar e marcar revisada: anamnese dos alunos.', true),
+  p('BIBLIOTECA_LER', 'Conteúdo', 'Biblioteca', 'Consultar: biblioteca.'),
+  p('BIBLIOTECA_ALTERAR', 'Conteúdo', 'Biblioteca', 'Criar e editar: biblioteca.'),
+  p('ERGOGENICO_LER', 'Conteúdo', 'Biblioteca', 'Consultar: medicação e ergogênicos.', true),
+  p('ERGOGENICO_ALTERAR', 'Conteúdo', 'Biblioteca', 'Criar e editar: medicação e ergogênicos.', true),
+  p('MODELO_LER', 'Conteúdo', 'Modelos', 'Consultar: modelos.'),
+  p('MODELO_ALTERAR', 'Conteúdo', 'Modelos', 'Criar e editar: modelos.'),
+  p('MODELO_APLICAR', 'Conteúdo', 'Modelos', 'Aplicar ao aluno: modelos.'),
+  p('QUESTIONARIO_LER', 'Conteúdo', 'Questionários', 'Consultar: questionários de atualização e de anamnese.'),
+  p('QUESTIONARIO_ALTERAR', 'Conteúdo', 'Questionários', 'Criar, editar e publicar: questionários de atualização e de anamnese.'),
+  p('COMUNIDADE_MODERAR', 'Conteúdo', 'Comunidade', 'Moderar: vídeos, mural, comentários e apelidos da comunidade.'),
+  p('MARCA_ALTERAR', 'Consultoria', 'Marca', 'Criar e editar: marca.'),
+  p('EQUIPE_LER', 'Consultoria', 'Equipe', 'Consultar: equipe.'),
+  p('USUARIO_ALTERAR', 'Consultoria', 'Equipe', 'Criar e editar: membros da equipe.'),
+  p('PERFIL_ALTERAR', 'Consultoria', 'Equipe', 'Criar e editar: perfis de acesso.'),
+  p('AUDITORIA_LER', 'Consultoria', 'Auditoria', 'Consultar: auditoria.'),
+  p('CONTA_LER', 'Consultoria', 'Conta', 'Consultar: plano e cobranças.'),
+  p('FINANCEIRO_LER', 'Consultoria', 'Financeiro', 'Consultar: planos comerciais, cobranças dos alunos, painel e lançamentos.', true),
+  p('FINANCEIRO_ALTERAR', 'Consultoria', 'Financeiro', 'Criar, editar e registrar pagamento: planos comerciais, contratações, cobranças e lançamentos.', true),
+  p('WHATSAPP_ALTERAR', 'Consultoria', 'WhatsApp', 'Configurar: conexão e modelos de mensagem do WhatsApp da consultoria.', true),
+  p('VITRINE_LER', 'Consultoria', 'Vitrine', 'Consultar: itens da vitrine.'),
+  p('VITRINE_ALTERAR', 'Consultoria', 'Vitrine', 'Criar, editar, ordenar e apagar: itens da vitrine e fotos.'),
+];

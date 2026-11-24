@@ -1,6 +1,6 @@
 import type { PerfilEquipe } from '../api/equipeTipos';
-/** Espelha as dependências do catálogo da API; o servidor valida novamente. */
-const dependencias:Record<string,string[]> = {
+/** Espelha as dependências do catálogo da API (`CatalogoPermissoes.DEPENDENCIAS`, conferido em `perfilEquipe.test.ts`); o servidor valida novamente. */
+export const DEPENDENCIAS_DE_PERMISSAO:Readonly<Record<string,readonly string[]>> = {
   ALUNO_ALTERAR:['ALUNO_LER'],ALUNO_CONVITE:['ALUNO_LER'],ALUNO_SENSIVEL_LER:['ALUNO_LER'],
   ALUNO_SENSIVEL_ALTERAR:['ALUNO_SENSIVEL_LER'],PASTA_ALTERAR:['ALUNO_LER'],INSCRICAO_ALTERAR:['INSCRICAO_LER'],REGISTRO_REAGIR:['REGISTRO_LER'],
   AGENDA_LER:['ALUNO_LER'],AGENDA_ALTERAR:['AGENDA_LER'],
@@ -9,11 +9,12 @@ const dependencias:Record<string,string[]> = {
   DIETA_ALTERAR:['DIETA_LER'],DIETA_PUBLICAR:['DIETA_LER','DIETA_ALTERAR'],
   ATUALIZACAO_LER:['ALUNO_SENSIVEL_LER'],ATUALIZACAO_RESPONDER:['ATUALIZACAO_LER'],
   ANAMNESE_LER:['ALUNO_SENSIVEL_LER'],ANAMNESE_ALTERAR:['ANAMNESE_LER'],
-  BIBLIOTECA_ALTERAR:['BIBLIOTECA_LER'],MODELO_ALTERAR:['MODELO_LER'],MODELO_APLICAR:['MODELO_LER'],QUESTIONARIO_ALTERAR:['QUESTIONARIO_LER'],
+  BIBLIOTECA_ALTERAR:['BIBLIOTECA_LER'],ERGOGENICO_LER:['BIBLIOTECA_LER'],ERGOGENICO_ALTERAR:['ERGOGENICO_LER'],MODELO_ALTERAR:['MODELO_LER'],MODELO_APLICAR:['MODELO_LER'],QUESTIONARIO_ALTERAR:['QUESTIONARIO_LER'],
   USUARIO_ALTERAR:['EQUIPE_LER'],PERFIL_ALTERAR:['EQUIPE_LER'],
   FINANCEIRO_LER:['ALUNO_LER'],FINANCEIRO_ALTERAR:['FINANCEIRO_LER'],
   VITRINE_ALTERAR:['VITRINE_LER'],
 };
+const dependencias=DEPENDENCIAS_DE_PERMISSAO;
 export function completarPermissoes(codigos:readonly string[]):string[] {
   const conjunto=new Set(codigos);
   for(const codigo of conjunto) for(const exigida of dependencias[codigo]??[]) conjunto.add(exigida);
@@ -25,6 +26,8 @@ export function desmarcarPermissoes(atuais:readonly string[],remover:readonly st
   while(mudou){mudou=false;for(const codigo of conjunto) if((dependencias[codigo]??[]).some(c=>!conjunto.has(c))){conjunto.delete(codigo);mudou=true;}}
   return [...conjunto];
 }
+/** Permissões marcadas que precisam diretamente de `codigo` (enquanto houver alguma, ele fica marcado e travado). */
+export const exigidaPor=(codigo:string,marcadas:ReadonlySet<string>)=>[...marcadas].filter(c=>(dependencias[c]??[]).includes(codigo));
 
 /**
  * Teto de permissões, só para apresentação (espelha `EquipeService` da API, que decide de verdade):
