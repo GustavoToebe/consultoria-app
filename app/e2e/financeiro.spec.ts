@@ -696,7 +696,7 @@ for (const largura of [390, 1280]) {
     const estado = estadoFinanceiro({ contratacoes: [{ ...COM_MINIMO }], cobrancas: [] });
     const { pedidos, errosDaPagina } = await fichaComFinanceiro(page, estado);
     await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
-    await expect(page.getByText('Tempo mínimo até 05/02/2027')).toBeVisible();
+    await expect(page.getByLabel('Tempo mínimo: Até 05/02/2027', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Alterar', exact: true }).click();
     const folha = page.getByRole('dialog', { name: 'Alterar contratação' });
@@ -707,13 +707,13 @@ for (const largura of [390, 1280]) {
     await expect(folha.getByText('O fim do mínimo vai de 05/08/2026 até 05/08/2031.')).toBeVisible();
     expect(pedidos.filter((p) => p.metodo === 'PUT' && p.caminho.startsWith('/contratacoes/'))).toHaveLength(0);
 
-    // Em branco apaga: o PUT manda `minimoAte: null` e o cartão passa a dizer "Sem tempo mínimo".
+    // Em branco apaga: o PUT manda `minimoAte: null` e o cartão passa a dizer "Tempo mínimo: Nenhum".
     await campo.fill('');
     await folha.getByRole('button', { name: 'Salvar contratação' }).click();
     await expect(page.getByText('Contratação alterada.')).toBeVisible();
     expect(pedidos.find((p) => p.metodo === 'PUT' && p.caminho === `/contratacoes/${COM_MINIMO.id}`)?.corpo)
       .toEqual({ valorCentavos: 15_000, motivoValor: null, diaVencimento: 5, minimoAte: null, versao: 0 });
-    await expect(page.getByText('Sem tempo mínimo')).toBeVisible();
+    await expect(page.getByLabel('Tempo mínimo: Nenhum', { exact: true })).toBeVisible();
     expect(errosDaPagina).toEqual([]);
   });
 }

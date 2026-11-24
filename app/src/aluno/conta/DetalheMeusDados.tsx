@@ -17,13 +17,13 @@ import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
-import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposDeEndereco } from '../../ui/CamposDeEndereco';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { codigoApi, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
+import { LinhaDeDado, ListaDeDados } from '../../ui/ListaDeDados';
 import { Texto } from '../../ui/Texto';
 import { avisarQueOSexoMudou } from '../versaoDoSexo';
 import type { Carga } from './tipos';
@@ -36,7 +36,7 @@ const RECARREGAM = new Set([CPF_SO_PELO_TREINADOR, ALUNO_ANONIMIZADO]);
 
 /**
  * Detalhe "Meus dados" da Conta (23/11; antes o cartão `CartaoMeusDados`): lê primeiro (nome e e-mail só leitura, com quem
- * muda) e, em "Editar", telefone, sexo, CPF (só se vazio) e endereço com a busca de CEP. O CPF aparece mascarado, com
+ * muda) numa `ListaDeDados` (24/11) e, em "Editar", telefone, sexo, CPF (só se vazio) e endereço com a busca de CEP. O CPF aparece mascarado, com
  * "Mostrar CPF". O rodapé da folha segue a barra de salvar do app ("Tudo salvo" / "Alterações não salvas", Cancelar e
  * Salvar); fechar com alteração pergunta "Sair sem salvar?". Só com internet; nada fica no aparelho. Versão velha (409)
  * recarrega e avisa sem cor de erro. Salvar outro sexo avisa o ciclo, que consulta de novo.
@@ -111,13 +111,10 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
   };
   const erroDoEndereco = Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, locais.endereco[c] ?? doServidor.endereco[c]]));
   const cpf = resp?.cpf?.trim() ? resp.cpf : null;
-  const leituraDoCpf = (
-    <View style={estilos.cpf}>
-      <View style={estilos.flex}>
-        <CampoLeitura rotulo="CPF" valor={cpf ? (verCpf ? cpf : cpfMascarado(cpf)) : NAO_INFORMADO} numerico />
-      </View>
-      {cpf ? <Botao rotulo={verCpf ? 'Esconder CPF' : 'Mostrar CPF'} tipo="fantasma" aoTocar={() => setVerCpf((v) => !v)} /> : null}
-    </View>
+  // Linha do CPF (leitura e edição sem CPF editável): mascarado, com "Mostrar CPF" na coluna de ações.
+  const linhaDoCpf = (
+    <LinhaDeDado rotulo="CPF" valor={cpf ? (verCpf ? cpf : cpfMascarado(cpf)) : null} vazio={NAO_INFORMADO} numerico
+      acoes={cpf ? <Botao rotulo={verCpf ? 'Esconder CPF' : 'Mostrar CPF'} tipo="fantasma" aoTocar={() => setVerCpf((v) => !v)} /> : undefined} />
   );
 
   return (
@@ -142,19 +139,19 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
                       keyboardType="number-pad" inputMode="numeric" maxLength={14} numerico ajuda="Depois de salvo, só o seu treinador pode mudar." />
                   ) : (
                     <View style={estilos.campo}>
-                      {leituraDoCpf}
+                      <ListaDeDados>{linhaDoCpf}</ListaDeDados>
                       <Texto variante="pequeno">{TEXTO_SO_LEITURA}</Texto>
                     </View>
                   )}
                   <CamposDeEndereco valor={form.endereco} aoMudar={(endereco) => mudar({ endereco })} erros={erroDoEndereco} desabilitado={salvando} />
                 </>
               ) : (
-                <>
-                  <CampoLeitura rotulo="Telefone" valor={resp.telefone} numerico />
-                  <CampoLeitura rotulo="Sexo" valor={rotuloDoSexo(resp.sexo)} />
-                  {leituraDoCpf}
-                  <CampoLeitura rotulo="Endereço" valor={enderecoParaLeitura(resp.endereco)} />
-                </>
+                <ListaDeDados>
+                  <LinhaDeDado rotulo="Telefone" valor={resp.telefone} numerico />
+                  <LinhaDeDado rotulo="Sexo" valor={rotuloDoSexo(resp.sexo)} />
+                  {linhaDoCpf}
+                  <LinhaDeDado rotulo="Endereço" valor={enderecoParaLeitura(resp.endereco)} />
+                </ListaDeDados>
               )}
             </View>
           </>
@@ -169,12 +166,15 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
 function SoLeitura({ resp }: { resp: MeusDadosResponse }) {
   const email = emailParaLeitura(resp);
   return (
-    <View style={estilos.bloco}>
-      <CampoLeitura rotulo="Nome" valor={resp.nome} />
-      <CampoLeitura rotulo={email.rotulo} valor={email.valor} />
-      <Texto variante="pequeno">{TEXTO_SO_LEITURA}</Texto>
-      {email.nota ? <Texto variante="pequeno">{email.nota}</Texto> : null}
-    </View>
+    <ListaDeDados>
+      <LinhaDeDado rotulo="Nome" valor={resp.nome} />
+      <LinhaDeDado rotulo={email.rotulo} valor={email.valor} nota={(
+        <>
+          <Texto variante="pequeno">{TEXTO_SO_LEITURA}</Texto>
+          {email.nota ? <Texto variante="pequeno">{email.nota}</Texto> : null}
+        </>
+      )} />
+    </ListaDeDados>
   );
 }
 
@@ -183,7 +183,5 @@ const estilos = StyleSheet.create({
   // Linha fina entre o que só o treinador muda e o que o aluno muda.
   divisoria: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: espaco(2) },
   campo: { gap: espaco(0.5) },
-  cpf: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
-  flex: { flex: 1, minWidth: 160 },
   status: { minHeight: 44, justifyContent: 'center' },
 });

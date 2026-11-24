@@ -1,12 +1,12 @@
 import * as Clipboard from 'expo-clipboard';
 import { Copy } from 'lucide-react-native';
 import { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { definirAcessoDoAluno, gerarConvite } from '../api/rotas';
 import type { AlunoDetalhe, ConviteGerado } from '../api/tipos';
 import { seloDoAcesso } from '../dominio/cadastroDoAluno';
-import { ultimoAcessoNaFicha } from '../dominio/fichaDados';
+import { ultimoLoginNaLinha } from '../dominio/acessoAoApp';
 import { dataHoraParaTela } from '../dominio/formatos';
 import { gerarSenhaProvisoria } from '../dominio/senhaProvisoria';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -18,8 +18,10 @@ import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
+import { IconeBotao } from '../ui/IconeBotao';
 import { codigoApi, errosPorCampo, textoDoErro } from '../ui/erros';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
+import { LinhaDeDado, ListaDeDados } from '../ui/ListaDeDados';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
@@ -28,9 +30,10 @@ import { Texto } from '../ui/Texto';
  * Acesso do aluno ao app. Sem conta: gera o convite (código de 10 letras e link, válidos por 7 dias; gerar outro
  * invalida o anterior) ou o treinador define e-mail e senha provisória. Com conta: "Definir nova senha" troca a senha
  * (e o e-mail de login, se mudou) e encerra as sessões do aluno. A senha provisória o aluno troca no primeiro login; ela
- * e o código do convite só aparecem nesta tela, uma vez. Cartão próprio e compacto (Ficha › Dados, 23/11): o selo e a
- * frase "Entra com <e-mail>" numa linha, o último login embaixo (`dominio/fichaDados.ultimoAcessoNaFicha`) e as ações no
- * cabeçalho.
+ * e o código do convite só aparecem nesta tela, uma vez. Desde 24/11 (`docs/planos/ficha-acesso-ao-app.md`) é uma
+ * `ListaDeDados` (Situação, Convite só sem conta, E-mail de acesso, Último login de `dominio/acessoAoApp`, Senha) com as
+ * ações na coluna da direita, todas secundárias; o cabeçalho fica só com o título. Ações só com `ALUNO_CONVITE` e aluno
+ * ativo e não anonimizado.
  */
 export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (aluno: AlunoDetalhe) => void }) {
   const { avisar } = useAviso();
@@ -75,51 +78,38 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
   const selo = seloDoAcesso(aluno);
   // Inativo ou anonimizado: o acesso não muda daqui (reativar primeiro).
   const podeAgir = aluno.ativo && !aluno.anonimizado;
-  const mostrarAcoes = podeAgir && !definindo;
-  const conviteAnterior = !convite && aluno.conviteExpiraEm;
-
-  let explicacao: string;
-  if (!aluno.temAcesso) {
-    explicacao = conviteAnterior
-      ? `Há um convite válido até ${dataHoraParaTela(aluno.conviteExpiraEm)}. Gerar outro invalida o anterior.`
-      : 'Gere um convite para o aluno criar a conta dele no app ou defina você o e-mail e uma senha provisória.';
-  } else if (aluno.aguardandoPrimeiroAcesso) {
-    explicacao = aluno.emailDeAcesso
-      ? `O aluno entra com ${aluno.emailDeAcesso} e a senha provisória e cria a senha dele.`
-      : 'O aluno entra com a senha provisória e cria a senha dele.';
-  } else {
-    explicacao = aluno.emailDeAcesso ? `Entra com ${aluno.emailDeAcesso}.` : 'O aluno já criou a conta e entra com o e-mail e a senha dele.';
-  }
-
+  // Com o formulário aberto as ações das linhas saem (ele diz o que fazer); voltam ao salvar ou cancelar.
+  const comAcoes = podeAgir && !definindo && pode('ALUNO_CONVITE');
+  const validoAte = convite?.expiraEm ?? aluno.conviteExpiraEm ?? null;
+  const conviteAnterior = !convite && !!aluno.conviteExpiraEm;
   const rotuloDaSenha = aluno.temAcesso ? (aluno.aguardandoPrimeiroAcesso ? 'Definir outra senha' : 'Definir nova senha') : 'Definir e-mail e senha';
-  const ultimo = ultimoAcessoNaFicha(aluno.ultimoAcesso);
-  // Sem conta, o convite é o caminho em destaque e "Definir e-mail e senha" a alternativa, ao lado (duas ações: cabem no
-  // cabeçalho sem o ⋯); com conta, só a senha. Abertos o formulário, o convite ou a senha, as ações saem do cabeçalho.
-  const acoes = mostrarAcoes && pode('ALUNO_CONVITE') ? (
-    aluno.temAcesso ? <Botao rotulo={rotuloDaSenha} tipo="secundario" aoTocar={abrirForm} /> : (
-      <View style={estilos.caminhos}>
-        <Botao
-          rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'}
-          tipo={convite ? 'secundario' : 'primario'}
-          carregando={gerando}
-          aoTocar={() => (convite || conviteAnterior ? setConfirmar(true) : gerar())}
-        />
-        <Botao rotulo={rotuloDaSenha} tipo="secundario" aoTocar={abrirForm} />
-      </View>
-    )
-  ) : undefined;
+  const ultimo = ultimoLoginNaLinha(aluno.ultimoAcesso);
+  const email = aluno.emailDeAcesso?.trim() || null;
   return (
-    // Cartão compacto (23/11): situação e "Entra com <e-mail>" numa linha, o último login embaixo e as ações no cabeçalho.
-    // O rótulo do bloco envolve o cartão inteiro (cabeçalho incluído): é por ele que o "Abrir acesso ao app" do Resumo chega.
+    // Lista de dados (24/11): Situação, Convite (só sem conta), E-mail de acesso, Último login e Senha, com as ações na
+    // coluna da direita. O rótulo do bloco envolve o cartão inteiro: é por ele que o "Abrir acesso ao app" do Resumo chega.
     <View accessibilityLabel="Acesso ao app">
-      <Cartao titulo="Acesso ao app" acoes={acoes}>
+      <Cartao titulo="Acesso ao app">
         <View style={estilos.bloco}>
-          <View style={estilos.linhaDoSelo}>
-            <View accessibilityLabel={`Acesso ao app: ${selo.texto}`}><Selo texto={selo.texto} tipo={selo.tipo} /></View>
-            {/* Com a senha ou o convite na tela, eles dizem o que fazer; a frase de sempre volta depois. */}
-            {definido || convite ? null : <Texto variante="suave" style={estilos.explicacao}>{explicacao}</Texto>}
-          </View>
-          {ultimo ? <UltimoAcesso texto={ultimo.texto} exata={ultimo.exata} /> : null}
+          <ListaDeDados>
+            <LinhaDeDado rotulo="Situação" valor={selo.texto} conteudo={<View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} /></View>}
+              nota={!aluno.temAcesso && comAcoes && !convite ? 'Gere um convite para o aluno criar a conta ou defina você o e-mail e uma senha provisória.' : undefined} />
+            {!aluno.temAcesso ? (
+              <LinhaDeDado rotulo="Convite" valor={validoAte ? `Válido até ${dataHoraParaTela(validoAte)}` : null} numerico
+                acoes={comAcoes ? (
+                  <Botao rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'} tipo="secundario" carregando={gerando}
+                    aoTocar={() => (convite || conviteAnterior ? setConfirmar(true) : gerar())} />
+                ) : undefined} />
+            ) : null}
+            <LinhaDeDado rotulo="E-mail de acesso" valor={email}
+              acoes={email ? <IconeBotao Icone={Copy} moldura rotulo="Copiar e-mail de acesso" aoTocar={() => copiar(email, 'E-mail')} /> : undefined} />
+            <LinhaDeDado rotulo={ultimo.rotulo} valor={ultimo.texto} numerico dica={ultimo.exata ?? undefined} />
+            {/* Os pontos são só desenho: o leitor de tela ouve se a senha é a do aluno ou a provisória. */}
+            <LinhaDeDado rotulo="Senha" valor={aluno.temAcesso ? (aluno.aguardandoPrimeiroAcesso ? 'provisória' : 'definida') : null}
+              conteudo={<Texto aria-hidden>••••••</Texto>}
+              nota={aluno.aguardandoPrimeiroAcesso ? 'Provisória: o aluno cria a dele no primeiro login.' : undefined}
+              acoes={comAcoes ? <Botao rotulo={rotuloDaSenha} tipo="secundario" aoTocar={abrirForm} /> : undefined} />
+          </ListaDeDados>
           {definido ? (
             <View style={estilos.convite}>
               <Texto variante="suave">Passe ao aluno o e-mail e esta senha. Ela não aparece de novo.</Texto>
@@ -163,21 +153,6 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
         aoConfirmar={gerar}
         aoCancelar={() => setConfirmar(false)}
       />
-    </View>
-  );
-}
-
-/**
- * "Último login: há 2 dias" em texto suave; a data exata vai na dica do mouse (na web, o `title` direto no elemento: o
- * react-native-web não o repassa) e no nome acessível, porque o hover não pode ser o único caminho até ela.
- */
-function UltimoAcesso({ texto, exata }: { texto: string; exata: string }) {
-  const comDica = (el: View | null) => {
-    if (Platform.OS === 'web' && el && 'setAttribute' in el && typeof el.setAttribute === 'function') el.setAttribute('title', exata);
-  };
-  return (
-    <View ref={comDica} accessibilityLabel={`${texto} (${exata})`} style={estilos.ultimo}>
-      <Texto variante="pequeno">{texto}</Texto>
     </View>
   );
 }
@@ -269,10 +244,8 @@ function Destaque({ rotulo, texto, aoCopiar, grande }: { rotulo: string; texto: 
 
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1.5) },
-  linhaDoSelo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: espaco(0.5) },
-  explicacao: { flexShrink: 1, minWidth: 0 },
-  ultimo: { alignSelf: 'flex-start' },
-  caminhos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
+  // O selo não estica na largura do valor.
+  selo: { flexDirection: 'row' },
   convite: { gap: espaco(1.5) },
   form: { gap: espaco(1.5) },
   destaque: {

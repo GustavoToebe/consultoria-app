@@ -95,6 +95,9 @@ for (const largura of [390, 1280]) {
 
       await inicio.fill('05/03/2025');
       await expect(salvar).toBeEnabled();
+      // O Fim só existe com a situação Recuperada (ficha: folha de lesão, 24/11).
+      await expect(fim).toHaveCount(0);
+      await folha.getByRole('radio', { name: 'Recuperada' }).click();
       await fim.fill('20/10/2026');
       await expect(folha.getByText(`Fim da lesão: ${FAIXA_DE_REGISTRO}`)).toBeVisible();
       await expect(salvar).toBeDisabled();
@@ -106,7 +109,7 @@ for (const largura of [390, 1280]) {
       await expect(folha).toHaveCount(0);
       const envios = pedidos.filter((p) => p.metodo === 'POST' && p.caminho === `/alunos/${ALUNO_ID}/lesoes`);
       expect(envios).toHaveLength(1);
-      expect(envios[0].corpo).toMatchObject({ regiao: 'Ombro direito', dataInicio: '2025-03-05', dataFim: '2026-10-19' });
+      expect(envios[0].corpo).toMatchObject({ regiao: 'Ombro direito', dataInicio: '2025-03-05', dataFim: '2026-10-19', situacao: 'RECUPERADA' });
       expect(errosDaPagina).toEqual([]);
     });
 

@@ -381,7 +381,7 @@ for (const largura of [390, 1280]) {
       await expect(folha).toHaveCount(0);
       await expect(page.getByText(`Aluno está no grupo ${POD_A.nome}.`)).toBeVisible();
       // A ficha passa a mostrar o grupo novo.
-      await expect(page.getByText(`Grupo: ${POD_A.nome}`, { exact: true })).toBeVisible();
+      await expect(page.getByLabel(`Grupo da comunidade: ${POD_A.nome}`, { exact: true })).toBeVisible();
       expect(api.pedidos.filter((p) => foi(p, 'PUT', `/alunos/${ALUNO_ID}/pod`)).map((p) => p.corpo)).toEqual([{ podId: POD_B.id }, { podId: POD_A.id }]);
 
       // Reabre no grupo novo; "Sem grupo" manda null e a ficha volta a "Sem grupo".
@@ -401,8 +401,8 @@ for (const largura of [390, 1280]) {
       const CHEIO_OUTRO: PodResumo = { ...POD_B, membros: 12 };
       const api = await abrirFicha(page, { 'GET /comunidade/pods': { corpo: [CHEIO_ATUAL, CHEIO_OUTRO] } },
         { ...FICHA, podId: POD_A.id, podNome: POD_A.nome });
-      await page.getByText(`Grupo: ${POD_A.nome}`, { exact: true }).scrollIntoViewIfNeeded();
-      await expect(page.getByText(`Grupo: ${POD_A.nome}`, { exact: true })).toBeVisible();
+      await page.getByLabel(`Grupo da comunidade: ${POD_A.nome}`, { exact: true }).scrollIntoViewIfNeeded();
+      await expect(page.getByLabel(`Grupo da comunidade: ${POD_A.nome}`, { exact: true })).toBeVisible();
       await capturar(page, `ficha-linha-do-grupo-${largura}`);
       await page.getByRole('button', { name: 'Mudar grupo' }).click();
       const folha = page.getByRole('dialog', { name: 'Grupo da comunidade' });

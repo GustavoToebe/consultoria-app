@@ -175,7 +175,7 @@ for (const largura of [390, 1280]) {
 test('sem telefone nem e-mail, os botões de contato não aparecem', async ({ page }) => {
   await abrir(page, { url: `/treinador/alunos/${ALUNO_ID}?aba=ficha`, ficha: { ...FICHA, telefone: null, email: null } });
   await expect(page.getByRole('heading', { name: 'Contato e endereço', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^(Copiar|Abrir WhatsApp)/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: new RegExp(`^(Copiar (telefone|e-mail) de ${ALUNO.nome}|Abrir WhatsApp)`) })).toHaveCount(0);
 });
 
 for (const largura of [390, 1280]) {

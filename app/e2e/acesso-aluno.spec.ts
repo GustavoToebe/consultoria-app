@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { AlunoDetalhe } from '../src/api/tipos';
 import { ALUNO, erroApi, json, sessao, simularApi, TREINADOR } from './api-falsa';
+import { fixarHoje } from './aluno';
 
 /** Cartão "Acesso ao app": o treinador define e-mail e senha provisória. Só dados fictícios. */
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
@@ -34,8 +35,8 @@ test('Resumo de quem não entra no app: "Abrir acesso ao app" leva ao bloco do a
   await expect(page).not.toHaveURL(/secao=/);
   const acesso = acessoDoAluno(page);
   await expect(acesso).toBeInViewport();
-  // O convite continua em destaque e a senha é a alternativa, ao lado, no cabeçalho do cartão; nada foi enviado.
-  // ficha do aluno: dados (23/11): sem o "ou" entre os dois botões.
+  // ficha: acesso ao app (24/11): o convite na linha Convite e o e-mail e senha na linha Senha; nada foi enviado.
+  await expect(acesso.getByLabel('Convite: —')).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Gerar convite' })).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Definir e-mail e senha' })).toBeVisible();
   expect(pedidos.filter((p) => p.metodo !== 'GET' && p.caminho !== '/auth/refresh')).toEqual([]);
@@ -62,7 +63,7 @@ test('aluno sem conta: define e-mail e senha gerada, mostra o e-mail em uso no c
   await acesso.getByRole('button', { name: 'Definir e-mail e senha' }).click();
 
   // O e-mail começa com o do cadastro; senha curta não sai.
-  const email = page.getByLabel('E-mail de acesso');
+  const email = page.getByRole('textbox', { name: 'E-mail de acesso' });
   await expect(email).toHaveValue(ALUNO.email);
   await page.getByLabel('Senha provisória').fill('curta');
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
@@ -79,11 +80,12 @@ test('aluno sem conta: define e-mail e senha gerada, mostra o e-mail em uso no c
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(page.getByText('Passe ao aluno o e-mail e esta senha. Ela não aparece de novo.')).toBeVisible();
   await expect(acesso.getByText(senha, { exact: true })).toBeVisible();
-  // ficha do aluno: dados (23/11): o "Usuário no app" repetido saiu; o e-mail aparece uma vez, no destaque da senha.
-  await expect(acesso.getByText(EMAIL_LOGIN, { exact: true })).toBeVisible();
+  // ficha: acesso ao app (24/11): o e-mail na linha "E-mail de acesso" e no destaque da senha; o "Usuário no app" saiu.
+  await expect(acesso.getByText(EMAIL_LOGIN, { exact: true })).toHaveCount(2);
+  await expect(acesso.getByLabel(`E-mail de acesso: ${EMAIL_LOGIN}`)).toBeVisible();
   await expect(acesso.getByText('Usuário no app')).toHaveCount(0);
   await expect(acesso.getByText('Aguardando primeiro acesso', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Acesso ao app: Aguardando primeiro acesso')).toBeVisible();
+  await expect(acesso.getByLabel('Situação: Aguardando primeiro acesso')).toBeVisible();
   const envios = pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === `/alunos/${ALUNO_ID}/acesso`);
   expect(envios).toHaveLength(2);
   expect(envios[1].corpo).toEqual({ email: EMAIL_LOGIN, senha });
@@ -103,7 +105,10 @@ test('aluno com conta: "Definir nova senha" confirma que as sessões serão ence
   await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   const acesso = acessoDoAluno(page);
   await expect(acesso.getByText('Com acesso', { exact: true })).toBeVisible();
-  await expect(acesso.getByText(`Entra com ${ALUNO.email}.`)).toBeVisible();
+  // ficha: acesso ao app (24/11): sem a frase "Entra com"; o e-mail na própria linha, com o copiar.
+  await expect(acesso.getByText(/Entra com/)).toHaveCount(0);
+  await expect(acesso.getByLabel(`E-mail de acesso: ${ALUNO.email}`)).toBeVisible();
+  await expect(acesso.getByRole('button', { name: 'Copiar e-mail de acesso' })).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Gerar convite' })).toHaveCount(0);
   await acesso.getByRole('button', { name: 'Definir nova senha' }).click();
   await page.getByLabel('Senha provisória').fill('provisoria-123');
@@ -133,7 +138,8 @@ test('cartão de lesões vazio segue o formato dos outros cartões da ficha', as
   await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   const cartaoDe = (nome: string) => page.getByRole('heading', { name: nome }).locator('xpath=ancestor::div[3]');
   const lesoes = cartaoDe('Histórico de lesões');
-  const peso = cartaoDe('Anamnese');
+  // ficha: colunas independentes (24/11): o histórico fica na coluna da esquerda, com a mesma largura do Contato.
+  const peso = cartaoDe('Contato e endereço');
   // ficha do aluno: dados (23/11): sem a descrição fixa; a contagem só existe com lesões.
   await expect(lesoes.getByText('Nenhuma lesão registrada.')).toBeVisible();
   await expect(lesoes.getByRole('button', { name: 'Registrar lesão' })).toBeVisible();
@@ -155,7 +161,8 @@ test('aluno aguardando o primeiro acesso: "Definir outra senha"; inativo não mo
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   const acesso = acessoDoAluno(page);
-  await expect(acesso.getByText(`O aluno entra com ${ALUNO.email} e a senha provisória e cria a senha dele.`)).toBeVisible();
+  await expect(acesso.getByText('Provisória: o aluno cria a dele no primeiro login.', { exact: true })).toBeVisible();
+  await expect(acesso.getByLabel('Senha: provisória')).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Definir outra senha' })).toBeVisible();
 
   ficha = { ...SEM_CONTA, ativo: false };
@@ -164,3 +171,39 @@ test('aluno aguardando o primeiro acesso: "Definir outra senha"; inativo não mo
   await expect(page.getByRole('button', { name: 'Definir e-mail e senha' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Gerar convite' })).toHaveCount(0);
 });
+
+// ficha: acesso ao app (24/11): lista de dados com o cabeçalho só com o título, o último login relativo em Brasília e "—"
+// para quem nunca entrou; sem conta, o convite e o e-mail e senha ficam nas linhas Convite e Senha.
+for (const largura of [390, 1280]) {
+  test(`${largura}px: acesso em lista: "Ontem, 18:38" com a data completa, "—" sem login e as ações nas linhas`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    await fixarHoje(page);
+    let ficha: AlunoDetalhe = { ...COM_CONTA, ultimoAcesso: { tipo: 'LOGIN', em: '2026-10-18T21:38:00Z' } };
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR)),
+      ...ROTAS_DA_FICHA,
+      [`GET /alunos/${ALUNO_ID}`]: (_p, route) => json(route, ficha),
+    });
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+    const acesso = acessoDoAluno(page);
+    await expect(acesso.getByLabel('Último login: Ontem, 18:38 (18/10/2026 às 18:38)', { exact: true })).toBeVisible();
+    await expect(acesso.getByText('Ontem, ', { exact: false })).toBeVisible();
+    // O cabeçalho do cartão só tem o título: a única ação de senha é a da linha Senha.
+    await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toHaveCount(1);
+    const senha = (await acesso.getByLabel('Senha: definida', { exact: true }).boundingBox())!;
+    const botao = (await acesso.getByRole('button', { name: 'Definir nova senha' }).boundingBox())!;
+    expect(Math.abs((senha.y + senha.height / 2) - (botao.y + botao.height / 2))).toBeLessThan(24);
+    expect(botao.x).toBeGreaterThan(senha.x);
+
+    ficha = { ...SEM_CONTA, conviteExpiraEm: '2026-10-25T15:00:00Z' };
+    await page.reload();
+    await expect(acesso.getByLabel('Situação: Sem acesso', { exact: true })).toBeVisible();
+    await expect(acesso.getByLabel('Último login: —', { exact: true })).toBeVisible();
+    await expect(acesso.getByLabel('E-mail de acesso: —', { exact: true })).toBeVisible();
+    await expect(acesso.getByLabel('Convite: Válido até 25/10/2026 12:00', { exact: true })).toBeVisible();
+    await expect(acesso.getByRole('button', { name: 'Gerar outro convite' })).toBeVisible();
+    await expect(acesso.getByRole('button', { name: 'Definir e-mail e senha' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(errosDaPagina).toEqual([]);
+  });
+}

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, BORDA_BLOCO, espaco, RAIO } from '../tema/tokens';
 import { sobre } from './sobre';
+import { superficiePintada } from './superficiePintada';
 import { Texto } from './Texto';
 
 export interface ColunaDaTabela<T> {
@@ -50,6 +51,13 @@ interface Props<T> {
   alinharLinhas?: 'centro' | 'topo';
   /** Teto opcional de largura da tabela em telas largas/ultralargas (no modo empilhado não limita). */
   larguraMaxima?: number;
+  /**
+   * Linha que pede atenção (a lesão ativa): fundo e fio tingidos de `atencao` (`ui/superficiePintada`, liso). Na tabela
+   * larga o fio é o das divisórias (nunca borda lateral nem a de baixo da última: quem fecha a tabela é a caixa, que
+   * também recorta o fundo pelo raio); no cartão empilhado, a borda do próprio cartão. O sinal nunca vai só na cor: o
+   * registro também diz o motivo em texto (o selo "Ativa").
+   */
+  tingida?: (linha: T) => boolean;
 }
 
 /** Largura em que a tabela ainda cabe em colunas; abaixo disso vira cartões. */
@@ -60,8 +68,8 @@ export const LARGURA_TABELA = 520;
  * empilhados no celular, cada um com os pares "rótulo: valor" (nenhuma coluna some, nada rola na horizontal). A
  * coluna `principal` é o título do cartão e a coluna `acao` fica no canto dele.
  */
-export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABELA, detalhe, rotulo, aoTocarLinha, rotuloDaLinha, inicio, vao, alinharLinhas, larguraMaxima }: Props<T>) {
-  const { cores, bordas } = useTema();
+export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABELA, detalhe, rotulo, aoTocarLinha, rotuloDaLinha, inicio, vao, alinharLinhas, larguraMaxima, tingida }: Props<T>) {
+  const { cores, bordas, variante } = useTema();
   const [largura, setLargura] = useState<number | null>(null);
   const empilhada = largura !== null && largura < larguraMinima;
   const espacoDasColunas = vao === undefined ? null : { gap: vao };
@@ -72,6 +80,13 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
   const principal = colunas.find((c) => c.principal);
   const acao = colunas.find((c) => c.acao);
   const pares = colunas.filter((c) => !c.principal && !c.acao);
+  // Tinta de `atencao` sobre `superficie` na tabela larga (a caixa do cartão) e sobre `superficie2` no cartão empilhado.
+  const tinta = (l: T, base: 'superficie' | 'superficie2') => {
+    if (!tingida?.(l)) return null;
+    const p = superficiePintada(cores.atencao, cores[base], variante, cores);
+    return { fundo: p.forte, borda: p.borda };
+  };
+  const topo = alinharLinhas === 'topo';
   return (
     <View
       accessibilityRole={empilhada ? 'list' : undefined}
@@ -83,7 +98,10 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
         linhas.map((l) => (
           <ComInicio key={chave(l)} inicio={inicio?.(l)} estilo={estilos.cartaoComInicio}>
             <Toque linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha}
-              style={(ativo) => [estilos.cartao, inicio ? estilos.resto : null, { backgroundColor: ativo ? cores.sobre : cores.superficie2, borderColor: cores.divisor }]}>
+              style={(ativo) => {
+                const t = tinta(l, 'superficie2');
+                return [estilos.cartao, inicio ? estilos.resto : null, t ? { backgroundColor: t.fundo, borderColor: t.borda } : { backgroundColor: ativo ? cores.sobre : cores.superficie2, borderColor: cores.divisor }];
+              }}>
               {principal || acao ? (
                 <View style={estilos.topoCartao}>
                   {principal ? <View style={estilos.principal}>{principal.render(l)}</View> : null}
@@ -115,13 +133,20 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
             ))}
           </View>
           {linhas.map((l, i) => {
-            const divisoria = i < linhas.length - 1 && { borderColor: cores.divisor, borderBottomWidth: 1 };
+            // Um fio só entre duas linhas (o de baixo da de cima), na cor da tinta se qualquer das duas é tingida: a linha
+            // tingida não leva borda própria, que dobraria a da caixa nas laterais e embaixo.
+            const t = tinta(l, 'superficie');
+            const entreTingidas = tingida?.(l) || (i < linhas.length - 1 && tingida?.(linhas[i + 1]));
+            const divisoria = i < linhas.length - 1 && {
+              borderColor: entreTingidas ? superficiePintada(cores.atencao, cores.superficie, variante, cores).borda : cores.divisor, borderBottomWidth: 1,
+            };
+            const fundo = t ? { backgroundColor: t.fundo } : null;
             return (
               // O `vao` também entre a caixa e a primeira coluna: no cabeçalho a célula vazia do `inicio` já leva esse vão.
-              <ComInicio key={chave(l)} inicio={inicio?.(l)} estilo={[estilos.linhaComInicio, espacoDasColunas, divisoria]} papel="row" topo={alinharLinhas === 'topo'}>
+              <ComInicio key={chave(l)} inicio={inicio?.(l)} estilo={[estilos.linhaComInicio, espacoDasColunas, divisoria, fundo]} papel="row" topo={topo}>
                 <Toque linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha} papel={inicio ? undefined : 'row'}
-                  style={(ativo) => [estilos.corpoLinha, inicio ? estilos.resto : null, ativo ? { backgroundColor: cores.sobre } : null, !inicio && divisoria]}>
-                  <View style={[estilos.linha, espacoDasColunas, alinharLinhas === 'topo' ? estilos.topo : null, inicio ? estilos.semRecuo : null]}>
+                  style={(ativo) => [estilos.corpoLinha, inicio ? estilos.resto : null, ativo && !t ? { backgroundColor: cores.sobre } : null, !inicio && divisoria, !inicio && fundo]}>
+                  <View style={[estilos.linha, espacoDasColunas, topo ? estilos.topo : null, inicio ? estilos.semRecuo : null]}>
                     {colunas.map((c) => (
                       <View key={c.chave} role="cell" style={estiloColuna(c)}>{c.render(l)}</View>
                     ))}

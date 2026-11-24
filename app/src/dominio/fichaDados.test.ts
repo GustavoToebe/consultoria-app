@@ -1,27 +1,10 @@
 import type { Lesao } from '../api/tipos';
 import {
   contagemDeLesoes, DIAS_PARA_AVISAR_VIGENCIA, lesoesNaOrdem, observacaoLonga, periodoDaLesao, repeteAPeriodicidade, seloDaLesao,
-  mostraVigencia, ultimasCobrancas, ultimoAcessoNaFicha, valorPorPeriodo, vigenciaDaContratacao,
+  mostraVigencia, ultimasCobrancas, valorPorPeriodo, vigenciaDaContratacao,
 } from './fichaDados';
 
 // ficha do aluno: dados (23/11)
-
-describe('ultimoAcessoNaFicha', () => {
-  const agora = new Date('2026-11-23T15:00:00Z');
-  it('login de dois dias atrás, no fuso de Brasília, com a data exata', () => {
-    expect(ultimoAcessoNaFicha({ tipo: 'LOGIN', em: '2026-11-21T17:30:00Z' }, agora)).toEqual({ texto: 'Último login: há 2 dias', exata: '21/11/2026 às 14:30' });
-  });
-  it('a virada do dia é a de Brasília, não a do UTC', () => {
-    // 01:00 UTC do dia 23 = 22:00 do dia 22 em Brasília: ontem.
-    expect(ultimoAcessoNaFicha({ tipo: 'LOGIN', em: '2026-11-23T01:00:00Z' }, agora)?.texto).toBe('Último login: ontem');
-  });
-  it('acesso ao app só com o tipo ACESSO; ausente, malformado ou tipo desconhecido somem', () => {
-    expect(ultimoAcessoNaFicha({ tipo: 'ACESSO', em: '2026-11-23T12:00:00Z' }, agora)?.texto).toBe('Último acesso ao app: hoje');
-    expect(ultimoAcessoNaFicha(null, agora)).toBeNull();
-    expect(ultimoAcessoNaFicha({ tipo: 'LOGIN', em: 'ontem' }, agora)).toBeNull();
-    expect(ultimoAcessoNaFicha({ tipo: 'OUTRO' as never, em: '2026-11-23T12:00:00Z' }, agora)).toBeNull();
-  });
-});
 
 describe('plano contratado', () => {
   it('valor por período; parcela única não é "por"', () => {

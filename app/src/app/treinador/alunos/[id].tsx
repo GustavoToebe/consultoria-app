@@ -27,7 +27,7 @@ import { CartaoFotos } from '../../../fotos/CartaoFotos';
 import { CartaoProgresso } from '../../../treinador/CartaoProgresso';
 import { CartaoPastas, useRenovarPasta } from '../../../treinador/CartaoPastas';
 import { CartaoAnamnese } from '../../../treinador/anamnese/CartaoAnamnese';
-import { BlocosDaFicha } from '../../../treinador/BlocosDaFicha';
+import { BlocosDaFicha, type BlocosAoLado } from '../../../treinador/BlocosDaFicha';
 import { CartaoPlanoContratado } from '../../../treinador/financeiro/CartaoPlanoContratado';
 import { DadosDoAluno } from '../../../treinador/DadosDoAluno';
 import { AcoesDePrivacidade } from '../../../treinador/privacidade/AcoesDePrivacidade';
@@ -145,7 +145,7 @@ export default function FichaAluno() {
   }, [secao, aba, alunoChegou, acessoMedido]);
   const temMenu = !!aluno &&((pode('ALUNO_ALTERAR') && !aluno.anonimizado) || pode('ALUNO_EXPORTAR') || (pode('ALUNO_ANONIMIZAR') && !aluno.ativo && !aluno.anonimizado));
 
-  const bloco = (b: BlocoDaFicha, a: AlunoDetalhe): ReactNode => {
+  const bloco = (b: BlocoDaFicha, a: AlunoDetalhe, colunas?: BlocosAoLado): ReactNode => {
     switch (b) {
       case 'pastas':
         return <CartaoPastas key={`${a.id}:${pedidoDePasta.vez}`} pastaInicialId={pedidoDePasta.id} alunoId={a.id} alunoNome={a.nome} diasAtualizacao={cicloDoAluno(a.diasAtualizacao, padrao)}
@@ -164,8 +164,9 @@ export default function FichaAluno() {
       case 'peso': return <CartaoPeso key={`${geracaoPeso}:${a.metaDoPeso ?? ''}`} alunoId={a.id} />;
       case 'avaliacaoFisica': return <CartaoAvaliacaoFisica alunoId={a.id} alunoNome={a.nome} anonimizado={a.anonimizado} />;
       case 'fotos': return <CartaoFotos alunoId={a.id} autorizadoEm={a.usoDeImagemAutorizadoEm} aoRecarregar={recarregar} />;
-      // Sem cartão em volta: as quatro seções são os cartões (dentro de um cartão vai divisor, não outro contorno).
-      case 'dadosDoAluno': return <DadosDoAluno aluno={a} padrao={padrao} aoAlterar={definir} editando={editando} aoEditar={setEditando} />;
+      // Sem cartão em volta: as quatro seções são os cartões (dentro de um cartão vai divisor, não outro contorno). Em duas
+      // colunas (24/11), os blocos de cada uma seguem as seções dela (`colunas`, do `BlocosDaFicha`).
+      case 'dadosDoAluno': return <DadosDoAluno aluno={a} padrao={padrao} aoAlterar={definir} editando={editando} aoEditar={setEditando} colunas={colunas} />;
       // Bloco próprio (guia de 11/11, pág. 34; compacto desde 23/11): situação, conta vinculada e as formas de dar o acesso.
       case 'acessoAoApp':
         return <View ref={acessoRef} nativeID="acesso-ao-app" onLayout={() => setAcessoMedido((n) => n + 1)}><CartaoAcesso aluno={a} aoAlterar={definir} /></View>;
@@ -187,8 +188,8 @@ export default function FichaAluno() {
       );
     }
     const lista = blocosDaAba(aba, contexto);
-    // Ficha › Dados (23/11): o arranjo em colunas e a ordem no celular moram no `BlocosDaFicha`.
-    if (aba === 'ficha') return <BlocosDaFicha alunoId={a.id} blocos={lista} bloco={(b) => bloco(b, a)} />;
+    // Ficha › Dados (24/11): as colunas independentes e a ordem no celular moram no `BlocosDaFicha`.
+    if (aba === 'ficha') return <BlocosDaFicha alunoId={a.id} blocos={lista} bloco={(b, colunas) => bloco(b, a, colunas)} />;
     const contagens = lista.filter((b) => CONTAGENS.includes(b));
     return (
       <>

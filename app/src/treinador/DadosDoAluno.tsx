@@ -1,6 +1,6 @@
 import { Copy, Pencil } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useState, type ComponentProps, type ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { alterarAluno, escolherQuestionarioDoAluno, opcoesDeQuestionario, responsaveisEquipe } from '../api/rotas';
@@ -14,7 +14,7 @@ import { linhaDosPlanosAtivos } from '../dominio/planosAtivos';
 import { textoDoQuestionarioEscolhido } from '../dominio/seletorQuestionario';
 import { rotuloDoSexo } from '../dominio/sexo';
 import { useSessao } from '../sessao/SessaoProvider';
-import { espaco, LARGURA_MENU_LATERAL } from '../tema/tokens';
+import { espaco } from '../tema/tokens';
 import { abrirLinkExterno } from '../ui/abrirLinkExterno';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
@@ -25,9 +25,11 @@ import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { IconeBotao } from '../ui/IconeBotao';
 import { IconeWhatsApp } from '../ui/IconeWhatsApp';
 import { LinkTexto } from '../ui/LinkTexto';
+import { LinhaDeDado, ListaDeDados, SubtituloDeDados } from '../ui/ListaDeDados';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
+import { ColunasDaFicha, type BlocosAoLado } from './BlocosDaFicha';
 import { LinhaDoCicloNaFicha } from './ciclo/CicloNaFicha';
 import { copiarTexto } from './financeiro/comum';
 import { GrupoDoAlunoNaFicha } from './comunidade/GrupoDoAlunoNaFicha';
@@ -42,15 +44,18 @@ const PADRAO = 'Padrão da consultoria';
 /**
  * Dados do aluno, no topo da aba Ficha do aluno: as quatro seções de `SECOES_DO_ALUNO`, iguais na consulta e na edição
  * (pedido do Gustavo de 12/11), em duas colunas quando cabem (1 e 2 à esquerda, 3 e 4 à direita) e numa só no celular,
- * na mesma ordem. Leitura em pares rótulo + valor; dado ausente é "Não informado" e o herdado, "Padrão da consultoria".
+ * na mesma ordem. Leitura numa `ListaDeDados` por cartão (24/11): rótulo à esquerda, valor e a coluna de ações à direita,
+ * fio entre as linhas; dado ausente é "Não informado" e o herdado, "Padrão da consultoria".
  * CPF, endereço e a seção 4 inteira só com `ALUNO_SENSIVEL_LER`: sem ela a linha ou a seção somem, sem título vazio.
  * Um único "Editar dados" abre o formulário no lugar (`FormAluno`). A edição é da ficha (`editando`): ela é um passo do
  * histórico e o `?editar=1` do lápis da lista de alunos também mora lá. No contato, copiar telefone e e-mail e abrir o
  * WhatsApp (`BotoesDeContato`), só com valor. Tags (`docs/planos/tags-de-aluno.md`, D10) na Configuração do acompanhamento,
  * logo depois do questionário e no mesmo padrão dele: na leitura, os chips; na edição, o `CampoDeTags`, que grava na hora.
  */
-export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar }: {
+export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar, colunas }: {
   aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void; editando: boolean; aoEditar: (editando: boolean) => void;
+  /** Os blocos da aba que seguem cada coluna (Ficha › Dados em duas colunas, `BlocosDaFicha`). */
+  colunas?: BlocosAoLado;
 }) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
@@ -97,9 +102,10 @@ export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar }: {
             avisar('Dados salvos.', 'sucesso');
           }}
         />
-      ) : (
-        <Leitura aluno={aluno} padrao={padrao} questionario={comQuestionario ? questionarios : null} aoAlterar={aoAlterar} />
-      )}
+      ) : null}
+      {!editando || colunas ? (
+        <Leitura aluno={aluno} padrao={padrao} questionario={comQuestionario ? questionarios : null} aoAlterar={aoAlterar} editando={editando} colunas={colunas} />
+      ) : null}
       <PainelConfirmacao
         visivel={descartar}
         titulo="Descartar alterações?"
@@ -116,10 +122,11 @@ export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar }: {
 
 type Questionarios = ReturnType<typeof useCarregar<Awaited<ReturnType<typeof opcoesDeQuestionario>>>>;
 
-function Leitura({ aluno, padrao, questionario, aoAlterar }: {
+function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: {
   aluno: AlunoDetalhe; padrao: number | null; questionario: Questionarios | null; aoAlterar: (a: AlunoDetalhe) => void;
+  editando: boolean; colunas?: BlocosAoLado;
 }) {
-  const { pode } = useSessao();
+  const { pode, pagamentosHabilitados } = useSessao();
   const sensivel = pode('ALUNO_SENSIVEL_LER');
   const tags = aluno.tags ?? [];
   // Sem tags, a linha só aparece para quem pode pôr uma (com "Não informado"); quem só lê não vê linha vazia.
@@ -131,103 +138,88 @@ function Leitura({ aluno, padrao, questionario, aoAlterar }: {
   const textoDoQuestionario = !questionario ? null
     : questionario.dados ? textoDoQuestionarioEscolhido(aluno.questionarioId, questionario.dados, PADRAO)
       : !aluno.questionarioId ? PADRAO : questionario.erro ? textoDoErro(questionario.erro) : 'Carregando…';
+  const linhaDosPlanos = linhaDosPlanosAtivos(aluno.planosAtivos);
+  const comGrupo = pode('COMUNIDADE_MODERAR');
+  // A coluna de ações só existe com ação dentro (uma vazia tiraria o vão do valor).
+  const comFinanceiro = pode('FINANCEIRO_LER') && pagamentosHabilitados;
+  // Em duas colunas os cartões da aba ficam lado a lado com as seções: o mesmo nível de título, na ordem do DOM.
+  const nivel = colunas ? 2 : 3;
   return (
-    <View style={estilos.colunas}>
-      <View style={estilos.coluna}>
-        <Cartao titulo={SECOES_DO_ALUNO.identificacao} nivel={3}>
-          <Par rotulo="Nome" valor={aluno.nome} />
-          <Par rotulo="Data de nascimento" valor={dataParaTela(aluno.dataNascimento ?? null)} numerico />
-          <Par rotulo="Sexo" valor={aluno.sexo ? rotuloDoSexo(aluno.sexo) : null} />
-          {sensivel ? <Par rotulo="CPF" valor={aluno.cpf} numerico /> : null}
+    <Colunas colunas={colunas} editando={editando} esquerda={<>
+        <Cartao titulo={SECOES_DO_ALUNO.identificacao} nivel={nivel}>
+          <ListaDeDados>
+            <Par rotulo="Nome" valor={aluno.nome} />
+            <Par rotulo="Data de nascimento" valor={dataParaTela(aluno.dataNascimento ?? null)} numerico />
+            <Par rotulo="Sexo" valor={aluno.sexo ? rotuloDoSexo(aluno.sexo) : null} />
+            {sensivel ? <Par rotulo="CPF" valor={aluno.cpf} numerico /> : null}
+          </ListaDeDados>
         </Cartao>
-        <Cartao titulo={SECOES_DO_ALUNO.contato} nivel={3}>
-          <ComAcoes acoes={<BotoesDeContato tipo="email" valor={aluno.email} nome={aluno.nome} />}>
-            <Par rotulo="E-mail" valor={aluno.email} />
-          </ComAcoes>
-          <ComAcoes acoes={<BotoesDeContato tipo="telefone" valor={aluno.telefone} nome={aluno.nome} />}>
+        <Cartao titulo={SECOES_DO_ALUNO.contato} nivel={nivel}>
+          <ListaDeDados>
+            <Par rotulo="E-mail" valor={aluno.email} acoes={aluno.email?.trim() ? <BotoesDeContato tipo="email" valor={aluno.email} nome={aluno.nome} /> : undefined} />
             <Par rotulo="Telefone" valor={aluno.telefone} numerico
-              nota={!aluno.temAcesso && !aluno.anonimizado ? NOTA_TELEFONE_SEM_ACESSO : undefined} />
-          </ComAcoes>
-          {sensivel ? <Par rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} /> : null}
+              nota={!aluno.temAcesso && !aluno.anonimizado ? NOTA_TELEFONE_SEM_ACESSO : undefined}
+              acoes={aluno.telefone?.trim() ? <BotoesDeContato tipo="telefone" valor={aluno.telefone} nome={aluno.nome} /> : undefined} />
+            {sensivel ? <Par rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} /> : null}
+          </ListaDeDados>
         </Cartao>
-      </View>
-      <View style={estilos.coluna}>
-        <Cartao titulo={SECOES_DO_ALUNO.acompanhamento} nivel={3}>
-          <Par rotulo="Treinador responsável" valor={responsavel} />
-          {responsaveis.erro ? <MensagemErro texto={textoDoErro(responsaveis.erro)} tentarDeNovo={responsaveis.recarregar} /> : null}
-          <PlanosAtivos aluno={aluno} />
-          {textoDoQuestionario ? <Par rotulo="Questionário de atualização" valor={textoDoQuestionario} /> : null}
-          {comTags ? (
-            <Par rotulo="Tags" valor={nomesDasTags(tags)}
-              conteudo={tags.length ? <View style={estilos.tags}>{tags.map((t) => <ChipDeTag key={t.id} tag={t} />)}</View> : undefined} />
-          ) : null}
-          <Par rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
-          <LinhaDoCicloNaFicha alunoId={aluno.id} />
-          {pode('COMUNIDADE_MODERAR') ? <GrupoDoAlunoNaFicha aluno={aluno} aoAlterar={aoAlterar} /> : null}
+      </>} direita={<>
+        <Cartao titulo={SECOES_DO_ALUNO.acompanhamento} nivel={nivel}>
+          {/* Os grupos e a ordem do pedido de 24/11; PLANO e COMUNIDADE só aparecem com a linha deles. */}
+          <ListaDeDados>
+            <SubtituloDeDados>Acompanhamento</SubtituloDeDados>
+            <Par rotulo="Treinador responsável" valor={responsavel}
+              nota={responsaveis.erro ? <MensagemErro texto={textoDoErro(responsaveis.erro)} tentarDeNovo={responsaveis.recarregar} /> : undefined} />
+            {textoDoQuestionario ? <Par rotulo="Questionário de atualização" valor={textoDoQuestionario} /> : null}
+            <Par rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
+            {comTags ? (
+              <Par rotulo="Tags" valor={nomesDasTags(tags)}
+                conteudo={tags.length ? <View style={estilos.tags}>{tags.map((t) => <ChipDeTag key={t.id} tag={t} />)}</View> : undefined} />
+            ) : null}
+            {/* Por último no grupo: some sozinha (acompanhamento desligado), e o fio só fica entre linhas que existem. */}
+            <LinhaDoCicloNaFicha alunoId={aluno.id} />
+            {linhaDosPlanos ? <SubtituloDeDados>Plano</SubtituloDeDados> : null}
+            {linhaDosPlanos ? <Par rotulo="Planos ativos" valor={linhaDosPlanos} acoes={comFinanceiro ? <VerNoFinanceiro alunoId={aluno.id} /> : undefined} /> : null}
+            {comGrupo ? <SubtituloDeDados>Comunidade</SubtituloDeDados> : null}
+            {comGrupo ? <GrupoDoAlunoNaFicha aluno={aluno} aoAlterar={aoAlterar} /> : null}
+          </ListaDeDados>
         </Cartao>
         {sensivel ? (
-          <Cartao titulo={SECOES_DO_ALUNO.objetivo} nivel={3}>
-            <Par rotulo="Objetivo" valor={aluno.objetivo} />
-            <Par rotulo="Meta do peso" valor={textoDaMeta(aluno.metaDoPeso)} />
-            <Par rotulo="Observações" valor={aluno.observacoes} />
+          <Cartao titulo={SECOES_DO_ALUNO.objetivo} nivel={nivel}>
+            <ListaDeDados>
+              <Par rotulo="Objetivo" valor={aluno.objetivo} />
+              <Par rotulo="Meta do peso" valor={textoDaMeta(aluno.metaDoPeso)} />
+              <Par rotulo="Observações" valor={aluno.observacoes} />
+            </ListaDeDados>
           </Cartao>
         ) : null}
-      </View>
-    </View>
+      </>} />
   );
 }
 
 /**
- * Par de leitura da ficha: no PC rótulo numa coluna fixa e valor ao lado (os valores alinhados entre as linhas); no
- * celular rótulo em cima. Sem valor, "Não informado" em texto suave. O leitor de tela ouve "Rótulo: valor", como no
- * `CampoLeitura`. O valor tem largura de leitura (640) e quebra natural, e-mail comprido inclusive.
+ * Com `colunas` (a aba em duas colunas, `BlocosDaFicha`, 24/11) as seções abrem cada coluna e os blocos da aba vêm logo
+ * embaixo, na mesma pilha; editando, o formulário fica em cima e as colunas só com os blocos, que continuam montados (o
+ * lugar deles na árvore não muda). Sem `colunas` (a faixa compacta), uma coluna só: 1, 2, 3 e 4, na ordem do celular.
  */
-function Par({ rotulo, valor, numerico, nota, conteudo }: {
-  rotulo: string; valor: string | null | undefined; numerico?: boolean; nota?: ReactNode;
-  /** No lugar do texto (os chips das tags); o leitor de tela continua ouvindo "Rótulo: valor". */
-  conteudo?: ReactNode;
-}) {
-  const { width } = useWindowDimensions();
-  const emLinha = width >= LARGURA_MENU_LATERAL;
-  const vazio = !valor?.trim();
-  const texto = vazio ? NAO_INFORMADO : valor!;
-  return (
-    <View style={[estilos.par, emLinha && estilos.parEmLinha]} accessibilityLabel={`${rotulo}: ${texto}`}>
-      <Texto variante="rotulo" style={emLinha ? estilos.rotuloEmLinha : null}>{rotulo}</Texto>
-      <View style={[estilos.valor, emLinha && estilos.valorEmLinha]}>
-        {conteudo && !vazio ? conteudo : <Texto variante={vazio ? 'suave' : 'corpo'} numerico={numerico && !vazio}>{texto}</Texto>}
-        {nota ? <Texto variante="pequeno">{nota}</Texto> : null}
-      </View>
-    </View>
-  );
+function Colunas({ esquerda, direita, colunas, editando }: { esquerda: ReactNode; direita: ReactNode; colunas?: BlocosAoLado; editando: boolean }) {
+  if (colunas) {
+    return <ColunasDaFicha esquerda={<>{editando ? null : esquerda}{colunas.esquerda}</>} direita={<>{editando ? null : direita}{colunas.direita}</>} />;
+  }
+  return <View style={estilos.numaColuna}>{esquerda}{direita}</View>;
+}
+
+/** Linha dos Dados do aluno: a `LinhaDeDado` com o "Não informado" da ficha no lugar do valor ausente. */
+function Par(props: Omit<ComponentProps<typeof LinhaDeDado>, 'vazio'>) {
+  return <LinhaDeDado vazio={NAO_INFORMADO} {...props} />;
 }
 
 /**
- * "Planos ativos: Treino · Dieta" (D13), só leitura, da contratação ATIVA. Sem `planosAtivos` (sem contratação ativa, pausada
- * ou Financeiro desligado) a linha não existe: nunca "Não informado" nem "não contratou". "Ver no Financeiro" (o mesmo destino
- * do cartão Plano contratado) só para quem lê o financeiro.
+ * "Ver no Financeiro" da linha "Planos ativos" (D13; a linha vem de `linhaDosPlanosAtivos`, da contratação ATIVA, e some sem
+ * ela): o mesmo destino do cartão Plano contratado; quem chama só o põe para quem lê o financeiro.
  */
-function PlanosAtivos({ aluno }: { aluno: AlunoDetalhe }) {
-  const { pode, pagamentosHabilitados } = useSessao();
-  const linha = linhaDosPlanosAtivos(aluno.planosAtivos);
-  if (!linha) return null;
-  const par = <Par rotulo="Planos ativos" valor={linha} />;
-  if (!pode('FINANCEIRO_LER') || !pagamentosHabilitados) return par;
-  return (
-    <ComAcoes acoes={<LinkTexto texto="Ver no Financeiro" href={`/treinador/financeiro?aba=cobrancas&alunoId=${encodeURIComponent(aluno.id)}` as never} />}>
-      {par}
-    </ComAcoes>
-  );
-}
-
-/** O par e, ao lado, os botões dele (fora do grupo com `accessibilityLabel`, que no celular esconderia os filhos). */
-function ComAcoes({ acoes, children }: { acoes: ReactNode; children: ReactNode }) {
-  return (
-    <View style={estilos.comAcoes}>
-      <View style={estilos.parQueCede}>{children}</View>
-      {acoes}
-    </View>
-  );
+function VerNoFinanceiro({ alunoId }: { alunoId: string }) {
+  return <LinkTexto texto="Ver no Financeiro" href={`/treinador/financeiro?aba=cobrancas&alunoId=${encodeURIComponent(alunoId)}` as never} />;
 }
 
 /**
@@ -256,21 +248,12 @@ function BotoesDeContato({ tipo, valor, nome }: { tipo: 'email' | 'telefone'; va
 }
 
 const estilos = StyleSheet.create({
-  comAcoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
-  parQueCede: { flex: 1, minWidth: 0 },
   botoes: { flexDirection: 'row', gap: espaco(0.5) },
   dados: { gap: espaco(2) },
   topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: espaco(1), minHeight: 44 },
   titulo: { flexShrink: 1 },
-  // As mesmas colunas do `FormAluno`: a seção fica no mesmo lugar ao abrir e ao fechar a edição.
-  colunas: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(3) },
-  coluna: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0, gap: espaco(3) },
+  // Faixa compacta: as quatro seções numa coluna, na ordem do celular (24/11; em duas colunas, `ColunasDaFicha`).
+  numaColuna: { gap: espaco(3) },
   comAjuda: { gap: espaco(0.5) },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75), paddingTop: 2 },
-  par: { gap: espaco(0.25) },
-  parEmLinha: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(2) },
-  // 168: cabe "Questionário de atualização" em duas linhas curtas e "Treinador responsável" numa só.
-  rotuloEmLinha: { width: 168, flexShrink: 0 },
-  valor: { gap: espaco(0.5), maxWidth: 640 },
-  valorEmLinha: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
 });

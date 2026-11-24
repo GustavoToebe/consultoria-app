@@ -1,14 +1,11 @@
 import { codigoApi } from '@plataforma/web';
-import { Users } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import { atribuirPod, listarPods } from '../../api/comunidade';
 import type { AlunoDetalhe } from '../../api/tipos';
 import { EscolhaDoGrupo } from '../../comunidade/EscolhaDoGrupo';
 import { avisoDoPod, POD_TETO, traduzirErroDoPod } from '../../dominio/comunidade';
 import { primeiroNome } from '../../dominio/gruposDeAlunos';
-import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { textoDoErro } from '../../ui/erros';
@@ -16,6 +13,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { LinhaDeDado } from '../../ui/ListaDeDados';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -97,26 +95,20 @@ function FolhaDoGrupo({ aluno, aoAlterar, aoFechar }: { aluno: AlunoDetalhe; aoA
 
 /**
  * "Grupo da comunidade" nos Dados do aluno, só com `COMUNIDADE_MODERAR` (sem ela a API manda `podId`/`podNome` nulos e a
- * linha nem aparece): o grupo atual ("Grupo: X" ou "Sem grupo") e "Mudar grupo"; aluno inativo, sem acesso ou anonimizado
+ * linha nem aparece): o grupo atual (o nome ou "Sem grupo") e "Mudar grupo"; aluno inativo, sem acesso ou anonimizado
  * não entra.
  */
 export function GrupoDoAlunoNaFicha({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: AoAlterar }) {
   const [aberta, setAberta] = useState(false);
   const motivo = motivoSemGrupo(aluno);
+  // Linha da `ListaDeDados` (24/11): "Sem grupo" ou o nome do grupo como valor e "Mudar grupo" na coluna de ações.
   return (
-    <View style={estilos.linha}>
-      <View style={estilos.textos}>
-        <Texto variante="rotulo">Grupo da comunidade</Texto>
-        <Texto>{aluno.podNome ? `Grupo: ${aluno.podNome}` : 'Sem grupo'}</Texto>
-      </View>
-      <Botao rotulo="Mudar grupo" tipo="secundario" Icone={Users} desabilitado={!!motivo} motivo={motivo ?? undefined}
-        aoTocar={() => setAberta(true)} />
-      {aberta ? <FolhaDoGrupo aluno={aluno} aoAlterar={aoAlterar} aoFechar={() => setAberta(false)} /> : null}
-    </View>
+    <LinhaDeDado rotulo="Grupo da comunidade" valor={aluno.podNome ?? 'Sem grupo'}
+      acoes={(
+        <>
+          <Botao rotulo="Mudar grupo" tipo="secundario" desabilitado={!!motivo} motivo={motivo ?? undefined} aoTocar={() => setAberta(true)} />
+          {aberta ? <FolhaDoGrupo aluno={aluno} aoAlterar={aoAlterar} aoFechar={() => setAberta(false)} /> : null}
+        </>
+      )} />
   );
 }
-
-const estilos = StyleSheet.create({
-  linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
-  textos: { flexShrink: 1, minWidth: 0, gap: espaco(0.25) },
-});

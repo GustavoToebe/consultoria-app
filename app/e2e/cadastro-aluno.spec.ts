@@ -354,7 +354,7 @@ for (const { largura, altura } of [{ largura: 1280, altura: 900 }, { largura: 39
     expect(await topo(abas)).toBeLessThan(await topo(dados));
     expect(await topo(dados)).toBeLessThan(await topo(acesso));
     await expect(page.getByText(CPF)).toBeVisible();
-    await expect(page.getByLabel('Acesso ao app: Com acesso')).toBeVisible();
+    await expect(page.getByLabel('Situação: Com acesso')).toBeVisible();
 
     // As quatro seções na ordem do pedido de 12/11, iguais na leitura e na edição: no PC 1 e 2 à esquerda e 3 e 4 à
     // direita (1 e 3 no mesmo topo); no celular uma embaixo da outra, 1, 2, 3, 4.

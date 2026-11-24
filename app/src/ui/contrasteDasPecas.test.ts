@@ -258,6 +258,18 @@ describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].ma
     }
   });
 
+  // ficha: resumo em cartões (24/11): Treinos registrados (azul) e Atualização sem situação (ciano) usam o destaque de
+  // indicador como cor de categoria, no poço do `Cartao` (`lugar="cartao"`); a paleta de destaque não acompanha o contraste alto.
+  it.each(['azul', 'ciano'] as const)('Resumo da ficha: destaque %s como categoria no poço: marca ≥ 3:1, rótulo, número e detalhe ≥ 4,5:1, borda separa do poço', (funcao) => {
+    const cor = coresDeDestaque(cores, variante)[funcao].cor;
+    const a = aparenciaDoIndicador(cor, 'valor', 'cartao', cores, variante);
+    const forte = a.pintura?.forte ?? '';
+    expect(a.marca).toBe(cor);
+    expect(contraste(cor, forte)).toBeGreaterThanOrEqual(3);
+    for (const texto of [a.rotulo, a.valor, cores.textoSuave]) expect(contraste(texto, forte)).toBeGreaterThanOrEqual(4.5);
+    expect(a.borda).not.toBe(cores.divisor);
+  });
+
   it('zero, indisponível e neutro: sem pintura, contorno `divisor`, número legível', () => {
     for (const estado of ['zero', 'indisponivel'] as const) {
       const a = aparenciaDoIndicador(cores.perigo, estado, 'pagina', cores, variante);
