@@ -21,15 +21,17 @@ Fechar as decisões do relatório: ficha › Dados em três colunas na ultralarg
 | 9 | Os "antes" sobrescritos | Não serão refeitos | Gustavo |
 
 ## Passos
-- [ ] 1. Ficha › Dados em 3 colunas na ultralarga — commit/run: —
-- [ ] 2. App do aluno › Início na tela larga — commit/run: —
-- [ ] 3. Mural (treinador e aluno): feed + coluna lateral — commit/run: —
-- [ ] 4. Defeitos: `seloDoAcesso` (inativo), selo "Acesso total" da Equipe, captura do `tela-larga.spec.ts`, botão "Histórico de …" duplicado — commit/run: —
-- [ ] 5. Decisões em AGENTS.md, `design-e-front.md` e planos — commit/run: —
+- [x] 1. Ficha › Dados em 3 colunas na ultralarga (abre pela largura medida da aba, 1 : 1,2 : 1; em 2560 com menu aberto a faixa ainda é `larga`) — commit: `ae339ceb`
+- [x] 2. App do aluno › Início na tela larga — commit: `4c5dcb8c`
+- [x] 3. Mural (treinador e aluno): feed + coluna lateral — commit: `3c3e2272`
+- [ ] 4. Defeitos: `seloDoAcesso` (inativo), selo "Acesso total" da Equipe, captura do `tela-larga.spec.ts`, botão "Histórico de …" duplicado (defeito da tela: ícone e botão rotulado; ficou o botão) — commits: `6e79f200`, `257bf57c` (e2e dos selos)
+- [x] 5. Decisões em AGENTS.md, `design-e-front.md` e planos — commits: `4f81a7de` e o de docs desta entrega
 - [ ] 6. Guias em PDF, verificações, fast-forward da `main`, push — commit/run: —
 
 ## Fora do escopo
 - Pós-lançamento (sugestões aceitas, não fazer agora): painel da inscrição em Interessados (IFI-S1); mostrar "Cuidados no treino" das lesões ativas no editor de treino; demais sugestões da seção 8 do relatório. Anotadas em "Pendências soltas" do README.
 
 ## O que ficou para trás
-- (preencher ao entregar)
+- Decisão a confirmar pelo Gustavo: no mural do aluno, abaixo de 1280 px a coluna vira um cartão só "Seus números" no topo (com os dois cartões, o feed ficava abaixo da primeira dobra).
+- "Hoje" primeiro vale da faixa `larga` em diante; em 1280 e no celular a ordem segue Dieta › Água › Hoje (specs existentes conferem essa ordem).
+- Mural do aluno em 3440: o bloco feed + coluna fica à esquerda dos 1688 centralizados e sobram ~600 px à direita.
