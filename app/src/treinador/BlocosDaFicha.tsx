@@ -5,7 +5,6 @@ import { blocosDaColuna, emDuasColunas, larguraMaximaDasColunas, ordemNumaColuna
 import type { BlocoDaFicha } from '../dominio/fichaDoAluno';
 import { espaco } from '../tema/tokens';
 import { useFaixaDaTela } from '../ui/Tela';
-import { useFaixaDeLargura } from '../ui/useFaixaDeLargura';
 import { CartaoLesoes, useLesoes } from './CartaoLesoes';
 
 /** Os blocos da aba que seguem as seções dos Dados do aluno em cada coluna. */
@@ -25,22 +24,19 @@ export function BlocosDaFicha({ alunoId, blocos, bloco }: {
   /** `colunas` só chega ao `dadosDoAluno`, em duas colunas. */
   bloco: (b: BlocoDaFicha, colunas?: BlocosAoLado) => ReactNode;
 }) {
-  const { largura, aoMedir } = useFaixaDeLargura();
   const faixa = useFaixaDaTela();
   const tem = (b: BlocoDaFicha) => blocos.includes(b);
   const lesoes = useLesoes(tem('lesoes') ? alunoId : null);
-  // Antes da primeira medida não se sabe o arranjo: montar numa coluna e remontar em duas buscaria tudo duas vezes.
-  const medido = largura > 0;
   // Sem embrulho em volta do bloco: um que não desenha nada (as lesões fora do `CartaoLesoes`) não ocupa um vão da pilha.
   const pilha = (lado: 'esquerda' | 'direita') => blocosDaColuna(lado, blocos).map((b) => (b === 'lesoes'
     ? <CartaoLesoes key={b} alunoId={alunoId} carga={lesoes} parte="tudo" />
     : <Fragment key={b}>{bloco(b)}</Fragment>));
-  const colunas = medido && emDuasColunas(faixa) ? { esquerda: pilha('esquerda'), direita: pilha('direita') } : undefined;
+  const colunas = emDuasColunas(faixa) ? { esquerda: pilha('esquerda'), direita: pilha('direita') } : undefined;
   return (
     // Na `ultralarga` a aba inteira (título, formulário e colunas) fica no teto, alinhada à esquerda (4.10).
-    <View onLayout={aoMedir} style={[estilos.aba, { maxWidth: larguraMaximaDasColunas(faixa) }]}>
+    <View style={[estilos.aba, { maxWidth: larguraMaximaDasColunas(faixa) }]}>
       {tem('dadosDoAluno') ? bloco('dadosDoAluno', colunas) : colunas ? <ColunasDaFicha {...colunas} /> : null}
-      {medido && !colunas ? ordemNumaColuna(blocos).map((p) => (
+      {!colunas ? ordemNumaColuna(blocos).map((p) => (
         p === 'lesoesAtivas' ? <CartaoLesoes key={p} alunoId={alunoId} carga={lesoes} parte="ativas" />
           : p === 'lesoesRecuperadas' ? <CartaoLesoes key={p} alunoId={alunoId} carga={lesoes} parte="recuperadas" />
             : <Fragment key={p}>{bloco(p)}</Fragment>

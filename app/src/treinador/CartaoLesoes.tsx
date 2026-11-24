@@ -19,6 +19,7 @@ import { IconeBotao } from '../ui/IconeBotao';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Selo } from '../ui/Selo';
 import { Tabela, type ColunaDaTabela } from '../ui/Tabela';
+import { ValorEmTexto } from '../ui/ListaDeDados';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { FolhaDeAcoes } from './FolhaDeAcoes';
@@ -130,7 +131,7 @@ function TabelaDeLesoes({ ativas, recuperadas, ...acoes }: { ativas: Lesao[]; re
       ),
     },
     // 232: cabe "01/03/2026 a 15/05/2026" numa linha (Geist Mono).
-    { chave: 'periodo', titulo: 'Período', flex: 2, minimo: 232, render: (l) => <Texto numerico>{periodoDaLesao(l)}</Texto> },
+    { chave: 'periodo', titulo: 'Período', flex: 2, minimo: 232, render: (l) => <ValorEmTexto texto={periodoDaLesao(l)} numerico /> },
     {
       chave: 'situacao', titulo: 'Situação', largura: 140,
       render: (l) => { const selo = seloDaLesao(l.situacao); return <View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} /></View>; },
@@ -143,7 +144,7 @@ function TabelaDeLesoes({ ativas, recuperadas, ...acoes }: { ativas: Lesao[]; re
   );
 }
 
-/** "Cuidados no treino: …" em até duas linhas; a longa ganha "Ver observação inteira" (o leitor de tela sempre ouve o texto todo). */
+/** "Cuidados no treino: …" em até duas linhas; a longa ganha "Ver cuidados inteiros" (o leitor de tela sempre ouve o texto todo). */
 function Observacao({ texto }: { texto: string }) {
   const [inteira, setInteira] = useState(false);
   const longa = observacaoLonga(texto);
@@ -154,7 +155,7 @@ function Observacao({ texto }: { texto: string }) {
       </Texto>
       {longa ? (
         <View style={estilos.verObservacao}>
-          <Botao rotulo={inteira ? 'Ver menos' : 'Ver observação inteira'} tipo="fantasma" aoTocar={() => setInteira((v) => !v)} />
+          <Botao rotulo={inteira ? 'Ver menos' : 'Ver cuidados inteiros'} tipo="fantasma" aoTocar={() => setInteira((v) => !v)} />
         </View>
       ) : null}
     </View>

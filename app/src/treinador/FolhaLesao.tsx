@@ -86,7 +86,7 @@ export function FolhaLesao({ alunoId, lesao, aoFechar, aoSalvar }: { alunoId: st
         </>
       }>
       <View style={estilos.regiao}>
-        <Campo rotulo="Região do corpo (obrigatório)" valor={form.regiao} aoMudar={digitarRegiao} maxLength={LIMITE_DA_REGIAO} placeholder="Ex.: Ombro direito" />
+        <Campo rotulo="Região do corpo (obrigatória)" valor={form.regiao} aoMudar={digitarRegiao} maxLength={LIMITE_DA_REGIAO} placeholder="Ex.: Ombro direito" />
         <Escolha<RegiaoDoAtalho | null> descricao="Atalhos de região" opcoes={OPCOES_DE_REGIAO} valor={atalho.regiao} aoMudar={escolherRegiao} />
         <Escolha<LadoDaLesao | null> rotulo="Lado" opcoes={OPCOES_DE_LADO} valor={atalho.lado} aoMudar={escolherLado} limpavel />
       </View>

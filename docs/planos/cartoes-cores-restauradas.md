@@ -23,3 +23,11 @@ números neutros.
 
 ## O que ficou para trás
 - Nada. Cores que mudaram de tom no mesmo commit sem sumir (Início: Para revisar, Trocas, A renovar, Retornos e Vencendo passaram de azul genérico para `atencao` ou `perigo`) estão certas pelo design.
+
+## Ressalva da revisão independente (24/11)
+
+A auditoria classificou azul, ciano e violeta de `dominio/destaque` como "medida" e por isso concluiu "nada a restaurar". O
+pedido do Gustavo para "Treinos registrados" trata o azul como **categoria** (treino), e `ficha-resumo-em-cartoes.md` (D2)
+aplicou isso só no Resumo da ficha. Se a mesma premissa valer para os outros cartões da tabela acima (Entradas, Pessoas,
+Conversão e Mediana dos Interessados, "Nos próximos 7 dias" e "Novos" do Início, Peso), a conclusão muda e cada um precisa de
+decisão de produto: **não restaurei nenhum** (sem token de categoria e sem pedido). Fica para o Gustavo dizer quais voltam e com que cor.

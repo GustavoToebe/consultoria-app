@@ -61,11 +61,11 @@ export function ListaDeDados({ children }: { children: ReactNode }) {
     <ArranjoDaLista.Provider value={arranjo}>
       <View onLayout={aoMedir}>
         {grupos.map((g, i) => (
-          <View key={i} style={i > 0 ? estilos.grupoSeguinte : null}>
+          <View key={g.subtitulo?.key ?? i} style={i > 0 ? estilos.grupoSeguinte : null}>
             {g.subtitulo}
             {g.linhas.length > 0 ? (
               <View role="list">
-                {g.linhas.map((linha, j) => <PrimeiraDoGrupo.Provider key={j} value={j === 0}>{linha}</PrimeiraDoGrupo.Provider>)}
+                {g.linhas.map((linha, j) => <PrimeiraDoGrupo.Provider key={isValidElement(linha) && linha.key != null ? linha.key : j} value={j === 0}>{linha}</PrimeiraDoGrupo.Provider>)}
               </View>
             ) : null}
           </View>
@@ -122,7 +122,8 @@ export function LinhaDeDado({ rotulo, valor, vazio = '—', numerico, conteudo, 
   );
 }
 
-function ValorEmTexto({ texto, numerico }: { texto: string; numerico?: boolean }) {
+/** Texto com a fonte numérica só nos números (datas, CPF, telefone, "15" em "15 dias"). */
+export function ValorEmTexto({ texto, numerico }: { texto: string; numerico?: boolean }) {
   if (!numerico) return <Texto>{texto}</Texto>;
   return <Texto>{partesNumericas(texto).map((p, i) => (p.numerico ? <Texto key={i} numerico>{p.texto}</Texto> : p.texto))}</Texto>;
 }

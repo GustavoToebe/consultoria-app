@@ -53,7 +53,7 @@ for (const largura of [390, 1280]) {
     test('região obrigatória marcada no rótulo; Salvar apagado diz o que falta embaixo', async ({ page }) => {
       const { errosDaPagina } = await abrir(page);
       const folha = await registrar(page);
-      await expect(folha.getByLabel('Região do corpo (obrigatório)')).toBeVisible();
+      await expect(folha.getByLabel('Região do corpo (obrigatória)')).toBeVisible();
       await expect(folha.getByLabel('O que é (opcional)')).toHaveAttribute('placeholder', 'Ex.: tendinite, entorse, pós-cirúrgico');
       await expect(folha.getByLabel('Cuidados no treino (opcional)')).toHaveAttribute('placeholder', 'Ex.: evitar carga acima da cabeça');
       // Quem vê a observação: só a equipe com acesso a dados sensíveis.
@@ -65,7 +65,7 @@ for (const largura of [390, 1280]) {
       // O motivo fica colado embaixo do botão, uma vez só.
       const [b, m] = [(await salvar.boundingBox())!, (await motivo.boundingBox())!];
       expect(m.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
-      await folha.getByLabel('Região do corpo (obrigatório)').fill('Costas');
+      await folha.getByLabel('Região do corpo (obrigatória)').fill('Costas');
       await expect(salvar).toBeEnabled();
       await expect(motivo).toHaveCount(0);
       expect(errosDaPagina).toEqual([]);
@@ -74,7 +74,7 @@ for (const largura of [390, 1280]) {
     test('atalhos: o chip preenche o campo, o lado compõe, trocar de chip não duplica o lado e dá para editar à mão', async ({ page }) => {
       const { pedidos, errosDaPagina } = await abrir(page);
       const folha = await registrar(page);
-      const regiao = folha.getByLabel('Região do corpo (obrigatório)');
+      const regiao = folha.getByLabel('Região do corpo (obrigatória)');
       const chip = (nome: string) => folha.getByRole('radio', { name: nome, exact: true });
       // O lado sem região escolhida não preenche nada.
       await chip('Direito').click();
@@ -114,7 +114,7 @@ for (const largura of [390, 1280]) {
     test('Fim só aparece com Recuperada e some ao trocar de situação: o corpo não leva o fim', async ({ page }) => {
       const { pedidos, errosDaPagina } = await abrir(page);
       const folha = await registrar(page);
-      await folha.getByLabel('Região do corpo (obrigatório)').fill('Punho direito');
+      await folha.getByLabel('Região do corpo (obrigatória)').fill('Punho direito');
       await folha.getByLabel('Início (opcional)').fill('01/03/2026');
       await expect(folha.getByLabel('Fim (opcional)')).toHaveCount(0);
       await folha.getByRole('radio', { name: 'Recuperada' }).click();
@@ -139,7 +139,7 @@ for (const largura of [390, 1280]) {
       const folha = await registrar(page);
       const inicio = folha.getByLabel('Início (opcional)');
       const hoje = folha.getByRole('button', { name: 'Hoje: preencher o início' });
-      await folha.getByLabel('Região do corpo (obrigatório)').fill('Cotovelo');
+      await folha.getByLabel('Região do corpo (obrigatória)').fill('Cotovelo');
       // Ao lado do campo, na mesma linha.
       const [c, h] = [(await inicio.boundingBox())!, (await hoje.boundingBox())!];
       expect(h.x).toBeGreaterThanOrEqual(c.x + c.width - 1);
@@ -155,7 +155,7 @@ for (const largura of [390, 1280]) {
     test('fim antes do início: erro vermelho no campo Fim e Salvar apagado com o motivo', async ({ page }) => {
       const { pedidos, errosDaPagina } = await abrir(page);
       const folha = await registrar(page);
-      await folha.getByLabel('Região do corpo (obrigatório)').fill('Tornozelo');
+      await folha.getByLabel('Região do corpo (obrigatória)').fill('Tornozelo');
       await folha.getByRole('radio', { name: 'Recuperada' }).click();
       await folha.getByLabel('Início (opcional)').fill('10/05/2026');
       await folha.getByLabel('Fim (opcional)').fill('09/05/2026');
@@ -181,13 +181,13 @@ for (const largura of [390, 1280]) {
       await folha.getByRole('button', { name: 'Cancelar', exact: true }).click();
       await expect(folha).toHaveCount(0);
       folha = await registrar(page);
-      await folha.getByLabel('Região do corpo (obrigatório)').fill('Cervical');
+      await folha.getByLabel('Região do corpo (obrigatória)').fill('Cervical');
       await folha.getByRole('button', { name: 'Cancelar', exact: true }).click();
       const pergunta = page.getByRole('alertdialog', { name: 'Sair sem salvar?' });
       await expect(pergunta).toBeVisible();
       await pergunta.getByRole('button', { name: 'Continuar editando' }).click();
       await expect(pergunta).toHaveCount(0);
-      await expect(folha.getByLabel('Região do corpo (obrigatório)')).toHaveValue('Cervical');
+      await expect(folha.getByLabel('Região do corpo (obrigatória)')).toHaveValue('Cervical');
       await folha.getByRole('button', { name: 'Cancelar', exact: true }).click();
       await page.getByRole('alertdialog', { name: 'Sair sem salvar?' }).getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
       await expect(folha).toHaveCount(0);
@@ -200,7 +200,7 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: 'Mais ações da lesão em Ombro direito' }).click();
       await page.getByRole('dialog', { name: 'Ombro direito' }).getByRole('button', { name: 'Editar' }).click();
       const folha = page.getByRole('dialog', { name: 'Editar lesão' });
-      await expect(folha.getByLabel('Região do corpo (obrigatório)')).toHaveValue('Ombro direito');
+      await expect(folha.getByLabel('Região do corpo (obrigatória)')).toHaveValue('Ombro direito');
       await expect(folha.getByRole('radio', { name: 'Ombro', exact: true })).toBeChecked();
       await expect(folha.getByRole('radio', { name: 'Direito', exact: true })).toBeChecked();
       await expect(folha.getByLabel('O que é (opcional)')).toHaveValue('Tendinite');

@@ -275,7 +275,7 @@ for (const largura of [390, 1280]) {
     await expect(observacao).toContainText('Cuidados no treino:');
     const fechada = (await observacao.boundingBox())!.height;
     expect(fechada).toBeLessThanOrEqual(40);
-    await page.getByRole('button', { name: 'Ver observação inteira' }).click();
+    await page.getByRole('button', { name: 'Ver cuidados inteiros' }).click();
     expect((await observacao.boundingBox())!.height).toBeGreaterThan(fechada);
     await expect(page.getByRole('button', { name: 'Ver menos' })).toBeVisible();
 

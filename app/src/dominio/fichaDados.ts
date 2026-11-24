@@ -1,7 +1,5 @@
 import type { PeriodoDoPlano, SituacaoDaContratacao } from '../api/financeiroTipos';
-import type { AlunoDetalhe, Lesao, SituacaoLesao } from '../api/tipos';
-import { dataEmBrasilia, hojeEmBrasilia, horaEmBrasilia } from './agendaPresencial';
-import { dataRelativa } from './datasRelativas';
+import type { Lesao, SituacaoLesao } from '../api/tipos';
 import { dataParaTela, SEM_DADO } from './formatos';
 
 /**
@@ -11,19 +9,6 @@ import { dataParaTela, SEM_DADO } from './formatos';
  */
 
 // ---- Acesso ao app ----
-
-/**
- * "Último login: há 2 dias" (texto curto) e a data exata em Brasília (dica do mouse e nome acessível). Login nunca é
- * chamado de acesso (AGENTS.md, cabeçalho da ficha): `LOGIN` diz "Último login" e só `ACESSO` diz "Último acesso ao app".
- * Instante malformado ou tipo desconhecido = `null` (a linha some).
- */
-export function ultimoAcessoNaFicha(u: AlunoDetalhe['ultimoAcesso'], agora: Date = new Date()): { texto: string; exata: string } | null {
-  if (!u?.em || Number.isNaN(Date.parse(u.em))) return null;
-  const rotulo = u.tipo === 'LOGIN' ? 'Último login' : u.tipo === 'ACESSO' ? 'Último acesso ao app' : null;
-  if (!rotulo) return null;
-  const dia = dataEmBrasilia(u.em);
-  return { texto: `${rotulo}: ${dataRelativa(dia, hojeEmBrasilia(agora))}`, exata: `${dataParaTela(dia)} às ${horaEmBrasilia(u.em)}` };
-}
 
 // ---- Plano contratado ----
 
