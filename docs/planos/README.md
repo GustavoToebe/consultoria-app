@@ -271,8 +271,7 @@ Base: `e6537dc3` (95 commits locais esperando o push). Um push só, no fim, com 
 | --- | --- | --- |
 | `app/e2e/documentos-pdf.spec.ts:45` falha na `main` em 390 e 1280 ("Esta escolha não é gravada" não aparece na prévia do treino); já falhava em `82202480`, antes da revisão 2 | Executor | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | `Tela` expor que ainda não mediu (contexto `null` até o primeiro `onLayout`) e trocar os guardas de `BlocosDaFicha` e `CorpoDoInicio`, que deduzem o atraso pela largura e pelo recuo | Executor | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
-| Mural do aluno: o cartão "Seus números" salta por cima do feed quando chega depois; decidir esqueleto reservado × aceitar; confirmar o cartão único "Seus números" no topo abaixo de 1280 px | Gustavo | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
-| Início do aluno: `GET /aluno/sessoes-concluidas` sai duas vezes em 1280 (outro consumidor, não o mapa); "Hoje" primeiro só da faixa `larga` em diante (em 1280 e no celular segue Dieta › Água › Hoje) | Executor / Gustavo | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
+| Início do aluno: `GET /aluno/sessoes-concluidas` sai duas vezes em 1280 (outro consumidor, não o mapa) | Executor | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | `e2e/tela-larga.spec.ts`: apagar a pasta temporária das capturas ao fim | Executor | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | Pós-lançamento (aceitas pelo Gustavo em 24/11, não fazer agora): painel da inscrição em Interessados (IFI-S1); mostrar "Cuidados no treino" das lesões ativas no editor de treino; demais sugestões da seção 8 do relatório (`capturas/24-11/RELATORIO.md`, fora do git) | Gustavo (decide quando) | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
 | Histórico da importação, Auditoria e Membros ficam com a sobra na ultralarga (uso raro; aceito) | — | [tela-larga-revisao-2.md](tela-larga-revisao-2.md) |
