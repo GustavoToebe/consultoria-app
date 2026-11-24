@@ -92,7 +92,7 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, estaAberta, todasAb
         aoMoverParaSecao={(para) => aoMudar((x) => moverParaSecao(x, { secao: si, pergunta: pi }, para))}
         aoRemover={() => setRemoverPerguntaDe({ secao: si, pergunta: pi })} />)}
       {somenteLeitura ? null : <LinhaDeAcoes>
-        <Botao rotulo="Adicionar pergunta" tipo="acao" Icone={Plus} desabilitado={!podeAdicionar(c, si, 'TEXTO').pode}
+        <Botao rotulo="Adicionar pergunta" tipo="secundario" Icone={Plus} desabilitado={!podeAdicionar(c, si, 'TEXTO').pode}
           motivo={podeAdicionar(c, si, 'TEXTO').motivo} aoTocar={() => setAdicionarEm(si)} />
       </LinhaDeAcoes>}
     </Cartao>)}

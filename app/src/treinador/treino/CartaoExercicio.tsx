@@ -217,7 +217,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
         <View style={[estilos.acoes, largo ? estilos.acoesLargas : estilos.acoesEstreitas]}>
           {largo
             // WCAG 2.5.3: o nome acessível começa pelo texto visível ("Trocar exercício: Supino reto").
-            ? <Botao rotulo="Trocar exercício" rotuloAcessivel={`Trocar exercício: ${e.nome || 'o exercício'}`} tipo="acao" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
+            ? <Botao rotulo="Trocar exercício" rotuloAcessivel={`Trocar exercício: ${e.nome || 'o exercício'}`} tipo="secundario" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
             : <IconeBotao moldura Icone={ArrowLeftRight} rotulo={`Trocar exercício: ${e.nome || 'o exercício'}`} aoTocar={p.aoEscolherDaBiblioteca} />}
           {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações de ${nomeDoExercicio}`} aoTocar={() => setMenu(true)} /> : null}
           <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${nomeDoExercicio}`} Icone={Trash2} aoTocar={p.aoRemover} />
