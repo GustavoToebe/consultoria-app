@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { dataHoraParaTela } from '../../dominio/formatos';
+import { LARGURA_DUAS_COLUNAS } from '../../dominio/grade';
 import {
   ehWhatsAppIndisponivel,
   ROTULOS_TIPO_AVISO,
@@ -24,7 +25,7 @@ import {
 } from '../../servicos/whatsapp';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_LISTA, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_FORMULARIO, LARGURA_LISTA, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -33,6 +34,7 @@ import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
+import { Grade } from '../../ui/Grade';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
@@ -40,6 +42,7 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { textoDoErro } from '../../ui/erros';
 import { useCarregar } from '../../ui/useCarregar';
+import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 
 /**
  * Configuração do WhatsApp oficial da Meta (Passo B9 de `docs/planos/contato-da-consultoria.md`).
@@ -91,6 +94,12 @@ function ConteudoWhatsApp() {
   const [salvandoModelo, setSalvandoModelo] = useState(false);
   const [modeloParaRemover, setModeloParaRemover] = useState<ModeloWhatsApp | null>(null);
   const [removendoModelo, setRemovendoModelo] = useState(false);
+
+  // Tela larga (revisão de 24/11): quando sobra espaço para os modelos em duas colunas ao lado, a Conexão fica com a
+  // largura de formulário à esquerda e os Modelos ao lado, em grade; abaixo disso, um embaixo do outro, como antes.
+  const { largura, aoMedir } = useFaixaDeLargura();
+  // O recuo do cartão dos Modelos (20 px e a borda de cada lado) também sai da conta, para a grade ter os 760 das 2 colunas.
+  const ladoALado = largura >= LARGURA_FORMULARIO + espaco(3) + LARGURA_DUAS_COLUNAS + 2 * espaco(3);
 
   const conexao: ConexaoWhatsApp | undefined = dados.dados?.conexao;
   const modelos: ModeloWhatsApp[] = dados.dados?.modelos ?? [];
@@ -216,8 +225,9 @@ function ConteudoWhatsApp() {
       {!dados.dados && dados.carregando ? <Esqueleto texto="Carregando configuração do WhatsApp" /> : null}
 
       {conexao ? (
-        <View style={estilos.blocos}>
+        <View onLayout={aoMedir} style={[estilos.blocos, ladoALado ? estilos.ladoALado : null]}>
           <Cartao
+            style={ladoALado ? estilos.conexao : null}
             titulo="Conexão com a Meta"
             descricao="Use os dados da conta comercial da sua consultoria no Gerenciador do WhatsApp (Cloud API)."
             acoes={
@@ -279,10 +289,11 @@ function ConteudoWhatsApp() {
           </Cartao>
 
           <Cartao
+            style={ladoALado ? estilos.modelos : null}
             titulo="Modelos de mensagem"
             descricao="Cadastre cada modelo no Gerenciador da Meta na categoria Utilidade com as variáveis na ordem exata e informe o nome abaixo."
           >
-            <View style={estilos.lista}>
+            <Grade gap={espaco(1.5)}>
               {modelos.map((m) => {
                 const selo = seloDaSituacaoModelo(m.situacao, m.configurado);
                 return (
@@ -327,7 +338,7 @@ function ConteudoWhatsApp() {
                   </View>
                 );
               })}
-            </View>
+            </Grade>
           </Cartao>
         </View>
       ) : null}
@@ -401,8 +412,10 @@ function ConteudoWhatsApp() {
 
 const estilos = StyleSheet.create({
   blocos: { gap: espaco(3) },
-  lista: { gap: espaco(1.5) },
-  item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1) },
+  ladoALado: { flexDirection: 'row', alignItems: 'flex-start' },
+  conexao: { width: LARGURA_FORMULARIO, flexShrink: 0 },
+  modelos: { flex: 1, minWidth: 0 },
+  item: { flexGrow: 1, borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1) },
   cabecalhoItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: espaco(1) },
   encolher: { flex: 1, minWidth: 0 },
 });

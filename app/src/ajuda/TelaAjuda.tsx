@@ -35,7 +35,7 @@ const LARGURA_DE_LEITURA = 800;
 const MINIMO_DA_LEITURA = 520;
 const LARGURA_DO_INDICE = 232;
 const VAO = espaco(3);
-/** Índice + vão + leitura: a largura da Ajuda em 2 colunas; em `ultralarga` abre 3 colunas (índice | conteúdo | Consultar). */
+/** Índice + vão + leitura: a largura da Ajuda em 2 colunas; com espaço para três, abre índice | conteúdo | Consultar. */
 const LARGURA_DA_AJUDA = LARGURA_DO_INDICE + VAO + LARGURA_DE_LEITURA;
 /** Em 3 colunas: índice + duas colunas de leitura; o bloco fica centralizado na área, como o de 2 colunas. */
 const LARGURA_DA_AJUDA_EM_TRES = LARGURA_DA_AJUDA + VAO + LARGURA_DE_LEITURA;
@@ -77,7 +77,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
   const [tutorial, setTutorial] = useState(false);
   const [busca, setBusca] = useState('');
   const [atual, setAtual] = useState(COMECAR);
-  const { largura, faixa, aoMedir } = useFaixaDeLargura();
+  const { largura, aoMedir } = useFaixaDeLargura();
   const campo = useRef<TextInput>(null);
 
   // Textos como a tela mostra (sem a frase do ciclo, sem as seções do retorno e da vitrine desligados): a busca procura no que se vê.
@@ -110,7 +110,9 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
     rolarAte([alvo(id)]);
   };
 
-  const tresColunas = faixa === 'ultralarga';
+  // Tela larga (revisão de 24/11): as 3 colunas abrem quando cabem na largura medida (em 2560 com o menu aberto a área é de
+  // 2320, faixa `larga`, e o bloco de 1880 já cabe), não só na faixa `ultralarga`.
+  const tresColunas = largura >= LARGURA_DA_AJUDA_EM_TRES;
   const lateral = largura >= LIMITE_DO_INDICE;
   const blocoInicial = buscando ? null : (
     <>
