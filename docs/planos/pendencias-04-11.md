@@ -9,6 +9,7 @@ Fechar a limpeza e os prazos de 14/11, os defeitos pequenos do app e os dois e2e
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
 | 1 | Caddy em 04/11 | A imagem `caddy:2-alpine` v2.11.7 ainda traz go-jose 4.1.5, Go 1.26.8 e x/net 0.59.0. Exceções renovadas até 28/11, sem apagar | revisão deste lote |
+| 1b | Caddy e Dependabot em 23/11 | Revisão adiantada de 28/11: a base nova (Caddy v2.11.9, Go 1.27.3, go-jose v4.1.6, x/net 0.60.0) dispensou as exceções 78667, 78669, 97031, 111943, 97054 e 116587; ficaram a 78661 (x/net 0.62.0), a do `decode-uri-component` e a do `zod`, renovadas para `exp:2026-12-14`; a do `zod` foi mantida e renovada (o Trivy deixou de listá-lo, mas o aviso do GitHub continua aberto). Lock do app: `node-forge` 1.4.4 e `@typescript-eslint` 8.74.0; sobram 14 avisos de ferramenta, aceitos até o SDK 58. Detalhe nas decisões 18 e 19 de [dependabot-28-10.md](dependabot-28-10.md) (estado local sem commit, base `daff8929`) | revisão de 23/11 |
 | 2 | Dependabot | `node-forge` 1.4.1 saiu do `npm audit`. `decode-uri-component` 0.2.2 e `uuid` 7.0.3 continuam; detalhe em [dependabot-28-10.md](dependabot-28-10.md) | revisão deste lote |
 | 3 | Branches | Apagar a remota cuja ponta é o commit de um PR já mesclado, mais `frente-g-exec` e `frente-g-hist` (estavam dentro da `frente-g` mesclada). Não apagar `main`, `montador-de-telas` (PR #37) nem ponta que não é a do PR | pedido de 04/11 |
 
@@ -30,6 +31,6 @@ Ficaram: `main`, `montador-de-telas` (PR #37 aberto), `cores-por-tipo-previa` e 
 - PR #37 (`montador-de-telas`).
 
 ## O que ficou para trás
-- Revisão do Caddy e do Dependabot em 28/11 (também em [dependabot-28-10.md](dependabot-28-10.md)).
+- Revisão do Caddy e do Dependabot: feita em 23/11 (decisões 18 e 19 de [dependabot-28-10.md](dependabot-28-10.md)); a próxima é em 14/12 (passo 10 do mesmo plano).
 - Conferir à mão um app velho contra um plano com forma de carga nova.
 - Conferir o foco da Folha no aparelho com TalkBack e VoiceOver.

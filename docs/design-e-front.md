@@ -107,7 +107,7 @@ guia visual de 11/11** (PDF do Gustavo sobre a prévia `docs/prototipos/visual-v
 borda de 1 px, Geist, seleção neutra, conteúdo num painel ao lado do menu. O que mudou está marcado "(11/11)" abaixo.
 
 **Os nomes que descrevem**
-- **Flat design (flat UI):** cores chapadas, sem sombra, sem gradiente e sem efeito de vidro. A profundidade vem só de
+- **Flat design (flat UI):** cores chapadas, sem sombra, sem gradiente (exceção única, 23/11: o cartão de indicador pintado, seção 4.5) e sem efeito de vidro. A profundidade vem só de
   tons de superfície e de linhas.
 - **Interface de cartões com contorno (card-based, "outlined cards"):** cada assunto é um bloco fechado por uma borda
   discreta (`divisor`), com uma faixa de título no topo. É o que resolve o "onde começa e onde termina". Contorno forte
@@ -133,7 +133,7 @@ borda de 1 px, Geist, seleção neutra, conteúdo num painel ao lado do menu. O 
 **Para descrever a um designer ou a outra IA**
 
 > UI flat utilitária de painel SaaS, organizada em cartões com contorno discreto de 1 px e faixa de título; menu no
-> fundo e conteúdo num painel levemente destacado; sem sombras nem gradientes; cor só com significado (verde, âmbar,
+> fundo e conteúdo num painel levemente destacado; sem sombras nem gradientes (só o cartão de indicador pintado tem um degradê leve da cor da situação); cor só com significado (verde, âmbar,
 > vermelho e cinza para status, em pílula com ponto sobre um fundo escuro da própria cor; botão principal neutro, marca só
 > no indicador pequeno do item ativo, no título e no cartão "Hoje"); seleção neutra em cinza com ✓; detalhes revelados aos poucos, como acordeão;
 > cantos de 12 px no cartão e 8 px no controle, grade de 8 px, fonte Geist.
@@ -151,7 +151,7 @@ neo-brutalism UI* (este último mostra o lado "borda forte").
 
    A cor da marca **nunca** diz status e só aparece nos lugares da lista fechada da seção 4.5. Status sempre vem num
    selo **com texto**.
-2. **Blocos:** tudo em cartão (cantos de 12 px, borda de 1 px em `divisor`, sem sombra nem gradiente; 11/11, antes
+2. **Blocos:** tudo em cartão (cantos de 12 px, borda de 1 px em `divisor`, sem sombra nem gradiente, exceto o cartão de indicador pintado de 23/11; 11/11, antes
    2 px). Controles (botão, campo, chip, item de lista escolhível, botão de ícone) têm canto de 8 px (`RAIO_CONTROLE`).
    Sombra, borda e canto são os mesmos em todas as telas: tela não inventa a sua. A ficha é feita de blocos pequenos,
    cada um com seus botões.
@@ -198,7 +198,7 @@ Uso de cada nível (11/11):
 - **`painel`:** separação discreta entre o menu e o conteúdo no PC (`Navegacao`); nas paletas claras é o próprio
   `fundo` tingido (12/11), separado do menu pelo contorno `divisor`. Quem pinta o fundo da tela ou casa
   uma cor com ele (`Tela`, o esmaecido das faixas que rolam) usa `useFundoDaArea()` (`ui/fundoDaArea`),
-  que devolve `painel` ali e `fundo` no resto.
+  que devolve `painel` ali e `fundo` no resto. Faixa que rola **dentro de um cartão** esmaece com a `superficie` dele (`AbasDeOpcao`, 23/11).
 - **Cartão só informativo** (um número, uma legenda) pode ficar sobre o fundo sem contorno forte; a borda `divisor` basta.
   No contraste alto o contorno do `Cartao` passa a `bordaCampo` (item abaixo).
 - **Texto secundário** perde peso (fonte regular, 13–14), não contraste: `textoSuave` ≥ 4,5:1 em toda superfície, nunca
@@ -269,8 +269,9 @@ Uso de cada nível (11/11):
 | `Campo` / `MensagemDeErro` | Rótulo permanente, ajuda abaixo do campo, erro com ícone + mensagem + borda `perigo` (`MensagemDeErro` também na `Escolha`, no endereço e na `EscolhaEmFolha`); foco visível pelo `anelFoco`. |
 | `Escolha` | Até cinco opções sem contagem = grupo segmentado; mais = chips com ✓. `contagem` mostra "Todos 48" em texto secundário sem mudar o alvo de toque. |
 | `Abas` | Aba ativa com texto forte e sublinhado de 2 px em `marcaPeca`; contagem em pílula neutra; sem a versão invertida. |
-| `Navegacao` | PC: menu no `fundo`, conteúdo no `painel`; item ativo em `superficie3` com a barrinha da marca; no trilho do tablet o rótulo curto fica embaixo do ícone; no minimizado o Início e os controles só de ícone mostram o nome no hover/foco e cada grupo vira um ícone que abre o submenu flutuante com os itens dele (`ui/SubmenuDoTrilho`, "Menu Button" da WAI-ARIA APG: Enter, Espaço e ↓ abrem no primeiro item, setas, Home/End, Esc devolve o foco ao ícone, Tab fecha; sem animação). No menu aberto, um fio vertical de 1 px em `borda` liga os itens do grupo aberto, na coluna da barrinha. Sem barra de topo (guia de 11/11): o conteúdo começa no respiro da `Tela`. Na web do treinador o menu lateral tem, de cima para baixo, a marca numa linha só dela (nome até duas linhas), depois "Buscar" sozinho na linha (o recolher/expandir mora na linha da marca, à direita dela; minimizado, "Expandir menu" aparece no lugar da logo com o mouse ou o foco do teclado, sem expandir sozinho; só onde o menu recolhe; 72 px recolhido, 240 aberto, 88 no trilho; título de grupo em 14 px semibold), com o atalho Ctrl K / ⌘ K só na dica e no nome acessível, sem selo no botão e com contorno `divisor` e sem fundo de campo (`ui/BuscaGlobal`: abre a `Folha` "Buscar", com as favoritas e a estrela 44 px em `atencao` em cada tela; recolhido, só a lupa com nome acessível e dica no foco), a lista que rola e, fixa no pé, a conta (`ui/CartaoDoUsuario`: iniciais, nome que trunca e perfil; recolhido, só as iniciais com o nome na dica; o menu abre para cima no aberto e para o lado nos estreitos). No celular não há faixa global: Perfil › "Buscar telas" abre a mesma busca. No nativo largo, o recolher fica na linha da marca e a conta segue em Perfil. O menu aberto mostra a contagem neutra (contorno `divisor`, texto `texto`) de Atualizações e Interessados, e o ponto fica no trilho, no recolhido e no celular. Celular: barra inferior com pílula `superficie3` no ativo. |
-| `corDoNumero` (`ui/indicador.ts`) | Número de indicador: comum em `texto`, atrasado em `perigo`, zero em `textoSuave`, nunca a marca; o cartão fica neutro. |
+| `Navegacao` | PC: menu no `fundo`, conteúdo no `painel`; item ativo em `superficie3` com a barrinha da marca; no trilho do tablet o rótulo curto fica embaixo do ícone; no minimizado o Início e os controles só de ícone mostram o nome no hover/foco e cada grupo vira um ícone que abre o submenu flutuante com os itens dele (`ui/SubmenuDoTrilho`, "Menu Button" da WAI-ARIA APG: Enter, Espaço e ↓ abrem no primeiro item, setas, Home/End, Esc devolve o foco ao ícone, Tab fecha; sem animação). No menu aberto, um fio vertical de 1 px em `borda` liga os itens do grupo aberto, na coluna da barrinha. Sem barra de topo (guia de 11/11): o conteúdo começa no respiro da `Tela`. Na web do treinador o menu lateral tem, de cima para baixo, a marca numa linha só dela (nome até duas linhas), depois "Buscar" sozinho na linha (o recolher/expandir mora na linha da marca, à direita dela; minimizado, "Expandir menu" aparece no lugar da logo com o mouse ou o foco do teclado, sem expandir sozinho, e a dica do botão de recolher fica abaixo dele, na coluna do menu (à direita cobriria o título da tela; 23/11); só onde o menu recolhe; 72 px recolhido, 240 aberto, 88 no trilho; título de grupo em 14 px semibold), com o atalho Ctrl K / ⌘ K só na dica e no nome acessível, sem selo no botão e com contorno `divisor` e sem fundo de campo (`ui/BuscaGlobal`: abre a `Folha` "Buscar", com as favoritas e a estrela 44 px em `atencao` em cada tela; recolhido, só a lupa com nome acessível e dica no foco), a lista que rola e, fixa no pé, a conta (`ui/CartaoDoUsuario`: iniciais, nome que trunca e perfil; recolhido, só as iniciais com o nome na dica; o menu abre para cima no aberto e para o lado nos estreitos). No celular não há faixa global: Perfil › "Buscar telas" abre a mesma busca. No nativo largo, o recolher fica na linha da marca e a conta segue em Perfil. O menu aberto mostra a contagem neutra (contorno `divisor`, texto `texto`) de Atualizações e Interessados, e o ponto fica no trilho, no recolhido e no celular. Celular: barra inferior com pílula `superficie3` no ativo. |
+| `corDoNumero` (`ui/indicador.ts`) | Número solto fora de cartão de indicador: comum em `texto`, atrasado em `perigo`, zero em `textoSuave`, nunca a marca. Número em cartão de indicador segue o `CartaoDeIndicador` (linha abaixo). |
+| `CartaoDeIndicador` / `GradeDeIndicadores` (23/11, pintado) | Rótulo + número grande + detalhe. Com `tom` (`sucesso`, `atencao`, `perigo`, `informacao`, `conquista`) ou `corDeCategoria` (identificação), o cartão é **pintado** por `ui/superficiePintada`: degradê de 135° da cor misturada à base (14% nas escuras, 8% nas claras e na Areia) até a base pura em 70%, borda de 1 px na cor a 50%, ponto com brilho (ou `Icone`), rótulo e número na cor quando ela passa 4,5:1 no ponto mais forte (senão `texto`); detalhe em `textoSuave`. Neutro (sem significado), zero e indisponível: base, borda `divisor`, sem ponto. `lugar="cartao"` usa o poço `superficie2` como base. Contrato para outras peças: `superficiePintada(cor, base, variante, cores)` → `{ base, forte, degrade, borda, texto }` e `fundoPintado(p)` (estilo do fundo; quem quer liso usa `p.forte`). |
 | `EscolhaSuspensa` / `EscolhaEmFolha` | Escolha com busca: lista suspensa no PC, folha no celular. |
 | `TabelaDeBlocos` (`treinador/treino`, 16/11) | Blocos de séries do exercício: lista de abas vertical com ativação manual (setas movem o foco, Enter e Espaço escolhem). Colunas Série, Tipo, Carga, Reps e Descanso; abaixo de 390 px da coluna das séries cada bloco vira linha empilhada. Ver 4.7. |
 | `EscolhaDoExercicio` (`treinador/treino`, 16/11) | "Exercício aberto" no celular, com 3 ou mais exercícios na sessão: abre a folha com todos e rola até o escolhido (`EscolhaEmFolha`). |
@@ -326,7 +327,7 @@ Qualquer outro lugar precisa de decisão nova.
 
 - **Cinco papéis de situação (17/11, D9; `ui/contrasteDasPecas.test.ts`, nas nove paletas):** `sucesso`, `atencao`,
   `perigo`, `informacao` e `conquista`, cada um com a pílula `*Suave` = a cor a 12% sobre o cartão (`tingidoDaPilula`).
-  O número principal fica sempre em `texto`; a cor entra só na pílula, na barra, no ícone e no tingido. Valores decididos:
+  O número principal fica em `texto`, menos no cartão de indicador pintado (23/11, item abaixo), onde vai na cor quando ela passa 4,5:1; a cor entra na pílula, na barra, no ícone e no tingido. Valores decididos:
   escuro `#00E699 #FFB020 #FF4D6A #4D9BFF #B57BFF`; Claro e Areia `#0E7A43 #8A5300 #C01834 #1D5FD1 #7A2FD0`. Ajustados o
   mínimo para os pisos que já existiam (o texto da caixa `Alerta` direto na página e a série feita do aluno a 4,5:1):
   Claro `sucesso` `#0C6638`, `atencao` `#804D00`, `perigo` `#AB152E`; Areia `#0A5931`, `#704300`, `#961329`; `perigo` da
@@ -374,8 +375,17 @@ Qualquer outro lugar precisa de decisão nova.
 - **Feito e recém-marcado (11/11, `ui/marcar.coresDoMarcar`, `aluno/useMarcadoAgora`):** o ✓ do que já estava feito é
   neutro (`superficie3`, `bordaCampo`, ✓ em `textoSuave`); verde (`sucessoSuave`/`sucesso`) só no que a pessoa acabou
   de marcar nesta tela. Verde é comemoração curta, não o estado permanente da lista.
-- **Número (11/11):** indicador, total do dia e número da série em `texto`. Só o atrasado é `perigo`
+- **Número (11/11):** indicador, total do dia e número da série em `texto` (exceto no cartão de indicador pintado, item abaixo). Só o atrasado é `perigo`
   (`ui/indicador.corDoNumero`). A série em edição é a regra do item seguinte (19/11), não cor no número.
+- **Cartão de indicador pintado (Gustavo, 23/11; plano `docs/planos/cartao-de-indicador-pintado.md`):** cor só onde
+  significa algo. Situação: recebido, recebido das cobranças e pago `sucesso`; a receber, em aberto, vencendo e para revisar
+  `atencao`; em atraso, vencido, atrasadas e saídas avulsas `perigo`; receita recorrente mensal `informacao`; recordes
+  `conquista`. Categoria: tipos de série (Séries por tipo do editor) e entradas avulsas (o azul que os Lançamentos já usam).
+  Neutros: alunos pagantes, valor médio, total, resultado, contagens e medidas sem juízo (Interessados, exceto Aceites em
+  `sucesso`; treinos registrados do resumo do aluno; o peso medido). Valor zero ou "—" volta a neutro. O fundo é o degradê de
+  `ui/superficiePintada` (`experimental_backgroundImage` no nativo, `backgroundImage` no web), a única exceção ao "sem
+  gradiente"; a faixa grossa à esquerda saiu. O texto na cor é conferido no ponto mais forte do degradê nas 9 paletas, com
+  contraste alto e bordas reforçadas (`tema/tokens.test.ts`, "superfície pintada"); onde não passa 4,5:1, vai em `texto`.
 - **Um nível de destaque por vez (Gustavo, 19/11; séries no padrão da dieta):** o destaque de "em edição" (cor de
   ação) aparece num nível só. A lista mestre marca o item escolhido (`ItemDaListaDoEditor`: fundo `acaoSuave`, contorno
   de ação e o selo "Editando", que fica só ali); o painel que está sendo editado ganha a faixa vertical de 6 px à esquerda
@@ -634,7 +644,7 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
 `CamposEmLinha` aceitar o par de datas; (c) uma largura nomeada por variante de modal.
 
 **Indicadores, tabela e abas de ajustes (19/11, Financeiro e Números; planos `docs/planos/financeiro-numeros-19-11.md`):**
-- **Indicador com cor** = `ui/CartaoDeIndicador` numa `ui/GradeDeIndicadores` (tons `sucesso`, `atencao`, `perigo`, `neutro`; o tom vem de `ui/aparenciaDoIndicador`, com ícone e fundo `*Suave` a 8%; zero e indisponível ficam neutros). Quem mostra total ou contagem usa a peça; não cria cartão próprio. A grade divide em colunas que fecham a linha (6, 3 + 3, 2 ou 1; 4, 2 + 2 ou 1), nunca 5 + 1, todos na mesma altura (medido: 6 colunas a partir de ~1833 px de janela com o menu aberto).
+- **Indicador com cor** = `ui/CartaoDeIndicador` numa `ui/GradeDeIndicadores` (pintado desde 23/11: tons `sucesso`, `atencao`, `perigo`, `informacao`, `conquista`, `neutro` ou `corDeCategoria`; a regra vem de `ui/aparenciaDoIndicador` e `ui/superficiePintada`; zero e indisponível ficam neutros). Quem mostra total ou contagem usa a peça; não cria cartão próprio. A grade divide em colunas que fecham a linha (6, 3 + 3, 2 ou 1; 4, 2 + 2 ou 1), nunca 5 + 1, todos na mesma altura (medido: 6 colunas a partir de ~1833 px de janela com o menu aberto).
 - **Tabela de colunas distribuídas:** `Tabela` aceita `flex` com `minimo` por coluna, `vao` (≥ 24 px entre colunas), `alinharLinhas` e `larguraMinima`; abaixo da largura mínima a lista vira cartões, como antes.
 - **Mês de competência** aparece sempre como MM/AAAA (`rotuloDoMesNumerico`; `rotuloCurtoDoMes` "11/26" onde falta espaço). O "nov/2026" fica no Início e na Minha conta.
 - **Filtro padrão que o usuário não pediu** (Cobranças abre em Ativas + "Mês de vencimento: MM/AAAA"): sempre visível como chips e em "Filtros, N ativos", gravado no endereço, com estado vazio que diz o filtro e leva a "Ver todas…"; tirar tudo grava `filtro=nenhum` e o padrão não volta sozinho.
@@ -832,9 +842,9 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
 Aba Vídeos do treinador (`treinador/comunidade/ListaDosVideos`, `SecaoDaColecao`; o `CartaoDoVideo` e a `CapaDoCartao` moram em `comunidade/` e são os mesmos no aluno, em `aluno/ColecoesDeAuloes`, sem ⋯ nem alça e com "Abrir no YouTube"/"Abrir vídeo" visível; grade em
 `dominio/gradeDosVideos.ts`, `colunasDosVideos`). Só quem modera a comunidade organiza; os demais leem.
 
-- **Uma seção por coleção, sem cartão em volta.** O cabeçalho tem a alça de arrastar, o nome (h2), "N vídeos", "Adicionar
-  vídeo" (que já escolhe a coleção) e o ⋯ (Renomear, Mover para cima, Mover para baixo, Excluir coleção). "Sem coleção" usa
-  a mesma seção, sem ⋯, alça nem "Adicionar vídeo", e fica por último. Fim da aba: "+ Nova coleção", com o campo ali mesmo.
+- **Uma seção por coleção, sem cartão em volta.** O cabeçalho (`comunidade/CabecalhoDaColecao`, o mesmo no aluno, 23/11; plano `docs/planos/comunidade-cabecalho-de-colecao.md`) tem o sobretítulo "COLEÇÃO N" (pela ordem que o aluno vê, `dominio/cabecalhoDaColecao`), o nome da coleção (h2, 20 px semibold, acima do título dos vídeos), a pílula neutra "N vídeos" (número em fonte numérica), a alça de arrastar, "Adicionar
+  vídeo" (que já escolhe a coleção) e o ⋯ (Renomear, Mover para cima, Mover para baixo, Excluir coleção), os três últimos centralizados na altura de sobretítulo + nome; um fio `divisor` de largura total acima de cada seção, menos a primeira, e cerca de 40 px entre seções. No arraste da seção, o cabeçalho inteiro é o que se move. O nome acessível é "Coleção 1: Treinos, 1 vídeo". "Sem coleção" usa
+  a mesma seção, com o sobretítulo "SEM COLEÇÃO" e sem o nome, sem ⋯, alça nem "Adicionar vídeo", e fica por último. Fim da aba: "+ Nova coleção", com o campo ali mesmo.
   Coleção vazia mostra "Nenhum vídeo nesta coleção" e "Adicionar vídeo" no corpo, não no cabeçalho.
 - **Excluir coleção sempre com texto:** o painel diz que os vídeos passam para "Sem coleção". Nenhum vídeo é apagado. Os
   publicados continuam para o aluno, sem a numeração.

@@ -149,6 +149,19 @@ Do lado do treinador (web, uma vez, depois do teste do aluno):
     a desligado.
 23. [ ] **Sair da conta** com treino não enviado: o painel avisa "Você tem N treinos ainda não enviados".
 24. [ ] Abrir o app sem internet depois de já ter entrado: o plano aparece (modo offline).
+25. [ ] **Arrastar a folha para fechar** (celular, `app/src/ui/Folha.tsx`; lido em 23/11/2026, ainda não visto no aparelho).
+    O que o código faz: só no nativo e só abaixo de 768 px (na web e no PC a folha não fecha por arraste); o arraste vale
+    **só no título** da folha (a alça): puxar pelo X, pelo ⋯, pelo conteúdo ou pelo rodapé não faz nada. Depois de 10 px para
+    baixo a folha acompanha o dedo (nunca sobe acima da posição de repouso) e, ao soltar, fecha se desceu mais de 30% da
+    altura dela ou se a velocidade passou de 1000 px/s; senão volta com mola (sem mola com movimento reduzido). Conferir:
+    (a) puxar pelo título devagar e soltar antes de 30%: volta; (b) puxar até passar de 30%, ou dar um peteleco rápido:
+    fecha; (c) puxar pelo conteúdo ou pelo X: não fecha, e a rolagem do conteúdo segue normal; (d) com um campo em edição
+    e o teclado aberto, o arraste do título ainda fecha sem travar; (e) numa folha com alteração não salva, arrastar até
+    fechar: ver se pergunta antes de descartar. Riscos lidos, a confirmar no aparelho: a folha **fecha de uma vez na posição
+    em que soltou** (não desliza para fora da tela); a primeira parte do arraste (os 10 px de ativação) pode dar um
+    pequeno salto; o título é uma área curta, então quem espera "arrastar de qualquer lugar" pode achar que não funciona
+    (não há uma barrinha de alça visível); se `aoFechar` abrir uma confirmação em vez de fechar, a folha **fica deslocada**,
+    porque o deslocamento só volta a zero no ramo "não fechou". Anote o que acontecer; nada foi mudado no código.
 
 Qualquer erro: `npx eas-cli build:list` e o log da build no site da Expo; erro do app em execução, `adb logcat`.
 
