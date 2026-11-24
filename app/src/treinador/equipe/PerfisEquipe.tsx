@@ -29,7 +29,8 @@ import { useAtorEquipe } from './useAtorEquipe';
  * 2560, com o cartão no teto de `LARGURA_MAXIMA`, como os Membros e a Auditoria), em vez de cartões da largura da tela; em
  * 1280 cabe um por linha, como antes.
  */
-const COLUNAS_DOS_PERFIS = (largura: number) => colunasPorCelula(largura, 560, espaco(2));
+const CELULA_DO_PERFIL = 560;
+const COLUNAS_DOS_PERFIS = (largura: number) => colunasPorCelula(largura, CELULA_DO_PERFIL, espaco(2));
 
 const DESCRICOES_PADRAO: Record<string, string> = {
   Administrador: 'Acesso total: equipe, marca, conta e auditoria, além de tudo dos alunos.',

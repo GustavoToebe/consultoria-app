@@ -17,6 +17,7 @@ estica ou deixa vão grande, pela 4.10 de `docs/design-e-front.md`: o espaço ex
 | D6 | Ajustes | Conteúdo centrado com teto de 1464 px (as duas colunas de 720 da `PreferenciasDoApp`, que não muda) | Claude (noite de 24/11) |
 | D7 | Ajuda | A 3ª coluna (Consultar) abre quando o bloco de três cabe na largura medida (1880 px), não só na faixa `ultralarga`: em 2560 com o menu aberto (área de 2320) já abre | Claude (noite de 24/11) |
 | D8 | Auditoria | Sem mudança: a tabela segue com teto de 1800 px; usar a sobra pede painel de filtros fixo ou de detalhe (decisão de produto / peça compartilhada) | Claude (noite de 24/11), sugestão ao Gustavo |
+| D9 | Configurações (hub) | Com 3 ou 4 colunas, cada cartão fica com a própria altura (`alinhar="inicio"`); em 2 colunas continua esticado, porque o P3 de `configuracoes-centralizadas` (mesma altura na linha) é regra aprovada e testada | Claude, depois da revisão independente (24/11) |
 
 ## Passos
 - [x] 1. Capturas "antes" em 1920, 2560 e 3440 — `capturas/24-11/tela-larga/<tela>/antes/` (fora do git)

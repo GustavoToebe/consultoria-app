@@ -30,7 +30,7 @@ const TAMANHOS: { valor: TamanhoTexto; rotulo: string }[] = [
  * 1280 com o menu aberto) cabem duas de 464; abaixo, uma coluna na ordem de sempre. O teto de 720 deixa o interruptor perto do rótulo.
  */
 const BASE_DA_COLUNA = 464;
-const LARGURA_DA_COLUNA = 720;
+export const LARGURA_DA_COLUNA = 720;
 
 const VARIACOES_DE_TOM = CODIGOS_PALETAS_VISIVEIS.filter((c) => c !== 'ESCURO' && c !== 'CLARO');
 

@@ -65,7 +65,7 @@ export function TelaConfiguracoes() {
               texto="Tente outra palavra ou um sinônimo, como “senha”, “logo” ou “cobrança”."
               acao={{ rotulo: 'Limpar busca', aoTocar: limpar }} />
           ) : (
-            <Grade gap={espaco(3)} colunas={() => colunas}>
+            <Grade gap={espaco(3)} colunas={() => colunas} alinhar={colunas > 2 ? 'inicio' : 'esticar'}>
               {grupos.map(({ grupo, cartoes }) => (
                 <Cartao key={grupo} titulo={grupo} style={estilos.cartao}>
                   <View style={estilos.lista}>
@@ -86,7 +86,8 @@ export function TelaConfiguracoes() {
 const estilos = StyleSheet.create({
   bloco: { width: '100%', alignSelf: 'center', gap: espaco(3) },
   busca: { gap: espaco(1), maxWidth: 640, width: '100%' },
-  // Esticado pela grade (os dois cartões de uma linha ficam da mesma altura).
+  // Em 2 colunas a grade estica e os dois cartões da linha ficam da mesma altura (P3 de `configuracoes-centralizadas`);
+  // com 3 ou 4 colunas cada cartão fica com a própria altura (grupos de 3 itens ao lado de um de 7 ficavam meio vazios).
   cartao: { flexGrow: 1 },
   lista: { gap: espaco(1) },
 });

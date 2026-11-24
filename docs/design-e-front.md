@@ -248,7 +248,7 @@ Uso de cada nível (11/11):
   - editor em lista + inspetor (treino, dieta, mobilidade, a partir de 960 px de conteúdo): até 1800, como as
     listas, com a "Configuração do plano" segurando os campos em 1040 (Gustavo, 04/11);
   - lista e painel: até 1800;
-  - aluno: 720;
+  - aluno: teto próprio por faixa, 1120 até a `normal` e 1688 da `larga` em diante (`TelaDoAluno`, 24/11);
   - Comunidade do treinador: coluna de leitura de 800 (constante local da tela, guia de 11/11; `LARGURA_LISTA` não muda).
 - Pontos de quebra: abaixo de 768 px é celular (barra inferior); de 768 a 1023, menu lateral em trilho, com o
   rótulo curto embaixo de cada ícone; a partir de 1024, menu lateral completo, em grupos com título.
@@ -850,7 +850,7 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
   larga usa a mesma constante.
 - **Formulários curtos em `LARGURA_FORMULARIO`** (640 px, `tema/tokens.ts`): a tela declarada até esse valor não estica,
   em qualquer preferência (telas declaradas abaixo de `LARGURA_MAXIMA` mantêm o teto próprio: formulário curto 640, telas
-  do aluno 720, editor de uma coluna `LARGURA_EDITOR` 1040).
+  do aluno 1120 ou 1688 por faixa (`TelaDoAluno`), editor de uma coluna `LARGURA_EDITOR` 1040).
 - **Modais e folhas: sem mudança.** Seguem as larguras da variante (4.6, P1: 480, 600 e `LARGURA_EDITOR`) e não usam a régua.
 - **Preferência "Largura do conteúdo"** (Ajustes › Aparência e preferências, `ui/PreferenciasDoApp`): **Automática**
   (padrão) deixa listas, painéis e editores em duas colunas sem teto; **Limitada** os segura em `LARGURA_MAXIMA` (1800 px).

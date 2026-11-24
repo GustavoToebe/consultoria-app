@@ -4,7 +4,7 @@ import { InterruptorDeLembretesDeCompromisso } from '../../aluno/compromissos/In
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { PreferenciasDoApp } from '../../ui/PreferenciasDoApp';
+import { LARGURA_DA_COLUNA, PreferenciasDoApp } from '../../ui/PreferenciasDoApp';
 import { Tela } from '../../ui/Tela';
 
 /**
@@ -17,7 +17,7 @@ import { Tela } from '../../ui/Tela';
  * mais o vão, para o bloco ficar centrado como as outras telas de configuração em vez de deixar metade da tela vazia à
  * direita em 2560 e 3440.
  */
-const LARGURA_DOS_AJUSTES = 2 * 720 + espaco(3);
+const LARGURA_DOS_AJUSTES = 2 * LARGURA_DA_COLUNA + espaco(3);
 
 export default function Ajustes() {
   const { width } = useWindowDimensions();

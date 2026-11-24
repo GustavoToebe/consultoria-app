@@ -3,7 +3,7 @@ import type { LarguraConteudo } from './preferencias';
 
 /**
  * Resolve o `maxWidth` do conteúdo da `Tela` e do `TelaDoEditor`:
- * - Telas declaradas abaixo de `LARGURA_MAXIMA` (formulários curtos de 640, aluno 720, editor de 1 coluna 1040) mantêm
+ * - Telas declaradas abaixo de `LARGURA_MAXIMA` (formulários curtos de 640, aluno com teto próprio por faixa (`TelaDoAluno`: 1120 e 1688), editor de 1 coluna 1040) mantêm
  *   seu teto próprio em qualquer preferência.
  * - Listas, painéis e editores em 2 colunas (`>= LARGURA_MAXIMA` ou sem limite explícito) ficam sem teto (`undefined`)
  *   quando a preferência é `AUTOMATICA`, e mantêm `LARGURA_MAXIMA` (1800 px) quando é `LIMITADA`.

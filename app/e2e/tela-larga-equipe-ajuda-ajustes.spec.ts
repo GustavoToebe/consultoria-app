@@ -202,6 +202,20 @@ for (const [largura, altura] of LARGURAS) {
       expect(Math.abs(margens.esquerda - margens.direita)).toBeLessThanOrEqual(2);
       expect(margens.largura).toBeLessThanOrEqual(e.hub * 508 + (e.hub - 1) * 24 + 1);
       expect(sua.x).toBeGreaterThan(0);
+      if (e.hub > 2) {
+        // Com 3 ou 4 colunas cada cartão tem a própria altura: Equipe (3 itens) não estica até Alunos e atendimento.
+        const [equipe, alunos] = await page.evaluate(() => {
+          const h2 = [...document.querySelectorAll('[role="heading"][aria-level="2"], h2')] as HTMLElement[];
+          const [ha, hb] = ['Equipe', 'Alunos e atendimento'].map((t) => h2.find((h) => h.textContent?.trim() === t)!);
+          const cartao = (h: HTMLElement, outro: HTMLElement) => {
+            let el = h;
+            while (el.parentElement && !el.parentElement.parentElement!.contains(outro)) el = el.parentElement;
+            return el.getBoundingClientRect().height;
+          };
+          return [cartao(ha, hb), cartao(hb, ha)];
+        });
+        expect(equipe).toBeLessThan(alunos - 40);
+      }
     });
     await semRolagemHorizontal(page);
 
