@@ -15,30 +15,49 @@ export const AREA_PARA_A_LATERAL = 1280;
 
 /**
  * `medindo`: a área ainda não chegou (a coluna não nasce no topo para pular para o lado); `sem`: a coluna não tem o que
- * mostrar e não ocupa lugar nenhum (nem vão); `topo`: em cima do feed; `lado`: à direita do feed; `reservando`: abaixo de
- * 1280 px, enquanto não se sabe se há o que mostrar, o topo guarda o lugar e o feed espera (assim nenhuma publicação já
- * desenhada anda quando a resposta chega, com ou sem conteúdo).
+ * mostrar e não ocupa lugar nenhum (nem vão); `topo`: em cima do feed; `lado`: à direita do feed.
  */
-export type ArranjoDoMural = 'medindo' | 'sem' | 'reservando' | 'topo' | 'lado';
+export type ArranjoDoMural = 'medindo' | 'sem' | 'topo' | 'lado';
 
-/** `temLateral` nulo: ainda não se sabe (as fontes da coluna estão carregando). Ao lado, a coluna só nasce com conteúdo. */
-export function arranjoDoMural(area: number | null, temLateral: boolean | null): ArranjoDoMural {
-  if (temLateral === false) return 'sem';
+/**
+ * `topoSempre` (mural do aluno): abaixo de 1280 px o topo existe desde o início, com ou sem conteúdo (a faixa de altura
+ * fixa que se preenche quando os números chegam), e o feed desenha na hora sem nada andar. Ao lado, só com conteúdo.
+ */
+export function arranjoDoMural(area: number | null, temLateral: boolean, topoSempre = false): ArranjoDoMural {
   if (area === null || !(area > 0)) return 'medindo';
   if (area >= AREA_PARA_A_LATERAL) return temLateral ? 'lado' : 'sem';
-  return temLateral ? 'topo' : 'reservando';
+  return temLateral || topoSempre ? 'topo' : 'sem';
 }
 
 interface Fonte<T> { dados?: T; erro?: unknown }
 
+/** A coluna ao lado (a partir de 1280 px) só nasce quando a posição ou alguma conquista chegou. */
+export const existemNumeros = (ranking: Fonte<unknown>, conquistas: Fonte<readonly unknown[]>): boolean =>
+  !!ranking.dados || !!conquistas.dados?.length;
+
+export const TEXTO_SEM_NUMEROS = 'Treine para entrar no ranking';
+export const TEXTO_NUMEROS_INDISPONIVEIS = 'Seus números indisponíveis agora';
+
+export type EstadoDaFaixa = { carregando: true } | { carregando: false; texto: string };
+
 /**
- * O aluno tem números para o mural? Verdadeiro assim que a posição ou alguma conquista chega; falso quando as duas fontes
- * responderam (com dado vazio ou com erro) sem nada; nulo enquanto alguma ainda carrega e nenhuma trouxe nada.
+ * O que a faixa do topo diz (abaixo de 1280 px). Com dado, só o que existe ("2º de 12 · 4 conquistas", "4 conquistas",
+ * "2º de 12"; a posição só conta com treino concluído). Sem dado: carregando enquanto alguma leitura não respondeu; a
+ * leitura falhou ou não há rede, "Seus números indisponíveis agora" (nunca "treine" por falha); respondeu sem treino e
+ * sem conquista, "Treine para entrar no ranking".
  */
-export function existemNumeros(ranking: Fonte<unknown>, conquistas: Fonte<readonly unknown[]>): boolean | null {
-  if (ranking.dados || conquistas.dados?.length) return true;
-  const respondeu = (f: Fonte<unknown>) => f.dados !== undefined || f.erro !== undefined;
-  return respondeu(ranking) && respondeu(conquistas) ? false : null;
+export function faixaDosNumeros(
+  ranking: Fonte<{ posicao: number; participantes: number; treinosConcluidos: number }>,
+  conquistas: Fonte<readonly unknown[]>,
+  conectado = true,
+): EstadoDaFaixa {
+  const comTreino = ranking.dados && ranking.dados.treinosConcluidos > 0 ? ranking.dados : undefined;
+  const texto = textoDaFaixaDosNumeros(comTreino, conquistas.dados?.length ?? 0);
+  if (texto) return { carregando: false, texto };
+  const esperando = (f: Fonte<unknown>) => f.dados === undefined && f.erro === undefined;
+  if (conectado && (esperando(ranking) || esperando(conquistas))) return { carregando: true };
+  const falhou = !conectado || (!ranking.dados && ranking.erro !== undefined) || conquistas.erro !== undefined;
+  return { carregando: false, texto: falhou ? TEXTO_NUMEROS_INDISPONIVEIS : TEXTO_SEM_NUMEROS };
 }
 
 /** A faixa de uma linha do topo: "2º de 12 · 4 conquistas" (só o que existe). */

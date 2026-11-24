@@ -2,7 +2,7 @@ import { Award, ChevronRight, Medal } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ConquistaDoAluno, PosicaoNoRanking } from '../api/comunidadeTipos';
-import { conquistasRecentes, textoDaFaixaDosNumeros } from '../dominio/arranjoDoMural';
+import { conquistasRecentes, type EstadoDaFaixa } from '../dominio/arranjoDoMural';
 import { textoDaPosicao } from '../dominio/comunidade';
 import { dataParaTela, plural } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
@@ -47,18 +47,15 @@ export function CartaoDaConquista({ conquista }: { conquista: ConquistaDoAluno }
 /**
  * Coluna do mural do aluno (decisão 3 de 24/11): "Sua posição" e as conquistas mais recentes, compactas, com o caminho
  * para a aba Conquistas. Só o que já chegou: carregando, com erro ou vazio, o bloco some (a aba Conquistas mostra esses
- * estados), para a coluna não abrir vão no topo do feed. `compacto` (acima do feed, abaixo de 1280 px de área): a faixa de
- * uma linha (`FaixaDosNumeros`), para o feed começar na primeira dobra.
+ * estados), para a coluna não abrir vão ao lado do feed. Acima do feed (abaixo de 1280 px de área) vai a `FaixaDosNumeros`.
  */
-export function NumerosDoMural({ ranking, conquistas, compacto, aoVerConquistas }: {
+export function NumerosDoMural({ ranking, conquistas, aoVerConquistas }: {
   ranking: PosicaoNoRanking | undefined;
   conquistas: readonly ConquistaDoAluno[] | undefined;
-  compacto: boolean;
   aoVerConquistas: () => void;
 }) {
   const { cores } = useTema();
   const recentes = conquistasRecentes(conquistas ?? []);
-  if (compacto) return <FaixaDosNumeros ranking={ranking} conquistas={conquistas} aoVerConquistas={aoVerConquistas} />;
   return (
     <>
       {ranking ? (
@@ -89,31 +86,22 @@ export function NumerosDoMural({ ranking, conquistas, compacto, aoVerConquistas 
 }
 
 /**
- * Faixa de uma linha no topo do feed (abaixo de 1280 px): "2º de 12 · 4 conquistas" e "Ver conquistas ›", a faixa inteira
- * é o botão. Antes de os números chegarem desenha a mesma caixa vazia (`ALTURA_DA_FAIXA`), escondida do leitor de tela:
- * o lugar fica guardado e nada abaixo anda quando o texto entra.
+ * Faixa de uma linha no topo do feed (abaixo de 1280 px), sempre presente e sempre o botão para a aba Conquistas: o texto
+ * vem de `faixaDosNumeros` ("2º de 12 · 4 conquistas", o convite neutro ou o aviso de indisponível) e, enquanto carrega, um
+ * esqueleto ocupa o lugar dele. A altura é fixa (`ALTURA_DA_FAIXA`) em todos os estados: nada abaixo anda.
  */
-export function FaixaDosNumeros({ ranking, conquistas, aoVerConquistas }: {
-  ranking: PosicaoNoRanking | undefined;
-  conquistas: readonly ConquistaDoAluno[] | undefined;
-  aoVerConquistas: () => void;
-}) {
+export function FaixaDosNumeros({ estado, aoVerConquistas }: { estado: EstadoDaFaixa; aoVerConquistas: () => void }) {
   const { cores } = useTema();
-  const texto = textoDaFaixaDosNumeros(ranking, conquistas?.length ?? 0);
-  const caixa = [estilos.faixa, { backgroundColor: cores.superficie, borderColor: cores.borda }];
-  if (!texto) {
-    return (
-      <View testID="faixa-dos-numeros-reservada" style={caixa} aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <View style={[estilos.reservado, { backgroundColor: cores.superficie2 }]} />
-      </View>
-    );
-  }
   return (
-    <Pressable testID="faixa-dos-numeros" accessibilityRole="button" accessibilityLabel={`Seus números: ${texto}. Ver conquistas`}
-      accessibilityHint="Abre a aba Conquistas." onPress={aoVerConquistas}
-      style={(estado) => [caixa, sobre(estado) && { backgroundColor: cores.sobre }]}>
-      {/* Sem ícone à esquerda: em 390 px o texto e a ação cabem inteiros na linha. */}
-      <Texto numberOfLines={1} style={estilos.textoDaFaixa}>{texto}</Texto>
+    <Pressable testID="faixa-dos-numeros" accessibilityRole="button" onPress={aoVerConquistas}
+      accessibilityLabel={`Seus números: ${estado.carregando ? 'carregando' : estado.texto}. Ver conquistas`}
+      accessibilityHint="Abre a aba Conquistas." accessibilityState={{ busy: estado.carregando }}
+      style={(e) => [estilos.faixa, { backgroundColor: sobre(e) ? cores.sobre : cores.superficie, borderColor: cores.borda }]}>
+      {/* Sem ícone à esquerda: em 390 px os números e a ação cabem numa linha; as frases sem número quebram em duas, dentro
+          da mesma altura. */}
+      {estado.carregando
+        ? <View style={estilos.encolher}><View testID="faixa-dos-numeros-carregando" style={[estilos.esqueleto, { backgroundColor: cores.superficie2 }]} /></View>
+        : <Texto numberOfLines={2} style={estilos.textoDaFaixa}>{estado.texto}</Texto>}
       <Texto style={estilos.acaoDaFaixa}>Ver conquistas</Texto>
       <ChevronRight size={18} color={cores.texto} aria-hidden />
     </Pressable>
@@ -128,7 +116,7 @@ const estilos = StyleSheet.create({
     height: ALTURA_DA_FAIXA, flexDirection: 'row', alignItems: 'center', gap: espaco(1),
     borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(2),
   },
-  reservado: { height: 14, width: '45%', borderRadius: 7 },
+  esqueleto: { height: 14, width: '60%', borderRadius: 7 },
   textoDaFaixa: { flex: 1, minWidth: 0, fontFamily: fontes.medio },
   acaoDaFaixa: { fontFamily: fontes.semi },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
