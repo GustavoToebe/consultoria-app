@@ -3,6 +3,7 @@ import { Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 
 
 import { arranjoDoMural, LARGURA_DA_LATERAL, LARGURA_DO_FEED, VAO_DA_LATERAL } from '../dominio/arranjoDoMural';
 import { espaco } from '../tema/tokens';
+import { Esqueleto } from '../ui/Esqueleto';
 
 /** `position: sticky` existe no react-native-web (CSS), mas não no tipo do React Native (o mesmo de `FormMarca`). */
 const GRUDADA = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), overflowY: 'auto' } : {}) as unknown as ViewStyle;
@@ -11,13 +12,15 @@ const GRUDADA = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), o
  * Feed do mural com a coluna de apoio (`dominio/arranjoDoMural`), igual no treinador e no aluno. Mede a própria área: a
  * partir de 1280 px a coluna fica à direita do feed de ~720 px, grudada ao rolar na web (a altura dela não passa da janela
  * e rola por dentro); abaixo, ela vai para o topo do feed (`lateral(true)`: a tela pode mostrar uma versão mais curta ali,
- * para o feed não sair da primeira dobra). Sem conteúdo (`temLateral` falso) não desenha nada, nem o vão.
+ * para o feed não sair da primeira dobra). Sem conteúdo (`temLateral` falso) não desenha nada, nem o vão. `temLateral` nulo
+ * (ainda carregando) abaixo de 1280 px: o topo guarda o lugar e o feed fica no esqueleto até a resposta, para nenhuma
+ * publicação andar depois de desenhada (ao lado, o feed segue e a coluna só nasce com conteúdo).
  * O feed fica à esquerda, na borda do cabeçalho.
  */
 export function MuralComLateral({ lateral, temLateral, rotulo, idDaLateral, children }: {
   /** O conteúdo da coluna; `noTopo` verdadeiro quando vai acima do feed. */
   lateral: (noTopo: boolean) => ReactNode;
-  temLateral: boolean;
+  temLateral: boolean | null;
   /** Nome da região ao lado (leitor de tela). */
   rotulo: string;
   idDaLateral: string;
@@ -29,8 +32,9 @@ export function MuralComLateral({ lateral, temLateral, rotulo, idDaLateral, chil
   return (
     <View onLayout={(e) => setArea(e.nativeEvent.layout.width)} style={arranjo === 'lado' ? estilos.ladoALado : undefined}>
       <View testID="coluna-das-publicacoes" style={estilos.feed}>
-        {arranjo === 'topo' ? lateral(true) : null}
-        {children}
+        {arranjo === 'topo' || arranjo === 'reservando' ? lateral(true) : null}
+        {/* shortcut: o feed espera as fontes da coluna (duas leituras curtas, em paralelo com o mural); se ficarem lentas, trocar por um limite de espera com a faixa fixa. */}
+        {arranjo === 'reservando' ? <Esqueleto /> : children}
       </View>
       {arranjo === 'lado' ? (
         <View testID={idDaLateral} role="complementary" aria-label={rotulo}

@@ -220,7 +220,7 @@ for (const largura of [390, 1280]) {
       await page.getByRole('tab', { name: 'Conquistas' }).click();
       await expect(page.getByText('Conquistada', { exact: true })).toBeVisible();
       await expect(page.getByText('2º de 12 participantes')).toBeVisible();
-      await expect(page.getByText('8 treino(s) concluído(s) · 80 pts')).toBeVisible();
+      await expect(page.getByText('8 treinos concluídos · 80 pts')).toBeVisible();
       await capturar(page, `aluno-conquistas-${largura}`);
       expect(api.naoTratadas).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);

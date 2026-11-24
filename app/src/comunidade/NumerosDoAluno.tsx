@@ -1,15 +1,16 @@
 import { Award, ChevronRight, Medal } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ConquistaDoAluno, PosicaoNoRanking } from '../api/comunidadeTipos';
-import { conquistasRecentes } from '../dominio/arranjoDoMural';
+import { conquistasRecentes, textoDaFaixaDosNumeros } from '../dominio/arranjoDoMural';
 import { textoDaPosicao } from '../dominio/comunidade';
-import { dataParaTela } from '../dominio/formatos';
+import { dataParaTela, plural } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { Selo } from '../ui/Selo';
+import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
 
 /** A posição do próprio aluno (só ele vê; nomes de outros alunos nunca chegam): a mesma linha na aba Conquistas e no mural. */
@@ -21,7 +22,7 @@ export function LinhaDaPosicao({ ranking }: { ranking: PosicaoNoRanking }) {
       <View style={estilos.encolher}>
         {/* Frases, não número solto: sem a fonte numérica (regra de 19/11). */}
         <Texto variante="bloco">{textoDaPosicao(ranking.posicao, ranking.participantes)}</Texto>
-        <Texto variante="suave">{ranking.treinosConcluidos} treino(s) concluído(s) · {ranking.pontuacao} pts</Texto>
+        <Texto variante="suave">{plural(ranking.treinosConcluidos, 'treino concluído', 'treinos concluídos')} · {ranking.pontuacao} pts</Texto>
       </View>
     </View>
   );
@@ -43,15 +44,11 @@ export function CartaoDaConquista({ conquista }: { conquista: ConquistaDoAluno }
   );
 }
 
-/** O mural do aluno tem o que mostrar na coluna (posição ou alguma conquista). Sem isto ela nem ocupa lugar. */
-export const temNumeros = (ranking: PosicaoNoRanking | undefined, conquistas: readonly ConquistaDoAluno[] | undefined) =>
-  !!ranking || !!conquistas?.length;
-
 /**
  * Coluna do mural do aluno (decisão 3 de 24/11): "Sua posição" e as conquistas mais recentes, compactas, com o caminho
  * para a aba Conquistas. Só o que já chegou: carregando, com erro ou vazio, o bloco some (a aba Conquistas mostra esses
- * estados), para a coluna não abrir vão no topo do feed. `compacto` (acima do feed, abaixo de 1280 px de área): um cartão
- * só, com a posição e uma linha das conquistas, para o feed começar na primeira dobra.
+ * estados), para a coluna não abrir vão no topo do feed. `compacto` (acima do feed, abaixo de 1280 px de área): a faixa de
+ * uma linha (`FaixaDosNumeros`), para o feed começar na primeira dobra.
  */
 export function NumerosDoMural({ ranking, conquistas, compacto, aoVerConquistas }: {
   ranking: PosicaoNoRanking | undefined;
@@ -61,25 +58,7 @@ export function NumerosDoMural({ ranking, conquistas, compacto, aoVerConquistas 
 }) {
   const { cores } = useTema();
   const recentes = conquistasRecentes(conquistas ?? []);
-  const total = recentes.itens.length + recentes.aMais;
-  if (compacto) {
-    return (
-      <Cartao titulo="Seus números">
-        {ranking ? <LinhaDaPosicao ranking={ranking} /> : null}
-        {ranking ? <Texto variante="pequeno">Pelo número de treinos concluídos. Só você vê a sua posição.</Texto> : null}
-        {recentes.itens.length ? (
-          <View style={estilos.resumoDasConquistas}>
-            <Award size={20} color={cores.texto} aria-hidden />
-            <Texto style={estilos.frase}>
-              {`${total === 1 ? '1 conquista' : `${total} conquistas`} · a mais recente: `}
-              <Texto style={estilos.tituloDaConquista}>{recentes.itens[0].titulo}</Texto>
-            </Texto>
-            <Botao tipo="fantasma" aoTocar={aoVerConquistas} rotulo="Ver conquistas" />
-          </View>
-        ) : null}
-      </Cartao>
-    );
-  }
+  if (compacto) return <FaixaDosNumeros ranking={ranking} conquistas={conquistas} aoVerConquistas={aoVerConquistas} />;
   return (
     <>
       {ranking ? (
@@ -109,7 +88,49 @@ export function NumerosDoMural({ ranking, conquistas, compacto, aoVerConquistas 
   );
 }
 
+/**
+ * Faixa de uma linha no topo do feed (abaixo de 1280 px): "2º de 12 · 4 conquistas" e "Ver conquistas ›", a faixa inteira
+ * é o botão. Antes de os números chegarem desenha a mesma caixa vazia (`ALTURA_DA_FAIXA`), escondida do leitor de tela:
+ * o lugar fica guardado e nada abaixo anda quando o texto entra.
+ */
+export function FaixaDosNumeros({ ranking, conquistas, aoVerConquistas }: {
+  ranking: PosicaoNoRanking | undefined;
+  conquistas: readonly ConquistaDoAluno[] | undefined;
+  aoVerConquistas: () => void;
+}) {
+  const { cores } = useTema();
+  const texto = textoDaFaixaDosNumeros(ranking, conquistas?.length ?? 0);
+  const caixa = [estilos.faixa, { backgroundColor: cores.superficie, borderColor: cores.borda }];
+  if (!texto) {
+    return (
+      <View testID="faixa-dos-numeros-reservada" style={caixa} aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View style={[estilos.reservado, { backgroundColor: cores.superficie2 }]} />
+      </View>
+    );
+  }
+  return (
+    <Pressable testID="faixa-dos-numeros" accessibilityRole="button" accessibilityLabel={`Seus números: ${texto}. Ver conquistas`}
+      accessibilityHint="Abre a aba Conquistas." onPress={aoVerConquistas}
+      style={(estado) => [caixa, sobre(estado) && { backgroundColor: cores.sobre }]}>
+      {/* Sem ícone à esquerda: em 390 px o texto e a ação cabem inteiros na linha. */}
+      <Texto numberOfLines={1} style={estilos.textoDaFaixa}>{texto}</Texto>
+      <Texto style={estilos.acaoDaFaixa}>Ver conquistas</Texto>
+      <ChevronRight size={18} color={cores.texto} aria-hidden />
+    </Pressable>
+  );
+}
+
+/** Altura fixa da faixa (com ou sem texto): o alvo de toque de 44 mais o respiro da borda. */
+const ALTURA_DA_FAIXA = ALVO_TOQUE + espaco(1.5);
+
 const estilos = StyleSheet.create({
+  faixa: {
+    height: ALTURA_DA_FAIXA, flexDirection: 'row', alignItems: 'center', gap: espaco(1),
+    borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(2),
+  },
+  reservado: { height: 14, width: '45%', borderRadius: 7 },
+  textoDaFaixa: { flex: 1, minWidth: 0, fontFamily: fontes.medio },
+  acaoDaFaixa: { fontFamily: fontes.semi },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   encolher: { flex: 1, minWidth: 0, gap: 2 },
   item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
@@ -118,9 +139,6 @@ const estilos = StyleSheet.create({
   // O Selo se alinha ao início por conta própria; a linha o centraliza no cartão da conquista.
   seloCentral: { flexDirection: 'row', justifyContent: 'center', alignSelf: 'stretch' },
   lista: { gap: espaco(1.5) },
-  resumoDasConquistas: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1.5) },
-  // No celular a frase fica com a linha e o botão desce; no PC cabem os dois.
-  frase: { flexGrow: 1, flexShrink: 1, flexBasis: 220, minWidth: 0 },
   linhaDaConquista: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1.5) },
   tituloDaConquista: { fontFamily: fontes.medio },
 });

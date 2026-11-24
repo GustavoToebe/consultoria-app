@@ -19,7 +19,8 @@ import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
 import { FolhaPerfilDoColega } from '../../comunidade/FolhaPerfilDoColega';
 import { ListaDeColegas } from '../../comunidade/ListaDeColegas';
 import { MuralComLateral } from '../../comunidade/MuralComLateral';
-import { CartaoDaConquista, LinhaDaPosicao, NumerosDoMural, temNumeros } from '../../comunidade/NumerosDoAluno';
+import { CartaoDaConquista, LinhaDaPosicao, NumerosDoMural } from '../../comunidade/NumerosDoAluno';
+import { existemNumeros } from '../../dominio/arranjoDoMural';
 import { PainelDeDenuncia } from '../../comunidade/PainelDeDenuncia';
 import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
@@ -244,9 +245,9 @@ export default function ComunidadeAluno() {
               <Escolha<AbaDoMural> descricao="Publicações" distribuida={!largo} valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
               <BarraDoMural aba={abaDoMural} filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={false} />
 
-              {/* Feed de ~720 px e, a partir de 1280 px de área, "Sua posição" e as conquistas numa coluna ao lado; abaixo, no
-                  topo do feed (decisão 3 de 24/11, a mesma do mural da equipe). */}
-              <MuralComLateral idDaLateral="coluna-dos-numeros" rotulo="Seus números" temLateral={temNumeros(ranking.dados, conquistas.dados)}
+              {/* Feed de ~720 px e, a partir de 1280 px de área, "Sua posição" e as conquistas numa coluna ao lado; abaixo, uma
+                  faixa de uma linha no topo do feed, com o lugar guardado enquanto os números carregam (sem salto). */}
+              <MuralComLateral idDaLateral="coluna-dos-numeros" rotulo="Seus números" temLateral={existemNumeros(ranking, conquistas)}
                 lateral={(noTopo) => <NumerosDoMural compacto={noTopo} ranking={ranking.dados} conquistas={conquistas.dados} aoVerConquistas={() => setAba('ranking')} />}>
                 <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
                   textoVazio={textoDoVazioDaAba(abaDoMural, filtro, busca, podDoMural?.nome)}
