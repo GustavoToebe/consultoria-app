@@ -136,7 +136,7 @@ const caixa = async (page: Page, id: string) => {
   if (!c) throw new Error(`${id} sem caixa`);
   return c;
 };
-const RENOVACOES = { renovacoesProximasCount: 2, renovacoesProximasCentavos: 30_000, projecaoAnualCentavos: 1_080_000 };
+const RENOVACOES = { renovacoesProximasCount: 2, renovacoesProximasCentavos: 30_000, projecaoAnualCentavos: 1_080_000, encerraramSemRenovarCount: 0, encerraramSemRenovar: [] };
 const semRolagemHorizontal = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
 for (const tema of ['CLARO', 'ESCURO'] as const) {
@@ -247,7 +247,7 @@ for (const largura of [390, 1280]) {
   test(`escopo "Meus" em ${largura}: o cartão de renovações fica e mostra o número do escopo`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     await fixarHoje(page);
-    const renovacoesMeus = { renovacoesProximasCount: 1, renovacoesProximasCentavos: 12_345, projecaoAnualCentavos: 987_650 };
+    const renovacoesMeus = { renovacoesProximasCount: 1, renovacoesProximasCentavos: 12_345, projecaoAnualCentavos: 987_650, encerraramSemRenovarCount: 0, encerraramSemRenovar: [] };
     const estado = estadoFinanceiro({ renovacoes: RENOVACOES, renovacoesMeus });
     const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
     await page.goto('/treinador/financeiro');
@@ -771,7 +771,8 @@ for (const [largura, tema] of [[390, 'CLARO'], [1280, 'CLARO'], [390, 'ESCURO'],
     await expect(daSaida.getByText('Saída', { exact: true })).toBeVisible();
     await daSaida.click();
     const cobranca = page.getByRole('dialog', { name: 'Cobrança de saída' });
-    await expect(cobranca.getByText('Saída', { exact: true })).toBeVisible();
+    // folha da cobrança (23/11): o tipo vai na linha de origem, abaixo do nome (o selo fica só para a situação).
+    await expect(cobranca.getByText(/^Cobrança de saída · /)).toBeVisible();
     await expect(cobranca.getByText('R$ 450,00').first()).toBeVisible();
     await expect(cobranca.getByRole('button', { name: 'Copiar link de pagamento' })).toHaveCount(0);
     await expect(cobranca.getByRole('button', { name: 'Registrar pagamento' })).toBeVisible();
@@ -1289,7 +1290,8 @@ test('cobrança em aberto sem recebimento configurado: sem botão de link, com o
   await expect(folha.getByRole('button', { name: 'Copiar link de pagamento' })).toHaveCount(0);
   expect(pedidos.filter(ehPedidoDeLink)).toEqual([]);
 
-  await folha.getByRole('button', { name: 'Abrir Recebimento online' }).click();
+  // folha da cobrança (23/11): o botão grande virou o link "Configurar", ao lado do aviso.
+  await folha.getByRole('link', { name: 'Configurar o recebimento online' }).click();
   await expect(page).toHaveURL(/aba=recebimento/);
   await expect(page.getByRole('tab', { name: 'Recebimento', selected: true })).toBeVisible();
   await expect(page.getByText('Ainda não configurado', { exact: true })).toBeVisible();
@@ -1355,7 +1357,8 @@ test('cobrança paga: marcar contestação, manter como paga e marcar estorno, s
   // Contestada: a baixa continua na ficha; manter como paga volta a "Paga".
   await abrir();
   folha = page.getByRole('dialog');
-  await expect(folha.getByText('Pago em')).toBeVisible();
+  // folha da cobrança (23/11): a data da baixa fica nas Datas; o grupo Pagamento diz quem deu a baixa.
+  await expect(folha.getByText('Baixa dada por')).toBeVisible();
   await expect(folha.getByRole('button', { name: 'Marcar contestação' })).toHaveCount(0);
   await folha.getByRole('button', { name: 'Manter como paga' }).click();
   painel = page.getByRole('alertdialog', { name: 'Manter como paga?' });

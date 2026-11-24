@@ -50,9 +50,14 @@ describe('plano contratado', () => {
     expect(vigenciaDaContratacao({ ...base, diasRestantesVigencia: 1 })?.restantes).toBe('1 dia restante');
     expect(vigenciaDaContratacao({ ...base, diasRestantesVigencia: 0 })).toMatchObject({ restantes: 'Termina hoje', tom: 'atencao' });
   });
-  it('vigência vencida: vermelha, barra cheia, com os dias de atraso', () => {
-    const v = vigenciaDaContratacao({ periodicidade: 'TRIMESTRAL', situacao: 'ATIVA', inicio: '2026-08-05', terminoVigencia: '2026-09-05', diasRestantesVigencia: -79 });
-    expect(v).toMatchObject({ restantes: 'Vencida há 79 dias', tom: 'perigo', fracao: 1 });
+  it('parcela única passada do término: "Encerrado em" com a data, âmbar, barra cheia (nunca "Vencida")', () => {
+    const v = vigenciaDaContratacao({ periodicidade: 'PARCELA_UNICA', situacao: 'ATIVA', inicio: '2026-08-05', terminoVigencia: '2026-09-05', diasRestantesVigencia: -79 });
+    expect(v).toMatchObject({ restantes: 'Encerrado em 05/09/2026', tom: 'atencao', fracao: 1, falado: 'Vigência de 05/08/2026 a 05/09/2026: encerrado em 05/09/2026' });
+  });
+  it('parcela única dentro do ciclo segue a regra dos outros planos (dias restantes)', () => {
+    const base = { periodicidade: 'PARCELA_UNICA' as const, situacao: 'ATIVA' as const, inicio: '2026-11-13', terminoVigencia: '2026-12-13' };
+    expect(vigenciaDaContratacao({ ...base, diasRestantesVigencia: 20 })).toMatchObject({ restantes: '20 dias restantes', tom: 'neutro' });
+    expect(vigenciaDaContratacao({ ...base, diasRestantesVigencia: 0 })).toMatchObject({ restantes: 'Termina hoje', tom: 'atencao' });
   });
   it('a barra anda pela fração do período que já passou', () => {
     const v = vigenciaDaContratacao({ periodicidade: 'TRIMESTRAL', situacao: 'ATIVA', inicio: '2026-11-01', terminoVigencia: '2026-12-01', diasRestantesVigencia: 15 });

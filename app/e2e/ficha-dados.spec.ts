@@ -10,7 +10,7 @@ import { ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, estadoDoResponsavel, estadoFina
 /**
  * Ficha do aluno › Dados (23/11, `docs/planos/ficha-do-aluno-dados.md`): duas colunas a partir da faixa normal (Plano à
  * esquerda; Acesso e Anamnese à direita) e uma coluna na ordem Lesões ativas › Plano › Acesso › Anamnese › Histórico;
- * acesso compacto com o último login; vigência com o texto equivalente e as cores a 15 dias e vencida; as últimas 3
+ * acesso compacto com o último login; vigência com o texto equivalente, âmbar a 15 dias e "Encerrado em" na parcela única passada do término; as últimas 3
  * cobranças com "Ver todas no Financeiro"; lesões com as ativas tingidas primeiro, "Desde"/"a", ⋯ com Editar e Excluir
  * (confirmação), 5 recuperadas + "Ver todas" e a observação com rótulo; e o vazio. Relógio em 19/10/2026; só dados
  * fictícios, API simulada. ficha do aluno: dados (23/11)
@@ -145,18 +145,11 @@ for (const largura of [390, 1280]) {
   });
 }
 
-test('vigência (plano trimestral): com 15 dias, texto e barra em âmbar; vencida, em vermelho; com 16, neutra', async ({ page }) => {
+test('vigência (plano trimestral): com 15 dias, texto e barra em âmbar; com 16, neutra', async ({ page }) => {
   const atencao = rgb(PALETAS.CLARO.cores.atencao);
-  const perigo = rgb(PALETAS.CLARO.cores.perigo);
   const { errosDaPagina } = await abrir(page, { largura: 1280, contratacoes: [{ ...CONTRATACAO, diasRestantesVigencia: 15 }] });
   await expect(page.getByText('15 dias restantes', { exact: true })).toHaveCSS('color', atencao);
   expect(errosDaPagina).toEqual([]);
-
-  const vencida = await page.context().newPage();
-  const daVencida = await abrir(vencida, { largura: 1280, contratacoes: [{ ...CONTRATACAO, diasRestantesVigencia: -3 }] });
-  await expect(vencida.getByText('Vencida há 3 dias', { exact: true })).toHaveCSS('color', perigo);
-  await expect(vencida.getByLabel('Vigência de 19/10/2026 a 19/01/2027: vencida há 3 dias')).toBeVisible();
-  expect(daVencida.errosDaPagina).toEqual([]);
 
   const folgada = await page.context().newPage();
   const daFolgada = await abrir(folgada, { largura: 1280, contratacoes: [{ ...CONTRATACAO, diasRestantesVigencia: 16 }] });
@@ -164,11 +157,36 @@ test('vigência (plano trimestral): com 15 dias, texto e barra em âmbar; vencid
   expect(daFolgada.errosDaPagina).toEqual([]);
 });
 
+/** Parcela única que terminou em 16/10/2026 (3 dias antes de "hoje"): a API não alerta, e a ficha diz "Encerrado em". */
+const PARCELA_UNICA_ENCERRADA: ContratacaoResponse = {
+  ...CONTRATACAO, planoNome: 'Parcela única', periodicidade: 'PARCELA_UNICA', valorCentavos: 70_000, inicio: '2026-09-16',
+  terminoVigencia: '2026-10-16', diasRestantesVigencia: -3, alertaRenovacao: null,
+};
+
+for (const [largura, tema] of [[1280, 'CLARO'], [1280, 'ESCURO'], [390, 'CLARO'], [390, 'ESCURO']] as const) {
+  test(`${largura}px (${tema.toLowerCase()}): parcela única passada do término mostra "Encerrado em" em âmbar, nunca "Vencida"`, async ({ page }) => {
+    const atencao = rgb(PALETAS[tema].cores.atencao);
+    const { errosDaPagina } = await abrir(page, { largura, tema, contratacoes: [PARCELA_UNICA_ENCERRADA] });
+    const texto = page.getByText('Encerrado em 16/10/2026', { exact: true });
+    await expect(texto).toBeVisible();
+    await expect(texto).toHaveCSS('color', atencao);
+    await expect(page.getByLabel('Vigência de 16/09/2026 a 16/10/2026: encerrado em 16/10/2026')).toBeVisible();
+    await expect(page.getByText(/Vencida há|dias? restantes?/)).toHaveCount(0);
+    // Sem alerta de renovação não há "Avisar no WhatsApp".
+    await expect(page.getByRole('button', { name: /WhatsApp/ })).toHaveCount(0);
+    if (process.env.CAPTURAS) {
+      await texto.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${process.env.CAPTURAS}/ficha-encerrado-${largura}-${tema.toLowerCase()}.png` });
+    }
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
 for (const largura of [390, 1280]) {
   test(`${largura}px: plano mensal sem barra de vigência, nem dias restantes nem a cor (Gustavo, 23/11); o resto fica`, async ({ page }) => {
     const mensal: ContratacaoResponse = {
       ...CONTRATACAO, planoNome: 'Consultoria mensal', periodicidade: 'MENSAL', valorCentavos: 15_000, inicio: '2026-08-05', diaVencimento: 5,
-      terminoVigencia: '2026-09-05', diasRestantesVigencia: -44, alertaRenovacao: 'VENCIDO',
+      terminoVigencia: '2026-09-05', diasRestantesVigencia: -44, alertaRenovacao: null,
     };
     const { errosDaPagina } = await abrir(page, { largura, contratacoes: [mensal], cobrancas: [cobranca(1, '2026-10-05', 'ABERTA')] });
     await expect(page.getByText('Consultoria mensal', { exact: true })).toBeVisible();
@@ -176,7 +194,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Vence todo dia 5', { exact: true })).toBeVisible();
     await expect(page.getByText('Periodicidade: Mensal', { exact: true })).toBeVisible();
     await expect(page.getByLabel(/^Vigência de/)).toHaveCount(0);
-    await expect(page.getByText(/dias restantes|Vencida há|^Término /)).toHaveCount(0);
+    await expect(page.getByText(/dias restantes|Vencida há|Encerrado em|^Término /)).toHaveCount(0);
     for (const nome of ['Alterar', 'Pausar', 'Encerrar']) await expect(page.getByRole('button', { name: nome, exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Abrir cobrança de/ })).toHaveCount(1);
     await expect(page.getByRole('heading', { name: 'Responsável financeiro' })).toBeVisible();
@@ -191,7 +209,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByLabel('Valor: R$ 997,00 por trimestre')).toBeVisible();
     await expect(page.getByText('Vence todo dia 19', { exact: true })).toBeVisible();
     await expect(page.getByLabel(/^Vigência de/)).toHaveCount(0);
-    await expect(page.getByText(/dias? restantes?|Vencida há|^Término /)).toHaveCount(0);
+    await expect(page.getByText(/dias? restantes?|Vencida há|Encerrado em|^Término /)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Retomar', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Abrir cobrança de/ })).toHaveCount(1);
     await expect(page.getByRole('heading', { name: 'Responsável financeiro' })).toBeVisible();
@@ -202,7 +220,7 @@ for (const largura of [390, 1280]) {
     const daOutra = await abrir(outra, { largura, contratacoes: [encerrada], cobrancas: [cobranca(1, '2026-10-19', 'PAGA')] });
     await expect(outra.getByText('Nenhum plano comercial contratado. 1 contratação encerrada.')).toBeVisible();
     await expect(outra.getByLabel(/^Vigência de/)).toHaveCount(0);
-    await expect(outra.getByText(/dias? restantes?|Vencida há|^Término /)).toHaveCount(0);
+    await expect(outra.getByText(/dias? restantes?|Vencida há|Encerrado em|^Término /)).toHaveCount(0);
     await expect(outra.getByRole('button', { name: /^Abrir cobrança de/ })).toHaveCount(1);
     await expect(outra.getByRole('heading', { name: 'Responsável financeiro' })).toBeVisible();
     expect(daOutra.errosDaPagina).toEqual([]);

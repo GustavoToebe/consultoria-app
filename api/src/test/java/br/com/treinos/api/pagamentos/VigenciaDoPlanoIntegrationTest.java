@@ -23,7 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Vigência da contratação ({@code terminoVigencia}, {@code diasRestantesVigencia}, {@code alertaRenovacao}) e as
  * "renovações próximas" da Visão geral, que leem a mesma regra ({@link VigenciaDoPlano}): o término é o fim do ciclo em
- * curso (exclusivo, contado da âncora) e plano mensal não tem alerta. "Hoje" é o de Brasília, como no serviço; as datas
+ * curso (exclusivo, contado da âncora), plano mensal não tem alerta e a parcela única só alerta com o fim do ciclo (início
+ * + 1 mês) dentro dos 40 dias. "Hoje" é o de Brasília, como no serviço; as datas
  * do teste saem dele. Uma consultoria por teste; dados fictícios.
  */
 @AutoConfigureMockMvc
@@ -163,6 +164,91 @@ class VigenciaDoPlanoIntegrationTest extends AbstractIntegrationTest {
     void contratacaoComInicioFuturoTerminaUmPeriodoDepoisDoInicio() throws Exception {
         LocalDate inicio = hoje.plusDays(10);
         confereVigencia(contratar("TRIMESTRAL", 30_000, inicio), inicio.plusMonths(3), "EM_DIA");
+    }
+
+    @Test
+    void parcelaUnicaComMaisDeUmMesDeVidaNaoAlertaNemEntraNasRenovacoes() throws Exception {
+        UUID aluno = api.criarAluno(admin, "Aluno Fictício " + UUID.randomUUID());
+        LocalDate inicio = hoje.minusMonths(3);
+        JsonNode c = contratar(aluno, "PARCELA_UNICA", 50_000, inicio);
+
+        // O único ciclo (início + 1 mês) já passou: continua informado, mas sem alerta.
+        for (JsonNode v : new JsonNode[] {c, daLista(aluno)}) {
+            assertThat(v.get("terminoVigencia").asString()).isEqualTo(inicio.plusMonths(1).toString());
+            assertThat(v.get("diasRestantesVigencia").asLong()).isNegative();
+            JsonNode alerta = v.get("alertaRenovacao");
+            assertThat(alerta == null || alerta.isNull()).as("sem alerta").isTrue();
+        }
+        JsonNode r = api.get("/financeiro/visao-geral", admin, 200);
+        assertThat(r.get("renovacoesProximasCount").asInt()).isZero();
+        assertThat(r.get("renovacoesProximasCentavos").asLong()).isZero();
+        // Terminou há mais de 30 dias: também fora de "Encerraram sem renovar".
+        assertThat(r.get("encerraramSemRenovarCount").asInt()).isZero();
+        assertThat(r.get("encerraramSemRenovar")).isEmpty();
+    }
+
+    @Test
+    void parcelaUnicaComFimDoCicloDentroDeQuarentaDiasAlertaEEntraNasRenovacoes() throws Exception {
+        LocalDate inicio = hoje.minusDays(10);
+        JsonNode c = contratar("PARCELA_UNICA", 60_000, inicio);
+
+        assertThat(c.get("terminoVigencia").asString()).isEqualTo(inicio.plusMonths(1).toString());
+        assertThat(c.get("diasRestantesVigencia").asLong()).isBetween(0L, 40L);
+        assertThat(c.get("alertaRenovacao").asString()).isEqualTo("PROXIMO_VENCIMENTO");
+        JsonNode r = api.get("/financeiro/visao-geral", admin, 200);
+        assertThat(r.get("renovacoesProximasCount").asInt()).isEqualTo(1);
+        assertThat(r.get("renovacoesProximasCentavos").asLong()).isEqualTo(60_000);
+    }
+
+    @Test
+    void parcelaUnicaQueEncerrouHaDezDiasEntraNoGrupoEncerraramSemRenovar() throws Exception {
+        UUID aluno = api.criarAluno(admin, "Aluno Fictício Encerrado");
+        LocalDate inicio = hoje.minusDays(40);
+        contratar(aluno, "PARCELA_UNICA", 70_000, inicio);
+        LocalDate termino = inicio.plusMonths(1);
+        long dias = ChronoUnit.DAYS.between(termino, hoje);
+        assertThat(dias).as("o término ficou 8 a 12 dias para trás").isBetween(8L, 12L);
+
+        JsonNode r = api.get("/financeiro/visao-geral", admin, 200);
+        // Os dois grupos não se misturam: não é renovação próxima, e o contador do grupo é próprio.
+        assertThat(r.get("renovacoesProximasCount").asInt()).isZero();
+        assertThat(r.get("renovacoesProximasCentavos").asLong()).isZero();
+        assertThat(r.get("encerraramSemRenovarCount").asInt()).isEqualTo(1);
+        JsonNode item = r.get("encerraramSemRenovar").get(0);
+        assertThat(item.get("alunoId").asString()).isEqualTo(aluno.toString());
+        assertThat(item.get("alunoNome").asString()).isEqualTo("Aluno Fictício Encerrado");
+        assertThat(item.get("terminoVigencia").asString()).isEqualTo(termino.toString());
+        assertThat(item.get("valorCentavos").asLong()).isEqualTo(70_000);
+        // A ficha da contratação segue sem alerta (nada de VENCIDO): "Encerrado em" é do app, pela data.
+        JsonNode alerta = daLista(aluno).get("alertaRenovacao");
+        assertThat(alerta == null || alerta.isNull()).isTrue();
+    }
+
+    @Test
+    void parcelaUnicaQueEncerrouHaQuarentaDiasNaoEntraNoGrupo() throws Exception {
+        contratar("PARCELA_UNICA", 70_000, hoje.minusDays(70));
+
+        JsonNode r = api.get("/financeiro/visao-geral", admin, 200);
+        assertThat(r.get("encerraramSemRenovarCount").asInt()).isZero();
+        assertThat(r.get("encerraramSemRenovar")).isEmpty();
+        assertThat(r.get("renovacoesProximasCount").asInt()).isZero();
+    }
+
+    @Test
+    void parcelaUnicaEncerradaAMaoNaoEntraNoGrupoEOGrupoNaoMisturaComAsRenovacoes() throws Exception {
+        JsonNode encerrada = contratar("PARCELA_UNICA", 70_000, hoje.minusDays(40));
+        api.post("/contratacoes/" + encerrada.get("id").asString() + "/encerrar", admin,
+                Map.of("versao", encerrada.get("versao").asLong()), 200);
+        contratar("PARCELA_UNICA", 30_000, hoje.minusDays(5));   // dentro do ciclo: renovação próxima
+        contratar("ANUAL", 120_000, hoje.minusMonths(12).plusDays(20)); // renovação próxima
+        UUID ativa = api.criarAluno(admin, "Aluno Fictício Sem Renovar");
+        contratar(ativa, "PARCELA_UNICA", 40_000, hoje.minusDays(45)); // ATIVA que passou do término
+
+        JsonNode r = api.get("/financeiro/visao-geral", admin, 200);
+        assertThat(r.get("renovacoesProximasCount").asInt()).isEqualTo(2);
+        assertThat(r.get("renovacoesProximasCentavos").asLong()).isEqualTo(30_000 + 120_000);
+        assertThat(r.get("encerraramSemRenovarCount").asInt()).isEqualTo(1);
+        assertThat(r.get("encerraramSemRenovar").get(0).get("alunoId").asString()).isEqualTo(ativa.toString());
     }
 
     @Test

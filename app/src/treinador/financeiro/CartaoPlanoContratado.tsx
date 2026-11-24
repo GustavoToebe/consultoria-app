@@ -87,8 +87,8 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
   const situacao = vigente ? seloDaContratacao(vigente.situacao) : null;
   const periodicidade = vigente ? rotuloDaPeriodicidade(vigente.periodicidade) : null;
   const porPeriodo = vigente ? valorPorPeriodo(vigente.periodicidade) : null;
-  // O WhatsApp só aparece na janela de renovação (ou vencida) da contratação ativa; quem envia é o treinador.
-  const emRenovacao = vigente?.situacao === 'ATIVA' && (vigente.alertaRenovacao === 'PROXIMO_VENCIMENTO' || vigente.alertaRenovacao === 'VENCIDO');
+  // O WhatsApp só aparece na janela de renovação da contratação ativa (a parcela única encerrada não alerta); quem envia é o treinador.
+  const emRenovacao = vigente?.situacao === 'ATIVA' && vigente.alertaRenovacao === 'PROXIMO_VENCIMENTO';
   const linkDaRenovacao = emRenovacao ? linkDoWhatsApp(telefoneAluno, mensagemDeRenovacao(alunoNome, vigente.planoNome)) : null;
   const abrirWhatsApp = () => {
     if (linkDaRenovacao) Linking.openURL(linkDaRenovacao).catch(() => avisar('Não foi possível abrir o WhatsApp.', 'perigo'));
@@ -212,8 +212,8 @@ const LARGURA_DA_TABELA = 560;
 
 /**
  * Vigência: os dias restantes acima da barra, à direita, e "Início" e "Término" nas pontas, embaixo. A barra é decorativa
- * (`aria-hidden`); o leitor de tela ouve a frase equivalente. Âmbar com 15 dias ou menos e vermelha vencida, na barra e no
- * texto; neutra no resto (`dominio/fichaDados.vigenciaDaContratacao`).
+ * (`aria-hidden`); o leitor de tela ouve a frase equivalente. Âmbar com 15 dias ou menos e na parcela única encerrada
+ * ("Encerrado em dd/mm/aaaa"), na barra e no texto; neutra no resto (`dominio/fichaDados.vigenciaDaContratacao`).
  */
 function Vigencia({ contratacao }: { contratacao: ContratacaoResponse }) {
   const { cores } = useTema();

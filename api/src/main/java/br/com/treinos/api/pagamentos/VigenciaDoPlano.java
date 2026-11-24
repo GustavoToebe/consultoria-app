@@ -11,15 +11,20 @@ import java.time.temporal.ChronoUnit;
  * pago, então ela própria é o fim do ciclo se ainda não chegou), senão o início (contratação futura: o ciclo é o primeiro,
  * até início + período). Em plano recorrente o {@code termino} é o fim do ciclo em curso, <b>exclusivo</b> (o primeiro dia do
  * ciclo seguinte; ver {@link CalendarioDeCobranca#fimDoCicloAtual}): sempre depois de hoje, então {@code diasRestantes} é
- * ≥ 1 e nunca "vencido". Parcela única não tem ciclo: base + 1 mês, que pode ficar para trás (dias negativos,
- * {@code VENCIDO}).
+ * ≥ 1. Parcela única não tem período: o único ciclo dela é base + 1 mês e ele não se renova, então o término pode ficar
+ * para trás (dias negativos).
  *
- * <p>{@code alerta}: plano mensal não tem (nulo); os demais seguem {@code VENCIDO} (&lt; 0 dia), {@code PROXIMO_VENCIMENTO}
- * (até {@value #LIMIAR_EM_DIAS} dias) e {@code EM_DIA}.
+ * <p>{@code alerta}: plano mensal não tem (nulo); os demais seguem {@code PROXIMO_VENCIMENTO} (até {@value #LIMIAR_EM_DIAS}
+ * dias) e {@code EM_DIA}. Parcela única só alerta enquanto o fim do ciclo está dentro da janela (0 a 40 dias): passado o
+ * término ela não alerta (nulo) nem entra nas renovações, nunca só por durar mais de um mês. Em vez disso, até
+ * {@value #ENCERRADO_RECENTE_EM_DIAS} dias depois do término ela conta em "Encerraram sem renovar" ({@link #encerrouSemRenovar}),
+ * grupo à parte; a ficha da contratação segue mostrando "Encerrado em" com a data.
  */
 record VigenciaDoPlano(LocalDate termino, Long diasRestantes, String alerta) {
 
     static final int LIMIAR_EM_DIAS = 40;
+    /** Quanto tempo a parcela única que passou do término aparece em "Encerraram sem renovar" (depois disso sai da lista). */
+    static final int ENCERRADO_RECENTE_EM_DIAS = 30;
 
     static VigenciaDoPlano de(ContratacaoAluno c, LocalDate hoje) {
         boolean retomada = c.getAncora() != null && c.getAncora().isAfter(c.getInicio());
@@ -38,18 +43,25 @@ record VigenciaDoPlano(LocalDate termino, Long diasRestantes, String alerta) {
                 ? CalendarioDeCobranca.fimDoCicloAtual(base, periodicidade, referencia)
                 : base.plusMonths(1);
         long dias = ChronoUnit.DAYS.between(hoje, termino);
-        return new VigenciaDoPlano(termino, dias, periodicidade == PeriodoDoPlano.MENSAL ? null : alerta(dias));
+        // Só a parcela única chega aqui com dias negativos (o ciclo dela não se renova): sem alerta, como o mensal.
+        return new VigenciaDoPlano(termino, dias, periodicidade == PeriodoDoPlano.MENSAL || dias < 0 ? null : alerta(dias));
     }
 
-    /** Conta em "renovações próximas": tem alerta (não é mensal) e faltam até 40 dias (ou já passou, em parcela única). */
+    /** Conta em "renovações próximas": tem alerta (não é mensal nem parcela única já terminada) e faltam até 40 dias. */
     boolean renovacaoProxima() {
         return alerta != null && diasRestantes != null && diasRestantes <= LIMIAR_EM_DIAS;
     }
 
+    /**
+     * Parcela única ativa que passou do término há até {@value #ENCERRADO_RECENTE_EM_DIAS} dias: "encerrou sem renovar" (o
+     * grupo próprio da Visão geral; nunca em {@link #renovacaoProxima}). Só ela chega a {@code diasRestantes} negativo; o
+     * chamador só passa contratação ATIVA (pausada e encerrada à mão ficam de fora).
+     */
+    boolean encerrouSemRenovar() {
+        return diasRestantes != null && diasRestantes < 0 && diasRestantes >= -ENCERRADO_RECENTE_EM_DIAS;
+    }
+
     private static String alerta(long dias) {
-        if (dias < 0) {
-            return "VENCIDO";
-        }
         return dias <= LIMIAR_EM_DIAS ? "PROXIMO_VENCIMENTO" : "EM_DIA";
     }
 }

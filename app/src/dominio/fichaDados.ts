@@ -43,14 +43,14 @@ export function repeteAPeriodicidade(planoNome: string | null | undefined, rotul
 /** A partir de quantos dias restantes a vigência passa a âmbar (pedido de 23/11). A renovação pelo WhatsApp segue a janela da API. */
 export const DIAS_PARA_AVISAR_VIGENCIA = 15;
 
-export type TomDaVigencia = 'neutro' | 'atencao' | 'perigo';
+export type TomDaVigencia = 'neutro' | 'atencao';
 
 export interface VigenciaNaTela {
   inicio: string;
   termino: string;
   /** De 0 a 1: quanto do período já passou (a barra, decorativa). */
   fracao: number;
-  /** "92 dias restantes", "1 dia restante", "Termina hoje", "Vencida há 3 dias". */
+  /** "92 dias restantes", "1 dia restante", "Termina hoje", "Encerrado em 19/10/2026". */
   restantes: string;
   tom: TomDaVigencia;
   /** O texto equivalente da barra, para o leitor de tela. */
@@ -70,8 +70,9 @@ export const mostraVigencia = (periodicidade: PeriodoDoPlano | null | undefined,
 
 /**
  * Vigência da contratação: datas, dias restantes e o tom. Os dias restantes são os da API (`diasRestantesVigencia`, que
- * também decide vencida); a tela não recalcula o "hoje". Faltando 15 dias ou menos, âmbar; vencida, vermelho; senão,
- * neutro. Fora do `mostraVigencia`, sem término ou sem os dias, não há vigência (o bloco some).
+ * também decide se acabou); a tela não recalcula o "hoje". Faltando 15 dias ou menos, âmbar; neutro no resto. Só a parcela
+ * única passa do término (o ciclo dela não se renova): vira "Encerrado em dd/mm/aaaa", em âmbar (23/11: o estado de plano
+ * encerrado não some, e não é alarme). Fora do `mostraVigencia`, sem término ou sem os dias, não há vigência (o bloco some).
  */
 export function vigenciaDaContratacao(c: {
   periodicidade: PeriodoDoPlano | null | undefined; situacao: SituacaoDaContratacao; inicio: string; terminoVigencia?: string | null; diasRestantesVigencia?: number | null;
@@ -81,10 +82,10 @@ export function vigenciaDaContratacao(c: {
   if (!mostraVigencia(c.periodicidade, c.situacao) || !termino || restantes == null || !c.inicio) return null;
   const total = diasEntre(c.inicio, termino);
   const fracao = total > 0 ? Math.min(1, Math.max(0, (total - restantes) / total)) : 1;
-  const texto = restantes < 0 ? `Vencida há ${dias(-restantes)}`
+  const texto = restantes < 0 ? `Encerrado em ${dataParaTela(termino)}`
     : restantes === 0 ? 'Termina hoje'
       : `${dias(restantes)} ${restantes === 1 ? 'restante' : 'restantes'}`;
-  const tom: TomDaVigencia = restantes < 0 ? 'perigo' : restantes <= DIAS_PARA_AVISAR_VIGENCIA ? 'atencao' : 'neutro';
+  const tom: TomDaVigencia = restantes <= DIAS_PARA_AVISAR_VIGENCIA ? 'atencao' : 'neutro';
   const de = dataParaTela(c.inicio);
   const ate = dataParaTela(termino);
   return { inicio: de, termino: ate, fracao, restantes: texto, tom, falado: `Vigência de ${de} a ${ate}: ${texto.toLocaleLowerCase('pt-BR')}` };

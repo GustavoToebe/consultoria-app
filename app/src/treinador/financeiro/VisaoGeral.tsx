@@ -10,6 +10,7 @@ import {
   NOTA_CONSIDERA_GERADAS, NOTA_REGISTROS_DISPONIVEIS,
 } from '../../dominio/financeiro';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
+import { DESCRICAO_ENCERRARAM, grupoEncerraramSemRenovar, TITULO_ENCERRARAM, type GrupoEncerraram } from '../../dominio/encerraramSemRenovar';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { rotuloDoMesNumerico } from '../../dominio/mesDaCompetencia';
 import { contagemParaTela } from '../../dominio/numeros';
@@ -29,6 +30,7 @@ import { GradeDeIndicadores } from '../../ui/GradeDeIndicadores';
 import { GraficoBarras } from '../../ui/GraficoBarras';
 import { ItemDeLista } from '../../ui/ItemDeLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { Selo } from '../../ui/Selo';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
@@ -126,13 +128,14 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
           <LinhaDeBlocos nome="previsoes" minimo={MINIMO_CARTAO}>
             {/* Trocar o escopo muda a chave e o `useCarregar` guarda os dados do escopo anterior até a resposta: sem esta guarda, o número do outro escopo apareceria como o deste. */}
             {!renovacoes.dadosDeOutraChave && renovacoes.dados ? (
-              <Cartao titulo="Renovações próximas" descricao="Contratações ativas com a vigência vencida ou terminando nos próximos 40 dias." style={estilos.esticar}>
+              <Cartao titulo="Renovações próximas" descricao="Contratações ativas com o fim do ciclo nos próximos 40 dias." style={estilos.esticar}>
                 <CamposEmLinha>
                   <CampoLeitura rotulo="Para renovar" numerico
                     valor={`${renovacoes.dados.renovacoesProximasCount} ${renovacoes.dados.renovacoesProximasCount === 1 ? 'plano' : 'planos'}`} />
                   <CampoLeitura rotulo="Valor dessas renovações" valor={centavosParaTela(renovacoes.dados.renovacoesProximasCentavos)} numerico />
                   <CampoLeitura rotulo="Projeção anual" valor={centavosParaTela(renovacoes.dados.projecaoAnualCentavos)} numerico />
                 </CamposEmLinha>
+                <EncerraramSemRenovar grupo={grupoEncerraramSemRenovar(renovacoes.dados)} />
               </Cartao>
             ) : null}
             <Cartao titulo="Próximos recebimentos" descricao={`O previsto ${NOTA_CONSIDERA_GERADAS}.`} style={estilos.esticar}>
@@ -236,6 +239,37 @@ function ComoCalculamos() {
       <View style={estilos.limites}>
         <Texto variante="subtitulo" nivel={3}>Períodos e limites dos dados</Texto>
         {LIMITES_DOS_DADOS.map((t) => <Texto key={t} variante="suave">{t}</Texto>)}
+      </View>
+    </>
+  );
+}
+
+/**
+ * "Encerraram sem renovar": abaixo das renovações, no mesmo cartão e separado por uma divisória. Parcela única que passou do
+ * término há até 30 dias; cada linha abre a ficha do aluno e leva o selo âmbar "Encerrado em dd/mm/aaaa". Sem ninguém, não
+ * aparece (`grupo` nulo).
+ */
+function EncerraramSemRenovar({ grupo }: { grupo: GrupoEncerraram | null }) {
+  const { cores, bordas } = useTema();
+  if (!grupo) return null;
+  return (
+    <>
+      <View style={{ height: bordas.bloco, backgroundColor: cores.divisor }} />
+      <View style={estilos.encerraram} testID="encerraram-sem-renovar">
+        <View style={estilos.tituloDoGrupo}>
+          <Texto variante="subtitulo" nivel={3}>{TITULO_ENCERRARAM}</Texto>
+          <Texto variante="suave" numerico>{grupo.resumo}</Texto>
+        </View>
+        <Texto variante="suave">{DESCRICAO_ENCERRARAM}</Texto>
+        <View accessibilityRole="list" accessibilityLabel={TITULO_ENCERRARAM} style={estilos.lista}>
+          {grupo.linhas.map((l) => (
+            // O selo vai embaixo do valor (e não à direita): no celular, ao lado, ele espremia o nome em três linhas.
+            <ItemDeLista key={l.chave} titulo={l.titulo} detalhe={l.detalhe} numerico href={`/treinador/alunos/${l.alunoId}?aba=ficha`} rotulo={l.rotulo}>
+              <View style={estilos.seloDoGrupo}><Selo texto={l.selo} tipo="atencao" /></View>
+            </ItemDeLista>
+          ))}
+        </View>
+        {grupo.resto > 0 ? <Texto variante="suave">{`e mais ${grupo.resto} ${grupo.resto === 1 ? 'plano' : 'planos'}`}</Texto> : null}
       </View>
     </>
   );
@@ -380,4 +414,7 @@ const estilos = StyleSheet.create({
   caber: { flexShrink: 1, maxWidth: '100%' },
   lista: { gap: espaco(1) },
   esticar: { flexGrow: 1 },
+  encerraram: { gap: espaco(1) },
+  seloDoGrupo: { flexDirection: 'row', marginTop: espaco(0.5) },
+  tituloDoGrupo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: espaco(1), rowGap: espaco(0.25) },
 });

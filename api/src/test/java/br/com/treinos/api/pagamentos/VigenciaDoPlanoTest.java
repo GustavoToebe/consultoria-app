@@ -113,14 +113,27 @@ class VigenciaDoPlanoTest {
     }
 
     @Test
-    void parcelaUnicaMantemOComportamentoDeSempre() {
-        // Início + 1 mês, sem avançar: depois disso fica vencida e segue contando como renovação (dias <= 40).
-        VigenciaDoPlano v = de("2027-01-15", PeriodoDoPlano.PARCELA_UNICA, "2027-04-20");
-        assertThat(v.termino()).isEqualTo(d("2027-02-15"));
-        assertThat(v.diasRestantes()).isEqualTo(-64);
-        assertThat(v.alerta()).isEqualTo("VENCIDO");
-        assertThat(v.renovacaoProxima()).isTrue();
-        assertThat(de("2027-01-15", PeriodoDoPlano.PARCELA_UNICA, "2027-01-20").alerta()).isEqualTo("PROXIMO_VENCIMENTO");
+    void parcelaUnicaSoAlertaComOFimDoCicloDentroDaJanela() {
+        // O único ciclo é início + 1 mês: dentro dos 40 dias alerta e conta; passado o término não alerta nem conta.
+        VigenciaDoPlano dentro = de("2027-01-15", PeriodoDoPlano.PARCELA_UNICA, "2027-01-20");
+        assertThat(dentro.alerta()).isEqualTo("PROXIMO_VENCIMENTO");
+        assertThat(dentro.renovacaoProxima()).isTrue();
+        assertThat(de("2027-01-15", PeriodoDoPlano.PARCELA_UNICA, "2027-02-15").alerta()).isEqualTo("PROXIMO_VENCIMENTO");
+        VigenciaDoPlano passada = de("2027-01-15", PeriodoDoPlano.PARCELA_UNICA, "2027-04-20");
+        assertThat(passada.termino()).isEqualTo(d("2027-02-15"));
+        assertThat(passada.diasRestantes()).isEqualTo(-64);
+        assertThat(passada.alerta()).isNull();
+        assertThat(passada.renovacaoProxima()).isFalse();
+        // Encerrou sem renovar: de 1 a 30 dias depois do término (o dia do término ainda é o último do ciclo).
+        assertThat(de("2027-01-15", PeriodoDoPlano.PARCELA_UNICA, "2027-02-15").encerrouSemRenovar()).isFalse();
+        assertThat(de("2027-01-15", PeriodoDoPlano.PARCELA_UNICA, "2027-02-16").encerrouSemRenovar()).isTrue();
+        assertThat(de("2027-01-15", PeriodoDoPlano.PARCELA_UNICA, "2027-03-17").encerrouSemRenovar()).isTrue();
+        assertThat(de("2027-01-15", PeriodoDoPlano.PARCELA_UNICA, "2027-03-18").encerrouSemRenovar()).isFalse();
+        assertThat(passada.encerrouSemRenovar()).isFalse();
+        // Contratação futura longe do início: o término ainda está além da janela.
+        VigenciaDoPlano longe = VigenciaDoPlano.de(d("2027-06-01"), PeriodoDoPlano.PARCELA_UNICA, d("2027-06-01"), d("2027-01-15"));
+        assertThat(longe.alerta()).isEqualTo("EM_DIA");
+        assertThat(longe.renovacaoProxima()).isFalse();
     }
 
     @Test

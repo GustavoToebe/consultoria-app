@@ -450,10 +450,21 @@ public final class PagamentosDtos {
 
     public record PaginaInadimplentes(List<Inadimplente> itens, long total, Long valorTotalCentavos, int pagina) { }
 
+    /**
+     * {@code encerraramSemRenovar}: grupo à parte das renovações (nunca somado a elas): parcela única ATIVA cujo término
+     * passou há até 30 dias, a mais recente primeiro, até 50 itens; {@code encerraramSemRenovarCount} é o total (pode passar
+     * da lista). Pausada ou encerrada à mão não entra. {@code alunoNome} é nome de pessoa: só vai a quem tem
+     * {@code FINANCEIRO_LER} (que depende de {@code ALUNO_LER}).
+     */
     public record VisaoGeralResponse(
             int renovacoesProximasCount,
             long renovacoesProximasCentavos,
-            long projecaoAnualCentavos) { }
+            long projecaoAnualCentavos,
+            int encerraramSemRenovarCount,
+            List<EncerradoSemRenovar> encerraramSemRenovar) { }
+
+    public record EncerradoSemRenovar(UUID contratacaoId, UUID alunoId, String alunoNome, LocalDate terminoVigencia,
+                                      long valorCentavos) { }
 
     // ---- Aluno ----
 

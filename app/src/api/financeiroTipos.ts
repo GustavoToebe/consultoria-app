@@ -117,7 +117,7 @@ export interface ContratacaoResponse {
   encerradaEm: string | null;
   terminoVigencia?: string | null;
   diasRestantesVigencia?: number | null;
-  alertaRenovacao?: 'EM_DIA' | 'PROXIMO_VENCIMENTO' | 'VENCIDO' | null;
+  alertaRenovacao?: 'EM_DIA' | 'PROXIMO_VENCIMENTO' | null;
   criadoEm: string;
   versao: number;
   /** Fim do tempo mínimo (`AAAA-MM-DD`); nulo = sem mínimo. É a competência N+1 (início + N meses), não o último dia. */
@@ -435,13 +435,25 @@ export interface Liquido {
 
 /**
  * `GET /financeiro/visao-geral` (`FINANCEIRO_LER`): sem período; com `meus`, só os alunos do responsável autenticado (renovações e projeção anual). `renovacoesProximas*`:
- * contratações ATIVAS cuja vigência vence em até 40 dias ou já venceu (conta da API); `projecaoAnualCentavos`: valor ×
- * parcelas por ano das ATIVAS (parcela única fica fora).
+ * contratações ATIVAS cujo fim do ciclo cai nos próximos 40 dias (conta da API; nunca "já venceu"); `projecaoAnualCentavos`: valor ×
+ * parcelas por ano das ATIVAS (parcela única fica fora). `encerraramSemRenovar*` é um grupo à parte, nunca somado às renovações: parcela
+ * única ATIVA cujo término passou há até 30 dias (a mais recente primeiro, até 50 itens; `Count` é o total). Pausada e encerrada à mão não entram.
  */
 export interface VisaoGeralDoFinanceiro {
   renovacoesProximasCount: number;
   renovacoesProximasCentavos: number;
   projecaoAnualCentavos: number;
+  encerraramSemRenovarCount: number;
+  encerraramSemRenovar: EncerradoSemRenovar[];
+}
+
+export interface EncerradoSemRenovar {
+  contratacaoId: string;
+  alunoId: string;
+  alunoNome: string | null;
+  /** AAAA-MM-DD: o fim do único ciclo (início + 1 mês). */
+  terminoVigencia: string;
+  valorCentavos: number;
 }
 
 export interface Painel {

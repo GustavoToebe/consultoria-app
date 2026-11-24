@@ -6,7 +6,10 @@ import br.com.treinos.api.pagamentos.CobrancaAlunoRepository.PorForma;
 import br.com.treinos.api.pagamentos.CobrancaAlunoRepository.PorPlano;
 import br.com.treinos.api.pagamentos.CobrancaAlunoRepository.Soma;
 import br.com.treinos.api.pagamentos.CobrancaAlunoRepository.SomaMensal;
+import br.com.treinos.api.alunos.Aluno;
+import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Cartoes;
+import br.com.treinos.api.pagamentos.PagamentosDtos.EncerradoSemRenovar;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Inadimplencia;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Inadimplente;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Liquido;
@@ -62,13 +65,19 @@ public class FinanceiroService {
     private static final java.util.Set<CobrancaAluno.Situacao> FORA_DA_BASE = java.util.Set.of(
             CobrancaAluno.Situacao.CANCELADA, CobrancaAluno.Situacao.RENEGOCIADA);
 
+    /** Itens de "Encerraram sem renovar" na resposta; o total vem à parte. */
+    private static final int ENCERRARAM_MOSTRADOS = 50;
+
     private final CobrancaAlunoRepository cobrancas;
     private final ContratacaoAlunoRepository contratacoes;
     private final LancamentoFinanceiroRepository lancamentos;
     private final ConsultoriaRepository consultorias;
+    private final AlunoRepository alunos;
 
     public FinanceiroService(CobrancaAlunoRepository cobrancas, ContratacaoAlunoRepository contratacoes,
-                             LancamentoFinanceiroRepository lancamentos, ConsultoriaRepository consultorias) {
+                             LancamentoFinanceiroRepository lancamentos, ConsultoriaRepository consultorias,
+                             AlunoRepository alunos) {
+        this.alunos = alunos;
         this.cobrancas = cobrancas;
         this.contratacoes = contratacoes;
         this.lancamentos = lancamentos;
@@ -308,11 +317,18 @@ public class FinanceiroService {
         long renovacoesCentavos = 0;
         long projecaoAnual = 0;
 
+        List<ContratacaoAluno> encerradas = new ArrayList<>();
+        Map<UUID, LocalDate> termino = new HashMap<>();
+
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         for (ContratacaoAluno c : ativas) {
-            if (VigenciaDoPlano.de(c, hoje).renovacaoProxima()) {
+            VigenciaDoPlano vigencia = VigenciaDoPlano.de(c, hoje);
+            if (vigencia.renovacaoProxima()) {
                 renovacoesCount++;
                 renovacoesCentavos += c.getValorCentavos();
+            } else if (vigencia.encerrouSemRenovar()) {
+                encerradas.add(c);
+                termino.put(c.getId(), vigencia.termino());
             }
             int multiplicador = switch (c.getPeriodicidade()) {
                 case MENSAL -> 12;
@@ -324,7 +340,16 @@ public class FinanceiroService {
             projecaoAnual += c.getValorCentavos() * multiplicador;
         }
 
-        return new VisaoGeralResponse(renovacoesCount, renovacoesCentavos, projecaoAnual);
+        encerradas.sort(java.util.Comparator.comparing((ContratacaoAluno c) -> termino.get(c.getId())).reversed()
+                .thenComparing(ContratacaoAluno::getId));
+        List<ContratacaoAluno> mostradas = encerradas.stream().limit(ENCERRARAM_MOSTRADOS).toList();
+        Map<UUID, String> nomes = new HashMap<>();
+        for (Aluno a : alunos.findAllById(mostradas.stream().map(ContratacaoAluno::getAlunoId).collect(java.util.stream.Collectors.toSet()))) {
+            nomes.put(a.getId(), a.getNome());
+        }
+        List<EncerradoSemRenovar> itens = mostradas.stream().map(c -> new EncerradoSemRenovar(c.getId(), c.getAlunoId(),
+                nomes.get(c.getAlunoId()), termino.get(c.getId()), c.getValorCentavos())).toList();
+        return new VisaoGeralResponse(renovacoesCount, renovacoesCentavos, projecaoAnual, encerradas.size(), itens);
     }
 
     // ---- GET /financeiro/inadimplentes ----

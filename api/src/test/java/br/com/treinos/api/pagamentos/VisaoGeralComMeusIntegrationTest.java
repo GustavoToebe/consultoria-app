@@ -100,6 +100,20 @@ class VisaoGeralComMeusIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void encerraramSemRenovarSegueOEscopoDoMeusEOutraConsultoriaNuncaEntra() throws Exception {
+        contratar(admin, admin, "PARCELA_UNICA", 10_000, hoje.minusDays(40));
+        contratar(admin, leitor, "PARCELA_UNICA", 5_000, hoje.minusDays(40));
+        JsonNode outro = api.novoTreinador();
+        contratar(outro, outro, "PARCELA_UNICA", 99_000, hoje.minusDays(40));
+
+        assertThat(api.get("/financeiro/visao-geral", admin, 200).get("encerraramSemRenovarCount").asInt()).isEqualTo(2);
+        JsonNode meus = api.get("/financeiro/visao-geral?meus=true", leitor, 200);
+        assertThat(meus.get("encerraramSemRenovarCount").asInt()).isEqualTo(1);
+        assertThat(meus.get("encerraramSemRenovar").get(0).get("valorCentavos").asLong()).isEqualTo(5_000);
+        assertThat(api.get("/financeiro/visao-geral?meus=true", admin, 200).get("encerraramSemRenovarCount").asInt()).isEqualTo(1);
+    }
+
+    @Test
     void meusSemAlunoNemContratacaoDaZeroEmVezDeNulo() throws Exception {
         contratar(admin, admin, "TRIMESTRAL", 10_000, hoje.minusMonths(2));
 
