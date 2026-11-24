@@ -278,7 +278,7 @@ export function AssistenteDaPlanilha() {
             {desatualizada ? (
               <Cartao titulo="A prévia ficou desatualizada">
                 <Alerta tom="atencao" texto="Algo mudou desde a prévia (o arquivo ou as respostas). Nada foi gravado. Gere a prévia de novo e confira antes de confirmar." />
-                <LinhaDeAcoes><Botao rotulo="Gerar a prévia de novo" tipo="secundario" aoTocar={gerarPrevia} /></LinhaDeAcoes>
+                <LinhaDeAcoes><Botao rotulo="Gerar a prévia de novo" tipo="acao" aoTocar={gerarPrevia} /></LinhaDeAcoes>
               </Cartao>
             ) : null}
             {ocupado && !previa && !desatualizada ? <><Texto variante="suave">Montando a prévia…</Texto><Esqueleto cartoes={1} /></> : null}

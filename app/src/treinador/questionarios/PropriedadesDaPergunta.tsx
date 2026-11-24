@@ -250,7 +250,7 @@ function ImagemDoItem({ imagemId, rotulo, aoMudar, compacta }: { imagemId?: stri
     {compacta ? null : <Texto variante="rotulo">{rotulo}</Texto>}
     {imagemId ? <ImagemDaPergunta id={imagemId} descricao={rotulo} pequena={compacta} /> : null}
     <View style={estilos.linha}>
-      <Botao rotulo={imagemId ? 'Trocar imagem' : compacta ? 'Imagem' : 'Enviar imagem'} tipo="secundario" Icone={ImagePlus} carregando={enviando} aoTocar={enviar} />
+      <Botao rotulo={imagemId ? 'Trocar imagem' : compacta ? 'Imagem' : 'Enviar imagem'} tipo={imagemId ? 'secundario' : 'acao'} Icone={ImagePlus} carregando={enviando} aoTocar={enviar} />
       {imagemId ? <Botao rotulo="Tirar imagem" tipo="perigoTexto" aoTocar={() => aoMudar(undefined)} /> : null}
     </View>
     {compacta || imagemId ? null : <Texto variante="pequeno">PNG ou JPEG; o app reduz para caber em 300 KB. {AVISO_LICENCA}</Texto>}

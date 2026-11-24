@@ -49,7 +49,7 @@ export function CartaoAnamnese({ alunoId, anonimizado, aoMudarCadastro }: { alun
   const podeAlterar = pode('ANAMNESE_ALTERAR');
   const pendente = temPendente(lista.dados ?? []);
   return <Cartao titulo="Anamnese" descricao="Questionário inicial que o aluno responde no app. A versão enviada não muda depois."
-    acoes={podeAlterar && !anonimizado ? <Botao rotulo="Enviar anamnese" tipo="secundario" Icone={Send} desabilitado={pendente || !lista.dados}
+    acoes={podeAlterar && !anonimizado ? <Botao rotulo="Enviar anamnese" tipo="acao" Icone={Send} desabilitado={pendente || !lista.dados}
       motivo={pendente ? 'Já há uma anamnese aguardando o aluno. Dispense-a para enviar outra.' : 'Carregando.'} aoTocar={() => setEnviar(true)} /> : undefined}>
     {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} tentarDeNovo={lista.recarregar} /> : null}
     {!lista.dados && lista.carregando ? <Esqueleto cartoes={1} /> : null}

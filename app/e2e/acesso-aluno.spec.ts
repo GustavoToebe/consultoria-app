@@ -138,7 +138,7 @@ test('cartão de lesões vazio segue o formato dos outros cartões da ficha', as
   await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   const cartaoDe = (nome: string) => page.getByRole('heading', { name: nome }).locator('xpath=ancestor::div[3]');
   const lesoes = cartaoDe('Histórico de lesões');
-  // ficha: colunas independentes (24/11): o histórico fica na coluna da esquerda, com a mesma largura do Contato.
+  // ficha: o histórico fica embaixo das duas colunas (24/11), na largura delas somadas: começa onde o Contato começa e é mais largo.
   const peso = cartaoDe('Contato e endereço');
   // ficha do aluno: dados (23/11): sem a descrição fixa; a contagem só existe com lesões.
   await expect(lesoes.getByText('Nenhuma lesão registrada.')).toBeVisible();
@@ -148,7 +148,8 @@ test('cartão de lesões vazio segue o formato dos outros cartões da ficha', as
   const lesoesBox = await lesoes.boundingBox();
   const pesoBox = await peso.boundingBox();
   expect(lesoesBox && pesoBox).toBeTruthy();
-  expect(Math.abs(lesoesBox!.width - pesoBox!.width)).toBeLessThan(8);
+  expect(Math.abs(lesoesBox!.x - pesoBox!.x)).toBeLessThan(2);
+  expect(lesoesBox!.width).toBeGreaterThan(pesoBox!.width * 1.4);
   expect(errosDaPagina).toEqual([]);
 });
 

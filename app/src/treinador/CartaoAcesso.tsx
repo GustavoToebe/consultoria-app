@@ -97,7 +97,7 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
             {!aluno.temAcesso ? (
               <LinhaDeDado rotulo="Convite" valor={validoAte ? `Válido até ${dataHoraParaTela(validoAte)}` : null} numerico
                 acoes={comAcoes ? (
-                  <Botao rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'} tipo="secundario" carregando={gerando}
+                  <Botao rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'} tipo="acao" carregando={gerando}
                     aoTocar={() => (convite || conviteAnterior ? setConfirmar(true) : gerar())} />
                 ) : undefined} />
             ) : null}

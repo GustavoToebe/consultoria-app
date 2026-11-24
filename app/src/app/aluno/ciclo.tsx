@@ -159,7 +159,7 @@ function Conteudo({ registros, dias, config, textos, mes, aoMes, aoRecarregar, a
         {aberto && !podeTerminar ? <Texto variante="suave">Esta menstruação ainda está sem data de fim. Informe quando terminou.</Texto> : null}
         <Botao rotulo={aberto ? (podeTerminar ? 'Minha menstruação terminou hoje' : 'Informar quando terminou') : 'Minha menstruação começou hoje'}
           aoTocar={comecarOuTerminar} />
-        <Botao rotulo="Registrar outra data" tipo="secundario" aoTocar={() => setOutraData(true)} />
+        <Botao rotulo="Registrar outra data" tipo="acao" aoTocar={() => setOutraData(true)} />
       </Cartao>
       <Cartao titulo={rotuloDoMes(mes)}>
         <View style={estilos.mes}>

@@ -356,3 +356,33 @@ test('capturas de conferência em 1280 e 390 (só com CAPTURAS_TELA_LARGA_GRUPO)
     expect(errosDaPagina).toEqual([]);
   }
 });
+
+// tamanho das folhas (24/11): no Convidar membro (folha do PC), o seletor "Perfil do membro" tem a largura dos campos de
+// cima e os segmentos medem igual e têm a mesma altura (`Escolha segmentosIguais`); com cinco perfis os rótulos quebram
+// linha sem cortar. Em 390 px fica o segmento de antes (cinco iguais não cabem).
+test('Convidar membro: seletor de perfil na largura dos campos, com segmentos iguais', async ({ page }) => {
+  const { errosDaPagina } = await preparar(page, 1280, 900);
+  await page.goto('/treinador/equipe', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Convidar membro' }).click();
+  const folha = page.getByRole('dialog', { name: 'Convidar membro' });
+  const email = (await folha.getByRole('textbox', { name: 'E-mail do membro' }).boundingBox())!;
+  const grupo = (await folha.getByRole('radiogroup', { name: 'Perfil do membro' }).boundingBox())!;
+  expect(Math.abs(grupo.x - email.x)).toBeLessThan(1);
+  expect(Math.abs(grupo.width - email.width)).toBeLessThan(1);
+  const radios = await folha.getByRole('radio').all();
+  expect(radios).toHaveLength(5);
+  const caixas = await Promise.all(radios.map(async (r) => (await r.boundingBox())!));
+  for (const c of caixas) {
+    expect(Math.abs(c.width - caixas[0].width)).toBeLessThan(1);
+    expect(Math.abs(c.height - caixas[0].height)).toBeLessThan(1);
+    expect(c.x + c.width).toBeLessThanOrEqual(grupo.x + grupo.width + 0.5);
+  }
+  // Nenhum rótulo cortado nem saindo do segmento.
+  for (const r of radios) {
+    const [texto, caixa] = [(await r.locator('div[dir="auto"]').first().boundingBox())!, (await r.boundingBox())!];
+    expect(texto.x).toBeGreaterThanOrEqual(caixa.x - 0.5);
+    expect(texto.x + texto.width).toBeLessThanOrEqual(caixa.x + caixa.width + 0.5);
+    expect(await r.locator('div[dir="auto"]').first().evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
+  }
+  expect(errosDaPagina).toEqual([]);
+});

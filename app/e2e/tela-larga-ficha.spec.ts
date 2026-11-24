@@ -11,7 +11,8 @@ import { ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, estadoDoResponsavel, estadoFina
 /**
  * Tela larga: revisão (24/11) das abas da Ficha do aluno (plano `docs/planos/tela-larga-revisao-ficha.md`). Confere por
  * geometria, em 1280, 1920, 2560 e 3440 px com o menu aberto, que a aba Dados não estica: em 1280 e 1920 as duas colunas
- * (3:2) até `LARGURA_EDITOR_DE_CAMPOS`, alinhadas à esquerda (4.10 de `docs/design-e-front.md`); em 2560 e 3440 três pilhas
+ * (3:2) até `LARGURA_EDITOR_DE_CAMPOS`, alinhadas à esquerda, com o Histórico de lesões embaixo na largura das duas
+ * (4.10 de `docs/design-e-front.md`); em 2560 e 3440 três pilhas
  * (revisão 2, `docs/planos/tela-larga-revisao-2.md`), cada uma até `LARGURA_EDITOR_DE_CAMPOS`. Capturas só com
  * `CAPTURAS_TELA_LARGA_GRUPO` (pasta fora do git) e `FASE` (`antes` ou `depois`). Relógio em 19/10/2026; só dados fictícios.
  */
@@ -329,8 +330,8 @@ for (const largura of [1280, 1920]) {
       expect(ident.width / config.width).toBeLessThan(1.55);
       if (largura >= 1920) expect(config.x + config.width - ident.x).toBeGreaterThan(1390);
     });
-    // As lesões ficam em tabela na coluna da esquerda a partir de 1920 (no teto, ~785 px); em 1280, cartões.
-    await expect(page.getByRole('table', { name: 'Lesões' })).toHaveCount(largura >= 1920 ? 1 : 0);
+    // As lesões ficam em tabela em todas as larguras: em 1280 e 1920 abaixo das duas colunas, na largura delas somadas.
+    await expect(page.getByRole('table', { name: 'Lesões' })).toHaveCount(1);
     await semRolagemHorizontal(page);
     expect(errosDaPagina).toEqual([]);
   });

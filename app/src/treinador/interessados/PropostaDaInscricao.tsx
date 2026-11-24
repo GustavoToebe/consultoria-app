@@ -67,7 +67,7 @@ export function PropostaDaInscricao({ dados, podeEditar, executar, ocupado }: {
           )}
           {podeEditar ? (
             <LinhaDeAcoes>
-              <Botao rotulo={temProposta(p) ? 'Editar proposta' : 'Registrar proposta'} tipo="secundario" aoTocar={() => setEditando(true)} />
+              <Botao rotulo={temProposta(p) ? 'Editar proposta' : 'Registrar proposta'} tipo={temProposta(p) ? 'secundario' : 'acao'} aoTocar={() => setEditando(true)} />
             </LinhaDeAcoes>
           ) : null}
         </>

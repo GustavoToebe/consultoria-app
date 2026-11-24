@@ -5,7 +5,7 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_FOLHA_LARGA, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Folha } from '../../ui/Folha';
 import { depoisDeFecharAsFolhas, marcarFolhaDoTopoFechando } from '../../ui/historicoDasFolhas';
@@ -84,7 +84,7 @@ export function FolhaNovaImportacao({ aoFechar }: { aoFechar: () => void }) {
   const edicao = coresDaEdicao(cores);
 
   return (
-    <Folha visivel titulo="Nova importação" aoFechar={aoFechar}
+    <Folha visivel titulo="Nova importação" aoFechar={aoFechar} largura={LARGURA_FOLHA_LARGA} alturaDoConteudo
       rodape={<>
         <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
         <Botao rotulo="Continuar" desabilitado={escolha === null} motivo="Escolha uma das opções para continuar." aoTocar={() => continuar(escolha)} />
@@ -142,7 +142,8 @@ export function FolhaNovaImportacao({ aoFechar }: { aoFechar: () => void }) {
 
 const estilos = StyleSheet.create({
   opcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
-  // Lado a lado na Folha do PC (600 px); abaixo de ~520 px de conteúdo, um embaixo do outro.
+  // Lado a lado na folha média do PC (`LARGURA_FOLHA_LARGA`, a mesma do resultado da planilha completa), na mesma altura
+  // (a linha estica os dois); abaixo de ~520 px de conteúdo, um embaixo do outro.
   cartao: { flexGrow: 1, flexBasis: 240, borderRadius: RAIO, overflow: 'hidden' },
   toque: { flexGrow: 1, padding: espaco(2), gap: espaco(1) },
   topo: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },

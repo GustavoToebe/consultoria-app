@@ -809,7 +809,11 @@ export const LARGURA_MENU_LATERAL = 768;
 export const LARGURA_MENU_EXPANDIDO = 1024;
 /** Editores e formulários longos (treino, dieta, modelo, marca, perfil). */
 export const LARGURA_EDITOR = 1040;
-/** Folha de formulário com campos lado a lado (Editar alimento, 19/11): mais larga que a de 600, menor que a do editor. */
+/**
+ * Folha média da família (a pequena é `LARGURA_FOLHA`, 600, para formulário simples: convite, confirmação): escolha entre
+ * opções, resultado e editores com lista ou campos lado a lado (Nova importação, resultado da planilha completa, Editar
+ * alimento, "Criar" da Agenda). Menor que a do editor.
+ */
 export const LARGURA_FOLHA_LARGA = 800;
 /** Largura de conteúdo medida a partir da qual o editor de treino usa duas colunas (lista e inspetor). */
 export const LARGURA_DUAS_COLUNAS = 960;

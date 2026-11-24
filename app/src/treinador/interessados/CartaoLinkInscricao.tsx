@@ -139,7 +139,7 @@ function Formulario({ config, podeAlterar, responsaveis, aoGravar, aoConflito }:
       {configurando ? (
         <Folha visivel titulo="Configurar o link de inscrição" aoFechar={fecharConfiguracao} rodape={<>
           {config.codigo ? (
-            <Botao rotulo="Gerar novo link" tipo="secundario" Icone={RefreshCw} desabilitado={mudou || salvando}
+            <Botao rotulo="Gerar novo link" tipo="acao" Icone={RefreshCw} desabilitado={mudou || salvando}
               motivo="Salve ou desfaça as alterações antes." aoTocar={() => setConfirmarNovo(true)} />
           ) : null}
           <Botao rotulo="Salvar configuração" aoTocar={salvar} carregando={salvando} desabilitado={!mudou}

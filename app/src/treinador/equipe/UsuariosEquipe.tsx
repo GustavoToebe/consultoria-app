@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
-import { Platform, Share, View } from 'react-native';
+import { Platform, Share, useWindowDimensions, View } from 'react-native';
 import * as api from '../../api/rotas';
 import type { ConviteEquipe, MembroEquipe, PerfilEquipe } from '../../api/equipeTipos';
 import { naOrdem } from '../../dominio/filtrosComuns';
@@ -10,7 +10,7 @@ import { MOTIVO_FORA_DO_PLANO } from '../../dominio/funcionalidadesDoPlano';
 import { AJUDA_DO_LIMITE, lerLimiteDeAlunos, limiteParaCampo, textoDoLimite } from '../../dominio/limiteDeAlunos';
 import { perfisAtribuiveis, podeCancelarConvite, podeEditarMembro } from '../../dominio/perfilEquipe';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco, fontes, LARGURA_MAXIMA } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_MAXIMA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -49,7 +49,7 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
   // `LARGURA_MAXIMA`, como o da Auditoria: seis colunas em 3000 px ficariam soltas.
   const faixa=useFaixaDaTela();const emTabela=faixa==='larga'||faixa==='ultralarga';
   const acoesDoMembro=(m:MembroEquipe)=><>
-    {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?'Renovar convite':'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}
+    {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?'Renovar convite':'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo={m.convitePendente?'acao':'secundario'} aoTocar={()=>setEditar(m)}/></Permitido>:null}
     {podeCancelarConvite(ator,m,perfis)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Cancelar convite" rotuloAcessivel={`Cancelar convite de ${m.nome}`} tipo="perigoTexto" aoTocar={()=>setCancelar(m)}/></Permitido>:null}
   </>;
   const cancelarConvite=async()=>{if(!cancelar)return;setOcupado(true);try{await api.cancelarConviteEquipe(cancelar.id);avisar('Convite cancelado.','sucesso');setCancelar(null);recarregar();}catch(e){avisar(textoDoErro(e),'perigo');setCancelar(null);}finally{setOcupado(false);}};
@@ -106,6 +106,8 @@ function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|
   const [ativo,setAtivo]=useState(membro?.ativo??true);const [confirmar,setConfirmar]=useState(false);
   const [convite,setConvite]=useState<ConviteEquipe|null>(null);const [erro,setErro]=useState<unknown>(null);const [ocupado,setOcupado]=useState(false);const {avisar}=useAviso();
   const avisarDoPlano=useAvisoDoPlano();const {temFuncionalidade,usuario}=useSessao();
+  // Segmentos iguais só na folha do PC: em 390 px cinco perfis iguais não cabem e o seletor fica como antes.
+  const folhaCentral=useWindowDimensions().width>=LARGURA_MENU_LATERAL;
   // A própria pessoa não troca o próprio perfil nem se desativa (a API recusa): mostra o perfil só para leitura.
   const euMesmo=!!membro&&!membro.convitePendente&&membro.id===usuario?.id;
   // Reativar membro inativo conta no limite do plano: fora do plano de equipe fica desabilitado.
@@ -139,7 +141,7 @@ function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|
         <Campo rotulo="Nome do membro" valor={nome} aoMudar={setNome} maxLength={120}/>
         {novo?<Campo rotulo="E-mail do membro" valor={email} aoMudar={setEmail} keyboardType="email-address" autoCapitalize="none" maxLength={254}/>:<CampoLeitura rotulo="E-mail do membro" valor={email}/>}
         {euMesmo?<><CampoLeitura rotulo="Perfil do membro" valor={membro.perfilNome}/><Texto variante="pequeno">Você não pode trocar o próprio perfil nem se desativar. Peça a outro administrador.</Texto></>
-          :<Escolha rotulo="Perfil do membro" opcoes={opcoes.map(p=>({valor:p.id,rotulo:p.nome}))} valor={perfilId} aoMudar={setPerfilId}/>}
+          :<Escolha rotulo="Perfil do membro" segmentosIguais={folhaCentral} opcoes={opcoes.map(p=>({valor:p.id,rotulo:p.nome}))} valor={perfilId} aoMudar={setPerfilId}/>}
         {!novo&&!euMesmo?<CaixaSelecao rotulo="Membro ativo" marcado={ativo} aoMudar={setAtivo} desabilitado={reativacaoBloqueada} ajuda={reativacaoBloqueada?`${MOTIVO_FORA_DO_PLANO}.`:undefined}/>:null}
         {mostraLimite?<Campo rotulo="Limite de alunos (opcional)" valor={limiteTexto} aoMudar={(t)=>{setLimiteTexto(t);setErroDoLimite(null);}} numerico keyboardType="number-pad" inputMode="numeric" maxLength={4} placeholder="Sem limite"
           erro={erroDoLimite??(leituraDoLimite.ok?null:leituraDoLimite.erro)} ajuda={AJUDA_DO_LIMITE}/>

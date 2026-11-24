@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { colunasDaAbaDados, larguraMaximaDasColunas, ordemNumaColuna, type SecaoDosDados } from '../dominio/colunasDaFicha';
+import { abaixoDasColunas, colunasDaAbaDados, larguraMaximaDasColunas, ordemNumaColuna, type SecaoDosDados } from '../dominio/colunasDaFicha';
 import type { BlocoDaFicha } from '../dominio/fichaDoAluno';
 import { espaco, LARGURA_EDITOR_DE_CAMPOS, LARGURA_FAIXA_NORMAL } from '../tema/tokens';
 import { useFaixaDaTela } from '../ui/Tela';
@@ -16,8 +16,8 @@ const VAO = espaco(3);
  * Arranjo da aba Ficha do aluno (Ficha › Dados; regra em `dominio/colunasDaFicha.colunasDaAbaDados`, planos
  * `docs/planos/ficha-dados-colunas-independentes.md` e `tela-larga-revisao-2.md`). A partir da faixa `normal` da `Tela`
  * (`useFaixaDaTela`, 4.10): duas colunas independentes, 3 para 2, cada uma uma pilha com o mesmo vão: Identificação ›
- * Contato e endereço › Plano contratado › Histórico de lesões à esquerda; Configuração do acompanhamento › Objetivo e
- * observações › Acesso ao app › Anamnese à direita. Com a largura medida da aba (`largura`, a do cabeçalho da ficha) para
+ * Contato e endereço › Plano contratado à esquerda; Configuração do acompanhamento › Objetivo e observações › Acesso ao app
+ * › Anamnese à direita; e o Histórico de lesões embaixo das duas, na largura delas (`abaixoDasColunas`). Com a largura medida da aba (`largura`, a do cabeçalho da ficha) para
  * três colunas (2560 e 3440 com o menu aberto), três pilhas: Identificação › Contato › Objetivo; Plano › Lesões;
  * Acompanhamento › Acesso › Anamnese. As seções são do `DadosDoAluno`, que recebe as colunas (`colunas`). Numa coluna (faixa
  * `compacta`): os Dados e, depois, Lesões ativas › Plano › Acesso › Anamnese › Histórico (as recuperadas). Só aparece o que
@@ -52,6 +52,8 @@ export function BlocosDaFicha({ alunoId, blocos, largura, bloco }: {
     // em três, cada coluna.
     <View style={[estilos.aba, { maxWidth: larguraMaximaDasColunas(arranjo, VAO) }]}>
       {tem('dadosDoAluno') ? bloco('dadosDoAluno', colunas) : colunas ? <ColunasDaFicha colunas={colunas.map((c) => ({ conteudo: c.blocos, proporcao: c.proporcao }))} /> : null}
+      {/* Em duas colunas, o Histórico de lesões embaixo delas, na largura das duas somada (24/11); em três, na do meio. */}
+      {abaixoDasColunas(arranjo, blocos).map((b) => <CartaoLesoes key={b} alunoId={alunoId} carga={lesoes} parte="tudo" />)}
       {!colunas ? ordemNumaColuna(blocos).map((p) => (
         p === 'lesoesAtivas' ? <CartaoLesoes key={p} alunoId={alunoId} carga={lesoes} parte="ativas" />
           : p === 'lesoesRecuperadas' ? <CartaoLesoes key={p} alunoId={alunoId} carga={lesoes} parte="recuperadas" />

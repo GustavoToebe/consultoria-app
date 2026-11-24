@@ -20,7 +20,7 @@ export function NovaColecao({ c }: { c: ColecoesDaEquipe }) {
   if (c.nova === null) {
     return (
       <LinhaDeAcoes>
-        <Botao rotulo="Nova coleção" tipo="secundario" Icone={Plus} aoTocar={c.abrirNova} />
+        <Botao rotulo="Nova coleção" tipo="acao" Icone={Plus} aoTocar={c.abrirNova} />
       </LinhaDeAcoes>
     );
   }

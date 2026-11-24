@@ -140,7 +140,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
       faixa
       titulo={NOMES[tipo].plural}
       descricao="O aluno só vê o que está publicado."
-      acoes={escritaLiberada ? <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={NOMES[tipo].novo} tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} /></Permitido> : null}>
+      acoes={escritaLiberada ? <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={NOMES[tipo].novo} tipo="acao" Icone={Plus} aoTocar={() => setNovo(true)} /></Permitido> : null}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? (

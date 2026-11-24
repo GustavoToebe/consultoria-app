@@ -50,6 +50,14 @@ for (const largura of [390, 1280]) {
       else { expect(Math.round(caixaDaFolha.width)).toBe(390); expect(Math.round(caixaDaFolha.height)).toBeGreaterThanOrEqual(895); }
 
       await expect(folha.getByText('11 permissões · 1 com dado sensível')).toBeVisible();
+      // tamanho das folhas (24/11): Nome, Descrição e "Perfil ativo" na largura toda, alinhados com "Filtrar permissões";
+      // nenhuma faixa vazia à direita deles.
+      const filtroCaixa = (await folha.getByRole('textbox', { name: 'Filtrar permissões' }).boundingBox())!;
+      for (const campo of [folha.getByRole('textbox', { name: 'Nome do perfil' }), folha.getByRole('textbox', { name: 'Descrição' }), folha.getByRole('checkbox', { name: 'Perfil ativo' })]) {
+        const c = (await campo.boundingBox())!;
+        expect(Math.abs(c.x - filtroCaixa.x)).toBeLessThan(1.5);
+        expect(Math.abs((c.x + c.width) - (filtroCaixa.x + filtroCaixa.width))).toBeLessThan(1.5);
+      }
       // Seções nascem fechadas (4.8), com a contagem e a caixa da seção na faixa.
       await expect(folha.getByRole('button', { name: 'Alunos, recolhido' })).toBeVisible();
       await expect(folha.getByText('3 de 13')).toBeVisible();

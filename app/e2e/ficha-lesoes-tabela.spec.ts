@@ -6,8 +6,8 @@ import { abrirLesoes, CENAS } from './lesoes-falsas';
  * ficha: tabela com linha tingida (24/11, `docs/planos/tabela-linha-tingida.md`). A `ui/Tabela` recorta pelo próprio raio,
  * a linha tingida (a lesão ativa) não leva borda própria (só o fundo; o fio entre duas linhas é o de baixo da de cima, na
  * cor da tinta se qualquer das duas é tingida) e o ⋯ fica na altura da primeira linha de texto. As ativas vêm sempre
- * primeiro: com recuperadas embaixo só nas colunas largas. A tabela (colunas) só cabe a partir de 760 px na própria lista, o que hoje
- * acontece de 1920 em diante (a aba Dados no teto de 1400, tela larga 24/11); em 1280 e 390 a lista vira cartões. Só dados fictícios, API simulada.
+ * primeiro: com recuperadas embaixo só nas colunas largas. A tabela (colunas) só cabe a partir de 760 px na própria lista: em 1280 e 1920 ela fica
+ * embaixo das duas colunas da aba Dados (tela larga 24/11, pedido de 24/11 à noite) e em 390 vira cartões. Só dados fictícios, API simulada.
  */
 
 const lado = (el: Locator, ...lados: ('Top' | 'Right' | 'Bottom' | 'Left')[]) =>

@@ -822,7 +822,7 @@ export function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhi
         <Texto variante="suave">{[tipo ?? 'Formato não aceito', tamanho].filter(Boolean).join(' · ')}{' · selecionado, ainda não enviado'}</Texto>
         {!tipo ? <Texto cor={cores.perigo}>Envie um arquivo .xlsx ou .csv.</Texto> : null}
       </View>
-      <Botao rotulo="Trocar arquivo" tipo="secundario" aoTocar={escolher} />
+      <Botao rotulo="Trocar arquivo" tipo="acao" aoTocar={escolher} />
     </View>
   ) : (
     <Pressable accessibilityRole="button" accessibilityLabel="Escolher arquivo" onPress={escolher}

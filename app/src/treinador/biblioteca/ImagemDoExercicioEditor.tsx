@@ -80,7 +80,7 @@ export function ImagemDoExercicioEditor({ exercicio, podeAlterar, aoMudar }: Pro
         <>
           <Texto variante="suave">{TEXTOS_IMAGEM_EXERCICIO.dica}</Texto>
           <LinhaDeAcoes>
-            <Botao rotulo={temPropria ? TEXTOS_IMAGEM_EXERCICIO.trocar : TEXTOS_IMAGEM_EXERCICIO.enviar} tipo="secundario" Icone={ImagePlus}
+            <Botao rotulo={temPropria ? TEXTOS_IMAGEM_EXERCICIO.trocar : TEXTOS_IMAGEM_EXERCICIO.enviar} tipo={temPropria ? 'secundario' : 'acao'} Icone={ImagePlus}
               carregando={enviando} aoTocar={() => void enviar()} />
             {temPropria ? <Botao rotulo={TEXTOS_IMAGEM_EXERCICIO.remover} tipo="perigoTexto" Icone={Trash2} aoTocar={() => setConfirmarRemocao(true)} /> : null}
           </LinhaDeAcoes>

@@ -213,12 +213,12 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
             <LinhaDeAcoes>
               <Botao
                 rotulo="Gerar imagem"
-                tipo="secundario"
+                tipo="acao"
                 desabilitado={escolhidas.length < MINIMO_DATAS}
                 aoTocar={() => setFolha('imagem')}
               />
               {carrossel.length >= 2 ? (
-                <Botao rotulo="Gerar carrossel" tipo="secundario" aoTocar={() => setFolha('carrossel')} />
+                <Botao rotulo="Gerar carrossel" tipo="acao" aoTocar={() => setFolha('carrossel')} />
               ) : null}
             </LinhaDeAcoes>
           ) : null}

@@ -469,7 +469,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
               <LinhaDeAcoes>
                 <Botao
                   rotulo="Adicionar o texto"
-                  tipo="secundario"
+                  tipo="acao"
                   carregando={acao === 'texto'}
                   desabilitado={!conteudoTexto.trim()}
                   motivo="Cole o texto antes de adicionar."

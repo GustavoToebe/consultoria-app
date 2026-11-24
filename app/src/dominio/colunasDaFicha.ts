@@ -5,7 +5,7 @@ import type { AbaDaFicha, BlocoDaFicha } from './fichaDoAluno';
  * Arranjo da aba Ficha do aluno › Dados em colunas independentes (24/11, `docs/planos/ficha-dados-colunas-independentes.md`).
  * A partir da faixa `normal` da `Tela` (4.10, `useFaixaDaTela`): duas pilhas verticais, cada uma com o mesmo vão entre os
  * cartões, sem alinhar os cartões de uma coluna com os da outra; a sobra de altura fica só no fim da mais curta. Uma
- * proporção para a página toda (3 à esquerda, 2 à direita). Abaixo da `normal`, uma coluna na ordem do celular (23/11).
+ * proporção para a página toda (3 à esquerda, 2 à direita), e o Histórico de lesões embaixo, na largura das duas. Abaixo da `normal`, uma coluna na ordem do celular (23/11).
  * Com largura medida para três colunas (2560 e 3440 com o menu aberto), três pilhas (`colunasDaAbaDados`, 24/11).
  */
 
@@ -17,11 +17,16 @@ type BlocoDaAbaDados = Exclude<PecaDaAbaDados, SecaoDosDados>;
 export const SECOES_DOS_DADOS: readonly SecaoDosDados[] = ['identificacao', 'contato', 'acompanhamento', 'objetivo'];
 const ehSecao = (p: PecaDaAbaDados): p is SecaoDosDados => (SECOES_DOS_DADOS as readonly string[]).includes(p);
 
-/** Duas colunas (faixas normal e larga): 3 para 2; a esquerda leva o plano e a tabela das lesões, a direita os pares curtos. */
+/**
+ * Duas colunas (faixas normal e larga): 3 para 2; a esquerda leva o plano, a direita os pares curtos. O Histórico de lesões
+ * fica abaixo das duas, na largura delas somada (`ABAIXO_DAS_DUAS_COLUNAS`, Gustavo, 24/11): na coluna de 3/5 a tabela não
+ * cabia em 1280 e virava cartões.
+ */
 export const COLUNAS_DA_FICHA: Readonly<Record<'esquerda' | 'direita', readonly PecaDaAbaDados[]>> = {
-  esquerda: ['identificacao', 'contato', 'planoContratado', 'lesoes'],
+  esquerda: ['identificacao', 'contato', 'planoContratado'],
   direita: ['acompanhamento', 'objetivo', 'acessoAoApp', 'anamnese'],
 };
+export const ABAIXO_DAS_DUAS_COLUNAS: readonly BlocoDaAbaDados[] = ['lesoes'];
 export const PROPORCAO_DAS_COLUNAS = { esquerda: 3, direita: 2 } as const;
 
 /**
@@ -70,6 +75,10 @@ export function colunasDaAbaDados(faixa: FaixaDeLargura, largura: number, vao: n
     tirarSecoes(coluna(COLUNAS_DA_FICHA.direita, blocos, PROPORCAO_DAS_COLUNAS.direita)),
   ];
 }
+
+/** Os blocos que vão abaixo das colunas, na largura toda delas: só no arranjo de duas e só os que a aba mostra. */
+export const abaixoDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, blocos: readonly BlocoDaFicha[]): BlocoDaAbaDados[] =>
+  (colunas?.length === 2 ? ABAIXO_DAS_DUAS_COLUNAS.filter((b) => blocos.includes(b)) : []);
 
 /** Numa coluna, depois dos Dados: as lesões ativas no topo e as recuperadas no fim (a ordem do celular, 23/11). */
 export type PecaNumaColuna = 'lesoesAtivas' | 'planoContratado' | 'acessoAoApp' | 'anamnese' | 'lesoesRecuperadas';

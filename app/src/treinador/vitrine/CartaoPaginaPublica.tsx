@@ -107,7 +107,7 @@ function Configuracao({ pagina, podeAlterar, aoGravar, aoConflito }: {
         <LinhaDeAcoes>
           <Botao rotulo="Copiar link" tipo="secundario" Icone={Copy} aoTocar={() => copiar(link)} />
           {podeAlterar ? (
-            <Botao rotulo="Gerar novo link" tipo="secundario" Icone={RefreshCw} desabilitado={!novo.pode || salvando}
+            <Botao rotulo="Gerar novo link" tipo="acao" Icone={RefreshCw} desabilitado={!novo.pode || salvando}
               motivo={novo.motivo ?? undefined} aoTocar={() => { setErro(null); setConfirmarNovo(true); }} />
           ) : null}
         </LinhaDeAcoes>

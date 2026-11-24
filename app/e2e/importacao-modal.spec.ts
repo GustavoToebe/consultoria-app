@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { LARGURA_FOLHA_LARGA } from '../src/tema/tokens';
 import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
@@ -91,6 +92,53 @@ for (const largura of [390, 1280]) {
     await page.mouse.click(8, 8);
     await expect(modal(page)).toHaveCount(0);
     await expect(botao).toBeFocused();
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+// tamanho das folhas (24/11): a escolha usa a folha média, a mesma do resultado da planilha completa (uma constante só,
+// `LARGURA_FOLHA_LARGA`), na altura do conteúdo; os dois cartões lado a lado e da mesma altura no PC, empilhados no celular.
+for (const largura of [390, 1280]) {
+  test(`folha média igual à do resultado da planilha completa e cartões da mesma altura em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 900 });
+    const id = 'i0000000-0000-4000-8000-000000000098';
+    const item = { id, destino: 'planilha-completa', nomeArquivo: '.xlsx', criadoEm: '2026-10-31T15:00:00Z', linhas: 4, novos: 4, atualizados: 0, ignorados: 0, comErro: 0, situacao: 'CONCLUIDA' };
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      'GET /importacoes': { corpo: { itens: [item], total: 1, pagina: 0 } },
+      [`GET /importacoes/${id}`]: { corpo: { ...item, configuracao: {}, erros: [] } },
+    });
+    await page.goto('/treinador/importacao');
+    await page.getByRole('button', { name: 'Nova importação' }).click();
+    await expect(opcao(page, 'manual')).toBeVisible();
+    const nova = (await modal(page).boundingBox())!;
+    // O cartão é o pai do rádio (o da assistida também leva o atalho de colar treino, abaixo do rádio).
+    const [manual, assistida] = await Promise.all([opcao(page, 'manual'), opcao(page, 'assistida')].map(async (o) => (await o.locator('xpath=..').boundingBox())!));
+    const grupo = (await modal(page).getByRole('radiogroup', { name: 'Como importar' }).boundingBox())!;
+    if (largura === 1280) {
+      expect(Math.round(nova.width)).toBe(LARGURA_FOLHA_LARGA);
+      // Na altura do conteúdo, sem faixa vazia até o rodapé.
+      expect(nova.height).toBeLessThan(560);
+      expect(Math.abs(manual.y - assistida.y)).toBeLessThan(1);
+      expect(Math.abs(manual.height - assistida.height)).toBeLessThan(1);
+      expect(assistida.x).toBeGreaterThan(manual.x + manual.width);
+      // Juntos ocupam a largura do grupo, que é a do conteúdo da folha.
+      expect(Math.abs(manual.x - grupo.x)).toBeLessThan(2);
+      expect(Math.abs((assistida.x + assistida.width) - (grupo.x + grupo.width))).toBeLessThan(2);
+      expect(grupo.width).toBeGreaterThan(LARGURA_FOLHA_LARGA - 40);
+    } else {
+      expect(Math.round(nova.width)).toBe(390);
+      expect(assistida.y).toBeGreaterThan(manual.y + manual.height - 1);
+      expect(Math.abs(manual.width - assistida.width)).toBeLessThan(1);
+    }
+    await page.keyboard.press('Escape');
+    await expect(modal(page)).toHaveCount(0);
+    await page.getByRole('button', { name: /^Abrir a importação de Planilha completa/ }).click();
+    const resultado = page.getByRole('dialog', { name: 'Importação de Planilha completa' });
+    await expect(resultado.getByText('Registros criados')).toBeVisible();
+    expect(Math.round((await resultado.boundingBox())!.width)).toBe(Math.round(nova.width));
     expect(errosDaPagina).toEqual([]);
   });
 }

@@ -169,7 +169,7 @@ export function CampoFotos({ pergunta: p, valor, carregarDaEquipe, rotulo, respo
       {limite > 1 ? <Texto variante="pequeno" numerico>{contagemDeFotos(itens.length, limite)}</Texto> : null}
       {mostrarBotoes && proximo ? <Texto variante="pequeno" cor={cores.texto}>{`Próxima foto: ${proximo.nome}`}</Texto> : null}
       {mostrarBotoes ? <LinhaDeAcoes>
-        <Botao rotulo={controle.guardaNoAparelho ? 'Escolher da galeria' : 'Adicionar foto'} tipo="secundario" Icone={ImagePlus}
+        <Botao rotulo={controle.guardaNoAparelho ? 'Escolher da galeria' : 'Adicionar foto'} tipo={controle.guardaNoAparelho ? 'secundario' : 'acao'} Icone={ImagePlus}
           carregando={controle.ocupado} desabilitado={bloqueado} motivo={motivo} aoTocar={() => void controle.anexar(p.id, 'galeria', anexarAte)} />
         {controle.guardaNoAparelho ? (
           <Botao rotulo="Tirar foto" tipo="secundario" Icone={Camera} carregando={controle.ocupado} desabilitado={bloqueado} motivo={motivo}

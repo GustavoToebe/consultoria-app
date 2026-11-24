@@ -9,9 +9,9 @@ import { ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, estadoDoResponsavel, estadoFina
 
 /**
  * Ficha do aluno › Dados (23/11, `docs/planos/ficha-do-aluno-dados.md`): duas colunas independentes (3:2) a partir da faixa
- * normal da `Tela` (24/11, `docs/planos/ficha-dados-colunas-independentes.md`: Identificação › Contato › Plano › Lesões à
- * esquerda; Acompanhamento › Objetivo › Acesso › Anamnese à direita; as três colunas de 2560 e 3440 estão no
- * `tela-larga-ficha.spec.ts`) e, no celular, uma coluna na ordem Lesões ativas ›
+ * normal da `Tela` (24/11, `docs/planos/ficha-dados-colunas-independentes.md`: Identificação › Contato › Plano à
+ * esquerda; Acompanhamento › Objetivo › Acesso › Anamnese à direita; o Histórico de lesões embaixo das duas, na largura
+ * delas; nas três colunas de 2560 e 3440, na pilha do meio, também no `tela-larga-ficha.spec.ts`) e, no celular, uma coluna na ordem Lesões ativas ›
  * Plano › Acesso › Anamnese › Histórico;
  * acesso compacto com o último login; vigência com o texto equivalente, âmbar a 15 dias e "Encerrado em" na parcela única passada do término; as últimas 3
  * cobranças com "Ver todas no Financeiro"; lesões com as ativas tingidas primeiro, "Desde"/"a", ⋯ com Editar e Excluir
@@ -82,7 +82,8 @@ async function abrir(page: Page, o: Opcoes) {
 const rgb = (hex: string) => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
 
 // ficha: colunas independentes (24/11). Medido no contorno do cartão (o título do Plano tem a descrição embaixo).
-const ESQUERDA = ['Identificação', 'Contato e endereço', 'Plano contratado', 'Histórico de lesões'];
+// O Histórico de lesões fica abaixo das duas colunas, na largura delas somada (ficha: histórico embaixo, 24/11).
+const ESQUERDA = ['Identificação', 'Contato e endereço', 'Plano contratado'];
 const DIREITA = ['Configuração do acompanhamento', 'Objetivo e observações', 'Acesso ao app', 'Anamnese'];
 const caixaDoCartao = async (page: Page, titulo: string) =>
   (await page.getByTestId('cartao').filter({ has: page.getByRole('heading', { name: titulo, exact: true }) }).first().boundingBox())!;
@@ -109,8 +110,36 @@ for (const largura of [1280, 1920]) {
     expect(esquerda[0].width / direita[0].width).toBeLessThan(1.55);
     // Em duas colunas não há o cartão "Lesões ativas" separado: as ativas ficam no topo do histórico.
     await expect(page.getByRole('heading', { name: 'Lesões ativas' })).toHaveCount(0);
+    // O Histórico embaixo das duas: 24 px abaixo da coluna mais alta, da borda esquerda da 1ª à direita da 2ª, e em tabela.
+    const historico = await caixaDoCartao(page, 'Histórico de lesões');
+    const fundo = Math.max(...[esquerda.at(-1)!, direita.at(-1)!].map((c) => c.y + c.height));
+    expect(Math.abs(historico.y - fundo - 24)).toBeLessThanOrEqual(1);
+    expect(Math.abs(historico.x - esquerda[0].x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(historico.x + historico.width - (direita[0].x + direita[0].width))).toBeLessThanOrEqual(1);
+    expect(historico.width).toBeLessThanOrEqual(1401);
+    await expect(page.getByRole('table', { name: 'Lesões' })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Lesões' })).toHaveCount(0);
     // Montou uma vez só, já no arranjo certo (sem montar numa coluna e remontar em duas).
     expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `/alunos/${ID}/anamneses`)).toHaveLength(1);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+// 2560 e 3440 (três pilhas, inalterado): o Histórico segue na pilha do meio, logo abaixo do Plano, e nada fica embaixo.
+for (const largura of [2560, 3440]) {
+  test(`${largura}px: três pilhas, o Histórico de lesões na do meio, 24 px abaixo do Plano`, async ({ page }) => {
+    const { errosDaPagina } = await abrir(page, { largura, contratacoes: [CONTRATACAO], lesoes: [ATIVA, RECUPERADA] });
+    await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Anamnese', exact: true })).toBeVisible();
+    await expect(async () => {
+      const [ident, plano, historico, config] = await Promise.all(['Identificação', 'Plano contratado', 'Histórico de lesões', 'Configuração do acompanhamento'].map((t) => caixaDoCartao(page, t)));
+      expect(Math.abs(historico.x - plano.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(historico.width - plano.width)).toBeLessThanOrEqual(1);
+      expect(Math.abs(historico.y - (plano.y + plano.height) - 24)).toBeLessThanOrEqual(1);
+      expect(plano.x).toBeGreaterThan(ident.x + ident.width);
+      expect(config.x).toBeGreaterThan(historico.x + historico.width);
+    }).toPass({ timeout: 10_000 });
+    await expect(page.getByRole('table', { name: 'Lesões' })).toBeVisible();
     expect(errosDaPagina).toEqual([]);
   });
 }
@@ -260,8 +289,10 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: /^(Editar|Excluir) lesão em/ })).toHaveCount(0);
     // A ativa tem fundo tingido; a recuperada, não.
     // Na tabela, a linha (`row`); empilhado (`ui/Tabela`), o cartão filho direto da lista "Lesões".
-    // Em colunas só quando a tabela cabe (24/11: em 1280 a coluna da esquerda tem ~580 px e a tabela vira cartões).
-    const emTabela = (await page.getByRole('table', { name: 'Lesões' }).count()) > 0;
+    // Em colunas a partir de 760 px: em 1280 o Histórico tem a largura das duas colunas (~928 px), então é tabela.
+    const emTabela = largura >= 1280;
+    // No celular são duas listas (as ativas no topo e as recuperadas no fim).
+    await expect(page.getByRole(emTabela ? 'table' : 'list', { name: 'Lesões' }).first()).toBeVisible();
     const item = (regiao: string) => (emTabela ? page.getByRole('row') : page.getByRole('list', { name: 'Lesões' }).locator('xpath=./div')).filter({ hasText: regiao });
     const fundo = (regiao: string) => item(regiao).evaluate((el) => getComputedStyle(el).backgroundColor);
     expect(await fundo('Ombro direito')).not.toBe('rgba(0, 0, 0, 0)');

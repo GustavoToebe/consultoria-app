@@ -435,7 +435,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
                   {whatsapp ? (
                     <View style={estilos.linhaComLink}>
                       {/* O motivo fica ao lado do botão, uma vez (P5): por isso não vai também no `motivo` do botão. */}
-                      <Botao rotulo="Enviar pelo WhatsApp" rotuloAcessivel="Enviar pelo WhatsApp: abrir WhatsApp com a mensagem" tipo="secundario"
+                      <Botao rotulo="Enviar pelo WhatsApp" rotuloAcessivel="Enviar pelo WhatsApp: abrir WhatsApp com a mensagem" tipo="acao"
                         Icone={iconeWhatsApp(!!whatsapp.link)} aoTocar={abrirWhatsApp} desabilitado={!whatsapp.link} />
                       {whatsapp.link ? <Texto variante="suave" style={estilos.encolher}>Abre o WhatsApp com o lembrete pronto; quem envia é você.</Texto> : null}
                       {whatsapp.motivo ? (

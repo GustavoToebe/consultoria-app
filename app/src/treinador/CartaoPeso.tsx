@@ -178,7 +178,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
 
   return (
     <Cartao titulo="Peso" periodo={dados ? periodoDesdeOPrimeiro(dados.map((p) => p.data)) : undefined} descricao={daEquipe ? 'Evolução do peso ao longo do tempo.' : 'Seus registros de peso, do mais recente ao mais antigo.'}
-      acoes={podeGravar ? <Botao ref={botaoRegistrar} rotulo="Registrar peso" tipo="secundario" Icone={Plus} aoTocar={abrirRegistro} /> : null}>
+      acoes={podeGravar ? <Botao ref={botaoRegistrar} rotulo="Registrar peso" tipo="acao" Icone={Plus} aoTocar={abrirRegistro} /> : null}>
       {erro && !semConexao ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {semConexao ? <Texto variante="suave">Sem conexão.</Texto> : null}
       {!dados && carregando ? <Esqueleto texto="Carregando pesos" cartoes={1} /> : null}

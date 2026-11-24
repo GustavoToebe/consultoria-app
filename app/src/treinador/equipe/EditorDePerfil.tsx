@@ -103,7 +103,8 @@ export function EditorDePerfil({ inicial, catalogo, aoFechar, aoSalvar }: { inic
 }
 
 const estilos = StyleSheet.create({
-  campos: { gap: espaco(2), maxWidth: 640 },
+  // Na largura toda, alinhados com "Filtrar permissões" (antes paravam em 640 px e sobrava uma faixa vazia à direita).
+  campos: { gap: espaco(2) },
   topoDasPermissoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', columnGap: espaco(2), rowGap: 4, marginTop: espaco(1) },
   resumo: { flexShrink: 1 },
   vazio: { gap: espaco(1.5), alignItems: 'flex-start' },

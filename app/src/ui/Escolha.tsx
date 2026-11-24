@@ -33,6 +33,11 @@ interface Props<T> {
   limpavel?: boolean;
   /** As opções dividem a largura da linha: numa linha só ocupam tudo, e ao quebrar nenhuma linha termina com sobra. */
   distribuida?: boolean;
+  /**
+   * Segmento na largura toda com as opções de largura igual (Convidar membro, 24/11): o rótulo fica centralizado e quebra
+   * linha em vez de cortar, e todos os segmentos têm a altura do mais alto. Só vale no segmento (até cinco opções).
+   */
+  segmentosIguais?: boolean;
   /** Botões mais justos (vão e margem menores, fonte 13), para a GRADE do questionário caber em duas fileiras no celular. O alvo de toque continua de 44. */
   compacta?: boolean;
   /** Sempre em chips, nunca segmento: filtros cuja contagem pode ainda não ter chegado (ou falhado) não trocam de forma. */
@@ -48,7 +53,7 @@ interface Props<T> {
  * opções viram um grupo segmentado (trilha `superficie2`, a escolhida sobe com contorno forte); mais que isso, chips
  * soltos que quebram linha, com ✓ na escolhida.
  */
-export function Escolha<T extends string | number | null>({ opcoes, valor, aoMudar, rotulo, descricao, limpavel, compacta, distribuida, chips, erro, ref }: Props<T>) {
+export function Escolha<T extends string | number | null>({ opcoes, valor, aoMudar, rotulo, descricao, limpavel, compacta, distribuida, segmentosIguais, chips, erro, ref }: Props<T>) {
   const { cores } = useTema();
   const grupo = useRef<View>(null);
   useImperativeHandle(ref, () => ({
@@ -62,10 +67,11 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
   const motivos = [...new Set(opcoes.filter((o) => o.desabilitada && o.motivo).map((o) => o.motivo as string))];
   // Segmento só para uma escolha curta de rótulos (até cinco); com contagem são filtros, que ficam em chips.
   const segmento = !chips && opcoes.length <= 5 && opcoes.every((o) => o.contagem === undefined);
+  const iguais = segmento && !!segmentosIguais;
   return (
     <View ref={grupo} style={[estilos.campo, erro ? { borderWidth: 1, borderColor: cores.perigo, borderRadius: RAIO, padding: espaco(1) } : null]} aria-invalid={!!erro}>
       {rotulo ? <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto> : null}
-      <ToggleGroup type="single" role="radiogroup" accessibilityRole="radiogroup" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { if (v === undefined || v === '') { if (limpavel) aoMudar(null as T); return; } const opcao = opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={[estilos.linha, compacta && estilos.linhaCompacta, segmento && [estilos.trilha, distribuida && { alignSelf: 'stretch' }, { backgroundColor: cores.superficie2 }], erro ? { borderColor: cores.perigo } : null]} accessibilityLabel={rotulo ?? descricao} accessibilityHint={erro ?? undefined}>
+      <ToggleGroup type="single" role="radiogroup" accessibilityRole="radiogroup" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { if (v === undefined || v === '') { if (limpavel) aoMudar(null as T); return; } const opcao = opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={[estilos.linha, compacta && estilos.linhaCompacta, segmento && [estilos.trilha, distribuida && { alignSelf: 'stretch' }, iguais && estilos.trilhaIgual, { backgroundColor: cores.superficie2 }], erro ? { borderColor: cores.perigo } : null]} accessibilityLabel={rotulo ?? descricao} accessibilityHint={erro ?? undefined}>
         {opcoes.map((o, indice) => {
           const ativo = o.valor === valor;
           // Desabilitada e selecionada ao mesmo tempo fica igual à desabilitada não selecionada (hoje nenhuma tela faz isso).
@@ -83,10 +89,11 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
                 estilos.opcao,
                 compacta && estilos.opcaoCompacta,
                 distribuida && estilos.opcaoDistribuida,
+                iguais && estilos.opcaoIgual,
                 { backgroundColor: visual.fundo, borderColor: visual.borda },
               ]}>
               {ativo && !segmento && !o.desabilitada ? <Check size={16} color={visual.texto} strokeWidth={2.5} /> : null}
-              <Texto style={[estilos.texto, compacta && estilos.textoCompacto, { color: visual.texto, fontFamily: ativo ? fontes.semi : fontes.medio }]}>{o.rotulo}</Texto>
+              <Texto style={[estilos.texto, compacta && estilos.textoCompacto, iguais && estilos.textoIgual, { color: visual.texto, fontFamily: ativo ? fontes.semi : fontes.medio }]}>{o.rotulo}</Texto>
               {o.contagem === undefined ? null : <Texto numerico aria-hidden style={[estilos.texto, compacta && estilos.textoCompacto, { color: o.desabilitada ? visual.texto : cores.textoSuave }]}>{inteiroComMilhar(o.contagem)}</Texto>}
             </ToggleGroupItem>
           );
@@ -123,5 +130,9 @@ const estilos = StyleSheet.create({
   linhaCompacta: { gap: espaco(0.5) },
   opcaoCompacta: { paddingHorizontal: espaco(1) },
   opcaoDistribuida: { flexGrow: 1 },
+  // A largura inline vence o `w-fit` que o grupo põe na web; sem quebra de fileira e com os segmentos na altura do maior.
+  trilhaIgual: { width: '100%', alignSelf: 'stretch', flexWrap: 'nowrap', alignItems: 'stretch' },
+  opcaoIgual: { flexBasis: 0, flexGrow: 1, flexShrink: 1, minWidth: 0, paddingHorizontal: espaco(0.75) },
+  textoIgual: { textAlign: 'center' },
   textoCompacto: { fontSize: 13 },
 });

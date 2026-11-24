@@ -1,5 +1,5 @@
 import { LARGURA_EDITOR_DE_CAMPOS } from '../tema/tokens';
-import { colunasDaAbaDados, COLUNAS_DA_FICHA, emDuasColunas, larguraMaximaDasColunas, ordemNumaColuna, pilhasDaAba, PROPORCAO_DAS_COLUNAS, resumoEmTresColunas, TRES_COLUNAS_DA_FICHA } from './colunasDaFicha';
+import { ABAIXO_DAS_DUAS_COLUNAS, abaixoDasColunas, colunasDaAbaDados, COLUNAS_DA_FICHA, emDuasColunas, larguraMaximaDasColunas, ordemNumaColuna, pilhasDaAba, PROPORCAO_DAS_COLUNAS, resumoEmTresColunas, TRES_COLUNAS_DA_FICHA } from './colunasDaFicha';
 import type { BlocoDaFicha } from './fichaDoAluno';
 
 // ficha: colunas independentes (24/11)
@@ -9,12 +9,13 @@ const VAO = 24;
 
 describe('colunasDaFicha', () => {
   it('as duas e as três colunas na ordem pedida, cada peça num lugar só', () => {
-    expect(COLUNAS_DA_FICHA.esquerda).toEqual(['identificacao', 'contato', 'planoContratado', 'lesoes']);
+    expect(COLUNAS_DA_FICHA.esquerda).toEqual(['identificacao', 'contato', 'planoContratado']);
     expect(COLUNAS_DA_FICHA.direita).toEqual(['acompanhamento', 'objetivo', 'acessoAoApp', 'anamnese']);
+    expect(ABAIXO_DAS_DUAS_COLUNAS).toEqual(['lesoes']);
     expect(TRES_COLUNAS_DA_FICHA).toEqual([
       ['identificacao', 'contato', 'objetivo'], ['planoContratado', 'lesoes'], ['acompanhamento', 'acessoAoApp', 'anamnese'],
     ]);
-    for (const todas of [[...COLUNAS_DA_FICHA.esquerda, ...COLUNAS_DA_FICHA.direita], TRES_COLUNAS_DA_FICHA.flat()]) {
+    for (const todas of [[...COLUNAS_DA_FICHA.esquerda, ...COLUNAS_DA_FICHA.direita, ...ABAIXO_DAS_DUAS_COLUNAS], TRES_COLUNAS_DA_FICHA.flat()]) {
       expect(new Set(todas).size).toBe(8);
       expect(todas).toHaveLength(8);
     }
@@ -35,13 +36,23 @@ describe('colunasDaFicha', () => {
     expect(colunasDaAbaDados('compacta', 3000, VAO, TODOS)).toBeNull();
   });
 
-  it('duas colunas (1280, 1920): seções e depois os blocos de cada uma, 3:2', () => {
+  it('duas colunas (1280, 1920): seções e depois os blocos de cada uma, 3:2, e o Histórico de lesões abaixo das duas', () => {
     for (const largura of [928, 1632, 3 * 640 + 2 * VAO - 1]) {
-      expect(colunasDaAbaDados('larga', largura, VAO, TODOS)).toEqual([
-        { secoes: ['identificacao', 'contato'], blocos: ['planoContratado', 'lesoes'], proporcao: 3 },
+      const colunas = colunasDaAbaDados('larga', largura, VAO, TODOS);
+      expect(colunas).toEqual([
+        { secoes: ['identificacao', 'contato'], blocos: ['planoContratado'], proporcao: 3 },
         { secoes: ['acompanhamento', 'objetivo'], blocos: ['acessoAoApp', 'anamnese'], proporcao: 2 },
       ]);
+      expect(abaixoDasColunas(colunas, TODOS)).toEqual(['lesoes']);
     }
+  });
+
+  it('abaixo das colunas: só em duas e só com as lesões na aba; em três elas seguem na do meio, numa coluna na ordem do celular', () => {
+    expect(abaixoDasColunas(colunasDaAbaDados('normal', 928, VAO, ['dadosDoAluno', 'acessoAoApp']), ['dadosDoAluno', 'acessoAoApp'])).toEqual([]);
+    const tres = colunasDaAbaDados('larga', 2272, VAO, TODOS);
+    expect(abaixoDasColunas(tres, TODOS)).toEqual([]);
+    expect(tres?.[1].blocos).toEqual(['planoContratado', 'lesoes']);
+    expect(abaixoDasColunas(null, TODOS)).toEqual([]);
   });
 
   it('três colunas pela largura medida (2560 e 3440 com o menu aberto), não pela faixa', () => {
@@ -57,7 +68,7 @@ describe('colunasDaFicha', () => {
   });
 
   it('só os blocos que a aba mostra, na ordem da coluna (não a de `blocos`)', () => {
-    expect(colunasDaAbaDados('larga', 1632, VAO, ['lesoes', 'dadosDoAluno', 'planoContratado'])?.[0].blocos).toEqual(['planoContratado', 'lesoes']);
+    expect(colunasDaAbaDados('larga', 1632, VAO, ['lesoes', 'dadosDoAluno', 'planoContratado'])?.[0].blocos).toEqual(['planoContratado']);
     // Sem o financeiro: a coluna do meio fica só com as lesões, e as três continuam.
     expect(colunasDaAbaDados('larga', 2272, VAO, ['dadosDoAluno', 'acessoAoApp', 'lesoes'])?.map((c) => c.blocos)).toEqual([[], ['lesoes'], ['acessoAoApp']]);
   });
@@ -69,11 +80,14 @@ describe('colunasDaFicha', () => {
     ]);
   });
 
-  it('sem os Dados na aba, as colunas ficam só com os blocos; a primeira das três, vazia, volta às duas', () => {
-    expect(colunasDaAbaDados('larga', 2272, VAO, ['acessoAoApp', 'planoContratado', 'lesoes'])).toEqual([
-      { secoes: [], blocos: ['planoContratado', 'lesoes'], proporcao: 3 },
+  it('sem os Dados na aba, as colunas ficam só com os blocos; a primeira das três, vazia, volta às duas (lesões embaixo)', () => {
+    const blocos: BlocoDaFicha[] = ['acessoAoApp', 'planoContratado', 'lesoes'];
+    const colunas = colunasDaAbaDados('larga', 2272, VAO, blocos);
+    expect(colunas).toEqual([
+      { secoes: [], blocos: ['planoContratado'], proporcao: 3 },
       { secoes: [], blocos: ['acessoAoApp'], proporcao: 2 },
     ]);
+    expect(abaixoDasColunas(colunas, blocos)).toEqual(['lesoes']);
   });
 
   it('numa coluna: lesões ativas no topo, plano, acesso, anamnese e as recuperadas no fim', () => {
