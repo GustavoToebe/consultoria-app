@@ -1,6 +1,6 @@
 # Financeiro em tela larga (só app)
 
-Situação: Concluída em 23/11/2026 · Onde: `main` (árvore local, sem commit) · Atualizado: 23/11/2026
+Situação: Entregue (commit `96077067`, só local; sem push) · Onde: `main` · Atualizado: 23/11/2026
 
 ## Objetivo
 Em 1920 e 2560 px as abas Cobranças, Planos e Lançamentos usam a largura: o espaço extra vira colunas, e na faixa

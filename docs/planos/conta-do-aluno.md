@@ -1,6 +1,6 @@
 # Conta do aluno reorganizada
 
-Situação: Entregue sem commit · Onde: main (working tree) · Atualizado: 23/11/2026
+Situação: Entregue (commit `c0180353`, só local; sem push) · Onde: main · Atualizado: 23/11/2026
 
 ## Objetivo
 A Conta do aluno passa de uma pilha de cartões a um cabeçalho de perfil (foto, nome como os colegas veem, e-mail de acesso
@@ -21,17 +21,17 @@ apresentação: dados, rotas, permissões e regras continuam as de antes.
 | D9 | "Trocar foto" | Desabilitado sem internet, com o motivo (antes falhava ao enviar) | executor-front |
 
 ## Passos
-- [x] 1. Regras puras (`dominio/contaDoAluno.ts`) e textos (`meusDados`, `perfilDaComunidade`) com jest — commit/run: sem commit; `npx jest` local verde (395 suítes, 9380 testes), 23/11
-- [x] 2. Tela e peças (`app/aluno/conta.tsx`, `aluno/conta/`) — commit/run: sem commit; `tsc --noEmit` limpo, `npm run lint` 0 erros, 23/11
-- [x] 3. e2e ajustados e novos (`e2e/conta-do-aluno.spec.ts`), comentário "conta do aluno reorganizada (23/11)" — commit/run: sem commit; e2e local na porta 8166 verde nas specs da Conta (conta-do-aluno, auditoria-aluno, comunidade, convidar-amigo, meus-dados-aluno e perfil-comunidade: 268 passaram na última rodada; unidade-de-carga e as vizinhas em rodadas anteriores), 23/11
-- [x] 4. Capturas 390 e 1280, escuro e claro (fora do repositório) — commit/run: sem commit; capturas no scratchpad da sessão, 23/11
+- [x] 1. Regras puras (`dominio/contaDoAluno.ts`) e textos (`meusDados`, `perfilDaComunidade`) com jest — commit/run: commit `c0180353`; `npx jest` local verde (395 suítes, 9380 testes), 23/11
+- [x] 2. Tela e peças (`app/aluno/conta.tsx`, `aluno/conta/`) — commit/run: commit `c0180353`; `tsc --noEmit` limpo, `npm run lint` 0 erros, 23/11
+- [x] 3. e2e ajustados e novos (`e2e/conta-do-aluno.spec.ts`), comentário "conta do aluno reorganizada (23/11)" — commit/run: commit `c0180353`; e2e local na porta 8166 verde nas specs da Conta (conta-do-aluno, auditoria-aluno, comunidade, convidar-amigo, meus-dados-aluno e perfil-comunidade: 268 passaram na última rodada; unidade-de-carga e as vizinhas em rodadas anteriores), 23/11
+- [x] 4. Capturas 390 e 1280, escuro e claro (fora do repositório) — commit/run: commit `c0180353`; capturas no scratchpad da sessão, 23/11
 
 ## Fora do escopo
 - Subir a `BarraDeSalvar` de `treinador/financeiro/AjustesDaAba` para `ui/` (sugestão para o design system).
 - Texto da Ajuda (`ajuda/conteudo.ts`, "Apelido e meu perfil") e PDFs dos guias: com o coordenador.
 
 ## O que ficou para trás
-- Commit do bloco (sessão principal). Base: working tree local de 23/11, sem commit; revalidar se `aluno/` ou `e2e/` da Conta mudarem antes do commit.
+- Commit do bloco (sessão principal). Base: working tree local de 23/11, commit `c0180353`; revalidar se `aluno/` ou `e2e/` da Conta mudarem antes do commit.
 - `e2e/financeiro.spec.ts`: 4 falhas na folha "Cobrança de saída" do treinador (arquivo alterado por outra frente; não toca a Conta).
 - Não conferido: nativo (Android/iOS), leitor de tela, temas Areia e alto contraste, setas nos grupos de rádio (cor e moldura não têm foco itinerante, como o `OpcaoCartao`).
 - Ajuda (`ajuda/conteudo.ts:544` ainda fala do "cartão Comunidade") e PDFs dos guias; comentário em `ui/contrasteDasPecas.test.ts:225` cita peça removida.

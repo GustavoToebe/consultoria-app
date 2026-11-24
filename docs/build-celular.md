@@ -162,6 +162,10 @@ Do lado do treinador (web, uma vez, depois do teste do aluno):
     pequeno salto; o título é uma área curta, então quem espera "arrastar de qualquer lugar" pode achar que não funciona
     (não há uma barrinha de alça visível); se `aoFechar` abrir uma confirmação em vez de fechar, a folha **fica deslocada**,
     porque o deslocamento só volta a zero no ramo "não fechou". Anote o que acontecer; nada foi mudado no código.
+26. [ ] **Build depois do `npx expo install --fix`** (23/11/2026, commit `5d34c152`: `expo` 57.0.33, `expo-router` 57.0.32, `expo-sqlite` 57.0.7,
+    `expo-notifications`, `expo-image-picker`, `expo-image-manipulator`, `expo-dev-client`, `expo-linking`, `expo-sharing` e `expo-splash-screen`;
+    todos no SDK 57). Typecheck, jest e `expo-doctor` passam; o APK ainda não foi gerado. Conferir: o app abre, o login entra, o offline do aluno
+    (`expo-sqlite`) mantém o plano, o push (`expo-notifications`) registra o token e a foto de perfil (`expo-image-picker`/`manipulator`) troca.
 
 Qualquer erro: `npx eas-cli build:list` e o log da build no site da Expo; erro do app em execução, `adb logcat`.
 

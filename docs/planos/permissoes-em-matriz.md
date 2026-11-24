@@ -1,6 +1,6 @@
 # Permissões em matriz (Equipe › Editar perfil)
 
-Situação: Concluída em 23/11/2026 (árvore local, sem commit) · Onde: main · Atualizado: 23/11/2026
+Situação: Entregue (commit `67a661e5`, só local; sem push) · Onde: main · Atualizado: 23/11/2026
 
 ## Objetivo
 O editor de perfil de acesso deixa de ser uma lista longa de caixas com texto comprido e vira uma matriz por seção:

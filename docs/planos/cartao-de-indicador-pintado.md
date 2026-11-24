@@ -1,6 +1,6 @@
 # Cartão de indicador pintado
 
-Situação: Entregue (commit `328df011`, só local; sem push) · Onde: main · Atualizado: 23/11/2026
+Situação: Entregue (commit `328df011`, publicado no run 45310566613) · Onde: main · Atualizado: 23/11/2026
 
 ## Objetivo
 O cartão de indicador com significado (situação ou categoria) passa a ser "pintado": fundo em degradê da cor, borda de 1 px na

@@ -1,6 +1,6 @@
 # Resultado da importação da planilha completa legível
 
-Situação: Em andamento · Onde: `main` (working tree, sem commit) · Atualizado: 23/11/2026
+Situação: Entregue (commit `c48b5b10`, só local; sem push) · Onde: `main` · Atualizado: 23/11/2026
 
 ## Objetivo
 O detalhe de uma importação da "Planilha completa" no histórico (Importação › Histórico › abrir) passa a dizer em três
@@ -20,12 +20,12 @@ copiar e corrigir a planilha. Também investiga os nomes de aba que apareceram c
 | 8 | Teto do histórico | A API guarda até 1.000 problemas (`GravacaoDaPlanilha.ERROS_GUARDADOS`) e `comErro` é o total de problemas: acima disso a tela e o texto copiado avisam quantos ficaram sem detalhe | Claude, 23/11 |
 
 ## Passos
-- [x] 1. Diagnóstico do "Refei????es" (3a): leitor do `.xlsx`, gravação em `jsonb`, banco e app conferidos, sem perda de acento (ver abaixo) — commit/run: —
-- [x] 2. Regra pura `dominio/resultadoDaPlanilha.ts` + `resultadoDaPlanilha.test.ts` (abas "Refeições" e "Histórico Pesos") — commit/run: —
-- [x] 3. Tela: `planilhaCompleta/NoHistorico.tsx` (`DetalheDaPlanilha`), `planilhaCompleta/ResultadoPorAba.tsx` e a largura/selo do `FolhaDetalhe` em `TelaImportacao.tsx` — commit/run: —
+- [x] 1. Diagnóstico do "Refei????es" (3a): leitor do `.xlsx`, gravação em `jsonb`, banco e app conferidos, sem perda de acento (ver abaixo) — commit/run: `c48b5b10`
+- [x] 2. Regra pura `dominio/resultadoDaPlanilha.ts` + `resultadoDaPlanilha.test.ts` (abas "Refeições" e "Histórico Pesos") — commit/run: `c48b5b10`
+- [x] 3. Tela: `planilhaCompleta/NoHistorico.tsx` (`DetalheDaPlanilha`), `planilhaCompleta/ResultadoPorAba.tsx` e a largura/selo do `FolhaDetalhe` em `TelaImportacao.tsx` — commit/run: `c48b5b10`
 - [x] 4. E2e em 390 e 1280: `e2e/importacao-planilha-completa.spec.ts` (todos verdes em 23/11; `importacao-assistida` e
-  `importacao-modal` seguem falhando como no HEAD, por mocks desatualizados) — commit/run: —
-- [ ] 5. Commit e entrada no `docs/planos/README.md` (sessão principal) — commit/run: —
+  `importacao-modal` seguem falhando como no HEAD, por mocks desatualizados) — commit/run: `c48b5b10`
+- [ ] 5. Commit e entrada no `docs/planos/README.md` (sessão principal) — commit/run: `c48b5b10`
 
 ## Diagnóstico do 3a (23/11)
 - Leitor: `LeitorDePlanilha` lê `xl/workbook.xml` por StAX a partir dos bytes (a codificação vem da declaração XML). Rodado

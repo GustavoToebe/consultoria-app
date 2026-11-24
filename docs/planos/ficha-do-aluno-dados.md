@@ -1,6 +1,6 @@
 # Ficha do aluno › Dados: Acesso ao app, Plano contratado e Histórico de lesões
 
-Situação: Entregue (commit `7a13c561`, só local; sem push) · Onde: main · Atualizado: 23/11/2026
+Situação: Entregue (commit `7a13c561`, publicado no run 45310566613) · Onde: main · Atualizado: 23/11/2026
 
 ## Objetivo
 Reorganizar a aba Ficha do aluno para o treinador ler o plano, o acesso e as lesões sem rolar nem caçar: duas colunas no

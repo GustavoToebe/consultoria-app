@@ -275,6 +275,7 @@ Uso de cada nível (11/11):
 | `EscolhaSuspensa` / `EscolhaEmFolha` | Escolha com busca: lista suspensa no PC, folha no celular. |
 | `TabelaDeBlocos` (`treinador/treino`, 16/11) | Blocos de séries do exercício: lista de abas vertical com ativação manual (setas movem o foco, Enter e Espaço escolhem). Colunas Série, Tipo, Carga, Reps e Descanso; abaixo de 390 px da coluna das séries cada bloco vira linha empilhada. Ver 4.7. |
 | `EscolhaDoExercicio` (`treinador/treino`, 16/11) | "Exercício aberto" no celular, com 3 ou mais exercícios na sessão: abre a folha com todos e rola até o escolhido (`EscolhaEmFolha`). |
+| `useFaixaDaTela` (`ui/Tela`, 23/11) | A faixa de largura (4.10) que a `Tela` mede para a área ao lado do menu, por contexto; é com ela que o layout dentro da tela decide colunas e painel fixo (`PainelDaCobranca` na `ultralarga`). Fora de uma `Tela`, `compacta`. |
 
 ### 4.5 Cor por situação (Gustavo, 03/11)
 
@@ -438,7 +439,16 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   dela; "Cancelar" nunca é o principal. O motivo de uma ação indisponível aparece **uma vez**, no padrão P5.
 - **Peça:** `Folha` (`topo`, `faixa`, `area`, `conteudo`, `rodape`), `PainelConfirmacao`, `LinhaDeAcoes`.
 - **Larguras (variantes):** confirmação 480 · formulário `LARGURA_FOLHA` 600 · editor ou prévia com mídia
-  `LARGURA_EDITOR`. A largura vem da tarefa, não do conteúdo que sobrou.
+  `LARGURA_EDITOR`. A largura vem da tarefa, não do conteúdo que sobrou. Variantes de 23/11: `LARGURA_FOLHA_LARGA` (800)
+  para detalhe com indicadores (resultado da planilha completa, janela "Criar" da Agenda) e 900 px para a matriz de
+  permissões (`EditorDePerfil`, constante da tela). `Folha telaCheiaNoCelular` (opcional, só o editor de perfil usa) ocupa
+  a tela inteira no celular; as outras folhas continuam na largura com o rodapé embaixo.
+- **Variante "painel fixo ao lado"** (23/11, `treinador/financeiro/PainelDaCobranca`): o mesmo conteúdo da folha, sem
+  modal, numa coluna fixa de 480 px à direita da tabela, só na faixa `ultralarga` (`useFaixaDaTela`, 4.10). É uma
+  `role="region"` com o título, grudada na rolagem; o corpo rola e o rodapé de ações é fixo, **em duas linhas**: a ação
+  principal em cima, cheia, e as secundárias embaixo, duas por linha. X e Esc fecham e devolvem o foco à linha de origem;
+  abrir outra troca o conteúdo; o passo a passo que abre por cima (Renegociar) fica sobre o painel. A folha (600 px e
+  celular) não muda.
 - **Responsivo:** no PC a folha é uma caixa centrada com a largura da variante; no celular ocupa a largura e o rodapé
   fica colado embaixo, com os botões em coluna, o principal em cima, `cheio`.
 - **Conferência visual:** o rodapé está sempre visível sem rolar a página; as ações ficam na mesma borda em todas as
@@ -526,6 +536,9 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
     na lista de Alunos; eles viraram as opções "Para revisar" e "Atrasada" do filtro Atualização, no painel (um modo só
     de filtrar; a contagem por atalho saiu junto). Decisão do plano `filtros-laterais.md`, passo 4.
 - **Peça:** `Campo`, `CamposEmLinha`, `ParDeDatas`, `CampoData`, `CampoSenha`, `BarraDeFiltros`, `SelecaoMultiplaSuspensa`, `EscolhaEmFolha`.
+- **`BarraDeFiltros` `antes` e `depois`** (23/11, Agenda): `antes` é o que fica à esquerda na linha do botão "Filtros",
+  ocupando o que sobra (Hoje, setas e período do calendário); `depois` vem logo depois do botão (o segmento da visão). Uma
+  barra só acima da grade; as etiquetas "Filtrando" continuam embaixo da linha inteira.
 - **Senha:** `CampoSenha` tem o olho como botão de alternar (WAI-ARIA APG): o nome fixo "Mostrar senha" e o estado em
   `aria-pressed` na web e em `checked` no celular, nunca o nome que troca junto com o estado (10/11, `e2e/entrada-por-publico.spec.ts`).
 - **Responsivo:** a partir de `LARGURA_TABELA` os campos relacionados ficam em linha; abaixo disso, uma coluna.
@@ -630,6 +643,9 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
 - **Estrutura:** uma mensagem por motivo, uma vez. O mesmo texto não aparece como aviso e como `motivo` ao mesmo
   tempo. Legenda nunca fica solta entre dois blocos: ela pertence ao campo, ao grupo ou à faixa que descreve.
 - **Peça:** `Campo`, `Botao`, `Escolha`, `Alerta`, `Bloqueado`, `Incompleto`, `Cartao`, `Texto` (`pequeno`, `suave`).
+- **Exceção registrada (23/11):** na folha da cobrança, o motivo do "Enviar pelo WhatsApp" desabilitado (sem telefone) fica
+  **ao lado** do botão, na mesma linha, junto do link "Adicionar telefone" (só com `ALUNO_ALTERAR`), e não no `motivo` do
+  botão: continua uma vez só, mas a frase precisa de um link dentro dela e cabe melhor ao lado em 480 px.
 - **Responsivo:** o texto quebra linha; o motivo de um botão `cheio` fica centralizado, o de um botão com o tamanho do
   texto fica alinhado à esquerda dele. Num rodapé de modal (P1), o motivo fica sob a ação a que se refere.
 - **Conferência visual:** nenhuma mensagem repetida na mesma tela; nenhuma legenda sem o elemento a que se refere
@@ -651,6 +667,17 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
 - **Aba de ajustes** (Lembretes, Recebimento; `treinador/financeiro/AjustesDaAba`): duas colunas a partir de 960 px medidos (ajustes à esquerda, apoio e prévia à direita), uma coluna abaixo; linhas de opção com fio e controle em coluna fixa; **barra de salvar no rodapé do cartão** ("Tudo salvo" / "Alterações não salvas" + Descartar + Salvar), sem botão apagado, e guarda de saída também na troca de aba (`Abas ativacao="manual"`: seta só move o foco, Enter ou Espaço escolhem).
 - **Números** (`treinador/numeros`): quatro indicadores no topo só com o que a tela já mostra, duas colunas medidas pela área e "Como contamos" recolhível, fechado.
 - **Fibra:** única exceção ao "só ≥ 4,5:1" dos tokens de categoria, porque nunca é texto (ver "Categoria e macros"). Folha larga do alimento: 800 px (`LARGURA_FOLHA_LARGA`), macros em colunas iguais (`treinador/biblioteca/gradeDoAlimento.ts`).
+
+**Cobrança, planos e permissões em tela larga (23/11; planos `docs/planos/folha-da-cobranca.md`, `financeiro-em-tela-larga.md` e `permissoes-em-matriz.md`):**
+- **Item arquivado sem opacidade:** o plano arquivado leva o selo neutro "Arquivado" e o valor em `textoSuave`; texto
+  esmaecido por opacidade cai abaixo de 4,5:1 (WCAG 1.4.3), por isso nunca (4.3).
+- **Planos em grade** (`dominio/gradeDosPlanos.colunasDosPlanos`: 4 colunas a partir de 1600, 3 a partir de 1024, 2 a partir de
+  600, 1 abaixo; sem cartão sozinho na última linha). Cobranças, Planos e Lançamentos não têm teto de largura: o espaço
+  extra vira coluna ou painel (4.10).
+- **Matriz de permissões** (`treinador/equipe/EditorDePerfil`, folha de 900 px): uma linha por recurso e colunas Ver | Criar
+  e editar | Publicar | Outras; resumo vivo, seções "N de M" e dependência travada com o motivo. O selo "Dado sensível" tem
+  **uma posição só por arranjo** (`dominio/matrizDePermissoes.arranjoDaMatriz`): ao lado do nome do recurso no PC, abaixo do
+  nome em todos os recursos no celular, nunca um de cada jeito na mesma tela; o recurso "Dados sensíveis" não leva o selo.
 
 ---
 
@@ -808,6 +835,11 @@ Regras para o treinador no monitor grande. Valores em `tema/tokens.ts`, `ui/useF
   migram aos poucos, quando a tela for mexida: migra quem decide layout de conteúdo pela largura; modais, teclado e
   detecção de celular podem continuar na janela. A `TelaDoEditor` só usa a janela menos o menu para
   estimar o primeiro quadro, até a medida chegar, e passa a valer a medida.
+- **Layout dentro de uma tela: `useFaixaDaTela()`** (`ui/Tela`, 23/11). A `Tela` já mede a faixa da área (antes do recuo
+  lateral) e a expõe por contexto; quem decide o layout por dentro dela lê a faixa dali (fora de uma `Tela`, `compacta`).
+  O `useFaixaDeLargura` medido por dentro do recuo não chega à `ultralarga` em 2560 px (o recuo de 48 px tira 96). Exemplo:
+  o painel fixo das Cobranças (`PainelDaCobranca`, 480 px) é a 3ª coluna da `ultralarga`; com a preferência "Limitada" ele
+  abre dentro de 1800 px (a faixa vem da área, o teto só segura o conteúdo). Abaixo da `ultralarga` a cobrança abre na folha.
 - **Espaço extra vira colunas, nunca elementos esticados.** Campo, botão, linha de lista e cartão de texto não ganham
   largura só porque ela existe: sobrou espaço, entra outra coluna (o `Grade` mede a si mesmo e escolhe 1, 2 ou 3 colunas;
   o Início escolhe de 1 a 6 por `colunasDaGrade`, com teto por faixa de 3, 4, 5 e 6).

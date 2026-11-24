@@ -1,6 +1,6 @@
 # Agenda: Criar no lugar certo, barra única e uma janela de criação
 
-Situação: Em andamento (working tree, sem commit) · Onde: main · Atualizado: 23/11/2026
+Situação: Entregue (commit `fa9f0f53`, só local; sem push) · Onde: main · Atualizado: 23/11/2026
 
 ## Objetivo
 Pedido do Gustavo (23/11): na Agenda do treinador, o "Criar" vai para o topo da coluna da esquerda com o menu dos dois
@@ -26,8 +26,8 @@ regra (limites, permissões, repetição e avisos continuam os de hoje).
 ## Passos
 - [x] 1. Regras puras `dominio/agendaCriacao.ts` com teste (`agendaCriacao.test.ts`: início sugerido e virada do dia, fim que acompanha, fim antes do início, duração, troca de tipo e perdas, dica do vazio) — commit: —
 - [x] 2. Hooks dos formulários, `FolhaCriar`, `EscolhaDaAgenda`, folhas de detalhe/edição enxutas, barra única, Criar e dica — commit: —
-- [x] 3. e2e ajustados (`agenda-calendario`, `-composicao`, `-presencial`, `banco-vazio`, `filtros-laterais-fase-c`) e novo `agenda-criar-unificado.spec.ts` (1280 e 390); 23/11, working tree sem commit: tsc limpo, lint com os 11 avisos antigos, jest 395 suítes, e2e da agenda + banco-vazio + filtros-laterais-fase-c 158/158 — commit: —
-- [x] 3b. Retoques (23/11, sem commit): título curto da semana ("19–25 out. 2026", "26 out.–1 nov. 2026") em `bloco` (16), numa linha em 1280 px; bloco estreito da Semana mostra só o início (`horarioNoBloco`, intervalo a partir de 96 px de bloco, medido); e2e da agenda 159/159 na 8193; capturas em `capturas/23-11/agenda/retoques/` — commit: —
+- [x] 3. e2e ajustados (`agenda-calendario`, `-composicao`, `-presencial`, `banco-vazio`, `filtros-laterais-fase-c`) e novo `agenda-criar-unificado.spec.ts` (1280 e 390); 23/11, working tree commit `fa9f0f53`: tsc limpo, lint com os 11 avisos antigos, jest 395 suítes, e2e da agenda + banco-vazio + filtros-laterais-fase-c 158/158 — commit: —
+- [x] 3b. Retoques (23/11, commit `fa9f0f53`): título curto da semana ("19–25 out. 2026", "26 out.–1 nov. 2026") em `bloco` (16), numa linha em 1280 px; bloco estreito da Semana mostra só o início (`horarioNoBloco`, intervalo a partir de 96 px de bloco, medido); e2e da agenda 159/159 na 8193; capturas em `capturas/23-11/agenda/retoques/` — commit: —
 - [ ] 4. Commit e push (sessão principal)
 
 ## Fora do escopo

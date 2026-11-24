@@ -1,6 +1,6 @@
 # Comunidade › Vídeos: cabeçalho de coleção
 
-Situação: Entregue (commit `a50a7cb1`, só local; sem push) · Onde: main · Atualizado: 23/11/2026
+Situação: Entregue (commit `a50a7cb1`, publicado no run 45310566613) · Onde: main · Atualizado: 23/11/2026
 
 ## Objetivo
 Separar as playlists na aba Vídeos: o nome da coleção tinha quase o peso do título do vídeo e as seções se emendavam. O

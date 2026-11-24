@@ -1,6 +1,6 @@
 # Folha da cobrança (só app)
 
-Situação: Concluída em 23/11/2026 · Onde: `main` (árvore local, sem commit) · Atualizado: 23/11/2026
+Situação: Entregue (commit `96077067`, só local; sem push) · Onde: `main` · Atualizado: 23/11/2026
 
 ## Objetivo
 A folha da cobrança diz em três segundos quem deve, de onde vem a cobrança, quanto e para quando, e junta num bloco
