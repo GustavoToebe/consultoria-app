@@ -14,6 +14,7 @@ import {
   estaAberta,
   ETAPAS_ABERTAS,
   FILTROS_INSCRICOES,
+  podeAceitarPago,
   seloDaSituacao,
   seloDoRetorno,
   SITUACOES_ENCERRADAS,
@@ -86,7 +87,11 @@ export function QuadroKanban({ filtros, contagens, rodada, etapas, aoAbrir, aoMu
     setMover(null);
     // Um pedido de cada vez por cartão: o segundo sairia com a versão velha e voltaria 409.
     if (movendo === item.id) return;
-    if (destino.tipo === 'aceitar') return aoAbrir(item.id, { tipo: 'aceitar' });
+    if (destino.tipo === 'aceitar') {
+      if (podeAceitarPago(item.situacao, item.pagamento)) return aoAbrir(item.id, { tipo: 'aceitar' });
+      avisar('Confirme o pagamento na inscrição antes de aceitar, ou use Aceitar sem cobrança.', 'neutro');
+      return aoAbrir(item.id);
+    }
     if (destino.tipo === 'encerrar') return aoAbrir(item.id, { tipo: 'encerrar', situacao: destino.situacao });
     if (destino.tipo === 'reabrir') return aoAbrir(item.id, { tipo: 'reabrir' });
     const anterior = item.situacao;

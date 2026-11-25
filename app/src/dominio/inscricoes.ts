@@ -108,6 +108,12 @@ export function situacoesDoAndamento(atual: SituacaoInscricao): { valor: Situaca
 
 /** Aceitar e encerrar só de uma etapa aberta; de encerrada, primeiro "Reabrir". */
 export const podeAceitar = (s: SituacaoInscricao) => estaAberta(s);
+/** Aceite pago exige etapa aberta e pagamento confirmado manualmente. */
+export const podeAceitarPago = (s: SituacaoInscricao, p: PagamentoInscricao) =>
+  estaAberta(s) && p === 'CONFIRMADO_MANUAL';
+/** Aceite sem cobrança (cortesia): etapa aberta sem pagamento confirmado. */
+export const podeAceitarSemCobranca = (s: SituacaoInscricao, p: PagamentoInscricao) =>
+  estaAberta(s) && p !== 'CONFIRMADO_MANUAL';
 export const podeEncerrar = (s: SituacaoInscricao) => estaAberta(s);
 export const podeReabrir = (s: SituacaoInscricao) => estaEncerradaSemAluno(s);
 
@@ -504,7 +510,7 @@ export function textoDoEvento(e: Pick<EventoInscricao, 'tipo' | 'de' | 'para' | 
       return e.detalhe ? `${base} (${e.detalhe})` : base;
     }
     case 'REABERTA': return comDetalhe('Reaberta');
-    case 'ACEITA': return 'Aceita: virou aluno';
+    case 'ACEITA': return e.detalhe ? `Aceita (${e.detalhe}): virou aluno` : 'Aceita: virou aluno';
     case 'PROPOSTA': return comDetalhe('Proposta');
     case 'MENSAGEM_PREPARADA': {
       const acao = e.para === 'WHATSAPP_ABERTO' ? 'WhatsApp aberto' : 'copiada';

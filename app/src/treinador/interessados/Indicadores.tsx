@@ -25,6 +25,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Grade } from '../../ui/Grade';
+import { GradeDeIndicadores } from '../../ui/GradeDeIndicadores';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
@@ -53,6 +54,9 @@ const COMO_CONTAMOS: { termo: string; explicacao: string }[] = [
     termo: 'Entradas por origem',
     explicacao: 'As entradas do período pela origem registrada em cada inscrição: a que a pessoa respondeu ou, sem resposta, a do link; a equipe pode corrigi-la. Os aceites são os dessas entradas.',
   },
+  { termo: 'Aguardando pagamento', explicacao: 'Inscrições em atendimento cujo pagamento está marcado como aguardando confirmação.' },
+  { termo: 'Pagaram', explicacao: 'Inscrições do período com pagamento confirmado manualmente pela equipe.' },
+  { termo: 'Cortesias', explicacao: 'Inscrições aceitas sem cobrança (cortesia) no período, sem pagamento confirmado.' },
 ];
 
 /** "Limites dos dados": o que os números não mostram. Sem fórmula nem prazo novos (a retenção é a da API). */
@@ -145,6 +149,19 @@ export function Indicadores() {
               <Numero rotulo="Desistências" valor={ind.desistencias} />
               <Numero rotulo="Reaberturas" valor={ind.reaberturas} />
             </Grade>
+          </View>
+          <View style={dados.carregando ? estilos.esmaecido : null} accessibilityState={{ busy: dados.carregando }}>
+            <GradeDeIndicadores vao={espaco(1.5)}>
+              <Numero rotulo="Inscritos" valor={ind.entradas} detalhe="no período" />
+              <Numero
+                rotulo="Aguardando pagamento"
+                valor={ind.aguardandoPagamento ?? 0}
+                tom={(ind.aguardandoPagamento ?? 0) > 0 ? 'atencao' : 'neutro'}
+                detalhe="em atendimento"
+              />
+              <Numero rotulo="Pagaram" valor={ind.pagaram ?? 0} tom="sucesso" detalhe="pagamento confirmado" />
+              <Numero rotulo="Cortesias" valor={ind.cortesias ?? 0} tom="neutro" detalhe="aceitas sem cobrança" />
+            </GradeDeIndicadores>
           </View>
           {/* Cada análise com a própria altura: o vazio curto não estica até a altura da tabela vizinha. Na tela larga as
               quatro ficam numa linha só (24/11); antes disso, as duas tabelas lado a lado e os textos em faixa inteira. */}
