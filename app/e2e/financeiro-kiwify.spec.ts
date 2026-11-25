@@ -53,6 +53,7 @@ async function semSegredos(page: Page) {
 
 const cartao = (page: Page) => page.getByText('Assinaturas pela Kiwify', { exact: true });
 const salvar = (page: Page) => page.getByRole('button', { name: 'Salvar credenciais' });
+const abrirIntegracoesExternas = (page: Page) => page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
 
 /** O navegador de teste não deixa ler a área de transferência: um substituto guarda o que foi copiado. */
 async function areaDeTransferencia(page: Page) {
@@ -99,6 +100,7 @@ test('503 KIWIFY_INDISPONIVEL com o /eu antigo dizendo ligada: o cartão some, s
   await page.setViewportSize({ width: 1280, height: 900 });
   const { errosDaPagina } = await abrir(page, '/treinador/financeiro?aba=recebimento', { kiwify: estadoKiwify({ indisponivel: true }) });
   await expect(page.getByText('Formas de recebimento', { exact: true })).toBeVisible();
+  await abrirIntegracoesExternas(page);
   await expect(cartao(page)).toHaveCount(0);
   await expect(page.getByText(/não está disponível/)).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
@@ -115,6 +117,7 @@ for (const largura of LARGURAS) for (const t of TEMAS) {
     await areaDeTransferencia(page);
     const kiwify = estadoKiwify();
     const { errosDaPagina } = await abrir(page, '/treinador/financeiro?aba=recebimento', { kiwify });
+    await abrirIntegracoesExternas(page);
     await expect(cartao(page)).toBeVisible();
     await expect(page.getByText('Ainda não configurada', { exact: true })).toBeVisible();
     await expect(page.getByText(/em Apps › API, crie uma chave de API/)).toBeVisible();
@@ -170,6 +173,7 @@ test('trocar credenciais: em branco fica o gravado, só o digitado vai, com a ve
   await page.setViewportSize({ width: 1280, height: 900 });
   const kiwify = estadoKiwify({ config: { ...KIWIFY_CONFIGURADA } });
   const { errosDaPagina } = await abrir(page, '/treinador/financeiro?aba=recebimento', { kiwify });
+  await abrirIntegracoesExternas(page);
   await page.getByRole('button', { name: 'Trocar credenciais' }).click();
   await expect(page.getByRole('button', { name: 'Salvar novas credenciais' })).toBeDisabled();
   await page.getByLabel('Client secret', { exact: true }).fill('outro-segredo-ficticio-1');
@@ -193,6 +197,7 @@ for (const largura of LARGURAS) {
     await page.setViewportSize({ width: largura, height: 900 });
     const kiwify = estadoKiwify({ config: { ...KIWIFY_CONFIGURADA } });
     const { errosDaPagina } = await abrir(page, '/treinador/financeiro?aba=recebimento', { kiwify });
+    await abrirIntegracoesExternas(page);
     await page.getByRole('button', { name: 'Remover Kiwify' }).click();
     const painel = page.getByRole('alertdialog', { name: 'Remover a Kiwify?' });
     await expect(painel.getByText(MENSAGEM_REMOVER_KIWIFY)).toBeVisible();
@@ -214,6 +219,7 @@ test('só FINANCEIRO_LER: a situação e o final do client_id, sem URL, sem camp
   await page.setViewportSize({ width: 390, height: 900 });
   const kiwify = estadoKiwify({ config: { ...KIWIFY_CONFIGURADA }, comUrl: false });
   const { errosDaPagina } = await abrir(page, '/treinador/financeiro?aba=recebimento', { kiwify, permissoes: ['FINANCEIRO_LER'] });
+  await abrirIntegracoesExternas(page);
   await expect(cartao(page)).toBeVisible();
   await expect(page.getByText('termina em a1b2')).toBeVisible();
   await expect(page.getByText('Para mudar a Kiwify, peça a quem administra o financeiro.')).toBeVisible();
@@ -238,6 +244,7 @@ test('sem conexão ao buscar: mensagem de erro e "Tentar de novo"', async ({ pag
       },
     },
   });
+  await abrirIntegracoesExternas(page);
   await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
   await page.screenshot({ path: `${CAPTURAS}/sem-conexao-1280.png`, fullPage: true });
   await page.getByRole('button', { name: 'Tentar de novo' }).click();
