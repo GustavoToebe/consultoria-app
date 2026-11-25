@@ -58,7 +58,7 @@ const TEXTOS: Record<FinalidadeQuestionario, { titulo: string; descricao: string
   },
   INSCRICAO: {
     titulo: 'Perguntas da inscrição', novo: 'Novas perguntas', buscar: 'Buscar perguntas',
-    descricao: 'As perguntas da página "Quero ser aluno", embaixo dos campos fixos. A página usa sempre o padrão publicado; as respostas aparecem na inscrição, em Interessados.',
+    descricao: 'As perguntas das páginas de inscrição, embaixo dos campos fixos. O link principal usa o padrão publicado, e outros formulários (como a Ficha rápida) podem ter link próprio em Interessados.',
     vazio: 'Nenhuma pergunta de inscrição ainda.',
   },
 };
@@ -198,7 +198,7 @@ function FormularioNovo({ finalidade, aoFechar }: { finalidade: FinalidadeQuesti
   }} />}>
     <Campo rotulo={anamnese ? 'Nome da anamnese' : 'Nome do questionário'} valor={nome} aoMudar={setNome} maxLength={120} />
     <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={400} />
-    {inscricao ? <Texto variante="suave">Começa com uma seção vazia. A página usa só o padrão: depois de publicar, defina este como padrão para ele aparecer. {AVISO_SAUDE_NA_INSCRICAO}</Texto>
+    {inscricao ? <Texto variante="suave">Começa com uma seção vazia. Depois de publicar, você pode defini-lo como padrão do link principal ou usá-lo em um link próprio em Interessados. {AVISO_SAUDE_NA_INSCRICAO}</Texto>
       : anamnese ? <Texto variante="suave">Começa com uma seção vazia. Use seções para dividir (dados, rotina, treino, alimentação) e condições para mostrar perguntas só quando fazem sentido.</Texto> : <>
       <Escolha rotulo="Começar de" valor={origem} aoMudar={setOrigem} opcoes={[{ valor: 'FABRICA', rotulo: 'Modelo da plataforma' }, { valor: 'VAZIO', rotulo: 'Em branco' }]} />
       <Texto variante="suave">{origem === 'FABRICA' ? 'Traz as perguntas do questionário original para você ajustar.' : 'Começa com uma seção vazia.'}</Texto>

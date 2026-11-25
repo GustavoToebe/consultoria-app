@@ -93,6 +93,21 @@ export interface ConfiguracaoInscricaoRequest {
   versao: number;
 }
 
+/** `GET /inscricoes/links`: todos os links públicos de inscrição (o padrão e os extras, como a Ficha rápida). */
+export interface LinkDeInscricao {
+  id: string;
+  nome: string;
+  padrao: boolean;
+  aberta: boolean;
+  codigo: string | null;
+  link: string | null;
+  responsavelId: string | null;
+  proximoQuestionarioId?: string | null;
+  texto: string | null;
+  camposOcultos: CampoDaInscricao[];
+  versao: number | null;
+}
+
 /**
  * Só aviso: aluno com o mesmo e-mail (`alunoId` só para quem vê alunos), outras inscrições em atendimento e anteriores
  * (encerradas ou aceitas) com o mesmo e-mail ou WhatsApp. Nada é juntado sozinho.
@@ -142,6 +157,7 @@ export interface InscricaoResumo {
   email: string | null;
   situacao: SituacaoInscricao;
   pagamento: PagamentoInscricao;
+  aceitaSemCobranca?: boolean;
   responsavelId: string | null;
   responsavelNome: string | null;
   alunoId: string | null;
@@ -293,6 +309,7 @@ export interface InscricaoDetalhe {
   pagamento: PagamentoInscricao;
   pagamentoConfirmadoPorNome: string | null;
   pagamentoConfirmadoEm: string | null;
+  aceitaSemCobranca?: boolean;
   responsavelId: string | null;
   responsavelNome: string | null;
   alunoId: string | null;
@@ -390,6 +407,12 @@ export interface IndicadoresInscricoes {
   recusadas: number;
   desistencias: number;
   reaberturas: number;
+  /** Inscrições em atendimento com pagamento aguardando confirmação. */
+  aguardandoPagamento?: number;
+  /** Inscrições no período com pagamento confirmado manualmente. */
+  pagaram?: number;
+  /** Inscrições aceitas sem cobrança (cortesia) no período. */
+  cortesias?: number;
   /** Das entradas do período, quantas já viraram aluno. */
   aceitesDasEntradas: number;
   /** aceitesDasEntradas ÷ entradas, de 0 a 1; nulo sem entradas. */
@@ -406,4 +429,5 @@ export interface AceiteInscricao {
   convite: ConviteGerado | null;
   /** Anamnese enviada junto com o aceite; `null` quando nenhuma foi enviada. */
   anamneseId: string | null;
+  aceitaSemCobranca?: boolean;
 }

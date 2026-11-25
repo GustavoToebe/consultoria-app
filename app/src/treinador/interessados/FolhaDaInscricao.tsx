@@ -15,8 +15,8 @@ import type {
   PagamentoInscricao,
   SituacaoInscricao,
 } from '../../api/inscricoesTipos';
+import { aceitarInscricaoComPagamento } from '../../api/fichaRapida';
 import {
-  aceitarInscricao,
   alterarInscricao,
   encerrarInscricao,
   inscricao,
@@ -45,6 +45,8 @@ import {
   ORIGENS_INFORMADAS,
   PERIODICIDADES,
   podeAceitar,
+  podeAceitarPago,
+  podeAceitarSemCobranca,
   podeEncerrar,
   podeReabrir,
   PREVISOES,
@@ -89,8 +91,12 @@ import { SemelhantesDaInscricao } from './SemelhantesDaInscricao';
 const SEM_RESPONSAVEL = '';
 const SEM_ORIGEM = '';
 
-/** O que abrir junto com a folha (Kanban): a confirmação do aceite, do encerramento (com a situação) ou da reabertura. */
-export type PedidoDaFolha = { tipo: 'aceitar' } | { tipo: 'encerrar'; situacao: Encerramento } | { tipo: 'reabrir' };
+/** O que abrir junto com a folha (Kanban): a confirmação do aceite, do aceite sem cobrança, do encerramento ou da reabertura. */
+export type PedidoDaFolha =
+  | { tipo: 'aceitar' }
+  | { tipo: 'aceitar_cortesia' }
+  | { tipo: 'encerrar'; situacao: Encerramento }
+  | { tipo: 'reabrir' };
 
 /**
  * Uma inscrição aberta na fila: dados que a pessoa mandou, possível duplicidade e "mesma pessoa", contato pelo WhatsApp
@@ -129,13 +135,24 @@ export function FolhaDaInscricao({ id, pedidoInicial, responsaveis, aoFechar, ao
   const fechar = () => { setPedido(null); aoFechar(); };
   const decide = !!dados && aceitaId !== dados.id && pode('INSCRICAO_ALTERAR');
   const podeAceitarAqui = decide && !!dados && pode('ALUNO_ALTERAR') && podeAceitar(dados.situacao);
+  const podeAceitarPagoAqui = podeAceitarAqui && !!dados && podeAceitarPago(dados.situacao, dados.pagamento);
+  const podeAceitarSemCobrancaAqui = podeAceitarAqui && !!dados && podeAceitarSemCobranca(dados.situacao, dados.pagamento);
   const podeEncerrarAqui = decide && !!dados && podeEncerrar(dados.situacao);
   const podeReabrirAqui = decide && !!dados && podeReabrir(dados.situacao);
   const rodape = podeAceitarAqui || podeEncerrarAqui || podeReabrirAqui ? (
     <>
       {podeEncerrarAqui ? <Botao rotulo="Encerrar" tipo="perigoTexto" aoTocar={() => setPedido({ tipo: 'encerrar', situacao: 'RECUSADA' })} carregando={decidindo === 'encerrar'} desabilitado={!!decidindo} /> : null}
       {podeReabrirAqui ? <Botao rotulo="Reabrir atendimento" aoTocar={() => setPedido({ tipo: 'reabrir' })} carregando={decidindo === 'reabrir'} desabilitado={!!decidindo} /> : null}
-      {podeAceitarAqui ? <Botao rotulo="Aceitar" aoTocar={() => setPedido({ tipo: 'aceitar' })} carregando={decidindo === 'aceitar'} desabilitado={!!decidindo} /> : null}
+      {podeAceitarSemCobrancaAqui ? <Botao rotulo="Aceitar sem cobrança" tipo="secundario" aoTocar={() => setPedido({ tipo: 'aceitar_cortesia' })} carregando={decidindo === 'aceitar_cortesia'} desabilitado={!!decidindo} /> : null}
+      {podeAceitarAqui ? (
+        <Botao
+          rotulo="Aceitar"
+          aoTocar={() => setPedido({ tipo: 'aceitar' })}
+          carregando={decidindo === 'aceitar'}
+          desabilitado={!!decidindo || !podeAceitarPagoAqui}
+          motivo={!podeAceitarPagoAqui ? 'Confirme o pagamento antes de aceitar.' : undefined}
+        />
+      ) : null}
     </>
   ) : undefined;
   return (
@@ -144,7 +161,9 @@ export function FolhaDaInscricao({ id, pedidoInicial, responsaveis, aoFechar, ao
       {!dados && !detalhe.erro ? <Esqueleto /> : null}
       {dados ? (
         <Conteudo key={dados.id} dados={dados} responsaveis={responsaveis} aoFechar={fechar} rascunhos={rascunhos}
-          pedido={pedido} aoFecharPedido={() => setPedido(null)} aoReabrirAceite={() => setPedido({ tipo: 'aceitar' })} aoDecidindo={setDecidindo} aoAceitar={() => setAceitaId(dados.id)}
+          pedido={pedido} aoFecharPedido={() => setPedido(null)}
+          aoReabrirAceite={(semCobranca) => setPedido({ tipo: semCobranca ? 'aceitar_cortesia' : 'aceitar' })}
+          aoDecidindo={setDecidindo} aoAceitar={() => setAceitaId(dados.id)}
           aoMudarLista={aoMudar} aoAtualizar={(d) => { detalhe.definir(d, `inscricao:${d.id}`); aoMudar(); }}
           aoRecarregar={() => { detalhe.recarregar(); aoMudar(); }} aoAbrirOutra={aoAbrirOutra} />
       ) : null}
@@ -160,7 +179,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
   pedido: PedidoDaFolha | null;
   aoFecharPedido: () => void;
   /** O aceite fecha o painel antes de ir à API; se a API pedir outra escolha (anamnese indisponível), ele volta. */
-  aoReabrirAceite: () => void;
+  aoReabrirAceite: (semCobranca?: boolean) => void;
   /** Mantém o rodapé em "carregando" enquanto a decisão vai à API. */
   aoDecidindo: (d: PedidoDaFolha['tipo'] | null) => void;
   aoAceitar: () => void;
@@ -224,8 +243,10 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
   const [motivoReabertura, setMotivoReabertura] = useState('');
   // Anamnese enviada junto com o aceite: `undefined` = a pessoa ainda não mexeu (vale a padrão publicada, sem efeito).
   const [anamneseEscolhida, setAnamneseEscolhida] = useState<string | null | undefined>(undefined);
+  const ultimoAceiteSemCobranca = useRef(false);
   const podeEnviarAnamnese = pode('ANAMNESE_LER') && pode('ANAMNESE_ALTERAR') && pode('ALUNO_SENSIVEL_LER');
-  const opcoes = useCarregar(pedido?.tipo === 'aceitar' && podeEnviarAnamnese ? 'aceite:anamneses' : null, () => opcoesDeQuestionario('ANAMNESE'));
+  const abrindoAceite = pedido?.tipo === 'aceitar' || pedido?.tipo === 'aceitar_cortesia';
+  const opcoes = useCarregar(abrindoAceite && podeEnviarAnamnese ? 'aceite:anamneses' : null, () => opcoesDeQuestionario('ANAMNESE'));
   const semAcessoAsAnamneses = opcoes.erro instanceof ErroApi && opcoes.erro.status === 403;
   const anamneseDoAceite = anamneseEscolhida !== undefined ? anamneseEscolhida : anamneseInicialDoAceite(opcoes.dados ?? []);
 
@@ -253,7 +274,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
       avisar('Essa anamnese não está mais disponível. Escolha outra.', 'neutro');
       opcoes.recarregar();
       setAnamneseEscolhida(undefined);
-      aoReabrirAceite();
+      aoReabrirAceite(ultimoAceiteSemCobranca.current);
       return;
     }
     if (codigoApi(e) === 'CONFLITO_EDICAO') {
@@ -320,16 +341,18 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
       () => setMotivoReabertura(''));
   };
 
-  const aceitar = () => {
+  const aceitar = (semCobranca = false) => {
+    ultimoAceiteSemCobranca.current = semCobranca;
     aoFecharPedido();
-    aoDecidindo('aceitar');
-    setOcupado('aceitar');
+    aoDecidindo(semCobranca ? 'aceitar_cortesia' : 'aceitar');
+    setOcupado(semCobranca ? 'aceitar_cortesia' : 'aceitar');
     setErro(null);
     setAlunoExistente(null);
-    aceitarInscricao(dados.id, {
+    aceitarInscricaoComPagamento(dados.id, {
       convidar: convidar && podeConvidar,
       anamneseQuestionarioId: podeEnviarAnamnese ? anamneseDoAceite : null,
       versao: dados.versao,
+      semCobranca,
     }).then((r) => {
       if (!montado.current) {
         aoMudarLista();
@@ -339,8 +362,11 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
       aoDecidindo(null);
       aoAceitar();
       // O código do convite só existe nesta resposta: fica na folha até ela fechar (nada de recarregar o detalhe agora).
-      setAceite(r);
-      avisar(`Inscrição aceita: o aluno foi cadastrado.${r.anamneseId ? ' Anamnese enviada.' : ''}`, 'sucesso');
+      setAceite({ ...r, aceitaSemCobranca: r.aceitaSemCobranca ?? semCobranca });
+      const base = semCobranca
+        ? 'Inscrição aceita sem cobrança (cortesia): o aluno foi cadastrado.'
+        : 'Inscrição aceita: o aluno foi cadastrado.';
+      avisar(`${base}${r.anamneseId ? ' Anamnese enviada.' : ''}`, 'sucesso');
       aoMudarLista();
     }, falhou);
   };
@@ -377,6 +403,7 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
     <View style={estilos.corpo}>
       <View style={estilos.selos}>
         <Selo texto={situacaoTela.texto} tipo={situacaoTela.tipo} />
+        {dados.situacao === 'ACEITA' && dados.aceitaSemCobranca ? <Selo texto="Aceita sem cobrança (cortesia)" tipo="neutro" /> : null}
         {dados.ciclo > 1 ? <Selo texto={`${dados.ciclo}º atendimento`} tipo="neutro" /> : null}
         {/* "Não controlado" é o padrão: o selo só aparece quando o pagamento está sendo acompanhado. */}
         {dados.pagamento !== 'NAO_CONTROLADO' ? <Selo texto={`Pagamento: ${pagamentoTela.texto}`} tipo={pagamentoTela.tipo} /> : null}
@@ -483,7 +510,10 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
       ) : null}
 
       {dados.situacao === 'ACEITA' ? (
-        <Cartao titulo="Aluno cadastrado" descricao={`Esta inscrição já virou aluno${dados.aceitaEm ? ` em ${dataHoraParaTela(dados.aceitaEm)}` : ''}.`}>
+        <Cartao
+          titulo="Aluno cadastrado"
+          descricao={`Esta inscrição já virou aluno${dados.aceitaEm ? ` em ${dataHoraParaTela(dados.aceitaEm)}` : ''}.${dados.aceitaSemCobranca ? ' Aceita sem cobrança (cortesia).' : ''}`}
+        >
           {dados.alunoId && podeVerAluno ? (
             <LinhaDeAcoes><Botao rotulo="Abrir ficha" aoTocar={() => abrirFicha(dados.alunoId ?? '')} /></LinhaDeAcoes>
           ) : null}
@@ -493,9 +523,9 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
       <RespostaComModelo visivel={respondendo} dados={dados} consultoria={marca?.nome ?? null} aoFechar={() => setRespondendo(false)}
         aoRegistrar={aoRecarregar} />
 
-      <PainelConfirmacao visivel={pedido?.tipo === 'aceitar' && podeCadastrar && podeAceitar(dados.situacao)} titulo="Aceitar inscrição?"
+      <PainelConfirmacao visivel={pedido?.tipo === 'aceitar' && podeCadastrar && podeAceitarPago(dados.situacao, dados.pagamento)} titulo="Aceitar inscrição?"
         mensagem={`${dados.nome} vira aluno da consultoria, com o nome${dados.email ? ' e o e-mail' : ''} da inscrição. O app não confere pagamento.`}
-        rotuloConfirmar="Aceitar e cadastrar" aoConfirmar={aceitar} aoCancelar={aoFecharPedido}
+        rotuloConfirmar="Aceitar e cadastrar" aoConfirmar={() => aceitar(false)} aoCancelar={aoFecharPedido}
         desabilitado={podeEnviarAnamnese && opcoes.carregando} motivo="Aguarde a lista de anamneses.">
         <View style={estilos.conferir}>
           <Texto variante="secao">Conferir antes de aceitar</Texto>
@@ -504,6 +534,29 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
           <Texto variante="pequeno">Responsável: {dados.responsavelNome ?? 'Sem responsável'}</Texto>
           <Texto variante="pequeno">Proposta: {resumoDaProposta}</Texto>
           <Texto variante="pequeno">Pagamento (registro manual): {pagamentoTela.texto}</Texto>
+        </View>
+        {podeConvidar ? (
+          <CaixaSelecao rotulo="Enviar convite de acesso ao app" marcado={convidar} aoMudar={setConvidar}
+            ajuda="Gera o link para a pessoa criar a senha. Você copia e manda." />
+        ) : null}
+        {podeEnviarAnamnese && !semAcessoAsAnamneses ? (
+          <SeletorDaAnamnese opcoes={opcoes.dados} carregando={opcoes.carregando} erro={opcoes.erro} aoTentarDeNovo={opcoes.recarregar}
+            valor={anamneseDoAceite} aoMudar={setAnamneseEscolhida}
+            avisoDoAcesso={!(convidar && podeConvidar) && anamneseDoAceite !== null} />
+        ) : null}
+      </PainelConfirmacao>
+      <PainelConfirmacao visivel={pedido?.tipo === 'aceitar_cortesia' && podeCadastrar && podeAceitarSemCobranca(dados.situacao, dados.pagamento)}
+        titulo="Aceitar sem cobrança?"
+        mensagem={`${dados.nome} vira aluno da consultoria como cortesia, sem pagamento confirmado.`}
+        rotuloConfirmar="Aceitar sem cobrança" aoConfirmar={() => aceitar(true)} aoCancelar={aoFecharPedido}
+        desabilitado={podeEnviarAnamnese && opcoes.carregando} motivo="Aguarde a lista de anamneses.">
+        <View style={estilos.conferir}>
+          <Texto variante="secao">Conferir antes de aceitar</Texto>
+          <Texto variante="pequeno">Nome: {dados.nome}</Texto>
+          <Texto variante="pequeno">E-mail: {dados.email ?? SEM_DADO}</Texto>
+          <Texto variante="pequeno">Responsável: {dados.responsavelNome ?? 'Sem responsável'}</Texto>
+          <Texto variante="pequeno">Proposta: {resumoDaProposta}</Texto>
+          <Texto variante="pequeno">Condição: Aceite sem cobrança (cortesia)</Texto>
         </View>
         {podeConvidar ? (
           <CaixaSelecao rotulo="Enviar convite de acesso ao app" marcado={convidar} aoMudar={setConvidar}
@@ -576,9 +629,13 @@ function ResultadoDoAceite({ aceite, dados, podeVerAluno, pagamentosHabilitados,
   const proposta = dados.proposta;
   const pagamento = dados.pagamento === 'CONFIRMADO_MANUAL' ? 'Confirmado manualmente'
     : dados.pagamento === 'AGUARDANDO' ? 'Aguardando' : 'Não controlado';
+  const cortesia = !!aceite.aceitaSemCobranca;
   return (
     <View style={estilos.corpo}>
-      <Selo texto="Aceita" tipo="sucesso" />
+      <View style={estilos.selos}>
+        <Selo texto="Aceita" tipo="sucesso" />
+        {cortesia ? <Selo texto="Aceita sem cobrança (cortesia)" tipo="neutro" /> : null}
+      </View>
       <Cartao titulo="Próximos passos" descricao="A inscrição fica na lista como aceita, ligada ao aluno.">
         <Passo feito texto="Aluno cadastrado" />
         <Passo feito={!!convite} texto={convite ? 'Convite de acesso gerado' : 'Convite de acesso não gerado (dá para gerar na ficha do aluno)'} />
@@ -598,7 +655,10 @@ function ResultadoDoAceite({ aceite, dados, podeVerAluno, pagamentosHabilitados,
           </>
         ) : null}
         <Passo feito={!!aceite.anamneseId} texto={aceite.anamneseId ? 'Anamnese enviada' : 'Anamnese não enviada'} />
-        <Passo feito={dados.pagamento === 'CONFIRMADO_MANUAL'} texto={`Pagamento: ${pagamento}. O app não confere pagamento.`} />
+        <Passo
+          feito={cortesia || dados.pagamento === 'CONFIRMADO_MANUAL'}
+          texto={cortesia ? 'Aceita sem cobrança (cortesia).' : `Pagamento: ${pagamento}. O app não confere pagamento.`}
+        />
         <Passo feito={temProposta(proposta)} texto={temProposta(proposta)
           ? `Proposta: ${[proposta.planoNome, centavosParaTela(proposta.valorCentavos)].filter((x) => x && x !== SEM_DADO).join(' · ') || 'registrada'}`
           : 'Sem proposta registrada'} />
