@@ -45,12 +45,22 @@ public class PagamentosDoAluno {
     private final PagamentosProperties propriedades;
     private final ResponsavelFinanceiroService responsaveis;
     private final AcordoDeCobrancaRepository acordos;
+    private final ClienteAsaasAlunoRepository clientesAsaas;
 
     PagamentosDoAluno(ContratacaoAlunoRepository contratacoes, CobrancaAlunoRepository cobrancas,
                       PlanoComercialRepository planos, AvisoDePagamentoRepositorio avisos,
                       LembreteDeCobrancaRepository lembretes, AlunoRepository alunos,
                       PagamentosProperties propriedades, ResponsavelFinanceiroService responsaveis,
                       AcordoDeCobrancaRepository acordos) {
+        this(contratacoes, cobrancas, planos, avisos, lembretes, alunos, propriedades, responsaveis, acordos, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    PagamentosDoAluno(ContratacaoAlunoRepository contratacoes, CobrancaAlunoRepository cobrancas,
+                      PlanoComercialRepository planos, AvisoDePagamentoRepositorio avisos,
+                      LembreteDeCobrancaRepository lembretes, AlunoRepository alunos,
+                      PagamentosProperties propriedades, ResponsavelFinanceiroService responsaveis,
+                      AcordoDeCobrancaRepository acordos, ClienteAsaasAlunoRepository clientesAsaas) {
         this.contratacoes = contratacoes;
         this.cobrancas = cobrancas;
         this.planos = planos;
@@ -60,6 +70,7 @@ public class PagamentosDoAluno {
         this.propriedades = propriedades;
         this.responsaveis = responsaveis;
         this.acordos = acordos;
+        this.clientesAsaas = clientesAsaas;
     }
 
     /**
@@ -182,5 +193,8 @@ public class PagamentosDoAluno {
         cobrancas.flush();
         avisos.limparSlugsDoAluno(TenantContext.get(), alunoId);
         responsaveis.apagarDoAluno(alunoId);
+        if (clientesAsaas != null) {
+            clientesAsaas.deleteByAlunoId(alunoId);
+        }
     }
 }

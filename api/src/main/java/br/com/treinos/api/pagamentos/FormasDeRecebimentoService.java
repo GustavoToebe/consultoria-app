@@ -58,6 +58,12 @@ public class FormasDeRecebimentoService {
         return formas.daConsultoria().map(FormasDeRecebimento::ligadas).orElse(FormasDePagamentoDoAluno.Ligadas.PADRAO);
     }
 
+    /** Se o treinador ligou o Overtraining Pay nas formas de recebimento. */
+    @Transactional(readOnly = true)
+    public boolean overtrainingPayLigado() {
+        return formas.daConsultoria().map(FormasDeRecebimento::isOvertrainingPay).orElse(false);
+    }
+
     @Transactional
     public FormasDeRecebimentoResponse salvar(FormasDeRecebimentoRequest r) {
         Optional<FormasDeRecebimento> existente = formas.daConsultoria();

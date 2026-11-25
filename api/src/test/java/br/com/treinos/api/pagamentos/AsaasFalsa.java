@@ -41,8 +41,8 @@ public final class AsaasFalsa implements AutoCloseable {
     private static final class PagamentoFake {
         final String id;
         final String billingType;
-        final BigDecimal value;
-        final BigDecimal netValue;
+        volatile BigDecimal value;
+        volatile BigDecimal netValue;
         final String externalReference;
         final Integer installmentCount;
         volatile String status;
@@ -129,12 +129,27 @@ public final class AsaasFalsa implements AutoCloseable {
     }
 
     public void marcarPago(String paymentId) {
+        marcarStatus(paymentId, "RECEIVED");
+    }
+
+    public void marcarStatus(String paymentId, String novoStatus) {
         PagamentoFake p = pagamentos.get(paymentId);
         if (p == null) {
             throw new IllegalArgumentException("Pagamento não encontrado na AsaasFalsa: " + paymentId);
         }
-        p.status = "RECEIVED";
-        p.confirmedDate = LocalDate.now(ZoneOffset.UTC);
+        p.status = novoStatus;
+        if ("RECEIVED".equals(novoStatus) || "CONFIRMED".equals(novoStatus)) {
+            p.confirmedDate = LocalDate.now(ZoneOffset.UTC);
+        }
+    }
+
+    public void alterarValor(String paymentId, BigDecimal novoValor) {
+        PagamentoFake p = pagamentos.get(paymentId);
+        if (p == null) {
+            throw new IllegalArgumentException("Pagamento não encontrado na AsaasFalsa: " + paymentId);
+        }
+        p.value = novoValor;
+        p.netValue = novoValor.subtract(new BigDecimal("0.99")).max(BigDecimal.ZERO);
     }
 
     public String criarPagamentoPreExistente(String billingType, BigDecimal value, String externalReference, String status) {

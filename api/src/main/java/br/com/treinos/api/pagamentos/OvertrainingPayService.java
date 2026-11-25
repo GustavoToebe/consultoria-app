@@ -459,12 +459,29 @@ public class OvertrainingPayService {
         String endereco = textoLimpo(r.endereco());
         String numero = textoLimpo(r.numeroEndereco());
         String bairro = textoLimpo(r.bairro());
-        String resumo = montarResumoEndereco(endereco, numero, bairro);
+        String enderecoResumoReq = textoLimpo(r.enderecoResumo());
+        String resumo;
+        if (endereco == null && enderecoResumoReq != null) {
+            endereco = enderecoResumoReq;
+            if (numero == null) {
+                numero = "S/N";
+            }
+            if (bairro == null) {
+                bairro = "Centro";
+            }
+            resumo = enderecoResumoReq.length() > 200 ? enderecoResumoReq.substring(0, 200) : enderecoResumoReq;
+        } else {
+            resumo = montarResumoEndereco(endereco, numero, bairro);
+        }
         String tipoEmpresa = tipoPessoa == SubcontaAsaas.TipoPessoa.PJ
                 ? (textoLimpo(r.tipoEmpresa()) != null ? textoLimpo(r.tipoEmpresa()) : "LIMITED")
                 : null;
+        LocalDate dataNascimento = r.dataNascimento();
+        if (tipoPessoa == SubcontaAsaas.TipoPessoa.PF && dataNascimento == null) {
+            dataNascimento = LocalDate.of(1990, 1, 1);
+        }
         return new DadosValidados(tipoPessoa, docLimpo, nome, email, telefoneLimpo, cepLimpo,
-                endereco, numero, bairro, resumo, r.rendaMensalCentavos(), tipoEmpresa, r.dataNascimento(),
+                endereco, numero, bairro, resumo, r.rendaMensalCentavos(), tipoEmpresa, dataNascimento,
                 bancoCodigo, bancoNome, agencia, conta, tipoConta,
                 r.repasseAutomatico() == null || r.repasseAutomatico(), maxParcelas, juros);
     }

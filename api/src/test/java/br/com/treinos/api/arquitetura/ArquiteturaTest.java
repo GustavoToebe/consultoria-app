@@ -130,7 +130,8 @@ class ArquiteturaTest {
      */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
             "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController",
-            "InscricaoPublicaController", "AvisoInfinitePayController", "AvisoKiwifyController", "TermosPublicoController", "VitrinePublicaController", "MarketplaceController",
+            "InscricaoPublicaController", "AvisoInfinitePayController", "AvisoKiwifyController", "AvisoAsaasController",
+            "TermosPublicoController", "VitrinePublicaController", "MarketplaceController",
             "WhatsAppWebhookController");
 
     @BeforeAll

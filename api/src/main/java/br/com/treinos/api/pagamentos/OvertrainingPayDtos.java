@@ -39,6 +39,7 @@ public final class OvertrainingPayDtos {
     public record SalvarOvertrainingPayRequest(String tipoPessoa, String documento, String nomeTitular,
                                                String emailFinanceiro, String telefone, String cep,
                                                String endereco, String numeroEndereco, String bairro,
+                                               String enderecoResumo,
                                                Long rendaMensalCentavos, String tipoEmpresa, LocalDate dataNascimento,
                                                String bancoCodigo, String bancoNome, String agencia, String conta,
                                                String tipoConta, Boolean repasseAutomatico, Integer maxParcelas,

@@ -53,10 +53,10 @@ public final class PagamentoTransparenteDto {
     public record TitularCartaoDados(
             @NotBlank String nome,
             @NotBlank String cpfCnpj,
-            @NotBlank String email,
-            @NotBlank String telefone,
+            String email,
+            String telefone,
             @NotBlank String cep,
-            @NotBlank String numeroEndereco) {
+            String numeroEndereco) {
 
         @Override
         public String toString() {

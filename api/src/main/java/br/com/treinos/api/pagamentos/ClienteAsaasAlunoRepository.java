@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface ClienteAsaasAlunoRepository extends JpaRepository<ClienteAsaasAluno, UUID> {
 
     Optional<ClienteAsaasAluno> findByAlunoIdAndSubcontaId(UUID alunoId, UUID subcontaId);
+
+    void deleteByAlunoId(UUID alunoId);
 }

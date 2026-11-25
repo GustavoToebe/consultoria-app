@@ -1,6 +1,11 @@
 package br.com.treinos.api.pagamentos;
 
 import br.com.treinos.api.execucao.AlunoAppService;
+import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.CartaoAlunoResponse;
+import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.GerarPixAlunoRequest;
+import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.PagarCartaoAlunoRequest;
+import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.PixAlunoResponse;
+import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.SituacaoCobrancaAlunoResponse;
 import br.com.treinos.api.pagamentos.FormasDeRecebimentoDtos.CodigoPix;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.FinanceiroDoAluno;
@@ -9,6 +14,7 @@ import br.com.treinos.api.pagamentos.PagamentosDtos.LembretesDoAlunoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LinkDePagamento;
 import br.com.treinos.api.pagamentos.PagamentosDtos.RetornoDoPagamentoRequest;
 import br.com.treinos.api.security.UsuarioAutenticado;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -37,13 +43,16 @@ public class AlunoFinanceiroController {
     private final LinkDePagamentoService links;
     private final AvisoInfinitePayService avisos;
     private final LembretesService lembretes;
+    private final CheckoutTransparenteAsaasService checkoutAsaas;
 
     public AlunoFinanceiroController(AlunoFinanceiroService financeiro, LinkDePagamentoService links,
-                                     AvisoInfinitePayService avisos, LembretesService lembretes) {
+                                     AvisoInfinitePayService avisos, LembretesService lembretes,
+                                     CheckoutTransparenteAsaasService checkoutAsaas) {
         this.financeiro = financeiro;
         this.links = links;
         this.avisos = avisos;
         this.lembretes = lembretes;
+        this.checkoutAsaas = checkoutAsaas;
     }
 
     @PreAuthorize("hasRole('ALUNO')")
@@ -73,6 +82,38 @@ public class AlunoFinanceiroController {
     @PostMapping("/aluno/financeiro/cobrancas/{id}/pix")
     public ResponseEntity<CodigoPix> pix(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new CodigoPix(financeiro.codigoPix(eu, id)));
+    }
+
+    /** Checkout Transparente (Overtraining Pay / Asaas): gera QR Code e copia e cola Pix para a cobrança aberta do aluno. */
+    @ExigeAsaas
+    @PreAuthorize("hasRole('ALUNO')")
+    @PostMapping("/aluno/financeiro/cobrancas/{id}/overtraining-pay/pix")
+    public ResponseEntity<PixAlunoResponse> overtrainingPayPix(@PathVariable UUID id,
+                                                               @RequestBody(required = false) GerarPixAlunoRequest r,
+                                                               @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(checkoutAsaas.gerarPix(eu, id, r));
+    }
+
+    /** Checkout Transparente (Overtraining Pay / Asaas): processa cartão de crédito (1..12x) sem persistir PAN/CVV. */
+    @ExigeAsaas
+    @PreAuthorize("hasRole('ALUNO')")
+    @PostMapping("/aluno/financeiro/cobrancas/{id}/overtraining-pay/cartao")
+    public ResponseEntity<CartaoAlunoResponse> overtrainingPayCartao(@PathVariable UUID id,
+                                                                     @Valid @RequestBody PagarCartaoAlunoRequest r,
+                                                                     @AuthenticationPrincipal UsuarioAutenticado eu,
+                                                                     HttpServletRequest http) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(checkoutAsaas.pagarCartao(eu, id, r, http.getRemoteAddr()));
+    }
+
+    /** Consulta a situação atual de uma cobrança do próprio aluno (polling após Pix/Cartão). */
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/aluno/financeiro/cobrancas/{id}/situacao")
+    public ResponseEntity<SituacaoCobrancaAlunoResponse> situacaoCobranca(@PathVariable UUID id,
+                                                                          @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(checkoutAsaas.consultarSituacao(eu, id));
     }
 
     /** O retorno do checkout entra na caixa de entrada dos avisos; a baixa, se houver, vem depois, da consulta ao provedor. */
