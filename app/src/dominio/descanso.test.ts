@@ -1,4 +1,4 @@
-import { iniciarDescanso, restante, terminado, ajustarDescanso, semDescansoDe, criarPedidosDeDescanso, descansoAoIniciar, segundosDigitados, rotuloDescanso, DESCANSO_MAXIMO } from './descanso';
+import { iniciarDescanso, restante, terminado, ajustarDescanso, semDescansoDe, criarPedidosDeDescanso, descansoAoIniciar, segundosDigitados, rotuloDescanso, DESCANSO_MAXIMO, relogioDoDescanso, AJUSTE_DO_DESCANSO_SEGUNDOS, textoDoTempo } from './descanso';
 it('acompanha o relógio mesmo após longo tempo em segundo plano', () => {
  const d = iniciarDescanso(90, 1000);
  expect(restante(d, 31000)).toBe(60000);
@@ -68,4 +68,26 @@ it('o início automático da mesma origem não reinicia a pausa; o pedido explí
  const manual = iniciarDescanso(60, 0);
  expect(descansoAoIniciar(manual, novoDaMesma, true)).toBe(novoDaMesma);
  expect(descansoAoIniciar(ativa, iniciarDescanso(90, 5000), true).origem).toBeUndefined(); // descanso sem origem substitui
+});
+it('o relógio do descanso diz a fase, o tempo e a proporção com o relógio injetado', () => {
+ const d = iniciarDescanso(90, 1000);
+ expect(relogioDoDescanso(null, 1000)).toMatchObject({ fase: 'NENHUM', proporcao: 0 });
+ expect(relogioDoDescanso(d, 1000)).toEqual({ fase: 'CONTANDO', restanteMs: 90000, segundos: 90, texto: '1:30', proporcao: 1 });
+ expect(relogioDoDescanso(d, 46000)).toMatchObject({ fase: 'CONTANDO', segundos: 45, texto: '0:45', proporcao: 0.5 });
+ // Arredonda para cima: com 400 ms para o fim ainda mostra 0:01.
+ expect(relogioDoDescanso(d, 90600)).toMatchObject({ fase: 'CONTANDO', texto: '0:01' });
+ expect(relogioDoDescanso(d, 91000)).toMatchObject({ fase: 'TERMINADO', texto: '0:00', proporcao: 0 });
+ expect(relogioDoDescanso(d, 500000).fase).toBe('TERMINADO');
+});
+it('−15 s tem piso em zero e termina; +15 s depois de terminado recomeça', () => {
+ const d = iniciarDescanso(10, 0);
+ const menos = ajustarDescanso(d, -AJUSTE_DO_DESCANSO_SEGUNDOS, 2000);
+ expect(relogioDoDescanso(menos, 2000).fase).toBe('TERMINADO');
+ const mais = ajustarDescanso(menos, AJUSTE_DO_DESCANSO_SEGUNDOS, 3000);
+ expect(relogioDoDescanso(mais, 3000)).toMatchObject({ fase: 'CONTANDO', segundos: 15, proporcao: 1 });
+ // +15 s num descanso em curso: a duração só cresce se o restante passar dela, e a barra nunca passa de 1.
+ expect(relogioDoDescanso(ajustarDescanso(iniciarDescanso(60, 0), 15, 30000), 30000)).toMatchObject({ segundos: 45, proporcao: 0.75 });
+});
+it('o tempo em m:ss do botão "Descanso 1:30" e do relógio', () => {
+ expect([textoDoTempo(90), textoDoTempo(45), textoDoTempo(0), textoDoTempo(600), textoDoTempo(-3)]).toEqual(['1:30', '0:45', '0:00', '10:00', '0:00']);
 });

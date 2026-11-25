@@ -18,13 +18,13 @@ for (const largura of [390, 1280]) test(`aluno: carga de trabalho editável, exp
   const ultimo = (uid: string) => enviados.filter((r) => r.serieUid === uid).at(-1);
   await page.goto('/aluno/sessao/tecnicas/exemplo?data=2026-10-19');
 
-  // Série inteira (WS): a carga da base do dia é dica ao lado do campo, que continua vazio (D1, 02/11).
-  const peso1 = page.getByRole('textbox', { name: 'Peso da série 1, em quilos', exact: true });
+  // Série inteira (WS): a carga da base do dia fica apagada dentro do campo, que continua vazio (D1, 25/11).
+  const peso1 = page.getByRole('textbox', { name: 'Carga da série 1, em quilos', exact: true });
   await expect(peso1).toHaveValue('');
   await expect(peso1).toHaveAttribute('placeholder', '—');
-  await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('40');
+  await page.getByRole('textbox', { name: 'Carga de trabalho de hoje, em quilos', exact: true }).fill('40');
   await expect(peso1).toHaveValue('');
-  await expect(page.getByText(/^Sugestão: 40 kg/).first()).toBeVisible();
+  await expect(peso1).toHaveAttribute('placeholder', '40'); // a sugestão fica apagada dentro do campo
   await expect(page.getByText(/até a falha/).last()).toBeVisible();
   await page.getByRole('button', { name: 'Explicação de WS, série 1', exact: true }).click();
   await expect(page.getByRole('dialog').getByText(/Working set:/)).toBeVisible();
@@ -41,7 +41,7 @@ for (const largura of [390, 1280]) test(`aluno: carga de trabalho editável, exp
   await page.getByRole('textbox', { name: 'Repetições feitas, etapa inicial da série 2', exact: true }).fill('8');
   const etapaInicial = page.getByRole('checkbox', { name: 'Etapa inicial feita, série 2', exact: true });
   const retomada = page.getByRole('checkbox', { name: 'Retomada feita, série 2', exact: true });
-  const pular = page.getByRole('button', { name: 'Pular o descanso', exact: true });
+  const pular = page.getByRole('button', { name: 'Pular descanso', exact: true });
   const faltam = (segundos: number) => page.getByLabel(`${segundos} segundos restantes`, { exact: true });
   const passaram = (segundos: number) => page.clock.setFixedTime(new Date(`2026-10-19T12:00:${String(segundos).padStart(2, '0')}-03:00`));
   await etapaInicial.click();

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { Carga, DiaDeTreino, PainelAluno, RegistroEnvio, Serie, UltimaCarga } from '../src/api/tipos';
-import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, fazerSerie } from './aluno';
 import { json, simularApi } from './api-falsa';
 
 /**
@@ -64,63 +64,62 @@ async function abrir(page: Page, series: Serie[], ultimasCargas: Record<string, 
   return { ...api, enviados };
 }
 
-const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Peso da série ${n}, em quilos`, exact: true });
+const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Carga da série ${n}, em quilos`, exact: true });
 const reps = (page: Page, n: number) => page.getByRole('textbox', { name: `Repetições da série ${n}`, exact: true });
-const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true });
+const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: new RegExp(`^Marcar série ${n} como feita`) });
 const AVISO_DO_MARCAR = 'As séries seguintes só usam este peso depois que você marcar a série como feita.';
 
 test('C30: o Back off só recalcula depois do ✓ da WS (regra de 31/10), e a própria série avisa', async ({ page }) => {
   const api = await abrir(page, [ws, backOff]);
   await page.goto(EXERCICIO);
-  await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('40');
-  await expect(page.getByText(/^Sugestão: 32 kg/)).toBeVisible();
-  // O aviso fica na própria WS (a série a fazer), com ou sem carga digitada, até ela ser marcada.
-  await expect(page.getByText(AVISO_DO_MARCAR, { exact: true })).toHaveCount(1);
+  await page.getByRole('textbox', { name: 'Carga de trabalho de hoje, em quilos', exact: true }).fill('40');
+  await expect(peso(page, 2)).toHaveAttribute('placeholder', '32');
+  // O aviso só aparece com carga digitada na WS e sem o ✓ (25/11).
+  await expect(page.getByText(AVISO_DO_MARCAR, { exact: true })).toHaveCount(0);
 
   // Carga digitada sem o ✓ não conta: o Back off segue partindo da base do dia, e o aviso aparece na WS.
   await peso(page, 1).fill('50');
   await expect(page.getByText(AVISO_DO_MARCAR, { exact: true })).toHaveCount(1);
-  await expect(page.getByText(/^Sugestão: 32 kg/)).toBeVisible();
-  await expect(page.getByText(/^Sugestão: 32 kg/)).toHaveCount(1); // só o Back off; a da WS é 40
+  await expect(peso(page, 2)).toHaveAttribute('placeholder', '32');
   await expect(peso(page, 2)).toHaveValue('');
 
   // Com o ✓ a WS passa a valer: 80% de 50 kg.
   await reps(page, 1).fill('6');
-  await marcar(page, 1).click();
+  await fazerSerie(page, 1);
   await expect(marcar(page, 1)).toBeChecked();
-  await expect(page.getByText(/^Sugestão: 40 kg/)).toBeVisible();
-  await expect(page.getByText('80% da WS registrada nesta sessão', { exact: true })).toBeVisible();
+  await expect(peso(page, 2)).toHaveAttribute('placeholder', '40');
   await expect(page.getByText(AVISO_DO_MARCAR, { exact: true })).toHaveCount(0);
   await expect(peso(page, 2)).toHaveValue(''); // a sugestão nunca vai para o campo
   await expect.poll(() => api.enviados.find((r) => r.serieUid === 'ws1')?.carga).toBe(50);
 
   // Desmarcar a WS tira a carga da conta de novo.
-  await marcar(page, 1).click();
+  await fazerSerie(page, 1);
   await expect(marcar(page, 1)).not.toBeChecked();
-  await expect(page.getByText(/^Sugestão: 32 kg/)).toBeVisible();
+  await expect(peso(page, 2)).toHaveAttribute('placeholder', '32');
   expect(api.errosDaPagina).toEqual([]);
 });
 
-test('C33: digitar a carga na web grava o que foi digitado, e o aquecimento sem carga nunca vira "0 kg"', async ({ page }) => {
+test('C33: digitar a carga na web grava o que foi digitado, e o aquecimento sem carga nunca mostra "0 kg"', async ({ page }) => {
   const api = await abrir(page, [aquecimento, ws]);
   await page.goto(EXERCICIO);
+  // Aquecimento sem carga prescrita: o campo nasce vazio, sem "0 kg", e o ✓ espera o kg (25/11: o ✓ exige kg e reps).
+  await expect(marcar(page, 1)).toBeDisabled();
   await expect(peso(page, 1)).toHaveValue('');
-
-  // Aquecimento marcado sem digitar nada: grava carga nula, nunca 0.
-  await marcar(page, 1).click();
-  await expect(marcar(page, 1)).toBeChecked();
-  await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'aq1').at(-1)).toMatchObject({ carga: null, concluida: true });
-  await expect(peso(page, 1)).toHaveValue('');
+  await expect(peso(page, 1)).toHaveAttribute('placeholder', '—');
+  await expect(page.getByText('Digite a carga para marcar a série.', { exact: true })).toBeVisible();
   await expect(page.getByText(/(^|\s)0 kg/)).toHaveCount(0);
+  expect(api.enviados.filter((r) => r.serieUid === 'aq1')).toEqual([]);
 
   // Tecla a tecla numa série já registrada: o campo mostra o que foi digitado e o servidor recebe o número inteiro (52, não 252 nem 5).
   await reps(page, 2).fill('6');
   await peso(page, 2).fill('');
   await peso(page, 2).pressSequentially('52', { delay: 40 });
   await expect(peso(page, 2)).toHaveValue('52');
-  await marcar(page, 2).click();
+  await fazerSerie(page, 2);
   await expect(marcar(page, 2)).toBeChecked();
   await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: 52, repeticoes: 6, concluida: true });
+  // A série feita mostra o resumo; "Editar" reabre os campos.
+  await page.getByRole('button', { name: 'Editar série 2', exact: true }).click();
   await peso(page, 2).fill('');
   await peso(page, 2).pressSequentially('5', { delay: 40 });
   await peso(page, 2).pressSequentially('5', { delay: 40 });
@@ -137,27 +136,15 @@ test('C26: a carga do período anterior aparece no período novo (sem registro n
   // O plano começa em 05/10; a última carga do exercício x1 é de 28/09 (período anterior). O x2 nunca teve carga.
   await abrir(page, [ws], { x1: { carga: 60, repeticoes: 7, data: '2026-09-28' } }, 1);
   await page.goto(EXERCICIO);
-  await expect(page.getByText('Última vez: 60 kg × 7 em 28/09/2026.', { exact: true })).toBeVisible();
-  await expect(page.getByText('Sugestão: 60 kg × 8 reps · Última vez: 60 kg × 7', { exact: true })).toBeVisible();
+  await expect(page.getByText('Último registro: 60 kg × 7 em 28/09', { exact: true })).toBeVisible();
+  await expect(peso(page, 1)).toHaveAttribute('placeholder', '60');
+  await expect(reps(page, 1)).toHaveAttribute('placeholder', '8');
   await expect(peso(page, 1)).toHaveValue('');
-  await expect(page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true })).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: 'Carga de trabalho de hoje, em quilos', exact: true })).toHaveValue('');
 
   await page.goto('/aluno/sessao/sx/sxe2?data=2026-10-19');
-  await expect(page.getByText('Sem registro anterior.', { exact: true })).toBeVisible();
-  await expect(page.getByText('Primeira vez: escolha a carga').first()).toBeVisible();
+  await expect(page.getByText('Sem registro anterior', { exact: true })).toBeVisible();
+  await expect(peso(page, 1)).toHaveAttribute('placeholder', '—');
 });
 
-test('histórico "Por divisão": WS feita sem carga diz "Feito, sem carga"; carga sem repetições fica com "—"', async ({ page }) => {
-  const api = await abrir(page, [ws], { x1: { carga: 60, repeticoes: 7, data: '2026-10-16' } });
-  await page.goto(EXERCICIO);
-  await marcar(page, 1).click();
-  await page.getByRole('button', { name: 'Sem carga, série 1', exact: true }).click();
-  await expect(marcar(page, 1)).toBeChecked();
-  await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: null, repeticoes: null, concluida: true });
-
-  await page.goto('/aluno/historico');
-  const tabela = page.getByLabel('Cargas de Supino de teste', { exact: true });
-  await expect(tabela.getByText('Feito, sem carga', { exact: true })).toBeVisible();
-  await expect(tabela.getByText('sem repetições')).toHaveCount(0);
-  expect(api.errosDaPagina).toEqual([]);
-});
+// O "Feito, sem carga" do histórico não nasce mais desta tela (o ✓ exige o kg desde 25/11); o texto segue em `dominio/relatorio.test.ts`.

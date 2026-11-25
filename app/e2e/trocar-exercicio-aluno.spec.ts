@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { PainelAluno } from '../src/api/tipos';
-import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, fazerSerie } from './aluno';
 import { json, simularApi } from './api-falsa';
 
 /**
@@ -40,9 +40,9 @@ async function abrir(page: Page, comAlternativa = true) {
 
 const botaoTrocar = (page: Page) => page.getByRole('button', { name: /^Trocar .* só hoje$/ });
 const folha = (page: Page) => page.getByRole('dialog', { name: 'Trocar só hoje' });
-const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Peso da série ${n}, em quilos`, exact: true });
+const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Carga da série ${n}, em quilos`, exact: true });
 const reps = (page: Page, n: number) => page.getByRole('textbox', { name: `Repetições da série ${n}`, exact: true });
-const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true });
+const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: new RegExp(`^Marcar série ${n} como feita`) });
 const enviados = (api: Awaited<ReturnType<typeof abrir>>) =>
   api.pedidos
     .filter((p) => p.metodo === 'POST' && p.caminho === '/aluno/execucoes/lote')
@@ -68,7 +68,7 @@ for (const largura of [390, 1280]) {
 
     await peso(page, 1).fill('26');
     await reps(page, 1).fill('10');
-    await marcar(page, 1).click();
+    await fazerSerie(page, 1);
     await expect(marcar(page, 1)).toBeChecked();
     await expect.poll(() => enviados(api).filter((r) => r.serieUid === 'sxe1-s1' && r.concluida).length).toBeGreaterThan(0);
     expect(enviados(api).filter((r) => r.serieUid === 'sxe1-s1').at(-1)).toMatchObject({ exercicioId: 'x2', concluida: true });
@@ -104,7 +104,7 @@ test('voltar ao do plano desfaz a troca antes de marcar série', async ({ page }
 
   await peso(page, 1).fill('60');
   await reps(page, 1).fill('10');
-  await marcar(page, 1).click();
+  await fazerSerie(page, 1);
   await expect.poll(() => enviados(api).filter((r) => r.serieUid === 'sxe1-s1' && r.concluida).length).toBeGreaterThan(0);
   expect(enviados(api).filter((r) => r.serieUid === 'sxe1-s1').at(-1)).toMatchObject({ exercicioId: 'x1' });
   expect(api.errosDaPagina).toEqual([]);

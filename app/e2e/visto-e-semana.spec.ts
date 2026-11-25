@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { AlunoDetalhe, PainelTreinador, RecordesDaSemana, SessoesConcluidasResponse } from '../src/api/tipos';
-import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, fazerSerie } from './aluno';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
@@ -171,8 +171,8 @@ test('aluno: "Visto pelo treinador" no treino concluído e "Semana completa" no 
   await expect(page.getByText('Visto pelo treinador').first()).toBeVisible();
   // Plano com um treino só, na segunda: marcando a série de hoje, a semana fica completa.
   await page.goto('/aluno/sessao/sx/sxe1?data=2026-10-19');
-  await page.getByRole('checkbox', { name: 'Série 1 feita', exact: true }).click();
-  await expect(page.getByRole('checkbox', { name: 'Série 1 feita', exact: true })).toBeChecked();
+  await fazerSerie(page, 1);
+  await expect(page.getByRole('checkbox', { name: /^Marcar série 1 como feita/ })).toBeChecked();
   await page.goto('/aluno');
   await expect(page.getByLabel('Semana completa: você fez todos os treinos desta semana.')).toBeVisible();
   expect(api.errosDaPagina).toEqual([]);
