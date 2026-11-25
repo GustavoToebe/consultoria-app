@@ -10,6 +10,7 @@ import br.com.treinos.api.pagamentos.FormasDeRecebimentoDtos.PixConfigRequest;
 import br.com.treinos.api.pagamentos.FormasDeRecebimentoDtos.PixConfigResponse;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.ValidacaoException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,10 +32,18 @@ public class FormasDeRecebimentoService {
     private static final String CHAVE_DA_TABELA = "forma_de_recebimento_pkey";
 
     private final FormasDeRecebimentoRepository formas;
+    private final SubcontaAsaasRepository subcontasAsaas;
     private final Auditoria auditoria;
 
-    public FormasDeRecebimentoService(FormasDeRecebimentoRepository formas, Auditoria auditoria) {
+    FormasDeRecebimentoService(FormasDeRecebimentoRepository formas, Auditoria auditoria) {
+        this(formas, null, auditoria);
+    }
+
+    @Autowired
+    public FormasDeRecebimentoService(FormasDeRecebimentoRepository formas, SubcontaAsaasRepository subcontasAsaas,
+                                      Auditoria auditoria) {
         this.formas = formas;
+        this.subcontasAsaas = subcontasAsaas;
         this.auditoria = auditoria;
     }
 
@@ -52,7 +61,8 @@ public class FormasDeRecebimentoService {
     @Transactional
     public FormasDeRecebimentoResponse salvar(FormasDeRecebimentoRequest r) {
         Optional<FormasDeRecebimento> existente = formas.daConsultoria();
-        DadosDoPix pix = validar(r, existente.map(FormasDeRecebimento::dadosDoPix).orElse(null));
+        boolean overtrainingPay = Boolean.TRUE.equals(r.overtrainingPay());
+        DadosDoPix pix = validar(r, existente.map(FormasDeRecebimento::dadosDoPix).orElse(null), overtrainingPay);
         Instant agora = Instant.now();
         FormasDeRecebimento gravada;
         boolean mudou;
@@ -61,7 +71,7 @@ public class FormasDeRecebimentoService {
                 throw conflito();
             }
             gravada = new FormasDeRecebimento(TenantContext.get(), agora);
-            gravada.alterar(r.infinitePay(), r.linkProprio(), r.pix(), pix, agora);
+            gravada.alterar(r.infinitePay(), overtrainingPay, r.linkProprio(), r.pix(), pix, agora);
             mudou = true;
             try {
                 gravada = formas.saveAndFlush(gravada);
@@ -76,7 +86,7 @@ public class FormasDeRecebimentoService {
             if (r.versao() == null || !r.versao().equals(gravada.getVersao())) {
                 throw conflito();
             }
-            mudou = gravada.alterar(r.infinitePay(), r.linkProprio(), r.pix(), pix, agora);
+            mudou = gravada.alterar(r.infinitePay(), overtrainingPay, r.linkProprio(), r.pix(), pix, agora);
             gravada = formas.saveAndFlush(gravada);
         }
         if (mudou) {
@@ -107,10 +117,14 @@ public class FormasDeRecebimentoService {
     /**
      * Confere o corpo e devolve os dados do Pix a gravar ({@code null} = manter os gravados). Mensagens fixas, sem repetir valor.
      */
-    private static DadosDoPix validar(FormasDeRecebimentoRequest r, DadosDoPix gravado) {
+    private DadosDoPix validar(FormasDeRecebimentoRequest r, DadosDoPix gravado, boolean overtrainingPay) {
         List<ApiError.FieldError> problemas = new ArrayList<>();
         if (!r.manual()) {
             problemas.add(new ApiError.FieldError("manual", "O recebimento manual fica sempre ligado."));
+        }
+        if (overtrainingPay && (subcontasAsaas == null || !subcontasAsaas.estaAtiva())) {
+            problemas.add(new ApiError.FieldError("overtrainingPay",
+                    "Homologue o Overtraining Pay antes de ativá-lo como forma de recebimento."));
         }
         DadosDoPix pix = null;
         PixConfigRequest c = r.pixConfig();
@@ -175,13 +189,14 @@ public class FormasDeRecebimentoService {
 
     private static FormasDeRecebimentoResponse resposta(Optional<FormasDeRecebimento> gravada) {
         if (gravada.isEmpty()) {
-            return new FormasDeRecebimentoResponse(true, false, false, true, null, null);
+            return new FormasDeRecebimentoResponse(true, false, false, false, true, null, null);
         }
         FormasDeRecebimento f = gravada.get();
         PixConfigResponse pix = !f.temChave() ? null
                 : new PixConfigResponse(f.getPixTipoChave().name(), true, f.chaveMascarada(), f.getPixNomeRecebedor(),
                         f.getPixCidade());
-        return new FormasDeRecebimentoResponse(f.isInfinitePay(), f.isLinkProprio(), f.isPix(), true, pix, f.getVersao());
+        return new FormasDeRecebimentoResponse(f.isInfinitePay(), f.isOvertrainingPay(), f.isLinkProprio(), f.isPix(),
+                true, pix, f.getVersao());
     }
 
     private static ConflictException conflito() {

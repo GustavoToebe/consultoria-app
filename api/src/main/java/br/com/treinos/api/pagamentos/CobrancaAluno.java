@@ -94,6 +94,10 @@ public class CobrancaAluno {
     private String provedor;
     @Column(name = "id_externo")
     private String idExterno;
+    @Column(name = "asaas_cobranca_id", length = 60)
+    private String asaasCobrancaId;
+    @Column(name = "valor_liquido_centavos")
+    private Long valorLiquidoCentavos;
     @Column(name = "pago_em")
     private LocalDate pagoEm;
     @Column(name = "baixa_por")
