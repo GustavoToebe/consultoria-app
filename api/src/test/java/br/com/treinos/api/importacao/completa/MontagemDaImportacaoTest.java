@@ -254,4 +254,86 @@ class MontagemDaImportacaoTest {
         assertThat(m.alunosNovos()).isEmpty();
         assertThat(m.problemas()).filteredOn(p -> "ALUNO_EMAIL_COMPARTILHADO_AMBIGUO".equals(p.tipo())).hasSize(1);
     }
+
+    // ------------------------------------------------------------------------- dono único e aluno repetido (25/11)
+
+    private static Montagem montarAbas(Map<String, List<List<Object>>> abas, List<AlunoExistente> alunos) {
+        LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler("planilha.xlsx", PlanilhaDeTeste.xlsx(abas));
+        return MontagemDaImportacao.montar(leitura, RespostasDaPlanilha.VAZIAS,
+                contexto(TODAS, null, List.of(), alunos, List.of()));
+    }
+
+    private static List<Object> linhaDeAluno(String id, String nome, String email) {
+        return PlanilhaDeTeste.linha(id, nome, email, null, null, null, null, "Ativo", null);
+    }
+
+    @Test
+    void omesmoAlunoQueJaExisteNaoViraDoisDonosPorLinhaEPorNome() {
+        UUID id = UUID.randomUUID();
+        // Na aba de alunos ele é "Ana Planilha" (casa pelo e-mail); na aba de um aluno, "Ana Matriz Fictícia" (casa pelo nome).
+        Map<String, List<List<Object>>> abas = new java.util.LinkedHashMap<>();
+        abas.put("Alunos", List.of(PlanilhaDeTeste.CAB_ALUNOS, linhaDeAluno("AL1", "Ana Planilha Fictícia", "ana@example.com")));
+        abas.put("Histórico Pesos", List.of(PlanilhaDeTeste.CAB_PESOS,
+                PlanilhaDeTeste.linha("P1", "AL1", "x", PlanilhaDeTeste.data("2026-01-05"), 1, 80.5, null, null)));
+        abas.put("Ana Matriz Fictícia", List.of(
+                PlanilhaDeTeste.linha("Treino A"),
+                PlanilhaDeTeste.linha("Exercício", "Séries", "Repetições", "Descanso"),
+                PlanilhaDeTeste.linha("Supino fictício", 4, "8-12", "90s")));
+        Montagem m = montarAbas(abas, List.of(new AlunoExistente(id, "Ana Matriz Fictícia", "ana@example.com", false, Set.of())));
+
+        assertThat(m.alunosReaproveitados()).isEqualTo(1);
+        assertThat(m.alunosNovos()).isEmpty();
+        assertThat(AmostraDaPlanilha.ordemDosDonos(m)).hasSize(1);
+        assertThat(m.planos()).hasSize(1);
+        assertThat(m.planos().getFirst().dono()).isEqualTo(m.pesos().getFirst().dono());
+    }
+
+    @Test
+    void linhaRepetidaDoMesmoAlunoNaAbaDeAlunosEntraUmaVez() {
+        Map<String, List<List<Object>>> abas = new java.util.LinkedHashMap<>();
+        abas.put("Alunos", List.of(PlanilhaDeTeste.CAB_ALUNOS,
+                linhaDeAluno("AL1", "Ana Fictícia", "ana@example.com"),
+                linhaDeAluno("AL2", "Ana Outro Nome", "ANA@example.com"), // mesmo e-mail
+                linhaDeAluno("AL3", "Bia Fictícia", null),
+                linhaDeAluno("AL4", "bia  fictícia", null), // mesmo nome, sem e-mail
+                linhaDeAluno("AL5", "Caio Fictício", "caio@example.com")));
+        Montagem m = montarAbas(abas, List.of());
+
+        assertThat(m.alunosNovos()).extracting(MontagemDaImportacao.AlunoNovo::nome)
+                .containsExactly("Ana Fictícia", "Bia Fictícia", "Caio Fictício");
+        assertThat(m.problemas()).filteredOn(p -> "ALUNO_REPETIDO".equals(p.tipo()))
+                .extracting(PlanilhaCompletaDtos.Problema::linha).containsExactly(3, 5);
+        assertThat(m.problemas()).filteredOn(p -> "ALUNO_REPETIDO".equals(p.tipo()))
+                .allMatch(p -> "ALUNO".equals(p.campo()) && !p.toString().contains("ana@"));
+    }
+
+    @Test
+    void mesmoNomeComEmailDiferenteNaoReaproveitaOAlunoQueJaExiste() {
+        UUID id = UUID.randomUUID();
+        Map<String, List<List<Object>>> abas = Map.of("Alunos", List.of(PlanilhaDeTeste.CAB_ALUNOS,
+                linhaDeAluno("AL1", "Ana Fictícia", "nova@example.com")));
+        Montagem m = montarAbas(abas, List.of(new AlunoExistente(id, "Ana Fictícia", "velha@example.com", false, Set.of())));
+
+        assertThat(m.alunosReaproveitados()).isZero();
+        assertThat(m.alunosNovos()).extracting(MontagemDaImportacao.AlunoNovo::nome).containsExactly("Ana Fictícia");
+        assertThat(m.problemas()).anyMatch(p -> "NOME_IGUAL_EMAIL_DIFERENTE".equals(p.tipo()) && "EMAIL".equals(p.campo())
+                && p.linha() == 2);
+    }
+
+    @Test
+    void mesmoNomeSemEmailDeUmDosLadosContinuaReaproveitando() {
+        UUID id = UUID.randomUUID();
+        // Sem e-mail na planilha.
+        Montagem semNaPlanilha = montarAbas(Map.of("Alunos", List.of(PlanilhaDeTeste.CAB_ALUNOS,
+                linhaDeAluno("AL1", "Ana Fictícia", null))),
+                List.of(new AlunoExistente(id, "Ana Fictícia", "velha@example.com", false, Set.of())));
+        assertThat(semNaPlanilha.alunosReaproveitados()).isEqualTo(1);
+        assertThat(semNaPlanilha.problemas()).noneMatch(p -> "NOME_IGUAL_EMAIL_DIFERENTE".equals(p.tipo()));
+        // Sem e-mail no cadastro.
+        Montagem semNoCadastro = montarAbas(Map.of("Alunos", List.of(PlanilhaDeTeste.CAB_ALUNOS,
+                linhaDeAluno("AL1", "Ana Fictícia", "nova@example.com"))),
+                List.of(new AlunoExistente(id, "Ana Fictícia", null, false, Set.of())));
+        assertThat(semNoCadastro.alunosReaproveitados()).isEqualTo(1);
+        assertThat(semNoCadastro.alunosNovos()).isEmpty();
+    }
 }

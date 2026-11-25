@@ -43,6 +43,35 @@ class LeitorDePlanilhaTest {
     }
 
     @Test
+    void celulaComFormatoDeDataSaiDdMmAaaaNaAmostraSemMudarOSerialQueAGravacaoLe() {
+        byte[] arquivo = xlsx(Map.of(
+                "xl/styles.xml", """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+                        <numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/>
+                        <numFmt numFmtId="165" formatCode="0.00&quot; dias&quot;"/></numFmts>
+                        <cellStyleXfs count="1"><xf numFmtId="14"/></cellStyleXfs>
+                        <cellXfs count="5"><xf numFmtId="0"/><xf numFmtId="14"/><xf numFmtId="164"/><xf numFmtId="165"/><xf numFmtId="20"/></cellXfs>
+                        </styleSheet>
+                        """,
+                "xl/worksheets/sheet1.xml", planilhaXml("""
+                        <row r="1"><c r="A1" s="1"><v>45321</v></c><c r="B1" s="2"><v>45321.5</v></c><c r="C1" s="3"><v>81.9</v></c>
+                        <c r="D1" s="4"><v>0.5</v></c><c r="E1" s="0"><v>45321</v></c><c r="F1"><v>45321</v></c></row>""")));
+        var planilha = LeitorDePlanilha.ler("datas.xlsx", arquivo, 0);
+        var c = planilha.linhas().get(0).celulas();
+        assertThat(c).extracting(LeitorDePlanilha.Celula::data).containsExactly(true, true, false, false, false, false);
+        // O texto continua o serial: é ele que a gravação lê.
+        assertThat(c.get(0).texto()).isEqualTo("45321");
+        assertThat(c.get(0).numero()).isTrue();
+        assertThat(LeitorDePlanilha.paraExibir(c.get(0), planilha.data1904())).isEqualTo("30/01/2024");
+        assertThat(LeitorDePlanilha.paraExibir(c.get(1), planilha.data1904())).isEqualTo("30/01/2024");
+        assertThat(LeitorDePlanilha.paraExibir(c.get(2), planilha.data1904())).isEqualTo("81.9");
+        assertThat(LeitorDePlanilha.paraExibir(c.get(4), planilha.data1904())).isEqualTo("45321");
+        // Número com formato de data mas fora da faixa do serial (abaixo de 61): fica o número.
+        assertThat(LeitorDePlanilha.paraExibir(new LeitorDePlanilha.Celula("5", true, false, true), false)).isEqualTo("5");
+    }
+
+    @Test
     void dataComHoraIgnoraAHora() {
         // 45230 = 31/10/2023; 0,75 = 18:00.
         assertThat(LeitorDePlanilha.dataSerial(new BigDecimal("45230.75"), false)).isEqualTo(LocalDate.of(2023, 10, 31));

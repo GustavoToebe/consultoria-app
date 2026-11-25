@@ -9,6 +9,7 @@ import {
   idsComErro,
   idsParaGravar,
   idsSelecionaveisProntos,
+  lidoSemIa,
   linhasDoGrupo,
   motivoDoErroDoArquivo,
   motivoDoErroDoGrupo,
@@ -98,6 +99,16 @@ test('sem a permissão de ler, peso, treino e dieta aparecem como "—", nunca z
   expect(valor([], 'Treino')).toBe('—');
   expect(valor(TUDO, 'WhatsApp')).toBe('—');
   expect(linhasDoGrupo(grupo(), com(TUDO)).find((l) => l.rotulo === 'Peso')?.valor).toBe('—');
+});
+
+test('dieta resume suplementos e medicação só em contagem; medicação só com ERGOGENICO_LER; zero não aparece', () => {
+  const g = grupo({ dieta: { refeicoes: [{}], suplementacao: [{ nome: 'Segredo', dose: '5 g' }, {}], ergogenicos: [{ nome: 'Reservado' }] } });
+  expect(linhasDoGrupo(g, com(TUDO)).find((l) => l.rotulo === 'Dieta')?.valor).toBe('1 refeição · 2 suplementos');
+  const valor = linhasDoGrupo(g, com([...TUDO, 'ERGOGENICO_LER'])).find((l) => l.rotulo === 'Dieta')?.valor;
+  expect(valor).toBe('1 refeição · 2 suplementos · 1 item de medicação e ergogênicos');
+  expect(valor).not.toMatch(/Segredo|Reservado|5 g/);
+  const vazio = grupo({ dieta: { refeicoes: [{}], suplementacao: [], ergogenicos: [] } });
+  expect(linhasDoGrupo(vazio, com([...TUDO, 'ERGOGENICO_LER'])).find((l) => l.rotulo === 'Dieta')?.valor).toBe('1 refeição');
 });
 
 test('candidatos e "Criar aluno novo" numa escolha só; sem permissão, a opção fica desabilitada com o motivo', () => {
@@ -204,6 +215,15 @@ test('resumo do modo de processamento e cobertura de leitura dos arquivos', () =
   });
   expect(fallback.titulo).toMatch(/contingência/);
   expect(fallback.alertaFallback).toMatch(/regras fixas/);
+
+  const cortada = resumoDoModoProcessamento({ modoEfetivo: 'REGRAS', fallbackParaRegras: true, motivoFallback: 'RESPOSTA_CORTADA' });
+  expect(cortada.alertaFallback).toMatch(/grande demais para a IA ler de uma vez e foi lido sem IA/);
+  expect(cortada.alertaFallback).toMatch(/atenção/);
+
+  expect(lidoSemIa({ modoEfetivo: 'REGRAS', fallbackParaRegras: false })).toBe(true);
+  expect(lidoSemIa({ modoEfetivo: 'REGRAS', fallbackParaRegras: true })).toBe(true);
+  expect(lidoSemIa({ modoEfetivo: 'IA', fallbackParaRegras: false })).toBe(false);
+  expect(lidoSemIa(null)).toBe(false);
 
   expect(resumoDaCoberturaDoArquivo({ status: 'SEM_TEXTO', paginasTotal: 4, paginasLidas: 0, paginasSemTexto: 4 })).toEqual({
     texto: 'Nenhuma página legível (0 de 4)',

@@ -61,14 +61,14 @@ const DIETA = {
   suplementacao: [{ uid: 'su1', nome: 'Creatina de exemplo', dose: '5 g' }],
 };
 const vazio = (numero: number, nome: string) => ({
-  numero, situacao: 'NOVO', nome, ativo: true, email: null, telefone: null, objetivo: null, observacoes: null,
+  numero, chave: `linha:${numero + 1}`, situacao: 'NOVO', nome, ativo: true, email: null, telefone: null, objetivo: null, observacoes: null,
   pesos: 0, ultimosPesos: [], treino: null, dieta: null,
 });
 const PRIMEIRA = {
   hash: 'hash-da-amostra', total: 7, inicio: 0, pasta: 'Importada da planilha (rascunho)',
   alunos: [
     {
-      numero: 1, situacao: 'NOVO', nome: 'Aluna Fictícia Um', ativo: true, email: 'aluna.um@exemplo.com', telefone: null, objetivo: null,
+      numero: 1, chave: 'linha:2', situacao: 'NOVO', nome: 'Aluna Fictícia Um', ativo: true, email: 'aluna.um@exemplo.com', telefone: null, objetivo: null,
       observacoes: null, pesos: 3, ultimosPesos: [{ data: '2026-09-01', kg: 70 }, { data: '2026-10-01', kg: 71.5 }],
       treino: TREINO, dieta: DIETA,
     },
@@ -87,7 +87,7 @@ async function preparar(page: Page, largura: number, opcoes: { habilitada?: bool
   if (opcoes.preferencias) {
     await page.addInitScript(([id, p]) => localStorage.setItem(`treinos:${id}:preferencias`, p), [TREINADOR.id, JSON.stringify(opcoes.preferencias)] as const);
   }
-  const pedidos = { previa: 0, amostra: [] as string[], confirmar: [] as string[], ignorados: [] as string[] };
+  const pedidos = { previa: 0, amostra: [] as string[], confirmar: [] as string[], ignorados: [] as string[], consultaComChaves: [] as boolean[] };
   let falhar = opcoes.amostra === 'falhaUmaVez';
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES_TREINADOR, migracaoAssistidaHabilitada: opcoes.habilitada ?? true })),
@@ -118,7 +118,11 @@ async function preparar(page: Page, largura: number, opcoes: { habilitada?: bool
     },
     'POST /importacoes/planilha-completa/confirmar': (p, route) => {
       pedidos.confirmar.push(p.busca.get('hash') ?? '');
-      pedidos.ignorados.push(p.busca.get('alunosIgnorados') ?? '');
+      // As chaves dos ignorados vão no corpo (parte `chavesIgnoradas`), nunca na query (podem ter o nome do aluno).
+      const corpo = route.request().postData() ?? '';
+      const parte = corpo.match(/name="chavesIgnoradas"[\s\S]*?\r\n\r\n(\[[^\r\n]*\])/);
+      pedidos.ignorados.push(parte ? (JSON.parse(parte[1]) as string[]).join(',') : '');
+      pedidos.consultaComChaves.push(route.request().url().includes('linha') || route.request().url().includes('gnorad'));
       return json(route, CONFIRMACAO);
     },
   });
@@ -312,7 +316,8 @@ test('amostra: ignorar e incluir aluno, a faixa conta, nem todos podem sair e a 
   await page.getByRole('button', { name: 'Confirmar importação' }).click();
   await expect(page.getByText(/^Importação confirmada\./)).toBeVisible();
   expect(pedidos.confirmar).toEqual(['hash-da-amostra']);
-  expect(pedidos.ignorados).toEqual(['3']);
+  expect(pedidos.ignorados).toEqual(['linha:4']);
+  expect(pedidos.consultaComChaves).toEqual([false]);
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
@@ -336,7 +341,7 @@ test('amostra: ignorar todos os alunos trava a confirmação com o motivo e incl
   await expect(page.getByRole('button', { name: /^Confirmar importação/ })).toBeEnabled();
   await page.getByRole('button', { name: /^Confirmar importação/ }).click();
   await expect(page.getByText(/^Importação confirmada\./)).toBeVisible();
-  expect(pedidos.ignorados).toEqual(['1,2,3,4,5,6']);
+  expect(pedidos.ignorados).toEqual(['linha:2,linha:3,linha:4,linha:5,linha:6,linha:7']);
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });

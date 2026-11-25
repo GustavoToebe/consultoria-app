@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import { CheckCircle2, FileSearch, FileText, FileUp, RotateCcw } from 'lucide-react-native';
+import type { Href } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { dataHoraParaTela, plural } from '../../dominio/formatos';
 import {
   campoDoErroDoTexto,
   duvidasVisiveis,
+  DICA_DE_TREINO_DESMONTADO,
   gerarChaveIdempotencia,
   grupoResumido,
   idsComErro,
   idsSelecionaveisProntos,
+  lidoSemIa,
   linhasDoGrupo,
   motivoDoErroDoArquivo,
   motivoDoErroDoGrupo,
@@ -63,12 +66,16 @@ import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Alerta, MensagemErro } from '../../ui/Estados';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { LinkTexto } from '../../ui/LinkTexto';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { useFaixaDaTela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { LateralDaImportacao, VAO_DA_LATERAL } from './LateralDaImportacao';
 import { TermosParaConferir } from './TermosParaConferir';
+
+/** O mesmo destino de `FolhaNovaImportacao`: cria o modelo de Semana de Treino já com a Folha de colar aberta. */
+const COLAR_TREINO: Href = { pathname: '/treinador/planejamento', params: { aba: 'treino', tipo: 'plano_treino', novo: '1', colar: '1' } };
 
 /** Qual ação está em andamento: cada botão mostra o próprio carregando, e só o processar mostra o cartão de espera. */
 type Acao = 'arquivos' | 'texto' | 'processar' | 'responder' | 'revogar' | 'destino' | 'confirmar' | 'cancelar' | 'retomar';
@@ -552,6 +559,12 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
               <Alerta tom="atencao" texto={modo.alertaFallback} />
             ) : modo ? (
               <Texto variante="suave">{modo.descricao}</Texto>
+            ) : null}
+            {lidoSemIa(sessao.modoProcessamento) ? (
+              <View style={estilos.lista}>
+                <Texto variante="suave">{DICA_DE_TREINO_DESMONTADO}</Texto>
+                {pode('MODELO_LER') && pode('MODELO_ALTERAR') ? <LinkTexto href={COLAR_TREINO} texto="Colar treino de PDF / Docs" /> : null}
+              </View>
             ) : null}
             <View style={estilos.lista}>
               {sessao.arquivos.map((arq) => {

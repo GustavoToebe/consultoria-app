@@ -43,28 +43,30 @@ public class RoteadorInterpretadorIa {
         }
 
         if ("gemini".equals(provedor)) {
-            if (!config.temChaveGemini()) {
-                return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "CHAVE_AUSENTE");
-            }
-            try {
-                return new ExecucaoInterpretacao(gemini.interpretar(contexto), "IA", provedor, false, null);
-            } catch (Exception e) {
-                return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "ERRO_PROVEDOR");
-            }
+            return viaIa(contexto, provedor, config.temChaveGemini(), gemini);
         }
 
         if ("claude".equals(provedor)) {
-            if (!config.temChaveClaude()) {
-                return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "CHAVE_AUSENTE");
-            }
-            try {
-                return new ExecucaoInterpretacao(claude.interpretar(contexto), "IA", provedor, false, null);
-            } catch (Exception e) {
-                return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "ERRO_PROVEDOR");
-            }
+            return viaIa(contexto, provedor, config.temChaveClaude(), claude);
         }
 
         // Padrão determinístico: regras locais
         return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, false, null);
+    }
+
+    private ExecucaoInterpretacao viaIa(ContextoIa contexto, String provedor, boolean temChave, InterpretadorIa conector) {
+        if (!temChave) {
+            return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "CHAVE_AUSENTE");
+        }
+        try {
+            // Só aqui (depois do fail-closed) a biblioteca vai junto: a IA devolve o nome que já existe nela.
+            ContextoIa paraIa = contexto.comBiblioteca(regras.nomesDeExercicios(), regras.nomesDeAlimentos());
+            return new ExecucaoInterpretacao(regras.comDuvidasDaBiblioteca(conector.interpretar(paraIa), contexto), "IA",
+                    provedor, false, null);
+        } catch (DecodificadorDaProposta.RespostaCortada e) {
+            return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "RESPOSTA_CORTADA");
+        } catch (Exception e) {
+            return new ExecucaoInterpretacao(regras.interpretar(contexto), "REGRAS", provedor, true, "ERRO_PROVEDOR");
+        }
     }
 }

@@ -176,6 +176,16 @@ export function campoDoErroDoTexto(erro: unknown): 'titulo' | 'conteudo' | null 
 
 type Pode = (codigo: string) => boolean;
 
+/** Só contagens, nunca nome nem dose; zero não aparece. Medicação e ergogênicos só com `ERGOGENICO_LER` (a API já os manda vazios sem ela). */
+function resumoDaDieta(dieta: { refeicoes?: unknown[]; suplementacao?: unknown[]; ergogenicos?: unknown[] }, pode: Pode): string {
+  const partes = [plural(dieta.refeicoes?.length ?? 0, 'refeição', 'refeições')];
+  const suplementos = dieta.suplementacao?.length ?? 0;
+  if (suplementos > 0) partes.push(plural(suplementos, 'suplemento', 'suplementos'));
+  const ergogenicos = pode('ERGOGENICO_LER') ? dieta.ergogenicos?.length ?? 0 : 0;
+  if (ergogenicos > 0) partes.push(plural(ergogenicos, 'item de medicação e ergogênicos', 'itens de medicação e ergogênicos'));
+  return partes.join(' · ');
+}
+
 /**
  * O que o grupo traz, linha a linha. Sem a permissão de ler, a API omite a parte (peso vem vazio, treino e dieta nulos):
  * a tela não sabe se existe e mostra "—", nunca zero.
@@ -183,7 +193,7 @@ type Pode = (codigo: string) => boolean;
 export function linhasDoGrupo(g: GrupoImportavel, pode: Pode): { rotulo: string; valor: string }[] {
   const pesos = pode('ALUNO_SENSIVEL_LER') && g.pesos?.length ? plural(g.pesos.length, 'pesagem', 'pesagens') : '—';
   const treino = pode('TREINO_LER') && g.treino ? plural(g.treino.sessoes?.length ?? 0, 'divisão', 'divisões') : '—';
-  const dieta = pode('DIETA_LER') && g.dieta ? plural(g.dieta.refeicoes?.length ?? 0, 'refeição', 'refeições') : '—';
+  const dieta = pode('DIETA_LER') && g.dieta ? resumoDaDieta(g.dieta, pode) : '—';
   return [
     { rotulo: 'E-mail', valor: g.cadastro?.email || '—' },
     { rotulo: 'WhatsApp', valor: g.cadastro?.telefone || '—' },
@@ -349,6 +359,13 @@ export function resumoDoModoProcessamento(modo?: ModoProcessamentoResumo | null)
       alertaFallback: null,
     };
   }
+  if (modo.fallbackParaRegras && modo.motivoFallback === 'RESPOSTA_CORTADA') {
+    return {
+      titulo: 'Leitura por regras fixas (contingência)',
+      descricao: 'O plano era grande demais para a IA ler de uma vez; o servidor o leu por regras fixas, sem IA.',
+      alertaFallback: 'O plano era grande demais para a IA ler de uma vez e foi lido sem IA. Confira os termos e grupos com atenção.',
+    };
+  }
   if (modo.fallbackParaRegras) {
     return {
       titulo: 'Leitura por regras fixas (contingência)',
@@ -369,6 +386,12 @@ export function resumoDoModoProcessamento(modo?: ModoProcessamentoResumo | null)
     alertaFallback: null,
   };
 }
+
+/** Lido sem IA (regras fixas, com ou sem contingência): o treino pode ter vindo desmontado. Sem modo informado, não há o que dizer. */
+export const lidoSemIa = (modo?: ModoProcessamentoResumo | null): boolean => !!modo && (modo.fallbackParaRegras || modo.modoEfetivo === 'REGRAS');
+
+export const DICA_DE_TREINO_DESMONTADO =
+  'Se o treino veio desmontado, copie o texto do PDF e cole em "Colar treino (Docs / PDF)", no editor do modelo de treino.';
 
 /** Diagnóstico legível da cobertura de leitura de um arquivo (páginas lidas vs. sem texto / truncamento). */
 export function resumoDaCoberturaDoArquivo(cobertura?: CoberturaArquivo | null): {

@@ -30,6 +30,7 @@ import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.CupomDeSuplemento;
 import br.com.treinos.api.web.Emails;
 import br.com.treinos.api.web.Formatos;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.LinksExternos;
 import br.com.treinos.api.web.VideoUrls;
@@ -42,6 +43,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -69,7 +71,10 @@ class GravadorDaImportacao {
     static final String CELULA_COM_ERRO =
             "A célula tem um erro da própria planilha (como #ERROR! ou #N/A) ou um texto longo demais. Corrija e valide de novo.";
 
-    private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM/uuuu");
+    // STRICT: 31/04 e 29/02 de ano comum são erro, nunca "o dia mais perto".
+    private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
+    /** Diferença abaixo da qual um número do Excel é só resíduo de ponto flutuante (como no {@code AnaliseDaPlanilha.pesoKg}). */
+    private static final BigDecimal RESIDUO_DE_CONTA = new BigDecimal("0.000001");
     private static final int ERROS_GUARDADOS = 1000;
     private static final int AMOSTRA = 20;
     /** Um único ponto com exatamente três dígitos depois dele, sem vírgula: "1.500", "12.345". "0.500" é decimal: milhar não começa em zero. */
@@ -296,8 +301,12 @@ class GravadorDaImportacao {
                     throw falha(linha, "aluno", "Aluno anonimizado não é atualizado.");
                 }
                 LocalDate data = data(obrigatoria(linha, config, "data"), data1904, linha.numero(), "data");
-                if (data.isAfter(LocalDate.now(Fuso.BRASILIA))) {
+                LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+                if (data.isAfter(hoje)) {
                     throw falha(linha, "data", "Data futura.");
+                }
+                if (!FaixaDeData.REGISTRO.aceita(data, hoje)) {
+                    throw falha(linha, "data", FaixaDeData.REGISTRO.mensagem("Data", hoje));
                 }
                 BigDecimal peso = numero(obrigatoria(linha, config, "peso"), linha.numero(), "peso", new BigDecimal("0.01"),
                         new BigDecimal("499.99"), 2, false);
@@ -938,7 +947,13 @@ class GravadorDaImportacao {
         try {
             BigDecimal valor = new BigDecimal(texto);
             if (valor.scale() > escala) {
-                valor = valor.setScale(escala, RoundingMode.UNNECESSARY);
+                // Célula numérica de fórmula traz resíduo de conta (81.900000000000006): volta à escala; texto digitado não.
+                BigDecimal arredondado = valor.setScale(escala, RoundingMode.HALF_UP);
+                if (lida.numero() && valor.subtract(arredondado).abs().compareTo(RESIDUO_DE_CONTA) < 0) {
+                    valor = arredondado;
+                } else {
+                    valor = valor.setScale(escala, RoundingMode.UNNECESSARY);
+                }
             }
             if (valor.compareTo(min) < 0 || valor.compareTo(max) > 0 || (!zeroPermitido && valor.signum() <= 0)) {
                 throw new NumberFormatException();

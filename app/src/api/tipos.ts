@@ -692,6 +692,8 @@ export interface AlunoDaAmostra {
   numero: number; situacao: 'NOVO' | 'EXISTENTE'; nome: string | null; ativo: boolean | null; email: string | null;
   telefone: string | null; objetivo: string | null; observacoes: string | null; pesos: number;
   ultimosPesos: { data: string; kg: number }[]; treino: ConteudoTreino | null; dieta: ConteudoDieta | null;
+  /** Identifica o aluno na planilha mesmo que a posição mude (`linha:N`, `nome:<nome>`): vai em `chavesIgnoradas` na confirmação. Pode ter o nome: nunca em endereço. */
+  chave: string;
 }
 export interface AmostraDaPlanilha { hash: string; total: number; inicio: number; pasta: string; alunos: AlunoDaAmostra[] }
 export type TipoDesfeito = 'PLANO_TREINO' | 'PLANO_DIETA' | 'PASTA' | 'PESO' | 'EXERCICIO' | 'ALUNO';

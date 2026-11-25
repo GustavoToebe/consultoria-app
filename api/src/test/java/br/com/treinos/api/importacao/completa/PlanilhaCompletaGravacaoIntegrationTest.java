@@ -164,6 +164,54 @@ class PlanilhaCompletaGravacaoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void confirmarDeNovoComOMesmoHashERecusadoEDepoisDoDesfazerPodeDeNovo() throws Exception {
+        String hash = enviar(treinador, "previa", null, null, 200).path("hash").asString();
+        String id = enviar(treinador, "confirmar", null, hash, 200).path("importacaoId").asString();
+
+        // A resposta se perdeu e o treinador confirma de novo: nada é duplicado.
+        JsonNode erro = enviar(treinador, "confirmar", null, hash, 409);
+        assertThat(erro.path("codigo").asString()).isEqualTo("IMPORTACAO_JA_CONFIRMADA");
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(5);
+        assertThat(contar("pasta_plano", id, "")).isEqualTo(2);
+        assertThat(contar("exercicio", id, "")).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from importacao where destino = 'planilha-completa' and id = ?::uuid",
+                Integer.class, id)).isEqualTo(1);
+
+        // Outra consultoria importa a mesma planilha sem problema.
+        enviar(api.novoTreinador(), "confirmar", null, hash, 200);
+
+        // Depois de desfazer tudo, a mesma planilha pode entrar de novo.
+        desfazer(treinador, id, 200);
+        enviar(treinador, "confirmar", null, hash, 200);
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(5);
+    }
+
+    @Test
+    void confirmacoesSimultaneasDaMesmaPlanilhaGravamUmaVez() throws Exception {
+        String hash = enviar(treinador, "previa", null, null, 200).path("hash").asString();
+        java.util.concurrent.Callable<Integer> confirmar = () -> mvc.perform(multipart(BASE + "confirmar")
+                        .file(new MockMultipartFile("arquivo", "planilha.xlsx", "application/octet-stream", PLANILHA))
+                        .param("hash", hash).header("X-Treinos-Cliente", "nativo")
+                        .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador)))
+                .andReturn().getResponse().getStatus();
+        List<Integer> status;
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var a = pool.submit(confirmar);
+            var b = pool.submit(confirmar);
+            status = List.of(a.get(), b.get());
+        }
+        assertThat(status).containsExactlyInAnyOrder(200, 409);
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(5);
+    }
+
+    @Test
+    void oHistoricoGuardaSempreAbaNNuncaONomeDaAba() throws Exception {
+        String id = confirmar(treinador).path("importacaoId").asString();
+        String erros = jdbc.queryForObject("select erros::text from importacao where id = ?::uuid", String.class, id);
+        assertThat(erros).contains("Aba ").doesNotContain("Alunos").doesNotContain("Histórico").doesNotContain("Rotinas");
+    }
+
+    @Test
     void permissaoFaltandoPulaAParte() throws Exception {
         JsonNode membro = membroCom(Set.of("ALUNO_LER", "ALUNO_ALTERAR"));
         JsonNode previa = enviar(membro, "previa", null, null, 200);
@@ -240,6 +288,59 @@ class PlanilhaCompletaGravacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(d.toString()).doesNotContain("Aluno Um").doesNotContain("Aluno Quatro");
         assertThat(contar("plano_treino", id, "")).isEqualTo(1);
         assertThat(contar("aluno", id, "")).isEqualTo(2);
+    }
+
+    /** Um aluno da importação por posição na ordem do nome, fora Um e Quatro (qualquer um serve: nenhum foi mexido). */
+    private UUID alunoLivre(String importacao, int posicao) {
+        return jdbc.queryForList("select id from aluno where importacao_id = ?::uuid and nome not in (?, ?) order by nome",
+                UUID.class, importacao, "Aluno Um", "Aluno Quatro").get(posicao);
+    }
+
+    /** Desfaz e confere: dos cinco alunos só o que foi mexido fica, como "em uso"; os outros quatro (a pasta nunca publicada vai antes) somem. */
+    private void desfazerEConferirQueOsLivresFicaram(String importacao, UUID... livres) throws Exception {
+        JsonNode alunos = parte(desfazer(treinador, importacao, 200), "ALUNO");
+        assertThat(alunos.path("apagados").asInt()).isEqualTo(4);
+        assertThat(alunos.path("motivos").path("EM_USO").asInt()).isEqualTo(1);
+        for (UUID livre : livres) {
+            assertThat(jdbc.queryForObject("select count(*) from aluno where id = ?", Integer.class, livre)).isOne();
+        }
+    }
+
+    @Test
+    void desfazerNaoApagaAlunoComResponsavelFinanceiro() throws Exception {
+        String id = confirmar(treinador).path("importacaoId").asString();
+        UUID aluno = alunoLivre(id, 0);
+        jdbc.update("insert into responsavel_financeiro (id, consultoria_id, aluno_id, nome) "
+                + "select gen_random_uuid(), consultoria_id, id, 'Responsável Fictício' from aluno where id = ?", aluno);
+
+        desfazerEConferirQueOsLivresFicaram(id, aluno);
+        assertThat(jdbc.queryForObject("select count(*) from responsavel_financeiro where aluno_id = ?", Integer.class, aluno))
+                .isOne();
+    }
+
+    @Test
+    void desfazerNaoApagaAlunoComTag() throws Exception {
+        String id = confirmar(treinador).path("importacaoId").asString();
+        UUID aluno = alunoLivre(id, 1);
+        String tag = api.post("/tags-de-alunos", treinador, Map.of("nome", "Retorno " + UUID.randomUUID().toString().substring(0, 8),
+                "cor", "AZUL"), 200).path("id").asString();
+        api.put("/alunos/" + aluno + "/tags", treinador, Map.of("tagIds", List.of(tag)), 200);
+        // A tag sozinha é o que segura o aluno: o cadastro dele continua como a importação o gravou.
+        assertThat(jdbc.queryForObject("select versao from aluno where id = ?", Long.class, aluno)).isZero();
+
+        desfazerEConferirQueOsLivresFicaram(id, aluno);
+        assertThat(jdbc.queryForObject("select count(*) from aluno_tag where aluno_id = ?", Integer.class, aluno)).isOne();
+    }
+
+    @Test
+    void desfazerNaoApagaAlunoComOCadastroEditadoDepois() throws Exception {
+        String id = confirmar(treinador).path("importacaoId").asString();
+        UUID aluno = alunoLivre(id, 2);
+        JsonNode ficha = api.get("/alunos/" + aluno, treinador, 200);
+        api.put("/alunos/" + aluno, treinador, Map.of("nome", ficha.path("nome").asString(),
+                "objetivo", "Objetivo fictício", "versao", ficha.path("versao").asLong()), 200);
+
+        desfazerEConferirQueOsLivresFicaram(id, aluno);
     }
 
     @Test
