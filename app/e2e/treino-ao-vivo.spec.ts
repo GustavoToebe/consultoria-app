@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { AnterioresDoPacote, PainelAluno, SessoesConcluidasResponse } from '../src/api/tipos';
-import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, fazerSerie } from './aluno';
 import { ALUNO, json, sessao, simularApi } from './api-falsa';
 
 /**
@@ -42,9 +42,9 @@ async function abrir(page: Page, ligada: boolean) {
   });
 }
 
-const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Peso da série ${n}, em quilos`, exact: true });
+const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Carga da série ${n}, em quilos`, exact: true });
 const reps = (page: Page, n: number) => page.getByRole('textbox', { name: `Repetições da série ${n}`, exact: true });
-const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true }).click();
+const marcar = (page: Page, n: number) => fazerSerie(page, n);
 const anterior = (page: Page, n: number, texto: string) => page.getByLabel(`Série ${n} da última vez: ${texto}`, { exact: true });
 
 for (const largura of [390, 1280]) {
@@ -53,21 +53,19 @@ for (const largura of [390, 1280]) {
     const api = await abrir(page, true);
     await page.goto(EXERCICIO);
 
-    await expect(page.getByText('Último registro: o que você fez em 16/10.', { exact: true })).toBeVisible();
     await expect(anterior(page, 1, '60 kg × 10')).toBeVisible();
     await expect(anterior(page, 2, '62,5 kg × 8')).toBeVisible();
     // A terceira WS não foi feita da última vez: a linha fica, com "—".
     await expect(anterior(page, 3, 'sem registro')).toBeVisible();
 
-    await expect(page.getByLabel('Duração do treino: sem duração', { exact: true })).toBeVisible();
-    await expect(page.getByLabel('Volume: sem carga registrada', { exact: true })).toBeVisible();
-    await expect(page.getByLabel('0 de 3 séries feitas', { exact: true })).toBeVisible();
+    // A tela redesenhada (25/11) tirou o cartão Duração/Volume/Séries: o tempo fica no topo (só depois da 1ª série).
+    await expect(page.getByLabel(/^Duração do treino/)).toHaveCount(0);
+    await expect(page.getByText('Séries 0 de 3 feitas', { exact: true })).toBeVisible();
 
     await peso(page, 1).fill('60');
     await reps(page, 1).fill('10');
     await marcar(page, 1);
-    await expect(page.getByLabel('Volume: 600 kg', { exact: true })).toBeVisible();
-    await expect(page.getByLabel('1 de 3 séries feitas', { exact: true })).toBeVisible();
+    await expect(page.getByText('Séries 1 de 3 feitas', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Duração do treino: menos de 1 minuto', { exact: true })).toBeVisible();
 
     // O relógio anda a partir da primeira série marcada.
@@ -78,7 +76,7 @@ for (const largura of [390, 1280]) {
     await peso(page, 2).fill('62,5');
     await reps(page, 2).fill('8');
     await marcar(page, 2);
-    await expect(page.getByText('1.100 kg', { exact: true })).toBeVisible();
+    await expect(page.getByText('Séries 2 de 3 feitas', { exact: true })).toBeVisible();
 
     // Na lista do dia a mesma faixa, no lugar do "N de M séries feitas".
     await page.goto(LISTA);
@@ -103,8 +101,10 @@ for (const largura of [390, 1280]) {
       },
     });
     await page.goto(EXERCICIO);
-    await page.getByRole('checkbox', { name: 'Série 1 feita', exact: true }).click();
-    for (const nome of ['Diminuir 15 segundos', 'Aumentar 15 segundos', 'Pular o descanso']) {
+    await peso(page, 1).fill('40');
+    await reps(page, 1).fill('8');
+    await fazerSerie(page, 1);
+    for (const nome of ['Diminuir 15 segundos', 'Aumentar 15 segundos', 'Pular descanso']) {
       const caixa = await page.getByRole('button', { name: nome, exact: true }).boundingBox();
       test.info().annotations.push({ type: 'medida', description: `${largura} px · ${nome}: ${caixa!.width.toFixed(1)} × ${caixa!.height.toFixed(1)}` });
       expect(caixa!.width).toBeGreaterThanOrEqual(44);
@@ -127,8 +127,8 @@ test('chave desligada: sem faixa e sem coluna "Anterior"', async ({ page }) => {
   const api = await abrir(page, false);
   await page.goto(EXERCICIO);
   await expect(peso(page, 1)).toBeVisible();
-  await expect(page.getByText('Anterior', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Duração', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Último registro', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel(/^Duração do treino/)).toHaveCount(0);
   await page.goto(LISTA);
   await expect(page.getByText('0 de 3 séries feitas', { exact: true })).toBeVisible();
   await expect(page.getByText('Duração', { exact: true })).toHaveCount(0);

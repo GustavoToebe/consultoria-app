@@ -28,6 +28,7 @@ jest.mock('../ui/Botao', () => ({
   Botao: ({ rotuloAcessivel, rotulo, aoTocar }: { rotuloAcessivel?: string; rotulo: string; aoTocar: () => void }) => require('react-native').Pressable && require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotuloAcessivel ?? rotulo, onPress: aoTocar }),
 }));
 jest.mock('./SeloComExplicacao', () => ({ SeloComExplicacao: () => null }));
+jest.mock('../ui/Folha', () => ({ Folha: ({ visivel, children }: { visivel: boolean; children: unknown }) => (visivel ? children : null) }));
 jest.mock('./TipoDaSerieComExplicacao', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   TipoDaSerieComExplicacao: ({ nome }: { nome: string }) => require('react').createElement(require('react-native').Text, null, nome),
@@ -114,8 +115,12 @@ async function montar(exercicio: ExercicioPlano) {
     gravacoes,
     textos,
     temCampo: (rotulo: string) => com(rotulo).some((x) => typeof x.props.onChangeText === 'function'),
+    digitar: (rotulo: string, texto: string) => Renderer.act(async () => {
+      com(rotulo).find((x) => typeof x.props.onChangeText === 'function')!.props.onChangeText(texto);
+    }),
+    /** Toca pelo nome; o ✓ da série ("Marcar série N como feita") ganha o motivo no nome quando está desabilitado. */
     marcar: (rotulo: string) => Renderer.act(async () => {
-      const alvo = com(rotulo).find((x) => typeof x.props.onPress === 'function');
+      const alvo = arvore.root.findAll((x) => typeof x.props.accessibilityLabel === 'string' && (x.props.accessibilityLabel === rotulo || x.props.accessibilityLabel.startsWith(`${rotulo}:`)) && typeof x.props.onPress === 'function')[0];
       if (!alvo) throw new Error(`Sem "${rotulo}" na tela`);
       alvo.props.onPress();
     }),
@@ -127,25 +132,25 @@ async function montar(exercicio: ExercicioPlano) {
 describe('série com forma de carga que o app não conhece', () => {
   it('sem campo de peso, sem sugestão, o texto uma vez; a série legível ao lado segue normal', async () => {
     const t = await montar(treino(ws('w'), nova('n')));
-    expect(t.temCampo('Peso da série 1, em quilos')).toBe(true);
-    expect(t.temCampo('Peso da série 2, em quilos')).toBe(false);
+    expect(t.temCampo('Carga da série 1, em quilos')).toBe(true);
+    expect(t.temCampo('Carga da série 2, em quilos')).toBe(false);
     expect(t.vezesDoTexto()).toBe(1);
-    const depoisDaSerie2 = t.textos().slice(t.textos().indexOf('Série 2'));
-    expect(depoisDaSerie2.some((x) => x.startsWith('Sugestão'))).toBe(false);
-    expect(t.textos().some((x) => x.startsWith('Sugestão: 40 kg'))).toBe(true); // a série legível ao lado segue com a dica
+    expect(t.textos().filter((x) => x === 'sugerido')).toHaveLength(1); // só a série legível tem a sugestão no campo
   });
 
-  it('o ✓ continua funcionando e grava a série com a carga em branco', async () => {
+  it('o ✓ continua funcionando (com as reps) e grava a série com a carga em branco', async () => {
     const t = await montar(treino(nova('n')));
-    expect(t.temCampo('Peso da série 1, em quilos')).toBe(false);
-    await t.marcar('Série 1 feita');
-    expect(t.gravacoes).toEqual([{ serieUid: 'n', dados: { carga: null, repeticoes: null, concluida: true } }]);
+    expect(t.temCampo('Carga da série 1, em quilos')).toBe(false);
+    await t.digitar('Repetições da série 1', '8');
+    await t.marcar('Marcar série 1 como feita');
+    expect(t.gravacoes).toEqual([{ serieUid: 'n', dados: { carga: null, repeticoes: 8, concluida: true } }]);
   });
 
   it('marcar e desmarcar nunca leva carga', async () => {
     const t = await montar(treino(nova('n')));
-    await t.marcar('Série 1 feita');
-    await t.marcar('Série 1 feita');
+    await t.digitar('Repetições da série 1', '8');
+    await t.marcar('Marcar série 1 como feita');
+    await t.marcar('Marcar série 1 como feita');
     expect(t.gravacoes).toHaveLength(2);
     expect(t.gravacoes.every((g) => g.dados.carga === null)).toBe(true);
     expect(t.gravacoes.map((g) => g.dados.concluida)).toEqual([true, false]);
@@ -153,13 +158,14 @@ describe('série com forma de carga que o app não conhece', () => {
 
   it('a série legível anterior, já registrada, não passa a carga dela para a série ilegível', async () => {
     const t = await montar(treino(ws('w'), nova('n')));
-    await t.marcar('Série 1 feita'); // campo vazio com sugestão: abre o painel (D2)
-    await t.marcar('Sim, 40 kg, série 1');
+    await t.digitar('Repetições da série 1', '6');
+    await t.marcar('Marcar série 1 como feita'); // campo vazio com sugestão: grava a sugestão
     expect(t.gravacoes.at(-1)?.dados.carga).toBe(40);
-    expect(t.temCampo('Peso da série 2, em quilos')).toBe(false);
+    expect(t.temCampo('Carga da série 2, em quilos')).toBe(false);
     expect(t.textos().some((x) => x.startsWith('Repetir'))).toBe(false);
-    await t.marcar('Série 2 feita');
-    expect(t.gravacoes.at(-1)).toEqual({ serieUid: 'n', dados: { carga: null, repeticoes: null, concluida: true } });
+    await t.digitar('Repetições da série 2', '6');
+    await t.marcar('Marcar série 2 como feita');
+    expect(t.gravacoes.at(-1)).toEqual({ serieUid: 'n', dados: { carga: null, repeticoes: 6, concluida: true } });
   });
 
   it('série com etapas (Cluster): sem peso nas etapas, o texto uma vez, e marcar o bloco não leva carga', async () => {

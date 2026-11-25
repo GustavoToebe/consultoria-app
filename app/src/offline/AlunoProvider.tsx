@@ -34,6 +34,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { abrirRepositorio } from './abrirRepositorio';
 import { fundirComServidor, registrosDoServidor, trocarPeriodo } from './execucoesDoServidor';
 import { limparDadosDoAluno } from './limparDadosDoAluno';
+import { aplicarRascunho, chaveDoRascunhoDaSerie, type MudancaDoRascunho, type ReferenciaDaSerie, type RascunhosDeSerie } from '../dominio/rascunhoDaSerie';
 import { chaveDoInicioDoTreino, type DadosAgua, type DadosMobilidade, type DadosRegistro, type PacoteSalvo, type RegistroAguaLocal, type RegistroLocal, type RegistroMobilidadeLocal, type RegistroSessaoConcluidaLocal, type RepositorioLocal } from './repositorioLocal';
 import { ESPERAS_MS, Sincronizador } from './sincronizacao';
 
@@ -130,6 +131,13 @@ interface ValorAluno {
   /** Por `planoVersaoId|serieUid|data`. */
   registroDe: (planoVersaoId: string, serieUid: string, data: string) => RegistroLocal | undefined;
   cargasDeTrabalho: Record<string, number>;
+  /**
+   * Rascunhos das séries do aparelho (o digitado antes do ✓; `dominio/rascunhoDaSerie`), por `chaveDoRascunhoDaSerie`.
+   * Nunca entram na fila de envio: só o ✓ cria o registro.
+   */
+  rascunhosDeSerie: RascunhosDeSerie;
+  /** Guarda a mudança no estado na hora e no aparelho em seguida; `null` apaga. Falha ao gravar nunca atrapalha a digitação. */
+  salvarRascunhoDaSerie: (ref: ReferenciaDaSerie, mudanca: MudancaDoRascunho | null) => void;
   /** Marcas de mobilidade: as do aparelho mais as que o servidor já tem (a do aparelho ganha). Só leitura. */
   marcasDeMobilidade: MarcaDeMobilidade[];
   /** O que a mobilidade tem no aparelho (inclui o que ainda não foi enviado). */
@@ -287,6 +295,20 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const [semanaDoAparelho, setSemanaDoAparelho] = useState(false);
   const semanasPedidas = useRef(new Set<string>());
   const [cargas, setCargas] = useState<Record<string, number>>({});
+  const [rascunhos, setRascunhos] = useState<RascunhosDeSerie>({});
+  // O que a pessoa já digitou antes de a leitura chegar vale mais que o lido (ver `salvarRascunhoDaSerie`).
+  useEffect(() => {
+    let vivo = true;
+    repositorio.lerRascunhosDeSerie(hojeIso()).then((lidos) => vivo && setRascunhos((agora) => ({ ...lidos, ...agora })), () => undefined);
+    return () => { vivo = false; };
+  }, [repositorio]);
+  const salvarRascunhoDaSerie = useCallback((ref: ReferenciaDaSerie, mudanca: MudancaDoRascunho | null) => {
+    const chave = chaveDoRascunhoDaSerie(ref);
+    const hoje = hojeIso();
+    // Atualiza antes de gravar: esperar o aparelho devolveria o número antigo à caixa (o mesmo B1 do `valorPendente`).
+    setRascunhos((antes) => aplicarRascunho(antes, chave, mudanca, hoje));
+    repositorio.salvarRascunhoDeSerie(chave, mudanca, hoje).catch(() => undefined);
+  }, [repositorio]);
   const [envio, setEnvio] = useState<EstadoEnvio>('ocioso');
   const [mensagemEnvio, setMensagemEnvio] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
@@ -575,6 +597,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const registrar = useCallback(
     async (dados: DadosRegistro) => {
       const registro = await repositorio.registrar(dados);
+      // O repositório já apagou o rascunho da série; aqui só o estado da tela o acompanha.
+      setRascunhos((antes) => aplicarRascunho(antes, chaveDoRascunhoDaSerie(dados), null, hojeIso()));
       // A primeira série feita do treino marca o início (só no aparelho, uma vez); falha aqui não atrapalha o registro.
       // Com a chave desligada nada é gravado (o app fica como era); ligada no meio do treino, o início só falta.
       if (dados.concluida && retornoRef.current) {
@@ -697,6 +721,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       semanaDoAparelho,
       registroDe: (v, s, d) => indice.get(`${v}|${s}|${d}`),
       cargasDeTrabalho: cargas,
+      rascunhosDeSerie: rascunhos,
+      salvarRascunhoDaSerie,
       marcasDeMobilidade: fundirMarcas(mobilidadeLocal, marcasDoServidor),
       mobilidadeNoAparelho: mobilidadeLocal,
       marcarMobilidade,
@@ -723,7 +749,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, pacoteRecusado, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, aguaLocal, aguaDoServidor, marcarAgua, conclusoesLocais, conclusoesDoServidor, totalDoServidor, inicios, retornoHabilitado, sessoesConcluidasNoAparelho, falhasDeConclusao, concluirTreino, reabrirTreino, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, pacoteRecusado, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, aguaLocal, aguaDoServidor, marcarAgua, conclusoesLocais, conclusoesDoServidor, totalDoServidor, inicios, retornoHabilitado, sessoesConcluidasNoAparelho, falhasDeConclusao, concluirTreino, reabrirTreino, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, rascunhos, salvarRascunhoDaSerie, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

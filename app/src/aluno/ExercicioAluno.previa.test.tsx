@@ -26,6 +26,7 @@ jest.mock('../ui/Botao', () => ({
   Botao: ({ rotuloAcessivel, rotulo, aoTocar, desabilitado }: { rotuloAcessivel?: string; rotulo: string; aoTocar: () => void; desabilitado?: boolean }) => require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotuloAcessivel ?? rotulo, accessibilityRole: 'button', accessibilityState: { disabled: !!desabilitado }, disabled: !!desabilitado, onPress: aoTocar }),
 }));
 jest.mock('./SeloComExplicacao', () => ({ SeloComExplicacao: () => null }));
+jest.mock('../ui/Folha', () => ({ Folha: ({ visivel, children }: { visivel: boolean; children: unknown }) => (visivel ? children : null) }));
 jest.mock('./TipoDaSerieComExplicacao', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   TipoDaSerieComExplicacao: ({ nome }: { nome: string }) => require('react').createElement(require('react-native').Text, null, nome),

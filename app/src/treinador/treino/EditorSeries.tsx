@@ -16,6 +16,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { corDaSerie } from '../../ui/pinturaDaSerie';
 import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { cargaDoBloco, FALTA_A_CARGA } from './cargaDaSerie';
@@ -59,7 +60,7 @@ const TECNICAS_DE_1_CLIQUE: TipoDeTecnica[] = ['REST_PAUSE', 'CLUSTER', 'DROP_SE
  * próprios. Cada campo mostra o erro e o aviso da validação (a mesma da publicação).
  */
 export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, grupoAbertoUid, aoAbrirGrupo, semCarga = false, aoUsarReceita }: Props) {
-  const { identificacao } = useTema();
+  const { identificacao, cores, preferencias } = useTema();
   const unidade = useUnidadeDeCarga();
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const modalidade = cardio ? 'CARDIO' : null;
@@ -148,7 +149,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
           rotulo: `Série ${i + 1}${tipo ? ` · ${tipo}` : ''}`,
           serie: `Série ${i + 1}`,
           tipo,
-          categoria: chaveCor && identificacao ? identificacao[chaveCor] : undefined,
+          ...comCor(corDaSerie(preferencias?.corDasSeries ?? 'TIPO', chaveCor, identificacao, cores)),
           carga: cardio ? '—' : faltaCarga ? FALTA_A_CARGA : cargaDoBloco(x, cfg, unidade),
           cargaFalta: faltaCarga,
           resumo: resumoDoBloco(x, cfg),
@@ -190,6 +191,11 @@ function BotoesDeNovaSerie({ config, aoAdicionar }: { config: Configuracao; aoAd
         aoTocar={() => aoAdicionar(ws ?? undefined, o.valor)} />)}
     </LinhaDeAcoes>
   </View>;
+}
+
+/** Cor da linha e do selo (o selo fica neutro no modo "Cor de ação"; cardio e "Outro" ficam sem cor). */
+function comCor(c: ReturnType<typeof corDaSerie>): { cor: string | null; categoria?: { cor: string; fundo: string } } {
+  return { cor: c.cor, categoria: c.categoria ?? undefined };
 }
 
 function problemaDaAba(nivel: Nivel): 'perigo' | 'atencao' | undefined {

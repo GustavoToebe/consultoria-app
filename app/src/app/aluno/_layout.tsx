@@ -1,6 +1,6 @@
-import { Slot } from 'expo-router';
+import { Slot, usePathname } from 'expo-router';
 import { useWindowDimensions } from 'react-native';
-import { BarraDescanso } from '../../aluno/BarraDescanso';
+import { BarraDescanso, ehTelaDoExercicio } from '../../aluno/BarraDescanso';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { CalendarDays, Dumbbell, House, Salad, UserRound, Users } from 'lucide-react-native';
 
@@ -88,12 +88,16 @@ function MenuAluno() {
   );
 }
 
-/** Sincronização à vista em todas as telas do aluno, logo acima da barra de baixo; o descanso vem por último. */
+/**
+ * Sincronização à vista em todas as telas do aluno, logo acima da barra de baixo; o descanso vem por último. A tela do
+ * exercício desenha a própria barra (descanso ou "Próximo"), então aqui ela não entra.
+ */
 function RodapeAluno() {
+  const caminho = usePathname();
   return (
     <>
       <SeloSincronizacao noRodape />
-      <BarraDescanso />
+      {ehTelaDoExercicio(caminho) ? null : <BarraDescanso />}
     </>
   );
 }

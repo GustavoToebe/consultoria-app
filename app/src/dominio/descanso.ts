@@ -61,3 +61,40 @@ export function rotuloDescanso(segundos: number): string {
  if (min === 0) return `${seg} s`;
  return seg === 0 ? `${min} min` : `${min} min ${seg} s`;
 }
+
+/** Ajuste dos botões "−15 s" e "+15 s" da barra de descanso (`ajustarDescanso`, piso em 0). */
+export const AJUSTE_DO_DESCANSO_SEGUNDOS = 15;
+
+export type FaseDoDescanso = 'NENHUM' | 'CONTANDO' | 'TERMINADO';
+
+export interface RelogioDoDescanso {
+ /** `NENHUM` = sem cronômetro ou pulado (a barra mostra "Próximo: ..."); `TERMINADO` = chegou a zero (vibra uma vez e a barra volta ao "Próximo"). */
+ fase: FaseDoDescanso;
+ restanteMs: number;
+ /** Segundos que a tela mostra, arredondados para cima: "0:01" até zerar. */
+ segundos: number;
+ /** "1:30". */
+ texto: string;
+ /** 0 a 1 da barra de progresso (restante ÷ duração; o "+15 s" aumenta a duração e a barra não passa de 1). */
+ proporcao: number;
+}
+
+/** O que a barra de descanso desenha agora; relógio injetado (`agora` em ms), sem timer aqui. */
+export function relogioDoDescanso(descanso: Descanso | null, agora: number): RelogioDoDescanso {
+ if (!descanso) return { fase: 'NENHUM', restanteMs: 0, segundos: 0, texto: '0:00', proporcao: 0 };
+ const restanteMs = Math.min(descanso.duracaoMs, restante(descanso, agora));
+ const segundos = Math.ceil(restanteMs / 1000);
+ return {
+  fase: restanteMs === 0 ? 'TERMINADO' : 'CONTANDO',
+  restanteMs,
+  segundos,
+  texto: textoDoTempo(segundos),
+  proporcao: descanso.duracaoMs ? restanteMs / descanso.duracaoMs : 0,
+ };
+}
+
+/** 90 → "1:30", 45 → "0:45": o tempo como o relógio da barra e o botão "Descanso 1:30" da tela do exercício mostram. */
+export function textoDoTempo(segundos: number): string {
+ const s = Math.max(0, Math.round(segundos));
+ return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}

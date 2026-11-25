@@ -1,19 +1,18 @@
-import { Timer } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { DESCANSOS_PRONTOS, rotuloDescanso, segundosDigitados } from '../dominio/descanso';
+import { DESCANSOS_PRONTOS, rotuloDescanso, segundosDigitados, textoDoTempo } from '../dominio/descanso';
 import { useAluno } from '../offline/AlunoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { Botao } from '../ui/Botao';
+import { ESTREITO } from './PartesDaSerie';
 import { Campo } from '../ui/Campo';
 import { Folha } from '../ui/Folha';
-import { IconeBotao } from '../ui/IconeBotao';
 import { Texto } from '../ui/Texto';
-import { RotuloDoIcone } from './RotuloDoIcone';
 const COLUNAS = 3;
+
 /**
- * Descanso iniciado à mão (o automático só começa ao marcar uma série com descanso no plano). Abre por um ícone na
- * linha do "Como fazer"; o tempo do plano vem primeiro, como botão principal da folha.
+ * Descanso iniciado à mão (o automático só começa ao marcar uma série com descanso no plano). Abre pelo botão "Descanso 1:30"
+ * (o tempo do plano, 25/11) na linha de ações do exercício; o tempo do plano vem primeiro, como botão principal da folha.
  */
 export function DescansoManual({ sugeridoSegundos }: { sugeridoSegundos?: number | null }) {
  const [aberto,abrir]=useState(false);
@@ -22,11 +21,12 @@ export function DescansoManual({ sugeridoSegundos }: { sugeridoSegundos?: number
  const { iniciarDescanso }=useAluno();
  const { cores }=useTema();
  const livre=segundosDigitados(minutos,segundos);
+ const rotulo=sugeridoSegundos?`Descanso ${textoDoTempo(sugeridoSegundos)}`:'Descanso';
  const iniciar=(total:number)=>{iniciarDescanso(total);mudarMinutos('');mudarSegundos('');abrir(false);};
  const soDigitos=(texto:string)=>texto.replace(/\D/g,'').slice(0,2);
  const prontos=DESCANSOS_PRONTOS.filter(s=>s!==sugeridoSegundos);
  const linhas=Array.from({length:Math.ceil(prontos.length/COLUNAS)},(_,i)=>prontos.slice(i*COLUNAS,(i+1)*COLUNAS));
- return <><RotuloDoIcone texto="Descanso"><IconeBotao Icone={Timer} rotulo="Iniciar descanso" aoTocar={()=>abrir(true)} /></RotuloDoIcone>
+ return <><Botao rotulo={rotulo} rotuloAcessivel={`${rotulo}: iniciar descanso`} tipo="secundario" cheio style={ESTREITO} aoTocar={()=>abrir(true)} />
   <Folha visivel={aberto} titulo="Iniciar descanso" aoFechar={()=>abrir(false)}>
    <View style={{gap:16}}>
     {sugeridoSegundos ? <Botao rotulo={`Descanso do plano: ${rotuloDescanso(sugeridoSegundos)}`} cheio aoTocar={()=>iniciar(sugeridoSegundos)} /> : null}
