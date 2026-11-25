@@ -523,11 +523,12 @@ export interface CatalogoAlimento {
   fatorCoccao: number | null;
 }
 
-/** Página de exercícios da consultoria; `grupos` são todos os grupos dela, sem o filtro de grupo. */
+/** Página de exercícios da consultoria; `grupos` e `modalidades` são todos os dela, sem filtro nenhum. */
 export interface PaginaDeExercicios {
   itens: Exercicio[];
   total: number;
   grupos: string[];
+  modalidades: Modalidade[];
 }
 
 /** `total` é quantos itens casaram com a busca; `itens` vem limitado. */

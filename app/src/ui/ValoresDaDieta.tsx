@@ -24,7 +24,8 @@ export const MACROS = [
 export type CorDoMacro = ChaveDeIdentificacao | 'FIBRA';
 /**
  * A fibra (V089) com a marca verde-lima (19/11), só no rótulo, no cabeçalho e ao lado do "Fibra X g": o texto e o número
- * continuam neutros. Fica fora de `MACROS` porque não é macro da kcal nem dos `Totais` (legenda, leitor e soma seguem só P, C e G).
+ * continuam neutros. Fica fora de `MACROS` porque não é macro da kcal nem dos `Totais` (leitor e soma seguem só P, C e G; a
+ * legenda a mostra depois do "G = gordura", onde a fibra pode aparecer).
  */
 export const FIBRA = { chave: 'fibra', nome: 'Fibras', cor: 'FIBRA' } as const;
 
@@ -109,8 +110,12 @@ export function ValoresDaDieta({ totais: t, forte = false, inicio = false, omiti
   );
 }
 
-/** Legenda das siglas com as marcas, uma vez por lista (nunca por linha): o mesmo texto da dieta do aluno. */
-export function LegendaDosMacros() {
+/**
+ * Legenda das siglas com as marcas, uma vez por lista (nunca por linha), na Biblioteca, na folha de alimentos da dieta e no
+ * total do dia do aluno. "■ Fibra" vem depois do "G = gordura" (a marca dela, o nome neutro); `fibra` falso a tira onde a
+ * fibra não pode aparecer (dieta do aluno sem nenhum item com fibra, que a omite quando é "—").
+ */
+export function LegendaDosMacros({ fibra = true }: { fibra?: boolean }) {
   return (
     <View style={[estilos.macros, estilos.inicio]}>
       {MACROS.map((m) => (
@@ -119,6 +124,12 @@ export function LegendaDosMacros() {
           <Texto variante="pequeno">{`${m.curto} = ${m.nome.toLowerCase()}`}</Texto>
         </View>
       ))}
+      {fibra ? (
+        <View style={estilos.macro}>
+          <MarcaDoMacro cor={FIBRA.cor} />
+          <Texto variante="pequeno">Fibra</Texto>
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -86,7 +86,7 @@ test('biblioteca: miniaturas, enviar GIF, trocar e remover a imagem própria', a
   expect(envios[1].metodo).toBe('DELETE');
   await expect(page.getByText('Imagem removida.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Remover imagem' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Enviar imagem ou GIF' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Escolher imagem ou GIF' })).toBeVisible();
 
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);

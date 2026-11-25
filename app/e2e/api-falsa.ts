@@ -103,6 +103,8 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     // Tags de aluno: nenhuma na consultoria nem no aluno nos testes que não conferem isso (o `e2e/tags-de-aluno.spec.ts` troca).
     'GET /tags-de-alunos': { corpo: [] },
     'PUT /alunos/{id}/tags': { corpo: [] },
+    // Categorias da vitrine: nenhuma nos testes que não conferem isso (o `e2e/vitrine-categorias.spec.ts` troca).
+    'GET /vitrine/categorias': { corpo: [] },
     ...respostas,
   };
   const rotas = Object.keys(mapa).sort((a, b) => b.length - a.length);
@@ -316,20 +318,29 @@ export function rotasDaPasta(p: PastaFalsa): RespostasApi {
 }
 
 /**
- * `GET /exercicios/pagina` como o servidor responde: busca sem acento em nome e grupo, grupos repetidos (OU), páginas de
- * `tamanho` e `grupos` de toda a lista. Guarda cada consulta recebida em `consultas`, para o teste conferir o que a tela pediu.
+ * `GET /exercicios/pagina` como o servidor responde: busca sem acento em nome e grupo, grupos repetidos (OU), modalidades
+ * repetidas (OU), `video` e `imagem` (`true` só com, `false` só sem; imagem própria ou foto do catálogo), páginas de
+ * `tamanho`, e `grupos` e `modalidades` de toda a lista (sem filtro nenhum, `modalidades` na ordem da tela). Guarda cada
+ * consulta recebida em `consultas`, para o teste conferir o que a tela pediu.
  */
 export function paginaDeExerciciosFalsa(todos: Exercicio[], consultas: string[] = []): Resposta {
   const semAcento = (t: string) => t.normalize('NFD').replace(/\p{Mn}/gu, '').toLowerCase();
+  const ordemDasModalidades = ['LIVRE', 'MAQUINA', 'ELASTICO', 'PESO_CORPORAL', 'CARDIO', 'OUTRO'];
+  const confere = (pedido: string | null, tem: boolean) => pedido === null || (pedido === 'true') === tem;
   return (pedido, route) => {
     consultas.push(pedido.busca.toString());
     const termo = semAcento(pedido.busca.get('busca') ?? '');
     const escolhidos = pedido.busca.getAll('grupo');
+    const modalidades = pedido.busca.getAll('modalidade');
     const tamanho = Number(pedido.busca.get('tamanho') ?? 30);
     const pagina = Number(pedido.busca.get('pagina') ?? 0);
     const casaram = todos.filter((e) => (escolhidos.length === 0 || escolhidos.includes(e.grupoMuscular?.trim() ?? ''))
+      && (modalidades.length === 0 || modalidades.includes(e.modalidade))
+      && confere(pedido.busca.get('video'), !!e.videoUrl?.trim())
+      && confere(pedido.busca.get('imagem'), e.imagemPropriaEm !== null || e.imagens.length > 0)
       && (!termo || semAcento(`${e.nome} ${e.grupoMuscular ?? ''}`).includes(termo)));
     const grupos = [...new Set(todos.map((e) => e.grupoMuscular?.trim()).filter((g): g is string => !!g))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    return json(route, { itens: casaram.slice(pagina * tamanho, (pagina + 1) * tamanho), total: casaram.length, grupos });
+    const existentes = ordemDasModalidades.filter((m) => todos.some((e) => e.modalidade === m));
+    return json(route, { itens: casaram.slice(pagina * tamanho, (pagina + 1) * tamanho), total: casaram.length, grupos, modalidades: existentes });
   };
 }

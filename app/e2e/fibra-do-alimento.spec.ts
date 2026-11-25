@@ -263,6 +263,9 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     await expect(page.getByText('Há itens sem fibra informada.', { exact: true })).toBeVisible();
     // A fibra nula não deixa o total "incompleto" (os macros estão todos lá).
     await expect(page.getByText('Há itens sem valor nutricional informado; o total não os soma.')).toHaveCount(0);
+    // Legenda (24/11): "■ Fibra" depois do "G = gordura", porque há item com fibra (sem nenhum, ela some com a fibra).
+    const legenda = page.getByText('G = gordura', { exact: true }).locator('xpath=../..');
+    await expect(legenda.getByText('Fibra', { exact: true })).toBeVisible();
     // Macros do alimento e cor da fibra (19/11): a marca da fibra no item, no total da opção e no total do dia.
     expect(await marcasDaFibra(page.locator('body'), escuro)).toBeGreaterThanOrEqual(3);
     await capturar(page, `aluno-dieta-${sufixo}`, page.getByText('Total do dia', { exact: true }));

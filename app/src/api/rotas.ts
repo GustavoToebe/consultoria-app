@@ -857,11 +857,19 @@ const busca = (texto?: string) => (texto ? `?busca=${encodeURIComponent(texto)}`
 
 export const listarExercicios = (texto?: string) => requisicao<Exercicio[]>(`/exercicios${busca(texto)}`);
 export const TAMANHO_DA_PAGINA_DE_EXERCICIOS = 30;
-/** Uma página da aba Exercícios: busca sem acento e grupos (OU) no servidor; `grupos` do retorno não aplica o filtro de grupo. */
-export const listarExerciciosPagina = (filtro: { texto?: string; grupos?: readonly string[]; pagina: number }) => {
+/**
+ * Uma página da aba Exercícios: busca sem acento, grupos (OU), modalidades (OU), vídeo e imagem (`true` só com, `false`
+ * só sem, ausente = todos) no servidor; `grupos` e `modalidades` do retorno não aplicam filtro nenhum.
+ */
+export const listarExerciciosPagina = (filtro: {
+  texto?: string; grupos?: readonly string[]; modalidades?: readonly string[]; video?: boolean; imagem?: boolean; pagina: number;
+}) => {
   const q = new URLSearchParams({ pagina: String(filtro.pagina), tamanho: String(TAMANHO_DA_PAGINA_DE_EXERCICIOS) });
   if (filtro.texto) q.append('busca', filtro.texto);
   for (const g of filtro.grupos ?? []) q.append('grupo', g);
+  for (const m of filtro.modalidades ?? []) q.append('modalidade', m);
+  if (filtro.video !== undefined) q.append('video', String(filtro.video));
+  if (filtro.imagem !== undefined) q.append('imagem', String(filtro.imagem));
   return requisicao<PaginaDeExercicios>(`/exercicios/pagina?${q.toString()}`);
 };
 export const criarExercicio = (dados: ExercicioRequest) =>

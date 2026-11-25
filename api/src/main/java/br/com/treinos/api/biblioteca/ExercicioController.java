@@ -41,9 +41,12 @@ public class ExercicioController {
     @GetMapping("/pagina")
     public ExerciciosPagina pagina(@RequestParam(required = false) String busca,
                                    @RequestParam(name = "grupo", required = false) List<String> grupos,
+                                   @RequestParam(required = false) Boolean video,
+                                   @RequestParam(required = false) Boolean imagem,
+                                   @RequestParam(name = "modalidade", required = false) List<String> modalidades,
                                    @RequestParam(required = false) Integer pagina,
                                    @RequestParam(required = false) Integer tamanho) {
-        return biblioteca.paginaDeExercicios(busca, grupos, pagina, tamanho);
+        return biblioteca.paginaDeExercicios(busca, grupos, video, imagem, modalidades, pagina, tamanho);
     }
 
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")

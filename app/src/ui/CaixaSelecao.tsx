@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO_CONTROLE } from '../tema/tokens';
@@ -6,15 +7,16 @@ import { coresDoDesabilitado } from './desabilitado';
 import { Texto } from './Texto';
 /**
  * `desabilitado` apaga a caixa e não deixa mudar; o `ajuda` é onde cabe o motivo ("Disponível em outro plano"). O texto
- * da opção usa o corpo, como as escolhas únicas: no `rotulo` (pequeno e cinza) parecia opção desativada.
+ * da opção usa o corpo, como as escolhas únicas: no `rotulo` (pequeno e cinza) parecia opção desativada. `marca` é um enfeite
+ * antes do texto (a bolinha da modalidade), fora do nome acessível.
  */
-export function CaixaSelecao({rotulo,ajuda,marcado,aoMudar,desabilitado}:{rotulo:string;ajuda?:string;marcado:boolean;aoMudar:(valor:boolean)=>void;desabilitado?:boolean}) {
+export function CaixaSelecao({rotulo,ajuda,marcado,aoMudar,desabilitado,marca}:{rotulo:string;ajuda?:string;marcado:boolean;aoMudar:(valor:boolean)=>void;desabilitado?:boolean;marca?:ReactNode}) {
   const {cores}=useTema();
   const cinza=coresDoDesabilitado(cores);
   return <Pressable accessibilityRole="checkbox" accessibilityLabel={rotulo} accessibilityState={{checked:marcado,disabled:!!desabilitado}} aria-checked={marcado} aria-disabled={!!desabilitado} accessibilityHint={desabilitado?ajuda:undefined}
     disabled={desabilitado} onPress={()=>aoMudar(!marcado)} style={({pressed})=>[estilos.linha,{backgroundColor:desabilitado?cinza.fundo:pressed?cores.sobre:cores.superficie2,borderColor:cores.divisor}]}>
     <View style={[estilos.caixa,{backgroundColor:desabilitado?(marcado?cinza.texto:cinza.fundo):marcado?cores.texto:cores.campo,borderColor:desabilitado?cinza.borda:marcado?cores.texto:cores.bordaCampo}]}>{marcado?<Check size={18} color={desabilitado?cinza.fundo:cores.fundo}/>:null}</View>
-    <View style={estilos.textos}><Texto cor={desabilitado?cinza.texto:undefined}>{rotulo}</Texto>{ajuda?<Texto variante="pequeno">{ajuda}</Texto>:null}</View>
+    {marca}<View style={estilos.textos}><Texto cor={desabilitado?cinza.texto:undefined}>{rotulo}</Texto>{ajuda?<Texto variante="pequeno">{ajuda}</Texto>:null}</View>
   </Pressable>;
 }
 const estilos=StyleSheet.create({linha:{flexDirection:'row',alignItems:'center',gap:espaco(1.5),padding:espaco(1.5),minHeight:48,borderWidth:1,borderRadius:RAIO_CONTROLE},caixa:{width:24,height:24,borderWidth:1,borderRadius:4,alignItems:'center',justifyContent:'center'},textos:{flex:1,gap:4}});

@@ -26,16 +26,32 @@ const NOME_DO_ARQUIVO: Record<TipoDeImagemDoExercicio, string> = {
   'image/gif': 'imagem.gif',
 };
 
-/**
- * Abre a galeria e devolve a imagem pronta para enviar. JPEG e PNG são reduzidos a 800 px e regravados em JPEG
- * (sem EXIF) no aparelho. GIF vai como está, porque reencodar mataria a animação: o servidor confere pelos bytes,
- * tira os metadados e recusa acima de 1 MB e 800 px. `null` se a pessoa desistiu.
- */
+/** O que o seletor (ou o arquivo solto na web) entrega: o mesmo formato do `asset` do `expo-image-picker`. */
+export interface ArquivoDeImagem {
+  uri: string;
+  width: number;
+  height: number;
+  mimeType?: string | null;
+  fileName?: string | null;
+  /** Só na web: o conteúdo do arquivo. */
+  file?: Blob | null;
+  fileSize?: number | null;
+}
+
+/** Abre a galeria e devolve a imagem pronta para enviar (`prepararImagemDoExercicio`). `null` se a pessoa desistiu. */
 export async function escolherImagemDoExercicio(): Promise<ImagemDoExercicioEscolhida | null> {
   // `quality: 1` e sem edição: no Android é o que mantém o GIF animado.
   const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, allowsMultipleSelection: false, allowsEditing: false, exif: false });
   const asset = r.canceled ? undefined : r.assets[0];
-  if (!asset) return null;
+  return asset ? prepararImagemDoExercicio(asset) : null;
+}
+
+/**
+ * Prepara a imagem escolhida para enviar. JPEG e PNG são reduzidos a 800 px e regravados em JPEG (sem EXIF) no aparelho.
+ * GIF vai como está, porque reencodar mataria a animação: o servidor confere pelos bytes, tira os metadados e recusa acima
+ * de 1 MB e 800 px.
+ */
+export async function prepararImagemDoExercicio(asset: ArquivoDeImagem): Promise<ImagemDoExercicioEscolhida> {
   const tipo = tipoDaImagemEscolhida(asset.mimeType, asset.fileName);
   const nativo = Platform.OS !== 'web';
   try {
@@ -60,6 +76,31 @@ export async function escolherImagemDoExercicio(): Promise<ImagemDoExercicioEsco
     if (erro instanceof FotoRecusada) throw erro;
     throw new FotoRecusada('Não foi possível ler esta imagem. Tente outra.');
   }
+}
+
+/**
+ * Web: o arquivo solto na área da imagem (arrastar e soltar) passa pelas mesmas regras do seletor. As medidas vêm de um
+ * `<img>` com o endereço `blob:` (a CSP aceita `blob:` em `img-src`; o conteúdo vai pelo próprio `File`, sem `fetch`).
+ */
+export async function imagemDoArquivoSolto(arquivo: File): Promise<ImagemDoExercicioEscolhida> {
+  const uri = URL.createObjectURL(arquivo);
+  try {
+    const medidas = tipoDaImagemEscolhida(arquivo.type, arquivo.name) === 'image/gif' ? { width: 0, height: 0 } : await medidasDaImagem(uri);
+    return await prepararImagemDoExercicio({ uri, ...medidas, mimeType: arquivo.type, fileName: arquivo.name, file: arquivo, fileSize: arquivo.size });
+  } finally {
+    URL.revokeObjectURL(uri);
+  }
+}
+
+async function medidasDaImagem(uri: string): Promise<{ width: number; height: number }> {
+  const img = new window.Image();
+  img.src = uri;
+  try {
+    await img.decode();
+  } catch {
+    throw new FotoRecusada('Não foi possível ler esta imagem. Tente outra.');
+  }
+  return { width: img.naturalWidth, height: img.naturalHeight };
 }
 
 async function tamanhoDe(uri: string): Promise<number> {

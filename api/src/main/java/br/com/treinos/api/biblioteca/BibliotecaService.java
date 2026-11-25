@@ -102,12 +102,16 @@ public class BibliotecaService {
     /**
      * Uma página de exercícios ativos da consultoria. A busca ignora acento e olha nome e grupo muscular, como o
      * filtro de antes; o filtro de grupo é por igualdade (OU entre os escolhidos); {@code grupos} traz todos os da
-     * consultoria, sem aplicar o próprio filtro, para o seletor não encolher.
+     * consultoria, sem aplicar o próprio filtro, para o seletor não encolher; {@code modalidades} idem, na ordem do enum.
+     * {@code video} e {@code imagem} (nulo = não filtra; true = só com, false = só sem; imagem = própria ou foto do
+     * catálogo) e {@code modalidade} (OU; fora do enum = 400 {@code FILTRO_INVALIDO}) valem antes de paginar.
      * shortcut: filtra em memória sobre os ativos da consultoria (centenas), sem coluna de busca; indexar se passar de milhares.
      */
     @Transactional(readOnly = true)
-    public ExerciciosPagina paginaDeExercicios(String busca, List<String> grupos, Integer pagina, Integer tamanho) {
+    public ExerciciosPagina paginaDeExercicios(String busca, List<String> grupos, Boolean video, Boolean imagem,
+                                               List<String> modalidade, Integer pagina, Integer tamanho) {
         Set<String> filtro = new HashSet<>(gruposDoFiltro(grupos));
+        Set<Exercicio.Modalidade> modalidades = FiltrosDeLista.enums(Exercicio.Modalidade.class, modalidade, "modalidade");
         String termo = Buscas.semAcento(busca);
         if (termo.length() > 100) {
             termo = termo.substring(0, 100);
@@ -116,26 +120,34 @@ public class BibliotecaService {
         Collator ordem = Collator.getInstance(Locale.forLanguageTag("pt-BR"));
         List<String> todosOsGrupos = ativos.stream().map(e -> Buscas.opcional(e.getGrupoMuscular()))
                 .filter(Objects::nonNull).distinct().sorted(ordem).toList();
+        List<Exercicio.Modalidade> todasAsModalidades = ativos.stream().map(Exercicio::getModalidade).distinct().sorted().toList();
         String procurado = termo;
+        // As duas consultas de imagem rodam sobre todos os ativos só quando o filtro de imagem está ligado.
+        Midias midias = imagem == null ? null : midiasDe(ativos);
         List<Exercicio> casaram = ativos.stream()
                 .filter(e -> filtro.isEmpty() || filtro.contains(Objects.toString(Buscas.opcional(e.getGrupoMuscular()), "")))
+                .filter(e -> modalidades.isEmpty() || modalidades.contains(e.getModalidade()))
+                .filter(e -> video == null || video == (Buscas.opcional(e.getVideoUrl()) != null))
+                .filter(e -> midias == null || imagem == midias.temImagem(e))
                 .filter(e -> ExpansorTermosExercicio.casou(e, procurado))
-
                 .toList();
         int tam = tamanho == null ? TAMANHO_DA_PAGINA : Math.max(1, Math.min(tamanho, LIMITE_MAXIMO));
         long de = Math.min((long) Math.max(0, pagina == null ? 0 : pagina) * tam, casaram.size());
         List<Exercicio> da = casaram.subList((int) de, (int) Math.min(de + tam, casaram.size()));
-        return new ExerciciosPagina(responder(da), casaram.size(), todosOsGrupos);
+        return new ExerciciosPagina(responder(da, midias == null ? midiasDe(da) : midias), casaram.size(), todosOsGrupos,
+                todasAsModalidades.stream().map(Enum::name).toList());
     }
 
-    /**
-     * Resposta dos exercícios com as fotos do catálogo de origem e a marca da imagem própria, em duas consultas para a
-     * lista toda (sem uma por exercício).
-     */
-    List<ExercicioResponse> responder(List<Exercicio> lista) {
-        if (lista.isEmpty()) {
-            return List.of();
+    /** Fotos do catálogo de origem e marcas da imagem própria de uma lista, em duas consultas (sem uma por exercício). */
+    private record Midias(Map<UUID, List<String>> fotos, Map<UUID, Instant> proprias) {
+        /** Imagem própria ou foto do catálogo: o que a miniatura da lista mostra. */
+        boolean temImagem(Exercicio e) {
+            List<String> doCatalogo = e.getCatalogoId() == null ? null : fotos.get(e.getCatalogoId());
+            return proprias.containsKey(e.getId()) || (doCatalogo != null && !doCatalogo.isEmpty());
         }
+    }
+
+    private Midias midiasDe(List<Exercicio> lista) {
         Set<UUID> deCatalogo = new HashSet<>();
         Set<UUID> todos = new HashSet<>();
         for (Exercicio e : lista) {
@@ -149,7 +161,23 @@ public class BibliotecaService {
             catalogoExercicios.findAllById(deCatalogo).forEach(c -> fotos.put(c.getId(), c.getImagens()));
         }
         Map<UUID, Instant> proprias = new HashMap<>();
-        imagensProprias.marcas(todos).forEach(m -> proprias.put(m.exercicioId(), m.atualizadaEm()));
+        if (!todos.isEmpty()) {
+            imagensProprias.marcas(todos).forEach(m -> proprias.put(m.exercicioId(), m.atualizadaEm()));
+        }
+        return new Midias(fotos, proprias);
+    }
+
+    /** Resposta dos exercícios com as fotos do catálogo de origem e a marca da imagem própria. */
+    List<ExercicioResponse> responder(List<Exercicio> lista) {
+        return lista.isEmpty() ? List.of() : responder(lista, midiasDe(lista));
+    }
+
+    private static List<ExercicioResponse> responder(List<Exercicio> lista, Midias midias) {
+        if (lista.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, List<String>> fotos = midias.fotos();
+        Map<UUID, Instant> proprias = midias.proprias();
         return lista.stream().map(e -> ExercicioResponse.de(e,
                 e.getCatalogoId() == null ? List.of() : fotos.getOrDefault(e.getCatalogoId(), List.of()),
                 proprias.get(e.getId()))).toList();
