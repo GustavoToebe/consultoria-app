@@ -188,12 +188,16 @@ public final class ImportacaoAssistidaDtos {
                     List.of(), novoEstado, null, List.of(), Map.of());
         }
 
-        /** Sem objetivo, observações e peso (dado sensível sem {@code ALUNO_SENSIVEL_LER}), treino e dieta sem as permissões de ler. */
-        public GrupoImportavel paraLeitura(boolean sensivel, boolean treinoLer, boolean dietaLer) {
+        /**
+         * Sem objetivo, observações e peso (dado sensível sem {@code ALUNO_SENSIVEL_LER}), treino e dieta sem as permissões
+         * de ler; a medicação e os ergogênicos da dieta só com {@code ERGOGENICO_LER}.
+         */
+        public GrupoImportavel paraLeitura(boolean sensivel, boolean treinoLer, boolean dietaLer, boolean ergogenicoLer) {
             CadastroImportavel cad = cadastro == null || sensivel ? cadastro : new CadastroImportavel(cadastro.nome(),
                     cadastro.email(), cadastro.telefone(), null, null, cadastro.ativo());
+            ConteudoDieta dietaVisivel = !dietaLer ? null : (ergogenicoLer || dieta == null ? dieta : dieta.semErgogenicos());
             return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
-                    cad, sensivel ? pesos : List.of(), treinoLer ? treino : null, dietaLer ? dieta : null,
+                    cad, sensivel ? pesos : List.of(), treinoLer ? treino : null, dietaVisivel,
                     pendenciasIds, estado, erroCodigo, candidatos,
                     (treinoLer && dietaLer) ? ocorrencias : Map.of());
         }

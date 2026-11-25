@@ -9,6 +9,7 @@ import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.dieta.PlanoDieta;
 import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
@@ -315,7 +316,8 @@ public class ConfirmacaoDaImportacaoAssistida {
             treino = 1;
         }
         if (g.dieta() != null) {
-            receitas.salvarConteudo(Receita.Tipo.PLANO_DIETA, nome, null, g.dieta());
+            // Modelo nunca leva medicação nem ergogênicos (dado sensível do aluno).
+            receitas.salvarConteudo(Receita.Tipo.PLANO_DIETA, nome, null, g.dieta().semErgogenicos());
             dieta = 1;
         }
         return new Gravado(0, 0, 0, 0, treino + dieta, 0, 0, true);
@@ -399,8 +401,10 @@ public class ConfirmacaoDaImportacaoAssistida {
                 treino = 1;
             }
             if (g.dieta() != null) {
+                // Sem ERGOGENICO_ALTERAR a dieta entra sem a medicação e os ergogênicos; não há o que preservar num plano novo.
+                ConteudoDieta conteudoDaDieta = AcessoAtual.pode("ERGOGENICO_ALTERAR") ? g.dieta() : g.dieta().semErgogenicos();
                 PlanoDieta d = new PlanoDieta(alunoId, titulo("Dieta de ", nome), null, null,
-                        json.writeValueAsString(g.dieta()));
+                        json.writeValueAsString(conteudoDaDieta));
                 d.definirPasta(pasta.getId());
                 dietas.saveAndFlush(d);
                 dieta = 1;

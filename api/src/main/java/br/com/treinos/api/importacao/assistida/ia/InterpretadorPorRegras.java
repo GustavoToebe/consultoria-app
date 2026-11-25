@@ -51,6 +51,20 @@ public class InterpretadorPorRegras implements InterpretadorIa {
     private static final Pattern DATA_REGEX = Pattern.compile(
             "\\b(?:(\\d{1,2})/(\\d{1,2})/(\\d{4})|(\\d{4})-(\\d{2})-(\\d{2}))\\b");
 
+    // Títulos de coluna de tabela de PDF: sozinhos (ou só eles na linha) não são exercício nem alimento.
+    private static final java.util.Set<String> CABECALHOS = java.util.Set.of(
+            "exercicio", "exercicios", "series", "serie", "reps", "repeticoes", "descanso", "carga", "observacao",
+            "observacoes", "obs", "alimento", "alimentos", "quantidade", "refeicao", "refeicoes", "tecnica",
+            "intervalo", "tempo", "ordem", "grupo", "musculo", "dia", "horario");
+
+    // Dose de substância (protocolo de medicação): fora do treino e da dieta; a importação de medicação é de outra parte.
+    private static final Pattern DOSE_REGEX = Pattern.compile(
+            "(?i)\\b\\d+(?:[.,]\\d+)?\\s*(?:mg|mcg|[uµ]g|ui|iu)\\b|/\\s*sem\\b|\\b(?:ampolas?|comprimidos?|c[aá]psulas?)\\b");
+
+    private static final Pattern FRASE_REGEX = Pattern.compile("[.!?]\\s+\\p{L}");
+
+    private static final int NOME_MAXIMO_DE_SESSAO = 60;
+
     private final ExercicioRepository exercicios;
     private final AlimentoRepository alimentos;
 
@@ -62,6 +76,16 @@ public class InterpretadorPorRegras implements InterpretadorIa {
 
     public InterpretadorPorRegras() {
         this(null, null);
+    }
+
+    /** Nomes dos exercícios ativos da biblioteca (para a IA preferir o nome que já existe). Vazio sem repositório. */
+    public List<String> nomesDeExercicios() {
+        return exercicios == null ? List.of() : exercicios.todosAtivos().stream().map(Exercicio::getNome).toList();
+    }
+
+    /** Nomes dos alimentos ativos da biblioteca (para a IA preferir o nome que já existe). Vazio sem repositório. */
+    public List<String> nomesDeAlimentos() {
+        return alimentos == null ? List.of() : alimentos.buscarAtivos("%").stream().map(Alimento::getNome).toList();
     }
 
     @Override
@@ -102,6 +126,19 @@ public class InterpretadorPorRegras implements InterpretadorIa {
         );
 
         return new ResultadoInterpretacao(List.of(grupo), List.copyOf(duvidas));
+    }
+
+    /**
+     * Mesmo resultado com as dúvidas calculadas aqui, contra a biblioteca, para cada grupo: usado no resultado da IA,
+     * cujas dúvidas não traziam as ocorrências que a tela corrige.
+     */
+    public ResultadoInterpretacao comDuvidasDaBiblioteca(ResultadoInterpretacao resultado, ContextoIa contexto) {
+        List<ResultadoInterpretacao.PropostaDuvida> duvidas = new ArrayList<>();
+        for (ResultadoInterpretacao.PropostaGrupo g : resultado.grupos()) {
+            verificarDuvidasExercicios(g.treino(), contexto, duvidas);
+            verificarDuvidasAlimentos(g.dieta(), contexto, duvidas);
+        }
+        return new ResultadoInterpretacao(resultado.grupos(), List.copyOf(duvidas));
     }
 
     private String extrairTextoCompleto(List<BlocoTexto> blocos) {
@@ -159,10 +196,10 @@ public class InterpretadorPorRegras implements InterpretadorIa {
             String[] linhas = b.conteudo().split("\\R");
             for (String l : linhas) {
                 String limpa = l.strip();
-                if (limpa.isBlank()) continue;
+                if (limpa.isBlank() || DOSE_REGEX.matcher(limpa).find()) continue;
 
                 Matcher mDiv = DIVISAO_REGEX.matcher(limpa);
-                if (mDiv.find()) {
+                if (mDiv.find() && pareceNomeDeSessao(limpa)) {
                     if (sessaoAtual != null && !exerciciosDaSessao.isEmpty()) {
                         sessoes.add(new ConteudoTreino.Sessao(UUID.randomUUID(), sessaoAtual.nome(), sessaoAtual.diaSemana(),
                                 null, null, sessaoAtual.observacao(), null, List.copyOf(exerciciosDaSessao)));
@@ -180,6 +217,7 @@ public class InterpretadorPorRegras implements InterpretadorIa {
                     int qtdSeries = Integer.parseInt(mSerie.group(1));
                     String repsStr = mSerie.group(2);
                     String nomeExercicio = extrairNomeExercicio(limpa, mSerie.start());
+                    if (qtdSeries == 0 || ehCabecalho(nomeExercicio) || ehFrase(nomeExercicio)) continue;
 
                     // Aplica abreviação se houver
                     String normalizado = nomeExercicio.toLowerCase(Locale.ROOT);
@@ -209,6 +247,11 @@ public class InterpretadorPorRegras implements InterpretadorIa {
 
                     exerciciosDaSessao.add(new ConteudoTreino.ExercicioPlano(UUID.randomUUID(), null, nomeExercicio,
                             "MAQUINA", null, null, null, null, List.copyOf(series)));
+                } else if (!exerciciosDaSessao.isEmpty() && ehContinuacaoDeNome(limpa, exerciciosDaSessao.getLast().nome())) {
+                    // Nome quebrado em duas linhas pela tabela do PDF: junta em vez de criar outro exercício.
+                    ConteudoTreino.ExercicioPlano ex = exerciciosDaSessao.removeLast();
+                    exerciciosDaSessao.add(new ConteudoTreino.ExercicioPlano(ex.uid(), ex.exercicioId(), ex.nome() + " " + limpa,
+                            ex.modalidade(), ex.videoUrl(), ex.observacao(), ex.progressao(), ex.unidade(), ex.series()));
                 }
             }
         }
@@ -224,6 +267,37 @@ public class InterpretadorPorRegras implements InterpretadorIa {
 
         return new ConteudoTreino("Treino Importado", "Plano importado via reconhecimento de documento",
                 List.copyOf(sessoes));
+    }
+
+    private static String chaveSemAcento(String texto) {
+        return Buscas.semAcento(texto).toLowerCase(Locale.ROOT).strip();
+    }
+
+    private static boolean ehCabecalho(String nome) {
+        String[] palavras = chaveSemAcento(nome).replaceAll("[^a-z0-9\\s]", " ").strip().split("\\s+");
+        return java.util.Arrays.stream(palavras).allMatch(p -> p.isEmpty() || CABECALHOS.contains(p));
+    }
+
+    private static boolean ehFrase(String nome) {
+        return nome.length() > 80 || FRASE_REGEX.matcher(nome).find();
+    }
+
+    private static boolean pareceNomeDeSessao(String linha) {
+        return linha.length() <= NOME_MAXIMO_DE_SESSAO && !FRASE_REGEX.matcher(linha).find();
+    }
+
+    private static boolean ehContinuacaoDeNome(String linha, String nomeAnterior) {
+        if (nomeAnterior == null || linha.length() > 40 || linha.matches(".*[0-9:].*") || ehCabecalho(linha)) {
+            return false;
+        }
+        if (nomeAnterior.length() + 1 + linha.length() > 120 || DIVISAO_REGEX.matcher(linha).find()) {
+            return false;
+        }
+        String[] palavras = chaveSemAcento(nomeAnterior).split("\\s+");
+        String ultima = palavras[palavras.length - 1];
+        boolean terminaEmLigacao = java.util.Set.of("no", "na", "nos", "nas", "com", "de", "do", "da", "e", "em", "ou").contains(ultima);
+        boolean parentesAberto = nomeAnterior.chars().filter(c -> c == '(').count() > nomeAnterior.chars().filter(c -> c == ')').count();
+        return terminaEmLigacao || parentesAberto;
     }
 
     private String extrairNomeExercicio(String linha, int posSerie) {
@@ -261,7 +335,7 @@ public class InterpretadorPorRegras implements InterpretadorIa {
             String[] linhas = b.conteudo().split("\\R");
             for (String l : linhas) {
                 String limpa = l.strip();
-                if (limpa.isBlank()) continue;
+                if (limpa.isBlank() || DOSE_REGEX.matcher(limpa).find()) continue;
 
                 Matcher mRef = REFEICAO_REGEX.matcher(limpa);
                 if (mRef.find()) {
@@ -283,6 +357,8 @@ public class InterpretadorPorRegras implements InterpretadorIa {
                     String qtdStr = mAli.group(1).replace(',', '.');
                     String unid = mAli.group(2).toLowerCase(Locale.ROOT);
                     String nomeAlimento = mAli.group(3).strip();
+                    // Só número, sinal ou pontuação (ou título de coluna) não é alimento.
+                    if (!nomeAlimento.matches(".*\\p{L}.*") || ehCabecalho(nomeAlimento)) continue;
 
                     BigDecimal qtd = new BigDecimal(qtdStr);
                     itensDaRefeicao.add(new ConteudoDieta.Item(UUID.randomUUID(), null, nomeAlimento, qtd, unid,

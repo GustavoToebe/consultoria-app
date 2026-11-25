@@ -77,7 +77,8 @@ class ImportacaoAssistidaServiceTest {
         config.setProvedor("regras");
         RoteadorInterpretadorIa roteador = new RoteadorInterpretadorIa(config, new InterpretadorGemini(config, json),
                 new InterpretadorClaude(config, json), new InterpretadorPorRegras());
-        service = new ImportacaoAssistidaService(sessoes, arquivos, apelidos, alunos, json, roteador);
+        service = new ImportacaoAssistidaService(sessoes, arquivos, apelidos, alunos, json, roteador,
+                mock(br.com.treinos.api.receitas.ReceitaService.class));
     }
 
     private static void comPermissoes(String... codigos) {
@@ -367,6 +368,19 @@ class ImportacaoAssistidaServiceTest {
                 new AtualizarGrupoRequisicao("IGNORAR", null, null)))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("processada");
+    }
+
+    @Test
+    void ergogenicosDaDietaSoSaemParaQuemTemErgogenicoLer() {
+        var dieta = new br.com.treinos.api.dieta.ConteudoDieta(null, null, null, List.of(), List.of(), null, List.of(),
+                List.of(new br.com.treinos.api.dieta.ConteudoDieta.Ergogenico(UUID.randomUUID(), "Item fictício", null, null,
+                        null, null, null, null)));
+        GrupoImportavel g = new GrupoImportavel("grupo-1", "a.txt", "Pessoa Teste", "CRIAR_ALUNO", null, List.of(), null,
+                List.of(), null, dieta, List.of(), "PRONTO", null, List.of());
+
+        assertThat(g.paraLeitura(true, true, true, true).dieta().ergogenicos()).hasSize(1);
+        assertThat(g.paraLeitura(true, true, true, false).dieta().ergogenicos()).isNull();
+        assertThat(g.paraLeitura(true, true, false, true).dieta()).isNull();
     }
 
     private static String grupoPronto(String id) {

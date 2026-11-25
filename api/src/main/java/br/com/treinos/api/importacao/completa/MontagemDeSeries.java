@@ -59,6 +59,31 @@ public final class MontagemDeSeries {
         }
     }
 
+    /** Como {@link #numero}, aceitando o "%" no fim ("80%", "82,5 %") da coluna de percentual; "%" sozinho não é número. */
+    public static Numero percentual(Celula c) {
+        if (!c.erro() && !c.numero() && c.texto().strip().endsWith("%")) {
+            String sem = c.texto().strip();
+            sem = sem.substring(0, sem.length() - 1).strip();
+            return sem.isEmpty() ? Numero.de(null) : numero(new Celula(sem, false, false));
+        }
+        return numero(c);
+    }
+
+    /**
+     * Percentual do Back off em % da WS: até 2 é fração da planilha (0,85 = 85; 1 = 100); de 2 a 200 já é o percentual
+     * (80, "80%", 82,5). Zero, negativo, acima de 200 ou ilegível (nulo) = null: o aviso é do chamador.
+     */
+    static BigDecimal percentualDoBackOff(BigDecimal b) {
+        if (b == null || b.signum() <= 0 || b.compareTo(BigDecimal.valueOf(200)) > 0) {
+            return null;
+        }
+        if (b.compareTo(BigDecimal.valueOf(2)) <= 0) {
+            return b.multiply(BigDecimal.valueOf(100)).setScale(0, RoundingMode.HALF_UP);
+        }
+        BigDecimal limpo = b.stripTrailingZeros();
+        return limpo.scale() < 0 ? limpo.setScale(0) : limpo;
+    }
+
     /** Lógico de uma célula, como o {@code logico} do script. */
     public enum Logico { SIM, NAO, AUSENTE, INVALIDO }
 
@@ -173,20 +198,23 @@ public final class MontagemDeSeries {
             avisos.add("BO_INVALIDO");
         }
         if (e.bo() == Logico.SIM) {
-            // A planilha diz só se há back off, não quantas séries: uma. Fração da planilha (0,85) vira 85.
-            BigDecimal b = e.backoff() == null ? null : e.backoff().valor();
-            Integer p = b != null && b.signum() > 0 && b.compareTo(BigDecimal.valueOf(2)) <= 0
-                    ? b.multiply(BigDecimal.valueOf(100)).setScale(0, RoundingMode.HALF_UP).intValueExact() : null;
-            if (p == null) {
+            // A planilha diz só se há back off, não quantas séries: uma.
+            boolean escrito = e.backoff() != null && e.backoff().presente();
+            BigDecimal p = escrito ? percentualDoBackOff(e.backoff().valor()) : null;
+            if (!escrito) {
                 avisos.add("BACK_OFF_SEM_PERCENTUAL");
+            } else if (p == null) {
+                avisos.add("BACK_OFF_PERCENTUAL_INVALIDO");
             }
             if (tipoBo == null) {
                 avisos.add("TIPO_FORA_DA_METODOLOGIA");
             } else {
-                // Sem % na planilha vale o padrão do tipo na metodologia (a série nasce válida, "% da WS"); o aviso fica.
-                Carga padrao = tipoBo.cargaPadrao() == null ? Carga.de(ConteudoTreino.NENHUMA) : tipoBo.cargaPadrao();
-                series.add(serie(tipoBo, repsMin(tipoBo), repsMax(tipoBo),
-                        p == null ? padrao : Carga.percentual(ConteudoTreino.PERCENTUAL_WS, p, null)));
+                // Célula vazia: vale o padrão do tipo na metodologia (a série nasce válida, "% da WS"); o aviso fica.
+                // Escrito e ilegível: sem carga (nunca o padrão no lugar do que a pessoa escreveu).
+                Carga carga = escrito ? p == null ? Carga.de(ConteudoTreino.NENHUMA)
+                        : new Carga(ConteudoTreino.PERCENTUAL_WS, p, null, null)
+                        : tipoBo.cargaPadrao() == null ? Carga.de(ConteudoTreino.NENHUMA) : tipoBo.cargaPadrao();
+                series.add(serie(tipoBo, repsMin(tipoBo), repsMax(tipoBo), carga));
             }
         }
         return new Resultado(List.copyOf(series), List.copyOf(avisos), recuperada && nWs > 0);

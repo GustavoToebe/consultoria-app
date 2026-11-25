@@ -51,8 +51,16 @@ public final class LeitorDePlanilha {
     static final int TEXTO_MAXIMO = 4000;
     private static final LocalDate EPOCA = LocalDate.of(1899, 12, 30);
 
-    public record Celula(String texto, boolean numero, boolean erro) {
+    /**
+     * {@code data}: célula numérica com formato de data no xlsx. O {@code texto} continua sendo o número serial (é o que a
+     * gravação lê); a marca só serve para a amostra da tela mostrar dd/MM/aaaa em vez de "45321".
+     */
+    public record Celula(String texto, boolean numero, boolean erro, boolean data) {
         private static final Celula VAZIA = new Celula("", false, false);
+
+        public Celula(String texto, boolean numero, boolean erro) {
+            this(texto, numero, erro, false);
+        }
 
         static Celula vazia() {
             return VAZIA;
@@ -155,6 +163,23 @@ public final class LeitorDePlanilha {
         return EPOCA.plusDays(dias);
     }
 
+    private static final java.time.format.DateTimeFormatter DIA_NA_TELA = java.time.format.DateTimeFormatter.ofPattern("dd/MM/uuuu");
+
+    /** Como a tela mostra a célula: a de formato de data sai dd/MM/aaaa; as outras, o texto. Só exibição, a gravação lê o serial. */
+    public static String paraExibir(Celula c, boolean data1904) {
+        if (c.data() && c.numero()) {
+            try {
+                LocalDate dia = dataSerial(new BigDecimal(c.texto()), data1904);
+                if (dia != null) {
+                    return dia.format(DIA_NA_TELA);
+                }
+            } catch (NumberFormatException e) {
+                // fica o texto
+            }
+        }
+        return c.texto();
+    }
+
     private static Planilha lerCsv(byte[] bytes, int aba, int linhaDoCabecalho) {
         if (aba != 0) {
             throw arquivo("Escolha uma aba da planilha.");
@@ -210,7 +235,8 @@ public final class LeitorDePlanilha {
             throw arquivo("Não foi possível ler a planilha.");
         }
         List<String> textos = textos(entradas.get("xl/sharedStrings.xml"));
-        return new Planilha(List.copyOf(nomes), abaPedida, folha(folha, textos), data1904);
+        return new Planilha(List.copyOf(nomes), abaPedida, folha(folha, textos, estilosDeData(entradas.get("xl/styles.xml"))),
+                data1904);
     }
 
     private static Map<String, byte[]> abrirZip(byte[] bytes) {
@@ -253,7 +279,53 @@ public final class LeitorDePlanilha {
         return saida.toByteArray();
     }
 
-    private static List<Linha> folha(byte[] xml, List<String> textos) {
+    /** Formatos embutidos de data (com ou sem hora); 18 a 21 e 45 a 47 são só hora. */
+    private static final Set<Integer> FORMATOS_DE_DATA = Set.of(14, 15, 16, 17, 22);
+    /** Texto entre aspas, colchetes (cor, moeda, idioma) e o caractere escapado não contam como d/y do formato. */
+    private static final Pattern PARTE_LITERAL_DO_FORMATO = Pattern.compile("\"[^\"]*\"|\\[[^]]*]|\\\\.");
+
+    /** Índices de {@code cellXfs} (atributo {@code s} da célula) cujo formato de número é de data. */
+    static Set<Integer> estilosDeData(byte[] xml) {
+        if (xml == null) {
+            return Set.of();
+        }
+        Set<Integer> formatosDeData = new java.util.HashSet<>(FORMATOS_DE_DATA);
+        Set<Integer> estilos = new java.util.HashSet<>();
+        try {
+            XMLStreamReader r = leitor(xml);
+            boolean emCelXfs = false;
+            int indice = 0;
+            while (r.hasNext()) {
+                int ev = r.next();
+                if (ev == XMLStreamConstants.START_ELEMENT) {
+                    String nome = r.getLocalName();
+                    if ("numFmt".equals(nome)) {
+                        String id = atributo(r, "numFmtId");
+                        String codigo = atributo(r, "formatCode");
+                        if (codigo != null && PARTE_LITERAL_DO_FORMATO.matcher(codigo).replaceAll("")
+                                .matches(".*[dDyY].*")) {
+                            formatosDeData.add(inteiro(id, -1));
+                        }
+                    } else if ("cellXfs".equals(nome)) {
+                        emCelXfs = true;
+                    } else if (emCelXfs && "xf".equals(nome)) {
+                        if (formatosDeData.contains(inteiro(atributo(r, "numFmtId"), -1))) {
+                            estilos.add(indice);
+                        }
+                        indice++;
+                    }
+                } else if (ev == XMLStreamConstants.END_ELEMENT && "cellXfs".equals(r.getLocalName())) {
+                    emCelXfs = false;
+                }
+            }
+            r.close();
+        } catch (XMLStreamException e) {
+            throw arquivo("Não foi possível ler a planilha.");
+        }
+        return estilos;
+    }
+
+    private static List<Linha> folha(byte[] xml, List<String> textos, Set<Integer> estilosDeData) {
         List<Linha> linhas = new ArrayList<>();
         try {
             XMLStreamReader r = leitor(xml);
@@ -262,6 +334,7 @@ public final class LeitorDePlanilha {
             int guardadas = 0;
             int coluna = 0;
             String tipo = null;
+            boolean comFormatoDeData = false;
             boolean formula = false;
             boolean valor = false;
             boolean erro = false;
@@ -285,6 +358,7 @@ public final class LeitorDePlanilha {
                     // ignorada; só a que tem conteúdo recusa a planilha, no fim da célula.
                     foraDoLimite = coluna >= COLUNAS_MAXIMAS;
                     tipo = atributo(r, "t");
+                    comFormatoDeData = estilosDeData.contains(inteiro(atributo(r, "s"), -1));
                     formula = false;
                     valor = false;
                     erro = "e".equals(tipo);
@@ -312,7 +386,8 @@ public final class LeitorDePlanilha {
                         }
                     }
                 } else if (ev == XMLStreamConstants.END_ELEMENT && "c".equals(r.getLocalName()) && celulas != null) {
-                    Celula lida = longo ? Celula.comErro() : celula(tipo, formula, valor, erro, texto.toString(), textos);
+                    Celula lida = longo ? Celula.comErro() : celula(tipo, formula, valor, erro, texto.toString(), textos,
+                            comFormatoDeData);
                     if (foraDoLimite) {
                         if (!vazia(lida)) {
                             throw arquivo("A planilha passa de 256 colunas.");
@@ -352,7 +427,7 @@ public final class LeitorDePlanilha {
     }
 
     private static Celula celula(String tipo, boolean formula, boolean valor, boolean erro, String bruto,
-                                 List<String> textos) {
+                                 List<String> textos, boolean comFormatoDeData) {
         if (erro) {
             return Celula.comErro();
         }
@@ -379,7 +454,8 @@ public final class LeitorDePlanilha {
         }
         try {
             BigDecimal n = new BigDecimal(t);
-            return Celula.deNumero(n.stripTrailingZeros().toPlainString());
+            String serial = n.stripTrailingZeros().toPlainString();
+            return comFormatoDeData ? new Celula(serial, true, false, true) : Celula.deNumero(serial);
         } catch (NumberFormatException e) {
             return Celula.deTexto(t);
         }
