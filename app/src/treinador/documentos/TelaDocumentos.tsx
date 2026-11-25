@@ -120,7 +120,7 @@ function Documentos() {
 
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
-      <Cabecalho titulo="Documentos (PDF)" subtitulo="Escolha o tema aplicado aos PDFs da consultoria e veja a prévia com dados de exemplo." />
+      <Cabecalho titulo="Documentos (PDF)" descricao="Escolha o tema aplicado aos PDFs da consultoria e veja a prévia com dados de exemplo." />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {documento ? (

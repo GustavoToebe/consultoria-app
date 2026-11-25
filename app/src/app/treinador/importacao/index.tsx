@@ -9,7 +9,7 @@ export default function Importacao() {
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho
         titulo="Importação"
-        subtitulo="Alunos, pesos, exercícios, alimentos e biblioteca. Planilhas completas ou leitura assistida de documentos."
+        descricao="Alunos, pesos, exercícios, alimentos e biblioteca. Planilhas completas ou leitura assistida de documentos."
       />
       <TelaImportacao />
     </Tela>

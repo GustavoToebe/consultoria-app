@@ -247,7 +247,7 @@ export default function ComunidadeTreinador() {
   return (
     <View style={estilos.raiz} onLayout={areaDosVideos.aoMedir}>
     <Tela bordas={['top']} folga={largo ? FOLGA_NO_PC : undefined}>
-      <Cabecalho titulo="Comunidade" subtitulo="Vídeos e mural do time." acoes={acoes} />
+      <Cabecalho titulo="Comunidade" descricao="Vídeos e mural do time." acoes={acoes} />
 
       <Abas<AbaComunidade>
         abas={[

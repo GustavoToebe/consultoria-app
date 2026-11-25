@@ -1,5 +1,7 @@
 import type { TagDeAluno } from '../api/tipos';
-import { dicaDoMaisTags, rotuloDoMaisTags, selosDeExcecaoDoAluno, tagsEscondidasDaLinha, TEXTO_DA_COBRANCA_VENCIDA } from './selosDaLinhaDeAluno';
+import {
+  alvoDoMaisTags, dicaDoMaisTags, lugarDaListaDeTags, rotuloDoMaisTags, selosDeExcecaoDoAluno, tagsEscondidasDaLinha, TEXTO_DA_COBRANCA_VENCIDA,
+} from './selosDaLinhaDeAluno';
 
 const tag = (n: number, nome = `Tag ${n}`): TagDeAluno => ({ id: `t0000000-0000-4000-8000-${String(n).padStart(12, '0')}`, nome, cor: 'AZUL' });
 const varias = (n: number) => Array.from({ length: n }, (_, i) => tag(i + 1));
@@ -43,5 +45,36 @@ describe('tags que não cabem na linha', () => {
 
   it('uma só escondida diz "tag" no singular', () => {
     expect(rotuloDoMaisTags(varias(3))).toBe('Mais 1 tag: Tag 3');
+  });
+});
+
+describe('alvoDoMaisTags', () => {
+  it('desenho pequeno: 44 × 44 centrado nele', () => {
+    expect(alvoDoMaisTags({ x: 100, y: 50, w: 30, h: 22 })).toEqual({ x: 93, y: 39, w: 44, h: 44 });
+  });
+
+  it('desenho largo: 4 px de folga de cada lado, altura de 44', () => {
+    expect(alvoDoMaisTags({ x: 10, y: 0, w: 60, h: 22 })).toEqual({ x: 6, y: -11, w: 68, h: 44 });
+  });
+
+  it('ainda sem medida: sem alvo (o botão não aparece em cima das iniciais)', () => {
+    expect(alvoDoMaisTags({ x: 0, y: 0, w: 0, h: 0 })).toBeNull();
+  });
+});
+
+describe('lugarDaListaDeTags', () => {
+  const janela = { largura: 390, altura: 800 };
+  const lista = { largura: 240, altura: 120 };
+
+  it('abre embaixo do "+N", alinhada pela esquerda dele', () => {
+    expect(lugarDaListaDeTags({ x: 60, y: 200, w: 30, h: 22 }, lista, janela)).toEqual({ esquerda: 60, topo: 226 });
+  });
+
+  it('perto da borda direita, encosta na folga; perto do fim da janela, sobe', () => {
+    expect(lugarDaListaDeTags({ x: 300, y: 700, w: 30, h: 22 }, lista, janela)).toEqual({ esquerda: 134, topo: 576 });
+  });
+
+  it('sem espaço em cima nem embaixo, fica dentro da janela', () => {
+    expect(lugarDaListaDeTags({ x: 0, y: 40, w: 30, h: 22 }, { largura: 240, altura: 750 }, janela)).toEqual({ esquerda: 16, topo: 34 });
   });
 });

@@ -30,6 +30,7 @@ import { ListaEmColunas } from '../ListaEmColunas';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { BarraDaBiblioteca } from './BarraDaBiblioteca';
+import { ImportarDePlanilha } from './ImportarDePlanilha';
 import { useCarregar } from '../../ui/useCarregar';
 
 /** Suplementos da consultoria: nome, marca, categoria, porção, sabores e link do produto. Não somam nada na dieta. */
@@ -74,13 +75,17 @@ export function AbaSuplementos() {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
+        <>
         <Vazio
           titulo={dados.length ? 'Nenhum suplemento encontrado' : 'Biblioteca de suplementos vazia'}
-          texto={dados.length ? 'Tente outro termo ou outra categoria.' : 'Cadastre um suplemento ou importe a lista pelo script de importação.'}
+          texto={dados.length ? 'Tente outro termo ou outra categoria.' : pode('BIBLIOTECA_ALTERAR') ? 'Cadastre um suplemento ou importe de uma planilha.' : 'Ainda não há itens cadastrados.'}
           acao={dados.length
             ? categoria ? { rotulo: 'Limpar filtros', aoTocar: () => setCategoria('') } : { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }
             : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar suplemento', aoTocar: () => setEditando('novo') } : undefined}
         />
+        {/* Só a biblioteca realmente vazia: busca ou filtro sem resultado leva a limpar, não a importar. */}
+        {dados.length === 0 ? <ImportarDePlanilha destino="suplementos" /> : null}
+        </>
       ) : null}
       {lista.length ? <ListaEmColunas divisorias>{lista.map((s) => (
         <LinhaDaLista key={s.id} titulo={s.nome} metadados={marcaECategoria(s)}

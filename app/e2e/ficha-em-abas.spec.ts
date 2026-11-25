@@ -353,7 +353,8 @@ test('Frequência e mobilidade sem pasta vigente: só os treinos, zero neutro, e
   expect(pediuMobilidade(pedidos)).toBe(false);
 });
 
-test('Frequência: indicadores neutros (sem pintura), o valor em texto e a mobilidade igual', async ({ page }) => {
+// 25/11: só os treinos levam a bolinha azul do treino (a do Resumo), sem pintar o cartão; a mobilidade fica sem bolinha.
+test('Frequência: indicadores neutros (sem pintura), o valor em texto e a bolinha azul só nos treinos', async ({ page }) => {
   await temaClaro(page);
   await abrir(page, { url: `/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`, extra: comPastaVigente([PLANO_DE_MOBILIDADE]) });
   for (const [rotulo, valor] of [['Treinos esta semana', '1 treino'], ['Mobilidade esta semana', '1 dia']] as const) {
@@ -361,6 +362,12 @@ test('Frequência: indicadores neutros (sem pintura), o valor em texto e a mobil
     await expect(cartao.getByText(valor, { exact: true })).toBeVisible();
     expect(await cartao.evaluate((e) => getComputedStyle(e).backgroundImage)).toBe('none');
     expect(await corDe(cartao.getByText(valor, { exact: true }))).toBe(rgb(CLARO.texto));
+    const bolinhas = cartao.locator('[aria-hidden="true"]');
+    if (rotulo === 'Mobilidade esta semana') await expect(bolinhas).toHaveCount(0);
+    else {
+      await expect(bolinhas).toHaveCount(1);
+      expect(await bolinhas.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(rgb(AZUL_CLARO));
+    }
   }
 });
 

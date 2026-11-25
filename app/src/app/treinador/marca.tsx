@@ -18,7 +18,7 @@ export default function Marca() {
   const [conflitos, setConflitos] = useState(0);
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Marca" subtitulo="Nome, logo, cor e tema que os seus alunos veem no app." />
+      <Cabecalho titulo="Marca" descricao="Nome, logo, cor e tema que os seus alunos veem no app." />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados ? (

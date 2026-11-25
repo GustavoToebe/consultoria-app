@@ -231,7 +231,7 @@ function FolhaDetalhe({ id, destino, aoFechar }: { id: string; destino: string; 
   return (
     <Folha visivel titulo={`Importação de ${rotuloDoDestino(dados?.destino ?? destino)}`} aoFechar={aoFechar}
       // Folha média para os dois resultados (24/11); o comum é curto e fica na altura do conteúdo, sem faixa vazia.
-      largura={LARGURA_FOLHA_LARGA} alturaDoConteudo={!completa} acaoNoTopo={completa ? undefined : selo ?? undefined}>
+      largura={LARGURA_FOLHA_LARGA} acaoNoTopo={completa ? undefined : selo ?? undefined}>
       {erro ? <MensagemErro texto={textoDoErroDaApi(erro)} tentarDeNovo={recarregar} /> : null}
       {carregando && !dados ? <Esqueleto cartoes={completa ? 3 : 1} /> : null}
       {dados ? (dados.destino === DESTINO_PLANILHA_COMPLETA ? <DetalheDaPlanilha dados={dados} selo={selo} /> : <ResultadoDaImportacao dados={dados} />) : null}
@@ -480,7 +480,7 @@ export function AssistenteDaImportacao() {
 
   return (
     <TelaDoEditor largura={LARGURA_MAXIMA} rodape={rodape}
-      cabecalho={<Cabecalho titulo={titulo} subtitulo="Nada é gravado antes de Confirmar importação. O arquivo não fica guardado."
+      cabecalho={<Cabecalho titulo={titulo} descricao="Nada é gravado antes de Confirmar importação. O arquivo não fica guardado."
         trilha={[{ rotulo: 'Importação', href: '/treinador/importacao' }]} />}
       barra={<View style={estilos.limite}><Etapas etapa={etapa} estreita={estreita} /></View>}>
       <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={[estilos.coluna, limitada && estilos.limite]}>

@@ -114,9 +114,8 @@ test('fluxo feliz: 2 alunos × 3 parcelas, voltar mantém o digitado, "Gerar 6 c
     { pedidoId: expect.stringMatching(UUID_V4), alunoIds: [ANA.id, BRUNO.id], descricao: 'Camiseta do time', valorCentavos: 15_000, primeiroVencimento: '2026-10-31', parcelas: 3 },
   ]);
   expect(pedidos.filter(ehAvulsa)).toHaveLength(1);
-  // A lista recarregou e mostra as avulsas com a descrição e o selo.
-  await expect(page.getByText('Camiseta do time (Parcela 2/3)').first()).toBeVisible();
-  await expect(page.getByText('Avulsa', { exact: true }).first()).toBeVisible();
+  // A lista recarregou e mostra as avulsas (a descrição só no nome da linha e no detalhe; a Competência da tabela é "—").
+  await expect(page.getByRole('checkbox', { name: /^Selecionar cobrança de .*, Camiseta do time \(Parcela 2\/3\)$/ }).first()).toBeVisible();
   await page.screenshot({ path: `${CAPTURAS}/lista-com-avulsas-1280.png`, fullPage: true });
 
   // Reabrir depois do sucesso é outro pedido (D11): gera de novo, não devolve o anterior.
@@ -420,15 +419,20 @@ for (const largura of [1280, 390]) {
   test(`a avulsa na lista, na folha e no lote em ${largura}px: selo, descrição e nenhum "—" de competência`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { errosDaPagina } = await abrir(page, estadoFinanceiro({ cobrancas: [{ ...AVULSA }, { ...BRUNA }], alunos: [ANA] }));
-    await expect(page.getByText('Camiseta do time (Parcela 1/3)').first()).toBeVisible();
-    await expect(page.getByText('Avulsa', { exact: true }).first()).toBeVisible();
-    // 24/11: a descrição vai para a coluna da competência (uma linha), no lugar do antigo "Não se aplica".
-    if (largura === 1280) await expect(page.getByRole('table', { name: 'Cobranças' }).getByText('Camiseta do time (Parcela 1/3)')).toBeVisible();
+    // 25/11: a tabela (1280) tem a Competência só em MM/AAAA, "—" na avulsa; a descrição fica no detalhe (e, no celular, no cartão).
+    if (largura === 1280) {
+      const tabela = page.getByRole('table', { name: 'Cobranças' });
+      await expect(tabela.getByText('Camiseta do time (Parcela 1/3)')).toHaveCount(0);
+      await expect(tabela.getByRole('row').filter({ hasText: 'Ana Avulsa' }).getByText('—', { exact: true }).first()).toBeVisible();
+    } else {
+      await expect(page.getByText('Camiseta do time (Parcela 1/3)').first()).toBeVisible();
+      await expect(page.getByText('Avulsa', { exact: true }).first()).toBeVisible();
+    }
     await expect(page.getByText('Não se aplica')).toHaveCount(0);
     await expect(page.getByRole('checkbox', { name: 'Selecionar cobrança de Ana Avulsa, Camiseta do time (Parcela 1/3)' })).toBeVisible();
     await semRolagemHorizontal(page);
     // A página rola por dentro: a captura vai até a linha da avulsa (no celular, o cartão; no PC, a linha da tabela).
-    await page.getByText('Camiseta do time (Parcela 1/3)').first().scrollIntoViewIfNeeded();
+    await page.getByRole('checkbox', { name: 'Selecionar cobrança de Ana Avulsa, Camiseta do time (Parcela 1/3)' }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${CAPTURAS}/lista-avulsa-${largura}.png` });
 
     await page.getByRole('button', { name: 'Abrir cobrança avulsa de Ana Avulsa' }).click();

@@ -1,5 +1,6 @@
 import type { ErgogenicoDaBiblioteca, ItemErgogenico } from '../api/tipos';
 import { SEM_DADO } from './formatos';
+import { SEM_CATEGORIA } from './seletorDeCategoria';
 
 /**
  * Regras de apresentação da biblioteca de medicação e ergogênicos (sem tela). O item é só o que está no rótulo: nada
@@ -11,23 +12,12 @@ import { SEM_DADO } from './formatos';
  * A categoria é texto livre do treinador (pedido do Saraiva em 17/10: nada de "Injetáveis/Peptídeos" fixos na entrada).
  * Item sem categoria fica no grupo "Sem categoria", sempre por último.
  */
-export const SEM_CATEGORIA = 'Sem categoria';
+export { SEM_CATEGORIA };
 
 /** Categorias que existem na lista, sem repetir e em ordem alfabética (filtro e sugestões do formulário). */
 export function categoriasDosErgogenicos(lista: readonly Pick<ErgogenicoDaBiblioteca, 'categoria'>[]): string[] {
   const nomes = new Set(lista.map((e) => e.categoria?.trim()).filter((c): c is string => !!c));
   return [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-}
-
-/**
- * Categoria do texto digitado no seletor: a que já existe com o mesmo nome (sem acento, caixa nem espaços sobrando) fica
- * com a grafia dela, para não nascer um grupo repetido; senão, o texto limpo. Vazio = `null` ("Sem categoria").
- */
-export function categoriaDoTexto(texto: string, categorias: readonly string[]): string | null {
-  const limpo = texto.replace(/\s+/g, ' ').trim();
-  if (!limpo) return null;
-  const chave = semAcentoMinusculo(limpo);
-  return categorias.find((c) => semAcentoMinusculo(c) === chave) ?? limpo;
 }
 
 export interface GrupoDeErgogenicos {

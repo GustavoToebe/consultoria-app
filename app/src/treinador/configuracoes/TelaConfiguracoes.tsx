@@ -46,7 +46,7 @@ export function TelaConfiguracoes() {
   // Na largura toda do conteúdo da Tela (a mesma de Financeiro e Vitrine, que respeita "Largura do conteúdo").
   return (
     <Tela largura={LARGURA_LISTA} bordas={['top']}>
-      <Cabecalho titulo="Configurações" subtitulo="Sua conta, a consultoria, a equipe e o atendimento, num lugar só." />
+      <Cabecalho titulo="Configurações" descricao="Sua conta, a consultoria, a equipe e o atendimento, num lugar só." />
       <View style={estilos.busca}>
         <Campo ref={campo} rotulo="Pesquisar configuração" valor={busca} aoMudar={setBusca} placeholder="Ex.: senha, logo, lembrete…"
           inputMode="search" autoCapitalize="none" autoCorrect={false} spellCheck={false} autoComplete="off" enterKeyHint="search" />

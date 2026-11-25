@@ -34,7 +34,7 @@ export default function MinhaConta() {
   const consumo = useCarregar('consumo-do-plano', () => consumoDoPlano());
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Assinatura e faturas" subtitulo="Cadastro da consultoria, plano contratado e faturas." />
+      <Cabecalho titulo="Assinatura e faturas" descricao="Cadastro da consultoria, plano contratado e faturas." />
       {conta.dados?.previa ? (
         <Alerta tom="atencao" titulo="Prévia" texto="Dados de demonstração. Os dados reais da sua assinatura aparecem aqui quando estiverem disponíveis." />
       ) : null}

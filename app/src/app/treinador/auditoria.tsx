@@ -44,7 +44,7 @@ export default function Auditoria() {
   };
   const nomeDe=(id:string)=>membros?.find(m=>m.id===id)?.nome??null;
   const chips=chipsDosFiltros(filtros,nomeDe,ACOES_AUDITORIA);
-  return <Tela largura={LARGURA_LISTA} bordas={['top']}><Cabecalho titulo="Auditoria" subtitulo="Ações feitas na consultoria, guardadas por um ano. Valores clínicos não aparecem."/>
+  return <Tela largura={LARGURA_LISTA} bordas={['top']}><Cabecalho titulo="Auditoria" descricao="Ações feitas na consultoria, guardadas por um ano. Valores clínicos não aparecem."/>
     <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))}
       painelLateral={{titulo:'Filtros de eventos'}} seletores={(atuais,mudar)=><>
         {/* Pessoa e ação com o mesmo padrão: várias opções com busca (nada marcado = todas). */}

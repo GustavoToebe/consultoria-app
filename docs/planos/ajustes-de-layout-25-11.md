@@ -40,3 +40,24 @@ Corrigir, num lote só, defeitos de layout e de legibilidade apontados pelo Gust
 - Teto do editor na ultralarga do questionário (vão de ~1300 px em 3440): decidir entre teto maior, prévia de 720 px ou aceitar.
 - `ValoresDaDieta` com prop `tracos` e "complemento do título" na `LinhaDaLista` (ambos hoje contornados com `shortcut:`).
 - Linha tracejada da meta da água só conferida na web.
+
+## Fechamento (25/11)
+Pedido do Gustavo: marcador só com cor (T-010), Cobranças com atraso no selo (T-011), editor de questionário com limiares 1000/1440 (T-012), TelaDoEditor, prop morta da Folha (T-013), seletor de categoria compartilhado (T-014), "+N" das tags com teclado e toque (T-015), suíte e2e completa.
+- [x] T-010 `corDoMarcador` no `CartaoDeIndicador` + "Treinos esta semana"
+- [x] T-011 Cobranças: "Vencida há N dias" no selo, linha de 53 px em 1280 e 1920, Competência só MM/AAAA
+- [x] T-012 Editor de questionário (índice a partir de 1000 px de área, três colunas a partir de 1440) e `mostrarAbaixoDaBarra` corrigido
+- [x] T-013 prop `alturaDoConteudo` removida
+- [x] T-014 `treinador/SeletorDeCategoria` em Outros e na Vitrine
+- [x] T-015 "+N" das tags como botão (teclado, toque, Esc)
+- [x] T-018 regressão achada pela suíte completa: `comparacao-de-fotos.spec:421` (a ação do rodapé descia quando o erro aparecia na folha centralizada) corrigida em `ui/Folha.tsx` + `ui/ancoraDoRodape.ts`
+- [x] Suíte e2e COMPLETA: 2996 passaram, 282 pulados (captura), 0 falhas na rodada do T-018; na primeira rodada, `painel.spec:391` falhou e passou isolada (intermitência já conhecida)
+- Commit/run: ver "Passos" do README ao publicar.
+
+## Limpeza dos textos do topo (25/11)
+Pedido do Gustavo: descrição do cabeçalho vira ⓘ (T-019), Financeiro sem frases soltas e com a ação na linha da busca (T-020), Biblioteca sem o link "Importar da sua planilha" (T-021).
+- [x] T-019 `ui/AjudaDoCabecalho` + `dominio/ajudaDaTela` (balão com "Saiba mais" → `?secao=`); ~21 telas passam `descricao` no lugar de `subtitulo`
+- [x] T-020 Financeiro: `AcaoDaBusca` na `BarraDeFiltros`, texto das abas e `AvisoDoHistoricoParcial` removidos
+- [x] T-021 Biblioteca: link do topo removido; estado vazio com "Importar de planilha" (`ImportarDePlanilha`)
+- [x] Verificação: e2e das áreas (biblioteca, financeiro, cabeçalho, configurações) 498 passaram, 0 falhas; tsc, lint e jest na árvore final (ver relatório)
+- Pendências: balão ⓘ não conferido no nativo; `AcaoDaBusca` vira variante nomeada da `BarraDeFiltros` se for reutilizada; remover a ressalva de histórico parcial também do Início do treinador (decisão do Gustavo).
+- Commit/run: ver "Passos" do README ao publicar.

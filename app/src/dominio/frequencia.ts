@@ -118,6 +118,8 @@ export interface IndicadorDaFrequencia {
   detalhe: string | null;
   /** Só no indisponível: por que não há número. */
   motivo?: string;
+  /** Cor de categoria só na bolinha (o azul do treino, `useDestaques().azul`, o do Resumo); a mobilidade não tem. */
+  marcador?: 'azul';
 }
 
 export interface ResumoDaFrequencia {
@@ -149,6 +151,7 @@ export function resumoDaFrequencia(
     valor: comPrevisto ? `${f.semana} de ${contagem(comPrevisto, 'treino', 'treinos')}` : contagem(f.semana, 'treino', 'treinos'),
     estado: f.semana === 0 ? 'zero' : 'valor',
     detalhe: `Semana passada: ${f.semanaPassada}`,
+    marcador: 'azul',
   }];
   if (vigente && mobilidade !== 'oculta') {
     indicadores.push(mobilidade === null

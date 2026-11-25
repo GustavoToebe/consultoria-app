@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { abaInicial, abasDaBiblioteca, type AbaDaBiblioteca } from '../../dominio/abasDaBiblioteca';
-import { destinosPermitidos } from '../../dominio/mapeamentoDaImportacao';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { LARGURA_LISTA } from '../../tema/tokens';
 import { AbaAlimentos } from '../../treinador/biblioteca/AbaAlimentos';
@@ -12,7 +11,6 @@ import { AbaSuplementos } from '../../treinador/biblioteca/AbaSuplementos';
 import { Abas } from '../../ui/Abas';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Escolha } from '../../ui/Escolha';
-import { LinkTexto } from '../../ui/LinkTexto';
 import { Tela } from '../../ui/Tela';
 
 /** Biblioteca da consultoria: exercícios, alimentos, suplementos e o catálogo. Planilhas vão em Importação. */
@@ -29,8 +27,7 @@ export default function Biblioteca() {
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo="Biblioteca" mostrarMarca="celular"
-        subtitulo="Exercícios, alimentos e suplementos que você usa nos planos: cadastre, copie do catálogo pronto ou importe da sua planilha." />
-      {destinosPermitidos(pode).length > 0 ? <LinkTexto href="/treinador/importacao" texto="Importar da sua planilha" /> : null}
+        descricao="Exercícios, alimentos e suplementos que você usa nos planos: cadastre, copie do catálogo pronto ou importe da sua planilha." />
       <Abas abas={abas} ativa={aba} aoMudar={setAba} />
       {aba === 'exercicios' ? <AbaExercicios /> : null}
       {aba === 'alimentos' ? (

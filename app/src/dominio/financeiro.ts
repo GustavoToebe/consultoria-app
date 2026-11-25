@@ -45,10 +45,10 @@ import { contagemParaTela, MARCA_PARCIAL } from './numeros';
  */
 export const NOTA_CONSIDERA_GERADAS = 'considera as cobranças já geradas';
 
-/** Frase geral do Financeiro (Visão geral e Lançamentos), uma vez por tela, ao lado das notas de "cobranças já geradas". */
-export const NOTA_REGISTROS_DISPONIVEIS = 'Os valores consideram os registros disponíveis no sistema.';
-
-/** Ressalva informativa de `Painel.historicoFinanceiroParcial` (13/11): texto exato decidido pelo Gustavo. */
+/**
+ * Ressalva informativa de `Painel.historicoFinanceiroParcial` (13/11): texto exato decidido pelo Gustavo. Desde 25/11 só o
+ * Início a mostra; as abas do Financeiro não.
+ */
 export const AVISO_HISTORICO_PARCIAL =
   'Parte do histórico financeiro foi removida em uma limpeza anterior. Os valores exibidos consideram os registros preservados e podem não representar todo o movimento dos períodos afetados.';
 
@@ -185,6 +185,23 @@ export function seloDaCobranca(c: { situacao: SituacaoDaCobranca; vencida?: bool
     default:
       return { tom: 'neutro', rotulo: SEM_DADO };
   }
+}
+
+/**
+ * O selo da situação na tabela de cobranças (25/11): a vencida diz há quanto tempo, dentro do selo ("Vencida há 16 dias",
+ * "Vencida há 1 dia"), para a linha ter uma altura só. Sem os dias da API (nulo, ou zero: vencida hoje), o selo continua
+ * "Vencida", como `seloDaCobranca`. As outras situações não mudam.
+ */
+export function seloDaCobrancaNaTabela(c: Pick<CobrancaResponse, 'situacao' | 'vencida' | 'diasDeAtraso'>): SeloFinanceiro {
+  const selo = seloDaCobranca(c);
+  const dias = c.diasDeAtraso;
+  if (c.situacao !== 'ABERTA' || !c.vencida || typeof dias !== 'number' || !Number.isFinite(dias) || dias < 1) return selo;
+  return { ...selo, rotulo: `${selo.rotulo} há ${dias} ${dias === 1 ? 'dia' : 'dias'}` };
+}
+
+/** A coluna Competência da tabela: só o mês "MM/AAAA"; a avulsa e a parcela de acordo, que não têm, dizem "—" (a descrição fica no detalhe). */
+export function competenciaDaCobranca(c: Pick<CobrancaResponse, 'competencia' | 'tipo'>): string {
+  return c.competencia && !temDescricaoPropria(c.tipo) ? rotuloDoMesNumerico(c.competencia) : SEM_DADO;
 }
 
 /** Cobrança de saída (criada ao encerrar o plano): o nome no app inteiro, aluno e treinador. Nunca "Mensalidade". */
