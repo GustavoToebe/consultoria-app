@@ -94,6 +94,11 @@ public class CobrancaAluno {
     private String provedor;
     @Column(name = "id_externo")
     private String idExterno;
+    @OptimisticLock(excluded = true)
+    @Column(name = "asaas_cobranca_id", length = 60)
+    private String asaasCobrancaId;
+    @Column(name = "valor_liquido_centavos")
+    private Long valorLiquidoCentavos;
     @Column(name = "pago_em")
     private LocalDate pagoEm;
     @Column(name = "baixa_por")
@@ -279,6 +284,16 @@ public class CobrancaAluno {
         }
     }
 
+    void registrarAsaasCobranca(String asaasCobrancaId) {
+        this.asaasCobrancaId = asaasCobrancaId;
+    }
+
+    void registrarValorLiquido(Long valorLiquidoCentavos) {
+        if (valorLiquidoCentavos != null && valorLiquidoCentavos >= 0) {
+            this.valorLiquidoCentavos = valorLiquidoCentavos;
+        }
+    }
+
     public boolean vencida(LocalDate hoje) {
         return situacao == Situacao.ABERTA && vencimento.isBefore(hoje);
     }
@@ -297,6 +312,8 @@ public class CobrancaAluno {
     public FormaDePagamento getForma() { return forma; }
     public String getProvedor() { return provedor; }
     public String getIdExterno() { return idExterno; }
+    public String getAsaasCobrancaId() { return asaasCobrancaId; }
+    public Long getValorLiquidoCentavos() { return valorLiquidoCentavos; }
     public LocalDate getPagoEm() { return pagoEm; }
     public UUID getBaixaPor() { return baixaPor; }
     public String getObservacao() { return observacao; }

@@ -217,6 +217,8 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
 
     long countByVencimentoBetween(LocalDate de, LocalDate ate);
 
+    long countByProvedorAndSituacao(String provedor, CobrancaAluno.Situacao situacao);
+
     /** O aluno de cada cobrança pedida (sem travar): o que sobra do pedido é de outra consultoria ou não existe (o {@code @TenantId} filtra). */
     interface Dono {
         UUID getId();

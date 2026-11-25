@@ -24,7 +24,13 @@ public final class FormasDeRecebimentoDtos {
 
     /** {@code versao} nula só na primeira gravação (a consultoria ainda não tem linha). {@code manual} é sempre {@code true}. */
     public record FormasDeRecebimentoRequest(@NotNull Boolean infinitePay, @NotNull Boolean linkProprio, @NotNull Boolean pix,
-                                             @NotNull Boolean manual, @Valid PixConfigRequest pixConfig, Long versao) { }
+                                             @NotNull Boolean manual, @Valid PixConfigRequest pixConfig, Long versao,
+                                             Boolean overtrainingPay) {
+        public FormasDeRecebimentoRequest(Boolean infinitePay, Boolean linkProprio, Boolean pix, Boolean manual,
+                                          PixConfigRequest pixConfig, Long versao) {
+            this(infinitePay, linkProprio, pix, manual, pixConfig, versao, null);
+        }
+    }
 
     /** {@code chaveConfigurada} é sempre verdadeiro quando o objeto existe; a chave inteira nunca volta. */
     public record PixConfigResponse(String tipoChave, boolean chaveConfigurada, String chaveMascarada, String nomeRecebedor,
@@ -39,6 +45,6 @@ public final class FormasDeRecebimentoDtos {
     }
 
     /** {@code pixConfig} nulo = nunca configurado; {@code versao} nula = nunca gravou (vale o padrão: InfinitePay e Manual ligados). */
-    public record FormasDeRecebimentoResponse(boolean infinitePay, boolean linkProprio, boolean pix, boolean manual,
-                                              PixConfigResponse pixConfig, Long versao) { }
+    public record FormasDeRecebimentoResponse(boolean infinitePay, boolean overtrainingPay, boolean linkProprio, boolean pix,
+                                              boolean manual, PixConfigResponse pixConfig, Long versao) { }
 }

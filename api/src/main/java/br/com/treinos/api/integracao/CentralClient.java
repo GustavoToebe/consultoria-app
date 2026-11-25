@@ -58,28 +58,44 @@ public class CentralClient {
 
     /** {@code caminho} começa em {@code /integracao/v1/...} e inclui a query, exatamente como será enviado. */
     public Resposta get(String caminho) throws IOException, InterruptedException {
-        return enviar("GET", caminho);
+        return enviar("GET", caminho, null);
     }
 
     /** POST de corpo vazio (link de pagamento, contrato 6.4), assinado como o GET. */
     public Resposta post(String caminho) throws IOException, InterruptedException {
-        return enviar("POST", caminho);
+        return enviar("POST", caminho, null);
     }
 
-    private Resposta enviar(String metodo, String caminho) throws IOException, InterruptedException {
+    /** POST com corpo JSON assinado por HMAC-SHA256 sobre os bytes reais do corpo. */
+    public Resposta post(String caminho, byte[] corpoJson) throws IOException, InterruptedException {
+        return postJson(caminho, corpoJson);
+    }
+
+    /** POST com corpo JSON assinado por HMAC-SHA256 sobre os bytes reais do corpo. */
+    public Resposta postJson(String caminho, byte[] corpoJson) throws IOException, InterruptedException {
+        return enviar("POST", caminho, corpoJson == null ? new byte[0] : corpoJson);
+    }
+
+    private Resposta enviar(String metodo, String caminho, byte[] corpoJson) throws IOException, InterruptedException {
         var chave = chaves.saida().orElseThrow(IntegracaoException::naoConfigurada);
         String timestamp = Long.toString(java.time.Instant.now().getEpochSecond());
         String nonce = UUID.randomUUID().toString();
-        String assinatura = HmacAssinatura.assinar(chave.segredo(), metodo, caminho, timestamp, nonce, new byte[0]);
-        HttpRequest requisicao = HttpRequest.newBuilder(URI.create(base + caminho)).timeout(RESPOSTA)
-                .method(metodo, HttpRequest.BodyPublishers.noBody())
+        byte[] bytesParaAssinar = corpoJson == null ? new byte[0] : corpoJson;
+        String assinatura = HmacAssinatura.assinar(chave.segredo(), metodo, caminho, timestamp, nonce, bytesParaAssinar);
+        HttpRequest.BodyPublisher publisher = corpoJson == null
+                ? HttpRequest.BodyPublishers.noBody()
+                : HttpRequest.BodyPublishers.ofByteArray(corpoJson);
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(base + caminho)).timeout(RESPOSTA)
+                .method(metodo, publisher)
                 .header(IntegracaoFiltro.CHAVE, chave.id())
                 .header(IntegracaoFiltro.TIMESTAMP, timestamp)
                 .header(IntegracaoFiltro.NONCE, nonce)
                 .header(IntegracaoFiltro.ASSINATURA, assinatura)
-                .header("Accept", "application/json")
-                .build();
-        HttpResponse<byte[]> resposta = http.send(requisicao, HttpResponse.BodyHandlers.ofByteArray());
+                .header("Accept", "application/json");
+        if (corpoJson != null) {
+            builder.header("Content-Type", "application/json");
+        }
+        HttpResponse<byte[]> resposta = http.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
         if (resposta.body().length > MAXIMO_BYTES) {
             throw new IOException("Resposta da central grande demais.");
         }

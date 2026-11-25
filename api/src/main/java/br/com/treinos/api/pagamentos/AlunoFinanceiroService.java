@@ -1,6 +1,8 @@
 package br.com.treinos.api.pagamentos;
 
 import br.com.plataforma.comum.web.ConflictException;
+import br.com.treinos.api.alunos.Aluno;
+import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancaDoAluno;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoResponse;
@@ -37,11 +39,17 @@ public class AlunoFinanceiroService {
     private final InfinitePayProperties infinitePay;
     private final FormasDeRecebimentoService formas;
     private final CobrancaAutomatica automatica;
+    private final AsaasProperties asaasProperties;
+    private final SubcontaAsaasRepository subcontasAsaas;
+    private final ResponsavelFinanceiroRepository responsaveis;
+    private final AlunoRepository alunos;
 
     public AlunoFinanceiroService(ContratacaoAlunoRepository contratacoes, CobrancaAlunoRepository cobrancas,
                                   PlanoComercialRepository planos, CredencialPagamentoRepository credenciais,
                                   InfinitePayProperties infinitePay, FormasDeRecebimentoService formas,
-                                  CobrancaAutomatica automatica) {
+                                  CobrancaAutomatica automatica, AsaasProperties asaasProperties,
+                                  SubcontaAsaasRepository subcontasAsaas,
+                                  ResponsavelFinanceiroRepository responsaveis, AlunoRepository alunos) {
         this.formas = formas;
         this.automatica = automatica;
         this.contratacoes = contratacoes;
@@ -49,11 +57,11 @@ public class AlunoFinanceiroService {
         this.planos = planos;
         this.credenciais = credenciais;
         this.infinitePay = infinitePay;
+        this.asaasProperties = asaasProperties;
+        this.subcontasAsaas = subcontasAsaas;
+        this.responsaveis = responsaveis;
+        this.alunos = alunos;
     }
-
-
-
-
 
     @Transactional(readOnly = true)
     public FinanceiroDoAluno meu(UsuarioAutenticado eu) {
@@ -93,9 +101,34 @@ public class AlunoFinanceiroService {
         boolean planoTemLink = plano != null && plano.linkDePagamento() != null && mensalidadeAberta;
         List<FormasDePagamentoDoAluno.Forma> formasDePagamento = FormasDePagamentoDoAluno.decidir(ligadas,
                 pagamentoOnline, planoTemLink, pagavelAberta);
+
+        Optional<SubcontaAsaas> subconta = asaasProperties.habilitado() ? subcontasAsaas.daConsultoria() : Optional.empty();
+        boolean subcontaAtiva = subconta.map(s -> s.getSituacao() == SubcontaAsaas.Situacao.ATIVA).orElse(false);
+        boolean overtrainingPayDisponivel = !soDaKiwify && asaasProperties.habilitado()
+                && formas.overtrainingPayLigado() && subcontaAtiva;
+        int overtrainingPayMaxParcelas = subconta.map(SubcontaAsaas::getMaxParcelas).orElse(12);
+        String overtrainingPayJuros = subconta.map(s -> s.getJurosParcelamento().name())
+                .orElse(JurosDoParcelamento.ALUNO.name());
+        boolean cpfPagadorCadastrado = temCpfCadastrado(alunoId);
+
         return new FinanceiroDoAluno(plano, abertas.stream()
                 .map(c -> Respostas.cobrancaDoAluno(c, hoje, CobrancaAutomatica.eh(c, automaticas))).toList(), historico,
-                pagamentoOnline, formasDePagamento);
+                pagamentoOnline, formasDePagamento, overtrainingPayDisponivel, overtrainingPayMaxParcelas,
+                overtrainingPayJuros, cpfPagadorCadastrado);
+    }
+
+    private boolean temCpfCadastrado(UUID alunoId) {
+        boolean cpfResponsavel = responsaveis.findByAlunoId(alunoId)
+                .map(ResponsavelFinanceiro::getCpf)
+                .filter(cpf -> !cpf.isBlank())
+                .isPresent();
+        if (cpfResponsavel) {
+            return true;
+        }
+        return alunos.findById(alunoId)
+                .map(Aluno::getCpf)
+                .filter(cpf -> !cpf.isBlank())
+                .isPresent();
     }
 
     /**

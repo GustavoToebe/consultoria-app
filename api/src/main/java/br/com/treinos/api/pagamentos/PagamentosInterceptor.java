@@ -8,8 +8,9 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * Aplica {@link ExigePagamentos}, {@link ExigeInfinitePay}, {@link ExigeKiwify} e {@link ExigeRecebimentoOnline} antes do
- * controller (nessa ordem: o financeiro desligado vale mais); o erro sai pelo tratador da biblioteca.
+ * Aplica {@link ExigePagamentos}, {@link ExigeInfinitePay}, {@link ExigeKiwify}, {@link ExigeAsaas} e
+ * {@link ExigeRecebimentoOnline} antes do controller (nessa ordem: o financeiro desligado vale mais); o erro sai pelo
+ * tratador da biblioteca.
  */
 @Component
 public class PagamentosInterceptor implements HandlerInterceptor {
@@ -17,11 +18,14 @@ public class PagamentosInterceptor implements HandlerInterceptor {
     private final PagamentosProperties propriedades;
     private final InfinitePayProperties infinitePay;
     private final KiwifyProperties kiwify;
+    private final AsaasProperties asaas;
 
-    public PagamentosInterceptor(PagamentosProperties propriedades, InfinitePayProperties infinitePay, KiwifyProperties kiwify) {
+    public PagamentosInterceptor(PagamentosProperties propriedades, InfinitePayProperties infinitePay,
+                                 KiwifyProperties kiwify, AsaasProperties asaas) {
         this.propriedades = propriedades;
         this.infinitePay = infinitePay;
         this.kiwify = kiwify;
+        this.asaas = asaas;
     }
 
     @Override
@@ -39,7 +43,10 @@ public class PagamentosInterceptor implements HandlerInterceptor {
         if (!kiwify.habilitado() && tem(metodo, ExigeKiwify.class)) {
             throw new KiwifyIndisponivelException();
         }
-        if (!infinitePay.habilitado() && !kiwify.habilitado() && tem(metodo, ExigeRecebimentoOnline.class)) {
+        if (!asaas.habilitado() && tem(metodo, ExigeAsaas.class)) {
+            throw new AsaasIndisponivelException();
+        }
+        if (!infinitePay.habilitado() && !kiwify.habilitado() && !asaas.habilitado() && tem(metodo, ExigeRecebimentoOnline.class)) {
             throw new RecebimentoOnlineIndisponivelException();
         }
         return true;

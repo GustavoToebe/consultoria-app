@@ -84,6 +84,12 @@ class AvisoDePagamentoRepositorio {
                 (rs, n) -> rs.getObject(1, UUID.class), token).stream().findFirst();
     }
 
+    /** A consultoria dona do token do caminho do webhook do Asaas (rota pública, antes de saber a consultoria). */
+    Optional<UUID> consultoriaDoTokenDoAsaas(String tokenCaminho) {
+        return jdbc.query("select consultoria_id from subconta_asaas where token_caminho = ?",
+                (rs, n) -> rs.getObject(1, UUID.class), tokenCaminho).stream().findFirst();
+    }
+
     /**
      * O aviso da Kiwify: {@code referencia} = {@code order_id} e {@code transacao} = {@code order_id:evento}, então o mesmo
      * pedido e evento repetidos só rearmam a consulta (mesmo upsert e mesmo teto de {@link #registrar}). Depois de gravar ou

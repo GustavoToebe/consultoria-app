@@ -28,19 +28,28 @@ class VerificacaoDasCredenciais implements ApplicationRunner {
     private final CifraDePagamento cifra;
     private final InfinitePayProperties infinitePay;
     private final KiwifyProperties kiwify;
+    private final AsaasProperties asaas;
 
-    /** Só a InfinitePay (a Kiwify desligada): para quem confere apenas as API Keys do recebimento online. */
+    /** Só a InfinitePay (Kiwify e Asaas desligados): para quem confere apenas as API Keys do recebimento online. */
     VerificacaoDasCredenciais(JdbcTemplate jdbc, CifraDePagamento cifra, InfinitePayProperties infinitePay) {
-        this(jdbc, cifra, infinitePay, new KiwifyProperties(false, null, null));
+        this(jdbc, cifra, infinitePay, new KiwifyProperties(false, null, null),
+                new AsaasProperties(false, null, null, null, null, null, null, false));
+    }
+
+    VerificacaoDasCredenciais(JdbcTemplate jdbc, CifraDePagamento cifra, InfinitePayProperties infinitePay,
+                              KiwifyProperties kiwify) {
+        this(jdbc, cifra, infinitePay, kiwify,
+                new AsaasProperties(false, null, null, null, null, null, null, false));
     }
 
     @Autowired
     VerificacaoDasCredenciais(JdbcTemplate jdbc, CifraDePagamento cifra, InfinitePayProperties infinitePay,
-                              KiwifyProperties kiwify) {
+                              KiwifyProperties kiwify, AsaasProperties asaas) {
         this.jdbc = jdbc;
         this.cifra = cifra;
         this.infinitePay = infinitePay;
         this.kiwify = kiwify;
+        this.asaas = asaas;
     }
 
     @Override
@@ -54,6 +63,12 @@ class VerificacaoDasCredenciais implements ApplicationRunner {
             List<String> ids = jdbc.queryForList("select distinct split_part(t.v, ':', 2) from credencial_kiwify k "
                     + "cross join lateral unnest(array[k.token_webhook_cifrado, k.client_id_cifrado, k.client_secret_cifrado, "
                     + "k.account_id_cifrado, k.token_webhook_anterior_cifrado]) as t(v) where t.v is not null", String.class);
+            conferir(ids, cifra.idsDasChaves());
+        }
+        if (asaas.habilitado()) {
+            List<String> ids = jdbc.queryForList("select distinct split_part(t.v, ':', 2) from subconta_asaas s "
+                    + "cross join lateral unnest(array[s.api_key_cifrada, s.token_webhook_cifrado, "
+                    + "s.token_webhook_anterior_cifrado, s.documento_cifrado]) as t(v) where t.v is not null", String.class);
             conferir(ids, cifra.idsDasChaves());
         }
     }
