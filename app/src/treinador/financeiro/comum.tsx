@@ -1,7 +1,10 @@
 import * as Clipboard from 'expo-clipboard';
+import type { LucideIcon } from 'lucide-react-native';
 import type { Ref } from 'react';
-import type { TextInput } from 'react-native';
+import { StyleSheet, useWindowDimensions, View, type TextInput } from 'react-native';
 
+import { LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { codigoApi } from '../../ui/erros';
 import { centavosDaTela, centavosParaTela, mascaraDeMoeda } from '../../dominio/formatos';
@@ -18,6 +21,26 @@ export const ehConflito = (erro: unknown): boolean => codigoApi(erro) === 'CONFL
 
 /** `A cobrança foi alterada` → o aviso padrão do conflito. */
 export const avisoDeConflito = (sujeito: string): string => `${sujeito} em outro lugar. Recarregamos para você conferir.`;
+
+/**
+ * A ação principal da aba (Nova cobrança avulsa, Novo lançamento) na linha da busca: vai no `depois` da `BarraDeFiltros`,
+ * então fica na mesma base de "Buscar" e "Filtros" e a ordem de leitura e de Tab é busca, Filtros, ação (25/11). No PC
+ * encosta à direita; no celular (abaixo do menu lateral) desce para a linha de baixo, na largura toda. Um lugar só na
+ * árvore: cruzar os 768 px muda só o estilo, sem remontar a barra.
+ */
+export function AcaoDaBusca({ rotulo, Icone, aoTocar }: { rotulo: string; Icone?: LucideIcon; aoTocar: () => void }) {
+  const celular = useWindowDimensions().width < LARGURA_MENU_LATERAL;
+  return (
+    <View style={celular ? estilos.acaoNoCelular : estilos.acaoNoPc}>
+      <Botao rotulo={rotulo} Icone={Icone} aoTocar={aoTocar} cheio={celular} />
+    </View>
+  );
+}
+
+const estilos = StyleSheet.create({
+  acaoNoPc: { marginLeft: 'auto' },
+  acaoNoCelular: { flexBasis: '100%' },
+});
 
 /**
  * Valor em reais digitado como texto ("150", "150,50", "1.234,50"). O texto fica com a tela; quem usa converte com

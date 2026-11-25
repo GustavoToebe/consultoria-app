@@ -24,7 +24,7 @@ export default function Ajustes() {
   const { pode } = useSessao();
   return (
     <Tela bordas={['top']} largura={LARGURA_DOS_AJUSTES} folga={width >= LARGURA_MENU_LATERAL ? espaco(3.5) : undefined}>
-      <Cabecalho titulo="Ajustes" subtitulo="Valem só neste aparelho e para a sua conta." />
+      <Cabecalho titulo="Ajustes" descricao="Valem só neste aparelho e para a sua conta." />
       <PreferenciasDoApp comTitulo={false} duasColunas extras={pode('AGENDA_LER') ? <InterruptorDeLembretesDeCompromisso /> : undefined} />
     </Tela>
   );

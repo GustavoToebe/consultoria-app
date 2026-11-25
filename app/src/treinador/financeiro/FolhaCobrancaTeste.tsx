@@ -94,7 +94,6 @@ export function FolhaCobrancaTeste({ visivel, cobranca, aoFechar, aoHomologar }:
       titulo="Cobrança de teste (homologação)"
       aoFechar={aoFechar}
       largura={LARGURA_FOLHA}
-      alturaDoConteudo
       rodape={<Botao rotulo={concluida ? 'Concluir' : 'Fechar'} tipo={concluida ? 'primario' : 'secundario'} aoTocar={aoFechar} />}
     >
       {atual ? (

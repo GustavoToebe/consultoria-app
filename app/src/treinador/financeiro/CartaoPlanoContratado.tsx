@@ -206,7 +206,7 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
                 { chave: 'competencia', titulo: 'Competência', flex: 1, minimo: 96, principal: true, render: (c) => <Texto numerico numberOfLines={2}>{referenciaDaCobranca(c)}</Texto> },
                 { chave: 'valor', titulo: 'Valor', flex: 1, minimo: 112, alinhar: 'direita', render: (c) => <Texto numerico>{centavosParaTela(c.valorCentavos)}</Texto> },
                 { chave: 'vencimento', titulo: 'Vencimento', flex: 1, minimo: 92, render: (c) => <Texto numerico numberOfLines={1}>{dataParaTela(c.vencimento)}</Texto> },
-                { chave: 'situacao', titulo: 'Situação', largura: 150, render: (c) => <SituacaoDaCobranca cobranca={c} /> },
+                { chave: 'situacao', titulo: 'Situação', largura: 150, render: (c) => <SituacaoDaCobranca cobranca={c} compacta /> },
                 { chave: 'abrir', titulo: 'Abrir', largura: 24, acao: true, render: () => <View aria-hidden><ChevronRight size={18} color={cores.textoSuave} /></View> },
               ]} />
           ) : <Texto variante="suave">Nenhuma cobrança gerada ainda.</Texto>}

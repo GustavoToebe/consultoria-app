@@ -4,22 +4,20 @@ import { StyleSheet, View } from 'react-native';
 
 import type { TipoDoItem } from '../../api/vitrineTipos';
 import { criarCategoriaDaVitrine, type CategoriaDaVitrine } from '../../api/vitrineCategorias';
-import { categoriaDeMesmoNome, erroDoNomeDaCategoria, NOME_DA_CATEGORIA_MAXIMO, SEM_CATEGORIA, sugestoesDeCategoria } from '../../dominio/vitrineCategorias';
+import { categoriaDoDigitado } from '../../dominio/seletorDeCategoria';
+import { erroDoNomeDaCategoria, NOME_DA_CATEGORIA_MAXIMO, sugestoesDeCategoria } from '../../dominio/vitrineCategorias';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
-import { MensagemDeErro } from '../../ui/Campo';
-import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { MensagemErro } from '../../ui/Estados';
 import { codigoApi, errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
-
-/** Valor da opção "Criar categoria “…”" da busca: não é id de categoria (ids são UUID). */
-const NOVA = 'nova:';
+import { SeletorDeCategoria } from '../SeletorDeCategoria';
 
 /**
- * Campo "Categoria" do item: escolha única com busca, "Sem categoria" e "Criar categoria “texto”" ali mesmo (cria pela API
- * e já escolhe). Sem nenhuma categoria ainda, sugestões pelo tipo do item; tocar numa sugestão também cria. Nada nasce
- * sozinho. Os erros da API (422 e 409 no nome) aparecem sob o campo; o limite de 30, como aviso logo abaixo.
+ * Campo "Categoria" do item: o `SeletorDeCategoria` (busca, "Sem categoria" e "Criar categoria “texto”") com a persistência
+ * da Vitrine: criar vai à API e já escolhe. Sem nenhuma categoria ainda, sugestões pelo tipo do item; tocar numa sugestão
+ * também cria. Nada nasce sozinho. Os erros da API (422 e 409 no nome) aparecem sob o campo; o limite de 30, como aviso
+ * logo abaixo.
  */
 export function CampoCategoria({ valor, nomeAtual, tipo, categorias, aoMudar, aoCriar, erro }: {
   valor: string | null;
@@ -39,9 +37,10 @@ export function CampoCategoria({ valor, nomeAtual, tipo, categorias, aoMudar, ao
 
   const criar = async (nome: string) => {
     if (criando) return;
-    const limpo = nome.trim();
-    const existente = categoriaDeMesmoNome(lista, limpo);
-    if (existente) { aoMudar(existente.id); return; }
+    const d = categoriaDoDigitado(nome, lista);
+    if (!d) return;
+    if ('existente' in d) { aoMudar(d.existente.id); return; }
+    const limpo = d.nova;
     const problema = erroDoNomeDaCategoria(limpo, lista);
     if (problema) { setErroDoNome(problema); return; }
     setCriando(limpo);
@@ -63,26 +62,10 @@ export function CampoCategoria({ valor, nomeAtual, tipo, categorias, aoMudar, ao
   const sugestoes = categorias ? sugestoesDeCategoria(tipo, categorias.length) : [];
   const mensagem = erroDoNome ?? erro ?? null;
   return (
-    <View style={estilos.campo}>
-      <EscolhaSuspensa<string | null> rotulo="Categoria" titulo="Categoria do item" valor={valor}
-        rotuloDaBusca="Buscar ou criar categoria" textoVazio="Nenhuma categoria encontrada."
-        opcoes={[{ valor: null, rotulo: SEM_CATEGORIA }, ...lista.map((c) => ({ valor: c.id, rotulo: c.nome }))]}
-        digitado={{
-          maxLength: NOME_DA_CATEGORIA_MAXIMO,
-          opcao: (t) => {
-            const limpo = t.trim();
-            if (!limpo) return null;
-            const existente = categoriaDeMesmoNome(lista, limpo);
-            return existente ? { valor: existente.id, rotulo: existente.nome } : { valor: `${NOVA}${limpo}`, rotulo: `Criar categoria “${limpo}”`, detalhe: 'Categoria nova' };
-          },
-        }}
-        aoMudar={(v) => {
-          setErroDoNome(null);
-          if (v?.startsWith(NOVA)) void criar(v.slice(NOVA.length));
-          else aoMudar(v);
-        }} />
-      {criando ? <Texto variante="pequeno" accessibilityLiveRegion="polite">Criando a categoria…</Texto> : null}
-      {mensagem ? <MensagemDeErro erro={mensagem} /> : null}
+    <SeletorDeCategoria<string | null> valor={valor} semCategoria={null} maximo={NOME_DA_CATEGORIA_MAXIMO}
+      categorias={lista.map((c) => ({ valor: c.id, nome: c.nome }))} criando={!!criando} erro={mensagem}
+      aoEscolher={(id) => { setErroDoNome(null); aoMudar(id); }}
+      aoCriar={(nome) => { setErroDoNome(null); void criar(nome); }}>
       {limite ? <MensagemErro texto={textoDoErro(limite)} erro={limite} /> : null}
       {sugestoes.length ? (
         <View style={estilos.sugestoes}>
@@ -95,12 +78,11 @@ export function CampoCategoria({ valor, nomeAtual, tipo, categorias, aoMudar, ao
           </View>
         </View>
       ) : null}
-    </View>
+    </SeletorDeCategoria>
   );
 }
 
 const estilos = StyleSheet.create({
-  campo: { gap: espaco(0.5) },
   sugestoes: { gap: espaco(0.5), paddingTop: espaco(0.5) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
 });

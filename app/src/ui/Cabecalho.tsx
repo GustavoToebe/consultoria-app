@@ -1,14 +1,16 @@
 import { Link, router, usePathname, type Href } from 'expo-router';
 import { ArrowLeft, WifiOff } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { artigoDaTela } from '../dominio/ajudaDaTela';
 import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueDeLink';
 import { mesmaTela } from '../dominio/mesmaTela';
 import { voltarAutomatico } from '../dominio/telas';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL } from '../tema/tokens';
+import { AjudaDoCabecalho } from './AjudaDoCabecalho';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { IconeBotao } from './IconeBotao';
 import { MarcaTitulo } from './MarcaTitulo';
@@ -25,8 +27,13 @@ interface Props {
   titulo?: string;
   /** "Alunos › Fulano › Plano de treino", só com o menu lateral; no celular fica a seta de voltar. */
   trilha?: PassoDaTrilha[];
-  /** Linha menor abaixo do título (nome do aluno, período). */
+  /** Dado abaixo do título, sempre à vista (nome do aluno, período). O que explica a tela vai em `descricao`. */
   subtitulo?: string;
+  /**
+   * O que a tela é e para que serve: não fica na tela, vai para o ⓘ "Sobre esta tela" logo depois do título
+   * (`AjudaDoCabecalho`), com o "Saiba mais" da Ajuda quando a tela tem artigo (`dominio/ajudaDaTela`).
+   */
+  descricao?: string;
   acoes?: ReactNode;
   /** Peça pequena à esquerda do título (a foto do aluno na ficha). Fica na mesma linha, depois da seta de voltar. */
   antesDoTitulo?: ReactNode;
@@ -47,19 +54,21 @@ interface Props {
  * Topo das telas: marca do treinador (ou título da página), selo de "sem conexão" e ações à direita. O título é o
  * único h1 da tela (a marca sem título vira o h1 nas telas públicas e do aluno).
  */
-export function Cabecalho({ titulo, subtitulo, trilha, acoes, antesDoTitulo, mostrarMarca, voltar: voltarPedido }: Props) {
+export function Cabecalho({ titulo, subtitulo, descricao, trilha, acoes, antesDoTitulo, mostrarMarca, voltar: voltarPedido }: Props) {
   const { marca, offline, usuario } = useSessao();
   const { cores } = useTema();
   const { width } = useWindowDimensions();
   const caminho = usePathname();
   const { confirmar, pendente } = useSaidaGuardada();
+  const [balaoAberto, setBalaoAberto] = useState(false);
   const naRaiz = caminho === '/treinador' || caminho === '/aluno';
   const comMarca = naRaiz && (mostrarMarca === 'sempre' || (mostrarMarca === 'celular' && width < LARGURA_MENU_LATERAL));
   // O aluno tem a barra inferior em qualquer largura; o treinador, só abaixo do menu lateral.
   const comBarraInferior = usuario?.papel === 'ALUNO' || width < LARGURA_MENU_LATERAL;
   const voltar = voltarPedido ?? (voltarAutomatico(caminho, comBarraInferior) as Href | undefined);
   return (
-    <View style={estilos.cabecalho}>
+    // Com o balão aberto, o cabeçalho sobe por cima do que vem depois (cartões e a barra grudada dos editores, z 10).
+    <View style={[estilos.cabecalho, balaoAberto ? estilos.porCima : null]}>
       <View style={estilos.inicio}>
         {voltar ? (
           <View style={estilos.seta}>
@@ -103,7 +112,13 @@ export function Cabecalho({ titulo, subtitulo, trilha, acoes, antesDoTitulo, mos
             </View>
           ) : null}
           {comMarca ? <MarcaTitulo marca={marca} nivel={titulo ? undefined : 1} /> : null}
-          {titulo ? <Texto variante="titulo" nivel={1}>{titulo}</Texto> : null}
+          {titulo ? (
+            // O h1 é só o título; o ⓘ fica fora dele, na mesma linha. Título longo quebra e o ⓘ segue ao lado.
+            <View style={estilos.linhaDoTitulo}>
+              <Texto variante="titulo" nivel={1} style={estilos.titulo}>{titulo}</Texto>
+              {descricao ? <AjudaDoCabecalho texto={descricao} artigo={artigoDaTela(caminho)} aoMudar={setBalaoAberto} /> : null}
+            </View>
+          ) : null}
           {subtitulo ? <Texto variante="suave">{subtitulo}</Texto> : null}
           {/* O aluno já vê o selo de sincronização, que diz se está sem conexão. */}
           {/* A linha segura o selo à esquerda: a pílula com ícone se centra no eixo cruzado, e numa coluna iria ao meio. */}
@@ -127,6 +142,9 @@ const estilos = StyleSheet.create({
   // O alvo da seta tem 44 px (moldura de 40 por dentro): a margem a centra na primeira linha do título (30 px).
   seta: { marginRight: espaco(0.5), marginTop: -7 },
   esquerda: { flexShrink: 1, gap: espaco(0.5) },
+  porCima: { zIndex: 11 },
+  linhaDoTitulo: { flexDirection: 'row', alignItems: 'flex-start' },
+  titulo: { flexShrink: 1 },
   // A trilha é a primeira linha: os passos têm 44 px de alvo, mas a margem negativa evita um buraco acima do título.
   trilha: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.5), marginTop: -espaco(1.5) },
   passo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },

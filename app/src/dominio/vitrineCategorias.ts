@@ -1,5 +1,6 @@
 import type { TipoDoItem } from '../api/vitrineTipos';
 import { plural } from './formatos';
+import { SEM_CATEGORIA } from './seletorDeCategoria';
 
 /**
  * Categorias da vitrine (plano `docs/planos/vitrine-categorias.md`): validação do nome (espelho da API: mudou uma, mude a
@@ -9,7 +10,7 @@ import { plural } from './formatos';
 
 export const NOME_DA_CATEGORIA_MAXIMO = 40;
 export const TETO_DE_CATEGORIAS = 30;
-export const SEM_CATEGORIA = 'Sem categoria';
+export { SEM_CATEGORIA };
 
 /** Como a API compara nomes (`nome_normalizado`): sem espaços nas pontas, minúsculas e sem acento. */
 export const normalizarNomeDaCategoria = (nome: string): string =>
@@ -24,10 +25,6 @@ export function erroDoNomeDaCategoria(nome: string, categorias: readonly { id: s
   if (categorias.some((c) => c.id !== exceto && normalizarNomeDaCategoria(c.nome) === chave)) return 'Já existe uma categoria com esse nome.';
   return null;
 }
-
-/** A categoria que já tem esse nome (comparado como a API compara), para a busca escolher em vez de criar outra. */
-export const categoriaDeMesmoNome = <C extends { nome: string }>(categorias: readonly C[], nome: string): C | undefined =>
-  categorias.find((c) => normalizarNomeDaCategoria(c.nome) === normalizarNomeDaCategoria(nome));
 
 const SUGESTOES: Record<TipoDoItem, readonly string[]> = {
   FISICO: ['Roupas', 'Calçados', 'Acessórios', 'Livros'],

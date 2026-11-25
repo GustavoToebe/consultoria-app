@@ -55,7 +55,7 @@ export function TelaWhatsApp() {
   if (!pode('WHATSAPP_ALTERAR')) {
     return (
       <Tela bordas={['top']} largura={LARGURA_LISTA}>
-        <Cabecalho titulo="WhatsApp oficial" subtitulo="Avisos automáticos de cobrança e compromisso via Meta." />
+        <Cabecalho titulo="WhatsApp oficial" descricao="Avisos automáticos de cobrança e compromisso via Meta." />
         <Vazio
           Icone={Lock}
           nivel={1}
@@ -117,7 +117,7 @@ function ConteudoWhatsApp() {
   if (dados.erro && ehWhatsAppIndisponivel(dados.erro)) {
     return (
       <Tela bordas={['top']} largura={LARGURA_LISTA}>
-        <Cabecalho titulo="WhatsApp oficial" subtitulo="Avisos automáticos de cobrança e compromisso via Meta." />
+        <Cabecalho titulo="WhatsApp oficial" descricao="Avisos automáticos de cobrança e compromisso via Meta." />
         <Vazio
           Icone={MessageCircle}
           nivel={1}
@@ -218,7 +218,7 @@ function ConteudoWhatsApp() {
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho
         titulo="WhatsApp oficial"
-        subtitulo="Conecte a conta comercial da Meta da sua consultoria para enviar lembretes de cobrança e avisos de compromisso."
+        descricao="Conecte a conta comercial da Meta da sua consultoria para enviar lembretes de cobrança e avisos de compromisso."
       />
 
       {dados.erro ? <MensagemErro texto={textoDoErro(dados.erro)} erro={dados.erro} tentarDeNovo={dados.recarregar} /> : null}

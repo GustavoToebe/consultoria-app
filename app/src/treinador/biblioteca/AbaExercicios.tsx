@@ -34,6 +34,7 @@ import {
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { DetalheDoExercicio, LegendaDasModalidades, SeletoresDeExercicios } from './ModalidadeDoExercicio';
 import { ImagemDoExercicioEditor } from './ImagemDoExercicioEditor';
+import { ImportarDePlanilha } from './ImportarDePlanilha';
 import { VideoDoExercicioEditor } from './VideoDoExercicioEditor';
 
 const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor: valor as Modalidade, rotulo }));
@@ -115,7 +116,11 @@ export function AbaExercicios() {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && total === 0 ? (
+        <>
         <Vazio titulo={!semFiltro ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={!semFiltro ? 'Tente outro termo de busca ou outros filtros.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={chips.length > 0 ? { rotulo: 'Limpar filtros', aoTocar: () => mudarFiltros(SEM_FILTROS_DE_EXERCICIOS) } : !semFiltro ? { rotulo: 'Limpar busca', aoTocar: () => mudarBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
+        {/* Só a biblioteca realmente vazia: busca ou filtro sem resultado leva a limpar, não a importar. */}
+        {semFiltro ? <ImportarDePlanilha destino="exercicios" /> : null}
+        </>
       ) : null}
       {lista.length ? <LegendaDasModalidades modalidades={modalidadesExistentes(lista)} /> : null}
       {lista.length ? <ListaEmColunas divisorias>{lista.map((e) => (

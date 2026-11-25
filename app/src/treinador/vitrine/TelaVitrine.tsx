@@ -96,7 +96,7 @@ export function TelaVitrine() {
   const ordenavel = podeAlterar && !movendo && !lista.carregando;
   return (
     <Tela largura={LARGURA_LISTA}>
-      <Cabecalho titulo="Vitrine" subtitulo="Produtos e serviços que seus alunos veem no app."
+      <Cabecalho titulo="Vitrine" descricao="Produtos e serviços que seus alunos veem no app."
         acoes={podeAlterar && itens ? (
           <LinhaDeAcoes>
             <Botao rotulo="Organizar categorias" tipo="secundario" Icone={FolderCog} aoTocar={() => setOrganizando(true)} />

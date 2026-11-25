@@ -14,7 +14,7 @@ export type EstadoDoIndicador = 'valor' | 'zero' | 'indisponivel';
 export interface AparenciaDoIndicador {
   /** Fundo, borda e cor de texto pintados (`ui/superficiePintada`); `null` no neutro, no zero e no indisponível. */
   pintura: SuperficiePintada | null;
-  /** Ponto e ícone: a cor (≥ 3:1 sobre o ponto mais forte do fundo); `null` sem cor. */
+  /** Ponto e ícone: a cor (≥ 3:1 sobre o ponto mais forte do fundo); sem cor, o `corDoMarcador` (só a bolinha) ou `null`. */
   marca: string | null;
   /** Rótulo: a cor quando ela passa 4,5:1 (senão `texto`); sem cor, `textoSuave`. */
   rotulo: string;
@@ -26,18 +26,22 @@ export interface AparenciaDoIndicador {
   borda: string;
 }
 
-/** `cor` = a da situação (`cores[tom]`) ou a de categoria; `null` = neutro. */
+/**
+ * `cor` = a da situação (`cores[tom]`) ou a de categoria; `null` = neutro. `corDoMarcador` (25/11): cor de categoria só na
+ * bolinha do cartão neutro (cartão, borda, rótulo e valor seguem neutros); é identificação, então vale também no zero.
+ */
 export function aparenciaDoIndicador(
   cor: string | null,
   estado: EstadoDoIndicador,
   lugar: 'pagina' | 'cartao',
   cores: Pick<Cores, 'texto' | 'textoSuave' | 'superficie' | 'superficie2' | 'divisor'>,
   variante: VarianteDoTema,
+  corDoMarcador: string | null = null,
 ): AparenciaDoIndicador {
   const fundo = lugar === 'cartao' ? cores.superficie2 : cores.superficie;
   const apagado = estado !== 'valor';
   if (apagado || !cor) {
-    return { pintura: null, marca: null, rotulo: cores.textoSuave, valor: apagado ? cores.textoSuave : cores.texto, fundo, borda: cores.divisor };
+    return { pintura: null, marca: corDoMarcador, rotulo: cores.textoSuave, valor: apagado ? cores.textoSuave : cores.texto, fundo, borda: cores.divisor };
   }
   const pintura = superficiePintada(cor, fundo, variante, cores);
   return { pintura, marca: cor, rotulo: pintura.texto, valor: pintura.texto, fundo, borda: pintura.borda };

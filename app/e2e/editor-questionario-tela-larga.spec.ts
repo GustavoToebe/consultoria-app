@@ -4,13 +4,13 @@ import { abrirEditor } from './editor-questionario.dados';
 
 /**
  * Editor de questionário em tela larga (`docs/design-e-front.md` 4.10, "editor com índice e prévia ao vivo"). A medida
- * é a da área do editor (janela menos o menu de 240 px, o recuo e a barra de rolagem): 1440 de janela fica abaixo de
- * 1280 de área (só o editor), 1600 cai no índice + editor e 1920 nas três colunas. Só dados fictícios.
+ * é a da área do editor (janela menos o menu de 240 px, o recuo e a barra de rolagem): 1280 de janela fica abaixo de
+ * 1000 de área (só o editor), 1536 (notebook a 125%) cai no índice + editor e 1920 e 3440 nas três colunas. Só dados fictícios.
  */
 const indice = (page: Page) => page.getByRole('navigation', { name: 'Seções do questionário' });
 const previa = (page: Page) => page.getByRole('complementary', { name: 'Prévia ao vivo' });
 
-for (const largura of [390, 768, 1440]) {
+for (const largura of [390, 768, 1280]) {
   test(`${largura} px: nada muda, só o editor com as abas Editar e Prévia`, async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await abrirEditor(page, { qual: 'anamnese', largura });
     await expect(page.getByRole('heading', { name: 'Anamnese', level: 1 })).toBeVisible();
@@ -22,18 +22,18 @@ for (const largura of [390, 768, 1440]) {
   });
 }
 
-test('1440 px: o editor começa à esquerda, junto do menu, e a barra tem a largura do conteúdo', async ({ page }) => {
-  await abrirEditor(page, { qual: 'anamnese', largura: 1440 });
+test('1280 px: o editor começa à esquerda, junto do menu, e a barra tem a largura do conteúdo', async ({ page }) => {
+  await abrirEditor(page, { qual: 'anamnese', largura: 1280 });
   const nome = (await page.getByLabel('Nome do questionário').boundingBox())!;
   const barra = (await page.locator('#barra-do-editor').boundingBox())!;
   // Menu de 240 + recuo de 16 (+ o recuo do cartão): nada de faixa vazia à esquerda.
   expect(nome.x).toBeLessThan(240 + 16 + 40);
   expect(barra.x).toBeLessThanOrEqual(241);
-  expect(barra.x + barra.width).toBeGreaterThan(1440 - 40);
+  expect(barra.x + barra.width).toBeGreaterThan(1280 - 40);
 });
 
-test('1600 px: índice à esquerda e as abas continuam; sem prévia ao lado', async ({ page }) => {
-  await abrirEditor(page, { qual: 'anamnese', largura: 1600 });
+test('1536 px: índice à esquerda e as abas continuam; sem prévia ao lado', async ({ page }) => {
+  await abrirEditor(page, { qual: 'anamnese', largura: 1536 });
   await expect(indice(page)).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Prévia' })).toBeVisible();
   await expect(previa(page)).toHaveCount(0);
@@ -51,10 +51,11 @@ test('1920 px: três colunas, abas somem; o índice rola e abre a seção, marca
   await treino.click();
   await expect(page.getByRole('button', { name: /^Pergunta 1: Treina há quanto tempo\?/ })).toHaveAccessibleName(/, aberto$/);
   await expect(treino).toHaveAttribute('aria-current', 'location');
-  // A seção fica logo abaixo da barra fixa e o foco vai para o título dela.
+  // A seção fica logo abaixo da barra fixa (a 8 px, partindo do topo da página, com a barra ainda não grudada) e o foco
+  // vai para o título dela.
   const secao = (await page.locator('#questionario-secao-2').boundingBox())!;
   const barra = (await page.locator('#barra-do-editor').boundingBox())!;
-  expect(Math.abs(secao.y - (barra.y + barra.height))).toBeLessThan(40);
+  expect(Math.abs(secao.y - (barra.y + barra.height) - 8)).toBeLessThanOrEqual(2);
   await expect.poll(() => page.evaluate(() => document.activeElement?.closest('#questionario-secao-2') !== null)).toBe(true);
   // A anamnese é em páginas: a prévia foi para a página da seção.
   await expect(previa(page).getByText('Parte 3 de 6')).toBeVisible();
@@ -113,10 +114,26 @@ test('1920 px, Atualização (prévia sem páginas): o índice leva a prévia at
   expect(errosDaPagina).toEqual([]);
 });
 
-test('1600 px: tocar no índice com a aba Prévia aberta volta para Editar e rola até a seção', async ({ page }) => {
-  await abrirEditor(page, { qual: 'anamnese', largura: 1600 });
+test('1536 px: tocar no índice com a aba Prévia aberta volta para Editar e rola até a seção', async ({ page }) => {
+  await abrirEditor(page, { qual: 'anamnese', largura: 1536 });
   await page.getByRole('tab', { name: 'Prévia' }).click();
   await indice(page).getByRole('button', { name: 'Alimentação, 10 perguntas' }).click();
   await expect(page.getByRole('tab', { name: 'Editar' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#questionario-secao-4')).toBeInViewport();
+});
+
+test('3440 px: editor para em 1400, prévia de 560 encostada à direita e a sobra vira dois vãos iguais', async ({ page }) => {
+  await abrirEditor(page, { qual: 'anamnese', largura: 3440, altura: 1440 });
+  await expect(previa(page)).toBeVisible();
+  const [i, p, c] = [(await indice(page).boundingBox())!, (await previa(page).boundingBox())!,
+    (await page.locator('#barra-do-editor').locator('xpath=..').boundingBox())!];
+  const editor = (await page.locator('#questionario-instrucoes').boundingBox())!;
+  expect(Math.round(editor.width)).toBe(1400);
+  expect(Math.round(p.width)).toBe(560);
+  expect(Math.round(i.width)).toBe(320);
+  expect(Math.abs(p.x + p.width - (c.x + c.width))).toBeLessThanOrEqual(1);
+  expect(Math.abs(i.x - c.x)).toBeLessThanOrEqual(1);
+  const [vao1, vao2] = [editor.x - (i.x + i.width), p.x - (editor.x + editor.width)];
+  expect(Math.abs(vao1 - vao2)).toBeLessThanOrEqual(1);
+  expect(vao1).toBeGreaterThan(24);
 });

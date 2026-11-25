@@ -12,7 +12,7 @@ export default function ImportacaoAssistidaTela() {
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho
         titulo="Importação assistida"
-        subtitulo="PDFs, DOCX, planilhas e texto colado num lote só. Você confere tudo antes de gravar."
+        descricao="PDFs, DOCX, planilhas e texto colado num lote só. Você confere tudo antes de gravar."
       />
       {/* Tela larga (24/11): envio e conferência são um editor de campos; param em `LARGURA_EDITOR_DE_CAMPOS`, à esquerda. */}
       <View style={estilos.limite}>

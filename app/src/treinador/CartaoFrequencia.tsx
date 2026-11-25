@@ -12,6 +12,7 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { GradeDeIndicadores } from '../ui/GradeDeIndicadores';
+import { useDestaques } from '../ui/NumeroDeDestaque';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
@@ -45,7 +46,8 @@ export function useAcompanhamentoDoAluno(alunoId: string, geracao = 0) {
 }
 
 /**
- * Frequência e mobilidade na ficha (24/11): dois indicadores neutros lado a lado, "Treinos esta semana" (treinos com
+ * Frequência e mobilidade na ficha (24/11): dois indicadores neutros lado a lado, "Treinos esta semana" (com a bolinha
+ * azul do treino, 25/11; treinos com
  * registro; "1 de 4 treinos" quando o plano de treino da pasta vigente diz quantos por semana) e "Mobilidade esta semana"
  * (dias com algum item marcado), cada um com "Semana passada: N" embaixo. O formato vem de `resumoDaFrequencia`; a pasta
  * fica na pílula do cartão e, sem pasta vigente, a nota uma linha abaixo dos indicadores. Quem renderiza já checou
@@ -56,6 +58,7 @@ export function CartaoFrequencia({ alunoId, acompanhamento, comMobilidade }: {
   alunoId: string; acompanhamento: ReturnType<typeof useAcompanhamentoDoAluno>; comMobilidade: boolean;
 }) {
   const { pode } = useSessao();
+  const destaques = useDestaques();
   const { dados, erro, recarregar } = acompanhamento;
   const f = dados?.frequencia ?? null;
   const vigente = dados?.pasta ?? null;
@@ -94,7 +97,7 @@ export function CartaoFrequencia({ alunoId, acompanhamento, comMobilidade }: {
         <GradeDeIndicadores minimo={MINIMO_DO_INDICADOR}>
           {resumo.indicadores.map((i) => (
             <CartaoDeIndicador key={i.rotulo} rotulo={i.rotulo} valor={i.valor} estado={i.estado} detalhe={i.detalhe} motivo={i.motivo}
-              tamanho="medio" lugar="cartao" nivelDoRotulo={3} textual />
+              corDoMarcador={i.marcador ? destaques[i.marcador].cor : null} tamanho="medio" lugar="cartao" nivelDoRotulo={3} textual />
           ))}
         </GradeDeIndicadores>
       ) : null}

@@ -10,7 +10,8 @@ describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
       pasta: 'Pasta Hipertrofia (02/11 a 12/11)',
       comPasta: true,
       indicadores: [
-        { rotulo: 'Treinos esta semana', valor: '2 treinos', estado: 'valor', detalhe: 'Semana passada: 3' },
+        // Só os treinos levam a bolinha azul (categoria treino); a mobilidade fica neutra, sem marcador.
+        { rotulo: 'Treinos esta semana', valor: '2 treinos', estado: 'valor', detalhe: 'Semana passada: 3', marcador: 'azul' },
         { rotulo: 'Mobilidade esta semana', valor: '1 dia', estado: 'valor', detalhe: 'Semana passada: 0' },
       ],
     });
@@ -38,7 +39,8 @@ describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
   it('sem pasta vigente: a nota uma vez, sem a mobilidade e sem o previsto; zero no plural', () => {
     const r = resumoDaFrequencia({ semana: 0, semanaPassada: 1, pasta: null }, null, { naSemana: 2, semanaPassada: 0 }, 4);
     expect(r).toEqual({ pasta: 'Nenhuma pasta vigente.', comPasta: false, indicadores: [
-      { rotulo: 'Treinos esta semana', valor: '0 treinos', estado: 'zero', detalhe: 'Semana passada: 1' },
+      // A bolinha é identificação, não sinal: fica também no zero.
+      { rotulo: 'Treinos esta semana', valor: '0 treinos', estado: 'zero', detalhe: 'Semana passada: 1', marcador: 'azul' },
     ] });
   });
 

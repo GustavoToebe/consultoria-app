@@ -250,7 +250,7 @@ export function AssistenteDaPlanilha() {
 
   return (
     <TelaDoEditor largura={LARGURA_MAXIMA} rodape={rodape}
-      cabecalho={<Cabecalho titulo="Planilha completa" subtitulo="Alunos, pesos, treinos e dietas de uma vez. Nada é gravado antes de Confirmar importação; treinos e dietas entram em rascunho."
+      cabecalho={<Cabecalho titulo="Planilha completa" descricao="Alunos, pesos, treinos e dietas de uma vez. Nada é gravado antes de Confirmar importação; treinos e dietas entram em rascunho."
         trilha={[{ rotulo: 'Importação', href: '/treinador/importacao' }]} />}
       barra={<View style={estilos.limite}><Etapas etapa={etapa} estreita={estreita} comAmostra={comAmostra} /></View>}>
       <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={[estilos.coluna, estilos.limite]}>

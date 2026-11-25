@@ -17,7 +17,7 @@ export default function MeusDados() {
   const { usuario } = useSessao();
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Meus dados" subtitulo="Seu acesso, seu nome na equipe e sua senha." />
+      <Cabecalho titulo="Meus dados" descricao="Seu acesso, seu nome na equipe e sua senha." />
       <View style={{ gap: espaco(3) }}>
         <Cartao titulo="Acesso">
           <CampoLeitura rotulo="E-mail de entrada" valor={usuario?.email} />

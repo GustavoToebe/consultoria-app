@@ -88,8 +88,8 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   );
 }
 
-/** Id no DOM (web) da barra grudada: `mostrarAbaixoDaBarra` mede a altura dela. */
-const ID_DA_BARRA = 'barra-do-editor';
+/** Id no DOM (web) da barra grudada: `mostrarAbaixoDaBarra` e o índice do questionário medem a altura dela. */
+export const ID_DA_BARRA = 'barra-do-editor';
 
 /**
  * Web: se o topo do elemento `id` está fora da tela ou escondido sob a barra grudada, rola até ele ficar logo abaixo
@@ -106,13 +106,16 @@ export function mostrarAbaixoDaBarra(id: string, forcar = false): void {
     const barra = document.getElementById(ID_DA_BARRA);
     if (!alvo || !barra) return;
     const topo = alvo.getBoundingClientRect().top;
-    const base = barra.getBoundingClientRect().bottom;
-    if (!forcar && topo >= base && topo < window.innerHeight) return;
+    if (!forcar && topo >= barra.getBoundingClientRect().bottom && topo < window.innerHeight) return;
     // A conta na mão, na rolagem da barra: `scrollIntoView` com `scroll-margin-top` deixava o alvo no topo, sob a barra,
     // quando um ancestral tem `overflow: hidden` (o cartão da sessão no celular).
     let rolagem = barra.parentElement;
     while (rolagem && !/(auto|scroll)/.test(getComputedStyle(rolagem).overflowY)) rolagem = rolagem.parentElement;
-    if (rolagem) rolagem.scrollTop += topo - base - espaco(1);
+    if (!rolagem) return;
+    // A base da barra depois de rolar: grudada (`top: 0`) no topo da rolagem. Com a página no início a barra ainda está
+    // abaixo do cabeçalho, e medir a posição de agora deixava o alvo ~96 px abaixo dela.
+    const baseGrudada = rolagem.getBoundingClientRect().top + barra.offsetHeight;
+    rolagem.scrollTop += topo - baseGrudada - espaco(1);
   });
 }
 

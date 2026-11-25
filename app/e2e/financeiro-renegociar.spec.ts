@@ -128,12 +128,13 @@ for (const largura of [1280, 390]) {
     // A lista recarregou: originais "Renegociada" (neutras, fora do lote) e três parcelas com o selo "Acordo".
     await expect(page.getByText('Renegociada', { exact: true })).toHaveCount(2);
     await expect(page.getByText('Acordo', { exact: true })).toHaveCount(3);
-    await expect(page.getByText('Renegociação (Parcela 3/3)').first()).toBeVisible();
+    // 25/11: a descrição não está mais na Competência da tabela (fica "—"); está no nome da caixa de marcar da linha.
+    await expect(page.getByRole('checkbox', { name: 'Selecionar cobrança de Bruna Teste, Renegociação (Parcela 3/3)' })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: /^Selecionar cobrança de Bruna Teste, 09\/2026/ })).toHaveCount(0);
     await expect(page.getByText(/cobranças? selecionadas?/)).toHaveCount(1);
     await expect(page.getByText(/canceladas, estornadas e renegociadas não entram/)).toBeVisible();
     await semRolagemHorizontal(page);
-    await page.getByText('Renegociação (Parcela 1/3)').first().scrollIntoViewIfNeeded();
+    await page.getByRole('checkbox', { name: 'Selecionar cobrança de Bruna Teste, Renegociação (Parcela 1/3)' }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${CAPTURAS}/lista-depois-${largura}.png` });
     expect(errosDaPagina).toEqual([]);
   });

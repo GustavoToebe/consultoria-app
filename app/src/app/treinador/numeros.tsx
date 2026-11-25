@@ -74,7 +74,7 @@ export default function NumerosDoTreinador() {
 
   return <Tela bordas={['top']} folga={width >= LARGURA_MENU_LATERAL ? espaco(3.5) : undefined}>
     <Cabecalho titulo="Números" mostrarMarca="celular"
-      subtitulo={equipe ? 'Contagens da consultoria nos últimos 6 meses e da equipe hoje.' : 'Contagens da consultoria nos últimos 6 meses.'} />
+      descricao={equipe ? 'Contagens da consultoria nos últimos 6 meses e da equipe hoje.' : 'Contagens da consultoria nos últimos 6 meses.'} />
     {numeros.erro ? <MensagemErro texto={textoDoErro(numeros.erro)} erro={numeros.erro} tentarDeNovo={recarregar} /> : null}
     {numeros.carregando && !meses ? <Esqueleto /> : null}
     {meses && meses.length === 0 ? <Vazio titulo="Sem números ainda" texto="Quando houver alunos e atualizações, as contagens aparecem aqui." /> : null}
