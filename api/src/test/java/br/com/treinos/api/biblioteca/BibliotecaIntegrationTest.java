@@ -154,6 +154,72 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         assertThat(agachamento.get(0).get("fonte").asString()).contains("exercicios-bd-ptbr");
     }
 
+    /**
+     * "Já na biblioteca" (24/11): cada item diz se a consultoria já tem um ativo com o mesmo nome (a regra da importação)
+     * e o filtro {@code naBiblioteca} vale antes do limite; a biblioteca de outra consultoria não conta.
+     */
+    @Test
+    void catalogoMarcaEFiltraOQueJaEstaNaBibliotecaSoDaPropriaConsultoria() throws Exception {
+        String busca = "/catalogo/exercicios?busca=remada&limite=200";
+        JsonNode antes = api.get(busca, treinador, 200);
+        int total = antes.get("total").asInt();
+        long jaTinha = antes.get("itens").valueStream().filter(e -> e.get("naBiblioteca").asBoolean()).count();
+        JsonNode alvo = antes.get("itens").valueStream().filter(e -> !e.get("naBiblioteca").asBoolean()).findFirst().orElseThrow();
+        String id = alvo.get("id").asString();
+        api.post("/exercicios/importar-catalogo", treinador, Map.of("ids", List.of(id)), 200);
+
+        JsonNode depois = api.get(busca, treinador, 200);
+        assertThat(depois.get("itens").valueStream().filter(e -> id.equals(e.get("id").asString())).findFirst().orElseThrow()
+                .get("naBiblioteca").asBoolean()).isTrue();
+        JsonNode jaTem = api.get(busca + "&naBiblioteca=true", treinador, 200);
+        JsonNode falta = api.get(busca + "&naBiblioteca=false", treinador, 200);
+        assertThat(jaTem.get("total").asInt()).isEqualTo((int) jaTinha + 1);
+        assertThat(jaTem.get("total").asInt() + falta.get("total").asInt()).isEqualTo(total);
+        assertThat(jaTem.get("itens").valueStream().map(e -> e.get("naBiblioteca").asBoolean())).containsOnly(true);
+        assertThat(falta.get("itens").valueStream().map(e -> e.get("id").asString())).doesNotContain(id);
+
+        // Outra consultoria: o que a primeira importou não aparece como dela.
+        JsonNode outro = api.novoTreinador();
+        assertThat(api.get(busca + "&naBiblioteca=true", outro, 200).get("total").asInt()).isEqualTo((int) jaTinha);
+        assertThat(api.get(busca, outro, 200).get("itens").valueStream().filter(e -> id.equals(e.get("id").asString()))
+                .findFirst().orElseThrow().get("naBiblioteca").asBoolean()).isFalse();
+
+        // Alimentos: a mesma regra (o comum; suplemento com o mesmo nome não conta).
+        JsonNode arroz = api.get("/catalogo/alimentos?busca=arroz&limite=200", treinador, 200);
+        JsonNode umArroz = arroz.get("itens").valueStream().filter(a -> !a.get("naBiblioteca").asBoolean()).findFirst().orElseThrow();
+        int arrozJaTem = api.get("/catalogo/alimentos?busca=arroz&naBiblioteca=true&limite=1", treinador, 200).get("total").asInt();
+        api.post("/alimentos/importar-catalogo", treinador, Map.of("ids", List.of(umArroz.get("id").asString())), 200);
+        assertThat(api.get("/catalogo/alimentos?busca=arroz&naBiblioteca=true&limite=1", treinador, 200).get("total").asInt())
+                .isEqualTo(arrozJaTem + 1);
+        assertThat(api.get("/catalogo/alimentos?busca=arroz&naBiblioteca=false&limite=1", treinador, 200).get("total").asInt())
+                .isEqualTo(arroz.get("total").asInt() - arrozJaTem - 1);
+        // Unidade (repetível, "ou"): g e ml somam o catálogo inteiro (o Batel tem preparações em ml).
+        int g = api.get("/catalogo/alimentos?unidade=g&limite=1", treinador, 200).get("total").asInt();
+        int ml = api.get("/catalogo/alimentos?unidade=ml&limite=1", treinador, 200).get("total").asInt();
+        assertThat(ml).isPositive();
+        assertThat(api.get("/catalogo/alimentos?unidade=g&unidade=ml&limite=1", treinador, 200).get("total").asInt()).isEqualTo(g + ml)
+                .isEqualTo(api.get("/catalogo/alimentos?limite=1", treinador, 200).get("total").asInt());
+    }
+
+    /** Modalidade repetível ("ou", fora do enum = 400) e imagem (com ou sem foto) antes do limite. */
+    @Test
+    void catalogoDeExerciciosFiltraModalidadesEImagem() throws Exception {
+        int maquina = api.get("/catalogo/exercicios?modalidade=MAQUINA&limite=1", treinador, 200).get("total").asInt();
+        int livre = api.get("/catalogo/exercicios?modalidade=LIVRE&limite=1", treinador, 200).get("total").asInt();
+        assertThat(maquina).isPositive();
+        assertThat(api.get("/catalogo/exercicios?modalidade=MAQUINA&modalidade=LIVRE&limite=1", treinador, 200).get("total").asInt())
+                .isEqualTo(maquina + livre);
+        assertThat(api.get("/catalogo/exercicios?modalidade=VOADOR", treinador, 400).get("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+
+        int todos = api.get("/catalogo/exercicios?limite=1", treinador, 200).get("total").asInt();
+        JsonNode com = api.get("/catalogo/exercicios?imagem=true&limite=200", treinador, 200);
+        JsonNode sem = api.get("/catalogo/exercicios?imagem=false&limite=200", treinador, 200);
+        assertThat(sem.get("total").asInt()).isPositive();
+        assertThat(com.get("total").asInt() + sem.get("total").asInt()).isEqualTo(todos);
+        assertThat(com.get("itens").valueStream().map(e -> e.get("imagens").size())).allMatch(n -> n > 0);
+        assertThat(sem.get("itens").valueStream().map(e -> e.get("imagens").size())).containsOnly(0);
+    }
+
     @Test
     void catalogoExigeTreinador() throws Exception {
         mvc.perform(get("/catalogo/alimentos"))
@@ -215,6 +281,94 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/exercicios/pagina?grupo=Lombar", treinador, 200).get("total").asInt()).isZero();
 
         mvc.perform(get("/exercicios/pagina")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void paginaDeExerciciosFiltraPorVideoImagemEModalidadeAntesDePaginar() throws Exception {
+        String youtube = "https://youtu.be/abc";
+        api.post("/exercicios", treinador, completo("Alfa Teste", "Costas", "PESO_CORPORAL", youtube), 200);
+        JsonNode beta = api.post("/exercicios", treinador, completo("Beta Teste", "Costas", "MAQUINA", null), 200);
+        JsonNode gama = api.post("/exercicios", treinador, completo("Gama Teste", "Ombro", "CARDIO", youtube), 200);
+        api.post("/exercicios", treinador, completo("Delta Teste", "Ombro", "ELASTICO", null), 200);
+        // Imagem própria em Beta e Gama; o quinto exercício vem do catálogo, com as fotos dele.
+        enviarImagem(beta.get("id").asString());
+        enviarImagem(gama.get("id").asString());
+        JsonNode doCatalogo = api.get("/catalogo/exercicios?busca=remada&modalidade=LIVRE&limite=1", treinador, 200).get("itens").get(0);
+        api.post("/exercicios/importar-catalogo", treinador, Map.of("ids", List.of(doCatalogo.get("id").asString())), 200);
+        String nomeDoCatalogo = doCatalogo.get("nome").asString();
+
+        // Outra consultoria: nem os exercícios nem as modalidades dela entram nas contas.
+        JsonNode outra = api.novoTreinador();
+        api.post("/exercicios", outra, completo("Teste da outra consultoria", "Costas", "OUTRO", youtube), 200);
+
+        assertThat(nomes("/exercicios/pagina?video=true")).containsExactlyInAnyOrder("Alfa Teste", "Gama Teste");
+        assertThat(nomes("/exercicios/pagina?video=false")).containsExactlyInAnyOrder("Beta Teste", "Delta Teste", nomeDoCatalogo);
+        assertThat(nomes("/exercicios/pagina?imagem=true")).containsExactlyInAnyOrder("Beta Teste", "Gama Teste", nomeDoCatalogo);
+        assertThat(nomes("/exercicios/pagina?imagem=false")).containsExactlyInAnyOrder("Alfa Teste", "Delta Teste");
+        assertThat(nomes("/exercicios/pagina?video=true&imagem=true")).containsExactly("Gama Teste");
+        assertThat(nomes("/exercicios/pagina?video=false&imagem=false")).containsExactly("Delta Teste");
+        assertThat(api.get("/exercicios/pagina", treinador, 200).get("total").asInt()).isEqualTo(5);
+
+        assertThat(nomes("/exercicios/pagina?modalidade=LIVRE")).containsExactly(nomeDoCatalogo);
+        assertThat(nomes("/exercicios/pagina?modalidade=PESO_CORPORAL&modalidade=CARDIO")).containsExactlyInAnyOrder("Alfa Teste", "Gama Teste");
+        assertThat(nomes("/exercicios/pagina?modalidade=LIVRE&modalidade=MAQUINA")).containsExactlyInAnyOrder(nomeDoCatalogo, "Beta Teste");
+        assertThat(nomes("/exercicios/pagina?modalidade=OUTRO")).doesNotContain("Teste da outra consultoria");
+
+        // Combina com grupo e busca.
+        assertThat(nomes("/exercicios/pagina?grupo=Ombro&video=true")).containsExactly("Gama Teste");
+        assertThat(nomes("/exercicios/pagina?busca=teste&imagem=true")).containsExactlyInAnyOrder("Beta Teste", "Gama Teste");
+        assertThat(nomes("/exercicios/pagina?busca=teste&grupo=Costas&modalidade=MAQUINA&imagem=true")).containsExactly("Beta Teste");
+        assertThat(nomes("/exercicios/pagina?busca=teste&modalidade=CARDIO&video=false")).isEmpty();
+
+        // O total e as páginas contam depois do filtro.
+        JsonNode primeira = api.get("/exercicios/pagina?imagem=true&tamanho=2", treinador, 200);
+        assertThat(primeira.get("total").asInt()).isEqualTo(3);
+        assertThat(primeira.get("itens")).hasSize(2);
+        assertThat(api.get("/exercicios/pagina?imagem=true&tamanho=2&pagina=1", treinador, 200).get("itens")).hasSize(1);
+        assertThat(api.get("/exercicios/pagina?imagem=true&tamanho=2&pagina=2", treinador, 200).get("itens")).isEmpty();
+        JsonNode soVideo = api.get("/exercicios/pagina?video=true&tamanho=1&pagina=1", treinador, 200);
+        assertThat(soVideo.get("total").asInt()).isEqualTo(2);
+        assertThat(soVideo.get("itens")).hasSize(1);
+
+        // modalidades = as da biblioteca, na ordem do enum, sem aplicar nenhum filtro e sem as de outra consultoria.
+        List<String> esperadas = List.of("LIVRE", "MAQUINA", "ELASTICO", "PESO_CORPORAL", "CARDIO");
+        assertThat(modalidades("/exercicios/pagina")).containsExactlyElementsOf(esperadas);
+        assertThat(modalidades("/exercicios/pagina?video=true&modalidade=LIVRE&imagem=false")).containsExactlyElementsOf(esperadas);
+        assertThat(modalidades("/exercicios/pagina?busca=inexistentexyz")).containsExactlyElementsOf(esperadas);
+
+        // Valor fora do enum ou do booleano: 400, sem repetir o que veio.
+        JsonNode invalida = api.get("/exercicios/pagina?modalidade=VOADOR", treinador, 400);
+        assertThat(invalida.get("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+        assertThat(invalida.toString()).doesNotContain("VOADOR");
+        assertThat(api.get("/exercicios/pagina?video=talvez", treinador, 400).toString()).doesNotContain("talvez");
+        assertThat(api.get("/exercicios/pagina?imagem=talvez", treinador, 400).toString()).doesNotContain("talvez");
+    }
+
+    private List<String> nomes(String caminho) throws Exception {
+        return api.get(caminho + (caminho.contains("?") ? "&" : "?") + "tamanho=200", treinador, 200).get("itens")
+                .valueStream().map(i -> i.get("nome").asString()).toList();
+    }
+
+    private List<String> modalidades(String caminho) throws Exception {
+        return api.get(caminho, treinador, 200).get("modalidades").valueStream().map(JsonNode::asString).toList();
+    }
+
+    private void enviarImagem(String exercicioId) throws Exception {
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(8, 8, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(img, "png", bytes);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart(org.springframework.http.HttpMethod.PUT, "/exercicios/" + exercicioId + "/imagem")
+                        .file(new org.springframework.mock.web.MockMultipartFile("arquivo", "a.png", "application/octet-stream", bytes.toByteArray()))
+                        .header(org.springframework.http.HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador)))
+                .andExpect(status().isOk());
+    }
+
+    private static Map<String, Object> completo(String nome, String grupo, String modalidade, String video) {
+        Map<String, Object> m = exercicio(nome, video);
+        m.put("grupoMuscular", grupo);
+        m.put("modalidade", modalidade);
+        return m;
     }
 
     private static Map<String, Object> comGrupo(String nome, String grupo) {

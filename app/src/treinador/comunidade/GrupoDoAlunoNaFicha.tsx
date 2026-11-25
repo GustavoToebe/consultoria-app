@@ -106,7 +106,7 @@ export function GrupoDoAlunoNaFicha({ aluno, aoAlterar }: { aluno: AlunoDetalhe;
     <LinhaDeDado rotulo="Grupo da comunidade" valor={aluno.podNome ?? 'Sem grupo'}
       acoes={(
         <>
-          <Botao rotulo="Mudar grupo" tipo="secundario" desabilitado={!!motivo} motivo={motivo ?? undefined} aoTocar={() => setAberta(true)} />
+          <Botao rotulo="Mudar grupo" tipo="secundario" tamanho="pequeno" desabilitado={!!motivo} motivo={motivo ?? undefined} aoTocar={() => setAberta(true)} />
           {aberta ? <FolhaDoGrupo aluno={aluno} aoAlterar={aoAlterar} aoFechar={() => setAberta(false)} /> : null}
         </>
       )} />

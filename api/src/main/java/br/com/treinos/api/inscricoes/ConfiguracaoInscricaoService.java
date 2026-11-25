@@ -2,20 +2,32 @@ package br.com.treinos.api.inscricoes;
 
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.auditoria.Auditar;
+import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.inscricoes.InscricaoDtos.CamposOcultosRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ConfiguracaoRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ConfiguracaoResponse;
+import br.com.treinos.api.inscricoes.InscricaoDtos.CriarFichaRapidaRequest;
+import br.com.treinos.api.inscricoes.InscricaoDtos.LinkDeInscricaoResponse;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NovoLinkRequest;
+import br.com.treinos.api.questionarios.ConteudoQuestionario;
+import br.com.treinos.api.questionarios.ConteudoQuestionario.Pergunta;
+import br.com.treinos.api.questionarios.ConteudoQuestionario.Secao;
 import br.com.treinos.api.questionarios.Finalidade;
 import br.com.treinos.api.questionarios.Questionario;
 import br.com.treinos.api.questionarios.QuestionarioRepository;
+import br.com.treinos.api.questionarios.QuestionarioVersao;
+import br.com.treinos.api.questionarios.QuestionarioVersaoRepository;
+import br.com.treinos.api.questionarios.TipoPergunta;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
@@ -31,15 +43,63 @@ import java.util.UUID;
 @Service
 public class ConfiguracaoInscricaoService {
 
+    private static final int NOME_MAXIMO = 120;
+    private static final int FORMATO_QUESTIONARIO = 2;
+
     private final QuestionarioRepository questionarios;
+    private final QuestionarioVersaoRepository versoes;
     private final ResponsaveisDaInscricao responsaveis;
+    private final Auditoria auditoria;
+    private final JsonMapper json;
     private final String appUrl;
 
-    public ConfiguracaoInscricaoService(QuestionarioRepository questionarios, ResponsaveisDaInscricao responsaveis,
+    public ConfiguracaoInscricaoService(QuestionarioRepository questionarios, QuestionarioVersaoRepository versoes,
+                                        ResponsaveisDaInscricao responsaveis, Auditoria auditoria, JsonMapper json,
                                         @Value("${treinos.app-url}") String appUrl) {
         this.questionarios = questionarios;
+        this.versoes = versoes;
         this.responsaveis = responsaveis;
+        this.auditoria = auditoria;
+        this.json = json;
         this.appUrl = appUrl.endsWith("/") ? appUrl.substring(0, appUrl.length() - 1) : appUrl;
+    }
+
+    /** Todos os formulários de inscrição ativos da consultoria (padrão primeiro, depois por nome). */
+    @Transactional(readOnly = true)
+    public List<LinkDeInscricaoResponse> listarLinks() {
+        return questionarios.findByArquivadoAndFinalidadeOrderByNomeAsc(false, Finalidade.INSCRICAO).stream()
+                .sorted(Comparator.comparing((Questionario q) -> !q.isPadrao()))
+                .map(this::linkResponse)
+                .toList();
+    }
+
+    /**
+     * Cria um formulário secundário de ficha rápida pós-WhatsApp: publicado (v1 com pergunta única opcional de plano
+     * combinado), escondendo os campos extras (mantém Nome, WhatsApp e E-mail) e já com link público aberto.
+     */
+    @Transactional
+    public LinkDeInscricaoResponse criarFichaRapida(CriarFichaRapidaRequest req, UUID usuarioId) {
+        String nomeBase = req == null || req.nome() == null || req.nome().isBlank() ? "Ficha rápida" : req.nome().trim();
+        String nome = nomeDisponivel(nomeBase);
+        ConteudoQuestionario conteudo = new ConteudoQuestionario(FORMATO_QUESTIONARIO, List.of(), List.of(
+                new Secao("plano_combinado_secao", "Plano combinado", List.of(
+                        new Pergunta("plano_combinado", TipoPergunta.TEXTO, "Qual plano combinou?", false,
+                                null, null, null, null, null, null, null, null, null, null)))));
+        String conteudoJson = json.writeValueAsString(conteudo);
+        Questionario novo = new Questionario(nome, null, conteudoJson, Finalidade.INSCRICAO);
+        novo.setCamposOcultos(CampoDaInscricao.escrever(EnumSet.of(
+                CampoDaInscricao.SEXO, CampoDaInscricao.OBJETIVO, CampoDaInscricao.INTERESSE,
+                CampoDaInscricao.MODALIDADE, CampoDaInscricao.PREVISAO_INICIO, CampoDaInscricao.ORIGEM)));
+        novo.setCodigoPublico(CodigoDeInscricao.novo());
+        novo.setPublicoAberto(true);
+        novo.subirLinkVersao();
+        Questionario gravado = gravar(novo);
+        versoes.saveAndFlush(new QuestionarioVersao(gravado.getId(), 1, conteudoJson, usuarioId));
+        gravado.publicar(1, Instant.now());
+        gravado = gravar(gravado);
+        auditoria.registrarEvento("INSCRICAO_FICHA_RAPIDA_CRIADA", "QUESTIONARIO", gravado.getId(),
+                "Criou um formulário de ficha rápida de inscrição.");
+        return linkResponse(gravado);
     }
 
     /** O formulário de inscrição padrão da consultoria da sessão (o que o cartão "Link" do Interessados controla). */
@@ -126,6 +186,26 @@ public class ConfiguracaoInscricaoService {
         return new ConfiguracaoResponse(q.isLinkPublicoAberto(), codigo, codigo == null ? null : appUrl + "/inscricao/" + codigo,
                 q.getResponsavelPadraoId(), q.getTextoApresentacao(), List.copyOf(CampoDaInscricao.ler(q.getCamposOcultos())),
                 q.getLinkVersao());
+    }
+
+    private LinkDeInscricaoResponse linkResponse(Questionario q) {
+        String codigo = q.getCodigoPublico();
+        return new LinkDeInscricaoResponse(q.getId(), q.getNome(), q.isPadrao(), q.isLinkPublicoAberto(), codigo,
+                codigo == null ? null : appUrl + "/inscricao/" + codigo, q.getResponsavelPadraoId(),
+                q.getProximoQuestionarioId(), q.getTextoApresentacao(),
+                List.copyOf(CampoDaInscricao.ler(q.getCamposOcultos())), q.getLinkVersao());
+    }
+
+    private String nomeDisponivel(String base) {
+        for (int n = 1; ; n++) {
+            String sufixo = n == 1 ? "" : " " + n;
+            String truncado = base.length() + sufixo.length() > NOME_MAXIMO
+                    ? base.substring(0, NOME_MAXIMO - sufixo.length()) : base;
+            String candidato = truncado + sufixo;
+            if (!questionarios.existsByNomeIgnoreCaseAndArquivadoFalse(candidato)) {
+                return candidato;
+            }
+        }
     }
 
     private static ConflictException conflito() {

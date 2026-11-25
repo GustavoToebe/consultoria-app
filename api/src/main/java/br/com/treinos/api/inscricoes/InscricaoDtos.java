@@ -135,6 +135,15 @@ public final class InscricaoDtos {
     public record NovoLinkRequest(Long versao) {
     }
 
+    /** Link público de um formulário de inscrição da consultoria (padrão ou secundário, ex.: ficha rápida). */
+    public record LinkDeInscricaoResponse(UUID id, String nome, boolean padrao, boolean aberta, String codigo,
+                                          String link, UUID responsavelId, UUID proximoQuestionarioId, String texto,
+                                          List<CampoDaInscricao> camposOcultos, Long versao) {
+    }
+
+    public record CriarFichaRapidaRequest(@Size(max = 120) String nome) {
+    }
+
     // ---- Fila ----
 
     /**
@@ -155,7 +164,19 @@ public final class InscricaoDtos {
                                   String responsavelNome, UUID alunoId, Instant criadaEm, Instant ultimaAtividadeEm,
                                   int ciclo, Origem origem, String propostaPlanoNome, ProximoRetorno proximoRetorno,
                                   Long versao, Duplicidade duplicidade,
-                                  UUID questionarioId, String questionarioNome, String indicadoPor) {
+                                  UUID questionarioId, String questionarioNome, String indicadoPor,
+                                  boolean aceitaSemCobranca) {
+        public InscricaoResumo(UUID id, String nome, String objetivo, String whatsapp, String email,
+                              SituacaoInscricao situacao, PagamentoInscricao pagamento, UUID responsavelId,
+                              String responsavelNome, UUID alunoId, Instant criadaEm, Instant ultimaAtividadeEm,
+                              int ciclo, Origem origem, String propostaPlanoNome, ProximoRetorno proximoRetorno,
+                              Long versao, Duplicidade duplicidade,
+                              UUID questionarioId, String questionarioNome, String indicadoPor) {
+            this(id, nome, objetivo, whatsapp, email, situacao, pagamento, responsavelId, responsavelNome, alunoId,
+                    criadaEm, ultimaAtividadeEm, ciclo, origem, propostaPlanoNome, proximoRetorno, versao, duplicidade,
+                    questionarioId, questionarioNome, indicadoPor, false);
+        }
+
         public InscricaoResumo(UUID id, String nome, String objetivo, String whatsapp, String email,
                               SituacaoInscricao situacao, PagamentoInscricao pagamento, UUID responsavelId,
                               String responsavelNome, UUID alunoId, Instant criadaEm, Instant ultimaAtividadeEm,
@@ -163,7 +184,7 @@ public final class InscricaoDtos {
                               Long versao, Duplicidade duplicidade) {
             this(id, nome, objetivo, whatsapp, email, situacao, pagamento, responsavelId, responsavelNome, alunoId,
                     criadaEm, ultimaAtividadeEm, ciclo, origem, propostaPlanoNome, proximoRetorno, versao, duplicidade,
-                    null, null, null);
+                    null, null, null, false);
         }
     }
 
@@ -215,7 +236,30 @@ public final class InscricaoDtos {
                                    List<Retorno> retornos, List<Evento> eventos, RespostasDaInscricao respostas,
                                    UUID questionarioId, String questionarioNome, String indicadoPor,
                                    /** Aluno que indicou, conferido: o nome com {@code ALUNO_LER}, senão "Um aluno" (sem nome nem id); nulo sem indicação. */
-                                   String indicadoPorAluno) {
+                                   String indicadoPorAluno,
+                                   boolean aceitaSemCobranca) {
+        public InscricaoDetalhe(UUID id, String nome, String whatsapp, String email, String objetivo,
+                               String observacao, String sexo, Interesse interesse,
+                               ModalidadeDesejada modalidadeDesejada, PrevisaoInicio previsaoInicio,
+                               OrigemInformada origemInformada, String origemLink, Origem origem,
+                               Instant cienciaEm, String cienciaTexto, SituacaoInscricao situacao, int ciclo,
+                               MotivoEncerramento motivoEncerramento, String motivoDetalhe, Instant encerradaEm,
+                               String encerradaPorNome, PagamentoInscricao pagamento,
+                               String pagamentoConfirmadoPorNome, Instant pagamentoConfirmadoEm,
+                               UUID responsavelId, String responsavelNome, UUID alunoId, Instant aceitaEm,
+                               Relacionada relacionadaA, Proposta proposta, Instant criadaEm, Instant atualizadaEm,
+                               Instant ultimaAtividadeEm, Long versao, Duplicidade duplicidade, List<Nota> notas,
+                               List<Retorno> retornos, List<Evento> eventos, RespostasDaInscricao respostas,
+                               UUID questionarioId, String questionarioNome, String indicadoPor,
+                               String indicadoPorAluno) {
+            this(id, nome, whatsapp, email, objetivo, observacao, sexo, interesse, modalidadeDesejada, previsaoInicio,
+                    origemInformada, origemLink, origem, cienciaEm, cienciaTexto, situacao, ciclo, motivoEncerramento,
+                    motivoDetalhe, encerradaEm, encerradaPorNome, pagamento, pagamentoConfirmadoPorNome,
+                    pagamentoConfirmadoEm, responsavelId, responsavelNome, alunoId, aceitaEm, relacionadaA, proposta,
+                    criadaEm, atualizadaEm, ultimaAtividadeEm, versao, duplicidade, notas, retornos, eventos, respostas,
+                    questionarioId, questionarioNome, indicadoPor, indicadoPorAluno, false);
+        }
+
         public InscricaoDetalhe(UUID id, String nome, String whatsapp, String email, String objetivo,
                                String observacao, String sexo, Interesse interesse,
                                ModalidadeDesejada modalidadeDesejada, PrevisaoInicio previsaoInicio,
@@ -233,7 +277,7 @@ public final class InscricaoDtos {
                     motivoDetalhe, encerradaEm, encerradaPorNome, pagamento, pagamentoConfirmadoPorNome,
                     pagamentoConfirmadoEm, responsavelId, responsavelNome, alunoId, aceitaEm, relacionadaA, proposta,
                     criadaEm, atualizadaEm, ultimaAtividadeEm, versao, duplicidade, notas, retornos, eventos, respostas,
-                    null, null, null, null);
+                    null, null, null, null, false);
         }
     }
 
@@ -331,15 +375,27 @@ public final class InscricaoDtos {
     /** Indicadores do período (Brasília). {@code conversao} nula sem entradas; tempos nulos sem aceites. */
     public record Indicadores(LocalDate de, LocalDate ate, long entradas, long pessoas, long aceites, long recusadas,
                               long desistencias, long reaberturas, long aceitesDasEntradas, Double conversao,
-                              DiasAteAceite diasAteAceite, List<PorMotivo> porMotivo, List<PorOrigem> porOrigem) {
+                              DiasAteAceite diasAteAceite, List<PorMotivo> porMotivo, List<PorOrigem> porOrigem,
+                              long aguardandoPagamento, long pagaram, long cortesias) {
+        public Indicadores(LocalDate de, LocalDate ate, long entradas, long pessoas, long aceites, long recusadas,
+                           long desistencias, long reaberturas, long aceitesDasEntradas, Double conversao,
+                           DiasAteAceite diasAteAceite, List<PorMotivo> porMotivo, List<PorOrigem> porOrigem) {
+            this(de, ate, entradas, pessoas, aceites, recusadas, desistencias, reaberturas, aceitesDasEntradas,
+                    conversao, diasAteAceite, porMotivo, porOrigem, 0, 0, 0);
+        }
     }
 
     /**
      * {@code convidar}: gera o convite de acesso ao app do aluno criado (o link sai só nesta resposta).
      * {@code anamneseQuestionarioId}: opcional; com ele, o aluno criado já recebe a anamnese desse questionário
      * (publicado, de anamnese e não arquivado), na versão publicada daquele momento. Nulo = não envia anamnese.
+     * {@code semCobranca}: true para aceitar como cortesia (sem pagamento confirmado); padrão false (exige pagamento confirmado).
      */
-    public record AceitarRequest(@NotNull Boolean convidar, @NotNull Long versao, UUID anamneseQuestionarioId) {
+    public record AceitarRequest(@NotNull Boolean convidar, @NotNull Long versao, UUID anamneseQuestionarioId,
+                                 Boolean semCobranca) {
+        public AceitarRequest(Boolean convidar, Long versao, UUID anamneseQuestionarioId) {
+            this(convidar, versao, anamneseQuestionarioId, false);
+        }
     }
 
     // ---- Privacidade ----
@@ -368,6 +424,10 @@ public final class InscricaoDtos {
      * {@code id} = a inscrição (a auditoria lê o id daqui); {@code convite} nulo sem convite; {@code anamneseId} = a
      * anamnese pendente enviada ao aluno, nulo quando o aceite não pediu anamnese.
      */
-    public record AceiteResponse(UUID id, UUID alunoId, ConviteResponse convite, UUID anamneseId) {
+    public record AceiteResponse(UUID id, UUID alunoId, ConviteResponse convite, UUID anamneseId,
+                                 boolean aceitaSemCobranca) {
+        public AceiteResponse(UUID id, UUID alunoId, ConviteResponse convite, UUID anamneseId) {
+            this(id, alunoId, convite, anamneseId, false);
+        }
     }
 }

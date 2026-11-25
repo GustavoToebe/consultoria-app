@@ -205,6 +205,8 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
 
     List<CobrancaAluno> findByAlunoIdAndSituacao(UUID alunoId, CobrancaAluno.Situacao situacao);
 
+    boolean existsByAlunoIdAndSituacaoAndVencimentoBefore(UUID alunoId, CobrancaAluno.Situacao situacao, LocalDate hoje);
+
     List<CobrancaAluno> findByAlunoId(UUID alunoId);
 
     List<CobrancaAluno> findByAlunoIdAndSituacaoOrderByVencimentoAscIdAsc(UUID alunoId, CobrancaAluno.Situacao situacao);

@@ -126,10 +126,10 @@ for (const largura of [390, 1280]) {
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`);
     await expect(page.getByRole('heading', { name: 'Água', exact: true })).toBeVisible();
     await expect(page.getByText('Registrou 2 de 7 dias')).toBeVisible();
-    await expect(page.getByText('1,5 L de 3,0 L')).toBeVisible();
-    await expect(page.getByText('0,0 L de 3,0 L')).toBeVisible();
-    // Dia sem registro é "—", nunca zero.
-    await expect(page.getByText('—').first()).toBeVisible();
+    await expect(page.getByRole('img', { name: '19/10: 1,5 L de 3,0 L' })).toBeVisible();
+    await expect(page.getByRole('img', { name: '17/10: 0,0 L de 3,0 L' })).toBeVisible();
+    // Dia sem registro é coluna vazia tracejada, nunca zero.
+    await expect(page.getByRole('img', { name: /: sem registro$/ })).toHaveCount(5);
     const pedido = pedidos.find((p) => p.caminho === `/alunos/${ALUNO_ID}/agua`);
     expect(pedido?.busca.get('de')).toBe('2026-10-13');
     expect(pedido?.busca.get('ate')).toBe('2026-10-19');
@@ -156,9 +156,11 @@ for (const largura of [390, 1280]) {
       });
       await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`);
       await expect(page.getByRole('heading', { name: 'Água', exact: true })).toBeVisible();
-      await expect(page.getByText('Nenhum registro nos últimos 7 dias')).toBeVisible();
-      if (comDieta) await expect(page.getByText('Água por dia na dieta: 3,0 L.')).toBeVisible();
-      else await expect(page.getByText(/^Sem dieta publicada em uso/)).toBeVisible();
+      if (comDieta) await expect(page.getByText('Nenhum registro nos últimos 7 dias · meta 3,0 L', { exact: true })).toBeVisible();
+      else {
+        await expect(page.getByText('Nenhum registro nos últimos 7 dias', { exact: true })).toBeVisible();
+        await expect(page.getByText(/^Sem dieta publicada em uso/)).toBeVisible();
+      }
       // As sete linhas de dia somem: nem "Hoje · 19/10" nem os traços.
       await expect(page.getByText('Hoje · 19/10')).toHaveCount(0);
       expect(errosDaPagina).toEqual([]);

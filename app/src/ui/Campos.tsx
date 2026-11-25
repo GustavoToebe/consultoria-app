@@ -26,6 +26,7 @@ export function CampoData({
   nome,
   rotuloAcessivel,
   ref,
+  desabilitado,
 }: {
   rotulo: string;
   valor: string;
@@ -46,6 +47,8 @@ export function CampoData({
   rotuloOculto?: boolean;
   /** Rótulo em peso normal e cor suave, para o campo que está sob um rótulo de grupo (o par De/Até do filtro). */
   rotuloDiscreto?: boolean;
+  /** Sem digitar nem calendário (o motivo fica com quem usa, junto do campo). */
+  desabilitado?: boolean;
 }) {
   const invalida = valor.length === 10 && dataDaTela(valor) === undefined;
   const [ancora, setAncora] = useState<Ancora | null>(null);
@@ -66,12 +69,13 @@ export function CampoData({
       keyboardType="number-pad"
       inputMode="numeric"
       maxLength={10}
+      editable={!desabilitado}
       erro={erro ?? (regra ? erroDaData(valor, nome ?? rotulo, regra) : null) ?? (invalida ? 'Data inválida.' : null)}
-      acao={
+      acao={desabilitado ? undefined : (
         <View ref={botao} collapsable={false}>
           <BotaoCalendario aoTocar={() => botao.current?.measureInWindow((x, y, w, h) => setAncora({ x, y, w, h }))} />
         </View>
-      }
+      )}
     />
     {ancora ? (
       <Calendario

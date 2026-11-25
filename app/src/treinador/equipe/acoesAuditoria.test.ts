@@ -53,11 +53,23 @@ test('ações dos pods da Comunidade têm rótulo no filtro da auditoria', () =>
 });
 
 test('ações da vitrine têm rótulo no filtro da auditoria', () => {
-  for (const acao of ['VITRINE_ITEM_CRIADO', 'VITRINE_ITEM_ALTERADO', 'VITRINE_ITEM_EXCLUIDO', 'VITRINE_ITEM_ORDEM_ALTERADA', 'VITRINE_ITEM_FOTO_ALTERADA', 'VITRINE_ITEM_FOTO_REMOVIDA', 'VITRINE_PAGINA_ALTERADA', 'VITRINE_LINK_RENOVADO', 'VITRINE_MARKETPLACE_ALTERADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+  for (const acao of ['VITRINE_ITEM_CRIADO', 'VITRINE_ITEM_ALTERADO', 'VITRINE_ITEM_EXCLUIDO', 'VITRINE_ITEM_ORDEM_ALTERADA', 'VITRINE_ITEM_FOTO_ALTERADA', 'VITRINE_ITEM_FOTO_REMOVIDA', 'VITRINE_CATEGORIA_CRIADA', 'VITRINE_CATEGORIA_RENOMEADA', 'VITRINE_CATEGORIA_EXCLUIDA', 'VITRINE_CATEGORIAS_REORDENADAS', 'VITRINE_PAGINA_ALTERADA', 'VITRINE_LINK_RENOVADO', 'VITRINE_MARKETPLACE_ALTERADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
   expect(ACOES_AUDITORIA.VITRINE_MARKETPLACE_ALTERADO).not.toMatch(/marketplace/i);
 });
 
 test('ações das tags de aluno têm rótulo no filtro da auditoria', () => {
   for (const acao of ['COBRANCAS_RENEGOCIADAS', 'ACORDO_DESFEITO', 'KIWIFY_CONFIGURADA', 'KIWIFY_REMOVIDA']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
   for (const acao of ['TAG_ALUNO_CRIADA', 'TAG_ALUNO_ALTERADA', 'TAG_ALUNO_APAGADA', 'ALUNO_TAGS_ALTERADAS']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});
+
+test('ações de pausa de acesso (Fase 2) e ficha rápida/cortesia (Fase 3) têm rótulo no filtro da auditoria', () => {
+  for (const acao of [
+    'ALUNO_ACESSO_PAUSADO',
+    'ALUNO_ACESSO_REATIVADO',
+    'ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE',
+    'INSCRICAO_FICHA_RAPIDA_CRIADA',
+    'INSCRICAO_ACEITA_SEM_COBRANCA',
+  ]) {
+    expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+  }
 });

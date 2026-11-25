@@ -104,7 +104,10 @@ class InscricaoAceiteAtomicoIntegrationTest extends AbstractIntegrationTest {
         JsonNode lista = api.get("/inscricoes", admin, 200);
         assertThat(lista.path("total").asLong()).isEqualTo(1);
         String id = lista.path("itens").get(0).path("id").asString();
-        return new String[] {id, String.valueOf(api.get("/inscricoes/" + id, admin, 200).path("versao").asLong())};
+        long versao = api.get("/inscricoes/" + id, admin, 200).path("versao").asLong();
+        JsonNode confirmada = api.put("/inscricoes/" + id, admin,
+                Map.of("situacao", "NOVA", "pagamento", "CONFIRMADO_MANUAL", "versao", versao), 200);
+        return new String[] {id, String.valueOf(confirmada.path("versao").asLong())};
     }
 
     private Map<String, Object> aceiteComConvite(String versao, String questionarioId) {

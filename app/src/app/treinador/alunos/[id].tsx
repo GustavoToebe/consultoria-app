@@ -185,7 +185,8 @@ export default function FichaAluno() {
       case 'acessoAoApp':
         return <View ref={acessoRef} nativeID="acesso-ao-app" onLayout={() => setAcessoMedido((n) => n + 1)}><CartaoAcesso aluno={a} aoAlterar={definir} /></View>;
       case 'planoContratado':
-        return <CartaoPlanoContratado key={geracaoFinanceiro} alunoId={a.id} ativo={a.ativo} anonimizado={a.anonimizado} alunoNome={a.nome} telefoneAluno={a.telefone} />;
+        return <CartaoPlanoContratado key={geracaoFinanceiro} alunoId={a.id} ativo={a.ativo} anonimizado={a.anonimizado} alunoNome={a.nome} telefoneAluno={a.telefone}
+          alunoAcessoPausado={a.acessoPausado} aoAlterarAluno={definir} />;
       case 'anamnese':
         return <CartaoAnamnese alunoId={a.id} anonimizado={a.anonimizado} aoMudarCadastro={() => { recarregar(); setGeracaoPeso((g) => g + 1); }} />;
       // As lesões são do `BlocosDaFicha`: ele as busca uma vez e põe as ativas no topo quando a aba fica numa coluna.
@@ -218,9 +219,10 @@ export default function FichaAluno() {
     const contagens = lista.filter((b) => CONTAGENS.includes(b));
     return (
       <>
-        {/* Frequência e mobilidade (um cartão) e Água são o mesmo tipo de contagem: lado a lado no PC, uma embaixo da outra no celular. */}
+        {/* Frequência e mobilidade (um cartão) e Água são o mesmo tipo de contagem: lado a lado no PC, com a mesma altura
+            (a linha estica e cada cartão cresce até ela), uma embaixo da outra no celular. */}
         {contagens.length > 0 ? (
-          <View style={estilos.contagens}>
+          <View style={[estilos.contagens, { alignItems: 'stretch' }]}>
             {contagens.map((b) => {
               const el = bloco(b, a);
               return el ? <View key={b} style={estilos.contagem}>{el}</View> : null;

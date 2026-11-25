@@ -21,6 +21,8 @@ import {
   linkDoWhatsApp,
   mascaraWhatsapp,
   podeAceitar,
+  podeAceitarPago,
+  podeAceitarSemCobranca,
   podeEncerrar,
   podeReabrir,
   resumoDoObjetivo,
@@ -92,6 +94,22 @@ describe('andamento', () => {
     expect(podeReabrir('DESISTIU')).toBe(true);
     expect(podeReabrir('ACEITA')).toBe(false);
     expect(podeReabrir('NOVA')).toBe(false);
+  });
+
+  it('aceite pago exige pagamento confirmado; sem cobrança (cortesia) vale nas etapas abertas sem confirmação', () => {
+    expect(podeAceitarPago('NOVA', 'CONFIRMADO_MANUAL')).toBe(true);
+    expect(podeAceitarPago('EM_CONTATO', 'CONFIRMADO_MANUAL')).toBe(true);
+    expect(podeAceitarPago('EM_NEGOCIACAO', 'CONFIRMADO_MANUAL')).toBe(true);
+    expect(podeAceitarPago('NOVA', 'AGUARDANDO')).toBe(false);
+    expect(podeAceitarPago('NOVA', 'NAO_CONTROLADO')).toBe(false);
+    expect(podeAceitarPago('ACEITA', 'CONFIRMADO_MANUAL')).toBe(false);
+    expect(podeAceitarPago('RECUSADA', 'CONFIRMADO_MANUAL')).toBe(false);
+
+    expect(podeAceitarSemCobranca('NOVA', 'AGUARDANDO')).toBe(true);
+    expect(podeAceitarSemCobranca('EM_NEGOCIACAO', 'NAO_CONTROLADO')).toBe(true);
+    expect(podeAceitarSemCobranca('NOVA', 'CONFIRMADO_MANUAL')).toBe(false);
+    expect(podeAceitarSemCobranca('ACEITA', 'AGUARDANDO')).toBe(false);
+    expect(podeAceitarSemCobranca('DESISTIU', 'NAO_CONTROLADO')).toBe(false);
   });
 });
 
@@ -400,6 +418,7 @@ describe('CRM: histórico', () => {
     expect(textoDoEvento({ ...base, tipo: 'ORIGEM', de: null, para: 'INSTAGRAM' })).toBe('Origem: Não informada → Instagram');
     expect(textoDoEvento({ ...base, tipo: 'CRIADA' })).toBe('Inscrição recebida');
     expect(textoDoEvento({ ...base, tipo: 'ACEITA' })).toBe('Aceita: virou aluno');
+    expect(textoDoEvento({ ...base, tipo: 'ACEITA', detalhe: 'sem cobrança' })).toBe('Aceita (sem cobrança): virou aluno');
   });
 
   it('eventos e notas juntos, do mais novo ao mais antigo', () => {

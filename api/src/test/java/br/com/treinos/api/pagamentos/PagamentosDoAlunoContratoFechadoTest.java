@@ -15,7 +15,7 @@ class PagamentosDoAlunoContratoFechadoTest {
     void financeiroDesligadoNaoBloqueiaNemLeAContratacao() {
         ContratacaoAlunoRepository contratacoes = mock(ContratacaoAlunoRepository.class);
         var pagamentos = new PagamentosDoAluno(contratacoes, null, null, null, null, null,
-                new PagamentosProperties(false, null, null, false, false), null, null);
+                new PagamentosProperties(false, null, null, false, false), null, null, null);
 
         assertThat(pagamentos.temContratoFechadoVigente(UUID.randomUUID())).isFalse();
         verifyNoInteractions(contratacoes);

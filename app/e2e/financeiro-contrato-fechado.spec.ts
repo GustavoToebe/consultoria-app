@@ -250,7 +250,7 @@ for (const [largura, tema] of LARGURAS_E_TEMAS) {
     expect(errosDaPagina).toEqual([]);
   });
 
-  test(`lista de alunos em ${sufixo}: a pílula "Vencida" ao lado de quem está em atraso`, async ({ page }) => {
+  test(`lista de alunos em ${sufixo}: a pílula "Cobrança vencida" ao lado de quem está em atraso`, async ({ page }) => {
     const alunos: AlunoResumo[] = [
       { id: ALUNO_FINANCEIRO_ID, nome: ALUNO.nome, ativo: true, temAcesso: true, planoAtivo: null, ultimoRegistro: null, responsavelId: null },
       { id: 'a0000000-0000-4000-8000-0000000000e2', nome: 'Bruno Exemplo da Silva', ativo: true, temAcesso: true, planoAtivo: null, ultimoRegistro: null, responsavelId: null },
@@ -259,8 +259,8 @@ for (const [largura, tema] of LARGURAS_E_TEMAS) {
     const { errosDaPagina } = await abrir(page, largura, tema, estado, '/treinador/alunos');
     const comAtraso = page.getByRole('link', { name: new RegExp(`^Abrir ${ALUNO.nome}\\. Cobrança vencida`) });
     await expect(comAtraso).toBeVisible();
-    await expect(comAtraso.getByText('Vencida', { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: /^Abrir Bruno Exemplo/ }).getByText('Vencida', { exact: true })).toHaveCount(0);
+    await expect(comAtraso.getByText('Cobrança vencida', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /^Abrir Bruno Exemplo/ }).getByText('Cobrança vencida', { exact: true })).toHaveCount(0);
     await page.screenshot({ path: captura(`lista-de-alunos-${sufixo}`), fullPage: true });
     expect(errosDaPagina).toEqual([]);
   });
@@ -284,7 +284,7 @@ for (const largura of [390, 1280]) {
 
     await page.goto('/treinador/alunos');
     await expect(page.getByRole('link', { name: new RegExp(`^Abrir ${ALUNO.nome}`) })).toBeVisible();
-    await expect(page.getByText('Vencida', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Cobrança vencida', { exact: true })).toHaveCount(0);
     await expect(page.getByText('O financeiro está desligado.')).toHaveCount(0);
     expect(errosDaPagina).toEqual([]);
   });

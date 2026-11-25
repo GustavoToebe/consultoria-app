@@ -19,13 +19,14 @@ import {
   chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, MEUS, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
   CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
 } from '../../../dominio/filtrosDeAlunos';
+import { rotuloDoMaisTags, selosDeExcecaoDoAluno } from '../../../dominio/selosDaLinhaDeAluno';
 import { SELECAO_DE_ALUNOS, selecaoDepoisDosFiltros } from '../../../dominio/painelDeFiltros';
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { ICONE_DO_SELO } from '../../../treinador/iconesDosSelos';
 import { SeletoresDosFiltrosDeAlunos } from '../../../treinador/SeletoresDosFiltrosDeAlunos';
-import { TagsNaLinha } from '../../../treinador/tags/ChipDeTag';
+import { SelosETagsDaLinha } from '../../../treinador/SelosETagsDaLinha';
 import { rotuloDasTagsNaLinha } from '../../../treinador/tags/textosDasTags';
 import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
 import { Folha } from '../../../ui/Folha';
@@ -90,7 +91,7 @@ export default function Alunos() {
   const parametros = useLocalSearchParams<Record<keyof ParametrosDoEndereco, string | string[]>>();
   const filtros = semOQueNaoPode(lerDoEndereco(parametros, comecaEmMeus), permissoes);
   const chaveFiltros = chaveDosFiltros(filtros);
-  // Atraso (D8 do contrato fechado): a pílula "Vencida" ao lado de quem tem cobrança aberta vencida, no escopo do filtro
+  // Atraso (D8 do contrato fechado): a pílula "Cobrança vencida" ao lado de quem tem cobrança aberta vencida, no escopo do filtro
   // Meus/Todos atual. Só com o financeiro ligado e as permissões; 403/503 ou falha de rede somem sem erro.
   // shortcut: a rota devolve até 2000 ids (`truncado`); acima disso alguns alunos ficam sem a pílula; paginar pela lista se a consultoria passar disso.
   const veAtraso = !!pagamentosHabilitados && pode('FINANCEIRO_LER') && pode('ALUNO_LER');
@@ -272,7 +273,7 @@ interface PropsDaLinhaAluno {
   responsavel: string | null;
   podeEditar: boolean;
   veRegistro: boolean;
-  /** Tem cobrança aberta vencida (`GET /financeiro/alunos-em-atraso`): a pílula "Vencida" da folha da cobrança. */
+  /** Tem cobrança aberta vencida (`GET /financeiro/alunos-em-atraso`): a pílula "Cobrança vencida" (a mesma da folha da cobrança). */
   emAtraso: boolean;
   selecionando: boolean;
   marcado: boolean;
@@ -280,7 +281,7 @@ interface PropsDaLinhaAluno {
 }
 
 /**
- * Uma linha da lista (D2 e D3): no PC, colunas Aluno (iniciais, nome e só os selos de exceção, "Inativo" e "Sem
+ * Uma linha da lista (D2 e D3): no PC, colunas Aluno (iniciais, nome e só os selos de exceção, "Cobrança vencida", "Inativo" e "Sem
  * acesso"), Atualização, Plano em uso, Último registro e Responsável; no celular, o aluno em cima e uma linha com o plano
  * e o último registro, mais o selo da atualização. A linha é o link para a ficha e o lápis (editar cadastro) fica antes
  * da seta, fora do link. No PC a linha é linha de tabela (divisória e realce, sem caixa). No Selecionar a linha inteira
@@ -291,12 +292,8 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtr
   const ultimo = ultimoRegistroDaLinha(aluno.ultimoRegistro);
   const plano = aluno.planoAtivo?.titulo ?? null;
   const tags = aluno.tags ?? [];
-  // A mesma pílula e o mesmo `perigo` da cobrança vencida (`seloDaCobranca`), sem cor nova.
-  const excecoes: SeloDaLinha[] = [
-    ...(emAtraso ? [{ texto: 'Vencida', tipo: 'perigo' as const }] : []),
-    ...(!aluno.ativo ? [{ texto: 'Inativo', tipo: 'neutro' as const }] : []),
-    ...(aluno.ativo && !aluno.temAcesso ? [{ texto: 'Sem acesso', tipo: 'neutro' as const }] : []),
-  ];
+  // A pílula do atraso diz o que venceu ("Cobrança vencida": a rota é a das cobranças) e usa o `perigo` da cobrança vencida, sem cor nova.
+  const excecoes = selosDeExcecaoDoAluno({ ativo: aluno.ativo, temAcesso: aluno.temAcesso, emAtraso, acessoPausado: aluno.acessoPausado });
   const seloDaAtualizacao: SeloDaLinha | null = atualizacao
     ? { texto: atualizacao.texto, tipo: atualizacao.tipo, Icone: ICONE_DO_SELO[atualizacao.tipo] }
     : null;
@@ -306,8 +303,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtr
         <IniciaisDePerfil nome={aluno.nome} tamanho={36} />
         <View style={estilos.nomeESelos}>
           <Texto variante="bloco" numberOfLines={2}>{aluno.nome}</Texto>
-          {excecoes.length ? <View style={estilos.selos}>{excecoes.map((s) => <Selo key={s.texto} texto={s.texto} tipo={s.tipo} />)}</View> : null}
-          <TagsNaLinha tags={tags} />
+          <SelosETagsDaLinha selos={excecoes} tags={tags} />
         </View>
       </View>
     ),
@@ -322,7 +318,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtr
   };
   // Celular: o que as colunas mostram vira uma linha de metadados e o selo da atualização embaixo do nome.
   const metadados = metadadosDaLinha(plano, aluno.ultimoRegistro, veRegistro);
-  // A pílula "Vencida" já vai na célula do aluno com as outras exceções (também empilhada); aqui só a da atualização.
+  // A pílula "Cobrança vencida" já vai na célula do aluno com as outras exceções (também empilhada); aqui só a da atualização.
   const selos = seloDaAtualizacao ? [seloDaAtualizacao] : [];
   const comColunas = { definicao: colunas, celulas };
   if (selecionando) {
@@ -333,8 +329,9 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtr
   const rotulo = [
     `Abrir ${aluno.nome}`,
     atualizacao?.texto,
-    ...excecoes.map((s) => (s.texto === 'Vencida' ? 'Cobrança vencida' : s.texto)),
+    ...excecoes.map((s) => s.texto),
     rotuloDasTagsNaLinha(tags),
+    rotuloDoMaisTags(tags),
     plano ?? 'Sem plano ativo',
     veRegistro ? (aluno.ultimoRegistro ? `Último registro: ${ultimo.texto.toLowerCase()}` : ultimo.texto) : null,
     responsavel ? `Responsável: ${responsavel}` : null,
@@ -369,7 +366,6 @@ const estilos = StyleSheet.create({
   bolinha: { width: 10, height: 10, borderRadius: 5 },
   celulaAluno: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minWidth: 0 },
   nomeESelos: { flexShrink: 1, gap: espaco(0.5) },
-  selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
   inicioDaCelula: { flexDirection: 'row' },
   esmaecido: { opacity: 0.6 },
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },

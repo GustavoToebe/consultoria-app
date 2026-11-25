@@ -369,4 +369,71 @@ class CheckoutOvertrainingPayIntegrationTest extends AbstractIntegrationTest {
         assertThat(avisoDivergente.get("motivo")).isEqualTo("VALOR_DIFERENTE");
         assertThat(ASAAS.violacoes()).isEmpty();
     }
+
+    @Test
+    void alunoPausadoPorAtrasoPagaNoCheckoutTransparenteEReativaAutomaticamente() throws Exception {
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+
+        // Cenário 1: aluno pausado com duas vencidas — paga 1ª via Pix/webhook (segue pausado) e 2ª via Cartão (reativa)
+        UUID alunoId = api.criarAluno(admin, "Aluno Pausado Pay");
+        JsonNode alunoLogin = api.convidarEEntrar(admin, alunoId);
+        UUID cobrancaPixId = criarCobrancaAvulsa(admin, alunoId, 15000L, hoje.minusDays(10));
+        UUID cobrancaCartaoId = criarCobrancaAvulsa(admin, alunoId, 20000L, hoje.minusDays(5));
+
+        api.post("/alunos/" + alunoId + "/pausar-acesso", admin, null, 200);
+        assertThat(api.get("/eu", alunoLogin, 200).get("acessoPausado").asBoolean()).isTrue();
+        assertThat(api.get("/aluno/painel", alunoLogin, 403).get("codigo").asString())
+                .isEqualTo("ACESSO_PAUSADO_POR_ATRASO");
+
+        // Whitelist libera /overtraining-pay/pix e /situacao para aluno pausado
+        JsonNode pix = api.post("/aluno/financeiro/cobrancas/" + cobrancaPixId + "/overtraining-pay/pix",
+                alunoLogin, Map.of("cpfPagador", CPF_VALIDO), 200);
+        String pixPaymentId = pix.get("asaasCobrancaId").asString();
+        assertThat(api.get("/aluno/financeiro/cobrancas/" + cobrancaPixId + "/situacao", alunoLogin, 200)
+                .get("situacao").asString()).isEqualTo("ABERTA");
+
+        ASAAS.marcarPago(pixPaymentId);
+        enviarWebhook("PAYMENT_RECEIVED", pixPaymentId, cobrancaPixId.toString());
+        assertThat(conciliador.processarPendentes()).isGreaterThanOrEqualTo(1);
+        assertThat(api.get("/aluno/financeiro/cobrancas/" + cobrancaPixId + "/situacao", alunoLogin, 200)
+                .get("situacao").asString()).isEqualTo("PAGA");
+
+        // Ainda tem uma cobrança vencida em aberto -> continua pausado
+        assertThat(api.get("/eu", alunoLogin, 200).get("acessoPausado").asBoolean()).isTrue();
+        assertThat(api.get("/aluno/painel", alunoLogin, 403).get("codigo").asString())
+                .isEqualTo("ACESSO_PAUSADO_POR_ATRASO");
+
+        // Whitelist libera /overtraining-pay/cartao -> quita última vencida e reativa automaticamente na hora
+        JsonNode cartao = api.post("/aluno/financeiro/cobrancas/" + cobrancaCartaoId + "/overtraining-pay/cartao",
+                alunoLogin, payloadCartao(null, 2), 200);
+        assertThat(cartao.get("situacao").asString()).isEqualTo("PAGA");
+        assertThat(api.get("/eu", alunoLogin, 200).get("acessoPausado").asBoolean()).isFalse();
+        api.get("/aluno/painel", alunoLogin, 200);
+        assertThat(jdbc.queryForObject(
+                "select count(*) from auditoria where consultoria_id = ? and acao = 'ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE' "
+                        + "and entidade_id = ? and usuario_id is null",
+                Integer.class, consultoria, alunoId)).isEqualTo(1);
+
+        // Cenário 2: aluno pausado com uma vencida — quitação por webhook Pix Asaas reativa automaticamente
+        UUID alunoWebhookId = api.criarAluno(admin, "Aluno Pausado Pix");
+        JsonNode alunoWebhookLogin = api.convidarEEntrar(admin, alunoWebhookId);
+        UUID cobrancaUnicaId = criarCobrancaAvulsa(admin, alunoWebhookId, 18000L, hoje.minusDays(7));
+        api.post("/alunos/" + alunoWebhookId + "/pausar-acesso", admin, null, 200);
+        assertThat(api.get("/aluno/painel", alunoWebhookLogin, 403).get("codigo").asString())
+                .isEqualTo("ACESSO_PAUSADO_POR_ATRASO");
+
+        JsonNode pixUnico = api.post("/aluno/financeiro/cobrancas/" + cobrancaUnicaId + "/overtraining-pay/pix",
+                alunoWebhookLogin, Map.of("cpfPagador", CPF_VALIDO), 200);
+        String pixUnicoId = pixUnico.get("asaasCobrancaId").asString();
+        ASAAS.marcarPago(pixUnicoId);
+        enviarWebhook("PAYMENT_RECEIVED", pixUnicoId, cobrancaUnicaId.toString());
+        assertThat(conciliador.processarPendentes()).isGreaterThanOrEqualTo(1);
+
+        assertThat(api.get("/eu", alunoWebhookLogin, 200).get("acessoPausado").asBoolean()).isFalse();
+        api.get("/aluno/painel", alunoWebhookLogin, 200);
+        assertThat(jdbc.queryForObject(
+                "select count(*) from auditoria where consultoria_id = ? and acao = 'ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE' "
+                        + "and entidade_id = ? and usuario_id is null",
+                Integer.class, consultoria, alunoWebhookId)).isEqualTo(1);
+    }
 }

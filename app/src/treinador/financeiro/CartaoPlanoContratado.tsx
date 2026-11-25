@@ -4,6 +4,7 @@ import { Linking, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
 import type { CobrancaResponse, ContratacaoResponse } from '../../api/financeiroTipos';
+import type { AlunoDetalhe } from '../../api/tipos';
 import { listarCobrancasDoAluno, listarContratacoesDoAluno, mudarSituacaoDaContratacao } from '../../api/rotas';
 import {
   abertasDaContratacao, referenciaDaCobranca, resumoDaCobranca, rotuloDaPeriodicidade, rotuloDoTipoDaCobranca,
@@ -63,7 +64,15 @@ function rotuloDaCobranca(c: CobrancaResponse): string {
  * retoma e encerra, e registra pagamento na folha da cobrança. Aluno inativo ou anonimizado não ganha contratação nova.
  * O valor da cobrança nunca é digitado aqui: sai do plano ou da contratação, no servidor.
  */
-export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, telefoneAluno }: { alunoId: string; ativo: boolean; anonimizado: boolean; alunoNome?: string; telefoneAluno?: string | null }) {
+export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, telefoneAluno, alunoAcessoPausado, aoAlterarAluno }: {
+  alunoId: string;
+  ativo: boolean;
+  anonimizado: boolean;
+  alunoNome?: string;
+  telefoneAluno?: string | null;
+  alunoAcessoPausado?: boolean;
+  aoAlterarAluno?: (aluno: AlunoDetalhe) => void;
+}) {
   const { pode } = useSessao();
   const { cores } = useTema();
   const { avisar } = useAviso();
@@ -212,7 +221,8 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
           aoFechar={() => setFormulario(null)} aoMudar={recarregar} />
       ) : null}
       <FolhaDaCobranca cobranca={cobrancaAberta ?? (abrirAoCarregar ? cobrancas.dados?.find((c) => c.id === abrirAoCarregar) ?? null : null)}
-        podeAlterar={podeAlterar} aoFechar={() => { setCobrancaAberta(null); setAbrirAoCarregar(null); }} aoMudar={recarregar} />
+        podeAlterar={podeAlterar} alunoAcessoPausado={alunoAcessoPausado} aoAlterarAluno={aoAlterarAluno}
+        aoFechar={() => { setCobrancaAberta(null); setAbrirAoCarregar(null); }} aoMudar={recarregar} />
       <PainelConfirmacao visivel={confirmando === 'pausar'} titulo="Pausar este plano?"
         mensagem="Enquanto estiver pausado, o aluno não recebe novas mensalidades. Você pode retomar quando quiser."
         rotuloConfirmar="Pausar plano" rotuloCancelar="Voltar" carregando={mudando === 'pausar'}

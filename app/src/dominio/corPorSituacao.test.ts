@@ -108,6 +108,7 @@ describe('uma cor por situação, no aluno e no treinador', () => {
     expect(seloDoAcesso({ ativo: false, anonimizado: false, temAcesso: true, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Inativo', tipo: 'neutro' });
     expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: true })).toEqual({ texto: 'Aguardando primeiro acesso', tipo: 'neutro' });
     expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Com acesso', tipo: 'sucesso' });
+    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: false, acessoPausado: true })).toEqual({ texto: 'Acesso pausado', tipo: 'atencao' });
   });
 
   it('pagamento da inscrição: Aguardando é âmbar (exceção da cobrança; o treinador confirma à mão)', () => {

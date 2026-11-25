@@ -287,6 +287,9 @@ public class InscricaoService {
         }
         if (r.pagamento() != i.getPagamento()) {
             boolean confirmou = r.pagamento() == PagamentoInscricao.CONFIRMADO_MANUAL;
+            if (confirmou && i.isAceitaSemCobranca()) {
+                throw new ConflictException("Esta inscrição foi aceita sem cobrança (cortesia).", "INSCRICAO_CORTESIA");
+            }
             String de = i.getPagamento().name();
             i.alterarPagamento(r.pagamento(), quem);
             historico.registrar(i, TipoEvento.PAGAMENTO, de, r.pagamento().name(), null, quem);
@@ -390,9 +393,9 @@ public class InscricaoService {
      * transação: ou saem todas, ou nenhuma.
      */
     @Transactional
-    @Auditar(acao = "INSCRICAO_ACEITA", entidade = "INSCRICAO", resumo = "Aceitou uma inscrição e cadastrou o aluno.")
     public AceiteResponse aceitar(UUID id, AceitarRequest r, UUID usuarioId) {
         boolean convidar = Boolean.TRUE.equals(r.convidar());
+        boolean semCobranca = Boolean.TRUE.equals(r.semCobranca());
         UUID questionarioId = r.anamneseQuestionarioId();
         if (convidar) AcessoAtual.exigir("ALUNO_CONVITE");
         if (questionarioId != null) {
@@ -404,6 +407,15 @@ public class InscricaoService {
         Inscricao i = inscricoes.buscarParaAlterar(id).orElseThrow(InscricaoService::naoEncontrada);
         exigirNaoAceita(i);
         exigirVersao(i, r.versao());
+        if (!semCobranca) {
+            if (i.getPagamento() != PagamentoInscricao.CONFIRMADO_MANUAL) {
+                throw new ConflictException("Confirme o pagamento antes de aceitar, ou use Aceitar sem cobrança.",
+                        "PAGAMENTO_NAO_CONFIRMADO");
+            }
+        } else if (i.getPagamento() == PagamentoInscricao.CONFIRMADO_MANUAL) {
+            throw new ConflictException("O pagamento desta inscrição já foi confirmado; use Aceitar.",
+                    "PAGAMENTO_JA_CONFIRMADO");
+        }
         // Depois do estado da inscrição: o aceite repetido diz "já aceita" (com o aluno), mesmo que o questionário escolhido
         // tenha sido arquivado entretanto. Ainda antes de qualquer efeito.
         if (questionarioId != null) questionarios.exigirAnamneseUsavel(questionarioId);
@@ -424,14 +436,25 @@ public class InscricaoService {
         }
         String de = i.getSituacao().name();
         i.aceitar(aluno.id());
+        if (semCobranca) {
+            i.marcarAceitaSemCobranca();
+        }
         inscricoes.saveAndFlush(i);
-        historico.registrar(i, TipoEvento.ACEITA, de, SituacaoInscricao.ACEITA.name(), null, usuarioId);
+        historico.registrar(i, TipoEvento.ACEITA, de, SituacaoInscricao.ACEITA.name(),
+                semCobranca ? "Aceita sem cobrança (cortesia)" : null, usuarioId);
+        if (semCobranca) {
+            auditoria.registrarEvento("INSCRICAO_ACEITA_SEM_COBRANCA", "INSCRICAO", i.getId(),
+                    "Aceitou uma inscrição sem cobrança (cortesia) e cadastrou o aluno.");
+        } else {
+            auditoria.registrarEvento("INSCRICAO_ACEITA", "INSCRICAO", i.getId(),
+                    "Aceitou uma inscrição e cadastrou o aluno.");
+        }
         UUID anamneseId = questionarioId == null ? null : anamneses.atribuir(aluno.id(), questionarioId, usuarioId).id();
         if (anamneseId == null && i.getQuestionarioVersaoId() != null && i.getRespostas() != null && !i.getRespostas().isBlank() && !i.getRespostas().equals("{}")) {
             anamneseId = anamneses.gravarAnamneseRespondida(aluno.id(), i.getQuestionarioVersaoId(), i.getRespostas(), usuarioId).getId();
         }
         ConviteResponse convite = convidar ? convites.gerar(aluno.id()) : null;
-        return new AceiteResponse(i.getId(), aluno.id(), convite, anamneseId);
+        return new AceiteResponse(i.getId(), aluno.id(), convite, anamneseId, semCobranca);
     }
 
     // ---- Auxiliares (também usados pelos outros serviços do pacote) ----

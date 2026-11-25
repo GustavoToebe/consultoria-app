@@ -37,7 +37,7 @@ export function PrecoFormatado({ preco }: { preco: TextoDoPreco }) {
  * Um item da vitrine para o aluno. No celular, item DIGITAL mostra só foto, nome e descrição (D6, regra das lojas):
  * sem preço, cupom, link nem frase de "compre pelo site". O link abre fora do app, sem token.
  */
-export function CartaoDoItem({ item }: { item: ItemDaVitrineDoAluno }) {
+export function CartaoDoItem({ item, nivel = 2 }: { item: ItemDaVitrineDoAluno; /** h3 sob o subtítulo da categoria. */ nivel?: 2 | 3 }) {
   const { cores } = useTema();
   const mostrar = comoMostrarItem(item.tipo, plataformaDoApp(Platform.OS));
   const link = mostrar.link ? linkParaAbrir(item.linkUrl) : null;
@@ -47,7 +47,7 @@ export function CartaoDoItem({ item }: { item: ItemDaVitrineDoAluno }) {
       <View style={estilos.topo}>
         <MiniaturaDoItem item={item} carregar={baixarFotoDoItemDoAluno} tamanho={88} />
         <View style={estilos.textos}>
-          <Texto variante="subtitulo" nivel={2}>{item.nome}</Texto>
+          <Texto variante="subtitulo" nivel={nivel}>{item.nome}</Texto>
           {item.descricao ? <Texto variante="suave">{item.descricao}</Texto> : null}
           {mostrar.preco ? <PrecoDoItem item={item} /> : null}
         </View>

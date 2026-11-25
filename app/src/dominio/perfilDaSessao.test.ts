@@ -27,6 +27,12 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu({ ...EU, overtrainingPayHabilitado: true }).overtrainingPayHabilitado).toBe(true);
     expect(perfilDoEu(EU).overtrainingPayHabilitado).toBe(false);
   });
+
+  it('guarda acessoPausado tanto do nível raiz quanto de eu.aluno', () => {
+    expect(perfilDoEu(EU).acessoPausado).toBe(false);
+    expect(perfilDoEu({ ...EU, acessoPausado: true }).acessoPausado).toBe(true);
+    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno', acessoPausado: true } }).acessoPausado).toBe(true);
+  });
 });
 
 describe('perfilAtualizado', () => {

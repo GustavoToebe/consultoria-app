@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { ConsultoriaResponse } from '../src/api/tipos';
-import { AREIA, CLARO, ESCURO, type Cores } from '../src/tema/tokens';
+import { AREIA, CLARO, ESCURO, misturar, type Cores } from '../src/tema/tokens';
 import { erroApi, json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
@@ -52,7 +52,7 @@ for (const tema of Object.keys(TEMAS) as NomeDoTema[]) {
   }
 }
 
-test('aviso de atenção (edição em conflito): borda âmbar, ícone e fica até ser fechado', async ({ page }) => {
+test('aviso de atenção (edição em conflito): pintado de âmbar (borda inteira, sem faixa), ícone e fica até ser fechado', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   const consultoria: ConsultoriaResponse = { marca: MARCA, versao: 3, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' };
   const api = await simularApi(page, {
@@ -67,7 +67,10 @@ test('aviso de atenção (edição em conflito): borda âmbar, ícone e fica at�
   await page.getByRole('button', { name: 'Salvar marca', exact: true }).click();
   const aviso = page.getByRole('alert').filter({ hasText: 'A marca foi alterada em outra aba' });
   await expect(aviso).toBeVisible();
-  await expect(aviso).toHaveCSS('border-top-color', rgb(CLARO.atencao));
+  // Pintado (24/11, `ui/superficiePintada`): borda inteira a 50% do âmbar sobre a `superficie2`, sem a faixa de 4 px.
+  await expect(aviso).toHaveCSS('border-top-color', rgb(misturar(CLARO.superficie2, CLARO.atencao, 0.5)));
+  await expect(aviso).toHaveCSS('border-left-width', '1px');
+  await expect(aviso).toHaveCSS('background-image', /linear-gradient/);
   await expect(aviso.locator('svg')).toHaveCount(2); // o ícone de atenção e o X de fechar
   // Não some sozinho (o de sucesso some em 4 s).
   await page.waitForTimeout(4500);

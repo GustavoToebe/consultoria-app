@@ -3,6 +3,7 @@ package br.com.treinos.api.pagamentos;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.dto.AlunoDtos.PlanosAtivos;
+import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.pagamentos.PagamentosDtos.AcordoExportado;
 import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancaExportada;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoExportada;
@@ -45,14 +46,16 @@ public class PagamentosDoAluno {
     private final PagamentosProperties propriedades;
     private final ResponsavelFinanceiroService responsaveis;
     private final AcordoDeCobrancaRepository acordos;
+    private final Auditoria auditoria;
     private final ClienteAsaasAlunoRepository clientesAsaas;
 
     PagamentosDoAluno(ContratacaoAlunoRepository contratacoes, CobrancaAlunoRepository cobrancas,
                       PlanoComercialRepository planos, AvisoDePagamentoRepositorio avisos,
                       LembreteDeCobrancaRepository lembretes, AlunoRepository alunos,
                       PagamentosProperties propriedades, ResponsavelFinanceiroService responsaveis,
-                      AcordoDeCobrancaRepository acordos) {
-        this(contratacoes, cobrancas, planos, avisos, lembretes, alunos, propriedades, responsaveis, acordos, null);
+                      AcordoDeCobrancaRepository acordos, Auditoria auditoria) {
+        this(contratacoes, cobrancas, planos, avisos, lembretes, alunos, propriedades, responsaveis, acordos,
+                auditoria, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -60,7 +63,8 @@ public class PagamentosDoAluno {
                       PlanoComercialRepository planos, AvisoDePagamentoRepositorio avisos,
                       LembreteDeCobrancaRepository lembretes, AlunoRepository alunos,
                       PagamentosProperties propriedades, ResponsavelFinanceiroService responsaveis,
-                      AcordoDeCobrancaRepository acordos, ClienteAsaasAlunoRepository clientesAsaas) {
+                      AcordoDeCobrancaRepository acordos, Auditoria auditoria,
+                      ClienteAsaasAlunoRepository clientesAsaas) {
         this.contratacoes = contratacoes;
         this.cobrancas = cobrancas;
         this.planos = planos;
@@ -70,6 +74,7 @@ public class PagamentosDoAluno {
         this.propriedades = propriedades;
         this.responsaveis = responsaveis;
         this.acordos = acordos;
+        this.auditoria = auditoria;
         this.clientesAsaas = clientesAsaas;
     }
 
@@ -100,6 +105,39 @@ public class PagamentosDoAluno {
         return propriedades.habilitado()
                 && contratacoes.findFirstByAlunoIdAndSituacao(alunoId, ContratacaoAluno.Situacao.ATIVA)
                         .filter(ContratacaoAluno::fechado).isPresent();
+    }
+
+    /** Se o aluno tem ao menos uma cobrança ABERTA vencida (antes de hoje em Brasília). */
+    @Transactional(readOnly = true)
+    public boolean temCobrancaVencida(UUID alunoId) {
+        return propriedades.habilitado()
+                && cobrancas.existsByAlunoIdAndSituacaoAndVencimentoBefore(
+                        alunoId, CobrancaAluno.Situacao.ABERTA, LocalDate.now(Fuso.BRASILIA));
+    }
+
+    /**
+     * Reativa automaticamente o acesso de um aluno pausado por atraso quando não resta nenhuma cobrança ABERTA vencida.
+     * Quem chama já travou o aluno e alterou as cobranças na mesma transação.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void reativarSeQuitou(Aluno aluno, boolean porSistema) {
+        if (!aluno.isAcessoPausado()) {
+            return;
+        }
+        cobrancas.flush();
+        if (cobrancas.existsByAlunoIdAndSituacaoAndVencimentoBefore(
+                aluno.getId(), CobrancaAluno.Situacao.ABERTA, LocalDate.now(Fuso.BRASILIA))) {
+            return;
+        }
+        aluno.reativarAcesso();
+        alunos.flush();
+        String resumo = "Reativou o acesso do aluno automaticamente após quitação.";
+        if (porSistema) {
+            auditoria.registrarDoSistema(aluno.getConsultoriaId(), "ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE",
+                    "ALUNO", aluno.getId(), resumo);
+        } else {
+            auditoria.registrarEvento("ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE", "ALUNO", aluno.getId(), resumo);
+        }
     }
 
     @Transactional(readOnly = true)

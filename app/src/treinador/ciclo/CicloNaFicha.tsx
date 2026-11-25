@@ -47,7 +47,7 @@ export function LinhaDoCicloNaFicha({ alunoId }: { alunoId: string }) {
     <LinhaDeDado rotulo="Ciclo menstrual" valor={textoDaLeitura(leitura)} nota="Acompanhamento ligado pela aluna."
       acoes={(
         <>
-          <Botao rotulo="Ver ciclo" tipo="secundario" aoTocar={() => setAberto(true)} />
+          <Botao rotulo="Ver ciclo" tipo="secundario" tamanho="pequeno" aoTocar={() => setAberto(true)} />
           {aberto ? <FolhaDoCiclo alunoId={alunoId} aoFechar={() => setAberto(false)} /> : null}
         </>
       )} />

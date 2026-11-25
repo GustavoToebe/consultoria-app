@@ -7,8 +7,9 @@ import { desfazerAcordo } from '../../api/financeiroRenegociar';
 import type { CobrancaResponse, FormaDePagamento, LembretesDaCobranca, RecebimentoOnline } from '../../api/financeiroTipos';
 import {
   buscarRecebimentoOnline, cancelarCobranca, contestarCobranca, desfazerBaixaDaCobranca, estornarCobranca, lembretesDaCobranca, linkDaCobranca,
-  manterCobrancaPaga, registrarPagamentoManual,
+  manterCobrancaPaga, pausarAcessoDoAluno, reativarAcessoDoAluno, registrarPagamentoManual,
 } from '../../api/rotas';
+import type { AlunoDetalhe } from '../../api/tipos';
 import {
   cpfMascarado, ehPagamentoOnline, emissaoDaCobranca, FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeCancelarCobranca, podeCopiarLink, podeDesfazerBaixa,
   podeManterPaga, podeMarcarContestacao, podeMarcarEstorno, podeRegistrarPagamento, referenciaDaCobranca, ROTULO_ONLINE, rotuloDaForma,
@@ -153,6 +154,10 @@ export interface PropsDoDetalhe {
   abrirEmBaixa?: boolean;
   /** O nome do aluno vira link para a ficha: em toda lista fora da ficha (na própria ficha seria voltar ao mesmo lugar). */
   mostrarFicha?: boolean;
+  /** Estado atual de pausa de acesso do aluno (quando já conhecido, ex.: ficha); evita GET extra ao abrir a folha. */
+  alunoAcessoPausado?: boolean;
+  /** Chamado quando pausar/reativar acesso devolve o `AlunoDetalhe` atualizado. */
+  aoAlterarAluno?: (aluno: AlunoDetalhe) => void;
   aoFechar: () => void;
   /** Depois de qualquer mudança (ou conflito): quem chamou recarrega as listas. */
   aoMudar: () => void;
@@ -167,7 +172,7 @@ export interface PropsDoDetalhe {
  * envia valor de cobrança: só data, forma, observação e a versão que viu. "Copiar link de pagamento" pede o link da
  * InfinitePay (cobrança em aberto, recebimento online configurado) para a equipe mandar ao aluno.
  */
-export function DetalheDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, aoFechar, aoMudar, casca }: PropsDoDetalhe & { casca: CascaDoDetalhe }) {
+export function DetalheDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAcessoPausado, aoAlterarAluno, aoFechar, aoMudar, casca }: PropsDoDetalhe & { casca: CascaDoDetalhe }) {
   const { recebimentoOnlineHabilitado } = useSessao();
   // O estado do recebimento online só é buscado quando o link pode ser copiado (em aberto, com permissão e a InfinitePay
   // ligada); fica aqui, fora do `Conteudo`, para não buscar de novo a cada versão da cobrança.
@@ -183,15 +188,18 @@ export function DetalheDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, mostrar
   if (!cobranca) return null;
   // A chave reinicia o formulário a cada cobrança aberta.
   return <Conteudo key={`${cobranca.id}:${cobranca.versao}:${abrirEmBaixa ? 'b' : 'd'}`} cobranca={cobranca} podeAlterar={podeAlterar}
-    abrirEmBaixa={!!abrirEmBaixa} mostrarFicha={!!mostrarFicha} querLink={querLink} recebimento={recebimento.dados} lembretes={lembretes.dados}
+    abrirEmBaixa={!!abrirEmBaixa} mostrarFicha={!!mostrarFicha} alunoAcessoPausado={alunoAcessoPausado} aoAlterarAluno={aoAlterarAluno}
+    querLink={querLink} recebimento={recebimento.dados} lembretes={lembretes.dados}
     aoFechar={aoFechar} aoMudar={aoMudar} casca={casca} />;
 }
 
-function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink, recebimento, lembretes, aoFechar, aoMudar, casca }: {
+function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAcessoPausado, aoAlterarAluno, querLink, recebimento, lembretes, aoFechar, aoMudar, casca }: {
   cobranca: CobrancaResponse;
   podeAlterar: boolean;
   abrirEmBaixa: boolean;
   mostrarFicha: boolean;
+  alunoAcessoPausado?: boolean;
+  aoAlterarAluno?: (aluno: AlunoDetalhe) => void;
   /** Mostra o "Copiar link de pagamento" (ou o aviso de que falta configurar). */
   querLink: boolean;
   /** Estado do recebimento online; `undefined` enquanto carrega ou se a busca falhou (então nada é oferecido). */
@@ -223,6 +231,31 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
   const [idParaCopiarAMao, setIdParaCopiarAMao] = useState(false);
   /** "Renegociar" abre o passo a passo; "Cancelar" volta ao detalhe. */
   const [renegociando, setRenegociando] = useState(false);
+  const [acessoPausadoLocal, setAcessoPausadoLocal] = useState<boolean | undefined>(alunoAcessoPausado);
+  const [confirmarAcesso, setConfirmarAcesso] = useState<'pausar' | 'reativar' | null>(null);
+  const [alterandoAcesso, setAlterandoAcesso] = useState(false);
+  const acessoPausado = acessoPausadoLocal ?? (alunoAcessoPausado === true);
+
+  const executarAcesso = (acao: 'pausar' | 'reativar') => {
+    setAlterandoAcesso(true);
+    setErro(null);
+    const chamada = acao === 'pausar' ? pausarAcessoDoAluno(cobranca.alunoId) : reativarAcessoDoAluno(cobranca.alunoId);
+    chamada.then(
+      (atualizado) => {
+        setAlterandoAcesso(false);
+        setConfirmarAcesso(null);
+        setAcessoPausadoLocal(atualizado.acessoPausado === true);
+        aoAlterarAluno?.(atualizado);
+        avisar(acao === 'pausar' ? 'Acesso do aluno pausado até a quitação.' : 'Acesso do aluno reativado.', 'sucesso');
+        aoMudar();
+      },
+      (e: unknown) => {
+        setAlterandoAcesso(false);
+        setConfirmarAcesso(null);
+        setErro(e);
+      },
+    );
+  };
 
   const hoje = hojeEmBrasilia();
   const iso = dataDaTela(data);
@@ -461,6 +494,22 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
                   ) : null}
                 </Grupo>
               ) : null}
+              {emAberto && cobranca.vencida && podeAlterar ? (
+                <Grupo titulo="Acesso ao aplicativo">
+                  <Texto variante="suave">
+                    {acessoPausado
+                      ? 'O acesso deste aluno está pausado até a quitação das cobranças vencidas.'
+                      : 'Você pode pausar o acesso deste aluno ao aplicativo até que as cobranças vencidas sejam quitadas.'}
+                  </Texto>
+                  <LinhaDeAcoes>
+                    {acessoPausado ? (
+                      <Botao rotulo="Reativar acesso" tipo="secundario" aoTocar={() => { setErro(null); setConfirmarAcesso('reativar'); }} />
+                    ) : (
+                      <Botao rotulo="Pausar acesso até quitar" tipo="secundario" aoTocar={() => { setErro(null); setConfirmarAcesso('pausar'); }} />
+                    )}
+                  </LinhaDeAcoes>
+                </Grupo>
+              ) : null}
               {temBaixaRegistrada(cobranca) ? (
                 // A data e (na paga) a forma já estão no prazo e nas Datas; aqui fica quem deu a baixa e o provedor.
                 <Grupo titulo="Pagamento">
@@ -521,6 +570,26 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
           <Campo rotulo="Motivo" valor={motivo} aoMudar={setMotivo} linhas={3} maxLength={LIMITES.motivo} />
           {erro && pergunta ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
         </PainelConfirmacao>
+        <PainelConfirmacao
+          visivel={confirmarAcesso === 'pausar'}
+          titulo="Pausar acesso até quitar?"
+          mensagem="O aluno verá apenas a tela de pagamento até quitar as cobranças vencidas."
+          rotuloConfirmar="Pausar acesso"
+          rotuloCancelar="Voltar"
+          carregando={alterandoAcesso}
+          aoConfirmar={() => executarAcesso('pausar')}
+          aoCancelar={() => setConfirmarAcesso(null)}
+        />
+        <PainelConfirmacao
+          visivel={confirmarAcesso === 'reativar'}
+          titulo="Reativar acesso do aluno?"
+          mensagem="O aluno volta a acessar o aplicativo normalmente."
+          rotuloConfirmar="Reativar acesso"
+          rotuloCancelar="Voltar"
+          carregando={alterandoAcesso}
+          aoConfirmar={() => executarAcesso('reativar')}
+          aoCancelar={() => setConfirmarAcesso(null)}
+        />
       </Casca>
       {renegociando ? renegociar : null}
     </>

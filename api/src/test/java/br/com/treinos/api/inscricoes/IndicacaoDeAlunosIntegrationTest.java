@@ -378,7 +378,8 @@ class IndicacaoDeAlunosIntegrationTest extends AbstractIntegrationTest {
         inscrever(link, lead, codigoDe(indicador));
         String id = idDaInscricao(lead);
         UUID novoAluno = UUID.fromString(api.post("/inscricoes/" + id + "/aceitar", admin,
-                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong()), 200)
+                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong(),
+                        "semCobranca", true), 200)
                 .path("alunoId").asString());
 
         String dados = api.get("/alunos/" + novoAluno + "/exportacao", admin, 200).toString();

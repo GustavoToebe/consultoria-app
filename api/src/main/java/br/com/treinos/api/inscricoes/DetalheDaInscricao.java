@@ -101,7 +101,8 @@ class DetalheDaInscricao {
                         e.getMotivo() == null ? null : MotivoEncerramento.valueOf(e.getMotivo()), e.getDetalhe(),
                         nomes.get(e.getAutorId()), e.getCriadoEm())).toList(),
                 respostas(i),
-                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), indicadoPorAluno(i));
+                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), indicadoPorAluno(i),
+                i.isAceitaSemCobranca());
     }
 
     /** Indicação conferida pela API: o nome só para quem vê alunos, os demais veem só que foi um aluno (sem nome nem id). */
@@ -131,7 +132,7 @@ class DetalheDaInscricao {
                 nomes.get(i.getResponsavelId()), alunoVisivel(i.getAlunoId()), i.getCriadaEm(), i.getUltimaAtividadeEm(),
                 i.getCiclo(), i.getOrigem(), i.getPropostaPlanoNome(), proximos.get(i.getId()), i.getVersao(),
                 duplicidades.getOrDefault(i.getId(), Duplicidade.NENHUMA),
-                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor())).toList();
+                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), i.isAceitaSemCobranca())).toList();
     }
 
     static Retorno retorno(InscricaoRetorno r, Map<UUID, String> nomes) {

@@ -108,6 +108,21 @@ public interface InscricaoRepository extends JpaRepository<Inscricao, UUID>, Jpa
             + "from Inscricao i where i.criadaEm >= :inicio and i.criadaEm < :fim group by i.origem")
     List<PorOrigem> porOrigem(Instant inicio, Instant fim);
 
+    @Query("select count(i) from Inscricao i where i.criadaEm >= :inicio and i.criadaEm < :fim "
+            + "and i.situacao in (br.com.treinos.api.inscricoes.SituacaoInscricao.NOVA, "
+            + "br.com.treinos.api.inscricoes.SituacaoInscricao.EM_CONTATO, "
+            + "br.com.treinos.api.inscricoes.SituacaoInscricao.EM_NEGOCIACAO) "
+            + "and i.pagamento = br.com.treinos.api.inscricoes.PagamentoInscricao.AGUARDANDO")
+    long aguardandoPagamento(Instant inicio, Instant fim);
+
+    @Query("select count(i) from Inscricao i where i.criadaEm >= :inicio and i.criadaEm < :fim "
+            + "and i.pagamento = br.com.treinos.api.inscricoes.PagamentoInscricao.CONFIRMADO_MANUAL")
+    long pagaram(Instant inicio, Instant fim);
+
+    @Query("select count(i) from Inscricao i where i.aceitaEm >= :inicio and i.aceitaEm < :fim "
+            + "and i.aceitaSemCobranca = true")
+    long cortesias(Instant inicio, Instant fim);
+
     /**
      * Retenção: recusadas e desistentes sem atividade desde antes do limite. As notas saem pela FK em cascata. Quem
      * registra atividade grava {@code ultimaAtividadeEm} na mesma linha antes (ver {@link #registrarAtividade}): o

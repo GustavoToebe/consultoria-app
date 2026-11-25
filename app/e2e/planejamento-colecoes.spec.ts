@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { PastaModelo, Receita, TipoReceita } from '../src/api/tipos';
-import { erroApi, PERMISSOES_TREINADOR, type RespostasApi, sessao, simularApi, TREINADOR } from './api-falsa';
+import { erroApi, json, PERMISSOES_TREINADOR, type RespostasApi, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
  * Planejamento agrupado por coleção: um cartão por coleção em ordem alfabética, "Sem coleção" por último, a busca
@@ -44,6 +44,52 @@ async function abrir(page: Page, aba = '', extra: RespostasApi = {}) {
 const faixa = (page: Page, nome: string, estado: 'aberto' | 'recolhido' = 'aberto') =>
   page.getByRole('button', { name: `${nome}, ${estado}`, exact: true });
 const modeloNaTela = (page: Page, nome: string) => page.getByText(nome, { exact: true });
+const dialogo = (page: Page) => page.getByRole('dialog', { name: 'Organizar coleções' });
+
+/**
+ * "Organizar coleções" com uma API que guarda o que muda (criar, renomear, excluir): Força com 12 modelos (de dois
+ * tipos), Hipertrofia com 1 e Vazia sem nenhum. Devolve os pedidos para conferir o corpo.
+ */
+async function abrirOrganizar(page: Page, colecoes: PastaModelo[] = [
+  { id: 'q0000000-0000-4000-8000-000000000001', nome: 'Força', versao: 1 },
+  { id: 'q0000000-0000-4000-8000-000000000002', nome: 'Hipertrofia', versao: 1 },
+  { id: 'q0000000-0000-4000-8000-000000000003', nome: 'Vazia', versao: 1 },
+]) {
+  let lista = [...colecoes];
+  const [forca, hipertrofia] = colecoes;
+  const modelos: Receita[] = [
+    ...Array.from({ length: forca ? 12 : 0 }, (_, i) => ({ ...modelo(0, i % 2 ? 'PLANO_DIETA' : 'PLANO_TREINO', `Modelo ${i + 1}`, forca.id), id: `r1000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}` })),
+    ...(hipertrofia ? [modelo(9, 'PLANO_TREINO', 'Semana única', hipertrofia.id)] : []),
+  ];
+  const r = await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR', 'MODELO_APLICAR'] })),
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /receitas': { corpo: modelos },
+    'GET /pastas-modelos': (_p, route) => json(route, lista),
+    'POST /pastas-modelos': (p, route) => {
+      const nova = { id: `q0000000-0000-4000-8000-00000000009${lista.length}`, nome: (p.corpo as { nome: string }).nome, versao: 1 };
+      lista = [...lista, nova];
+      return json(route, nova);
+    },
+    'PUT /pastas-modelos/{id}': (p, route) => {
+      const id = p.caminho.split('/').pop();
+      const { nome } = p.corpo as { nome: string };
+      lista = lista.map((c) => (c.id === id ? { ...c, nome, versao: c.versao + 1 } : c));
+      return json(route, lista.find((c) => c.id === id));
+    },
+    'DELETE /pastas-modelos/{id}': (p, route) => {
+      const id = p.caminho.split('/').pop();
+      lista = lista.filter((c) => c.id !== id);
+      return route.fulfill({ status: 204 });
+    },
+  });
+  // Nenhum `confirm()`/`alert()` do navegador: a confirmação é o painel da tela.
+  page.on('dialog', (d) => { r.errosDaPagina.push(`diálogo do navegador: ${d.message()}`); void d.dismiss(); });
+  await page.goto('/treinador/planejamento');
+  await page.getByRole('button', { name: 'Organizar coleções', exact: true }).click();
+  await expect(dialogo(page)).toBeVisible();
+  return r;
+}
 
 async function topo(alvo: Locator): Promise<number> {
   const caixa = await alvo.boundingBox();
@@ -201,16 +247,137 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('o lápis da faixa abre "Organizar coleções" já renomeando a coleção', async ({ page }) => {
+    test('o lápis da faixa abre "Organizar coleções" já renomeando a coleção, com a contagem de todos os tipos', async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page);
       await expect(faixa(page, 'Hipertrofia', 'recolhido')).toBeVisible();
       // "Sem coleção" não é uma coleção: não tem lápis.
       await expect(page.getByRole('button', { name: /^Renomear coleção Sem coleção/ })).toHaveCount(0);
       await page.getByRole('button', { name: 'Renomear coleção Hipertrofia', exact: true }).click();
-      const folha = page.getByRole('dialog', { name: 'Organizar coleções' });
+      const folha = dialogo(page);
       await expect(folha).toBeVisible();
-      await expect(folha.getByRole('textbox', { name: 'Renomear coleção', exact: true })).toHaveValue('Hipertrofia');
-      await expect(folha.getByRole('button', { name: 'Salvar nome', exact: true })).toBeVisible();
+      const campo = folha.getByRole('textbox', { name: 'Nome da coleção Hipertrofia', exact: true });
+      await expect(campo).toHaveValue('Hipertrofia');
+      await expect(campo).toBeFocused();
+      await expect(folha.getByRole('button', { name: 'Salvar nome da coleção Hipertrofia', exact: true })).toBeVisible();
+      // A folha conta os modelos de todos os tipos (a página mostra só os do chip): Avançados tem 2 (semana e pacote).
+      await expect(folha.getByText('2 modelos', { exact: true })).toBeVisible();
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('Organizar coleções: uma linha por coleção com a contagem no plural certo e as ações com nome', async ({ page }) => {
+      const { naoTratadas, errosDaPagina } = await abrirOrganizar(page);
+      const folha = dialogo(page);
+      for (const texto of ['12 modelos', '1 modelo', 'Nenhum modelo']) await expect(folha.getByText(texto, { exact: true })).toBeVisible();
+      for (const nome of ['Força', 'Hipertrofia', 'Vazia']) {
+        await expect(folha.getByRole('button', { name: `Renomear coleção ${nome}`, exact: true })).toBeVisible();
+        await expect(folha.getByRole('button', { name: `Excluir coleção ${nome}`, exact: true })).toBeVisible();
+      }
+      // A linha não estoura a folha: as ações cabem na largura dela.
+      const caixa = (await folha.boundingBox())!;
+      const excluir = (await folha.getByRole('button', { name: 'Excluir coleção Hipertrofia', exact: true }).boundingBox())!;
+      expect(excluir.x + excluir.width).toBeLessThanOrEqual(caixa.x + caixa.width);
+      // O texto explicativo continua.
+      await expect(folha.getByText('Coleções só organizam seus modelos. Para aplicar treinos e dietas juntos a um aluno, use um pacote.', { exact: true })).toBeVisible();
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('Criar coleção fica habilitado: vazio e repetido dão erro no campo; Enter cria', async ({ page }) => {
+      const { naoTratadas, errosDaPagina, pedidos } = await abrirOrganizar(page);
+      const folha = dialogo(page);
+      const criar = folha.getByRole('button', { name: 'Criar coleção', exact: true });
+      const campo = folha.getByRole('textbox', { name: 'Nova coleção', exact: true });
+      await expect(criar).toBeEnabled();
+      await criar.click();
+      await expect(folha.getByText('Informe o nome da coleção.', { exact: true })).toBeVisible();
+      await expect(campo).toHaveAttribute('aria-invalid', 'true');
+      await expect(criar).toBeEnabled();
+      await campo.fill('  forca ');
+      await campo.press('Enter');
+      await expect(folha.getByText('Já existe uma coleção com esse nome. Escolha outro.', { exact: true })).toBeVisible();
+      expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/pastas-modelos')).toEqual([]);
+      await campo.fill('Resistência');
+      await expect(folha.getByText('Já existe uma coleção com esse nome. Escolha outro.', { exact: true })).toHaveCount(0);
+      await campo.press('Enter');
+      await expect(folha.getByRole('button', { name: 'Renomear coleção Resistência', exact: true })).toBeVisible();
+      await expect(campo).toHaveValue('');
+      expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/pastas-modelos').map((p) => p.corpo)).toEqual([{ nome: 'Resistência' }]);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('renomear na linha: campo focado, vazio e repetido com erro, Esc cancela sem fechar a folha, Enter salva', async ({ page }) => {
+      const { naoTratadas, errosDaPagina, pedidos } = await abrirOrganizar(page);
+      const folha = dialogo(page);
+      const renomear = folha.getByRole('button', { name: 'Renomear coleção Hipertrofia', exact: true });
+      await renomear.click();
+      const campo = folha.getByRole('textbox', { name: 'Nome da coleção Hipertrofia', exact: true });
+      await expect(campo).toBeFocused();
+      await expect(campo).toHaveValue('Hipertrofia');
+      await campo.fill('');
+      await campo.press('Enter');
+      await expect(folha.getByText('Informe o nome da coleção.', { exact: true })).toBeVisible();
+      await campo.fill('FORÇA');
+      await campo.press('Enter');
+      await expect(folha.getByText('Já existe uma coleção com esse nome. Escolha outro.', { exact: true })).toBeVisible();
+      // Esc cancela só a linha: a folha continua e o foco volta ao "Renomear".
+      await campo.press('Escape');
+      await expect(campo).toHaveCount(0);
+      await expect(folha).toBeVisible();
+      await expect(renomear).toBeFocused();
+      await expect(folha.getByText('Hipertrofia', { exact: true })).toBeVisible();
+      expect(pedidos.filter((p) => p.metodo === 'PUT')).toEqual([]);
+      // Cancelar pelo botão também devolve o foco.
+      await renomear.click();
+      await folha.getByRole('button', { name: 'Cancelar renomear Hipertrofia', exact: true }).click();
+      await expect(renomear).toBeFocused();
+      await renomear.click();
+      await campo.fill('Hipertrofia avançada');
+      await campo.press('Enter');
+      const novo = folha.getByRole('button', { name: 'Renomear coleção Hipertrofia avançada', exact: true });
+      await expect(novo).toBeFocused();
+      expect(pedidos.filter((p) => p.metodo === 'PUT').map((p) => p.corpo)).toEqual([{ nome: 'Hipertrofia avançada', versao: 1 }]);
+      // Renomear de novo usa a versão nova (a que voltou do recarregar), sem conflito.
+      await novo.click();
+      await folha.getByRole('textbox', { name: 'Nome da coleção Hipertrofia avançada', exact: true }).fill('Hipertrofia 2');
+      await folha.getByRole('button', { name: 'Salvar nome da coleção Hipertrofia avançada', exact: true }).click();
+      await expect(folha.getByRole('button', { name: 'Renomear coleção Hipertrofia 2', exact: true })).toBeFocused();
+      expect(pedidos.filter((p) => p.metodo === 'PUT').map((p) => p.corpo)).toEqual([{ nome: 'Hipertrofia avançada', versao: 1 }, { nome: 'Hipertrofia 2', versao: 2 }]);
+      // Fora da edição, o Esc fecha a folha como sempre.
+      await page.keyboard.press('Escape');
+      await expect(folha).toHaveCount(0);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('excluir confirma no painel dizendo o que acontece com os modelos; o foco vai à linha vizinha', async ({ page }) => {
+      const { naoTratadas, errosDaPagina, pedidos } = await abrirOrganizar(page);
+      const folha = dialogo(page);
+      const painel = page.getByRole('alertdialog');
+      await folha.getByRole('button', { name: 'Excluir coleção Força', exact: true }).click();
+      await expect(painel.getByText('Os 12 modelos continuam no Planejamento, em Sem coleção.', { exact: true })).toBeVisible();
+      await painel.getByRole('button', { name: 'Cancelar', exact: true }).click();
+      await folha.getByRole('button', { name: 'Excluir coleção Hipertrofia', exact: true }).click();
+      await expect(painel.getByText('O modelo continua no Planejamento, em Sem coleção.', { exact: true })).toBeVisible();
+      // O Esc fecha só o painel; a folha continua.
+      await page.keyboard.press('Escape');
+      await expect(painel).toHaveCount(0);
+      await expect(folha).toBeVisible();
+      await folha.getByRole('button', { name: 'Excluir coleção Vazia', exact: true }).click();
+      await expect(painel.getByText('Nenhum modelo será afetado.', { exact: true })).toBeVisible();
+      await painel.getByRole('button', { name: 'Excluir coleção', exact: true }).click();
+      await expect(folha.getByRole('button', { name: 'Renomear coleção Vazia', exact: true })).toHaveCount(0);
+      await expect(folha.getByRole('button', { name: 'Renomear coleção Hipertrofia', exact: true })).toBeFocused();
+      expect(pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual(['/pastas-modelos/q0000000-0000-4000-8000-000000000003']);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('sem coleções: uma linha "Nenhuma coleção ainda."', async ({ page }) => {
+      const { naoTratadas, errosDaPagina } = await abrirOrganizar(page, []);
+      await expect(dialogo(page).getByText('Nenhuma coleção ainda.', { exact: true })).toBeVisible();
+      await expect(dialogo(page).getByRole('textbox', { name: 'Nova coleção', exact: true })).toBeVisible();
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });

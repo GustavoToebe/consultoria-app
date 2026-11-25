@@ -22,6 +22,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
+import { chaveDaSecao, idDoBloco, quantasPerguntas } from '../../dominio/indiceDoQuestionario';
 import { EditorDeCondicao, PropriedadesDaPergunta } from './PropriedadesDaPergunta';
 
 type Alvo = { secao: number; pergunta: number };
@@ -38,13 +39,15 @@ interface Props {
   problemas: ProblemasAgrupados;
   somenteLeitura?: boolean;
   finalidade?: FinalidadeQuestionario;
+  /** Mudou algo na seção ou abriu uma pergunta dela (a prévia ao vivo da tela larga rola até a seção). */
+  aoEditarSecao?: (secao: number) => void;
 }
 
 /**
  * Seções e perguntas do questionário (molde: `SecoesDeMobilidade`). Cada pergunta é um cartão recolhível, como o
  * exercício no treino; PESO e Data só uma vez, FOTOS até 6. Nada é salvo aqui: o pai guarda o rascunho.
  */
-export function SecoesDoQuestionario({ conteudo: c, aoMudar, estaAberta, todasAbertas, aoAlternar, aoAlternarTodas, aoAbrir, problemas, somenteLeitura, finalidade = 'ATUALIZACAO' }: Props) {
+export function SecoesDoQuestionario({ conteudo: c, aoMudar, estaAberta, todasAbertas, aoAlternar, aoAlternarTodas, aoAbrir, problemas, somenteLeitura, finalidade = 'ATUALIZACAO', aoEditarSecao }: Props) {
   const { cores } = useTema();
   const [adicionarEm, setAdicionarEm] = useState<number | null>(null);
   const [removerPerguntaDe, setRemoverPerguntaDe] = useState<Alvo | null>(null);
@@ -55,6 +58,7 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, estaAberta, todasAb
 
   const adicionar = (secao: number, tipo: TipoPergunta) => {
     const nova = novaPergunta(tipo);
+    aoEditarSecao?.(secao);
     aoMudar((atual) => adicionarPergunta(atual, secao, nova));
     aoAbrir(nova.id);
     setAdicionarEm(null);
@@ -68,34 +72,38 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, estaAberta, todasAb
     </View>
     {/* Faixa compacta da seção (P5, resumo na faixa do `Cartao`): título e quantas perguntas tem, com ↑ ↓ e a lixeira à
         direita; o campo que edita o título fica no corpo. */}
-    {c.secoes.map((sec, si) => <Cartao key={sec.uid ?? si} nivel={3} titulo={sec.titulo || `Seção ${si + 1}`} descricao={quantasPerguntas(sec.perguntas.length)}
+    {c.secoes.map((sec, si) => {
+      const mudar = (m: (x: ConteudoQuestionario) => ConteudoQuestionario) => { aoEditarSecao?.(si); aoMudar(m); };
+      // `nativeID`: destino do índice da tela larga (rolagem, foco e seção visível); o `Cartao` não o recebe.
+      return <View key={sec.uid ?? si} nativeID={idDoBloco(chaveDaSecao(si))} collapsable={false}><Cartao nivel={3} titulo={sec.titulo || `Seção ${si + 1}`} descricao={quantasPerguntas(sec.perguntas.length)}
       acoes={!somenteLeitura && c.secoes.length > 1 ? <View style={estilos.setas}>
         <IconeBotao Icone={ArrowUp} rotulo={`Subir a seção ${si + 1}`} desabilitado={si === 0} aoTocar={() => aoMudar((x) => moverSecao(x, si, -1))} />
         <IconeBotao Icone={ArrowDown} rotulo={`Descer a seção ${si + 1}`} desabilitado={si === c.secoes.length - 1} aoTocar={() => aoMudar((x) => moverSecao(x, si, 1))} />
         <IconeBotao Icone={Trash2} rotulo={`Remover a seção ${sec.titulo || si + 1}`} aoTocar={() => setRemoverSecaoN(si)} />
       </View> : undefined}>
       {somenteLeitura ? null : <Campo rotulo={`Título da seção ${si + 1}`} valor={sec.titulo} maxLength={L.tituloTamanho} erro={problemas.porSecao.get(si)?.join(' ')}
-        aoMudar={(titulo) => aoMudar((x) => alterarSecao(x, si, titulo))} />}
+        aoMudar={(titulo) => mudar((x) => alterarSecao(x, si, titulo))} />}
       {somenteLeitura ? null : <Campo rotulo="Descrição (opcional)" valor={sec.descricao ?? ''} maxLength={L.descricaoSecaoTamanho} linhas={3}
         ajuda={`Use **negrito** e __sublinhado__. Quebra de linha vale. ${(sec.descricao ?? '').length} de ${L.descricaoSecaoTamanho} caracteres.`}
-        aoMudar={(descricao) => aoMudar((x) => alterarDescricaoDaSecao(x, si, descricao))} />}
+        aoMudar={(descricao) => mudar((x) => alterarDescricaoDaSecao(x, si, descricao))} />}
       {somenteLeitura ? (sec.mostrarSe ? <Texto variante="pequeno">{textoDaCondicao(c, sec.mostrarSe)}</Texto> : null)
-        : <EditorDeCondicao conteudo={c} secao={si} condicao={sec.mostrarSe} aoMudar={(m) => aoMudar((x) => alterarCondicaoDaSecao(x, si, m))} />}
+        : <EditorDeCondicao conteudo={c} secao={si} condicao={sec.mostrarSe} aoMudar={(m) => mudar((x) => alterarCondicaoDaSecao(x, si, m))} />}
       {sec.perguntas.length === 0 ? <Texto variante="suave">Seção sem pergunta. Adicione ao menos uma.</Texto> : null}
       {sec.perguntas.map((p, pi) => <CartaoDaPergunta key={p.id} pergunta={p} conteudo={c} posicao={pi} total={sec.perguntas.length}
         aberta={estaAberta(p.id)} problemas={problemas.porPergunta.get(p.id) ?? []} secoes={c.secoes.map((s, i) => ({ i, titulo: s.titulo || `Seção ${i + 1}` }))} secaoAtual={si}
         somenteLeitura={somenteLeitura} finalidade={finalidade} podeDuplicar={podeDuplicar(c, si, pi).pode}
-        aoAlternar={() => aoAlternar(p.id)}
-        aoMudar={(parcial) => aoMudar((x) => alterarPergunta(x, si, pi, parcial))}
-        aoMover={(d) => aoMudar((x) => moverPergunta(x, si, pi, d))}
-        aoDuplicar={() => aoMudar((x) => duplicarPerguntaNaSecao(x, si, pi))}
-        aoMoverParaSecao={(para) => aoMudar((x) => moverParaSecao(x, { secao: si, pergunta: pi }, para))}
+        aoAlternar={() => { aoEditarSecao?.(si); aoAlternar(p.id); }}
+        aoMudar={(parcial) => mudar((x) => alterarPergunta(x, si, pi, parcial))}
+        aoMover={(d) => mudar((x) => moverPergunta(x, si, pi, d))}
+        aoDuplicar={() => mudar((x) => duplicarPerguntaNaSecao(x, si, pi))}
+        aoMoverParaSecao={(para) => mudar((x) => moverParaSecao(x, { secao: si, pergunta: pi }, para))}
         aoRemover={() => setRemoverPerguntaDe({ secao: si, pergunta: pi })} />)}
       {somenteLeitura ? null : <LinhaDeAcoes>
         <Botao rotulo="Adicionar pergunta" tipo="secundario" Icone={Plus} desabilitado={!podeAdicionar(c, si, 'TEXTO').pode}
           motivo={podeAdicionar(c, si, 'TEXTO').motivo} aoTocar={() => setAdicionarEm(si)} />
       </LinhaDeAcoes>}
-    </Cartao>)}
+    </Cartao></View>;
+    })}
     {problemas.gerais.map((g) => <Texto key={g.caminho + g.mensagem} variante="pequeno" cor={cores.perigo}>{g.mensagem}</Texto>)}
     {somenteLeitura ? null : <LinhaDeAcoes>
       <Botao rotulo="Adicionar seção" tipo="acao" Icone={Plus} desabilitado={!novaSecaoPermissao.pode} motivo={novaSecaoPermissao.motivo}
@@ -157,11 +165,6 @@ function CartaoDaPergunta({ pergunta: p, conteudo, posicao, total, aberta, probl
       </LinhaDeAcoes>}
     </View> : null}
   </View>;
-}
-
-/** Contagem da faixa da seção. */
-function quantasPerguntas(n: number): string {
-  return n === 0 ? 'Sem pergunta' : n === 1 ? '1 pergunta' : `${n} perguntas`;
 }
 
 /** "Nota de 1 a 5", "Fotos (até 3)": o tipo com o que mais o distingue no cartão fechado. */

@@ -3,7 +3,7 @@ import { Copy } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { definirAcessoDoAluno, gerarConvite } from '../api/rotas';
+import { definirAcessoDoAluno, gerarConvite, pausarAcessoDoAluno, reativarAcessoDoAluno } from '../api/rotas';
 import type { AlunoDetalhe, ConviteGerado } from '../api/tipos';
 import { seloDoAcesso } from '../dominio/cadastroDoAluno';
 import { ultimoLoginNaLinha } from '../dominio/acessoAoApp';
@@ -44,6 +44,27 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
   const [erro, setErro] = useState<unknown>(null);
   const [definindo, setDefinindo] = useState(false);
   const [definido, setDefinido] = useState<{ email: string; senha: string } | null>(null);
+  const [confirmarPausa, setConfirmarPausa] = useState<'pausar' | 'reativar' | null>(null);
+  const [alterandoPausa, setAlterandoPausa] = useState(false);
+
+  const executarPausa = (acao: 'pausar' | 'reativar') => {
+    setAlterandoPausa(true);
+    setErro(null);
+    const chamada = acao === 'pausar' ? pausarAcessoDoAluno(aluno.id) : reativarAcessoDoAluno(aluno.id);
+    chamada.then(
+      (atualizado) => {
+        setAlterandoPausa(false);
+        setConfirmarPausa(null);
+        aoAlterar(atualizado);
+        avisar(acao === 'pausar' ? 'Acesso do aluno pausado até a quitação.' : 'Acesso do aluno reativado.', 'sucesso');
+      },
+      (e: unknown) => {
+        setAlterandoPausa(false);
+        setConfirmarPausa(null);
+        setErro(e);
+      },
+    );
+  };
 
   const gerar = () => {
     setConfirmar(false);
@@ -80,6 +101,14 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
   const podeAgir = aluno.ativo && !aluno.anonimizado;
   // Com o formulário aberto as ações das linhas saem (ele diz o que fazer); voltam ao salvar ou cancelar.
   const comAcoes = podeAgir && !definindo && pode('ALUNO_CONVITE');
+  const podePausarOuReativar = podeAgir && !definindo && pode('FINANCEIRO_ALTERAR');
+  const acaoDaSituacao = podePausarOuReativar ? (
+    aluno.acessoPausado ? (
+      <Botao rotulo="Reativar acesso" tipo="secundario" tamanho="pequeno" aoTocar={() => { setErro(null); setConfirmarPausa('reativar'); }} />
+    ) : aluno.temAcesso ? (
+      <Botao rotulo="Pausar acesso até quitar" tipo="secundario" tamanho="pequeno" aoTocar={() => { setErro(null); setConfirmarPausa('pausar'); }} />
+    ) : undefined
+  ) : undefined;
   const validoAte = convite?.expiraEm ?? aluno.conviteExpiraEm ?? null;
   const conviteAnterior = !convite && !!aluno.conviteExpiraEm;
   const rotuloDaSenha = aluno.temAcesso ? (aluno.aguardandoPrimeiroAcesso ? 'Definir outra senha' : 'Definir nova senha') : 'Definir e-mail e senha';
@@ -93,22 +122,27 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
         <View style={estilos.bloco}>
           <ListaDeDados>
             <LinhaDeDado rotulo="Situação" valor={selo.texto} conteudo={<View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} /></View>}
-              nota={!aluno.temAcesso && comAcoes && !convite ? 'Gere um convite para o aluno criar a conta ou defina você o e-mail e uma senha provisória.' : undefined} />
+              nota={!aluno.temAcesso && comAcoes && !convite ? 'Gere um convite para o aluno criar a conta ou defina você o e-mail e uma senha provisória.' : undefined}
+              acoes={acaoDaSituacao} />
             {!aluno.temAcesso ? (
               <LinhaDeDado rotulo="Convite" valor={validoAte ? `Válido até ${dataHoraParaTela(validoAte)}` : null} numerico
                 acoes={comAcoes ? (
-                  <Botao rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'} tipo="acao" carregando={gerando}
+                  <Botao rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'} tipo="acao" tamanho="pequeno" carregando={gerando}
                     aoTocar={() => (convite || conviteAnterior ? setConfirmar(true) : gerar())} />
                 ) : undefined} />
             ) : null}
             <LinhaDeDado rotulo="E-mail de acesso" valor={email}
-              acoes={email ? <IconeBotao Icone={Copy} moldura rotulo="Copiar e-mail de acesso" aoTocar={() => copiar(email, 'E-mail')} /> : undefined} />
+              acoes={email ? (
+                <View style={estilos.iconeNaLinha}>
+                  <IconeBotao Icone={Copy} moldura compacto rotulo="Copiar e-mail de acesso" aoTocar={() => copiar(email, 'E-mail')} />
+                </View>
+              ) : undefined} />
             <LinhaDeDado rotulo={ultimo.rotulo} valor={ultimo.texto} numerico dica={ultimo.exata ?? undefined} />
             {/* Os pontos são só desenho: o leitor de tela ouve se a senha é a do aluno ou a provisória. */}
             <LinhaDeDado rotulo="Senha" valor={aluno.temAcesso ? (aluno.aguardandoPrimeiroAcesso ? 'provisória' : 'definida') : null}
               conteudo={<Texto aria-hidden>••••••</Texto>}
               nota={aluno.aguardandoPrimeiroAcesso ? 'Provisória: o aluno cria a dele no primeiro login.' : undefined}
-              acoes={comAcoes ? <Botao rotulo={rotuloDaSenha} tipo="secundario" aoTocar={abrirForm} /> : undefined} />
+              acoes={comAcoes ? <Botao rotulo={rotuloDaSenha} tipo="secundario" tamanho="pequeno" aoTocar={abrirForm} /> : undefined} />
           </ListaDeDados>
           {definido ? (
             <View style={estilos.convite}>
@@ -152,6 +186,24 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
         rotuloConfirmar="Gerar outro"
         aoConfirmar={gerar}
         aoCancelar={() => setConfirmar(false)}
+      />
+      <PainelConfirmacao
+        visivel={confirmarPausa === 'pausar'}
+        titulo="Pausar acesso até quitar?"
+        mensagem="O aluno verá apenas a tela de pagamento até quitar as cobranças vencidas."
+        rotuloConfirmar="Pausar acesso"
+        carregando={alterandoPausa}
+        aoConfirmar={() => executarPausa('pausar')}
+        aoCancelar={() => setConfirmarPausa(null)}
+      />
+      <PainelConfirmacao
+        visivel={confirmarPausa === 'reativar'}
+        titulo="Reativar acesso do aluno?"
+        mensagem="O aluno volta a acessar o aplicativo normalmente."
+        rotuloConfirmar="Reativar acesso"
+        carregando={alterandoPausa}
+        aoConfirmar={() => executarPausa('reativar')}
+        aoCancelar={() => setConfirmarPausa(null)}
       />
     </View>
   );
@@ -244,6 +296,8 @@ function Destaque({ rotulo, texto, aoCopiar, grande }: { rotulo: string; texto: 
 
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1.5) },
+  // O desenho compacto (32) fica centrado no alvo de 44: -6 alinha a borda dele à do "Definir nova senha".
+  iconeNaLinha: { marginRight: -espaco(0.75) },
   // O selo não estica na largura do valor.
   selo: { flexDirection: 'row' },
   convite: { gap: espaco(1.5) },

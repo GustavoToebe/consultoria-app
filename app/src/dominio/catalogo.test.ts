@@ -1,24 +1,10 @@
-import { passosDasInstrucoes, resumoNutrientes, textoMostrando, gruposDosExercicios } from './catalogo';
-
-const arroz = { baseQuantidade: 100, baseUnidade: 'g', kcal: 128.26, proteina: 2.52, carboidrato: 28.06, gordura: 0.23 };
+import {
+  chipsDoCatalogoDeAlimentos, chipsDoCatalogoDeExercicios, equipamentoDoCatalogo, gruposDosExercicios, naBibliotecaParaApi, passosDasInstrucoes,
+  SEM_FILTROS_DO_CATALOGO_DE_ALIMENTOS, SEM_FILTROS_DO_CATALOGO_DE_EXERCICIOS, semOFiltroDoCatalogoDeAlimentos, semOFiltroDoCatalogoDeExercicios,
+  temTracoNaLinha, textoMostrando,
+} from './catalogo';
 
 describe('catálogo: exibição', () => {
-  it('mostra o resumo por 100 g', () => {
-    expect(resumoNutrientes({ ...arroz, tracos: [] })).toBe('100 g · 128 kcal · P 2,5 · C 28,1 · G 0,2');
-  });
-
-  it('fibra: só aparece quando conhecida; nula é "—" e traço é "Tr"', () => {
-    expect(resumoNutrientes({ ...arroz, tracos: [], fibra: 1.62 })).toBe('100 g · 128 kcal · P 2,5 · C 28,1 · G 0,2 · Fibra 1,6');
-    expect(resumoNutrientes({ ...arroz, tracos: [], fibra: null })).toMatch(/ · Fibra —$/);
-    expect(resumoNutrientes({ ...arroz, tracos: ['fibra'], fibra: 0 })).toMatch(/ · Fibra Tr$/);
-  });
-
-  it('nutriente em traço aparece como Tr e não como 0', () => {
-    const r = resumoNutrientes({ ...arroz, gordura: 0, carboidrato: 0, tracos: ['gordura'] });
-    expect(r).toContain('G Tr');
-    expect(r).toContain('C 0 ');
-  });
-
   it('diz "Mostrando N de TOTAL" só quando há mais do que o mostrado', () => {
     expect(textoMostrando(50, 312)).toBe('Mostrando 50 de 312. Refine a busca ou escolha um grupo para ver mais.');
     expect(textoMostrando(12, 12)).toBeNull();
@@ -28,6 +14,58 @@ describe('catálogo: exibição', () => {
   it('separa as instruções em passos', () => {
     expect(passosDasInstrucoes('Passo 1.\n\n Passo 2. \n')).toEqual(['Passo 1.', 'Passo 2.']);
     expect(passosDasInstrucoes(null)).toEqual([]);
+  });
+
+  it('o equipamento que só repete a modalidade sai da linha; o resto fica', () => {
+    expect(equipamentoDoCatalogo('PESO_CORPORAL', 'Peso corporal')).toBeNull();
+    expect(equipamentoDoCatalogo('PESO_CORPORAL', ' peso CORPORAL ')).toBeNull();
+    expect(equipamentoDoCatalogo('MAQUINA', 'Polia')).toBe('Polia');
+    expect(equipamentoDoCatalogo('LIVRE', null)).toBeNull();
+    expect(equipamentoDoCatalogo('LIVRE', '  ')).toBeNull();
+  });
+
+  it('a legenda do "Tr" só vale quando um nutriente da linha é traço', () => {
+    expect(temTracoNaLinha({ tracos: [] })).toBe(false);
+    expect(temTracoNaLinha({ tracos: ['gordura'] })).toBe(true);
+    expect(temTracoNaLinha({ tracos: ['fibra'] })).toBe(true);
+    // Marca de um nutriente que a linha não mostra não acende a legenda.
+    expect(temTracoNaLinha({ tracos: ['sodio'] })).toBe(false);
+  });
+});
+
+describe('catálogo: filtro "Na biblioteca"', () => {
+  it('vai à API só quando não é "Todos"', () => {
+    expect(naBibliotecaParaApi('TODOS')).toBeUndefined();
+    expect(naBibliotecaParaApi('SIM')).toBe(true);
+    expect(naBibliotecaParaApi('NAO')).toBe(false);
+  });
+
+  it('exercícios: os chips da aba Exercícios mais o "Na biblioteca"; o ✕ tira só aquele', () => {
+    const grupos = [{ valor: 'Peito', rotulo: 'Peito' }];
+    const f = { ...SEM_FILTROS_DO_CATALOGO_DE_EXERCICIOS, grupos: new Set(['Peito']), modalidades: new Set(['MAQUINA']), imagem: 'SEM' as const, naBiblioteca: 'NAO' as const };
+    expect(chipsDoCatalogoDeExercicios(SEM_FILTROS_DO_CATALOGO_DE_EXERCICIOS, grupos)).toEqual([]);
+    expect(chipsDoCatalogoDeExercicios(f, grupos).map((c) => [c.chave, c.texto])).toEqual([
+      ['grupos', 'Grupo muscular: Peito'], ['modalidades', 'Modalidade: Máquina'], ['imagem', 'Imagem: Sem imagem'], ['naBiblioteca', 'Na biblioteca: Ainda não'],
+    ]);
+    const semNa = semOFiltroDoCatalogoDeExercicios(f, 'naBiblioteca');
+    expect(semNa.naBiblioteca).toBe('TODOS');
+    expect(semNa.grupos).toBe(f.grupos);
+    const semGrupo = semOFiltroDoCatalogoDeExercicios(f, 'grupos');
+    expect(semGrupo.grupos.size).toBe(0);
+    expect(semGrupo.naBiblioteca).toBe('NAO');
+  });
+
+  it('alimentos: Grupo, Unidade e "Na biblioteca"', () => {
+    const grupos = [{ valor: 'Frutas', rotulo: 'Frutas' }];
+    const f = { grupos: new Set(['Frutas']), unidades: new Set(['ml']), naBiblioteca: 'SIM' as const };
+    expect(chipsDoCatalogoDeAlimentos(SEM_FILTROS_DO_CATALOGO_DE_ALIMENTOS, grupos)).toEqual([]);
+    expect(chipsDoCatalogoDeAlimentos(f, grupos).map((c) => [c.chave, c.texto])).toEqual([
+      ['grupos', 'Grupo: Frutas'], ['unidades', 'Unidade: Mililitros (ml)'], ['naBiblioteca', 'Na biblioteca: Já tenho'],
+    ]);
+    expect(semOFiltroDoCatalogoDeAlimentos(f, 'grupos')).toEqual({ ...f, grupos: new Set() });
+    expect(semOFiltroDoCatalogoDeAlimentos(f, 'unidades')).toEqual({ ...f, unidades: new Set() });
+    expect(semOFiltroDoCatalogoDeAlimentos(f, 'naBiblioteca')).toEqual({ ...f, naBiblioteca: 'TODOS' });
+    expect(semOFiltroDoCatalogoDeAlimentos(f, 'outro')).toBe(f);
   });
 });
 

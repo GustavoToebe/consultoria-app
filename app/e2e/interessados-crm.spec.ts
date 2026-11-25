@@ -39,7 +39,7 @@ for (const largura of process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280])
     });
 
     test('Kanban: contagens, carregar mais, mover entre etapas pela versão e mover para Aceita abre a confirmação', async ({ page }) => {
-      const novas = Array.from({ length: 25 }, (_, i) => resumoFalso(i + 1));
+      const novas = Array.from({ length: 25 }, (_, i) => resumoFalso(i + 1, i === 1 ? { pagamento: 'CONFIRMADO_MANUAL' } : {}));
       const emContato = [resumoFalso(40, { situacao: 'EM_CONTATO', propostaPlanoNome: 'Plano Fictício' })];
       const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, {
         'GET /inscricoes/contagens': { corpo: contagensFalsas({ NOVA: 25, EM_CONTATO: 1 }) },

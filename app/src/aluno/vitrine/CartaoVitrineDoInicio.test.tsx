@@ -31,7 +31,7 @@ const { Platform } = require('react-native') as typeof import('react-native');
 const ITEM: ItemDaVitrineDoAluno = {
   id: 'item-1', nome: 'Plano de teste', descricao: 'Descrição de teste.', tipo: 'DIGITAL',
   precoCentavos: 9990, precoVigenteCentavos: 9990, especialAte: null, cupom: null, linkUrl: null,
-  temFoto: false, fotoAtualizadaEm: null,
+  temFoto: false, fotoAtualizadaEm: null, categoria: null,
 };
 
 function textos(item: ItemDaVitrineDoAluno, os: 'android' | 'ios' | 'web'): string {

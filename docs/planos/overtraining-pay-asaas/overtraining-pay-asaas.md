@@ -150,7 +150,7 @@ Ainda não ter a conta PJ aberta no Asaas **não trava nada** nem no backend nem
 
 ### 5.2. Modelo de Dados no `consultoria-app` (Migration nova na branch separada)
 
-Como a árvore local da `main` está usando `V098` (Contrato fechado, já em produção) e `V099` (Categorias da vitrine, em andamento local), a migration do Asaas usará o **próximo número livre no momento da integração** (ex.: `V100__overtraining_pay_asaas.sql`), atualizando `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`.
+Como a árvore local da `main` está usando `V098` (Contrato fechado, já em produção), `V099` (Categorias da vitrine) e `V100` (Ficha rápida e acesso pausado), a migration do Asaas usa `V101__overtraining_pay_asaas.sql`, atualizando `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`.
 
 1. **Tabela `subconta_asaas` (`@TenantId`, uma por consultoria)**:
    - `id uuid primary key`, `consultoria_id uuid not null unique references consultoria(id)`

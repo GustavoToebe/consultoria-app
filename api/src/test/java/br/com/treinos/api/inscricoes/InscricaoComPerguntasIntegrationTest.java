@@ -375,7 +375,8 @@ class InscricaoComPerguntasIntegrationTest extends AbstractIntegrationTest {
         api.post("/publico/inscricoes/" + codigo, null, corpo, 202);
         String id = unica(admin).path("id").asString();
         String alunoId = api.post("/inscricoes/" + id + "/aceitar", admin,
-                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong()), 200)
+                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong(),
+                        "semCobranca", true), 200)
                 .path("alunoId").asString();
 
         // O aceite não leva as respostas para o cadastro.

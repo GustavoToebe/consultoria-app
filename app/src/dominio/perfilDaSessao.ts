@@ -26,6 +26,8 @@ export interface PerfilDaSessao {
   whatsappHabilitado?: boolean;
   /** Só do aluno (dígitos, sem 55); ausente = a consultoria não tem número. */
   whatsappDaConsultoria?: string;
+  /** Só do aluno: acesso pausado manualmente por atraso; salvo no aparelho para bloquear também offline. */
+  acessoPausado?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   termosPendentes?: boolean;
@@ -54,6 +56,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     migracaoAssistidaHabilitada: eu.migracaoAssistidaHabilitada,
     whatsappHabilitado: eu.whatsappHabilitado,
     whatsappDaConsultoria: eu.whatsappDaConsultoria,
+    acessoPausado: Boolean(eu.acessoPausado || eu.aluno?.acessoPausado),
     termosPendentes: eu.termosPendentes,
   };
 }

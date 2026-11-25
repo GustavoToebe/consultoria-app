@@ -63,6 +63,10 @@ public class VitrineItem {
     @Column(nullable = false)
     private int ordem;
 
+    /** Nulo = sem categoria. FK composta com {@code consultoria_id} (V099); a existência na consultoria é conferida pelo serviço. */
+    @Column(name = "categoria_id")
+    private UUID categoriaId;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm = Instant.now();
 
@@ -93,6 +97,7 @@ public class VitrineItem {
     public boolean isNaPaginaPublica() { return naPaginaPublica; }
     public boolean isNoMarketplace() { return noMarketplace; }
     public int getOrdem() { return ordem; }
+    public UUID getCategoriaId() { return categoriaId; }
     public Long getVersao() { return versao; }
 
     void alterar(ValidacaoDoItem.Valido v) {
@@ -107,6 +112,7 @@ public class VitrineItem {
         this.ativo = v.ativo();
         this.naPaginaPublica = v.naPaginaPublica();
         this.noMarketplace = v.noMarketplace();
+        this.categoriaId = v.categoriaId();
         this.atualizadoEm = Instant.now();
     }
 

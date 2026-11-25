@@ -156,6 +156,41 @@ class CobrancaVencidaNaoBloqueiaOAlunoIntegrationTest extends AbstractIntegratio
         assertThat(anamneseEnviada.get("situacao").asString()).isEqualTo("ENVIADA");
     }
 
+    /**
+     * Atraso sozinho nunca bloqueia o aluno, mas a pausa manual do treinador restringe com 403 ACESSO_PAUSADO_POR_ATRASO
+     * e a quitação da última cobrança vencida reativa o acesso automaticamente.
+     */
+    @Test
+    void pausaManualRestringeCom403EReativaAutomaticamenteAoQuitar() throws Exception {
+        UUID alunoId = api.criarAluno(treinador, "Aluno Fictício " + UUID.randomUUID());
+        api.publicarTreino(treinador, alunoId, ApiDeTeste.treino().conteudo());
+        JsonNode aluno = api.convidarEEntrar(treinador, alunoId);
+
+        // Cria uma cobrança avulsa vencida: sem pausa manual, o aluno segue acessando o painel normalmente.
+        api.post("/financeiro/cobrancas-avulsas", treinador, Map.of(
+                "pedidoId", UUID.randomUUID().toString(),
+                "alunoIds", List.of(alunoId.toString()),
+                "descricao", "Mensalidade em atraso",
+                "valorCentavos", 12_000,
+                "primeiroVencimento", hoje.minusDays(5).toString(),
+                "parcelas", 1), 201);
+        JsonNode cobranca = api.get("/alunos/" + alunoId + "/cobrancas", treinador, 200).get(0);
+        api.get("/aluno/painel", aluno, 200);
+
+        // Treinador pausa manualmente: agora o painel responde 403 ACESSO_PAUSADO_POR_ATRASO, mas /aluno/financeiro continua aberto.
+        JsonNode pausado = api.post("/alunos/" + alunoId + "/pausar-acesso", treinador, null, 200);
+        assertThat(pausado.get("acessoPausado").asBoolean()).isTrue();
+        JsonNode erro = api.get("/aluno/painel", aluno, 403);
+        assertThat(erro.get("codigo").asString()).isEqualTo("ACESSO_PAUSADO_POR_ATRASO");
+        api.get("/aluno/financeiro", aluno, 200);
+
+        // Quitação da cobrança vencida reativa o acesso automaticamente.
+        api.post("/cobrancas/" + cobranca.get("id").asString() + "/baixa-manual", treinador,
+                Map.of("data", hoje.toString(), "forma", "PIX_DIRETO", "versao", cobranca.get("versao").asLong()), 200);
+        assertThat(api.get("/eu", aluno, 200).get("acessoPausado").asBoolean()).isFalse();
+        api.get("/aluno/painel", aluno, 200);
+    }
+
     /** Anamnese fictícia mínima, publicada: uma pergunta sim ou não obrigatória. */
     private JsonNode anamnesePublicada() throws Exception {
         String nome = "Anamnese fictícia " + UUID.randomUUID();

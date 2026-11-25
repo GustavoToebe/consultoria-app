@@ -15,19 +15,19 @@ class ValidacaoDoItemTest {
     private static final LocalDate HOJE = LocalDate.of(2026, 11, 16);
 
     private static ItemRequest base() {
-        return new ItemRequest("Camiseta fictícia", "Descrição fictícia", "FISICO", 10_000L, null, null, null, null, true, null, null, null);
+        return new ItemRequest("Camiseta fictícia", "Descrição fictícia", "FISICO", 10_000L, null, null, null, null, true, null, null, null, null);
     }
 
     private static ItemRequest com(String nome, String descricao, String tipo, Long preco, Long especial, LocalDate ate,
                                    String cupom, String link, Boolean ativo) {
-        return new ItemRequest(nome, descricao, tipo, preco, especial, ate, cupom, link, ativo, null, null, null);
+        return new ItemRequest(nome, descricao, tipo, preco, especial, ate, cupom, link, ativo, null, null, null, null);
     }
 
     @Test
     void soItemDigitalPodeIrParaAPaginaPublica() {
-        ItemRequest fisico = new ItemRequest("Item", null, "FISICO", null, null, null, null, null, true, true, null, null);
-        ItemRequest digital = new ItemRequest("Item", null, "DIGITAL", null, null, null, null, null, true, true, null, null);
-        ItemRequest semTipo = new ItemRequest("Item", null, null, null, null, null, null, null, true, true, null, null);
+        ItemRequest fisico = new ItemRequest("Item", null, "FISICO", null, null, null, null, null, true, true, null, null, null);
+        ItemRequest digital = new ItemRequest("Item", null, "DIGITAL", null, null, null, null, null, true, true, null, null, null);
+        ItemRequest semTipo = new ItemRequest("Item", null, null, null, null, null, null, null, true, true, null, null, null);
         assertThat(campos(fisico)).containsExactly("naPaginaPublica");
         assertThat(campos(semTipo)).containsExactly("tipo", "naPaginaPublica");
         assertThat(campos(digital)).isEmpty();
@@ -37,8 +37,8 @@ class ValidacaoDoItemTest {
 
     @Test
     void soItemDigitalPodeIrAoMarketplace() {
-        ItemRequest fisico = new ItemRequest("Item", null, "FISICO", null, null, null, null, null, true, false, true, null);
-        ItemRequest digital = new ItemRequest("Item", null, "DIGITAL", null, null, null, null, null, true, false, true, null);
+        ItemRequest fisico = new ItemRequest("Item", null, "FISICO", null, null, null, null, null, true, false, true, null, null);
+        ItemRequest digital = new ItemRequest("Item", null, "DIGITAL", null, null, null, null, null, true, false, true, null, null);
         assertThat(campos(fisico)).containsExactly("noMarketplace");
         assertThat(campos(digital)).isEmpty();
         assertThat(ValidacaoDoItem.normalizar(digital).noMarketplace()).isTrue();

@@ -422,7 +422,9 @@ for (const largura of [1280, 390]) {
     const { errosDaPagina } = await abrir(page, estadoFinanceiro({ cobrancas: [{ ...AVULSA }, { ...BRUNA }], alunos: [ANA] }));
     await expect(page.getByText('Camiseta do time (Parcela 1/3)').first()).toBeVisible();
     await expect(page.getByText('Avulsa', { exact: true }).first()).toBeVisible();
-    if (largura === 1280) await expect(page.getByText('Não se aplica')).toBeVisible();
+    // 24/11: a descrição vai para a coluna da competência (uma linha), no lugar do antigo "Não se aplica".
+    if (largura === 1280) await expect(page.getByRole('table', { name: 'Cobranças' }).getByText('Camiseta do time (Parcela 1/3)')).toBeVisible();
+    await expect(page.getByText('Não se aplica')).toHaveCount(0);
     await expect(page.getByRole('checkbox', { name: 'Selecionar cobrança de Ana Avulsa, Camiseta do time (Parcela 1/3)' })).toBeVisible();
     await semRolagemHorizontal(page);
     // A página rola por dentro: a captura vai até a linha da avulsa (no celular, o cartão; no PC, a linha da tabela).

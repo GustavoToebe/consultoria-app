@@ -787,6 +787,14 @@ export const gerarConvite = (id: string) => requisicao<ConviteGerado>(`/alunos/$
 export const definirAcessoDoAluno = (id: string, dados: { email: string; senha: string }) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso`, { metodo: 'PUT', corpo: dados });
 
+/** Pausa o acesso do aluno ao app por atraso (`FINANCEIRO_ALTERAR`); 409 `SEM_COBRANCA_VENCIDA` sem cobrança vencida em aberto. */
+export const pausarAcessoDoAluno = (id: string) =>
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/pausar-acesso`, { metodo: 'POST' });
+
+/** Reativa o acesso pausado do aluno manualmente (`FINANCEIRO_ALTERAR`). */
+export const reativarAcessoDoAluno = (id: string) =>
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/reativar-acesso`, { metodo: 'POST' });
+
 export const execucoesDoAluno = (id: string, de: string, ate: string) =>
   requisicao<DiaDeTreino[]>(`/alunos/${seg(id)}/execucoes?de=${de}&ate=${ate}`);
 
@@ -857,11 +865,19 @@ const busca = (texto?: string) => (texto ? `?busca=${encodeURIComponent(texto)}`
 
 export const listarExercicios = (texto?: string) => requisicao<Exercicio[]>(`/exercicios${busca(texto)}`);
 export const TAMANHO_DA_PAGINA_DE_EXERCICIOS = 30;
-/** Uma página da aba Exercícios: busca sem acento e grupos (OU) no servidor; `grupos` do retorno não aplica o filtro de grupo. */
-export const listarExerciciosPagina = (filtro: { texto?: string; grupos?: readonly string[]; pagina: number }) => {
+/**
+ * Uma página da aba Exercícios: busca sem acento, grupos (OU), modalidades (OU), vídeo e imagem (`true` só com, `false`
+ * só sem, ausente = todos) no servidor; `grupos` e `modalidades` do retorno não aplicam filtro nenhum.
+ */
+export const listarExerciciosPagina = (filtro: {
+  texto?: string; grupos?: readonly string[]; modalidades?: readonly string[]; video?: boolean; imagem?: boolean; pagina: number;
+}) => {
   const q = new URLSearchParams({ pagina: String(filtro.pagina), tamanho: String(TAMANHO_DA_PAGINA_DE_EXERCICIOS) });
   if (filtro.texto) q.append('busca', filtro.texto);
   for (const g of filtro.grupos ?? []) q.append('grupo', g);
+  for (const m of filtro.modalidades ?? []) q.append('modalidade', m);
+  if (filtro.video !== undefined) q.append('video', String(filtro.video));
+  if (filtro.imagem !== undefined) q.append('imagem', String(filtro.imagem));
   return requisicao<PaginaDeExercicios>(`/exercicios/pagina?${q.toString()}`);
 };
 export const criarExercicio = (dados: ExercicioRequest) =>
@@ -902,19 +918,29 @@ export const alterarAlimento = (id: string, dados: AlimentoRequest) =>
   requisicao<Alimento>(`/alimentos/${seg(id)}`, { metodo: 'PUT', corpo: dados });
 export const inativarAlimento = (id: string) => requisicao<void>(`/alimentos/${seg(id)}`, { metodo: 'DELETE' });
 
-/** `grupo` repetido, um por grupo (vale "ou"); a vírgula do nome ("Verduras, hortaliças e derivados") vai codificada. */
-const consultaDoCatalogo = (texto: string | undefined, grupos: readonly string[]) => {
+/**
+ * Filtros do catálogo, todos na API (a lista vem cortada no limite). `grupo`, `modalidade` e `unidade` repetidos, um por valor (vale
+ * "ou"; a vírgula do nome "Verduras, hortaliças e derivados" vai codificada); `imagem` e `naBiblioteca` ausentes = todos.
+ */
+export interface FiltroDoCatalogo {
+  texto?: string; grupos?: readonly string[]; modalidades?: readonly string[]; unidades?: readonly string[]; imagem?: boolean; naBiblioteca?: boolean;
+}
+const consultaDoCatalogo = ({ texto, grupos = [], modalidades = [], unidades = [], imagem, naBiblioteca }: FiltroDoCatalogo) => {
   const q = new URLSearchParams();
   if (texto) q.append('busca', texto);
   for (const g of grupos) q.append('grupo', g);
+  for (const m of modalidades) q.append('modalidade', m);
+  for (const u of unidades) q.append('unidade', u);
+  if (imagem !== undefined) q.append('imagem', String(imagem));
+  if (naBiblioteca !== undefined) q.append('naBiblioteca', String(naBiblioteca));
   const montada = q.toString();
   return montada ? `?${montada}` : '';
 };
 
-export const catalogoExercicios = (texto?: string, grupos: readonly string[] = []) =>
-  requisicao<PaginaCatalogo<CatalogoExercicio>>(`/catalogo/exercicios${consultaDoCatalogo(texto, grupos)}`);
-export const catalogoAlimentos = (texto?: string, grupos: readonly string[] = []) =>
-  requisicao<PaginaCatalogo<CatalogoAlimento>>(`/catalogo/alimentos${consultaDoCatalogo(texto, grupos)}`);
+export const catalogoExercicios = (filtro: Omit<FiltroDoCatalogo, 'unidades'>) =>
+  requisicao<PaginaCatalogo<CatalogoExercicio>>(`/catalogo/exercicios${consultaDoCatalogo(filtro)}`);
+export const catalogoAlimentos = (filtro: Omit<FiltroDoCatalogo, 'modalidades' | 'imagem'>) =>
+  requisicao<PaginaCatalogo<CatalogoAlimento>>(`/catalogo/alimentos${consultaDoCatalogo(filtro)}`);
 export const gruposDoCatalogo = (tipo: TipoBiblioteca) => requisicao<string[]>(`/catalogo/${seg(tipo)}/grupos`);
 
 export type TipoBiblioteca = 'exercicios' | 'alimentos';

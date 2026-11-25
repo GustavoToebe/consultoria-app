@@ -29,7 +29,7 @@ import { Grade } from '../ui/Grade';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { NumeroAnimado } from '../ui/NumeroAnimado';
-import { AJUDA_DA_FIBRA_PARCIAL, FIBRA, fibraParcial, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../ui/ValoresDaDieta';
+import { AJUDA_DA_FIBRA_PARCIAL, FIBRA, fibraParcial, LegendaDosMacros, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../ui/ValoresDaDieta';
 import { ModoDePreparo } from './ModoDePreparo';
 import { useDiaDeHojeEmBrasilia } from './useDiaDeHoje';
 
@@ -127,7 +127,8 @@ export function DietaDoAluno({
   const total = semDietaHoje ? null : (
     <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
       <TotalDoDia totais={totais} />
-      <Texto variante="pequeno">P = proteína · C = carboidrato · G = gordura</Texto>
+      {/* "■ Fibra" só se algum item mostra fibra (a do aluno some quando é "—", `omitirFibraSemValor`), em qualquer opção. */}
+      <LegendaDosMacros fibra={refeicoes.some((r) => r.opcoes.some((o) => o.itens.some((i) => i.fibra != null)))} />
       {/* Só os macros e a kcal: a fibra é opcional e nula não deixa o total incompleto. */}
       {CHAVES_DOS_MACROS.some((m) => totais[m] === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
     </Cartao>

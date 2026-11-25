@@ -4,14 +4,20 @@ import type { ErgogenicoDaBiblioteca, ErgogenicoDaBibliotecaRequest } from '../s
 import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
- * Biblioteca › Outros › Novo item/Editar item: Categoria vem primeiro e as sugestões são as categorias que já existem,
- * filtradas pelo que foi digitado (sem acento nem caixa). Só dados fictícios.
+ * Biblioteca › Outros (24/11): na lista, o título é o nome e, só se for outro (sem caixa nem acento), " / princípio
+ * ativo"; a linha de detalhe vem sem rótulos ("30 mg · 28 caps") e o campo vazio some. No Novo item/Editar item, Nome e
+ * Princípio ativo vêm primeiro e a Categoria embaixo, no seletor com busca da Vitrine: "Sem categoria", as que já existem e
+ * "Criar categoria “…”" com o texto digitado. Só dados fictícios.
  */
 function item(nome: string, categoria: string | null, extra: Partial<ErgogenicoDaBiblioteca> = {}): ErgogenicoDaBiblioteca {
   return { id: `e000000${nome.length}-0000-4000-8000-000000000000`, categoria, nome, principioAtivo: null, concentracao: null, apresentacao: null, observacao: null, ...extra };
 }
 
-const COM_CATEGORIAS = [item('Lisdexanfetamina', 'Medicamentos', { principioAtivo: 'Dimesilato' }), item('Testosterona', 'Injetáveis')];
+const COM_CATEGORIAS = [
+  item('Lisdexanfetamina', 'Medicamentos', { principioAtivo: 'Dimesilato', concentracao: '30 mg', apresentacao: '28 caps' }),
+  item('Testosterona', 'Injetáveis'),
+  item('Cafeína anidra', 'Medicamentos', { principioAtivo: 'CAFEINA ANIDRA', apresentacao: '60 caps' }),
+];
 const SEM_CATEGORIAS = [item('Cafeína', null)];
 
 async function abrir(page: Page, lista: ErgogenicoDaBiblioteca[]) {
@@ -37,51 +43,66 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
   test.describe(nome, () => {
     test.use({ viewport: { width: largura, height: altura } });
 
-    test('sem categoria cadastrada: Categoria vem antes do Nome e não há sugestão', async ({ page }) => {
-      const { naoTratadas, errosDaPagina } = await abrir(page, SEM_CATEGORIAS);
-      await page.getByRole('button', { name: 'Novo item' }).click();
-      const folha = page.getByRole('dialog');
-      const categoria = folha.getByRole('textbox', { name: 'Categoria (opcional)' });
-      const nomeDoItem = folha.getByRole('textbox', { name: 'Nome', exact: true });
-      await expect(categoria).toBeVisible();
-      const [yCategoria, yNome] = await Promise.all([categoria.boundingBox(), nomeDoItem.boundingBox()]);
-      expect(yCategoria!.y).toBeLessThan(yNome!.y);
-      // Só os botões da própria folha: nenhum chip de categoria.
-      await expect(folha.getByRole('button', { name: /Medicamentos|Injetáveis|Cafeína/ })).toHaveCount(0);
+    test('lista: princípio ativo só quando é outro e detalhe sem rótulos, sem "—" no que falta', async ({ page }) => {
+      const { naoTratadas, errosDaPagina } = await abrir(page, COM_CATEGORIAS);
+      await page.getByRole('button', { name: 'Medicamentos, recolhido' }).click();
+      await page.getByRole('button', { name: 'Injetáveis, recolhido' }).click();
+      await expect(page.getByText('Lisdexanfetamina / Dimesilato', { exact: true })).toBeVisible();
+      await expect(page.getByText('30 mg · 28 caps', { exact: true })).toBeVisible();
+      // Princípio igual ao nome (só muda a caixa e o acento): fica só o nome; só a apresentação, sem o ponto.
+      await expect(page.getByText('Cafeína anidra', { exact: true })).toBeVisible();
+      await expect(page.getByText(/\/ CAFEINA/)).toHaveCount(0);
+      await expect(page.getByText('60 caps', { exact: true })).toBeVisible();
+      await expect(page.getByText('Testosterona', { exact: true })).toBeVisible();
+      await expect(page.getByText(/Concentração:|Apresentação:/)).toHaveCount(0);
+      await expect(page.getByText('—', { exact: true })).toHaveCount(0);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('com categorias: aparecem ao abrir, filtram ao digitar, o texto exato some e tocar preenche', async ({ page }) => {
-      const { gravados, naoTratadas, errosDaPagina } = await abrir(page, COM_CATEGORIAS);
+    test('Novo item: Nome e Princípio primeiro, Categoria embaixo; criar categoria usa o texto digitado', async ({ page }) => {
+      const { gravados, naoTratadas, errosDaPagina } = await abrir(page, SEM_CATEGORIAS);
       await page.getByRole('button', { name: 'Novo item' }).click();
-      const folha = page.getByRole('dialog');
-      const categoria = folha.getByRole('textbox', { name: 'Categoria (opcional)' });
-      const sugestao = (rotulo: string) => folha.getByRole('button', { name: rotulo, exact: true });
+      const folha = page.getByRole('dialog', { name: 'Novo item' });
+      const categoria = folha.getByRole('button', { name: /^Categoria: / });
+      const nomeDoItem = folha.getByRole('textbox', { name: 'Nome', exact: true });
+      await expect(categoria).toHaveAccessibleName('Categoria: Sem categoria. Escolher.');
+      const [yCategoria, yNome] = await Promise.all([categoria.boundingBox(), nomeDoItem.boundingBox()]);
+      expect(yCategoria!.y).toBeGreaterThan(yNome!.y);
+      await expect(folha.getByText(/Vazio fica em/)).toHaveCount(0);
 
-      await expect(sugestao('Medicamentos')).toBeVisible();
-      await expect(sugestao('Injetáveis')).toBeVisible();
+      await categoria.click();
+      await page.getByLabel('Buscar ou criar categoria').fill('  Orais  ');
+      await page.getByRole('option', { name: /Criar categoria “Orais”/ }).click();
+      await expect(categoria).toHaveAccessibleName('Categoria: Orais. Escolher.');
 
-      await categoria.fill('med');
-      await expect(sugestao('Medicamentos')).toBeVisible();
-      await expect(sugestao('Injetáveis')).toHaveCount(0);
-
-      await categoria.fill('MEDICAMENTOS');
-      await expect(sugestao('Medicamentos')).toHaveCount(0);
-      await expect(sugestao('Injetáveis')).toHaveCount(0);
-
-      await categoria.fill('');
-      await sugestao('Injetáveis').click();
-      await expect(categoria).toHaveValue('Injetáveis');
-      await expect(sugestao('Injetáveis')).toHaveCount(0);
-
-      await folha.getByRole('textbox', { name: 'Nome', exact: true }).fill('Item novo');
+      await nomeDoItem.fill('Item novo');
       await folha.getByRole('button', { name: 'Salvar' }).click();
       await expect.poll(() => gravados.length).toBe(1);
       expect(gravados[0]).toEqual({
         metodo: 'POST',
-        corpo: { categoria: 'Injetáveis', nome: 'Item novo', principioAtivo: null, concentracao: null, apresentacao: null, observacao: null },
+        corpo: { categoria: 'Orais', nome: 'Item novo', principioAtivo: null, concentracao: null, apresentacao: null, observacao: null },
       });
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('com categorias: o seletor lista as que existem e o texto igual (sem acento nem caixa) escolhe a existente', async ({ page }) => {
+      const { gravados, naoTratadas, errosDaPagina } = await abrir(page, COM_CATEGORIAS);
+      await page.getByRole('button', { name: 'Novo item' }).click();
+      const folha = page.getByRole('dialog', { name: 'Novo item' });
+      const categoria = folha.getByRole('button', { name: /^Categoria: / });
+      await categoria.click();
+      for (const nome of ['Sem categoria', 'Injetáveis', 'Medicamentos']) await expect(page.getByRole('option', { name: new RegExp(`^${nome}`) })).toBeVisible();
+      await page.getByLabel('Buscar ou criar categoria').fill('INJETAVEIS');
+      await expect(page.getByRole('option', { name: /Criar categoria/ })).toHaveCount(0);
+      await page.getByRole('option', { name: /^Injetáveis/ }).click();
+      await expect(categoria).toHaveAccessibleName('Categoria: Injetáveis. Escolher.');
+
+      await folha.getByRole('textbox', { name: 'Nome', exact: true }).fill('Item novo');
+      await folha.getByRole('button', { name: 'Salvar' }).click();
+      await expect.poll(() => gravados.length).toBe(1);
+      expect(gravados[0].corpo.categoria).toBe('Injetáveis');
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
@@ -94,6 +115,12 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
       for (const secao of ['Identificação', 'Concentração e apresentação', 'Observação']) {
         await expect(folha.getByRole('heading', { name: secao, level: 3 })).toBeVisible();
       }
+      // Dicas viram placeholder; o cartão Observação não repete o rótulo (o campo continua com nome acessível).
+      await expect(folha.getByRole('textbox', { name: 'Concentração (opcional)' })).toHaveAttribute('placeholder', '200 mg/ml');
+      await expect(folha.getByRole('textbox', { name: 'Apresentação (opcional)' })).toHaveAttribute('placeholder', '10 ml ou 50 caps');
+      await expect(folha.getByText(/Como está na embalagem|Por exemplo/)).toHaveCount(0);
+      await expect(folha.getByRole('textbox', { name: 'Observação (opcional)' })).toBeVisible();
+      await expect(folha.getByText('Observação (opcional)', { exact: true })).toHaveCount(0);
       const pares = [['Nome', 'Princípio ativo (opcional)'], ['Concentração (opcional)', 'Apresentação (opcional)']] as const;
       for (const [esquerda, direita] of pares) {
         const a = (await folha.getByRole('textbox', { name: esquerda, exact: true }).boundingBox())!;
@@ -150,25 +177,26 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('editar um item existente mantém a categoria dele', async ({ page }) => {
+    test('editar um item existente mantém a categoria dele, e "Sem categoria" grava vazio', async ({ page }) => {
       const { gravados, naoTratadas, errosDaPagina } = await abrir(page, COM_CATEGORIAS);
       await page.getByRole('button', { name: 'Medicamentos, recolhido' }).click();
       await page.getByRole('button', { name: 'Editar Lisdexanfetamina' }).click();
-      const folha = page.getByRole('dialog');
-      await expect(folha.getByRole('textbox', { name: 'Categoria (opcional)' })).toHaveValue('Medicamentos');
+      const folha = page.getByRole('dialog', { name: 'Editar item' });
+      const categoria = folha.getByRole('button', { name: /^Categoria: / });
+      await expect(categoria).toHaveAccessibleName('Categoria: Medicamentos. Escolher.');
       await expect(folha.getByRole('textbox', { name: 'Nome', exact: true })).toHaveValue('Lisdexanfetamina');
-      // O campo abre com "Medicamentos": é igual ao texto (nada a sugerir) e "Injetáveis" não casa com ele.
-      await expect(folha.getByRole('button', { name: 'Medicamentos', exact: true })).toHaveCount(0);
-      await expect(folha.getByRole('button', { name: 'Injetáveis', exact: true })).toHaveCount(0);
-      // Apagar o texto traz as duas de volta.
-      await folha.getByRole('textbox', { name: 'Categoria (opcional)' }).fill('');
-      await expect(folha.getByRole('button', { name: 'Injetáveis', exact: true })).toBeVisible();
-      await folha.getByRole('textbox', { name: 'Categoria (opcional)' }).fill('Medicamentos');
-
       await folha.getByRole('button', { name: 'Salvar' }).click();
       await expect.poll(() => gravados.length).toBe(1);
       expect(gravados[0].metodo).toBe('PUT');
       expect(gravados[0].corpo.categoria).toBe('Medicamentos');
+
+      await page.getByRole('button', { name: 'Editar Lisdexanfetamina' }).click();
+      await categoria.click();
+      await page.getByRole('option', { name: /^Sem categoria/ }).click();
+      await expect(categoria).toHaveAccessibleName('Categoria: Sem categoria. Escolher.');
+      await folha.getByRole('button', { name: 'Salvar' }).click();
+      await expect.poll(() => gravados.length).toBe(2);
+      expect(gravados[1].corpo.categoria).toBeNull();
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });

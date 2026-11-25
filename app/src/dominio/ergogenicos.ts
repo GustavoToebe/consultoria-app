@@ -3,7 +3,8 @@ import { SEM_DADO } from './formatos';
 
 /**
  * Regras de apresentação da biblioteca de medicação e ergogênicos (sem tela). O item é só o que está no rótulo: nada
- * aqui sugere dose, soma, compara nem avisa sobre combinação. Ausência de dado é "—".
+ * aqui sugere dose, soma, compara nem avisa sobre combinação. Ausência de dado é "—" na escolha da dieta; na lista da
+ * Biblioteca o campo vazio some.
  */
 
 /**
@@ -19,15 +20,14 @@ export function categoriasDosErgogenicos(lista: readonly Pick<ErgogenicoDaBiblio
 }
 
 /**
- * Sugestões do campo Categoria: as que já existem e contêm o que foi digitado (sem acento e sem caixa); campo vazio =
- * todas. Some a que já é exatamente o texto digitado (não há o que sugerir).
+ * Categoria do texto digitado no seletor: a que já existe com o mesmo nome (sem acento, caixa nem espaços sobrando) fica
+ * com a grafia dela, para não nascer um grupo repetido; senão, o texto limpo. Vazio = `null` ("Sem categoria").
  */
-export function sugerirCategorias(categorias: readonly string[], digitado: string): string[] {
-  const termo = semAcentoMinusculo(digitado);
-  return categorias.filter((c) => {
-    const nome = semAcentoMinusculo(c);
-    return nome !== termo && nome.includes(termo);
-  });
+export function categoriaDoTexto(texto: string, categorias: readonly string[]): string | null {
+  const limpo = texto.replace(/\s+/g, ' ').trim();
+  if (!limpo) return null;
+  const chave = semAcentoMinusculo(limpo);
+  return categorias.find((c) => semAcentoMinusculo(c) === chave) ?? limpo;
 }
 
 export interface GrupoDeErgogenicos {
@@ -79,15 +79,29 @@ export function ergogenicosPreenchidos(lista: readonly ItemErgogenico[] | null |
   );
 }
 
-/** Campo de texto do rótulo (concentração, apresentação…): o que faltar vira "—". */
+/** Campo de texto do rótulo (concentração na escolha da dieta): o que faltar vira "—". */
 export function textoOuTraco(valor: string | null | undefined): string {
   return valor?.trim() || SEM_DADO;
 }
 
-/** "Nome / Princípio ativo"; sem princípio ativo, só o nome. */
+/** "Nome / Princípio ativo"; sem princípio ativo, só o nome (escolha da dieta). */
 export function nomeEPrincipio(e: Pick<ErgogenicoDaBiblioteca, 'nome' | 'principioAtivo'>): string {
   const principio = e.principioAtivo?.trim();
   return principio ? `${e.nome} / ${principio}` : e.nome;
+}
+
+/**
+ * Título da linha: o nome e, só se for outro, o princípio ativo (comparado sem caixa e sem acento: "Cafeína" e "cafeina"
+ * são o mesmo, e aí fica só o nome).
+ */
+export function tituloDoErgogenico(e: Pick<ErgogenicoDaBiblioteca, 'nome' | 'principioAtivo'>): { nome: string; principio: string | null } {
+  const principio = e.principioAtivo?.trim() || null;
+  return { nome: e.nome, principio: principio && semAcentoMinusculo(principio) !== semAcentoMinusculo(e.nome) ? principio : null };
+}
+
+/** Linha de detalhe sem rótulos ("200 mg/ml · 10 ml"): o campo vazio some; os dois vazios = `null` (sem linha). */
+export function detalheDoErgogenico(e: Pick<ErgogenicoDaBiblioteca, 'concentracao' | 'apresentacao'>): string | null {
+  return [e.concentracao, e.apresentacao].map((t) => t?.trim()).filter(Boolean).join(' · ') || null;
 }
 
 /** Busca sem acento e sem caixa no nome e no princípio ativo; categoria vazia = todas. */

@@ -2,7 +2,7 @@ import type { ItemDaVitrine, ItemDaVitrineDoAluno, TipoDoItem } from '../api/vit
 import type { PlataformaDoApp } from './financeiro';
 import {
   comoMostrarItem, comTipoDoItem, contagemDeItens, corpoDoItem, emPromocao, erroDaListaDeConsultoriasDoItem, erroDaPaginaPublicaDoItem, interruptorDaPaginaPublica, itensDoCartaoDoInicio,
-  moverItem, MOTIVO_SO_DIGITAL, MOTIVO_SO_DIGITAL_NA_LISTA, podeAdicionarItem, problemasDoItem, rascunhoDoItem, rascunhoVazio, textoDoPreco, TETO_DE_ITENS, type RascunhoDoItem,
+  MOTIVO_SO_DIGITAL, MOTIVO_SO_DIGITAL_NA_LISTA, podeAdicionarItem, problemasDoItem, rascunhoDoItem, rascunhoVazio, textoDoPreco, TETO_DE_ITENS, type RascunhoDoItem,
 } from './vitrine';
 
 const HOJE = '2026-11-16';
@@ -60,7 +60,7 @@ describe('textos de preço e validade', () => {
 
 describe('cartão do Início do aluno', () => {
   const item = (id: string, vigente: number | null, normal: number | null = vigente): ItemDaVitrineDoAluno => ({
-    id, nome: id, descricao: null, tipo: 'DIGITAL', precoCentavos: normal, precoVigenteCentavos: vigente, especialAte: null, cupom: null, linkUrl: null, temFoto: false, fotoAtualizadaEm: null,
+    id, nome: id, descricao: null, tipo: 'DIGITAL', precoCentavos: normal, precoVigenteCentavos: vigente, especialAte: null, cupom: null, linkUrl: null, temFoto: false, fotoAtualizadaEm: null, categoria: null,
   });
   it('até 2 itens, o de preço especial vigente primeiro e o resto na ordem recebida', () => {
     const lista = [item('a', 100), item('b', 100), item('c', 80, 100), item('d', 50, 90)];
@@ -78,16 +78,6 @@ describe('teto e ordem', () => {
     const cheio = podeAdicionarItem(TETO_DE_ITENS);
     expect(cheio.pode).toBe(false);
     expect(cheio.motivo).toContain('30');
-  });
-
-  it('Subir e Descer trocam com o vizinho; nas pontas nada muda; id desconhecido é ignorado', () => {
-    const ids = ['a', 'b', 'c'];
-    expect(moverItem(ids, 'b', 'subir')).toEqual(['b', 'a', 'c']);
-    expect(moverItem(ids, 'b', 'descer')).toEqual(['a', 'c', 'b']);
-    expect(moverItem(ids, 'a', 'subir')).toEqual(ids);
-    expect(moverItem(ids, 'c', 'descer')).toEqual(ids);
-    expect(moverItem(ids, 'x', 'subir')).toEqual(ids);
-    expect(ids).toEqual(['a', 'b', 'c']);
   });
 });
 
@@ -162,10 +152,10 @@ describe('editor: validação espelhada da API', () => {
 describe('corpo do POST/PUT', () => {
   it('centavos inteiros, textos aparados, em branco = nulo e versão só na edição', () => {
     const r: RascunhoDoItem = {
-      nome: '  Fullbody ', descricao: '  ', tipo: 'DIGITAL', preco: '149,9', precoEspecial: 'R$ 99,00', especialAte: '2026-11-27', cupom: ' BLACK ', linkUrl: ' https://exemplo.com ', ativo: false, naPaginaPublica: true, noMarketplace: true,
+      nome: '  Fullbody ', descricao: '  ', tipo: 'DIGITAL', preco: '149,9', precoEspecial: 'R$ 99,00', especialAte: '2026-11-27', cupom: ' BLACK ', linkUrl: ' https://exemplo.com ', categoriaId: 'cat-1', ativo: false, naPaginaPublica: true, noMarketplace: true,
     };
     expect(corpoDoItem(r)).toEqual({
-      nome: 'Fullbody', descricao: null, tipo: 'DIGITAL', precoCentavos: 14990, precoEspecialCentavos: 9900, especialAte: '2026-11-27', cupom: 'BLACK', linkUrl: 'https://exemplo.com', ativo: false, naPaginaPublica: true, noMarketplace: true,
+      nome: 'Fullbody', descricao: null, tipo: 'DIGITAL', precoCentavos: 14990, precoEspecialCentavos: 9900, especialAte: '2026-11-27', cupom: 'BLACK', linkUrl: 'https://exemplo.com', categoriaId: 'cat-1', ativo: false, naPaginaPublica: true, noMarketplace: true,
     });
     expect(corpoDoItem(r, 3).versao).toBe(3);
     expect(corpoDoItem(rascunhoVazio())).toMatchObject({ precoCentavos: null, precoEspecialCentavos: null, especialAte: null, cupom: null, linkUrl: null, ativo: true, tipo: 'DIGITAL', naPaginaPublica: false, noMarketplace: false });
@@ -173,11 +163,11 @@ describe('corpo do POST/PUT', () => {
 
   it('o rascunho de um item salvo volta ao mesmo corpo', () => {
     const item: ItemDaVitrine = {
-      id: 'i', nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, precoVigenteCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, naPaginaPublica: false, noMarketplace: false, ordem: 2, versao: 4, temFoto: true, fotoAtualizadaEm: "2026-11-16T03:00:00Z",
+      id: 'i', nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, precoVigenteCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, naPaginaPublica: false, noMarketplace: false, categoriaId: null, categoriaNome: null, ordem: 2, versao: 4, temFoto: true, fotoAtualizadaEm: "2026-11-16T03:00:00Z",
     };
     expect(problemasDoItem(rascunhoDoItem(item), HOJE)).toEqual({});
     expect(corpoDoItem(rascunhoDoItem(item), item.versao)).toEqual({
-      nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', ativo: true, naPaginaPublica: false, noMarketplace: false, versao: 4,
+      nome: 'Camiseta', descricao: 'Algodão', tipo: 'FISICO', precoCentavos: 12000, precoEspecialCentavos: 9000, especialAte: '2026-11-30', cupom: 'BF', linkUrl: 'https://loja.exemplo/c', categoriaId: null, ativo: true, naPaginaPublica: false, noMarketplace: false, versao: 4,
     });
   });
 });

@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import type { LucideIcon } from 'lucide-react-native';
-import { ActivityIndicator, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Button } from '../components/ui/button';
 import { useTema } from '../tema/TemaProvider';
@@ -32,6 +32,12 @@ interface Props {
   cheio?: boolean;
   autoFocus?: boolean;
   style?: StyleProp<ViewStyle>;
+  /**
+   * `pequeno` (24/11): desenho de 32 px dentro do alvo transparente de 44 (como o `IconeBotao compacto`), rótulo de 13 e
+   * ícone de 16; para a ação dentro de uma linha de dados (`LinhaDeDado`), que assim fica com a altura das linhas sem
+   * botão. Sem isto, o tamanho de sempre (desenho de 44).
+   */
+  tamanho?: 'pequeno';
   /** Identificador para os testes de tela. */
   testID?: string;
 }
@@ -51,7 +57,7 @@ interface Props {
  * `secundario`: a cor de ação aparece uma vez por área (`docs/design-e-front.md`, tabela de botões).
  */
 export const Botao = forwardRef<View, Props>(function Botao(
-  { rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Icone, desabilitado, motivo, carregando, cheio, autoFocus, style, testID }: Props,
+  { rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Icone, desabilitado, motivo, carregando, cheio, autoFocus, tamanho, style, testID }: Props,
   ref
 ) {
   const { cores } = useTema();
@@ -82,6 +88,21 @@ export const Botao = forwardRef<View, Props>(function Botao(
   // Ação e motivo são um bloco (P5): numa fila alinhada à direita o botão fica na ponta e o motivo, colado sob ele,
   // alinhado à mesma borda; o motivo mais largo que o botão não o empurra para dentro.
   const aDireita = !!explicacao && !largo && arranjo.alinhar === 'fim';
+  const pequeno = tamanho === 'pequeno';
+  // O que se vê: cor, apagado e o afundar. No pequeno vai no desenho de dentro; o alvo de 44 fica transparente.
+  const visualDoEstado = (estado: PressableStateCallbackType) => [
+    !reduzido && Platform.OS === 'web' ? estilos.transicao : null,
+    corAoPassar(sobre(estado) && !inativo),
+    { opacity: visual.apagado ? 0.5 : 1 },
+    // Apertar afunda o botão um pouco (sem movimento com "reduzir movimento").
+    estado.pressed && !inativo && !reduzido ? estilos.apertado : null,
+  ];
+  const conteudo = (
+    <View style={estilos.linha}>
+      {carregando ? <ActivityIndicator size="small" color={texto} /> : Icone ? <Icone size={pequeno ? 16 : 18} color={texto} strokeWidth={2} /> : null}
+      <Texto numberOfLines={2} style={[pequeno ? estilos.rotuloPequeno : estilos.rotulo, { color: texto }]}>{rotulo}</Texto>
+    </View>
+  );
   const botao = (
     <Button
       ref={ref}
@@ -95,20 +116,12 @@ export const Botao = forwardRef<View, Props>(function Botao(
       disabled={inativo}
       onPress={aoTocar}
       style={(estado) => [
-        estilos.botao,
-        !reduzido && Platform.OS === 'web' ? estilos.transicao : null,
-        corAoPassar(sobre(estado) && !inativo),
-        { opacity: visual.apagado ? 0.5 : 1 },
-        // Apertar afunda o botão um pouco (sem movimento com "reduzir movimento").
-        estado.pressed && !inativo && !reduzido ? estilos.apertado : null,
+        ...(pequeno ? [estilos.alvoPequeno] : [estilos.botao, ...visualDoEstado(estado)]),
         largo && estilos.cheio,
         aDireita && estilos.naPonta,
         explicacao ? null : style,
       ]}>
-      <View style={estilos.linha}>
-        {carregando ? <ActivityIndicator size="small" color={texto} /> : Icone ? <Icone size={18} color={texto} strokeWidth={2} /> : null}
-        <Texto numberOfLines={2} style={[estilos.rotulo, { color: texto }]}>{rotulo}</Texto>
-      </View>
+      {pequeno ? (estado) => <View style={[estilos.desenhoPequeno, ...visualDoEstado(estado)]}>{conteudo}</View> : conteudo}
     </Button>
   );
   if (!explicacao) return botao;
@@ -132,6 +145,16 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // Pequeno: o alvo (44, transparente, sem borda nem preenchimento) e o desenho de 32 centrado nele.
+  alvoPequeno: {
+    alignSelf: 'flex-start', maxWidth: '100%', minHeight: ALVO_TOQUE, justifyContent: 'center', borderRadius: RAIO_CONTROLE,
+    backgroundColor: 'transparent', borderWidth: 0, paddingHorizontal: 0, paddingVertical: 0,
+  },
+  desenhoPequeno: {
+    minHeight: 32, paddingHorizontal: espaco(1.25), paddingVertical: espaco(0.5) - 1, borderRadius: RAIO_CONTROLE, borderWidth: 1,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  rotuloPequeno: { fontFamily: fontes.semi, fontSize: 13, lineHeight: 18, flexShrink: 1, textAlign: 'center' },
   cheio: { alignSelf: 'stretch' },
   apertado: { transform: [{ translateY: 1 }, { scale: 0.98 }] },
   // Só na web (o RN não anima estilo): 120 ms nas cores e no afundar.

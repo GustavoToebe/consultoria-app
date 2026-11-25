@@ -87,7 +87,22 @@ export function rotasDaTela(extra: RespostasApi = {}): RespostasApi {
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
     'GET /inscricoes/configuracao': {
-      corpo: { aberta: true, codigo: CODIGO, link: `https://consultoria.exemplo.test/inscricao/${CODIGO}`, responsavelId: TREINADOR.id, texto: null, versao: 2 },
+      corpo: { aberta: true, codigo: CODIGO, link: `https://consultoria.exemplo.test/inscricao/${CODIGO}`, responsavelId: TREINADOR.id, texto: null, camposOcultos: [], versao: 2 },
+    },
+    'GET /inscricoes/links': {
+      corpo: [{
+        id: 'q-padrao',
+        nome: 'Inscrição',
+        padrao: true,
+        aberta: true,
+        codigo: CODIGO,
+        link: `https://consultoria.exemplo.test/inscricao/${CODIGO}`,
+        responsavelId: TREINADOR.id,
+        proximoQuestionarioId: null,
+        texto: null,
+        camposOcultos: [],
+        versao: 2,
+      }],
     },
     'GET /inscricoes/contagens': { corpo: contagensFalsas() },
     'GET /inscricoes/retornos': { corpo: [] },

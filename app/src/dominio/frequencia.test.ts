@@ -1,47 +1,72 @@
 import type { DiaDeTreino } from '../api/tipos';
-import { frequenciaDe, planejarFrequencia, resumoDaFrequencia, textoDaCelula, treinosComRegistro, ultimoDiaComRegistro, type Frequencia } from './frequencia';
+import { frequenciaDe, planejarFrequencia, resumoDaFrequencia, treinosComRegistro, treinosPrevistosNaSemana, ultimoDiaComRegistro } from './frequencia';
 
 describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
-  const comPasta: Frequencia = { semana: 2, ultimo: null, pasta: { titulo: 'Hipertrofia', de: '2026-11-02', ate: '2026-11-12', limitada: false, treinos: 4 } };
+  const comPasta = { semana: 2, semanaPassada: 3, pasta: { titulo: 'Hipertrofia', de: '2026-11-02', ate: '2026-11-12', limitada: false, treinos: 4 } };
   const vigente = { titulo: 'Hipertrofia' };
 
-  it('com pasta e mobilidade: o rótulo da pasta uma vez e as duas linhas com semana e pasta', () => {
-    expect(resumoDaFrequencia(comPasta, vigente, { naSemana: 1, naPasta: 0 })).toEqual({
+  it('com pasta e mobilidade: dois indicadores com a semana passada embaixo e o rótulo da pasta uma vez', () => {
+    expect(resumoDaFrequencia(comPasta, vigente, { naSemana: 1, semanaPassada: 0 }, null)).toEqual({
       pasta: 'Pasta Hipertrofia (02/11 a 12/11)',
-      comColunaDaPasta: true,
-      linhas: [
-        { rotulo: 'Treinos', semana: { numero: '2', unidade: 'treinos', enfase: 'azul' }, naPasta: { numero: '4', unidade: 'treinos', enfase: 'azul' } },
-        { rotulo: 'Mobilidade', semana: { numero: '1', unidade: 'dia', enfase: 'neutro' }, naPasta: { numero: '0', unidade: 'dias', enfase: 'zero' } },
+      comPasta: true,
+      indicadores: [
+        { rotulo: 'Treinos esta semana', valor: '2 treinos', estado: 'valor', detalhe: 'Semana passada: 3' },
+        { rotulo: 'Mobilidade esta semana', valor: '1 dia', estado: 'valor', detalhe: 'Semana passada: 0' },
       ],
     });
   });
 
-  it('sem a permissão da mobilidade (ou com a busca dela em erro): só a linha Treinos', () => {
-    expect(resumoDaFrequencia(comPasta, vigente, 'oculta').linhas.map((l) => l.rotulo)).toEqual(['Treinos']);
+  it('com o previsto da pasta: "N de P treinos", plural pelo previsto', () => {
+    const valor = (semana: number, previstos: number | null) => resumoDaFrequencia({ ...comPasta, semana }, vigente, 'oculta', previstos).indicadores[0].valor;
+    expect(valor(1, 4)).toBe('1 de 4 treinos');
+    expect(valor(0, 4)).toBe('0 de 4 treinos');
+    expect(valor(1, 1)).toBe('1 de 1 treino');
+    expect(valor(1, null)).toBe('1 treino');
+    expect(resumoDaFrequencia({ ...comPasta, semana: 0 }, vigente, 'oculta', 4).indicadores[0].estado).toBe('zero');
   });
 
-  it('pasta sem mobilidade publicada: a frase só na linha da mobilidade', () => {
-    expect(resumoDaFrequencia(comPasta, vigente, null).linhas[1]).toEqual({ rotulo: 'Mobilidade', aviso: 'A pasta vigente não tem mobilidade publicada.' });
+  it('sem a permissão da mobilidade (ou com a busca dela em erro): só os treinos', () => {
+    expect(resumoDaFrequencia(comPasta, vigente, 'oculta', null).indicadores.map((i) => i.rotulo)).toEqual(['Treinos esta semana']);
   });
 
-  it('sem pasta vigente: "Nenhuma pasta vigente." uma vez, sem a coluna da pasta e sem a linha da mobilidade', () => {
-    const r = resumoDaFrequencia({ semana: 0, ultimo: null, pasta: null }, null, null);
-    expect(r).toEqual({ pasta: 'Nenhuma pasta vigente.', comColunaDaPasta: false, linhas: [{ rotulo: 'Treinos', semana: { numero: '0', unidade: 'treinos', enfase: 'zero' }, naPasta: null }] });
-    expect(resumoDaFrequencia({ semana: 0, ultimo: null, pasta: null }, null, 'oculta').linhas).toHaveLength(1);
+  it('pasta sem mobilidade publicada: "—" com o motivo no indicador da mobilidade', () => {
+    expect(resumoDaFrequencia(comPasta, vigente, null, null).indicadores[1]).toEqual({
+      rotulo: 'Mobilidade esta semana', valor: '—', estado: 'indisponivel', detalhe: null, motivo: 'A pasta vigente não tem mobilidade publicada.',
+    });
   });
 
-  it('pasta vigente sem período contável: rótulo sem datas e as duas células da pasta em "—"', () => {
-    const r = resumoDaFrequencia({ semana: 1, ultimo: null, pasta: null }, { titulo: 'Futura' }, { naSemana: 0, naPasta: 0 });
-    expect(r.pasta).toBe('Pasta Futura');
-    expect(r.linhas).toEqual([
-      { rotulo: 'Treinos', semana: { numero: '1', unidade: 'treino', enfase: 'azul' }, naPasta: { numero: '—', unidade: null, enfase: 'indisponivel' } },
-      { rotulo: 'Mobilidade', semana: { numero: '0', unidade: 'dias', enfase: 'zero' }, naPasta: { numero: '—', unidade: null, enfase: 'indisponivel' } },
-    ]);
+  it('sem pasta vigente: a nota uma vez, sem a mobilidade e sem o previsto; zero no plural', () => {
+    const r = resumoDaFrequencia({ semana: 0, semanaPassada: 1, pasta: null }, null, { naSemana: 2, semanaPassada: 0 }, 4);
+    expect(r).toEqual({ pasta: 'Nenhuma pasta vigente.', comPasta: false, indicadores: [
+      { rotulo: 'Treinos esta semana', valor: '0 treinos', estado: 'zero', detalhe: 'Semana passada: 1' },
+    ] });
+  });
+
+  it('mobilidade zerada é zero, "0 dias"', () => {
+    expect(resumoDaFrequencia(comPasta, vigente, { naSemana: 0, semanaPassada: 2 }, null).indicadores[1]).toMatchObject({ valor: '0 dias', estado: 'zero', detalhe: 'Semana passada: 2' });
+  });
+
+  it('pasta vigente sem período contável: rótulo sem datas', () => {
+    expect(resumoDaFrequencia({ semana: 1, semanaPassada: 0, pasta: null }, { titulo: 'Futura' }, 'oculta', null).pasta).toBe('Pasta Futura');
   });
 
   it('pasta cortada no último ano: diz "últimos 12 meses"', () => {
-    const longa: Frequencia = { ...comPasta, pasta: { ...comPasta.pasta!, de: '2025-11-13', limitada: true } };
-    expect(resumoDaFrequencia(longa, vigente, 'oculta').pasta).toBe('Pasta Hipertrofia (13/11 a 12/11, últimos 12 meses)');
+    const longa = { ...comPasta, pasta: { ...comPasta.pasta, de: '2025-11-13', limitada: true } };
+    expect(resumoDaFrequencia(longa, vigente, 'oculta', null).pasta).toBe('Pasta Hipertrofia (13/11 a 12/11, últimos 12 meses)');
+  });
+});
+
+describe('treinosPrevistosNaSemana', () => {
+  const s = (tipo: 'TREINO' | 'ACESSORIOS', diaSemana: number | null, frequenciaSemanal: number | null) => ({ tipo, diaSemana, frequenciaSemanal });
+  it('dia fixo conta 1 e sem dia fixo conta as vezes por semana; só sessões de treino', () => {
+    expect(treinosPrevistosNaSemana([s('TREINO', 1, null), s('TREINO', 3, 2), s('TREINO', null, 2), s('ACESSORIOS', null, null)])).toBe(4);
+  });
+  it('uma sessão de treino sem dia nem vezes deixa o previsto desconhecido', () => {
+    expect(treinosPrevistosNaSemana([s('TREINO', 1, null), s('TREINO', null, null)])).toBeNull();
+  });
+  it('sem sessão de treino não há previsto', () => {
+    expect(treinosPrevistosNaSemana([])).toBeNull();
+    expect(treinosPrevistosNaSemana([s('ACESSORIOS', 2, null)])).toBeNull();
   });
 });
 
@@ -74,8 +99,9 @@ describe('planejarFrequencia', () => {
   it('sem pasta: só a semana', () => {
     const p = planejarFrequencia(hoje, null);
     expect(p.semana).toEqual({ de: '2026-10-12', ate: hoje });
+    expect(p.semanaPassada).toEqual({ de: '2026-10-05', ate: '2026-10-11' });
     expect(p.pasta).toBeNull();
-    expect(p.consulta).toEqual(p.semana);
+    expect(p.consulta).toEqual({ de: '2026-10-05', ate: hoje });
   });
   it('pasta em andamento vai do início até hoje e a consulta cobre a pasta', () => {
     const p = planejarFrequencia(hoje, { titulo: 'Plano 16', inicio: '2026-09-28', fim: '2026-10-27' });
@@ -87,9 +113,9 @@ describe('planejarFrequencia', () => {
     expect(p.pasta).toMatchObject({ de: '2026-09-01', ate: '2026-09-30' });
     expect(p.consulta).toEqual({ de: '2026-09-01', ate: hoje });
   });
-  it('pasta começada esta semana: a consulta começa na segunda', () => {
+  it('pasta começada esta semana: a consulta começa na segunda da semana passada', () => {
     const p = planejarFrequencia(hoje, { titulo: 'Nova', inicio: '2026-10-13', fim: '2026-10-27' });
-    expect(p.consulta.de).toBe('2026-10-12');
+    expect(p.consulta.de).toBe('2026-10-05');
   });
   it('pasta no futuro ou sem período não tem contagem', () => {
     expect(planejarFrequencia(hoje, { titulo: 'Futura', inicio: '2026-10-20', fim: '2026-11-20' }).pasta).toBeNull();
@@ -103,22 +129,18 @@ describe('planejarFrequencia', () => {
   });
 });
 
-describe('frequenciaDe e textoDaCelula', () => {
-  it('conta a semana e a pasta com os mesmos dias', () => {
+describe('frequenciaDe', () => {
+  it('conta a semana, a semana passada e a pasta com os mesmos dias', () => {
     const plano = planejarFrequencia('2026-10-14', { titulo: 'Plano', inicio: '2026-10-05', fim: '2026-10-30' });
-    const dias = [dia('2026-10-06', ['a', [true]]), dia('2026-10-13', ['a', [true]])];
-    expect(frequenciaDe(dias, plano)).toMatchObject({ semana: 1, pasta: { treinos: 2, titulo: 'Plano' } });
+    const dias = [dia('2026-10-06', ['a', [true]]), dia('2026-10-08', ['a', [true]]), dia('2026-10-13', ['a', [true]])];
+    expect(frequenciaDe(dias, plano)).toMatchObject({ semana: 1, semanaPassada: 2, pasta: { treinos: 3, titulo: 'Plano' } });
   });
   it('sem pasta contável a pasta fica nula', () => {
-    expect(frequenciaDe([], planejarFrequencia('2026-10-14', null))).toEqual({ semana: 0, ultimo: null, pasta: null });
+    expect(frequenciaDe([], planejarFrequencia('2026-10-14', null))).toEqual({ semana: 0, semanaPassada: 0, ultimo: null, pasta: null });
   });
-  it('texto da célula: — para ausente, "0 treinos" para zero (D14: distintos), singular e plural de treinos e dias', () => {
-    const vigente = { titulo: 'P' };
-    const textos = (semana: number, naPasta: number | null, mob: { naSemana: number; naPasta: number }) =>
-      resumoDaFrequencia({ semana, ultimo: null, pasta: naPasta === null ? null : { titulo: 'P', de: '2026-10-01', ate: '2026-10-14', limitada: false, treinos: naPasta } }, vigente, mob)
-        .linhas.flatMap((l) => ('aviso' in l ? [] : [l.semana, l.naPasta!].map(textoDaCelula)));
-    expect(textos(0, null, { naSemana: 0, naPasta: 0 })).toEqual(['0 treinos', '—', '0 dias', '—']);
-    expect(textos(1, 4, { naSemana: 1, naPasta: 12 })).toEqual(['1 treino', '4 treinos', '1 dia', '12 dias']);
+  it('o último treino não olha a semana passada (o Resumo diz "nesta semana" sem pasta)', () => {
+    const plano = planejarFrequencia('2026-10-14', null);
+    expect(frequenciaDe([dia('2026-10-07', ['a', [true]])], plano)).toMatchObject({ semanaPassada: 1, ultimo: null });
   });
 });
 

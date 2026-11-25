@@ -22,12 +22,19 @@ import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { LinhaDaLista } from '../../ui/LinhaDaLista';
 import { ListaEmColunas } from '../ListaEmColunas';
 import { espaco } from '../../tema/tokens';
+import { useTema } from '../../tema/TemaProvider';
 import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES } from '../../dominio/modalidades';
 import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
 import { gruposDaConsulta, marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
-import { BarraDaBiblioteca } from './BarraDaBiblioteca';
+import {
+  chipsDosExercicios, midiaParaApi, modalidadesExistentes, opcoesDeModalidade,
+  ORDEM_DAS_MODALIDADES, SEM_FILTROS_DE_EXERCICIOS, semOFiltro, type FiltrosDeExercicios,
+} from '../../dominio/exerciciosDaBiblioteca';
+import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
+import { DetalheDoExercicio, LegendaDasModalidades, SeletoresDeExercicios } from './ModalidadeDoExercicio';
 import { ImagemDoExercicioEditor } from './ImagemDoExercicioEditor';
+import { VideoDoExercicioEditor } from './VideoDoExercicioEditor';
 
 const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor: valor as Modalidade, rotulo }));
 
@@ -37,6 +44,7 @@ const estilos = StyleSheet.create({
   partes: { gap: espaco(3) },
   linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
   campoLargo: { flexGrow: 1, flexBasis: 180 },
+  imagemDepois: { gap: espaco(1) },
   tirar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   textoDoTirar: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
 });
@@ -47,15 +55,20 @@ export function AbaExercicios() {
   const { pode } = useSessao();
   const [busca, setBusca] = useState('');
   const [pagina, setPagina] = useState(0);
-  const [gruposMarcados, setGruposMarcados] = useState<Set<string>>(new Set());
+  const [filtros, setFiltros] = useState<FiltrosDeExercicios>(SEM_FILTROS_DE_EXERCICIOS);
   const buscaAtrasada = useAtrasado(busca.trim());
   // Os grupos da última resposta: a consulta só leva os marcados que ainda existem (senão "Todos os grupos" na tela e 0 no servidor).
   const [gruposConhecidos, setGruposConhecidos] = useState<string[]>([]);
-  const gruposEscolhidos = gruposDaConsulta(gruposMarcados, gruposConhecidos);
+  const gruposEscolhidos = gruposDaConsulta(filtros.grupos, gruposConhecidos);
+  // Modalidades marcadas, na ordem da tela (chave estável). Sempre vão à consulta, mesmo a que sumiu da biblioteca: o chip
+  // continua lá e "Limpar filtros" resolve, em vez de a lista voltar inteira com a caixa marcada.
+  const modalidadesEscolhidas = ORDEM_DAS_MODALIDADES.filter((m) => filtros.modalidades.has(m));
+  const video = midiaParaApi(filtros.video);
+  const imagem = midiaParaApi(filtros.imagem);
   // Chave própria da página: a 'biblioteca-exercicios' é da lista inteira, usada em outras telas.
-  const chave = JSON.stringify(['biblioteca-exercicios-pagina', pagina, buscaAtrasada, gruposEscolhidos]);
+  const chave = JSON.stringify(['biblioteca-exercicios-pagina', pagina, buscaAtrasada, gruposEscolhidos, modalidadesEscolhidas, video, imagem]);
   const { dados, erro, carregando, recarregar } = useCarregar(chave, () =>
-    listarExerciciosPagina({ texto: buscaAtrasada, grupos: gruposEscolhidos, pagina }));
+    listarExerciciosPagina({ texto: buscaAtrasada, grupos: gruposEscolhidos, modalidades: modalidadesEscolhidas, video, imagem, pagina }));
   const [editando, setEditando] = useState<Exercicio | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Exercicio | null>(null);
   // Guardar a lista de grupos da resposta durante o render (não em efeito): a próxima consulta já sai com os grupos certos.
@@ -63,13 +76,17 @@ export function AbaExercicios() {
   const grupos = dados?.grupos ?? gruposConhecidos;
   const opcoesDeGrupo = grupos.map((g) => ({ valor: g, rotulo: g }));
   // Grupo que já não existe (o último exercício dele saiu) não filtra: sem isso a lista ficaria vazia sem explicação.
-  const gruposAtivos = marcadosExistentes(opcoesDeGrupo, gruposMarcados);
+  const gruposAtivos = marcadosExistentes(opcoesDeGrupo, filtros.grupos);
+  const aplicados = { ...filtros, grupos: gruposAtivos };
+  const chips = chipsDosExercicios(aplicados, opcoesDeGrupo);
   const lista = dados?.itens ?? [];
+  const opcoesDeModalidades = opcoesDeModalidade(dados?.modalidades ?? [], filtros.modalidades);
   const total = dados?.total ?? 0;
   const paginas = Math.max(1, Math.ceil(total / TAMANHO_DA_PAGINA_DE_EXERCICIOS));
-  const semFiltro = !buscaAtrasada && gruposEscolhidos.length === 0;
+  const semFiltro = !buscaAtrasada && chips.length === 0;
   const mudarBusca = (texto: string) => { setBusca(texto); setPagina(0); };
-  const mudarGrupos = (novos: Set<string>) => { setGruposMarcados(novos); setPagina(0); };
+  // Todos os filtros vão à API: trocar qualquer um volta à primeira página.
+  const mudarFiltros = (novos: FiltrosDeExercicios) => { setFiltros(novos); setPagina(0); };
 
   const confirmarInativar = () => {
     const alvo = inativar;
@@ -91,17 +108,20 @@ export function AbaExercicios() {
       titulo="Exercícios da biblioteca"
       descricao="Os exercícios que você escolhe ao montar o treino, com vídeo quando houver."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <BarraDaBiblioteca rotulo="Buscar exercício" placeholder="Nome ou grupo" valor={busca} aoMudar={mudarBusca} painelLateral={{ titulo: 'Filtros de exercícios' }}
-        filtro={grupos.length > 0 ? { tipo: 'varias', rotulo: 'Grupo muscular', rotuloDeTodos: 'Todos os grupos', opcoes: opcoesDeGrupo, marcados: gruposAtivos, aoMudar: mudarGrupos } : null} />
+      <BarraDeFiltros busca={{ rotulo: 'Buscar exercício', placeholder: 'Nome ou grupo', valor: busca, aoMudar: mudarBusca }}
+        valor={aplicados} aoAplicar={mudarFiltros} limpo={SEM_FILTROS_DE_EXERCICIOS} chips={chips}
+        aoTirar={(chave) => mudarFiltros(semOFiltro(aplicados, chave))} painelLateral={{ titulo: 'Filtros de exercícios' }}
+        seletores={(atual, mudar) => <SeletoresDeExercicios atual={atual} mudar={mudar} opcoesDeGrupo={opcoesDeGrupo} opcoesDeModalidades={opcoesDeModalidades} />} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && total === 0 ? (
-        <Vazio titulo={!semFiltro ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={!semFiltro ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={gruposAtivos.size > 0 ? { rotulo: 'Limpar filtros', aoTocar: () => mudarGrupos(new Set()) } : !semFiltro ? { rotulo: 'Limpar busca', aoTocar: () => mudarBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
+        <Vazio titulo={!semFiltro ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={!semFiltro ? 'Tente outro termo de busca ou outros filtros.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={chips.length > 0 ? { rotulo: 'Limpar filtros', aoTocar: () => mudarFiltros(SEM_FILTROS_DE_EXERCICIOS) } : !semFiltro ? { rotulo: 'Limpar busca', aoTocar: () => mudarBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
+      {lista.length ? <LegendaDasModalidades modalidades={modalidadesExistentes(lista)} /> : null}
       {lista.length ? <ListaEmColunas divisorias>{lista.map((e) => (
         <LinhaDaLista key={e.id} titulo={e.nome}
-          metadados={[MODALIDADES[e.modalidade], e.grupoMuscular, e.equipamento, e.videoUrl ? 'com vídeo' : null].filter(Boolean).join(' · ')}
-          inicio={<DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />}
+          valores={<DetalheDoExercicio exercicio={e} />}
+          inicio={<DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel reservarEspaco />}
           acoesAoLado
           acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
       ))}</ListaEmColunas> : null}
@@ -140,6 +160,7 @@ export function AbaExercicios() {
 
 function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }: { aoTirar?: () => void; inicial: Exercicio | null; aoFechar: () => void; aoSalvar: () => void; aoImagemMudou: () => void }) {
   const { pode } = useSessao();
+  const { cores } = useTema();
   const [atual, setAtual] = useState<Exercicio | null>(inicial);
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [grupo, setGrupo] = useState(inicial?.grupoMuscular ?? '');
@@ -199,19 +220,14 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }:
         </Cartao>
 
         <Cartao titulo="Vídeo e imagem" nivel={3}>
-          <Campo
-            rotulo="Vídeo (link do YouTube, opcional)"
-            valor={video}
-            aoMudar={setVideo}
-            erro={campos.videoUrl ?? erroDoVideo(video)}
-            autoCapitalize="none"
-            keyboardType="url"
-            maxLength={500}
-          />
+          <VideoDoExercicioEditor valor={video} aoMudar={setVideo} erroDaApi={campos.videoUrl} nome={nome} />
           {atual ? (
             <ImagemDoExercicioEditor exercicio={atual} podeAlterar={pode('BIBLIOTECA_ALTERAR')} aoMudar={(e) => { setAtual(e); aoImagemMudou(); }} />
           ) : (
-            <Texto variante="suave">Depois de salvar, você pode enviar uma imagem ou GIF deste exercício.</Texto>
+            <View style={estilos.imagemDepois}>
+              <Texto variante="rotulo" cor={cores.texto}>Imagem ou GIF</Texto>
+              <Texto variante="suave">Depois de salvar, você pode enviar uma imagem ou GIF deste exercício.</Texto>
+            </View>
           )}
         </Cartao>
 

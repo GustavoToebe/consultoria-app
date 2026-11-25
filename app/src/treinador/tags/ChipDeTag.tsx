@@ -2,11 +2,9 @@ import { X } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import type { TagDeAluno } from '../../api/tipos';
-import { resumoDasTagsNaLinha } from '../../dominio/tagsDeAluno';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes } from '../../tema/tokens';
 import { IconeBotao } from '../../ui/IconeBotao';
-import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 
 /**
@@ -32,21 +30,6 @@ export function ChipDeTag({ tag, aoRemover, desabilitado, larguraMaxima = 180 }:
   );
 }
 
-/**
- * As tags na linha da lista de alunos: no máximo duas e "+N" (`resumoDasTagsNaLinha`). Decorativo para o leitor de tela:
- * o link da linha já diz "Tags: A, B e mais 2".
- */
-export function TagsNaLinha({ tags }: { tags: readonly TagDeAluno[] }) {
-  if (!tags.length) return null;
-  const { visiveis, texto } = resumoDasTagsNaLinha(tags);
-  return (
-    <View style={estilos.linha} aria-hidden>
-      {visiveis.map((t) => <ChipDeTag key={t.id} tag={t} larguraMaxima={140} />)}
-      {texto ? <Selo texto={texto} /> : null}
-    </View>
-  );
-}
-
 const estilos = StyleSheet.create({
   pilula: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', minHeight: 22, borderRadius: 999, paddingHorizontal: espaco(1), paddingVertical: 1 },
   // Removível: 32 px de desenho; o X (alvo de 44) sobra 6 px para cima e para baixo, sem mexer na altura da pílula.
@@ -54,5 +37,4 @@ const estilos = StyleSheet.create({
   remover: { marginVertical: -6, marginLeft: -espaco(0.5) },
   texto: { fontFamily: fontes.medio, fontSize: 12, lineHeight: 16, flexShrink: 1 },
   textoMaior: { fontFamily: fontes.medio, fontSize: 14, lineHeight: 20, flexShrink: 1 },
-  linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(0.75) },
 });

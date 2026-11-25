@@ -24,6 +24,38 @@ export const TIPOS_DE_ITEM: readonly { valor: TipoDoItem; rotulo: string }[] = [
 
 export const rotuloDoTipo = (tipo: TipoDoItem): string => TIPOS_DE_ITEM.find((t) => t.valor === tipo)?.rotulo ?? tipo;
 
+/** A nota do tipo no formulário, só com "Digital" marcado (o físico mostra tudo em toda parte e não precisa de nota). */
+export const NOTA_DO_ITEM_DIGITAL = 'No celular, item digital mostra só foto, nome e descrição. Preço, cupom e link aparecem na web.';
+
+// ---- Foto do item ----
+
+/**
+ * O que a API aceita na foto do item (D3: só JPEG, 1600 px, 300 KB depois da limpeza). O app reduz e reencoda antes de
+ * mandar (`prepararFoto`), então a dica diz o que vai, não um limite do arquivo escolhido.
+ */
+export const LIMITES_FOTO_DA_VITRINE = { lados: [1600, 1200, 900, 640], bytesMaximo: 300_000 } as const;
+
+/** "JPEG, até 300 KB", tirado do limite acima (nunca um número escrito à mão). */
+export const DICA_DA_FOTO_DA_VITRINE = `JPEG, até ${Math.round(LIMITES_FOTO_DA_VITRINE.bytesMaximo / 1000)} KB`;
+
+/** Mensagem da área da foto quando o item foi criado e o envio da foto falhou (a folha vira "Editar item"). */
+export const FOTO_NAO_SUBIU = 'Item criado, mas a foto não subiu. Tente de novo.';
+
+// ---- Grade da lista ----
+
+/** Abaixo desta largura de grade (celular) a lista é uma coluna de cartões compactos, com a foto ao lado do texto. */
+export const LARGURA_DA_GRADE_COMPACTA = 600;
+
+/**
+ * Colunas da grade de cartões pela largura da própria grade (o `repeat(auto-fill, minmax(240px, 1fr))` do CSS): uma abaixo
+ * de 600 px (cartão compacto) e, acima, quantas couberem com no mínimo `minimo` px cada; a `ui/Grade` divide a largura toda
+ * entre elas, então o cartão cresce até a próxima coluna caber. `vao` é o espaço entre cartões.
+ */
+export function colunasDaVitrine(largura: number, vao = 16, minimo = 240): number {
+  if (largura < LARGURA_DA_GRADE_COMPACTA) return 1;
+  return Math.max(1, Math.floor((largura + vao) / (minimo + vao)));
+}
+
 // ---- Regra das lojas de aplicativo (D6) ----
 
 export interface ComoMostrarItem {
@@ -94,16 +126,6 @@ export function podeAdicionarItem(total: number): { pode: boolean; motivo: strin
     : { pode: true, motivo: null };
 }
 
-/** Subir/Descer: o item troca de lugar com o vizinho; na ponta, a ordem não muda. */
-export function moverItem(ids: readonly string[], id: string, sentido: 'subir' | 'descer'): string[] {
-  const i = ids.indexOf(id);
-  const j = sentido === 'subir' ? i - 1 : i + 1;
-  if (i < 0 || j < 0 || j >= ids.length) return [...ids];
-  const novo = [...ids];
-  [novo[i], novo[j]] = [novo[j], novo[i]];
-  return novo;
-}
-
 // ---- Página pública da loja (F2a): marcar o item ----
 
 /** O mesmo texto da API (422 `VITRINE_ITEM_INVALIDO` no campo `naPaginaPublica`). */
@@ -146,6 +168,8 @@ export interface RascunhoDoItem {
   especialAte: string;
   cupom: string;
   linkUrl: string;
+  /** Nula = sem categoria. */
+  categoriaId: string | null;
   ativo: boolean;
   /** Aparece na página pública da loja; só vale com `tipo` DIGITAL (`interruptorDaPaginaPublica`). */
   naPaginaPublica: boolean;
@@ -155,7 +179,7 @@ export interface RascunhoDoItem {
 
 /** Item novo: digital (o que mostra menos no celular) e ativo. */
 export const rascunhoVazio = (): RascunhoDoItem => ({
-  nome: '', descricao: '', tipo: 'DIGITAL', preco: '', precoEspecial: '', especialAte: '', cupom: '', linkUrl: '', ativo: true, naPaginaPublica: false, noMarketplace: false,
+  nome: '', descricao: '', tipo: 'DIGITAL', preco: '', precoEspecial: '', especialAte: '', cupom: '', linkUrl: '', categoriaId: null, ativo: true, naPaginaPublica: false, noMarketplace: false,
 });
 
 export const rascunhoDoItem = (i: ItemDaVitrine): RascunhoDoItem => ({
@@ -167,10 +191,24 @@ export const rascunhoDoItem = (i: ItemDaVitrine): RascunhoDoItem => ({
   especialAte: i.especialAte ?? '',
   cupom: i.cupom ?? '',
   linkUrl: i.linkUrl ?? '',
+  categoriaId: i.categoriaId,
   ativo: i.ativo,
   naPaginaPublica: i.naPaginaPublica,
   noMarketplace: i.noMarketplace,
 });
+
+/** O motivo do "Preço especial" e do "Até" desabilitados: os dois só existem com o preço preenchido. */
+export const MOTIVO_SEM_PRECO = 'Informe o preço para usar o preço especial.';
+
+/** "Preço especial" e "Até" ficam liberados só com o preço preenchido. */
+export const precoEspecialLiberado = (r: Pick<RascunhoDoItem, 'preco'>): boolean => r.preco.trim() !== '';
+
+/**
+ * Muda o preço no rascunho. Apagar o preço também apaga o especial e o prazo: os campos ficam desabilitados e um valor
+ * escondido neles daria um erro que a pessoa não consegue corrigir.
+ */
+export const comPreco = (r: RascunhoDoItem, preco: string): RascunhoDoItem =>
+  (preco.trim() ? { ...r, preco } : { ...r, preco, precoEspecial: '', especialAte: '' });
 
 /** Preço digitado: vazio = sem preço (`null`); preenchido e ilegível ou grande demais = `undefined` (erro no campo). */
 function lerPreco(texto: string): number | null | undefined {
@@ -223,6 +261,7 @@ export function corpoDoItem(r: RascunhoDoItem, versao?: number): DadosDoItem {
     especialAte: r.especialAte || null,
     cupom: r.cupom.trim() || null,
     linkUrl: r.linkUrl.trim() || null,
+    categoriaId: r.categoriaId,
     ativo: r.ativo,
     // A API trata ausente como falso: manda sempre. Item que não é digital nunca vai marcado (422 no campo).
     naPaginaPublica: r.tipo === 'DIGITAL' && r.naPaginaPublica,

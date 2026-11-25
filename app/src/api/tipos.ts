@@ -80,9 +80,11 @@ export interface EuResponse {
   whatsappHabilitado?: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos (DDD + número, sem 55); ausente = sem número, sem "Falar com o treinador". */
   whatsappDaConsultoria?: string;
+  /** Só do aluno: acesso pausado manualmente pelo treinador por atraso; verdadeiro = mostra apenas a tela de pagamento. */
+  acessoPausado?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
-  aluno?: { id: string; nome: string; sexo?: string | null };
+  aluno?: { id: string; nome: string; sexo?: string | null; acessoPausado?: boolean; acessoPausadoEm?: string | null };
   termosPendentes: boolean;
   termosVersao: string;
 }
@@ -259,6 +261,9 @@ export interface AlunoResumo {
   nome: string;
   ativo: boolean;
   temAcesso: boolean;
+  /** Acesso do aluno pausado manualmente por atraso. */
+  acessoPausado?: boolean;
+  acessoPausadoEm?: string | null;
   planoAtivo: { id: string; titulo: string } | null;
   ultimoRegistro: string | null;
   responsavelId?: string | null;
@@ -340,6 +345,9 @@ export interface AlunoDetalhe {
   metaDoPeso?: MetaDoPeso | null;
   ativo: boolean;
   temAcesso: boolean;
+  /** Acesso do aluno pausado manualmente pelo treinador por atraso. */
+  acessoPausado?: boolean;
+  acessoPausadoEm?: string | null;
   conviteExpiraEm: string | null;
   versao: number;
   diasAtualizacao: number | null;
@@ -495,11 +503,13 @@ export interface CatalogoExercicio {
   nome: string;
   grupoMuscular: string | null;
   equipamento: string | null;
-  modalidade: string;
+  modalidade: Modalidade;
   instrucoes: string | null;
   fonte: string | null;
   /** Caminhos das fotos (`<id>/0.jpg` e `1.jpg`), servidas pelo próprio site em `/catalogo/exercicios/`. */
   imagens: string[];
+  /** A consultoria já tem um exercício ativo com este nome (a importação o ignoraria); ausente = não. */
+  naBiblioteca?: boolean;
 }
 
 export interface CatalogoAlimento {
@@ -523,13 +533,16 @@ export interface CatalogoAlimento {
   fatorCorrecao: number | null;
   /** Fator de cocção estimado; junto com o de correção, vem do perfil nativo. */
   fatorCoccao: number | null;
+  /** A consultoria já tem um alimento ativo com este nome (a importação o ignoraria); ausente = não. */
+  naBiblioteca?: boolean;
 }
 
-/** Página de exercícios da consultoria; `grupos` são todos os grupos dela, sem o filtro de grupo. */
+/** Página de exercícios da consultoria; `grupos` e `modalidades` são todos os dela, sem filtro nenhum. */
 export interface PaginaDeExercicios {
   itens: Exercicio[];
   total: number;
   grupos: string[];
+  modalidades: Modalidade[];
 }
 
 /** `total` é quantos itens casaram com a busca; `itens` vem limitado. */

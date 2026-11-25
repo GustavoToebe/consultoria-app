@@ -86,6 +86,9 @@ public class Inscricao {
     @Column(name = "aceita_em")
     private Instant aceitaEm;
 
+    @Column(name = "aceita_sem_cobranca", nullable = false)
+    private boolean aceitaSemCobranca;
+
     /** Reabrir começa um ciclo novo; o anterior fica nos eventos. */
     @Column(nullable = false)
     private int ciclo = 1;
@@ -253,6 +256,7 @@ public class Inscricao {
     public Instant getUltimaAtividadeEm() { return ultimaAtividadeEm; }
     public Long getVersao() { return versao; }
     public Instant getAceitaEm() { return aceitaEm; }
+    public boolean isAceitaSemCobranca() { return aceitaSemCobranca; }
     public int getCiclo() { return ciclo; }
     public MotivoEncerramento getMotivoEncerramento() { return motivoEncerramento; }
     public String getMotivoDetalhe() { return motivoDetalhe; }
@@ -382,5 +386,9 @@ public class Inscricao {
         this.alunoId = alunoId;
         alterarSituacao(SituacaoInscricao.ACEITA);
         this.aceitaEm = atualizadaEm;
+    }
+
+    void marcarAceitaSemCobranca() {
+        this.aceitaSemCobranca = true;
     }
 }

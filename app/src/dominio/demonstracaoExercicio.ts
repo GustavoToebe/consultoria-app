@@ -97,10 +97,14 @@ export function problemaDoGif(bytes: number): string | null {
 /** Textos fixos da tela, num lugar só (ajuda e e2e usam os mesmos). */
 export const TEXTOS_IMAGEM_EXERCICIO = {
   titulo: 'Imagem ou GIF',
-  enviar: 'Enviar imagem ou GIF',
-  trocar: 'Trocar imagem ou GIF',
+  enviar: 'Escolher imagem ou GIF',
+  /** Texto do botão; o nome acessível é `trocarPorExtenso` (começa pelo texto visível). */
+  trocar: 'Trocar',
+  trocarPorExtenso: 'Trocar imagem ou GIF',
   remover: 'Remover imagem',
   confirmarRemocao: 'Remover a imagem deste exercício? As fotos do catálogo, se houver, voltam a aparecer.',
   semImagem: 'Sem imagem própria.',
-  dica: 'JPEG, PNG ou GIF animado, até 1 MB e 800 px. O vídeo continua sendo um link.',
+  dica: 'JPEG, PNG ou GIF animado, até 1 MB e 800 px.',
+  soltar: 'Ou arraste o arquivo para cá.',
+  catalogo: 'Fotos do catálogo: o aluno vê estas enquanto não houver imagem própria.',
 } as const;

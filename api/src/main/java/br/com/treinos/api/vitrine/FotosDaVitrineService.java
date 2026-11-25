@@ -32,18 +32,21 @@ public class FotosDaVitrineService {
     private final VitrineItemFotoRepository fotos;
     private final LimiteTentativas limite;
     private final Auditoria auditoria;
+    private final TravaDaVitrine trava;
 
     public FotosDaVitrineService(VitrineItemRepository itens, VitrineItemFotoRepository fotos, LimiteTentativas limite,
-                                 Auditoria auditoria) {
+                                 Auditoria auditoria, TravaDaVitrine trava) {
+        this.trava = trava;
         this.itens = itens;
         this.fotos = fotos;
         this.limite = limite;
         this.auditoria = auditoria;
     }
 
-    /** A permissão ({@code VITRINE_ALTERAR}) é conferida na rota. */
+    /** A permissão ({@code VITRINE_ALTERAR}) é conferida na rota. Trava a consultoria antes da linha do item ({@link TravaDaVitrine}). */
     @Transactional
     public Instant gravar(UUID itemId, byte[] recebido) {
+        trava.travar();
         if (itens.buscarParaAlterar(itemId).isEmpty()) {
             throw VitrineService.naoEncontrado();
         }
@@ -58,9 +61,10 @@ public class FotosDaVitrineService {
         return quando;
     }
 
-    /** Idempotente: sem foto, não faz nada nem audita; item de outra consultoria = 404. */
+    /** Idempotente: sem foto, não faz nada nem audita; item de outra consultoria = 404. Trava a consultoria antes do item. */
     @Transactional
     public void remover(UUID itemId) {
+        trava.travar();
         if (itens.buscarParaAlterar(itemId).isEmpty()) {
             throw VitrineService.naoEncontrado();
         }

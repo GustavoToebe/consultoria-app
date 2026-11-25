@@ -66,7 +66,52 @@ async function capturar(page: Page, nome: string) {
   if (process.env.E2E_CAPTURAS) await page.screenshot({ path: `${process.env.E2E_CAPTURAS}/configuracoes-${nome}.png`, fullPage: true });
 }
 
-const ADMIN: Perfil = { permissoes: ACESSO_TOTAL, administrador: true, pagamentos: true, recebimentoOnline: true, whatsapp: true };
+interface Peca { grupo: string; left: number; top: number; right: number; bottom: number }
+
+/**
+ * Lê a alvenaria: o retângulo de cada grupo (o ancestral posicionado do h2) e o do conteúdo da Tela (o ancestral comum do
+ * h1 e do campo de busca), na ordem do DOM.
+ */
+async function lerAlvenaria(page: Page): Promise<{ pecas: Peca[]; conteudo: { left: number; right: number }; h1: number }> {
+  return page.evaluate(() => {
+    const ret = (el: Element) => el.getBoundingClientRect();
+    const pecas = ([...document.querySelectorAll('h2, [role="heading"][aria-level="2"]')] as HTMLElement[]).map((h) => {
+      let el: HTMLElement = h;
+      while (el.parentElement && getComputedStyle(el).position !== 'absolute') el = el.parentElement;
+      const r = ret(el);
+      return { grupo: (h.textContent ?? '').trim(), left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    });
+    const h1 = document.querySelector('h1, [role="heading"][aria-level="1"]')!;
+    const campo = document.querySelector('input')!;
+    let caixa: Element = h1;
+    while (caixa.parentElement && !caixa.contains(campo)) caixa = caixa.parentElement;
+    return { pecas, conteudo: { left: ret(caixa).left, right: ret(caixa).right }, h1: ret(h1).left };
+  });
+}
+
+/**
+ * Colunas empilhadas (24/11): `colunas` colunas distintas, todas começando na mesma altura; em cada uma, 24 px (±1) entre
+ * um grupo e o de baixo, sem buraco; o bloco ocupa a largura toda do conteúdo, a partir do mesmo ponto do título.
+ */
+async function conferirAlvenaria(page: Page, colunas: number) {
+  await expect(page.getByRole('heading', { level: 2 }).first()).toBeVisible();
+  await expect.poll(async () => new Set((await lerAlvenaria(page)).pecas.map((p) => Math.round(p.left))).size).toBe(colunas);
+  const { pecas, conteudo, h1 } = await lerAlvenaria(page);
+  const lefts = [...new Set(pecas.map((p) => Math.round(p.left)))].sort((a, b) => a - b);
+  const topo = Math.min(...pecas.map((p) => p.top));
+  for (const left of lefts) {
+    const coluna = pecas.filter((p) => Math.round(p.left) === left).sort((a, b) => a.top - b.top);
+    expect(Math.abs(coluna[0].top - topo), `coluna em ${left}: começa no topo`).toBeLessThanOrEqual(1);
+    for (let i = 1; i < coluna.length; i++) {
+      expect(Math.abs(coluna[i].top - coluna[i - 1].bottom - 24), `${coluna[i - 1].grupo} → ${coluna[i].grupo}: vão`).toBeLessThanOrEqual(1);
+    }
+  }
+  expect(Math.abs(lefts[0] - h1)).toBeLessThanOrEqual(1);
+  expect(Math.abs(lefts[0] - conteudo.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(Math.max(...pecas.map((p) => p.right)) - conteudo.right)).toBeLessThanOrEqual(2);
+}
+
+const ADMIN: Perfil ={ permissoes: ACESSO_TOTAL, administrador: true, pagamentos: true, recebimentoOnline: true, whatsapp: true };
 
 /**
  * O que o acesso total vê, por grupo (na ordem da tela): título → destino. Conferido pelo nome, não pela contagem: cartão novo,
@@ -248,6 +293,63 @@ test('teclado: do campo, o Tab chega ao primeiro cartão com foco visível e o E
   await expect(page).toHaveURL(/\/treinador\/seguranca$/);
 });
 
+for (const [largura, altura, colunas] of [[1280, 800, 2], [1920, 1080, 3], [3440, 1440, 4]] as const) {
+  test(`alvenaria (${largura}): ${colunas} colunas empilhadas, sem buraco, na largura toda do conteúdo`, async ({ page }) => {
+    const { errosDaPagina } = await abrir(page, largura, ADMIN);
+    await page.setViewportSize({ width: largura, height: altura });
+    await expect.poll(() => titulosDosCartoes(page)).toEqual(esperado(ADMIN).grupos);
+    await conferirAlvenaria(page, colunas);
+    await semRolagemLateral(page);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('alvenaria: a ordem do Tab é a lógica (Sua conta → … → Ajuda), não a das colunas', async ({ page }) => {
+  await abrir(page, 1920, ADMIN);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await conferirAlvenaria(page, 3);
+  await busca(page).focus();
+  const ordem: string[] = [];
+  for (let i = 0; i < esperado(ADMIN).titulos.length; i++) {
+    await page.keyboard.press('Tab');
+    ordem.push(await page.evaluate(() => (document.activeElement?.getAttribute('aria-label') ?? '').split(', ')[0].trim()));
+  }
+  expect(ordem).toEqual(esperado(ADMIN).titulos);
+});
+
+test('alvenaria com busca (1920): os grupos achados se reorganizam, em ordem e sem buraco', async ({ page }) => {
+  await abrir(page, 1920, ADMIN);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await busca(page).fill('email');
+  await expect.poll(() => titulosDosCartoes(page)).toEqual(['Sua conta', 'Consultoria', 'Financeiro']);
+  await conferirAlvenaria(page, 3);
+  await busca(page).fill('');
+  await expect.poll(() => titulosDosCartoes(page)).toEqual(esperado(ADMIN).grupos);
+  await conferirAlvenaria(page, 3);
+});
+
+test('alinhamento (1280): o hub começa no mesmo ponto à esquerda que o Financeiro', async ({ page }) => {
+  await abrir(page, 1280, ADMIN);
+  const titulo = () => page.getByRole('heading', { level: 1 }).evaluate((el) => Math.round(el.getBoundingClientRect().left));
+  await conferirAlvenaria(page, 2);
+  const doHub = await titulo();
+  await page.goto('/treinador/financeiro');
+  await expect(page.getByRole('heading', { level: 1, name: 'Financeiro' })).toBeVisible();
+  expect(await titulo()).toBe(doHub);
+});
+
+test('"Largura do conteúdo" Limitada (3440): o hub fica nos 1800 px da Tela, no mesmo ponto que o Financeiro', async ({ page }) => {
+  await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ larguraConteudo: 'LIMITADA' })), TREINADOR.id);
+  await abrir(page, 3440, ADMIN);
+  await page.setViewportSize({ width: 3440, height: 1440 });
+  await conferirAlvenaria(page, 4);
+  const { conteudo, h1 } = await lerAlvenaria(page);
+  expect(conteudo.right - conteudo.left).toBeLessThanOrEqual(1800);
+  await page.goto('/treinador/financeiro');
+  await expect(page.getByRole('heading', { level: 1, name: 'Financeiro' })).toBeVisible();
+  expect(await page.getByRole('heading', { level: 1 }).evaluate((el) => el.getBoundingClientRect().left)).toBeCloseTo(h1, 0);
+});
+
 test('PC (1280): "Configurações" é o primeiro item do menu da conta e abre o hub', async ({ page }) => {
   await abrir(page, 1280, ADMIN, '/treinador/ajuda');
   await page.getByRole('menubar').getByRole('button', { name: /^Conta de / }).click();
@@ -271,24 +373,7 @@ for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
       const { errosDaPagina } = await abrir(page, largura, { ...ADMIN, tema });
       await expect(page.getByRole('heading', { level: 2, name: 'Ajuda' })).toBeVisible();
       await semRolagemLateral(page);
-      if (largura === 1280) {
-        // Grade de duas colunas (P3): os dois cartões da primeira linha têm a mesma altura.
-        const [a, b] = await page.evaluate(() => {
-          const h2 = [...document.querySelectorAll('[role="heading"][aria-level="2"], h2')] as HTMLElement[];
-          const [ha, hb] = ['Sua conta', 'Consultoria'].map((t) => h2.find((h) => h.textContent?.trim() === t)!);
-          // O cartão de cada título é o ancestral mais alto que ainda não contém o outro título.
-          const cartao = (h: HTMLElement, outro: HTMLElement) => {
-            let el = h;
-            while (el.parentElement && !el.parentElement.contains(outro)) el = el.parentElement;
-            const r = el.getBoundingClientRect();
-            return { top: r.top, height: r.height, left: r.left };
-          };
-          return [cartao(ha, hb), cartao(hb, ha)];
-        });
-        expect(Math.abs(a.top - b.top)).toBeLessThanOrEqual(1);
-        expect(Math.abs(a.height - b.height)).toBeLessThanOrEqual(1);
-        expect(b.left).toBeGreaterThan(a.left);
-      }
+      if (largura === 1280) await conferirAlvenaria(page, 2);
       // No celular o hub é um destino do Perfil: a aba Perfil fica acesa na barra inferior.
       if (largura === 390) await expect(page.getByRole('menubar').getByRole('link', { name: 'Perfil', exact: true })).toHaveAttribute('aria-current', 'page');
       await capturar(page, `${tema.toLowerCase()}-${largura}`);

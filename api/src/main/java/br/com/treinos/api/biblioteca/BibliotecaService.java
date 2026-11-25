@@ -33,6 +33,7 @@ import java.math.RoundingMode;
 import java.text.Collator;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -102,12 +103,16 @@ public class BibliotecaService {
     /**
      * Uma página de exercícios ativos da consultoria. A busca ignora acento e olha nome e grupo muscular, como o
      * filtro de antes; o filtro de grupo é por igualdade (OU entre os escolhidos); {@code grupos} traz todos os da
-     * consultoria, sem aplicar o próprio filtro, para o seletor não encolher.
+     * consultoria, sem aplicar o próprio filtro, para o seletor não encolher; {@code modalidades} idem, na ordem do enum.
+     * {@code video} e {@code imagem} (nulo = não filtra; true = só com, false = só sem; imagem = própria ou foto do
+     * catálogo) e {@code modalidade} (OU; fora do enum = 400 {@code FILTRO_INVALIDO}) valem antes de paginar.
      * shortcut: filtra em memória sobre os ativos da consultoria (centenas), sem coluna de busca; indexar se passar de milhares.
      */
     @Transactional(readOnly = true)
-    public ExerciciosPagina paginaDeExercicios(String busca, List<String> grupos, Integer pagina, Integer tamanho) {
+    public ExerciciosPagina paginaDeExercicios(String busca, List<String> grupos, Boolean video, Boolean imagem,
+                                               List<String> modalidade, Integer pagina, Integer tamanho) {
         Set<String> filtro = new HashSet<>(gruposDoFiltro(grupos));
+        Set<Exercicio.Modalidade> modalidades = FiltrosDeLista.enums(Exercicio.Modalidade.class, modalidade, "modalidade");
         String termo = Buscas.semAcento(busca);
         if (termo.length() > 100) {
             termo = termo.substring(0, 100);
@@ -116,26 +121,34 @@ public class BibliotecaService {
         Collator ordem = Collator.getInstance(Locale.forLanguageTag("pt-BR"));
         List<String> todosOsGrupos = ativos.stream().map(e -> Buscas.opcional(e.getGrupoMuscular()))
                 .filter(Objects::nonNull).distinct().sorted(ordem).toList();
+        List<Exercicio.Modalidade> todasAsModalidades = ativos.stream().map(Exercicio::getModalidade).distinct().sorted().toList();
         String procurado = termo;
+        // As duas consultas de imagem rodam sobre todos os ativos só quando o filtro de imagem está ligado.
+        Midias midias = imagem == null ? null : midiasDe(ativos);
         List<Exercicio> casaram = ativos.stream()
                 .filter(e -> filtro.isEmpty() || filtro.contains(Objects.toString(Buscas.opcional(e.getGrupoMuscular()), "")))
+                .filter(e -> modalidades.isEmpty() || modalidades.contains(e.getModalidade()))
+                .filter(e -> video == null || video == (Buscas.opcional(e.getVideoUrl()) != null))
+                .filter(e -> midias == null || imagem == midias.temImagem(e))
                 .filter(e -> ExpansorTermosExercicio.casou(e, procurado))
-
                 .toList();
         int tam = tamanho == null ? TAMANHO_DA_PAGINA : Math.max(1, Math.min(tamanho, LIMITE_MAXIMO));
         long de = Math.min((long) Math.max(0, pagina == null ? 0 : pagina) * tam, casaram.size());
         List<Exercicio> da = casaram.subList((int) de, (int) Math.min(de + tam, casaram.size()));
-        return new ExerciciosPagina(responder(da), casaram.size(), todosOsGrupos);
+        return new ExerciciosPagina(responder(da, midias == null ? midiasDe(da) : midias), casaram.size(), todosOsGrupos,
+                todasAsModalidades.stream().map(Enum::name).toList());
     }
 
-    /**
-     * Resposta dos exercícios com as fotos do catálogo de origem e a marca da imagem própria, em duas consultas para a
-     * lista toda (sem uma por exercício).
-     */
-    List<ExercicioResponse> responder(List<Exercicio> lista) {
-        if (lista.isEmpty()) {
-            return List.of();
+    /** Fotos do catálogo de origem e marcas da imagem própria de uma lista, em duas consultas (sem uma por exercício). */
+    private record Midias(Map<UUID, List<String>> fotos, Map<UUID, Instant> proprias) {
+        /** Imagem própria ou foto do catálogo: o que a miniatura da lista mostra. */
+        boolean temImagem(Exercicio e) {
+            List<String> doCatalogo = e.getCatalogoId() == null ? null : fotos.get(e.getCatalogoId());
+            return proprias.containsKey(e.getId()) || (doCatalogo != null && !doCatalogo.isEmpty());
         }
+    }
+
+    private Midias midiasDe(List<Exercicio> lista) {
         Set<UUID> deCatalogo = new HashSet<>();
         Set<UUID> todos = new HashSet<>();
         for (Exercicio e : lista) {
@@ -149,7 +162,23 @@ public class BibliotecaService {
             catalogoExercicios.findAllById(deCatalogo).forEach(c -> fotos.put(c.getId(), c.getImagens()));
         }
         Map<UUID, Instant> proprias = new HashMap<>();
-        imagensProprias.marcas(todos).forEach(m -> proprias.put(m.exercicioId(), m.atualizadaEm()));
+        if (!todos.isEmpty()) {
+            imagensProprias.marcas(todos).forEach(m -> proprias.put(m.exercicioId(), m.atualizadaEm()));
+        }
+        return new Midias(fotos, proprias);
+    }
+
+    /** Resposta dos exercícios com as fotos do catálogo de origem e a marca da imagem própria. */
+    List<ExercicioResponse> responder(List<Exercicio> lista) {
+        return lista.isEmpty() ? List.of() : responder(lista, midiasDe(lista));
+    }
+
+    private static List<ExercicioResponse> responder(List<Exercicio> lista, Midias midias) {
+        if (lista.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, List<String>> fotos = midias.fotos();
+        Map<UUID, Instant> proprias = midias.proprias();
         return lista.stream().map(e -> ExercicioResponse.de(e,
                 e.getCatalogoId() == null ? List.of() : fotos.getOrDefault(e.getCatalogoId(), List.of()),
                 proprias.get(e.getId()))).toList();
@@ -184,13 +213,46 @@ public class BibliotecaService {
         exercicioAtivo(id).inativar();
     }
 
+    /**
+     * {@code naBiblioteca} compara o nome como a importação ({@link #nomeNaBiblioteca}, sobre {@code nomesAtivos}, já da
+     * consultoria pelo {@code @TenantId}): o selo "Já na biblioteca" e o filtro dizem exatamente o que a importação ignoraria.
+     * shortcut: os nomes da biblioteca vão como lista na consulta (um parâmetro por nome); trocar por subconsulta se a
+     * biblioteca passar de dezenas de milhares de exercícios.
+     */
     @Transactional(readOnly = true)
-    public CatalogoPagina<CatalogoExercicioResponse> catalogoExercicios(String busca, List<String> grupos,
-                                                                         String modalidade, Integer limite) {
+    public CatalogoPagina<CatalogoExercicioResponse> catalogoExercicios(String busca, List<String> grupos, List<String> modalidade,
+                                                                         Boolean imagem, Boolean naBiblioteca, Integer limite) {
         List<String> filtro = gruposDoFiltro(grupos);
+        List<String> modalidades = FiltrosDeLista.enums(Exercicio.Modalidade.class, modalidade, "modalidade").stream().map(Enum::name).toList();
+        Set<String> nomes = new HashSet<>(exercicios.nomesAtivos());
+        int modo = modoDaBiblioteca(naBiblioteca);
         Page<CatalogoExercicio> pagina = catalogoExercicios.buscar(Buscas.padraoSemAcento(busca),
-                filtro.isEmpty(), filtro.isEmpty() ? SEM_GRUPO : filtro, Buscas.opcional(modalidade), primeiraPagina(limite));
-        return new CatalogoPagina<>(pagina.map(CatalogoExercicioResponse::de).getContent(), pagina.getTotalElements());
+                filtro.isEmpty(), filtro.isEmpty() ? SEM_GRUPO : filtro, modalidades.isEmpty(), modalidades.isEmpty() ? SEM_GRUPO : modalidades,
+                imagem, modo, nomesDaConsulta(modo, nomes), primeiraPagina(limite));
+        return new CatalogoPagina<>(pagina.map(c -> CatalogoExercicioResponse.de(c, nomeNaBiblioteca(nomes, c.getNome()))).getContent(),
+                pagina.getTotalElements());
+    }
+
+    private static boolean nomeNaBiblioteca(Set<String> nomesAtivos, String nome) {
+        return nomesAtivos.contains(chaveDoNome(nome));
+    }
+
+    /**
+     * Chave do nome contra {@code nomesAtivos} (que já vem em minúsculas): a importação ignora o que casa e o catálogo marca
+     * "Já na biblioteca" pela mesma regra.
+     */
+    private static String chaveDoNome(String nome) {
+        return nome.toLowerCase(Locale.ROOT);
+    }
+
+    /** Sem o filtro (modo 0) a lista não vai à consulta: o conjunto em Java basta para o selo. */
+    private static Collection<String> nomesDaConsulta(int modo, Set<String> nomes) {
+        return modo == 0 || nomes.isEmpty() ? SEM_GRUPO : nomes;
+    }
+
+    /** 0 = todos, 1 = só os que já estão na biblioteca, 2 = só os que faltam (o {@code biblioteca} das consultas do catálogo). */
+    private static int modoDaBiblioteca(Boolean naBiblioteca) {
+        return naBiblioteca == null ? 0 : naBiblioteca ? 1 : 2;
     }
 
     @Transactional(readOnly = true)
@@ -223,7 +285,7 @@ public class BibliotecaService {
         Set<UUID> pedidos = new HashSet<>(ids);
         int importados = 0;
         for (CatalogoExercicio c : catalogoExercicios.findAllById(pedidos)) {
-            if (!existentes.add(c.getNome().toLowerCase(Locale.ROOT))) {
+            if (!existentes.add(chaveDoNome(c.getNome()))) {
                 continue;
             }
             exercicios.save(new Exercicio(c.getNome(), c.getGrupoMuscular(), c.getEquipamento(),
@@ -341,11 +403,18 @@ public class BibliotecaService {
     }
 
     @Transactional(readOnly = true)
-    public CatalogoPagina<CatalogoAlimentoResponse> catalogoAlimentos(String busca, List<String> grupos, Integer limite) {
+    public CatalogoPagina<CatalogoAlimentoResponse> catalogoAlimentos(String busca, List<String> grupos, List<String> unidade,
+                                                                       Boolean naBiblioteca, Integer limite) {
         List<String> filtro = gruposDoFiltro(grupos);
+        List<String> unidades = FiltrosDeLista.valores(unidade, "unidade");
+        // Os alimentos comuns, como na importação (suplemento com o mesmo nome não conta).
+        Set<String> nomes = new HashSet<>(alimentos.nomesAtivos(Alimento.Tipo.ALIMENTO));
+        int modo = modoDaBiblioteca(naBiblioteca);
         Page<CatalogoAlimento> pagina = catalogoAlimentos.buscar(Buscas.padraoSemAcento(busca),
-                filtro.isEmpty(), filtro.isEmpty() ? SEM_GRUPO : filtro, primeiraPagina(limite));
-        return new CatalogoPagina<>(pagina.map(CatalogoAlimentoResponse::de).getContent(), pagina.getTotalElements());
+                filtro.isEmpty(), filtro.isEmpty() ? SEM_GRUPO : filtro, unidades.isEmpty(), unidades.isEmpty() ? SEM_GRUPO : unidades,
+                modo, nomesDaConsulta(modo, nomes), primeiraPagina(limite));
+        return new CatalogoPagina<>(pagina.map(c -> CatalogoAlimentoResponse.de(c, nomeNaBiblioteca(nomes, c.getNome()))).getContent(),
+                pagina.getTotalElements());
     }
 
     @Transactional(readOnly = true)
@@ -359,7 +428,7 @@ public class BibliotecaService {
         Set<UUID> pedidos = new HashSet<>(ids);
         int importados = 0;
         for (CatalogoAlimento c : catalogoAlimentos.findAllById(pedidos)) {
-            if (!existentes.add(c.getNome().toLowerCase(Locale.ROOT))) {
+            if (!existentes.add(chaveDoNome(c.getNome()))) {
                 continue;
             }
             var fatores = FatoresDeRendimento.completar(c.getFatorCorrecao(), c.getFatorCoccao(), c.getNome(),

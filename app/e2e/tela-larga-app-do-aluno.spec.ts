@@ -215,7 +215,7 @@ for (const largura of [1920, 2560, 3440]) {
 
 const VITRINE: ItemDaVitrineDoAluno[] = [{
   id: 'v0000000-0000-4000-8000-000000000001', nome: 'Item fictício', descricao: 'Descrição fictícia.', tipo: 'FISICO',
-  precoCentavos: null, precoVigenteCentavos: null, especialAte: null, cupom: null, linkUrl: null, temFoto: false, fotoAtualizadaEm: null,
+  precoCentavos: null, precoVigenteCentavos: null, especialAte: null, cupom: null, linkUrl: null, temFoto: false, fotoAtualizadaEm: null, categoria: null,
 }];
 
 const ANAMNESE = {

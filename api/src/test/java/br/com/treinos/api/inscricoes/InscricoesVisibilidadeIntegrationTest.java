@@ -104,7 +104,8 @@ class InscricoesVisibilidadeIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void aceitar(String id) throws Exception {
-        api.post("/inscricoes/" + id + "/aceitar", admin, mapa("convidar", false, "versao", versao(id)), 200);
+        api.post("/inscricoes/" + id + "/aceitar", admin,
+                mapa("convidar", false, "versao", versao(id), "semCobranca", true), 200);
     }
 
     private void encerrar(String id, String situacao) throws Exception {
@@ -276,7 +277,8 @@ class InscricoesVisibilidadeIntegrationTest extends AbstractIntegrationTest {
         long versaoAntes = versao(conflito);
         Long alunosAntes = banco.queryForObject("select count(*) from aluno where consultoria_id = ?", Long.class, consultoria);
 
-        JsonNode recusa = api.post("/inscricoes/" + conflito + "/aceitar", admin, mapa("convidar", false, "versao", versaoAntes), 409);
+        JsonNode recusa = api.post("/inscricoes/" + conflito + "/aceitar", admin,
+                mapa("convidar", false, "versao", versaoAntes, "semCobranca", true), 409);
         assertThat(recusa.path("codigo").asString()).isEqualTo("ALUNO_JA_EXISTE");
         assertThat(ids("")).containsExactly(conflito);
         assertThat(ids("?situacao=ACEITA")).isEmpty();

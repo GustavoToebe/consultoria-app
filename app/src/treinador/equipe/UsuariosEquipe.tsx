@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
-import { Platform, Share, useWindowDimensions, View } from 'react-native';
+import { Platform, Share, StyleSheet, useWindowDimensions, View } from 'react-native';
 import * as api from '../../api/rotas';
 import type { ConviteEquipe, MembroEquipe, PerfilEquipe } from '../../api/equipeTipos';
 import { naOrdem } from '../../dominio/filtrosComuns';
@@ -10,7 +10,7 @@ import { MOTIVO_FORA_DO_PLANO } from '../../dominio/funcionalidadesDoPlano';
 import { AJUDA_DO_LIMITE, lerLimiteDeAlunos, limiteParaCampo, textoDoLimite } from '../../dominio/limiteDeAlunos';
 import { perfisAtribuiveis, podeCancelarConvite, podeEditarMembro } from '../../dominio/perfilEquipe';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco, fontes, LARGURA_MAXIMA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -31,6 +31,8 @@ import { Tabela } from '../../ui/Tabela';
 import { useFaixaDaTela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useAvisoDoPlano } from '../../ui/useAvisoDoPlano';
+import { contagemPorPerfil, semConvites } from './convitesEPerfis';
+import { LateralDosMembros, VAO_DA_LATERAL } from './LateralDosMembros';
 import { useAtorEquipe } from './useAtorEquipe';
 
 export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe[];perfis:PerfilEquipe[];recarregar:()=>void}) {
@@ -42,19 +44,25 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
   const convidaLiberado=temFuncionalidade('EQUIPE');
   // Filtros da lista (`docs/planos/filtros-nas-listas.md`, D11): a lista vem inteira, então filtram aqui.
   const [busca,setBusca]=useState('');const [filtros,setFiltros]=useState<FiltrosDeMembros>(SEM_FILTROS);
-  const visiveis=filtrarMembros(membros,filtros,busca);const chips=chipsDosFiltros(filtros,perfis);
   const opcoesDePerfil=perfis.map(p=>({valor:p.id,rotulo:p.nome}));
-  // Tela larga (revisão de 24/11): da faixa larga em diante cada dado do membro ganha a sua coluna (Tabela), em vez de uma
-  // linha de 2000 px com o nome numa ponta e o Editar na outra; abaixo, a lista de linhas de sempre. O cartão para em
-  // `LARGURA_MAXIMA`, como o da Auditoria: seis colunas em 3000 px ficariam soltas.
+  // Tela larga (revisão de 24/11): da faixa larga em diante cada dado do membro ganha a sua coluna (Tabela) e, ao lado, a
+  // coluna de ~360 px com os convites pendentes (saem da tabela, sem duplicar) e a equipe por perfil, que filtra a tabela.
+  // A tabela ocupa o resto, sem teto: as abas e o conteúdo terminam na mesma borda. Abaixo, a lista de linhas de sempre,
+  // com os convites nela.
   const faixa=useFaixaDaTela();const emTabela=faixa==='larga'||faixa==='ultralarga';
-  const acoesDoMembro=(m:MembroEquipe)=><>
-    {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?'Renovar convite':'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}
-    {podeCancelarConvite(ator,m,perfis)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Cancelar convite" rotuloAcessivel={`Cancelar convite de ${m.nome}`} tipo="perigoTexto" aoTocar={()=>setCancelar(m)}/></Permitido>:null}
+  const base=emTabela?semConvites(membros):membros;const convites=emTabela?membros.filter(m=>m.convitePendente):[];
+  const visiveis=filtrarMembros(base,filtros,busca);const chips=chipsDosFiltros(filtros,perfis);
+  // Sem "Convite pendente" na tela larga: os convites estão na coluna ao lado e o filtro deixaria a tabela vazia.
+  const situacoes=emTabela?SITUACOES_DO_MEMBRO.filter(s=>s.valor!=='CONVITE'):SITUACOES_DO_MEMBRO;
+  const perfilFiltrado=filtros.perfis.length===1?filtros.perfis[0]:null;
+  const filtrarPerfil=(id:string)=>setFiltros({...filtros,perfis:perfilFiltrado===id?[]:[id]});
+  // `curto`: na coluna de 360 px o nome já está acima dos botões ("Renovar", "Cancelar"); o leitor de tela ouve o nome junto.
+  const acoesDoMembro=(m:MembroEquipe,curto=false)=><>
+    {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?(curto?'Renovar':'Renovar convite'):'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}
+    {podeCancelarConvite(ator,m,perfis)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={curto?'Cancelar':'Cancelar convite'} rotuloAcessivel={`Cancelar convite de ${m.nome}`} tipo="perigoTexto" aoTocar={()=>setCancelar(m)}/></Permitido>:null}
   </>;
   const cancelarConvite=async()=>{if(!cancelar)return;setOcupado(true);try{await api.cancelarConviteEquipe(cancelar.id);avisar('Convite cancelado.','sucesso');setCancelar(null);recarregar();}catch(e){avisar(textoDoErro(e),'perigo');setCancelar(null);}finally{setOcupado(false);}};
-  return <>
-    <Cartao style={{maxWidth:LARGURA_MAXIMA}} titulo="Membros da equipe" descricao="Convide pessoas por e-mail e escolha o perfil de cada uma." acoes={<NoPlano funcionalidade="EQUIPE"><Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Convidar membro" aoTocar={()=>setEditar('novo')}/></Permitido></NoPlano>}>
+  const cartao=<Cartao style={emTabela?estilos.tabelaAoLado:undefined} titulo="Membros da equipe" descricao="Convide pessoas por e-mail e escolha o perfil de cada uma." acoes={<NoPlano funcionalidade="EQUIPE"><Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Convidar membro" aoTocar={()=>setEditar('novo')}/></Permitido></NoPlano>}>
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome ou e-mail'}} valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips}
       aoTirar={(chave)=>setFiltros(semOFiltro(filtros,chave as ChaveDoFiltro))}
       painelLateral={{titulo:'Filtros de membros'}}
@@ -63,25 +71,31 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
           <SelecaoMultiplaSuspensa rotulo="Perfil" opcoes={opcoesDePerfil} marcados={new Set(atuais.perfis)} aoMudar={(m)=>mudar({...atuais,perfis:naOrdem(m,opcoesDePerfil)})} rotuloDeTodos="Todos" style={{alignSelf:'stretch'}}/>
         </GrupoDoPainel>
         <GrupoDoPainel titulo="Situação">
-          <SelecaoMultiplaSuspensa rotulo="Situação" opcoes={SITUACOES_DO_MEMBRO} marcados={new Set(atuais.situacoes)} aoMudar={(m)=>mudar({...atuais,situacoes:naOrdem(m,SITUACOES_DO_MEMBRO)})} rotuloDeTodos="Todas" style={{alignSelf:'stretch'}}/>
+          <SelecaoMultiplaSuspensa rotulo="Situação" opcoes={situacoes} marcados={new Set(atuais.situacoes)} aoMudar={(m)=>mudar({...atuais,situacoes:naOrdem(m,situacoes)})} rotuloDeTodos="Todas" style={{alignSelf:'stretch'}}/>
         </GrupoDoPainel>
       </>}/>
-    {membros.length&&!visiveis.length?<Vazio titulo="Nenhum membro encontrado" texto="Tente outro nome ou tire algum filtro." acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>setFiltros(SEM_FILTROS)}:undefined}/>:null}
+    {base.length&&!visiveis.length?<Vazio titulo="Nenhum membro encontrado" texto="Tente outro nome ou tire algum filtro." acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>setFiltros(SEM_FILTROS)}:undefined}/>:null}
     {/* Linhas comparáveis (P3): nome em destaque, perfil e situação logo abaixo (texto neutro: convite pendente é espera, não
-        pendência de quem olha) e e-mail, último acesso e limite como contexto. No PC as ações ficam à direita. */}
+        pendência de quem olha) e e-mail, último acesso e limite como contexto. No PC as ações ficam à direita. Na tabela
+        larga só o Membro cresce com a sobra; as outras colunas têm largura fixa, para os dados não se espalharem. */}
     {visiveis.length&&emTabela?<Tabela rotulo="Membros da equipe" larguraMinima={760} vao={espaco(3)} linhas={visiveis} chave={m=>m.id} colunas={[
-      {chave:'membro',titulo:'Membro',flex:2,minimo:240,principal:true,render:m=><View><Texto style={{fontFamily:fontes.medio}}>{m.nome}</Texto><Texto variante="suave">{m.email}</Texto></View>},
-      {chave:'perfil',titulo:'Perfil',flex:1,render:m=><Texto>{m.perfilNome}</Texto>},
-      {chave:'situacao',titulo:'Situação',flex:1,render:m=><View><Texto>{situacaoDoMembro(m)}</Texto>{m.convitePendente?<Texto variante="suave" numerico>Até {dataHoraParaTela(m.conviteExpiraEm)}</Texto>:null}</View>},
-      {chave:'acesso',titulo:'Último acesso',flex:1,render:m=><Texto variante="suave" numerico>{m.convitePendente?'—':dataHoraParaTela(m.ultimoAcesso)||'—'}</Texto>},
-      {chave:'limite',titulo:'Limite',flex:1,render:m=><Texto variante="suave">{m.convitePendente?'—':textoDoLimite(m.limiteDeAlunos)}</Texto>},
-      {chave:'acoes',titulo:'Ações',largura:320,acao:true,alinhar:'direita',render:m=><View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'flex-end',gap:espaco(1)}}>{acoesDoMembro(m)}</View>},
+      {chave:'membro',titulo:'Membro',flex:1,minimo:240,principal:true,render:m=><View><Texto style={{fontFamily:fontes.medio}}>{m.nome}</Texto><Texto variante="suave">{m.email}</Texto></View>},
+      {chave:'perfil',titulo:'Perfil',largura:180,render:m=><Texto>{m.perfilNome}</Texto>},
+      {chave:'situacao',titulo:'Situação',largura:120,render:m=><Texto>{situacaoDoMembro(m)}</Texto>},
+      {chave:'acesso',titulo:'Último acesso',largura:170,render:m=><Texto variante="suave" numerico>{dataHoraParaTela(m.ultimoAcesso)||'—'}</Texto>},
+      {chave:'limite',titulo:'Limite',largura:140,render:m=><Texto variante="suave">{textoDoLimite(m.limiteDeAlunos)}</Texto>},
+      {chave:'acoes',titulo:'Ações',largura:128,acao:true,alinhar:'direita',render:m=><View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'flex-end',gap:espaco(1)}}>{acoesDoMembro(m)}</View>},
     ]}/>:null}
     {visiveis.length&&!emTabela?<ListaDeLinhas>{visiveis.map(m=><LinhaDaLista key={m.id} titulo={m.nome}
       metadados={`${m.perfilNome} · ${situacaoDoMembro(m)}`}
       descricao={m.convitePendente?`${m.email} · Convite até ${dataHoraParaTela(m.conviteExpiraEm)}`:`${m.email} · Último acesso: ${dataHoraParaTela(m.ultimoAcesso)||'—'} · ${textoDoLimite(m.limiteDeAlunos)}`}
       acoes={acoesDoMembro(m)}/>)}</ListaDeLinhas>:null}
-    </Cartao>
+  </Cartao>;
+  return <>
+    {emTabela?<View style={estilos.ladoALado}>
+      {cartao}
+      <LateralDosMembros convites={convites} acoesDoConvite={m=>acoesDoMembro(m,true)} contagens={contagemPorPerfil(perfis,membros)} perfilFiltrado={perfilFiltrado} aoTocarPerfil={filtrarPerfil}/>
+    </View>:cartao}
     <PainelConfirmacao visivel={!!cancelar} titulo="Cancelar convite?" mensagem={`O link enviado para ${cancelar?.email??''} deixa de funcionar.`} perigo rotuloConfirmar="Cancelar convite" carregando={ocupado} aoConfirmar={()=>void cancelarConvite()} aoCancelar={()=>setCancelar(null)}/>
     {editar?<EditorUsuario membro={editar==='novo'?null:editar} perfis={perfis} aoFechar={()=>setEditar(null)} recarregar={recarregar}/>:null}
   </>;
@@ -152,3 +166,9 @@ function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|
     <PainelConfirmacao visivel={confirmar} titulo="Desativar membro?" mensagem="A sessão será encerrada e ele não poderá entrar até ser reativado." perigo rotuloConfirmar="Desativar membro" aoConfirmar={()=>void salvar()} aoCancelar={()=>setConfirmar(false)}/>
   </>;
 }
+
+const estilos = StyleSheet.create({
+  // `flex-start`: a coluna ao lado tem a própria altura (e gruda ao rolar), não a da tabela.
+  ladoALado: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO_DA_LATERAL },
+  tabelaAoLado: { flex: 1, minWidth: 0 },
+});

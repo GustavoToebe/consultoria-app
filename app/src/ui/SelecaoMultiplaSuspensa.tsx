@@ -30,6 +30,8 @@ interface Props {
   rotuloDeTodos?: string;
   /** Estilo do campo fechado (ex.: `alignSelf: 'flex-end'` ao lado de um campo de busca). */
   style?: StyleProp<ViewStyle>;
+  /** Rótulo do campo de busca dentro da lista aberta ("Buscar grupo"); padrão "Filtro". */
+  rotuloDaBusca?: string;
 }
 
 const LARGURA_MINIMA_DA_LISTA = 320;
@@ -44,7 +46,7 @@ const FOLGA = 16;
  * abre colado ao campo, por cima da tela (embaixo, ou em cima se faltar espaço); no celular abre numa `Folha`. Fecha
  * com Esc, tocando fora ou no X da folha; marcar não fecha. Marcados que sumiram das opções não contam.
  */
-export function SelecaoMultiplaSuspensa({ rotulo, opcoes, marcados, aoMudar, rotuloDeTodos = 'Todos', style }: Props) {
+export function SelecaoMultiplaSuspensa({ rotulo, opcoes, marcados, aoMudar, rotuloDeTodos = 'Todos', style, rotuloDaBusca = 'Filtro' }: Props) {
   const { cores } = useTema();
   const { width, height } = useWindowDimensions();
   const [aberta, setAberta] = useState(false);
@@ -67,7 +69,7 @@ export function SelecaoMultiplaSuspensa({ rotulo, opcoes, marcados, aoMudar, rot
   const lugar = ancora
     ? posicaoDaLista(height - (ancora.y + ancora.h) - FOLGA, ancora.y - FOLGA, ALTURA_DO_TOPO, ALTURA_MAXIMA_DA_LISTA, 2 * ALVO_TOQUE)
     : { abreEmbaixo: true, alturaMaxima: ALTURA_MAXIMA_DA_LISTA };
-  const lista = <ListaDeOpcoes rotulo={rotulo} opcoes={opcoes} marcados={vigentes} aoMudar={aoMudar} comFoco={!emFolha} limiteDeAltura={emFolha ? undefined : lugar.alturaMaxima} />;
+  const lista = <ListaDeOpcoes rotulo={rotulo} rotuloDaBusca={rotuloDaBusca} opcoes={opcoes} marcados={vigentes} aoMudar={aoMudar} comFoco={!emFolha} limiteDeAltura={emFolha ? undefined : lugar.alturaMaxima} />;
 
   return (
     <>
@@ -125,8 +127,9 @@ function Suspensa({ ancora, abreEmbaixo, rotulo, aoFechar, children }: { ancora:
   );
 }
 
-function ListaDeOpcoes({ rotulo, opcoes, marcados, aoMudar, comFoco, limiteDeAltura }: {
+function ListaDeOpcoes({ rotulo, rotuloDaBusca, opcoes, marcados, aoMudar, comFoco, limiteDeAltura }: {
   rotulo: string;
+  rotuloDaBusca: string;
   opcoes: readonly OpcaoDaSelecao[];
   marcados: ReadonlySet<string>;
   aoMudar: (marcados: Set<string>) => void;
@@ -153,7 +156,7 @@ function ListaDeOpcoes({ rotulo, opcoes, marcados, aoMudar, comFoco, limiteDeAlt
   return (
     <View style={estilos.lista}>
       <View style={estilos.filtro}>
-        <Campo rotulo="Filtro" valor={filtro} aoMudar={setFiltro} autoCorrect={false} autoFocus={comFoco && Platform.OS === 'web'} />
+        <Campo rotulo={rotuloDaBusca} valor={filtro} aoMudar={setFiltro} autoCorrect={false} autoFocus={comFoco && Platform.OS === 'web'} />
       </View>
       <View style={[estilos.divisoria, { borderColor: cores.divisor }]}>
         <View style={estilos.marcarTodos}>

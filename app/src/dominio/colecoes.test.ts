@@ -1,5 +1,8 @@
 import type { PastaModelo, Receita } from '../api/tipos';
-import { agruparPorColecao, filtrarModelos, resumoDeModelos, SEM_COLECAO } from './colecoes';
+import {
+  agruparPorColecao, contagemDaColecao, ERRO_NOME_REPETIDO, ERRO_NOME_VAZIO, erroDoNomeDaColecao, filtrarModelos, mensagemDeExcluirColecao,
+  modelosPorColecao, resumoDeModelos, SEM_COLECAO,
+} from './colecoes';
 
 const m = (nome: string, pastaId: string | null, extra: Partial<Receita> = {}): Receita => ({
   id: nome, tipo: 'PLANO_TREINO', nome, descricao: null, conteudo: null, ordem: 0, pastaId, versao: 1, ...extra,
@@ -61,5 +64,35 @@ describe('filtrarModelos', () => {
     expect(nomes(filtrarModelos(lista, 'PLANO_TREINO', 'iniciação'))).toEqual(['Semana básica']);
     expect(nomes(filtrarModelos(lista, 'PLANO_TREINO', 'avancada'))).toEqual(['Semana avançada']);
     expect(filtrarModelos(lista, 'PLANO_TREINO', 'xyz')).toEqual([]);
+  });
+});
+
+describe('Organizar coleções', () => {
+  it('conta os modelos de todos os tipos por coleção; sem coleção não entra', () => {
+    const contagem = modelosPorColecao([m('A', 'c1'), m('B', 'c1', { tipo: 'PLANO_DIETA' }), m('C', null), m('D', 'c2')]);
+    expect([...contagem]).toEqual([['c1', 2], ['c2', 1]]);
+    expect(contagem.get('c3')).toBeUndefined();
+  });
+
+  it('contagem com plural de verdade', () => {
+    expect(contagemDaColecao(0)).toBe('Nenhum modelo');
+    expect(contagemDaColecao(1)).toBe('1 modelo');
+    expect(contagemDaColecao(12)).toBe('12 modelos');
+  });
+
+  it('a exclusão diz o que acontece com os modelos, sem número quando não se sabe', () => {
+    expect(mensagemDeExcluirColecao(0)).toBe('Nenhum modelo será afetado.');
+    expect(mensagemDeExcluirColecao(1)).toBe('O modelo continua no Planejamento, em Sem coleção.');
+    expect(mensagemDeExcluirColecao(12)).toBe('Os 12 modelos continuam no Planejamento, em Sem coleção.');
+    expect(mensagemDeExcluirColecao(undefined)).toBe('Os modelos dela continuam no Planejamento, em Sem coleção.');
+  });
+
+  it('nome vazio ou repetido (sem acento, caixa nem espaços) dá erro; a própria coleção não conta', () => {
+    const lista = [c('c1', 'Hipertrofia'), c('c2', 'Avançados')];
+    expect(erroDoNomeDaColecao('   ', lista)).toBe(ERRO_NOME_VAZIO);
+    expect(erroDoNomeDaColecao('  avancados ', lista)).toBe(ERRO_NOME_REPETIDO);
+    expect(erroDoNomeDaColecao('HIPERTROFIA', lista, 'c1')).toBeNull();
+    expect(erroDoNomeDaColecao('Hipertrofia', lista, 'c2')).toBe(ERRO_NOME_REPETIDO);
+    expect(erroDoNomeDaColecao('Força', lista)).toBeNull();
   });
 });

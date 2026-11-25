@@ -18,7 +18,8 @@ import {
   perfilFccDoValor,
   previaDeConversao,
 } from '../../dominio/fatoresDoAlimento';
-import { erroDaFibra } from '../../dominio/dieta';
+import { erroDaFibra, type Totais } from '../../dominio/dieta';
+import { LEGENDA_DO_TRACO } from '../../dominio/catalogo';
 import { mascaraDeNumero, numeroParaTela, SEM_DADO } from '../../dominio/formatos';
 import { kcalDoAlimento, kcalDosMacros } from '../../dominio/kcalDosMacros';
 import { chipDeVarias } from '../../dominio/filtrosDaBiblioteca';
@@ -45,7 +46,7 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { LinhaDaLista } from '../../ui/LinhaDaLista';
 import { ListaEmColunas } from '../ListaEmColunas';
-import { CampoDoMacro, FIBRA, LegendaDosMacros, MACROS, ValoresDaDieta } from '../../ui/ValoresDaDieta';
+import { CampoDoMacro, FIBRA, gramasNaTela, kcalNaTela, LegendaDosMacros, MACROS, macroPorExtenso, MarcaDoMacro, ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { normalizar } from '../treino/FolhaBiblioteca';
 import { colunasDaGrade, larguraDaCelula, VAO_DA_GRADE, type ColunasDaGrade } from './gradeDoAlimento';
 
@@ -85,17 +86,64 @@ const OPCOES_PREPARO = [
   { valor: 'REDUZ', rotulo: 'Reduz no preparo (FCc < 1)' },
 ];
 
+/** O que a linha de valores do alimento lê: o da biblioteca e o do catálogo (este com `baseUnidade` em texto). */
+interface ValoresDaLinha {
+  baseQuantidade: number | null; baseUnidade: string | null; kcal: number | null; proteina: number | null; carboidrato: number | null;
+  gordura: number | null; fibra?: number | null; porcao?: string | null;
+}
+
 /**
  * "Por 100 g" e os valores dessa quantidade pela peça do aluno (`ValoresDaDieta`: kcal e P, C e G com a marca da cor, guia
  * de 13/11 pág. 10). Sem kcal (suplemento sem tabela), a porção ou "—", como antes: nunca "— kcal" inventado. A fibra vem
- * depois dos macros, "Fibra —" quando o alimento não a tem (V089).
+ * depois dos macros, "Fibra —" quando o alimento não a tem (V089). A mesma linha na aba Alimentos, na folha de alimentos
+ * da dieta e no catálogo; `tracos` (só o catálogo, da TACO) troca o número desses nutrientes por "Tr", nunca 0.
  */
-export function ValoresDoAlimento({ alimento: a }: { alimento: Pick<Alimento, 'baseQuantidade' | 'baseUnidade' | 'kcal' | 'proteina' | 'carboidrato' | 'gordura' | 'fibra' | 'porcao'> }) {
+export function ValoresDoAlimento({ alimento: a, tracos = [] }: { alimento: ValoresDaLinha; tracos?: readonly string[] }) {
   if (a.kcal == null) return <Texto variante="pequeno">{a.porcao?.trim() || '—'}</Texto>;
+  const totais = { kcal: a.kcal, proteina: a.proteina, carboidrato: a.carboidrato, gordura: a.gordura, fibra: a.fibra ?? null };
   return (
     <View style={estilos.valoresDoAlimento}>
       <Texto variante="pequeno" numerico>{`Por ${numeroParaTela(a.baseQuantidade)} ${a.baseUnidade}`}</Texto>
-      <ValoresDaDieta totais={{ kcal: a.kcal, proteina: a.proteina, carboidrato: a.carboidrato, gordura: a.gordura, fibra: a.fibra ?? null }} inicio />
+      {tracos.length ? <ValoresComTraco totais={totais} tracos={tracos} /> : <ValoresDaDieta totais={totais} inicio />}
+    </View>
+  );
+}
+
+/**
+ * Os valores com algum "Tr": o mesmo desenho da `ValoresDaDieta` (variante pequena, à esquerda), que só aceita número.
+ * shortcut: espelha o desenho da peça de `ui/` só para o traço; trocar por uma prop `tracos` na `ValoresDaDieta` quando o
+ * design system a aceitar (sugestão registrada na entrega de 24/11).
+ */
+function ValoresComTraco({ totais: t, tracos }: { totais: Totais & { fibra: number | null }; tracos: readonly string[] }) {
+  const tela = (chave: string, v: number | null) => (tracos.includes(chave) ? 'Tr' : gramasNaTela(v));
+  const porExtenso = (nome: string, chave: string, v: number | null) => (tracos.includes(chave) ? `${nome} traço` : macroPorExtenso(nome, v));
+  return (
+    <View style={estilos.linhaDosValores}>
+      <Texto variante="pequeno" numerico>{`${kcalNaTela(t.kcal)} kcal`}</Texto>
+      <View style={estilos.linhaDosValores}>
+        {MACROS.map((m) => (
+          <View key={m.chave} style={estilos.macro}>
+            <MarcaDoMacro cor={m.cor} />
+            <Texto variante="pequeno" numerico numberOfLines={1} aria-hidden>{`${m.curto} ${tela(m.chave, t[m.chave])}`}</Texto>
+            <Texto style={estilos.soParaLeitor}>{porExtenso(m.nome, m.chave, t[m.chave])}</Texto>
+          </View>
+        ))}
+      </View>
+      <View style={estilos.macro}>
+        <MarcaDoMacro cor={FIBRA.cor} />
+        <Texto variante="pequeno" numerico numberOfLines={1} aria-hidden>{`Fibra ${tela(FIBRA.chave, t.fibra)}`}</Texto>
+        <Texto style={estilos.soParaLeitor}>{porExtenso('fibra', FIBRA.chave, t.fibra)}</Texto>
+      </View>
+    </View>
+  );
+}
+
+/** Legenda da lista de alimentos (aba Alimentos e catálogo): a dos macros com "■ Fibra" e, com algum "Tr" à vista, o que ele quer dizer. */
+export function LegendaDosAlimentos({ comTraco = false }: { comTraco?: boolean }) {
+  return (
+    <View style={estilos.linhaDosValores}>
+      <LegendaDosMacros />
+      {comTraco ? <Texto variante="pequeno">{LEGENDA_DO_TRACO}</Texto> : null}
     </View>
   );
 }
@@ -217,7 +265,7 @@ export function AbaAlimentos() {
           acao={comFiltros ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltros(SEM_FILTROS) } : dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined}
         />
       ) : null}
-      {lista.length ? <LegendaDosMacros /> : null}
+      {lista.length ? <LegendaDosAlimentos /> : null}
       {lista.length ? <ListaEmColunas divisorias>{lista.map((a) => (
         <LinhaDaLista key={a.id} titulo={a.nome} valores={<ValoresDoAlimento alimento={a} />} descricao={descricaoDoAlimento(a) ?? undefined}
           acoesAoLado
@@ -467,20 +515,19 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
         <Cartao titulo="Lista de compras" descricao="O nome sugere os fatores. Escolha um perfil, ou “Personalizado” para digitar o número." nivel={3}
           acoes={inicial ? <Botao rotulo="Sugerir pelo nome" tipo="secundario" aoTocar={sugerirPeloNome} /> : null}>
           {/* O fator está no nome do perfil; o "Personalizado" abre o número logo abaixo, já com o valor de agora. FC são
-              cinco opções (sem busca); FCc, dez (com busca). Duas linhas no valor: no celular o nome longo do perfil não
-              esconde o fator do fim. */}
-          {/* FC e FCc lado a lado na grade (3 + 2 colunas no largo: o rótulo do FC é o longo e não pode cortar o "(FC)"; os
-              perfis do FCc quebram em até duas linhas); no estreito, um embaixo do outro. */}
-          <View style={estilos.linhaDaGrade}>
-            <Celula grade={grade} ocupa={g5 ? 3 : 2} style={estilos.fator}>
+              cinco opções (sem busca); FCc, dez (com busca). FC e FCc um por linha, na largura toda (Gustavo, 24/11: lado a
+              lado ficavam com alturas diferentes); no PC o valor cabe numa linha, e o limite de duas só vale no celular, para
+              o nome longo do perfil não esconder o fator do fim. */}
+          <View style={estilos.fatores}>
+            <View style={estilos.fator}>
               <EscolhaSuspensa<string> rotulo="Descarte e limpeza antes do preparo (FC)" titulo="Descarte e limpeza (FC)" valor={perfilFc} semBusca linhasDoValor={2}
                 opcoes={[...PERFIS_FC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), personalizado(perfilFc === 'PERSONALIZADO', fcMostrado)]}
                 aoMudar={(c) => { const perfil = PERFIS_FC.find((p) => p.codigo === c); setFcLivre(!perfil); if (perfil) escolherFc(perfil.valor); else travarFatores(); }} />
               {numeroDoFc ? (
                 <CampoNumerico rotulo="Fator de correção (FC)" valor={fcMostrado} aoMudar={(v) => { setFc(v); setFcc(fccMostrado); setTocouFatores(true); }} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
               ) : null}
-            </Celula>
-            <Celula grade={grade} ocupa={2} style={estilos.fator}>
+            </View>
+            <View style={estilos.fator}>
               <EscolhaSuspensa<string> rotulo="Estado na dieta e cocção (FCc)" valor={perfilFcc} linhasDoValor={2}
                 rotuloDaBusca="Buscar perfil" textoVazio="Nenhum perfil encontrado."
                 opcoes={[...PERFIS_FCC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), personalizado(perfilFcc === 'PERSONALIZADO', fccMostrado)]}
@@ -488,7 +535,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
               {numeroDoFcc ? (
                 <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fccMostrado} aoMudar={(v) => { setFc(fcMostrado); setFcc(v); setTocouFatores(true); }} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
               ) : null}
-            </Celula>
+            </View>
           </View>
           {fcMostrado !== null && fccMostrado !== null && fccMostrado !== 0 ? (
             <View style={[estilos.exemplo, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
@@ -518,6 +565,10 @@ const estilos = StyleSheet.create({
   cheio: { alignSelf: 'stretch' },
   // "Por 100 g" e os valores numa linha que quebra junta (no celular os macros descem inteiros).
   valoresDoAlimento: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5) },
+  // As medidas da `ValoresDaDieta` à esquerda (`inicio`): o "Tr" não pode mudar o desenho da linha.
+  linhaDosValores: { flexDirection: 'row', flexWrap: 'wrap', flexShrink: 1, minWidth: 0, justifyContent: 'flex-start', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5) },
+  macro: { flexDirection: 'row', alignItems: 'center', flexShrink: 0, gap: espaco(0.5) },
+  soParaLeitor: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
   // 24 px entre os cartões da folha (seção 4.3 do design); dentro de cada cartão, os 16 px do próprio `Cartao`.
   partes: { gap: espaco(3) },
   // Linha da grade (`gradeDoAlimento`): células de largura medida e o mesmo vão nas duas direções, para as colunas baterem.
@@ -534,6 +585,8 @@ const estilos = StyleSheet.create({
   // Erro e ajuda colados no campo Grupo (8 px), não soltos no cartão; o mesmo no perfil do fator e no número dele.
   grupo: { gap: espaco(1) },
   fator: { gap: espaco(1) },
+  // Entre FC e FCc o vão da grade (16): o mesmo de uma linha de campos para a outra nos cartões de cima.
+  fatores: { gap: VAO_DA_GRADE },
   // Nível de dentro do cartão: divisor, não outro contorno (seção 5.1).
   macros: { gap: espaco(1.5), borderTopWidth: 1, paddingTop: espaco(2) },
   exemplo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5) },

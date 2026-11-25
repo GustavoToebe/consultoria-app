@@ -167,7 +167,7 @@ function itemDaVitrine(n: number, extra: Partial<ItemDaVitrine> = {}): ItemDaVit
   return {
     id: `v0000000-0000-4000-8000-${String(n).padStart(12, '0')}`, nome: `Item fictício ${n}`, descricao: null, tipo: 'DIGITAL',
     precoCentavos: null, precoEspecialCentavos: null, precoVigenteCentavos: null, especialAte: null, cupom: null, linkUrl: null,
-    ativo: true, naPaginaPublica: false, noMarketplace: false, ordem: n - 1, versao: 1, temFoto: false, fotoAtualizadaEm: null, ...extra,
+    ativo: true, naPaginaPublica: false, noMarketplace: false, categoriaId: null, categoriaNome: null, ordem: n - 1, versao: 1, temFoto: false, fotoAtualizadaEm: null, ...extra,
   };
 }
 const MARCADO = itemDaVitrine(1, { nome: 'Planilha de força', precoCentavos: 9900, precoVigenteCentavos: 9900, naPaginaPublica: true });

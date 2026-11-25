@@ -6,10 +6,12 @@ import br.com.treinos.api.inscricoes.InscricaoDtos.AlterarInscricaoRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ConfiguracaoRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ConfiguracaoResponse;
 import br.com.treinos.api.inscricoes.InscricaoDtos.Contagens;
+import br.com.treinos.api.inscricoes.InscricaoDtos.CriarFichaRapidaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.EncerrarRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.EtapaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.Indicadores;
 import br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoDetalhe;
+import br.com.treinos.api.inscricoes.InscricaoDtos.LinkDeInscricaoResponse;
 import br.com.treinos.api.inscricoes.InscricaoDtos.MensagemRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NotaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NovoLinkRequest;
@@ -92,6 +94,20 @@ public class InscricaoController {
         return configuracao.novoLink(configuracao.idDoPadrao(), request);
     }
 
+    @PreAuthorize("hasAuthority('PERM_INSCRICAO_LER')")
+    @GetMapping("/links")
+    public List<LinkDeInscricaoResponse> links() {
+        return configuracao.listarLinks();
+    }
+
+    @PreAuthorize("hasAuthority('PERM_INSCRICAO_ALTERAR')")
+    @PostMapping("/links/ficha-rapida")
+    @ResponseStatus(HttpStatus.CREATED)
+    public LinkDeInscricaoResponse criarFichaRapida(@AuthenticationPrincipal UsuarioAutenticado eu,
+                                                    @RequestBody(required = false) @Valid CriarFichaRapidaRequest request) {
+        return configuracao.criarFichaRapida(request, eu.usuarioId());
+    }
+
     /**
      * Fila filtrada (todos opcionais, combinados com E; {@link FiltrosDaFila}): {@code responsavel} e {@code origem}
      * repetíveis ({@code nenhum} e {@code NAO_INFORMADA} valem; {@code meus} junto de {@code responsavel} = 400), período
@@ -127,9 +143,10 @@ public class InscricaoController {
                                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
                                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
                                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate atividadeDe,
-                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate atividadeAte) {
+                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate atividadeAte,
+                               @RequestParam(required = false) UUID questionarioId) {
         return fila.contar(new Filtro(null, meus ? eu.usuarioId() : null, responsavel, origem, busca, de, ate, atividadeDe,
-                atividadeAte));
+                atividadeAte, questionarioId));
     }
 
     /** Período em dias de Brasília ({@code de}/{@code ate}, até 366 dias; sem eles, os últimos 30). */

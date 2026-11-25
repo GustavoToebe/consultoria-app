@@ -188,8 +188,8 @@ const CASOS: Caso[] = [
       'GET /catalogo/exercicios': (p, route) => json(route, p.busca.has('grupo') ? { itens: [], total: 0 }
         : { itens: [exercicioDoCatalogo(1, 'Supino reto', 'Peito'), exercicioDoCatalogo(2, 'Remada baixa', 'Costas')], total: 2 }),
     },
-    ligar: (page, painel) => marcar(page, painel, 'Grupo', 'Todos', ['Peito']),
-    chip: 'Tirar filtro: Grupo: Peito', vazio: /^Nenhum resultado no catálogo$/,
+    ligar: (page, painel) => marcar(page, painel, 'Grupo muscular', 'Todos os grupos', ['Peito']),
+    chip: 'Tirar filtro: Grupo muscular: Peito', vazio: /^Nenhum resultado no catálogo$/,
   },
   {
     tela: 'outros', caminho: '/treinador/biblioteca?aba=ergogenicos', painel: 'Filtros de outros itens', usuarioId: TREINADOR.id,
