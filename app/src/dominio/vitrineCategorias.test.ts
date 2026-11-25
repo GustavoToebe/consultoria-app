@@ -77,8 +77,15 @@ describe('formulário e grade', () => {
   test('colunas pela largura da grade', () => {
     expect(colunasDaVitrine(0)).toBe(1);
     expect(colunasDaVitrine(358)).toBe(1);
+    expect(colunasDaVitrine(599)).toBe(1);
+    // Piso de 240 com vão de 16: cada coluna nova pede mais 256 px.
     expect(colunasDaVitrine(600)).toBe(2);
-    expect(colunasDaVitrine(1000)).toBe(4);
+    expect(colunasDaVitrine(751)).toBe(2);
+    expect(colunasDaVitrine(752)).toBe(3);
+    expect(colunasDaVitrine(1007)).toBe(3);
+    expect(colunasDaVitrine(1008)).toBe(4);
+    expect(colunasDaVitrine(1264)).toBe(5);
     expect(colunasDaVitrine(1600)).toBe(6);
+    expect(colunasDaVitrine(1000, 16, 220)).toBe(4);
   });
 });

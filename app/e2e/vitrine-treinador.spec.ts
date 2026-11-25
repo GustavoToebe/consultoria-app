@@ -125,6 +125,12 @@ test('grade: mais colunas em tela mais larga (1280 × 1920)', async ({ page }) =
   const em1280 = await naPrimeiraLinha();
   await page.setViewportSize({ width: 1920, height: 900 });
   await expect.poll(naPrimeiraLinha).toBeGreaterThan(em1280);
+  // As colunas ocupam a largura toda (piso de 240 px por cartão): a primeira linha termina na borda direita da grade.
+  const grade = await caixa(page.getByRole('list', { name: 'Itens da vitrine' }));
+  const n = await naPrimeiraLinha();
+  const ultimo = await caixa(page.getByTestId(`cartao-do-item-${muitos[n - 1].id}`));
+  expect(ultimo.width).toBeGreaterThanOrEqual(240);
+  expect(Math.abs(ultimo.x + ultimo.width - (grade.x + grade.width))).toBeLessThan(3);
   // Sem categoria nenhuma, a lista fica sem subtítulos.
   await expect(page.getByRole('heading', { level: 3 })).toHaveCount(0);
 });

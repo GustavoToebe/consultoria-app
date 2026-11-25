@@ -47,12 +47,13 @@ export const FOTO_NAO_SUBIU = 'Item criado, mas a foto não subiu. Tente de novo
 export const LARGURA_DA_GRADE_COMPACTA = 600;
 
 /**
- * Colunas da grade de cartões pela largura da própria grade: uma abaixo de 600 px (cartão compacto) e, acima, quantas
- * couberem com no mínimo 220 px cada. `vao` é o espaço entre cartões.
+ * Colunas da grade de cartões pela largura da própria grade (o `repeat(auto-fill, minmax(240px, 1fr))` do CSS): uma abaixo
+ * de 600 px (cartão compacto) e, acima, quantas couberem com no mínimo `minimo` px cada; a `ui/Grade` divide a largura toda
+ * entre elas, então o cartão cresce até a próxima coluna caber. `vao` é o espaço entre cartões.
  */
-export function colunasDaVitrine(largura: number, vao = 16): number {
+export function colunasDaVitrine(largura: number, vao = 16, minimo = 240): number {
   if (largura < LARGURA_DA_GRADE_COMPACTA) return 1;
-  return Math.max(1, Math.floor((largura + vao) / (220 + vao)));
+  return Math.max(1, Math.floor((largura + vao) / (minimo + vao)));
 }
 
 // ---- Regra das lojas de aplicativo (D6) ----
