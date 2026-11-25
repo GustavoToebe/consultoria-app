@@ -107,7 +107,7 @@ interface Props {
  * Refeição: o cabeçalho (posição, título, um selo, ↑↓ e a lixeira com o nome), os dados dela (nome, horário, observação,
  * modo de preparo) e as opções (A, B...) com os itens e o total de cada uma. As opções são alternativas (o aluno escolhe
  * uma; o total do dia usa só a primeira). Opções em abas (19/11): com duas ou mais, a comparação dos totais, as abas
- * (`AbasDeOpcao`) e a opção aberta na largura toda; com uma só, nada de abas, só o "+ Opção" discreto. Duas molduras no
+ * (`AbasDeOpcao`) e a opção aberta na largura toda; com uma só, nada de abas, só o "+ Opção" (`acao`). Duas molduras no
  * máximo (S4 de `editor-treino-inspetor.md`): a refeição e o item; a opção é o painel da aba, sem caixa. Nada é
  * calculado entre as opções: cada uma mostra o próprio total.
  */
@@ -184,8 +184,9 @@ export function CartaoRefeicao(p: Props) {
     focoPendente.current = depois.length > 1 ? proxima : MAIS_OPCAO;
     p.aoRemoverOpcao(r.opcoes.indexOf(o));
   };
+  // A ação de construção da refeição (Gustavo, 25/11): `acao`, uma vez por cartão (no cabeçalho da opção ou no fim das abas).
   const maisOpcao = (
-    <Botao ref={(b) => { alvosDoFoco.current.set(MAIS_OPCAO, b); }} rotulo="Opção" rotuloAcessivel={`Adicionar opção em ${titulo}`} tipo="secundario" Icone={Plus}
+    <Botao ref={(b) => { alvosDoFoco.current.set(MAIS_OPCAO, b); }} rotulo="Opção" rotuloAcessivel={`Adicionar opção em ${titulo}`} tipo="acao" Icone={Plus}
       aoTocar={adicionarOpcao} desabilitado={r.opcoes.length >= MAXIMO_DE_OPCOES} motivo={MOTIVO_NO_LIMITE_DE_OPCOES} />
   );
   const indiceAberto = aberta ? r.opcoes.indexOf(aberta) : -1;
@@ -407,8 +408,9 @@ const LARGURA_MINIMA_DO_NOME = 140;
  * mínimo dela (estica). `valor` liga a coluna ao número do item. A `alca` é o encaixe da alça de arrastar: com largura 0
  * não aparece; com largura, vira a primeira célula da faixa, nos dois modos, e mostra a prop `alca` da `LinhaItem`.
  * Quantidade e unidade são um campo só ("50 g ▾", 100 px: cabe "1.000"). Os números vão sem o "g", que está no título
- * da coluna (como na comparação): "126,5" e "1.234" cabem em 48 na fonte numérica; a fibra tem 56 para o título
- * "Fibras (g)" quebrar em duas linhas ao lado da marca.
+ * da coluna (como na comparação): "126,5" e "1.234" cabem em 48 na fonte numérica; a fibra tem 70 para o título
+ * "Fibras (g)" caber numa linha com a marca (57 px de texto + 12 da marca, medido em 25/11; o Gustavo viu "Fibras" /
+ * "(g)" em duas linhas com 56). Com ela, a tabela pede 670 px: cabe na opção de 1280 com o menu aberto (lista de 248).
  */
 const COLUNAS_DO_ITEM: readonly { chave: string; rotulo: string; largura: number; valor?: ChaveDoValor }[] = [
   { chave: 'alca', rotulo: '', largura: LARGURA_DA_PECA },
@@ -419,11 +421,10 @@ const COLUNAS_DO_ITEM: readonly { chave: string; rotulo: string; largura: number
   { chave: 'proteina', rotulo: 'P (g)', largura: 48, valor: 'proteina' },
   { chave: 'carboidrato', rotulo: 'C (g)', largura: 48, valor: 'carboidrato' },
   { chave: 'gordura', rotulo: 'G (g)', largura: 48, valor: 'gordura' },
-  { chave: 'fibra', rotulo: 'Fibras (g)', largura: 56, valor: 'fibra' },
+  { chave: 'fibra', rotulo: 'Fibras (g)', largura: 70, valor: 'fibra' },
 ];
 const COLUNAS = COLUNAS_DO_ITEM.filter((c) => c.largura > 0);
 const COLUNAS_DE_VALOR = COLUNAS.filter((c) => c.valor);
-const PARES_DE_VALOR = COLUNAS_DE_VALOR.flatMap((c, i, todas) => (i % 2 === 0 ? [todas.slice(i, i + 2)] : []));
 const LARGURA_DA_ALCA = COLUNAS_DO_ITEM[0].largura;
 const VAO_DA_TABELA = 6;
 /** Recuo da faixa do item (e do cabeçalho, para as colunas baterem) mais o contorno de 1 px. */
@@ -524,7 +525,7 @@ function CabecalhoDosItens({ larguraDasAcoes }: { larguraDasAcoes: number }) {
           <View key={c.chave} style={[estiloDaColuna(c), c.valor ? estilos.aDireita : null, estilos.celulaDoCabecalho]}>
             {macro ? <MarcaDoMacro cor={macro.cor} /> : null}
             {/* O mesmo texto do rótulo do campo empilhado: na tabela ele só sobe para o cabeçalho. */}
-            {c.rotulo ? <Texto variante="rotulo" numberOfLines={2} style={estilos.tituloDaColuna}>{c.rotulo}</Texto> : null}
+            {c.rotulo ? <Texto variante="rotulo" numberOfLines={1} style={estilos.tituloDaColuna}>{c.rotulo}</Texto> : null}
           </View>
         );
       })}
@@ -627,16 +628,8 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
       {emTabela ? null : <IconeBotao Icone={Trash2} rotulo={`Remover ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />}
     </>
   );
-  // Em pares (kcal e P, C e G): sem largura para os quatro, descem dois a dois (com número ímpar, o último fica só).
-  const camposDoManual = (
-    <View style={estilos.valores}>
-      {PARES_DE_VALOR.map((par) => (
-        <View key={par[0].chave} style={estilos.parDeValores}>
-          {par.map((c) => <View key={c.chave} style={estilos.valor}>{campoDoValor(c)}</View>)}
-        </View>
-      ))}
-    </View>
-  );
+  // Os cinco na mesma largura (25/11: a fibra, sozinha no par, esticava): uma linha de 5 ou 3 + 2.
+  const camposDoManual = <GradeDosValores>{COLUNAS_DE_VALOR.map((c) => ({ chave: c.chave, campo: campoDoValor(c) }))}</GradeDosValores>;
   const celula = (c: (typeof COLUNAS)[number]): ReactNode => {
     if (c.chave === 'alca') return alca;
     if (c.chave === 'numero') return <NumeroInvertido numero={posicao + 1} invertido={false} />;
@@ -650,13 +643,13 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
   return (
     <View style={[estilos.faixa, { backgroundColor: cores.superficie2, borderColor: comProblema ? cores[tom] : 'transparent' }]}>
       {emTabela ? (
-        <View style={estilos.linhaDaTabela}>
+        <View style={[estilos.linhaDaTabela, item.manual ? estilos.linhaDoManual : null]}>
           {COLUNAS.map((c) => (
-            <View key={c.chave} style={[estiloDaColuna(c), c.chave === 'nome' ? estilos.celulaDoNome : null, c.valor && !item.manual ? estilos.aDireita : null]}>
+            <View key={c.chave} style={[estiloDaColuna(c), c.chave === 'nome' ? estilos.celulaDoNome : item.manual ? estilos.primeiraLinha : null, c.valor && !item.manual ? estilos.aDireita : null]}>
               {celula(c)}
             </View>
           ))}
-          <View style={[estilos.acoesDaTabela, { width: larguraDasAcoes }]}>{acoes}</View>
+          <View style={[estilos.acoesDaTabela, item.manual ? estilos.primeiraLinha : null, { width: larguraDasAcoes }]}>{acoes}</View>
         </View>
       ) : (
         <View style={estilos.empilhado}>
@@ -680,6 +673,34 @@ function LinhaItem({ modo, larguraDasAcoes, alca, item, posicao, total, comProbl
   );
 }
 
+/** Célula mínima de um valor do item manual: cabe o rótulo mais largo, "Fibras (g)" com a marca (69 px, medido em 25/11). */
+const VALOR_MINIMO = 72;
+/** Célula máxima: em 1920 cinco campos de 250 px ficavam desproporcionais para números de até 5 dígitos. */
+const VALOR_MAXIMO = 120;
+const VAO_DOS_VALORES = espaco(1);
+
+/** Colunas da grade dos valores do item manual (kcal, P, C, G e fibra): 5 numa linha; sem espaço, 3 + 2; no limite, 2. */
+export function colunasDosValores(largura: number): 5 | 3 | 2 {
+  const cabem = (n: number) => largura >= n * VALOR_MINIMO + (n - 1) * VAO_DOS_VALORES;
+  return cabem(5) ? 5 : cabem(3) ? 3 : 2;
+}
+
+/** Largura de cada célula (todas iguais, também as da linha de baixo), arredondada para baixo e no máximo `VALOR_MAXIMO`. */
+export function larguraDoValor(largura: number, colunas: number): number {
+  return Math.max(0, Math.min(VALOR_MAXIMO, Math.floor((largura - (colunas - 1) * VAO_DOS_VALORES) / colunas)));
+}
+
+/** Grade medida (`onLayout`): o RN não tem grade de colunas iguais, e com `flexGrow` a última célula da linha esticava. */
+function GradeDosValores({ children }: { children: { chave: string; campo: ReactNode }[] }) {
+  const [largura, setLargura] = useState(0);
+  const celula = larguraDoValor(largura, colunasDosValores(largura));
+  return (
+    <View testID="valores-do-item-manual" style={estilos.valores} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
+      {children.map((c) => <View key={c.chave} style={largura ? { width: celula } : estilos.valorAntesDaMedida}>{c.campo}</View>)}
+    </View>
+  );
+}
+
 const estilos = StyleSheet.create({
   topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(0.5) },
   titulo: { flex: 1, gap: espaco(0.5), minHeight: 44, justifyContent: 'center' },
@@ -697,11 +718,14 @@ const estilos = StyleSheet.create({
   itens: { gap: 6 },
   faixa: { borderRadius: 12, borderWidth: CONTORNO_DA_FAIXA, paddingHorizontal: RECUO_DA_FAIXA, paddingVertical: espaco(1), gap: espaco(0.5) },
   linhaDaTabela: { flexDirection: 'row', alignItems: 'center', gap: VAO_DA_TABELA },
+  // Item manual: o nome é um campo de 44 com o selo embaixo; centrar na célula alta deixava a quantidade ~13 px abaixo do
+  // nome (25/11). Tudo sobe para a faixa de 44 do campo do nome: alça, número, quantidade e ⋯ na mesma linha dele.
+  linhaDoManual: { alignItems: 'flex-start' },
+  primeiraLinha: { minHeight: ALVO_TOQUE, justifyContent: 'center' },
   // Mesmo recuo e contorno da faixa, para cada título ficar em cima da sua coluna.
   cabecalhoDosItens: { paddingHorizontal: RECUO_DA_FAIXA + CONTORNO_DA_FAIXA },
   celulaDoCabecalho: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
-  // "Fibras (g)" quebra em duas linhas ao lado da marca, sem sair da coluna; à esquerda, as duas linhas ficam coladas à
-  // marca (à direita, a marca ficava mais perto do "G (g)" da coluna ao lado que do próprio título).
+  // Uma linha só (a coluna cabe o título mais largo, "Fibras (g)"); o texto fica colado à marca.
   tituloDaColuna: { flexShrink: 1, textAlign: 'left' },
   colunaDoNomeNaTabela: { flex: 1, minWidth: LARGURA_MINIMA_DO_NOME },
   celulaDoNome: { gap: espaco(0.5), justifyContent: 'center', minHeight: 44 },
@@ -720,9 +744,8 @@ const estilos = StyleSheet.create({
   quantidade: { width: 104 },
   // Mesma altura do campo da quantidade ao lado (a lista suspensa tem 52 de mínimo), como o RIR na série.
   unidade: { width: 104, minHeight: 44, alignSelf: 'flex-end' },
-  valores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), flexGrow: 1, flexShrink: 1, flexBasis: 320, minWidth: 0 },
-  parDeValores: { flexDirection: 'row', gap: espaco(1), flexGrow: 1, flexBasis: 2 * 64 + espaco(1) },
-  valor: { flex: 1, minWidth: 64 },
+  valores: { flexDirection: 'row', flexWrap: 'wrap', gap: VAO_DOS_VALORES, flexGrow: 1, flexShrink: 1, flexBasis: 320, minWidth: 0 },
+  valorAntesDaMedida: { width: VALOR_MINIMO },
   total: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5), borderTopWidth: 1, paddingTop: espaco(1) },
   // Embaixo do nome: o "Trocar alimento" (na tabela) e os selos do item, quebrando linha quando não cabem.
   linhaDeBaixo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: espaco(0.5) },

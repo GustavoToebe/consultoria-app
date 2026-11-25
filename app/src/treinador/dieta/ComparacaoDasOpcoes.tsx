@@ -6,16 +6,21 @@ import type { TotaisComFibra } from '../../dominio/dieta';
 import { CONTA_NO_TOTAL, gramasSemUnidade, tituloDaOpcao, totaisDaOpcao } from '../../dominio/opcoesDaRefeicao';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../../tema/tokens';
+import { MarcadorDeOpcao } from '../../ui/MarcadorDeOpcao';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { FIBRA, fibraParcial, kcalNaTela, MACROS, MarcaDoMacro, type CorDoMacro, valoresPorExtenso } from '../../ui/ValoresDaDieta';
 
-/** Colunas dos números, na ordem da tabela de alimentos: kcal, P, C, G e a fibra (cada uma com a marca, menos a kcal). */
-const COLUNAS: readonly { chave: keyof TotaisComFibra & ('kcal' | 'proteina' | 'carboidrato' | 'gordura' | 'fibra'); rotulo: string; cor?: CorDoMacro }[] = [
-  { chave: 'kcal', rotulo: 'Kcal' },
-  ...MACROS.map((m) => ({ chave: m.chave, rotulo: `${m.curto} (g)`, cor: m.cor })),
-  { chave: 'fibra', rotulo: 'Fibras (g)', cor: FIBRA.cor },
+/**
+ * Colunas dos números, na ordem da tabela de alimentos: kcal, P, C, G e a fibra (cada uma com a marca, menos a kcal). No
+ * celular (colunas de ~45 px) o título vai sem o "(g)" (`curto`), para caber numa linha como os outros (25/11: "Fibras
+ * (g)" quebrava em duas).
+ */
+const COLUNAS: readonly { chave: keyof TotaisComFibra & ('kcal' | 'proteina' | 'carboidrato' | 'gordura' | 'fibra'); rotulo: string; curto: string; cor?: CorDoMacro }[] = [
+  { chave: 'kcal', rotulo: 'Kcal', curto: 'Kcal' },
+  ...MACROS.map((m) => ({ chave: m.chave, rotulo: `${m.curto} (g)`, curto: m.curto, cor: m.cor })),
+  { chave: 'fibra', rotulo: 'Fibras (g)', curto: 'Fibra', cor: FIBRA.cor },
 ];
 /** Abaixo disto (celular) a primeira coluna fica só com a letra e o selo da primeira opção desce para baixo da linha. */
 const LARGURA_COMPACTA = 520;
@@ -34,7 +39,8 @@ export interface ColunasDaTabela {
 /**
  * Faixa de comparação das opções (19/11, só com duas ou mais): uma linha por opção com o total de cada uma, os números à
  * direita e as marcas de macro no cabeçalho. Só mostra o total de cada opção (nada é calculado entre elas). A linha é o
- * atalho para abrir a aba da opção; a aberta fica marcada em neutro (`superficie2`), sem cor de ação. Com `colunas` (a
+ * atalho para abrir a aba da opção; a aberta fica marcada pelo fundo neutro (`superficie2`) e pelo círculo preenchido, o
+ * mesmo da aba. Com `colunas` (a
  * opção em tabela), cada número fica embaixo da coluna dele na tabela de alimentos; sem, as colunas se dividem.
  */
 export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas }: {
@@ -54,7 +60,7 @@ export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas }: {
         {COLUNAS.map((c, ci) => (
           <View key={c.chave} style={[coluna(ci), estilos.celulaDoCabecalho]}>
             {c.cor ? <MarcaDoMacro cor={c.cor} /> : null}
-            <Texto variante="rotulo" style={estilos.encolhe}>{c.rotulo}</Texto>
+            <Texto variante="rotulo" numberOfLines={1} style={estilos.encolhe}>{compacta ? c.curto : c.rotulo}</Texto>
           </View>
         ))}
         {fim}
@@ -70,7 +76,9 @@ export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas }: {
             style={(st) => [estilos.opcao, { backgroundColor: sel ? cores.superficie2 : sobre(st) ? cores.sobre : 'transparent' }]}>
             <View style={[estilos.linha, compacta && estilos.linhaJusta, vao]}>
               <View style={compacta ? estilos.letra : estilos.nome}>
-                <Texto style={[estilos.textoDoNome, { fontFamily: sel ? fontes.semi : fontes.medio }]}>{compacta ? o.rotulo : tituloDaOpcao(o)}</Texto>
+                {/* O círculo com a letra, como nas abas (preenchido na aberta); no celular, só ele. */}
+                <MarcadorDeOpcao letra={o.rotulo} selecionado={sel} />
+                {compacta ? null : <Texto style={[estilos.textoDoNome, { fontFamily: sel ? fontes.negrito : fontes.medio }]}>{tituloDaOpcao(o)}</Texto>}
                 {compacta ? null : selo}
               </View>
               {COLUNAS.map((c, ci) => {
@@ -110,7 +118,7 @@ const estilos = StyleSheet.create({
   textoDoNome: { fontSize: 15 },
   valor: { fontSize: 14, lineHeight: 20 },
   aDireita: { textAlign: 'right' },
-  // "Fibras (g)" quebra em duas linhas ao lado da marca na coluna estreita, coladas a ela (como na tabela de alimentos).
+  // Uma linha, colada à marca (como na tabela de alimentos).
   encolhe: { flexShrink: 1, textAlign: 'left' },
   seloAbaixo: { flexDirection: 'row', marginTop: 2 },
 });

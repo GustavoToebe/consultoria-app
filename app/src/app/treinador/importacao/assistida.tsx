@@ -1,7 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
 
-import { LARGURA_EDITOR_DE_CAMPOS, LARGURA_LISTA } from '../../../tema/tokens';
+import { LARGURA_LISTA } from '../../../tema/tokens';
 import { PainelImportacaoAssistida } from '../../../treinador/importacao/PainelImportacaoAssistida';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Tela } from '../../../ui/Tela';
@@ -14,14 +13,8 @@ export default function ImportacaoAssistidaTela() {
         titulo="Importação assistida"
         descricao="PDFs, DOCX, planilhas e texto colado num lote só. Você confere tudo antes de gravar."
       />
-      {/* Tela larga (24/11): envio e conferência são um editor de campos; param em `LARGURA_EDITOR_DE_CAMPOS`, à esquerda. */}
-      <View style={estilos.limite}>
-        <PainelImportacaoAssistida sessaoIdInicial={typeof sessaoId === 'string' && sessaoId ? sessaoId : undefined} />
-      </View>
+      {/* Tela larga (25/11): o conteúdo ocupa a largura toda; da faixa larga em diante o resumo vai para a coluna ao lado. */}
+      <PainelImportacaoAssistida sessaoIdInicial={typeof sessaoId === 'string' && sessaoId ? sessaoId : undefined} />
     </Tela>
   );
 }
-
-const estilos = StyleSheet.create({
-  limite: { width: '100%', maxWidth: LARGURA_EDITOR_DE_CAMPOS },
-});

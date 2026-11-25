@@ -79,6 +79,14 @@ async function abrirRefeicao(page: Page, largura: number, posicao: number, titul
 const abasDoAlmoco = (page: Page) => page.getByRole('tablist', { name: 'Opções de 12:00 · Almoço' });
 const aba = (page: Page, rotulo: string) => abasDoAlmoco(page).getByRole('tab', { name: new RegExp(`^Opção ${rotulo},`) });
 
+/** O primeiro fundo pintado do botão (ele ou o que está dentro dele). */
+const fundoDe = (l: ReturnType<Page['getByRole']>) =>
+  l.evaluate((el) => [el, ...el.querySelectorAll('*')].map((e) => getComputedStyle(e).backgroundColor).find((c) => c !== 'rgba(0, 0, 0, 0)'));
+/** O círculo da aba: a letra e o fundo (preenchido na cor de ação só na aberta). */
+const circuloDa = (page: Page, rotulo: string) => aba(page, rotulo).getByTestId('marcador-de-opcao')
+  .evaluate((el) => ({ letra: el.textContent, fundo: getComputedStyle(el).backgroundColor }));
+const sublinhadoDa = (page: Page, rotulo: string) => aba(page, rotulo).evaluate((el) => getComputedStyle(el).borderBottomColor);
+
 /** Captura (só com `CAPTURAS`): a refeição inteira e, para o contexto, a janela com ela no topo. */
 async function capturar(page: Page, id: string, nome: string) {
   const pasta = process.env.CAPTURAS;
@@ -118,11 +126,20 @@ for (const largura of [1280, 390, 1920]) {
     // O painel da aba: rótulo dela no `tabpanel` (Radix liga o painel à aba).
     await expect(page.getByRole('tabpanel', { name: /^Opção A,/ })).toBeVisible();
     await expect(almoco.getByRole('group', { name: 'Total da opção A' })).toBeVisible();
+    // 25/11: o "+ Opção" é um só, com a cor de ação (o mesmo fundo do "Adicionar refeição"); cada aba começa pelo círculo
+    // com a letra, preenchido na cor da aba aberta (a do sublinhado) só nela.
+    const mais = almoco.getByRole('button', { name: 'Adicionar opção em 12:00 · Almoço' });
+    await expect(mais).toHaveCount(1);
+    expect(await fundoDe(mais)).toBe(await fundoDe(page.getByRole('button', { name: 'Adicionar refeição' })));
+    expect(await circuloDa(page, 'A')).toEqual({ letra: 'A', fundo: await sublinhadoDa(page, 'A') });
+    expect((await circuloDa(page, 'B')).fundo).toBe('rgba(0, 0, 0, 0)');
     await capturar(page, 'almoco', `3-opcoes-aba-A-${largura}-escuro`);
 
     await aba(page, 'B').click();
     await expect(aba(page, 'B')).toHaveAttribute('aria-selected', 'true');
     await expect(almoco.getByRole('group', { name: 'Total da opção B' })).toBeVisible();
+    expect((await circuloDa(page, 'B')).fundo).toBe(await sublinhadoDa(page, 'B'));
+    expect((await circuloDa(page, 'A')).fundo).toBe('rgba(0, 0, 0, 0)');
     await expect(almoco.getByRole('group', { name: 'Total da opção A' })).toHaveCount(0);
     await expect(almoco.getByText(FRANGO.nome, { exact: true })).toHaveCount(0);
     // A aba aberta cabe inteira na faixa das abas (o selo da A vai na linha de baixo); em 1280, as três cabem.

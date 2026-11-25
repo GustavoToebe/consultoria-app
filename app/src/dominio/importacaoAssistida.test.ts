@@ -1,8 +1,9 @@
 import { ErroApi } from '@plataforma/web';
 
-import type { ConfirmacaoResultado, GrupoImportavel } from '../servicos/importacaoAssistida';
+import type { ConfirmacaoResultado, DuvidaImportacao, GrupoImportavel, SessaoDetalhe } from '../servicos/importacaoAssistida';
 import {
   campoDoErroDoTexto,
+  duvidasVisiveis,
   gerarChaveIdempotencia,
   grupoResumido,
   idsComErro,
@@ -16,6 +17,7 @@ import {
   pedidoDoDestino,
   recarregarDepoisDoErro,
   resumoDaCoberturaDoArquivo,
+  resumoDaSessao,
   resumoDoModoProcessamento,
   resumoDoResultado,
   rotuloDaDuvida,
@@ -25,6 +27,7 @@ import {
   textoDoErroDaImportacao,
   textoDoEstadoDaSessao,
   tituloDoGrupoResumido,
+  trechoDaDuvida,
   valorDoDestino,
 } from './importacaoAssistida';
 
@@ -236,4 +239,66 @@ test('seleção explícita de grupos e trava de hashPrevia na confirmação', ()
   const c2 = gerarChaveIdempotencia();
   expect(c1.length).toBeGreaterThan(8);
   expect(c1).not.toBe(c2);
+});
+
+describe('termos para conferir e resumo da sessão', () => {
+  const duvida = (id: string, termo: string, extra: Partial<DuvidaImportacao> = {}): DuvidaImportacao => ({
+    id, tipo: 'EXERCICIO_NAO_RECONHECIDO', termoOriginal: termo, trechoOriginal: `${termo} 4x10`, arquivoOrigem: 'Arquivo',
+    ocorrencias: 1, sugestoes: [], resolvida: false, ...extra,
+  });
+
+  it('esconde o termo em branco ou só pontuação e mantém o resto', () => {
+    const lista = [duvida('a', ''), duvida('b', '   '), duvida('c', '"" .;'), duvida('d', 'sup inc'), duvida('e', 'açaí'), duvida('f', '3x')];
+    expect(duvidasVisiveis(lista).map((d) => d.id)).toEqual(['d', 'e', 'f']);
+    expect(duvidasVisiveis(undefined)).toEqual([]);
+  });
+
+  it('trecho em branco vira "—"', () => {
+    expect(trechoDaDuvida({ trechoOriginal: '' })).toBe('—');
+    expect(trechoDaDuvida({ trechoOriginal: '  ' })).toBe('—');
+    expect(trechoDaDuvida({ trechoOriginal: ' sup inc 4x10 ' })).toBe('sup inc 4x10');
+  });
+
+  const g = (id: string, extra: Partial<GrupoImportavel> = {}): GrupoImportavel => ({
+    id, identificadorOrigem: id, nomeDetectado: id, destino: 'CRIAR_ALUNO', arquivosOrigem: [], pesos: [], pendenciasIds: [],
+    estado: 'PRONTO', ...extra,
+  });
+  const arquivo = (id: string, erroCodigo: string | null = null) => ({
+    id, nomeOriginal: id, formato: 'PDF', tamanhoBytes: 1, estado: 'LIDO', criadoEm: '', erroCodigo,
+  });
+  const sessao: Pick<SessaoDetalhe, 'estado' | 'arquivos' | 'grupos' | 'duvidas'> = {
+    estado: 'REVISANDO',
+    arquivos: [arquivo('a'), arquivo('b', 'ARQUIVO_ILEGIVEL'), arquivo('c')],
+    grupos: [g('1', { treino: {} }), g('2', { treino: {}, dieta: {} }), g('3')],
+    duvidas: [duvida('x', 'sup'), duvida('y', 'rosca', { resolvida: true }), duvida('z', '')],
+  };
+
+  it('conta arquivos lidos, alunos, treinos, dietas e termos pendentes', () => {
+    expect(resumoDaSessao(sessao, () => true)).toEqual({
+      linhas: [
+        { rotulo: 'Arquivos lidos', valor: '2 de 3' },
+        { rotulo: 'Alunos encontrados', valor: '3' },
+        { rotulo: 'Treinos encontrados', valor: '2' },
+        { rotulo: 'Dietas encontradas', valor: '1' },
+      ],
+      termosPendentes: 1,
+    });
+  });
+
+  it('sem permissão de ler treino e dieta mostra "—", nunca zero', () => {
+    const { linhas } = resumoDaSessao(sessao, () => false);
+    expect(linhas.map((l) => l.valor)).toEqual(['2 de 3', '3', '—', '—']);
+  });
+
+  it('antes de ler só conta os arquivos enviados', () => {
+    expect(resumoDaSessao({ ...sessao, estado: 'RECEBENDO', grupos: [], duvidas: [] }, () => true)).toEqual({
+      linhas: [
+        { rotulo: 'Arquivos enviados', valor: '3' },
+        { rotulo: 'Alunos encontrados', valor: '—' },
+        { rotulo: 'Treinos encontrados', valor: '—' },
+        { rotulo: 'Dietas encontradas', valor: '—' },
+      ],
+      termosPendentes: null,
+    });
+  });
 });

@@ -13,7 +13,7 @@ const ENDERECO = { cep: '01310-100', logradouro: 'Rua Exemplo', numero: '100', c
 
 const RESP: MeusDadosResponse = {
   nome: 'Aluno Exemplo', email: 'aluno@exemplo.test', emailDeAcesso: 'acesso@exemplo.test',
-  telefone: '(45) 99999-8888', cpf: null, endereco: ENDERECO, sexo: 'FEMININO', versao: 3,
+  telefone: '(45) 99999-8888', cpf: null, endereco: ENDERECO, sexo: 'FEMININO', instagram: 'aluno.exemplo', tiktok: null, versao: 3,
 };
 const SEM_NADA: MeusDadosResponse = { nome: 'Aluno Exemplo', email: 'aluno@exemplo.test', versao: 0 };
 
@@ -41,11 +41,11 @@ describe('emailParaLeitura', () => {
 describe('formDeMeusDados', () => {
   it('traz os dados com máscara', () => {
     expect(formDeMeusDados({ ...RESP, telefone: '45999998888', cpf: '52998224725' })).toEqual({
-      telefone: '(45) 99999-8888', cpf: CPF_DE_TESTE, endereco: ENDERECO, sexo: 'FEMININO',
+      telefone: '(45) 99999-8888', cpf: CPF_DE_TESTE, endereco: ENDERECO, sexo: 'FEMININO', instagram: '@aluno.exemplo', tiktok: '',
     });
   });
   it('ausente e nulo viram vazio; sexo inválido vira "Não informado"', () => {
-    expect(formDeMeusDados(SEM_NADA)).toEqual({ telefone: '', cpf: '', endereco: ENDERECO_VAZIO, sexo: '' });
+    expect(formDeMeusDados(SEM_NADA)).toEqual({ telefone: '', cpf: '', endereco: ENDERECO_VAZIO, sexo: '', instagram: '', tiktok: '' });
     expect(formDeMeusDados({ ...RESP, sexo: 'XYZ', endereco: null }).sexo).toBe('');
   });
 });
@@ -63,12 +63,12 @@ describe('corpoDoPut', () => {
   it('leva a versão da resposta e os campos do formulário', () => {
     const form = { ...formDeMeusDados(RESP), telefone: '45988887777', sexo: 'MASCULINO' };
     expect(corpoDoPut(form, RESP)).toEqual({
-      telefone: '(45) 98888-7777', cpf: null, endereco: ENDERECO, sexo: 'MASCULINO', versao: 3,
+      telefone: '(45) 98888-7777', cpf: null, endereco: ENDERECO, sexo: 'MASCULINO', instagram: '@aluno.exemplo', tiktok: '', versao: 3,
     });
   });
   it('telefone em branco apaga, endereço vazio apaga, sexo vazio = não informado', () => {
-    const form = { telefone: '  ', cpf: '', endereco: ENDERECO_VAZIO, sexo: '' };
-    expect(corpoDoPut(form, RESP)).toEqual({ telefone: null, cpf: null, endereco: null, sexo: null, versao: 3 });
+    const form = { telefone: '  ', cpf: '', endereco: ENDERECO_VAZIO, sexo: '', instagram: ' ', tiktok: '' };
+    expect(corpoDoPut(form, RESP)).toEqual({ telefone: null, cpf: null, endereco: null, sexo: null, instagram: '', tiktok: '', versao: 3 });
   });
   it('endereço sai normalizado (espaços, CEP com máscara, UF em maiúsculas)', () => {
     const form = { ...formDeMeusDados(RESP), endereco: { ...ENDERECO, cep: '01310100', logradouro: ' Rua Exemplo ', uf: 'sp', bairro: '   ' } };
@@ -81,6 +81,10 @@ describe('corpoDoPut', () => {
     // Preenchido no servidor: o que estiver no campo é ignorado.
     const preenchido = { ...RESP, cpf: CPF_DE_TESTE };
     expect(corpoDoPut({ ...formDeMeusDados(preenchido), cpf: '111.444.777-35' }, preenchido).cpf).toBeNull();
+  });
+  it('Instagram e TikTok vão como digitados, aparados (a API normaliza)', () => {
+    const form = { ...formDeMeusDados(RESP), instagram: ' https://www.instagram.com/outro ', tiktok: '@tt.exemplo' };
+    expect(corpoDoPut(form, RESP)).toMatchObject({ instagram: 'https://www.instagram.com/outro', tiktok: '@tt.exemplo' });
   });
   it('sexo desconhecido não vai', () => {
     expect(corpoDoPut({ ...formDeMeusDados(RESP), sexo: 'XYZ' }, RESP).sexo).toBeNull();
@@ -103,6 +107,12 @@ describe('errosDoForm', () => {
     const form = { ...formDeMeusDados(SEM_NADA), cpf: '529.982.247-26' };
     expect(errosDoForm(form, SEM_NADA).cpf).toBe('CPF inválido.');
     expect(errosDoForm(form, { ...SEM_NADA, cpf: CPF_DE_TESTE }).cpf).toBeUndefined();
+  });
+  it('Instagram ou TikTok que não dá para entender', () => {
+    const erros = errosDoForm({ ...formDeMeusDados(RESP), instagram: 'nome com espaço', tiktok: 'https://www.tiktok.com/sem-arroba' }, RESP);
+    expect(erros.instagram).toBe('Use @usuario ou o link do perfil no Instagram.');
+    expect(erros.tiktok).toBe('Use @usuario ou o link do perfil no TikTok.');
+    expect(temErros(erros)).toBe(true);
   });
   it('endereço parcial pede os campos obrigatórios', () => {
     const erros = errosDoForm({ ...formDeMeusDados(RESP), endereco: { ...ENDERECO_VAZIO, bairro: 'Centro' } }, RESP);
@@ -129,6 +139,13 @@ describe('houveMudanca', () => {
     expect(houveMudanca({ ...base, endereco: { ...ENDERECO, numero: '101' } }, RESP)).toBe(true);
     expect(houveMudanca({ ...base, endereco: ENDERECO_VAZIO }, RESP)).toBe(true);
   });
+  it('Instagram: @usuario, usuario e o link do perfil são a mesma coisa; apagar ou trocar conta', () => {
+    const base = formDeMeusDados(RESP);
+    expect(houveMudanca({ ...base, instagram: 'aluno.exemplo' }, RESP)).toBe(false);
+    expect(houveMudanca({ ...base, instagram: 'https://www.instagram.com/aluno.exemplo/' }, RESP)).toBe(false);
+    expect(houveMudanca({ ...base, instagram: '' }, RESP)).toBe(true);
+    expect(houveMudanca({ ...base, tiktok: '@novo' }, RESP)).toBe(true);
+  });
   it('CPF digitado conta só quando editável', () => {
     expect(houveMudanca({ ...formDeMeusDados(SEM_NADA), cpf: '5' }, SEM_NADA)).toBe(true);
     const preenchido = { ...RESP, cpf: CPF_DE_TESTE };
@@ -142,12 +159,13 @@ describe('errosDoServidor', () => {
       { field: 'telefone', message: 'Telefone inválido.' },
       { field: 'cpf', message: 'CPF inválido.' },
       { field: 'sexo', message: 'Sexo inválido.' },
+      { field: 'instagram', message: 'Usuário do Instagram inválido.' },
       { field: 'endereco.cep', message: 'CEP inválido.' },
       { field: 'endereco.uf', message: 'Escolha a UF.' },
       { field: 'outro', message: 'ignorado' },
     ]);
     expect(errosDoServidor(erro)).toEqual({
-      telefone: 'Telefone inválido.', cpf: 'CPF inválido.', sexo: 'Sexo inválido.', endereco: { cep: 'CEP inválido.', uf: 'Escolha a UF.' },
+      telefone: 'Telefone inválido.', cpf: 'CPF inválido.', sexo: 'Sexo inválido.', instagram: 'Usuário do Instagram inválido.', endereco: { cep: 'CEP inválido.', uf: 'Escolha a UF.' },
     });
   });
   it('erro sem campos, ou que nem é da API, não tem erro de campo', () => {

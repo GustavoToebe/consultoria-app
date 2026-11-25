@@ -57,3 +57,7 @@ test('ações das tags de aluno têm rótulo no filtro da auditoria', () => {
   for (const acao of ['COBRANCAS_RENEGOCIADAS', 'ACORDO_DESFEITO', 'KIWIFY_CONFIGURADA', 'KIWIFY_REMOVIDA']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
   for (const acao of ['TAG_ALUNO_CRIADA', 'TAG_ALUNO_ALTERADA', 'TAG_ALUNO_APAGADA', 'ALUNO_TAGS_ALTERADAS']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
+
+test('ações do acesso do aluno ao app têm rótulo no filtro da auditoria', () => {
+  for (const acao of ['ALUNO_EMAIL_DE_ACESSO_ALTERADO', 'ALUNO_ACESSO_DESATIVADO', 'ALUNO_ACESSO_REATIVADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});

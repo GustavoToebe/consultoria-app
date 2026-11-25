@@ -44,6 +44,18 @@ const revisando: SessaoDetalhe = {
     ocorrencias: 1, sugestoes: [{ termo: 'Supino inclinado', origem: 'CATALOGO', nota: 0.9 }], resolvida: false,
   }],
 };
+/** Termo em branco ou só pontuação (escapou do filtro da API) e um termo de verdade com o trecho em branco. */
+const comTermosVazios: SessaoDetalhe = {
+  ...revisando,
+  duvidas: [
+    ...revisando.duvidas,
+    { ...revisando.duvidas[0], id: 'd2', termoOriginal: '', trechoOriginal: '' },
+    { ...revisando.duvidas[0], id: 'd3', termoOriginal: '  ', trechoOriginal: '  ' },
+    { ...revisando.duvidas[0], id: 'd4', termoOriginal: '"" .', trechoOriginal: '""' },
+    { ...revisando.duvidas[0], id: 'd5', tipo: 'ALIMENTO_NAO_RECONHECIDO', termoOriginal: 'whey iso', trechoOriginal: ' ', sugestoes: [], ocorrencias: 3 },
+  ],
+};
+
 const resultado = (extra: Partial<ConfirmacaoResultado>): ConfirmacaoResultado => ({
   id: 's1', situacao: 'CONCLUIDA', gruposImportados: 0, alunosCriados: 0, alunosVinculados: 0, treinosCriados: 0, dietasCriadas: 0,
   modelosCriados: 0, gruposComErro: 0, pesosGravados: 0, pesosIgnorados: 0, ...extra,
@@ -63,8 +75,8 @@ async function capturar(page: Page, nome: string) {
  * Sessão simulada que muda como a API: ler → revisando; PUT do grupo troca destino e aluno e sobe a revisão; o primeiro
  * gravar deixa g1 importado e g2 com erro; o segundo (só g2) conclui a sessão. `confirmar` troca a resposta do gravar.
  */
-async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permissoes = TODAS, confirmar }: {
-  tema?: string; contraste?: string; permissoes?: string[]; confirmar?: RespostasApi[string];
+async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permissoes = TODAS, confirmar, lida = revisando }: {
+  tema?: string; contraste?: string; permissoes?: string[]; confirmar?: RespostasApi[string]; lida?: SessaoDetalhe;
 } = {}) {
   await page.addInitScript(([id, tm, c]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: tm, contraste: c })), [TREINADOR.id, tema, contraste]);
   let atual = recebendo;
@@ -76,7 +88,12 @@ async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permiss
     [`GET ${BASE}`]: { corpo: [] },
     [`GET ${BASE}/{id}`]: (_p, route) => json(route, atual),
     [`POST ${BASE}/{id}/cancelar`]: (_p, route) => json(route, { ...atual, estado: 'CANCELADA' }),
-    [`POST ${BASE}/{id}/processar`]: (_p, route) => { atual = revisando; return json(route, atual); },
+    [`POST ${BASE}/{id}/processar`]: (_p, route) => { atual = lida; return json(route, atual); },
+    [`POST ${BASE}/{id}/respostas`]: (p, route) => {
+      const { duvidaId, respostaEscolhida } = p.corpo as { duvidaId: string; respostaEscolhida: string };
+      atual = { ...atual, revisao: atual.revisao + 1, duvidas: atual.duvidas.map((d) => (d.id === duvidaId ? { ...d, resolvida: true, respostaEscolhida: respostaEscolhida } : d)) };
+      return json(route, atual);
+    },
     [`PUT ${BASE}/{id}/grupos/{g}`]: (p, route) => {
       const { destino, alunoExistenteId } = p.corpo as { destino: GrupoImportavel['destino']; alunoExistenteId?: string };
       const id = p.caminho.split('/').pop();
@@ -253,6 +270,22 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
+    test('abaixo de 1600 não há coluna lateral; termo em branco não aparece e trecho em branco vira "—"', async ({ page }) => {
+      const api = await abrir(page, { lida: comTermosVazios });
+      await lerEConferir(page);
+      await expect(page.getByRole('complementary', { name: 'Resumo da importação' })).toHaveCount(0);
+      // O botão da próxima etapa continua no cartão, um só.
+      await expect(gravar(page)).toHaveCount(1);
+      // Só os dois termos de verdade: nada de aspas vazias.
+      await expect(page.getByRole('button', { name: /^Corrigir o termo/ })).toHaveCount(2);
+      await expect(page.getByText('“”')).toHaveCount(0);
+      await expect(page.getByText(/^Termo: /)).toHaveCount(0);
+      await expect(page.getByText('whey iso', { exact: true })).toBeVisible();
+      await expect(page.getByText('—', { exact: true }).first()).toBeVisible();
+      await capturar(page, `importacao-termos-${largura}`);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
     test('cancelar pede confirmação num painel e volta ao começo', async ({ page }) => {
       const api = await abrir(page);
       await colarELer(page);
@@ -282,3 +315,73 @@ for (const largura of [390, 1280]) {
     }
   });
 }
+
+/**
+ * Tela larga (25/11, monitor de 1920 com o menu aberto = faixa larga): o conteúdo ocupa a largura toda e, ao lado, a
+ * coluna de 360 px grudada com o resumo (arquivos, alunos, planos, termos pendentes) e o único botão da próxima etapa.
+ */
+test.describe('1920 px', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } });
+  const lateral = (page: Page) => page.getByRole('complementary', { name: 'Resumo da importação' });
+
+  test('resumo e próxima etapa na coluna lateral; termos numa tabela compacta', async ({ page }) => {
+    const api = await abrir(page, { lida: comTermosVazios });
+    await page.goto('/treinador/importacao/assistida');
+    // Sem sessão a coluna já está no lugar, dizendo o que vai aparecer nela.
+    await expect(lateral(page).getByText(/O que for lido aparece aqui/)).toBeVisible();
+    await colarELer(page);
+    await expect(lateral(page).getByText('Arquivos enviados')).toBeVisible();
+    // Um botão da próxima etapa, só na coluna lateral.
+    await expect(page.getByRole('button', { name: 'Ler os arquivos' })).toHaveCount(1);
+    await expect(lateral(page).getByRole('button', { name: 'Ler os arquivos' })).toBeVisible();
+    await capturar(page, 'importacao-1920-recebendo');
+    await lateral(page).getByRole('button', { name: 'Ler os arquivos' }).click();
+    await expect(page.getByText('Em revisão · 1 arquivo ou texto')).toBeVisible();
+
+    const coluna = lateral(page);
+    await expect(coluna.getByText('Arquivos lidos')).toBeVisible();
+    await expect(coluna.getByText('1 de 1')).toBeVisible();
+    await expect(coluna.getByText('Alunos encontrados')).toBeVisible();
+    await expect(coluna.getByText('4', { exact: true })).toBeVisible();
+    await expect(coluna.getByText('Treinos encontrados')).toBeVisible();
+    // Dois termos pendentes (os em branco não contam).
+    await expect(coluna.getByText('Termos pendentes')).toBeVisible();
+    await expect(coluna.getByText('2', { exact: true })).toBeVisible();
+
+    // Termos: tabela com cabeçalho; sem linha para o termo em branco.
+    const tabela = page.getByRole('table', { name: 'Termos para conferir' });
+    for (const t of ['Tipo', 'Termo', 'Trecho', 'Ocorrências']) await expect(tabela.getByRole('columnheader', { name: t })).toBeVisible();
+    await expect(tabela.getByRole('row')).toHaveCount(3);
+    await expect(page.getByText('“”')).toHaveCount(0);
+
+    // Gravar: o botão está só na lateral, e o resultado aparece junto dele.
+    await expect(gravar(page)).toHaveCount(1);
+    await expect(coluna.getByRole('button', { name: /^Gravar selecionados/ })).toBeVisible();
+    await expect(coluna.getByText('Selecione pelo menos um grupo para gravar.')).toBeVisible();
+    await capturar(page, 'importacao-1920-revisando');
+    await page.getByRole('radio', { name: 'Aluno Fictício · mesmo nome' }).click();
+    await expect(page.getByRole('radio', { name: 'Aluno Fictício · mesmo nome' })).toBeChecked();
+    await incluirNaGravacao(page, 2);
+    await gravar(page).click();
+    await expect(coluna.getByText('Importação gravada em parte')).toBeInViewport();
+    await expect(coluna.getByRole('button', { name: 'Tentar de novo os que deram erro' })).toBeVisible();
+    await capturar(page, 'importacao-1920-com-erro');
+    expect(api.errosDaPagina).toEqual([]);
+  });
+
+  test('corrigir o termo abre as sugestões embaixo da linha e a resposta fica na tabela', async ({ page }) => {
+    const api = await abrir(page);
+    await lerEConferir(page);
+    await page.getByRole('button', { name: 'Corrigir o termo sup inc' }).click();
+    await page.getByRole('button', { name: 'Supino inclinado (90%)' }).click();
+    await expect(page.getByRole('textbox', { name: 'Nome correto do exercício ou alimento' })).toHaveValue('Supino inclinado');
+    await capturar(page, 'importacao-1920-corrigindo');
+    await page.getByRole('button', { name: 'Salvar resposta' }).click();
+    await expect(page.getByText('Ficou como: Supino inclinado')).toBeVisible();
+    await expect(page.getByText('Resolvida', { exact: true })).toBeVisible();
+    await expect(lateral(page).getByText('Nenhum', { exact: true })).toBeVisible();
+    const resposta = api.pedidos.find((p) => p.caminho === `${BASE}/s1/respostas`);
+    expect(resposta?.corpo).toMatchObject({ duvidaId: 'd1', respostaEscolhida: 'Supino inclinado' });
+    expect(api.errosDaPagina).toEqual([]);
+  });
+});

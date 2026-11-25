@@ -12,11 +12,11 @@ import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { duasColunasCom } from '../dominio/grade';
 import { colunasDaGradeDoAluno, LARGURA_LATERAL_DO_ALUNO } from '../dominio/telaLargaDoAluno';
 import { linkParaAbrir } from '../dominio/links';
+import { tituloDaOpcao } from '../dominio/opcoesDaRefeicao';
 import { textoDosDiasCurtos, variacaoDoDia, variacaoMostrada } from '../dominio/variacoesDaDieta';
 import type { DadosPdfDieta } from '../pdf/pdfDieta';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
-import { Abas } from '../ui/Abas';
 import { CupomDoProduto, VerProduto } from '../ui/AcoesDoProduto';
 import { Botao } from '../ui/Botao';
 import { CabecalhoDeGrupo } from '../ui/CabecalhoDeGrupo';
@@ -26,6 +26,7 @@ import { Escolha } from '../ui/Escolha';
 import { Selo } from '../ui/Selo';
 import { FolhaPdfDieta } from '../ui/FolhaPdfDieta';
 import { Grade } from '../ui/Grade';
+import { AbasDasOpcoes } from '../ui/MarcadorDeOpcao';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { NumeroAnimado } from '../ui/NumeroAnimado';
@@ -250,11 +251,13 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
           <Texto variante="pequeno">As opções não se somam: o total do dia conta só a opção A.</Texto>
         </View>
       ) : null}
+      {/* As mesmas abas do editor (círculo com a letra, preenchido na aberta); os itens vêm logo abaixo. */}
       {refeicao.opcoes.length > 1 ? (
-        <Abas
-          abas={refeicao.opcoes.map((o, i) => ({ valor: String(i), rotulo: `Opção ${o.rotulo}` }))}
-          ativa={String(Math.min(ativa, refeicao.opcoes.length - 1))}
-          aoMudar={(v) => setAtiva(Number(v))}
+        <AbasDasOpcoes
+          rotulo={`Opções de ${refeicao.nome || 'Refeição'}`}
+          abas={refeicao.opcoes.map((o, i) => ({ valor: String(i), letra: o.rotulo, titulo: tituloDaOpcao(o), rotuloAcessivel: tituloDaOpcao(o) }))}
+          aberta={String(Math.min(ativa, refeicao.opcoes.length - 1))}
+          aoAbrir={(v) => setAtiva(Number(v))}
         />
       ) : null}
       {opcao?.itens.map((i) => {

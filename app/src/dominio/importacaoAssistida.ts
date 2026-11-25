@@ -4,9 +4,11 @@ import type {
   CoberturaArquivo,
   ConfirmacaoResultado,
   DestinoGrupo,
+  DuvidaImportacao,
   EstadoSessao,
   GrupoImportavel,
   ModoProcessamentoResumo,
+  SessaoDetalhe,
   SessaoListaItem,
   TipoDuvida,
 } from '../servicos/importacaoAssistida';
@@ -436,4 +438,39 @@ export function resumoDoResultado(r: ConfirmacaoResultado): {
     };
   }
   return { titulo: 'Importação concluída', descricao, linhas, alerta: null };
+}
+
+/**
+ * Dúvidas que a tela mostra: a API já descarta termo em branco ou só pontuação; se algum escapar, a linha não aparece
+ * (sem letra nem número não há o que corrigir). A contagem de pendentes usa a mesma lista.
+ */
+export const duvidasVisiveis = (duvidas: readonly DuvidaImportacao[] | null | undefined): DuvidaImportacao[] =>
+  (duvidas ?? []).filter((d) => /[\p{L}\p{N}]/u.test(d.termoOriginal ?? ''));
+
+/** Trecho do arquivo onde o termo apareceu; em branco é "—" (ausência de dado), nunca aspas vazias. */
+export const trechoDaDuvida = (d: Pick<DuvidaImportacao, 'trechoOriginal'>): string => d.trechoOriginal?.trim() || '—';
+
+const ANTES_DE_LER: readonly EstadoSessao[] = ['RASCUNHO', 'RECEBENDO', 'PROCESSANDO'];
+
+/**
+ * Resumo da coluna lateral: arquivos, o que foi encontrado e os termos pendentes. Antes de ler, só os arquivos enviados
+ * (o resto é "—"); treino e dieta sem a permissão de ler são "—" (a API os omite), nunca zero.
+ */
+export function resumoDaSessao(s: Pick<SessaoDetalhe, 'estado' | 'arquivos' | 'grupos' | 'duvidas'>, pode: Pode): {
+  linhas: { rotulo: string; valor: string }[];
+  termosPendentes: number | null;
+} {
+  const lida = !ANTES_DE_LER.includes(s.estado);
+  const total = s.arquivos.length;
+  const semErro = s.arquivos.filter((a) => !a.erroCodigo).length;
+  const contar = (permitido: boolean, n: number) => (lida && permitido ? String(n) : '—');
+  return {
+    linhas: [
+      lida ? { rotulo: 'Arquivos lidos', valor: `${semErro} de ${total}` } : { rotulo: 'Arquivos enviados', valor: String(total) },
+      { rotulo: 'Alunos encontrados', valor: contar(true, s.grupos.length) },
+      { rotulo: 'Treinos encontrados', valor: contar(pode('TREINO_LER'), s.grupos.filter((g) => g.treino).length) },
+      { rotulo: 'Dietas encontradas', valor: contar(pode('DIETA_LER'), s.grupos.filter((g) => g.dieta).length) },
+    ],
+    termosPendentes: lida ? duvidasVisiveis(s.duvidas).filter((d) => !d.resolvida).length : null,
+  };
 }

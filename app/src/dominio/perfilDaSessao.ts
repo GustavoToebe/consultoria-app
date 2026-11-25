@@ -25,6 +25,8 @@ export interface PerfilDaSessao {
   whatsappHabilitado?: boolean;
   /** Só do aluno (dígitos, sem 55); ausente = a consultoria não tem número. */
   whatsappDaConsultoria?: string;
+  /** Só do aluno: links das redes preenchidas da consultoria (públicos); ausente = nenhuma. */
+  redesSociaisDaConsultoria?: EuResponse['redesSociaisDaConsultoria'];
   usuario: UsuarioResumo;
   marca: Marca;
   termosPendentes?: boolean;
@@ -52,6 +54,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     migracaoAssistidaHabilitada: eu.migracaoAssistidaHabilitada,
     whatsappHabilitado: eu.whatsappHabilitado,
     whatsappDaConsultoria: eu.whatsappDaConsultoria,
+    redesSociaisDaConsultoria: eu.redesSociaisDaConsultoria,
     termosPendentes: eu.termosPendentes,
   };
 }

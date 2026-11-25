@@ -88,10 +88,11 @@ export const colunaUnica = (colunas: readonly ColunaDaAbaDados[] | null, editand
 
 /**
  * Teto da coluna única: a largura que a coluna da esquerda (a maior, 3 de 5) teria no arranjo de duas com a mesma aba
- * (`largura` medida, até `LARGURA_EDITOR_DE_CAMPOS`, menos o vão). ~580 px em 1280 e ~826 em 1920 com o menu aberto.
+ * (`largura`: a das duas colunas, a medida ou o teto delas, `larguraMaximaDasColunas`, menos o vão). ~542 px em 1280 e
+ * ~965 em 1920 com o menu aberto.
  */
 export const tetoDaColunaUnica = (largura: number, vao: number): number =>
-  (PROPORCAO_DAS_COLUNAS.esquerda / (PROPORCAO_DAS_COLUNAS.esquerda + PROPORCAO_DAS_COLUNAS.direita)) * (Math.min(largura, LARGURA_EDITOR_DE_CAMPOS) - vao);
+  (PROPORCAO_DAS_COLUNAS.esquerda / (PROPORCAO_DAS_COLUNAS.esquerda + PROPORCAO_DAS_COLUNAS.direita)) * (largura - vao);
 
 /** Os blocos que vão abaixo das colunas, na largura toda delas: só no arranjo de duas e só os que a aba mostra. */
 export const abaixoDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, blocos: readonly BlocoDaFicha[]): BlocoDaAbaDados[] =>
@@ -110,16 +111,16 @@ export function ordemNumaColuna(blocos: readonly BlocoDaFicha[]): PecaNumaColuna
 }
 
 /**
- * Teto da aba em duas colunas (revisão de tela larga, 24/11, `docs/planos/tela-larga-revisao-ficha.md`): a partir da faixa
- * `normal` o título, o formulário e as colunas não passam de `LARGURA_EDITOR_DE_CAMPOS` (a regra do editor de campos, 4.10),
- * alinhados à esquerda, e a sobra fica vazia à direita. Abaixo de 1400 px de aba (1280) não muda nada; antes, só a
- * `ultralarga` tinha teto e a `larga` (1920 e 2560 com o menu aberto) esticava as colunas até ~2270 px. Numa coluna
- * (`compacta`), a largura toda (`undefined`). Em três colunas o teto é por coluna, e o formulário da edição continua no
- * teto do editor de campos (`DadosDoAluno`).
+ * Teto da aba (revisão de tela larga, 24/11; D1 de `docs/planos/ajustes-da-tarde-25-11.md`, 25/11): em duas colunas, nas
+ * faixas `normal` e `larga`, nenhum (`undefined`): as colunas ocupam a largura do conteúdo, que só a `Tela` limita
+ * ("Largura do conteúdo" limitada, 1800); antes paravam em `LARGURA_EDITOR_DE_CAMPOS` e sobrava uma faixa vazia à direita
+ * em 1920 (Gustavo). Na `ultralarga` o arranjo normal é o de três, cada coluna até `LARGURA_EDITOR_DE_CAMPOS` (o `maxWidth`
+ * dela) e a aba na soma (o "Editar dados" fica na borda da 3ª); quando ele volta às duas (a do meio vazia), as duas continuam
+ * no teto do editor de campos, para não esticarem por ~3150 px. Numa coluna (`compacta`), a largura toda. O formulário da
+ * edição continua no teto do editor de campos (`DadosDoAluno`).
  */
-export const larguraMaximaDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, vao: number): number | undefined =>
-  // Em três, cada coluna para em `LARGURA_EDITOR_DE_CAMPOS` (o `maxWidth` dela) e a aba na soma: o "Editar dados" fica na borda da 3ª.
-  (!colunas ? undefined : colunas.length === 3 ? 3 * LARGURA_EDITOR_DE_CAMPOS + 2 * vao : LARGURA_EDITOR_DE_CAMPOS);
+export const larguraMaximaDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, vao: number, faixa: FaixaDeLargura): number | undefined =>
+  (!colunas ? undefined : colunas.length === 3 ? 3 * LARGURA_EDITOR_DE_CAMPOS + 2 * vao : faixa === 'ultralarga' ? LARGURA_EDITOR_DE_CAMPOS : undefined);
 
 /**
  * Resumo em três colunas (Atividade recente ao lado do Planejamento e da Última medição) quando cabem três colunas de

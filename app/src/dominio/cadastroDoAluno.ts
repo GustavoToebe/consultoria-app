@@ -151,12 +151,14 @@ export const MENSAGEM_CPF_EM_USO = 'Este CPF já está no cadastro de outro alun
 
 /**
  * Selo do acesso ao app, visto só pela equipe. Quem age no "Aguardando primeiro acesso" é o aluno (entrar pela primeira
- * vez); o treinador espera, então é neutro (seção 4.5 do `docs/design-e-front.md`).
+ * vez); o treinador espera, então é neutro (seção 4.5 do `docs/design-e-front.md`). Acesso desativado pela equipe (25/11)
+ * também é "Sem acesso" neutro; a data só aparece no cartão Acesso ao app (`dominio/acessoAoApp.textoDoDesativado`).
  */
-export function seloDoAcesso(aluno: Pick<AlunoDetalhe, 'temAcesso' | 'aguardandoPrimeiroAcesso' | 'ativo' | 'anonimizado'>): { texto: string; tipo: 'sucesso' | 'neutro' } {
+export function seloDoAcesso(aluno: Pick<AlunoDetalhe, 'temAcesso' | 'aguardandoPrimeiroAcesso' | 'ativo' | 'anonimizado' | 'acessoDesativadoEm'>): { texto: string; tipo: 'sucesso' | 'neutro' } {
   if (!aluno.temAcesso) return { texto: 'Sem acesso', tipo: 'neutro' };
   // Aluno encerrado com conta: a situação do cabeçalho vence ("Inativo"/"Anonimizado"), nunca "Com acesso" (24/11).
   if (!aluno.ativo || aluno.anonimizado) return seloDaSituacao(aluno);
+  if (aluno.acessoDesativadoEm) return { texto: 'Sem acesso', tipo: 'neutro' };
   if (aluno.aguardandoPrimeiroAcesso) return { texto: 'Aguardando primeiro acesso', tipo: 'neutro' };
   return { texto: 'Com acesso', tipo: 'sucesso' };
 }

@@ -12,6 +12,7 @@ import { dataParaTela } from '../dominio/formatos';
 import { CamposDeEndereco } from '../ui/CamposDeEndereco';
 import { Escolha } from '../ui/Escolha';
 import { useCarregar } from '../ui/useCarregar';
+import { erroDoUsuarioDaRede, NOME_DA_REDE, REDES_DO_ALUNO, redeParaEnvio, type RedeDoAluno } from '../dominio/redesSociais';
 import { OPCOES_DE_SEXO, sexoDoCampo } from '../dominio/sexo';
 import { metaParaEnvio, OPCOES_DA_META_DO_ALUNO, opcaoDaMeta, type OpcaoDaMeta } from '../dominio/metaDoPesoNaFicha';
 import { useTema } from '../tema/TemaProvider';
@@ -45,6 +46,9 @@ interface Props {
 /** Objetivo e observações são dados sensíveis (LGPD): a nota é a mesma nos dois campos. */
 const SENSIVEL = 'Dado sensível: só membros com permissão de dados sensíveis veem.';
 
+/** A API guarda o usuário sem `@`; o campo mostra com ele. */
+const comArroba = (usuario: string | null | undefined) => (usuario?.trim() ? `@${usuario.trim()}` : '');
+
 function diasDoCampo(texto: string): number | null {
   const n = Number(texto.trim());
   return Number.isInteger(n) && n >= 1 && n <= 365 ? n : null;
@@ -69,6 +73,9 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const [nascimento, setNascimento] = useState(dataParaTela(inicial?.dataNascimento ?? null));
   const [email, setEmail] = useState(inicial?.email ?? '');
   const [telefone, setTelefone] = useState(inicial?.telefone ?? '');
+  // Instagram e TikTok: a API devolve só o usuário; o campo mostra com o `@` e aceita `@usuario`, usuário ou link.
+  const [redes, setRedes] = useState({ instagram: comArroba(inicial?.instagram), tiktok: comArroba(inicial?.tiktok) });
+  const [redesIniciais] = useState(redes);
   const [objetivo, setObjetivo] = useState(inicial?.objetivo ?? '');
   const [cpf, setCpf] = useState(inicial?.cpf ?? '');
   const [endereco, setEndereco] = useState(() => (inicial ? enderecoParaForm(inicial.endereco) : ENDERECO_VAZIO));
@@ -86,16 +93,17 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   // Só com a leitura também: sem ela a meta lida não vem e o campo abriria em "Padrão" por engano.
   const comMeta = comSensivel && pode('ALUNO_SENSIVEL_LER');
   const erroTelefone = comTelefone ? erroDoTelefone(telefone) : undefined;
+  const errosRedes: Partial<Record<RedeDoAluno, string>> = comTelefone ? { instagram: erroDoUsuarioDaRede('instagram', redes.instagram), tiktok: erroDoUsuarioDaRede('tiktok', redes.tiktok) } : {};
   const erroCpf = comSensivel ? erroDoCpf(cpf) : undefined;
   const errosEndereco = comSensivel ? errosDoEndereco(endereco) : {};
   const nascimentoEnvio = nascimentoParaEnvio(nascimento, !!inicial?.dataNascimento);
   // O campo de data já avisa a data impossível ou fora da faixa; a incompleta é avisada aqui, para o botão não travar sem motivo à vista.
   const nascimentoIncompleto = nascimento.trim().length > 0 && nascimento.trim().length < 10;
-  const dadosInvalidos = !!erroTelefone || !!erroCpf || Object.keys(errosEndereco).length > 0 || nascimentoEnvio === undefined;
+  const dadosInvalidos = !!erroTelefone || !!errosRedes.instagram || !!errosRedes.tiktok || !!erroCpf || Object.keys(errosEndereco).length > 0 || nascimentoEnvio === undefined;
   const cpfEmUso = codigoApi(erro) === CPF_EM_USO ? MENSAGEM_CPF_EM_USO : undefined;
   // C7: qualquer campo diferente do que abriu deixa a saída guardada ("Sair sem salvar?"). O retrato é o da primeira
   // renderização; o questionário da ficha grava na hora e não entra. Quem salva e sai usa `useSairSemPerguntar`.
-  const retrato = JSON.stringify([nome, sexo, nascimento, email, telefone, objetivo, cpf, endereco, observacoes, meta, dias, responsavelId]);
+  const retrato = JSON.stringify([nome, sexo, nascimento, email, telefone, redes, objetivo, cpf, endereco, observacoes, meta, dias, responsavelId]);
   const [retratoInicial] = useState(retrato);
   useGuardaDeSaida(retrato !== retratoInicial);
 
@@ -110,6 +118,11 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       nome: nome.trim(),
       email: email.trim() || null,
       ...(comTelefone ? { telefone: telefone.trim() ? mascaraTelefone(telefone) : '' } : {}),
+      // Só o que mudou (ausente não mexe; em branco apaga): um campo que a API não mandou nunca apaga o gravado.
+      ...(comTelefone ? {
+        instagram: redeParaEnvio(redes.instagram, redesIniciais.instagram, !!inicial),
+        tiktok: redeParaEnvio(redes.tiktok, redesIniciais.tiktok, !!inicial),
+      } : {}),
       ...(comSensivel ? {
         objetivo: objetivo.trim() || null, observacoes: observacoes.trim() || null,
         cpf: cpf.trim() ? mascaraCpf(cpf) : null, endereco: enderecoParaEnvio(endereco),
@@ -172,6 +185,14 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
                 </View>
               ) : null}
             </View>
+            {/* Instagram e TikTok juntos numa linha própria (não sobra um sozinho embaixo do telefone). */}
+            {comTelefone ? <View style={estilos.linha}>{REDES_DO_ALUNO.map((rede) => (
+                <View key={rede} style={estilos.curto}>
+                  <Campo rotulo={`${NOME_DA_REDE[rede]} (opcional)`} valor={redes[rede]} aoMudar={(t) => setRedes((atual) => ({ ...atual, [rede]: t }))}
+                    erro={errosRedes[rede] ?? campos[rede]} placeholder="@usuario" autoCapitalize="none" autoCorrect={false} spellCheck={false}
+                    autoComplete="off" maxLength={200} />
+                </View>
+              ))}</View> : null}
             {comSensivel ? (
               <View style={estilos.endereco}>
                 <CamposDeEndereco valor={endereco} aoMudar={setEndereco}

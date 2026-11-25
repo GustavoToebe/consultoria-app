@@ -18,7 +18,7 @@ import {
   renovarSessao,
 } from '../api/cliente';
 import * as rotas from '../api/rotas';
-import type { LoginResponse, Marca, UsuarioResumo, PerfilDaEquipe } from '../api/tipos';
+import type { EuResponse, LoginResponse, Marca, UsuarioResumo, PerfilDaEquipe } from '../api/tipos';
 import { apagarDadosDaSessaoLocal, type MotivoDoEncerramento } from '../dominio/encerrarSessaoLocal';
 import { mesmaMarca } from '../dominio/marcaDaSessao';
 import { criarRecargaDoPerfil, perfilAtualizado, perfilDoEu, type PerfilDaSessao } from '../dominio/perfilDaSessao';
@@ -88,6 +88,8 @@ interface ValorSessao {
   whatsappHabilitado: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos; nulo = sem "Falar com o treinador". */
   whatsappDaConsultoria: string | null;
+  /** Só do aluno: links das redes preenchidas da consultoria; nulo = nenhuma (a fileira não aparece). */
+  redesSociaisDaConsultoria: EuResponse['redesSociaisDaConsultoria'] | null;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -446,6 +448,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,
       whatsappHabilitado:perfil?.whatsappHabilitado===true,
       whatsappDaConsultoria:perfil?.whatsappDaConsultoria??null,
+      redesSociaisDaConsultoria:perfil?.redesSociaisDaConsultoria??null,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,

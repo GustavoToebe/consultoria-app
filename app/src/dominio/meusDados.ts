@@ -5,6 +5,7 @@ import {
   CAMPOS_DO_ENDERECO, CPF_EM_USO, enderecoParaEnvio, enderecoParaForm, erroDoCpf, erroDoTelefone, errosDoEndereco, MENSAGEM_CPF_EM_USO,
   mascaraCpf, mascaraTelefone, type CampoDoEndereco, type EnderecoNoForm,
 } from './cadastroDoAluno';
+import { erroDoUsuarioDaRede, REDES_DO_ALUNO, usuarioDaRede, type RedeDoAluno } from './redesSociais';
 import { sexoDoCampo } from './sexo';
 
 /**
@@ -36,6 +37,9 @@ export interface FormMeusDados {
   cpf: string;
   endereco: EnderecoNoForm;
   sexo: string;
+  /** Como digitado: `@usuario`, usuário ou link (a API grava só o usuário). */
+  instagram: string;
+  tiktok: string;
 }
 
 /** Erros por campo (do formulário ou do servidor); o endereço tem uma chave por campo. */
@@ -43,16 +47,20 @@ export interface ErrosMeusDados {
   telefone?: string;
   cpf?: string;
   sexo?: string;
+  instagram?: string;
+  tiktok?: string;
   endereco: Partial<Record<CampoDoEndereco, string>>;
 }
 
-/** Form inicial, com as máscaras do que a API devolveu. */
+/** Form inicial, com as máscaras do que a API devolveu (Instagram e TikTok com o `@` na frente). */
 export function formDeMeusDados(resp: MeusDadosResponse): FormMeusDados {
   return {
     telefone: resp.telefone?.trim() ? mascaraTelefone(resp.telefone) : '',
     cpf: resp.cpf?.trim() ? mascaraCpf(resp.cpf) : '',
     endereco: enderecoParaForm(resp.endereco),
     sexo: sexoDoCampo(resp.sexo) ?? '',
+    instagram: resp.instagram?.trim() ? `@${resp.instagram.trim()}` : '',
+    tiktok: resp.tiktok?.trim() ? `@${resp.tiktok.trim()}` : '',
   };
 }
 
@@ -69,13 +77,16 @@ export function corpoDoPut(form: FormMeusDados, resp: MeusDadosResponse): MeusDa
     cpf: cpfEditavel(resp) && form.cpf.trim() ? mascaraCpf(form.cpf) : null,
     endereco: enderecoParaEnvio(form.endereco),
     sexo: sexoDoCampo(form.sexo),
+    // Substituem: em branco apaga, preenchido vai como digitado (a API aceita `@usuario`, usuário ou link).
+    instagram: form.instagram.trim(),
+    tiktok: form.tiktok.trim(),
     versao: resp.versao,
   };
 }
 
 /** Há algum erro (de campo ou de endereço)? */
 export const temErros = (erros: ErrosMeusDados): boolean =>
-  !!erros.telefone || !!erros.cpf || !!erros.sexo || Object.values(erros.endereco).some(Boolean);
+  !!erros.telefone || !!erros.cpf || !!erros.sexo || !!erros.instagram || !!erros.tiktok || Object.values(erros.endereco).some(Boolean);
 
 /** Erros que o formulário já sabe achar (os mesmos validadores da ficha); o CPF só conta quando é editável. */
 export function errosDoForm(form: FormMeusDados, resp: MeusDadosResponse): ErrosMeusDados {
@@ -84,6 +95,10 @@ export function errosDoForm(form: FormMeusDados, resp: MeusDadosResponse): Erros
   if (telefone) erros.telefone = telefone;
   const cpf = cpfEditavel(resp) ? erroDoCpf(form.cpf) : undefined;
   if (cpf) erros.cpf = cpf;
+  for (const rede of REDES_DO_ALUNO) {
+    const erro = erroDoUsuarioDaRede(rede, form[rede]);
+    if (erro) erros[rede] = erro;
+  }
   return erros;
 }
 
@@ -93,18 +108,27 @@ export function houveMudanca(form: FormMeusDados, resp: MeusDadosResponse): bool
   if (somenteDigitos(form.telefone) !== somenteDigitos(inicial.telefone)) return true;
   if (cpfEditavel(resp) && somenteDigitos(form.cpf) !== '') return true;
   if (sexoDoCampo(form.sexo) !== sexoDoCampo(inicial.sexo)) return true;
+  if (REDES_DO_ALUNO.some((r) => usuarioOuTexto(r, form[r]) !== usuarioOuTexto(r, inicial[r]))) return true;
   const atual = enderecoParaEnvio(form.endereco);
   const antes = enderecoParaEnvio(inicial.endereco);
   return CAMPOS_DO_ENDERECO.some((c) => (atual?.[c] ?? null) !== (antes?.[c] ?? null));
 }
 
-/** Erros por campo devolvidos pelo servidor (422 `ALUNO_INVALIDO`: `telefone`, `cpf`, `sexo`, `endereco.<campo>`). */
+/** "@fulano", "fulano" e o link do perfil são a mesma coisa; o que não se entende conta pelo texto. */
+const usuarioOuTexto = (rede: RedeDoAluno, texto: string) => {
+  const usuario = usuarioDaRede(rede, texto);
+  return usuario === undefined ? texto.trim() : usuario;
+};
+
+/** Erros por campo devolvidos pelo servidor (422 `ALUNO_INVALIDO`: `telefone`, `cpf`, `sexo`, `instagram`, `tiktok`, `endereco.<campo>`). */
 export function errosDoServidor(erro: unknown): ErrosMeusDados {
   const campos = errosPorCampo(erro);
   const erros: ErrosMeusDados = { endereco: {} };
   if (campos.telefone) erros.telefone = campos.telefone;
   if (campos.cpf) erros.cpf = campos.cpf;
   if (campos.sexo) erros.sexo = campos.sexo;
+  if (campos.instagram) erros.instagram = campos.instagram;
+  if (campos.tiktok) erros.tiktok = campos.tiktok;
   for (const c of CAMPOS_DO_ENDERECO) {
     const mensagem = campos[`endereco.${c}`];
     if (mensagem) erros.endereco[c] = mensagem;

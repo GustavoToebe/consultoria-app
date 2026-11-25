@@ -236,7 +236,7 @@ test('Importação › planilha completa em 3440 px: etapas, cartões e rodapé 
   expect(errosDaPagina).toEqual([]);
 });
 
-test('Importação › nova importação e assistida em 3440 px: o conteúdo para em 1400 px à esquerda', async ({ page }) => {
+test('Importação › nova importação em 3440 px para em 1400 px à esquerda; a assistida ocupa a largura toda, com a coluna do resumo', async ({ page }) => {
   const { errosDaPagina } = await abrirImportacao(page, 3440);
   await page.goto('/treinador/importacao/nova');
   const h1 = await caixa(page.getByRole('heading', { level: 1 }));
@@ -246,14 +246,15 @@ test('Importação › nova importação e assistida em 3440 px: o conteúdo par
   const cancelar = await caixa(page.getByRole('button', { name: 'Cancelar' }));
   expect(cancelar.x + cancelar.width - h1.x).toBeLessThanOrEqual(TETO);
 
+  // Assistida (25/11): sem a faixa vazia à direita; da faixa larga em diante o resumo fica numa coluna de 360 px ao lado.
   await page.goto('/treinador/importacao/assistida');
   await expect(page.getByText('Enviar arquivos ou texto').first()).toBeVisible();
   const h1b = await caixa(page.getByRole('heading', { name: 'Importação assistida', level: 1 }));
+  const lateral = await caixa(page.getByRole('complementary', { name: 'Resumo da importação' }));
+  expect(Math.round(lateral.width)).toBe(360);
+  expect(lateral.x + lateral.width - h1b.x).toBeGreaterThan(TETO);
   const colar = await caixa(page.getByRole('button', { name: 'Colar texto' }));
-  expect(colar.x - h1b.x).toBeLessThan(TETO);
-  // A descrição do cartão quebra dentro dos 1400 px (antes corria numa linha de ~1700 px).
-  const descricao = await caixa(page.getByText(/^Envie PDFs de treino/).first());
-  expect(descricao.x + descricao.width - h1b.x).toBeLessThanOrEqual(TETO);
+  expect(colar.x + colar.width).toBeLessThan(lateral.x);
   await semRolagemLateral(page);
   expect(errosDaPagina).toEqual([]);
 });

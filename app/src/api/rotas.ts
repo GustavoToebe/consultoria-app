@@ -713,6 +713,8 @@ export const alterarMarca = (dados: {
   whatsapp: string;
   emailRemetenteNome: string;
   emailResponderPara: string;
+  /** Redes sociais: nulo ou ausente mantém, em branco apaga, preenchido valida (`@usuario` ou link; 422 `MARCA_INVALIDA` por campo) e grava o link https. */
+  redesSociais?: Partial<Record<import('./tipos').RedeDaConsultoria, string>>;
 }) => requisicao<ConsultoriaResponse>('/consultoria/marca', { metodo: 'PUT', corpo: dados });
 
 /** `arquivo`: FormData já montado (web: File; nativo: objeto com bytes(), `anexarArquivoDoAparelho`). */
@@ -786,6 +788,20 @@ export const gerarConvite = (id: string) => requisicao<ConviteGerado>(`/alunos/$
 /** Treinador define e-mail de login e senha provisória (o aluno troca no primeiro login); com conta, encerra as sessões dele. */
 export const definirAcessoDoAluno = (id: string, dados: { email: string; senha: string }) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso`, { metodo: 'PUT', corpo: dados });
+
+/**
+ * Troca só o e-mail de login (a senha não muda): 409 `EMAIL_EM_USO`, `ALUNO_SEM_ACESSO`, `ALUNO_INATIVO`; encerra as sessões
+ * do aluno e avisa por e-mail se o envio está ligado. `ALUNO_CONVITE`.
+ */
+export const alterarEmailDeAcessoDoAluno = (id: string, email: string) =>
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso/email`, { metodo: 'PUT', corpo: { email } });
+
+/** Desativa o acesso (o aluno não entra mais, sessões encerradas, nada é apagado). `motivo` hoje só `MANUAL`. `ALUNO_CONVITE`. */
+export const desativarAcessoDoAluno = (id: string, motivo: 'MANUAL' = 'MANUAL') =>
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso/desativar`, { metodo: 'POST', corpo: { motivo } });
+
+export const reativarAcessoDoAluno = (id: string) =>
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso/reativar`, { metodo: 'POST' });
 
 export const execucoesDoAluno = (id: string, de: string, ate: string) =>
   requisicao<DiaDeTreino[]>(`/alunos/${seg(id)}/execucoes?de=${de}&ate=${ate}`);

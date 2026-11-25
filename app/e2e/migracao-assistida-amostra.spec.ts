@@ -224,13 +224,39 @@ for (const largura of [390, 1440]) {
     await expect(page.getByRole('button', { name: 'Ver a amostra' })).toHaveCount(0);
     await expect(page.getByText(TEXTO_FIXO)).toHaveCount(0);
     if (largura < 600) await expect(page.getByText('Etapa 4 de 5 · Prévia')).toBeVisible();
-    await page.getByRole('button', { name: 'Confirmar importação' }).click();
+    // O aviso persistente (atenção, sem timer) não cobre as ações da página: o ponto do meio do botão e o do "Cancelar"/"Voltar"
+    // são deles mesmos (nada por cima), e o aviso tem como ser fechado. Vale com o botão no rodapé fixo (390) ou em outro lugar.
+    const confirmar = page.getByRole('button', { name: 'Confirmar importação' });
+    const aviso = page.getByRole('alert').filter({ hasText: 'A amostra não está disponível agora.' });
+    await expect(aviso.getByRole('button', { name: 'Fechar aviso' })).toBeVisible();
+    await confirmar.scrollIntoViewIfNeeded();
+    for (const botao of [confirmar, page.getByRole('button', { name: 'Voltar' })]) {
+      await expect.poll(() => botao.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const ponto = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!ponto && el.contains(ponto);
+      }), { timeout: 2000 }).toBe(true);
+    }
+    await confirmar.click();
     await expect(page.getByText(/^Importação confirmada\./)).toBeVisible();
     expect(pedidos.amostra).toEqual(['0']);
     expect(pedidos.confirmar).toEqual(['hash-da-previa']);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
+
+  // Captura (só com `CAPTURAS`, pasta fora do repositório): o aviso persistente acima do rodapé fixo, nos dois temas.
+  for (const tema of ['CLARO', 'ESCURO'] as const) {
+    test(`captura: aviso persistente acima do rodapé (${largura}px, ${tema.toLowerCase()})`, async ({ page }) => {
+      test.skip(!process.env.CAPTURAS, 'só com CAPTURAS');
+      await preparar(page, largura, { amostra: 'indisponivel', preferencias: { tema } });
+      await ateAPrevia(page);
+      await page.getByRole('button', { name: 'Ver a amostra' }).click();
+      await expect(page.getByRole('alert').filter({ hasText: 'A amostra não está disponível agora.' })).toBeVisible();
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: `${process.env.CAPTURAS}/aviso-persistente-${largura}-${tema.toLowerCase()}.png` });
+    });
+  }
 
   test(`amostra: erro com "Tentar de novo" e resposta nova pede a amostra outra vez (${largura}px)`, async ({ page }) => {
     const { naoTratadas, errosDaPagina, pedidos } = await preparar(page, largura, { amostra: 'falhaUmaVez' });

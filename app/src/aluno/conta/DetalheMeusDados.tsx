@@ -11,6 +11,7 @@ import {
   ALUNO_ANONIMIZADO, corpoDoPut, cpfEditavel, CPF_SO_PELO_TREINADOR, ehConflitoDeEdicao, emailParaLeitura, errosDoForm, errosDoServidor, formDeMeusDados,
   houveMudanca, mensagemDeErroMeusDados, temErros, TEXTO_SO_LEITURA, type ErrosMeusDados, type FormMeusDados,
 } from '../../dominio/meusDados';
+import { NOME_DA_REDE, REDES_DO_ALUNO } from '../../dominio/redesSociais';
 import { OPCOES_DE_SEXO, rotuloDoSexo, sexoDoCampo } from '../../dominio/sexo';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -31,6 +32,8 @@ import type { Carga } from './tipos';
 const SEM_ERROS: ErrosMeusDados = { endereco: {} };
 const OPCOES_DO_SEXO = [{ valor: '', rotulo: 'Não informado' }, ...OPCOES_DE_SEXO];
 const NAO_INFORMADO = 'Não informado';
+/** A API guarda só o usuário: na leitura vai com o `@`. */
+const comArroba = (usuario: string | null | undefined) => (usuario?.trim() ? `@${usuario.trim()}` : null);
 /** Recusas em que o que está na tela já não vale: a edição volta à leitura com os dados do servidor e o aviso neutro. */
 const RECARREGAM = new Set([CPF_SO_PELO_TREINADOR, ALUNO_ANONIMIZADO]);
 
@@ -130,6 +133,12 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
                 <>
                   <Campo rotulo="Telefone (opcional)" valor={form.telefone} aoMudar={(t) => mudar({ telefone: mascaraTelefone(t) })}
                     erro={locais.telefone ?? doServidor.telefone} keyboardType="phone-pad" autoComplete="tel" maxLength={15} numerico />
+                  {REDES_DO_ALUNO.map((rede) => (
+                    <Campo key={rede} rotulo={`${NOME_DA_REDE[rede]} (opcional)`} valor={form[rede]}
+                      aoMudar={(t) => mudar(rede === 'instagram' ? { instagram: t } : { tiktok: t })}
+                      erro={locais[rede] ?? doServidor[rede]} placeholder="@usuario" autoCapitalize="none" autoCorrect={false} spellCheck={false}
+                      autoComplete="off" maxLength={200} ajuda="Seu @ ou o link do perfil. Só a sua consultoria vê." />
+                  ))}
                   <View style={estilos.campo}>
                     <Escolha rotulo="Sexo" valor={form.sexo} aoMudar={(sexo) => mudar({ sexo })} opcoes={OPCOES_DO_SEXO} />
                     {doServidor.sexo ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{doServidor.sexo}</Texto> : null}
@@ -148,6 +157,9 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
               ) : (
                 <ListaDeDados>
                   <LinhaDeDado rotulo="Telefone" valor={resp.telefone} numerico />
+                  {REDES_DO_ALUNO.map((rede) => (
+                    <LinhaDeDado key={rede} rotulo={NOME_DA_REDE[rede]} valor={comArroba(resp[rede])} vazio={NAO_INFORMADO} />
+                  ))}
                   <LinhaDeDado rotulo="Sexo" valor={rotuloDoSexo(resp.sexo)} />
                   {linhaDoCpf}
                   <LinhaDeDado rotulo="Endereço" valor={enderecoParaLeitura(resp.endereco)} />

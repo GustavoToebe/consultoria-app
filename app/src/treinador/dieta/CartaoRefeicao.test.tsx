@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
 
 import type { ItemDieta, Refeicao } from '../../api/tipos';
 import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { MODO_DE_PREPARO_MAXIMO } from '../../dominio/dieta';
 import { MACROS, valoresPorExtenso } from '../../ui/ValoresDaDieta';
-import { CartaoRefeicao, larguraDaTabela } from './CartaoRefeicao';
+import { ESCURO } from '../../tema/tokens';
+import { CartaoRefeicao, colunasDosValores, larguraDaTabela, larguraDoValor } from './CartaoRefeicao';
 
 // Frase com número leva o número num Text aninhado (fonte mono só nele): o texto do nó é o das duas partes juntas.
 const textoDoNo = (t: ReactTestInstance): string => t.children.map((c) => (typeof c === 'string' ? c : textoDoNo(c))).join('');
@@ -28,8 +29,9 @@ jest.mock('../../tema/TemaProvider', () => ({
   }),
 }));
 jest.mock('../../ui/Botao', () => ({
+  // O tipo vai no `testID`: o "+ Opção" é a ação de construção (`acao`, 25/11).
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  Botao: ({ rotulo, aoTocar }: { rotulo: string; aoTocar: () => void }) => require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotulo, onPress: aoTocar }),
+  Botao: ({ rotulo, aoTocar, tipo }: { rotulo: string; aoTocar: () => void; tipo?: string }) => require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotulo, onPress: aoTocar, testID: tipo }),
 }));
 const campoFalso = ({ rotulo }: { rotulo: string }) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -190,7 +192,23 @@ describe('CartaoRefeicao: opções em abas', () => {
     const a = montar(refeicao({ opcoes: [{ uid: 'a', rotulo: 'A', itens: [item('i1', 'Suco fictício')] }] }));
     expect(abas(a)).toEqual([]);
     expect(comRotulo(a, 'Opção')).toHaveLength(1);
+    expect(comRotulo(a, 'Opção')[0].props.testID).toBe('acao');
     expect(a.root.findAll((n) => n.props['aria-label'] === 'Comparação das opções')).toHaveLength(0);
+  });
+
+  it('com várias, o "+ Opção" continua um só, `acao`; cada aba e cada linha da comparação têm o círculo com a letra, preenchido só na aberta', () => {
+    const a = montar(tres());
+    expect(comRotulo(a, 'Opção').map((n) => n.props.testID)).toEqual(['acao']);
+    const marcadores = a.root.findAll((n) => n.props.testID === 'marcador-de-opcao' && typeof n.type === 'string');
+    // Três abas e três linhas da comparação.
+    expect(marcadores).toHaveLength(6);
+    const preenchido = (n: ReactTestInstance) => StyleSheet.flatten(n.props.style).backgroundColor === ESCURO.acao;
+    expect(marcadores.filter(preenchido)).toHaveLength(2);
+    const letras = marcadores.map((n) => n.findAllByType(Text).map(textoDoNo).join(''));
+    expect(letras).toEqual(['A', 'B', 'C', 'A', 'B', 'C']);
+    tocar(a, /^Opção B,/);
+    expect(a.root.findAll((n) => n.props.testID === 'marcador-de-opcao' && typeof n.type === 'string' && preenchido(n))
+      .map((n) => n.findAllByType(Text).map(textoDoNo).join(''))).toEqual(['B', 'B']);
   });
 
   it('com três: uma aba por opção com a kcal, a primeira conta no total do dia, a vazia diz "vazia"; abre na A', () => {
@@ -346,6 +364,21 @@ describe('CartaoRefeicao: subtotal e cor (C66, C63)', () => {
     expect(textos).toContain('Total da opção A: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
     tocar(a, 'Opção B, 50 kcal');
     expect(a.root.findAllByType(Text).map((t) => t.props.children)).toContain('Total da opção B: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
+  });
+});
+
+describe('grade dos valores do item manual (25/11)', () => {
+  it('cinco numa linha quando cabem; senão 3 + 2; no limite, 2', () => {
+    expect(colunasDosValores(392)).toBe(5);
+    expect(colunasDosValores(391)).toBe(3);
+    expect(colunasDosValores(232)).toBe(3);
+    expect(colunasDosValores(231)).toBe(2);
+  });
+  it('as células têm a mesma largura (arredondada para baixo) e param em 120 px', () => {
+    expect(larguraDoValor(392, 5)).toBe(72);
+    expect(larguraDoValor(250, 3)).toBe(78);
+    expect(larguraDoValor(1200, 5)).toBe(120);
+    expect(larguraDoValor(0, 2)).toBe(0);
   });
 });
 

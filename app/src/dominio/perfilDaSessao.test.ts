@@ -22,6 +22,12 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu({ ...EU, whatsappDaConsultoria: '45999998888' }).whatsappDaConsultoria).toBe('45999998888');
     expect(perfilDoEu(EU).whatsappDaConsultoria).toBeUndefined();
   });
+
+  it('guarda as redes da consultoria do aluno; ausentes ficam ausentes', () => {
+    const redes = { instagram: 'https://www.instagram.com/exemplo', site: 'https://exemplo.test' };
+    expect(perfilDoEu({ ...EU, redesSociaisDaConsultoria: redes }).redesSociaisDaConsultoria).toEqual(redes);
+    expect(perfilDoEu(EU).redesSociaisDaConsultoria).toBeUndefined();
+  });
 });
 
 describe('perfilAtualizado', () => {

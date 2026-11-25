@@ -42,8 +42,9 @@ export function BlocosDaFicha({ alunoId, blocos, largura, editando, bloco }: {
   // shortcut: a conta deduz o atraso pelo recuo da `Tela`; trocar por um contexto da `Tela` que diga "ainda não medi" quando o recuo mudar.
   const atrasada = faixa === 'compacta' && largura + 2 * espaco(2) >= LARGURA_FAIXA_NORMAL;
   const arranjo = colunasDaAbaDados(faixa, largura, VAO, blocos);
+  const maximo = larguraMaximaDasColunas(arranjo, VAO, faixa);
   // Em três, cada coluna para no editor de campos; numa só (a esquerda vazia), na largura que a esquerda teria nas duas.
-  const teto = arranjo?.length === 3 ? LARGURA_EDITOR_DE_CAMPOS : colunaUnica(arranjo, editando) ? tetoDaColunaUnica(largura, VAO) : undefined;
+  const teto = arranjo?.length === 3 ? LARGURA_EDITOR_DE_CAMPOS : colunaUnica(arranjo, editando) ? tetoDaColunaUnica(Math.min(largura, maximo ?? largura), VAO) : undefined;
   // Sem embrulho em volta do bloco: um que não desenha nada (as lesões fora do `CartaoLesoes`) não ocupa um vão da pilha.
   const colunas = arranjo?.map((c) => ({
     secoes: c.secoes, proporcao: c.proporcao, teto,
@@ -53,9 +54,9 @@ export function BlocosDaFicha({ alunoId, blocos, largura, editando, bloco }: {
   }));
   if (atrasada) return null;
   return (
-    // Em duas colunas a aba inteira (título, formulário e colunas) fica no teto do editor de campos, à esquerda (4.10, 24/11);
-    // em três, cada coluna; com a coluna única, ela e o Histórico (o formulário continua no teto do editor de campos).
-    <View style={[estilos.aba, { maxWidth: larguraMaximaDasColunas(arranjo, VAO) }]}>
+    // Em duas colunas (normal e larga) a aba ocupa a largura do conteúdo (D1, 25/11); em três, cada coluna para no editor de
+    // campos; com a coluna única, ela e o Histórico (o formulário continua no teto do editor de campos).
+    <View style={[estilos.aba, { maxWidth: maximo }]}>
       {tem('dadosDoAluno') ? bloco('dadosDoAluno', colunas) : colunas ? <ColunasDaFicha colunas={colunas.map((c) => ({ conteudo: c.blocos, proporcao: c.proporcao, teto: c.teto }))} /> : null}
       {/* Em duas colunas, o Histórico de lesões embaixo delas, na largura das duas somada (24/11), ou na da coluna única; em
           três, na do meio. O embrulho fica sempre (a parte "tudo" sempre desenha), para não remontar ao entrar na edição. */}

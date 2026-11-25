@@ -13,6 +13,7 @@ import { textoDaMeta } from '../dominio/metaDoPesoNaFicha';
 import { textoDoCiclo } from '../dominio/periodo';
 import { linhaDosPlanosAtivos } from '../dominio/planosAtivos';
 import { textoDoQuestionarioEscolhido } from '../dominio/seletorQuestionario';
+import { redesDoAluno } from '../dominio/redesSociais';
 import { rotuloDoSexo } from '../dominio/sexo';
 import { useSessao } from '../sessao/SessaoProvider';
 import { espaco, LARGURA_EDITOR_DE_CAMPOS } from '../tema/tokens';
@@ -22,6 +23,7 @@ import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
+import { FileiraDeRedes } from '../ui/FileiraDeRedes';
 import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { IconeBotao } from '../ui/IconeBotao';
 import { IconeWhatsApp } from '../ui/IconeWhatsApp';
@@ -141,6 +143,7 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
     : questionario.dados ? textoDoQuestionarioEscolhido(aluno.questionarioId, questionario.dados, PADRAO)
       : !aluno.questionarioId ? PADRAO : questionario.erro ? textoDoErro(questionario.erro) : 'Carregando…';
   const linhaDosPlanos = linhaDosPlanosAtivos(aluno.planosAtivos);
+  const redesDoPerfil = redesDoAluno(aluno);
   const comGrupo = pode('COMUNIDADE_MODERAR');
   // A coluna de ações só existe com ação dentro (uma vazia tiraria o vão do valor).
   const comFinanceiro = pode('FINANCEIRO_LER') && pagamentosHabilitados;
@@ -164,6 +167,11 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
             <Par rotulo="Telefone" valor={aluno.telefone} numerico
               nota={!aluno.temAcesso && !aluno.anonimizado ? NOTA_TELEFONE_SEM_ACESSO : undefined}
               acoes={aluno.telefone?.trim() ? <BotoesDeContato tipo="telefone" valor={aluno.telefone} nome={aluno.nome} /> : undefined} />
+            {/* Só com dado (a API manda Instagram e TikTok só a quem lê dados de contato, ALUNO_LER): sem perfil, a linha some. */}
+            {redesDoPerfil.texto ? (
+              <Par rotulo="Redes sociais" valor={redesDoPerfil.texto}
+                acoes={<View style={estilos.botoes}><FileiraDeRedes redes={redesDoPerfil.links} de={aluno.nome} tamanho="pequeno" /></View>} />
+            ) : null}
             {sensivel ? <Par rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} /> : null}
           </ListaDeDados>
         </Cartao>

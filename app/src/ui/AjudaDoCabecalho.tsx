@@ -40,7 +40,8 @@ function elementoDaWeb(no: unknown): HTMLElement | null {
  * "Saiba mais", que vem logo depois no DOM. Sem animação (as caixas ancoradas do app abrem sem ela), então o "Reduzir
  * movimento" já vale. A descrição é a descrição acessível do ⓘ (`aria-describedby` na web, `accessibilityHint` no
  * celular); o texto do balão fica fora da leitura para não ser lido duas vezes.
- * Web: o balão mora ao lado do ⓘ (`position: absolute`), sempre no DOM e oculto quando fechado, para a descrição valer.
+ * Web: o balão mora ao lado do ⓘ (`position: absolute`) e só é montado aberto (fechado, um `role=dialog` oculto no DOM
+ * confundia quem procura diálogo aberto); a descrição do `aria-describedby` fica num nó oculto à parte, sempre montado.
  * Celular: um `Modal` transparente ancorado (o padrão das tags da linha, `ListaDeTagsAncorada`); tocar fora fecha.
  */
 export function AjudaDoCabecalho({ texto, artigo, aoMudar }: {
@@ -96,7 +97,7 @@ export function AjudaDoCabecalho({ texto, artigo, aoMudar }: {
   const largura = Math.min(LARGURA_DO_BALAO, width - 2 * FOLGA);
   const conteudo = (
     <>
-      <View id={web ? idDoTexto : undefined} aria-hidden={web} importantForAccessibility={web ? 'no-hide-descendants' : 'auto'}>
+      <View aria-hidden={web} importantForAccessibility={web ? 'no-hide-descendants' : 'auto'}>
         <Texto>{texto}</Texto>
       </View>
       {artigo ? <SaibaMais href={artigo} aoTocar={() => fechar()} /> : null}
@@ -135,7 +136,7 @@ export function AjudaDoCabecalho({ texto, artigo, aoMudar }: {
         aria-describedby={web ? idDoTexto : undefined}
         aria-haspopup="dialog"
         aria-expanded={aberto}
-        aria-controls={web ? idDoBalao : undefined}
+        aria-controls={web && aberto ? idDoBalao : undefined}
         accessibilityState={{ expanded: aberto }}
         onPress={() => (aberto ? fechar() : abrir('toque'))}
         onFocus={() => {
@@ -150,13 +151,15 @@ export function AjudaDoCabecalho({ texto, artigo, aoMudar }: {
           </View>
         )}
       </Pressable>
+      {/* A descrição do ⓘ (alvo do `aria-describedby`) fica sempre no DOM, oculta; o balão só existe aberto. */}
+      {web ? <View id={idDoTexto} style={estilos.oculto}><Texto>{texto}</Texto></View> : null}
       {web ? (
-        <View id={idDoBalao} role="dialog" aria-label={ROTULO}
-          style={aberto && ancora
-            ? [estilos.balao, caixa, { left: lugarDaListaDeTags(ancora, { largura, altura: 0 }, { largura: width, altura: height }, FOLGA).esquerda - ancora.x }]
-            : estilos.oculto}>
-          {conteudo}
-        </View>
+        aberto && ancora ? (
+          <View id={idDoBalao} role="dialog" aria-label={ROTULO}
+            style={[estilos.balao, caixa, { left: lugarDaListaDeTags(ancora, { largura, altura: 0 }, { largura: width, altura: height }, FOLGA).esquerda - ancora.x }]}>
+            {conteudo}
+          </View>
+        ) : null
       ) : aberto && ancora ? (
         <BalaoNoCelular ancora={ancora} largura={largura} estilo={caixa} aoFechar={() => fechar()}>{conteudo}</BalaoNoCelular>
       ) : null}

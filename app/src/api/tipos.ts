@@ -78,6 +78,8 @@ export interface EuResponse {
   whatsappHabilitado?: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos (DDD + número, sem 55); ausente = sem número, sem "Falar com o treinador". */
   whatsappDaConsultoria?: string;
+  /** Só do aluno: links das redes da consultoria que estão preenchidas (a API só manda as preenchidas); ausente = nenhuma. */
+  redesSociaisDaConsultoria?: Partial<Record<RedeDaConsultoria, string>>;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string; sexo?: string | null };
@@ -199,7 +201,13 @@ export interface ConsultoriaResponse {
   whatsapp?: string | null;
   emailRemetenteNome?: string | null;
   emailResponderPara?: string | null;
+  /** Redes sociais da consultoria (Configurações › Contato): links https já normalizados pela API; campo vazio = nulo. */
+  redesSociais?: RedesSociaisDaConsultoria | null;
 }
+
+/** Redes que a consultoria divulga ao aluno. A API aceita `@usuário` ou link e devolve o link https normalizado. */
+export type RedeDaConsultoria = 'instagram' | 'tiktok' | 'youtube' | 'x' | 'site';
+export type RedesSociaisDaConsultoria = Record<RedeDaConsultoria, string | null>;
 
 export interface TextosDasFases {
   menstrual: string | null;
@@ -308,6 +316,9 @@ export interface MeusDadosResponse {
   sexo?: string | null;
   /** Apelido da Comunidade: só se lê aqui; troca-se em `PUT /aluno/comunidade/apelido`. */
   apelido?: string | null;
+  /** Usuário (sem `@`) no Instagram e no TikTok, opcionais; a API normaliza `@usuario` e link para só o usuário. */
+  instagram?: string | null;
+  tiktok?: string | null;
   versao: number;
 }
 
@@ -320,6 +331,9 @@ export interface MeusDadosRequest {
   cpf: string | null;
   endereco: EnderecoDoAluno | null;
   sexo: string | null;
+  /** Substituem (em branco apaga); a API aceita `@usuario`, usuário ou link e grava só o usuário. */
+  instagram: string | null;
+  tiktok: string | null;
   versao: number;
 }
 
@@ -350,6 +364,13 @@ export interface AlunoDetalhe {
   emailDeAcesso: string | null;
   /** O treinador definiu uma senha provisória e o aluno ainda não entrou para trocá-la. */
   aguardandoPrimeiroAcesso: boolean;
+  /** Acesso desativado pela equipe (instante ISO), sem apagar nada; nulo = não está desativado. Só com `ALUNO_LER`. */
+  acessoDesativadoEm?: string | null;
+  /** Por que foi desativado. Hoje só `MANUAL`; a Fase 2 (pausa por atraso) acrescenta outro. Nulo com o acesso ativo. */
+  acessoDesativadoMotivo?: 'MANUAL' | null;
+  /** Usuário (sem `@`) no Instagram e no TikTok; opcionais, só quem lê dados de contato (`ALUNO_LER`). */
+  instagram?: string | null;
+  tiktok?: string | null;
   /** Quando o aluno autorizou o uso das fotos. Ausente ou nulo = não autorizado. Só com `ALUNO_SENSIVEL_LER`. */
   usoDeImagemAutorizadoEm?: string | null;
   /** `MASCULINO`, `FEMININO` ou `OUTRO`. Ausente ou nulo = não informado. Lê com `ALUNO_LER`. */
@@ -397,6 +418,9 @@ export interface AlunoRequest {
   /** CPF e endereço só seguem com `ALUNO_SENSIVEL_ALTERAR`; sem a permissão a API ignora e preserva o que está salvo. */
   cpf?: string | null;
   endereco?: EnderecoDoAluno | null;
+  /** Ausente ou `null` não mexe; em branco apaga; `@usuario`, usuário ou link valem (a API grava só o usuário). */
+  instagram?: string | null;
+  tiktok?: string | null;
   /**
    * Meta do peso do aluno. Ausente ou `null` = não mexe; `PADRAO_DA_CONSULTORIA` volta ao padrão (a API grava nulo). Como
    * CPF e endereço, só vale com `ALUNO_SENSIVEL_ALTERAR`. Conversão do campo em `dominio/metaDoPesoNaFicha`.

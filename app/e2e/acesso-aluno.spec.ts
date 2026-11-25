@@ -74,7 +74,8 @@ test('aluno sem conta: define e-mail e senha gerada, mostra o e-mail em uso no c
   const senha = await page.getByLabel('Senha provisória').inputValue();
   expect(senha).toMatch(/^[a-km-zA-HJ-NP-Z2-9]{10}$/);
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
-  await expect(page.getByText('Este e-mail já tem uma conta.')).toBeVisible();
+  // 25/11: o 409 EMAIL_EM_USO vira o texto do app no campo (pelo código, não pelo texto da API).
+  await expect(page.getByText('Este e-mail já é usado por outra conta.')).toBeVisible();
 
   await email.fill(EMAIL_LOGIN);
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
@@ -223,3 +224,119 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+// Acesso ao app (25/11, D3 de `docs/planos/ajustes-da-tarde-25-11.md`): alterar e-mail, desativar e reativar.
+const EMAIL_NOVO = 'novo-login@exemplo.test';
+
+for (const largura of [390, 1280]) {
+  test(`${largura}px: "Alterar e-mail" confere formato, igualdade e o atual; o 409 fica no campo e o sucesso troca a linha`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    let tentativas = 0;
+    const { pedidos, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR)),
+      ...ROTAS_DA_FICHA,
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: COM_CONTA },
+      [`PUT /alunos/${ALUNO_ID}/acesso/email`]: (p, route) => {
+        tentativas++;
+        if (tentativas === 1) return json(route, erroApi(409, 'Conflito.', 'EMAIL_EM_USO').corpo, 409);
+        return json(route, { ...COM_CONTA, emailDeAcesso: (p.corpo as { email: string }).email });
+      },
+    });
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+    const acesso = acessoDoAluno(page);
+    await acesso.getByRole('button', { name: 'Alterar e-mail de acesso' }).click();
+    const folha = page.getByRole('dialog', { name: 'Alterar e-mail de acesso' });
+    await expect(folha.getByLabel(`E-mail atual: ${ALUNO.email}`)).toBeVisible();
+    await expect(folha.getByText(/as sessões abertas do aluno são encerradas/)).toBeVisible();
+    const novo = folha.getByRole('textbox', { name: 'Novo e-mail', exact: true });
+    const confirmacao = folha.getByRole('textbox', { name: 'Confirme o novo e-mail' });
+    const alterar = folha.getByRole('button', { name: 'Alterar e-mail', exact: true });
+
+    await alterar.click();
+    await expect(folha.getByText('Informe o novo e-mail.')).toBeVisible();
+    await expect(folha.getByText('Repita o novo e-mail.')).toBeVisible();
+    await expect(novo).toBeFocused();
+    await novo.fill('sem-arroba');
+    await novo.blur();
+    await expect(folha.getByText('Informe um e-mail válido, como nome@exemplo.com.')).toBeVisible();
+    await novo.fill(ALUNO.email.toUpperCase());
+    await confirmacao.fill(ALUNO.email);
+    await alterar.click();
+    await expect(folha.getByText('Este já é o e-mail de acesso do aluno. Informe outro.')).toBeVisible();
+    await novo.fill(EMAIL_NOVO);
+    await confirmacao.fill('outro@exemplo.test');
+    await alterar.click();
+    await expect(folha.getByText('Os dois e-mails não são iguais.')).toBeVisible();
+    expect(pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
+
+    await confirmacao.fill(EMAIL_NOVO);
+    await alterar.click();
+    await expect(folha.getByText('Este e-mail já é usado por outra conta.')).toBeVisible();
+    await alterar.click();
+    await expect(folha).toHaveCount(0);
+    await expect(acesso.getByLabel(`E-mail de acesso: ${EMAIL_NOVO}`)).toBeVisible();
+    await expect(page.getByText('E-mail de acesso alterado. As sessões do aluno foram encerradas.')).toBeVisible();
+    const envios = pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === `/alunos/${ALUNO_ID}/acesso/email`);
+    expect(envios.map((p) => p.corpo)).toEqual([{ email: EMAIL_NOVO }, { email: EMAIL_NOVO }]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('"Desativar acesso" pede confirmação; desativado mostra a data e só "Reativar acesso", que volta ao normal', async ({ page }) => {
+  await fixarHoje(page);
+  const DESATIVADO: AlunoDetalhe = { ...COM_CONTA, acessoDesativadoEm: '2026-10-17T15:00:00Z', acessoDesativadoMotivo: 'MANUAL' };
+  const { pedidos, errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: COM_CONTA },
+    [`POST /alunos/${ALUNO_ID}/acesso/desativar`]: { corpo: DESATIVADO },
+    [`POST /alunos/${ALUNO_ID}/acesso/reativar`]: { corpo: COM_CONTA },
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+  const acesso = acessoDoAluno(page);
+  const posts = () => pedidos.filter((p) => p.metodo === 'POST' && p.caminho.includes('/acesso/'));
+
+  // Cancelar não envia nada.
+  await acesso.getByRole('button', { name: 'Desativar acesso' }).click();
+  const dialogo = page.getByRole('alertdialog', { name: 'Desativar acesso ao app?' });
+  await expect(dialogo.getByText(/Nada é apagado/)).toBeVisible();
+  await dialogo.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(dialogo).toHaveCount(0);
+  expect(posts()).toHaveLength(0);
+
+  await acesso.getByRole('button', { name: 'Desativar acesso' }).click();
+  await dialogo.getByRole('button', { name: 'Desativar acesso' }).click();
+  await expect(acesso.getByLabel('Situação: Sem acesso (desativado em 17/10)', { exact: true })).toBeVisible();
+  await expect(acesso.getByText('O aluno não entra até o acesso ser reativado. Nada foi apagado.')).toBeVisible();
+  await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toHaveCount(0);
+  await expect(acesso.getByRole('button', { name: 'Alterar e-mail de acesso' })).toHaveCount(0);
+  await expect(acesso.getByRole('button', { name: 'Desativar acesso' })).toHaveCount(0);
+  // O e-mail continua à vista e copiável.
+  await expect(acesso.getByRole('button', { name: 'Copiar e-mail de acesso' })).toBeVisible();
+  expect(posts().map((p) => [p.caminho, p.corpo])).toEqual([[`/alunos/${ALUNO_ID}/acesso/desativar`, { motivo: 'MANUAL' }]]);
+
+  await acesso.getByRole('button', { name: 'Reativar acesso' }).click();
+  await expect(acesso.getByLabel('Situação: Com acesso', { exact: true })).toBeVisible();
+  await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toBeVisible();
+  await expect(page.getByText('Acesso reativado.')).toBeVisible();
+  expect(posts()).toHaveLength(2);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('acesso desativado de aluno inativo: "Inativo" sem a data e sem "Reativar acesso"; ativo de novo, o botão volta', async ({ page }) => {
+  let ficha: AlunoDetalhe = { ...COM_CONTA, ativo: false, acessoDesativadoEm: '2026-10-17T15:00:00Z', acessoDesativadoMotivo: 'MANUAL' };
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    [`GET /alunos/${ALUNO_ID}`]: (_p, route) => json(route, ficha),
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+  const acesso = acessoDoAluno(page);
+  await expect(acesso.getByLabel('Situação: Inativo', { exact: true })).toBeVisible();
+  await expect(acesso.getByRole('button', { name: 'Reativar acesso' })).toHaveCount(0);
+  ficha = { ...ficha, ativo: true };
+  await page.reload();
+  await expect(acesso.getByRole('button', { name: 'Reativar acesso' })).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});

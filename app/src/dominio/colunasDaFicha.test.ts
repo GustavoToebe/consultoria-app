@@ -96,11 +96,15 @@ describe('colunasDaFicha', () => {
     expect(ordemNumaColuna(['acessoAoApp', 'lesoes'])).toEqual(['lesoesAtivas', 'acessoAoApp', 'lesoesRecuperadas']);
   });
 
-  it('teto: a aba no editor de campos em duas colunas, a soma de três no arranjo de três, sem teto numa coluna', () => {
-    expect(larguraMaximaDasColunas(null, VAO)).toBeUndefined();
-    expect(larguraMaximaDasColunas(colunasDaAbaDados('normal', 928, VAO, TODOS), VAO)).toBe(LARGURA_EDITOR_DE_CAMPOS);
-    expect(larguraMaximaDasColunas(colunasDaAbaDados('larga', 1632, VAO, TODOS), VAO)).toBe(LARGURA_EDITOR_DE_CAMPOS);
-    expect(larguraMaximaDasColunas(colunasDaAbaDados('ultralarga', 3150, VAO, TODOS), VAO)).toBe(3 * LARGURA_EDITOR_DE_CAMPOS + 2 * VAO);
+  it('teto: sem teto em duas colunas (normal e larga), o do editor de campos se a ultralarga volta às duas, a soma de três no arranjo de três', () => {
+    expect(larguraMaximaDasColunas(null, VAO, 'compacta')).toBeUndefined();
+    // D1 (25/11): em 1280 e 1920 as duas colunas ocupam a largura do conteúdo (só a `Tela` limita).
+    expect(larguraMaximaDasColunas(colunasDaAbaDados('normal', 928, VAO, TODOS), VAO, 'normal')).toBeUndefined();
+    expect(larguraMaximaDasColunas(colunasDaAbaDados('larga', 1632, VAO, TODOS), VAO, 'larga')).toBeUndefined();
+    // 2560 com o menu aberto (larga) com a do meio vazia: duas colunas na largura toda.
+    expect(larguraMaximaDasColunas(colunasDaAbaDados('larga', 2272, VAO, ['dadosDoAluno', 'acessoAoApp']), VAO, 'larga')).toBeUndefined();
+    expect(larguraMaximaDasColunas(colunasDaAbaDados('ultralarga', 3150, VAO, ['dadosDoAluno', 'acessoAoApp']), VAO, 'ultralarga')).toBe(LARGURA_EDITOR_DE_CAMPOS);
+    expect(larguraMaximaDasColunas(colunasDaAbaDados('ultralarga', 3150, VAO, TODOS), VAO, 'ultralarga')).toBe(3 * LARGURA_EDITOR_DE_CAMPOS + 2 * VAO);
   });
 
   it('coluna única: só com a esquerda vazia em duas colunas (na leitura as seções 1 e 2 a seguram)', () => {
@@ -125,10 +129,10 @@ describe('colunasDaFicha', () => {
     expect(colunaUnica(null, true)).toBe(false);
   });
 
-  it('teto da coluna única: a largura da esquerda (3/5) no arranjo de duas com a mesma aba, nunca o teto de 1400', () => {
+  it('teto da coluna única: a largura da esquerda (3/5) no arranjo de duas com a mesma aba, sem o teto de 1400', () => {
     expect(tetoDaColunaUnica(928, VAO)).toBeCloseTo(542.4);
-    expect(tetoDaColunaUnica(1632, VAO)).toBeCloseTo(825.6);
-    expect(tetoDaColunaUnica(5000, VAO)).toBeCloseTo((LARGURA_EDITOR_DE_CAMPOS - VAO) * 0.6);
+    expect(tetoDaColunaUnica(1632, VAO)).toBeCloseTo(964.8);
+    expect(tetoDaColunaUnica(LARGURA_EDITOR_DE_CAMPOS, VAO)).toBeCloseTo((LARGURA_EDITOR_DE_CAMPOS - VAO) * 0.6);
   });
 
   it('Resumo em três colunas pela largura medida: 2560 abre, 1920 não', () => {

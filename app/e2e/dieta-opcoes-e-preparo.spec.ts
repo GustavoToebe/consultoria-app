@@ -46,6 +46,18 @@ for (const largura of [390, 1280]) {
     const totalDaOpcao = page.getByRole('group', { name: 'Total da opção A' });
     await expect(totalDaOpcao.getByText('190 kcal', { exact: true })).toBeVisible();
     await expect(totalDaOpcao.getByText('P 4,0 g', { exact: true })).toBeVisible();
+    // 25/11: as abas do aluno são as do editor, com o nome "Opção A" e o círculo da letra, preenchido na aberta (a cor do
+    // sublinhado da aba, a de ação); trocar de aba move o preenchimento.
+    const abaDoAluno = (r: string) => page.getByRole('tab', { name: `Opção ${r}`, exact: true });
+    const circulo = (r: string) => abaDoAluno(r).getByTestId('marcador-de-opcao').evaluate((el) => ({ letra: el.textContent, fundo: getComputedStyle(el).backgroundColor }));
+    const sublinhado = (r: string) => abaDoAluno(r).evaluate((el) => getComputedStyle(el).borderBottomColor);
+    await expect(abaDoAluno('A')).toHaveAttribute('aria-selected', 'true');
+    expect(await circulo('A')).toEqual({ letra: 'A', fundo: await sublinhado('A') });
+    expect(await circulo('B')).toEqual({ letra: 'B', fundo: 'rgba(0, 0, 0, 0)' });
+    await abaDoAluno('B').click();
+    await expect(page.getByRole('group', { name: 'Total da opção B' })).toBeVisible();
+    expect((await circulo('B')).fundo).toBe(await sublinhado('B'));
+    await abaDoAluno('A').click();
 
     // Fechado por padrão; abre ao tocar e mostra o texto com as quebras de linha.
     await expect(page.getByText('Cozinhe o arroz por 15 minutos.', { exact: false })).toHaveCount(0);
