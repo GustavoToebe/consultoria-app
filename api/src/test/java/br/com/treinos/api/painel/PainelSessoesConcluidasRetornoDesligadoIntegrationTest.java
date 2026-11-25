@@ -33,7 +33,8 @@ class PainelSessoesConcluidasRetornoDesligadoIntegrationTest extends AbstractInt
     void retornoDesligadoDeixaASessoesConcluidasNulaENaoZero() throws Exception {
         ApiDeTeste api = new ApiDeTeste(mvc, json);
         JsonNode treinador = api.novoTreinador();
-        api.criarAluno(treinador, "Aluno Fictício do Painel");
+        // Com acesso ao app: só quem tem acesso entra em "sem registro".
+        api.convidarEEntrar(treinador, api.criarAluno(treinador, "Aluno Fictício do Painel"));
 
         JsonNode painel = api.get("/painel", treinador, 200);
         assertThat(painel.has("sessoesConcluidas7Dias")).isTrue();
