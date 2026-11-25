@@ -66,6 +66,8 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
 
     boolean existsByCpfAndIdNot(String cpf, UUID id);
 
+    boolean existsByIdAndAcessoPausadoEmIsNotNull(UUID id);
+
     long countByAtivoTrue();
 
     /**

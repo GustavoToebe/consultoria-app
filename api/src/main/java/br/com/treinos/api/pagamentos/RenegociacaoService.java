@@ -60,14 +60,16 @@ public class RenegociacaoService {
     private final AlunoRepository alunos;
     private final Auditoria auditoria;
     private final CobrancaAutomatica automatica;
+    private final PagamentosDoAluno pagamentos;
 
     public RenegociacaoService(CobrancaAlunoRepository cobrancas, AcordoDeCobrancaRepository acordos, AlunoRepository alunos,
-                               Auditoria auditoria, CobrancaAutomatica automatica) {
+                               Auditoria auditoria, CobrancaAutomatica automatica, PagamentosDoAluno pagamentos) {
         this.cobrancas = cobrancas;
         this.acordos = acordos;
         this.alunos = alunos;
         this.auditoria = auditoria;
         this.automatica = automatica;
+        this.pagamentos = pagamentos;
     }
 
     /** {@code repetido}: o pedido já tinha sido feito e {@code resposta} é o que ele fez na primeira vez (200 em vez de 201). */
@@ -118,6 +120,7 @@ public class RenegociacaoService {
                 c.aluno().getId(), p.descricao(), p.valorCentavos(), p.vencimento())).toList();
         cobrancas.saveAll(novas);
         cobrancas.flush();
+        pagamentos.reativarSeQuitou(c.aluno(), false);
         auditoria.registrarEvento("COBRANCAS_RENEGOCIADAS", "ACORDO", acordo.getId(), "Renegociou cobranças de um aluno em parcelas.");
         return new Resultado(new RenegociacaoResponse(acordo.getId(), c.originais().size(), novas.size(), previa.totalCentavos()), false);
     }

@@ -120,7 +120,13 @@ public final class AlunoDtos {
     public record AlunoResumo(UUID id, String nome, boolean ativo, boolean temAcesso, PlanoAtivoResumo planoAtivo,
                               LocalDate ultimoRegistro,UUID responsavelId, SituacaoAtualizacao atualizacao,
                               /** Tags do aluno (V093), em ordem de nome; sempre presente (lista vazia sem tag). Só a equipe as recebe. */
-                              List<TagResumo> tags) {
+                              List<TagResumo> tags,
+                              boolean acessoPausado, Instant acessoPausadoEm) {
+        public AlunoResumo(UUID id, String nome, boolean ativo, boolean temAcesso, PlanoAtivoResumo planoAtivo,
+                           LocalDate ultimoRegistro, UUID responsavelId, SituacaoAtualizacao atualizacao,
+                           List<TagResumo> tags) {
+            this(id, nome, ativo, temAcesso, planoAtivo, ultimoRegistro, responsavelId, atualizacao, tags, false, null);
+        }
     }
 
     public record PaginaAlunos(List<AlunoResumo> itens, long total) {
@@ -160,7 +166,21 @@ public final class AlunoDtos {
                                /** O que o plano comercial da contratação ATIVA inclui; nulo sem {@code ALUNO_LER}, sem contratação ativa, anonimizado ou com o financeiro desligado. */
                                PlanosAtivos planosAtivos,
                                /** Tags do aluno (V093), em ordem de nome, com {@code ALUNO_LER}; sempre presente (vazia sem tag, sem permissão ou anonimizado). */
-                               List<TagResumo> tags) {
+                               List<TagResumo> tags,
+                               boolean acessoPausado, Instant acessoPausadoEm) {
+        public AlunoDetalhe(UUID id, String nome, String email, String telefone, String cpf, Endereco endereco,
+                            String objetivo, String observacoes, boolean ativo, boolean temAcesso, Instant conviteExpiraEm,
+                            Long versao, Integer diasAtualizacao, UUID responsavelId, UUID questionarioId, boolean anonimizado,
+                            String emailDeAcesso, boolean aguardandoPrimeiroAcesso, Instant usoDeImagemAutorizadoEm,
+                            String sexo, br.com.treinos.api.consultoria.MetaDoPeso metaDoPeso, LocalDate dataNascimento,
+                            UUID podId, String podNome, Instant cadastroAlteradoEm, UltimoAcesso ultimoAcesso,
+                            UltimoPlanoPublicado ultimoPlanoPublicado, PlanosAtivos planosAtivos, List<TagResumo> tags) {
+            this(id, nome, email, telefone, cpf, endereco, objetivo, observacoes, ativo, temAcesso, conviteExpiraEm,
+                    versao, diasAtualizacao, responsavelId, questionarioId, anonimizado, emailDeAcesso,
+                    aguardandoPrimeiroAcesso, usoDeImagemAutorizadoEm, sexo, metaDoPeso, dataNascimento, podId, podNome,
+                    cadastroAlteradoEm, ultimoAcesso, ultimoPlanoPublicado, planosAtivos, tags, false, null);
+        }
+
         /**
          * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
          * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
@@ -188,7 +208,8 @@ public final class AlunoDtos {
                     // Anonimizado: o autor e a data da publicação não são mais mostrados (como o último acesso e os planos ativos).
                     a.isAnonimizado() ? null : ultimoPlano,
                     ler && !a.isAnonimizado() ? planosAtivos : null,
-                    ler && !a.isAnonimizado() && tags != null ? tags : List.of());
+                    ler && !a.isAnonimizado() && tags != null ? tags : List.of(),
+                    a.isAcessoPausado(), a.getAcessoPausadoEm());
         }
     }
 
