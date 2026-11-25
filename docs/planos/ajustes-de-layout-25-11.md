@@ -52,3 +52,12 @@ Pedido do Gustavo: marcador só com cor (T-010), Cobranças com atraso no selo (
 - [x] T-018 regressão achada pela suíte completa: `comparacao-de-fotos.spec:421` (a ação do rodapé descia quando o erro aparecia na folha centralizada) corrigida em `ui/Folha.tsx` + `ui/ancoraDoRodape.ts`
 - [x] Suíte e2e COMPLETA: 2996 passaram, 282 pulados (captura), 0 falhas na rodada do T-018; na primeira rodada, `painel.spec:391` falhou e passou isolada (intermitência já conhecida)
 - Commit/run: ver "Passos" do README ao publicar.
+
+## Limpeza dos textos do topo (25/11)
+Pedido do Gustavo: descrição do cabeçalho vira ⓘ (T-019), Financeiro sem frases soltas e com a ação na linha da busca (T-020), Biblioteca sem o link "Importar da sua planilha" (T-021).
+- [x] T-019 `ui/AjudaDoCabecalho` + `dominio/ajudaDaTela` (balão com "Saiba mais" → `?secao=`); ~21 telas passam `descricao` no lugar de `subtitulo`
+- [x] T-020 Financeiro: `AcaoDaBusca` na `BarraDeFiltros`, texto das abas e `AvisoDoHistoricoParcial` removidos
+- [x] T-021 Biblioteca: link do topo removido; estado vazio com "Importar de planilha" (`ImportarDePlanilha`)
+- [x] Verificação: e2e das áreas (biblioteca, financeiro, cabeçalho, configurações) 498 passaram, 0 falhas; tsc, lint e jest na árvore final (ver relatório)
+- Pendências: balão ⓘ não conferido no nativo; `AcaoDaBusca` vira variante nomeada da `BarraDeFiltros` se for reutilizada; remover a ressalva de histórico parcial também do Início do treinador (decisão do Gustavo).
+- Commit/run: ver "Passos" do README ao publicar.

@@ -163,7 +163,7 @@ export default function Interessados() {
   return (
     <Tela largura={LARGURA_LISTA} bordas={['top']}>
       <Cabecalho titulo="Interessados" mostrarMarca="celular"
-        subtitulo="Quem se inscreveu pelo link. Converse pelo WhatsApp; só o aceite cadastra o aluno."
+        descricao="Quem se inscreveu pelo link. Converse pelo WhatsApp; só o aceite cadastra o aluno."
         acoes={pode('INSCRICAO_ALTERAR') ? <Botao rotulo="Respostas prontas" Icone={MessageSquareText} tipo="secundario" aoTocar={() => setModelos(true)} /> : undefined} />
       {/* O link é uma faixa curta (situação, copiar e "Configurar", que abre a folha), para a busca e a primeira pessoa
           aparecerem cedo no celular. */}

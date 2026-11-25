@@ -37,6 +37,7 @@ import { Escolha } from '../../ui/Escolha';
 import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
+import { ImportarDePlanilha } from './ImportarDePlanilha';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
@@ -259,11 +260,15 @@ export function AbaAlimentos() {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
+        <>
         <Vazio
           titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'}
           texto={dados.length ? 'Tente outros termos de busca ou filtros.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um alimento.' : 'Ainda não há itens cadastrados.'}
           acao={comFiltros ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltros(SEM_FILTROS) } : dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined}
         />
+        {/* Só a biblioteca realmente vazia: busca ou filtro sem resultado leva a limpar, não a importar. */}
+        {dados.length === 0 ? <ImportarDePlanilha destino="alimentos" /> : null}
+        </>
       ) : null}
       {lista.length ? <LegendaDosAlimentos /> : null}
       {lista.length ? <ListaEmColunas divisorias>{lista.map((a) => (

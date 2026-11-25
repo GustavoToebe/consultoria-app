@@ -45,10 +45,10 @@ import { contagemParaTela, MARCA_PARCIAL } from './numeros';
  */
 export const NOTA_CONSIDERA_GERADAS = 'considera as cobranças já geradas';
 
-/** Frase geral do Financeiro (Visão geral e Lançamentos), uma vez por tela, ao lado das notas de "cobranças já geradas". */
-export const NOTA_REGISTROS_DISPONIVEIS = 'Os valores consideram os registros disponíveis no sistema.';
-
-/** Ressalva informativa de `Painel.historicoFinanceiroParcial` (13/11): texto exato decidido pelo Gustavo. */
+/**
+ * Ressalva informativa de `Painel.historicoFinanceiroParcial` (13/11): texto exato decidido pelo Gustavo. Desde 25/11 só o
+ * Início a mostra; as abas do Financeiro não.
+ */
 export const AVISO_HISTORICO_PARCIAL =
   'Parte do histórico financeiro foi removida em uma limpeza anterior. Os valores exibidos consideram os registros preservados e podem não representar todo o movimento dos períodos afetados.';
 

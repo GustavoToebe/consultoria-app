@@ -29,7 +29,7 @@ export default function Equipe() {
   });
   return (
     <Tela largura={LARGURA_LISTA} bordas={['top']}>
-      <Cabecalho titulo="Equipe" subtitulo="Quem trabalha com você e o que cada perfil pode fazer no app." />
+      <Cabecalho titulo="Equipe" descricao="Quem trabalha com você e o que cada perfil pode fazer no app." />
       <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} erro={erro} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}

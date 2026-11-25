@@ -10,7 +10,6 @@ import {
   avisoDoHistoricoParcial,
   linhasDaTabelaDoGrafico,
   motivoDoResultadoNulo,
-  NOTA_REGISTROS_DISPONIVEIS,
   alternarNoLote,
   contagemDoLote,
   cpfMascarado,
@@ -460,9 +459,6 @@ describe('resultado do mês nulo', () => {
 });
 
 describe('ressalvas informativas do Financeiro', () => {
-  it('a frase geral dos registros disponíveis é a decidida', () => {
-    expect(NOTA_REGISTROS_DISPONIVEIS).toBe('Os valores consideram os registros disponíveis no sistema.');
-  });
   it('histórico parcial: o texto exato só com true; false, ausente ou sem painel não mostram nada', () => {
     expect(avisoDoHistoricoParcial({ historicoFinanceiroParcial: true })).toBe(
       'Parte do histórico financeiro foi removida em uma limpeza anterior. Os valores exibidos consideram os registros preservados e podem não representar todo o movimento dos períodos afetados.',

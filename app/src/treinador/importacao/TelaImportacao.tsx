@@ -480,7 +480,7 @@ export function AssistenteDaImportacao() {
 
   return (
     <TelaDoEditor largura={LARGURA_MAXIMA} rodape={rodape}
-      cabecalho={<Cabecalho titulo={titulo} subtitulo="Nada é gravado antes de Confirmar importação. O arquivo não fica guardado."
+      cabecalho={<Cabecalho titulo={titulo} descricao="Nada é gravado antes de Confirmar importação. O arquivo não fica guardado."
         trilha={[{ rotulo: 'Importação', href: '/treinador/importacao' }]} />}
       barra={<View style={estilos.limite}><Etapas etapa={etapa} estreita={estreita} /></View>}>
       <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={[estilos.coluna, limitada && estilos.limite]}>

@@ -89,7 +89,7 @@ export default function ListaAtualizacoes() {
   // A busca que vale é a que já foi à API (a lista na tela é dela).
   const filtrado=chips.length>0||!!buscaAtrasada;
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
-    <Cabecalho titulo="Atualizações" subtitulo="Revise os envios e acompanhe os prazos." mostrarMarca="celular" />
+    <Cabecalho titulo="Atualizações" descricao="Revise os envios e acompanhe os prazos." mostrarMarca="celular" />
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome do aluno'}} valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS}
       chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))}
       painelLateral={{titulo:'Filtros de atualizações'}}

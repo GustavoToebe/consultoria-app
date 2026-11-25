@@ -13,6 +13,7 @@ import {
   tituloDoErgogenico,
 } from '../../dominio/ergogenicos';
 import type { ColunaDaLista } from '../../ui/colunasDaLista';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -33,6 +34,7 @@ import { useCarregar } from '../../ui/useCarregar';
 import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { espaco, fontes } from '../../tema/tokens';
 import { BarraDaBiblioteca } from './BarraDaBiblioteca';
+import { ImportarDePlanilha } from './ImportarDePlanilha';
 
 // As medidas da `FolhaAlimento`: 180 px por campo deixa o par lado a lado na folha do PC (600) e empilhado no celular.
 const estilos = StyleSheet.create({
@@ -71,6 +73,7 @@ function TituloDoItem({ item }: { item: ErgogenicoDaBiblioteca }) {
  */
 export function AbaErgogenicos() {
   const { avisar } = useAviso();
+  const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar('biblioteca-ergogenicos', () => listarErgogenicos());
   const [busca, setBusca] = useState('');
   const [categoria, setCategoria] = useState('');
@@ -112,11 +115,15 @@ export function AbaErgogenicos() {
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Esqueleto /> : null}
         {dados && grupos.length === 0 ? (
+          <>
           <Vazio
             titulo={dados.length ? 'Nenhum item encontrado' : 'Biblioteca vazia'}
-            texto={dados.length ? 'Tente outro termo ou outra categoria.' : 'Cadastre um item ou importe a lista pelo script de importação.'}
+            texto={dados.length ? 'Tente outro termo ou outra categoria.' : pode('ERGOGENICO_ALTERAR') ? 'Cadastre um item ou importe de uma planilha.' : 'Ainda não há itens cadastrados.'}
             acao={!dados.length ? undefined : categoria ? { rotulo: 'Limpar filtros', aoTocar: () => filtrar(busca, '') } : { rotulo: 'Limpar busca', aoTocar: () => filtrar('', categoria) }}
           />
+          {/* Só a biblioteca realmente vazia: busca ou filtro sem resultado leva a limpar, não a importar. */}
+          {dados.length === 0 ? <ImportarDePlanilha destino="outros" /> : null}
+          </>
         ) : null}
       </Cartao>
       {grupos.map((g) => (

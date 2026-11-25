@@ -973,6 +973,12 @@ Uma peça só (`ui/ArrasteDaLista`, núcleo `useArraste`; web em `ui/arrasteNaWe
 - **Ao soltar:** "Ordem alterada." ou "Movido para …" com Desfazer. No Início em edição não há aviso (tudo é rascunho; Cancelar descarta) e o destino é o bloco sob o ponteiro com borda `acao`.
 - **Status:** **Verificado na web** com mouse em 1280 (claro e escuro) e 390; **não conferido** no aparelho nativo, nos temas areia e contraste alto, nem por toque num tablet largo. O tracejado em `cores.borda` fica fraco no tema claro (decisão do D1; pendente com o Gustavo).
 
+### 4.13 Textos do topo da tela (Gustavo, 25/11/2026; plano `docs/planos/ajustes-de-layout-25-11.md`)
+
+- **Descrição do cabeçalho vira ⓘ.** `ui/Cabecalho` guarda a explicação da tela em `descricao`: um ⓘ "Sobre esta tela" logo depois do título (`ui/AjudaDoCabecalho`) abre um balão com o texto e o link "Saiba mais" para a seção da Ajuda da tela (`dominio/ajudaDaTela`, `?secao=`; tela sem artigo mostra só o texto). Abre com o mouse em cima (250 ms), no foco do teclado e no toque; Esc, tocar fora e sair fecham; o mouse pode entrar no balão; sem animação. `subtitulo` fica só para dado (nome, contagem, data), nunca para explicação. Verificado na web; **não conferido** no aparelho nativo (`Modal` ancorado e `accessibilityHint`).
+- **Financeiro sem frase solta no topo.** As abas não explicam mais o que fazem em texto corrido; a ação principal ("Nova cobrança avulsa", "Novo lançamento") vai para a linha da busca (`AcaoDaBusca`, `BarraDeFiltros depois`). O aviso de histórico parcial só existe no Início do treinador e na exportação CSV.
+- **Biblioteca sem link no topo.** "Importar da sua planilha" saiu; com a biblioteca vazia, o estado vazio traz o link secundário "Importar de planilha".
+
 ## 5. Os problemas de design que estamos resolvendo
 
 Origem principal: a reunião gravada de 29/10, com o treinador usando o sistema por 40 minutos. Ele elogiou a

@@ -24,7 +24,7 @@ import { selecaoDepoisDosFiltros } from '../../dominio/painelDeFiltros';
 import { escalar } from '../../dominio/preferencias';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, LARGURA_FORMULARIO, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { OPCOES_RESPONSABILIDADE } from '../EscolhaResponsabilidade';
 import { CamposDePeriodo, UmaOpcao } from '../SeletoresDeFiltro';
 import { useAviso } from '../../ui/Aviso';
@@ -48,6 +48,7 @@ import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 import { useFaixaDaTela } from '../../ui/Tela';
 import { AcoesDoLote, FolhaDoResultadoDaAcao, type ResultadoDaAcao } from './AcoesDoLote';
 import { CartaoDeConferencias } from './CartaoDeConferencias';
+import { AcaoDaBusca } from './comum';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
 import { FolhaDaCobrancaAvulsa } from './FolhaDaCobrancaAvulsa';
 import { FolhaDoLote } from './FolhaDoLote';
@@ -107,7 +108,7 @@ const dataOuNada = (iso: string | null | undefined) => (iso ? dataParaTela(iso) 
  * e Cancelar/X/Esc/fundo do painel não mexem nela. Assim o lote nunca leva cobrança que a lista não mostra. Ao lado do
  * "Revisar pagamentos", "Mais ações" cancela, gera os links e exporta as selecionadas (`AcoesDoLote`).
  *
- * No topo, "Nova cobrança avulsa" (`FINANCEIRO_ALTERAR`) abre o passo a passo (`FolhaDaCobrancaAvulsa`); acima da lista, os
+ * Na linha da busca, à direita (no celular, embaixo, na largura toda), "Nova cobrança avulsa" (`FINANCEIRO_ALTERAR`) abre o passo a passo (`FolhaDaCobrancaAvulsa`); acima da lista, os
  * totais do filtro inteiro (todas as páginas), calculados pelo servidor (`PaginaCobrancas.totais`); a avulsa aparece com
  * o selo "Avulsa" e a descrição no lugar do plano.
  *
@@ -206,12 +207,6 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
 
   return (
     <View style={estilos.coluna}>
-      {podeAlterar ? (
-        <View style={estilos.topo}>
-          <Texto variante="suave" style={estilos.explicacao}>Mensalidades, cobranças de saída, avulsas e parcelas de acordo dos alunos, por vencimento.</Texto>
-          <Botao rotulo="Nova cobrança avulsa" Icone={Plus} aoTocar={() => setNovaAvulsa(true)} />
-        </View>
-      ) : null}
       {(recebimentoOnlineHabilitado || kiwifyHabilitada) && pode('ALUNO_LER') ? <CartaoDeConferencias podeAlterar={podeAlterar} /> : null}
       {filtros.alunoId ? <FaixaDoAluno nome={textoDoAluno} aoVerTodos={verTodos} /> : null}
       <View ref={barra}>
@@ -219,6 +214,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
           valor={filtros} aoAplicar={aplicar} limpo={limpoDasCobrancas(filtros)} chips={chips}
           aoTirar={(chave) => aplicar(semOFiltroDeCobrancas(filtros, chave as ChaveDoFiltroDeCobrancas))}
           painelLateral={{ titulo: 'Filtros de cobranças' }}
+          depois={podeAlterar ? <AcaoDaBusca rotulo="Nova cobrança avulsa" Icone={Plus} aoTocar={() => setNovaAvulsa(true)} /> : undefined}
           seletores={(atuais, mudar) => (
             <SeletoresDeCobrancas filtros={atuais} aoMudar={mudar} opcoesDePlano={opcoesDePlano} aluno={atuais.alunoId ? textoDoAluno : null} hoje={hoje} />
           )} />
@@ -561,8 +557,6 @@ function TotaisDaLista({ totais, atualizando }: { totais: TotaisDasCobrancas; at
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
-  topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
-  explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 240, maxWidth: LARGURA_FORMULARIO },
   // A tabela e o painel fixo lado a lado; a tabela fica com o que sobra (o vão é o de entre blocos).
   comPainel: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
   ladoDaTabela: { flex: 1, minWidth: 0, gap: espaco(2) },

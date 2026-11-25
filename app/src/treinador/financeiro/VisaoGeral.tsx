@@ -7,7 +7,7 @@ import { listarCobrancasDoAluno, listarInadimplentes, painelFinanceiro, visaoGer
 import {
   ATALHOS_DE_PERIODO, atrasoParaTela, cartoesDoPainel, DEFINICOES_DO_PAINEL, hojeEmBrasilia, inadimplenciaParaTela, LIMITES_DOS_DADOS,
   liquidoParaTela, listaTrazOutraBase, periodoDoPainel, rotuloDaForma, serieDoGrafico, valorEQuantidadeParaTela, vencidasDoPeriodo, type AtalhoDePeriodo, type CartaoDoPainel,
-  NOTA_CONSIDERA_GERADAS, NOTA_REGISTROS_DISPONIVEIS,
+  NOTA_CONSIDERA_GERADAS,
 } from '../../dominio/financeiro';
 import { LARGURA_COLUNA_DE_APOIO, visaoGeralComColunaDeApoio } from '../../dominio/colunasDaVisaoGeral';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
@@ -173,7 +173,7 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
         <>
           <Texto variante="suave" style={estilos.textoCorrido}>
             {dataParaTela(dados.periodo.de)} a {dataParaTela(dados.periodo.ate)}
-            {dados.somenteMeus ? ' · só os seus alunos' : ''}. Onde aparece “—”, o número não está disponível. {NOTA_REGISTROS_DISPONIVEIS}
+            {dados.somenteMeus ? ' · só os seus alunos' : ''}. Onde aparece “—”, o número não está disponível.
           </Texto>
           <GradeDeIndicadores>
             {cartoesDoPainel(dados.cartoes).map((c) => (

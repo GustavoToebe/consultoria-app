@@ -5,7 +5,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 
 import type { LancamentoResponse, Painel, TipoDeLancamento } from '../../api/financeiroTipos';
 import { alterarLancamento, categoriasDeLancamentos, criarLancamento, excluirLancamento, listarLancamentos } from '../../api/rotas';
-import { hojeEmBrasilia, LIMITES, NOTA_REGISTROS_DISPONIVEIS, validarLancamento } from '../../dominio/financeiro';
+import { hojeEmBrasilia, LIMITES, validarLancamento } from '../../dominio/financeiro';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
@@ -14,7 +14,7 @@ import {
   type ChaveDoFiltroDeLancamentos, type FiltrosDeLancamentos,
 } from '../../dominio/filtrosDoFinanceiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
-import { espaco, LARGURA_FORMULARIO } from '../../tema/tokens';
+import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -34,7 +34,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
-import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
+import { AcaoDaBusca, avisoDeConflito, CampoMoeda, ehConflito } from './comum';
 import { CamposDePeriodo } from '../SeletoresDeFiltro';
 import { ListaOuTabela } from './ListaOuTabela';
 import { ResultadoDoMes } from './ResultadoDoMes';
@@ -84,11 +84,11 @@ function TipoDoLancamento({ tipo }: { tipo: TipoDeLancamento }) {
  * (entradas − saídas registradas)". Categoria é texto livre. Criar, editar e excluir exigem `FINANCEIRO_ALTERAR`; a
  * edição e a exclusão levam a versão vista, e um 409 recarrega a lista. Na barra de filtros (lote 2), a busca na descrição
  * (na API, 300 ms depois de digitar) e, no painel, o período (data do lançamento), o tipo e as categorias já usadas, no
- * endereço junto do `?aba=lancamentos` (`?de=&ate=&tipo=&categoria=`).
+ * endereço junto do `?aba=lancamentos` (`?de=&ate=&tipo=&categoria=`). "Novo lançamento" fica na linha da busca (`AcaoDaBusca`).
  */
 export function AbaLancamentos({ podeAlterar, resultado }: {
   podeAlterar: boolean;
-  /** O `/financeiro/painel` do mês corrente, buscado uma vez pela tela do Financeiro (a mesma resposta serve à ressalva do histórico parcial). */
+  /** O `/financeiro/painel` do mês corrente, buscado uma vez pela tela do Financeiro (a mesma resposta serve à folha de exportar). */
   resultado: { dados?: Painel; erro?: unknown; recarregar: () => void };
 }) {
   const [pagina, setPagina] = useState(0);
@@ -118,21 +118,13 @@ export function AbaLancamentos({ podeAlterar, resultado }: {
 
   return (
     <View style={estilos.coluna}>
-      <View style={estilos.topo}>
-        <Texto variante="suave" style={estilos.explicacao}>Entradas e saídas da consultoria que não vêm do plano de um aluno, como aluguel e equipamentos.</Texto>
-        {podeAlterar ? <Botao rotulo="Novo lançamento" Icone={Plus} aoTocar={() => setAberto('novo')} /> : null}
-      </View>
       {resultado.erro ? <MensagemErro texto={textoDoErro(resultado.erro)} erro={resultado.erro} tentarDeNovo={recarregarResultado} /> : null}
-      {resultado.dados ? (
-        <>
-          <Texto variante="suave">{NOTA_REGISTROS_DISPONIVEIS}</Texto>
-          <ResultadoDoMes resultado={resultado.dados.resultadoDoMes} />
-        </>
-      ) : null}
+      {resultado.dados ? <ResultadoDoMes resultado={resultado.dados.resultadoDoMes} /> : null}
       <BarraDeFiltros busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); }, placeholder: 'Descrição' }}
         valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_LANCAMENTOS} chips={chipsDosLancamentos(filtros)}
         aoTirar={(chave) => aplicar(semOFiltroDeLancamentos(filtros, chave as ChaveDoFiltroDeLancamentos))}
         painelLateral={{ titulo: 'Filtros de lançamentos' }}
+        depois={podeAlterar ? <AcaoDaBusca rotulo="Novo lançamento" Icone={Plus} aoTocar={() => setAberto('novo')} /> : undefined}
         seletores={(atuais, mudar) => (
           <>
             <GrupoDoPainel titulo="Identificação" primeiro>
@@ -322,8 +314,6 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
-  topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
-  explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 260, maxWidth: LARGURA_FORMULARIO },
   esmaecido: { opacity: 0.6 },
   cheio: { alignSelf: 'stretch' },
   tipo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },

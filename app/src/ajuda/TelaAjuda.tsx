@@ -1,6 +1,6 @@
-import { router, type Href } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { FileDown, MousePointerClick, PlayCircle, RotateCcw } from 'lucide-react-native';
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View, type TextInput, type ViewStyle } from 'react-native';
 
 import { AVISO_DE_VOLTA, mostrarDeNovo, temPrimeirosPassos } from '../dominio/primeirosPassos';
@@ -76,7 +76,10 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
   const { rolarAte } = useRolagem();
   const [tutorial, setTutorial] = useState(false);
   const [busca, setBusca] = useState('');
-  const [atual, setAtual] = useState(COMECAR);
+  // "Saiba mais" do ⓘ do cabeçalho (`?secao=`, `dominio/ajudaDaTela`): a seção abre e a tela rola até ela, se existe nesta área.
+  const { secao } = useLocalSearchParams<{ secao?: string }>();
+  const secaoPedida = typeof secao === 'string' && secoesDoGuia(guia, retornoHabilitado, vitrineHabilitada, lojaHabilitada).some((s) => s.id === secao) ? secao : null;
+  const [atual, setAtual] = useState(secaoPedida ?? COMECAR);
   const { largura, aoMedir } = useFaixaDeLargura();
   const campo = useRef<TextInput>(null);
 
@@ -85,7 +88,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
   const buscando = palavrasDaBusca(busca).length > 0;
   const achado = buscarNaAjuda(secoes, guia.perguntas, busca);
   // Lista completa (não a filtrada pela busca): as seções nascem fechadas e a busca abre as que casaram.
-  const secoesAbertas = useSecoesAbertas([...secoes.map((s) => s.id), ...(guia.perguntas.length ? [PERGUNTAS] : [])]);
+  const secoesAbertas = useSecoesAbertas([...secoes.map((s) => s.id), ...(guia.perguntas.length ? [PERGUNTAS] : [])], secaoPedida ? [secaoPedida] : []);
   const comPrimeirosPassos = publico === 'aluno' || temPrimeirosPassos({ pode, administrador: !!perfilEquipe?.acessoTotal });
 
   const topicos: Topico[] = [
@@ -109,6 +112,10 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
     secoesAbertas.abrir(id);
     rolarAte([alvo(id)]);
   };
+  // Só a rolagem é efeito: a seção pedida já nasce aberta e marcada no índice.
+  useEffect(() => {
+    if (secaoPedida) rolarAte([alvo(secaoPedida)]);
+  }, [secaoPedida, rolarAte]);
 
   // Tela larga (revisão de 24/11): as 3 colunas abrem quando cabem na largura medida (em 2560 com o menu aberto a área é de
   // 2320, faixa `larga`, e o bloco de 1880 já cabe), não só na faixa `ultralarga`.
@@ -197,7 +204,7 @@ function CorpoDaAjuda({ publico, videos }: { publico: Publico; videos: VideosDaA
   return (
     <View onLayout={aoMedir}>
       <View testID="bloco-da-ajuda" style={[estilos.contido, tresColunas && estilos.contidoEmTres]}>
-        <Cabecalho titulo="Ajuda" subtitulo={guia.introducao} />
+        <Cabecalho titulo="Ajuda" descricao={guia.introducao} />
         <View style={estilos.area}>
           {/* A busca fica sempre no mesmo lugar da árvore: trocar de índice para seletor não tira o foco de quem digita. */}
           <View style={[estilos.busca, lateral && estilos.buscaAoLadoDoIndice]}>
