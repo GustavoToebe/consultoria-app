@@ -194,6 +194,19 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
         />
       </Cartao>
 
+      {/* Cor das séries (25/11): editor de treino e tela do exercício. O nome do tipo continua no selo nos dois modos. */}
+      <Cartao titulo="Cor das séries" descricao="Cada série na cor do seu tipo (Aquecimento, FS, WS, Back off) ou todas na cor de ação. O nome do tipo aparece sempre.">
+        <Escolha
+          descricao="Cor das séries"
+          opcoes={[
+            { valor: 'TIPO', rotulo: 'Cor do tipo' },
+            { valor: 'ACAO', rotulo: 'Cor de ação' },
+          ]}
+          valor={preferencias.corDasSeries}
+          aoMudar={(corDasSeries) => mudar({ corDasSeries })}
+        />
+      </Cartao>
+
       <Cartao titulo="Animações" descricao="Reduzir tira os movimentos de entrada, mola e contagem.">
         <Escolha
           descricao="Animações"
@@ -274,7 +287,7 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
       <PainelConfirmacao
         visivel={confirmandoRestaurar}
         titulo="Restaurar as preferências?"
-        mensagem={`Tema, contraste, bordas, tamanho do texto, animações, gráficos, barras de rolagem e vibração voltam ao padrão${escolheUnidade ? '; a carga volta a kg' : ''}${aluno || (Platform.OS !== 'web' && sessao.pode('AGENDA_LER')) ? '; os lembretes de compromisso ficam desligados' : ''}.`}
+        mensagem={`Tema, contraste, bordas, tamanho do texto, cor das séries, animações, gráficos, barras de rolagem e vibração voltam ao padrão${escolheUnidade ? '; a carga volta a kg' : ''}${aluno || (Platform.OS !== 'web' && sessao.pode('AGENDA_LER')) ? '; os lembretes de compromisso ficam desligados' : ''}.`}
         rotuloConfirmar="Restaurar"
         aoConfirmar={() => {
           restaurarPadrao();

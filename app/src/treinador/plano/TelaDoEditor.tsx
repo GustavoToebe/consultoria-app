@@ -1,5 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, useWindowDimensions, View, type ViewProps, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTema } from '../../tema/TemaProvider';
@@ -63,9 +63,13 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   const barraGrudada = useRef<View>(null);
   useEffect(() => (web ? semFocoDebaixoDaBarra(barraGrudada.current as unknown as HTMLElement | null) : undefined), [web]);
   const fundo = useFundoDaArea();
+  // A altura da barra grudada (web): ela quebra em duas linhas em 1280 (Validar, Salvar, Publicar), e o inspetor grudado
+  // embaixo dela (`useFixoAbaixoDaBarra`) precisa da medida, não de um topo fixo.
+  const [alturaDaBarra, setAlturaDaBarra] = useState<number | null>(null);
   const bordaDaBarra = { borderColor: cores.borda };
   const fundoDaBarra = { backgroundColor: fundo, ...bordaDaBarra };
   return (
+    <ContextoDaBarra.Provider value={alturaDaBarra}>
     <ProvedorDeColunas value={duas}>
     <ProvedorDeTresColunas value={tres}>
     <SafeAreaView edges={['top']} style={[estilos.raiz, { backgroundColor: fundo }]} onLayout={aoMedir}>
@@ -75,7 +79,7 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
           <View style={[estilos.conteudo, estiloLargura]}>
             {cabecalho}
             {/* Na web o conteúdo passa por baixo das barras grudadas: vidro (D11). No nativo elas ficam fora da rolagem, sólidas. */}
-            {web ? <Vidro ref={barraGrudada} nativeID={ID_DA_BARRA} estilo={[GRUDADA, estilos.barraGrudada, bordaDaBarra, { marginHorizontal: -recuoLateral, paddingHorizontal: recuoLateral }]}>{barra}</Vidro> : null}
+            {web ? <Vidro ref={barraGrudada} nativeID={ID_DA_BARRA} onLayout={(e) => setAlturaDaBarra(e.nativeEvent.layout.height)} estilo={[GRUDADA, estilos.barraGrudada, bordaDaBarra, { marginHorizontal: -recuoLateral, paddingHorizontal: recuoLateral }]}>{barra}</Vidro> : null}
             {children}
             {web && rodape ? <Vidro estilo={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, bordaDaBarra, { marginHorizontal: -recuoLateral, paddingHorizontal: recuoLateral }]}>{rodape}</Vidro> : null}
           </View>
@@ -85,7 +89,34 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
     </SafeAreaView>
     </ProvedorDeTresColunas>
     </ProvedorDeColunas>
+    </ContextoDaBarra.Provider>
   );
+}
+
+const ContextoDaBarra = createContext<number | null>(null);
+
+/**
+ * Web: o estilo da coluna que gruda logo abaixo da barra do editor (o inspetor do treino e da dieta, o índice do
+ * questionário): topo = altura medida da barra + 16 px, e altura máxima até o fim da janela. Antes o topo era fixo em 80 px,
+ * a altura da barra em uma linha; em 1280 ela quebra em duas (~122 px) e cobria o cabeçalho do exercício ("Trocar
+ * exercício" cortado). Até a medida chegar vale o topo antigo. No nativo não há barra grudada: `undefined`.
+ */
+export function useFixoAbaixoDaBarra(): ViewStyle | undefined {
+  const altura = useContext(ContextoDaBarra);
+  const { height } = useWindowDimensions();
+  if (Platform.OS !== 'web') return undefined;
+  const topo = altura === null ? espaco(10) : altura + espaco(2);
+  return { position: 'sticky', top: topo, maxHeight: height - topo - espaco(2) } as unknown as ViewStyle;
+}
+
+/**
+ * A coluna grudada abaixo da barra, para quem monta a `TelaDoEditor` (o hook só lê a medida dentro dela). `rola`: rola por
+ * dentro quando passa da janela (o resumo do treino e o total do dia da dieta, por cima do conteúdo que passa embaixo).
+ */
+export function FixoAbaixoDaBarra({ style, rola = false, ...resto }: ViewProps & { rola?: boolean }) {
+  const fixo = useFixoAbaixoDaBarra();
+  const rolagem = fixo && rola ? ({ zIndex: 1, overflowY: 'auto' } as unknown as ViewStyle) : null;
+  return <View {...resto} style={[style, fixo, rolagem]} />;
 }
 
 /** Id no DOM (web) da barra grudada: `mostrarAbaixoDaBarra` e o índice do questionário medem a altura dela. */
@@ -126,14 +157,28 @@ export function mostrarAbaixoDaBarra(id: string, forcar = false): void {
  */
 function semFocoDebaixoDaBarra(barra: HTMLElement | null): (() => void) | undefined {
   if (!barra) return undefined;
+  // Foco vindo do ponteiro (clique num controle meio coberto pela barra) não rola: rolar entre o apertar e o soltar tirava o
+  // controle de baixo do ponteiro e o clique se perdia (a lista da "Técnica da série" não abria).
+  let apertando = false;
+  const aoApertar = () => { apertando = true; };
+  const aoSoltar = () => { apertando = false; };
   const aoFocar = (e: FocusEvent) => {
+    if (apertando) return;
     const alvo = e.target as HTMLElement | null;
     // Só o conteúdo do editor (irmão da barra); folha e painel em portal ficam de fora.
     if (!alvo || barra.contains(alvo) || !barra.parentElement?.contains(alvo)) return;
     if (alvo.getBoundingClientRect().top < barra.getBoundingClientRect().bottom) alvo.scrollIntoView({ block: 'center' });
   };
+  document.addEventListener('pointerdown', aoApertar, true);
+  document.addEventListener('pointerup', aoSoltar, true);
+  document.addEventListener('pointercancel', aoSoltar, true);
   document.addEventListener('focusin', aoFocar);
-  return () => document.removeEventListener('focusin', aoFocar);
+  return () => {
+    document.removeEventListener('pointerdown', aoApertar, true);
+    document.removeEventListener('pointerup', aoSoltar, true);
+    document.removeEventListener('pointercancel', aoSoltar, true);
+    document.removeEventListener('focusin', aoFocar);
+  };
 }
 
 const estilos = StyleSheet.create({

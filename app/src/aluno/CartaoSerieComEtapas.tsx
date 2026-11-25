@@ -138,7 +138,7 @@ export function CartaoSerieComEtapas(p: Props) {
   };
 
   return (
-    <CartaoDaSerie testID={`serie-${s.uid}`} corDoTipo={selos.tipo?.cor ?? null} estado={feita ? 'FEITA' : p.ativa ? 'ATIVA' : 'PENDENTE'}>
+    <CartaoDaSerie testID={`serie-${s.uid}`} corDoTipo={selos.tipo?.cor ?? null} feita={feita} ativa={!!p.ativa}>
       <CabecalhoDaSerie numero={p.numero} tipo={selos.tipo} tecnica={selos.tecnica} registro={seloDaSerieComEtapas(feita, etapas, quantas)} agora={agora} />
       <MetaDaSerie texto={estruturaDaSerie(s, p.metodologia)} />
       {p.cargaIlegivel ? <Texto numerico variante="pequeno">{TEXTO_CARGA_ILEGIVEL}</Texto> : null}

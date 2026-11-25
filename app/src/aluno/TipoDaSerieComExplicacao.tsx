@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO, type ChaveDeIdentificacao } from '../tema/tokens';
+import { useCorDaSerie } from '../ui/CamadaDaSerie';
 import { Folha } from '../ui/Folha';
 import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
@@ -16,9 +17,10 @@ import { Texto } from '../ui/Texto';
  * texto continua (D7) e a cor fica a mesma com o treino atrasado (o atraso vai em outro selo).
  */
 export function TipoDaSerieComExplicacao({ nome, explicacao, numero, cor }: { nome: string; explicacao: string | null; numero: number; cor?: ChaveDeIdentificacao | null }) {
-  const { cores, identificacao } = useTema();
+  const { cores } = useTema();
   const [aberto, abrir] = useState(false);
-  const tom = cor ? identificacao[cor] : null;
+  // No modo "Cor de ação" das séries (preferência) o tipo fica neutro: é lido pelo nome, nunca só pela cor.
+  const tom = useCorDaSerie(cor).categoria;
   return (
     <>
       <Pressable

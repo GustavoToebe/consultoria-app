@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { idDoBloco, itemVisivel, LARGURA_MAXIMA_DOS_ITENS, type ItemDoIndice } from '../../dominio/indiceDoQuestionario';
 import { useTema } from '../../tema/TemaProvider';
@@ -7,14 +7,7 @@ import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
-import { ID_DA_BARRA, mostrarAbaixoDaBarra } from '../plano/TelaDoEditor';
-
-/**
- * Logo abaixo da barra fixa do `TelaDoEditor`, como o resumo do editor de treino e o total do dia da dieta (80 px). Só na
- * web: no nativo o índice nem existe (`arranjoDoEditor`).
- */
-export const fixoAbaixoDaBarra = (alturaDaJanela: number) =>
-  (Platform.OS === 'web' ? { position: 'sticky', top: espaco(10), maxHeight: alturaDaJanela - espaco(12) } : {}) as unknown as ViewStyle;
+import { ID_DA_BARRA, mostrarAbaixoDaBarra, useFixoAbaixoDaBarra } from '../plano/TelaDoEditor';
 
 /**
  * Índice do editor de questionário na tela larga: "Instruções" e cada seção com quantas perguntas tem; fica parado ao
@@ -25,10 +18,10 @@ export function IndiceDoQuestionario({ itens, atual, largura, aoEscolher }: {
   itens: readonly ItemDoIndice[]; atual: number; largura: number; aoEscolher: (indice: number) => void;
 }) {
   const { cores, marcaPeca } = useTema();
-  const { height } = useWindowDimensions();
+  const fixo = useFixoAbaixoDaBarra();
   return (
     <View role="navigation" aria-label="Seções do questionário" testID="indice-do-questionario"
-      style={[estilos.indice, { width: largura }, fixoAbaixoDaBarra(height), Platform.OS === 'web' && ({ overflowY: 'auto' } as unknown as ViewStyle)]}>
+      style={[estilos.indice, { width: largura }, fixo, Platform.OS === 'web' && ({ overflowY: 'auto' } as unknown as ViewStyle)]}>
       <View style={estilos.limite}>
       <Texto variante="secao" style={estilos.titulo}>Nesta página</Texto>
       {itens.map((item, i) => {

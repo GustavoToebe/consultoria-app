@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { FileText, Pencil } from 'lucide-react-native';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { baixarFotoDePerfilDoAluno, listarExercicios } from '../../api/rotas';
 import type { AlternativaDeExercicio, ConteudoTreino, ExercicioPlano, Receita, ResultadoValidacao, Sessao } from '../../api/tipos';
@@ -37,7 +37,7 @@ import { validarTreino } from '../../dominio/validacaoDoTreino';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
 import { BarraDoModeloDoEditor } from '../../treinador/plano/TopoModelo';
 import { BarraDoPlano, ProblemasDoPlano } from '../../treinador/plano/TopoPlano';
-import { mostrarAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
+import { FixoAbaixoDaBarra, mostrarAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
 import { ComColunas, useDuasColunas } from '../plano/ColunasDoEditor';
 import { usePlanoEditor } from '../../treinador/plano/usePlanoEditor';
 import { CartaoExercicio } from '../../treinador/treino/CartaoExercicio';
@@ -115,8 +115,6 @@ const contar = (n: number, um: string, varios: string) => (n === 1 ? `1 ${um}` :
 export default function EditorDeTreino({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
   const { id, colar } = useLocalSearchParams<{ id: string; colar?: string }>();
   const { avisar } = useAviso();
-  const { height: alturaDaJanela } = useWindowDimensions();
-  const estiloFixo = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(10), zIndex: 1, maxHeight: alturaDaJanela - espaco(12), overflowY: 'auto' } : undefined) as ViewStyle | undefined;
   // "Colar treino (Docs / PDF)": a Folha abre pelo botão ou, vinda do atalho da Importação, já na chegada (`?colar=1`,
   // consumido ao abrir para o voltar não ter passo sobrando).
   const [colando, setColando] = useState(false);
@@ -496,11 +494,11 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
                 </ListaDeExercicios>
                 <InspetorDoExercicio props={noInspetor} grupo={grupoNoInspetor} />
                 {tres ? (
-                  <View style={[estilos.colunaResumo, estiloFixo]} testID="coluna-resumo-sessao">
+                  <FixoAbaixoDaBarra rola style={estilos.colunaResumo} testID="coluna-resumo-sessao">
                     <Cartao faixa titulo="Resumo da sessão">
                       <ResumoDaSessao resumo={resumo} />
                     </Cartao>
-                  </View>
+                  </FixoAbaixoDaBarra>
                 ) : null}
               </View>
             ) : (

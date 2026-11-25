@@ -8,6 +8,7 @@ import { numeroDaCarga, textoDoPasso } from '../dominio/unidadeDeCarga';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO, type ChaveDeIdentificacao } from '../tema/tokens';
 import { StepperDeCarga } from '../ui/AjusteDeCarga';
+import { useCorDaSerie } from '../ui/CamadaDaSerie';
 import { Folha } from '../ui/Folha';
 import { IconeBotao } from '../ui/IconeBotao';
 import { Selo } from '../ui/Selo';
@@ -30,10 +31,11 @@ export function BlocoDaCargaDeTrabalho({ tipoTrabalho, corDoTipo, valorKg, passo
   progressaoKg: number | null;
   aoMudarKg: (kg: number | null) => void;
 }) {
-  const { cores, identificacao } = useTema();
+  const { cores } = useTema();
   const unidade = useUnidadeDeCarga();
   const [ajuda, abrirAjuda] = useState(false);
-  const tom = corDoTipo ? identificacao[corDoTipo] : null;
+  // No modo "Cor de ação" das séries o selo do tipo fica neutro, como nos cartões das séries.
+  const tom = useCorDaSerie(corDoTipo).categoria;
   const base = ultima?.carga ?? null;
   return (
     <View style={[estilos.bloco, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>

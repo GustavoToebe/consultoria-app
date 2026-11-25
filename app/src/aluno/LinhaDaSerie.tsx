@@ -149,7 +149,7 @@ export function LinhaDaSerie({
   );
 
   return (
-    <CartaoDaSerie testID={`serie-${s.uid}`} corDoTipo={selos.tipo?.cor ?? null} estado={feita ? 'FEITA' : ativa ? 'ATIVA' : 'PENDENTE'}>
+    <CartaoDaSerie testID={`serie-${s.uid}`} corDoTipo={selos.tipo?.cor ?? null} feita={feita} ativa={ativa}>
       {cabecalho}
       {resumida ? (
         <View style={estilos.linhaFeita}>

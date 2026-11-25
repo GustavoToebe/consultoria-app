@@ -27,6 +27,8 @@ export type LarguraConteudo = 'AUTOMATICA' | 'LIMITADA';
 /** Onde as folhas de detalhe (`Folha detalhe`) abrem no PC: na lateral direita (padrão) ou numa janela no centro. */
 export type DetalhesAbrem = 'LATERAL' | 'CENTRO';
 export type Movimento = 'SISTEMA' | 'REDUZIDO';
+/** Cor das séries do treino (montar e executar): a de cada tipo (padrão) ou a de ação da pessoa em todas (25/11). */
+export type CorDasSeries = 'TIPO' | 'ACAO';
 export type ModoPdfDieta = 'simples' | 'detalhado';
 
 /** Última escolha da folha "PDF da dieta". Fica no aparelho, como as outras preferências. */
@@ -50,6 +52,11 @@ export interface Preferencias {
   larguraConteudo: LarguraConteudo;
   /** Só no PC (no celular a folha de baixo não muda): folhas de detalhe na lateral ou no centro, com `LARGURA_FOLHA_LARGA`. */
   detalhesAbrem: DetalhesAbrem;
+  /**
+   * Treinador e aluno: séries do editor de treino e da tela do exercício na cor do tipo (Aquecimento, FS, WS...) ou todas
+   * na cor de ação. Nos dois modos o nome do tipo continua no selo; no de ação o selo fica neutro.
+   */
+  corDasSeries: CorDasSeries;
   movimento: Movimento;
   /** Só aparece no celular. */
   vibracao: boolean;
@@ -115,6 +122,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   tamanhoTexto: 'PADRAO',
   larguraConteudo: 'AUTOMATICA',
   detalhesAbrem: 'LATERAL',
+  corDasSeries: 'TIPO',
   movimento: 'SISTEMA',
   vibracao: true,
   graficos: true,
@@ -151,6 +159,7 @@ const TAMANHOS: readonly TamanhoTexto[] = ['PADRAO', 'MEDIO', 'GRANDE', 'EXTRA']
 const LARGURAS_CONTEUDO: readonly LarguraConteudo[] = ['AUTOMATICA', 'LIMITADA'];
 const DETALHES_ABREM: readonly DetalhesAbrem[] = ['LATERAL', 'CENTRO'];
 const MOVIMENTOS: readonly Movimento[] = ['SISTEMA', 'REDUZIDO'];
+const CORES_DAS_SERIES: readonly CorDasSeries[] = ['TIPO', 'ACAO'];
 
 function entre<T extends string>(valor: unknown, validos: readonly T[], padrao: T): T {
   return typeof valor === 'string' && (validos as readonly string[]).includes(valor) ? (valor as T) : padrao;
@@ -174,6 +183,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     tamanhoTexto: entre(o.tamanhoTexto, TAMANHOS, PREFERENCIAS_PADRAO.tamanhoTexto),
     larguraConteudo: entre(o.larguraConteudo, LARGURAS_CONTEUDO, PREFERENCIAS_PADRAO.larguraConteudo),
     detalhesAbrem: entre(o.detalhesAbrem, DETALHES_ABREM, PREFERENCIAS_PADRAO.detalhesAbrem),
+    corDasSeries: entre(o.corDasSeries, CORES_DAS_SERIES, PREFERENCIAS_PADRAO.corDasSeries),
     movimento: entre(o.movimento, MOVIMENTOS, PREFERENCIAS_PADRAO.movimento),
     vibracao: typeof o.vibracao === 'boolean' ? o.vibracao : PREFERENCIAS_PADRAO.vibracao,
     graficos: typeof o.graficos === 'boolean' ? o.graficos : PREFERENCIAS_PADRAO.graficos,
