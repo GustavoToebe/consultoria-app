@@ -52,11 +52,13 @@ for (const largura of [390, 1280]) {
     const circulo = (r: string) => abaDoAluno(r).getByTestId('marcador-de-opcao').evaluate((el) => ({ letra: el.textContent, fundo: getComputedStyle(el).backgroundColor }));
     const sublinhado = (r: string) => abaDoAluno(r).evaluate((el) => getComputedStyle(el).borderBottomColor);
     await expect(abaDoAluno('A')).toHaveAttribute('aria-selected', 'true');
-    expect(await circulo('A')).toEqual({ letra: 'A', fundo: await sublinhado('A') });
+    // Com poll: a cor do sublinhado da aba transita (0,984 de opacidade no meio da animação).
+    await expect.poll(async () => (await circulo('A')).fundo === (await sublinhado('A'))).toBe(true);
+    expect((await circulo('A')).letra).toBe('A');
     expect(await circulo('B')).toEqual({ letra: 'B', fundo: 'rgba(0, 0, 0, 0)' });
     await abaDoAluno('B').click();
     await expect(page.getByRole('group', { name: 'Total da opção B' })).toBeVisible();
-    expect((await circulo('B')).fundo).toBe(await sublinhado('B'));
+    await expect.poll(async () => (await circulo('B')).fundo === (await sublinhado('B'))).toBe(true);
     await abaDoAluno('A').click();
 
     // Fechado por padrão; abre ao tocar e mostra o texto com as quebras de linha.

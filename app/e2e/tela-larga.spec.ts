@@ -371,7 +371,8 @@ test('3440 px (ultralarga): Automática abre 3 colunas e supera 1800 px; Limitad
     const cabecalhoInicio = await caixa(page.getByRole('heading', { name: 'Início', level: 1 }));
     expect(cabecalhoInicio.x).toBeGreaterThan(200);
     const blocoAtualizacoes = await caixa(titulo(page, 'Atualizações'));
-    const blocoAlunos = await caixa(titulo(page, 'Alunos'));
+    // 25/11: o Início é uma grade editável; em 3440 px a primeira linha tem os blocos lado a lado (Atualizações, Interessados...).
+    const blocoAlunos = await caixa(titulo(page, 'Interessados'));
     expect(blocoAlunos.x).toBeGreaterThan(blocoAtualizacoes.x);
   });
 
