@@ -2,6 +2,7 @@ import { Children, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { colunasPorLargura } from '../dominio/grade';
+import { linhasDaGrade } from '../dominio/gradeDeIndicadores';
 import { espaco } from '../tema/tokens';
 import { useFaixaDeLargura } from './useFaixaDeLargura';
 
@@ -10,9 +11,9 @@ import { useFaixaDeLargura } from './useFaixaDeLargura';
  * 1 coluna abaixo de 760 px, 2 a partir de 760 e 3 a partir de 1240. Cada filho ocupa uma célula de largura igual;
  * `gap` é o espaço entre itens (o mesmo da lista que a grade substitui). Sem medida ainda, 1 coluna. `colunas` troca a
  * regra (os indicadores de Interessados: 4, 2 ou 1); sem ela, a de sempre. `alinhar` `inicio`: cada item com a própria
- * altura (cartões de conteúdos diferentes lado a lado), em vez de esticar até o vizinho. `ultimaLinha` `esticar`: a última
- * linha incompleta (5 em 3 + 2) divide a largura toda entre os seus, sem buraco à direita (`GradeDeIndicadores`); o
- * padrão `igual` deixa cada célula com a largura das outras.
+ * altura (cartões de conteúdos diferentes lado a lado), em vez de esticar até o vizinho. `ultimaLinha` `esticar`: as linhas
+ * ficam equilibradas (`linhasDaGrade`: 7 em 3 colunas = 3 + 2 + 2) e cada uma divide a largura toda entre os seus cartões,
+ * sem buraco à direita (`GradeDeIndicadores`); o padrão `igual` deixa cada célula com a largura das outras.
  */
 export function Grade({ children, gap = espaco(1), colunas: regra = colunasPorLargura, alinhar = 'esticar', ultimaLinha = 'igual' }: {
   children: ReactNode;
@@ -30,12 +31,14 @@ export function Grade({ children, gap = espaco(1), colunas: regra = colunasPorLa
   // células passariam da linha por meio pixel, jogando a última para baixo (o 3 + 1 do ultrawide com zoom, 24/11).
   const largo = (n: number) => (largura - 1 - gap * (n - 1)) / n;
   const celula = colunas === 1 ? undefined : largo(colunas);
-  const resto = colunas > 1 && ultimaLinha === 'esticar' ? itens.length % colunas : 0;
-  const celulaDaUltima = resto ? largo(resto) : undefined;
+  // `esticar`: cada linha do rateio equilibrado divide a largura toda entre os cartões dela.
+  const larguras = colunas > 1 && ultimaLinha === 'esticar'
+    ? linhasDaGrade(itens.length, colunas).flatMap((k) => Array<number>(k).fill(largo(k)))
+    : null;
   return (
     <View onLayout={aoMedir} style={[colunas === 1 ? null : estilos.linha, colunas > 1 && alinhar === 'inicio' ? estilos.inicio : null, { gap }]}>
       {itens.map((item, i) => {
-        const width = celulaDaUltima !== undefined && i >= itens.length - resto ? celulaDaUltima : celula;
+        const width = larguras ? larguras[i] : celula;
         return <View key={i} style={width === undefined ? undefined : { width }}>{item}</View>;
       })}
     </View>

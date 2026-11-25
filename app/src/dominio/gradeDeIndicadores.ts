@@ -6,10 +6,11 @@
  * - Cabem todos numa linha: uma linha.
  * - Total com divisor (2, 3, 4, 6, 8, 9, 10, 12...): o maior divisor que cabe, todas as linhas cheias, senão 1 coluna.
  *   4 dão 4, 2 + 2 ou 1; 6 dão 6, 3 + 3, 2 + 2 + 2 ou 1; nunca 3 + 1 nem 5 + 1.
- * - Total sem divisor (primo a partir de 5: 5, 7, 11, 13): linhas de 4, 3 ou 2 (o maior que cabe, evitando sobrar um só
- *   na última linha) e a última linha, mais curta, ESTICA até a largura toda (`ui/Grade` com `ultimaLinha="esticar"`):
- *   5 dá 3 + 2; 7 dá 4 + 3; 11 dá 4 + 4 + 3. Sobra um só (esticado, a linha toda) quando nada melhor cabe: 7 entre 774 e
- *   1035 px (3 + 3 + 1) e qualquer um deles em 2 colunas (2 + 2 + 1). 1 coluna só se nem 2 couberem.
+ * - Total sem divisor (primo a partir de 5: 5, 7, 11, 13): o maior número de colunas que cabe entre 4, 3 e 2 e as linhas
+ *   EQUILIBRADAS (`linhasDaGrade`): diferem em no máximo 1 cartão e as de cima ficam com os que sobram. Cada linha com
+ *   menos cartões que a mais cheia ESTICA até a largura toda (`ui/Grade` com `ultimaLinha="esticar"`), sem buraco à
+ *   direita: 5 dá 3 + 2; 7 dá 4 + 3 (ou 3 + 2 + 2); 11 dá 4 + 4 + 3 (ou 3 + 3 + 3 + 2); 13 dá 4 + 3 + 3 + 3. Só sobra um
+ *   cartão sozinho (esticado, a linha toda) em 2 colunas: 5 dá 2 + 2 + 1. 1 coluna só se nem 2 couberem.
  */
 
 /**
@@ -20,7 +21,7 @@
 export const MINIMO_DA_CELULA = 250;
 export const VAO_DA_GRADE = 12;
 
-/** Largura das linhas de um total sem divisor, da preferida para a última saída. */
+/** Colunas de um total sem divisor, da preferida para a última saída. */
 const LINHAS_SEM_DIVISOR = [4, 3, 2];
 
 export function colunasDaGradeDeIndicadores(
@@ -39,6 +40,18 @@ export function colunasDaGradeDeIndicadores(
     if (cabe(colunas)) return colunas;
   }
   if (temDivisor || total < 5) return 1; // 2 e 3 seguem: todos numa linha ou 1 coluna (nunca 2 + 1)
-  const linhas = LINHAS_SEM_DIVISOR.filter((r) => r < total && cabe(r));
-  return linhas.find((r) => total % r !== 1) ?? linhas[0] ?? 1;
+  return LINHAS_SEM_DIVISOR.find((c) => c < total && cabe(c)) ?? 1;
+}
+
+/**
+ * Cartões de cada linha para `total` cartões em até `colunas` por linha: `ceil(total / colunas)` linhas que diferem em no
+ * máximo 1, as primeiras com os que sobram (7 em 3: 3, 2, 2; 5 em 2: 2, 2, 1). Com divisor exato, todas iguais.
+ */
+export function linhasDaGrade(total: number, colunas: number): number[] {
+  if (!(total > 0)) return [];
+  const c = Math.max(1, Math.min(Math.floor(colunas), total));
+  const linhas = Math.ceil(total / c);
+  const base = Math.floor(total / linhas);
+  const maisUm = total % linhas;
+  return Array.from({ length: linhas }, (_, i) => base + (i < maisUm ? 1 : 0));
 }

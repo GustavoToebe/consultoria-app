@@ -37,7 +37,7 @@ function linhas(ws: number[], largura: number): number[][] {
 }
 const ocupada = (linha: number[]) => linha.reduce((s, w) => s + w, 0) + VAO * (linha.length - 1);
 
-describe('GradeDeIndicadores com a última linha esticada', () => {
+describe('GradeDeIndicadores com as linhas equilibradas e esticadas', () => {
   it('5 cartões em 1100 px: 3 + 2, as duas linhas até a largura toda (menos o 1 px da web)', () => {
     const ws = larguras(<GradeDeIndicadores>{cartoes(5)}</GradeDeIndicadores>, 1100);
     const ls = linhas(ws, 1100);
@@ -52,10 +52,25 @@ describe('GradeDeIndicadores com a última linha esticada', () => {
     for (const l of ls) expect(ocupada(l)).toBeCloseTo(1279, 5);
   });
 
-  it('7 cartões em 900 px: 3 + 3 + 1, o último na linha toda', () => {
+  it('7 cartões em 900 px: 3 + 2 + 2, cada linha até a largura toda, a de 2 com cartões mais largos', () => {
     const ls = linhas(larguras(<GradeDeIndicadores>{cartoes(7)}</GradeDeIndicadores>, 900), 900);
-    expect(ls.map((l) => l.length)).toEqual([3, 3, 1]);
-    expect(ls[2][0]).toBeCloseTo(899, 5);
+    expect(ls.map((l) => l.length)).toEqual([3, 2, 2]);
+    for (const l of ls) expect(ocupada(l)).toBeCloseTo(899, 5);
+    expect(ls[1][0]).toBeCloseTo((899 - VAO) / 2, 5);
+    expect(ls[1][0]).toBeGreaterThan(ls[0][0]);
+    expect(ls[2]).toEqual(ls[1]);
+  });
+
+  it('5 cartões em 600 px: 2 + 2 + 1, o que sobra sozinho na linha toda', () => {
+    const ls = linhas(larguras(<GradeDeIndicadores>{cartoes(5)}</GradeDeIndicadores>, 600), 600);
+    expect(ls.map((l) => l.length)).toEqual([2, 2, 1]);
+    expect(ls[2][0]).toBeCloseTo(599, 5);
+  });
+
+  it('13 cartões em 1300 px: 4 + 3 + 3 + 3', () => {
+    const ls = linhas(larguras(<GradeDeIndicadores>{cartoes(13)}</GradeDeIndicadores>, 1300), 1300);
+    expect(ls.map((l) => l.length)).toEqual([4, 3, 3, 3]);
+    for (const l of ls) expect(ocupada(l)).toBeCloseTo(1299, 5);
   });
 
   it('6 cartões em 1008 px: 3 + 3 de larguras iguais (total com divisor não muda)', () => {
