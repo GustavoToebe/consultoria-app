@@ -206,7 +206,9 @@ public class AnonimizacaoService {
             autenticador.encerrarSessoes(aluno.getUsuarioId().toString());
         }
         aluno.anonimizar(Instant.now());
-        return alunos.saveAndFlush(aluno);
+        Aluno salvo = alunos.saveAndFlush(aluno);
+        alunos.definirAcessoPausadoEm(salvo.getConsultoriaId(), salvo.getId(), null);
+        return salvo;
     }
 
     private static boolean igual(String nome, String digitado) {

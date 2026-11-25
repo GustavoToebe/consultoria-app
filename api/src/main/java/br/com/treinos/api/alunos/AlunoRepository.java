@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -129,6 +130,11 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
     @Query("update Aluno a set a.podId = :podId where a.id = :alunoId and a.consultoriaId = :consultoriaId and a.ativo = true "
             + "and a.anonimizadoEm is null and a.usuarioId is not null")
     int colocarNoPod(UUID consultoriaId, UUID alunoId, UUID podId);
+
+    /** Grava (ou zera com nulo) o momento da pausa de acesso sem regravar a ficha: so a coluna, sem subir a versao. */
+    @Modifying(flushAutomatically = true)
+    @Query("update Aluno a set a.acessoPausadoEm = :quando where a.id = :alunoId and a.consultoriaId = :consultoriaId")
+    int definirAcessoPausadoEm(UUID consultoriaId, UUID alunoId, Instant quando);
 
     /** Tira o aluno do pod (nulo é válido): inativar, anonimizar, "Excluir minha conta" e a remoção pela equipe. */
     @Modifying(flushAutomatically = true)

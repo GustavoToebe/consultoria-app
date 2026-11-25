@@ -117,7 +117,7 @@ public class PagamentosDoAluno {
             return;
         }
         aluno.reativarAcesso();
-        alunos.flush();
+        alunos.definirAcessoPausadoEm(aluno.getConsultoriaId(), aluno.getId(), null);
         String resumo = "Reativou o acesso do aluno automaticamente após quitação.";
         if (porSistema) {
             auditoria.registrarDoSistema(aluno.getConsultoriaId(), "ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE",

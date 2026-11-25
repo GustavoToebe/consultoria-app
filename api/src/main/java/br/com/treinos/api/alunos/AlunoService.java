@@ -402,8 +402,9 @@ public class AlunoService {
             throw new ConflictException("O aluno não tem cobrança vencida em aberto para pausar o acesso.", "SEM_COBRANCA_VENCIDA");
         }
         if (!aluno.isAcessoPausado()) {
-            aluno.pausarAcesso(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS));
-            alunos.saveAndFlush(aluno);
+            Instant quando = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+            aluno.pausarAcesso(quando);
+            alunos.definirAcessoPausadoEm(aluno.getConsultoriaId(), aluno.getId(), quando);
             auditoria.registrarEvento("ALUNO_ACESSO_PAUSADO", "ALUNO", aluno.getId(), "Pausou o acesso do aluno por atraso.");
         }
         return detalheDe(aluno);
@@ -422,7 +423,7 @@ public class AlunoService {
         }
         if (aluno.isAcessoPausado()) {
             aluno.reativarAcesso();
-            alunos.saveAndFlush(aluno);
+            alunos.definirAcessoPausadoEm(aluno.getConsultoriaId(), aluno.getId(), null);
             auditoria.registrarEvento("ALUNO_ACESSO_REATIVADO", "ALUNO", aluno.getId(), "Reativou o acesso do aluno.");
         }
         return detalheDe(aluno);
@@ -462,6 +463,7 @@ public class AlunoService {
             agenda.cancelarFuturosDoAluno(aluno.getId()); // antes de encerrarSessoes, que não se desfaz
             // Libera a vaga no pod da comunidade; reativar não devolve (a equipe atribui de novo).
             alunos.tirarDoPod(aluno.getConsultoriaId(), aluno.getId());
+            alunos.definirAcessoPausadoEm(aluno.getConsultoriaId(), aluno.getId(), null);
         }
         if (aluno.getUsuarioId() != null) {
             usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo));

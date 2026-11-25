@@ -77,9 +77,8 @@ public class Aluno {
     @Column(name = "inativado_em")
     private Instant inativadoEm;
 
-    /** Quando o treinador pausou o acesso do aluno por atraso. Nulo = acesso liberado. Não sobe a versão do cadastro. */
-    @OptimisticLock(excluded = true)
-    @Column(name = "acesso_pausado_em")
+    /** Quando o treinador pausou o acesso do aluno por atraso. Nulo = acesso liberado. So leitura na JPA (como pod_id): quem grava e {@code AlunoRepository.definirAcessoPausadoEm}, para uma ficha lida antes e salva depois nunca desfazer pausa/reativacao. Não sobe a versão do cadastro. */
+    @Column(name = "acesso_pausado_em", insertable = false, updatable = false)
     private Instant acessoPausadoEm;
 
     /** Preenchido quando os dados pessoais foram apagados; o cadastro não volta a ser editado nem reativado. */

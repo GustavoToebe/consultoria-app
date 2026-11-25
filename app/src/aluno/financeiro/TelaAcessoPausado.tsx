@@ -146,9 +146,13 @@ export function TelaAcessoPausado() {
   return (
     <Tela largura={720}>
       <View style={estilos.cabecalho}>
-        <Texto variante="titulo" nivel={1}>Seu acesso está pausado. Quite aqui.</Texto>
+        <Texto variante="titulo" nivel={1}>
+          {modoDePagamento === 'informar' ? 'Seu acesso está pausado.' : 'Seu acesso está pausado. Quite aqui.'}
+        </Texto>
         <Texto variante="suave">
-          Assim que as cobranças vencidas forem quitadas, seu acesso ao aplicativo volta automaticamente.
+          {modoDePagamento === 'informar'
+            ? 'Assim que o seu treinador confirmar a regularização das cobranças vencidas, seu acesso ao aplicativo volta automaticamente.'
+            : 'Assim que as cobranças vencidas forem quitadas, seu acesso ao aplicativo volta automaticamente.'}
         </Texto>
       </View>
 

@@ -293,6 +293,45 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
         assertThat(contarAuditorias("ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE", alunoRenegociacao)).isEqualTo(1);
     }
 
+    @Test
+    void fichaAbertaAntesDaQuitacaoNaoRepausaEFichaAbertaAntesDaPausaNaoReativa() throws Exception {
+        // 1. Ficha lida com o aluno pausado; ele quita (reativacao automatica); o PUT com a versao antiga nao repausa.
+        UUID alunoId = api.criarAluno(treinador, "Aluno Corrida Quitou");
+        JsonNode cobranca = criarCobrancaAvulsa(alunoId, hoje.minusDays(10), 10_000);
+        api.post("/alunos/" + alunoId + "/pausar-acesso", treinador, null, 200);
+        JsonNode fichaLida = api.get("/alunos/" + alunoId, treinador, 200);
+        assertThat(fichaLida.get("acessoPausado").asBoolean()).isTrue();
+        long versao = fichaLida.get("versao").asLong();
+
+        api.post("/cobrancas/" + cobranca.get("id").asString() + "/baixa-manual", treinador,
+                Map.of("data", hoje.toString(), "forma", "PIX_DIRETO", "versao", cobranca.get("versao").asLong()), 200);
+        assertThat(pausadoNoBanco(alunoId)).isFalse();
+
+        JsonNode salvo = api.put("/alunos/" + alunoId, treinador,
+                Map.of("nome", "Aluno Corrida Quitou", "versao", versao), 200);
+        assertThat(salvo.get("acessoPausado").asBoolean()).isFalse();
+        assertThat(pausadoNoBanco(alunoId)).isFalse();
+        assertThat(api.get("/alunos/" + alunoId, treinador, 200).get("acessoPausado").asBoolean()).isFalse();
+
+        // 2. Inverso: ficha lida antes da pausa manual; o treinador pausa; o PUT com a versao antiga mantem pausado.
+        UUID outro = api.criarAluno(treinador, "Aluno Corrida Pausou");
+        criarCobrancaAvulsa(outro, hoje.minusDays(10), 10_000);
+        long versaoOutro = api.get("/alunos/" + outro, treinador, 200).get("versao").asLong();
+        api.post("/alunos/" + outro + "/pausar-acesso", treinador, null, 200);
+        assertThat(pausadoNoBanco(outro)).isTrue();
+
+        JsonNode salvoOutro = api.put("/alunos/" + outro, treinador,
+                Map.of("nome", "Aluno Corrida Pausou", "versao", versaoOutro), 200);
+        assertThat(salvoOutro.get("acessoPausado").asBoolean()).isTrue();
+        assertThat(pausadoNoBanco(outro)).isTrue();
+        assertThat(api.get("/alunos/" + outro, treinador, 200).get("acessoPausado").asBoolean()).isTrue();
+    }
+
+    private boolean pausadoNoBanco(UUID alunoId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+                "select acesso_pausado_em is not null from aluno where id = ?", Boolean.class, alunoId));
+    }
+
     private JsonNode criarCobrancaAvulsa(UUID alunoId, LocalDate vencimento, long valorCentavos) throws Exception {
         api.post("/financeiro/cobrancas-avulsas", treinador, Map.of(
                 "pedidoId", UUID.randomUUID().toString(),

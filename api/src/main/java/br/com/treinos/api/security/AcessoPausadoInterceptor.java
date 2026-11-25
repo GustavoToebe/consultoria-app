@@ -21,7 +21,7 @@ public class AcessoPausadoInterceptor implements HandlerInterceptor {
 
     public static final String CODIGO = "ACESSO_PAUSADO_POR_ATRASO";
     private static final String MENSAGEM = "Seu acesso está pausado por atraso. Regularize o pagamento para continuar.";
-    private static final Pattern LINK_OU_PIX = Pattern.compile("^/aluno/financeiro/cobrancas/[^/]+/(link|pix)$");
+    private static final Pattern LINK_OU_PIX = Pattern.compile("^/aluno/financeiro/cobrancas/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/(link|pix)$");
 
     private final AlunoRepository alunos;
 
