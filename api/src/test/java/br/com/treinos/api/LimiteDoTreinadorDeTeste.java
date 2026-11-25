@@ -146,6 +146,13 @@ public final class LimiteDoTreinadorDeTeste {
         JsonNode lista = api.get("/inscricoes?busca=" + email, admin, 200);
         assertThat(lista.path("total").asLong()).isEqualTo(1);
         String id = lista.path("itens").get(0).path("id").asString();
-        return new String[] {id, String.valueOf(api.get("/inscricoes/" + id, admin, 200).path("versao").asLong())};
+        JsonNode detalhe = api.get("/inscricoes/" + id, admin, 200);
+        Map<String, Object> confirmar = new HashMap<>();
+        confirmar.put("situacao", "NOVA");
+        confirmar.put("pagamento", "CONFIRMADO_MANUAL");
+        confirmar.put("responsavelId", responsavel == null ? null : responsavel.id());
+        confirmar.put("versao", detalhe.path("versao").asLong());
+        JsonNode confirmada = api.put("/inscricoes/" + id, admin, confirmar, 200);
+        return new String[] {id, String.valueOf(confirmada.path("versao").asLong())};
     }
 }

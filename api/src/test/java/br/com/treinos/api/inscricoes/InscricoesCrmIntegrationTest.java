@@ -271,7 +271,7 @@ class InscricoesCrmIntegrationTest extends AbstractIntegrationTest {
 
         // Aceita não reabre nem encerra.
         JsonNode aceite = api.post("/inscricoes/" + id + "/aceitar", admin,
-                mapa("convidar", false, "versao", reaberta.path("versao").asLong()), 200);
+                mapa("convidar", false, "versao", reaberta.path("versao").asLong(), "semCobranca", true), 200);
         long va = versao(id);
         assertThat(api.post("/inscricoes/" + id + "/reabrir", admin, mapa("motivo", "x", "versao", va), 409)
                 .path("codigo").asString()).isEqualTo("INSCRICAO_JA_ACEITA");
@@ -356,7 +356,8 @@ class InscricoesCrmIntegrationTest extends AbstractIntegrationTest {
         assertThat(limpa.path("eventos").get(0).path("detalhe").asString()).isEqualTo("Proposta removida");
 
         // Depois do aceite não muda; a proposta não cria cobrança nem confirma pagamento.
-        api.post("/inscricoes/" + id + "/aceitar", admin, mapa("convidar", false, "versao", limpa.path("versao").asLong()), 200);
+        api.post("/inscricoes/" + id + "/aceitar", admin,
+                mapa("convidar", false, "versao", limpa.path("versao").asLong(), "semCobranca", true), 200);
         JsonNode aceita = detalhe(id);
         assertThat(aceita.path("pagamento").asString()).isEqualTo("NAO_CONTROLADO");
         api.put("/inscricoes/" + id + "/proposta", admin, mapa("valorCentavos", 1, "versao", aceita.path("versao").asLong()), 409);
@@ -571,7 +572,8 @@ class InscricoesCrmIntegrationTest extends AbstractIntegrationTest {
         String idA = inscrever(a);
         String idB = inscrever(corpo("Pessoa Fictícia B", "11987651002", null));
         String idC = inscrever(corpo("Pessoa Fictícia C", "11987651001", null));
-        api.post("/inscricoes/" + idA + "/aceitar", admin, mapa("convidar", false, "versao", versao(idA)), 200);
+        api.post("/inscricoes/" + idA + "/aceitar", admin,
+                mapa("convidar", false, "versao", versao(idA), "semCobranca", true), 200);
         api.post("/inscricoes/" + idB + "/encerrar", admin, mapa("situacao", "RECUSADA", "motivo", "PRECO",
                 "versao", versao(idB)), 200);
         api.post("/inscricoes/" + idB + "/reabrir", admin, mapa("motivo", "Voltou.", "versao", versao(idB)), 200);
@@ -625,7 +627,8 @@ class InscricoesCrmIntegrationTest extends AbstractIntegrationTest {
         long v = api.put("/inscricoes/" + id + "/proposta", admin, mapa("planoNome", "Plano Fictício",
                 "valorCentavos", 20000, "versao", versao(id)), 200).path("versao").asLong();
         api.post("/inscricoes/" + id + "/retornos", admin, mapa("descricao", "Retorno fictício", "data", hoje()), 200);
-        String alunoId = api.post("/inscricoes/" + id + "/aceitar", admin, mapa("convidar", false, "versao", v), 200)
+        String alunoId = api.post("/inscricoes/" + id + "/aceitar", admin,
+                mapa("convidar", false, "versao", v, "semCobranca", true), 200)
                 .path("alunoId").asString();
 
         JsonNode item = api.get("/alunos/" + alunoId + "/exportacao", admin, 200).path("inscricao").path("itens").get(0);

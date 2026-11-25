@@ -68,6 +68,9 @@ public class IndicadoresDeInscricoes {
         long pessoas = inscricoes.pessoas(inicio, fim);
         long aceitesDasEntradas = inscricoes.aceitesDasEntradas(inicio, fim);
         long aceites = inscricoes.contarAceites(inicio, fim);
+        long aguardandoPagamento = inscricoes.aguardandoPagamento(inicio, fim);
+        long pagaram = inscricoes.pagaram(inicio, fim);
+        long cortesias = inscricoes.cortesias(inicio, fim);
 
         long recusadas = 0;
         long desistencias = 0;
@@ -98,7 +101,8 @@ public class IndicadoresDeInscricoes {
 
         Double conversao = entradas == 0 ? null : (double) aceitesDasEntradas / entradas;
         return new Indicadores(inicioDia, fimDia, entradas, pessoas, aceites, recusadas, desistencias, reaberturas,
-                aceitesDasEntradas, conversao, diasAteAceite(inicio, fim), motivos, origens);
+                aceitesDasEntradas, conversao, diasAteAceite(inicio, fim), motivos, origens,
+                aguardandoPagamento, pagaram, cortesias);
     }
 
     private DiasAteAceite diasAteAceite(Instant inicio, Instant fim) {

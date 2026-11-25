@@ -311,10 +311,10 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode item = unica(admin);
         long antes = alunos(consultoria);
 
-        // CA20: aceita sem nenhum pagamento registrado.
+        // CA20: aceita sem cobrança (cortesia) sem nenhum pagamento registrado.
         JsonNode aceite = api.post("/inscricoes/" + item.path("id").asString() + "/aceitar", admin,
                 Map.of("convidar", false, "versao", api.get("/inscricoes/" + item.path("id").asString(), admin, 200)
-                        .path("versao").asLong()), 200);
+                        .path("versao").asLong(), "semCobranca", true), 200);
         assertThat(aceite.path("convite").isNull()).isTrue();
         String alunoId = aceite.path("alunoId").asString();
         JsonNode aluno = api.get("/alunos/" + alunoId, admin, 200);
@@ -357,7 +357,8 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/inscricoes/" + id, admin, 200).path("situacao").asString()).isEqualTo("NOVA");
 
         perfil(admin, "Administrador");
-        JsonNode aceite = api.post("/inscricoes/" + id + "/aceitar", admin, Map.of("convidar", true, "versao", versao), 200);
+        JsonNode aceite = api.post("/inscricoes/" + id + "/aceitar", admin,
+                Map.of("convidar", true, "versao", versao, "semCobranca", true), 200);
         assertThat(aceite.path("convite").path("link").asString()).contains("/convite#codigo=");
         assertThat(aceite.path("convite").path("codigo").asString()).hasSize(10);
         JsonNode aluno = api.get("/alunos/" + aceite.path("alunoId").asString(), admin, 200);
@@ -381,7 +382,7 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode recusa = api.post("/inscricoes/" + item.path("id").asString() + "/aceitar", admin,
                 Map.of("convidar", false, "versao", api.get("/inscricoes/" + item.path("id").asString(), admin, 200)
-                        .path("versao").asLong()), 409);
+                        .path("versao").asLong(), "semCobranca", true), 409);
         assertThat(recusa.path("codigo").asString()).isEqualTo("ALUNO_JA_EXISTE");
         assertThat(recusa.path("fieldErrors").get(0).path("field").asString()).isEqualTo("alunoId");
         assertThat(recusa.path("fieldErrors").get(0).path("message").asString()).isEqualTo(existente);
@@ -404,7 +405,8 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         long antes = alunos(consultoria);
 
         JsonNode recusa = api.post("/inscricoes/" + id + "/aceitar", admin,
-                Map.of("convidar", true, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong()), 409);
+                Map.of("convidar", true, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong(),
+                        "semCobranca", true), 409);
         assertThat(recusa.path("codigo").asString()).isEqualTo("LIMITE_DO_PLANO");
         assertThat(alunos(consultoria)).isEqualTo(antes);
         assertThat(api.get("/inscricoes/" + id, admin, 200).path("situacao").asString()).isEqualTo("NOVA");
@@ -429,12 +431,15 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         return id;
     }
 
-    /** Abre o link, recebe uma inscrição e devolve {id, versao}. */
+    /** Abre o link, recebe uma inscrição, confirma o pagamento manual e devolve {id, versao}. */
     private String[] inscricaoNova(JsonNode login) throws Exception {
         String codigo = abrirLink(login, null, null).path("codigo").asString();
         inscrever(codigo, inscricao("Pessoa Fictícia " + UUID.randomUUID(), null), 202);
         String id = unica(login).path("id").asString();
-        return new String[] {id, String.valueOf(api.get("/inscricoes/" + id, login, 200).path("versao").asLong())};
+        long versao = api.get("/inscricoes/" + id, login, 200).path("versao").asLong();
+        JsonNode confirmada = api.put("/inscricoes/" + id, login,
+                Map.of("situacao", "NOVA", "pagamento", "CONFIRMADO_MANUAL", "versao", versao), 200);
+        return new String[] {id, String.valueOf(confirmada.path("versao").asLong())};
     }
 
     private static Map<String, Object> aceiteCom(String versao, String questionarioId) {
@@ -614,7 +619,8 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         String id = unica(admin).path("id").asString();
         api.post("/inscricoes/" + id + "/notas", admin, Map.of("texto", "Nota fictícia"), 200);
         String alunoId = api.post("/inscricoes/" + id + "/aceitar", admin,
-                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong()), 200)
+                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong(),
+                        "semCobranca", true), 200)
                 .path("alunoId").asString();
 
         api.patch("/alunos/" + alunoId + "/situacao", admin, Map.of("ativo", false), 200);
@@ -646,7 +652,8 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
 
         perfil(admin, "Administrador");
         String alunoId = api.post("/inscricoes/" + id + "/aceitar", admin,
-                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong()), 200)
+                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong(),
+                        "semCobranca", true), 200)
                 .path("alunoId").asString();
         assertThat(api.get("/inscricoes/" + id, admin, 200).path("respostas").path("respostas").path("observacao").asString())
                 .isEqualTo("Observação fictícia");
@@ -674,7 +681,8 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         String id = unica(admin).path("id").asString();
         api.post("/inscricoes/" + id + "/notas", admin, Map.of("texto", "Nota fictícia da equipe"), 200);
         String alunoId = api.post("/inscricoes/" + id + "/aceitar", admin,
-                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong()), 200)
+                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong(),
+                        "semCobranca", true), 200)
                 .path("alunoId").asString();
 
         JsonNode exportacao = api.get("/alunos/" + alunoId + "/exportacao", admin, 200);
@@ -782,7 +790,7 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         for (JsonNode i : api.get("/inscricoes", admin, 200).path("itens")) {
             String id = i.path("id").asString();
             long versao = api.get("/inscricoes/" + id, admin, 200).path("versao").asLong();
-            String corpo = json.writeValueAsString(Map.of("convidar", false, "versao", versao));
+            String corpo = json.writeValueAsString(Map.of("convidar", false, "versao", versao, "semCobranca", true));
             aceites.add(() -> {
                 largada.await();
                 var resposta = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
@@ -851,7 +859,7 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode detalhe = api.get("/inscricoes/" + item.path("id").asString(), admin, 200);
         assertThat(detalhe.path("sexo").asString()).isEqualTo("FEMININO");
         JsonNode aceite = api.post("/inscricoes/" + item.path("id").asString() + "/aceitar", admin,
-                Map.of("convidar", false, "versao", detalhe.path("versao").asLong()), 200);
+                Map.of("convidar", false, "versao", detalhe.path("versao").asLong(), "semCobranca", true), 200);
         String alunoId = aceite.path("alunoId").asString();
         assertThat(api.get("/alunos/" + alunoId, admin, 200).path("sexo").asString()).isEqualTo("FEMININO");
         assertThat(banco.queryForObject("select ciclo_ativado_em from aluno where id = ?::uuid", String.class, alunoId)).isNull();
