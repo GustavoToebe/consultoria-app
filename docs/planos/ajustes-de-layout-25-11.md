@@ -1,6 +1,6 @@
 # Ajustes de layout de 24 e 25/11 (lote com nove frentes)
 
-Situação: Em andamento · Onde: main · Atualizado: 25/11/2026
+Situação: Entregue em 25/11/2026 (CI do push: ver Passos) · Onde: main · Atualizado: 25/11/2026
 
 ## Objetivo
 Corrigir, num lote só, defeitos de layout e de legibilidade apontados pelo Gustavo: Configurações em colunas empilhadas, selos da lista de alunos, Equipe sem meia tela vazia, Cobranças com linha de uma altura, catálogo da Biblioteca no padrão das abas, Frequência e Água da ficha, divisórias e botões da `ListaDeDados`, editor de questionário em tela larga, folha "No centro" com a altura do conteúdo e Biblioteca › Outros.
@@ -27,7 +27,8 @@ Corrigir, num lote só, defeitos de layout e de legibilidade apontados pelo Gust
 - [x] T-007 `ListaDeDados`: divisórias e botão pequeno
 - [x] T-008 Editor de questionário: índice e prévia ao vivo
 - [x] T-009 Folha "No centro", cartões da Vitrine, Editar alimento (FC/FCc) e Outros
-- [ ] Verificação final e push — commit/run: —
+- [x] Verificação final — commit `f0e119f3`: `tsc` 0 erros, lint 0 erros (11 avisos antigos), jest 418 suítes e 9785 testes, e2e das áreas (1009 passaram, 70 de captura pulados, 0 falhas; a suíte completa não rodou, por limite pedido pelo Gustavo em cada pedido), `mvn verify` 3328 testes, 0 falhas, `folha-no-centro.spec.ts` 3 passaram
+- [ ] Push e CI — run: —
 
 ## Fora do escopo
 - Botão e ícone pequenos fora da `ListaDeDados` (o `Botao` padrão não muda).
