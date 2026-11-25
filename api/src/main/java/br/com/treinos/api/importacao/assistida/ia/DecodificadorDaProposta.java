@@ -60,6 +60,9 @@ final class DecodificadorDaProposta {
         JsonNode duvidasNode = root.path("duvidas");
         if (duvidasNode.isArray()) {
             for (JsonNode d : duvidasNode) {
+                if (TermoDeDuvida.semConteudo(d.path("termoOriginal").asText(""))) {
+                    continue; // sem termo para conferir: descartada, não vira dúvida aberta
+                }
                 List<ResultadoInterpretacao.PropostaSugestao> sugestoes = new ArrayList<>();
                 JsonNode sugsNode = d.path("sugestoes");
                 if (sugsNode.isArray()) {

@@ -31,7 +31,9 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          /* Avisos pelo WhatsApp oficial da Meta ligados ({@code TREINOS_WHATSAPP_HABILITADO}); desligado, o app esconde tudo deles. */
                          boolean whatsappHabilitado,
                          /* Só para o aluno: WhatsApp da consultoria só com dígitos (DDD + número, sem o 55), para o app montar wa.me/55<dígitos>; some se não há. */
-                         String whatsappDaConsultoria) {
+                         String whatsappDaConsultoria,
+                         /* Só para o aluno: as redes sociais da consultoria que estão preenchidas (links https por chave); some se nenhuma. */
+                         java.util.Map<String, String> redesSociaisDaConsultoria) {
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 

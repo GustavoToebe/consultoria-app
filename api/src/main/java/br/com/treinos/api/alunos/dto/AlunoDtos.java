@@ -87,7 +87,9 @@ public final class AlunoDtos {
             @Min(1) @Max(365) Integer diasAtualizacao, UUID responsavelId,
             @Size(max = 10) String sexo,
             MetaDoPesoPedida metaDoPeso,
-            @Size(max = 10) String dataNascimento) {
+            @Size(max = 10) String dataNascimento,
+            /** Instagram e TikTok: nulo (ausente) não mexe; em branco apaga; {@code @usuario}, usuário ou link do perfil (grava só o usuário). Dado pessoal. */
+            @Size(max = 200) String instagram, @Size(max = 200) String tiktok) {
 
         /** Dado pessoal e de saúde: o texto padrão do record os mostraria. */
         @Override
@@ -96,7 +98,7 @@ public final class AlunoDtos {
         }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao,UUID responsavelId) {
-            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId,null,null,null);
+            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId,null,null,null,null,null);
         }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao) {
@@ -160,7 +162,11 @@ public final class AlunoDtos {
                                /** O que o plano comercial da contratação ATIVA inclui; nulo sem {@code ALUNO_LER}, sem contratação ativa, anonimizado ou com o financeiro desligado. */
                                PlanosAtivos planosAtivos,
                                /** Tags do aluno (V093), em ordem de nome, com {@code ALUNO_LER}; sempre presente (vazia sem tag, sem permissão ou anonimizado). */
-                               List<TagResumo> tags) {
+                               List<TagResumo> tags,
+                               /** Acesso desativado pela equipe (V100); os dois nulos com o acesso ativo. Só com {@code ALUNO_LER}. */
+                               Instant acessoDesativadoEm, String acessoDesativadoMotivo,
+                               /** Instagram e TikTok (só o usuário, sem @); com {@code ALUNO_LER}, como o telefone. Dado pessoal. */
+                               String instagram, String tiktok) {
         /**
          * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
          * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
@@ -188,7 +194,10 @@ public final class AlunoDtos {
                     // Anonimizado: o autor e a data da publicação não são mais mostrados (como o último acesso e os planos ativos).
                     a.isAnonimizado() ? null : ultimoPlano,
                     ler && !a.isAnonimizado() ? planosAtivos : null,
-                    ler && !a.isAnonimizado() && tags != null ? tags : List.of());
+                    ler && !a.isAnonimizado() && tags != null ? tags : List.of(),
+                    ler ? a.getAcessoDesativadoEm() : null,
+                    ler && a.getAcessoDesativadoMotivo() != null ? a.getAcessoDesativadoMotivo().name() : null,
+                    ler ? a.getInstagram() : null, ler ? a.getTiktok() : null);
         }
     }
 
@@ -221,6 +230,18 @@ public final class AlunoDtos {
         public String toString() {
             return "DefinirAcessoRequest[email=***, senha=***]";
         }
+    }
+
+    /** Troca só o e-mail de login (a senha não muda). Formato como em {@link DefinirAcessoRequest}. */
+    public record AlterarEmailDeAcessoRequest(@NotBlank @Email @Size(max = 254) String email) {
+        @Override
+        public String toString() {
+            return "AlterarEmailDeAcessoRequest[email=***]";
+        }
+    }
+
+    /** {@code motivo} ausente = {@code MANUAL}, o único valor de hoje; outro valor = 400. */
+    public record DesativarAcessoRequest(@jakarta.validation.constraints.Pattern(regexp = "MANUAL") String motivo) {
     }
 
     /** O código só aparece nesta resposta; o banco guarda o SHA-256. */

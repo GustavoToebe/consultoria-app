@@ -15,6 +15,7 @@ import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.comunidade.ComunidadePod;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.consultoria.RedesSociais;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
 import br.com.treinos.api.treino.PlanoTreino;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
@@ -276,6 +277,7 @@ public class AlunoService {
         limiteDoTreinador.exigirVaga(aluno.getResponsavelId(), 1, null);
         aplicarSexo(aluno, r.sexo());
         aluno.alterarDataNascimento(dados.dataNascimento());
+        aluno.alterarRedes(dados.instagram(), dados.tiktok());
         return detalheDe(gravar(aluno));
     }
 
@@ -356,6 +358,11 @@ public class AlunoService {
         if (r.dataNascimento() != null) {
             aluno.alterarDataNascimento(dados.dataNascimento());
         }
+        // Instagram e TikTok, cada um sozinho: nulo mantém o gravado, em branco apaga, preenchido grava o usuário.
+        if (r.instagram() != null || r.tiktok() != null) {
+            aluno.alterarRedes(r.instagram() == null ? aluno.getInstagram() : dados.instagram(),
+                    r.tiktok() == null ? aluno.getTiktok() : dados.tiktok());
+        }
         UUID anterior=aluno.getResponsavelId();
         definirResponsavel(aluno,r.responsavelId());
         if(!java.util.Objects.equals(anterior,aluno.getResponsavelId()))
@@ -422,7 +429,8 @@ public class AlunoService {
             alunos.tirarDoPod(aluno.getConsultoriaId(), aluno.getId());
         }
         if (aluno.getUsuarioId() != null) {
-            usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo));
+            // Acesso desativado pela equipe (V100) não volta com a situação do aluno: só "Reativar acesso" libera o usuário.
+            usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo && aluno.getAcessoDesativadoEm() == null));
             if (!ativo) {
                 push.apagarDoUsuario(aluno.getConsultoriaId(), aluno.getUsuarioId());
                 autenticador.encerrarSessoes(aluno.getUsuarioId().toString());
@@ -506,17 +514,19 @@ public class AlunoService {
      * {@code endereco.uf}, {@code endereco.logradouro}...) e uma mensagem fixa do {@code Formatos} ou da {@code RegrasDoEndereco}, nunca o valor enviado. CPF e endereço só são lidos
      * (e conferidos) com {@code ALUNO_SENSIVEL_ALTERAR}.
      */
-    record Dados(String telefone, String cpf, Endereco endereco, LocalDate dataNascimento) {
+    record Dados(String telefone, String cpf, Endereco endereco, LocalDate dataNascimento, String instagram, String tiktok) {
         static Dados de(AlunoRequest r, boolean sensivel) {
             var erros = new ArrayList<ApiError.FieldError>();
             LocalDate nascimento = dataNascimento(erros, r.dataNascimento());
             String telefone = formato(erros, "telefone", Formatos::telefone, r.telefone());
             String cpf = sensivel ? formato(erros, "cpf", Formatos::cpf, r.cpf()) : null;
             Endereco endereco = sensivel ? endereco(erros, r.endereco()) : null;
+            String instagram = rede(erros, "instagram", RedesSociais.Rede.INSTAGRAM, r.instagram());
+            String tiktok = rede(erros, "tiktok", RedesSociais.Rede.TIKTOK, r.tiktok());
             if (!erros.isEmpty()) {
                 throw new ValidacaoException("Confira os dados do aluno.", "ALUNO_INVALIDO", erros);
             }
-            return new Dados(telefone, cpf, endereco, nascimento);
+            return new Dados(telefone, cpf, endereco, nascimento, instagram, tiktok);
         }
 
         /** Em branco ou nulo = sem data. Texto fora de {@code AAAA-MM-DD} ou fora da faixa de registro vira erro no campo, sem o valor. */
@@ -542,6 +552,16 @@ public class AlunoService {
             RegrasDoEndereco.Resultado r = RegrasDoEndereco.normalizar(e);
             r.erros().forEach(x -> erros.add(new ApiError.FieldError("endereco." + x.campo(), x.mensagem())));
             return r.endereco();
+        }
+
+        /** Instagram e TikTok: só o usuário normalizado (nulo para vazio); erro no campo com a mensagem fixa da rede, sem o valor. */
+        static String rede(List<ApiError.FieldError> erros, String campo, RedesSociais.Rede rede, String valor) {
+            try {
+                return RedesSociais.usuario(rede, valor);
+            } catch (RedesSociais.RedeInvalidaException recusada) {
+                erros.add(new ApiError.FieldError(campo, recusada.getMessage()));
+                return null;
+            }
         }
 
         static String formato(List<ApiError.FieldError> erros, String campo, UnaryOperator<String> formatar, String valor) {

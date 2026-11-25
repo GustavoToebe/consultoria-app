@@ -85,6 +85,21 @@ public class Aluno {
     @Column(name = "uso_de_imagem_autorizado_em")
     private Instant usoDeImagemAutorizadoEm;
 
+    /**
+     * Acesso ao app desativado pela equipe (V100), sem apagar nada; nulo = acesso normal. As duas colunas andam juntas.
+     * Enquanto preenchidas, o usuário do aluno fica inativo mesmo que o aluno esteja ativo ({@code AlunoService.aplicarSituacao}).
+     */
+    @Column(name = "acesso_desativado_em")
+    private Instant acessoDesativadoEm;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "acesso_desativado_motivo")
+    private MotivoDoAcessoDesativado acessoDesativadoMotivo;
+
+    /** Usuário (sem @) no Instagram e no TikTok (V101), já normalizados por {@code RedesSociais}. Dado pessoal: nunca em log, auditoria nem mensagem de erro. */
+    private String instagram;
+    private String tiktok;
+
     /** Quando o aluno desligou, só para ele, os lembretes de cobrança por e-mail. Nulo = recebe. */
     @Column(name = "lembretes_cobranca_desligados_em")
     private Instant lembretesCobrancaDesligadosEm;
@@ -359,6 +374,41 @@ public class Aluno {
         return anonimizadoEm != null;
     }
 
+    public Instant getAcessoDesativadoEm() {
+        return acessoDesativadoEm;
+    }
+
+    public MotivoDoAcessoDesativado getAcessoDesativadoMotivo() {
+        return acessoDesativadoMotivo;
+    }
+
+    public void desativarAcesso(Instant quando, MotivoDoAcessoDesativado motivo) {
+        this.acessoDesativadoEm = quando;
+        this.acessoDesativadoMotivo = motivo;
+        this.atualizadoEm = quando;
+    }
+
+    public void reativarAcesso() {
+        this.acessoDesativadoEm = null;
+        this.acessoDesativadoMotivo = null;
+        this.atualizadoEm = Instant.now();
+    }
+
+    public String getInstagram() {
+        return instagram;
+    }
+
+    public String getTiktok() {
+        return tiktok;
+    }
+
+    /** Já normalizados (só o usuário); nulo apaga. */
+    public void alterarRedes(String instagram, String tiktok) {
+        this.instagram = instagram;
+        this.tiktok = tiktok;
+        this.atualizadoEm = Instant.now();
+    }
+
     /** Troca o nome e apaga o que identifica a pessoa; a situação fica inativa. Contagens (pastas, treinos) seguem. */
     public void anonimizar(Instant quando) {
         this.nome = NOME_ANONIMIZADO;
@@ -391,6 +441,10 @@ public class Aluno {
         this.perfilMoldura = null;
         this.perfilDestaques = null;
         this.metaDoPeso = null;
+        this.instagram = null;
+        this.tiktok = null;
+        this.acessoDesativadoEm = null;
+        this.acessoDesativadoMotivo = null;
         this.cicloAtivadoEm = null;
         this.cicloConsentimentoVersao = null;
         this.cicloDuracaoHabitual = null;

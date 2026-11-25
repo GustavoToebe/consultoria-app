@@ -12,6 +12,7 @@ import br.com.treinos.api.importacao.assistida.ia.ConfiguracaoIaImportacao;
 import br.com.treinos.api.importacao.assistida.ia.InterpretadorClaude;
 import br.com.treinos.api.importacao.assistida.ia.InterpretadorGemini;
 import br.com.treinos.api.importacao.assistida.ia.InterpretadorPorRegras;
+import br.com.treinos.api.importacao.assistida.ia.ResultadoInterpretacao;
 import br.com.treinos.api.importacao.assistida.ia.RoteadorInterpretadorIa;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.NaoEncontradoException;
@@ -208,6 +209,31 @@ class ImportacaoAssistidaServiceTest {
         assertThat(detalhe.grupos().getFirst().treino().sessoes().getFirst().exercicios().getFirst().nome())
                 .isEqualTo("Puxada frontal pronada");
         verify(apelidos).save(any(ImportacaoApelidoConsultoria.class));
+    }
+
+    @Test
+    void duvidaSemTermoDeQualquerInterpretadorNaoEntraNaSessaoENemNaContagem() {
+        ImportacaoSessao sessao = sessaoAberta();
+        sessao.atualizarEstado("PROCESSANDO");
+        ImportacaoArquivo arq = texto(sessao, "a.txt", "x");
+        ReflectionTestUtils.setField(arq, "id", UUID.randomUUID());
+        var duvidas = List.of(
+                new ResultadoInterpretacao.PropostaDuvida("EXERCICIO_NAO_RECONHECIDO", "", "3x10", "a.txt", List.of()),
+                new ResultadoInterpretacao.PropostaDuvida("EXERCICIO_NAO_RECONHECIDO", "**", "3x10", "a.txt", List.of()),
+                new ResultadoInterpretacao.PropostaDuvida("EXERCICIO_NAO_RECONHECIDO", "—", "3x10", "a.txt", List.of()),
+                new ResultadoInterpretacao.PropostaDuvida("EXERCICIO_NAO_RECONHECIDO", "Puxada frent", null, "a.txt", List.of()),
+                new ResultadoInterpretacao.PropostaDuvida("EXERCICIO_NAO_RECONHECIDO", "Rosca 21", "3x10", "a.txt", List.of()));
+        var execucao = new RoteadorInterpretadorIa.ExecucaoInterpretacao(new ResultadoInterpretacao(List.of(), duvidas), "REGRAS",
+                "regras", false, null);
+        var item = new ImportacaoAssistidaService.ResultadoArquivoProcessado(arq.getId(), true, "{}", null, execucao,
+                new RedatorLgpdImportacao.RedacaoResultado("", List.of(), List.of(), List.of(), List.of()));
+
+        service.concluirProcessamentoEmTransacao(sessao.getId(), new ImportacaoAssistidaService.ResultadoProcessamentoLote(List.of(item), List.of()));
+
+        var gravadas = SessaoJson.duvidas(json, sessao);
+        assertThat(gravadas).extracting(ImportacaoAssistidaDtos.DuvidaImportacao::termoOriginal).containsExactly("Puxada frent", "Rosca 21");
+        assertThat(gravadas.getFirst().trechoOriginal()).isEmpty(); // trecho ausente com termo válido: a tela esconde
+        assertThat(gravadas).noneMatch(ImportacaoAssistidaDtos.DuvidaImportacao::resolvida);
     }
 
     @Test

@@ -29,6 +29,7 @@ import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SugestaoD
 import br.com.treinos.api.importacao.assistida.ia.ContextoIa;
 import br.com.treinos.api.importacao.assistida.ia.ResultadoInterpretacao;
 import br.com.treinos.api.importacao.assistida.ia.RoteadorInterpretadorIa;
+import br.com.treinos.api.importacao.assistida.ia.TermoDeDuvida;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.web.Buscas;
@@ -328,6 +329,9 @@ public class ImportacaoAssistidaService {
                 grupos.add(montarGrupo(pg, arq, "grupo-" + seqGrupo, email, telefone, resultado.existentes()));
             }
             for (ResultadoInterpretacao.PropostaDuvida pd : item.execucao().resultado().duvidas()) {
+                if (TermoDeDuvida.semConteudo(pd.termoOriginal())) {
+                    continue; // mesma regra do decodificador, para qualquer interpretador
+                }
                 List<SugestaoDuvida> sugs = new ArrayList<>();
                 if (pd.sugestoes() != null) {
                     for (ResultadoInterpretacao.PropostaSugestao ps : pd.sugestoes()) {
@@ -338,7 +342,7 @@ public class ImportacaoAssistidaService {
                 seqDuvida++;
                 List<String> ocIds = pd.ocorrenciaIds() == null ? List.of() : pd.ocorrenciaIds();
                 int qtdOc = ocIds.isEmpty() ? 1 : ocIds.size();
-                duvidas.add(new DuvidaImportacao("duvida-" + seqDuvida, pd.tipo(), pd.termoOriginal(), pd.trechoOriginal(),
+                duvidas.add(new DuvidaImportacao("duvida-" + seqDuvida, pd.tipo(), pd.termoOriginal(), pd.trechoOriginal() == null ? "" : pd.trechoOriginal(),
                         arq.getNomeOriginal(), qtdOc, sugs, false, null, ocIds));
             }
         }
