@@ -22,6 +22,11 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu({ ...EU, whatsappDaConsultoria: '45999998888' }).whatsappDaConsultoria).toBe('45999998888');
     expect(perfilDoEu(EU).whatsappDaConsultoria).toBeUndefined();
   });
+
+  it('guarda overtrainingPayHabilitado com padrão false quando ausente', () => {
+    expect(perfilDoEu({ ...EU, overtrainingPayHabilitado: true }).overtrainingPayHabilitado).toBe(true);
+    expect(perfilDoEu(EU).overtrainingPayHabilitado).toBe(false);
+  });
 });
 
 describe('perfilAtualizado', () => {

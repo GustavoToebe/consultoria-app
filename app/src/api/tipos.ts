@@ -53,6 +53,8 @@ export interface EuResponse {
   pagamentosHabilitados?: boolean;
   /** Módulo de pagamentos E a InfinitePay ligados na consultoria; falso ou ausente = o app esconde o recebimento online. */
   recebimentoOnlineHabilitado?: boolean;
+  /** Módulo de pagamentos E o Overtraining Pay (Asaas) ligados na plataforma; falso ou ausente = o app esconde a homologação e o checkout no aplicativo. */
+  overtrainingPayHabilitado?: boolean;
   /** Kiwify automática ligada na plataforma (`TREINOS_PAGAMENTOS_KIWIFY_HABILITADO`); falso ou ausente = o app esconde tudo dela. */
   kiwifyHabilitada?: boolean;
   /** Chaves da plataforma: o "Pagar" aparece no iOS / no Android só com a respectiva ligada (a web sempre tem). Ausente = desligada. */

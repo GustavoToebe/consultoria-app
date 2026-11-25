@@ -2,6 +2,7 @@ import { Trash2 } from 'lucide-react-native';
 import { useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View, type KeyboardTypeOptions, type TextInput, type TextInputProps } from 'react-native';
 
+import type { SituacaoHomologacao } from '../../api/financeiroOvertrainingPay';
 import type { FormasDeRecebimento, TipoDeChavePix } from '../../api/financeiroTipos';
 import { apagarDadosDoPix } from '../../api/financeiroF1';
 import { buscarFormasDeRecebimento, salvarFormasDeRecebimento } from '../../api/rotas';
@@ -10,6 +11,7 @@ import {
   MENSAGEM_CAMPOS_DAS_FORMAS, MENSAGEM_PIX_APAGADO, notaDoCelular, podeApagarPix, previaDoAluno, TIPOS_DE_CHAVE_PIX, traduzirErroDasFormas,
   traduzirErroDoApagarPix, type CampoDasFormas, type ErrosDasFormas, type EstadoDasFormas,
 } from '../../dominio/formasDeRecebimento';
+import { seloDaHomologacao } from '../../dominio/overtrainingPay';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, LARGURA_FORMULARIO, RAIO_CONTROLE } from '../../tema/tokens';
@@ -66,12 +68,28 @@ const ligada = (v: boolean) => (v ? 'Ligado' : 'Desligado');
  * (módulo da InfinitePay desligado na instalação): a linha some e o valor gravado segue igual no `PUT`.
  * "Apagar dados do Pix" (D12) só com `FINANCEIRO_ALTERAR` e chave gravada: confirma no painel e grava na hora, fora do "Salvar".
  */
-export function CartaoFormasDeRecebimento({ podeAlterar, comInfinitePay, infinitePayConfigurada, maisAjustes }: {
+export function CartaoFormasDeRecebimento({
+  podeAlterar,
+  comInfinitePay,
+  infinitePayConfigurada,
+  comOvertrainingPay = false,
+  overtrainingPayAtivo = false,
+  overtrainingPayMaxParcelas = 12,
+  overtrainingPaySituacao,
+  maisAjustes,
+}: {
   podeAlterar: boolean;
   comInfinitePay: boolean;
   /** A InfiniteTag está salva (o "Pagar" da InfinitePay só aparece ao aluno com ela); `undefined` enquanto carrega. */
   infinitePayConfigurada: boolean | undefined;
-  /** Outros cartões da coluna de ajustes, embaixo deste (a conta InfinitePay). Ficam no mesmo lugar da árvore em todo estado. */
+  /** Overtraining Pay habilitado na plataforma. */
+  comOvertrainingPay?: boolean;
+  /** Subconta homologada (`ATIVA`): só então o interruptor do Overtraining Pay fica liberado. */
+  overtrainingPayAtivo?: boolean;
+  /** Parcelas máximas configuradas no Overtraining Pay para atualizar a prévia do aluno em tempo real. */
+  overtrainingPayMaxParcelas?: number;
+  overtrainingPaySituacao?: SituacaoHomologacao;
+  /** Outros cartões da coluna de ajustes, embaixo deste (homologação, integrações externas). Ficam no mesmo lugar da árvore em todo estado. */
   maisAjustes?: ReactNode;
 }) {
   const { pode } = useSessao();
@@ -96,18 +114,38 @@ export function CartaoFormasDeRecebimento({ podeAlterar, comInfinitePay, infinit
       </Cartao>
     );
   } else if (!podeAlterar) {
-    cartao = <Leitura dados={dados} comInfinitePay={comInfinitePay} />;
+    cartao = <Leitura dados={dados} comInfinitePay={comInfinitePay} comOvertrainingPay={comOvertrainingPay} />;
   } else {
     // A chave do formulário é a versão: salvar ou recarregar traz outra versão e o formulário nasce de novo, sem resto de digitação.
-    cartao = <Formulario key={dados.versao ?? 'novo'} dados={dados} comInfinitePay={comInfinitePay} infinitePayConfigurada={infinitePayConfigurada}
-      // Salvar ou recarregar esquece o que estava na tela (a chave digitada inclusive): a prévia volta ao gravado.
-      aoSalvar={(novo) => { setNaTela(null); definir(novo); }} aoRecarregar={() => { setNaTela(null); recarregar(); }}
-      aoMudarEstado={(estado) => setNaTela({ versao: dados.versao, estado })} />;
+    cartao = (
+      <Formulario
+        key={dados.versao ?? 'novo'}
+        dados={dados}
+        comInfinitePay={comInfinitePay}
+        infinitePayConfigurada={infinitePayConfigurada}
+        comOvertrainingPay={comOvertrainingPay}
+        overtrainingPayAtivo={overtrainingPayAtivo}
+        overtrainingPaySituacao={overtrainingPaySituacao}
+        // Salvar ou recarregar esquece o que estava na tela (a chave digitada inclusive): a prévia volta ao gravado.
+        aoSalvar={(novo) => { setNaTela(null); definir(novo); }}
+        aoRecarregar={() => { setNaTela(null); recarregar(); }}
+        aoMudarEstado={(estado) => setNaTela({ versao: dados.versao, estado })}
+      />
+    );
   }
   return (
     <ColunasDeAjustes
       ajustes={<>{cartao}{maisAjustes}</>}
-      apoio={podeLer ? <PreviaDoAluno estado={estadoDaPrevia} comInfinitePay={comInfinitePay} infinitePayConfigurada={infinitePayConfigurada === true} /> : null}
+      apoio={podeLer ? (
+        <PreviaDoAluno
+          estado={estadoDaPrevia}
+          comInfinitePay={comInfinitePay}
+          infinitePayConfigurada={infinitePayConfigurada === true}
+          comOvertrainingPay={comOvertrainingPay}
+          overtrainingPayAtivo={overtrainingPayAtivo}
+          overtrainingPayMaxParcelas={overtrainingPayMaxParcelas}
+        />
+      ) : null}
     />
   );
 }
@@ -116,18 +154,39 @@ export function CartaoFormasDeRecebimento({ podeAlterar, comInfinitePay, infinit
  * "O que o aluno vê": uma cobrança em aberto como a Conta do aluno na web a mostra, com as formas ligadas na tela. Não é clicável
  * nem focável (os "botões" são só desenho com texto). Embaixo, o que ainda falta, a regra das lojas no celular e a frase de sempre.
  */
-function PreviaDoAluno({ estado, comInfinitePay, infinitePayConfigurada }: { estado: EstadoDasFormas | null; comInfinitePay: boolean; infinitePayConfigurada: boolean }) {
+function PreviaDoAluno({
+  estado,
+  comInfinitePay,
+  infinitePayConfigurada,
+  comOvertrainingPay,
+  overtrainingPayAtivo,
+  overtrainingPayMaxParcelas,
+}: {
+  estado: EstadoDasFormas | null;
+  comInfinitePay: boolean;
+  infinitePayConfigurada: boolean;
+  comOvertrainingPay: boolean;
+  overtrainingPayAtivo: boolean;
+  overtrainingPayMaxParcelas: number;
+}) {
   const { cores } = useTema();
   const { pagarNoIos, pagarNoAndroid } = useSessao();
   if (!estado) {
     return <Cartao titulo="O que o aluno vê"><Esqueleto /></Cartao>;
   }
-  const previa = previaDoAluno(estado, { naInstalacao: comInfinitePay, configurada: infinitePayConfigurada });
+  const previa = previaDoAluno(
+    estado,
+    { naInstalacao: comInfinitePay, configurada: infinitePayConfigurada },
+    { naInstalacao: comOvertrainingPay, ativa: overtrainingPayAtivo, maxParcelas: overtrainingPayMaxParcelas },
+  );
   const celular = notaDoCelular(pagarNoIos, pagarNoAndroid);
   return (
     <Cartao titulo="O que o aluno vê" descricao="Uma cobrança em aberto na Conta do aluno, na web, com o que está ligado aqui.">
       <View style={[estilos.poco, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
         <Texto variante="secao">Em aberto</Texto>
+        {previa.resumoOvertrainingPay ? (
+          <Texto variante="pequeno" cor={cores.texto}>{previa.resumoOvertrainingPay}</Texto>
+        ) : null}
         {previa.botoes.length > 0 ? (
           <View role="list" aria-label="Botões que o aluno vê" style={estilos.botoes}>
             {previa.botoes.map((b) => (
@@ -151,12 +210,15 @@ function PreviaDoAluno({ estado, comInfinitePay, infinitePayConfigurada }: { est
   );
 }
 
-function Leitura({ dados, comInfinitePay }: { dados: FormasDeRecebimento; comInfinitePay: boolean }) {
+function Leitura({ dados, comInfinitePay, comOvertrainingPay }: { dados: FormasDeRecebimento; comInfinitePay: boolean; comOvertrainingPay: boolean }) {
   const p = dados.pixConfig;
   const valor = (texto: string) => <Texto variante="suave">{texto}</Texto>;
   return (
     <Cartao titulo={TITULO} descricao={DESCRICAO}>
       <GrupoDeOpcoes>
+        {comOvertrainingPay ? (
+          <LinhaDeOpcao titulo="Overtraining Pay" descricao="Principal · No aplicativo" controle={valor(ligada(dados.overtrainingPay === true))} />
+        ) : null}
         {comInfinitePay ? <LinhaDeOpcao titulo="InfinitePay" controle={valor(ligada(dados.infinitePay))} /> : null}
         <LinhaDeOpcao titulo="Link de pagamento próprio" controle={valor(ligada(dados.linkProprio))} />
         <LinhaDeOpcao titulo="Pix copia e cola" controle={valor(ligada(dados.pix))} />
@@ -178,10 +240,23 @@ function Leitura({ dados, comInfinitePay }: { dados: FormasDeRecebimento; comInf
   );
 }
 
-function Formulario({ dados, comInfinitePay, infinitePayConfigurada, aoSalvar, aoRecarregar, aoMudarEstado }: {
+function Formulario({
+  dados,
+  comInfinitePay,
+  infinitePayConfigurada,
+  comOvertrainingPay,
+  overtrainingPayAtivo,
+  overtrainingPaySituacao,
+  aoSalvar,
+  aoRecarregar,
+  aoMudarEstado,
+}: {
   dados: FormasDeRecebimento;
   comInfinitePay: boolean;
   infinitePayConfigurada: boolean | undefined;
+  comOvertrainingPay: boolean;
+  overtrainingPayAtivo: boolean;
+  overtrainingPaySituacao?: SituacaoHomologacao;
   aoSalvar: (novo: FormasDeRecebimento) => void;
   aoRecarregar: () => void;
   /** Cada mudança (e o descartar) vai para a prévia, ao lado. */
@@ -315,6 +390,26 @@ function Formulario({ dados, comInfinitePay, infinitePayConfigurada, aoSalvar, a
           erro={mensagem ? <MensagemErro texto={mensagem} erro={erroGeral ?? undefined} /> : null} />
       )}>
       <GrupoDeOpcoes>
+        {comOvertrainingPay ? (
+          <LinhaDeOpcao
+            titulo="Overtraining Pay"
+            descricao={overtrainingPayAtivo
+              ? 'Principal · No aplicativo. O aluno paga por QR Code Pix imediato ou Cartão sem sair do aplicativo, com baixa automática.'
+              : 'Principal · No aplicativo. Conclua a homologação e a cobrança de teste abaixo para habilitar esta opção.'}
+            interruptor={{
+              valor: estado.overtrainingPay,
+              desabilitado: !overtrainingPayAtivo,
+              aoMudar: (v) => mudar({ overtrainingPay: v }),
+            }}
+          >
+            {!overtrainingPayAtivo ? (
+              <Selo
+                texto={seloDaHomologacao(overtrainingPaySituacao).texto}
+                tipo={seloDaHomologacao(overtrainingPaySituacao).tipo}
+              />
+            ) : null}
+          </LinhaDeOpcao>
+        ) : null}
         {comInfinitePay ? (
           <LinhaDeOpcao titulo="InfinitePay" descricao={ajudaDaInfinitePay} interruptor={{ valor: estado.infinitePay, aoMudar: (v) => mudar({ infinitePay: v }) }} />
         ) : null}

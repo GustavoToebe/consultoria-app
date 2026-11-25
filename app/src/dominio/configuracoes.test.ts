@@ -10,7 +10,7 @@ import {
 } from './configuracoes';
 import { pode, podeAcessarTela } from './permissoes';
 
-const TUDO: ContextoDeConfiguracoes = { pode: () => true, administrador: true, pagamentosHabilitados: true, chaves: { recebimentoOnlineHabilitado: true, whatsappHabilitado: true } };
+const TUDO: ContextoDeConfiguracoes = { pode: () => true, administrador: true, pagamentosHabilitados: true, chaves: { recebimentoOnlineHabilitado: true, overtrainingPayHabilitado: true, whatsappHabilitado: true } };
 const com = (codigos: string[], resto: Partial<ContextoDeConfiguracoes> = {}): ContextoDeConfiguracoes => ({
   pode: (c) => pode(codigos, c), administrador: false, pagamentosHabilitados: false, chaves: {}, ...resto,
 });
@@ -114,6 +114,8 @@ describe('cartoesVisiveis', () => {
     expect(ids(cartoesVisiveis({ ...ligado, chaves: { recebimentoOnlineHabilitado: false } }))).toContain('financeiro-recebimento');
     expect(ids(cartoesVisiveis({ ...ligado, chaves: { recebimentoOnlineHabilitado: true } }))).toContain('financeiro-recebimento');
     expect(ids(cartoesVisiveis(com(['FINANCEIRO_LER'], { pagamentosHabilitados: false })))).not.toContain('financeiro-recebimento');
+    expect(ids(cartoesVisiveis({ ...ligado, chaves: { overtrainingPayHabilitado: false } }))).not.toContain('financeiro-homologacao');
+    expect(ids(cartoesVisiveis({ ...ligado, chaves: { overtrainingPayHabilitado: true } }))).toContain('financeiro-homologacao');
   });
 
   it('o cartão do recebimento fala das formas, não só da InfinitePay, e a busca acha Pix e link próprio', () => {

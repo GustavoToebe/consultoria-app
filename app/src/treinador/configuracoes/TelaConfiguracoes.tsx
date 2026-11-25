@@ -27,13 +27,13 @@ const textoDoResultado = (n: number) => (n === 1 ? '1 configuração encontrada'
  * vem da sessão, então não há carregando nem erro e a tela abre sem internet. Sem botão principal: nada aqui é ação.
  */
 export function TelaConfiguracoes() {
-  const { pode, perfilEquipe, pagamentosHabilitados, funcionalidadesDoPlano, recebimentoOnlineHabilitado, whatsappHabilitado } = useSessao();
+  const { pode, perfilEquipe, pagamentosHabilitados, funcionalidadesDoPlano, recebimentoOnlineHabilitado, overtrainingPayHabilitado, whatsappHabilitado } = useSessao();
   const [busca, setBusca] = useState('');
   const campo = useRef<TextInput>(null);
   const administrador = !!perfilEquipe?.acessoTotal;
   const visiveis = useMemo(
-    () => cartoesVisiveis({ pode, administrador, pagamentosHabilitados, liberadas: funcionalidadesDoPlano, chaves: { recebimentoOnlineHabilitado, whatsappHabilitado } }),
-    [pode, administrador, pagamentosHabilitados, funcionalidadesDoPlano, recebimentoOnlineHabilitado, whatsappHabilitado],
+    () => cartoesVisiveis({ pode, administrador, pagamentosHabilitados, liberadas: funcionalidadesDoPlano, chaves: { recebimentoOnlineHabilitado, overtrainingPayHabilitado, whatsappHabilitado } }),
+    [pode, administrador, pagamentosHabilitados, funcionalidadesDoPlano, recebimentoOnlineHabilitado, overtrainingPayHabilitado, whatsappHabilitado],
   );
   // Tela larga (revisão de 24/11): o bloco ganha colunas de ~508 px com o espaço (2 em 1280 e 1920, até 4), centrado;
   // contadas pelos grupos que o perfil vê, não pelos da busca, para a grade não mudar de largura enquanto digita.

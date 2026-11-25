@@ -13,7 +13,7 @@ export type GrupoDeConfiguracao = (typeof GRUPOS_DE_CONFIGURACAO)[number];
  * usa `recebimentoOnlineHabilitado`, e isso é da tela, não do cartão do hub. Nenhum cartão usa chave hoje.
  * `pagamentosHabilitados` não entra: já vive dentro de `podeAcessarTela`.
  */
-export type ChaveDeConfiguracao = 'recebimentoOnlineHabilitado' | 'whatsappHabilitado';
+export type ChaveDeConfiguracao = 'recebimentoOnlineHabilitado' | 'overtrainingPayHabilitado' | 'whatsappHabilitado';
 
 export interface CartaoDeConfiguracao {
   id: string;
@@ -70,6 +70,7 @@ export const CARTOES_DE_CONFIGURACAO: readonly CartaoDeConfiguracao[] = [
   { id: 'financeiro-planos', grupo: 'Financeiro', titulo: 'Planos comerciais', descricao: 'Os planos que você cobra dos alunos.', href: '/treinador/financeiro?aba=planos', palavras: ['pagamentos', 'mensalidade', 'valores', 'cobranca', 'planos'] },
   { id: 'financeiro-lembretes', grupo: 'Financeiro', titulo: 'Lembretes de cobrança', descricao: 'Quando avisar o aluno por e-mail sobre uma cobrança.', href: '/treinador/financeiro?aba=lembretes', palavras: ['lembrete', 'avisos', 'email', 'vencimento', 'atraso', 'inadimplencia'] },
   { id: 'financeiro-recebimento', grupo: 'Financeiro', titulo: 'Recebimento online', descricao: 'Como o aluno paga: Pix, link próprio, InfinitePay e manual.', href: '/treinador/financeiro?aba=recebimento', palavras: ['formas de recebimento', 'infinitepay', 'pix', 'copia e cola', 'chave pix', 'cartao', 'link de pagamento', 'link proprio', 'manual', 'parcelamento', 'juros'] },
+  { id: 'financeiro-homologacao', grupo: 'Financeiro', titulo: 'Homologação e Conta de Repasse', descricao: 'Cadastro do titular, conta bancária e validação do Overtraining Pay.', href: '/treinador/financeiro?aba=recebimento', palavras: ['overtraining pay', 'homologacao', 'conta de repasse', 'repasse', 'banco', 'titular', 'documentos', 'cobranca teste', 'pix', 'cartao'], chave: 'overtrainingPayHabilitado' },
   { id: 'importacao', grupo: 'Dados', titulo: 'Importação', descricao: 'Trazer alunos, pesos, alimentos e exercícios de planilhas.', href: '/treinador/importacao', palavras: ['planilha', 'xlsx', 'csv', 'importar', 'alunos', 'pesos', 'alimentos', 'exercicios'] },
   { id: 'planilha-completa', grupo: 'Dados', titulo: 'Importar planilha completa', descricao: 'Migrar alunos com treinos e dietas de outra plataforma.', href: '/treinador/importacao/planilha-completa', palavras: ['planilha completa', 'migrar', 'migracao', 'outra plataforma', 'treinos', 'dietas'] },
   { id: 'ajuda', grupo: 'Ajuda', titulo: 'Ajuda', descricao: 'Guias e respostas sobre o uso do app.', href: '/treinador/ajuda', palavras: ['guia', 'tutorial', 'suporte', 'duvidas', 'como fazer'] },

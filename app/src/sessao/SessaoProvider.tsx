@@ -63,6 +63,8 @@ interface ValorSessao {
   pagamentosHabilitados: boolean;
   /** Pagamentos E InfinitePay ligados? Desligado ou desconhecido, o app esconde o recebimento online e não o consulta. */
   recebimentoOnlineHabilitado: boolean;
+  /** Pagamentos E Overtraining Pay ligados? Desligado ou desconhecido, o app esconde a homologação e o checkout no aplicativo. */
+  overtrainingPayHabilitado: boolean;
   /** Pagamentos E Kiwify ligados? Desligado ou desconhecido, o app esconde tudo da Kiwify e não a consulta. */
   kiwifyHabilitada: boolean;
   /** Chave da plataforma ligada para o iOS? Sem ela o celular não tem "Pagar" (a web sempre tem). */
@@ -433,6 +435,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       funcionalidadesDoPlano:perfil?.funcionalidadesDoPlano,
       pagamentosHabilitados:perfil?.pagamentosHabilitados===true,
       recebimentoOnlineHabilitado:perfil?.pagamentosHabilitados===true&&perfil?.recebimentoOnlineHabilitado===true,
+      overtrainingPayHabilitado:perfil?.pagamentosHabilitados===true&&perfil?.overtrainingPayHabilitado===true,
       kiwifyHabilitada:perfil?.pagamentosHabilitados===true&&perfil?.kiwifyHabilitada===true,
       pagarNoIos:perfil?.pagarNoIos===true,
       pagarNoAndroid:perfil?.pagarNoAndroid===true,
