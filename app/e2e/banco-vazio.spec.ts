@@ -20,6 +20,7 @@ const PAINEL_VAZIO = { alunosAtivos: 0, atualizacoesParaRevisar: 0, atualizacoes
 const VAZIO: RespostasApi = {
   'GET /inscricoes': { corpo: { itens: [], total: 0 } },
   'GET /inscricoes/configuracao': { corpo: { aberta: false, codigo: null, texto: null, responsavelId: null, camposOcultos: [], versao: null } },
+  'GET /inscricoes/links': { corpo: [] },
   'GET /inscricoes/retornos': { corpo: [] },
   'GET /inscricoes/modelos-de-mensagem': { corpo: [] },
   'GET /inscricoes/planos-de-referencia': { corpo: [] },

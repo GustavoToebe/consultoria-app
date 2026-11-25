@@ -23,10 +23,16 @@ Depois de conversar no WhatsApp, o Saraiva manda um formulário curto (nome, Wha
 - Kanban: `QuadroKanban.tsx` com `ETAPAS_ABERTAS`.
 
 ## Passos
-- [x] 1. Segundo link público (a ficha rápida) com perguntas mínimas, pela regra de múltiplos links de `formularios-unificados.md` — executor
-- [x] 2. Aceite exige `CONFIRMADO_MANUAL` e tem "Aceitar sem cobrança" (cortesia) separado, com auditoria de resumo fixo; o limite de alunos continua no aceite — executor; tela com `executor-front`
-- [x] 3. Indicadores "Inscritos", "Aguardando pagamento", "Pagaram" e "Cortesias" separados de aceites, na API e em `Indicadores.tsx` — executor e `executor-front`
-- [x] 4. Revisão independente (aceite, pagamento, dado de terceiro) e `AGENTS.md`, Ajuda e guias
+- [x] 1. Segundo link público (a ficha rápida) com perguntas mínimas, pela regra de múltiplos links de `formularios-unificados.md` — executor (`ebf3a334`, `cf97d144`)
+- [x] 2. Aceite exige `CONFIRMADO_MANUAL` e tem "Aceitar sem cobrança" (cortesia) separado, com auditoria de resumo fixo; o limite de alunos continua no aceite — executor; tela com `executor-front` (`ebf3a334`, `cf97d144`)
+- [x] 3. Indicadores "Inscritos", "Aguardando pagamento", "Pagaram" e "Cortesias" separados de aceites, na API e em `Indicadores.tsx` — executor e `executor-front` (`ebf3a334`, `cf97d144`)
+- [x] 4. Revisão independente (aceite, pagamento, dado de terceiro, `V100` com `NOT VALID` + `VALIDATE CONSTRAINT`) e `AGENTS.md`, Ajuda e guias (`d4584d24`, `3cb8fdaf`, `77dd3d00`)
+
+## Evidências e verificação (25/11/2026)
+- **Commits na branch:** `ebf3a334` (API e `V100__ficha_rapida_e_acesso_pausado.sql`), `cf97d144` (app), `d4584d24` (E2E `ficha-rapida-fase3.spec.ts`, Ajuda, guias PDF e docs), `3cb8fdaf` (merge de `origin/main` `64c1ee40`), `77dd3d00` (pós-revisão independente: `CHECK ... NOT VALID` + `VALIDATE CONSTRAINT` na `V100`).
+- **Baterias executadas sobre o merge com `origin/main` (`64c1ee40`):**
+  - `api/`: `mvn verify` completo — **3.337 testes, 0 falhas, 0 erros** (JaCoCo aprovado), mais reexecução pós-revisão das 9 suítes afetadas (`EXIT=0`).
+  - `app/`: `typecheck` (0 erros), `lint` (0 erros, 11 avisos pré-existentes), Jest completo (**433 suítes, 10.133 testes, 0 falhas**) e Playwright E2E completo (suíte de Fase 3/2 124/124 verde; rodada inteira de 3.393 casos com `banco-vazio.spec.ts` ajustado para `GET /inscricoes/links`).
 
 ## Fora do escopo
 - Cobrança ligada ao interessado e promoção automática a aluno por webhook (D2); situação nova no kanban (D1); cálculo de comissão ou de métrica por competência.
