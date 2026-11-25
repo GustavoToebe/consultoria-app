@@ -15,17 +15,20 @@ export type { EstadoDoIndicador, TomDoIndicador } from './aparenciaDoIndicador';
  * numérica e detalhe em `textoSuave`. Cor só onde significa algo (pintado, 23/11): com `tom` (situação) ou
  * `corDeCategoria` (identificação), o cartão é pintado (`ui/superficiePintada`: degradê de 135° da cor à base, borda de
  * 1 px na cor a 50%, rótulo e número na cor quando ela passa 4,5:1) e ganha o ponto com brilho (ou o `Icone`, como o
- * alerta do Vencido). `textual` põe o valor em fonte normal (frase). Neutro: base, contorno `divisor`, sem ponto. Zero e indisponível ficam neutros, com o número em
+ * alerta do Vencido). `corDoMarcador` (25/11) pinta só a bolinha (8 px, sem brilho) num cartão neutro (cor de categoria como
+ * marca, ≥ 3:1; o rótulo continua dizendo o que é). `textual` põe o valor em fonte normal (frase). Neutro: base, contorno `divisor`, sem ponto. Zero e indisponível ficam neutros, com o número em
  * `textoSuave`; o indisponível escreve o `motivo` sob o "—". `flexGrow: 1`: na `GradeDeIndicadores` todos da linha têm a
  * mesma altura.
  */
-export function CartaoDeIndicador({ rotulo, valor, tom = 'neutro', corDeCategoria, estado = 'valor', detalhe, motivo, Icone, textual, tamanho = 'grande', lugar = 'pagina', nivelDoRotulo, rotuloAcessivel }: {
+export function CartaoDeIndicador({ rotulo, valor, tom = 'neutro', corDeCategoria, corDoMarcador, estado = 'valor', detalhe, motivo, Icone, textual, tamanho = 'grande', lugar = 'pagina', nivelDoRotulo, rotuloAcessivel }: {
   rotulo: string;
   /** Já formatado ("R$ 1.200,00", "12", "—"). */
   valor: string;
   tom?: TomDoIndicador;
   /** Cor de categoria do tema (`useTema().identificacao[chave].cor`); no lugar do `tom`. */
   corDeCategoria?: string | null;
+  /** Cor de categoria só na bolinha (sem `tom` nem `corDeCategoria`): o cartão, a borda, o rótulo e o valor ficam neutros. */
+  corDoMarcador?: string | null;
   estado?: EstadoDoIndicador;
   /** Linha pequena sob o número. */
   detalhe?: string | null;
@@ -45,7 +48,7 @@ export function CartaoDeIndicador({ rotulo, valor, tom = 'neutro', corDeCategori
   rotuloAcessivel?: string;
 }) {
   const { cores, bordas, variante } = useTema();
-  const a = aparenciaDoIndicador(corDeCategoria ?? corDoTom(tom, cores), estado, lugar, cores, variante);
+  const a = aparenciaDoIndicador(corDeCategoria ?? corDoTom(tom, cores), estado, lugar, cores, variante, corDoMarcador);
   const indisponivel = estado === 'indisponivel';
   const rotuloPadrao = `${rotulo}: ${valor}${indisponivel && motivo ? `. ${motivo}` : ''}${detalhe ? `. ${detalhe}` : ''}`;
   return (
@@ -53,7 +56,7 @@ export function CartaoDeIndicador({ rotulo, valor, tom = 'neutro', corDeCategori
       style={[estilos.cartao, { borderWidth: bordas.bloco, borderColor: a.borda }, a.pintura ? fundoPintado(a.pintura) : { backgroundColor: a.fundo }]}>
       <View style={estilos.topo}>
         {a.marca && Icone ? <Icone size={16} color={a.marca} strokeWidth={2.25} aria-hidden /> : null}
-        {a.marca && !Icone ? <View aria-hidden style={[estilos.ponto, { backgroundColor: a.marca, boxShadow: `0px 0px 10px ${a.marca}` }]} /> : null}
+        {a.marca && !Icone ? <View aria-hidden style={[a.pintura ? [estilos.ponto, { boxShadow: `0px 0px 10px ${a.marca}` }] : estilos.marcador, { backgroundColor: a.marca }]} /> : null}
         <Texto variante="rotulo" cor={a.rotulo} nivel={nivelDoRotulo} style={estilos.encolher}>{rotulo}</Texto>
       </View>
       <Texto variante={tamanho === 'grande' && !textual ? 'destaque' : 'titulo'} numerico={!textual} cor={a.valor}>{valor}</Texto>
@@ -68,5 +71,7 @@ const estilos = StyleSheet.create({
   cartao: { flexGrow: 1, minWidth: 0, borderRadius: 16, paddingVertical: espaco(1.75), paddingLeft: espaco(2), paddingRight: espaco(1), gap: espaco(0.5) },
   topo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ponto: { width: 6, height: 6, borderRadius: 3 },
+  // Só o marcador, sem o degradê nem o brilho: 8 px, o tamanho das marcas de categoria (macros, modalidade).
+  marcador: { width: 8, height: 8, borderRadius: 4 },
   encolher: { flexShrink: 1 },
 });

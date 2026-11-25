@@ -174,7 +174,7 @@ export function EditorQuestionario({ id }: { id: string }) {
         <Botao rotulo={rotuloPublicar} tipo={nadaNovo ? 'secundario' : 'primario'} Icone={Send} carregando={publicando} aoTocar={() => setConfirmando(true)} />
       </> : null}
     </BarraDoEditor>}>
-    <View ref={ancora} onLayout={(ev) => setArea(ev.nativeEvent.layout.width)} style={arranjo === 'simples' ? estilos.pilha : estilos.colunas}>
+    <View ref={ancora} onLayout={(ev) => setArea(ev.nativeEvent.layout.width)} style={arranjo === 'simples' ? estilos.pilha : [estilos.colunas, colunas ? { gap: colunas.vao } : null]}>
       {arranjo !== 'simples' && colunas ? <IndiceDoQuestionario itens={itensDoIndice(e.conteudo, agrupados)} atual={visivel.atual} largura={colunas.indice} aoEscolher={irParaItem} /> : null}
       <View style={[estilos.pilha, arranjo !== 'simples' && colunas ? { width: colunas.editor } : null]}>
         <Cartao>
@@ -218,8 +218,8 @@ export function EditorQuestionario({ id }: { id: string }) {
       </View>
       {arranjo === 'tres' && colunas ? <View role="complementary" aria-label="Prévia ao vivo" testID="previa-ao-vivo"
         style={[estilos.lateral, { width: colunas.previa }, fixoAbaixoDaBarra(alturaDaJanela)]}>
-        {/* "No formato do celular": a coluna tem a largura de um celular e o fundo da tela do aluno, com rolagem própria
-            (a `useRolagem` de dentro, de "Avançar" e dos erros, rola a coluna, não a página). */}
+        {/* A coluna tem o fundo da tela do aluno e rolagem própria (a `useRolagem` de dentro, de "Avançar" e dos erros,
+            rola a coluna, não a página). */}
         <View style={[estilos.moldura, { backgroundColor: cores.fundo, borderColor: cores.borda }]}>
           <RolagemComTopo contentContainerStyle={estilos.rolagemDaPrevia}>{previa(true)}</RolagemComTopo>
         </View>
@@ -253,8 +253,9 @@ function ItemProblema({ onde, mensagem, tipo }: { onde: string; mensagem: string
 
 const estilos = StyleSheet.create({
   pilha: { width: '100%', gap: espaco(3) },
-  // `flex-start`: sem ele as colunas esticam até a altura do editor e o `sticky` não tem para onde andar.
-  colunas: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
+  // `flex-start`: sem ele as colunas esticam até a altura do editor e o `sticky` não tem para onde andar. O vão vem de
+  // `colunasDoEditor` (a sobra das três colunas vira vão igual dos dois lados).
+  colunas: { width: '100%', flexDirection: 'row', alignItems: 'flex-start' },
   lateral: { alignSelf: 'flex-start', flexShrink: 0 },
   moldura: { flexShrink: 1, minHeight: 0, borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   rolagemDaPrevia: { padding: espaco(2) },

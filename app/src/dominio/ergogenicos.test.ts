@@ -3,7 +3,6 @@ import {
   agruparErgogenicos,
   ergogenicosPreenchidos,
   linhaDeErgogenico,
-  categoriaDoTexto,
   categoriasDosErgogenicos,
   detalheDoErgogenico,
   filtrarErgogenicos,
@@ -24,15 +23,6 @@ describe('categorias', () => {
       'Injetáveis',
       'Orais',
     ]);
-  });
-
-  it('o texto digitado usa a grafia da categoria que já existe (sem acento, caixa nem espaços sobrando); vazio = sem categoria', () => {
-    const todas = ['Injetáveis', 'Medicamentos'];
-    expect(categoriaDoTexto('injetaveis', todas)).toBe('Injetáveis');
-    expect(categoriaDoTexto('  MEDICAMENTOS ', todas)).toBe('Medicamentos');
-    expect(categoriaDoTexto('Orais  de   teste', todas)).toBe('Orais de teste');
-    expect(categoriaDoTexto('   ', todas)).toBeNull();
-    expect(categoriaDoTexto('Nova', [])).toBe('Nova');
   });
 
   it('agrupa por categoria em ordem alfabética, "Sem categoria" por último, mantendo a ordem de dentro', () => {

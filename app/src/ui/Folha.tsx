@@ -4,13 +4,14 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 import { X } from 'lucide-react-native';
 import { PortalHost } from '@rn-primitives/portal';
-import { createContext, useContext, useEffect, useCallback, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { createContext, useContext, useEffect, useCallback, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_FOLHA_LARGA, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO, VEU } from '../tema/tokens';
 import { marcarFolhaDoTopoFechando, useFolhaNoHistorico } from './historicoDasFolhas';
+import { ajusteDoRodape } from './ancoraDoRodape';
 import { capturaDoGatilho, useDevolverFocoNoNativo } from './focoDaFolha';
 import { IconeBotao } from './IconeBotao';
 import { RodapeDeAcoes } from './LinhaDeAcoes';
@@ -67,11 +68,6 @@ interface Props {
   detalhe?: boolean;
   /** No celular ocupa a tela inteira (editor longo, como o do perfil de acesso), com o rodapé no pé; no PC não muda nada. */
   telaCheiaNoCelular?: boolean;
-  /**
-   * Sem efeito desde 25/11: toda folha centralizada no PC já fica na altura do conteúdo (até 90% da janela).
-   * shortcut: mantida só porque a Nova importação e a TelaImportacao ainda a passam; tirar delas e daqui na próxima mexida.
-   */
-  alturaDoConteudo?: boolean;
 }
 
 /**
@@ -127,7 +123,7 @@ function devolverFoco(quemAbriuRef: RefObject<HTMLElement | null>) {
 }
 
 /** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo: no PC move a folha, no celular fecha. */
-function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraPedida,acaoNoTopo,faixa,lateral:lateralPedida,detalhe,telaCheiaNoCelular,semVeu,quemAbriuRef}:Omit<Props,'visivel'|'alturaDoConteudo'> & { semVeu: boolean; quemAbriuRef: RefObject<HTMLElement | null> }) {
+function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraPedida,acaoNoTopo,faixa,lateral:lateralPedida,detalhe,telaCheiaNoCelular,semVeu,quemAbriuRef}:Omit<Props,'visivel'> &{ semVeu: boolean; quemAbriuRef: RefObject<HTMLElement | null> }) {
   const { cores, bordas, preferencias } = useTema();
   const { width, height } = useWindowDimensions();
   // "Detalhes abrem" lido ao abrir (a folha "Aparência e preferências" é ela mesma um detalhe: não pula de lugar ao escolher).
@@ -157,6 +153,29 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
   useDevolverFocoNoNativo();
   const conteudo = useRef<View>(null);
   const fechar = useRef<View>(null);
+  // Folha centralizada (PC): o erro ou status do rodapé que aparece, some ou cresce faz a folha crescer só para cima, e a
+  // ação não sai do lugar (P4; `ui/ancoraDoRodape.ts`). Medido no layout effect, antes da pintura: o `onLayout` da web
+  // chega depois (ResizeObserver + setTimeout) e a ação pularia um quadro. No nativo (tablet) fica centralizada como antes.
+  const rodapeRef = useRef<View>(null);
+  const medidas = useRef<{ rodape: number; painel: number } | null>(null);
+  const [ajuste, setAjuste] = useState(0);
+  const ancorar = Platform.OS === 'web' && centralizado && !aDireita;
+  useLayoutEffect(() => {
+    const rodape = rodapeRef.current as unknown as HTMLElement | null;
+    const painel = rodape?.parentElement;
+    const fundo = painel?.parentElement;
+    if (!ancorar || !rodape || !painel || !fundo) {
+      medidas.current = null;
+      setAjuste(0);
+      return;
+    }
+    const agora = { rodape: rodape.offsetHeight, painel: painel.offsetHeight };
+    const antes = medidas.current ?? agora;
+    medidas.current = agora;
+    const folga = fundo.clientHeight - 2 * espaco(2) - agora.painel;
+    setAjuste((atual) => ajusteDoRodape({ ajuste: atual, deltaRodape: agora.rodape - antes.rodape, deltaPainel: agora.painel - antes.painel, folga }));
+    // O rodapé, o status e o corpo chegam como elementos novos a cada render de quem abriu: mede de novo a cada um.
+  }, [ancorar, rodape, statusDoRodape, children, width, height]);
   // Entrada só do painel lateral (D1 de filtros-laterais): desliza da direita e o véu clareia em `DURACAO_DA_ENTRADA`.
   // Com movimento reduzido nasce pronto. A saída é imediata: o foco volta a quem abriu sem esperar animação (D8).
   const animarEntrada = aDireita && !reduzido;
@@ -194,8 +213,8 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
     .onStart(()=>{baseX.set(deslocamentoX.get());baseY.set(deslocamento.get());})
     .onUpdate(evento=>{
       const folgaX=(width+larguraDoPainel.get())/2-64;
-      const topo=-(height-altura.get())/2;
-      const base=(height+altura.get())/2-48;
+      const topo=-(height-altura.get())/2-ajuste;
+      const base=(height+altura.get())/2-48-ajuste;
       deslocamentoX.set(Math.min(folgaX,Math.max(-folgaX,baseX.get()+evento.translationX)));
       deslocamento.set(Math.min(base,Math.max(topo,baseY.get()+evento.translationY)));
     });
@@ -248,7 +267,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
             aDireita
               ? [estilos.painelLateral, { borderLeftWidth: bordas.bloco }]
               : centralizado
-                ? [estilos.painelCentral, largura ? { width: largura } : null]
+                ? [estilos.painelCentral, largura ? { width: largura } : null, ajuste ? { top: ajuste } : null]
                 : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }, telaCheia ? [estilos.painelTelaCheia, { paddingTop: margem.top }] : null],
             { backgroundColor: cores.superficie, borderColor: cores.divisor },
             aDireita ? null : { borderWidth: bordas.bloco },
@@ -271,7 +290,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
           </View>
           {rodape || statusDoRodape ? (
             // Marca do rodapé (web: `data-rodape-da-folha`): o `ui/Aviso` mede o topo dele para ficar acima das ações.
-            <View style={[estilos.rodape, aDireita && estilos.rodapeLateral, { borderColor: cores.divisor }]} {...({ dataSet: { rodapeDaFolha: 'sim' } } as object)}>
+            <View ref={rodapeRef} style={[estilos.rodape, aDireita && estilos.rodapeLateral, { borderColor: cores.divisor }]} {...({ dataSet: { rodapeDaFolha: 'sim' } } as object)}>
               <RodapeDeAcoes status={statusDoRodape} empilhar={!centralizado}>{rodape}</RodapeDeAcoes>
             </View>
           ) : null}

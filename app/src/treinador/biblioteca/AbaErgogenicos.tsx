@@ -6,21 +6,18 @@ import { alterarErgogenico, criarErgogenico, inativarErgogenico, listarErgogenic
 import type { ErgogenicoDaBiblioteca, ErgogenicoDaBibliotecaRequest } from '../../api/tipos';
 import {
   agruparErgogenicos,
-  categoriaDoTexto,
   categoriasDosErgogenicos,
   detalheDoErgogenico,
   filtrarErgogenicos,
   resumoDoGrupo,
-  SEM_CATEGORIA,
   tituloDoErgogenico,
 } from '../../dominio/ergogenicos';
 import type { ColunaDaLista } from '../../ui/colunasDaLista';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
-import { Campo, MensagemDeErro } from '../../ui/Campo';
+import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
-import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
@@ -28,6 +25,7 @@ import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDaLista } from '../../ui/LinhaDaLista';
 import { ListaEmColunas } from '../ListaEmColunas';
+import { SeletorDeCategoria } from '../SeletorDeCategoria';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { Texto } from '../../ui/Texto';
@@ -41,8 +39,6 @@ const estilos = StyleSheet.create({
   partes: { gap: espaco(3) },
   linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
   campoLargo: { flexGrow: 1, flexBasis: 180 },
-  // Erro da API (422 no campo `categoria`) colado no seletor, como no Grupo do alimento.
-  campoDaCategoria: { gap: espaco(1) },
   tirar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   textoDoTirar: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
   tituloDaLinha: { gap: espaco(0.5) },
@@ -229,22 +225,10 @@ function FolhaErgogenico({
               <Campo rotulo="Princípio ativo (opcional)" valor={principio} aoMudar={setPrincipio} erro={campos.principioAtivo} maxLength={160} />
             </View>
           </View>
-          {/* A composição do `CampoCategoria` da Vitrine (busca, "Sem categoria" e "Criar categoria “…”"), sem a API dela:
-              aqui a categoria é texto livre, e "criar" só usa o texto digitado (ou a grafia da que já existe). */}
-          <View style={estilos.campoDaCategoria}>
-            <EscolhaSuspensa<string> rotulo="Categoria" titulo="Categoria do item" valor={categoria} aoMudar={setCategoria}
-              rotuloDaBusca="Buscar ou criar categoria" textoVazio="Nenhuma categoria encontrada."
-              opcoes={[{ valor: '', rotulo: SEM_CATEGORIA }, ...opcoesDeCategoria.map((c) => ({ valor: c, rotulo: c }))]}
-              digitado={{
-                maxLength: 60,
-                opcao: (t) => {
-                  const c = categoriaDoTexto(t, categorias);
-                  if (c === null) return null;
-                  return categorias.includes(c) ? { valor: c, rotulo: c } : { valor: c, rotulo: `Criar categoria “${c}”`, detalhe: 'Categoria nova' };
-                },
-              }} />
-            {campos.categoria ? <MensagemDeErro erro={campos.categoria} /> : null}
-          </View>
+          {/* O seletor da Vitrine, sem a API dela: aqui a categoria é texto livre, e "criar" só escolhe o texto digitado
+              (o 422 no campo `categoria` aparece colado nele). */}
+          <SeletorDeCategoria<string> valor={categoria} semCategoria="" maximo={60} erro={campos.categoria}
+            categorias={opcoesDeCategoria.map((c) => ({ valor: c, nome: c }))} aoEscolher={setCategoria} aoCriar={setCategoria} />
         </Cartao>
 
         <Cartao titulo="Concentração e apresentação" nivel={3}>

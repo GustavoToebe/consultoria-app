@@ -7,6 +7,7 @@ import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
+import { ID_DA_BARRA, mostrarAbaixoDaBarra } from '../plano/TelaDoEditor';
 
 /**
  * Logo abaixo da barra fixa do `TelaDoEditor`, como o resumo do editor de treino e o total do dia da dieta (80 px). Só na
@@ -51,10 +52,6 @@ export function IndiceDoQuestionario({ itens, atual, largura, aoEscolher }: {
   );
 }
 
-// Mesmo id que `TelaDoEditor` dá à barra grudada (`ID_DA_BARRA`, não exportado). shortcut: se mudar lá, a linha da seção
-// visível cai no topo da rolagem (erra pela altura da barra); exportar a constante quando o `TelaDoEditor` for mexido.
-const ID_DA_BARRA = 'barra-do-editor';
-
 /**
  * Web: qual item do índice está à vista, lido na rolagem da página (ancestral rolável de `ancora`) a cada quadro de
  * rolagem. `marcar` vale para o clique: a rolagem que ele mesmo provoca não tira a marca do item escolhido (seção curta
@@ -95,23 +92,17 @@ export function useItemVisivel(chaves: readonly string[], ativo: boolean, ancora
 }
 
 /**
- * Web: leva o bloco (`idDoBloco`) para logo abaixo da barra fixa e põe o foco no título dele, sem rolar de novo, para quem
- * usa teclado ou leitor de tela continuar dali. A conta usa a altura da barra como ela fica depois de grudar no topo: o
- * `mostrarAbaixoDaBarra` mede a barra onde ela está, e com a página no início (barra ainda abaixo do cabeçalho) o bloco
- * parava ~100 px abaixo dela. Sem animação (nada a reduzir para o movimento reduzido).
+ * Web: leva o bloco (`idDoBloco`) para logo abaixo da barra fixa (`mostrarAbaixoDaBarra`, sempre, mesmo à vista) e depois
+ * põe o foco no título dele, sem rolar de novo, para quem usa teclado ou leitor de tela continuar dali. O foco vem no
+ * quadro seguinte ao da rolagem: antes dela, o título sob a barra faria o `TelaDoEditor` centralizá-lo (pulo duplo).
  */
 export function irParaBloco(chave: string): void {
   if (Platform.OS !== 'web') return;
   const id = idDoBloco(chave);
+  mostrarAbaixoDaBarra(id, true);
   requestAnimationFrame(() => {
     const bloco = document.getElementById(id);
     if (!bloco) return;
-    let rolagem = bloco.parentElement;
-    while (rolagem && !/(auto|scroll)/.test(getComputedStyle(rolagem).overflowY)) rolagem = rolagem.parentElement;
-    if (rolagem) {
-      const barra = document.getElementById(ID_DA_BARRA)?.offsetHeight ?? 0;
-      rolagem.scrollTop += bloco.getBoundingClientRect().top - rolagem.getBoundingClientRect().top - barra - espaco(1);
-    }
     const alvo = bloco.querySelector<HTMLElement>('[role="heading"]') ?? bloco;
     if (!alvo.hasAttribute('tabindex')) alvo.setAttribute('tabindex', '-1');
     alvo.focus({ preventScroll: true });

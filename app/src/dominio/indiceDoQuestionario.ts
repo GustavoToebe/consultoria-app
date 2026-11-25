@@ -1,29 +1,28 @@
+import { LARGURA_EDITOR_DE_CAMPOS } from '../tema/tokens';
 import type { ConteudoQuestionario } from '../api/tipos';
 import type { ProblemasAgrupados } from './editorQuestionario';
 
 /**
- * Editor de questionário em tela larga (Gustavo, 24/11; `docs/design-e-front.md` 4.10, "editor com índice e prévia ao
- * vivo"). A medida é a da área do próprio editor (o `onLayout` dele, como o `MuralComLateral`), não a da janela:
- * - abaixo de 1280 px: só o editor, com as abas Editar e Prévia (`simples`);
- * - de 1280 a < 1600: índice das seções à esquerda + editor, abas como antes (`indice`);
- * - de 1600 em diante: índice, editor (até 1000 px) e a prévia ao vivo de 440 px; as abas somem (`tres`).
+ * Editor de questionário em tela larga (Gustavo, 24/11 e 25/11; `docs/design-e-front.md` 4.10, "editor com índice e prévia
+ * ao vivo"). A medida é a da área do próprio editor (o `onLayout` dele, como o `MuralComLateral`), não a da janela:
+ * - abaixo de 1000 px: só o editor, com as abas Editar e Prévia (`simples`);
+ * - de 1000 a < 1440: índice das seções à esquerda + editor, abas como antes (`indice`);
+ * - de 1440 em diante: índice, editor (até `LARGURA_EDITOR_DE_CAMPOS`) e a prévia ao vivo de 560 px encostada à direita;
+ *   as abas somem (`tres`).
  * Só na web: no celular e no tablet nativo nada muda (lá não há `sticky` nem a rolagem até a seção).
  */
 export type ArranjoDoEditor = 'simples' | 'indice' | 'tres';
 
-export const LIMIAR_DO_INDICE = 1280;
-export const LIMIAR_DAS_TRES_COLUNAS = 1600;
-/** Índice com o editor ao lado (faixa normal). */
+export const LIMIAR_DO_INDICE = 1000;
+export const LIMIAR_DAS_TRES_COLUNAS = 1440;
+/** Índice com o editor ao lado (faixa do índice). */
 export const LARGURA_DO_INDICE = 240;
-/** Índice nas três colunas: parte daqui e fica com o que sobra depois de editor e prévia nos máximos. */
+/** Índice nas três colunas: parte daqui e cresce até `LARGURA_MAXIMA_DOS_ITENS` depois que o editor chega ao máximo. */
 export const LARGURA_MINIMA_DO_INDICE_LARGO = 260;
-/**
- * Os itens do índice param aqui ("espaço extra vira colunas, nunca elementos esticados"): na ultralarga a coluna do índice
- * fica com a sobra, mas a lista não estica e o resto da coluna fica vazio.
- */
+/** Os itens do índice param aqui ("espaço extra vira colunas, nunca elementos esticados"). */
 export const LARGURA_MAXIMA_DOS_ITENS = 320;
-export const MAXIMO_DO_EDITOR = 1000;
-export const LARGURA_DA_PREVIA = 440;
+export const MAXIMO_DO_EDITOR = LARGURA_EDITOR_DE_CAMPOS;
+export const LARGURA_DA_PREVIA = 560;
 export const VAO_DAS_COLUNAS = 24;
 
 export function arranjoDoEditor(largura: number | null, web: boolean): ArranjoDoEditor {
@@ -33,13 +32,18 @@ export function arranjoDoEditor(largura: number | null, web: boolean): ArranjoDo
   return 'simples';
 }
 
-/** Larguras (px) de índice, editor e prévia para a área medida; prévia 0 fora das três colunas. */
-export function colunasDoEditor(largura: number, arranjo: ArranjoDoEditor): { indice: number; editor: number; previa: number } {
-  if (arranjo === 'simples') return { indice: 0, editor: largura, previa: 0 };
-  if (arranjo === 'indice') return { indice: LARGURA_DO_INDICE, editor: largura - LARGURA_DO_INDICE - VAO_DAS_COLUNAS, previa: 0 };
+/**
+ * Larguras (px) de índice, editor e prévia e o vão entre as colunas, para a área medida; prévia 0 fora das três colunas.
+ * Nas três colunas o editor cresce até o máximo e o índice até o teto dos itens; o que sobra depois disso vira vão, dividido
+ * igualmente entre os dois vãos (índice à esquerda, prévia encostada à direita), nunca uma faixa vazia só.
+ */
+export function colunasDoEditor(largura: number, arranjo: ArranjoDoEditor): { indice: number; editor: number; previa: number; vao: number } {
+  if (arranjo === 'simples') return { indice: 0, editor: largura, previa: 0, vao: VAO_DAS_COLUNAS };
+  if (arranjo === 'indice') return { indice: LARGURA_DO_INDICE, editor: largura - LARGURA_DO_INDICE - VAO_DAS_COLUNAS, previa: 0, vao: VAO_DAS_COLUNAS };
   const livre = largura - LARGURA_DA_PREVIA - 2 * VAO_DAS_COLUNAS;
   const editor = Math.min(MAXIMO_DO_EDITOR, livre - LARGURA_MINIMA_DO_INDICE_LARGO);
-  return { indice: livre - editor, editor, previa: LARGURA_DA_PREVIA };
+  const indice = Math.min(LARGURA_MAXIMA_DOS_ITENS, livre - editor);
+  return { indice, editor, previa: LARGURA_DA_PREVIA, vao: VAO_DAS_COLUNAS + (livre - editor - indice) / 2 };
 }
 
 /** Contagem da seção: "Sem pergunta", "1 pergunta", "12 perguntas". */

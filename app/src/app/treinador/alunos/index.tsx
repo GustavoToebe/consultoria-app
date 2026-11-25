@@ -19,14 +19,14 @@ import {
   chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, MEUS, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
   CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
 } from '../../../dominio/filtrosDeAlunos';
-import { rotuloDoMaisTags, selosDeExcecaoDoAluno } from '../../../dominio/selosDaLinhaDeAluno';
+import { selosDeExcecaoDoAluno } from '../../../dominio/selosDaLinhaDeAluno';
 import { SELECAO_DE_ALUNOS, selecaoDepoisDosFiltros } from '../../../dominio/painelDeFiltros';
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { ICONE_DO_SELO } from '../../../treinador/iconesDosSelos';
 import { SeletoresDosFiltrosDeAlunos } from '../../../treinador/SeletoresDosFiltrosDeAlunos';
-import { SelosETagsDaLinha } from '../../../treinador/SelosETagsDaLinha';
+import { SelosETagsDaLinha, useMaisTagsDaLinha } from '../../../treinador/SelosETagsDaLinha';
 import { rotuloDasTagsNaLinha } from '../../../treinador/tags/textosDasTags';
 import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
 import { Folha } from '../../../ui/Folha';
@@ -294,6 +294,8 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtr
   const tags = aluno.tags ?? [];
   // A pílula do atraso diz o que venceu ("Cobrança vencida": a rota é a das cobranças) e usa o `perigo` da cobrança vencida, sem cor nova.
   const excecoes = selosDeExcecaoDoAluno({ ativo: aluno.ativo, temAcesso: aluno.temAcesso, emAtraso });
+  // O "+N" das tags é um botão próprio (abre a lista das outras), irmão do link da linha; no Selecionar fica só o texto.
+  const maisTags = useMaisTagsDaLinha(tags, aluno.nome);
   const seloDaAtualizacao: SeloDaLinha | null = atualizacao
     ? { texto: atualizacao.texto, tipo: atualizacao.tipo, Icone: ICONE_DO_SELO[atualizacao.tipo] }
     : null;
@@ -303,7 +305,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtr
         <IniciaisDePerfil nome={aluno.nome} tamanho={36} />
         <View style={estilos.nomeESelos}>
           <Texto variante="bloco" numberOfLines={2}>{aluno.nome}</Texto>
-          <SelosETagsDaLinha selos={excecoes} tags={tags} />
+          <SelosETagsDaLinha selos={excecoes} tags={tags} mais={selecionando ? undefined : maisTags.desenho} prenderMais={maisTags.prender} />
         </View>
       </View>
     ),
@@ -325,13 +327,13 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtr
     return <LinhaDaLista titulo={aluno.nome} metadados={metadados} selos={selos} colunas={comColunas} rotulo={aluno.nome} marcar={{ marcado, aoMudar: aoMarcar }} />;
   }
   const ficha = `/treinador/alunos/${aluno.id}` as const;
-  // O nome acessível começa por "Abrir <nome>" e diz o que as colunas mostram (o leitor de tela lê o rótulo do link).
+  // O nome acessível começa por "Abrir <nome>" e diz o que as colunas mostram (o leitor de tela lê o rótulo do link). As
+  // tags escondidas não entram: quem as diz é o botão "+N", logo depois do link.
   const rotulo = [
     `Abrir ${aluno.nome}`,
     atualizacao?.texto,
     ...excecoes.map((s) => s.texto),
     rotuloDasTagsNaLinha(tags),
-    rotuloDoMaisTags(tags),
     plano ?? 'Sem plano ativo',
     veRegistro ? (aluno.ultimoRegistro ? `Último registro: ${ultimo.texto.toLowerCase()}` : ultimo.texto) : null,
     responsavel ? `Responsável: ${responsavel}` : null,
@@ -348,8 +350,9 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtr
       aoLado={podeEditar ? (
         <IconeBotao moldura Icone={Pencil} rotulo={`Editar cadastro de ${aluno.nome}`}
           aoTocar={() => router.push({ pathname: '/treinador/alunos/[id]', params: { id: aluno.id, editar: '1' } })} />
-      ) : undefined}
-    />
+      ) : undefined}>
+      {maisTags.sobreposicao}
+    </LinhaDaLista>
   );
 }
 

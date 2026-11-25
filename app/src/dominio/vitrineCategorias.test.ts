@@ -1,5 +1,5 @@
 import {
-  agruparPorCategoria, categoriaDeMesmoNome, categoriaDoItemDaEquipe, erroDoNomeDaCategoria, idsDepoisDeMoverNoGrupo, mensagemDeExcluirCategoria,
+  agruparPorCategoria, categoriaDoItemDaEquipe, erroDoNomeDaCategoria, idsDepoisDeMoverNoGrupo, mensagemDeExcluirCategoria,
   mover, normalizarNomeDaCategoria, quantidadeDeItens, SEM_CATEGORIA, sugestoesDeCategoria,
 } from './vitrineCategorias';
 import { colunasDaVitrine, comPreco, DICA_DA_FOTO_DA_VITRINE, precoEspecialLiberado, rascunhoVazio } from './vitrine';
@@ -16,10 +16,6 @@ describe('nome da categoria', () => {
     expect(erroDoNomeDaCategoria('calcados', CATS)).toBe('Já existe uma categoria com esse nome.');
     expect(erroDoNomeDaCategoria('Calçados', CATS, 'b')).toBeNull();
     expect(erroDoNomeDaCategoria('Livros', CATS)).toBeNull();
-  });
-  test('acha a de mesmo nome', () => {
-    expect(categoriaDeMesmoNome(CATS, 'ROUPAS')?.id).toBe('a');
-    expect(categoriaDeMesmoNome(CATS, 'Rou')).toBeUndefined();
   });
 });
 

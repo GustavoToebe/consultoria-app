@@ -84,7 +84,7 @@ export function FolhaNovaImportacao({ aoFechar }: { aoFechar: () => void }) {
   const edicao = coresDaEdicao(cores);
 
   return (
-    <Folha visivel titulo="Nova importação" aoFechar={aoFechar} largura={LARGURA_FOLHA_LARGA} alturaDoConteudo
+    <Folha visivel titulo="Nova importação" aoFechar={aoFechar} largura={LARGURA_FOLHA_LARGA}
       rodape={<>
         <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
         <Botao rotulo="Continuar" desabilitado={escolha === null} motivo="Escolha uma das opções para continuar." aoTocar={() => continuar(escolha)} />

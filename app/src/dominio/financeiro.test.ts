@@ -25,6 +25,8 @@ import {
   resumoDoLote,
   totalDoLote,
   atrasoParaTela,
+  competenciaDaCobranca,
+  seloDaCobrancaNaTabela,
   AVISO_LIQUIDO,
   AVISO_RETORNO_DO_PAGAMENTO,
   AVISO_RETORNO_SEM_CONFIRMAR,
@@ -1017,6 +1019,23 @@ describe('cobrança avulsa: rótulo, selo e linha da lista', () => {
     expect(referenciaDaCobranca({ tipo: 'AVULSA', competencia: null, descricao: null })).toBe('Cobrança avulsa');
     // Dado do aparelho do aluno, sem `descricao`.
     expect(referenciaDaCobranca({ tipo: 'AVULSA', competencia: null })).toBe('Cobrança avulsa');
+  });
+  it('o selo da tabela: a vencida diz há quantos dias ("há 1 dia" no singular); sem os dias, ou vencida hoje, só "Vencida"', () => {
+    const aberta = { situacao: 'ABERTA' as const, vencida: true };
+    expect(seloDaCobrancaNaTabela({ ...aberta, diasDeAtraso: 16 })).toEqual({ tom: 'perigo', rotulo: 'Vencida há 16 dias' });
+    expect(seloDaCobrancaNaTabela({ ...aberta, diasDeAtraso: 1 })).toEqual({ tom: 'perigo', rotulo: 'Vencida há 1 dia' });
+    expect(seloDaCobrancaNaTabela({ ...aberta, diasDeAtraso: 197 }).rotulo).toBe('Vencida há 197 dias');
+    expect(seloDaCobrancaNaTabela({ ...aberta, diasDeAtraso: 0 }).rotulo).toBe('Vencida');
+    expect(seloDaCobrancaNaTabela({ ...aberta, diasDeAtraso: null }).rotulo).toBe('Vencida');
+    expect(seloDaCobrancaNaTabela({ situacao: 'ABERTA', vencida: false, diasDeAtraso: null })).toEqual({ tom: 'atencao', rotulo: 'Em aberto' });
+    expect(seloDaCobrancaNaTabela({ situacao: 'PAGA', vencida: false, diasDeAtraso: 9 }).rotulo).toBe('Paga');
+  });
+  it('a competência da tabela: só MM/AAAA; avulsa e parcela de acordo, "—" (nunca a descrição)', () => {
+    expect(competenciaDaCobranca({ tipo: 'MENSALIDADE', competencia: '2026-10-05' })).toBe('10/2026');
+    expect(competenciaDaCobranca({ tipo: 'SAIDA', competencia: '2026-10-19' })).toBe('10/2026');
+    expect(competenciaDaCobranca({ tipo: 'AVULSA', competencia: null })).toBe('—');
+    expect(competenciaDaCobranca({ tipo: 'RENEGOCIACAO', competencia: null })).toBe('—');
+    expect(competenciaDaCobranca({ tipo: 'MENSALIDADE', competencia: null })).toBe('—');
   });
   it('a linha do aluno chama a avulsa de "Cobrança avulsa", nunca de Mensalidade', () => {
     const base = { situacao: 'ABERTA' as const, vencida: false, vencimento: '2026-12-05', valorCentavos: 15_000, pagoEm: null };
