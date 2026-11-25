@@ -1,6 +1,6 @@
 # Ficha rápida pós-WhatsApp: aceite só com pagamento confirmado (Fase 3 pós-piloto)
 
-Situação: Planejando (só documento; sem código) em 24/11/2026 · Onde: `main` · Atualizado: 24/11/2026 · Ordem: depois da Fase 1 ([contrato-fechado.md](contrato-fechado.md)) e **antes** da Fase 2 ([pausar-acesso-por-atraso.md](pausar-acesso-por-atraso.md))
+Situação: Feito em 25/11/2026 · Onde: `financeiro-fases-2-e-3` · Atualizado: 25/11/2026 · Ordem: depois da Fase 1 ([contrato-fechado.md](contrato-fechado.md)) e **antes** da Fase 2 ([pausar-acesso-por-atraso.md](pausar-acesso-por-atraso.md))
 
 Fonte: roteiro do Saraiva de 24/11/2026 (`R1030-C62` e `R1121-C04`) e as correções do Gustavo na mesma data. Validade: a leitura do código é de 24/11/2026 sobre `9918601b`; reler `InscricaoService`, `PagamentoInscricao` e o cartão "Link" antes de começar.
 
@@ -23,10 +23,10 @@ Depois de conversar no WhatsApp, o Saraiva manda um formulário curto (nome, Wha
 - Kanban: `QuadroKanban.tsx` com `ETAPAS_ABERTAS`.
 
 ## Passos
-- [ ] 1. Segundo link público (a ficha rápida) com perguntas mínimas, pela regra de múltiplos links de `formularios-unificados.md` — executor
-- [ ] 2. Aceite exige `CONFIRMADO_MANUAL` e tem "Aceitar sem cobrança" (cortesia) separado, com auditoria de resumo fixo; o limite de alunos continua no aceite — executor; tela com `executor-front`
-- [ ] 3. Indicadores "Inscritos", "Aguardando pagamento", "Pagaram" e "Cortesias" separados de aceites, na API e em `Indicadores.tsx` — executor e `executor-front`
-- [ ] 4. Revisão independente (aceite, pagamento, dado de terceiro) e `AGENTS.md`, Ajuda e guias
+- [x] 1. Segundo link público (a ficha rápida) com perguntas mínimas, pela regra de múltiplos links de `formularios-unificados.md` — executor
+- [x] 2. Aceite exige `CONFIRMADO_MANUAL` e tem "Aceitar sem cobrança" (cortesia) separado, com auditoria de resumo fixo; o limite de alunos continua no aceite — executor; tela com `executor-front`
+- [x] 3. Indicadores "Inscritos", "Aguardando pagamento", "Pagaram" e "Cortesias" separados de aceites, na API e em `Indicadores.tsx` — executor e `executor-front`
+- [x] 4. Revisão independente (aceite, pagamento, dado de terceiro) e `AGENTS.md`, Ajuda e guias
 
 ## Fora do escopo
 - Cobrança ligada ao interessado e promoção automática a aluno por webhook (D2); situação nova no kanban (D1); cálculo de comissão ou de métrica por competência.

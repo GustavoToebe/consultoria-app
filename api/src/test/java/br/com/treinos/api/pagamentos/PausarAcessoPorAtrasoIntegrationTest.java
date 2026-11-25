@@ -166,6 +166,7 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
         api.get("/aluno/financeiro", renovada, 200);
         api.get("/eu/contratacao", renovada, 204);
         api.get("/aluno/contratacao", renovada, 204);
+        api.get("/aluno/meus-dados", renovada, 200);
         api.post("/aluno/financeiro/cobrancas/" + cobranca.get("id").asString() + "/link", renovada, null, 200);
         api.post("/aluno/financeiro/cobrancas/" + cobranca.get("id").asString() + "/pix", renovada, null, 200);
         api.post("/aluno/financeiro/retorno-pagamento", renovada, Map.of(

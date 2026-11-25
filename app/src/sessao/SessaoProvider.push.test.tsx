@@ -18,6 +18,7 @@ jest.mock('@react-native-community/netinfo', () => ({ addEventListener: jest.fn(
 const mockLogin = { accessToken: 'a', usuario: { id: 'aluno-1', papel: 'ALUNO', nome: 'Aluno Fictício' } };
 let mockEu: Record<string, unknown> = {};
 jest.mock('../api/cliente', () => ({
+  aoAcessoPausado: jest.fn(),
   aoCicloDesligado: jest.fn(),
   aoRetornoDesligado: jest.fn(),
   aoVitrineDesligada: jest.fn(),

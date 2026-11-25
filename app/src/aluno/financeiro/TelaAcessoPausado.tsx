@@ -193,7 +193,7 @@ export function TelaAcessoPausado() {
       <LinhaDeAcoes alinhar="inicio">
         <Botao
           rotulo="Já paguei, verificar agora"
-          tipo="primario"
+          tipo={acoesDoCartao.length > 0 ? 'secundario' : 'primario'}
           Icone={RefreshCw}
           carregando={verificando}
           aoTocar={() => { void verificarAgora(); }}

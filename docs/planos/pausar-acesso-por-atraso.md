@@ -1,6 +1,6 @@
 # Pausar o acesso do aluno por atraso (Fase 2 pós-piloto)
 
-Situação: Planejando (só documento; sem código) em 24/11/2026 · Onde: `main` · Atualizado: 24/11/2026 · Ordem: depois da Fase 1 ([contrato-fechado.md](contrato-fechado.md)) e da Fase 3 ([ficha-rapida-pos-whatsapp.md](ficha-rapida-pos-whatsapp.md))
+Situação: Feito em 25/11/2026 · Onde: `financeiro-fases-2-e-3` · Atualizado: 25/11/2026 · Ordem: depois da Fase 1 ([contrato-fechado.md](contrato-fechado.md)) e da Fase 3 ([ficha-rapida-pos-whatsapp.md](ficha-rapida-pos-whatsapp.md))
 
 Fonte: roteiro do Saraiva de 24/11/2026 ("se atrasar e for conversado, continuo o trabalho; sem motivo plausível, perde acesso até quitar") e as correções do Gustavo na mesma data. Validade: leitura do código de 24/11/2026 sobre `9918601b`; reler `AuthService`, `JwtAuthenticationFilter` e `UsuariosDoApp` antes de começar. **Esta fase reabre uma regra permanente** (abaixo): antes de executar, o Gustavo reconfirma.
 
@@ -23,10 +23,10 @@ O treinador pausa o acesso de um aluno em atraso, na hora que decidir. O aluno p
 - Link de pagamento: nasce de cobrança de aluno e `LinkDePagamentoService` recusa aluno inativo; o aluno pausado precisa de rota própria (a tela de pagamento) sem abrir o resto do app.
 
 ## Passos
-- [ ] 1. Reconfirmar com o Gustavo a mudança da regra permanente (D4) e decidir onde vive o estado (coluna em `aluno` ou no usuário), com auditoria de resumo fixo
-- [ ] 2. API: pausar e reativar manualmente, 403 com código próprio no login e no filtro, reativação automática no ponto único de quitação, rotas do aluno pausado limitadas à tela de pagamento — executor
-- [ ] 3. App do aluno: tela "Seu acesso está pausado. Quite aqui." com o link; app do treinador: "Pausar acesso até quitar" e "Reativar" (`PainelConfirmacao`) na ficha e na folha da cobrança vencida — `executor-front`
-- [ ] 4. Revisão independente (autenticação, sessão, dinheiro), `AGENTS.md`, Ajuda e guias
+- [x] 1. Reconfirmar com o Gustavo a mudança da regra permanente (D4) e decidir onde vive o estado (coluna em `aluno` ou no usuário), com auditoria de resumo fixo
+- [x] 2. API: pausar e reativar manualmente, 403 com código próprio no login e no filtro, reativação automática no ponto único de quitação, rotas do aluno pausado limitadas à tela de pagamento — executor
+- [x] 3. App do aluno: tela "Seu acesso está pausado. Quite aqui." com o link; app do treinador: "Pausar acesso até quitar" e "Reativar" (`PainelConfirmacao`) na ficha e na folha da cobrança vencida — `executor-front`
+- [x] 4. Revisão independente (autenticação, sessão, dinheiro), `AGENTS.md`, Ajuda e guias
 
 ## Fora do escopo
 - Pausa automática por dias de atraso; mudar a regra das lojas; mexer no que inativar já faz.

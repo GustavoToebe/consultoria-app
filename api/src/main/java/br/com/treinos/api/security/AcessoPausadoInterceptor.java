@@ -64,7 +64,8 @@ public class AcessoPausadoInterceptor implements HandlerInterceptor {
                     || "/termos".equals(caminho)
                     || "/aluno/financeiro".equals(caminho)
                     || "/eu/contratacao".equals(caminho)
-                    || "/aluno/contratacao".equals(caminho);
+                    || "/aluno/contratacao".equals(caminho)
+                    || "/aluno/meus-dados".equals(caminho);
         }
         if ("PUT".equals(metodo)) {
             return "/eu/senha".equals(caminho);

@@ -295,6 +295,7 @@ const resumo: InscricaoResumo = resumoFalso(1, {
   nome: 'Pessoa Interessada',
   objetivo: 'Hipertrofia',
   email: 'interessada@exemplo.test',
+  pagamento: 'CONFIRMADO_MANUAL',
   responsavelId: TREINADOR.id,
   responsavelNome: TREINADOR.nome,
   versao: 3,
