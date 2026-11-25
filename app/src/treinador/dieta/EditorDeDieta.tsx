@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronsDownUp, ChevronsUpDown, NotebookTabs, Plus, ShoppingCart } from 'lucide-react-native';
 import { useState } from 'react';
-import { Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { listarAlimentos, listarErgogenicos, suplementoDaResposta } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, Receita, Refeicao, ResultadoValidacao } from '../../api/tipos';
@@ -38,7 +38,7 @@ import { ComColunas } from '../plano/ColunasDoEditor';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
-import { mostrarAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
+import { FixoAbaixoDaBarra, mostrarAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
 import { BarraDoModeloDoEditor, NomeDoModelo } from '../plano/TopoModelo';
 import { BarraDoPlano, ProblemasDoPlano } from '../plano/TopoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
@@ -61,8 +61,6 @@ import { VariacoesDaDieta } from './VariacoesDaDieta';
  */
 export default function EditorDeDieta({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { height: alturaDaJanela } = useWindowDimensions();
-  const estiloFixo = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(10), zIndex: 1, maxHeight: alturaDaJanela - espaco(12), overflowY: 'auto' } : undefined) as ViewStyle | undefined;
   // Ao abrir: nome vazio vira "Refeição N" e o modelo não leva data de início (C57, C59; o campo nem aparece nele).
   const abrirConteudo = (c: unknown): ConteudoDieta => {
     const d = comNomesPadrao(normalizarDieta(c));
@@ -282,7 +280,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                 {adicionar}
               </View>
               <View style={estilos.inspetor}>{cartao(escolhida, refs.indexOf(escolhida), true)}</View>
-              {totalNaColuna ? <View style={[estilos.colunaTotal, estiloFixo]} testID="coluna-total-dieta">{totalDoDiaEl}</View> : null}
+              {totalNaColuna ? <FixoAbaixoDaBarra rola style={estilos.colunaTotal} testID="coluna-total-dieta">{totalDoDiaEl}</FixoAbaixoDaBarra> : null}
             </View>
           ) : <>
             {refs.flatMap((r, ri) => (ri === avisoNoLugar ? [barra, cartao(r, ri, false)] : [cartao(r, ri, false)]))}

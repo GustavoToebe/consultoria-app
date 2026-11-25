@@ -8,6 +8,8 @@ import { ALVO_TOQUE, espaco, fontes } from '../../tema/tokens';
 import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Selo } from '../../ui/Selo';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { CamadaDaSerie, fundoDaSerie } from '../../ui/CamadaDaSerie';
+import { LARGURA_DA_FAIXA_DA_SERIE, pinturaDaSerie } from '../../ui/pinturaDaSerie';
 import { coresDaEdicao } from '../../ui/selecao';
 import { sobre as comMouse } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -23,8 +25,10 @@ export interface LinhaDoBloco {
   serie: string;
   /** "WS", "Back off": a coluna Tipo (cardio não tem). */
   tipo?: string;
-  /** Cor de identificação do tipo (`identificacao[chave]`): só o selo da categoria (a faixa lateral saiu em 19/11). */
+  /** Cor do selo do tipo (`identificacao[chave]`); nula no modo "Cor de ação" das séries (selo neutro, o tipo pelo nome). */
   categoria?: { cor: string; fundo: string };
+  /** Cor da série (`ui/pinturaDaSerie.corDaSerie`: a do tipo ou a de ação): linha pintada e faixa reta; nula = linha neutra. */
+  cor?: string | null;
   /** A coluna Carga, já em texto (`cargaDoBloco`); "—" sem carga prescrita; "Falta a carga" com `cargaFalta`. */
   carga: string;
   /** Carga obrigatória ainda vazia: o texto da coluna em âmbar (pendência, não erro; guia premium págs. 4 e 9). */
@@ -35,7 +39,15 @@ export interface LinhaDoBloco {
   edicao: string;
 }
 
+/** Mesmo texto sem diferença de acento, caixa e espaços nas pontas. */
+const semAcento = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase();
+const mesmoTexto = (a: string, b: string | undefined) => b !== undefined && semAcento(a) === semAcento(b);
+
 const TEXTO_DO_PROBLEMA = { perigo: 'com problema a corrigir', atencao: 'com aviso' } as const;
+
+/** Canto da linha fechada (o mesmo da caixa do botão) e do bloco aberto (linha + editor). */
+const RAIO_DA_LINHA = 12;
+const RAIO_DO_BLOCO = 14;
 
 /** Abaixo desta largura da coluna das séries as colunas viram linha empilhada com o editor embaixo (390). */
 export const LARGURA_DAS_COLUNAS = 540;
@@ -52,12 +64,14 @@ const ESPACO_DO_MENU = espaco(0.5);
  * botão com `aria-expanded` e `aria-controls` (setas, Home e End movem o foco; Enter e Espaço abrem e fecham), e o editor
  * (`detalhe`) abre logo abaixo da série escolhida. No PC a linha mostra as colunas; estreito (`empilhado`, 390) ela vira
  * texto corrido.
- * Séries no padrão da dieta (19/11): um nível de destaque por vez. A faixa de ação fica no painel do exercício; aqui a
- * linha fechada não tem borda (hover `superficie2`, chevron →) e a aberta forma um bloco só com o editor embaixo, no fundo
- * tingido de ação (`coresDaEdicao().fundoDoBloco`), sem contorno, halo nem selo "Editando" (chevron ↓ na cor de ação).
- * Só uma aberta por vez; tocar na aberta fecha. Quatro sinais que não se confundem: o foco é o anel do `:focus-visible`;
- * a aberta é o fundo tingido; a categoria é só o selo na cor do tipo; o problema é o ícone na cor da gravidade (a carga
- * ainda vazia é âmbar, "Falta a carga").
+ * Séries no padrão da dieta (19/11): um nível de destaque por vez. A faixa de ação fica no painel do exercício; aqui cada
+ * linha fechada é um cartão pintado na cor da série com a faixa reta à esquerda (25/11, `ui/CamadaDaSerie`, a mesma peça da
+ * tela do exercício do aluno; hover `superficie2`, chevron →) e a aberta forma um bloco só com o editor embaixo, no fundo
+ * tingido de ação (`coresDaEdicao().fundoDoBloco`) com a faixa da série, sem contorno, halo nem selo "Editando" (chevron ↓
+ * na cor de ação). Só uma aberta por vez; tocar na aberta fecha. Sinais que não se confundem: o foco é o anel do
+ * `:focus-visible`; a aberta é o fundo tingido de ação; a categoria é a faixa e o selo com o nome do tipo (a cor é a do tipo
+ * ou, pela preferência "Cor das séries", a de ação); o problema é o ícone na cor da gravidade (a carga ainda vazia é âmbar,
+ * "Falta a carga").
  */
 export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = false, detalhe, aoSoltar, aoMover }: {
   linhas: LinhaDoBloco[];
@@ -76,7 +90,9 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
   /** "Mover para cima/baixo" do ⋯ de cada linha: a alternativa sem arrastar (WCAG 2.5.7) e o caminho do teclado. */
   aoMover?: (indice: number, delta: -1 | 1) => void;
 }) {
-  const { cores } = useTema();
+  const { cores, variante, bordas } = useTema();
+  // Com alguma série colorida, todas as linhas e o cabeçalho ganham o recuo da faixa (as colunas continuam alinhadas).
+  const recuo = linhas.some((l) => l.cor) ? LARGURA_DA_FAIXA_DA_SERIE : 0;
   // Só a linha anda (o editor aberto embaixo dela fica); as setas ficam no ⋯ da linha, fora do botão dela.
   const arraste = useArrasteDaLista({ total: aoSoltar ? linhas.length : 0, aoSoltar: aoSoltar ?? (() => undefined), folga: espaco(0.25) });
   const comAlca = !!aoSoltar && linhas.length > 1;
@@ -130,7 +146,8 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
     );
     const detalhes = (
       <>
-        {l.resumo.nome ? <Texto variante="pequeno" cor="suave">{l.resumo.nome}</Texto> : null}
+        {/* O nome por extenso só quando diz mais que o selo ("Preparação · FS", "WS + Rest pause"); "Aquecimento" não se repete. */}
+        {l.resumo.nome && !mesmoTexto(l.resumo.nome, l.tipo) ? <Texto variante="pequeno" cor="suave">{l.resumo.nome}</Texto> : null}
         {variacao ? <Texto variante="pequeno" cor="suave">{variacao}</Texto> : null}
       </>
     );
@@ -171,10 +188,13 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
 
   const linha = (l: LinhaDoBloco, i: number) => {
     const sel = l.valor === ativa;
-    // Linha e editor num bloco só (o fundo tingido); sem `overflow: hidden`, que cortaria o anel de foco da linha.
+    // Séries pintadas (25/11, a mesma peça da tela do exercício): a fechada é um cartão na cor da série, com borda e faixa
+    // reta; a aberta mantém o fundo de edição e ganha só a faixa. A camada recorta a faixa; o item não tem `overflow:
+    // hidden`, que cortaria o anel de foco da linha.
+    const p = pinturaDaSerie(l.cor ?? null, 'CHEIA', cores, variante, bordas.item);
     return (
       <View key={l.valor} testID={sel ? 'bloco-aberto' : undefined}
-        style={[estilos.item, i > 0 ? { borderTopWidth: 1, borderTopColor: cores.divisor } : null, sel ? [estilos.bloco, { backgroundColor: fundoDoBloco }] : null]}>
+        style={[estilos.item, { paddingLeft: recuo }, sel ? [estilos.bloco, { backgroundColor: fundoDoBloco }] : fundoDaSerie(p, cores.superficie)]}>
         <ItemArrastavel arraste={arraste} indice={i} style={comAlca || comMenu ? estilos.comAlca : null}>
           {comAlca ? <AlcaDeArraste arraste={arraste} indice={i} /> : null}
           <Pressable ref={(n) => { linhasRef.current[i] = n; }} {...teclado(i)} accessibilityRole="button" accessibilityLabel={rotuloDe(l)} aria-expanded={sel}
@@ -186,6 +206,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
           {comMenu ? <View style={estilos.menu}><IconeBotao Icone={Ellipsis} rotulo={`Mais ações da série ${i + 1}`} aoTocar={() => setMenuDe(i)} /></View> : null}
         </ItemArrastavel>
         {sel && detalhe ? <View nativeID={idDoDetalhe} role="region" aria-label={l.edicao}>{detalhe}</View> : null}
+        <CamadaDaSerie pintura={p} ativa={false} raio={sel ? RAIO_DO_BLOCO : RAIO_DA_LINHA} semBorda={sel} testID={`bloco-${i + 1}`} />
       </View>
     );
   };
@@ -203,7 +224,7 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
   return (
     <View style={estilos.tabela}>
       {/* Cabeçalho só visual: cada linha já diz os valores no nome acessível. */}
-      <View style={[estilos.linha, estilos.cabecalho, comAlca ? estilos.cabecalhoComAlca : null, comMenu ? estilos.cabecalhoComMenu : null]} aria-hidden importantForAccessibility="no-hide-descendants">
+      <View style={[estilos.linha, estilos.cabecalho, comAlca ? estilos.cabecalhoComAlca : null, comMenu ? estilos.cabecalhoComMenu : null, { marginLeft: recuo }]} aria-hidden importantForAccessibility="no-hide-descendants">
         <Texto variante="rotulo" style={estilos.serie}>Série</Texto>
         <Texto variante="rotulo" style={estilos.tipo}>Tipo</Texto>
         <Texto variante="rotulo" style={estilos.carga}>Carga</Texto>
@@ -220,11 +241,10 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
 
 const estilos = StyleSheet.create({
   tabela: { gap: espaco(0.5) },
-  // Linhas coladas, separadas pelo fio `divisor` (protótipo de 19/11); o bloco aberto se afasta um pouco das vizinhas.
-  // A lista e o gatilho do `components/ui/tabs` nascem em linha, `w-fit` e centrados: aqui são coluna e linha cheia.
-  lista: { flexDirection: 'column', width: '100%' },
-  item: { width: '100%' },
-  bloco: { borderRadius: 14, marginVertical: espaco(0.75) },
+  // Cada série é um cartão (25/11): pintado na cor dela, separado das vizinhas pelo vão (o fio `divisor` saiu).
+  lista: { flexDirection: 'column', width: '100%', gap: espaco(0.75) },
+  item: { width: '100%', borderRadius: RAIO_DA_LINHA },
+  bloco: { borderRadius: RAIO_DO_BLOCO },
   caixa: {
     width: '100%', height: 'auto', minHeight: ALVO_TOQUE, justifyContent: 'flex-start', alignItems: 'stretch',
     paddingHorizontal: espaco(1.5), paddingVertical: espaco(1.25), borderRadius: 12,
@@ -251,7 +271,7 @@ const estilos = StyleSheet.create({
   descanso: { flexGrow: 1, flexShrink: 0, flexBasis: 72 },
   chevron: { width: CHEVRON, flexShrink: 0, alignItems: 'center' },
   titulo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexWrap: 'wrap' },
-  forte: { fontFamily: fontes.semi, fontSize: 15, flexShrink: 1 },
+  forte: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 21, flexShrink: 1 },
   semi: { fontFamily: fontes.semi },
   empilhado: { gap: espaco(0.5), flex: 1, minWidth: 0 },
   depois: { alignItems: 'flex-start', paddingTop: espaco(0.5) },

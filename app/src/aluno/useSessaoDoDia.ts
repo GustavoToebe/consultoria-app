@@ -10,6 +10,7 @@ import { semCargaNaSerieIlegivel } from '../dominio/modoDeCarga';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { chaveDaBaseDoDia, exercicioDoDia, foiTrocado, podeTrocarNoDia } from '../dominio/exercicioDoDia';
 import { hojeIso } from '../dominio/formatos';
+import { rascunhoDaSerie, type MudancaDoRascunho, type ReferenciaDaSerie } from '../dominio/rascunhoDaSerie';
 import { recordesDoExercicio, seriesComRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { podeRegistrarEm } from '../dominio/semana';
 import { ultimaVez } from '../dominio/seriesAnteriores';
@@ -151,6 +152,17 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     return novos;
   };
 
+  /** Onde mora o rascunho da série (`dominio/rascunhoDaSerie`): versão, exercício do plano e do dia, série e data do treino. */
+  const referenciaDaSerie = (e: ExercicioPlano, serieUid: string): ReferenciaDaSerie => ({
+    planoVersaoId: treino?.versaoId ?? '', exercicioUid: e.uid, exercicioId: e.exercicioId, serieUid, data,
+  });
+  /** O que o aluno digitou na série antes do ✓ (carga e repetições); nulo = nada. Só vale enquanto a série não tem registro. */
+  const rascunhoDe = (e: ExercicioPlano, serieUid: string) => (treino ? rascunhoDaSerie(aluno.rascunhosDeSerie, referenciaDaSerie(e, serieUid)) : null);
+  /** Guarda no aparelho a cada mudança (`null` apaga). Nunca grava registro: só o ✓ (`registrar`) faz isso. */
+  const salvarRascunho = (e: ExercicioPlano, serieUid: string, mudanca: MudancaDoRascunho | null) => {
+    if (treino) aluno.salvarRascunhoDaSerie(referenciaDaSerie(e, serieUid), mudanca);
+  };
+
   /** Versão do plano, série e data: com a posição da etapa, a identidade da pausa entre etapas (`origemDaPausa`). */
   const chaveDaExecucao = (serieUid: string) => `${treino?.versaoId ?? ''}|${serieUid}|${data}`;
 
@@ -172,6 +184,8 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     recordesNoDia,
     ultimaVezDe,
     chaveDaExecucao,
+    rascunhoDe,
+    salvarRascunho,
     diaDe,
     podeTrocar,
     trocado,

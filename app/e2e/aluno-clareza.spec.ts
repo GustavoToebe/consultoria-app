@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { ConteudoDieta, RegistroEnvio, RegistroPeso, SessoesConcluidasResponse, VersaoDetalhe } from '../src/api/tipos';
-import { fixarHoje, sessaoComTopSetEBackOff, sessaoDeAluno, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { fixarHoje, sessaoComTopSetEBackOff, sessaoDeAluno, sessaoDeAlunoComTreino, sessaoFalsa, fazerSerie } from './aluno';
 import { ALUNO, json, sessao, simularApi } from './api-falsa';
 
 /**
@@ -34,35 +34,29 @@ for (const largura of [390, 1280]) {
 
     // Cabeçalho, meta e a área de hoje em cada uma das três séries.
     await expect(page.getByText('Série 1', { exact: true })).toBeVisible();
-    await expect(page.getByText('Meta', { exact: true })).toHaveCount(3);
-    await expect(page.getByText('Hoje', { exact: true })).toHaveCount(3);
+    await expect(page.getByText('Série 3', { exact: true })).toBeVisible();
     await expect(page.getByText('Ainda não registrado', { exact: true })).toHaveCount(0); // N3: sem registro, sem selo
     // A observação do treinador tem nome claro; "Alvo extra" saiu da tela.
     await expect(page.getByText('Observação desta série: Segure 2 s embaixo', { exact: true })).toBeVisible();
     await expect(page.getByText(/Alvo extra/i)).toHaveCount(0);
-    // A base do dia diz que é o ponto de partida.
-    await expect(page.getByText(/^É o ponto de partida do dia\./)).toBeVisible();
+    // A carga de trabalho de hoje explica no "?" (folha) que é o ponto de partida.
+    await page.getByRole('button', { name: 'O que é a carga de trabalho de hoje', exact: true }).click();
+    await expect(page.getByRole('dialog').getByText(/^É o ponto de partida do dia/)).toBeVisible();
+    await page.keyboard.press('Escape');
 
-    // Com a base, a WS mostra a sugestão como dica (o campo segue vazio, D1) e a origem; a próxima série parte desta,
-    // então o aviso de marcar a série aparece.
-    await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('100');
-    await expect(page.getByRole('textbox', { name: 'Peso da série 1, em quilos', exact: true })).toHaveValue('');
-    const ws = page.getByTestId('serie-ws');
-    await expect(ws.getByText('Sugestão: 100 kg', { exact: true })).toBeVisible();
-    await expect(ws.getByText('carga da base do dia', { exact: true })).toBeVisible();
-    await expect(page.getByText('As séries seguintes só usam este peso depois que você marcar a série como feita.', { exact: true })).toBeVisible();
+    // Com a base, a WS mostra a sugestão apagada dentro do campo (que segue vazio, D1).
+    await page.getByRole('textbox', { name: 'Carga de trabalho de hoje, em quilos', exact: true }).fill('100');
+    const peso1 = page.getByRole('textbox', { name: 'Carga da série 1, em quilos', exact: true });
+    await expect(peso1).toHaveValue('');
+    await expect(peso1).toHaveAttribute('placeholder', '100');
 
-    // Marcar com o peso vazio pergunta "Fez com 100 kg?" (D2); "Sim" grava. só essa série ganha o selo "Feita" e
-    // a sugestão dela sai (feita não sugere).
+    // ✓ com o peso vazio grava a sugestão (pedido de 25/11); só essa série ganha o selo "Feita".
     await page.getByRole('textbox', { name: 'Repetições da série 1', exact: true }).fill('5');
-    await page.getByRole('checkbox', { name: 'Série 1 feita', exact: true }).click();
-    await expect(page.getByText('Fez com 100 kg?', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Sim, 100 kg, série 1', exact: true }).click();
+    await fazerSerie(page, 1);
     await expect(page.getByText('Feita', { exact: true })).toHaveCount(1);
-    await expect(ws.getByText('Sugestão: 100 kg', { exact: true })).toHaveCount(0);
-    // O Back off parte da WS registrada e diz isso.
-    await expect(page.getByTestId('serie-back').getByText('Sugestão: 90 kg', { exact: true })).toBeVisible();
-    await expect(page.getByTestId('serie-back').getByText(/^90% da WS registrada nesta sessão/)).toBeVisible();
+    await expect(page.getByText('100 kg × 5', { exact: true })).toBeVisible();
+    // O Back off parte da WS registrada (90%).
+    await expect(page.getByRole('textbox', { name: 'Carga da série 2, em quilos', exact: true })).toHaveAttribute('placeholder', '90');
     await expect.poll(() => enviados.filter((r) => r.serieUid === 'ws' && r.concluida).length).toBeGreaterThan(0);
     // O corpo enviado é o de sempre: carga e repetições digitadas.
     expect(enviados.filter((r) => r.serieUid === 'ws').at(-1)).toMatchObject({ carga: 100, repeticoes: 5, concluida: true });
@@ -162,26 +156,27 @@ async function abrirTreinoDeDois(page: Page, ligada: boolean) {
       : {}),
   });
   await page.goto('/aluno/sessao/sx/sxe2?data=2026-10-19');
-  for (const n of [1, 2, 3]) await page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true }).click();
-  await expect(page.getByRole('checkbox', { name: 'Série 3 feita', exact: true })).toBeChecked();
+  for (const n of [1, 2, 3]) await fazerSerie(page, n);
+  await expect(page.getByRole('checkbox', { name: /^Marcar série 3 como feita/ })).toBeChecked();
   await page.getByRole('button', { name: 'Anterior: Exercício sxe1', exact: true }).click();
   await expect(page).toHaveURL(/\/aluno\/sessao\/sx\/sxe1\?data=2026-10-19$/);
-  for (const n of [1, 2, 3]) await page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true }).click();
-  await expect(page.getByRole('checkbox', { name: 'Série 3 feita', exact: true })).toBeChecked();
+  for (const n of [1, 2, 3]) await fazerSerie(page, n);
+  await expect(page.getByRole('checkbox', { name: /^Marcar série 3 como feita/ })).toBeChecked();
   return { ...api, conclusoes };
 }
 
 const revisar = (page: Page) => page.getByRole('button', { name: 'Revisar e concluir treino', exact: true });
-const proximo = (page: Page) => page.getByRole('button', { name: 'Próximo: Exercício sxe2', exact: true });
+const proximo = (page: Page) => page.getByRole('button', { name: /^Próximo( exercício)?: Exercício sxe2$/ });
 
 for (const largura of [390, 1280]) {
   test(`B5 ligado: tudo marcado, "Revisar e concluir treino" vem antes do "Próximo" e só abre a Folha (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await abrirTreinoDeDois(page, true);
 
-    // Topo e rodapé; no rodapé ele é o primário e o "Próximo" passa a secundário, logo abaixo.
-    await expect(revisar(page)).toHaveCount(2);
+    // No fim da tela ele é o primário; o "Próximo" fica secundário, na barra fixa de baixo.
+    await expect(revisar(page)).toHaveCount(1);
     await expect(proximo(page)).toBeVisible();
+    await revisar(page).last().scrollIntoViewIfNeeded();
     const [rodape, depois] = [await revisar(page).last().boundingBox(), await proximo(page).boundingBox()];
     if (!rodape || !depois) throw new Error('sem caixa');
     expect(depois.y).toBeGreaterThan(rodape.y);

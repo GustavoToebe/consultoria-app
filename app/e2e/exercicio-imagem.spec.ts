@@ -120,7 +120,7 @@ function sessaoComBiblioteca(): Sessao[] {
   }];
 }
 
-test('aluno: demonstração acima do Como fazer; imagem própria só pela API; sem imagem não sobra espaço', async ({ page }) => {
+test('aluno: demonstração dentro do Como fazer; imagem própria só pela API; sem imagem não sobra espaço', async ({ page }) => {
   await fixarHoje(page);
   const pedidasDoCatalogo = await servirCatalogo(page);
   const cabecalhos: Record<string, string | undefined>[] = [];
@@ -142,6 +142,9 @@ test('aluno: demonstração acima do Como fazer; imagem própria só pela API; s
   // Exercício do catálogo: as duas fotos vêm do próprio site.
   await page.goto(`/aluno/sessao/sa/${sessoes[0].exercicios[0].uid}?data=2026-10-19`);
   await expect(page.getByRole('heading', { name: 'Remada baixa', level: 1 })).toBeVisible();
+  // Tela redesenhada (25/11): a demonstração fica dentro do "Como fazer" (folha), para a série 1 aparecer sem rolar.
+  await expect(page.getByRole('button', { name: /Demonstração/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Como fazer Remada baixa', exact: true }).click();
   await expect(page.getByRole('button', { name: /Demonstração: Remada baixa\. Tocar para ampliar/ })).toBeVisible();
   await expect.poll(() => pedidasDoCatalogo.length, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
   expect(pedidasDoCatalogo.every((c) => c.startsWith('/catalogo/exercicios/Remada_Baixa/'))).toBe(true);
@@ -150,6 +153,8 @@ test('aluno: demonstração acima do Como fazer; imagem própria só pela API; s
   await page.getByRole('button', { name: /Demonstração: Remada baixa\. Tocar para ampliar/ }).click();
   await expect(page.getByRole('dialog').getByText('Demonstração: Remada baixa', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(1); // volta ao "Como fazer"
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   // Fechar a folha devolve uma entrada do histórico de forma assíncrona; aguardar antes de navegar.
   await expect.poll(() => page.evaluate(() => window.history.state?.folhaNivel ?? 0)).toBe(0);
@@ -157,6 +162,7 @@ test('aluno: demonstração acima do Como fazer; imagem própria só pela API; s
   // Exercício com imagem própria: baixada com o token, pela rota do aluno.
   await page.goto(`/aluno/sessao/sa/${sessoes[0].exercicios[1].uid}?data=2026-10-19`);
   await expect(page.getByRole('heading', { name: 'Agachamento livre', level: 1 })).toBeVisible();
+  await page.getByRole('button', { name: 'Como fazer Agachamento livre', exact: true }).click();
   await expect(page.getByRole('button', { name: /Demonstração: Agachamento livre/ })).toBeVisible();
   await expect.poll(() => cabecalhos.length, { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
   expect(cabecalhos[0]['authorization']).toBe('Bearer token-falso');
@@ -184,7 +190,7 @@ test('aluno: imagem própria que não carrega (sem internet) some sem quebrar a 
   });
   await page.goto(`/aluno/sessao/sa/${sessoes[0].exercicios[1].uid}?data=2026-10-19`);
   await expect(page.getByRole('heading', { name: 'Agachamento livre', level: 1 })).toBeVisible();
-  await expect(page.getByText('Séries', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Séries 0 de/)).toBeVisible();
   await expect(page.getByRole('img', { name: /Demonstração/ })).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
 });

@@ -64,7 +64,8 @@ for (const largura of [390, 1280, 1920, 3440]) for (const tema of ['ESCURO', 'CL
     }).toPass({ timeout: 10_000 });
 
     // Cada opção tem o nome escrito uma vez só (o "Variações de tom" também), e nenhum título repete o da seção.
-    for (const nome of [...NOMES, 'Variações de tom']) await expect(page.getByText(nome, { exact: true })).toHaveCount(1);
+    // "Cor de ação" também é opção da linha "Cor das séries" (a outra é "Cor do tipo"): 2 textos.
+    for (const nome of [...NOMES, 'Variações de tom']) await expect(page.getByText(nome, { exact: true })).toHaveCount(nome === 'Cor de ação' ? 2 : 1);
     for (const titulo of SECOES) await expect(page.getByText(titulo, { exact: true })).toHaveCount(1);
     // A janela dos aniversários saiu daqui (25/11): é a opção do bloco, no ⋯ da edição do Início.
     await expect(page.getByText('Aniversários', { exact: true })).toHaveCount(0);

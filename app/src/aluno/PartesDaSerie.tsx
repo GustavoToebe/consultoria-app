@@ -55,12 +55,16 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro, ag
         ) : null}
       </View>
       {tecnica ? <SeloComExplicacao nome={tecnica.nome} explicacao={tecnica.explicacao} rotuloAcessivel={`Explicação de ${tecnica.nome}, série ${numero}`} /> : null}
-      {comRecorde ? <Selo texto="Recorde" categoria={{ cor: violeta.cor, fundo: violeta.fundo }} /> : null}
-      {registro === 'FEITA' ? <Selo texto="Feita" tipo={agora ? 'sucesso' : 'neutro'} Icone={Check} /> : null}
-      {registro === 'NAO_FEITA' ? <Selo texto="Não feita" tipo="neutro" /> : null}
+      {/* O Selo se alinha ao topo (alignSelf); a caixa o centraliza na linha do título. */}
+      {comRecorde ? <View><Selo texto="Recorde" categoria={{ cor: violeta.cor, fundo: violeta.fundo }} /></View> : null}
+      {registro === 'FEITA' ? <View><Selo texto="Feita" tipo={agora ? 'sucesso' : 'neutro'} Icone={Check} /></View> : null}
+      {registro === 'NAO_FEITA' ? <View><Selo texto="Não feita" tipo="neutro" /></View> : null}
     </View>
   );
 }
+
+/** Os três botões da linha de ações do exercício (Vídeo, Como fazer, Descanso) cabem numa linha em 390 px só sem ícone e com 8 px de respiro. */
+export const ESTREITO = { paddingHorizontal: 8 };
 
 /** Largura da barra lateral do cartão da série com a cor do tipo (Frente G, D10: barra de 6 px + selo colorido). */
 export const LARGURA_DA_BARRA_DO_TIPO = 6;

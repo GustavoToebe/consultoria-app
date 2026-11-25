@@ -8,7 +8,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
 import { ExercicioAluno } from '../../../../aluno/ExercicioAluno';
-import { FaixaDoTreino } from '../../../../aluno/FaixaDoTreino';
+import { BarraDescanso } from '../../../../aluno/BarraDescanso';
+import { TopoDoExercicio } from '../../../../aluno/TopoDoExercicio';
 import { HistoricoDoExercicio } from '../../../../aluno/HistoricoDoExercicio';
 import { ehExercicioDeCardio } from '../../../../aluno/serieDoAluno';
 import { TrocarSoHoje } from '../../../../aluno/TrocarSoHoje';
@@ -21,8 +22,7 @@ import { contagemDeSeries, podeConcluirEm } from '../../../../dominio/conclusaoD
 import { concluirEmDestaque } from '../../../../dominio/destaqueDaConclusao';
 import { dataCurta } from '../../../../dominio/formatos';
 import { textoDaContagem } from '../../../../dominio/recordesPessoais';
-import { MODALIDADES } from '../../../../dominio/modalidades';
-import { nomeComDia } from '../../../../dominio/semana';
+import { indiceDaSerieAtiva, progressoDosExercicios, topoDoExercicio } from '../../../../dominio/telaDoExercicio';
 import { vezNoGrupo } from '../../../../dominio/vezNoGrupo';
 import { espaco, fontes } from '../../../../tema/tokens';
 import { Botao } from '../../../../ui/Botao';
@@ -85,7 +85,6 @@ export default function ExercicioDaSessao() {
   const trocado = dia.trocado(e);
   const nomeDe = (x: typeof principal) => dia.diaDe(x).nome;
   const anterior = posicao > 0 ? sessao.exercicios[posicao - 1] : undefined;
-  const nomeDoDia = nomeComDia(sessao);
   const noGrupo = posicaoNoGrupo(sessao, posicao, dia.config.metodologia);
   const vez = vezNoGrupo(noGrupo, (x) => dia.feitas(x) < x.series.length);
   const depoisDoGrupo = sessao.exercicios[noGrupo ? noGrupo.grupo.inicio + noGrupo.tamanho : posicao + 1];
@@ -101,7 +100,6 @@ export default function ExercicioDaSessao() {
     noGrupo && !noGrupo.descansoPorSerie
       ? noGrupo.descansoAposSegundos
       : ((aFazer?.descansoSegundos || e.series.find((s) => s.descansoSegundos)?.descansoSegundos) ?? null);
-  const modalidade = e.modalidade ? `${MODALIDADES[e.modalidade] ?? e.modalidade} · ` : '';
   const demonstracao = e.exercicioId ? demonstracoes.find((d) => d.exercicioId === e.exercicioId) ?? null : null;
   const recordesNoDia = textoDaContagem(dia.recordesNoDia);
   const resumoDoDia = `${feitasNoDia} de ${totalNoDia} ${totalNoDia === 1 ? 'série feita' : 'séries feitas'} neste treino.${recordesNoDia ? ` ${recordesNoDia}.` : ''}`;
@@ -124,24 +122,36 @@ export default function ExercicioDaSessao() {
     }
   };
 
+  const completo = indiceDaSerieAtiva(e.series, dia.estaFeita) === -1;
+  const topo = topoDoExercicio(sessao, posicao);
+  const progresso = progressoDosExercicios({ exercicios: sessao.exercicios.map((x) => dia.diaDe(x)) }, dia.estaFeita, dia.config.metodologia);
+  // "Próximo: <exercício>" enquanto faltam séries; com todas feitas vira o principal, "Próximo exercício: <nome>". Com o
+  // treino inteiro marcado (B5) o principal é o "Revisar e concluir" do fim da tela e o "Próximo" continua secundário.
+  const botaoDoProximo = proximo ? (
+    <Botao
+      rotulo={`${completo ? 'Próximo exercício' : 'Próximo'}: ${nomeDe(proximo)} ›`}
+      rotuloAcessivel={`${completo ? 'Próximo exercício' : 'Próximo'}: ${nomeDe(proximo)}`}
+      tipo={completo && !emDestaque ? 'primario' : 'secundario'}
+      cheio
+      aoTocar={() => ir(proximo.uid)}
+    />
+  ) : null;
+
   return (
     <View style={estilos.raiz}>
     <AlvoDoVidro ref={alvoDoVidro} style={estilos.raiz}>
-    <Tela bordas={['top']} largura={1120}>
-      <Cabecalho
-        titulo={e.nome}
-        subtitulo={`${modalidade}Exercício ${posicao + 1} de ${sessao.exercicios.length} · ${nomeDoDia} (${dataCurta(data)})`}
-        voltar={voltar}
-      />
-      {trocado ? <Texto numerico variante="suave">{data === dia.hoje ? 'Só hoje' : `Só em ${dataCurta(data)}`} · no lugar de {principal.nome}</Texto> : null}
-      {/* Treino ao vivo (Engajamento 0.3): duração, volume e séries do dia; some com "Concluir treino" desligado. */}
-      {retornoHabilitado ? (
-        <Cartao>
-          <FaixaDoTreino versaoId={dia.treino.versaoId} sessao={sessao} data={data} hoje={dia.hoje} feitas={feitasNoDia} total={totalNoDia} registroDe={dia.registroDe} />
-        </Cartao>
-      ) : null}
-      {/* Topo do último exercício: secundário (o primário é o do rodapé). Em data futura a linha fica só no rodapé. */}
-      {!proximo || emDestaque ? <ConcluirTreino {...conclusao} tipo="secundario" /> : null}
+    <TopoDoExercicio titulo={topo.titulo} posicao={topo.posicao} voltar={voltar} progresso={progresso} atual={posicao}
+      versaoId={dia.treino.versaoId} sessao={sessao} data={data} hoje={dia.hoje} />
+    <Tela bordas={[]} largura={1120}>
+      <View style={estilos.nome}>
+        <View style={estilos.nomeTexto}>
+          <Texto variante="titulo" nivel={1} numberOfLines={2}>{e.nome}</Texto>
+          {trocado ? <Texto numerico variante="suave">{data === dia.hoje ? 'Só hoje' : `Só em ${dataCurta(data)}`} · no lugar de {principal.nome}</Texto> : null}
+          {data !== dia.hoje ? <Texto numerico variante="suave">Registro de {dataCurta(data)}</Texto> : null}
+        </View>
+        <TrocarSoHoje principal={principal} doDia={e} podeTrocar={dia.podeTrocar(principal)} outroDia={data === dia.hoje ? undefined : dataCurta(data)}
+          aoEscolher={(exercicioId) => setEscolha({ chave: chaveDaEscolha, exercicioId })} />
+      </View>
       {noGrupo ? (
         <Cartao>
           <View style={estilos.linhaGrupo}>
@@ -160,10 +170,6 @@ export default function ExercicioDaSessao() {
       ) : null}
       <ExercicioAluno
         acaoDescanso={<DescansoManual sugeridoSegundos={descansoDoPlano} />}
-        acoes={
-          <TrocarSoHoje principal={principal} doDia={e} podeTrocar={dia.podeTrocar(principal)} outroDia={data === dia.hoje ? undefined : dataCurta(data)}
-            aoEscolher={(exercicioId) => setEscolha({ chave: chaveDaEscolha, exercicioId })} />
-        }
         acaoHistorico={<HistoricoDoExercicio exercicio={e} ultimaVez={dia.ultimaVezDe(e)} ultima={dia.ultimaCarga(e.exercicioId)} cardio={ehExercicioDeCardio(e)} />}
         key={`${e.uid}|${data}|${e.exercicioId ?? ''}`}
         exercicio={e}
@@ -171,6 +177,8 @@ export default function ExercicioDaSessao() {
         cargaDoDia={dia.cargaDoDia(e)}
         ultima={dia.ultimaCarga(e.exercicioId)}
         registroDe={dia.registroDe}
+        rascunhoDe={(serieUid) => dia.rascunhoDe(e, serieUid)}
+        salvarRascunho={(serieUid, mudanca) => dia.salvarRascunho(e, serieUid, mudanca)}
         config={dia.config}
         aoMudarCargaDoDia={(c) => dia.salvarCargaDoDia(e, c)}
         aoRegistrar={registrarSerie}
@@ -183,38 +191,30 @@ export default function ExercicioDaSessao() {
         demonstracao={demonstracao}
       />
       <View style={estilos.fim}>
-        {proximo && emDestaque ? (
+        {!proximo || emDestaque ? (
           <>
             <Texto numerico variante="suave">{resumoDoDia}</Texto>
-            <ConcluirTreino {...conclusao} tipo="primario" cheio />
-            <Botao rotulo={`Próximo: ${nomeDe(proximo)}`} Icone={ArrowRight} tipo="secundario" cheio aoTocar={() => ir(proximo.uid)} />
+            {retornoHabilitado ? (
+              <ConcluirTreino {...conclusao} tipo="primario" cheio avisarDataFutura={!proximo} />
+            ) : (
+              // Chave desligada: nada é concluído, então o botão não promete isso e não é primário (auditoria de 03/11).
+              <Botao rotulo="Voltar à lista do dia" Icone={List} tipo="secundario" cheio aoTocar={() => router.replace(voltar)} />
+            )}
           </>
-        ) : proximo ? (
-          <Botao rotulo={`Próximo: ${nomeDe(proximo)}`} Icone={ArrowRight} cheio aoTocar={() => ir(proximo.uid)} />
-        ) : retornoHabilitado ? (
-          <>
-            <Texto numerico variante="suave">{resumoDoDia}</Texto>
-            <ConcluirTreino {...conclusao} tipo="primario" cheio avisarDataFutura />
-          </>
-        ) : (
-          <>
-            <Texto numerico variante="suave">{resumoDoDia}</Texto>
-            {/* Chave desligada: nada é concluído, então o botão não promete isso e não é primário (auditoria de 03/11). */}
-            <Botao rotulo="Voltar à lista do dia" Icone={List} tipo="secundario" cheio aoTocar={() => router.replace(voltar)} />
-          </>
-        )}
+        ) : null}
         <LinhaDeAcoes alinhar="entre">
           {anterior ? (
             <Botao rotulo="Anterior" rotuloAcessivel={`Anterior: ${nomeDe(anterior)}`} Icone={ArrowLeft} tipo="secundario" aoTocar={() => ir(anterior.uid)} />
           ) : (
             <View />
           )}
-          {/* Com "Concluir treino" ligado o último exercício não volta mais sozinho à lista: a "Lista do dia" fica aqui também. */}
           {proximo || retornoHabilitado ? <Botao rotulo="Lista do dia" Icone={List} tipo="secundario" aoTocar={() => router.replace(voltar)} /> : null}
         </LinhaDeAcoes>
       </View>
-      <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
+      <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet. O que você digita também fica guardado no aparelho.</Texto>
     </Tela>
+    {/* Fixa embaixo, fora da rolagem: o descanso (azul) quando conta, senão o "Próximo". */}
+    <BarraDescanso proximo={botaoDoProximo ? <View style={estilos.barra}>{botaoDoProximo}</View> : null} />
     </AlvoDoVidro>
     <AvisoDeRecorde aviso={aviso} aoFechar={fecharAviso} alvo={alvoDoVidro} />
     </View>
@@ -224,6 +224,9 @@ export default function ExercicioDaSessao() {
 const estilos = StyleSheet.create({
   raiz: { flex: 1 },
   fim: { marginTop: espaco(1), gap: espaco(1) },
+  nome: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), marginBottom: -espaco(1) },
+  nomeTexto: { flex: 1, minWidth: 0, gap: espaco(0.5) },
+  barra: { width: '100%', maxWidth: 1120, alignSelf: 'center' },
   faixa: { fontFamily: fontes.semi },
   textosDoGrupo: { flex: 1, gap: espaco(0.5) },
   linhaGrupo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
