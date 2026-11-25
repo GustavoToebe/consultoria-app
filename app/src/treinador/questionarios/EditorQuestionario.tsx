@@ -11,8 +11,7 @@ import { motivoSemPublicar, quandoPublicado, seloDoEditor } from '../../dominio/
 import { AVISO_SAUDE_NA_INSCRICAO } from '../../dominio/inscricoes';
 import { LIMITES_QUESTIONARIO as L, type ProblemaDoQuestionario } from '../../dominio/questionario';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -190,8 +189,7 @@ export function EditorQuestionario({ id }: { id: string }) {
 }
 
 function ItemProblema({ onde, mensagem, tipo }: { onde: string; mensagem: string; tipo: 'perigo' | 'atencao' }) {
-  const { cores } = useTema();
-  return <View style={[estilos.problema, { borderColor: cores[tipo] }]}>
+  return <View style={estilos.problema}>
     <Selo texto={tipo === 'perigo' ? 'Erro' : 'Aviso'} tipo={tipo} />
     <View style={estilos.textoProblema}>
       {onde ? <Texto variante="rotulo">{onde}</Texto> : null}
@@ -203,6 +201,7 @@ function ItemProblema({ onde, mensagem, tipo }: { onde: string; mensagem: string
 const estilos = StyleSheet.create({
   instrucao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(0.5) },
   campoInstrucao: { flex: 1 },
-  problema: { flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start', borderLeftWidth: 3, borderRadius: RAIO, paddingLeft: espaco(1), paddingVertical: 2 },
+  // Linha simples (24/11, sem a faixa lateral): selo + texto, alinhada ao conteúdo do cartão ou do painel, sem moldura.
+  problema: { flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start', paddingVertical: 2 },
   textoProblema: { flex: 1, gap: 2 },
 });

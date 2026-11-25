@@ -283,7 +283,8 @@ describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].ma
 
 /**
  * Avisos pintados (24/11, sem a faixa lateral): o "Próximo passo" do Início (solto na página, `superficie`; âmbar, ou
- * `perigo` no atraso) e a pergunta da duração curta do Concluir treino (no poço `superficie2` da Folha, âmbar). Rótulo na
+ * `perigo` no atraso), a pergunta da duração curta do Concluir treino (no poço `superficie2` da Folha, âmbar) e o aviso
+ * do rodapé (`ui/Aviso`: sucesso, atenção e erro sobre `superficie2`, com o ícone no lugar da bolinha). Rótulo na
  * cor (`p.texto`), texto da pendência (`texto`) e linha do aviso (`textoSuave`) ≥ 4,5:1 e a bolinha ≥ 3:1 sobre o ponto
  * mais forte do degradê, em todos os temas, com contraste alto e bordas reforçadas.
  */
@@ -296,6 +297,10 @@ describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].ma
     ['Próximo passo, pendência', 'atencao', 'superficie'],
     ['Próximo passo, atraso', 'perigo', 'superficie'],
     ['pergunta do Concluir treino', 'atencao', 'superficie2'],
+    // Toast do rodapé (`ui/Aviso`): mensagem e ação em `texto`, fechar em `textoSuave`, ícone na cor, sobre `superficie2`.
+    ['aviso do rodapé, sucesso', 'sucesso', 'superficie2'],
+    ['aviso do rodapé, atenção', 'atencao', 'superficie2'],
+    ['aviso do rodapé, erro', 'perigo', 'superficie2'],
   ] as const)('%s: rótulo, texto e aviso ≥ 4,5:1, bolinha ≥ 3:1', (_peca, tom, base) => {
     const p = superficiePintada(cores[tom], cores[base], variante, cores);
     for (const texto of [p.texto, cores.texto, cores.textoSuave]) {

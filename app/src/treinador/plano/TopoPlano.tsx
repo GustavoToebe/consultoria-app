@@ -266,7 +266,7 @@ function ItemProblema({ conteudo, problema, tipo, aoIr }: { conteudo: unknown; p
   const onde = localizar(conteudo, problema.caminho).texto;
   return (
     <Pressable disabled={!aoIr} onPress={aoIr} accessibilityRole={aoIr ? 'link' : undefined} accessibilityLabel={aoIr ? `Ir até: ${onde || problema.mensagem}` : undefined}
-      style={({ pressed }) => [estilos.problema, { borderColor: cores[tipo], backgroundColor: pressed ? cores.sobre : 'transparent' }]}>
+      style={({ pressed }) => [estilos.problema, { backgroundColor: pressed ? cores.sobre : 'transparent' }]}>
       <Selo texto={tipo === 'perigo' ? 'Erro' : 'Aviso'} tipo={tipo} />
       <View style={estilos.textoProblema}>
         {onde ? <Texto style={estilos.onde}>{onde}</Texto> : null}
@@ -278,16 +278,9 @@ function ItemProblema({ conteudo, problema, tipo, aoIr }: { conteudo: unknown; p
 
 const estilos = StyleSheet.create({
   selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
-  problema: {
-    flexDirection: 'row',
-    gap: espaco(1),
-    alignItems: 'flex-start',
-    borderLeftWidth: 3,
-    borderRadius: RAIO,
-    paddingLeft: espaco(1),
-    paddingVertical: 2,
-    minHeight: 44,
-  },
+  // Linha simples dentro do `Alerta` (24/11, sem a faixa lateral): selo + texto, alinhada ao texto do aviso, sem moldura.
+  // O raio só aparece no fundo de pressionado.
+  problema: { flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start', paddingVertical: 2, minHeight: 44, borderRadius: RAIO },
   textoProblema: { flex: 1, gap: 2 },
   onde: { fontFamily: fontes.semi, fontSize: 14 },
 });
