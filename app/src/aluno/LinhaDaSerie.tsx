@@ -16,13 +16,13 @@ import { numeroDaCarga, textoDaCarga } from '../dominio/unidadeDeCarga';
 import { acompanharPendente, digitarPendente, valorExibido, type ValorPendente } from '../dominio/valorPendente';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { espaco, fontes } from '../tema/tokens';
 import { StepperDeCarga } from '../ui/AjusteDeCarga';
 import { Botao } from '../ui/Botao';
 import { CampoNumericoGrande } from '../ui/Campos';
-import { fundoPintado, superficiePintada } from '../ui/superficiePintada';
 import { Texto } from '../ui/Texto';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
+import { CartaoDaSerie } from './CartaoDaSerie';
 import type { DadosSerie } from './ExercicioAluno';
 import { MarcarSerie } from './MarcarSerie';
 import { CabecalhoDaSerie, LinhaDoUltimoRegistro } from './PartesDaSerie';
@@ -33,8 +33,9 @@ import { selosDaSerie, textosDaSerie } from './serieDoAluno';
  * direita; embaixo, `[− | kg | +] [reps] [✓]`, todos com 52 px. A carga sugerida fica apagada dentro do campo, com a
  * legenda "sugerido", e só vira valor com o ✓ (`dominio/marcarSerie`). Antes do ✓ o digitado vai para o rascunho do
  * aparelho (`salvarRascunho`); com registro (feita ou desmarcada), cada mudança regrava o registro, como sempre.
- * A série ativa (a primeira não feita) tem a borda na cor de ação; a feita fica pintada de verde (`ui/superficiePintada`)
- * com "90 kg × 7", "Editar" e o ✓ verde.
+ * O cartão fica pintado na cor do tipo, com a faixa reta à esquerda (`CartaoDaSerie`, 25/11): a ativa (a primeira não
+ * feita) ganha a borda de ação por cima, a pendente fica mais apagada e a feita continua na cor do tipo, com "90 kg × 7",
+ * "Editar", o selo "Feita" e o ✓ verde.
  */
 export function LinhaDaSerie({
   calculada,
@@ -84,7 +85,7 @@ export function LinhaDaSerie({
   anterior: string | null;
   arredondamentoKg: number;
 }) {
-  const { cores, variante, bordas } = useTema();
+  const { cores } = useTema();
   const unidade = useUnidadeDeCarga();
   const [cargaInvalida, setCargaInvalida] = useState(false);
   const [repsInvalidas, setRepsInvalidas] = useState(false);
@@ -135,7 +136,7 @@ export function LinhaDaSerie({
   const semCargaNaSerie = avisoDeSerieSemCarga({ feita, carga, semCampoDePeso, ehTrabalho: ehSerieDeTrabalho(s) || papelDe(metodologia, s.tipo) === 'TRABALHO' });
   // N15: a carga digitada só conta para as seguintes com o ✓; o aviso só aparece enquanto há carga digitada e sem registro.
   const avisoDoMarcar = !semCampoDePeso && !registro && rascunho?.carga != null && seriesSeguintesDependemDesta(seriesDoExercicio, indice);
-  const pintada = feita && !editando ? superficiePintada(cores.sucesso, cores.superficie, variante, cores) : null;
+  const resumida = feita && !editando;
   const resumo = semCampoDePeso ? `${reps ?? '—'} reps` : `${carga != null ? textoDaCarga(carga, unidade) : '—'} × ${reps ?? '—'}`;
 
   const cabecalho = (
@@ -143,20 +144,14 @@ export function LinhaDaSerie({
       <View style={estilos.cabecalhoEsq}>
         <CabecalhoDaSerie numero={numero} tipo={selos.tipo} tecnica={selos.tecnica} recordes={recordes} registro={feita ? 'FEITA' : null} agora={feita} />
       </View>
-      {!pintada && meta ? <Texto numerico style={estilos.meta} cor={cores.texto}>{meta}</Texto> : null}
+      {!resumida && meta ? <Texto numerico style={estilos.meta} cor={cores.texto}>{meta}</Texto> : null}
     </View>
   );
 
   return (
-    <View
-      testID={`serie-${s.uid}`}
-      style={[
-        estilos.serie,
-        { borderWidth: bordas.item, backgroundColor: cores.superficie, borderColor: ativa && !feita ? cores.acao : cores.divisor },
-        pintada ? [fundoPintado(pintada), { borderColor: pintada.borda }] : null,
-      ]}>
+    <CartaoDaSerie testID={`serie-${s.uid}`} corDoTipo={selos.tipo?.cor ?? null} estado={feita ? 'FEITA' : ativa ? 'ATIVA' : 'PENDENTE'}>
       {cabecalho}
-      {pintada ? (
+      {resumida ? (
         <View style={estilos.linhaFeita}>
           <Texto numerico style={estilos.resumo} cor={cores.texto} accessibilityLabel={`Série ${numero} feita: ${resumo}`}>{resumo}</Texto>
           <Botao rotulo="Editar" rotuloAcessivel={`Editar série ${numero}`} tipo="secundario" tamanho="pequeno" aoTocar={() => setEditando(true)} />
@@ -223,12 +218,11 @@ export function LinhaDaSerie({
       {semCargaNaSerie ? <Texto variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{semCargaNaSerie}</Texto> : null}
       {avisoDasReps ? <Texto numerico variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{avisoDasReps}</Texto> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
-    </View>
+    </CartaoDaSerie>
   );
 }
 
 const estilos = StyleSheet.create({
-  serie: { borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   cabecalho: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: espaco(1), rowGap: espaco(0.5) },
   cabecalhoEsq: { flexShrink: 1, minWidth: 0 },
   meta: { marginLeft: 'auto', fontFamily: fontes.semi, fontSize: 14, lineHeight: 20, textAlign: 'right' },

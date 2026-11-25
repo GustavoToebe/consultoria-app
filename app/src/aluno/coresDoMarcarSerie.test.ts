@@ -1,7 +1,7 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
-import { contraste, PALETAS, type Cores, type VarianteDoTema } from '../tema/tokens';
+import { CHAVES_DE_IDENTIFICACAO, contraste, PALETA_DE_IDENTIFICACAO, PALETAS, type Cores, type VarianteDoTema } from '../tema/tokens';
 import { superficiePintada } from '../ui/superficiePintada';
-import { coresDoMarcarSerie } from './coresDoMarcarSerie';
+import { coresDoMarcarSerie, pinturaDaSerie } from './coresDoMarcarSerie';
 
 /**
  * Pares novos da tela do exercício (25/11), nas paletas × contraste alto × bordas reforçadas: o ✓ (ícone ≥ 3:1 sobre o
@@ -44,5 +44,38 @@ describe.each(VARIANTES)('tela do exercício no tema %s', (_nome, cores, variant
     expect(contraste(cores.bordaCampo, superficiePintada(cores.informacao, cores.superficie, variante, cores).forte)).toBeGreaterThanOrEqual(3);
     // Medido em 25/11: 2,96 no Escuro no canto mais forte do degradê (o botão fica fora dele, onde o fundo é mais neutro).
     expect(contraste(cores.bordaCampo, superficiePintada(cores.sucesso, cores.superficie, variante, cores).forte)).toBeGreaterThanOrEqual(2.9);
+  });
+
+  // Cartão da série na cor do tipo (25/11): o texto, o contorno dos campos e do ✓, a faixa e a borda de ação sobre o ponto
+  // mais forte do degradê (e a faixa também sobre a base pura, onde o degradê acaba).
+  describe.each(['ATIVA', 'FEITA', 'PENDENTE'] as const)('série %s na cor do tipo', (estado) => {
+    it.each(CHAVES_DE_IDENTIFICACAO)('%s: texto ≥ 4,5:1, campos, ✓, faixa e borda de ação ≥ 3:1', (chave) => {
+      const p = pinturaDaSerie(PALETA_DE_IDENTIFICACAO[variante][chave], estado, cores, variante, 1);
+      const forte = p.pintada!.forte;
+      for (const texto of [cores.texto, cores.textoSuave, cores.perigo]) expect(contraste(texto, forte)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.bordaCampo, forte)).toBeGreaterThanOrEqual(3); // campos, ✓ incompleto e "Editar"
+      expect(contraste(cores.sucesso, forte)).toBeGreaterThanOrEqual(3); // ✓ feito
+      expect(contraste(p.faixa!, forte)).toBeGreaterThanOrEqual(3);
+      expect(contraste(p.faixa!, cores.superficie)).toBeGreaterThanOrEqual(3);
+      if (estado === 'ATIVA') expect(contraste(p.borda, forte)).toBeGreaterThanOrEqual(3);
+    });
+  });
+});
+
+describe('pinturaDaSerie', () => {
+  const cores = PALETAS.ESCURO.cores;
+  it('tipo sem cor: neutro, sem faixa; a ativa só ganha a borda de ação', () => {
+    expect(pinturaDaSerie(null, 'PENDENTE', cores, 'escuro', 1)).toEqual({ pintada: null, faixa: null, borda: cores.divisor, larguraDaBorda: 1 });
+    expect(pinturaDaSerie(null, 'ATIVA', cores, 'escuro', 1)).toEqual({ pintada: null, faixa: null, borda: cores.acao, larguraDaBorda: 1.5 });
+  });
+  it('feita fica na cor do tipo (não verde); pendente mais apagada; ativa com a borda de ação, a reforçada vence', () => {
+    const cor = PALETA_DE_IDENTIFICACAO.escuro.CIANO;
+    const feita = pinturaDaSerie(cor, 'FEITA', cores, 'escuro', 1);
+    const pendente = pinturaDaSerie(cor, 'PENDENTE', cores, 'escuro', 1);
+    expect(feita.faixa).toBe(cor);
+    expect(feita.borda).toBe(feita.pintada!.borda);
+    expect(contraste(pendente.pintada!.forte, cores.superficie)).toBeLessThan(contraste(feita.pintada!.forte, cores.superficie));
+    expect(contraste(pendente.faixa!, cores.superficie)).toBeLessThan(contraste(cor, cores.superficie));
+    expect(pinturaDaSerie(cor, 'ATIVA', cores, 'escuro', 2)).toMatchObject({ borda: cores.acao, larguraDaBorda: 2 });
   });
 });

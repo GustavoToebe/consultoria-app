@@ -30,6 +30,7 @@ import { CampoNumericoGrande } from '../ui/Campos';
 import { CampoDeCarga } from '../ui/CampoDeCarga';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { Texto } from '../ui/Texto';
+import { CartaoDaSerie } from './CartaoDaSerie';
 import type { DadosSerie } from './ExercicioAluno';
 import { PainelDoCheck } from './PainelDoCheck';
 import { CabecalhoDaSerie, DicaDoCampo, LinhaDoUltimoRegistro, MetaDaSerie, RotuloDeHoje } from './PartesDaSerie';
@@ -61,7 +62,7 @@ interface Props {
   aoCancelarPausa?: (origem: string) => void;
   /** O que foi feito nesta série da última vez ("40 kg × 4+4+2" ou "—"); nulo = sem a linha (Engajamento 0.3). */
   anterior?: string | null;
-  /** A primeira série não feita do exercício: borda na cor de ação (tela do exercício, 25/11). */
+  /** A primeira série não feita do exercício: borda na cor de ação por cima da cor do tipo (`CartaoDaSerie`, 25/11). */
   ativa?: boolean;
 }
 
@@ -137,8 +138,7 @@ export function CartaoSerieComEtapas(p: Props) {
   };
 
   return (
-    <View testID={`serie-${s.uid}`}
-      style={[estilos.serie, { borderColor: p.ativa && !feita ? cores.acao : cores.divisor, backgroundColor: cores.superficie }]}>
+    <CartaoDaSerie testID={`serie-${s.uid}`} corDoTipo={selos.tipo?.cor ?? null} estado={feita ? 'FEITA' : p.ativa ? 'ATIVA' : 'PENDENTE'}>
       <CabecalhoDaSerie numero={p.numero} tipo={selos.tipo} tecnica={selos.tecnica} registro={seloDaSerieComEtapas(feita, etapas, quantas)} agora={agora} />
       <MetaDaSerie texto={estruturaDaSerie(s, p.metodologia)} />
       {p.cargaIlegivel ? <Texto numerico variante="pequeno">{TEXTO_CARGA_ILEGIVEL}</Texto> : null}
@@ -191,7 +191,7 @@ export function CartaoSerieComEtapas(p: Props) {
       {feita ? <Texto variante="pequeno" cor={agora ? cores.sucesso : cores.textoSuave}>Série concluída.</Texto> : null}
       {p.descansoNaSerie && s.descansoSegundos != null && s.descansoSegundos > 0 ? <Texto variante="pequeno">Descanso depois da série: {rotuloDescanso(s.descansoSegundos)}</Texto> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
-    </View>
+    </CartaoDaSerie>
   );
 }
 
@@ -322,7 +322,6 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
 }
 
 const estilos = StyleSheet.create({
-  serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   etapas: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   etapa: { paddingVertical: espaco(1.25), paddingHorizontal: espaco(1.5), gap: espaco(0.75) },
   linhaDaEtapa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
