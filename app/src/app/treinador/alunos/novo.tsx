@@ -8,7 +8,6 @@ import { useAviso } from '../../../ui/Aviso';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { useSaidaGuardada, useSairSemPerguntar } from '../../../ui/GuardaDeSaida';
 import { Tela } from '../../../ui/Tela';
-import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 
 /**
@@ -26,8 +25,7 @@ export default function NovoAluno() {
   const padrao = useCarregar('consultoria-ciclo', () => consultoria().then((c) => c.diasAtualizacaoPadrao ?? null, () => null)).dados ?? null;
   return (
     <Tela bordas={['top']} folga={width >= LARGURA_MENU_LATERAL ? espaco(3.5) : undefined}>
-      <Cabecalho titulo="Novo aluno" voltar="/treinador/alunos" trilha={[{ rotulo: 'Alunos', href: '/treinador/alunos' }, { rotulo: 'Novo aluno' }]} />
-      <Texto variante="suave">Cadastre o aluno; depois gere o convite para ele entrar no app.</Texto>
+      <Cabecalho titulo="Novo aluno" descricao="Cadastre o aluno e, depois, gere o convite para ele entrar no app. Só o nome e o e-mail são obrigatórios." voltar="/treinador/alunos" trilha={[{ rotulo: 'Alunos', href: '/treinador/alunos' }, { rotulo: 'Novo aluno' }]} />
       <FormAluno
         rotuloSalvar="Cadastrar"
         diasPadrao={padrao}

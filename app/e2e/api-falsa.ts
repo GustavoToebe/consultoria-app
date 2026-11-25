@@ -98,7 +98,7 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     // Alertas de troca (Início e ficha): nenhuma troca nos testes que não conferem isso.
     'GET /trocas-de-exercicio/pendentes': { corpo: { de: '2026-10-13', ate: '2026-10-19', total: 0, trocas: [] } },
     'GET /alunos/{id}/trocas-de-exercicio': { corpo: { de: '2026-10-13', ate: '2026-10-19', trocas: [] } },
-    // Aniversariantes do Início (com ALUNO_LER): ninguém nos testes que não conferem isso, e o cartão não aparece.
+    // Aniversariantes do Início (com ALUNO_LER): ninguém nos testes que não conferem isso (o bloco diz que não há).
     'GET /alunos/aniversariantes': { corpo: [] },
     // Tags de aluno: nenhuma na consultoria nem no aluno nos testes que não conferem isso (o `e2e/tags-de-aluno.spec.ts` troca).
     'GET /tags-de-alunos': { corpo: [] },

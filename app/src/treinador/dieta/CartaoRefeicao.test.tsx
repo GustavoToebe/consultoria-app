@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { Text } from 'react-native';
+import type { ReactTestInstance } from 'react-test-renderer';
 
 import type { ItemDieta, Refeicao } from '../../api/tipos';
 import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { MODO_DE_PREPARO_MAXIMO } from '../../dominio/dieta';
 import { MACROS, valoresPorExtenso } from '../../ui/ValoresDaDieta';
 import { CartaoRefeicao, larguraDaTabela } from './CartaoRefeicao';
+
+// Frase com número leva o número num Text aninhado (fonte mono só nele): o texto do nó é o das duas partes juntas.
+const textoDoNo = (t: ReactTestInstance): string => t.children.map((c) => (typeof c === 'string' ? c : textoDoNo(c))).join('');
 
 /**
  * Refeição aberta (04/11): "Observação" e "Modo de preparo" ficam num link "+ Observação ou modo de preparo
@@ -337,7 +341,7 @@ describe('CartaoRefeicao: subtotal e cor (C66, C63)', () => {
 
   it('o subtotal e o total da opção têm uma frase só para o leitor, com rótulo e valores por extenso', () => {
     const a = montar(refeicao());
-    const textos = a.root.findAllByType(Text).map((t) => t.props.children);
+    const textos = a.root.findAllByType(Text).map(textoDoNo);
     expect(textos).toContain('Subtotal da refeição, opção A: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
     expect(textos).toContain('Total da opção A: 50 kcal, proteína 1,0 g, carboidrato 10,0 g, gordura 0,0 g, fibra sem dado');
     tocar(a, 'Opção B, 50 kcal');
@@ -351,7 +355,7 @@ describe('CartaoRefeicao: fibra (V089, 18/11)', () => {
     const semFibra: ItemDieta = { ...daBiblioteca, uid: 'i4', alimentoId: 'al-i4', nome: 'Ovo fictício', fibra: null };
     const a = montar(refeicao({ opcoes: [{ uid: 'a', rotulo: 'A', itens: [item('i1', 'Suco fictício'), daBiblioteca, semFibra] }] }));
     expect(comRotulo(a, 'campo Fibras (g)')).toHaveLength(1);
-    const textos = a.root.findAllByType(Text).map((t) => t.props.children);
+    const textos = a.root.findAllByType(Text).map(textoDoNo);
     expect(textos).toContain('Fibra 2,5 g');
     expect(textos).toContain('Fibra —');
   });
@@ -359,7 +363,7 @@ describe('CartaoRefeicao: fibra (V089, 18/11)', () => {
   it('total com item sem fibra é parcial, no visível e no leitor', () => {
     const comFibra = { ...item('i1', 'Suco fictício'), fibra: 3 };
     const a = montar(refeicao({ opcoes: [{ uid: 'a', rotulo: 'A', itens: [comFibra, item('i2', 'Leite fictício')] }] }));
-    const textos = a.root.findAllByType(Text).map((t) => t.props.children);
+    const textos = a.root.findAllByType(Text).map(textoDoNo);
     expect(textos).toContain('Fibra 3,0 g (parcial)');
     expect(textos).toContain('Total da opção A: 100 kcal, proteína 2,0 g, carboidrato 20,0 g, gordura 0,0 g, fibra 3,0 g, parcial');
   });

@@ -80,7 +80,7 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
       <Cartao titulo={titulo} periodo={PERIODO_DO_PROGRESSO}>
         {erro ? (
           erro instanceof ErroApi && erro.semConexao
-            ? <Texto numerico variante="suave">Sem conexão: o progresso aparece quando a internet voltar.</Texto>
+            ? <Texto variante="suave">Sem conexão: o progresso aparece quando a internet voltar.</Texto>
             : <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} />
         ) : <Esqueleto texto="Carregando progresso" cartoes={1} />}
       </Cartao>

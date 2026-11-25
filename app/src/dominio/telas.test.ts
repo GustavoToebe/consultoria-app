@@ -25,6 +25,8 @@ describe('catálogo de telas', () => {
     const sem = telasPermitidas(com([]));
     expect(ids(buscarTelas('configuracoes', sem))[0]).toBe('configuracoes');
     expect(ids(buscarTelas('preferencias', sem))).toContain('configuracoes');
+    expect(ids(buscarTelas('ajustes', sem))).toContain('ajustes');
+    expect(ids(buscarTelas('aparencia e preferencias', sem))[0]).toBe('ajustes');
     expect(nomeDaTela('/treinador/configuracoes')).toBe('Configurações');
   });
 
@@ -290,7 +292,7 @@ describe('nome da tela atual', () => {
     expect(nomeDaTela('/treinador/planejamento')).toBe('Planejamento');
     expect(nomeDaTela('/treinador/perfil')).toBe('Perfil');
     expect(nomeDaTela('/treinador/meus-dados')).toBe('Meus dados');
-    expect(nomeDaTela('/treinador/ajustes')).toBe('Ajustes');
+    expect(nomeDaTela('/treinador/ajustes')).toBe('Aparência e preferências');
     expect(nomeDaTela('/treinador/minha-conta')).toBe('Assinatura e faturas');
     expect(nomeDaTela('/treinador/desconhecido')).toBeNull();
   });

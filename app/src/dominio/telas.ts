@@ -53,7 +53,7 @@ const CATALOGO: readonly Omit<TelaDoCatalogo, 'secao'>[] = [
   { id: 'minha-conta', rotulo: 'Assinatura e faturas', href: '/treinador/minha-conta', palavras: ['minha conta', 'plano', 'assinatura', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
   { id: 'marca', rotulo: 'Marca', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome'], permissao: null },
   { id: 'documentos-pdf', rotulo: 'Documentos (PDF)', href: '/treinador/documentos', palavras: ['pdf', 'documentos', 'tema', 'modelo', 'tema do pdf', 'impressao'], permissao: 'MARCA_ALTERAR', funcionalidade: 'PDF' },
-  { id: 'ajustes', rotulo: 'Ajustes', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
+  { id: 'ajustes', rotulo: 'Aparência e preferências', href: '/treinador/ajustes', palavras: ['ajustes', 'preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
   { id: 'configuracoes', rotulo: 'Configurações', href: '/treinador/configuracoes', palavras: ['ajustes', 'preferencias', 'opcoes', 'configurar'], permissao: null },
   { id: 'termos', rotulo: 'Termos e privacidade', href: '/treinador/termos', palavras: ['termo de uso', 'aviso de privacidade', 'lgpd', 'dados pessoais', 'politica'], permissao: null },
 
@@ -187,7 +187,7 @@ const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
   ['/treinador/perfil', 'Perfil'],
   ['/treinador/meus-dados', 'Meus dados'],
   ['/treinador/seguranca', 'Segurança'],
-  ['/treinador/ajustes', 'Ajustes'],
+  ['/treinador/ajustes', 'Aparência e preferências'],
   ['/treinador/minha-conta', 'Assinatura e faturas'],
   ['/treinador/termos', 'Termos e privacidade'],
 ];

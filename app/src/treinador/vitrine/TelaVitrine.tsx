@@ -114,7 +114,7 @@ export function TelaVitrine() {
           <View style={estilos.itens} onLayout={aoMedir}>
             <View style={estilos.topoDosItens}>
               <Texto variante="subtitulo" nivel={2}>Itens</Texto>
-              <Texto variante="suave">{`${contagemDeItens(itens.length)} itens. Os alunos veem só os ativos, nesta ordem.`}</Texto>
+              <Texto variante="suave">{`${contagemDeItens(itens.length)}. Os alunos veem só os ativos, nesta ordem.`}</Texto>
             </View>
             {grupos.map((g) => (
               <GrupoDeItens key={g.chave ?? 'sem-categoria'} grupo={g} compacto={compacto} ordenavel={ordenavel}

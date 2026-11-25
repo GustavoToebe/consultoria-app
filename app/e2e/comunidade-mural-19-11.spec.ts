@@ -100,8 +100,9 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1920, 1080]] as const
       expect(await fonteDe(page, '3 comentários')).not.toMatch(/mono/i);
       expect(await fonteDe(page, 'Ninguém votou ainda')).not.toMatch(/mono/i);
       expect(await fonteDe(page, '3 pessoas votaram')).not.toMatch(/mono/i);
-      // O percentual continua número solto, na fonte numérica.
-      expect(await fonteDe(page, '67% · 2 votos')).toMatch(/mono/i);
+      // Desde 25/11 só o número é mono: a frase "67% · 2 votos" fica em Geist e "67%" (o primeiro <span>) na fonte numérica.
+      expect(await fonteDe(page, '67% · 2 votos')).not.toMatch(/mono/i);
+      expect(await page.getByText('67% · 2 votos', { exact: true }).first().locator('span').first().evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/mono/i);
       expect(api.naoTratadas).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
     });

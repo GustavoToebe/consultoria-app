@@ -1,4 +1,4 @@
-import { empilhaDados, larguraDoRotulo, linhaSemDivisoria, partesNumericas } from './listaDeDados';
+import { empilhaDados, larguraDoRotulo, linhaSemDivisoria } from './listaDeDados';
 
 // ficha: lista de dados (24/11)
 describe('lista de dados', () => {
@@ -32,20 +32,5 @@ describe('lista de dados', () => {
     // Antes de as linhas se anunciarem, vale a última posição; sem linha nenhuma, nenhuma.
     expect(linhaSemDivisoria(new Set(), 4)).toBe(3);
     expect(linhaSemDivisoria(new Set(), 0)).toBeNull();
-  });
-
-  test('só os números levam a fonte numérica', () => {
-    expect(partesNumericas('15 dias')).toEqual([{ texto: '15', numerico: true }, { texto: ' dias', numerico: false }]);
-    expect(partesNumericas('Padrão da consultoria (15 dias)')).toEqual([
-      { texto: 'Padrão da consultoria (', numerico: false }, { texto: '15', numerico: true }, { texto: ' dias)', numerico: false },
-    ]);
-    expect(partesNumericas('17/10/2026')).toEqual([{ texto: '17/10/2026', numerico: true }]);
-    expect(partesNumericas('123.456.789-09')).toEqual([{ texto: '123.456.789-09', numerico: true }]);
-    expect(partesNumericas('(45) 99999-8888')).toEqual([
-      { texto: '(', numerico: false }, { texto: '45', numerico: true }, { texto: ') ', numerico: false }, { texto: '99999-8888', numerico: true },
-    ]);
-    expect(partesNumericas('Ontem, 18:38')).toEqual([{ texto: 'Ontem, ', numerico: false }, { texto: '18:38', numerico: true }]);
-    expect(partesNumericas('Sem grupo')).toEqual([{ texto: 'Sem grupo', numerico: false }]);
-    expect(partesNumericas('')).toEqual([{ texto: '', numerico: false }]);
   });
 });

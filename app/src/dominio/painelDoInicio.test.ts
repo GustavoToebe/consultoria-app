@@ -5,10 +5,11 @@ import type { PainelTreinador, RecordesDaSemana, TrocaDeExercicio, TrocasPendent
 import { periodoDoCalendario } from './agendaCalendario';
 import {
   barrasDoRecebido, blocoDisponivel, BLOCOS_DO_PAINEL, blocosParaEditar, blocosPermitidos, blocosVisiveis,
-  chaveDaConsulta, compromissosDaSemana, consultaDaAgenda, consultasDoBloco, enderecoDoBloco, FONTE_CARREGANDO, FONTE_DESLIGADA,
+  chaveDaConsulta, compromissosDaSemana, consultaDaAgenda, consultasDoBloco, contarAlteracoes, definirOpcaoDoBloco, diasDoBlocoAniversarios,
+  enderecoDoBloco, textoDaBarra, textoDaPosicao, FONTE_CARREGANDO, FONTE_DESLIGADA,
   FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, folhaTrocas, fonteDaConsulta, inicioSemAlunos, listaDaFolha, moverBloco, moverBlocoPara, MOTIVO_EDITAR_SEM_ALUNOS, motivoDoEditar,
   montarBloco, mostrarBloco, PAINEL_DO_INICIO_PADRAO, periodoDoFinanceiroNoPainel, reaisSemCentavos, redimensionarBloco, restaurarPadrao,
-  resumoDaFolha, ressalvaUmaVez, roscaDosAlunos,
+  resumoDaFolha, roscaDosAlunos,
   type BlocoDoPainel, type BlocoDoPainelId, type ContextoDoPainel, type FontesDoPainel, type OpcoesDoBloco, type PainelDoInicioPreferido,
 } from './painelDoInicio';
 
@@ -83,8 +84,8 @@ const cartaoDe = (b: BlocoDoPainel, chave: string) => {
 const href = (d: { tipo: string; href?: string } | null) => (d && d.tipo === 'endereco' ? d.href : null);
 
 describe('permissões e chaves do /eu decidem quais blocos existem', () => {
-  it('com tudo liberado, os 8 blocos existem', () => {
-    expect(BLOCOS_DO_PAINEL.filter((id) => blocoDisponivel(id, ctxCom()))).toHaveLength(8);
+  it('com tudo liberado, os 9 blocos existem', () => {
+    expect(BLOCOS_DO_PAINEL.filter((id) => blocoDisponivel(id, ctxCom()))).toHaveLength(9);
   });
 
   it.each<[BlocoDoPainelId, string]>([
@@ -117,20 +118,20 @@ describe('permissões e chaves do /eu decidem quais blocos existem', () => {
 
 describe('ordem e escondidos (Editar)', () => {
   it('padrão: a ordem do protótipo e nenhum escondido', () => {
-    expect(blocosVisiveis(ctxCom())).toEqual(['atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'financeiro', 'recebido', 'alunos']);
+    expect(blocosVisiveis(ctxCom())).toEqual(['atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'financeiro', 'recebido', 'alunos', 'aniversarios']);
   });
 
   it('preferência reordena e esconde; bloco sem permissão não entra nem na lista do Editar', () => {
     const pref: PainelDoInicioPreferido = { ordem: ['alunos', 'agenda', ...BLOCOS_DO_PAINEL.filter((b) => b !== 'alunos' && b !== 'agenda')], escondidos: ['agenda'], meus: {} };
     const ctx = ctxCom(TODAS.filter((c) => c !== 'INSCRICAO_LER'));
-    expect(blocosVisiveis(ctx, pref)).toEqual(['alunos', 'atualizacoes', 'treinos', 'pastas', 'financeiro', 'recebido']);
-    expect(blocosPermitidos(ctx, pref)).toEqual(['alunos', 'agenda', 'atualizacoes', 'treinos', 'pastas', 'financeiro', 'recebido']);
+    expect(blocosVisiveis(ctx, pref)).toEqual(['alunos', 'atualizacoes', 'treinos', 'pastas', 'financeiro', 'recebido', 'aniversarios']);
+    expect(blocosPermitidos(ctx, pref)).toEqual(['alunos', 'agenda', 'atualizacoes', 'treinos', 'pastas', 'financeiro', 'recebido', 'aniversarios']);
     const lista = blocosParaEditar(ctx, pref);
     expect(lista.map((b) => b.id)).not.toContain('interessados');
     // O oculto fica fora da contagem: Subir e Descer andam entre os que aparecem.
     expect(lista.find((b) => b.id === 'agenda')).toMatchObject({ ligado: false, posicao: null, podeSubir: false, podeDescer: false });
-    expect(lista[0]).toMatchObject({ id: 'alunos', posicao: 1, total: 6, podeSubir: false, podeDescer: true });
-    expect(lista[6]).toMatchObject({ id: 'recebido', posicao: 6, podeSubir: true, podeDescer: false });
+    expect(lista[0]).toMatchObject({ id: 'alunos', posicao: 1, total: 7, podeSubir: false, podeDescer: true });
+    expect(lista[7]).toMatchObject({ id: 'aniversarios', posicao: 7, podeSubir: true, podeDescer: false });
     expect(lista.find((b) => b.id === 'agenda')?.tamanho).toBe(2);
   });
 
@@ -147,7 +148,7 @@ describe('ordem e escondidos (Editar)', () => {
       expect(r.meus).toEqual({ agenda: true });
       expect(r.tamanhos?.treinos).toBe(3);
     }
-    expect(PAINEL_DO_INICIO_PADRAO).toEqual({ ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {}, tamanhos: {} });
+    expect(PAINEL_DO_INICIO_PADRAO).toEqual({ ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {}, tamanhos: {}, opcoes: { aniversarios: { dias: 7 } } });
   });
 
   it('mostrarBloco oculta e mostra sem mexer na ordem nem no original; repetir não duplica', () => {
@@ -164,7 +165,7 @@ describe('ordem e escondidos (Editar)', () => {
     const pref = mostrarBloco(PAINEL_DO_INICIO_PADRAO, 'treinos', false);
     const visiveis = BLOCOS_DO_PAINEL.filter((b) => b !== 'treinos' && b !== 'interessados');
     // alunos (último) vai para o topo; treinos (oculto, 3º) e interessados (sem permissão, 2º) ficam onde estavam.
-    expect(moverBlocoPara(pref, 'alunos', 0, visiveis).ordem).toEqual(['alunos', 'interessados', 'treinos', 'atualizacoes', 'pastas', 'agenda', 'financeiro', 'recebido']);
+    expect(moverBlocoPara(pref, 'alunos', 0, visiveis).ordem).toEqual(['alunos', 'interessados', 'treinos', 'atualizacoes', 'pastas', 'agenda', 'financeiro', 'recebido', 'aniversarios']);
     expect(moverBlocoPara(pref, 'alunos', 99, visiveis)).toBe(pref);
     expect(moverBlocoPara(pref, 'treinos', 0, visiveis)).toBe(pref);
   });
@@ -190,9 +191,136 @@ describe('ordem e escondidos (Editar)', () => {
     const permitidos = BLOCOS_DO_PAINEL.filter((b) => b !== 'interessados');
     // Descer "atualizacoes" passa por cima de "interessados" (não permitido) e cai depois de "treinos".
     const r = moverBloco(PAINEL_DO_INICIO_PADRAO, 'atualizacoes', 1, permitidos);
-    expect(r.ordem).toEqual(['treinos', 'interessados', 'atualizacoes', 'pastas', 'agenda', 'financeiro', 'recebido', 'alunos']);
+    expect(r.ordem).toEqual(['treinos', 'interessados', 'atualizacoes', 'pastas', 'agenda', 'financeiro', 'recebido', 'alunos', 'aniversarios']);
     expect(moverBloco(PAINEL_DO_INICIO_PADRAO, 'atualizacoes', -1, permitidos)).toBe(PAINEL_DO_INICIO_PADRAO);
-    expect(moverBloco(PAINEL_DO_INICIO_PADRAO, 'alunos', 1, permitidos)).toBe(PAINEL_DO_INICIO_PADRAO);
+    expect(moverBloco(PAINEL_DO_INICIO_PADRAO, 'aniversarios', 1, permitidos)).toBe(PAINEL_DO_INICIO_PADRAO);
+  });
+});
+
+describe('aniversários como bloco do painel', () => {
+  const sem = (c: string) => ctxCom(TODAS.filter((x) => x !== c));
+
+  it('existe só com ALUNO_LER (nem na lista de adicionar sem ela); não precisa do PAINEL_VER e não tem consulta nem cartões', () => {
+    expect(blocoDisponivel('aniversarios', ctxCom())).toBe(true);
+    expect(blocoDisponivel('aniversarios', sem('ALUNO_LER'))).toBe(false);
+    expect(blocoDisponivel('aniversarios', sem('PAINEL_VER'))).toBe(true);
+    expect(blocosParaEditar(sem('ALUNO_LER'), PAINEL_DO_INICIO_PADRAO).map((b) => b.id)).not.toContain('aniversarios');
+    expect(blocosVisiveis(sem('ALUNO_LER'))).not.toContain('aniversarios');
+    expect(consultasDoBloco('aniversarios', ctxCom(), opcoes())).toEqual([]);
+  });
+
+  it('o bloco é só a faixa (janela e Todos/Meus) com a situação da consulta própria; a lista é o corpo da tela', () => {
+    const b = (f: FontesDoPainel, o: Partial<OpcoesDoBloco> = {}) => montarBloco('aniversarios', ctxCom(), { ...opcoes(o), fontes: f });
+    expect(b({ aniversarios: fontePronta([]) })).toMatchObject({
+      id: 'aniversarios', titulo: 'Aniversários', periodo: 'Hoje e nos próximos 7 dias', escopo: null, temFiltro: true, cartoes: [], grafico: null, carregando: false, falhou: false,
+    });
+    expect(b({ aniversarios: fontePronta([]) }, { diasDoAniversario: 0, meus: true })).toMatchObject({ periodo: 'Hoje', escopo: 'Só os meus alunos', meus: true });
+    expect(b({})).toMatchObject({ carregando: true, falhou: false });
+    expect(b({ aniversarios: FONTE_FALHOU })).toMatchObject({ carregando: false, falhou: true });
+    expect(montarBloco('aniversarios', sem('ALUNO_LER'), { ...opcoes(), fontes: {} })).toBeNull();
+  });
+
+  it('entra por último, visível, médio e com a opção Mostrar aniversários de (7 dias)', () => {
+    expect(BLOCOS_DO_PAINEL.at(-1)).toBe('aniversarios');
+    const ultimo = blocosParaEditar(ctxCom(), PAINEL_DO_INICIO_PADRAO).at(-1);
+    expect(ultimo).toMatchObject({ id: 'aniversarios', titulo: 'Aniversários', descricao: 'Quem faz aniversário nos próximos dias.', ligado: true, posicao: 9, total: 9, tamanho: 2, podeSubir: true, podeDescer: false });
+    expect(ultimo?.opcoes).toEqual([{
+      chave: 'dias', rotulo: 'Mostrar aniversários de', atual: 7,
+      valores: [{ valor: 0, rotulo: 'Só hoje' }, { valor: 3, rotulo: '3 dias' }, { valor: 7, rotulo: '7 dias' }, { valor: 15, rotulo: '15 dias' }],
+    }]);
+    expect(blocosParaEditar(ctxCom(), PAINEL_DO_INICIO_PADRAO).filter((b) => b.opcoes).map((b) => b.id)).toEqual(['aniversarios']);
+  });
+
+  it('definirOpcaoDoBloco grava a janela sem mexer no resto nem no original; valor, chave ou bloco inválidos não mudam nada', () => {
+    const base: PainelDoInicioPreferido = { ...PAINEL_DO_INICIO_PADRAO, meus: { agenda: true }, tamanhos: { treinos: 3 } };
+    const r = definirOpcaoDoBloco(base, 'aniversarios', 'dias', 15);
+    expect(diasDoBlocoAniversarios(r)).toBe(15);
+    expect(blocosParaEditar(ctxCom(), r).at(-1)?.opcoes?.[0].atual).toBe(15);
+    expect(r).toMatchObject({ meus: { agenda: true }, tamanhos: { treinos: 3 }, ordem: base.ordem });
+    expect(diasDoBlocoAniversarios(base)).toBe(7);
+    // Gravar o padrão também fica explícito (senão o diasAniversario antigo seria migrado de novo).
+    expect(definirOpcaoDoBloco(r, 'aniversarios', 'dias', 7).opcoes).toEqual({ aniversarios: { dias: 7 } });
+    for (const v of [1, 5, -1, 3.5, NaN]) expect(definirOpcaoDoBloco(base, 'aniversarios', 'dias', v)).toBe(base);
+    expect(definirOpcaoDoBloco(base, 'agenda', 'dias', 3)).toBe(base);
+    expect(definirOpcaoDoBloco(base, 'aniversarios', 'xis' as never, 3)).toBe(base);
+    expect(diasDoBlocoAniversarios({})).toBe(7);
+  });
+
+  it('as outras operações preservam a opção; restaurarPadrao a devolve a 7 numa cópia nova', () => {
+    const r = definirOpcaoDoBloco(PAINEL_DO_INICIO_PADRAO, 'aniversarios', 'dias', 0);
+    for (const x of [mostrarBloco(r, 'agenda', false), moverBloco(r, 'agenda', -1, BLOCOS_DO_PAINEL), moverBlocoPara(r, 'agenda', 0, BLOCOS_DO_PAINEL), redimensionarBloco(r, 'agenda', 3)]) {
+      expect(diasDoBlocoAniversarios(x)).toBe(0);
+    }
+    const p = restaurarPadrao();
+    expect(diasDoBlocoAniversarios(p)).toBe(7);
+    expect(p).toEqual(PAINEL_DO_INICIO_PADRAO);
+    p.opcoes!.aniversarios!.dias = 3;
+    expect(diasDoBlocoAniversarios(PAINEL_DO_INICIO_PADRAO)).toBe(7);
+  });
+
+  it('mover, ocultar, mostrar e redimensionar o bloco novo respeita as regras de posição', () => {
+    const subiu = moverBloco(PAINEL_DO_INICIO_PADRAO, 'aniversarios', -1, BLOCOS_DO_PAINEL);
+    expect(subiu.ordem.slice(-2)).toEqual(['aniversarios', 'alunos']);
+    expect(moverBloco(PAINEL_DO_INICIO_PADRAO, 'aniversarios', 1, BLOCOS_DO_PAINEL)).toBe(PAINEL_DO_INICIO_PADRAO);
+    expect(moverBlocoPara(PAINEL_DO_INICIO_PADRAO, 'aniversarios', 0, BLOCOS_DO_PAINEL).ordem[0]).toBe('aniversarios');
+    // Sem ALUNO_LER, 'alunos' e 'aniversarios' ficam no lugar; o resto anda entre si.
+    const permitidos = BLOCOS_DO_PAINEL.filter((b) => b !== 'aniversarios' && b !== 'alunos');
+    expect(moverBloco(PAINEL_DO_INICIO_PADRAO, 'recebido', 1, permitidos)).toBe(PAINEL_DO_INICIO_PADRAO);
+    const oculto = mostrarBloco(PAINEL_DO_INICIO_PADRAO, 'aniversarios', false);
+    expect(blocosVisiveis(ctxCom(), oculto)).not.toContain('aniversarios');
+    expect(blocosParaEditar(ctxCom(), oculto).at(-1)).toMatchObject({ id: 'aniversarios', ligado: false, posicao: null });
+    expect(blocosVisiveis(ctxCom(), mostrarBloco(oculto, 'aniversarios', true)).at(-1)).toBe('aniversarios');
+    expect(redimensionarBloco(PAINEL_DO_INICIO_PADRAO, 'aniversarios', 2)).toEqual(PAINEL_DO_INICIO_PADRAO);
+    expect(redimensionarBloco(PAINEL_DO_INICIO_PADRAO, 'aniversarios', 3).tamanhos).toEqual({ aniversarios: 3 });
+  });
+});
+
+describe('barra da edição: contagem de alterações e textos', () => {
+  const base = PAINEL_DO_INICIO_PADRAO;
+
+  it('sem mexer: nenhuma alteração; rascunho idêntico ou cópia não conta', () => {
+    expect(contarAlteracoes(base, base)).toBe(0);
+    expect(contarAlteracoes(base, restaurarPadrao())).toBe(0);
+  });
+
+  it('mover um bloco é uma alteração, para qualquer distância e sentido; mover dois são duas', () => {
+    expect(contarAlteracoes(base, moverBloco(base, 'agenda', -1, BLOCOS_DO_PAINEL))).toBe(1);
+    expect(contarAlteracoes(base, moverBlocoPara(base, 'alunos', 0, BLOCOS_DO_PAINEL))).toBe(1);
+    expect(contarAlteracoes(base, moverBlocoPara(base, 'atualizacoes', 8, BLOCOS_DO_PAINEL))).toBe(1);
+    const duas = moverBlocoPara(moverBlocoPara(base, 'alunos', 0, BLOCOS_DO_PAINEL), 'treinos', 8, BLOCOS_DO_PAINEL);
+    expect(contarAlteracoes(base, duas)).toBe(2);
+  });
+
+  it('desfazer volta a zero; ocultar, tamanho e opção contam uma cada, pelo valor que vale', () => {
+    const subiu = moverBloco(base, 'agenda', -1, BLOCOS_DO_PAINEL);
+    expect(contarAlteracoes(base, moverBloco(subiu, 'agenda', 1, BLOCOS_DO_PAINEL))).toBe(0);
+    expect(contarAlteracoes(base, mostrarBloco(base, 'agenda', false))).toBe(1);
+    expect(contarAlteracoes(mostrarBloco(base, 'agenda', false), mostrarBloco(base, 'agenda', true))).toBe(1);
+    expect(contarAlteracoes(base, redimensionarBloco(base, 'agenda', 3))).toBe(1);
+    // Tamanho gravado igual ao de fábrica não é alteração.
+    expect(contarAlteracoes(base, { ...base, tamanhos: { agenda: 2 } })).toBe(0);
+    expect(contarAlteracoes(base, definirOpcaoDoBloco(base, 'aniversarios', 'dias', 3))).toBe(1);
+    expect(contarAlteracoes(base, definirOpcaoDoBloco(base, 'aniversarios', 'dias', 7))).toBe(0);
+    expect(contarAlteracoes({ ordem: base.ordem, escondidos: [], meus: {} }, base)).toBe(0);
+    // Todos/Meus gravado também conta (o Restaurar padrão o limpa; sem isto o Salvar não gravaria nada).
+    expect(contarAlteracoes({ ...base, meus: { agenda: true, treinos: false } }, restaurarPadrao())).toBe(2);
+  });
+
+  it('soma tudo: ocultar + mover + tamanho + opção = 4; restaurar zera o que sobra', () => {
+    let r = mostrarBloco(base, 'treinos', false);
+    r = moverBlocoPara(r, 'alunos', 0, BLOCOS_DO_PAINEL);
+    r = redimensionarBloco(r, 'agenda', 1);
+    r = definirOpcaoDoBloco(r, 'aniversarios', 'dias', 0);
+    expect(contarAlteracoes(base, r)).toBe(4);
+    expect(contarAlteracoes(r, base)).toBe(4);
+    expect(contarAlteracoes(base, restaurarPadrao())).toBe(0);
+  });
+
+  it('textos da barra e do anúncio de posição', () => {
+    expect(textoDaBarra(0)).toBe('Nenhuma alteração ainda');
+    expect(textoDaBarra(1)).toBe('1 alteração');
+    expect(textoDaBarra(3)).toBe('3 alterações');
+    expect(textoDaPosicao('Agenda', 3, 8)).toBe('Agenda, posição 3 de 8');
   });
 });
 
@@ -415,12 +543,12 @@ describe('Pastas', () => {
     expect(b.cartoes.map((c) => c.texto)).toEqual(['2', '4']);
     expect(cartaoDe(b, 'pastas.aRenovar')).toMatchObject({ enfase: 'ambar', destino: { tipo: 'folha', folha: 'pastasARenovar' } });
     expect(cartaoDe(b, 'pastas.semPasta').enfase).toBe('neutro');
-    expect(href(cartaoDe(b, 'pastas.semPasta').destino)).toBe('/treinador/alunos?atualizacao=SEM_PASTA&meus=true');
+    expect(href(cartaoDe(b, 'pastas.semPasta').destino)).toBe('/treinador/alunos?atualizacao=SEM_PASTA&acesso=COM&meus=true');
   });
 
   it('sem ver atualizações, "Sem pasta com período" abre a lista sem o filtro (que daria 403)', () => {
     const b = bloco('pastas', fontes(), ctxCom(TODAS.filter((c) => c !== 'ATUALIZACAO_LER')), { meus: false });
-    expect(href(cartaoDe(b, 'pastas.semPasta').destino)).toBe('/treinador/alunos?meus=false');
+    expect(href(cartaoDe(b, 'pastas.semPasta').destino)).toBe('/treinador/alunos?acesso=COM&meus=false');
   });
 
   it('campo nulo (sem permissão de leitura na API) é "Não carregou", não 0', () => {
@@ -474,9 +602,9 @@ describe('Financeiro', () => {
     expect(v.falado).toContain('R$ 450,50');
     expect(v.falado).toContain('3 cobranças');
     const c = cartaoDe(b, 'financeiro.vencendo');
-    expect(c).toMatchObject({ texto: 'R$ 1.241', enfase: 'ciano', detalhe: '4 cobranças' });
+    expect(c).toMatchObject({ texto: 'R$ 1.241', enfase: 'ambar', detalhe: '4 cobranças' });
     expect(c.falado).toContain('R$ 1.240,60');
-    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ texto: 'R$ 3.500', enfase: 'azul', largo: true, rotulo: 'Recebido no mês (bruto)' });
+    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ texto: 'R$ 3.500', enfase: 'verde', largo: true, rotulo: 'Recebido no mês (bruto)' });
   });
 
   it('Recebido no mês vem do resultadoDoMes, nunca do cartão do período de 6 meses', () => {
@@ -517,29 +645,16 @@ describe('Financeiro', () => {
     expect(bloco('financeiro').nota).toBe('Vencidas e vencendo consideram só as cobranças já geradas.');
   });
 
-  it('histórico parcial: a ressalva é um campo à parte (não vai na nota nem nas notas do gráfico), sem mexer em valor; false e ausente não mudam nada', () => {
-    const aviso = 'Parte do histórico financeiro foi removida em uma limpeza anterior.';
+  it('histórico parcial (25/11): o Início não traz ressalva em bloco nenhum nem nas notas do gráfico, e nenhum valor muda', () => {
     const parcial = fontes({ financeiro: fontePronta(financeiro({ historicoFinanceiroParcial: true })) });
-    expect(bloco('financeiro', parcial).ressalva).toContain(aviso);
+    const normal = fontes({ financeiro: fontePronta(financeiro()) });
+    for (const id of ['financeiro', 'recebido'] as const) {
+      expect(bloco(id, parcial)).not.toHaveProperty('ressalva');
+      expect(bloco(id, parcial)).toEqual(bloco(id, normal));
+    }
     expect(bloco('financeiro', parcial).nota).toBe('Vencidas e vencendo consideram só as cobranças já geradas.');
     const recebido = bloco('recebido', parcial);
-    expect(recebido.ressalva).toContain(aviso);
     expect(recebido.grafico?.tipo === 'barras' && recebido.grafico.notas.some((n) => n.includes('limpeza anterior'))).toBe(false);
-    for (const extra of [{ historicoFinanceiroParcial: false }, {}]) {
-      const normal = fontes({ financeiro: fontePronta(financeiro(extra)) });
-      expect(bloco('financeiro', normal).ressalva).toBeNull();
-      expect(bloco('recebido', normal).ressalva).toBeNull();
-    }
-  });
-
-  it('a ressalva aparece uma vez por tela: no Financeiro e, sem ele, no Recebido', () => {
-    const parcial = fontes({ financeiro: fontePronta(financeiro({ historicoFinanceiroParcial: true })) });
-    const dos = (ids: BlocoDoPainelId[]) => ressalvaUmaVez(ids.map((id) => bloco(id, parcial))).filter((b) => b.ressalva).map((b) => b.id);
-    expect(dos(['financeiro', 'recebido'])).toEqual(['financeiro']);
-    expect(dos(['recebido', 'financeiro'])).toEqual(['financeiro']);
-    expect(dos(['recebido'])).toEqual(['recebido']);
-    expect(dos(['financeiro'])).toEqual(['financeiro']);
-    expect(dos(['alunos', 'recebido', 'agenda'])).toEqual(['recebido']);
   });
 
   it('financeiro desligado na plataforma (503): "Recurso desativado", distinto de zero, de "Não carregou" e de "Sem permissão"', () => {
@@ -548,10 +663,10 @@ describe('Financeiro', () => {
       expect(cartaoDe(b, chave)).toMatchObject({ estado: 'desativado', texto: 'Recurso desativado', valor: null, destino: null, enfase: 'indisponivel' });
       expect(cartaoDe(b, chave).falado).toContain('recurso desativado');
     }
-    // Não pede "Atualizar" (repetir não liga o recurso), não traz a nota de cobranças geradas nem ressalva.
-    expect(b).toMatchObject({ falhou: false, nota: null, ressalva: null });
+    // Não pede "Atualizar" (repetir não liga o recurso) e não traz a nota de cobranças geradas.
+    expect(b).toMatchObject({ falhou: false, nota: null });
     const r = bloco('recebido', fontes({ financeiro: FONTE_DESLIGADA }));
-    expect(r).toMatchObject({ desativado: true, falhou: false, grafico: null, ressalva: null });
+    expect(r).toMatchObject({ desativado: true, falhou: false, grafico: null });
     expect(bloco('recebido').desativado).toBe(false);
   });
 
@@ -622,8 +737,31 @@ describe('Recebido e lançamentos (barras)', () => {
     expect(g.descricao).toContain('out/2026: recebido sem dado');
   });
 
-  it('séries nos tokens de destaque: recebido azul, lançamentos violeta (D13)', () => {
-    expect(barrasDoRecebido(financeiro().serie, false, true).series.map((s) => [s.chave, s.cor])).toEqual([['recebido', 'azul'], ['lancamentos', 'violeta']]);
+  it('séries sem azul nem roxo (25/11): recebido das cobranças verde, entradas avulsas verde mais claro', () => {
+    expect(barrasDoRecebido(financeiro().serie, false, true).series.map((s) => [s.chave, s.cor])).toEqual([['recebido', 'verde'], ['lancamentos', 'verdeClaro']]);
+  });
+
+  it('o gráfico começa no primeiro mês com valor, com no mínimo 3 meses, e o mês em andamento sempre fica', () => {
+    const mes = (m: string, recebido: number | null, entradas: number | null, parcial = false) =>
+      ({ mes: m, parcial, recebidoCentavos: recebido, entradasAvulsasCentavos: entradas, saidasAvulsasCentavos: entradas }) as never;
+    const meses = (g: ReturnType<typeof barrasDoRecebido>) => g.meses.map((m) => m.mes);
+    // Seis meses, os dois primeiros sem nada (nulo e zero): começa em 2026-07.
+    const seis = [mes('2026-05', null, null), mes('2026-06', 0, 0), mes('2026-07', 1000, 0), mes('2026-08', 0, 0), mes('2026-09', 5000, 200), mes('2026-10', 700, 0, true)];
+    expect(meses(barrasDoRecebido(seis, false, true))).toEqual(['2026-07', '2026-08', '2026-09', '2026-10']);
+    // Só lançamento também é valor.
+    expect(meses(barrasDoRecebido([mes('2026-06', 0, 0), mes('2026-07', 0, 300), mes('2026-08', 0, 0), mes('2026-09', 0, 0), mes('2026-10', 0, 0, true)], false, true)))
+      .toEqual(['2026-07', '2026-08', '2026-09', '2026-10']);
+    // Dado só no mês corrente: o mínimo de 3 meses segura os dois anteriores vazios.
+    expect(meses(barrasDoRecebido([mes('2026-07', 0, 0), mes('2026-08', 0, 0), mes('2026-09', 0, 0), mes('2026-10', 900, 0, true)], false, true))).toEqual(['2026-08', '2026-09', '2026-10']);
+    // Nenhum valor: os 3 últimos (mês atual incluído); com tudo nulo continua "sem dados".
+    const nada = barrasDoRecebido([mes('2026-05', 0, 0), mes('2026-06', 0, 0), mes('2026-07', 0, 0), mes('2026-08', 0, 0), mes('2026-09', 0, 0), mes('2026-10', 0, 0, true)], false, true);
+    expect(meses(nada)).toEqual(['2026-08', '2026-09', '2026-10']);
+    // Série curta (menos de 3 meses) não perde nada; a descrição e as notas falam só dos meses mostrados.
+    expect(meses(barrasDoRecebido(financeiro().serie, false, true))).toEqual(['2026-09', '2026-10']);
+    expect(barrasDoRecebido(seis, false, true).descricao).not.toContain('mai/2026');
+    expect(barrasDoRecebido(seis, false, true).maximo).toBe(5000);
+    // "Meus": o lançamento vem nulo e só o recebido decide onde começa.
+    expect(meses(barrasDoRecebido([mes('2026-08', 0, null), mes('2026-09', 500, null), mes('2026-10', 0, null, true)], true, true))).toEqual(['2026-08', '2026-09', '2026-10']);
   });
 
   it('com Meus avisa que os lançamentos avulsos ficam de fora', () => {
@@ -664,7 +802,8 @@ describe('Alunos (rosca)', () => {
   it('ativos com acesso, ativos sem acesso e inativos; nenhum aluno conta duas vezes', () => {
     const g = roscaDosAlunos({ alunosAtivos: 10, alunosInativos: 4, alunosSemAcesso: 3 }, true);
     expect(g.total).toBe(14);
-    expect(g.fatias.map((f) => [f.chave, f.valor, f.cor])).toEqual([['comAcesso', 7, 'verde'], ['semAcesso', 3, 'azul'], ['inativos', 4, 'neutro']]);
+    // Rosca neutra (25/11): graduação de cinza, sem azul nem verde.
+    expect(g.fatias.map((f) => [f.chave, f.valor, f.cor])).toEqual([['comAcesso', 7, 'forte'], ['semAcesso', 3, 'medio'], ['inativos', 4, 'suave']]);
     expect(g.fatias.reduce((s, f) => s + f.fracao, 0)).toBeCloseTo(1);
     expect(g.fatias[1].inicio).toBeCloseTo(0.5);
     expect(g.vazia).toBe(false);
@@ -708,7 +847,8 @@ describe('Alunos (rosca)', () => {
 
 describe('faixa de cada bloco (Todos/Meus e abrir)', () => {
   it('todos os blocos têm o filtro Todos/Meus; o rótulo do leitor de tela diz o estado e a ação', () => {
-    for (const id of BLOCOS_DO_PAINEL) {
+    // Os aniversários não têm cartões (`montarBloco` devolve null): a tela monta a lista.
+    for (const id of BLOCOS_DO_PAINEL.filter((b) => b !== 'aniversarios')) {
       const t = bloco(id);
       const m = bloco(id, fontes(), ctxCom(), { meus: true });
       expect(t.temFiltro && m.temFiltro).toBe(true);
@@ -788,7 +928,7 @@ describe('Folhas', () => {
 
 describe('cartões não vazam nomes de alunos', () => {
   it('só contagens nos blocos: nenhum nome fictício aparece nos cartões nem nos gráficos', () => {
-    const todos = BLOCOS_DO_PAINEL.map((id) => bloco(id));
+    const todos = BLOCOS_DO_PAINEL.filter((id) => id !== 'aniversarios').map((id) => bloco(id));
     const json = JSON.stringify(todos);
     for (const nome of ['Aluno Um', 'Aluno Dois', 'Supino', 'Hipertrofia']) expect(json).not.toContain(nome);
   });

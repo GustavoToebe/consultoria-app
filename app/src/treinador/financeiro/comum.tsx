@@ -52,7 +52,7 @@ const estilos = StyleSheet.create({
 export function CampoMoeda({ ref, rotulo, texto, aoMudar, erro, ajuda, mascara, corDoTexto, rotuloOculto, rotuloAcessivel }: {
   /** Para levar o foco ao campo quando ele tem erro. */
   ref?: Ref<TextInput>;
-  /** Cor do número digitado (lançamento: azul de entrada, vermelho de saída). */
+  /** Cor do número digitado (lançamento: verde claro de entrada, vermelho de saída). */
   corDoTexto?: string;
   rotulo: string;
   texto: string;

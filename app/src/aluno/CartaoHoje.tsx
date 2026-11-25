@@ -1,14 +1,17 @@
 import { Moon } from 'lucide-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { contagem } from '../dominio/contagens';
 import { TEXTO_PACOTE_RECUSADO, type EstadoDoHoje } from '../dominio/inicioDoAluno';
+import { contornoDoCartao } from '../dominio/preferencias';
 import { nomeComDia, rotuloDoTipo } from '../dominio/semana';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, marcaAoPassar, RAIO, RAIO_CONTROLE, textoSobre } from '../tema/tokens';
 import { Alerta, MensagemErro } from '../ui/Estados';
 import { LinkTexto } from '../ui/LinkTexto';
+import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
+import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 
 interface Props {
   estado: EstadoDoHoje;
@@ -27,14 +30,17 @@ interface Props {
 }
 
 /**
- * "Hoje" no início do aluno: o único cartão na cor da marca e o único botão primário da tela. Treino do dia e plano sem
- * dia fixo usam a marca; descanso, treino preparado e sessão sem exercício são cartões neutros. O cartão não é mais
+ * "Hoje" no início do aluno: o cartão é neutro em todo estado (superfície e `divisor`, Gustavo, 25/11: sem cartão pintado
+ * nem faixa); no treino do dia e no plano sem dia fixo a marca fica só no rótulo ("TREINO C", `marcaTexto`) e no botão,
+ * o único primário da tela (desenho do `Botao` primário, fundo `marcaPeca`). O cartão não é mais
  * todo um toque: a ação é o botão "Ver meu treino →", que abre a lista do dia (cada exercício se abre e se marca por lá).
  * Falha ao carregar nunca é mostrada como "treino não publicado".
  */
 export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, concluido, emAndamento }: Props) {
-  const { cores, marca, sobreMarca } = useTema();
-  const neutro = { backgroundColor: cores.superficie, borderColor: cores.divisor };
+  const { cores, marcaTexto, marcaPeca, preferencias } = useTema();
+  const reduzido = useMovimentoReduzido();
+  // O contorno do `Cartao` (`divisor`; `bordaCampo` no contraste alto), para o Hoje não ficar mais apagado que os vizinhos.
+  const neutro = { backgroundColor: cores.superficie, borderColor: contornoDoCartao(cores, preferencias.contraste) };
 
   if (estado.tipo === 'recusado') {
     return <View testID="pacote-recusado"><Alerta tom="atencao" texto={TEXTO_PACOTE_RECUSADO} /></View>;
@@ -83,11 +89,13 @@ export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, con
   const rotuloAcessivel = treino
     ? `${concluido ? 'Ver resumo do treino' : andamento ? 'Continuar treino' : 'Ver meu treino'}: ${estado.sessao.nome}`
     : 'Escolher treino';
+  // Botão na marca com o desenho do `Botao` primário: `marcaPeca` passa 3:1 sobre o cartão e o texto sobre ele, 4,5:1.
+  const textoDoBotao = textoSobre(marcaPeca);
   return (
-    <View style={[estilos.cartao, { backgroundColor: marca, borderColor: marca }]}>
-      {treino ? <Texto variante="secao" cor={sobreMarca} style={estilos.rotulo}>{estado.rotulo}</Texto> : null}
-      <Texto nivel={3} style={[estilos.nome, { color: sobreMarca }]}>{treino ? estado.sessao.nome : 'Qual é o treino de hoje?'}</Texto>
-      <Texto cor={sobreMarca} style={estilos.detalhe}>
+    <View style={[estilos.cartao, neutro]}>
+      {treino ? <Texto variante="secao" cor={marcaTexto} style={estilos.rotulo}>{estado.rotulo}</Texto> : null}
+      <Texto nivel={3} style={estilos.nome}>{treino ? estado.sessao.nome : 'Qual é o treino de hoje?'}</Texto>
+      <Texto variante="suave">
         {treino ? (concluido ? concluido.texto : andamento ?? contagem(estado.sessao.exercicios.length, 'exercício', 'exercícios')) : 'Seu plano não tem dia fixo. Escolha uma divisão.'}
       </Texto>
       <View style={estilos.acao}>
@@ -95,10 +103,15 @@ export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, con
           accessibilityRole="button"
           accessibilityLabel={rotuloAcessivel}
           onPress={treino ? (concluido ? concluido.aoVerResumo : aoVerTreino) : aoEscolher}
-          style={({ pressed }) => [estilos.botao, { backgroundColor: sobreMarca, opacity: pressed ? 0.85 : 1 }]}>
-          <Texto style={[estilos.botaoTexto, { color: marca }]}>{rotuloDoBotao}</Texto>
+          style={(estado) => [
+            estilos.botao,
+            !reduzido && Platform.OS === 'web' ? estilos.transicao : null,
+            { backgroundColor: sobre(estado) ? marcaAoPassar(marcaPeca) : marcaPeca, borderColor: marcaPeca },
+            estado.pressed && !reduzido ? estilos.apertado : null,
+          ]}>
+          <Texto style={[estilos.botaoTexto, { color: textoDoBotao }]}>{rotuloDoBotao}</Texto>
         </Pressable>
-        {treino && !concluido && !andamento ? <Texto variante="pequeno" cor={sobreMarca} style={estilos.nota}>Consulte a lista antes de começar.</Texto> : null}
+        {treino && !concluido && !andamento ? <Texto variante="pequeno" style={estilos.nota}>Consulte a lista antes de começar.</Texto> : null}
       </View>
     </View>
   );
@@ -112,9 +125,14 @@ const estilos = StyleSheet.create({
   linhaDoLink: { flexDirection: 'row' },
   rotulo: { fontFamily: fontes.negrito, letterSpacing: 1 },
   nome: { fontFamily: fontes.negrito, fontSize: 24, lineHeight: 30 },
-  detalhe: { opacity: 0.92 },
   acao: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1.5), marginTop: espaco(0.75) },
-  botao: { minHeight: ALVO_TOQUE, paddingHorizontal: espaco(2.5), borderRadius: RAIO, justifyContent: 'center', alignItems: 'center' },
-  botaoTexto: { fontFamily: fontes.negrito, fontSize: 16, lineHeight: 22 },
-  nota: { flexShrink: 1, minWidth: 140, opacity: 0.92 },
+  // Medidas do `Botao` primário (`ui/Botao`): 44 de altura, raio de controle, rótulo semi 15, afundar e 120 ms na web.
+  botao: {
+    minHeight: ALVO_TOQUE, paddingHorizontal: espaco(2), paddingVertical: espaco(0.75), borderRadius: RAIO_CONTROLE, borderWidth: 1,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  botaoTexto: { fontFamily: fontes.semi, fontSize: 15, textAlign: 'center' },
+  apertado: { transform: [{ translateY: 1 }, { scale: 0.98 }] },
+  transicao: { transitionProperty: 'background-color, border-color, transform', transitionDuration: '120ms' } as ViewStyle,
+  nota: { flexShrink: 1, minWidth: 140 },
 });

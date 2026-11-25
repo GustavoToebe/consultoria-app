@@ -23,6 +23,7 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { NUMERICO } from '../../ui/tipografia';
 import { useCarregar } from '../../ui/useCarregar';
 import { avisoDeConflito, copiarTexto, ehConflito } from './comum';
 
@@ -173,7 +174,7 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
             <Texto variante="secao">URL do webhook</Texto>
             <Texto variante="suave">Cole esta URL no webhook da Kiwify, em Apps › Webhooks. Ela é só desta consultoria: não a compartilhe.</Texto>
             {/* A URL fica selecionável na tela (cópia à mão se o navegador recusar); o botão de copiar não a repete no nome. */}
-            <Texto selectable numerico>{dados.webhookUrl}</Texto>
+            <Texto selectable style={NUMERICO}>{dados.webhookUrl}</Texto>
             {urlAMao ? <Texto variante="pequeno">Selecione a URL acima e copie à mão.</Texto> : null}
             <LinhaDeAcoes><Botao rotulo="Copiar URL do webhook" tipo="secundario" Icone={Copy} aoTocar={copiarUrl} /></LinhaDeAcoes>
           </View>

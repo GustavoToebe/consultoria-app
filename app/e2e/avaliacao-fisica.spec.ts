@@ -227,7 +227,8 @@ for (const largura of LARGURAS) {
     const quinta = page.getByRole('checkbox', { name: /^Comparar 01\/03\/2026/ });
     await expect(quinta).toBeDisabled();
     await expect(page.getByText('Compare no máximo 4 datas. Desmarque uma para escolher outra.')).toBeVisible();
-    await page.getByText('01/03/2026', { exact: true }).click({ force: true });
+    // Só a linha (div): a pílula do período do cartão ("Desde o primeiro 01/03/2026") traz a mesma data num <span> mono (25/11).
+    await page.getByText('01/03/2026', { exact: true }).and(page.locator('div')).click({ force: true });
     await expect(page.getByText('4 de 4 selecionadas')).toBeVisible();
 
     await page.getByRole('button', { name: 'Limpar seleção' }).click();

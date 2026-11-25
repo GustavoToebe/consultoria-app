@@ -145,7 +145,8 @@ test('sem gráficos, a tabela do recebido mostra o mês em MM/AAAA na fonte num�
   const tabela = page.getByLabel('Recebido e previsto por mês', { exact: true });
   const mes = tabela.getByText('10/2026 (até hoje)', { exact: true });
   await expect(mes).toBeVisible();
-  await expect(mes).toHaveCSS('font-family', /mono/i);
+  // Fonte mono só no número (T-002): o "(até hoje)" fica em Geist e o "10/2026" em mono.
+  await expect(mes.getByText('10/2026', { exact: true })).toHaveCSS('font-family', /mono/i);
   await expect(tabela.getByText('08/2026', { exact: true })).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });

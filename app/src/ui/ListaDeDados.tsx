@@ -1,17 +1,24 @@
-import { Children, createContext, Fragment, isValidElement, useCallback, useContext, useLayoutEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { Children, cloneElement, createContext, Fragment, isValidElement, useCallback, useContext, useLayoutEffect, useState, type ComponentProps, type ReactElement, type ReactNode } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 
-import { empilhaDados, larguraDoRotulo, linhaSemDivisoria, partesNumericas, VAO_DA_LINHA } from '../dominio/listaDeDados';
+import { empilhaDados, larguraDoRotulo, linhaSemDivisoria, VAO_DA_LINHA } from '../dominio/listaDeDados';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL } from '../tema/tokens';
+import { Botao } from './Botao';
 import { Texto } from './Texto';
 
 interface Arranjo {
   empilhado: boolean;
   rotulo: number;
+  /** Largura mínima da coluna do valor (cresce com o texto grande): o valor nunca fica mais estreito que isto. */
+  valor: number;
 }
 
-const ArranjoDaLista = createContext<Arranjo>({ empilhado: true, rotulo: larguraDoRotulo() });
+/** "Sem grupo", uma data ou um nome curto cabem inteiros; abaixo disso o texto quebraria letra por letra. */
+const LARGURA_MINIMA_DO_VALOR = 120;
+const larguraMinimaDoValor = (fatorTexto: number = 1) => Math.round(LARGURA_MINIMA_DO_VALOR * fatorTexto);
+
+const ArranjoDaLista = createContext<Arranjo>({ empilhado: true, rotulo: larguraDoRotulo(), valor: larguraMinimaDoValor() });
 /** A linha anuncia que aparece (ou que sumiu), para a lista saber qual é a última de verdade. Fora de uma lista, nada. */
 const AnunciarLinha = createContext<(posicao: number, aparece: boolean) => void>(() => undefined);
 /** Posição da linha na lista inteira e se ela leva o fio embaixo (fora de uma lista, sem fio). */
@@ -52,6 +59,7 @@ export function ListaDeDados({ children }: { children: ReactNode }) {
   const arranjo: Arranjo = {
     empilhado: largura > 0 ? empilhaDados(largura, fatorTexto) : width < LARGURA_MENU_LATERAL,
     rotulo: larguraDoRotulo(fatorTexto),
+    valor: larguraMinimaDoValor(fatorTexto),
   };
   // Linhas que de fato aparecem (posição na lista inteira), anunciadas por elas mesmas ao montar e ao sumir.
   const [presentes, setPresentes] = useState<ReadonlySet<number>>(() => new Set());
@@ -115,14 +123,16 @@ interface PropsDaLinha {
   dica?: string;
   /**
    * Botões da linha, à direita e centralizados na altura dela, sempre pequenos (`Botao tamanho="pequeno"`, `IconeBotao
-   * compacto`). Ficam fora do par com nome (no celular, o nome esconderia os filhos).
+   * compacto`). Ficam fora do par com nome (no celular, o nome esconderia os filhos). Se não couberem ao lado do valor
+   * (que tem largura mínima), descem para baixo dele, à direita. O `motivo` de um `Botao` desabilitado daqui nunca fica
+   * na coluna da ação: sobe para uma linha de ajuda embaixo da linha, na largura toda (`motivosDaAcao`).
    */
   acoes?: ReactNode;
 }
 
 export function LinhaDeDado({ rotulo, valor, vazio = '—', numerico, conteudo, nota, dica, acoes }: PropsDaLinha) {
   const { cores } = useTema();
-  const { empilhado, rotulo: larguraRotulo } = useContext(ArranjoDaLista);
+  const { empilhado, rotulo: larguraRotulo, valor: larguraValor } = useContext(ArranjoDaLista);
   const { posicao, comFio } = useContext(LugarDaLinha);
   const anunciar = useContext(AnunciarLinha);
   // Antes da pintura, para a última linha nunca aparecer com o fio sobrando.
@@ -136,24 +146,50 @@ export function LinhaDeDado({ rotulo, valor, vazio = '—', numerico, conteudo, 
   const comDica = (el: View | null) => {
     if (dica && Platform.OS === 'web' && el && 'setAttribute' in el && typeof el.setAttribute === 'function') el.setAttribute('title', dica);
   };
+  const { acoes: acoesDaLinha, ajuda } = motivosDaAcao(acoes);
+  // O piso do par (rótulo + vão + valor mínimo) é a base do `flexWrap` da linha: sem ele a ação nunca desce, só espreme o valor.
+  const pisoDoPar = (empilhado ? 0 : larguraRotulo + VAO_DA_LINHA) + larguraValor;
   return (
     <View role="listitem" style={[estilos.linha, comFio ? { borderBottomWidth: 1, borderBottomColor: cores.divisor } : null]}>
-      <View style={[estilos.par, empilhado ? null : estilos.parEmLinha]} accessibilityLabel={`${rotulo}: ${texto}${dica ? ` (${dica})` : ''}`}>
+      <View style={[estilos.par, { flexBasis: pisoDoPar, minWidth: pisoDoPar }, empilhado ? null : estilos.parEmLinha]} accessibilityLabel={`${rotulo}: ${texto}${dica ? ` (${dica})` : ''}`}>
         <Texto variante="rotulo" role="term" style={empilhado ? null : { width: larguraRotulo, flexShrink: 0 }}>{rotulo}</Texto>
-        <View ref={comDica} role="definition" style={[estilos.valor, empilhado ? null : estilos.valorEmLinha]}>
+        <View ref={comDica} role="definition" style={[estilos.valor, { minWidth: larguraValor }, empilhado ? null : estilos.valorEmLinha]}>
           {conteudo && !semValor ? conteudo : semValor ? <Texto variante="suave">{texto}</Texto> : <ValorEmTexto texto={texto} numerico={numerico} />}
           {typeof nota === 'string' ? <Texto variante="pequeno">{nota}</Texto> : nota ?? null}
         </View>
       </View>
-      {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
+      {acoesDaLinha ? <View style={estilos.acoes}>{acoesDaLinha}</View> : null}
+      {/* `aria-hidden`: o motivo já vai no nome do botão; o leitor de tela não o repete (a vista, sim, o lê aqui). */}
+      {ajuda ? <Texto variante="pequeno" testID="ajuda-da-linha" aria-hidden style={estilos.ajuda}>{ajuda}</Texto> : null}
     </View>
   );
 }
 
+/**
+ * Tira das ações o `motivo` dos `Botao` desabilitados e o devolve como texto de ajuda da linha: o `Botao` o escreveria
+ * embaixo de si, dentro da coluna da ação, e essa coluna (que não encolhe) ficaria tão larga quanto a frase. Sem o
+ * `accessibilityHint` do `Botao` (que é quem o monta), o motivo passa a fazer parte do nome do botão.
+ * shortcut: só vê `Botao` no topo das ações ou dentro de fragmento (um embrulhado em `View` ou em componente próprio
+ * segue com o motivo embaixo); trocar por uma prop `ajuda` da `LinhaDeDado` ou um contexto lido pelo `Botao`.
+ */
+function motivosDaAcao(acoes: ReactNode): { acoes: ReactNode; ajuda: string | null } {
+  if (!acoes) return { acoes, ajuda: null };
+  const motivos: string[] = [];
+  const itens = itensDe(acoes).map((no) => {
+    if (!isValidElement<PropsDoBotao>(no) || no.type !== Botao) return no;
+    const { desabilitado, carregando, motivo, rotulo, rotuloAcessivel } = no.props;
+    if (!desabilitado || carregando || !motivo) return no;
+    motivos.push(motivo);
+    return cloneElement(no, { motivo: undefined, rotuloAcessivel: `${rotuloAcessivel ?? rotulo}. ${motivo}` });
+  });
+  return motivos.length ? { acoes: itens, ajuda: motivos.join(' ') } : { acoes, ajuda: null };
+}
+type PropsDoBotao = ComponentProps<typeof Botao>;
+
 /** Texto com a fonte numérica só nos números (datas, CPF, telefone, "15" em "15 dias"). */
 export function ValorEmTexto({ texto, numerico }: { texto: string; numerico?: boolean }) {
-  if (!numerico) return <Texto>{texto}</Texto>;
-  return <Texto>{partesNumericas(texto).map((p, i) => (p.numerico ? <Texto key={i} numerico>{p.texto}</Texto> : p.texto))}</Texto>;
+  // A divisão é a de `Texto numerico` (`ui/numerosNoTexto`): uma regra só para "R$", "%", "+", horas e datas.
+  return <Texto numerico={numerico}>{texto}</Texto>;
 }
 
 const estilos = StyleSheet.create({
@@ -161,13 +197,17 @@ const estilos = StyleSheet.create({
   grupoSeguinte: { marginTop: espaco(3) },
   subtitulo: { paddingBottom: espaco(0.5) },
   // 48 de altura mínima e 8 de respiro em cima e embaixo em toda linha, com ou sem ação; a linha cresce se a ação pedir.
-  linha: { flexDirection: 'row', alignItems: 'center', gap: VAO_DA_LINHA, minHeight: 48, paddingVertical: espaco(1) },
-  par: { flex: 1, minWidth: 0, gap: espaco(0.25) },
+  // `flexWrap`: a ação que não cabe ao lado do valor mínimo desce para baixo dele (à direita, `marginLeft: 'auto'`).
+  linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: VAO_DA_LINHA, rowGap: espaco(0.5), minHeight: 48, paddingVertical: espaco(1) },
+  // Cresce até a ação; a base e o `minWidth` (o piso, em `LinhaDeDado`) vêm da largura mínima do valor.
+  par: { flexGrow: 1, flexShrink: 1, gap: espaco(0.25) },
   parEmLinha: { flexDirection: 'row', alignItems: 'baseline', gap: VAO_DA_LINHA },
   valor: { gap: espaco(0.5) },
   // Só em linha: na coluna (empilhado), o `flex: 1` do react-native-web zeraria a altura do valor.
   valorEmLinha: { flex: 1, minWidth: 0 },
   // A ação é pequena (`Botao tamanho="pequeno"`, `IconeBotao compacto`): desenho de 32 no alvo de 44. O alvo entra 6 px no
   // respiro, o desenho fica a 8 do fio, como o texto, e a linha com botão tem os mesmos 48 da sem botão.
-  acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), marginVertical: -espaco(0.75), flexShrink: 0 },
+  acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), marginVertical: -espaco(0.75), marginLeft: 'auto', flexShrink: 0 },
+  // A linha de ajuda ocupa a largura toda, abaixo do valor e da ação.
+  ajuda: { flexBasis: '100%' },
 });

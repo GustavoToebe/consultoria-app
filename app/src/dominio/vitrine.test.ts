@@ -72,8 +72,10 @@ describe('cartão do Início do aluno', () => {
 });
 
 describe('teto e ordem', () => {
-  it('mostra "N de 30" e recusa o 31º com o motivo', () => {
-    expect(contagemDeItens(7)).toBe('7 de 30');
+  it('mostra "N itens · até 30" no plural certo e recusa o 31º com o motivo', () => {
+    expect(contagemDeItens(0)).toBe('0 itens · até 30');
+    expect(contagemDeItens(1)).toBe('1 item · até 30');
+    expect(contagemDeItens(7)).toBe('7 itens · até 30');
     expect(podeAdicionarItem(TETO_DE_ITENS - 1)).toEqual({ pode: true, motivo: null });
     const cheio = podeAdicionarItem(TETO_DE_ITENS);
     expect(cheio.pode).toBe(false);

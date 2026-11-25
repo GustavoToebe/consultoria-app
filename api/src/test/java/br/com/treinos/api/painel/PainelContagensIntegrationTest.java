@@ -62,6 +62,13 @@ class PainelContagensIntegrationTest extends AbstractIntegrationTest {
                 .path("id").asString());
     }
 
+    /** Aluno que já entrou no app: só ele entra nas contagens de acompanhamento (sem registro, sem pasta, a renovar). */
+    private UUID alunoComAcesso(JsonNode responsavel, String nome) throws Exception {
+        UUID id = aluno(responsavel, nome);
+        api.convidarEEntrar(admin, id);
+        return id;
+    }
+
     private String pasta(UUID aluno, LocalDate inicio, LocalDate fim) throws Exception {
         return api.post("/alunos/" + aluno + "/pastas", admin,
                 Map.of("titulo", "Pasta fictícia", "inicio", inicio, "fim", fim), 200).path("id").asString();
@@ -91,31 +98,37 @@ class PainelContagensIntegrationTest extends AbstractIntegrationTest {
     @Test
     void pastasARenovarESemPastaComPeriodoSeguemARegraDoApp() throws Exception {
         // Do administrador: A tem pasta vigente que termina em 3 dias (renova); B não tem pasta.
-        UUID a = aluno(admin, "Aluno A vigente a renovar");
+        UUID a = alunoComAcesso(admin, "Aluno A vigente a renovar");
         publicarNaPasta(a, pasta(a, hoje.minusDays(20), hoje.plusDays(3)));
-        aluno(admin, "Aluno B sem pasta");
+        alunoComAcesso(admin, "Aluno B sem pasta");
         // Do membro: C já terminou, sem plano (renova, mas não é vigente); D termina em 10 dias (não renova).
-        UUID c = aluno(membro, "Aluno C terminou");
+        UUID c = alunoComAcesso(membro, "Aluno C terminou");
         pasta(c, hoje.minusDays(30), hoje.minusDays(2));
-        UUID d = aluno(membro, "Aluno D longe do fim");
+        UUID d = alunoComAcesso(membro, "Aluno D longe do fim");
         pasta(d, hoje, hoje.plusDays(10));
         // E: a pasta que termina em 2 dias já tem a seguinte (começa depois do fim): não renova nenhuma.
-        UUID e = aluno(membro, "Aluno E com a seguinte");
+        UUID e = alunoComAcesso(membro, "Aluno E com a seguinte");
         pasta(e, hoje.minusDays(25), hoje.plusDays(2));
         pasta(e, hoje.plusDays(3), hoje.plusDays(30));
         // F: pasta finalizada não renova. H: pasta arquivada (excluída) não renova.
-        UUID f = aluno(membro, "Aluno F finalizada");
+        UUID f = alunoComAcesso(membro, "Aluno F finalizada");
         api.post("/pastas/" + pasta(f, hoje.minusDays(25), hoje.plusDays(1)) + "/finalizar", admin, Map.of(), 200);
-        UUID h = aluno(membro, "Aluno H arquivada");
+        UUID h = alunoComAcesso(membro, "Aluno H arquivada");
         api.delete("/pastas/" + pasta(h, hoje.minusDays(25), hoje.plusDays(1)), admin, 204);
         // G: aluno inativo com pasta a renovar não entra.
-        UUID g = aluno(membro, "Aluno G inativo");
+        UUID g = alunoComAcesso(membro, "Aluno G inativo");
         pasta(g, hoje.minusDays(25), hoje.plusDays(1));
         api.patch("/alunos/" + g + "/situacao", admin, Map.of("ativo", false), 200);
+
+        // Sem acesso ao app: tem pasta a renovar e nenhum plano, mas não conta em nada do acompanhamento (renovar, sem pasta, sem registro).
+        UUID semAcesso = aluno(membro, "Aluno J sem acesso");
+        publicarNaPasta(semAcesso, pasta(semAcesso, hoje.minusDays(30), hoje.plusDays(2)));
+        aluno(membro, "Aluno K sem acesso e sem pasta");
 
         // Outra consultoria, com um aluno e uma pasta que também pediriam renovação: nada disso entra nas contas de cima.
         JsonNode outro = api.novoTreinador();
         UUID deFora = api.criarAluno(outro, "Aluno de outra consultoria");
+        api.convidarEEntrar(outro, deFora);
         api.post("/alunos/" + deFora + "/pastas", outro,
                 Map.of("titulo", "Pasta de fora", "inicio", hoje.minusDays(20), "fim", hoje.plusDays(1)), 200);
 
@@ -130,6 +143,11 @@ class PainelContagensIntegrationTest extends AbstractIntegrationTest {
         assertThat(primeiro.path("pasta").path("id").asString()).isNotEmpty();
         // Sem pasta vigente com período: todos os ativos menos A (B, C, D, E, F e H; G é inativo).
         assertThat(todos.path("alunosSemPastaComPeriodo").asLong()).isEqualTo(6);
+        // O plano do aluno sem acesso termina em 2 dias, mas só o do Aluno A (com acesso) aparece; os dois sem acesso contam só em alunosSemAcesso.
+        assertThat(todos.path("planosTerminando")).hasSize(1);
+        assertThat(todos.path("planosTerminando").get(0).path("aluno").path("nome").asString()).isEqualTo("Aluno A vigente a renovar");
+        assertThat(todos.path("alunosSemAcesso").asLong()).isEqualTo(2);
+        assertThat(todos.path("alunosAtivos").asLong()).isEqualTo(9);
 
         // meus=true: cada um só vê os seus.
         JsonNode meusDoAdmin = painel(admin, true);
@@ -152,7 +170,7 @@ class PainelContagensIntegrationTest extends AbstractIntegrationTest {
     @Test
     void listaDePastasARenovarTemTetoDeVinteMasAContagemPassa() throws Exception {
         for (int i = 0; i < 21; i++) {
-            UUID aluno = aluno(admin, "Aluno com pasta " + i);
+            UUID aluno = alunoComAcesso(admin, "Aluno com pasta " + i);
             pasta(aluno, hoje.minusDays(40), hoje.minusDays(i));
         }
         JsonNode p = painel(admin, false);
@@ -166,11 +184,13 @@ class PainelContagensIntegrationTest extends AbstractIntegrationTest {
     @Test
     void semRegistroContaAlemDoTetoDaListaEOutraConsultoriaNaoEntra() throws Exception {
         for (int i = 0; i < 21; i++) {
-            aluno(admin, "Aluno sem registro " + i);
+            alunoComAcesso(admin, "Aluno sem registro " + i);
         }
         for (int i = 0; i < 3; i++) {
-            aluno(membro, "Aluno sem registro do membro " + i);
+            alunoComAcesso(membro, "Aluno sem registro do membro " + i);
         }
+        // Sem acesso ao app: não registra, então não é "sem registro" (a contagem e a lista o deixam de fora).
+        aluno(admin, "Aluno sem acesso e sem registro");
         // Um aluno do administrador que registrou hoje fica de fora.
         UUID registrou = aluno(admin, "Aluno que registrou hoje");
         registrarHoje(registrou);
@@ -178,6 +198,10 @@ class PainelContagensIntegrationTest extends AbstractIntegrationTest {
         JsonNode todos = painel(admin, false);
         assertThat(todos.path("alunosSemRegistroTotal").asLong()).isEqualTo(24);
         assertThat(todos.path("alunosSemRegistro")).hasSize(20);
+        todos.path("alunosSemRegistro").forEach(i -> assertThat(i.path("nome").asString()).isNotEqualTo("Aluno sem acesso e sem registro"));
+        // Os ativos seguem todos (com e sem acesso): 21 + 3 + 1 que registrou + 1 sem acesso.
+        assertThat(todos.path("alunosAtivos").asLong()).isEqualTo(26);
+        assertThat(todos.path("alunosSemAcesso").asLong()).isEqualTo(1);
         JsonNode meusDoAdmin = painel(admin, true);
         assertThat(meusDoAdmin.path("alunosSemRegistroTotal").asLong()).isEqualTo(21);
         assertThat(meusDoAdmin.path("alunosSemRegistro")).hasSize(20);
@@ -259,7 +283,7 @@ class PainelContagensIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void semPermissaoAsContagensDePastaERegistroSaoNullNuncaZero() throws Exception {
-        UUID a = aluno(admin, "Aluno com pasta e sem registro");
+        UUID a = alunoComAcesso(admin, "Aluno com pasta e sem registro");
         pasta(a, hoje.minusDays(20), hoje.plusDays(1));
         JsonNode soPainel = membroCom(Set.of("PAINEL_VER", "ALUNO_LER"));
 
@@ -269,8 +293,9 @@ class PainelContagensIntegrationTest extends AbstractIntegrationTest {
         assertThat(p.path("alunosSemRegistroTotal").isNull()).isTrue();
         assertThat(p.path("pastasParaRenovar")).isEmpty();
         assertThat(p.path("alunosSemRegistro")).isEmpty();
-        // Sem acesso segue o alunosAtivos: sem permissão extra.
-        assertThat(p.path("alunosSemAcesso").asLong()).isEqualTo(1);
+        // Sem acesso segue o alunosAtivos: sem permissão extra (o aluno do teste já tem acesso: zero de verdade, nunca null).
+        assertThat(p.path("alunosSemAcesso").isNull()).isFalse();
+        assertThat(p.path("alunosSemAcesso").asLong()).isZero();
 
         JsonNode completo = painel(admin, false);
         assertThat(completo.path("pastasARenovar").asLong()).isEqualTo(1);

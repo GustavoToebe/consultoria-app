@@ -78,7 +78,7 @@ for (const largura of [390, 1280]) {
     test(`grade: agrupada por categoria, preço especial, Inativo e o editar (${largura}px, ${tema.toLowerCase()})`, async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page, { largura, tema });
       await expect(page.getByRole('heading', { level: 1, name: 'Vitrine' })).toBeVisible();
-      await expect(page.getByText('4 de 30 itens. Os alunos veem só os ativos, nesta ordem.')).toBeVisible();
+      await expect(page.getByText('4 itens · até 30. Os alunos veem só os ativos, nesta ordem.')).toBeVisible();
       await expect(page.getByRole('heading', { level: 3 })).toHaveText(['E-books', 'Roupas', 'Sem categoria']);
       await expect(page.getByRole('list', { name: 'Roupas' }).getByRole('listitem')).toHaveCount(2);
       await expect(page.getByText('Inativo', { exact: true })).toHaveCount(1);
@@ -397,7 +397,7 @@ test('excluir: pede confirmação no painel e manda a versão', async ({ page })
   const painel = page.getByRole('alertdialog', { name: 'Excluir este item?' });
   await painel.getByRole('button', { name: 'Excluir item' }).click();
   await expect(page.getByText('Item excluído.')).toBeVisible();
-  await expect(page.getByText('3 de 30 itens. Os alunos veem só os ativos, nesta ordem.')).toBeVisible();
+  await expect(page.getByText('3 itens · até 30. Os alunos veem só os ativos, nesta ordem.')).toBeVisible();
   const apagar = pedidos.find((p) => p.metodo === 'DELETE');
   expect(apagar?.caminho).toBe(`/vitrine/itens/${GARRAFA.id}`);
   expect(apagar?.busca.get('versao')).toBe('1');
@@ -409,7 +409,7 @@ for (const largura of [390, 1280]) {
   test(`teto: com 30 itens "Novo item" fica desabilitado com o motivo (${largura}px)`, async ({ page }) => {
     const trinta = Array.from({ length: 30 }, (_, k) => item(k + 1));
     const { naoTratadas, errosDaPagina } = await abrir(page, { itens: trinta, largura });
-    await expect(page.getByText('30 de 30 itens. Os alunos veem só os ativos, nesta ordem.')).toBeVisible();
+    await expect(page.getByText('30 itens · até 30. Os alunos veem só os ativos, nesta ordem.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Novo item' })).toBeDisabled();
     await expect(page.getByText(/A vitrine tem no máximo 30 itens/)).toBeVisible();
     expect(naoTratadas).toEqual([]);
@@ -419,7 +419,7 @@ for (const largura of [390, 1280]) {
 
 test('só leitura sem VITRINE_ALTERAR: sem criar, sem ordenar, folha sem ações', async ({ page }) => {
   const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, { permissoes: [...PERMISSOES_TREINADOR, 'VITRINE_LER'] });
-  await expect(page.getByText('4 de 30 itens. Os alunos veem só os ativos, nesta ordem.')).toBeVisible();
+  await expect(page.getByText('4 itens · até 30. Os alunos veem só os ativos, nesta ordem.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Novo item' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Organizar categorias' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Ações do item / })).toHaveCount(0);
@@ -468,7 +468,7 @@ test('erro: mostra a mensagem e "Tentar de novo" busca outra vez', async ({ page
   await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
   falhar = false;
   await page.getByRole('button', { name: 'Tentar de novo' }).click();
-  await expect(page.getByText('4 de 30 itens. Os alunos veem só os ativos, nesta ordem.')).toBeVisible();
+  await expect(page.getByText('4 itens · até 30. Os alunos veem só os ativos, nesta ordem.')).toBeVisible();
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });

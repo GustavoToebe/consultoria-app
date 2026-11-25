@@ -4,7 +4,7 @@ import { InterruptorDeLembretesDeCompromisso } from '../../aluno/compromissos/In
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { LARGURA_DA_COLUNA, PreferenciasDoApp } from '../../ui/PreferenciasDoApp';
+import { LARGURA_DA_COLUNA, PreferenciasDoApp, RestaurarPreferencias } from '../../ui/PreferenciasDoApp';
 import { Tela } from '../../ui/Tela';
 
 /**
@@ -24,7 +24,7 @@ export default function Ajustes() {
   const { pode } = useSessao();
   return (
     <Tela bordas={['top']} largura={LARGURA_DOS_AJUSTES} folga={width >= LARGURA_MENU_LATERAL ? espaco(3.5) : undefined}>
-      <Cabecalho titulo="Ajustes" descricao="Valem só neste aparelho e para a sua conta." />
+      <Cabecalho titulo="Aparência e preferências" descricao="Valem só neste aparelho e para a sua conta." acoes={<RestaurarPreferencias />} />
       <PreferenciasDoApp comTitulo={false} duasColunas extras={pode('AGENDA_LER') ? <InterruptorDeLembretesDeCompromisso /> : undefined} />
     </Tela>
   );

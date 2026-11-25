@@ -6,7 +6,6 @@ import Svg, { Circle, Text as SvgTexto } from 'react-native-svg';
 import type { FatiaDaRosca, RoscaDoPainel } from '../../dominio/painelDoInicio';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
-import { useDestaques } from '../../ui/NumeroDeDestaque';
 import { propsDeLink } from '../../ui/propsDeLink';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -14,7 +13,7 @@ import { Texto } from '../../ui/Texto';
 const RAIO_DA_ROSCA = 38;
 const TRACO = 18;
 const VOLTA = 2 * Math.PI * RAIO_DA_ROSCA;
-/** Vão entre fatias vizinhas (o fundo do anel aparece): verde, azul e cinza quase não diferem em luminosidade, e a cor não pode ser a única separação. */
+/** Vão entre fatias vizinhas (o fundo do anel aparece): os três cinzas se separam por luminosidade e pelo vão, nunca só pelo tom. */
 const FOLGA = 2;
 
 /**
@@ -25,8 +24,8 @@ const FOLGA = 2;
  */
 export function RoscaDosAlunos({ rosca }: { rosca: RoscaDoPainel }) {
   const { cores } = useTema();
-  const destaques = useDestaques();
-  const corDe = (cor: FatiaDaRosca['cor']) => (cor === 'neutro' ? cores.neutro : destaques[cor].cor);
+  // Neutra (25/11): graduação de cinza dos tokens de texto e de borda de campo; não há situação a pintar aqui.
+  const corDe = (cor: FatiaDaRosca['cor']) => (cor === 'forte' ? cores.texto : cor === 'medio' ? cores.textoSuave : cores.bordaCampo);
   const desenhar = rosca.desenhar && !rosca.vazia;
   const comFolga = rosca.fatias.filter((f) => f.fracao > 0).length > 1 ? FOLGA : 0;
   return (

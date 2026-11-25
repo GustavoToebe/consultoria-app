@@ -68,6 +68,7 @@ export default function AtualizacaoTreinador() {
     carregarFotoDaEquipe={a.id?(foto)=>baixarFotoDoTreinador(a.id??'',foto):undefined} />:null;
   return <Tela largura={duasColunas?LARGURA_LISTA:LARGURA_EDITOR} bordas={['top']}>
     <Cabecalho titulo={titulo}
+      descricao="O que o aluno enviou ao fim do período: leia as respostas e as fotos, responda com feedback e siga para a próxima da fila."
       voltar="/treinador/atualizacoes" trilha={[
         {rotulo:'Alunos',href:'/treinador/alunos'},
         {rotulo:a?.nomeAluno??'Aluno',href:a?`/treinador/alunos/${a.alunoId}`:undefined},

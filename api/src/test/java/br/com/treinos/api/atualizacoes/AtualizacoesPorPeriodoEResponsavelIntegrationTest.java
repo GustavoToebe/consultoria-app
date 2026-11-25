@@ -37,6 +37,7 @@ class AtualizacoesPorPeriodoEResponsavelIntegrationTest extends AbstractIntegrat
     private JsonNode admin;
     private JsonNode membro;
     private LocalDate hoje;
+    private final java.util.Map<UUID, JsonNode> logins = new java.util.HashMap<>();
 
     @BeforeEach
     void preparar() throws Exception {
@@ -56,7 +57,7 @@ class AtualizacoesPorPeriodoEResponsavelIntegrationTest extends AbstractIntegrat
         return login.path("usuario").path("id").asString();
     }
 
-    /** Aluno do responsável com uma pasta que termina em {@code fimDaPasta} e um treino publicado (a atualização nasce da pasta). */
+    /** Aluno do responsável, já com acesso ao app (só ele entra na lista), com uma pasta que termina em {@code fimDaPasta} e um treino publicado (a atualização nasce da pasta). */
     private UUID alunoDe(JsonNode responsavel, String nome, LocalDate fimDaPasta) throws Exception {
         JsonNode criado = api.post("/alunos", admin, Map.of("nome", nome, "responsavelId", id(responsavel)), 200);
         UUID aluno = UUID.fromString(criado.path("id").asString());
@@ -70,6 +71,7 @@ class AtualizacoesPorPeriodoEResponsavelIntegrationTest extends AbstractIntegrat
                 ApiDeTeste.rascunho("Treino fictício", ApiDeTeste.treino().conteudo(), plano.path("plano").path("versao").asLong()), 200);
         api.post("/planos-treino/" + planoId + "/publicar", admin,
                 Map.of("versao", salvo.path("plano").path("versao").asLong(), "confirmarAvisos", true), 200);
+        logins.put(aluno, api.convidarEEntrar(admin, aluno));
         return aluno;
     }
 
@@ -211,7 +213,7 @@ class AtualizacoesPorPeriodoEResponsavelIntegrationTest extends AbstractIntegrat
         // inexistente
         api.get("/atualizacoes?situacao=ATRASADAS&responsavel=" + UUID.randomUUID(), admin, 404);
         // o login do próprio aluno não é da equipe
-        JsonNode loginDoAluno = api.convidarEEntrar(admin, aluno);
+        JsonNode loginDoAluno = logins.get(aluno);
         api.get("/atualizacoes?situacao=ATRASADAS&responsavel=" + id(loginDoAluno), admin, 404);
         // membro de outra consultoria
         JsonNode outro = api.novoTreinador();

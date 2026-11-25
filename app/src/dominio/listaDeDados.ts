@@ -1,7 +1,7 @@
 /**
  * Regras da lista de dados (`ui/ListaDeDados`, 24/11; plano `docs/planos/ficha-lista-de-dados.md`): a largura da coluna
- * do rótulo, quando a lista empilha (rótulo em cima do valor, em todas as linhas juntas) e que pedaços do valor levam a
- * fonte numérica. Sem React: a peça mede a própria largura e pergunta aqui.
+ * do rótulo, quando a lista empilha (rótulo em cima do valor, em todas as linhas juntas) (a fonte numérica do valor é a de
+ * `ui/numerosNoTexto`, via `Texto numerico`). Sem React: a peça mede a própria largura e pergunta aqui.
  */
 
 /** Coluna do rótulo no texto normal: cabe "Questionário de atualização" numa linha só. */
@@ -34,29 +34,4 @@ export function linhaSemDivisoria(presentes: ReadonlySet<number>, total: number)
   if (total <= 0) return null;
   if (presentes.size === 0) return total - 1;
   return Math.max(...presentes);
-}
-
-export interface ParteDoValor {
-  texto: string;
-  numerico: boolean;
-}
-
-/** Um número com os separadores de dentro dele: "17/10/2026", "123.456.789-09", "18:38", "1.250,50". */
-const NUMERO = /\d(?:[\d.,/:-]*\d)?/g;
-
-/**
- * Só os números do valor levam a fonte numérica: "15 dias" → "15" + " dias"; "Padrão da consultoria (15 dias)" → o "15";
- * "(45) 99999-8888" → "45" e "99999-8888". Texto sem número sai numa parte só, normal.
- */
-export function partesNumericas(texto: string): ParteDoValor[] {
-  const partes: ParteDoValor[] = [];
-  let desde = 0;
-  for (const achado of texto.matchAll(NUMERO)) {
-    const inicio = achado.index ?? 0;
-    if (inicio > desde) partes.push({ texto: texto.slice(desde, inicio), numerico: false });
-    partes.push({ texto: achado[0], numerico: true });
-    desde = inicio + achado[0].length;
-  }
-  if (desde < texto.length || partes.length === 0) partes.push({ texto: texto.slice(desde), numerico: false });
-  return partes;
 }

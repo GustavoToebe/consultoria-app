@@ -542,7 +542,7 @@ function MarcaDoMenu({ marca }: { marca: Marca | null }) {
         )}
       </View>
       {larga ? null : (
-        <Texto numberOfLines={1} style={[estilos.nomeMenu, fonte ? { fontFamily: fonte } : null, metal && estilos.nomeMetal]}>{nome}</Texto>
+        <Texto numberOfLines={2} style={[estilos.nomeMenu, fonte ? { fontFamily: fonte } : null, metal && estilos.nomeMetal]}>{nome}</Texto>
       )}
     </View>
   );

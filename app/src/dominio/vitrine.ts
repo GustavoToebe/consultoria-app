@@ -1,7 +1,7 @@
 import type { DadosDoItem, ItemDaVitrine, ItemDaVitrineDoAluno, TipoDoItem } from '../api/vitrineTipos';
 import { hojeEmBrasilia } from './agendaPresencial';
 import { dataNaFaixa, mensagemDaFaixa } from './datasValidas';
-import { centavosDaTela, centavosParaCampo, centavosParaTela, dataParaTela } from './formatos';
+import { centavosDaTela, centavosParaCampo, centavosParaTela, dataParaTela, plural } from './formatos';
 import { VALOR_MAXIMO_CENTAVOS, type PlataformaDoApp } from './financeiro';
 import { erroDoLink } from './links';
 import { NOME_DA_VITRINE_DE_CONSULTORIAS } from './produto';
@@ -116,8 +116,8 @@ export function itensDoCartaoDoInicio(itens: readonly ItemDaVitrineDoAluno[], ma
 
 // ---- Teto e ordem ----
 
-/** "7 de 30" (o `total` é o que a lista da equipe trouxe, ativos e inativos). */
-export const contagemDeItens = (total: number): string => `${total} de ${TETO_DE_ITENS}`;
+/** "1 item · até 30", "7 itens · até 30" (o `total` é o que a lista da equipe trouxe, ativos e inativos). */
+export const contagemDeItens = (total: number): string => `${plural(total, 'item', 'itens')} · até ${TETO_DE_ITENS}`;
 
 /** Novo item só abaixo do teto (a API confere de novo: 409 `VITRINE_LIMITE`). */
 export function podeAdicionarItem(total: number): { pode: boolean; motivo: string | null } {

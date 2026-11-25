@@ -1,10 +1,12 @@
+import { OPCOES_DIAS_ANIVERSARIO } from './aniversariosDosAlunos';
+
 /**
  * Ids dos blocos do painel do Início e a preferência do "Editar". Fica à parte de `painelDoInicio.ts` para
  * `preferencias.ts` importar sem ciclo (`painelDoInicio` usa `agendaCalendario`, que usa `preferencias`).
  */
 
-/** Ordem padrão do painel (a do protótipo). */
-export const BLOCOS_DO_PAINEL = ['atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'financeiro', 'recebido', 'alunos'] as const;
+/** Ordem padrão do painel (a do protótipo); bloco novo entra sempre no fim (a normalização o acrescenta a quem já tem layout salvo). */
+export const BLOCOS_DO_PAINEL = ['atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'financeiro', 'recebido', 'alunos', 'aniversarios'] as const;
 export type BlocoDoPainelId = (typeof BLOCOS_DO_PAINEL)[number];
 
 /** Tamanho do bloco = colunas da grade que ele ocupa: Pequeno 1, Médio 2, Grande 3 (D2 e D5 de `docs/planos/inicio-editavel.md`). */
@@ -15,7 +17,7 @@ export const ehTamanhoDoBloco = (valor: unknown): valor is TamanhoDoBloco => val
 
 /** Tamanho de fábrica (D9 do painel): Agenda e Financeiro 2, as barras 3, o resto 1. */
 export const TAMANHO_PADRAO_DO_BLOCO: Record<BlocoDoPainelId, TamanhoDoBloco> = {
-  atualizacoes: 1, interessados: 1, treinos: 1, pastas: 1, agenda: 2, financeiro: 2, recebido: 3, alunos: 1,
+  atualizacoes: 1, interessados: 1, treinos: 1, pastas: 1, agenda: 2, financeiro: 2, recebido: 3, alunos: 1, aniversarios: 2,
 };
 
 /**
@@ -28,9 +30,23 @@ export interface PainelDoInicioPreferido {
   escondidos: BlocoDoPainelId[];
   meus: Partial<Record<BlocoDoPainelId, boolean>>;
   tamanhos?: Partial<Record<BlocoDoPainelId, TamanhoDoBloco>>;
+  /** Opção própria de cada bloco (hoje só os aniversários). A normalização sempre a grava por inteiro; ausente = o padrão. */
+  opcoes?: OpcoesDosBlocos;
 }
 
-export const PAINEL_DO_INICIO_PADRAO: PainelDoInicioPreferido = { ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {}, tamanhos: {} };
+/** "Mostrar aniversários de": 0 = só hoje, 3, 7 ou 15 dias (`OPCOES_DIAS_ANIVERSARIO`). */
+export type DiasDoAniversario = 0 | 3 | 7 | 15;
+export const DIAS_PADRAO_DO_ANIVERSARIO: DiasDoAniversario = 7;
+export const ehDiasDoAniversario = (valor: unknown): valor is DiasDoAniversario =>
+  typeof valor === 'number' && OPCOES_DIAS_ANIVERSARIO.includes(valor);
+
+export interface OpcoesDosBlocos {
+  aniversarios?: { dias: DiasDoAniversario };
+}
+
+export const PAINEL_DO_INICIO_PADRAO: PainelDoInicioPreferido = {
+  ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {}, tamanhos: {}, opcoes: { aniversarios: { dias: DIAS_PADRAO_DO_ANIVERSARIO } },
+};
 
 export const ehBlocoDoPainel = (valor: unknown): valor is BlocoDoPainelId =>
   typeof valor === 'string' && (BLOCOS_DO_PAINEL as readonly string[]).includes(valor);

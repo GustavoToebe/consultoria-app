@@ -45,6 +45,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { propsDeLink } from '../../ui/propsDeLink';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { NUMERICO } from '../../ui/tipografia';
 import { useCarregar } from '../../ui/useCarregar';
 import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 import { avisoDeConflito, copiarTexto, ehConflito } from './comum';
@@ -545,10 +546,10 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAces
               <Divisor />
               {/* O id encurtado; o inteiro vai na cópia e no leitor de tela, para conferir com quem pergunta pela cobrança. */}
               <View style={estilos.id}>
-                <Texto variante="pequeno" numerico accessibilityLabel={`ID da cobrança: ${cobranca.id}`}>ID {idEncurtado(cobranca.id)}</Texto>
+                <Texto variante="pequeno" accessibilityLabel={`ID da cobrança: ${cobranca.id}`}>ID <Texto variante="pequeno" style={NUMERICO}>{idEncurtado(cobranca.id)}</Texto></Texto>
                 <IconeBotao Icone={Copy} rotulo="Copiar ID da cobrança" aoTocar={copiarId} compacto />
               </View>
-              {idParaCopiarAMao ? <Texto variante="pequeno" numerico selectable>{cobranca.id}</Texto> : null}
+              {idParaCopiarAMao ? <Texto variante="pequeno" style={NUMERICO} selectable>{cobranca.id}</Texto> : null}
             </>
           ) : (
             <>

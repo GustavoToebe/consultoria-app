@@ -5,7 +5,7 @@ import { fixarHoje } from './aluno';
 import { estadoFinanceiro, rotasDoFinanceiro, sessaoComFinanceiro } from './financeiro-falso';
 
 /**
- * Larguras no PC (12/11): Ajustes e Novo aluno saíram da faixa estreita centralizada (1040 e 640) para a largura útil,
+ * Larguras no PC (12/11): Novo aluno saiu da faixa estreita centralizada (1040 e 640) para a largura útil,
  * com as colunas por assunto lado a lado quando o contêiner cabe; no celular, uma coluna na ordem de antes. Os campos não
  * esticam além de 560 px. Lembretes do Financeiro: aba própria (o Recebimento online é outra aba), o cartão segue com a
  * largura de formulário, alinhado ao cabeçalho. Menu aberto (o padrão). Só dados fictícios.
@@ -34,74 +34,7 @@ const PC = [[1920, 1080], [1440, 900]] as const;
 /** 1280 com o menu aberto: as colunas ainda cabem (o conteúdo é mais estreito que 1040, e antes também era). */
 const PC_COM_1280 = [...PC, [1280, 800]] as const;
 
-test.describe('Ajustes', () => {
-  async function abrir(page: Page, largura: number, altura: number) {
-    await page.setViewportSize({ width: largura, height: altura });
-    const { errosDaPagina } = await simularApi(page, {
-      ...(await sessao(page, TREINADOR, { unidadeDeCargaHabilitada: true })),
-      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
-    });
-    await page.goto('/treinador/ajustes');
-    await expect(page.getByRole('heading', { name: 'Ajustes', level: 1 })).toBeVisible();
-    await expect(page.getByRole('radiogroup', { name: 'Unidade da carga' })).toBeVisible();
-    return errosDaPagina;
-  }
-  const tema = (page: Page) => page.getByRole('radiogroup', { name: 'Tema' });
-  const contraste = (page: Page) => page.getByRole('radiogroup', { name: 'Contraste' });
-  const unidade = (page: Page) => page.getByRole('radiogroup', { name: 'Unidade da carga' });
-
-  for (const [largura, altura] of PC_COM_1280) test(`${largura} px: tema à esquerda, o resto à direita, mais largo que a faixa de 1040 a partir de 1440`, async ({ page }) => {
-    const errosDaPagina = await abrir(page, largura, altura);
-    await capturar(page, `ajustes-${largura}`);
-    const t = await caixa(tema(page));
-    const c = await caixa(contraste(page));
-    const u = await caixa(unidade(page));
-    // Lado a lado e começando na mesma altura (título dos dois cartões na mesma linha).
-    expect(c.x).toBeGreaterThan(t.x + t.width);
-    const tituloTema = await caixa(page.getByText('Tema', { exact: true }).first());
-    const tituloContraste = await caixa(page.getByText('Contraste', { exact: true }).first());
-    expect(Math.abs(tituloTema.y - tituloContraste.y)).toBeLessThan(4);
-    // A unidade fica na coluna da direita, embaixo do contraste.
-    expect(Math.abs(u.x - c.x)).toBeLessThan(2);
-    expect(u.y).toBeGreaterThan(c.y);
-    // O interruptor fica na borda direita da coluna da direita: ele marca até onde o conteúdo vai.
-    const bordas = await caixa(page.getByRole('switch', { name: 'Bordas reforçadas' }));
-    const direita = bordas.x + bordas.width;
-    if (largura >= 1440) expect(direita - t.x).toBeGreaterThan(1040);
-    // Nenhuma coluna passa de 720 px (o interruptor não se afasta do rótulo).
-    expect(direita - c.x).toBeLessThanOrEqual(720);
-    expect(t.width).toBeLessThanOrEqual(720);
-    // "Restaurar padrão" depois das duas colunas.
-    const restaurar = await caixa(page.getByRole('button', { name: 'Restaurar padrão' }));
-    expect(restaurar.y).toBeGreaterThan(u.y + u.height);
-    expect(restaurar.y).toBeGreaterThan(t.y + t.height);
-    await semRolagemHorizontal(page);
-    expect(errosDaPagina).toEqual([]);
-  });
-
-  test('390 px: uma coluna na ordem de antes (Tema, Contraste, ..., Unidade, Restaurar)', async ({ page }) => {
-    const errosDaPagina = await abrir(page, 390, 844);
-    const t = await caixa(tema(page));
-    const c = await caixa(contraste(page));
-    const u = await caixa(unidade(page));
-    expect(c.y).toBeGreaterThan(t.y + t.height);
-    expect(u.y).toBeGreaterThan(c.y + c.height);
-    expect(Math.abs(t.x - c.x)).toBeLessThan(2);
-    const restaurar = await caixa(page.getByRole('button', { name: 'Restaurar padrão' }));
-    expect(restaurar.y).toBeGreaterThan(u.y + u.height);
-    await semRolagemHorizontal(page);
-    await capturar(page, 'ajustes-390');
-    expect(errosDaPagina).toEqual([]);
-  });
-
-  test('1440 px no tema escuro: as duas colunas', async ({ page }) => {
-    await comTema(page, 'ESCURO');
-    const errosDaPagina = await abrir(page, 1440, 900);
-    expect((await caixa(contraste(page))).x).toBeGreaterThan((await caixa(tema(page))).x + 300);
-    await capturar(page, 'ajustes-1440-escuro');
-    expect(errosDaPagina).toEqual([]);
-  });
-});
+// Ajustes (Aparência e preferências): as larguras saíram daqui para `e2e/aparencia-e-preferencias.spec.ts` (25/11).
 
 test.describe('Novo aluno', () => {
   async function abrir(page: Page, largura: number, altura: number, permissoes = PERMISSOES_TREINADOR) {

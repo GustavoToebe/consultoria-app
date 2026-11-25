@@ -16,6 +16,7 @@ import { Cartao } from '../../ui/Cartao';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
+import { NUMERICO } from '../../ui/tipografia';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeAbrir } from '../treino/BotaoDeAbrir';
 
@@ -173,7 +174,7 @@ function ItemDeSuplementacao({ item: s, posicao, porcao, aoMudar, aoRemover }: {
           ) : null}
           {s.cupom ? (
             <>
-              <Texto numerico variante="suave">Cupom: {s.cupom}</Texto>
+              <Texto variante="suave">Cupom: <Texto variante="suave" style={NUMERICO}>{s.cupom}</Texto></Texto>
               <Botao rotulo="Tirar cupom" rotuloAcessivel={`Tirar cupom de ${nome}`} tipo="perigoTexto" aoTocar={() => aoMudar({ cupom: null })} />
             </>
           ) : null}

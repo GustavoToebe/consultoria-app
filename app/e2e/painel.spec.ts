@@ -199,10 +199,10 @@ test('Todos/Meus é de cada bloco, fica gravado e o Restaurar padrão limpa; atu
   const { pedidos } = await abrir(page);
   const filtro = page.getByRole('button', { name: /^Filtro de Interessados: mostrando só os meus alunos/ });
   await expect(filtro).toBeVisible();
-  await expect(page.getByText('Só os meus alunos')).toHaveCount(8);
+  await expect(page.getByText('Só os meus alunos')).toHaveCount(9);
   await filtro.click();
   await expect(page.getByRole('button', { name: /^Filtro de Interessados: mostrando todos os alunos/ })).toBeVisible();
-  await expect(page.getByText('Só os meus alunos')).toHaveCount(7);
+  await expect(page.getByText('Só os meus alunos')).toHaveCount(8);
   await expect.poll(() => pedidos.filter((p) => p.caminho === '/inscricoes/contagens' && p.busca.get('meus') === 'false').length).toBe(1);
   const agendaAntes = pedidos.filter((p) => p.caminho === '/agenda/resumo').length;
   const painelAntes = pedidos.filter((p) => p.caminho === '/painel').length;
@@ -213,13 +213,16 @@ test('Todos/Meus é de cada bloco, fica gravado e o Restaurar padrão limpa; atu
   // A escolha de cada bloco fica gravada: depois de recarregar, Interessados continua em Todos e os outros em Meus.
   await page.reload();
   await expect(page.getByRole('button', { name: /^Filtro de Interessados: mostrando todos os alunos/ })).toBeVisible();
-  await expect(page.getByText('Só os meus alunos')).toHaveCount(7);
+  await expect(page.getByText('Só os meus alunos')).toHaveCount(8);
   // Restaurar padrão, no Editar, devolve todos os blocos ao padrão do perfil (Meus, para quem não tem acesso total).
   await page.getByRole('button', { name: 'Editar os blocos do Início' }).click();
-  await page.getByRole('button', { name: 'Restaurar padrão' }).click();
+  await page.getByRole('button', { name: 'Restaurar padrão do Início' }).click();
+  await page.getByRole('alertdialog', { name: 'Restaurar o padrão?' }).getByRole('button', { name: 'Restaurar padrão' }).click();
+  // Só o Todos/Meus mudou: conta como alteração (o Salvar grava).
+  await expect(page.getByText('1 alteração', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Salvar o Início' }).click();
   await expect(page.getByRole('button', { name: /^Filtro de Interessados: mostrando só os meus alunos/ })).toBeVisible();
-  await expect(page.getByText('Só os meus alunos')).toHaveCount(8);
+  await expect(page.getByText('Só os meus alunos')).toHaveCount(9);
 });
 
 test('consulta que falhou e campo nulo mostram "Não carregou", nunca zero; Atualizar tenta de novo', async ({ page }) => {
@@ -279,15 +282,28 @@ test('as três Folhas: "Mostrando N de M" e a linha abre a ficha', async ({ page
 });
 
 /**
- * Início editável (frente B, `docs/planos/inicio-editavel.md`): edição em rascunho na própria grade, com Salvar, Cancelar e
- * Restaurar padrão; ocultar pela chave e mostrar pela bandeja "Blocos ocultos"; Subir/Descer e o tamanho (Pequeno, Médio,
- * Grande) também pelo teclado; tudo só neste aparelho.
+ * Início editável no próprio Início, estilo widgets (frente B de `docs/planos/inicio-editavel.md` e T-012 de 25/11): a mesma
+ * grade com o conteúdo de verdade esmaecido, uma barra por bloco (alça, nome, P·M·G, Ocultar e ⋯ com Subir/Descer e as
+ * opções do bloco), "Adicionar blocos" no fim com os ocultos e a barra de baixo (quantas alterações, "Restaurar padrão" com
+ * confirmação, Cancelar que pergunta e Salvar). Tudo é rascunho até salvar e fica só neste aparelho.
  */
 const botaoEditar = (page: Page) => page.getByRole('button', { name: 'Editar os blocos do Início' });
 const botaoSalvar = (page: Page) => page.getByRole('button', { name: 'Salvar o Início' });
 const botaoCancelar = (page: Page) => page.getByRole('button', { name: 'Cancelar a edição do Início' });
 const tamanho = (page: Page, titulo: string, rotulo: string) => page.getByLabel(`Tamanho de ${titulo}`, { exact: true }).getByRole('radio', { name: rotulo, exact: true });
+const ocultarBloco = (page: Page, titulo: string) => page.getByRole('button', { name: `Ocultar ${titulo}`, exact: true });
+const adicionar = (page: Page, titulo: string) => page.getByRole('button', { name: `Adicionar ${titulo} ao Início` });
+const anuncio = (page: Page, texto: string) => page.getByRole('status').getByText(texto, { exact: true });
+/** Escolhe um item do ⋯ do bloco (Subir, Descer ou um valor de opção). */
+async function noMenu(page: Page, titulo: string, item: string) {
+  await page.getByRole('button', { name: `Mais ações de ${titulo}` }).click();
+  await page.getByRole('menu', { name: `Mais ações de ${titulo}` }).getByRole(/^(Subir|Descer)$/.test(item) ? 'menuitem' : 'menuitemradio', { name: item, exact: true }).click();
+}
+/** Os blocos da grade em edição, na ordem. */
+const blocosEmEdicao = async (page: Page) => (await page.locator('[role="group"][aria-label]').evaluateAll((gs) => gs.map((g) => g.getAttribute('aria-label') ?? '')))
+  .filter((n) => NOVE.includes(n));
 const CHAVE_PREFERENCIAS = `treinos:${TREINADOR.id}:preferencias`;
+const NOVE = ['Atualizações', 'Interessados', 'Treinos', 'Pastas', 'Agenda', 'Financeiro', 'Recebido e lançamentos', 'Alunos', 'Aniversários'];
 
 /** Preferência inicial do aparelho; só grava se ainda não há nenhuma, para o recarregar não apagar o que a tela salvou. */
 async function preferir(page: Page, pref: object) {
@@ -301,35 +317,69 @@ const larguraDoBloco = (page: Page, titulo: string) => page.evaluate((t) => {
   const atualizar = document.querySelector(`[role="button"][aria-label="Atualizar ${t}"]`)!;
   return atualizar.getBoundingClientRect().right - h.getBoundingClientRect().left;
 }, titulo);
+const larguraEmEdicao = (page: Page, titulo: string) => page.getByRole('group', { name: titulo, exact: true }).evaluate((g) => g.getBoundingClientRect().width);
 
-test('Editar: ocultar e ordenar na grade, Salvar grava e continua depois de recarregar', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
-  const { errosDaPagina } = await abrir(page);
-  await expect(page.getByRole('heading', { name: 'Agenda', level: 2 })).toBeVisible();
-  await botaoEditar(page).click();
-  await expect(page.getByText('Nenhuma alteração ainda.')).toBeVisible();
-  // Em edição, o bloco não mostra dado nem ação dele: só a faixa, o tamanho, Subir/Descer e a chave.
-  await expect(page.getByRole('button', { name: 'Atualizar Agenda' })).toHaveCount(0);
-  await page.getByRole('switch', { name: 'Agenda aparece no Início' }).click();
-  await expect(page.getByText('Agenda saiu do Início. Está em Blocos ocultos.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Adicionar Agenda ao Início' })).toBeVisible();
-  // A posição conta só os blocos que aparecem.
-  await expect(page.getByRole('button', { name: 'Subir Atualizações (posição 1 de 7)' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Subir Alunos (posição 7 de 7)' }).click();
-  await expect(page.getByText('Alunos: posição 6 de 7.')).toBeVisible();
-  await botaoSalvar(page).click();
-  await expect(botaoSalvar(page)).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Agenda', level: 2 })).toHaveCount(0);
-  const ordem = ['Atualizações', 'Interessados', 'Treinos', 'Pastas', 'Financeiro', 'Alunos', 'Recebido e lançamentos'];
-  expect(await titulosDosBlocos(page)).toEqual(ordem);
-  expect((await preferenciaGravada(page)).escondidos).toEqual(['agenda']);
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Atualizações', level: 2 })).toBeVisible();
-  expect(await titulosDosBlocos(page)).toEqual(ordem);
-  expect(errosDaPagina).toEqual([]);
-});
+for (const largura of [390, 1280]) {
+  test(`Editar: o Início de verdade esmaecido; ocultar e ⋯ Subir contam alterações, Salvar grava e continua depois de recarregar (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await abrir(page);
+    await expect(page.getByRole('heading', { name: 'Agenda', level: 2 })).toBeVisible();
+    await botaoEditar(page).click();
+    await expect(page.getByText('Arraste, mude o tamanho ou oculte os blocos. Nada muda até você salvar.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Nenhuma alteração ainda', { exact: true })).toBeVisible();
+    expect(await blocosEmEdicao(page)).toEqual(NOVE);
+    // O conteúdo é o de verdade, esmaecido, fora do toque e do Tab; o formulário de antes não existe mais.
+    const conteudo = page.getByTestId('conteudo-do-bloco').first();
+    await expect(conteudo).toHaveCSS('opacity', '0.6');
+    await expect(conteudo).toHaveAttribute('inert', '');
+    await expect(conteudo.getByText('Para revisar', { exact: true })).toBeVisible();
+    await expect(page.getByRole('switch')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Adicionar blocos' })).toHaveCount(0);
 
-test('Editar: Cancelar descarta tudo e o Restaurar padrão só vale ao salvar', async ({ page }) => {
+    await ocultarBloco(page, 'Agenda').click();
+    await expect(anuncio(page, 'Agenda saiu do Início. Está em Adicionar blocos.')).toBeAttached();
+    await expect(adicionar(page, 'Agenda')).toBeVisible();
+    await expect(page.getByText('1 alteração', { exact: true })).toBeVisible();
+    await noMenu(page, 'Alunos', 'Subir');
+    await expect(anuncio(page, 'Alunos, posição 6 de 8')).toBeAttached();
+    await expect(page.getByText('2 alterações', { exact: true })).toBeVisible();
+    await botaoSalvar(page).click();
+    await expect(botaoSalvar(page)).toHaveCount(0);
+    const ordem = ['Atualizações', 'Interessados', 'Treinos', 'Pastas', 'Financeiro', 'Alunos', 'Recebido e lançamentos', 'Aniversários'];
+    expect(await titulosDosBlocos(page)).toEqual(ordem);
+    expect((await preferenciaGravada(page)).escondidos).toEqual(['agenda']);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Atualizações', level: 2 })).toBeVisible();
+    expect(await titulosDosBlocos(page)).toEqual(ordem);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`Editar: "+ Adicionar" põe o bloco no fim da grade, visível, já com o dado; sem ocultos a faixa some (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await preferir(page, { painelDoInicio: { ordem: [], escondidos: ['agenda', 'interessados'], meus: {} } });
+    const { pedidos } = await abrir(page);
+    await expect(page.getByRole('link', { name: 'Atualizações para revisar: 3' })).toBeVisible();
+    const daAgenda = () => pedidos.filter((p) => p.caminho === '/agenda/resumo').length;
+    expect(daAgenda()).toBe(0);
+    await botaoEditar(page).click();
+    await expect(page.getByRole('heading', { name: 'Adicionar blocos' })).toBeVisible();
+    await expect(adicionar(page, 'Interessados')).toBeVisible();
+    // A Agenda guardava o lugar antigo (5º): ao voltar, entra no fim, já visível, e busca o dado dela na edição.
+    await adicionar(page, 'Agenda').click();
+    await expect(anuncio(page, 'Agenda, posição 8 de 8')).toBeAttached();
+    expect((await blocosEmEdicao(page)).at(-1)).toBe('Agenda');
+    await expect.poll(daAgenda).toBeGreaterThan(0);
+    await expect(page.getByRole('group', { name: 'Agenda', exact: true }).getByText('Esta semana', { exact: true })).toBeVisible();
+    await adicionar(page, 'Interessados').click();
+    await expect(page.getByRole('heading', { name: 'Adicionar blocos' })).toHaveCount(0);
+    expect((await blocosEmEdicao(page)).slice(-2)).toEqual(['Agenda', 'Interessados']);
+    await botaoSalvar(page).click();
+    expect((await titulosDosBlocos(page)).slice(-2)).toEqual(['Agenda', 'Interessados']);
+    await expect(page.getByRole('link', { name: 'Compromissos nesta semana, de segunda a domingo: 9' })).toBeVisible();
+  });
+}
+
+test('Editar: Cancelar com alteração pergunta; Restaurar padrão pede confirmação e só vale ao salvar', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await preferir(page, { painelDoInicio: { ordem: [], escondidos: ['agenda'], meus: {}, tamanhos: { alunos: 3 } } });
   await abrir(page);
@@ -337,17 +387,31 @@ test('Editar: Cancelar descarta tudo e o Restaurar padrão só vale ao salvar', 
   await expect(page.getByRole('heading', { name: 'Agenda', level: 2 })).toHaveCount(0);
 
   await botaoEditar(page).click();
-  await page.getByRole('button', { name: 'Restaurar padrão' }).click();
-  await expect(page.getByText(/^Padrão restaurado/)).toBeVisible();
-  await expect(page.getByText('Alterações ainda não salvas.')).toHaveCount(0);
-  await expect(page.getByRole('switch', { name: 'Agenda aparece no Início' })).toBeVisible();
-  await expect(tamanho(page, 'Alunos', 'Pequeno')).toHaveAttribute('aria-checked', 'true');
+  // Sem alteração, Cancelar sai na hora.
   await botaoCancelar(page).click();
-  await expect(page.getByRole('heading', { name: 'Agenda', level: 2 })).toHaveCount(0);
-  expect(await preferenciaGravada(page)).toEqual({ ordem: expect.any(Array), escondidos: ['agenda'], meus: {}, tamanhos: { alunos: 3 } });
+  await expect(botaoSalvar(page)).toHaveCount(0);
 
   await botaoEditar(page).click();
-  await page.getByRole('button', { name: 'Restaurar padrão' }).click();
+  await page.getByRole('button', { name: 'Restaurar padrão do Início' }).click();
+  const confirmar = page.getByRole('alertdialog', { name: 'Restaurar o padrão?' });
+  await confirmar.getByRole('button', { name: 'Continuar editando' }).click();
+  await expect(page.getByText('Nenhuma alteração ainda', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Restaurar padrão do Início' }).click();
+  await confirmar.getByRole('button', { name: 'Restaurar padrão' }).click();
+  await expect(page.getByText('2 alterações', { exact: true })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Agenda', exact: true })).toBeVisible();
+  await expect(tamanho(page, 'Alunos', 'Pequeno')).toHaveAttribute('aria-checked', 'true');
+  // Com alteração, Cancelar pergunta; "Continuar" fica, "Sair sem salvar" descarta.
+  await botaoCancelar(page).click();
+  const sair = page.getByRole('alertdialog', { name: /Sair sem salvar/ });
+  await expect(sair).toBeVisible();
+  await sair.getByRole('button', { name: /^Sair sem salvar/ }).click();
+  await expect(page.getByRole('heading', { name: 'Agenda', level: 2 })).toHaveCount(0);
+  expect(await preferenciaGravada(page)).toMatchObject({ escondidos: ['agenda'], tamanhos: { alunos: 3 } });
+
+  await botaoEditar(page).click();
+  await page.getByRole('button', { name: 'Restaurar padrão do Início' }).click();
+  await confirmar.getByRole('button', { name: 'Restaurar padrão' }).click();
   await botaoSalvar(page).click();
   await expect(page.getByRole('heading', { name: 'Agenda', level: 2 })).toBeVisible();
   await page.reload();
@@ -355,18 +419,20 @@ test('Editar: Cancelar descarta tudo e o Restaurar padrão só vale ao salvar', 
   expect(await preferenciaGravada(page)).toMatchObject({ escondidos: [], meus: {}, tamanhos: {} });
 });
 
-test('Editar: o tamanho muda a largura do bloco na grade e fica gravado', async ({ page }) => {
+test('Editar: P·M·G muda a largura do bloco na hora (prévia) e fica gravado', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await abrir(page);
   await expect(page.getByRole('heading', { name: 'Alunos', level: 2 })).toBeVisible();
   const umaColuna = await larguraDoBloco(page, 'Pastas');
   await botaoEditar(page).click();
+  const antes = await larguraEmEdicao(page, 'Alunos');
   await tamanho(page, 'Alunos', 'Grande').click();
-  await expect(page.getByText('Alunos: Grande.')).toBeVisible();
   await expect(tamanho(page, 'Alunos', 'Grande')).toHaveAttribute('aria-checked', 'true');
+  // Prévia ao vivo: Grande = as 3 colunas da grade em 1280, já na edição.
+  await expect.poll(() => larguraEmEdicao(page, 'Alunos')).toBeGreaterThan(antes * 2.5);
+  await expect(page.getByText('1 alteração', { exact: true })).toBeVisible();
   await botaoSalvar(page).click();
   await expect(page.getByRole('button', { name: 'Atualizar Alunos' })).toBeVisible();
-  // Grande = as 3 colunas da grade em 1280.
   expect(await larguraDoBloco(page, 'Alunos')).toBeGreaterThan(umaColuna * 2.5);
   expect(await preferenciaGravada(page)).toMatchObject({ tamanhos: { alunos: 3 } });
   await page.reload();
@@ -374,89 +440,93 @@ test('Editar: o tamanho muda a largura do bloco na grade e fica gravado', async 
   expect(await larguraDoBloco(page, 'Alunos')).toBeGreaterThan(umaColuna * 2.5);
 });
 
-test('preferência gravada antes dos tamanhos: ordem e ocultos continuam e os tamanhos são os de fábrica', async ({ page }) => {
+test('Editar: arrastar um bloco pela alça muda a ordem (1280)', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await abrir(page);
+  await expect(page.getByRole('heading', { name: 'Atualizações', level: 2 })).toBeVisible();
+  await botaoEditar(page).click();
+  const alca = page.getByRole('group', { name: 'Atualizações', exact: true }).getByTestId('alca-de-arraste');
+  const alvo = (await page.getByRole('group', { name: 'Treinos', exact: true }).boundingBox())!;
+  const de = (await alca.boundingBox())!;
+  await page.mouse.move(de.x + de.width / 2, de.y + de.height / 2);
+  await page.mouse.down();
+  for (let k = 1; k <= 12; k += 1) {
+    await page.mouse.move(de.x + ((alvo.x + alvo.width / 2 - de.x) * k) / 12, de.y + ((alvo.y + 60 - de.y) * k) / 12);
+  }
+  await page.mouse.up();
+  await expect(anuncio(page, 'Atualizações, posição 3 de 9')).toBeAttached();
+  expect((await blocosEmEdicao(page)).slice(0, 3)).toEqual(['Interessados', 'Treinos', 'Atualizações']);
+  await expect(page.getByText('1 alteração', { exact: true })).toBeVisible();
+});
+
+test('preferência gravada antes dos tamanhos e do bloco Aniversários: ordem e ocultos continuam, tamanhos de fábrica e Aniversários por último', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await preferir(page, { painelDoInicio: { ordem: ['alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'financeiro', 'recebido'], escondidos: ['treinos'], meus: {} } });
   const { errosDaPagina } = await abrir(page);
   await expect(page.getByRole('heading', { name: 'Alunos', level: 2 })).toBeVisible();
-  expect(await titulosDosBlocos(page)).toEqual(['Alunos', 'Atualizações', 'Interessados', 'Pastas', 'Agenda', 'Financeiro', 'Recebido e lançamentos']);
+  expect(await titulosDosBlocos(page)).toEqual(['Alunos', 'Atualizações', 'Interessados', 'Pastas', 'Agenda', 'Financeiro', 'Recebido e lançamentos', 'Aniversários']);
   await botaoEditar(page).click();
   await expect(tamanho(page, 'Agenda', 'Médio')).toHaveAttribute('aria-checked', 'true');
   await expect(tamanho(page, 'Recebido e lançamentos', 'Grande')).toHaveAttribute('aria-checked', 'true');
   await expect(tamanho(page, 'Alunos', 'Pequeno')).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByRole('button', { name: 'Adicionar Treinos ao Início' })).toBeVisible();
+  await expect(adicionar(page, 'Treinos')).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });
 
-test('Editar só pelo teclado: cada ação devolve o foco a um lugar certo e é anunciada', async ({ page }) => {
+test('Editar só pelo teclado, sem arrastar: cada ação devolve o foco a um lugar certo e anuncia a posição', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await abrir(page);
   await expect(page.getByRole('heading', { name: 'Atualizações', level: 2 })).toBeVisible();
   await botaoEditar(page).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: 'Restaurar padrão' })).toBeFocused();
+  // O foco cai na barra do primeiro bloco (o tamanho escolhido dele).
+  await expect(tamanho(page, 'Atualizações', 'Pequeno')).toBeFocused();
 
-  await page.getByRole('button', { name: 'Descer Atualizações (posição 1 de 8)' }).focus();
+  const mais = page.getByRole('button', { name: 'Mais ações de Atualizações' });
+  await mais.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Atualizações: posição 2 de 8.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Descer Atualizações (posição 2 de 8)' })).toBeFocused();
+  const menu = page.getByRole('menu', { name: 'Mais ações de Atualizações' });
+  // Subir está desligado (já é o primeiro): o foco vai ao Descer.
+  await expect(menu.getByRole('menuitem', { name: 'Subir' })).toHaveAttribute('aria-disabled', 'true');
+  await expect(menu.getByRole('menuitem', { name: 'Descer' })).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: 'Descer Atualizações (posição 3 de 8)' })).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  await expect(page.getByRole('button', { name: 'Subir Atualizações (posição 3 de 8)' })).toBeFocused();
+  await expect(anuncio(page, 'Atualizações, posição 2 de 9')).toBeAttached();
+  await expect(mais).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Atualizações: posição 2 de 8.')).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'Subir' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(mais).toBeFocused();
 
-  await page.getByRole('switch', { name: 'Interessados aparece no Início' }).focus();
-  await page.keyboard.press('Space');
-  await expect(page.getByText('Interessados saiu do Início. Está em Blocos ocultos.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Adicionar Interessados ao Início' })).toBeFocused();
+  await ocultarBloco(page, 'Interessados').focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Interessados voltou ao Início.')).toBeVisible();
-  await expect(page.getByRole('switch', { name: 'Interessados aparece no Início' })).toBeFocused();
+  await expect(anuncio(page, 'Interessados saiu do Início. Está em Adicionar blocos.')).toBeAttached();
+  await expect(adicionar(page, 'Interessados')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(anuncio(page, 'Interessados, posição 9 de 9')).toBeAttached();
+  await expect(tamanho(page, 'Interessados', 'Pequeno')).toBeFocused();
 
   await tamanho(page, 'Treinos', 'Médio').focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Treinos: Médio.')).toBeVisible();
   await expect(tamanho(page, 'Treinos', 'Médio')).toHaveAttribute('aria-checked', 'true');
+  await expect(tamanho(page, 'Treinos', 'Médio')).toBeFocused();
 
   await botaoSalvar(page).focus();
   await page.keyboard.press('Enter');
   await expect(botaoEditar(page)).toBeFocused();
-  expect(await titulosDosBlocos(page)).toEqual(['Interessados', 'Atualizações', 'Treinos', 'Pastas', 'Agenda', 'Financeiro', 'Recebido e lançamentos', 'Alunos']);
+  expect(await titulosDosBlocos(page)).toEqual(['Atualizações', 'Treinos', 'Pastas', 'Agenda', 'Financeiro', 'Recebido e lançamentos', 'Alunos', 'Aniversários', 'Interessados']);
   expect(await preferenciaGravada(page)).toMatchObject({ tamanhos: { treinos: 2 } });
 });
 
-test('bloco oculto não busca dados, nem durante a edição; mostrado e salvo, busca', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await preferir(page, { painelDoInicio: { ordem: [], escondidos: ['agenda'], meus: {} } });
-  const { pedidos } = await abrir(page);
-  await expect(page.getByRole('heading', { name: 'Atualizações', level: 2 })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Atualizações para revisar: 3' })).toBeVisible();
-  const daAgenda = () => pedidos.filter((p) => p.caminho === '/agenda/resumo').length;
-  expect(daAgenda()).toBe(0);
-  await botaoEditar(page).click();
-  await page.getByRole('button', { name: 'Adicionar Agenda ao Início' }).click();
-  await expect(page.getByRole('switch', { name: 'Agenda aparece no Início' })).toBeVisible();
-  expect(daAgenda()).toBe(0);
-  await botaoSalvar(page).click();
-  await expect.poll(daAgenda).toBeGreaterThan(0);
-  await expect(page.getByRole('link', { name: 'Compromissos nesta semana, de segunda a domingo: 9' })).toBeVisible();
-});
-
-test('Editar sem permissão: o bloco que o perfil não vê não aparece nem na grade em edição nem na bandeja', async ({ page }) => {
+test('Editar sem permissão: o bloco que o perfil não vê não aparece nem na grade em edição nem em Adicionar blocos', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await preferir(page, { painelDoInicio: { ordem: [], escondidos: ['agenda'], meus: {} } });
   const { pedidos } = await abrir(page, { permissoes: [...PERMISSOES_TREINADOR, 'FINANCEIRO_LER'], financeiro: false });
   await expect(page.getByRole('heading', { name: 'Interessados', level: 2 })).toBeVisible();
   await botaoEditar(page).click();
-  await expect(page.getByRole('button', { name: 'Descer Interessados (posição 1 de 2)' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Subir Alunos (posição 2 de 2)' })).toBeVisible();
-  for (const t of ['Agenda', 'Financeiro', 'Treinos', 'Atualizações']) {
-    await expect(page.getByRole('switch', { name: `${t} aparece no Início` })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: `Adicionar ${t} ao Início` })).toHaveCount(0);
-  }
-  await expect(page.getByText('Nenhum bloco oculto.')).toBeVisible();
+  expect(await blocosEmEdicao(page)).toEqual(['Interessados', 'Alunos', 'Aniversários']);
+  for (const t of ['Agenda', 'Financeiro', 'Treinos', 'Atualizações']) await expect(adicionar(page, t)).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Adicionar blocos' })).toHaveCount(0);
   expect(pedidos.some((p) => /^\/(financeiro|agenda|recordes)/.test(p.caminho))).toBe(false);
 });
 
@@ -465,11 +535,9 @@ test('Editar com tudo oculto: a grade diz onde adicionar e o Início salvo vazio
   await abrir(page);
   await expect(page.getByRole('heading', { name: 'Atualizações', level: 2 })).toBeVisible();
   await botaoEditar(page).click();
-  for (const t of ['Atualizações', 'Interessados', 'Treinos', 'Pastas', 'Agenda', 'Financeiro', 'Recebido e lançamentos', 'Alunos']) {
-    await page.getByRole('switch', { name: `${t} aparece no Início` }).click();
-  }
-  await expect(page.getByText('Nenhum bloco aparece no Início. Adicione um em Blocos ocultos.')).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Adicionar .* ao Início$/ })).toHaveCount(8);
+  for (const t of NOVE) await ocultarBloco(page, t).click();
+  await expect(page.getByText('Nenhum bloco no Início. Adicione um abaixo.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Adicionar .* ao Início$/ })).toHaveCount(9);
   await botaoSalvar(page).click();
   await expect(page.getByText('Nenhum bloco ligado. Use "Editar" para escolher o que aparece aqui.')).toBeVisible();
   await expect(botaoEditar(page)).toBeEnabled();
@@ -486,42 +554,47 @@ test('sem internet ao abrir: o Editar continua liberado (a lista vem do perfil s
   await expect(botaoEditar(page)).toBeEnabled();
   await expect(page.getByText('Precisa de internet.')).toHaveCount(0);
   await botaoEditar(page).click();
-  // Os blocos oferecidos são os do perfil salvo, sem consulta de rede.
-  await expect(page.getByRole('switch', { name: 'Agenda aparece no Início' })).toBeVisible();
-  await page.getByRole('switch', { name: 'Agenda aparece no Início' }).click();
+  await ocultarBloco(page, 'Agenda').click();
   await botaoSalvar(page).click();
   await expect(botaoSalvar(page)).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Agenda', level: 2 })).toHaveCount(0);
   expect((await preferenciaGravada(page)).escondidos).toEqual(['agenda']);
 });
 
-test('no celular (390px) a edição não trava a rolagem: sem arrastar, Subir/Descer e sem rolagem lateral', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 900 });
+test('no celular (390px): uma coluna, sem arrastar nem P·M·G, ⋯ com Subir/Descer, sem rolagem lateral e a barra baixa', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await abrir(page);
   await expect(page.getByRole('heading', { name: 'Atualizações', level: 2 })).toBeVisible();
   await botaoEditar(page).click();
-  await expect(page.getByText(/^Use Subir e Descer para mudar a ordem\./)).toBeVisible();
+  await expect(page.getByText('Nenhuma alteração ainda', { exact: true })).toBeVisible();
   const medida = await page.evaluate(() => ({
     rolagem: document.documentElement.scrollWidth - window.innerWidth,
     semToque: [...document.querySelectorAll('*')].filter((e) => getComputedStyle(e).touchAction === 'none').length,
   }));
   expect(medida.rolagem).toBeLessThanOrEqual(0);
   expect(medida.semToque).toBe(0);
-  // Salvar e Cancelar empilhados abaixo de 768 px, o principal em cima (`RodapeDeAcoes empilhar`).
+  await expect(page.getByTestId('alca-de-arraste')).toHaveCount(0);
+  await expect(page.getByRole('radiogroup', { name: /^Tamanho de / })).toHaveCount(0);
+  await noMenu(page, 'Interessados', 'Subir');
+  await expect(anuncio(page, 'Interessados, posição 1 de 9')).toBeAttached();
+  // Cancelar e Salvar lado a lado, Salvar à direita, com alvo de 44; o estado e o Restaurar na linha de cima.
   const s = (await botaoSalvar(page).boundingBox())!;
   const c = (await botaoCancelar(page).boundingBox())!;
-  expect(s.y).toBeLessThan(c.y);
-  expect(Math.min(s.height, c.height)).toBeGreaterThanOrEqual(43.5);
+  const r = (await page.getByRole('button', { name: 'Restaurar padrão do Início' }).boundingBox())!;
+  expect(Math.abs(s.y - c.y)).toBeLessThan(1);
+  expect(s.x).toBeGreaterThan(c.x);
+  expect(Math.min(s.height, c.height, r.height)).toBeGreaterThanOrEqual(43.5);
+  expect(r.y + r.height).toBeLessThanOrEqual(c.y + 0.5);
 });
 
-// Capturas do Início normal e em edição (com um bloco na bandeja), claro e escuro, de 390 a 1920, e com o texto extra grande.
+// Capturas do Início normal e em edição (com dois blocos em "Adicionar blocos"), claro e escuro, de 390 a 1920, e com o texto extra grande.
 const CAPTURAS_DA_EDICAO: [number, 'CLARO' | 'ESCURO' | 'AREIA', 'PADRAO' | 'EXTRA' | 'ALTO'][] = [
   [1280, 'CLARO', 'PADRAO'], [1280, 'ESCURO', 'PADRAO'], [390, 'CLARO', 'PADRAO'], [390, 'ESCURO', 'PADRAO'],
   [768, 'CLARO', 'PADRAO'], [1920, 'CLARO', 'PADRAO'], [1280, 'CLARO', 'EXTRA'], [390, 'ESCURO', 'EXTRA'],
   [1280, 'AREIA', 'PADRAO'], [1280, 'ESCURO', 'ALTO'], [390, 'CLARO', 'ALTO'],
 ];
 for (const [largura, tema, texto] of CAPTURAS_DA_EDICAO) {
-  test(`Início em edição em ${largura}px, tema ${tema.toLowerCase()}, ${texto === 'ALTO' ? 'contraste alto' : `texto ${texto.toLowerCase()}`}: sem rolagem lateral, bandeja visível (capturas)`, async ({ page }) => {
+  test(`Início em edição em ${largura}px, tema ${tema.toLowerCase()}, ${texto === 'ALTO' ? 'contraste alto' : `texto ${texto.toLowerCase()}`}: sem rolagem lateral, Adicionar blocos visível acima da barra (capturas)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const aparencia = texto === 'ALTO' ? { contraste: 'ALTO' } : { tamanhoTexto: texto };
     await preferir(page, { tema, ...aparencia, painelDoInicio: { ordem: [], escondidos: ['agenda'], meus: {} } });
@@ -531,18 +604,18 @@ for (const [largura, tema, texto] of CAPTURAS_DA_EDICAO) {
     const nome = `${process.env.CAPTURAS}/inicio-editavel-${largura}-${tema.toLowerCase()}${sufixo}`;
     if (process.env.CAPTURAS) await page.screenshot({ path: `${nome}-normal.png` });
     await botaoEditar(page).click();
-    await expect(page.getByRole('button', { name: 'Restaurar padrão' })).toBeVisible();
+    await expect(page.getByText('Nenhuma alteração ainda', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
     if (process.env.CAPTURAS) await page.screenshot({ path: `${nome}-edicao.png` });
-    await page.getByRole('switch', { name: 'Pastas aparece no Início' }).click();
-    const bandeja = page.getByRole('button', { name: 'Adicionar Agenda ao Início' });
-    await bandeja.scrollIntoViewIfNeeded();
-    await expect(bandeja).toBeInViewport();
-    // A barra fixa não cobre o botão da bandeja (WCAG 2.4.11).
-    const b = (await bandeja.boundingBox())!;
-    const barra = (await botaoCancelar(page).boundingBox())!;
-    expect(b.y + b.height).toBeLessThanOrEqual(Math.min(barra.y, (await botaoSalvar(page).boundingBox())!.y) + 0.5);
-    if (process.env.CAPTURAS) await page.screenshot({ path: `${nome}-bandeja.png` });
+    await ocultarBloco(page, 'Pastas').click();
+    const faixa = adicionar(page, 'Agenda');
+    await faixa.scrollIntoViewIfNeeded();
+    await expect(faixa).toBeInViewport();
+    // A barra fixa não cobre o botão de adicionar (WCAG 2.4.11).
+    const b = (await faixa.boundingBox())!;
+    const barra = Math.min((await botaoCancelar(page).boundingBox())!.y, (await page.getByRole('button', { name: 'Restaurar padrão do Início' }).boundingBox())!.y);
+    expect(b.y + b.height).toBeLessThanOrEqual(barra + 0.5);
+    if (process.env.CAPTURAS) await page.screenshot({ path: `${nome}-adicionar.png` });
     expect(errosDaPagina).toEqual([]);
   });
 }
@@ -638,6 +711,31 @@ test('Início sem alunos: só a frase, sem contadores, com os Primeiros passos e
   await expect(page.getByText('Cadastre um aluno primeiro.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Editar os blocos do Início' })).toBeDisabled();
   await expect(page.getByText('O painel aparece quando houver alunos.')).toBeVisible();
+});
+
+for (const largura of [390, 1280]) {
+  test(`aluno sem acesso é o Próximo passo: "N alunos ainda não têm acesso" e "Enviar convites" abre a lista Sem acesso (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await abrir(page);
+    // Vem antes das atualizações para revisar (3) e das atrasadas (2) do mesmo painel; o plural é o de 3 alunos.
+    await expect(page.getByText('3 alunos ainda não têm acesso.')).toBeVisible();
+    await expect(page.getByText('3 atualizações chegaram para revisar.')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Enviar convites' }).click();
+    await expect(page).toHaveURL(/\/treinador\/alunos\?.*acesso=SEM/);
+    expect(errosDaPagina.filter((e) => !/\/alunos/.test(e))).toEqual([]);
+  });
+}
+
+test('aluno sem acesso: um só no singular; sem a permissão de convidar o passo não aparece', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await abrir(page, { painel: { ...PAINEL, alunosSemAcesso: 1 } });
+  await expect(page.getByText('1 aluno ainda não tem acesso.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Enviar convite', exact: true })).toBeVisible();
+  // Sem ALUNO_CONVITE o treinador não tem como convidar: o passo some e volta o das atualizações.
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await abrir(page, { permissoes: TODAS.filter((c) => c !== 'ALUNO_CONVITE') });
+  await expect(page.getByText(/ainda não têm? acesso\./)).toHaveCount(0);
+  await expect(page.getByText('3 atualizações chegaram para revisar.')).toBeVisible();
 });
 
 test('Início sem alunos e sem os Primeiros passos: o Próximo passo pede o primeiro aluno', async ({ page }) => {

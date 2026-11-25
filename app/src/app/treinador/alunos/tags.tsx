@@ -10,7 +10,7 @@ import { Tela } from '../../../ui/Tela';
 export default function TagsDosAlunos() {
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Tags dos alunos" voltar="/treinador/configuracoes"
+      <Cabecalho titulo="Tags dos alunos" descricao="Rótulos só da equipe, para achar e filtrar alunos; o aluno não os vê. Crie, renomeie, troque a cor ou apague, sem usar para dado de saúde." voltar="/treinador/configuracoes"
         trilha={[{ rotulo: 'Configurações', href: '/treinador/configuracoes' }, { rotulo: 'Tags dos alunos' }]} />
       <CartaoTagsDosAlunos />
     </Tela>

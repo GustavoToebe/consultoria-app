@@ -36,7 +36,7 @@ import { useFaixaDaTela } from '../../ui/Tela';
 import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 
 /**
- * Início do aluno: o resumo do dia. Marca e "Olá", a faixa "Treino em andamento" (só com o retorno ligado e só quando o
+ * Início do aluno: o resumo do dia. Marca (só no celular; com o menu lateral ela fica no menu) e "Olá", a faixa "Treino em andamento" (só com o retorno ligado e só quando o
  * treino começado não é o do Hoje) e, em qualquer largura, o cartão Hoje primeiro (o único primário); depois a dieta compacta
  * com a água, a água do dia (só com meta na dieta), as pendências, os próximos compromissos presenciais (só leitura), a
  * semana, o nível e o mapa de treinos do ano (os dois só com o retorno ligado). Arranjo por largura em `dominio/arranjoDoInicio`. A lista de divisões, o PDF e

@@ -166,7 +166,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   return (
     <TelaDoEditor
       colunas={!unica}
-      cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={modelo ? undefined : estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />}
+      cabecalho={<Cabecalho titulo={titulo} descricao={modelo ? 'O molde que você reaproveita: monte aqui e aplique a um aluno, que recebe uma cópia sem ligação com o modelo.' : 'Monte as refeições, os alimentos e a suplementação em rascunho. O aluno só vê o que você publica, e cada publicação vira uma versão.'} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={modelo ? undefined : estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />}
       barra={modelo ? <BarraDoModeloDoEditor editor={editor} receita={receita} /> : <BarraDoPlano tipo="dieta" editor={editor} aoProblemas={setProblemas} />}>
       {/* Plano de uma pasta: volta à Folha dela e lê a atualização sem perder o rascunho (reunião de 30/10). */}
       {!modelo && estado.plano.pastaId ? (

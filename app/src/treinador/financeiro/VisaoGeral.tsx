@@ -203,16 +203,15 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
 }
 
 /**
- * Tom de um número do período (cor como sinal, financeiro 19/11): o recebido é sucesso e o em atraso, perigo; a receber,
- * recorrente, pagantes e valor médio ficam neutros (não são situação). Negativo fica neutro: a cor não diz o sentido. Zero
- * e "—" já saem sem tom pelo `estado`. Os seis dividem a linha em colunas iguais (`GradeDeIndicadores`): 6, 3 + 3, 2 ou 1.
+ * Tom de um número do período (cor como sinal, 25/11: sem azul nem roxo no Financeiro): recebido `sucesso`, a receber
+ * `atencao`, em atraso `perigo`; recorrente, pagantes e valor médio ficam neutros (não são situação). A função de cor vem da
+ * `enfase` de `cartoesDoPainel`; negativo, zero e "—" saem neutros. Os seis dividem a linha em colunas iguais
+ * (`GradeDeIndicadores`): 6, 3 + 3, 2 ou 1.
  */
-/** Cartão de indicador pintado (23/11): cor só onde significa algo; alunos pagantes e valor médio ficam neutros. */
-const TOM_DO_CARTAO: Partial<Record<string, TomDoIndicador>> = { recebido: 'sucesso', aReceber: 'atencao', emAtraso: 'perigo', recorrente: 'informacao' };
+const TOM_DA_ENFASE: Partial<Record<CartaoDoPainel['enfase'], TomDoIndicador>> = { verde: 'sucesso', ambar: 'atencao', vermelho: 'perigo' };
 
 function tomDoIndicador(c: CartaoDoPainel): TomDoIndicador {
-  if (c.enfase === 'neutro') return 'neutro';
-  return TOM_DO_CARTAO[c.chave] ?? 'neutro';
+  return TOM_DA_ENFASE[c.enfase] ?? 'neutro';
 }
 
 /**

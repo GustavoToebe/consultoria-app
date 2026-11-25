@@ -1,14 +1,16 @@
-import { Link, router } from 'expo-router';
+import { Link, router, usePathname } from 'expo-router';
 import { ArrowLeft, Ellipsis, WifiOff } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { AlunoDetalhe } from '../api/tipos';
+import { artigoDaTela } from '../dominio/ajudaDaTela';
 import { linhaDeDatas, seloDaSituacao } from '../dominio/cabecalhoDaFicha';
 import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueDeLink';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes } from '../tema/tokens';
+import { AjudaDoCabecalho } from '../ui/AjudaDoCabecalho';
 import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { IconeBotao } from '../ui/IconeBotao';
 import { Selo } from '../ui/Selo';
@@ -18,6 +20,8 @@ import { Texto } from '../ui/Texto';
 const LARGURA_EM_LINHA = 600;
 /** O ícone da seta (20 px) fica centrado no alvo de 44: a margem põe o desenho na borda esquerda de tudo (D5). */
 const RECUO_DA_SETA = -(ALVO_TOQUE - 20) / 2;
+/** O ⓘ "Sobre esta tela" ao lado do nome (`ui/AjudaDoCabecalho`; o "Saiba mais" vem de `dominio/ajudaDaTela`). */
+const DESCRICAO = 'Tudo de um aluno num lugar: dados e acesso ao app, planos por pasta, registros, atualizações e evolução. Os dados sensíveis só aparecem com a permissão.';
 
 interface Props {
   /** Nulo enquanto carrega ou com erro: fica só o título "Aluno" (o h1 da tela). */
@@ -43,6 +47,10 @@ export function CabecalhoDaFicha({ aluno, foto, aoVoltar, aoAbrirMenu, abas }: P
   const { offline } = useSessao();
   const { cores } = useTema();
   const { confirmar, pendente } = useSaidaGuardada();
+  const caminho = usePathname();
+  // Com o balão aberto, cada caixa entre o ⓘ e a raiz sobe por cima da irmã que vem depois (na web toda `View` é um contexto de
+  // empilhamento: o balão não passa sozinho da caixa onde mora): a linha do nome, a identidade (datas, selo e ⋯) e a linha 2 (abas).
+  const [balaoAberto, setBalaoAberto] = useState(false);
   const { width } = useWindowDimensions();
   // A largura do próprio cabeçalho (o menu lateral come parte da janela); antes da primeira medida, a da janela.
   const [largura, setLargura] = useState<number | null>(null);
@@ -79,10 +87,13 @@ export function CabecalhoDaFicha({ aluno, foto, aoVoltar, aoAbrirMenu, abas }: P
         </View>
         {offline ? <View style={estilos.semConexao}><Selo texto="Sem conexão" tipo="neutro" Icone={WifiOff} /></View> : null}
       </View>
-      <View style={[estilos.linha2, emLinha ? estilos.centrada : estilos.noTopo]}>
+      <View style={[estilos.linha2, emLinha ? estilos.centrada : estilos.noTopo, balaoAberto && estilos.porCima]}>
         {foto}
-        <View style={estilos.identidade}>
-          <Texto variante="titulo" nivel={1}>{nome}</Texto>
+        <View style={[estilos.identidade, balaoAberto && estilos.porCima]}>
+          <View style={[estilos.linhaDoNome, balaoAberto && estilos.porCima]}>
+            <Texto variante="titulo" nivel={1} style={estilos.nome}>{nome}</Texto>
+            <AjudaDoCabecalho texto={DESCRICAO} artigo={artigoDaTela(caminho)} aoMudar={setBalaoAberto} />
+          </View>
           {datas.length ? (
             // Cada parte quebra inteira para a linha seguinte; o "·" fica no fim da parte, nunca no começo de uma linha.
             <View style={estilos.datas}>
@@ -102,6 +113,9 @@ export function CabecalhoDaFicha({ aluno, foto, aoVoltar, aoAbrirMenu, abas }: P
 
 const estilos = StyleSheet.create({
   cabecalho: { gap: espaco(2) },
+  porCima: { zIndex: 11 },
+  linhaDoNome: { flexDirection: 'row', alignItems: 'flex-start' },
+  nome: { flexShrink: 1 },
   linha1: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   seta: { marginLeft: RECUO_DA_SETA },
   trilha: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), flexShrink: 1, minWidth: 0 },
