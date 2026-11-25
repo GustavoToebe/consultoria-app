@@ -154,6 +154,72 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         assertThat(agachamento.get(0).get("fonte").asString()).contains("exercicios-bd-ptbr");
     }
 
+    /**
+     * "Já na biblioteca" (24/11): cada item diz se a consultoria já tem um ativo com o mesmo nome (a regra da importação)
+     * e o filtro {@code naBiblioteca} vale antes do limite; a biblioteca de outra consultoria não conta.
+     */
+    @Test
+    void catalogoMarcaEFiltraOQueJaEstaNaBibliotecaSoDaPropriaConsultoria() throws Exception {
+        String busca = "/catalogo/exercicios?busca=remada&limite=200";
+        JsonNode antes = api.get(busca, treinador, 200);
+        int total = antes.get("total").asInt();
+        long jaTinha = antes.get("itens").valueStream().filter(e -> e.get("naBiblioteca").asBoolean()).count();
+        JsonNode alvo = antes.get("itens").valueStream().filter(e -> !e.get("naBiblioteca").asBoolean()).findFirst().orElseThrow();
+        String id = alvo.get("id").asString();
+        api.post("/exercicios/importar-catalogo", treinador, Map.of("ids", List.of(id)), 200);
+
+        JsonNode depois = api.get(busca, treinador, 200);
+        assertThat(depois.get("itens").valueStream().filter(e -> id.equals(e.get("id").asString())).findFirst().orElseThrow()
+                .get("naBiblioteca").asBoolean()).isTrue();
+        JsonNode jaTem = api.get(busca + "&naBiblioteca=true", treinador, 200);
+        JsonNode falta = api.get(busca + "&naBiblioteca=false", treinador, 200);
+        assertThat(jaTem.get("total").asInt()).isEqualTo((int) jaTinha + 1);
+        assertThat(jaTem.get("total").asInt() + falta.get("total").asInt()).isEqualTo(total);
+        assertThat(jaTem.get("itens").valueStream().map(e -> e.get("naBiblioteca").asBoolean())).containsOnly(true);
+        assertThat(falta.get("itens").valueStream().map(e -> e.get("id").asString())).doesNotContain(id);
+
+        // Outra consultoria: o que a primeira importou não aparece como dela.
+        JsonNode outro = api.novoTreinador();
+        assertThat(api.get(busca + "&naBiblioteca=true", outro, 200).get("total").asInt()).isEqualTo((int) jaTinha);
+        assertThat(api.get(busca, outro, 200).get("itens").valueStream().filter(e -> id.equals(e.get("id").asString()))
+                .findFirst().orElseThrow().get("naBiblioteca").asBoolean()).isFalse();
+
+        // Alimentos: a mesma regra (o comum; suplemento com o mesmo nome não conta).
+        JsonNode arroz = api.get("/catalogo/alimentos?busca=arroz&limite=200", treinador, 200);
+        JsonNode umArroz = arroz.get("itens").valueStream().filter(a -> !a.get("naBiblioteca").asBoolean()).findFirst().orElseThrow();
+        int arrozJaTem = api.get("/catalogo/alimentos?busca=arroz&naBiblioteca=true&limite=1", treinador, 200).get("total").asInt();
+        api.post("/alimentos/importar-catalogo", treinador, Map.of("ids", List.of(umArroz.get("id").asString())), 200);
+        assertThat(api.get("/catalogo/alimentos?busca=arroz&naBiblioteca=true&limite=1", treinador, 200).get("total").asInt())
+                .isEqualTo(arrozJaTem + 1);
+        assertThat(api.get("/catalogo/alimentos?busca=arroz&naBiblioteca=false&limite=1", treinador, 200).get("total").asInt())
+                .isEqualTo(arroz.get("total").asInt() - arrozJaTem - 1);
+        // Unidade (repetível, "ou"): g e ml somam o catálogo inteiro (o Batel tem preparações em ml).
+        int g = api.get("/catalogo/alimentos?unidade=g&limite=1", treinador, 200).get("total").asInt();
+        int ml = api.get("/catalogo/alimentos?unidade=ml&limite=1", treinador, 200).get("total").asInt();
+        assertThat(ml).isPositive();
+        assertThat(api.get("/catalogo/alimentos?unidade=g&unidade=ml&limite=1", treinador, 200).get("total").asInt()).isEqualTo(g + ml)
+                .isEqualTo(api.get("/catalogo/alimentos?limite=1", treinador, 200).get("total").asInt());
+    }
+
+    /** Modalidade repetível ("ou", fora do enum = 400) e imagem (com ou sem foto) antes do limite. */
+    @Test
+    void catalogoDeExerciciosFiltraModalidadesEImagem() throws Exception {
+        int maquina = api.get("/catalogo/exercicios?modalidade=MAQUINA&limite=1", treinador, 200).get("total").asInt();
+        int livre = api.get("/catalogo/exercicios?modalidade=LIVRE&limite=1", treinador, 200).get("total").asInt();
+        assertThat(maquina).isPositive();
+        assertThat(api.get("/catalogo/exercicios?modalidade=MAQUINA&modalidade=LIVRE&limite=1", treinador, 200).get("total").asInt())
+                .isEqualTo(maquina + livre);
+        assertThat(api.get("/catalogo/exercicios?modalidade=VOADOR", treinador, 400).get("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+
+        int todos = api.get("/catalogo/exercicios?limite=1", treinador, 200).get("total").asInt();
+        JsonNode com = api.get("/catalogo/exercicios?imagem=true&limite=200", treinador, 200);
+        JsonNode sem = api.get("/catalogo/exercicios?imagem=false&limite=200", treinador, 200);
+        assertThat(sem.get("total").asInt()).isPositive();
+        assertThat(com.get("total").asInt() + sem.get("total").asInt()).isEqualTo(todos);
+        assertThat(com.get("itens").valueStream().map(e -> e.get("imagens").size())).allMatch(n -> n > 0);
+        assertThat(sem.get("itens").valueStream().map(e -> e.get("imagens").size())).containsOnly(0);
+    }
+
     @Test
     void catalogoExigeTreinador() throws Exception {
         mvc.perform(get("/catalogo/alimentos"))

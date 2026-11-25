@@ -218,9 +218,10 @@ export default function FichaAluno() {
     const contagens = lista.filter((b) => CONTAGENS.includes(b));
     return (
       <>
-        {/* Frequência e mobilidade (um cartão) e Água são o mesmo tipo de contagem: lado a lado no PC, uma embaixo da outra no celular. */}
+        {/* Frequência e mobilidade (um cartão) e Água são o mesmo tipo de contagem: lado a lado no PC, com a mesma altura
+            (a linha estica e cada cartão cresce até ela), uma embaixo da outra no celular. */}
         {contagens.length > 0 ? (
-          <View style={estilos.contagens}>
+          <View style={[estilos.contagens, { alignItems: 'stretch' }]}>
             {contagens.map((b) => {
               const el = bloco(b, a);
               return el ? <View key={b} style={estilos.contagem}>{el}</View> : null;

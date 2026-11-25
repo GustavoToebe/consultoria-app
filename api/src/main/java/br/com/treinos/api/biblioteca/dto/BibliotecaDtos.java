@@ -107,24 +107,28 @@ public final class BibliotecaDtos {
 
     public record CatalogoExercicioResponse(UUID id, String nome, String grupoMuscular, String equipamento,
                                             String modalidade, String instrucoes, String fonte,
-                                            List<String> imagens) {
-        public static CatalogoExercicioResponse de(CatalogoExercicio c) {
+                                            List<String> imagens, boolean naBiblioteca) {
+        public static CatalogoExercicioResponse de(CatalogoExercicio c, boolean naBiblioteca) {
             return new CatalogoExercicioResponse(c.getId(), c.getNome(), c.getGrupoMuscular(), c.getEquipamento(),
-                    c.getModalidade(), c.getInstrucoes(), c.getFonte(), c.getImagens());
+                    c.getModalidade(), c.getInstrucoes(), c.getFonte(), c.getImagens(), naBiblioteca);
         }
     }
 
-    /** {@code tracos}: nutrientes que a fonte marca como traço ({@code Tr}); o valor vem 0 e a tela mostra "Tr". */
+    /**
+     * {@code tracos}: nutrientes que a fonte marca como traço ({@code Tr}); o valor vem 0 e a tela mostra "Tr".
+     * {@code naBiblioteca}: a consultoria já tem um alimento ativo com este nome (a importação o ignoraria).
+     */
     public record CatalogoAlimentoResponse(UUID id, String nome, BigDecimal baseQuantidade, String baseUnidade,
                                            BigDecimal kcal, BigDecimal proteina, BigDecimal carboidrato,
                                            BigDecimal gordura, BigDecimal fibra, String fonte, String grupo,
-                                           String codigoFonte, List<String> tracos, BigDecimal fatorCorrecao, BigDecimal fatorCoccao) {
-        public static CatalogoAlimentoResponse de(CatalogoAlimento c) {
+                                           String codigoFonte, List<String> tracos, BigDecimal fatorCorrecao, BigDecimal fatorCoccao,
+                                           boolean naBiblioteca) {
+        public static CatalogoAlimentoResponse de(CatalogoAlimento c, boolean naBiblioteca) {
             List<String> tracos = c.getTracos() == null || c.getTracos().isBlank()
                     ? List.of() : List.of(c.getTracos().split(","));
             return new CatalogoAlimentoResponse(c.getId(), c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
                     c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getFibra(), c.getFonte(), c.getGrupo(),
-                    c.getCodigoFonte(), tracos, c.getFatorCorrecao(), c.getFatorCoccao());
+                    c.getCodigoFonte(), tracos, c.getFatorCorrecao(), c.getFatorCoccao(), naBiblioteca);
         }
     }
 

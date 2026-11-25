@@ -176,11 +176,12 @@ async function blocoDoTitulo(page: Page, h1: string) {
 
 const assentado = (conferir: () => Promise<void>) => expect(conferir).toPass({ timeout: 10_000 });
 
-// Colunas esperadas por largura (menu aberto, Automática): hub, perfis, modelos do WhatsApp.
-const ESPERADO: Record<number, { hub: number; perfis: number; modelos: number; ajudaEmTres: boolean }> = {
-  1920: { hub: 2, perfis: 2, modelos: 2, ajudaEmTres: false },
-  2560: { hub: 4, perfis: 3, modelos: 3, ajudaEmTres: true },
-  3440: { hub: 4, perfis: 3, modelos: 3, ajudaEmTres: true },
+// Colunas esperadas por largura (menu aberto, Automática): perfis, modelos do WhatsApp.
+const ESPERADO: Record<number, { perfis: number; modelos: number; ajudaEmTres: boolean }> = {
+  // Perfis (6 no exemplo): células ≥ 360 px em linhas equilibradas, 3 + 3 em 1920 e 2560, os 6 numa linha em 3440.
+  1920: { perfis: 3, modelos: 2, ajudaEmTres: false },
+  2560: { perfis: 3, modelos: 3, ajudaEmTres: true },
+  3440: { perfis: 4, modelos: 3, ajudaEmTres: true },
 };
 const GRUPOS = ['Sua conta', 'Consultoria', 'Equipe', 'Alunos e atendimento', 'Financeiro', 'Dados', 'Ajuda'];
 
@@ -189,52 +190,12 @@ for (const [largura, altura] of LARGURAS) {
     const { errosDaPagina } = await preparar(page, largura, altura);
     const e = ESPERADO[largura];
 
-    // Configurações: colunas de ~508 px, bloco centrado, sem cartão sozinho na última linha (7 grupos = 4 + 3).
+    // Configurações: colunas empilhadas (25/11); o detalhe (colunas por faixa, ordem do Tab, alinhamento) está em `configuracoes.spec.ts`.
     await page.goto('/treinador/configuracoes');
     await TELAS[0].pronta(page);
     await assentado(async () => {
-      expect(await naPrimeiraLinha(page, GRUPOS.slice(0, 4))).toBe(Math.min(e.hub, 4));
       const sua = await caixa(page, page.getByRole('heading', { name: 'Sua conta', exact: true }));
-      const ajuda = await caixa(page, page.getByRole('heading', { name: 'Ajuda', level: 2 }));
-      const financeiro = await caixa(page, page.getByRole('heading', { name: 'Financeiro', level: 2 }));
-      if (e.hub === 4) expect(Math.abs(ajuda.y - financeiro.y)).toBeLessThan(4);
-      const margens = await blocoDoTitulo(page, 'Configurações');
-      expect(Math.abs(margens.esquerda - margens.direita)).toBeLessThanOrEqual(2);
-      expect(margens.largura).toBeLessThanOrEqual(e.hub * 508 + (e.hub - 1) * 24 + 1);
       expect(sua.x).toBeGreaterThan(0);
-      if (e.hub > 2) {
-        // Com 3 ou 4 colunas cada cartão tem a própria altura: Equipe (3 itens) não estica até Alunos e atendimento.
-        const [equipe, alunos] = await page.evaluate(() => {
-          const h2 = [...document.querySelectorAll('[role="heading"][aria-level="2"], h2')] as HTMLElement[];
-          const [ha, hb] = ['Equipe', 'Alunos e atendimento'].map((t) => h2.find((h) => h.textContent?.trim() === t)!);
-          const cartao = (h: HTMLElement, outro: HTMLElement) => {
-            let el = h;
-            while (el.parentElement && !el.parentElement.parentElement!.contains(outro)) el = el.parentElement;
-            return el.getBoundingClientRect().height;
-          };
-          return [cartao(ha, hb), cartao(hb, ha)];
-        });
-        expect(equipe).toBeLessThan(alunos - 40);
-      }
-    });
-    await semRolagemHorizontal(page);
-
-    // Equipe › Membros: tabela com uma coluna por dado (não uma linha esticada com o Editar na outra ponta).
-    await page.goto('/treinador/equipe?aba=membros');
-    const tabela = page.getByRole('table', { name: 'Membros da equipe' });
-    await expect(tabela).toBeVisible();
-    await expect(tabela.getByRole('columnheader')).toHaveText(['Membro', 'Perfil', 'Situação', 'Último acesso', 'Limite', '']);
-    await expect(page.getByRole('button', { name: 'Editar Ana Fictícia' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Renovar convite de Kátia Fictícia' })).toBeVisible();
-    // Seis colunas não se espalham por 3000 px: a tabela para no teto das listas (como a Auditoria).
-    expect((await caixa(page, tabela)).width).toBeLessThanOrEqual(1800);
-    await semRolagemHorizontal(page);
-
-    // Equipe › Perfis: cartões lado a lado, células de pelo menos 560 px, no cartão de até 1800 px.
-    await page.goto('/treinador/equipe?aba=perfis');
-    await TELAS[2].pronta(page);
-    await assentado(async () => {
-      expect(await naPrimeiraLinha(page, ['Administrador', 'Treinador', 'Nutricionista', 'Assistente'])).toBe(e.perfis);
     });
     await semRolagemHorizontal(page);
 
@@ -274,6 +235,45 @@ for (const [largura, altura] of LARGURAS) {
       if (e.ajudaEmTres) expect(consultar.x).toBeGreaterThan(comecar.x + comecar.width);
       else expect(consultar.y).toBeGreaterThan(comecar.y);
       expect(comecar.width).toBeLessThanOrEqual(800);
+    });
+    await semRolagemHorizontal(page);
+
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+// Equipe à parte (24/11): Membros com a coluna dos convites e dos perfis, Perfis em grade equilibrada na largura toda.
+for (const [largura, altura] of LARGURAS) {
+  test(`${largura} px: Equipe sem meia tela vazia`, async ({ page }) => {
+    const { errosDaPagina } = await preparar(page, largura, altura);
+    const e = ESPERADO[largura];
+    // Equipe › Membros: tabela com uma coluna por dado e, ao lado, a coluna dos convites e dos perfis (24/11): o convite
+    // pendente sai da tabela e a tabela vai até a coluna, que termina na borda das abas (sem o teto de 1800 de antes).
+    await page.goto('/treinador/equipe?aba=membros');
+    const tabela = page.getByRole('table', { name: 'Membros da equipe' });
+    await expect(tabela).toBeVisible();
+    await expect(tabela.getByRole('columnheader')).toHaveText(['Membro', 'Perfil', 'Situação', 'Último acesso', 'Limite', '']);
+    await expect(page.getByRole('button', { name: 'Editar Ana Fictícia' })).toBeVisible();
+    const lateral = page.getByRole('complementary', { name: 'Convites e perfis da equipe' });
+    await expect(lateral.getByRole('button', { name: 'Renovar convite de Kátia Fictícia' })).toBeVisible();
+    await expect(tabela.getByText('Kátia Fictícia')).toHaveCount(0);
+    await assentado(async () => {
+      const l = await caixa(page, lateral);
+      // O `tablist` mede só os botões; a faixa das abas (com o fio) é o primeiro ancestral largo.
+      const abas = await page.getByRole('tablist').evaluate((el) => {
+        let atual = el as HTMLElement;
+        while (atual.parentElement && atual.getBoundingClientRect().width < 1000) atual = atual.parentElement;
+        return atual.getBoundingClientRect().right;
+      });
+      expect(Math.abs(l.x + l.width - abas)).toBeLessThanOrEqual(4);
+    });
+    await semRolagemHorizontal(page);
+
+    // Equipe › Perfis: cartões lado a lado, células de pelo menos 360 px, na largura toda.
+    await page.goto('/treinador/equipe?aba=perfis');
+    await TELAS[2].pronta(page);
+    await assentado(async () => {
+      expect(await naPrimeiraLinha(page, ['Administrador', 'Treinador', 'Nutricionista', 'Assistente'])).toBe(e.perfis);
     });
     await semRolagemHorizontal(page);
 

@@ -68,11 +68,13 @@ test('cobranças: situação, emissão e pagamento combinados vão juntos ao end
   const { pedidos, errosDaPagina } = await abrir(page, estadoComCobrancas());
   await page.setViewportSize({ width: 1440, height: 900 });
 
-  // Colunas novas: ID curto, CPF mascarado (nunca o completo), emissão e a data da baixa com a forma.
+  // Colunas novas: ID curto, emissão e a data da baixa com a forma. A linha é de uma altura só (24/11): o CPF (nem mascarado,
+  // nem completo) e o plano não aparecem na coluna do aluno; continuam na folha (abaixo).
   await expect(page.getByRole('columnheader', { name: 'ID' })).toBeVisible();
   await expect(page.getByText('00000001', { exact: true })).toBeVisible();
-  await expect(page.getByText('CPF ***.456.789-**')).toBeVisible();
+  await expect(page.getByText('CPF ***.456.789-**')).toHaveCount(0);
   await expect(page.getByText('123.456.789-09')).toHaveCount(0);
+  await expect(page.getByRole('table', { name: 'Cobranças' }).getByText('Consultoria mensal')).toHaveCount(0);
   await expect(page.getByText('12/10/2026', { exact: true })).toBeVisible();
 
   // Painel lateral "Filtros de cobranças": rascunho até o "Aplicar filtros".

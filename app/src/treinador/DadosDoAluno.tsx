@@ -244,9 +244,9 @@ function BotoesDeContato({ tipo, valor, nome }: { tipo: 'email' | 'telefone'; va
   };
   return (
     <View style={estilos.botoes}>
-      <IconeBotao Icone={Copy} moldura rotulo={`Copiar ${oQue.toLowerCase()} de ${nome}`} aoTocar={copiar} />
+      <IconeBotao Icone={Copy} moldura compacto rotulo={`Copiar ${oQue.toLowerCase()} de ${nome}`} aoTocar={copiar} />
       {whatsapp ? (
-        <IconeBotao Icone={IconeWhatsApp} moldura rotulo={`Abrir WhatsApp de ${nome}`}
+        <IconeBotao Icone={IconeWhatsApp} moldura compacto rotulo={`Abrir WhatsApp de ${nome}`}
           aoTocar={() => { void abrirLinkExterno(whatsapp).then((ok) => { if (!ok) avisar('Não foi possível abrir o WhatsApp. Copie o telefone e chame pelo aplicativo.', 'perigo'); }); }} />
       ) : null}
     </View>
@@ -254,7 +254,8 @@ function BotoesDeContato({ tipo, valor, nome }: { tipo: 'email' | 'telefone'; va
 }
 
 const estilos = StyleSheet.create({
-  botoes: { flexDirection: 'row', gap: espaco(0.5) },
+  // O desenho compacto (32) fica centrado no alvo de 44: -6 alinha a borda dele à dos botões das outras linhas.
+  botoes: { flexDirection: 'row', gap: espaco(0.5), marginRight: -espaco(0.75) },
   dados: { gap: espaco(2) },
   topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: espaco(1), minHeight: 44 },
   titulo: { flexShrink: 1 },

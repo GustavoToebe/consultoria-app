@@ -177,9 +177,14 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
       expect(Math.abs((await caixa('Quantidade-base')).x - k.x)).toBeLessThanOrEqual(1);
       expect(Math.abs((await caixa('Gramas por unidade (opcional)')).x - g.x)).toBeLessThanOrEqual(1);
       expect(Math.abs((await caixa('Fonte dos valores (opcional)')).x - g.x)).toBeLessThanOrEqual(1);
-      // A caixa da lista (o rótulo dela fica dentro, recuado).
+      // Lista de compras (24/11): FC e FCc um por linha, na largura toda do cartão (a mesma borda da Quantidade-base).
+      const fc = (await folha.getByRole('button', { name: /^Descarte e limpeza antes do preparo \(FC\)/ }).boundingBox())!;
       const fcc = (await folha.getByRole('button', { name: /^Estado na dieta e cocção \(FCc\)/ }).boundingBox())!;
-      expect(Math.abs(fcc.x - g.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(fc.x - fcc.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(fc.width - fcc.width)).toBeLessThanOrEqual(1);
+      expect(fcc.y).toBeGreaterThanOrEqual(fc.y + fc.height);
+      expect(Math.abs(fc.height - fcc.height)).toBeLessThanOrEqual(1);
+      expect(fc.x + fc.width).toBeGreaterThan(f.x + f.width - 2);
       const painel = (await folha.boundingBox())!;
       expect(painel.width).toBe(800);
     } else {

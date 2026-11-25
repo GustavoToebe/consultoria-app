@@ -3,13 +3,15 @@ import {
   agruparErgogenicos,
   ergogenicosPreenchidos,
   linhaDeErgogenico,
+  categoriaDoTexto,
   categoriasDosErgogenicos,
+  detalheDoErgogenico,
   filtrarErgogenicos,
   nomeEPrincipio,
   resumoDoGrupo,
   SEM_CATEGORIA,
-  sugerirCategorias,
   textoOuTraco,
+  tituloDoErgogenico,
 } from './ergogenicos';
 
 const e = (nome: string, categoria: string | null, extra: Partial<ErgogenicoDaBiblioteca> = {}): ErgogenicoDaBiblioteca => ({
@@ -24,15 +26,13 @@ describe('categorias', () => {
     ]);
   });
 
-  it('sugere as existentes que contêm o que foi digitado, sem acento nem caixa; vazio sugere todas', () => {
-    const todas = ['Injetáveis', 'Medicamentos', 'Orais'];
-    expect(sugerirCategorias(todas, '')).toEqual(todas);
-    expect(sugerirCategorias(todas, '  ')).toEqual(todas);
-    expect(sugerirCategorias(todas, 'med')).toEqual(['Medicamentos']);
-    expect(sugerirCategorias(todas, 'INJETAVEIS')).toEqual([]);
-    expect(sugerirCategorias(todas, 'ais')).toEqual(['Orais']);
-    expect(sugerirCategorias(todas, 'xyz')).toEqual([]);
-    expect(sugerirCategorias([], 'a')).toEqual([]);
+  it('o texto digitado usa a grafia da categoria que já existe (sem acento, caixa nem espaços sobrando); vazio = sem categoria', () => {
+    const todas = ['Injetáveis', 'Medicamentos'];
+    expect(categoriaDoTexto('injetaveis', todas)).toBe('Injetáveis');
+    expect(categoriaDoTexto('  MEDICAMENTOS ', todas)).toBe('Medicamentos');
+    expect(categoriaDoTexto('Orais  de   teste', todas)).toBe('Orais de teste');
+    expect(categoriaDoTexto('   ', todas)).toBeNull();
+    expect(categoriaDoTexto('Nova', [])).toBe('Nova');
   });
 
   it('agrupa por categoria em ordem alfabética, "Sem categoria" por último, mantendo a ordem de dentro', () => {
@@ -49,16 +49,25 @@ describe('categorias', () => {
 });
 
 describe('textos da linha', () => {
-  it('o que faltar é "—"', () => {
+  it('escolha da dieta: o que faltar é "—" e o princípio vem depois do nome', () => {
     expect(textoOuTraco('200 mg/ml')).toBe('200 mg/ml');
-    expect(textoOuTraco(null)).toBe('—');
     expect(textoOuTraco('  ')).toBe('—');
+    expect(nomeEPrincipio({ nome: 'Item de teste', principioAtivo: 'Princípio de teste' })).toBe('Item de teste / Princípio de teste');
+    expect(nomeEPrincipio({ nome: 'Item de teste', principioAtivo: ' ' })).toBe('Item de teste');
   });
 
-  it('nome com princípio ativo', () => {
-    expect(nomeEPrincipio({ nome: 'Item de teste', principioAtivo: 'Princípio de teste' })).toBe('Item de teste / Princípio de teste');
-    expect(nomeEPrincipio({ nome: 'Item de teste', principioAtivo: null })).toBe('Item de teste');
-    expect(nomeEPrincipio({ nome: 'Item de teste', principioAtivo: ' ' })).toBe('Item de teste');
+  it('título: o princípio ativo só aparece quando é outro (sem caixa e sem acento)', () => {
+    expect(tituloDoErgogenico({ nome: 'Item de teste', principioAtivo: 'Princípio de teste' })).toEqual({ nome: 'Item de teste', principio: 'Princípio de teste' });
+    expect(tituloDoErgogenico({ nome: 'Cafeína', principioAtivo: ' CAFEINA ' })).toEqual({ nome: 'Cafeína', principio: null });
+    expect(tituloDoErgogenico({ nome: 'Item de teste', principioAtivo: null })).toEqual({ nome: 'Item de teste', principio: null });
+    expect(tituloDoErgogenico({ nome: 'Item de teste', principioAtivo: ' ' })).toEqual({ nome: 'Item de teste', principio: null });
+  });
+
+  it('detalhe sem rótulos: o vazio some e os dois vazios não dão linha', () => {
+    expect(detalheDoErgogenico({ concentracao: '200 mg/ml', apresentacao: '10 ml' })).toBe('200 mg/ml · 10 ml');
+    expect(detalheDoErgogenico({ concentracao: ' 200 mg/ml ', apresentacao: null })).toBe('200 mg/ml');
+    expect(detalheDoErgogenico({ concentracao: '  ', apresentacao: '50 caps' })).toBe('50 caps');
+    expect(detalheDoErgogenico({ concentracao: null, apresentacao: ' ' })).toBeNull();
   });
 });
 

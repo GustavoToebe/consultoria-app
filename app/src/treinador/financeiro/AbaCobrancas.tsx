@@ -6,8 +6,8 @@ import { Platform, StyleSheet, useWindowDimensions, View, type StyleProp, type V
 import type { CobrancaResponse, TotaisDasCobrancas } from '../../api/financeiroTipos';
 import { aluno, listarCobrancas, listarPlanosComerciais } from '../../api/rotas';
 import {
-  alternarNoLote, atrasoParaTela, contagemDoLote, cpfMascarado, ehPagamentoOnline, emissaoDaCobranca, estadoDaPaginaNoLote,
-  hojeEmBrasilia, idCurtoDaCobranca, marcarPaginaNoLote, nomeNaListaDaCobranca, opcoesDePlanoDoFiltro, podeEntrarNoLote, problemaDoLote,
+  alternarNoLote, atrasoParaTela, contagemDoLote, ehPagamentoOnline, emissaoDaCobranca, estadoDaPaginaNoLote,
+  hojeEmBrasilia, idCurtoDaCobranca, marcarPaginaNoLote, opcoesDePlanoDoFiltro, podeEntrarNoLote, problemaDoLote,
   referenciaDaCobranca, resumoDaCobranca, ROTULO_ONLINE, rotuloDaForma, rotuloDoTipoDaCobranca, seloDaCobranca, seloDoTipoDaCobranca,
   temBaixaRegistrada, temDescricaoPropria,
 } from '../../dominio/financeiro';
@@ -59,13 +59,13 @@ const TAMANHO_PAGINA = 50;
 
 /**
  * Colunas da tabela em duas medidas (financeiro, 19/11), todas com `flex` e mínimo para o espaço se dividir entre elas em
- * vez de ir todo para o aluno. Folgada (PC largo): 24 px entre colunas, Aluno com 220 no mínimo e Situação com 160.
+ * vez de ir todo para o aluno. Folgada (PC largo): 24 px entre colunas, Aluno com 220 no mínimo e Situação com 280 (cabe o selo, o tipo e "197 dias de atraso" numa linha só, 24/11).
  * Justa (de `LARGURA_DA_TABELA` até a folgada; 1280 px com o menu aberto dá uns 955 px de tabela): os mínimos de antes,
  * o Aluno com 130, e a sobra vai primeiro para o vão entre colunas, de 8 até 24 px (`vaoDaJusta`). Data, competência e valor nunca cortam (o mínimo cabe "05/10/2026" e "R$ 99.999,00"
  * em Geist Mono; o cabeçalho "COMPETÊNCIA" pede 96). Abaixo da justa as cobranças viram cartões.
  */
 const MINIMOS = { id: 72, competencia: 96, data: 92, valor: 112 };
-const FOLGADA = { vao: espaco(3), aluno: 220, situacao: 160 };
+const FOLGADA = { vao: espaco(3), aluno: 220, situacao: 280 };
 const JUSTA = { vao: espaco(1), aluno: 130, situacao: 112 };
 /** A caixa do lote (44 + 12 de recuo) e o recuo da direita da linha; o recuo da esquerda some com a caixa. */
 const LADOS_DA_LINHA = ALVO_TOQUE + espaco(1.5) + espaco(1.5);
@@ -289,12 +289,14 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
                 ) },
                 { chave: 'aluno', titulo: 'Aluno', flex: 2, minimo: medida.aluno, principal: true, render: (c) => <AlunoDaCobranca cobranca={c} /> },
                 { chave: 'competencia', titulo: 'Competência', flex: 1, minimo: MINIMOS.competencia, render: (c) => (
-                  // A avulsa não tem competência: diz isso, sem "—" (a descrição está na coluna do aluno).
-                  c.competencia ? <Texto numerico numberOfLines={1}>{rotuloDoMesNumerico(c.competencia)}</Texto> : <Texto variante="pequeno">Não se aplica</Texto>
+                  // A avulsa e a parcela de acordo não têm competência: dizem o que são (a descrição, em uma linha com reticências;
+                  // inteira na folha). Antes ela ficava sob o nome do aluno, o que dava à linha duas alturas.
+                  <Texto numerico={!!c.competencia && !temDescricaoPropria(c.tipo)} numberOfLines={1}>{referenciaDaCobranca(c)}</Texto>
                 ) },
                 { chave: 'vencimento', titulo: 'Vencimento', flex: 1, minimo: MINIMOS.data, render: (c) => <Texto numerico numberOfLines={1}>{dataParaTela(c.vencimento)}</Texto> },
                 { chave: 'emissao', titulo: 'Emissão', flex: 1, minimo: MINIMOS.data, render: (c) => <Texto numerico numberOfLines={1}>{dataOuNada(emissaoDaCobranca(c))}</Texto> },
-                { chave: 'pagamento', titulo: 'Pagamento', flex: 1, minimo: MINIMOS.data, render: (c) => <PagamentoDaCobranca cobranca={c} /> },
+                // Folgada: mais largura, para a forma da baixa caber ao lado da data (linha de uma altura só).
+                { chave: 'pagamento', titulo: 'Pagamento', flex: medida === FOLGADA ? 1.8 : 1, minimo: MINIMOS.data, render: (c) => <PagamentoDaCobranca cobranca={c} /> },
                 // Valor nunca corta com reticências: um valor maior que a coluna quebra a linha.
                 { chave: 'valor', titulo: 'Valor', flex: 1, minimo: MINIMOS.valor, alinhar: 'direita', render: (c) => <Texto numerico>{centavosParaTela(c.valorCentavos)}</Texto> },
                 { chave: 'situacao', titulo: 'Situação', largura: medida.situacao, render: (c) => <SituacaoDaCobranca cobranca={c} /> },
@@ -482,31 +484,30 @@ function FaixaDoAluno({ nome, aoVerTodos }: { nome: string; aoVerTodos: () => vo
   );
 }
 
-/** Nome do aluno, o CPF mascarado (só quando a API manda) e o plano, em texto secundário. */
+/**
+ * Só o nome do aluno, para a linha ter uma altura só (24/11): o CPF mascarado e o plano (ou a descrição da avulsa) não
+ * repetem aqui e continuam na folha da cobrança. Uma linha com reticências: o nome inteiro está no nome da linha
+ * (leitor de tela) e na folha.
+ */
 function AlunoDaCobranca({ cobranca }: { cobranca: CobrancaResponse }) {
-  const cpf = cpfMascarado(cobranca.alunoCpf);
-  return (
-    <View style={estilos.celula}>
-      {/* Uma linha com reticências: o nome inteiro está no nome da linha (leitor de tela) e na folha. */}
-      <Texto variante="bloco" numberOfLines={1}>{cobranca.alunoNome ?? '—'}</Texto>
-      {cpf ? <Texto variante="pequeno" numerico numberOfLines={1} accessibilityLabel={`CPF ${cpf}`}>CPF {cpf}</Texto> : null}
-      <Texto variante="pequeno" numberOfLines={2}>{nomeNaListaDaCobranca(cobranca)}</Texto>
-    </View>
-  );
+  return <Texto variante="bloco" numberOfLines={1}>{cobranca.alunoNome ?? '—'}</Texto>;
 }
 
-/** Data da baixa e a forma embaixo; sem baixa registrada, "—". */
+/** Data da baixa e a forma ao lado (embaixo, se não couber); sem baixa registrada, "—". */
 function PagamentoDaCobranca({ cobranca }: { cobranca: CobrancaResponse }) {
   if (!temBaixaRegistrada(cobranca)) return <Texto>{SEM_DADO}</Texto>;
   return (
-    <View style={estilos.celula}>
+    <View style={estilos.pagamento}>
       <Texto numerico numberOfLines={1}>{dataOuNada(cobranca.pagoEm)}</Texto>
       <Texto variante="pequeno" numberOfLines={1}>{rotuloDaForma(cobranca.forma)}</Texto>
     </View>
   );
 }
 
-/** Selo da situação; vencida mostra os dias de atraso que a API calculou. */
+/**
+ * Selo da situação; vencida mostra os dias de atraso que a API calculou, ao lado do selo quando cabe na coluna (todas as
+ * linhas com a mesma altura) e embaixo quando não cabe (a única segunda linha permitida).
+ */
 export function SituacaoDaCobranca({ cobranca }: { cobranca: CobrancaResponse }) {
   const selo = seloDaCobranca(cobranca);
   const doTipo = seloDoTipoDaCobranca(cobranca.tipo, cobranca.contratacaoId);
@@ -560,9 +561,10 @@ const estilos = StyleSheet.create({
   ladoDaTabela: { flex: 1, minWidth: 0, gap: espaco(2) },
   cheio: { alignSelf: 'stretch' },
   esmaecido: { opacity: 0.6 },
-  selos: { gap: espaco(0.25), alignItems: 'flex-start' },
+  selos: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(1), rowGap: espaco(0.25), alignItems: 'center' },
   seloDoTipo: { flexDirection: 'row' },
   celula: { gap: 2, minWidth: 0 },
+  pagamento: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(1), rowGap: 2, alignItems: 'baseline', minWidth: 0 },
   barra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 260, gap: 2 },
   cresce: { flexGrow: 1 },

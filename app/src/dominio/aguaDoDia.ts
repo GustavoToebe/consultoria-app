@@ -1,4 +1,4 @@
-import { somarDias } from './formatos';
+import { dataCurta, somarDias } from './formatos';
 
 /**
  * Água do dia (docs/planos/agua-do-aluno.md): o aluno marca copos de 250 ml e vê quanto tomou contra a "Água por dia"
@@ -82,24 +82,61 @@ export function diasDaAgua(hoje: string, quantos = DIAS_DA_AGUA): string[] {
   return dias;
 }
 
-/** Linha de um dia na ficha do treinador. */
+/** Um dia na ficha do treinador. */
 export interface DiaDeAgua {
   data: string;
-  /** Nulo = não registrou ("—"). */
+  /** Nulo = não registrou (coluna vazia, nunca zero). */
   aguaMl: number | null;
 }
 
-/** Os últimos `quantos` dias até `hoje`, do mais novo ao mais antigo, com o que o aluno registrou (ou nulo). */
+/** Os últimos `quantos` dias até `hoje`, do mais antigo ao de hoje (a ordem do gráfico), com o que o aluno registrou (ou nulo). */
 export function ultimosDiasDeAgua(registros: readonly AguaDeUmDia[], hoje: string, quantos = DIAS_DA_AGUA): DiaDeAgua[] {
   const porDia = new Map(registros.map((r) => [r.data, r.aguaMl]));
-  return diasDaAgua(hoje, quantos)
-    .reverse()
-    .map((data) => ({ data, aguaMl: porDia.has(data) ? porDia.get(data)! : null }));
+  return diasDaAgua(hoje, quantos).map((data) => ({ data, aguaMl: porDia.get(data) ?? null }));
 }
 
-/** "Registrou 5 de 7 dias" (dias com registro, zero incluído: o aluno marcou que não tomou). */
-export function resumoDosDias(dias: readonly DiaDeAgua[]): string {
-  const com = dias.filter((d) => d.aguaMl !== null).length;
-  if (com === 0) return `Nenhum registro nos últimos ${dias.length} dias`;
-  return `Registrou ${com} de ${dias.length} dias`;
+/** Litros com uma casa ("0,0 L", "1,3 L"): a média, que não fecha em copos. */
+const litrosComUmaCasa = (ml: number) => `${(ml / 1000).toFixed(1).replace('.', ',')} L`;
+
+/**
+ * Linha do topo do cartão Água: "Registrou 1 de 7 dias · média 0,0 L por dia · meta 5,0 L". A média é só dos dias com
+ * registro (dia sem registro não é zero); sem nenhum, "Nenhum registro nos últimos 7 dias". A meta só com a "Água por
+ * dia" da dieta. Só mostra: não compara nem diz se bateu.
+ */
+export function resumoDaAgua(dias: readonly DiaDeAgua[], metaLitros: number | null): string {
+  const ml = dias.flatMap((d) => (d.aguaMl === null ? [] : [d.aguaMl]));
+  const partes = ml.length === 0 ? [`Nenhum registro nos últimos ${dias.length} dias`]
+    : [`Registrou ${ml.length} de ${dias.length} dias`, `média ${litrosComUmaCasa(ml.reduce((t, v) => t + v, 0) / ml.length)} por dia`];
+  const meta = metaEmMl(metaLitros);
+  if (meta !== null) partes.push(`meta ${litrosParaTela(meta)}`);
+  return partes.join(' · ');
+}
+
+/** Uma coluna do gráfico: `fracao` da altura (0 a 1; nula sem registro), o rótulo curto e o texto do dia. */
+export interface ColunaDaAgua {
+  data: string;
+  /** "19/11" ou "Hoje". */
+  rotulo: string;
+  fracao: number | null;
+  /** "18/11: 0,0 L de 5,0 L", "18/11: sem registro" (dica e leitor de tela). */
+  texto: string;
+}
+
+/**
+ * Mini gráfico dos 7 dias, na ordem dos dias: a altura é proporcional aos litros, na escala do maior entre a meta e o
+ * maior registro; a meta é uma linha na `metaFracao` (nula sem meta). Zero tem fração 0 (a tela dá a altura mínima).
+ */
+export function graficoDaAgua(dias: readonly DiaDeAgua[], hoje: string, metaLitros: number | null): { colunas: ColunaDaAgua[]; metaFracao: number | null } {
+  const meta = metaEmMl(metaLitros);
+  const escala = Math.max(meta ?? 0, ...dias.map((d) => d.aguaMl ?? 0));
+  const fracao = (ml: number) => (escala > 0 ? ml / escala : 0);
+  return {
+    metaFracao: meta === null ? null : fracao(meta),
+    colunas: dias.map((d) => ({
+      data: d.data,
+      rotulo: d.data === hoje ? 'Hoje' : dataCurta(d.data),
+      fracao: d.aguaMl === null ? null : fracao(d.aguaMl),
+      texto: `${dataCurta(d.data)}: ${d.aguaMl === null ? 'sem registro' : textoDaAguaDoDia(d.aguaMl, meta === null ? null : metaLitros)}`,
+    })),
+  };
 }

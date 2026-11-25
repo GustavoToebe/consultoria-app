@@ -1,3 +1,4 @@
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoQuestionario, RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
@@ -22,7 +23,7 @@ const TOPO = 'previa:topo';
  * só; anamnese em páginas, com "Avançar" conferindo a página e "Conferir respostas" na última (no lugar do envio). As
  * respostas daqui ficam só na tela.
  */
-export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoMudar, aoMudarErros, aoLimpar }: {
+export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoMudar, aoMudarErros, aoLimpar, secaoEmFoco, antes }: {
   conteudo: ConteudoQuestionario;
   anamnese: boolean;
   respostas: RespostasAtualizacao;
@@ -31,10 +32,33 @@ export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoM
   aoMudarErros: (erros: Record<string, string> | null) => void;
   /** Apaga as respostas e os erros da prévia. */
   aoLimpar: () => void;
+  /**
+   * Prévia ao vivo da tela larga: a seção que o treinador está editando. Cada `vez` nova leva a prévia até ela (na
+   * anamnese, à página dela; nas outras, à primeira pergunta dela), na rolagem da própria coluna.
+   */
+  secaoEmFoco?: { secao: number; vez: number } | null;
+  /** Antes das perguntas (na Inscrição, os campos fixos da página pública). */
+  antes?: ReactNode;
 }) {
   const { avisar } = useAviso();
   const rolagem = useRolagem();
   const paginas = usePaginas(anamnese ? conteudo : null, respostas, 0);
+  // Sincroniza a rolagem da coluna (fora do React) com a seção editada; só uma `vez` nova move a prévia, não cada tecla.
+  const tratada = useRef<number | null>(null);
+  useEffect(() => {
+    if (!secaoEmFoco || tratada.current === secaoEmFoco.vez) return;
+    tratada.current = secaoEmFoco.vez;
+    // Seção -1: as Instruções, que ficam no topo (na anamnese, na primeira página).
+    if (anamnese) {
+      const posicao = secaoEmFoco.secao < 0 ? 0 : paginas.paginas.indexOf(secaoEmFoco.secao);
+      if (posicao >= 0 && posicao !== paginas.posicao) { paginas.irPara(posicao); aoMudarErros(null); }
+      rolagem.rolarAte([TOPO]);
+      return;
+    }
+    const primeira = conteudo.secoes[secaoEmFoco.secao]?.perguntas[0];
+    if (secaoEmFoco.secao < 0) rolagem.rolarAte([TOPO]);
+    else if (primeira) rolagem.rolarAte([alvoDaPergunta(primeira.id)]);
+  }, [secaoEmFoco, anamnese, paginas, rolagem, conteudo, aoMudarErros]);
 
   const irPara = (posicao: number) => {
     paginas.irPara(posicao);
@@ -65,7 +89,9 @@ export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoM
     aoMudarErros(null);
     irPara(paginas.posicao + 1);
   };
-  const limpar = <Botao rotulo="Limpar respostas" tipo="fantasma" aoTocar={() => { aoLimpar(); if (anamnese) irPara(0); }} />;
+  // "Limpar" também zera o que se digitou no `antes` (os campos fixos guardam o próprio estado).
+  const [rodada, setRodada] = useState(0);
+  const limpar = <Botao rotulo="Limpar respostas" tipo="fantasma" aoTocar={() => { aoLimpar(); setRodada((n) => n + 1); if (anamnese) irPara(0); }} />;
 
   return <View style={estilos.previa}>
     <AlvoDeRolagem chave={TOPO}>
@@ -75,10 +101,11 @@ export function PreviaDoQuestionario({ conteudo, anamnese, respostas, erros, aoM
         {(!anamnese || paginas.posicao === 0) ? conteudo.instrucoes.map((texto, i) => <Texto key={i}>{texto}</Texto>) : null}
       </Cartao>
     </AlvoDeRolagem>
+    {antes ? <Fragment key={rodada}>{antes}</Fragment> : null}
     {anamnese ? <>
       {paginas.secao !== null ? <QuestionarioAtualizacao modelo={conteudo} respostas={respostas} erros={erros ?? {}} aoMudar={aoMudar}
         pagina={{ secao: paginas.secao, posicao: paginas.posicao, total: paginas.total }} />
-        : <Texto variante="suave">Nenhuma seção visível ainda. Adicione perguntas na aba Editar.</Texto>}
+        : <Texto variante="suave">Nenhuma seção visível ainda. Adicione perguntas no editor.</Texto>}
       {paginas.total > 0 ? <RodapeDasPaginas posicao={paginas.posicao} total={paginas.total} rotuloFinal="Conferir respostas"
         aoVoltar={() => { aoMudarErros(null); irPara(paginas.posicao - 1); }} aoAvancar={avancar} aoConcluir={conferir} /> : null}
       <LinhaDeAcoes>{limpar}</LinhaDeAcoes>

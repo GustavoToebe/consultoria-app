@@ -28,13 +28,11 @@ import { MODALIDADES } from '../../dominio/modalidades';
 import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
 import { gruposDaConsulta, marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
 import {
-  chipsDosExercicios, midiaParaApi, modalidadesExistentes, OPCOES_DE_IMAGEM, OPCOES_DE_VIDEO, opcoesDeModalidade,
+  chipsDosExercicios, midiaParaApi, modalidadesExistentes, opcoesDeModalidade,
   ORDEM_DAS_MODALIDADES, SEM_FILTROS_DE_EXERCICIOS, semOFiltro, type FiltrosDeExercicios,
 } from '../../dominio/exerciciosDaBiblioteca';
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
-import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
-import { UmaOpcao } from '../SeletoresDeFiltro';
-import { DetalheDoExercicio, FiltroDeModalidades, LegendaDasModalidades } from './ModalidadeDoExercicio';
+import { DetalheDoExercicio, LegendaDasModalidades, SeletoresDeExercicios } from './ModalidadeDoExercicio';
 import { ImagemDoExercicioEditor } from './ImagemDoExercicioEditor';
 import { VideoDoExercicioEditor } from './VideoDoExercicioEditor';
 
@@ -46,7 +44,6 @@ const estilos = StyleSheet.create({
   partes: { gap: espaco(3) },
   linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
   campoLargo: { flexGrow: 1, flexBasis: 180 },
-  cheio: { alignSelf: 'stretch' },
   imagemDepois: { gap: espaco(1) },
   tirar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   textoDoTirar: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
@@ -114,17 +111,7 @@ export function AbaExercicios() {
       <BarraDeFiltros busca={{ rotulo: 'Buscar exercício', placeholder: 'Nome ou grupo', valor: busca, aoMudar: mudarBusca }}
         valor={aplicados} aoAplicar={mudarFiltros} limpo={SEM_FILTROS_DE_EXERCICIOS} chips={chips}
         aoTirar={(chave) => mudarFiltros(semOFiltro(aplicados, chave))} painelLateral={{ titulo: 'Filtros de exercícios' }}
-        seletores={(atual, mudar) => (
-          <>
-            {opcoesDeGrupo.length > 0 ? (
-              <SelecaoMultiplaSuspensa rotulo="Grupo muscular" rotuloDeTodos="Todos os grupos" rotuloDaBusca="Buscar grupo" opcoes={opcoesDeGrupo}
-                marcados={atual.grupos} aoMudar={(m) => mudar({ ...atual, grupos: m })} style={estilos.cheio} />
-            ) : null}
-            <FiltroDeModalidades opcoes={opcoesDeModalidades} marcados={atual.modalidades} aoMudar={(m) => mudar({ ...atual, modalidades: m })} />
-            <UmaOpcao rotulo="Vídeo" valor={atual.video} opcoes={OPCOES_DE_VIDEO} aoMudar={(v) => mudar({ ...atual, video: v })} />
-            <UmaOpcao rotulo="Imagem" valor={atual.imagem} opcoes={OPCOES_DE_IMAGEM} aoMudar={(v) => mudar({ ...atual, imagem: v })} />
-          </>
-        )} />
+        seletores={(atual, mudar) => <SeletoresDeExercicios atual={atual} mudar={mudar} opcoesDeGrupo={opcoesDeGrupo} opcoesDeModalidades={opcoesDeModalidades} />} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && total === 0 ? (

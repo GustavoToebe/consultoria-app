@@ -114,7 +114,7 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
   // Linha do CPF (leitura e edição sem CPF editável): mascarado, com "Mostrar CPF" na coluna de ações.
   const linhaDoCpf = (
     <LinhaDeDado rotulo="CPF" valor={cpf ? (verCpf ? cpf : cpfMascarado(cpf)) : null} vazio={NAO_INFORMADO} numerico
-      acoes={cpf ? <Botao rotulo={verCpf ? 'Esconder CPF' : 'Mostrar CPF'} tipo="fantasma" aoTocar={() => setVerCpf((v) => !v)} /> : undefined} />
+      acoes={cpf ? <Botao rotulo={verCpf ? 'Esconder CPF' : 'Mostrar CPF'} tipo="fantasma" tamanho="pequeno" aoTocar={() => setVerCpf((v) => !v)} /> : undefined} />
   );
 
   return (

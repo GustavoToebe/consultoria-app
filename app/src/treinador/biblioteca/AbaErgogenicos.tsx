@@ -6,18 +6,21 @@ import { alterarErgogenico, criarErgogenico, inativarErgogenico, listarErgogenic
 import type { ErgogenicoDaBiblioteca, ErgogenicoDaBibliotecaRequest } from '../../api/tipos';
 import {
   agruparErgogenicos,
+  categoriaDoTexto,
   categoriasDosErgogenicos,
+  detalheDoErgogenico,
   filtrarErgogenicos,
-  nomeEPrincipio,
   resumoDoGrupo,
-  sugerirCategorias,
-  textoOuTraco,
+  SEM_CATEGORIA,
+  tituloDoErgogenico,
 } from '../../dominio/ergogenicos';
+import type { ColunaDaLista } from '../../ui/colunasDaLista';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
+import { Campo, MensagemDeErro } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
+import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
@@ -25,13 +28,12 @@ import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDaLista } from '../../ui/LinhaDaLista';
 import { ListaEmColunas } from '../ListaEmColunas';
-import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
-import { espaco } from '../../tema/tokens';
+import { espaco, fontes } from '../../tema/tokens';
 import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 
 // As medidas da `FolhaAlimento`: 180 px por campo deixa o par lado a lado na folha do PC (600) e empilhado no celular.
@@ -39,9 +41,32 @@ const estilos = StyleSheet.create({
   partes: { gap: espaco(3) },
   linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
   campoLargo: { flexGrow: 1, flexBasis: 180 },
+  // Erro da API (422 no campo `categoria`) colado no seletor, como no Grupo do alimento.
+  campoDaCategoria: { gap: espaco(1) },
   tirar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   textoDoTirar: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
+  tituloDaLinha: { gap: espaco(0.5) },
+  // O " / princípio ativo" na mesma linha e no mesmo tamanho do nome, só mais leve e suave: é apoio, não outro título.
+  // Espaço fixo depois da barra: quando quebra, a barra desce junto com o princípio.
+  principio: { fontFamily: fontes.normal },
 });
+
+/**
+ * Uma coluna só: a célula é o título composto (nome em negrito, " / princípio" suave) e a linha de detalhe. É o único
+ * jeito de pôr texto com dois pesos no título sem mexer na `LinhaDaLista` (o `titulo` é string). Sem cabeçalho de colunas.
+ */
+const COLUNA_DO_ITEM: readonly ColunaDaLista[] = [{ chave: 'item', rotulo: 'Item', peso: 1 }];
+
+function TituloDoItem({ item }: { item: ErgogenicoDaBiblioteca }) {
+  const { nome, principio } = tituloDoErgogenico(item);
+  const detalhe = detalheDoErgogenico(item);
+  return (
+    <View style={estilos.tituloDaLinha}>
+      <Texto variante="bloco">{nome}{principio ? <Texto variante="bloco" cor="suave" style={estilos.principio}>{` /\u00A0${principio}`}</Texto> : null}</Texto>
+      {detalhe ? <Texto variante="pequeno" numerico>{detalhe}</Texto> : null}
+    </View>
+  );
+}
 
 /**
  * Aba "Outros" da biblioteca: medicação, ergogênicos e o que mais o treinador registrar (dado sensível: a aba só existe
@@ -103,8 +128,7 @@ export function AbaErgogenicos() {
           aberto={secoes.estaAberta(idDoGrupo(g))} aoAlternar={() => secoes.alternar(idDoGrupo(g))} />}>
           {/* Uma superfície só, com divisórias entre os itens (sem caixa por registro): o cartão já é o contêiner. */}
           {secoes.estaAberta(idDoGrupo(g)) ? <ListaEmColunas divisorias>{g.itens.map((e) => (
-            <LinhaDaLista key={e.id} titulo={nomeEPrincipio(e)}
-              metadados={`Concentração: ${textoOuTraco(e.concentracao)} · Apresentação: ${textoOuTraco(e.apresentacao)}`}
+            <LinhaDaLista key={e.id} titulo={e.nome} colunas={{ definicao: COLUNA_DO_ITEM, celulas: { item: <TituloDoItem item={e} /> } }}
               acoesAoLado
               acoes={<Permitido codigo="ERGOGENICO_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
           ))}</ListaEmColunas> : null}
@@ -161,7 +185,8 @@ function FolhaErgogenico({
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
   const completo = nome.trim() !== '';
-  const sugestoes = sugerirCategorias(categorias, categoria);
+  // A categoria nova (digitada) ainda não está na lista: entra nas opções para o campo fechado mostrar o que foi escolhido.
+  const opcoesDeCategoria = categoria && !categorias.includes(categoria) ? [...categorias, categoria] : categorias;
 
   const salvar = () => {
     if (!completo) return;
@@ -192,25 +217,10 @@ function FolhaErgogenico({
           <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!completo} motivo="Informe o nome." />
         </>
       }>
-      {/* Mesma composição da `FolhaAlimento`: um cartão com faixa de título por assunto, 24 px entre eles. A categoria
-          continua antes do nome: é por ela que a lista se agrupa. */}
+      {/* Mesma composição da `FolhaAlimento`: um cartão com faixa de título por assunto, 24 px entre eles. Nome e princípio
+          ativo primeiro, a categoria embaixo (Gustavo, 24/11). */}
       <View style={estilos.partes}>
         <Cartao titulo="Identificação" nivel={3}>
-          <Campo
-            rotulo="Categoria (opcional)"
-            valor={categoria}
-            aoMudar={setCategoria}
-            erro={campos.categoria}
-            maxLength={60}
-            ajuda="Escreva o nome da categoria ou toque numa sugestão. Vazio fica em “Sem categoria”."
-          />
-          {sugestoes.length ? (
-            <LinhaDeAcoes>
-              {sugestoes.map((c) => (
-                <Botao key={c} rotulo={c} tipo="secundario" aoTocar={() => setCategoria(c)} />
-              ))}
-            </LinhaDeAcoes>
-          ) : null}
           <View style={estilos.linhaDeCampos}>
             <View style={estilos.campoLargo}>
               <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
@@ -219,23 +229,38 @@ function FolhaErgogenico({
               <Campo rotulo="Princípio ativo (opcional)" valor={principio} aoMudar={setPrincipio} erro={campos.principioAtivo} maxLength={160} />
             </View>
           </View>
+          {/* A composição do `CampoCategoria` da Vitrine (busca, "Sem categoria" e "Criar categoria “…”"), sem a API dela:
+              aqui a categoria é texto livre, e "criar" só usa o texto digitado (ou a grafia da que já existe). */}
+          <View style={estilos.campoDaCategoria}>
+            <EscolhaSuspensa<string> rotulo="Categoria" titulo="Categoria do item" valor={categoria} aoMudar={setCategoria}
+              rotuloDaBusca="Buscar ou criar categoria" textoVazio="Nenhuma categoria encontrada."
+              opcoes={[{ valor: '', rotulo: SEM_CATEGORIA }, ...opcoesDeCategoria.map((c) => ({ valor: c, rotulo: c }))]}
+              digitado={{
+                maxLength: 60,
+                opcao: (t) => {
+                  const c = categoriaDoTexto(t, categorias);
+                  if (c === null) return null;
+                  return categorias.includes(c) ? { valor: c, rotulo: c } : { valor: c, rotulo: `Criar categoria “${c}”`, detalhe: 'Categoria nova' };
+                },
+              }} />
+            {campos.categoria ? <MensagemDeErro erro={campos.categoria} /> : null}
+          </View>
         </Cartao>
 
         <Cartao titulo="Concentração e apresentação" nivel={3}>
           <View style={estilos.linhaDeCampos}>
             <View style={estilos.campoLargo}>
-              <Campo rotulo="Concentração (opcional)" valor={concentracao} aoMudar={setConcentracao} erro={campos.concentracao} maxLength={40}
-                ajuda="Como está na embalagem, por exemplo “200 mg/ml”." />
+              <Campo rotulo="Concentração (opcional)" valor={concentracao} aoMudar={setConcentracao} erro={campos.concentracao} maxLength={40} placeholder="200 mg/ml" />
             </View>
             <View style={estilos.campoLargo}>
-              <Campo rotulo="Apresentação (opcional)" valor={apresentacao} aoMudar={setApresentacao} erro={campos.apresentacao} maxLength={40}
-                ajuda="Por exemplo “10 ml” ou “50 caps”." />
+              <Campo rotulo="Apresentação (opcional)" valor={apresentacao} aoMudar={setApresentacao} erro={campos.apresentacao} maxLength={40} placeholder="10 ml ou 50 caps" />
             </View>
           </View>
         </Cartao>
 
+        {/* O título do cartão já é o rótulo: o campo vai direto, e o leitor de tela continua com "Observação (opcional)". */}
         <Cartao titulo="Observação" nivel={3}>
-          <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} erro={campos.observacao} maxLength={500} linhas={3} />
+          <Campo rotulo="Observação (opcional)" rotuloOculto valor={observacao} aoMudar={setObservacao} erro={campos.observacao} maxLength={500} linhas={3} />
         </Cartao>
 
         {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}

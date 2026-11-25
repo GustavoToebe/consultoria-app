@@ -17,7 +17,10 @@ import java.util.List;
  * maiúsculas; {@code limite} vale 50 por padrão (máximo 200) e {@code total} diz quantos itens casaram.
  * {@code grupo} pode vir repetido ({@code ?grupo=A&grupo=B}) e vale "ou"; sem ele não filtra. Não se usa
  * {@code List<String>} no parâmetro porque o Spring separa um valor único por vírgula e há grupos com vírgula
- * ("Verduras, hortaliças e derivados").
+ * ("Verduras, hortaliças e derivados"). Nos exercícios, {@code modalidade} (repetível, "ou"; fora do enum = 400
+ * {@code FILTRO_INVALIDO}) e {@code imagem} (true = só com foto, false = só sem); nos alimentos, {@code unidade} (repetível, "ou"); nos dois, {@code naBiblioteca}
+ * (true = só os que já estão na biblioteca da consultoria, false = só os que faltam; nulo = todos). Cada item traz
+ * {@code naBiblioteca}, pela mesma comparação de nome que a importação usa para ignorar os repetidos.
  */
 @RestController
 @RequestMapping("/catalogo")
@@ -32,10 +35,12 @@ public class CatalogoController {
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
     @GetMapping("/exercicios")
     public CatalogoPagina<CatalogoExercicioResponse> exercicios(@RequestParam(required = false) String busca,
-                                                                @RequestParam(required = false) String modalidade,
+                                                                @RequestParam(name = "modalidade", required = false) List<String> modalidades,
+                                                                @RequestParam(required = false) Boolean imagem,
+                                                                @RequestParam(required = false) Boolean naBiblioteca,
                                                                 @RequestParam(required = false) Integer limite,
                                                                 HttpServletRequest http) {
-        return biblioteca.catalogoExercicios(busca, gruposDe(http), modalidade, limite);
+        return biblioteca.catalogoExercicios(busca, gruposDe(http), modalidades, imagem, naBiblioteca, limite);
     }
 
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
@@ -47,9 +52,11 @@ public class CatalogoController {
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
     @GetMapping("/alimentos")
     public CatalogoPagina<CatalogoAlimentoResponse> alimentos(@RequestParam(required = false) String busca,
+                                                              @RequestParam(name = "unidade", required = false) List<String> unidades,
+                                                              @RequestParam(required = false) Boolean naBiblioteca,
                                                               @RequestParam(required = false) Integer limite,
                                                               HttpServletRequest http) {
-        return biblioteca.catalogoAlimentos(busca, gruposDe(http), limite);
+        return biblioteca.catalogoAlimentos(busca, gruposDe(http), unidades, naBiblioteca, limite);
     }
 
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")

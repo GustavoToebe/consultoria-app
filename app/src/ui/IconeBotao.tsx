@@ -12,7 +12,7 @@ interface Props {
   aoTocar: () => void;
   cor?: string;
   desabilitado?: boolean;
-  /** Ícone menor (16 px, desenho de 32 px) em linhas apertadas; o alvo continua com 44 px. */
+  /** Ícone menor (16 px, desenho de 32 px, também com `moldura`) em linhas apertadas; o alvo continua com 44 px. */
   compacto?: boolean;
   /**
    * Com moldura (borda fina e fundo da superfície), como os botões da faixa do exercício e da série no editor de
@@ -37,7 +37,8 @@ export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto
       style={estilos.alvo}>
       {(estado) => (
         <View
-          style={[estilos.desenho, compacto && estilos.compacto, moldura && [estilos.moldura, { borderColor: cores.bordaCampo }],
+          /* `compacto` por último: com `moldura` (linha da `ListaDeDados`) o desenho fica com 32, não 40. */
+          style={[estilos.desenho, moldura && [estilos.moldura, { borderColor: cores.bordaCampo }], compacto && estilos.compacto,
             { backgroundColor: sobre(estado) && !desabilitado ? cores.sobreNaFaixa : moldura ? cores.superficie : 'transparent' }]}>
           <Icone size={compacto ? 16 : 20} color={desabilitado ? cores.textoSuave : cor ?? cores.texto} strokeWidth={2} />
         </View>

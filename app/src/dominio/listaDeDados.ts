@@ -23,6 +23,19 @@ export function empilhaDados(larguraDaLista: number, fatorTexto: number = 1): bo
   return larguraDaLista < larguraDoRotulo(fatorTexto) + VAO_DA_LINHA + Math.round(VALOR_MINIMO * fatorTexto);
 }
 
+/**
+ * Qual linha fica sem divisória (24/11): só a última do cartão. Toda outra linha tem o fio embaixo, inclusive a última de
+ * uma seção com outra seção depois (o fio fecha o grupo antes do subtítulo seguinte). `presentes` são as posições (contadas
+ * na lista inteira, por cima dos subtítulos) das linhas que de fato aparecem: um filho que devolve `null` (a linha do ciclo,
+ * que some sozinha) não conta, e a última que aparece fica sem fio. Antes de as linhas se anunciarem (`presentes` vazio),
+ * vale a última posição. Sem linha nenhuma, `null`.
+ */
+export function linhaSemDivisoria(presentes: ReadonlySet<number>, total: number): number | null {
+  if (total <= 0) return null;
+  if (presentes.size === 0) return total - 1;
+  return Math.max(...presentes);
+}
+
 export interface ParteDoValor {
   texto: string;
   numerico: boolean;

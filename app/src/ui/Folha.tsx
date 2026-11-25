@@ -61,15 +61,15 @@ interface Props {
   lateral?: boolean;
   /**
    * Folha de detalhe (com `lateral`): no PC abre onde a preferência "Detalhes abrem" manda, na lateral (padrão) ou no centro,
-   * com `LARGURA_FOLHA_LARGA`, véu e altura do conteúdo; sem `lateral`, "Na lateral" mantém a folha central de sempre. Lida
+   * com `LARGURA_FOLHA_LARGA` e véu; sem `lateral`, "Na lateral" mantém a folha central de sempre. Lida
    * ao abrir: trocar a preferência com a folha aberta vale na próxima. No celular não muda nada. O painel de filtros não a usa.
    */
   detalhe?: boolean;
   /** No celular ocupa a tela inteira (editor longo, como o do perfil de acesso), com o rodapé no pé; no PC não muda nada. */
   telaCheiaNoCelular?: boolean;
   /**
-   * Com `largura`, no PC a folha fica na altura do conteúdo (até 90% da janela) em vez da altura fixa: para conteúdo curto
-   * que não muda de tamanho (a escolha da Nova importação), sem faixa vazia entre o conteúdo e o rodapé.
+   * Sem efeito desde 25/11: toda folha centralizada no PC já fica na altura do conteúdo (até 90% da janela).
+   * shortcut: mantida só porque a Nova importação e a TelaImportacao ainda a passam; tirar delas e daqui na próxima mexida.
    */
   alturaDoConteudo?: boolean;
 }
@@ -80,7 +80,7 @@ interface Props {
  * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo e, ao fechar,
  * volta a quem abriu a folha; no celular, com leitor de tela, também volta (`ui/focoDaFolha.ts`).
  */
-export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRodape, largura, acaoNoTopo, faixa, lateral, detalhe, telaCheiaNoCelular, alturaDoConteudo }: Props) {
+export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRodape, largura, acaoNoTopo, faixa, lateral, detalhe, telaCheiaNoCelular }: Props) {
   // Quem estava com o foco ao abrir (web). Ao fechar, o foco volta para ele (C3): na hora em que o painel sai (a folha
   // inteira deixou a tela) e de novo no `onDismiss`, quando a camada do Modal some. Antes disso a trava de foco do Modal,
   // que fica um render a mais depois do `visible={false}`, puxaria o foco de volta para dentro.
@@ -94,7 +94,7 @@ export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRod
   // duas vezes. As outras folhas aninhadas do sistema seguem como antes até haver captura de cada uma.
   const dentroDeOutra = usePortalDaFolha()?.lateral === true;
   return <Modal ref={semPapelNoModal} transparent visible={visivel} animationType="none" onRequestClose={fechar} onDismiss={() => devolverFoco(quemAbriuRef)}>
-    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} lateral={lateral} detalhe={detalhe} telaCheiaNoCelular={telaCheiaNoCelular} alturaDoConteudo={alturaDoConteudo} semVeu={dentroDeOutra} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
+    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} lateral={lateral} detalhe={detalhe} telaCheiaNoCelular={telaCheiaNoCelular} semVeu={dentroDeOutra} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
   </Modal>;
 }
 
@@ -127,7 +127,7 @@ function devolverFoco(quemAbriuRef: RefObject<HTMLElement | null>) {
 }
 
 /** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo: no PC move a folha, no celular fecha. */
-function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraPedida,acaoNoTopo,faixa,lateral:lateralPedida,detalhe,telaCheiaNoCelular,alturaDoConteudo:alturaPedida,semVeu,quemAbriuRef}:Omit<Props,'visivel'> & { semVeu: boolean; quemAbriuRef: RefObject<HTMLElement | null> }) {
+function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraPedida,acaoNoTopo,faixa,lateral:lateralPedida,detalhe,telaCheiaNoCelular,semVeu,quemAbriuRef}:Omit<Props,'visivel'|'alturaDoConteudo'> & { semVeu: boolean; quemAbriuRef: RefObject<HTMLElement | null> }) {
   const { cores, bordas, preferencias } = useTema();
   const { width, height } = useWindowDimensions();
   // "Detalhes abrem" lido ao abrir (a folha "Aparência e preferências" é ela mesma um detalhe: não pula de lugar ao escolher).
@@ -137,18 +137,17 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
   // deixava um vão sob o rodapé.
   const margem = useSafeAreaInsets();
   const centralizado = width >= LARGURA_MENU_LATERAL;
-  // Detalhe no centro (só no PC): janela de `LARGURA_FOLHA_LARGA` na altura do conteúdo, no lugar da lateral ou da de 600.
+  // Detalhe no centro (só no PC): janela de `LARGURA_FOLHA_LARGA`, no lugar da lateral ou da de 600.
   const centroDoDetalhe = centralizado && noCentro;
   const lateral = !!lateralPedida && !centroDoDetalhe;
   const largura = centroDoDetalhe ? LARGURA_FOLHA_LARGA : larguraPedida;
-  const alturaDoConteudo = centroDoDetalhe || alturaPedida;
   // Painel lateral no PC (no celular a folha de baixo já serve: ocupa a largura, topo e rodapé fixos).
   const aDireita = centralizado && !!lateral;
-  // Com `largura` no PC a altura é fixa (a folha não muda de tamanho ao trocar o conteúdo); o corpo ocupa o que sobra
-  // entre o topo e o rodapé, para o rodapé ficar no pé da folha e não sobrar faixa vazia embaixo dele. O painel lateral
-  // tem a altura da janela, pelo mesmo motivo. Com `alturaDoConteudo` (conteúdo curto que não muda) a folha fica na altura dele.
+  // No centro (PC), com ou sem `largura`, a folha tem a altura do conteúdo até 90% da janela e só o corpo rola (25/11: a
+  // altura fixa deixava um vão entre o último campo e o rodapé no monitor alto). O painel lateral e a tela cheia do celular
+  // têm a altura da janela: ali o corpo ocupa o que sobra, para o rodapé ficar no pé.
   const telaCheia = !centralizado && !!telaCheiaNoCelular;
-  const alturaFixa = (centralizado && !!largura && !alturaDoConteudo) || aDireita || telaCheia;
+  const alturaFixa = aDireita || telaCheia;
   const reduzido = useMovimentoReduzido();
   const portal = useId();
   const [elementoPortal, setElementoPortal] = useState<HTMLElement | null>(null);
@@ -249,7 +248,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
             aDireita
               ? [estilos.painelLateral, { borderLeftWidth: bordas.bloco }]
               : centralizado
-                ? [estilos.painelCentral, largura ? { width: largura, height: alturaDoConteudo ? undefined : '90%' as const } : null]
+                ? [estilos.painelCentral, largura ? { width: largura } : null]
                 : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }, telaCheia ? [estilos.painelTelaCheia, { paddingTop: margem.top }] : null],
             { backgroundColor: cores.superficie, borderColor: cores.divisor },
             aDireita ? null : { borderWidth: bordas.bloco },

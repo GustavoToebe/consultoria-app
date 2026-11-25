@@ -97,18 +97,22 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
             {!aluno.temAcesso ? (
               <LinhaDeDado rotulo="Convite" valor={validoAte ? `Válido até ${dataHoraParaTela(validoAte)}` : null} numerico
                 acoes={comAcoes ? (
-                  <Botao rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'} tipo="acao" carregando={gerando}
+                  <Botao rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'} tipo="acao" tamanho="pequeno" carregando={gerando}
                     aoTocar={() => (convite || conviteAnterior ? setConfirmar(true) : gerar())} />
                 ) : undefined} />
             ) : null}
             <LinhaDeDado rotulo="E-mail de acesso" valor={email}
-              acoes={email ? <IconeBotao Icone={Copy} moldura rotulo="Copiar e-mail de acesso" aoTocar={() => copiar(email, 'E-mail')} /> : undefined} />
+              acoes={email ? (
+                <View style={estilos.iconeNaLinha}>
+                  <IconeBotao Icone={Copy} moldura compacto rotulo="Copiar e-mail de acesso" aoTocar={() => copiar(email, 'E-mail')} />
+                </View>
+              ) : undefined} />
             <LinhaDeDado rotulo={ultimo.rotulo} valor={ultimo.texto} numerico dica={ultimo.exata ?? undefined} />
             {/* Os pontos são só desenho: o leitor de tela ouve se a senha é a do aluno ou a provisória. */}
             <LinhaDeDado rotulo="Senha" valor={aluno.temAcesso ? (aluno.aguardandoPrimeiroAcesso ? 'provisória' : 'definida') : null}
               conteudo={<Texto aria-hidden>••••••</Texto>}
               nota={aluno.aguardandoPrimeiroAcesso ? 'Provisória: o aluno cria a dele no primeiro login.' : undefined}
-              acoes={comAcoes ? <Botao rotulo={rotuloDaSenha} tipo="secundario" aoTocar={abrirForm} /> : undefined} />
+              acoes={comAcoes ? <Botao rotulo={rotuloDaSenha} tipo="secundario" tamanho="pequeno" aoTocar={abrirForm} /> : undefined} />
           </ListaDeDados>
           {definido ? (
             <View style={estilos.convite}>
@@ -244,6 +248,8 @@ function Destaque({ rotulo, texto, aoCopiar, grande }: { rotulo: string; texto: 
 
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1.5) },
+  // O desenho compacto (32) fica centrado no alvo de 44: -6 alinha a borda dele à do "Definir nova senha".
+  iconeNaLinha: { marginRight: -espaco(0.75) },
   // O selo não estica na largura do valor.
   selo: { flexDirection: 'row' },
   convite: { gap: espaco(1.5) },

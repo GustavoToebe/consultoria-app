@@ -1,17 +1,19 @@
 import { router } from 'expo-router';
 import { Plus, Save, Send, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { RespostasAtualizacao } from '../../api/tipos';
 import {
   agruparProblemas, alterarInstrucoes, descricaoDoLocal, type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
 import { motivoSemPublicar, quandoPublicado, seloDoEditor } from '../../dominio/barraDoEditor';
+import { arranjoDoEditor, CHAVE_DAS_INSTRUCOES, chaveDaSecao, colunasDoEditor, idDoBloco, itensDoIndice, secaoDaChave } from '../../dominio/indiceDoQuestionario';
 import { AVISO_SAUDE_NA_INSCRICAO } from '../../dominio/inscricoes';
 import { LIMITES_QUESTIONARIO as L, type ProblemaDoQuestionario } from '../../dominio/questionario';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { useTema } from '../../tema/TemaProvider';
+import { espaco, LARGURA_MAXIMA, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -24,12 +26,15 @@ import { textoDoErro } from '../../ui/erros';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { RolagemComTopo } from '../../ui/RolagemComTopo';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { BarraDoEditor } from '../plano/BarraDoEditor';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
+import { CamposFixosNaPrevia } from './CamposFixosNaPrevia';
+import { fixoAbaixoDaBarra, IndiceDoQuestionario, irParaBloco, useItemVisivel } from './IndiceDoQuestionario';
 import { PreviaDoQuestionario } from './PreviaDoQuestionario';
 import { SecoesDoQuestionario } from './SecoesDoQuestionario';
 import { useQuestionarioEditor } from './useQuestionarioEditor';
@@ -58,10 +63,24 @@ export function EditorQuestionario({ id }: { id: string }) {
   const [publicando, setPublicando] = useState(false);
   const [respostas, setRespostas] = useState<RespostasAtualizacao>({});
   const [errosPrevia, setErrosPrevia] = useState<Record<string, string> | null>(null);
+  // Tela larga (`dominio/indiceDoQuestionario`): a área medida no próprio editor decide índice e prévia ao vivo.
+  const { height: alturaDaJanela } = useWindowDimensions();
+  const { cores } = useTema();
+  const [area, setArea] = useState<number | null>(null);
+  const ancora = useRef<View>(null);
+  // Seção que a prévia ao vivo deve mostrar; a `vez` só sobe quando a seção muda (ou o índice é tocado), não a cada tecla.
+  const [foco, setFoco] = useState<{ secao: number; vez: number } | null>(null);
+  const editavelAgora = pode('QUESTIONARIO_ALTERAR') && !!editor.estado && !editor.estado.detalhe.arquivado;
+  const arranjo = editavelAgora ? arranjoDoEditor(area, Platform.OS === 'web') : 'simples';
+  const chaves = [CHAVE_DAS_INSTRUCOES, ...(editor.estado?.conteudo.secoes ?? []).map((_, i) => chaveDaSecao(i))];
+  const visivel = useItemVisivel(chaves, arranjo !== 'simples', ancora);
+  // Rola só depois de as perguntas abertas pelo índice entrarem na página: antes, o fim da página prendia a rolagem.
+  const [destino, setDestino] = useState<{ chave: string; vez: number } | null>(null);
+  useEffect(() => { if (destino) irParaBloco(destino.chave); }, [destino]);
 
   const e = editor.estado;
   if (!e) {
-    return <Tela bordas={['top']} largura={LARGURA_EDITOR}>
+    return <Tela bordas={['top']}>
       <Cabecalho titulo="Questionário" voltar="/treinador/planejamento" />
       {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar}
           acao={{ rotulo: 'Voltar à lista', aoTocar: () => router.navigate('/treinador/planejamento') }} /> : <Esqueleto />}
@@ -73,8 +92,24 @@ export function EditorQuestionario({ id }: { id: string }) {
   const inscricao = d.finalidade === 'INSCRICAO';
   const ABA_VOLTAR = inscricao ? ABA_INSCRICAO : anamnese ? ABA_ANAMNESE : ABA_ATUALIZACAO;
   const editavel = pode('QUESTIONARIO_ALTERAR') && !d.arquivado;
-  const abaAtiva = editavel ? aba : 'previa';
+  // Nas três colunas a prévia fica sempre à vista e as abas somem: a coluna do meio é sempre a de editar.
+  const abaAtiva = !editavel ? 'previa' : arranjo === 'tres' ? 'editar' : aba;
   const agrupados: ProblemasAgrupados = agruparProblemas(e.conteudo, problemas ?? []);
+  const colunas = area !== null ? colunasDoEditor(area, arranjo) : null;
+  const editarSecao = (secao: number) => setFoco((f) => (f?.secao === secao ? f : { secao, vez: (f?.vez ?? 0) + 1 }));
+  /** Índice: abre as perguntas da seção (o acordeão que existe), rola até ela, põe o foco no título e leva a prévia junto. */
+  const irParaItem = (i: number) => {
+    const chave = chaves[i];
+    if (!chave) return;
+    const secao = secaoDaChave(chave);
+    visivel.marcar(i);
+    setAba('editar');
+    if (secao !== null) {
+      perguntas.abrir(e.conteudo.secoes[secao]?.perguntas.map((p) => p.id) ?? []);
+      setFoco((f) => ({ secao, vez: (f?.vez ?? 0) + 1 }));
+    }
+    setDestino((d) => ({ chave, vez: (d?.vez ?? 0) + 1 }));
+  };
 
   const alternarTodas = () => (perguntas.todasAbertas ? perguntas.fecharTodas() : perguntas.abrirTodas());
 
@@ -120,7 +155,14 @@ export function EditorQuestionario({ id }: { id: string }) {
   const rotuloPublicar = inscricao ? 'Publicar perguntas' : anamnese ? 'Publicar anamnese' : 'Publicar questionário';
   const nadaNovo = !!motivoSemPublicar(editor.situacao, { versao: d.versaoPublicada, alterado: d.alteradoDesdePublicacao, ativo: !d.arquivado });
 
-  return <TelaDoEditor
+  const mudarInstrucoes = (m: Parameters<typeof editor.alterarConteudo>[0]) => { editarSecao(-1); editor.alterarConteudo(m); };
+  // A mesma prévia da aba e da coluna ao vivo (respostas e erros compartilhados); só a coluna recebe a seção em foco e os campos fixos.
+  const previa = (naColuna: boolean) => <PreviaDoQuestionario conteudo={e.conteudo} anamnese={anamnese} respostas={respostas} erros={errosPrevia}
+    aoMudar={(pid, valor) => { setRespostas((r) => ({ ...r, [pid]: valor })); setErrosPrevia(null); }}
+    aoMudarErros={setErrosPrevia} aoLimpar={() => { setRespostas({}); setErrosPrevia(null); }}
+    secaoEmFoco={naColuna ? foco : null} antes={naColuna && inscricao ? <CamposFixosNaPrevia /> : undefined} />;
+
+  return <TelaDoEditor largura={LARGURA_MAXIMA}
     cabecalho={<Cabecalho titulo={titulo}
       trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: inscricao ? 'Inscrição' : anamnese ? 'Anamnese' : 'Atualização', href: ABA_VOLTAR }, { rotulo: e.nome || 'Questionário' }]}
       voltar={ABA_VOLTAR} />}
@@ -132,46 +174,57 @@ export function EditorQuestionario({ id }: { id: string }) {
         <Botao rotulo={rotuloPublicar} tipo={nadaNovo ? 'secundario' : 'primario'} Icone={Send} carregando={publicando} aoTocar={() => setConfirmando(true)} />
       </> : null}
     </BarraDoEditor>}>
-    <Cartao>
-      {editavel ? <>
-        <Campo rotulo="Nome do questionário" valor={e.nome} maxLength={120} aoMudar={(nome) => editor.alterar(() => ({ nome }))} />
-        <Campo rotulo="Descrição (opcional)" valor={e.descricao} maxLength={400} linhas={2} aoMudar={(descricao) => editor.alterar(() => ({ descricao }))} />
-      </> : <>
-        <Texto variante="bloco" nivel={2}>{e.nome.trim() || 'Questionário sem nome'}</Texto>
-        {d.descricao ? <Texto variante="suave">{d.descricao}</Texto> : null}
-        {d.arquivado ? <Texto variante="suave">Arquivado. Desarquive na lista para editar.</Texto> : !pode('QUESTIONARIO_ALTERAR') ? <Texto variante="suave">Você pode ver o questionário, mas não alterá-lo.</Texto> : null}
-      </>}
-      {ultima ? <Texto variante="pequeno">
-        Editar aqui mexe só no rascunho; {inscricao ? 'a página continua com a versão publicada até você publicar de novo, e cada inscrição fica com a versão que respondeu.'
-          : anamnese ? 'cada anamnese enviada fica com a versão publicada no momento do envio.' : 'o aluno continua vendo a versão publicada até você publicar de novo.'}
-      </Texto> : null}
-      {/* D7: não dá para impedir por regra (o texto da pergunta é livre); o aviso fica sempre no editor da inscrição. */}
-      {inscricao ? <Alerta tom="atencao" texto={AVISO_SAUDE_NA_INSCRICAO} /> : null}
-    </Cartao>
+    <View ref={ancora} onLayout={(ev) => setArea(ev.nativeEvent.layout.width)} style={arranjo === 'simples' ? estilos.pilha : estilos.colunas}>
+      {arranjo !== 'simples' && colunas ? <IndiceDoQuestionario itens={itensDoIndice(e.conteudo, agrupados)} atual={visivel.atual} largura={colunas.indice} aoEscolher={irParaItem} /> : null}
+      <View style={[estilos.pilha, arranjo !== 'simples' && colunas ? { width: colunas.editor } : null]}>
+        <Cartao>
+          {editavel ? <>
+            <Campo rotulo="Nome do questionário" valor={e.nome} maxLength={120} aoMudar={(nome) => editor.alterar(() => ({ nome }))} />
+            <Campo rotulo="Descrição (opcional)" valor={e.descricao} maxLength={400} linhas={2} aoMudar={(descricao) => editor.alterar(() => ({ descricao }))} />
+          </> : <>
+            <Texto variante="bloco" nivel={2}>{e.nome.trim() || 'Questionário sem nome'}</Texto>
+            {d.descricao ? <Texto variante="suave">{d.descricao}</Texto> : null}
+            {d.arquivado ? <Texto variante="suave">Arquivado. Desarquive na lista para editar.</Texto> : !pode('QUESTIONARIO_ALTERAR') ? <Texto variante="suave">Você pode ver o questionário, mas não alterá-lo.</Texto> : null}
+          </>}
+          {ultima ? <Texto variante="pequeno">
+            Editar aqui mexe só no rascunho; {inscricao ? 'a página continua com a versão publicada até você publicar de novo, e cada inscrição fica com a versão que respondeu.'
+              : anamnese ? 'cada anamnese enviada fica com a versão publicada no momento do envio.' : 'o aluno continua vendo a versão publicada até você publicar de novo.'}
+          </Texto> : null}
+          {/* D7: não dá para impedir por regra (o texto da pergunta é livre); o aviso fica sempre no editor da inscrição. */}
+          {inscricao ? <Alerta tom="atencao" texto={AVISO_SAUDE_NA_INSCRICAO} /> : null}
+        </Cartao>
 
-    {problemas && problemas.length ? <Cartao titulo="Corrija antes de publicar" acoes={<Botao rotulo="Fechar" tipo="fantasma" aoTocar={() => setProblemas(null)} />}>
-      {problemas.map((p, i) => <ItemProblema key={`${p.caminho}${i}`} onde={descricaoDoLocal(e.conteudo, p.caminho)} mensagem={p.mensagem} tipo="perigo" />)}
-    </Cartao> : null}
+        {problemas && problemas.length ? <Cartao titulo="Corrija antes de publicar" acoes={<Botao rotulo="Fechar" tipo="fantasma" aoTocar={() => setProblemas(null)} />}>
+          {problemas.map((p, i) => <ItemProblema key={`${p.caminho}${i}`} onde={descricaoDoLocal(e.conteudo, p.caminho)} mensagem={p.mensagem} tipo="perigo" />)}
+        </Cartao> : null}
 
-    {editavel ? <Abas abas={[{ valor: 'editar', rotulo: 'Editar' }, { valor: 'previa', rotulo: 'Prévia' }]} ativa={abaAtiva} aoMudar={setAba} /> : null}
+        {editavel && arranjo !== 'tres' ? <Abas abas={[{ valor: 'editar', rotulo: 'Editar' }, { valor: 'previa', rotulo: 'Prévia' }]} ativa={abaAtiva} aoMudar={setAba} /> : null}
 
-    {abaAtiva === 'editar' ? <>
-      <Cartao titulo="Instruções" descricao="Texto que o aluno lê antes das perguntas (opcional).">
-        {instrucoes.map((texto, i) => <View key={i} style={estilos.instrucao}>
-          <View style={estilos.campoInstrucao}><Campo rotulo={`Instrução ${i + 1}`} valor={texto} maxLength={L.instrucaoTamanho} linhas={2}
-            aoMudar={(novo) => editor.alterarConteudo((c) => alterarInstrucoes(c, instrucoes.map((x, n) => (n === i ? novo : x))))} /></View>
-          <IconeBotao Icone={Trash2} rotulo={`Remover instrução ${i + 1}`} aoTocar={() => editor.alterarConteudo((c) => alterarInstrucoes(c, instrucoes.filter((_, n) => n !== i)))} />
-        </View>)}
-        <LinhaDeAcoes>
-          <Botao rotulo="Adicionar instrução" tipo="acao" Icone={Plus} desabilitado={instrucoes.length >= L.instrucoes} motivo={`No máximo ${L.instrucoes} instruções.`}
-            aoTocar={() => editor.alterarConteudo((c) => alterarInstrucoes(c, [...instrucoes, '']))} />
-        </LinhaDeAcoes>
-      </Cartao>
-      <SecoesDoQuestionario conteudo={e.conteudo} aoMudar={editor.alterarConteudo} estaAberta={perguntas.estaAberta} todasAbertas={perguntas.todasAbertas} aoAlternar={perguntas.alternar} aoAlternarTodas={alternarTodas}
-        aoAbrir={perguntas.abrir} problemas={agrupados} finalidade={d.finalidade} />
-    </> : <PreviaDoQuestionario conteudo={e.conteudo} anamnese={anamnese} respostas={respostas} erros={errosPrevia}
-      aoMudar={(pid, valor) => { setRespostas((r) => ({ ...r, [pid]: valor })); setErrosPrevia(null); }}
-      aoMudarErros={setErrosPrevia} aoLimpar={() => { setRespostas({}); setErrosPrevia(null); }} />}
+        {abaAtiva === 'editar' ? <>
+        <View nativeID={idDoBloco(CHAVE_DAS_INSTRUCOES)} collapsable={false}><Cartao titulo="Instruções" descricao="Texto que o aluno lê antes das perguntas (opcional).">
+          {instrucoes.map((texto, i) => <View key={i} style={estilos.instrucao}>
+            <View style={estilos.campoInstrucao}><Campo rotulo={`Instrução ${i + 1}`} valor={texto} maxLength={L.instrucaoTamanho} linhas={2}
+              aoMudar={(novo) => mudarInstrucoes((c) => alterarInstrucoes(c, instrucoes.map((x, n) => (n === i ? novo : x))))} /></View>
+            <IconeBotao Icone={Trash2} rotulo={`Remover instrução ${i + 1}`} aoTocar={() => mudarInstrucoes((c) => alterarInstrucoes(c, instrucoes.filter((_, n) => n !== i)))} />
+          </View>)}
+          <LinhaDeAcoes>
+            <Botao rotulo="Adicionar instrução" tipo="acao" Icone={Plus} desabilitado={instrucoes.length >= L.instrucoes} motivo={`No máximo ${L.instrucoes} instruções.`}
+              aoTocar={() => mudarInstrucoes((c) => alterarInstrucoes(c, [...instrucoes, '']))} />
+          </LinhaDeAcoes>
+        </Cartao></View>
+        <SecoesDoQuestionario conteudo={e.conteudo} aoMudar={editor.alterarConteudo} estaAberta={perguntas.estaAberta} todasAbertas={perguntas.todasAbertas} aoAlternar={perguntas.alternar} aoAlternarTodas={alternarTodas}
+          aoAbrir={perguntas.abrir} problemas={agrupados} finalidade={d.finalidade} aoEditarSecao={editarSecao} />
+        </> : previa(false)}
+      </View>
+      {arranjo === 'tres' && colunas ? <View role="complementary" aria-label="Prévia ao vivo" testID="previa-ao-vivo"
+        style={[estilos.lateral, { width: colunas.previa }, fixoAbaixoDaBarra(alturaDaJanela)]}>
+        {/* "No formato do celular": a coluna tem a largura de um celular e o fundo da tela do aluno, com rolagem própria
+            (a `useRolagem` de dentro, de "Avançar" e dos erros, rola a coluna, não a página). */}
+        <View style={[estilos.moldura, { backgroundColor: cores.fundo, borderColor: cores.borda }]}>
+          <RolagemComTopo contentContainerStyle={estilos.rolagemDaPrevia}>{previa(true)}</RolagemComTopo>
+        </View>
+      </View> : null}
+    </View>
 
     <PainelConfirmacao visivel={confirmando && avisos === null} titulo={inscricao ? 'Publicar estas perguntas?' : anamnese ? 'Publicar esta anamnese?' : 'Publicar este questionário?'}
       mensagem={inscricao ? 'Se este for o padrão, a página de inscrição passa a mostrar a versão nova. Quem já se inscreveu continua com a versão que respondeu.'
@@ -199,6 +252,12 @@ function ItemProblema({ onde, mensagem, tipo }: { onde: string; mensagem: string
 }
 
 const estilos = StyleSheet.create({
+  pilha: { width: '100%', gap: espaco(3) },
+  // `flex-start`: sem ele as colunas esticam até a altura do editor e o `sticky` não tem para onde andar.
+  colunas: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
+  lateral: { alignSelf: 'flex-start', flexShrink: 0 },
+  moldura: { flexShrink: 1, minHeight: 0, borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
+  rolagemDaPrevia: { padding: espaco(2) },
   instrucao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(0.5) },
   campoInstrucao: { flex: 1 },
   // Linha simples (24/11, sem a faixa lateral): selo + texto, alinhada ao conteúdo do cartão ou do painel, sem moldura.

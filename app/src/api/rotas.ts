@@ -910,19 +910,29 @@ export const alterarAlimento = (id: string, dados: AlimentoRequest) =>
   requisicao<Alimento>(`/alimentos/${seg(id)}`, { metodo: 'PUT', corpo: dados });
 export const inativarAlimento = (id: string) => requisicao<void>(`/alimentos/${seg(id)}`, { metodo: 'DELETE' });
 
-/** `grupo` repetido, um por grupo (vale "ou"); a vírgula do nome ("Verduras, hortaliças e derivados") vai codificada. */
-const consultaDoCatalogo = (texto: string | undefined, grupos: readonly string[]) => {
+/**
+ * Filtros do catálogo, todos na API (a lista vem cortada no limite). `grupo`, `modalidade` e `unidade` repetidos, um por valor (vale
+ * "ou"; a vírgula do nome "Verduras, hortaliças e derivados" vai codificada); `imagem` e `naBiblioteca` ausentes = todos.
+ */
+export interface FiltroDoCatalogo {
+  texto?: string; grupos?: readonly string[]; modalidades?: readonly string[]; unidades?: readonly string[]; imagem?: boolean; naBiblioteca?: boolean;
+}
+const consultaDoCatalogo = ({ texto, grupos = [], modalidades = [], unidades = [], imagem, naBiblioteca }: FiltroDoCatalogo) => {
   const q = new URLSearchParams();
   if (texto) q.append('busca', texto);
   for (const g of grupos) q.append('grupo', g);
+  for (const m of modalidades) q.append('modalidade', m);
+  for (const u of unidades) q.append('unidade', u);
+  if (imagem !== undefined) q.append('imagem', String(imagem));
+  if (naBiblioteca !== undefined) q.append('naBiblioteca', String(naBiblioteca));
   const montada = q.toString();
   return montada ? `?${montada}` : '';
 };
 
-export const catalogoExercicios = (texto?: string, grupos: readonly string[] = []) =>
-  requisicao<PaginaCatalogo<CatalogoExercicio>>(`/catalogo/exercicios${consultaDoCatalogo(texto, grupos)}`);
-export const catalogoAlimentos = (texto?: string, grupos: readonly string[] = []) =>
-  requisicao<PaginaCatalogo<CatalogoAlimento>>(`/catalogo/alimentos${consultaDoCatalogo(texto, grupos)}`);
+export const catalogoExercicios = (filtro: Omit<FiltroDoCatalogo, 'unidades'>) =>
+  requisicao<PaginaCatalogo<CatalogoExercicio>>(`/catalogo/exercicios${consultaDoCatalogo(filtro)}`);
+export const catalogoAlimentos = (filtro: Omit<FiltroDoCatalogo, 'modalidades' | 'imagem'>) =>
+  requisicao<PaginaCatalogo<CatalogoAlimento>>(`/catalogo/alimentos${consultaDoCatalogo(filtro)}`);
 export const gruposDoCatalogo = (tipo: TipoBiblioteca) => requisicao<string[]>(`/catalogo/${seg(tipo)}/grupos`);
 
 export type TipoBiblioteca = 'exercicios' | 'alimentos';

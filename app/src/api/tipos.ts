@@ -493,11 +493,13 @@ export interface CatalogoExercicio {
   nome: string;
   grupoMuscular: string | null;
   equipamento: string | null;
-  modalidade: string;
+  modalidade: Modalidade;
   instrucoes: string | null;
   fonte: string | null;
   /** Caminhos das fotos (`<id>/0.jpg` e `1.jpg`), servidas pelo próprio site em `/catalogo/exercicios/`. */
   imagens: string[];
+  /** A consultoria já tem um exercício ativo com este nome (a importação o ignoraria); ausente = não. */
+  naBiblioteca?: boolean;
 }
 
 export interface CatalogoAlimento {
@@ -521,6 +523,8 @@ export interface CatalogoAlimento {
   fatorCorrecao: number | null;
   /** Fator de cocção estimado; junto com o de correção, vem do perfil nativo. */
   fatorCoccao: number | null;
+  /** A consultoria já tem um alimento ativo com este nome (a importação o ignoraria); ausente = não. */
+  naBiblioteca?: boolean;
 }
 
 /** Página de exercícios da consultoria; `grupos` e `modalidades` são todos os dela, sem filtro nenhum. */

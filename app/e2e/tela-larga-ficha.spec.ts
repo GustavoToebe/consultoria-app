@@ -391,6 +391,11 @@ for (const largura of LARGURAS) {
           expect(d.x).toBeGreaterThan(e.x + e.width);
           expect(Math.abs(e.width - d.width)).toBeLessThanOrEqual(2);
         } else if (aba === 'evolucao') expect(d.y).toBeGreaterThan(e.y + e.height);
+        // Abaixo de 2560 Frequência e Água dividem uma linha: mesmo topo e a mesma altura (a linha estica os dois).
+        else {
+          expect(Math.abs(e.y - d.y)).toBeLessThanOrEqual(1);
+          expect(Math.abs(e.height - d.height)).toBeLessThanOrEqual(1);
+        }
       });
       if (aba === 'evolucao') {
         // O campo "Medida" não estica: para na largura de formulário (640).

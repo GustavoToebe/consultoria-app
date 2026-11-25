@@ -1,20 +1,17 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import { execucoesDoAluno, listarPastas, listarPlanos, mobilidadeFeitaDoAluno, pastaVigenteDoAluno } from '../api/rotas';
-import type { PastaResumo } from '../api/tipos';
-import { hojeIso, somarDias } from '../dominio/formatos';
-import { frequenciaDe, planejarFrequencia, resumoDaFrequencia, type CelulaDaContagem, type Frequencia } from '../dominio/frequencia';
-import { contagemDaMobilidadeNoTreinador } from '../dominio/mobilidadeFeita';
-import { periodoDaSemana } from '../dominio/progressoSemana';
+import { execucoesDoAluno, listarPastas, listarPlanos, mobilidadeFeitaDoAluno, pastaVigenteDoAluno, versaoPlano } from '../api/rotas';
+import type { ConteudoTreino, PastaResumo } from '../api/tipos';
+import { hojeIso } from '../dominio/formatos';
+import { frequenciaDe, planejarFrequencia, resumoDaFrequencia, treinosPrevistosNaSemana, type Frequencia } from '../dominio/frequencia';
+import { diasComAlgoFeito } from '../dominio/mobilidadeFeita';
 import { useSessao } from '../sessao/SessaoProvider';
-import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes } from '../tema/tokens';
 import { Cartao } from '../ui/Cartao';
-import { aparenciaDoNumero } from '../ui/destaqueDoNumero';
+import { CartaoDeIndicador } from '../ui/CartaoDeIndicador';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
-import { useDestaques } from '../ui/NumeroDeDestaque';
+import { GradeDeIndicadores } from '../ui/GradeDeIndicadores';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
@@ -30,7 +27,7 @@ export interface AcompanhamentoDoAluno {
 
 /**
  * Uma busca só para o resumo do topo da ficha e o cartão Frequência e mobilidade: a pasta vigente e, com `REGISTRO_LER`, os
- * treinos da semana e da pasta (e o último registro entre eles), mais a lista de pastas. `geracao` muda quando a ficha altera as pastas.
+ * treinos da semana, da semana passada e da pasta (e o último registro da semana e da pasta), mais a lista de pastas. `geracao` muda quando a ficha altera as pastas.
  */
 export function useAcompanhamentoDoAluno(alunoId: string, geracao = 0) {
   const { pode } = useSessao();
@@ -47,32 +44,19 @@ export function useAcompanhamentoDoAluno(alunoId: string, geracao = 0) {
   return { ...carga, dados: carga.dados?.alunoId === alunoId ? carga.dados : undefined };
 }
 
-/** A API recusa período acima de 366 dias; a pasta muito antiga é cortada aqui, como a frequência. */
-const DIAS_PARA_TRAS = 364;
-
 /**
- * Frequência e mobilidade na ficha, num cartão só: treinos com registro e dias com algum item de mobilidade marcado, na
- * semana corrente (segunda até hoje) e na pasta vigente (do início até hoje). Só contagem: não compara com meta nem
- * interpreta. O formato (linhas, rótulo da pasta, frases) vem de `resumoDaFrequencia`; o número da contagem de treinos fica em
- * azul (medida de atividade), com a unidade no texto comum, e zero e "—" em `textoSuave`, distintos pelo texto (`cores-de-destaque.md`, D12 e D14). Quem renderiza já checou
- * `REGISTRO_LER`; `comMobilidade` (`mostraMobilidade`: também `TREINO_LER`) liga a linha e a busca da mobilidade.
+ * Frequência e mobilidade na ficha (24/11): dois indicadores neutros lado a lado, "Treinos esta semana" (treinos com
+ * registro; "1 de 4 treinos" quando o plano de treino da pasta vigente diz quantos por semana) e "Mobilidade esta semana"
+ * (dias com algum item marcado), cada um com "Semana passada: N" embaixo. O formato vem de `resumoDaFrequencia`; a pasta
+ * fica na pílula do cartão e, sem pasta vigente, a nota uma linha abaixo dos indicadores. Quem renderiza já checou
+ * `REGISTRO_LER`; `comMobilidade` (`mostraMobilidade`: também `TREINO_LER`) liga o indicador e a busca da mobilidade; o
+ * previsto pede `TREINO_LER` e, se falhar, o valor fica só a contagem.
  */
 export function CartaoFrequencia({ alunoId, acompanhamento, comMobilidade }: {
   alunoId: string; acompanhamento: ReturnType<typeof useAcompanhamentoDoAluno>; comMobilidade: boolean;
 }) {
+  const { pode } = useSessao();
   const { dados, erro, recarregar } = acompanhamento;
-  const { cores } = useTema();
-  const destaques = useDestaques();
-  // Cor e peso de indicador só no número; a unidade fica no texto comum ("3" azul, "treinos" neutro). O espaço vai no
-  // texto de fora, para a célula dizer "3 treinos" inteira ao leitor de tela.
-  const celula = (c: CelulaDaContagem) => (
-    <View role="cell" style={estilos.valor}>
-      <Texto numerico cor={cores.texto}>
-        <Texto numerico style={estilos.numero} cor={aparenciaDoNumero(c.enfase, cores, destaques).numero}>{c.numero}</Texto>
-        {c.unidade ? ` ${c.unidade}` : null}
-      </Texto>
-    </View>
-  );
   const f = dados?.frequencia ?? null;
   const vigente = dados?.pasta ?? null;
   const hoje = hojeIso();
@@ -81,60 +65,49 @@ export function CartaoFrequencia({ alunoId, acompanhamento, comMobilidade }: {
     comMobilidade && vigente && !erro ? `mobilidade-feita:${alunoId}:${vigente.id}:${hoje}` : null,
     async () => {
       const planos = await listarPlanos('mobilidade', alunoId);
-      const temMobilidade = planos.some((p) => p.pastaId === vigente?.id && p.ativo && p.versaoPublicada > 0);
-      const semana = periodoDaSemana(hoje);
-      if (!temMobilidade) return contagemDaMobilidadeNoTreinador([], semana, vigente, false);
-      const limite = somarDias(hoje, -DIAS_PARA_TRAS);
-      const comeco = [semana.inicio, vigente?.inicio ?? semana.inicio].reduce((a, b) => (a < b ? a : b));
-      const marcas = await mobilidadeFeitaDoAluno(alunoId, comeco < limite ? limite : comeco, hoje);
-      return contagemDaMobilidadeNoTreinador(marcas, semana, vigente, true);
+      if (!planos.some((p) => p.pastaId === vigente?.id && p.ativo && p.versaoPublicada > 0)) return null;
+      const { semana, semanaPassada } = planejarFrequencia(hoje, null);
+      const marcas = await mobilidadeFeitaDoAluno(alunoId, semanaPassada.de, hoje);
+      return { naSemana: diasComAlgoFeito(marcas, semana.de, semana.ate), semanaPassada: diasComAlgoFeito(marcas, semanaPassada.de, semanaPassada.ate) };
     },
   );
-  const esperandoMobilidade = comMobilidade && !!vigente && mob.dados === undefined && !mob.erro;
-  // Com o resumo da ficha em erro, só a mensagem dele (a mobilidade depende da pasta que ele traz).
-  const resumo = f && !erro && !esperandoMobilidade
-    ? resumoDaFrequencia(f, vigente, comMobilidade && !mob.erro && mob.dados !== undefined ? mob.dados : 'oculta')
+  const prev = useCarregar(
+    pode('TREINO_LER') && vigente && !erro ? `treinos-previstos:${alunoId}:${vigente.id}` : null,
+    async () => {
+      const ativo = (await listarPlanos('treino', alunoId)).find((p) => p.pastaId === vigente?.id && p.ativo && p.versaoPublicada > 0);
+      if (!ativo) return null;
+      const versao = await versaoPlano<ConteudoTreino>('treino', ativo.id, ativo.versaoPublicada);
+      return treinosPrevistosNaSemana(versao.conteudo?.sessoes ?? []);
+    },
+  );
+  const esperando = (c: { dados?: unknown; erro?: unknown }, ligado: boolean) => ligado && !!vigente && c.dados === undefined && !c.erro;
+  // Espera as três buscas para os números não trocarem na frente da pessoa; com o resumo da ficha em erro, só a mensagem dele.
+  const resumo = f && !erro && !esperando(mob, comMobilidade) && !esperando(prev, pode('TREINO_LER'))
+    ? resumoDaFrequencia(f, vigente, comMobilidade && !mob.erro && mob.dados !== undefined ? mob.dados : 'oculta', prev.dados ?? null)
     : null;
   return (
     <Cartao titulo="Frequência e mobilidade" descricao="Treinos com registro e dias de mobilidade do aluno. Só contagem."
-      periodo={resumo?.comColunaDaPasta ? resumo.pasta : undefined}>
+      periodo={resumo?.comPasta ? resumo.pasta : undefined} style={estilos.esticar}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!resumo && !erro ? <Esqueleto cartoes={1} /> : null}
       {resumo ? (
-        <View role="table" accessibilityLabel="Frequência e mobilidade" style={estilos.tabela}>
-          <View role="row" style={estilos.linha}>
-            <View style={estilos.rotulo} />
-            <View role="columnheader" style={estilos.valor}><Texto variante="rotulo">Esta semana</Texto></View>
-            {resumo.comColunaDaPasta ? <View role="columnheader" style={estilos.valor}><Texto variante="rotulo">Na pasta</Texto></View> : null}
-          </View>
-          {resumo.linhas.map((l) => (
-            <View key={l.rotulo} role="row" style={estilos.linha}>
-              <View role="rowheader" style={estilos.rotulo}><Texto variante="rotulo">{l.rotulo}</Texto></View>
-              {'aviso' in l ? (
-                <View role="cell" style={estilos.aviso}><Texto variante="suave">{l.aviso}</Texto></View>
-              ) : (
-                <>
-                  {celula(l.semana)}
-                  {l.naPasta !== null ? celula(l.naPasta) : null}
-                </>
-              )}
-            </View>
+        <GradeDeIndicadores minimo={MINIMO_DO_INDICADOR}>
+          {resumo.indicadores.map((i) => (
+            <CartaoDeIndicador key={i.rotulo} rotulo={i.rotulo} valor={i.valor} estado={i.estado} detalhe={i.detalhe} motivo={i.motivo}
+              tamanho="medio" lugar="cartao" nivelDoRotulo={3} textual />
           ))}
-        </View>
+        </GradeDeIndicadores>
       ) : null}
-      {resumo && !resumo.comColunaDaPasta ? <Texto variante="suave">{resumo.pasta}</Texto> : null}
+      {resumo && !resumo.comPasta ? <Texto variante="suave">{resumo.pasta}</Texto> : null}
       {mob.erro && !erro ? <MensagemErro texto={textoDoErro(mob.erro)} erro={mob.erro} tentarDeNovo={mob.recarregar} /> : null}
     </Cartao>
   );
 }
 
-// Rótulo da linha na largura de "Mobilidade" e as duas colunas de número iguais: em 390 px "16 treinos" cabe numa
-// linha. Sem a Água ao lado, a tabela não estica pela largura toda.
+/** Célula mínima dos dois indicadores: cabem lado a lado no cartão de ~470 px de 1280 (ao lado da Água) e empilham no celular. */
+const MINIMO_DO_INDICADOR = 180;
+
 const estilos = StyleSheet.create({
-  tabela: { gap: espaco(1.5), maxWidth: 480 },
-  linha: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(1) },
-  rotulo: { width: 72 },
-  valor: { flex: 1, minWidth: 0 },
-  numero: { fontFamily: fontes.semi },
-  aviso: { flex: 2, minWidth: 0 },
+  // Na linha das contagens os dois cartões têm a mesma altura (a ficha estica a linha).
+  esticar: { flexGrow: 1 },
 });

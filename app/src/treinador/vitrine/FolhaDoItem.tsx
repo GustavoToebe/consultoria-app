@@ -18,11 +18,11 @@ import {
 } from '../../dominio/vitrine';
 import { SEM_CATEGORIA } from '../../dominio/vitrineCategorias';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_FOLHA_LARGA } from '../../tema/tokens';
 import { AreaDeFoto } from '../../ui/AreaDeFoto';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { Cartao } from '../../ui/Cartao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CampoData, Interruptor } from '../../ui/Campos';
@@ -263,9 +263,10 @@ function Formulario({ inicial, podeAlterar, categorias, aoFechar, aoMudar }: Omi
             motivo="Aguarde o envio da foto." />
         </LinhaDeAcoes>
       )}>
-      <View onLayout={aoMedir} style={estilos.secoes}>
+      <View style={estilos.secoes}>
         <Secao titulo="Item">
-          <View style={aoLado ? estilos.fotoAoLado : estilos.coluna}>
+          {/* Mede dentro do cartão: é a largura que a foto e os campos dividem. */}
+          <View onLayout={aoMedir} style={aoLado ? estilos.fotoAoLado : estilos.coluna}>
             <AreaDeFoto rotulo="Foto do item" dica={DICA_DA_FOTO_DA_VITRINE} previa={previa} lado={LADO_DA_FOTO}
               aoEscolher={() => void escolher('galeria')} aoSoltarArquivo={WEB ? (a) => void soltar(a) : undefined}
               aoRemover={removerFotoLocalOuPedir} aoTentarDeNovo={item && pendente ? () => void tentarFotoDeNovo() : undefined}
@@ -341,14 +342,9 @@ function descartar(foto: FotoPronta | null) {
   if (foto && Platform.OS !== 'web') void apagarTemporaria(foto.uri);
 }
 
+/** Cada seção é um cartão com faixa de título, como em Editar alimento e Editar exercício. */
 function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
-  const { cores } = useTema();
-  return (
-    <View style={estilos.secao}>
-      <Texto variante="secao" nivel={3} cor={cores.texto}>{titulo}</Texto>
-      {children}
-    </View>
-  );
+  return <Cartao titulo={titulo} nivel={3}>{children}</Cartao>;
 }
 
 /** Preço com a máscara de moeda; desabilitado (sem preço) não aceita digitar. */
@@ -399,9 +395,8 @@ function SomenteLeitura({ item, lojaHabilitada }: { item: ItemDaVitrine; lojaHab
 }
 
 const estilos = StyleSheet.create({
-  // Entre seções o dobro do espaço de dentro delas (24 × 12).
+  // 24 px entre os cartões da folha (seção 4.3 do design); dentro de cada cartão, os 16 px do próprio `Cartao`.
   secoes: { gap: espaco(3) },
-  secao: { gap: espaco(1.5) },
   coluna: { gap: espaco(1.5) },
   fotoAoLado: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2), flexWrap: 'wrap' },
   camposDoItem: { flex: 1, minWidth: 240, gap: espaco(1.5) },

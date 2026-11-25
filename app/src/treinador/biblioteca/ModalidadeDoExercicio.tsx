@@ -3,11 +3,15 @@ import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { Exercicio, Modalidade } from '../../api/tipos';
-import { COR_DA_MODALIDADE, detalheDoExercicio, nomeDaModalidade, temImagem, temVideo } from '../../dominio/exerciciosDaBiblioteca';
+import {
+  COR_DA_MODALIDADE, detalheDoExercicio, nomeDaModalidade, OPCOES_DE_IMAGEM, OPCOES_DE_VIDEO, temImagem, temVideo, type FiltrosDeExercicios,
+} from '../../dominio/exerciciosDaBiblioteca';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
+import { UmaOpcao } from '../SeletoresDeFiltro';
 
 /**
  * Bolinha de 8 px na cor da modalidade (identificação, só marca: o nome fica escrito ao lado, em texto neutro). Redonda
@@ -53,8 +57,11 @@ function IconeDoQueTem({ Icone, rotulo }: { Icone: LucideIcon; rotulo: string })
   );
 }
 
-/** Linha de detalhe da lista: "● Máquina · Abdômen · Colchonete" e, no fim, os ícones de vídeo e de imagem. */
-export function DetalheDoExercicio({ exercicio: e }: { exercicio: Exercicio }) {
+/**
+ * Linha de detalhe da lista: "● Máquina · Abdômen · Colchonete" e, no fim, os ícones de vídeo e de imagem. A mesma nas
+ * abas Exercícios e Importar do catálogo (o do catálogo não tem vídeo nem imagem própria: vão nulos).
+ */
+export function DetalheDoExercicio({ exercicio: e }: { exercicio: Pick<Exercicio, 'modalidade' | 'grupoMuscular' | 'equipamento' | 'videoUrl' | 'imagemPropriaEm' | 'imagens'> }) {
   const resto = detalheDoExercicio(e);
   return (
     <View style={estilos.detalhe}>
@@ -69,6 +76,27 @@ export function DetalheDoExercicio({ exercicio: e }: { exercicio: Exercicio }) {
         </View>
       ) : null}
     </View>
+  );
+}
+
+/**
+ * Seletores do painel "Filtros" dos exercícios (Grupo muscular, Modalidade, Vídeo e Imagem), os mesmos nas abas
+ * Exercícios e Importar do catálogo. `comVideo` falso tira o Vídeo (o catálogo não tem vídeo: o filtro nunca acharia nada).
+ */
+export function SeletoresDeExercicios<F extends FiltrosDeExercicios>({ atual, mudar, opcoesDeGrupo, opcoesDeModalidades, comVideo = true }: {
+  atual: F; mudar: (f: F) => void; opcoesDeGrupo: readonly { valor: string; rotulo: string }[];
+  opcoesDeModalidades: readonly { valor: Modalidade; rotulo: string }[]; comVideo?: boolean;
+}) {
+  return (
+    <>
+      {opcoesDeGrupo.length > 0 ? (
+        <SelecaoMultiplaSuspensa rotulo="Grupo muscular" rotuloDeTodos="Todos os grupos" rotuloDaBusca="Buscar grupo" opcoes={opcoesDeGrupo}
+          marcados={atual.grupos} aoMudar={(m) => mudar({ ...atual, grupos: m })} style={estilos.cheio} />
+      ) : null}
+      <FiltroDeModalidades opcoes={opcoesDeModalidades} marcados={atual.modalidades} aoMudar={(m) => mudar({ ...atual, modalidades: m })} />
+      {comVideo ? <UmaOpcao rotulo="Vídeo" valor={atual.video} opcoes={OPCOES_DE_VIDEO} aoMudar={(v) => mudar({ ...atual, video: v })} /> : null}
+      <UmaOpcao rotulo="Imagem" valor={atual.imagem} opcoes={OPCOES_DE_IMAGEM} aoMudar={(v) => mudar({ ...atual, imagem: v })} />
+    </>
   );
 }
 
@@ -92,6 +120,8 @@ export function FiltroDeModalidades({ opcoes, marcados, aoMudar }: { opcoes: rea
 }
 
 const estilos = StyleSheet.create({
+  // Seletor no painel de filtros: a largura toda da coluna.
+  cheio: { alignSelf: 'stretch' },
   grupo: { gap: espaco(1) },
   marca: { width: 8, height: 8, borderRadius: 4 },
   legenda: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(1.5), rowGap: espaco(0.5) },

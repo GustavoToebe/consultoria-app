@@ -7,7 +7,8 @@ import {
   maisUmCopo,
   menosUmCopo,
   metaEmMl,
-  resumoDosDias,
+  graficoDaAgua,
+  resumoDaAgua,
   textoDaAguaDoDia,
   textoDosCopos,
   ultimosDiasDeAgua,
@@ -80,18 +81,38 @@ describe('água do dia', () => {
     ]);
   });
 
-  it('ficha do treinador: do mais novo ao mais antigo, "—" sem registro e o zero conta como registro', () => {
+  it('ficha do treinador: do mais antigo a hoje, nulo sem registro e o zero conta como registro', () => {
     const dias = ultimosDiasDeAgua(
       [{ data: '2026-10-30', aguaMl: 1500 }, { data: '2026-10-28', aguaMl: 0 }, { data: '2026-10-20', aguaMl: 3000 }],
       '2026-10-30',
     );
     expect(dias.map((d) => d.data)).toEqual([
-      '2026-10-30', '2026-10-29', '2026-10-28', '2026-10-27', '2026-10-26', '2026-10-25', '2026-10-24',
+      '2026-10-24', '2026-10-25', '2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30',
     ]);
-    expect(dias[0].aguaMl).toBe(1500);
-    expect(dias[1].aguaMl).toBeNull();
-    expect(dias[2].aguaMl).toBe(0);
-    expect(resumoDosDias(dias)).toBe('Registrou 2 de 7 dias');
-    expect(resumoDosDias(ultimosDiasDeAgua([], '2026-10-30'))).toBe('Nenhum registro nos últimos 7 dias');
+    expect(dias.map((d) => d.aguaMl)).toEqual([null, null, null, null, 0, null, 1500]);
+    expect(resumoDaAgua(dias, 5)).toBe('Registrou 2 de 7 dias · média 0,8 L por dia · meta 5,0 L');
+    expect(resumoDaAgua(dias, null)).toBe('Registrou 2 de 7 dias · média 0,8 L por dia');
+    expect(resumoDaAgua(ultimosDiasDeAgua([{ data: '2026-10-30', aguaMl: 0 }], '2026-10-30'), 5)).toBe('Registrou 1 de 7 dias · média 0,0 L por dia · meta 5,0 L');
+    expect(resumoDaAgua(ultimosDiasDeAgua([], '2026-10-30'), 2.5)).toBe('Nenhum registro nos últimos 7 dias · meta 2,5 L');
+    expect(resumoDaAgua(ultimosDiasDeAgua([], '2026-10-30'), null)).toBe('Nenhum registro nos últimos 7 dias');
+  });
+
+  it('gráfico: escala do maior entre meta e registro, rótulo "Hoje" no fim e o texto de cada dia', () => {
+    const dias = ultimosDiasDeAgua([{ data: '2026-11-24', aguaMl: 2500 }, { data: '2026-11-18', aguaMl: 0 }], '2026-11-24');
+    const g = graficoDaAgua(dias, '2026-11-24', 5);
+    expect(g.metaFracao).toBe(1);
+    expect(g.colunas.map((c) => c.rotulo)).toEqual(['18/11', '19/11', '20/11', '21/11', '22/11', '23/11', 'Hoje']);
+    expect(g.colunas.map((c) => c.fracao)).toEqual([0, null, null, null, null, null, 0.5]);
+    expect(g.colunas[0].texto).toBe('18/11: 0,0 L de 5,0 L');
+    expect(g.colunas[1].texto).toBe('19/11: sem registro');
+    expect(g.colunas[6].texto).toBe('24/11: 2,5 L de 5,0 L');
+    // Registro acima da meta: a escala é o registro e a meta fica abaixo do topo.
+    expect(graficoDaAgua(ultimosDiasDeAgua([{ data: '2026-11-24', aguaMl: 4000 }], '2026-11-24'), '2026-11-24', 2).metaFracao).toBe(0.5);
+    // Sem meta: sem linha e o texto só com os litros.
+    const sem = graficoDaAgua(dias, '2026-11-24', null);
+    expect(sem.metaFracao).toBeNull();
+    expect(sem.colunas[6]).toMatchObject({ fracao: 1, texto: '24/11: 2,5 L' });
+    // Tudo zero: sem divisão por zero.
+    expect(graficoDaAgua(ultimosDiasDeAgua([{ data: '2026-11-24', aguaMl: 0 }], '2026-11-24'), '2026-11-24', null).colunas[6].fracao).toBe(0);
   });
 });
