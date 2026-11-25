@@ -271,7 +271,8 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
             <RolagemComTopo contentContainerStyle={[estilos.conteudo, aDireita && estilos.conteudoLateral]} preencher={alturaFixa}>{children}</RolagemComTopo>
           </View>
           {rodape || statusDoRodape ? (
-            <View style={[estilos.rodape, aDireita && estilos.rodapeLateral, { borderColor: cores.divisor }]}>
+            // Marca do rodapé (web: `data-rodape-da-folha`): o `ui/Aviso` mede o topo dele para ficar acima das ações.
+            <View style={[estilos.rodape, aDireita && estilos.rodapeLateral, { borderColor: cores.divisor }]} {...({ dataSet: { rodapeDaFolha: 'sim' } } as object)}>
               <RodapeDeAcoes status={statusDoRodape} empilhar={!centralizado}>{rodape}</RodapeDeAcoes>
             </View>
           ) : null}
