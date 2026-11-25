@@ -1,4 +1,5 @@
 import type { PastaModelo, Receita, TipoReceita } from '../api/tipos';
+import { plural } from './formatos';
 
 /**
  * Regras do Planejamento agrupado por coleção (sem tela). Coleção é a pasta de modelos da API (`PastaModelo`); os
@@ -33,6 +34,42 @@ export function agruparPorColecao(modelos: readonly Receita[], colecoes: readonl
 /** "1 modelo" / "13 modelos". */
 export function resumoDeModelos(quantidade: number): string {
   return quantidade === 1 ? '1 modelo' : `${quantidade} modelos`;
+}
+
+/** Quantos modelos cada coleção tem, de TODOS os tipos (a exclusão da API solta todos eles, sem olhar o tipo). */
+export function modelosPorColecao(modelos: readonly Receita[]): ReadonlyMap<string, number> {
+  const contagem = new Map<string, number>();
+  for (const m of modelos) if (m.pastaId) contagem.set(m.pastaId, (contagem.get(m.pastaId) ?? 0) + 1);
+  return contagem;
+}
+
+/** Contagem na linha da coleção, em "Organizar coleções": "Nenhum modelo", "1 modelo", "12 modelos". */
+export function contagemDaColecao(quantidade: number): string {
+  return quantidade === 0 ? 'Nenhum modelo' : plural(quantidade, 'modelo', 'modelos');
+}
+
+/**
+ * O que a exclusão faz com os modelos (`PastaModeloService.excluir`: tira a coleção de cada um e apaga só a coleção).
+ * `undefined` = os modelos não carregaram: a frase não arrisca número.
+ */
+export function mensagemDeExcluirColecao(quantidade: number | undefined): string {
+  if (quantidade === undefined) return `Os modelos dela continuam no Planejamento, em ${SEM_COLECAO}.`;
+  if (quantidade === 0) return 'Nenhum modelo será afetado.';
+  if (quantidade === 1) return `O modelo continua no Planejamento, em ${SEM_COLECAO}.`;
+  return `Os ${quantidade} modelos continuam no Planejamento, em ${SEM_COLECAO}.`;
+}
+
+export const ERRO_NOME_VAZIO = 'Informe o nome da coleção.';
+export const ERRO_NOME_REPETIDO = 'Já existe uma coleção com esse nome. Escolha outro.';
+
+/**
+ * Nome vazio ou repetido (sem acento, caixa nem espaços sobrando) entre as coleções; `idIgnorado` é a que está sendo
+ * renomeada. A regra é só do app: a API (`pasta_modelo`) aceita nome repetido.
+ */
+export function erroDoNomeDaColecao(nome: string, colecoes: readonly PastaModelo[], idIgnorado?: string): string | null {
+  const termo = semAcentoMinusculo(nome);
+  if (!termo) return ERRO_NOME_VAZIO;
+  return colecoes.some((c) => c.id !== idIgnorado && semAcentoMinusculo(c.nome) === termo) ? ERRO_NOME_REPETIDO : null;
 }
 
 /** Modelos do tipo cujo nome ou descrição contém a busca (sem acento nem caixa); busca vazia = todos do tipo. */

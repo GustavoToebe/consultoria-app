@@ -5,11 +5,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Copy, Ellipsis, Library, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
-import { alterarPastaModelo, alterarReceita, criarPastaModelo, criarReceita, duplicarReceita, excluirPastaModelo, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
+import { alterarReceita, criarReceita, duplicarReceita, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
 import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
 import { agruparPorColecao, filtrarModelos, resumoDeModelos } from '../../../dominio/colecoes';
 import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
+import { FolhaColecoes } from '../../../treinador/planejamento/FolhaColecoes';
 import { ListaDeQuestionarios } from '../../../treinador/questionarios/ListaDeQuestionarios';
 import { ABA_ANAMNESE, ABA_ATUALIZACAO, ABA_INSCRICAO, ABAS_DE_QUESTIONARIO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, gruposLiberados, metadadosDoModelo, rotuloNovoModelo, slugDaAba, tipoDoPlanejamento, usoDoModelo } from '../../../treinador/planejamento/modelos';
 import { Abas } from '../../../ui/Abas';
@@ -77,8 +78,8 @@ export default function Planejamento() {
     });
     return () => { vivo = false; };
   }, [pedirNovo, pedirColar, emAtualizacao]);
-  // "Organizar coleções" abre a folha; o lápis de um grupo abre a mesma folha já renomeando aquela coleção.
-  const [organizar, setOrganizar] = useState<{ editar: PastaModelo | null } | null>(null);
+  // "Organizar coleções" abre a folha; o lápis de um grupo abre a mesma folha já renomeando aquela coleção (pelo id).
+  const [organizar, setOrganizar] = useState<{ editarId: string | null } | null>(null);
   // Coleções que abrem e fecham, por chave `tipo:pastaId` (pastaId vazio = "Sem coleção"), de TODOS os tipos e sem filtro
   // de busca: abrir numa lista não abre nas outras e trocar de chip não perde o que a pessoa abriu. Nascem fechadas, menos
   // a coleção única do tipo (`abrirDePartida`); buscar abre as que têm resultado e limpar a busca volta ao de antes; o
@@ -137,7 +138,7 @@ export default function Planejamento() {
         <View style={estilos.campoBusca}><Campo rotulo="Buscar modelo" valor={busca} aoMudar={buscar} placeholder="Nome ou descrição" autoCorrect={false} /></View>
         <Permitido codigo="MODELO_ALTERAR">
           <View style={estilos.acoesDaBusca}>
-            <Botao rotulo="Organizar coleções" tipo="secundario" Icone={Library} aoTocar={() => setOrganizar({ editar: null })} />
+            <Botao rotulo="Organizar coleções" tipo="secundario" Icone={Library} aoTocar={() => setOrganizar({ editarId: null })} />
             <Botao rotulo={rotuloNovoModelo(tipo)} Icone={Plus} aoTocar={() => setFormulario('novo')} />
           </View>
         </Permitido>
@@ -152,7 +153,7 @@ export default function Planejamento() {
       const aberto = secoes.estaAberta(chave);
       const colecao = g.pastaId ? colecoes.dados?.find((c) => c.id === g.pastaId) : undefined;
       return <Cartao key={g.pastaId ?? ''} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDeModelos(g.itens.length)} aberto={aberto} aoAlternar={() => secoes.alternar(chave)} acoesJuntas
-        acoes={colecao && pode('MODELO_ALTERAR') ? <IconeBotao Icone={Pencil} rotulo={`Renomear coleção ${g.rotulo}`} aoTocar={() => setOrganizar({ editar: colecao })} /> : undefined} />}>
+        acoes={colecao && pode('MODELO_ALTERAR') ? <IconeBotao Icone={Pencil} rotulo={`Renomear coleção ${g.rotulo}`} aoTocar={() => setOrganizar({ editarId: colecao.id })} /> : undefined} />}>
         {aberto ? <ListaEmColunas minimo={MINIMO_DA_COLUNA_COM_ACOES}>{g.itens.map((r) => <LinhaDeModelo key={r.id} modelo={r} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)}
           ocupado={ocupado === r.id} aoAplicar={() => setAplicar(r)} aoEditar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)}
           aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}</ListaEmColunas> : null}
@@ -172,7 +173,8 @@ export default function Planejamento() {
         router.push(colar ? { pathname: '/treinador/planejamento/modelo/[id]', params: { id: novo.id, colar: '1' } } : `/treinador/planejamento/modelo/${novo.id}`);
       } else { await alterarReceita(formulario.id, { ...formulario, nome, descricao, pastaId }); secoes.abrir(chaveDaColecao(formulario.tipo, pastaId)); fecharFormulario(); modelos.recarregar(); }
     }} /> : null}
-    {organizar ? <OrganizarColecoes colecoes={colecoes.dados ?? []} inicial={organizar.editar} aoFechar={() => setOrganizar(null)} atualizar={atualizar} /> : null}
+    {organizar ? <FolhaColecoes colecoes={colecoes.dados} erroDasColecoes={colecoes.erro} modelos={modelos.erro ? undefined : modelos.dados} inicialId={organizar.editarId}
+      aoFechar={() => setOrganizar(null)} atualizar={atualizar} /> : null}
     {aplicar ? <AplicarAoAluno modelo={aplicar} aoFechar={() => setAplicar(null)} aoAplicar={(id, nome) => { setAplicar(null); avisar(mensagemCopiaCriada(nome), 'sucesso'); router.push(`/treinador/alunos/${id}`); }} /> : null}
     <PainelConfirmacao visivel={!!excluir} titulo={`Excluir “${excluir?.nome ?? ''}”?`} mensagem="As cópias dos alunos e as metodologias já vinculadas permanecem iguais." rotuloConfirmar="Excluir modelo" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
       if (!excluir) return; const id = excluir.id; setExcluir(null);
@@ -209,29 +211,6 @@ function Formulario({ receita, tipo, colecoes, aoFechar, aoSalvar }: { receita: 
     <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={LIMITE_DESCRICAO_DO_MODELO} />
     <Escolha rotulo="Coleção" valor={colecao} aoMudar={setColecao} opcoes={[{ valor: '', rotulo: 'Sem coleção' }, ...colecoes.map((c) => ({ valor: c.id, rotulo: c.nome }))]} />
     {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-  </Folha>;
-}
-
-/**
- * Coleções organizam os modelos (na API ainda se chamam pastas de modelos; a pasta do aluno é outra coisa).
- * `inicial` abre a folha já renomeando aquela coleção (lápis na faixa do grupo).
- */
-function OrganizarColecoes({ colecoes: pastas, inicial = null, aoFechar, atualizar }: { colecoes: PastaModelo[]; inicial?: PastaModelo | null; aoFechar: () => void; atualizar: () => void }) {
-  const [nome, setNome] = useState(inicial?.nome ?? ''); const [editando, setEditando] = useState<PastaModelo | null>(inicial);
-  const [excluir, setExcluir] = useState<PastaModelo | null>(null); const [erro, setErro] = useState<unknown>(null);
-  const [salvando, setSalvando] = useState(false);
-  const executar = async (acao: () => Promise<unknown>) => {
-    setSalvando(true); setErro(null);
-    try { await acao(); atualizar(); setNome(''); setEditando(null); } catch (e) { setErro(e); } finally { setSalvando(false); }
-  };
-  return <Folha visivel titulo="Organizar coleções" aoFechar={aoFechar}>
-    <Texto variante="suave">Coleções só organizam seus modelos. Para aplicar treinos e dietas juntos a um aluno, use um pacote.</Texto>
-    <Campo rotulo={editando ? 'Renomear coleção' : 'Nova coleção'} valor={nome} aoMudar={setNome} maxLength={120} />
-    <Botao rotulo={editando ? 'Salvar nome' : 'Criar coleção'} carregando={salvando} desabilitado={!nome.trim()} motivo="Informe o nome da coleção." aoTocar={() => void executar(() => editando ? alterarPastaModelo(editando.id, nome.trim(), editando.versao) : criarPastaModelo(nome.trim()))} />
-    {editando ? <Botao rotulo="Cancelar edição" tipo="fantasma" aoTocar={() => { setEditando(null); setNome(''); }} /> : null}
-    {pastas.map((p) => <Cartao key={p.id} titulo={p.nome}><Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Renomear coleção" tipo="secundario" desabilitado={salvando} aoTocar={() => { setEditando(p); setNome(p.nome); }} /></Permitido><Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Excluir coleção" tipo="perigoTexto" desabilitado={salvando} aoTocar={() => setExcluir(p)} /></Permitido></Cartao>)}
-    {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-    <PainelConfirmacao visivel={!!excluir} titulo={`Excluir coleção “${excluir?.nome ?? ''}”?`} mensagem="Os modelos passam para Sem coleção." rotuloConfirmar="Excluir coleção" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => { if (!excluir) return; const id = excluir.id; setExcluir(null); void executar(() => excluirPastaModelo(id)); }} />
   </Folha>;
 }
 
