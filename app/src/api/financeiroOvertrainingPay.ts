@@ -23,6 +23,11 @@ export interface EtapasHomologacaoApi {
   contaRepasse?: boolean;
   documentos?: boolean;
   cobrancaTeste?: boolean;
+  /** Nomes equivalentes retornados pelo backend Java. */
+  dadosCadastrados?: boolean;
+  documentosAprovados?: boolean;
+  testeHomologado?: boolean;
+  ativa?: boolean;
 }
 
 export interface CobrancaTesteResponse {

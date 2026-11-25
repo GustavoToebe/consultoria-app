@@ -67,6 +67,36 @@ describe('etapasDaHomologacao', () => {
       'concluida', 'concluida', 'erro', 'pendente',
     ]);
   });
+
+  it('aceita também os nomes de etapas retornados pelo backend Java como fallback', () => {
+    expect(etapasDaHomologacao('NAO_CONFIGURADA', {
+      dadosCadastrados: true,
+      documentosAprovados: false,
+      testeHomologado: false,
+      ativa: false,
+    }).map((e) => e.estado)).toEqual(['concluida', 'concluida', 'atual', 'pendente']);
+
+    expect(etapasDaHomologacao('NAO_CONFIGURADA', {
+      dadosCadastrados: true,
+      documentosAprovados: true,
+      testeHomologado: false,
+      ativa: false,
+    }).map((e) => e.estado)).toEqual(['concluida', 'concluida', 'concluida', 'atual']);
+
+    expect(etapasDaHomologacao('NAO_CONFIGURADA', {
+      dadosCadastrados: true,
+      documentosAprovados: true,
+      testeHomologado: true,
+      ativa: true,
+    }).map((e) => e.estado)).toEqual(['concluida', 'concluida', 'concluida', 'concluida']);
+
+    expect(etapasDaHomologacao('REJEITADA', {
+      dadosCadastrados: true,
+      documentosAprovados: false,
+      testeHomologado: false,
+      ativa: false,
+    }).map((e) => e.estado)).toEqual(['concluida', 'concluida', 'erro', 'pendente']);
+  });
 });
 
 describe('cobrança teste e checklist', () => {

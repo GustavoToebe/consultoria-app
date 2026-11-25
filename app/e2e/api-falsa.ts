@@ -103,6 +103,34 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     // Tags de aluno: nenhuma na consultoria nem no aluno nos testes que não conferem isso (o `e2e/tags-de-aluno.spec.ts` troca).
     'GET /tags-de-alunos': { corpo: [] },
     'PUT /alunos/{id}/tags': { corpo: [] },
+    // Overtraining Pay: não configurado por padrão quando a flag estiver ligada sem mock específico.
+    'GET /financeiro/overtraining-pay': {
+      corpo: {
+        situacao: 'NAO_CONFIGURADA',
+        etapas: { titular: false, contaRepasse: false, documentos: false, cobrancaTeste: false },
+        tipoPessoa: null,
+        documentoMascarado: null,
+        nomeTitular: null,
+        emailFinanceiro: null,
+        telefoneMascarado: null,
+        cep: null,
+        enderecoResumo: null,
+        rendaMensalCentavos: null,
+        bancoCodigo: null,
+        bancoNome: null,
+        tipoConta: null,
+        agenciaMascarada: null,
+        contaMascarada: null,
+        repasseAutomatico: true,
+        maxParcelas: 12,
+        jurosParcelamento: 'ALUNO',
+        onboardingUrl: null,
+        cobrancasLiquidadas: 0,
+        homologadaEm: null,
+        cobrancaTesteAtiva: null,
+        versao: null,
+      },
+    },
     ...respostas,
   };
   const rotas = Object.keys(mapa).sort((a, b) => b.length - a.length);

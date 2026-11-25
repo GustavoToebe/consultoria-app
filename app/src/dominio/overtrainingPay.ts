@@ -99,7 +99,12 @@ export function etapasDaHomologacao(
   etapasApi?: OvertrainingPayConfigResponse['etapas'],
 ): EtapaDaHomologacao[] {
   const s = situacao ?? 'NAO_CONFIGURADA';
-  if (s === 'ATIVA') {
+  const titularOk = (etapasApi?.titular ?? etapasApi?.dadosCadastrados) === true;
+  const contaOk = (etapasApi?.contaRepasse ?? etapasApi?.dadosCadastrados) === true;
+  const docsOk = (etapasApi?.documentos ?? etapasApi?.documentosAprovados) === true;
+  const testeOk = (etapasApi?.cobrancaTeste ?? etapasApi?.testeHomologado ?? etapasApi?.ativa) === true;
+
+  if (s === 'ATIVA' || etapasApi?.ativa === true) {
     return [
       { id: 'titular', numero: 1, titulo: 'Titular', estado: 'concluida' },
       { id: 'contaRepasse', numero: 2, titulo: 'Conta de repasse', estado: 'concluida' },
@@ -125,20 +130,18 @@ export function etapasDaHomologacao(
   }
   if (s === 'REJEITADA') {
     return [
-      { id: 'titular', numero: 1, titulo: 'Titular', estado: etapasApi?.titular ? 'concluida' : 'erro' },
-      { id: 'contaRepasse', numero: 2, titulo: 'Conta de repasse', estado: etapasApi?.contaRepasse ? 'concluida' : 'erro' },
-      { id: 'documentos', numero: 3, titulo: 'Documentos', estado: 'erro' },
-      { id: 'cobrancaTeste', numero: 4, titulo: 'Cobrança teste', estado: 'pendente' },
+      { id: 'titular', numero: 1, titulo: 'Titular', estado: titularOk ? 'concluida' : 'erro' },
+      { id: 'contaRepasse', numero: 2, titulo: 'Conta de repasse', estado: contaOk ? 'concluida' : 'erro' },
+      { id: 'documentos', numero: 3, titulo: 'Documentos', estado: docsOk ? 'concluida' : 'erro' },
+      { id: 'cobrancaTeste', numero: 4, titulo: 'Cobrança teste', estado: testeOk ? 'concluida' : 'pendente' },
     ];
   }
   // NAO_CONFIGURADA
-  const titularOk = etapasApi?.titular === true;
-  const contaOk = etapasApi?.contaRepasse === true;
   return [
     { id: 'titular', numero: 1, titulo: 'Titular', estado: titularOk ? 'concluida' : 'atual' },
     { id: 'contaRepasse', numero: 2, titulo: 'Conta de repasse', estado: contaOk ? 'concluida' : titularOk ? 'atual' : 'pendente' },
-    { id: 'documentos', numero: 3, titulo: 'Documentos', estado: 'pendente' },
-    { id: 'cobrancaTeste', numero: 4, titulo: 'Cobrança teste', estado: 'pendente' },
+    { id: 'documentos', numero: 3, titulo: 'Documentos', estado: docsOk ? 'concluida' : contaOk ? 'atual' : 'pendente' },
+    { id: 'cobrancaTeste', numero: 4, titulo: 'Cobrança teste', estado: testeOk ? 'concluida' : docsOk ? 'atual' : 'pendente' },
   ];
 }
 
