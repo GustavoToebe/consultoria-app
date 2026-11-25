@@ -72,6 +72,8 @@ class ContaIntegrationTest extends AbstractIntegrationTest {
             assertThat(api.get("/minha-conta", login, 403).path("codigo").asString()).isEqualTo("PERMISSAO_NEGADA");
             api.get("/minha-conta/consumo", login, 403);
             api.post("/minha-conta/cobrancas/" + java.util.UUID.randomUUID() + "/pagar", login, null, 403);
+            api.post("/minha-conta/cobrancas/" + java.util.UUID.randomUUID() + "/asaas/pix", login, null, 403);
+            api.get("/minha-conta/cobrancas/" + java.util.UUID.randomUUID() + "/situacao", login, 403);
         }
         perfil(login, "Administrador");
         api.get("/minha-conta", login, 200);
@@ -83,6 +85,10 @@ class ContaIntegrationTest extends AbstractIntegrationTest {
         var login = api.novoTreinador();
         seed.semear(consultoria(login), "Consultoria Fictícia");
         assertThat(api.post("/minha-conta/cobrancas/" + java.util.UUID.randomUUID() + "/pagar", login, null, 503)
+                .path("codigo").asString()).isEqualTo("PAGAMENTO_INDISPONIVEL");
+        assertThat(api.post("/minha-conta/cobrancas/" + java.util.UUID.randomUUID() + "/asaas/pix", login, null, 503)
+                .path("codigo").asString()).isEqualTo("PAGAMENTO_INDISPONIVEL");
+        assertThat(api.get("/minha-conta/cobrancas/" + java.util.UUID.randomUUID() + "/situacao", login, 503)
                 .path("codigo").asString()).isEqualTo("PAGAMENTO_INDISPONIVEL");
     }
 

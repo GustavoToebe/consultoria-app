@@ -49,13 +49,17 @@ public class ContaLocalRepositorio {
     }
 
     private static final String UPSERT_DIREITOS = "insert into direitos_locais(consultoria_id, contratacao_id, versao, situacao, "
-            + "acesso_liberado, motivo_bloqueio, vigente_ate, plano_codigo, plano_nome, limites, funcionalidades, confirmado_em) "
-            + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, string_to_array(?, ','), ?) "
+            + "acesso_liberado, motivo_bloqueio, vigente_ate, plano_codigo, plano_nome, limites, funcionalidades, confirmado_em, "
+            + "split_modo, split_percentual_bps, saldo_abater_centavos, meta_mensal_centavos, cobranca_central_id) "
+            + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, string_to_array(?, ','), ?, ?, ?, ?, ?, ?) "
             + "on conflict (consultoria_id) do update set contratacao_id = excluded.contratacao_id, "
             + "versao = excluded.versao, situacao = excluded.situacao, acesso_liberado = excluded.acesso_liberado, "
             + "motivo_bloqueio = excluded.motivo_bloqueio, vigente_ate = excluded.vigente_ate, "
             + "plano_codigo = excluded.plano_codigo, plano_nome = excluded.plano_nome, limites = excluded.limites, "
-            + "funcionalidades = excluded.funcionalidades, confirmado_em = excluded.confirmado_em, atualizado_em = now()";
+            + "funcionalidades = excluded.funcionalidades, confirmado_em = excluded.confirmado_em, "
+            + "split_modo = excluded.split_modo, split_percentual_bps = excluded.split_percentual_bps, "
+            + "saldo_abater_centavos = excluded.saldo_abater_centavos, meta_mensal_centavos = excluded.meta_mensal_centavos, "
+            + "cobranca_central_id = excluded.cobranca_central_id, atualizado_em = now()";
 
     /** Grava ou substitui a linha da consultoria (um snapshot por consultoria, como na Central). */
     public void gravarDireitos(DireitosLocais d) {
@@ -76,11 +80,26 @@ public class ContaLocalRepositorio {
                 Timestamp.from(em), consultoriaId);
     }
 
+    /**
+     * Abate atomicamente {@code valorAbatidoCentavos} do saldo restante a abater da mensalidade da Central,
+     * sem nunca ficar negativo ({@code GREATEST(0, saldo_abater_centavos - :valor)}).
+     */
+    public int reduzirSaldoAbater(UUID consultoriaId, long valorAbatidoCentavos) {
+        if (valorAbatidoCentavos <= 0) {
+            return 0;
+        }
+        return jdbc.update(
+                "update direitos_locais set saldo_abater_centavos = greatest(0, saldo_abater_centavos - ?), "
+                        + "atualizado_em = now() where consultoria_id = ?",
+                valorAbatidoCentavos, consultoriaId);
+    }
+
     private int gravar(String sql, DireitosLocais d) {
         return jdbc.update(sql, d.consultoriaId(), d.contratacaoId(), d.versao(), d.situacao(), d.acessoLiberado(),
                 d.motivoBloqueio(), d.vigenteAte() == null ? null : Date.valueOf(d.vigenteAte()), d.planoCodigo(),
                 d.planoNome(), json.writeValueAsString(d.limites()), String.join(",", d.funcionalidades()),
-                Timestamp.from(d.confirmadoEm()));
+                Timestamp.from(d.confirmadoEm()), d.splitModo(), d.splitPercentualBps(), d.saldoAbaterCentavos(),
+                d.metaMensalCentavos(), d.cobrancaCentralId());
     }
 
     /** {@code cliente} e {@code contratacao} no formato da seção 6.3 do contrato. */
@@ -101,12 +120,15 @@ public class ContaLocalRepositorio {
 
     public Optional<DireitosLocais> direitos(UUID consultoriaId) {
         return jdbc.query("select contratacao_id, versao, situacao, acesso_liberado, motivo_bloqueio, vigente_ate, "
-                        + "plano_codigo, plano_nome, limites::text, funcionalidades, confirmado_em "
+                        + "plano_codigo, plano_nome, limites::text, funcionalidades, confirmado_em, "
+                        + "split_modo, split_percentual_bps, saldo_abater_centavos, meta_mensal_centavos, cobranca_central_id "
                         + "from direitos_locais where consultoria_id = ?",
                 (rs, n) -> new DireitosLocais(consultoriaId, rs.getObject(1, UUID.class), rs.getLong(2), rs.getString(3),
                         rs.getBoolean(4), rs.getString(5), data(rs.getDate(6)), rs.getString(7), rs.getString(8),
                         json.readValue(rs.getString(9), LIMITES),
-                        Arrays.asList((String[]) rs.getArray(10).getArray()), rs.getTimestamp(11).toInstant()),
+                        Arrays.asList((String[]) rs.getArray(10).getArray()), rs.getTimestamp(11).toInstant(),
+                        rs.getString(12), rs.getInt(13), rs.getLong(14), rs.getLong(15),
+                        rs.getObject(16, UUID.class)),
                 consultoriaId).stream().findFirst();
     }
 
