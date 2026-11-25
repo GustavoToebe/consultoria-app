@@ -159,7 +159,8 @@ public class AlunoService {
             PlanoTreino p = planoAtivo.get(a.getId());
             return new AlunoResumo(a.getId(), a.getNome(), a.isAtivo(), a.getUsuarioId() != null,
                     (p == null || !br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER")) ? null : new PlanoAtivoResumo(p.getId(), p.getTitulo()), br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER") ? ultimo.get(a.getId()) : null,a.getResponsavelId(),
-                    situacoes.get(a.getId()), tagsDosAlunos.getOrDefault(a.getId(), List.of()));
+                    situacoes.get(a.getId()), tagsDosAlunos.getOrDefault(a.getId(), List.of()),
+                    a.isAcessoPausado(), a.getAcessoPausadoEm());
         }).toList();
         return new PaginaAlunos(itens, total);
     }
@@ -384,6 +385,47 @@ public class AlunoService {
         }
         aplicarSituacao(aluno, ativo);
         return detalheDe(alunos.saveAndFlush(aluno));
+    }
+
+    /**
+     * Pausa o acesso do aluno por atraso (decisão manual do treinador, nunca automática). Trava o aluno antes de consultar
+     * cobranças (ordem única de travas). Idempotente: se já pausado, não sobrescreve {@code acessoPausadoEm} nem duplica auditoria.
+     */
+    @Transactional
+    public AlunoDetalhe pausarAcesso(UUID id) {
+        Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
+        exigirNaoAnonimizado(aluno);
+        if (!aluno.isAtivo()) {
+            throw new ConflictException("Aluno inativo não pode ter o acesso pausado.", "ALUNO_INATIVO");
+        }
+        if (!pagamentos.temCobrancaVencida(aluno.getId())) {
+            throw new ConflictException("O aluno não tem cobrança vencida em aberto para pausar o acesso.", "SEM_COBRANCA_VENCIDA");
+        }
+        if (!aluno.isAcessoPausado()) {
+            aluno.pausarAcesso(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS));
+            alunos.saveAndFlush(aluno);
+            auditoria.registrarEvento("ALUNO_ACESSO_PAUSADO", "ALUNO", aluno.getId(), "Pausou o acesso do aluno por atraso.");
+        }
+        return detalheDe(aluno);
+    }
+
+    /**
+     * Reativa o acesso do aluno pausado por atraso (decisão manual do treinador). Idempotente: se já não estiver pausado,
+     * retorna a ficha sem duplicar auditoria.
+     */
+    @Transactional
+    public AlunoDetalhe reativarAcesso(UUID id) {
+        Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
+        exigirNaoAnonimizado(aluno);
+        if (!aluno.isAtivo()) {
+            throw new ConflictException("Aluno inativo não pode ter o acesso reativado por aqui.", "ALUNO_INATIVO");
+        }
+        if (aluno.isAcessoPausado()) {
+            aluno.reativarAcesso();
+            alunos.saveAndFlush(aluno);
+            auditoria.registrarEvento("ALUNO_ACESSO_REATIVADO", "ALUNO", aluno.getId(), "Reativou o acesso do aluno.");
+        }
+        return detalheDe(aluno);
     }
 
     static final String CODIGO_CONTRATO_FECHADO_VIGENTE = "CONTRATO_FECHADO_VIGENTE";

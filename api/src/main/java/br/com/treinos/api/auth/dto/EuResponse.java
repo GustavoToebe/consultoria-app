@@ -3,6 +3,7 @@ package br.com.treinos.api.auth.dto;
 import br.com.treinos.api.consultoria.MarcaPublica;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -31,10 +32,29 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          /* Avisos pelo WhatsApp oficial da Meta ligados ({@code TREINOS_WHATSAPP_HABILITADO}); desligado, o app esconde tudo deles. */
                          boolean whatsappHabilitado,
                          /* Só para o aluno: WhatsApp da consultoria só com dígitos (DDD + número, sem o 55), para o app montar wa.me/55<dígitos>; some se não há. */
-                         String whatsappDaConsultoria) {
+                         String whatsappDaConsultoria,
+                         /* Só para o aluno: se o acesso está pausado por atraso (sempre false para não-aluno). */
+                         boolean acessoPausado) {
+
+    public EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo aluno, PerfilResumo perfil, java.util.Set<String> permissoes,
+                      boolean termosPendentes, String termosVersao, java.util.List<String> funcionalidadesDoPlano,
+                      boolean pagamentosHabilitados, boolean recebimentoOnlineHabilitado, boolean kiwifyHabilitada,
+                      boolean pagarNoIos, boolean pagarNoAndroid, boolean cicloHabilitado, boolean retornoHabilitado,
+                      boolean pushHabilitado, boolean unidadeDeCargaHabilitada, boolean migracaoAssistidaHabilitada,
+                      boolean vitrineHabilitada, boolean lojaHabilitada, boolean marketplaceHabilitado,
+                      boolean whatsappHabilitado, String whatsappDaConsultoria) {
+        this(usuario, marca, aluno, perfil, permissoes, termosPendentes, termosVersao, funcionalidadesDoPlano,
+                pagamentosHabilitados, recebimentoOnlineHabilitado, kiwifyHabilitada, pagarNoIos, pagarNoAndroid,
+                cicloHabilitado, retornoHabilitado, pushHabilitado, unidadeDeCargaHabilitada,
+                migracaoAssistidaHabilitada, vitrineHabilitada, lojaHabilitada, marketplaceHabilitado,
+                whatsappHabilitado, whatsappDaConsultoria, false);
+    }
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 
-    public record AlunoResumo(UUID id, String nome, String sexo) {
+    public record AlunoResumo(UUID id, String nome, String sexo, boolean acessoPausado, Instant acessoPausadoEm) {
+        public AlunoResumo(UUID id, String nome, String sexo) {
+            this(id, nome, sexo, false, null);
+        }
     }
 }

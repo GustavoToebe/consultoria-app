@@ -86,6 +86,18 @@ public class AlunoController {
         return alunos.alterarSituacao(id, request.ativo());
     }
 
+    @PreAuthorize("hasAuthority('PERM_FINANCEIRO_ALTERAR')")
+    @PostMapping("/{id}/pausar-acesso")
+    public AlunoDetalhe pausarAcesso(@PathVariable UUID id) {
+        return alunos.pausarAcesso(id);
+    }
+
+    @PreAuthorize("hasAuthority('PERM_FINANCEIRO_ALTERAR')")
+    @PostMapping("/{id}/reativar-acesso")
+    public AlunoDetalhe reativarAcesso(@PathVariable UUID id) {
+        return alunos.reativarAcesso(id);
+    }
+
     @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")
     @PostMapping("/{id}/convite")
     public ConviteResponse convite(@PathVariable UUID id) {

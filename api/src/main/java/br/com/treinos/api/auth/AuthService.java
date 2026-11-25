@@ -191,9 +191,12 @@ public class AuthService {
         EuResponse.AlunoResumo aluno = null;
         if (usuario.getAlunoId() != null) {
             aluno = alunos.findById(usuario.getAlunoId())
-                    .map(a -> new EuResponse.AlunoResumo(a.getId(), a.getNome(), a.getSexo() == null ? null : a.getSexo().name()))
+                    .map(a -> new EuResponse.AlunoResumo(a.getId(), a.getNome(),
+                            a.getSexo() == null ? null : a.getSexo().name(),
+                            a.isAcessoPausado(), a.getAcessoPausadoEm()))
                     .orElse(null);
         }
+        boolean acessoPausado = usuario.getPapel() == Papel.ALUNO && aluno != null && aluno.acessoPausado();
         var perfil = usuario.getPerfilId() == null ? null : perfis.buscar(usuario.getPerfilId(), usuario.getConsultoriaId())
                 .map(p -> new EuResponse.PerfilResumo(p.getId(), p.getNome(), p.isAcessoTotal())).orElse(null);
         return new EuResponse(UsuarioResumo.de(usuario), marca(usuario), aluno, perfil,
@@ -205,7 +208,8 @@ public class AuthService {
                 ciclo.habilitado(), retorno.habilitado(), push.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado(),
                 vitrine.habilitada(), vitrine.lojaEfetiva(), vitrine.marketplaceEfetivo(), whatsapp.habilitado(),
                 usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())
-                        .map(br.com.treinos.api.consultoria.Consultoria::whatsappParaLink).orElse(null) : null);
+                        .map(br.com.treinos.api.consultoria.Consultoria::whatsappParaLink).orElse(null) : null,
+                acessoPausado);
     }
 
     /**

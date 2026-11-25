@@ -77,6 +77,11 @@ public class Aluno {
     @Column(name = "inativado_em")
     private Instant inativadoEm;
 
+    /** Quando o treinador pausou o acesso do aluno por atraso. Nulo = acesso liberado. Não sobe a versão do cadastro. */
+    @OptimisticLock(excluded = true)
+    @Column(name = "acesso_pausado_em")
+    private Instant acessoPausadoEm;
+
     /** Preenchido quando os dados pessoais foram apagados; o cadastro não volta a ser editado nem reativado. */
     @Column(name = "anonimizado_em")
     private Instant anonimizadoEm;
@@ -256,6 +261,22 @@ public class Aluno {
         return inativadoEm;
     }
 
+    public boolean isAcessoPausado() {
+        return acessoPausadoEm != null;
+    }
+
+    public Instant getAcessoPausadoEm() {
+        return acessoPausadoEm;
+    }
+
+    public void pausarAcesso(Instant quando) {
+        this.acessoPausadoEm = quando;
+    }
+
+    public void reativarAcesso() {
+        this.acessoPausadoEm = null;
+    }
+
     public String getConviteHash() {
         return conviteHash;
     }
@@ -352,6 +373,9 @@ public class Aluno {
     public void alterarSituacao(boolean ativo, Instant quando) {
         this.ativo = ativo;
         this.inativadoEm = ativo ? null : quando;
+        if (!ativo) {
+            this.acessoPausadoEm = null;
+        }
         this.atualizadoEm = quando;
     }
 
@@ -378,6 +402,7 @@ public class Aluno {
         this.conviteExpiraEm = null;
         this.ativo = false;
         if (this.inativadoEm == null) this.inativadoEm = quando;
+        this.acessoPausadoEm = null;
         this.anonimizadoEm = quando;
         this.usoDeImagemAutorizadoEm = null;
         this.lembretesCobrancaDesligadosEm = null;

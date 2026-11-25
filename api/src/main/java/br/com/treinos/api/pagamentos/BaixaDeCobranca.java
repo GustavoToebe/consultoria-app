@@ -42,11 +42,14 @@ public class BaixaDeCobranca {
     private final Travas travas;
     private final ProvedoresDePagamento provedores;
     private final CobrancaAlunoRepository cobrancas;
+    private final PagamentosDoAluno pagamentos;
 
-    BaixaDeCobranca(Travas travas, ProvedoresDePagamento provedores, CobrancaAlunoRepository cobrancas) {
+    BaixaDeCobranca(Travas travas, ProvedoresDePagamento provedores, CobrancaAlunoRepository cobrancas,
+                    PagamentosDoAluno pagamentos) {
         this.travas = travas;
         this.provedores = provedores;
         this.cobrancas = cobrancas;
+        this.pagamentos = pagamentos;
     }
 
     /** ABERTA vira PAGA; parcela única encerra a contratação (a avulsa não tem). */
@@ -75,7 +78,9 @@ public class BaixaDeCobranca {
         conferirVersao(c, baixa.versaoEsperada());
         c.pagar(baixa.provedor(), baixa.forma(), baixa.pagoEm(), baixa.baixaPor(), baixa.observacao(), baixa.idExterno());
         encerrarSeParcelaUnica(c, t.contratacao());
-        return resultado(t, true);
+        Resultado res = resultado(t, true);
+        pagamentos.reativarSeQuitou(t.aluno(), baixa.baixaPor() == null);
+        return res;
     }
 
     /**
@@ -120,7 +125,9 @@ public class BaixaDeCobranca {
         c.cancelar(motivo);
         // Parcela única cancelada: não há mais o que cobrar, e a contratação vigente bloquearia uma nova.
         encerrarSeParcelaUnica(c, t.contratacao());
-        return resultado(t, true);
+        Resultado res = resultado(t, true);
+        pagamentos.reativarSeQuitou(t.aluno(), false);
+        return res;
     }
 
     /**
