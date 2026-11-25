@@ -15,6 +15,7 @@ import {
   umaPorVez,
 } from '@plataforma/web';
 
+import { ehAcessoPausado } from '../dominio/acessoPausado';
 import { ehCicloDesligado } from '../dominio/cicloDesligado';
 import { ehLojaDesligada } from '../dominio/lojaDesligada';
 import { ehMarketplaceDesligado } from '../dominio/marketplaceDesligado';
@@ -70,6 +71,7 @@ let aoRetornoDesligadoSessao: (() => void) | null = null;
 let aoVitrineDesligadaSessao: (() => void) | null = null;
 let aoLojaDesligadaSessao: (() => void) | null = null;
 let aoMarketplaceDesligadoSessao: (() => void) | null = null;
+let aoAcessoPausadoSessao: (() => void) | null = null;
 /** Quem está com a sessão aberta nesta aba; a renovação que devolve outra pessoa não é aceita. */
 let usuarioEsperado: string | null = null;
 let recusaPorTroca = false;
@@ -117,6 +119,14 @@ export function aoLojaDesligada(callback: (() => void) | null) {
  */
 export function aoMarketplaceDesligado(callback: (() => void) | null) {
   aoMarketplaceDesligadoSessao = callback;
+}
+
+/**
+ * O SessaoProvider é avisado quando uma rota do aluno responde 403 `ACESSO_PAUSADO_POR_ATRASO`. O perfil da sessão
+ * passa a `acessoPausado: true` sem deslogar o aluno, e o erro continua sendo lançado para quem chamou.
+ */
+export function aoAcessoPausado(callback: (() => void) | null) {
+  aoAcessoPausadoSessao = callback;
 }
 
 export async function guardarSessao(resposta: LoginResponse): Promise<void> {
@@ -216,6 +226,9 @@ export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promi
     }
     if (ehMarketplaceDesligado(erro)) {
       aoMarketplaceDesligadoSessao?.();
+    }
+    if (ehAcessoPausado(erro)) {
+      aoAcessoPausadoSessao?.();
     }
     throw erro;
   }

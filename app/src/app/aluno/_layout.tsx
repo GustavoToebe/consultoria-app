@@ -21,6 +21,7 @@ import { ContextoDeImagens } from '../../aluno/atualizacao/ImagemDaPergunta';
 import { baixarImagemDoAluno } from '../../api/rotas';
 import { useAnamnese } from '../../aluno/anamnese/useAnamnese';
 import { FinanceiroDoAlunoProvider, useFinanceiroDoAluno } from '../../aluno/financeiro/FinanceiroDoAlunoProvider';
+import { TelaAcessoPausado } from '../../aluno/financeiro/TelaAcessoPausado';
 import { CompromissosDoAlunoProvider, useCompromissosDoAluno } from '../../aluno/compromissos/CompromissosDoAlunoProvider';
 import { temAvisoDeCompromisso } from '../../dominio/paraFazer';
 import { SincronizarPush } from '../../aluno/push/SincronizarPush';
@@ -38,30 +39,35 @@ const ITENS: ItemMenu[] = [
 ];
 
 export default function LayoutAluno() {
-  const { usuario } = useSessao();
+  const { usuario, acessoPausado } = useSessao();
   return (
     <GuardaDePapel papel="ALUNO">
       {usuario ? (
-        // Um provedor por usuário: trocar de conta nunca mistura registros.
-        <AlunoProvider key={usuario.id} usuarioId={usuario.id}>
-          {/* Passeio pelo menu no primeiro acesso, logo depois do aceite dos termos; o lembrete da atualização espera. */}
-          <ProvedorDoPasseio usuarioId={usuario.id} passos={GUIAS.aluno.passeio}>
-            {/* As imagens das perguntas, no aluno, vêm pela rota dele (só as do que ele responde). */}
-            <ContextoDeImagens.Provider value={baixarImagemDoAluno}>
-              {/* O financeiro do aluno fica só em memória (nada no aparelho) e só é buscado com o módulo ligado e online. */}
-              <FinanceiroDoAlunoProvider>
-                {/* Compromissos e avisos também só em memória; alimentam o Início, o ponto e os lembretes locais. */}
-                <CompromissosDoAlunoProvider>
-                  <SincronizarPush usuarioId={usuario.id} />
-                  {/* A carga é kg em todo lugar; só a tela do aluno a mostra e a recebe em lb, se ele escolheu (Preferências). */}
-                  <ProvedorDaUnidadeDeCarga>
-                    <MenuAluno />
-                  </ProvedorDaUnidadeDeCarga>
-                </CompromissosDoAlunoProvider>
-              </FinanceiroDoAlunoProvider>
-            </ContextoDeImagens.Provider>
-          </ProvedorDoPasseio>
-        </AlunoProvider>
+        acessoPausado ? (
+          // Acesso pausado por atraso: bloqueio total antes do AlunoProvider (não lê SQLite/localStorage nem sincroniza).
+          <TelaAcessoPausado />
+        ) : (
+          // Um provedor por usuário: trocar de conta nunca mistura registros.
+          <AlunoProvider key={usuario.id} usuarioId={usuario.id}>
+            {/* Passeio pelo menu no primeiro acesso, logo depois do aceite dos termos; o lembrete da atualização espera. */}
+            <ProvedorDoPasseio usuarioId={usuario.id} passos={GUIAS.aluno.passeio}>
+              {/* As imagens das perguntas, no aluno, vêm pela rota dele (só as do que ele responde). */}
+              <ContextoDeImagens.Provider value={baixarImagemDoAluno}>
+                {/* O financeiro do aluno fica só em memória (nada no aparelho) e só é buscado com o módulo ligado e online. */}
+                <FinanceiroDoAlunoProvider>
+                  {/* Compromissos e avisos também só em memória; alimentam o Início, o ponto e os lembretes locais. */}
+                  <CompromissosDoAlunoProvider>
+                    <SincronizarPush usuarioId={usuario.id} />
+                    {/* A carga é kg em todo lugar; só a tela do aluno a mostra e a recebe em lb, se ele escolheu (Preferências). */}
+                    <ProvedorDaUnidadeDeCarga>
+                      <MenuAluno />
+                    </ProvedorDaUnidadeDeCarga>
+                  </CompromissosDoAlunoProvider>
+                </FinanceiroDoAlunoProvider>
+              </ContextoDeImagens.Provider>
+            </ProvedorDoPasseio>
+          </AlunoProvider>
+        )
       ) : null}
     </GuardaDePapel>
   );
