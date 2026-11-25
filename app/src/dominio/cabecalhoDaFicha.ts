@@ -41,7 +41,9 @@ export function linhaDeDatas(a: DatasDoAluno): string[] {
  * Situação do aluno no cabeçalho (tabela 4.5 do `docs/design-e-front.md`): ativo é `sucesso`; inativo e anonimizado são
  * encerrados, `neutro`. Anonimizado vale mais que inativo (a anonimização inativa).
  */
-export function seloDaSituacao(a: Pick<AlunoDetalhe, 'ativo' | 'anonimizado'>): { texto: string; tipo: 'sucesso' | 'neutro' } {
+export function seloDaSituacao(a: Pick<AlunoDetalhe, 'ativo' | 'anonimizado' | 'acessoPausado'>): { texto: string; tipo: 'sucesso' | 'atencao' | 'neutro' } {
   if (a.anonimizado) return { texto: 'Anonimizado', tipo: 'neutro' };
-  return a.ativo ? { texto: 'Ativo', tipo: 'sucesso' } : { texto: 'Inativo', tipo: 'neutro' };
+  if (!a.ativo) return { texto: 'Inativo', tipo: 'neutro' };
+  if (a.acessoPausado) return { texto: 'Acesso pausado', tipo: 'atencao' };
+  return { texto: 'Ativo', tipo: 'sucesso' };
 }

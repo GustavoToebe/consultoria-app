@@ -15,6 +15,16 @@ describe('selosDeExcecaoDoAluno', () => {
     expect(selosDeExcecaoDoAluno({ ativo: true, temAcesso: false, emAtraso: false })).toEqual([{ texto: 'Sem acesso', tipo: 'neutro' }]);
     expect(selosDeExcecaoDoAluno({ ativo: true, temAcesso: true, emAtraso: false })).toEqual([]);
   });
+
+  it('"Acesso pausado" aparece em âmbar só para aluno ativo, preservando "Cobrança vencida"', () => {
+    expect(selosDeExcecaoDoAluno({ ativo: true, temAcesso: true, emAtraso: true, acessoPausado: true })).toEqual([
+      { texto: 'Cobrança vencida', tipo: 'perigo' },
+      { texto: 'Acesso pausado', tipo: 'atencao' },
+    ]);
+    expect(selosDeExcecaoDoAluno({ ativo: false, temAcesso: true, emAtraso: false, acessoPausado: true })).toEqual([
+      { texto: 'Inativo', tipo: 'neutro' },
+    ]);
+  });
 });
 
 describe('tags que não cabem na linha', () => {

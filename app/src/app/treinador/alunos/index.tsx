@@ -293,7 +293,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtr
   const plano = aluno.planoAtivo?.titulo ?? null;
   const tags = aluno.tags ?? [];
   // A pílula do atraso diz o que venceu ("Cobrança vencida": a rota é a das cobranças) e usa o `perigo` da cobrança vencida, sem cor nova.
-  const excecoes = selosDeExcecaoDoAluno({ ativo: aluno.ativo, temAcesso: aluno.temAcesso, emAtraso });
+  const excecoes = selosDeExcecaoDoAluno({ ativo: aluno.ativo, temAcesso: aluno.temAcesso, emAtraso, acessoPausado: aluno.acessoPausado });
   const seloDaAtualizacao: SeloDaLinha | null = atualizacao
     ? { texto: atualizacao.texto, tipo: atualizacao.tipo, Icone: ICONE_DO_SELO[atualizacao.tipo] }
     : null;

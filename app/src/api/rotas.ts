@@ -787,6 +787,14 @@ export const gerarConvite = (id: string) => requisicao<ConviteGerado>(`/alunos/$
 export const definirAcessoDoAluno = (id: string, dados: { email: string; senha: string }) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso`, { metodo: 'PUT', corpo: dados });
 
+/** Pausa o acesso do aluno ao app por atraso (`FINANCEIRO_ALTERAR`); 409 `SEM_COBRANCA_VENCIDA` sem cobrança vencida em aberto. */
+export const pausarAcessoDoAluno = (id: string) =>
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/pausar-acesso`, { metodo: 'POST' });
+
+/** Reativa o acesso pausado do aluno manualmente (`FINANCEIRO_ALTERAR`). */
+export const reativarAcessoDoAluno = (id: string) =>
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/reativar-acesso`, { metodo: 'POST' });
+
 export const execucoesDoAluno = (id: string, de: string, ate: string) =>
   requisicao<DiaDeTreino[]>(`/alunos/${seg(id)}/execucoes?de=${de}&ate=${ate}`);
 

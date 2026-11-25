@@ -7,13 +7,14 @@ import { resumoDasTagsNaLinha } from './tagsDeAluno';
  * "Cobrança vencida"; "Vencida" sozinho podia ser a pasta ou o plano. Pasta e plano não têm selo na lista (a atualização
  * atrasada já tem o seu, na coluna "Atualização").
  */
-export interface SeloDeExcecao { texto: string; tipo: 'perigo' | 'neutro' }
+export interface SeloDeExcecao { texto: string; tipo: 'perigo' | 'atencao' | 'neutro' }
 
 export const TEXTO_DA_COBRANCA_VENCIDA = 'Cobrança vencida';
 
-export function selosDeExcecaoDoAluno(a: { ativo: boolean; temAcesso: boolean; emAtraso: boolean }): SeloDeExcecao[] {
+export function selosDeExcecaoDoAluno(a: { ativo: boolean; temAcesso: boolean; emAtraso: boolean; acessoPausado?: boolean }): SeloDeExcecao[] {
   return [
     ...(a.emAtraso ? [{ texto: TEXTO_DA_COBRANCA_VENCIDA, tipo: 'perigo' as const }] : []),
+    ...(a.ativo && a.acessoPausado ? [{ texto: 'Acesso pausado', tipo: 'atencao' as const }] : []),
     ...(!a.ativo ? [{ texto: 'Inativo', tipo: 'neutro' as const }] : []),
     ...(a.ativo && !a.temAcesso ? [{ texto: 'Sem acesso', tipo: 'neutro' as const }] : []),
   ];

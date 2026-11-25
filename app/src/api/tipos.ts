@@ -78,9 +78,11 @@ export interface EuResponse {
   whatsappHabilitado?: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos (DDD + número, sem 55); ausente = sem número, sem "Falar com o treinador". */
   whatsappDaConsultoria?: string;
+  /** Só do aluno: acesso pausado manualmente pelo treinador por atraso; verdadeiro = mostra apenas a tela de pagamento. */
+  acessoPausado?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
-  aluno?: { id: string; nome: string; sexo?: string | null };
+  aluno?: { id: string; nome: string; sexo?: string | null; acessoPausado?: boolean; acessoPausadoEm?: string | null };
   termosPendentes: boolean;
   termosVersao: string;
 }
@@ -257,6 +259,9 @@ export interface AlunoResumo {
   nome: string;
   ativo: boolean;
   temAcesso: boolean;
+  /** Acesso do aluno pausado manualmente por atraso. */
+  acessoPausado?: boolean;
+  acessoPausadoEm?: string | null;
   planoAtivo: { id: string; titulo: string } | null;
   ultimoRegistro: string | null;
   responsavelId?: string | null;
@@ -338,6 +343,9 @@ export interface AlunoDetalhe {
   metaDoPeso?: MetaDoPeso | null;
   ativo: boolean;
   temAcesso: boolean;
+  /** Acesso do aluno pausado manualmente pelo treinador por atraso. */
+  acessoPausado?: boolean;
+  acessoPausadoEm?: string | null;
   conviteExpiraEm: string | null;
   versao: number;
   diasAtualizacao: number | null;

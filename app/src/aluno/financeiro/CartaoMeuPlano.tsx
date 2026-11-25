@@ -146,7 +146,7 @@ const ICONE_DA_ACAO = { PAGAR_INFINITEPAY: CreditCard, PAGAR_LINK_PROPRIO: Exter
  * inteiro, `doCartao`). Se o navegador recusar a cópia do Pix, o código aparece aqui, selecionável, enquanto a tela estiver
  * aberta (nunca é guardado).
  */
-function AcoesDaCobranca({ cobranca, acoes, doCartao, linkProprio, aoMudar }: {
+export function AcoesDaCobranca({ cobranca, acoes, doCartao, linkProprio, aoMudar }: {
   cobranca: CobrancaDoAluno;
   acoes: readonly AcaoDePagamento[];
   /** As ações de todas as cobranças em aberto do cartão: decidem o nome de cada uma. */
@@ -279,7 +279,7 @@ function BotaoCopiarPix({ cobranca, rotulo, cheio, aoMudar, aoRecusarCopia }: {
  * Uma cobrança: mês (na avulsa, a descrição) e selo na primeira linha; valor e a data que importa na segunda ("R$ 150,00 · Vence em 05/11/2026").
  * Em aberto, o "Pagar" (quando há) vem dentro do mesmo cartão, à direita.
  */
-function LinhaDaCobranca({ cobranca, modo, empilhar, children }: {
+export function LinhaDaCobranca({ cobranca, modo, empilhar, children }: {
   cobranca: CobrancaDoAluno;
   modo: ComoPagar;
   /** Várias ações (ou o Pix, que pode mostrar o código embaixo): as ações vão numa linha só delas, abaixo do texto. */

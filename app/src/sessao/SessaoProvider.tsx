@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState, Platform } from 'react-native';
 
 import {
+  aoAcessoPausado,
   aoCicloDesligado,
   aoRetornoDesligado,
   aoVitrineDesligada,
@@ -88,6 +89,8 @@ interface ValorSessao {
   whatsappHabilitado: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos; nulo = sem "Falar com o treinador". */
   whatsappDaConsultoria: string | null;
+  /** Só do aluno: acesso pausado manualmente por atraso; verdadeiro = mostra apenas a tela de regularização. */
+  acessoPausado: boolean;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -422,6 +425,20 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     });
     return () => aoMarketplaceDesligado(null);
   }, []);
+  // O servidor respondeu 403 `ACESSO_PAUSADO_POR_ATRASO` em uma rota do aluno: marca `acessoPausado: true` na sessão e no
+  // perfil salvo sem deslogar o aluno, levando-o imediatamente à tela de regularização (também se reabrir offline).
+  useEffect(() => {
+    aoAcessoPausado(() => {
+      setPerfil((atual) => {
+        if (!atual || atual.acessoPausado === true) return atual;
+        const novo = { ...atual, acessoPausado: true };
+        perfilAtual.current = novo;
+        AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
+        return novo;
+      });
+    });
+    return () => aoAcessoPausado(null);
+  }, []);
   const valor = useMemo<ValorSessao>(
     () => ({
       termosPendentes: perfil?.termosPendentes ?? false,
@@ -446,6 +463,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,
       whatsappHabilitado:perfil?.whatsappHabilitado===true,
       whatsappDaConsultoria:perfil?.whatsappDaConsultoria??null,
+      acessoPausado:perfil?.acessoPausado===true,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,
