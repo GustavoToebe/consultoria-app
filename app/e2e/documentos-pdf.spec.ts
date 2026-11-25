@@ -1,11 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { ConsultoriaResponse, EuResponse } from '../src/api/tipos';
-import { erroApi, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
+import { erroApi, json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
 /**
  * Documentos (PDF), primeira entrega de `docs/planos/documentos-pdf-motor.md`: prévia dos PDFs de exemplo nos três temas,
- * na web pelo mesmo sanitizador da impressão. O tema não é gravado (nenhum PUT). Só dados fictícios. Com `E2E_CAPTURAS`,
+ * na web pelo mesmo sanitizador da impressão. Escolher o tema só muda a prévia; "Salvar tema" grava na consultoria
+ * (`PUT /consultoria/tema-pdf`, V096). Só dados fictícios. Com `E2E_CAPTURAS`,
  * grava capturas da tela e da folha e o PDF de exemplo de cada tema (impressão emulada, `page.pdf`).
  */
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
@@ -13,6 +14,19 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 const ADMIN: Partial<EuResponse> = { permissoes: [...PERMISSOES_TREINADOR, 'MARCA_ALTERAR'], perfil: { id: 'p1', nome: 'Administrador', acessoTotal: true } };
 const CONSULTORIA: ConsultoriaResponse = { marca: MARCA, versao: 3, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' };
 const TEMAS = ['Clássico', 'Minimalista', 'Marcante'] as const;
+
+/** A consultoria falsa guarda o tema: o `PUT` grava e o `GET` seguinte (o recarregar da tela) já devolve o novo. */
+function consultoriaGravavel(): RespostasApi {
+  let temaPdf: string | null = null;
+  const atual = (): ConsultoriaResponse => ({ ...CONSULTORIA, marca: { ...MARCA, temaPdf } });
+  return {
+    'GET /consultoria': (_p, route) => json(route, atual()),
+    'PUT /consultoria/tema-pdf': (p, route) => {
+      temaPdf = (p.corpo as { temaPdf: string }).temaPdf;
+      return json(route, atual());
+    },
+  };
+}
 
 async function abrir(page: Page, largura: number, eu: Partial<EuResponse> = ADMIN, extra: RespostasApi = {}, tema?: 'CLARO' | 'ESCURO') {
   await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 900 });
@@ -42,14 +56,15 @@ async function capturar(page: Page, nome: string) {
 }
 
 for (const largura of [390, 1280]) {
-  test(`(${largura}) prévia do treino no Clássico, troca para a Dieta e de tema, e avisa que a escolha não é gravada`, async ({ page }) => {
-    const { errosDaPagina, pedidos } = await abrir(page, largura);
+  test(`(${largura}) prévia do treino no Clássico, troca para a Dieta e de tema, e só grava ao salvar`, async ({ page }) => {
+    const { errosDaPagina, pedidos } = await abrir(page, largura, ADMIN, consultoriaGravavel());
     await expect(page.getByRole('heading', { level: 1, name: 'Documentos (PDF)' })).toBeVisible();
     await expect(tema(page, 'Clássico')).toHaveAttribute('aria-checked', 'true');
     await expect(previa(page)).toContainText('Aluno de Exemplo');
     await expect(previa(page)).toContainText('Supino reto');
-    await expect(page.getByText('Esta escolha não é gravada')).toBeVisible();
-    await expect(page.getByText('Os PDFs dos seus alunos continuam saindo no tema Clássico por enquanto.', { exact: false })).toBeVisible();
+    // Sem escolha nova não há o que gravar: o "Salvar tema" começa desabilitado e a tela não promete mais "não é gravada".
+    await expect(page.getByRole('button', { name: 'Salvar tema' })).toBeDisabled();
+    await expect(page.getByText('Esta escolha não é gravada')).toHaveCount(0);
     // A folha é inerte: os títulos dela não viram um segundo h1 da tela.
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
 
@@ -67,12 +82,19 @@ for (const largura of [390, 1280]) {
     await page.getByRole('tab', { name: 'Dieta' }).click();
     await expect(previa(page)).toContainText('Sugestão de plano alimentar');
     await expect(previa(page)).not.toContainText('Supino reto');
-    // A troca de aba mantém o tema escolhido.
+    // A troca de aba mantém o tema escolhido, e escolher não grava: até aqui nenhuma escrita na API.
     await expect(tema(page, 'Marcante')).toHaveAttribute('aria-checked', 'true');
+    const escritas = () => pedidos.filter((p) => p.metodo !== 'GET' && p.caminho !== '/auth/refresh');
+    expect(escritas()).toEqual([]);
     await semRolagemLateral(page);
     await capturar(page, `tela-dieta-marcante-${largura}`);
-    // Nada é gravado: nenhuma escrita na API.
-    expect(pedidos.filter((p) => p.metodo !== 'GET' && p.caminho !== '/auth/refresh')).toEqual([]);
+
+    // Salvar grava o tema na consultoria, recarrega e a escolha passa a ser a salva.
+    await page.getByRole('button', { name: 'Salvar tema' }).click();
+    await expect(page.getByText('Tema dos PDFs salvo.')).toBeVisible();
+    expect(escritas()).toEqual([{ metodo: 'PUT', caminho: '/consultoria/tema-pdf', busca: expect.anything(), corpo: { temaPdf: 'MARCANTE' } }]);
+    await expect(page.getByRole('button', { name: 'Salvar tema' })).toBeDisabled();
+    await expect(tema(page, 'Marcante')).toHaveAttribute('aria-checked', 'true');
     expect(errosDaPagina).toEqual([]);
   });
 }
