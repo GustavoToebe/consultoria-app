@@ -3,6 +3,7 @@ package br.com.treinos.api.conta;
 import br.com.treinos.api.conta.MinhaContaDto.CobrancaDto;
 import br.com.treinos.api.conta.MinhaContaDto.ClienteDto;
 import br.com.treinos.api.conta.MinhaContaDto.ContratacaoDto;
+import br.com.treinos.api.conta.MinhaContaDto.PoliticaSplitResumo;
 
 import java.util.List;
 
@@ -11,9 +12,15 @@ import java.util.List;
  * dados vêm das tabelas locais de demonstração (a tela mostra o aviso "PRÉVIA"). Com a Central como fonte, vira {@code false}.
  */
 public record MinhaContaResposta(ClienteDto cliente, ContratacaoDto contratacao, List<CobrancaDto> cobrancas,
-                                 boolean previa) {
+                                 boolean previa, String provedorAtivo, PoliticaSplitResumo politicaSplit) {
+
+    public MinhaContaResposta(ClienteDto cliente, ContratacaoDto contratacao, List<CobrancaDto> cobrancas,
+                              boolean previa) {
+        this(cliente, contratacao, cobrancas, previa, null, null);
+    }
 
     public static MinhaContaResposta de(MinhaContaDto dto, boolean previa) {
-        return new MinhaContaResposta(dto.cliente(), dto.contratacao(), dto.cobrancas(), previa);
+        return new MinhaContaResposta(dto.cliente(), dto.contratacao(), dto.cobrancas(), previa,
+                dto.provedorAtivo(), dto.politicaSplit());
     }
 }
