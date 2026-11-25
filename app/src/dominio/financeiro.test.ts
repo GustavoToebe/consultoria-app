@@ -1095,4 +1095,13 @@ describe('ações de pagamento do aluno (formas de recebimento, D7)', () => {
     expect(rotuloDaAcaoDePagamento('PAGAR_INFINITEPAY', duas)).toBe('Pagar pela InfinitePay');
     expect(rotuloDaAcaoDePagamento('PAGAR_LINK_PROPRIO', duas)).toBe('Pagar pelo link do treinador');
   });
+  it('Overtraining Pay disponível: abre checkout transparente no app como ação primária, respeitando plataforma e saída', () => {
+    expect(acoesDePagamentoDoAluno('web', false, {}, 'MENSALIDADE', { overtrainingPayDisponivel: true, formas: ['MANUAL'] })).toEqual(['PAGAR_OVERTRAINING_PAY']);
+    expect(comoPagar('web', false, {}, 'MENSALIDADE', { overtrainingPayDisponivel: true, formas: ['MANUAL'] })).toBe('botao');
+    expect(rotuloDaAcaoDePagamento('PAGAR_OVERTRAINING_PAY', ['PAGAR_OVERTRAINING_PAY'])).toBe('Pagar agora');
+    expect(rotuloDaAcaoDePagamento('PAGAR_OVERTRAINING_PAY', ['PAGAR_OVERTRAINING_PAY', 'PAGAR_INFINITEPAY'])).toBe('Pagar no app');
+    expect(rotuloDaAcaoDePagamento('PAGAR_INFINITEPAY', ['PAGAR_OVERTRAINING_PAY', 'PAGAR_INFINITEPAY'])).toBe('Pagar pela InfinitePay');
+    expect(acoesDePagamentoDoAluno('ios', true, { pagarNoIos: false }, 'MENSALIDADE', { overtrainingPayDisponivel: true })).toEqual([]);
+    expect(acoesDePagamentoDoAluno('web', true, {}, 'SAIDA', { overtrainingPayDisponivel: true })).toEqual([]);
+  });
 });

@@ -47,7 +47,7 @@ export default function MinhaConta() {
           <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />
           {aba === 'cadastro' ? <AbaCadastro conta={conta.dados} /> : null}
           {aba === 'assinatura' ? <AbaPlano conta={conta.dados} /> : null}
-          {aba === 'faturas' ? <AbaFinanceiro conta={conta.dados} /> : null}
+          {aba === 'faturas' ? <AbaFinanceiro conta={conta.dados} aoAtualizar={conta.recarregar} /> : null}
         </View>
       ) : null}
       {consumo.erro ? <MensagemErro texto={textoDoErro(consumo.erro)} tentarDeNovo={consumo.recarregar} erro={consumo.erro} /> : null}

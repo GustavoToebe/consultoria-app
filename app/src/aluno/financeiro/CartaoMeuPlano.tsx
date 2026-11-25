@@ -1,5 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
-import { Copy, CreditCard, ExternalLink } from 'lucide-react-native';
+import { Copy, CreditCard, ExternalLink, QrCode } from 'lucide-react-native';
 import { type ReactNode, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
@@ -26,6 +26,7 @@ import { codigoApi, textoDoErro } from '../../ui/erros';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { BlocoDaConta } from '../conta/SecaoDaConta';
+import { FolhaCheckoutTransparente } from './FolhaCheckoutTransparente';
 import { InterruptorDeLembretes } from './InterruptorDeLembretes';
 import { useFinanceiroDoAluno, useRecarregarFinanceiroAoFocar } from './FinanceiroDoAlunoProvider';
 
@@ -57,8 +58,22 @@ function textoDaVigencia(situacao: string, restantes: number | null | undefined)
  * da seção "Meu plano" da Conta (o título é da seção; o bloco fica visível, sem abrir).
  */
 export function CartaoMeuPlano() {
-  const { habilitado, online, dados, erro, carregando, modoDePagamento: modo, modoDaCobranca, acoesDaCobranca, recarregar } = useFinanceiroDoAluno();
+  const {
+    habilitado,
+    online,
+    dados,
+    erro,
+    carregando,
+    modoDePagamento: modo,
+    modoDaCobranca,
+    acoesDaCobranca,
+    overtrainingPayMaxParcelas,
+    overtrainingPayJuros,
+    cpfPagadorCadastrado,
+    recarregar,
+  } = useFinanceiroDoAluno();
   const [todas, setTodas] = useState(false);
+  const [cobrancaCheckout, setCobrancaCheckout] = useState<CobrancaDoAluno | null>(null);
   useRecarregarFinanceiroAoFocar();
   if (!habilitado) return null;
   if (!online) {
@@ -113,7 +128,14 @@ export function CartaoMeuPlano() {
                 return (
                   <LinhaDaCobranca key={c.id} cobranca={c} modo={modoDaCobranca(c)} empilhar={acoes.length > 1 || acoes.includes('COPIAR_PIX')}>
                     {acoes.length > 0 ? (
-                      <AcoesDaCobranca cobranca={c} acoes={acoes} doCartao={acoesDoCartao} linkProprio={dados.plano?.linkDePagamento ?? null} aoMudar={recarregar} />
+                      <AcoesDaCobranca
+                        cobranca={c}
+                        acoes={acoes}
+                        doCartao={acoesDoCartao}
+                        linkProprio={dados.plano?.linkDePagamento ?? null}
+                        aoMudar={recarregar}
+                        aoAbrirCheckout={setCobrancaCheckout}
+                      />
                     ) : null}
                   </LinhaDaCobranca>
                 );
@@ -134,11 +156,24 @@ export function CartaoMeuPlano() {
         </>
       ) : null}
       <InterruptorDeLembretes />
+      <FolhaCheckoutTransparente
+        cobranca={cobrancaCheckout}
+        maxParcelas={overtrainingPayMaxParcelas}
+        juros={overtrainingPayJuros}
+        cpfPagadorCadastrado={cpfPagadorCadastrado}
+        aoFechar={() => setCobrancaCheckout(null)}
+        aoConfirmarPagamento={recarregar}
+      />
     </BlocoDaConta>
   );
 }
 
-const ICONE_DA_ACAO = { PAGAR_INFINITEPAY: CreditCard, PAGAR_LINK_PROPRIO: ExternalLink, COPIAR_PIX: Copy } as const;
+const ICONE_DA_ACAO = {
+  PAGAR_OVERTRAINING_PAY: QrCode,
+  PAGAR_INFINITEPAY: CreditCard,
+  PAGAR_LINK_PROPRIO: ExternalLink,
+  COPIAR_PIX: Copy,
+} as const;
 
 /**
  * As ações de pagamento de uma cobrança em aberto, na ordem de `acoesDePagamentoDoAluno` (só existem com o "Pagar" permitido
@@ -146,25 +181,64 @@ const ICONE_DA_ACAO = { PAGAR_INFINITEPAY: CreditCard, PAGAR_LINK_PROPRIO: Exter
  * inteiro, `doCartao`). Se o navegador recusar a cópia do Pix, o código aparece aqui, selecionável, enquanto a tela estiver
  * aberta (nunca é guardado).
  */
-function AcoesDaCobranca({ cobranca, acoes, doCartao, linkProprio, aoMudar }: {
+function AcoesDaCobranca({ cobranca, acoes, doCartao, linkProprio, aoMudar, aoAbrirCheckout }: {
   cobranca: CobrancaDoAluno;
   acoes: readonly AcaoDePagamento[];
   /** As ações de todas as cobranças em aberto do cartão: decidem o nome de cada uma. */
   doCartao: readonly AcaoDePagamento[];
   linkProprio: string | null;
   aoMudar: () => void;
+  aoAbrirCheckout: (c: CobrancaDoAluno) => void;
 }) {
   const { cores } = useTema();
   const [codigoAMao, setCodigoAMao] = useState<string | null>(null);
   // Com mais de uma ação a fileira fica embaixo do texto, em coluna e com os botões da mesma largura, no celular e no PC
   // (em linha, no PC, eles quebravam em escadinha de larguras diferentes alinhadas à direita).
   const cheio = acoes.length > 1;
+  const mes = referenciaDaCobranca(cobranca);
   return (
     <>
       <LinhaDeAcoes alinhar={cheio ? 'inicio' : 'fim'} style={cheio ? estilos.emColuna : undefined}>
-        {acoes.map((acao) => (acao === 'COPIAR_PIX'
-          ? <BotaoCopiarPix key={acao} cobranca={cobranca} rotulo={rotuloDaAcaoDePagamento(acao, doCartao)} cheio={cheio} aoMudar={aoMudar} aoRecusarCopia={setCodigoAMao} />
-          : <BotaoPagar key={acao} cobranca={cobranca} acao={acao} rotulo={rotuloDaAcaoDePagamento(acao, doCartao)} cheio={cheio} linkProprio={linkProprio} aoMudar={aoMudar} />))}
+        {acoes.map((acao) => {
+          const rotulo = rotuloDaAcaoDePagamento(acao, doCartao);
+          if (acao === 'PAGAR_OVERTRAINING_PAY') {
+            return (
+              <Botao
+                key={acao}
+                rotulo={rotulo}
+                Icone={ICONE_DA_ACAO[acao]}
+                tipo="secundario"
+                rotuloAcessivel={`${rotulo}: ${mes}, ${centavosParaTela(cobranca.valorCentavos)}`}
+                cheio={cheio}
+                style={cheio ? estilos.botaoCheio : undefined}
+                aoTocar={() => aoAbrirCheckout(cobranca)}
+              />
+            );
+          }
+          if (acao === 'COPIAR_PIX') {
+            return (
+              <BotaoCopiarPix
+                key={acao}
+                cobranca={cobranca}
+                rotulo={rotulo}
+                cheio={cheio}
+                aoMudar={aoMudar}
+                aoRecusarCopia={setCodigoAMao}
+              />
+            );
+          }
+          return (
+            <BotaoPagar
+              key={acao}
+              cobranca={cobranca}
+              acao={acao}
+              rotulo={rotulo}
+              cheio={cheio}
+              linkProprio={linkProprio}
+              aoMudar={aoMudar}
+            />
+          );
+        })}
       </LinhaDeAcoes>
       {codigoAMao ? (
         <View style={[estilos.codigo, { borderColor: cores.divisor, backgroundColor: cores.superficie }]}>
@@ -184,7 +258,7 @@ function AcoesDaCobranca({ cobranca, acoes, doCartao, linkProprio, aoMudar }: {
  */
 function BotaoPagar({ cobranca, acao, rotulo, cheio, linkProprio, aoMudar }: {
   cobranca: CobrancaDoAluno;
-  acao: Exclude<AcaoDePagamento, 'COPIAR_PIX'>;
+  acao: Exclude<AcaoDePagamento, 'COPIAR_PIX' | 'PAGAR_OVERTRAINING_PAY'>;
   rotulo: string;
   cheio: boolean;
   linkProprio: string | null;
