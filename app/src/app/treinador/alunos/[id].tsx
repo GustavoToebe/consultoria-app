@@ -235,7 +235,8 @@ export default function FichaAluno() {
 
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
-      <View onLayout={aoMedir}>
+      {/* zIndex 1: o balão do ⓘ do cabeçalho passa por cima dos cartões, que vêm depois (cada `View` da web é um contexto de empilhamento). */}
+      <View onLayout={aoMedir} style={{ zIndex: 1 }}>
       <CabecalhoDaFicha aluno={aluno ?? null} aoVoltar={voltar} aoAbrirMenu={temMenu ? () => setMenu(true) : undefined}
         foto={aluno ? (
           <FotoDePerfilEditavel alunoId={aluno.id} alunoNome={aluno.nome} anonimizado={aluno.anonimizado} aoAnonimizado={recarregar}

@@ -128,7 +128,22 @@ test('PC (1280×720): sem barra de topo; uma linha no topo com a marca e, à dir
   expect(errosDaPagina).toEqual([]);
 });
 
-test('PC (1280): nome longo da consultoria fica numa linha com reticências e não empurra os ícones; minimizado, a logo no topo e os ícones empilhados embaixo', async ({ page }) => {
+test('PC (1280): nome médio da consultoria quebra em duas linhas sem cortar', async ({ page }) => {
+  const nome = 'Saraiva Team Fitness';
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: TODAS, marca: { ...MARCA, nome } })),
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+  });
+  await page.goto('/treinador/ajuda');
+  const texto = menu(page).getByText(nome, { exact: true });
+  await expect(texto).toBeVisible();
+  expect(await texto.evaluate((el) => ({ linhas: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)), cortado: el.scrollHeight > el.clientHeight })))
+    .toEqual({ linhas: 2, cortado: false });
+});
+
+test('PC (1280): nome longo da consultoria ocupa até duas linhas, corta com reticências e não empurra os ícones; minimizado, a logo no topo e os ícones empilhados embaixo', async ({ page }) => {
   const nome = 'Saraiva Team Consultoria Esportiva e Nutricional de Alta Performance';
   await page.setViewportSize({ width: 1280, height: 720 });
   const { errosDaPagina } = await simularApi(page, {
@@ -141,10 +156,9 @@ test('PC (1280): nome longo da consultoria fica numa linha com reticências e n�
   await expect(texto).toBeVisible();
   const medida = await texto.evaluate((el) => ({
     linhas: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)),
-    cortado: el.scrollWidth > el.clientWidth,
-    reticencias: getComputedStyle(el).textOverflow,
+    cortado: el.scrollHeight > el.clientHeight,
   }));
-  expect(medida).toEqual({ linhas: 1, cortado: true, reticencias: 'ellipsis' });
+  expect(medida).toEqual({ linhas: 2, cortado: true });
   const recolher = menu(page).getByRole('button', { name: 'Recolher barra lateral' });
   const [t, busca, rec, coluna] = [await texto.boundingBox(), await botaoDaBusca(page).boundingBox(), await recolher.boundingBox(), await menu(page).boundingBox()];
   expect(rec!.x).toBeGreaterThanOrEqual(t!.x + t!.width);

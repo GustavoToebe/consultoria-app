@@ -342,9 +342,9 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   // No modelo o nome é o título (o tipo desce para o subtítulo); sem nome, o título genérico e o campo aberto.
   const nomeDoModelo = modelo ? estado.titulo.trim() : '';
   const cabecalho = modelo
-    ? <Cabecalho titulo={nomeDoModelo || titulo} subtitulo={nomeDoModelo ? titulo : undefined} trilha={trilhaDoPlano(true, estado.plano.alunoId, titulo)} voltar="/treinador/planejamento"
+    ? <Cabecalho titulo={nomeDoModelo || titulo} subtitulo={nomeDoModelo ? titulo : undefined} descricao="O molde que você reaproveita: monte aqui e aplique a um aluno, que recebe uma cópia sem ligação com o modelo." trilha={trilhaDoPlano(true, estado.plano.alunoId, titulo)} voltar="/treinador/planejamento"
         acoes={nomeDoModelo && !editandoNome ? <Botao rotulo="Editar nome" tipo="secundario" Icone={Pencil} aoTocar={() => setEditandoNome(true)} /> : undefined} />
-    : <Cabecalho titulo={titulo} trilha={trilhaDoPlano(false, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />;
+    : <Cabecalho titulo={titulo} descricao="Monte as sessões, os exercícios e as séries em rascunho. O aluno só vê o que você publica, e cada publicação vira uma versão." trilha={trilhaDoPlano(false, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />;
 
   return (
     <TelaDoEditor

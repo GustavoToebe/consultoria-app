@@ -7,6 +7,7 @@ import { abrirLinkExterno } from './abrirLinkExterno';
 import { useAviso } from './Aviso';
 import { Botao } from './Botao';
 import { Texto } from './Texto';
+import { NUMERICO } from './tipografia';
 
 /** Abre o link do produto fora do app, sem token. Dieta (suplemento) e vitrine do aluno. */
 export function VerProduto({ link }: { link: string | null }) {
@@ -36,7 +37,7 @@ export function CupomDoProduto({ uid, nome, cupom }: { uid: string; nome: string
   };
   return (
     <View style={estilos.produto}>
-      <Texto numerico selectable>Cupom: {cupom}</Texto>
+      <Texto>Cupom: <Texto style={NUMERICO} selectable>{cupom}</Texto></Texto>
       <Botao
         rotulo="Copiar cupom"
         rotuloAcessivel={`Copiar cupom${nome ? ` de ${nome}` : ''}`}

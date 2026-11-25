@@ -340,8 +340,9 @@ describe('contas do painel', () => {
     expect(cartoes[2].detalhe).toContain(NOTA_CONSIDERA_GERADAS);
     expect(cartoes[2].detalhe).toContain('1 cobrança');
     expect(cartoes[4].valor).toBe('3');
-    // D6: recebido azul, a receber ciano, em atraso vermelho, recorrente violeta; pagantes e médio neutros.
-    expect(cartoes.map((c) => c.enfase)).toEqual(['azul', 'ciano', 'vermelho', 'violeta', 'neutro', 'neutro']);
+    // Cor só de situação, sem azul nem roxo (25/11): recebido verde, a receber âmbar, em atraso vermelho; o resto neutro.
+    expect(cartoes.map((c) => c.enfase)).toEqual(['verde', 'ambar', 'vermelho', 'neutro', 'neutro', 'neutro']);
+    expect(cartoes.map((c) => c.enfase)).not.toEqual(expect.arrayContaining(['azul', 'ciano', 'violeta']));
   });
   it('inadimplência traz a nota; sem vencidas no período fica "—"', () => {
     const com = inadimplenciaParaTela({ percentual: 12.5, vencidoCentavos: 30000, cobradoCentavos: 240000 });

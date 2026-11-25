@@ -10,7 +10,7 @@ import { COBRANCA_ATRASADA, estadoFinanceiro, PAINEL_COM_DADOS, PAINEL_VAZIO, ro
  * Financeiro: zero, nulo e ressalvas (`docs/planos/nulo-e-cobertura.md`, 13/11). Consulta válida e vazia mostra R$ 0,00 e
  * `recebido` 0 no mês é barra zerada (não "sem dado"); resultado nulo mostra "—" com o motivo escrito, nunca zero. Desde
  * 25/11 (pedido do Gustavo) as abas do Financeiro não mostram a ressalva do `historicoFinanceiroParcial` nem a frase dos
- * registros disponíveis; o Início continua com a ressalva e a folha de exportar com a explicação da coluna do CSV.
+ * registros disponíveis; o Início também não (T-001, 25/11) e a folha de exportar traz a explicação da coluna do CSV.
  * Dados fictícios; relógio em 19/10/2026.
  * Com `CAPTURAS=<pasta>` grava as imagens (claro e escuro, 1280 e 390).
  */
@@ -132,7 +132,7 @@ const PAINEL_DO_INICIO = {
 };
 
 for (const parcial of [false, true]) {
-  test(`Início: bloco de dinheiro com consulta vazia mostra R$ 0 e a nota de cobranças já geradas; ressalva do histórico ${parcial ? 'aparece' : 'não aparece'}`, async ({ page }) => {
+  test(`Início: bloco de dinheiro com consulta vazia mostra R$ 0 e a nota de cobranças já geradas, sem ressalva do histórico (parcial = ${parcial})`, async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 1000 });
     await fixarHoje(page);
     const painel: Painel = { ...PAINEL_VAZIO, historicoFinanceiroParcial: parcial };
@@ -145,13 +145,10 @@ for (const parcial of [false, true]) {
     await expect(page.getByRole('heading', { name: 'Início', level: 1 })).toBeVisible();
     await expect(page.getByLabel('Recebido no mês, valor bruto: R$ 0')).toBeVisible();
     await expect(page.getByText('Vencidas e vencendo consideram só as cobranças já geradas.', { exact: false })).toBeVisible();
-    // Uma vez por tela (os blocos Financeiro e Recebido estão visíveis: fica no Financeiro), neutra e com o ícone do Incompleto.
-    await expect(page.getByText(AVISO_HISTORICO_PARCIAL, { exact: true })).toHaveCount(parcial ? 1 : 0);
-    await expect(page.getByText(/limpeza anterior/)).toHaveCount(parcial ? 1 : 0);
-    if (parcial) {
-      await expect(page.getByText(AVISO_HISTORICO_PARCIAL, { exact: true }).locator('xpath=..').locator('svg')).toHaveCount(1);
-      await expect(page.getByRole('alert')).toHaveCount(0);
-    }
+    // O histórico parcial não aparece no Início, nem com `historicoFinanceiroParcial: true` (25/11).
+    await expect(page.getByText(AVISO_HISTORICO_PARCIAL, { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/limpeza anterior/)).toHaveCount(0);
+    await expect(page.getByRole('alert')).toHaveCount(0);
     await capturar(page, `inicio-financeiro-${parcial ? 'parcial' : 'zero'}`);
     expect(errosDaPagina).toEqual([]);
   });

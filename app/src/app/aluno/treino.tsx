@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { CartaoDivisaoLeitura, LinhaDaDivisao } from '../../aluno/LinhaDaDivisao';
+import { OrientacoesDoTreinador } from '../../aluno/OrientacoesDoTreinador';
 import { SecaoDoInicio } from '../../aluno/SecaoDoInicio';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
 import { caminhoDaSessao } from '../../aluno/useSessaoDoDia';
@@ -22,7 +23,6 @@ import { useAviso } from '../../ui/Aviso';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { Cartao } from '../../ui/Cartao';
 import { textoDoErro } from '../../ui/erros';
 import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -31,7 +31,7 @@ import { NoPlano } from '../../ui/NoPlano';
 import { Texto } from '../../ui/Texto';
 import { TelaDoAluno } from '../../aluno/TelaDoAluno';
 import { colunasDaGradeDoAluno } from '../../dominio/telaLargaDoAluno';
-import { espaco, LARGURA_TEXTO_CORRIDO } from '../../tema/tokens';
+import { espaco } from '../../tema/tokens';
 import { ConteudoDaMobilidade } from './mobilidade';
 
 /**
@@ -116,12 +116,7 @@ export default function TreinoAluno() {
               ))}
             </Grade>
           </SecaoDoInicio>
-          {conteudo.objetivo || conteudo.orientacoes ? (
-            <Cartao titulo="Orientações do treinador">
-              {conteudo.objetivo ? <Texto style={estilos.corrido}>Objetivo: {conteudo.objetivo}</Texto> : null}
-              {conteudo.orientacoes ? <Texto variante="suave" style={estilos.corrido}>{conteudo.orientacoes}</Texto> : null}
-            </Cartao>
-          ) : null}
+          <OrientacoesDoTreinador objetivo={conteudo.objetivo} orientacoes={conteudo.orientacoes} />
           <NoPlano funcionalidade="PDF">
             <Botao rotulo="Baixar PDF do treino" tipo="secundario" cheio={!largo} Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} />
           </NoPlano>
@@ -137,8 +132,3 @@ export default function TreinoAluno() {
     </TelaDoAluno>
   );
 }
-
-const estilos = StyleSheet.create({
-  // Texto corrido do treinador em ~72 caracteres por linha (4.10).
-  corrido: { maxWidth: LARGURA_TEXTO_CORRIDO },
-});

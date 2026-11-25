@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, useWindowDimensions, View, type StyleProp, type 
 
 import { contornoDoCartao } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
-import { BORDA_BLOCO, espaco, fontes, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
+import { BORDA_BLOCO, espaco, fontes, LARGURA_MENU_LATERAL, LARGURA_TEXTO_CORRIDO, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
 
 interface Props {
@@ -13,6 +13,8 @@ interface Props {
   titulo?: string;
   /** Uma linha `suave` abaixo do título, no lugar de texto solto de explicação. */
   descricao?: string;
+  /** Uma linha de dado abaixo do título que fica à vista também com o cartão recolhido ("Objetivo: hipertrofia"). */
+  resumo?: string;
   /** Faixa de grupo (`CabecalhoDeGrupo`) rente às bordas, no lugar do título: o conteúdo ganha o padding só embaixo. */
   cabecalho?: ReactNode;
   /** Botões do cartão, à direita do título. */
@@ -46,7 +48,7 @@ interface Props {
  * no contraste alto, `contornoDoCartao`), cantos de 20 px e a `sombra` do tema, que é quem separa o cartão da página; o
  * título fica no próprio cartão, com o filete `divisor` embaixo (divisória interna: não acompanha o contorno no contraste alto). Separa seções, dias, exercícios.
  */
-export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = true, nivel = 2, faixa = true, marcador, periodo, style }: Props) {
+export function Cartao({ children, cabecalho, titulo, descricao, resumo, acoes, rodape, recolhivel, recolhido = true, nivel = 2, faixa = true, marcador, periodo, style }: Props) {
   const { cores, bordas, preferencias } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
@@ -83,6 +85,7 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
                 <Texto numerico variante="pequeno" cor={cores.texto} style={estilos.textoDoPeriodo}>{periodo}</Texto>
               </View>
             ) : null}
+            {resumo ? <Texto style={[estilos.resumo, titulo && recolhivel ? estilos.resumoSobAlvo : null]}>{resumo}</Texto> : null}
             {descricao && !fechado ? <Texto variante="suave">{descricao}</Texto> : null}
           </View>
           {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
@@ -107,6 +110,9 @@ const estilos = StyleSheet.create({
   tituloBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1, minHeight: 44 },
   periodo: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), borderWidth: 1, borderRadius: 999, paddingVertical: 3, paddingHorizontal: espaco(1.25), maxWidth: '100%', marginTop: 2 },
   textoDoPeriodo: { fontFamily: fontes.semi, flexShrink: 1 },
+  // Recolhível: o título é um botão de 44 px; o resumo cola embaixo dele, sem somar o respiro do alvo.
+  resumo: { maxWidth: LARGURA_TEXTO_CORRIDO },
+  resumoSobAlvo: { marginTop: -espaco(0.5) },
   acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', maxWidth: '100%' },
   // `marginTop: 'auto'` empurra o rodapé para a base quando o cartão é esticado pela grade.
   rodape: { marginTop: 'auto' },

@@ -20,6 +20,33 @@ describe('artigoDaTela', () => {
     expect(artigoDaTela('/treinador/equipes')).toBeNull();
   });
 
+  it('telas principais e de edição do treinador abrem a seção certa', () => {
+    const esperado: Record<string, string> = {
+      '/treinador': 'inicio',
+      '/treinador/alunos': 'alunos',
+      '/treinador/alunos/abc': 'alunos',
+      '/treinador/alunos/novo': 'alunos',
+      '/treinador/alunos/tags': 'alunos',
+      '/treinador/agenda': 'agenda',
+      '/treinador/atualizacoes/abc': 'atualizacoes',
+      '/treinador/planejamento': 'planos',
+      '/treinador/planejamento/modelo/abc': 'planos',
+      '/treinador/treinos/abc': 'planos',
+      '/treinador/dietas/abc': 'planos',
+      '/treinador/mobilidades/abc': 'planos',
+      '/treinador/termos': 'privacidade',
+    };
+    for (const [tela, secao] of Object.entries(esperado)) expect(artigoDaTela(tela)).toBe(`/treinador/ajuda?secao=${secao}`);
+  });
+
+  it('o Início não passa o artigo às outras telas; o editor de questionário não tem artigo', () => {
+    for (const tela of ['/treinador/perfil', '/treinador/seguranca', '/treinador/meus-dados', '/treinador/minha-conta', '/treinador/documentos', '/treinador/whatsapp', '/treinador/ajustes']) {
+      expect(artigoDaTela(tela)).toBeNull();
+    }
+    expect(artigoDaTela('/treinador/planejamento/questionario/abc')).toBeNull();
+    expect(artigoDaTela('/aluno/termos')).toBeNull();
+  });
+
   it('tela sem artigo e fora das áreas: nulo', () => {
     expect(artigoDaTela('/treinador/numeros')).toBeNull();
     expect(artigoDaTela('/treinador/ajuda')).toBeNull();

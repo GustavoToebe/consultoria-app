@@ -142,7 +142,7 @@ const HUB_DO_ACESSO_TOTAL: Record<string, Record<string, string>> = {
     'Link de inscrição e respostas prontas': '/treinador/interessados',
     Metodologias: '/treinador/planejamento?tipo=metodologia',
     'Tags dos alunos': '/treinador/alunos/tags',
-    'Aniversários dos alunos': '/treinador/ajustes',
+    'Aniversários dos alunos': '/treinador',
   },
   Financeiro: {
     'Planos comerciais': '/treinador/financeiro?aba=planos',
@@ -212,13 +212,14 @@ test('perfil restrito: só os cartões que ele pode abrir; Consultoria, Equipe e
 });
 
 test('perfil com poucos cartões (390): Sua conta, Aniversários e Ajuda, sem buraco nem rolagem lateral', async ({ page }) => {
-  const poucos: Perfil = { permissoes: ['ALUNO_LER'] };
+  const poucos: Perfil = { permissoes: ['ALUNO_LER', 'PAINEL_VER'] };
   const { errosDaPagina } = await abrir(page, 390, poucos);
   const { grupos } = esperado(poucos);
-  // Com ALUNO_LER entra o "Aniversários dos alunos" (D4 de docs/planos/aniversarios.md), único do grupo dele.
+  // Com ALUNO_LER entra o "Aniversários dos alunos" (D4 de docs/planos/aniversarios.md); o destino é o Início, então pede
+  // também PAINEL_VER (a guarda da tela), senão o cartão some.
   expect(grupos).toEqual(['Sua conta', 'Alunos e atendimento', 'Ajuda']);
   await expect.poll(() => titulosDosCartoes(page)).toEqual(grupos);
-  await expect(cartao(page, 'Aniversários dos alunos')).toHaveAttribute('href', '/treinador/ajustes');
+  await expect(cartao(page, 'Aniversários dos alunos')).toHaveAttribute('href', '/treinador');
   await semRolagemLateral(page);
   await capturar(page, 'poucos-390');
   expect(errosDaPagina).toEqual([]);

@@ -10,9 +10,13 @@ import { aniversariantesDosProximosDias } from '../../dominio/aniversariosDosAlu
 import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
 import { estadoDaFonte, resumoDoInicio, type DestinoDoInicio } from '../../dominio/inicioTreinador';
 import {
+  blocosParaEditar,
   blocosPermitidos,
   blocosVisiveis,
   consultasDoBloco,
+  contarAlteracoes,
+  definirOpcaoDoBloco,
+  diasDoBlocoAniversarios,
   fonteDaConsulta,
   folhaPastasARenovar,
   folhaRecordes,
@@ -24,9 +28,13 @@ import {
   hojeEmBrasilia,
   inicioSemAlunos,
   listaDaFolha,
+  listaDeAlunos,
   montarBloco,
+  mostrarBloco,
   motivoDoEditar,
-  ressalvaUmaVez,
+  moverBlocoPara,
+  redimensionarBloco,
+  restaurarPadrao,
   type BlocoDoPainelId,
   type ConsultaDoPainel,
   type ContextoDoPainel,
@@ -34,7 +42,9 @@ import {
   type FolhaDoPainelId,
   type OpcoesDoBloco,
   type PainelDoInicioPreferido,
+  type TamanhoDoBloco,
 } from '../../dominio/painelDoInicio';
+import { tamanhoDoBloco } from '../../dominio/painelBlocos';
 import { OPCOES_DIAS_SEM_REGISTRO } from '../../dominio/preferencias';
 import {
   AVISO_DISPENSADO,
@@ -54,10 +64,12 @@ import { useTema } from '../../tema/TemaProvider';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { espaco, LARGURA_LISTA } from '../../tema/tokens';
 import { BlocoAniversarios } from '../../treinador/painel/BlocoAniversarios';
-import { BlocoDoPainel } from '../../treinador/painel/BlocoDoPainel';
+import { BlocoDoPainel, CorpoDoBloco } from '../../treinador/painel/BlocoDoPainel';
 import { LinhaDeBlocos } from '../../treinador/painel/FaixaDoPainel';
 import { PrimeirosPassosAberto, PrimeirosPassosConcluidos, type AcaoGuardada } from '../../treinador/painel/BlocoPrimeirosPassos';
-import { BarraDaEdicao, focarDepois, GradeEmEdicao, ID_DO_EDITAR, ID_DO_RESTAURAR } from '../../treinador/painel/EditarPainel';
+import { BarraDaEdicao } from '../../treinador/painel/edicao/BarraDaEdicao';
+import { EdicaoDoInicio } from '../../treinador/painel/edicao/EdicaoDoInicio';
+import { focarDepois, ID_DO_EDITAR, idDaEdicao } from '../../treinador/painel/edicao/tipos';
 import { FolhaDoPainel } from '../../treinador/painel/FolhaDoPainel';
 import { colunasDaGrade, linhasDaGrade } from '../../treinador/painel/grade';
 import { ProximoPasso, type ProximoPassoDaTela } from '../../treinador/painel/ProximoPasso';
@@ -68,6 +80,7 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Alerta, Vazio } from '../../ui/Estados';
+import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { Tela } from '../../ui/Tela';
@@ -105,14 +118,20 @@ export default function InicioTreinador() {
   // bloco fica nas preferências do aparelho (`painelDoInicio.meus`), junto da ordem do "Editar".
   const padraoMeus = !administrador;
   const pref = preferencias.painelDoInicio;
-  const meusDe = useCallback((id: BlocoDoPainelId) => pref.meus[id] ?? padraoMeus, [pref.meus, padraoMeus]);
+  // Modo de edição: o rascunho do painel (`null` = fora da edição). Em edição a grade, as consultas e as opções seguem o
+  // rascunho: o bloco que volta busca o dado dele e o "Mostrar aniversários de" muda a lista na hora.
+  const [rascunho, setRascunho] = useState<PainelDoInicioPreferido | null>(null);
+  const editando = rascunho !== null;
+  const painel = rascunho ?? pref;
+  const meusDe = useCallback((id: BlocoDoPainelId) => painel.meus[id] ?? padraoMeus, [painel.meus, padraoMeus]);
   const dias = preferencias.diasSemRegistro;
+  const diasDoAniversario = diasDoBlocoAniversarios(painel);
   const usuarioId = usuario?.id ?? null;
   const hoje = hojeEmBrasilia();
-  const opcoes = useCallback((id: BlocoDoPainelId): OpcoesDoBloco => ({ meus: meusDe(id), dias, graficos: preferencias.graficos, hoje, usuarioId }),
-    [meusDe, dias, preferencias.graficos, hoje, usuarioId]);
+  const opcoes = useCallback((id: BlocoDoPainelId): OpcoesDoBloco => ({ meus: meusDe(id), dias, graficos: preferencias.graficos, hoje, usuarioId, diasDoAniversario }),
+    [meusDe, dias, preferencias.graficos, hoje, usuarioId, diasDoAniversario]);
   const permitidos = blocosPermitidos(ctx, pref);
-  const visiveis = blocosVisiveis(ctx, pref);
+  const visiveis = blocosVisiveis(ctx, painel);
   const verPainel = pode('PAINEL_VER');
 
   // ---- Primeiros passos: o que ficou guardado no aparelho e a configuração do link ----
@@ -141,13 +160,17 @@ export default function InicioTreinador() {
   ], [verPainel, painelTodos, painelPadrao, verInteressados, interessadosPadrao, verTrocas, trocasPadrao, porBloco, semAlunosSabido, preferenciasLidas]);
   const { fonte, dadosDeOutraChave, fontesDe, recarregar } = useFontesDoPainel(consultas);
 
-  // ---- Aniversários (só com ALUNO_LER): nome e dia/mês dos próximos dias; falha ou lista vazia = o cartão não aparece ----
-  const diasAniversario = preferencias.diasAniversario;
-  const carregarAniversarios = useCarregar(pode('ALUNO_LER') && preferenciasLidas ? `inicio:aniversarios:${diasAniversario}:${padraoMeus}` : null, () => aniversariantesDosAlunos(diasAniversario, padraoMeus));
+  // ---- Aniversários: consulta própria (fora das vagas), só com o bloco na grade (ALUNO_LER e não oculto) e depois de ler
+  // o aparelho (a janela e o Todos/Meus são do bloco: sem esperar, sairia um pedido com os de fábrica). Só nome e dia/mês.
+  const meusDoAniversario = meusDe('aniversarios');
+  const chaveDoAniversario = visiveis.includes('aniversarios') && preferenciasLidas && !semAlunosSabido
+    ? `inicio:aniversarios:${diasDoAniversario}:${meusDoAniversario}` : null;
+  const carregarAniversarios = useCarregar(chaveDoAniversario, () => aniversariantesDosAlunos(diasDoAniversario, meusDoAniversario));
   const recarregarAniversarios = carregarAniversarios.recarregar;
+  const fonteDoAniversario = chaveDoAniversario ? fonteDaConsulta(carregarAniversarios) : FONTE_CARREGANDO;
   const aniversariantes = useMemo(
-    () => aniversariantesDosProximosDias(carregarAniversarios.dados ?? [], hoje, diasAniversario),
-    [carregarAniversarios.dados, hoje, diasAniversario],
+    () => aniversariantesDosProximosDias(carregarAniversarios.dados ?? [], hoje, diasDoAniversario),
+    [carregarAniversarios.dados, hoje, diasDoAniversario],
   );
 
   // Ao voltar para a tela (não na primeira vez), recarrega tudo e relê o aparelho: cadastrou o aluno ou ligou o link e voltou.
@@ -191,17 +214,16 @@ export default function InicioTreinador() {
   const fonteTrocas = fonte<TrocasPendentes>(trocasPadrao);
   const trocas = verTrocas ? dadosDe(fonteTrocas) : null;
 
-  // ---- Folhas e Editar ----
+  // ---- Folhas ----
   const [folhaAberta, setFolhaAberta] = useState<{ id: FolhaDoPainelId; meus: boolean } | null>(null);
-  // Modo de edição: o rascunho do painel e a última mudança (o rodapé a mostra). `null` = fora da edição.
-  const [edicao, setEdicao] = useState<{ rascunho: PainelDoInicioPreferido; mensagem: string | null } | null>(null);
-  const editando = edicao !== null;
   const [confirmarDispensa, setConfirmarDispensa] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
   // ---- Próximo passo (as mesmas pendências e permissões do Início antigo, no escopo padrão) ----
   const irPara = (destino: DestinoDoInicio) => {
     if (destino === 'TROCAS') return setFolhaAberta({ id: 'trocas', meus: padraoMeus });
+    // Convite é por aluno (ficha › Acesso ao app): a lista já filtrada por "Sem acesso" é onde o treinador convida (sem convite em lote).
+    if (destino === 'SEM_ACESSO') return router.push(listaDeAlunos(padraoMeus, 'acesso=SEM') as Href);
     if (!padrao) return;
     if (destino === 'PARA_REVISAR' || destino === 'ATRASADAS') router.push(caminhoListaAtualizacoes(destino, padraoMeus));
     else if (destino === 'INTERESSADOS') router.push((padraoMeus ? '/treinador/interessados?situacao=NOVA&meus=true' : '/treinador/interessados?situacao=NOVA') as Href);
@@ -218,6 +240,7 @@ export default function InicioTreinador() {
     const sitPadrao = fontePadrao.situacao;
     const lido = !!padrao;
     const r = resumoDoInicio({
+      semAcesso: lido && pode('ALUNO_CONVITE') ? numero(padrao.alunosSemAcesso) : null,
       paraRevisar: verAtualizacoes && lido ? padrao.atualizacoesParaRevisar : null,
       atrasadas: verAtualizacoes && lido ? padrao.atualizacoesAtrasadas : null,
       interessadosNovos: interessados ? numero(interessados.porSituacao?.NOVA) : null,
@@ -271,13 +294,32 @@ export default function InicioTreinador() {
 
   // ---- Grade ----
   const { largura, faixa, aoMedir } = useFaixaDeLargura();
-  const blocos = ressalvaUmaVez(visiveis
-    .map((id) => montarBloco(id, ctx, { ...opcoes(id), fontes: fontesDe(porBloco.get(id) ?? []) }))
-    .filter((b): b is NonNullable<typeof b> => b !== null));
+  const blocos = visiveis
+    .map((id) => montarBloco(id, ctx, {
+      ...opcoes(id), fontes: id === 'aniversarios' ? { aniversarios: fonteDoAniversario } : fontesDe(porBloco.get(id) ?? []),
+    }))
+    .filter((b): b is NonNullable<typeof b> => b !== null);
   const porId = new Map(blocos.map((b) => [b.id, b]));
   const colunas = colunasDaGrade(largura, fatorTexto, faixa);
-  const linhas = linhasDaGrade(blocos.map((b) => b.id), colunas, pref.tamanhos);
+  const linhas = linhasDaGrade(blocos.map((b) => b.id), colunas, painel.tamanhos);
   const esperandoTodos = verPainel && fonteTodos.situacao === 'carregando';
+
+  const aoAtualizarBloco = (id: BlocoDoPainelId) => (id === 'aniversarios' ? recarregarAniversarios() : recarregar(porBloco.get(id) ?? []));
+  /** Corpo próprio do bloco sem cartões (só os Aniversários), no tamanho que vale (na edição, o da prévia). */
+  const corpoProprio = (id: BlocoDoPainelId, tamanho: TamanhoDoBloco) => (id === 'aniversarios' ? (
+    <BlocoAniversarios aniversariantes={aniversariantes} tamanho={tamanho} dias={diasDoAniversario} hoje={hoje}
+      aoAbrirFicha={(alunoId) => router.push(`/treinador/alunos/${alunoId}`)} />
+  ) : null);
+  /** Na edição, o conteúdo de verdade do bloco, sem a faixa (a barra de controles já traz o nome). */
+  const conteudoNaEdicao = (id: BlocoDoPainelId, tamanho: TamanhoDoBloco) => {
+    const bloco = porId.get(id);
+    if (!bloco) return null;
+    return (
+      <CorpoDoBloco bloco={bloco} aoAtualizar={() => aoAtualizarBloco(id)} aoAbrirFolha={(folha) => setFolhaAberta({ id: folha, meus: bloco.meus })}>
+        {corpoProprio(id, tamanho)}
+      </CorpoDoBloco>
+    );
+  };
 
   const folha = (() => {
     if (!folhaAberta) return null;
@@ -321,18 +363,21 @@ export default function InicioTreinador() {
           <Botao rotulo="Editar" rotuloAcessivel="Editar os blocos do Início" tipo="secundario" Icone={Pencil}
             desabilitado={!!motivoEditar} motivo={motivoEditar}
             aoTocar={() => {
-              setEdicao({ rascunho: pref, mensagem: null });
-              focarDepois([ID_DO_RESTAURAR]);
+              setRascunho(pref);
+              const primeiro = blocosVisiveis(ctx, pref)[0];
+              focarDepois(primeiro ? [idDaEdicao(primeiro, 'bloco')] : permitidos.map((id) => idDaEdicao(id, 'adicionar')));
             }} />
         </View>
       ) : null}
     </>
   );
 
-  // Salvar com a mesma composição só fecha a edição; o rodapé diz se há algo por salvar.
-  const alterado = !!edicao && JSON.stringify(edicao.rascunho) !== JSON.stringify(pref);
+  // Salvar sem alteração só fecha a edição; a barra de baixo diz quantas há. Sair da tela com alteração pergunta.
+  const alteracoes = rascunho ? contarAlteracoes(pref, rascunho) : 0;
+  useGuardaDeSaida(alteracoes > 0);
+  const mudar = (f: (r: PainelDoInicioPreferido) => PainelDoInicioPreferido) => setRascunho((r) => (r ? f(r) : r));
   const fecharEdicao = () => {
-    setEdicao(null);
+    setRascunho(null);
     focarDepois([ID_DO_EDITAR]);
   };
 
@@ -340,7 +385,9 @@ export default function InicioTreinador() {
     <View style={estilos.raiz}>
       <Tela bordas={['top']} largura={LARGURA_LISTA}>
         <Cabecalho titulo="Início" mostrarMarca="celular"
-          subtitulo={editando ? 'Editando os blocos: arraste, mude o tamanho, oculte ou adicione.' : `Olá, ${usuario?.nome ?? ''}. O que pede atenção na consultoria hoje.`}
+          subtitulo={editando ? undefined : `Olá, ${usuario?.nome ?? ''}.`}
+          descricao={editando ? 'As alterações ficam salvas neste aparelho.'
+            : 'O que pede atenção na consultoria hoje, em blocos com números e pendências. Toque num cartão para abrir a lista já filtrada; em Editar, escolha e ordene os blocos.'}
           acoes={editando ? undefined : acoes} />
 
         {offline ? (
@@ -357,12 +404,21 @@ export default function InicioTreinador() {
           <PrimeirosPassosConcluidos passos={passos} aoAcao={aoAcao} aoFechar={() => gravar(fecharConcluidos)} />
         ) : null}
         {!editando && topo.proximoPasso ? <ProximoPasso passo={topo.proximoPasso} /> : null}
-        {!editando && aniversariantes.length ? <BlocoAniversarios itens={aniversariantes} dias={diasAniversario} /> : null}
 
         <View onLayout={aoMedir} style={estilos.painel}>
-          {edicao ? (
-            <GradeEmEdicao ctx={ctx} rascunho={edicao.rascunho} colunas={colunas}
-              aoMudar={(rascunho, mensagem) => setEdicao({ rascunho, mensagem })} />
+          {rascunho ? (
+            <EdicaoDoInicio itens={blocosParaEditar(ctx, rascunho)} colunas={colunas}
+              renderConteudo={conteudoNaEdicao}
+              aoMover={(id, destino) => mudar((r) => moverBlocoPara(r, id, destino, blocosVisiveis(ctx, r)))}
+              aoMudarTamanho={(id, t) => mudar((r) => redimensionarBloco(r, id, t))}
+              aoOcultar={(id) => mudar((r) => mostrarBloco(r, id, false))}
+              // `mostrarBloco` só o tira dos ocultos (voltaria ao lugar antigo): o bloco adicionado entra no fim da grade.
+              aoAdicionar={(id) => mudar((r) => {
+                const m = mostrarBloco(r, id, true);
+                const v = blocosVisiveis(ctx, m);
+                return moverBlocoPara(m, id, v.length - 1, v);
+              })}
+              aoMudarOpcao={(id, chave, valor) => mudar((r) => definirOpcaoDoBloco(r, id, chave, valor))} />
           ) : !verPainel && permitidos.length === 0 ? (
             <Vazio Icone={Lock} titulo="Sem números para o seu perfil" texto="O seu perfil não vê os blocos do Início. Peça a um administrador da consultoria." />
           ) : esperandoTodos ? (
@@ -379,9 +435,11 @@ export default function InicioTreinador() {
                   if (!bloco) return null;
                   return (
                     <BlocoDoPainel key={c.id} bloco={bloco} style={{ flex: c.colunas, flexBasis: 0 }}
-                      aoAtualizar={() => recarregar(porBloco.get(c.id) ?? [])}
+                      aoAtualizar={() => aoAtualizarBloco(c.id)}
                       aoAlternarFiltro={() => escolherPreferencia({ painelDoInicio: { ...pref, meus: { ...pref.meus, [c.id]: !meusDe(c.id) } } })}
-                      aoAbrirFolha={(id) => setFolhaAberta({ id, meus: bloco.meus })} />
+                      aoAbrirFolha={(id) => setFolhaAberta({ id, meus: bloco.meus })}>
+                      {corpoProprio(c.id, tamanhoDoBloco(c.id, painel.tamanhos))}
+                    </BlocoDoPainel>
                   );
                 })}
               </LinhaDeBlocos>
@@ -405,10 +463,11 @@ export default function InicioTreinador() {
             setAviso(AVISO_DISPENSADO);
           }} />
       </Tela>
-      {edicao ? (
-        <BarraDaEdicao mensagem={edicao.mensagem} alterado={alterado} aoCancelar={fecharEdicao}
+      {rascunho ? (
+        <BarraDaEdicao alteracoes={alteracoes} aoCancelar={fecharEdicao}
+          aoRestaurar={() => setRascunho(restaurarPadrao())}
           aoSalvar={() => {
-            if (alterado) escolherPreferencia({ painelDoInicio: edicao.rascunho });
+            if (alteracoes > 0) escolherPreferencia({ painelDoInicio: rascunho });
             fecharEdicao();
           }} />
       ) : null}

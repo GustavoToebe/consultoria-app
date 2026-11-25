@@ -18,7 +18,7 @@ export function itensDoMenuDoUsuario(pode: (codigo: string) => boolean, administ
     { id: 'seguranca', rotulo: 'Segurança', href: '/treinador/seguranca' },
     ...(pode('CONTA_LER') ? [{ id: 'minha-conta' as const, rotulo: 'Assinatura e faturas', href: '/treinador/minha-conta' }] : []),
     ...(administrador ? [{ id: 'marca' as const, rotulo: 'Marca', href: '/treinador/marca' }] : []),
-    { id: 'ajustes', rotulo: 'Ajustes', href: '/treinador/ajustes' },
+    { id: 'ajustes', rotulo: 'Aparência e preferências', href: '/treinador/ajustes' },
     { id: 'sair', rotulo: 'Sair', href: null },
   ];
 }

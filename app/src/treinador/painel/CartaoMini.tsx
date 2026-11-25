@@ -12,13 +12,11 @@ import { Texto } from '../../ui/Texto';
 /**
  * Cor de situação do cartão (cartão pintado, 23/11: cor só onde significa algo). Pela função do número (`enfase`):
  * verde = `sucesso`, âmbar = `atencao` (para revisar, retornos de hoje, trocas, sem registro, a renovar), vermelho =
- * `perigo`, violeta (recordes) = `conquista`; o recebido do mês é `sucesso` e as cobranças vencendo, `atencao` (as em
- * aberto do Financeiro). Azul e ciano (próximas, novos interessados) são medida sem juízo: neutros. Zero e sem dado, neutros.
+ * `perigo`, violeta (recordes) = `conquista`; no Financeiro o recebido do mês é verde (`sucesso`), as vencendo âmbar e as vencidas
+ * vermelho (sem azul nem roxo, 25/11). Azul e ciano (próximas, novos interessados) são medida sem juízo: neutros. Zero e sem dado, neutros.
  */
 function corDoCartao(cartao: CartaoDoPainel, cores: Cores): string | null {
   if (cartao.estado !== 'valor') return null;
-  if (cartao.chave === 'financeiro.recebido' && cartao.enfase === 'azul') return cores.sucesso;
-  if (cartao.chave === 'financeiro.vencendo' && cartao.enfase === 'ciano') return cores.atencao;
   switch (cartao.enfase) {
     case 'verde': return cores.sucesso;
     case 'ambar': return cores.atencao;

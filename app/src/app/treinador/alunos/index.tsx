@@ -176,6 +176,7 @@ export default function Alunos() {
       <Cabecalho
         titulo="Alunos"
         mostrarMarca="celular"
+        descricao="Busque e filtre quem você acompanha, cadastre um aluno novo, aja em vários de uma vez e abra a ficha para ver e montar os planos."
         acoes={
           <View style={estilos.acoesDoTopo}>
             <Permitido codigo="ALUNO_ALTERAR">

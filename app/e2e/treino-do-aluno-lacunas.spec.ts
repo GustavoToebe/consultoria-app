@@ -23,7 +23,7 @@ const PONTOS: ProgressoPonto[] = [
   { data: '2026-10-16', maiorCargaTrabalho: 60, repeticoes: 10 },
 ];
 
-async function abrir(page: Page, opcoes: { equipamentos?: (string | null)[]; retorno?: boolean; progresso?: RespostasApi[string] } = {}) {
+async function abrir(page: Page, opcoes: { equipamentos?: (string | null)[]; retorno?: boolean; progresso?: RespostasApi[string]; objetivoEOrientacoes?: { objetivo: string; orientacoes: string } } = {}) {
   await fixarHoje(page);
   const equipamentos = opcoes.equipamentos ?? [null, null];
   const sessoes = [sessaoFalsa('sx', 'Treino curto', 1, equipamentos.length)];
@@ -39,6 +39,7 @@ async function abrir(page: Page, opcoes: { equipamentos?: (string | null)[]; ret
     'GET /aluno/painel': {
       corpo: {
         ...painel,
+        treino: painel.treino && opcoes.objetivoEOrientacoes ? { ...painel.treino, conteudo: { ...painel.treino.conteudo, ...opcoes.objetivoEOrientacoes } } : painel.treino,
         ultimasCargas: { x1: { carga: 60, repeticoes: 10, data: '2026-10-16' } },
         ...(retorno ? { recordes: RECORDES, anteriores: ANTERIORES } : {}),
       },
@@ -130,3 +131,29 @@ test('com "Concluir treino" desligado, os recordes somem e a última vez vem da 
   await expect(folha(page).getByText('Maior carga', { exact: true })).toHaveCount(0);
   expect(api.errosDaPagina).toEqual([]);
 });
+
+/** Orientações do treinador (Gustavo, 25/11): no formato da importação da planilha ("Coluna: texto"). Texto fictício. */
+const ORIENTACOES = 'Leia antes do primeiro treino.\n\nFS: Série de força, pesada e curta.\n\nWS: Série de trabalho até perto da falha.\n\nCardio: 20 min leves depois do treino.';
+
+for (const largura of [390, 1280]) {
+  test(`orientações do treinador: recolhidas com o objetivo à vista; abrir mostra as seções, cada uma fechada (${largura} px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const respostas = await abrir(page, { objetivoEOrientacoes: { objetivo: 'Ganhar força (fictício)', orientacoes: ORIENTACOES } });
+    await page.goto('/aluno/treino');
+    const cartao = page.getByRole('button', { name: 'Orientações do treinador, recolhido' });
+    await expect(cartao).toBeVisible();
+    await expect(page.getByText('Objetivo: Ganhar força (fictício)', { exact: true })).toBeVisible();
+    await expect(page.getByText('Leia antes do primeiro treino.', { exact: true })).toHaveCount(0);
+    await cartao.click();
+    await expect(page.getByRole('button', { name: 'Orientações do treinador, expandido' })).toBeVisible();
+    await expect(page.getByText('Leia antes do primeiro treino.', { exact: true })).toBeVisible();
+    for (const titulo of ['FS', 'WS', 'Cardio']) await expect(page.getByRole('button', { name: titulo, exact: true })).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByText('Série de força, pesada e curta.', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'FS', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'FS', exact: true })).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByText('Série de força, pesada e curta.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Série de trabalho até perto da falha.', { exact: true })).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`orientacoes-${largura}.png`), fullPage: true });
+    expect(respostas.errosDaPagina).toEqual([]);
+  });
+}

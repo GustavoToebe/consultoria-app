@@ -14,6 +14,14 @@ describe('proximoPassoDoInicio', () => {
     expect(proximoPassoDoInicio({ ...nada, semRegistro: 3, diasSemRegistro: 14 })?.texto).toBe('3 alunos estão sem registro há 14 dias.');
   });
 
+  it('aluno sem acesso vem antes de tudo, com singular e plural certos e o convite como ação', () => {
+    expect(proximoPassoDoInicio({ ...nada, semAcesso: 145, paraRevisar: 2, atrasadas: 1 })).toEqual({ texto: '145 alunos ainda não têm acesso.', acao: 'Enviar convites', destino: 'SEM_ACESSO' });
+    expect(proximoPassoDoInicio({ ...nada, semAcesso: 1 })).toEqual({ texto: '1 aluno ainda não tem acesso.', acao: 'Enviar convite', destino: 'SEM_ACESSO' });
+    // Sem ninguém sem acesso, ou sem a permissão de convidar (nulo), o passo não aparece.
+    expect(proximoPassoDoInicio({ ...nada, semAcesso: 0, semRegistro: 1 })?.destino).toBe('SEM_REGISTRO');
+    expect(proximoPassoDoInicio({ ...nada, semAcesso: null, paraRevisar: 1 })?.destino).toBe('PARA_REVISAR');
+  });
+
   it('planos terminando no teto da lista da API (20) dizem "20 ou mais", porque o total não vem', () => {
     expect(TETO_PLANOS_TERMINANDO).toBe(20);
     expect(proximoPassoDoInicio({ ...nada, planosTerminando: 19 })?.texto).toBe('19 planos terminam nos próximos 7 dias.');

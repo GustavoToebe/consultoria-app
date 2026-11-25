@@ -735,6 +735,20 @@ export function coresDeDestaque(cores: Cores, variante: VarianteDoTema): Record<
 }
 
 /**
+ * Verde mais claro da entrada avulsa (25/11): o `sucesso` é o recebido das cobranças e a entrada avulsa vem um tom acima
+ * (≥ 1,25:1 de luminância do `sucesso` da variante), na mesma família, para o financeiro não usar azul. É marca e texto de
+ * valor: ≥ 4,5:1 sobre a `superficie` e a `superficie2` de todas as paletas claras (sobre a `superficie3` e o hover `sobre`
+ * fica abaixo disso: texto solto de linha não usa esta cor) e mais de 13:1 nas escuras. Não vem da marca.
+ */
+export const PALETA_DA_ENTRADA_AVULSA: Record<VarianteDoTema, string> = {
+  claro: '#0A7F34',
+  areia: '#0B7D48',
+  escuro: '#B8F5CE',
+};
+
+export const corDaEntradaAvulsa = (variante: VarianteDoTema): string => PALETA_DA_ENTRADA_AVULSA[variante];
+
+/**
  * Opções da cor de ação em Ajustes (visual-ponytail, 17/11): índigo é o padrão; `MARCA` usa a cor da marca da consultoria.
  * Os tons já vêm ajustados por variante; `coresDaAcao` ainda escurece (claras) ou clareia (escuras) o mínimo para a cor
  * passar 4,5:1 sobre o cartão e sobre o próprio fundo do botão de ação.

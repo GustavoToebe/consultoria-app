@@ -247,7 +247,7 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
       {escolha ? (
         <View style={[estilos.escolha, { backgroundColor: cores.superficie3, borderLeftColor: cores.bordaCampo }]}>
           <Texto numerico style={estilos.forte} cor={cores.texto}>{escolha}</Texto>
-          <Texto numerico variante="pequeno">As opções não se somam: o total do dia conta só a opção A.</Texto>
+          <Texto variante="pequeno">As opções não se somam: o total do dia conta só a opção A.</Texto>
         </View>
       ) : null}
       {refeicao.opcoes.length > 1 ? (

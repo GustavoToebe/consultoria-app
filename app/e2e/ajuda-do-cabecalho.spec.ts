@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
+import { ALUNO_ID as ALUNO_ID_EDITOR, BIBLIOTECA, PLANO_ID, planoDetalhe } from './editor-inspetor.dados';
+import { abrirEditor } from './editor-questionario.dados';
 
 /**
  * O ⓘ "Sobre esta tela" do cabeçalho de página (`ui/AjudaDoCabecalho`, pedido de 25/11): a descrição sai da tela e vai
@@ -134,3 +136,120 @@ test('1280 px: com a Ajuda já aberta antes, o "Saiba mais" abre a seção pedid
   await expect(page).toHaveURL(/\/treinador\/ajuda\?secao=consultoria$/);
   await expect(page.getByText(/^Lista ações importantes, guardadas por um ano/)).toBeVisible();
 });
+
+/**
+ * Varredura (25/11): toda tela principal do menu do treinador, as de Configurações, a ficha do aluno e os editores têm o ⓘ
+ * "Sobre esta tela" com texto no balão, e o "Saiba mais" só existe quando `dominio/ajudaDaTela` tem a seção da tela
+ * (e leva a `?secao=` certa). `secao: null` = sem seção própria na Ajuda, então sem link.
+ */
+const PERMISSOES_DA_VARREDURA = [
+  ...PERMISSOES_TREINADOR, 'EQUIPE_LER', 'EQUIPE_ALTERAR', 'AUDITORIA_LER', 'MARCA_ALTERAR', 'CONTA_LER', 'MODELO_LER', 'MODELO_ALTERAR',
+  'FINANCEIRO_LER', 'FINANCEIRO_ALTERAR', 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR', 'AGENDA_LER', 'AGENDA_ALTERAR', 'ATUALIZACAO_LER',
+  'ATUALIZACAO_RESPONDER', 'WHATSAPP_ALTERAR', 'VITRINE_LER', 'VITRINE_ALTERAR', 'COMUNIDADE_LER', 'COMUNIDADE_ALTERAR', 'REGISTRO_LER',
+  'TREINO_LER', 'TREINO_ALTERAR', 'TREINO_PUBLICAR', 'DIETA_LER', 'DIETA_ALTERAR', 'ERGOGENICO_LER', 'IMPORTACAO_LER', 'IMPORTACAO_ALTERAR', 'USUARIO_LER', 'PERFIL_LER',
+];
+const ALUNO_DA_FICHA = 'a0000000-0000-4000-8000-000000000002';
+const MOBILIDADE_ID = 'p0000000-0000-4000-8000-0000000000m1';
+
+interface TelaDaVarredura { caminho: string; titulo: string; secao: string | null }
+const TELAS: TelaDaVarredura[] = [
+  { caminho: '/treinador', titulo: 'Início', secao: 'inicio' },
+  { caminho: '/treinador/alunos', titulo: 'Alunos', secao: 'alunos' },
+  { caminho: '/treinador/atualizacoes', titulo: 'Atualizações', secao: 'atualizacoes' },
+  { caminho: '/treinador/agenda', titulo: 'Agenda', secao: 'agenda' },
+  { caminho: '/treinador/comunidade', titulo: 'Comunidade', secao: 'comunidade' },
+  { caminho: '/treinador/biblioteca', titulo: 'Biblioteca', secao: 'biblioteca' },
+  { caminho: '/treinador/planejamento', titulo: 'Planejamento', secao: 'planos' },
+  { caminho: '/treinador/interessados', titulo: 'Interessados', secao: 'interessados' },
+  { caminho: '/treinador/financeiro', titulo: 'Financeiro', secao: 'financeiro' },
+  { caminho: '/treinador/vitrine', titulo: 'Vitrine', secao: 'vitrine' },
+  { caminho: '/treinador/numeros', titulo: 'Números', secao: null },
+  { caminho: '/treinador/equipe', titulo: 'Equipe', secao: 'consultoria' },
+  { caminho: '/treinador/importacao', titulo: 'Importação', secao: 'importacao' },
+  { caminho: '/treinador/importacao/assistida', titulo: 'Importação assistida', secao: 'importacao' },
+  { caminho: '/treinador/auditoria', titulo: 'Auditoria', secao: 'consultoria' },
+  { caminho: '/treinador/configuracoes', titulo: 'Configurações', secao: 'consultoria' },
+  { caminho: '/treinador/marca', titulo: 'Marca', secao: 'consultoria' },
+  { caminho: '/treinador/whatsapp', titulo: 'WhatsApp oficial', secao: null },
+  { caminho: '/treinador/documentos', titulo: 'Documentos (PDF)', secao: null },
+  { caminho: '/treinador/termos', titulo: 'Termos e privacidade', secao: 'privacidade' },
+  { caminho: '/treinador/seguranca', titulo: 'Segurança', secao: null },
+  { caminho: '/treinador/minha-conta', titulo: 'Assinatura e faturas', secao: null },
+  { caminho: '/treinador/meus-dados', titulo: 'Meus dados', secao: null },
+  { caminho: '/treinador/perfil', titulo: 'Perfil', secao: null },
+  { caminho: '/treinador/ajustes', titulo: 'Aparência e preferências', secao: null },
+  { caminho: '/treinador/alunos/tags', titulo: 'Tags dos alunos', secao: 'alunos' },
+  { caminho: '/treinador/alunos/novo', titulo: 'Novo aluno', secao: 'alunos' },
+  { caminho: `/treinador/alunos/${ALUNO_DA_FICHA}`, titulo: 'Aluna Fictícia', secao: 'alunos' },
+];
+
+async function abrirVarredura(page: Page, largura: number, caminho: string, extra: RespostasApi = {}) {
+  await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 800 });
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR, {
+      permissoes: PERMISSOES_DA_VARREDURA, pagamentosHabilitados: true, vitrineHabilitada: true, whatsappHabilitado: true,
+      perfil: { id: 'p1', nome: 'Administrador', acessoTotal: true },
+    })),
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+    [`GET /alunos/${ALUNO_DA_FICHA}`]: { corpo: { id: ALUNO_DA_FICHA, nome: 'Aluna Fictícia', email: 'aluna@exemplo.test', ativo: true, temAcesso: true, versao: 1, anonimizado: false } },
+    ...extra,
+  });
+  await page.goto(caminho);
+  return { errosDaPagina };
+}
+
+/** O ⓘ existe, o balão abre com texto e o "Saiba mais" bate com o mapa; fecha com Esc. */
+async function conferirOIcone(page: Page, secao: string | null) {
+  await expect(icone(page)).toHaveCount(1);
+  await expect(icone(page)).toBeVisible();
+  await icone(page).click();
+  await expect(balao(page)).toBeVisible();
+  expect(((await balao(page).innerText()).replace('Saiba mais', '')).trim().length).toBeGreaterThan(10);
+  const link = balao(page).getByRole('link', { name: 'Saiba mais' });
+  if (secao) await expect(link).toHaveAttribute('href', `/treinador/ajuda?secao=${secao}`);
+  else await expect(link).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(balao(page)).toBeHidden();
+}
+
+for (const largura of [1280, 390]) {
+  test.describe(`varredura em ${largura} px`, () => {
+    for (const { caminho, titulo, secao } of TELAS) {
+      test(`${caminho}: ⓘ${secao ? ` com Saiba mais (${secao})` : ' sem Saiba mais'}`, async ({ page }) => {
+        const { errosDaPagina } = await abrirVarredura(page, largura, caminho);
+        await expect(page.getByRole('heading', { level: 1, name: titulo, exact: true })).toBeVisible();
+        await conferirOIcone(page, secao);
+        expect(errosDaPagina).toEqual([]);
+      });
+    }
+
+    test('editor de treino do aluno e modelo de treino: ⓘ com Saiba mais (planos)', async ({ page }) => {
+      const extra: RespostasApi = {
+        [`GET /alunos/${ALUNO_ID_EDITOR}`]: { corpo: { id: ALUNO_ID_EDITOR, nome: 'Aluna Fictícia' } },
+        'GET /exercicios': { corpo: BIBLIOTECA },
+        [`GET /planos-treino/${PLANO_ID}`]: (_p, route) => json(route, planoDetalhe(false)),
+      };
+      await abrirVarredura(page, largura, `/treinador/treinos/${PLANO_ID}`, extra);
+      await expect(page.getByRole('button', { name: /^Editar sessão/ })).toBeVisible();
+      await conferirOIcone(page, 'planos');
+    });
+
+    test('editor de mobilidade do aluno: ⓘ com Saiba mais (planos)', async ({ page }) => {
+      const mob = {
+        plano: { id: MOBILIDADE_ID, alunoId: ALUNO_ID_EDITOR, pastaId: null, titulo: 'Mobilidade de teste', inicio: '2026-11-01', fim: '2026-11-30', ativo: true, versaoPublicada: 0, publicadoEm: null, rascunhoAlteradoDepoisDePublicar: false, versao: 1 },
+        rascunho: { orientacoes: null, secoes: [{ uid: 's1', titulo: 'Aquecimento', itens: [{ uid: 'i1', nome: 'Gato-vaca', prescricao: '2 x 10', videoUrl: null }] }] },
+        versoes: [],
+      };
+      await abrirVarredura(page, largura, `/treinador/mobilidades/${MOBILIDADE_ID}`, { [`GET /planos-mobilidade/${MOBILIDADE_ID}`]: { corpo: mob } });
+      await expect(page.getByRole('heading', { name: 'Seções (1)' })).toBeVisible();
+      await conferirOIcone(page, 'planos');
+    });
+
+    test('editor de questionário: ⓘ sem Saiba mais', async ({ page }) => {
+      await abrirEditor(page, { qual: 'anamnese', largura });
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await conferirOIcone(page, null);
+    });
+  });
+}

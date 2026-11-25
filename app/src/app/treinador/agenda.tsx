@@ -67,7 +67,9 @@ function focoEmCampo(): boolean {
 /** Alguma Folha, painel ou menu aberto por cima da agenda. */
 function algoPorCima(menuAberto: boolean): boolean {
   if (menuAberto || portalDaFolhaDoTopo() !== undefined) return true;
-  return typeof document !== 'undefined' && !!document.querySelector('[role="dialog"],[role="alertdialog"]');
+  // Só os visíveis: o balão do ⓘ do cabeçalho (`AjudaDoCabecalho`) fica no DOM, com `display:none`, quando fechado.
+  return typeof document !== 'undefined'
+    && [...document.querySelectorAll<HTMLElement>('[role="dialog"],[role="alertdialog"]')].some((d) => d.getClientRects().length > 0);
 }
 
 /**
@@ -272,7 +274,7 @@ export default function AgendaDoTreinador() {
     aoCompromisso={() => abrirCriacao('compromisso', diaSugerido)} aoEvento={() => abrirCriacao('evento', diaSugerido)} /> : undefined);
 
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
-    <Cabecalho titulo="Agenda" mostrarMarca="celular" acoes={lateral ? undefined : menuCriar(false)} />
+    <Cabecalho titulo="Agenda" mostrarMarca="celular" descricao="Seus compromissos com alunos e eventos pessoais, por dia, semana, mês ou ano. Crie, repita e cancele; o aluno vê no app os compromissos dele." acoes={lateral ? undefined : menuCriar(false)} />
     <View onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}>
       {/* Uma árvore só nas duas larguras: a coluna principal (barra de filtros, grade) fica no mesmo lugar e só a lateral entra e
           sai, então cruzar o limite não remonta a barra (o painel de filtros aberto e o rascunho sobrevivem). */}

@@ -213,14 +213,14 @@ for (const [largura, altura] of LARGURAS) {
     });
     await semRolagemHorizontal(page);
 
-    // Ajustes: as duas colunas centradas, sem metade da tela vazia à direita.
+    // Aparência e preferências: as colunas centradas, sem metade da tela vazia à direita.
     await page.goto('/treinador/ajustes');
     await TELAS[4].pronta(page);
     await assentado(async () => {
-      const tema = await caixa(page, page.getByRole('heading', { name: 'Tema', exact: true }).first());
-      const contraste = await caixa(page, page.getByRole('heading', { name: 'Contraste', exact: true }));
-      expect(contraste.x).toBeGreaterThan(tema.x);
-      const margens = await blocoDoTitulo(page, 'Ajustes');
+      const tema = await caixa(page, page.getByRole('heading', { name: 'Tema e cores', exact: true }));
+      const leitura = await caixa(page, page.getByRole('heading', { name: 'Leitura', exact: true }));
+      expect(leitura.x).toBeGreaterThan(tema.x);
+      const margens = await blocoDoTitulo(page, 'Aparência e preferências');
       expect(margens.largura).toBeLessThanOrEqual(1464 + 1);
       expect(Math.abs(margens.esquerda - margens.direita)).toBeLessThanOrEqual(2);
     });

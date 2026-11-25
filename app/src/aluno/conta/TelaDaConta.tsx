@@ -22,7 +22,7 @@ import { ConfirmarSaida } from '../../ui/ConfirmarSaida';
 import { Folha } from '../../ui/Folha';
 import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { IconeWhatsApp } from '../../ui/IconeWhatsApp';
-import { PreferenciasDoApp } from '../../ui/PreferenciasDoApp';
+import { PreferenciasDoApp, RestaurarPreferencias } from '../../ui/PreferenciasDoApp';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { sobre } from '../../ui/sobre';
 import { Tela } from '../../ui/Tela';
@@ -184,7 +184,7 @@ export function TelaDaConta() {
       {detalhe === 'perfil' ? <DetalheMeuPerfil perfil={perfil} dados={dados} online={online} focarReservar={pedidoDoAtalho} aoFechar={fechar} /> : null}
       {detalhe === 'dados' ? <DetalheMeusDados dados={dados} aoFechar={fechar} /> : null}
       {detalhe === 'senha' ? <FolhaTrocarSenha aoFechar={fechar} /> : null}
-      <Folha visivel={detalhe === 'aparencia'} lateral detalhe titulo="Aparência e preferências" aoFechar={fechar}>
+      <Folha visivel={detalhe === 'aparencia'} lateral detalhe titulo="Aparência e preferências" aoFechar={fechar} acaoNoTopo={<RestaurarPreferencias />}>
         <PreferenciasDoApp comTitulo={false} extras={<><InterruptorDeLembretesDeCompromisso /><InterruptorDeAvisoNoCelular /><InterruptorDeWhatsApp /></>} />
       </Folha>
     </View>

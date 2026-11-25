@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 
-import { colunasDaAlvenaria, posicoesDaAlvenaria } from '../../dominio/alvenaria';
-import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
+import { colunasDaAlvenaria, posicoesDaAlvenaria } from '../dominio/alvenaria';
+import { useFaixaDeLargura } from './useFaixaDeLargura';
 
 export interface PecaDaAlvenaria {
   chave: string;

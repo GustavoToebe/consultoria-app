@@ -1,4 +1,6 @@
-import { aniversariantesDosProximosDias, descricaoDaJanela, OPCOES_DIAS_ANIVERSARIO } from './aniversariosDosAlunos';
+import {
+  aniversariantesDosProximosDias, descricaoDaJanela, fraseSemAniversarios, limiteDoTamanho, OPCOES_DIAS_ANIVERSARIO, restantes, rotuloDoAniversario,
+} from './aniversariosDosAlunos';
 
 const n = (nome: string, mes: number, dia: number) => ({ nome, mes, dia });
 const nomes = (lista: ReturnType<typeof n>[], hoje: string, dias: number) => aniversariantesDosProximosDias(lista, hoje, dias).map((a) => a.nome);
@@ -55,4 +57,28 @@ describe('aniversariantesDosProximosDias', () => {
 test('descrição da janela', () => {
   expect(descricaoDaJanela(0)).toBe('Hoje');
   expect(descricaoDaJanela(7)).toBe('Hoje e nos próximos 7 dias');
+});
+
+describe('rotuloDoAniversario', () => {
+  it('Hoje, Amanhã ou dd/mm, contado de novo a partir de hoje (Brasília), sem ano', () => {
+    expect(rotuloDoAniversario(n('A', 11, 25), '2026-11-25')).toBe('Hoje');
+    expect(rotuloDoAniversario(n('A', 11, 26), '2026-11-25')).toBe('Amanhã');
+    expect(rotuloDoAniversario(n('A', 11, 28), '2026-11-25')).toBe('28/11');
+    // A lista aberta desde ontem: quem era "amanhã" passa a "Hoje".
+    expect(rotuloDoAniversario(n('A', 11, 26), '2026-11-26')).toBe('Hoje');
+    // Virada de ano e 29/02 em ano não bissexto.
+    expect(rotuloDoAniversario(n('A', 1, 1), '2026-12-31')).toBe('Amanhã');
+    expect(rotuloDoAniversario(n('A', 1, 2), '2026-12-31')).toBe('02/01');
+    expect(rotuloDoAniversario(n('A', 2, 29), '2027-02-28')).toBe('Hoje');
+    expect(rotuloDoAniversario(n('A', 2, 31), '2026-11-25')).toBe('');
+  });
+});
+
+test('limite do tamanho, restantes e frase sem aniversários', () => {
+  expect([limiteDoTamanho(1), limiteDoTamanho(2), limiteDoTamanho(3)]).toEqual([3, 6, 10]);
+  expect([restantes(0, 3), restantes(3, 3), restantes(4, 3), restantes(11, 10)]).toEqual([0, 0, 1, 1]);
+  expect(fraseSemAniversarios(0)).toBe('Nenhum aniversário hoje');
+  expect([3, 7, 15].map(fraseSemAniversarios)).toEqual([
+    'Nenhum aniversário nos próximos 3 dias', 'Nenhum aniversário nos próximos 7 dias', 'Nenhum aniversário nos próximos 15 dias',
+  ]);
 });

@@ -122,18 +122,34 @@ test('1536 px: tocar no índice com a aba Prévia aberta volta para Editar e rol
   await expect(page.locator('#questionario-secao-4')).toBeInViewport();
 });
 
+/** Índice colado à esquerda da área, prévia colada à direita e vãos iguais entre as colunas (a sobra nunca é um vão só). */
+async function medirColunas(page: Page) {
+  const [i, p, c] = [(await indice(page).boundingBox())!, (await previa(page).boundingBox())!, (await page.locator('#barra-do-editor').locator('xpath=..').boundingBox())!];
+  const editor = (await page.locator('#questionario-instrucoes').boundingBox())!;
+  const [vao1, vao2] = [editor.x - (i.x + i.width), p.x - (editor.x + editor.width)];
+  expect(Math.abs(i.x - c.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(p.x + p.width - (c.x + c.width))).toBeLessThanOrEqual(1);
+  expect(Math.abs(vao1 - vao2)).toBeLessThanOrEqual(1);
+  expect(Math.round(p.width)).toBe(560);
+  return { i, editor, vao1 };
+}
+
+for (const largura of [1920, 2560]) {
+  test(`${largura} px: índice à esquerda, prévia de 560 à direita e vãos iguais`, async ({ page }) => {
+    await abrirEditor(page, { qual: 'anamnese', largura, altura: 1200 });
+    await expect(previa(page)).toBeVisible();
+    const { editor, vao1 } = await medirColunas(page);
+    expect(editor.width).toBeLessThanOrEqual(1400);
+    // Com o editor ainda abaixo do máximo não sobra nada: os vãos são os de 24.
+    if (editor.width < 1399) expect(Math.round(vao1)).toBe(24);
+  });
+}
+
 test('3440 px: editor para em 1400, prévia de 560 encostada à direita e a sobra vira dois vãos iguais', async ({ page }) => {
   await abrirEditor(page, { qual: 'anamnese', largura: 3440, altura: 1440 });
   await expect(previa(page)).toBeVisible();
-  const [i, p, c] = [(await indice(page).boundingBox())!, (await previa(page).boundingBox())!,
-    (await page.locator('#barra-do-editor').locator('xpath=..').boundingBox())!];
-  const editor = (await page.locator('#questionario-instrucoes').boundingBox())!;
+  const { i, editor, vao1 } = await medirColunas(page);
   expect(Math.round(editor.width)).toBe(1400);
-  expect(Math.round(p.width)).toBe(560);
   expect(Math.round(i.width)).toBe(320);
-  expect(Math.abs(p.x + p.width - (c.x + c.width))).toBeLessThanOrEqual(1);
-  expect(Math.abs(i.x - c.x)).toBeLessThanOrEqual(1);
-  const [vao1, vao2] = [editor.x - (i.x + i.width), p.x - (editor.x + editor.width)];
-  expect(Math.abs(vao1 - vao2)).toBeLessThanOrEqual(1);
   expect(vao1).toBeGreaterThan(24);
 });

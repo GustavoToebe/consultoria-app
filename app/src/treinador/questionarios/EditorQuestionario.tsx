@@ -164,6 +164,7 @@ export function EditorQuestionario({ id }: { id: string }) {
 
   return <TelaDoEditor largura={LARGURA_MAXIMA}
     cabecalho={<Cabecalho titulo={titulo}
+      descricao="Monte as seções e as perguntas, confira na Prévia e publique. Nada muda para quem responde enquanto for rascunho."
       trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: inscricao ? 'Inscrição' : anamnese ? 'Anamnese' : 'Atualização', href: ABA_VOLTAR }, { rotulo: e.nome || 'Questionário' }]}
       voltar={ABA_VOLTAR} />}
     barra={<BarraDoEditor selo={selo} info={info.charAt(0).toUpperCase() + info.slice(1)} erro={editor.situacao === 'erro' ? editor.mensagemDeErro : null}>

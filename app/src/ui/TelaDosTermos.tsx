@@ -19,7 +19,7 @@ export function TelaDosTermos() {
   const termos = useCarregar('termos', () => rotas.termos());
   return (
     <Tela bordas={['top']} largura={LARGURA_LEITURA}>
-      <Cabecalho titulo="Termos e privacidade"
+      <Cabecalho titulo="Termos e privacidade" descricao="O termo de uso e o aviso de privacidade que você aceitou para usar o app, para reler quando quiser."
         subtitulo={termos.dados ? `Versão de ${dataParaTela(termos.dados.versao)}${termos.dados.aceito ? ', aceita por você.' : '.'}` : undefined} />
       {termos.erro ? (
         <MensagemErro texto={textoDoErro(termos.erro)} erro={termos.erro} tentarDeNovo={termos.recarregar} />

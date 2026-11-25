@@ -14,7 +14,8 @@ import {
   type ChaveDoFiltroDeLancamentos, type FiltrosDeLancamentos,
 } from '../../dominio/filtrosDoFinanceiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
-import { espaco } from '../../tema/tokens';
+import { useTema } from '../../tema/TemaProvider';
+import { corDaEntradaAvulsa, espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -49,32 +50,37 @@ const rotuloDoTipo = (t: TipoDeLancamento) => (t === 'SAIDA' ? 'Saída' : 'Entra
 const valorComSinal = (l: LancamentoResponse) => `${l.tipo === 'SAIDA' ? '−' : '+'}${centavosParaTela(l.valorCentavos)}`;
 
 /**
- * Azul de destaque para entrada e vermelho de destaque (`perigo`) para saída, os mesmos do Resultado do mês (D13, D14),
- * só como sinal de direção (uma saída válida não é erro nem status).
+ * Verde mais claro para entrada (`corDaEntradaAvulsa`) e vermelho de destaque (`perigo`) para saída, os mesmos do Resultado
+ * do mês, só como sinal de direção (uma saída válida não é erro nem status). `marca` é a seta e o texto sobre o campo
+ * (4,5:1 nas claras); `texto` é o texto solto da linha, que também passa pelo hover (`sobre`): lá o verde claro das claras
+ * fica abaixo de 4,5:1, então a entrada leva `texto` e o sinal "+" e a seta dizem a direção.
  */
-function useCorDoTipo(): (tipo: TipoDeLancamento) => string {
-  const entrada = useAparenciaDoNumero('azul').numero;
+function useCoresDoTipo(): { marca: (tipo: TipoDeLancamento) => string; texto: (tipo: TipoDeLancamento) => string } {
+  const { cores, variante } = useTema();
   const saida = useAparenciaDoNumero('vermelho').numero;
-  return (tipo) => (tipo === 'SAIDA' ? saida : entrada);
+  return {
+    marca: (tipo) => (tipo === 'SAIDA' ? saida : corDaEntradaAvulsa(variante)),
+    texto: (tipo) => (tipo === 'SAIDA' ? saida : cores.texto),
+  };
 }
 
 /** Valor da linha na cor do tipo. */
 function ValorDoLancamento({ lancamento }: { lancamento: LancamentoResponse }) {
-  const corDoTipo = useCorDoTipo();
-  return <Texto numerico cor={corDoTipo(lancamento.tipo)}>{valorComSinal(lancamento)}</Texto>;
+  const { texto } = useCoresDoTipo();
+  return <Texto numerico cor={texto(lancamento.tipo)}>{valorComSinal(lancamento)}</Texto>;
 }
 
 /**
  * Marcador do tipo: seta e o texto "Entrada"/"Saída", sempre juntos (a cor nunca é o único sinal), sem selo.
  */
 function TipoDoLancamento({ tipo }: { tipo: TipoDeLancamento }) {
-  const cor = useCorDoTipo()(tipo);
+  const { marca, texto } = useCoresDoTipo();
   const saida = tipo === 'SAIDA';
   const Icone = saida ? ArrowUpRight : ArrowDownLeft;
   return (
     <View style={estilos.tipo}>
-      <Icone size={16} color={cor} strokeWidth={2.5} aria-hidden />
-      <Texto variante="rotulo" cor={cor}>{rotuloDoTipo(tipo)}</Texto>
+      <Icone size={16} color={marca(tipo)} strokeWidth={2.5} aria-hidden />
+      <Texto variante="rotulo" cor={texto(tipo)}>{rotuloDoTipo(tipo)}</Texto>
     </View>
   );
 }
@@ -198,7 +204,7 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
   aoMudar: () => void;
 }) {
   const { avisar } = useAviso();
-  const corDoTipo = useCorDoTipo();
+  const corDoTipo = useCoresDoTipo().marca;
   const [tipo, setTipo] = useState<TipoDeLancamento>(lancamento?.tipo ?? 'SAIDA');
   const [data, setData] = useState(dataParaTela(lancamento?.data ?? hojeEmBrasilia()));
   const [descricao, setDescricao] = useState(lancamento?.descricao ?? '');

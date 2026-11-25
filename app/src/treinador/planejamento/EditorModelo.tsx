@@ -85,7 +85,7 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
   const situacao: SituacaoDoEditor = salvando ? 'salvando' : erro ? 'erro' : pendente ? 'pendente' : 'salvo';
   return <TelaDoEditor
     colunas={r.tipo === 'MOBILIDADE'}
-    cabecalho={<Cabecalho titulo={tituloDoModelo(r.tipo)} trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: tituloDoModelo(r.tipo) }]} voltar="/treinador/planejamento" />}
+    cabecalho={<Cabecalho titulo={tituloDoModelo(r.tipo)} descricao="O molde que você reaproveita: monte aqui e aplique a um aluno, que recebe uma cópia sem ligação com o modelo." trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: tituloDoModelo(r.tipo) }]} voltar="/treinador/planejamento" />}
     barra={<BarraDoModelo situacao={situacao} salvoAs={salvoAs} mensagemDeErro={erro ? textoDoErro(erro) : null} salvando={salvando}
       desabilitado={motivo !== null} motivo={motivo ?? undefined} aoSalvar={() => void salvar()} aoRecarregar={aoRecarregar} receita={r} />}>
     <FaixaDoModelo />

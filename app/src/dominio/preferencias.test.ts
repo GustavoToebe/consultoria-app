@@ -21,7 +21,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', larguraConteudo: 'LIMITADA', detalhesAbrem: 'CENTRO', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, diasAniversario: 3, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], gruposRecolhidos: ['Acompanhamento', 'Negócio'], unidadeDeCarga: 'lb', corDeAcao: 'VIOLETA', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false }, tamanhos: { alunos: 3 } } };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', larguraConteudo: 'LIMITADA', detalhesAbrem: 'CENTRO', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], gruposRecolhidos: ['Acompanhamento', 'Negócio'], unidadeDeCarga: 'lb', corDeAcao: 'VIOLETA', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido', 'aniversarios'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false }, tamanhos: { alunos: 3 }, opcoes: { aniversarios: { dias: 3 } } } };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -87,14 +87,15 @@ describe('preferências pessoais', () => {
   });
 
   it('painel do Início: padrão com todos os blocos na ordem do protótipo e nenhum escondido', () => {
-    expect(PREFERENCIAS_PADRAO.painelDoInicio).toEqual({ ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {}, tamanhos: {} });
-    expect(PREFERENCIAS_PADRAO.painelDoInicio.ordem).toHaveLength(8);
+    expect(PREFERENCIAS_PADRAO.painelDoInicio).toEqual({ ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {}, tamanhos: {}, opcoes: { aniversarios: { dias: 7 } } });
+    expect(PREFERENCIAS_PADRAO.painelDoInicio.ordem).toHaveLength(9);
+    expect(PREFERENCIAS_PADRAO.painelDoInicio.ordem.at(-1)).toBe('aniversarios');
     expect(normalizarPreferencias({}).painelDoInicio).toEqual(PREFERENCIAS_PADRAO.painelDoInicio);
   });
 
   it('painel do Início: ordem salva vale; id desconhecido e repetido saem; bloco que falta entra no fim, na ordem padrão', () => {
     const r = normalizarPreferencias({ painelDoInicio: { ordem: ['alunos', 'xis', 'alunos', 7, 'agenda'], escondidos: ['agenda', 'agenda', 'xis', null] } }).painelDoInicio;
-    expect(r.ordem).toEqual(['alunos', 'agenda', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'financeiro', 'recebido']);
+    expect(r.ordem).toEqual(['alunos', 'agenda', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'financeiro', 'recebido', 'aniversarios']);
     expect(r.escondidos).toEqual(['agenda']);
   });
 
@@ -166,12 +167,6 @@ describe('preferências pessoais', () => {
     for (const n of [0, 5, 90, '14', null]) expect(normalizarPreferencias({ diasSemRegistro: n }).diasSemRegistro).toBe(7);
   });
 
-  it('dias de aniversário: só 0, 3, 7 ou 15; padrão e outro valor voltam a 7', () => {
-    expect(PREFERENCIAS_PADRAO.diasAniversario).toBe(7);
-    for (const n of [0, 3, 7, 15]) expect(normalizarPreferencias({ diasAniversario: n }).diasAniversario).toBe(n);
-    for (const n of [1, 5, 14, -3, '3', null, true]) expect(normalizarPreferencias({ diasAniversario: n }).diasAniversario).toBe(7);
-  });
-
   it('fator do texto: 1,00 · 1,12 · 1,25 · 1,40, arredondando em inteiro', () => {
     expect([fatorDoTexto('PADRAO'), fatorDoTexto('MEDIO'), fatorDoTexto('GRANDE'), fatorDoTexto('EXTRA')]).toEqual([1, 1.12, 1.25, 1.4]);
     expect(escalar(15, 1.4)).toBe(21);
@@ -214,5 +209,38 @@ describe('preferências pessoais', () => {
       // Só o contorno do cartão sobe: a divisória interna fica na `borda` original (sem "bordas reforçadas").
       if (!reforcadas) expect(alto.divisor).toBe(base.borda);
     }
+  });
+});
+
+describe('aniversários como bloco do painel', () => {
+  const dias = (qualquer: unknown) => normalizarPreferencias(qualquer).painelDoInicio.opcoes?.aniversarios?.dias;
+
+  it('quem já tinha layout salvo recebe o bloco no fim, visível', () => {
+    const r = normalizarPreferencias({ painelDoInicio: { ordem: ['alunos', 'agenda'], escondidos: ['treinos'] } }).painelDoInicio;
+    expect(r.ordem.at(-1)).toBe('aniversarios');
+    expect(r.escondidos).toEqual(['treinos']);
+  });
+
+  it('migra o diasAniversario salvo (0, 3, 15) para a opção do bloco; 7 e ausente ficam no padrão', () => {
+    for (const n of [0, 3, 15]) expect(dias({ diasAniversario: n })).toBe(n);
+    expect(dias({ diasAniversario: 7 })).toBe(7);
+    expect(dias({})).toBe(7);
+    for (const n of [1, 5, '3', null, true]) expect(dias({ diasAniversario: n })).toBe(7);
+    // O campo antigo só é lido do bruto: não volta a ser gravado.
+    expect('diasAniversario' in normalizarPreferencias({ diasAniversario: 3 })).toBe(false);
+  });
+
+  it('a opção já gravada no bloco vale mais que o campo antigo; fora do conjunto volta a 7', () => {
+    expect(dias({ diasAniversario: 3, painelDoInicio: { opcoes: { aniversarios: { dias: 15 } } } })).toBe(15);
+    expect(dias({ diasAniversario: 3, painelDoInicio: { opcoes: { aniversarios: { dias: 7 } } } })).toBe(7);
+    for (const n of [1, 5, -1, '3', null, 3.5]) expect(dias({ painelDoInicio: { opcoes: { aniversarios: { dias: n } } } })).toBe(7);
+    for (const o of [null, 'x', [], { aniversarios: null }, { aniversarios: 'x' }]) expect(dias({ painelDoInicio: { opcoes: o } })).toBe(7);
+  });
+
+  it('é idempotente: normalizar o já normalizado não muda nada, texto ou objeto', () => {
+    const uma = normalizarPreferencias({ diasAniversario: 15, painelDoInicio: { ordem: ['agenda'] } });
+    expect(normalizarPreferencias(uma)).toEqual(uma);
+    expect(normalizarPreferencias(JSON.stringify(uma))).toEqual(uma);
+    expect(uma.painelDoInicio.opcoes).toEqual({ aniversarios: { dias: 15 } });
   });
 });

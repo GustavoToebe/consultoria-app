@@ -134,7 +134,7 @@ export interface LugarNoMenu {
  * Fonte única da ordem e dos grupos do menu do treinador (D6 de `docs/planos/auditoria-ficha.md`): o menu lateral
  * (`app/treinador/_layout.tsx`) e a legenda da busca global (`dominio/telas.ts`) saem daqui. A ordem de Início, Alunos,
  * Biblioteca, Planejamento e Perfil é a da barra do celular. O Perfil só aparece no menu lateral do tablet nativo; na web
- * as telas dele (Meus dados, Segurança, Ajustes, Assinatura e faturas, Marca) ficam no menu da conta, no rodapé do menu,
+ * as telas dele (Meus dados, Segurança, Aparência e preferências, Assinatura e faturas, Marca) ficam no menu da conta, no rodapé do menu,
  * e a busca as mostra em Configurações.
  */
 export const MENU_DO_TREINADOR: readonly LugarNoMenu[] = [

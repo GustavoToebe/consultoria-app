@@ -14,7 +14,7 @@ import { Vazio } from '../../ui/Estados';
 import { ItemDeLista } from '../../ui/ItemDeLista';
 import { Tela, useFaixaDaTela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
-import { Alvenaria } from './Alvenaria';
+import { Alvenaria } from '../../ui/Alvenaria';
 import { iconeDaConfiguracao } from './icones';
 
 const textoDoResultado = (n: number) => (n === 1 ? '1 configuração encontrada' : `${n} configurações encontradas`);
