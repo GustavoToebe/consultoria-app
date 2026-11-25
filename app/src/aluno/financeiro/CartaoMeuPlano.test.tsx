@@ -23,6 +23,7 @@ jest.mock('expo-router', () => ({ useFocusEffect: () => undefined }));
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }));
 jest.mock('./InterruptorDeLembretes', () => ({ InterruptorDeLembretes: () => null }));
+jest.mock('./FolhaCheckoutTransparente', () => ({ FolhaCheckoutTransparente: () => null }));
 jest.mock('../../ui/abrirPagamento', () => ({ abrirPagamento: jest.fn() }));
 jest.mock('../../ui/Aviso', () => ({ useAviso: () => ({ avisar: jest.fn() }) }));
 jest.mock('../../tema/TemaProvider', () => ({
@@ -164,5 +165,29 @@ describe('CartaoMeuPlano: mensalidade cobrada pela Kiwify (D18)', () => {
     expect(t.match(/\[Pagar\]/g)).toHaveLength(1);
     expect(t.match(/\[Copiar código Pix\]/g)).toHaveLength(1);
     expect(t).toContain('Cobrança automática pela Kiwify');
+  });
+});
+
+describe('CartaoMeuPlano: Overtraining Pay (checkout transparente no app)', () => {
+  it('web com Overtraining Pay disponível: mostra "Pagar agora" para abrir checkout no app', async () => {
+    mockDados = {
+      ...financeiro({ pagamentoOnline: false, formasDePagamento: ['MANUAL'] }),
+      overtrainingPayDisponivel: true,
+      overtrainingPayMaxParcelas: 12,
+      overtrainingPayJuros: 'ALUNO',
+      cpfPagadorCadastrado: false,
+    } as FinanceiroDoAluno;
+    const t = await textos('web');
+    expect(t).toContain('[Pagar agora]');
+    expect(t).not.toContain(TEXTO_COMBINE_COM_O_TREINADOR);
+  });
+
+  it('celular com chave desligada: mesmo com Overtraining Pay disponível, não exibe botão de pagamento', async () => {
+    mockDados = {
+      ...financeiro({ pagamentoOnline: false, formasDePagamento: ['MANUAL'] }),
+      overtrainingPayDisponivel: true,
+    } as FinanceiroDoAluno;
+    const t = await textos('ios');
+    expect(t).not.toMatch(/\[Pagar/);
   });
 });

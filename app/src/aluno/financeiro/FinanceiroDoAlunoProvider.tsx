@@ -2,7 +2,8 @@ import { useFocusEffect } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import type { CobrancaDoAluno, FinanceiroDoAluno } from '../../api/financeiroTipos';
+import type { CobrancaDoAluno, FinanceiroDoAluno, JurosDoParcelamento } from '../../api/financeiroTipos';
+import { lerOpcoesOvertrainingPay } from '../../api/alunoOvertrainingPay';
 import { financeiroDoAluno } from '../../api/rotas';
 import { acoesDePagamentoDoAluno, comoPagar, plataformaDoApp, type AcaoDePagamento, type ComoPagar } from '../../dominio/financeiro';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -33,6 +34,14 @@ interface Valor {
    * as formas que o servidor diz que se aplicam e o link do plano. Celular sem a chave da plataforma, saída e Kiwify: nenhuma.
    */
   acoesDaCobranca: (c: DaCobranca) => AcaoDePagamento[];
+  /** Overtraining Pay (Asaas) ativo e homologado na consultoria. */
+  overtrainingPayDisponivel: boolean;
+  /** Máximo de parcelas no cartão no Overtraining Pay (1..12). */
+  overtrainingPayMaxParcelas: number;
+  /** Quem arca com os juros do parcelamento no Overtraining Pay. */
+  overtrainingPayJuros: JurosDoParcelamento;
+  /** Indica se o aluno/responsável já tem CPF cadastrado para emissão transparente. */
+  cpfPagadorCadastrado: boolean;
   recarregar: () => void;
 }
 
@@ -76,16 +85,41 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
   // As formas que o servidor diz que se aplicam e se o plano tem link próprio (o link só vale para mensalidade: a regra pura decide).
   const formas = chave !== null ? carga.dados?.formasDePagamento : undefined;
   const temLinkProprio = chave !== null && !!carga.dados?.plano?.linkDePagamento;
-  const modoDePagamento = comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, 'MENSALIDADE', { formas, temLinkProprio });
+  const opcoesPay = lerOpcoesOvertrainingPay(chave !== null ? carga.dados : undefined);
+  const { overtrainingPayDisponivel, overtrainingPayMaxParcelas, overtrainingPayJuros, cpfPagadorCadastrado } = opcoesPay;
+  const modoDePagamento = comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, 'MENSALIDADE', {
+    formas,
+    temLinkProprio,
+    overtrainingPayDisponivel,
+    overtrainingPayMaxParcelas,
+    overtrainingPayJuros,
+    cpfPagadorCadastrado,
+  });
   const modoDaCobranca = useCallback(
     (c: DaCobranca) =>
-      comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, { formas, temLinkProprio, cobrancaAutomatica: c.cobrancaAutomatica }),
-    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio],
+      comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, {
+        formas,
+        temLinkProprio,
+        cobrancaAutomatica: c.cobrancaAutomatica,
+        overtrainingPayDisponivel,
+        overtrainingPayMaxParcelas,
+        overtrainingPayJuros,
+        cpfPagadorCadastrado,
+      }),
+    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio, overtrainingPayDisponivel, overtrainingPayMaxParcelas, overtrainingPayJuros, cpfPagadorCadastrado],
   );
   const acoesDaCobranca = useCallback(
     (c: DaCobranca) =>
-      acoesDePagamentoDoAluno(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, { formas, temLinkProprio, cobrancaAutomatica: c.cobrancaAutomatica }),
-    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio],
+      acoesDePagamentoDoAluno(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid }, c.tipo, {
+        formas,
+        temLinkProprio,
+        cobrancaAutomatica: c.cobrancaAutomatica,
+        overtrainingPayDisponivel,
+        overtrainingPayMaxParcelas,
+        overtrainingPayJuros,
+        cpfPagadorCadastrado,
+      }),
+    [pagamentoOnline, pagarNoIos, pagarNoAndroid, formas, temLinkProprio, overtrainingPayDisponivel, overtrainingPayMaxParcelas, overtrainingPayJuros, cpfPagadorCadastrado],
   );
   const valor = useMemo<Valor>(
     () => ({
@@ -97,9 +131,29 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
       modoDePagamento,
       modoDaCobranca,
       acoesDaCobranca,
+      overtrainingPayDisponivel,
+      overtrainingPayMaxParcelas,
+      overtrainingPayJuros,
+      cpfPagadorCadastrado,
       recarregar: carga.recarregar,
     }),
-    [pagamentosHabilitados, indisponivel, online, chave, carga.dados, carga.erro, carga.carregando, modoDePagamento, modoDaCobranca, acoesDaCobranca, carga.recarregar],
+    [
+      pagamentosHabilitados,
+      indisponivel,
+      online,
+      chave,
+      carga.dados,
+      carga.erro,
+      carga.carregando,
+      modoDePagamento,
+      modoDaCobranca,
+      acoesDaCobranca,
+      overtrainingPayDisponivel,
+      overtrainingPayMaxParcelas,
+      overtrainingPayJuros,
+      cpfPagadorCadastrado,
+      carga.recarregar,
+    ],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
