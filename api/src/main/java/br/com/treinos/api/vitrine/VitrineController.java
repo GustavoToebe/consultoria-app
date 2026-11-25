@@ -2,12 +2,16 @@ package br.com.treinos.api.vitrine;
 
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.fotos.RespostaDeFoto;
+import br.com.treinos.api.vitrine.VitrineDtos.CategoriaRequest;
+import br.com.treinos.api.vitrine.VitrineDtos.CategoriaResponse;
 import br.com.treinos.api.vitrine.VitrineDtos.ItemRequest;
 import br.com.treinos.api.vitrine.VitrineDtos.ItemResponse;
 import br.com.treinos.api.vitrine.VitrineDtos.NovoLinkRequest;
+import br.com.treinos.api.vitrine.VitrineDtos.OrdemDeCategoriasRequest;
 import br.com.treinos.api.vitrine.VitrineDtos.OrdemRequest;
 import br.com.treinos.api.vitrine.VitrineDtos.PaginaRequest;
 import br.com.treinos.api.vitrine.VitrineDtos.PaginaResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,11 +41,48 @@ public class VitrineController {
     private final VitrineService vitrine;
     private final FotosDaVitrineService fotos;
     private final VitrinePaginaService pagina;
+    private final VitrineCategoriaService categorias;
 
-    public VitrineController(VitrineService vitrine, FotosDaVitrineService fotos, VitrinePaginaService pagina) {
+    public VitrineController(VitrineService vitrine, FotosDaVitrineService fotos, VitrinePaginaService pagina,
+                             VitrineCategoriaService categorias) {
         this.vitrine = vitrine;
         this.fotos = fotos;
         this.pagina = pagina;
+        this.categorias = categorias;
+    }
+
+    @PreAuthorize("hasAuthority('PERM_VITRINE_LER')")
+    @GetMapping("/vitrine/categorias")
+    public List<CategoriaResponse> listarCategorias() {
+        return categorias.listar();
+    }
+
+    @PreAuthorize("hasAuthority('PERM_VITRINE_ALTERAR')")
+    @PostMapping("/vitrine/categorias")
+    public ResponseEntity<CategoriaResponse> criarCategoria(@RequestBody CategoriaRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(categorias.criar(request));
+    }
+
+    @PreAuthorize("hasAuthority('PERM_VITRINE_ALTERAR')")
+    @PutMapping("/vitrine/categorias/{id}")
+    public CategoriaResponse renomearCategoria(@PathVariable UUID id, @RequestBody CategoriaRequest request) {
+        return categorias.renomear(id, request);
+    }
+
+    /** Os itens da categoria ficam sem categoria; categoria inexistente ou de outra consultoria = 404, como o item. */
+    @PreAuthorize("hasAuthority('PERM_VITRINE_ALTERAR')")
+    @DeleteMapping("/vitrine/categorias/{id}")
+    public ResponseEntity<Void> excluirCategoria(@PathVariable UUID id) {
+        categorias.excluir(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Todos os ids na nova ordem, como a dos itens; 204, e a lista é lida de novo. */
+    @PreAuthorize("hasAuthority('PERM_VITRINE_ALTERAR')")
+    @PutMapping("/vitrine/categorias/ordem")
+    public ResponseEntity<Void> ordenarCategorias(@RequestBody OrdemDeCategoriasRequest request) {
+        categorias.ordenar(request);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasAuthority('PERM_VITRINE_LER')")

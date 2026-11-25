@@ -18,10 +18,32 @@ public final class VitrineDtos {
      * {@code versao} só vale no {@code PUT} (a que a tela leu). A ordem não vem aqui: muda por {@code PUT .../ordem}.
      * {@code naPaginaPublica} e {@code noMarketplace} (ausentes = falso) só valem em item {@code DIGITAL} (senão 422 no campo); o
      * item só aparece no marketplace se também estiver na página pública e a consultoria tiver entrado (opt-in duplo).
+     * {@code categoriaId} é opcional (nulo = sem categoria; o PUT grava o estado inteiro, então quem quer manter a categoria a
+     * reenvia); de outra consultoria ou inexistente = 404.
      */
     public record ItemRequest(String nome, String descricao, String tipo, Long precoCentavos, Long precoEspecialCentavos,
                               LocalDate especialAte, String cupom, String linkUrl, Boolean ativo, Boolean naPaginaPublica,
-                              Boolean noMarketplace, Long versao) { }
+                              Boolean noMarketplace, UUID categoriaId, Long versao) { }
+
+    /**
+     * Corpo do {@code POST} e do {@code PUT} da categoria. O nome é texto do treinador: sem {@code toString}, nunca em log nem em
+     * mensagem de erro.
+     */
+    public record CategoriaRequest(String nome) {
+        @Override
+        public String toString() {
+            return "CategoriaRequest[...]";
+        }
+    }
+
+    /** Categoria para a equipe; {@code quantidade} = itens dela (ativos e inativos). Lista por {@code ordem}. */
+    public record CategoriaResponse(UUID id, String nome, int ordem, long quantidade) { }
+
+    /** Todos os ids das categorias, na nova ordem (nem a mais, nem a menos, sem repetir). */
+    public record OrdemDeCategoriasRequest(List<UUID> ids) { }
+
+    /** A categoria do item na vitrine do aluno ({@code ordem} = a da categoria, para a tela agrupar). */
+    public record CategoriaDoAluno(UUID id, String nome, int ordem) { }
 
     /** Todos os ids da vitrine, na nova ordem (nem a mais, nem a menos, sem repetir). */
     public record OrdemRequest(List<UUID> ids) { }
@@ -32,15 +54,17 @@ public final class VitrineDtos {
      */
     public record ItemResponse(UUID id, String nome, String descricao, String tipo, Long precoCentavos, Long precoEspecialCentavos,
                                LocalDate especialAte, Long precoVigenteCentavos, String cupom, String linkUrl, boolean ativo,
-                               boolean naPaginaPublica, boolean noMarketplace, int ordem, Long versao, boolean temFoto, Instant fotoAtualizadaEm) { }
+                               boolean naPaginaPublica, boolean noMarketplace, int ordem, Long versao, boolean temFoto, Instant fotoAtualizadaEm,
+                               UUID categoriaId, String categoriaNome) { }
 
     /**
      * Item para o aluno (só os ativos, sem ordem nem versão). {@code especialAte} só vem quando o preço especial está vigente
      * (e é nulo se ele não tem fim); com o especial vigente, {@code precoVigenteCentavos} é menor que {@code precoCentavos}.
+     * {@code categoria} nula = sem categoria; a lista vem ordenada (categorias na ordem, sem categoria por último, depois a ordem do item).
      */
     public record ItemDoAlunoResponse(UUID id, String nome, String descricao, String tipo, Long precoCentavos,
                                       Long precoVigenteCentavos, LocalDate especialAte, String cupom, String linkUrl,
-                                      boolean temFoto, Instant fotoAtualizadaEm) { }
+                                      boolean temFoto, Instant fotoAtualizadaEm, CategoriaDoAluno categoria) { }
 
     /**
      * Página pública da loja, para a equipe. {@code codigo} e {@code versao} são nulos enquanto a linha não existe (a página nunca

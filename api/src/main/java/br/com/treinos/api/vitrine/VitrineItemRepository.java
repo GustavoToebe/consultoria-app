@@ -37,4 +37,13 @@ public interface VitrineItemRepository extends JpaRepository<VitrineItem, UUID> 
 
     @Query("select coalesce(max(i.ordem), -1) from VitrineItem i")
     int maiorOrdem();
+
+    /** Itens por categoria na consultoria da sessão (ativos e inativos); categoria sem item não aparece. */
+    interface Contagem {
+        UUID getCategoriaId();
+        long getItens();
+    }
+
+    @Query("select i.categoriaId as categoriaId, count(i) as itens from VitrineItem i where i.categoriaId is not null group by i.categoriaId")
+    List<Contagem> contagemPorCategoria();
 }

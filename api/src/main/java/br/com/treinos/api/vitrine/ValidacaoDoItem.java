@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Regras do item da vitrine, sem banco (testável sem Docker). Espelho em {@code app/src/dominio/vitrine.ts}: mudou uma, mude a
@@ -28,7 +29,7 @@ final class ValidacaoDoItem {
     /** O que vai para a entidade: textos sem espaços nas pontas (vazio = nulo). */
     record Valido(String nome, String descricao, String tipo, Long precoCentavos, Long precoEspecialCentavos,
                   LocalDate especialAte, String cupom, String linkUrl, boolean ativo, boolean naPaginaPublica,
-                  boolean noMarketplace) { }
+                  boolean noMarketplace, UUID categoriaId) { }
 
     /** Problemas por campo; lista vazia = válido. */
     static List<ApiError.FieldError> problemas(ItemRequest r, LocalDate hoje) {
@@ -86,7 +87,7 @@ final class ValidacaoDoItem {
     static Valido normalizar(ItemRequest r) {
         return new Valido(r.nome().strip(), vazioViraNulo(r.descricao()), r.tipo(), r.precoCentavos(), r.precoEspecialCentavos(),
                 r.especialAte(), CupomDeSuplemento.limpar(r.cupom()), vazioViraNulo(r.linkUrl()), r.ativo(),
-                Boolean.TRUE.equals(r.naPaginaPublica()), Boolean.TRUE.equals(r.noMarketplace()));
+                Boolean.TRUE.equals(r.naPaginaPublica()), Boolean.TRUE.equals(r.noMarketplace()), r.categoriaId());
     }
 
     private static boolean precoValido(long centavos) {

@@ -233,7 +233,7 @@ function item(n: number, extra: Partial<ItemDaVitrine> = {}): ItemDaVitrine {
   return {
     id: `v0000000-0000-4000-8000-${String(n).padStart(12, '0')}`, nome: `Item fictício ${n}`, descricao: null, tipo: 'DIGITAL',
     precoCentavos: 9900, precoEspecialCentavos: null, precoVigenteCentavos: 9900, especialAte: null, cupom: null, linkUrl: null,
-    ativo: true, naPaginaPublica: false, noMarketplace: false, ordem: n - 1, versao: 1, temFoto: n % 2 === 1, fotoAtualizadaEm: '2026-10-10T12:00:00Z', ...extra,
+    ativo: true, naPaginaPublica: false, noMarketplace: false, categoriaId: null, categoriaNome: null, ordem: n - 1, versao: 1, temFoto: n % 2 === 1, fotoAtualizadaEm: '2026-10-10T12:00:00Z', ...extra,
   };
 }
 const ITENS_CHEIOS = [
@@ -553,7 +553,7 @@ for (const [largura, altura] of [[1280, 900], ...LARGURAS] as const) {
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('Vitrine: na faixa larga, Página pública e Itens lado a lado, sem passar do teto', async ({ page }) => {
+    test('Vitrine: na faixa larga, Página pública numa coluna de 380 px e a grade de Itens ao lado, com a largura que sobra', async ({ page }) => {
       await preparar(page, largura, altura);
       const { errosDaPagina } = await abrirVitrine(page);
       const pagina = page.getByRole('heading', { name: 'Página pública' });
@@ -565,10 +565,10 @@ for (const [largura, altura] of [[1280, 900], ...LARGURAS] as const) {
         const i = await caixa(itens);
         const colunas = await caixa(page.getByTestId('colunas-da-vitrine'));
         if (largura >= 1920) {
-          // Lado a lado: a página à esquerda, os itens à direita, na mesma altura; o par até 1400 px.
+          // Lado a lado: a página à esquerda, os itens à direita, na mesma altura; a grade sem teto próprio (cresce em colunas).
           expect(i.x).toBeGreaterThan(p.x + 300);
           expect(Math.abs(i.y - p.y)).toBeLessThan(40);
-          expect(colunas.width).toBeLessThanOrEqual(1400 + 1);
+          expect(colunas.width).toBeGreaterThan(1400);
         } else {
           // 1280 (faixa normal): empilhados como antes.
           expect(i.y).toBeGreaterThan(p.y + 100);
@@ -578,7 +578,7 @@ for (const [largura, altura] of [[1280, 900], ...LARGURAS] as const) {
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('Vitrine sem a página pública: a lista para em LARGURA_EDITOR na faixa larga', async ({ page }) => {
+    test('Vitrine sem a página pública: a grade ocupa a área toda, sem o teto antigo de LARGURA_EDITOR', async ({ page }) => {
       await preparar(page, largura, altura);
       await simularApi(page, {
         ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES, vitrineHabilitada: true, lojaHabilitada: false })),
@@ -591,8 +591,7 @@ for (const [largura, altura] of [[1280, 900], ...LARGURAS] as const) {
       await expect(page.getByRole('heading', { name: 'Página pública' })).toHaveCount(0);
       await assentado(async () => {
         const colunas = await caixa(page.getByTestId('colunas-da-vitrine'));
-        if (largura >= 1920) expect(colunas.width).toBeLessThanOrEqual(1040 + 1);
-        else expect(colunas.width).toBeGreaterThan(900);
+        expect(colunas.width).toBeGreaterThan(largura >= 1920 ? 1040 : 900);
       });
       await semRolagemHorizontal(page);
     });

@@ -27,7 +27,7 @@ const { Platform } = require('react-native') as typeof import('react-native');
 const ITEM: ItemDaVitrineDoAluno = {
   id: 'item-1', nome: 'Planilha de força', descricao: 'Doze semanas de treino.', tipo: 'DIGITAL',
   precoCentavos: 9900, precoVigenteCentavos: 9900, especialAte: null, cupom: 'FORCA10', linkUrl: 'https://loja.exemplo.com/planilha',
-  temFoto: false, fotoAtualizadaEm: null,
+  temFoto: false, fotoAtualizadaEm: null, categoria: null,
 };
 
 function textos(item: ItemDaVitrineDoAluno, os: 'android' | 'ios' | 'web'): string {

@@ -21,6 +21,9 @@ export interface ItemDaVitrine {
   naPaginaPublica: boolean;
   /** Aparece na lista pública de consultorias (F3); só item `DIGITAL`, ativo e na página pública aparece de fato. */
   noMarketplace: boolean;
+  /** Categoria do item (nula = "Sem categoria"); `categoriaNome` vem junto para a lista não depender de `GET /vitrine/categorias`. */
+  categoriaId: string | null;
+  categoriaNome: string | null;
   ordem: number;
   versao: number;
   temFoto: boolean;
@@ -28,11 +31,14 @@ export interface ItemDaVitrine {
   fotoAtualizadaEm: string | null;
 }
 
-/** O item como o aluno vê (`GET /aluno/vitrine`: só itens ativos, sem versão nem ordem de edição). */
+/** Categoria do item como o aluno recebe; a lista já vem ordenada (categorias na ordem, sem categoria por último). */
+export interface CategoriaDoItemDoAluno { id: string; nome: string; ordem: number }
+
+/** O item como o aluno vê (`GET /aluno/vitrine`: só itens ativos, sem versão nem ordem de edição). `categoria` nula = sem categoria. */
 export type ItemDaVitrineDoAluno = Pick<
   ItemDaVitrine,
   'id' | 'nome' | 'descricao' | 'tipo' | 'precoCentavos' | 'precoVigenteCentavos' | 'especialAte' | 'cupom' | 'linkUrl' | 'temFoto' | 'fotoAtualizadaEm'
->;
+> & { categoria: CategoriaDoItemDoAluno | null };
 
 /** Corpo do `POST /vitrine/itens` e do `PUT /vitrine/itens/{id}` (`versao` só na edição). */
 export interface DadosDoItem {
@@ -44,6 +50,8 @@ export interface DadosDoItem {
   especialAte: string | null;
   cupom: string | null;
   linkUrl: string | null;
+  /** Mandar SEMPRE (nulo = sem categoria): o PUT grava o item inteiro. Categoria de outra consultoria = 404 ou 422. */
+  categoriaId: string | null;
   ativo: boolean;
   /** Mandar SEMPRE: a API trata ausente como `false`. */
   naPaginaPublica: boolean;
@@ -80,7 +88,7 @@ export type MarcaDaLoja = Pick<import('./tipos').Marca, 'nome' | 'corPrimaria' |
  * Item da página pública (`GET /publico/loja/{codigo}`): só itens ativos, DIGITAIS e marcados, na ordem da vitrine; por
  * isso não traz `tipo`. A foto vem em `/publico/loja/{codigo}/itens/{id}/foto` (`caminhoDaFotoDaLoja`).
  */
-export type ItemDaLojaPublica = Omit<ItemDaVitrineDoAluno, 'tipo'>;
+export type ItemDaLojaPublica = Omit<ItemDaVitrineDoAluno, 'tipo' | 'categoria'>;
 
 export interface LojaPublica {
   marca: MarcaDaLoja;

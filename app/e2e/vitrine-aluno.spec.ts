@@ -19,7 +19,7 @@ const CAPTURAS = process.env.E2E_CAPTURAS;
 function item(n: number, extra: Partial<ItemDaVitrineDoAluno> = {}): ItemDaVitrineDoAluno {
   return {
     id: `v0000000-0000-4000-8000-${String(n).padStart(12, '0')}`, nome: `Item fictício ${n}`, descricao: null, tipo: 'FISICO',
-    precoCentavos: null, precoVigenteCentavos: null, especialAte: null, cupom: null, linkUrl: null, temFoto: false, fotoAtualizadaEm: null, ...extra,
+    precoCentavos: null, precoVigenteCentavos: null, especialAte: null, cupom: null, linkUrl: null, temFoto: false, fotoAtualizadaEm: null, categoria: null, ...extra,
   };
 }
 
@@ -85,6 +85,33 @@ for (const largura of [390, 1280]) {
     });
   }
 }
+
+for (const tema of ['CLARO', 'ESCURO'] as const) {
+  test(`por categoria: subtítulos na ordem da API e "Sem categoria" por último (390px, ${tema.toLowerCase()})`, async ({ page }) => {
+    const ROUPAS = { id: 'c0000000-0000-4000-8000-000000000001', nome: 'Roupas', ordem: 0 };
+    const LIVROS = { id: 'c0000000-0000-4000-8000-000000000002', nome: 'Livros', ordem: 1 };
+    // A API já manda na ordem: categorias na ordem definida, sem categoria por último.
+    const ordenados = [{ ...CAMISETA, categoria: ROUPAS }, { ...PLANILHA, categoria: LIVROS }, { ...GARRAFA, categoria: null }];
+    const { naoTratadas, errosDaPagina } = await abrir(page, '/aluno/vitrine', { tema, vitrine: { corpo: ordenados } });
+    const subtitulos = page.getByRole('heading', { level: 2 });
+    await expect(subtitulos).toHaveText(['Roupas', 'Livros', 'Sem categoria']);
+    await expect(page.getByRole('list', { name: 'Roupas' }).getByText('Camiseta do time')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Sem categoria' }).getByText('Garrafa térmica')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 3, name: 'Planilha de força' })).toBeVisible();
+    if (CAPTURAS) await page.screenshot({ path: `${CAPTURAS}/vitrine-aluno-categorias-${tema.toLowerCase()}-390.png`, fullPage: true });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('sem nenhuma categoria: a lista de sempre, sem subtítulos', async ({ page }) => {
+  const { naoTratadas, errosDaPagina } = await abrir(page, '/aluno/vitrine');
+  await expect(page.getByTestId(/^item-da-vitrine-/)).toHaveCount(3);
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText(ITENS.map((i) => i.nome));
+  await expect(page.getByText('Sem categoria')).toHaveCount(0);
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
 
 for (const tema of ['CLARO', 'ESCURO'] as const) {
   test(`Início: até dois itens, o de preço especial primeiro, e "Ver tudo" (390px, ${tema.toLowerCase()})`, async ({ page }) => {

@@ -50,6 +50,17 @@ class VitrineDesligadaIntegrationTest extends AbstractIntegrationTest {
                 .isEqualTo("VITRINE_INDISPONIVEL");
         assertThat(api.put("/vitrine/itens/ordem", treinador, Map.of("ids", List.of(qualquer)), 503).path("codigo").asString())
                 .isEqualTo("VITRINE_INDISPONIVEL");
+        // As categorias (V099) seguem a mesma chave: toda rota, leitura inclusive.
+        Map<String, Object> categoria = Map.of("nome", "Categoria fictícia");
+        assertThat(api.get("/vitrine/categorias", treinador, 503).path("codigo").asString()).isEqualTo("VITRINE_INDISPONIVEL");
+        assertThat(api.post("/vitrine/categorias", treinador, categoria, 503).path("codigo").asString())
+                .isEqualTo("VITRINE_INDISPONIVEL");
+        assertThat(api.put("/vitrine/categorias/" + qualquer, treinador, categoria, 503).path("codigo").asString())
+                .isEqualTo("VITRINE_INDISPONIVEL");
+        assertThat(api.delete("/vitrine/categorias/" + qualquer, treinador, 503).path("codigo").asString())
+                .isEqualTo("VITRINE_INDISPONIVEL");
+        assertThat(api.put("/vitrine/categorias/ordem", treinador, Map.of("ids", List.of(qualquer)), 503).path("codigo").asString())
+                .isEqualTo("VITRINE_INDISPONIVEL");
         assertThat(api.get("/vitrine/itens/" + qualquer + "/foto", treinador, 503).path("codigo").asString())
                 .isEqualTo("VITRINE_INDISPONIVEL");
         assertThat(api.delete("/vitrine/itens/" + qualquer + "/foto", treinador, 503).path("codigo").asString())
