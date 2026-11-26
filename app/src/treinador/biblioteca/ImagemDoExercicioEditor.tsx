@@ -29,7 +29,7 @@ interface Props {
   aoMudar: (exercicio: Exercicio) => void;
 }
 
-/** Altura máxima da prévia: na folha de 600 px a imagem 4:3 ocuparia quase a tela do PC. */
+/** Altura máxima da prévia: empilhada na folha estreita, a imagem 4:3 na largura toda ocuparia quase a tela. */
 const ALTURA_MAXIMA_DA_PREVIA = 360;
 
 /**
@@ -113,7 +113,7 @@ export function ImagemDoExercicioEditor({ exercicio, podeAlterar, aoMudar }: Pro
               <>
                 <Botao rotulo={TEXTOS_IMAGEM_EXERCICIO.trocar} rotuloAcessivel={TEXTOS_IMAGEM_EXERCICIO.trocarPorExtenso} tipo="secundario" Icone={ImagePlus}
                   carregando={enviando} aoTocar={escolher} />
-                <Botao rotulo={TEXTOS_IMAGEM_EXERCICIO.remover} tipo="perigoTexto" Icone={Trash2} desabilitado={enviando}
+                <Botao rotulo={TEXTOS_IMAGEM_EXERCICIO.remover} tipo="perigo" Icone={Trash2} desabilitado={enviando}
                   motivo={enviando ? 'Aguarde o envio terminar.' : undefined} aoTocar={() => setConfirmarRemocao(true)} />
               </>
             ) : (

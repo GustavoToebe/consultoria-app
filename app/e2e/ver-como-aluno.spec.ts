@@ -135,7 +135,7 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
       expect(errosDaPagina).toEqual([]);
     });
 
-    test(`dieta: prévia com o título mudado sem salvar, fatores da biblioteca e só GET (${largura}px, ${tema.toLowerCase()})`, async ({ page }, testInfo) => {
+    test(`dieta: prévia sem o título do plano (mesmo mudado sem salvar), fatores da biblioteca e só GET (${largura}px, ${tema.toLowerCase()})`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: largura, height: 900 });
       const { naoTratadas, errosDaPagina } = await abrirApi(page, tema, {
         [`GET /planos-dieta/${DIETA_ID}`]: { corpo: DIETA },
@@ -152,8 +152,9 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
       const folha = page.getByRole('dialog', { name: 'Ver como o aluno' });
       await expect(folha).toBeVisible();
       await expect(folha.getByText(TEXTO_DA_PREVIA)).toBeVisible();
-      await expect(folha.getByText('Dieta no rascunho', { exact: true })).toBeVisible();
       await expect(folha.getByText(/Almoço/).first()).toBeVisible();
+      // O título é nome de trabalho do treinador: o aluno não o vê (25/11), nem o salvo nem o do rascunho.
+      await expect(folha.getByText(/Dieta no rascunho|Dieta de teste/)).toHaveCount(0);
       await expect(folha.getByText('Arroz fictício').first()).toBeVisible();
       await expect(folha.getByText('Só o aluno abre isto no app dele.')).toHaveCount(2);
       // D7: os fatores vêm da biblioteca na hora (prova também que o ouvinte de pedidos está ligado).

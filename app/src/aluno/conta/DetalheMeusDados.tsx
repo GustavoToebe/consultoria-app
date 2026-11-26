@@ -1,5 +1,5 @@
 import { Pencil } from 'lucide-react-native';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { salvarMeusDados } from '../../api/rotas';
@@ -11,6 +11,7 @@ import {
   ALUNO_ANONIMIZADO, corpoDoPut, cpfEditavel, CPF_SO_PELO_TREINADOR, ehConflitoDeEdicao, emailParaLeitura, errosDoForm, errosDoServidor, formDeMeusDados,
   houveMudanca, mensagemDeErroMeusDados, temErros, TEXTO_SO_LEITURA, type ErrosMeusDados, type FormMeusDados,
 } from '../../dominio/meusDados';
+import { redesDoAluno, REDES_SOCIAIS_DO_ALUNO } from '../../dominio/redesSociais';
 import { OPCOES_DE_SEXO, rotuloDoSexo, sexoDoCampo } from '../../dominio/sexo';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -24,6 +25,7 @@ import { MensagemErro } from '../../ui/Estados';
 import { codigoApi, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeDado, ListaDeDados } from '../../ui/ListaDeDados';
+import { RedesSociais } from '../../ui/RedesSociais';
 import { Texto } from '../../ui/Texto';
 import { avisarQueOSexoMudou } from '../versaoDoSexo';
 import type { Carga } from './tipos';
@@ -31,13 +33,17 @@ import type { Carga } from './tipos';
 const SEM_ERROS: ErrosMeusDados = { endereco: {} };
 const OPCOES_DO_SEXO = [{ valor: '', rotulo: 'Não informado' }, ...OPCOES_DE_SEXO];
 const NAO_INFORMADO = 'Não informado';
+/** A única vez que a dica de privacidade aparece: no subtítulo da seção, não em cada rede. */
+const SUBTITULO_DAS_REDES = 'Só a sua consultoria vê.';
 /** Recusas em que o que está na tela já não vale: a edição volta à leitura com os dados do servidor e o aviso neutro. */
 const RECARREGAM = new Set([CPF_SO_PELO_TREINADOR, ALUNO_ANONIMIZADO]);
 
 /**
  * Detalhe "Meus dados" da Conta (23/11; antes o cartão `CartaoMeusDados`): lê primeiro (nome e e-mail só leitura, com quem
- * muda) numa `ListaDeDados` (24/11) e, em "Editar", telefone, sexo, CPF (só se vazio) e endereço com a busca de CEP. O CPF aparece mascarado, com
- * "Mostrar CPF". O rodapé da folha segue a barra de salvar do app ("Tudo salvo" / "Alterações não salvas", Cancelar e
+ * muda) numa `ListaDeDados` (24/11) e, em "Editar", telefone, redes sociais, sexo, CPF (só se vazio) e endereço com a busca de CEP.
+ * As redes (26/11) são uma seção própria depois do telefone, com subtítulo "Só a sua consultoria vê.": na edição, a peça
+ * `RedesSociais` (uma linha por rede adicionada, "Adicionar rede"); na leitura, a fileira de botões (sem rede, a seção some).
+ * O `PUT` leva sempre as seis redes (a removida vai em branco e apaga). O CPF aparece mascarado, com "Mostrar CPF". O rodapé da folha segue a barra de salvar do app ("Tudo salvo" / "Alterações não salvas", Cancelar e
  * Salvar); fechar com alteração pergunta "Sair sem salvar?". Só com internet; nada fica no aparelho. Versão velha (409)
  * recarrega e avisa sem cor de erro. Salvar outro sexo avisa o ciclo, que consulta de novo.
  */
@@ -109,6 +115,8 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
     setDoServidor(SEM_ERROS);
     setForm((atual) => (atual ? { ...atual, ...parcial } : atual));
   };
+  const linksDasRedes = resp ? redesDoAluno(resp).links : [];
+  const errosDasRedes =Object.fromEntries(REDES_SOCIAIS_DO_ALUNO.map((r) => [r, locais[r] ?? doServidor[r]]));
   const erroDoEndereco = Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, locais.endereco[c] ?? doServidor.endereco[c]]));
   const cpf = resp?.cpf?.trim() ? resp.cpf : null;
   // Linha do CPF (leitura e edição sem CPF editável): mascarado, com "Mostrar CPF" na coluna de ações.
@@ -130,6 +138,9 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
                 <>
                   <Campo rotulo="Telefone (opcional)" valor={form.telefone} aoMudar={(t) => mudar({ telefone: mascaraTelefone(t) })}
                     erro={locais.telefone ?? doServidor.telefone} keyboardType="phone-pad" autoComplete="tel" maxLength={15} numerico />
+                  <SecaoDeRedes>
+                    <RedesSociais modo="edicao" redesPermitidas={REDES_SOCIAIS_DO_ALUNO} valores={form.redes} aoMudar={(redes) => mudar({ redes })} erros={errosDasRedes} />
+                  </SecaoDeRedes>
                   <View style={estilos.campo}>
                     <Escolha rotulo="Sexo" valor={form.sexo} aoMudar={(sexo) => mudar({ sexo })} opcoes={OPCOES_DO_SEXO} />
                     {doServidor.sexo ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{doServidor.sexo}</Texto> : null}
@@ -146,12 +157,18 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
                   <CamposDeEndereco valor={form.endereco} aoMudar={(endereco) => mudar({ endereco })} erros={erroDoEndereco} desabilitado={salvando} />
                 </>
               ) : (
-                <ListaDeDados>
-                  <LinhaDeDado rotulo="Telefone" valor={resp.telefone} numerico />
-                  <LinhaDeDado rotulo="Sexo" valor={rotuloDoSexo(resp.sexo)} />
-                  {linhaDoCpf}
-                  <LinhaDeDado rotulo="Endereço" valor={enderecoParaLeitura(resp.endereco)} />
-                </ListaDeDados>
+                <>
+                  <ListaDeDados>
+                    <LinhaDeDado rotulo="Telefone" valor={resp.telefone} numerico />
+                  </ListaDeDados>
+                  {/* Sem rede (ou só com link que não abre), a seção inteira some. */}
+                  {linksDasRedes.length ? <SecaoDeRedes><RedesSociais modo="leitura" redes={linksDasRedes} /></SecaoDeRedes> : null}
+                  <ListaDeDados>
+                    <LinhaDeDado rotulo="Sexo" valor={rotuloDoSexo(resp.sexo)} />
+                    {linhaDoCpf}
+                    <LinhaDeDado rotulo="Endereço" valor={enderecoParaLeitura(resp.endereco)} />
+                  </ListaDeDados>
+                </>
               )}
             </View>
           </>
@@ -159,6 +176,19 @@ export function DetalheMeusDados({ dados, aoFechar }: { dados: Carga<MeusDadosRe
       </View>
       {aviso}
     </Folha>
+  );
+}
+
+/** Seção "Redes sociais": título (h3 na folha), o subtítulo com a dica de privacidade (a única) e o conteúdo da peça. */
+function SecaoDeRedes({ children }: { children: ReactNode }) {
+  return (
+    <View style={estilos.secao}>
+      <View style={estilos.cabecaDaSecao}>
+        <Texto variante="secao" nivel={3}>Redes sociais</Texto>
+        <Texto variante="pequeno">{SUBTITULO_DAS_REDES}</Texto>
+      </View>
+      {children}
+    </View>
   );
 }
 
@@ -183,5 +213,7 @@ const estilos = StyleSheet.create({
   // Linha fina entre o que só o treinador muda e o que o aluno muda.
   divisoria: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: espaco(2) },
   campo: { gap: espaco(0.5) },
+  secao: { gap: espaco(1.5) },
+  cabecaDaSecao: { gap: espaco(0.5) },
   status: { minHeight: 44, justifyContent: 'center' },
 });

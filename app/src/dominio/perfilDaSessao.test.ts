@@ -23,6 +23,12 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu(EU).whatsappDaConsultoria).toBeUndefined();
   });
 
+  it('guarda as redes da consultoria do aluno; ausentes ficam ausentes', () => {
+    const redes = { instagram: 'https://www.instagram.com/exemplo', facebook: 'https://www.facebook.com/exemplo', telegram: 'https://t.me/exemplo', site: 'https://exemplo.test' };
+    expect(perfilDoEu({ ...EU, redesSociaisDaConsultoria: redes }).redesSociaisDaConsultoria).toEqual(redes);
+    expect(perfilDoEu(EU).redesSociaisDaConsultoria).toBeUndefined();
+  });
+
   it('guarda acessoPausado tanto do nível raiz quanto de eu.aluno', () => {
     expect(perfilDoEu(EU).acessoPausado).toBe(false);
     expect(perfilDoEu({ ...EU, acessoPausado: true }).acessoPausado).toBe(true);

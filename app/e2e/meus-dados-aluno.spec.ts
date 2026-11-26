@@ -111,7 +111,7 @@ for (const largura of [390, 1280]) {
 
     expect(envios(pedidos)).toHaveLength(1);
     expect(envios(pedidos)[0].corpo).toEqual({
-      telefone: '(45) 98888-7777', cpf: null, sexo: 'FEMININO', versao: 3,
+      telefone: '(45) 98888-7777', cpf: null, sexo: 'FEMININO', instagram: '', tiktok: '', youtube: '', facebook: '', linkedin: '', telegram: '', versao: 3,
       endereco: { cep: '01310-100', logradouro: 'Avenida Exemplo', numero: '100', complemento: null, bairro: 'Bela Vista', cidade: 'Cidade Exemplo', uf: 'SP' },
     });
     // A versão nova vale para a próxima edição.
@@ -143,7 +143,7 @@ test('CPF vazio é editável, confere os dígitos e, salvo, fica só leitura', a
   await expect(page.getByText('CPF inválido.')).toHaveCount(0);
   await salvar.click();
   await expect(page.getByText('Seus dados foram salvos.')).toBeVisible();
-  expect(envios(pedidos)[0].corpo).toEqual({ telefone: null, cpf: CPF, endereco: null, sexo: null, versao: 1 });
+  expect(envios(pedidos)[0].corpo).toEqual({ telefone: null, cpf: CPF, endereco: null, sexo: null, instagram: '', tiktok: '', youtube: '', facebook: '', linkedin: '', telegram: '', versao: 1 });
   await expect(page.getByLabel(`CPF: ${CPF_MASCARADO}`)).toBeVisible();
   await page.getByRole('button', { name: 'Mostrar CPF' }).click();
   await expect(page.getByLabel(`CPF: ${CPF}`)).toBeVisible();

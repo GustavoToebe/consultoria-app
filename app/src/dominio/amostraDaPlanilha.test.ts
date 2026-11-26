@@ -1,6 +1,6 @@
 import type { AlunoDaAmostra } from '../api/tipos';
 import {
-  FICA_DE_FORA, SELO_IGNORADO, SELO_INCLUIDO, TODOS_IGNORADOS, alternarIgnorado, resumoDosIgnorados, todosIgnorados, contarDieta, faixaDaAmostra, foraDaBiblioteca, pesosDoMaisRecente, restantesDaAmostra, resumoDoAluno, rotuloDosProximos,
+  FICA_DE_FORA, SELO_IGNORADO, SELO_INCLUIDO, TODOS_IGNORADOS, AVISO_VAGA_AO_IGNORAR, alternarIgnorado, avisoDeVagaAoIgnorar, textoDosIgnoradosSemAmostra, resumoDosIgnorados, todosIgnorados, contarDieta, faixaDaAmostra, foraDaBiblioteca, pesosDoMaisRecente, restantesDaAmostra, resumoDoAluno, rotuloDosProximos,
   situacaoDoAluno, textoDaDieta, textoDaPasta, textoDaRefeicao, textoDoAtivo, textoDoCadastroExistente, textoDoExercicio, textoDoItem, textoDoPeso, textoDosPesos,
   textoDoSuplemento, textoDoTreino, valorDoCampo,
 } from './amostraDaPlanilha';
@@ -8,7 +8,7 @@ import { etapasDaPlanilha } from './planilhaCompleta';
 
 /** Dados fictícios. */
 const ALUNO: AlunoDaAmostra = {
-  numero: 3, situacao: 'NOVO', nome: 'Aluna Fictícia', ativo: true, email: null, telefone: null, objetivo: null, observacoes: null,
+  numero: 3, chave: 'linha:4', situacao: 'NOVO', nome: 'Aluna Fictícia', ativo: true, email: null, telefone: null, objetivo: null, observacoes: null,
   pesos: 12, ultimosPesos: [{ data: '2026-09-01', kg: 70 }, { data: '2026-10-01', kg: 71.25 }],
   treino: { objetivo: null, orientacoes: null, sessoes: [{
     uid: 's', nome: 'A', diaSemana: null, tipo: 'TREINO' as never, frequenciaSemanal: null, observacao: null, cardio: null, grupos: [],
@@ -100,13 +100,29 @@ describe('amostra da planilha', () => {
 });
 
 describe('alunos ignorados na amostra', () => {
-  it('alterna o aluno na lista, em ordem e sem repetir', () => {
-    expect(alternarIgnorado([], 3)).toEqual([3]);
-    expect(alternarIgnorado([3], 1)).toEqual([1, 3]);
-    expect(alternarIgnorado([1, 3], 3)).toEqual([1]);
-    const original = [2];
-    alternarIgnorado(original, 5);
-    expect(original).toEqual([2]); // não muda a lista que recebeu
+  it('alterna o aluno pela chave, em ordem e sem repetir', () => {
+    const a = (numero: number) => ({ numero, chave: `linha:${numero + 1}` });
+    expect(alternarIgnorado([], a(3))).toEqual([{ numero: 3, chave: 'linha:4' }]);
+    expect(alternarIgnorado([{ numero: 3, chave: 'linha:4' }], a(1)).map((i) => i.numero)).toEqual([1, 3]);
+    expect(alternarIgnorado([a(1), a(3)], a(3))).toEqual([a(1)]);
+    // O aluno sem linha na planilha tem a chave com o nome: é ela que a API recebe, no corpo.
+    expect(alternarIgnorado([], { numero: 2, chave: 'nome:aluna ficticia' })[0].chave).toBe('nome:aluna ficticia');
+    const original = [a(2)];
+    alternarIgnorado(original, a(5));
+    expect(original).toEqual([a(2)]); // não muda a lista que recebeu
+  });
+
+  it('avisa que ignorar não libera vaga só quando há alunos barrados por limite e algum ignorado', () => {
+    expect(avisoDeVagaAoIgnorar(1, { LIMITE_DO_PLANO: 2 })).toBe(AVISO_VAGA_AO_IGNORAR);
+    expect(avisoDeVagaAoIgnorar(1, { LIMITE_DO_TREINADOR: 1 })).toBe(AVISO_VAGA_AO_IGNORAR);
+    expect(avisoDeVagaAoIgnorar(0, { LIMITE_DO_PLANO: 2 })).toBeNull();
+    expect(avisoDeVagaAoIgnorar(1, { EMAIL_INVALIDO: 2 })).toBeNull();
+    expect(AVISO_VAGA_AO_IGNORAR).toBe('Ignorar um aluno não libera vaga do plano nesta importação.');
+  });
+
+  it('sem a amostra, a tela ainda diz que os ignorados continuam de fora', () => {
+    expect(textoDosIgnoradosSemAmostra(1)).toBe('1 aluno que você ignorou continua de fora da importação.');
+    expect(textoDosIgnoradosSemAmostra(3)).toBe('3 alunos que você ignorou continuam de fora da importação.');
   });
 
   it('a faixa diz quantos entram e quantos ficam de fora; sem ignorados não diz nada', () => {

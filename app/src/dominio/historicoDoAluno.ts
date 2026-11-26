@@ -79,7 +79,7 @@ export function fraseDoHistorico(visao: 'divisao' | 'dia', de: string, ate: stri
 }
 
 /** Os períodos fixos dos outros cartões do Histórico (o que cada busca realmente traz). */
-export const PERIODO_DO_PROGRESSO = 'Todas as pastas · exercícios dos últimos 12 meses';
+export const PERIODO_DO_PROGRESSO = 'Todas as pastas · 12 meses';
 export const PERIODO_DE_TUDO = 'Desde o primeiro registro';
 
 /** "Desde o primeiro registro (12/03/2026)"; sem registro, só a frase. `datas` em ISO, em qualquer ordem (vazias ficam de fora). */

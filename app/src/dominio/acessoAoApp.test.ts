@@ -1,4 +1,59 @@
-import { ultimoLoginNaLinha } from './acessoAoApp';
+import { ErroApi } from '@plataforma/web';
+
+import { acessoDesativado, errosDoNovoEmail, MENSAGEM_EMAIL_EM_USO, textoDoDesativado, traduzirErroDoAcesso, ultimoLoginNaLinha } from './acessoAoApp';
+
+// Acesso ao app: alterar e-mail e desativar (25/11)
+describe('acesso desativado', () => {
+  const agora = new Date('2026-11-25T15:00:00Z');
+  test('só com conta e a data de desativação', () => {
+    expect(acessoDesativado({ temAcesso: true, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toBe(true);
+    expect(acessoDesativado({ temAcesso: true, acessoDesativadoEm: null })).toBe(false);
+    expect(acessoDesativado({ temAcesso: true })).toBe(false);
+    expect(acessoDesativado({ temAcesso: false, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toBe(false);
+  });
+  test('a data é a de Brasília, sem o ano corrente', () => {
+    expect(textoDoDesativado('2026-11-20T12:00:00Z', agora)).toBe('Sem acesso (desativado em 20/11)');
+    // 01:30 UTC de 20/11 ainda é 19/11 em Brasília.
+    expect(textoDoDesativado('2026-11-20T01:30:00Z', agora)).toBe('Sem acesso (desativado em 19/11)');
+    expect(textoDoDesativado('2025-12-30T12:00:00Z', agora)).toBe('Sem acesso (desativado em 30/12/2025)');
+  });
+  test('sem data ou malformada: só "Sem acesso"', () => {
+    expect(textoDoDesativado(null, agora)).toBe('Sem acesso');
+    expect(textoDoDesativado(undefined, agora)).toBe('Sem acesso');
+    expect(textoDoDesativado('ontem', agora)).toBe('Sem acesso');
+  });
+});
+
+describe('errosDoNovoEmail', () => {
+  const atual = 'aluno@exemplo.test';
+  test('vazio, formato e confirmação vazia', () => {
+    expect(errosDoNovoEmail('', '', atual)).toEqual({ email: 'Informe o novo e-mail.', confirmacao: 'Repita o novo e-mail.' });
+    expect(errosDoNovoEmail('sem-arroba', 'sem-arroba', atual).email).toBe('Informe um e-mail válido, como nome@exemplo.com.');
+    expect(errosDoNovoEmail(`${'a'.repeat(250)}@x.test`, '', atual).email).toBe('Informe um e-mail válido, como nome@exemplo.com.');
+  });
+  test('igual ao atual, sem diferença de caixa nem espaços', () => {
+    expect(errosDoNovoEmail('  ALUNO@exemplo.test ', 'aluno@exemplo.test', atual).email).toBe('Este já é o e-mail de acesso do aluno. Informe outro.');
+  });
+  test('os dois precisam ser iguais (caixa não conta)', () => {
+    expect(errosDoNovoEmail('novo@exemplo.test', 'outro@exemplo.test', atual)).toEqual({ confirmacao: 'Os dois e-mails não são iguais.' });
+    expect(errosDoNovoEmail('novo@exemplo.test', ' NOVO@exemplo.test', atual)).toEqual({});
+    expect(errosDoNovoEmail('novo@exemplo.test', 'novo@exemplo.test', null)).toEqual({});
+  });
+});
+
+describe('traduzirErroDoAcesso', () => {
+  test('e-mail em uso vai para o campo, com o texto do app', () => {
+    expect(traduzirErroDoAcesso(new ErroApi(409, 'EMAIL_EM_USO', 'Conflito.'))).toEqual({ campos: { email: MENSAGEM_EMAIL_EM_USO }, mensagem: null });
+  });
+  test('recusas pelo código, não pelo texto da API', () => {
+    expect(traduzirErroDoAcesso(new ErroApi(409, 'ACESSO_DESATIVADO', 'x')).mensagem).toMatch(/^O acesso deste aluno está desativado\./);
+    expect(traduzirErroDoAcesso(new ErroApi(409, 'ALUNO_SEM_ACESSO', 'x')).mensagem).toMatch(/ainda não tem conta/);
+    expect(traduzirErroDoAcesso(new ErroApi(409, 'ALUNO_INATIVO', 'x')).mensagem).toMatch(/^Aluno inativo/);
+  });
+  test('outro erro: a mensagem da API', () => {
+    expect(traduzirErroDoAcesso(new ErroApi(500, null, 'Falhou no servidor.'))).toEqual({ campos: {}, mensagem: 'Falhou no servidor.' });
+  });
+});
 
 // ficha: acesso ao app (24/11)
 describe('ultimoLoginNaLinha', () => {

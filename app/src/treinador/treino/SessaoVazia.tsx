@@ -4,9 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import type { EstadoDaSessao } from '../../dominio/editorDeTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
-import { Botao } from '../../ui/Botao';
 import { Texto } from '../../ui/Texto';
-import { BlocoAdicionar } from '../plano/BlocoAdicionar';
+import { BlocoAdicionar, BotaoDoBloco } from '../plano/BlocoAdicionar';
 
 /**
  * Sessão sem exercício (`estadoDaSessao`): no treino e nos acessórios, o convite "Monte esta sessão" com as três ações
@@ -31,9 +30,10 @@ export function SessaoVazia({ estado, aoNovoExercicio, aoNovoCardio, aoAbrirMode
   }
   return (
     <BlocoAdicionar titulo="Monte esta sessão" descricao="Adicione exercícios ou comece com um modelo pronto.">
-      <Botao rotulo="Adicionar exercício" Icone={Plus} aoTocar={aoNovoExercicio} />
-      {aoAbrirModelos ? <Botao rotulo="Usar modelo" tipo="acao" Icone={NotebookTabs} aoTocar={aoAbrirModelos} /> : null}
-      <Botao rotulo="Adicionar cardio" tipo="acao" Icone={HeartPulse} aoTocar={aoNovoCardio} />
+      {/* Um destaque só por área (25/11): o exercício em `acao` (o `primario` é o Publicar da barra); o resto neutro. */}
+      <BotaoDoBloco rotulo="Adicionar exercício" tipo="acao" Icone={Plus} aoTocar={aoNovoExercicio} />
+      {aoAbrirModelos ? <BotaoDoBloco rotulo="Usar modelo" tipo="secundario" Icone={NotebookTabs} aoTocar={aoAbrirModelos} /> : null}
+      <BotaoDoBloco rotulo="Adicionar cardio" tipo="secundario" Icone={HeartPulse} aoTocar={aoNovoCardio} />
     </BlocoAdicionar>
   );
 }

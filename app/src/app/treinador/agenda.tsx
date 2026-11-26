@@ -67,9 +67,7 @@ function focoEmCampo(): boolean {
 /** Alguma Folha, painel ou menu aberto por cima da agenda. */
 function algoPorCima(menuAberto: boolean): boolean {
   if (menuAberto || portalDaFolhaDoTopo() !== undefined) return true;
-  // Só os visíveis: o balão do ⓘ do cabeçalho (`AjudaDoCabecalho`) fica no DOM, com `display:none`, quando fechado.
-  return typeof document !== 'undefined'
-    && [...document.querySelectorAll<HTMLElement>('[role="dialog"],[role="alertdialog"]')].some((d) => d.getClientRects().length > 0);
+  return typeof document !== 'undefined' && document.querySelector('[role="dialog"],[role="alertdialog"]') !== null;
 }
 
 /**

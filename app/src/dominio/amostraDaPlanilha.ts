@@ -31,28 +31,46 @@ export function faixaDaAmostra(a: Pick<AmostraDaPlanilha, 'total' | 'inicio' | '
 }
 
 /**
- * Marca ou desmarca um aluno da importação (`numero` = a posição de 1 na amostra, a mesma que a API usa em
- * `alunosIgnorados`). Devolve a lista nova, sempre em ordem e sem repetição.
+ * Aluno desmarcado na amostra. O `numero` (de 1) é só da tela; a API recebe a `chave` (`chavesIgnoradas`), porque a posição
+ * muda se alguém é cadastrado entre a amostra e a confirmação e entraria quem o treinador tinha ignorado.
  */
-export function alternarIgnorado(ignorados: readonly number[], numero: number): number[] {
-  return ignorados.includes(numero)
-    ? ignorados.filter((i) => i !== numero)
-    : [...ignorados, numero].sort((a, b) => a - b);
+export interface AlunoIgnorado { numero: number; chave: string }
+
+/** Marca ou desmarca um aluno da importação. Devolve a lista nova, sempre em ordem e sem repetição. */
+export function alternarIgnorado(ignorados: readonly AlunoIgnorado[], aluno: Pick<AlunoDaAmostra, 'numero' | 'chave'>): AlunoIgnorado[] {
+  return ignorados.some((i) => i.chave === aluno.chave)
+    ? ignorados.filter((i) => i.chave !== aluno.chave)
+    : [...ignorados, { numero: aluno.numero, chave: aluno.chave }].sort((x, y) => x.numero - y.numero);
 }
 
 /** O que a faixa do topo diz de quem entra e de quem fica de fora; "" quando ninguém foi ignorado. */
-export function resumoDosIgnorados(total: number, ignorados: readonly number[]): string {
+export function resumoDosIgnorados(total: number, ignorados: readonly unknown[]): string {
   if (ignorados.length === 0) return '';
   const entram = Math.max(0, total - ignorados.length);
   return `${n(entram, 'aluno será importado', 'alunos serão importados')} · ${n(ignorados.length, 'ignorado', 'ignorados')}`;
 }
 
 /** Ignorar todos não deixa nada a gravar: a API recusaria (422), então o botão de confirmar espera. */
-export function todosIgnorados(total: number, ignorados: readonly number[]): boolean {
+export function todosIgnorados(total: number, ignorados: readonly unknown[]): boolean {
   return total > 0 && ignorados.length >= total;
 }
 
 export const TODOS_IGNORADOS = 'Marque pelo menos um aluno para importar.';
+export const AVISO_VAGA_AO_IGNORAR = 'Ignorar um aluno não libera vaga do plano nesta importação.';
+
+/**
+ * Quem ficou de fora por limite (do plano ou do treinador) na montagem continua de fora mesmo que o treinador ignore outro
+ * aluno: a prévia contou as vagas antes de saber quem ele ia ignorar. Só avisa quando há as duas coisas.
+ */
+export function avisoDeVagaAoIgnorar(ignorados: number, problemasPorTipo: Readonly<Record<string, number>>): string | null {
+  const porLimite = (problemasPorTipo.LIMITE_DO_PLANO ?? 0) + (problemasPorTipo.LIMITE_DO_TREINADOR ?? 0);
+  return ignorados > 0 && porLimite > 0 ? AVISO_VAGA_AO_IGNORAR : null;
+}
+
+/** A amostra ficou indisponível (503) depois de o treinador ignorar alunos: eles continuam de fora, e a tela diz isso. */
+export function textoDosIgnoradosSemAmostra(ignorados: number): string {
+  return `${n(ignorados, 'aluno que você ignorou continua', 'alunos que você ignorou continuam')} de fora da importação.`;
+}
 export const SELO_INCLUIDO = 'Incluído';
 export const SELO_IGNORADO = 'Ignorado nesta importação';
 

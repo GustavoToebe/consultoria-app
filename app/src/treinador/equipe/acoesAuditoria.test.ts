@@ -69,3 +69,7 @@ test('ações de pausa de acesso (Fase 2) e ficha rápida/cortesia (Fase 3) têm
     expect(ACOES_AUDITORIA[acao]).toBeTruthy();
   }
 });
+
+test('ações do acesso do aluno ao app têm rótulo no filtro da auditoria', () => {
+  for (const acao of ['ALUNO_EMAIL_DE_ACESSO_ALTERADO', 'ALUNO_ACESSO_DESATIVADO', 'ALUNO_ACESSO_REATIVADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});

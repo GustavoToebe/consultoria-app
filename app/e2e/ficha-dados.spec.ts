@@ -125,7 +125,7 @@ for (const largura of [1280, 1920]) {
     expect(Math.abs(historico.y - fundo - 24)).toBeLessThanOrEqual(1);
     expect(Math.abs(historico.x - esquerda[0].x)).toBeLessThanOrEqual(1);
     expect(Math.abs(historico.x + historico.width - (direita[0].x + direita[0].width))).toBeLessThanOrEqual(1);
-    expect(historico.width).toBeLessThanOrEqual(1401);
+    // (25/11: as duas colunas não têm mais teto de 1400; a borda direita acima já prova que o histórico segue a largura delas.)
     await expect(page.getByRole('table', { name: 'Lesões' })).toBeVisible();
     await expect(page.getByRole('list', { name: 'Lesões' })).toHaveCount(0);
     // Montou uma vez só, já no arranjo certo (sem montar numa coluna e remontar em duas).
@@ -377,7 +377,8 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Mais ações da lesão em Ombro direito' }).click();
     await page.getByRole('dialog', { name: 'Ombro direito' }).getByRole('button', { name: 'Editar' }).click();
     const folha = page.getByRole('dialog', { name: 'Editar lesão' });
-    await expect(folha.getByLabel('Região do corpo')).toHaveValue('Ombro direito');
+    await expect(folha.getByRole('radio', { name: 'Ombro', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(folha.getByRole('radio', { name: 'Direito', exact: true })).toHaveAttribute('aria-checked', 'true');
     await folha.getByRole('button', { name: 'Cancelar' }).click();
     await page.getByRole('button', { name: 'Mais ações da lesão em Joelho esquerdo' }).click();
     await page.getByRole('dialog', { name: 'Joelho esquerdo' }).getByRole('button', { name: 'Excluir lesão' }).click();

@@ -10,9 +10,9 @@ import { ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, estadoDoResponsavel, estadoFina
 
 /**
  * Tela larga: revisão (24/11) das abas da Ficha do aluno (plano `docs/planos/tela-larga-revisao-ficha.md`). Confere por
- * geometria, em 1280, 1920, 2560 e 3440 px com o menu aberto, que a aba Dados não estica: em 1280 e 1920 as duas colunas
- * (3:2) até `LARGURA_EDITOR_DE_CAMPOS`, alinhadas à esquerda, com o Histórico de lesões embaixo na largura das duas
- * (4.10 de `docs/design-e-front.md`); em 2560 e 3440 três pilhas
+ * geometria, em 1280, 1920, 2560 e 3440 px com o menu aberto, o arranjo da aba Dados: em 1280 e 1920 as duas colunas
+ * (3:2) na largura do conteúdo (D1 de 25/11; antes paravam em `LARGURA_EDITOR_DE_CAMPOS`), com o Histórico de lesões
+ * embaixo na largura das duas; em 2560 e 3440 três pilhas
  * (revisão 2, `docs/planos/tela-larga-revisao-2.md`), cada uma até `LARGURA_EDITOR_DE_CAMPOS`. Capturas só com
  * `CAPTURAS_TELA_LARGA_GRUPO` (pasta fora do git) e `FASE` (`antes` ou `depois`). Relógio em 19/10/2026; só dados fictícios.
  */
@@ -110,15 +110,15 @@ const COBRANCA: CobrancaResponse = {
   pagoEm: null, forma: null,
 };
 
-async function abrir(page: Page, largura: number, aba: string, opcoes: { tamanhoTexto?: string; tema?: string; altura?: number; enviada?: boolean; vazio?: boolean } = {}) {
+async function abrir(page: Page, largura: number, aba: string, opcoes: { tamanhoTexto?: string; tema?: string; altura?: number; enviada?: boolean; vazio?: boolean; umaPasta?: boolean; recolhido?: boolean } = {}) {
   await page.setViewportSize({ width: largura, height: opcoes.altura ?? (largura >= 2560 ? 1440 : largura >= 1920 ? 1080 : 900) });
   await fixarHoje(page);
-  await page.addInitScript(([id, prefs]) => {
+  await page.addInitScript(([id, prefs, recolhido]) => {
     try {
-      localStorage.removeItem('menu-lateral-recolhido');
+      if (recolhido) localStorage.setItem('menu-lateral-recolhido', '1'); else localStorage.removeItem('menu-lateral-recolhido');
       localStorage.setItem(`treinos:${id}:preferencias`, prefs);
     } catch { /* quadro sem armazenamento */ }
-  }, [TREINADOR.id, JSON.stringify({ tema: opcoes.tema ?? 'ESCURO', larguraConteudo: 'AUTOMATICA', ...(opcoes.tamanhoTexto ? { tamanhoTexto: opcoes.tamanhoTexto } : {}) })] as const);
+  }, [TREINADOR.id, JSON.stringify({ tema: opcoes.tema ?? 'ESCURO', larguraConteudo: 'AUTOMATICA', ...(opcoes.tamanhoTexto ? { tamanhoTexto: opcoes.tamanhoTexto } : {}) }), !!opcoes.recolhido] as const);
   const atualizacao: Atualizacao = opcoes.enviada ? { ...ATUALIZACAO, fase: 'ENVIADA', enviadaEm: '2026-10-18T12:00:00Z' } : ATUALIZACAO;
   // `vazio`: sem plano contratado e sem lesões (o estado que não é o de sucesso, nas capturas).
   const financeiro = estadoFinanceiro(opcoes.vazio ? { contratacoes: [], cobrancas: [] } : { contratacoes: [CONTRATACAO], cobrancas: [COBRANCA] });
@@ -131,7 +131,7 @@ async function abrir(page: Page, largura: number, aba: string, opcoes: { tamanho
     [`GET /alunos/${ID}`]: { corpo: FICHA },
     [`GET /alunos/${ID}/anamneses`]: { corpo: [] },
     [`GET /alunos/${ID}/lesoes`]: { corpo: opcoes.vazio ? [] : LESOES },
-    [`GET /alunos/${ID}/pastas`]: { corpo: [PASTA_ATUAL, PASTA_ANTIGA] },
+    [`GET /alunos/${ID}/pastas`]: { corpo: opcoes.umaPasta ? [PASTA_ATUAL] : [PASTA_ATUAL, PASTA_ANTIGA] },
     [`GET /alunos/${ID}/pastas/vigente`]: { corpo: { pasta: PASTA_ATUAL } },
     [`GET /alunos/${ID}/planos-treino`]: { corpo: [plano('t1', 'Treino de outubro', PASTA_ATUAL.id), plano('t0', 'Treino de setembro', PASTA_ANTIGA.id)] },
     [`GET /alunos/${ID}/planos-dieta`]: { corpo: [plano('d1', 'Dieta de outubro', PASTA_ATUAL.id)] },
@@ -232,6 +232,18 @@ test.describe('capturas', () => {
       });
     }
   }
+  // Edição dos Dados em 1920 e 1280 (D1: o formulário na largura da leitura), nos dois temas.
+  for (const largura of [1920, 1280]) {
+    for (const tema of ['ESCURO', 'CLARO']) {
+      test(`ficha ${largura} editando ${tema}`, async ({ page }) => {
+        await abrir(page, largura, 'ficha', { altura: 1500, tema });
+        await page.getByRole('button', { name: 'Editar dados' }).click();
+        await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeVisible();
+        await page.waitForTimeout(600);
+        await page.screenshot({ path: `${PASTA_DAS_CAPTURAS}/ficha/${FASE}/${largura}-editando-${tema.toLowerCase()}.png` });
+      });
+    }
+  }
   // Sem regressão no que já existia: 1280 (duas colunas nos Dados, uma no resto) e 390 (celular).
   for (const largura of [1280, 390]) {
     for (const { aba, pronta } of ABAS) {
@@ -271,6 +283,7 @@ for (const largura of [2560, 3440]) {
     const { errosDaPagina, pedidos } = await abrir(page, largura, 'ficha');
     await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Anamnese', exact: true })).toBeVisible();
+    let vao = { de: 0, ate: 0 };
     await assentado(async () => {
       const colunas = await Promise.all(TRES_COLUNAS.map((c) => Promise.all(c.map((t) => caixaDe(cartaoCom(page, t))))));
       const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
@@ -279,6 +292,7 @@ for (const largura of [2560, 3440]) {
         // Uma pilha: mesma borda esquerda, na ordem, 24 px entre cada par; nenhum cartão passa do editor de campos.
         for (const c of coluna) {
           expect(Math.abs(c.x - coluna[0].x)).toBeLessThanOrEqual(1);
+          // Em três colunas o teto por coluna continua (D1 tirou só o das duas, nas faixas normal e larga).
           expect(c.width).toBeLessThanOrEqual(1401);
         }
         for (let k = 1; k < coluna.length; k++) expect(Math.abs(coluna[k].y - (coluna[k - 1].y + coluna[k - 1].height) - 24)).toBeLessThanOrEqual(1);
@@ -290,6 +304,8 @@ for (const largura of [2560, 3440]) {
       expect(Math.abs(colunas[0][0].x - titulo.x)).toBeLessThanOrEqual(1);
       const ultima = colunas[2][0];
       expect(Math.abs(editar.x + editar.width - (ultima.x + ultima.width))).toBeLessThanOrEqual(1);
+      // O 1º vão da leitura (entre Identificação e Plano contratado), para comparar com o do formulário.
+      vao = { de: colunas[0][0].x + colunas[0][0].width, ate: colunas[1][0].x };
     });
     // A coluna do meio é a mais larga (1,2): as lesões continuam em tabela já em 2560.
     await expect(page.getByRole('table', { name: 'Lesões' })).toHaveCount(1);
@@ -299,8 +315,17 @@ for (const largura of [2560, 3440]) {
     await page.getByRole('button', { name: 'Editar dados' }).click();
     const salvar = page.getByRole('button', { name: 'Salvar', exact: true });
     await expect(salvar).toBeVisible();
+    // Com a aba em três colunas o formulário continua no teto do editor de campos (`DadosDoAluno`, 4.10; D1 só o destravou nas duas).
     const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
     expect((await caixaDe(salvar)).x + (await caixaDe(salvar)).width - titulo.x).toBeLessThanOrEqual(1401);
+    // O vão do meio do formulário no lugar do 1º vão da leitura (26/11): Identificação e Contato não mudam de largura. Os
+    // blocos não servem de régua aqui: na edição a 1ª coluna fica vazia e o Plano contratado vai para a esquerda.
+    await assentado(async () => {
+      const ident = await caixaDe(cartaoCom(page, 'Identificação'));
+      const config = await caixaDe(cartaoCom(page, 'Configuração do acompanhamento'));
+      expect(Math.abs(ident.x + ident.width - vao.de)).toBeLessThanOrEqual(1);
+      expect(Math.abs(config.x - vao.ate)).toBeLessThanOrEqual(1);
+    });
     await expect(page.getByRole('heading', { name: 'Plano contratado', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Acesso ao app', exact: true })).toBeVisible();
     expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `/alunos/${ID}/anamneses`)).toHaveLength(1);
@@ -309,33 +334,78 @@ for (const largura of [2560, 3440]) {
   });
 }
 
+// D1 (25/11, `docs/planos/ajustes-da-tarde-25-11.md`): em 1280 e 1920 as duas colunas ocupam a largura do conteúdo. Antes
+// paravam em `LARGURA_EDITOR_DE_CAMPOS` (1400) e em 1920 sobrava uma faixa vazia à direita; agora a borda direita da 2ª
+// coluna, do "Editar dados" e do Histórico é a do cabeçalho da ficha (o ⋯), com o menu aberto e recolhido.
 for (const largura of [1280, 1920]) {
-  test(`${largura} px: Dados nas mesmas duas colunas (3:2), sem passar de 1400 px, à esquerda`, async ({ page }) => {
-    const { errosDaPagina } = await abrir(page, largura, 'ficha');
-    await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
-    await assentado(async () => {
-      const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
-      const editar = await caixaDe(page.getByRole('button', { name: 'Editar dados' }));
-      const ident = await caixaDe(cartaoCom(page, 'Identificação'));
-      const config = await caixaDe(cartaoCom(page, 'Configuração do acompanhamento'));
-      const abaResumo = await caixaDe(page.getByRole('tab', { name: 'Resumo', exact: true }));
-      // A aba vai do título (à esquerda, na borda das abas) ao "Editar dados" e não passa do teto do editor de campos.
-      expect(Math.abs(ident.x - titulo.x)).toBeLessThanOrEqual(1);
-      expect(titulo.x).toBeLessThanOrEqual(abaResumo.x);
-      expect(config.x + config.width - ident.x).toBeLessThanOrEqual(1401);
-      expect(Math.abs(editar.x + editar.width - (config.x + config.width))).toBeLessThanOrEqual(1);
-      // As mesmas duas colunas, 3 para 2, no mesmo topo.
-      expect(Math.abs(ident.y - config.y)).toBeLessThanOrEqual(1);
-      expect(ident.width / config.width).toBeGreaterThan(1.45);
-      expect(ident.width / config.width).toBeLessThan(1.55);
-      if (largura >= 1920) expect(config.x + config.width - ident.x).toBeGreaterThan(1390);
+  for (const recolhido of [false, true]) {
+    test(`${largura} px${recolhido ? ' (menu recolhido)' : ''}: Dados nas mesmas duas colunas (3:2), na largura do conteúdo`, async ({ page }) => {
+      const { errosDaPagina } = await abrir(page, largura, 'ficha', { recolhido });
+      await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
+      let vao = { de: 0, ate: 0 };
+      await assentado(async () => {
+        const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
+        const editar = await caixaDe(page.getByRole('button', { name: 'Editar dados' }));
+        const ident = await caixaDe(cartaoCom(page, 'Identificação'));
+        const config = await caixaDe(cartaoCom(page, 'Configuração do acompanhamento'));
+        const historico = await caixaDe(cartaoCom(page, 'Histórico de lesões'));
+        const abaResumo = await caixaDe(page.getByRole('tab', { name: 'Resumo', exact: true }));
+        const menu = await caixaDe(page.getByRole('button', { name: 'Mais ações do aluno' }));
+        // A aba vai do título (à esquerda, na borda das abas) ao "Editar dados", na borda direita do cabeçalho.
+        expect(Math.abs(ident.x - titulo.x)).toBeLessThanOrEqual(1);
+        expect(titulo.x).toBeLessThanOrEqual(abaResumo.x);
+        expect(Math.abs(config.x + config.width - (menu.x + menu.width))).toBeLessThanOrEqual(2);
+        expect(Math.abs(editar.x + editar.width - (config.x + config.width))).toBeLessThanOrEqual(1);
+        // O Histórico de lesões embaixo, na largura das duas.
+        expect(Math.abs(historico.x - ident.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(historico.x + historico.width - (config.x + config.width))).toBeLessThanOrEqual(1);
+        // As mesmas duas colunas, 3 para 2, no mesmo topo.
+        expect(Math.abs(ident.y - config.y)).toBeLessThanOrEqual(1);
+        expect(ident.width / config.width).toBeGreaterThan(1.45);
+        expect(ident.width / config.width).toBeLessThan(1.55);
+        if (largura >= 1920) expect(config.x + config.width - ident.x).toBeGreaterThan(1600);
+        vao = { de: ident.x + ident.width, ate: config.x };
+      });
+      // As lesões ficam em tabela em todas as larguras: em 1280 e 1920 abaixo das duas colunas, na largura delas somadas.
+      await expect(page.getByRole('table', { name: 'Lesões' })).toHaveCount(1);
+      await semRolagemHorizontal(page);
+
+      // Editando (D1, 25/11): o formulário na mesma largura da leitura, do título à borda do ⋯ (antes parava em 1400 e, em
+      // 1920, sobrava uma faixa à direita; em 1280 a aba já tinha menos que isso e nada muda).
+      await page.getByRole('button', { name: 'Editar dados' }).click();
+      const salvar = page.getByRole('button', { name: 'Salvar', exact: true });
+      await expect(salvar).toBeVisible();
+      await assentado(async () => {
+        const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
+        const menu = await caixaDe(page.getByRole('button', { name: 'Mais ações do aluno' }));
+        const ident = await caixaDe(cartaoCom(page, 'Identificação'));
+        const s = await caixaDe(salvar);
+        expect(Math.abs(ident.x - titulo.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(s.x + s.width - (menu.x + menu.width))).toBeLessThanOrEqual(2);
+        if (largura >= 1920) expect(s.x + s.width - titulo.x).toBeGreaterThan(1600);
+        // O vão do meio do formulário no mesmo x do da leitura (26/11; antes o formulário dividia ao meio e a leitura em 3:2).
+        const config = await caixaDe(cartaoCom(page, 'Configuração do acompanhamento'));
+        expect(Math.abs(ident.x + ident.width - vao.de)).toBeLessThanOrEqual(1);
+        expect(Math.abs(config.x - vao.ate)).toBeLessThanOrEqual(1);
+      });
+      await semRolagemHorizontal(page);
+      expect(errosDaPagina).toEqual([]);
     });
-    // As lesões ficam em tabela em todas as larguras: em 1280 e 1920 abaixo das duas colunas, na largura delas somadas.
-    await expect(page.getByRole('table', { name: 'Lesões' })).toHaveCount(1);
-    await semRolagemHorizontal(page);
-    expect(errosDaPagina).toEqual([]);
-  });
+  }
 }
+
+// D1 (25/11): uma pasta só ocupa a largura do cartão (numa coluna de duas sobrava a outra vazia à direita, em 1920).
+test('1920 px: Planos com uma pasta só, na largura do cartão', async ({ page }) => {
+  await abrir(page, 1920, 'planos', { umaPasta: true });
+  const outubro = page.getByRole('button', { name: /^Pasta Pasta de outubro/ });
+  await expect(outubro).toBeVisible();
+  await assentado(async () => {
+    const o = await caixaDe(outubro);
+    const nova = await caixaDe(page.getByRole('button', { name: 'Nova pasta' }));
+    expect(Math.abs(o.x + o.width - (nova.x + nova.width))).toBeLessThanOrEqual(2);
+  });
+  await semRolagemHorizontal(page);
+});
 
 for (const largura of LARGURAS) {
   test(`${largura} px: Planos com as pastas em colunas, nunca linhas esticadas`, async ({ page }) => {

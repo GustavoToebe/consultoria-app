@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { LARGURA_EDITOR_DE_CAMPOS } from '../../tema/tokens';
 import { Vazio } from '../../ui/Estados';
 import { CartaoExercicio, type PropsDoCartaoExercicio } from './CartaoExercicio';
 
@@ -28,6 +27,7 @@ export function InspetorDoExercicio({ props, grupo }: { props: PropsDoInspetor |
 }
 
 const estilos = StyleSheet.create({
-  // Na tela larga o painel para em ~1400 px, à esquerda junto da lista; a sobra fica vazia (nunca campo esticado).
-  coluna: { flex: 1, minWidth: 0, maxWidth: LARGURA_EDITOR_DE_CAMPOS },
+  // Sem teto (25/11, Gustavo): o painel ocupa o que sobra da lista (e do resumo, na ultralarga) até a borda do conteúdo.
+  // Abaixo de 1600 px de área nunca passava de ~1200, então o antigo teto de 1400 só valia na tela larga.
+  coluna: { flex: 1, minWidth: 0 },
 });

@@ -354,6 +354,42 @@ describe('GraficoLinha: opções do guia (todas opcionais)', () => {
     expect(obterDica(raiz)).toBeNull();
   });
 
+  it('balão de painel flutuante (superfície + borda, texto na cor do texto) e a parte pintada pela tela', () => {
+    const { ESCURO } = require('../tema/tokens') as typeof import('../tema/tokens');
+    const corDoPonto = jest.fn(() => '#00AA00');
+    const raiz = montarCom({
+      cor: '#123456',
+      textoDaDica: (p) => [`${p.rotulo} · ${p.valor} kg`, { texto: '▲ +1,3 kg', cor: '#00AA00', depois: ' desde 10/10' }],
+      faladoDaDica: (p) => `${p.rotulo}. Subiu 1,3 kg desde 10/10, a favor da meta`,
+      corDoPonto,
+    });
+    const miolos = () => raiz.root.findAllByType(Svg.Circle).filter((c) => c.props.fillOpacity === undefined).map((c) => c.props.fill);
+    // Sem foco nenhum ponto muda.
+    expect(miolos()).toEqual(['#123456', '#123456', '#123456']);
+    Renderer.act(() => obterBotoes(raiz)[1].props.onFocus());
+
+    const dica = obterDica(raiz)!;
+    const estilo = Object.assign({}, ...[dica.props.style].flat(Infinity).filter(Boolean));
+    expect(estilo).toMatchObject({ backgroundColor: ESCURO.superficie, borderColor: ESCURO.borda });
+    const [primeira, segunda] = [dica.props.children].flat();
+    expect(primeira.props.children).toBe('15/10 · 95 kg');
+    expect([primeira.props.style].flat(Infinity)).toContainEqual({ color: ESCURO.texto });
+    // Seta e número na cor da tela; o "desde" segue na cor do texto da linha.
+    const [pintada, depois] = [segunda.props.children.props.children].flat();
+    expect(pintada.props.children).toBe('▲ +1,3 kg');
+    expect([pintada.props.style].flat(Infinity)).toContainEqual({ color: '#00AA00' });
+    expect(depois).toBe(' desde 10/10');
+    expect([segunda.props.style].flat(Infinity)).toContainEqual({ color: ESCURO.texto });
+
+    // Só o miolo do ponto em foco muda; o anel continua na cor da série.
+    expect(miolos()).toEqual(['#123456', '#00AA00', '#123456']);
+    expect(raiz.root.findAllByType(Svg.Circle).find((c) => c.props.fillOpacity === 0.18)!.props.fill).toBe('#123456');
+    expect(corDoPonto).toHaveBeenLastCalledWith(PONTOS_DE_TESTE[1], 1, 'A');
+    // O leitor de tela ouve o texto falado, não a seta.
+    expect(regiaoViva(raiz).props.children).toBe('15/10. Subiu 1,3 kg desde 10/10, a favor da meta');
+    expect(dica.props.accessibilityLabel).toBe('15/10. Subiu 1,3 kg desde 10/10, a favor da meta');
+  });
+
   it('legenda da escala abaixo do gráfico e as duas pontas do eixo rotuladas', () => {
     const legenda = 'Escala vertical: 75 a 100 kg · pontos = registros';
     const raiz = montarCom({ legendaDaEscala: legenda, escala: { min: 75, max: 100 } });

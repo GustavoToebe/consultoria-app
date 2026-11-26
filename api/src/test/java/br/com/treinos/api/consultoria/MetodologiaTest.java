@@ -198,7 +198,9 @@ class MetodologiaTest {
         Map<String, List<Faixa>> regra = Map.of("1", List.of(new Faixa(85, 90)));
         recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, null, regra))), "só em tipo de preparação");
         recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, Map.of("2", List.of(new Faixa(85, null)))))),
-                "2 série(s) precisam de 2 percentual(is)");
+                "2 séries precisam de 2 percentuais");
+        recusa(comTipos(padraoMais(tipo("FS1", Papel.PREPARACAO, null, null, Map.of("1", List.of(new Faixa(0, null)))))),
+                "1 série precisa de 1 percentual");
         recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, Map.of("1", List.of(new Faixa(90, 85)))))),
                 "máximo maior ou igual ao mínimo");
         recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, Map.of("1", List.of(new Faixa(0, null)))))),

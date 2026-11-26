@@ -108,6 +108,7 @@ public class GravacaoDaPlanilha {
     private final ValidadorTreino validador;
     private final JsonMapper json;
     private final GuardaDasRespostas guarda;
+    private final LinhasDaImportacao linhas;
 
     public GravacaoDaPlanilha(ExercicioRepository exercicios, AlimentoRepository alimentos,
                               ErgogenicoRepository ergogenicos, AlunoRepository alunos,
@@ -115,8 +116,9 @@ public class GravacaoDaPlanilha {
                               PlanoDietaRepository dietas, ImportacaoRepository importacoes, ReceitaService receitas,
                               PlanoDaConsultoria plano, ConsultoriaRepository consultorias, Auditoria auditoria,
                               VideoUrls videos, ValidadorTreino validador, JsonMapper json, GuardaDasRespostas guarda,
-                              LimiteDoTreinador limiteDoTreinador) {
+                              LimiteDoTreinador limiteDoTreinador, LinhasDaImportacao linhas) {
         this.limiteDoTreinador = limiteDoTreinador;
+        this.linhas = linhas;
         this.exercicios = exercicios;
         this.alimentos = alimentos;
         this.ergogenicos = ergogenicos;
@@ -158,29 +160,15 @@ public class GravacaoDaPlanilha {
         return AmostraDaPlanilha.de(m, RespostasDaPlanilha.hash(bytes, respostas, json), inicio, contexto.alunos());
     }
 
-    public Confirmacao confirmar(UsuarioAutenticado eu, String nomeDoArquivo, byte[] bytes, String respostasJson,
-                                 String hash) {
-        return confirmar(eu, nomeDoArquivo, bytes, respostasJson, hash, List.of());
-    }
-
     /**
-     * {@code alunosIgnorados} = as posições (de 1, na ordem da amostra) dos alunos que o treinador desmarcou: ficam fora de
-     * tudo o que é gravado. Vêm separadas do {@code hash} de propósito: marcar ou desmarcar um aluno na amostra não
-     * invalida a prévia.
+     * {@code chavesIgnoradas} = a {@code chave} (da amostra) de cada aluno que o treinador desmarcou: ficam fora de tudo o que
+     * é gravado. Vão pela chave, e não pela posição, porque a posição muda se alguém é criado entre a amostra e a
+     * confirmação; e fora do {@code hash} de propósito: marcar ou desmarcar um aluno não invalida a prévia. Chave que não
+     * está mais na planilha é 422 {@code ALUNO_IGNORADO_INVALIDO}.
      */
     @Transactional
     public Confirmacao confirmar(UsuarioAutenticado eu, String nomeDoArquivo, byte[] bytes, String respostasJson,
-                                 String hash, List<Integer> alunosIgnorados) {
-        return confirmar(eu, nomeDoArquivo, bytes, respostasJson, hash, alunosIgnorados, Set.of());
-    }
-
-    /**
-     * {@code alunosIgnorados} = as posições (de 1, na ordem da amostra) dos alunos que o treinador desmarcou: ficam fora de
-     * tudo o que é gravado. {@code chavesIgnoradas} = as chaves estáveis dos donos (linha:N, nome:chave, aluno:id).
-     */
-    @Transactional
-    public Confirmacao confirmar(UsuarioAutenticado eu, String nomeDoArquivo, byte[] bytes, String respostasJson,
-                                 String hash, List<Integer> alunosIgnorados, Set<String> chavesIgnoradas) {
+                                 String hash, Set<String> chavesIgnoradas) {
         RespostasDaPlanilha respostas = RespostasDaPlanilha.ler(respostasJson, json);
         LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler(nomeDoArquivo, bytes);
         String calculado = RespostasDaPlanilha.hash(bytes, respostas, json);
@@ -190,16 +178,18 @@ public class GravacaoDaPlanilha {
         }
         // Antes de ler alunos e contar vagas: duas confirmações na mesma consultoria não correm por e-mail ou vaga.
         Exigir.existe(consultorias.travar(TenantContext.get()), () -> new NaoEncontradoException("Importação não encontrada."));
+        // Depois da trava: duas confirmações simultâneas se enfileiram, e a segunda já enxerga a primeira.
+        exigirAindaNaoConfirmada(calculado);
 
         Montagem completa = MontagemDaImportacao.montar(leitura, respostas, contexto(eu.usuarioId()));
-        Set<Dono> ignorados = donosIgnorados(completa, alunosIgnorados, chavesIgnoradas);
+        Set<Dono> ignorados = donosIgnorados(completa, chavesIgnoradas);
         Montagem antes = completa.semDonos(ignorados);
         Criacao criacao = criacao(antes);
         int total = criacao.alunosNovos() + criacao.pesos() + criacao.exercicios() + criacao.pastas();
         String situacao = total == 0 ? "FALHOU" : antes.problemas().isEmpty() ? "CONCLUIDA" : "CONCLUIDA_COM_ERROS";
         Importacao importacao = importacoes.saveAndFlush(new Importacao(DESTINO, extensao(nomeDoArquivo, bytes),
                 eu.usuarioId(), antes.linhas(), total, antes.alunosReaproveitados(), 0, antes.problemas().size(), situacao,
-                json.writeValueAsString(configuracao(respostas, antes, criacao)), json.writeValueAsString(erros(antes))));
+                json.writeValueAsString(configuracao(respostas, antes, criacao, calculado)), json.writeValueAsString(erros(antes))));
         UUID id = importacao.getId();
 
         // Os exercícios primeiro; a montagem roda de novo para os treinos ligarem aos ids novos.
@@ -262,39 +252,50 @@ public class GravacaoDaPlanilha {
     }
 
     /**
-     * Os donos das posições ignoradas (de 1, na ordem da amostra). Posição fora da lista da planilha é 422; ignorar todos
-     * (nada sobra para gravar) também. Repetida conta uma vez.
+     * Os donos das chaves ignoradas ({@link Dono#chaveEstavel()}, as mesmas da amostra). Chave que não está na planilha é 422;
+     * ignorar todos (nada sobra para gravar) também. Repetida conta uma vez.
      */
-    static Set<Dono> donosIgnorados(Montagem m, List<Integer> posicoes) {
-        return donosIgnorados(m, posicoes, Set.of());
-    }
-
-    static Set<Dono> donosIgnorados(Montagem m, List<Integer> posicoes, Set<String> chaves) {
-        if ((posicoes == null || posicoes.isEmpty()) && (chaves == null || chaves.isEmpty())) {
+    static Set<Dono> donosIgnorados(Montagem m, Set<String> chaves) {
+        if (chaves == null || chaves.isEmpty()) {
             return Set.of();
         }
         List<Dono> ordem = AmostraDaPlanilha.ordemDosDonos(m);
         Set<Dono> ignorados = new HashSet<>();
-        if (posicoes != null && !posicoes.isEmpty()) {
-            for (Integer n : posicoes) {
-                if (n == null || n < 1 || n > ordem.size()) {
-                    throw new ValidacaoException("Um aluno marcado para ignorar não está na planilha. Gere a prévia de novo.",
-                            "ALUNO_IGNORADO_INVALIDO", List.of());
-                }
-                ignorados.add(ordem.get(n - 1));
+        Set<String> achadas = new HashSet<>();
+        for (Dono d : ordem) {
+            if (chaves.contains(d.chaveEstavel())) {
+                ignorados.add(d);
+                achadas.add(d.chaveEstavel());
             }
         }
-        if (chaves != null && !chaves.isEmpty()) {
-            for (Dono d : ordem) {
-                if (chaves.contains(d.chaveEstavel()) || (d.chave() != null && chaves.contains(d.chave()))) {
-                    ignorados.add(d);
-                }
-            }
+        if (!achadas.containsAll(chaves)) {
+            throw new ValidacaoException("Um aluno marcado para ignorar não está mais na planilha. Gere a prévia de novo.",
+                    "ALUNO_IGNORADO_INVALIDO", List.of());
         }
         if (ignorados.size() == ordem.size()) {
             throw new ValidacaoException("Marque pelo menos um aluno para importar.", "NENHUM_ALUNO_MARCADO", List.of());
         }
         return ignorados;
+    }
+
+    /**
+     * A mesma planilha (mesmo {@code hash}: arquivo e respostas) não entra duas vezes na consultoria: reenviar depois de
+     * perder a resposta daria outra pasta por aluno e exercícios "criar" repetidos. Vale só enquanto a importação anterior
+     * ainda tem o que criou; depois de um "Desfazer" completo, dá para importar de novo.
+     * shortcut: lê as importações da planilha completa da consultoria e compara o hash em memória (são poucas), trocar por
+     * coluna própria se passarem de algumas centenas.
+     */
+    private void exigirAindaNaoConfirmada(String hash) {
+        var anteriores = importacoes.buscar(List.of(DESTINO), DESTINO, null, "", Instant.EPOCH,
+                Instant.parse("9999-12-31T00:00:00Z"), org.springframework.data.domain.Pageable.unpaged());
+        for (Importacao i : anteriores) {
+            if (hash.equals(json.readTree(i.getConfiguracao()).path("hash").asString(""))
+                    && (!linhas.pastas(i.getId()).isEmpty() || !linhas.alunos(i.getId()).isEmpty()
+                    || !linhas.exercicios(i.getId()).isEmpty() || !linhas.pesos(i.getId()).isEmpty())) {
+                throw new ConflictException("Esta planilha já foi importada. Veja o histórico; se for importar de novo, "
+                        + "desfaça a importação anterior antes.", "IMPORTACAO_JA_CONFIRMADA");
+            }
+        }
     }
 
     /** O que a montagem precisa da consultoria, lido pelos repositórios (já filtrados pelo {@code @TenantId}). */
@@ -410,8 +411,8 @@ public class GravacaoDaPlanilha {
     }
 
     /**
-     * Histórico: aba e linha, campo e o código do problema; nunca o valor da célula. A aba que tem o nome de um aluno
-     * (aba de um aluno ou em blocos) vira "Aba N": o histórico fica um ano e não leva nome de aluno.
+     * Histórico: aba e linha, campo e o código do problema; nunca o valor da célula. A aba é sempre "Aba N" (o nome dela pode
+     * ser o de um aluno e o histórico fica um ano).
      */
     static List<Erro> erros(Montagem m) {
         List<Erro> erros = new ArrayList<>();
@@ -419,15 +420,16 @@ public class GravacaoDaPlanilha {
             if (erros.size() == ERROS_GUARDADOS) {
                 break;
             }
-            String aba = m.abasComNomeDeAluno().getOrDefault(p.aba(), p.aba());
+            String aba = m.abasComNomeDeAluno().getOrDefault(p.aba(), "Aba");
             erros.add(new Erro(p.linha(), p.campo() == null ? "" : p.campo(), aba + ": " + p.tipo()));
         }
         return erros;
     }
 
     /** A configuração guardada: tipos confirmados das abas, partes puladas e contagens. Sem nomes nem respostas de nomes. */
-    private static Map<String, Object> configuracao(RespostasDaPlanilha respostas, Montagem m, Criacao criacao) {
+    private static Map<String, Object> configuracao(RespostasDaPlanilha respostas, Montagem m, Criacao criacao, String hash) {
         Map<String, Object> c = new LinkedHashMap<>();
+        c.put("hash", hash); // o da prévia (arquivo + respostas): a confirmação repetida é recusada por ele
         Map<String, String> abas = new LinkedHashMap<>();
         respostas.abas().forEach(a -> abas.put(String.valueOf(a.indice()), a.tipo()));
         c.put("tiposDasAbas", abas);

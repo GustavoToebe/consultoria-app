@@ -8,7 +8,7 @@ import {
   previaDaPlanilhaCompleta,
 } from '../../../api/rotas';
 import type { AnaliseDaPlanilha, ConfirmacaoDaPlanilha, PerguntaDaPlanilha, PreviaDaPlanilha, RespostasDaPlanilha } from '../../../api/tipos';
-import { TODOS_IGNORADOS, alternarIgnorado, todosIgnorados } from '../../../dominio/amostraDaPlanilha';
+import { TODOS_IGNORADOS, alternarIgnorado, avisoDeVagaAoIgnorar, textoDosIgnoradosSemAmostra, todosIgnorados, type AlunoIgnorado } from '../../../dominio/amostraDaPlanilha';
 import { tipoDoArquivo } from '../../../dominio/assistenteDaImportacao';
 import {
   AVISO_PREENCHIDO_AUTOMATICAMENTE, AVISO_RESPONDIDO_ANTES, ETAPA_AMOSTRA, ETAPA_PREVIA, ETAPA_RESULTADO, NOMES_POR_PAGINA, ROTULOS_DO_DESTINO, SEM_RESPOSTAS, abaRespondidaAntes, alertaDoResultado,
@@ -49,13 +49,20 @@ const LARGURA_ESTREITA = 600;
 /** Quantas tabelas de uma aba em blocos a lista mostra (o resto só conta). */
 const BLOCOS_MOSTRADOS = 30;
 
-/** FormData da planilha completa: o arquivo e, quando há, as respostas como JSON na parte `respostas`. */
-async function formularioDaPlanilha(arquivo: ArquivoEscolhido, respostas?: RespostasDaPlanilha): Promise<FormData> {
+/** Uma parte JSON do FormData (na web um Blob `application/json`, no celular o texto). */
+function parteJson(dados: FormData, nome: string, valor: unknown) {
+  const json = JSON.stringify(valor);
+  dados.append(nome, Platform.OS === 'web' ? new Blob([json], { type: 'application/json' }) : json);
+}
+
+/**
+ * FormData da planilha completa: o arquivo e, quando há, as respostas como JSON na parte `respostas` e as chaves dos alunos
+ * ignorados na parte `chavesIgnoradas` (a chave pode ter o nome do aluno: nunca no endereço).
+ */
+async function formularioDaPlanilha(arquivo: ArquivoEscolhido, respostas?: RespostasDaPlanilha, chavesIgnoradas: readonly string[] = []): Promise<FormData> {
   const dados = await formulario(arquivo);
-  if (respostas) {
-    const json = JSON.stringify(respostas);
-    dados.append('respostas', Platform.OS === 'web' ? new Blob([json], { type: 'application/json' }) : json);
-  }
+  if (respostas) parteJson(dados, 'respostas', respostas);
+  if (chavesIgnoradas.length > 0) parteJson(dados, 'chavesIgnoradas', chavesIgnoradas);
   return dados;
 }
 
@@ -97,8 +104,11 @@ export function AssistenteDaPlanilha() {
     avisar('A amostra não está disponível agora. Confira a prévia e confirme.', 'atencao');
   });
   const comAmostra = migracaoAssistidaHabilitada && !amostra.indisponivel;
-  /** Alunos desmarcados na amostra (`numero` de 1). Valem só para a amostra atual: a posição muda com o arquivo e as respostas. */
-  const [ignorados, setIgnorados] = useState<number[]>([]);
+  /**
+   * Alunos desmarcados na amostra. Valem só para o arquivo e as respostas atuais (qualquer mudança os limpa) e seguem valendo
+   * se a amostra ficar indisponível depois: a confirmação manda a `chave` deles, não a posição.
+   */
+  const [ignorados, setIgnorados] = useState<AlunoIgnorado[]>([]);
   const limparAmostra = () => {
     amostra.limpar();
     setIgnorados([]);
@@ -165,13 +175,23 @@ export function AssistenteDaPlanilha() {
     if (!arquivo || !analise || !previa) return;
     setOcupado(true);
     setErro(null);
-    formularioDaPlanilha(arquivo, respostasParaApi(analise, respostas))
-      .then((dados) => confirmarPlanilhaCompleta(dados, amostra.hash ?? previa.hash, etapa === ETAPA_AMOSTRA ? ignorados : [])).then((r) => {
+    // Os ignorados vão sempre (a amostra pode ter ficado indisponível depois de eles serem marcados).
+    formularioDaPlanilha(arquivo, respostasParaApi(analise, respostas), ignorados.map((i) => i.chave))
+      .then((dados) => confirmarPlanilhaCompleta(dados, amostra.hash ?? previa.hash)).then((r) => {
         setResultado(r);
         setOcupado(false);
         setEtapa(ETAPA_RESULTADO);
       }, (e: unknown) => {
         setOcupado(false);
+        if (codigoApi(e) === 'ALUNO_IGNORADO_INVALIDO') {
+          // Um aluno marcado já não está na planilha lida agora: a lista não vale mais, e a prévia precisa ser refeita.
+          setPrevia(null);
+          limparAmostra();
+          setDesatualizada(true);
+          setEtapa(ETAPA_PREVIA);
+          setErro(e);
+          return;
+        }
         if (codigoApi(e) === 'PREVIA_DESATUALIZADA') {
           // O arquivo ou as respostas mudaram: a prévia antiga não vale e precisa ser gerada de novo.
           setPrevia(null);
@@ -225,7 +245,7 @@ export function AssistenteDaPlanilha() {
 
   // Na amostra, a confirmação espera só a primeira página (o hash); se ela falhou, vale o hash da prévia.
   const esperandoAmostra = etapa === ETAPA_AMOSTRA && !amostra.hash && amostra.carregando;
-  const semAlunoMarcado = etapa === ETAPA_AMOSTRA && !!amostra.pagina && todosIgnorados(amostra.pagina.total, ignorados);
+  const semAlunoMarcado = !!amostra.pagina && todosIgnorados(amostra.pagina.total, ignorados);
   const botoes = etapa === ETAPA_RESULTADO ? (
     <Botao rotulo="Concluir" aoTocar={aoConcluir} />
   ) : (
@@ -282,12 +302,21 @@ export function AssistenteDaPlanilha() {
               </Cartao>
             ) : null}
             {ocupado && !previa && !desatualizada ? <><Texto variante="suave">Montando a prévia…</Texto><Esqueleto cartoes={1} /></> : null}
+            {amostra.indisponivel && ignorados.length > 0 ? <Alerta tom="atencao" texto={textoDosIgnoradosSemAmostra(ignorados.length)} /> : null}
             {previa ? <Previa previa={previa} /> : null}
           </>
         ) : null}
 
-        {etapa === ETAPA_AMOSTRA && previa ? <EtapaDaAmostra amostra={amostra} partesPuladas={previa.partesPuladas} ignorados={ignorados}
-          aoAlternarIgnorado={(n) => setIgnorados((atuais) => alternarIgnorado(atuais, n))} /> : null}
+        {etapa === ETAPA_AMOSTRA && previa ? (
+          <>
+            {avisoDeVagaAoIgnorar(ignorados.length, previa.problemasPorTipo) ? <Alerta tom="atencao" texto={avisoDeVagaAoIgnorar(ignorados.length, previa.problemasPorTipo) ?? ''} /> : null}
+            <EtapaDaAmostra amostra={amostra} partesPuladas={previa.partesPuladas} ignorados={ignorados.map((i) => i.numero)}
+              aoAlternarIgnorado={(n) => {
+                const aluno = amostra.pagina?.alunos.find((a) => a.numero === n);
+                if (aluno) setIgnorados((atuais) => alternarIgnorado(atuais, aluno));
+              }} />
+          </>
+        ) : null}
 
         {etapa === ETAPA_RESULTADO && resultado ? <Resultado resultado={resultado} /> : null}
         {etapa < ETAPA_RESULTADO ? <Texto variante="pequeno" cor={cores.textoSuave}>Nada foi gravado ainda. O arquivo, a leitura e as suas respostas ficam só nesta tela.</Texto> : null}

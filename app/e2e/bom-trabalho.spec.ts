@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 import type { PainelAluno, RecordesDoPacote, RegistroSessaoConcluidaEnvio, SessoesConcluidasResponse } from '../src/api/tipos';
-import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, fazerSerie } from './aluno';
 import { CLARO, PALETA_DE_DESTAQUE } from '../src/tema/tokens';
 import { ALUNO, json, sessao, simularApi } from './api-falsa';
 
@@ -61,9 +61,9 @@ async function abrir(page: Page, ligada = true) {
   return { ...api, conclusoes };
 }
 
-const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Peso da série ${n}, em quilos`, exact: true });
+const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Carga da série ${n}, em quilos`, exact: true });
 const reps = (page: Page, n: number) => page.getByRole('textbox', { name: `Repetições da série ${n}`, exact: true });
-const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true }).click();
+const marcar = (page: Page, n: number) => fazerSerie(page, n);
 const folha = (page: Page) => page.getByRole('dialog', { name: 'Concluir treino' });
 const cartao = (page: Page) => page.getByRole('img', { name: /^Cartão do treino/ });
 

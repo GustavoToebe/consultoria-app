@@ -8,6 +8,7 @@ import br.com.treinos.api.alunos.dto.MeusDadosResponse;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
+import br.com.treinos.api.consultoria.RedesSociais;
 import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.web.Formatos;
@@ -65,6 +66,12 @@ public class MeusDadosDoAlunoService {
         String telefone = AlunoService.Dados.formato(erros, "telefone", Formatos::telefone, r.telefone());
         String cpf = AlunoService.Dados.formato(erros, "cpf", Formatos::cpf, r.cpf());
         Endereco endereco = AlunoService.Dados.endereco(erros, r.endereco());
+        String instagram = AlunoService.Dados.rede(erros, "instagram", RedesSociais.Rede.INSTAGRAM, r.instagram());
+        String tiktok = AlunoService.Dados.rede(erros, "tiktok", RedesSociais.Rede.TIKTOK, r.tiktok());
+        String youtube = AlunoService.Dados.link(erros, "youtube", RedesSociais.Rede.YOUTUBE, r.youtube());
+        String facebook = AlunoService.Dados.link(erros, "facebook", RedesSociais.Rede.FACEBOOK, r.facebook());
+        String linkedin = AlunoService.Dados.link(erros, "linkedin", RedesSociais.Rede.LINKEDIN, r.linkedin());
+        String telegram = AlunoService.Dados.link(erros, "telegram", RedesSociais.Rede.TELEGRAM, r.telegram());
         Sexo sexo = Sexo.ler(r.sexo());
         if (sexo == null && r.sexo() != null && !r.sexo().isBlank()) {
             erros.add(new ApiError.FieldError("sexo", AlunoService.SEXO_INVALIDO));
@@ -91,6 +98,9 @@ public class MeusDadosDoAlunoService {
         boolean mudaTelefone = !Objects.equals(usuario == null ? null : usuario.getTelefone(), telefone);
         boolean mudaEndereco = !Objects.equals(aluno.endereco(), endereco);
         boolean mudaSexo = !Objects.equals(aluno.getSexo(), sexo);
+        boolean mudaRedes = !Objects.equals(aluno.getInstagram(), instagram) || !Objects.equals(aluno.getTiktok(), tiktok)
+                || !Objects.equals(aluno.getYoutube(), youtube) || !Objects.equals(aluno.getFacebook(), facebook)
+                || !Objects.equals(aluno.getLinkedin(), linkedin) || !Objects.equals(aluno.getTelegram(), telegram);
 
         if (mudaTelefone) {
             alunoService.trocarTelefone(aluno, r.telefone() == null ? "" : r.telefone(), telefone);
@@ -104,7 +114,10 @@ public class MeusDadosDoAlunoService {
         if (mudaSexo) {
             alunoService.aplicarSexo(aluno, sexo == null ? null : sexo.name()); // desliga o ciclo se deixou de ser feminino
         }
-        if (mudaTelefone || mudaCpf || mudaEndereco || mudaSexo) {
+        if (mudaRedes) {
+            aluno.alterarRedes(instagram, tiktok, youtube, facebook, linkedin, telegram);
+        }
+        if (mudaTelefone || mudaCpf || mudaEndereco || mudaSexo || mudaRedes) {
             aluno.tocar(); // a versão sobe mesmo quando só o telefone (que mora no usuário) mudou
             aluno = alunoService.gravar(aluno); // traduz a corrida do índice do CPF em 409 ALUNO_CPF_EM_USO
             auditoria.registrarEvento("ALUNO_DADOS_ALTERADOS_PELO_ALUNO", "ALUNO", aluno.getId(), RESUMO);

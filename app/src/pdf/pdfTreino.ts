@@ -19,6 +19,7 @@ import {
 } from '../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { rotuloDoDia, rotuloDoTipo, sessoesDaSemana } from '../dominio/semana';
+import { tituloDoPlano } from '../dominio/tituloDoPlano';
 import { descansoSoDoGrupo, detalheDoBloco } from '../dominio/textoDoGrupo';
 import { cabecalhoDoPdf, cssBase, esc, escLinhas, link, type Documento } from './html';
 
@@ -211,6 +212,7 @@ export function documentoTreino(d: DadosPdfTreino): Documento {
   const metodologia = d.conteudo.metodologia?.configuracao;
   if (metodologia) d = { ...d, instrucoesTreino: metodologia.instrucoesTreino, rodapePdf: metodologia.rodapePdf };
   const c = d.conteudo;
+  const titulo = tituloDoPlano(d.titulo, 'treino', d.aluno);
   const periodo = d.inicio || d.fim ? `${dataParaTela(d.inicio) || '—'} a ${dataParaTela(d.fim) || '—'}` : null;
   const semana = DIAS_SEMANA.map((dia, i) => {
     const nomes = c.sessoes.filter((s) => s.diaSemana === i + 1).map((s) => esc(s.nome));
@@ -222,7 +224,7 @@ export function documentoTreino(d: DadosPdfTreino): Documento {
       marca: d.marca,
       logoDataUri: d.logoDataUri,
       documento: 'Treino',
-      titulo: d.titulo,
+      titulo,
       versao: d.versao,
       aluno: d.aluno,
       periodo,
@@ -238,5 +240,5 @@ export function documentoTreino(d: DadosPdfTreino): Documento {
     d.instrucoesTreino?.trim() ? blocoInstrucoes(d.instrucoesTreino) : '',
     d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',
   ].join('\n');
-  return { titulo: `Treino - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf) + CSS_INSTRUCOES, corpo };
+  return { titulo: `Treino - ${d.aluno} - ${titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf) + CSS_INSTRUCOES, corpo };
 }

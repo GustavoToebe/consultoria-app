@@ -31,8 +31,7 @@ for (const [onde, largura] of [['PC', 1280], ['celular', 390]] as const) {
     await page.keyboard.press('Enter');
     const folha = page.getByRole('dialog', { name: 'Escolher exercício' });
     await expect(folha).toBeVisible();
-    // Um só diálogo na árvore de acessibilidade (antes eram dois aninhados: o do Modal, sem nome, e o do painel). O balão do
-    // ⓘ do cabeçalho (`AjudaDoCabecalho`) fica no DOM com `role=dialog` e `display:none` para o `aria-controls`: não conta.
+    // Um só diálogo na árvore de acessibilidade (antes eram dois aninhados: o do Modal, sem nome, e o do painel).
     await expect(page.getByRole('dialog')).toHaveCount(1);
     await expect(folha).toHaveAttribute('aria-modal', 'true');
     await expect.poll(() => focoDentro(page)).toBe(true);

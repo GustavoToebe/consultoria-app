@@ -4,8 +4,9 @@ import type { Alimento, ConteudoDieta, ItemDieta, PlanoDetalhe, Refeicao } from 
 import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
- * Opções em abas (19/11): com duas ou mais opções, a comparação dos totais, as abas (padrão Tabs da APG: setas, Home/End,
- * a aberta com `aria-selected`) e a opção aberta na largura toda; com uma só, nada de abas e o "+ Opção" discreto. O
+ * Opções em abas (19/11; 25/11 à noite: a barra aparece também com uma opção, com o "+ Nova opção" tracejado no fim e o
+ * ⋯ da aba aberta, que exclui): com duas ou mais opções, também a comparação dos totais; as abas seguem o padrão Tabs da
+ * APG (setas, Home/End, a aberta com `aria-selected`) e a opção aberta fica na largura toda. O
  * "Trocar alimento" (secundário compacto) fica embaixo do nome na tabela e com as ações no empilhado. Só dados fictícios.
  * Com `CAPTURAS=<pasta>`, guarda as telas (tema escuro).
  */
@@ -79,6 +80,14 @@ async function abrirRefeicao(page: Page, largura: number, posicao: number, titul
 const abasDoAlmoco = (page: Page) => page.getByRole('tablist', { name: 'Opções de 12:00 · Almoço' });
 const aba = (page: Page, rotulo: string) => abasDoAlmoco(page).getByRole('tab', { name: new RegExp(`^Opção ${rotulo},`) });
 
+/** O primeiro fundo pintado do botão (ele ou o que está dentro dele). */
+const fundoDe = (l: ReturnType<Page['getByRole']>) =>
+  l.evaluate((el) => [el, ...el.querySelectorAll('*')].map((e) => getComputedStyle(e).backgroundColor).find((c) => c !== 'rgba(0, 0, 0, 0)'));
+/** O círculo da aba: a letra e o fundo (preenchido na cor de ação só na aberta). */
+const circuloDa = (page: Page, rotulo: string) => aba(page, rotulo).getByTestId('marcador-de-opcao')
+  .evaluate((el) => ({ letra: el.textContent, fundo: getComputedStyle(el).backgroundColor }));
+const sublinhadoDa = (page: Page, rotulo: string) => aba(page, rotulo).evaluate((el) => getComputedStyle(el).borderBottomColor);
+
 /** Captura (só com `CAPTURAS`): a refeição inteira e, para o contexto, a janela com ela no topo. */
 async function capturar(page: Page, id: string, nome: string) {
   const pasta = process.env.CAPTURAS;
@@ -94,12 +103,12 @@ async function capturar(page: Page, id: string, nome: string) {
 }
 
 for (const largura of [1280, 390, 1920]) {
-  test(`uma opção sem abas, três opções em abas com a comparação, a aberta na largura toda (${largura}, escuro)`, async ({ page }) => {
+  test(`uma opção com a barra, três opções em abas com a comparação, a aberta na largura toda (${largura}, escuro)`, async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await abrir(page, largura);
     if (largura < 1280) await abrirRefeicao(page, largura, 1, '07:00 · Café da manhã');
     const cafe = page.locator('#refeicao-cafe');
-    // Uma opção: sem abas nem comparação; o "+ Opção" discreto e um "Trocar alimento" por alimento da biblioteca.
-    await expect(cafe.getByRole('tablist')).toHaveCount(0);
+    // Uma opção: a barra com a A e o "+ Nova opção", sem comparação; um "Trocar alimento" por alimento da biblioteca.
+    await expect(cafe.getByRole('tablist').getByRole('tab')).toHaveCount(1);
     await expect(cafe.getByRole('group', { name: 'Comparação das opções' })).toHaveCount(0);
     await expect(cafe.getByRole('button', { name: 'Adicionar opção em 07:00 · Café da manhã' })).toBeVisible();
     await expect(cafe.getByRole('button', { name: /^Trocar alimento: / })).toHaveCount(4);
@@ -116,13 +125,26 @@ for (const largura of [1280, 390, 1920]) {
     const comparacao = almoco.getByRole('group', { name: 'Comparação das opções' });
     await expect(comparacao.getByRole('button')).toHaveCount(3);
     // O painel da aba: rótulo dela no `tabpanel` (Radix liga o painel à aba).
-    await expect(page.getByRole('tabpanel', { name: /^Opção A,/ })).toBeVisible();
+    await expect(almoco.getByRole('tabpanel', { name: /^Opção A,/ })).toBeVisible();
     await expect(almoco.getByRole('group', { name: 'Total da opção A' })).toBeVisible();
+    // 25/11: o "+ Nova opção" é um só, tracejado e sem fundo; o `acao` da área é o "Adicionar alimento" (o fundo do
+    // "Adicionar refeição"). Cada aba começa pelo círculo com a letra, preenchido na cor da aba aberta (a do sublinhado)
+    // só nela; com poll, porque a cor transita.
+    const mais = almoco.getByRole('button', { name: 'Adicionar opção em 12:00 · Almoço' });
+    await expect(mais).toHaveCount(1);
+    expect(await fundoDe(mais)).toBeUndefined();
+    expect(await fundoDe(almoco.getByRole('button', { name: 'Adicionar alimento na opção A' })))
+      .toBe(await fundoDe(page.getByRole('button', { name: 'Adicionar refeição' })));
+    await expect.poll(async () => (await circuloDa(page, 'A')).fundo === (await sublinhadoDa(page, 'A'))).toBe(true);
+    expect((await circuloDa(page, 'A')).letra).toBe('A');
+    await expect.poll(async () => (await circuloDa(page, 'B')).fundo).toBe('rgba(0, 0, 0, 0)');
     await capturar(page, 'almoco', `3-opcoes-aba-A-${largura}-escuro`);
 
     await aba(page, 'B').click();
     await expect(aba(page, 'B')).toHaveAttribute('aria-selected', 'true');
     await expect(almoco.getByRole('group', { name: 'Total da opção B' })).toBeVisible();
+    await expect.poll(async () => (await circuloDa(page, 'B')).fundo === (await sublinhadoDa(page, 'B'))).toBe(true);
+    await expect.poll(async () => (await circuloDa(page, 'A')).fundo).toBe('rgba(0, 0, 0, 0)');
     await expect(almoco.getByRole('group', { name: 'Total da opção A' })).toHaveCount(0);
     await expect(almoco.getByText(FRANGO.nome, { exact: true })).toHaveCount(0);
     // A aba aberta cabe inteira na faixa das abas (o selo da A vai na linha de baixo); em 1280, as três cabem.
@@ -139,7 +161,7 @@ for (const largura of [1280, 390, 1920]) {
       // Tabela (em 1280 com o menu aberto desde 20/11): o "Trocar alimento" embaixo do nome, e cada número do total
       // embaixo da coluna dele.
       await aba(page, 'A').click();
-      const titulo = (await page.getByRole('tabpanel').getByText('Kcal', { exact: true }).boundingBox())!;
+      const titulo = (await almoco.getByRole('tabpanel').getByText('Kcal', { exact: true }).boundingBox())!;
       const total = (await almoco.getByRole('group', { name: 'Total da opção A' }).getByText('383', { exact: true }).boundingBox())!;
       expect(Math.abs(total.x + total.width - (titulo.x + titulo.width))).toBeLessThan(2);
       const nome = (await almoco.getByText(ARROZ.nome, { exact: true }).boundingBox())!;
@@ -179,9 +201,9 @@ test('teclado nas abas (APG): setas movem e abrem, Home e End vão às pontas', 
   await expect(aba(page, 'A')).toHaveAttribute('tabindex', '0');
 });
 
-test('criar abre a opção nova com o foco na aba; excluir pede confirmação com itens e abre a vizinha; Desfazer devolve', async ({ page }) => {
+test('criar abre a opção nova com o foco na aba; o ⋯ exclui, pede confirmação com itens e abre a vizinha; Desfazer devolve', async ({ page }) => {
   const { naoTratadas, errosDaPagina } = await abrir(page, 1280, false);
-  // Com uma opção só, o "+ Opção" cria a B e as abas aparecem com ela aberta.
+  // Com uma opção só, o "+ Nova opção" cria a B, aberta e com o foco.
   await page.getByRole('button', { name: 'Adicionar opção em 07:00 · Café da manhã' }).click();
   const abaNova = page.getByRole('tablist', { name: 'Opções de 07:00 · Café da manhã' }).getByRole('tab', { name: /^Opção B,/ });
   await expect(abaNova).toHaveAttribute('aria-selected', 'true');
@@ -190,21 +212,24 @@ test('criar abre a opção nova com o foco na aba; excluir pede confirmação co
 
   await abrirRefeicao(page, 1280, 2, '12:00 · Almoço');
   await aba(page, 'B').click();
-  await page.getByRole('button', { name: 'Excluir opção B' }).click();
+  await page.getByRole('button', { name: 'Mais ações da opção B' }).click();
+  await page.getByText('Excluir opção', { exact: true }).click();
   const dialogo = page.getByRole('alertdialog', { name: 'Excluir a opção B?' });
   await expect(dialogo).toBeVisible();
   await dialogo.getByRole('button', { name: 'Excluir opção' }).click();
-  await expect(aba(page, 'B')).toHaveCount(0);
-  // A vizinha (a C, que agora é a segunda) abre com o foco nela.
-  await expect(aba(page, 'C')).toHaveAttribute('aria-selected', 'true');
-  await expect(aba(page, 'C')).toBeFocused();
+  // A letra segue a posição (26/11): a C vira a B ao excluir a B, e não sobra C.
+  await expect(aba(page, 'C')).toHaveCount(0);
+  // A vizinha (a antiga C, que agora é a B, a segunda) abre com o foco nela.
+  await expect(aba(page, 'B')).toHaveAttribute('aria-selected', 'true');
+  await expect(aba(page, 'B')).toBeFocused();
   await expect(page.getByText('Opção B removida.')).toBeVisible();
   await page.getByRole('button', { name: 'Desfazer' }).click();
   await expect(aba(page, 'B')).toHaveCount(1);
 
   // A C está vazia: sai sem perguntar.
   await aba(page, 'C').click();
-  await page.getByRole('button', { name: 'Excluir opção C' }).click();
+  await page.getByRole('button', { name: 'Mais ações da opção C' }).click();
+  await page.getByText('Excluir opção', { exact: true }).click();
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await expect(aba(page, 'C')).toHaveCount(0);
   expect(naoTratadas).toEqual([]);

@@ -41,7 +41,7 @@ public class InscricaoDoAluno {
                 i.getPrevisaoInicio(), i.getOrigemInformada(), i.temProposta() ? new PropostaExportada(
                         i.getPropostaPlanoNome(), i.getPropostaModalidade(), i.getPropostaPeriodicidade(),
                         i.getPropostaValorCentavos(), i.getPropostaCondicoes()) : null,
-                i.getQuestionarioVersaoId(), i.getRespostas() == null ? null : json.readTree(i.getRespostas()))))
+                i.getQuestionarioVersaoId(), i.getRespostas() == null ? null : json.readTree(i.getRespostas()), i.getInstagram())))
                 .orElse(List.of());
     }
 

@@ -40,6 +40,11 @@ public class PlanoDietaService extends PlanoServiceBase<PlanoDieta, PlanoDietaVe
     }
 
     @Override
+    protected String tipoDoTitulo() {
+        return "Dieta";
+    }
+
+    @Override
     protected PlanoDietaVersao novaVersao(PlanoDieta plano, int numero, String conteudo, UUID publicadoPor,
                                           Instant quando) {
         return new PlanoDietaVersao(plano, numero, conteudo, publicadoPor, quando);

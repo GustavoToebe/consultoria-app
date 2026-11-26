@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { BookOpen, FileText, IdCard, KeyRound, LogOut, SlidersHorizontal } from 'lucide-react-native';
+import { AtSign, BookOpen, FileText, IdCard, KeyRound, LogOut, SlidersHorizontal } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
@@ -11,6 +11,7 @@ import { linkParaFalarComOTreinador } from '../../dominio/contatoDaConsultoria';
 import { resumoDoPerfil, resumoDosDados, secoesVisiveis, type ChaveDaSecao } from '../../dominio/contaDoAluno';
 import { situacaoDoConvite } from '../../dominio/convidarAmigo';
 import { corDoPerfil, molduraDoPerfil, nomeParaColegas } from '../../dominio/perfilDaComunidade';
+import { redesPreenchidas } from '../../dominio/redesSociais';
 import { avisoAoSairComPendencias, diasDeAguaNaoEnviados, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from '../../dominio/treinosNaoEnviados';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -23,6 +24,7 @@ import { Folha } from '../../ui/Folha';
 import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { IconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { PreferenciasDoApp, RestaurarPreferencias } from '../../ui/PreferenciasDoApp';
+import { RedesSociais } from '../../ui/RedesSociais';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { sobre } from '../../ui/sobre';
 import { Tela } from '../../ui/Tela';
@@ -109,6 +111,7 @@ export function TelaDaConta() {
   const nome = nomeParaColegas(lido?.exibicaoDoNome, meus?.nome ?? sessao.usuario?.nome, meus?.apelido);
   const tom = corDoTomDoPerfil(corDoPerfil(lido?.cor).tom, variante);
   const linkDoTreinador = linkParaFalarComOTreinador(sessao.whatsappDaConsultoria);
+  const redesDaConsultoria = redesPreenchidas(sessao.redesSociaisDaConsultoria);
   const resumoDoMeuPerfil = lido && meus
     ? `${nome} · ${resumoDoPerfil(meus.apelido, lido.destaques.length, lido.reservadoEfetivo)}`
     : perfil.erro || dados.erro ? 'Não foi possível carregar. Abra para tentar de novo.' : 'Carregando seu perfil…';
@@ -173,6 +176,12 @@ export function TelaDaConta() {
                 <LinhaDaConta titulo="Falar com o treinador" resumo="Abre o WhatsApp da consultoria" Icone={IconeWhatsApp} semSeta
                   aoTocar={() => void Linking.openURL(linkDoTreinador).catch(() => avisar('Não foi possível abrir o WhatsApp.', 'perigo'))} />
               ) : null}
+              {/* O WhatsApp fica na linha "Falar com o treinador" acima (um botão só); a peça traz só as redes. */}
+              {redesDaConsultoria.length ? (
+                <LinhaDaConta titulo="Redes da consultoria" resumo="Abrem fora do app" Icone={AtSign}>
+                  <View style={estilos.redes}><RedesSociais modo="leitura" redes={redesDaConsultoria} /></View>
+                </LinhaDaConta>
+              ) : null}
               <LinhaDaConta titulo="Ajuda" resumo="Primeiros passos e tutorial" Icone={BookOpen} href="/aluno/ajuda" />
             </SecaoDaConta>
             <CartaoExcluirConta />
@@ -217,6 +226,8 @@ const estilos = StyleSheet.create({
   secoes: { gap: espaco(3) },
   direita: { flex: 1, minWidth: 0, maxWidth: LARGURA_FORMULARIO },
   mini: { width: 36, alignItems: 'center' },
+  // O alvo de 44 tem 2 px de folga em volta do círculo: o recuo negativo alinha o primeiro círculo ao texto de cima.
+  redes: { marginTop: espaco(1), marginLeft: -2 },
   indice: { gap: 2 },
   itemDoIndice: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.5), borderRadius: RAIO_CONTROLE },
 });

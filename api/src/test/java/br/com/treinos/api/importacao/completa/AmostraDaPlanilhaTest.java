@@ -153,7 +153,7 @@ class AmostraDaPlanilhaTest {
         AlunoNovo a3 = novo(3);
         Montagem m = montagem(List.of(a2, a3), List.of(), List.of());
 
-        Set<Dono> ignorados = GravacaoDaPlanilha.donosIgnorados(m, List.of(), Set.of("linha:3"));
+        Set<Dono> ignorados = GravacaoDaPlanilha.donosIgnorados(m, Set.of("linha:3"));
         assertThat(ignorados).containsExactly(a3.dono());
 
         Montagem filtrada = m.semDonos(ignorados);

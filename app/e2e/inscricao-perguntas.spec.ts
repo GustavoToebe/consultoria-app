@@ -70,7 +70,7 @@ for (const largura of [390, 1440]) {
     await page.getByRole('radiogroup', { name: 'Melhor horário' }).getByRole('radio', { name: 'Noite', exact: true }).click();
     // As respostas ficam só na memória: a guia guarda o contato e nada mais.
     const salvo = await page.evaluate((c) => window.sessionStorage.getItem(`inscricao_${c}`), CODIGO);
-    expect(JSON.parse(salvo!)).toEqual({ nome: 'Pessoa Fictícia', whatsapp: '(11) 98765-4321', email: '' });
+    expect(JSON.parse(salvo!)).toEqual({ nome: 'Pessoa Fictícia', whatsapp: '(11) 98765-4321', email: '', instagram: '' });
     expect(salvo).not.toContain('Academia do bairro');
     await page.getByRole('button', { name: 'Enviar inscrição' }).click();
 
@@ -165,6 +165,9 @@ for (const largura of [390, 1280]) {
     await expect.poll(() => pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === '/inscricoes/configuracao/campos-ocultos').length).toBe(1);
     expect(pedidos.find((p) => p.metodo === 'PUT')?.corpo).toEqual({ camposOcultos: ['EMAIL'], versao: 4 });
     await expect(page.getByRole('switch', { name: 'Mostrar "E-mail"' })).not.toBeChecked();
+    // O Instagram é fixo e não se esconde: não tem interruptor, só a frase do cartão.
+    await expect(page.getByText(/Nome, WhatsApp, Instagram \(opcional\) e a ciência/)).toBeVisible();
+    await expect(page.getByRole('switch', { name: /Instagram/ })).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Editar', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Perguntas da inscrição', level: 1 })).toBeVisible();
@@ -200,6 +203,49 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Noite', { exact: true })).toBeVisible();
     // A pergunta escondida pela condição aparece como "Não se aplica" na leitura.
     await expect(page.getByText('Não se aplica').first()).toBeVisible();
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+for (const largura of [390, 1280]) {
+  test(`Perguntas da inscrição: pergunta parecida com o campo fixo Instagram é avisada e só sai se o treinador remover (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const rascunho: ConteudoQuestionario = { formato: 2, instrucoes: [], secoes: [
+      { uid: 's1', titulo: 'Sua rotina', perguntas: [{ id: 'treina', tipo: 'SIM_NAO', rotulo: 'Já treina?', obrigatoria: false }] },
+      { uid: 's2', titulo: 'Redes', perguntas: [
+        { id: 'insta', tipo: 'TEXTO', rotulo: 'Qual o seu Ínstagram?', obrigatoria: false },
+        // "insta" sozinho não é avisado (decisão do Gustavo: só "instagram").
+        { id: 'apelido', tipo: 'TEXTO', rotulo: 'Seu insta ou apelido', obrigatoria: false },
+      ] },
+    ] };
+    const detalhe: QuestionarioDetalhe = { ...PADRAO, versao: 3, rascunho, versoes: [{ numero: 1, publicadoEm: '2026-10-31T12:00:00Z' }] };
+    const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'QUESTIONARIO_ALTERAR'] })),
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      'GET /inscricoes/configuracao': { corpo: CONFIG },
+      [`GET /questionarios/${QUESTIONARIO_ID}`]: { corpo: detalhe },
+    });
+    await page.goto(`/treinador/planejamento/questionario/${QUESTIONARIO_ID}`);
+    await expect(page.getByRole('heading', { name: 'Perguntas da inscrição', level: 1 })).toBeVisible();
+    const aviso = page.getByText('Já existe o campo fixo Instagram. Quer remover esta pergunta?');
+    await expect(aviso).toHaveCount(1);
+    await expect(page.getByText('Pergunta “Qual o seu Ínstagram?”, na seção 2.')).toBeVisible();
+
+    // Cancelar não remove nada.
+    await page.getByRole('button', { name: 'Remover a pergunta “Qual o seu Ínstagram?”' }).click();
+    const painel = page.getByRole('alertdialog');
+    await expect(painel.getByText('Remover a pergunta “Qual o seu Ínstagram?”?')).toBeVisible();
+    await painel.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(aviso).toHaveCount(1);
+
+    await page.getByRole('button', { name: 'Remover a pergunta “Qual o seu Ínstagram?”' }).click();
+    await painel.getByRole('button', { name: 'Remover pergunta' }).click();
+    await expect(aviso).toHaveCount(0);
+    // A pergunta saiu do rascunho (só na tela: nada é salvo sozinho); as outras ficam.
+    await expect(page.getByText('Qual o seu Ínstagram?')).toHaveCount(0);
+    await expect(page.getByText('Seu insta ou apelido').first()).toBeVisible();
+    expect(pedidos.filter((p) => p.metodo !== 'GET' && p.caminho.startsWith('/questionarios'))).toEqual([]);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

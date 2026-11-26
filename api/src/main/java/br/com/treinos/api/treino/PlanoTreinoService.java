@@ -42,6 +42,11 @@ public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTrein
     }
 
     @Override
+    protected String tipoDoTitulo() {
+        return "Treino";
+    }
+
+    @Override
     protected PlanoTreinoVersao novaVersao(PlanoTreino plano, int numero, String conteudo, UUID publicadoPor,
                                            Instant quando) {
         return new PlanoTreinoVersao(plano, numero, conteudo, publicadoPor, quando);

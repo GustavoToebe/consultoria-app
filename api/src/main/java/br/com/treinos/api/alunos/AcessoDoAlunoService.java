@@ -3,6 +3,8 @@ package br.com.treinos.api.alunos;
 import br.com.plataforma.comum.auth.Autenticador;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
+import br.com.treinos.api.alunos.dto.AlunoDtos.EmailDeAcessoAlteradoResponse;
+import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.auth.RegrasSenha;
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
@@ -11,8 +13,11 @@ import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -30,9 +35,17 @@ public class AcessoDoAlunoService {
     private final PasswordEncoder passwordEncoder;
     private final Autenticador autenticador;
     private final br.com.treinos.api.push.PushService push;
+    private final Auditoria auditoria;
+    private final AvisoDeTrocaDeEmailDeAcesso aviso;
+    private final TransactionTemplate transacao;
 
     public AcessoDoAlunoService(AlunoRepository alunos, UsuarioRepository usuarios, AlunoService alunoService,
-                                PasswordEncoder passwordEncoder, Autenticador autenticador, br.com.treinos.api.push.PushService push) {
+                                PasswordEncoder passwordEncoder, Autenticador autenticador, br.com.treinos.api.push.PushService push,
+                                Auditoria auditoria, AvisoDeTrocaDeEmailDeAcesso aviso,
+                                PlatformTransactionManager transacoes) {
+        this.transacao = new TransactionTemplate(transacoes);
+        this.auditoria = auditoria;
+        this.aviso = aviso;
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.alunoService = alunoService;
@@ -51,6 +64,9 @@ public class AcessoDoAlunoService {
         if (!aluno.isAtivo()) {
             throw new ConflictException("Aluno inativo. Reative para dar acesso.", "ALUNO_INATIVO");
         }
+        if (aluno.getAcessoDesativadoEm() != null) {
+            throw new ConflictException("Reative o acesso antes.", "ACESSO_DESATIVADO");
+        }
         String normalizado = Emails.normalizar(email);
         RegrasSenha.validar(senha, normalizado);
         String hash = passwordEncoder.encode(senha);
@@ -60,6 +76,105 @@ public class AcessoDoAlunoService {
             trocarAcesso(aluno.getUsuarioId(), normalizado, hash);
         }
         return alunoService.detalheDe(aluno);
+    }
+
+    /** Resumos fixos da auditoria: nunca e-mail, nome nem motivo. */
+    static final String RESUMO_EMAIL = "Alterou o e-mail de acesso do aluno.";
+    static final String RESUMO_DESATIVADO = "Desativou o acesso do aluno ao app.";
+    static final String RESUMO_REATIVADO = "Reativou o acesso do aluno ao app.";
+
+    /**
+     * Troca só o e-mail de login (o {@code aluno.email} do cadastro não muda, como em {@link #definir}). O mesmo e-mail é um
+     * 200 sem gravar nem auditar. Sobe {@code cv}, apaga o push e encerra as sessões por último. Não é transacional na ponta:
+     * a troca commita primeiro e só então saem os avisos aos dois endereços ({@link AvisoDeTrocaDeEmailDeAcesso}), sem desfazer
+     * a troca se o envio falhar. {@code emailEnviado} = o aviso ao e-mail NOVO foi entregue ao provedor.
+     */
+    public EmailDeAcessoAlteradoResponse alterarEmail(UUID alunoId, String email) {
+        Troca troca = transacao.execute(status -> trocarEmail(alunoId, email));
+        boolean enviado = troca.aviso() != null && aviso.enviar(troca.aviso());
+        return new EmailDeAcessoAlteradoResponse(troca.detalhe(), enviado);
+    }
+
+    private record Troca(AlunoDetalhe detalhe, AvisoDeTrocaDeEmailDeAcesso.Preparado aviso) {
+    }
+
+    private Troca trocarEmail(UUID alunoId, String email) {
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        AlunoService.exigirNaoAnonimizado(aluno);
+        if (!aluno.isAtivo()) {
+            throw new ConflictException("Aluno inativo. Reative para trocar o e-mail de acesso.", "ALUNO_INATIVO");
+        }
+        Usuario usuario = usuarioDe(aluno);
+        String novo = Emails.normalizar(email);
+        String anterior = Emails.normalizar(usuario.getEmail());
+        if (novo.equals(anterior)) {
+            return new Troca(alunoService.detalheDe(aluno), null);
+        }
+        if (usuarios.existeEmail(novo)) {
+            throw emailEmUso();
+        }
+        usuario.alterarEmail(novo);
+        try {
+            usuarios.saveAndFlush(usuario);
+        } catch (DataIntegrityViolationException corrida) {
+            throw emailEmUso();
+        }
+        auditoria.registrarEvento("ALUNO_EMAIL_DE_ACESSO_ALTERADO", "ALUNO", aluno.getId(), RESUMO_EMAIL);
+        var preparado = aviso.preparar(aluno.getConsultoriaId(), anterior, novo);
+        encerrarAcesso(usuario);
+        return new Troca(alunoService.detalheDe(aluno), preparado);
+    }
+
+    /** Idempotente: já desativado = 200 sem regravar nem auditar. Nada é apagado; o aluno continua ativo. */
+    @Transactional
+    public AlunoDetalhe desativar(UUID alunoId, MotivoDoAcessoDesativado motivo) {
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        AlunoService.exigirNaoAnonimizado(aluno);
+        Usuario usuario = usuarioDe(aluno);
+        if (aluno.getAcessoDesativadoEm() != null) {
+            return alunoService.detalheDe(aluno);
+        }
+        aluno.desativarAcesso(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS), motivo); // o banco guarda microssegundos: a resposta já sai igual à leitura seguinte
+        alunos.saveAndFlush(aluno);
+        usuario.alterarAtivo(false);
+        usuarios.saveAndFlush(usuario);
+        auditoria.registrarEvento("ALUNO_ACESSO_DESATIVADO", "ALUNO", aluno.getId(), RESUMO_DESATIVADO);
+        encerrarAcesso(usuario);
+        return alunoService.detalheDe(aluno);
+    }
+
+    /** Só se estava desativado (senão 200 sem mudar). Aluno inativo continua sem acesso: 409 {@code ALUNO_INATIVO}. */
+    @Transactional
+    public AlunoDetalhe reativar(UUID alunoId) {
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        AlunoService.exigirNaoAnonimizado(aluno);
+        if (aluno.getAcessoDesativadoEm() == null) {
+            return alunoService.detalheDe(aluno);
+        }
+        if (!aluno.isAtivo()) {
+            throw new ConflictException("Aluno inativo. Reative o aluno antes de reativar o acesso.", "ALUNO_INATIVO");
+        }
+        Usuario usuario = usuarioDe(aluno);
+        aluno.reativarAcesso();
+        alunos.saveAndFlush(aluno);
+        usuario.alterarAtivo(true);
+        usuarios.saveAndFlush(usuario);
+        auditoria.registrarEvento("ALUNO_ACESSO_REATIVADO", "ALUNO", aluno.getId(), RESUMO_REATIVADO);
+        return alunoService.detalheDe(aluno);
+    }
+
+    /** O usuário travado do aluno; sem ele não há acesso a trocar nem desativar (409 {@code ALUNO_SEM_ACESSO}). */
+    private Usuario usuarioDe(Aluno aluno) {
+        if (aluno.getUsuarioId() == null) {
+            throw new ConflictException("Este aluno ainda não tem acesso ao app.", "ALUNO_SEM_ACESSO");
+        }
+        return usuarios.buscarParaAlterar(aluno.getUsuarioId()).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+    }
+
+    /** Por último: a revogação das sessões não volta atrás se algo depois falhar. O push do aparelho antigo cai junto. */
+    private void encerrarAcesso(Usuario usuario) {
+        push.apagarDoUsuario(usuario.getConsultoriaId(), usuario.getId());
+        autenticador.encerrarSessoes(usuario.getId().toString());
     }
 
     private void criarUsuario(Aluno aluno, String email, String hash) {

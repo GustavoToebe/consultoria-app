@@ -2,6 +2,7 @@ import { temFuncionalidade } from './funcionalidadesDoPlano';
 import { posicaoNoMenu, type GrupoDoMenu } from './gruposDoMenu';
 import { podeAcessarTela } from './permissoes';
 import { NOME_DA_VITRINE_DE_CONSULTORIAS, NOME_DO_PRODUTO } from './produto';
+import { rotaInteiraDoCaminho } from './rotasDasConfiguracoes';
 
 /**
  * Seção de uma tela na busca global: o grupo do menu lateral (D24 de `docs/planos/auditoria-ficha.md`, os mesmos do
@@ -193,7 +194,9 @@ const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
 ];
 
 /** Nome da tela do caminho atual para o título da aba do navegador; `null` quando não se sabe (fica só a consultoria). */
-export function nomeDaTela(caminho: string, telas: readonly TelaDoCatalogo[] = TELAS): string | null {
+export function nomeDaTela(caminhoPedido: string, telas: readonly TelaDoCatalogo[] = TELAS): string | null {
+  // Item aberto dentro de Configurações: o nome da tela inteira dele (o h1 que está à direita).
+  const caminho = rotaInteiraDoCaminho(caminhoPedido) ?? caminhoPedido;
   for (const [prefixo, nome] of TITULOS_DE_SUBTELAS) {
     if (caminho === prefixo || caminho.startsWith(`${prefixo}/`)) return nome;
   }

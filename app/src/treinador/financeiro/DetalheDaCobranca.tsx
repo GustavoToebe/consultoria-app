@@ -7,7 +7,7 @@ import { desfazerAcordo } from '../../api/financeiroRenegociar';
 import type { CobrancaResponse, FormaDePagamento, LembretesDaCobranca, RecebimentoOnline } from '../../api/financeiroTipos';
 import {
   buscarRecebimentoOnline, cancelarCobranca, contestarCobranca, desfazerBaixaDaCobranca, estornarCobranca, lembretesDaCobranca, linkDaCobranca,
-  manterCobrancaPaga, pausarAcessoDoAluno, reativarAcessoDoAluno, registrarPagamentoManual,
+  manterCobrancaPaga, pausarAcessoDoAluno, reativarAcessoPausadoDoAluno, registrarPagamentoManual,
 } from '../../api/rotas';
 import type { AlunoDetalhe } from '../../api/tipos';
 import {
@@ -240,7 +240,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAces
   const executarAcesso = (acao: 'pausar' | 'reativar') => {
     setAlterandoAcesso(true);
     setErro(null);
-    const chamada = acao === 'pausar' ? pausarAcessoDoAluno(cobranca.alunoId) : reativarAcessoDoAluno(cobranca.alunoId);
+    const chamada = acao === 'pausar' ? pausarAcessoDoAluno(cobranca.alunoId) : reativarAcessoPausadoDoAluno(cobranca.alunoId);
     chamada.then(
       (atualizado) => {
         setAlterandoAcesso(false);

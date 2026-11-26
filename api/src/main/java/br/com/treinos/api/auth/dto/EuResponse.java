@@ -33,22 +33,10 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          boolean whatsappHabilitado,
                          /* Só para o aluno: WhatsApp da consultoria só com dígitos (DDD + número, sem o 55), para o app montar wa.me/55<dígitos>; some se não há. */
                          String whatsappDaConsultoria,
+                         /* Só para o aluno: as redes sociais da consultoria que estão preenchidas (links https por chave); some se nenhuma. */
+                         java.util.Map<String, String> redesSociaisDaConsultoria,
                          /* Só para o aluno: se o acesso está pausado por atraso (sempre false para não-aluno). */
                          boolean acessoPausado) {
-
-    public EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo aluno, PerfilResumo perfil, java.util.Set<String> permissoes,
-                      boolean termosPendentes, String termosVersao, java.util.List<String> funcionalidadesDoPlano,
-                      boolean pagamentosHabilitados, boolean recebimentoOnlineHabilitado, boolean kiwifyHabilitada,
-                      boolean pagarNoIos, boolean pagarNoAndroid, boolean cicloHabilitado, boolean retornoHabilitado,
-                      boolean pushHabilitado, boolean unidadeDeCargaHabilitada, boolean migracaoAssistidaHabilitada,
-                      boolean vitrineHabilitada, boolean lojaHabilitada, boolean marketplaceHabilitado,
-                      boolean whatsappHabilitado, String whatsappDaConsultoria) {
-        this(usuario, marca, aluno, perfil, permissoes, termosPendentes, termosVersao, funcionalidadesDoPlano,
-                pagamentosHabilitados, recebimentoOnlineHabilitado, kiwifyHabilitada, pagarNoIos, pagarNoAndroid,
-                cicloHabilitado, retornoHabilitado, pushHabilitado, unidadeDeCargaHabilitada,
-                migracaoAssistidaHabilitada, vitrineHabilitada, lojaHabilitada, marketplaceHabilitado,
-                whatsappHabilitado, whatsappDaConsultoria, false);
-    }
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 

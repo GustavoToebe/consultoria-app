@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { RegistroEnvio, RegistroSessaoConcluidaEnvio, SessoesConcluidasResponse } from '../src/api/tipos';
 import { ALVO_TOQUE } from '../src/tema/tokens';
-import { dietaFalsa, fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { dietaFalsa, fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, fazerSerie } from './aluno';
 import { ALUNO, json, sessao, simularApi } from './api-falsa';
 
 /**
@@ -44,7 +44,7 @@ async function abrir(page: Page, { ligada = true, tema, outraDivisao = false }: 
   return { ...api, conclusoes };
 }
 
-const serie = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true });
+const serie = (page: Page, n: number) => page.getByRole('checkbox', { name: new RegExp(`^Marcar série ${n} como feita`) });
 const continuar = (page: Page, nome = 'Peito e tríceps') => page.getByRole('button', { name: `Continuar treino: ${nome}`, exact: true });
 const algumContinuar = (page: Page) => page.getByRole('button', { name: /^Continuar treino/ });
 const verTreino = (page: Page) => page.getByRole('button', { name: 'Ver meu treino: Peito e tríceps', exact: true });
@@ -52,10 +52,10 @@ const semanaCompleta = (page: Page) => page.getByLabel('Semana completa: você f
 const faixa = (page: Page) => page.getByText('Treino em andamento', { exact: true });
 const inicio = (page: Page) => page.getByRole('heading', { level: 1 }).filter({ hasText: 'Olá' });
 
-/** Marca a série 1 do primeiro exercício (sem carga: o ✓ marca direto) e confere que ficou marcada. */
+/** Marca a série 1 do primeiro exercício (`fazerSerie` digita 40 kg × 8, já que o ✓ exige kg e reps) e confere que ficou marcada. */
 async function marcarUmaSerie(page: Page, exercicio = EXERCICIO) {
   await page.goto(exercicio);
-  await serie(page, 1).click();
+  await fazerSerie(page, 1);
   await expect(serie(page, 1)).toBeChecked();
 }
 
@@ -108,7 +108,7 @@ test('sem internet o "Continuar treino" aparece e abre a lista (dados do aparelh
   await page.goto(EXERCICIO);
   await expect(serie(page, 1)).toBeVisible();
   await page.context().setOffline(true);
-  await serie(page, 1).click();
+  await fazerSerie(page, 1);
   await expect(serie(page, 1)).toBeChecked();
   await page.getByRole('link', { name: 'Início', exact: true }).click();
   await expect(continuar(page)).toBeVisible();
@@ -122,7 +122,7 @@ test('sem internet o "Continuar treino" aparece e abre a lista (dados do aparelh
 test('série desmarcada não deixa andamento', async ({ page }) => {
   await abrir(page);
   await marcarUmaSerie(page);
-  await serie(page, 1).click();
+  await fazerSerie(page, 1);
   await expect(serie(page, 1)).not.toBeChecked();
   await page.getByRole('link', { name: 'Início', exact: true }).click();
   await expect(inicio(page)).toBeVisible();

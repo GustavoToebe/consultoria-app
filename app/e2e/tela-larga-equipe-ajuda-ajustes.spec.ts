@@ -128,7 +128,8 @@ async function preparar(page: Page, largura: number, altura: number, dados: Dado
 
 /** As telas do grupo: rota e o que esperar antes de medir ou capturar. */
 const TELAS: { nome: string; rota: string; pronta: (page: Page) => Promise<void> }[] = [
-  { nome: 'configuracoes', rota: '/treinador/configuracoes', pronta: (p) => expect(p.getByRole('heading', { level: 2, name: 'Ajuda' })).toBeVisible() },
+  // Configurações (26/11): no PC a coluna dos itens (grupo "Ajuda" na `nav`) com Meus dados aberto ao lado; no celular, a lista (h2 "Ajuda").
+  { nome: 'configuracoes', rota: '/treinador/configuracoes', pronta: (p) => expect(p.getByRole('group', { name: 'Ajuda' }).or(p.getByRole('heading', { level: 2, name: 'Ajuda' })).first()).toBeVisible() },
   { nome: 'equipe-membros', rota: '/treinador/equipe?aba=membros', pronta: (p) => expect(p.getByRole('heading', { level: 2, name: 'Membros da equipe' })).toBeVisible() },
   { nome: 'equipe-perfis', rota: '/treinador/equipe?aba=perfis', pronta: (p) => expect(p.getByRole('button', { name: 'Editar Estagiário' })).toBeVisible() },
   { nome: 'ajuda', rota: '/treinador/ajuda', pronta: (p) => expect(p.getByRole('heading', { name: 'Começar a usar', level: 2 })).toBeVisible() },
@@ -183,19 +184,19 @@ const ESPERADO: Record<number, { perfis: number; modelos: number; ajudaEmTres: b
   2560: { perfis: 3, modelos: 3, ajudaEmTres: true },
   3440: { perfis: 4, modelos: 3, ajudaEmTres: true },
 };
-const GRUPOS = ['Sua conta', 'Consultoria', 'Equipe', 'Alunos e atendimento', 'Financeiro', 'Dados', 'Ajuda'];
 
 for (const [largura, altura] of LARGURAS) {
   test(`${largura} px: o espaço extra vira colunas e nada passa do limite`, async ({ page }) => {
     const { errosDaPagina } = await preparar(page, largura, altura);
     const e = ESPERADO[largura];
 
-    // Configurações: colunas empilhadas (25/11); o detalhe (colunas por faixa, ordem do Tab, alinhamento) está em `configuracoes.spec.ts`.
+    // Configurações: coluna dos itens à esquerda e o item aberto à direita (26/11); o detalhe está em `configuracoes.spec.ts`.
     await page.goto('/treinador/configuracoes');
     await TELAS[0].pronta(page);
     await assentado(async () => {
-      const sua = await caixa(page, page.getByRole('heading', { name: 'Sua conta', exact: true }));
-      expect(sua.x).toBeGreaterThan(0);
+      const coluna = await caixa(page, page.getByRole('navigation', { name: 'Configurações' }));
+      const titulo = await caixa(page, page.getByRole('heading', { level: 1, name: 'Meus dados' }));
+      expect(titulo.x).toBeGreaterThan(coluna.x + coluna.width);
     });
     await semRolagemHorizontal(page);
 
@@ -291,7 +292,7 @@ test('1280 px: Membros segue como lista de linhas e Perfis, um por linha', async
   expect(await naPrimeiraLinha(page, ['Administrador', 'Treinador'])).toBe(1);
   await page.goto('/treinador/configuracoes');
   await TELAS[0].pronta(page);
-  expect(await naPrimeiraLinha(page, GRUPOS.slice(0, 3))).toBe(2);
+  await expect(page.getByRole('heading', { level: 1, name: 'Meus dados' })).toBeVisible();
   await semRolagemHorizontal(page);
   expect(errosDaPagina).toEqual([]);
 });

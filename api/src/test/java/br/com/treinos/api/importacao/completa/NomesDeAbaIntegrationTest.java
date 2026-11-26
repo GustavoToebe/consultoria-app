@@ -68,7 +68,7 @@ class NomesDeAbaIntegrationTest extends AbstractIntegrationTest {
 
     /**
      * O nome da aba de refeições em cada lugar em que a tela o lê: a análise (aba e problema por aba) e o histórico da
-     * importação (erros guardados, "aba: problema"). A aba é reconhecida pelos títulos, não pelo nome.
+     * importação (erros guardados, "Aba N: problema"). A aba é reconhecida pelos títulos, não pelo nome.
      */
     private void confereNomeDaAba(String nome) throws Exception {
         byte[] planilha = planilhaComAba(nome);
@@ -85,7 +85,8 @@ class NomesDeAbaIntegrationTest extends AbstractIntegrationTest {
         assertThat(problemas).contains(nome + ": ITEM_SEM_ALIMENTO");
         List<String> erros = new ArrayList<>();
         detalhe.path("erros").forEach(e -> erros.add(e.path("motivo").asString()));
-        assertThat(erros).contains(nome + ": ITEM_SEM_ALIMENTO");
+        // O histórico fica um ano: nunca o nome da aba (pode ser o de um aluno), sempre "Aba N" (a de refeições é a 4ª).
+        assertThat(erros).contains("Aba 4: ITEM_SEM_ALIMENTO").noneMatch(e -> e.contains(nome));
     }
 
     @Test

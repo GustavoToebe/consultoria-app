@@ -49,16 +49,41 @@ public class MarcaService {
             /** Contato (V076): nulo (ausente) mantém o gravado, em branco apaga. Validado no serviço (422 {@code MARCA_INVALIDA} por campo, sem repetir o valor). */
             String whatsapp, String emailRemetenteNome, String emailResponderPara,
             /** Tema dos PDFs (V096); nulo = não muda o gravado (a coluna nunca é nula). */
-            Consultoria.TemaPdf temaPdf) {
+            Consultoria.TemaPdf temaPdf,
+            /** Redes sociais (V101): objeto nulo ou campo nulo mantém o gravado, em branco apaga, preenchido valida ({@code @usuario} ou link) e grava o link https. */
+            RedesSociaisDto redesSociais) {
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null, null, null, null, null, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null, null, null, null, null, null, null);
         }
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao, Integer diasAtualizacaoPadrao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null, null, null, null, null, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null, null, null, null, null, null, null);
+        }
+    }
+
+    /** As oito redes, na entrada (texto livre) e na saída (link https ou nulo). */
+    public record RedesSociaisDto(String instagram, String tiktok, String youtube, String x, String site, String facebook,
+                                  String linkedin, String telegram) {
+        String de(RedesSociais.Rede rede) {
+            return switch (rede) {
+                case INSTAGRAM -> instagram;
+                case TIKTOK -> tiktok;
+                case YOUTUBE -> youtube;
+                case X -> x;
+                case SITE -> site;
+                case FACEBOOK -> facebook;
+                case LINKEDIN -> linkedin;
+                case TELEGRAM -> telegram;
+            };
+        }
+
+        static RedesSociaisDto de(java.util.Map<RedesSociais.Rede, String> redes) {
+            return new RedesSociaisDto(redes.get(RedesSociais.Rede.INSTAGRAM), redes.get(RedesSociais.Rede.TIKTOK),
+                    redes.get(RedesSociais.Rede.YOUTUBE), redes.get(RedesSociais.Rede.X), redes.get(RedesSociais.Rede.SITE),
+                    redes.get(RedesSociais.Rede.FACEBOOK), redes.get(RedesSociais.Rede.LINKEDIN), redes.get(RedesSociais.Rede.TELEGRAM));
         }
     }
 
@@ -68,7 +93,8 @@ public class MarcaService {
     /** O contato fica fora de {@link MarcaPublica} (pública): só a equipe o lê aqui; o aluno recebe o número em {@code GET /eu}. */
     public record ConsultoriaResponse(MarcaPublica marca, Long versao, Integer diasAtualizacaoPadrao,
                                      br.com.treinos.api.ciclo.CicloDtos.TextosDasFases textosFasesCiclo,
-                                     MetaDoPeso metaDoPeso, String whatsapp, String emailRemetenteNome, String emailResponderPara) {
+                                     MetaDoPeso metaDoPeso, String whatsapp, String emailRemetenteNome, String emailResponderPara,
+                                     RedesSociaisDto redesSociais) {
     }
 
     private final ConsultoriaRepository consultorias;
@@ -167,10 +193,25 @@ public class MarcaService {
                 erros.add(new ApiError.FieldError("emailResponderPara", "E-mail inválido."));
             }
         }
+        var redes = c.redesSociais();
+        if (r.redesSociais() != null) {
+            for (RedesSociais.Rede rede : RedesSociais.Rede.values()) {
+                String bruto = r.redesSociais().de(rede);
+                if (bruto == null) {
+                    continue; // nulo mantém o gravado
+                }
+                try {
+                    redes.put(rede, RedesSociais.link(rede, bruto)); // em branco vira nulo e apaga
+                } catch (RedesSociais.RedeInvalidaException recusada) {
+                    erros.add(new ApiError.FieldError("redesSociais." + rede.name().toLowerCase(java.util.Locale.ROOT), recusada.getMessage()));
+                }
+            }
+        }
         if (!erros.isEmpty()) {
             throw new ValidacaoException("Confira os campos de contato.", "MARCA_INVALIDA", erros);
         }
         c.definirContato(whatsapp, nome, responderPara);
+        c.definirRedes(redes);
     }
 
     private static String emBrancoViraNulo(String texto) {
@@ -265,7 +306,8 @@ public class MarcaService {
 
     private ConsultoriaResponse resposta(Consultoria c) {
         return new ConsultoriaResponse(MarcaPublica.de(c), c.getVersao(), c.getDiasAtualizacaoPadrao(), ciclo.textos(c.getId()),
-                c.getMetaDoPeso(), c.getWhatsapp(), c.getEmailRemetenteNome(), c.getEmailResponderPara());
+                c.getMetaDoPeso(), c.getWhatsapp(), c.getEmailRemetenteNome(), c.getEmailResponderPara(),
+                RedesSociaisDto.de(c.redesSociais()));
     }
 
     private Consultoria buscar(UUID consultoriaId) {

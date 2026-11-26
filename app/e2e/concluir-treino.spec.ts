@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { RegistroEnvio, RegistroSessaoConcluidaEnvio, SessoesConcluidasResponse } from '../src/api/tipos';
-import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, fazerSerie } from './aluno';
 import { ALUNO, erroApi, json, sessao, simularApi } from './api-falsa';
 
 /**
@@ -65,7 +65,7 @@ async function abrir(page: Page, { ligada = true, post = 'aceita' }: Opcoes = {}
   return { ...api, conclusoes, series, mensagens, estado };
 }
 
-const serie = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true });
+const serie = (page: Page, n: number) => page.getByRole('checkbox', { name: new RegExp(`^Marcar série ${n} como feita`) });
 const botoesConcluir = (page: Page) => page.getByRole('button', { name: 'Concluir treino', exact: true });
 /** B5 (30/10): com todas as séries marcadas o botão passa a dizer isto (a Folha continua "Concluir treino"). */
 const botoesRevisar = (page: Page) => page.getByRole('button', { name: 'Revisar e concluir treino', exact: true });
@@ -92,7 +92,7 @@ for (const largura of [390, 1280]) {
     expect(await voltarALista.evaluate((e) => getComputedStyle(e).backgroundColor)).not.toBe('rgb(21, 24, 29)');
     await expect(page.getByRole('button', { name: 'Lista do dia', exact: true })).toHaveCount(0);
     // B5 com a chave desligada: marcar tudo não muda o botão.
-    for (const n of [1, 2, 3]) await serie(page, n).click();
+    for (const n of [1, 2, 3]) await fazerSerie(page, n);
     await expect(serie(page, 3)).toBeChecked();
     await expect(voltarALista).toHaveCount(1);
     await expect(botoesRevisar(page)).toHaveCount(0);
@@ -113,12 +113,12 @@ for (const largura of [390, 1280]) {
     const api = await abrir(page);
     await page.goto(EXERCICIO);
 
-    // Último exercício: um no topo (secundário) e um no rodapé (primário), e a "Lista do dia" continua.
-    await expect(botoesConcluir(page)).toHaveCount(2);
+    // Último exercício: o "Concluir treino" fica só no fim da tela (primário; o topo fixo não o repete), e a "Lista do dia" continua.
+    await expect(botoesConcluir(page)).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Lista do dia' })).toBeVisible();
 
     // Só uma série marcada: a sugestão é "Fiz em parte".
-    await serie(page, 1).click();
+    await fazerSerie(page, 1);
     await expect(serie(page, 1)).toBeChecked();
     await botoesConcluir(page).first().click();
     await expect(folha(page)).toBeVisible();
@@ -128,11 +128,11 @@ for (const largura of [390, 1280]) {
     await expect(folha(page)).toHaveCount(0);
 
     // Todas marcadas e 52 minutos depois da primeira: "Fiz tudo" e a duração já preenchida.
-    await serie(page, 2).click();
-    await serie(page, 3).click();
+    await fazerSerie(page, 2);
+    await fazerSerie(page, 3);
     await expect(serie(page, 3)).toBeChecked();
     // B5: tudo marcado, o botão vira "Revisar e concluir treino" (o do rodapé continua o primário) e nada conclui sozinho.
-    await expect(botoesRevisar(page)).toHaveCount(2);
+    await expect(botoesRevisar(page)).toHaveCount(1);
     await expect(botoesConcluir(page)).toHaveCount(0);
     await expect(page.getByText('Treino concluído')).toHaveCount(0);
     await page.clock.setFixedTime(new Date('2026-10-19T12:52:00-03:00'));
@@ -183,7 +183,7 @@ for (const largura of [390, 1280]) {
 test('duração abaixo de 10 min: pergunta, "Ajustar duração" leva ao campo e menos de 1 min não salva', async ({ page }) => {
   const api = await abrir(page);
   await page.goto(EXERCICIO);
-  await serie(page, 1).click();
+  await fazerSerie(page, 1);
   await expect(serie(page, 1)).toBeChecked();
   // O relógio está parado: desde a primeira série passaram 0 min.
   await botoesConcluir(page).last().click();

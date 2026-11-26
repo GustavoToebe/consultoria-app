@@ -11,6 +11,7 @@ import { Incompleto } from '../../ui/Estados';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { Texto } from '../../ui/Texto';
 import { AJUDA_DA_FIBRA_PARCIAL, FIBRA, fibraParcial, gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro } from '../../ui/ValoresDaDieta';
+import { PorRefeicao } from './PorRefeicao';
 
 /**
  * "Total do dia" (opção A de cada refeição; guia premium pág. 10), compacto: kcal em destaque neutro (a maior variante de
@@ -18,7 +19,8 @@ import { AJUDA_DA_FIBRA_PARCIAL, FIBRA, fibraParcial, gramasNaTela, kcalNaTela, 
  * lado a lado com a marca da cor, o número antes do nome ("—" sem unidade quando falta valor), e a água por dia na mesma faixa, sempre à vista (dentro da "Configuração do plano", que fecha
  * sozinha quando a dieta já tem refeições, o treinador não a encontrava, 30/10). Se algum item deixa o total incompleto,
  * diz quantos são e leva ao primeiro. Modelo de uma refeição só não tem água. Com variações, soma as `refeicoes` da variação
- * aberta (`rotulo` no título); a água é da dieta toda e vem de `conteudo`.
+ * aberta (`rotulo` no título); a água é da dieta toda e vem de `conteudo`. Embaixo, "Por refeição" (`PorRefeicao`, 25/11):
+ * quanto cada refeição pesa no dia; tocar numa a escolhe no editor.
  */
 export function TotalDoDia({ conteudo: c, refeicoes, rotulo, semValor, aoAbrirRefeicao, aoMudarAgua }: {
   conteudo: ConteudoDieta; refeicoes: Refeicao[]; rotulo?: string | null; semValor: ItemSemValor[]; aoAbrirRefeicao: (uid: string) => void;
@@ -46,18 +48,18 @@ export function TotalDoDia({ conteudo: c, refeicoes, rotulo, semValor, aoAbrirRe
                 <View style={estilos.nomeDoMacro}><MarcaDoMacro cor={m.cor} /><Texto variante="pequeno">{m.nome}</Texto></View>
               </View>
             ))}
-          </View>
-          {/* Fibra (V089) depois dos macros, com a marca dela (19/11) e o número neutro; não entra na kcal. */}
-          <View style={estilos.macro} role="listitem" accessibilityLabel={`Fibra: ${gramasNaTela(t.fibra)}${parcial ? ', parcial' : ''}`}>
-            <Texto variante="bloco" numerico>{gramasNaTela(t.fibra)}</Texto>
-            <View style={estilos.nomeDoMacro}><MarcaDoMacro cor={FIBRA.cor} /><Texto variante="pequeno">{parcial ? 'Fibra (parcial)' : 'Fibra'}</Texto></View>
+            {/* Fibra (V089) depois dos macros, no mesmo grupo (os quatro numa linha quando cabem, 25/11), com a marca dela
+                (19/11) e o número neutro; não entra na kcal. */}
+            <View style={estilos.macro} role="listitem" accessibilityLabel={`Fibra: ${gramasNaTela(t.fibra)}${parcial ? ', parcial' : ''}`}>
+              <Texto variante="bloco" numerico>{gramasNaTela(t.fibra)}</Texto>
+              <View style={estilos.nomeDoMacro}><MarcaDoMacro cor={FIBRA.cor} /><Texto variante="pequeno">{parcial ? 'Fibra (parcial)' : 'Fibra'}</Texto></View>
+            </View>
           </View>
         </View>
         {aoMudarAgua ? (
           <View style={estilos.agua}>
             <CampoNumerico
-              rotulo="Água por dia (opcional)"
-              sufixo="L"
+              rotulo="Água por dia, em litros (opcional)"
               valor={c.aguaLitros ?? null}
               aoMudar={aoMudarAgua}
               erro={aguaValida(c.aguaLitros ?? null) ? null : `De ${numeroParaTela(AGUA_MINIMA)} a ${AGUA_MAXIMA} L, com uma casa decimal.`}
@@ -74,6 +76,7 @@ export function TotalDoDia({ conteudo: c, refeicoes, rotulo, semValor, aoAbrirRe
             aoTocar={() => { aoAbrirRefeicao(primeiro.refeicaoUid); rolarAte([primeiro.refeicaoUid]); }} />
         </View>
       ) : null}
+      <PorRefeicao refeicoes={refeicoes} aoEscolher={(uid) => { aoAbrirRefeicao(uid); rolarAte([uid]); }} />
     </Cartao>
   );
 }
@@ -84,8 +87,9 @@ const estilos = StyleSheet.create({
   faixa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(6), rowGap: espaco(2) },
   numeros: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(3), rowGap: espaco(1.5), flexShrink: 1 },
   kcal: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(0.5) },
-  macros: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(3), rowGap: espaco(1) },
-  macro: { minWidth: 72, gap: 2 },
+  // P, C, G e Fibra num grupo só: cabem numa linha na coluna de 400 px (até com "Carboidrato", ~84 px, e "Fibra (parcial)", ~100: 64 + 84 + 64 + 100 + 3 × 12 = 348); quebram só no celular estreito.
+  macros: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(1.5), rowGap: espaco(1), flexShrink: 1 },
+  macro: { minWidth: 64, gap: 2 },
   nomeDoMacro: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   agua: { width: 220, maxWidth: '100%' },
   // Coluna: o aviso de item sem valor ocupa a linha toda (em 390 px cortava ao lado do botão).

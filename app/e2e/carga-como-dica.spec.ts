@@ -1,20 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { AnterioresDoPacote, Carga, DiaDeTreino, PainelAluno, RegistroEnvio, Serie, SessoesConcluidasResponse } from '../src/api/tipos';
-import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, fazerSerie } from './aluno';
 import { ALUNO, json, sessao, simularApi } from './api-falsa';
 
 /**
  * Carga como dica (passo 3 de `docs/planos/execucao-referencia-e-progressao.md`, D1, D2, D4, D5, D6 e D7, 02/11): o campo de
- * carga começa vazio e a sugestão fica ao lado ("Sugestão: 60 kg × 8 reps · Última vez: 60 kg × 7"), com a meta de repetições; o ✓
- * com o peso vazio pergunta "Fez 60 kg × 8 reps?" na própria tela; "Sem carga" grava a série feita sem carga, que o histórico
- * mostra como "feito, sem carga"; a contagem "x de y" só conta trabalho e pós-trabalho (2 aquecimentos + 4 WS = "x de 4").
+ * carga começa vazio e a sugestão (60 kg × 8) fica apagada dentro dos campos; o ✓ sem digitar grava a sugestão (tela
+ * redesenhada de 25/11, que tirou o painel "Fez…?" e o "Sem carga"); a contagem "x de y" só conta trabalho e pós-trabalho
+ * (2 aquecimentos + 4 WS = "x de 4").
  * A "Última vez" da dica vem de `ultimasCargas` (independe da chave do retorno, D7): com a chave ligada e "anteriores"
  * diferentes no pacote, a dica não muda. Exercício e números fictícios; relógio em segunda, 19/10/2026, 12:00.
  */
 const LISTA = '/aluno/sessao/sx?data=2026-10-19';
 const EXERCICIO = '/aluno/sessao/sx/sxe1?data=2026-10-19';
-const DICA = 'Sugestão: 60 kg × 8 reps · Última vez: 60 kg × 7';
 
 const NENHUMA: Carga = { modo: 'NENHUMA', percentualMin: null, percentualMax: null };
 const DE_TRABALHO: Carga = { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null };
@@ -74,76 +73,47 @@ async function abrir(page: Page, ligada: boolean) {
   return { ...api, enviados };
 }
 
-const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Peso da série ${n}, em quilos`, exact: true });
-const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true });
+const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Carga da série ${n}, em quilos`, exact: true });
+const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: new RegExp(`^Marcar série ${n} como feita`) });
 const semEstourar = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
 for (const largura of [390, 1280]) {
-  test(`campo vazio com a dica, painel do ✓, "Sem carga" no histórico e contagem só do trabalho (${largura} px)`, async ({ page }, testInfo) => {
+  test(`campo vazio com a sugestão apagada, ✓ grava a sugestão e contagem só do trabalho (${largura} px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await abrir(page, false);
     await page.goto(EXERCICIO);
 
-    // D1: nenhum campo de peso vem preenchido; a dica aparece nas quatro WS, não nos aquecimentos.
+    // D1: nenhum campo de peso vem preenchido; a sugestão (60 kg × 8, progressão da última vez) fica apagada nas quatro WS.
     for (const n of [1, 2, 3, 4, 5, 6]) await expect(peso(page, n)).toHaveValue('');
-    await expect(page.getByText(DICA, { exact: true })).toHaveCount(4);
-    // Sem base do dia digitada, a origem diz que a conta partiu da última vez.
-    await expect(page.getByText('mesma carga da última vez · busque atingir a meta de repetições', { exact: true })).toHaveCount(4);
-    // D5: a meta de repetições ao lado do campo, em cada série.
-    await expect(page.getByLabel('Meta da série 3: 6 a 8 reps', { exact: false })).toBeVisible();
-    // D6: a contagem do treino não conta os aquecimentos.
-    await expect(page.getByText('0 de 4 séries feitas neste treino.', { exact: true }).first()).toBeVisible();
+    for (const n of [3, 4, 5, 6]) await expect(peso(page, n)).toHaveAttribute('placeholder', '60');
+    for (const n of [1, 2]) await expect(peso(page, n)).toHaveAttribute('placeholder', '—');
+    await expect(page.getByRole('textbox', { name: 'Repetições da série 3', exact: true })).toHaveAttribute('placeholder', '8');
+    // A meta de repetições fica no cabeçalho de cada série; D6: a contagem não conta os aquecimentos.
+    await expect(page.getByText('6 a 8 reps', { exact: true })).toHaveCount(4);
+    await expect(page.getByText('Séries 0 de 4 feitas', { exact: true })).toBeVisible();
     await semEstourar(page);
-    await page.screenshot({ path: testInfo.outputPath(`dica-${largura}.png`), fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath(`sugestao-${largura}.png`), fullPage: true });
 
-    // Aquecimento sem sugestão: o ✓ grava direto e não entra na contagem.
-    await marcar(page, 1).click();
+    // Aquecimento sem sugestão: o ✓ espera o kg e as reps; marcado, não entra na contagem.
+    await expect(marcar(page, 1)).toBeDisabled();
+    await peso(page, 1).fill('20');
+    await page.getByRole('textbox', { name: 'Repetições da série 1', exact: true }).fill('12');
+    await fazerSerie(page, 1);
     await expect(marcar(page, 1)).toBeChecked();
-    await expect(page.getByText('0 de 4 séries feitas neste treino.', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Séries 0 de 4 feitas', { exact: true })).toBeVisible();
 
-    // D2: WS com o peso vazio e sugestão: o ✓ não grava no escuro, pergunta na tela.
-    await marcar(page, 3).click();
-    await expect(page.getByText('Fez 60 kg × 8 reps?', { exact: true })).toBeVisible();
-    await expect(marcar(page, 3)).not.toBeChecked();
-    await expect(page.getByRole('button', { name: 'Sim, 60 kg × 8, série 3', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Outra carga, série 3', exact: true })).toBeVisible();
-    await semEstourar(page);
-    await page.screenshot({ path: testInfo.outputPath(`painel-${largura}.png`), fullPage: true });
-
-    // "Outra carga" fecha o painel e leva ao campo de peso, sem gravar.
-    await page.getByRole('button', { name: 'Outra carga, série 3', exact: true }).click();
-    await expect(page.getByText('Fez 60 kg × 8 reps?', { exact: true })).toHaveCount(0);
-    await expect(peso(page, 3)).toBeFocused();
-    await expect(marcar(page, 3)).not.toBeChecked();
-
-    // "Sem carga" grava a série feita sem carga (nada inventado) e ela entra na contagem.
-    await marcar(page, 3).click();
-    await page.getByRole('button', { name: 'Sem carga, série 3', exact: true }).click();
+    // WS com o peso e as reps vazios: o ✓ grava a sugestão (60 kg × 8; pedido de 25/11, sem o painel "Fez…?").
+    await fazerSerie(page, 3);
     await expect(marcar(page, 3)).toBeChecked();
-    await expect(peso(page, 3)).toHaveValue('');
-    await expect(page.getByText('1 de 4 séries feitas neste treino.', { exact: true }).first()).toBeVisible();
-    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: null, repeticoes: null, concluida: true });
-    await expect(page.getByText(DICA, { exact: true })).toHaveCount(3); // feita não mostra a dica
+    await expect(page.getByText('60 kg × 8', { exact: true })).toBeVisible();
+    await expect(page.getByText('Séries 1 de 4 feitas', { exact: true })).toBeVisible();
+    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: 60, repeticoes: 8, concluida: true });
 
-    // "Sim, 60 kg" grava a sugestão.
-    await marcar(page, 4).click();
-    await page.getByRole('button', { name: 'Sim, 60 kg × 8, série 4', exact: true }).click();
-    await expect(marcar(page, 4)).toBeChecked();
-    await expect(peso(page, 4)).toHaveValue('60');
-    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws2').at(-1)).toMatchObject({ carga: 60, repeticoes: 8, concluida: true });
-
-    // Lista do dia: a mesma contagem, 2 de 4 (o aquecimento marcado não conta).
+    // Lista do dia: a mesma contagem, 1 de 4 (o aquecimento marcado não conta).
     await page.goto(LISTA);
-    await expect(page.getByText('2 de 4 séries feitas', { exact: true })).toBeVisible();
-
-    // D4: o histórico diz o que faltou numa série feita, no lugar do "—". Por divisão (a aba padrão), a linha do dia é a
-    // WS com carga: 60 kg e "—" nas repetições (a tabela só troca o "—" por "Feito, sem carga", ver execucao-retestes).
+    await expect(page.getByText('1 de 4 séries feitas', { exact: true })).toBeVisible();
     await page.goto('/aluno/historico');
-    const tabela = page.getByLabel('Cargas de Supino de teste', { exact: true });
-    await expect(tabela.getByText('60 kg', { exact: true })).toBeVisible();
-    await expect(tabela.getByText('sem repetições', { exact: true })).toHaveCount(0);
     await page.getByText('Por dia', { exact: true }).click();
-    await expect(page.getByText(/WS feito, sem carga/)).toBeVisible();
     await expect(page.getByText(/WS 60 kg × 8/)).toBeVisible();
     await semEstourar(page);
     expect(api.naoTratadas).toEqual([]);
@@ -151,28 +121,23 @@ for (const largura of [390, 1280]) {
   });
 }
 
-test('chave do retorno ligada: a dica continua a mesma (última carga), e o "Anterior" fica na linha da série', async ({ page }, testInfo) => {
+test('chave do retorno ligada: a sugestão continua a mesma (última carga), e o "Anterior" fica na linha da série', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 900 });
-  // Tema escuro escolhido nas preferências: o painel e a dica usam só tokens.
   await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'ESCURO' })), ALUNO.id);
   const api = await abrir(page, true);
   await page.goto(EXERCICIO);
-  await expect(page.getByText(DICA, { exact: true })).toHaveCount(4);
-  await expect(page.getByText(/Última vez: 55 kg/)).toHaveCount(0);
+  for (const n of [3, 4, 5, 6]) await expect(peso(page, n)).toHaveAttribute('placeholder', '60');
   await expect(page.getByLabel('Série 3 da última vez: 55 kg × 9', { exact: true })).toBeVisible();
   for (const n of [3, 4, 5, 6]) await expect(peso(page, n)).toHaveValue('');
-  // A faixa do treino ao vivo conta só as quatro WS.
-  await expect(page.getByLabel('0 de 4 séries feitas', { exact: true })).toBeVisible();
-  await marcar(page, 3).click();
-  await expect(page.getByText('Fez 60 kg × 8 reps?', { exact: true })).toBeVisible();
-  await page.getByText('Fez 60 kg × 8 reps?', { exact: true }).scrollIntoViewIfNeeded();
-  await page.screenshot({ path: testInfo.outputPath('painel-390-escuro.png') });
-  await page.getByRole('button', { name: 'Sim, 60 kg × 8, série 3', exact: true }).click();
+  await expect(page.getByText('Séries 0 de 4 feitas', { exact: true })).toBeVisible();
+  await fazerSerie(page, 3);
+  await page.getByText('60 kg × 8', { exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('feita-390-escuro.png') });
   for (const n of [4, 5, 6]) {
     await peso(page, n).fill('60');
-    await marcar(page, n).click();
+    await fazerSerie(page, n);
   }
-  await expect(page.getByLabel('4 de 4 séries feitas', { exact: true })).toBeVisible();
+  await expect(page.getByText('Séries 4 de 4 feitas', { exact: true })).toBeVisible();
   // Concluir: os aquecimentos não feitos não tornam o treino parcial (D6).
   await page.getByRole('button', { name: /^(Revisar e c|C)oncluir treino$/ }).first().click();
   const folha = page.getByRole('dialog', { name: 'Concluir treino' });
@@ -181,15 +146,14 @@ test('chave do retorno ligada: a dica continua a mesma (última carga), e o "Ant
   expect(api.errosDaPagina).toEqual([]);
 });
 
-test('sem internet: o painel do ✓ funciona e a série fica salva no aparelho', async ({ page }) => {
+test('sem internet: o ✓ com a sugestão funciona e a série fica salva no aparelho', async ({ page }) => {
   const api = await abrir(page, false);
   await page.goto(EXERCICIO);
-  await expect(page.getByText(DICA, { exact: true })).toHaveCount(4);
+  await expect(peso(page, 3)).toHaveAttribute('placeholder', '60');
   await page.context().setOffline(true);
-  await marcar(page, 3).click();
-  await page.getByRole('button', { name: 'Sim, 60 kg × 8, série 3', exact: true }).click();
+  await fazerSerie(page, 3);
   await expect(marcar(page, 3)).toBeChecked();
-  await expect(peso(page, 3)).toHaveValue('60');
+  await expect(page.getByText('60 kg × 8', { exact: true })).toBeVisible();
   await page.context().setOffline(false);
   // A fila reenvia a série quando a internet volta: a mesma série, o mesmo id (o servidor é idempotente), carga 60 e uma só vez.
   await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').length).toBeGreaterThan(0);

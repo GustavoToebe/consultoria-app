@@ -1,6 +1,6 @@
 # Ajustes da revisão de 25/11 (13 itens) e pendências
 
-Situação: Em andamento · Onde: main (a partir de `6890ee44`) · Atualizado: 25/11/2026
+Situação: Entregue em 25/11/2026 (commits `443b9065`, `9b4c29c2`, `56e0319c`, `64c1ee40`; CI `45678011298` verde; VPS no `64c1ee40dff4`) · Onde: main (a partir de `6890ee44`) · Atualizado: 25/11/2026
 
 ## Objetivo
 Aplicar os 13 ajustes da revisão do Gustavo de 25/11: contagens e "Próximo passo" do Início do treinador, cores do financeiro, fonte mono só em números, menu lateral, Vitrine, editor de questionário em tela larga, Início/Treino do aluno e o fallback do Turnstile em navegadores de dentro de apps. Push autorizado se ficar verde.
@@ -25,7 +25,7 @@ Evidência de cada passo: verificações por frente rodadas pelo agente; commit 
 - [x] T-011 Aparência e preferências em 5 seções (`ui/LinhaDeConfiguracao`, `ui/Alvenaria`) — executor-front
 - [x] T-012 Início em edição estilo widgets (`treinador/painel/edicao/*`) e bloco Aniversários (`BlocoAniversarios`, opção do bloco, migração de `diasAniversario`) — executor-front
 - [x] T-013 `Alvenaria` única — executor
-- [ ] Integração final: guias PDF, `tsc`, lint, jest, e2e completa (peças compartilhadas), `mvn verify`, revisão independente, commits por caminho (T-006 separado), push se verde
+- [x] Integração final: guias PDF, `tsc`, lint, jest, e2e completa (peças compartilhadas), `mvn verify`, revisão independente, commits por caminho (T-006 separado), push se verde — commits `443b9065`, `9b4c29c2`, `56e0319c`, `64c1ee40`; CI run `45678011298` verde
 - [x] Passo 0 e item 8 (decisão D2)
 - Branch `treino-academia` (local, sem push, **fora deste lote**): `318ff475` redesenho do exercício, `576dab01` série pintada com faixa lateral reta, `55bfaeda` T-010 (séries pintadas no editor, preferência "Cor das séries"). Só sobe quando o Gustavo avisar do teste no Android; conflitos esperados com este lote em `PreferenciasDoApp`, `TelaDoEditor`, `EditorDeTreino`, `EditorDeDieta`, `EditorQuestionario`; a linha "Cor das séries" entra depois no layout novo de 5 seções.
 

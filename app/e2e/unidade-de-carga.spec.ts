@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { AnterioresDoPacote, Carga, DiaDeTreino, PainelAluno, RegistroEnvio, Serie } from '../src/api/tipos';
-import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, fazerSerie } from './aluno';
 import { ALUNO, json, sessao, simularApi } from './api-falsa';
 
 /**
@@ -70,8 +70,8 @@ async function abrir(page: Page, { chave, preferida, arredondamentoKg }: { chave
   return { ...api, enviados };
 }
 
-const pesoEm = (page: Page, n: number, unidade: 'libras' | 'quilos') => page.getByRole('textbox', { name: `Peso da série ${n}, em ${unidade}`, exact: true });
-const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true });
+const pesoEm = (page: Page, n: number, unidade: 'libras' | 'quilos') => page.getByRole('textbox', { name: `Carga da série ${n}, em ${unidade}`, exact: true });
+const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: new RegExp(`^Marcar série ${n} como feita`) });
 /** Preferências do aluno ficam numa folha aberta pelo item "Aparência e preferências" da Conta. */
 /** Opção do `Escolha` (botão dentro do grupo, marcada com `aria-checked`). */
 const opcao = (page: Page, rotulo: string) => page.getByRole('radiogroup', { name: 'Unidade da carga' }).getByRole('radio', { name: rotulo, exact: true });
@@ -96,32 +96,31 @@ for (const largura of [390, 1280]) {
     // Exercício: campo em libras, dica convertida (60 kg = 132,3 lb), "Última vez" e "Anterior" também.
     await page.goto(EXERCICIO);
     for (const n of [2, 3, 4]) await expect(pesoEm(page, n, 'libras')).toHaveValue('');
-    await expect(page.getByText('Sugestão: 132,3 lb × 8 reps · Última vez: 132,3 lb × 7', { exact: true })).toHaveCount(3);
+    for (const n of [2, 3, 4]) await expect(pesoEm(page, n, 'libras')).toHaveAttribute('placeholder', '132,3');
+    await expect(page.getByText('Último registro: 132,3 lb × 7', { exact: false }).first()).toBeVisible();
     await expect(page.getByText(/ kg/)).toHaveCount(0);
     await semEstourar(page);
     await page.screenshot({ path: testInfo.outputPath(`lb-${largura}.png`), fullPage: true });
 
-    // Digita 100 lb e marca: o servidor recebe 45,35 kg (nunca 100).
+    // Digita 100 lb e marca (as reps vêm da sugestão): o servidor recebe 45,35 kg (nunca 100).
     await pesoEm(page, 2, 'libras').fill('100');
-    await marcar(page, 2).click();
+    await fazerSerie(page, 2);
     await expect(marcar(page, 2)).toBeChecked();
-    await expect(pesoEm(page, 2, 'libras')).toHaveValue('100');
-    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: 45.35, concluida: true });
+    await expect(page.getByText('100 lb × 8', { exact: true })).toBeVisible();
+    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: 45.35, repeticoes: 8, concluida: true });
 
-    // Painel na unidade do aluno; "Sim" grava a sugestão em kg (60 × 8), não 132,3.
-    await marcar(page, 3).click();
-    await expect(page.getByText('Fez 132,3 lb × 8 reps?', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Sim, 132,3 lb × 8, série 3', exact: true }).click();
+    // ✓ sem digitar usa a sugestão em kg (60 × 8), não 132,3.
+    await fazerSerie(page, 3);
     await expect(marcar(page, 3)).toBeChecked();
     await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws2').at(-1)).toMatchObject({ carga: 60, repeticoes: 8, concluida: true });
-    await expect(pesoEm(page, 3, 'libras')).toHaveValue('132,3');
+    await expect(page.getByText('132,3 lb × 8', { exact: true })).toBeVisible();
     // Daqui em diante nada novo pode ser enviado: recarregar, ver o histórico e trocar de unidade não regravam carga.
     const enviadosAntes = api.enviados.length;
     expect(enviadosAntes).toBeGreaterThan(0);
 
     // Recarregar: o que está guardado em kg volta em libras sem derivar (45,35 kg -> 100 lb).
     await page.reload();
-    await expect(pesoEm(page, 2, 'libras')).toHaveValue('100');
+    await expect(page.getByText('100 lb × 8', { exact: true })).toBeVisible();
 
     // Histórico do aluno na unidade dele; o envio à API continua em kg.
     await page.goto('/aluno/historico');
@@ -129,23 +128,23 @@ for (const largura of [390, 1280]) {
     await expect(page.getByLabel('Cargas de Supino de teste', { exact: true }).getByText('132,3 lb', { exact: true })).toBeVisible();
     await expect(page.getByText(/ kg/)).toHaveCount(0);
     await page.getByText('Por dia', { exact: true }).click();
-    await expect(page.getByText(/WS 100 lb × sem repetições/)).toBeVisible();
+    await expect(page.getByText(/WS 100 lb × 8/)).toBeVisible();
     await semEstourar(page);
 
     // Voltar a kg: a mesma série mostra 45,35 kg e nada foi reenviado em outra unidade.
     await abrirPreferencias(page);
     await opcao(page, 'Quilos (kg)').click();
     await page.goto(EXERCICIO);
-    await expect(pesoEm(page, 2, 'quilos')).toHaveValue('45,35');
-    await expect(pesoEm(page, 3, 'quilos')).toHaveValue('60');
+    await expect(page.getByText('45,35 kg × 8', { exact: true })).toBeVisible();
+    await expect(page.getByText('60 kg × 8', { exact: true })).toBeVisible();
     expect(api.enviados).toHaveLength(enviadosAntes);
     expect(api.errosDaPagina).toEqual([]);
   });
 }
 
-// Em kg o rótulo é o de antes, sem a unidade por extenso (`CampoDeCarga.rotuloDaCarga`).
+// O campo diz a unidade por extenso nas duas (`CampoDeCarga.rotuloDaCarga`).
 const baseDoDia = (page: Page, unidade: 'libras' | 'quilos') =>
-  page.getByRole('textbox', { name: unidade === 'libras' ? 'Carga de trabalho do dia, em libras' : 'Carga de trabalho do dia', exact: true });
+  page.getByRole('textbox', { name: `Carga de trabalho de hoje, em ${unidade}`, exact: true });
 
 test('aluno em libras: o passo de 1 kg do painel de teste vira 2,5 lb (o mínimo), sem 102,2', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
@@ -192,10 +191,10 @@ test('chave desligada: sem a escolha e tudo em kg, mesmo com lb salvo de antes',
 
   await page.goto(EXERCICIO);
   await expect(pesoEm(page, 2, 'quilos')).toHaveValue('');
-  await expect(page.getByText('Sugestão: 60 kg × 8 reps · Última vez: 60 kg × 7', { exact: true })).toHaveCount(3);
+  await expect(pesoEm(page, 2, 'quilos')).toHaveAttribute('placeholder', '60');
   await expect(page.getByText(/ lb/)).toHaveCount(0);
   await pesoEm(page, 2, 'quilos').fill('62,5');
-  await marcar(page, 2).click();
+  await fazerSerie(page, 2);
   await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: 62.5, concluida: true });
   expect(api.errosDaPagina).toEqual([]);
 });
@@ -205,7 +204,7 @@ test('controle da chave: o mesmo lb salvo, com a chave ligada, mostra o campo em
   const api = await abrir(page, { chave: true, preferida: 'lb' });
   await page.goto(EXERCICIO);
   await expect(pesoEm(page, 2, 'libras')).toHaveValue('');
-  await expect(page.getByText('Sugestão: 132,3 lb × 8 reps · Última vez: 132,3 lb × 7', { exact: true })).toHaveCount(3);
+  await expect(pesoEm(page, 2, 'libras')).toHaveAttribute('placeholder', '132,3');
   await expect(page.getByText(/ kg/)).toHaveCount(0);
   expect(api.errosDaPagina).toEqual([]);
 });

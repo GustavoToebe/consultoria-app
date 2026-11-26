@@ -1,5 +1,6 @@
 package br.com.treinos.api.planos;
 
+import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.pastas.PastaPlano;
@@ -98,6 +99,11 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         return conteudo;
     }
 
+    /** "Treino" ou "Dieta": liga a limpeza do título na publicação ({@link TituloDoPlanoPublicado}). Padrão {@code null}: título intocado. */
+    protected String tipoDoTitulo() {
+        return null;
+    }
+
     /** Cópia do conteúdo de um plano de OUTRO aluno: o plano pode deixar de levar o que é pessoal. Padrão: igual. */
     protected C paraCopiaDeOutroAluno(C conteudo) {
         return conteudo;
@@ -194,6 +200,17 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         if (resultado.temAvisos() && !r.confirmarAvisos()) {
             throw new ValidacaoException("Confira os avisos antes de publicar.", "CONFIRMAR_AVISOS",
                     ResultadoValidacao.comoCampos(resultado.avisos()));
+        }
+        String tipo = tipoDoTitulo();
+        if (tipo != null) {
+            // Antes da versão: ela copia o título do plano. O título limpo vale também para o rascunho (mesmo plano).
+            String nomeDoAluno = alunos.findById(plano.getAlunoId()).map(Aluno::getNome).orElse(null);
+            plano.definirTituloAoPublicar(TituloDoPlanoPublicado.de(plano.getTitulo(), tipo, nomeDoAluno));
+            // A pasta é o que o aluno vê no seletor de plano: mesma limpeza, "Plano de <aluno>" no nome padrão.
+            if (plano.getPastaId() != null) {
+                pastas.findById(plano.getPastaId()).ifPresent(p -> p.definirTituloAoPublicar(
+                        TituloDoPlanoPublicado.de(p.getTitulo(), "Plano", nomeDoAluno)));
+            }
         }
         Instant agora = Instant.now();
         int numero = plano.getVersaoPublicada() + 1;

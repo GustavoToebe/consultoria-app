@@ -1,7 +1,7 @@
 import type { ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao } from '../api/tipos';
 import { normalizarDieta } from './dieta';
 import { soAVariacao } from './variacoesDaDieta';
-import { alimentosDaDieta, comFatoresDaBiblioteca, detalheDaConversao, DIAS_DO_PERIODO, escolhasDaLista, listaDeCompras, NOTA_DA_LISTA, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, PERIODOS_DA_LISTA, textoDoPeriodo, textosDasOpcoes, tituloDaLista } from './listaDeCompras';
+import { alimentosDaDieta, comFatoresDaBiblioteca, detalheDaConversao, DIAS_DO_PERIODO, escolhasDaLista, listaDeCompras, NOTA_DA_LISTA, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, PERIODOS_DA_LISTA, textoDasDuzias, textoDoPeriodo, textosDasOpcoes, tituloDaLista } from './listaDeCompras';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
 
@@ -248,11 +248,9 @@ describe('quantidadeParaTela', () => {
     expect(quantidadeParaTela(10.5, 'un')).toBe('11 un');
   });
 
-  it('texto do período', () => {
-    expect(textoDoPeriodo('semana')).toBe('Semana (7 dias)');
-    expect(textoDoPeriodo('duasSemanas')).toBe('2 semanas (14 dias)');
-    expect(textoDoPeriodo('mes')).toBe('Mês (30 dias)');
-    expect(PERIODOS_DA_LISTA.map(tituloDaLista)).toEqual(['Lista da semana', 'Lista de 2 semanas', 'Lista do mês']);
+  it('texto do período: o número de dias da conta (7, 14 e 30)', () => {
+    expect(PERIODOS_DA_LISTA.map(textoDoPeriodo)).toEqual(['7 dias', '14 dias', '30 dias']);
+    expect(PERIODOS_DA_LISTA.map(tituloDaLista)).toEqual(['Lista de 7 dias', 'Lista de 14 dias', 'Lista de 30 dias']);
   });
 });
 
@@ -261,6 +259,25 @@ describe('textos da lista', () => {
     expect(NOTA_DA_LISTA_ALUNO).toBe(NOTA_DA_LISTA);
     expect(NOTA_DA_LISTA_TREINADOR).toBe(NOTA_DA_LISTA);
     expect(NOTA_DA_LISTA).toMatch(/cálculo estimado/);
+  });
+
+  it('ovo em unidade ganha o equivalente em dúzias só quando o número mostrado é múltiplo de 12', () => {
+    const ovo = (nome: string, quantidade: number, unidade: 'un' | 'g' = 'un') => textoDasDuzias({ nome, quantidade, unidade });
+    expect(ovo('Ovo', 120)).toBe('10 dúzias');
+    expect(ovo('Ovo', 12)).toBe('1 dúzia');
+    expect(ovo('OVOS', 24)).toBe('2 dúzias');
+    expect(ovo('Ovo cozido', 36)).toBe('3 dúzias');
+    expect(ovo('Clara de ovo', 60)).toBe('5 dúzias');
+    // A conta em ponto flutuante não tira a dúzia: 119,9999 aparece como 120 un.
+    expect(ovo('Ovo', 119.9999999999)).toBe('10 dúzias');
+    // Vale o número mostrado (o inteiro de cima): 119,5 aparece como 120 un; 14 un não é dúzia exata.
+    expect(ovo('Ovo', 14)).toBeNull();
+    expect(ovo('Ovo', 119.5)).toBe('10 dúzias');
+    expect(ovo('Ovo', 0)).toBeNull();
+    expect(ovo('Ovomaltine', 24)).toBeNull();
+    expect(ovo('Pão novo', 24)).toBeNull();
+    expect(ovo('Ovo', 120, 'g')).toBeNull();
+    expect(ovo('Banana', 24)).toBeNull();
   });
 
   it('detalhe diz de onde veio o peso a comprar', () => {

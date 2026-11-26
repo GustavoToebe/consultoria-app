@@ -209,6 +209,8 @@ public class AuthService {
                 vitrine.habilitada(), vitrine.lojaEfetiva(), vitrine.marketplaceEfetivo(), whatsapp.habilitado(),
                 usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())
                         .map(br.com.treinos.api.consultoria.Consultoria::whatsappParaLink).orElse(null) : null,
+                usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())
+                        .map(br.com.treinos.api.consultoria.Consultoria::redesPreenchidas).orElse(null) : null,
                 acessoPausado);
     }
 

@@ -67,7 +67,8 @@ export function abrirCamada(no: unknown, cores: CoresDaCamada): CamadaDoArraste 
   copia.setAttribute('data-copia-do-arraste', '');
   Object.assign(copia.style, {
     position: 'fixed', margin: '0', left: `${inicio.x}px`, top: `${inicio.y}px`, width: `${inicio.w}px`, height: `${inicio.h}px`,
-    opacity: '0.6', transform: 'translate(0px, 0px) scale(1.02)', transformOrigin: 'center', pointerEvents: 'none', zIndex: '2147483001',
+    // Sem `scale` (26/11): com 1,02 em volta do centro, uma linha de 950 px saía 9,5 px para cada lado e 1 px para cima.
+    opacity: '0.6', transform: 'translate(0px, 0px)', pointerEvents: 'none', zIndex: '2147483001',
     backgroundColor: cores.superficie, boxShadow: cores.sombra, borderRadius: `${RAIO_DA_COPIA}px`, overflow: 'hidden',
   });
   document.body.appendChild(copia);
@@ -98,7 +99,7 @@ export function abrirCamada(no: unknown, cores: CoresDaCamada): CamadaDoArraste 
   return {
     mover: (dx, dy) => {
       if (!aberta) return;
-      copia.style.transform = `translate(${dx}px, ${dy}px) scale(1.02)`;
+      copia.style.transform = `translate(${dx}px, ${dy}px)`;
       const agora = caixaNaWeb(no);
       if (agora) posicionar(espaco, agora);
     },
@@ -119,7 +120,7 @@ export function abrirCamada(no: unknown, cores: CoresDaCamada): CamadaDoArraste 
         if (!no.isConnected) return devolver();
         const r = no.getBoundingClientRect();
         copia.style.transition = `transform ${DURACAO_DO_ENCAIXE}ms ease-out, opacity ${DURACAO_DO_ENCAIXE}ms ease-out`;
-        copia.style.transform = `translate(${r.left - inicio.x}px, ${r.top - inicio.y}px) scale(1)`;
+        copia.style.transform = `translate(${r.left - inicio.x}px, ${r.top - inicio.y}px)`;
         copia.style.opacity = '1';
         setTimeout(devolver, DURACAO_DO_ENCAIXE + 20);
       }));

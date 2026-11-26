@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { larguraMaximaDoConteudo } from '../../../dominio/larguraDoConteudo';
@@ -8,6 +8,7 @@ import { espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../../tema/token
 import { Botao } from '../../../ui/Botao';
 import { AvisoSairSemSalvar } from '../../../ui/GuardaDeSaida';
 import { RodapeDeAcoes } from '../../../ui/LinhaDeAcoes';
+import { useRegistroDoRodapeFixo } from '../../../ui/rodapeFixoDaPagina';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { Texto } from '../../../ui/Texto';
 import { textoDaBarra } from './tipos';
@@ -42,7 +43,7 @@ export function BarraDaEdicao({ alteracoes, aoRestaurar, aoCancelar, aoSalvar }:
   );
   const salvar = (estilo?: ViewStyle) => <Botao rotulo="Salvar" rotuloAcessivel="Salvar o Início" aoTocar={aoSalvar} style={estilo} />;
   return (
-    <View style={[estilos.barra, { backgroundColor: cores.superficie, borderTopColor: cores.divisor, borderTopWidth: bordas.bloco, paddingBottom: espaco(1.5) + bottom }]}>
+    <RodapeRegistrado style={[estilos.barra, { backgroundColor: cores.superficie, borderTopColor: cores.divisor, borderTopWidth: bordas.bloco, paddingBottom: espaco(1.5) + bottom }]}>
       <View style={[estilos.dentro, { maxWidth: larguraBarra }]}>
         {width < LARGURA_MENU_LATERAL ? (
           <View style={estilos.compacta}>
@@ -76,8 +77,14 @@ export function BarraDaEdicao({ alteracoes, aoRestaurar, aoCancelar, aoSalvar }:
           setPergunta(null);
           aoCancelar();
         }} />
-    </View>
+    </RodapeRegistrado>
   );
+}
+
+/** Rodapé fixo: o toast do celular sobe acima dele (ui/rodapeFixoDaPagina). Componente à parte: o hook devolve ref. */
+function RodapeRegistrado({ style, children }: { style: StyleProp<ViewStyle>; children: ReactNode }) {
+  const { ref, onLayout } = useRegistroDoRodapeFixo();
+  return <View ref={ref} onLayout={onLayout} style={style}>{children}</View>;
 }
 
 const estilos = StyleSheet.create({

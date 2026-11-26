@@ -34,6 +34,11 @@ public class PlanoMobilidadeService
     }
 
     @Override
+    protected String tipoDoTitulo() {
+        return "Mobilidade";
+    }
+
+    @Override
     protected PlanoMobilidadeVersao novaVersao(PlanoMobilidade plano, int numero, String conteudo, UUID publicadoPor,
                                                Instant quando) {
         return new PlanoMobilidadeVersao(plano, numero, conteudo, publicadoPor, quando);

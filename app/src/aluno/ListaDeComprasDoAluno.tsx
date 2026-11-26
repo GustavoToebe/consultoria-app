@@ -1,6 +1,6 @@
 import { FileDown, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { ConteudoDieta } from '../api/tipos';
 import {
@@ -19,7 +19,7 @@ import {
   errosDoAjuste,
   errosDoAvulso,
   gravarAvulso,
-  gruposDoAluno,
+  gruposDaTelaDoAluno,
   itensDoAluno,
   LIMITE_NOME_AVULSO,
   LIMITE_QUANTIDADE_LIVRE,
@@ -40,26 +40,26 @@ import {
 import { contagemDoGrupo } from '../dominio/gruposDaLista';
 import { novoUid } from '../dominio/uid';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes } from '../tema/tokens';
+import { espaco, fontes, LARGURA_MENU_LATERAL } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { BarraProgresso } from '../ui/BarraProgresso';
 import { Botao } from '../ui/Botao';
-import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { CabecalhoDeGrupo } from '../ui/CabecalhoDeGrupo';
 import { Campo } from '../ui/Campo';
+import { CaixaRedonda } from '../ui/CaixaRedonda';
 import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
 import { Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { IconeBotao } from '../ui/IconeBotao';
-import { LinhaDaLista, ListaDeLinhas } from '../ui/LinhaDaLista';
+import { ListaDeLinhas } from '../ui/LinhaDaLista';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
+import { LinhaDeCompra } from '../ui/LinhaDeCompra';
 import { EscolhasDaLista } from '../ui/ListaDeCompras';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { useListaDoAparelho } from './useListaDoAparelho';
-import { useMarcadoAgora } from './useMarcadoAgora';
 
 /** O que o PDF do aluno precisa: o período, as opções escolhidas e os itens com ajustes e avulsos. */
 export interface ListaParaPdf {
@@ -75,8 +75,9 @@ type Edicao = { tipo: 'ajuste'; item: ItemDaListaDoAluno } | { tipo: 'avulso'; i
 /**
  * Lista de compras do aluno: a conta da dieta (`listaDeCompras`, a mesma da prévia do treinador) mais o que é dele, só
  * neste aparelho: marcar comprado, ajustar a quantidade de um item e acrescentar itens. Nada disso muda a dieta nem vai
- * ao treinador. Período e opções por refeição também ficam guardados, por versão da dieta. Os itens vêm num cartão por
- * grupo do alimento (`gruposDoAluno`); o "N de M comprados" conta a lista toda.
+ * ao treinador. Período e opções por refeição também ficam guardados, por versão da dieta. Os itens vêm em linhas, num
+ * cartão por grupo do alimento, com os comprados riscados no fim do grupo (`gruposDaTelaDoAluno`); o "N de M comprados"
+ * conta a lista toda.
  */
 export function ListaDeComprasDoAluno({
   conteudo,
@@ -100,7 +101,7 @@ export function ListaDeComprasDoAluno({
   const linhas = listaDeCompras(conteudo, escolhas, periodo);
   const itens = itensDoAluno(linhas, marcacoes);
   const contagem = contagemDeComprados(itens);
-  const grupos = gruposDoAluno(itens);
+  const grupos = gruposDaTelaDoAluno(itens);
 
   const limpar = () => {
     const antes = marcacoes.comprados;
@@ -156,7 +157,7 @@ export function ListaDeComprasDoAluno({
       </Cartao>
       {grupos.map((g) => (
         <Cartao key={g.chave} cabecalho={<CabecalhoDeGrupo titulo={g.titulo} resumo={contagemDoGrupo(g.itens.length)} />}>
-          <ListaDeLinhas>
+          <ListaDeLinhas divisorias>
             {g.itens.map((item) => (
               <LinhaDoItem
                 key={item.chave}
@@ -205,8 +206,11 @@ export function ListaDeComprasDoAluno({
 }
 
 /**
- * Uma linha da lista. Fora do modo de ajuste, o ✓ à direita marca comprado (com o selo "Comprado"); no modo de ajuste, o
- * lápis ajusta (ou edita o avulso) e a lixeira tira o avulso. O que é do aluno leva o selo dizendo isso.
+ * Uma linha da lista (A7, 25/11; a peça `ui/LinhaDeCompra`, a mesma da prévia do treinador): caixa redonda à esquerda,
+ * nome e, à direita, a quantidade. Tocar no nome também marca (fora do modo de ajuste); o foco e o leitor de tela ficam
+ * na caixa. Comprado = nome e quantidade riscados em `textoSuave` (sem opacidade, que derrubava o contraste, A12) e o
+ * item desce para o fim do grupo. No modo de ajuste entram o lápis (ajustar ou editar o avulso) e a lixeira do avulso;
+ * no celular a quantidade desce para baixo do nome para o nome não espremer entre ela e os botões.
  */
 function LinhaDoItem({ item, ajustando, aoMarcar, aoAjustar, aoRemover }: {
   item: ItemDaListaDoAluno;
@@ -215,26 +219,27 @@ function LinhaDoItem({ item, ajustando, aoMarcar, aoAjustar, aoRemover }: {
   aoAjustar: () => void;
   aoRemover: () => void;
 }) {
-  const origem = textoDaOrigem(item.origem);
-  const agora = useMarcadoAgora(item.comprado);
-  const acoes = ajustando ? (
-    <View style={estilos.acoes}>
-      <IconeBotao Icone={Pencil} rotulo={`${item.avulso ? 'Editar' : 'Ajustar'} ${item.nome}`} aoTocar={aoAjustar} />
-      {item.avulso ? <IconeBotao Icone={Trash2} rotulo={`Remover ${item.nome}`} aoTocar={aoRemover} /> : null}
-    </View>
-  ) : (
-    <BotaoMarcar feito={item.comprado} agora={agora} rotulo={`${item.nome}: ${item.comprado ? 'comprado' : 'não comprado'}`} aoTocar={aoMarcar} />
-  );
+  const { cores } = useTema();
+  const { width } = useWindowDimensions();
+  const descricao = item.calculado ? `Calculado: ${item.calculado}` : item.linha ? detalheDaConversao(item.linha) : null;
+  const riscado = item.comprado ? [estilos.riscado, { color: cores.textoSuave }] : null;
+  const quantidadeAbaixo = ajustando && width < LARGURA_MENU_LATERAL;
   return (
-    <LinhaDaLista
-      titulo={item.nome}
-      metadados={item.quantidade}
-      descricao={item.calculado ? `Calculado: ${item.calculado}` : item.linha ? detalheDaConversao(item.linha) ?? undefined : undefined}
-      // A12 (contraste): a linha comprada não fica mais esmaecida (opacidade 0,6 deixava o texto suave abaixo de 4,5:1 nos
-      // temas claros); o estado vai no ✓ preenchido e no selo "Comprado" (verde: é um estado concluído).
-      selos={[...(item.comprado && !ajustando ? [{ texto: 'Comprado', tipo: 'sucesso' as const }] : []), ...(origem ? [{ texto: origem, tipo: 'neutro' as const }] : [])]}
-      acoes={acoes}
-      acoesAoLado
+    <LinhaDeCompra
+      nome={item.nome}
+      estiloDoNome={riscado}
+      detalhe={descricao}
+      selo={textoDaOrigem(item.origem)}
+      quantidade={<Texto numerico style={[quantidadeAbaixo ? null : estilos.aDireita, riscado]}>{item.quantidade}</Texto>}
+      quantidadeAbaixo={quantidadeAbaixo}
+      inicio={<CaixaRedonda rotulo={`${item.nome}, marcar como comprado`} marcado={item.comprado} aoMudar={aoMarcar} />}
+      fim={ajustando ? (
+        <>
+          <IconeBotao Icone={Pencil} rotulo={`${item.avulso ? 'Editar' : 'Ajustar'} ${item.nome}`} aoTocar={aoAjustar} />
+          {item.avulso ? <IconeBotao Icone={Trash2} rotulo={`Remover ${item.nome}`} aoTocar={aoRemover} /> : null}
+        </>
+      ) : null}
+      aoTocar={ajustando ? undefined : aoMarcar}
     />
   );
 }
@@ -322,6 +327,7 @@ function FolhaAvulso({ item, quantos, aoFechar, aoSalvar }: {
 const estilos = StyleSheet.create({
   progresso: { gap: espaco(1) },
   forte: { fontFamily: fontes.semi, fontSize: 16 },
-  acoes: { flexDirection: 'row', alignItems: 'center' },
+  aDireita: { textAlign: 'right' },
+  riscado: { textDecorationLine: 'line-through' },
   campos: { gap: espaco(2) },
 });

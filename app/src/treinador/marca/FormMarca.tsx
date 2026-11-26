@@ -9,6 +9,7 @@ import type { ConsultoriaResponse, Fonte, Marca, MetaDoPeso, Tema } from '../../
 import { mascaraTelefone } from '../../dominio/cadastroDoAluno';
 import { NOME_DO_REMETENTE_MAXIMO, problemasDoContato, RESPONDER_PARA_MAXIMO } from '../../dominio/contatoDaConsultoria';
 import { OPCOES_DA_META } from '../../dominio/metaDoPesoNaFicha';
+import { corpoDasRedes, erroDaRede, formDasRedes, REDES_DA_CONSULTORIA, redesAlteradas, valoresDasRedesDaConsultoria, type ValoresDasRedes } from '../../dominio/redesSociais';
 import { avaliarMarca, avisoDeMarcaPertoDeStatus, paletaDaCor, PALETAS } from '../../dominio/paletas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -26,6 +27,7 @@ import { LinkTexto } from '../../ui/LinkTexto';
 import { FAMILIAS, MarcaTitulo } from '../../ui/MarcaTitulo';
 import { OpcaoCartao } from '../../ui/OpcaoCartao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { RedesSociais } from '../../ui/RedesSociais';
 import { Texto } from '../../ui/Texto';
 import { anexarLogo } from './anexarLogo';
 
@@ -79,6 +81,10 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const problemasContato = problemasDoContato(contato);
   const contatoValido = Object.keys(problemasContato).length === 0;
   const contatoAlterado = (Object.keys(contato) as (keyof typeof contato)[]).some((k) => contato[k].trim() !== contatoSalvo[k].trim());
+  // Redes sociais: uma linha por rede adicionada, com o link gravado (a API normaliza o `@usuario`); depois de salvar, volta ao que ela devolveu.
+  // Rede removida some das chaves: `corpoDasRedes` manda em branco e a API apaga; `redesAlteradas` conta a remoção como alteração.
+  const redesSalvas = formDasRedes(consultoria.redesSociais);
+  const [redes, setRedes] = useState<ValoresDasRedes>(() => valoresDasRedesDaConsultoria(consultoria.redesSociais));
   const [logoUrl, setLogoUrl] = useState(inicial.logoUrl);
   const [salvando, setSalvando] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -90,6 +96,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const previaAoLado = larguraDoGrupo !== null && larguraDoGrupo >= PREVIA_AO_LADO;
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
+  const errosDasRedes = Object.fromEntries(REDES_DA_CONSULTORIA.flatMap((r) => { const e = erroDaRede(campos, r); return e ? [[r, e]] : []; }));
   const corValida = HEX.test(cor);
   const avaliacao = avaliarMarca(cor, tema);
   const pertoDeStatus = avisoDeMarcaPertoDeStatus(cor);
@@ -102,6 +109,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
     dias !== (consultoria.diasAtualizacaoPadrao ?? null) ||
     meta !== metaSalva ||
     contatoAlterado ||
+    redesAlteradas(redes, redesSalvas) ||
     JSON.stringify(textosAtuais) !== JSON.stringify(textosSalvos);
   const previa: Marca = { ...inicial, nome: nome || inicial.nome, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
 
@@ -110,9 +118,11 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
     setErro(null);
     alterarMarca({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao, diasAtualizacaoPadrao: dias, textosFasesCiclo: textosAtuais, metaDoPeso: meta,
       // Os três sempre: em branco apaga na API, então ausente apagaria o contato ao salvar só a cor.
-      whatsapp: contato.whatsapp.trim(), emailRemetenteNome: contato.emailRemetenteNome.trim(), emailResponderPara: contato.emailResponderPara.trim() }).then(
+      whatsapp: contato.whatsapp.trim(), emailRemetenteNome: contato.emailRemetenteNome.trim(), emailResponderPara: contato.emailResponderPara.trim(),
+      redesSociais: corpoDasRedes(redes) }).then(
       (c) => {
         setSalvando(false);
+        setRedes(valoresDasRedesDaConsultoria(c.redesSociais));
         aoSalvar(c);
         atualizarMarca(c.marca);
         avisar('Marca salva. Os alunos veem a nova marca ao abrir o app.', 'sucesso');
@@ -330,7 +340,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
         </Cartao>
         ) : null}
       </Cartao>
-      <Cartao titulo="Contato" descricao="Opcional. Como o aluno fala com você e de quem os e-mails do app parecem vir.">
+      <Cartao titulo="Contato" descricao="Opcional. Como o aluno fala com você, onde ele te segue e de quem os e-mails do app parecem vir.">
         <View style={estilos.campoDias}>
           <Campo rotulo="WhatsApp da consultoria" valor={contato.whatsapp} aoMudar={(t) => mudarContato('whatsapp')(mascaraTelefone(t))}
             erro={problemasContato.whatsapp ?? campos.whatsapp} keyboardType="phone-pad" autoComplete="tel" maxLength={15}
@@ -343,6 +353,15 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
           erro={problemasContato.emailResponderPara ?? campos.emailResponderPara} keyboardType="email-address" autoCapitalize="none"
           autoComplete="email" spellCheck={false} maxLength={RESPONDER_PARA_MAXIMO}
           ajuda="Quem responde ao lembrete de cobrança ou ao convite de equipe escreve para este e-mail." />
+        <View style={estilos.redes}>
+          <View style={estilos.cabecaDoGrupo}>
+            <Texto variante="subtitulo" nivel={3}>Redes sociais</Texto>
+            <Texto variante="suave">O aluno vê as preenchidas na Conta, como botões que abrem fora do app. Use @usuário ou o link do perfil; no site, o link completo.</Texto>
+          </View>
+          <View style={estilos.camposDasRedes}>
+            <RedesSociais modo="edicao" redesPermitidas={REDES_DA_CONSULTORIA} valores={redes} aoMudar={setRedes} erros={errosDasRedes} />
+          </View>
+        </View>
       </Cartao>
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {alterado ? (
@@ -416,6 +435,9 @@ function Previa({ marca, tema, compacta }: { marca: Marca; tema: Tema; compacta:
 
 const estilos = StyleSheet.create({
   campoDias: { maxWidth: 280 },
+  redes: { gap: espaco(1.5), marginTop: espaco(1) },
+  // Uma linha por rede adicionada; teto de largura para o campo não esticar na tela larga.
+  camposDasRedes: { maxWidth: 520 },
   paletas: { gap: espaco(1.5) },
   meta: { gap: espaco(0.5) },
   grupo: { gap: espaco(2) },

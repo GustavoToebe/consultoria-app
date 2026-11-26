@@ -105,9 +105,10 @@ const OPCOES_TIPO_SELO: readonly { valor: TipoSelo; rotulo: string }[] = [
 const OPCOES_TIPO_BOTAO: readonly { valor: TipoBotaoMontador; rotulo: string }[] = [
   { valor: 'primario', rotulo: 'Primário' },
   { valor: 'secundario', rotulo: 'Secundário' },
-  { valor: 'perigo', rotulo: 'Perigo' },
+  { valor: 'perigo', rotulo: 'Perigo (tonal)' },
   { valor: 'fantasma', rotulo: 'Fantasma' },
-  { valor: 'perigoTexto', rotulo: 'Perigo (texto)' },
+  // Nome antigo de 'perigo' (desenha igual desde 26/11): fica na lista para o modelo já gravado mostrar o rótulo certo.
+  { valor: 'perigoTexto', rotulo: 'Perigo (nome antigo)' },
 ];
 
 const OPCOES_TOM_ALERTA: readonly { valor: TomDoAlerta; rotulo: string }[] = [

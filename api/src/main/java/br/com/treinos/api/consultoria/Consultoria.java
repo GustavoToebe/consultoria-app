@@ -100,6 +100,32 @@ public class Consultoria {
     @Column(name = "email_responder_para")
     private String emailResponderPara;
 
+    /** Redes sociais (V101): links https já normalizados por {@link RedesSociais}; nulo = não informada. */
+    @Column(name = "rede_instagram")
+    private String redeInstagram;
+
+    @Column(name = "rede_tiktok")
+    private String redeTiktok;
+
+    @Column(name = "rede_youtube")
+    private String redeYoutube;
+
+    @Column(name = "rede_x")
+    private String redeX;
+
+    @Column(name = "rede_site")
+    private String redeSite;
+
+    /** Facebook, LinkedIn e Telegram (V103), como as de cima. */
+    @Column(name = "rede_facebook")
+    private String redeFacebook;
+
+    @Column(name = "rede_linkedin")
+    private String redeLinkedin;
+
+    @Column(name = "rede_telegram")
+    private String redeTelegram;
+
     @Column(name = "logo_tipo", insertable = false, updatable = false)
     private String logoTipo;
 
@@ -210,6 +236,43 @@ public class Consultoria {
         this.whatsapp = whatsapp;
         this.emailRemetenteNome = emailRemetenteNome;
         this.emailResponderPara = emailResponderPara;
+    }
+
+    /** As oito redes, sempre com as oito chaves (valor nulo = não informada). */
+    public java.util.Map<RedesSociais.Rede, String> redesSociais() {
+        var redes = new java.util.EnumMap<RedesSociais.Rede, String>(RedesSociais.Rede.class);
+        redes.put(RedesSociais.Rede.INSTAGRAM, redeInstagram);
+        redes.put(RedesSociais.Rede.TIKTOK, redeTiktok);
+        redes.put(RedesSociais.Rede.YOUTUBE, redeYoutube);
+        redes.put(RedesSociais.Rede.X, redeX);
+        redes.put(RedesSociais.Rede.SITE, redeSite);
+        redes.put(RedesSociais.Rede.FACEBOOK, redeFacebook);
+        redes.put(RedesSociais.Rede.LINKEDIN, redeLinkedin);
+        redes.put(RedesSociais.Rede.TELEGRAM, redeTelegram);
+        return redes;
+    }
+
+    /** Só as redes preenchidas, por chave em minúsculas ({@code instagram}, {@code tiktok}, {@code youtube}, {@code x}, {@code site}, {@code facebook}, {@code linkedin}, {@code telegram}); nulo se nenhuma. Para o {@code GET /eu} do aluno. */
+    public java.util.Map<String, String> redesPreenchidas() {
+        var preenchidas = new java.util.LinkedHashMap<String, String>();
+        redesSociais().forEach((rede, link) -> {
+            if (link != null) {
+                preenchidas.put(rede.name().toLowerCase(java.util.Locale.ROOT), link);
+            }
+        });
+        return preenchidas.isEmpty() ? null : preenchidas;
+    }
+
+    /** Substitui as oito (já normalizadas); chave ausente ou nula apaga. */
+    public void definirRedes(java.util.Map<RedesSociais.Rede, String> redes) {
+        this.redeInstagram = redes.get(RedesSociais.Rede.INSTAGRAM);
+        this.redeTiktok = redes.get(RedesSociais.Rede.TIKTOK);
+        this.redeYoutube = redes.get(RedesSociais.Rede.YOUTUBE);
+        this.redeX = redes.get(RedesSociais.Rede.X);
+        this.redeSite = redes.get(RedesSociais.Rede.SITE);
+        this.redeFacebook = redes.get(RedesSociais.Rede.FACEBOOK);
+        this.redeLinkedin = redes.get(RedesSociais.Rede.LINKEDIN);
+        this.redeTelegram = redes.get(RedesSociais.Rede.TELEGRAM);
     }
 
     public String getLogoTipo() {

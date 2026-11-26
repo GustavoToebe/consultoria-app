@@ -173,6 +173,10 @@ export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = fals
     },
     {
       chave: 'treino', titulo: 'Treino e dados', extra: 2, linhas: [
+        <LinhaDeConfiguracao key="cor-das-series" nome="Cor das séries" descricao="Cada série na cor do seu tipo ou todas na cor de ação; o nome do tipo aparece sempre.">
+          <Escolha descricao="Cor das séries" opcoes={[{ valor: 'TIPO', rotulo: 'Cor do tipo' }, { valor: 'ACAO', rotulo: 'Cor de ação' }]}
+            valor={preferencias.corDasSeries} aoMudar={(corDasSeries) => mudar({ corDasSeries })} />
+        </LinhaDeConfiguracao>,
         escolheUnidade ? (
           <LinhaDeConfiguracao key="unidade" nome="Unidade da carga" descricao={aluno
             ? 'Como você vê e digita o peso. O registro fica em kg; trocar não muda o que já foi registrado.'

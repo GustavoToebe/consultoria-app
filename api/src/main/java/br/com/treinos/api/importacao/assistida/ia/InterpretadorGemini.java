@@ -82,10 +82,11 @@ public class InterpretadorGemini implements InterpretadorIa {
         // Prompt de Sistema com regras da metodologia e privacidade
         String promptSistema = "Você é o assistente de importação da plataforma Overtraining.\n"
                 + "Extraia cadastros de alunos, pesos, planos de treino (divisões, exercícios, séries, repetições, descanso) "
-                + "e planos de dieta (refeições, horários, alimentos com quantidade e unidade).\n"
-                + "Metodologia da consultoria: tipos de séries permitidos: " + String.join(", ", contexto.metodosConsultoria()) + ".\n"
+                + "e planos de dieta (refeições, horários, alimentos com quantidade e unidade), mais suplementos e medicações.\n"
+                + DecodificadorDaProposta.trechoDeMetodologiaEBiblioteca(contexto)
                 + "Dicionário de abreviações conhecidas da consultoria:\n" + DecodificadorDaProposta.formatarApelidos(contexto.apelidosConhecidos()) + "\n"
                 + "Nunca invente dados inexistentes: se não houver repetição ou peso, deixe nulo.\n"
+                + DecodificadorDaProposta.FORMATO_DA_RESPOSTA
                 + "Responda OBRIGATORIAMENTE em JSON no formato especificado.";
 
         Map<String, Object> systemInstruction = Map.of(
@@ -108,11 +109,16 @@ public class InterpretadorGemini implements InterpretadorIa {
             if (candidates.isEmpty()) {
                 throw new IllegalStateException("Resposta vazia da IA Gemini.");
             }
+            if ("MAX_TOKENS".equals(candidates.get(0).path("finishReason").asText())) {
+                throw new DecodificadorDaProposta.RespostaCortada("Gemini");
+            }
             JsonNode textNode = candidates.get(0).path("content").path("parts").get(0).path("text");
             String jsonTexto = textNode.asText();
 
             JsonNode parsed = json.readTree(jsonTexto);
             return DecodificadorDaProposta.decodificar(json, parsed, contexto);
+        } catch (DecodificadorDaProposta.RespostaCortada e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Falha ao decodificar a resposta do Gemini.");
         }

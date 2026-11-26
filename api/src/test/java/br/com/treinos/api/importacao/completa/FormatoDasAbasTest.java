@@ -72,7 +72,9 @@ class FormatoDasAbasTest {
         assertThat(FormatoDasAbas.alunoDoNomeDaAba("Davi Exemplo - Treino")).contains("Davi Exemplo");
         assertThat(FormatoDasAbas.alunoDoNomeDaAba("Aluno: Eva")).contains("Eva");
         for (String generico : List.of("Treino", "Treinos", "Treino A", "Dieta", "Exercícios", "TACO", "Planilha1", "Sheet1",
-                "Peito e Tríceps", "Hipertrofia", "Pesos", "A", "Café da manhã", "Segunda-feira")) {
+                "Peito e Tríceps", "Hipertrofia", "Pesos", "A", "Café da manhã", "Segunda-feira", "Janeiro", "Fevereiro",
+                "Março", "Marco", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro",
+                "Dezembro", "Treino Março")) {
             assertThat(FormatoDasAbas.alunoDoNomeDaAba(generico)).as(generico).isEmpty();
         }
     }
@@ -241,8 +243,8 @@ class FormatoDasAbasTest {
                 .hasSize(3).allMatch(s -> s.esforco().rir() == 2);
         PlanosDoAluno davi = planosDe(m, "Davi Inventado");
         assertThat(davi.treino().sessoes().getFirst().exercicios().getFirst().series()).allMatch(s -> s.descansoSegundos() == 60);
-        // "Treinos" não é nome de aluno: o histórico guarda o nome da aba como está.
-        assertThat(m.abasComNomeDeAluno()).isEmpty();
+        // O histórico nunca guarda o nome da aba (pode ser o de um aluno): sempre "Aba N".
+        assertThat(m.abasComNomeDeAluno()).containsEntry("Alunos", "Aba 1").containsEntry("Treinos", "Aba 2");
 
         Analise a = analisar(abas, List.of());
         PlanilhaCompletaDtos.Aba treinos = a.abas().get(1);

@@ -10,12 +10,15 @@ import type { AbaDaFicha, BlocoDaFicha } from './fichaDoAluno';
  * Com largura medida para três colunas (2560 e 3440 com o menu aberto), três pilhas (`colunasDaAbaDados`, 24/11).
  */
 
-/** As quatro seções dos Dados do aluno (`SECOES_DO_ALUNO`, postas pelo `DadosDoAluno`) e os blocos da aba. */
-export type PecaDaAbaDados = 'identificacao' | 'contato' | 'acompanhamento' | 'objetivo' | 'planoContratado' | 'acessoAoApp' | 'anamnese' | 'lesoes';
-export type SecaoDosDados = Extract<PecaDaAbaDados, 'identificacao' | 'contato' | 'acompanhamento' | 'objetivo'>;
+/**
+ * As seções dos Dados do aluno (as quatro de `SECOES_DO_ALUNO` e o cartão "Redes sociais", 26/11, logo abaixo do Contato e
+ * sempre na coluna dele; postas pelo `DadosDoAluno`, que tira a das redes sem rede preenchida) e os blocos da aba.
+ */
+export type PecaDaAbaDados = 'identificacao' | 'contato' | 'redes' | 'acompanhamento' | 'objetivo' | 'planoContratado' | 'acessoAoApp' | 'anamnese' | 'lesoes';
+export type SecaoDosDados = Extract<PecaDaAbaDados, 'identificacao' | 'contato' | 'redes' | 'acompanhamento' | 'objetivo'>;
 type BlocoDaAbaDados = Exclude<PecaDaAbaDados, SecaoDosDados>;
 
-export const SECOES_DOS_DADOS: readonly SecaoDosDados[] = ['identificacao', 'contato', 'acompanhamento', 'objetivo'];
+export const SECOES_DOS_DADOS: readonly SecaoDosDados[] = ['identificacao', 'contato', 'redes', 'acompanhamento', 'objetivo'];
 const ehSecao = (p: PecaDaAbaDados): p is SecaoDosDados => (SECOES_DOS_DADOS as readonly string[]).includes(p);
 
 /**
@@ -24,7 +27,7 @@ const ehSecao = (p: PecaDaAbaDados): p is SecaoDosDados => (SECOES_DOS_DADOS as 
  * cabia em 1280 e virava cartões.
  */
 export const COLUNAS_DA_FICHA: Readonly<Record<'esquerda' | 'direita', readonly PecaDaAbaDados[]>> = {
-  esquerda: ['identificacao', 'contato', 'planoContratado'],
+  esquerda: ['identificacao', 'contato', 'redes', 'planoContratado'],
   direita: ['acompanhamento', 'objetivo', 'acessoAoApp', 'anamnese'],
 };
 export const ABAIXO_DAS_DUAS_COLUNAS: readonly BlocoDaAbaDados[] = ['lesoes'];
@@ -36,7 +39,7 @@ export const PROPORCAO_DAS_COLUNAS = { esquerda: 3, direita: 2 } as const;
  * 2560 com o menu aberto; com terços iguais ela teria ~740 px e viraria cartões.
  */
 export const TRES_COLUNAS_DA_FICHA: readonly (readonly PecaDaAbaDados[])[] = [
-  ['identificacao', 'contato', 'objetivo'],
+  ['identificacao', 'contato', 'redes', 'objetivo'],
   ['planoContratado', 'lesoes'],
   ['acompanhamento', 'acessoAoApp', 'anamnese'],
 ];
@@ -88,10 +91,31 @@ export const colunaUnica = (colunas: readonly ColunaDaAbaDados[] | null, editand
 
 /**
  * Teto da coluna única: a largura que a coluna da esquerda (a maior, 3 de 5) teria no arranjo de duas com a mesma aba
- * (`largura` medida, até `LARGURA_EDITOR_DE_CAMPOS`, menos o vão). ~580 px em 1280 e ~826 em 1920 com o menu aberto.
+ * (`largura`: a das duas colunas, a medida ou o teto delas, `larguraMaximaDasColunas`, menos o vão). ~542 px em 1280 e
+ * ~965 em 1920 com o menu aberto.
  */
 export const tetoDaColunaUnica = (largura: number, vao: number): number =>
-  (PROPORCAO_DAS_COLUNAS.esquerda / (PROPORCAO_DAS_COLUNAS.esquerda + PROPORCAO_DAS_COLUNAS.direita)) * (Math.min(largura, LARGURA_EDITOR_DE_CAMPOS) - vao);
+  (PROPORCAO_DAS_COLUNAS.esquerda / (PROPORCAO_DAS_COLUNAS.esquerda + PROPORCAO_DAS_COLUNAS.direita)) * (largura - vao);
+
+/** Medida de uma coluna do formulário dos Dados: `flex` (proporção da linha) ou `largura` fixa em px. */
+export type MedidaDaColuna = { flex: number } | { largura: number };
+
+/**
+ * As duas colunas do formulário de edição dos Dados (`FormAluno`: 1 e 2 | 3 e 4) com o vão no mesmo x do vão da leitura
+ * (Gustavo, 26/11: "a divisória do meio alinhada entre edição e leitura"; antes o formulário dividia ao meio). Em duas
+ * colunas, as proporções da leitura (3:2) na mesma largura e com o mesmo vão. Em três, o formulário continua no teto do
+ * editor de campos (4.10): a esquerda tem a largura da 1ª coluna da leitura (Identificação e Contato ficam no lugar) e a
+ * direita, o resto do teto. `largura` é a da aba (a medida, já no teto dela); na compacta (`null`), o formulário quebra sozinho.
+ */
+export function colunasDoFormulario(colunas: readonly ColunaDaAbaDados[] | null, largura: number, vao: number): readonly [MedidaDaColuna, MedidaDaColuna] | null {
+  if (!colunas) return null;
+  if (colunas.length === 2) return [{ flex: colunas[0].proporcao }, { flex: colunas[1].proporcao }];
+  // A conta do flex com o `maxWidth` de cada coluna: a do meio (1,2) é a primeira a bater no teto e as outras dividem o resto.
+  const [p0, p1, p2] = colunas.map((c) => c.proporcao);
+  const livre = largura - 2 * vao;
+  const meio = Math.min(LARGURA_EDITOR_DE_CAMPOS, (livre * p1) / (p0 + p1 + p2));
+  return [{ largura: Math.min(LARGURA_EDITOR_DE_CAMPOS, ((livre - meio) * p0) / (p0 + p2)) }, { flex: 1 }];
+}
 
 /** Os blocos que vão abaixo das colunas, na largura toda delas: só no arranjo de duas e só os que a aba mostra. */
 export const abaixoDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, blocos: readonly BlocoDaFicha[]): BlocoDaAbaDados[] =>
@@ -110,16 +134,16 @@ export function ordemNumaColuna(blocos: readonly BlocoDaFicha[]): PecaNumaColuna
 }
 
 /**
- * Teto da aba em duas colunas (revisão de tela larga, 24/11, `docs/planos/tela-larga-revisao-ficha.md`): a partir da faixa
- * `normal` o título, o formulário e as colunas não passam de `LARGURA_EDITOR_DE_CAMPOS` (a regra do editor de campos, 4.10),
- * alinhados à esquerda, e a sobra fica vazia à direita. Abaixo de 1400 px de aba (1280) não muda nada; antes, só a
- * `ultralarga` tinha teto e a `larga` (1920 e 2560 com o menu aberto) esticava as colunas até ~2270 px. Numa coluna
- * (`compacta`), a largura toda (`undefined`). Em três colunas o teto é por coluna, e o formulário da edição continua no
- * teto do editor de campos (`DadosDoAluno`).
+ * Teto da aba (revisão de tela larga, 24/11; D1 de `docs/planos/ajustes-da-tarde-25-11.md`, 25/11): em duas colunas, nas
+ * faixas `normal` e `larga`, nenhum (`undefined`): as colunas ocupam a largura do conteúdo, que só a `Tela` limita
+ * ("Largura do conteúdo" limitada, 1800); antes paravam em `LARGURA_EDITOR_DE_CAMPOS` e sobrava uma faixa vazia à direita
+ * em 1920 (Gustavo). Na `ultralarga` o arranjo normal é o de três, cada coluna até `LARGURA_EDITOR_DE_CAMPOS` (o `maxWidth`
+ * dela) e a aba na soma (o "Editar dados" fica na borda da 3ª); quando ele volta às duas (a do meio vazia), as duas continuam
+ * no teto do editor de campos, para não esticarem por ~3150 px. Numa coluna (`compacta`), a largura toda. O formulário da
+ * edição tem a largura da leitura (`DadosDoAluno`, D1 de 25/11): o teto do editor de campos só vale com a aba em três.
  */
-export const larguraMaximaDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, vao: number): number | undefined =>
-  // Em três, cada coluna para em `LARGURA_EDITOR_DE_CAMPOS` (o `maxWidth` dela) e a aba na soma: o "Editar dados" fica na borda da 3ª.
-  (!colunas ? undefined : colunas.length === 3 ? 3 * LARGURA_EDITOR_DE_CAMPOS + 2 * vao : LARGURA_EDITOR_DE_CAMPOS);
+export const larguraMaximaDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, vao: number, faixa: FaixaDeLargura): number | undefined =>
+  (!colunas ? undefined : colunas.length === 3 ? 3 * LARGURA_EDITOR_DE_CAMPOS + 2 * vao : faixa === 'ultralarga' ? LARGURA_EDITOR_DE_CAMPOS : undefined);
 
 /**
  * Resumo em três colunas (Atividade recente ao lado do Planejamento e da Última medição) quando cabem três colunas de

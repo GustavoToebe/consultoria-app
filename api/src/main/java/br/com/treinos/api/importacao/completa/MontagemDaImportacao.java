@@ -63,7 +63,7 @@ import java.util.regex.Pattern;
  */
 public final class MontagemDaImportacao {
 
-    public static final String TITULO_PASTA = "Importada da planilha (rascunho)";
+    public static final String TITULO_PASTA = br.com.treinos.api.planos.TituloDoPlanoPublicado.NOME_PADRAO_DA_IMPORTACAO + " (rascunho)";
     private static final int NOME_ALUNO = 120;
     private static final int OBJETIVO = 200;
     private static final int OBSERVACOES_ALUNO = 4000;
@@ -191,8 +191,8 @@ public final class MontagemDaImportacao {
     }
 
     /**
-     * {@code abasComNomeDeAluno} = os nomes das abas que são o nome de um aluno (aba de um aluno ou em blocos): o
-     * histórico guarda "Aba N" no lugar deles.
+     * {@code abasComNomeDeAluno} = o nome de cada aba da planilha e o "Aba N" que o histórico guarda no lugar dele (o nome da
+     * aba pode ser o de um aluno).
      */
     public record Montagem(List<AlunoNovo> alunosNovos, int alunosReaproveitados, List<PesoNovo> pesos, int pesosIniciais,
                            int pesosJaRegistrados, List<ExercicioNovo> exerciciosNovos, List<PlanosDoAluno> planos,
@@ -287,6 +287,8 @@ public final class MontagemDaImportacao {
         private final Map<String, List<AlunoExistente>> existentesPorNome = new HashMap<>();
         /** Aluno de cada nome de aba ou de bloco (a chave do nome), já resolvido. */
         private final Map<String, Achado> donosPorNome = new HashMap<>();
+        /** Um só dono por aluno que já existe: o mesmo aluno por linha e por nome não pode virar dois (dois pastas, dois pesos no dia). */
+        private final Map<UUID, Dono> donosDosExistentes = new HashMap<>();
 
         Execucao(Leitura leitura, RespostasDaPlanilha respostas, Contexto ctx) {
             this.leitura = leitura;
@@ -370,10 +372,9 @@ public final class MontagemDaImportacao {
             Pendencias pendencias = new Pendencias(exerciciosProvaveis.size(), alimentosProvaveis.size(), ligacoesAmbiguas,
                     suplementosPendentes.size());
             Map<String, String> abasComNome = new LinkedHashMap<>();
+            // Sempre "Aba N": a heurística de nome de aluno erra ("Treino Ana (2025)"), e o histórico não leva nome de pessoa.
             for (AbaReconhecida a : abas) {
-                if (!a.emTabela() && FormatoDasAbas.alunoDoNomeDaAba(a.nome()).isPresent()) {
-                    abasComNome.put(a.nome(), "Aba " + (a.indice() + 1));
-                }
+                abasComNome.put(a.nome(), "Aba " + (a.indice() + 1));
             }
             return new Montagem(List.copyOf(novos), reaproveitados, List.copyOf(pesos), iniciaisEJa[0], iniciaisEJa[1],
                     List.copyOf(exerciciosNovos.values()), List.copyOf(planos), sensiveisPulados, faixasDeData,
@@ -396,6 +397,7 @@ public final class MontagemDaImportacao {
             Reconhecimento r = aba.reconhecimento();
             int cCodigo = r.coluna(Campo.CODIGO);
             Set<String> codigos = new HashSet<>();
+            Map<String, Dono> pessoas = new HashMap<>();
             Map<String, List<AlunoExistente>> porEmail = new HashMap<>();
             for (AlunoExistente e : ctx.alunos()) {
                 if (e.email() != null && !e.email().isBlank()) {
@@ -454,15 +456,30 @@ public final class MontagemDaImportacao {
                         continue;
                     }
                     existente = mesmos.isEmpty() ? null : mesmos.getFirst();
+                    // Mesmo nome, e-mail preenchido dos dois lados e diferente: pode ser outra pessoa. Não reaproveita; entra
+                    // como aluno novo e o treinador confere na prévia (sem e-mail de um dos lados, o nome único basta).
+                    if (existente != null && !email.isEmpty() && existente.email() != null && !existente.email().isBlank()
+                            && !Emails.normalizar(existente.email()).equals(Emails.normalizar(email))) {
+                        problema(aba, l.numero(), Campo.EMAIL, "NOME_IGUAL_EMAIL_DIFERENTE");
+                        existente = null;
+                    }
                 }
                 if (existente != null && existente.anonimizado()) {
                     problema(aba, l.numero(), Campo.ALUNO, "ALUNO_ANONIMIZADO");
                     continue;
                 }
+                // A mesma pessoa em duas linhas: só a primeira entra (senão viram dois alunos novos ou dois donos do mesmo).
+                String pessoa = existente != null ? "id:" + existente.id()
+                        : !email.isEmpty() ? "email:" + email : "nome:" + Normalizacao.chaveDoNome(nome);
+                Dono primeiro = pessoas.get(pessoa);
+                if (primeiro != null) {
+                    problema(aba, l.numero(), Campo.ALUNO, "ALUNO_REPETIDO");
+                    alunosPorLinha.put(l.numero(), primeiro); // o que se liga a esta linha vai para o mesmo aluno
+                    continue;
+                }
                 Dono dono;
                 if (existente != null) {
-                    dono = new Dono(l.numero(), existente.id(), Normalizacao.chaveDoNome(nome));
-                    reaproveitados++;
+                    dono = donoDoExistente(existente.id(), l.numero(), Normalizacao.chaveDoNome(nome));
                 } else {
                     String status = Normalizacao.chaveDoNome(AnaliseDaPlanilha.texto(l, r.coluna(Campo.STATUS)));
                     boolean ativo = status.isEmpty() || AnaliseDaPlanilha.ATIVO.matcher(status).matches();
@@ -478,6 +495,7 @@ public final class MontagemDaImportacao {
                             sensivel(aba, l, Campo.OBJETIVO, OBJETIVO), sensivel(aba, l, Campo.OBSERVACAO, OBSERVACOES_ALUNO),
                             ativo));
                 }
+                pessoas.put(pessoa, dono);
                 alunosPorLinha.put(l.numero(), dono);
                 nomes.put(dono, nome);
                 guardarPesoInicial(aba, l, dono);
@@ -507,10 +525,13 @@ public final class MontagemDaImportacao {
                 int coluna = abaDeAlunos.reconhecimento().coluna(Campo.ALUNO);
                 List<Linha> mesmas = abaDeAlunos.dados().stream()
                         .filter(l -> chave.equals(Normalizacao.chaveDoNome(AnaliseDaPlanilha.texto(l, coluna)))).toList();
-                if (mesmas.size() > 1) {
+                // Linhas repetidas da mesma pessoa (só a primeira virou dono) não tornam o nome ambíguo.
+                Set<Dono> donos = new HashSet<>();
+                mesmas.forEach(l -> donos.add(alunosPorLinha.get(l.numero())));
+                if (mesmas.size() > 1 && (donos.size() > 1 || donos.contains(null))) {
                     return new Achado(null, "ALUNO_DO_BLOCO_AMBIGUO");
                 }
-                if (mesmas.size() == 1) {
+                if (!mesmas.isEmpty()) {
                     Dono d = alunosPorLinha.get(mesmas.getFirst().numero());
                     return d == null ? new Achado(null, "ALUNO_FORA") : new Achado(d, null);
                 }
@@ -524,9 +545,8 @@ public final class MontagemDaImportacao {
                 if (e.anonimizado()) {
                     return new Achado(null, "ALUNO_ANONIMIZADO");
                 }
-                Dono d = new Dono(null, e.id(), chave);
-                reaproveitados++;
-                nomes.put(d, nome);
+                Dono d = donoDoExistente(e.id(), null, chave);
+                nomes.putIfAbsent(d, nome);
                 return new Achado(d, null);
             }
             String recusa = reservarVaga();
@@ -537,6 +557,17 @@ public final class MontagemDaImportacao {
             novos.add(new AlunoNovo(d, nome, null, null, null, null, true));
             nomes.put(d, nome);
             return new Achado(d, null);
+        }
+
+        /** O dono do aluno que já existe (um só por id; conta como reaproveitado uma vez). */
+        private Dono donoDoExistente(UUID id, Integer linha, String chave) {
+            Dono d = donosDosExistentes.get(id);
+            if (d == null) {
+                d = new Dono(linha, id, chave);
+                donosDosExistentes.put(id, d);
+                reaproveitados++;
+            }
+            return d;
         }
 
         /**
@@ -1044,7 +1075,7 @@ public final class MontagemDaImportacao {
                     MontagemDeSeries.numero(LigacaoDeAbas.celula(l, r.coluna(Campo.SERIES_PREPARACAO))),
                     MontagemDeSeries.logico(LigacaoDeAbas.celula(l, r.coluna(Campo.TOP_SET))),
                     MontagemDeSeries.logico(LigacaoDeAbas.celula(l, r.coluna(Campo.BACK_OFF))),
-                    MontagemDeSeries.numero(LigacaoDeAbas.celula(l, r.coluna(Campo.BACK_OFF_PERCENTUAL))),
+                    MontagemDeSeries.percentual(LigacaoDeAbas.celula(l, r.coluna(Campo.BACK_OFF_PERCENTUAL))),
                     LeitorDePrescricao.faixaDeRepeticoes(LigacaoDeAbas.celula(l, r.coluna(Campo.REPETICOES)), leitura.data1904()));
             MontagemDeSeries.Resultado res = MontagemDeSeries.montar(entrada, metodologia);
             res.avisos().forEach(a -> problema(aba, l.numero(), null, a));

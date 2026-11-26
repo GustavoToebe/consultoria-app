@@ -2,7 +2,7 @@ import { RotateCcw, Timer } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { StyleSheet, View, type TextInput } from 'react-native';
 
-import type { Configuracao, EtapaRegistrada, Serie } from '../api/tipos';
+import type { Configuracao, EtapaRegistrada } from '../api/tipos';
 import { textoPausa } from '../dominio/agrupamento';
 import { modoComReferenciaExterna, sugestaoSobreReferencia, textoDaOrigem, type SerieCalculada } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
@@ -30,9 +30,10 @@ import { CampoNumericoGrande } from '../ui/Campos';
 import { CampoDeCarga } from '../ui/CampoDeCarga';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { Texto } from '../ui/Texto';
+import { CartaoDaSerie } from './CartaoDaSerie';
 import type { DadosSerie } from './ExercicioAluno';
 import { PainelDoCheck } from './PainelDoCheck';
-import { barraDoTipo, CabecalhoDaSerie, DicaDoCampo, LinhaDoUltimoRegistro, MetaDaSerie, RotuloDeHoje } from './PartesDaSerie';
+import { CabecalhoDaSerie, DicaDoCampo, LinhaDoUltimoRegistro, MetaDaSerie, RotuloDeHoje } from './PartesDaSerie';
 import { selosDaSerie } from './serieDoAluno';
 
 interface Props {
@@ -61,6 +62,8 @@ interface Props {
   aoCancelarPausa?: (origem: string) => void;
   /** O que foi feito nesta série da última vez ("40 kg × 4+4+2" ou "—"); nulo = sem a linha (Engajamento 0.3). */
   anterior?: string | null;
+  /** A primeira série não feita do exercício: borda na cor de ação por cima da cor do tipo (`CartaoDaSerie`, 25/11). */
+  ativa?: boolean;
 }
 
 /**
@@ -73,7 +76,7 @@ interface Props {
  * sincronizar não a reinicia. O peso de cada etapa nasce vazio com a sugestão ao lado (D17, `dominio/pesoDasEtapas`).
  */
 export function CartaoSerieComEtapas(p: Props) {
-  const { cores, identificacao } = useTema();
+  const { cores } = useTema();
   const unidade = useUnidadeDeCarga();
   const emPrevia = useEmPrevia();
   // O último registro montado aqui (com a execução dele): a prop pode atrasar o salvamento e a próxima etapa nasceria do dado velho.
@@ -100,7 +103,6 @@ export function CartaoSerieComEtapas(p: Props) {
   const comPercentual = temEtapaEmPercentual(s.tecnica);
   const atual = proximaPendente(etapas, quantas);
   const selos = selosDaSerie(s, p.metodologia);
-  const barra = barraDoTipo(selos.tipo?.cor ? identificacao[selos.tipo.cor].cor : null);
   // Com etapa em %, a referência aparece antes da primeira etapa também (a de agora), para o aluno saber a base da conta.
   const referenciaCongelada = registro?.referenciaCarga != null
     ? textoDaReferenciaCongelada(registro.referenciaCarga, registro.referenciaOrigem, unidade)
@@ -136,8 +138,7 @@ export function CartaoSerieComEtapas(p: Props) {
   };
 
   return (
-    <View testID={`serie-${s.uid}`}
-      style={[estilos.serie, { borderColor: cores.divisor, backgroundColor: cores.superficie }, barra]}>
+    <CartaoDaSerie testID={`serie-${s.uid}`} corDoTipo={selos.tipo?.cor ?? null} feita={feita} ativa={!!p.ativa}>
       <CabecalhoDaSerie numero={p.numero} tipo={selos.tipo} tecnica={selos.tecnica} registro={seloDaSerieComEtapas(feita, etapas, quantas)} agora={agora} />
       <MetaDaSerie texto={estruturaDaSerie(s, p.metodologia)} />
       {p.cargaIlegivel ? <Texto numerico variante="pequeno">{TEXTO_CARGA_ILEGIVEL}</Texto> : null}
@@ -190,7 +191,7 @@ export function CartaoSerieComEtapas(p: Props) {
       {feita ? <Texto variante="pequeno" cor={agora ? cores.sucesso : cores.textoSuave}>Série concluída.</Texto> : null}
       {p.descansoNaSerie && s.descansoSegundos != null && s.descansoSegundos > 0 ? <Texto variante="pequeno">Descanso depois da série: {rotuloDescanso(s.descansoSegundos)}</Texto> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
-    </View>
+    </CartaoDaSerie>
   );
 }
 
@@ -321,7 +322,6 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
 }
 
 const estilos = StyleSheet.create({
-  serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   etapas: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   etapa: { paddingVertical: espaco(1.25), paddingHorizontal: espaco(1.5), gap: espaco(0.75) },
   linhaDaEtapa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },

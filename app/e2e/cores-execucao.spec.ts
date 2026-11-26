@@ -6,8 +6,8 @@ import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
 import { ALUNO, json, simularApi } from './api-falsa';
 
 /**
- * Frente G, passo 4 (docs/planos/cores-por-tipo-de-serie.md): na execução do aluno cada série tem a barra lateral de 6 px
- * e o selo com a cor do tipo (D9, D10; o nome continua, D7), o Cluster é UM cartão com os blocos dentro, a pausa entre
+ * Frente G, passo 4 (docs/planos/cores-por-tipo-de-serie.md): na execução do aluno cada série tem o cartão pintado, a faixa
+ * reta de 4 px (25/11) e o selo com a cor do tipo (D9, D10; o nome continua, D7), o Cluster é UM cartão com os blocos dentro, a pausa entre
  * eles, o bloco da vez com "agora" e "Feito até agora" no rodapé (D12), e o peso das etapas nasce vazio, com o painel
  * "Fez com X kg?" uma vez por série (D17). Só dados fictícios.
  */
@@ -30,11 +30,8 @@ function sessaoColorida(): Sessao[] {
 
 const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
 
-async function barraDe(page: Page, uid: string) {
-  return page.getByTestId(`serie-${uid}`).evaluate((el) => {
-    const estilo = getComputedStyle(el);
-    return { largura: estilo.borderLeftWidth, cor: estilo.borderLeftColor };
-  });
+async function corDoSelo(page: Page, uid: string, nome: string) {
+  return page.getByTestId(`serie-${uid}`).getByText(nome, { exact: true }).first().evaluate((el) => getComputedStyle(el).color);
 }
 
 for (const tema of ['CLARO', 'ESCURO'] as const) {
@@ -55,17 +52,20 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
       const ultimo = (uid: string) => enviados.filter((r) => r.serieUid === uid).at(-1);
       await page.goto('/aluno/sessao/cores/supino?data=2026-10-19');
 
-      // D9 e D10: barra de 6 px na cor do tipo, no tema em uso; o nome do tipo continua escrito no selo (D7).
+      // D9 e o cartão pintado (25/11): selo na cor do tipo, com o nome escrito (D7), e a faixa reta de 4 px à esquerda (a
+      // da série ativa na cor cheia; as pendentes, mais apagadas).
       const paleta = PALETA_DE_IDENTIFICACAO[tema === 'ESCURO' ? 'escuro' : 'claro'];
       const esperado: [string, ChaveDeIdentificacao, string][] = [['aq', 'CIANO', 'Aquecimento'], ['fs', 'AZUL', 'FS'], ['cluster', 'INDIGO', 'WS'], ['back', 'MAGENTA', 'Back off']];
       for (const [uid, chave, nome] of esperado) {
         await expect(page.getByTestId(`serie-${uid}`)).toBeVisible();
-        expect(await barraDe(page, uid)).toEqual({ largura: '6px', cor: rgb(paleta[chave]) });
+        await expect(page.getByTestId(`serie-${uid}-faixa`)).toBeVisible();
+        expect(await corDoSelo(page, uid, nome)).toBe(rgb(paleta[chave]));
         await expect(page.getByTestId(`serie-${uid}`).getByRole('button', { name: new RegExp(`^Explicação de ${nome}, série`) })).toBeVisible();
       }
+      expect(await page.getByTestId('serie-aq-faixa').evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(rgb(paleta.CIANO));
 
       // D12: o Cluster é um cartão só, com os três blocos dentro, a pausa entre eles e o rodapé.
-      await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('40');
+      await page.getByRole('textbox', { name: 'Carga de trabalho de hoje, em quilos', exact: true }).fill('40');
       const cartao = page.getByTestId('serie-cluster');
       const blocos = cartao.getByRole('group', { name: 'Blocos do Cluster, série 3' });
       await expect(blocos).toBeVisible();

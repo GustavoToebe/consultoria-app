@@ -229,8 +229,9 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           <Vazio titulo="Nenhuma pasta nesta situação" texto={filtro === 'abertas' ? 'Todas as pastas estão concluídas.' : 'Nenhuma pasta foi concluída ainda.'}
             acao={{ rotulo: 'Limpar filtros', aoTocar: () => setFiltro(PASTAS_SEM_FILTRO) }} />
         ) : null}
-        {/* Tela larga (24/11): as pastas ganham colunas (de cima para baixo) em vez de linhas esticadas. */}
-        {visiveis.length > 0 ? <ListaEmColunas minimo={MINIMO_DA_COLUNA_COM_ACOES}>
+        {/* Tela larga (24/11): as pastas ganham colunas (de cima para baixo) em vez de linhas esticadas. Uma pasta só ocupa a
+            largura do cartão (D1, 25/11): numa coluna de duas sobrava uma faixa vazia à direita em 1920 (`Infinity` = uma coluna). */}
+        {visiveis.length > 0 ? <ListaEmColunas minimo={visiveis.length > 1 ? MINIMO_DA_COLUNA_COM_ACOES : Infinity}>
         {visiveis.map((p) => (
           <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} rascunho={!p.concluidaEm && emRascunho(p.id)} prazo={prazoDaPasta(p, dados ?? [], hoje, p.id === idDaVigente)} aoAbrir={() => setAbertaId(p.id)} hoje={hoje}
             aoRevisar={(a) => confirmar(() => router.push(caminhoAtualizacaoTreinador(a)))}

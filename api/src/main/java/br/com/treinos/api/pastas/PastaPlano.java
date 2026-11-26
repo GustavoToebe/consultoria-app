@@ -89,6 +89,11 @@ public class PastaPlano {
         this.fim = fim;
     }
 
+    /** Nome final gravado quando um plano da pasta é publicado ({@code TituloDoPlanoPublicado}); só o título muda. */
+    public void definirTituloAoPublicar(String titulo) {
+        this.titulo = titulo;
+    }
+
     public UUID getId() {
         return id;
     }

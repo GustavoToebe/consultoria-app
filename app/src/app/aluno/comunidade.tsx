@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Flag, Plus, WifiOff } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
   baixarCapaDoAluno, baixarFotoDoColega, baixarFotoDoMuralDoAluno, listarAulasDoAluno, listarMinhasConquistas, listarMuralDoAluno,
@@ -32,7 +32,7 @@ import {
 } from '../../dominio/muralEmAbas';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { FolhaDeAcoes } from '../../treinador/FolhaDeAcoes';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { Abas } from '../../ui/Abas';
@@ -74,6 +74,7 @@ const fixadosPrimeiro = (posts: PostDoMural[]) => [...posts].sort((a, b) => Numb
  */
 export default function ComunidadeAluno() {
   const { online } = useAluno();
+  const noCelular = useWindowDimensions().width < LARGURA_MENU_LATERAL;
   const { avisar } = useAviso();
   const { usuario } = useSessao();
   const params = useLocalSearchParams<{ aba?: string; mural?: string; grupo?: string; publicar?: string; texto?: string }>();
@@ -222,13 +223,14 @@ export default function ComunidadeAluno() {
             <View style={estilos.blocos}>
               {/* O grupo escolhe qual mural se vê; a publicação nova vai para o mesmo (o aluno nunca vê quem está no grupo). */}
               {pod || (config.dados && publica) ? (
-                <View style={estilos.topoDoMural}>
+                <View style={[estilos.topoDoMural, noCelular && estilos.topoDoMuralEmPilha]}>
                   {pod ? (
                     <Escolha<VisaoDoMural> descricao="Qual mural" valor={visao} aoMudar={setVisao}
                       opcoes={[{ valor: 'geral', rotulo: ROTULO_DO_MURAL_GERAL }, { valor: 'grupo', rotulo: 'Meu grupo' }]} />
-                  ) : <View />}
+                  ) : noCelular ? null : <View />}
                   {config.dados && publica ? (
-                    <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={() => setCompondo(true)} />
+                    // Celular: o seletor de mural em cima e o botão embaixo, na largura toda.
+                    <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} cheio={noCelular} aoTocar={() => setCompondo(true)} />
                   ) : null}
                 </View>
               ) : null}
@@ -326,5 +328,6 @@ const estilos = StyleSheet.create({
   estreito: { flex: 1, minWidth: 0 },
   // Seletor do mural à esquerda e a ação principal à direita; no celular estreito, o botão desce para a linha de baixo.
   topoDoMural: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(2) },
+  topoDoMuralEmPilha: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch', justifyContent: 'flex-start' },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
 });

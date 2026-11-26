@@ -32,6 +32,7 @@ import {
   type DadosDaInscricao,
   type ParteDaInscricao,
 } from '../../dominio/inscricoes';
+import { usuarioDaRede } from '../../dominio/redesSociais';
 import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../../dominio/verificacaoHumana';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
@@ -57,14 +58,14 @@ import { useVerificacaoHumana } from '../../ui/useVerificacaoHumana';
 import { VerificacaoHumana } from '../../ui/VerificacaoHumana';
 
 /**
- * Inscrição pública pelo link da consultoria (`/inscricao/<codigo>`), sem conta: nome e WhatsApp sempre, os campos fixos
+ * Inscrição pública pelo link da consultoria (`/inscricao/<codigo>`), sem conta: nome, WhatsApp e Instagram (opcional) sempre, os campos fixos
  * que o treinador não escondeu (e-mail, sexo, objetivo e as perguntas rápidas), as perguntas do treinador (o padrão de
  * inscrição publicado, no mesmo formulário da anamnese) e a ciência do texto da consultoria quando ela tem um. O código
  * fica no endereço (é o link que a consultoria divulga, não um segredo de uso único). Fora das áreas logadas: segue o
  * tema do aparelho e mostra a marca da consultoria. Depois do envio só a mensagem neutra; nada da fila nem de outras
  * pessoas aparece.
  */
-// Contato guardado na guia (só nome, WhatsApp e e-mail; `contatoParaGuardar`). Chave por link.
+// Contato guardado na guia (só nome, WhatsApp, e-mail e Instagram; `contatoParaGuardar`). Chave por link.
 const chaveDoContato = (codigo: string) => `inscricao_${codigo}`;
 // O próprio acesso ao `sessionStorage` lança em navegador com armazenamento bloqueado: sem guarda, a página funciona igual.
 const guardaDaGuia = () => {
@@ -92,6 +93,7 @@ export default function Inscricao() {
   const refNome = useRef<TextInput>(null);
   const refWhatsapp = useRef<TextInput>(null);
   const refEmail = useRef<TextInput>(null);
+  const refInstagram = useRef<TextInput>(null);
   const refSexo = useRef<{ focus: () => void } | null>(null);
   const refObjetivo = useRef<TextInput>(null);
   const refInteresse = useRef<{ focus: () => void } | null>(null);
@@ -100,7 +102,7 @@ export default function Inscricao() {
   const refOrigem = useRef<{ focus: () => void } | null>(null);
   const refIndicadoPor = useRef<TextInput>(null);
   // Duas partes antes de um envio só (D6): o que foi digitado fica neste estado ao ir e voltar. Na web, só o contato
-  // (nome, WhatsApp e e-mail) também fica no `sessionStorage` desta guia, para recarregar sem redigitar: some ao fechar a
+  // (nome, WhatsApp, e-mail e Instagram) também fica no `sessionStorage` desta guia, para recarregar sem redigitar: some ao fechar a
   // guia e é apagado ao enviar com sucesso. As respostas, a ciência e os outros campos ficam só na memória da página.
   const [parte, setParte] = useState<ParteDaInscricao>(1);
   // Conta as trocas de parte feitas pela pessoa: o topo da parte rola e recebe o foco a cada uma.
@@ -108,7 +110,7 @@ export default function Inscricao() {
   // Erros a focar depois de a parte deles aparecer (o campo da outra parte não está montado na hora do erro).
   const [paraFocar, setParaFocar] = useState<Record<string, string> | null>(null);
   const focarErros = useCallback((locais: Record<string, string>) => focarPrimeiroComErro(locais, [
-    ['nome', refNome], ['whatsapp', refWhatsapp], ['email', refEmail], ['sexo', refSexo], ['objetivo', refObjetivo],
+    ['nome', refNome], ['whatsapp', refWhatsapp], ['email', refEmail], ['instagram', refInstagram], ['sexo', refSexo], ['objetivo', refObjetivo],
     ['interesse', refInteresse], ['modalidade', refModalidade], ['previsaoInicio', refPrevisao], ['origem', refOrigem], ['indicadoPor', refIndicadoPor],
   ]), []);
   useEffect(() => {
@@ -172,15 +174,15 @@ export default function Inscricao() {
   }, []);
   useSemFragmentoNoEndereco();
 
-  const { nome, whatsapp, email } = dados;
+  const { nome, whatsapp, email, instagram } = dados;
   useEffect(() => {
     const guarda = guardaDaGuia();
     if (!guarda || !codigo) return;
     try {
       if (recebida) guarda.removeItem(chaveDoContato(codigo));
-      else guarda.setItem(chaveDoContato(codigo), JSON.stringify(contatoParaGuardar({ ...INSCRICAO_VAZIA, nome, whatsapp, email })));
+      else guarda.setItem(chaveDoContato(codigo), JSON.stringify(contatoParaGuardar({ ...INSCRICAO_VAZIA, nome, whatsapp, email, instagram })));
     } catch { /* guia sem armazenamento (modo privado): só não guarda */ }
-  }, [nome, whatsapp, email, codigo, recebida]);
+  }, [nome, whatsapp, email, instagram, codigo, recebida]);
 
   // Se fechar a aba/janela na parte 2 sem enviar, avisa antes para não perder o digitado.
   useEffect(() => {
@@ -305,7 +307,10 @@ export default function Inscricao() {
 
   const naParte1 = !duasPartes || parte === 1;
   const naParte2 = !duasPartes || parte === 2;
-  const contato = [dados.nome.trim(), dados.whatsapp.trim(), mostra('EMAIL') ? dados.email.trim() : ''].filter(Boolean).join(' · ');
+  // O Instagram no resumo como "@usuario" (o link do perfil inteiro quebraria a linha no celular).
+  const usuarioDoInstagram = usuarioDaRede('instagram', dados.instagram);
+  const contato = [dados.nome.trim(), dados.whatsapp.trim(), mostra('EMAIL') ? dados.email.trim() : '',
+    usuarioDoInstagram ? `@${usuarioDoInstagram}` : dados.instagram.trim()].filter(Boolean).join(' · ');
 
   return (
     <TelaPublica titulo="Quero ser aluno" marca={consultoria}
@@ -330,7 +335,11 @@ export default function Inscricao() {
           {mostra('EMAIL') ? <Campo ref={refEmail} rotulo="E-mail (opcional)" valor={dados.email} aoMudar={mudar('email')} erro={campos.email}
             autoCapitalize="none" autoCorrect={false} spellCheck={false} keyboardType="email-address" inputMode="email" autoComplete="email"
             maxLength={LIMITES_INSCRICAO.email} ajuda="Usado só para o convite de acesso ao app, se você virar aluno." /> : null}
-          {/* Parte 1 de 2: o "Continuar" confere só o contato e fica no mesmo bloco (são dois ou três campos). */}
+          {/* Fixo e sempre visível (D4): vai para as redes do cadastro se a inscrição for aceita. A API guarda só o usuário. */}
+          <Campo ref={refInstagram} rotulo="Instagram (opcional)" valor={dados.instagram} aoMudar={mudar('instagram')} erro={campos.instagram}
+            autoCapitalize="none" autoCorrect={false} spellCheck={false} autoComplete="off" maxLength={LIMITES_INSCRICAO.instagram}
+            ajuda="@usuario ou link do perfil." />
+          {/* Parte 1 de 2: o "Continuar" confere só o contato e fica no mesmo bloco (são de três a quatro campos). */}
           {duasPartes ? (
             <>
               {erro ? <MensagemErro texto={erro} /> : null}

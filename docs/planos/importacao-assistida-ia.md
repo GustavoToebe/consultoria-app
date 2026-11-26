@@ -77,3 +77,28 @@ Contrato para o app (o front **não** foi alterado): `GrupoImportavel.erroCodigo
 Testes escritos e **não executados**: `ImportacaoAssistidaIntegrationTest` (404 de outra consultoria, 403 sem permissão do plano e sem sensível, aluno de outra consultoria/inativo/anonimizado, vários alunos numa sessão, erro isolado por grupo, retenção, anonimização), `ImportacaoAssistidaServiceTest`, `RoteadorInterpretadorIaTest`, `InterpretadorPorRegrasTest`.
 
 Pendências desta frente: (1) `app/src/treinador/equipe/acoesAuditoria.ts` não tem `IMPORTACAO_ASSISTIDA_CONCLUIDA` (espelho manual; responsável: quem mexer no app); (2) a tela `assistida.tsx` precisa dos campos novos acima (escolha de aluno por grupo, estados IMPORTADO/IGNORADO/ERRO, resultado novo); (3) decidir sobre `enviar-dados-ao-provedor` (redator não cobre nome, peso e dieta); (4) rodar `mvn verify`.
+
+## Formato pedido à IA (25/11/2026, sem commit)
+
+Achado no teste com um PDF de plano de um aluno (Gemini ou Claude ligados): a tela mostrou 16 "Aluno sem identificação" vazios e dúvidas com `Termo: ""`. Causa: os dois conectores nunca descreviam o formato da resposta; a IA inventava a estrutura e `DecodificadorDaProposta` não decodificava nada.
+
+Mudança (base `aa0861aa`, estado local):
+- `DecodificadorDaProposta.FORMATO_DA_RESPOSTA`, no pedido do Claude e do Gemini: aluno → sessões → exercícios → séries (`quantidade`, `tipo`, `repsMin`, `repsMax`, `descansoSegundos`) e refeições → opções → itens; um grupo por aluno; ausente fica nulo. O servidor converte para `ConteudoTreino`/`ConteudoDieta` com os limites do plano (reps só juntas, descanso 0 a 3600, horário `HH:MM`, unidade longa vira sigla ou nula). Sem valor inventado: carga e técnica vão na observação do exercício.
+- Item que não vira nada é descartado; sem nenhum aproveitável, o decodificador falha e o roteador cai nas regras (`ERRO_PROVEDOR`).
+- As dúvidas não vêm mais da IA: `InterpretadorPorRegras.comDuvidasDaBiblioteca` as calcula contra a biblioteca, com as ocorrências que a tela corrige. A tela só mostra "no trecho" quando há trecho.
+- Evidência: `RoteadorInterpretadorIaTest` 8/8, `ArquiteturaTest` 19/19, `InterpretadorPorRegrasTest` 2/2; `mvn verify` completo (25/11) com 3216 de 3217, e a falha (`InscricoesIntegrationTest`, `temaPdf` na marca pública, vinda do `59ce839d`) corrigida e conferida sozinha (26/26); JaCoCo não rodou nessa volta. A falha "loopback" dos testes neste PC é do JDK 25 no Windows (socket unix no temp do usuário): roda com `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=C:\Windows\Temp`.
+- Teste local com os 2 PDFs reais do caso (25/11, fora do repositório, com autorização do Gustavo para enviar ao provedor): Claude (`claude-haiku-5-5`) respondeu em modo IA, sem cair nas regras, 1 aluno por arquivo; o plano de treino saiu com 7 sessões e os exercícios com nome inteiro (as regras quebram o nome em duas linhas e tomam o título "Exercício" como exercício), a dieta com 4 refeições e opções e 4 pesos. O tipo da série veio como sigla (`AQUECIMENTO`, `FS`), não o código da metodologia (`WARM_UP`, `FEEDER`), e o descanso veio nulo: conferir na tela. Gemini não testado (sem chave local).
+- Invalida esta seção se: a IA voltar a devolver um grupo por sessão (dobrar os grupos sem nome do mesmo arquivo num só) ou um plano grande cortar no `max_tokens` do Claude (16000, com o raciocínio) e cair nas regras sem aviso.
+
+## Rodada 2 (25/11, branch `importacao-ia-e-planilha-25-11`, sem merge)
+
+Pedido do Gustavo: itens 1 a 7 das recomendações, importar também suplementos, hormônios, medicação e ergogênicos, e revisar a importação por planilha. Base: `origin/main` em `b3797544`.
+
+- Metodologia: a IA recebe os tipos da metodologia padrão da consultoria (`CODIGO = Nome (PAPEL)`, sem ela `ConfiguracaoConsultoria.padrao()`) e o servidor normaliza o tipo de cada série (`TiposDaMetodologia`, IA e regras); o treino gravado leva a metodologia. `SIGLAS_METODOLOGIA` saiu.
+- Biblioteca: a IA recebe até 1500 nomes de exercício e 1500 de alimento e usa o nome exato quando é o mesmo item.
+- Suplementos e medicação: `dieta.suplementos` e `dieta.medicacoes` viram `suplementacao` e `ergogenicos`; ergogênicos só com `ERGOGENICO_LER` na leitura, só gravados com `ERGOGENICO_ALTERAR` (sem ela o resto entra) e nunca em modelo.
+- Corte: `stop_reason=max_tokens` (Claude) e `finishReason=MAX_TOKENS` (Gemini) viram fallback `RESPOSTA_CORTADA`; `max_tokens` do Claude subiu para 32000 (Haiku 5.5 sai até 128K) e o tempo limite para 5 min.
+- Regras: título de coluna, linha de dose, alimento só com número e frase de instrução não viram item nem sessão; nome partido junta só quando a linha de cima termina em preposição ou parêntese aberto e a de baixo não tem número.
+- App: motivo "plano grande demais", contagem de suplementos e medicação no grupo, e a dica do "Colar treino" quando o arquivo foi lido sem IA.
+- Evidência: testes de unidade da assistida verdes (`RoteadorInterpretadorIaTest` 14, `TiposDaMetodologiaTest` 5, `ImportacaoAssistidaServiceTest` 17, `InterpretadorPorRegrasTest` 8); teste local com os 2 PDFs reais pelo Claude: 1 aluno por arquivo, 124 séries com tipo da metodologia (nenhuma fora), 6 suplementos e 1 medicação. Descanso veio nulo em todas as séries (não conferido se o PDF o traz).
+- Não feito: Gemini sem teste real (sem chave); nome partido em linhas com número continua partido nas regras; o caso de integração de ergogênicos sem `ERGOGENICO_ALTERAR` na confirmação não tem teste.

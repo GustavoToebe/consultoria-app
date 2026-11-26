@@ -52,6 +52,8 @@ export interface InscricaoPublicaRequest {
   nome: string;
   whatsapp: string;
   email: string | null;
+  /** Campo fixo opcional "Instagram" depois dos de contato: usuário, @usuario ou link do perfil (a API guarda só o usuário; 422 `INSCRICAO_INVALIDA` no campo `instagram` se não for um perfil válido). */
+  instagram?: string | null;
   objetivo: string | null;
   sexo?: string | null;
   interesse?: Interesse | null;
@@ -286,6 +288,8 @@ export interface InscricaoDetalhe {
   nome: string;
   whatsapp: string;
   email: string | null;
+/** Só o usuário (sem @), já normalizado pela API; entra nas redes do aluno ao aceitar a inscrição. `null` = não informou. */
+  instagram: string | null;
   objetivo: string | null;
   observacao: string | null;
   sexo?: string | null;

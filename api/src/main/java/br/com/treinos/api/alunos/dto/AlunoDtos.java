@@ -87,7 +87,12 @@ public final class AlunoDtos {
             @Min(1) @Max(365) Integer diasAtualizacao, UUID responsavelId,
             @Size(max = 10) String sexo,
             MetaDoPesoPedida metaDoPeso,
-            @Size(max = 10) String dataNascimento) {
+            @Size(max = 10) String dataNascimento,
+            /** Instagram e TikTok: nulo (ausente) não mexe; em branco apaga; {@code @usuario}, usuário ou link do perfil (grava só o usuário). Dado pessoal. */
+            @Size(max = 200) String instagram, @Size(max = 200) String tiktok,
+            /** YouTube, Facebook, LinkedIn e Telegram (V103): mesma regra (nulo mantém, em branco apaga); texto livre, grava o link https normalizado. Dado pessoal. */
+            @Size(max = 200) String youtube, @Size(max = 200) String facebook, @Size(max = 200) String linkedin,
+            @Size(max = 200) String telegram) {
 
         /** Dado pessoal e de saúde: o texto padrão do record os mostraria. */
         @Override
@@ -96,7 +101,7 @@ public final class AlunoDtos {
         }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao,UUID responsavelId) {
-            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId,null,null,null);
+            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId,null,null,null,null,null,null,null,null,null);
         }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao) {
@@ -167,20 +172,13 @@ public final class AlunoDtos {
                                PlanosAtivos planosAtivos,
                                /** Tags do aluno (V093), em ordem de nome, com {@code ALUNO_LER}; sempre presente (vazia sem tag, sem permissão ou anonimizado). */
                                List<TagResumo> tags,
+                               /** Acesso desativado pela equipe (V100); os dois nulos com o acesso ativo. Só com {@code ALUNO_LER}. */
+                               Instant acessoDesativadoEm, String acessoDesativadoMotivo,
+                               /** Instagram e TikTok (só o usuário, sem @); com {@code ALUNO_LER}, como o telefone. Dado pessoal. */
+                               String instagram, String tiktok,
+                               /** Links https normalizados (V103), ou nulos; com {@code ALUNO_LER}. Dado pessoal. */
+                               String youtube, String facebook, String linkedin, String telegram,
                                boolean acessoPausado, Instant acessoPausadoEm) {
-        public AlunoDetalhe(UUID id, String nome, String email, String telefone, String cpf, Endereco endereco,
-                            String objetivo, String observacoes, boolean ativo, boolean temAcesso, Instant conviteExpiraEm,
-                            Long versao, Integer diasAtualizacao, UUID responsavelId, UUID questionarioId, boolean anonimizado,
-                            String emailDeAcesso, boolean aguardandoPrimeiroAcesso, Instant usoDeImagemAutorizadoEm,
-                            String sexo, br.com.treinos.api.consultoria.MetaDoPeso metaDoPeso, LocalDate dataNascimento,
-                            UUID podId, String podNome, Instant cadastroAlteradoEm, UltimoAcesso ultimoAcesso,
-                            UltimoPlanoPublicado ultimoPlanoPublicado, PlanosAtivos planosAtivos, List<TagResumo> tags) {
-            this(id, nome, email, telefone, cpf, endereco, objetivo, observacoes, ativo, temAcesso, conviteExpiraEm,
-                    versao, diasAtualizacao, responsavelId, questionarioId, anonimizado, emailDeAcesso,
-                    aguardandoPrimeiroAcesso, usoDeImagemAutorizadoEm, sexo, metaDoPeso, dataNascimento, podId, podNome,
-                    cadastroAlteradoEm, ultimoAcesso, ultimoPlanoPublicado, planosAtivos, tags, false, null);
-        }
-
         /**
          * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
          * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
@@ -209,6 +207,10 @@ public final class AlunoDtos {
                     a.isAnonimizado() ? null : ultimoPlano,
                     ler && !a.isAnonimizado() ? planosAtivos : null,
                     ler && !a.isAnonimizado() && tags != null ? tags : List.of(),
+                    ler ? a.getAcessoDesativadoEm() : null,
+                    ler && a.getAcessoDesativadoMotivo() != null ? a.getAcessoDesativadoMotivo().name() : null,
+                    ler ? a.getInstagram() : null, ler ? a.getTiktok() : null,
+                    ler ? a.getYoutube() : null, ler ? a.getFacebook() : null, ler ? a.getLinkedin() : null, ler ? a.getTelegram() : null,
                     a.isAcessoPausado(), a.getAcessoPausadoEm());
         }
     }
@@ -242,6 +244,26 @@ public final class AlunoDtos {
         public String toString() {
             return "DefinirAcessoRequest[email=***, senha=***]";
         }
+    }
+
+    /** Troca só o e-mail de login (a senha não muda). Formato como em {@link DefinirAcessoRequest}. */
+    public record AlterarEmailDeAcessoRequest(@NotBlank @Email @Size(max = 254) String email) {
+        @Override
+        public String toString() {
+            return "AlterarEmailDeAcessoRequest[email=***]";
+        }
+    }
+
+    /**
+     * Resposta da troca do e-mail de acesso. {@code emailEnviado} = o aviso ao e-mail NOVO foi entregue ao provedor; é
+     * {@code false} com o envio desligado, falha do provedor e quando o e-mail é o mesmo (nada gravado). O aviso ao endereço
+     * anterior não conta.
+     */
+    public record EmailDeAcessoAlteradoResponse(AlunoDetalhe aluno, boolean emailEnviado) {
+    }
+
+    /** {@code motivo} ausente = {@code MANUAL}, o único valor de hoje; outro valor = 400. */
+    public record DesativarAcessoRequest(@jakarta.validation.constraints.Pattern(regexp = "MANUAL") String motivo) {
     }
 
     /** O código só aparece nesta resposta; o banco guarda o SHA-256. */

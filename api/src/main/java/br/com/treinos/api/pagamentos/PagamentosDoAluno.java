@@ -116,7 +116,7 @@ public class PagamentosDoAluno {
                 aluno.getId(), CobrancaAluno.Situacao.ABERTA, LocalDate.now(Fuso.BRASILIA))) {
             return;
         }
-        aluno.reativarAcesso();
+        aluno.limparAcessoPausado();
         alunos.definirAcessoPausadoEm(aluno.getConsultoriaId(), aluno.getId(), null);
         String resumo = "Reativou o acesso do aluno automaticamente após quitação.";
         if (porSistema) {

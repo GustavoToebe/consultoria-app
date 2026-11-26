@@ -1,5 +1,6 @@
 import type { Alimento, ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento, VariacaoDaDieta } from '../api/tipos';
 import { numeroParaTela } from './formatos';
+import { moverPara } from './reordenar';
 import { novoUid } from './uid';
 
 /**
@@ -117,12 +118,90 @@ export function totalDoDia(fonte: Refeicao[] | ConteudoDieta): TotaisComFibra {
   return somar(refeicoes.flatMap((r) => r.opcoes[0]?.itens ?? []));
 }
 
+/** Uma linha do "Por refeição" do Total do dia: a kcal da opção A e a fração do dia (0 a 1); `null` = sem valor ou sem base. */
+export interface KcalDaRefeicao { uid: string; kcal: number | null; fracao: number | null }
+
+/**
+ * Kcal de cada refeição na ordem do dia, só a opção A (como o total). A fração é sobre o total do dia; sem total (algum
+ * item sem kcal, que o deixa "—") ou com total 0, nenhuma refeição tem fração: a barra fica vazia, nunca inventada.
+ */
+export function kcalPorRefeicao(refeicoes: Refeicao[]): KcalDaRefeicao[] {
+  const linhas = refeicoes.map((r) => ({ uid: r.uid, kcal: somar(r.opcoes[0]?.itens ?? []).kcal }));
+  const total = totalDoDia(refeicoes).kcal;
+  return linhas.map((l) => ({ ...l, fracao: total && l.kcal !== null ? l.kcal / total : null }));
+}
+
 const LETRAS = 'ABCDEF';
 
 export function novaOpcao(existentes: OpcaoRefeicao[]): OpcaoRefeicao {
   const usadas = new Set(existentes.map((o) => o.rotulo));
   const rotulo = [...LETRAS].find((l) => !usadas.has(l)) ?? String(existentes.length + 1);
   return { uid: novoUid(), rotulo, itens: [] };
+}
+
+/** A letra de cada posição: a primeira é sempre a "Opção A" (a que conta no total do dia); depois de F, o número. */
+export const letraDaPosicao = (i: number) => LETRAS[i] ?? String(i + 1);
+
+/**
+ * A letra segue a posição (26/11): o `rotulo` é gravado no plano e o aluno, o PDF e o "Escolha uma das opções" o leem,
+ * então reordenar grava as letras novas. Quem já está com a letra certa continua a mesma instância.
+ */
+export function reletrarOpcoes(opcoes: OpcaoRefeicao[]): OpcaoRefeicao[] {
+  return opcoes.map((o, i) => (o.rotulo === letraDaPosicao(i) ? o : { ...o, rotulo: letraDaPosicao(i) }));
+}
+
+export interface OpcaoMovida {
+  /** As opções na ordem nova, já com as letras pela posição. */
+  opcoes: OpcaoRefeicao[];
+  uid: string;
+  /** A letra que a opção movida tinha e a que ganhou. */
+  letraAntes: string;
+  letraDepois: string;
+  /** Posição nova, de 0. */
+  para: number;
+  /** A primeira mudou (outra opção passou a contar no total do dia): a letra que a nova primeira tinha antes. */
+  novaPrimeira: string | null;
+}
+
+/**
+ * Leva a opção `de` para `para` (arrastar a aba ou a linha da comparação, "Mover para a esquerda/direita" e "Tornar Opção
+ * A" no ⋯) e reletra pela posição. Nulo quando nada muda. `novaPrimeira` vale também quando a A sai do primeiro lugar.
+ */
+export function moverOpcao(opcoes: OpcaoRefeicao[], de: number, para: number): OpcaoMovida | null {
+  const novas = moverPara(opcoes, de, para);
+  if (novas === opcoes) return null;
+  const opcoesNovas = reletrarOpcoes(novas);
+  const primeira = opcoes.find((o) => o.uid === novas[0].uid);
+  return {
+    opcoes: opcoesNovas,
+    uid: opcoes[de].uid,
+    letraAntes: opcoes[de].rotulo,
+    letraDepois: opcoesNovas[para].rotulo,
+    para,
+    novaPrimeira: novas[0].uid === opcoes[0].uid ? null : primeira?.rotulo ?? null,
+  };
+}
+
+/** O aviso (com Desfazer) quando outra opção passa a ser a primeira. */
+export const avisoDaNovaOpcaoA = (letraAntes: string) => `Opção ${letraAntes} agora é a Opção A e conta no total do dia.`;
+
+/** O que o leitor de tela ouve depois de mover pelo ⋯ (a região viva): a posição nova e a letra que ela dá. */
+export function anuncioDaOpcaoMovida(m: Pick<OpcaoMovida, 'letraAntes' | 'letraDepois' | 'para'>): string {
+  return `Opção ${m.letraAntes} movida para a posição ${m.para + 1}: agora é a Opção ${m.letraDepois}.`;
+}
+
+/**
+ * O Desfazer da ordem: volta as opções de agora à ordem e às letras de antes, pelo uid, sem tocar nos itens (o que foi
+ * digitado depois de mover fica). A opção criada depois vai para o fim; a excluída depois não volta.
+ */
+export function restaurarOrdemDasOpcoes(atuais: OpcaoRefeicao[], antes: readonly Pick<OpcaoRefeicao, 'uid' | 'rotulo'>[]): OpcaoRefeicao[] {
+  const porUid = new Map(atuais.map((o) => [o.uid, o]));
+  const voltam = antes.flatMap(({ uid, rotulo }) => {
+    const o = porUid.get(uid);
+    return o ? [o.rotulo === rotulo ? o : { ...o, rotulo }] : [];
+  });
+  const novas = atuais.filter((o) => !antes.some((a) => a.uid === o.uid));
+  return [...voltam, ...novas];
 }
 
 export function novaRefeicao(nome = ''): Refeicao {

@@ -15,8 +15,9 @@ import { ExercicioAluno, type DadosSerie } from './ExercicioAluno';
  *
  * Plano do teste: WS (carga de trabalho), Back off 1 e Back off 2 (80% da WS), passo 0,5, base do dia 40.
  *
- * D1/D2 (02/11): a caixa do peso nunca vem preenchida pela sugestão; a sugestão é a dica ao lado do campo ("Sugestão:
- * 32 kg"), lida por `sugestao(n)`. O ✓ com a caixa vazia e com sugestão abre o painel "Fez com 40 kg?" (`escolher`).
+ * Tela redesenhada (25/11): a caixa do peso nunca vem preenchida pela sugestão; a sugestão fica apagada DENTRO do campo
+ * (placeholder, legenda "sugerido"), lida por `sugestao(n)`. O ✓ só habilita com kg e reps (digitados ou sugeridos) e,
+ * sem kg digitado, grava a sugestão (`dominio/marcarSerie`). O digitado antes do ✓ vai para o rascunho (`rascunhos`).
  */
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
 jest.mock('../ui/useMovimentoReduzido', () => ({ useMovimentoReduzido: () => true }));
@@ -37,6 +38,8 @@ jest.mock('../ui/Botao', () => ({
   Botao: ({ rotuloAcessivel, rotulo, aoTocar }: { rotuloAcessivel?: string; rotulo: string; aoTocar: () => void }) => require('react-native').Pressable && require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotuloAcessivel ?? rotulo, onPress: aoTocar }),
 }));
 jest.mock('./SeloComExplicacao', () => ({ SeloComExplicacao: () => null }));
+// A `Folha` usa gestos nativos; aqui ela só mostra o conteúdo quando aberta.
+jest.mock('../ui/Folha', () => ({ Folha: ({ visivel, children }: { visivel: boolean; children: unknown }) => (visivel ? children : null) }));
 // O nome do tipo abre uma `Folha` (gestos nativos); aqui só importa o texto do título.
 jest.mock('./TipoDaSerieComExplicacao', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -74,6 +77,8 @@ interface Controle {
    */
   adiar: boolean;
   fila: (() => void)[];
+  /** O rascunho do aparelho (o digitado antes do ✓): sobrevive a desmontar a tela, como no `AlunoProvider`. */
+  rascunhos: Map<string, { carga: number | null; repeticoes: number | null }>;
 }
 
 function Harness({ exercicio, baseInicial, ultima, controle, ponte, metodologia, unidade = 'kg', arredondamentoKg = CONFIG.arredondamentoKg }: { metodologia?: Configuracao; unidade?: UnidadeDeCarga; arredondamentoKg?: number; exercicio: ExercicioPlano; baseInicial: number | null; ultima: UltimaCarga | null; controle: Controle; ponte: (p: { base: number | null; mudarVisivel: (visivel: boolean) => void }) => void }) {
@@ -94,10 +99,17 @@ function Harness({ exercicio, baseInicial, ultima, controle, ponte, metodologia,
       cargaDoDia={base}
       ultima={ultima}
       registroDe={(uid) => controle.registros.get(uid)}
+      rascunhoDe={(uid) => controle.rascunhos.get(uid) ?? null}
+      salvarRascunho={(uid, m) => {
+        const antes = controle.rascunhos.get(uid) ?? { carga: null, repeticoes: null };
+        controle.rascunhos.set(uid, { ...antes, ...m });
+        forcar((n) => n + 1);
+      }}
       config={metodologia ? { ...config, metodologia } : config}
       aoMudarCargaDoDia={(carga) => (controle.adiar ? controle.fila.push(() => setBase(carga)) : setBase(carga))}
       aoRegistrar={(serieUid, dados) => {
         controle.gravacoes.push({ serieUid, dados });
+        controle.rascunhos.delete(serieUid); // o ✓ apaga o rascunho (o repositório faz isso no app)
         const gravar = () => controle.registros.set(serieUid, {
           id: `r-${serieUid}`,
           planoVersaoId: 'v1',
@@ -143,7 +155,7 @@ afterEach(async () => {
 });
 
 async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40, ultima: UltimaCarga | null = null, metodologia?: Configuracao, opcoes: { unidade?: UnidadeDeCarga; arredondamentoKg?: number } = {}) {
-  const controle: Controle = { registros: new Map(), gravacoes: [], base: () => null, mudarVisivel: () => undefined, adiar: false, fila: [] };
+  const controle: Controle = { registros: new Map(), gravacoes: [], base: () => null, mudarVisivel: () => undefined, adiar: false, fila: [], rascunhos: new Map() };
   let arvore!: Arvore;
   await Renderer.act(async () => {
     arvore = Renderer.create(<Harness {...opcoes} metodologia={metodologia} exercicio={exercicio} baseInicial={baseInicial} ultima={ultima} controle={controle} ponte={(p) => { controle.base = () => p.base; controle.mudarVisivel = p.mudarVisivel; }} />);
@@ -154,35 +166,35 @@ async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40
     if (!n) throw new Error(`Sem "${rotulo}" na tela`);
     return n;
   };
-  /** A dica da série `n`, lida no rótulo acessível "Dica da série N: <dica>. <origem>". */
-  const dicaDa = (n: number) => {
-    const prefixo = `Dica da série ${n}: `;
-    const no = arvore.root.findAll((x) => typeof x.props.accessibilityLabel === 'string' && x.props.accessibilityLabel.startsWith(prefixo))[0];
-    if (!no) return null;
-    return { dica: (no.props.accessibilityLabel as string).slice(prefixo.length) };
+  /** O ✓ da série `n` (o nome ganha o motivo quando está desabilitado: "…: digite as repetições"). */
+  const marcador = (n: number) => {
+    const nome = `Marcar série ${n} como feita`;
+    const no = arvore.root.findAll((x) => typeof x.props.accessibilityLabel === 'string' && (x.props.accessibilityLabel === nome || x.props.accessibilityLabel.startsWith(`${nome}:`)) && typeof x.props.onPress === 'function')[0];
+    if (!no) throw new Error(`Sem o ✓ da série ${n}`);
+    return no;
   };
-  return {
+  const campoDoPeso = (n: number, em: 'quilos' | 'libras' = 'quilos') => achar(`Carga da série ${n}, em ${em}`, 'onChangeText');
+  const t = {
     controle,
     /** Texto que está na caixa do peso da série `n` (1, 2, ...). */
-    peso: (n: number, em: 'quilos' | 'libras' = 'quilos') => (achar(`Peso da série ${n}, em ${em}`, 'onChangeText').props.value as string),
-    digitarPeso: (n: number, texto: string) => Renderer.act(async () => achar(`Peso da série ${n}, em quilos`, 'onChangeText').props.onChangeText(texto)),
-    digitarBase: (texto: string) => Renderer.act(async () => achar('Carga de trabalho do dia', 'onChangeText').props.onChangeText(texto)),
+    peso: (n: number, em: 'quilos' | 'libras' = 'quilos') => campoDoPeso(n, em).props.value as string,
+    digitarPeso: (n: number, texto: string) => Renderer.act(async () => campoDoPeso(n).props.onChangeText(texto)),
+    digitarBase: (texto: string) => Renderer.act(async () => achar('Carga de trabalho de hoje, em quilos', 'onChangeText').props.onChangeText(texto)),
     digitarReps: (n: number, texto: string) => Renderer.act(async () => achar(`Repetições da série ${n}`, 'onChangeText').props.onChangeText(texto)),
-    marcar: (n: number) => Renderer.act(async () => achar(`Série ${n} feita`, 'onPress').props.onPress()),
-    /** Texto da dica ao lado do campo da série `n` (sem a origem), ou `null` sem dica. */
-    dica: (n: number) => dicaDa(n)?.dica ?? null,
-    /** A sugestão de peso da série `n` lida na dica ("Sugestão: 32 kg" → '32'); `null` = sem sugestão. */
-    sugestao: (n: number) => dicaDa(n)?.dica.match(/Sugestão: ([\d,]+) kg/)?.[1] ?? null,
+    marcar: (n: number) => Renderer.act(async () => marcador(n).props.onPress()),
+    /** O ✓ da série `n` está habilitado? */
+    habilitado: (n: number) => !marcador(n).props.accessibilityState.disabled,
+    /** A sugestão de peso apagada dentro do campo da série `n` ('32'); `null` = sem sugestão (ou já com valor). */
+    sugestao: (n: number) => {
+      const ph = campoDoPeso(n).props.placeholder as string | undefined;
+      return ph && ph !== '—' ? ph : null;
+    },
     /** O aviso do N6 está na tela? */
     avisoSemCarga: () => JSON.stringify(arvore.toJSON()).includes(AVISO_SEM_CARGA),
-    /** O painel do ✓ da série `n` está aberto? */
-    painel: (n: number) => arvore.root.findAll((x) => x.props.accessibilityLabel === `Sem carga, série ${n}`).length > 0,
-    /** Toca uma opção do painel do ✓ da série `n` ("Sim, 40 kg", "Outra carga", "Sem carga"). */
-    escolher: (n: number, rotulo: string) => Renderer.act(async () => achar(`${rotulo}, série ${n}`, 'onPress').props.onPress()),
-    caixaDaBase: () => arvore.root.findAll((x) => typeof x.props.accessibilityLabel === 'string' && x.props.accessibilityLabel.startsWith('Carga de trabalho do dia') && typeof x.props.onChangeText === 'function')[0]!.props.value as string,
-    /** Toca um botão −/+ pelo rótulo acessível ("Aumentar 5 lb em carga de trabalho", "Diminuir 5 lb em peso da série 1"). */
+    caixaDaBase: () => arvore.root.findAll((x) => typeof x.props.accessibilityLabel === 'string' && x.props.accessibilityLabel.startsWith('Carga de trabalho de hoje') && typeof x.props.onChangeText === 'function')[0]!.props.value as string,
+    /** Toca um botão −/+ pelo rótulo acessível ("Aumentar 5 lb em carga de trabalho", "Diminuir 5 lb em carga da série 1"). */
     tocarPasso: (rotulo: string) => Renderer.act(async () => achar(rotulo, 'onPress').props.onPress()),
-    temBase: () => arvore.root.findAll((x) => x.props.accessibilityLabel === 'Carga de trabalho do dia').length > 0,
+    tocar: (rotulo: string) => Renderer.act(async () => achar(rotulo, 'onPress').props.onPress()),
     remontar: async () => {
       await Renderer.act(async () => controle.mudarVisivel(false));
       await Renderer.act(async () => controle.mudarVisivel(true));
@@ -197,68 +209,70 @@ async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40
     liberarUm: () => Renderer.act(async () => controle.fila.shift()?.()),
     arvore,
   };
+  return {
+    ...t,
+    /** Faz a série `n`: digita o peso (se vier) e as repetições e marca o ✓ (o ✓ só habilita com reps). */
+    fazer: async (n: number, peso?: string, reps = '6') => {
+      if (peso !== undefined) await t.digitarPeso(n, peso);
+      await t.digitarReps(n, reps);
+      await t.marcar(n);
+    },
+  };
 }
 
 describe('B1 · o Back off acompanha a WS? (cartão real, estado por estado)', () => {
   it('(1) WS digitada e NÃO confirmada (sem ✓): as séries seguintes seguem a BASE DO DIA, não o que está digitado na WS', async () => {
     const t = await montar(treino(ws('w'), backOff('b1'), backOff('b2')));
-    expect([t.peso(1), t.peso(2), t.peso(3)]).toEqual(['', '', '']); // D1: a sugestão nunca vai para a caixa
+    expect([t.peso(1), t.peso(2), t.peso(3)]).toEqual(['', '', '']); // a sugestão nunca vira valor da caixa
     expect([t.sugestao(1), t.sugestao(2), t.sugestao(3)]).toEqual(['40', '32', '32']); // base 40 → 80% = 32
     await t.digitarPeso(1, '42');
     expect(t.peso(1)).toBe('42');
     expect([t.sugestao(2), t.sugestao(3)]).toEqual(['32', '32']); // continua na base: a WS ainda não foi registrada
-    expect(t.controle.gravacoes).toEqual([]); // digitar sem ✓ não grava nada
+    expect(t.controle.gravacoes).toEqual([]); // digitar sem ✓ não grava registro, só o rascunho
+    expect(t.controle.rascunhos.get('w')).toEqual({ carga: 42, repeticoes: null });
   });
 
   it('(2) primeiro registro (✓ da WS com 42): o Back off passa a sair da WS registrada (80% de 42 = 33,6 → 33,5)', async () => {
     const t = await montar(treino(ws('w'), backOff('b1'), backOff('b2')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
-    expect(t.controle.gravacoes.at(-1)).toMatchObject({ serieUid: 'w', dados: { carga: 42, concluida: true } });
+    await t.fazer(1, '42');
+    expect(t.controle.gravacoes.at(-1)).toMatchObject({ serieUid: 'w', dados: { carga: 42, repeticoes: 6, concluida: true } });
     expect([t.sugestao(2), t.sugestao(3)]).toEqual(['33,5', '33,5']);
     expect([t.peso(2), t.peso(3)]).toEqual(['', '']);
   });
 
-  it('(2b) ✓ da WS sem digitar nada: abre o painel; "Sim, 40 kg" grava a sugestão e o Back off sai dela', async () => {
+  it('(2b) ✓ da WS sem digitar o kg: grava a sugestão (40) e o Back off sai dela', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.marcar(1);
-    expect(t.controle.gravacoes).toEqual([]); // o ✓ com a caixa vazia não grava no escuro
-    expect(t.painel(1)).toBe(true);
-    await t.escolher(1, 'Sim, 40 kg');
-    expect(t.controle.gravacoes).toEqual([{ serieUid: 'w', dados: { carga: 40, repeticoes: null, concluida: true } }]);
-    expect(t.painel(1)).toBe(false);
-    expect(t.peso(1)).toBe('40');
+    await t.fazer(1);
+    expect(t.controle.gravacoes).toEqual([{ serieUid: 'w', dados: { carga: 40, repeticoes: 6, concluida: true } }]);
     expect(t.sugestao(2)).toBe('32');
   });
 
-  it('(2c) painel: "Sem carga" grava a série feita sem carga, com as repetições digitadas; o Back off segue a base', async () => {
+  it('(2c) sem repetições o ✓ fica desabilitado e não grava; com as reps, habilita', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.digitarReps(1, '7');
-    await t.marcar(1);
-    await t.escolher(1, 'Sem carga');
-    expect(t.controle.gravacoes).toEqual([{ serieUid: 'w', dados: { carga: null, repeticoes: 7, concluida: true } }]);
-    expect(t.sugestao(2)).toBe('32');
-  });
-
-  it('(2d) painel: "Outra carga" não grava nada e fecha; digitar a carga também fecha; com carga o ✓ grava direto', async () => {
-    const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.marcar(1);
-    await t.escolher(1, 'Outra carga');
+    expect(t.habilitado(1)).toBe(false);
+    await t.marcar(1); // mesmo se o toque chegasse ao onPress
     expect(t.controle.gravacoes).toEqual([]);
-    expect(t.painel(1)).toBe(false);
-    await t.marcar(1);
-    expect(t.painel(1)).toBe(true);
     await t.digitarPeso(1, '45');
-    expect(t.painel(1)).toBe(false);
+    expect(t.habilitado(1)).toBe(false);
+    await t.digitarReps(1, '5');
+    expect(t.habilitado(1)).toBe(true);
     await t.marcar(1);
-    expect(t.controle.gravacoes).toEqual([{ serieUid: 'w', dados: { carga: 45, repeticoes: null, concluida: true } }]);
+    expect(t.controle.gravacoes).toEqual([{ serieUid: 'w', dados: { carga: 45, repeticoes: 5, concluida: true } }]);
+  });
+
+  it('(2d) sem sugestão nem kg digitado (primeira vez): o ✓ espera o kg', async () => {
+    const t = await montar(treino(ws('w')), null, null);
+    await t.digitarReps(1, '6');
+    expect(t.habilitado(1)).toBe(false);
+    await t.digitarPeso(1, '30');
+    expect(t.habilitado(1)).toBe(true);
   });
 
   it('(3) editar a carga da WS depois de registrada atualiza na hora o Back off que ainda não foi tocado', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
+    await t.fazer(1, '42');
     expect(t.sugestao(2)).toBe('33,5');
+    await t.tocar('Editar série 1');
     await t.digitarPeso(1, '50');
     expect(t.controle.gravacoes.at(-1)).toMatchObject({ serieUid: 'w', dados: { carga: 50, concluida: true } });
     expect(t.peso(1)).toBe('50');
@@ -267,39 +281,38 @@ describe('B1 · o Back off acompanha a WS? (cartão real, estado por estado)', (
 
   it('(3b) desmarcar o ✓ da WS mantém a carga na caixa, mas o Back off volta à base do dia (decisão de 31/10)', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
+    await t.fazer(1, '42');
     expect(t.sugestao(2)).toBe('33,5');
     await t.marcar(1); // desmarca: o aluno disse que não fez, a carga dela sai da conta
     expect(t.controle.registros.get('w')).toMatchObject({ carga: 42, concluida: false });
     expect(t.peso(1)).toBe('42');
     expect(t.sugestao(2)).toBe('32');
-    await t.marcar(1); // marca de novo (a caixa tem 42: grava direto) e volta a valer
+    await t.marcar(1); // marca de novo (a caixa tem 42 e 6 reps) e volta a valer
     expect(t.sugestao(2)).toBe('33,5');
   });
 
   it('(3c) esvaziar a carga da WS registrada devolve o Back off à base do dia', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
+    await t.fazer(1, '42');
+    await t.tocar('Editar série 1');
     await t.digitarPeso(1, '');
     expect(t.sugestao(2)).toBe('32');
   });
 
   it('(4) a sugestão da próxima série acompanha a WS, inclusive quando ela muda de novo, sem gravar nada', async () => {
     const t = await montar(treino(ws('w'), backOff('b1'), backOff('b2')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
+    await t.fazer(1, '42');
+    await t.tocar('Editar série 1');
     await t.digitarPeso(1, '44');
     expect([t.sugestao(2), t.sugestao(3)]).toEqual(['35', '35']);
     expect(t.controle.registros.has('b1')).toBe(false); // acompanhar não grava nada
   });
 
-  it('(5) a série que o aluno JÁ ajustou à mão preserva o valor; as intocadas seguem vazias, com a dica acompanhando', async () => {
+  it('(5) a série que o aluno JÁ ajustou à mão preserva o valor; as intocadas seguem vazias, com a sugestão acompanhando', async () => {
     const t = await montar(treino(ws('w'), backOff('b1'), backOff('b2')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
+    await t.fazer(1, '42');
     await t.digitarPeso(2, '30');
+    await t.tocar('Editar série 1');
     await t.digitarPeso(1, '50');
     expect(t.peso(2)).toBe('30'); // manual: preservado
     expect(t.peso(3)).toBe('');
@@ -315,15 +328,13 @@ describe('B1 · o Back off acompanha a WS? (cartão real, estado por estado)', (
 
   it('(6) série já feita nunca é reescrita nem desmarcada quando a WS ou a base mudam', async () => {
     const t = await montar(treino(ws('w'), backOff('b1'), backOff('b2')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
-    await t.marcar(2);
-    await t.escolher(2, 'Sim, 33,5 kg'); // back off 1 feito com 33,5
+    await t.fazer(1, '42');
+    await t.fazer(2); // back off 1 feito com a sugestão, 33,5
     expect(t.controle.registros.get('b1')).toMatchObject({ carga: 33.5, concluida: true });
     const antes = t.controle.gravacoes.length;
+    await t.tocar('Editar série 1');
     await t.digitarPeso(1, '50');
     await t.digitarBase('60');
-    expect(t.peso(2)).toBe('33,5');
     expect(t.controle.registros.get('b1')).toMatchObject({ carga: 33.5, concluida: true });
     expect(t.controle.gravacoes.slice(antes).map((g) => g.serieUid)).toEqual(['w']); // só a WS que o aluno editou foi gravada
     expect(t.sugestao(3)).toBe('40'); // a intocada segue a WS (80% de 50)
@@ -335,44 +346,36 @@ describe('B1 · o Back off acompanha a WS? (cartão real, estado por estado)', (
     expect([a.sugestao(1), a.sugestao(2)]).toEqual(['45', '36']);
 
     const b = await montar(treino(ws('w'), backOff('b1')));
-    await b.marcar(1);
-    await b.escolher(1, 'Sim, 40 kg'); // WS registrada em 40
+    await b.fazer(1); // WS registrada em 40 (a sugestão)
     await b.digitarBase('45');
     expect(b.controle.base()).toBe(45);
-    expect(b.peso(1)).toBe('40'); // a WS registrada não se mexe
+    expect(b.controle.registros.get('w')).toMatchObject({ carga: 40 }); // a WS registrada não se mexe
     expect(b.sugestao(2)).toBe('32'); // e o Back off que sai dela também não
   });
 
-  it('(8) exercício SEM base nem histórico: nada é sugerido e a dica diz "Primeira vez"; a primeira carga vem do aluno', async () => {
+  it('(8) exercício SEM base nem histórico: nada é sugerido; a primeira carga vem do aluno', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')), null, null);
     expect([t.peso(1), t.peso(2)]).toEqual(['', '']);
     expect([t.sugestao(1), t.sugestao(2)]).toEqual([null, null]);
-    expect(t.dica(1)).toBe('Primeira vez: escolha a carga');
-    await t.digitarPeso(1, '42');
-    await t.marcar(1); // sem sugestão o ✓ grava direto
+    await t.fazer(1, '42');
     expect(t.controle.gravacoes.at(-1)).toMatchObject({ serieUid: 'w', dados: { carga: 42, concluida: true } });
     expect(t.sugestao(2)).toBe('33,5');
   });
 
-  it('(8b) sem a base do dia mas com a última vez: a caixa da base fica vazia e as sugestões saem da última carga', async () => {
+  it('(8b) sem a base do dia mas com a última vez: a caixa da base fica vazia (a última carga apagada dentro) e as sugestões saem dela', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')), null, { carga: 36, repeticoes: 6, data: '2026-10-23' });
-    expect(t.caixaDaBase()).toBe(''); // D1: a última vez é dica, nunca valor numa caixa
+    expect(t.caixaDaBase()).toBe(''); // D1: a última vez nunca vira valor numa caixa
     expect([t.peso(1), t.peso(2)]).toEqual(['', '']);
     expect([t.sugestao(1), t.sugestao(2)]).toEqual(['36,5', '29']); // meta 3 a 6 batida em 6: +0,5 kg; 80% de 36 = 28,8 → 29
-    expect(t.dica(1)).toContain('Sugestão: 36,5 kg × 3 reps (+0,5 kg) · Última vez: 36 kg × 6');
-    expect(t.dica(2)).not.toContain('Última vez'); // a última vez é a da WS: só na série de trabalho
-    // A origem diz de onde a conta partiu: a caixa da base está vazia, então não é "da base do dia".
-    expect(t.dica(1)).toContain('meta batida na última vez (+0,5 kg pelo arredondamento da metodologia)');
-    expect(t.dica(2)).toContain('80% da última vez');
     await t.digitarBase('40');
-    expect(t.dica(2)).toContain('80% da base do dia');
+    expect(t.sugestao(2)).toBe('32');
   });
 
   it('(9) % da WS: a WS digitada sem ✓ não vale; registrada, vale como está (e o campo continua editável)', async () => {
     const t = await montar(treino(ws('w'), emPercentual('m')));
     await t.digitarPeso(1, '42');
     expect(t.sugestao(2)).toBe('40');
-    await t.marcar(1);
+    await t.fazer(1);
     expect(t.sugestao(2)).toBe('42');
     await t.digitarPeso(2, '41');
     expect(t.peso(2)).toBe('41');
@@ -386,31 +389,54 @@ describe('B1 · o Back off acompanha a WS? (cartão real, estado por estado)', (
     expect(t.sugestao(1)).toBeNull();
   });
 
-  it('(10) trocar de tela e voltar: o que estava digitado e sem ✓ se perde (volta vazio); o registrado e a base ficam', async () => {
+  it('(10) trocar de tela e voltar: o digitado sem ✓ fica (rascunho do aparelho), o registrado e a base também', async () => {
     const t = await montar(treino(ws('w'), backOff('b1'), backOff('b2')));
     await t.digitarBase('44');
     await t.digitarPeso(1, '42'); // só digitado
     await t.digitarPeso(3, '30'); // só digitado
-    await t.marcar(2);
-    await t.escolher(2, 'Sim, 35 kg'); // back off 1 registrado (sugestão = 80% de 44 = 35,2 → 35)
+    await t.fazer(2); // back off 1 registrado com a sugestão (80% de 44 = 35,2 → 35)
     await t.remontar();
-    expect(t.peso(1)).toBe(''); // o digitado sem ✓ se perdeu
-    expect(t.sugestao(1)).toBe('44');
-    expect(t.peso(2)).toBe('35'); // o registrado ficou
-    expect(t.peso(3)).toBe('');
+    expect(t.peso(1)).toBe('42'); // o digitado sem ✓ voltou do rascunho
+    expect(t.controle.registros.get('b1')).toMatchObject({ carga: 35, concluida: true });
+    expect(t.peso(3)).toBe('30');
     expect(t.controle.base()).toBe(44);
+    expect(t.controle.gravacoes.map((g) => g.serieUid)).toEqual(['b1']); // o rascunho nunca vira registro sem o ✓
   });
 
-  it('o corpo gravado é exatamente o que o aluno digitou ou escolheu: nada mais é inventado', async () => {
+  it('o corpo gravado é exatamente o que o aluno digitou ou a sugestão do campo: nada mais é inventado', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
-    await t.marcar(2);
-    await t.escolher(2, 'Sim, 33,5 kg');
+    await t.fazer(1, '42', '5');
+    await t.fazer(2, undefined, '8');
     expect(t.controle.gravacoes).toEqual([
-      { serieUid: 'w', dados: { carga: 42, repeticoes: null, concluida: true } },
-      { serieUid: 'b1', dados: { carga: 33.5, repeticoes: null, concluida: true } },
+      { serieUid: 'w', dados: { carga: 42, repeticoes: 5, concluida: true } },
+      { serieUid: 'b1', dados: { carga: 33.5, repeticoes: 8, concluida: true } },
     ]);
+  });
+});
+
+describe('segurar − ou + repete (ATRASO 400 ms, depois um passo a cada 100 ms) e grava uma vez ao soltar', () => {
+  it('toque comum soma um passo; segurar 700 ms soma 1 + 4 e só grava no fim', async () => {
+    jest.useFakeTimers();
+    try {
+      const t = await montar(treino(ws('w')), 40);
+      const mais = () => t.arvore.root.findAll((x) => x.props.accessibilityLabel === 'Aumentar 0,5 kg em carga da série 1' && typeof x.props.onPressIn === 'function')[0]!;
+      await Renderer.act(async () => mais().props.onPressIn());
+      await Renderer.act(async () => mais().props.onPressOut());
+      await Renderer.act(async () => mais().props.onPress());
+      expect(t.peso(1)).toBe('40,5'); // vazio: parte da sugestão (40)
+      await Renderer.act(async () => mais().props.onPressIn());
+      await Renderer.act(async () => { jest.advanceTimersByTime(700); });
+      expect(t.peso(1)).toBe('43'); // 40,5 + 0,5 × (1 + 4)
+      expect(t.controle.rascunhos.get('w')?.carga).toBe(40.5); // nada gravado durante o segurar
+      await Renderer.act(async () => mais().props.onPressOut());
+      await Renderer.act(async () => mais().props.onPress());
+      expect(t.controle.rascunhos.get('w')?.carga).toBe(43);
+      // Teclado e leitor de tela: só o onPress (sem onPressIn) soma um passo.
+      await Renderer.act(async () => mais().props.onPress());
+      expect(t.peso(1)).toBe('43,5');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 
@@ -423,8 +449,8 @@ describe('B1 · gravação ASSÍNCRONA (como no app): o que a caixa mostra entre
   // seguinte era somada a ele. Agora a tela guarda o valor digitado como pendente (`dominio/valorPendente`).
   it('(3-assíncrono) editar a WS já registrada: a caixa mostra o que foi digitado; o Back off só acompanha quando a gravação chega', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
+    await t.fazer(1, '42');
+    await t.tocar('Editar série 1');
     t.adiar();
     await t.digitarPeso(1, '50');
     expect(t.peso(1)).toBe('50');
@@ -437,8 +463,8 @@ describe('B1 · gravação ASSÍNCRONA (como no app): o que a caixa mostra entre
 
   it('(3-assíncrono-b) duas teclas seguidas antes de a gravação terminar: grava 50, nunca 420', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
+    await t.fazer(1, '42');
+    await t.tocar('Editar série 1');
     t.adiar();
     await t.digitarPeso(1, '5'); // 1ª tecla: o aluno apagou o "42" e digitou "5"
     expect(t.peso(1)).toBe('5');
@@ -453,8 +479,8 @@ describe('B1 · gravação ASSÍNCRONA (como no app): o que a caixa mostra entre
 
   it('(3-assíncrono-c) "5" e "0" com as gravações chegando uma a uma: o eco do "5" não volta para a caixa', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
+    await t.fazer(1, '42');
+    await t.tocar('Editar série 1');
     t.adiar();
     await t.digitarPeso(1, '5');
     await t.digitarPeso(1, `${t.peso(1)}0`);
@@ -469,8 +495,8 @@ describe('B1 · gravação ASSÍNCRONA (como no app): o que a caixa mostra entre
 
   it('(3-assíncrono-d) repetições digitadas com a carga ainda em voo: a gravação das reps leva a carga nova, não a antiga', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
+    await t.fazer(1, '42');
+    await t.tocar('Editar série 1');
     t.adiar();
     await t.digitarPeso(1, '50');
     await t.digitarReps(1, '6');
@@ -482,8 +508,8 @@ describe('B1 · gravação ASSÍNCRONA (como no app): o que a caixa mostra entre
 
   it('(3-assíncrono-e) o registro muda por fora enquanto há um valor pendente: a caixa segue o de fora', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
+    await t.fazer(1, '42');
+    await t.tocar('Editar série 1');
     t.adiar();
     await t.digitarPeso(1, '50');
     expect(t.peso(1)).toBe('50');
@@ -531,7 +557,7 @@ describe('libras · os botões −/+ andam em libras sobre o número da tela (de
     await t.tocarPasso('Diminuir 2,5 kg em carga de trabalho');
     await t.tocarPasso('Diminuir 2,5 kg em carga de trabalho');
     expect(t.caixaDaBase()).toBe('97,5');
-    await t.tocarPasso('Aumentar 2,5 kg em peso da série 1');
+    await t.tocarPasso('Aumentar 2,5 kg em carga da série 1');
     expect(t.peso(1)).toBe('100'); // sem digitar, parte da sugestão da WS (a base, 97,5) + 2,5
   });
 
@@ -549,11 +575,12 @@ describe('libras · os botões −/+ andam em libras sobre o número da tela (de
   it('em lb, o −/+ da série parte do número da tela (a sugestão, se o campo está vazio) e grava kg só ao marcar', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')), telaParaKg(100, 'lb'), null, undefined, { unidade: 'lb', arredondamentoKg: 2.5 });
     expect(t.peso(1, 'libras')).toBe('');
-    await t.tocarPasso('Aumentar 5 lb em peso da série 1');
+    await t.tocarPasso('Aumentar 5 lb em carga da série 1');
     expect(t.peso(1, 'libras')).toBe('105');
-    await t.tocarPasso('Aumentar 5 lb em peso da série 1');
+    await t.tocarPasso('Aumentar 5 lb em carga da série 1');
     expect(t.peso(1, 'libras')).toBe('110');
     expect(t.controle.gravacoes).toEqual([]);
+    await t.digitarReps(1, '5');
     await t.marcar(1);
     expect(t.controle.gravacoes.at(-1)).toMatchObject({ serieUid: 'w', dados: { carga: telaParaKg(110, 'lb'), concluida: true } });
   });
@@ -573,32 +600,33 @@ describe('A8/A9 · o cartão da série diz o que é meta, o que é hoje e de ond
       return juntar(n.props.children);
     });
 
-  it('a sugestão é dica ao lado do campo, com a origem: base do dia antes do ✓ da WS, WS registrada depois', async () => {
+  it('a sugestão fica apagada dentro do campo, com a legenda "sugerido"; some quando a série é feita', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    expect(textos(t)).toEqual(expect.arrayContaining(['Sugestão: 40 kg', 'carga da base do dia', 'Sugestão: 32 kg', '80% da base do dia']));
-    await t.digitarPeso(1, '42');
-    await t.marcar(1);
-    expect(textos(t)).toEqual(expect.arrayContaining(['Sugestão: 33,5 kg', '80% da WS registrada nesta sessão']));
-    expect(textos(t).some((x) => x.startsWith('Sugestão: 4'))).toBe(false); // série feita não mostra a dica
+    expect([t.sugestao(1), t.sugestao(2)]).toEqual(['40', '32']);
+    expect(textos(t).filter((x) => x === 'sugerido')).toHaveLength(2);
+    await t.fazer(1, '42');
+    expect(t.sugestao(2)).toBe('33,5');
+    expect(textos(t).filter((x) => x === 'sugerido')).toHaveLength(1); // a série feita mostra "42 kg × 6", sem campo
+    expect(textos(t)).toContain('42 kg × 6');
   });
 
-  it('a WS ainda não marcada como feita avisa que as seguintes só acompanham depois de marcar; o Back off não avisa', async () => {
+  it('com peso digitado e sem ✓ a WS avisa que as seguintes só acompanham depois de marcar; o Back off não avisa', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
     const aviso = 'As séries seguintes só usam este peso depois que você marcar a série como feita.';
+    expect(textos(t)).not.toContain(aviso);
+    await t.digitarPeso(1, '41');
     expect(textos(t).filter((x) => x === aviso)).toHaveLength(1);
-    await t.marcar(1);
-    await t.escolher(1, 'Sim, 40 kg');
+    await t.fazer(1);
     expect(textos(t)).not.toContain(aviso);
   });
 
-  it('só a série registrada tem selo ("Feita"); "Hoje" e a meta (repetições grandes ao lado do peso) aparecem em cada série', async () => {
+  it('só a série feita tem selo ("Feita"); a meta fica no cabeçalho de cada série e a ativa diz o que falta para o ✓', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    expect(textos(t)).not.toContain('Ainda não registrado');
     expect(textos(t)).not.toContain('Feita');
-    expect(textos(t).filter((x) => x === 'Hoje')).toHaveLength(2);
-    expect(textos(t)).toEqual(expect.arrayContaining(['3 a 6 reps', 'carga de trabalho'])); // D5: repetições e o resto da meta
-    await t.digitarPeso(1, '40');
-    await t.marcar(1);
+    expect(textos(t).filter((x) => x.startsWith('3 a 6 reps'))).toHaveLength(1);
+    expect(textos(t).filter((x) => x.startsWith('6 a 8 reps'))).toHaveLength(1);
+    expect(textos(t)).toContain('Digite as repetições para marcar a série.');
+    await t.fazer(1, '40');
     expect(textos(t).filter((x) => x === 'Feita')).toHaveLength(1);
   });
 
@@ -609,45 +637,48 @@ describe('A8/A9 · o cartão da série diz o que é meta, o que é hoje e de ond
     expect(textos(t).some((x) => x.includes('Alvo extra'))).toBe(false);
   });
 
-  it('a base do dia explica que é o ponto de partida e que a WS registrada passa a valer', async () => {
+  it('a carga de trabalho de hoje explica no "?" que é o ponto de partida e que a WS registrada passa a valer', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    expect(textos(t)).toContain('É o ponto de partida do dia. Depois que você registrar a WS nesta sessão (marcando a série como feita), as séries em "% da WS" passam a sair dela.');
+    expect(textos(t)).toContain('Sem registro anterior');
+    await t.tocar('O que é a carga de trabalho de hoje');
+    expect(textos(t)).toContain('É o ponto de partida do dia.');
+    expect(textos(t)).toContain('Depois que você registrar a WS nesta sessão (marcando a série como feita), as séries em "% da WS" passam a sair dela.');
   });
 });
 
 describe('N6 · série marcada sem kg avisa que não entra no progresso (D3 e D6 da auditoria do aluno)', () => {
   const comTopSetDeTrabalho = { tipos: [{ codigo: 'TOP_SET', nome: 'Top set', papel: 'TRABALHO' }] } as unknown as Configuracao;
-  const marcarSemKg = async (t: Awaited<ReturnType<typeof montar>>) => {
-    await t.digitarReps(1, '5');
-    await t.marcar(1); // sem base e sem sugestão, o ✓ grava direto com o kg vazio
-    expect(t.controle.gravacoes.at(-1)).toMatchObject({ dados: { carga: null, repeticoes: 5, concluida: true } });
+  /** Série feita sem kg só existe no registro antigo (o ✓ de hoje exige o kg): o registro entra direto no aparelho. */
+  const feitaSemKg = async (t: Awaited<ReturnType<typeof montar>>, uid: string) => {
+    t.controle.registros.set(uid, { id: `r-${uid}`, planoVersaoId: 'v1', sessaoUid: 's1', exercicioUid: 'ex', serieUid: uid, exercicioId: 'x', trabalho: false, data: DATA, carga: null, repeticoes: 5, concluida: true, observacao: null, etapas: null, referenciaCarga: null, referenciaOrigem: null, alteradoEm: '2026-10-30T12:00:00.000Z', situacao: 'LOCAL', motivo: null });
+    await t.digitarBase('1'); // redesenha
   };
 
-  it('kg vazio num exercício com carga: o aviso aparece junto da série', async () => {
+  it('kg vazio numa série feita de exercício com carga: o aviso aparece junto da série', async () => {
     const t = await montar(treino(ws('w')), null);
     expect(t.avisoSemCarga()).toBe(false);
-    await marcarSemKg(t);
+    await feitaSemKg(t, 'w');
     expect(t.avisoSemCarga()).toBe(true);
   });
 
   it('Top set que a metodologia marca como TRABALHO também avisa; sem essa marca da metodologia, não', async () => {
-    const a = await montar(treino(topSet('t')), null, null, comTopSetDeTrabalho);
-    await marcarSemKg(a);
+    const a = await montar(treino(ws('w'), topSet('t')), null, null, comTopSetDeTrabalho);
+    await feitaSemKg(a, 't');
     expect(a.avisoSemCarga()).toBe(true);
-    const b = await montar(treino(topSet('t')), null);
-    await marcarSemKg(b);
+    const b = await montar(treino(ws('w'), topSet('t')), null);
+    await feitaSemKg(b, 't');
     expect(b.avisoSemCarga()).toBe(false);
   });
 
-  it('reps vazias e kg preenchido: sem aviso', async () => {
+  it('kg sem reps: o ✓ não marca (o pedido de 25/11 troca o "Sem carga" do painel por esta regra)', async () => {
     const t = await montar(treino(ws('w')), null);
     await t.digitarPeso(1, '40');
     await t.marcar(1);
-    expect(t.controle.gravacoes.at(-1)).toMatchObject({ dados: { carga: 40, repeticoes: null, concluida: true } });
+    expect(t.controle.gravacoes).toEqual([]);
     expect(t.avisoSemCarga()).toBe(false);
   });
 
-  it('exercício sem carga (peso do corpo): sem aviso', async () => {
+  it('exercício sem carga (peso do corpo): só as reps habilitam o ✓, sem aviso', async () => {
     const t = await montar({ ...treino(ws('w')), unidade: 'nenhuma' }, null);
     await t.digitarReps(1, '12');
     await t.marcar(1);
@@ -689,7 +720,7 @@ describe('N6 · série marcada sem kg avisa que não entra no progresso (D3 e D6
         />,
       );
     });
-    const achar = arvore.root.findAll((x) => x.props.accessibilityLabel === 'Carga de trabalho do dia' && typeof x.props.onChangeText === 'function')[0];
+    const achar = arvore.root.findAll((x) => x.props.accessibilityLabel === 'Carga de trabalho de hoje, em quilos' && typeof x.props.onChangeText === 'function')[0];
     await Renderer.act(async () => {
       achar.props.onChangeText('50');
     });

@@ -1,13 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronsDownUp, ChevronsUpDown, NotebookTabs, Plus, ShoppingCart } from 'lucide-react-native';
 import { useState } from 'react';
-import { Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { listarAlimentos, listarErgogenicos, suplementoDaResposta } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, Receita, Refeicao, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
+import { LARGURA_TOTAL_NA_ULTRALARGA, larguraDoTotalNaColuna } from '../../dominio/colunasDaDieta';
 import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
-import { comNomesPadrao, itensSemValorNoTotal, novaRefeicao, normalizarDieta } from '../../dominio/dieta';
+import { comNomesPadrao, itensSemValorNoTotal, novaRefeicao, normalizarDieta, reletrarOpcoes } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { dataParaTela } from '../../dominio/formatos';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
@@ -15,7 +16,7 @@ import { moverPara } from '../../dominio/reordenar';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
 import { mudarRefeicoesDaSecao, refeicoesDaSecao, secoesDaDieta, variacaoAberta } from '../../dominio/variacoesDaDieta';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco, LARGURA_EDITOR, LARGURA_EDITOR_DE_CAMPOS } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { AlcaDeArraste, ItemArrastavel, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -33,12 +34,12 @@ import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { CartaoCicloNoPeriodo } from '../ciclo/CicloNaFicha';
 import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
 import { BarraDesfazer, type Desfazer } from '../plano/BarraDesfazer';
-import { BlocoAdicionar } from '../plano/BlocoAdicionar';
+import { BlocoAdicionar, BotaoDoBloco } from '../plano/BlocoAdicionar';
 import { ComColunas } from '../plano/ColunasDoEditor';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
-import { mostrarAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
+import { FixoAbaixoDaBarra, mostrarAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
 import { BarraDoModeloDoEditor, NomeDoModelo } from '../plano/TopoModelo';
 import { BarraDoPlano, ProblemasDoPlano } from '../plano/TopoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
@@ -56,13 +57,12 @@ import { VariacoesDaDieta } from './VariacoesDaDieta';
  * o total do dia soma só a opção A de cada refeição. O topo segue a ordem do editor de treino (pasta, problemas, contexto,
  * configuração) e depois vêm o total, as refeições e os complementos. Com 960 px de conteúdo (`TelaDoEditor colunas`), as
  * refeições viram uma lista à esquerda e a escolhida abre inteira à direita (inspetor); abaixo disso, os cartões empilhados
- * que abrem e fecham. O modelo de uma refeição só fica sempre empilhado e aberto. Com variações por dia, total, refeições e
+ * que abrem e fecham; da faixa `larga` em diante (1600 de área) o total do dia vira a 3ª coluna, fixa ao rolar, e as três
+ * preenchem a largura (`larguraDoTotalNaColuna`). O modelo de uma refeição só fica sempre empilhado e aberto. Com variações por dia, total, refeições e
  * folhas agem na variação aberta (`secao`): toda escrita passa por `mudarRefeicoesDaSecao` com o uid dela, nunca na raiz.
  */
 export default function EditorDeDieta({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { height: alturaDaJanela } = useWindowDimensions();
-  const estiloFixo = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(10), zIndex: 1, maxHeight: alturaDaJanela - espaco(12), overflowY: 'auto' } : undefined) as ViewStyle | undefined;
   // Ao abrir: nome vazio vira "Refeição N" e o modelo não leva data de início (C57, C59; o campo nem aparece nele).
   const abrirConteudo = (c: unknown): ConteudoDieta => {
     const d = comNomesPadrao(normalizarDieta(c));
@@ -94,6 +94,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const [desfazer, setDesfazer] = useState<(Desfazer<ConteudoDieta> & OndeDesfazer) | null>(null);
   // Porção da embalagem dos produtos escolhidos nesta abertura, só para referência ao escrever a dose (não é gravada).
   const [porcoes, setPorcoes] = useState<Record<string, string>>({});
+  // Largura medida da linha das colunas (lista | refeição | total): decide a 3ª coluna (`larguraDoTotalNaColuna`).
+  const [linhaDasColunas, setLinhaDasColunas] = useState<number | null>(null);
 
   const estado = editor.estado;
   // Refeições da seção que o editor mostra: a raiz sem variações, senão a variação aberta (antes do hook, que não pode
@@ -144,7 +146,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const adicionar = unica ? null : (
     <BlocoAdicionar titulo="Adicionar próxima refeição" descricao="Comece em branco ou acrescente uma refeição pronta dos modelos.">
       <BotaoAdicionarRefeicao aoAdicionar={adicionarRefeicao} />
-      <Botao rotulo="Modelos prontos" tipo="acao" Icone={NotebookTabs} aoTocar={() => setFolha({ tipo: 'modelos' })} />
+      <BotaoDoBloco rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setFolha({ tipo: 'modelos' })} />
     </BlocoAdicionar>
   );
 
@@ -207,7 +209,10 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         const totalDoDiaEl = (
           <TotalDoDia conteudo={c} refeicoes={refs} rotulo={aberta?.rotulo} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} aoMudarAgua={unica ? undefined : (aguaLitros) => mudar({ aguaLitros })} />
         );
-        const totalNaColuna = tres && !!escolhida;
+        // Da faixa `larga` em diante (medida na própria linha), o total vira a 3ª coluna e as três preenchem a largura;
+        // antes da primeira medida vale o palpite da `TelaDoEditor` (ultralarga em Automática), para não pular no 1º quadro.
+        const larguraDoTotal = linhaDasColunas === null ? (tres ? LARGURA_TOTAL_NA_ULTRALARGA : null) : larguraDoTotalNaColuna(linhaDasColunas);
+        const totalNaColuna = duas && !!escolhida && larguraDoTotal !== null;
         // Empilhadas, várias refeições abertas empurravam o aviso do topo para fora da janela. Opção removida: o aviso fica
         // na refeição dela (se ela está aberta); refeição removida: no lugar dela. Em duas colunas e no resto, no topo.
         const avisoNaRefeicao = !duas && desfazer?.refeicaoDaOpcao !== undefined
@@ -231,7 +236,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             aoMudar={(nova) => editor.alterarConteudo((a) => naSecao(a, (lista) => substituir(lista, ri, nova)))}
             aoSairDoNome={() => { if (refs.some((x) => x.nome.trim() === '')) editor.alterarConteudo(comNomesPadrao); }}
             aoRemoverOpcao={(oi) => comDesfazer(`Opção ${r.opcoes[oi]?.rotulo ?? oi + 1} removida.`, (a) =>
-              naSecao(a, (lista) => substituir(lista, ri, { ...lista[ri], opcoes: remover(lista[ri].opcoes, oi) })),
+              naSecao(a, (lista) => substituir(lista, ri, { ...lista[ri], opcoes: reletrarOpcoes(remover(lista[ri].opcoes, oi)) })),
               { refeicaoDaOpcao: r.uid })}
             aoRemoverItem={(oi, ii, nomeItem) => comDesfazer(`Alimento “${nomeItem}” removido.`, (a) =>
               naSecao(a, (lista) => substituir(lista, ri, {
@@ -259,7 +264,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           <View style={estilos.cabecalhoRefeicoes}>
             <Texto variante="bloco" nivel={2}>Refeições ({refs.length})</Texto>
             <LinhaDeAcoes>
-              <Botao rotulo="Lista de compras" tipo="fantasma" Icone={ShoppingCart} desabilitado={!temRefeicao}
+              <Botao rotulo="Lista de compras" tipo="acao" Icone={ShoppingCart} desabilitado={!temRefeicao}
                 motivo="Adicione uma refeição primeiro." aoTocar={() => setFolha({ tipo: 'compras' })} />
               {/* Em duas colunas a escolhida já está aberta: não há o que abrir todas. */}
               {!duas && !unica && refs.length > 1 ? (
@@ -271,7 +276,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           {avisoNaRefeicao || avisoNoLugar !== null || desfazer?.secao ? null : barra}
           {refs.length === 0 ? <Vazio texto={aberta ? 'Nenhuma refeição nesta variação ainda. Adicione a primeira ou comece de um modelo pronto.' : 'Nenhuma refeição ainda. Adicione a primeira ou comece de um modelo pronto.'} /> : null}
           {duas && escolhida ? (
-            <View style={estilos.colunas}>
+            <View style={estilos.colunas} onLayout={(e) => setLinhaDasColunas(Math.round(e.nativeEvent.layout.width))}>
               <View style={estilos.lista}>
                 <ListaDeRefeicoes refs={refs} escolhidaUid={escolhida.uid} comErro={comErro} aoEscolher={setEscolhidaUid}
                   aoSoltar={(de, para) => {
@@ -282,7 +287,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                 {adicionar}
               </View>
               <View style={estilos.inspetor}>{cartao(escolhida, refs.indexOf(escolhida), true)}</View>
-              {totalNaColuna ? <View style={[estilos.colunaTotal, estiloFixo]} testID="coluna-total-dieta">{totalDoDiaEl}</View> : null}
+              {totalNaColuna ? <FixoAbaixoDaBarra rola style={[estilos.colunaTotal, { width: larguraDoTotal }]} testID="coluna-total-dieta">{totalDoDiaEl}</FixoAbaixoDaBarra> : null}
             </View>
           ) : <>
             {refs.flatMap((r, ri) => (ri === avisoNoLugar ? [barra, cartao(r, ri, false)] : [cartao(r, ri, false)]))}
@@ -371,7 +376,7 @@ function ListaDeRefeicoes({ refs, escolhidaUid, comErro, aoEscolher, aoSoltar }:
 function BotaoAdicionarRefeicao({ aoAdicionar }: { aoAdicionar: () => string }) {
   const { rolarAte } = useRolagem();
   return (
-    <Botao rotulo="Adicionar refeição" tipo="acao" Icone={Plus} aoTocar={() => {
+    <BotaoDoBloco rotulo="Adicionar refeição" tipo="acao" Icone={Plus} aoTocar={() => {
       const uid = aoAdicionar();
       // Depois de o cartão abrir (o `rolarAte` já espera um pouco por conta própria).
       if (Platform.OS === 'web') setTimeout(() => mostrarAbaixoDaBarra(idDaRefeicao(uid), true), ESPERA_DA_SELECAO);
@@ -427,13 +432,15 @@ const estilos = StyleSheet.create({
   grupo: { gap: espaco(1.5) },
   // Lista (mestre) estreita: o inspetor fica com o resto (a opção aberta, em abas desde 19/11, tem uns 668 px em 1280 com o menu aberto).
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
-  // 260 px de base (20/11, era 280: os 20 px a mais deixam a tabela de alimentos aparecer em 1280 com o menu aberto); só
-  // cresce (até 400) quando o painel já parou no teto e sobra espaço, para ele terminar na borda dos cartões de cima.
-  lista: { flexGrow: 1, flexShrink: 0, flexBasis: 260, maxWidth: 400, gap: espaco(2) },
+  // 248 px de base (20/11 era 260, antes 280: a tabela de alimentos aparece em 1280 com o menu aberto; 25/11, a coluna
+  // "Fibras (g)" numa linha só pediu mais 14 px); quase não cresce: a sobra vai à refeição.
+  lista: { flexGrow: 1, flexShrink: 0, flexBasis: 248, maxWidth: 400, gap: espaco(2) },
   itens: { gap: espaco(1) },
-  // Na tela larga o painel para em ~1400 px, junto da lista; o peso 1000 faz a sobra ir primeiro à lista (nunca campo esticado).
-  inspetor: { flexGrow: 1000, flexShrink: 1, flexBasis: 0, minWidth: 0, maxWidth: LARGURA_EDITOR_DE_CAMPOS },
-  colunaTotal: { width: 380, flexShrink: 0, alignSelf: 'flex-start' },
+  // A refeição fica com a sobra, sem teto (25/11: com o total ao lado, as três colunas preenchem a largura do conteúdo, sem
+  // faixa vazia à direita); o peso 1000 deixa a lista quase parada nos 248.
+  inspetor: { flexGrow: 1000, flexShrink: 1, flexBasis: 0, minWidth: 0 },
+  // Largura do total por faixa em `larguraDoTotalNaColuna` (400 na larga, 460 na ultralarga).
+  colunaTotal: { flexShrink: 0, alignSelf: 'flex-start' },
   cabecalhoRefeicoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   cresce: { flex: 1, gap: espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },

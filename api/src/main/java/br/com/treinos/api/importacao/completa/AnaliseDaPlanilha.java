@@ -22,6 +22,7 @@ import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.PerguntaDeSup
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Problema;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Resumo;
 import br.com.treinos.api.importacao.completa.ReconhecimentoDeAbas.Reconhecimento;
+import br.com.treinos.api.web.FaixaDeData;
 
 import java.math.BigDecimal;
 import java.time.DateTimeException;
@@ -685,8 +686,16 @@ public final class AnaliseDaPlanilha {
         return c == null || c.erro() ? "" : c.texto().strip();
     }
 
-    /** Data do peso: série do Excel ou texto DD/MM/AAAA ou AAAA-MM-DD; dia que não existe = null. */
+    /**
+     * Data do peso: série do Excel ou texto DD/MM/AAAA ou AAAA-MM-DD; dia que não existe, ou antes do piso de
+     * {@link FaixaDeData#REGISTRO} (ano 0224 digitado errado), = null. O futuro quem chama confere com o seu "hoje".
+     */
     static LocalDate data(Celula c, boolean data1904) {
+        LocalDate d = dataSemFaixa(c, data1904);
+        return d != null && d.isBefore(FaixaDeData.REGISTRO.minimo()) ? null : d;
+    }
+
+    private static LocalDate dataSemFaixa(Celula c, boolean data1904) {
         if (c.erro()) {
             return null;
         }

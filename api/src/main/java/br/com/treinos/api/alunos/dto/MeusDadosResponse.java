@@ -10,14 +10,16 @@ import br.com.treinos.api.auth.Usuario;
  * nome do enum. {@code apelido} (da comunidade) só se lê aqui: troca-se em {@code PUT /aluno/comunidade/apelido}. Dado pessoal: o {@code toString} não mostra nada.
  */
 public record MeusDadosResponse(String nome, String email, String emailDeAcesso, String telefone, String cpf,
-                                Endereco endereco, String sexo, String apelido, long versao) {
+                                Endereco endereco, String sexo, String apelido, String instagram, String tiktok,
+                                String youtube, String facebook, String linkedin, String telegram, long versao) {
 
     /** {@code usuario} é o do aluno (telefone e e-mail de acesso moram nele); nulo se ainda não existe. */
     public static MeusDadosResponse de(Aluno a, Usuario usuario) {
         return new MeusDadosResponse(a.getNome(), a.getEmail(),
                 usuario == null || a.isAnonimizado() ? null : usuario.getEmail(),
                 usuario == null ? null : usuario.getTelefone(), a.getCpf(), a.endereco(),
-                a.getSexo() == null ? null : a.getSexo().name(), a.getApelido(), a.getVersao());
+                a.getSexo() == null ? null : a.getSexo().name(), a.getApelido(), a.getInstagram(), a.getTiktok(),
+                a.getYoutube(), a.getFacebook(), a.getLinkedin(), a.getTelegram(), a.getVersao());
     }
 
     @Override

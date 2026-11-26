@@ -132,7 +132,7 @@ public class ImportacaoService {
             var celulas = planilha.linhas().get(l).celulas();
             List<String> valores = new ArrayList<>(colunas.size());
             for (int i = 0; i < colunas.size(); i++) {
-                String texto = i < celulas.size() ? celulas.get(i).texto() : null;
+                String texto = i < celulas.size() ? LeitorDePlanilha.paraExibir(celulas.get(i), planilha.data1904()) : null;
                 if (texto != null && texto.length() > TEXTO_DA_AMOSTRA) {
                     // Célula cortada na tela não se edita ali: o ajuste trocaria o texto inteiro pelo pedaço.
                     cortadas.add(List.of(amostra.size(), i));
