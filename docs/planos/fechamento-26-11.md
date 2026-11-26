@@ -1,6 +1,6 @@
 # Fechamento de 26/11: Complementos sem teto, motivo ATRASO só com FINANCEIRO_LER e acabamentos dos editores
 
-Situação: Concluída em 26/11/2026 (rodada 2 incluída) · Onde: main (`749f191d` e a rodada 2, ver `git log`) · Atualizado: 26/11/2026
+Situação: Concluída em 26/11/2026 (rodada 2 incluída) · Onde: main (`749f191d` e `3091eb89`) · Atualizado: 26/11/2026
 
 ## Objetivo
 Lote de fechamento pedido pelo Gustavo depois de aprovar o relatório de 26/11 ([ajustes-de-26-11.md](ajustes-de-26-11.md), [pausar-acesso-por-atraso.md](pausar-acesso-por-atraso.md)): Complementos da dieta usam toda a largura na ultralarga; quem não tem `FINANCEIRO_LER` nunca vê "pausado" nem atraso; erro de cobrança indisponível vira toast; opção personalizada da refeição não vira letra; Espaço e Enter escolhem no radiogroup; exclusão igual nos três editores; Configurações sem vão em 3440; limites reais na área de soltar; limpeza de branches. Só app, exceto o item 2 (API).
@@ -50,6 +50,8 @@ Pedido: conferir a CI, rodar a suíte e2e completa, apagar as branches (autoriza
 | 4 | Aba Outros com as colunas da Suplementação | ✅ | `colunasDosComplementos.ts` e `CampoDaTabela.tsx` compartilhados; captura 3440 em `capturas/26-11-fechamento/complementos-outros-3440-novo.png`; specs `complementos-orientacoes-e-suplementos` e `dieta-ajustes` |
 | 5 | Marca em 3440 | ✅ | `marca/arranjoDaMarca.ts`: formulário de 640 px e prévia ao lado a partir de 1104 px medidos; capturas `marca-3440.png`, `marca-1920.png`, `marca-390.png`; casos novos em `configuracoes.spec.ts` |
 | 6 | Rótulo personalizado fora do editor | ✅ | `totalDaOpcao` em `dominio/dieta.ts`; aluno, PDF e lista de compras; jest em `dieta`, `pdf` e `listaDeCompras` |
+
+Commit da rodada 2: `3091eb89` (CI: run 45825003355, conferir no GitHub).
 
 Verificação final: typecheck 0 erros; lint 0 erros; jest 455 suítes, 11.059 testes; `mvn verify` 3.471 testes, 0 falhas (21 min); e2e das 16 specs tocadas: 208 passaram, 2 puladas e as duas falhas de `tela-larga` corrigidas como descrito.
 
