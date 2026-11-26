@@ -1,6 +1,6 @@
 # Ajustes do documento de 25/11 (tarde): ficha, importação, endereço, acesso, dieta e redes
 
-Situação: Em andamento · Onde: main (a partir de `64c1ee40`) · Atualizado: 25/11/2026
+Situação: Concluída em 25/11/2026 · Onde: main (a partir de `64c1ee40`; publicado em `15eeb212`) · Atualizado: 25/11/2026
 
 ## Objetivo
 Aplicar o lote do Gustavo de 25/11 à tarde (monitor 24" 16:9, 1920×1080, zoom 100%): ficha do aluno e importação assistida aproveitando a largura, endereço com preenchimento automático do Chrome, acesso ao app (alterar e-mail, desativar/reativar), dieta (opções A/B, "+ Opção", Fibras e tamanho dos campos, investigação do ovo), redes sociais da consultoria e do aluno, e os dois itens que sobraram do lote da manhã (balão do ⓘ, toast no celular). Mexe na API (V100 e V101): `mvn verify` e e2e completa antes do push.
@@ -25,11 +25,12 @@ Aplicar o lote do Gustavo de 25/11 à tarde (monitor 24" 16:9, 1920×1080, zoom 
 - [x] T-108 Balão do ⓘ só aberto e toast sobre rodapé fixo — executor — commit `36bf8fb1`
 - [x] T-109 Investigação do ovo (só relatório, nenhum dado de cliente corrigido) — explorador — relatório no fim da sessão (origem MANUAL "Plano do treinador" de 29/10; alimento corrigido na produção por ele; dietas antigas mantêm os valores)
 - [x] T-110 Dieta: campo Quantidade do item manual alinhado ao nome e unidade como segmento interno do contorno (`CampoDaQuantidade`, `CartaoRefeicao`) — executor-front; commit `36bf8fb1`; `dieta-tabela.spec.ts` 8/8
-- [ ] Integração final: `tsc`, lint, jest, e2e completa, `mvn verify`, guias PDF se a Ajuda mudar, commits por caminho, push se verde
+- [x] Integração final: `tsc`, lint, jest, e2e completa, `mvn verify`, guias PDF se a Ajuda mudar, commits por caminho, push se verde — lote da tarde publicado na `main` `15eeb212`: CI run 45709100903 (verde), VPS `15eeb212690d`; depois, a importação assistida e por planilha (medicação, suplementos, tipos da metodologia, biblioteca para a IA) na `main` `75e4da0a`: CI run 45730736825, VPS `75e4da0adb68`
 
 ## Pendências e decisões em aberto
 - Ovo: o nome "Ovo inteiro cozido ou frito (grande)" não está nas migrations nem no seed do repositório; a origem real está no banco do Gustavo (ver relatório).
-- Instagram da Inscrição preenchendo o do aluno: a Inscrição não tem campo Instagram hoje (só a origem `INSTAGRAM` do CRM); ver relatório.
+- ~~Instagram da Inscrição preenchendo o do aluno: a Inscrição não tem campo Instagram hoje (só a origem `INSTAGRAM` do CRM)~~ · resolvido na noite de 25/11 (D4 de [decisoes-e-pendencias-25-11.md](decisoes-e-pendencias-25-11.md); V102, T-204; branch `lote-26-11`, push pendente).
+- Do lote da tarde, a noite de 25/11 resolveu também a edição da ficha com teto de 1400 (D1), o `emailEnviado` da troca de e-mail, o toast sobre o rodapé fixo no nativo e o foco da importação assistida (T-201, T-205, T-206 e T-207); o que sobrou está nas "Pendências soltas" do README.
 
 ## Fora do escopo
 - Fase 2 (pausar acesso por atraso): só a base (motivo como campo).
