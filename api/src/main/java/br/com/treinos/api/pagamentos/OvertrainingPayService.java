@@ -233,6 +233,7 @@ public class OvertrainingPayService {
             UUID id = s.getId();
             subcontas.delete(s);
             subcontas.flush();
+            cobrancas.esquecerCobrancaAsaasDasAbertas(CobrancaAluno.Situacao.ABERTA);
             auditoria.registrarEvento("OVERTRAINING_PAY_REMOVIDO", "OVERTRAINING_PAY", id,
                     "Removeu a configuração do Overtraining Pay.");
         }));

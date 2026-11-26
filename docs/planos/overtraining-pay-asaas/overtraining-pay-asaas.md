@@ -17,6 +17,16 @@
 - **Cartão dentro do app (adiado em 26/11):** ver a decisão e a pendência registradas na seção 8 e em "Pendências soltas" do `docs/planos/README.md`.
 - `maxParcelas` e juros da política (`overtrainingPayMaxParcelas`, `overtrainingPayJuros`) continuam no contrato e na tela do treinador, mas não valem na prática: o parcelamento é decidido na página do Asaas. Remover ou religar a um parâmetro do Asaas em decisão própria.
 
+**Revisão independente de 26/11 (`revisor`, sobre o commit `9f6f70d1`) — o que foi corrigido e o que ficou aberto:**
+- **Corrigido:** migration renumerada para V106 depois que o main trouxe a V105 do contrato digital (B1); CPF enviado também na fatura quando o aluno não tem cadastro (I1); remover a subconta limpa o `asaas_cobranca_id` das cobranças abertas (I3; coberto só pela inicialização do repositório, sem teste próprio).
+- **Aberto, para o Gustavo decidir ou para a próxima frente (nada disso corrompe a baixa: o pior caso cai em CONFERIR):**
+  - **`ABATER_MENSALIDADE` não ligar em produção ainda (B2):** o split é calculado uma vez na criação da cobrança, o saldo não é reservado entre cobranças abertas e o abatimento informado à Central é recalculado na liquidação, sem nova tentativa se a Central estiver fora. Corrigir gravando a retenção efetiva na cobrança e notificando esse valor com repetição.
+  - Cobrança órfã no Asaas continua pagável (corrida Pix × fatura em duas abas, valor reajustado, renegociação, cancelamento): troca condicional do `asaas_cobranca_id` e remoção no Asaas (confirmar o endpoint) ao sair de ABERTA (I2).
+  - Rotação do token do webhook cria outro webhook em vez de trocar o existente; guardar o id e usar `PUT` (I4). Subconta criada no Asaas e não gravada se o webhook falhar: gravar a chave antes (I5).
+  - Pagamento por boleto na página `UNDEFINED` cai em CONFERIR `FORMA_DESCONHECIDA` (I6): confirmar no sandbox se a página oferece boleto e decidir entre mapear ou restringir.
+  - Carteira da matriz ou do sócio ausente desliga o split sem erro na subida (I7; o mesmo vale na Central, `CENTRAL_ASAAS_SOCIO_WALLET_ID`): decidir se a subida passa a exigir.
+  - Menores: exigir `externalReference` igual na consulta; FK composta com `consultoria_id` e índice único parcial em `cobranca_aluno.asaas_cobranca_id` na V106; assinar `PAYMENT_PARTIALLY_REFUNDED` e os eventos de chargeback; `toString` de `GerarPixAsaasRequest`; `temCpfCadastrado` não considera o cliente que já existe no Asaas.
+
 ---
 
 > **Regra de ouro deste plano:** nada do que já roda em produção para o piloto do Saraiva é removido ou quebrado. Todo o trabalho acontecerá em **branches isoladas** nos dois repositórios, com servidor simulado (`AsaasFalso`) para rodar 100% dos testes locais mesmo **antes** de abrir a conta PJ no Asaas.

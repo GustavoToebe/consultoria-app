@@ -176,9 +176,16 @@ function ConteudoCheckoutTransparente({ cobranca, cpfPagadorCadastrado, aoFechar
   const pagarComCartao = () => {
     if (ocupadoRef.current) return;
     setErroGeral(null);
+    // Sem CPF cadastrado, pede aqui também (o campo fica acima); com o Pix já gerado o CPF já foi dado.
+    const precisaDoCpf = !cpfPagadorCadastrado && !pix;
+    if (precisaDoCpf) {
+      const erro = erroCpfPagador(cpfPix);
+      setErroCpfPix(erro);
+      if (erro) return;
+    }
     ocupadoRef.current = true;
     setAbrindoFatura(true);
-    abrirPagamentoComAviso(() => faturaOvertrainingPay(cobranca.id), avisar, 'Pagar com cartão')
+    abrirPagamentoComAviso(() => faturaOvertrainingPay(cobranca.id, precisaDoCpf ? somenteDigitos(cpfPix) : undefined), avisar, 'Pagar com cartão')
       .then((aberta) => {
         if (aberta) setFaturaAberta(true);
       })

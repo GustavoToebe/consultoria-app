@@ -186,6 +186,11 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
             + "c.linkGeradoEm = null, c.linkValidoAte = null where c.situacao = :aberta")
     int esquecerLinksDasAbertas(CobrancaAluno.Situacao aberta);
 
+    /** Tirou ou trocou a subconta: o id da cobrança vive na conta antiga, e a chave nova daria 404 para sempre. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update CobrancaAluno c set c.asaasCobrancaId = null where c.situacao = :aberta and c.asaasCobrancaId is not null")
+    int esquecerCobrancaAsaasDasAbertas(CobrancaAluno.Situacao aberta);
+
     boolean existsByContratacaoIdAndCompetenciaAndTipo(UUID contratacaoId, LocalDate competencia, CobrancaAluno.Tipo tipo);
 
     boolean existsByContratacaoIdAndCompetenciaAndTipoAndSituacao(UUID contratacaoId, LocalDate competencia,

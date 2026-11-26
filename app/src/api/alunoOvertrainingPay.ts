@@ -57,8 +57,10 @@ export function gerarPixOvertrainingPay(cobrancaId: string, cpfPagador?: string)
  * `POST /aluno/financeiro/cobrancas/{cobrancaId}/overtraining-pay/fatura`: a página de pagamento do Asaas (cartão), aberta
  * fora do app. O app nunca recebe nem envia dado de cartão.
  */
-export function faturaOvertrainingPay(cobrancaId: string): Promise<{ url: string }> {
-  return requisicao<{ url: string }>(`/aluno/financeiro/cobrancas/${cobrancaId}/overtraining-pay/fatura`, { metodo: 'POST' });
+export function faturaOvertrainingPay(cobrancaId: string, cpfPagador?: string): Promise<{ url: string }> {
+  // O CPF só vai quando o aluno ainda não tem um (o Asaas exige para emitir a cobrança); nada de cartão no corpo.
+  const corpo = cpfPagador?.trim() ? { cpfPagador: cpfPagador.trim() } : undefined;
+  return requisicao<{ url: string }>(`/aluno/financeiro/cobrancas/${cobrancaId}/overtraining-pay/fatura`, { metodo: 'POST', corpo });
 }
 
 /** `GET /aluno/financeiro/cobrancas/{cobrancaId}/situacao` */
