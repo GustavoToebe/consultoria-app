@@ -1,7 +1,7 @@
 import type { ConteudoDieta, ItemDieta, Marca, Refeicao, RegistroPeso, Suplemento } from '../api/tipos';
 import { NOMES_DOS_DIAS } from '../dominio/calendario';
 import { secoesDaDieta, soAVariacao } from '../dominio/variacoesDaDieta';
-import { modoDePreparoParaMostrar, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
+import { modoDePreparoParaMostrar, nomeDaOpcao, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
 import { DIAS_DO_PERIODO, NOTA_DA_LISTA, NOTA_DA_PREVIA, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
 import { cabecalhoDaTabela, corpoDaTabela } from './pdfListaDeCompras';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
@@ -187,7 +187,7 @@ export function documentoDieta(d: DadosPdfDieta): Documento {
           const corOpcao = oi === 0 ? cor : (COR_OPCAO[oi] ?? NAVY);
           const corDoItem = oi === 0 ? corTexto : corOpcao;
           const textoDaFaixa = tema === 'CLASSICO' ? '' : `;color:${textoSobre(corOpcao)}`;
-          const faixa = varias ? `<div class="cab" style="background:${corOpcao}${textoDaFaixa}">▸ OPÇÃO ${esc(o.rotulo)}</div>` : '';
+          const faixa = varias ? `<div class="cab" style="background:${corOpcao}${textoDaFaixa}">▸ ${esc(nomeDaOpcao(o.rotulo).toUpperCase())}</div>` : '';
           const itens = o.itens.map((i) => linhaItem(i, varias ? corDoItem : corTexto)).join('') || '<div class="suave">—</div>';
           return `<div class="opcao">${faixa}${itens}<div class="total">Total: ${esc(textoTotaisPdf(somar(o.itens)))}</div></div>`;
         })

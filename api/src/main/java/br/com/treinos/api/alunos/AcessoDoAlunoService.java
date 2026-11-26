@@ -87,6 +87,8 @@ public class AcessoDoAlunoService {
     static final String RESUMO_DESATIVADO = "Desativou o acesso do aluno ao app.";
     static final String RESUMO_REATIVADO = "Reativou o acesso do aluno ao app.";
     static final String RESUMO_PAUSADO = "Pausou o acesso do aluno por atraso.";
+    /** O 403 único do acesso do aluno: não diz o porquê, para não revelar a pausa por atraso a quem não vê o Financeiro. */
+    static final String MENSAGEM_SEM_PERMISSAO = "Sem permissão para alterar o acesso deste aluno";
     static final String CODIGO_JA_DESATIVADO = "ACESSO_JA_DESATIVADO";
     static final String MENSAGEM_JA_DESATIVADO = "O acesso deste aluno foi desativado pela equipe. Só \"Reativar acesso\", em Acesso ao app, o libera.";
 
@@ -134,13 +136,15 @@ public class AcessoDoAlunoService {
 
     /**
      * Desativação manual (MANUAL): bloqueia o login ({@code usuario.ativo = false}) e encerra as sessões, sem apagar nada e
-     * sem inativar o aluno. Já MANUAL = 200 sem regravar nem auditar; em pausa por atraso, troca o motivo para MANUAL.
-     * Ordem das travas: aluno, depois usuário (a mesma de {@link #definir}).
+     * sem inativar o aluno. Já MANUAL = 200 sem regravar nem auditar; em pausa por atraso, troca o motivo para MANUAL, e isso
+     * exige {@code FINANCEIRO_ALTERAR} (403 {@code PERMISSAO_NEGADA} neutro, antes de qualquer escrita: senão {@code ALUNO_CONVITE}
+     * despausaria em duas chamadas, desativar e reativar). Ordem das travas: aluno, depois usuário (a mesma de {@link #definir}).
      */
     @Transactional
     public AlunoDetalhe desativar(UUID alunoId) {
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         AlunoService.exigirNaoAnonimizado(aluno);
+        exigirPermissaoDoAtraso(aluno.getAcessoDesativadoMotivo());
         Usuario usuario = usuarioDe(aluno);
         Instant quando = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS); // o banco guarda microssegundos: a resposta já sai igual à leitura seguinte
         if (alunos.desativarAcessoManualmente(aluno.getConsultoriaId(), aluno.getId(), quando) == 0) {
@@ -170,9 +174,7 @@ public class AcessoDoAlunoService {
         }
         // O motivo ATRASO pode estar mascarado como MANUAL para quem não vê o Financeiro: a pausa só sai com a permissão dele,
         // e a mensagem não diz o porquê (não revela a inadimplência).
-        if (motivo == MotivoDoAcessoDesativado.ATRASO && !br.com.treinos.api.equipe.AcessoAtual.pode("FINANCEIRO_ALTERAR")) {
-            throw new br.com.plataforma.comum.web.ForbiddenException("Seu perfil não permite reativar este acesso.", "PERMISSAO_NEGADA");
-        }
+        exigirPermissaoDoAtraso(motivo);
         if (!aluno.isAtivo()) {
             throw new ConflictException("Aluno inativo. Reative o aluno antes de reativar o acesso.", "ALUNO_INATIVO");
         }
@@ -233,6 +235,13 @@ public class AcessoDoAlunoService {
             auditoria.registrarEvento("ALUNO_ACESSO_REATIVADO", "ALUNO", aluno.getId(), RESUMO_REATIVADO);
         }
         return alunoService.detalheDe(aluno);
+    }
+
+    /** Reativar ou converter em MANUAL o motivo ATRASO é do Financeiro; a mensagem não diz o porquê. */
+    private static void exigirPermissaoDoAtraso(MotivoDoAcessoDesativado motivo) {
+        if (motivo == MotivoDoAcessoDesativado.ATRASO && !br.com.treinos.api.equipe.AcessoAtual.pode("FINANCEIRO_ALTERAR")) {
+            throw new br.com.plataforma.comum.web.ForbiddenException(MENSAGEM_SEM_PERMISSAO, "PERMISSAO_NEGADA");
+        }
     }
 
     /** O usuário travado do aluno; sem ele não há acesso a trocar nem desativar (409 {@code ALUNO_SEM_ACESSO}). */

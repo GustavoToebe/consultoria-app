@@ -1,6 +1,6 @@
 import { Library, PencilLine, Trash2 } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useState, type ComponentProps, type ReactNode } from 'react';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 
 import type { ConteudoDieta } from '../../api/tipos';
 import { type AbaDosComplementos, contagemDaAba, LIMITES_DOS_COMPLEMENTOS, problemasDosComplementos } from '../../dominio/complementosDaDieta';
@@ -19,6 +19,8 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeAbrir } from '../treino/BotaoDeAbrir';
+import { CampoDaTabela } from './CampoDaTabela';
+import { COLUNA_DA_DOSE, COLUNA_DE_DETALHE, COLUNA_DO_HORARIO, LARGURA_DA_TABELA } from './colunasDosComplementos';
 import { ContadorDeCaracteres } from './ContadorDeCaracteres';
 import { OrientacoesDaDieta } from './OrientacoesDaDieta';
 import { SuplementacaoDaDieta } from './SuplementacaoDaDieta';
@@ -58,6 +60,7 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
   const ergogenicos = c.ergogenicos ?? [];
   const [aba, setAba] = useState<AbaDosComplementos>('orientacoes');
   const [vezVista, setVezVista] = useState(irPara?.vez);
+  const [larguraDeOutros, setLarguraDeOutros] = useState(0);
   if (irPara && irPara.vez !== vezVista) {
     setVezVista(irPara.vez);
     if (c.suplementacao.some((s) => irPara.uids.includes(s.uid))) setAba('suplementacao');
@@ -96,13 +99,13 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
             aoEscolherDaBiblioteca={() => aoEscolherDaBiblioteca('suplemento')} />
         ) : null}
         {ativa === 'outros' ? (
-          <View style={estilos.outros}>
+          <View style={estilos.outros} onLayout={(ev) => setLarguraDeOutros(ev.nativeEvent.layout.width)}>
             <Texto variante="suave">
               {editaErgogenicos ? 'Medicação e ergogênicos do aluno. Da biblioteca vêm o nome, o princípio ativo e a concentração.' : 'Medicação e ergogênicos do aluno. Seu perfil só pode ler esta lista.'}
             </Texto>
             {ergogenicos.length === 0 ? <Texto variante="suave">Nenhum item ainda.</Texto> : null}
             {ergogenicos.map((e, ei) => (
-              <ItemDeErgogenico key={e.uid} item={e} posicao={ei} editavel={editaErgogenicos}
+              <ItemDeErgogenico key={e.uid} item={e} posicao={ei} editavel={editaErgogenicos} emColunas={larguraDeOutros >= LARGURA_DA_TABELA}
                 aoMudar={(parcial) => mudar({ ergogenicos: substituir(ergogenicos, ei, { ...e, ...parcial }) })}
                 aoRemover={() => comDesfazer(`Item “${e.nome || ei + 1}” removido.`, (a) => ({ ...a, ergogenicos: remover(a.ergogenicos ?? [], ei) }), SECAO)} />
             ))}
@@ -139,42 +142,56 @@ function ObservacoesDaDieta({ valor, aoMudar }: { valor: string; aoMudar: (t: st
 
 const MAIS_DETALHES = 'Mais detalhes (princípio ativo, concentração, observação)';
 
-/** Item de "Outros" (nível "item": `superficie2` + borda), com "#N · Nome" e a lixeira no canto; o resto em "Mais detalhes", fechado. */
-function ItemDeErgogenico({ item: e, posicao, editavel, aoMudar, aoRemover }: {
-  item: Ergogenico; posicao: number; editavel: boolean; aoMudar: (parcial: Partial<Ergogenico>) => void; aoRemover: () => void;
+/**
+ * Item de "Outros" (nível "item": `superficie2` + borda), com "#N · Nome" e a lixeira no canto; o resto em "Mais
+ * detalhes", fechado. A partir de 720 px de lista (26/11), as colunas da Suplementação (`colunasDosComplementos`): Dose e
+ * Horário com teto e o Nome com o resto; em "Mais detalhes", princípio ativo, concentração e prescrição com teto e a
+ * Observação com o resto. Abaixo disso, a grade que quebra (celular).
+ */
+function ItemDeErgogenico({ item: e, posicao, editavel, emColunas, aoMudar, aoRemover }: {
+  item: Ergogenico; posicao: number; editavel: boolean; emColunas: boolean; aoMudar: (parcial: Partial<Ergogenico>) => void; aoRemover: () => void;
 }) {
   const { cores } = useTema();
   // Nasce fechado, mesmo com texto nos quatro campos secundários (regra de 18/11; o item que veio da biblioteca também).
   const [detalhes, setDetalhes] = useState(false);
   const L = LIMITES_DOS_COMPLEMENTOS;
+  const grade = emColunas ? estilos.linha : estilos.grade;
+  const coluna = (larga: ViewStyle) => (emColunas ? larga : estilos.campo);
+  // Em colunas, o campo cresce até duas linhas (o texto longo não fica cortado); no celular, o de uma linha.
+  const CampoDoItem = emColunas ? CampoDaColuna : Campo;
   return (
     <View style={[estilos.subCartao, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
       <CabecalhoDoItem titulo={`#${posicao + 1} · ${e.nome.trim() || 'Sem nome'}`} aberto nomeDoItem="item"
         remover={editavel ? <IconeBotao Icone={Trash2} rotulo={`Remover ${e.nome || 'item'}`} cor={cores.perigo} aoTocar={aoRemover} /> : undefined} />
-      <View style={estilos.grade}>
-        <View style={estilos.campo}><Campo rotulo="Nome" valor={e.nome} aoMudar={(nome) => aoMudar({ nome })} maxLength={L.campoCurto} editable={editavel} /></View>
-        <View style={estilos.campo}><Campo rotulo="Dose prescrita" valor={e.dose} aoMudar={(dose) => aoMudar({ dose })} maxLength={L.campoCurto} editable={editavel} /></View>
-        <View style={estilos.campo}><Campo rotulo="Horário" valor={e.horario} aoMudar={(horario) => aoMudar({ horario })} maxLength={L.campoCurto} editable={editavel} /></View>
+      <View style={grade}>
+        <View style={coluna(estilos.resto)}><CampoDoItem rotulo="Nome" valor={e.nome} aoMudar={(nome) => aoMudar({ nome })} maxLength={L.campoCurto} editable={editavel} /></View>
+        <View style={coluna(COLUNA_DA_DOSE)}><CampoDoItem rotulo="Dose prescrita" valor={e.dose} aoMudar={(dose) => aoMudar({ dose })} maxLength={L.campoCurto} editable={editavel} /></View>
+        <View style={coluna(COLUNA_DO_HORARIO)}><CampoDoItem rotulo="Horário" valor={e.horario} aoMudar={(horario) => aoMudar({ horario })} maxLength={L.campoCurto} editable={editavel} /></View>
       </View>
       <BotaoDeAbrir texto={MAIS_DETALHES} aberto={detalhes} aoAlternar={() => setDetalhes(!detalhes)} />
       {detalhes ? (
-        <View style={estilos.grade}>
-          <View style={estilos.campo}>
-            <Campo rotulo="Princípio ativo" valor={e.principioAtivo} aoMudar={(principioAtivo) => aoMudar({ principioAtivo })} maxLength={L.principioAtivo} editable={editavel} />
+        <View style={grade}>
+          <View style={coluna(COLUNA_DE_DETALHE)}>
+            <CampoDoItem rotulo="Princípio ativo" valor={e.principioAtivo} aoMudar={(principioAtivo) => aoMudar({ principioAtivo })} maxLength={L.principioAtivo} editable={editavel} />
           </View>
-          <View style={estilos.campo}>
-            <Campo rotulo="Concentração" valor={e.concentracao} aoMudar={(concentracao) => aoMudar({ concentracao })} maxLength={L.concentracao} editable={editavel} />
+          <View style={coluna(COLUNA_DA_DOSE)}>
+            <CampoDoItem rotulo="Concentração" valor={e.concentracao} aoMudar={(concentracao) => aoMudar({ concentracao })} maxLength={L.concentracao} editable={editavel} />
           </View>
-          <View style={estilos.campo}>
-            <Campo rotulo="Prescrição (opcional)" valor={e.prescricao} aoMudar={(prescricao) => aoMudar({ prescricao })} maxLength={L.prescricao} editable={editavel} />
+          <View style={coluna(COLUNA_DE_DETALHE)}>
+            <CampoDoItem rotulo="Prescrição (opcional)" valor={e.prescricao} aoMudar={(prescricao) => aoMudar({ prescricao })} maxLength={L.prescricao} editable={editavel} />
           </View>
-          <View style={estilos.campoLargo}>
-            <Campo rotulo="Observação" valor={e.observacao} aoMudar={(observacao) => aoMudar({ observacao })} maxLength={L.observacao} editable={editavel} />
+          <View style={emColunas ? estilos.resto : estilos.campoLargo}>
+            <CampoDoItem rotulo="Observação" valor={e.observacao} aoMudar={(observacao) => aoMudar({ observacao })} maxLength={L.observacao} editable={editavel} />
           </View>
         </View>
       ) : null}
     </View>
   );
+}
+
+/** O campo da tabela com o rótulo à vista (Outros não tem cabeçalho de colunas: cada item tem o título "#N · Nome"). */
+function CampoDaColuna(props: Omit<ComponentProps<typeof Campo>, 'linhas'>) {
+  return <CampoDaTabela {...props} rotuloOculto={false} />;
 }
 
 const estilos = StyleSheet.create({
@@ -185,4 +202,7 @@ const estilos = StyleSheet.create({
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   campo: { minWidth: 190, flex: 1 },
   campoLargo: { minWidth: 190, flexBasis: '100%' },
+  // Em colunas: uma linha sem quebra, alinhada pelo topo (rótulos na mesma altura).
+  linha: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1.5) },
+  resto: { flex: 1, minWidth: 0 },
 });

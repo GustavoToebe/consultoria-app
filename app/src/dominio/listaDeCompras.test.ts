@@ -149,6 +149,12 @@ describe('dieta com variações por dia da semana', () => {
     expect(textosDasOpcoes(dieta([refeicao('r', [opcao('a', []), opcao('b', [])])]), {})).toEqual(['r: opção A']);
   });
 
+  it('textosDasOpcoes: rótulo personalizado vai como foi digitado, sem "opção" duplicado', () => {
+    const r = refeicao('r', [opcao('a', []), { uid: 'p', rotulo: 'Opção Principal', itens: [] }]);
+    expect(textosDasOpcoes(dieta([r]), { r: 'p' })).toEqual(['r: Opção Principal']);
+    expect(textosDasOpcoes(dieta([r]), {})).toEqual(['r: opção A']);
+  });
+
   it('escolhasDaLista diz de qual variação é cada refeição (e dos dias dela); sem variação, sem rótulo', () => {
     const duas = comVariacoes([
       variacao('v1', 'Carbo alto', [1, 3, 5], [refeicao('r1', [opcao('a', [leite(100)]), opcao('b', [leite(300)])])]),

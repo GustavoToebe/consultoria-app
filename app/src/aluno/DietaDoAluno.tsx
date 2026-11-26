@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta, Refeicao, VariacaoDaDieta, VersaoDetalhe } from '../api/tipos';
 import { corDaRefeicao } from '../dominio/corDaSerie';
-import { MACROS as CHAVES_DOS_MACROS, normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
+import { ehRotuloPadrao, MACROS as CHAVES_DOS_MACROS, normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDaOpcao, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { duasColunasCom } from '../dominio/grade';
@@ -199,7 +199,7 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
   const [ativa, setAtiva] = useState(0);
   const opcao = refeicao.opcoes[Math.min(ativa, refeicao.opcoes.length - 1)];
   const escolha = textoEscolhaDasOpcoes(refeicao.opcoes.map((o) => o.rotulo));
-  const rotuloDoTotal = refeicao.opcoes.length > 1 && opcao ? `Total da opção ${opcao.rotulo}` : 'Total';
+  const rotuloDoTotal = refeicao.opcoes.length > 1 && opcao ? totalDaOpcao(opcao.rotulo) : 'Total';
   return (
     <Cartao
       style={{ borderLeftWidth: BARRA_DA_REFEICAO, borderLeftColor: cor.cor }}
@@ -212,7 +212,7 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
       {escolha ? (
         <View style={[estilos.escolha, { backgroundColor: cores.superficie3, borderLeftColor: cores.bordaCampo }]}>
           <Texto numerico style={estilos.forte} cor={cores.texto}>{escolha}</Texto>
-          <Texto variante="pequeno">As opções não se somam: o total do dia conta só a opção A.</Texto>
+          <Texto variante="pequeno">As opções não se somam: o total do dia conta só {ehRotuloPadrao(refeicao.opcoes[0]?.rotulo ?? 'A') ? 'a opção A' : 'a primeira opção'}.</Texto>
         </View>
       ) : null}
       {/* As mesmas abas do editor (círculo com a letra, preenchido na aberta, e a kcal ou "vazia" em texto secundário), sem o

@@ -268,6 +268,72 @@ for (const largura of [1920, 3440]) {
   });
 }
 
+// 26/11: Outros sem teto, com as colunas da Suplementação: Dose e Horário até o teto (240 e 200) e o Nome com o resto;
+// em "Mais detalhes", princípio ativo, concentração e prescrição com teto e a Observação com o resto. Nada se sobrepõe.
+const OUTROS_LONGOS: NonNullable<ConteudoDieta['ergogenicos']> = [
+  { uid: 'e1', nome: 'Medicação fictícia de uso contínuo com nome bem comprido para testar a coluna', principioAtivo: 'Substância fictícia', concentracao: '10 mg', dose: '1 cápsula', horario: 'Noite', prescricao: 'Receita fictícia',
+    observacao: 'Tomar depois do jantar, com bastante água, e não junto com o café; parar se houver qualquer desconforto e avisar.' },
+  { uid: 'e2', nome: 'Item curto', principioAtivo: '', concentracao: '', dose: '2 gotas', horario: 'Manhã', observacao: '', prescricao: '' },
+];
+
+/** Caixas dos campos (pelo rótulo exato) de um item de Outros, na ordem da linha. */
+async function caixasDoItem(page: Page, indice: number, rotulos: string[]) {
+  const caixas = [];
+  for (const r of rotulos) caixas.push((await cartao(page).getByLabel(r, { exact: true }).nth(indice).boundingBox())!);
+  return caixas;
+}
+
+function semSobreposicao(caixas: { x: number; y: number; width: number }[]) {
+  for (let k = 1; k < caixas.length; k += 1) {
+    expect(Math.abs(caixas[k].y - caixas[0].y)).toBeLessThan(2); // a mesma linha
+    expect(caixas[k - 1].x + caixas[k - 1].width).toBeLessThanOrEqual(caixas[k].x + 1);
+  }
+}
+
+for (const largura of [1920, 3440]) {
+  test(`outros sem teto: Dose e Horário até o teto, Nome e Observação com o resto, sem sobreposição (${largura}px)`, async ({ page }) => {
+    const { naoTratadas, errosDaPagina } = await abrir(page, { largura, conteudo: { ...CONTEUDO, ergogenicos: OUTROS_LONGOS } });
+    await aba(page, /^Outros/).click();
+    await expect(page.getByRole('heading', { name: /^#1 · Medicação fictícia/ })).toBeVisible();
+    for (const i of [0, 1]) {
+      const [nome, dose, horario] = await caixasDoItem(page, i, ['Nome', 'Dose prescrita', 'Horário']);
+      semSobreposicao([nome, dose, horario]);
+      expect(dose.width).toBeGreaterThanOrEqual(120);
+      expect(dose.width).toBeLessThanOrEqual(241);
+      expect(horario.width).toBeGreaterThanOrEqual(104);
+      expect(horario.width).toBeLessThanOrEqual(201);
+      expect(nome.width).toBeGreaterThan(dose.width + horario.width);
+      // Sem o teto de 1400: a linha vai na largura toda.
+      expect(horario.x + horario.width - nome.x).toBeGreaterThan(1400);
+    }
+    await page.getByRole('button', { name: 'Mais detalhes (princípio ativo, concentração, observação)' }).first().click();
+    const [principio, concentracao, prescricao, observacao] = await caixasDoItem(page, 0, ['Princípio ativo', 'Concentração', 'Prescrição (opcional)', 'Observação']);
+    semSobreposicao([principio, concentracao, prescricao, observacao]);
+    expect(principio.width).toBeLessThanOrEqual(321);
+    expect(concentracao.width).toBeLessThanOrEqual(241);
+    expect(prescricao.width).toBeLessThanOrEqual(321);
+    expect(observacao.width).toBeGreaterThan(principio.width + concentracao.width + prescricao.width);
+    // Nome e observação longos inteiros em até duas linhas, sem a alça de redimensionar (o campo da Suplementação).
+    for (const rotulo of ['Nome', 'Observação']) {
+      const el = cartao(page).getByLabel(rotulo, { exact: true }).first();
+      expect(await el.evaluate((e) => [e.tagName, getComputedStyle(e).resize, e.scrollHeight <= e.clientHeight + 1])).toEqual(['TEXTAREA', 'none', true]);
+    }
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('outros no celular: a grade que quebra, um campo por linha (390px)', async ({ page }) => {
+  const { naoTratadas, errosDaPagina } = await abrir(page, { largura: 390, conteudo: { ...CONTEUDO, ergogenicos: OUTROS_LONGOS } });
+  await aba(page, /^Outros/).click();
+  const [nome, dose, horario] = await caixasDoItem(page, 0, ['Nome', 'Dose prescrita', 'Horário']);
+  expect(dose.y).toBeGreaterThan(nome.y + nome.height - 1);
+  expect(horario.y).toBeGreaterThan(dose.y + dose.height - 1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
 // 26/11: a cópia saía deslocada (para cima e para o lado) em relação à linha. Agora sai exatamente sobre ela e anda o
 // mesmo que o ponteiro desde o ponto de pega, também depois de reordenar.
 test('suplementação: a sombra do arraste sai sobre a linha e acompanha o ponteiro (1280px)', async ({ page }) => {

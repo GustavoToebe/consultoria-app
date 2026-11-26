@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, CircleAlert, Ellipsis, ExternalLink, Library, Link2Off, PencilLine, TicketX, Trash2 } from 'lucide-react-native';
-import { useState, type ComponentProps, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Suplemento } from '../../api/tipos';
@@ -22,30 +22,13 @@ import { NUMERICO } from '../../ui/tipografia';
 import { acoesDeMover } from '../acoesDeMover';
 import type { AcaoDoMenu } from '../FolhaDeAcoes';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
+import { CampoDaTabela } from './CampoDaTabela';
+import { COLUNA_DA_DOSE, COLUNA_DO_HORARIO, LARGURA_DA_TABELA } from './colunasDosComplementos';
 
 type Modo = 'tabela' | 'cartoes';
 
-/**
- * Largura (medida) da lista a partir da qual os suplementos viram tabela: alça, quatro colunas de campos que cabem o
- * rótulo do campo ("Dose prescrita") e o ⋯. Abaixo disso (celular, janela estreita), um cartão compacto por suplemento.
- */
-const LARGURA_DA_TABELA = 720;
 const VAO = espaco(1);
 const RECUO = espaco(1);
-
-/**
- * Linhas de um campo da tabela (26/11): uma quando o texto cabe, duas quando não; o que passa de duas rola
- * dentro do campo (a linha da tabela não cresce sem fim). A mesma conta folgada de `linhasDoNome` (9 px por caractere da
- * fonte de 16 px, vezes o "Tamanho do texto", menos o recuo interno); sem medida ainda, uma.
- */
-/** Sem a alça de redimensionar do textarea (o preflight da web põe `resize: vertical`): o campo já cresce sozinho. */
-const SEM_ALCA = 'resize-none';
-
-function ateDuasLinhas(texto: string, larguraDoCampo: number, fatorDoTexto: number): 1 | 2 {
-  const util = larguraDoCampo - 28;
-  if (util <= 0) return 1;
-  return texto.length <= Math.max(1, Math.floor(util / (9 * fatorDoTexto))) ? 1 : 2;
-}
 
 /**
  * Aba Suplementação do cartão Complementos (25/11). PC: tabela com o cabeçalho uma vez (Suplemento, Dose prescrita,
@@ -114,22 +97,6 @@ function CabecalhoDasColunas() {
       <View style={estilos.colunaDoHorario}><Texto variante="rotulo">Horário</Texto></View>
       <View style={estilos.colunaDaObservacao}><Texto variante="rotulo">Observação</Texto></View>
       <View style={estilos.colunaDasAcoes} />
-    </View>
-  );
-}
-
-/**
- * Campo de uma célula da tabela (26/11): cresce sozinho de uma a duas linhas com o texto (`ateDuasLinhas`, medido na
- * própria célula), sem a alça de redimensionar e sem gravar quebra pelo Enter. Sempre textarea: trocar de input para
- * textarea no meio da digitação perderia o foco. O rótulo fica no cabeçalho da tabela; o leitor de tela lê `rotuloAcessivel`.
- */
-function CampoDaTabela({ valor, aoMudar, ...resto }: Omit<ComponentProps<typeof Campo>, 'linhas' | 'rotuloOculto'>) {
-  const { fatorTexto } = useTema();
-  const [largura, setLargura] = useState(0);
-  return (
-    <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
-      <Campo {...resto} rotuloOculto valor={valor} linhas={ateDuasLinhas(valor, largura, fatorTexto)} className={SEM_ALCA}
-        blurOnSubmit onSubmitEditing={() => undefined} aoMudar={(v) => aoMudar(nomeSemQuebra(v))} />
     </View>
   );
 }
@@ -284,11 +251,11 @@ const estilos = StyleSheet.create({
   linhaDaTabela: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO },
   cabecalho: { paddingHorizontal: RECUO + 1, alignItems: 'center' },
   colunaDaAlca: { width: LARGURA_DA_ALCA },
-  // Proporções da linha (26/11): Suplemento 28%, Dose 12% e Horário 10% (o mínimo cabe o título "Dose prescrita" e um
-  // "Pós-treino" perto dos 720; o teto para de esticar na ultralarga) e a Observação com o resto.
+  // Proporções da linha (26/11): Suplemento 28%, Dose e Horário com teto (`colunasDosComplementos`, as mesmas de Outros)
+  // e a Observação com o resto.
   colunaDoNome: { width: '28%', minWidth: 0 },
-  colunaDaDose: { width: '12%', minWidth: 120, maxWidth: 240 },
-  colunaDoHorario: { width: '10%', minWidth: 104, maxWidth: 200 },
+  colunaDaDose: COLUNA_DA_DOSE,
+  colunaDoHorario: COLUNA_DO_HORARIO,
   colunaDaObservacao: { flex: 1, minWidth: 0 },
   colunaDasAcoes: { width: ALVO_TOQUE },
   celula: { gap: espaco(0.5) },

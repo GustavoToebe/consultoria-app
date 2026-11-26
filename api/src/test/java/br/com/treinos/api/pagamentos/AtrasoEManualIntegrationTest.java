@@ -45,6 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureMockMvc
 class AtrasoEManualIntegrationTest extends AbstractIntegrationTest {
 
+    private static final String MENSAGEM_SEM_PERMISSAO = "Sem permissão para alterar o acesso deste aluno";
     private static final String MENSAGEM_JA_DESATIVADO =
             "O acesso deste aluno foi desativado pela equipe. Só \"Reativar acesso\", em Acesso ao app, o libera.";
 
@@ -214,7 +215,7 @@ class AtrasoEManualIntegrationTest extends AbstractIntegrationTest {
         for (JsonNode quem : List.of(semFinanceiro, comLeitura)) {
             JsonNode recusa = api.post("/alunos/" + alunoId + "/acesso/reativar", quem, null, 403);
             assertThat(recusa.get("codigo").asString()).isEqualTo("PERMISSAO_NEGADA");
-            assertThat(recusa.get("message").asString()).doesNotContainIgnoringCase("atraso");
+            assertThat(recusa.get("message").asString()).isEqualTo(MENSAGEM_SEM_PERMISSAO);
         }
         assertThat(motivoNoBanco(alunoId)).isEqualTo("ATRASO");
         assertThat(eventos("ALUNO_ACESSO_REATIVADO", alunoId)).isZero();
@@ -226,6 +227,51 @@ class AtrasoEManualIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/alunos/" + manual, semFinanceiro, 200).get("acessoDesativadoMotivo").asString()).isEqualTo("MANUAL");
         api.post("/alunos/" + manual + "/acesso/reativar", semFinanceiro, null, 200);
         assertThat(motivoNoBanco(manual)).isNull();
+    }
+
+    /**
+     * Converter ATRASO em MANUAL é do Financeiro: sem FINANCEIRO_ALTERAR o "Desativar acesso" dá o 403 neutro e nada muda
+     * (motivo, eventos, sessões), senão ALUNO_CONVITE despausaria em duas chamadas (desativar e reativar). Com a permissão
+     * converte (D5); o MANUAL real e o acesso normal seguem com ALUNO_CONVITE sozinho.
+     */
+    @Test
+    void desativarQuemEstaEmAtrasoExigeFinanceiroAlterarEADuplaDesativarReativarNaoDespausa() throws Exception {
+        UUID alunoId = api.criarAluno(treinador, "Aluno Atraso Sem Brecha");
+        JsonNode sessao = api.convidarEEntrar(treinador, alunoId);
+        criarCobrancaAvulsa(alunoId, hoje.minusDays(10));
+        api.post("/alunos/" + alunoId + "/pausar-acesso", treinador, null, 200);
+        String emDaPausa = motivoNoBanco(alunoId);
+        assertThat(emDaPausa).isEqualTo("ATRASO");
+        JsonNode semLeitura = membro(Set.of("ALUNO_LER", "ALUNO_CONVITE"));
+        JsonNode comLeitura = membro(Set.of("ALUNO_LER", "ALUNO_CONVITE", "FINANCEIRO_LER"));
+        JsonNode comAlterar = membro(Set.of("ALUNO_LER", "ALUNO_CONVITE", "FINANCEIRO_ALTERAR"));
+
+        for (JsonNode quem : List.of(semLeitura, comLeitura)) {
+            JsonNode recusa = api.post("/alunos/" + alunoId + "/acesso/desativar", quem, Map.of("motivo", "MANUAL"), 403);
+            assertThat(recusa.get("codigo").asString()).isEqualTo("PERMISSAO_NEGADA");
+            assertThat(recusa.get("message").asString()).isEqualTo(MENSAGEM_SEM_PERMISSAO);
+            // A sequência desativar e reativar sem a permissão do Financeiro não despausa.
+            api.post("/alunos/" + alunoId + "/acesso/reativar", quem, null, 403);
+        }
+        assertThat(motivoNoBanco(alunoId)).isEqualTo("ATRASO");
+        assertThat(usuarioAtivo(alunoId)).isTrue();
+        assertThat(eventos("ALUNO_ACESSO_DESATIVADO", alunoId)).isZero();
+        assertThat(eventos("ALUNO_ACESSO_REATIVADO", alunoId)).isZero();
+        api.get("/eu", sessao, 200); // as sessões do aluno seguem de pé
+
+        // FINANCEIRO_ALTERAR (dentro do ALUNO_CONVITE) converte em MANUAL e derruba o login (D5).
+        assertThat(api.post("/alunos/" + alunoId + "/acesso/desativar", comAlterar, Map.of("motivo", "MANUAL"), 200)
+                .get("acessoDesativadoMotivo").asString()).isEqualTo("MANUAL");
+        assertThat(motivoNoBanco(alunoId)).isEqualTo("MANUAL");
+        assertThat(eventos("ALUNO_ACESSO_DESATIVADO", alunoId)).isEqualTo(1);
+        api.get("/eu", sessao, 401);
+
+        // Acesso normal e MANUAL real não pedem a permissão do Financeiro.
+        UUID normal = api.criarAluno(treinador, "Aluno Normal Sem Brecha");
+        api.convidarEEntrar(treinador, normal);
+        api.post("/alunos/" + normal + "/acesso/desativar", semLeitura, Map.of("motivo", "MANUAL"), 200);
+        api.post("/alunos/" + normal + "/acesso/desativar", semLeitura, Map.of("motivo", "MANUAL"), 200);
+        assertThat(motivoNoBanco(normal)).isEqualTo("MANUAL");
     }
 
     @Test
