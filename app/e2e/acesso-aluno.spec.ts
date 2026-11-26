@@ -313,7 +313,7 @@ test('"Alterar e-mail" com o envio de e-mails desligado diz para avisar o aluno'
   expect(errosDaPagina).toEqual([]);
 });
 
-test('"Desativar acesso" pede confirmação; desativado mostra a data e só "Reativar acesso", que volta ao normal', async ({ page }) => {
+test('"Desativar acesso" no ⋯ "Ações do acesso" pede confirmação; desativado mostra a data e só "Reativar acesso", que volta ao normal', async ({ page }) => {
   await fixarHoje(page);
   const DESATIVADO: AlunoDetalhe = { ...COM_CONTA, acessoDesativadoEm: '2026-10-17T15:00:00Z', acessoDesativadoMotivo: 'MANUAL' };
   const { pedidos, errosDaPagina } = await simularApi(page, {
@@ -327,29 +327,41 @@ test('"Desativar acesso" pede confirmação; desativado mostra a data e só "Rea
   const acesso = acessoDoAluno(page);
   const posts = () => pedidos.filter((p) => p.metodo === 'POST' && p.caminho.includes('/acesso/'));
 
+  // 26/11: "Desativar acesso" saiu da Situação e foi para o ⋯ do cabeçalho do cartão (item de perigo, texto vermelho).
+  const abrirDesativar = async () => {
+    await acesso.getByRole('button', { name: 'Ações do acesso', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: 'Ações do acesso' });
+    // Sem a permissão do Financeiro, o "Pausar acesso até quitar" nem aparece.
+    await expect(menu.getByRole('button', { name: /^Pausar acesso até quitar/ })).toHaveCount(0);
+    await menu.getByRole('button', { name: /^Desativar acesso/ }).click();
+  };
+  await expect(acesso.getByRole('button', { name: 'Desativar acesso' })).toHaveCount(0);
   // Cancelar não envia nada.
-  await acesso.getByRole('button', { name: 'Desativar acesso' }).click();
+  await abrirDesativar();
   const dialogo = page.getByRole('alertdialog', { name: 'Desativar acesso ao app?' });
   await expect(dialogo.getByText(/Nada é apagado/)).toBeVisible();
   await dialogo.getByRole('button', { name: 'Cancelar' }).click();
   await expect(dialogo).toHaveCount(0);
   expect(posts()).toHaveLength(0);
 
-  await acesso.getByRole('button', { name: 'Desativar acesso' }).click();
+  await abrirDesativar();
   await dialogo.getByRole('button', { name: 'Desativar acesso' }).click();
-  const situacao = acesso.getByLabel('Situação: Sem acesso (desativado em 17/10)', { exact: true });
+  const situacao = acesso.getByLabel('Situação: Acesso desativado', { exact: true });
   await expect(situacao).toBeVisible();
-  // 26/11: o selo do desativado é neutro (texto secundário, sem pílula; âmbar é financeiro) com o "●" na mesma cor; o de quem
-  // nunca teve acesso não tem o ponto (caso de cima). Tema claro, o padrão sem preferência.
+  // 26/11: o selo do desativado é "Acesso desativado" neutro (texto secundário, sem pílula; âmbar é o pausado) com o "●" na
+  // mesma cor; o "Sem acesso" de quem nunca teve conta não tem o ponto (caso de cima). Tema claro, o padrão sem preferência.
   const suave = rgbCss(CLARO.textoSuave);
   // O mouse fica onde a confirmação estava, agora em cima do selo: o `Badge` ganha fundo ao passar o mouse e o devolve com uma
   // transição de cor, que mascararia a medida: tira o mouse e espera ela terminar.
   await page.mouse.move(0, 0);
   await expect.poll(() => pontosDoSelo(situacao)).toEqual([{ ponto: suave, texto: suave, pilula: 'rgba(0, 0, 0, 0)' }]);
-  await expect(acesso.getByText('O aluno não entra até o acesso ser reativado. Nada foi apagado.')).toBeVisible();
+  // A data vai na nota (o selo tem as mesmas palavras do cabeçalho e da lista).
+  await expect(acesso.getByText('Desativado em 17/10. O aluno não entra até o acesso ser reativado. Nada foi apagado.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Acesso desativado', { exact: true })).toHaveCount(2);
   await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toHaveCount(0);
   await expect(acesso.getByRole('button', { name: 'Alterar e-mail de acesso' })).toHaveCount(0);
-  await expect(acesso.getByRole('button', { name: 'Desativar acesso' })).toHaveCount(0);
+  // Desativado, o ⋯ não tem o que oferecer e some.
+  await expect(acesso.getByRole('button', { name: 'Ações do acesso', exact: true })).toHaveCount(0);
   // O e-mail continua à vista e copiável.
   await expect(acesso.getByRole('button', { name: 'Copiar e-mail de acesso' })).toBeVisible();
   expect(posts().map((p) => [p.caminho, p.corpo])).toEqual([[`/alunos/${ALUNO_ID}/acesso/desativar`, { motivo: 'MANUAL' }]]);
@@ -358,7 +370,8 @@ test('"Desativar acesso" pede confirmação; desativado mostra a data e só "Rea
   await expect(acesso.getByLabel('Situação: Com acesso', { exact: true })).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toBeVisible();
   await expect(page.getByText('Acesso reativado.')).toBeVisible();
-  expect(posts()).toHaveLength(2);
+  // O MANUAL sai pela rota da equipe (ALUNO_CONVITE), nunca pela do Financeiro.
+  expect(posts().map((p) => p.caminho)).toEqual([`/alunos/${ALUNO_ID}/acesso/desativar`, `/alunos/${ALUNO_ID}/acesso/reativar`]);
   expect(errosDaPagina).toEqual([]);
 });
 
