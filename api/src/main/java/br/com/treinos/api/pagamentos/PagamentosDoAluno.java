@@ -103,21 +103,21 @@ public class PagamentosDoAluno {
     }
 
     /**
-     * Reativa automaticamente o acesso de um aluno pausado por atraso quando não resta nenhuma cobrança ABERTA vencida.
-     * Quem chama já travou o aluno e alterou as cobranças na mesma transação.
+     * Tira a pausa por atraso (motivo ATRASO) quando não resta nenhuma cobrança ABERTA vencida; a desativação MANUAL nunca
+     * sai por aqui (o update só casa com ATRASO, mesmo que a entidade em memória esteja desatualizada). Quem chama já travou
+     * o aluno e alterou as cobranças na mesma transação. Desfazer a baixa nunca pausa de novo.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void reativarSeQuitou(Aluno aluno, boolean porSistema) {
-        if (!aluno.isAcessoPausado()) {
-            return;
-        }
         cobrancas.flush();
         if (cobrancas.existsByAlunoIdAndSituacaoAndVencimentoBefore(
                 aluno.getId(), CobrancaAluno.Situacao.ABERTA, LocalDate.now(Fuso.BRASILIA))) {
             return;
         }
-        aluno.limparAcessoPausado();
-        alunos.definirAcessoPausadoEm(aluno.getConsultoriaId(), aluno.getId(), null);
+        if (alunos.reativarAcessoPausadoPorAtraso(aluno.getConsultoriaId(), aluno.getId()) == 0) {
+            return;
+        }
+        aluno.reativarAcesso();
         String resumo = "Reativou o acesso do aluno automaticamente após quitação.";
         if (porSistema) {
             auditoria.registrarDoSistema(aluno.getConsultoriaId(), "ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE",

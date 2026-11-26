@@ -28,10 +28,11 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Fase 2 (Pausar acesso do aluno por atraso): pausa/reativação manual idempotente, sessão preservada (login/refresh 200),
- * GET /eu com acessoPausado, whitelist liberada vs 403 ACESSO_PAUSADO_POR_ATRASO nas demais rotas, reativação automática
- * ao quitar todas as vencidas (baixa manual, webhook InfinitePay, cancelamento e renegociação), desfazer baixa nunca repausa
- * e isolamento multi-tenant.
+ * Fase 2 (pausar o acesso por atraso = {@code acesso_desativado_motivo = 'ATRASO'}, V104, sobre o "Desativar acesso" da V100):
+ * pausa e reativação manuais idempotentes, sessão preservada (login e refresh 200), {@code GET /eu} com o motivo, rotas
+ * liberadas x 403 {@code ACESSO_PAUSADO_POR_ATRASO} nas demais, reativação automática ao quitar todas as vencidas (baixa manual,
+ * webhook InfinitePay, cancelamento e renegociação), desfazer baixa nunca repausa e isolamento multi-tenant. A convivência com
+ * o MANUAL está em {@code AtrasoEManualIntegrationTest}.
  */
 @AutoConfigureMockMvc
 class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
@@ -132,20 +133,29 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
 
         // Pausa manual
         JsonNode primeiraPausa = api.post("/alunos/" + alunoId + "/pausar-acesso", treinador, null, 200);
-        assertThat(primeiraPausa.get("acessoPausado").asBoolean()).isTrue();
-        assertThat(primeiraPausa.get("acessoPausadoEm").asString()).isNotBlank();
-        assertThat(primeiraPausa.get("versao").asLong()).isEqualTo(versaoAntes); // @OptimisticLock(excluded = true)
+        assertThat(primeiraPausa.get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
+        assertThat(primeiraPausa.get("acessoDesativadoEm").asString()).isNotBlank();
+        assertThat(primeiraPausa.has("acessoPausado")).isFalse();
+        assertThat(primeiraPausa.has("acessoPausadoEm")).isFalse();
+        assertThat(primeiraPausa.get("versao").asLong()).isEqualTo(versaoAntes); // update dirigido: não sobe a versão do cadastro
+        JsonNode lida = api.get("/alunos/" + alunoId, treinador, 200);
+        assertThat(lida.get("acessoDesativadoEm").asString()).isEqualTo(primeiraPausa.get("acessoDesativadoEm").asString());
+        assertThat(lida.get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
 
-        // Idempotente: repetir não sobrescreve acessoPausadoEm nem duplica auditoria
+        // Idempotente: repetir não sobrescreve a data nem duplica auditoria (resumo fixo)
         JsonNode segundaPausa = api.post("/alunos/" + alunoId + "/pausar-acesso", treinador, null, 200);
-        assertThat(segundaPausa.get("acessoPausadoEm").asString()).isEqualTo(primeiraPausa.get("acessoPausadoEm").asString());
+        assertThat(segundaPausa.get("acessoDesativadoEm").asString()).isEqualTo(primeiraPausa.get("acessoDesativadoEm").asString());
         assertThat(contarAuditorias("ALUNO_ACESSO_PAUSADO", alunoId)).isEqualTo(1);
+        assertThat(resumos("ALUNO_ACESSO_PAUSADO", alunoId)).containsExactly("Pausou o acesso do aluno por atraso.");
 
-        // Lista de alunos também expõe acessoPausado
+        // Lista de alunos também traz o motivo
         JsonNode lista = api.get("/alunos?busca=Pausado", treinador, 200).get("itens");
         assertThat(lista).hasSize(1);
-        assertThat(lista.get(0).get("acessoPausado").asBoolean()).isTrue();
-        assertThat(lista.get(0).get("acessoPausadoEm").asString()).isEqualTo(primeiraPausa.get("acessoPausadoEm").asString());
+        assertThat(lista.get(0).get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
+        assertThat(lista.get(0).has("acessoPausado")).isFalse();
+
+        // ATRASO não mexe no login: o usuário continua ativo
+        assertThat(usuarioAtivo(alunoId)).isTrue();
 
         // Login e refresh continuam 200 para aluno pausado (D2)
         JsonNode novoLogin = api.post("/auth/login", null,
@@ -154,12 +164,12 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
                 Map.of("refreshToken", novoLogin.get("refreshToken").asString()), 200);
         assertThat(renovada.get("accessToken").asString()).isNotBlank();
 
-        // GET /eu traz acessoPausado = true na raiz e em aluno (e false para treinador)
+        // GET /eu traz o motivo em aluno; nada de pausa na raiz nem para o treinador
         JsonNode euAluno = api.get("/eu", renovada, 200);
-        assertThat(euAluno.get("acessoPausado").asBoolean()).isTrue();
-        assertThat(euAluno.get("aluno").get("acessoPausado").asBoolean()).isTrue();
-        assertThat(euAluno.get("aluno").get("acessoPausadoEm").asString()).isNotBlank();
-        assertThat(api.get("/eu", treinador, 200).get("acessoPausado").asBoolean()).isFalse();
+        assertThat(euAluno.get("aluno").get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
+        assertThat(euAluno.has("acessoPausado")).isFalse();
+        assertThat(euAluno.get("aluno").has("acessoPausadoEm")).isFalse();
+        assertThat(api.get("/eu", treinador, 200).has("acessoPausado")).isFalse();
 
         // Whitelist liberada
         api.get("/termos", renovada, 200);
@@ -184,13 +194,13 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
 
         // Reativação manual pelo treinador (idempotente)
         JsonNode reativado = api.post("/alunos/" + alunoId + "/reativar-acesso", treinador, null, 200);
-        assertThat(reativado.get("acessoPausado").asBoolean()).isFalse();
-        assertThat(reativado.get("acessoPausadoEm").isNull()).isTrue();
+        assertThat(reativado.get("acessoDesativadoMotivo").isNull()).isTrue();
+        assertThat(reativado.get("acessoDesativadoEm").isNull()).isTrue();
         api.post("/alunos/" + alunoId + "/reativar-acesso", treinador, null, 200);
         assertThat(contarAuditorias("ALUNO_ACESSO_REATIVADO", alunoId)).isEqualTo(1);
 
         // Aluno volta a acessar normalmente
-        assertThat(api.get("/eu", renovada, 200).get("acessoPausado").asBoolean()).isFalse();
+        assertThat(pausadoNoEu(renovada)).isFalse();
         api.get("/aluno/painel", renovada, 200);
     }
 
@@ -206,21 +216,21 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
         // Paga só a 1ª: continua pausado!
         api.post("/cobrancas/" + c1.get("id").asString() + "/baixa-manual", treinador,
                 Map.of("data", hoje.toString(), "forma", "PIX_DIRETO", "versao", c1.get("versao").asLong()), 200);
-        assertThat(api.get("/eu", aluno, 200).get("acessoPausado").asBoolean()).isTrue();
+        assertThat(pausadoNoEu(aluno)).isTrue();
         assertBloqueado(api.get("/aluno/painel", aluno, 403));
         assertThat(contarAuditorias("ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE", alunoId)).isZero();
 
         // Paga a 2ª: reativa automaticamente!
         JsonNode c2Paga = api.post("/cobrancas/" + c2.get("id").asString() + "/baixa-manual", treinador,
                 Map.of("data", hoje.toString(), "forma", "PIX_DIRETO", "versao", c2.get("versao").asLong()), 200);
-        assertThat(api.get("/eu", aluno, 200).get("acessoPausado").asBoolean()).isFalse();
+        assertThat(pausadoNoEu(aluno)).isFalse();
         api.get("/aluno/painel", aluno, 200);
         assertThat(contarAuditorias("ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE", alunoId)).isEqualTo(1);
 
         // Desfazer a baixa NÃO repausa automaticamente (D3)
         api.post("/cobrancas/" + c2.get("id").asString() + "/desfazer-baixa", treinador,
                 Map.of("motivo", "Baixa lançada por engano", "versao", c2Paga.get("versao").asLong()), 200);
-        assertThat(api.get("/eu", aluno, 200).get("acessoPausado").asBoolean()).isFalse();
+        assertThat(pausadoNoEu(aluno)).isFalse();
         api.get("/aluno/painel", aluno, 200);
     }
 
@@ -251,7 +261,7 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
         assertThat(statusWebhook).isEqualTo(200);
         conciliador.processarPendentes();
 
-        assertThat(api.get("/eu", sessaoWebhook, 200).get("acessoPausado").asBoolean()).isFalse();
+        assertThat(pausadoNoEu(sessaoWebhook)).isFalse();
         api.get("/aluno/painel", sessaoWebhook, 200);
         Integer auditoriaSistema = jdbc.queryForObject(
                 "select count(*) from auditoria where consultoria_id = ? and acao = 'ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE' "
@@ -268,7 +278,7 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
 
         api.post("/cobrancas/" + cobrancaCancelamento.get("id").asString() + "/cancelar", treinador,
                 Map.of("motivo", "Isenção combinada", "versao", cobrancaCancelamento.get("versao").asLong()), 200);
-        assertThat(api.get("/eu", sessaoCancelamento, 200).get("acessoPausado").asBoolean()).isFalse();
+        assertThat(pausadoNoEu(sessaoCancelamento)).isFalse();
         api.get("/aluno/painel", sessaoCancelamento, 200);
         assertThat(contarAuditorias("ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE", alunoCancelamento)).isEqualTo(1);
 
@@ -288,7 +298,7 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
         reneg.put("pedidoId", UUID.randomUUID().toString());
         reneg.put("motivo", "Acordo em 2x");
         api.post("/cobrancas/renegociar", treinador, reneg, 201);
-        assertThat(api.get("/eu", sessaoRenegociacao, 200).get("acessoPausado").asBoolean()).isFalse();
+        assertThat(pausadoNoEu(sessaoRenegociacao)).isFalse();
         api.get("/aluno/painel", sessaoRenegociacao, 200);
         assertThat(contarAuditorias("ALUNO_ACESSO_REATIVADO_AUTOMATICAMENTE", alunoRenegociacao)).isEqualTo(1);
     }
@@ -300,7 +310,7 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
         JsonNode cobranca = criarCobrancaAvulsa(alunoId, hoje.minusDays(10), 10_000);
         api.post("/alunos/" + alunoId + "/pausar-acesso", treinador, null, 200);
         JsonNode fichaLida = api.get("/alunos/" + alunoId, treinador, 200);
-        assertThat(fichaLida.get("acessoPausado").asBoolean()).isTrue();
+        assertThat(fichaLida.get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
         long versao = fichaLida.get("versao").asLong();
 
         api.post("/cobrancas/" + cobranca.get("id").asString() + "/baixa-manual", treinador,
@@ -309,9 +319,9 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode salvo = api.put("/alunos/" + alunoId, treinador,
                 Map.of("nome", "Aluno Corrida Quitou", "versao", versao), 200);
-        assertThat(salvo.get("acessoPausado").asBoolean()).isFalse();
+        assertThat(salvo.get("acessoDesativadoMotivo").isNull()).isTrue();
         assertThat(pausadoNoBanco(alunoId)).isFalse();
-        assertThat(api.get("/alunos/" + alunoId, treinador, 200).get("acessoPausado").asBoolean()).isFalse();
+        assertThat(api.get("/alunos/" + alunoId, treinador, 200).get("acessoDesativadoMotivo").isNull()).isTrue();
 
         // 2. Inverso: ficha lida antes da pausa manual; o treinador pausa; o PUT com a versao antiga mantem pausado.
         UUID outro = api.criarAluno(treinador, "Aluno Corrida Pausou");
@@ -322,14 +332,28 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode salvoOutro = api.put("/alunos/" + outro, treinador,
                 Map.of("nome", "Aluno Corrida Pausou", "versao", versaoOutro), 200);
-        assertThat(salvoOutro.get("acessoPausado").asBoolean()).isTrue();
+        assertThat(salvoOutro.get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
         assertThat(pausadoNoBanco(outro)).isTrue();
-        assertThat(api.get("/alunos/" + outro, treinador, 200).get("acessoPausado").asBoolean()).isTrue();
+        assertThat(api.get("/alunos/" + outro, treinador, 200).get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
     }
 
     private boolean pausadoNoBanco(UUID alunoId) {
+        return "ATRASO".equals(jdbc.queryForObject(
+                "select acesso_desativado_motivo from aluno where id = ?", String.class, alunoId));
+    }
+
+    private boolean usuarioAtivo(UUID alunoId) {
         return Boolean.TRUE.equals(jdbc.queryForObject(
-                "select acesso_pausado_em is not null from aluno where id = ?", Boolean.class, alunoId));
+                "select u.ativo from usuario u join aluno a on a.usuario_id = u.id where a.id = ?", Boolean.class, alunoId));
+    }
+
+    private boolean pausadoNoEu(JsonNode sessao) throws Exception {
+        return "ATRASO".equals(api.get("/eu", sessao, 200).get("aluno").path("acessoDesativadoMotivo").asString(""));
+    }
+
+    private List<String> resumos(String acao, UUID alunoId) {
+        return jdbc.queryForList("select resumo from auditoria where consultoria_id = ? and acao = ? and entidade_id = ?",
+                String.class, consultoriaId, acao, alunoId);
     }
 
     private JsonNode criarCobrancaAvulsa(UUID alunoId, LocalDate vencimento, long valorCentavos) throws Exception {

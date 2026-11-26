@@ -3,7 +3,6 @@ package br.com.treinos.api.auth.dto;
 import br.com.treinos.api.consultoria.MarcaPublica;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-import java.time.Instant;
 import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -34,15 +33,14 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          /* Só para o aluno: WhatsApp da consultoria só com dígitos (DDD + número, sem o 55), para o app montar wa.me/55<dígitos>; some se não há. */
                          String whatsappDaConsultoria,
                          /* Só para o aluno: as redes sociais da consultoria que estão preenchidas (links https por chave); some se nenhuma. */
-                         java.util.Map<String, String> redesSociaisDaConsultoria,
-                         /* Só para o aluno: se o acesso está pausado por atraso (sempre false para não-aluno). */
-                         boolean acessoPausado) {
+                         java.util.Map<String, String> redesSociaisDaConsultoria) {
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 
-    public record AlunoResumo(UUID id, String nome, String sexo, boolean acessoPausado, Instant acessoPausadoEm) {
-        public AlunoResumo(UUID id, String nome, String sexo) {
-            this(id, nome, sexo, false, null);
-        }
+    /**
+     * {@code acessoDesativadoMotivo}: {@code ATRASO} = acesso pausado por atraso (o app mostra só a tela de regularização;
+     * as outras rotas dão 403 {@code ACESSO_PAUSADO_POR_ATRASO}); nulo = acesso normal. O MANUAL não chega aqui (sem login).
+     */
+    public record AlunoResumo(UUID id, String nome, String sexo, String acessoDesativadoMotivo) {
     }
 }

@@ -77,10 +77,6 @@ public class Aluno {
     @Column(name = "inativado_em")
     private Instant inativadoEm;
 
-    /** Quando o treinador pausou o acesso do aluno por atraso. Nulo = acesso liberado. So leitura na JPA (como pod_id): quem grava e {@code AlunoRepository.definirAcessoPausadoEm}, para uma ficha lida antes e salva depois nunca desfazer pausa/reativacao. Não sobe a versão do cadastro. */
-    @Column(name = "acesso_pausado_em", insertable = false, updatable = false)
-    private Instant acessoPausadoEm;
-
     /** Preenchido quando os dados pessoais foram apagados; o cadastro não volta a ser editado nem reativado. */
     @Column(name = "anonimizado_em")
     private Instant anonimizadoEm;
@@ -90,14 +86,17 @@ public class Aluno {
     private Instant usoDeImagemAutorizadoEm;
 
     /**
-     * Acesso ao app desativado pela equipe (V100), sem apagar nada; nulo = acesso normal. As duas colunas andam juntas.
-     * Enquanto preenchidas, o usuário do aluno fica inativo mesmo que o aluno esteja ativo ({@code AlunoService.aplicarSituacao}).
+     * Acesso ao app desativado (V100; ATRASO desde a V104), sem apagar nada; nulo = acesso normal. As duas colunas andam juntas.
+     * {@code MANUAL} deixa o usuário do aluno inativo mesmo com o aluno ativo ({@code AlunoService.aplicarSituacao});
+     * {@code ATRASO} não mexe no usuário: o {@code AcessoPausadoInterceptor} limita as rotas. Só leitura na JPA (como
+     * {@code pod_id}): quem grava são os updates dirigidos de {@code AlunoRepository}, sob a trava do aluno, para uma ficha
+     * lida antes e salva depois nunca desfazer uma desativação ou reativação. Não sobe a versão do cadastro.
      */
-    @Column(name = "acesso_desativado_em")
+    @Column(name = "acesso_desativado_em", insertable = false, updatable = false)
     private Instant acessoDesativadoEm;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "acesso_desativado_motivo")
+    @Column(name = "acesso_desativado_motivo", insertable = false, updatable = false)
     private MotivoDoAcessoDesativado acessoDesativadoMotivo;
 
     /** Usuário (sem @) no Instagram e no TikTok (V101), já normalizados por {@code RedesSociais}. Dado pessoal: nunca em log, auditoria nem mensagem de erro. */
@@ -281,22 +280,6 @@ public class Aluno {
         return inativadoEm;
     }
 
-    public boolean isAcessoPausado() {
-        return acessoPausadoEm != null;
-    }
-
-    public Instant getAcessoPausadoEm() {
-        return acessoPausadoEm;
-    }
-
-    public void pausarAcesso(Instant quando) {
-        this.acessoPausadoEm = quando;
-    }
-
-    public void limparAcessoPausado() {
-        this.acessoPausadoEm = null;
-    }
-
     public String getConviteHash() {
         return conviteHash;
     }
@@ -393,9 +376,6 @@ public class Aluno {
     public void alterarSituacao(boolean ativo, Instant quando) {
         this.ativo = ativo;
         this.inativadoEm = ativo ? null : quando;
-        if (!ativo) {
-            this.acessoPausadoEm = null;
-        }
         this.atualizadoEm = quando;
     }
 
@@ -411,16 +391,16 @@ public class Aluno {
         return acessoDesativadoMotivo;
     }
 
-    public void desativarAcesso(Instant quando, MotivoDoAcessoDesativado motivo) {
+    /** Só o espelho em memória do que o update dirigido de {@code AlunoRepository} já gravou (a resposta sai igual à leitura seguinte). */
+    void desativarAcesso(Instant quando, MotivoDoAcessoDesativado motivo) {
         this.acessoDesativadoEm = quando;
         this.acessoDesativadoMotivo = motivo;
-        this.atualizadoEm = quando;
     }
 
+    /** Espelho em memória de {@code AlunoRepository.limparAcessoDesativado}/{@code reativarAcessoPausadoPorAtraso}. */
     public void reativarAcesso() {
         this.acessoDesativadoEm = null;
         this.acessoDesativadoMotivo = null;
-        this.atualizadoEm = Instant.now();
     }
 
     public String getInstagram() {
@@ -477,7 +457,6 @@ public class Aluno {
         this.conviteExpiraEm = null;
         this.ativo = false;
         if (this.inativadoEm == null) this.inativadoEm = quando;
-        this.acessoPausadoEm = null;
         this.anonimizadoEm = quando;
         this.usoDeImagemAutorizadoEm = null;
         this.lembretesCobrancaDesligadosEm = null;

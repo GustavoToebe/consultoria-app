@@ -8,6 +8,7 @@ import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.auth.RegrasSenha;
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
+import br.com.treinos.api.pagamentos.PagamentosDoAluno;
 import br.com.treinos.api.web.Emails;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -38,12 +39,14 @@ public class AcessoDoAlunoService {
     private final Auditoria auditoria;
     private final AvisoDeTrocaDeEmailDeAcesso aviso;
     private final TransactionTemplate transacao;
+    private final PagamentosDoAluno pagamentos;
 
     public AcessoDoAlunoService(AlunoRepository alunos, UsuarioRepository usuarios, AlunoService alunoService,
                                 PasswordEncoder passwordEncoder, Autenticador autenticador, br.com.treinos.api.push.PushService push,
                                 Auditoria auditoria, AvisoDeTrocaDeEmailDeAcesso aviso,
-                                PlatformTransactionManager transacoes) {
+                                PlatformTransactionManager transacoes, PagamentosDoAluno pagamentos) {
         this.transacao = new TransactionTemplate(transacoes);
+        this.pagamentos = pagamentos;
         this.auditoria = auditoria;
         this.aviso = aviso;
         this.alunos = alunos;
@@ -64,7 +67,8 @@ public class AcessoDoAlunoService {
         if (!aluno.isAtivo()) {
             throw new ConflictException("Aluno inativo. Reative para dar acesso.", "ALUNO_INATIVO");
         }
-        if (aluno.getAcessoDesativadoEm() != null) {
+        // Só o MANUAL bloqueia: na pausa por atraso o login segue valendo, e trocar a senha não a desfaz.
+        if (aluno.getAcessoDesativadoMotivo() == MotivoDoAcessoDesativado.MANUAL) {
             throw new ConflictException("Reative o acesso antes.", "ACESSO_DESATIVADO");
         }
         String normalizado = Emails.normalizar(email);
@@ -82,6 +86,9 @@ public class AcessoDoAlunoService {
     static final String RESUMO_EMAIL = "Alterou o e-mail de acesso do aluno.";
     static final String RESUMO_DESATIVADO = "Desativou o acesso do aluno ao app.";
     static final String RESUMO_REATIVADO = "Reativou o acesso do aluno ao app.";
+    static final String RESUMO_PAUSADO = "Pausou o acesso do aluno por atraso.";
+    static final String CODIGO_JA_DESATIVADO = "ACESSO_JA_DESATIVADO";
+    static final String MENSAGEM_JA_DESATIVADO = "O acesso deste aluno foi desativado pela equipe. Só \"Reativar acesso\", em Acesso ao app, o libera.";
 
     /**
      * Troca só o e-mail de login (o {@code aluno.email} do cadastro não muda, como em {@link #definir}). O mesmo e-mail é um
@@ -125,17 +132,21 @@ public class AcessoDoAlunoService {
         return new Troca(alunoService.detalheDe(aluno), preparado);
     }
 
-    /** Idempotente: já desativado = 200 sem regravar nem auditar. Nada é apagado; o aluno continua ativo. */
+    /**
+     * Desativação manual (MANUAL): bloqueia o login ({@code usuario.ativo = false}) e encerra as sessões, sem apagar nada e
+     * sem inativar o aluno. Já MANUAL = 200 sem regravar nem auditar; em pausa por atraso, troca o motivo para MANUAL.
+     * Ordem das travas: aluno, depois usuário (a mesma de {@link #definir}).
+     */
     @Transactional
-    public AlunoDetalhe desativar(UUID alunoId, MotivoDoAcessoDesativado motivo) {
+    public AlunoDetalhe desativar(UUID alunoId) {
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         AlunoService.exigirNaoAnonimizado(aluno);
         Usuario usuario = usuarioDe(aluno);
-        if (aluno.getAcessoDesativadoEm() != null) {
-            return alunoService.detalheDe(aluno);
+        Instant quando = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS); // o banco guarda microssegundos: a resposta já sai igual à leitura seguinte
+        if (alunos.desativarAcessoManualmente(aluno.getConsultoriaId(), aluno.getId(), quando) == 0) {
+            return alunoService.detalheDe(aluno); // já MANUAL
         }
-        aluno.desativarAcesso(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS), motivo); // o banco guarda microssegundos: a resposta já sai igual à leitura seguinte
-        alunos.saveAndFlush(aluno);
+        aluno.desativarAcesso(quando, MotivoDoAcessoDesativado.MANUAL);
         usuario.alterarAtivo(false);
         usuarios.saveAndFlush(usuario);
         auditoria.registrarEvento("ALUNO_ACESSO_DESATIVADO", "ALUNO", aluno.getId(), RESUMO_DESATIVADO);
@@ -143,23 +154,78 @@ public class AcessoDoAlunoService {
         return alunoService.detalheDe(aluno);
     }
 
-    /** Só se estava desativado (senão 200 sem mudar). Aluno inativo continua sem acesso: 409 {@code ALUNO_INATIVO}. */
+    /**
+     * "Reativar acesso" do cartão Acesso ao app ({@code ALUNO_CONVITE}): limpa a desativação de qualquer motivo. Do MANUAL,
+     * liga o usuário de novo; da pausa por atraso, só limpa (o usuário já estava ativo). Sem desativação = 200 sem mudar.
+     * Aluno inativo continua sem acesso: 409 {@code ALUNO_INATIVO}.
+     */
     @Transactional
     public AlunoDetalhe reativar(UUID alunoId) {
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         AlunoService.exigirNaoAnonimizado(aluno);
-        if (aluno.getAcessoDesativadoEm() == null) {
+        MotivoDoAcessoDesativado motivo = aluno.getAcessoDesativadoMotivo();
+        if (motivo == null) {
             return alunoService.detalheDe(aluno);
         }
         if (!aluno.isAtivo()) {
             throw new ConflictException("Aluno inativo. Reative o aluno antes de reativar o acesso.", "ALUNO_INATIVO");
         }
-        Usuario usuario = usuarioDe(aluno);
+        Usuario usuario = motivo == MotivoDoAcessoDesativado.MANUAL ? usuarioDe(aluno) : null;
+        alunos.limparAcessoDesativado(aluno.getConsultoriaId(), aluno.getId());
         aluno.reativarAcesso();
-        alunos.saveAndFlush(aluno);
-        usuario.alterarAtivo(true);
-        usuarios.saveAndFlush(usuario);
+        if (usuario != null) {
+            usuario.alterarAtivo(true);
+            usuarios.saveAndFlush(usuario);
+        }
         auditoria.registrarEvento("ALUNO_ACESSO_REATIVADO", "ALUNO", aluno.getId(), RESUMO_REATIVADO);
+        return alunoService.detalheDe(aluno);
+    }
+
+    /**
+     * Pausa por atraso (ATRASO; decisão manual do treinador, nunca automática, {@code FINANCEIRO_ALTERAR}): o aluno continua
+     * entrando, mas só usa as rotas liberadas do {@code AcessoPausadoInterceptor}. Não mexe no usuário, em vaga, agenda, grupo
+     * nem cobranças. Trava o aluno antes de consultar as cobranças (a ordem única aluno, contratação, cobrança). Já MANUAL =
+     * 409 {@code ACESSO_JA_DESATIVADO}; já pausado = 200 sem sobrescrever a data nem auditar de novo.
+     */
+    @Transactional
+    public AlunoDetalhe pausarPorAtraso(UUID alunoId) {
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        AlunoService.exigirNaoAnonimizado(aluno);
+        if (!aluno.isAtivo()) {
+            throw new ConflictException("Aluno inativo não pode ter o acesso pausado.", "ALUNO_INATIVO");
+        }
+        if (aluno.getAcessoDesativadoMotivo() == MotivoDoAcessoDesativado.MANUAL) {
+            throw new ConflictException(MENSAGEM_JA_DESATIVADO, CODIGO_JA_DESATIVADO);
+        }
+        if (!pagamentos.temCobrancaVencida(aluno.getId())) {
+            throw new ConflictException("O aluno não tem cobrança vencida em aberto para pausar o acesso.", "SEM_COBRANCA_VENCIDA");
+        }
+        Instant quando = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        if (alunos.pausarAcessoPorAtraso(aluno.getConsultoriaId(), aluno.getId(), quando) == 1) {
+            aluno.desativarAcesso(quando, MotivoDoAcessoDesativado.ATRASO);
+            auditoria.registrarEvento("ALUNO_ACESSO_PAUSADO", "ALUNO", aluno.getId(), RESUMO_PAUSADO);
+        }
+        return alunoService.detalheDe(aluno);
+    }
+
+    /**
+     * "Reativar acesso" do Financeiro ({@code FINANCEIRO_ALTERAR}): tira só a pausa por atraso. A desativação MANUAL não sai
+     * por aqui (409 {@code ACESSO_JA_DESATIVADO}): é da equipe com {@code ALUNO_CONVITE}, em {@link #reativar}. Sem pausa = 200.
+     */
+    @Transactional
+    public AlunoDetalhe reativarPausadoPorAtraso(UUID alunoId) {
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        AlunoService.exigirNaoAnonimizado(aluno);
+        if (!aluno.isAtivo()) {
+            throw new ConflictException("Aluno inativo não pode ter o acesso reativado por aqui.", "ALUNO_INATIVO");
+        }
+        if (aluno.getAcessoDesativadoMotivo() == MotivoDoAcessoDesativado.MANUAL) {
+            throw new ConflictException(MENSAGEM_JA_DESATIVADO, CODIGO_JA_DESATIVADO);
+        }
+        if (alunos.reativarAcessoPausadoPorAtraso(aluno.getConsultoriaId(), aluno.getId()) == 1) {
+            aluno.reativarAcesso();
+            auditoria.registrarEvento("ALUNO_ACESSO_REATIVADO", "ALUNO", aluno.getId(), RESUMO_REATIVADO);
+        }
         return alunoService.detalheDe(aluno);
     }
 

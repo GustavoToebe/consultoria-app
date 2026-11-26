@@ -1,6 +1,6 @@
 # Pausar o acesso do aluno por atraso (Fase 2 pós-piloto)
 
-Situação: Feito em 25/11/2026 · Onde: `financeiro-fases-2-e-3` · Atualizado: 25/11/2026 · Ordem: depois da Fase 1 ([contrato-fechado.md](contrato-fechado.md)) e da Fase 3 ([ficha-rapida-pos-whatsapp.md](ficha-rapida-pos-whatsapp.md))
+Situação: Em andamento (refeita sobre "Desativar acesso": API feita em 26/11, app pendente) · Onde: `financeiro-fases-2-e-3` · Atualizado: 26/11/2026 · Ordem: depois da Fase 1 ([contrato-fechado.md](contrato-fechado.md)) e da Fase 3 ([ficha-rapida-pos-whatsapp.md](ficha-rapida-pos-whatsapp.md))
 
 Fonte: roteiro do Saraiva de 24/11/2026 ("se atrasar e for conversado, continuo o trabalho; sem motivo plausível, perde acesso até quitar") e as correções do Gustavo na mesma data. Validade: leitura do código de 24/11/2026 sobre `9918601b`; reler `AuthService`, `JwtAuthenticationFilter` e `UsuariosDoApp` antes de começar. **Esta fase reabre uma regra permanente** (abaixo): antes de executar, o Gustavo reconfirma.
 
@@ -13,6 +13,7 @@ O treinador pausa o acesso de um aluno em atraso, na hora que decidir. O aluno p
 | D1 | Estado próprio | Separado de inativar: inativar bloqueia o link com `ALUNO_INATIVO` e mexe em grupo, vaga, agenda e cobranças; pausar não mexe em nada disso | Gustavo, 24/11 |
 | D2 | O aluno pausado entra | Faz login e vê só a tela de pagamento; paga pelo link; reativa sozinho quando não resta cobrança vencida (baixa manual e webhook) | Gustavo, 24/11 |
 | D3 | Sempre manual | Pausar é ação do treinador, nunca regra automática; até a fase existir, inativar é o paliativo | Gustavo, 24/11 |
+| D5 | Pausa = "Desativar acesso" com motivo `ATRASO` | Sai `aluno.acesso_pausado_em`; a pausa vira `acesso_desativado_motivo = 'ATRASO'` (V104 refaz o CHECK com MANUAL e ATRASO). MANUAL bloqueia o login; ATRASO não mexe no usuário e só limita as rotas. Quitar só tira o ATRASO; pausar quem está MANUAL = 409 `ACESSO_JA_DESATIVADO`; desativar quem está em ATRASO troca para MANUAL | Gustavo, 26/11 |
 | D4 | Regra permanente reaberta | Hoje vale "pagamento atrasado nunca bloqueia nada do aluno" (D6 de [financeiro-em-fases.md](financeiro-em-fases.md); `CobrancaVencidaNaoBloqueiaOAlunoIntegrationTest`; `ArquiteturaTest`, que proíbe ler `CobrancaAluno*` e `ContratacaoAluno*` fora de `pagamentos/`; a regra das lojas de aplicativo: no celular "Pagar" só com `pagarNoIos`/`pagarNoAndroid`). A decisão de 24/11 muda isso para o caso manual. Reconfirmada em 25/11 e ajustados o teste e o `AGENTS.md` junto | Gustavo, 24/11; reconfirmado em 25/11 |
 
 ## O que o código faz hoje (leitura de 24/11)
@@ -27,6 +28,9 @@ O treinador pausa o acesso de um aluno em atraso, na hora que decidir. O aluno p
 - [x] 2. API: pausar e reativar manualmente, 403 com código próprio (`ACESSO_PAUSADO_POR_ATRASO`) no interceptor (mantendo login/refresh livres), reativação automática nos pontos únicos de quitação (`BaixaDeCobranca.baixar`/`cancelar` e `RenegociacaoService.confirmar`), rotas do aluno pausado limitadas à whitelist fechada (`6fb7ea22`, `77dd3d00`)
 - [x] 3. App do aluno: tela "Seu acesso está pausado. Quite aqui." (ou "Seu acesso está pausado." quando `pagarNoIos`/`pagarNoAndroid` está desligado no celular) antes do `AlunoProvider`; app do treinador: "Pausar acesso até quitar" e "Reativar acesso" (`PainelConfirmacao`) na ficha e na folha da cobrança vencida (`4a3d7738`, `77dd3d00`)
 - [x] 4. Revisão independente (autenticação, sessão, concorrência de `acesso_pausado_em`, dinheiro), `AGENTS.md`, Ajuda e guias (`d4584d24`, `3cb8fdaf`, `77dd3d00`)
+
+- [x] 5. API refeita sobre "Desativar acesso" (D5) depois do merge de `origin/main` `89055688`: V104, `AcessoDoAlunoService` (`pausarPorAtraso`, `reativarPausadoPorAtraso`, `desativar` troca ATRASO por MANUAL), colunas só leitura na JPA com updates dirigidos, interceptor lendo o motivo, `/eu` e listas com `acessoDesativadoMotivo` (sem `acessoPausado`), testes `AtrasoEManualIntegrationTest` e `FichaRapidaEAtrasoMigrationTest` (26/11, sem push)
+- [ ] 6. App sobre o contrato novo (`acessoDesativadoMotivo`; botões de pausa voltam ao `CartaoAcesso` da main; Ajuda e guias)
 
 ## Evidências e verificação (25/11/2026)
 - **Commits na branch:** `6fb7ea22` (API), `4a3d7738` (app), `d4584d24` (E2E `acesso-pausado-fase2.spec.ts`, whitelist LGPD `/aluno/meus-dados`, Ajuda, guias PDF e `AGENTS.md`), `3cb8fdaf` (merge de `origin/main` `64c1ee40`), `77dd3d00` (correções pós-revisão independente: `@Column(insertable = false, updatable = false)` + `AlunoRepository.definirAcessoPausadoEm` eliminando corrida com `PUT /alunos/{id}`, regex estrito de UUID em `AcessoPausadoInterceptor` e título sem CTA de pagamento no celular com flag de loja desligada).

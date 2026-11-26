@@ -89,16 +89,18 @@ public class AlunoController {
         return alunos.alterarSituacao(id, request.ativo());
     }
 
+    /** Pausa por atraso (ATRASO): o aluno entra, mas só nas rotas liberadas; 409 {@code ACESSO_JA_DESATIVADO} se a equipe já desativou. */
     @PreAuthorize("hasAuthority('PERM_FINANCEIRO_ALTERAR')")
     @PostMapping("/{id}/pausar-acesso")
     public AlunoDetalhe pausarAcesso(@PathVariable UUID id) {
-        return alunos.pausarAcesso(id);
+        return acessos.pausarPorAtraso(id);
     }
 
+    /** Tira só a pausa por atraso; a desativação MANUAL é 409 {@code ACESSO_JA_DESATIVADO} (sai por {@code /acesso/reativar}). */
     @PreAuthorize("hasAuthority('PERM_FINANCEIRO_ALTERAR')")
     @PostMapping("/{id}/reativar-acesso")
     public AlunoDetalhe reativarAcessoPausado(@PathVariable UUID id) {
-        return alunos.reativarAcesso(id);
+        return acessos.reativarPausadoPorAtraso(id);
     }
 
     @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")
@@ -121,12 +123,14 @@ public class AlunoController {
         return acessos.alterarEmail(id, request.email());
     }
 
-    /** Desativa o acesso ao app sem apagar nada e sem inativar o aluno; idempotente. */
+    /**
+     * Desativa o acesso ao app (MANUAL) sem apagar nada e sem inativar o aluno; idempotente. O {@code motivo} do corpo só
+     * aceita {@code MANUAL}: a pausa por atraso tem rota própria ({@code /pausar-acesso}, com a permissão do Financeiro).
+     */
     @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")
     @PostMapping("/{id}/acesso/desativar")
     public AlunoDetalhe desativarAcesso(@PathVariable UUID id, @RequestBody(required = false) @Valid DesativarAcessoRequest request) {
-        return acessos.desativar(id, request == null || request.motivo() == null ? MotivoDoAcessoDesativado.MANUAL
-                : MotivoDoAcessoDesativado.valueOf(request.motivo()));
+        return acessos.desativar(id);
     }
 
     @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")

@@ -161,7 +161,7 @@ public class AlunoService {
             return new AlunoResumo(a.getId(), a.getNome(), a.isAtivo(), a.getUsuarioId() != null,
                     (p == null || !br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER")) ? null : new PlanoAtivoResumo(p.getId(), p.getTitulo()), br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER") ? ultimo.get(a.getId()) : null,a.getResponsavelId(),
                     situacoes.get(a.getId()), tagsDosAlunos.getOrDefault(a.getId(), List.of()),
-                    a.isAcessoPausado(), a.getAcessoPausadoEm());
+                    a.getAcessoDesativadoMotivo() == null ? null : a.getAcessoDesativadoMotivo().name());
         }).toList();
         return new PaginaAlunos(itens, total);
     }
@@ -396,48 +396,6 @@ public class AlunoService {
         return detalheDe(alunos.saveAndFlush(aluno));
     }
 
-    /**
-     * Pausa o acesso do aluno por atraso (decisão manual do treinador, nunca automática). Trava o aluno antes de consultar
-     * cobranças (ordem única de travas). Idempotente: se já pausado, não sobrescreve {@code acessoPausadoEm} nem duplica auditoria.
-     */
-    @Transactional
-    public AlunoDetalhe pausarAcesso(UUID id) {
-        Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
-        exigirNaoAnonimizado(aluno);
-        if (!aluno.isAtivo()) {
-            throw new ConflictException("Aluno inativo não pode ter o acesso pausado.", "ALUNO_INATIVO");
-        }
-        if (!pagamentos.temCobrancaVencida(aluno.getId())) {
-            throw new ConflictException("O aluno não tem cobrança vencida em aberto para pausar o acesso.", "SEM_COBRANCA_VENCIDA");
-        }
-        if (!aluno.isAcessoPausado()) {
-            Instant quando = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
-            aluno.pausarAcesso(quando);
-            alunos.definirAcessoPausadoEm(aluno.getConsultoriaId(), aluno.getId(), quando);
-            auditoria.registrarEvento("ALUNO_ACESSO_PAUSADO", "ALUNO", aluno.getId(), "Pausou o acesso do aluno por atraso.");
-        }
-        return detalheDe(aluno);
-    }
-
-    /**
-     * Reativa o acesso do aluno pausado por atraso (decisão manual do treinador). Idempotente: se já não estiver pausado,
-     * retorna a ficha sem duplicar auditoria.
-     */
-    @Transactional
-    public AlunoDetalhe reativarAcesso(UUID id) {
-        Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
-        exigirNaoAnonimizado(aluno);
-        if (!aluno.isAtivo()) {
-            throw new ConflictException("Aluno inativo não pode ter o acesso reativado por aqui.", "ALUNO_INATIVO");
-        }
-        if (aluno.isAcessoPausado()) {
-            aluno.limparAcessoPausado();
-            alunos.definirAcessoPausadoEm(aluno.getConsultoriaId(), aluno.getId(), null);
-            auditoria.registrarEvento("ALUNO_ACESSO_REATIVADO", "ALUNO", aluno.getId(), "Reativou o acesso do aluno.");
-        }
-        return detalheDe(aluno);
-    }
-
     static final String CODIGO_CONTRATO_FECHADO_VIGENTE = "CONTRATO_FECHADO_VIGENTE";
     static final String MENSAGEM_CONTRATO_FECHADO_VIGENTE = "Encerre o contrato antes de inativar (com ou sem multa).";
 
@@ -472,11 +430,12 @@ public class AlunoService {
             agenda.cancelarFuturosDoAluno(aluno.getId()); // antes de encerrarSessoes, que não se desfaz
             // Libera a vaga no pod da comunidade; reativar não devolve (a equipe atribui de novo).
             alunos.tirarDoPod(aluno.getConsultoriaId(), aluno.getId());
-            alunos.definirAcessoPausadoEm(aluno.getConsultoriaId(), aluno.getId(), null);
         }
         if (aluno.getUsuarioId() != null) {
-            // Acesso desativado pela equipe (V100) não volta com a situação do aluno: só "Reativar acesso" libera o usuário.
-            usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo && aluno.getAcessoDesativadoEm() == null));
+            // Acesso desativado pela equipe (MANUAL) não volta com a situação do aluno: só "Reativar acesso" libera o usuário.
+            // A pausa por atraso (ATRASO) não mexe no login e também sobrevive a inativar e reativar: só quitar ou "Reativar acesso" a tira.
+            usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(
+                    ativo && aluno.getAcessoDesativadoMotivo() != MotivoDoAcessoDesativado.MANUAL));
             if (!ativo) {
                 push.apagarDoUsuario(aluno.getConsultoriaId(), aluno.getUsuarioId());
                 autenticador.encerrarSessoes(aluno.getUsuarioId().toString());

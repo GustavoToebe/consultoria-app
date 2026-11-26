@@ -207,7 +207,7 @@ public class AnonimizacaoService {
         }
         aluno.anonimizar(Instant.now());
         Aluno salvo = alunos.saveAndFlush(aluno);
-        alunos.definirAcessoPausadoEm(salvo.getConsultoriaId(), salvo.getId(), null);
+        alunos.limparAcessoDesativado(salvo.getConsultoriaId(), salvo.getId()); // colunas só leitura na JPA: o save não as limpa
         return salvo;
     }
 

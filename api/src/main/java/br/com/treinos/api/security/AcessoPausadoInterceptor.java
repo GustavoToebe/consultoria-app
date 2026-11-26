@@ -2,6 +2,7 @@ package br.com.treinos.api.security;
 
 import br.com.plataforma.comum.web.ForbiddenException;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.alunos.MotivoDoAcessoDesativado;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
@@ -12,7 +13,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import java.util.regex.Pattern;
 
 /**
- * Restringe o aluno cujo acesso foi pausado manualmente por atraso (Fase 2): ele continua entrando e mantendo sessão,
+ * Restringe o aluno com o acesso pausado por atraso ({@code aluno.acesso_desativado_motivo = 'ATRASO'}, V104; Fase 2,
+ * decisão manual do treinador): ele continua entrando e mantendo sessão,
  * mas só acessa a lista fechada de rotas necessárias para consultar sua situação, aceitar termos, gerenciar conta/push
  * e regularizar o pagamento. Qualquer outra rota devolve 403 {@code ACESSO_PAUSADO_POR_ATRASO}.
  */
@@ -43,7 +45,8 @@ public class AcessoPausadoInterceptor implements HandlerInterceptor {
         if (permitido(metodo, caminho)) {
             return true;
         }
-        if (alunos.existsByIdAndAcessoPausadoEmIsNotNull(eu.alunoId())) {
+        // O MANUAL não chega aqui: o usuário fica inativo e as sessões caem (o filtro JWT recusa antes).
+        if (alunos.existsByIdAndAcessoDesativadoMotivo(eu.alunoId(), MotivoDoAcessoDesativado.ATRASO)) {
             throw new ForbiddenException(MENSAGEM, CODIGO);
         }
         return true;

@@ -126,12 +126,8 @@ public final class AlunoDtos {
                               LocalDate ultimoRegistro,UUID responsavelId, SituacaoAtualizacao atualizacao,
                               /** Tags do aluno (V093), em ordem de nome; sempre presente (lista vazia sem tag). Só a equipe as recebe. */
                               List<TagResumo> tags,
-                              boolean acessoPausado, Instant acessoPausadoEm) {
-        public AlunoResumo(UUID id, String nome, boolean ativo, boolean temAcesso, PlanoAtivoResumo planoAtivo,
-                           LocalDate ultimoRegistro, UUID responsavelId, SituacaoAtualizacao atualizacao,
-                           List<TagResumo> tags) {
-            this(id, nome, ativo, temAcesso, planoAtivo, ultimoRegistro, responsavelId, atualizacao, tags, false, null);
-        }
+                              /** {@code MANUAL} ou {@code ATRASO} com o acesso ao app desativado (V100/V104); nulo = acesso normal. */
+                              String acessoDesativadoMotivo) {
     }
 
     public record PaginaAlunos(List<AlunoResumo> itens, long total) {
@@ -172,13 +168,12 @@ public final class AlunoDtos {
                                PlanosAtivos planosAtivos,
                                /** Tags do aluno (V093), em ordem de nome, com {@code ALUNO_LER}; sempre presente (vazia sem tag, sem permissão ou anonimizado). */
                                List<TagResumo> tags,
-                               /** Acesso desativado pela equipe (V100); os dois nulos com o acesso ativo. Só com {@code ALUNO_LER}. */
+                               /** Acesso desativado (V100): {@code MANUAL} pela equipe ou {@code ATRASO}, pausa por atraso (V104); os dois nulos com o acesso ativo. Só com {@code ALUNO_LER}. */
                                Instant acessoDesativadoEm, String acessoDesativadoMotivo,
                                /** Instagram e TikTok (só o usuário, sem @); com {@code ALUNO_LER}, como o telefone. Dado pessoal. */
                                String instagram, String tiktok,
                                /** Links https normalizados (V103), ou nulos; com {@code ALUNO_LER}. Dado pessoal. */
-                               String youtube, String facebook, String linkedin, String telegram,
-                               boolean acessoPausado, Instant acessoPausadoEm) {
+                               String youtube, String facebook, String linkedin, String telegram) {
         /**
          * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
          * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
@@ -210,8 +205,7 @@ public final class AlunoDtos {
                     ler ? a.getAcessoDesativadoEm() : null,
                     ler && a.getAcessoDesativadoMotivo() != null ? a.getAcessoDesativadoMotivo().name() : null,
                     ler ? a.getInstagram() : null, ler ? a.getTiktok() : null,
-                    ler ? a.getYoutube() : null, ler ? a.getFacebook() : null, ler ? a.getLinkedin() : null, ler ? a.getTelegram() : null,
-                    a.isAcessoPausado(), a.getAcessoPausadoEm());
+                    ler ? a.getYoutube() : null, ler ? a.getFacebook() : null, ler ? a.getLinkedin() : null, ler ? a.getTelegram() : null);
         }
     }
 
