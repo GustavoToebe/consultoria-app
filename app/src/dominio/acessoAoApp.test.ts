@@ -21,14 +21,14 @@ describe('selo e nota do acesso desativado ou pausado', () => {
     expect([TEXTO_ACESSO_PAUSADO, TEXTO_ACESSO_DESATIVADO]).toEqual(['Acesso pausado', 'Acesso desativado']);
   });
   test('nota: a data de Brasília sem o ano corrente, no selo nunca', () => {
-    expect(notaDoAcessoDesativado('MANUAL', '2026-11-20T12:00:00Z', agora)).toBe('Desativado em 20/11. O aluno não entra até o acesso ser reativado. Nada foi apagado.');
+    expect(notaDoAcessoDesativado('MANUAL', '2026-11-20T12:00:00Z', agora)).toBe('Desativado em 20/11. O aluno não entra até ser reativado. Nada foi apagado.');
     // 01:30 UTC de 20/11 ainda é 19/11 em Brasília.
     expect(notaDoAcessoDesativado('MANUAL', '2026-11-20T01:30:00Z', agora)).toMatch(/^Desativado em 19\/11\./);
-    expect(notaDoAcessoDesativado('ATRASO', '2025-12-30T12:00:00Z', agora)).toBe('Pausado em 30/12/2025 por cobrança vencida. O aluno entra e vê só as cobranças em aberto; o acesso volta sozinho quando ele quitar as vencidas.');
+    expect(notaDoAcessoDesativado('ATRASO', '2025-12-30T12:00:00Z', agora)).toBe('Pausado em 30/12/2025 por cobrança vencida. O aluno só vê as cobranças em aberto; o acesso volta ao quitar.');
   });
   test('nota sem data ou com data malformada: só a frase', () => {
-    expect(notaDoAcessoDesativado('MANUAL', null, agora)).toBe('O aluno não entra até o acesso ser reativado. Nada foi apagado.');
-    expect(notaDoAcessoDesativado('ATRASO', 'ontem', agora)).toMatch(/^O aluno entra e vê só as cobranças em aberto/);
+    expect(notaDoAcessoDesativado('MANUAL', null, agora)).toBe('O aluno não entra até ser reativado. Nada foi apagado.');
+    expect(notaDoAcessoDesativado('ATRASO', 'ontem', agora)).toMatch(/^O aluno só vê as cobranças em aberto/);
   });
 });
 

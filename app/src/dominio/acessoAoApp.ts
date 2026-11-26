@@ -50,9 +50,9 @@ export function seloDoMotivo(motivo: MotivoDoAcesso | null | undefined): { texto
 export function notaDoAcessoDesativado(motivo: MotivoDoAcesso, em: string | null | undefined, agora: Date = new Date()): string {
   const data = em && !Number.isNaN(Date.parse(em)) ? dataSemAnoCorrente(dataEmBrasilia(em), hojeEmBrasilia(agora)) : null;
   if (motivo === 'ATRASO') {
-    return `${data ? `Pausado em ${data} por cobrança vencida. ` : ''}O aluno entra e vê só as cobranças em aberto; o acesso volta sozinho quando ele quitar as vencidas.`;
+    return `${data ? `Pausado em ${data} por cobrança vencida. ` : ''}O aluno só vê as cobranças em aberto; o acesso volta ao quitar.`;
   }
-  return `${data ? `Desativado em ${data}. ` : ''}O aluno não entra até o acesso ser reativado. Nada foi apagado.`;
+  return `${data ? `Desativado em ${data}. ` : ''}O aluno não entra até ser reativado. Nada foi apagado.`;
 }
 
 export const MOTIVO_SEM_COBRANCA_VENCIDA = 'Sem cobrança vencida';

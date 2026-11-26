@@ -356,7 +356,7 @@ test('"Desativar acesso" no ⋯ "Ações do acesso" pede confirmação; desativa
   await page.mouse.move(0, 0);
   await expect.poll(() => pontosDoSelo(situacao)).toEqual([{ ponto: suave, texto: suave, pilula: 'rgba(0, 0, 0, 0)' }]);
   // A data vai na nota (o selo tem as mesmas palavras do cabeçalho e da lista).
-  await expect(acesso.getByText('Desativado em 17/10. O aluno não entra até o acesso ser reativado. Nada foi apagado.', { exact: true })).toBeVisible();
+  await expect(acesso.getByText('Desativado em 17/10. O aluno não entra até ser reativado. Nada foi apagado.', { exact: true })).toBeVisible();
   await expect(page.getByText('Acesso desativado', { exact: true })).toHaveCount(2);
   await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toHaveCount(0);
   await expect(acesso.getByRole('button', { name: 'Alterar e-mail de acesso' })).toHaveCount(0);

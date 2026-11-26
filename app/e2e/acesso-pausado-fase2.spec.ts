@@ -198,7 +198,7 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Acesso pausado', { exact: true })).toHaveCount(2);
       const acesso = page.getByLabel('Acesso ao app', { exact: true });
       await expect(acesso.getByLabel('Situação: Acesso pausado', { exact: true })).toBeVisible();
-      await expect(acesso.getByText('Pausado em 18/10 por cobrança vencida. O aluno entra e vê só as cobranças em aberto; o acesso volta sozinho quando ele quitar as vencidas.', { exact: true })).toBeVisible();
+      await expect(acesso.getByText('Pausado em 18/10 por cobrança vencida. O aluno só vê as cobranças em aberto; o acesso volta ao quitar.', { exact: true })).toBeVisible();
       // Pausado, a conta segue: e-mail e senha continuam com as ações.
       await expect(acesso.getByRole('button', { name: 'Alterar e-mail de acesso' })).toBeVisible();
       await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toBeVisible();
