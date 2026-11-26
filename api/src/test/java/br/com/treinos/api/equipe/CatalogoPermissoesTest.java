@@ -91,4 +91,13 @@ class CatalogoPermissoesTest {
                 .extracting(CatalogoPermissoes.Permissao::sensivel).containsExactly(true);
         assertThat(CatalogoPermissoes.validar(Set.of("WHATSAPP_ALTERAR"))).containsExactly("WHATSAPP_ALTERAR");
     }
+    @Test void contratosSaoSensiveisEAlterarDependeDeLerQueDependeDeLerAluno() {
+        assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().startsWith("CONTRATO_"))
+                .extracting(CatalogoPermissoes.Permissao::codigo,CatalogoPermissoes.Permissao::sensivel)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("CONTRATO_LER",true),org.assertj.core.groups.Tuple.tuple("CONTRATO_ALTERAR",true));
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("CONTRATO_ALTERAR"))))
+                .containsExactlyInAnyOrder("CONTRATO_ALTERAR","CONTRATO_LER","ALUNO_LER","ALUNO_SENSIVEL_LER");
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("CONTRATO_ALTERAR","ALUNO_LER"))).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("CONTRATO_LER"))).isInstanceOf(BadRequestException.class);
+    }
 }

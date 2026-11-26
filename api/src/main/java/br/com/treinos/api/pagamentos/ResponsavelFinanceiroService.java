@@ -128,6 +128,12 @@ public class ResponsavelFinanceiroService {
                 .orElse(null);
     }
 
+    /** Nome e CPF para o texto do contrato digital; quem chama já conferiu {@code FINANCEIRO_LER}. Sem responsável, vazio. */
+    @Transactional(readOnly = true)
+    Optional<PagamentosDoAluno.ResponsavelParaContrato> paraContrato(UUID alunoId) {
+        return responsaveis.findByAlunoId(alunoId).map(r -> new PagamentosDoAluno.ResponsavelParaContrato(r.getNome(), r.getCpf()));
+    }
+
     /** Anonimização e "Excluir minha conta": apaga a linha (o aluno não é apagado, então o cascade não roda). */
     void apagarDoAluno(UUID alunoId) {
         responsaveis.findByAlunoId(alunoId).ifPresent(responsaveis::delete);

@@ -20,7 +20,7 @@ const ACESSO_TOTAL = [
 const CONSULTORIA: ConsultoriaResponse = { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' };
 
 interface Perfil {
-  permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; whatsapp?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO';
+  permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; whatsapp?: boolean; contratos?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO';
   larguraConteudo?: 'AUTOMATICA' | 'LIMITADA';
 }
 
@@ -39,10 +39,12 @@ async function abrir(page: Page, largura: number, perfil: Perfil, caminho = '/tr
       pagamentosHabilitados: perfil.pagamentos ?? false,
       recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false,
       whatsappHabilitado: perfil.whatsapp ?? false,
+      contratosHabilitados: perfil.contratos ?? false,
     })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /consultoria': { corpo: CONSULTORIA },
+    'GET /contratos/modelos': { corpo: [] },
   });
   await page.goto(caminho);
   return { errosDaPagina };
@@ -53,7 +55,7 @@ function esperado(perfil: Perfil) {
     pode: (c) => perfil.permissoes.includes(c),
     administrador: !!perfil.administrador,
     pagamentosHabilitados: perfil.pagamentos ?? false,
-    chaves: { recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false, whatsappHabilitado: perfil.whatsapp ?? false },
+    chaves: { recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false, whatsappHabilitado: perfil.whatsapp ?? false, contratosHabilitados: perfil.contratos ?? false },
   });
   return { grupos: gruposDeCartoes(visiveis).map((g) => g.grupo), visiveis };
 }
@@ -92,6 +94,30 @@ test('1280, acesso total: sem item abre Meus dados (sem empilhar), a coluna traz
   expect(await page.evaluate(() => history.length)).toBeLessThanOrEqual(2);
   await semRolagemLateral(page);
   expect(errosDaPagina).toEqual([]);
+});
+
+test('Contratos (1280 e 390): com CONTRATO_LER e a chave, o item abre dentro (1280) ou a rota inteira (390); sem a chave, some', async ({ page }) => {
+  const comContratos: Perfil = { ...ADMIN, permissoes: [...ACESSO_TOTAL, 'CONTRATO_LER'], contratos: true };
+  const { errosDaPagina } = await abrir(page, 1280, comContratos);
+  expect(esperado(comContratos).visiveis.map((c) => c.id)).toContain('contratos');
+  await item(page, 'Contratos').click();
+  await expect(page).toHaveURL(/\/configuracoes\/contratos$/);
+  await expect(h1(page)).toHaveText('Contratos');
+  await expect(page.getByText('Ainda não há modelo de contrato. Peça a quem administra a consultoria.')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/treinador/configuracoes');
+  await linha(page, 'Contratos').click();
+  await expect(page).toHaveURL(/\/treinador\/contratos$/);
+  await expect(h1(page)).toHaveText('Contratos');
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('Contratos (1280): sem a chave da plataforma o item não aparece, mesmo com CONTRATO_LER', async ({ page }) => {
+  const semChave: Perfil = { ...ADMIN, permissoes: [...ACESSO_TOTAL, 'CONTRATO_LER'], contratos: false };
+  await abrir(page, 1280, semChave);
+  await expect(h1(page)).toHaveText('Meus dados');
+  expect(esperado(semChave).visiveis.map((c) => c.id)).not.toContain('contratos');
+  await expect(item(page, 'Contratos')).toHaveCount(0);
 });
 
 test('perfil restrito (1280): só os itens que ele pode abrir; Consultoria, Equipe e Financeiro somem', async ({ page }) => {

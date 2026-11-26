@@ -62,6 +62,10 @@ public class Consultoria {
     @Column(name = "dias_atualizacao_padrao")
     private Integer diasAtualizacaoPadrao;
 
+    /** Prazo, em dias, para o aluno assinar o contrato digital (V105, 1 a 60); nulo = não trava, só deixa pendente. */
+    @Column(name = "contrato_prazo_dias")
+    private Short contratoPrazoDias;
+
     /** Meta do peso padrão dos alunos (V052); o aluno pode ter a sua. */
     @Enumerated(EnumType.STRING)
     @Column(name = "meta_do_peso", nullable = false)
@@ -176,6 +180,10 @@ public class Consultoria {
 
     public void definirTemaPdf(TemaPdf temaPdf) {
         this.temaPdf = temaPdf;
+    }
+
+    public Short getContratoPrazoDias() {
+        return contratoPrazoDias;
     }
 
     public Integer getDiasAtualizacaoPadrao() {

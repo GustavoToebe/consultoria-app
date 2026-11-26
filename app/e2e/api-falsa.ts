@@ -178,6 +178,8 @@ export async function sessao(page: Page, usuario: UsuarioResumo, extra: Partial<
     retornoHabilitado: false,
     // A escolha de kg/lb vem desligada; o teste que a usa liga por `extra`.
     unidadeDeCargaHabilitada: false,
+    // O contrato digital vem desligado (o app nem o consulta); o `e2e/contratos.spec.ts` liga por `extra`.
+    contratosHabilitados: false,
     ...(usuario.papel === 'TREINADOR'
       ? { perfil: { id: 'p1', nome: 'Treinador', acessoTotal: false }, permissoes: PERMISSOES_TREINADOR }
       : { aluno: { id: 'a0000000-0000-4000-8000-000000000002', nome: usuario.nome } }),

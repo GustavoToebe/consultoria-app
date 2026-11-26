@@ -87,6 +87,8 @@ interface ValorSessao {
   migracaoAssistidaHabilitada: boolean;
   /** Avisos pelo WhatsApp oficial da Meta ligados? Desligado ou desconhecido, o app esconde a configuração e o opt-in. */
   whatsappHabilitado: boolean;
+  /** Contrato digital ligado? Desligado ou desconhecido, o app esconde tudo dele e não o consulta. */
+  contratosHabilitados: boolean;
   /** Só do aluno: WhatsApp da consultoria em dígitos; nulo = sem "Falar com o treinador". */
   whatsappDaConsultoria: string | null;
   /** Só do aluno: links das redes preenchidas da consultoria; nulo = nenhuma (a fileira não aparece). */
@@ -464,6 +466,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       unidadeDeCargaHabilitada:perfil?.unidadeDeCargaHabilitada===true,
       migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,
       whatsappHabilitado:perfil?.whatsappHabilitado===true,
+      contratosHabilitados:perfil?.contratosHabilitados===true,
       whatsappDaConsultoria:perfil?.whatsappDaConsultoria??null,
       redesSociaisDaConsultoria:perfil?.redesSociaisDaConsultoria??null,
       acessoPausado:perfil?.acessoPausado===true,

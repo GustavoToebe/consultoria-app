@@ -53,4 +53,6 @@ export const CATALOGO_DE_EXEMPLO: PermissaoEquipe[] = [
   p('WHATSAPP_ALTERAR', 'Consultoria', 'WhatsApp', 'Configurar: conexão e modelos de mensagem do WhatsApp da consultoria.', true),
   p('VITRINE_LER', 'Consultoria', 'Vitrine', 'Consultar: itens da vitrine.'),
   p('VITRINE_ALTERAR', 'Consultoria', 'Vitrine', 'Criar, editar, ordenar e apagar: itens da vitrine e fotos.'),
+  p('CONTRATO_LER', 'Consultoria', 'Contratos', 'Consultar: modelos de contrato e contratos dos alunos (o texto leva CPF e endereço).', true),
+  p('CONTRATO_ALTERAR', 'Consultoria', 'Contratos', 'Criar, editar e gerar: modelos de contrato e contratos dos alunos; cancelar e prorrogar o prazo.', true),
 ];

@@ -23,7 +23,8 @@ import { useAnamnese } from '../../aluno/anamnese/useAnamnese';
 import { FinanceiroDoAlunoProvider, useFinanceiroDoAluno } from '../../aluno/financeiro/FinanceiroDoAlunoProvider';
 import { TelaAcessoPausado } from '../../aluno/financeiro/TelaAcessoPausado';
 import { CompromissosDoAlunoProvider, useCompromissosDoAluno } from '../../aluno/compromissos/CompromissosDoAlunoProvider';
-import { temAvisoDeCompromisso } from '../../dominio/paraFazer';
+import { itemDoContrato, temAvisoDeCompromisso } from '../../dominio/paraFazer';
+import { ContratosDoAlunoProvider, useContratosDoAluno } from '../../aluno/contratos/ContratosDoAlunoProvider';
 import { SincronizarPush } from '../../aluno/push/SincronizarPush';
 
 /** Aluno: barra inferior no celular (< 768 px) e menu lateral no tablet/web (>= 768 px). */
@@ -57,11 +58,14 @@ export default function LayoutAluno() {
                 <FinanceiroDoAlunoProvider>
                   {/* Compromissos e avisos também só em memória; alimentam o Início, o ponto e os lembretes locais. */}
                   <CompromissosDoAlunoProvider>
-                    <SincronizarPush usuarioId={usuario.id} />
-                    {/* A carga é kg em todo lugar; só a tela do aluno a mostra e a recebe em lb, se ele escolheu (Preferências). */}
-                    <ProvedorDaUnidadeDeCarga>
-                      <MenuAluno />
-                    </ProvedorDaUnidadeDeCarga>
+                    {/* Contratos para assinar: só em memória, com a chave ligada e online (Início, ponto e Conta). */}
+                    <ContratosDoAlunoProvider>
+                      <SincronizarPush usuarioId={usuario.id} />
+                      {/* A carga é kg em todo lugar; só a tela do aluno a mostra e a recebe em lb, se ele escolheu (Preferências). */}
+                      <ProvedorDaUnidadeDeCarga>
+                        <MenuAluno />
+                      </ProvedorDaUnidadeDeCarga>
+                    </ContratosDoAlunoProvider>
                   </CompromissosDoAlunoProvider>
                 </FinanceiroDoAlunoProvider>
               </ContextoDeImagens.Provider>
@@ -78,13 +82,14 @@ function MenuAluno() {
   const lateral = width >= LARGURA_MENU_LATERAL;
   const {atualizacao}=useAluno();
   // O ponto no Início conta as pendências: a atualização a enviar, a anamnese a responder, o pagamento em aberto e o
-  // aviso de compromisso ainda não visto (D12).
+  // aviso de compromisso ainda não visto (D12) e o contrato para assinar (T2).
   const anamnese=useAnamnese();
   const avisoDeCompromisso=temAvisoDeCompromisso(useCompromissosDoAluno().avisos);
+  const contratoPendente=itemDoContrato(useContratosDoAluno().contratos)!==null;
   const anamnesePendente=anamnese.dados?.situacao==='PENDENTE';
   const financeiro=useFinanceiroDoAluno();
   const pagamentoEmAberto=financeiro.habilitado&&pagamentoPendente(financeiro.dados?.abertas,hojeEmBrasilia()).length>0;
-  const ponto=pagamentoEmAberto || anamnesePendente || avisoDeCompromisso || (!!atualizacao && temAcaoAtualizacao({...atualizacao,...faseAtualizacao(hojeIso(),atualizacao.dataAtualizacao,atualizacao.atrasoAte,atualizacao.fase)}));
+  const ponto=contratoPendente || pagamentoEmAberto || anamnesePendente || avisoDeCompromisso || (!!atualizacao && temAcaoAtualizacao({...atualizacao,...faseAtualizacao(hojeIso(),atualizacao.dataAtualizacao,atualizacao.atrasoAte,atualizacao.fase)}));
   return (
     <Navegacao
       itens={ITENS.map(item=>item.caminho==='/aluno'?{...item,ponto}:item)}

@@ -17,6 +17,7 @@ export const ROTA_INTEIRA_DO_ITEM = {
   'whatsapp-oficial': '/treinador/whatsapp',
   'documentos-pdf': '/treinador/documentos',
   'tags-dos-alunos': '/treinador/alunos/tags',
+  contratos: '/treinador/contratos',
   termos: '/treinador/termos',
 } as const satisfies Readonly<Record<string, string>>;
 

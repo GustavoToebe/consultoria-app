@@ -34,6 +34,7 @@ import { CartaoPastas, useRenovarPasta } from '../../../treinador/CartaoPastas';
 import { CartaoAnamnese } from '../../../treinador/anamnese/CartaoAnamnese';
 import { BlocosDaFicha, type ColunaDaFicha } from '../../../treinador/BlocosDaFicha';
 import { CartaoPlanoContratado } from '../../../treinador/financeiro/CartaoPlanoContratado';
+import { CartaoContratos } from '../../../treinador/contratos/CartaoContratos';
 import { DadosDoAluno } from '../../../treinador/DadosDoAluno';
 import { AcoesDePrivacidade } from '../../../treinador/privacidade/AcoesDePrivacidade';
 import { Abas } from '../../../ui/Abas';
@@ -60,9 +61,9 @@ import { useFaixaDeLargura } from '../../../ui/useFaixaDeLargura';
  */
 export default function FichaAluno() {
   const { id, pastaId, editar, aba: abaPedida, secao } = useLocalSearchParams<{ id: string; pastaId?: string; editar?: string; aba?: string; secao?: string }>();
-  const { pode, pagamentosHabilitados, retornoHabilitado } = useSessao();
+  const { pode, pagamentosHabilitados, retornoHabilitado, contratosHabilitados } = useSessao();
   const { confirmar } = useSaidaGuardada();
-  const contexto = { pode, pagamentosHabilitados, retornoHabilitado };
+  const contexto = { pode, pagamentosHabilitados, retornoHabilitado, contratosHabilitados };
   const visiveis = abasVisiveis(contexto);
   // `?editar=1` e `?pastaId=` mandam na aba até saírem do endereço (quem os consome grava a aba junto, para não voltar ao Resumo).
   const aba: AbaDaFicha = abaParaEditar(editar) ?? abaParaPasta(pastaId) ?? abaDaUrl(abaPedida, visiveis);
@@ -191,6 +192,8 @@ export default function FichaAluno() {
       case 'planoContratado':
         return <CartaoPlanoContratado key={geracaoFinanceiro} alunoId={a.id} ativo={a.ativo} anonimizado={a.anonimizado} alunoNome={a.nome} telefoneAluno={a.telefone}
           alunoAcessoMotivo={a.acessoDesativadoMotivo} aoAlterarAluno={definir} />;
+      // Contrato digital (tela B): modelos gerados para o aluno assinar no app.
+      case 'contratos': return <CartaoContratos alunoId={a.id} alunoNome={a.nome} ativo={a.ativo} anonimizado={a.anonimizado} />;
       case 'anamnese':
         return <CartaoAnamnese alunoId={a.id} anonimizado={a.anonimizado} aoMudarCadastro={() => { recarregar(); setGeracaoPeso((g) => g + 1); }} />;
       // As lesões são do `BlocosDaFicha`: ele as busca uma vez e põe as ativas no topo quando a aba fica numa coluna.

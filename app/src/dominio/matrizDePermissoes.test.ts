@@ -172,7 +172,7 @@ describe('resumo vivo, filtro e alteração', () => {
     expect(recursos('medicacao')).toEqual(['Medicação e ergogênicos']);
     expect(recursos('link de inscri')).toEqual(['Interessados']);
     expect(recursos('anonimizar')).toEqual(['Privacidade']);
-    expect(recursos('dado sensivel')).toEqual(['Dados sensíveis', 'Privacidade', 'Check-in', 'Anamnese', 'Medicação e ergogênicos', 'Financeiro', 'WhatsApp']);
+    expect(recursos('dado sensivel')).toEqual(['Dados sensíveis', 'Privacidade', 'Check-in', 'Anamnese', 'Medicação e ergogênicos', 'Financeiro', 'WhatsApp', 'Contratos']);
     expect(recursos('planos')).toEqual(expect.arrayContaining(['Pastas', 'Treino', 'Dieta', 'Financeiro']));
     expect(filtrarMatriz(matriz, 'medicacao')[0].codigos).toHaveLength(10);
     expect(filtrarMatriz(matriz, 'nada disso')).toEqual([]);
