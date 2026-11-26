@@ -9,7 +9,7 @@
 - **Pix continua dentro do app** (QR Code e copia e cola).
 - **Asaas é o provedor padrão e a InfinitePay fica de reserva.** Divisão **65% / 35%**, calculada só no servidor, na criação da cobrança, igual para Pix e cartão.
 - Rota nova do aluno: `POST /aluno/financeiro/cobrancas/{id}/overtraining-pay/fatura` → `{ url }` (https de `www.asaas.com` ou `sandbox.asaas.com`; 404 para outro aluno ou consultoria; 409 `COBRANCA_NAO_ABERTA`/`PAGAMENTO_EM_CONFIRMACAO`; 503 `OVERTRAINING_PAY_INDISPONIVEL` sem credenciais). A cobrança no Asaas é uma só por `cobranca_aluno` (`billingType` `UNDEFINED`), reaproveitada pelo Pix e pela fatura. Em "Minha conta" o cartão usa o `/minha-conta/cobrancas/{id}/pagar` que já existia.
-- Migration: a V101 do Overtraining Pay virou a **V106** (a V100 antiga da branch saiu, já é a V104 do main; a V105 do main é o contrato digital). A pausa por atraso segue o modelo do main (`acesso_desativado_motivo = 'ATRASO'`); a baixa pelo Asaas reativa só o motivo ATRASO, nunca o MANUAL (teste `baixaPeloAsaasReativaSoOAtrasoENuncaOManual`).
+- Migration: a V101 do Overtraining Pay virou a **V106** em 26/11 e, em 27/11, a **V108** (a V100 antiga da branch saiu, já é a V104 do main; a V105 do main é o contrato digital; a V106 e a V107 ficam para o lote das 3 frentes, liberação de plano e modelos de PDF). **Regra de ordem:** o Overtraining Pay não chega ao main antes do lote das 3 frentes; se a ordem mudar, renumerar a migration para o próximo número livre depois do último do main no momento do merge. A pausa por atraso segue o modelo do main (`acesso_desativado_motivo = 'ATRASO'`); a baixa pelo Asaas reativa só o motivo ATRASO, nunca o MANUAL (teste `baixaPeloAsaasReativaSoOAtrasoENuncaOManual`).
 
 **Pendências do Gustavo:**
 - **Conta Asaas com permissão para criar subcontas** (ele está confirmando). Sem ela, nada do Overtraining Pay roda de verdade; os testes usam o `AsaasFalsa`.
@@ -18,14 +18,14 @@
 - `maxParcelas` e juros da política (`overtrainingPayMaxParcelas`, `overtrainingPayJuros`) continuam no contrato e na tela do treinador, mas não valem na prática: o parcelamento é decidido na página do Asaas. Remover ou religar a um parâmetro do Asaas em decisão própria.
 
 **Revisão independente de 26/11 (`revisor`, sobre o commit `9f6f70d1`) — o que foi corrigido e o que ficou aberto:**
-- **Corrigido:** migration renumerada para V106 depois que o main trouxe a V105 do contrato digital (B1); CPF enviado também na fatura quando o aluno não tem cadastro (I1); remover a subconta limpa o `asaas_cobranca_id` das cobranças abertas (I3; coberto só pela inicialização do repositório, sem teste próprio).
+- **Corrigido:** migration renumerada para V106 (depois V108, em 27/11) depois que o main trouxe a V105 do contrato digital (B1); CPF enviado também na fatura quando o aluno não tem cadastro (I1); remover a subconta limpa o `asaas_cobranca_id` das cobranças abertas (I3; coberto só pela inicialização do repositório, sem teste próprio).
 - **Aberto, para o Gustavo decidir ou para a próxima frente (nada disso corrompe a baixa: o pior caso cai em CONFERIR):**
   - **`ABATER_MENSALIDADE` não ligar em produção ainda (B2):** o split é calculado uma vez na criação da cobrança, o saldo não é reservado entre cobranças abertas e o abatimento informado à Central é recalculado na liquidação, sem nova tentativa se a Central estiver fora. Corrigir gravando a retenção efetiva na cobrança e notificando esse valor com repetição.
   - Cobrança órfã no Asaas continua pagável (corrida Pix × fatura em duas abas, valor reajustado, renegociação, cancelamento): troca condicional do `asaas_cobranca_id` e remoção no Asaas (confirmar o endpoint) ao sair de ABERTA (I2).
   - Rotação do token do webhook cria outro webhook em vez de trocar o existente; guardar o id e usar `PUT` (I4). Subconta criada no Asaas e não gravada se o webhook falhar: gravar a chave antes (I5).
   - Pagamento por boleto na página `UNDEFINED` cai em CONFERIR `FORMA_DESCONHECIDA` (I6): confirmar no sandbox se a página oferece boleto e decidir entre mapear ou restringir.
   - Carteira da matriz ou do sócio ausente desliga o split sem erro na subida (I7; o mesmo vale na Central, `CENTRAL_ASAAS_SOCIO_WALLET_ID`): decidir se a subida passa a exigir.
-  - Menores: exigir `externalReference` igual na consulta; FK composta com `consultoria_id` e índice único parcial em `cobranca_aluno.asaas_cobranca_id` na V106; assinar `PAYMENT_PARTIALLY_REFUNDED` e os eventos de chargeback; `toString` de `GerarPixAsaasRequest`; `temCpfCadastrado` não considera o cliente que já existe no Asaas.
+  - Menores: exigir `externalReference` igual na consulta; FK composta com `consultoria_id` e índice único parcial em `cobranca_aluno.asaas_cobranca_id` na V108; assinar `PAYMENT_PARTIALLY_REFUNDED` e os eventos de chargeback; `toString` de `GerarPixAsaasRequest`; `temCpfCadastrado` não considera o cliente que já existe no Asaas.
 
 **Decisões do Gustavo (27/11) e rodada "antes de ligar":** só registradas; nenhuma delas foi implementada neste lote. A implementação fica para a rodada "antes de ligar", que começa quando a conta Asaas estiver aprovada, junto com a validação no sandbox e uma bateria só.
 - **`ABATER_MENSALIDADE`: não ligar.** Na rodada, bloquear a opção na tela da Central (não selecionável) até existir a retenção gravada na cobrança e o aviso à Central com repetição (B2 acima).
@@ -202,7 +202,7 @@ Ainda não ter a conta PJ aberta no Asaas **não trava nada** nem no backend nem
 
 ### 5.2. Modelo de Dados no `consultoria-app` (Migration nova na branch separada)
 
-Como a árvore local da `main` está usando `V098` (Contrato fechado, já em produção), `V099` (Categorias da vitrine) e `V100` (Ficha rápida e acesso pausado), a migration do Asaas nasceu como `V101` e, após a atualização com o main de 26/11 (que trouxe até a V105), é a `V106__overtraining_pay_asaas.sql` (a V105 do main é o contrato digital), atualizando `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`.
+Como a árvore local da `main` está usando `V098` (Contrato fechado, já em produção), `V099` (Categorias da vitrine) e `V100` (Ficha rápida e acesso pausado), a migration do Asaas nasceu como `V101` e, após a atualização com o main de 26/11 (que trouxe até a V105), virou a `V106` e, em 27/11, a `V108__overtraining_pay_asaas.sql` (a V105 do main é o contrato digital), atualizando `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`.
 
 1. **Tabela `subconta_asaas` (`@TenantId`, uma por consultoria)**:
    - `id uuid primary key`, `consultoria_id uuid not null unique references consultoria(id)`
