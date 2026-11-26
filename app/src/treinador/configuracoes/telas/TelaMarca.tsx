@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { consultoria } from '../../../api/rotas';
-import { espaco, LARGURA_EDITOR } from '../../../tema/tokens';
+import { espaco } from '../../../tema/tokens';
 import { FormMarca } from '../../marca/FormMarca';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Esqueleto } from '../../../ui/Esqueleto';
@@ -29,7 +29,7 @@ export function TelaMarca({ noContato = false }: { noContato?: boolean }) {
   // Conflito (outra aba salvou): recarrega e recria o formulário com os valores atuais.
   const [conflitos, setConflitos] = useState(0);
   return (
-    <Tela bordas={['top']} largura={LARGURA_EDITOR}>
+    <Tela bordas={['top']}>
       <Cabecalho titulo="Marca" descricao="Nome, logo, cor e tema que os seus alunos veem no app." />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}

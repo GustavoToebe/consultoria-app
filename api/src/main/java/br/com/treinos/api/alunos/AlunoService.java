@@ -161,7 +161,7 @@ public class AlunoService {
             return new AlunoResumo(a.getId(), a.getNome(), a.isAtivo(), a.getUsuarioId() != null,
                     (p == null || !br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER")) ? null : new PlanoAtivoResumo(p.getId(), p.getTitulo()), br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER") ? ultimo.get(a.getId()) : null,a.getResponsavelId(),
                     situacoes.get(a.getId()), tagsDosAlunos.getOrDefault(a.getId(), List.of()),
-                    a.getAcessoDesativadoMotivo() == null ? null : a.getAcessoDesativadoMotivo().name());
+                    MotivoDoAcessoDesativado.paraEquipe(a.getAcessoDesativadoMotivo()));
         }).toList();
         return new PaginaAlunos(itens, total);
     }

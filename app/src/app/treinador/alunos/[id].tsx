@@ -1,10 +1,11 @@
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Camera, UserCheck, UserMinus } from 'lucide-react-native';
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria } from '../../../api/rotas';
+import { comMotivoVisivel } from '../../../dominio/acessoAoApp';
 import { cicloDoAluno } from '../../../dominio/periodo';
 import { pilhasDaAba } from '../../../dominio/colunasDaFicha';
 import { ABAS_DA_FICHA, abaDaUrl, abaParaEditar, abaParaPasta, abasVisiveis, blocosDaAba, mostraMobilidade, type AbaDaFicha, type BlocoDaFicha } from '../../../dominio/fichaDoAluno';
@@ -65,7 +66,10 @@ export default function FichaAluno() {
   const visiveis = abasVisiveis(contexto);
   // `?editar=1` e `?pastaId=` mandam na aba até saírem do endereço (quem os consome grava a aba junto, para não voltar ao Resumo).
   const aba: AbaDaFicha = abaParaEditar(editar) ?? abaParaPasta(pastaId) ?? abaDaUrl(abaPedida, visiveis);
-  const { dados: aluno, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));
+  const { dados: alunoDaApi, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));
+  // Sem `FINANCEIRO_LER` o atraso não aparece: o `ATRASO` vira `MANUAL` aqui, antes de qualquer cartão, selo ou ação.
+  const veFinanceiro = pode('FINANCEIRO_LER');
+  const aluno = useMemo(() => (alunoDaApi ? comMotivoVisivel(alunoDaApi, veFinanceiro) : alunoDaApi), [alunoDaApi, veFinanceiro]);
   // Ciclo padrão da consultoria (V009). Quem não pode ler a consultoria fica só com o do aluno.
   const padrao = useCarregar('consultoria-ciclo', () => buscarConsultoria().then((c) => c.diasAtualizacaoPadrao ?? null, () => null)).dados ?? null;
   // Finalizar uma pasta ou aplicar uma alteração da anamnese pode gravar peso: o cartão de peso é remontado para buscar de novo.

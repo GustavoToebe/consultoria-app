@@ -19,13 +19,19 @@ const ACESSO_TOTAL = [
 ];
 const CONSULTORIA: ConsultoriaResponse = { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' };
 
-interface Perfil { permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; whatsapp?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO' }
+interface Perfil {
+  permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; whatsapp?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO';
+  larguraConteudo?: 'AUTOMATICA' | 'LIMITADA';
+}
 
 const ADMIN: Perfil = { permissoes: ACESSO_TOTAL, administrador: true, pagamentos: true, recebimentoOnline: true, whatsapp: true };
 
 async function abrir(page: Page, largura: number, perfil: Perfil, caminho = '/treinador/configuracoes') {
   await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 800 });
-  if (perfil.tema) await page.addInitScript(([id, tema]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema })), [TREINADOR.id, perfil.tema]);
+  if (perfil.tema || perfil.larguraConteudo) {
+    const prefs = JSON.stringify({ ...(perfil.tema ? { tema: perfil.tema } : null), ...(perfil.larguraConteudo ? { larguraConteudo: perfil.larguraConteudo } : null) });
+    await page.addInitScript(([id, p]) => localStorage.setItem(`treinos:${id}:preferencias`, p), [TREINADOR.id, prefs]);
+  }
   const { errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, {
       permissoes: perfil.permissoes,
@@ -296,4 +302,47 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
       expect(errosDaPagina).toEqual([]);
     });
   }
+}
+
+/**
+ * Bordas do bloco do item (o conteúdo da `Tela`, que contém o h1) dentro da área à direita da coluna dos itens: a área
+ * começa onde a coluna termina (com a borda dela) e vai até a barra de rolagem do item.
+ */
+async function blocoDoItem(page: Page) {
+  return h1(page).evaluate((titulo) => {
+    let b = titulo as HTMLElement;
+    while (b.parentElement && (b.getBoundingClientRect().width < 900 || b.parentElement.getBoundingClientRect().width - b.getBoundingClientRect().width < 4)) b = b.parentElement;
+    const r = b.getBoundingClientRect();
+    let coluna = document.querySelector('nav[aria-label="Configurações"], [role="navigation"][aria-label="Configurações"]') as HTMLElement;
+    while (coluna.parentElement && coluna.getBoundingClientRect().width < 300) coluna = coluna.parentElement;
+    // O fim da área é o do conteúdo da rolagem (o pai do bloco): a barra de rolagem vertical do item fica fora dela.
+    const area = b.parentElement!.getBoundingClientRect();
+    return { antes: r.left - coluna.getBoundingClientRect().right, depois: area.right - r.right, largura: r.width };
+  });
+}
+
+// Tela larga (26/11, item 7): sem vão ao lado do item. Automática: o item preenche a área à direita da coluna (só o respiro
+// lateral de 48 px da ultralarga); Limitada: para em 1800, centrado na área.
+for (const item of ['meus-dados', 'seguranca', 'marca', 'tags-dos-alunos', 'ajustes'] as const) {
+  test(`3440, ${item}, Automática: preenche a área à direita da coluna`, async ({ page }) => {
+    const { errosDaPagina } = await abrir(page, 3440, { ...ADMIN, larguraConteudo: 'AUTOMATICA' }, `/treinador/configuracoes/${item}`);
+    await expect(h1(page)).toBeVisible();
+    await expect(async () => {
+      const b = await blocoDoItem(page);
+      expect(b.antes).toBeLessThanOrEqual(48 + 1);
+      expect(b.depois).toBeLessThanOrEqual(48 + 1);
+    }).toPass({ timeout: 10_000 });
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`3440, ${item}, Limitada: 1800 px centrado na área`, async ({ page }) => {
+    const { errosDaPagina } = await abrir(page, 3440, { ...ADMIN, larguraConteudo: 'LIMITADA' }, `/treinador/configuracoes/${item}`);
+    await expect(h1(page)).toBeVisible();
+    await expect(async () => {
+      const b = await blocoDoItem(page);
+      expect(Math.abs(b.largura - 1800)).toBeLessThanOrEqual(1);
+      expect(Math.abs(b.antes - b.depois)).toBeLessThanOrEqual(2);
+    }).toPass({ timeout: 10_000 });
+    expect(errosDaPagina).toEqual([]);
+  });
 }

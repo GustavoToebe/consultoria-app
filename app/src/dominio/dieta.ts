@@ -143,23 +143,39 @@ export function novaOpcao(existentes: OpcaoRefeicao[]): OpcaoRefeicao {
 export const letraDaPosicao = (i: number) => LETRAS[i] ?? String(i + 1);
 
 /**
- * A letra segue a posição (26/11): o `rotulo` é gravado no plano e o aluno, o PDF e o "Escolha uma das opções" o leem,
- * então reordenar grava as letras novas. Quem já está com a letra certa continua a mesma instância.
+ * Rótulo padrão = o que `novaOpcao` e `letraDaPosicao` geram (uma letra A-F ou um número; vazio também, que volta a ser
+ * padrão). Qualquer outro texto ("Opção Principal", que a importação assistida grava) é personalizado e nunca é reescrito.
+ */
+export const ehRotuloPadrao = (rotulo: string) => /^(?:[A-F]|\d+)?$/.test(rotulo.trim());
+
+/** "Opção B" para o rótulo padrão; o personalizado fica como foi escrito ("Opção Principal"). */
+export const nomeDaOpcao = (rotulo: string) => (ehRotuloPadrao(rotulo) ? `Opção ${rotulo.trim()}` : rotulo.trim());
+
+/** O personalizado sem o "Opção " do começo ("Principal"), para frases como "Principal agora conta no total do dia.". */
+const nomeCurtoDaOpcao = (rotulo: string) => rotulo.trim().replace(/^Opção\s+(?=\S)/i, '');
+
+/** "opção A" ou "opção Principal", para o meio de uma frase ("Total da opção A", "Mais ações da opção A"). */
+export const opcaoNaFrase = (rotulo: string) => `opção ${ehRotuloPadrao(rotulo) ? rotulo.trim() : nomeCurtoDaOpcao(rotulo)}`;
+
+/**
+ * A letra segue a posição (26/11) só nas opções de rótulo padrão: o `rotulo` é gravado no plano e o aluno, o PDF e o
+ * "Escolha uma das opções" o leem, então reordenar grava as letras novas. O personalizado se mantém (e a posição 1 segue
+ * sendo a do total do dia). Quem já está com a letra certa continua a mesma instância.
  */
 export function reletrarOpcoes(opcoes: OpcaoRefeicao[]): OpcaoRefeicao[] {
-  return opcoes.map((o, i) => (o.rotulo === letraDaPosicao(i) ? o : { ...o, rotulo: letraDaPosicao(i) }));
+  return opcoes.map((o, i) => (!ehRotuloPadrao(o.rotulo) || o.rotulo === letraDaPosicao(i) ? o : { ...o, rotulo: letraDaPosicao(i) }));
 }
 
 export interface OpcaoMovida {
-  /** As opções na ordem nova, já com as letras pela posição. */
+  /** As opções na ordem nova, já com as letras pela posição (as de rótulo personalizado ficam como estavam). */
   opcoes: OpcaoRefeicao[];
   uid: string;
-  /** A letra que a opção movida tinha e a que ganhou. */
+  /** O rótulo que a opção movida tinha e o que ficou (iguais quando é personalizado). */
   letraAntes: string;
   letraDepois: string;
   /** Posição nova, de 0. */
   para: number;
-  /** A primeira mudou (outra opção passou a contar no total do dia): a letra que a nova primeira tinha antes. */
+  /** A primeira mudou (outra opção passou a contar no total do dia): o rótulo que a nova primeira tinha antes. */
   novaPrimeira: string | null;
 }
 
@@ -183,11 +199,15 @@ export function moverOpcao(opcoes: OpcaoRefeicao[], de: number, para: number): O
 }
 
 /** O aviso (com Desfazer) quando outra opção passa a ser a primeira. */
-export const avisoDaNovaOpcaoA = (letraAntes: string) => `Opção ${letraAntes} agora é a Opção A e conta no total do dia.`;
+export const avisoDaNovaOpcaoA = (rotuloAntes: string) => (ehRotuloPadrao(rotuloAntes)
+  ? `Opção ${rotuloAntes.trim()} agora é a Opção A e conta no total do dia.`
+  : `${nomeCurtoDaOpcao(rotuloAntes)} agora conta no total do dia.`);
 
-/** O que o leitor de tela ouve depois de mover pelo ⋯ (a região viva): a posição nova e a letra que ela dá. */
+/** O que o leitor de tela ouve depois de mover pelo ⋯ (a região viva): a posição nova e, no padrão, a letra que ela dá. */
 export function anuncioDaOpcaoMovida(m: Pick<OpcaoMovida, 'letraAntes' | 'letraDepois' | 'para'>): string {
-  return `Opção ${m.letraAntes} movida para a posição ${m.para + 1}: agora é a Opção ${m.letraDepois}.`;
+  const posicao = `movida para a posição ${m.para + 1}`;
+  if (!ehRotuloPadrao(m.letraAntes)) return `${nomeCurtoDaOpcao(m.letraAntes)} ${posicao}.`;
+  return `Opção ${m.letraAntes.trim()} ${posicao}${m.letraAntes === m.letraDepois ? '' : `: agora é a Opção ${m.letraDepois}`}.`;
 }
 
 /**
@@ -429,7 +449,7 @@ export function textoItensSemValor(n: number): string {
  * Uma opção só não pede escolha (`null`). Nunca fala em "equivalente": o sistema não compara as opções.
  */
 export function textoEscolhaDasOpcoes(rotulos: string[]): string | null {
-  const nomes = rotulos.map((r, i) => r.trim() || String(i + 1));
+  const nomes = rotulos.map((r, i) => (ehRotuloPadrao(r) ? r.trim() || String(i + 1) : nomeCurtoDaOpcao(r)));
   if (nomes.length < 2) return null;
   const lista = `${nomes.slice(0, -1).join(', ')} ou ${nomes[nomes.length - 1]}`;
   return `Escolha uma das opções: ${lista}.`;

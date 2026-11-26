@@ -45,10 +45,10 @@ O treinador pausa o acesso de um aluno em atraso, na hora que decidir. O aluno p
 - Não conferido: aparelho nativo (Android/iOS), temas Areia e contraste alto, modo `informar` da tela do aluno (o e2e roda na web, que sempre tem "Pagar").
 
 ## Decisões pendentes do Gustavo e riscos (26/11/2026, revisão independente)
-- **Visibilidade do motivo ATRASO:** quem só tem `ALUNO_LER` vê "Acesso pausado" e, portanto, que o aluno está inadimplente; o selo "Cobrança vencida" já exigia `FINANCEIRO_LER`. Decidir se o motivo `ATRASO` aparece como "Acesso desativado" neutro sem `FINANCEIRO_LER`.
+- **Visibilidade do motivo ATRASO (resolvido em 26/11, [fechamento-26-11.md](fechamento-26-11.md)):** sem `FINANCEIRO_LER` a API devolve MANUAL no lugar de ATRASO (`MotivoDoAcessoDesativado.paraEquipe`, listagem e ficha) e o app mostra só "● Acesso desativado". Efeito: `/acesso/reativar` com motivo real ATRASO passou a exigir `FINANCEIRO_ALTERAR` (403 neutro). Limites conhecidos (revisão independente, decisão do Gustavo pendente): (a) `ALUNO_CONVITE` ainda despausa em duas chamadas (`desativar` converte ATRASO em MANUAL, D5, e depois `reativar`); (b) `PUT /alunos/{id}/acesso` dá 200 no ATRASO mascarado e 409 no MANUAL real, e o 403 do `reativar` também difere do 200 do MANUAL, então quem tem `ALUNO_CONVITE` sem `FINANCEIRO_LER` consegue inferir o atraso por tentativa; (c) o último acesso da ficha permite inferência fraca; (d) a auditoria `ALUNO_ACESSO_PAUSADO` segue legível por `AUDITORIA_LER`.
 - **V104 junta Fase 2 e Fase 3** (`ficha rápida` e `acesso por atraso`): não se desfaz uma sem a outra, e o `AGENTS.md` pede migration separada por assunto.
 - **Rollback da imagem:** antes de voltar a imagem anterior, limpar o ATRASO no banco, senão o CHECK antigo (só `MANUAL`) recusa as linhas: `update aluno set acesso_desativado_em = null, acesso_desativado_motivo = null where acesso_desativado_motivo = 'ATRASO';`
-- **Importação:** a trava (`PESSIMISTIC_WRITE`) roda antes da checagem IGNORAR e segura a linha de todo aluno existente na planilha; evitar pede novo `mvn verify` (~31 min), então ficou assim.
+- **Importação (resolvido em 26/11, decisão 4):** a checagem IGNORAR agora vem antes da trava `PESSIMISTIC_WRITE` em `GravadorDaImportacao.gravarAluno` (aluno anonimizado com IGNORAR segue dando a mesma falha); os demais IGNORAR do gravador e a importação assistida não travam antes.
 - Pausar pode devolver 503 `FINANCEIRO_INDISPONIVEL`: o app não mostra isso como erro de acesso.
 
 ## Fora do escopo

@@ -8,7 +8,7 @@ import type { Alimento, ConteudoDieta, Receita, Refeicao, ResultadoValidacao } f
 import { uidsComProblema } from '../../dominio/caminhos';
 import { LARGURA_TOTAL_NA_ULTRALARGA, larguraDoTotalNaColuna } from '../../dominio/colunasDaDieta';
 import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
-import { comNomesPadrao, itensSemValorNoTotal, novaRefeicao, normalizarDieta, reletrarOpcoes } from '../../dominio/dieta';
+import { comNomesPadrao, itensSemValorNoTotal, nomeDaOpcao, novaRefeicao, normalizarDieta, reletrarOpcoes } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { dataParaTela } from '../../dominio/formatos';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
@@ -235,7 +235,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             // Direto, sem o nome padrão: apagar o Nome para digitar outro não pode preencher na hora (preenche ao sair do campo).
             aoMudar={(nova) => editor.alterarConteudo((a) => naSecao(a, (lista) => substituir(lista, ri, nova)))}
             aoSairDoNome={() => { if (refs.some((x) => x.nome.trim() === '')) editor.alterarConteudo(comNomesPadrao); }}
-            aoRemoverOpcao={(oi) => comDesfazer(`Opção ${r.opcoes[oi]?.rotulo ?? oi + 1} removida.`, (a) =>
+            aoRemoverOpcao={(oi) => comDesfazer(`${nomeDaOpcao(r.opcoes[oi]?.rotulo ?? String(oi + 1))} removida.`, (a) =>
               naSecao(a, (lista) => substituir(lista, ri, { ...lista[ri], opcoes: reletrarOpcoes(remover(lista[ri].opcoes, oi)) })),
               { refeicaoDaOpcao: r.uid })}
             aoRemoverItem={(oi, ii, nomeItem) => comDesfazer(`Alimento “${nomeItem}” removido.`, (a) =>

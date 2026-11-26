@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { OpcaoRefeicao } from '../../api/tipos';
 import type { TotaisComFibra } from '../../dominio/dieta';
-import { CONTA_NO_TOTAL, gramasSemUnidade, tituloDaOpcao, totaisDaOpcao } from '../../dominio/opcoesDaRefeicao';
+import { CONTA_NO_TOTAL, gramasSemUnidade, letraDoMarcador, tituloDaOpcao, totaisDaOpcao } from '../../dominio/opcoesDaRefeicao';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../../tema/tokens';
 import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
@@ -90,7 +90,7 @@ export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas, reordena
             <View style={[estilos.linha, compacta && estilos.linhaJusta, vao]}>
               <View style={compacta ? (comAlca ? estilos.letraComAlca : estilos.letra) : estilos.nome}>
                 {/* O círculo com a letra, como nas abas (preenchido na aberta); no celular, só ele. */}
-                <MarcadorDeOpcao letra={o.rotulo} selecionado={sel} />
+                <MarcadorDeOpcao letra={letraDoMarcador(o.rotulo)} selecionado={sel} />
                 {compacta ? null : <Texto style={[estilos.textoDoNome, { fontFamily: sel ? fontes.negrito : fontes.medio }]}>{tituloDaOpcao(o)}</Texto>}
                 {compacta ? null : selo}
               </View>

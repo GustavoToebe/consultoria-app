@@ -19,6 +19,7 @@ import {
   chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, MEUS, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
   CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
 } from '../../../dominio/filtrosDeAlunos';
+import { motivoVisivel } from '../../../dominio/acessoAoApp';
 import { selosDeExcecaoDoAluno } from '../../../dominio/selosDaLinhaDeAluno';
 import { SELECAO_DE_ALUNOS, selecaoDepoisDosFiltros } from '../../../dominio/painelDeFiltros';
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
@@ -162,7 +163,7 @@ export default function Alunos() {
       <ListaDeLinhas emColunas>
         {g.itens.map((a, i) => (
           <EntradaEmCascata key={a.id} indice={inicios[gi] + i} animar={animar}>
-            <LinhaAluno aluno={a} colunas={colunas} responsavel={nomeDoResponsavel(a.responsavelId)} podeEditar={podeEditar} veRegistro={veRegistro} emAtraso={idsEmAtraso.has(a.id)}
+            <LinhaAluno aluno={a} colunas={colunas} responsavel={nomeDoResponsavel(a.responsavelId)} podeEditar={podeEditar} veRegistro={veRegistro} veFinanceiro={pode('FINANCEIRO_LER')} emAtraso={idsEmAtraso.has(a.id)}
               selecionando={selecionando} marcado={marcados.has(a.id)} aoMarcar={() => alternar(a.id)} />
           </EntradaEmCascata>
         ))}
@@ -274,6 +275,8 @@ interface PropsDaLinhaAluno {
   responsavel: string | null;
   podeEditar: boolean;
   veRegistro: boolean;
+  /** `FINANCEIRO_LER`: sem ele o `ATRASO` aparece como "Acesso desativado" (`dominio/acessoAoApp.motivoVisivel`). */
+  veFinanceiro: boolean;
   /** Tem cobrança aberta vencida (`GET /financeiro/alunos-em-atraso`): a pílula "Cobrança vencida" (a mesma da folha da cobrança). */
   emAtraso: boolean;
   selecionando: boolean;
@@ -288,13 +291,13 @@ interface PropsDaLinhaAluno {
  * da seta, fora do link. No PC a linha é linha de tabela (divisória e realce, sem caixa). No Selecionar a linha inteira
  * vira a caixa de marcar (sem link, sem lápis).
  */
-function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtraso, selecionando, marcado, aoMarcar }: PropsDaLinhaAluno) {
+function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, veFinanceiro, emAtraso, selecionando, marcado, aoMarcar }: PropsDaLinhaAluno) {
   const atualizacao = aluno.atualizacao ? statusAtualizacaoTreinador(aluno.atualizacao) : null;
   const ultimo = ultimoRegistroDaLinha(aluno.ultimoRegistro);
   const plano = aluno.planoAtivo?.titulo ?? null;
   const tags = aluno.tags ?? [];
   // A pílula do atraso diz o que venceu ("Cobrança vencida": a rota é a das cobranças) e usa o `perigo` da cobrança vencida, sem cor nova.
-  const excecoes = selosDeExcecaoDoAluno({ ativo: aluno.ativo, temAcesso: aluno.temAcesso, emAtraso, acessoDesativadoMotivo: aluno.acessoDesativadoMotivo });
+  const excecoes = selosDeExcecaoDoAluno({ ativo: aluno.ativo, temAcesso: aluno.temAcesso, emAtraso, acessoDesativadoMotivo: motivoVisivel(aluno.acessoDesativadoMotivo, veFinanceiro) });
   // O "+N" das tags é um botão próprio (abre a lista das outras), irmão do link da linha; no Selecionar fica só o texto.
   const maisTags = useMaisTagsDaLinha(tags, aluno.nome);
   const seloDaAtualizacao: SeloDaLinha | null = atualizacao

@@ -7,5 +7,16 @@ package br.com.treinos.api.alunos;
  */
 public enum MotivoDoAcessoDesativado {
     MANUAL,
-    ATRASO
+    ATRASO;
+
+    /**
+     * O motivo como a equipe o vê: sem {@code FINANCEIRO_LER}, {@code ATRASO} sai como {@code MANUAL} (o app mostra só
+     * "Acesso desativado"), para não revelar a inadimplência. Nulo = acesso normal. Não vale para o {@code /eu} do aluno.
+     */
+    public static String paraEquipe(MotivoDoAcessoDesativado motivo) {
+        if (motivo == null) {
+            return null;
+        }
+        return motivo == ATRASO && !br.com.treinos.api.equipe.AcessoAtual.pode("FINANCEIRO_LER") ? MANUAL.name() : motivo.name();
+    }
 }

@@ -6,13 +6,16 @@ import type { Alimento, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento } fr
 import {
   anuncioDaOpcaoMovida,
   avisoDaNovaOpcaoA,
+  ehRotuloPadrao,
   erroDaFibra,
   letraDaPosicao,
   MODO_DE_PREPARO_MAXIMO,
   modoDePreparoValido,
   moverOpcao,
   novaOpcao,
+  nomeDaOpcao,
   novoItem,
+  opcaoNaFrase,
   recalcularItem,
   reletrarOpcoes,
   restaurarOrdemDasOpcoes,
@@ -166,13 +169,13 @@ export function CartaoRefeicao(p: Props) {
   const [menu, setMenu] = useState(false);
   const acoesDaRefeicao = acoesDeMover({ nome: titulo, posicao: p.posicao, total: p.total, aoMover: p.aoMover });
   // Subtotal da refeição (C66): a opção A, a que entra no "Total do dia", também com a refeição aberta.
-  const rotuloDoSubtotal = varias ? `Subtotal da refeição, opção ${opcaoA?.rotulo}` : 'Subtotal da refeição';
+  const rotuloDoSubtotal = varias && opcaoA ? `Subtotal da refeição, ${opcaoNaFrase(opcaoA.rotulo)}` : 'Subtotal da refeição';
   // O leitor ouve uma frase só (rótulo e os quatro valores por extenso); o que se vê fica escondido dele.
   const subtotal = opcaoA ? (
     <View role="group" aria-label={rotuloDoSubtotal}>
       <TotalParaLeitor rotulo={rotuloDoSubtotal} totais={somar(opcaoA.itens)} />
       <View aria-hidden style={estilos.subtotal}>
-        {varias ? <Texto variante="pequeno">Opção {opcaoA.rotulo}:</Texto> : null}
+        {varias ? <Texto variante="pequeno">{nomeDaOpcao(opcaoA.rotulo)}:</Texto> : null}
         <ValoresDaDieta totais={somar(opcaoA.itens)} inicio />
       </View>
     </View>
@@ -242,18 +245,22 @@ export function CartaoRefeicao(p: Props) {
   // mesmo Desfazer; com itens, confirma antes. A única opção não se exclui nem se move (não há ⋯).
   const primeira = indiceAberto === 0;
   const ultima = indiceAberto === r.opcoes.length - 1;
+  // O rótulo personalizado ("Opção Principal") não vira letra: o detalhe diz a posição, e "Opção A" só vale para o padrão.
+  const padrao = !!aberta && ehRotuloPadrao(aberta.rotulo);
+  const passaPara = (posicao: number) => (padrao ? `Passa a ser a Opção ${letraDaPosicao(posicao)}.`
+    : `Passa para a posição ${posicao + 1}${posicao === 0 ? ' e conta no total do dia' : ''}.`);
   const acoesDaOpcao: AcaoDoMenu[] = aberta && varias ? [
-    { rotulo: 'Mover para a esquerda', detalhe: primeira ? 'Já é a primeira opção.' : `Passa a ser a Opção ${letraDaPosicao(indiceAberto - 1)}.`,
+    { rotulo: 'Mover para a esquerda', detalhe: primeira ? 'Já é a primeira opção.' : passaPara(indiceAberto - 1),
       Icone: ArrowLeft, desabilitado: primeira, aoTocar: () => moverPeloMenu(aberta, indiceAberto - 1) },
-    { rotulo: 'Mover para a direita', detalhe: ultima ? 'Já é a última opção.' : `Passa a ser a Opção ${letraDaPosicao(indiceAberto + 1)}.`,
+    { rotulo: 'Mover para a direita', detalhe: ultima ? 'Já é a última opção.' : passaPara(indiceAberto + 1),
       Icone: ArrowRight, desabilitado: ultima, aoTocar: () => moverPeloMenu(aberta, indiceAberto + 1) },
-    { rotulo: 'Tornar Opção A', detalhe: primeira ? 'Já é a Opção A.' : 'Vai para o primeiro lugar e conta no total do dia.',
+    { rotulo: padrao ? 'Tornar Opção A' : 'Tornar a primeira opção', detalhe: primeira ? (padrao ? 'Já é a Opção A.' : 'Já é a primeira opção.') : 'Vai para o primeiro lugar e conta no total do dia.',
       Icone: ArrowLeftToLine, desabilitado: primeira, aoTocar: () => moverPeloMenu(aberta, 0) },
     { rotulo: 'Excluir opção', detalhe: 'Dá para desfazer logo depois.', Icone: Trash2, perigo: true,
       aoTocar: () => (aberta.itens.length ? setConfirmarExclusao(aberta) : excluirOpcao(aberta)) },
   ] : [];
   const menuDaAberta = aberta && varias ? (
-    <IconeBotao compacto Icone={Ellipsis} rotulo={`Mais ações da opção ${aberta.rotulo}`} aoTocar={() => setMenuDaOpcao(true)} />
+    <IconeBotao compacto Icone={Ellipsis} rotulo={`Mais ações da ${opcaoNaFrase(aberta.rotulo)}`} aoTocar={() => setMenuDaOpcao(true)} />
   ) : undefined;
   // `key`: o arraste, o ⋯ e a confirmação de cada opção não passam para a outra ao trocar de aba.
   const opcaoAberta = aberta ? (
@@ -290,7 +297,7 @@ export function CartaoRefeicao(p: Props) {
           aoAlternar={p.aoAbrir}
           nomeDoItem={titulo}
           remover={p.aoRemover || acoesDaRefeicao.length ? <>
-            {p.aoRemover ? <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${titulo}`} Icone={Trash2} aoTocar={p.aoRemover} /> : null}
+            {p.aoRemover ? <Botao tipo="perigo" rotulo="Excluir refeição" rotuloAcessivel={`Excluir refeição: ${titulo}`} Icone={Trash2} aoTocar={p.aoRemover} /> : null}
             {acoesDaRefeicao.length ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${titulo}`} aoTocar={() => setMenu(true)} /> : null}
           </> : undefined}
         />
@@ -407,10 +414,10 @@ function OpcaoDaRefeicao({
 }) {
   const { cores } = useTema();
   // Com várias opções, o nome acessível diz a qual delas o botão serve (o texto visível é o mesmo em cada aba).
-  const naOpcao = varias ? ` na opção ${opcao.rotulo}` : '';
+  const naOpcao = varias ? ` na ${opcaoNaFrase(opcao.rotulo)}` : '';
   const modo: ModoDoItem = larguraDisponivel >= larguraDaTabela() ? 'tabela' : 'empilhado';
   const larguraDasAcoes = ACOES_RESERVADAS * ALVO_TOQUE;
-  const rotuloDoTotal = `Total da opção ${opcao.rotulo}`;
+  const rotuloDoTotal = `Total da ${opcaoNaFrase(opcao.rotulo)}`;
   const totais = somar(opcao.itens);
   // Arrastar o alimento pela alça (18/11): a mesma regra da seta, de uma casa em uma (`moverPara`).
   const arraste = useArrasteDaLista({ total: opcao.itens.length, folga: 3, aoSoltar: (de, para) => aoMudarItens((itens) => moverPara(itens, de, para)) });

@@ -45,10 +45,10 @@ jest.mock('../../ui/EscolhaSuspensa', () => ({
 jest.mock('../../ui/Escolha', () => ({ Escolha: () => { throw new Error('a unidade não usa mais os chips'); } }));
 // O menu ⋯ vira uma lista de botões "menu <ação>"; tocar fecha o menu e age, como a folha de verdade.
 jest.mock('../FolhaDeAcoes', () => ({
-  FolhaDeAcoes: ({ acoes, aoFechar }: { acoes: { rotulo: string; desabilitado?: boolean; aoTocar: () => void }[]; aoFechar: () => void }) =>
+  FolhaDeAcoes: ({ acoes, aoFechar }: { acoes: { rotulo: string; detalhe?: string; desabilitado?: boolean; aoTocar: () => void }[]; aoFechar: () => void }) =>
     /* eslint-disable @typescript-eslint/no-require-imports */
     require('react').createElement(require('react-native').View, null, acoes.map((x) => require('react').createElement(require('react-native').Pressable, {
-      key: x.rotulo, accessibilityLabel: `menu ${x.rotulo}`, accessibilityState: { disabled: !!x.desabilitado }, onPress: () => { aoFechar(); x.aoTocar(); },
+      key: x.rotulo, accessibilityLabel: `menu ${x.rotulo}`, accessibilityHint: x.detalhe, accessibilityState: { disabled: !!x.desabilitado }, onPress: () => { aoFechar(); x.aoTocar(); },
     }))),
     /* eslint-enable @typescript-eslint/no-require-imports */
 }));
@@ -346,6 +346,76 @@ describe('CartaoRefeicao: opções em abas', () => {
     expect(mockAvisar).not.toHaveBeenCalled();
     const [regiao] = a.root.findAll((n) => n.props.role === 'status' && typeof n.type === 'string');
     expect(textoDoNo(regiao)).toBe('Opção C movida para a posição 2: agora é a Opção B.');
+  });
+
+  // Rótulo personalizado (a importação assistida grava "Opção Principal"): não vira letra ao reordenar.
+  const mista = () => refeicao({ opcoes: [
+    { uid: 'a', rotulo: 'A', itens: [item('i1', 'Suco fictício')] },
+    { uid: 'p', rotulo: 'Opção Principal', itens: [item('i2', 'Leite fictício'), item('i3', 'Pão fictício')] },
+    { uid: 'c', rotulo: 'C', itens: [] },
+  ] });
+
+  it('mistura (A, "Principal", C): as abas usam o rótulo personalizado sem prefixo dobrado; o ⋯ dele não fala em letra', () => {
+    const a = montar(mista());
+    expect(abas(a)).toEqual(['Opção A, 50 kcal, conta no total do dia', 'Opção Principal, 100 kcal', 'Opção C, vazia']);
+    tocar(a, 'Opção Principal, 100 kcal');
+    medirAberta(a);
+    tocar(a, 'Mais ações da opção Principal');
+    const detalhe = (r: string) => comRotulo(a, `menu ${r}`)[0].props.accessibilityHint as string;
+    expect(detalhe('Mover para a esquerda')).toContain('Passa para a posição 1 e conta no total do dia.');
+    expect(detalhe('Mover para a direita')).toContain('Passa para a posição 3.');
+    expect(comRotulo(a, 'menu Tornar a primeira opção')).toHaveLength(1);
+  });
+
+  it('o personalizado vai para o primeiro lugar: mantém o rótulo, a A vira B, o aviso não fala em letra e o Desfazer volta tudo', () => {
+    mockAvisar.mockClear();
+    const a = montar(mista());
+    tocar(a, 'Opção Principal, 100 kcal');
+    medirAberta(a);
+    tocar(a, 'Mais ações da opção Principal');
+    tocar(a, 'menu Tornar a primeira opção');
+    expect(abas(a)).toEqual(['Opção Principal, 100 kcal, conta no total do dia', 'Opção B, 50 kcal', 'Opção C, vazia']);
+    expect(mockAvisar).toHaveBeenCalledWith('Principal agora conta no total do dia.', 'neutro', expect.objectContaining({ rotulo: 'Desfazer' }));
+    Renderer.act(() => (mockAvisar.mock.calls[0][2].aoTocar as () => void)());
+    expect(abas(a)).toEqual(['Opção A, 50 kcal, conta no total do dia', 'Opção Principal, 100 kcal', 'Opção C, vazia']);
+  });
+
+  it('a C vai para o meio: só as de rótulo padrão são reletradas e o personalizado fica onde estava no rótulo', () => {
+    mockAvisar.mockClear();
+    const a = montar(mista());
+    tocar(a, 'Opção C, vazia');
+    medirAberta(a);
+    tocar(a, 'Mais ações da opção C');
+    tocar(a, 'menu Mover para a esquerda');
+    expect(abas(a)).toEqual(['Opção A, 50 kcal, conta no total do dia', 'Opção B, vazia', 'Opção Principal, 100 kcal']);
+    const [regiao] = a.root.findAll((n) => n.props.role === 'status' && typeof n.type === 'string');
+    expect(textoDoNo(regiao)).toBe('Opção C movida para a posição 2: agora é a Opção B.');
+  });
+
+  it('o total do dia (subtotal da primeira) segue a posição 1, seja qual for o rótulo', () => {
+    const a = montar(refeicao({ opcoes: [
+      { uid: 'p', rotulo: 'Opção Principal', itens: [item('i2', 'Leite fictício')] },
+      { uid: 'b', rotulo: 'B', itens: [] },
+    ] }));
+    expect(a.root.findAll((n) => n.props['aria-label'] === 'Subtotal da refeição, opção Principal' && typeof n.type === 'string')).toHaveLength(1);
+  });
+
+  it('a exclusão da refeição é o botão de perigo "Excluir refeição" ao lado do ⋯, com o nome da refeição no nome acessível', () => {
+    const aoRemover = jest.fn();
+    let arvore: Arvore | undefined;
+    Renderer.act(() => {
+      arvore = Renderer.create(
+        <CartaoRefeicao refeicao={refeicao()} posicao={0} total={2} aberta comProblema={new Set()} alimentos={new Map()}
+          aoMudar={() => undefined} aoRemoverOpcao={() => undefined} aoMover={() => undefined} aoRemover={aoRemover}
+          aoEscolherAlimento={() => undefined} />,
+      );
+    });
+    const a = arvore as Arvore;
+    // O `Botao` falso guarda o tipo no testID e o rótulo visível no rótulo (o nome acessível é conferido no e2e).
+    expect(comRotulo(a, 'Excluir')).toHaveLength(0);
+    expect(a.root.findAll((n) => n.props.testID === 'perigo' && n.props.accessibilityLabel === 'Excluir refeição' && typeof n.type === 'string')).toHaveLength(1);
+    tocar(a, 'Excluir refeição');
+    expect(aoRemover).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -1,6 +1,6 @@
 import { Check, Pencil, Plus } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import type { AgendaPessoal, CorDaAgenda } from '../../api/agendaTipos';
 import { alterarAgendaPessoal, apagarAgendaPessoal, contarEventosDaAgenda, criarAgendaPessoal } from '../../api/rotas';
@@ -199,6 +199,8 @@ function EscolhaDeCor({ valor, aoMudar }: { valor: CorDaAgenda; aoMudar: (c: Cor
           return (
             <Pressable key={c} role="radio" aria-checked={ativo} accessibilityState={{ checked: ativo }} accessibilityLabel={ROTULOS_DAS_CORES_DA_AGENDA[c]}
               onPress={() => aoMudar(c)}
+              // Web: o Pressable com papel `radio` só trata Enter; o Espaço (padrão ARIA) escolhe também, sem rolar a página.
+              {...(Platform.OS === 'web' ? ({ onKeyDown: (e: { key: string; repeat?: boolean; preventDefault: () => void }) => { if (e.key === ' ') { e.preventDefault(); if (!e.repeat) aoMudar(c); } } } as object) : null)}
               style={(e) => [estilos.cor, {
                 // Seleção neutra (`ui/selecao`): superfície de seleção, contorno forte e ✓.
                 backgroundColor: ativo ? coresDaSelecao(cores, true).fundo : sobre(e) ? cores.sobre : cores.superficie2, borderColor: ativo ? coresDaSelecao(cores, true).borda : cores.borda,

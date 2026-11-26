@@ -6,6 +6,7 @@ import type { Sessao } from '../../api/tipos';
 import { DIAS_CURTOS, DIAS_SEMANA, TIPOS_SESSAO } from '../../dominio/editorTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
@@ -54,7 +55,7 @@ interface Props {
 
 /**
  * A sessão selecionada do plano (um dia): faixa com nome, dia · tipo e ordem (← →, só com mais de uma sessão) e o ⋯
- * ("Salvar como dia de treino", "Remover sessão"); embaixo, os totais e a distribuição recolhida, "Editar sessão"
+ * ("Salvar como dia de treino") com "Excluir sessão" ao lado; embaixo, os totais e a distribuição recolhida, "Editar sessão"
  * (nome, dia, tipo e observação, recolhido quando a sessão já tem nome; o botão diz se há observação), os exercícios e,
  * no fim, adicionar exercício, cardio, modelos e criar grupo. Reorganização de 10/11: menos faixas e títulos repetidos.
  * A sessão não tem moldura em largura nenhuma, só a faixa do título.
@@ -71,10 +72,9 @@ export function CartaoSessao(p: Props) {
   // O texto livre de cardio da sessão só aparece enquanto existir; cardio novo é um exercício de cardio ("+ Adicionar cardio").
   const [comTextoDeCardio] = useState(!!s.cardio);
   const [menu, setMenu] = useState(false);
-  const acoesDoMenu = [
-    ...(p.aoSalvarModelo ? [{ rotulo: rotuloSalvarComo('SESSAO_TREINO'), detalhe: 'Guarda uma cópia no Planejamento.', Icone: Save, aoTocar: p.aoSalvarModelo }] : []),
-    ...(p.removivel !== false ? [{ rotulo: 'Remover sessão', detalhe: 'Dá para desfazer logo depois.', Icone: Trash2, perigo: true, aoTocar: p.aoRemover }] : []),
-  ];
+  const acoesDoMenu = p.aoSalvarModelo ? [{ rotulo: rotuloSalvarComo('SESSAO_TREINO'), detalhe: 'Guarda uma cópia no Planejamento.', Icone: Save, aoTocar: p.aoSalvarModelo }] : [];
+  // "Excluir sessão" (26/11): botão de perigo ao lado do ⋯, como "Excluir seção" na mobilidade; no editor de sessão única (modelo de sessão) não há.
+  const excluivel = p.removivel !== false;
   const titulo = s.nome || `Sessão ${p.posicao + 1}`;
 
   const cabecalho = (
@@ -82,8 +82,9 @@ export function CartaoSessao(p: Props) {
           titulo={titulo}
           resumo={diaETipo(s)}
           selo={p.comProblema ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
-          acoesJuntas
-          acoes={p.total > 1 || acoesDoMenu.length ? (
+          // Com o botão de texto, no celular as ações descem para a linha de baixo em vez de apertar o título.
+          acoesJuntas={largo || !excluivel}
+          acoes={p.total > 1 || acoesDoMenu.length || excluivel ? (
             <>
               {p.total > 1 ? (
                 <>
@@ -92,6 +93,7 @@ export function CartaoSessao(p: Props) {
                 </>
               ) : null}
               {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações da sessão ${s.nome || p.posicao + 1}`} aoTocar={() => setMenu(true)} /> : null}
+              {excluivel ? <Botao tipo="perigo" rotulo="Excluir sessão" rotuloAcessivel={`Excluir sessão: ${titulo}`} Icone={Trash2} aoTocar={p.aoRemover} /> : null}
             </>
           ) : undefined}
         />

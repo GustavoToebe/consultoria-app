@@ -7,7 +7,7 @@ import { alunosEmAtraso } from '../api/financeiroContrato';
 import { definirAcessoDoAluno, desativarAcessoDoAluno, gerarConvite, pausarAcessoDoAluno, reativarAcessoDoAluno, reativarAcessoPausadoDoAluno } from '../api/rotas';
 import type { AlunoDetalhe, ConviteGerado } from '../api/tipos';
 import { seloDoAcesso } from '../dominio/cadastroDoAluno';
-import { acoesDoAcesso, motivoDoAcesso, notaDoAcessoDesativado, textoDoEmailAlterado, traduzirErroDoAcesso, ultimoLoginNaLinha } from '../dominio/acessoAoApp';
+import { acoesDoAcesso, ehFinanceiroIndisponivel, MENSAGEM_FINANCEIRO_INDISPONIVEL, motivoDoAcesso, notaDoAcessoDesativado, textoDoEmailAlterado, traduzirErroDoAcesso, ultimoLoginNaLinha } from '../dominio/acessoAoApp';
 import { dataHoraParaTela } from '../dominio/formatos';
 import { gerarSenhaProvisoria } from '../dominio/senhaProvisoria';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -125,7 +125,9 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
         setMudando(null);
         setConfirmarDesativar(false);
         setConfirmarPausar(false);
-        setErro(traduzirErroDoAcesso(e).mensagem);
+        // Financeiro fora do ar ao pausar: toast, sem erro inline e sem mexer no cartão.
+        if (qual === 'pausar' && ehFinanceiroIndisponivel(e)) avisar(MENSAGEM_FINANCEIRO_INDISPONIVEL, 'perigo');
+        else setErro(traduzirErroDoAcesso(e).mensagem);
       },
     );
   };

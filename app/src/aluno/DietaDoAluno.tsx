@@ -10,7 +10,7 @@ import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { duasColunasCom } from '../dominio/grade';
 import { colunasDaGradeDoAluno, LARGURA_LATERAL_DO_ALUNO } from '../dominio/telaLargaDoAluno';
-import { kcalDaAba, tituloDaOpcao } from '../dominio/opcoesDaRefeicao';
+import { kcalDaAba, letraDoMarcador, tituloDaOpcao } from '../dominio/opcoesDaRefeicao';
 import { textoDosDiasCurtos, variacaoDoDia, variacaoMostrada } from '../dominio/variacoesDaDieta';
 import type { DadosPdfDieta } from '../pdf/pdfDieta';
 import { useTema } from '../tema/TemaProvider';
@@ -221,7 +221,7 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
         <AbasDasOpcoes
           rotulo={`Opções de ${refeicao.nome || 'Refeição'}`}
           abas={refeicao.opcoes.map((o, i) => ({
-            valor: String(i), letra: o.rotulo, titulo: tituloDaOpcao(o), rotuloAcessivel: `${tituloDaOpcao(o)}, ${kcalDaAba(o)}`,
+            valor: String(i), letra: letraDoMarcador(o.rotulo), titulo: tituloDaOpcao(o), rotuloAcessivel: `${tituloDaOpcao(o)}, ${kcalDaAba(o)}`,
             detalhe: <Texto variante="suave" numerico={o.itens.length > 0}>{kcalDaAba(o)}</Texto>,
           }))}
           aberta={String(Math.min(ativa, refeicao.opcoes.length - 1))}

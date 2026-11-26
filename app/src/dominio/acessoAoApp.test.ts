@@ -1,9 +1,13 @@
 import { ErroApi } from '@plataforma/web';
 
 import {
-  acoesDoAcesso, errosDoNovoEmail, MENSAGEM_EMAIL_EM_USO, MOTIVO_SEM_COBRANCA_VENCIDA, motivoDoAcesso, notaDoAcessoDesativado, seloDoMotivo,
+  acoesDoAcesso, comMotivoVisivel, ehFinanceiroIndisponivel, errosDoNovoEmail, MENSAGEM_EMAIL_EM_USO, MENSAGEM_FINANCEIRO_INDISPONIVEL,
+  MOTIVO_SEM_COBRANCA_VENCIDA, motivoDoAcesso, motivoVisivel, notaDoAcessoDesativado, seloDoMotivo,
   TEXTO_ACESSO_DESATIVADO, TEXTO_ACESSO_PAUSADO, traduzirErroDoAcesso, ultimoLoginNaLinha,
 } from './acessoAoApp';
+import { seloDaSituacao } from './cabecalhoDaFicha';
+import { seloDoAcesso } from './cadastroDoAluno';
+import { selosDeExcecaoDoAluno } from './selosDaLinhaDeAluno';
 
 // Acesso ao app: desativar (25/11) e pausar por atraso (26/11), um cartão e um selo.
 describe('selo e nota do acesso desativado ou pausado', () => {
@@ -29,6 +33,37 @@ describe('selo e nota do acesso desativado ou pausado', () => {
   test('nota sem data ou com data malformada: só a frase', () => {
     expect(notaDoAcessoDesativado('MANUAL', null, agora)).toBe('O aluno não entra até ser reativado. Nada foi apagado.');
     expect(notaDoAcessoDesativado('ATRASO', 'ontem', agora)).toMatch(/^O aluno só vê as cobranças em aberto/);
+  });
+});
+
+// Sem FINANCEIRO_LER o atraso não aparece (26/11): o ATRASO vira MANUAL antes de qualquer selo, nota ou ação.
+describe('motivoVisivel', () => {
+  test('ATRASO sem FINANCEIRO_LER é MANUAL; com ele, o que veio; o resto não muda', () => {
+    expect(motivoVisivel('ATRASO', false)).toBe('MANUAL');
+    expect(motivoVisivel('ATRASO', true)).toBe('ATRASO');
+    expect(motivoVisivel('MANUAL', false)).toBe('MANUAL');
+    expect(motivoVisivel(null, false)).toBeNull();
+    expect(motivoVisivel(undefined, false)).toBeNull();
+  });
+  test('comMotivoVisivel troca só o motivo e devolve o mesmo objeto quando nada muda', () => {
+    const atraso = { id: 'a', acessoDesativadoMotivo: 'ATRASO' as const };
+    expect(comMotivoVisivel(atraso, false)).toEqual({ id: 'a', acessoDesativadoMotivo: 'MANUAL' });
+    expect(atraso.acessoDesativadoMotivo).toBe('ATRASO');
+    expect(comMotivoVisivel(atraso, true)).toBe(atraso);
+    const livre = { id: 'b', acessoDesativadoMotivo: null };
+    expect(comMotivoVisivel(livre, false)).toBe(livre);
+  });
+  test('ATRASO sem FINANCEIRO_LER nunca vira "Acesso pausado", a nota de cobrança vencida nem a ação de pausa', () => {
+    const base = { ativo: true, anonimizado: false, temAcesso: true, aguardandoPrimeiroAcesso: false };
+    const aluno = comMotivoVisivel({ ...base, acessoDesativadoMotivo: 'ATRASO' as const }, false);
+    const motivo = motivoDoAcesso(aluno);
+    expect(seloDoAcesso(aluno)).toEqual({ texto: TEXTO_ACESSO_DESATIVADO, tipo: 'neutro', ponto: true });
+    expect(seloDaSituacao(aluno).texto).toBe(TEXTO_ACESSO_DESATIVADO);
+    expect(selosDeExcecaoDoAluno({ ativo: true, temAcesso: true, emAtraso: false, acessoDesativadoMotivo: motivo })).toEqual([
+      { texto: TEXTO_ACESSO_DESATIVADO, tipo: 'neutro', ponto: true }]);
+    expect(notaDoAcessoDesativado(motivo!, '2026-11-20T12:00:00Z', new Date('2026-11-25T15:00:00Z'))).not.toMatch(/Pausado|cobrança vencida/);
+    // Sem FINANCEIRO_LER a tela também não pode pausar nem reativar pelo Financeiro.
+    expect(acoesDoAcesso(aluno, { convite: true, financeiro: false, pausarVisivel: false }, null)).toEqual({ reativar: 'desativacao', pausar: null, desativar: false });
   });
 });
 
@@ -104,6 +139,16 @@ describe('traduzirErroDoAcesso', () => {
 });
 
 // ficha: acesso ao app (24/11)
+describe('503 FINANCEIRO_INDISPONIVEL ao pausar', () => {
+  test('é reconhecido pelo código e tem o texto fixo do toast; outros erros não', () => {
+    expect(MENSAGEM_FINANCEIRO_INDISPONIVEL).toBe('Não foi possível verificar as cobranças agora. Tente de novo em instantes.');
+    expect(ehFinanceiroIndisponivel(new ErroApi(503, 'FINANCEIRO_INDISPONIVEL', 'Desligado.'))).toBe(true);
+    expect(ehFinanceiroIndisponivel(new ErroApi(409, 'SEM_COBRANCA_VENCIDA', 'x'))).toBe(false);
+    expect(ehFinanceiroIndisponivel(new ErroApi(500, null, 'x'))).toBe(false);
+    expect(ehFinanceiroIndisponivel(new Error('x'))).toBe(false);
+  });
+});
+
 describe('ultimoLoginNaLinha', () => {
   // 23/11/2026 12:00 em Brasília.
   const agora = new Date('2026-11-23T15:00:00Z');

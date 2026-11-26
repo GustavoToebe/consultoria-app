@@ -156,7 +156,8 @@ public class AcessoDoAlunoService {
 
     /**
      * "Reativar acesso" do cartão Acesso ao app ({@code ALUNO_CONVITE}): limpa a desativação de qualquer motivo. Do MANUAL,
-     * liga o usuário de novo; da pausa por atraso, só limpa (o usuário já estava ativo). Sem desativação = 200 sem mudar.
+     * liga o usuário de novo; da pausa por atraso, só limpa (o usuário já estava ativo) e exige também {@code FINANCEIRO_ALTERAR}
+     * (403 {@code PERMISSAO_NEGADA}, mensagem neutra). Sem desativação = 200 sem mudar.
      * Aluno inativo continua sem acesso: 409 {@code ALUNO_INATIVO}.
      */
     @Transactional
@@ -166,6 +167,11 @@ public class AcessoDoAlunoService {
         MotivoDoAcessoDesativado motivo = aluno.getAcessoDesativadoMotivo();
         if (motivo == null) {
             return alunoService.detalheDe(aluno);
+        }
+        // O motivo ATRASO pode estar mascarado como MANUAL para quem não vê o Financeiro: a pausa só sai com a permissão dele,
+        // e a mensagem não diz o porquê (não revela a inadimplência).
+        if (motivo == MotivoDoAcessoDesativado.ATRASO && !br.com.treinos.api.equipe.AcessoAtual.pode("FINANCEIRO_ALTERAR")) {
+            throw new br.com.plataforma.comum.web.ForbiddenException("Seu perfil não permite reativar este acesso.", "PERMISSAO_NEGADA");
         }
         if (!aluno.isAtivo()) {
             throw new ConflictException("Aluno inativo. Reative o aluno antes de reativar o acesso.", "ALUNO_INATIVO");

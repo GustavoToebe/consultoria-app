@@ -338,13 +338,13 @@ for (const [largura, escuro] of [[390, false], [390, true], [1280, false]] as co
       await expect(opcoesB).toHaveCount(3);
       await expect(page.getByText('Opção B removida.')).toHaveCount(0);
 
-      await page.getByRole('button', { name: 'Remover 19:00 · Jantar' }).click();
+      await page.getByRole('button', { name: 'Excluir refeição: 19:00 · Jantar' }).click();
       await expect(page.getByRole('heading', { name: 'Refeições (2)' })).toBeAttached();
       await expect(page.getByText('Refeição “Jantar” removida.')).toBeInViewport();
       await capturar('desfazer-refeicao');
       await page.getByRole('button', { name: 'Desfazer' }).click();
       await expect(page.getByRole('heading', { name: 'Refeições (3)' })).toBeAttached();
-      await expect(page.getByRole('button', { name: 'Remover 19:00 · Jantar' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Excluir refeição: 19:00 · Jantar' })).toBeVisible();
     } else {
       // Duas colunas: o aviso fica entre "Refeições (N)" e a lista, como antes.
       await page.getByRole('button', { name: /^Refeição 3 de 3: 19:00 · Jantar/ }).click();
@@ -362,7 +362,7 @@ for (const [largura, escuro] of [[390, false], [390, true], [1280, false]] as co
       await expect(opcoesB).toHaveCount(1);
 
       // Refeição removida também avisa no topo; a seguinte fica escolhida e o Desfazer devolve o Jantar.
-      await page.getByRole('button', { name: 'Remover 19:00 · Jantar' }).click();
+      await page.getByRole('button', { name: 'Excluir refeição: 19:00 · Jantar' }).click();
       const avisoDaRefeicao = page.getByText('Refeição “Jantar” removida.');
       await expect(avisoDaRefeicao).toBeInViewport();
       const [caixa2, lista2] = [await avisoDaRefeicao.boundingBox(), await page.getByRole('button', { name: /^Refeição 1 de 2/ }).boundingBox()];

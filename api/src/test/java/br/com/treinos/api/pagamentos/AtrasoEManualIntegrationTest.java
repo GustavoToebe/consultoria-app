@@ -4,6 +4,7 @@ import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
 import br.com.treinos.api.alunos.AcessoDoAlunoService;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.equipe.CatalogoPermissoes;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Fuso;
 import org.junit.jupiter.api.AfterEach;
@@ -23,6 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -189,6 +191,43 @@ class AtrasoEManualIntegrationTest extends AbstractIntegrationTest {
         assertThat(eventos("ALUNO_ACESSO_REATIVADO", alunoId)).isEqualTo(1);
     }
 
+    /**
+     * Quem não tem FINANCEIRO_LER vê o ATRASO como MANUAL (lista e ficha): não descobre a inadimplência. Com FINANCEIRO_LER vê
+     * ATRASO. O "Reativar acesso" da equipe (ALUNO_CONVITE) não tira a pausa sem FINANCEIRO_ALTERAR (403 neutro, nada muda).
+     */
+    @Test
+    void semFinanceiroLerOAtrasoApareceComoManualEOReativarDaEquipeNaoTiraAPausa() throws Exception {
+        String nome = "Aluno Atraso Mascara";
+        UUID alunoId = api.criarAluno(treinador, nome);
+        api.convidarEEntrar(treinador, alunoId);
+        criarCobrancaAvulsa(alunoId, hoje.minusDays(10));
+        api.post("/alunos/" + alunoId + "/pausar-acesso", treinador, null, 200);
+        JsonNode semFinanceiro = membro(Set.of("ALUNO_LER", "ALUNO_CONVITE"));
+        JsonNode comLeitura = membro(Set.of("ALUNO_LER", "ALUNO_CONVITE", "FINANCEIRO_LER"));
+
+        assertThat(motivoNaLista(semFinanceiro, nome)).isEqualTo("MANUAL");
+        assertThat(api.get("/alunos/" + alunoId, semFinanceiro, 200).get("acessoDesativadoMotivo").asString()).isEqualTo("MANUAL");
+        assertThat(motivoNaLista(comLeitura, nome)).isEqualTo("ATRASO");
+        assertThat(api.get("/alunos/" + alunoId, comLeitura, 200).get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
+        assertThat(motivoNaLista(treinador, nome)).isEqualTo("ATRASO");
+
+        for (JsonNode quem : List.of(semFinanceiro, comLeitura)) {
+            JsonNode recusa = api.post("/alunos/" + alunoId + "/acesso/reativar", quem, null, 403);
+            assertThat(recusa.get("codigo").asString()).isEqualTo("PERMISSAO_NEGADA");
+            assertThat(recusa.get("message").asString()).doesNotContainIgnoringCase("atraso");
+        }
+        assertThat(motivoNoBanco(alunoId)).isEqualTo("ATRASO");
+        assertThat(eventos("ALUNO_ACESSO_REATIVADO", alunoId)).isZero();
+
+        // O MANUAL de verdade segue reativável por ALUNO_CONVITE sozinho.
+        UUID manual = api.criarAluno(treinador, "Aluno Manual Mascara");
+        api.convidarEEntrar(treinador, manual);
+        desativar(manual, 200);
+        assertThat(api.get("/alunos/" + manual, semFinanceiro, 200).get("acessoDesativadoMotivo").asString()).isEqualTo("MANUAL");
+        api.post("/alunos/" + manual + "/acesso/reativar", semFinanceiro, null, 200);
+        assertThat(motivoNoBanco(manual)).isNull();
+    }
+
     @Test
     void corridasComODesativarManualTerminamSempreEmManualComOLoginBloqueado() throws Exception {
         for (int i = 0; i < 4; i++) {
@@ -278,6 +317,26 @@ class AtrasoEManualIntegrationTest extends AbstractIntegrationTest {
     }
 
     // ---- apoio ----
+
+    private String motivoNaLista(JsonNode quem, String nome) throws Exception {
+        JsonNode pagina = api.get("/alunos?situacao=TODOS&tamanho=100", quem, 200);
+        for (JsonNode item : pagina.get("itens")) {
+            if (nome.equals(item.get("nome").asString())) {
+                return item.get("acessoDesativadoMotivo").asString();
+            }
+        }
+        throw new AssertionError("Aluno não está na lista: total=" + pagina.path("total").asLong());
+    }
+
+    private JsonNode membro(Set<String> permissoes) throws Exception {
+        String perfil = api.post("/perfis", treinador,
+                Map.of("nome", "Perfil " + UUID.randomUUID(), "permissoes", CatalogoPermissoes.comDependencias(permissoes)), 200)
+                .get("id").asString();
+        JsonNode convite = api.post("/usuarios/convites", treinador,
+                Map.of("nome", "Membro fictício", "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil), 200);
+        return api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.get("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
+    }
 
     private void esperarAlguemBloqueadoPor(int pid) throws InterruptedException {
         long limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);

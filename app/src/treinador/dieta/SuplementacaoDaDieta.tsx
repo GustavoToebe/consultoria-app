@@ -1,12 +1,12 @@
 import { ChevronDown, ChevronRight, CircleAlert, Ellipsis, ExternalLink, Library, Link2Off, PencilLine, TicketX, Trash2 } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Suplemento } from '../../api/tipos';
 import { faltaNoSuplemento, LIMITES_DOS_COMPLEMENTOS, linhasDoNome, nomeSemQuebra } from '../../dominio/complementosDaDieta';
 import { linkParaAbrir } from '../../dominio/links';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR_DE_CAMPOS } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes } from '../../tema/tokens';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { useAviso } from '../../ui/Aviso';
@@ -34,9 +34,25 @@ const VAO = espaco(1);
 const RECUO = espaco(1);
 
 /**
+ * Linhas de um campo da tabela (26/11): uma quando o texto cabe, duas quando não; o que passa de duas rola
+ * dentro do campo (a linha da tabela não cresce sem fim). A mesma conta folgada de `linhasDoNome` (9 px por caractere da
+ * fonte de 16 px, vezes o "Tamanho do texto", menos o recuo interno); sem medida ainda, uma.
+ */
+/** Sem a alça de redimensionar do textarea (o preflight da web põe `resize: vertical`): o campo já cresce sozinho. */
+const SEM_ALCA = 'resize-none';
+
+function ateDuasLinhas(texto: string, larguraDoCampo: number, fatorDoTexto: number): 1 | 2 {
+  const util = larguraDoCampo - 28;
+  if (util <= 0) return 1;
+  return texto.length <= Math.max(1, Math.floor(util / (9 * fatorDoTexto))) ? 1 : 2;
+}
+
+/**
  * Aba Suplementação do cartão Complementos (25/11). PC: tabela com o cabeçalho uma vez (Suplemento, Dose prescrita,
  * Horário, Observação; fora do leitor de tela, cada campo tem o nome dele), uma faixa por suplemento com a alça e o ⋯
- * (mover, Tirar link, Tirar cupom e Excluir com Desfazer). O nome quebra em até duas linhas e nunca é cortado; o link do
+ * (mover, Tirar link, Tirar cupom e Excluir com Desfazer). Sem teto de largura (26/11): colunas proporcionais (Suplemento
+ * 28%, Dose 12% e Horário 10%, os dois com teto; a Observação fica com o resto). Os campos crescem sozinhos de uma a
+ * duas linhas (`CampoDaTabela`; o que passar rola dentro do campo); o link do
  * produto abre fora do app (só https, `linkParaAbrir`) pelo ícone ao lado do nome; o cupom fica embaixo dele. Celular:
  * um cartão compacto (nome em cima, "dose · horário" embaixo) que abre os campos ao tocar, um aberto por vez.
  */
@@ -102,6 +118,22 @@ function CabecalhoDasColunas() {
   );
 }
 
+/**
+ * Campo de uma célula da tabela (26/11): cresce sozinho de uma a duas linhas com o texto (`ateDuasLinhas`, medido na
+ * própria célula), sem a alça de redimensionar e sem gravar quebra pelo Enter. Sempre textarea: trocar de input para
+ * textarea no meio da digitação perderia o foco. O rótulo fica no cabeçalho da tabela; o leitor de tela lê `rotuloAcessivel`.
+ */
+function CampoDaTabela({ valor, aoMudar, ...resto }: Omit<ComponentProps<typeof Campo>, 'linhas' | 'rotuloOculto'>) {
+  const { fatorTexto } = useTema();
+  const [largura, setLargura] = useState(0);
+  return (
+    <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
+      <Campo {...resto} rotuloOculto valor={valor} linhas={ateDuasLinhas(valor, largura, fatorTexto)} className={SEM_ALCA}
+        blurOnSubmit onSubmitEditing={() => undefined} aoMudar={(v) => aoMudar(nomeSemQuebra(v))} />
+    </View>
+  );
+}
+
 function LinhaDoSuplemento({ modo, item: s, posicao, total, porcao, aberto, focar, alca, aoAlternar, aoMudar, aoMover, aoRemover }: {
   modo: Modo;
   item: Suplemento;
@@ -134,24 +166,29 @@ function LinhaDoSuplemento({ modo, item: s, posicao, total, porcao, aberto, foca
     { rotulo: 'Excluir suplemento', detalhe: `Remover ${nome}. Dá para desfazer logo depois.`, Icone: Trash2, perigo: true, aoTocar: aoRemover },
   ];
 
-  // O nome quebra em linhas e o campo cresce com ele: nunca fica cortado (`linhasDoNome`).
-  const campoNome = (
+  // Na tabela os quatro campos são `CampoDaTabela` (uma a duas linhas, mesma altura e o texto na mesma linha de base). No
+  // cartão o nome quebra quantas linhas precisar (`linhasDoNome`) e os outros são de uma linha.
+  const CampoDaLinha = tabela ? CampoDaTabela : Campo;
+  const campoNome = tabela ? (
+    <CampoDaTabela rotulo="Nome" rotuloAcessivel={`Nome do suplemento ${n}`} valor={s.nome} maxLength={L.campoCurto} autoFocus={focar}
+      placeholder="Ex.: Creatina" aoMudar={(nome) => aoMudar({ nome })} />
+  ) : (
     <View onLayout={(e) => setLarguraDoNome(e.nativeEvent.layout.width)}>
-      <Campo rotulo="Nome" rotuloOculto={tabela} rotuloAcessivel={`Nome do suplemento ${n}`} valor={s.nome} linhas={linhasDoNome(s.nome, larguraDoNome, fatorTexto)}
+      <Campo rotulo="Nome" rotuloAcessivel={`Nome do suplemento ${n}`} valor={s.nome} linhas={linhasDoNome(s.nome, larguraDoNome, fatorTexto)}
         maxLength={L.campoCurto} autoFocus={focar} placeholder="Ex.: Creatina" blurOnSubmit onSubmitEditing={() => undefined}
         aoMudar={(v) => aoMudar({ nome: nomeSemQuebra(v) })} />
     </View>
   );
   const campoDose = (
-    <Campo rotulo="Dose prescrita" rotuloOculto={tabela} rotuloAcessivel={`Dose prescrita do suplemento ${n}`} valor={s.dose} maxLength={L.campoCurto}
+    <CampoDaLinha rotulo="Dose prescrita" rotuloAcessivel={`Dose prescrita do suplemento ${n}`} valor={s.dose} maxLength={L.campoCurto}
       ajuda={porcao ? `Embalagem: ${porcao} (só referência)` : undefined} aoMudar={(dose) => aoMudar({ dose })} />
   );
   const campoHorario = (
-    <Campo rotulo="Horário" rotuloOculto={tabela} rotuloAcessivel={`Horário do suplemento ${n}`} valor={s.horario} maxLength={L.campoCurto}
+    <CampoDaLinha rotulo="Horário" rotuloAcessivel={`Horário do suplemento ${n}`} valor={s.horario} maxLength={L.campoCurto}
       placeholder={tabela ? undefined : 'Ex.: Após o treino'} aoMudar={(horario) => aoMudar({ horario })} />
   );
   const campoObservacao = (
-    <Campo rotulo="Observação" rotuloOculto={tabela} rotuloAcessivel={`Observação do suplemento ${n}`} valor={s.observacao} maxLength={L.observacao}
+    <CampoDaLinha rotulo="Observação" rotuloAcessivel={`Observação do suplemento ${n}`} valor={s.observacao} maxLength={L.observacao}
       aoMudar={(observacao) => aoMudar({ observacao })} />
   );
   const abrirProduto = link ? (
@@ -241,17 +278,18 @@ function LinhaDoSuplemento({ modo, item: s, posicao, total, porcao, aberto, foca
 
 const estilos = StyleSheet.create({
   aba: { gap: espaco(2) },
-  // Na tela larga a tabela para em 1400 px (nunca campo esticado, 4.10); a sobra fica vazia à direita.
-  itens: { gap: 6, maxWidth: LARGURA_EDITOR_DE_CAMPOS },
+  // Sem teto (26/11): a tabela vai na largura toda do cartão; quem não estica são a Dose e o Horário (teto próprio).
+  itens: { gap: 6 },
   faixa: { borderRadius: 12, borderWidth: 1, paddingHorizontal: RECUO, paddingVertical: espaco(1) },
   linhaDaTabela: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO },
   cabecalho: { paddingHorizontal: RECUO + 1, alignItems: 'center' },
   colunaDaAlca: { width: LARGURA_DA_ALCA },
-  // O nome tem a coluna maior: com o ícone do link ao lado, cabe em duas linhas na maioria dos produtos.
-  colunaDoNome: { flex: 2, minWidth: 0 },
-  colunaDaDose: { flex: 1, minWidth: 0 },
-  colunaDoHorario: { flex: 0.8, minWidth: 0 },
-  colunaDaObservacao: { flex: 1.2, minWidth: 0 },
+  // Proporções da linha (26/11): Suplemento 28%, Dose 12% e Horário 10% (o mínimo cabe o título "Dose prescrita" e um
+  // "Pós-treino" perto dos 720; o teto para de esticar na ultralarga) e a Observação com o resto.
+  colunaDoNome: { width: '28%', minWidth: 0 },
+  colunaDaDose: { width: '12%', minWidth: 120, maxWidth: 240 },
+  colunaDoHorario: { width: '10%', minWidth: 104, maxWidth: 200 },
+  colunaDaObservacao: { flex: 1, minWidth: 0 },
   colunaDasAcoes: { width: ALVO_TOQUE },
   celula: { gap: espaco(0.5) },
   noMeio: { minHeight: ALVO_TOQUE, justifyContent: 'center' },

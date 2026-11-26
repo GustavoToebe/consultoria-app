@@ -203,7 +203,7 @@ public final class AlunoDtos {
                     ler && !a.isAnonimizado() ? planosAtivos : null,
                     ler && !a.isAnonimizado() && tags != null ? tags : List.of(),
                     ler ? a.getAcessoDesativadoEm() : null,
-                    ler && a.getAcessoDesativadoMotivo() != null ? a.getAcessoDesativadoMotivo().name() : null,
+                    ler ? br.com.treinos.api.alunos.MotivoDoAcessoDesativado.paraEquipe(a.getAcessoDesativadoMotivo()) : null,
                     ler ? a.getInstagram() : null, ler ? a.getTiktok() : null,
                     ler ? a.getYoutube() : null, ler ? a.getFacebook() : null, ler ? a.getLinkedin() : null, ler ? a.getTelegram() : null);
         }

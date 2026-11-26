@@ -3,7 +3,7 @@ import { View } from 'react-native';
 
 import { ErroApi } from '../../../api/cliente';
 import { consumoDoPlano, minhaConta } from '../../../api/rotas';
-import { espaco, LARGURA_EDITOR } from '../../../tema/tokens';
+import { espaco } from '../../../tema/tokens';
 import { AbaCadastro, AbaFinanceiro, AbaPlano, CartaoConsumo } from '../../../treinador/conta/PartesDaConta';
 import { Abas } from '../../../ui/Abas';
 import { Cabecalho } from '../../../ui/Cabecalho';
@@ -35,7 +35,7 @@ export function TelaMinhaConta() {
   const conta = useCarregar('minha-conta', () => minhaConta());
   const consumo = useCarregar('consumo-do-plano', () => consumoDoPlano());
   return (
-    <Tela bordas={['top']} largura={LARGURA_EDITOR}>
+    <Tela bordas={['top']}>
       <Cabecalho titulo="Assinatura e faturas" descricao="Cadastro da consultoria, plano contratado e faturas." />
       {conta.dados?.previa ? (
         <Alerta tom="atencao" titulo="Prévia" texto="Dados de demonstração. Os dados reais da sua assinatura aparecem aqui quando estiverem disponíveis." />

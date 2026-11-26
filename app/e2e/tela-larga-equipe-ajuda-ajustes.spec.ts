@@ -178,12 +178,16 @@ async function blocoDoTitulo(page: Page, h1: string) {
 const assentado = (conferir: () => Promise<void>) => expect(conferir).toPass({ timeout: 10_000 });
 
 // Colunas esperadas por largura (menu aberto, Automática): perfis, modelos do WhatsApp.
-const ESPERADO: Record<number, { perfis: number; modelos: number; ajudaEmTres: boolean }> = {
+const ESPERADO: Record<number, { perfis: number; modelos: number; ajudaEmTres: boolean; meusDados: number }> = {
   // Perfis (6 no exemplo): células ≥ 360 px em linhas equilibradas, 3 + 3 em 1920 e 2560, os 6 numa linha em 3440.
-  1920: { perfis: 3, modelos: 2, ajudaEmTres: false },
-  2560: { perfis: 3, modelos: 3, ajudaEmTres: true },
-  3440: { perfis: 4, modelos: 3, ajudaEmTres: true },
+  // Meus dados (26/11): os 3 cartões em colunas pela faixa da área ao lado da coluna dos itens (1380 é normal, 2020 é larga).
+  1920: { perfis: 3, modelos: 2, ajudaEmTres: false, meusDados: 2 },
+  2560: { perfis: 3, modelos: 3, ajudaEmTres: true, meusDados: 3 },
+  3440: { perfis: 4, modelos: 3, ajudaEmTres: true, meusDados: 3 },
 };
+
+/** Respiro lateral máximo da `Tela` (48 px na ultralarga) e 1 px de arredondamento: o bloco preenche a área, sem vão. */
+const RESPIRO = 48 + 1;
 
 for (const [largura, altura] of LARGURAS) {
   test(`${largura} px: o espaço extra vira colunas e nada passa do limite`, async ({ page }) => {
@@ -191,12 +195,17 @@ for (const [largura, altura] of LARGURAS) {
     const e = ESPERADO[largura];
 
     // Configurações: coluna dos itens à esquerda e o item aberto à direita (26/11); o detalhe está em `configuracoes.spec.ts`.
+    // Em Automática o item preenche a área à direita da coluna (só o respiro lateral de cada lado) e os cartões vão em colunas.
     await page.goto('/treinador/configuracoes');
     await TELAS[0].pronta(page);
     await assentado(async () => {
       const coluna = await caixa(page, page.getByRole('navigation', { name: 'Configurações' }));
       const titulo = await caixa(page, page.getByRole('heading', { level: 1, name: 'Meus dados' }));
       expect(titulo.x).toBeGreaterThan(coluna.x + coluna.width);
+      const margens = await blocoDoTitulo(page, 'Meus dados');
+      expect(margens.esquerda).toBeLessThanOrEqual(RESPIRO);
+      expect(margens.direita).toBeLessThanOrEqual(RESPIRO);
+      expect(await naPrimeiraLinha(page, ['Acesso', 'Seus dados', 'Trocar senha'])).toBe(e.meusDados);
     });
     await semRolagemHorizontal(page);
 
@@ -214,7 +223,7 @@ for (const [largura, altura] of LARGURAS) {
     });
     await semRolagemHorizontal(page);
 
-    // Aparência e preferências: as colunas centradas, sem metade da tela vazia à direita.
+    // Aparência e preferências (26/11): sem teto próprio, as colunas preenchem a área (antes paravam em 1464, centradas).
     await page.goto('/treinador/ajustes');
     await TELAS[4].pronta(page);
     await assentado(async () => {
@@ -222,8 +231,8 @@ for (const [largura, altura] of LARGURAS) {
       const leitura = await caixa(page, page.getByRole('heading', { name: 'Leitura', exact: true }));
       expect(leitura.x).toBeGreaterThan(tema.x);
       const margens = await blocoDoTitulo(page, 'Aparência e preferências');
-      expect(margens.largura).toBeLessThanOrEqual(1464 + 1);
-      expect(Math.abs(margens.esquerda - margens.direita)).toBeLessThanOrEqual(2);
+      expect(margens.esquerda).toBeLessThanOrEqual(RESPIRO);
+      expect(margens.direita).toBeLessThanOrEqual(RESPIRO);
     });
     await semRolagemHorizontal(page);
 

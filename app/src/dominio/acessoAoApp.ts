@@ -30,6 +30,19 @@ export type MotivoDoAcesso = 'MANUAL' | 'ATRASO';
 export const motivoDoAcesso = (aluno: Pick<AlunoDetalhe, 'acessoDesativadoMotivo'>): MotivoDoAcesso | null => aluno.acessoDesativadoMotivo ?? null;
 
 /**
+ * Quem não tem `FINANCEIRO_LER` não fica sabendo que o aluno está em atraso (26/11): o `ATRASO` vira `MANUAL` ("Acesso
+ * desativado" neutro, sem "pausado", sem a nota de cobrança vencida e sem as ações de pausa). A API já manda `MANUAL` a
+ * essas pessoas; isto garante o mesmo no app. É o ponto único: as telas passam o aluno (ou o motivo) por aqui antes de usá-lo.
+ */
+export const motivoVisivel = (motivo: MotivoDoAcesso | null | undefined, veFinanceiro: boolean): MotivoDoAcesso | null =>
+  motivo === 'ATRASO' && !veFinanceiro ? 'MANUAL' : motivo ?? null;
+
+export function comMotivoVisivel<T extends Pick<AlunoDetalhe, 'acessoDesativadoMotivo'>>(aluno: T, veFinanceiro: boolean): T {
+  const motivo = motivoVisivel(aluno.acessoDesativadoMotivo, veFinanceiro);
+  return motivo === (aluno.acessoDesativadoMotivo ?? null) ? aluno : { ...aluno, acessoDesativadoMotivo: motivo };
+}
+
+/**
  * As mesmas palavras no cartão Acesso ao app, no cabeçalho da ficha e na lista de alunos (26/11, pedido do Gustavo). O
  * pausado é âmbar (alguém precisa agir: o aluno quitar, 4.5); o desativado é neutro com o "●" (encerrado pela equipe, e o
  * ponto o separa do "Sem acesso" de quem nunca teve conta).
@@ -119,6 +132,10 @@ const MENSAGENS_DO_ACESSO: Record<string, string> = {
   ALUNO_ANONIMIZADO: 'Aluno anonimizado: o acesso não muda mais.',
 };
 export const MENSAGEM_EMAIL_EM_USO = 'Este e-mail já é usado por outra conta.';
+
+/** Pausar consulta o Financeiro: 503 `FINANCEIRO_INDISPONIVEL` é aviso passageiro (toast), não erro do acesso nem do aluno. */
+export const MENSAGEM_FINANCEIRO_INDISPONIVEL = 'Não foi possível verificar as cobranças agora. Tente de novo em instantes.';
+export const ehFinanceiroIndisponivel = (e: unknown): boolean => codigoApi(e) === 'FINANCEIRO_INDISPONIVEL';
 
 export function traduzirErroDoAcesso(e: unknown): { campos: { email?: string }; mensagem: string | null } {
   const codigo = codigoApi(e);

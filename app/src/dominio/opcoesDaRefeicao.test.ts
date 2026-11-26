@@ -1,5 +1,5 @@
 import type { ItemDieta, OpcaoRefeicao } from '../api/tipos';
-import { abaComProblema, chaveDosProblemas, gramasSemUnidade, kcalDaAba, nomeDaAba, totaisDaOpcao } from './opcoesDaRefeicao';
+import { abaComProblema, chaveDosProblemas, gramasSemUnidade, kcalDaAba, letraDoMarcador, nomeDaAba, tituloDaOpcao, totaisDaOpcao } from './opcoesDaRefeicao';
 
 // Opções em abas (19/11). Dados fictícios.
 const item = (uid: string, kcal: number | null): ItemDieta =>
@@ -17,6 +17,15 @@ describe('aba da opção', () => {
   it('o nome acessível diz a kcal, se conta no total do dia e se tem problema', () => {
     expect(nomeDaAba(opcao('a', 'A', [item('i1', 98)]), true, false)).toBe('Opção A, 98 kcal, conta no total do dia');
     expect(nomeDaAba(opcao('c', 'C', []), false, true)).toBe('Opção C, vazia, com problema a corrigir');
+  });
+
+  it('o rótulo personalizado não ganha "Opção " na frente (a importação já grava "Opção Principal")', () => {
+    expect(tituloDaOpcao(opcao('p', 'Opção Principal', []))).toBe('Opção Principal');
+    expect(tituloDaOpcao(opcao('q', 'Café reforçado', []))).toBe('Café reforçado');
+    expect(tituloDaOpcao(opcao('b', 'B', []))).toBe('Opção B');
+    expect(tituloDaOpcao(opcao('s', '7', []))).toBe('Opção 7');
+    expect(['B', '7', 'Opção Principal', 'café'].map(letraDoMarcador)).toEqual(['B', '7', 'P', 'C']);
+    expect(nomeDaAba(opcao('p', 'Opção Principal', [item('i1', 98)]), true, false)).toBe('Opção Principal, 98 kcal, conta no total do dia');
   });
 });
 

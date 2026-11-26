@@ -220,7 +220,8 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
             ? <Botao rotulo="Trocar exercício" rotuloAcessivel={`Trocar exercício: ${e.nome || 'o exercício'}`} tipo="secundario" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
             : <IconeBotao moldura Icone={ArrowLeftRight} rotulo={`Trocar exercício: ${e.nome || 'o exercício'}`} aoTocar={p.aoEscolherDaBiblioteca} />}
           {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações de ${nomeDoExercicio}`} aoTocar={() => setMenu(true)} /> : null}
-          <Botao tipo="perigoTexto" rotulo="Excluir" rotuloAcessivel={`Remover ${nomeDoExercicio}`} Icone={Trash2} aoTocar={p.aoRemover} />
+          {/* 26/11: o mesmo "Excluir" dos três editores (tonal, ao lado do ⋯, rótulo com o objeto). */}
+          <Botao tipo="perigo" rotulo="Excluir exercício" rotuloAcessivel={`Excluir exercício: ${nomeDoExercicio}`} Icone={Trash2} aoTocar={p.aoRemover} />
           {p.aoAbrir ? <IconeBotao moldura Icone={p.aberto ? ChevronUp : ChevronDown} rotulo={p.aberto ? 'Fechar exercício' : 'Editar exercício'} aoTocar={p.aoAbrir} /> : null}
         </View>
       </View>

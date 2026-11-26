@@ -3,7 +3,7 @@ import { type ReactNode, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import type { OpcaoRefeicao } from '../../api/tipos';
-import { CONTA_NO_TOTAL, kcalDaAba, MAXIMO_DE_OPCOES, MOTIVO_NO_LIMITE_DE_OPCOES, nomeDaAba, tituloDaOpcao } from '../../dominio/opcoesDaRefeicao';
+import { CONTA_NO_TOTAL, kcalDaAba, letraDoMarcador, MAXIMO_DE_OPCOES, MOTIVO_NO_LIMITE_DE_OPCOES, nomeDaAba, tituloDaOpcao } from '../../dominio/opcoesDaRefeicao';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, misturar, RAIO_CONTROLE } from '../../tema/tokens';
 import { AlcaDeArraste, ItemArrastavel, useArrasteDaLista } from '../../ui/ArrasteDaLista';
@@ -81,7 +81,7 @@ export function AbasDeOpcao({ rotulo, refeicao, opcoes, aberta, comProblema, aoA
         const vazia = o.itens.length === 0;
         return {
           valor: o.uid,
-          letra: o.rotulo,
+          letra: letraDoMarcador(o.rotulo),
           titulo: tituloDaOpcao(o),
           rotuloAcessivel: nomeDaAba(o, varias && i === 0, problema),
           antes: problema ? <CircleAlert size={16} color={cores.perigo} strokeWidth={2.5} /> : undefined,

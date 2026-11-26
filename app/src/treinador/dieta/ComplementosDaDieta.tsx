@@ -9,7 +9,7 @@ import { linhaDeErgogenico } from '../../dominio/ergogenicos';
 import { moverPara } from '../../dominio/reordenar';
 import { novoUid } from '../../dominio/uid';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR_DE_CAMPOS, LARGURA_TEXTO_CORRIDO, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_TEXTO_CORRIDO, RAIO } from '../../tema/tokens';
 import { Abas } from '../../ui/Abas';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -45,9 +45,9 @@ interface Props {
 const SECAO = { secao: 'complementos' } as const;
 
 /**
- * Complementos da dieta (25/11), abaixo das refeições: um cartão com abas, cada uma na largura toda do conteúdo.
- * Orientações (lista compacta e reordenável, `OrientacoesDaDieta`), Observações (texto em largura de leitura, com o
- * contador), Suplementação (tabela no PC e cartões no celular, `SuplementacaoDaDieta`) e, só com `ERGOGENICO_LER`,
+ * Complementos da dieta (25/11), abaixo das refeições: um cartão com abas, sem teto de largura (26/11). Orientações
+ * (lista compacta e reordenável, `OrientacoesDaDieta`) e Observações (com o contador) em largura de leitura, à esquerda;
+ * Suplementação na largura toda (tabela no PC e cartões no celular, `SuplementacaoDaDieta`) e, só com `ERGOGENICO_LER`,
  * Outros (medicação e ergogênicos; sem `ERGOGENICO_ALTERAR`, só leitura). A aba com problema leva o ícone na cor da
  * gravidade (`problemasDosComplementos`). A aba aberta fica neste estado: o editor não remonta o cartão ao salvar, ao
  * recarregar o plano nem ao trocar de refeição, então ela não volta à primeira (e nada se guarda no aparelho, 4.8).
@@ -180,7 +180,7 @@ function ItemDeErgogenico({ item: e, posicao, editavel, aoMudar, aoRemover }: {
 const estilos = StyleSheet.create({
   painel: { paddingTop: espaco(1) },
   leitura: { gap: espaco(0.5), maxWidth: LARGURA_TEXTO_CORRIDO },
-  outros: { gap: espaco(1.5), maxWidth: LARGURA_EDITOR_DE_CAMPOS },
+  outros: { gap: espaco(1.5) },
   subCartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   campo: { minWidth: 190, flex: 1 },

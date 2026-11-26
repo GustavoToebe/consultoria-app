@@ -195,11 +195,11 @@ test('suplementação em tabela: cabeçalho uma vez, nome em duas linhas, link, 
   await aba(page, /^Suplementação/).click();
   for (const titulo of ['Suplemento', 'Dose prescrita', 'Horário', 'Observação']) await expect(cartao(page).getByText(titulo, { exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: /^#1 ·/ })).toHaveCount(0);
-  // O nome quebra em duas linhas (nunca cortado numa linha só).
+  // O nome quebra em até duas linhas (o que passar rola no campo), sem a alça de redimensionar; o curto fica em uma.
   const nome = page.getByLabel('Nome do suplemento 1');
   await expect(nome).toHaveValue(NOME_LONGO);
-  expect(await nome.evaluate((el) => el.tagName)).toBe('TEXTAREA');
-  expect(await nome.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+  expect(await nome.evaluate((el) => [el.tagName, (el as HTMLTextAreaElement).rows, getComputedStyle(el).resize])).toEqual(['TEXTAREA', 2, 'none']);
+  expect(await page.getByLabel('Nome do suplemento 2').evaluate((el) => (el as HTMLTextAreaElement).rows)).toBe(1);
   // Link: só no que tem, ao lado do nome; cupom à vista embaixo; o que falta avisa na linha.
   await expect(page.getByRole('button', { name: /^Abrir produto/ })).toHaveCount(1);
   await expect(page.getByText('TESTE10')).toBeVisible();
@@ -234,6 +234,39 @@ test('suplementação em tabela: cabeçalho uma vez, nome em duas linhas, link, 
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
+
+// 26/11: sem o teto de 1400 nos Complementos; colunas proporcionais (Suplemento 28%, Dose 12% e Horário 10% com teto,
+// Observação com o resto); nome e observação inteiros em até duas linhas; Orientações em largura de leitura.
+for (const largura of [1920, 3440]) {
+  test(`suplementação sem teto, colunas proporcionais e texto inteiro em duas linhas (${largura}px)`, async ({ page }) => {
+    const { naoTratadas, errosDaPagina } = await abrir(page, { largura, conteudo: {
+      ...CONTEUDO,
+      suplementacao: CONTEUDO.suplementacao.map((s, i) => (i === 0 ? { ...s, observacao: 'Misturar em 200 ml de água, todos os dias, inclusive nos dias sem treino.' } : s)),
+    } });
+    const lista = page.getByRole('group', { name: 'Orientações da dieta' });
+    expect((await lista.boundingBox())!.width).toBeLessThan(720);
+    await aba(page, /^Suplementação/).click();
+    const tabela = (await page.getByRole('group', { name: 'Suplementação da dieta' }).boundingBox())!.width;
+    expect(tabela).toBeGreaterThan(1400);
+    const celula = async (rotulo: string) => (await cartao(page).getByText(rotulo, { exact: true }).locator('..').boundingBox())!.width;
+    const linha = tabela - 2 * 9; // a faixa tem 1 px de borda e 8 de recuo de cada lado
+    expect(Math.abs((await celula('Suplemento')) - linha * 0.28)).toBeLessThan(2);
+    expect(Math.abs((await celula('Dose prescrita')) - Math.min(240, linha * 0.12))).toBeLessThan(2);
+    expect(Math.abs((await celula('Horário')) - Math.min(200, linha * 0.1))).toBeLessThan(2);
+    expect(await celula('Observação')).toBeGreaterThan(linha * 0.4);
+    for (const campo of ['Nome do suplemento 1', 'Observação do suplemento 1']) {
+      const el = page.getByLabel(campo);
+      expect(await el.evaluate((e) => [e.tagName, getComputedStyle(e).resize, e.scrollHeight <= e.clientHeight + 1])).toEqual(['TEXTAREA', 'none', true]);
+    }
+    expect(await page.getByLabel('Observação do suplemento 2').evaluate((e) => (e as HTMLTextAreaElement).rows)).toBe(1);
+    // Linha de uma linha só: os quatro campos com a mesma altura (o texto na mesma linha de base).
+    const alturas = new Set<number>();
+    for (const campo of ['Nome', 'Dose prescrita', 'Horário', 'Observação']) alturas.add(Math.round((await page.getByLabel(`${campo} do suplemento 3`).boundingBox())!.height));
+    expect(alturas.size).toBe(1);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
 
 // 26/11: a cópia saía deslocada (para cima e para o lado) em relação à linha. Agora sai exatamente sobre ela e anda o
 // mesmo que o ponteiro desde o ponto de pega, também depois de reordenar.

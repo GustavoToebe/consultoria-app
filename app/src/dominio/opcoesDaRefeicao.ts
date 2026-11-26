@@ -1,5 +1,5 @@
 import type { OpcaoRefeicao } from '../api/tipos';
-import { somar, type TotaisComFibra } from './dieta';
+import { ehRotuloPadrao, nomeDaOpcao, somar, type TotaisComFibra } from './dieta';
 import { numeroParaTela, SEM_DADO } from './formatos';
 
 /**
@@ -14,7 +14,13 @@ export const MOTIVO_NO_LIMITE_DE_OPCOES = `No máximo ${MAXIMO_DE_OPCOES} opçõ
 /** Selo da primeira opção (a que entra no "Total do dia"), na aba e na comparação. */
 export const CONTA_NO_TOTAL = 'Conta no total do dia';
 
-export const tituloDaOpcao = (o: OpcaoRefeicao) => `Opção ${o.rotulo}`;
+/** "Opção A" (rótulo padrão) ou o rótulo personalizado como está ("Opção Principal": sem prefixo dobrado). */
+export const tituloDaOpcao = (o: OpcaoRefeicao) => nomeDaOpcao(o.rotulo);
+
+/** O que cabe no círculo da aba: a letra (ou o número) do padrão; no personalizado, a inicial do nome ("Opção Principal" → "P"). */
+export const letraDoMarcador = (rotulo: string) => (ehRotuloPadrao(rotulo)
+  ? rotulo.trim()
+  : (rotulo.trim().replace(/^Opção\s+(?=\S)/i, '')[0] ?? '').toUpperCase());
 
 /** Totais da opção; `null` sem item (opção vazia nunca vira "0 kcal": `somar([])` daria zero). */
 export const totaisDaOpcao = (o: OpcaoRefeicao): TotaisComFibra | null => (o.itens.length ? somar(o.itens) : null);

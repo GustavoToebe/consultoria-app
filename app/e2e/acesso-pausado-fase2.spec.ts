@@ -261,13 +261,15 @@ for (const largura of [390, 1280]) {
       await page.setViewportSize({ width: largura, height: 900 });
       let aluno: AlunoDetalhe = { ...ALUNO_DETALHE_BASE };
       let atrasoDisponivel = true;
+      let financeiroForaDoAr = false;
       const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
         ...(await rotasDoTreinador(page, () => aluno)),
         'GET /financeiro/alunos-em-atraso': (_p, route) => (atrasoDisponivel
           ? json(route, { alunoIds: [], truncado: false })
           : json(route, erroApi(503, 'Financeiro indisponível.', 'FINANCEIRO_INDISPONIVEL').corpo, 503)),
-        [`POST /alunos/${ALUNO_ID}/pausar-acesso`]: (_p, route) =>
-          json(route, erroApi(409, 'O aluno não tem cobrança vencida em aberto para pausar o acesso.', 'SEM_COBRANCA_VENCIDA').corpo, 409),
+        [`POST /alunos/${ALUNO_ID}/pausar-acesso`]: (_p, route) => (financeiroForaDoAr
+          ? json(route, erroApi(503, 'Financeiro indisponível.', 'FINANCEIRO_INDISPONIVEL').corpo, 503)
+          : json(route, erroApi(409, 'O aluno não tem cobrança vencida em aberto para pausar o acesso.', 'SEM_COBRANCA_VENCIDA').corpo, 409)),
         [`POST /alunos/${ALUNO_ID}/acesso/reativar`]: (_p, route) => {
           aluno = { ...aluno, acessoDesativadoEm: null, acessoDesativadoMotivo: null };
           return json(route, aluno);
@@ -297,6 +299,17 @@ for (const largura of [390, 1280]) {
       await expect(acesso.getByText('Este aluno não tem cobrança vencida em aberto: o acesso só pausa com uma cobrança vencida.', { exact: true })).toBeVisible();
       await expect(acesso.getByLabel('Situação: Com acesso', { exact: true })).toBeVisible();
 
+      // 503 `FINANCEIRO_INDISPONIVEL` ao pausar: toast de erro, sem erro inline e com o cartão como estava.
+      financeiroForaDoAr = true;
+      await acesso.getByRole('button', { name: 'Ações do acesso', exact: true }).click();
+      await menu.getByRole('button', { name: /^Pausar acesso até quitar/ }).click();
+      await page.getByRole('alertdialog', { name: 'Pausar acesso até quitar?' }).getByRole('button', { name: 'Pausar acesso' }).click();
+      await expect(page.getByText('Não foi possível verificar as cobranças agora. Tente de novo em instantes.', { exact: true })).toBeVisible();
+      await expect(acesso.getByText('Não foi possível verificar as cobranças agora. Tente de novo em instantes.')).toHaveCount(0);
+      await expect(acesso.getByText('Este aluno não tem cobrança vencida em aberto: o acesso só pausa com uma cobrança vencida.')).toHaveCount(0);
+      await expect(acesso.getByLabel('Situação: Com acesso', { exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Carlos Atrasado', level: 1 })).toBeVisible();
+
       // MANUAL: "Acesso desativado" neutro, sem ⋯, e o "Reativar acesso" é o da equipe (nunca o do Financeiro).
       aluno = { ...aluno, acessoDesativadoEm: '2026-10-17T15:00:00Z', acessoDesativadoMotivo: 'MANUAL' };
       await page.reload();
@@ -307,26 +320,34 @@ for (const largura of [390, 1280]) {
       await expect(acesso.getByLabel('Situação: Com acesso', { exact: true })).toBeVisible();
 
       expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho.startsWith('/alunos/')).map((p) => p.caminho)).toEqual([
-        `/alunos/${ALUNO_ID}/pausar-acesso`, `/alunos/${ALUNO_ID}/acesso/reativar`]);
+        `/alunos/${ALUNO_ID}/pausar-acesso`, `/alunos/${ALUNO_ID}/pausar-acesso`, `/alunos/${ALUNO_ID}/acesso/reativar`]);
       // A lista de atraso falhou de propósito (503): ela é tratada; nada mais ficou sem resposta.
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('Treinador sem a permissão do Financeiro: pausado mostra o selo, sem "Reativar acesso" nem "Pausar"; só "Desativar" no ⋯', async ({ page }) => {
+    test('Treinador sem FINANCEIRO_LER: o ATRASO aparece como "Acesso desativado" (lista, cabeçalho e cartão), nunca "pausado" nem cobrança vencida, sem ações de pausa', async ({ page }) => {
       await page.setViewportSize({ width: largura, height: 900 });
       const aluno: AlunoDetalhe = { ...ALUNO_DETALHE_BASE, acessoDesativadoEm: '2026-10-18T12:00:00Z', acessoDesativadoMotivo: 'ATRASO' };
       const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
         ...(await rotasDoTreinador(page, () => aluno, PERMISSOES_TREINADOR)),
       });
+      // Lista: o selo neutro, nunca o âmbar.
+      await page.goto('/treinador/alunos');
+      await expect(page.getByText('Carlos Atrasado')).toBeVisible();
+      await expect(page.getByText('Acesso desativado', { exact: true })).toBeVisible();
+      await expect(page.getByText(/pausado/i)).toHaveCount(0);
+      // Ficha: as mesmas palavras no cabeçalho e no cartão, a nota do desativado e nenhuma menção a atraso.
       await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+      await expect(page.getByRole('heading', { name: 'Carlos Atrasado', level: 1 })).toBeVisible();
+      await expect(page.getByText('Acesso desativado', { exact: true })).toHaveCount(2);
       const acesso = page.getByLabel('Acesso ao app', { exact: true });
-      await expect(acesso.getByLabel('Situação: Acesso pausado', { exact: true })).toBeVisible();
-      await expect(acesso.getByRole('button', { name: 'Reativar acesso' })).toHaveCount(0);
-      await acesso.getByRole('button', { name: 'Ações do acesso', exact: true }).click();
-      const menu = page.getByRole('dialog', { name: 'Ações do acesso' });
-      await expect(menu.getByRole('button', { name: /^Desativar acesso/ })).toBeVisible();
-      await expect(menu.getByRole('button', { name: /^Pausar acesso até quitar/ })).toHaveCount(0);
+      await expect(acesso.getByLabel('Situação: Acesso desativado', { exact: true })).toBeVisible();
+      await expect(acesso.getByText(/^Desativado em 18\/10\./)).toBeVisible();
+      await expect(page.getByText(/pausado|cobrança vencida/i)).toHaveCount(0);
+      // Só o "Reativar acesso" da equipe (ALUNO_CONVITE); nada de pausar, e sem ⋯ (desativar já é o estado).
+      await expect(acesso.getByRole('button', { name: 'Reativar acesso' })).toBeVisible();
+      await expect(acesso.getByRole('button', { name: 'Ações do acesso', exact: true })).toHaveCount(0);
       // Sem a permissão, a lista de atraso nem é pedida.
       expect(pedidos.some((p) => p.caminho === '/financeiro/alunos-em-atraso')).toBe(false);
       expect(naoTratadas).toEqual([]);

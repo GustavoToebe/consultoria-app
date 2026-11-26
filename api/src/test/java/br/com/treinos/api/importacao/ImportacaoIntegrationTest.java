@@ -340,6 +340,14 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         String comObjetivo = "nome;email;objetivo\nRegra Fictícia;" + email + ";Ganhar força\n";
         JsonNode ignorar = previa("alunos", "b.csv", comObjetivo, config);
         assertThat(ignorar.path("ignorados").asInt()).isEqualTo(1);
+        // Confirmar com IGNORAR (grava de verdade, sem travar a linha): conta o ignorado e deixa o aluno intacto.
+        long versao = api.get("/alunos/" + id, treinador, 200).path("versao").asLong();
+        JsonNode ignorado = confirmar("alunos", "b.csv", comObjetivo.getBytes(StandardCharsets.UTF_8), config,
+                hash("alunos", "b.csv", comObjetivo, config));
+        assertThat(ignorado.path("ignorados").asInt()).isEqualTo(1);
+        JsonNode intacto = api.get("/alunos/" + id, treinador, 200);
+        assertThat(intacto.path("objetivo").asString("")).isEmpty();
+        assertThat(intacto.path("versao").asLong()).isEqualTo(versao);
         String completar = config("email", "COMPLETAR", Map.of("nome", 0, "email", 1, "objetivo", 2));
         confirmar("alunos", "c.csv", comObjetivo.getBytes(StandardCharsets.UTF_8), completar, hash("alunos", "c.csv", comObjetivo, completar));
         assertThat(api.get("/alunos/" + id, treinador, 200).path("objetivo").asString()).isEqualTo("Ganhar força");

@@ -177,7 +177,8 @@ class GravadorDaImportacao {
             throw falha(linha, config.chave(), "Há mais de um aluno com esta chave.");
         }
         Aluno atual = achados.isEmpty() ? null : achados.get(0);
-        if (gravar && atual != null) {
+        boolean ignorar = atual != null && "IGNORAR".equals(config.existentes());
+        if (gravar && atual != null && !ignorar) { // linha ignorada não altera nada: não segura a trava do aluno
             // O findAll do começo não trava e a ficha pode ter mudado desde então (outro treinador desativou o acesso, por
             // exemplo). Relê e trava ANTES de vaga, situação e usuário: a ordem consultoria, aluno e usuário é a de quem
             // desativa (aluno, usuário). buscarParaAlterar não serve: a instância já está no contexto e voltaria velha.
@@ -186,7 +187,7 @@ class GravadorDaImportacao {
         if (atual != null && atual.isAnonimizado()) {
             throw falha(linha, config.chave(), "Aluno anonimizado não é atualizado.");
         }
-        if (atual != null && "IGNORAR".equals(config.existentes())) {
+        if (ignorar) {
             conta.ignorados++;
             return;
         }

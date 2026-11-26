@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta, Refeicao } from '../api/tipos';
-import { aguaValida, anuncioDaOpcaoMovida, aplicarReceitaDeDieta, avisoDaNovaOpcaoA, letraDaPosicao, moverOpcao, reletrarOpcoes, restaurarOrdemDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
+import { aguaValida, anuncioDaOpcaoMovida, aplicarReceitaDeDieta, avisoDaNovaOpcaoA, ehRotuloPadrao, letraDaPosicao, moverOpcao, nomeDaOpcao, novaOpcao, opcaoNaFrase, reletrarOpcoes, restaurarOrdemDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -309,6 +309,62 @@ describe('reordenar as opções: a letra segue a posição (26/11)', () => {
     const m = moverOpcao([opcao('x', 'A'), opcao('z', 'C'), opcao('w', 'D')], 2, 1)!;
     expect(ordem(m.opcoes)).toBe('A:x B:w C:z');
     expect(m.letraAntes).toBe('D');
+  });
+
+  it('rótulo padrão = letra A-F ou número (vazio volta a ser padrão); o resto é personalizado e fica como está', () => {
+    expect(['A', 'F', '7', '12', ''].map(ehRotuloPadrao)).toEqual([true, true, true, true, true]);
+    expect(['Opção Principal', 'Principal', 'G', 'AB', 'a'].map(ehRotuloPadrao)).toEqual([false, false, false, false, false]);
+    expect([nomeDaOpcao('B'), nomeDaOpcao('Opção Principal'), opcaoNaFrase('B'), opcaoNaFrase('Opção Principal')])
+      .toEqual(['Opção B', 'Opção Principal', 'opção B', 'opção Principal']);
+  });
+
+  it('o personalizado não vira letra ao reordenar, e a instância continua a mesma', () => {
+    const principal = opcao('p', 'Opção Principal', 1);
+    const r = reletrarOpcoes([opcao('x', 'B'), principal, opcao('z', 'F')]);
+    expect(ordem(r)).toBe('A:x Opção Principal:p C:z');
+    expect(r[1]).toBe(principal);
+  });
+
+  it('mistura (A, "Principal", C): mover a C para o início reletra só as de rótulo padrão; o personalizado fica', () => {
+    const mista = [opcao('x', 'A', 1), opcao('p', 'Principal', 1), opcao('z', 'C')];
+    const m = moverOpcao(mista, 2, 0)!;
+    expect(ordem(m.opcoes)).toBe('A:z B:x Principal:p');
+    expect(m).toMatchObject({ uid: 'z', letraAntes: 'C', letraDepois: 'A', novaPrimeira: 'C' });
+    expect(m.opcoes[2].itens).toBe(mista[1].itens);
+  });
+
+  it('personalizado movido: o rótulo fica, os textos não falam em letra e a posição 1 é a que conta no total do dia', () => {
+    const tresMistas = [opcao('x', 'A', 1), opcao('p', 'Opção Principal', 1), opcao('z', 'C')];
+    const m = moverOpcao(tresMistas, 1, 0)!;
+    expect(ordem(m.opcoes)).toBe('Opção Principal:p B:x C:z');
+    expect(m).toMatchObject({ letraAntes: 'Opção Principal', letraDepois: 'Opção Principal', novaPrimeira: 'Opção Principal' });
+    expect(avisoDaNovaOpcaoA(m.novaPrimeira!)).toBe('Principal agora conta no total do dia.');
+    expect(anuncioDaOpcaoMovida(m)).toBe('Principal movida para a posição 1.');
+    // O total do dia é o da posição 1, seja qual for o rótulo.
+    const dia = (opcoes: typeof tresMistas) => totalDoDia([{ uid: 'r', nome: 'R', horario: null, observacao: null, modoDePreparo: null, opcoes }]).kcal;
+    const comKcal = (o: ReturnType<typeof opcao>, kcal: number) => ({ ...o, itens: o.itens.map((i) => ({ ...i, kcal })) });
+    const base = [comKcal(tresMistas[0], 100), comKcal(tresMistas[1], 300), tresMistas[2]];
+    expect(dia(base)).toBe(100);
+    expect(dia(moverOpcao(base, 1, 0)!.opcoes)).toBe(300);
+    // A padrão que passa para a frente de um personalizado continua falando em letra.
+    const aposMover = moverOpcao([opcao('p', 'Opção Principal'), opcao('y', 'B')], 1, 0)!;
+    expect(avisoDaNovaOpcaoA(aposMover.novaPrimeira!)).toBe('Opção B agora é a Opção A e conta no total do dia.');
+    expect(ordem(aposMover.opcoes)).toBe('A:y Opção Principal:p');
+    expect(anuncioDaOpcaoMovida(aposMover)).toBe('Opção B movida para a posição 1: agora é a Opção A.');
+  });
+
+  it('opção padrão que não muda de letra não diz "agora é" igual; "Escolha uma das opções" usa o nome curto do personalizado', () => {
+    expect(anuncioDaOpcaoMovida({ letraAntes: 'A', letraDepois: 'A', para: 0 })).toBe('Opção A movida para a posição 1.');
+    expect(textoEscolhaDasOpcoes(['Opção Principal', 'B'])).toBe('Escolha uma das opções: Principal ou B.');
+  });
+
+  it('nova opção e Desfazer seguem valendo com o personalizado: a nova ganha a letra da posição; o Desfazer devolve os rótulos de antes', () => {
+    const base = [opcao('p', 'Opção Principal', 1), opcao('y', 'B', 1)];
+    const nova = reletrarOpcoes([...base, novaOpcao(base)]);
+    expect(nova.map((o) => o.rotulo)).toEqual(['Opção Principal', 'B', 'C']);
+    const antes = base.map(({ uid, rotulo }) => ({ uid, rotulo }));
+    const movidas = moverOpcao(base, 1, 0)!.opcoes;
+    expect(ordem(restaurarOrdemDasOpcoes(movidas, antes))).toBe('Opção Principal:p B:y');
   });
 
   it('Desfazer: volta a ordem e as letras de antes pelo uid, com os itens de agora; nova vai ao fim, excluída não volta', () => {

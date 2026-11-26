@@ -7,7 +7,7 @@ import { abertaDepoisDeMover, abertaDepoisDeRemover, LIMITES_DOS_COMPLEMENTOS, p
 import { mover, substituir } from '../../dominio/editorTreino';
 import { moverPara } from '../../dominio/reordenar';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR_DE_CAMPOS, LARGURA_TEXTO_CORRIDO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_TEXTO_CORRIDO } from '../../tema/tokens';
 import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -28,7 +28,7 @@ const LARGURA_EM_LINHA = 520;
 /**
  * Aba Orientações do cartão Complementos (25/11): lista compacta e reordenável, uma linha por orientação com a alça, o
  * título em negrito, o começo do texto em secundário (uma linha, reticências) e o ⋯ (mover e excluir, com Desfazer).
- * Tocar na linha abre a edição ali mesmo (título e texto em largura de leitura); só uma aberta por vez, e a nova já nasce
+ * Tocar na linha abre a edição ali mesmo (a aba toda fica em largura de leitura); só uma aberta por vez, e a nova já nasce
  * aberta com o foco no título. As orientações não têm uid: a aberta é um índice que segue o item ao mover e ao remover.
  */
 export function OrientacoesDaDieta({ orientacoes, aoMudar, aoRemover }: {
@@ -147,8 +147,8 @@ function LinhaDaOrientacao({ orientacao: o, posicao, total, emLinha, aberta, foc
 }
 
 const estilos = StyleSheet.create({
-  // Na tela larga a lista para em 1400 px, como a tabela da Suplementação: o ⋯ fica perto do texto (4.10).
-  aba: { gap: espaco(2), maxWidth: LARGURA_EDITOR_DE_CAMPOS },
+  // Largura de leitura (~72 caracteres), à esquerda do cartão: a lista, a edição aberta e o botão (26/11).
+  aba: { gap: espaco(2), maxWidth: LARGURA_TEXTO_CORRIDO },
   itens: { gap: 6 },
   faixa: { borderRadius: 12, borderWidth: 1, paddingHorizontal: espaco(1), paddingVertical: espaco(0.5) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
@@ -163,6 +163,6 @@ const estilos = StyleSheet.create({
   textoDoTitulo: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 21, flexShrink: 1 },
   comeco: { paddingLeft: 16 + espaco(0.75) },
   comecoEmLinha: { flex: 1, minWidth: 0, paddingLeft: 0 },
-  edicao: { gap: espaco(1.5), paddingTop: espaco(1), paddingBottom: espaco(1.5), paddingLeft: LARGURA_DA_ALCA + espaco(1.5), paddingRight: espaco(1), maxWidth: LARGURA_TEXTO_CORRIDO },
+  edicao: { gap: espaco(1.5), paddingTop: espaco(1), paddingBottom: espaco(1.5), paddingLeft: LARGURA_DA_ALCA + espaco(1.5), paddingRight: espaco(1) },
   campoDoTexto: { gap: espaco(0.5) },
 });

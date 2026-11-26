@@ -126,11 +126,13 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('textbox', { name: 'Série 3 · Mínimo (%)', exact: true })).toHaveValue('85');
     await expect(page.getByRole('textbox', { name: 'Série 3 · Máximo (%)', exact: true })).toHaveValue('90');
     expect(await semRolagemDeLado(page)).toBe(true);
-    // C2: o botão de excluir do exercício tem 44 px ou mais de alvo. visual-ponytail (17/11): virou "Excluir" com texto (`perigoTexto`), não mais ícone com moldura de 40.
-    const lixo = page.getByRole('button', { name: 'Remover Agachamento fictício', exact: true });
+    // C2: o botão de excluir do exercício tem 44 px ou mais de alvo. 26/11: "Excluir exercício" tonal (`perigo`), ao lado do ⋯.
+    const lixo = page.getByRole('button', { name: 'Excluir exercício: Agachamento fictício', exact: true });
     const alvo = (await lixo.boundingBox())!;
     expect(Math.min(alvo.width, alvo.height)).toBeGreaterThanOrEqual(43.5);
-    await expect(lixo.getByText('Excluir', { exact: true })).toBeVisible();
+    await expect(lixo.getByText('Excluir exercício', { exact: true })).toBeVisible();
+    const mais = (await page.getByRole('button', { name: 'Mais ações de Agachamento fictício', exact: true }).boundingBox())!;
+    expect(Math.abs(mais.y + mais.height / 2 - (alvo.y + alvo.height / 2))).toBeLessThan(4);
     await page.screenshot({ path: testInfo.outputPath('editor-clareza.png'), fullPage: true });
     // Descer a série 1 (o grupo FS) muda só a ordem das séries do exercício.
     // arrastar (18/11): pelo ⋯ da série aberta.
@@ -337,14 +339,24 @@ for (const [tema, cores] of [['CLARO', CLARO], ['ESCURO', ESCURO]] as const) {
 }
 
 for (const largura of [390, 1280]) {
-  test(`editor: remover a sessão fica no ⋯, com "Desfazer", e "Adicionar exercício" vem primeiro, com "Adicionar cardio" ao lado (${largura}px)`, async ({ page }) => {
+  test(`editor: "Excluir sessão" fica ao lado do ⋯, com "Desfazer", e "Adicionar exercício" vem primeiro, com "Adicionar cardio" ao lado (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoComDoisExercicios(page);
-    // Remover a sessão não é mais um botão solto no rodapé: fica só no ⋯ do cabeçalho.
-    await expect(page.getByRole('button', { name: 'Remover sessão', exact: true })).toHaveCount(0);
+    // 26/11: "Excluir sessão" é botão de perigo no cabeçalho, ao lado do ⋯ (não mais dentro dele); o ⋯ fica com "Salvar como".
+    const excluir = page.getByRole('button', { name: /^Excluir sessão: / });
+    await expect(excluir).toHaveCount(1);
     await expect(page.getByRole('button', { name: /^Mais ações da sessão/ })).toHaveCount(1);
     await page.getByRole('button', { name: 'Adicionar sessão', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Remover sessão', exact: true })).toHaveCount(0);
+    await expect(excluir).toHaveCount(1);
+    await expect(excluir.getByText('Excluir sessão', { exact: true })).toBeVisible();
+    const mais = (await page.getByRole('button', { name: /^Mais ações da sessão/ }).first().boundingBox())!;
+    const lixo = (await excluir.boundingBox())!;
+    expect(Math.abs(mais.y + mais.height / 2 - (lixo.y + lixo.height / 2))).toBeLessThan(4);
+    expect(lixo.x).toBeGreaterThan(mais.x);
+    expect(await semRolagemDeLado(page)).toBe(true);
+    await page.getByRole('button', { name: /^Mais ações da sessão/ }).first().click();
+    await expect(page.getByText('Remover sessão', { exact: true })).toHaveCount(0);
+    await page.keyboard.press('Escape');
     // Sessão nova e vazia: o convite "Monte esta sessão" com "Adicionar exercício" primeiro, "Usar modelo" e "Adicionar
     // cardio" (10/11).
     await expect(page.getByText('Monte esta sessão', { exact: true })).toBeVisible();
@@ -354,8 +366,7 @@ for (const largura of [390, 1280]) {
     const cardio = (await page.getByRole('button', { name: 'Adicionar cardio', exact: true }).boundingBox())!;
     expect(antes(adicionar, modelos)).toBe(true);
     expect(antes(modelos, cardio)).toBe(true);
-    await page.getByRole('button', { name: /^Mais ações da sessão/ }).first().click();
-    await page.getByText('Remover sessão', { exact: true }).click();
+    await excluir.click();
     await expect(page.getByText(/Sessão “.*” removida\./)).toBeVisible();
     await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
     await expect(page.getByRole('button', { name: /^Mais ações da sessão/ }).first()).toBeVisible();
