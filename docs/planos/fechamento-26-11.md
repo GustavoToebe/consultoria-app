@@ -76,7 +76,7 @@ Verificação (lote integrado, medida no mesmo dia): typecheck 0 erros (parte de
 
 Não conferido: aparelho nativo (a medição de `CampoDaTabela` fora da web segue a estimativa por caractere), temas além do Escuro (Areia e outras paletas) nas capturas novas, tema claro do menu recolhido, capturas de 880 e 1103 da Marca refeitas depois da correção (só leitura de código e e2e).
 
-## Pós-fechamento (27/11, branch `rodada-pos-fechamento`, worktree `consultoria-app-rodada-27-11`)
+## Pós-fechamento (27/11, commit `bd5e292c`, branch `rodada-pos-fechamento`, worktree `consultoria-app-rodada-27-11`)
 Pedido: três acabamentos e uma limpeza das "Pendências soltas". Só `app/`; sem push.
 
 | # | Item | Status | Evidência |
