@@ -48,6 +48,10 @@
 
 **Pode esperar (também em "Pendências soltas" do `docs/planos/README.md`):** rotação do token do webhook (I4), subconta órfã (I5), `toString` de `GerarPixAsaasRequest`, `temCpfCadastrado`, o texto "Pix e Cartão" em `central-api-front/.../homologacao-split.component.ts:74` e os itens 3 e 6 da revisão da Central.
 
+**Não conferido ou atenção:**
+- **Pasta de trabalho separada (worktree) precisa de `npm ci` próprio em `app/`.** Com `node_modules` sendo um atalho (junction) para a pasta principal, o `expo export` sai sem rotas (bundle de ~1,2 MB, tela em branco, "No routes found") e o e2e falha em massa por tela vazia, sem relação com o código da branch (visto em 27/11 neste worktree: 383 falhas; depois do `npm ci` o spec `abas-alcance` passou). Remover a pasta no futuro: o `node_modules` dela agora é próprio, não há atalho a desfazer. O Gustavo leva isso ao `AGENTS.md` pela sessão dos níveis de validação.
+- Não verificado no sandbox do Asaas (depende da conta): `pixQrCode` com cobrança `UNDEFINED`, meio real em `GET /payments/{id}` e boleto na página.
+
 ---
 
 > **Regra de ouro deste plano:** nada do que já roda em produção para o piloto do Saraiva é removido ou quebrado. Todo o trabalho acontecerá em **branches isoladas** nos dois repositórios, com servidor simulado (`AsaasFalso`) para rodar 100% dos testes locais mesmo **antes** de abrir a conta PJ no Asaas.

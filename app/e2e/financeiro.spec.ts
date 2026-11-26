@@ -1171,6 +1171,7 @@ test('Recebimento online do treinador: salva a tag e a chave, a chave nunca volt
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro');
   await page.getByRole('tab', { name: 'Recebimento' }).click();
+  await page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
 
   await expect(page.getByText('Ainda não configurado', { exact: true })).toBeVisible();
   const tag = page.getByLabel('InfiniteTag', { exact: true });
@@ -1226,6 +1227,7 @@ test('Recebimento online: tag curta e chave curta são recusadas na tela, sem ch
   const estado = estadoFinanceiro();
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=recebimento');
+  await page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
 
   await page.getByLabel('InfiniteTag', { exact: true }).fill('ab');
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
@@ -1245,6 +1247,7 @@ test('Recebimento online sem permissão de alterar: só leitura, sem campos', as
   const estado = estadoFinanceiro({ recebimento: { ...RECEBIMENTO_CONFIGURADO } });
   const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page, ['FINANCEIRO_LER'])), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=recebimento');
+  await page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
 
   await expect(page.getByText('saraiva.team', { exact: true })).toBeVisible();
   await expect(page.getByText('Chave configurada', { exact: true })).toBeVisible();
@@ -1294,6 +1297,7 @@ test('cobrança em aberto sem recebimento configurado: sem botão de link, com o
   await folha.getByRole('link', { name: 'Configurar o recebimento online' }).click();
   await expect(page).toHaveURL(/aba=recebimento/);
   await expect(page.getByRole('tab', { name: 'Recebimento', selected: true })).toBeVisible();
+  await page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
   await expect(page.getByText('Ainda não configurado', { exact: true })).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });
@@ -1587,6 +1591,7 @@ test('juros do parcelamento: "Você" fica apagado sem chave, com o motivo; com a
   const estado = estadoFinanceiro();
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=recebimento');
+  await page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
 
   await expect(page.getByText(JUROS, { exact: true })).toBeVisible();
   await expect(page.getByText('Aluno: ele paga os juros quando parcela no cartão. Você: você absorve os juros do parcelamento.')).toBeVisible();
@@ -1636,6 +1641,7 @@ test('juros do parcelamento: remover a chave estando em "Você" manda os juros d
   const estado = estadoFinanceiro({ recebimento: { ...RECEBIMENTO_CONFIGURADO, jurosDoParcelamento: 'TREINADOR' }, chaveGuardada: CHAVE_DE_TESTE });
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=recebimento');
+  await page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
 
   await expect(opcao(page, JUROS, 'Você')).toHaveAttribute('aria-checked', 'true');
   await page.getByRole('button', { name: 'Remover chave' }).click();
@@ -1667,6 +1673,7 @@ test('juros do parcelamento: o 422 do campo aparece sob a escolha, sem derrubar 
     },
   });
   await page.goto('/treinador/financeiro?aba=recebimento');
+  await page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
 
   await opcao(page, JUROS, 'Você').click();
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
@@ -1680,6 +1687,7 @@ test('juros do parcelamento sem permissão de alterar: só leitura, sem a escolh
   const estado = estadoFinanceiro({ recebimento: { ...RECEBIMENTO_CONFIGURADO, jurosDoParcelamento: 'TREINADOR' } });
   const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page, ['FINANCEIRO_LER'])), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=recebimento');
+  await page.getByRole('button', { name: /Integrações externas opcionais, recolhido/i }).click();
 
   await expect(page.getByText(JUROS, { exact: true })).toBeVisible();
   await expect(page.getByText('O treinador absorve os juros')).toBeVisible();
