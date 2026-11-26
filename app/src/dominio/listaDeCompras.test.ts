@@ -248,11 +248,9 @@ describe('quantidadeParaTela', () => {
     expect(quantidadeParaTela(10.5, 'un')).toBe('11 un');
   });
 
-  it('texto do período', () => {
-    expect(textoDoPeriodo('semana')).toBe('Semana (7 dias)');
-    expect(textoDoPeriodo('duasSemanas')).toBe('2 semanas (14 dias)');
-    expect(textoDoPeriodo('mes')).toBe('Mês (30 dias)');
-    expect(PERIODOS_DA_LISTA.map(tituloDaLista)).toEqual(['Lista da semana', 'Lista de 2 semanas', 'Lista do mês']);
+  it('texto do período: o número de dias da conta (7, 14 e 30)', () => {
+    expect(PERIODOS_DA_LISTA.map(textoDoPeriodo)).toEqual(['7 dias', '14 dias', '30 dias']);
+    expect(PERIODOS_DA_LISTA.map(tituloDaLista)).toEqual(['Lista de 7 dias', 'Lista de 14 dias', 'Lista de 30 dias']);
   });
 });
 

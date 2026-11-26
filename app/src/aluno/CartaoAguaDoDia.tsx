@@ -25,7 +25,8 @@ import { DatasDaMobilidade } from './DatasDaMobilidade';
  * Água do dia (docs/planos/agua-do-aluno.md): o aluno marca copos de 250 ml (−/+) e vê "1,5 L de 3,0 L" contra a "Água
  * por dia" da dieta. Grava no aparelho na hora e vai na mesma fila de envio das séries, inclusive sem internet. Só aparece
  * com meta na dieta (quem chama confere). Hoje e os 6 dias anteriores, no "hoje" de Brasília (o do servidor). A barra usa
- * a cor do texto: sem cor de alerta nem comemoração, o app não julga quanto o aluno tomou. `compacto` (o Início, onde o
+ * a cor do texto: sem cor de alerta nem comemoração, o app não julga quanto o aluno tomou. Em todas as larguras o cartão é
+ * uma pilha só (título, números, barra e botões embaixo, que quebram se não couberem). `compacto` (o Início, onde o
  * "Ver meu treino" precisa caber na primeira tela do celular) mostra só hoje, sem a explicação nem os outros dias; a aba
  * Dieta tem o cartão inteiro.
  */
@@ -67,17 +68,15 @@ export function CartaoAguaDoDia({ metaLitros, compacto = false }: { metaLitros: 
     <Cartao
       titulo={ehHoje ? 'Água de hoje' : `Água em ${dataCurta(dia)}`}
       descricao={compacto ? undefined : 'Toque em + a cada copo de 250 ml que tomar.'}>
-      {/* Compacto, os botões ficam na linha dos números (quebram para baixo se não couberem). */}
       <View style={estilos.topo}>
         <Droplet size={22} color={cores.texto} aria-hidden />
         <View style={estilos.numeros} accessibilityLiveRegion="polite">
           <Texto numerico style={estilos.litros}>{textoDaAguaDoDia(ml, metaLitros)}</Texto>
           <Texto variante="suave" numerico>{registrado === undefined ? 'Nada marcado neste dia' : textoDosCopos(ml)}</Texto>
         </View>
-        {compacto ? botoes : null}
       </View>
       <BarraProgresso feitas={ml} total={meta} cor={cores.texto} />
-      {compacto ? null : botoes}
+      {botoes}
       {compacto ? null : (
         <DatasDaMobilidade
           datas={dias}
@@ -94,8 +93,8 @@ export function CartaoAguaDoDia({ metaLitros, compacto = false }: { metaLitros: 
 }
 
 const estilos = StyleSheet.create({
-  topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.5) },
-  numeros: { flexGrow: 1, flexShrink: 1, flexBasis: 150, gap: espaco(0.25) },
+  topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
+  numeros: { flex: 1, gap: espaco(0.25) },
   litros: { fontFamily: fontes.semi, fontSize: 20 },
   botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
 });

@@ -248,6 +248,15 @@ export function gruposDoAluno(itens: readonly ItemDaListaDoAluno[]): GrupoDaList
   return agruparLista(itens, (i) => i.grupo, (i) => i.origem === 'avulso');
 }
 
+/**
+ * Os grupos como a tela do aluno mostra (A7, 25/11): os de `gruposDoAluno`, com os comprados no fim de cada grupo. Ordem
+ * estável: os não comprados ficam como estavam e os comprados descem na ordem em que estavam. O PDF segue com
+ * `gruposDoAluno` (as caixas saem vazias, então ali a ordem não muda).
+ */
+export function gruposDaTelaDoAluno(itens: readonly ItemDaListaDoAluno[]): GrupoDaLista<ItemDaListaDoAluno>[] {
+  return gruposDoAluno(itens).map((g) => ({ ...g, itens: [...g.itens.filter((i) => !i.comprado), ...g.itens.filter((i) => i.comprado)] }));
+}
+
 /** Marca de origem na tela e no PDF; o calculado não tem marca. */
 export function textoDaOrigem(origem: OrigemDoItem): string | null {
   if (origem === 'ajustado') return 'Ajustado por você';

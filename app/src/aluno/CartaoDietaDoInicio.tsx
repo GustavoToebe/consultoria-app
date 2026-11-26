@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { Droplet, Utensils } from 'lucide-react-native';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Utensils } from 'lucide-react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { DietaNoInicio } from '../dominio/inicioDoAluno';
 import { useTema } from '../tema/TemaProvider';
@@ -10,18 +10,14 @@ import { propsDeLink } from '../ui/propsDeLink';
 import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
 
-/** Abaixo disto o ícone da dieta sai do cartão: sem ele o texto cabe em duas linhas ao lado da água. */
-const LARGURA_COM_ICONE = 380;
-
 /**
- * Dieta compacta no início do aluno (pedido do Saraiva, R15): "Dieta · N refeições no seu plano · Ver dieta →" e, à
- * direita, separada por um traço vertical, a água do dia. O cartão inteiro abre a Dieta. Os números são os que o
- * treinador escreveu: sem água a coluna some, sem dieta publicada a linha diz isso, e falha ao carregar nunca vira "não
- * publicada" (oferece "Tentar de novo"). A água usa a cor do texto: não existe cor de informação nos tokens.
+ * Dieta compacta no início do aluno (pedido do Saraiva, R15): "Dieta · N refeições no seu plano · Ver dieta →", numa
+ * linha só (25/11: a água saiu daqui e fica só no cartão "Água de hoje"). O cartão inteiro abre a Dieta. Os números são
+ * os que o treinador escreveu: sem dieta publicada a linha diz isso, e falha ao carregar nunca vira "não publicada"
+ * (oferece "Tentar de novo").
  */
 export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaNoInicio; aoTentarDeNovo: () => void }) {
   const { cores } = useTema();
-  const { width } = useWindowDimensions();
   const moldura = { backgroundColor: cores.superficie, borderColor: cores.divisor };
 
   if (estado.tipo === 'carregando') {
@@ -44,18 +40,16 @@ export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaN
       </View>
     );
   }
-  const { refeicoes, agua } = estado;
+  const { refeicoes } = estado;
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`Dieta, ${refeicoes}${agua ? `, água do dia ${agua}` : ''}. Ver dieta.`}
+      accessibilityLabel={`Dieta, ${refeicoes}. Ver dieta.`}
       {...propsDeLink('/aluno/dieta', () => router.navigate('/aluno/dieta'))}
       style={(e) => [estilos.cartao, estilos.linha, { backgroundColor: sobre(e) ? cores.sobre : cores.superficie, borderColor: cores.divisor }]}>
-      {width >= LARGURA_COM_ICONE ? (
-        <View style={[estilos.icone, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
-          <Utensils size={20} color={cores.texto} aria-hidden />
-        </View>
-      ) : null}
+      <View style={[estilos.icone, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+        <Utensils size={20} color={cores.texto} aria-hidden />
+      </View>
       <View style={estilos.textos}>
         <View style={estilos.titulo}>
           <Texto style={estilos.nome}>Dieta</Texto>
@@ -63,18 +57,6 @@ export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaN
         </View>
         <Texto variante="suave" numerico>{refeicoes}</Texto>
       </View>
-      {agua ? (
-        <>
-          <View style={[estilos.traco, { backgroundColor: cores.divisor }]} />
-          <View style={estilos.agua}>
-            <View style={estilos.rotuloAgua}>
-              <Droplet size={14} color={cores.texto} aria-hidden />
-              <Texto variante="pequeno">Água do dia</Texto>
-            </View>
-            <Texto numerico style={estilos.litros}>{agua}</Texto>
-          </View>
-        </>
-      ) : null}
     </Pressable>
   );
 }
@@ -89,8 +71,4 @@ const estilos = StyleSheet.create({
   titulo: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: espaco(1) },
   nome: { fontFamily: fontes.negrito, fontSize: 16, lineHeight: 22 },
   ver: { fontFamily: fontes.semi, fontSize: 13, lineHeight: 18, textDecorationLine: 'underline' },
-  traco: { alignSelf: 'stretch', width: 1 },
-  agua: { alignItems: 'flex-start', gap: 2 },
-  rotuloAgua: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
-  litros: { fontFamily: fontes.negrito, fontSize: 18, lineHeight: 24 },
 });

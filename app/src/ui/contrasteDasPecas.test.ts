@@ -322,7 +322,7 @@ function sobreposta(cor: string, alfa: number, base: string): string {
 /**
  * Telas do aluno revistas na reunião de 30/10 (A8 a A12): série do exercício, dieta, lista de compras e variação do peso.
  * Achado: a lista de compras esmaecia o item comprado (opacidade 0,6), o que deixava o texto a 2,8–4,2:1; agora o item
- * fica com a cor cheia e ganha o selo "Comprado". Os pares abaixo são os que essas telas usam.
+ * fica com a cor cheia, riscado e no fim do grupo (o selo "Comprado" saiu em 25/11). Os pares abaixo são os que essas telas usam.
  */
 describe.each(VARIANTES)('telas do aluno (reunião de 30/10) no tema %s', (_nome, cores) => {
   /** Fundo da série feita: `${sucesso}29` (alfa 0x29) sobre `superficie2` (`CartaoSerie`). */
@@ -354,7 +354,7 @@ describe.each(VARIANTES)('telas do aluno (reunião de 30/10) no tema %s', (_nome
     }
   });
 
-  it('lista de compras: item comprado com a cor cheia e o selo "Comprado" (sucesso) e de origem (neutro) sobre o item', () => {
+  it('lista de compras: item comprado com a cor cheia (riscado, sem selo) e a marca de origem (neutro) sobre o item', () => {
     for (const fundo of [cores.superficie2, cores.superficie3]) {
       expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
       expect(contraste(cores.sucesso, fundo)).toBeGreaterThanOrEqual(4.5);

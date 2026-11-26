@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import type { ConteudoDieta, ItemDieta, VersaoDetalhe } from '../src/api/tipos';
-import type { PlanoDetalhe } from '../src/api/tipos';
+import type { ConteudoDieta, ItemDieta, PlanoDetalhe, VersaoDetalhe } from '../src/api/tipos';
 import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 import { sessaoDeAluno } from './aluno';
 
@@ -64,7 +63,7 @@ const DIETA: VersaoDetalhe<ConteudoDieta> = {
   conteudo: CONTEUDO,
 };
 
-test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e opção por refeição', async ({ page }) => {
+test('lista de compras: 7 e 30 dias, quantidade crua pelo fator de cocção e opção por refeição', async ({ page }) => {
   const { naoTratadas, errosDaPagina } = await simularApi(page, {
     ...(await sessaoDeAluno(page)),
     'GET /aluno/dieta': { corpo: { dieta: DIETA } },
@@ -73,8 +72,8 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   await expect(page.getByRole('heading', { name: 'Lista de compras', level: 1 })).toBeVisible();
   await expect(page.getByText('Dieta de teste', { exact: true })).toBeVisible();
 
-  // Semana: arroz 150 g ÷ 2,5 = 60 g cru por dia (420 g). Frango grelhado sem fator gravado: FCc 0,78 e FC 1,12.
-  await expect(page.getByText('Lista da semana')).toBeVisible();
+  // 7 dias: arroz 150 g ÷ 2,5 = 60 g cru por dia (420 g). Frango grelhado sem fator gravado: FCc 0,78 e FC 1,12.
+  await expect(page.getByText('Lista de 7 dias')).toBeVisible();
   await expect(page.getByText('420 g cru')).toBeVisible();
   await expect(page.getByText('1,01 kg cru')).toBeVisible();
   await expect(page.getByText('14 un')).toBeVisible();
@@ -83,9 +82,9 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   await emOrdemNaTela(page, ['Carnes e derivados', 'Frango grelhado', 'Cereais e derivados', 'Arroz branco cozido', 'Outros itens', 'Ovo']);
   await expect(page.getByText('1 item')).toHaveCount(3);
 
-  // Mês (30 dias): passa de 1.000 g vira kg, arredondado para cima.
-  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: 'Mês' }).click();
-  await expect(page.getByText('Lista do mês')).toBeVisible();
+  // 30 dias: passa de 1.000 g vira kg, arredondado para cima.
+  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: '30 dias', exact: true }).click();
+  await expect(page.getByText('Lista de 30 dias')).toBeVisible();
   await expect(page.getByText('1,80 kg cru')).toBeVisible();
   await expect(page.getByText('4,31 kg cru')).toBeVisible();
   await expect(page.getByText('60 un')).toBeVisible();
@@ -146,33 +145,33 @@ test('lista de compras: grupos do catálogo na ordem do mercado, grupo do treina
 });
 
 for (const largura of [390, 1280]) {
-test(`lista de compras do aluno: 2 semanas, comprado, limpar, ajustar, voltar ao calculado e item avulso, guardados no aparelho, em ${largura}px`, async ({ page }) => {
+test(`lista de compras do aluno: 14 dias, comprado, limpar, ajustar, voltar ao calculado e item avulso, guardados no aparelho, em ${largura}px`, async ({ page }) => {
   await page.setViewportSize({ width: largura, height: 900 });
   const { naoTratadas, errosDaPagina } = await simularApi(page, {
     ...(await sessaoDeAluno(page)),
     'GET /aluno/dieta': { corpo: { dieta: DIETA } },
   });
   await page.goto('/aluno/lista-de-compras');
-  await expect(page.getByText('Lista da semana')).toBeVisible();
+  await expect(page.getByText('Lista de 7 dias')).toBeVisible();
 
-  // 2 semanas (14 dias): arroz 60 g cru por dia = 840 g; frango 100 g = 1,40 kg; ovos 2 por dia = 28.
-  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: '2 semanas' }).click();
-  await expect(page.getByText('Lista de 2 semanas')).toBeVisible();
+  // 14 dias: arroz 60 g cru por dia = 840 g; frango 100 g = 1,40 kg; ovos 2 por dia = 28.
+  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: '14 dias', exact: true }).click();
+  await expect(page.getByText('Lista de 14 dias')).toBeVisible();
   await expect(page.getByText('840 g cru', { exact: true })).toBeVisible();
   await expect(page.getByText('2,02 kg cru', { exact: true })).toBeVisible();
   await expect(page.getByText('28 un', { exact: true })).toBeVisible();
   await expect(page.getByText('0 de 3 comprados')).toBeVisible();
 
-  // Comprado: o ✓ marca e a contagem sobe; fica no aparelho (recarregar mantém) e vale só para este período.
-  await page.getByRole('checkbox', { name: 'Ovo: não comprado' }).click();
+  // Comprado: a caixa redonda marca e a contagem sobe; fica no aparelho (recarregar mantém) e vale só para este período.
+  await page.getByRole('checkbox', { name: 'Ovo, marcar como comprado' }).click();
   await expect(page.getByText('1 de 3 comprados')).toBeVisible();
-  await expect(page.getByRole('checkbox', { name: 'Ovo: comprado' })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Ovo, marcar como comprado' })).toBeChecked();
   await page.reload();
-  await expect(page.getByText('Lista de 2 semanas')).toBeVisible();
+  await expect(page.getByText('Lista de 14 dias')).toBeVisible();
   await expect(page.getByText('1 de 3 comprados')).toBeVisible();
-  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: 'Semana (7 dias)' }).click();
+  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: '7 dias', exact: true }).click();
   await expect(page.getByText('0 de 3 comprados')).toBeVisible();
-  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: '2 semanas' }).click();
+  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: '14 dias', exact: true }).click();
   await expect(page.getByText('1 de 3 comprados')).toBeVisible();
 
   // Limpar marcações, com desfazer no aviso.
@@ -220,9 +219,94 @@ test(`lista de compras do aluno: 2 semanas, comprado, limpar, ajustar, voltar ao
   await page.getByRole('button', { name: 'Desfazer' }).click();
   await expect(page.getByText('Adicionado por você')).toBeVisible();
   await page.getByRole('button', { name: 'Concluir ajustes' }).click();
-  await page.getByRole('checkbox', { name: 'Café: não comprado' }).click();
+  await page.getByRole('checkbox', { name: 'Café, marcar como comprado' }).click();
   await expect(page.getByText('2 de 4 comprados')).toBeVisible();
   await page.screenshot({ path: `test-results-e2e/lista-de-compras-${largura}.png`, fullPage: true });
+
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+}
+
+/** Um grupo com vários itens (cereais) e um sozinho (ovo), para conferir a ordem dos comprados dentro do grupo. */
+const COM_GRUPO_CHEIO: ConteudoDieta = {
+  ...CONTEUDO,
+  refeicoes: [{
+    uid: 'unica', nome: 'Refeição', horario: '12:00', observacao: null,
+    opcoes: [{
+      uid: 'unica-a', rotulo: 'A',
+      itens: [
+        item('arroz', 'Arroz branco cozido', 100, 'g', { grupo: 'Cereais e derivados', fatorCorrecao: 1, fatorCoccao: 1 }),
+        item('aveia', 'Aveia em flocos', 30, 'g', { grupo: 'Cereais e derivados', fatorCorrecao: 1, fatorCoccao: 1 }),
+        item('pao', 'Pão francês', 50, 'g', { grupo: 'Cereais e derivados', fatorCorrecao: 1, fatorCoccao: 1 }),
+        item('ovo', 'Ovo', 2, 'un'),
+      ],
+    }],
+  }],
+};
+
+for (const largura of [390, 1280]) {
+test(`lista de compras do aluno: linhas com caixa redonda, períodos em dias, comprado riscado no fim do grupo e teclado, em ${largura}px`, async ({ page }) => {
+  await page.setViewportSize({ width: largura, height: 900 });
+  const { naoTratadas, errosDaPagina } = await simularApi(page, {
+    ...(await sessaoDeAluno(page)),
+    'GET /aluno/dieta': { corpo: { dieta: { ...DIETA, conteudo: COM_GRUPO_CHEIO } } },
+  });
+  await page.goto('/aluno/lista-de-compras');
+  await expect(page.getByText('Lista de 7 dias')).toBeVisible();
+
+  // Períodos: exatamente "7 dias · 14 dias · 30 dias", lado a lado e dentro da tela (390 px sem quebrar).
+  const periodos = page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio');
+  await expect(periodos).toHaveText(['7 dias', '14 dias', '30 dias']);
+  const caixas = await Promise.all([0, 1, 2].map((i) => periodos.nth(i).boundingBox()));
+  for (const c of caixas) {
+    expect(c).not.toBeNull();
+    expect((c?.x ?? 0) + (c?.width ?? 0)).toBeLessThanOrEqual(largura);
+    expect(Math.round(c?.y ?? 0)).toBe(Math.round(caixas[0]?.y ?? 0));
+  }
+
+  // Caixa redonda: alvo de pelo menos 44 px e o círculo com largura = altura e raio = metade.
+  const arroz = page.getByRole('checkbox', { name: 'Arroz branco cozido, marcar como comprado' });
+  const alvo = await arroz.boundingBox();
+  expect(alvo?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(alvo?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const circulo = await arroz.getByTestId('caixa-redonda').evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { largura: r.width, altura: r.height, raio: parseFloat(getComputedStyle(el).borderTopLeftRadius) };
+  });
+  expect(circulo.largura).toBe(circulo.altura);
+  expect(circulo.raio).toBeCloseTo(circulo.largura / 2, 0);
+
+  // Teclado antes de qualquer clique: foco visível, Espaço marca e Enter desmarca, com o foco acompanhando o item.
+  await arroz.focus();
+  expect(await arroz.evaluate((el) => getComputedStyle(el).outlineStyle)).not.toBe('none');
+  await page.keyboard.press('Space');
+  await expect(arroz).toBeChecked();
+  await expect(page.getByText('1 de 4 comprados')).toBeVisible();
+  // O item desce para o fim do grupo e o foco vai junto com ele.
+  await expect(arroz).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(arroz).not.toBeChecked();
+  await expect(page.getByText('0 de 4 comprados')).toBeVisible();
+
+  // Comprado: riscado, sem o selo "Comprado", e vai para o fim do grupo; os outros mantêm a ordem.
+  await emOrdemNaTela(page, ['Cereais e derivados', 'Arroz branco cozido', 'Aveia em flocos', 'Pão francês', 'Outros itens', 'Ovo']);
+  // Tocar no nome também marca.
+  await page.getByText('Arroz branco cozido', { exact: true }).click();
+  await expect(arroz).toBeChecked();
+  await expect(page.getByText('Comprado', { exact: true })).toHaveCount(0);
+  const riscado = (texto: string) => page.getByText(texto, { exact: true }).evaluate((el) => getComputedStyle(el).textDecorationLine);
+  expect(await riscado('Arroz branco cozido')).toContain('line-through');
+  expect(await riscado('Aveia em flocos')).not.toContain('line-through');
+  await emOrdemNaTela(page, ['Cereais e derivados', 'Aveia em flocos', 'Pão francês', 'Arroz branco cozido', 'Outros itens', 'Ovo']);
+  // O segundo comprado desce para depois do primeiro (a ordem da lista, não a de marcar).
+  await page.getByRole('checkbox', { name: 'Aveia em flocos, marcar como comprado' }).click();
+  await emOrdemNaTela(page, ['Cereais e derivados', 'Pão francês', 'Arroz branco cozido', 'Aveia em flocos', 'Outros itens', 'Ovo']);
+  // Desmarcar devolve ao lugar.
+  await arroz.click();
+  await emOrdemNaTela(page, ['Cereais e derivados', 'Arroz branco cozido', 'Pão francês', 'Aveia em flocos', 'Outros itens', 'Ovo']);
+  await expect(page.getByText('1 de 4 comprados')).toBeVisible();
+  await page.screenshot({ path: `test-results-e2e/lista-de-compras-linhas-${largura}.png`, fullPage: true });
 
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
@@ -241,7 +325,7 @@ async function baixarDietaDetalhada(page: Page) {
   const folha = page.getByRole('dialog', { name: 'PDF da dieta' });
   await expect(folha).toBeVisible();
   await folha.getByRole('radiogroup', { name: 'Forma do PDF' }).getByRole('radio', { name: 'Detalhado' }).click();
-  await folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: 'Mês' }).click();
+  await folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: '30 dias', exact: true }).click();
   await folha.getByRole('button', { name: 'Baixar PDF', exact: true }).click();
   const bloco = page.locator('#treinos-impressao');
   await expect(bloco).toContainText('Lista de compras · 30 dias');
@@ -251,7 +335,7 @@ async function baixarDietaDetalhada(page: Page) {
 
   await page.getByRole('button', { name: 'Baixar PDF da dieta' }).click();
   await expect(folha.getByRole('radio', { name: 'Detalhado' })).toHaveAttribute('aria-checked', 'true');
-  await expect(folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: 'Mês' })).toHaveAttribute('aria-checked', 'true');
+  await expect(folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: '30 dias', exact: true })).toHaveAttribute('aria-checked', 'true');
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 }
@@ -296,7 +380,7 @@ for (const largura of [390, 1280]) {
     const folha = page.getByRole('dialog', { name: 'PDF da dieta' });
     await expect(folha).toBeVisible();
     await folha.getByRole('radiogroup', { name: 'Forma do PDF' }).getByRole('radio', { name: 'Detalhado' }).click();
-    await folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: 'Mês' }).click();
+    await folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: '30 dias', exact: true }).click();
     await folha.getByRole('button', { name: 'Baixar PDF', exact: true }).click();
     const bloco = page.locator('#treinos-impressao');
     await expect(bloco).toContainText('Lista de compras · 30 dias');

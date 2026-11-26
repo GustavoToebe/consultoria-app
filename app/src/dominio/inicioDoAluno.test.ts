@@ -1,6 +1,5 @@
 import type { ConteudoDieta, ConteudoTreino, ExercicioPlano, Sessao, TipoSessao } from '../api/tipos';
 import {
-  aguaDoInicio,
   dataParaAbrir,
   dataPorExtenso,
   detalheDaDivisao,
@@ -47,12 +46,8 @@ describe('dieta no início', () => {
     aguaLitros: 3, ...extra,
   }) as unknown as ConteudoDieta;
 
-  it('com dieta e água: refeições e "3,0 L"', () => {
-    expect(dietaNoInicio({ conteudo: dieta(), erro: false, dia: 1 })).toEqual({ tipo: 'ok', refeicoes: '6 refeições no seu plano', agua: '3,0 L' });
-  });
-
-  it('sem água, a coluna da água some (nunca zero nem meta)', () => {
-    expect(dietaNoInicio({ conteudo: dieta({ aguaLitros: null }), erro: false, dia: 1 })).toMatchObject({ tipo: 'ok', agua: null });
+  it('com dieta: só a contagem das refeições (a água tem cartão próprio)', () => {
+    expect(dietaNoInicio({ conteudo: dieta(), erro: false, dia: 1 })).toEqual({ tipo: 'ok', refeicoes: '6 refeições no seu plano' });
   });
 
   it('uma refeição no singular', () => {
@@ -68,7 +63,7 @@ describe('dieta no início', () => {
         { uid: 'b', rotulo: 'Descanso', dias: [2, 4, 6], refeicoes: [r('b1')] },
       ],
     });
-    expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 3 })).toEqual({ tipo: 'ok', refeicoes: 'Hoje: Dia de treino · 5 refeições', agua: '3,0 L' });
+    expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 3 })).toEqual({ tipo: 'ok', refeicoes: 'Hoje: Dia de treino · 5 refeições' });
     expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 4 })).toMatchObject({ refeicoes: 'Hoje: Descanso · 1 refeição' });
     // Domingo sem dieta marcada (o "dia de descanso", publicável): nunca conta as de outro dia.
     expect(dietaNoInicio({ conteudo: comVariacoes, erro: false, dia: 7 })).toMatchObject({ refeicoes: 'Sem dieta marcada para hoje' });
@@ -81,12 +76,6 @@ describe('dieta no início', () => {
   it('falha ao carregar não vira "não publicada"', () => {
     expect(dietaNoInicio({ conteudo: undefined, erro: true, dia: 1 })).toEqual({ tipo: 'erro' });
     expect(dietaNoInicio({ conteudo: undefined, erro: false, dia: 1 })).toEqual({ tipo: 'carregando' });
-  });
-
-  it('água com uma casa e vírgula', () => {
-    expect(aguaDoInicio(3)).toBe('3,0 L');
-    expect(aguaDoInicio(2.5)).toBe('2,5 L');
-    expect(aguaDoInicio(null)).toBeNull();
   });
 });
 

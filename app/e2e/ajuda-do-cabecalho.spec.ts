@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import type { Atualizacao, ConteudoDieta, PlanoDetalhe, Receita } from '../src/api/tipos';
 import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 import { ALUNO_ID as ALUNO_ID_EDITOR, BIBLIOTECA, PLANO_ID, planoDetalhe } from './editor-inspetor.dados';
 import { abrirEditor } from './editor-questionario.dados';
@@ -150,6 +151,34 @@ const PERMISSOES_DA_VARREDURA = [
 ];
 const ALUNO_DA_FICHA = 'a0000000-0000-4000-8000-000000000002';
 const MOBILIDADE_ID = 'p0000000-0000-4000-8000-0000000000m1';
+const DIETA_ID = 'p0000000-0000-4000-8000-0000000000d1';
+const MODELO_ID = 'r0000000-0000-4000-8000-0000000000r1';
+const ATUALIZACAO_ID = 'e0000000-0000-4000-8000-000000000005';
+
+const DIETA: PlanoDetalhe<ConteudoDieta> = {
+  plano: {
+    id: DIETA_ID, alunoId: ALUNO_ID_EDITOR, pastaId: null, titulo: 'Dieta fictícia', inicio: '2026-11-01', fim: '2026-11-30', ativo: true,
+    versaoPublicada: 0, publicadoEm: null, rascunhoAlteradoDepoisDePublicar: false, versao: 1,
+  },
+  rascunho: {
+    objetivo: null, dataInicio: null, profissional: null, orientacoes: [], observacoes: null, aguaLitros: null, variacoes: [],
+    suplementacao: [], ergogenicos: [],
+    refeicoes: [{ uid: 'r1', nome: 'Café da manhã', horario: '07:00', observacao: null, modoDePreparo: null, opcoes: [{ uid: 'r1-a', rotulo: 'A', itens: [
+      { uid: 'r1-i1', alimentoId: null, nome: 'Pão fictício', quantidade: 100, unidade: 'g', kcal: 120, proteina: 5, carboidrato: 20, gordura: 2, manual: false },
+    ] }] }],
+  },
+  versoes: [],
+};
+const MODELO: Receita = {
+  id: MODELO_ID, tipo: 'MOBILIDADE', nome: 'Rotina fictícia da manhã', descricao: 'Modelo fictício.', pastaId: null, ordem: 0, versao: 1,
+  conteudo: { orientacoes: 'Antes do treino.', secoes: [{ uid: 's1', titulo: 'Aquecimento', itens: [{ uid: 'i1', nome: 'Gato-vaca', prescricao: '2 x 10', videoUrl: null }] }] },
+};
+const ATUALIZACAO: Atualizacao = {
+  id: ATUALIZACAO_ID, pastaId: 'f0000000-0000-4000-8000-0000000000a1', alunoId: ALUNO_DA_FICHA, nomeAluno: 'Aluna Fictícia',
+  dataAtualizacao: '2026-10-20', fase: 'ENVIADA', diasParaData: -11, diasDeAtraso: 0, atrasoAte: null, atrasoMotivo: null,
+  questionarioVersaoNumero: 1, questionarioVersaoId: 'q0000000-0000-4000-8000-000000000001', questionarioNome: 'Padrão',
+  modelo: null, respostas: null, enviadaEm: '2026-10-20T12:00:00Z', feedback: null, versao: 1, resumo: null,
+};
 
 interface TelaDaVarredura { caminho: string; titulo: string; secao: string | null }
 const TELAS: TelaDaVarredura[] = [
@@ -178,6 +207,9 @@ const TELAS: TelaDaVarredura[] = [
   { caminho: '/treinador/meus-dados', titulo: 'Meus dados', secao: null },
   { caminho: '/treinador/perfil', titulo: 'Perfil', secao: null },
   { caminho: '/treinador/ajustes', titulo: 'Aparência e preferências', secao: null },
+  { caminho: '/treinador/ajuda', titulo: 'Ajuda', secao: null },
+  { caminho: '/treinador/importacao/nova', titulo: 'Nova importação', secao: 'importacao' },
+  { caminho: '/treinador/importacao/planilha-completa', titulo: 'Planilha completa', secao: 'importacao' },
   { caminho: '/treinador/alunos/tags', titulo: 'Tags dos alunos', secao: 'alunos' },
   { caminho: '/treinador/alunos/novo', titulo: 'Novo aluno', secao: 'alunos' },
   { caminho: `/treinador/alunos/${ALUNO_DA_FICHA}`, titulo: 'Aluna Fictícia', secao: 'alunos' },
@@ -224,7 +256,7 @@ for (const largura of [1280, 390]) {
       });
     }
 
-    test('editor de treino do aluno e modelo de treino: ⓘ com Saiba mais (planos)', async ({ page }) => {
+    test('editor de treino do aluno: ⓘ com Saiba mais (planos)', async ({ page }) => {
       const extra: RespostasApi = {
         [`GET /alunos/${ALUNO_ID_EDITOR}`]: { corpo: { id: ALUNO_ID_EDITOR, nome: 'Aluna Fictícia' } },
         'GET /exercicios': { corpo: BIBLIOTECA },
@@ -244,6 +276,34 @@ for (const largura of [1280, 390]) {
       await abrirVarredura(page, largura, `/treinador/mobilidades/${MOBILIDADE_ID}`, { [`GET /planos-mobilidade/${MOBILIDADE_ID}`]: { corpo: mob } });
       await expect(page.getByRole('heading', { name: 'Seções (1)' })).toBeVisible();
       await conferirOIcone(page, 'planos');
+    });
+
+    test('modelo do Planejamento (mobilidade): ⓘ com Saiba mais (planos)', async ({ page }) => {
+      await abrirVarredura(page, largura, `/treinador/planejamento/modelo/${MODELO_ID}`, {
+        'GET /pastas-modelos': { corpo: [] },
+        'GET /receitas': { corpo: [] },
+        [`GET /receitas/${MODELO_ID}`]: { corpo: MODELO },
+      });
+      await expect(page.getByRole('heading', { name: 'Sobre o modelo' })).toBeVisible();
+      await conferirOIcone(page, 'planos');
+    });
+
+    test('editor de dieta do aluno: ⓘ com Saiba mais (planos)', async ({ page }) => {
+      await abrirVarredura(page, largura, `/treinador/dietas/${DIETA_ID}`, {
+        [`GET /alunos/${ALUNO_ID_EDITOR}`]: { corpo: { id: ALUNO_ID_EDITOR, nome: 'Aluna Fictícia' } },
+        'GET /alimentos': { corpo: [] },
+        [`GET /planos-dieta/${DIETA_ID}`]: { corpo: DIETA },
+      });
+      await expect(page.getByRole('heading', { name: 'Refeições (1)' })).toBeVisible();
+      await conferirOIcone(page, 'planos');
+    });
+
+    test('atualização do aluno: ⓘ com Saiba mais (atualizacoes)', async ({ page }) => {
+      await abrirVarredura(page, largura, `/treinador/atualizacoes/${ATUALIZACAO_ID}`, {
+        [`GET /atualizacoes/${ATUALIZACAO_ID}`]: { corpo: ATUALIZACAO },
+      });
+      await expect(page.getByRole('heading', { level: 1, name: /^Aluna Fictícia · Atualização/ })).toBeVisible();
+      await conferirOIcone(page, 'atualizacoes');
     });
 
     test('editor de questionário: ⓘ sem Saiba mais', async ({ page }) => {

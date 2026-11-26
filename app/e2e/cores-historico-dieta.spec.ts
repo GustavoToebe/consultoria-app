@@ -174,7 +174,10 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       // Período na faixa e a frase do que está mostrando.
       await expect(page.getByLabel('Período: Pasta em uso: 01/10 a 31/10', { exact: true })).toBeVisible();
       await expect(page.getByText('Mostrando a carga de trabalho de cada exercício por divisão, de 01/10 a 31/10. Carga e reps contam só as séries de trabalho.', { exact: true })).toBeVisible();
-      await expect(page.getByLabel(/^Período: Todas as pastas · exercícios dos últimos 12 meses$/)).toBeVisible();
+      const chipDoProgresso = page.getByLabel(/^Período: Todas as pastas · 12 meses$/);
+      await expect(chipDoProgresso).toBeVisible();
+      // O chip cabe numa linha só (texto 12/13 px + 6 de respiro + 2 de borda): a altura não passa de 34 px em nenhuma largura.
+      expect((await chipDoProgresso.boundingBox())?.height ?? 999).toBeLessThanOrEqual(34);
       await expect(page.getByLabel(/^Período: Desde o primeiro registro/).first()).toBeVisible();
 
       // Por divisão: A azul, B magenta, na barra; o nome lido não repete "Treino A".

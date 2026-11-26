@@ -100,12 +100,12 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Hoje → 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Olá, Aluno.');
   await expect(page.getByText('Segunda-feira · 19 de outubro')).toBeVisible();
 
-  // Dieta compacta: refeições, "Ver dieta" e a água do dia.
+  // Dieta compacta: refeições e "Ver dieta", sem a água (ela fica só no cartão "Água de hoje").
   const dieta = page.getByRole('link', { name: /^Dieta,/ });
   await expect(dieta).toContainText('6 refeições no seu plano');
   await expect(dieta).toContainText('Ver dieta');
-  await expect(dieta).toContainText('Água do dia');
-  await expect(dieta).toContainText('3,0 L');
+  await expect(dieta).not.toContainText('Água do dia');
+  await expect(dieta).not.toContainText('3,0 L');
 
   // Hoje: rótulo, nome, contagem, o botão primário e a nota.
   await expect(page.getByRole('heading', { name: 'Hoje', level: 2, exact: true })).toBeVisible();
@@ -193,16 +193,21 @@ test('a divisão de outro dia abre a próxima vez dela e a tela do dia deixa esc
   await expect(page.getByText('Você está registrando o treino de')).toBeVisible();
 });
 
-test('no celular (390 px) o botão "Ver meu treino" aparece na primeira tela, com a dieta em poucas linhas', async ({ page }) => {
+test('no celular (390 px) o botão "Ver meu treino" aparece na primeira tela, com a dieta numa linha só', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await abrirInicio(page);
   const botao = page.getByRole('button', { name: /^Ver meu treino/ });
   await expect(botao).toBeVisible();
   const caixa = await botao.boundingBox();
   expect(caixa!.y + caixa!.height).toBeLessThanOrEqual(844 - 64);
-  // Cartão da dieta baixo: cabe em até duas linhas de texto (menos de 100 px).
-  const dieta = await page.getByRole('link', { name: /^Dieta,/ }).boundingBox();
-  expect(dieta!.height).toBeLessThan(100);
+  // Cartão da dieta numa linha só (ícone, "Dieta · Ver dieta →" e as refeições, sem a água): baixo, sem quebrar.
+  const cartaoDieta = page.getByRole('link', { name: /^Dieta,/ });
+  const dieta = await cartaoDieta.boundingBox();
+  expect(dieta!.height).toBeLessThanOrEqual(76);
+  const ver = await cartaoDieta.getByText('Ver dieta →').boundingBox();
+  const nome = await cartaoDieta.getByText('Dieta', { exact: true }).boundingBox();
+  expect(Math.abs((ver!.y + ver!.height / 2) - (nome!.y + nome!.height / 2))).toBeLessThan(6);
+  await expect(cartaoDieta).not.toContainText('Água do dia');
   // Alvos de toque de 44 px.
   expect(caixa!.height).toBeGreaterThanOrEqual(44);
   for (const nome of ['Início', 'Treino', 'Dieta', 'Histórico', 'Conta']) {
@@ -214,7 +219,7 @@ test('no celular (390 px) o botão "Ver meu treino" aparece na primeira tela, co
   }
 });
 
-test('sem água, a coluna da água some', async ({ page }) => {
+test('sem água na dieta, o cartão da dieta continua igual (a água nunca aparece nele)', async ({ page }) => {
   await abrirInicio(page, { dieta: dietaFalsa(4, null) });
   const dieta = page.getByRole('link', { name: /^Dieta,/ });
   await expect(dieta).toContainText('4 refeições no seu plano');

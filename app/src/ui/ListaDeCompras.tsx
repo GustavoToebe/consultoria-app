@@ -32,7 +32,7 @@ import { NoPlano } from './NoPlano';
 import { Tabela, type ColunaDaTabela } from './Tabela';
 import { Texto } from './Texto';
 
-// "Mês (30 dias)": o rótulo diz a conta, para ninguém ler o mês do calendário (reunião de 29/10).
+// "30 dias": o rótulo diz a conta, para ninguém ler o mês do calendário (reunião de 29/10; "7 dias · 14 dias · 30 dias" desde 25/11).
 const PERIODOS = PERIODOS_DA_LISTA.map((valor) => ({ valor, rotulo: textoDoPeriodo(valor) }));
 
 /** Período e, quando a refeição tem mais de uma opção, qual entra na lista. A folha do PDF da dieta usa o mesmo controle. */

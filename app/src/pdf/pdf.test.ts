@@ -814,7 +814,7 @@ describe('PDF da lista de compras', () => {
       ],
     });
     expect(d.titulo).toBe('Lista de compras - Aluno <Fictício> - Dieta & ciclo');
-    expect(d.corpo).toContain('Lista de compras — Semana (7 dias)');
+    expect(d.corpo).toContain('Lista de compras — 7 dias');
     expect(d.corpo).toContain('Arroz &lt;b&gt;cozido&lt;/b&gt; <span class="suave">(cru)</span>');
     expect(d.corpo).toContain('1,23 kg');
     expect(d.corpo).toContain('21 un');
@@ -842,7 +842,7 @@ describe('PDF da lista de compras', () => {
     m = gravarAvulso(m, { id: 'x', nome: 'Café <moído>', quantidade: null, unidade: null });
     m = alternarComprado(m, 'a');
     const d = documentoListaDeCompras({ ...base, periodo: 'duasSemanas', opcoes: [], linhas, itensDoAluno: itensDoAluno(linhas, m) });
-    expect(d.corpo).toContain('Lista de compras — 2 semanas (14 dias)');
+    expect(d.corpo).toContain('Lista de compras — 14 dias');
     expect(d.corpo).toContain('Arroz <span class="suave">(cru)</span><div class="suave">Na dieta: 2,10 kg cozido</div></td><td class="qtd">840 g</td>');
     expect(d.corpo).toContain('Ovo <span class="suave origem">(ajustado por você)</span></td><td class="qtd">2 cartelas <span class="suave">(calculado: 28 un)</span></td>');
     expect(d.corpo).toContain('Café &lt;moído&gt; <span class="suave origem">(adicionado por você)</span></td><td class="qtd">—</td>');
@@ -871,7 +871,7 @@ describe('PDF da lista de compras', () => {
 
   it('lista vazia vira "—"', () => {
     const d = documentoListaDeCompras({ ...base, periodo: 'mes', opcoes: [], linhas: [] });
-    expect(d.corpo).toContain('Mês (30 dias)');
+    expect(d.corpo).toContain('Lista de compras — 30 dias');
     expect(d.corpo).toContain('<div class="suave">—</div>');
   });
 });

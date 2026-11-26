@@ -1,6 +1,6 @@
 # Evolução da lista de compras
 
-Situação: Pronta na branch (falta juntar na `main` e publicar) · Onde: branches `evo-compras` e `evo-categorias` (worktrees, sem push) · Atualizado: 28/10/2026
+Situação: Pronta na branch (falta juntar na `main` e publicar) · Onde: branches `evo-compras` e `evo-categorias` (worktrees, sem push) · Atualizado: 25/11/2026
 
 ## Objetivo
 A lista de compras do aluno vira uma lista de mercado de verdade: além de Semana e Mês, o período de 14 dias; marcar o
@@ -17,7 +17,7 @@ concorrente (7/14/30 dias, "2 de 6 comprados", "Limpar marcações", "Ajustar li
 | 4 | PDF do aluno | Inclui ajustes e avulsos marcados como tal, com a caixinha vazia para marcar no papel. A prévia do treinador não tem ajustes | Gustavo, 28/10 |
 | 5 | Cálculo | Sem mudança (fatores, opção por refeição); só o período novo. Não une itens por nome parecido | Gustavo, 28/10 |
 | 6 | Treinador | Só a prévia, sem marcações | Gustavo, 28/10 |
-| 7 | Rótulos do período | "Semana", "2 semanas" e "Mês" (valor `duasSemanas`, 14 dias fixos); título do PDF "2 semanas (14 dias)". "Quinzena" ficou de fora porque costuma ser 15 dias | Claude, 28/10 |
+| 7 | Rótulos do período | Desde 25/11: "7 dias", "14 dias" e "30 dias" (`textoDoPeriodo`; valor `duasSemanas` = 14 dias fixos; título da tela "Lista de N dias" e do PDF "Lista de compras — N dias"). Antes (28/10): "Semana", "2 semanas" e "Mês", título do PDF "2 semanas (14 dias)". "Quinzena" ficou de fora porque costuma ser 15 dias | Claude, 28/10; Gustavo, 25/11 |
 | 8 | Onde fica | Documento `listaDeCompras` no `RepositorioLocal` (kv do SQLite no celular, `treinos:<usuarioId>:listaDeCompras` na web), o mesmo lugar da dieta salva: sai no "Sair" (`apagarTudo`) e na sessão recusada (`reterSoAFila`), não entra em `SOBREVIVEM_AO_SAIR` nem em `CHAVES_DA_FILA_RETIDA` | Claude, 28/10 |
 | 9 | Formato guardado | Um documento só, da versão em uso: `{versaoId, periodo, escolhas, periodos: {semana?, duasSemanas?, mes?}}`, cada período com `comprados`, `ajustes` e `avulsos`. Versão diferente da salva começa do zero e substitui o documento ao gravar (não acumula versões antigas). Lido sempre por `normalizarListaSalva` (o que não confere é descartado, sem conversão) | Claude, 28/10 |
 | 10 | Período e opção lembrados | A tela abre no último período e nas últimas opções por refeição escolhidos para aquela versão (senão as marcações da opção B sumiriam ao voltar para a tela). Não muda o cálculo | Claude, 28/10 |
@@ -57,6 +57,10 @@ concorrente (7/14/30 dias, "2 de 6 comprados", "Limpar marcações", "Ajustar li
 - App: `npm run typecheck` e `npm run lint` sem erro; `npm test`: 156 suítes, 2111 testes verdes (inclui `gruposDaLista.test.ts`,
   `listaDeCompras*.test.ts`, `pdf.test.ts` e `injecao.test.ts` com o grupo envenenado); `node --test scripts/importacao/modelos.test.mjs` verde.
 - e2e não rodado aqui (o `node_modules` desta máquina empacota outro checkout): o spec foi atualizado e fica para o checkout principal.
+
+## O que mudou em 25/11 (A7 da auditoria; `auditoria-24-25-11.md`)
+- Tela do aluno em linhas, cada uma com a `ui/CaixaRedonda`; o comprado fica riscado, na cor cheia, e no fim do grupo (`gruposDaTelaDoAluno`); o selo "Comprado" saiu. O PDF segue com `gruposDoAluno` (caixas vazias, ordem do grupo).
+- Períodos "7 dias · 14 dias · 30 dias" (decisão 7). Marcações, ajustes e avulsos continuam só no aparelho; a conta e a API não mudaram.
 
 ## Fora do escopo
 - Sincronizar marcações entre aparelhos (decisão 2: só no aparelho).
