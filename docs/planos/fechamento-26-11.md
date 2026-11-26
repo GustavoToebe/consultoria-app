@@ -75,3 +75,17 @@ Pedido: conferir a CI da rodada 2, a frase vazia de Orientações em 1 linha sem
 Verificação (lote integrado, medida no mesmo dia): typecheck 0 erros (parte de 92 s com lint e jest); lint 0 erros (10 avisos antigos); jest 459 suítes, 11.084 testes, 42 s; `mvn verify` 3.472 testes, 0 falhas, 39 min (2.359 s); e2e completa 3.321 passaram, 299 puladas, 2 falhas em 35,6 min (2.142 s): `links-do-menu:89` (causa acima, corrigida) e `aniversarios:86` (390 px, 180 de 180 isolada, intermitência). Nível adotado: completo (peça compartilhada `Campo` e `Navegacao`, mais testes da API).
 
 Não conferido: aparelho nativo (a medição de `CampoDaTabela` fora da web segue a estimativa por caractere), temas além do Escuro (Areia e outras paletas) nas capturas novas, tema claro do menu recolhido, capturas de 880 e 1103 da Marca refeitas depois da correção (só leitura de código e e2e).
+
+## Pós-fechamento (27/11, commit `bd5e292c`, branch `rodada-pos-fechamento`, worktree `consultoria-app-rodada-27-11`)
+Pedido: três acabamentos e uma limpeza das "Pendências soltas". Só `app/`; sem push.
+
+| # | Item | Status | Evidência |
+| --- | --- | --- | --- |
+| 1 | Frase fixa do editor de dieta | ✅ | `descricaoDoTotalDoDia` em `dominio/dieta.ts` (usa `opcaoDoTotalDoDia`); `TotalDoDia.tsx`; jest `dieta.test.ts`; capturas das três frases (padrão, "Principal", mistura) em `capturas/rodada-27-11/total-do-dia-*.png`; nenhum e2e procurava o texto antigo |
+| 2 | Alça dos textareas | ✅ sem mudança no `ui/Campo` | os campos que crescem sozinhos (`CampoDaTabela`: `resize-none`; `CampoQueCresce` da mobilidade: `style.resize = 'none'`) já estavam sem alça; Observações (8 linhas) e Texto da orientação (5) têm altura fixa e rolagem própria e mantêm a alça. `resize` computado no Chromium, escuro, 1920 e 390: Observações e Texto = `vertical`; Outros (Nome, Dose, Horário) = `none`; capturas `observacoes-*`, `texto-da-orientacao-*`, `outros-*` em `capturas/rodada-27-11/`; telas afetadas pelo `ui/Campo`: nenhuma |
+| 3 | `CampoDaTabela` fora da web | ✅ código e jest, ❌ aparelho | `alturaNoCelular` (mesma regra e mesmo teto da web) alimentada pelo `onContentSizeChange`; o `ui/Campo` ganhou a prop opcional `altura` (só o `CampoDaTabela` a passa no celular); a estimativa por caractere saiu; web intacta (e2e) |
+| 4 | `LARGURA_DA_COLUNA` de `ui/PreferenciasDoApp.tsx` | ✅ | busca em `src/` e `e2e/`: só a definição; a de `ColunaDasConfiguracoes.tsx` é outra constante e fica |
+
+Validação, nível área completa (`ui/Campo` é compartilhado), na ordem, uma pesada por vez: typecheck 0 erros (98 s); lint 0 erros, 10 avisos antigos (141 s); `jest --findRelatedTests` nos arquivos alterados 119 suítes, 7.040 testes (80 s); jest completo 461 suítes, 11.215 testes (77 s); e2e das áreas (dieta-*, complementos-orientacoes-e-suplementos, cupom-do-suplemento, cores-historico-dieta, aluno-dieta-complementos, tela-larga, editor-mobilidade, fibra-do-alimento; 4 workers, exportação com `--clear`) 196 passaram, 0 falhas (277 s). Sem Java.
+
+Não conferido: nativo (Android e iOS: nenhum emulador nem aparelho usado; a linha de 20 px do `Input` e o `contentSize` sem recuos são premissas), tema claro e Areia nas capturas desta rodada, a suíte e2e completa.

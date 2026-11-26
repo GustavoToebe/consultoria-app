@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta, Refeicao } from '../../api/tipos';
-import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, type ItemSemValor, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
+import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, descricaoDoTotalDoDia, type ItemSemValor, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
 import { numeroParaTela } from '../../dominio/formatos';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -32,7 +32,7 @@ export function TotalDoDia({ conteudo: c, refeicoes, rotulo, semValor, aoAbrirRe
   const parcial = fibraParcial(t);
   const primeiro = semValor[0];
   return (
-    <Cartao faixa titulo={rotulo ? `Total do dia · ${rotulo.trim() || 'Variação sem nome'}` : 'Total do dia'} descricao="Soma só a opção A de cada refeição: as outras opções substituem a refeição e não entram no total.">
+    <Cartao faixa titulo={rotulo ? `Total do dia · ${rotulo.trim() || 'Variação sem nome'}` : 'Total do dia'} descricao={descricaoDoTotalDoDia(refeicoes)}>
       <View style={estilos.faixa}>
         {/* Um destaque só, as kcal, em texto neutro (nunca vermelho por ser alto) com a unidade pequena; os macros ao lado,
             menores, cada um com a marca da cor e o nome escrito. No celular os macros descem juntos para a linha de baixo. */}

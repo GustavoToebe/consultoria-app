@@ -27,8 +27,6 @@ const TAMANHOS: { valor: TamanhoTexto; rotulo: string }[] = [
   { valor: 'EXTRA', rotulo: 'Extra' },
 ];
 
-/** Teto de cada coluna nas Ajustes do treinador (a tela soma duas e o vão; `app/treinador/ajustes.tsx`). */
-export const LARGURA_DA_COLUNA = 720;
 const VAO = espaco(3);
 /** Coluna mais estreita que isto não entra: o segmento ainda cabe ao lado de um nome curto. */
 const CELULA_MINIMA = 360;
