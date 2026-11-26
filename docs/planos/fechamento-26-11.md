@@ -1,6 +1,6 @@
 # Fechamento de 26/11: Complementos sem teto, motivo ATRASO só com FINANCEIRO_LER e acabamentos dos editores
 
-Situação: Concluída em 26/11/2026 (item 9 bloqueado) · Onde: main · Atualizado: 26/11/2026
+Situação: Concluída em 26/11/2026 (item 9 bloqueado) · Onde: main (`749f191d`) · Atualizado: 26/11/2026
 
 ## Objetivo
 Lote de fechamento pedido pelo Gustavo depois de aprovar o relatório de 26/11 ([ajustes-de-26-11.md](ajustes-de-26-11.md), [pausar-acesso-por-atraso.md](pausar-acesso-por-atraso.md)): Complementos da dieta usam toda a largura na ultralarga; quem não tem `FINANCEIRO_LER` nunca vê "pausado" nem atraso; erro de cobrança indisponível vira toast; opção personalizada da refeição não vira letra; Espaço e Enter escolhem no radiogroup; exclusão igual nos três editores; Configurações sem vão em 3440; limites reais na área de soltar; limpeza de branches. Só app, exceto o item 2 (API).
@@ -18,7 +18,7 @@ Lote de fechamento pedido pelo Gustavo depois de aprovar o relatório de 26/11 (
 | D7 | Complementos: a aba Outros também perdeu o teto (o pedido dizia "dos Complementos") | campos esticados em 3440, a decidir | sessão; a confirmar pelo Gustavo |
 
 ## Passos
-- [x] 1. Complementos na ultralarga sem teto (tabela 28/12/10%, Dose e Horário com máximo, 2 linhas sem alça, leitura ~72ch), capturas 1920 e 3440 em `capturas/26-11-fechamento/complementos-*` — spec `complementos-orientacoes-e-suplementos` verde; commit/run: `lote-fechamento` (ver `git log` da main)
+- [x] 1. Complementos na ultralarga sem teto (tabela 28/12/10%, Dose e Horário com máximo, 2 linhas sem alça, leitura ~72ch), capturas 1920 e 3440 em `capturas/26-11-fechamento/complementos-*` — spec `complementos-orientacoes-e-suplementos` verde; commit `749f191d`; run da CI: conferir no GitHub (não apareceu na lista no momento do push)
 - [x] 2. Motivo ATRASO só com `FINANCEIRO_LER` (API e app) e trava da importação depois do IGNORAR — `mvn verify` 3.470 testes, 0 falhas; revisão independente feita (brechas conhecidas em Pendências soltas)
 - [x] 3. 503 `FINANCEIRO_INDISPONIVEL` ao pausar acesso vira toast de erro, sem erro inline nem mudança no cartão — `acesso-pausado-fase2.spec.ts`
 - [x] 4. Rótulo personalizado da opção da refeição não vira letra — jest `dieta`, `opcoesDaRefeicao`, `CartaoRefeicao`; sem e2e do fluxo personalizado
