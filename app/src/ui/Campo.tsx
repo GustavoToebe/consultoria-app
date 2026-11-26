@@ -90,7 +90,8 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, l
           estilos.entrada,
           { borderWidth: 1 + destaque, paddingHorizontal: espaco(1.5) - destaque, paddingVertical: espaco(1) - destaque },
           numerico ? { fontVariant: ['tabular-nums'] } : null,
-          linhas ? { minHeight: linhas * escalar(22, fatorTexto) + 20, textAlignVertical: 'top' } : null,
+          // Com uma linha a conta dá 42: nunca abaixo do alvo de toque (a mesma altura do campo de uma linha).
+          linhas ? { minHeight: Math.max(ALVO_TOQUE, linhas * escalar(22, fatorTexto) + 20), textAlignVertical: 'top' } : null,
           acao ? { paddingRight: ALVO_TOQUE } : sufixo ? { paddingRight: espaco(1.5) + escalar(16, fatorTexto) * sufixo.length } : null,
           { color: corDoTexto ?? cores.texto, backgroundColor: cores.campo, borderColor: corBorda, fontSize: escalar(16, fatorTexto) },
           grande ? { fontSize: escalar(22, fatorTexto), fontFamily: fontes.semi, minHeight: ALVO_TOQUE + 8 } : null,

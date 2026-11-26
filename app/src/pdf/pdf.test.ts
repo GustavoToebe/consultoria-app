@@ -334,6 +334,17 @@ describe('PDF da dieta', () => {
     expect(html).toContain('▸ OPÇÃO B');
   });
 
+  it('total do dia com a primeira opção personalizada: o rótulo (escapado) se igual, "primeira opção" se a mistura', () => {
+    const ref = (nome: string, rotulo: string) => ({ nome, opcoes: [{ rotulo, itens: [{ nome: 'Arroz', quantidade: 100, unidade: 'g' as const, kcal: 130, proteina: 2, carboidrato: 28, gordura: 0 }] }] });
+    const corpoDe = (refeicoes: ReturnType<typeof ref>[]) => documentoDieta({ ...base, versao: 1, conteudo: normalizarDieta({ refeicoes }), pesos: [] }).corpo;
+    const iguais = corpoDe([ref('Almoço', 'Opção <Principal>'), ref('Jantar', ' Opção <Principal> ')]);
+    expect(iguais).toContain('Total do dia · Opção &lt;Principal&gt; de cada refeição.');
+    expect(iguais).not.toContain('considerando a opção');
+    const mistura = corpoDe([ref('Almoço', 'Opção Principal'), ref('Jantar', 'A')]);
+    expect(mistura).toContain('Total do dia · primeira opção de cada refeição.');
+    expect(corpoDe([ref('Almoço', 'Opção Principal'), ref('Jantar', 'Outra')])).toContain('Total do dia · primeira opção de cada refeição.');
+  });
+
   it('rótulo personalizado vira a faixa em caixa alta, sem "OPÇÃO" duplicado', () => {
     const personalizada = normalizarDieta({
       refeicoes: [{ nome: 'Almoço', opcoes: [
@@ -526,6 +537,19 @@ describe('PDF da dieta', () => {
       // a tabela única do dia só existe sem variação
       expect(corpo).not.toContain('Distribuição diária de macronutrientes');
       expect(corpo.indexOf('Dia de carbo baixo')).toBeGreaterThan(corpo.indexOf('Dia de &lt;b&gt;carbo'));
+    });
+
+    it('a nota do total de cada variação usa o rótulo da primeira opção dela', () => {
+      const personalizada: ConteudoDieta = {
+        ...comVariacoes,
+        variacoes: [
+          { ...comVariacoes.variacoes[0], refeicoes: normalizarDieta({ refeicoes: [{ nome: 'Almoço', opcoes: [{ rotulo: 'Principal', itens: [] }] }] }).refeicoes },
+          comVariacoes.variacoes[1],
+        ],
+      };
+      const c = documentoDieta({ ...base, versao: 1, conteudo: personalizada, pesos: [] }).corpo;
+      expect(c).toContain('Total do dia desta variação · Principal de cada refeição.');
+      expect(c).toContain('Total do dia desta variação considerando a opção A de cada refeição.');
     });
 
     it('orientações e suplementação continuam globais, uma vez só', () => {

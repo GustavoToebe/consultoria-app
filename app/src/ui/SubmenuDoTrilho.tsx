@@ -1,11 +1,11 @@
 import { Activity, Briefcase, Layers, Settings, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type PointerEvent } from 'react-native';
 
 import { proximoItemDoMenu } from '../dominio/agendaCalendario';
-import { topoDoSubmenu, type GrupoDoMenu } from '../dominio/gruposDoMenu';
+import { rumoAoSubmenu, topoDoSubmenu, type GrupoDoMenu, type Ponto } from '../dominio/gruposDoMenu';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO, RAIO_CONTROLE } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_EXPANDIDO, RAIO, RAIO_CONTROLE } from '../tema/tokens';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 import { useTeclado } from './usoWeb';
@@ -26,6 +26,8 @@ interface Aberto { grupo: GrupoDoMenu; topo: number; esquerda: number; origem: O
 
 /** Tempo para o mouse atravessar do ícone ao submenu sem ele fechar. */
 const ESPERA_AO_SAIR = 200;
+/** Atraso antes de trocar de grupo quando o ponteiro só raspa num ícone vizinho indo em diagonal para o submenu aberto. */
+const ESPERA_TROCA_DIAGONAL = 150;
 const LARGURA_DO_SUBMENU = 240;
 
 const elemento = (no: unknown) => no as HTMLElement | null;
@@ -39,49 +41,116 @@ const elemento = (no: unknown) => no as HTMLElement | null;
  * largo num `Modal` com fundo que fecha ao tocar (o Voltar do Android também fecha). Sem animação: abre e fecha no lugar,
  * então o movimento reduzido não pede nada a mais.
  */
-export function useSubmenuDoTrilho(trilho: RefObject<View | null>) {
+export function useSubmenuDoTrilho(trilho: RefObject<View | null>, ativo = true) {
   const { height } = useWindowDimensions();
   const [aberto, setAberto] = useState<Aberto | null>(null);
   const [focado, setFocado] = useState<GrupoDoMenu | null>(null);
-  const [medida, setMedida] = useState<{ grupo: GrupoDoMenu; altura: number } | null>(null);
+  const [medidas, setMedidas] = useState<Partial<Record<GrupoDoMenu, number>>>({});
   const botoes = useRef(new Map<GrupoDoMenu, View>());
   const espera = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const troca = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sobreBotao = useRef<GrupoDoMenu | null>(null);
+  const sobreSubmenu = useRef<GrupoDoMenu | null>(null);
+  const pontoNoIconeAberto = useRef<Ponto | null>(null);
+  const ultimoPonto = useRef<Ponto | null>(null);
   // O foco devolvido ao ícone (Esc, Tab, item escolhido) não reabre o submenu.
   const semAbrirNoFoco = useRef(false);
   const pedido = useRef(0);
-  // O aberto já desenhado, para `fechar` saber a que ícone devolver o foco sem efeito dentro do `setAberto`.
+
+  const abertoVisivel = ativo ? aberto : null;
+  const focadoVisivel = ativo ? focado : null;
+
+  // O aberto já desenhado, para handlers saberem o estado atual sem depender de closures velhas.
   const atual = useRef<Aberto | null>(null);
   useEffect(() => {
-    atual.current = aberto;
+    atual.current = abertoVisivel;
   });
 
-  const cancelarEspera = () => {
+  const cancelarEspera = useCallback(() => {
     if (espera.current) clearTimeout(espera.current);
     espera.current = null;
-  };
-  useEffect(() => cancelarEspera, []);
+  }, []);
+
+  const cancelarTroca = useCallback(() => {
+    if (troca.current) clearTimeout(troca.current);
+    troca.current = null;
+  }, []);
+
+  useEffect(() => () => {
+    cancelarEspera();
+    cancelarTroca();
+  }, [cancelarEspera, cancelarTroca]);
+
+  useEffect(() => {
+    if (ativo) return undefined;
+    cancelarEspera();
+    cancelarTroca();
+    atual.current = null;
+    sobreBotao.current = null;
+    sobreSubmenu.current = null;
+    pontoNoIconeAberto.current = null;
+    ultimoPonto.current = null;
+    const id = setTimeout(() => { setAberto(null); setFocado(null); }, 0);
+    return () => clearTimeout(id);
+  }, [ativo, cancelarEspera, cancelarTroca]);
+
+  const aoMedir = useCallback((grupoMedido: GrupoDoMenu, valor: number) => {
+    if (valor <= 0) return;
+    setMedidas((antes) => (antes[grupoMedido] === valor ? antes : { ...antes, [grupoMedido]: valor }));
+  }, []);
 
   const abrir = useCallback((grupo: GrupoDoMenu, origem: Origem, foco: Foco = null) => {
     cancelarEspera();
+    cancelarTroca();
+    if (atual.current?.grupo !== grupo) sobreSubmenu.current = null;
     const no = botoes.current.get(grupo);
     if (!no) return;
     const este = ++pedido.current;
     const pronto = (x: number, y: number, w: number) => {
       // Uma medida que chega depois de outro pedido (outro ícone, fechar) é descartada.
       if (pedido.current !== este) return;
-      setAberto((antes) => ({
-        grupo, topo: y, esquerda: x + w + espaco(2), foco, vez: este,
+      const antes = atual.current;
+      const proximo: Aberto = {
+        grupo,
+        topo: y,
+        esquerda: x + w + espaco(2),
+        foco,
+        vez: este,
         origem: antes?.grupo === grupo && antes.origem === 'fixo' ? 'fixo' : origem,
-      }));
+      };
+      atual.current = ativo ? proximo : null;
+      setAberto(proximo);
     };
-    if (Platform.OS === 'web' && trilho.current) no.measureLayout(trilho.current as never, (x, y, w) => pronto(x, y, w), () => undefined);
-    else no.measureInWindow((x, y, w) => pronto(x, y, w));
-  }, [trilho]);
+    if (Platform.OS === 'web') {
+      const elBotao = elemento(no);
+      const elTrilho = elemento(trilho.current);
+      if (typeof elBotao?.getBoundingClientRect === 'function' && typeof elTrilho?.getBoundingClientRect === 'function') {
+        const rBotao = elBotao.getBoundingClientRect();
+        const rTrilho = elTrilho.getBoundingClientRect();
+        if (rBotao.width > 0 || rBotao.height > 0) {
+          pontoNoIconeAberto.current = sobreBotao.current === grupo && ultimoPonto.current
+            ? ultimoPonto.current
+            : { x: rBotao.left + rBotao.width / 2, y: rBotao.top + rBotao.height / 2 };
+          pronto(rBotao.left - rTrilho.left, rBotao.top - rTrilho.top, rBotao.width);
+          return;
+        }
+      }
+      if (trilho.current) {
+        no.measureLayout(trilho.current as never, (x, y, w) => pronto(x, y, w), () => undefined);
+        return;
+      }
+    }
+    no.measureInWindow((x, y, w) => pronto(x, y, w));
+  }, [ativo, cancelarEspera, cancelarTroca, trilho]);
 
   const fechar = useCallback((devolverFoco = false) => {
     cancelarEspera();
+    cancelarTroca();
     pedido.current++;
     const grupo = atual.current?.grupo;
+    atual.current = null;
+    sobreSubmenu.current = null;
+    pontoNoIconeAberto.current = null;
     setAberto(null);
     if (!devolverFoco || !grupo || Platform.OS !== 'web') return;
     const botao = elemento(botoes.current.get(grupo));
@@ -89,12 +158,12 @@ export function useSubmenuDoTrilho(trilho: RefObject<View | null>) {
       semAbrirNoFoco.current = true;
       botao.focus();
     }
-  }, []);
+  }, [cancelarEspera, cancelarTroca]);
 
   // O foco vai ao item pedido depois do desenho (a lista de itens só existe com o submenu na tela).
-  const qual = aberto?.foco ?? null;
-  const grupoAberto = aberto?.grupo;
-  const vez = aberto?.vez;
+  const qual = abertoVisivel?.foco ?? null;
+  const grupoAberto = abertoVisivel?.grupo;
+  const vez = abertoVisivel?.vez;
   useEffect(() => {
     if (!qual || Platform.OS !== 'web') return undefined;
     const relogio = setTimeout(() => {
@@ -104,19 +173,27 @@ export function useSubmenuDoTrilho(trilho: RefObject<View | null>) {
     return () => clearTimeout(relogio);
   }, [qual, vez, grupoAberto]);
 
-  const agendarFechar = () => {
+  const agendarFechar = useCallback(() => {
     cancelarEspera();
-    espera.current = setTimeout(() => setAberto((antes) => (antes?.origem === 'passagem' ? null : antes)), ESPERA_AO_SAIR);
-  };
+    espera.current = setTimeout(() => {
+      espera.current = null;
+      const antes = atual.current;
+      if (!antes || antes.origem !== 'passagem') return;
+      if (sobreBotao.current === antes.grupo || sobreSubmenu.current === antes.grupo) return;
+      atual.current = null;
+      pontoNoIconeAberto.current = null;
+      setAberto(null);
+    }, ESPERA_AO_SAIR);
+  }, [cancelarEspera]);
 
-  useTeclado(!!aberto || !!focado, ({ key, ctrl }) => {
+  useTeclado(!!abertoVisivel || !!focadoVisivel, ({ key, ctrl }) => {
     if (ctrl && key.toLowerCase() === 'k') {
       fechar();
       return undefined;
     }
-    const ativo = document.activeElement as HTMLElement | null;
-    const naCaixa = !!ativo && !!aberto && !!caixaDoSubmenu(aberto.grupo)?.contains(ativo);
-    if (naCaixa && aberto) {
+    const ativoEl = document.activeElement as HTMLElement | null;
+    const naCaixa = !!ativoEl && !!abertoVisivel && !!caixaDoSubmenu(abertoVisivel.grupo)?.contains(ativoEl);
+    if (naCaixa && abertoVisivel) {
       if (key === 'Escape') {
         fechar(true);
         return true;
@@ -126,34 +203,60 @@ export function useSubmenuDoTrilho(trilho: RefObject<View | null>) {
         fechar(true);
         return undefined;
       }
-      const itens = itensDoSubmenu(aberto.grupo);
-      const destino = proximoItemDoMenu(key, itens.indexOf(ativo!), itens.length);
+      const itens = itensDoSubmenu(abertoVisivel.grupo);
+      const destino = proximoItemDoMenu(key, itens.indexOf(ativoEl!), itens.length);
       if (destino === null) return undefined;
       itens[destino]?.focus();
       return true;
     }
-    if (focado && (key === 'ArrowDown' || key === 'ArrowUp')) {
-      abrir(focado, 'fixo', key === 'ArrowDown' ? 'primeiro' : 'ultimo');
+    if (focadoVisivel && (key === 'ArrowDown' || key === 'ArrowUp')) {
+      abrir(focadoVisivel, 'fixo', key === 'ArrowDown' ? 'primeiro' : 'ultimo');
       return true;
     }
-    if (key === 'Escape' && aberto) {
+    if (key === 'Escape' && abertoVisivel) {
       fechar();
       return true;
     }
     return undefined;
   });
 
-  // Clique fora (web): nem no submenu nem no ícone do grupo aberto (o ícone trata o próprio clique).
+  // Clique fora (web): ignora o submenu aberto e qualquer ícone de grupo (o ícone trata o próprio clique).
   useEffect(() => {
-    if (Platform.OS !== 'web' || !aberto) return undefined;
+    if (Platform.OS !== 'web' || !abertoVisivel) return undefined;
     const ouvir = (e: MouseEvent) => {
       const alvo = e.target instanceof Node ? e.target : null;
-      if (!alvo || caixaDoSubmenu(aberto.grupo)?.contains(alvo) || elemento(botoes.current.get(aberto.grupo))?.contains(alvo)) return;
+      if (!alvo || caixaDoSubmenu(abertoVisivel.grupo)?.contains(alvo)) return;
+      for (const botao of botoes.current.values()) {
+        if (elemento(botao)?.contains(alvo)) return;
+      }
       fechar();
     };
     document.addEventListener('mousedown', ouvir);
     return () => document.removeEventListener('mousedown', ouvir);
-  }, [aberto, fechar]);
+  }, [abertoVisivel, fechar]);
+
+  // Redimensionamento (web): acompanha o ícone ou fecha ao sair do modo PC minimizado (< 1024 px).
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !abertoVisivel) return undefined;
+    const aoRedimensionar = () => {
+      if (window.innerWidth < LARGURA_MENU_EXPANDIDO) fechar();
+      else abrir(abertoVisivel.grupo, abertoVisivel.origem);
+    };
+    window.addEventListener('resize', aoRedimensionar);
+    return () => window.removeEventListener('resize', aoRedimensionar);
+  }, [abertoVisivel, abrir, fechar]);
+
+  const estaRumoAoSubmenuAberto = (ponto: Ponto): boolean => {
+    const grupoAtual = atual.current?.grupo;
+    if (!grupoAtual || Platform.OS !== 'web' || !pontoNoIconeAberto.current) return false;
+    const caixa = caixaDoSubmenu(grupoAtual)?.getBoundingClientRect();
+    if (!caixa || caixa.height <= 0) return false;
+    return rumoAoSubmenu(pontoNoIconeAberto.current, ponto, {
+      esquerda: caixa.left,
+      topo: caixa.top,
+      altura: caixa.height,
+    });
+  };
 
   /** Props do ícone de um grupo. */
   const doBotao = (grupo: GrupoDoMenu) => ({
@@ -161,50 +264,116 @@ export function useSubmenuDoTrilho(trilho: RefObject<View | null>) {
       if (no) botoes.current.set(grupo, no);
       else botoes.current.delete(grupo);
     },
-    aberto: aberto?.grupo === grupo,
-    aoPassar: () => {
+    aberto: abertoVisivel?.grupo === grupo,
+    aoEntrar: (clientX?: number, clientY?: number) => {
+      sobreBotao.current = grupo;
       cancelarEspera();
-      if (aberto?.grupo !== grupo) abrir(grupo, 'passagem');
+      const ponto = typeof clientX === 'number' && typeof clientY === 'number' ? { x: clientX, y: clientY } : null;
+      if (ponto) ultimoPonto.current = ponto;
+      if (atual.current?.grupo === grupo) {
+        cancelarTroca();
+        if (ponto) pontoNoIconeAberto.current = ponto;
+        return;
+      }
+      if (atual.current && ponto && estaRumoAoSubmenuAberto(ponto)) {
+        cancelarTroca();
+        troca.current = setTimeout(() => {
+          troca.current = null;
+          if (sobreBotao.current === grupo) {
+            pontoNoIconeAberto.current = ultimoPonto.current ?? ponto;
+            abrir(grupo, 'passagem');
+          }
+        }, ESPERA_TROCA_DIAGONAL);
+        return;
+      }
+      cancelarTroca();
+      pontoNoIconeAberto.current = ponto;
+      abrir(grupo, 'passagem');
     },
-    aoSairDoMouse: agendarFechar,
+    aoMover: (clientX: number, clientY: number) => {
+      sobreBotao.current = grupo;
+      cancelarEspera();
+      const ponto: Ponto = { x: clientX, y: clientY };
+      ultimoPonto.current = ponto;
+      if (atual.current?.grupo === grupo) {
+        pontoNoIconeAberto.current = ponto;
+        return;
+      }
+      if (troca.current && !estaRumoAoSubmenuAberto(ponto)) {
+        cancelarTroca();
+        pontoNoIconeAberto.current = ponto;
+        abrir(grupo, 'passagem');
+      }
+    },
+    aoSair: () => {
+      if (sobreBotao.current === grupo) sobreBotao.current = null;
+      cancelarTroca();
+      agendarFechar();
+    },
     aoFocar: () => {
+      cancelarEspera();
       setFocado(grupo);
       if (semAbrirNoFoco.current) {
         semAbrirNoFoco.current = false;
         return;
       }
-      if (aberto?.grupo !== grupo) abrir(grupo, 'passagem');
+      if (atual.current?.grupo !== grupo) {
+        cancelarTroca();
+        abrir(grupo, 'passagem');
+      }
     },
     aoDesfocar: (destino: unknown) => {
-      setFocado(null);
+      setFocado((antes) => (antes === grupo ? null : antes));
       if (destino instanceof Node && caixaDoSubmenu(grupo)?.contains(destino)) return;
-      setAberto((antes) => (antes?.grupo === grupo && antes.origem === 'passagem' ? null : antes));
+      if (sobreBotao.current === grupo || sobreSubmenu.current === grupo) return;
+      if (atual.current?.grupo === grupo && atual.current.origem === 'passagem') {
+        atual.current = null;
+        pontoNoIconeAberto.current = null;
+        setAberto(null);
+      }
     },
     aoTocar: () => {
-      if (aberto?.grupo === grupo && aberto.origem === 'fixo') fechar();
+      cancelarTroca();
+      cancelarEspera();
+      if (sobreBotao.current === grupo) {
+        abrir(grupo, 'fixo', 'primeiro');
+        return;
+      }
+      if (atual.current?.grupo === grupo && atual.current.origem === 'fixo') fechar();
       else abrir(grupo, 'fixo', 'primeiro');
     },
   });
 
-  // A altura medida é de um grupo: outro grupo tem outro número de itens e espera a sua.
-  const altura = medida && medida.grupo === aberto?.grupo ? medida.altura : null;
-  const topo = aberto ? topoDoSubmenu(aberto.topo, altura, height) : 0;
+  const aoMedirDoSubmenu = useCallback((valor: number) => {
+    if (grupoAberto) aoMedir(grupoAberto, valor);
+  }, [grupoAberto, aoMedir]);
+
+  // Cada grupo guarda a própria altura medida: voltar ao mesmo grupo abre já medido.
+  const altura = abertoVisivel ? (medidas[abertoVisivel.grupo] ?? null) : null;
+  const topo = abertoVisivel ? topoDoSubmenu(abertoVisivel.topo, altura, height) : 0;
   return {
-    aberto,
+    aberto: abertoVisivel,
     fechar,
     doBotao,
     /** Fecha depois de escolher um item: o foco volta ao ícone (a tela nova não o tira dali). */
     aoEscolher: () => fechar(true),
     /** A lista do menu rolou: o submenu acompanha o ícone. */
-    aoRolar: () => { if (aberto) abrir(aberto.grupo, aberto.origem); },
-    doSubmenu: aberto ? {
-      grupo: aberto.grupo,
+    aoRolar: () => { if (abertoVisivel) abrir(abertoVisivel.grupo, abertoVisivel.origem); },
+    doSubmenu: abertoVisivel ? {
+      grupo: abertoVisivel.grupo,
       topo,
-      esquerda: aberto.esquerda,
+      esquerda: abertoVisivel.esquerda,
       medido: altura !== null,
-      aoMedir: (valor: number) => setMedida({ grupo: aberto.grupo, altura: valor }),
-      aoPassar: cancelarEspera,
-      aoSairDoMouse: agendarFechar,
+      aoMedir: aoMedirDoSubmenu,
+      aoPassar: () => {
+        sobreSubmenu.current = abertoVisivel.grupo;
+        cancelarTroca();
+        cancelarEspera();
+      },
+      aoSairDoMouse: () => {
+        if (sobreSubmenu.current === abertoVisivel.grupo) sobreSubmenu.current = null;
+        agendarFechar();
+      },
       aoFechar: () => fechar(),
     } : null,
   };
@@ -238,6 +407,20 @@ export function IconeDoGrupo({ grupo, atual, ponto, sinais, botao }: {
   useEffect(() => {
     if (Platform.OS === 'web' && atual) elemento(no.current)?.scrollIntoView?.({ block: 'nearest' });
   }, [atual]);
+  const eventosDePonteiro = Platform.OS === 'web' ? {
+    onPointerEnter: (e: PointerEvent) => {
+      if (e.nativeEvent.pointerType !== 'touch') botao.aoEntrar(e.nativeEvent.clientX, e.nativeEvent.clientY);
+    },
+    onPointerMove: (e: PointerEvent) => {
+      if (e.nativeEvent.pointerType !== 'touch') botao.aoMover(e.nativeEvent.clientX, e.nativeEvent.clientY);
+    },
+    onPointerLeave: (e: PointerEvent) => {
+      if (e.nativeEvent.pointerType !== 'touch') botao.aoSair();
+    },
+  } : {
+    onHoverIn: () => botao.aoEntrar(),
+    onHoverOut: botao.aoSair,
+  };
   return (
     <Pressable
       ref={ref}
@@ -250,8 +433,7 @@ export function IconeDoGrupo({ grupo, atual, ponto, sinais, botao }: {
       aria-current={atual ? 'true' : undefined}
       accessibilityState={{ expanded: botao.aberto, selected: atual }}
       onPress={botao.aoTocar}
-      onHoverIn={botao.aoPassar}
-      onHoverOut={botao.aoSairDoMouse}
+      {...eventosDePonteiro}
       onFocus={botao.aoFocar}
       onBlur={(e) => botao.aoDesfocar('relatedTarget' in e.nativeEvent ? e.nativeEvent.relatedTarget : null)}
       style={(estado) => [
@@ -273,28 +455,58 @@ export function SubmenuDoGrupo({ submenu, children }: {
   children: ReactNode;
 }) {
   const { cores, bordas } = useTema();
+  const { height: alturaJanela } = useWindowDimensions();
+  const { aoMedir } = submenu;
+  const refDaCaixa = useCallback((n: View | null) => {
+    if (Platform.OS !== 'web' || !n) return;
+    const el = elemento(n);
+    if (!el) return;
+    const h = el.getBoundingClientRect?.().height || el.offsetHeight;
+    if (h > 0) aoMedir(h);
+  }, [aoMedir]);
+  const posicao = {
+    top: submenu.topo,
+    left: submenu.esquerda,
+    // Até a altura ser medida não aparece: assim não pisca no lugar errado antes de subir para caber.
+    opacity: submenu.medido ? 1 : 0,
+  };
   const caixa = (
     <View
+      ref={refDaCaixa}
       nativeID={idDoSubmenu(submenu.grupo)}
       role="menu"
       aria-label={submenu.grupo}
       onLayout={(e) => submenu.aoMedir(e.nativeEvent.layout.height)}
-      onPointerEnter={(e) => { if (e.nativeEvent.pointerType !== 'touch') submenu.aoPassar(); }}
-      onPointerLeave={(e) => { if (e.nativeEvent.pointerType !== 'touch') submenu.aoSairDoMouse(); }}
-      style={[estilos.submenu, {
-        top: submenu.topo,
-        left: submenu.esquerda,
-        backgroundColor: cores.superficie,
-        borderColor: cores.borda,
-        borderWidth: bordas.bloco,
-        // Até a altura ser medida não aparece: assim não pisca no lugar errado antes de subir para caber.
-        opacity: submenu.medido ? 1 : 0,
-      }]}>
+      onPointerEnter={Platform.OS !== 'web' ? (e) => { if (e.nativeEvent.pointerType !== 'touch') submenu.aoPassar(); } : undefined}
+      onPointerLeave={Platform.OS !== 'web' ? (e) => { if (e.nativeEvent.pointerType !== 'touch') submenu.aoSairDoMouse(); } : undefined}
+      style={[
+        Platform.OS !== 'web' && estilos.camada,
+        Platform.OS !== 'web' && posicao,
+        estilos.submenu,
+        {
+          maxHeight: Math.max(ALVO_TOQUE * 2, alturaJanela - 16),
+          backgroundColor: cores.superficie,
+          borderColor: cores.borda,
+          borderWidth: bordas.bloco,
+        },
+        Platform.OS === 'web' && ({ overflowY: 'auto' } as never),
+      ]}>
       <Texto aria-hidden numberOfLines={1} style={[estilos.titulo, { color: cores.textoSuave }]}>{submenu.grupo}</Texto>
       {children}
     </View>
   );
-  if (Platform.OS === 'web') return caixa;
+  if (Platform.OS === 'web') {
+    return (
+      <View
+        onPointerEnter={(e) => { if (e.nativeEvent.pointerType !== 'touch') submenu.aoPassar(); }}
+        onPointerMove={(e) => { if (e.nativeEvent.pointerType !== 'touch') submenu.aoPassar(); }}
+        onPointerLeave={(e) => { if (e.nativeEvent.pointerType !== 'touch') submenu.aoSairDoMouse(); }}
+        style={[estilos.camada, posicao]}>
+        <View aria-hidden style={estilos.ponte} />
+        {caixa}
+      </View>
+    );
+  }
   return (
     <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={submenu.aoFechar}>
       <Pressable style={StyleSheet.absoluteFill} onPress={submenu.aoFechar} accessibilityLabel={`Fechar ${submenu.grupo}`} />
@@ -307,6 +519,8 @@ const estilos = StyleSheet.create({
   icone: { minHeight: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
   indicador: { position: 'absolute', left: 0, top: '50%', marginTop: -8, width: 3, height: 16, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
   ponto: { position: 'absolute', right: -5, top: -3, width: 9, height: 9, borderRadius: 5, borderWidth: 1 },
-  submenu: { position: 'absolute', width: LARGURA_DO_SUBMENU, borderRadius: RAIO, padding: espaco(0.5), gap: 2, zIndex: 50 },
+  camada: { position: 'absolute', zIndex: 50 },
+  ponte: { position: 'absolute', left: -espaco(2), width: espaco(2), top: 0, bottom: 0 },
+  submenu: { width: LARGURA_DO_SUBMENU, borderRadius: RAIO, padding: espaco(0.5), gap: 2 },
   titulo: { fontFamily: fontes.medio, fontSize: 13, lineHeight: 18, paddingHorizontal: espaco(1.5), paddingTop: espaco(0.5), paddingBottom: 4 },
 });

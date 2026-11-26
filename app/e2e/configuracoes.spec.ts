@@ -386,8 +386,8 @@ async function colunasDaMarca(page: Page) {
   return { form: await caixa('coluna-do-formulario'), previa: await caixa('coluna-da-previa'), desenho: await caixa('previa-da-paleta'), nome, bloco };
 }
 
-// Item 5 (26/11): na tela larga o formulário inteiro fica em 640 px e a prévia ocupa o resto da linha, ao lado; o desenho do
-// app do aluno não passa de 720 e fica centrado no cartão. Em Limitada o conjunto fica nos 1800 centrados.
+// Item 5 (26/11): na tela larga o formulário inteiro fica em 640 px e a prévia vem colada ao lado (vão de 24), com o cartão
+// parando no desenho do app do aluno (720 + recuo) e o resto da linha vazio. Em Limitada o conjunto fica nos 1800 centrados.
 for (const [largura, larguraConteudo] of [[3440, 'AUTOMATICA'], [3440, 'LIMITADA'], [1920, 'AUTOMATICA']] as const) {
   test(`${largura}, marca, ${larguraConteudo === 'LIMITADA' ? 'Limitada' : 'Automática'}: formulário de 640 e a prévia no resto`, async ({ page }) => {
     const { errosDaPagina } = await abrir(page, largura, { ...ADMIN, larguraConteudo }, '/treinador/configuracoes/marca');
@@ -399,7 +399,10 @@ for (const [largura, larguraConteudo] of [[3440, 'AUTOMATICA'], [3440, 'LIMITADA
       expect(nome.x + nome.width).toBeLessThanOrEqual(form.x + form.width + 1);
       expect(Math.abs(form.x - bloco.x)).toBeLessThanOrEqual(1);
       expect(Math.abs(previa.x - (form.x + form.width) - 24)).toBeLessThanOrEqual(1);
-      expect(Math.abs(previa.x + previa.width - bloco.direita)).toBeLessThanOrEqual(1);
+      expect(previa.x - (form.x + form.width)).toBeLessThanOrEqual(48);
+      expect(previa.x + previa.width).toBeLessThanOrEqual(bloco.direita + 1);
+      expect(previa.width).toBeLessThanOrEqual(720 + 48 + 1);
+      if (largura === 3440) expect(previa.x).toBeLessThan((bloco.x + bloco.direita) / 2);
       expect(desenho.width).toBeLessThanOrEqual(720 + 1);
       expect(Math.abs(desenho.x + desenho.width / 2 - (previa.x + previa.width / 2))).toBeLessThanOrEqual(2);
       if (larguraConteudo === 'LIMITADA') expect(Math.abs(bloco.direita - bloco.x - 1800)).toBeLessThanOrEqual(1);

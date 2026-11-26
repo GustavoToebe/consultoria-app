@@ -161,6 +161,19 @@ export const opcaoNaFrase = (rotulo: string) => `opção ${ehRotuloPadrao(rotulo
 export const totalDaOpcao = (rotulo: string) => (ehRotuloPadrao(rotulo) ? `Total da opção ${rotulo.trim()}`.trim() : `Total · ${rotulo.trim()}`);
 
 /**
+ * Como as frases do total do dia chamam a primeira opção de cada refeição (a que entra na soma), que pode ter rótulo
+ * diferente por refeição. Todas padrão (ou vazias, ou nenhuma refeição) = `padrao` com "opção A" ("Soma da opção A de cada
+ * refeição"); todas com o mesmo rótulo personalizado = o rótulo como escrito ("Soma · Principal de cada refeição"); mistura
+ * (personalizados diferentes, ou personalizado com padrão) = "primeira opção". Refeição sem opção não conta.
+ */
+export function opcaoDoTotalDoDia(refeicoes: Refeicao[]): { padrao: boolean; nome: string } {
+  const rotulos = refeicoes.filter((r) => r.opcoes.length > 0).map((r) => r.opcoes[0].rotulo.trim());
+  if (rotulos.every(ehRotuloPadrao)) return { padrao: true, nome: 'opção A' };
+  const todasIguais = rotulos.every((r) => r === rotulos[0]);
+  return { padrao: false, nome: todasIguais ? rotulos[0] : 'primeira opção' };
+}
+
+/**
  * A letra segue a posição (26/11) só nas opções de rótulo padrão: o `rotulo` é gravado no plano e o aluno, o PDF e o
  * "Escolha uma das opções" o leem, então reordenar grava as letras novas. O personalizado se mantém (e a posição 1 segue
  * sendo a do total do dia). Quem já está com a letra certa continua a mesma instância.

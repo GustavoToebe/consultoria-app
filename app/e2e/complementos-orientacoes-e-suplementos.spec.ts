@@ -69,6 +69,22 @@ async function abrir(page: Page, { largura, permissoes = ['ERGOGENICO_LER', 'ERG
   return api;
 }
 
+/**
+ * Linhas de texto à vista no campo, sem meia linha: (altura − bordas − recuo de cima) ÷ linha quando rola (o recuo de
+ * baixo sai, para não mostrar o começo da linha seguinte) ou (altura − bordas − recuos) ÷ linha quando cabe tudo.
+ * Devolve fração se sobrar meia linha.
+ */
+async function linhasVisiveis(campo: Locator) {
+  await expect.poll(() => campo.evaluate((e) => e.style.height !== '' && e.style.height !== 'auto')).toBe(true);
+  return campo.evaluate((e) => {
+    const cs = getComputedStyle(e);
+    const px = (v: string) => parseFloat(v) || 0;
+    const rola = e.scrollHeight > e.clientHeight + 1;
+    const util = e.getBoundingClientRect().height - px(cs.borderTopWidth) - px(cs.borderBottomWidth) - px(cs.paddingTop) - (rola ? 0 : px(cs.paddingBottom));
+    return Math.round((util / px(cs.lineHeight)) * 100) / 100;
+  });
+}
+
 /** O cartão Complementos (a refeição aberta também tem "Nome" e "Horário"). */
 const cartao = (page: Page) => page.getByTestId('cartao').filter({ has: page.getByRole('heading', { name: 'Complementos' }) });
 
@@ -198,8 +214,9 @@ test('suplementação em tabela: cabeçalho uma vez, nome em duas linhas, link, 
   // O nome quebra em até duas linhas (o que passar rola no campo), sem a alça de redimensionar; o curto fica em uma.
   const nome = page.getByLabel('Nome do suplemento 1');
   await expect(nome).toHaveValue(NOME_LONGO);
-  expect(await nome.evaluate((el) => [el.tagName, (el as HTMLTextAreaElement).rows, getComputedStyle(el).resize])).toEqual(['TEXTAREA', 2, 'none']);
-  expect(await page.getByLabel('Nome do suplemento 2').evaluate((el) => (el as HTMLTextAreaElement).rows)).toBe(1);
+  expect(await nome.evaluate((el) => [el.tagName, getComputedStyle(el).resize])).toEqual(['TEXTAREA', 'none']);
+  expect(await linhasVisiveis(nome)).toBe(2);
+  expect(Math.round((await page.getByLabel('Nome do suplemento 2').boundingBox())!.height)).toBe(44);
   // Link: só no que tem, ao lado do nome; cupom à vista embaixo; o que falta avisa na linha.
   await expect(page.getByRole('button', { name: /^Abrir produto/ })).toHaveCount(1);
   await expect(page.getByText('TESTE10')).toBeVisible();
@@ -316,6 +333,43 @@ for (const largura of [1920, 3440]) {
     // Nome e observação longos inteiros em até duas linhas, sem a alça de redimensionar (o campo da Suplementação).
     for (const rotulo of ['Nome', 'Observação']) {
       const el = cartao(page).getByLabel(rotulo, { exact: true }).first();
+      expect(await el.evaluate((e) => [e.tagName, getComputedStyle(e).resize, e.scrollHeight <= e.clientHeight + 1])).toEqual(['TEXTAREA', 'none', true]);
+    }
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+// 26/11 (fechamento): nas colunas estreitas o campo de uma linha nascia com duas ("Pré-treino" em 104 px, a conta de
+// caracteres era folgada demais), a observação de três linhas parava em duas e meia e, na grade de 654 px, o nome e a
+// observação cortavam. Agora a altura vem do texto medido: uma linha = 44 (alinhada na linha), o texto longo inteiro.
+const OUTROS_ESTREITOS: NonNullable<ConteudoDieta['ergogenicos']> = [
+  ...OUTROS_LONGOS,
+  { uid: 'e3', nome: 'Ergogênico fictício', principioAtivo: 'Composto fictício', concentracao: '5 mg/ml', dose: '0,5 ml', horario: 'Pré-treino', observacao: 'Só nos dias de treino.', prescricao: '' },
+];
+
+for (const [janela, modo] of [[1000, 'colunas'], [898, 'colunas'], [720, 'grade']] as const) {
+  test(`outros estreito: campo de uma linha com 44 px e alinhado, texto longo inteiro (janela ${janela}px, ${modo})`, async ({ page }) => {
+    const { naoTratadas, errosDaPagina } = await abrir(page, { largura: janela, conteudo: { ...CONTEUDO, ergogenicos: OUTROS_ESTREITOS } });
+    await aba(page, /^Outros/).click();
+    const detalhes = page.getByRole('button', { name: 'Mais detalhes (princípio ativo, concentração, observação)' });
+    await detalhes.nth(0).click();
+    await detalhes.nth(2).click();
+    const campo = (rotulo: string, n: number) => cartao(page).getByLabel(rotulo, { exact: true }).nth(n);
+    // Item 3: tudo cabe numa linha, então os campos medem 44 e ficam na mesma altura (os da mesma linha da grade também).
+    for (const [rotulos, n] of [[['Nome', 'Dose prescrita', 'Horário'], 2], [['Princípio ativo', 'Concentração', 'Prescrição (opcional)', 'Observação'], 1]] as const) {
+      const caixas = [];
+      for (const r of rotulos) {
+        await expect.poll(async () => Math.round((await campo(r, n).boundingBox())!.height)).toBe(44);
+        caixas.push((await campo(r, n).boundingBox())!);
+      }
+      if (modo === 'colunas') semSobreposicao(caixas);
+    }
+    // Item 1: nome e observação longos inteiros, em linhas inteiras (sem meia linha), sem rolar.
+    for (const rotulo of ['Nome', 'Observação']) {
+      const el = campo(rotulo, 0);
+      expect(await linhasVisiveis(el)).toBeGreaterThanOrEqual(2);
+      expect(Number.isInteger(await linhasVisiveis(el))).toBe(true);
       expect(await el.evaluate((e) => [e.tagName, getComputedStyle(e).resize, e.scrollHeight <= e.clientHeight + 1])).toEqual(['TEXTAREA', 'none', true]);
     }
     expect(naoTratadas).toEqual([]);

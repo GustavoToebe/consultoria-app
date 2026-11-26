@@ -197,7 +197,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   // Uma prévia só por largura (`previa-da-paleta` é única): ao lado dos ajustes (`lado`) ou do formulário inteiro (`larga`).
   const colunaDaPrevia = (
     <View testID="coluna-da-previa" style={[arranjo === 'larga' ? estilos.previaNoResto : estilos.colunaDaPrevia, GRUDADA]}>
-      <Cartao titulo="Prévia do app do aluno" nivel={3} descricao="Muda junto com o que você escolhe ao lado." style={arranjo === 'larga' ? estilos.cartaoDaPrevia : undefined}>
+      <Cartao titulo="Prévia do app do aluno" nivel={3} descricao="Muda junto com o que você escolhe ao lado.">
         {previaDaMarca}
       </Cartao>
     </View>
@@ -464,11 +464,11 @@ const estilos = StyleSheet.create({
   colunaDoFormulario: { width: LARGURA_FORMULARIO, flexShrink: 0, gap: espaco(2) },
   // `flex-start`: sem ele a coluna estica até a altura dos ajustes e o `sticky` não tem para onde andar.
   colunaDaPrevia: { width: 320, alignSelf: 'flex-start' },
-  previaNoResto: { flex: 1, minWidth: 0, alignSelf: 'flex-start' },
-  // O cartão abraça o desenho (720 + o recuo do cartão) e fica centrado na coluna: sem cartão de 2000 px com o título longe do desenho.
-  cartaoDaPrevia: { width: '100%', maxWidth: LARGURA_DO_APP_DO_ALUNO + espaco(6), alignSelf: 'center' },
+  // A coluna da prévia cola no formulário (vão de 24) e para no desenho (720 + o recuo do cartão): sem cartão de 2000 px solto
+  // no meio da área. Decisão (26/11): o que sobra à direita em 3440 fica vazio de propósito; não há conteúdo para pôr ali.
+  previaNoResto: { flex: 1, minWidth: 0, maxWidth: LARGURA_DO_APP_DO_ALUNO + espaco(6), alignSelf: 'flex-start' },
   previa: { gap: espaco(0.5) },
-  // O desenho do app do aluno não estica além da largura dele na web: centrado no cartão que ocupa o resto da linha.
+  // O desenho do app do aluno não estica além da largura dele na web (centrado no cartão, que já para nessa largura).
   previaNoCartao: { width: '100%', maxWidth: LARGURA_DO_APP_DO_ALUNO, alignSelf: 'center' },
   telaPrevia: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
   telaCompacta: { padding: espaco(1) },

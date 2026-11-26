@@ -157,31 +157,29 @@ function ItemDeErgogenico({ item: e, posicao, editavel, emColunas, aoMudar, aoRe
   const L = LIMITES_DOS_COMPLEMENTOS;
   const grade = emColunas ? estilos.linha : estilos.grade;
   const coluna = (larga: ViewStyle) => (emColunas ? larga : estilos.campo);
-  // Em colunas, o campo cresce até duas linhas (o texto longo não fica cortado); no celular, o de uma linha.
-  const CampoDoItem = emColunas ? CampoDaColuna : Campo;
   return (
     <View style={[estilos.subCartao, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
       <CabecalhoDoItem titulo={`#${posicao + 1} · ${e.nome.trim() || 'Sem nome'}`} aberto nomeDoItem="item"
         remover={editavel ? <IconeBotao Icone={Trash2} rotulo={`Remover ${e.nome || 'item'}`} cor={cores.perigo} aoTocar={aoRemover} /> : undefined} />
       <View style={grade}>
-        <View style={coluna(estilos.resto)}><CampoDoItem rotulo="Nome" valor={e.nome} aoMudar={(nome) => aoMudar({ nome })} maxLength={L.campoCurto} editable={editavel} /></View>
-        <View style={coluna(COLUNA_DA_DOSE)}><CampoDoItem rotulo="Dose prescrita" valor={e.dose} aoMudar={(dose) => aoMudar({ dose })} maxLength={L.campoCurto} editable={editavel} /></View>
-        <View style={coluna(COLUNA_DO_HORARIO)}><CampoDoItem rotulo="Horário" valor={e.horario} aoMudar={(horario) => aoMudar({ horario })} maxLength={L.campoCurto} editable={editavel} /></View>
+        <View style={coluna(estilos.resto)}><CampoDaColuna rotulo="Nome" valor={e.nome} aoMudar={(nome) => aoMudar({ nome })} maxLength={L.campoCurto} editable={editavel} /></View>
+        <View style={coluna(COLUNA_DA_DOSE)}><CampoDaColuna rotulo="Dose prescrita" valor={e.dose} aoMudar={(dose) => aoMudar({ dose })} maxLength={L.campoCurto} editable={editavel} /></View>
+        <View style={coluna(COLUNA_DO_HORARIO)}><CampoDaColuna rotulo="Horário" valor={e.horario} aoMudar={(horario) => aoMudar({ horario })} maxLength={L.campoCurto} editable={editavel} /></View>
       </View>
       <BotaoDeAbrir texto={MAIS_DETALHES} aberto={detalhes} aoAlternar={() => setDetalhes(!detalhes)} />
       {detalhes ? (
         <View style={grade}>
           <View style={coluna(COLUNA_DE_DETALHE)}>
-            <CampoDoItem rotulo="Princípio ativo" valor={e.principioAtivo} aoMudar={(principioAtivo) => aoMudar({ principioAtivo })} maxLength={L.principioAtivo} editable={editavel} />
+            <CampoDaColuna rotulo="Princípio ativo" valor={e.principioAtivo} aoMudar={(principioAtivo) => aoMudar({ principioAtivo })} maxLength={L.principioAtivo} editable={editavel} />
           </View>
           <View style={coluna(COLUNA_DA_DOSE)}>
-            <CampoDoItem rotulo="Concentração" valor={e.concentracao} aoMudar={(concentracao) => aoMudar({ concentracao })} maxLength={L.concentracao} editable={editavel} />
+            <CampoDaColuna rotulo="Concentração" valor={e.concentracao} aoMudar={(concentracao) => aoMudar({ concentracao })} maxLength={L.concentracao} editable={editavel} />
           </View>
           <View style={coluna(COLUNA_DE_DETALHE)}>
-            <CampoDoItem rotulo="Prescrição (opcional)" valor={e.prescricao} aoMudar={(prescricao) => aoMudar({ prescricao })} maxLength={L.prescricao} editable={editavel} />
+            <CampoDaColuna rotulo="Prescrição (opcional)" valor={e.prescricao} aoMudar={(prescricao) => aoMudar({ prescricao })} maxLength={L.prescricao} editable={editavel} />
           </View>
           <View style={emColunas ? estilos.resto : estilos.campoLargo}>
-            <CampoDoItem rotulo="Observação" valor={e.observacao} aoMudar={(observacao) => aoMudar({ observacao })} maxLength={L.observacao} editable={editavel} />
+            <CampoDaColuna rotulo="Observação" valor={e.observacao} aoMudar={(observacao) => aoMudar({ observacao })} maxLength={L.observacao} editable={editavel} />
           </View>
         </View>
       ) : null}
@@ -189,9 +187,13 @@ function ItemDeErgogenico({ item: e, posicao, editavel, emColunas, aoMudar, aoRe
   );
 }
 
-/** O campo da tabela com o rótulo à vista (Outros não tem cabeçalho de colunas: cada item tem o título "#N · Nome"). */
-function CampoDaColuna(props: Omit<ComponentProps<typeof Campo>, 'linhas'>) {
-  return <CampoDaTabela {...props} rotuloOculto={false} />;
+/**
+ * O campo da tabela com o rótulo à vista (Outros não tem cabeçalho de colunas: cada item tem o título "#N · Nome"). Cresce
+ * até 6 linhas (26/11): a observação de ~120 caracteres pede 5 na coluna mais estreita (~206 px, lista de 720) e o nome
+ * de 120, 6 na grade de 654 px; daí em diante rola dentro do campo.
+ */
+function CampoDaColuna(props: Omit<ComponentProps<typeof Campo>, 'linhas' | 'ref'>) {
+  return <CampoDaTabela {...props} rotuloOculto={false} maximoDeLinhas={6} />;
 }
 
 const estilos = StyleSheet.create({
