@@ -2,7 +2,9 @@
  * Tipos dos contratos da API (espelho dos records Java). Mudou um DTO na API, muda aqui junto.
  */
 
-export type Papel = 'TREINADOR' | 'ALUNO';
+import type { OpcoesPdf } from '../dominio/configuracaoPdf';
+
+export type Papel ='TREINADOR' | 'ALUNO';
 export type Fonte = 'PADRAO' | 'METAL' | 'ESPORTIVA' | 'CONDENSADA';
 /** Paletas da marca (`temaPadrao` da consultoria); cada uma tem modo fixo em `tema/tokens.PALETAS`. */
 export type Tema = 'ESCURO' | 'MEIA_NOITE' | 'AMEIXA' | 'OCEANO' | 'CLARO' | 'AREIA' | 'LAVANDA' | 'CEU' | 'ROSA';
@@ -15,8 +17,10 @@ export interface Marca {
   temaPadrao: Tema;
   /** Relativo à API (o app junta com a URL base). */
   logoUrl: string | null;
-  /** Tema dos PDFs da consultoria (`pdf/temas.ts`); ausente ou desconhecido = `CLASSICO`. */
+  /** Modelo dos PDFs da consultoria (`ModeloPdf`); ausente ou desconhecido = `CLASSICO`. */
   temaPdf?: string | null;
+  /** Sobrescritas do modelo dos PDFs (`dominio/configuracaoPdf`); nulo ou ausente = as do modelo. */
+  opcoesPdf?: OpcoesPdf | null;
 }
 
 export interface UsuarioResumo {
@@ -1074,6 +1078,8 @@ export interface PastaResumo {
   concluidaEm: string | null;
   /** Questionário escolhido só para o período da pasta; nulo = vale o do aluno. */
   questionarioId?: string | null;
+  /** Menor data de liberação entre os planos agendados da pasta (bloco E); nulo = nenhum agendado ou resposta sem o cálculo. */
+  liberarEm?: string | null;
 }
 
 /** Pasta que o aluno está usando agora (a do treino ativo, senão a da dieta ativa); nula = nenhuma. */
@@ -1096,6 +1102,10 @@ export interface FinalizarPastaRequest {
 export interface PublicarPastaRequest {
   confirmarAvisos: boolean;
   versoes: Record<string, number>;
+  /** Uma data (`AAAA-MM-DD`, de amanhã em Brasília) para todos os planos publicados agora; ausente = libera na hora. */
+  liberarEm?: string;
+  /** Ausente = avisa o aluno. */
+  avisarAluno?: boolean;
 }
 
 /** Versão que a pasta publicou de cada plano; `tipo` em minúsculas, como o prefixo dos erros (`treino.<caminho>`). */
@@ -1103,6 +1113,8 @@ export interface PlanoPublicadoNaPasta {
   tipo: TipoPlano;
   planoId: string;
   versao: number;
+  /** Nulo = liberado na hora. */
+  liberarEm?: string | null;
 }
 
 /** Plano que ficou como estava: já publicado e sem alteração no rascunho depois disso. */
@@ -1157,8 +1169,14 @@ export interface PlanoResumo {
   versaoPublicada: number;
   publicadoEm: string | null;
   rascunhoAlteradoDepoisDePublicar: boolean;
-  /** Lock otimista do rascunho. */
+  /** Lock otimista do rascunho. A rotina de liberação, "Alterar data" e "Liberar agora" também a sobem. */
   versao: number;
+  /** Versão que o aluno vê (0 = nenhuma). */
+  versaoLiberada?: number;
+  /** Não nulo = há versão publicada agendada para este dia (Brasília): selo "Agendado para dd/mm". */
+  liberarEm?: string | null;
+  /** Avisar o aluno quando a versão agendada for liberada; só importa com `liberarEm`. */
+  avisarNaLiberacao?: boolean;
 }
 
 export interface VersaoResumo {

@@ -295,6 +295,38 @@ ci('inscricao_ajuda_automatica', so(P('t', 'TEXTO', { ajudaAutomatica: 'MEDIA_DI
 ci('inscricao_padrao_da_v050', JSON.parse(readFileSync(`${RAIZ}/api/src/main/resources/db/migration/V050__inscricao_com_perguntas_proprias.sql`, 'utf8')
   .match(/modelo jsonb := '(.*?)'::jsonb;/)[1].replace(/''/g, "'")));
 
+// ITENS_DO_PLANO (só na atualização): `fonte` obrigatória, `max` de 1 a 20 (o mesmo campo das FOTOS), `motivo` NENHUM (padrão),
+// OPCIONAL ou OBRIGATORIO e `rotuloMotivo` (até 60, só com motivo; cada pergunta com motivo soma max (ou 20) x 300 à capacidade de texto).
+const IT = (extra = {}) => P('i', 'ITENS_DO_PLANO', extra);
+const ITF = (extra = {}) => IT({ fonte: 'ALIMENTOS_DA_DIETA', ...extra });
+c('itens_sem_fonte', com(IT()), [`${pp(1)}.fonte`]);
+c('itens_max_1_sem_fonte', com(IT({ max: 1 })), [`${pp(1)}.fonte`]);
+c('itens_max_20_sem_fonte', com(IT({ max: 20 })), [`${pp(1)}.fonte`]);
+c('itens_max_0', com(IT({ max: 0 })), [`${pp(1)}.fonte`, `${pp(1)}.max`]);
+c('itens_max_21', com(IT({ max: 21 })), [`${pp(1)}.fonte`, `${pp(1)}.max`]);
+c('itens_max_decimal', com(IT({ max: 1.5 })), [`${pp(1)}.fonte`, `${pp(1)}.max`]);
+c('max_em_texto_continua_recusado', com(P('t', 'TEXTO', { max: 1 })), [`${pp(1)}.max`]);
+ca('itens_na_anamnese', so(IT()), ['secoes[0].perguntas[0].tipo', 'secoes[0].perguntas[0].fonte']);
+ci('itens_na_inscricao', so(IT()), ['secoes[0].perguntas[0].tipo', 'secoes[0].perguntas[0].fonte']);
+{
+  for (const fonte of ['ALIMENTOS_DA_DIETA', 'EXERCICIOS_DO_TREINO', 'DIAS_TREINADOS']) c(`itens_fonte_${fonte.toLowerCase()}_ok`, com(IT({ fonte })));
+  c('itens_fonte_desconhecida', com(IT({ fonte: 'SUPLEMENTOS' })), [`${pp(1)}.fonte`]);
+  c('itens_completo_ok', com(ITF({ max: 1, motivo: 'OBRIGATORIO', rotuloMotivo: 'a'.repeat(60) })));
+  c('itens_motivo_opcional_ok', com(ITF({ motivo: 'OPCIONAL', rotuloMotivo: 'Onde e como doeu?' })));
+  c('itens_motivo_nenhum_explicito_ok', com(ITF({ motivo: 'NENHUM' })));
+  c('itens_motivo_desconhecido', com(ITF({ motivo: 'TALVEZ' })), [`${pp(1)}.motivo`]);
+  c('itens_rotulo_do_motivo_61', com(ITF({ motivo: 'OPCIONAL', rotuloMotivo: 'a'.repeat(61) })), [`${pp(1)}.rotuloMotivo`]);
+  c('itens_rotulo_do_motivo_sem_motivo', com(ITF({ rotuloMotivo: 'Por quê?' })), [`${pp(1)}.rotuloMotivo`]);
+  c('itens_rotulo_do_motivo_com_motivo_nenhum', com(ITF({ motivo: 'NENHUM', rotuloMotivo: 'Por quê?' })), [`${pp(1)}.rotuloMotivo`]);
+  c('itens_max_1_e_20_ok', com(ITF({ max: 1 }), ITF({ id: 'j', max: 20 })));
+  c('fonte_em_texto', com(P('t', 'TEXTO', { fonte: 'DIAS_TREINADOS' })), [`${pp(1)}.fonte`]);
+  c('motivo_em_texto', com(P('t', 'TEXTO', { motivo: 'OPCIONAL' })), [`${pp(1)}.motivo`]);
+  c('rotulo_do_motivo_em_texto', com(P('t', 'TEXTO', { rotuloMotivo: 'x' })), [`${pp(1)}.rotuloMotivo`]);
+  // capacidade de texto: cada pergunta com motivo soma max (ou 20) x 300; 40000 no total.
+  c('itens_capacidade_de_texto_ok', com(...Array.from({ length: 6 }, (_, k) => ITF({ id: `i${k}`, motivo: 'OPCIONAL' }))));
+  c('itens_capacidade_de_texto_estoura', com(...Array.from({ length: 7 }, (_, k) => ITF({ id: `i${k}`, motivo: 'OPCIONAL' }))), ['secoes']);
+}
+
 // Fábrica: o questionário de onde sai o Padrão de cada consultoria, como está no V001 (o teste de integração confere o banco).
 {
   const sql = readFileSync(`${RAIZ}/api/src/main/resources/db/migration/V001__inicial.sql`, 'utf8');
@@ -549,6 +581,66 @@ r('endereco_bairro_101', Q(EN()), { e: COM({ bairro: 'x'.repeat(101) }) }, ['e']
 r('endereco_cidade_100_ok', Q(EN()), { e: COM({ cidade: 'x'.repeat(100) }) });
 r('endereco_cidade_101', Q(EN()), { e: COM({ cidade: 'x'.repeat(101) }) }, ['e']);
 r('endereco_cidade_100_com_espacos_nas_pontas_ok', Q(EN()), { e: COM({ cidade: ` ${'x'.repeat(100)} ` }) });
+
+// ITENS_DO_PLANO: `itens` é o que o servidor lê da versão publicada da pasta e dos registros do aluno (ver `ItensDoPlano`):
+// o cliente manda [{id, motivo?}] e o servidor grava [{id, nome, motivo?}] com o nome da lista (`respostaLimpa`).
+// Sem `itens`, não há lista: toda resposta é recusada. Dado fictício.
+const IP = (extra = {}) => ({ id: 'i', tipo: 'ITENS_DO_PLANO', rotulo: 'i', obrigatoria: false, fonte: 'ALIMENTOS_DA_DIETA', ...extra });
+const LISTA_DE_ITENS = {
+  ALIMENTOS_DA_DIETA: [{ id: U(1), nome: 'Frango grelhado' }, { id: U(2), nome: 'Batata-doce' }, { id: U(3), nome: 'frango  grelhado' }],
+  DIAS_TREINADOS: [{ id: '2026-11-17', nome: 'Seg 17/11 · Treino A' }, { id: '2026-11-19', nome: 'Qua 19/11' }],
+};
+const VINTE_E_UM = Array.from({ length: 21 }, (_, k) => ({ id: U(100 + k), nome: `Exercício ${k}` }));
+const ri = (nome, modelo, resp, campos = [], extra = {}) => r(nome, modelo, resp, campos, { itens: LISTA_DE_ITENS, ...extra });
+const MOTIVO = (m) => ({ motivo: m });
+ri('itens_grava_o_nome_da_lista', Q(IP({ motivo: 'OPCIONAL' })), { i: [{ id: U(1), motivo: '  enjoei  ' }, { id: U(2) }] }, [],
+  { chavesAceitas: ['i'], respostaLimpa: { i: [{ id: U(1), nome: 'Frango grelhado', motivo: 'enjoei' }, { id: U(2), nome: 'Batata-doce' }] } });
+ri('itens_motivo_em_branco_some', Q(IP({ motivo: 'OPCIONAL' })), { i: [{ id: U(2), motivo: '   ' }, { id: U(1), motivo: null }] }, [],
+  { chavesAceitas: ['i'], respostaLimpa: { i: [{ id: U(2), nome: 'Batata-doce' }, { id: U(1), nome: 'Frango grelhado' }] } });
+ri('itens_sem_motivo_na_pergunta_ok', Q(IP()), { i: [{ id: U(1) }] }, [], { chavesAceitas: ['i'] });
+ri('itens_vazio_opcional_ok', Q(IP()), { i: [] }, [], { chavesAceitas: [] });
+ri('itens_ausente_obrigatorio', Q(IP({ obrigatoria: true })), {}, ['i']);
+ri('itens_vazio_obrigatorio', Q(IP({ obrigatoria: true })), { i: [] }, ['i']);
+ri('itens_nome_do_cliente_recusado', Q(IP()), { i: [{ id: U(1), nome: 'Outro nome' }] }, ['i']);
+ri('itens_chave_desconhecida', Q(IP()), { i: [{ id: U(1), quantidade: 3 }] }, ['i']);
+ri('itens_id_fora_da_lista', Q(IP()), { i: [{ id: U(99) }] }, ['i']);
+ri('itens_id_de_outra_fonte', Q(IP()), { i: [{ id: '2026-11-17' }] }, ['i']);
+ri('itens_id_repetido', Q(IP()), { i: [{ id: U(1) }, { id: U(1) }] }, ['i']);
+ri('itens_mesmo_nome_de_outro_item', Q(IP()), { i: [{ id: U(1) }, { id: U(3) }] }, ['i']);
+ri('itens_nao_e_lista', Q(IP()), { i: { id: U(1) } }, ['i']);
+ri('itens_item_texto', Q(IP()), { i: [U(1)] }, ['i']);
+ri('itens_id_numero', Q(IP()), { i: [{ id: 1 }] }, ['i']);
+ri('itens_item_sem_id', Q(IP()), { i: [{ motivo: 'x' }] }, ['i']);
+ri('itens_max_1_dois_itens', Q(IP({ max: 1 })), { i: [{ id: U(1) }, { id: U(2) }] }, ['i']);
+ri('itens_max_1_um_item_ok', Q(IP({ max: 1 })), { i: [{ id: U(2) }] }, [], { chavesAceitas: ['i'] });
+ri('itens_max_2_dois_itens_ok', Q(IP({ max: 2 })), { i: [{ id: U(1) }, { id: U(2) }] }, [], { chavesAceitas: ['i'] });
+ri('itens_max_fora_da_regra_vale_o_teto', Q(IP({ fonte: 'EXERCICIOS_DO_TREINO', max: 0 })),
+  { i: VINTE_E_UM.slice(0, 20).map(({ id }) => ({ id })) }, [], { itens: { EXERCICIOS_DO_TREINO: VINTE_E_UM }, chavesAceitas: ['i'] });
+ri('itens_sem_max_21_itens', Q(IP({ fonte: 'EXERCICIOS_DO_TREINO' })), { i: VINTE_E_UM.map(({ id }) => ({ id })) }, ['i'], { itens: { EXERCICIOS_DO_TREINO: VINTE_E_UM } });
+ri('itens_motivo_obrigatorio_ausente', Q(IP({ motivo: 'OBRIGATORIO' })), { i: [{ id: U(1) }] }, ['i']);
+ri('itens_motivo_obrigatorio_em_branco', Q(IP({ motivo: 'OBRIGATORIO' })), { i: [{ id: U(1), motivo: '  ' }] }, ['i']);
+ri('itens_motivo_obrigatorio_ok', Q(IP({ motivo: 'OBRIGATORIO' })), { i: [{ id: U(1), ...MOTIVO('enjoei') }] }, [], { chavesAceitas: ['i'] });
+ri('itens_motivo_obrigatorio_em_so_um_dos_itens', Q(IP({ motivo: 'OBRIGATORIO' })), { i: [{ id: U(1), ...MOTIVO('x') }, { id: U(2) }] }, ['i']);
+ri('itens_motivo_300_ok', Q(IP({ motivo: 'OPCIONAL' })), { i: [{ id: U(1), ...MOTIVO('x'.repeat(300)) }] }, [], { chavesAceitas: ['i'] });
+ri('itens_motivo_300_com_espacos_nas_pontas_ok', Q(IP({ motivo: 'OPCIONAL' })), { i: [{ id: U(1), ...MOTIVO(` ${'x'.repeat(300)} `) }] }, [], { chavesAceitas: ['i'] });
+ri('itens_motivo_301', Q(IP({ motivo: 'OPCIONAL' })), { i: [{ id: U(1), ...MOTIVO('x'.repeat(301)) }] }, ['i']);
+ri('itens_motivo_nao_e_texto', Q(IP({ motivo: 'OPCIONAL' })), { i: [{ id: U(1), motivo: 7 }] }, ['i']);
+ri('itens_motivo_sem_pedir', Q(IP()), { i: [{ id: U(1), ...MOTIVO('sem pedir') }] }, ['i']);
+ri('itens_motivo_nenhum_explicito_sem_pedir', Q(IP({ motivo: 'NENHUM' })), { i: [{ id: U(1), ...MOTIVO('sem pedir') }] }, ['i']);
+ri('itens_motivo_desconhecido_no_modelo', Q(IP({ motivo: 'TALVEZ' })), { i: [{ id: U(1) }] }, ['i']);
+ri('itens_fonte_desconhecida_no_modelo', Q(IP({ fonte: 'SUPLEMENTOS' })), { i: [{ id: U(1) }] }, ['i']);
+ri('itens_dias_treinados_data_ok', Q(IP({ fonte: 'DIAS_TREINADOS', motivo: 'OBRIGATORIO', max: 1 })), { i: [{ id: '2026-11-17', ...MOTIVO('cansaço') }] }, [],
+  { chavesAceitas: ['i'], respostaLimpa: { i: [{ id: '2026-11-17', nome: 'Seg 17/11 · Treino A', motivo: 'cansaço' }] } });
+ri('itens_dias_treinados_dia_da_semana_com_registro_recusado', Q(IP({ fonte: 'DIAS_TREINADOS' })), { i: [{ id: '1' }] }, ['i']);
+ri('itens_dias_treinados_sem_registro_semana_ok', Q(IP({ fonte: 'DIAS_TREINADOS' })), { i: [{ id: '1' }, { id: '7' }] }, [],
+  { itens: { DIAS_TREINADOS: [1, 2, 3, 4, 5, 6, 7].map((d) => ({ id: String(d), nome: `Dia ${d}` })) }, chavesAceitas: ['i'] });
+ri('itens_dias_treinados_sem_registro_data_recusada', Q(IP({ fonte: 'DIAS_TREINADOS' })), { i: [{ id: '2026-11-17' }] }, ['i'],
+  { itens: { DIAS_TREINADOS: [1, 2, 3, 4, 5, 6, 7].map((d) => ({ id: String(d), nome: `Dia ${d}` })) } });
+ri('itens_fonte_sem_nenhum_item', Q(IP({ fonte: 'EXERCICIOS_DO_TREINO' })), { i: [{ id: U(1) }] }, ['i'], { itens: { ALIMENTOS_DA_DIETA: LISTA_DE_ITENS.ALIMENTOS_DA_DIETA } });
+r('itens_sem_contexto_de_plano', Q(IP()), { i: [{ id: U(1) }] }, ['i']);
+ri('itens_escondida_nao_obriga_e_descarta', Q(SN('s'), IP({ obrigatoria: true, ...quando('s', 'sim') })), { s: false, i: [{ id: U(99) }] }, [],
+  { chavesAceitas: ['s'] });
+ri('itens_visivel_valida', Q(SN('s'), IP({ ...quando('s', 'sim') })), { s: true, i: [{ id: U(99) }] }, ['i']);
 
 writeFileSync(`${SAIDA}/respostas.json`, JSON.stringify(respostas, null, 1) + '\n');
 

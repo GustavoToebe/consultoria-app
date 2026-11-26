@@ -50,7 +50,10 @@ public record ConteudoQuestionario(
      * {@code rotuloMax} (NOTA), {@code somentePassado} (DATA), {@code linhas} e {@code colunas}
      * (GRADE), {@code texto} (ACEITE e INFORMATIVO) e {@code declaracao} (ACEITE). {@code imagemId} e {@code mostrarSe}
      * valem para todos. Só na anamnese: {@code destino} (campo do cadastro que a resposta alimenta) e, no PESO com destino,
-     * {@code destinoData} (id da pergunta DATA com a data da pesagem; sem ela, vale a data do envio).
+     * {@code destinoData} (id da pergunta DATA com a data da pesagem; sem ela, vale a data do envio). Só no
+     * ITENS_DO_PLANO (atualização): {@code fonte} (ALIMENTOS_DA_DIETA, EXERCICIOS_DO_TREINO ou DIAS_TREINADOS),
+     * {@code max} (itens por resposta, de 1 a 20; vazio = 20), {@code motivo} (NENHUM, OPCIONAL ou OBRIGATORIO; ausente =
+     * NENHUM) e {@code rotuloMotivo} (texto da pergunta do motivo, até 60).
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -80,7 +83,22 @@ public record ConteudoQuestionario(
             @Size(max = LimitesQuestionario.ID_TAMANHO) String destinoData,
             @Size(max = LimitesQuestionario.ROTULO_PONTA_TAMANHO) String rotuloMin,
             @Size(max = LimitesQuestionario.ROTULO_PONTA_TAMANHO) String rotuloMax,
-            @Size(max = LimitesQuestionario.FOTOS_POR_PERGUNTA) List<@NotNull @Size(max = LimitesQuestionario.OPCAO_TAMANHO) String> lugares) {
+            @Size(max = LimitesQuestionario.FOTOS_POR_PERGUNTA) List<@NotNull @Size(max = LimitesQuestionario.OPCAO_TAMANHO) String> lugares,
+            @Size(max = 30) String fonte,
+            @Size(max = 12) String motivo,
+            @Size(max = ValidadorQuestionario.ROTULO_MOTIVO_TAMANHO) String rotuloMotivo) {
+
+        /** Pergunta sem a configuração do ITENS_DO_PLANO (todos os outros tipos). */
+        public Pergunta(String id, TipoPergunta tipo, String rotulo, Boolean obrigatoria, String ajuda, Boolean destaque,
+                        String rotuloCurto, AjudaAutomatica ajudaAutomatica, List<Integer> dias, List<Opcao> opcoes,
+                        String unidade, BigDecimal min, BigDecimal max, Integer casas, String imagemId,
+                        Boolean somentePassado, List<Opcao> linhas, List<Opcao> colunas, String texto, String declaracao,
+                        Condicao mostrarSe, DestinoNoPerfil destino, String destinoData, String rotuloMin,
+                        String rotuloMax, List<String> lugares) {
+            this(id, tipo, rotulo, obrigatoria, ajuda, destaque, rotuloCurto, ajudaAutomatica, dias, opcoes, unidade, min,
+                    max, casas, imagemId, somentePassado, linhas, colunas, texto, declaracao, mostrarSe, destino, destinoData,
+                    rotuloMin, rotuloMax, lugares, null, null, null);
+        }
 
         /** Pergunta sem destino no perfil. */
         public Pergunta(String id, TipoPergunta tipo, String rotulo, Boolean obrigatoria, String ajuda, Boolean destaque,
@@ -89,7 +107,7 @@ public record ConteudoQuestionario(
                         Boolean somentePassado, List<Opcao> linhas, List<Opcao> colunas, String texto, String declaracao,
                         Condicao mostrarSe) {
             this(id, tipo, rotulo, obrigatoria, ajuda, destaque, rotuloCurto, ajudaAutomatica, dias, opcoes, unidade, min,
-                    max, casas, imagemId, somentePassado, linhas, colunas, texto, declaracao, mostrarSe, null, null, null, null, null);
+                    max, casas, imagemId, somentePassado, linhas, colunas, texto, declaracao, mostrarSe, null, null, null, null, null, null, null, null);
         }
 
         /** Pergunta sem os campos da anamnese (imagem, data, grade, aceite, condição, destino). */
@@ -97,7 +115,7 @@ public record ConteudoQuestionario(
                         String rotuloCurto, AjudaAutomatica ajudaAutomatica, List<Integer> dias, List<Opcao> opcoes,
                         String unidade, BigDecimal min, BigDecimal max, Integer casas) {
             this(id, tipo, rotulo, obrigatoria, ajuda, destaque, rotuloCurto, ajudaAutomatica, dias, opcoes, unidade, min,
-                    max, casas, null, null, null, null, null, null, null, null, null, null, null, null);
+                    max, casas, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
     }
 

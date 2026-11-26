@@ -2,7 +2,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { CircleAlert } from 'lucide-react-native';
 import { ESTILOS_TEXTO } from './tipografia';
-import { useEffect, useState, type ReactNode, type Ref } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { AccessibilityInfo, Platform, StyleSheet, View, type TextInput, type TextInputProps } from 'react-native';
 
 import { escalar } from '../dominio/preferencias';
@@ -62,12 +62,14 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, l
   // Foco e erro têm borda de 2 px; o padding cede 1 px para a altura e o texto não mexerem.
   const destaque = foco || !!erro ? 1 : 0;
   useAnunciarErro(erro, rotulo);
+  const entrada = useRef<TextInput | null>(null);
   return (
     <View style={estilos.campo}>
-      {rotuloOculto ? null : <Label style={[ESTILOS_TEXTO.rotulo, rotuloDiscreto ? { fontFamily: fontes.normal } : null, { color: rotuloDiscreto ? cores.textoSuave : cores.texto }]}>{rotulo}</Label>}
+      {rotuloOculto ? null : <Label onPress={() => entrada.current?.focus()} style={[ESTILOS_TEXTO.rotulo, rotuloDiscreto ? { fontFamily: fontes.normal } : null, { color: rotuloDiscreto ? cores.textoSuave : cores.texto }]}>{rotulo}</Label>}
       <View>
       <Input
         {...resto}
+        ref={(no) => { entrada.current = no; entregarRef(resto.ref, no); }}
         accessibilityLabel={rotuloAcessivel ?? rotulo}
         accessibilityHint={erro ?? ajuda ?? ajudaForaDoCampo?.texto}
         // O RN não tipa `aria-describedby`; o react-native-web o leva ao `input`.
@@ -108,6 +110,12 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, ajudaForaDoCampo, l
       {!erro && ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null}
     </View>
   );
+}
+
+/** O ref de fora (objeto ou função) segue recebendo o campo, junto com o interno que o rótulo usa. */
+function entregarRef(destino: Ref<TextInput> | undefined, no: TextInput | null) {
+  if (typeof destino === 'function') destino(no);
+  else if (destino) destino.current = no;
 }
 
 /** Mensagem de erro sob o campo: ícone e texto em `perigo` (o ícone é decorativo; o texto é que é lido). */

@@ -8,8 +8,8 @@ import { corDaRefeicao } from '../dominio/corDaSerie';
 import { ehRotuloPadrao, MACROS as CHAVES_DOS_MACROS, normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDaOpcao, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
+import { arranjoDaDieta } from '../dominio/arranjoDaDieta';
 import { duasColunasCom } from '../dominio/grade';
-import { colunasDaGradeDoAluno, LARGURA_LATERAL_DO_ALUNO } from '../dominio/telaLargaDoAluno';
 import { kcalDaAba, letraDoMarcador, tituloDaOpcao } from '../dominio/opcoesDaRefeicao';
 import { textoDosDiasCurtos, variacaoDoDia, variacaoMostrada } from '../dominio/variacoesDaDieta';
 import type { DadosPdfDieta } from '../pdf/pdfDieta';
@@ -27,8 +27,10 @@ import { AbasDasOpcoes } from '../ui/MarcadorDeOpcao';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { NumeroAnimado } from '../ui/NumeroAnimado';
+import { PrincipalComApoio } from '../ui/PrincipalComApoio';
 import { AJUDA_DA_FIBRA_PARCIAL, FIBRA, fibraParcial, LegendaDosMacros, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../ui/ValoresDaDieta';
 import { CartoesDosComplementos } from './CartoesDosComplementos';
+import { TotalDaRefeicaoComRespiro } from './dieta/TotalDaRefeicaoComRespiro';
 import { ModoDePreparo } from './ModoDePreparo';
 import { PilulaDaQuantidade } from './PilulaDaQuantidade';
 import { useDiaDeHojeEmBrasilia } from './useDiaDeHoje';
@@ -50,9 +52,11 @@ const MOTIVO_NA_PREVIA = 'Só o aluno abre isto no app dele.';
  * Dieta por dia da semana: abre na variação de hoje (data de Brasília, relida na virada do dia e na volta do app) e o
  * aluno troca à mão; total e refeições são os da variação mostrada. Sem variação, nada muda.
  *
- * `largo` (tela larga, 24/11; só a aba Dieta passa, a folha da prévia não muda): o resumo (`lado`, a água do dia, o plano,
- * o total, a lista de compras, o PDF e as orientações) numa coluna fixa à esquerda e as refeições em colunas ao lado, com a
- * medicação e a suplementação embaixo delas, no lugar de cartões e botões da largura da tela.
+ * `largo` (só a aba Dieta passa, a folha da prévia não muda; 26/11, `docs/planos/aluno-web-layout.md` seção 5): mede a
+ * própria área e, quando ela comporta (`arranjoDaDieta`), as refeições numa coluna só, na ordem do dia, com o horário no
+ * cabeçalho e o total com respiro, e ao lado a coluna de apoio fixa ao rolar (`ui/PrincipalComApoio`): Total do dia, `lado`
+ * (a água do dia), Suplementação, Medicação e ergogênicos, Lista de compras, PDF, o plano, Orientações e Observações. Sem
+ * espaço, a ordem do celular de sempre, com `lado` no topo e as refeições também numa coluna.
  *
  * O título do plano não aparece (25/11): é o nome de trabalho do treinador ("Dieta de <aluno>", o da importação) e a tela
  * já se chama Dieta; o plano em uso e o período ficam no `SeletorPlano`, acima. Sem objetivo, água, início nem
@@ -74,11 +78,12 @@ export function DietaDoAluno({
   /** Gera o PDF (a tela do aluno monta o documento com o pacote); fora da prévia, sem ele o botão não aparece. */
   aoBaixarPdf?: (lista?: DadosPdfDieta['lista'], variacaoUid?: string | null) => Promise<void>;
   largo?: boolean;
-  /** Vai no topo da coluna do resumo na tela larga (a água do dia); fora dela quem chama põe acima da dieta. */
+  /** Com `largo`, a água do dia: logo depois do Total do dia no apoio, ou no topo no desenho do celular. */
   lado?: ReactNode;
 }) {
   const { cores } = useTema();
   const [folhaPdf, setFolhaPdf] = useState(false);
+  const [area, setArea] = useState<number | null>(null);
   const c = normalizarDieta(versao.conteudo);
   const dia = useDiaDeHojeEmBrasilia();
   // Nulo = seguir hoje; a escolhida que sumiu (outra versão) ou de outro dia (virou a meia-noite) também volta para hoje.
@@ -136,42 +141,20 @@ export function DietaDoAluno({
       {CHAVES_DOS_MACROS.some((m) => totais[m] === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
     </Cartao>
   );
-  const listaDeRefeicoes = refeicoes.length ? (
-    <Grade gap={espaco(2)} colunas={largo ? (l) => colunasDaGradeDoAluno(l, refeicoes.length, espaco(2)) : duasColunasCom(360, espaco(2))} alinhar="inicio">
-      {refeicoes.map((r, i) => (
-        <CartaoRefeicaoAluno key={r.uid} refeicao={r} indice={i} />
-      ))}
-    </Grade>
-  ) : null;
+  // Na aba Dieta as refeições ficam sempre numa coluna, na ordem do dia (nunca em zigue-zague); a prévia mantém a grade.
+  const cartoesDasRefeicoes = (respiro: boolean) => refeicoes.map((r, i) => <CartaoRefeicaoAluno key={r.uid} refeicao={r} indice={i} respiro={respiro} />);
+  const listaDeRefeicoes = (respiro = false) => (!refeicoes.length ? null : largo ? (
+    <View style={estilos.refeicoes}>{cartoesDasRefeicoes(respiro)}</View>
+  ) : (
+    <Grade gap={espaco(2)} colunas={duasColunasCom(360, espaco(2))} alinhar="inicio">{cartoesDasRefeicoes(false)}</Grade>
+  ));
   const complementos = <CartoesDosComplementos ergogenicos={ergogenicos} suplementacao={c.suplementacao} />;
   const botaoPdf = previa || aoBaixarPdf ? (
     <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) setFolhaPdf(true); }} /></NoPlano>
   ) : null;
   const folha = previa || !aoBaixarPdf ? null : <FolhaPdfDieta visivel={folhaPdf} aoFechar={() => setFolhaPdf(false)} conteudo={c} versao={versao.numero} aoBaixar={aoBaixarPdf} />;
 
-  if (largo) {
-    return (
-      <View style={estilos.colunas}>
-        <View style={[estilos.pilha, estilos.lateral]}>
-          {selo}
-          {lado}
-          {plano}
-          {variacao}
-          {total}
-          {listaDeCompras}
-          {botaoPdf}
-          {orientacoes}
-          {observacoes}
-        </View>
-        <View style={[estilos.pilha, estilos.principal]}>
-          {listaDeRefeicoes}
-          {complementos}
-        </View>
-        {folha}
-      </View>
-    );
-  }
-  return (
+  const pilhaDoCelular = (
     <>
       {selo}
       {plano}
@@ -180,12 +163,39 @@ export function DietaDoAluno({
       {listaDeCompras}
       {variacao}
       {total}
-      {listaDeRefeicoes}
+      {listaDeRefeicoes()}
       {complementos}
       {botaoPdf}
-      {folha}
     </>
   );
+  if (largo) {
+    const arranjo = arranjoDaDieta(area);
+    return (
+      // O vão é o da `Tela` (24), o mesmo de quando os blocos ficam soltos nela; a folha do PDF fica fora dos dois ramos.
+      <View onLayout={(e) => setArea(e.nativeEvent.layout.width)} style={estilos.pilha}>
+        {arranjo.lado ? (
+          <PrincipalComApoio rotuloDoApoio="Resumo da dieta" larguraDoApoio={arranjo.larguraDoApoio}
+            principal={<>{selo}{variacao}{listaDeRefeicoes(true)}</>}
+            apoio={(
+              <>
+                {total}
+                {lado}
+                {/* Duas chamadas para a ordem do apoio (Suplementação antes da Medicação); a lista vazia não desenha nada. */}
+                <CartoesDosComplementos ergogenicos={[]} suplementacao={c.suplementacao} />
+                <CartoesDosComplementos ergogenicos={ergogenicos} suplementacao={[]} />
+                {listaDeCompras}
+                {botaoPdf}
+                {plano}
+                {orientacoes}
+                {observacoes}
+              </>
+            )} />
+        ) : <>{lado}{pilhaDoCelular}</>}
+        {folha}
+      </View>
+    );
+  }
+  return <>{pilhaDoCelular}{folha}</>;
 }
 
 /**
@@ -193,7 +203,7 @@ export function DietaDoAluno({
  * quantidade e a unidade numa etiqueta grande à direita, na mesma cor. Só apresentação: a cor identifica a refeição, não
  * diz status, e a quantidade é a que o treinador escreveu (sem quantidade, "—").
  */
-function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice: number }) {
+function CartaoRefeicaoAluno({ refeicao, indice, respiro }: { refeicao: Refeicao; indice: number; respiro: boolean }) {
   const { cores, identificacao } = useTema();
   const cor = identificacao[corDaRefeicao(indice)];
   const [ativa, setAtiva] = useState(0);
@@ -205,7 +215,10 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
       style={{ borderLeftWidth: BARRA_DA_REFEICAO, borderLeftColor: cor.cor }}
       cabecalho={
         // A12: o nome da refeição é o título; o horário vem embaixo, com o nome dele (antes "07:30 · Café" numa linha só).
-        <CabecalhoDeGrupo titulo={refeicao.nome || 'Refeição'} resumo={refeicao.horario ? `Horário: ${refeicao.horario}` : undefined} />
+        // Com o apoio ao lado (`respiro`), o horário vai na frente do nome, "12:00 · Almoço" (orientações de 26/11, 1.5).
+        respiro
+          ? <CabecalhoDeGrupo titulo={refeicao.horario ? `${refeicao.horario} · ${refeicao.nome || 'Refeição'}` : refeicao.nome || 'Refeição'} />
+          : <CabecalhoDeGrupo titulo={refeicao.nome || 'Refeição'} resumo={refeicao.horario ? `Horário: ${refeicao.horario}` : undefined} />
       }>
       {refeicao.observacao ? <Texto numerico variante="suave">{refeicao.observacao}</Texto> : null}
       {/* Opções são alternativas: o aluno escolhe uma, e os itens de opções diferentes não se somam. */}
@@ -242,7 +255,7 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
           </View>
         );
       })}
-      {opcao ? (
+      {opcao && respiro ? <TotalDaRefeicaoComRespiro rotulo={rotuloDoTotal} totais={somar(opcao.itens)} /> : opcao ? (
         <View style={[estilos.totalDaRefeicao, { borderColor: cores.bordaCampo }]} role="group" aria-label={rotuloDoTotal}>
           {/* O leitor ouve rótulo e valores numa frase só; o que se vê fica escondido dele. */}
           <TotalParaLeitor rotulo={rotuloDoTotal} totais={somar(opcao.itens)} />
@@ -320,11 +333,8 @@ function TotalDoDia({ totais }: { totais: TotaisComFibra }) {
 const BARRA_DA_REFEICAO = 6;
 
 const estilos = StyleSheet.create({
-  // Tela larga: o vão da pilha é o da `Tela` (24), o mesmo de quando os blocos ficam soltos nela.
-  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
   pilha: { gap: espaco(3) },
-  lateral: { width: LARGURA_LATERAL_DO_ALUNO, flexShrink: 0 },
-  principal: { flex: 1, minWidth: 0 },
+  refeicoes: { gap: espaco(2) },
   itemComQuantidade: { borderTopWidth: 1, paddingTop: espaco(1), flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
   nomeDoItem: { flex: 1, minWidth: 0, gap: 2 },
   agua: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },

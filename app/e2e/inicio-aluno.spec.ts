@@ -123,17 +123,17 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Hoje → 
   // As divisões saíram do resumo.
   await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toHaveCount(0);
 
-  // No PC (1280) o início tem duas colunas independentes (24/11): Hoje → Dieta → pendências à esquerda e, sem o retorno,
-  // Água → Sua semana à direita (as duas pilhas acabam perto; com o retorno, semana e nível vão lado a lado embaixo).
+  // No PC (1280, área de 952 em diante; 26/11, `inicioLargoDoAluno`): Hoje → Dieta à esquerda e, ao lado, na coluna de apoio,
+  // pendências → Água, com as pendências na altura do Hoje; a Sua semana embaixo das duas, na borda do Hoje.
   const [hoje, cartaoDieta, agua, pendencias, semana] = await ordemDoInicio(page);
   expect(hoje.y).toBeLessThan(cartaoDieta.y);
-  expect(cartaoDieta.y).toBeLessThan(pendencias.y);
   expect(Math.abs(cartaoDieta.x - hoje.x)).toBeLessThan(2);
-  expect(Math.abs(pendencias.x - hoje.x)).toBeLessThan(2);
-  expect(agua.x).toBeGreaterThan(hoje.x + 300);
-  expect(Math.abs(agua.y - hoje.y)).toBeLessThan(40);
-  expect(semana.y).toBeGreaterThan(agua.y);
-  expect(Math.abs(semana.x - agua.x)).toBeLessThan(2);
+  expect(pendencias.x).toBeGreaterThan(hoje.x + 300);
+  expect(Math.abs(pendencias.y - hoje.y)).toBeLessThan(4);
+  expect(Math.abs(agua.x - pendencias.x)).toBeLessThan(24);
+  expect(agua.y).toBeGreaterThan(pendencias.y);
+  expect(semana.y).toBeGreaterThan(Math.max(cartaoDieta.y, agua.y));
+  expect(Math.abs(semana.x - hoje.x)).toBeLessThan(24);
 
   await page.getByRole('link', { name: 'Treino', exact: true }).click();
   await expect(page).toHaveURL(/\/aluno\/treino$/);

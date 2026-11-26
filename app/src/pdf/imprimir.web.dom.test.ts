@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 import type { Marca } from '../api/tipos';
+import type { OpcoesPdf } from '../dominio/configuracaoPdf';
 import { cabecalhoDoPdf } from './html';
 import { montarCorpo } from './imprimir.web';
 import { TEMAS_PDF } from './temas';
@@ -150,12 +151,23 @@ describe('montarCorpo (impressão na web)', () => {
 });
 
 /**
- * Os mesmos ataques em cada tema: o tema só escolhe CSS do código (nada passa por `montarCorpo`), mas o cabeçalho real
- * do tema atravessa a barreira intacto, e o HTML hostil colado depois dele continua sendo neutralizado.
+ * Os mesmos ataques em cada um dos seis modelos, com e sem sobrescritas: o modelo e as opções só escolhem CSS do código
+ * (nada passa por `montarCorpo`), mas o cabeçalho real atravessa a barreira intacto (logo centralizada e grande, nome
+ * escondido), e o HTML hostil colado depois dele continua sendo neutralizado.
  */
-describe.each(TEMAS_PDF.map((x) => x.id))('montarCorpo com o tema %s', (tema) => {
+const NAO_PADRAO: OpcoesPdf = {
+  cores: { destaque: 'BRONZE' },
+  texto: { fonte: 'CONDENSADA', tamanho: 'P' },
+  cabecalho: { estilo: 'LINHA', logo: 'CENTRO', tamanhoLogo: 'G', mostrarNome: false },
+  tabelas: { estilo: 'CARTOES', densidade: 'COMPACTA' },
+};
+const CASOS: [string, string, OpcoesPdf | undefined][] = TEMAS_PDF.flatMap((x) => [
+  [x.id, 'padrão', undefined] as [string, string, OpcoesPdf | undefined],
+  [x.id, 'com sobrescritas', NAO_PADRAO] as [string, string, OpcoesPdf | undefined],
+]);
+describe.each(CASOS)('montarCorpo com o modelo %s (%s)', (tema, _caso, opcoesPdf) => {
   const ataque = '"><img src=x onerror="window.__executou = 1"><script>window.__executou = 2</script>';
-  const marca: Marca = { id: 'm', nome: ataque, corPrimaria: '#C62828', fonteTitulo: 'METAL', temaPadrao: 'ESCURO', logoUrl: null, temaPdf: tema };
+  const marca: Marca = { id: 'm', nome: ataque, corPrimaria: '#C62828', fonteTitulo: 'METAL', temaPadrao: 'ESCURO', logoUrl: null, temaPdf: tema, opcoesPdf };
   const cabecalho = cabecalhoDoPdf({ marca, logoDataUri: 'data:image/png;base64,AAAA', documento: 'Treino', titulo: ataque, versao: 1, aluno: ataque, emitidoEm: new Date('2026-10-11T19:30:00Z') });
   const hostil =
     '<div><img src=x onerror="window.__executou = 3"><script>window.__executou = 4</script>' +
@@ -169,7 +181,9 @@ describe.each(TEMAS_PDF.map((x) => x.id))('montarCorpo com o tema %s', (tema) =>
     const raiz = noCorpo(cabecalho);
     expect(raiz.innerHTML).toBe(referencia.innerHTML);
     expect(raiz.querySelector('.topo h1')?.textContent).toBe('Treino');
+    // `mostrarNome: false` só esconde o nome por CSS: no HTML ele continua, escapado, ao lado da logo (que leva o nome no `alt`).
     expect(raiz.querySelector('.faixa-marca')?.textContent).toBe(ataque);
+    expect(raiz.querySelector('.faixa-marca img')?.getAttribute('alt')).toBe(ataque);
     expect(raiz.querySelectorAll('script, iframe, object, embed, form, svg, style').length).toBe(0);
   });
 

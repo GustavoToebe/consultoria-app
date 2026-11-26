@@ -9,6 +9,8 @@ export interface PropsDaPrevia {
   documento: Documento;
   /** Nome acessível da prévia ("Prévia do PDF de treino no tema Clássico"). */
   rotulo: string;
+  /** Chave da instância (só `[a-z0-9-]`): a web prende o CSS a ela; o nativo, com um WebView por prévia, a ignora. */
+  chave?: string;
 }
 
 /**

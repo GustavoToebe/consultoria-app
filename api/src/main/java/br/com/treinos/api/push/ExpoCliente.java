@@ -25,8 +25,6 @@ import java.util.List;
 class ExpoCliente {
 
     static final int MAXIMO_POR_CHAMADA = 100;
-    static final String TITULO = "Compromisso atualizado";
-    static final String CORPO = "Abra o app para ver o que mudou.";
 
     /** Falha da chamada inteira (rede, tempo, status que não é 2xx ou resposta que não é JSON). {@code motivo} é curto e sem dado. */
     static class FalhaNoEnvio extends RuntimeException {
@@ -51,19 +49,19 @@ class ExpoCliente {
      * Envia até 100 mensagens e devolve, na ordem dos tokens, o erro do ticket de cada uma ({@code null} = aceita).
      * Lança {@link FalhaNoEnvio} se a chamada falhar.
      */
-    List<String> enviar(List<String> tokens) {
-        if (tokens.isEmpty() || tokens.size() > MAXIMO_POR_CHAMADA) {
+    List<String> enviar(List<String> tokens, List<TipoDePush> tipos) {
+        if (tokens.isEmpty() || tokens.size() > MAXIMO_POR_CHAMADA || tipos.size() != tokens.size()) {
             throw new IllegalArgumentException("Lote fora do limite.");
         }
         ArrayNode mensagens = json.createArrayNode();
-        for (String token : tokens) {
+        for (int i = 0; i < tokens.size(); i++) {
             ObjectNode m = mensagens.addObject();
-            m.put("to", token);
-            m.put("title", TITULO);
-            m.put("body", CORPO);
+            m.put("to", tokens.get(i));
+            m.put("title", tipos.get(i).titulo());
+            m.put("body", tipos.get(i).corpo());
             m.put("sound", "default");
             m.put("priority", "high");
-            m.putObject("data").put("tipo", "compromisso");
+            m.putObject("data").put("tipo", tipos.get(i).codigoNoApp());
         }
         HttpRequest.Builder pedido = HttpRequest.newBuilder(URI.create(propriedades.expoUrl()))
                 .timeout(Duration.ofSeconds(propriedades.timeoutSegundos()))

@@ -1,9 +1,11 @@
-import { contraste } from '../tema/tokens';
+import { contraste, luminancia } from '../tema/tokens';
 
 /**
  * Apoio de teste (nunca importado pelo app): lê as regras de um CSS e os `style` do HTML dos PDFs e devolve os textos
  * coloridos que ficam abaixo de `minimo` (4,5:1 por padrão) contra o fundo da própria regra (ou o branco, quando a regra
- * não tem fundo em `#RRGGBB`). Cinza sem fundo próprio não conta (texto neutro fixo, como o `.suave`, não é da marca).
+ * não tem fundo em `#RRGGBB`). Cinza ESCURO sem fundo próprio conta contra o branco (o `#777` dos macros dava 4,48:1 e passava
+ * batido); só o claro sem fundo na regra (branco do texto sobre faixa escura herdada) fica de fora. A cascata entre regras é
+ * do `contrasteComCascata.apoioTeste`.
  */
 const HEX = '#[0-9A-Fa-f]{6}';
 const ehCinza = (cor: string) => /^#([0-9a-f]{2})\1\1$/i.test(cor);
@@ -12,7 +14,7 @@ function avaliar(descricao: string, declaracoes: string, minimo: number): string
   const cor = new RegExp(`(?:^|[;\\s])color:\\s*(${HEX})`, 'i').exec(declaracoes)?.[1];
   if (!cor) return [];
   const fundo = new RegExp(`(?:^|[;\\s])background:\\s*(${HEX})`, 'i').exec(declaracoes)?.[1];
-  if (!fundo && ehCinza(cor)) return [];
+  if (!fundo && ehCinza(cor) && luminancia(cor) > 0.5) return [];
   const razao = contraste(cor, fundo ?? '#FFFFFF');
   return razao < minimo ? [`${descricao}: ${cor} sobre ${fundo ?? '#FFFFFF'} = ${razao.toFixed(2)}`] : [];
 }
@@ -29,3 +31,6 @@ export const MARCADOR_DO_TEMA = {
   MINIMALISTA: () => /\.doc th \{ background: transparent;/,
   MARCANTE: (cor: string) => new RegExp(String.raw`\.doc \.topo \{ background: ${cor};`),
 } as const;
+
+/** Só os três modelos que vieram dos temas antigos têm marcador fixo (o visual deles é o de hoje); os novos são conferidos por valores. */
+export const temMarcador = (modelo: string): modelo is keyof typeof MARCADOR_DO_TEMA => modelo in MARCADOR_DO_TEMA;

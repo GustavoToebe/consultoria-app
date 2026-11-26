@@ -1,6 +1,7 @@
 import type { PlaylistDaComunidade } from '../api/comunidadeTipos';
 import { LARGURA_FAIXA_LARGA, LARGURA_FAIXA_NORMAL, LARGURA_FAIXA_ULTRALARGA } from '../tema/tokens';
 import { playlistsEmOrdem, SEM_COLECAO } from './comunidade';
+import { linhasDaGrade } from './gradeDeIndicadores';
 
 /**
  * Aba Vídeos do treinador em grade (D2, 19/11). A largura é a da área de conteúdo ao lado do menu (a mesma que a `Tela`
@@ -27,6 +28,23 @@ export function colunasDosVideos(area: number): 1 | 2 | 3 | 4 | 5 | 6 {
   if (area >= LARGURA_FAIXA_NORMAL) return 3;
   if (area >= LARGURA_DOIS_VIDEOS) return 2;
   return 1;
+}
+
+/**
+ * Vagas da grade de vídeos do aluno (`aluno/ColecoesDeAuloes`), sem cartão sozinho na última linha (26/11): as colunas são as
+ * da régua (`colunasDosVideos`, o cartão nunca fica mais estreito nem esticado) e os cartões vão em linhas equilibradas
+ * (`linhasDaGrade`: 7 em 3 = 3 + 2 + 2; 5 em 3 = 3 + 2; 8 em 3 = 3 + 3 + 2). A vaga que sobra numa linha (`null`) fica vazia à
+ * direita e empurra o próximo cartão para a linha de baixo. Com poucos vídeos (cabem numa linha), uma linha só. O treinador
+ * continua com a grade corrida de `colunasDosVideos`.
+ */
+export function vagasDosVideos(total: number, colunas: number): (number | null)[] {
+  const vagas: (number | null)[] = [];
+  let proximo = 0;
+  linhasDaGrade(total, colunas).forEach((cartoes, linha, todas) => {
+    for (let i = 0; i < cartoes; i++) vagas.push(proximo++);
+    if (linha < todas.length - 1) for (let i = cartoes; i < colunas; i++) vagas.push(null);
+  });
+  return vagas;
 }
 
 const comparavel = (texto: string): string => texto.normalize('NFC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('pt-BR');

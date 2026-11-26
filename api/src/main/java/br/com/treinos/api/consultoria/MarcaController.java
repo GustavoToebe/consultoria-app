@@ -2,7 +2,6 @@ package br.com.treinos.api.consultoria;
 
 import br.com.treinos.api.consultoria.MarcaService.ConsultoriaResponse;
 import br.com.treinos.api.consultoria.MarcaService.MarcaRequest;
-import br.com.treinos.api.consultoria.MarcaService.TemaPdfRequest;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.plataforma.comum.web.BadRequestException;
 import jakarta.validation.Valid;
@@ -46,11 +45,11 @@ public class MarcaController {
     }
 
     @PreAuthorize("hasAuthority('PERM_MARCA_ALTERAR')")
-    @PutMapping("/tema-pdf")
-    public ConsultoriaResponse alterarTemaPdf(@AuthenticationPrincipal UsuarioAutenticado eu,
-                                              @RequestBody @Valid TemaPdfRequest request) {
+    @PutMapping("/documentos-pdf")
+    public ConsultoriaResponse alterarDocumentosPdf(@AuthenticationPrincipal UsuarioAutenticado eu,
+                                                    @RequestBody @Valid DocumentosPdfRequest request) {
         marcas.exigirAdministrador(eu.usuarioId());
-        return marcas.alterarTemaPdf(eu.consultoriaId(), request.temaPdf());
+        return marcas.alterarDocumentosPdf(eu.consultoriaId(), request);
     }
 
     @PreAuthorize("hasAuthority('PERM_MARCA_ALTERAR')")

@@ -39,7 +39,27 @@ public final class PlanoDtos {
             @NotNull Long versao) {
     }
 
-    public record PublicarRequest(@NotNull Long versao, boolean confirmarAvisos) {
+    /**
+     * {@code liberarEm}: dia (Brasília, de amanhã em diante) em que o aluno passa a ver a versão; vazio libera na hora.
+     * {@code avisarAluno}: avisa o aluno (aviso no app e push) quando a versão for liberada; ausente = avisa.
+     */
+    public record PublicarRequest(@NotNull Long versao, boolean confirmarAvisos, LocalDate liberarEm, Boolean avisarAluno) {
+        public PublicarRequest(Long versao, boolean confirmarAvisos) {
+            this(versao, confirmarAvisos, null, null);
+        }
+
+        /** Ausente = avisa. */
+        public boolean avisar() {
+            return avisarAluno == null || avisarAluno;
+        }
+    }
+
+    /** Corpo de "Alterar data" de um plano agendado. */
+    public record AlterarLiberacaoRequest(@NotNull LocalDate liberarEm) {
+    }
+
+    /** Corpo de "Liberar agora"; {@code avisarAluno} ausente = avisa. Corpo vazio vale. */
+    public record LiberarAgoraRequest(Boolean avisarAluno) {
     }
 
     /** {@code pastaId}: replica para dentro dessa pasta (o período dela vale); sem ele, vale o período informado. */
@@ -66,10 +86,16 @@ public final class PlanoDtos {
 
     public record PlanoResumo(UUID id, UUID alunoId, UUID pastaId, String titulo, LocalDate inicio, LocalDate fim,
                               boolean ativo, int versaoPublicada, Instant publicadoEm,
-                              boolean rascunhoAlteradoDepoisDePublicar, Long versao) {
+                              boolean rascunhoAlteradoDepoisDePublicar, Long versao,
+                              int versaoLiberada, LocalDate liberarEm, boolean avisarNaLiberacao) {
+        /**
+         * {@code versaoLiberada} = a versão que o aluno vê (0 = nenhuma); {@code liberarEm} não nulo = há versão publicada
+         * agendada para esse dia (o selo "Agendado para dd/mm"); {@code avisarNaLiberacao} só importa com {@code liberarEm}.
+         */
         public static PlanoResumo de(PlanoBase p) {
             return new PlanoResumo(p.getId(), p.getAlunoId(), p.getPastaId(), p.getTitulo(), p.getInicio(), p.getFim(), p.isAtivo(),
-                    p.getVersaoPublicada(), p.getPublicadoEm(), p.rascunhoAlteradoDepoisDePublicar(), p.getVersao());
+                    p.getVersaoPublicada(), p.getPublicadoEm(), p.rascunhoAlteradoDepoisDePublicar(), p.getVersao(),
+                    p.getVersaoLiberada(), p.getLiberarEm(), p.isAvisarNaLiberacao());
         }
     }
 

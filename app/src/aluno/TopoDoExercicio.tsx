@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Sessao } from '../api/tipos';
 import { duracaoDoTreino } from '../dominio/conclusaoDoTreino';
+import { TETO_DA_TELA_DO_ALUNO } from '../dominio/telaLargaDoAluno';
 import type { ProgressoDoExercicio } from '../dominio/telaDoExercicio';
 import { duracaoDaFaixa, duracaoFalada, textoDaDuracaoAoVivo } from '../dominio/treinoAoVivo';
 import { useAluno } from '../offline/AlunoProvider';
@@ -22,7 +23,7 @@ import { Texto } from '../ui/Texto';
  * numérica) e uma barra por exercício da sessão. O tempo só aparece quando existe (com "Concluir treino" ligado e a
  * primeira série marcada hoje; "—" não aparece). Neutro: a barra cheia é `texto`, o trilho `superficie3`.
  */
-export function TopoDoExercicio({ titulo, posicao, voltar, progresso, atual, versaoId, sessao, data, hoje }: {
+export function TopoDoExercicio({ titulo, posicao, voltar, progresso, atual, versaoId, sessao, data, hoje, bloco }: {
   titulo: string;
   posicao: string;
   voltar: Href;
@@ -33,6 +34,11 @@ export function TopoDoExercicio({ titulo, posicao, voltar, progresso, atual, ver
   sessao: Sessao;
   data: string;
   hoje: string;
+  /**
+   * Na web larga, o bloco do conteúdo medido pela rota (`esquerda` a partir da borda deste topo): o topo se alinha a ele, e
+   * não à janela (a barra de rolagem da página desloca o conteúdo). Sem ele, centralizado no teto do aluno.
+   */
+  bloco?: { esquerda: number; largura: number } | null;
 }) {
   const { cores } = useTema();
   const fundo = useFundoDaArea();
@@ -40,7 +46,7 @@ export function TopoDoExercicio({ titulo, posicao, voltar, progresso, atual, ver
   const completos = progresso.filter((x) => x.completo).length;
   return (
     <SafeAreaView edges={['top']} style={{ backgroundColor: fundo, borderBottomWidth: 1, borderBottomColor: cores.divisor }}>
-      <View style={estilos.conteudo}>
+      <View style={[estilos.conteudo, bloco && { marginLeft: bloco.esquerda, width: bloco.largura, maxWidth: undefined, paddingHorizontal: 0, alignSelf: 'flex-start' }]}>
         <View style={estilos.linha}>
           <IconeBotao Icone={ArrowLeft} rotulo="Voltar" moldura aoTocar={() => confirmar(() => (router.canGoBack() ? router.back() : router.replace(voltar)))} />
           <View style={estilos.textos}>
@@ -83,7 +89,7 @@ function TempoDoTreino({ versaoId, sessao, data, hoje }: { versaoId: string; ses
 }
 
 const estilos = StyleSheet.create({
-  conteudo: { width: '100%', maxWidth: 1120, alignSelf: 'center', paddingHorizontal: espaco(2), paddingTop: espaco(0.5), paddingBottom: espaco(1), gap: espaco(1) },
+  conteudo: { width: '100%', maxWidth: TETO_DA_TELA_DO_ALUNO, alignSelf: 'center', paddingHorizontal: espaco(2), paddingTop: espaco(0.5), paddingBottom: espaco(1), gap: espaco(1) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   textos: { flex: 1, minWidth: 0 },
   titulo: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },

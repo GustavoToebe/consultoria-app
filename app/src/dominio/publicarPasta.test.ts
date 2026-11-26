@@ -16,6 +16,7 @@ import {
   textoDoErroDaCopia,
   textoDoErroDaPublicacao,
   textoDosPendentesDuplicados,
+  textoDosPuladosAgendados,
   versoesDasListas,
   versoesDosPendentes,
   type PlanosDaPasta,
@@ -325,5 +326,27 @@ describe('publicarPasta: peso sugerido', () => {
   it('nota com a data da atualização', () => {
     expect(notaDoPesoSugerido('2026-10-20')).toBe('Peso preenchido com o da atualização de 20/10/2026; confira antes de salvar.');
     expect(notaDoPesoSugerido(null)).toBe('Peso preenchido com o da atualização; confira antes de salvar.');
+  });
+});
+
+describe('publicarPasta: liberação agendada (bloco E)', () => {
+  const HOJE = '2026-11-26';
+
+  it('o resumo diz a data quando os publicados ficaram agendados', () => {
+    expect(resumoDaPublicacao({ publicados: [{ tipo: 'dieta', planoId: 'd', versao: 1, liberarEm: '2026-11-30' }], pulados: [] }, HOJE))
+      .toBe('Dieta publicada. Agendado para 30/11: até lá, o aluno continua com o que já via.');
+    expect(resumoDaPublicacao({ publicados: [{ tipo: 'dieta', planoId: 'd', versao: 1, liberarEm: null }], pulados: [] }, HOJE)).toBe('Dieta publicada.');
+  });
+
+  it('pulado agendado orienta a usar "Alterar data"; pulado sem agendamento não', () => {
+    const planos: PlanosDaPasta = {
+      treino: [plano('t', 'Treino A', { versaoPublicada: 2, liberarEm: '2026-12-01' })],
+      dieta: [plano('d', 'Dieta A', { versaoPublicada: 1 })],
+      mobilidade: [],
+    };
+    expect(textoDosPuladosAgendados([{ tipo: 'treino', planoId: 't' }, { tipo: 'dieta', planoId: 'd' }], planos, HOJE))
+      .toBe('“Treino A” segue agendado para 01/12. Sem alteração, não foi publicado de novo: para mudar, use ⋯ › Alterar data de liberação ou Liberar agora no plano.');
+    expect(textoDosPuladosAgendados([{ tipo: 'dieta', planoId: 'd' }], planos, HOJE)).toBeNull();
+    expect(textoDosPuladosAgendados([{ tipo: 'treino', planoId: 't' }], null, HOJE)).toBeNull();
   });
 });

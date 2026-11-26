@@ -213,6 +213,7 @@ const TELAS: TelaDaVarredura[] = [
   { caminho: '/treinador/marca', titulo: 'Marca', secao: 'consultoria' },
   { caminho: '/treinador/whatsapp', titulo: 'WhatsApp oficial', secao: null },
   { caminho: '/treinador/documentos', titulo: 'Documentos (PDF)', secao: null },
+  { caminho: '/treinador/documentos/personalizar', titulo: 'Personalizar documentos', secao: null },
   { caminho: '/treinador/termos', titulo: 'Termos e privacidade', secao: 'privacidade' },
   { caminho: '/treinador/seguranca', titulo: 'Segurança', secao: null },
   { caminho: '/treinador/minha-conta', titulo: 'Assinatura e faturas', secao: null },

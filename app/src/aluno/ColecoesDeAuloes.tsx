@@ -8,13 +8,14 @@ import { CartaoDoVideo } from '../comunidade/CartaoDoVideo';
 import { numerosDasColecoes, textosDoCabecalho } from '../dominio/cabecalhoDaColecao';
 import { chaveDoGrupo, numerosNaColecao } from '../dominio/colecoesDoAluno';
 import { agruparPorPlaylist, buscarAuloes } from '../dominio/comunidade';
-import { colunasDosVideos } from '../dominio/gradeDosVideos';
+import { colunasDosVideos, vagasDosVideos } from '../dominio/gradeDosVideos';
 import { espaco, LARGURA_FORMULARIO } from '../tema/tokens';
 import { Campo } from '../ui/Campo';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { Grade } from '../ui/Grade';
 import { useCarregar } from '../ui/useCarregar';
+import { useFaixaDeLargura } from '../ui/useFaixaDeLargura';
 import { useSecoesAbertas } from '../ui/useSecoesAbertas';
 import { useVoltarFechaColecao } from './useVoltarFechaColecao';
 
@@ -123,13 +124,21 @@ function GradeDeVideos({ aulas, numeros, nivel = 2, baixarCapa, aoAbrirFora, aoC
   /** h3 dentro da coleção (o cabeçalho dela é o h2); h2 na grade sem agrupar. */
   nivel?: 2 | 3;
 } & AcoesDoVideo) {
+  // As colunas da régua, medidas aqui para fechar as linhas equilibradas com vagas vazias (sem cartão sozinho no fim).
+  const { largura, aoMedir } = useFaixaDeLargura();
+  const colunas = largura > 0 ? colunasDosVideos(largura) : 1;
   return (
-    <Grade gap={espaco(2)} colunas={colunasDosVideos}>
-      {aulas.map((a) => (
-        <CartaoDoVideo key={a.id} aula={a} numero={numeros?.get(a.id)} nivel={nivel} baixarCapa={baixarCapa} aoAbrirFora={aoAbrirFora}
-          aoComentarios={() => aoComentarios(a)} />
-      ))}
-    </Grade>
+    <View onLayout={aoMedir}>
+      <Grade gap={espaco(2)} colunas={() => colunas}>
+        {vagasDosVideos(aulas.length, colunas).map((i, n) => {
+          const a = i === null ? undefined : aulas[i];
+          return a ? (
+            <CartaoDoVideo key={a.id} aula={a} numero={numeros?.get(a.id)} nivel={nivel} baixarCapa={baixarCapa} aoAbrirFora={aoAbrirFora}
+              aoComentarios={() => aoComentarios(a)} />
+          ) : <View key={`vaga-${n}`} aria-hidden />;
+        })}
+      </Grade>
+    </View>
   );
 }
 

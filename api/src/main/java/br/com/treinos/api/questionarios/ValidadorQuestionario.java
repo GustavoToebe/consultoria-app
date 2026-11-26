@@ -34,6 +34,7 @@ import static br.com.treinos.api.questionarios.TipoPergunta.ACEITE;
 import static br.com.treinos.api.questionarios.TipoPergunta.DATA;
 import static br.com.treinos.api.questionarios.TipoPergunta.GRADE;
 import static br.com.treinos.api.questionarios.TipoPergunta.INFORMATIVO;
+import static br.com.treinos.api.questionarios.TipoPergunta.ITENS_DO_PLANO;
 
 /**
  * Regras de publicação do questionário (atualização, anamnese e inscrição). Confere só a forma; nunca avalia se uma pergunta é
@@ -56,7 +57,17 @@ public class ValidadorQuestionario {
      * {@code app/src/dominio/questionario.ts}.
      */
     public static final Set<TipoPergunta> FORA_DA_INSCRICAO = EnumSet.of(FOTOS, TipoPergunta.ENDERECO, PESO, NOTAS_POR_DIA,
-            DATA_AUTOMATICA);
+            DATA_AUTOMATICA, ITENS_DO_PLANO);
+    /** ITENS_DO_PLANO: de onde vêm os itens. Cada fonte é lida da versão publicada da pasta da atualização. */
+    public static final Set<String> FONTES_DE_ITENS = Set.of("ALIMENTOS_DA_DIETA", "EXERCICIOS_DO_TREINO", "DIAS_TREINADOS");
+    /** ITENS_DO_PLANO: se cada item leva um motivo (texto do aluno). Ausente = {@code NENHUM}. */
+    public static final Set<String> MOTIVOS_DE_ITENS = Set.of("NENHUM", "OPCIONAL", "OBRIGATORIO");
+    /** ITENS_DO_PLANO: itens por resposta (teto de {@code max} e valor de quando {@code max} vem vazio). */
+    public static final int ITENS_MAXIMO = 20;
+    /** ITENS_DO_PLANO: texto do motivo de cada item, depois do strip. */
+    public static final int MOTIVO_TAMANHO = 300;
+    /** ITENS_DO_PLANO: texto da pergunta do motivo ({@code rotuloMotivo}). */
+    public static final int ROTULO_MOTIVO_TAMANHO = 60;
     /** A página pública não mostra imagem (D6): pedir a imagem exigiria uma rota pública nova servindo arquivo da consultoria. */
     private static final String SEM_IMAGEM_NA_INSCRICAO = "A página de inscrição não mostra imagem.";
 
@@ -213,7 +224,7 @@ public class ValidadorQuestionario {
         if (p.id() != null) {
             estado.anteriores.putIfAbsent(p.id(), p);
         }
-        if (estado.finalidade == Finalidade.ANAMNESE && tipo == DATA_AUTOMATICA) {
+        if (estado.finalidade == Finalidade.ANAMNESE && (tipo == DATA_AUTOMATICA || tipo == ITENS_DO_PLANO)) {
             c.erro(cp + ".tipo", "Este tipo só vale no questionário de atualização.");
         }
         if (estado.finalidade == Finalidade.ATUALIZACAO && tipo == TipoPergunta.ENDERECO) {
@@ -239,6 +250,7 @@ public class ValidadorQuestionario {
         numero(c, p, cp);
         lugares(c, p, cp);
         escala(c, p, cp);
+        itens(c, estado, p, cp);
         destaque(c, estado, p, cp);
         if (p.ajudaAutomatica() != null && !COM_AJUDA_AUTOMATICA.contains(tipo)) {
             c.erro(cp + ".ajudaAutomatica", "Este tipo não tem ajuda automática.");
@@ -463,7 +475,7 @@ public class ValidadorQuestionario {
             if (p.min() != null && tipo != NOTA) {
                 c.erro(cp + ".min", "Este tipo não tem mínimo.");
             }
-            if (p.max() != null && tipo != NOTA && tipo != FOTOS) {
+            if (p.max() != null && tipo != NOTA && tipo != FOTOS && tipo != ITENS_DO_PLANO) {
                 c.erro(cp + ".max", "Este tipo não tem máximo.");
             }
             if (p.casas() != null) {
@@ -483,6 +495,9 @@ public class ValidadorQuestionario {
             }
             if (tipo == FOTOS && p.max() != null && !inteiroEntre(p.max(), 1, LimitesQuestionario.FOTOS_POR_PERGUNTA)) {
                 c.erro(cp + ".max", "Use de 1 a " + LimitesQuestionario.FOTOS_POR_PERGUNTA + " fotos.");
+            }
+            if (tipo == ITENS_DO_PLANO && p.max() != null && !inteiroEntre(p.max(), 1, ITENS_MAXIMO)) {
+                c.erro(cp + ".max", "Use de 1 a " + ITENS_MAXIMO + " itens.");
             }
             return;
         }
@@ -534,6 +549,54 @@ public class ValidadorQuestionario {
             } else if (!vistos.add(normalizar(nome))) {
                 c.erro(co, "Texto repetido.");
             }
+        }
+    }
+
+    /** Configuração do ITENS_DO_PLANO, lida da pergunta num só lugar. */
+    private record ConfigDeItens(String fonte, String motivo, String rotuloMotivo) {
+    }
+
+    private static ConfigDeItens configDeItens(Pergunta p) {
+        return new ConfigDeItens(p.fonte(), p.motivo(), p.rotuloMotivo());
+    }
+
+    /**
+     * ITENS_DO_PLANO: {@code fonte} obrigatória; {@code motivo} (ausente = NENHUM); {@code rotuloMotivo} só com motivo, até
+     * {@link #ROTULO_MOTIVO_TAMANHO}; {@code max} de 1 a {@link #ITENS_MAXIMO} (conferido em {@code numero}). Com motivo,
+     * soma à capacidade de texto o que a resposta cheia pode ocupar. Nos outros tipos, os três campos são recusados.
+     */
+    private static void itens(ResultadoValidacao.Coletor c, Estado estado, Pergunta p, String cp) {
+        ConfigDeItens cfg = configDeItens(p);
+        if (p.tipo() != ITENS_DO_PLANO) {
+            if (cfg.fonte() != null) {
+                c.erro(cp + ".fonte", "Este tipo não tem fonte de itens.");
+            }
+            if (cfg.motivo() != null) {
+                c.erro(cp + ".motivo", "Este tipo não tem motivo.");
+            }
+            if (cfg.rotuloMotivo() != null) {
+                c.erro(cp + ".rotuloMotivo", "Este tipo não tem texto do motivo.");
+            }
+            return;
+        }
+        if (cfg.fonte() == null || !FONTES_DE_ITENS.contains(cfg.fonte())) {
+            c.erro(cp + ".fonte", "Escolha de onde vêm os itens.");
+        }
+        boolean motivoValido = cfg.motivo() == null || MOTIVOS_DE_ITENS.contains(cfg.motivo());
+        if (!motivoValido) {
+            c.erro(cp + ".motivo", "Escolha se o motivo é opcional ou obrigatório.");
+        }
+        boolean pedeMotivo = motivoValido && cfg.motivo() != null && !"NENHUM".equals(cfg.motivo());
+        if (cfg.rotuloMotivo() != null) {
+            if (!pedeMotivo) {
+                c.erro(cp + ".rotuloMotivo", "O texto do motivo só vale quando há motivo.");
+            } else if (cfg.rotuloMotivo().length() > ROTULO_MOTIVO_TAMANHO) {
+                c.erro(cp + ".rotuloMotivo", "Texto longo demais.");
+            }
+        }
+        if (pedeMotivo) {
+            int itens = p.max() != null && inteiroEntre(p.max(), 1, ITENS_MAXIMO) ? p.max().intValueExact() : ITENS_MAXIMO;
+            estado.capacidadeDeTexto += itens * MOTIVO_TAMANHO;
         }
     }
 

@@ -164,7 +164,7 @@ describe('fraseDeTreinosNoPeriodo (N17)', () => {
   it('diz quantos treinos e a média por semana', () => {
     expect(fraseDeTreinosNoPeriodo(1, 0.2)).toBe('1 treino registrado no período (≈0,2 por semana)');
     expect(fraseDeTreinosNoPeriodo(8, 4)).toBe('8 treinos registrados no período (≈4 por semana)');
-    expect(fraseDeTreinosNoPeriodo(0, 0)).toBe('Nenhum treino registrado no período (≈0 por semana)');
+    expect(fraseDeTreinosNoPeriodo(0, 0)).toBe('Nenhum treino registrado no período');
   });
 
   it('sem média só os treinos; sem dado do período, "—"', () => {

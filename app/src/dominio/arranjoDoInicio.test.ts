@@ -1,47 +1,50 @@
-import { faixasDaTelaDoInicio, linhasDoInicio, pilhasDoInicio, type PecaDoInicio, type SituacaoDoInicio } from './arranjoDoInicio';
+import { colunasDaVitrineDoInicio, inicioLargo, inicioLargoDoAluno, linhasDoInicio, type PecaDoInicio } from './arranjoDoInicio';
 
-const TUDO: SituacaoDoInicio = { retorno: true, vitrine: true };
-const pecas = (s: SituacaoDoInicio) => pilhasDoInicio(s).map((p) => [p.faixas, p.pecas]);
+/** Os blocos na ordem do leitor de tela, com "semana e nível" aberto. */
+const emOrdem = (pecas: readonly PecaDoInicio[]) => pecas.flatMap((p) => (p === 'semanaENivel' ? ['semana', 'nivel'] : [p]));
 
-describe('pilhasDoInicio', () => {
-  it('com o retorno: o dia numa faixa (Hoje primeiro) e o progresso em duas: semana e nível lado a lado, o mapa e, sob ele, compromissos e vitrine', () => {
-    const esperado = [[1, ['hoje', 'dieta', 'agua', 'pendencias']], [2, ['semanaENivel', 'mapa', 'compromissosEVitrine']]];
-    expect(pecas(TUDO)).toEqual(esperado);
-    // A vitrine não muda o arranjo: o bloco dela some sozinho sem itens, sem nada trocar de pilha.
-    expect(pecas({ ...TUDO, vitrine: false })).toEqual(esperado);
+describe('inicioLargo', () => {
+  it('abre na área de 952 (a da PrincipalComApoio das outras telas do aluno): 1280 com o menu aberto já é largo', () => {
+    expect(inicioLargo(951)).toBe(false);
+    expect(inicioLargo(952)).toBe(true);
+    expect(inicioLargo(984)).toBe(true);
+  });
+});
+
+describe('inicioLargoDoAluno', () => {
+  it('topo: Hoje, Dieta e compromissos na principal; pendências e Água no apoio; embaixo semana e nível, o mapa e a vitrine', () => {
+    expect(inicioLargoDoAluno({ retorno: true, vitrine: true })).toEqual({
+      principal: ['hoje', 'dieta', 'compromissos'], apoio: ['pendencias', 'agua'], linhas: ['semanaENivel', 'mapa', 'vitrine'],
+    });
   });
 
-  it('sem o retorno: pilhas de uma faixa, Hoje primeiro; a vitrine abre a terceira', () => {
-    const sem = { ...TUDO, retorno: false };
-    expect(pecas(sem)).toEqual([[1, ['hoje', 'dieta', 'agua']], [1, ['pendencias', 'compromissos', 'semana']], [1, ['vitrine']]]);
-    expect(pecas({ ...sem, vitrine: false })).toEqual([[1, ['hoje', 'dieta', 'agua']], [1, ['pendencias', 'compromissos', 'semana']]]);
+  it('sem o retorno não há linha do mapa; sem itens na vitrine, nem linha dela (nada de linha vazia)', () => {
+    expect(inicioLargoDoAluno({ retorno: false, vitrine: false }).linhas).toEqual(['semanaENivel']);
+    expect(inicioLargoDoAluno({ retorno: false, vitrine: true }).linhas).toEqual(['semanaENivel', 'vitrine']);
   });
 
-  it('o Hoje é sempre a primeira peça, cada bloco aparece uma vez e a soma das faixas bate com o teto da tela', () => {
+  it('nenhum bloco muda de coluna com o que chega da API (só o retorno e a vitrine decidem as linhas de baixo)', () => {
     for (const retorno of [true, false]) for (const vitrine of [true, false]) {
-      const s = { retorno, vitrine };
-      const pilhas = pilhasDoInicio(s);
-      expect(pilhas[0].pecas[0]).toBe('hoje');
-      expect(pilhas.reduce((t, p) => t + p.faixas, 0)).toBe(faixasDaTelaDoInicio(s));
-      const todas = pilhas.flatMap((p) => p.pecas).flatMap((p) => (p === 'semanaENivel' ? ['semana', 'nivel'] : p === 'compromissosEVitrine' ? ['compromissos', 'vitrine'] : [p]));
-      expect(new Set(todas).size).toBe(todas.length);
-      for (const b of ['hoje', 'dieta', 'agua', 'pendencias', 'compromissos', 'semana'] as const) expect(todas).toContain(b);
-      if (vitrine) expect(todas).toContain('vitrine');
-      if (retorno) expect(todas).toEqual(expect.arrayContaining(['mapa', 'nivel']));
+      const a = inicioLargoDoAluno({ retorno, vitrine });
+      expect(a.principal).toEqual(['hoje', 'dieta', 'compromissos']);
+      expect(a.apoio).toEqual(['pendencias', 'agua']);
+      const ordem = emOrdem([...a.principal, ...a.apoio, ...a.linhas]);
+      expect(ordem[0]).toBe('hoje');
+      expect(new Set(ordem).size).toBe(ordem.length);
+      expect(ordem.includes('mapa')).toBe(retorno);
+      if (vitrine) expect(ordem[ordem.length - 1]).toBe('vitrine');
     }
   });
 });
 
-describe('faixasDaTelaDoInicio', () => {
-  it('três com o mapa (retorno) ou com a vitrine; senão duas', () => {
-    expect(faixasDaTelaDoInicio({ retorno: true, vitrine: false })).toBe(3);
-    expect(faixasDaTelaDoInicio({ retorno: false, vitrine: true })).toBe(3);
-    expect(faixasDaTelaDoInicio({ retorno: false, vitrine: false })).toBe(2);
+describe('colunasDaVitrineDoInicio', () => {
+  it('célula mínima de 240 e no máximo uma coluna por item', () => {
+    expect(colunasDaVitrineDoInicio(1272, 2, 12)).toBe(2);
+    expect(colunasDaVitrineDoInicio(1272, 9, 12)).toBe(5);
+    expect(colunasDaVitrineDoInicio(400, 2, 12)).toBe(1);
+    expect(colunasDaVitrineDoInicio(0, 2, 12)).toBe(1);
   });
 });
-
-/** Os blocos na ordem do leitor de tela (linha a linha, pilha a pilha), com as peças compostas abertas. */
-const emOrdem = (pecas: readonly PecaDoInicio[]) => pecas.flatMap((p) => (p === 'semanaENivel' ? ['semana', 'nivel'] : p === 'compromissosEVitrine' ? ['compromissos', 'vitrine'] : [p]));
 
 describe('linhasDoInicio', () => {
   it('celular: uma coluna com o Hoje primeiro, depois Dieta e Água, pendências e compromissos, semana e nível, o mapa e a vitrine', () => {
@@ -67,7 +70,6 @@ describe('linhasDoInicio', () => {
       const ordem = emOrdem(linhasDoInicio({ retorno, duasColunas }).flat(2));
       expect(ordem[0]).toBe('hoje');
       expect(ordem.indexOf('dieta')).toBeLessThan(ordem.indexOf('agua'));
-      expect(ordem.indexOf('semana')).toBeLessThan(ordem.indexOf('nivel') === -1 ? Infinity : ordem.indexOf('nivel'));
       expect(new Set(ordem).size).toBe(ordem.length);
       for (const b of ['hoje', 'dieta', 'agua', 'pendencias', 'compromissos', 'semana', 'vitrine']) expect(ordem).toContain(b);
       if (retorno) expect(ordem).toEqual(expect.arrayContaining(['nivel', 'mapa']));

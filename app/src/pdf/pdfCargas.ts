@@ -3,9 +3,10 @@ import { dataParaTela } from '../dominio/formatos';
 import { textoDoVolume, totalDeRegistros, type DivisaoRelatorio, type LinhaCarga } from '../dominio/relatorio';
 import { textoDaCarga, type UnidadeDeCarga } from '../dominio/unidadeDeCarga';
 import { textoSobre } from '../tema/tokens';
+import type { ValoresPdf } from '../dominio/configuracaoPdf';
 import { BORDA_SUAVE } from './cssDosTemas';
-import { cabecalhoDoPdf, corDaMarca, corDeTextoNoTema, cssBase, esc, type Documento } from './html';
-import { temaValido, type TemaPdf } from './temas';
+import { ajustesDoGerador } from './cssDosAjustes';
+import { cabecalhoDoPdf, coresDoPdf, cssBase, esc, type Documento } from './html';
 
 export interface DadosPdfCargas {
   marca: Marca;
@@ -50,13 +51,13 @@ function celulaDeDetalhe(l: LinhaCarga, unidade: UnidadeDeCarga): string {
   return partes.length ? partes.join('<br>') : '—';
 }
 
-/** Regras próprias do relatório em cada tema (o `CLASSICO` não acrescenta nada). Cor de fundo sempre com texto em `textoSobre`. */
-function cssDoTemaDeCargas(tema: TemaPdf, marca: string): string {
-  if (tema === 'MINIMALISTA') {
+/** Regras próprias do relatório por estilo de cabeçalho (`FAIXA` não acrescenta nada; `LINHA` e `CARTAO` = Minimalista e Marcante). Fundo sempre com texto em `textoSobre`. */
+function cssDoTemaDeCargas(estilo: ValoresPdf['cabecalho']['estilo'], marca: string): string {
+  if (estilo === 'LINHA') {
     return `.doc .titulo-divisao { background: none; border-left: 0; border-bottom: 1px solid ${marca}; border-radius: 0; padding-left: 0; }
 `;
   }
-  if (tema === 'MARCANTE') {
+  if (estilo === 'CARTAO') {
     return `.doc .titulo-divisao { background: ${marca}; color: ${textoSobre(marca)}; border-left: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .doc .titulo-divisao .pequeno { color: inherit; }
 .doc .exercicio { border-color: ${BORDA_SUAVE}; border-radius: 6pt; }
@@ -70,9 +71,7 @@ function cssDoTemaDeCargas(tema: TemaPdf, marca: string): string {
  * repetições e a observação do aluno. Só o que foi registrado.
  */
 export function documentoCargas(d: DadosPdfCargas): Documento {
-  const marca = corDaMarca(d.marca.corPrimaria);
-  const tema = temaValido(d.marca.temaPdf);
-  const marcaTexto = corDeTextoNoTema(d.marca.corPrimaria, tema);
+  const { valores, fundo: marca, texto: marcaTexto, textoNoCinza } = coresDoPdf(d.marca);
   const total = totalDeRegistros(d.divisoes);
   const divisoes = d.divisoes
     .map((div) => {
@@ -108,7 +107,7 @@ export function documentoCargas(d: DadosPdfCargas): Documento {
     `<div class="rodape">${d.rodapePdf ? `${esc(d.rodapePdf)} · ` : ''}Carga e repetições como o aluno registrou no app.</div>`,
   ].join('');
 
-  const css = `${cssBase(marca, tema)}
+  const css = `${cssBase(d.marca.corPrimaria, d.marca.temaPdf, d.marca.opcoesPdf)}
 .doc .resumo { display: flex; justify-content: space-between; gap: 12pt; border: 1px solid #ddd; border-radius: 6px; padding: 8pt 10pt; margin: 6pt 0 10pt; }
 .doc .divisao { margin-top: 12pt; }
 .doc .titulo-divisao { display: flex; justify-content: space-between; align-items: center; background: #f3f3f4; border-left: 4px solid ${marca}; border-radius: 4px; padding: 6pt 10pt; font-weight: 700; font-size: 11.5pt; text-transform: uppercase; letter-spacing: .6px; break-after: avoid; page-break-after: avoid; }
@@ -117,8 +116,8 @@ export function documentoCargas(d: DadosPdfCargas): Documento {
 .doc .exercicio table { margin: 0; }
 .doc .exercicio th { background: #fff; color: #666; border-bottom: 1px solid #ddd; }
 .doc table, .doc .resumo { font-variant-numeric: tabular-nums; }
-.doc .carga { color: ${marcaTexto}; font-weight: 700; }
+.doc .carga { color: ${textoNoCinza}; font-weight: 700; }
 .doc .obs { display: inline-block; border-left: 3px solid #d4a017; padding-left: 5pt; font-style: italic; }
-${cssDoTemaDeCargas(tema, marca)}`;
+${cssDoTemaDeCargas(valores.cabecalho.estilo, marca)}${ajustesDoGerador('CARGAS', valores)}`;
   return { titulo: `Cargas - ${d.aluno}`, css, corpo };
 }

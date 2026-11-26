@@ -1,69 +1,64 @@
+import { AREA_MINIMA_LADO_A_LADO } from './arranjoPrincipalComApoio';
+
 /**
- * Arranjo do Início do aluno na tela larga (revisão 2 de 24/11, decisão 2 de `docs/planos/tela-larga-revisao-2.md`): o
- * "Hoje" é o primeiro bloco e o resto vai em pilhas independentes (como a ficha › Dados, 4.10), cada uma com o mesmo vão;
- * nada fica embaixo de todas, então a sobra de altura só existe no fim da pilha mais curta. Da faixa `larga` em diante
- * (`telaLargaDoAluno`); abaixo dela, `linhasDoInicio` (o Hoje também primeiro, pedido do Gustavo de 24/11).
- *
- * Com o retorno ligado o mapa do ano existe e precisa de duas faixas (numa de 552 ele cai no modo do celular, com rolagem):
- * uma pilha de uma faixa com o dia (Hoje, dieta, água, pendências) e uma de duas com o progresso ("Sua semana" e "Seu nível"
- * lado a lado, da mesma altura, e o mapa embaixo, que ocupa o cartão) e, sob o mapa, compromissos e vitrine numa faixa
- * (`compromissosEVitrine`, na borda da semana): com tudo à esquerda, o Início cheio deixava ~500 px vazios sob o mapa.
+ * Arranjo do Início do aluno. No celular e no tablet, `linhasDoInicio` (24/11); da área de 952 em diante (a mesma em que a
+ * `PrincipalComApoio` das outras telas do aluno abre lado a lado), `inicioLargoDoAluno` (26/11,
+ * `docs/planos/aluno-web-layout.md` seção 1 e `orientacoes-de-design-26-11.md` 1.1): o que pede ação primeiro no topo e,
+ * embaixo, linhas na largura toda.
  */
 
 export type BlocoDoInicio = 'hoje' | 'dieta' | 'agua' | 'pendencias' | 'compromissos' | 'semana' | 'nivel' | 'vitrine' | 'mapa';
-/**
- * Uma peça de pilha: um bloco, "Sua semana" e "Seu nível" lado a lado (`semanaENivel`) ou compromissos e vitrine empilhados
- * na primeira das duas faixas (`compromissosEVitrine`, a última peça da pilha larga: nada vem embaixo dela).
- */
-export type PecaDoInicio = BlocoDoInicio | 'semanaENivel' | 'compromissosEVitrine';
-/** `faixas` é a proporção da pilha (flex): uma ou duas faixas de 552. */
-export interface PilhaDoInicio { faixas: 1 | 2; pecas: PecaDoInicio[] }
+/** Um bloco ou "Sua semana" e "Seu nível" juntos (`semanaENivel`: lado a lado, da mesma altura). */
+export type PecaDoInicio = BlocoDoInicio | 'semanaENivel';
 
-export interface SituacaoDoInicio {
-  /** `retornoHabilitado`: o mapa do ano e o nível existem. */
-  retorno: boolean;
-  /** A vitrine tem itens para mostrar. */
-  vitrine: boolean;
-}
-
-/** Faixas do teto da tela (`TelaDoAluno`): três quando há mapa ou vitrine; sem nenhum, as duas de 1120. */
-export const faixasDaTelaDoInicio = (s: SituacaoDoInicio): 2 | 3 => (s.retorno || s.vitrine ? 3 : 2);
-
-/**
- * As pilhas do Início na tela larga, da esquerda para a direita; a soma das faixas é `faixasDaTelaDoInicio`. Só depende de
- * chaves que não mudam enquanto a tela carrega (o pacote e a internet ficam de fora): nenhum bloco troca de pilha (nem
- * remonta) quando o pacote chega ou a conexão cai. O nível fica sempre ao lado da semana; sem internet ele mesmo mostra o
- * último valor lido, e sem plano de treino a semana não aparece e o nível ocupa a linha.
- */
-export function pilhasDoInicio(s: SituacaoDoInicio): PilhaDoInicio[] {
-  if (s.retorno) {
-    return [
-      { faixas: 1, pecas: ['hoje', 'dieta', 'agua', 'pendencias'] },
-      { faixas: 2, pecas: ['semanaENivel', 'mapa', 'compromissosEVitrine'] },
-    ];
-  }
-  const dia: PilhaDoInicio = { faixas: 1, pecas: ['hoje', 'dieta', 'agua'] };
-  const tarefas: PilhaDoInicio = { faixas: 1, pecas: ['pendencias', 'compromissos', 'semana'] };
-  return s.vitrine ? [dia, tarefas, { faixas: 1, pecas: ['vitrine'] }] : [dia, tarefas];
-}
-
-/** Abaixo da faixa larga: uma linha tem uma pilha (largura toda) ou duas (colunas iguais, independentes). */
+/** Abaixo do arranjo largo: uma linha tem uma pilha (largura toda) ou duas (colunas iguais, independentes). */
 export type LinhaDoInicio = PecaDoInicio[][];
 
-/** Duas colunas no corpo do Início abaixo da faixa larga: cabem duas de 360 com o vão (tablet deitado e PC até 1280). */
+/** Duas colunas no corpo do Início abaixo do arranjo largo (tablet): cabem duas de 360 com o vão. */
 export const MINIMO_DA_COLUNA_DO_INICIO = 360;
 
 /**
- * O Início abaixo da faixa larga (24/11, pedido do Gustavo): o Hoje primeiro em qualquer largura, depois Dieta e Água, Sua
- * semana e Seu nível e o mapa do ano.
+ * O Início abaixo do arranjo largo (24/11): o Hoje primeiro em qualquer largura, depois Dieta e Água, Sua semana e Seu nível
+ * e o mapa do ano.
  * - Uma coluna (celular): Hoje › Dieta › Água › pendências › compromissos › semana › nível › mapa › vitrine.
- * - Duas colunas (PC até 1280): Hoje e Dieta à esquerda, Água à direita (as duas pilhas acabam perto: ~280 e ~230 px), com
- *   pendências e compromissos embaixo de cada uma; depois semana e nível lado a lado e da mesma altura, e o mapa na largura
- *   toda. Antes, Dieta, Água e Hoje à esquerda e semana e nível à direita deixavam ~210 px vazios sob o nível.
+ * - Duas colunas (tablet): Hoje e Dieta à esquerda, Água à direita, com pendências e compromissos embaixo de cada uma;
+ *   depois semana e nível lado a lado e da mesma altura, e o mapa na largura toda.
  * - Sem o retorno (sem nível nem mapa) a semana vai para a pilha da Água, para não esticar sozinha na largura toda.
  */
 export function linhasDoInicio(o: { retorno: boolean; duasColunas: boolean }): LinhaDoInicio[] {
   if (!o.duasColunas) return [[['hoje', 'dieta', 'agua', 'pendencias', 'compromissos', 'semana', 'nivel', 'mapa', 'vitrine']]];
   if (!o.retorno) return [[['hoje', 'dieta', 'pendencias'], ['agua', 'compromissos', 'semana', 'vitrine']]];
   return [[['hoje', 'dieta', 'pendencias'], ['agua', 'compromissos', 'vitrine']], [['semanaENivel']], [['mapa']]];
+}
+
+/** O arranjo largo vale da área de 952 em diante, a mesma em que a `PrincipalComApoio` abre lado a lado (apoio de 360). */
+export const AREA_DO_INICIO_LARGO = AREA_MINIMA_LADO_A_LADO;
+export const inicioLargo = (largura: number) => largura >= AREA_DO_INICIO_LARGO;
+
+export interface InicioLargo {
+  /** Coluna principal do topo: o Hoje, a Dieta logo embaixo e os compromissos presenciais (a agenda do dia). */
+  principal: PecaDoInicio[];
+  /** Coluna de apoio do topo, à direita: as pendências (o mais urgente, na altura do Hoje) e a Água de hoje. */
+  apoio: PecaDoInicio[];
+  /** Abaixo das duas, na largura toda, uma linha cada: semana e nível lado a lado, o mapa do ano e a vitrine por último. */
+  linhas: PecaDoInicio[];
+}
+
+/**
+ * O Início largo (26/11). O topo é a `PrincipalComApoio` das outras telas do aluno; embaixo, linhas na largura toda.
+ * Conferido nas capturas: a linha "Dieta · Água" que a orientação 1.1 sugeria deixava ~170 px vazios sob a Dieta (uma
+ * linha só de altura) ao lado da Água (botões de copo); com a Dieta sob o Hoje e a Água sob as pendências as duas colunas
+ * terminam perto. Sem pendências a Água sobe sozinha para a altura do Hoje, e o Hoje não cresce (a coluna fica onde está).
+ * Nenhum bloco troca de coluna conforme o que chega da API: nada remonta (as pendências e o nível leem a API ao montar).
+ */
+export function inicioLargoDoAluno(o: { retorno: boolean; vitrine: boolean }): InicioLargo {
+  const linhas: PecaDoInicio[] = ['semanaENivel'];
+  if (o.retorno) linhas.push('mapa');
+  if (o.vitrine) linhas.push('vitrine');
+  return { principal: ['hoje', 'dieta', 'compromissos'], apoio: ['pendencias', 'agua'], linhas };
+}
+
+/** Colunas da grade de produtos da vitrine larga: célula mínima de 240 e no máximo uma por item (dois itens dividem a linha, sem coluna vazia). */
+export function colunasDaVitrineDoInicio(largura: number, itens: number, vao: number): number {
+  return Math.max(1, Math.min(itens, Math.floor((largura + vao) / (240 + vao))));
 }

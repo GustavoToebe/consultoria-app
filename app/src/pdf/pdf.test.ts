@@ -6,7 +6,7 @@ import { normalizarTreino } from '../dominio/editorTreino';
 import { carga, exercicio, grupo, rir, rpe, serie, sessao, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
 import { normalizarMobilidade } from '../dominio/mobilidade';
 import { cabecalhoDoPdf, cssBase, cssDoDoc, esc, link, type Documento } from './html';
-import { MARCADOR_DO_TEMA, textosSemContraste } from './contrasteDoCss.apoioTeste';
+import { MARCADOR_DO_TEMA, temMarcador, textosSemContraste } from './contrasteDoCss.apoioTeste';
 import { documentoDeExemploDeDieta, documentoDeExemploDeTreino } from './exemplos';
 import { TEMAS_PDF } from './temas';
 import { contraste, marcaParaTexto } from '../tema/tokens';
@@ -1128,7 +1128,7 @@ describe('temas dos PDFs (marca.temaPdf)', () => {
   describe.each(TEMAS_PDF.map((t) => t.id))('%s', (tema) => {
     it.each(Object.keys(geradores))('%s: o CSS é o do tema, vindo de marca.temaPdf', (nome) => {
       const css = geradores[nome](comTema(tema)).css;
-      expect(css).toMatch(MARCADOR_DO_TEMA[tema]('#C62828'));
+      if (temMarcador(tema)) expect(css).toMatch(MARCADOR_DO_TEMA[tema]('#C62828'));
       expect(css.startsWith(cssBase('#C62828', tema))).toBe(true);
       if (tema === 'CLASSICO') {
         expect(css).not.toMatch(MARCADOR_DO_TEMA.MINIMALISTA());
@@ -1147,9 +1147,7 @@ describe('temas dos PDFs (marca.temaPdf)', () => {
 
     it.each(Object.keys(geradores))('%s: marca amarela (#FFEB3B) não deixa texto abaixo de 4,5:1', (nome) => {
       const d = geradores[nome](comTema(tema, '#FFEB3B'));
-      // CLASSICO é o visual de hoje, sem mudar um pixel: só o `cssBase` dele é conferido aqui (a dieta e o relatório de cargas
-      // pintam número com a cor crua da marca desde antes dos temas; os outros temas já usam `corDeTextoDaMarca`).
-      if (tema === 'CLASSICO') return expect(textosSemContraste(cssBase('#FFEB3B', tema))).toEqual([]);
+      // D7 (26/11): o CLASSICO também; a dieta e o relatório de cargas deixaram de pintar número com a cor crua da marca.
       expect(textosSemContraste(d.css, d.corpo)).toEqual([]);
     });
 
@@ -1157,7 +1155,7 @@ describe('temas dos PDFs (marca.temaPdf)', () => {
       const d = geradores.cargas(comTema(tema, 'red;}</style><script>alert(1)</script>'));
       expect(d.css).not.toContain('<script');
       expect(d.css).not.toContain('red;}');
-      expect(d.css).toMatch(MARCADOR_DO_TEMA[tema]('#333333'));
+      if (temMarcador(tema)) expect(d.css).toMatch(MARCADOR_DO_TEMA[tema]('#333333'));
     });
   });
 
@@ -1168,22 +1166,25 @@ describe('temas dos PDFs (marca.temaPdf)', () => {
     }
   });
 
-  it('os três temas são diferentes entre si e a prévia usa só a parte do .doc', () => {
+  it('os seis modelos são diferentes entre si e a prévia usa só a parte do .doc', () => {
     const csss = TEMAS_PDF.map((t) => cssDoDoc('#C62828', t.id));
-    expect(new Set(csss).size).toBe(3);
+    expect(new Set(csss).size).toBe(6);
     for (const doc of csss) expect(doc).not.toContain('@page');
   });
 
   describe('dieta', () => {
-    it('MINIMALISTA e MARCANTE: faixa de opção com texto legível sobre o fundo e cabeçalho de tabela sem texto escuro sobre o escuro', () => {
+    it('todo modelo: faixa de opção com texto legível sobre o fundo e cabeçalho de tabela sem texto escuro sobre o escuro', () => {
+      // Fundo claro (marca amarela) leva o texto escuro no atributo; fundo escuro usa o branco do CSS da faixa (sem atributo).
       const classico = documentoDeExemploDeDieta(comTema('CLASSICO', '#FFEB3B'), emitidoEm);
-      expect(classico.corpo).toContain('<div class="cab" style="background:#FFEB3B">');
-      for (const tema of ['MINIMALISTA', 'MARCANTE']) {
+      expect(classico.corpo).toContain('<div class="cab" style="background:#FFEB3B;color:#000000">');
+      expect(documentoDeExemploDeDieta(comTema('CLASSICO'), emitidoEm).corpo).toContain('<div class="cab" style="background:#C62828">');
+      for (const tema of ['CLASSICO', 'COMPACTO', 'MINIMALISTA', 'MARCANTE']) {
         const d = documentoDeExemploDeDieta(comTema(tema, '#FFEB3B'), emitidoEm);
         expect(d.corpo).toContain('<div class="cab" style="background:#FFEB3B;color:#000000">');
-        expect(d.corpo).toContain('<div class="cab" style="background:#1A5276;color:#FFFFFF">');
-        // O `th` das tabelas escuras não fica com o fundo escuro do classico.
-        expect(d.css).toMatch(/\.doc table\.dark th \{ background: (none|#F3F4F6);/);
+        expect(d.corpo).toContain('<div class="cab" style="background:#1A5276">');
+        // O `th` das tabelas escuras: leve nos cabeçalhos LINHA e CARTAO; no FAIXA, o navy fixo COM texto branco (antes herdava o
+        // texto escuro do destaque claro e ficava ilegível sobre o navy).
+        expect(d.css).toMatch(/\.doc table\.dark th \{ background: (none|#F3F4F6|#1A1A2E; color: #fff);/);
         const titulo = /<h2 class="sec" style="color:(#[0-9A-F]{6})">/.exec(d.corpo)?.[1] ?? '';
         expect(titulo).toBe(marcaParaTexto('#FFEB3B', '#FFFFFF'));
       }

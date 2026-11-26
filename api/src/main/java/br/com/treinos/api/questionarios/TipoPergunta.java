@@ -17,7 +17,13 @@ public enum TipoPergunta {
     /** Texto longo e frase de declaração; a resposta é {@code true} (a versão respondida fica na anamnese/atualização). */
     ACEITE,
     /** Só texto e/ou imagem, sem resposta. */
-    INFORMATIVO;
+    INFORMATIVO,
+    /**
+     * Itens do plano do próprio aluno (alimentos da dieta, exercícios do treino ou dias treinados), escolhidos por toque, com
+     * motivo opcional. Só na atualização. A resposta é {@code [{id, motivo?}]}; o servidor confere cada id contra a versão
+     * publicada da pasta e grava o {@code nome} (ver {@code atualizacoes.ItensDoPlano}).
+     */
+    ITENS_DO_PLANO;
 
     public boolean temOpcoes() {
         return this == ESCOLHA_UNICA || this == MULTIPLA_ESCOLHA;

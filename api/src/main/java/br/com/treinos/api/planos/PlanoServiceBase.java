@@ -5,6 +5,8 @@ import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.pastas.PastaPlano;
 import br.com.treinos.api.pastas.PastaRepository;
+import br.com.treinos.api.planos.liberacao.LiberacaoDePlano;
+import org.springframework.beans.factory.annotation.Autowired;
 import br.com.treinos.api.planos.dto.PlanoDtos.CriarPlanoRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoPublicado;
@@ -63,6 +65,14 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         this.json = json;
         this.classe = classe;
         this.nomeDoPlano = nomeDoPlano;
+    }
+
+    private LiberacaoDePlano liberacao;
+
+    /** Injetado por setter para os serviços de cada tipo não mudarem de construtor. */
+    @Autowired
+    void setLiberacao(LiberacaoDePlano liberacao) {
+        this.liberacao = liberacao;
     }
 
     protected abstract P novoPlano(UUID alunoId, String titulo, LocalDate inicio, LocalDate fim, String rascunho);
@@ -187,6 +197,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
     public PlanoDetalhe<C> publicar(UUID id, PublicarRequest r, UUID usuarioId) {
         P plano = buscar(id);
         exigirMesmaVersao(plano, r.versao());
+        LiberacaoDePlano.exigirDataValida(r.liberarEm(), FaixaDeData.hoje());
         if (plano.getAlunoId() == null) {
             throw new BadRequestException("Modelo sem aluno não é publicado; crie um plano para o aluno a partir dele.");
         }
@@ -215,9 +226,55 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         Instant agora = Instant.now();
         int numero = plano.getVersaoPublicada() + 1;
         versoes.save(novaVersao(plano, numero, escrever(paraPublicar(conteudo)), usuarioId, agora));
-        planos.desativarOutros(plano.getAlunoId(), plano.getId());
-        plano.publicar(numero, agora);
-        return detalhe(planos.saveAndFlush(plano));
+        if (r.liberarEm() == null) {
+            planos.desativarOutros(plano.getAlunoId(), plano.getId());
+            plano.publicar(numero, agora);
+        } else {
+            // Com data: a versão existe, o aluno segue na anterior até a rotina (ou o "Liberar agora"); o vigente não é desligado.
+            plano.agendar(numero, agora, r.liberarEm(), r.avisar());
+        }
+        P salvo = planos.saveAndFlush(plano);
+        if (r.liberarEm() == null && r.avisar()) {
+            liberacao.avisar(plano.getAlunoId());
+        }
+        return detalhe(salvo);
+    }
+
+    /**
+     * Muda o dia de um plano agendado (de amanhã em diante, dia de Brasília). Plano sem agendamento = 409
+     * {@code PLANO_NAO_AGENDADO}; arquivado = 404. Trava a linha, como a rotina que libera.
+     */
+    @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PLANO_LIBERACAO_ALTERADA",entidade="PLANO",resumo="Mudou a data de liberação de um plano.")
+    public PlanoResumo alterarLiberacao(UUID id, LocalDate liberarEm) {
+        if (liberarEm == null) {
+            throw new BadRequestException("Informe a data de liberação.");
+        }
+        LiberacaoDePlano.exigirDataValida(liberarEm, FaixaDeData.hoje());
+        P plano = agendado(id);
+        plano.alterarLiberarEm(liberarEm);
+        return PlanoResumo.de(planos.saveAndFlush(plano));
+    }
+
+    /** "Liberar agora" de um plano agendado: o aluno passa a ver já; {@code avisar} nulo = avisa. */
+    @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PLANO_LIBERADO_AGORA",entidade="PLANO",resumo="Liberou um plano agendado para o aluno.")
+    public PlanoResumo liberarAgora(UUID id, Boolean avisar) {
+        P plano = agendado(id);
+        liberacao.liberar(planos, plano, avisar == null || avisar);
+        return PlanoResumo.de(plano);
+    }
+
+    /** O plano agendado, relido sob trava de linha: agendado de outra consultoria ou inexistente = 404; sem agendamento, 409. */
+    private P agendado(UUID id) {
+        P plano = planos.travarParaLiberar(id).orElseThrow(() -> new NaoEncontradoException(nomeDoPlano + " não encontrado."));
+        if (plano.isArquivado()) {
+            throw new NaoEncontradoException(nomeDoPlano + " não encontrado.");
+        }
+        if (!plano.isAgendado()) {
+            throw new ConflictException("Este plano não está agendado.", "PLANO_NAO_AGENDADO");
+        }
+        return plano;
     }
 
     /** "Replicar para o próximo ciclo": plano novo do mesmo aluno a partir da última versão publicada, uids novos. */
@@ -296,37 +353,55 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
                 .toList();
     }
 
-    /** Versão vigente do aluno (plano ativo já publicado), para as rotas {@code /aluno/**} e o PDF. */
+    /**
+     * Versão vigente do aluno (plano ativo já liberado), para as rotas {@code /aluno/**} e o PDF. É a versão LIBERADA, nunca a
+     * agendada: o que o aluno vê vem de {@code versaoLiberada}, o ponto único que todos os leitores do aluno usam
+     * ({@link #versaoLiberadaDaPasta}, {@link #publicadosEmPastas}, {@link #conteudosPublicados}, {@code PastaVigente} e as
+     * junções por {@code ativo} só enxergam plano já liberado). O CHECK da V105 impede o banco de ter agendada como liberada.
+     */
     @Transactional(readOnly = true)
     public Optional<VersaoAtiva<P, V, C>> versaoAtiva(UUID alunoId) {
         return planos.findByAlunoIdAndAtivoTrue(alunoId)
-                .filter(p -> p.getVersaoPublicada() > 0)
-                .flatMap(p -> versoes.findByPlanoIdAndNumero(p.getId(), p.getVersaoPublicada())
+                .filter(p -> p.getVersaoLiberada() > 0)
+                .flatMap(p -> versoes.findByPlanoIdAndNumero(p.getId(), p.getVersaoLiberada())
                         .map(v -> new VersaoAtiva<>(p, v, ler(v.getConteudo()))));
     }
 
-    /** Planos publicados e não arquivados do aluno que estão em alguma pasta (rascunho nunca entra). */
+    /** Planos liberados e não arquivados do aluno que estão em alguma pasta (rascunho e plano só agendado nunca entram). */
     @Transactional(readOnly = true)
     public List<P> publicadosEmPastas(UUID alunoId) {
         return planos.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream()
-                .filter(p -> !p.isArquivado() && p.getVersaoPublicada() > 0 && p.getPastaId() != null)
+                .filter(p -> !p.isArquivado() && p.getVersaoLiberada() > 0 && p.getPastaId() != null)
                 .toList();
     }
 
     /**
-     * Conteúdo da versão publicada de cada plano publicado e não arquivado que o aluno consegue abrir: o ativo e os de
+     * Conteúdo da versão liberada de cada plano liberado e não arquivado que o aluno consegue abrir: o ativo e os de
      * qualquer pasta (o app deixa consultar a pasta antiga).
      */
     @Transactional(readOnly = true)
     public List<C> conteudosPublicados(UUID alunoId) {
         return planos.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream()
-                .filter(p -> !p.isArquivado() && p.getVersaoPublicada() > 0 && (p.isAtivo() || p.getPastaId() != null))
-                .flatMap(p -> versoes.findByPlanoIdAndNumero(p.getId(), p.getVersaoPublicada()).stream())
+                .filter(p -> !p.isArquivado() && p.getVersaoLiberada() > 0 && (p.isAtivo() || p.getPastaId() != null))
+                .flatMap(p -> versoes.findByPlanoIdAndNumero(p.getId(), p.getVersaoLiberada()).stream())
                 .map(v -> ler(v.getConteudo()))
                 .toList();
     }
 
-    /** Versão publicada mais recente entre os planos do aluno na pasta; sem plano publicado, vazio. */
+    /**
+     * O que o ALUNO vê de uma pasta: a versão liberada mais recente entre os planos do aluno nela; sem plano liberado, vazio
+     * (pasta só com plano agendado ainda não existe para ele).
+     */
+    @Transactional(readOnly = true)
+    public Optional<VersaoAtiva<P, V, C>> versaoLiberadaDaPasta(UUID alunoId, UUID pastaId) {
+        return planos.findByPastaId(pastaId).stream()
+                .filter(p -> !p.isArquivado() && p.getVersaoLiberada() > 0 && alunoId.equals(p.getAlunoId()))
+                .max(Comparator.comparing(PlanoBase::getPublicadoEm))
+                .flatMap(p -> versoes.findByPlanoIdAndNumero(p.getId(), p.getVersaoLiberada())
+                        .map(v -> new VersaoAtiva<>(p, v, ler(v.getConteudo()))));
+    }
+
+    /** Versão publicada mais recente (liberada ou agendada) entre os planos do aluno na pasta: leitura do treinador; sem plano publicado, vazio. */
     @Transactional(readOnly = true)
     public Optional<VersaoAtiva<P, V, C>> versaoPublicadaDaPasta(UUID alunoId, UUID pastaId) {
         return planos.findByPastaId(pastaId).stream()

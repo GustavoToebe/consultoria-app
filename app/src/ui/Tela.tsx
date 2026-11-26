@@ -54,7 +54,9 @@ export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas 
   );
   return (
     <SafeAreaView edges={bordas} onLayout={aoMedir} style={[estilos.raiz, { backgroundColor: fundo }]}>
-      <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Edge-to-edge (Android 15+) ignora o `adjustResize`: sem `padding` aqui o teclado cobria o campo. Se a janela já
+          encolher sozinha o KAV não soma nada (mede a sobreposição com o teclado). */}
+      <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'web' ? undefined : 'padding'}>
         {rolar ? (
           <RolagemComTopo preencher contentContainerStyle={[estilos.rolagem, preenchimento, centrado && estilos.centrado]}>{conteudo}</RolagemComTopo>
         ) : (

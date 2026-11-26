@@ -20,6 +20,7 @@ import br.com.treinos.api.pastas.PastaDtos.PlanoPublicadoNaPasta;
 import br.com.treinos.api.pastas.PastaDtos.PlanoPuladoNaPasta;
 import br.com.treinos.api.pastas.PastaDtos.PublicarPastaResposta;
 import br.com.treinos.api.planos.PlanoServiceBase;
+import br.com.treinos.api.planos.liberacao.LiberacaoDePlano;
 import br.com.treinos.api.planos.dto.PlanoDtos.PublicarRequest;
 import br.com.treinos.api.web.ValidacaoException;
 import br.com.treinos.api.pastas.PastaDtos.PastaRequest;
@@ -96,14 +97,35 @@ public class PastaService {
     @Transactional(readOnly = true)
     public List<PastaResumo> listar(UUID alunoId) {
         exigirAluno(alunoId);
-        return pastas.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream().filter(p -> !p.isArquivado()).map(PastaResumo::de).toList();
+        Map<UUID, LocalDate> agendadas = agendadasDoAluno(alunoId);
+        return pastas.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream().filter(p -> !p.isArquivado())
+                .map(p -> PastaResumo.de(p, agendadas.get(p.getId()))).toList();
     }
 
     /** A pasta que o aluno está usando agora (regra única em {@link PastaVigente}); nenhuma = {@code pasta} nulo. */
     @Transactional(readOnly = true)
     public PastaVigenteResposta vigente(UUID alunoId) {
         exigirAluno(alunoId);
-        return new PastaVigenteResposta(vigente.de(alunoId).map(PastaResumo::de).orElse(null));
+        return new PastaVigenteResposta(vigente.de(alunoId).map(this::resumo).orElse(null));
+    }
+
+    /** O resumo com o dia de liberação agendado (o menor entre os planos não arquivados da pasta), se houver. */
+    private PastaResumo resumo(PastaPlano p) {
+        return PastaResumo.de(p, agendadasDoAluno(p.getAlunoId()).get(p.getId()));
+    }
+
+    /** {@code pastaId -> menor liberarEm} dos planos agendados e não arquivados do aluno (três consultas pequenas, pelo aluno). */
+    private Map<UUID, LocalDate> agendadasDoAluno(UUID alunoId) {
+        Map<UUID, LocalDate> porPasta = new java.util.HashMap<>();
+        for (List<? extends PlanoBase> lista : List.of(treinos.findByAlunoIdOrderByCriadoEmDesc(alunoId),
+                dietas.findByAlunoIdOrderByCriadoEmDesc(alunoId), mobilidades.findByAlunoIdOrderByCriadoEmDesc(alunoId))) {
+            for (PlanoBase p : lista) {
+                if (!p.isArquivado() && p.getLiberarEm() != null && p.getPastaId() != null) {
+                    porPasta.merge(p.getPastaId(), p.getLiberarEm(), (a, b) -> a.isBefore(b) ? a : b);
+                }
+            }
+        }
+        return porPasta;
     }
 
     @Transactional
@@ -127,7 +149,7 @@ public class PastaService {
         treinos.findByPastaId(id).forEach(p -> p.definirPeriodo(r.inicio(), r.fim()));
         dietas.findByPastaId(id).forEach(p -> p.definirPeriodo(r.inicio(), r.fim()));
         mobilidades.findByPastaId(id).forEach(p -> p.definirPeriodo(r.inicio(), r.fim()));
-        PastaResumo resumo = PastaResumo.de(pastas.saveAndFlush(pasta));
+        PastaResumo resumo = resumo(pastas.saveAndFlush(pasta));
         // A linha da atualização guarda a data; enquanto ABERTA ela acompanha o fim da pasta.
         if (r.fim() != null) {
             atualizacoes.moverDataDaAberta(id, r.fim());
@@ -184,14 +206,14 @@ public class PastaService {
             pesos.registrar(pasta.getAlunoId(), new PesoRequest(data, r.pesoKg(), r.observacao()), usuarioId);
         }
         pasta.concluir(Instant.now());
-        return PastaResumo.de(pastas.saveAndFlush(pasta));
+        return resumo(pastas.saveAndFlush(pasta));
     }
 
     @Transactional
     public PastaResumo reabrir(UUID id) {
         PastaPlano pasta = buscar(id);
         pasta.reabrir();
-        return PastaResumo.de(pastas.saveAndFlush(pasta));
+        return resumo(pastas.saveAndFlush(pasta));
     }
 
     @Transactional
@@ -225,7 +247,20 @@ public class PastaService {
      */
     @Transactional
     public PublicarPastaResposta publicarTudo(UUID id, boolean confirmarAvisos, Map<UUID, Long> versoes, UUID usuarioId) {
+        return publicarTudo(id, confirmarAvisos, versoes, usuarioId, null, null);
+    }
+
+    /**
+     * Publicar tudo com data de liberação opcional (V105): {@code liberarEm} (de amanhã em diante, Brasília; 422
+     * {@code LIBERACAO_INVALIDA} antes de qualquer efeito) vale para todos os planos publicados agora e o aluno segue no plano
+     * anterior até lá; {@code avisarAluno} (ausente = avisa) manda o aviso quando liberar. Substitui o agendamento anterior de cada
+     * plano publicado. O resto é a regra acima.
+     */
+    @Transactional
+    public PublicarPastaResposta publicarTudo(UUID id, boolean confirmarAvisos, Map<UUID, Long> versoes, UUID usuarioId,
+                                              LocalDate liberarEm, Boolean avisarAluno) {
         buscarAtiva(id);
+        LiberacaoDePlano.exigirDataValida(liberarEm, FaixaDeData.hoje());
         List<Alvo> alvos = planosDaPasta(id);
         List<Alvo> aPublicar = alvos.stream().filter(Alvo::pendente).toList();
         exigirPermissaoDosAlvos(aPublicar, "PUBLICAR");
@@ -253,8 +288,9 @@ public class PastaService {
         try {
             for (Alvo a : aPublicar) {
                 var publicado = a.servico().publicar(a.plano().getId(),
-                        new PublicarRequest(versoes.get(a.plano().getId()), confirmarAvisos), usuarioId);
-                publicados.add(new PlanoPublicadoNaPasta(a.tipo(), a.plano().getId(), publicado.plano().versaoPublicada()));
+                        new PublicarRequest(versoes.get(a.plano().getId()), confirmarAvisos, liberarEm, avisarAluno), usuarioId);
+                publicados.add(new PlanoPublicadoNaPasta(a.tipo(), a.plano().getId(), publicado.plano().versaoPublicada(),
+                        publicado.plano().liberarEm()));
             }
         } catch (DataIntegrityViolationException corrida) {
             // Outra chamada publicou o mesmo plano ao mesmo tempo: só a violação da versão (ou do plano ativo) vira 409;

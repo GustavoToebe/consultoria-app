@@ -51,5 +51,5 @@ export function documentoMobilidade(d: DadosPdfMobilidade): Documento {
     ...c.secoes.filter((s) => s.itens.length).map(blocoSecao),
     d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',
   ].join('\n');
-  return { titulo: `Mobilidade - ${d.aluno} - ${titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf), corpo };
+  return { titulo: `Mobilidade - ${d.aluno} - ${titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf, d.marca.opcoesPdf), corpo };
 }

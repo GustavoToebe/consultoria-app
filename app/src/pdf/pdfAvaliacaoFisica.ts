@@ -214,7 +214,7 @@ export function documentoAvaliacaoFisica(d: DadosPdfAvaliacaoFisica): Documento 
     '<div class="rodape">O peso é o registro de peso da mesma data; "—" quando não há registro.</div>',
   ].join('\n');
 
-  const css = `${cssBase(d.marca.corPrimaria, d.marca.temaPdf)}
+  const css = `${cssBase(d.marca.corPrimaria, d.marca.temaPdf, d.marca.opcoesPdf)}
 .doc table.comp { table-layout: fixed; }
 .doc table.comp th, .doc table.comp td { overflow-wrap: anywhere; word-break: break-word; }
 .doc table.comp th { background: #f1f3f5; color: #111; border-bottom: 1.5px solid #888; }

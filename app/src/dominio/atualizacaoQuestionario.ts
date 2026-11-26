@@ -3,8 +3,9 @@ import type {
 } from '../api/tipos';
 import type { RascunhoAtualizacao } from '../offline/repositorioLocal';
 import { enderecoDaResposta, enderecoParaLeitura } from './cadastroDoAluno';
+import type { AjusteDoArranjo } from './listaDeDados';
 import { dataParaTela, numeroParaTela } from './formatos';
-import { escalaDaNota, LIMITES_QUESTIONARIO, semResposta } from './questionario';
+import { escalaDaNota, LIMITES_QUESTIONARIO, semResposta, TIPOS_DE_PERGUNTA } from './questionario';
 import { avaliarRespostas, respondida, respondidaNaPergunta, respostaValida } from './respostasAtualizacao';
 
 const SEM_DADO = '—';
@@ -54,6 +55,132 @@ export function textoDaResposta(p: PerguntaAtualizacao, valor: RespostaAtualizac
     case 'ENDERECO': return enderecoParaLeitura(enderecoDaResposta(valor)) ?? SEM_DADO;
     default: return SEM_DADO;
   }
+}
+
+/** Pergunta que o aluno pulou, na leitura: diz o que houve (o "—" solto não dizia). */
+export const NAO_RESPONDEU = 'Não respondeu';
+
+/**
+ * Resposta como a leitura mostra (aluno e treinador, `aluno/atualizacao/LeituraDasRespostas`): a forma decide o desenho e
+ * `texto` é o que o leitor de tela ouve. Tipo novo = um caso em `respostaLida` e, se pedir desenho próprio, uma forma nova
+ * (o `never` do fim obriga os dois).
+ */
+export type RespostaLida =
+  | { forma: 'vazia' }
+  | { forma: 'texto'; texto: string; numerico?: boolean }
+  /** "4/10" em destaque; `escala` ("Escala de 1 a 5") só quando não é 0 a 10. */
+  | { forma: 'nota'; nota: string; escala: string | null; texto: string }
+  | { forma: 'simNao'; texto: 'Sim' | 'Não' }
+  | { forma: 'notasPorDia'; dias: { dia: number; nota: string }[]; texto: string }
+  | { forma: 'grade'; linhas: { id: string; linha: string; resposta: string }[]; texto: string }
+  /** Escolha com imagem por opção: as escolhidas em destaque e as outras apagadas. */
+  | { forma: 'opcoesComImagem'; texto: string }
+  /** Fotos e texto informativo têm desenho próprio (miniaturas que abrem, texto formatado), fora da linha da lista. */
+  | { forma: 'fotos' }
+  | { forma: 'informativo' }
+  /** Tipo que esta versão do app não conhece. */
+  | { forma: 'desconhecida' };
+
+/** Escolha com imagem em alguma opção: na resposta e na leitura, as opções viram cartões com a imagem. */
+export const temImagemNasOpcoes = (p: Pick<PerguntaAtualizacao, 'tipo' | 'opcoes'>) =>
+  (p.tipo === 'ESCOLHA_UNICA' || p.tipo === 'MULTIPLA_ESCOLHA') && (p.opcoes ?? []).some((o) => !!o.imagemId);
+
+/**
+ * Como ler a resposta de uma pergunta. Sem resposta (ou com valor que a versão não reconhece, como uma opção que não existe)
+ * é `vazia` ("Não respondeu"); `false` e `0` são respostas. A data automática vem da atualização, não da resposta.
+ */
+export function respostaLida(p: PerguntaAtualizacao, valor: RespostaAtualizacao | undefined, dataAtualizacao?: string | null): RespostaLida {
+  if (!TIPOS_DE_PERGUNTA.includes(p.tipo)) return { forma: 'desconhecida' };
+  const tipo = p.tipo;
+  // Data automática, informativo e fotos não leem o valor aqui; as outras, sem resposta, são "Não respondeu".
+  if (!semResposta(tipo) && tipo !== 'FOTOS' && !respondidaNaPergunta(p, valor)) return { forma: 'vazia' };
+  switch (tipo) {
+    case 'INFORMATIVO': return { forma: 'informativo' };
+    case 'FOTOS': return { forma: 'fotos' };
+    case 'DATA_AUTOMATICA': return { forma: 'texto', texto: dataParaTela(dataAtualizacao ?? null) || SEM_DADO, numerico: true };
+    case 'NOTA': {
+      if (typeof valor !== 'number') return { forma: 'vazia' };
+      const { min, max } = escalaDaNota(p);
+      return { forma: 'nota', nota: `${numeroParaTela(valor, 0)}/${max}`, escala: min === 0 && max === 10 ? null : `Escala de ${min} a ${max}`, texto: textoDaNota(p, valor) };
+    }
+    case 'SIM_NAO': return typeof valor === 'boolean' ? { forma: 'simNao', texto: valor ? 'Sim' : 'Não' } : { forma: 'vazia' };
+    case 'NOTAS_POR_DIA': {
+      if (typeof valor !== 'object' || valor === null || Array.isArray(valor)) return { forma: 'vazia' };
+      const dias = (p.dias ?? []).map((d) => {
+        const nota = valor[String(d)];
+        return { dia: d, nota: typeof nota === 'number' ? numeroParaTela(nota, 0) : SEM_DADO };
+      });
+      return { forma: 'notasPorDia', dias, texto: `${dias.map((d) => `Dia ${d.dia}: ${d.nota}`).join(', ')} (notas de 0 a 10)` };
+    }
+    case 'GRADE': {
+      const linhas = respostasDaGrade(p, valor);
+      return { forma: 'grade', linhas, texto: linhas.map((l) => `${l.linha}: ${l.resposta}`).join('; ') };
+    }
+    case 'ESCOLHA_UNICA':
+    case 'MULTIPLA_ESCOLHA': {
+      const texto = textoDaResposta(p, valor);
+      if (texto === SEM_DADO) return { forma: 'vazia' };
+      return temImagemNasOpcoes(p) ? { forma: 'opcoesComImagem', texto } : { forma: 'texto', texto };
+    }
+    case 'PESO':
+    case 'NUMERO':
+    case 'DATA':
+    case 'TELEFONE':
+    case 'TEXTO':
+    case 'TEXTO_LONGO':
+    case 'EMAIL':
+    case 'ACEITE':
+    case 'ENDERECO': {
+      const texto = textoDaResposta(p, valor);
+      if (texto === SEM_DADO) return { forma: 'vazia' };
+      return { forma: 'texto', texto, numerico: tipo === 'PESO' || tipo === 'NUMERO' || tipo === 'DATA' || tipo === 'TELEFONE' };
+    }
+    default: {
+      const semCaso: never = tipo;
+      return semCaso;
+    }
+  }
+}
+
+/** Cartão a partir do qual pergunta e resposta ficam lado a lado (orientações de 26/11, 2.1). */
+export const CARTAO_LARGO_DA_LEITURA = 760;
+/** Coluna da pergunta no cartão largo: 40% da largura útil, até 320. */
+export const ROTULO_MAXIMO_DA_LEITURA = 320;
+/** Respiro de cada linha até o fio. */
+export const RESPIRO_DA_LEITURA = 12;
+
+/**
+ * Arranjo da `ui/ListaDeDados` na leitura: a lista mede a largura útil do cartão (o cartão menos o recuo dos dois lados),
+ * então o limite de 760 de cartão vira 760 menos os recuos; a pergunta fica em 40% da lista, até 320; 12 até o fio.
+ */
+export function arranjoDaLeitura(recuo: number): AjusteDoArranjo & { respiro: number } {
+  return {
+    empilharAbaixoDe: CARTAO_LARGO_DA_LEITURA - 2 * recuo,
+    rotulo: { fracao: 0.4, maximo: ROTULO_MAXIMO_DA_LEITURA },
+    respiro: RESPIRO_DA_LEITURA,
+  };
+}
+
+/** Notas por dia em chips que quebram linha até 6 dias; com 7 ou mais, uma tabelinha de uma linha que rola na horizontal. */
+export const notasPorDiaEmTabela = (dias: number) => dias >= 7;
+
+/** Perguntas da seção na leitura ("6 perguntas"): data automática e texto informativo não contam. */
+export function textoDasPerguntas(perguntas: readonly Pick<PerguntaAtualizacao, 'tipo'>[]): string {
+  const n = perguntas.filter((p) => !semResposta(p.tipo)).length;
+  return `${n} ${n === 1 ? 'pergunta' : 'perguntas'}`;
+}
+
+/** "0 dias", "1,5 dia", "2 dias": o número que aparece (uma casa) decide o plural; singular só de 1 até antes de 2. */
+export function diasNaSemana(media: number): string {
+  const mostrado = Math.round(media * 10) / 10;
+  return `${numeroParaTela(media, 1)} ${mostrado >= 1 && mostrado < 2 ? 'dia' : 'dias'}`;
+}
+
+/** Ajuda automática da média de treinos do app: na resposta fala com o aluno; na leitura serve aos dois. */
+export function fraseDaMediaDeTreino(media: number, leitura: boolean): string {
+  return leitura
+    ? `Pelo app: média de ${diasNaSemana(media)} de treino por semana no período.`
+    : `Pelo app, você treinou em média ${diasNaSemana(media)} por semana neste período.`;
 }
 
 const cortar = (texto: string) => (texto.length > ROTULO_MAXIMO ? `${texto.slice(0, ROTULO_MAXIMO - 1)}…` : texto);

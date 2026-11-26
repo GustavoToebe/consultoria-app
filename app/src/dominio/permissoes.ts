@@ -61,6 +61,8 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,paga
   if(caminho==='/treinador/marca') return administrador;
   // Documentos (PDF): a mesma regra de quem grava a marca (administrador com MARCA_ALTERAR); o plano sem PDF a tela confere.
   if(caminho==='/treinador/documentos') return administrador&&tem('MARCA_ALTERAR');
+  // O editor dos PDFs (fora da busca: só se chega pela galeria) segue a mesma regra; caminho exato, outra subrota falha fechado.
+  if(caminho==='/treinador/documentos/personalizar') return administrador&&tem('MARCA_ALTERAR');
   if(caminho==='/treinador/whatsapp') return tem('WHATSAPP_ALTERAR');
   if(caminho==='/treinador/equipe') return tem('EQUIPE_LER');
   if(caminho==='/treinador/auditoria') return tem('AUDITORIA_LER');

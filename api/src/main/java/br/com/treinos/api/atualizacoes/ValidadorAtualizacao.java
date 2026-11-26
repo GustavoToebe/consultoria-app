@@ -66,6 +66,15 @@ public class ValidadorAtualizacao {
 
     /** {@code codigo} vai no 422 ({@code ATUALIZACAO_INVALIDA} ou {@code ANAMNESE_INVALIDA}); {@code hoje} limita DATA "só no passado". */
     public JsonNode validar(JsonNode modelo, JsonNode respostas, boolean fotosLigadas, String codigo, LocalDate hoje) {
+        return validar(modelo, respostas, fotosLigadas, codigo, hoje, ItensDoPlano.NENHUM);
+    }
+
+    /**
+     * {@code itens} é a lista que a pergunta {@code ITENS_DO_PLANO} aceita (só a atualização a tem; sem ela, resposta nessa
+     * pergunta é recusada); a resposta guardada traz o {@code nome} lido dela ({@link RespostaDeItens}).
+     */
+    public JsonNode validar(JsonNode modelo, JsonNode respostas, boolean fotosLigadas, String codigo, LocalDate hoje,
+                            ItensDoPlano itens) {
         var erros = new ArrayList<ApiError.FieldError>();
         var limpas = json.createObjectNode();
         if (respostas == null || !respostas.isObject()
@@ -105,6 +114,16 @@ public class ValidadorAtualizacao {
                 if ("GRADE".equals(tipo) && p.path("obrigatoria").asBoolean(false) && gradeValida(p, v)
                         && v.size() < p.path("linhas").size()) {
                     erros.add(new ApiError.FieldError(id, "Responda todas as linhas."));
+                    continue;
+                }
+                if ("ITENS_DO_PLANO".equals(tipo)) {
+                    var r = RespostaDeItens.conferir(json, p, v, itens);
+                    if (r.erro() != null) {
+                        erros.add(new ApiError.FieldError(id, r.erro()));
+                        continue;
+                    }
+                    limpas.set(id, r.limpa());
+                    visiveis.put(id, r.limpa());
                     continue;
                 }
                 if (!valida(tipo, p, v, hoje)) {

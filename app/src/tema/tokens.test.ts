@@ -23,6 +23,7 @@ import {
   marcaParaPeca,
   marcaParaTexto,
   marcaParaTitulo,
+  MESA_DA_PREVIA,
   textoSobre,
   tingido,
   type Cores,
@@ -604,5 +605,21 @@ describe.each(VARIANTES)('superfície pintada (%s)', (_nome, cores, variante) =>
       expect(contraste(cores.textoSuave, p.forte)).toBeGreaterThanOrEqual(4.5);
       expect(contraste(cor, p.forte)).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+// ---- Mesa da prévia de documento (26/11): um cinza só para todos os temas, porque o papel é sempre branco ----
+
+describe('mesa da prévia (MESA_DA_PREVIA)', () => {
+  it('é um cinza neutro #RRGGBB (os três canais quase iguais: não puxa para cor nenhuma)', () => {
+    expect(MESA_DA_PREVIA).toMatch(/^#[0-9A-F]{6}$/);
+    const canais = [1, 3, 5].map((i) => parseInt(MESA_DA_PREVIA.slice(i, i + 2), 16));
+    expect(Math.max(...canais) - Math.min(...canais)).toBeLessThanOrEqual(16);
+  });
+  it('a folha branca se destaca dela (≥ 3:1)', () => {
+    expect(contraste('#FFFFFF', MESA_DA_PREVIA)).toBeGreaterThanOrEqual(3);
+  });
+  it.each(TODAS)('a mesa se destaca da página e do cartão no tema %s (≥ 3:1)', (_codigo, cores) => {
+    for (const fundo of [cores.fundo, cores.painel, cores.superficie]) expect(contraste(MESA_DA_PREVIA, fundo)).toBeGreaterThanOrEqual(3);
   });
 });

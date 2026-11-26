@@ -20,7 +20,7 @@ import { FolhaPerfilDoColega } from '../../comunidade/FolhaPerfilDoColega';
 import { ListaDeColegas } from '../../comunidade/ListaDeColegas';
 import { MuralComLateral } from '../../comunidade/MuralComLateral';
 import { CartaoDaConquista, FaixaDosNumeros, LinhaDaPosicao, NumerosDoMural } from '../../comunidade/NumerosDoAluno';
-import { estadoDosNumeros } from '../../dominio/arranjoDoMural';
+import { estadoDosNumeros, LARGURA_DO_BLOCO_DO_MURAL, LARGURA_DO_FEED } from '../../dominio/arranjoDoMural';
 import { PainelDeDenuncia } from '../../comunidade/PainelDeDenuncia';
 import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
@@ -196,9 +196,39 @@ export default function ComunidadeAluno() {
     />
   ));
 
+  // O que vem logo abaixo do escopo: o grupo escolhido, quem pode publicar ou a falha da configuração.
+  const textosDoMural = (<>
+    {/* O nome (até 40) fica no texto, que quebra a linha; no segmento ele cortaria em 390 px. */}
+    {podDoMural ? <Texto variante="suave">{`Grupo ${podDoMural.nome}: só quem está nele vê estas publicações.`}</Texto> : null}
+    {config.erro ? (
+      <MensagemErro texto={textoDoErro(config.erro)} erro={config.erro} tentarDeNovo={config.recarregar} />
+    ) : config.dados && publica ? null : config.dados ? (
+      <Texto variante="suave">No momento, só a equipe publica no mural. Você pode reagir, votar nas enquetes e comentar.</Texto>
+    ) : null}
+  </>);
+
+  // Feed de ~720 px e os números do aluno, sempre presentes e com a mesma regra: com o bloco inteiro (1092) numa coluna ao
+  // lado; abaixo, numa faixa de altura fixa no topo do feed (esqueleto dentro dela enquanto carrega).
+  const feed = (
+    <MuralComLateral idDaLateral="coluna-dos-numeros" rotulo="Seus números" temLateral areaParaALateral={LARGURA_DO_BLOCO_DO_MURAL}
+      lateral={(noTopo, largura) => noTopo
+        ? <FaixaDosNumeros estado={numeros} largura={largura} aoVerConquistas={() => setAba('ranking')} />
+        : <NumerosDoMural estado={numeros} conquistas={conquistas.dados} aoVerConquistas={() => setAba('ranking')} />}>
+      <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
+        textoVazio={textoDoVazioDaAba(abaDoMural, filtro, busca, podDoMural?.nome)}
+        recarregar={mural.recarregar}
+        acaoVazio={filtro.tipo ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) } : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }
+          // Avisos vazio (a aba padrão) não é beco: o próximo passo é a outra aba.
+          : abaDoMural === 'avisos' ? { rotulo: 'Ver publicações dos alunos', aoTocar: () => setAbaDoMural('alunos') } : undefined} />
+      {posts ? cartoesDoMural(posts) : null}
+    </MuralComLateral>
+  );
+
   return (
     <TelaDoAluno bordas={['top']}>
       {(largo) => (<>
+      {/* A tela inteira (título, abas e as quatro abas) no bloco do mural, a partir da borda esquerda do contêiner do aluno. */}
+      <View testID="bloco-da-comunidade" style={estilos.bloco}>
       <Cabecalho titulo="Comunidade" subtitulo="Mural do time, vídeos, conquistas e colegas da sua consultoria." />
       <AvisoDoPerfilNaComunidade online={online} />
 
@@ -219,49 +249,53 @@ export default function ComunidadeAluno() {
             ]}
           />
 
-          {aba === 'mural' ? (
+          {aba === 'mural' && !noCelular ? (
+            <View style={estilos.blocos}>
+              {/* Web (26/11): o escopo ("Qual mural") em cima, os textos dele, e uma linha só de controles na largura do feed,
+                  com "Nova publicação" à direita, depois dos Filtros (a ação perto do que ela cria). */}
+              {pod ? (
+                <Escolha<VisaoDoMural> descricao="Qual mural" valor={visao} aoMudar={setVisao}
+                  opcoes={[{ valor: 'geral', rotulo: ROTULO_DO_MURAL_GERAL }, { valor: 'grupo', rotulo: 'Meu grupo' }]} />
+              ) : null}
+              {textosDoMural}
+              <View style={estilos.linhaDoMural}>
+                {/* Rótulo visível, como o da busca: os dois controles ficam na mesma altura (o mesmo da barra do treinador). */}
+                <Escolha<AbaDoMural> rotulo="Publicações" valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
+                <View style={estilos.buscaDaLinha}>
+                  <BarraDoMural aba={abaDoMural} filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={false}
+                    depois={config.dados && publica ? (
+                      <View style={estilos.acaoDaLinha}>
+                        <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={() => setCompondo(true)} />
+                      </View>
+                    ) : undefined} />
+                </View>
+              </View>
+              {feed}
+            </View>
+          ) : null}
+
+          {aba === 'mural' && noCelular ? (
             <View style={estilos.blocos}>
               {/* O grupo escolhe qual mural se vê; a publicação nova vai para o mesmo (o aluno nunca vê quem está no grupo). */}
               {pod || (config.dados && publica) ? (
-                <View style={[estilos.topoDoMural, noCelular && estilos.topoDoMuralEmPilha]}>
+                <View style={[estilos.topoDoMural, estilos.topoDoMuralEmPilha]}>
                   {pod ? (
                     <Escolha<VisaoDoMural> descricao="Qual mural" valor={visao} aoMudar={setVisao}
                       opcoes={[{ valor: 'geral', rotulo: ROTULO_DO_MURAL_GERAL }, { valor: 'grupo', rotulo: 'Meu grupo' }]} />
-                  ) : noCelular ? null : <View />}
+                  ) : null}
                   {config.dados && publica ? (
                     // Celular: o seletor de mural em cima e o botão embaixo, na largura toda.
-                    <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} cheio={noCelular} aoTocar={() => setCompondo(true)} />
+                    <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} cheio aoTocar={() => setCompondo(true)} />
                   ) : null}
                 </View>
               ) : null}
-              {/* O nome (até 40) fica no texto, que quebra a linha; no segmento ele cortaria em 390 px. */}
-              {podDoMural ? <Texto variante="suave">{`Grupo ${podDoMural.nome}: só quem está nele vê estas publicações.`}</Texto> : null}
-              {config.erro ? (
-                <MensagemErro texto={textoDoErro(config.erro)} erro={config.erro} tentarDeNovo={config.recarregar} />
-              ) : config.dados && publica ? null : config.dados ? (
-                <Texto variante="suave">No momento, só a equipe publica no mural. Você pode reagir, votar nas enquetes e comentar.</Texto>
-              ) : null}
+              {textosDoMural}
 
               {/* Avisos | Alunos (C39) numa linha própria, depois do grupo (o escopo): o segmento na largura toda lê como a
                   divisão do conteúdo e não espreme a linha do grupo com o botão em 390 px. */}
-              {/* Na tela larga o segmento fica do tamanho das opções, em vez de cruzar a tela. */}
               <Escolha<AbaDoMural> descricao="Publicações" distribuida={!largo} valor={abaDoMural} aoMudar={setAbaDoMural} opcoes={[...ABAS_DO_MURAL]} />
               <BarraDoMural aba={abaDoMural} filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={false} />
-
-              {/* Feed de ~720 px e os números do aluno, sempre presentes e com a mesma regra: a partir de 1280 px de área numa
-                  coluna ao lado; abaixo, numa faixa de altura fixa no topo do feed (esqueleto dentro dela enquanto carrega). */}
-              <MuralComLateral idDaLateral="coluna-dos-numeros" rotulo="Seus números" temLateral
-                lateral={(noTopo, largura) => noTopo
-                  ? <FaixaDosNumeros estado={numeros} largura={largura} aoVerConquistas={() => setAba('ranking')} />
-                  : <NumerosDoMural estado={numeros} conquistas={conquistas.dados} aoVerConquistas={() => setAba('ranking')} />}>
-                <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
-                  textoVazio={textoDoVazioDaAba(abaDoMural, filtro, busca, podDoMural?.nome)}
-                  recarregar={mural.recarregar}
-                  acaoVazio={filtro.tipo ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) } : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }
-                    // Avisos vazio (a aba padrão) não é beco: o próximo passo é a outra aba.
-                    : abaDoMural === 'avisos' ? { rotulo: 'Ver publicações dos alunos', aoTocar: () => setAbaDoMural('alunos') } : undefined} />
-                {posts ? cartoesDoMural(posts) : null}
-              </MuralComLateral>
+              {feed}
             </View>
           ) : null}
 
@@ -299,6 +333,7 @@ export default function ComunidadeAluno() {
           {aba === 'colegas' ? <ListaDeColegas aoAbrir={setPerfilAberto} /> : null}
         </>
       )}
+      </View>
       <FolhaPerfilDoColega autorId={perfilAberto} online={online} aoFechar={() => setPerfilAberto(null)} />
       <FolhaComentarios alvo={comentariosDe} modo={{ tipo: 'aluno', online }} aoFechar={() => setComentariosDe(null)}
         aoAlterar={comentariosDe?.tipo === 'aula' ? auloes.recarregar : mural.recarregar} />
@@ -322,6 +357,9 @@ export default function ComunidadeAluno() {
 const estilos = StyleSheet.create({
   // 24 px entre blocos; 16 px dentro do cartão e do item.
   blocos: { gap: espaco(3) },
+  // Até o bloco feed + coluna (1092), na borda esquerda do contêiner de 1312 das telas do aluno (o título cai no mesmo x das
+  // outras telas; decisão do Gustavo, 26/11); no celular, a largura toda (o teto não chega a valer).
+  bloco: { width: '100%', maxWidth: LARGURA_DO_BLOCO_DO_MURAL, alignSelf: 'flex-start', gap: espaco(3) },
   // Tela larga: conquistas e posição lado a lado (2 para 1).
   ladoALado: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
   largo: { flex: 2, minWidth: 0 },
@@ -330,4 +368,9 @@ const estilos = StyleSheet.create({
   topoDoMural: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(2) },
   topoDoMuralEmPilha: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch', justifyContent: 'flex-start' },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
+  // Web: Avisos/Alunos, a busca, os Filtros e "Nova publicação" numa linha na largura do feed; quebra só se não couber.
+  linhaDoMural: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(1.5), rowGap: espaco(1.5), width: '100%', maxWidth: LARGURA_DO_FEED },
+  buscaDaLinha: { flexGrow: 1, flexShrink: 1, flexBasis: 360, minWidth: 0 },
+  // Empurra a ação para a borda direita da linha (ou da linha de baixo, quando quebra).
+  acaoDaLinha: { marginLeft: 'auto' },
 });

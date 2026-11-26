@@ -28,20 +28,19 @@ export default function DietaAluno() {
   const { dados, erro, carregando, recarregar } = useDietaDoAluno();
   // A água marcada é por dia, contra a meta da dieta em uso (a pasta escolhida para consulta não muda o registro).
   const agua = dados?.dieta?.conteudo.aguaLitros ? <CartaoAguaDoDia metaLitros={dados.dieta.conteudo.aguaLitros} /> : null;
-  // Tela larga (24/11): a água vai para o topo da coluna do resumo, junto da dieta; sem dieta na tela, fica onde sempre esteve.
+  // Com a dieta na tela, a água vai com ela (`lado`: no apoio ao lado das refeições, ou no topo no celular); sem dieta, fica aqui.
   const temDieta = escolhida ? !!escolhida.planos.dieta : !!dados?.dieta;
 
   return (
     <TelaDoAluno bordas={['top']}>
-      {(largo) => (<>
       <Cabecalho titulo="Dieta" />
       <Texto variante="suave">A dieta que o seu treinador publicou, só para consulta.</Texto>
       <SeletorPlano rotulo={null} />
-      {largo && temDieta ? null : agua}
+      {temDieta ? null : agua}
       {escolhida ? (
         escolhida.planos.dieta ? (
           <Dieta versao={escolhida.planos.dieta} salva={false} aguaNoCartao={!!dados?.dieta?.conteudo.aguaLitros && dados.dieta.id === escolhida.planos.dieta.id}
-            largo={largo} lado={agua} />
+            lado={agua} />
         ) : (
           <Vazio titulo="Sem dieta neste plano" texto="Este plano só tem treino publicado." />
         )
@@ -54,14 +53,13 @@ export default function DietaAluno() {
       ) : null}
       {escolhida ? null : !dados && carregando ? <Esqueleto /> : null}
       {escolhida ? null : dados && !dados.dieta ? <Vazio titulo="Sem plano de dieta" texto="Seu treinador ainda não publicou a dieta." /> : null}
-      {!escolhida && dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} aguaNoCartao={!!dados.dieta.conteudo.aguaLitros} largo={largo} lado={agua} /> : null}
-      </>)}
+      {!escolhida && dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} aguaNoCartao={!!dados.dieta.conteudo.aguaLitros} lado={agua} /> : null}
     </TelaDoAluno>
   );
 }
 
 /** A dieta do aluno com o PDF montado pelo pacote (marca e nome do aluno) e o peso dele, que só o servidor tem. */
-function Dieta({ versao, salva, aguaNoCartao, largo, lado }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean; aguaNoCartao: boolean; largo: boolean; lado: ReactNode }) {
+function Dieta({ versao, salva, aguaNoCartao, lado }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean; aguaNoCartao: boolean; lado: ReactNode }) {
   const { pacote } = useAluno();
   const pdf = async (lista?: DadosPdfDieta['lista'], variacaoUid: string | null = null) => {
     if (!pacote) return;
@@ -84,5 +82,5 @@ function Dieta({ versao, salva, aguaNoCartao, largo, lado }: { versao: VersaoDet
       }),
     );
   };
-  return <DietaDoAluno versao={versao} salva={salva} aguaNoCartao={aguaNoCartao} aoBaixarPdf={pdf} largo={largo} lado={largo ? lado : undefined} />;
+  return <DietaDoAluno versao={versao} salva={salva} aguaNoCartao={aguaNoCartao} aoBaixarPdf={pdf} largo lado={lado} />;
 }

@@ -1,7 +1,7 @@
 import { Children, cloneElement, createContext, Fragment, isValidElement, useCallback, useContext, useLayoutEffect, useState, type ComponentProps, type ReactElement, type ReactNode } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 
-import { empilhaDados, larguraDoRotulo, linhaSemDivisoria, VAO_DA_LINHA } from '../dominio/listaDeDados';
+import { arranjoDaLista, larguraDoRotulo, linhaSemDivisoria, VAO_DA_LINHA, type AjusteDoArranjo } from '../dominio/listaDeDados';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL } from '../tema/tokens';
 import { Botao } from './Botao';
@@ -12,6 +12,8 @@ interface Arranjo {
   rotulo: number;
   /** Largura mínima da coluna do valor (cresce com o texto grande): o valor nunca fica mais estreito que isto. */
   valor: number;
+  /** Respiro da linha em cima e embaixo, até o fio; sem ele, os 8 de sempre. */
+  respiro?: number;
 }
 
 /** "Sem grupo", uma data ou um nome curto cabem inteiros; abaixo disso o texto quebraria letra por letra. */
@@ -47,8 +49,11 @@ const ehSubtitulo = (filho: ReactNode): filho is ReactElement => isValidElement(
  * gera `dl`/`dt`/`dd`); o par também tem o nome "Rótulo: valor", que no celular é o que o leitor de tela lê. Sem
  * `aria-labelledby` no valor: ele daria à definição o nome do rótulo ("Nome", "Telefone") e a confundiria com o campo
  * do formulário de mesmo rótulo.
+ *
+ * `arranjo` (opcional; sem ele, tudo como acima): limite próprio para empilhar, rótulo em fração da largura com teto e
+ * respiro até o fio. Hoje só a leitura das respostas o usa (760 de cartão, 40% até 320, 12; orientações de 26/11, 2.1).
  */
-export function ListaDeDados({ children }: { children: ReactNode }) {
+export function ListaDeDados({ children, arranjo: ajuste }: { children: ReactNode; arranjo?: AjusteDoArranjo & { respiro?: number } }) {
   const { fatorTexto } = useTema();
   const { width } = useWindowDimensions();
   const [largura, setLargura] = useState(0);
@@ -56,10 +61,12 @@ export function ListaDeDados({ children }: { children: ReactNode }) {
     const proxima = e.nativeEvent.layout.width;
     setLargura((atual) => (atual === proxima ? atual : proxima));
   };
+  const medido = arranjoDaLista(largura, fatorTexto, ajuste);
   const arranjo: Arranjo = {
-    empilhado: largura > 0 ? empilhaDados(largura, fatorTexto) : width < LARGURA_MENU_LATERAL,
-    rotulo: larguraDoRotulo(fatorTexto),
+    empilhado: largura > 0 ? medido.empilhado : width < LARGURA_MENU_LATERAL,
+    rotulo: medido.rotulo,
     valor: larguraMinimaDoValor(fatorTexto),
+    respiro: ajuste?.respiro,
   };
   // Linhas que de fato aparecem (posição na lista inteira), anunciadas por elas mesmas ao montar e ao sumir.
   const [presentes, setPresentes] = useState<ReadonlySet<number>>(() => new Set());
@@ -132,7 +139,7 @@ interface PropsDaLinha {
 
 export function LinhaDeDado({ rotulo, valor, vazio = '—', numerico, conteudo, nota, dica, acoes }: PropsDaLinha) {
   const { cores } = useTema();
-  const { empilhado, rotulo: larguraRotulo, valor: larguraValor } = useContext(ArranjoDaLista);
+  const { empilhado, rotulo: larguraRotulo, valor: larguraValor, respiro } = useContext(ArranjoDaLista);
   const { posicao, comFio } = useContext(LugarDaLinha);
   const anunciar = useContext(AnunciarLinha);
   // Antes da pintura, para a última linha nunca aparecer com o fio sobrando.
@@ -150,7 +157,7 @@ export function LinhaDeDado({ rotulo, valor, vazio = '—', numerico, conteudo, 
   // O piso do par (rótulo + vão + valor mínimo) é a base do `flexWrap` da linha: sem ele a ação nunca desce, só espreme o valor.
   const pisoDoPar = (empilhado ? 0 : larguraRotulo + VAO_DA_LINHA) + larguraValor;
   return (
-    <View role="listitem" style={[estilos.linha, comFio ? { borderBottomWidth: 1, borderBottomColor: cores.divisor } : null]}>
+    <View role="listitem" style={[estilos.linha, respiro != null ? { paddingVertical: respiro } : null, comFio ? { borderBottomWidth: 1, borderBottomColor: cores.divisor } : null]}>
       <View style={[estilos.par, { flexBasis: pisoDoPar, minWidth: pisoDoPar }, empilhado ? null : estilos.parEmLinha]} accessibilityLabel={`${rotulo}: ${texto}${dica ? ` (${dica})` : ''}`}>
         <Texto variante="rotulo" role="term" style={empilhado ? null : { width: larguraRotulo, flexShrink: 0 }}>{rotulo}</Texto>
         <View ref={comDica} role="definition" style={[estilos.valor, { minWidth: larguraValor }, empilhado ? null : estilos.valorEmLinha]}>

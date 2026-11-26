@@ -147,9 +147,19 @@ public class PainelService {
                 .toList();
 
         List<PlanoTerminando> terminando = new ArrayList<>();
-        for (PlanoTreino p : planos.findByAtivoTrueAndFimBetweenOrderByFimAsc(hoje, hoje.plusDays(7))) {
+        List<PlanoTreino> vigentesQueTerminam = planos.findByAtivoTrueAndFimBetweenOrderByFimAsc(hoje, hoje.plusDays(7));
+        // Sucessor agendado (V105): o vigente sai da lista se há plano de treino agendado do mesmo aluno liberado até o dia seguinte
+        // ao fim dele (dias de Brasília). Liberado depois disso, o vigente continua listado (haverá intervalo sem plano).
+        Map<UUID, List<LocalDate>> agendados = new HashMap<>();
+        if (!vigentesQueTerminam.isEmpty()) {
+            planos.agendadosDosAlunos(vigentesQueTerminam.stream().map(PlanoTreino::getAlunoId).distinct().toList())
+                    .forEach(s -> agendados.computeIfAbsent(s.getAlunoId(), k -> new ArrayList<>()).add(s.getLiberarEm()));
+        }
+        for (PlanoTreino p : vigentesQueTerminam) {
+            boolean temSucessor = agendados.getOrDefault(p.getAlunoId(), List.of()).stream()
+                    .anyMatch(liberarEm -> !liberarEm.isAfter(p.getFim().plusDays(1)));
             Aluno a = acompanhadosPorId.get(p.getAlunoId());
-            if (a != null && terminando.size() < LIMITE_LISTA) {
+            if (a != null && !temSucessor && terminando.size() < LIMITE_LISTA) {
                 terminando.add(new PlanoTerminando(new PlanoRef(p.getId(), p.getTitulo()),
                         new AlunoRef(a.getId(), a.getNome()), p.getFim()));
             }

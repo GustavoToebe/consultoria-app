@@ -24,6 +24,27 @@ export function empilhaDados(larguraDaLista: number, fatorTexto: number = 1): bo
 }
 
 /**
+ * Ajuste do arranjo para a lista que pede outro desenho (a leitura das respostas, 26/11: `orientacoes-de-design-26-11.md`
+ * 2.1). Sem ele, vale o de sempre (`empilhaDados` e `larguraDoRotulo`).
+ */
+export interface AjusteDoArranjo {
+  /** Largura da lista abaixo da qual ela empilha, no lugar de rótulo + vão + valor mínimo. */
+  empilharAbaixoDe?: number;
+  /** Coluna do rótulo em fração da largura da lista, até `maximo`, no lugar da coluna fixa. */
+  rotulo?: { fracao: number; maximo: number };
+}
+
+/** Empilha ou não e a largura da coluna do rótulo, com o ajuste opcional. Sem medida (0), empilha, como `empilhaDados`. */
+export function arranjoDaLista(larguraDaLista: number, fatorTexto: number = 1, ajuste?: AjusteDoArranjo): { empilhado: boolean; rotulo: number } {
+  const medida = larguraDaLista > 0;
+  const empilhado = !medida ? true
+    : ajuste?.empilharAbaixoDe != null ? larguraDaLista < ajuste.empilharAbaixoDe : empilhaDados(larguraDaLista, fatorTexto);
+  const rotulo = ajuste?.rotulo && medida
+    ? Math.min(Math.round(larguraDaLista * ajuste.rotulo.fracao), ajuste.rotulo.maximo) : larguraDoRotulo(fatorTexto);
+  return { empilhado, rotulo };
+}
+
+/**
  * Qual linha fica sem divisória (24/11): só a última do cartão. Toda outra linha tem o fio embaixo, inclusive a última de
  * uma seção com outra seção depois (o fio fecha o grupo antes do subtítulo seguinte). `presentes` são as posições (contadas
  * na lista inteira, por cima dos subtítulos) das linhas que de fato aparecem: um filho que devolve `null` (a linha do ciclo,

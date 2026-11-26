@@ -1,6 +1,6 @@
 # Documentos (PDF): temas da consultoria e prévia
 
-Situação: Em andamento (primeira entrega na noite de 16/11/2026: passos 1.1, 3.1 e a tela do 3.2 **sem gravar**; ver "Primeira entrega") · Onde: `main` · Atualizado: 16/11/2026
+Situação: Em andamento. Primeira entrega em 16/11/2026 (temas e prévia, sem gravar). Segunda em 21/11/2026 (`59ce839d`, V096): o tema é gravado e **já vale nos PDFs reais**. **Em 26/11/2026 o Gustavo mudou a direção** para modelos prontos + personalização por opções, no estilo da Nuvemshop (seção "Nova direção"): ela substitui a D2 e a D3 e os passos 1.2, 2.1, 2.2 e 3.2 abertos; planejando, nada implementado · Onde: `main` e `origin/main` · Atualizado: 26/11/2026
 
 Origem: Evolução da decisão 6 de [evolucao-prime.md](evolucao-prime.md) ("Temas (2 ou 3) e prévia própria ficam para depois"). O primeiro desenho deste plano (15/11) era um motor próprio de diagramação em milímetros com prévia em SVG; o Gustavo comparou as duas opções no mesmo dia e escolheu os **temas em CSS sobre os geradores HTML que já existem** (D1). O nome do arquivo ficou o do primeiro desenho.
 
@@ -23,7 +23,7 @@ O administrador da consultoria escolhe o tema dos documentos (`CLASSICO`, `MINIM
 | D2 | Temas | Três, fechados e testados: `CLASSICO` (o visual de hoje: faixa da marca no alto, cabeçalho de tabela cheio), `MINIMALISTA` (fundo limpo, divisórias finas na cor da marca, cabeçalhos leves) e `MARCANTE` (topo destacado na cor da marca, blocos em cartões de borda suave). Guardado em `consultoria.tema_pdf`, padrão `CLASSICO` | Gustavo (pedido) |
 | D3 | Estrutura (`config_pdf`) | Coluna `config_pdf jsonb not null default '{}'` em `consultoria`, só com chaves conhecidas: **Treino** `mostrarSemana`, `mostrarGlossario`, `mostrarInstrucoes`, `quebrarPorSessao`; **Dieta** `modoPadrao` e `mostrarPesos`; `rodapePadrao` opcional. **Simples e Detalhado ficam com o sentido de hoje:** Simples = só a dieta; Detalhado = dieta + lista de compras. **Nada de omitir macros por item.** A configuração define só o **padrão** (para o aluno e para o treinador): a `FolhaPdfDieta` abre com ele marcado e o treinador continua escolhendo a cada download | Gustavo, 15/11 |
 | D4 | Como chega ao aluno | `temaPdf` e `configPdf` entram em `MarcaPublica` (API) e em `Marca` (`app/src/api/tipos.ts`): chegam no `POST /auth/login`, no `GET /eu` e no `GET /aluno/painel` (pacote offline). `mesmaMarca` (`dominio/marcaDaSessao.ts`) passa a comparar os dois: mudou no treinador, atualiza no aluno | Primeiro desenho, mantida |
-| D5 | Onde grava | No **`PUT /consultoria/marca` que já existe**, sem rota nova: `MARCA_ALTERAR` + `exigirAdministrador`, `versao` obrigatória e 409 `CONFLITO_EDICAO`. A auditoria é a `MARCA_ALTERADA` que o `MarcaService` já grava (resumo fixo) | Gustavo, 15/11 |
+| D5 | Onde grava | No **`PUT /consultoria/marca` que já existe**, sem rota nova: `MARCA_ALTERAR` + `exigirAdministrador`, `versao` obrigatória e 409 `CONFLITO_EDICAO`. A auditoria é a `MARCA_ALTERADA` que o `MarcaService` já grava (resumo fixo). **O que foi feito em 21/11 é diferente (ver "Segunda entrega"):** rota própria `PUT /consultoria/tema-pdf`, sem `versao` (vale a última escrita); o `PUT /consultoria/marca` também aceita `temaPdf` (nulo mantém). Falta decidir se o `config_pdf` vai pela rota própria ou pela da marca | Gustavo, 15/11 |
 | D6 | Cabeçalho obrigatório | O `cabecalhoDoPdf` (faixa com logo e nome da consultoria, tipo do documento, título com `(vN)` ou `(RASCUNHO, não publicado)`, Aluno, Período e Emitido em) existe nos três temas e não tem interruptor | Regra de produto |
 | D7 | Contraste 4,5:1 | Todo tema usa as funções que já existem: `corDaMarca` (fundo e linha, com texto em `textoSobre`) e `corDeTextoDaMarca` (texto sobre o branco, escurecida até 4,5:1). Marca amarela nunca gera texto ilegível em nenhum tema; teste com `#FFEB3B` nos três | Regra D15 de `evolucao-prime.md` |
 | D8 | Áreas clicáveis na prévia | **Fora do escopo.** É um limite da opção (b): a prévia é HTML higienizado (web) e WebView sem JavaScript (celular), então tocar numa seção da folha não destaca nada no painel | Gustavo, 15/11 |
@@ -51,7 +51,69 @@ Pedido do Gustavo para a noite: "3 temas de CSS e prévia em `/treinador/documen
 - **Decidido pelo Claude em 16/11, a confirmar pelo Gustavo:** a tela e o cartão do hub aparecem também no app de celular, sem a prova em aparelho do passo 0.1 (o revisor apontou; a alternativa é esconder os dois no nativo até o 0.1, uma condição em `dominio/telas.ts`).
 - **Não conferido:** WebView no Android e no iPhone (inclusive se a carga inicial é mesmo `about:blank` nas duas plataformas, condição do `onShouldStartLoadWithRequest`); PDFs de cargas, mobilidade e avaliação física nos temas novos (só o contraste por teste); temas areia e contraste alto da tela.
 
+## Segunda entrega (21/11/2026, `59ce839d`, na `origin/main`)
+Registro feito em 26/11, a partir do commit e do código; o plano não foi atualizado na hora. A "Primeira entrega" acima descreve o estado de 16/11 ("o tema não é gravado"), que deixou de valer.
+- **API:** migration `V096__tema_pdf_consultoria.sql` (`consultoria.tema_pdf varchar(20) not null default 'CLASSICO'`, CHECK `consultoria_tema_pdf_check` com os três temas; o `config_pdf` **não** entrou). `Consultoria.TemaPdf` (enum, igual a `pdf/temas.ts`). Rota `PUT /consultoria/tema-pdf {temaPdf}` (`MARCA_ALTERAR` + `exigirAdministrador`; `@NotNull`, valor fora do enum recusado pela leitura do JSON; **sem `versao`**, sem 409), auditoria `MARCA_ALTERADA` com resumo fixo "Alterou o tema dos PDFs da consultoria.". O `PUT /consultoria/marca` também aceita `temaPdf` (nulo mantém o gravado). `MarcaPublica.temaPdf` sai no login, no `GET /eu`, no `GET /aluno/painel` e no `GET /consultoria`. Teste: casos novos em `MarcaELogoIntegrationTest`.
+- **App:** `alterarTemaPdf` em `api/rotas.ts`; a `TelaDocumentos` lê o tema gravado, mostra "Salvar tema" (só habilitado com mudança) e, ao salvar, atualiza a marca da sessão (`atualizarMarca`) e avisa "Tema dos PDFs salvo."; o aviso "Esta escolha não é gravada" saiu.
+- **Como chega aos PDFs reais (conferido lendo o código em 26/11, não rodando):** os seis geradores leem `d.marca.temaPdf` (`temaValido` ou `cssBase`); o treinador passa a marca do `GET /consultoria` (`treinador/gerarPdf.ts`) e o aluno a da sessão, que vem da API. `mesmaMarca` (`dominio/marcaDaSessao.ts`) compara o JSON inteiro, então o tema novo chega ao aluno na próxima recarga do perfil (até 5 min com o app aberto, ou ao voltar ao app).
+- **Não conferido:** PDF real de cada tema baixado pelo aluno no celular (APK) e na web depois de trocar o tema; troca do tema por dois administradores ao mesmo tempo (sem `versao`, vale o último).
+
+## Nova direção (26/11/2026): modelos prontos + personalização
+Pedido do Gustavo, a partir da tela "Layouts de cobrança" da Icondev (editor livre com régua em mm, blocos posicionados e campos ligados a dados): "algo intermediário" entre o tema só e o editor livre, como a Nuvemshop, que oferece **modelos prontos** e depois **personalização manual por opções**, com prévia ao lado. Proposta da sessão aceita pelo Gustavo no mesmo dia; os detalhes de tela ainda passam pelo `plano-front`.
+
+### Decisões
+| # | Decisão | Valor | Quem decidiu |
+| --- | --- | --- | --- |
+| D14 | Nível de personalização | Intermediário: galeria de modelos prontos + painel de opções com prévia ao vivo. **Sem** régua, milímetros, posição livre, campos arrastáveis, imagem enviada além da logo e CSS avançado (pediriam o motor descartado na D1, ou abririam upload e injeção) | Gustavo, 26/11 |
+| D15 | Modelo pronto | 6 a 8 modelos com miniatura (os três temas de hoje viram modelos, mais Esportivo, Compacto, Elegante…). Um modelo é **só um conjunto de valores** das opções da D16, sem código próprio: modelo novo não mexe nos geradores. "Usar este modelo" aplica e abre a personalização; "Restaurar o modelo" volta aos valores dele. Substitui a D2 | Proposta aceita, 26/11 |
+| D16 | Opções (todas listas fechadas no código, mapeadas para trechos de CSS fixos) | **Cores:** principal = a da marca; destaque e fundo do cabeçalho de uma paleta restrita, contraste conferido (`avaliarMarca`, 4,5:1 no texto). **Texto:** estilo da fonte (sem serifa, serifada, condensada; só fontes do sistema) e tamanho P/M/G. **Cabeçalho:** faixa cheia, linha fina ou cartão; logo à esquerda ou centralizada, pequena/média/grande; mostrar o nome da consultoria. **Tabelas:** linhas, listrada ou cartões; densidade compacta/normal/espaçosa. **Rodapé:** texto próprio (escapado), data de emissão, WhatsApp e redes da consultoria (dados que já existem) | Proposta aceita, 26/11 |
+| D17 | Seções por tipo de documento | Lista das seções que o gerador já sabe montar, com interruptor e arrastar para ordenar (`ui/ArrasteDaLista`, com Subir/Descer para teclado). Treino: semana, sessões, glossário, instruções, "nova página por sessão". Dieta: modo Simples/Detalhado (padrão do download, que continua escolhível) e pesos. Bloco extra de **texto livre** (`**negrito**`, escapado). O cabeçalho continua obrigatório (D6). Substitui a D3 e tira `ordemSecoes` do "Fora do escopo" | Proposta aceita, 26/11 |
+| D18 | Escopo da configuração | **Um estilo só para todos os documentos** (cores, texto, cabeçalho, tabelas, rodapé) + **seções por tipo**, como o tema da loja e as seções de cada página na Nuvemshop. Sem lista de vários layouts por tipo nem layout por aluno; entram depois se fizerem falta | Proposta aceita, 26/11 |
+| D19 | Como chega ao PDF | A configuração é dado (JSON só com chaves conhecidas, validado nos dois lados; valor desconhecido = o do modelo), nunca HTML nem CSS: o sanitizador e os testes de injeção não mudam. Vai com a marca (`MarcaPublica`, login, `/eu`, pacote offline do aluno), como o `temaPdf` hoje; a coluna `tema_pdf` da V096 vira o modelo escolhido | Proposta aceita, 26/11 |
+| D20 | Onde se edita | Editor só no PC (a partir de 1024 px de área), em tela inteira com a guarda "Sair sem salvar?" e desfazer; no celular, no máximo a escolha do modelo | Proposta aceita, 26/11 |
+
+### Ordem sugerida (passos a detalhar depois do `plano-front`)
+- [ ] N1 Modelos prontos com as opções de **cores, cabeçalho, tabelas e texto** (o que mais muda a cara do PDF; quase tudo CSS sobre o que já existe), gravação e chegada ao aluno — commit: —
+- [ ] N2 **Seções e rodapé** do treino e da dieta (inclui o texto livre) — commit: —
+- [ ] N3 Os outros quatro documentos (mobilidade, lista de compras, cargas, avaliação física) — commit: —
+- [ ] N4 Fechamento: prova no celular (passo 0.1), Ajuda e guias, `AGENTS.md`, `docs/design-e-front.md`, revisão independente (validação do JSON, injeção, permissão) — commit: —
+
+### Em aberto
+- ~~Gravar pela rota própria ou junto com a Marca~~ · decidido na D25: rota própria, com versão.
+- Fontes serifada e condensada no PDF dependem das fontes do aparelho; conferir no Android e no iPhone antes de oferecer.
+- Quais modelos além dos três de hoje, e a miniatura de cada um (gerada da prévia ou imagem fixa).
+
+### Plano de tela (`plano-front`, 26/11/2026; decisões de tela a confirmar pelo Gustavo)
+**Descobertas que mudam o desenho:**
+- Duas prévias na mesma página brigam pelo CSS: `cssDaPrevia` (`pdf/html.ts`) prende tudo a `.previa-pdf .doc` e cada `PreviaDoDocumento.web.tsx` põe um `<style>`; com várias miniaturas vence a última. Precisa de chave por instância (`.previa-pdf[data-previa="k"] .doc`), sem tocar o sanitizador. **Vem antes da galeria.**
+- `avaliarMarca` mede contra os fundos do tema do app, não contra o papel branco: a paleta de destaque fica fixa no código, travada por teste contra `#FFFFFF`.
+- A coluna da direita de Configurações tem ~700 px em 1280; folha A4 (794) + painel (~360) não cabem.
+
+**Decisões de tela (D-F):**
+- D-F1 Galeria continua em Configurações (`documentos-pdf`) e em `/treinador/documentos`; o **editor** é rota nova em tela inteira, `/treinador/documentos/personalizar`, sobre `TelaDoEditor`.
+- D-F2 Toda escolha navega para o editor (`?modelo=ID`, consumido na chegada). O editor decide pela própria faixa: `normal` ou maior = editor; `compacta` (celular, janela estreita, 1024 com menu aberto) = só confirmar o modelo com `PainelConfirmacao` (o que o celular já faz hoje) ou "Personalize numa tela maior".
+  - **Limitação aceita (Gustavo, 26/11):** o menu do treinador continua à vista no editor (escondê-lo pediria mexer no layout do treinador, fora do escopo), e o arranjo vem da **área** de conteúdo. Por isso uma janela de 1024, com o menu aberto (~784 de área) ou minimizado (~952), fica abaixo de 1024 e mostra "Personalize numa tela maior"; 1280 com o menu aberto (~1040) já abre o editor. Regra em `dominio/editorDoPdf.arranjoDoEditor`; e2e `documentos-pdf-editor.spec.ts`.
+- D-F3 Nada grava antes do "Salvar"; trocar modelo e "Restaurar o modelo" mexem no rascunho com `BarraDesfazer`, sem pergunta; guarda de saída ligada.
+- D-F4 Miniaturas na web pelo gerador real (cabeçalho e uma tabela, com a marca da consultoria, `aria-hidden`); no nativo, sem miniatura.
+- D-F5 Painel em duas partes: "Estilo de todos os documentos" (Cores, Texto, Cabeçalho, Tabelas; Rodapé no N2) e "Seções do <tipo>" (N2). Nada de "em breve" na tela.
+- D-F6 Só peças existentes (`LinhaDeConfiguracao`, `Escolha`, `Interruptor`, `OpcaoCartao`+`GradeDeOpcoes` para a cor, `Cartao recolhivel` com `resumo`, `Abas`, `ui/Grade`, `Folha`, `BarraDesfazer`, `RodapeDeAcoes`); nenhum componente novo em `ui/`.
+- D-F7 Prévia ao vivo sem atraso (só o texto do rodapé, no N2, com 300 ms).
+- D-F8 Cor principal só leitura no editor, com "Alterar na Marca".
+
+**Ordem (N1):** (0) contrato na sessão principal, depois de a outra sessão sair de `api/rotas.ts`/`tipos.ts`: rota, `versao` ou não, migration que amplia o CHECK de `tema_pdf` para os modelos e grava o JSON de opções, `MarcaPublica`/`Marca`, revisão; (1) `executor`: `dominio/configuracaoPdf.ts` (modelos, normalizar, resolver, personalizado, restaurar, trocar, contagem, resumo, paleta, colunas da galeria) com teste, inclusive contraste com `#FFEB3B`; (2) `executor`: chave por instância na prévia e `cssDasOpcoes(valores)`; Clássico sem diferenças idêntico ao de hoje; injeção por modelo; jsdom com duas prévias; (3) `executor-front`: CSS de cada opção (Minimalista e Marcante reproduzem a saída de hoje); (4) `executor`: `api/`, `mesmaMarca`, rota em `dominio/telas.ts` e `permissoes.ts` (fora da busca); (5) e (6) `executor-front`: galeria e editor, com os e2e `documentos-pdf.spec.ts` (atualizado) e `documentos-pdf-editor.spec.ts` (novo) em 390, 1024, 1280 e 1920, claro, areia e escuro; (7) textos do hub e do cabeçalho.
+
+**Riscos:** serifada/condensada dependem das fontes do aparelho; peso de 6 a 8 miniaturas (usar exemplo curto); paridade de Minimalista e Marcante para quem já os escolheu; sem `versao`, vale o último; celular sem a prova 0.1; janela de 1024 com o menu aberto cai em "tela pequena".
+
+**Respostas do Gustavo (26/11/2026):**
+- D21 Modelos: **6**, Clássico, Minimalista, Marcante, Compacto, Elegante e Esportivo.
+- D22 Fontes: sem serifa, serifada **e condensada já no N1**, com o risco aceito de o PDF do celular sair diferente da prévia até a prova 0.1 (conferir no APK no N4).
+- D23 Paleta de destaque: **8 cores**, Cor da marca, Grafite e 6 da `PALETAS` (Azul, Índigo, Verde, Turquesa, Magenta, Bronze).
+- D24 Celular: **escolhe e grava o modelo** (como hoje); personalizar só no PC.
+- "Fundo do cabeçalho" = topo do documento (recomendação do `plano-front`, não perguntada; as tabelas seguem o estilo de tabela).
+- D25 Contrato: **rota própria, com `versao`** (a evolução do `PUT /consultoria/tema-pdf` da V096, gravando modelo + opções; versão diferente = 409 `CONFLITO_EDICAO`, e o editor mostra "Recarregar"). A `MarcaPublica` continua levando o resultado ao aluno (D19).
+
 ## Passos
+Os passos 1.2, 2.1, 2.2 e 3.2 abaixo são do desenho de 15/11 e foram **substituídos pela "Nova direção"** (N1 a N4); ficam como histórico do que já foi feito.
 
 ### Fase 0. Conferência que falta
 - [ ] 0.1 Prova no celular: um `react-native-webview` com `source={{ html }}` de um `documentoCompleto` de exemplo, JavaScript desligado e navegação recusada, em Android e iPhone. Confere largura A4 com zoom para caber em 390 px, a logo em data URI e a cor de fundo da faixa. Se não servir, parar e avisar o Gustavo antes de seguir para a Fase 3 — commit: —
@@ -61,22 +123,24 @@ Pedido do Gustavo para a noite: "3 temas de CSS e prévia em `/treinador/documen
 - [ ] 1.2 Estrutura: os geradores de treino e dieta respeitam `mostrarSemana`, `mostrarGlossario`, `mostrarInstrucoes`, `quebrarPorSessao`, `mostrarPesos` e `rodapePadrao` (com `esc()`); sem a chave vale o comportamento de hoje. `FolhaPdfDieta` abre com `modoPadrao` marcado. Testes de cada interruptor ligado e desligado — commit: —
 
 ### Fase 2. API e contrato
-- [ ] 2.1 Migration `V07X__documentos_pdf_da_consultoria.sql` (`tema_pdf varchar(20) not null default 'CLASSICO'` com CHECK e `config_pdf jsonb not null default '{}'`); `Consultoria`, `ConfiguracaoPdf` (record validado: só as chaves da D3, booleanos, enum e rodapé com limite de tamanho; JSON desconhecido é recusado com 422 no campo), `MarcaPublica`, `MarcaRequest` e `MarcaService` no `PUT /consultoria/marca`. Totais em `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`; casos no teste de integração da marca: salvar e ler, 403 de quem não é administrador, 409 de versão, chave desconhecida recusada, presença no `/auth/login`, `/eu` e `/aluno/painel`, outra consultoria não é tocada — commit: —
-- [ ] 2.2 App: `Marca` em `api/tipos.ts`, `mesmaMarca`, e os pontos de chamada do aluno (`treino.tsx`, `dieta.tsx`, `mobilidade.tsx`, `lista-de-compras.tsx`, `historico.tsx`, `DietaDoAluno.tsx`) e do treinador (`gerarPdf.ts`, `CartaoAvaliacaoFisica.tsx`, `CargasPorDivisao.tsx`, `FolhaListaDeCompras.tsx`) passando a marca com tema e configuração — commit: —
+- [ ] 2.1 **Parcial:** o tema entrou na V096 com rota própria (`59ce839d`, ver "Segunda entrega"); falta o `config_pdf` (migration nova, record validado, testes abaixo). Desenho original: Migration `V07X__documentos_pdf_da_consultoria.sql` (`tema_pdf varchar(20) not null default 'CLASSICO'` com CHECK e `config_pdf jsonb not null default '{}'`); `Consultoria`, `ConfiguracaoPdf` (record validado: só as chaves da D3, booleanos, enum e rodapé com limite de tamanho; JSON desconhecido é recusado com 422 no campo), `MarcaPublica`, `MarcaRequest` e `MarcaService` no `PUT /consultoria/marca`. Totais em `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`; casos no teste de integração da marca: salvar e ler, 403 de quem não é administrador, 409 de versão, chave desconhecida recusada, presença no `/auth/login`, `/eu` e `/aluno/painel`, outra consultoria não é tocada — commit: —
+- [ ] 2.2 **Parcial:** o tema já chega a todos os PDFs pela marca da sessão e do `GET /consultoria` (`59ce839d`); falta o mesmo caminho para o `config_pdf`. Desenho original: App: `Marca` em `api/tipos.ts`, `mesmaMarca`, e os pontos de chamada do aluno (`treino.tsx`, `dieta.tsx`, `mobilidade.tsx`, `lista-de-compras.tsx`, `historico.tsx`, `DietaDoAluno.tsx`) e do treinador (`gerarPdf.ts`, `CartaoAvaliacaoFisica.tsx`, `CargasPorDivisao.tsx`, `FolhaListaDeCompras.tsx`) passando a marca com tema e configuração — commit: —
 
 ### Fase 3. Prévia e tela `/treinador/documentos`
 - [x] 3.1 `pdf/exemplos.ts` (treino e dieta fictícios completos) e o componente de prévia nas duas plataformas (D10) — commit: `eafa0046` (noite de 16/11; prévia na web conferida no e2e, a do celular sem aparelho)
-- [ ] 3.2 Tela (pelo `executor-front`): abas Treino e Dieta, escolha dos 3 temas, interruptores da estrutura, prévia, "Baixar PDF de exemplo" e "Salvar alterações" (409 recarrega). `dominio/telas.ts`, `permissoes.ts`, Perfil e hub. E2e `e2e/documentos-pdf.spec.ts` em 390 e 1280 px, claro, areia e escuro — commit: —
+- [ ] 3.2 **Parcial:** abas, temas, prévia, "Baixar PDF de exemplo" e "Salvar tema" (`eafa0046`, `59ce839d`); faltam os interruptores da estrutura, o "Salvar alterações" com 409 (depende do `config_pdf`) e o tema areia no e2e. Desenho original: Tela (pelo `executor-front`): abas Treino e Dieta, escolha dos 3 temas, interruptores da estrutura, prévia, "Baixar PDF de exemplo" e "Salvar alterações" (409 recarrega). `dominio/telas.ts`, `permissoes.ts`, Perfil e hub. E2e `e2e/documentos-pdf.spec.ts` em 390 e 1280 px, claro, areia e escuro — commit: —
 - [ ] 3.3 Fechamento: `AGENTS.md`, `docs/design-e-front.md`, Ajuda e guias em PDF; `mvn verify`, `npm run typecheck`, `npm run lint`, `npm test` e o e2e da tela; revisão do `revisor` (permissão, validação do `config_pdf`, injeção) — commit: —
 
 ## Fora do escopo
 - Motor próprio de diagramação, prévia paginada ("Página 1 de N") e SVG por página (opção (a), descartada na D1). Se a prévia paginada virar requisito, o primeiro passo é uma prova isolada de fonte embutida com métricas, antes de reescrever qualquer gerador.
 - Áreas clicáveis na prévia (D8).
 - "Testar com aluno" (D9): está nas Pendências soltas.
-- Ordem das seções escolhida pelo treinador (`ordemSecoes` do primeiro desenho): exige montar cada documento como lista de seções; entra depois, se alguém pedir.
+- ~~Ordem das seções escolhida pelo treinador (`ordemSecoes` do primeiro desenho)~~ · entrou na Nova direção (D17, 26/11).
 - Omitir macros por item na dieta; editor livre de posição, fontes fora das do sistema, mais de 3 temas.
 - Módulo Java de documentos na biblioteca `plataforma` para a Central.
 
 ## O que ficou para trás
 - A CSP foi conferida no modelo do repositório da Central, não no arquivo aplicado na VPS.
+- Achados no `CLASSICO` com marca clara (seção "Primeira entrega"): continuam sem correção; agora que o tema é escolhido e vale nos PDFs reais, a consultoria com marca amarela que fica no Clássico ainda recebe texto ilegível em cargas e dieta. Decisão do Gustavo.
+- A tela e o cartão do hub seguem visíveis no app do celular sem o passo 0.1 (decisão de 16/11 ainda a confirmar).
 - Conferir no celular físico (APK Android e iPhone) o PDF de cada tema e a prévia em 390 px (passo 0.1 e fechamento).

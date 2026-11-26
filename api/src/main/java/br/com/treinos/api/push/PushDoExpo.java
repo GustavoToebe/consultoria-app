@@ -164,7 +164,8 @@ public class PushDoExpo {
         Map<UUID, String> definitivos = new HashMap<>();
         for (List<Mensagem> parte : emChamadas(grupos)) {
             try {
-                List<String> erros = expo.enviar(parte.stream().map(Mensagem::token).toList());
+                List<String> erros = expo.enviar(parte.stream().map(Mensagem::token).toList(),
+                        parte.stream().map(m -> m.envio().tipo()).toList());
                 for (int i = 0; i < parte.size(); i++) {
                     String erro = erros.get(i);
                     Mensagem m = parte.get(i);

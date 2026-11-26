@@ -1,7 +1,7 @@
 import { Permitido } from '../ui/Permitido';
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { router } from 'expo-router';
-import { Copy, Ellipsis, FileDown, Pencil, Plus, Trash2, Users } from 'lucide-react-native';
+import { CalendarClock, CalendarCog, Copy, Ellipsis, FileDown, Pencil, Plus, Send, Trash2, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -43,6 +43,8 @@ import { CopiarParaAluno } from './CopiarParaAluno';
 import { FolhaDeAcoes, type AcaoDoMenu } from './FolhaDeAcoes';
 import type { CargaDosPlanos } from './usePlanosDaPasta';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
+import { rotuloAgendado } from '../dominio/liberacaoDePlano';
+import { FolhaAlterarLiberacao, PainelLiberarAgora } from './plano/AcoesDaLiberacao';
 
 const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
   treino: { titulo: 'Treino', plural: 'Treinos', novo: 'Novo treino', receita: 'PLANO_TREINO', rota: '/treinador/treinos' },
@@ -79,6 +81,8 @@ export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
       {plano.versaoPublicada > 0 && plano.rascunhoAlteradoDepoisDePublicar ? (
         <Selo texto="Alterações não publicadas" tipo="neutro" />
       ) : null}
+      {/* Neutro, como os outros: é um fato marcado, não um problema (bloco E). */}
+      {plano.liberarEm ? <Selo texto={rotuloAgendado(plano.liberarEm)} tipo="neutro" Icone={CalendarClock} /> : null}
     </View>
   );
 }
@@ -87,8 +91,10 @@ export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
  * Treinos ou dietas do aluno dentro de uma pasta (o período é o da pasta). Criar (em branco, receita ou cópia),
  * abrir, PDF e replicar. `geracao` muda quando a pasta muda o período.
  */
-export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, carga }: {
+export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, carga, aoMudarLiberacao }: {
   tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void;
+  /** Depois de "Alterar data" ou "Liberar agora": a lista de pastas recarrega (o selo da linha vem do `PastaResumo`). */
+  aoMudarLiberacao?: () => void;
   /** Lista já carregada por quem chama (a Folha da pasta divide a mesma com o "Publicar tudo"); sem ela, o cartão busca. */
   carga?: CargaDosPlanos;
 }) {
@@ -114,6 +120,9 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
   const [copiando, setCopiando] = useState<PlanoResumo | null>(null);
   const [menu, setMenu] = useState<PlanoResumo | null>(null);
   const podeAlterar = pode(PERMISSOES_DO_PLANO[tipo].alterar);
+  const podePublicar = pode(PERMISSOES_DO_PLANO[tipo].publicar);
+  const [alterandoData, setAlterandoData] = useState<PlanoResumo | null>(null);
+  const [liberando, setLiberando] = useState<PlanoResumo | null>(null);
   const [pdfDieta, setPdfDieta] = useState<PlanoResumo | null>(null);
   const [conteudoPdf, setConteudoPdf] = useState<ConteudoDieta | null>(null);
   const pdf = (p: PlanoResumo) => {
@@ -128,7 +137,14 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
     gerarPdfDoPlano(tipo, p, undefined, undefined, unidade).catch((e: unknown) => avisar(textoDoErro(e), 'perigo'));
   };
   // Ações do ⋯ (a ordem é a da folha); nenhuma liberada = sem ⋯.
+  const liberacaoMudou = () => {
+    recarregar();
+    aoMudarLiberacao?.();
+  };
+  const agendavel = (p: PlanoResumo) => !!p.liberarEm && escritaLiberada && podePublicar;
   const acoesDoMenu = (p: PlanoResumo): (AcaoDoMenu | null)[] => [
+    agendavel(p) ? { rotulo: 'Alterar data de liberação', detalhe: 'O aluno continua com o que já via até a nova data.', Icone: CalendarCog, aoTocar: () => setAlterandoData(p) } : null,
+    agendavel(p) ? { rotulo: 'Liberar agora', detalhe: 'Antecipa a data: o aluno passa a ver esta versão já.', Icone: Send, aoTocar: () => setLiberando(p) } : null,
     p.versaoPublicada > 0 && temFuncionalidade('PDF') ? { rotulo: 'Baixar PDF', detalhe: 'Da versão publicada.', Icone: FileDown, aoTocar: () => void pdf(p) } : null,
     p.versaoPublicada > 0 && escritaLiberada && podeAlterar ? { rotulo: p.pastaId ? 'Duplicar nesta pasta' : 'Replicar para o próximo ciclo', detalhe: 'Cria um rascunho com o conteúdo publicado.', Icone: Copy, aoTocar: () => setReplicando(p) } : null,
     escritaLiberada && podeAlterar && pode('ALUNO_LER') ? { rotulo: 'Copiar para outro aluno', Icone: Users, aoTocar: () => setCopiando(p) } : null,
@@ -162,6 +178,9 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
         </EntradaEmCascata>
       ))}
       {menu ? <FolhaDeAcoes titulo={menu.titulo} acoes={acoesDoMenu(menu)} aoFechar={() => setMenu(null)} /> : null}
+      {/* As duas sobem a `versao` do plano: a lista recarrega (é a mesma do "Publicar tudo"). */}
+      {alterandoData ? <FolhaAlterarLiberacao tipo={tipo} plano={alterandoData} aoFechar={() => setAlterandoData(null)} aoMudou={liberacaoMudou} /> : null}
+      <PainelLiberarAgora tipo={tipo} plano={liberando} aoFechar={() => setLiberando(null)} aoMudou={liberacaoMudou} />
       {tipo === 'dieta' ? (
         <FolhaPdfDieta
           visivel={pdfDieta !== null}

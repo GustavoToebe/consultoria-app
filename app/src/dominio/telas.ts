@@ -179,6 +179,7 @@ export function lerFavoritos(bruto: string | null): string[] {
 
 /** Nomes das telas que não estão no catálogo (editores e detalhes), do mais específico para o mais geral. */
 const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
+  ['/treinador/documentos/personalizar', 'Personalizar documentos'],
   ['/treinador/planejamento/modelo', 'Modelo'],
   ['/treinador/planejamento/questionario', 'Questionário'],
   ['/treinador/treinos', 'Plano de treino'],

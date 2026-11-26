@@ -76,7 +76,8 @@ public class PastaController {
     @PostMapping("/pastas/{id}/publicar")
     public PublicarPastaResposta publicar(@PathVariable UUID id, @RequestBody @Valid PublicarPastaRequest request,
                                           @AuthenticationPrincipal UsuarioAutenticado eu) {
-        return pastas.publicarTudo(id, request.confirmarAvisos(), request.versoes(), eu.usuarioId());
+        return pastas.publicarTudo(id, request.confirmarAvisos(), request.versoes(), eu.usuarioId(), request.liberarEm(),
+                request.avisarAluno());
     }
 
     @PreAuthorize("hasAuthority('PERM_PASTA_ALTERAR') and hasAuthority('PERM_ALUNO_LER')")

@@ -1,5 +1,6 @@
-import type { PlanoPuladoNaCopia, PlanoResumo, PublicarPastaResposta, TipoPlano } from '../api/tipos';
+import type { PlanoPuladoNaCopia, PlanoPuladoNaPasta, PlanoResumo, PublicarPastaResposta, TipoPlano } from '../api/tipos';
 import { dataParaTela } from './formatos';
+import { rotuloAgendado } from './liberacaoDePlano';
 import { PERMISSOES_DO_PLANO } from './permissoes';
 
 /**
@@ -199,7 +200,7 @@ const PUBLICADO: Record<TipoPlano, string> = { treino: 'Treino publicado', dieta
  * Aviso depois do 200 (só depois da confirmação da API): "Dieta publicada.", "Treino e dieta publicados. 1 plano sem
  * alteração." ou, sem nada publicado, que não havia o que publicar.
  */
-export function resumoDaPublicacao(r: Pick<PublicarPastaResposta, 'publicados' | 'pulados'>): string {
+export function resumoDaPublicacao(r: Pick<PublicarPastaResposta, 'publicados' | 'pulados'>, hoje?: string): string {
   const tipos = TIPOS_DA_PASTA.filter((t) => r.publicados.some((p) => p.tipo === t));
   if (tipos.length === 0) return 'Nada para publicar: os planos já estão publicados e sem alteração.';
   const lista = listaComE(tipos.map((t) => ARTIGOS_DO_TIPO[t].nome));
@@ -207,7 +208,23 @@ export function resumoDaPublicacao(r: Pick<PublicarPastaResposta, 'publicados' |
     ? PUBLICADO[tipos[0]]
     : `${lista.charAt(0).toUpperCase()}${lista.slice(1)} ${tipos.includes('treino') ? 'publicados' : 'publicadas'}`;
   const m = r.pulados.length;
-  return m > 0 ? `${publicados}. ${m === 1 ? '1 plano' : `${m} planos`} sem alteração.` : `${publicados}.`;
+  const texto = m > 0 ? `${publicados}. ${m === 1 ? '1 plano' : `${m} planos`} sem alteração.` : `${publicados}.`;
+  // Uma data vale para todos os publicados agora (bloco E).
+  const data = r.publicados.find((p) => p.liberarEm)?.liberarEm;
+  return data ? `${texto} ${rotuloAgendado(data, hoje)}: até lá, o aluno continua com o que já via.` : texto;
+}
+
+/**
+ * Plano agendado e sem alteração vem em `pulados` e NÃO é reagendado nem liberado pelo "Publicar tudo" (bloco E): uma frase
+ * por plano assim, com a data que ele mantém e onde mudá-la. `null` = nenhum (a data vem da lista da tela).
+ */
+export function textoDosPuladosAgendados(pulados: readonly Pick<PlanoPuladoNaPasta, 'tipo' | 'planoId'>[], planos: PlanosDaPasta | null, hoje?: string): string | null {
+  const agendados = pulados
+    .map((p) => (planos?.[p.tipo] ?? []).find((x) => x.id === p.planoId))
+    .filter((p): p is PlanoResumo => !!p?.liberarEm);
+  if (!agendados.length) return null;
+  const frases = agendados.map((p) => `“${p.titulo}” segue ${rotuloAgendado(p.liberarEm as string, hoje).toLowerCase()}.`);
+  return `${frases.join(' ')} Sem alteração, não foi publicado de novo: para mudar, use ⋯ › Alterar data de liberação ou Liberar agora no plano.`;
 }
 
 export interface ProblemaDoPlano {

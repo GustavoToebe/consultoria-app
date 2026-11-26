@@ -1,16 +1,13 @@
-/**
- * Temas dos PDFs (plano `docs/planos/documentos-pdf-motor.md`, D1 e D2): lista fechada. O CSS de cada tema vem só do
- * código (`pdf/html.ts`); a consultoria escolhe um id e nunca escreve CSS, classe nem cor livre.
- */
-export type TemaPdf = 'CLASSICO' | 'MINIMALISTA' | 'MARCANTE';
+import { MODELOS_PDF, modeloValido, type ModeloPdf } from '../dominio/configuracaoPdf';
 
-export const TEMAS_PDF: readonly { id: TemaPdf; nome: string; descricao: string }[] = [
-  { id: 'CLASSICO', nome: 'Clássico', descricao: 'Faixa da marca no alto e cabeçalhos de tabela preenchidos com a cor da marca.' },
-  { id: 'MINIMALISTA', nome: 'Minimalista', descricao: 'Fundo limpo, divisórias finas na cor da marca e cabeçalhos de tabela leves.' },
-  { id: 'MARCANTE', nome: 'Marcante', descricao: 'Topo destacado na cor da marca e blocos em cartões de borda suave.' },
-];
+/**
+ * Temas dos PDFs = os modelos de `dominio/configuracaoPdf.ts` (plano `docs/planos/documentos-pdf-motor.md`, "Nova direção"):
+ * lista fechada de seis. O CSS vem só do código (`pdf/html.ts` e `pdf/cssDasOpcoes.ts`); a consultoria escolhe um id e
+ * nunca escreve CSS, classe nem cor livre. O nome "tema" fica por compatibilidade com `marca.temaPdf` e a tela.
+ */
+export type TemaPdf = ModeloPdf;
+
+export const TEMAS_PDF = MODELOS_PDF;
 
 /** Valor desconhecido, nulo ou ausente cai em `CLASSICO` (o que a API manda é conferido contra a lista, nunca confiado). */
-export function temaValido(valor: unknown): TemaPdf {
-  return TEMAS_PDF.find((t) => t.id === valor)?.id ?? 'CLASSICO';
-}
+export const temaValido = modeloValido;

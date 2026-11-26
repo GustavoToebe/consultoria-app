@@ -60,6 +60,11 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/documentos', acesso(['MARCA_ALTERAR']), false, true)).toBe(true);
     expect(podeAcessarTela('/treinador/documentos/outra', acesso(['MARCA_ALTERAR']), false, true)).toBe(false);
   });
+  it('Personalizar documentos pede o mesmo (Administrador e MARCA_ALTERAR)', () => {
+    expect(podeAcessarTela('/treinador/documentos/personalizar', acesso(['MARCA_ALTERAR']))).toBe(false);
+    expect(podeAcessarTela('/treinador/documentos/personalizar', acesso([]), false, true)).toBe(false);
+    expect(podeAcessarTela('/treinador/documentos/personalizar', acesso(['MARCA_ALTERAR']), false, true)).toBe(true);
+  });
   it('Meus dados e Ajustes são de todos; Assinatura e faturas exige CONTA_LER', () => {
     expect(podeAcessarTela('/treinador/meus-dados', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajustes', acesso([]))).toBe(true);

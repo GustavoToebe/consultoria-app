@@ -2,7 +2,7 @@ import type { ConteudoQuestionario, PerguntaAtualizacao } from '../api/tipos';
 import {
   ajudaDoNumero, alternarMarcado, escolhaParaSimNao, perguntaPeso, perguntasDestaque, rascunhoVigente, respostasCompativeis,
   progressoDasSecoes, resumoDoTreinador, simNaoParaEscolha, textoDaResposta, textoDoProgresso, textoDaNota, notaEmDuasPartes, respostasDaGrade,
-  colunasDasOpcoes,
+  colunasDasOpcoes, arranjoDaLeitura, diasNaSemana, notasPorDiaEmTabela, fraseDaMediaDeTreino, respostaLida, temImagemNasOpcoes, textoDasPerguntas,
 } from './atualizacaoQuestionario';
 import { errosRespostasAtualizacao, respondida } from './respostasAtualizacao';
 
@@ -236,5 +236,65 @@ describe('apoio da nota, da grade e das opções com imagem', () => {
     expect(colunasDasOpcoes(326)).toBe(2);
     expect(colunasDasOpcoes(640)).toBe(3);
     expect(colunasDasOpcoes(960)).toBe(4);
+  });
+});
+
+describe('leitura das respostas (bloco B)', () => {
+  const P = (id: string, tipo: PerguntaAtualizacao['tipo'], extra: Partial<PerguntaAtualizacao> = {}): PerguntaAtualizacao =>
+    ({ id, tipo, rotulo: id, obrigatoria: false, ...extra });
+  it('nota: "4/10" sem escala em 0 a 10; a escala aparece nas outras; o texto falado mantém a escala', () => {
+    expect(respostaLida(P('n', 'NOTA'), 4)).toEqual({ forma: 'nota', nota: '4/10', escala: null, texto: '4 de 0 a 10' });
+    expect(respostaLida(P('n', 'NOTA'), 0)).toMatchObject({ nota: '0/10', escala: null });
+    expect(respostaLida(P('n', 'NOTA', { min: 1, max: 10 }), 7)).toMatchObject({ nota: '7/10', escala: 'Escala de 1 a 10' });
+    expect(respostaLida(P('n', 'NOTA', { min: 1, max: 5 }), 3)).toMatchObject({ nota: '3/5', escala: 'Escala de 1 a 5' });
+    expect(respostaLida(P('n', 'NOTA'), null)).toEqual({ forma: 'vazia' });
+  });
+  it('sem resposta é vazia; false e 0 são respostas; opção que não existe é vazia', () => {
+    expect(respostaLida(P('s', 'SIM_NAO'), false)).toEqual({ forma: 'simNao', texto: 'Não' });
+    expect(respostaLida(P('s', 'SIM_NAO'), true)).toEqual({ forma: 'simNao', texto: 'Sim' });
+    expect(respostaLida(P('s', 'SIM_NAO'), undefined)).toEqual({ forma: 'vazia' });
+    expect(respostaLida(P('t', 'TEXTO'), '  ')).toEqual({ forma: 'vazia' });
+    expect(respostaLida(P('x', 'NUMERO', { unidade: 'mil', casas: 1 }), 0)).toEqual({ forma: 'texto', texto: '0 mil', numerico: true });
+    expect(respostaLida(P('e', 'ESCOLHA_UNICA', { opcoes }), 'removida')).toEqual({ forma: 'vazia' });
+    expect(respostaLida(P('e', 'MULTIPLA_ESCOLHA', { opcoes }), ['c', 'a'])).toEqual({ forma: 'texto', texto: 'Ruim, Ótimo' });
+    expect(respostaLida(P('l', 'TEXTO_LONGO'), 'Linha 1\nLinha 2')).toEqual({ forma: 'texto', texto: 'Linha 1\nLinha 2', numerico: false });
+    expect(respostaLida(P('end', 'ENDERECO'), { cep: '', logradouro: '' })).toEqual({ forma: 'vazia' });
+  });
+  it('notas por dia: uma célula por dia, "—" no dia sem nota', () => {
+    const r = respostaLida(P('d', 'NOTAS_POR_DIA', { dias: [1, 2, 3] }), { '1': 8, '2': null, '3': 0 });
+    expect(r).toEqual({ forma: 'notasPorDia', dias: [{ dia: 1, nota: '8' }, { dia: 2, nota: '—' }, { dia: 3, nota: '0' }],
+      texto: 'Dia 1: 8, Dia 2: —, Dia 3: 0 (notas de 0 a 10)' });
+  });
+  it('grade, opções com imagem, fotos, informativo, data automática e tipo desconhecido', () => {
+    const g = P('g', 'GRADE', { linhas: [{ id: 'l1', rotulo: 'Item A' }, { id: 'l2', rotulo: 'Item B' }], colunas: [{ id: 'c1', rotulo: 'Sempre' }] });
+    expect(respostaLida(g, { l1: 'c1' })).toEqual({ forma: 'grade', linhas: [{ id: 'l1', linha: 'Item A', resposta: 'Sempre' }, { id: 'l2', linha: 'Item B', resposta: '—' }], texto: 'Item A: Sempre; Item B: —' });
+    const comImagem = P('i', 'ESCOLHA_UNICA', { opcoes: [{ id: 'a', rotulo: 'Leg press', imagemId: 'img-1' }, { id: 'b', rotulo: 'Hack' }] });
+    expect(temImagemNasOpcoes(comImagem)).toBe(true);
+    expect(respostaLida(comImagem, 'a')).toEqual({ forma: 'opcoesComImagem', texto: 'Leg press' });
+    expect(respostaLida(P('f', 'FOTOS'), null)).toEqual({ forma: 'fotos' });
+    expect(respostaLida(P('info', 'INFORMATIVO'), undefined)).toEqual({ forma: 'informativo' });
+    expect(respostaLida(P('dt', 'DATA_AUTOMATICA'), undefined, '2026-10-20')).toEqual({ forma: 'texto', texto: '20/10/2026', numerico: true });
+    expect(respostaLida(P('dt', 'DATA_AUTOMATICA'), undefined, null)).toEqual({ forma: 'texto', texto: '—', numerico: true });
+    expect(respostaLida(P('z', 'TIPO_DO_FUTURO' as PerguntaAtualizacao['tipo']), 'x')).toEqual({ forma: 'desconhecida' });
+  });
+  it('arranjo da lista na leitura: limite de 760 de cartão menos os recuos, pergunta em 40% até 320, 12 até o fio', () => {
+    expect(arranjoDaLeitura(20)).toEqual({ empilharAbaixoDe: 720, rotulo: { fracao: 0.4, maximo: 320 }, respiro: 12 });
+    expect(arranjoDaLeitura(16).empilharAbaixoDe).toBe(728);
+    expect(notasPorDiaEmTabela(6)).toBe(false);
+    expect(notasPorDiaEmTabela(7)).toBe(true);
+  });
+  it('"N perguntas": data automática e informativo não contam', () => {
+    expect(textoDasPerguntas([P('a', 'DATA_AUTOMATICA'), P('b', 'INFORMATIVO'), P('c', 'NOTA')])).toBe('1 pergunta');
+    expect(textoDasPerguntas([P('c', 'NOTA'), P('d', 'TEXTO')])).toBe('2 perguntas');
+    expect(textoDasPerguntas([])).toBe('0 perguntas');
+  });
+  it('plural da média de treinos pelo número mostrado ("0 dia" saiu)', () => {
+    expect(diasNaSemana(0)).toBe('0 dias');
+    expect(diasNaSemana(0.96)).toBe('1 dia');
+    expect(diasNaSemana(1.5)).toBe('1,5 dia');
+    expect(diasNaSemana(1.96)).toBe('2 dias');
+    expect(diasNaSemana(4)).toBe('4 dias');
+    expect(fraseDaMediaDeTreino(0, false)).toBe('Pelo app, você treinou em média 0 dias por semana neste período.');
+    expect(fraseDaMediaDeTreino(2.5, true)).toBe('Pelo app: média de 2,5 dias de treino por semana no período.');
   });
 });

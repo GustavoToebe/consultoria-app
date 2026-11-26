@@ -52,9 +52,9 @@ public interface NumerosRepository extends Repository<Aluno, UUID> {
             + "where p.arquivado = false and p.fim between :inicio and :fim "
             + "and not exists (select u.id from Atualizacao u where u.pastaId = p.id) "
             + "and (exists (select t.id from PlanoTreino t where t.pastaId = p.id and t.arquivado = false "
-            + "and t.publicadoEm is not null) "
+            + "and t.versaoLiberada > 0) "
             + "or exists (select d.id from PlanoDieta d where d.pastaId = p.id and d.arquivado = false "
-            + "and d.publicadoEm is not null))")
+            + "and d.versaoLiberada > 0))")
     List<PastaSemLinha> pastasSemLinhaNaJanela(LocalDate inicio, LocalDate fim);
 
     /**
@@ -67,9 +67,9 @@ public interface NumerosRepository extends Repository<Aluno, UUID> {
             + "from PastaPlano p where p.arquivado = false and p.inicio is not null and p.fim is not null "
             + "and p.inicio <= :fimJanela "
             + "and (exists (select t.id from PlanoTreino t where t.pastaId = p.id and t.arquivado = false "
-            + "and t.publicadoEm is not null) "
+            + "and t.versaoLiberada > 0) "
             + "or exists (select d.id from PlanoDieta d where d.pastaId = p.id and d.arquivado = false "
-            + "and d.publicadoEm is not null))")
+            + "and d.versaoLiberada > 0))")
     List<PastaCandidata> pastasCandidatasAVigente(LocalDate fimJanela);
 
     /**

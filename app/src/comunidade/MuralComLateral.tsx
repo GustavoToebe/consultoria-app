@@ -14,18 +14,20 @@ const GRUDADA = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), o
  * para o feed não sair da primeira dobra). Sem conteúdo (`temLateral` falso) não desenha nada, nem o vão. O feed nunca
  * espera a coluna. O feed fica à esquerda, na borda do cabeçalho.
  */
-export function MuralComLateral({ lateral, temLateral, rotulo, idDaLateral, children }: {
+export function MuralComLateral({ lateral, temLateral, rotulo, idDaLateral, areaParaALateral, children }: {
   /** O conteúdo da coluna; `noTopo` verdadeiro quando vai acima do feed, com a `largura` do feed (já medida). */
   lateral: (noTopo: boolean, largura: number) => ReactNode;
   temLateral: boolean;
   /** Nome da região ao lado (leitor de tela). */
   rotulo: string;
   idDaLateral: string;
+  /** Área a partir da qual a coluna vai ao lado (padrão 1280, o do treinador; o aluno passa o bloco de 1092). */
+  areaParaALateral?: number;
   children: ReactNode;
 }) {
   const [area, setArea] = useState<number | null>(null);
   const janela = useWindowDimensions();
-  const arranjo = arranjoDoMural(area, temLateral);
+  const arranjo = arranjoDoMural(area, temLateral, areaParaALateral);
   return (
     <View onLayout={(e) => setArea(e.nativeEvent.layout.width)} style={arranjo === 'lado' ? estilos.ladoALado : undefined}>
       <View testID="coluna-das-publicacoes" style={estilos.feed}>

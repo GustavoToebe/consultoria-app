@@ -205,26 +205,13 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void temaPdfGravaELeEValorForaDaListaE400EIsolaPorConsultoria() throws Exception {
-        assertThat(api.get("/consultoria", treinador, 200).get("marca").get("temaPdf").asString()).isEqualTo("CLASSICO");
-
-        for (Consultoria.TemaPdf tema : Consultoria.TemaPdf.values()) {
-            JsonNode salva = api.put("/consultoria/tema-pdf", treinador, Map.of("temaPdf", tema.name()), 200);
-            assertThat(salva.get("marca").get("temaPdf").asString()).isEqualTo(tema.name());
-            assertThat(api.get("/consultoria", treinador, 200).get("marca").get("temaPdf").asString()).isEqualTo(tema.name());
-        }
-
-        // Alterar na consultoria A não vaza para a consultoria B.
-        JsonNode outra = api.novoTreinador();
-        assertThat(api.get("/consultoria", outra, 200).get("marca").get("temaPdf").asString()).isEqualTo("CLASSICO");
-
-        // Valor fora da lista ou ausente é 400 DADOS_INVALIDOS, sem repetir o valor na resposta.
-        for (String fora : List.of("OUTRO", "minimalista", "")) {
-            JsonNode erro = api.put("/consultoria/tema-pdf", treinador, Map.of("temaPdf", fora), 400);
-            assertThat(erro.path("codigo").asString()).isEqualTo("DADOS_INVALIDOS");
-            if (!fora.isEmpty()) assertThat(erro.toString()).doesNotContain(fora);
-        }
-        api.put("/consultoria/tema-pdf", treinador, Map.of(), 400);
+    void marcaNaoAceitaMaisOModeloDosPdfs() throws Exception {
+        JsonNode atual = api.get("/consultoria", treinador, 200);
+        JsonNode salva = api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#C62828",
+                "fonteTitulo", "PADRAO", "temaPadrao", "CLARO", "temaPdf", "MARCANTE", "versao", atual.get("versao").asLong()), 200);
+        assertThat(salva.get("marca").get("temaPdf").asString()).isEqualTo("CLASSICO");
+        // A rota antiga foi substituída (sem compatibilidade: não há cliente).
+        api.put("/consultoria/tema-pdf", treinador, Map.of("temaPdf", "MARCANTE"), 404);
     }
 
     private MvcResult enviar(MockMultipartFile arquivo, int esperado) throws Exception {

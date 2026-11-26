@@ -147,11 +147,11 @@ public class AlunoAppService {
         PastaPlano pasta = pastas.findById(pastaId)
                 .filter(p -> !p.isArquivado() && alunoId.equals(p.getAlunoId()))
                 .orElseThrow(() -> new NaoEncontradoException("Pasta não encontrada."));
-        TreinoAtual treino = treinos.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::treinoDe).orElse(null);
+        TreinoAtual treino = treinos.versaoLiberadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::treinoDe).orElse(null);
         VersaoDetalhe<br.com.treinos.api.dieta.ConteudoDieta> dieta =
-                dietas.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::versaoDe).orElse(null);
+                dietas.versaoLiberadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::versaoDe).orElse(null);
         VersaoDetalhe<ConteudoMobilidade> mobilidade =
-                mobilidades.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::versaoDe).orElse(null);
+                mobilidades.versaoLiberadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::versaoDe).orElse(null);
         if (treino == null && dieta == null && mobilidade == null) {
             throw new NaoEncontradoException("Pasta não encontrada.");
         }

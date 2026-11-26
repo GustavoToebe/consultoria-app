@@ -3,6 +3,7 @@ import { useMovimentoReduzido } from '../../../../ui/useMovimentoReduzido';
 import { usePrimeiraLista } from '../../../../ui/EntradaEmCascata';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Medal, Play } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { StyleSheet, Pressable, View } from 'react-native';
 
 import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
@@ -27,10 +28,12 @@ import { Cartao } from '../../../../ui/Cartao';
 import { Esqueleto } from '../../../../ui/Esqueleto';
 import { Vazio } from '../../../../ui/Estados';
 import { Selo } from '../../../../ui/Selo';
-import { Tela } from '../../../../ui/Tela';
+import { PrincipalComApoio } from '../../../../ui/PrincipalComApoio';
+import { Tela, useFaixaDaTela } from '../../../../ui/Tela';
 import { Texto } from '../../../../ui/Texto';
 import { TelaDoAluno } from '../../../../aluno/TelaDoAluno';
-import { LARGURA_LATERAL_DO_ALUNO } from '../../../../dominio/telaLargaDoAluno';
+import { fraseDaDataDoTreino, temColunasDoAluno } from '../../../../aluno/treino/arranjoDoTreino';
+import { TETO_DA_TELA_DO_ALUNO } from '../../../../dominio/telaLargaDoAluno';
 
 /** Dia de treino: os exercícios da sessão em cartões, com o progresso da data escolhida. */
 export default function SessaoAluno() {
@@ -48,7 +51,7 @@ export default function SessaoAluno() {
 
   if (!dia.carregado) {
     return (
-      <Tela bordas={['top']} largura={1120}>
+      <Tela bordas={['top']} largura={TETO_DA_TELA_DO_ALUNO}>
         <Cabecalho titulo="Treino" voltar="/aluno/treino" />
         <Esqueleto />
       </Tela>
@@ -56,7 +59,7 @@ export default function SessaoAluno() {
   }
   if (!dia.treino || !sessao) {
     return (
-      <Tela bordas={['top']} largura={1120}>
+      <Tela bordas={['top']} largura={TETO_DA_TELA_DO_ALUNO}>
         <Cabecalho titulo="Treino" voltar="/aluno/treino" />
         <Vazio texto="Esta sessão não está mais no seu plano. Volte para ver o treino atual."
           acao={{ rotulo: 'Ver meu treino', aoTocar: () => router.replace('/aluno/treino') }} />
@@ -75,20 +78,8 @@ export default function SessaoAluno() {
   // "Concluir treino" no topo e no rodapé (some com a chave desligada): os dois leem a mesma conclusão.
   const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje, metodologia: dia.config.metodologia, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
 
-  return (
-    <TelaDoAluno bordas={['top']}>
-      {(largo) => (<>
-      <Animated.View entering={reduzido ? undefined : FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}>
-      <Cabecalho
-        titulo={nomeComDia(sessao)}
-        subtitulo={contagem(sessao.exercicios.length, 'exercício programado', 'exercícios programados')}
-        voltar="/aluno/treino"
-      />
-      </Animated.View>
-      {/* Tela larga (24/11): o dia, o começar e as datas numa coluna fixa à esquerda e os exercícios em colunas ao lado. A mesma
-          árvore nas duas formas (só o estilo muda); na pilha, o vão é o da `Tela`. */}
-      <View style={largo ? estilos.colunas : estilos.pilha}>
-      <View style={largo ? [estilos.pilha, estilos.lateral] : estilos.pilha}>
+  const frase = fraseDaDataDoTreino(data, hoje, retornoHabilitado);
+  const resumo = (largo: boolean) => (
       <Cartao>
         <View style={estilos.linhaResumo}>
           <Selo texto={data === hoje ? `Hoje · ${dataParaTela(data)}` : dataParaTela(data)} tipo="neutro" />
@@ -107,10 +98,17 @@ export default function SessaoAluno() {
             <Texto numerico cor={violeta.cor}>{textoDaContagem(dia.recordesNoDia)} neste treino</Texto>
           </View>
         ) : null}
-        {data !== hoje ? <Texto variante="suave">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}
-        <ConcluirTreino {...conclusao} tipo="secundario" avisarDataFutura />
+        {/* Web: as duas frases da data numa só (`fraseDaDataDoTreino`) e a nota do salvamento aqui dentro. */}
+        {largo
+          ? frase ? <Texto variante="suave">{frase}</Texto> : null
+          : data !== hoje ? <Texto variante="suave">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}
+        <ConcluirTreino {...conclusao} tipo="secundario" avisarDataFutura={!largo} />
+        {largo ? <Texto variante="suave">{NOTA_DO_SALVAMENTO}</Texto> : null}
       </Cartao>
-      {/* Logo depois do cartão do dia, antes de "Outras datas": em 390×844 o começar aparece sem rolar (auditoria de 03/11). */}
+  );
+  // Logo depois do cartão do dia, antes de "Outras datas": em 390×844 o começar aparece sem rolar (auditoria de 03/11).
+  const lateral = (largo: boolean) => (<>
+      {resumo(largo)}
       {pendente ? (
         <Pressable
           accessibilityRole="button"
@@ -150,8 +148,8 @@ export default function SessaoAluno() {
           {sessao.observacao ? <Texto variante="suave">{sessao.observacao}</Texto> : null}
         </Cartao>
       ) : null}
-      </View>
-      <View style={largo ? [estilos.pilha, estilos.principal] : estilos.pilha}>
+  </>);
+  const exercicios = (largo: boolean) => (<>
       <ExerciciosDoDia
         sessao={doDia}
         metodologia={dia.config.metodologia}
@@ -162,23 +160,45 @@ export default function SessaoAluno() {
         href={(e) => caminhoDaSessao(sessao.uid, data, e.uid)}
         aoAbrir={(e) => abrir(e.uid)}
         animar={animar}
-        largo={largo}
+        umaColuna={largo}
       />
       {/* Rodapé: primário só quando já não há o "Começar/Continuar" lá em cima (um primário por área). */}
       <ConcluirTreino {...conclusao} tipo={pendente ? 'secundario' : 'primario'} cheio={!largo} />
-      <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
-      </View>
-      </View>
-      </>)}
+      {largo ? null : <Texto variante="suave">{NOTA_DO_SALVAMENTO}</Texto>}
+  </>);
+
+  return (
+    <TelaDoAluno bordas={['top']}>
+      <Animated.View entering={reduzido ? undefined : FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}>
+      <Cabecalho
+        titulo={nomeComDia(sessao)}
+        subtitulo={contagem(sessao.exercicios.length, 'exercício programado', 'exercícios programados')}
+        voltar="/aluno/treino"
+      />
+      </Animated.View>
+      <ArranjoDoDia lateral={lateral} exercicios={exercicios} />
     </TelaDoAluno>
+  );
+}
+
+const NOTA_DO_SALVAMENTO = 'Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.';
+
+/**
+ * Web, da faixa `normal` em diante (`docs/planos/orientacoes-de-design-26-11.md`, 1.3): o resumo, o começar e as datas no apoio
+ * à esquerda, fixo ao rolar (empilhado, antes dos exercícios), e os exercícios numa coluna só. Celular: uma pilha, como antes
+ * (o vão é o da `Tela`).
+ */
+function ArranjoDoDia({ lateral, exercicios }: { lateral: (largo: boolean) => ReactNode; exercicios: (largo: boolean) => ReactNode }) {
+  const largo = temColunasDoAluno(useFaixaDaTela());
+  if (!largo) return <View style={estilos.pilha}>{lateral(false)}{exercicios(false)}</View>;
+  return (
+    <PrincipalComApoio apoioAEsquerda apoioNoTopo rotuloDoApoio="Resumo do treino"
+      apoio={lateral(true)} principal={exercicios(true)} />
   );
 }
 
 const estilos = StyleSheet.create({
   pilha: { gap: espaco(3) },
-  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
-  lateral: { width: LARGURA_LATERAL_DO_ALUNO, flexShrink: 0 },
-  principal: { flex: 1, minWidth: 0 },
   recordes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   linhaResumo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   ctaTreino: {

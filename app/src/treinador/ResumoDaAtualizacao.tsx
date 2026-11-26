@@ -1,10 +1,11 @@
 import type { LucideIcon } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { Atualizacao, ConteudoQuestionario } from '../api/tipos';
-import { resumoDoTreinador } from '../dominio/atualizacaoQuestionario';
+import { NAO_RESPONDEU, resumoDoTreinador } from '../dominio/atualizacaoQuestionario';
 import { fraseDeTreinosNoPeriodo } from '../dominio/atualizacao';
 import { numeroParaTela } from '../dominio/formatos';
-import { textoDaDiferenca } from '../dominio/variacaoDoPeso';
+import { pesoComCasas } from '../dominio/variacaoDoPeso';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { baixarFotoDoTreinador, pesosDoAluno } from '../api/rotas';
@@ -24,9 +25,11 @@ import { Texto } from '../ui/Texto';
  * Resumo do período: peso e variação (se o questionário pergunta o peso), perguntas em destaque e dados do sistema. A
  * situação (selo com ícone) e o questionário em uso ficam na faixa do cartão, não soltos na tela; cada número é um
  * item do bloco (fundo `superficie2` e borda), como os blocos de número da ficha. A variação leva seta, sinal e a cor
- * da meta efetiva do aluno, que vem da lista de pesos (`GET /alunos/{id}/pesos`); sem ela, fica sem cor.
+ * da meta efetiva do aluno, que vem da lista de pesos (`GET /alunos/{id}/pesos`); sem ela, fica sem cor. A unidade fica no
+ * rótulo ("Variação (kg)"), como no peso: o valor é só número, sem a palavra misturada à fonte dos números. `antes` entra no
+ * topo do cartão (o "O que mudou" da revisão).
  */
-export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atualizacao:Atualizacao;modelo:ConteudoQuestionario;selo?:{texto:string;tipo:TipoSelo;Icone?:LucideIcon}|null;descricao?:string}) {
+export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao,antes}: {atualizacao:Atualizacao;modelo:ConteudoQuestionario;selo?:{texto:string;tipo:TipoSelo;Icone?:LucideIcon}|null;descricao?:string;antes?:ReactNode}) {
   const {cores,variante}=useTema();
   const {pode}=useSessao();
   const resumo=resumoDoTreinador(modelo,a.respostas,a.resumo);
@@ -39,18 +42,19 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
   const corDaVariacao=tom==='positivo'?cores.sucesso:tom==='problema'?cores.perigo:undefined;
   // Cartão de indicador pintado (23/11): a caixa da variação com meta ganha a cor da situação (`ui/superficiePintada`).
   const pintar=(cor?:string)=>cor?superficiePintada(cor,cores.superficie2,variante,cores):null;
-  const sinal=(valor:number)=>valor>0?`▲ ${textoDaDiferenca(valor)}`:valor<0?`▼ ${textoDaDiferenca(valor)}`:textoDaDiferenca(0);
+  const sinal=(valor:number)=>valor>0?`▲ +${pesoComCasas(valor)}`:valor<0?`▼ −${pesoComCasas(-valor)}`:pesoComCasas(0);
   const linha=variacao?linhaDaMeta(meta,'equipe'):null;
   const numeros:[string,string,string?,string?][]=[
     ...(resumo.peso?[
       ['Peso (kg)',numeroParaTela(resumo.peso.valor,1)] as [string,string],
-      ['Variação',variacao==null?'—':sinal(variacao),corDaVariacao] as [string,string,string?],
+      ['Variação (kg)',variacao==null?'—':sinal(variacao),corDaVariacao] as [string,string,string?],
     ]:[]),
     ...resumo.destaques.map(d=>[d.rotulo,d.nota?.valor??d.texto,undefined,d.nota?.escala] as [string,string,string?,string?]),
   ];
   // Fotos da atualização (um bloco por pergunta FOTOS, até 6): miniaturas pela rota do treinador, "—" sem nenhuma.
   const perguntasFotos=modelo.secoes.flatMap(s=>s.perguntas).filter(p=>p.tipo==='FOTOS');
   return <Cartao titulo="Resumo do período" descricao={descricao} acoes={selo?<Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} />:undefined}>
+    {antes}
     {numeros.length?<View style={estilos.numeros}>
       {numeros.map(([rotulo,valor,cor,escala],i)=>{const p=pintar(cor);return <View key={`${i}:${rotulo}`} style={[estilos.numero,{backgroundColor:cores.superficie2,borderColor:p?.borda??cores.borda},p?fundoPintado(p):null]}>
         <Texto variante="rotulo" cor={p?.texto}>{rotulo}</Texto><Texto variante="destaque" numerico cor={p?.texto}>{valor}</Texto>{escala?<Texto variante="pequeno">{escala}</Texto>:null}
@@ -69,7 +73,7 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
           const nome=comLugares?lugarDaFoto(p,i):rotulo;
           const imagem=<ImagemProtegida key={id} chave={`resumo:${id}`} descricao={`Foto: ${nome}`} carregar={()=>baixarFotoDoTreinador(a.id!,id)} />;
           return comLugares?<View key={id} style={estilos.lugar}><Texto variante="pequeno" cor={cores.texto} numberOfLines={2}>{nome}</Texto>{imagem}</View>:imagem;
-        })}</View>:<Texto>—</Texto>}
+        })}</View>:<Texto variante="suave">{NAO_RESPONDEU}</Texto>}
       </View>;
     })}
     {resumo.peso?<Texto variante="pequeno">Peso anterior: {resumo.pesoAnterior==null?'—':`${numeroParaTela(resumo.pesoAnterior,1)} kg`}</Texto>:null}

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 
 import { listarColegasDaComunidade } from '../api/comunidade';
+import { dividirEmColunas, quantasColunasNaLista } from '../dominio/listaEmColunas';
 import { molduraDoPerfil } from '../dominio/perfilDaComunidade';
 import {
   colegasDaPrimeiraPagina, erroDaLeitura, haMaisColegas, juntarPaginaDeColegas, proximaPaginaDeColegas, rotuloDoColega, TEXTO_LIMITE_DE_LEITURA, textoDoNivel,
@@ -18,10 +19,17 @@ import { LinhaDaLista, ListaDeLinhas } from '../ui/LinhaDaLista';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { textoDoErro } from '../ui/erros';
 import { useCarregar } from '../ui/useCarregar';
+import { useFaixaDeLargura } from '../ui/useFaixaDeLargura';
 import { FotoDoColega } from './FotoDoColega';
 
 const FOTO = 40;
 const CHAVE = 'colegas-da-comunidade';
+/**
+ * Coluna mínima da lista (foto, nome, nível e "Ver perfil"): no bloco de 1092 da web cabem duas, e o nome fica perto do botão
+ * em vez de cruzar a tela (4.10: espaço extra vira coluna, nunca linha esticada). Celular e tela estreita: uma coluna.
+ */
+const MINIMO_DA_COLUNA = 400;
+const VAO_DAS_COLUNAS = espaco(3);
 
 /** Erro de uma leitura da lista: 429 com o texto fixo (pede espera, não é falha), o resto como erro com "Tentar de novo". */
 function ErroDaLista({ erro, tentarDeNovo }: { erro: unknown; tentarDeNovo: () => void }) {
@@ -50,6 +58,10 @@ export function ListaDeColegas({ aoAbrir }: { aoAbrir: (autorId: string) => void
   useEffect(() => { atual.current = dados; });
   const [mais, setMais] = useState<{ carregando: boolean; erro?: unknown } | null>(null);
   const moldura = molduraDoPerfil(null).valor;
+  const { largura, aoMedir } = useFaixaDeLargura();
+  const colunas = quantasColunasNaLista(largura, MINIMO_DA_COLUNA, VAO_DAS_COLUNAS);
+  // A largura sai das colunas que cabem, não das que têm colega: com poucos, a vaga fica vazia à direita (a linha não estica).
+  const larguraDaColuna = (largura - VAO_DAS_COLUNAS * (colunas - 1)) / colunas;
 
   const verMais = () => {
     if (!dados || mais?.carregando) return;
@@ -78,20 +90,27 @@ export function ListaDeColegas({ aoAbrir }: { aoAbrir: (autorId: string) => void
         <Vazio Icone={Users} texto="Ainda não há colegas com perfil visível." />
       ) : (
         <View style={estilos.lista}>
-          <ListaDeLinhas>
-            {dados.itens.map((c) => (
-              <LinhaDaLista
-                key={c.autorId}
-                titulo={c.nome}
-                metadados={textoDoNivel(c.nivel)}
-                rotulo={rotuloDoColega(c)}
-                inicio={<FotoDoColega autorId={c.autorId} nome={c.nome} temFoto={c.temFoto} tamanho={FOTO} cor={cores.bordaCampo} moldura={moldura} />}
-                aoTocarTextos={() => aoAbrir(c.autorId)}
-                acoesAoLado
-                acoes={<Botao rotulo="Ver perfil" rotuloAcessivel={`Ver perfil de ${c.nome}`} tipo="secundario" aoTocar={() => aoAbrir(c.autorId)} />}
-              />
+          {/* De cima para baixo (a coluna 1 inteira, depois a 2): a ordem de leitura e a do Tab são as de uma coluna só. */}
+          <View onLayout={aoMedir} style={colunas > 1 ? estilos.colunas : null}>
+            {dividirEmColunas(dados.itens, colunas).map((grupo, i) => (
+              <View key={i} style={colunas > 1 ? { width: larguraDaColuna } : null}>
+                <ListaDeLinhas>
+                  {grupo.map((c) => (
+                    <LinhaDaLista
+                      key={c.autorId}
+                      titulo={c.nome}
+                      metadados={textoDoNivel(c.nivel)}
+                      rotulo={rotuloDoColega(c)}
+                      inicio={<FotoDoColega autorId={c.autorId} nome={c.nome} temFoto={c.temFoto} tamanho={FOTO} cor={cores.bordaCampo} moldura={moldura} />}
+                      aoTocarTextos={() => aoAbrir(c.autorId)}
+                      acoesAoLado
+                      acoes={<Botao rotulo="Ver perfil" rotuloAcessivel={`Ver perfil de ${c.nome}`} tipo="secundario" aoTocar={() => aoAbrir(c.autorId)} />}
+                    />
+                  ))}
+                </ListaDeLinhas>
+              </View>
             ))}
-          </ListaDeLinhas>
+          </View>
           {haMaisColegas(dados) ? (
             mais?.erro ? (
               <ErroDaLista erro={mais.erro} tentarDeNovo={verMais} />
@@ -109,4 +128,5 @@ export function ListaDeColegas({ aoAbrir }: { aoAbrir: (autorId: string) => void
 
 const estilos = StyleSheet.create({
   lista: { gap: espaco(2) },
+  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO_DAS_COLUNAS },
 });
