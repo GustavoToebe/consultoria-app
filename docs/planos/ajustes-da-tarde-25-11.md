@@ -10,7 +10,7 @@ Aplicar o lote do Gustavo de 25/11 à tarde (monitor 24" 16:9, 1920×1080, zoom 
 | --- | --- | --- | --- |
 | D1 | Ficha em 1920 | Tira o teto de 1400 das duas colunas (normal e larga); a preferência "Largura do conteúdo" vale; ultralarga continua com 3 colunas; plano vazio pode deixar espaço embaixo do "Plano contratado" | Gustavo |
 | D2 | Importação assistida em 1920 | Conteúdo na largura toda; a partir de 1600, coluna lateral de ~360 px fixa ao rolar com o resumo e a próxima etapa; "Termos para conferir" em tabela compacta | Gustavo |
-| D3 | Desativar acesso | Não apaga nada; colunas novas em `aluno` (`acesso_desativado_em`, `acesso_desativado_motivo`, hoje só `MANUAL`); é a base da Fase 2 (pausar por atraso); não é o mesmo que inativar o aluno | Gustavo (pedido), sessão (modelo) |
+| D3 | Desativar acesso | Não apaga nada; colunas novas em `aluno` (`acesso_desativado_em`, `acesso_desativado_motivo`, `MANUAL`); é a base da Fase 2 (pausar por atraso): desde 26/11 a Fase 2 usa o motivo `ATRASO` nas mesmas colunas (V104, [pausar-acesso-por-atraso.md](pausar-acesso-por-atraso.md), D5); não é o mesmo que inativar o aluno | Gustavo (pedido), sessão (modelo) |
 | D4 | Balão do ⓘ e toast | Balão montado só quando aberto; toast acima de qualquer rodapé fixo e da área segura; o botão de fechar já existe no persistente; `filtros-laterais-entrada:58` só registrar | Gustavo, em 25/11 |
 | D5 | Ícones das redes | SVG inline do simple-icons (CC0), como o do WhatsApp; sem dependência nova | sessão |
 
@@ -33,5 +33,5 @@ Aplicar o lote do Gustavo de 25/11 à tarde (monitor 24" 16:9, 1920×1080, zoom 
 - Do lote da tarde, a noite de 25/11 resolveu também a edição da ficha com teto de 1400 (D1), o `emailEnviado` da troca de e-mail, o toast sobre o rodapé fixo no nativo e o foco da importação assistida (T-201, T-205, T-206 e T-207); o que sobrou está nas "Pendências soltas" do README.
 
 ## Fora do escopo
-- Fase 2 (pausar acesso por atraso): só a base (motivo como campo).
+- Fase 2 (pausar acesso por atraso): só a base (motivo como campo). Em 26/11 a Fase 2 passou a usar `ATRASO` nesse campo (API e app; [pausar-acesso-por-atraso.md](pausar-acesso-por-atraso.md)).
 - Corrigir dado de cliente (alimentos) sozinho.

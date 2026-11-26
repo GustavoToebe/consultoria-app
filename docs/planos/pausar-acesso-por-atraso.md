@@ -1,6 +1,6 @@
 # Pausar o acesso do aluno por atraso (Fase 2 pós-piloto)
 
-Situação: Em andamento (refeita sobre "Desativar acesso": API feita em 26/11, app pendente) · Onde: `financeiro-fases-2-e-3` · Atualizado: 26/11/2026 · Ordem: depois da Fase 1 ([contrato-fechado.md](contrato-fechado.md)) e da Fase 3 ([ficha-rapida-pos-whatsapp.md](ficha-rapida-pos-whatsapp.md))
+Situação: Feita (refeita sobre "Desativar acesso": API e app em 26/11, sem push) · Onde: `financeiro-fases-2-e-3` · Atualizado: 26/11/2026 · Ordem: depois da Fase 1 ([contrato-fechado.md](contrato-fechado.md)) e da Fase 3 ([ficha-rapida-pos-whatsapp.md](ficha-rapida-pos-whatsapp.md))
 
 Fonte: roteiro do Saraiva de 24/11/2026 ("se atrasar e for conversado, continuo o trabalho; sem motivo plausível, perde acesso até quitar") e as correções do Gustavo na mesma data. Validade: leitura do código de 24/11/2026 sobre `9918601b`; reler `AuthService`, `JwtAuthenticationFilter` e `UsuariosDoApp` antes de começar. **Esta fase reabre uma regra permanente** (abaixo): antes de executar, o Gustavo reconfirma.
 
@@ -30,13 +30,19 @@ O treinador pausa o acesso de um aluno em atraso, na hora que decidir. O aluno p
 - [x] 4. Revisão independente (autenticação, sessão, concorrência de `acesso_pausado_em`, dinheiro), `AGENTS.md`, Ajuda e guias (`d4584d24`, `3cb8fdaf`, `77dd3d00`)
 
 - [x] 5. API refeita sobre "Desativar acesso" (D5) depois do merge de `origin/main` `89055688`: V104, `AcessoDoAlunoService` (`pausarPorAtraso`, `reativarPausadoPorAtraso`, `desativar` troca ATRASO por MANUAL), colunas só leitura na JPA com updates dirigidos, interceptor lendo o motivo, `/eu` e listas com `acessoDesativadoMotivo` (sem `acessoPausado`), testes `AtrasoEManualIntegrationTest` e `FichaRapidaEAtrasoMigrationTest` (26/11, sem push)
-- [ ] 6. App sobre o contrato novo (`acessoDesativadoMotivo`; botões de pausa voltam ao `CartaoAcesso` da main; Ajuda e guias)
+- [x] 6. App sobre o contrato novo (26/11, sem push): `acessoDesativadoMotivo` nos tipos e `perfilDaSessao` (o `acessoPausado` do aluno é derivado de `ATRASO`, e o 403 `ACESSO_PAUSADO_POR_ATRASO` continua marcando); um selo com as mesmas palavras no cartão, no cabeçalho da ficha e na lista ("Acesso pausado" âmbar, "Acesso desativado" neutro com ●, `dominio/acessoAoApp.seloDoMotivo`); `CartaoAcesso` com a data na nota da Situação, "Reativar acesso" na Situação (rota do Financeiro para `ATRASO`, da equipe para `MANUAL`, cada uma com a sua permissão) e o ⋯ "Ações do acesso" no cabeçalho com "Pausar acesso até quitar" (`FINANCEIRO_ALTERAR` e financeiro ligado; apagado com "Sem cobrança vencida" quando `GET /financeiro/alunos-em-atraso` não traz o aluno) e "Desativar acesso" (perigo, painel); regras em `acoesDoAcesso`; `DetalheDaCobranca` recebe o motivo (MANUAL esconde a seção); tela do aluno sem frase de pagamento ("Verificar meu acesso"); Ajuda e guias PDF. Commits `612a9c16`, `0a26e362`, `3a627e8c`, `e84cef04`
 
 ## Evidências e verificação (25/11/2026)
 - **Commits na branch:** `6fb7ea22` (API), `4a3d7738` (app), `d4584d24` (E2E `acesso-pausado-fase2.spec.ts`, whitelist LGPD `/aluno/meus-dados`, Ajuda, guias PDF e `AGENTS.md`), `3cb8fdaf` (merge de `origin/main` `64c1ee40`), `77dd3d00` (correções pós-revisão independente: `@Column(insertable = false, updatable = false)` + `AlunoRepository.definirAcessoPausadoEm` eliminando corrida com `PUT /alunos/{id}`, regex estrito de UUID em `AcessoPausadoInterceptor` e título sem CTA de pagamento no celular com flag de loja desligada).
 - **Baterias executadas sobre o merge com `origin/main` (`64c1ee40`):**
   - `api/`: `mvn verify` completo — **3.337 testes, 0 falhas, 0 erros** (JaCoCo aprovado), mais reexecução pós-revisão das 9 suítes afetadas (`EXIT=0`, incluindo teste de corrida concorrente `PUT /alunos/{id}` × pausa/reativação em `PausarAcessoPorAtrasoIntegrationTest`).
   - `app/`: `typecheck` (0 erros), `lint` (0 erros, 11 avisos pré-existentes), Jest completo (**433 suítes, 10.133 testes, 0 falhas**) e Playwright E2E completo.
+
+## Evidências e verificação (26/11/2026, app sobre o motivo ATRASO, sem commit de API)
+- `npm run typecheck` sem erro; `npm run lint` 0 erros (10 avisos que já existiam); Jest completo 453 suítes, 11.034 testes, 0 falhas.
+- E2e: `acesso-pausado-fase2.spec.ts` (16 casos, 390 e 1280, repetidos 2 vezes) e `acesso-aluno.spec.ts` (13) verdes; suíte completa: ver o relatório da sessão de 26/11.
+- Capturas em 1280 e 390, claro e escuro: `C:\Users\gusta\Documents\consultoria-app\capturas\26-11\acesso\` (com acesso, ⋯ aberto, desativado, pausado, cabeçalho).
+- Não conferido: aparelho nativo (Android/iOS), temas Areia e contraste alto, modo `informar` da tela do aluno (o e2e roda na web, que sempre tem "Pagar").
 
 ## Fora do escopo
 - Pausa automática por dias de atraso; mudar a regra das lojas; mexer no que inativar já faz.
