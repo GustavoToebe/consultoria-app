@@ -1,8 +1,6 @@
 package br.com.treinos.api.conta;
 
-import br.com.treinos.api.conta.PagamentoTransparenteDto.CartaoAsaasResposta;
 import br.com.treinos.api.conta.PagamentoTransparenteDto.GerarPixAsaasRequest;
-import br.com.treinos.api.conta.PagamentoTransparenteDto.PagarCartaoAsaasRequest;
 import br.com.treinos.api.conta.PagamentoTransparenteDto.PixAsaasResposta;
 import br.com.treinos.api.conta.PagamentoTransparenteDto.SituacaoCobrancaResposta;
 
@@ -30,12 +28,6 @@ public interface FonteDaConta {
 
     /** Gera cobrança Pix transparente (Asaas) na Central para uma cobrança aberta desta consultoria. */
     default PixAsaasResposta gerarPixAsaas(UUID consultoriaId, UUID cobrancaId, GerarPixAsaasRequest request) {
-        throw new PagamentoIndisponivelException();
-    }
-
-    /** Processa pagamento com cartão transparente (Asaas) na Central para uma cobrança aberta desta consultoria. */
-    default CartaoAsaasResposta pagarCartaoAsaas(UUID consultoriaId, UUID cobrancaId,
-                                                 PagarCartaoAsaasRequest request, String remoteIp) {
         throw new PagamentoIndisponivelException();
     }
 

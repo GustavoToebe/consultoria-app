@@ -243,8 +243,6 @@ export function TelaAcessoPausado() {
 
       <FolhaCheckoutTransparente
         cobranca={cobrancaCheckout}
-        maxParcelas={overtrainingPayMaxParcelas}
-        juros={overtrainingPayJuros}
         cpfPagadorCadastrado={cpfPagadorCadastrado}
         aoFechar={() => setCobrancaCheckout(null)}
         aoConfirmarPagamento={() => {

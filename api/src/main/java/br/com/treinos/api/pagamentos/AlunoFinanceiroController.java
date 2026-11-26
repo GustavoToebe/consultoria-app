@@ -1,9 +1,7 @@
 package br.com.treinos.api.pagamentos;
 
 import br.com.treinos.api.execucao.AlunoAppService;
-import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.CartaoAlunoResponse;
 import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.GerarPixAlunoRequest;
-import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.PagarCartaoAlunoRequest;
 import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.PixAlunoResponse;
 import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.SituacaoCobrancaAlunoResponse;
 import br.com.treinos.api.pagamentos.FormasDeRecebimentoDtos.CodigoPix;
@@ -14,7 +12,6 @@ import br.com.treinos.api.pagamentos.PagamentosDtos.LembretesDoAlunoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LinkDePagamento;
 import br.com.treinos.api.pagamentos.PagamentosDtos.RetornoDoPagamentoRequest;
 import br.com.treinos.api.security.UsuarioAutenticado;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -84,7 +81,7 @@ public class AlunoFinanceiroController {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new CodigoPix(financeiro.codigoPix(eu, id)));
     }
 
-    /** Checkout Transparente (Overtraining Pay / Asaas): gera QR Code e copia e cola Pix para a cobrança aberta do aluno. */
+    /** Pix dentro do app (Overtraining Pay / Asaas): gera QR Code e copia e cola Pix para a cobrança aberta do aluno. */
     @ExigeAsaas
     @PreAuthorize("hasRole('ALUNO')")
     @PostMapping("/aluno/financeiro/cobrancas/{id}/overtraining-pay/pix")
@@ -95,19 +92,18 @@ public class AlunoFinanceiroController {
                 .body(checkoutAsaas.gerarPix(eu, id, r));
     }
 
-    /** Checkout Transparente (Overtraining Pay / Asaas): processa cartão de crédito (1..12x) sem persistir PAN/CVV. */
+    /** Fatura do Asaas (Pix ou cartão na página dele): cria ou reaproveita a cobrança e devolve só a URL; o corpo não traz valor nem cartão. */
     @ExigeAsaas
     @PreAuthorize("hasRole('ALUNO')")
-    @PostMapping("/aluno/financeiro/cobrancas/{id}/overtraining-pay/cartao")
-    public ResponseEntity<CartaoAlunoResponse> overtrainingPayCartao(@PathVariable UUID id,
-                                                                     @Valid @RequestBody PagarCartaoAlunoRequest r,
-                                                                     @AuthenticationPrincipal UsuarioAutenticado eu,
-                                                                     HttpServletRequest http) {
+    @PostMapping("/aluno/financeiro/cobrancas/{id}/overtraining-pay/fatura")
+    public ResponseEntity<LinkDePagamento> overtrainingPayFatura(@PathVariable UUID id,
+                                                                 @RequestBody(required = false) GerarPixAlunoRequest r,
+                                                                 @AuthenticationPrincipal UsuarioAutenticado eu) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-                .body(checkoutAsaas.pagarCartao(eu, id, r, http.getRemoteAddr()));
+                .body(checkoutAsaas.gerarFatura(eu, id, r));
     }
 
-    /** Consulta a situação atual de uma cobrança do próprio aluno (polling após Pix/Cartão). */
+    /** Consulta a situação atual de uma cobrança do próprio aluno (polling após Pix ou fatura). */
     @PreAuthorize("hasRole('ALUNO')")
     @GetMapping("/aluno/financeiro/cobrancas/{id}/situacao")
     public ResponseEntity<SituacaoCobrancaAlunoResponse> situacaoCobranca(@PathVariable UUID id,

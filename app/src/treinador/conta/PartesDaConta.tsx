@@ -1,13 +1,13 @@
-import { CreditCard, ExternalLink, QrCode } from 'lucide-react-native';
+import { CreditCard, QrCode } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { lerDetalhesAsaasMinhaConta } from '../../api/minhaContaAsaas';
 import { linkDePagamento } from '../../api/rotas';
 
 import type { CobrancaDaConta, ConsumoDoPlano, ItemDoConsumo, MinhaConta } from '../../api/tipos';
 import { calcularResumoAbatimentoSplit, type ResumoAbatimentoSplit } from '../../dominio/checkoutTransparente';
-import { pagarPermitidoNaPlataforma, plataformaDoApp } from '../../dominio/financeiro';
+import { plataformaDoApp } from '../../dominio/financeiro';
 import { centavosParaTela, dataParaTela, dataHoraParaTela, moedaParaTela, SEM_DADO } from '../../dominio/formatos';
 import {
   competenciaParaTela,
@@ -16,8 +16,8 @@ import {
   estadoDoConsumoParaTela,
   fracaoDoConsumo,
   periodicidadeParaTela,
-  podePagar,
   resumoFinanceiro,
+  mostrarPagarNaConta,
   situacaoComercialParaTela,
   situacaoDaCobrancaParaTela,
   usoParaTela,
@@ -25,6 +25,7 @@ import {
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
+import { abrirPagamentoComAviso } from '../../ui/abrirPagamentoComAviso';
 import { useAviso } from '../../ui/Aviso';
 import { BarraProgresso } from '../../ui/BarraProgresso';
 import { Botao } from '../../ui/Botao';
@@ -116,28 +117,19 @@ export function AbaPlano({ conta }: { conta: MinhaConta }) {
 }
 
 /**
- * "Pagar" pede à API o link do checkout da Central (contingência InfinitePay/Mercado Pago) e abre fora do app, sem token nem cookie.
- * A baixa só acontece quando a Central confirma o pagamento: a lista atualiza ao abrir a tela de novo.
+ * "Pagar" (provedor da Central sem checkout no app) pede à API o link do checkout e abre fora do app, só https, sem token nem
+ * cookie. A baixa só acontece quando a Central confirma o pagamento: a lista atualiza ao abrir a tela de novo.
  */
-function BotaoPagarLinkExterno({ cobrancaId, discreto = false }: { cobrancaId: string; discreto?: boolean }) {
+function BotaoPagarLinkExterno({ cobrancaId }: { cobrancaId: string }) {
   const { avisar } = useAviso();
   const [abrindo, setAbrindo] = useState(false);
   const pagar = () => {
     setAbrindo(true);
-    linkDePagamento(cobrancaId)
-      .then(({ url }) => Linking.openURL(url))
+    abrirPagamentoComAviso(() => linkDePagamento(cobrancaId), avisar, 'Pagar')
       .catch((erro: unknown) => avisar(textoDoErro(erro), 'perigo'))
       .finally(() => setAbrindo(false));
   };
-  return (
-    <Botao
-      rotulo={discreto ? 'Pagar por link externo' : 'Pagar'}
-      Icone={discreto ? ExternalLink : CreditCard}
-      tipo={discreto ? 'fantasma' : 'secundario'}
-      carregando={abrindo}
-      aoTocar={pagar}
-    />
-  );
+  return <Botao rotulo="Pagar" Icone={CreditCard} tipo="secundario" carregando={abrindo} aoTocar={pagar} />;
 }
 
 function LinhaDeCobranca({
@@ -154,7 +146,7 @@ function LinhaDeCobranca({
   const { cores } = useTema();
   const { pagarNoIos, pagarNoAndroid } = useSessao();
   const situacao = situacaoDaCobrancaParaTela(c);
-  const mostrarPagamento = podePagar(c, previa) && pagarPermitidoNaPlataforma(plataformaDoApp(Platform.OS), { pagarNoIos, pagarNoAndroid });
+  const mostrarPagamento = mostrarPagarNaConta(c, previa, plataformaDoApp(Platform.OS), { pagarNoIos, pagarNoAndroid });
   return (
     <View style={[estilos.item, estilos.cobranca, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
       {/* Competência e valor primeiro; vencimento e situação juntos; o pagamento é apoio. O valor fica neutro: só o selo sinaliza. */}
@@ -174,7 +166,6 @@ function LinhaDeCobranca({
               tipo="secundario"
               aoTocar={() => aoAbrirCheckoutTransparente(c)}
             />
-            <BotaoPagarLinkExterno cobrancaId={c.id} discreto />
           </LinhaDeAcoes>
         ) : (
           <BotaoPagarLinkExterno cobrancaId={c.id} />
@@ -228,10 +219,10 @@ function CartaoPoliticaSplit({ resumo }: { resumo: ResumoAbatimentoSplit }) {
 /** Aba Faturas: política de Split (quando ativa) e cobranças da mais recente para a mais antiga. */
 export function AbaFinanceiro({ conta, aoAtualizar }: { conta: MinhaConta; aoAtualizar?: () => void }) {
   const [cobrancaCheckout, setCobrancaCheckout] = useState<CobrancaDaConta | null>(null);
+  const { overtrainingPayHabilitado } = useSessao();
   const detalhesAsaas = lerDetalhesAsaasMinhaConta(conta);
   const resumoSplit = calcularResumoAbatimentoSplit(detalhesAsaas.politicaSplit);
   const resumo = resumoFinanceiro(conta.cobrancas);
-  const contatoPrincipal = contatosOrdenados(conta.cliente.contatos)[0];
   const descricao = resumo.vencidas > 0
     ? `${resumo.vencidas} ${resumo.vencidas === 1 ? 'cobrança vencida' : 'cobranças vencidas'} · ${resumo.emAberto} em aberto`
     : `${resumo.emAberto} em aberto`;
@@ -248,7 +239,8 @@ export function AbaFinanceiro({ conta, aoAtualizar }: { conta: MinhaConta; aoAtu
                 key={c.id}
                 c={c}
                 previa={conta.previa}
-                suportaCheckoutTransparente={detalhesAsaas.suportaCheckoutTransparente}
+                // Sem o Overtraining Pay ligado no servidor (sem credenciais do Asaas), nada dele aparece: só o "Pagar" pelo checkout da Central.
+                suportaCheckoutTransparente={detalhesAsaas.suportaCheckoutTransparente && overtrainingPayHabilitado}
                 aoAbrirCheckoutTransparente={setCobrancaCheckout}
               />
             ))}
@@ -258,9 +250,6 @@ export function AbaFinanceiro({ conta, aoAtualizar }: { conta: MinhaConta; aoAtu
       <FolhaPagamentoCentralAsaas
         cobranca={cobrancaCheckout}
         documentoPadrao={conta.cliente.documento}
-        emailPadrao={contatoPrincipal?.email}
-        telefonePadrao={contatoPrincipal?.telefone}
-        cepPadrao={conta.cliente.endereco?.cep}
         aoFechar={() => setCobrancaCheckout(null)}
         aoConfirmarPagamento={() => aoAtualizar?.()}
       />

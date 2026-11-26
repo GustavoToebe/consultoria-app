@@ -19,37 +19,6 @@ export interface PixMinhaContaAsaasResponse {
   expiraEm: string | null;
 }
 
-export interface CartaoMinhaContaDados {
-  nomeImpresso: string;
-  numero: string;
-  mesValidade: string;
-  anoValidade: string;
-  cvv: string;
-}
-
-export interface TitularCartaoMinhaConta {
-  nome: string;
-  cpfCnpj: string;
-  email?: string | null;
-  telefone?: string | null;
-  cep: string;
-  numeroEndereco?: string | null;
-}
-
-export interface PagarCartaoMinhaContaAsaasRequest {
-  cpfCnpj: string;
-  parcelas: number;
-  cartao: CartaoMinhaContaDados;
-  titular: TitularCartaoMinhaConta;
-}
-
-export interface PagarCartaoMinhaContaAsaasResponse {
-  cobrancaId: string;
-  idExterno: string;
-  situacao: string;
-  pagoEm: string | null;
-}
-
 export interface SituacaoMinhaContaResponse {
   cobrancaId: string;
   situacao: string;
@@ -82,17 +51,6 @@ export function gerarPixMinhaContaAsaas(cobrancaId: string, cpfCnpj?: string): P
   return requisicao<PixMinhaContaAsaasResponse>(`/minha-conta/cobrancas/${cobrancaId}/asaas/pix`, {
     metodo: 'POST',
     corpo,
-  });
-}
-
-/** `POST /minha-conta/cobrancas/{cobrancaId}/asaas/cartao` */
-export function pagarCartaoMinhaContaAsaas(
-  cobrancaId: string,
-  payload: PagarCartaoMinhaContaAsaasRequest,
-): Promise<PagarCartaoMinhaContaAsaasResponse> {
-  return requisicao<PagarCartaoMinhaContaAsaasResponse>(`/minha-conta/cobrancas/${cobrancaId}/asaas/cartao`, {
-    metodo: 'POST',
-    corpo: payload,
   });
 }
 

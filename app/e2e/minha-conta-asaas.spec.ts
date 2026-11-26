@@ -8,15 +8,15 @@ import { fixarHoje } from './aluno';
  * Minha conta — Asaas Checkout Transparente e Abatimento Automático pelo Split (Onda 5 E2E):
  * Treinador em Minha conta (`/treinador/minha-conta?aba=faturas`) vê o cartão de progresso
  * do Abatimento automático da mensalidade (`ABATER_MENSALIDADE`), abre o Checkout Transparente Asaas
- * (`FolhaPagamentoCentralAsaas`) com Pix/polling e Cartão de crédito, e conta com o botão secundário
- * de contingência (`Pagar por link externo`).
+ * (`FolhaPagamentoCentralAsaas`) com Pix/polling e "Pagar com cartão", que abre o checkout da Central
+ * (`POST /minha-conta/cobrancas/{id}/pagar`) fora do app. Nenhum campo de cartão existe no app.
  */
 
 const PASTA_SWARM = 'C:/Users/gusta/.gemini/antigravity/brain/b355d9f2-0cd6-4d13-b55f-caccceb70abe';
 const QR_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const PIX_FATURA_COPIA_E_COLA = '00020126580014br.gov.bcb.pix0136fatura-central-asaas-ficticia5204000053039865406199.005802BR5916OvertrainingApp6008Cascavel63041234';
 const COBRANCA_CENTRAL_ID = 'f0000000-0000-4000-8000-000000000501';
-const LINK_EXTERNO_CONTINGENCIA = 'https://pagamento.exemplo.invalid/fatura-central';
+const LINK_DO_CHECKOUT = 'https://pagamento.exemplo.invalid/fatura-central';
 
 const TEMAS = ['ESCURO', 'CLARO', 'AREIA'] as const;
 const LARGURAS = [390, 1280] as const;
@@ -112,7 +112,8 @@ async function abrirMinhaContaFaturas(page: Page) {
   await fixarHoje(page);
   let conta = minhaContaInicial();
   const pedidosPix: unknown[] = [];
-  const pedidosLinkExterno: string[] = [];
+  const pedidosCheckout: string[] = [];
+  const situacao = { paga: false };
 
   const rotasExtras: RespostasApi = {
     'GET /inscricoes': { corpo: [] },
@@ -129,20 +130,23 @@ async function abrirMinhaContaFaturas(page: Page) {
         expiraEm: '2026-10-20T23:59:59Z',
       });
     },
+    // Aberta até o teste ligar `situacao.paga` (a "volta" do checkout ou a confirmação do Pix).
     [`GET /minha-conta/cobrancas/${COBRANCA_CENTRAL_ID}/situacao`]: (_p, route) => {
-      conta = {
-        ...conta,
-        cobrancas: conta.cobrancas.map((c) => (c.id === COBRANCA_CENTRAL_ID ? { ...c, situacao: 'PAGA', pagoEm: '2026-10-19' } : c)),
-      };
+      if (situacao.paga) {
+        conta = {
+          ...conta,
+          cobrancas: conta.cobrancas.map((c) => (c.id === COBRANCA_CENTRAL_ID ? { ...c, situacao: 'PAGA', pagoEm: '2026-10-19' } : c)),
+        };
+      }
       return json(route, {
         cobrancaId: COBRANCA_CENTRAL_ID,
-        situacao: 'PAGA',
-        pagoEm: '2026-10-19T14:30:00Z',
+        situacao: situacao.paga ? 'PAGA' : 'ABERTA',
+        pagoEm: situacao.paga ? '2026-10-19T14:30:00Z' : null,
       });
     },
     [`POST /minha-conta/cobrancas/${COBRANCA_CENTRAL_ID}/pagar`]: (_p, route) => {
-      pedidosLinkExterno.push(COBRANCA_CENTRAL_ID);
-      return json(route, { url: LINK_EXTERNO_CONTINGENCIA });
+      pedidosCheckout.push(COBRANCA_CENTRAL_ID);
+      return json(route, { url: LINK_DO_CHECKOUT });
     },
   };
 
@@ -157,17 +161,17 @@ async function abrirMinhaContaFaturas(page: Page) {
 
   await page.goto('/treinador/minha-conta?aba=faturas');
   await expect(page.getByText('Abatimento automático da mensalidade')).toBeVisible();
-  return { api, pedidosPix, pedidosLinkExterno };
+  return { api, pedidosPix, pedidosCheckout, situacao };
 }
 
 for (const largura of LARGURAS) {
-  test(`Minha conta em ${largura}px: cartão de progresso do Split + Checkout Transparente Asaas + contingência`, async ({ page, context }) => {
+  test(`Minha conta em ${largura}px: cartão de progresso do Split + Pix no app + cartão pelo checkout da Central`, async ({ page, context }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     await definirTema(page, 'ESCURO');
     await context.route('https://pagamento.exemplo.invalid/**', (route) =>
       route.fulfill({ status: 200, contentType: 'text/html', body: '<title>Link Contingência</title><p>Checkout externo</p>' }));
 
-    const { api, pedidosPix, pedidosLinkExterno } = await abrirMinhaContaFaturas(page);
+    const { api, pedidosPix, pedidosCheckout, situacao } = await abrirMinhaContaFaturas(page);
 
     // 1. Cartão de progresso do Abatimento automático pelo Split (ABATER_MENSALIDADE)
     await expect(page.getByText('Abatimento automático da mensalidade')).toBeVisible();
@@ -177,32 +181,44 @@ for (const largura of LARGURAS) {
     await expect(page.getByText(/R\$\s?120,00/)).toBeVisible();
     await expect(page.getByText(/R\$\s?79,00/)).toBeVisible();
 
-    // 2. Botão principal "Pagar no app" + botão secundário de contingência "Pagar por link externo"
+    // 2. Um só botão por cobrança ("Pagar no app"): o cartão fica dentro da folha, sem link externo solto
     const botaoPagarApp = page.getByRole('button', { name: 'Pagar no app' });
-    const botaoLinkExterno = page.getByRole('button', { name: 'Pagar por link externo' });
     await expect(botaoPagarApp).toBeVisible();
-    await expect(botaoLinkExterno).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Pagar por link externo' })).toHaveCount(0);
 
     if (largura === 1280) {
       await page.screenshot({ path: `${PASTA_SWARM}/minha-conta-split-asaas.png` });
     }
 
-    // 3. Testar botão secundário de contingência (chama POST /minha-conta/cobrancas/{id}/pagar)
-    await botaoLinkExterno.click();
-    await expect.poll(() => pedidosLinkExterno.length).toBe(1);
-
-    // 4. Abrir Checkout Transparente Asaas (FolhaPagamentoCentralAsaas)
+    // 3. Folha: Pix dentro do app e "Pagar com cartão", sem nenhum campo de cartão
     await botaoPagarApp.click();
     const folha = page.getByRole('dialog', { name: 'Pagar fatura da assinatura' });
     await expect(folha).toBeVisible();
-    await expect(folha.getByRole('tab', { name: 'Pix imediato', selected: true })).toBeVisible();
-    await expect(folha.getByRole('tab', { name: 'Cartão de crédito' })).toBeVisible();
+    await expect(folha.getByRole('tab')).toHaveCount(0);
+    for (const campo of ['Número do cartão', 'Validade', 'CVV', 'Nome impresso no cartão', 'CEP']) {
+      await expect(folha.getByLabel(campo)).toHaveCount(0);
+    }
+    await expect(folha.getByRole('button', { name: 'Pagar com cartão' })).toBeVisible();
 
-    // 5. Gerar QR Code Pix e confirmar via polling
+    // Pix segue dentro do app: gera o QR Code na própria folha
     await folha.getByRole('button', { name: 'Gerar QR Code Pix' }).click();
     await expect(folha.getByLabel('QR Code Pix da fatura')).toBeVisible();
     expect(pedidosPix).toHaveLength(1);
 
+    // 4. Cartão: abre o checkout da Central (https) fora do app via `/pagar`
+    const [popup] = await Promise.all([
+      page.waitForEvent('popup'),
+      folha.getByRole('button', { name: 'Pagar com cartão' }).click(),
+    ]);
+    await popup.waitForURL(LINK_DO_CHECKOUT);
+    expect(await popup.evaluate(() => window.opener)).toBeNull();
+    expect(pedidosCheckout).toHaveLength(1);
+    await expect(folha.getByText(/Aguardando pagamento/)).toBeVisible();
+
+    // 5. Ao voltar ao app, confere a situação e confirma quando PAGA
+    await popup.close();
+    situacao.paga = true;
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await expect(folha.getByText('Pagamento confirmado!')).toBeVisible({ timeout: 10_000 });
     await folha.getByRole('button', { name: 'Fechar' }).last().click();
     await expect(folha).toHaveCount(0);
@@ -222,7 +238,6 @@ for (const tema of TEMAS) {
 
       await expect(page.getByText('Abatimento automático da mensalidade')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Pagar no app' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Pagar por link externo' })).toBeVisible();
       await semRolagemHorizontal(page);
       expect(api.naoTratadas).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);

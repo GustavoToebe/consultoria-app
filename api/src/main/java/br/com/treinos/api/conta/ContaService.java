@@ -1,9 +1,7 @@
 package br.com.treinos.api.conta;
 
 import br.com.treinos.api.conta.ConsumoPlanoDto.Item;
-import br.com.treinos.api.conta.PagamentoTransparenteDto.CartaoAsaasResposta;
 import br.com.treinos.api.conta.PagamentoTransparenteDto.GerarPixAsaasRequest;
-import br.com.treinos.api.conta.PagamentoTransparenteDto.PagarCartaoAsaasRequest;
 import br.com.treinos.api.conta.PagamentoTransparenteDto.PixAsaasResposta;
 import br.com.treinos.api.conta.PagamentoTransparenteDto.SituacaoCobrancaResposta;
 import br.com.treinos.api.tenant.TenantContext;
@@ -55,11 +53,6 @@ public class ContaService {
     /** Sem transação: chamada HTTP à Central para gerar Pix transparente (Asaas). */
     public PixAsaasResposta gerarPixAsaas(UUID cobrancaId, GerarPixAsaasRequest request) {
         return fonte.gerarPixAsaas(consultoria(), cobrancaId, request);
-    }
-
-    /** Sem transação: chamada HTTP à Central para cobrar cartão transparente (Asaas). */
-    public CartaoAsaasResposta pagarCartaoAsaas(UUID cobrancaId, PagarCartaoAsaasRequest request, String remoteIp) {
-        return fonte.pagarCartaoAsaas(consultoria(), cobrancaId, request, remoteIp);
     }
 
     /** Sem transação: chamada HTTP à Central para consultar situação da cobrança. */

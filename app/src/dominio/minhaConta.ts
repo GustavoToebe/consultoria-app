@@ -8,6 +8,7 @@ import type {
   SituacaoComercial,
 } from '../api/tipos';
 import { nomeDoMes } from './agendaCalendario';
+import { pagarPermitidoNaPlataforma, type ChavesDePagamentoNoCelular, type PlataformaDoApp } from './financeiro';
 import { SEM_DADO } from './formatos';
 
 /**
@@ -77,6 +78,16 @@ export function resumoFinanceiro(cobrancas: CobrancaDaConta[]): { emAberto: numb
 /** Só cobrança aberta de verdade (não prévia) mostra "Pagar"; o servidor confere de novo. */
 export function podePagar(c: CobrancaDaConta, previa: boolean): boolean {
   return !previa && c.situacao === 'ABERTA' && c.valor > 0;
+}
+
+/**
+ * O "Pagar" (Pix e cartão) da Minha conta aparece nesta plataforma? Cobrança pagável e a regra das lojas
+ * (`pagarPermitidoNaPlataforma`): no celular com a chave desligada a linha só informa, sem Pix nem cartão.
+ */
+export function mostrarPagarNaConta(
+  c: CobrancaDaConta, previa: boolean, plataforma: PlataformaDoApp, chaves: ChavesDePagamentoNoCelular,
+): boolean {
+  return podePagar(c, previa) && pagarPermitidoNaPlataforma(plataforma, chaves);
 }
 
 /** Linhas do endereço sem partes vazias: `Rua Exemplo, 100 - Centro` e `Cidade/UF - CEP`. Tudo vazio → lista vazia. */

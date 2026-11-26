@@ -32,7 +32,7 @@ import java.util.UUID;
 
 /**
  * Cliente HTTP da API v3 do Asaas. Tempo limite de conexão (5 s) e resposta (15 s), sem redirecionamento e leitura máxima
- * de 256 KiB. Nunca executa dentro de transação ativa e nunca registra segredos, PAN, CVV, CPF/CNPJ, API keys ou corpos de
+ * de 256 KiB. Nunca executa dentro de transação ativa e nunca registra segredos, CPF/CNPJ, API keys ou corpos de
  * erro em log nem em exceção. Qualquer falha HTTP, rede, tamanho ou JSON vira {@link ProvedorIndisponivelException}.
  */
 @Component
@@ -98,41 +98,9 @@ public class AsaasCliente {
         }
     }
 
-    public record DadosCartao(String holderName, String number, String expiryMonth, String expiryYear, String ccv) {
-        @Override
-        public String toString() {
-            return "[PROTEGIDO]";
-        }
-    }
-
-    public record TitularCartao(String name, String email, String cpfCnpj, String postalCode,
-                                String addressNumber, String phone) {
-        @Override
-        public String toString() {
-            return "[PROTEGIDO]";
-        }
-    }
-
-    public record PedidoCartaoAsaas(String customerId, long valorCentavos, LocalDate vencimento, String descricao,
-                                    String referenciaExterna, int parcelas, DadosCartao cartao,
-                                    TitularCartao titular, String remoteIp, String walletIdSubconta,
-                                    List<SplitAsaas> splits) {
-        @Override
-        public String toString() {
-            return "[PROTEGIDO]";
-        }
-    }
-
-    public record CobrancaCartaoCriada(String paymentId, String status, String invoiceUrl, Long valorLiquidoCentavos) {
-        @Override
-        public String toString() {
-            return "CobrancaCartaoCriada[paymentId=" + paymentId + ", status=" + status + "]";
-        }
-    }
-
     public record CobrancaConsultadaAsaas(String id, String status, String billingType, Long valorCentavos,
                                           Long valorLiquidoCentavos, String externalReference, LocalDate pagoEm,
-                                          Integer parcelas) {
+                                          Integer parcelas, String invoiceUrl) {
         @Override
         public String toString() {
             return "CobrancaConsultadaAsaas[id=" + id + ", status=" + status + "]";
@@ -249,45 +217,24 @@ public class AsaasCliente {
     }
 
     public CobrancaPixCriada criarCobrancaPix(String apiKeySubconta, PedidoPixAsaas pedido) {
-        exigirForaDeTransacao();
-        if (pedido.valorCentavos() < VALOR_MINIMO_CENTAVOS) {
-            throw new IllegalArgumentException("Valor mínimo para cobrança Pix no Asaas é R$ 5,00.");
-        }
-        ObjectNode corpo = json.createObjectNode();
-        corpo.put("billingType", "PIX");
-        corpo.put("customer", pedido.customerId());
-        corpo.put("value", reais(pedido.valorCentavos()));
-        corpo.put("dueDate", pedido.vencimento().toString());
-        if (pedido.descricao() != null && !pedido.descricao().isBlank()) {
-            corpo.put("description", pedido.descricao());
-        }
-        if (pedido.referenciaExterna() != null && !pedido.referenciaExterna().isBlank()) {
-            corpo.put("externalReference", pedido.referenciaExterna());
-        }
-        adicionarSplits(corpo, pedido.walletIdSubconta(), pedido.splits());
-
-        JsonNode pagamento = postar("/payments", apiKeySubconta, corpo, "criação de cobrança Pix");
-        String paymentId = texto(pagamento, "id");
-        String status = texto(pagamento, "status");
-        String invoiceUrl = texto(pagamento, "invoiceUrl");
-        if (paymentId == null) {
-            log.warn("Asaas: criação de cobrança Pix veio sem id.");
-            throw new ProvedorIndisponivelException();
-        }
-        JsonNode qr = buscar("/payments/" + codificar(paymentId) + "/pixQrCode", apiKeySubconta, "QR Code Pix");
-        String encodedImage = texto(qr, "encodedImage");
-        String payload = texto(qr, "payload");
-        Instant expiraEm = lerInstant(texto(qr, "expirationDate"));
-        return new CobrancaPixCriada(paymentId, status, invoiceUrl, encodedImage, payload, expiraEm);
+        return criarCobranca(apiKeySubconta, pedido, "PIX");
     }
 
-    public CobrancaCartaoCriada criarCobrancaCartao(String apiKeySubconta, PedidoCartaoAsaas pedido) {
+    /**
+     * Cobrança do aluno com {@code billingType} UNDEFINED: a página da fatura (invoiceUrl) deixa escolher Pix ou cartão e o
+     * app nunca recebe dado de cartão; o QR Code Pix da mesma cobrança vem de {@link #consultarQrCodePix}.
+     */
+    public CobrancaPixCriada criarCobrancaDoAluno(String apiKeySubconta, PedidoPixAsaas pedido) {
+        return criarCobranca(apiKeySubconta, pedido, "UNDEFINED");
+    }
+
+    private CobrancaPixCriada criarCobranca(String apiKeySubconta, PedidoPixAsaas pedido, String billingType) {
         exigirForaDeTransacao();
         if (pedido.valorCentavos() < VALOR_MINIMO_CENTAVOS) {
-            throw new IllegalArgumentException("Valor mínimo para cobrança cartão no Asaas é R$ 5,00.");
+            throw new IllegalArgumentException("Valor mínimo para cobrança no Asaas é R$ 5,00.");
         }
         ObjectNode corpo = json.createObjectNode();
-        corpo.put("billingType", "CREDIT_CARD");
+        corpo.put("billingType", billingType);
         corpo.put("customer", pedido.customerId());
         corpo.put("value", reais(pedido.valorCentavos()));
         corpo.put("dueDate", pedido.vencimento().toString());
@@ -297,41 +244,29 @@ public class AsaasCliente {
         if (pedido.referenciaExterna() != null && !pedido.referenciaExterna().isBlank()) {
             corpo.put("externalReference", pedido.referenciaExterna());
         }
-        if (pedido.parcelas() > 1) {
-            corpo.put("installmentCount", pedido.parcelas());
-            corpo.put("totalValue", reais(pedido.valorCentavos()));
-        }
-        ObjectNode cc = corpo.putObject("creditCard");
-        cc.put("holderName", pedido.cartao().holderName());
-        cc.put("number", pedido.cartao().number());
-        cc.put("expiryMonth", pedido.cartao().expiryMonth());
-        cc.put("expiryYear", pedido.cartao().expiryYear());
-        cc.put("ccv", pedido.cartao().ccv());
-
-        ObjectNode holder = corpo.putObject("creditCardHolderInfo");
-        holder.put("name", pedido.titular().name());
-        holder.put("email", pedido.titular().email());
-        holder.put("cpfCnpj", pedido.titular().cpfCnpj());
-        holder.put("postalCode", pedido.titular().postalCode());
-        holder.put("addressNumber", pedido.titular().addressNumber());
-        if (pedido.titular().phone() != null && !pedido.titular().phone().isBlank()) {
-            holder.put("phone", pedido.titular().phone());
-        }
-        if (pedido.remoteIp() != null && !pedido.remoteIp().isBlank()) {
-            corpo.put("remoteIp", pedido.remoteIp());
-        }
         adicionarSplits(corpo, pedido.walletIdSubconta(), pedido.splits());
 
-        JsonNode pagamento = postar("/payments", apiKeySubconta, corpo, "criação de cobrança cartão");
+        JsonNode pagamento = postar("/payments", apiKeySubconta, corpo, "criação de cobrança");
         String paymentId = texto(pagamento, "id");
         String status = texto(pagamento, "status");
         String invoiceUrl = texto(pagamento, "invoiceUrl");
-        Long netCentavos = centavosDeReais(pagamento.path("netValue"));
         if (paymentId == null) {
-            log.warn("Asaas: criação de cobrança cartão veio sem id.");
+            log.warn("Asaas: criação de cobrança veio sem id.");
             throw new ProvedorIndisponivelException();
         }
-        return new CobrancaCartaoCriada(paymentId, status, invoiceUrl, netCentavos);
+        if ("PIX".equals(billingType)) {
+            CobrancaPixCriada qr = consultarQrCodePix(apiKeySubconta, paymentId);
+            return new CobrancaPixCriada(paymentId, status, invoiceUrl, qr.qrCodeBase64(), qr.pixCopiaECola(),
+                    qr.expiraEm());
+        }
+        return new CobrancaPixCriada(paymentId, status, invoiceUrl, null, null, null);
+    }
+
+    public CobrancaPixCriada consultarQrCodePix(String apiKeySubconta, String paymentId) {
+        exigirForaDeTransacao();
+        JsonNode qr = buscar("/payments/" + codificar(paymentId) + "/pixQrCode", apiKeySubconta, "QR Code Pix");
+        return new CobrancaPixCriada(paymentId, null, null, texto(qr, "encodedImage"), texto(qr, "payload"),
+                lerInstant(texto(qr, "expirationDate")));
     }
 
     public CobrancaConsultadaAsaas consultarCobranca(String apiKeySubconta, String paymentId) {
@@ -355,7 +290,7 @@ public class AsaasCliente {
                 && resp.path("installmentCount").intValue() >= 1
                 ? resp.path("installmentCount").intValue() : null;
         return new CobrancaConsultadaAsaas(id, status, billingType, valorCentavos, valorLiquidoCentavos,
-                externalReference, pagoEm, parcelas);
+                externalReference, pagoEm, parcelas, texto(resp, "invoiceUrl"));
     }
 
     JsonMapper json() {

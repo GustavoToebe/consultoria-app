@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Servidor Asaas v3 falso em {@code 127.0.0.1:0} para testes unitários e de integração.
  * Valida regras reais da API (cabeçalho {@code access_token}, piso de R$ 5,00 em cobranças, proibição de split para a
- * própria carteira da subconta emissora, campos de webhook e cartão) e acumula qualquer violação em {@link #violacoes()}.
+ * própria carteira da subconta emissora e campos de webhook; qualquer dado de cartão no corpo é violação) e acumula qualquer violação em {@link #violacoes()}.
  */
 public final class AsaasFalsa implements AutoCloseable {
 
@@ -40,7 +40,7 @@ public final class AsaasFalsa implements AutoCloseable {
 
     private static final class PagamentoFake {
         final String id;
-        final String billingType;
+        volatile String billingType;
         volatile BigDecimal value;
         volatile BigDecimal netValue;
         final String externalReference;
@@ -81,6 +81,7 @@ public final class AsaasFalsa implements AutoCloseable {
     private volatile String statusGeneral = "PENDING";
     private volatile String statusDocumentation = "PENDING";
     private volatile String onboardingUrl = "https://sandbox.asaas.com/onboarding/doc-teste";
+    private volatile String hostDaFatura = "sandbox.asaas.com";
 
     public AsaasFalsa() {
         try {
@@ -109,6 +110,13 @@ public final class AsaasFalsa implements AutoCloseable {
         statusGeneral = "PENDING";
         statusDocumentation = "PENDING";
         onboardingUrl = "https://sandbox.asaas.com/onboarding/doc-teste";
+        hostDaFatura = "sandbox.asaas.com";
+    }
+
+    /** Host da invoiceUrl devolvida (padrão: o do sandbox); serve para provar que a API recusa host de fora do Asaas. */
+    public AsaasFalsa hostDaFatura(String host) {
+        this.hostDaFatura = host;
+        return this;
     }
 
     public AsaasFalsa esperaApiKeyMatriz(String apiKeyMatriz) {
@@ -128,8 +136,18 @@ public final class AsaasFalsa implements AutoCloseable {
         return this;
     }
 
+    /** Pago pela página da fatura: o Asaas troca o UNDEFINED pelo meio usado (Pix, aqui). */
     public void marcarPago(String paymentId) {
+        marcarPagoCom(paymentId, "PIX");
+    }
+
+    public void marcarPagoNoCartao(String paymentId) {
+        marcarPagoCom(paymentId, "CREDIT_CARD");
+    }
+
+    private void marcarPagoCom(String paymentId, String meio) {
         marcarStatus(paymentId, "RECEIVED");
+        pagamentos.get(paymentId).billingType = meio;
     }
 
     public void marcarStatus(String paymentId, String novoStatus) {
@@ -335,8 +353,11 @@ public final class AsaasFalsa implements AutoCloseable {
             return;
         }
         String billingType = corpo.path("billingType").asString("");
-        if (!"PIX".equals(billingType) && !"CREDIT_CARD".equals(billingType)) {
+        if (!"PIX".equals(billingType) && !"UNDEFINED".equals(billingType)) {
             problemas.add("billingType inválido: " + billingType);
+        }
+        if (corpo.has("creditCard") || corpo.has("creditCardHolderInfo") || corpo.has("remoteIp")) {
+            problemas.add("dado de cartão enviado ao Asaas");
         }
         exigirTexto(corpo, "customer", problemas);
         exigirTexto(corpo, "dueDate", problemas);
@@ -357,14 +378,6 @@ public final class AsaasFalsa implements AutoCloseable {
                 }
             }
         }
-        if ("CREDIT_CARD".equals(billingType)) {
-            if (!corpo.path("creditCard").isObject()) {
-                problemas.add("creditCard ausente");
-            }
-            if (!corpo.path("creditCardHolderInfo").isObject()) {
-                problemas.add("creditCardHolderInfo ausente");
-            }
-        }
         if (!problemas.isEmpty()) {
             falhar(troca, "/payments", problemas);
             return;
@@ -373,11 +386,7 @@ public final class AsaasFalsa implements AutoCloseable {
         String extRef = corpo.path("externalReference").isString() ? corpo.path("externalReference").asString() : null;
         Integer parcelas = corpo.path("installmentCount").isIntegralNumber()
                 ? corpo.path("installmentCount").intValue() : 1;
-        String statusInicial = "CREDIT_CARD".equals(billingType) ? "CONFIRMED" : "PENDING";
-        PagamentoFake p = new PagamentoFake(id, billingType, value, extRef, parcelas, statusInicial);
-        if ("CONFIRMED".equals(statusInicial)) {
-            p.confirmedDate = LocalDate.now(ZoneOffset.UTC);
-        }
+        PagamentoFake p = new PagamentoFake(id, billingType, value, extRef, parcelas, "PENDING");
         pagamentos.put(id, p);
 
         ObjectNode resp = json.createObjectNode();
@@ -386,7 +395,7 @@ public final class AsaasFalsa implements AutoCloseable {
         resp.put("billingType", p.billingType);
         resp.put("value", p.value);
         resp.put("netValue", p.netValue);
-        resp.put("invoiceUrl", "https://sandbox.asaas.com/i/" + p.id);
+        resp.put("invoiceUrl", "https://" + hostDaFatura + "/i/" + p.id);
         if (extRef != null) {
             resp.put("externalReference", extRef);
         }
@@ -417,6 +426,7 @@ public final class AsaasFalsa implements AutoCloseable {
         resp.put("billingType", p.billingType);
         resp.put("value", p.value);
         resp.put("netValue", p.netValue);
+        resp.put("invoiceUrl", "https://" + hostDaFatura + "/i/" + p.id);
         if (p.externalReference != null) {
             resp.put("externalReference", p.externalReference);
         }

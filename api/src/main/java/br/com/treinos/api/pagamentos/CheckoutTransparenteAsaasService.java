@@ -5,47 +5,53 @@ import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
-import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.conta.ContaLocalRepositorio;
 import br.com.treinos.api.conta.DireitosLocais;
 import br.com.treinos.api.execucao.AlunoAppService;
-import br.com.treinos.api.integracao.AbatimentoSplitCentralService;
-import br.com.treinos.api.pagamentos.BaixaDeCobranca.Baixa;
 import br.com.treinos.api.pagamentos.CalculadorDeSplitAsaas.ResultadoSplit;
-import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.CartaoAlunoResponse;
 import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.GerarPixAlunoRequest;
-import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.PagarCartaoAlunoRequest;
 import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.PixAlunoResponse;
 import br.com.treinos.api.pagamentos.CheckoutTransparenteAsaasDtos.SituacaoCobrancaAlunoResponse;
+import br.com.treinos.api.pagamentos.PagamentosDtos.LinkDePagamento;
 import br.com.treinos.api.pagamentos.provedor.AsaasCliente;
-import br.com.treinos.api.pagamentos.provedor.ProvedorAsaas;
+import br.com.treinos.api.pagamentos.provedor.ProvedorIndisponivelException;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.ValidacaoException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.net.URI;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * Checkout Transparente do aluno via Overtraining Pay (Asaas): Pix, Cartão (1..12x) e consulta de situação.
+ * Checkout do aluno via Overtraining Pay (Asaas): Pix dentro do app, fatura do Asaas (cartão na página dele) e consulta de
+ * situação. Cobrança no Asaas: uma só por {@code cobranca_aluno} (reaproveitada pelo Pix e pela fatura); split e valor
+ * saem só do servidor. Nenhum dado de cartão passa por aqui.
  * <p>
- * Todas as chamadas HTTP ao {@link AsaasCliente} e ao {@link AbatimentoSplitCentralService} executam <b>fora de
- * transação</b>. PAN, CVV, CPF e chaves nunca são persistidos em claro em logs ou auditoria.
+ * Todas as chamadas HTTP ao {@link AsaasCliente} executam <b>fora de transação</b>. CPF, chaves e a URL da fatura nunca
+ * vão a log nem a auditoria.
  */
 @Service
 public class CheckoutTransparenteAsaasService {
 
-    private static final String EMAIL_FALLBACK = "pagador@overtraining.app";
-    private static final String RESUMO_CONFIRMADO = "Baixa automática de um pagamento online confirmado pelo Overtraining Pay.";
+    private static final Logger log = LoggerFactory.getLogger(CheckoutTransparenteAsaasService.class);
+    private static final Set<String> HOSTS_DA_FATURA = Set.of("www.asaas.com", "sandbox.asaas.com");
+    // Cobranças que o Asaas ainda aceita pagar; o resto (paga, em análise, estornada, apagada) não é reaproveitado.
+    private static final Set<String> REAPROVEITAVEIS = Set.of("PENDING", "OVERDUE");
+    private static final Set<String> EM_CONFIRMACAO = Set.of("RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH",
+            "AWAITING_RISK_ANALYSIS");
 
     private final CobrancaAlunoRepository cobrancas;
     private final SubcontaAsaasRepository subcontas;
@@ -58,9 +64,6 @@ public class CheckoutTransparenteAsaasService {
     private final AsaasCliente asaasCliente;
     private final ContaLocalRepositorio contasLocais;
     private final CalculadorDeSplitAsaas calculadorDeSplit;
-    private final BaixaDeCobranca baixa;
-    private final Auditoria auditoria;
-    private final AbatimentoSplitCentralService abatimentoCentral;
     private final TransactionTemplate leitura;
     private final TransactionTemplate escrita;
 
@@ -70,8 +73,6 @@ public class CheckoutTransparenteAsaasService {
                                             FormasDeRecebimentoService formas, CobrancaAutomatica automatica,
                                             CifraDePagamento cifra, AsaasCliente asaasCliente,
                                             ContaLocalRepositorio contasLocais, CalculadorDeSplitAsaas calculadorDeSplit,
-                                            BaixaDeCobranca baixa, Auditoria auditoria,
-                                            AbatimentoSplitCentralService abatimentoCentral,
                                             PlatformTransactionManager transacoes) {
         this.cobrancas = cobrancas;
         this.subcontas = subcontas;
@@ -84,119 +85,29 @@ public class CheckoutTransparenteAsaasService {
         this.asaasCliente = asaasCliente;
         this.contasLocais = contasLocais;
         this.calculadorDeSplit = calculadorDeSplit;
-        this.baixa = baixa;
-        this.auditoria = auditoria;
-        this.abatimentoCentral = abatimentoCentral;
         this.leitura = new TransactionTemplate(transacoes);
         this.leitura.setReadOnly(true);
         this.escrita = new TransactionTemplate(transacoes);
     }
 
     public PixAlunoResponse gerarPix(UsuarioAutenticado eu, UUID cobrancaId, GerarPixAlunoRequest req) {
-        UUID alunoId = AlunoAppService.alunoDaSessao(eu);
-        UUID consultoriaId = consultoriaAtual();
-        String cpfInformado = req == null ? null : req.cpfPagador();
-
-        ContextoCheckout ctx = preparar(consultoriaId, alunoId, cobrancaId, cpfInformado, null);
-        String customerId = obterOuCriarCliente(ctx);
-
-        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        LocalDate vencimentoEfetivo = ctx.vencimento().isBefore(hoje) ? hoje : ctx.vencimento();
-        AsaasCliente.CobrancaPixCriada criada = asaasCliente.criarCobrancaPix(ctx.apiKey(),
-                new AsaasCliente.PedidoPixAsaas(customerId, ctx.valorCentavos(), vencimentoEfetivo,
-                        ctx.descricao(), cobrancaId.toString(), ctx.walletIdSubconta(), ctx.split().splits()));
-
-        registrarIdAsaas(cobrancaId, criada.paymentId());
-        return new PixAlunoResponse(cobrancaId, criada.paymentId(), ctx.valorCentavos(),
-                criada.qrCodeBase64(), criada.pixCopiaECola(), criada.expiraEm());
+        ContextoCheckout ctx = preparar(eu, cobrancaId, req);
+        AsaasCliente.CobrancaPixCriada cobranca = garantirCobranca(ctx, cobrancaId);
+        AsaasCliente.CobrancaPixCriada qr = cobranca.qrCodeBase64() != null ? cobranca
+                : asaasCliente.consultarQrCodePix(ctx.apiKey(), cobranca.paymentId());
+        return new PixAlunoResponse(cobrancaId, cobranca.paymentId(), ctx.valorCentavos(),
+                qr.qrCodeBase64(), qr.pixCopiaECola(), qr.expiraEm());
     }
 
-    public CartaoAlunoResponse pagarCartao(UsuarioAutenticado eu, UUID cobrancaId, PagarCartaoAlunoRequest req,
-                                           String remoteIp) {
-        UUID alunoId = AlunoAppService.alunoDaSessao(eu);
-        UUID consultoriaId = consultoriaAtual();
-
-        ContextoCheckout ctx = preparar(consultoriaId, alunoId, cobrancaId, req.cpfPagador(), req.parcelas());
-        String customerId = obterOuCriarCliente(ctx);
-
-        String emailTitular = textoOuNull(req.titular().email());
-        if (emailTitular == null) {
-            emailTitular = ctx.emailPagador() != null ? ctx.emailPagador() : EMAIL_FALLBACK;
+    /** Fatura do Asaas (Pix ou cartão na página dele): só a URL https do host do Asaas volta ao app. */
+    public LinkDePagamento gerarFatura(UsuarioAutenticado eu, UUID cobrancaId, GerarPixAlunoRequest req) {
+        ContextoCheckout ctx = preparar(eu, cobrancaId, req);
+        AsaasCliente.CobrancaPixCriada cobranca = garantirCobranca(ctx, cobrancaId);
+        if (!urlDaFatura(cobranca.invoiceUrl())) {
+            log.warn("Overtraining Pay: o Asaas devolveu uma fatura fora dos endereços conhecidos.");
+            throw new ProvedorIndisponivelException();
         }
-        String numeroEndereco = textoOuNull(req.titular().numeroEndereco());
-        if (numeroEndereco == null) {
-            numeroEndereco = "S/N";
-        }
-        String cpfCnpjTitular = apenasDigitos(req.titular().cpfCnpj());
-        if (cpfCnpjTitular.length() != 11 && cpfCnpjTitular.length() != 14) {
-            throw new ValidacaoException("Informe um CPF ou CNPJ válido para o titular.", "TITULAR_INVALIDO",
-                    List.of(new ApiError.FieldError("titular.cpfCnpj", "Informe um CPF ou CNPJ válido.")));
-        }
-        String cepTitular = apenasDigitos(req.titular().cep());
-        if (cepTitular.length() != 8) {
-            throw new ValidacaoException("Informe um CEP válido para o titular.", "TITULAR_INVALIDO",
-                    List.of(new ApiError.FieldError("titular.cep", "Informe um CEP com 8 dígitos.")));
-        }
-        String telefoneTitular = req.titular().telefone() == null ? null : apenasDigitos(req.titular().telefone());
-        if (telefoneTitular != null && telefoneTitular.isEmpty()) {
-            telefoneTitular = null;
-        }
-
-        AsaasCliente.DadosCartao cartao = new AsaasCliente.DadosCartao(
-                req.cartao().nomeImpresso().strip(),
-                apenasDigitos(req.cartao().numero()),
-                req.cartao().mesValidade().strip(),
-                req.cartao().anoValidade().strip(),
-                req.cartao().cvv().strip());
-        AsaasCliente.TitularCartao titular = new AsaasCliente.TitularCartao(
-                req.titular().nome().strip(),
-                emailTitular,
-                cpfCnpjTitular,
-                cepTitular,
-                numeroEndereco,
-                telefoneTitular);
-
-        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        LocalDate vencimentoEfetivo = ctx.vencimento().isBefore(hoje) ? hoje : ctx.vencimento();
-        AsaasCliente.CobrancaCartaoCriada criada = asaasCliente.criarCobrancaCartao(ctx.apiKey(),
-                new AsaasCliente.PedidoCartaoAsaas(customerId, ctx.valorCentavos(), vencimentoEfetivo,
-                        ctx.descricao(), cobrancaId.toString(), req.parcelas(), cartao, titular, remoteIp,
-                        ctx.walletIdSubconta(), ctx.split().splits()));
-
-        registrarIdAsaas(cobrancaId, criada.paymentId());
-
-        if (estaPagaNoAsaas(criada.status())) {
-            AsaasCliente.CobrancaConsultadaAsaas consultada = asaasCliente.consultarCobranca(ctx.apiKey(),
-                    criada.paymentId());
-            if (estaPagaNoAsaas(consultada.status())
-                    && consultada.valorCentavos() != null
-                    && consultada.valorCentavos() == ctx.valorCentavos()) {
-                LocalDate pagoEm = consultada.pagoEm() != null ? consultada.pagoEm() : hoje;
-                Long valorLiquido = consultada.valorLiquidoCentavos() != null
-                        ? consultada.valorLiquidoCentavos() : criada.valorLiquidoCentavos();
-                boolean baixouAgora = Boolean.TRUE.equals(escrita.execute(st -> {
-                    BaixaDeCobranca.Resultado res = baixa.baixarDoProvedor(cobrancaId, new Baixa(
-                            ProvedorAsaas.CODIGO, FormaDePagamento.CARTAO, pagoEm, null, null, null,
-                            criada.paymentId()));
-                    res.cobranca().registrarAsaasCobranca(criada.paymentId());
-                    if (valorLiquido != null) {
-                        res.cobranca().registrarValorLiquido(valorLiquido);
-                    }
-                    cobrancas.flush();
-                    if (res.mudou()) {
-                        auditoria.registrarDoSistema(consultoriaId, "PAGAMENTO_ONLINE_CONFIRMADO", "COBRANCA",
-                                cobrancaId, RESUMO_CONFIRMADO);
-                    }
-                    return res.mudou();
-                }));
-                if (baixouAgora && ctx.split().valorAbatidoCentavos() > 0) {
-                    abatimentoCentral.registrarAbatimento(consultoriaId, criada.paymentId(), cobrancaId,
-                            ctx.split().valorAbatidoCentavos(), Instant.now());
-                }
-                return new CartaoAlunoResponse(cobrancaId, criada.paymentId(), "PAGA", pagoEm);
-            }
-        }
-        return new CartaoAlunoResponse(cobrancaId, criada.paymentId(), "EM_PROCESSAMENTO", null);
+        return new LinkDePagamento(cobranca.invoiceUrl());
     }
 
     public SituacaoCobrancaAlunoResponse consultarSituacao(UsuarioAutenticado eu, UUID cobrancaId) {
@@ -212,7 +123,7 @@ public class CheckoutTransparenteAsaasService {
     // ---- apoio interno ----
 
     private record ContextoCheckout(UUID consultoriaId, UUID alunoId, UUID subcontaId, String walletIdSubconta,
-                                    String apiKey, String customerIdExistente, String nomePagador,
+                                    String apiKey, String customerIdExistente, String asaasCobrancaId, String nomePagador,
                                     String cpfPagadorDigitos, String emailPagador, long valorCentavos,
                                     LocalDate vencimento, String descricao, ResultadoSplit split) {
         @Override
@@ -221,8 +132,10 @@ public class CheckoutTransparenteAsaasService {
         }
     }
 
-    private ContextoCheckout preparar(UUID consultoriaId, UUID alunoId, UUID cobrancaId, String cpfInformado,
-                                      Integer parcelas) {
+    private ContextoCheckout preparar(UsuarioAutenticado eu, UUID cobrancaId, GerarPixAlunoRequest req) {
+        UUID alunoId = AlunoAppService.alunoDaSessao(eu);
+        UUID consultoriaId = consultoriaAtual();
+        String cpfInformado = req == null ? null : req.cpfPagador();
         return leitura.execute(st -> {
             CobrancaAluno c = cobrancas.findById(cobrancaId)
                     .filter(x -> alunoId.equals(x.getAlunoId()))
@@ -248,11 +161,6 @@ public class CheckoutTransparenteAsaasService {
                 throw new ConflictException("O Overtraining Pay não está habilitado nas formas de recebimento.",
                         "OVERTRAINING_PAY_INDISPONIVEL");
             }
-            if (parcelas != null && (parcelas < 1 || parcelas > subconta.getMaxParcelas())) {
-                throw new ValidacaoException("Número de parcelas fora do permitido.", "PARCELAS_INVALIDAS",
-                        List.of(new ApiError.FieldError("parcelas",
-                                "Escolha entre 1 e " + subconta.getMaxParcelas() + " parcelas.")));
-            }
 
             String customerIdExistente = clientesAsaas.findByAlunoIdAndSubcontaId(alunoId, subconta.getId())
                     .map(ClienteAsaasAluno::getAsaasCustomerId)
@@ -277,7 +185,8 @@ public class CheckoutTransparenteAsaasService {
                     : (c.getCompetencia() != null ? "Mensalidade " + c.getCompetencia() : "Cobrança Overtraining");
 
             return new ContextoCheckout(consultoriaId, alunoId, subconta.getId(), subconta.getWalletId(), apiKey,
-                    customerIdExistente, nomePagador, cpfDigitos, emailPagador, c.getValorCentavos(),
+                    customerIdExistente, c.getAsaasCobrancaId(), nomePagador, cpfDigitos, emailPagador,
+                    c.getValorCentavos(),
                     c.getVencimento(), descricao, split);
         });
     }
@@ -300,6 +209,45 @@ public class CheckoutTransparenteAsaasService {
             return leitura.execute(st -> clientesAsaas.findByAlunoIdAndSubcontaId(ctx.alunoId(), ctx.subcontaId())
                     .map(ClienteAsaasAluno::getAsaasCustomerId)
                     .orElse(customerId));
+        }
+    }
+
+    /** Reaproveita a cobrança já criada no Asaas; senão cria uma (UNDEFINED: Pix e cartão) com o split do servidor. */
+    private AsaasCliente.CobrancaPixCriada garantirCobranca(ContextoCheckout ctx, UUID cobrancaId) {
+        if (ctx.asaasCobrancaId() != null) {
+            AsaasCliente.CobrancaConsultadaAsaas existente = asaasCliente.consultarCobranca(ctx.apiKey(),
+                    ctx.asaasCobrancaId());
+            String status = existente.status().toUpperCase(Locale.ROOT);
+            if (EM_CONFIRMACAO.contains(status)) {
+                throw new ConflictException("O pagamento desta cobrança já foi identificado e está sendo confirmado.",
+                        "PAGAMENTO_EM_CONFIRMACAO");
+            }
+            if (REAPROVEITAVEIS.contains(status) && existente.valorCentavos() != null
+                    && existente.valorCentavos() == ctx.valorCentavos()) {
+                return new AsaasCliente.CobrancaPixCriada(existente.id(), existente.status(), existente.invoiceUrl(),
+                        null, null, null);
+            }
+        }
+        String customerId = obterOuCriarCliente(ctx);
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        LocalDate vencimentoEfetivo = ctx.vencimento().isBefore(hoje) ? hoje : ctx.vencimento();
+        AsaasCliente.CobrancaPixCriada criada = asaasCliente.criarCobrancaDoAluno(ctx.apiKey(),
+                new AsaasCliente.PedidoPixAsaas(customerId, ctx.valorCentavos(), vencimentoEfetivo,
+                        ctx.descricao(), cobrancaId.toString(), ctx.walletIdSubconta(), ctx.split().splits()));
+        registrarIdAsaas(cobrancaId, criada.paymentId());
+        return criada;
+    }
+
+    static boolean urlDaFatura(String url) {
+        if (url == null) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(url);
+            return "https".equals(uri.getScheme()) && uri.getUserInfo() == null && uri.getPort() == -1
+                    && HOSTS_DA_FATURA.contains(uri.getHost());
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 

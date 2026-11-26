@@ -5,13 +5,9 @@ import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.conta.FonteDaConta;
 import br.com.treinos.api.conta.MinhaContaDto;
 import br.com.treinos.api.conta.PagamentoIndisponivelException;
-import br.com.treinos.api.conta.PagamentoTransparenteDto.CartaoAsaasResposta;
-import br.com.treinos.api.conta.PagamentoTransparenteDto.CartaoDados;
 import br.com.treinos.api.conta.PagamentoTransparenteDto.GerarPixAsaasRequest;
-import br.com.treinos.api.conta.PagamentoTransparenteDto.PagarCartaoAsaasRequest;
 import br.com.treinos.api.conta.PagamentoTransparenteDto.PixAsaasResposta;
 import br.com.treinos.api.conta.PagamentoTransparenteDto.SituacaoCobrancaResposta;
-import br.com.treinos.api.conta.PagamentoTransparenteDto.TitularCartaoDados;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,19 +127,6 @@ public class FonteDaContaCentral implements FonteDaConta {
     }
 
     @Override
-    public CartaoAsaasResposta pagarCartaoAsaas(UUID consultoriaId, UUID cobrancaId,
-                                                PagarCartaoAsaasRequest request, String remoteIp) {
-        String caminho = "/integracao/v1/produtos/" + propriedades.produto() + "/instancias/" + consultoriaId
-                + "/cobrancas/" + cobrancaId + "/asaas/cartao";
-        PagarCartaoCentralPayload payload = new PagarCartaoCentralPayload(
-                request.cpfCnpj(), request.parcelas(), request.cartao(), request.titular(), remoteIp);
-        byte[] corpo = json.writeValueAsBytes(payload);
-        CentralClient.Resposta resposta = enviarPostJson("Cartão Asaas", caminho, corpo);
-        validarStatusPagamento("Cartão Asaas", resposta, "Pagamento com cartão recusado.");
-        return desserializar("Cartão Asaas", resposta.corpo(), CartaoAsaasResposta.class);
-    }
-
-    @Override
     public SituacaoCobrancaResposta consultarSituacaoCobranca(UUID consultoriaId, UUID cobrancaId) {
         String caminho = "/integracao/v1/produtos/" + propriedades.produto() + "/instancias/" + consultoriaId
                 + "/cobrancas/" + cobrancaId + "/situacao";
@@ -217,19 +200,6 @@ public class FonteDaContaCentral implements FonteDaConta {
             return msg.isBlank() ? padrao : msg;
         } catch (JacksonException e) {
             return padrao;
-        }
-    }
-
-    private record PagarCartaoCentralPayload(
-            String cpfCnpj,
-            Integer parcelas,
-            CartaoDados cartao,
-            TitularCartaoDados titular,
-            String remoteIp) {
-
-        @Override
-        public String toString() {
-            return "[PROTEGIDO]";
         }
     }
 

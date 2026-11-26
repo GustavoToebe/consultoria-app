@@ -10,37 +10,6 @@ export interface PixOvertrainingPayResponse {
   expiraEm: string | null;
 }
 
-export interface CartaoOvertrainingPayDados {
-  nomeImpresso: string;
-  numero: string;
-  mesValidade: string;
-  anoValidade: string;
-  cvv: string;
-}
-
-export interface TitularCartaoOvertrainingPay {
-  nome: string;
-  cpfCnpj: string;
-  email?: string | null;
-  telefone?: string | null;
-  cep: string;
-  numeroEndereco?: string | null;
-}
-
-export interface PagarCartaoOvertrainingPayRequest {
-  cpfPagador?: string;
-  parcelas: number;
-  cartao: CartaoOvertrainingPayDados;
-  titular: TitularCartaoOvertrainingPay;
-}
-
-export interface PagarCartaoOvertrainingPayResponse {
-  cobrancaId: string;
-  asaasCobrancaId: string;
-  situacao: 'PAGA' | 'EM_PROCESSAMENTO' | string;
-  pagoEm: string | null;
-}
-
 export interface SituacaoCobrancaAlunoResponse {
   cobrancaId: string;
   situacao: string;
@@ -84,15 +53,12 @@ export function gerarPixOvertrainingPay(cobrancaId: string, cpfPagador?: string)
   });
 }
 
-/** `POST /aluno/financeiro/cobrancas/{cobrancaId}/overtraining-pay/cartao` */
-export function pagarCartaoOvertrainingPay(
-  cobrancaId: string,
-  payload: PagarCartaoOvertrainingPayRequest,
-): Promise<PagarCartaoOvertrainingPayResponse> {
-  return requisicao<PagarCartaoOvertrainingPayResponse>(`/aluno/financeiro/cobrancas/${cobrancaId}/overtraining-pay/cartao`, {
-    metodo: 'POST',
-    corpo: payload,
-  });
+/**
+ * `POST /aluno/financeiro/cobrancas/{cobrancaId}/overtraining-pay/fatura`: a página de pagamento do Asaas (cartão), aberta
+ * fora do app. O app nunca recebe nem envia dado de cartão.
+ */
+export function faturaOvertrainingPay(cobrancaId: string): Promise<{ url: string }> {
+  return requisicao<{ url: string }>(`/aluno/financeiro/cobrancas/${cobrancaId}/overtraining-pay/fatura`, { metodo: 'POST' });
 }
 
 /** `GET /aluno/financeiro/cobrancas/{cobrancaId}/situacao` */

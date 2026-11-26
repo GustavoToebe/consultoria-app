@@ -10,7 +10,8 @@ import { fixarHoje, sessaoDeAluno } from './aluno';
  * abre FolhaCheckoutTransparente sem sair do app ->
  * pede CPF quando ausente -> gera QR Code Pix + Copia e Cola ->
  * confirma via polling ("Pagamento confirmado!") +
- * fluxo da aba Cartão de crédito com parcelamento.
+ * cartão pela página de pagamento do Asaas: "Pagar com cartão" abre a URL https fora do app e, ao voltar, o app confere a
+ * situação. Nenhum campo de cartão existe no app.
  */
 
 const PASTA_SWARM = 'C:/Users/gusta/.gemini/antigravity/brain/b355d9f2-0cd6-4d13-b55f-caccceb70abe';
@@ -19,6 +20,7 @@ const PIX_COPIA_E_COLA = '00020126580014br.gov.bcb.pix0136cobranca-aluno-fictici
 
 const COBRANCA_VENCIDA_CONTRATO_ID = 'c0000000-0000-4000-8000-000000000101';
 const COBRANCA_A_VENCER_ID = 'c0000000-0000-4000-8000-000000000102';
+const URL_DA_FATURA = 'https://pagamento.asaas.exemplo.invalid/i/fatura-ficticia';
 
 const TEMAS = ['ESCURO', 'CLARO', 'AREIA'] as const;
 const LARGURAS = [390, 1280] as const;
@@ -111,8 +113,9 @@ async function abrirContaAlunoComOvertrainingPay(page: Page, cpfCadastrado = fal
   await fixarHoje(page);
   let dados = financeiroInicial(cpfCadastrado);
   const pixPedidos: unknown[] = [];
-  const cartaoPedidos: unknown[] = [];
+  const faturaPedidos: unknown[] = [];
   let consultasSituacao = 0;
+  const fatura = { consultas: 0, paga: false };
 
   const rotasExtras: RespostasApi = {
     'GET /aluno/foto-perfil': { status: 204 },
@@ -158,17 +161,18 @@ async function abrirContaAlunoComOvertrainingPay(page: Page, cpfCadastrado = fal
         pagoEm: '2026-10-19T15:00:00Z',
       });
     },
-    [`POST /aluno/financeiro/cobrancas/${COBRANCA_A_VENCER_ID}/overtraining-pay/cartao`]: (pedido, route) => {
-      cartaoPedidos.push(pedido.corpo);
-      dados = {
-        ...dados,
-        abertas: dados.abertas.filter((c) => c.id !== COBRANCA_A_VENCER_ID),
-      };
+    [`POST /aluno/financeiro/cobrancas/${COBRANCA_A_VENCER_ID}/overtraining-pay/fatura`]: (pedido, route) => {
+      faturaPedidos.push(pedido.corpo);
+      return json(route, { url: URL_DA_FATURA });
+    },
+    // Fica aberta até a "volta" do navegador (o teste liga `fatura.paga`): prova que o app confere ao voltar.
+    [`GET /aluno/financeiro/cobrancas/${COBRANCA_A_VENCER_ID}/situacao`]: (_p, route) => {
+      fatura.consultas += 1;
+      if (fatura.paga) dados = { ...dados, abertas: dados.abertas.filter((c) => c.id !== COBRANCA_A_VENCER_ID) };
       return json(route, {
         cobrancaId: COBRANCA_A_VENCER_ID,
-        asaasCobrancaId: 'pay_ficticio_card_02',
-        situacao: 'PAGA',
-        pagoEm: '2026-10-19T15:05:00Z',
+        situacao: fatura.paga ? 'PAGA' : 'ABERTA',
+        pagoEm: fatura.paga ? '2026-10-19T15:05:00Z' : null,
       });
     },
   };
@@ -181,15 +185,17 @@ async function abrirContaAlunoComOvertrainingPay(page: Page, cpfCadastrado = fal
 
   await page.goto('/aluno/conta');
   await expect(page.getByText('Contrato Semestral Fechado')).toBeVisible();
-  return { api, pixPedidos, cartaoPedidos, obterConsultasSituacao: () => consultasSituacao };
+  return { api, pixPedidos, faturaPedidos, fatura, obterConsultasSituacao: () => consultasSituacao };
 }
 
 for (const largura of LARGURAS) {
-  test(`aluno em ${largura}px: parcela vencida de Contrato Fechado -> Pix com CPF + polling e Cartão de crédito parcelado`, async ({ page }) => {
+  test(`aluno em ${largura}px: parcela vencida de Contrato Fechado -> Pix com CPF + polling e cartão pela página do Asaas`, async ({ page, context }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     await definirTema(page, 'CLARO');
     await areaDeTransferencia(page);
-    const { api, pixPedidos, cartaoPedidos, obterConsultasSituacao } = await abrirContaAlunoComOvertrainingPay(page, false);
+    await context.route('https://pagamento.asaas.exemplo.invalid/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'text/html', body: '<title>Fatura Asaas</title><p>Pagamento externo</p>' }));
+    const { api, pixPedidos, faturaPedidos, fatura, obterConsultasSituacao } = await abrirContaAlunoComOvertrainingPay(page, false);
 
     // 1. Parcela vencida de Contrato Fechado visível e abre Checkout Transparente sem sair do app
     await expect(page.getByText('Parcela 2/6')).toBeVisible();
@@ -224,33 +230,36 @@ for (const largura of LARGURAS) {
     await folha.getByRole('button', { name: 'Fechar' }).last().click();
     await expect(folha).toHaveCount(0);
 
-    // 4. Fluxo da aba Cartão de crédito com parcelamento na Parcela 3/6
+    // 4. Cartão pela página do Asaas na Parcela 3/6: sem formulário no app, abre a URL https fora dele
     await page.getByRole('button', { name: /Pagar agora: Parcela 3\/6/i }).click();
     const folhaCartao = page.getByRole('dialog', { name: 'Pagamento no app' });
     await expect(folhaCartao).toBeVisible();
+    await expect(folhaCartao.getByRole('tab')).toHaveCount(0);
+    for (const campo of ['Número do cartão', 'Validade', 'CVV', 'Nome impresso no cartão', 'CPF do titular', 'CEP']) {
+      await expect(folhaCartao.getByLabel(campo)).toHaveCount(0);
+    }
+    await expect(folhaCartao.getByText(/não recebe nem guarda dados do cartão/)).toBeVisible();
 
-    await folhaCartao.getByRole('tab', { name: 'Cartão de crédito' }).click();
-    await expect(folhaCartao.getByText(/Os dados do cartão são enviados com criptografia/)).toBeVisible();
+    const [popup] = await Promise.all([
+      page.waitForEvent('popup'),
+      folhaCartao.getByRole('button', { name: 'Pagar com cartão' }).click(),
+    ]);
+    await popup.waitForURL(URL_DA_FATURA);
+    expect(await popup.evaluate(() => window.opener)).toBeNull();
+    expect(faturaPedidos).toHaveLength(1);
+    expect(faturaPedidos[0] ?? null).toBeNull();
+    await expect(folhaCartao.getByText(/Aguardando pagamento/)).toBeVisible();
 
-    // Escolher parcelamento (3x)
-    await folhaCartao.getByRole('button', { name: /Parcelamento/i }).click();
-    await page.getByRole('option', { name: /^3x de / }).or(page.getByText(/^3x de /)).first().click();
-
-    await folhaCartao.getByLabel('Nome impresso no cartão').fill('ALUNO TESTE');
-    await folhaCartao.getByLabel('Número do cartão').fill('4111111111111111');
-    await folhaCartao.getByLabel('Validade').fill('1230');
-    await folhaCartao.getByLabel('CVV').fill('123');
-    await folhaCartao.getByLabel('CPF do titular').fill('52998224725');
-    await folhaCartao.getByLabel('CEP').fill('85801000');
-
-    await folhaCartao.getByRole('button', { name: /Pagar com cartão/i }).click();
+    // 5. Ao voltar ao app, confere a situação com a rota situacao e confirma quando PAGA
+    await popup.close();
+    const antes = fatura.consultas;
+    fatura.paga = true;
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect.poll(() => fatura.consultas).toBeGreaterThan(antes);
     await expect(folhaCartao.getByText('Pagamento confirmado!')).toBeVisible();
-    expect(cartaoPedidos).toHaveLength(1);
-    expect(cartaoPedidos[0]).toMatchObject({
-      cpfPagador: '52998224725',
-      parcelas: 3,
-      cartao: { nomeImpresso: 'ALUNO TESTE', mesValidade: '12', anoValidade: '2030' },
-    });
+    await folhaCartao.getByRole('button', { name: 'Fechar' }).last().click();
+    await expect(folhaCartao).toHaveCount(0);
+    await expect(page.getByText('Parcela 3/6')).toHaveCount(0);
 
     await semRolagemHorizontal(page);
     expect(api.naoTratadas).toEqual([]);

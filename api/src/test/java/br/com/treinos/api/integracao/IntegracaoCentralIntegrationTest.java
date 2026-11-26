@@ -122,7 +122,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
                 } else if (caminho.endsWith("/link-de-pagamento")) {
                     codigo = statusLink.get();
                     corpo = link.get();
-                } else if (caminho.endsWith("/asaas/pix") || caminho.endsWith("/asaas/cartao") || caminho.endsWith("/situacao")) {
+                } else if (caminho.endsWith("/asaas/pix") || caminho.endsWith("/situacao")) {
                     sondaNaChamada.set(sonda.get().get());
                     codigo = statusTransparente.get();
                     corpo = respostaTransparente.get();
@@ -846,7 +846,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void minhaContaTransparentePixCartaoESituacaoAssinadosComHmac() throws Exception {
+    void minhaContaTransparentePixESituacaoAssinadosComHmac() throws Exception {
         JsonNode login = loginDoAdministrador();
         UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
                 login.path("usuario").path("id").asString());
@@ -881,32 +881,8 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
                 "/integracao/v1/produtos/TREINOS/instancias/" + consultoria + "/cobrancas/" + cobranca + "/asaas/pix");
         assertThat(json.readTree(CENTRAL.ultimoCorpo.get()).path("cpfCnpj").asString()).isEqualTo("12345678909");
 
-        // Cartão transparente com remoteIp repassado
-        CENTRAL.respostaTransparente.set("""
-                {"cobrancaId":"%s","idExterno":"pay_cc_1","situacao":"PAGA","pagoEm":"2026-11-24T16:00:00Z"}"""
-                .formatted(cobranca));
-        Map<String, Object> reqCartao = Map.of(
-                "cpfCnpj", "12345678909",
-                "parcelas", 1,
-                "cartao", Map.of(
-                        "nomeImpresso", "FULANO TESTE",
-                        "numero", "4111111111111111",
-                        "mesValidade", "12",
-                        "anoValidade", "2030",
-                        "cvv", "123"),
-                "titular", Map.of(
-                        "nome", "Fulano Teste",
-                        "cpfCnpj", "12345678909",
-                        "email", "fulano@exemplo.com",
-                        "telefone", "41999990000",
-                        "cep", "80000000",
-                        "numeroEndereco", "100"));
-        JsonNode cartaoResp = api.post("/minha-conta/cobrancas/" + cobranca + "/asaas/cartao", login, reqCartao, 200);
-        assertThat(cartaoResp.path("situacao").asString()).isEqualTo("PAGA");
-        assertThat(CENTRAL.assinaturaValida.get()).isTrue();
-        assertThat(CENTRAL.ultimoCaminho.get()).isEqualTo(
-                "/integracao/v1/produtos/TREINOS/instancias/" + consultoria + "/cobrancas/" + cobranca + "/asaas/cartao");
-        assertThat(json.readTree(CENTRAL.ultimoCorpo.get()).path("remoteIp").asString()).isNotBlank();
+        // Cartão não passa pelo app: a rota não existe mais (cartão é pela página do Asaas, no link externo)
+        api.post("/minha-conta/cobrancas/" + cobranca + "/asaas/cartao", login, Map.of("cpfCnpj", "12345678909"), 404);
 
         // Situação da cobrança
         CENTRAL.respostaTransparente.set("""

@@ -394,7 +394,7 @@ function Formulario({
           <LinhaDeOpcao
             titulo="Overtraining Pay"
             descricao={overtrainingPayAtivo
-              ? 'Principal · No aplicativo. O aluno paga por QR Code Pix imediato ou Cartão sem sair do aplicativo, com baixa automática.'
+              ? 'Principal · No aplicativo. O aluno paga por QR Code Pix imediato no aplicativo ou por cartão na página de pagamento, com baixa automática.'
               : 'Principal · No aplicativo. Conclua a homologação e a cobrança de teste abaixo para habilitar esta opção.'}
             interruptor={{
               valor: estado.overtrainingPay,

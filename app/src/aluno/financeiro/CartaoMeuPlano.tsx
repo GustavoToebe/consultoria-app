@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { Copy, CreditCard, ExternalLink, QrCode } from 'lucide-react-native';
 import { type ReactNode, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { CobrancaDoAluno } from '../../api/financeiroTipos';
 import { codigoPixDoAluno, linkDePagamentoDoAluno } from '../../api/rotas';
@@ -14,7 +14,7 @@ import { TEXTO_COBRANCA_AUTOMATICA } from '../../dominio/kiwify';
 import { espaco, RAIO } from '../../tema/tokens';
 import { useTema } from '../../tema/TemaProvider';
 import { ICONE_DO_SELO } from '../../treinador/iconesDosSelos';
-import { abrirPagamento } from '../../ui/abrirPagamento';
+import { abrirPagamentoComAviso } from '../../ui/abrirPagamentoComAviso';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -67,8 +67,6 @@ export function CartaoMeuPlano() {
     modoDePagamento: modo,
     modoDaCobranca,
     acoesDaCobranca,
-    overtrainingPayMaxParcelas,
-    overtrainingPayJuros,
     cpfPagadorCadastrado,
     recarregar,
   } = useFinanceiroDoAluno();
@@ -158,8 +156,6 @@ export function CartaoMeuPlano() {
       <InterruptorDeLembretes />
       <FolhaCheckoutTransparente
         cobranca={cobrancaCheckout}
-        maxParcelas={overtrainingPayMaxParcelas}
-        juros={overtrainingPayJuros}
         cpfPagadorCadastrado={cpfPagadorCadastrado}
         aoFechar={() => setCobrancaCheckout(null)}
         aoConfirmarPagamento={recarregar}
@@ -276,13 +272,7 @@ function BotaoPagar({ cobranca, acao, rotulo, cheio, linkProprio, aoMudar }: {
     const buscar = acao === 'PAGAR_LINK_PROPRIO'
       ? () => Promise.resolve({ url: linkProprio ?? '' })
       : () => linkDePagamentoDoAluno(cobranca.id);
-    abrirPagamento(buscar)
-      .then((resultado) => {
-        if (resultado === 'aberta') {
-          avisar(Platform.OS === 'web' ? 'Abrimos o pagamento em outra aba. Quando terminar, volte para esta.' : 'Abrimos o pagamento no navegador. Quando terminar, volte para o app.', 'neutro');
-        } else if (resultado === 'bloqueada') avisar(`O navegador bloqueou a nova aba. Libere os pop-ups deste site e toque em ${rotulo} de novo.`, 'atencao');
-        else avisar('Não foi possível abrir o pagamento. Tente de novo ou fale com o seu treinador.', 'perigo');
-      })
+    abrirPagamentoComAviso(buscar, avisar, rotulo)
       .catch((erro: unknown) => {
         avisar(textoDoErro(erro), 'perigo');
         // Cobrança que deixou de estar aberta (paga ou cancelada em outro lugar): a lista confere de novo.

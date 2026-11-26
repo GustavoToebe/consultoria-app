@@ -1,44 +1,9 @@
-import { centavosParaTela } from './formatos';
-
 /**
- * Regras puras do Checkout Transparente (Pix imediato + Cartão de crédito) e do acompanhamento de abatimento por Split.
- * Nenhum dado sensível de cartão (número, validade, CVV) é persistido ou logado aqui.
+ * Regras puras do pagamento no app (Pix e a situação da cobrança) e do acompanhamento de abatimento por Split. O cartão não
+ * passa pelo app: abre a página de pagamento do Asaas, então nenhum dado de cartão existe aqui.
  */
 
-export type JurosCheckout = 'ALUNO' | 'TREINADOR';
-
 export type ModoSplitCentral = 'ISENTO' | 'ABATER_MENSALIDADE' | 'TAXA_PLATAFORMA' | 'TAXA_PERCENTUAL';
-
-export interface OpcaoParcelamento {
-  parcelas: number;
-  valorParcelaCentavos: number;
-  semAcrescimo: boolean;
-  detalheJuros: string;
-  rotulo: string;
-}
-
-export interface DadosFormularioCartao {
-  nomeImpresso: string;
-  numero: string;
-  validade: string;
-  cvv: string;
-  cpfCnpj: string;
-  cep: string;
-  numeroEndereco?: string;
-  email?: string;
-  telefone?: string;
-}
-
-export interface ErrosFormularioCartao {
-  nomeImpresso: string | null;
-  numero: string | null;
-  validade: string | null;
-  cvv: string | null;
-  cpfCnpj: string | null;
-  cep: string | null;
-  email: string | null;
-  telefone: string | null;
-}
 
 export interface PoliticaSplitEntrada {
   modo?: string | null;
@@ -80,41 +45,6 @@ export function mascaraCpfCnpj(texto: string): string {
   if (d.length <= 11) return mascaraCpf(d);
   if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
   return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
-}
-
-/** Formata número do cartão em blocos de 4 dígitos (até 19 dígitos). */
-export function mascaraCartao(texto: string): string {
-  const d = somenteDigitos(texto).slice(0, 19);
-  return d.replace(/(\d{4})(?=\d)/g, '$1 ');
-}
-
-/** Formata validade do cartão (`MM/AA` até 4 dígitos ou `MM/AAAA` até 6 dígitos). */
-export function mascaraValidadeCartao(texto: string): string {
-  const d = somenteDigitos(texto).slice(0, 6);
-  if (d.length <= 2) return d;
-  return `${d.slice(0, 2)}/${d.slice(2)}`;
-}
-
-/** Mantém apenas 3 ou 4 dígitos do CVV. */
-export function mascaraCvv(texto: string): string {
-  return somenteDigitos(texto).slice(0, 4);
-}
-
-/** Formata CEP (`00000-000`). */
-export function mascaraCep(texto: string): string {
-  const d = somenteDigitos(texto).slice(0, 8);
-  if (d.length <= 5) return d;
-  return `${d.slice(0, 5)}-${d.slice(5)}`;
-}
-
-/** Formata telefone brasileiro com DDD (`(11) 99999-9999` ou `(11) 3333-4444`). */
-export function mascaraTelefone(texto: string): string {
-  const d = somenteDigitos(texto).slice(0, 11);
-  if (d.length === 0) return '';
-  if (d.length <= 2) return `(${d}`;
-  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
 /** Valida CPF (11 dígitos, rejeitando sequências repetidas e conferindo os dois dígitos verificadores). */
@@ -164,127 +94,6 @@ export function erroCpfCnpjPagador(texto: string): string | null {
   const d = somenteDigitos(texto);
   if (!d) return 'Informe o CPF ou CNPJ.';
   return validarCpfCnpj(d) ? null : 'Informe um CPF ou CNPJ válido.';
-}
-
-/** Algoritmo de Luhn para números de cartão. */
-export function validarLuhn(digitos: string): boolean {
-  if (!/^\d+$/.test(digitos)) return false;
-  let soma = 0;
-  let dobrar = false;
-  for (let i = digitos.length - 1; i >= 0; i -= 1) {
-    let n = Number(digitos[i]);
-    if (dobrar) {
-      n *= 2;
-      if (n > 9) n -= 9;
-    }
-    soma += n;
-    dobrar = !dobrar;
-  }
-  return soma % 10 === 0;
-}
-
-/** Valida cartão de crédito: de 13 a 19 dígitos e aprovado no algoritmo de Luhn. */
-export function validarNumeroCartao(texto: string | null | undefined): boolean {
-  const d = somenteDigitos(texto);
-  return d.length >= 13 && d.length <= 19 && validarLuhn(d);
-}
-
-/** Interpreta `MM/AA` ou `MM/AAAA` em mês (`01`..`12`) e ano de 4 dígitos (`2028`). */
-export function parsearValidadeCartao(texto: string | null | undefined): { mes: string; ano: string } | null {
-  const limpo = (texto ?? '').trim();
-  const match = /^(\d{2})\/(\d{2}|\d{4})$/.exec(limpo);
-  if (!match) return null;
-  const mesNum = Number(match[1]);
-  if (mesNum < 1 || mesNum > 12) return null;
-  const anoStr = match[2].length === 2 ? `20${match[2]}` : match[2];
-  const anoNum = Number(anoStr);
-  if (!Number.isInteger(anoNum) || anoNum < 2000 || anoNum > 2199) return null;
-  return { mes: match[1], ano: anoStr };
-}
-
-/** Validade válida e não expirada em relação ao mês/ano atual. */
-export function validarValidadeCartao(texto: string | null | undefined, agora: Date = new Date()): boolean {
-  const parsed = parsearValidadeCartao(texto);
-  if (!parsed) return false;
-  const anoAtual = agora.getFullYear();
-  const mesAtual = agora.getMonth() + 1;
-  const ano = Number(parsed.ano);
-  const mes = Number(parsed.mes);
-  if (ano < anoAtual) return false;
-  if (ano === anoAtual && mes < mesAtual) return false;
-  return true;
-}
-
-/** CVV válido: 3 ou 4 dígitos. */
-export function validarCvv(texto: string | null | undefined): boolean {
-  const d = somenteDigitos(texto);
-  return d.length === 3 || d.length === 4;
-}
-
-/** CEP válido: 8 dígitos. */
-export function validarCep(texto: string | null | undefined): boolean {
-  return somenteDigitos(texto).length === 8;
-}
-
-/** Validação simples de e-mail quando preenchido. */
-export function validarEmailOpcional(texto: string | null | undefined): boolean {
-  const limpo = (texto ?? '').trim();
-  if (!limpo) return true;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpo);
-}
-
-/** Valida todos os campos do formulário de cartão transparente. */
-export function validarFormularioCartao(
-  dados: DadosFormularioCartao,
-  opcoes: { aceitarCnpj?: boolean; exigirEmail?: boolean; exigirTelefone?: boolean; agora?: Date } = {},
-): ErrosFormularioCartao {
-  const nome = dados.nomeImpresso.trim();
-  const email = (dados.email ?? '').trim();
-  const telefoneDigitos = somenteDigitos(dados.telefone);
-  return {
-    nomeImpresso: nome.length >= 3 ? null : 'Informe o nome impresso no cartão.',
-    numero: validarNumeroCartao(dados.numero) ? null : 'Informe um número de cartão válido.',
-    validade: validarValidadeCartao(dados.validade, opcoes.agora) ? null : 'Informe uma validade válida (MM/AA ou MM/AAAA).',
-    cvv: validarCvv(dados.cvv) ? null : 'Informe o código de segurança (3 ou 4 dígitos).',
-    cpfCnpj: opcoes.aceitarCnpj ? erroCpfCnpjPagador(dados.cpfCnpj) : erroCpfPagador(dados.cpfCnpj),
-    cep: validarCep(dados.cep) ? null : 'Informe um CEP válido com 8 dígitos.',
-    email: opcoes.exigirEmail && !email
-      ? 'Informe o e-mail do titular.'
-      : validarEmailOpcional(email) ? null : 'Informe um e-mail válido.',
-    telefone: opcoes.exigirTelefone && telefoneDigitos.length < 10
-      ? 'Informe o telefone do titular com DDD.'
-      : telefoneDigitos.length > 0 && telefoneDigitos.length < 10 ? 'Informe um telefone válido com DDD.' : null,
-  };
-}
-
-export function formularioCartaoTemErros(erros: ErrosFormularioCartao): boolean {
-  return Object.values(erros).some((e) => e !== null);
-}
-
-/**
- * Calcula opções de parcelamento de `1x` até `maxParcelas` (limitado entre 1 e 12).
- * Em `1x` ou quando `juros === 'TREINADOR'`, indica "sem acréscimo".
- * Quando `juros === 'ALUNO'` e `parcelas > 1`, indica "com acréscimo da operadora".
- */
-export function opcoesDeParcelamento(
-  valorCentavos: number,
-  maxParcelas = 12,
-  juros: JurosCheckout = 'ALUNO',
-): OpcaoParcelamento[] {
-  const valorSeguro = Math.max(0, Math.round(valorCentavos));
-  const limite = Math.max(1, Math.min(12, Math.floor(maxParcelas || 1)));
-  const lista: OpcaoParcelamento[] = [];
-  for (let parcelas = 1; parcelas <= limite; parcelas += 1) {
-    const semAcrescimo = parcelas === 1 || juros === 'TREINADOR';
-    const valorParcelaCentavos = Math.round(valorSeguro / parcelas);
-    const detalheJuros = semAcrescimo ? 'sem acréscimo' : 'com acréscimo da operadora';
-    const valorFormatado = centavosParaTela(valorParcelaCentavos);
-    const rotulo = parcelas === 1
-      ? `1x de ${valorFormatado} (à vista, sem acréscimo)`
-      : `${parcelas}x de ${valorFormatado} (${detalheJuros})`;
-    lista.push({ parcelas, valorParcelaCentavos, semAcrescimo, detalheJuros, rotulo });
-  }
-  return lista;
 }
 
 /** Formata basis points (`1000` -> `10%`, `250` -> `2,5%`, `200` -> `2%`). */

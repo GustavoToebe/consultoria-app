@@ -1120,4 +1120,13 @@ describe('ações de pagamento do aluno (formas de recebimento, D7)', () => {
     expect(acoesDePagamentoDoAluno('ios', true, { pagarNoIos: false }, 'MENSALIDADE', { overtrainingPayDisponivel: true })).toEqual([]);
     expect(acoesDePagamentoDoAluno('web', true, {}, 'SAIDA', { overtrainingPayDisponivel: true })).toEqual([]);
   });
+  it('Overtraining Pay no celular: Pix e cartão seguem a chave da plataforma; desligada, só informa (nenhuma ação)', () => {
+    const op = { overtrainingPayDisponivel: true, formas: ['MANUAL'] } as const;
+    expect(acoesDePagamentoDoAluno('ios', false, {}, 'MENSALIDADE', op)).toEqual([]);
+    expect(comoPagar('ios', false, {}, 'MENSALIDADE', op)).toBe('informar');
+    expect(comoPagar('android', false, { pagarNoIos: true, pagarNoAndroid: false }, 'MENSALIDADE', op)).toBe('informar');
+    expect(comoPagar('ios', false, { pagarNoIos: false, pagarNoAndroid: true }, 'AVULSA', op)).toBe('informar');
+    expect(acoesDePagamentoDoAluno('android', false, { pagarNoAndroid: true }, 'MENSALIDADE', op)).toEqual(['PAGAR_OVERTRAINING_PAY']);
+    expect(comoPagar('ios', false, { pagarNoIos: true }, 'MENSALIDADE', op)).toBe('botao');
+  });
 });
