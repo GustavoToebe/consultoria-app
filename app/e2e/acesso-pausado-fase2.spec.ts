@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { FinanceiroDoAluno } from '../src/api/financeiroTipos';
 import type { AlunoDetalhe, AlunoResumo } from '../src/api/tipos';
+import { CLARO } from '../src/tema/tokens';
 import { fixarHoje, sessaoDeAluno } from './aluno';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 import {
@@ -79,6 +80,12 @@ async function capturar(page: Page, nome: string) {
   const pasta = process.env.SWARM_CAPTURAS_DIR;
   if (pasta) await page.screenshot({ path: `${pasta}/${nome}.png`, fullPage: false });
 }
+
+const rgbCss = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+/** O "●" do selo (6 x 6 px, só desenho): cor do ponto, do texto ao lado e do fundo da pílula (o mesmo de `acesso-aluno.spec.ts`). */
+const pontosDoSelo = (el: Locator) => el.locator('[aria-hidden="true"]').evaluateAll((els) => els
+  .filter((e) => (e as HTMLElement).offsetWidth === 6 && (e as HTMLElement).offsetHeight === 6)
+  .map((e) => ({ ponto: getComputedStyle(e).backgroundColor, texto: getComputedStyle(e.nextElementSibling!).color, pilula: getComputedStyle(e.parentElement!).backgroundColor })));
 
 /** A caixa do desenho (o primeiro filho do botão), não a do alvo de toque: no `IconeBotao compacto` o alvo tem 6 px a mais de cada lado. */
 const desenhoDe = (botao: Locator) => botao.evaluate((el) => {
@@ -198,6 +205,10 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Acesso pausado', { exact: true })).toHaveCount(2);
       const acesso = page.getByLabel('Acesso ao app', { exact: true });
       await expect(acesso.getByLabel('Situação: Acesso pausado', { exact: true })).toBeVisible();
+      // Âmbar: ponto e texto em `atencao` sobre a pílula `atencaoSuave` (tema claro, o padrão sem preferência).
+      await page.mouse.move(0, 0);
+      await expect.poll(() => pontosDoSelo(acesso.getByLabel('Situação: Acesso pausado', { exact: true }))).toEqual([
+        { ponto: rgbCss(CLARO.atencao), texto: rgbCss(CLARO.atencao), pilula: rgbCss(CLARO.atencaoSuave) }]);
       await expect(acesso.getByText('Pausado em 18/10 por cobrança vencida. O aluno só vê as cobranças em aberto; o acesso volta ao quitar.', { exact: true })).toBeVisible();
       // Pausado, a conta segue: e-mail e senha continuam com as ações.
       await expect(acesso.getByRole('button', { name: 'Alterar e-mail de acesso' })).toBeVisible();
