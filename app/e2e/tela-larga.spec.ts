@@ -641,9 +641,7 @@ for (const c of [
   { largura: 3440, menuRecolhido: false, total: 400, larguraConteudo: 'LIMITADA' as const },
 ]) {
   test(`dieta ${c.largura} px (menu ${c.menuRecolhido ? 'recolhido' : 'aberto'}, ${c.larguraConteudo ?? 'AUTOMATICA'}): 3 colunas até a borda, total fixo ao rolar`, async ({ page }) => {
-    // Altura 1000: no fim da página o total (sticky) só fica 16 px abaixo da barra se o contêiner acabar abaixo dele, e isso
-    // depende da altura de tudo que vem depois (Complementos); com 900 a folga era de poucos pixels e oscilava.
-    const { errosDaPagina } = await prepararAmbiente(page, c.largura, { altura: 1000, menuRecolhido: c.menuRecolhido, larguraConteudo: c.larguraConteudo });
+    const { errosDaPagina } = await prepararAmbiente(page, c.largura, { altura: 900, menuRecolhido: c.menuRecolhido, larguraConteudo: c.larguraConteudo });
     await page.goto(`/treinador/dietas/${DIETA_ID}`);
     const coluna = page.getByTestId('coluna-total-dieta');
     // "Por refeição" escolhe a refeição no editor (a escolhida abre com as abas das opções).

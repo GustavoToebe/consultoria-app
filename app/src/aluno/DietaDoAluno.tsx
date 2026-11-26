@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta, Refeicao, VariacaoDaDieta, VersaoDetalhe } from '../api/tipos';
 import { corDaRefeicao } from '../dominio/corDaSerie';
-import { ehRotuloPadrao, MACROS as CHAVES_DOS_MACROS, normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDaOpcao, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
+import { ehRotuloPadrao, MACROS as CHAVES_DOS_MACROS, normalizarDieta, opcaoDoTotalDoDia, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDaOpcao, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { duasColunasCom } from '../dominio/grade';
@@ -128,8 +128,9 @@ export function DietaDoAluno({
     <VariacaoDoDia variacoes={c.variacoes} mostrada={mostrada} deHoje={deHoje}
       aoEscolher={(uid) => setEscolha(uid === deHoje?.uid ? null : { uid, dia })} />
   ) : null;
+  const opcaoDoTotal = opcaoDoTotalDoDia(refeicoes);
   const total = semDietaHoje ? null : (
-    <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
+    <Cartao titulo="Total do dia" descricao={opcaoDoTotal.padrao ? `Soma da ${opcaoDoTotal.nome} de cada refeição.` : `Soma · ${opcaoDoTotal.nome} de cada refeição.`}>
       <TotalDoDia totais={totais} />
       <LegendaDosMacros />
       {/* Só os macros e a kcal: a fibra é opcional e nula não deixa o total incompleto. */}

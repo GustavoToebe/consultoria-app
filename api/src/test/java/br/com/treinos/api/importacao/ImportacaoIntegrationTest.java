@@ -46,7 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Importação de planilha: prévia sem efeito, confirmação, regras e permissões. Só dados fictícios. */
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "treinos.plano.aplicar=true")
+@TestPropertySource(properties = {"treinos.plano.aplicar=true",
+        "spring.jpa.properties.hibernate.session_factory.statement_inspector=br.com.treinos.api.importacao.TravasDeAlunoNoSql"})
 class ImportacaoIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mvc;
@@ -357,6 +358,29 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         String vazio = "nome;email;objetivo\nRegra Fictícia;" + email + ";\n";
         confirmar("alunos", "e.csv", vazio.getBytes(StandardCharsets.UTF_8), atualizar, hash("alunos", "e.csv", vazio, atualizar));
         assertThat(api.get("/alunos/" + id, treinador, 200).path("objetivo").asString()).isEqualTo("Manter força");
+    }
+
+    /** Linha IGNORAR não toma a trava do aluno (nenhum {@code FOR UPDATE} em {@code aluno}); ATUALIZAR toma (controle positivo). */
+    @Test
+    void linhaIgnoradaNaoTomaATravaDoAluno() throws Exception {
+        String email = unico("trava");
+        String base = "nome;email;objetivo\nTrava Fictícia;" + email + ";\n";
+        String ignorar = config("email", "IGNORAR", Map.of("nome", 0, "email", 1, "objetivo", 2));
+        confirmar("alunos", "a.csv", base.getBytes(StandardCharsets.UTF_8), ignorar, hash("alunos", "a.csv", base, ignorar));
+        String existente = "nome;email;objetivo\nTrava Fictícia;" + email + ";Ganhar força\n";
+
+        String hashIgnorar = hash("alunos", "b.csv", existente, ignorar);
+        TravasDeAlunoNoSql.zerar();
+        JsonNode ignorado = confirmar("alunos", "b.csv", existente.getBytes(StandardCharsets.UTF_8), ignorar, hashIgnorar);
+        assertThat(ignorado.path("ignorados").asInt()).isEqualTo(1);
+        assertThat(TravasDeAlunoNoSql.travas()).as("travas de aluno com a regra IGNORAR").isZero();
+
+        String atualizar = config("email", "ATUALIZAR", Map.of("nome", 0, "email", 1, "objetivo", 2));
+        String hashAtualizar = hash("alunos", "c.csv", existente, atualizar);
+        TravasDeAlunoNoSql.zerar();
+        JsonNode atualizado = confirmar("alunos", "c.csv", existente.getBytes(StandardCharsets.UTF_8), atualizar, hashAtualizar);
+        assertThat(atualizado.path("ignorados").asInt()).isZero();
+        assertThat(TravasDeAlunoNoSql.travas()).as("travas de aluno com a regra ATUALIZAR").isPositive();
     }
 
     @Test

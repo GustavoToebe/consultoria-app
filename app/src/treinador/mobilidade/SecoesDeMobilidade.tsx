@@ -251,7 +251,7 @@ function PainelDaSecao({ secao: sec, posicao, total, noInspetor, itemNovo, alca,
               {acoesDoMenu.length || aoExcluir ? (
                 <View style={estilos.acoesDaSecao}>
                   {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações de ${titulo}`} aoTocar={() => setMenu(true)} /> : null}
-                  {aoExcluir ? <Botao tipo="perigo" rotulo="Excluir seção" rotuloAcessivel={`Excluir seção ${titulo}`} Icone={Trash2} aoTocar={aoExcluir} /> : null}
+                  {aoExcluir ? <Botao tipo="perigo" rotulo="Excluir seção" rotuloAcessivel={`Excluir seção: ${titulo}`} Icone={Trash2} aoTocar={aoExcluir} /> : null}
                 </View>
               ) : null}
             </View>

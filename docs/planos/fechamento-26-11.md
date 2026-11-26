@@ -1,6 +1,6 @@
 # Fechamento de 26/11: Complementos sem teto, motivo ATRASO só com FINANCEIRO_LER e acabamentos dos editores
 
-Situação: Concluída em 26/11/2026 (rodada 2 incluída) · Onde: main (`749f191d` e `3091eb89`) · Atualizado: 26/11/2026
+Situação: Concluída em 26/11/2026 (rodadas 2 e 3 incluídas) · Onde: main (`749f191d` e `3091eb89`) · Atualizado: 26/11/2026
 
 ## Objetivo
 Lote de fechamento pedido pelo Gustavo depois de aprovar o relatório de 26/11 ([ajustes-de-26-11.md](ajustes-de-26-11.md), [pausar-acesso-por-atraso.md](pausar-acesso-por-atraso.md)): Complementos da dieta usam toda a largura na ultralarga; quem não tem `FINANCEIRO_LER` nunca vê "pausado" nem atraso; erro de cobrança indisponível vira toast; opção personalizada da refeição não vira letra; Espaço e Enter escolhem no radiogroup; exclusão igual nos três editores; Configurações sem vão em 3440; limites reais na área de soltar; limpeza de branches. Só app, exceto o item 2 (API).
@@ -56,3 +56,22 @@ Commit da rodada 2: `3091eb89` (CI: run 45825003355, conferir no GitHub).
 Verificação final: typecheck 0 erros; lint 0 erros; jest 455 suítes, 11.059 testes; `mvn verify` 3.471 testes, 0 falhas (21 min); e2e das 16 specs tocadas: 208 passaram, 2 puladas e as duas falhas de `tela-larga` corrigidas como descrito.
 
 Não conferido: aparelho nativo, tema escuro das telas novas (Outros, Marca), faixa de 720 a 1000 px da aba Outros e de 880 a 1103 da Marca.
+
+## Rodada 3 (26/11, depois da aprovação da rodada 2)
+Pedido: conferir a CI da rodada 2, a frase vazia de Orientações em 1 linha sem mexer na janela do teste, brecha do ATRASO, prova da trava da importação, frases "opção A" no aluno e PDF, `Campo` com 44 px, nome acessível da exclusão e as capturas que faltaram. Pedido adicional: fechar junto a correção do menu lateral recolhido (submenus no trilho) que o Gemini deixou sem commit.
+
+| # | Item | Status | Evidência |
+| --- | --- | --- | --- |
+| 0 | CI do `3091eb89` | ✅ | run 45825003355: todos os jobs verdes, inclusive `publicar` |
+| 1 | `tela-larga:643` (antes 638) com janela de 900 px | ✅ | `OrientacoesDaDieta.tsx`: estado vazio sem o teto de 72ch (`abaVazia`), texto igual; `altura: 900` de volta; 32 de 32 em `--repeat-each=8`; a frase mede 20 px (uma linha) em 1920 e 3440 (capturas) |
+| 2 | Brecha do ATRASO | ⚠️ risco não é nulo, decisão do Gustavo | quem tem só `ALUNO_CONVITE` não vê o atraso em tela nem endpoint (listagem e ficha devolvem MANUAL, `/financeiro/alunos-em-atraso` exige `FINANCEIRO_LER`), mas distingue por `desativar`/`reativar` (403 × 200) e `PUT /acesso` (200 × 409); opções em Pendências soltas; nada implementado |
+| 3 | Trava da importação não é tomada no IGNORAR | ✅ | `ImportacaoIntegrationTest.linhaIgnoradaNaoTomaATravaDoAluno` com `TravasDeAlunoNoSql` (StatementInspector conta `for update` em `aluno`; controle positivo com ATUALIZAR); falha provada tirando o `&& !ignorar` de `GravadorDaImportacao` (restaurado) |
+| 4 | Frases "opção A" no aluno e no PDF | ✅ | `opcaoDoTotalDoDia` em `dominio/dieta.ts`; padrão igual, mesmo rótulo personalizado "Soma · <rótulo> de cada refeição" / "Total do dia · <rótulo> de cada refeição", mistura = "primeira opção"; jest `dieta` e `pdf`; sobra a frase fixa do editor (`TotalDoDia.tsx`) |
+| 5 | `ui/Campo` com 44 px | ✅ | `Math.max(ALVO_TOQUE, …)`; `Campo.test.tsx` novo |
+| 6 | Nome acessível da exclusão | ✅ | "Excluir seção: <título>" na mobilidade; `editor-mobilidade` 21 de 21 |
+| 7 | Capturas que faltaram | ✅ com 3 correções | `capturas/fechamento-26-11/`: Outros (escuro 1920 e 3440, claro 720, lista 720 e 1000), Marca (escuro 3440 e 390, claro 880, 1103, 1920 e 3440), Orientações vazia. Mostraram defeitos reais, corrigidos: (a) campo de 1 linha nascia com 2 (estimativa de 9 px por caractere em `CampoDaTabela`: agora mede o textarea), (b) Observação cortada na 3ª linha (teto fixo de 2; Outros passa a 6 linhas inteiras, a Suplementação segue em 2), (c) Nome cortado na grade de 654 px; e a prévia da Marca em 3440 ficava centrada com vão de ~700 px (agora a 24 px do formulário, teto de 768) |
+| 8 | Menu lateral recolhido (Gemini) | ✅ | `SubmenuDoTrilho.tsx`, `Navegacao.tsx`, `gruposDoMenu.ts` e testes: as três correções conferidas no código (`fechar()` zera `sobreSubmenu`, `focado` limpo ao desativar, mouse fora do trilho antes do resize); capturas em `capturas/menu-recolhido-26-11/` (escuro: hover, clique, troca rápida, diagonal, teclado, expandido, celular) sem defeito; `links-do-menu:89` falhava por corrida do teste (o popup nasce em `about:blank` e o teste lia o documento antes do real): corrigido com `expect.poll`, 60 de 60 com 4 workers |
+
+Verificação (lote integrado, medida no mesmo dia): typecheck 0 erros (parte de 92 s com lint e jest); lint 0 erros (10 avisos antigos); jest 459 suítes, 11.084 testes, 42 s; `mvn verify` 3.472 testes, 0 falhas, 39 min (2.359 s); e2e completa 3.321 passaram, 299 puladas, 2 falhas em 35,6 min (2.142 s): `links-do-menu:89` (causa acima, corrigida) e `aniversarios:86` (390 px, 180 de 180 isolada, intermitência). Nível adotado: completo (peça compartilhada `Campo` e `Navegacao`, mais testes da API).
+
+Não conferido: aparelho nativo (a medição de `CampoDaTabela` fora da web segue a estimativa por caractere), temas além do Escuro (Areia e outras paletas) nas capturas novas, tema claro do menu recolhido, capturas de 880 e 1103 da Marca refeitas depois da correção (só leitura de código e e2e).

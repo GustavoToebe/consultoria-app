@@ -173,7 +173,7 @@ test('seções: arrastar pela alça com o mouse, Ordem alterada com Desfazer e M
 
 test('excluir seção: confirma com itens, sai direto vazia, e Desfazer (1280px)', async ({ page }) => {
   const { naoTratadas, errosDaPagina } = await abrir(page, 1280);
-  await page.getByRole('button', { name: 'Excluir seção Aquecimento' }).click();
+  await page.getByRole('button', { name: 'Excluir seção: Aquecimento' }).click();
   const painel = page.getByRole('alertdialog');
   await expect(painel.getByText('Os 2 itens dela saem junto. Dá para desfazer logo depois.')).toBeVisible();
   await painel.getByRole('button', { name: 'Excluir seção' }).click();
@@ -190,7 +190,7 @@ test('excluir seção: confirma com itens, sai direto vazia, e Desfazer (1280px)
   await noMenu(page, 'item 1', 'Excluir item');
   await expect(page.getByText('Seção sem item. Adicione ao menos um.')).toBeVisible();
   await expect(page.getByText('Corrigir', { exact: true }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Excluir seção Seção 3' }).click();
+  await page.getByRole('button', { name: 'Excluir seção: Seção 3' }).click();
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Seções (2)' })).toBeVisible();
   expect(naoTratadas).toEqual([]);
@@ -341,7 +341,7 @@ test('celular: cartões empilhados com a alça no cabeçalho, item com os rótul
   await page.getByRole('button', { name: 'Mais ações de Alongamento' }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^Mover para cima/ }).click();
   await expect(page.getByRole('textbox', { name: 'Título da seção 1' })).toHaveValue('Alongamento');
-  await page.getByRole('button', { name: 'Excluir seção Alongamento' }).click();
+  await page.getByRole('button', { name: 'Excluir seção: Alongamento' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Excluir seção' }).click();
   await expect(page.getByText('Seção “Alongamento” removida, com 1 item.')).toBeInViewport();
   await page.getByRole('button', { name: 'Desfazer' }).click();
