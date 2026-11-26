@@ -40,7 +40,7 @@ O treinador pausa o acesso de um aluno em atraso, na hora que decidir. O aluno p
 
 ## Evidências e verificação (26/11/2026, app sobre o motivo ATRASO, sem commit de API)
 - `npm run typecheck` sem erro; `npm run lint` 0 erros (10 avisos que já existiam); Jest completo 453 suítes, 11.034 testes, 0 falhas.
-- E2e: `acesso-pausado-fase2.spec.ts` (16 casos, 390 e 1280, repetidos 2 vezes) e `acesso-aluno.spec.ts` (13) verdes; suíte completa: ver o relatório da sessão de 26/11.
+- E2e: `acesso-pausado-fase2.spec.ts` (16 casos, 390 e 1280, repetidos 2 vezes) e `acesso-aluno.spec.ts` (13) verdes; suíte completa (contrato de DTO e sessão): 3.285 passaram, 299 pulados, 4 falharam; 3 passaram isolados (intermitência: `editor-questionario-tela-larga:43`, `financeiro:722`, `tela-larga:638`) e `editor-mobilidade:235` (URL da aba nova vazia no "Abrir vídeo") falha também isolado, fora da área do acesso.
 - Capturas em 1280 e 390, claro e escuro: `C:\Users\gusta\Documents\consultoria-app\capturas\26-11\acesso\` (com acesso, ⋯ aberto, desativado, pausado, cabeçalho).
 - Não conferido: aparelho nativo (Android/iOS), temas Areia e contraste alto, modo `informar` da tela do aluno (o e2e roda na web, que sempre tem "Pagar").
 
