@@ -35,10 +35,23 @@ class WhatsAppRepositorio {
 
     /**
      * Enfileira o aviso se, e só se, o aluno é ativo, não anonimizado, tem acesso e autorizou os avisos, a consultoria tem
-     * conexão e modelo do tipo e (no lembrete) o aluno não desligou os lembretes. A chave única impede o aviso em dobro e faz o
-     * que já existe ficar como está. Roda na transação de quem gerou o fato (mesma conexão). Devolve se nasceu uma linha.
+     * conexão e modelo do tipo e (no lembrete) o aluno não desligou os lembretes. A chave única impede o aviso em dobro. No
+     * lembrete, o que já existe fica como está (uma cobrança, um aviso por tipo, para sempre). No compromisso, a mesma chave
+     * (compromisso, tipo, aluno) volta a valer a cada fato novo (reaberto, remarcado de novo, cancelado de novo): a linha que já
+     * saiu, falhou ou foi cancelada é rearmada como PENDENTE (tentativas, id da Meta, erro e datas do envio anterior zerados;
+     * quem pergunta pela mensagem velha na Meta não a acha mais); a que ainda está PENDENTE (inclusive em envio) fica como está,
+     * então o mesmo fato processado duas vezes antes de sair dá um aviso só. Roda na transação de quem gerou o fato (mesma
+     * conexão). Devolve se nasceu ou foi rearmada uma linha.
      */
     boolean enfileirar(UUID consultoriaId, UUID alunoId, TipoDeAviso tipo, UUID referenciaId) {
+        // shortcut: o fato repetido DEPOIS de o aviso anterior sair é indistinguível de um fato novo (a chave não tem id do
+        // evento); trocar por uma coluna de evento (migration) se a agenda passar a reprocessar fatos.
+        String conflito = tipo.ehLembrete()
+                ? "on conflict (consultoria_id, tipo, referencia_id, aluno_id) do nothing"
+                : "on conflict (consultoria_id, tipo, referencia_id, aluno_id) do update set situacao = 'PENDENTE', motivo = null, "
+                + "tentativas = 0, proxima_tentativa = now(), reservado_por = null, reserva_ate = null, id_externo = null, "
+                + "codigo_erro = null, enviado_em = null, entregue_em = null, lido_em = null, criado_em = now(), "
+                + "atualizado_em = now() where whatsapp_envio.situacao <> 'PENDENTE'";
         return jdbc.update("insert into whatsapp_envio (id, consultoria_id, aluno_id, tipo, referencia_id) "
                 + "select ?, a.consultoria_id, a.id, ?, ? from aluno a where a.consultoria_id = ? and a.id = ? "
                 + "and a.ativo and a.anonimizado_em is null and a.usuario_id is not null "
@@ -46,7 +59,7 @@ class WhatsAppRepositorio {
                 + "and (not ? or a.lembretes_cobranca_desligados_em is null) "
                 + "and exists (select 1 from whatsapp_conexao c where c.consultoria_id = a.consultoria_id) "
                 + "and exists (select 1 from whatsapp_modelo m where m.consultoria_id = a.consultoria_id and m.tipo = ?) "
-                + "on conflict (consultoria_id, tipo, referencia_id, aluno_id) do nothing",
+                + conflito,
                 UUID.randomUUID(), tipo.name(), referenciaId, consultoriaId, alunoId, tipo.ehLembrete(), tipo.name()) > 0;
     }
 
