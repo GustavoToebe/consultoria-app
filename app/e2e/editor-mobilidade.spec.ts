@@ -240,7 +240,8 @@ test('vídeo: vazio com o placeholder, válido vira "Vídeo adicionado" (Abrir e
   await expect(page.getByText('Link inválido', { exact: true })).toBeVisible();
   // Abrir: nova aba com o link, fora do app.
   const [aba] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Abrir vídeo do item 1 (nova aba)' }).click()]);
-  expect(aba.url()).toContain('youtu.be/exemploFicticio');
+  // O popup nasce em about:blank e só depois navega: esperar a URL, não lê-la no evento.
+  await aba.waitForURL(/youtu\.be\/exemploFicticio/);
   await aba.close();
   // Trocar: o campo volta com o foco e o link de agora; fora do foco, a linha compacta volta.
   await page.getByRole('button', { name: 'Trocar vídeo do item 1' }).click();
