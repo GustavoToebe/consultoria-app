@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Redes sociais da consultoria (V101): {@code PUT /consultoria/marca} normaliza para link https (nulo mantém, em branco apaga,
- * 422 {@code MARCA_INVALIDA} por campo sem repetir o valor), {@code GET /consultoria} devolve as cinco chaves e o {@code GET /eu}
+ * 422 {@code MARCA_INVALIDA} por campo sem repetir o valor), {@code GET /consultoria} devolve as oito chaves e o {@code GET /eu}
  * do aluno só as preenchidas. Só dados fictícios.
  */
 @AutoConfigureMockMvc
@@ -60,9 +60,9 @@ class RedesDaConsultoriaIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void semRedesVemAsCincoChavesNulas() throws Exception {
+    void semRedesVemAsOitoChavesNulas() throws Exception {
         JsonNode redes = api.get("/consultoria", treinador, 200).get("redesSociais");
-        for (String chave : List.of("instagram", "tiktok", "youtube", "x", "site")) {
+        for (String chave : List.of("instagram", "tiktok", "youtube", "x", "site", "facebook", "linkedin", "telegram")) {
             assertThat(redes.has(chave)).as(chave).isTrue();
             assertThat(redes.get(chave).isNull()).as(chave).isTrue();
         }
@@ -98,6 +98,97 @@ class RedesDaConsultoriaIntegrationTest extends AbstractIntegrationTest {
         assertThat(redeDe(semSite, "site")).isNull();
         assertThat(redeDe(semSite, "youtube")).isEqualTo("https://youtu.be/abc123");
         assertThat(redeDe(semSite, "tiktok")).isEqualTo("https://tiktok.com/@marca");
+    }
+
+    @Test
+    void novasRedesGravamOLinkCanonicoEMantemQuandoAusenteOuNulo() throws Exception {
+        Map<String, Object> entrada = new LinkedHashMap<>();
+        entrada.put("facebook", "https://m.facebook.com/marca.fit/?ref=x");
+        entrada.put("linkedin", "https://www.linkedin.com/company/marca-fit/about");
+        entrada.put("telegram", "@marca_fit");
+        JsonNode salva = gravar(treinador, entrada, 200);
+        assertThat(redeDe(salva, "facebook")).isEqualTo("https://www.facebook.com/marca.fit");
+        assertThat(redeDe(salva, "linkedin")).isEqualTo("https://www.linkedin.com/company/marca-fit");
+        assertThat(redeDe(salva, "telegram")).isEqualTo("https://t.me/marca_fit");
+        assertThat(redeDe(api.get("/consultoria", treinador, 200), "telegram")).isEqualTo("https://t.me/marca_fit");
+
+        // Usuário puro também vale; as cinco antigas ficam como estavam (aqui, nulas).
+        JsonNode usuarios = gravar(treinador, Map.of("facebook", "@outra.marca", "linkedin", "outra-marca"), 200);
+        assertThat(redeDe(usuarios, "facebook")).isEqualTo("https://www.facebook.com/outra.marca");
+        assertThat(redeDe(usuarios, "linkedin")).isEqualTo("https://www.linkedin.com/in/outra-marca");
+        assertThat(redeDe(usuarios, "telegram")).isEqualTo("https://t.me/marca_fit");
+        assertThat(redeDe(usuarios, "instagram")).isNull();
+
+        // Sem o objeto, ou com campo nulo: mantém; em branco apaga só aquela.
+        assertThat(redeDe(gravar(treinador, null, 200), "telegram")).isEqualTo("https://t.me/marca_fit");
+        Map<String, Object> nulos = new LinkedHashMap<>();
+        nulos.put("facebook", null);
+        nulos.put("telegram", null);
+        JsonNode comNulos = gravar(treinador, nulos, 200);
+        assertThat(redeDe(comNulos, "facebook")).isEqualTo("https://www.facebook.com/outra.marca");
+        assertThat(redeDe(comNulos, "telegram")).isEqualTo("https://t.me/marca_fit");
+        JsonNode semTelegram = gravar(treinador, Map.of("telegram", "  "), 200);
+        assertThat(redeDe(semTelegram, "telegram")).isNull();
+        assertThat(redeDe(semTelegram, "facebook")).isEqualTo("https://www.facebook.com/outra.marca");
+        assertThat(redeDe(semTelegram, "linkedin")).isEqualTo("https://www.linkedin.com/in/outra-marca");
+    }
+
+    @Test
+    void novasRedesInvalidasDao422PorCampoSemRepetirOValorENadaEGravado() throws Exception {
+        gravar(treinador, Map.of("telegram", "@gravada"), 200);
+        Map<String, Object> ruins = new LinkedHashMap<>();
+        ruins.put("facebook", "https://www.facebook.com/sharer/sharer.php?u=sigiloso");
+        ruins.put("linkedin", "https://www.linkedin.com/feed/sigiloso");
+        ruins.put("telegram", "https://t.me/+sigilosoConvite");
+        ruins.put("instagram", "@valida");
+        JsonNode erro = gravar(treinador, ruins, 422);
+        assertThat(erro.get("codigo").asString()).isEqualTo("MARCA_INVALIDA");
+        assertThat(erro.get("fieldErrors").valueStream().map(e -> e.get("field").asString()).toList())
+                .containsExactlyInAnyOrder("redesSociais.facebook", "redesSociais.linkedin", "redesSociais.telegram");
+        assertThat(erro.get("fieldErrors").valueStream().map(e -> e.get("message").asString()).toList())
+                .contains(RedesSociais.Rede.FACEBOOK.mensagem(), RedesSociais.Rede.LINKEDIN.mensagem(), RedesSociais.Rede.TELEGRAM.mensagem());
+        assertThat(erro.toString()).doesNotContain("sigiloso");
+
+        JsonNode depois = api.get("/consultoria", treinador, 200);
+        assertThat(redeDe(depois, "telegram")).isEqualTo("https://t.me/gravada");
+        assertThat(redeDe(depois, "instagram")).as("o campo válido do mesmo pedido não é gravado").isNull();
+    }
+
+    @Test
+    void novasRedesSoMarcaAlterarGravaOutraConsultoriaNaoVeEEuDoAlunoTrazSoAsPreenchidas() throws Exception {
+        gravar(treinador, Map.of("facebook", "@marca.a", "telegram", "marca_a_tg"), 200);
+
+        String perfil = api.post("/perfis", treinador, Map.of("nome", "Perfil " + UUID.randomUUID(),
+                "permissoes", CatalogoPermissoes.comDependencias(Set.of("TREINO_LER"))), 200).get("id").asString();
+        JsonNode convite = api.post("/usuarios/convites", treinador,
+                Map.of("nome", "Membro fictício", "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil), 200);
+        JsonNode membro = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.get("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
+        gravar(membro, Map.of("facebook", "@invasor", "linkedin", "invasor-in"), 403);
+        JsonNode vista = api.get("/consultoria", treinador, 200);
+        assertThat(redeDe(vista, "facebook")).isEqualTo("https://www.facebook.com/marca.a");
+        assertThat(redeDe(vista, "linkedin")).isNull();
+
+        JsonNode outro = api.novoTreinador();
+        assertThat(redeDe(api.get("/consultoria", outro, 200), "facebook")).isNull();
+        assertThat(redeDe(api.get("/consultoria", outro, 200), "telegram")).isNull();
+        gravar(outro, Map.of("telegram", "marca_b_tg"), 200);
+        assertThat(redeDe(api.get("/consultoria", treinador, 200), "telegram")).isEqualTo("https://t.me/marca_a_tg");
+
+        JsonNode aluno = api.convidarEEntrar(treinador, api.criarAluno(treinador, "Aluno Redes Fictício"));
+        JsonNode redes = api.get("/eu", aluno, 200).get("redesSociaisDaConsultoria");
+        assertThat(redes.size()).isEqualTo(2);
+        assertThat(redes.get("facebook").asString()).isEqualTo("https://www.facebook.com/marca.a");
+        assertThat(redes.get("telegram").asString()).isEqualTo("https://t.me/marca_a_tg");
+        assertThat(redes.has("linkedin")).isFalse();
+
+        gravar(treinador, Map.of("linkedin", "marca-a-in"), 200);
+        JsonNode tres = api.get("/eu", aluno, 200).get("redesSociaisDaConsultoria");
+        assertThat(tres.size()).isEqualTo(3);
+        assertThat(tres.get("linkedin").asString()).isEqualTo("https://www.linkedin.com/in/marca-a-in");
+
+        gravar(treinador, Map.of("facebook", "", "linkedin", "", "telegram", ""), 200);
+        assertThat(api.get("/eu", aluno, 200).has("redesSociaisDaConsultoria")).isFalse();
     }
 
     @Test

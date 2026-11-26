@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 
 /**
  * "Meus dados": o aluno corrige o próprio cadastro. Sempre o aluno da sessão (nunca id no corpo).
- * {@code telefone}, {@code endereco}, {@code sexo}, {@code instagram} e {@code tiktok} <b>substituem</b> o gravado: telefone, instagram e tiktok em branco ou nulos apagam, endereço nulo ou
+ * {@code telefone}, {@code endereco}, {@code sexo}, {@code instagram}, {@code tiktok}, {@code youtube}, {@code facebook}, {@code linkedin} e {@code telegram} <b>substituem</b> o gravado: telefone e as redes em branco ou nulos apagam, endereço nulo ou
  * vazio apaga, sexo nulo ou em branco é "não informado". {@code cpf} nulo ou em branco não tem efeito; só preenche se o
  * cadastro está sem CPF. {@code versao} é obrigatória (lock otimista, 409 {@code CONFLITO_EDICAO}).
  * Tudo é dado pessoal: o {@code toString} não mostra nada.
@@ -17,6 +17,10 @@ public record MeusDadosRequest(
         @Size(max = 10) String sexo,
         @Size(max = 200) String instagram,
         @Size(max = 200) String tiktok,
+        @Size(max = 200) String youtube,
+        @Size(max = 200) String facebook,
+        @Size(max = 200) String linkedin,
+        @Size(max = 200) String telegram,
         Long versao) {
 
     @Override

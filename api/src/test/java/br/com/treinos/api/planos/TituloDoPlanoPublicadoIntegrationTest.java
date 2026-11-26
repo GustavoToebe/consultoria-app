@@ -100,6 +100,22 @@ class TituloDoPlanoPublicadoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void mobilidadeImportadaPublicaComMobilidadeDeNomeEPastaRenomeada() throws Exception {
+        Object conteudo = ApiDeTeste.mobilidade().conteudo();
+        JsonNode publicado = publicar(treinador, "mobilidade", rascunho(treinador, aluno, "mobilidade", IMPORTADA, conteudo));
+        assertThat(titulo(publicado)).isEqualTo("Mobilidade de Aluno Fictício Título");
+        assertThat(tituloDaVersao(treinador, "mobilidade", publicado, 1)).isEqualTo("Mobilidade de Aluno Fictício Título");
+
+        UUID outro = api.criarAluno(treinador, "Outro Aluno Fictício");
+        JsonNode comRascunho = publicar(treinador, "mobilidade", rascunho(treinador, outro, "mobilidade", "Alongamento A (RASCUNHO)", conteudo));
+        assertThat(titulo(comRascunho)).isEqualTo("Alongamento A");
+
+        String pasta = pasta(treinador, aluno, IMPORTADA);
+        publicar(treinador, "mobilidade", planoNaPasta(treinador, aluno, "mobilidade", pasta, conteudo));
+        assertThat(tituloDaPasta(treinador, aluno, pasta)).isEqualTo("Plano de Aluno Fictício Título");
+    }
+
+    @Test
     void tiraORascunhoDoTituloEPreservaOQueOTreinadorEscreveu() throws Exception {
         JsonNode comRascunho = publicar(treinador, "treino",
                 rascunho(treinador, aluno, "treino", "Treino A (RASCUNHO)", ApiDeTeste.treino().conteudo()));

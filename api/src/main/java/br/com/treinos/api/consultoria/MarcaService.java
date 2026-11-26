@@ -64,8 +64,9 @@ public class MarcaService {
         }
     }
 
-    /** As cinco redes, na entrada (texto livre) e na saída (link https ou nulo). */
-    public record RedesSociaisDto(String instagram, String tiktok, String youtube, String x, String site) {
+    /** As oito redes, na entrada (texto livre) e na saída (link https ou nulo). */
+    public record RedesSociaisDto(String instagram, String tiktok, String youtube, String x, String site, String facebook,
+                                  String linkedin, String telegram) {
         String de(RedesSociais.Rede rede) {
             return switch (rede) {
                 case INSTAGRAM -> instagram;
@@ -73,12 +74,16 @@ public class MarcaService {
                 case YOUTUBE -> youtube;
                 case X -> x;
                 case SITE -> site;
+                case FACEBOOK -> facebook;
+                case LINKEDIN -> linkedin;
+                case TELEGRAM -> telegram;
             };
         }
 
         static RedesSociaisDto de(java.util.Map<RedesSociais.Rede, String> redes) {
             return new RedesSociaisDto(redes.get(RedesSociais.Rede.INSTAGRAM), redes.get(RedesSociais.Rede.TIKTOK),
-                    redes.get(RedesSociais.Rede.YOUTUBE), redes.get(RedesSociais.Rede.X), redes.get(RedesSociais.Rede.SITE));
+                    redes.get(RedesSociais.Rede.YOUTUBE), redes.get(RedesSociais.Rede.X), redes.get(RedesSociais.Rede.SITE),
+                    redes.get(RedesSociais.Rede.FACEBOOK), redes.get(RedesSociais.Rede.LINKEDIN), redes.get(RedesSociais.Rede.TELEGRAM));
         }
     }
 

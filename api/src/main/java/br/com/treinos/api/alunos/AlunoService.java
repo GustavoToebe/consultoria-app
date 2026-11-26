@@ -277,7 +277,7 @@ public class AlunoService {
         limiteDoTreinador.exigirVaga(aluno.getResponsavelId(), 1, null);
         aplicarSexo(aluno, r.sexo());
         aluno.alterarDataNascimento(dados.dataNascimento());
-        aluno.alterarRedes(dados.instagram(), dados.tiktok());
+        aluno.alterarRedes(dados.instagram(), dados.tiktok(), dados.youtube(), dados.facebook(), dados.linkedin(), dados.telegram());
         return detalheDe(gravar(aluno));
     }
 
@@ -358,11 +358,13 @@ public class AlunoService {
         if (r.dataNascimento() != null) {
             aluno.alterarDataNascimento(dados.dataNascimento());
         }
-        // Instagram e TikTok, cada um sozinho: nulo mantém o gravado, em branco apaga, preenchido grava o usuário.
-        if (r.instagram() != null || r.tiktok() != null) {
-            aluno.alterarRedes(r.instagram() == null ? aluno.getInstagram() : dados.instagram(),
-                    r.tiktok() == null ? aluno.getTiktok() : dados.tiktok());
-        }
+        // Cada rede sozinha: nulo mantém o gravado, em branco apaga, preenchido grava (usuário no Instagram e no TikTok, link nas outras).
+        aluno.alterarRedes(r.instagram() == null ? aluno.getInstagram() : dados.instagram(),
+                r.tiktok() == null ? aluno.getTiktok() : dados.tiktok(),
+                r.youtube() == null ? aluno.getYoutube() : dados.youtube(),
+                r.facebook() == null ? aluno.getFacebook() : dados.facebook(),
+                r.linkedin() == null ? aluno.getLinkedin() : dados.linkedin(),
+                r.telegram() == null ? aluno.getTelegram() : dados.telegram());
         UUID anterior=aluno.getResponsavelId();
         definirResponsavel(aluno,r.responsavelId());
         if(!java.util.Objects.equals(anterior,aluno.getResponsavelId()))
@@ -514,7 +516,8 @@ public class AlunoService {
      * {@code endereco.uf}, {@code endereco.logradouro}...) e uma mensagem fixa do {@code Formatos} ou da {@code RegrasDoEndereco}, nunca o valor enviado. CPF e endereço só são lidos
      * (e conferidos) com {@code ALUNO_SENSIVEL_ALTERAR}.
      */
-    record Dados(String telefone, String cpf, Endereco endereco, LocalDate dataNascimento, String instagram, String tiktok) {
+    record Dados(String telefone, String cpf, Endereco endereco, LocalDate dataNascimento, String instagram, String tiktok,
+                 String youtube, String facebook, String linkedin, String telegram) {
         static Dados de(AlunoRequest r, boolean sensivel) {
             var erros = new ArrayList<ApiError.FieldError>();
             LocalDate nascimento = dataNascimento(erros, r.dataNascimento());
@@ -523,10 +526,14 @@ public class AlunoService {
             Endereco endereco = sensivel ? endereco(erros, r.endereco()) : null;
             String instagram = rede(erros, "instagram", RedesSociais.Rede.INSTAGRAM, r.instagram());
             String tiktok = rede(erros, "tiktok", RedesSociais.Rede.TIKTOK, r.tiktok());
+            String youtube = link(erros, "youtube", RedesSociais.Rede.YOUTUBE, r.youtube());
+            String facebook = link(erros, "facebook", RedesSociais.Rede.FACEBOOK, r.facebook());
+            String linkedin = link(erros, "linkedin", RedesSociais.Rede.LINKEDIN, r.linkedin());
+            String telegram = link(erros, "telegram", RedesSociais.Rede.TELEGRAM, r.telegram());
             if (!erros.isEmpty()) {
                 throw new ValidacaoException("Confira os dados do aluno.", "ALUNO_INVALIDO", erros);
             }
-            return new Dados(telefone, cpf, endereco, nascimento, instagram, tiktok);
+            return new Dados(telefone, cpf, endereco, nascimento, instagram, tiktok, youtube, facebook, linkedin, telegram);
         }
 
         /** Em branco ou nulo = sem data. Texto fora de {@code AAAA-MM-DD} ou fora da faixa de registro vira erro no campo, sem o valor. */
@@ -558,6 +565,16 @@ public class AlunoService {
         static String rede(List<ApiError.FieldError> erros, String campo, RedesSociais.Rede rede, String valor) {
             try {
                 return RedesSociais.usuario(rede, valor);
+            } catch (RedesSociais.RedeInvalidaException recusada) {
+                erros.add(new ApiError.FieldError(campo, recusada.getMessage()));
+                return null;
+            }
+        }
+
+        /** YouTube, Facebook, LinkedIn e Telegram: o link https normalizado (nulo para vazio); erro no campo com a mensagem fixa da rede, sem o valor. */
+        static String link(List<ApiError.FieldError> erros, String campo, RedesSociais.Rede rede, String valor) {
+            try {
+                return RedesSociais.link(rede, valor);
             } catch (RedesSociais.RedeInvalidaException recusada) {
                 erros.add(new ApiError.FieldError(campo, recusada.getMessage()));
                 return null;

@@ -61,10 +61,69 @@ class RedesSociaisTest {
     }
 
     @Test
+    void telegramAceitaUsuarioELinkDePerfilERecusaConviteEPrivado() {
+        for (String entrada : new String[]{"@meu_canal", "meu_canal", " meu_canal ", "t.me/meu_canal", "https://t.me/meu_canal?start=x",
+                "https://telegram.me/meu_canal", "https://telegram.dog/meu_canal/123#a", "https://T.ME/meu_canal/"}) {
+            assertThat(RedesSociais.link(Rede.TELEGRAM, entrada)).as(entrada).isEqualTo("https://t.me/meu_canal");
+        }
+        for (String ruim : new String[]{"https://t.me/+AbCdEfGh12", "t.me/+AbCdEfGh12", "+AbCdEfGh12", "https://t.me/joinchat/AAAAAEabc",
+                "https://t.me/addlist/abc123", "abcd", "a".repeat(33), "meu canal", "https://t.me/", "https://t.me",
+                "https://instagram.com/meu_canal", "http://t.me/meu_canal", "https://t.me:8443/meu_canal"}) {
+            assertThatThrownBy(() -> RedesSociais.link(Rede.TELEGRAM, ruim)).as(ruim).isInstanceOf(RedeInvalidaException.class);
+        }
+        assertThat(RedesSociais.link(Rede.TELEGRAM, "a".repeat(32))).isEqualTo("https://t.me/" + "a".repeat(32));
+    }
+
+    @Test
+    void facebookAceitaUsuarioELinkSemQueryEFragmento() {
+        for (String entrada : new String[]{"joao.silva", "@joao.silva", "facebook.com/joao.silva", "https://m.facebook.com/joao.silva/?ref=x#a",
+                "https://www.facebook.com/joao.silva", "https://fb.com/joao.silva"}) {
+            assertThat(RedesSociais.link(Rede.FACEBOOK, entrada)).as(entrada).isEqualTo("https://www.facebook.com/joao.silva");
+        }
+        assertThat(RedesSociais.link(Rede.FACEBOOK, "https://www.facebook.com/pages/Nome-Pagina/12345?x=1"))
+                .isEqualTo("https://www.facebook.com/pages/Nome-Pagina/12345");
+        // Perfil sem nome de usuário: o id numérico é a identidade, a única query que sobra.
+        assertThat(RedesSociais.link(Rede.FACEBOOK, "https://www.facebook.com/profile.php?id=1000123&sk=about"))
+                .isEqualTo("https://www.facebook.com/profile.php?id=1000123");
+        for (String ruim : new String[]{"https://www.facebook.com", "https://facebook.com/", "https://www.facebook.com/sharer/sharer.php?u=x",
+                "https://www.facebook.com/sharer.php?u=x", "https://www.facebook.com/login", "https://www.facebook.com/dialog/share",
+                "https://www.facebook.com/profile.php", "https://www.facebook.com/profile.php?id=abc", "abcd", "facebook.com", "joao silva",
+                "https://twitter.com/joao.silva", "https://facebook.com.outro.com/joao.silva", "http://facebook.com/joao.silva",
+                "https://facebook.com:8080/joao.silva", "https://www.facebook.com/joao<silva"}) {
+            assertThatThrownBy(() -> RedesSociais.link(Rede.FACEBOOK, ruim)).as(ruim).isInstanceOf(RedeInvalidaException.class);
+        }
+        assertThatThrownBy(() -> RedesSociais.link(Rede.FACEBOOK, "https://www.facebook.com/" + "a".repeat(200))).isInstanceOf(RedeInvalidaException.class);
+    }
+
+    @Test
+    void linkedinAceitaUsuarioELinkDePerfilEmpresaOuPub() {
+        for (String entrada : new String[]{"joao-silva", "@joao-silva", "linkedin.com/in/joao-silva", "https://www.linkedin.com/in/joao-silva/?utm=x",
+                "https://linkedin.com/in/joao-silva/details/experience/#a", "https://www.linkedin.com/IN/joao-silva"}) {
+            assertThat(RedesSociais.link(Rede.LINKEDIN, entrada)).as(entrada).isEqualTo("https://www.linkedin.com/in/joao-silva");
+        }
+        assertThat(RedesSociais.link(Rede.LINKEDIN, "https://www.linkedin.com/company/minha-empresa/about/"))
+                .isEqualTo("https://www.linkedin.com/company/minha-empresa");
+        assertThat(RedesSociais.link(Rede.LINKEDIN, "https://www.linkedin.com/pub/joao-silva/1a/2b/3c?x=1"))
+                .isEqualTo("https://www.linkedin.com/pub/joao-silva/1a/2b/3c");
+        for (String ruim : new String[]{"https://www.linkedin.com", "https://www.linkedin.com/feed", "https://www.linkedin.com/in", "https://www.linkedin.com/in/",
+                "https://www.linkedin.com/share?url=x", "https://www.linkedin.com/in/joao silva", "ab", "joao.silva", "joao_silva", "a".repeat(101),
+                "https://facebook.com/in/joao-silva", "https://linkedin.com.outro.com/in/joao", "http://www.linkedin.com/in/joao-silva",
+                "https://usuario:senha@www.linkedin.com/in/joao-silva"}) {
+            assertThatThrownBy(() -> RedesSociais.link(Rede.LINKEDIN, ruim)).as(ruim).isInstanceOf(RedeInvalidaException.class);
+        }
+    }
+
+    @Test
     void mensagemEFixaPorRedeENuncaRepeteOValor() {
         String segredo = "valor-sigiloso-123 espaco";
         assertThatThrownBy(() -> RedesSociais.link(Rede.INSTAGRAM, segredo)).hasMessage(Rede.INSTAGRAM.mensagem())
                 .message().doesNotContain("sigiloso");
         assertThatThrownBy(() -> RedesSociais.link(Rede.SITE, "http://" + segredo)).hasMessage(Rede.SITE.mensagem());
+        for (Rede rede : new Rede[]{Rede.FACEBOOK, Rede.LINKEDIN, Rede.TELEGRAM}) {
+            for (String ruim : new String[]{segredo, "http://" + segredo, "https://t.me/+sigiloso123", "https://www.facebook.com/sharer/sigiloso",
+                    "https://sigiloso.com/in/sigiloso"}) {
+                assertThatThrownBy(() -> RedesSociais.link(rede, ruim)).hasMessage(rede.mensagem()).message().doesNotContain("sigiloso");
+            }
+        }
     }
 }

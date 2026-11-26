@@ -100,6 +100,12 @@ public class Aluno {
     private String instagram;
     private String tiktok;
 
+    /** Link https normalizado (V103) de YouTube, Facebook, LinkedIn e Telegram, por {@code RedesSociais}; nulo = sem. Dado pessoal, como o Instagram. */
+    private String youtube;
+    private String facebook;
+    private String linkedin;
+    private String telegram;
+
     /** Quando o aluno desligou, só para ele, os lembretes de cobrança por e-mail. Nulo = recebe. */
     @Column(name = "lembretes_cobranca_desligados_em")
     private Instant lembretesCobrancaDesligadosEm;
@@ -402,10 +408,30 @@ public class Aluno {
         return tiktok;
     }
 
-    /** Já normalizados (só o usuário); nulo apaga. */
-    public void alterarRedes(String instagram, String tiktok) {
+    public String getYoutube() {
+        return youtube;
+    }
+
+    public String getFacebook() {
+        return facebook;
+    }
+
+    public String getLinkedin() {
+        return linkedin;
+    }
+
+    public String getTelegram() {
+        return telegram;
+    }
+
+    /** Já normalizados (usuário no Instagram e no TikTok, link nas outras); nulo apaga. */
+    public void alterarRedes(String instagram, String tiktok, String youtube, String facebook, String linkedin, String telegram) {
         this.instagram = instagram;
         this.tiktok = tiktok;
+        this.youtube = youtube;
+        this.facebook = facebook;
+        this.linkedin = linkedin;
+        this.telegram = telegram;
         this.atualizadoEm = Instant.now();
     }
 
@@ -443,6 +469,10 @@ public class Aluno {
         this.metaDoPeso = null;
         this.instagram = null;
         this.tiktok = null;
+        this.youtube = null;
+        this.facebook = null;
+        this.linkedin = null;
+        this.telegram = null;
         this.acessoDesativadoEm = null;
         this.acessoDesativadoMotivo = null;
         this.cicloAtivadoEm = null;

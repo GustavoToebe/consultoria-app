@@ -68,6 +68,10 @@ public class MeusDadosDoAlunoService {
         Endereco endereco = AlunoService.Dados.endereco(erros, r.endereco());
         String instagram = AlunoService.Dados.rede(erros, "instagram", RedesSociais.Rede.INSTAGRAM, r.instagram());
         String tiktok = AlunoService.Dados.rede(erros, "tiktok", RedesSociais.Rede.TIKTOK, r.tiktok());
+        String youtube = AlunoService.Dados.link(erros, "youtube", RedesSociais.Rede.YOUTUBE, r.youtube());
+        String facebook = AlunoService.Dados.link(erros, "facebook", RedesSociais.Rede.FACEBOOK, r.facebook());
+        String linkedin = AlunoService.Dados.link(erros, "linkedin", RedesSociais.Rede.LINKEDIN, r.linkedin());
+        String telegram = AlunoService.Dados.link(erros, "telegram", RedesSociais.Rede.TELEGRAM, r.telegram());
         Sexo sexo = Sexo.ler(r.sexo());
         if (sexo == null && r.sexo() != null && !r.sexo().isBlank()) {
             erros.add(new ApiError.FieldError("sexo", AlunoService.SEXO_INVALIDO));
@@ -94,7 +98,9 @@ public class MeusDadosDoAlunoService {
         boolean mudaTelefone = !Objects.equals(usuario == null ? null : usuario.getTelefone(), telefone);
         boolean mudaEndereco = !Objects.equals(aluno.endereco(), endereco);
         boolean mudaSexo = !Objects.equals(aluno.getSexo(), sexo);
-        boolean mudaRedes = !Objects.equals(aluno.getInstagram(), instagram) || !Objects.equals(aluno.getTiktok(), tiktok);
+        boolean mudaRedes = !Objects.equals(aluno.getInstagram(), instagram) || !Objects.equals(aluno.getTiktok(), tiktok)
+                || !Objects.equals(aluno.getYoutube(), youtube) || !Objects.equals(aluno.getFacebook(), facebook)
+                || !Objects.equals(aluno.getLinkedin(), linkedin) || !Objects.equals(aluno.getTelegram(), telegram);
 
         if (mudaTelefone) {
             alunoService.trocarTelefone(aluno, r.telefone() == null ? "" : r.telefone(), telefone);
@@ -109,7 +115,7 @@ public class MeusDadosDoAlunoService {
             alunoService.aplicarSexo(aluno, sexo == null ? null : sexo.name()); // desliga o ciclo se deixou de ser feminino
         }
         if (mudaRedes) {
-            aluno.alterarRedes(instagram, tiktok);
+            aluno.alterarRedes(instagram, tiktok, youtube, facebook, linkedin, telegram);
         }
         if (mudaTelefone || mudaCpf || mudaEndereco || mudaSexo || mudaRedes) {
             aluno.tocar(); // a versão sobe mesmo quando só o telefone (que mora no usuário) mudou

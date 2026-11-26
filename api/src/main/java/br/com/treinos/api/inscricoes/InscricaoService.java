@@ -441,7 +441,7 @@ public class InscricaoService {
                 && i.getObjetivo().length() <= OBJETIVO_DO_ALUNO ? i.getObjetivo() : null;
         // Instagram da inscrição vira o do aluno (nulo não mexe; TikTok segue nulo). Telefone e demais campos como antes.
         AlunoDetalhe aluno = alunos.criar(new AlunoRequest(i.getNome(), i.getEmail(), null, objetivo, null, null, null,
-                null, null, responsavel, null, null, null, instagramParaOAluno(i.getInstagram()), null));
+                null, null, responsavel, null, null, null, instagramParaOAluno(i.getInstagram()), null, null, null, null, null));
         if (i.getSexo() != null) {
             alunos.definirSexo(aluno.id(), i.getSexo().name());
         }
