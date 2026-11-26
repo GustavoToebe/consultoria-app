@@ -37,7 +37,8 @@ import { OrientacoesDaMobilidade } from './SobreAMobilidade';
  * Editor do plano de mobilidade do aluno: mesmo ciclo do treino e da dieta (salvar rascunho, validar, publicar
  * versão imutável, PDF do rascunho ou da versão publicada pela `BarraDoPlano`), com as seções e itens do modelo de
  * mobilidade. "Modelos" (como no treino e na dieta) usa um modelo de mobilidade no rascunho, com "Desfazer", ou guarda o
- * rascunho como modelo no Planejamento. Não há "Ver como o aluno" na mobilidade.
+ * rascunho como modelo no Planejamento. Não há "Ver como o aluno" na mobilidade: da faixa `larga` em diante a prévia ao vivo
+ * fica ao lado da seção (`SecoesDeMobilidade`).
  */
 export default function EditorDeMobilidade() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -82,7 +83,7 @@ export default function EditorDeMobilidade() {
       <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas}
         aoIrAoPrimeiro={(uids) => setIrPara((p) => ({ uids, vez: (p?.vez ?? 0) + 1 }))} />
       <FaixaDoPlanoDoAluno tipo="mobilidade" />
-      {/* Um cartão só no topo (19/11): título, período e as Orientações recolhidas (as do plano, que o modelo aplicado não troca). */}
+      {/* Um cartão só no topo (19/11): título, período e as Orientações (as do plano, que o modelo aplicado não troca). */}
       <ConfiguracaoDoPlano editor={editor} descricao="Título, período e orientações da mobilidade.">
         <OrientacoesDaMobilidade valor={estado.conteudo.orientacoes} aoMudar={(orientacoes) => editor.alterarConteudo((c) => ({ ...c, orientacoes }))} />
       </ConfiguracaoDoPlano>

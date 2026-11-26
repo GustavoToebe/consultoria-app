@@ -20,11 +20,11 @@ import { ALVO_TOQUE, corDoTomDoPerfil, espaco, LARGURA_FORMULARIO, RAIO_CONTROLE
 import { useAviso } from '../../ui/Aviso';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { ConfirmarSaida } from '../../ui/ConfirmarSaida';
-import { FileiraDeRedes } from '../../ui/FileiraDeRedes';
 import { Folha } from '../../ui/Folha';
 import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { IconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { PreferenciasDoApp, RestaurarPreferencias } from '../../ui/PreferenciasDoApp';
+import { RedesSociais } from '../../ui/RedesSociais';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { sobre } from '../../ui/sobre';
 import { Tela } from '../../ui/Tela';
@@ -176,9 +176,10 @@ export function TelaDaConta() {
                 <LinhaDaConta titulo="Falar com o treinador" resumo="Abre o WhatsApp da consultoria" Icone={IconeWhatsApp} semSeta
                   aoTocar={() => void Linking.openURL(linkDoTreinador).catch(() => avisar('Não foi possível abrir o WhatsApp.', 'perigo'))} />
               ) : null}
+              {/* O WhatsApp fica na linha "Falar com o treinador" acima (um botão só); a peça traz só as redes. */}
               {redesDaConsultoria.length ? (
                 <LinhaDaConta titulo="Redes da consultoria" resumo="Abrem fora do app" Icone={AtSign}>
-                  <View style={estilos.redes}><FileiraDeRedes redes={redesDaConsultoria} /></View>
+                  <View style={estilos.redes}><RedesSociais modo="leitura" redes={redesDaConsultoria} /></View>
                 </LinhaDaConta>
               ) : null}
               <LinhaDaConta titulo="Ajuda" resumo="Primeiros passos e tutorial" Icone={BookOpen} href="/aluno/ajuda" />

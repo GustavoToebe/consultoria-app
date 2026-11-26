@@ -45,10 +45,10 @@ jest.mock('../../ui/EscolhaSuspensa', () => ({
 jest.mock('../../ui/Escolha', () => ({ Escolha: () => { throw new Error('a unidade não usa mais os chips'); } }));
 // O menu ⋯ vira uma lista de botões "menu <ação>"; tocar fecha o menu e age, como a folha de verdade.
 jest.mock('../FolhaDeAcoes', () => ({
-  FolhaDeAcoes: ({ acoes, aoFechar }: { acoes: { rotulo: string; aoTocar: () => void }[]; aoFechar: () => void }) =>
+  FolhaDeAcoes: ({ acoes, aoFechar }: { acoes: { rotulo: string; desabilitado?: boolean; aoTocar: () => void }[]; aoFechar: () => void }) =>
     /* eslint-disable @typescript-eslint/no-require-imports */
     require('react').createElement(require('react-native').View, null, acoes.map((x) => require('react').createElement(require('react-native').Pressable, {
-      key: x.rotulo, accessibilityLabel: `menu ${x.rotulo}`, onPress: () => { aoFechar(); x.aoTocar(); },
+      key: x.rotulo, accessibilityLabel: `menu ${x.rotulo}`, accessibilityState: { disabled: !!x.desabilitado }, onPress: () => { aoFechar(); x.aoTocar(); },
     }))),
     /* eslint-enable @typescript-eslint/no-require-imports */
 }));
@@ -89,6 +89,9 @@ jest.mock('../../ui/ArrasteDaLista', () => ({
   ItemArrastavel: ({ children }: { children: unknown }) => children,
   AlcaDeArraste: () => null,
 }));
+// O aviso (toast) só registra o que seria mostrado; o Desfazer é chamado à mão.
+const mockAvisar = jest.fn();
+jest.mock('../../ui/Aviso', () => ({ useAviso: () => ({ avisar: mockAvisar }) }));
 jest.mock('../biblioteca/AbaAlimentos', () => ({ UNIDADES: [{ valor: 'g', rotulo: 'g' }, { valor: 'ml', rotulo: 'ml' }, { valor: 'un', rotulo: 'un' }] }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -303,6 +306,46 @@ describe('CartaoRefeicao: opções em abas', () => {
   it('a opção com problema da validação abre sozinha e a aba avisa', () => {
     const a = montar(tres(), { comProblema: new Set(['r1', 'b', 'i3']) });
     expect(abaAberta(a)).toEqual(['Opção B, 50 kcal, com problema a corrigir']);
+  });
+
+  // Reordenar (26/11): a letra segue a posição e a aberta continua a mesma opção.
+  it('"Tornar Opção A" no ⋯ da B: ela vira a A (conta no total), continua aberta, avisa com Desfazer, e o Desfazer volta tudo', () => {
+    mockAvisar.mockClear();
+    const a = montar(tres());
+    tocar(a, 'Opção B, 50 kcal');
+    medirAberta(a);
+    tocar(a, 'Mais ações da opção B');
+    tocar(a, 'menu Tornar Opção A');
+    expect(abas(a)).toEqual(['Opção A, 50 kcal, conta no total do dia', 'Opção B, 100 kcal', 'Opção C, vazia']);
+    expect(abaAberta(a)).toEqual(['Opção A, 50 kcal, conta no total do dia']);
+    expect(mockAvisar).toHaveBeenCalledWith('Opção B agora é a Opção A e conta no total do dia.', 'neutro', expect.objectContaining({ rotulo: 'Desfazer' }));
+    const desfazer = mockAvisar.mock.calls[0][2].aoTocar as () => void;
+    Renderer.act(() => desfazer());
+    expect(abas(a)).toEqual(['Opção A, 100 kcal, conta no total do dia', 'Opção B, 50 kcal', 'Opção C, vazia']);
+    expect(abaAberta(a)).toEqual(['Opção B, 50 kcal']);
+  });
+
+  it('o ⋯ da primeira: "Mover para a esquerda" e "Tornar Opção A" apagados (com o motivo), "Mover para a direita" não', () => {
+    const a = montar(tres());
+    medirAberta(a);
+    tocar(a, 'Mais ações da opção A');
+    const apagado = (r: string) => comRotulo(a, `menu ${r}`)[0].props.accessibilityState.disabled;
+    expect([apagado('Mover para a esquerda'), apagado('Tornar Opção A'), apagado('Mover para a direita'), apagado('Excluir opção')]).toEqual([true, true, false, false]);
+  });
+
+  it('mover sem mudar a primeira não avisa: a região viva diz a posição e a letra novas', () => {
+    mockAvisar.mockClear();
+    const a = montar(tres());
+    tocar(a, 'Opção C, vazia');
+    medirAberta(a);
+    tocar(a, 'Mais ações da opção C');
+    expect(comRotulo(a, 'menu Mover para a direita')[0].props.accessibilityState.disabled).toBe(true);
+    tocar(a, 'menu Mover para a esquerda');
+    expect(abas(a)).toEqual(['Opção A, 100 kcal, conta no total do dia', 'Opção B, vazia', 'Opção C, 50 kcal']);
+    expect(abaAberta(a)).toEqual(['Opção B, vazia']);
+    expect(mockAvisar).not.toHaveBeenCalled();
+    const [regiao] = a.root.findAll((n) => n.props.role === 'status' && typeof n.type === 'string');
+    expect(textoDoNo(regiao)).toBe('Opção C movida para a posição 2: agora é a Opção B.');
   });
 });
 

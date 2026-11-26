@@ -3,6 +3,7 @@ import { numeroParaTela } from '../dominio/formatos';
 import { detalheDaConversao, NOTA_DA_LISTA, NOTA_DA_PREVIA, quantidadeParaTela, textoDoPeriodo, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
 import { agruparLista, tituloDoGrupoNoPdf, type GrupoDaLista } from '../dominio/gruposDaLista';
 import { gruposDoAluno, textoDaOrigem, type ItemDaListaDoAluno } from '../dominio/listaDeComprasDoAluno';
+import { tituloDoPlano } from '../dominio/tituloDoPlano';
 import { cabecalhoDoPdf, cssBase, esc, type Documento } from './html';
 
 export interface DadosPdfListaDeCompras {
@@ -106,12 +107,14 @@ export function cabecalhoDaTabela(mostrarFatores: boolean): string {
  */
 export function documentoListaDeCompras(d: DadosPdfListaDeCompras): Documento {
   const linhas = d.itensDoAluno ? corpoDoAluno(d.itensDoAluno) : corpoDaTabela(d.linhas, false);
+  // Modelo (sem aluno) não tem nome para o título padrão: fica o que o treinador escreveu.
+  const titulo = d.aluno === null ? d.titulo : tituloDoPlano(d.titulo, 'dieta', d.aluno);
   const corpo = [
     cabecalhoDoPdf({
       marca: d.marca,
       logoDataUri: d.logoDataUri,
       documento: 'Lista de compras',
-      titulo: d.titulo,
+      titulo,
       versao: d.versao,
       semVersao: 'prévia, não publicada',
       aluno: d.aluno,
@@ -124,5 +127,5 @@ export function documentoListaDeCompras(d: DadosPdfListaDeCompras): Documento {
       : '<div class="suave">—</div>',
     `<div class="rodape">${esc(NOTA_DA_LISTA)}${d.versao ? '' : ` ${esc(NOTA_DA_PREVIA)}`}</div>`,
   ].join('\n');
-  return { titulo: `Lista de compras - ${d.aluno ?? 'Modelo'} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf) + CSS_LISTA, corpo };
+  return { titulo: `Lista de compras - ${d.aluno ?? 'Modelo'} - ${titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf) + CSS_LISTA, corpo };
 }

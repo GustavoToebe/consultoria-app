@@ -217,10 +217,11 @@ test('criar abre a opção nova com o foco na aba; o ⋯ exclui, pede confirmaç
   const dialogo = page.getByRole('alertdialog', { name: 'Excluir a opção B?' });
   await expect(dialogo).toBeVisible();
   await dialogo.getByRole('button', { name: 'Excluir opção' }).click();
-  await expect(aba(page, 'B')).toHaveCount(0);
-  // A vizinha (a C, que agora é a segunda) abre com o foco nela.
-  await expect(aba(page, 'C')).toHaveAttribute('aria-selected', 'true');
-  await expect(aba(page, 'C')).toBeFocused();
+  // A letra segue a posição (26/11): a C vira a B ao excluir a B, e não sobra C.
+  await expect(aba(page, 'C')).toHaveCount(0);
+  // A vizinha (a antiga C, que agora é a B, a segunda) abre com o foco nela.
+  await expect(aba(page, 'B')).toHaveAttribute('aria-selected', 'true');
+  await expect(aba(page, 'B')).toBeFocused();
   await expect(page.getByText('Opção B removida.')).toBeVisible();
   await page.getByRole('button', { name: 'Desfazer' }).click();
   await expect(aba(page, 'B')).toHaveCount(1);

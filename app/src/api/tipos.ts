@@ -205,9 +205,14 @@ export interface ConsultoriaResponse {
   redesSociais?: RedesSociaisDaConsultoria | null;
 }
 
-/** Redes que a consultoria divulga ao aluno. A API aceita `@usuário` ou link e devolve o link https normalizado. */
-export type RedeDaConsultoria = 'instagram' | 'tiktok' | 'youtube' | 'x' | 'site';
-export type RedesSociaisDaConsultoria = Record<RedeDaConsultoria, string | null>;
+/**
+ * Redes que a consultoria divulga ao aluno (26/11: + Facebook, LinkedIn e Telegram). A API aceita `@usuário` ou link e
+ * devolve o link https normalizado. As do aluno são estas menos X e site (`dominio/redesSociais.REDES_SOCIAIS_DO_ALUNO`).
+ */
+export type RedeDaConsultoria = 'instagram' | 'tiktok' | 'youtube' | 'facebook' | 'linkedin' | 'telegram' | 'x' | 'site';
+/** A API manda as oito; Facebook, LinkedIn e Telegram opcionais aqui só para não quebrar as fixtures antigas (leia com `?? null`). */
+export type RedesSociaisDaConsultoria = Record<'instagram' | 'tiktok' | 'youtube' | 'x' | 'site', string | null>
+  & Partial<Record<'facebook' | 'linkedin' | 'telegram', string | null>>;
 
 export interface TextosDasFases {
   menstrual: string | null;
@@ -319,6 +324,11 @@ export interface MeusDadosResponse {
   /** Usuário (sem `@`) no Instagram e no TikTok, opcionais; a API normaliza `@usuario` e link para só o usuário. */
   instagram?: string | null;
   tiktok?: string | null;
+  /** Link https normalizado pela API (até 200); nulo = sem a rede. */
+  youtube?: string | null;
+  facebook?: string | null;
+  linkedin?: string | null;
+  telegram?: string | null;
   versao: number;
 }
 
@@ -334,6 +344,11 @@ export interface MeusDadosRequest {
   /** Substituem (em branco apaga); a API aceita `@usuario`, usuário ou link e grava só o usuário. */
   instagram: string | null;
   tiktok: string | null;
+  /** Como o Instagram (em branco apaga), mas a API grava o link https normalizado. Ausente = não mexe. */
+  youtube?: string | null;
+  facebook?: string | null;
+  linkedin?: string | null;
+  telegram?: string | null;
   versao: number;
 }
 
@@ -377,6 +392,11 @@ export interface AlunoDetalhe {
   /** Usuário (sem `@`) no Instagram e no TikTok; opcionais, só quem lê dados de contato (`ALUNO_LER`). */
   instagram?: string | null;
   tiktok?: string | null;
+  /** Link https normalizado pela API (até 200), com a mesma permissão; nulo = sem a rede. */
+  youtube?: string | null;
+  facebook?: string | null;
+  linkedin?: string | null;
+  telegram?: string | null;
   /** Quando o aluno autorizou o uso das fotos. Ausente ou nulo = não autorizado. Só com `ALUNO_SENSIVEL_LER`. */
   usoDeImagemAutorizadoEm?: string | null;
   /** `MASCULINO`, `FEMININO` ou `OUTRO`. Ausente ou nulo = não informado. Lê com `ALUNO_LER`. */
@@ -427,6 +447,11 @@ export interface AlunoRequest {
   /** Ausente ou `null` não mexe; em branco apaga; `@usuario`, usuário ou link valem (a API grava só o usuário). */
   instagram?: string | null;
   tiktok?: string | null;
+  /** Mesma regra (ausente não mexe, em branco apaga), mas a API grava o link https normalizado. */
+  youtube?: string | null;
+  facebook?: string | null;
+  linkedin?: string | null;
+  telegram?: string | null;
   /**
    * Meta do peso do aluno. Ausente ou `null` = não mexe; `PADRAO_DA_CONSULTORIA` volta ao padrão (a API grava nulo). Como
    * CPF e endereço, só vale com `ALUNO_SENSIVEL_ALTERAR`. Conversão do campo em `dominio/metaDoPesoNaFicha`.

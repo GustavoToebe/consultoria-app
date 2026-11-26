@@ -8,6 +8,7 @@ import type {
   EstadoSessao,
   GrupoImportavel,
   ModoProcessamentoResumo,
+  ObjetivoImportacao,
   SessaoDetalhe,
   SessaoListaItem,
   TipoDuvida,
@@ -108,7 +109,9 @@ const ERROS_DA_API: Record<string, string> = {
   FORMATO_NAO_SUPORTADO: 'Formato não aceito. Envie PDF, DOCX, XLSX ou CSV.',
   FORMATO_NAO_CONFERE: 'O conteúdo do arquivo não confere com a extensão. Abra o arquivo e salve de novo no formato certo.',
   ARQUIVO_VAZIO: 'O arquivo está vazio.',
-  ARQUIVO_GRANDE_DEMAIS: 'Passa do tamanho máximo. Divida em partes menores.',
+  ARQUIVO_GRANDE_DEMAIS: 'Passa do tamanho máximo de 900 KB. Divida em partes menores.',
+  // O 413 do corpo acima de 1 MB (antes de chegar à importação): o mesmo caso, arquivo grande demais.
+  CORPO_EXCEDIDO: 'O arquivo passa do tamanho máximo de 900 KB. Divida em partes menores.',
   TEXTO_VAZIO: 'Cole o texto antes de adicionar.',
   TITULO_GRANDE_DEMAIS: 'O título é longo demais. Encurte e tente de novo.',
   DESTINO_INVALIDO: 'Destino inválido. Escolha uma das opções.',
@@ -496,6 +499,93 @@ export function resumoDaSessao(s: Pick<SessaoDetalhe, 'estado' | 'arquivos' | 'g
     ],
     termosPendentes: lida ? duvidasVisiveis(s.duvidas).filter((d) => !d.resolvida).length : null,
   };
+}
+
+/** O que importar (26/11: três cartões de escolha, título e uma linha). */
+export const OPCOES_DO_OBJETIVO: readonly { valor: ObjetivoImportacao; titulo: string; descricao: string }[] = [
+  { valor: 'CADASTROS_E_PLANOS_ATUAIS', titulo: 'Cadastros e planos atuais', descricao: 'Treino e dieta de hoje. Recomendado.' },
+  { valor: 'SOMENTE_CADASTROS', titulo: 'Só cadastros e contatos', descricao: 'Nomes, contatos e dados básicos.' },
+  { valor: 'INCLUIR_HISTORICO', titulo: 'Tudo, com histórico', descricao: 'Inclui cargas e pesos antigos.' },
+];
+
+/** Limites reais da API (`ImportacaoAssistidaService`: 20 arquivos, 900 KB por arquivo, 8 MB por importação). */
+export const FORMATOS_E_LIMITES = 'PDF, DOCX, XLSX ou CSV · até 20 arquivos, 900 KB cada e 8 MB no total';
+
+/** As cinco etapas da importação, com a linha curta que aparece antes de começar. */
+export const ETAPAS_DA_IMPORTACAO = [
+  { titulo: 'Enviar arquivos ou texto', linha: 'PDF, DOCX, planilhas ou texto colado.' },
+  { titulo: 'Ler e separar por aluno', linha: 'O servidor lê e agrupa por aluno.' },
+  { titulo: 'Conferir termos e dúvidas', linha: 'Exercícios e alimentos não reconhecidos.' },
+  { titulo: 'Escolher o que gravar', linha: 'O destino de cada aluno e o que entra.' },
+  { titulo: 'Confirmar', linha: 'Treino e dieta entram como rascunho.' },
+] as const;
+
+export type NumeroDaEtapa = 1 | 2 | 3 | 4 | 5;
+
+/**
+ * Etapa atual pela máquina de estados da sessão: sem sessão ou sem arquivo, 1; recebendo, lendo ou com erro de leitura,
+ * 2 (também lida sem aluno encontrado: nada foi separado); em revisão com termo pendente, 3; sem termo, 4 até a seleção
+ * valer e 5 com ela (ou sem grupo pendente: só tentar de novo o que deu erro). `prontoParaGravar` vem da tela.
+ */
+export function etapaDaImportacao(
+  s: Pick<SessaoDetalhe, 'estado' | 'arquivos' | 'grupos' | 'duvidas'> | null,
+  prontoParaGravar: boolean,
+): NumeroDaEtapa {
+  if (!s || s.arquivos.length === 0) return 1;
+  if (s.estado === 'CONCLUIDA') return 5;
+  if (s.estado !== 'REVISANDO' || s.grupos.length === 0) return 2;
+  if (duvidasVisiveis(s.duvidas).some((d) => !d.resolvida)) return 3;
+  return prontoParaGravar ? 5 : 4;
+}
+
+export type ContagemDaEtapa = { rotulo: string; valor: string; atencao?: boolean };
+
+/**
+ * Contagens embaixo de cada etapa, só com o que a sessão já tem (as de `resumoDaSessao`); antes de ler é "—", nunca zero.
+ * `selecao` = grupos marcados e grupos que podem ser marcados.
+ */
+export function contagensDasEtapas(
+  s: Pick<SessaoDetalhe, 'estado' | 'arquivos' | 'grupos' | 'duvidas'>,
+  pode: Pode,
+  selecao: { marcados: number; possiveis: number },
+): ContagemDaEtapa[][] {
+  const { linhas, termosPendentes } = resumoDaSessao(s, pode);
+  const lida = termosPendentes !== null;
+  const [arquivos, ...separados] = linhas;
+  return [
+    [{ rotulo: 'Arquivos enviados', valor: String(s.arquivos.length) }],
+    [lida ? arquivos : { rotulo: 'Arquivos lidos', valor: '—' }, ...separados],
+    [{ rotulo: 'Termos pendentes', valor: termosPendentes === null ? '—' : termosPendentes ? String(termosPendentes) : 'Nenhum', atencao: !!termosPendentes }],
+    [{ rotulo: 'Selecionados', valor: lida ? `${selecao.marcados} de ${selecao.possiveis}` : '—' }],
+    [{ rotulo: 'Já gravados', valor: lida ? String(s.grupos.filter((g) => g.estado === 'IMPORTADO').length) : '—' }],
+  ];
+}
+
+/** Selo da importação em aberto: âmbar quando o treinador precisa agir (ler, revisar), vermelho no erro, neutro enquanto lê. */
+export function seloDaSessao(estado: EstadoSessao): { texto: string; tipo: TipoSelo } {
+  const texto = textoDoEstadoDaSessao(estado);
+  if (estado === 'ERRO') return { texto, tipo: 'perigo' };
+  if (estado === 'REVISANDO' || estado === 'RECEBENDO') return { texto, tipo: 'atencao' };
+  return { texto, tipo: 'neutro' };
+}
+
+/** "2 arquivos · 16 grupos · 26 dúvidas" só depois de ler; antes, grupos e dúvidas ainda não existem (não são zero). */
+export function contagensDaSessaoEmAberto(s: Pick<SessaoListaItem, 'estado' | 'totalArquivos' | 'totalGrupos' | 'duvidasAbertas'>): string {
+  const arquivos = plural(s.totalArquivos, 'arquivo', 'arquivos');
+  if (s.estado !== 'REVISANDO') return arquivos;
+  return `${arquivos} · ${plural(s.totalGrupos, 'grupo', 'grupos')} · ${plural(s.duvidasAbertas, 'dúvida', 'dúvidas')}`;
+}
+
+const DIA_MS = 86_400_000;
+const dataDeBrasilia = (ms: number) => new Date(ms - 3 * 3600_000).toISOString().slice(0, 10);
+
+/** Prazo da importação pelas datas de Brasília: "expira hoje", "expira em 1 dia", "expira em N dias"; vencida ou sem data, nulo. */
+export function prazoDaSessao(expiraEm: string | null | undefined, agora: Date = new Date()): string | null {
+  const fim = expiraEm ? Date.parse(expiraEm) : NaN;
+  if (Number.isNaN(fim) || fim <= agora.getTime()) return null;
+  const dias = Math.round((Date.parse(dataDeBrasilia(fim)) - Date.parse(dataDeBrasilia(agora.getTime()))) / DIA_MS);
+  if (dias <= 0) return 'expira hoje';
+  return `expira em ${plural(dias, 'dia', 'dias')}`;
 }
 
 /** Para onde vai o foco ao entrar na tela (T-206): o título ou a primeira ação pendente à vista. */

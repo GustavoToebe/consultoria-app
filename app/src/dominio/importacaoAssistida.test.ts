@@ -3,7 +3,12 @@ import { ErroApi } from '@plataforma/web';
 import type { ConfirmacaoResultado, DuvidaImportacao, GrupoImportavel, SessaoDetalhe } from '../servicos/importacaoAssistida';
 import {
   campoDoErroDoTexto,
+  contagensDaSessaoEmAberto,
+  contagensDasEtapas,
   duvidasVisiveis,
+  etapaDaImportacao,
+  prazoDaSessao,
+  seloDaSessao,
   focoAoEntrar,
   gerarChaveIdempotencia,
   grupoResumido,
@@ -321,6 +326,77 @@ describe('termos para conferir e resumo da sessão', () => {
       ],
       termosPendentes: null,
     });
+  });
+
+  describe('etapa atual (máquina de estados → 5 etapas)', () => {
+    const resolvidas = { ...sessao, duvidas: [duvida('y', 'rosca', { resolvida: true }), duvida('z', '')] };
+    it.each([
+      ['sem sessão', null, false, 1],
+      ['sessão sem arquivo', { ...sessao, estado: 'RASCUNHO' as const, arquivos: [] }, false, 1],
+      ['recebendo', { ...sessao, estado: 'RECEBENDO' as const }, false, 2],
+      ['lendo', { ...sessao, estado: 'PROCESSANDO' as const }, false, 2],
+      ['erro de leitura', { ...sessao, estado: 'ERRO' as const }, false, 2],
+      ['lida sem aluno encontrado', { ...sessao, grupos: [] }, true, 2],
+      ['termo pendente', sessao, true, 3],
+      ['sem termo, seleção inválida', resolvidas, false, 4],
+      ['sem termo, pronto para gravar', resolvidas, true, 5],
+      ['concluída', { ...sessao, estado: 'CONCLUIDA' as const }, false, 5],
+    ])('%s', (_nome, s, pronto, etapa) => {
+      expect(etapaDaImportacao(s, pronto)).toBe(etapa);
+    });
+  });
+
+  it('contagens das etapas: as da sessão, a seleção e os gravados; antes de ler, "—"', () => {
+    const lida = { ...sessao, grupos: [...sessao.grupos, g('4', { estado: 'IMPORTADO' })] };
+    expect(contagensDasEtapas(lida, () => true, { marcados: 1, possiveis: 3 })).toEqual([
+      [{ rotulo: 'Arquivos enviados', valor: '3' }],
+      [
+        { rotulo: 'Arquivos lidos', valor: '2 de 3' },
+        { rotulo: 'Alunos encontrados', valor: '4' },
+        { rotulo: 'Treinos encontrados', valor: '2' },
+        { rotulo: 'Dietas encontradas', valor: '1' },
+      ],
+      [{ rotulo: 'Termos pendentes', valor: '1', atencao: true }],
+      [{ rotulo: 'Selecionados', valor: '1 de 3' }],
+      [{ rotulo: 'Já gravados', valor: '1' }],
+    ]);
+    const antes = contagensDasEtapas({ ...sessao, estado: 'RECEBENDO', grupos: [], duvidas: [] }, () => true, { marcados: 0, possiveis: 0 });
+    expect(antes.flat().map((c) => c.valor)).toEqual(['3', '—', '—', '—', '—', '—', '—', '—']);
+    const semTermo = contagensDasEtapas({ ...sessao, duvidas: [] }, () => true, { marcados: 0, possiveis: 3 });
+    expect(semTermo[2]).toEqual([{ rotulo: 'Termos pendentes', valor: 'Nenhum', atencao: false }]);
+  });
+});
+
+describe('importações em aberto', () => {
+  it('selo: âmbar onde o treinador age, vermelho no erro, neutro lendo', () => {
+    expect(seloDaSessao('REVISANDO')).toEqual({ texto: 'Em revisão', tipo: 'atencao' });
+    expect(seloDaSessao('RECEBENDO')).toEqual({ texto: 'Recebendo arquivos', tipo: 'atencao' });
+    expect(seloDaSessao('ERRO')).toEqual({ texto: 'Com erro', tipo: 'perigo' });
+    expect(seloDaSessao('PROCESSANDO')).toEqual({ texto: 'Processando', tipo: 'neutro' });
+    expect(seloDaSessao('RASCUNHO').tipo).toBe('neutro');
+  });
+
+  it('contagens: grupos e dúvidas só depois de ler, singular e plural', () => {
+    const item = { estado: 'REVISANDO' as const, totalArquivos: 2, totalGrupos: 16, duvidasAbertas: 26 };
+    expect(contagensDaSessaoEmAberto(item)).toBe('2 arquivos · 16 grupos · 26 dúvidas');
+    expect(contagensDaSessaoEmAberto({ ...item, totalArquivos: 1, totalGrupos: 1, duvidasAbertas: 1 })).toBe('1 arquivo · 1 grupo · 1 dúvida');
+    expect(contagensDaSessaoEmAberto({ ...item, duvidasAbertas: 0 })).toBe('2 arquivos · 16 grupos · 0 dúvidas');
+    expect(contagensDaSessaoEmAberto({ ...item, estado: 'RECEBENDO', totalGrupos: 0, duvidasAbertas: 0 })).toBe('2 arquivos');
+    expect(contagensDaSessaoEmAberto({ ...item, estado: 'ERRO' })).toBe('2 arquivos');
+  });
+
+  it('prazo pelas datas de Brasília: hoje, 1 dia, N dias; vencida ou sem data some', () => {
+    const agora = new Date('2026-11-26T15:00:00Z'); // 12h em Brasília
+    expect(prazoDaSessao('2026-11-27T02:00:00Z', agora)).toBe('expira hoje'); // 23h do mesmo dia
+    expect(prazoDaSessao('2026-11-27T03:30:00Z', agora)).toBe('expira em 1 dia'); // 0h30 do dia seguinte
+    expect(prazoDaSessao('2026-12-03T15:00:00Z', agora)).toBe('expira em 7 dias');
+    expect(prazoDaSessao('2026-11-26T14:00:00Z', agora)).toBeNull();
+    expect(prazoDaSessao(null, agora)).toBeNull();
+    expect(prazoDaSessao('não é data', agora)).toBeNull();
+  });
+
+  it('o 413 do corpo vira arquivo grande demais com o limite', () => {
+    expect(textoDoErroDaImportacao(new ErroApi(413, 'CORPO_EXCEDIDO', 'x'))).toMatch(/900 KB/);
   });
 });
 

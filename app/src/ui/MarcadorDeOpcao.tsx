@@ -66,6 +66,12 @@ interface PropsDasAbas {
   registrar?: (valor: string, aba: View | null) => void;
   /** A opção aberta (`tabpanel`). Sem ele, só a faixa (o conteúdo vem depois, fora das abas). */
   children?: ReactNode;
+  /**
+   * Põe algo em volta de cada aba (o editor: a caixa que o arraste mede e, na aberta, a alça, 26/11). A alça fica ao lado
+   * do gatilho, nunca dentro dele: o gatilho escolhe a aba no `mousedown`. Com ele, as medidas são as da volta inteira e
+   * a aberta cede à alça o recuo da esquerda.
+   */
+  envolver?: (aba: ReactNode, valor: string, indice: number) => ReactNode;
 }
 
 /** Largura do anel de foco (2 px) mais o afastamento (2 px) do `:focus-visible` do `global.css` (o mesmo do `ui/Abas`). */
@@ -84,7 +90,7 @@ const INDICADOR = 2;
  * Sempre dentro de um cartão: o esmaecido pinta com a `superficie` (não o fundo da página, que deixava um retângulo
  * mais escuro ao lado da aba no tema escuro).
  */
-export function AbasDasOpcoes({ rotulo, abas, aberta, aoAbrir, depois, acaoDaAberta, apoio, registrar, children }: PropsDasAbas) {
+export function AbasDasOpcoes({ rotulo, abas, aberta, aoAbrir, depois, acaoDaAberta, apoio, registrar, children, envolver }: PropsDasAbas) {
   const { cores } = useTema();
   const fundo = cores.superficie;
   const { direita, esquerda, medidas } = useEsmaecimento();
@@ -107,6 +113,16 @@ export function AbasDasOpcoes({ rotulo, abas, aberta, aoAbrir, depois, acaoDaAbe
   // Onde a aba aberta está (no conteúdo da rolagem), para o ⋯ ficar na ponta dela; até medir, o ⋯ não aparece.
   const [caixaDaAberta, setCaixaDaAberta] = useState<{ valor: string; x: number; y: number; altura: number } | null>(null);
   const comAcao = !!acaoDaAberta;
+  // `x` vem da lista das abas, que fica depois da folga do anel no conteúdo da rolagem.
+  const medir = (valor: string, sel: boolean) => (e: LayoutChangeEvent) => {
+    caixas.current[valor] = { x: e.nativeEvent.layout.x + FOLGA_DO_ANEL, largura: e.nativeEvent.layout.width };
+    if (!sel) return;
+    mostrar(valor, false);
+    const { x, y, width, height } = e.nativeEvent.layout;
+    // O ⋯ ocupa os últimos 44 px da aba aberta (o espaço que ela reserva).
+    const nova = { valor, x: x + width - ALVO_TOQUE, y, altura: height };
+    setCaixaDaAberta((c) => (c && c.valor === nova.valor && c.x === nova.x && c.y === nova.y && c.altura === nova.altura ? c : nova));
+  };
   return (
     <Tabs value={aberta} onValueChange={aoAbrir} style={estilos.raiz}>
       <View style={[estilos.faixa, { borderBottomColor: cores.divisor }]}>
@@ -116,22 +132,13 @@ export function AbasDasOpcoes({ rotulo, abas, aberta, aoAbrir, depois, acaoDaAbe
             onContentSizeChange={(w: number) => { medidas.onContentSizeChange(w); vista.current.total = w; mostrar(aberta, false); }}
             onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => { medidas.onScroll(e); vista.current.x = e.nativeEvent.contentOffset.x; }}>
             <TabsList accessibilityLabel={rotulo} style={estilos.lista}>
-              {abas.map((a) => {
+              {abas.map((a, i) => {
                 const sel = a.valor === aberta;
-                return (
-                  <TabsTrigger key={a.valor} value={a.valor} ref={registrar ? (aba: View | null) => registrar(a.valor, aba) : undefined}
+                const aba = (
+                  <TabsTrigger key={a.valor} value={a.valor} ref={registrar ? (no: View | null) => registrar(a.valor, no) : undefined}
                     accessibilityRole="tab" accessibilityLabel={a.rotuloAcessivel} accessibilityState={{ selected: sel }}
-                    onLayout={(e: LayoutChangeEvent) => {
-                      // `x` vem da lista das abas, que fica depois da folga do anel no conteúdo da rolagem.
-                      caixas.current[a.valor] = { x: e.nativeEvent.layout.x + FOLGA_DO_ANEL, largura: e.nativeEvent.layout.width };
-                      if (!sel) return;
-                      mostrar(a.valor, false);
-                      const { x, y, width, height } = e.nativeEvent.layout;
-                      // O ⋯ ocupa os últimos 44 px da aba aberta (o espaço que ela reserva).
-                      const nova = { valor: a.valor, x: x + width - ALVO_TOQUE, y, altura: height };
-                      setCaixaDaAberta((c) => (c && c.valor === nova.valor && c.x === nova.x && c.y === nova.y && c.altura === nova.altura ? c : nova));
-                    }}
-                    style={[estilos.aba, sel && comAcao ? estilos.abaComAcao : null, { borderColor: sel ? cores.acao : 'transparent' }]}>
+                    onLayout={envolver ? undefined : medir(a.valor, sel)}
+                    style={[estilos.aba, envolver && sel ? estilos.abaComAlca : null, sel && comAcao ? estilos.abaComAcao : null, { borderColor: sel ? cores.acao : 'transparent' }]}>
                     <View style={estilos.conteudo}>
                       {a.antes}
                       <MarcadorDeOpcao letra={a.letra} selecionado={sel} />
@@ -141,6 +148,7 @@ export function AbasDasOpcoes({ rotulo, abas, aberta, aoAbrir, depois, acaoDaAbe
                     {a.abaixo}
                   </TabsTrigger>
                 );
+                return envolver ? <View key={a.valor} onLayout={medir(a.valor, sel)}>{envolver(aba, a.valor, i)}</View> : aba;
               })}
             </TabsList>
             {comAcao && caixaDaAberta?.valor === aberta ? (
@@ -191,6 +199,8 @@ const estilos = StyleSheet.create({
     backgroundColor: 'transparent',
     marginBottom: -1,
   },
+  // Com a alça ao lado (editor), o recuo de 12 do começo fica com ela.
+  abaComAlca: { paddingLeft: espaco(0.25) },
   // A aba aberta com o ⋯ guarda à direita o alvo dele (44); o desenho compacto de 32 fica centrado ali.
   abaComAcao: { paddingRight: ALVO_TOQUE },
   acaoDaAberta: { position: 'absolute', width: ALVO_TOQUE, justifyContent: 'center', alignItems: 'center' },

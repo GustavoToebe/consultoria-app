@@ -131,9 +131,11 @@ test('sem acesso: quem não é administrador, ou não tem MARCA_ALTERAR, não ab
   await abrir(page, 1280, { permissoes: [...PERMISSOES_TREINADOR, 'MARCA_ALTERAR'], perfil: { id: 'p2', nome: 'Treinador', acessoTotal: false } });
   await expect(page.getByRole('heading', { level: 1, name: 'Sem acesso a esta tela' })).toBeVisible();
   await expect(previa(page)).toHaveCount(0);
+  // Configurações em 1280 (duas colunas, 26/11): sem item abre Meus dados, e a coluna não traz o item dos documentos.
   await page.goto('/treinador/configuracoes');
-  await expect(page.getByRole('heading', { level: 1, name: 'Configurações' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Documentos \(PDF\), / })).toHaveCount(0);
+  const coluna = page.getByRole('navigation', { name: 'Configurações' });
+  await expect(coluna.getByRole('link', { name: 'Meus dados', exact: true })).toBeVisible();
+  await expect(coluna.getByRole('link', { name: 'Documentos (PDF)', exact: true })).toHaveCount(0);
 });
 
 test('administrador sem MARCA_ALTERAR também fica sem acesso', async ({ page }) => {
@@ -148,9 +150,11 @@ test('plano sem PDF: a tela diz que é de outro plano, sem buscar nada, e o cart
   await expect(previa(page)).toHaveCount(0);
   expect(pedidos.some((p) => p.caminho === '/consultoria')).toBe(false);
   await page.getByRole('button', { name: 'Voltar às configurações' }).click();
-  await expect(page).toHaveURL(/\/treinador\/configuracoes$/);
-  await expect(page.getByRole('link', { name: /^Marca, / })).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Documentos \(PDF\), / })).toHaveCount(0);
+  // Em 1280 Configurações abre no primeiro item (Meus dados), com a coluna dos itens ao lado.
+  await expect(page).toHaveURL(/\/treinador\/configuracoes\/meus-dados$/);
+  const coluna = page.getByRole('navigation', { name: 'Configurações' });
+  await expect(coluna.getByRole('link', { name: 'Marca', exact: true })).toBeVisible();
+  await expect(coluna.getByRole('link', { name: 'Documentos (PDF)', exact: true })).toHaveCount(0);
 });
 
 test('o hub leva à tela, e a busca do hub acha por "pdf"', async ({ page }) => {
@@ -159,8 +163,9 @@ test('o hub leva à tela, e a busca do hub acha por "pdf"', async ({ page }) => 
   const busca = page.getByRole('textbox', { name: 'Pesquisar configuração' }).or(page.getByRole('searchbox', { name: 'Pesquisar configuração' })).first();
   await busca.fill('pdf');
   await expect(page.getByText('1 configuração encontrada')).toBeVisible();
-  await page.getByRole('link', { name: /^Documentos \(PDF\), / }).click();
-  await expect(page).toHaveURL(/\/treinador\/documentos$/);
+  // Em 1280 o item abre dentro de Configurações (coluna da direita); a rota /treinador/documentos continua valendo sozinha.
+  await page.getByRole('navigation', { name: 'Configurações' }).getByRole('link', { name: 'Documentos (PDF)', exact: true }).click();
+  await expect(page).toHaveURL(/\/treinador\/configuracoes\/documentos-pdf$/);
   await expect(previa(page)).toContainText('Aluno de Exemplo');
 });
 

@@ -26,6 +26,14 @@ export interface SerieDoGrafico {
 type QualSerie = 'A' | 'B';
 
 /**
+ * Linha do balão: texto simples ou com uma parte pintada (`texto` na `cor`, `depois` neutro), como a variação do peso
+ * ("▲ +1,3 kg" na cor da meta e " desde 16/03" na cor do texto). A cor vem da tela; o gráfico não decide nada.
+ */
+export type LinhaDaDica = string | { texto: string; cor?: string; depois?: string };
+
+const textoDaLinha = (l: LinhaDaDica) => (typeof l === 'string' ? l : `${l.texto}${l.depois ?? ''}`);
+
+/**
  * Na web, o Enter num `role="button"` chega ao `onPress` como clique sintético (`detail` 0) e o soltar da tecla como o
  * próprio evento de teclado; clique do mouse e toque têm `detail` ≥ 1, e no celular o evento não traz nenhum dos dois.
  */
@@ -77,9 +85,11 @@ const TRACEJADO = '6 4';
  * unidade ("82 kg"). O eixo horizontal acompanha a data quando todo ponto a traz; sem data, o espaço segue a lista.
  * Pontos já na ordem do eixo; só desenha o que foi registrado. A linha é da cor do texto, nunca da marca (a marca não
  * é dado); `cor` troca só a curva, a área e os pontos, para o gráfico acompanhar a tabela da mesma medida (o azul de
- * indicador, cores-de-destaque D12). Rótulos, eixo e balão continuam neutros, e a série segue legível sem a cor
+ * indicador, cores-de-destaque D12). Rótulos e eixo continuam neutros, e a série segue legível sem a cor
  * (rótulo das datas, pontos e "Último…"). Ao passar o mouse, tocar ou focar cada ponto, exibe o balão com o valor e a
- * data; o teclado anda pelos pontos com as setas (Home e End nas pontas) e o Esc fecha o balão.
+ * data; o teclado anda pelos pontos com as setas (Home e End nas pontas) e o Esc fecha o balão. O balão é painel
+ * flutuante (`superficie` + borda `borda`, 4.3 do design-e-front) com o texto na cor do texto; só a parte de uma linha
+ * que a tela pinta (`LinhaDaDica.cor`, a variação do peso pela meta) e o ponto em foco (`corDoPonto`) levam cor.
  * `semUltimo`: quem já mostra o resumo "Último…" acima não repete a linha de baixo.
  *
  * Opcionais do guia de peso e avaliação (avaliacao-fisica-visual D4, D5, D7; peso-visual D4), todos desligados por
@@ -88,7 +98,7 @@ const TRACEJADO = '6 4';
  */
 export function GraficoLinha({
   pontos, unidade, descricao, semUltimo, faixas, escala, cor, larguraInicial = 0,
-  segmentos = 'suaves', semArea, serieB, rotuloA, textoDaDica, legendaDaEscala, destacarUltimo,
+  segmentos = 'suaves', semArea, serieB, rotuloA, textoDaDica, faladoDaDica, corDoPonto, legendaDaEscala, destacarUltimo,
 }: {
   pontos: PontoGrafico[]; unidade: string; descricao: string; semUltimo?: boolean; faixas?: FaixaDoGrafico[];
   /** Cor da série (curva, área e pontos), com contraste de 3:1 sobre a superfície do cartão. Sem ela, a cor do texto. */
@@ -106,7 +116,11 @@ export function GraficoLinha({
   /** Nome da série principal na legenda e no rótulo dos pontos; passe junto com `serieB`. */
   rotuloA?: string;
   /** Linhas do balão (data, valor, referência da diferença), montadas pela tela. Sem ela, "data · valor". */
-  textoDaDica?: (ponto: PontoGrafico, indice: number, serie: QualSerie) => string[];
+  textoDaDica?: (ponto: PontoGrafico, indice: number, serie: QualSerie) => LinhaDaDica[];
+  /** O que o leitor de tela ouve no lugar das linhas (sem "▲", com "subiu"); sem ela, as linhas juntas. */
+  faladoDaDica?: (ponto: PontoGrafico, indice: number, serie: QualSerie) => string;
+  /** Cor do miolo do ponto em foco (o anel continua na cor da série); `undefined` mantém a da série. */
+  corDoPonto?: (ponto: PontoGrafico, indice: number, serie: QualSerie) => string | undefined;
   /** Texto pequeno abaixo do gráfico; liga também o rótulo das duas pontas. Passe `escala` com os mesmos números do texto. */
   legendaDaEscala?: string;
   /** Destaque discreto (raio e anel maiores, sem cor nova) no último ponto de cada série. */
@@ -171,12 +185,13 @@ export function GraficoLinha({
 
   const valorComUnidade = (v: number) => `${formato(v)}${unidade ? ` ${unidade}` : ''}`;
   const prefixo = (s: QualSerie) => (rotuloDaSerie(s) ? `${rotuloDaSerie(s)} · ` : '');
-  const linhasDaDica = !atual
+  const linhasDaDica: LinhaDaDica[] = !atual
     ? []
     : textoDaDica
       ? textoDaDica(atual.p, atual.i, atual.serie)
       : [`${prefixo(atual.serie)}${atual.p.rotulo ? `${atual.p.rotulo} · ` : ''}${valorComUnidade(atual.p.valor)}`];
-  const textoDaDicaJunto = linhasDaDica.join('. ');
+  const textoDaDicaJunto = linhasDaDica.map(textoDaLinha).join('. ');
+  const faladoJunto = atual && faladoDaDica ? faladoDaDica(atual.p, atual.i, atual.serie) : textoDaDicaJunto;
   const larga = !!textoDaDica || pontosB.length > 0;
   const larguraDica = Math.min(escalar(larga ? LARGURA_DICA_LARGA : LARGURA_DICA, fatorTexto), w - 2 * MARGEM_SEGURA);
   const alturaEstimada = linhasDaDica.length * escalar(LINHA_DICA, fatorTexto) + 10;
@@ -216,6 +231,7 @@ export function GraficoLinha({
     const destacado = !!destacarUltimo && i === total - 1;
     // Série B com o ponto vazado: a forma também separa as séries, além do tracejado.
     const vazado = s === 'B';
+    const miolo = (selecionado ? corDoPonto?.(p, i, s) : undefined) ?? (vazado ? cores.superficie : corDaSerie);
     return (
       <G key={`${s}${p.rotulo}${i}`}>
         {selecionado ? <Circle cx={cx} cy={y(p.valor)} r={10} fill={corDaSerie} fillOpacity={0.18} /> : null}
@@ -223,7 +239,7 @@ export function GraficoLinha({
           cx={cx}
           cy={y(p.valor)}
           r={selecionado ? 6 : destacado ? 5.5 : 4}
-          fill={vazado ? cores.superficie : corDaSerie}
+          fill={miolo}
           stroke={vazado ? corDaSerie : cores.superficie}
           strokeWidth={(vazado ? 2 : selecionado ? 2 : 1.5) + (destacado ? 1 : 0)}
         />
@@ -307,27 +323,33 @@ export function GraficoLinha({
               pointerEvents="none"
               // Na web `summary` vira landmark sem nome a cada hover; no celular a dica é o único lugar com a linha da diferença.
               accessibilityRole={Platform.OS === 'web' ? undefined : 'summary'}
+              accessibilityLabel={Platform.OS === 'web' ? undefined : faladoJunto}
               onLayout={(e) => setMedida({ texto: textoDaDicaJunto, altura: e.nativeEvent.layout.height })}
               style={[
                 estilos.dica,
                 {
                   width: larguraDica,
-                  backgroundColor: cores.texto,
-                  borderColor: cores.superficie,
+                  backgroundColor: cores.superficie,
+                  borderColor: cores.borda,
                   left: dicaLeft,
                   top: dicaTop,
                 },
               ]}
             >
               {larga ? (
-                linhasDaDica.map((texto, i) => (
-                  <Texto key={i} numerico style={[estilos.textoDica, { color: cores.superficie }, i > 0 ? estilos.linhaDeApoio : null]}>
-                    {texto}
+                linhasDaDica.map((l, i) => (
+                  <Texto key={i} numerico style={[estilos.textoDica, { color: cores.texto }, i > 0 ? estilos.linhaDeApoio : null]}>
+                    {typeof l === 'string' ? l : (
+                      <>
+                        <Texto numerico style={[estilos.textoDica, estilos.parteColorida, { color: l.cor ?? cores.texto }]}>{l.texto}</Texto>
+                        {l.depois ?? ''}
+                      </>
+                    )}
                   </Texto>
                 ))
               ) : (
-                <Texto numberOfLines={1} numerico style={[estilos.textoDica, { color: cores.superficie }]}>
-                  {linhasDaDica[0]}
+                <Texto numberOfLines={1} numerico style={[estilos.textoDica, { color: cores.texto }]}>
+                  {textoDaLinha(linhasDaDica[0])}
                 </Texto>
               )}
             </View>
@@ -338,7 +360,7 @@ export function GraficoLinha({
       )}
       {/* O ponto que mudou é anunciado; os valores continuam na tabela da tela, nunca só aqui. */}
       <Texto style={estilos.soParaLeitor} accessibilityLiveRegion="polite">
-        {textoDaDicaJunto}
+        {faladoJunto}
       </Texto>
       {serieB && pontosB.length > 0 ? (
         <View style={estilos.legenda}>
@@ -396,6 +418,8 @@ const estilos = StyleSheet.create({
     textAlign: 'center',
   },
   linhaDeApoio: { fontFamily: fontes.normal },
+  // A parte pintada (seta e número) fica no peso da primeira linha, como na coluna Variação da lista.
+  parteColorida: { fontFamily: fontes.semi },
   soParaLeitor: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
   legenda: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(2), rowGap: espaco(0.5) },
   itemDaLegenda: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },

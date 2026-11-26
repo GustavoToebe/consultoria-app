@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { ConteudoDieta, ItemDieta, PlanoDetalhe } from '../src/api/tipos';
 import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { conferirSombra } from './sombraDoArraste';
 
 /**
  * Editor de dieta › Complementos (25/11): um cartão com abas (Orientações, Observações, Suplementação e, com
@@ -230,6 +231,23 @@ test('suplementação em tabela: cabeçalho uma vez, nome em duas linhas, link, 
   await page.getByRole('button', { name: 'Suplemento manual' }).click();
   await expect(page.getByLabel('Nome do suplemento 4')).toBeFocused();
   await expect(page.getByText('Falta o nome')).toHaveCount(1);
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+// 26/11: a cópia saía deslocada (para cima e para o lado) em relação à linha. Agora sai exatamente sobre ela e anda o
+// mesmo que o ponteiro desde o ponto de pega, também depois de reordenar.
+test('suplementação: a sombra do arraste sai sobre a linha e acompanha o ponteiro (1280px)', async ({ page }) => {
+  const { naoTratadas, errosDaPagina } = await abrir(page, { largura: 1280 });
+  await aba(page, /^Suplementação/).click();
+  const alca = cartao(page).getByTestId('alca-de-arraste').nth(1);
+  await conferirSombra(page, alca, { x: 9, y: 7 }, { x: 40, y: -60 });
+  await conferirSombra(page, cartao(page).getByTestId('alca-de-arraste').nth(2), { x: -6, y: -8 }, { x: -30, y: -50 });
+  // Depois de reordenar, o arraste pega a linha certa (antes, a do índice em que ela nasceu: a sombra saía em outra linha).
+  await arrastar(page, cartao(page).getByTestId('alca-de-arraste').nth(2), page.getByLabel('Nome do suplemento 1'));
+  await expect(page.getByLabel('Nome do suplemento 1')).toHaveValue('Ômega fictício');
+  await conferirSombra(page, cartao(page).getByTestId('alca-de-arraste').nth(0), { x: 7, y: 9 }, { x: 20, y: 70 });
+  await conferirSombra(page, cartao(page).getByTestId('alca-de-arraste').nth(2), { x: 5, y: -9 }, { x: 15, y: -40 });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });

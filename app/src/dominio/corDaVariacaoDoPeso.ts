@@ -1,4 +1,5 @@
 import type { MetaDoPeso } from '../api/tipos';
+import type { Cores } from '../tema/tokens';
 
 /**
  * Cor da variação do peso (D3 do plano cor-da-variacao-do-peso). A direção é do treinador: o app só pinta, não opina
@@ -16,4 +17,9 @@ export function tomDaVariacaoDoPeso(variacao: number | null | undefined, meta: M
   if (meta === 'REDUZIR') return d < 0 ? 'positivo' : 'problema';
   if (meta === 'AUMENTAR') return d > 0 ? 'positivo' : 'problema';
   return 'neutro';
+}
+
+/** A cor do tom (verde a favor da meta, vermelho contra, cor do texto no neutro): a mesma na lista, no resumo e no gráfico. */
+export function corDoTom(tom: TomDoPeso, cores: Pick<Cores, 'sucesso' | 'perigo' | 'texto'>): string {
+  return tom === 'positivo' ? cores.sucesso : tom === 'problema' ? cores.perigo : cores.texto;
 }

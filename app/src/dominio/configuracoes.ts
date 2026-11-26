@@ -1,5 +1,6 @@
 import { temFuncionalidade } from './funcionalidadesDoPlano';
 import { podeAcessarTela } from './permissoes';
+import { caminhoDoItem, ehItemEmbutido } from './rotasDasConfiguracoes';
 import { caminhoDoHref, semAcento } from './telas';
 
 /** Grupos do hub de Configurações, na ordem em que aparecem (`docs/planos/configuracoes-centralizadas.md`, H5). */
@@ -65,8 +66,6 @@ export const CARTOES_DE_CONFIGURACAO: readonly CartaoDeConfiguracao[] = [
   { id: 'metodologias', grupo: 'Alunos e atendimento', titulo: 'Metodologias', descricao: 'Regras de séries e preparação usadas nos treinos.', href: '/treinador/planejamento?tipo=metodologia', palavras: ['metodologia', 'series', 'preparacao', 'receitas', 'treino'], permissao: 'MODELO_LER' },
   // Tela própria em /treinador/alunos/tags: a guarda da lista de alunos (ALUNO_LER); gerir pede ALUNO_ALTERAR, conferido na tela.
   { id: 'tags-dos-alunos', grupo: 'Alunos e atendimento', titulo: 'Tags dos alunos', descricao: 'Rótulos da equipe para achar e filtrar os alunos.', href: '/treinador/alunos/tags', palavras: ['tags', 'etiquetas', 'rotulos', 'marcadores', 'categorias de alunos', 'filtrar alunos'] },
-  // Leva ao Início, onde a janela de 0, 3, 7 ou 15 dias é a opção do bloco Aniversários (Editar › ⋯); só com ALUNO_LER, como o bloco.
-  { id: 'aniversarios', grupo: 'Alunos e atendimento', titulo: 'Aniversários dos alunos', descricao: 'No Início: Editar › ⋯ do bloco Aniversários escolhe quantos dias mostrar.', href: '/treinador', palavras: ['aniversario', 'aniversariantes', 'data de nascimento', 'parabens', 'inicio'], permissao: 'ALUNO_LER' },
   { id: 'financeiro-planos', grupo: 'Financeiro', titulo: 'Planos comerciais', descricao: 'Os planos que você cobra dos alunos.', href: '/treinador/financeiro?aba=planos', palavras: ['pagamentos', 'mensalidade', 'valores', 'cobranca', 'planos'] },
   { id: 'financeiro-lembretes', grupo: 'Financeiro', titulo: 'Lembretes de cobrança', descricao: 'Quando avisar o aluno por e-mail sobre uma cobrança.', href: '/treinador/financeiro?aba=lembretes', palavras: ['lembrete', 'avisos', 'email', 'vencimento', 'atraso', 'inadimplencia'] },
   { id: 'financeiro-recebimento', grupo: 'Financeiro', titulo: 'Recebimento online', descricao: 'Como o aluno paga: Pix, link próprio, InfinitePay e manual.', href: '/treinador/financeiro?aba=recebimento', palavras: ['formas de recebimento', 'infinitepay', 'pix', 'copia e cola', 'chave pix', 'cartao', 'link de pagamento', 'link proprio', 'manual', 'parcelamento', 'juros'] },
@@ -107,4 +106,20 @@ export function buscarCartoes(texto: string, cartoes: readonly CartaoDeConfigura
 /** Agrupa na ordem de `GRUPOS_DE_CONFIGURACAO`, mantendo a ordem dos cartões; grupo sem cartão não aparece. */
 export function gruposDeCartoes(cartoes: readonly CartaoDeConfiguracao[]): { grupo: GrupoDeConfiguracao; cartoes: CartaoDeConfiguracao[] }[] {
   return GRUPOS_DE_CONFIGURACAO.map((grupo) => ({ grupo, cartoes: cartoes.filter((c) => c.grupo === grupo) })).filter((g) => g.cartoes.length > 0);
+}
+
+/**
+ * O cartão abre dentro de Configurações (coluna da direita, a partir de 1024 px de janela)? Os de telas do menu principal
+ * (Equipe, Planejamento, Interessados, Financeiro, Importação, Auditoria, Ajuda) abrem a tela inteira deles.
+ */
+export const abreDentro = (c: Pick<CartaoDeConfiguracao, 'id'>): boolean => ehItemEmbutido(c.id);
+
+/** Destino do item na coluna da esquerda: o endereço dentro de Configurações ou, nos que abrem fora, a tela deles. */
+export function destinoNaColuna(c: Pick<CartaoDeConfiguracao, 'id' | 'href'>): string {
+  return ehItemEmbutido(c.id) ? caminhoDoItem(c.id) : c.href;
+}
+
+/** O que abre em `/treinador/configuracoes` sem item, na tela larga: o primeiro que abre dentro (Meus dados). */
+export function primeiroItemDentro(visiveis: readonly CartaoDeConfiguracao[]): CartaoDeConfiguracao | null {
+  return visiveis.find(abreDentro) ?? null;
 }

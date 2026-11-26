@@ -118,6 +118,23 @@ export function linhaDoHistorico(registro: RegistroPeso, registros: readonly Reg
   };
 }
 
+/** "Subiu 1,2 kg", "Desceu 0,7 kg", "Sem alteração" (sem o sinal: o verbo diz a direção ao leitor de tela). */
+export function direcaoFalada(seta: SetaDoPeso, texto: string): string {
+  if (seta === 'igual') return 'Sem alteração';
+  return `${seta === 'sobe' ? 'Subiu' : 'Desceu'} ${texto.replace(/^[+−]/, '')}`;
+}
+
+const META_FALADA: Record<TomDoPeso, string> = { positivo: ', a favor da meta', problema: ', contra a meta', neutro: '' };
+
+/**
+ * O que o leitor de tela ouve da variação de um registro no balão do gráfico: "Subiu 1,3 kg desde 16/03, contra a
+ * meta", "Sem alteração desde 16/03" ou "Sem registro anterior". A meta só entra quando pintou a variação (`tom`).
+ */
+export function variacaoFalada(linha: LinhaDoHistorico): string {
+  if (!linha.seta) return linha.texto;
+  return `${direcaoFalada(linha.seta, linha.texto)} ${linha.desde ?? 'desde o registro anterior'}${META_FALADA[linha.tom]}`;
+}
+
 /** Pontos do gráfico do mais antigo ao mais novo; o eixo horizontal os distribui pela data (`fracaoNoEixo`). */
 export function pontosDoPeso(registros: readonly RegistroPeso[]): { rotulo: string; valor: number; data: string }[] {
   return registros.filter(valido)

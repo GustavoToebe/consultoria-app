@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import type { ConfirmacaoResultado, GrupoImportavel, SessaoDetalhe } from '../src/servicos/importacaoAssistida';
+import type { ConfirmacaoResultado, GrupoImportavel, SessaoDetalhe, SessaoListaItem } from '../src/servicos/importacaoAssistida';
 import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
 /**
@@ -75,8 +75,12 @@ async function capturar(page: Page, nome: string) {
  * Sessão simulada que muda como a API: ler → revisando; PUT do grupo troca destino e aluno e sobe a revisão; o primeiro
  * gravar deixa g1 importado e g2 com erro; o segundo (só g2) conclui a sessão. `confirmar` troca a resposta do gravar.
  */
-async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permissoes = TODAS, confirmar, lida = revisando, inicial = recebendo, atrasoDoGet = 0 }: {
+async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permissoes = TODAS, confirmar, lida = revisando, inicial = recebendo, atrasoDoGet = 0, abertas = [], arquivo }: {
   tema?: string; contraste?: string; permissoes?: string[]; confirmar?: RespostasApi[string]; lida?: SessaoDetalhe;
+  /** Importações em aberto que o `GET` da lista devolve (as descartadas saem dela). */
+  abertas?: SessaoListaItem[];
+  /** Resposta do envio de cada arquivo (padrão: aceito). */
+  arquivo?: RespostasApi[string];
   /** Sessão que o GET devolve antes de ler (a retomada pelo endereço, `?sessaoId=s1`). */
   inicial?: SessaoDetalhe;
   /** Espera (ms) no GET da sessão, para teclar antes de ela chegar. */
@@ -84,17 +88,23 @@ async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permiss
 } = {}) {
   await page.addInitScript(([id, tm, c]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: tm, contraste: c })), [TREINADOR.id, tema, contraste]);
   let atual = inicial;
+  let lista = abertas;
   let gravacoes = 0;
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes })),
     [`POST ${BASE}`]: { corpo: { ...recebendo, arquivos: [] } },
     [`POST ${BASE}/{id}/textos`]: { corpo: recebendo.arquivos[0] },
-    [`GET ${BASE}`]: { corpo: [] },
+    [`GET ${BASE}`]: (_p, route) => json(route, lista),
+    [`POST ${BASE}/{id}/arquivos`]: arquivo ?? { corpo: recebendo.arquivos[0] },
     [`GET ${BASE}/{id}`]: async (_p, route) => {
       if (atrasoDoGet) await new Promise((r) => setTimeout(r, atrasoDoGet));
       return json(route, atual);
     },
-    [`POST ${BASE}/{id}/cancelar`]: (_p, route) => json(route, { ...atual, estado: 'CANCELADA' }),
+    [`POST ${BASE}/{id}/cancelar`]: (p, route) => {
+      const id = p.caminho.split('/')[4];
+      lista = lista.filter((l) => l.id !== id);
+      return json(route, { ...atual, estado: 'CANCELADA' });
+    },
     [`POST ${BASE}/{id}/processar`]: (_p, route) => { atual = lida; return json(route, atual); },
     [`POST ${BASE}/{id}/respostas`]: (p, route) => {
       const { duvidaId, respostaEscolhida } = p.corpo as { duvidaId: string; respostaEscolhida: string };
@@ -130,7 +140,7 @@ async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permiss
 
 async function colarELer(page: Page) {
   await page.goto('/treinador/importacao/assistida');
-  await expect(page.getByText('Enviar arquivos ou texto')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Enviar arquivos ou texto' })).toBeVisible();
   await page.getByRole('button', { name: 'Colar texto' }).click();
   const adicionar = page.getByRole('button', { name: 'Adicionar o texto' });
   await expect(adicionar).toBeDisabled();
@@ -334,7 +344,7 @@ for (const largura of [390, 1280]) {
     test('abaixo de 1600 não há coluna lateral; termo em branco não aparece e trecho em branco vira "—"', async ({ page }) => {
       const api = await abrir(page, { lida: comTermosVazios });
       await lerEConferir(page);
-      await expect(page.getByRole('complementary', { name: 'Resumo da importação' })).toHaveCount(0);
+      await expect(page.getByRole('complementary', { name: 'Etapas da importação' })).toHaveCount(0);
       // O botão da próxima etapa continua no cartão, um só.
       await expect(gravar(page)).toHaveCount(1);
       // Só os dois termos de verdade: nada de aspas vazias.
@@ -355,7 +365,7 @@ for (const largura of [390, 1280]) {
       await expect(painel).toBeVisible();
       await capturar(page, `importacao-descartar-${largura}`);
       await painel.getByRole('button', { name: 'Cancelar importação' }).click();
-      await expect(page.getByText('Enviar arquivos ou texto')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Enviar arquivos ou texto' })).toBeVisible();
       expect(api.pedidos.some((p) => p.metodo === 'POST' && p.caminho === `${BASE}/s1/cancelar`)).toBe(true);
     });
 
@@ -383,13 +393,15 @@ for (const largura of [390, 1280]) {
  */
 test.describe('1920 px', () => {
   test.use({ viewport: { width: 1920, height: 1080 } });
-  const lateral = (page: Page) => page.getByRole('complementary', { name: 'Resumo da importação' });
+  const lateral = (page: Page) => page.getByRole('complementary', { name: 'Etapas da importação' });
+  /** O valor da contagem ao lado do rótulo (os números dos círculos das etapas também são texto). */
+  const contagem = (page: Page, rotulo: string) => lateral(page).getByText(rotulo, { exact: true }).locator('..');
 
   test('resumo e próxima etapa na coluna lateral; termos numa tabela compacta', async ({ page }) => {
     const api = await abrir(page, { lida: comTermosVazios });
     await page.goto('/treinador/importacao/assistida');
-    // Sem sessão a coluna já está no lugar, dizendo o que vai aparecer nela.
-    await expect(lateral(page).getByText(/O que for lido aparece aqui/)).toBeVisible();
+    // Sem sessão a coluna já está no lugar, com as cinco etapas e a primeira destacada.
+    await expect(lateral(page).getByText('Comece aqui')).toBeVisible();
     await colarELer(page);
     await expect(lateral(page).getByText('Arquivos enviados')).toBeVisible();
     // Um botão da próxima etapa, só na coluna lateral.
@@ -402,12 +414,10 @@ test.describe('1920 px', () => {
     const coluna = lateral(page);
     await expect(coluna.getByText('Arquivos lidos')).toBeVisible();
     await expect(coluna.getByText('1 de 1')).toBeVisible();
-    await expect(coluna.getByText('Alunos encontrados')).toBeVisible();
-    await expect(coluna.getByText('4', { exact: true })).toBeVisible();
+    await expect(contagem(page, 'Alunos encontrados')).toContainText('4');
     await expect(coluna.getByText('Treinos encontrados')).toBeVisible();
     // Dois termos pendentes (os em branco não contam).
-    await expect(coluna.getByText('Termos pendentes')).toBeVisible();
-    await expect(coluna.getByText('2', { exact: true })).toBeVisible();
+    await expect(contagem(page, 'Termos pendentes')).toContainText('2');
 
     // Termos: tabela com cabeçalho; sem linha para o termo em branco.
     const tabela = page.getByRole('table', { name: 'Termos para conferir' });
@@ -452,6 +462,212 @@ test.describe('1920 px', () => {
     await expect(lateral(page).getByText('Nenhum', { exact: true })).toBeVisible();
     const resposta = api.pedidos.find((p) => p.caminho === `${BASE}/s1/respostas`);
     expect(resposta?.corpo).toMatchObject({ duvidaId: 'd1', respostaEscolhida: 'Supino inclinado' });
+    expect(api.errosDaPagina).toEqual([]);
+  });
+});
+
+/** Importações em aberto da lista (26/11): datas fixas no fuso do teste e prazo relativo ao relógio de verdade. */
+const DIA = 86_400_000;
+const emAberto = (id: string, extra: Partial<SessaoListaItem> = {}): SessaoListaItem => ({
+  id, estado: 'REVISANDO', revisao: 1, totalArquivos: 2, totalGrupos: 16, duvidasAbertas: 26,
+  criadoEm: '2026-11-24T17:30:00Z', expiraEm: new Date(Date.now() + 3 * DIA + 3_600_000).toISOString(), ...extra,
+});
+const ABERTAS = [
+  emAberto('s1'),
+  emAberto('s2', { estado: 'RECEBENDO', totalArquivos: 1, totalGrupos: 0, duvidasAbertas: 0, criadoEm: '2026-11-25T12:05:00Z', expiraEm: new Date(Date.now() + DIA + 3_600_000).toISOString() }),
+];
+
+/** Arquivos de mentira num `DataTransfer` criado na página. */
+const arquivosArrastados = (page: Page, nomes: string[]) => page.evaluateHandle((lista) => {
+  const d = new DataTransfer();
+  for (const n of lista) d.items.add(new File(['conteudo de teste'], n, { type: 'application/pdf' }));
+  return d;
+}, nomes);
+
+/** Arrasta até a área de soltar (os eventos vão no elemento) e, com `soltar`, solta. */
+async function arrastar(page: Page, nomes: string[], soltar = true) {
+  const area = page.getByTestId('area-de-soltar');
+  const dt = await arquivosArrastados(page, nomes);
+  await area.dispatchEvent('dragenter', { dataTransfer: dt });
+  await area.dispatchEvent('dragover', { dataTransfer: dt });
+  if (soltar) await area.dispatchEvent('drop', { dataTransfer: dt });
+  return area;
+}
+
+for (const largura of [390, 1280]) {
+  test.describe(`envio e importações em aberto, ${largura} px`, () => {
+    test.use({ viewport: { width: largura, height: 900 } });
+
+    test('ordem: enviar primeiro, em aberto logo abaixo; "O que importar" em três cartões radio com setas', async ({ page }) => {
+      const api = await abrir(page, { abertas: ABERTAS });
+      await page.goto('/treinador/importacao/assistida');
+      const enviar = page.getByRole('heading', { name: 'Enviar arquivos ou texto' });
+      const abertas = page.getByRole('heading', { name: 'Importações em aberto' });
+      await expect(abertas).toBeVisible();
+      expect((await enviar.boundingBox())!.y).toBeLessThan((await abertas.boundingBox())!.y);
+
+      const grupo = page.getByRole('radiogroup', { name: 'O que importar' });
+      await expect(grupo.getByRole('radio')).toHaveCount(3);
+      const recomendado = grupo.getByRole('radio', { name: /^Cadastros e planos atuais/ });
+      await expect(recomendado).toBeChecked();
+      // Só o marcado entra no Tab (roving tabindex); as setas movem o foco e a escolha e dão a volta.
+      await expect(grupo.locator('[tabindex="0"]')).toHaveCount(1);
+      await recomendado.focus();
+      await page.keyboard.press('ArrowRight');
+      const soCadastros = grupo.getByRole('radio', { name: /^Só cadastros e contatos/ });
+      await expect(soCadastros).toBeChecked();
+      await expect(soCadastros).toBeFocused();
+      await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('ArrowRight');
+      await expect(recomendado).toBeChecked();
+      await page.keyboard.press('ArrowLeft');
+      const tudo = grupo.getByRole('radio', { name: /^Tudo, com histórico/ });
+      await expect(tudo).toBeChecked();
+      await expect(tudo).toBeFocused();
+      // A escolha vai na criação da sessão.
+      await page.getByRole('button', { name: 'Colar texto' }).click();
+      await page.getByRole('textbox', { name: /^Texto colado/ }).fill('Aluno de teste');
+      await page.getByRole('button', { name: 'Adicionar o texto' }).click();
+      await expect(page.getByText('Recebendo arquivos · 1 arquivo ou texto')).toBeVisible();
+      expect(api.pedidos.find((p) => p.metodo === 'POST' && p.caminho === BASE)?.corpo).toEqual({ objetivo: 'INCLUIR_HISTORICO' });
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('linha da importação em aberto: data, selo, contagens e prazo; ⋯ com Enter descarta pelo painel; Retomar abre', async ({ page }) => {
+      const api = await abrir(page, { abertas: ABERTAS });
+      await page.goto('/treinador/importacao/assistida');
+      const lista = page.getByRole('list', { name: 'Importações em aberto' });
+      await expect(lista.getByRole('listitem')).toHaveCount(2);
+      const primeira = lista.getByRole('listitem').first();
+      await expect(primeira.getByText('24/11/2026 14:30')).toBeVisible();
+      await expect(primeira.getByText('Em revisão')).toBeVisible();
+      await expect(primeira.getByText('2 arquivos · 16 grupos · 26 dúvidas')).toBeVisible();
+      await expect(primeira.getByText('expira em 3 dias')).toBeVisible();
+      // Antes de ler não há grupos nem dúvidas para contar: só os arquivos.
+      const segunda = lista.getByRole('listitem').nth(1);
+      await expect(segunda.getByText('1 arquivo', { exact: true })).toBeVisible();
+      await expect(segunda.getByText('expira em 1 dia')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Retomar a importação de 24/11/2026 14:30' })).toBeVisible();
+      await capturar(page, `importacao-em-aberto-${largura}`);
+
+      const mais = page.getByRole('button', { name: 'Mais ações da importação de 24/11/2026 14:30' });
+      await mais.focus();
+      await page.keyboard.press('Enter');
+      await page.getByRole('button', { name: /^Descartar/ }).click();
+      const painel = page.getByRole('alertdialog', { name: 'Descartar a importação de 24/11/2026 14:30?' });
+      await expect(painel).toBeVisible();
+      await capturar(page, `importacao-descartar-da-lista-${largura}`);
+      await painel.getByRole('button', { name: 'Descartar importação' }).click();
+      await expect(lista.getByRole('listitem')).toHaveCount(1);
+      expect(api.pedidos.some((p) => p.metodo === 'POST' && p.caminho === `${BASE}/s1/cancelar`)).toBe(true);
+
+      await page.getByRole('button', { name: 'Retomar a importação de 25/11/2026 09:05' }).click();
+      await expect(page.getByText('Recebendo arquivos · 1 arquivo ou texto')).toBeVisible();
+      expect(api.pedidos.some((p) => p.metodo === 'GET' && p.caminho === `${BASE}/s2`)).toBe(true);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('arquivo recusado e limite de arquivos: o erro fica junto da área, em português', async ({ page }) => {
+      let envios = 0;
+      const api = await abrir(page, {
+        inicial: { ...recebendo, arquivos: [] },
+        arquivo: (_p, route) => {
+          envios++;
+          return envios === 1
+            ? json(route, erroApi(400, 'Formato.', 'FORMATO_NAO_SUPORTADO').corpo, 400)
+            : json(route, erroApi(409, 'Arquivos demais.', 'LIMITE_DE_ARQUIVOS').corpo, 409);
+        },
+      });
+      await page.goto('/treinador/importacao/assistida');
+      await expect(page.getByTestId('area-de-soltar')).toBeVisible();
+      await arrastar(page, ['foto.png']);
+      await expect(page.getByText('Formato não aceito. Envie PDF, DOCX, XLSX ou CSV.')).toBeVisible();
+      await capturar(page, `importacao-arquivo-recusado-${largura}`);
+      await arrastar(page, ['a.pdf']);
+      await expect(page.getByText(/Esta importação já tem arquivos demais/)).toBeVisible();
+      // A sessão criada no primeiro envio é reaproveitada: uma só.
+      expect(api.pedidos.filter((p) => p.metodo === 'POST' && p.caminho === BASE)).toHaveLength(1);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+  });
+}
+
+test.describe('área de soltar e etapas, 1280 px', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('arrastar destaca na cor de ação e soltar envia todos os arquivos; botões e limites dentro da área', async ({ page }) => {
+    const api = await abrir(page);
+    await page.goto('/treinador/importacao/assistida');
+    const area = page.getByTestId('area-de-soltar');
+    await expect(area.getByText('Arraste os arquivos aqui')).toBeVisible();
+    await expect(area.getByRole('button', { name: 'Escolher arquivos' })).toBeVisible();
+    await expect(area.getByRole('button', { name: 'Colar texto' })).toBeVisible();
+    await expect(area.getByText('PDF, DOCX, XLSX ou CSV · até 20 arquivos, 900 KB cada e 8 MB no total')).toBeVisible();
+    const repouso = await area.evaluate((e) => getComputedStyle(e).borderTopColor);
+    await arrastar(page, ['treino.pdf', 'dieta.pdf'], false);
+    await expect(area.getByText('Solte para enviar')).toBeVisible();
+    expect(await area.evaluate((e) => getComputedStyle(e).borderTopColor)).not.toBe(repouso);
+    await capturar(page, 'importacao-arrastando-1280');
+    await area.dispatchEvent('drop', { dataTransfer: await arquivosArrastados(page, ['treino.pdf', 'dieta.pdf']) });
+    await expect(page.getByText('Recebendo arquivos · 1 arquivo ou texto')).toBeVisible();
+    expect(api.pedidos.filter((p) => p.metodo === 'POST' && p.caminho === `${BASE}/s1/arquivos`)).toHaveLength(2);
+    expect(api.errosDaPagina).toEqual([]);
+  });
+
+  test('abaixo de 1600: etapas numa linha compacta no topo, a atual com aria-current="step"', async ({ page }) => {
+    const api = await abrir(page);
+    await page.goto('/treinador/importacao/assistida');
+    const etapas = page.getByRole('list', { name: 'Etapas da importação' });
+    await expect(etapas.getByRole('listitem')).toHaveCount(5);
+    await expect(page.getByRole('complementary', { name: 'Etapas da importação' })).toHaveCount(0);
+    const primeira = etapas.getByRole('listitem', { name: 'Etapa 1 de 5: Enviar arquivos ou texto, etapa atual' });
+    await expect(primeira).toHaveAttribute('aria-current', 'step');
+    await expect(etapas.locator('[aria-current="step"]')).toHaveCount(1);
+    // Fica acima do primeiro cartão.
+    expect((await etapas.boundingBox())!.y).toBeLessThan((await page.getByRole('heading', { name: 'Enviar arquivos ou texto' }).boundingBox())!.y);
+    await lerEConferir(page);
+    await expect(etapas.getByRole('listitem', { name: 'Etapa 3 de 5: Conferir termos e dúvidas, etapa atual' })).toHaveAttribute('aria-current', 'step');
+    await expect(etapas.getByRole('listitem', { name: 'Etapa 2 de 5: Ler e separar por aluno, concluída' })).toBeVisible();
+    await capturar(page, 'importacao-etapas-compactas-1280');
+    expect(api.errosDaPagina).toEqual([]);
+  });
+});
+
+test.describe('coluna das etapas, 1920 px', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } });
+  const coluna = (page: Page) => page.getByRole('complementary', { name: 'Etapas da importação' });
+
+  test('sem importação: cinco etapas, a 1 destacada; no meio: etapa 3 atual, 1 e 2 com ✓, contagens, botão no fim, fixa ao rolar', async ({ page }) => {
+    const api = await abrir(page);
+    await page.goto('/treinador/importacao/assistida');
+    await expect(coluna(page).getByRole('listitem')).toHaveCount(5);
+    await expect(coluna(page).locator('[aria-current="step"]')).toContainText('Enviar arquivos ou texto');
+    await expect(coluna(page).getByText('Comece aqui')).toBeVisible();
+    await expect(coluna(page).getByText('Treino e dieta entram como rascunho.')).toBeVisible();
+    await expect(coluna(page).getByText(/Envie os arquivos ou cole um texto/)).toHaveCount(0);
+    // Sem sessão não há botão na coluna: a ação é o "Escolher arquivos" da área.
+    await expect(coluna(page).getByRole('button')).toHaveCount(0);
+    // A altura é a do conteúdo, sem bloco vazio embaixo.
+    expect((await coluna(page).boundingBox())!.height).toBeLessThan(700);
+
+    await lerEConferir(page);
+    const atual = coluna(page).locator('[aria-current="step"]');
+    await expect(atual).toHaveCount(1);
+    await expect(atual).toContainText('Conferir termos e dúvidas');
+    await expect(coluna(page).getByLabel('Etapa 1 de 5: Enviar arquivos ou texto, concluída')).toBeVisible();
+    await expect(coluna(page).getByLabel('Etapa 2 de 5: Ler e separar por aluno, concluída')).toBeVisible();
+    await expect(coluna(page).getByText('Selecionados', { exact: true }).locator('..')).toContainText('0 de 2');
+    await expect(coluna(page).getByRole('button', { name: /^Gravar selecionados/ })).toBeVisible();
+
+    // Fixa ao rolar: a página rola e a coluna continua no topo da janela.
+    const antes = (await page.getByRole('heading', { name: 'Arquivos da importação' }).boundingBox())!;
+    await page.mouse.move(600, 600);
+    await page.mouse.wheel(0, 1500);
+    await expect.poll(async () => (await page.getByRole('heading', { name: 'Arquivos da importação' }).boundingBox())?.y ?? 0).toBeLessThan(antes.y - 200);
+    const depois = (await coluna(page).boundingBox())!;
+    expect(depois.y).toBeGreaterThanOrEqual(0);
+    expect(depois.y).toBeLessThan(80);
+    if (CAPTURAS) await page.screenshot({ path: `${CAPTURAS}/importacao-1920-rolada.png` });
     expect(api.errosDaPagina).toEqual([]);
   });
 });

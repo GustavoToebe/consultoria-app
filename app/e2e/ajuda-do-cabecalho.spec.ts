@@ -14,6 +14,14 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 const CONFIGURACOES = 'Sua conta, a consultoria, a equipe e o atendimento, num lugar só.';
 const AJUSTES = 'Valem só neste aparelho e para a sua conta.';
+const AUDITORIA = 'Ações feitas na consultoria, guardadas por um ano. Valores clínicos não aparecem.';
+/**
+ * Tela de amostra com "Saiba mais" (seção consultoria). Em 1280 Configurações abre direto em Meus dados (duas colunas, 26/11),
+ * que não tem artigo: lá a amostra é a Auditoria, da mesma seção; no celular continua a lista de Configurações.
+ */
+const amostra = (largura: number) => (largura < 1024
+  ? { caminho: '/treinador/configuracoes', titulo: 'Configurações', texto: CONFIGURACOES }
+  : { caminho: '/treinador/auditoria', titulo: 'Auditoria', texto: AUDITORIA });
 
 async function abrir(page: Page, largura: number, caminho: string) {
   await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 800 });
@@ -39,14 +47,15 @@ async function dentroDaJanela(page: Page, largura: number) {
 }
 
 for (const largura of [1280, 390]) {
+  const { caminho, titulo, texto } = amostra(largura);
   test.describe(`${largura} px`, () => {
     test('a descrição sai da tela e vai para o ⓘ ao lado do título, com a mesma descrição acessível', async ({ page }) => {
-      const { errosDaPagina } = await abrir(page, largura, '/treinador/configuracoes');
-      const h1 = page.getByRole('heading', { level: 1, name: 'Configurações' });
+      const { errosDaPagina } = await abrir(page, largura, caminho);
+      const h1 = page.getByRole('heading', { level: 1, name: titulo });
       await expect(h1).toBeVisible();
       await expect(icone(page)).toBeVisible();
-      await expect(page.getByText(CONFIGURACOES)).toBeHidden();
-      await expect(icone(page)).toHaveAccessibleDescription(CONFIGURACOES);
+      await expect(page.getByText(texto)).toBeHidden();
+      await expect(icone(page)).toHaveAccessibleDescription(texto);
       await expect(icone(page)).toHaveAttribute('aria-expanded', 'false');
       // Na mesma linha do título, logo depois dele; alvo de 44 px.
       const t = (await h1.boundingBox())!;
@@ -60,10 +69,10 @@ for (const largura of [1280, 390]) {
     });
 
     test('clique abre e fecha; Esc fecha e devolve o foco; clique fora fecha', async ({ page }) => {
-      await abrir(page, largura, '/treinador/configuracoes');
+      await abrir(page, largura, caminho);
       await icone(page).click();
       await expect(balao(page)).toBeVisible();
-      await expect(balao(page).getByText(CONFIGURACOES)).toBeVisible();
+      await expect(balao(page).getByText(texto)).toBeVisible();
       await expect(icone(page)).toHaveAttribute('aria-expanded', 'true');
       await dentroDaJanela(page, largura);
       await icone(page).click();
@@ -84,7 +93,7 @@ for (const largura of [1280, 390]) {
     });
 
     test('Tab abre, passa ao "Saiba mais" e o link abre a seção da Ajuda', async ({ page }) => {
-      await abrir(page, largura, '/treinador/configuracoes');
+      await abrir(page, largura, caminho);
       await expect(icone(page)).toBeVisible();
       // Foco do teclado: o Tab chega ao ⓘ vindo do elemento anterior.
       await icone(page).focus();
@@ -116,7 +125,7 @@ for (const largura of [1280, 390]) {
 }
 
 test('1280 px: o mouse abre, pode entrar no balão e, ao sair, fecha', async ({ page }) => {
-  await abrir(page, 1280, '/treinador/configuracoes');
+  await abrir(page, 1280, '/treinador/auditoria');
   await icone(page).hover();
   await expect(balao(page)).toBeVisible();
   await balao(page).getByRole('link', { name: 'Saiba mais' }).hover();
@@ -197,7 +206,10 @@ const TELAS: TelaDaVarredura[] = [
   { caminho: '/treinador/importacao', titulo: 'Importação', secao: 'importacao' },
   { caminho: '/treinador/importacao/assistida', titulo: 'Importação assistida', secao: 'importacao' },
   { caminho: '/treinador/auditoria', titulo: 'Auditoria', secao: 'consultoria' },
-  { caminho: '/treinador/configuracoes', titulo: 'Configurações', secao: 'consultoria' },
+  // Itens abertos dentro de Configurações (26/11): o mesmo ⓘ e o mesmo "Saiba mais" da tela inteira (no celular, vão a ela).
+  { caminho: '/treinador/configuracoes/marca', titulo: 'Marca', secao: 'consultoria' },
+  { caminho: '/treinador/configuracoes/seguranca', titulo: 'Segurança', secao: null },
+  { caminho: '/treinador/configuracoes/termos', titulo: 'Termos e privacidade', secao: 'privacidade' },
   { caminho: '/treinador/marca', titulo: 'Marca', secao: 'consultoria' },
   { caminho: '/treinador/whatsapp', titulo: 'WhatsApp oficial', secao: null },
   { caminho: '/treinador/documentos', titulo: 'Documentos (PDF)', secao: null },

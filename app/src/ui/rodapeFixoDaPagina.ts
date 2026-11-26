@@ -1,5 +1,5 @@
-import { useEffect, useId, useRef, type RefObject } from 'react';
-import type { LayoutChangeEvent, View } from 'react-native';
+import { useCallback, useEffect, useId, useRef, type RefObject } from 'react';
+import { Platform, type LayoutChangeEvent, type View } from 'react-native';
 
 import { espaco } from '../tema/tokens';
 
@@ -57,9 +57,60 @@ export function useRegistroDoRodapeFixo(): { ref: RefObject<View | null>; onLayo
   return { ref, onLayout };
 }
 
+// Folha com rodapé no celular: o aviso dela mora dentro do `Modal` (outra janela, `PortalHost` da folha), então a régua da
+// raiz não serve (o `Modal` do Android pode ter origem e altura diferentes). Fica a distância medida de dentro da própria
+// janela da folha: do topo do rodapé ao pé do host do portal, que é onde o `bottom` do aviso começa. As duas medidas
+// são `measureInWindow` na mesma janela, então qualquer desvio (barra de status, edge-to-edge) se cancela.
+const rodapesDeFolha = new Map<string, number>();
+
+/** Nativo: px do topo do rodapé da folha `nome` ao pé do portal dela, ou `null` (sem rodapé, fechada ou antes da medida). */
+export function distanciaDoRodapeDaFolha(nome: string): number | null {
+  return rodapesDeFolha.get(nome) ?? null;
+}
+
+/**
+ * Nativo: a `Folha` com rodapé informa onde ele está. Devolve `medir`, para chamar quando o layout da folha muda (rodapé,
+ * painel, host: o teclado empurra o painel no iOS); mede de novo ao (des)aparecer o rodapé e sai do registro ao desmontar
+ * (a folha fechada nunca vaza para a tela de baixo; medida que chega depois de desmontar é descartada). Na web é inerte
+ * (lá o aviso sonda o DOM, `data-rodape-da-folha`).
+ */
+export function useRegistroDoRodapeDaFolha(nome: string, temRodape: boolean, rodape: RefObject<View | null>, host: RefObject<View | null>): () => void {
+  const viva = useRef(true);
+  const medir = useCallback(() => {
+    if (Platform.OS === 'web') return;
+    const r = rodape.current;
+    const h = host.current;
+    if (!r || !h) {
+      rodapesDeFolha.delete(nome);
+      return;
+    }
+    r.measureInWindow((_x, y, _largura, altura) => {
+      h.measureInWindow((_hx, hy, _hl, ha) => {
+        if (!viva.current) return;
+        const distancia = Math.round(hy + ha - y);
+        if (altura > 0 && ha > 0 && distancia > 0) rodapesDeFolha.set(nome, distancia);
+        else rodapesDeFolha.delete(nome);
+      });
+    });
+  }, [nome, rodape, host]);
+  useEffect(() => {
+    viva.current = true;
+    return () => {
+      viva.current = false;
+      rodapesDeFolha.delete(nome);
+    };
+  }, [nome]);
+  useEffect(() => {
+    if (temRodape) medir();
+    else rodapesDeFolha.delete(nome);
+  }, [temRodape, medir, nome]);
+  return medir;
+}
+
 /** Só para os testes: esquece os rodapés e o pé da camada. */
 export function limparRegistroDoRodape(): void {
   topos.clear();
+  rodapesDeFolha.clear();
   peDaCamada = null;
 }
 

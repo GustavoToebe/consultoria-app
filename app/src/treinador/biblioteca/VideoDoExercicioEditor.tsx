@@ -45,7 +45,7 @@ export function VideoDoExercicioEditor({ valor, aoMudar, erroDaApi, nome }: {
       {externo ? (
         <LinhaDeAcoes>
           <Botao rotulo="Abrir no YouTube" rotuloAcessivel={nome ? `Abrir no YouTube: ${nome}` : undefined} tipo="secundario" Icone={ExternalLink} aoTocar={abrir} />
-          <Botao rotulo="Remover vídeo" tipo="perigoTexto" Icone={Trash2} aoTocar={() => aoMudar('')} />
+          <Botao rotulo="Remover vídeo" tipo="perigo" Icone={Trash2} aoTocar={() => aoMudar('')} />
         </LinhaDeAcoes>
       ) : null}
     </View>

@@ -1,28 +1,29 @@
-import { FileDown, PlayCircle } from 'lucide-react-native';
+import { FileDown } from 'lucide-react-native';
 import { useState, type ComponentProps } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { DatasDaMobilidade } from '../../aluno/DatasDaMobilidade';
+import { CartaoDaSecaoDaMobilidade, CartaoDasOrientacoesDaMobilidade } from '../../aluno/PecasDaMobilidade';
 import { useMarcadoAgora } from '../../aluno/useMarcadoAgora';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
 import type { ConteudoMobilidadeApi, VersaoDetalhe } from '../../api/tipos';
 import { dataCurta, hojeIso } from '../../dominio/formatos';
 import { TEXTO_PACOTE_RECUSADO } from '../../dominio/inicioDoAluno';
-import { itemParaTela, mobilidadeParaExibir, normalizarMobilidade } from '../../dominio/mobilidade';
+import { mobilidadeParaExibir, normalizarMobilidade } from '../../dominio/mobilidade';
 import { contagemDoDia, dataInicialDaMobilidade, datasDaMobilidade, feitosDoDia, textoDaContagem } from '../../dominio/mobilidadeFeita';
+import { tituloDoPlano } from '../../dominio/tituloDoPlano';
 import { useAluno } from '../../offline/AlunoProvider';
 import { imprimir } from '../../pdf/imprimir';
 import { logoComoDataUri } from '../../pdf/logo';
 import { documentoMobilidade } from '../../pdf/pdfMobilidade';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, LARGURA_TEXTO_CORRIDO } from '../../tema/tokens';
+import { espaco, fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { BotaoMarcar } from '../../ui/BotaoMarcar';
 import { NoPlano } from '../../ui/NoPlano';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -106,35 +107,25 @@ export function ConteudoDaMobilidade({ versao, largo = false }: { versao: Versao
     // Abre fora do app (navegador ou app do YouTube), sem token nem cookie; só link https seguro.
     void abrirLinkExterno(url).then((ok) => { if (!ok) avisar('Não foi possível abrir o vídeo.', 'perigo'); });
   };
+  // O cartão da seção é o mesmo da prévia ao vivo do editor do treinador (`aluno/PecasDaMobilidade`).
   const secoes = c.secoes.map((secao) => (
-    <Cartao key={secao.uid} cabecalho={<CabecalhoDeGrupo titulo={secao.titulo?.trim() || 'Mobilidade'} />}>
-      {secao.itens.map((item) => {
-        const i = itemParaTela(item);
+    <CartaoDaSecaoDaMobilidade key={secao.uid} secao={secao} aoVerVideo={abrirVideo}
+      marcar={podeMarcar && data ? (item) => {
         const feito = feitos.has(item.uid);
         return (
-          <View key={item.uid} style={estilos.linha}>
-            <View style={estilos.item}>
-              <Texto numerico style={estilos.nome}>{i.nome}</Texto>
-              <Texto numerico variante="suave">{i.prescricao}</Texto>
-              {i.video ? <Botao rotulo="Ver vídeo" tipo="secundario" Icone={PlayCircle} aoTocar={() => abrirVideo(i.video!)} /> : null}
-            </View>
-            {podeMarcar && data ? (
-              <MarcarItem
-                key={data}
-                feito={feito}
-                rotulo={`${i.nome}: ${feito ? 'feito' : 'não feito'} em ${data === hoje ? 'hoje' : dataCurta(data)}`}
-                aoTocar={() => void marcarMobilidade({ planoVersaoId: versao.id, secaoUid: secao.uid, itemUid: item.uid, data, feito: !feito })}
-              />
-            ) : null}
-          </View>
+          <MarcarItem
+            key={data}
+            feito={feito}
+            rotulo={`${item.nome}: ${feito ? 'feito' : 'não feito'} em ${data === hoje ? 'hoje' : dataCurta(data)}`}
+            aoTocar={() => void marcarMobilidade({ planoVersaoId: versao.id, secaoUid: secao.uid, itemUid: item.uid, data, feito: !feito })}
+          />
         );
-      })}
-    </Cartao>
+      } : undefined} />
   ));
   return (
     <>
       {/* O plano em uso e o dia que se marca num cartão só, no topo (o título ficava solto no fim da tela). */}
-      <Cartao titulo={versao.titulo} descricao={versao.inicio && versao.fim ? `${dataCurta(versao.inicio)} a ${dataCurta(versao.fim)}` : undefined}>
+      <Cartao titulo={tituloDoPlano(versao.titulo, 'mobilidade', pacote?.pacote.aluno.nome)} descricao={versao.inicio && versao.fim ? `${dataCurta(versao.inicio)} a ${dataCurta(versao.fim)}` : undefined}>
         {podeMarcar && data ? (
           <>
             <Texto numerico style={estilos.contagem} accessibilityLiveRegion="polite">
@@ -152,11 +143,7 @@ export function ConteudoDaMobilidade({ versao, largo = false }: { versao: Versao
           <Texto variante="suave" cor={cores.textoSuave}>{semMarcar(vigente, noPlano, datas.length > 0)}</Texto>
         )}
       </Cartao>
-      {c.orientacoes?.trim() ? (
-        <Cartao titulo="Orientações">
-          <Texto numerico style={estilos.corrido}>{c.orientacoes}</Texto>
-        </Cartao>
-      ) : null}
+      <CartaoDasOrientacoesDaMobilidade texto={c.orientacoes} />
       {largo ? (
         <Grade gap={espaco(2)} alinhar="inicio" colunas={(l) => colunasDaGradeDoAluno(l, c.secoes.length, espaco(2))}>{secoes}</Grade>
       ) : secoes}
@@ -181,8 +168,4 @@ function semMarcar(vigente: boolean, noPlano: boolean, temDatas: boolean): strin
 
 const estilos = StyleSheet.create({
   contagem: { fontFamily: fontes.semi, fontSize: 16 },
-  linha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
-  item: { flex: 1, minWidth: 0, gap: 4 },
-  nome: { fontFamily: fontes.semi },
-  corrido: { maxWidth: LARGURA_TEXTO_CORRIDO },
 });

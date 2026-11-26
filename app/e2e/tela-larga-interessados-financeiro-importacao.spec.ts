@@ -250,7 +250,7 @@ test('Importação › nova importação em 3440 px para em 1400 px à esquerda;
   await page.goto('/treinador/importacao/assistida');
   await expect(page.getByText('Enviar arquivos ou texto').first()).toBeVisible();
   const h1b = await caixa(page.getByRole('heading', { name: 'Importação assistida', level: 1 }));
-  const lateral = await caixa(page.getByRole('complementary', { name: 'Resumo da importação' }));
+  const lateral = await caixa(page.getByRole('complementary', { name: 'Etapas da importação' }));
   expect(Math.round(lateral.width)).toBe(360);
   expect(lateral.x + lateral.width - h1b.x).toBeGreaterThan(TETO);
   const colar = await caixa(page.getByRole('button', { name: 'Colar texto' }));

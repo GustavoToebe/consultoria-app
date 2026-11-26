@@ -1,13 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { cartoesVisiveis, gruposDeCartoes } from '../src/dominio/configuracoes';
-import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import type { ConsultoriaResponse } from '../src/api/tipos';
+import { abreDentro, cartoesVisiveis, destinoNaColuna, gruposDeCartoes } from '../src/dominio/configuracoes';
+import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
- * Hub de Configurações do treinador (`docs/planos/configuracoes-centralizadas.md`, passo 2): um índice dos ajustes, com
- * os cartões que o perfil pode abrir, agrupados, e uma busca. Os cartões esperados saem da mesma regra pura da tela
- * (`dominio/configuracoes`), então o teste confere a ligação da tela com a sessão, não a lista à mão. Só dados fictícios.
- * Capturas em 390 e 1280, nos temas claro, areia e escuro, vão para `E2E_CAPTURAS` (pasta fora do repositório).
+ * Configurações do treinador (`docs/planos/configuracoes-centralizadas.md`). A partir de 1024 px de janela: duas colunas,
+ * `nav` "Configurações" à esquerda (busca e grupos, um item por linha) e o item aberto à direita, em
+ * `/treinador/configuracoes/<id>`; os itens de telas do menu principal abrem a tela inteira deles. Abaixo de 1024: a lista
+ * em linhas, que abre as rotas inteiras de sempre. Os itens esperados saem da regra pura da tela (`dominio/configuracoes`).
+ * Só dados fictícios.
  */
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -15,8 +17,11 @@ const ACESSO_TOTAL = [
   ...PERMISSOES_TREINADOR, 'MARCA_ALTERAR', 'CONTA_LER', 'EQUIPE_LER', 'AUDITORIA_LER', 'MODELO_LER', 'FINANCEIRO_LER',
   'BIBLIOTECA_ALTERAR', 'AGENDA_LER', 'BIBLIOTECA_LER', 'ATUALIZACAO_LER', 'WHATSAPP_ALTERAR',
 ];
+const CONSULTORIA: ConsultoriaResponse = { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' };
 
 interface Perfil { permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; whatsapp?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO' }
+
+const ADMIN: Perfil = { permissoes: ACESSO_TOTAL, administrador: true, pagamentos: true, recebimentoOnline: true, whatsapp: true };
 
 async function abrir(page: Page, largura: number, perfil: Perfil, caminho = '/treinador/configuracoes') {
   await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 800 });
@@ -31,12 +36,12 @@ async function abrir(page: Page, largura: number, perfil: Perfil, caminho = '/tr
     })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+    'GET /consultoria': { corpo: CONSULTORIA },
   });
   await page.goto(caminho);
   return { errosDaPagina };
 }
 
-/** O que a regra pura promete para o perfil: títulos dos grupos e dos cartões, na ordem. */
 function esperado(perfil: Perfil) {
   const visiveis = cartoesVisiveis({
     pode: (c) => perfil.permissoes.includes(c),
@@ -44,352 +49,251 @@ function esperado(perfil: Perfil) {
     pagamentosHabilitados: perfil.pagamentos ?? false,
     chaves: { recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false, whatsappHabilitado: perfil.whatsapp ?? false },
   });
-  return { grupos: gruposDeCartoes(visiveis).map((g) => g.grupo), titulos: visiveis.map((c) => c.titulo), visiveis };
+  return { grupos: gruposDeCartoes(visiveis).map((g) => g.grupo), visiveis };
 }
 
+const nav = (page: Page) => page.getByRole('navigation', { name: 'Configurações' });
 const busca = (page: Page) => page.getByRole('textbox', { name: 'Pesquisar configuração' }).or(page.getByRole('searchbox', { name: 'Pesquisar configuração' })).first();
+const item = (page: Page, titulo: string) => nav(page).getByRole('link', { name: titulo, exact: true });
+const linha = (page: Page, titulo: string) => page.getByRole('link', { name: new RegExp(`^${titulo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `) });
+const h1 = (page: Page) => page.getByRole('heading', { level: 1 });
 
-/** Cartão do hub: o nome acessível é "Título, descrição." (o menu lateral tem links só com o título). */
-const cartao = (page: Page, titulo: string) => page.getByRole('link', { name: new RegExp(`^${titulo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `) });
-
-async function titulosDosCartoes(page: Page) {
-  const h2 = await page.getByRole('heading', { level: 2 }).allTextContents();
-  return h2.map((t) => t.trim());
-}
+/** Os grupos da coluna (role=group com o nome), na ordem do DOM. */
+const gruposDaColuna = (page: Page) => nav(page).getByRole('group').evaluateAll((gs) => gs.map((g) => g.getAttribute('aria-label') ?? ''));
 
 async function semRolagemLateral(page: Page) {
   const sobra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(sobra).toBeLessThanOrEqual(0);
 }
 
-async function capturar(page: Page, nome: string) {
-  if (process.env.E2E_CAPTURAS) await page.screenshot({ path: `${process.env.E2E_CAPTURAS}/configuracoes-${nome}.png`, fullPage: true });
-}
-
-interface Peca { grupo: string; left: number; top: number; right: number; bottom: number }
-
-/**
- * Lê a alvenaria: o retângulo de cada grupo (o ancestral posicionado do h2) e o do conteúdo da Tela (o ancestral comum do
- * h1 e do campo de busca), na ordem do DOM.
- */
-async function lerAlvenaria(page: Page): Promise<{ pecas: Peca[]; conteudo: { left: number; right: number }; h1: number }> {
-  return page.evaluate(() => {
-    const ret = (el: Element) => el.getBoundingClientRect();
-    const pecas = ([...document.querySelectorAll('h2, [role="heading"][aria-level="2"]')] as HTMLElement[]).map((h) => {
-      let el: HTMLElement = h;
-      while (el.parentElement && getComputedStyle(el).position !== 'absolute') el = el.parentElement;
-      const r = ret(el);
-      return { grupo: (h.textContent ?? '').trim(), left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-    });
-    const h1 = document.querySelector('h1, [role="heading"][aria-level="1"]')!;
-    const campo = document.querySelector('input')!;
-    let caixa: Element = h1;
-    while (caixa.parentElement && !caixa.contains(campo)) caixa = caixa.parentElement;
-    return { pecas, conteudo: { left: ret(caixa).left, right: ret(caixa).right }, h1: ret(h1).left };
-  });
-}
-
-/**
- * Colunas empilhadas (24/11): `colunas` colunas distintas, todas começando na mesma altura; em cada uma, 24 px (±1) entre
- * um grupo e o de baixo, sem buraco; o bloco ocupa a largura toda do conteúdo, a partir do mesmo ponto do título.
- */
-async function conferirAlvenaria(page: Page, colunas: number) {
-  await expect(page.getByRole('heading', { level: 2 }).first()).toBeVisible();
-  await expect.poll(async () => new Set((await lerAlvenaria(page)).pecas.map((p) => Math.round(p.left))).size).toBe(colunas);
-  const { pecas, conteudo, h1 } = await lerAlvenaria(page);
-  const lefts = [...new Set(pecas.map((p) => Math.round(p.left)))].sort((a, b) => a - b);
-  const topo = Math.min(...pecas.map((p) => p.top));
-  for (const left of lefts) {
-    const coluna = pecas.filter((p) => Math.round(p.left) === left).sort((a, b) => a.top - b.top);
-    expect(Math.abs(coluna[0].top - topo), `coluna em ${left}: começa no topo`).toBeLessThanOrEqual(1);
-    for (let i = 1; i < coluna.length; i++) {
-      expect(Math.abs(coluna[i].top - coluna[i - 1].bottom - 24), `${coluna[i - 1].grupo} → ${coluna[i].grupo}: vão`).toBeLessThanOrEqual(1);
-    }
-  }
-  expect(Math.abs(lefts[0] - h1)).toBeLessThanOrEqual(1);
-  expect(Math.abs(lefts[0] - conteudo.left)).toBeLessThanOrEqual(1);
-  expect(Math.abs(Math.max(...pecas.map((p) => p.right)) - conteudo.right)).toBeLessThanOrEqual(2);
-}
-
-const ADMIN: Perfil ={ permissoes: ACESSO_TOTAL, administrador: true, pagamentos: true, recebimentoOnline: true, whatsapp: true };
-
-/**
- * O que o acesso total vê, por grupo (na ordem da tela): título → destino. Conferido pelo nome, não pela contagem: cartão novo,
- * removido ou renomeado no catálogo (`dominio/configuracoes`) faz este teste dizer qual é, e quem muda o hub atualiza a lista.
- */
-const HUB_DO_ACESSO_TOTAL: Record<string, Record<string, string>> = {
-  'Sua conta': {
-    'Meus dados': '/treinador/meus-dados',
-    'Segurança': '/treinador/seguranca',
-    'Aparência e preferências': '/treinador/ajustes',
-    'Assinatura e faturas': '/treinador/minha-conta',
-  },
-  Consultoria: {
-    Marca: '/treinador/marca',
-    Contato: '/treinador/marca',
-    'WhatsApp oficial': '/treinador/whatsapp',
-    'Documentos (PDF)': '/treinador/documentos',
-  },
-  Equipe: {
-    'Membros e convites': '/treinador/equipe?aba=membros',
-    'Perfis e permissões': '/treinador/equipe?aba=perfis',
-    Auditoria: '/treinador/auditoria',
-  },
-  'Alunos e atendimento': {
-    'Questionários de atualização': '/treinador/planejamento?aba=atualizacao',
-    Anamneses: '/treinador/planejamento?aba=anamnese',
-    'Perguntas da inscrição': '/treinador/planejamento?aba=inscricao',
-    'Link de inscrição e respostas prontas': '/treinador/interessados',
-    Metodologias: '/treinador/planejamento?tipo=metodologia',
-    'Tags dos alunos': '/treinador/alunos/tags',
-    'Aniversários dos alunos': '/treinador',
-  },
-  Financeiro: {
-    'Planos comerciais': '/treinador/financeiro?aba=planos',
-    'Lembretes de cobrança': '/treinador/financeiro?aba=lembretes',
-    'Recebimento online': '/treinador/financeiro?aba=recebimento',
-  },
-  Dados: {
-    'Importação': '/treinador/importacao',
-    'Importar planilha completa': '/treinador/importacao/planilha-completa',
-  },
-  Ajuda: {
-    Ajuda: '/treinador/ajuda',
-    'Termos e privacidade': '/treinador/termos',
-  },
-};
-
-/** Lê o hub da tela: por grupo (h2 do cartão), título (nome acessível antes da vírgula) → href de cada link. */
-async function lerOHub(page: Page): Promise<Record<string, Record<string, string>>> {
-  return page.evaluate(() => {
-    const lido: Record<string, Record<string, string>> = {};
-    for (const h2 of document.querySelectorAll('h2, [role="heading"][aria-level="2"]')) {
-      let caixa: Element | null = h2;
-      while (caixa && caixa.querySelectorAll('a[href]').length === 0) caixa = caixa.parentElement;
-      const grupo = (h2.textContent ?? '').trim();
-      lido[grupo] = {};
-      for (const a of caixa?.querySelectorAll('a[href]') ?? []) {
-        lido[grupo][(a.getAttribute('aria-label') ?? a.textContent ?? '').split(', ')[0].trim()] = a.getAttribute('href') ?? '';
-      }
-    }
-    return lido;
-  });
-}
-
-test('acesso total (1280): um h1, os sete grupos na ordem e, em cada grupo, os cartões esperados pelo nome e destino', async ({ page }) => {
+test('1280, acesso total: sem item abre Meus dados (sem empilhar), a coluna traz os grupos em ordem e cada item com o destino certo', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, ADMIN);
-  await expect(page.getByRole('heading', { level: 1, name: 'Configurações' })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+  await expect(page).toHaveURL(/\/treinador\/configuracoes\/meus-dados$/);
+  await expect(h1(page)).toHaveText('Meus dados');
+  await expect(h1(page)).toHaveCount(1);
+  await expect(item(page, 'Meus dados')).toHaveAttribute('aria-current', 'page');
   const { grupos, visiveis } = esperado(ADMIN);
   expect(grupos).toEqual(['Sua conta', 'Consultoria', 'Equipe', 'Alunos e atendimento', 'Financeiro', 'Dados', 'Ajuda']);
-  await expect.poll(() => titulosDosCartoes(page)).toEqual(grupos);
-  // A regra pura e a lista acima dizem os mesmos cartões, pelo nome.
-  const nomes = (porGrupo: Record<string, Record<string, string>>) => Object.values(porGrupo).flatMap((g) => Object.keys(g)).sort();
-  expect(nomes(HUB_DO_ACESSO_TOTAL), `catálogo: ${visiveis.map((c) => c.titulo).join(', ')}`).toEqual(visiveis.map((c) => c.titulo).sort());
-  const lido = await lerOHub(page);
-  for (const grupo of grupos) {
-    const esperados = HUB_DO_ACESSO_TOTAL[grupo] ?? {};
-    const naTela = lido[grupo] ?? {};
-    const faltando = Object.keys(esperados).filter((t) => !(t in naTela));
-    const sobrando = Object.keys(naTela).filter((t) => !(t in esperados));
-    expect(faltando, `${grupo}: cartão esperado que não está na tela`).toEqual([]);
-    expect(sobrando, `${grupo}: cartão na tela que não está na lista esperada`).toEqual([]);
-    for (const [titulo, href] of Object.entries(esperados)) expect(naTela[titulo], `${grupo} › ${titulo}: destino`).toBe(href);
+  await expect.poll(() => gruposDaColuna(page)).toEqual(grupos);
+  for (const c of visiveis) {
+    const nome = abreDentro(c) ? c.titulo : `${c.titulo}, abre a tela inteira`;
+    await expect(item(page, nome), c.id).toHaveAttribute('href', destinoNaColuna(c));
+    // A descrição não aparece na linha: vai no `title` (dica do mouse e descrição acessível).
+    await expect(item(page, nome)).toHaveAttribute('title', c.descricao);
   }
+  await expect(nav(page).getByText('Aniversários dos alunos')).toHaveCount(0);
+  // O "voltar" depois do redirecionamento não cai em /configuracoes de novo (ele seria um laço).
+  expect(await page.evaluate(() => history.length)).toBeLessThanOrEqual(2);
   await semRolagemLateral(page);
   expect(errosDaPagina).toEqual([]);
 });
 
-test('perfil restrito: só os cartões que ele pode abrir; Consultoria, Equipe e Financeiro somem', async ({ page }) => {
+test('perfil restrito (1280): só os itens que ele pode abrir; Consultoria, Equipe e Financeiro somem', async ({ page }) => {
   const restrito: Perfil = { permissoes: PERMISSOES_TREINADOR };
-  const { errosDaPagina } = await abrir(page, 1280, restrito);
-  const { grupos, titulos } = esperado(restrito);
-  await expect.poll(() => titulosDosCartoes(page)).toEqual(grupos);
-  for (const fora of ['Consultoria', 'Equipe', 'Financeiro']) await expect(page.getByRole('heading', { level: 2, name: fora })).toHaveCount(0);
-  for (const fora of ['Marca', 'Contato', 'Documentos (PDF)', 'Assinatura e faturas', 'Metodologias', 'Auditoria']) await expect(cartao(page, fora)).toHaveCount(0);
-  for (const titulo of titulos) await expect(cartao(page, titulo)).toBeVisible();
-  expect(errosDaPagina).toEqual([]);
+  await abrir(page, 1280, restrito);
+  const { grupos } = esperado(restrito);
+  await expect.poll(() => gruposDaColuna(page)).toEqual(grupos);
+  for (const fora of ['Marca', 'Contato', 'Documentos (PDF)', 'Assinatura e faturas']) await expect(item(page, fora)).toHaveCount(0);
 });
 
-test('perfil com poucos cartões (390): Sua conta, Aniversários e Ajuda, sem buraco nem rolagem lateral', async ({ page }) => {
-  const poucos: Perfil = { permissoes: ['ALUNO_LER', 'PAINEL_VER'] };
-  const { errosDaPagina } = await abrir(page, 390, poucos);
-  const { grupos } = esperado(poucos);
-  // Com ALUNO_LER entra o "Aniversários dos alunos" (D4 de docs/planos/aniversarios.md); o destino é o Início, então pede
-  // também PAINEL_VER (a guarda da tela), senão o cartão some.
-  expect(grupos).toEqual(['Sua conta', 'Alunos e atendimento', 'Ajuda']);
-  await expect.poll(() => titulosDosCartoes(page)).toEqual(grupos);
-  await expect(cartao(page, 'Aniversários dos alunos')).toHaveAttribute('href', '/treinador');
-  await semRolagemLateral(page);
-  await capturar(page, 'poucos-390');
-  expect(errosDaPagina).toEqual([]);
-});
-
-test('sem a InfinitePay ligada o cartão de Recebimento continua: Pix, link próprio e Manual não dependem dela', async ({ page }) => {
-  const semChave: Perfil = { ...ADMIN, recebimentoOnline: false };
-  await abrir(page, 1280, semChave);
-  await expect(cartao(page, 'Planos comerciais')).toBeVisible();
-  await expect(cartao(page, 'Lembretes de cobrança')).toBeVisible();
-  await expect(cartao(page, 'Recebimento online')).toBeVisible();
-});
-
-test('busca: acha por palavra sem acento, mostra o vazio e "Limpar busca" volta tudo com o foco no campo', async ({ page }) => {
+test('1280: escolher empilha no histórico, o voltar do navegador volta ao item anterior e a coluna não remonta', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, ADMIN);
-  await busca(page).fill('historico');
-  await expect(page.getByText('1 configuração encontrada')).toBeVisible();
-  await expect(cartao(page, 'Auditoria')).toBeVisible();
-  await expect.poll(() => titulosDosCartoes(page)).toEqual(['Equipe']);
+  await expect(h1(page)).toHaveText('Meus dados');
+  await busca(page).fill('a');
+  await item(page, 'Segurança').click();
+  await expect(page).toHaveURL(/\/configuracoes\/seguranca$/);
+  await expect(h1(page)).toHaveText('Segurança');
+  await expect(item(page, 'Segurança')).toHaveAttribute('aria-current', 'page');
+  await expect(item(page, 'Meus dados')).not.toHaveAttribute('aria-current', 'page');
+  await expect(page).toHaveTitle(/^Segurança · /);
+  await item(page, 'Termos e privacidade').click();
+  await expect(h1(page)).toHaveText('Termos e privacidade');
+  await page.goBack();
+  await expect(page).toHaveURL(/\/configuracoes\/seguranca$/);
+  await expect(h1(page)).toHaveText('Segurança');
+  // A busca continua escrita: a coluna (e o campo) ficou montada nas três trocas.
+  await expect(busca(page)).toHaveValue('a');
+  expect(errosDaPagina).toEqual([]);
+});
 
-  await busca(page).fill('xyzw nada');
-  await expect(page.getByRole('heading', { level: 2, name: 'Nenhuma configuração encontrada' })).toBeVisible();
-  await expect(page.getByText('0 configurações encontradas')).toBeVisible();
-  await capturar(page, 'vazio-1280');
-  await page.getByRole('button', { name: 'Limpar busca' }).click();
+test('1280: link direto, troca e voltar: o voltar do navegador volta ao item do link, com o endereço dele', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, ADMIN, '/treinador/configuracoes/seguranca');
+  await expect(h1(page)).toHaveText('Segurança');
+  await expect(page).toHaveURL(/\/configuracoes\/seguranca$/);
+  await item(page, 'Termos e privacidade').click();
+  await expect(h1(page)).toHaveText('Termos e privacidade');
+  await page.goBack();
+  await expect(page).toHaveURL(/\/configuracoes\/seguranca$/);
+  await expect(h1(page)).toHaveText('Segurança');
+  await expect(item(page, 'Segurança')).toHaveAttribute('aria-current', 'page');
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('1280: recarregar (F5), trocar e voltar: volta à Marca com o endereço dela', async ({ page }) => {
+  await abrir(page, 1280, ADMIN, '/treinador/configuracoes/marca');
+  await expect(h1(page)).toHaveText('Marca');
+  await page.reload();
+  await expect(h1(page)).toHaveText('Marca');
+  await expect(page).toHaveURL(/\/configuracoes\/marca$/);
+  await item(page, 'Meus dados').click();
+  await expect(h1(page)).toHaveText('Meus dados');
+  await page.goBack();
+  await expect(page).toHaveURL(/\/configuracoes\/marca$/);
+  await expect(h1(page)).toHaveText('Marca');
+});
+
+test('1280: a coluna fica parada quando o item rola, e o item novo abre no topo', async ({ page }) => {
+  await abrir(page, 1280, ADMIN, '/treinador/configuracoes/ajustes');
+  await expect(h1(page)).toHaveText('Aparência e preferências');
+  await expect(page).toHaveURL(/\/configuracoes\/ajustes$/);
+  const topoDaColuna = async () => (await nav(page).boundingBox())!.y;
+  const antes = await topoDaColuna();
+  const titulo0 = (await h1(page).boundingBox())!.y;
+  await page.mouse.move(900, 500);
+  await page.mouse.wheel(0, 1500);
+  await expect.poll(async () => (await h1(page).boundingBox())!.y).toBeLessThan(titulo0 - 200);
+  expect(await topoDaColuna()).toBe(antes);
+  await item(page, 'Meus dados').click();
+  await expect(h1(page)).toHaveText('Meus dados');
+  // No topo da coluna (o Ajustes tem folga maior que as outras telas, 28 contra 16 px).
+  expect((await h1(page).boundingBox())!.y).toBeLessThanOrEqual(titulo0);
+});
+
+test('1280: item de tela do menu principal abre a tela inteira, fora das duas colunas', async ({ page }) => {
+  await abrir(page, 1280, ADMIN);
+  await item(page, 'Auditoria, abre a tela inteira').click();
+  await expect(page).toHaveURL(/\/treinador\/auditoria$/);
+  await expect(h1(page)).toHaveText('Auditoria');
+  await expect(nav(page)).toHaveCount(0);
+  await page.goBack();
+  await expect(nav(page)).toBeVisible();
+});
+
+test('1280, busca: filtra por título e descrição sem acento, esconde grupo vazio, não mexe no endereço nem no item aberto; Esc limpa', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, ADMIN, '/treinador/configuracoes/seguranca');
+  await expect(h1(page)).toHaveText('Segurança');
+  await busca(page).fill('HISTORICO');
+  await expect(nav(page).getByText('1 configuração encontrada')).toBeVisible();
+  await expect.poll(() => gruposDaColuna(page)).toEqual(['Equipe']);
+  await expect(item(page, 'Auditoria, abre a tela inteira')).toBeVisible();
+  // O item aberto some da lista, mas continua aberto à direita.
+  await expect(item(page, 'Segurança')).toHaveCount(0);
+  await expect(h1(page)).toHaveText('Segurança');
+  await expect(page).toHaveURL(/\/configuracoes\/seguranca$/);
+  await busca(page).fill('verificação em duas');
+  await expect.poll(() => gruposDaColuna(page)).toEqual(['Sua conta']);
+  await busca(page).fill('xyzw');
+  await expect(nav(page).getByText('Nada encontrado para “xyzw”')).toBeVisible();
+  await expect(nav(page).getByRole('group')).toHaveCount(0);
+  await busca(page).press('Escape');
+  await expect(busca(page)).toHaveValue('');
+  await expect.poll(() => gruposDaColuna(page)).toEqual(esperado(ADMIN).grupos);
+  await busca(page).fill('xyzw');
+  await nav(page).getByRole('button', { name: 'Limpar busca' }).first().click();
   await expect(busca(page)).toHaveValue('');
   await expect(busca(page)).toBeFocused();
-  await expect.poll(() => titulosDosCartoes(page)).toEqual(esperado(ADMIN).grupos);
   expect(errosDaPagina).toEqual([]);
 });
 
-for (const largura of [390, 1280]) {
-  test(`Contato (${largura}): a busca por "remetente" acha o cartão, que abre a Marca`, async ({ page }) => {
-    const { errosDaPagina } = await abrir(page, largura, ADMIN);
-    await busca(page).fill('remetente');
-    await expect(page.getByText('1 configuração encontrada')).toBeVisible();
-    await expect.poll(() => titulosDosCartoes(page)).toEqual(['Consultoria']);
-    await expect(cartao(page, 'Contato')).toHaveAttribute('href', '/treinador/marca');
-    await cartao(page, 'Contato').click();
-    await expect(page).toHaveURL(/\/treinador\/marca$/);
-    expect(errosDaPagina).toEqual([]);
-  });
-}
-
-test('destinos: os cartões abrem a tela e a aba certas', async ({ page }) => {
+test('1280, teclado: do campo, o Tab chega ao primeiro item com foco visível e o Enter abre', async ({ page }) => {
   await abrir(page, 1280, ADMIN);
-  await cartao(page, 'Membros e convites').click();
-  await expect(page).toHaveURL(/\/treinador\/equipe\?aba=membros$/);
-  await page.goBack();
-  await cartao(page, 'Lembretes de cobrança').click();
-  await expect(page).toHaveURL(/\/treinador\/financeiro\?aba=lembretes$/);
-  await page.goBack();
-  await cartao(page, 'Anamneses').click();
-  await expect(page).toHaveURL(/\/treinador\/planejamento\?aba=anamnese$/);
-  await page.goBack();
-  await cartao(page, 'Tags dos alunos').click();
-  await expect(page).toHaveURL(/\/treinador\/alunos\/tags$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Tags dos alunos' })).toBeVisible();
-});
-
-test('teclado: do campo, o Tab chega ao primeiro cartão com foco visível e o Enter abre', async ({ page }) => {
-  await abrir(page, 1280, ADMIN);
+  await expect(h1(page)).toHaveText('Meus dados');
   await busca(page).focus();
   await page.keyboard.press('Tab');
-  const primeiro = cartao(page, 'Meus dados');
-  await expect(primeiro).toBeFocused();
-  const contorno = await primeiro.evaluate((el) => getComputedStyle(el).outlineStyle);
-  expect(contorno).not.toBe('none');
+  await expect(item(page, 'Meus dados')).toBeFocused();
+  expect(await item(page, 'Meus dados').evaluate((el) => getComputedStyle(el).outlineStyle)).not.toBe('none');
   await page.keyboard.press('Tab');
-  await expect(cartao(page, 'Segurança')).toBeFocused();
+  await expect(item(page, 'Segurança')).toBeFocused();
   await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/configuracoes\/seguranca$/);
+});
+
+test('1280: Contato abre a Marca dentro de Configurações, rolada até o cartão Contato', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, ADMIN);
+  await busca(page).fill('remetente');
+  await item(page, 'Contato').click();
+  await expect(page).toHaveURL(/\/configuracoes\/contato$/);
+  await expect(h1(page)).toHaveText('Marca');
+  await expect(page.getByRole('heading', { level: 2, name: 'Contato' })).toBeInViewport();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('1280, Tags dos alunos dentro de Configurações: sem a seta e a trilha da tela inteira', async ({ page }) => {
+  await abrir(page, 1280, ADMIN, '/treinador/configuracoes/tags-dos-alunos');
+  await expect(h1(page)).toHaveText('Tags dos alunos');
+  await expect(page.getByRole('navigation', { name: 'Trilha' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Voltar' })).toHaveCount(0);
+});
+
+test('1280: item que o perfil não vê mostra o vazio; link direto para item sem a permissão não abre a tela dele', async ({ page }) => {
+  // Administrador sem MARCA_ALTERAR: abre a Marca (rota), mas o item Contato pede a permissão.
+  await abrir(page, 1280, { permissoes: PERMISSOES_TREINADOR, administrador: true }, '/treinador/configuracoes/contato');
+  await expect(page.getByRole('heading', { level: 1, name: 'Configuração indisponível' })).toBeVisible();
+  await page.goto('/treinador/configuracoes/minha-conta');
+  // Sem CONTA_LER a guarda fecha a rota (o roteador volta ao índice, que abre Meus dados); a Assinatura nunca aparece.
+  await expect(page).toHaveURL(/\/configuracoes\/meus-dados$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Assinatura e faturas' })).toHaveCount(0);
+});
+
+test('1280: link direto para um item que pede a permissão da rota (Marca) abre nele, com o endereço certo', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, ADMIN, '/treinador/configuracoes/marca');
+  await expect(h1(page)).toHaveText('Marca');
+  await expect(page).toHaveURL(/\/configuracoes\/marca$/);
+  await expect(item(page, 'Marca')).toHaveAttribute('aria-current', 'page');
+  await expect(page).toHaveTitle(/^Marca · /);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('390: a lista em linhas simples, sem Aniversários; o item abre a rota inteira e o voltar volta à lista', async ({ page }) => {
+  const poucos: Perfil = { permissoes: ['ALUNO_LER', 'PAINEL_VER'] };
+  const { errosDaPagina } = await abrir(page, 390, poucos);
+  await expect(h1(page)).toHaveText('Configurações');
+  await expect(nav(page)).toHaveCount(0);
+  const h2 = await page.getByRole('heading', { level: 2 }).allTextContents();
+  expect(h2.map((t) => t.trim())).toEqual(esperado(poucos).grupos);
+  await expect(page.getByText('Aniversários dos alunos')).toHaveCount(0);
+  await linha(page, 'Segurança').click();
   await expect(page).toHaveURL(/\/treinador\/seguranca$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/treinador\/configuracoes$/);
+  await semRolagemLateral(page);
+  expect(errosDaPagina).toEqual([]);
 });
 
-for (const [largura, altura, colunas] of [[1280, 800, 2], [1920, 1080, 3], [3440, 1440, 4]] as const) {
-  test(`alvenaria (${largura}): ${colunas} colunas empilhadas, sem buraco, na largura toda do conteúdo`, async ({ page }) => {
-    const { errosDaPagina } = await abrir(page, largura, ADMIN);
-    await page.setViewportSize({ width: largura, height: altura });
-    await expect.poll(() => titulosDosCartoes(page)).toEqual(esperado(ADMIN).grupos);
-    await conferirAlvenaria(page, colunas);
-    await semRolagemLateral(page);
-    expect(errosDaPagina).toEqual([]);
-  });
-}
-
-test('alvenaria: a ordem do Tab é a lógica (Sua conta → … → Ajuda), não a das colunas', async ({ page }) => {
-  await abrir(page, 1920, ADMIN);
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await conferirAlvenaria(page, 3);
-  await busca(page).focus();
-  const ordem: string[] = [];
-  for (let i = 0; i < esperado(ADMIN).titulos.length; i++) {
-    await page.keyboard.press('Tab');
-    ordem.push(await page.evaluate(() => (document.activeElement?.getAttribute('aria-label') ?? '').split(', ')[0].trim()));
-  }
-  expect(ordem).toEqual(esperado(ADMIN).titulos);
+test('390: busca com vazio e o endereço do item dentro de Configurações vai para a rota inteira', async ({ page }) => {
+  await abrir(page, 390, ADMIN);
+  await busca(page).fill('xyzw');
+  await expect(page.getByRole('heading', { level: 2, name: 'Nada encontrado para “xyzw”' })).toBeVisible();
+  await page.getByRole('button', { name: 'Limpar busca' }).last().click();
+  await expect(linha(page, 'Meus dados')).toBeVisible();
+  await page.goto('/treinador/configuracoes/marca');
+  await expect(page).toHaveURL(/\/treinador\/marca$/);
+  await expect(h1(page)).toHaveText('Marca');
 });
 
-test('alvenaria com busca (1920): os grupos achados se reorganizam, em ordem e sem buraco', async ({ page }) => {
-  await abrir(page, 1920, ADMIN);
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await busca(page).fill('email');
-  await expect.poll(() => titulosDosCartoes(page)).toEqual(['Sua conta', 'Consultoria', 'Financeiro']);
-  await conferirAlvenaria(page, 3);
-  await busca(page).fill('');
-  await expect.poll(() => titulosDosCartoes(page)).toEqual(esperado(ADMIN).grupos);
-  await conferirAlvenaria(page, 3);
-});
-
-test('alinhamento (1280): o hub começa no mesmo ponto à esquerda que o Financeiro', async ({ page }) => {
-  await abrir(page, 1280, ADMIN);
-  const titulo = () => page.getByRole('heading', { level: 1 }).evaluate((el) => Math.round(el.getBoundingClientRect().left));
-  await conferirAlvenaria(page, 2);
-  const doHub = await titulo();
-  await page.goto('/treinador/financeiro');
-  await expect(page.getByRole('heading', { level: 1, name: 'Financeiro' })).toBeVisible();
-  expect(await titulo()).toBe(doHub);
-});
-
-test('"Largura do conteúdo" Limitada (3440): o hub fica nos 1800 px da Tela, no mesmo ponto que o Financeiro', async ({ page }) => {
-  await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ larguraConteudo: 'LIMITADA' })), TREINADOR.id);
-  await abrir(page, 3440, ADMIN);
-  await page.setViewportSize({ width: 3440, height: 1440 });
-  await conferirAlvenaria(page, 4);
-  const { conteudo, h1 } = await lerAlvenaria(page);
-  expect(conteudo.right - conteudo.left).toBeLessThanOrEqual(1800);
-  await page.goto('/treinador/financeiro');
-  await expect(page.getByRole('heading', { level: 1, name: 'Financeiro' })).toBeVisible();
-  expect(await page.getByRole('heading', { level: 1 }).evaluate((el) => el.getBoundingClientRect().left)).toBeCloseTo(h1, 0);
-});
-
-test('PC (1280): "Configurações" é o primeiro item do menu da conta e abre o hub', async ({ page }) => {
+test('PC (1280): "Configurações" do menu da conta abre a coluna com Meus dados', async ({ page }) => {
   await abrir(page, 1280, ADMIN, '/treinador/ajuda');
   await page.getByRole('menubar').getByRole('button', { name: /^Conta de / }).click();
-  const conta = page.getByRole('menu', { name: 'Conta' });
-  await expect(conta.getByRole('menuitem').first()).toHaveText(/Configurações/);
-  await conta.getByRole('menuitem', { name: /Configurações/ }).click();
-  await expect(page).toHaveURL(/\/treinador\/configuracoes$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Configurações' })).toBeVisible();
+  await page.getByRole('menu', { name: 'Conta' }).getByRole('menuitem', { name: /Configurações/ }).click();
+  await expect(page).toHaveURL(/\/treinador\/configuracoes\/meus-dados$/);
+  await expect(nav(page)).toBeVisible();
 });
 
 test('celular (390): o Perfil leva às Configurações', async ({ page }) => {
   await abrir(page, 390, ADMIN, '/treinador/perfil');
   await page.getByRole('link', { name: 'Configurações', exact: true }).click();
   await expect(page).toHaveURL(/\/treinador\/configuracoes$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Configurações' })).toBeVisible();
+  await expect(h1(page)).toHaveText('Configurações');
 });
 
-for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
-  for (const largura of [390, 1280]) {
-    test(`tema ${tema.toLowerCase()} em ${largura}: sem rolagem lateral, cartões da mesma linha com a mesma altura`, async ({ page }) => {
+for (const tema of ['CLARO', 'ESCURO'] as const) {
+  for (const largura of [390, 768, 1024, 1920]) {
+    test(`tema ${tema.toLowerCase()} em ${largura}: sem rolagem lateral nem erro`, async ({ page }) => {
       const { errosDaPagina } = await abrir(page, largura, { ...ADMIN, tema });
-      await expect(page.getByRole('heading', { level: 2, name: 'Ajuda' })).toBeVisible();
+      if (largura >= 1024) await expect(nav(page)).toBeVisible();
+      else await expect(page.getByRole('heading', { level: 2, name: 'Ajuda' })).toBeVisible();
       await semRolagemLateral(page);
-      if (largura === 1280) await conferirAlvenaria(page, 2);
-      // No celular o hub é um destino do Perfil: a aba Perfil fica acesa na barra inferior.
-      if (largura === 390) await expect(page.getByRole('menubar').getByRole('link', { name: 'Perfil', exact: true })).toHaveAttribute('aria-current', 'page');
-      await capturar(page, `${tema.toLowerCase()}-${largura}`);
-      // A tela rola por dentro: a captura de página inteira para no primeiro quadro; esta mostra o fim (Dados e Ajuda).
-      await page.getByRole('heading', { level: 2, name: 'Ajuda' }).scrollIntoViewIfNeeded();
-      await capturar(page, `${tema.toLowerCase()}-${largura}-fim`);
       expect(errosDaPagina).toEqual([]);
     });
   }
 }
-
-test('tablet (768, trilho do menu): sem rolagem lateral', async ({ page }) => {
-  const { errosDaPagina } = await abrir(page, 768, ADMIN);
-  await expect(page.getByRole('heading', { level: 2, name: 'Ajuda' })).toBeVisible();
-  await semRolagemLateral(page);
-  await capturar(page, 'claro-768');
-  expect(errosDaPagina).toEqual([]);
-});

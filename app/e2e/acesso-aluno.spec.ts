@@ -1,8 +1,15 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AlunoDetalhe } from '../src/api/tipos';
+import { CLARO } from '../src/tema/tokens';
 import { ALUNO, erroApi, json, sessao, simularApi, TREINADOR } from './api-falsa';
 import { fixarHoje } from './aluno';
+
+const rgbCss = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+/** O "●" do selo (6 x 6 px, só desenho) dentro do elemento: cor do ponto, do texto ao lado e do fundo da pílula. */
+const pontosDoSelo = (el: Locator) => el.locator('[aria-hidden="true"]').evaluateAll((els) => els
+  .filter((e) => (e as HTMLElement).offsetWidth === 6 && (e as HTMLElement).offsetHeight === 6)
+  .map((e) => ({ ponto: getComputedStyle(e).backgroundColor, texto: getComputedStyle(e.nextElementSibling!).color, pilula: getComputedStyle(e.parentElement!).backgroundColor })));
 
 /** Cartão "Acesso ao app": o treinador define e-mail e senha provisória. Só dados fictícios. */
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
@@ -215,6 +222,8 @@ for (const largura of [390, 1280]) {
     ficha = { ...SEM_CONTA, conviteExpiraEm: '2026-10-25T15:00:00Z' };
     await page.reload();
     await expect(acesso.getByLabel('Situação: Sem acesso', { exact: true })).toBeVisible();
+    // Nunca teve acesso: "Sem acesso" neutro sem o "●" (o desativado tem; só o ponto separa os dois).
+    expect(await pontosDoSelo(acesso.getByLabel('Situação: Sem acesso', { exact: true }))).toEqual([]);
     await expect(acesso.getByLabel('Último login: —', { exact: true })).toBeVisible();
     await expect(acesso.getByLabel('E-mail de acesso: —', { exact: true })).toBeVisible();
     await expect(acesso.getByLabel('Convite: Válido até 25/10/2026 12:00', { exact: true })).toBeVisible();
@@ -330,8 +339,13 @@ test('"Desativar acesso" pede confirmação; desativado mostra a data e só "Rea
   await dialogo.getByRole('button', { name: 'Desativar acesso' }).click();
   const situacao = acesso.getByLabel('Situação: Sem acesso (desativado em 17/10)', { exact: true });
   await expect(situacao).toBeVisible();
-  // T-202: o selo do desativado tem o "●" (6 x 6 px, só desenho) como os outros selos de situação.
-  expect(await situacao.locator('[aria-hidden="true"]').evaluateAll((els) => els.filter((e) => (e as HTMLElement).offsetWidth === 6 && (e as HTMLElement).offsetHeight === 6).length)).toBe(1);
+  // 26/11: o selo do desativado é neutro (texto secundário, sem pílula; âmbar é financeiro) com o "●" na mesma cor; o de quem
+  // nunca teve acesso não tem o ponto (caso de cima). Tema claro, o padrão sem preferência.
+  const suave = rgbCss(CLARO.textoSuave);
+  // O mouse fica onde a confirmação estava, agora em cima do selo: o `Badge` ganha fundo ao passar o mouse e o devolve com uma
+  // transição de cor, que mascararia a medida: tira o mouse e espera ela terminar.
+  await page.mouse.move(0, 0);
+  await expect.poll(() => pontosDoSelo(situacao)).toEqual([{ ponto: suave, texto: suave, pilula: 'rgba(0, 0, 0, 0)' }]);
   await expect(acesso.getByText('O aluno não entra até o acesso ser reativado. Nada foi apagado.')).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toHaveCount(0);
   await expect(acesso.getByRole('button', { name: 'Alterar e-mail de acesso' })).toHaveCount(0);

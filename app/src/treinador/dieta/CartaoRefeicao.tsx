@@ -1,15 +1,21 @@
-import { ArrowLeftRight, Ellipsis, GripVertical, PencilLine, Plus, Trash2, TriangleAlert } from 'lucide-react-native';
+import { ArrowLeft, ArrowLeftRight, ArrowLeftToLine, ArrowRight, Ellipsis, GripVertical, PencilLine, Plus, Trash2, TriangleAlert } from 'lucide-react-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Alimento, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento } from '../../api/tipos';
 import {
+  anuncioDaOpcaoMovida,
+  avisoDaNovaOpcaoA,
   erroDaFibra,
+  letraDaPosicao,
   MODO_DE_PREPARO_MAXIMO,
   modoDePreparoValido,
+  moverOpcao,
   novaOpcao,
   novoItem,
   recalcularItem,
+  reletrarOpcoes,
+  restaurarOrdemDasOpcoes,
   semConversao,
   somar,
   type TotaisComFibra,
@@ -24,6 +30,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO_CONTROLE } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA as LARGURA_DA_PECA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
+import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
@@ -44,7 +51,7 @@ import { type AcaoDoMenu, FolhaDeAcoes } from '../FolhaDeAcoes';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
 import { rotuloSalvarComo } from '../planejamento/modelos';
-import { AbasDeOpcao } from './AbasDeOpcao';
+import { AbasDeOpcao, type ReordenarOpcoes } from './AbasDeOpcao';
 import { CampoDaQuantidade } from './CampoDaQuantidade';
 import { type ColunasDaTabela, ComparacaoDasOpcoes } from './ComparacaoDasOpcoes';
 
@@ -124,7 +131,8 @@ export function CartaoRefeicao(p: Props) {
   // Problemas novos da validação: a opção com erro abre sozinha, para ele não ficar escondido atrás de uma aba fechada.
   // Pela chave (o conjunto chega outro a cada desenho), então digitar ou validar de novo com os mesmos erros não muda a aba.
   // Começa vazia: a refeição que abre já com erro (o "Ir ao primeiro" monta o cartão no inspetor) também vai à opção dele.
-  const chaveDeProblemas = chaveDosProblemas(r.opcoes, p.comProblema);
+  // Em ordem de uid: reordenar as opções não é problema novo (a aba aberta fica).
+  const chaveDeProblemas = chaveDosProblemas(r.opcoes, p.comProblema).split(',').sort().join(',');
   const [problemasVistos, setProblemasVistos] = useState('');
   if (chaveDeProblemas !== problemasVistos) {
     setProblemasVistos(chaveDeProblemas);
@@ -173,7 +181,7 @@ export function CartaoRefeicao(p: Props) {
   // A opção nova abre selecionada, com o foco na aba dela.
   const adicionarOpcao = () => {
     const nova = novaOpcao(r.opcoes);
-    mudar({ opcoes: [...r.opcoes, nova] });
+    mudar({ opcoes: reletrarOpcoes([...r.opcoes, nova]) });
     setAbertaUid(nova.uid);
     focoPendente.current = nova.uid;
   };
@@ -186,11 +194,64 @@ export function CartaoRefeicao(p: Props) {
     p.aoRemoverOpcao(r.opcoes.indexOf(o));
   };
   const indiceAberto = aberta ? r.opcoes.indexOf(aberta) : -1;
-  // O ⋯ da aba aberta (25/11): "Excluir opção", com o mesmo Desfazer; com itens, confirma antes. A única opção não se exclui.
-  const acoesDaOpcao: AcaoDoMenu[] = aberta && varias ? [{
-    rotulo: 'Excluir opção', detalhe: 'Dá para desfazer logo depois.', Icone: Trash2, perigo: true,
-    aoTocar: () => (aberta.itens.length ? setConfirmarExclusao(aberta) : excluirOpcao(aberta)),
-  }] : [];
+
+  // Reordenar as opções (26/11): arrastar a aba ou a linha da comparação e o ⋯ da aberta mexem na mesma lista (a da
+  // refeição), e a letra segue a posição (`moverOpcao`). O Desfazer chega até 10 s depois: lê a refeição e o `aoMudar` de
+  // agora, para não apagar o que foi digitado nesse meio, e não faz nada se o cartão saiu da tela.
+  const { avisar } = useAviso();
+  const atual = useRef({ r, aoMudar: p.aoMudar });
+  const montado = useRef(false);
+  useEffect(() => { atual.current = { r, aoMudar: p.aoMudar }; });
+  useEffect(() => { montado.current = true; return () => { montado.current = false; }; }, []);
+  const [anuncio, setAnuncio] = useState({ texto: '', vez: 0 });
+  const anunciar = (texto: string) => {
+    setAnuncio((a) => ({ texto, vez: a.vez + 1 }));
+    if (Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(texto);
+  };
+  // A aberta continua a mesma opção (pelo uid), também quando ainda não se tocou em aba nenhuma.
+  const moverAOpcao = (de: number, para: number) => {
+    const m = moverOpcao(r.opcoes, de, para);
+    if (!m) return null;
+    const antes = r.opcoes.map(({ uid, rotulo }) => ({ uid, rotulo }));
+    if (aberta) setAbertaUid(aberta.uid);
+    mudar({ opcoes: m.opcoes });
+    const desfazer = () => {
+      if (!montado.current) return;
+      const { r: agora, aoMudar } = atual.current;
+      aoMudar({ ...agora, opcoes: restaurarOrdemDasOpcoes(agora.opcoes, antes) });
+    };
+    return { m, desfazer };
+  };
+  const reordenar: ReordenarOpcoes = {
+    aoSoltar: (de, para) => moverAOpcao(de, para)?.desfazer,
+    mensagem: (de, para) => {
+      const nova = moverOpcao(r.opcoes, de, para)?.novaPrimeira;
+      return nova ? avisoDaNovaOpcaoA(nova) : 'Ordem alterada.';
+    },
+  };
+  // Pelo ⋯: o foco volta à aba da opção movida. Mudou a que conta no total: o aviso com Desfazer (o `alert` dele já é
+  // lido); senão, a posição nova na região viva.
+  const moverPeloMenu = (o: OpcaoRefeicao, para: number) => {
+    const feito = moverAOpcao(r.opcoes.indexOf(o), para);
+    if (!feito) return;
+    focoPendente.current = o.uid;
+    if (feito.m.novaPrimeira) avisar(avisoDaNovaOpcaoA(feito.m.novaPrimeira), 'neutro', { rotulo: 'Desfazer', aoTocar: feito.desfazer });
+    else anunciar(anuncioDaOpcaoMovida(feito.m));
+  };
+  // O ⋯ da aba aberta (25/11): mover (26/11; o que não se aplica fica apagado, com o motivo) e "Excluir opção", com o
+  // mesmo Desfazer; com itens, confirma antes. A única opção não se exclui nem se move (não há ⋯).
+  const primeira = indiceAberto === 0;
+  const ultima = indiceAberto === r.opcoes.length - 1;
+  const acoesDaOpcao: AcaoDoMenu[] = aberta && varias ? [
+    { rotulo: 'Mover para a esquerda', detalhe: primeira ? 'Já é a primeira opção.' : `Passa a ser a Opção ${letraDaPosicao(indiceAberto - 1)}.`,
+      Icone: ArrowLeft, desabilitado: primeira, aoTocar: () => moverPeloMenu(aberta, indiceAberto - 1) },
+    { rotulo: 'Mover para a direita', detalhe: ultima ? 'Já é a última opção.' : `Passa a ser a Opção ${letraDaPosicao(indiceAberto + 1)}.`,
+      Icone: ArrowRight, desabilitado: ultima, aoTocar: () => moverPeloMenu(aberta, indiceAberto + 1) },
+    { rotulo: 'Tornar Opção A', detalhe: primeira ? 'Já é a Opção A.' : 'Vai para o primeiro lugar e conta no total do dia.',
+      Icone: ArrowLeftToLine, desabilitado: primeira, aoTocar: () => moverPeloMenu(aberta, 0) },
+    { rotulo: 'Excluir opção', detalhe: 'Dá para desfazer logo depois.', Icone: Trash2, perigo: true,
+      aoTocar: () => (aberta.itens.length ? setConfirmarExclusao(aberta) : excluirOpcao(aberta)) },
+  ] : [];
   const menuDaAberta = aberta && varias ? (
     <IconeBotao compacto Icone={Ellipsis} rotulo={`Mais ações da opção ${aberta.rotulo}`} aoTocar={() => setMenuDaOpcao(true)} />
   ) : undefined;
@@ -266,13 +327,13 @@ export function CartaoRefeicao(p: Props) {
           <Divisor />
           <View testID="opcoes-da-refeicao" style={estilos.opcoes} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
             {varias && aberta ? (
-              <ComparacaoDasOpcoes opcoes={r.opcoes} aberta={aberta.uid} aoAbrir={setAbertaUid}
+              <ComparacaoDasOpcoes opcoes={r.opcoes} aberta={aberta.uid} aoAbrir={setAbertaUid} reordenar={reordenar}
                 colunas={largura >= larguraDaTabela() ? COLUNAS_DA_COMPARACAO : undefined} />
             ) : null}
             {/* A barra aparece também com uma opção só ("Opção A" e "+ Nova opção"), acima da tabela, à esquerda. */}
             {aberta ? (
               <AbasDeOpcao rotulo={`Opções de ${titulo}`} refeicao={titulo} opcoes={r.opcoes} aberta={aberta.uid} comProblema={p.comProblema}
-                aoAbrir={setAbertaUid} aoAdicionar={adicionarOpcao} menuDaAberta={menuDaAberta}
+                aoAbrir={setAbertaUid} aoAdicionar={adicionarOpcao} menuDaAberta={menuDaAberta} reordenar={reordenar}
                 registrar={(uid, aba) => alvosDoFoco.current.set(uid, aba)}
                 apoio={varias || avisoAcima ? <>
                   {varias ? <Texto variante="suave">Cada opção substitui a refeição inteira: o aluno escolhe uma.</Texto> : null}
@@ -281,6 +342,10 @@ export function CartaoRefeicao(p: Props) {
                 {opcaoAberta}
               </AbasDeOpcao>
             ) : avisoAcima}
+            {/* Só para o leitor de tela: a posição nova da opção movida pelo ⋯. */}
+            <View role="status" aria-live="polite" accessibilityLiveRegion="polite" style={estilos.soLeitor}>
+              {anuncio.texto ? <Texto key={anuncio.vez}>{anuncio.texto}</Texto> : null}
+            </View>
           </View>
           {p.avisoDoAlimento ? p.aviso : null}
           {p.aoSalvarModelo ? (
@@ -702,6 +767,7 @@ function GradeDosValores({ children }: { children: { chave: string; campo: React
 }
 
 const estilos = StyleSheet.create({
+  soLeitor: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
   topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(0.5) },
   titulo: { flex: 1, gap: espaco(0.5), minHeight: 44, justifyContent: 'center' },
   corpo: { gap: espaco(1.5) },

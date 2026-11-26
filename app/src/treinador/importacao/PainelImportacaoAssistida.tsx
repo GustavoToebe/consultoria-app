@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState, type Ref, type RefObject } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
-import { CheckCircle2, FileSearch, FileText, FileUp, RotateCcw } from 'lucide-react-native';
+import { CheckCircle2, FileSearch, FileUp, RotateCcw } from 'lucide-react-native';
 import type { Href } from 'expo-router';
 import { AccessibilityInfo, findNodeHandle, Platform, StyleSheet, View } from 'react-native';
 
 import { dataHoraParaTela, plural } from '../../dominio/formatos';
 import {
   campoDoErroDoTexto,
+  contagensDasEtapas,
   duvidasVisiveis,
   DICA_DE_TREINO_DESMONTADO,
+  etapaDaImportacao,
   focoAoEntrar,
   type FocoAoEntrar,
   gerarChaveIdempotencia,
@@ -26,7 +28,6 @@ import {
   recarregarDepoisDoErro,
   resumoDaCoberturaDoArquivo,
   resumoDoModoProcessamento,
-  resumoDaSessao,
   resumoDoResultado,
   seloDoGrupo,
   sessaoPodeCancelar,
@@ -73,7 +74,10 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { useFaixaDaTela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
-import { LateralDaImportacao, VAO_DA_LATERAL } from './LateralDaImportacao';
+import { AreaDeSoltarArquivos } from './AreaDeSoltarArquivos';
+import { EscolhaDoQueImportar } from './EscolhaDoQueImportar';
+import { ColunaDasEtapas, LinhaDasEtapas, VAO_DA_LATERAL } from './EtapasDaImportacao';
+import { ImportacoesEmAberto } from './LinhaDeImportacaoEmAberto';
 import { TermosParaConferir } from './TermosParaConferir';
 
 /** O mesmo destino de `FolhaNovaImportacao`: cria o modelo de Semana de Treino já com a Folha de colar aberta. */
@@ -85,7 +89,7 @@ type Acao = 'arquivos' | 'texto' | 'processar' | 'responder' | 'revogar' | 'dest
  * Cartão onde o erro aparece: perto do botão que o causou, não no topo da página (no celular ficaria fora da vista).
  * `proxima` acompanha o botão da próxima etapa (ler, gravar), que na faixa larga mora na coluna lateral.
  */
-type Onde = 'entrada' | 'duvidas' | 'grupos' | 'proxima';
+type Onde = 'entrada' | 'abertas' | 'duvidas' | 'grupos' | 'proxima';
 
 export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial?: string } = {}) {
   const { cores } = useTema();
@@ -98,6 +102,9 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   const [acao, setAcao] = useState<Acao | null>(null);
   const [erro, setErro] = useState<{ texto: string; tom: 'perigo' | 'atencao'; onde: Onde; causa: unknown } | null>(null);
   const [descartar, setDescartar] = useState(false);
+  // Importação da lista "Em aberto": a que está abrindo (carregando só nela) e a que o ⋯ pediu para descartar.
+  const [retomando, setRetomando] = useState<string | null>(null);
+  const [descartarDaLista, setDescartarDaLista] = useState<SessaoListaItem | null>(null);
 
   // Entrada de texto colado
   const [mostrarTexto, setMostrarTexto] = useState(false);
@@ -216,7 +223,13 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
     }
   };
 
-  const iniciarSessaoComArquivos = () => executar('arquivos', 'entrada', async () => {
+  /** Sobe os arquivos um a um na sessão (a atual, a reservada ou uma nova); o picker e o soltar da web usam o mesmo caminho. */
+  const subir = (lista: readonly { parte: Blob; nome: string }[]) =>
+    comSessaoNova(async (id) => {
+      for (const a of lista) await adicionarArquivo(id, a.parte, a.nome);
+    });
+
+  const escolherArquivos = () => executar('arquivos', 'entrada', async () => {
     const res = await DocumentPicker.getDocumentAsync({
       multiple: true,
       type: [
@@ -229,19 +242,17 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
       copyToCacheDirectory: true,
     });
     if (res.canceled || !res.assets || res.assets.length === 0) return;
-
-    await comSessaoNova(async (id) => {
-      for (const asset of res.assets) {
-        let parteArquivo: any;
-        if (Platform.OS === 'web' && (asset as any).file) {
-          parteArquivo = (asset as any).file;
-        } else {
-          parteArquivo = { uri: asset.uri, name: asset.name, type: asset.mimeType ?? 'application/octet-stream' };
-        }
-        await adicionarArquivo(id, parteArquivo, asset.name);
-      }
-    });
+    await subir(res.assets.map((asset) => ({
+      nome: asset.name,
+      // No celular o FormData do React Native recebe { uri, name, type } no lugar do Blob (não existe File ali).
+      parte: Platform.OS === 'web' && asset.file
+        ? asset.file
+        : ({ uri: asset.uri, name: asset.name, type: asset.mimeType ?? 'application/octet-stream' } as unknown as Blob),
+    })));
   });
+
+  const soltarArquivos = (arquivos: File[]) =>
+    void executar('arquivos', 'entrada', () => subir(arquivos.map((f) => ({ parte: f, nome: f.name }))));
 
   const enviarTextoLivre = () => executar('texto', 'entrada', async () => {
     await comSessaoNova((id) => adicionarTexto(id, tituloTexto, conteudoTexto).then(() => undefined));
@@ -300,9 +311,21 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   };
 
   const retomar = (id: string) => {
-    void executar('retomar', 'entrada', async () => {
+    setRetomando(id);
+    void executar('retomar', 'abertas', async () => {
       limparEstadoLocalDaSessao();
       setSessao(await obterSessao(id));
+    }).finally(() => setRetomando(null));
+  };
+
+  /** O mesmo cancelar da sessão aberta, para uma importação da lista; depois a lista é lida de novo. */
+  const confirmarDescarteDaLista = () => {
+    const alvo = descartarDaLista;
+    setDescartarDaLista(null);
+    if (!alvo) return;
+    void executar('cancelar', 'abertas', async () => {
+      await cancelarSessao(alvo.id);
+      await carregarSessoesAbertas();
     });
   };
 
@@ -413,11 +436,13 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   // Tela larga (25/11): da faixa larga em diante, o resumo e a próxima etapa vão para a coluna ao lado, grudada ao rolar.
   // Um botão da próxima etapa por vez, num lugar só: na lateral nessa faixa, nos cartões abaixo dela.
   const comLateral = faixa === 'larga' || faixa === 'ultralarga';
+  // Na coluna das etapas o botão da próxima etapa é a ação de apoio (cor de ação); nos cartões, o principal.
+  const tipoDaProxima = comLateral ? 'acao' : 'primario';
   const duvidas = duvidasVisiveis(sessao?.duvidas);
   const podeLer = sessao?.estado === 'RECEBENDO' || sessao?.estado === 'RASCUNHO';
   const botaoLer = podeLer ? (
     <LinhaDeAcoes>
-      <Botao ref={refLer} rotulo="Ler os arquivos" tipo="primario" Icone={FileSearch} carregando={acao === 'processar'} aoTocar={processar} />
+      <Botao ref={refLer} rotulo="Ler os arquivos" tipo={tipoDaProxima} Icone={FileSearch} carregando={acao === 'processar'} aoTocar={processar} />
     </LinhaDeAcoes>
   ) : null;
   // Resultado junto dos botões: quem tocou em gravar o vê sem rolar a página.
@@ -438,7 +463,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
       {temPendentes ? (
         <Botao
           rotulo={gravaveisSelecionados.length > 0 ? `Gravar selecionados (${gravaveisSelecionados.length})` : 'Gravar selecionados'}
-          tipo="primario"
+          tipo={tipoDaProxima}
           Icone={CheckCircle2}
           carregando={acao === 'confirmar' && gravando === 'pendentes'}
           desabilitado={!!motivoConfirmar || acao === 'destino' || acao === 'confirmar'}
@@ -449,7 +474,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
       {comErro.length > 0 ? (
         <Botao
           rotulo="Tentar de novo os que deram erro"
-          tipo={temPendentes ? 'secundario' : 'primario'}
+          tipo={temPendentes ? 'secundario' : tipoDaProxima}
           Icone={RotateCcw}
           carregando={acao === 'confirmar' && gravando === 'erros'}
           desabilitado={acao === 'confirmar' || acao === 'destino' || !sessao.hashPrevia}
@@ -460,77 +485,29 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
     </LinhaDeAcoes>
   ) : null;
   const doGravar = sessao && sessao.grupos.length > 0 ? <>{blocoDoResultado}{erroEm('proxima')}{botoesDeGravar}</> : null;
-  const resumoDaLateral = sessao ? resumoDaSessao(sessao, pode) : null;
+  // Etapas (26/11): a atual sai da máquina de estados da sessão; as contagens, do que a tela já tem.
+  const etapaAtual = etapaDaImportacao(sessao, !temPendentes || !motivoConfirmar);
+  const contagens = sessao ? contagensDasEtapas(sessao, pode, { marcados: selecionadosAtivos.size, possiveis: idsSelecionaveis.size }) : null;
 
   const blocos = (
     <>
+      {comLateral ? null : <LinhaDasEtapas atual={etapaAtual} />}
       {!sessao ? (
         <>
-          {sessoesAbertas.length > 0 ? (
-            <Cartao
-              titulo="Importações em aberto"
-              descricao="Você pode retomar uma importação anterior antes que ela expire ou começar uma nova abaixo."
-            >
-              <View style={estilos.lista}>
-                {sessoesAbertas.map((s) => (
-                  <View key={s.id} style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
-                    <View style={estilos.cabecalhoItem}>
-                      <Texto variante="bloco" nivel={3} style={estilos.encolher}>
-                        {dataHoraParaTela(s.criadoEm)}
-                      </Texto>
-                      <Selo texto={textoDoEstadoDaSessao(s.estado)} tipo={s.estado === 'ERRO' ? 'perigo' : s.estado === 'PROCESSANDO' ? 'atencao' : 'neutro'} />
-                    </View>
-                    <Texto variante="suave" numerico>
-                      {plural(s.totalArquivos, 'arquivo', 'arquivos')} · {plural(s.totalGrupos, 'grupo', 'grupos')} · {plural(s.duvidasAbertas, 'dúvida em aberto', 'dúvidas em aberto')}
-                    </Texto>
-                    <LinhaDeAcoes>
-                      <Botao
-                        rotulo="Retomar"
-                        tipo="secundario"
-                        carregando={acao === 'retomar'}
-                        aoTocar={() => retomar(s.id)}
-                      />
-                    </LinhaDeAcoes>
-                  </View>
-                ))}
-              </View>
-            </Cartao>
-          ) : null}
-
           <Cartao
             titulo="Enviar arquivos ou texto"
-            descricao="Envie PDFs de treino, DOCX de dieta, planilhas e mensagens de texto num lote só. Você confere os termos e escolhe o que gravar antes de confirmar."
+            descricao="PDFs de treino, DOCX de dieta, planilhas e mensagens num lote só. Você confere os termos e escolhe o que gravar antes de confirmar."
           >
-          <Escolha
-            rotulo="O que importar"
-            valor={objetivo}
-            aoMudar={(o) => { setObjetivo(o); sessaoReservada.current = null; }}
-            opcoes={[
-              { valor: 'CADASTROS_E_PLANOS_ATUAIS', rotulo: 'Cadastros e planos atuais (treino e dieta)' },
-              { valor: 'SOMENTE_CADASTROS', rotulo: 'Só cadastros e contatos' },
-              { valor: 'INCLUIR_HISTORICO', rotulo: 'Tudo, com o histórico de cargas e pesos' },
-            ]}
+          <EscolhaDoQueImportar valor={objetivo} aoMudar={(o) => { setObjetivo(o); sessaoReservada.current = null; }} />
+          <AreaDeSoltarArquivos
+            aoEscolher={() => void escolherArquivos()}
+            aoSoltar={soltarArquivos}
+            aoColar={() => setMostrarTexto(!mostrarTexto)}
+            colando={mostrarTexto}
+            enviando={acao === 'arquivos'}
+            ocupado={acao !== null}
           />
-
           {erroEm('entrada')}
-          <LinhaDeAcoes>
-            <Botao
-              rotulo="Escolher arquivos"
-              tipo="primario"
-              Icone={FileUp}
-              carregando={acao === 'arquivos'}
-              aoTocar={() => void iniciarSessaoComArquivos()}
-            />
-            <Botao
-              rotulo={mostrarTexto ? 'Fechar o texto' : 'Colar texto'}
-              tipo="secundario"
-              Icone={FileText}
-              aoTocar={() => setMostrarTexto(!mostrarTexto)}
-            />
-          </LinhaDeAcoes>
-          <Texto variante="pequeno" cor={cores.textoSuave}>
-            PDF, DOCX, XLSX ou CSV (até 20 arquivos e 8 MB no lote). Arquivos escaneados sem texto selecionável serão sinalizados na leitura.
-          </Texto>
 
           {mostrarTexto ? (
             <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
@@ -561,6 +538,13 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
             </View>
           ) : null}
           </Cartao>
+
+          {sessoesAbertas.length > 0 ? (
+            <Cartao titulo="Importações em aberto" descricao="Retome uma importação antes que ela expire.">
+              {erroEm('abertas')}
+              <ImportacoesEmAberto sessoes={sessoesAbertas} retomando={retomando} aoRetomar={retomar} aoDescartar={setDescartarDaLista} />
+            </Cartao>
+          ) : null}
         </>
       ) : (
         <>
@@ -714,9 +698,9 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
       {comLateral ? (
         <View style={estilos.ladoALado}>
           <View style={[estilos.blocos, estilos.principal]}>{blocos}</View>
-          <LateralDaImportacao resumo={resumoDaLateral}>
+          <ColunaDasEtapas atual={etapaAtual} contagens={contagens}>
             {podeLer ? <>{erroEm('proxima')}{botaoLer}</> : doGravar}
-          </LateralDaImportacao>
+          </ColunaDasEtapas>
         </View>
       ) : blocos}
 
@@ -728,6 +712,15 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
         perigo
         aoConfirmar={confirmarCancelamento}
         aoCancelar={() => setDescartar(false)}
+      />
+      <PainelConfirmacao
+        visivel={!!descartarDaLista}
+        titulo={`Descartar a importação de ${descartarDaLista ? dataHoraParaTela(descartarDaLista.criadoEm) : ''}?`}
+        mensagem="A sessão será cancelada e os arquivos temporários serão descartados. O que já foi gravado permanece."
+        rotuloConfirmar="Descartar importação"
+        perigo
+        aoConfirmar={confirmarDescarteDaLista}
+        aoCancelar={() => setDescartarDaLista(null)}
       />
     </View>
   );

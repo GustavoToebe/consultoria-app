@@ -6,14 +6,13 @@ import type { Sessao } from '../../api/tipos';
 import { DIAS_CURTOS, DIAS_SEMANA, TIPOS_SESSAO } from '../../dominio/editorTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
-import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
-import { BlocoAdicionar } from '../plano/BlocoAdicionar';
+import { BlocoAdicionar, BotaoDoBloco } from '../plano/BlocoAdicionar';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
@@ -157,20 +156,15 @@ export function CartaoSessao(p: Props) {
  * "Adicionar próximo exercício" (protótipo de 30/10): o fim da lista é um bloco tracejado com as ações de acrescentar.
  * No fim do cartão da sessão (coluna única) ou da lista da coluna da esquerda (duas colunas).
  */
-export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'aoNovoCardio' | 'aoAbrirModelos' | 'aoCriarGrupo' | 'motivoSemGrupo'> & {
-  /** Coluna da esquerda (duas colunas): um botão por linha, para a quebra não juntar só os dois últimos. */
-  emColuna?: boolean;
-}) {
+export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'aoNovoCardio' | 'aoAbrirModelos' | 'aoCriarGrupo' | 'motivoSemGrupo'>) {
   // Um destaque só por área (25/11, como o "Adicionar alimento" da dieta): o exercício em `acao`, o resto neutro.
-  const botoes = <>
-    <Botao rotulo="Adicionar exercício" tipo="acao" Icone={Plus} aoTocar={p.aoNovoExercicio} />
-    <Botao rotulo="Adicionar cardio" tipo="secundario" Icone={HeartPulse} aoTocar={p.aoNovoCardio} />
-    {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
-    {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
-  </>;
+  // Desde 26/11 os botões ficam um embaixo do outro, na largura toda (`BotaoDoBloco`).
   return (
     <BlocoAdicionar titulo="Adicionar próximo exercício" descricao="Escolha da biblioteca da consultoria ou use um modelo pronto.">
-      {p.emColuna ? <View style={estilos.botoesEmColuna}>{botoes}</View> : botoes}
+      <BotaoDoBloco rotulo="Adicionar exercício" tipo="acao" Icone={Plus} aoTocar={p.aoNovoExercicio} />
+      <BotaoDoBloco rotulo="Adicionar cardio" tipo="secundario" Icone={HeartPulse} aoTocar={p.aoNovoCardio} />
+      {p.aoAbrirModelos ? <BotaoDoBloco rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
+      {p.aoCriarGrupo ? <BotaoDoBloco rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
     </BlocoAdicionar>
   );
 }
@@ -194,7 +188,6 @@ const estilos = StyleSheet.create({
   dados: { gap: espaco(1) },
   // Os campos ocupam a largura da sessão (11/11), com o fio à esquerda do acordeão (como as instruções do exercício).
   areaDosDados: { gap: espaco(2), paddingLeft: espaco(1.5), borderLeftWidth: 2 },
-  botoesEmColuna: { alignItems: 'flex-start', gap: espaco(1) },
   linhaSessao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1.5) },
   coluna: { flexDirection: 'column', alignItems: 'stretch' },
   nome: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },

@@ -198,6 +198,43 @@ test('editar exercício: prévia do vídeo válido, ações, link inválido sem 
   expect(errosDaPagina).toEqual([]);
 });
 
+// 26/11: folha média (800 px) com Modalidade, Grupo e Equipamento numa linha e Vídeo e Imagem em duas colunas; no
+// celular, tudo empilhado. Os botões de perigo são tonais (fundo, não só texto) com a altura do secundário.
+for (const largura of [390, 1280]) {
+  test(`editar exercício: arranjo da folha e botões de perigo tonais (${largura} px)`, async ({ page }) => {
+    const { naoTratadas, errosDaPagina } = await abrir(page, largura);
+    await page.getByRole('button', { name: `Editar ${CRUNCH.nome}` }).click();
+    const folha = page.getByRole('dialog', { name: 'Editar exercício' });
+    const caixa = async (l: ReturnType<Page['locator']>) => (await l.boundingBox())!;
+    const grupo = await caixa(folha.getByRole('textbox', { name: 'Grupo muscular (opcional)' }));
+    const equipamento = await caixa(folha.getByRole('textbox', { name: 'Equipamento (opcional)' }));
+    const video = await caixa(folha.getByRole('textbox', { name: 'Vídeo', exact: true }));
+    const previa = folha.getByRole('img', { name: `Demonstração: ${CRUNCH.nome}` });
+    await expect(previa).toBeVisible();
+    const imagem = await caixa(previa);
+    if (largura === 1280) {
+      expect((await caixa(folha)).width).toBeGreaterThan(760);
+      expect(Math.abs(grupo.y - equipamento.y)).toBeLessThanOrEqual(2);
+      expect(Math.abs(grupo.width - equipamento.width)).toBeLessThanOrEqual(2);
+      // Imagem na coluna da direita, ao lado do vídeo, e as duas colunas com a mesma largura.
+      expect(imagem.x).toBeGreaterThan(video.x + video.width);
+      expect(Math.abs(imagem.width - video.width)).toBeLessThanOrEqual(4);
+    } else {
+      expect(equipamento.y).toBeGreaterThan(grupo.y + grupo.height);
+      expect(imagem.y).toBeGreaterThan(video.y + video.height);
+    }
+    const abrirNoYoutube = folha.getByRole('button', { name: `Abrir no YouTube: ${CRUNCH.nome}` });
+    for (const nome of ['Remover vídeo', 'Remover imagem', 'Tirar da biblioteca']) {
+      const botao = folha.getByRole('button', { name: nome, exact: true });
+      await botao.scrollIntoViewIfNeeded();
+      expect(await botao.evaluate((b) => getComputedStyle(b).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+      expect(Math.abs((await caixa(botao)).height - (await caixa(abrirNoYoutube)).height)).toBeLessThanOrEqual(1);
+    }
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
 test('editar exercício: miniatura bloqueada vira o cartão neutro 16:9 com o play', async ({ page }) => {
   const { naoTratadas, errosDaPagina } = await abrir(page, 1280, { miniatura: 'bloqueada' });
   await page.getByRole('button', { name: `Editar ${PRANCHA.nome}` }).click();

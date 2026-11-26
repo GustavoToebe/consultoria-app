@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta, Refeicao } from '../api/tipos';
-import { aguaValida, aplicarReceitaDeDieta, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
+import { aguaValida, anuncioDaOpcaoMovida, aplicarReceitaDeDieta, avisoDaNovaOpcaoA, letraDaPosicao, moverOpcao, reletrarOpcoes, restaurarOrdemDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -261,6 +261,65 @@ describe('opções da refeição: só apresentação (28/10)', () => {
     expect(textoEscolhaDasOpcoes(['A', 'B', 'C'])).toBe('Escolha uma das opções: A, B ou C.');
     expect(textoEscolhaDasOpcoes(['A', ' '])).toBe('Escolha uma das opções: A ou 2.');
     expect(textoEscolhaDasOpcoes(['A', 'B', 'C']) ?? '').not.toMatch(/equivalent/i);
+  });
+});
+
+describe('reordenar as opções: a letra segue a posição (26/11)', () => {
+  const opcao = (uid: string, rotulo: string, nItens = 0) => ({ uid, rotulo, itens: Array.from({ length: nItens }, (_, i) => ({ ...novoItem(), uid: `${uid}-${i}` })) });
+  const tres = [opcao('x', 'A', 1), opcao('y', 'B', 2), opcao('z', 'C')];
+  const ordem = (os: { uid: string; rotulo: string }[]) => os.map((o) => `${o.rotulo}:${o.uid}`).join(' ');
+
+  it('letras pela posição; depois de F, o número; quem já está certo fica a mesma instância', () => {
+    expect([0, 1, 5, 6].map(letraDaPosicao)).toEqual(['A', 'B', 'F', '7']);
+    const r = reletrarOpcoes([opcao('x', 'A'), opcao('y', 'C')]);
+    expect(ordem(r)).toBe('A:x B:y');
+    expect(reletrarOpcoes(tres)[0]).toBe(tres[0]);
+  });
+
+  it('mover para o primeiro lugar: a B vira A e conta no total; os itens vão junto', () => {
+    const m = moverOpcao(tres, 1, 0)!;
+    expect(ordem(m.opcoes)).toBe('A:y B:x C:z');
+    expect(m.opcoes[0].itens).toBe(tres[1].itens);
+    expect(m).toMatchObject({ uid: 'y', letraAntes: 'B', letraDepois: 'A', para: 0, novaPrimeira: 'B' });
+    expect(avisoDaNovaOpcaoA(m.novaPrimeira!)).toBe('Opção B agora é a Opção A e conta no total do dia.');
+  });
+
+  it('a A sair do primeiro lugar também troca a que conta no total (aviso pela letra da nova primeira)', () => {
+    const m = moverOpcao(tres, 0, 2)!;
+    expect(ordem(m.opcoes)).toBe('A:y B:z C:x');
+    expect(m.novaPrimeira).toBe('B');
+    expect(anuncioDaOpcaoMovida(m)).toBe('Opção A movida para a posição 3: agora é a Opção C.');
+  });
+
+  it('mover sem mexer na primeira não avisa; o anúncio diz a posição e a letra novas', () => {
+    const m = moverOpcao(tres, 2, 1)!;
+    expect(ordem(m.opcoes)).toBe('A:x B:z C:y');
+    expect(m.novaPrimeira).toBeNull();
+    expect(anuncioDaOpcaoMovida(m)).toBe('Opção C movida para a posição 2: agora é a Opção B.');
+  });
+
+  it('nada muda (mesmo lugar, fora dos limites, uma opção só): nulo', () => {
+    expect(moverOpcao(tres, 1, 1)).toBeNull();
+    expect(moverOpcao(tres, 0, 3)).toBeNull();
+    expect(moverOpcao(tres, -1, 0)).toBeNull();
+    expect(moverOpcao([opcao('x', 'A')], 0, 0)).toBeNull();
+  });
+
+  it('letras fora da posição (opção excluída antes) passam a seguir a ordem ao mover', () => {
+    const m = moverOpcao([opcao('x', 'A'), opcao('z', 'C'), opcao('w', 'D')], 2, 1)!;
+    expect(ordem(m.opcoes)).toBe('A:x B:w C:z');
+    expect(m.letraAntes).toBe('D');
+  });
+
+  it('Desfazer: volta a ordem e as letras de antes pelo uid, com os itens de agora; nova vai ao fim, excluída não volta', () => {
+    const antes = tres.map(({ uid, rotulo }) => ({ uid, rotulo }));
+    const movidas = moverOpcao(tres, 1, 0)!.opcoes;
+    const editadas = movidas.map((o) => (o.uid === 'x' ? { ...o, itens: [] } : o));
+    const voltou = restaurarOrdemDasOpcoes(editadas, antes);
+    expect(ordem(voltou)).toBe('A:x B:y C:z');
+    expect(voltou[0].itens).toEqual([]);
+    const comNovaSemZ = [...editadas.filter((o) => o.uid !== 'z'), opcao('n', 'D')];
+    expect(ordem(restaurarOrdemDasOpcoes(comNovaSemZ, antes))).toBe('A:x B:y D:n');
   });
 });
 

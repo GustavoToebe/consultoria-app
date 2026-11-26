@@ -1,6 +1,6 @@
 import { FileDown, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View, type PointerEvent } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { ConteudoDieta } from '../api/tipos';
 import {
@@ -55,9 +55,9 @@ import { Folha } from '../ui/Folha';
 import { IconeBotao } from '../ui/IconeBotao';
 import { ListaDeLinhas } from '../ui/LinhaDaLista';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
+import { LinhaDeCompra } from '../ui/LinhaDeCompra';
 import { EscolhasDaLista } from '../ui/ListaDeCompras';
 import { NoPlano } from '../ui/NoPlano';
-import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { useListaDoAparelho } from './useListaDoAparelho';
 
@@ -206,11 +206,11 @@ export function ListaDeComprasDoAluno({
 }
 
 /**
- * Uma linha da lista (A7, 25/11): caixa redonda à esquerda, nome e, à direita, a quantidade. Tocar no nome também marca
- * (fora do modo de ajuste); o foco e o leitor de tela ficam na caixa. Comprado = nome e quantidade riscados em
- * `textoSuave` (sem opacidade, que derrubava o contraste, A12) e o item desce para o fim do grupo. No modo de ajuste
- * entram o lápis (ajustar ou editar o avulso) e a lixeira do avulso; no celular a quantidade desce para baixo do nome
- * para o nome não espremer entre ela e os botões.
+ * Uma linha da lista (A7, 25/11; a peça `ui/LinhaDeCompra`, a mesma da prévia do treinador): caixa redonda à esquerda,
+ * nome e, à direita, a quantidade. Tocar no nome também marca (fora do modo de ajuste); o foco e o leitor de tela ficam
+ * na caixa. Comprado = nome e quantidade riscados em `textoSuave` (sem opacidade, que derrubava o contraste, A12) e o
+ * item desce para o fim do grupo. No modo de ajuste entram o lápis (ajustar ou editar o avulso) e a lixeira do avulso;
+ * no celular a quantidade desce para baixo do nome para o nome não espremer entre ela e os botões.
  */
 function LinhaDoItem({ item, ajustando, aoMarcar, aoAjustar, aoRemover }: {
   item: ItemDaListaDoAluno;
@@ -221,38 +221,26 @@ function LinhaDoItem({ item, ajustando, aoMarcar, aoAjustar, aoRemover }: {
 }) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
-  const [aceso, setAceso] = useState(false);
-  const origem = textoDaOrigem(item.origem);
   const descricao = item.calculado ? `Calculado: ${item.calculado}` : item.linha ? detalheDaConversao(item.linha) : null;
   const riscado = item.comprado ? [estilos.riscado, { color: cores.textoSuave }] : null;
   const quantidadeAbaixo = ajustando && width < LARGURA_MENU_LATERAL;
-  const quantidade = (
-    <Texto numerico style={[quantidadeAbaixo ? null : estilos.quantidade, riscado]}>{item.quantidade}</Texto>
-  );
-  // Realce só com o mouse e só quando a linha marca: com o dedo, a linha piscaria ao rolar.
-  const realce = ajustando ? null : {
-    onPointerEnter: (e: PointerEvent) => { if (e.nativeEvent.pointerType === 'mouse') setAceso(true); },
-    onPointerLeave: () => setAceso(false),
-  };
   return (
-    <View {...realce} style={[estilos.linha, { backgroundColor: aceso && !ajustando ? cores.sobre : 'transparent' }]}>
-      <CaixaRedonda rotulo={`${item.nome}, marcar como comprado`} marcado={item.comprado} aoMudar={aoMarcar} />
-      <Pressable focusable={false} accessible={false} disabled={ajustando} onPress={aoMarcar} style={estilos.miolo}>
-        <View style={estilos.textos}>
-          <Texto style={[estilos.nome, riscado]}>{item.nome}</Texto>
-          {quantidadeAbaixo ? quantidade : null}
-          {descricao ? <Texto variante="suave" numberOfLines={2}>{descricao}</Texto> : null}
-          {origem ? <View style={estilos.selos}><Selo texto={origem} tipo="neutro" /></View> : null}
-        </View>
-        {quantidadeAbaixo ? null : quantidade}
-      </Pressable>
-      {ajustando ? (
-        <View style={estilos.acoes}>
+    <LinhaDeCompra
+      nome={item.nome}
+      estiloDoNome={riscado}
+      detalhe={descricao}
+      selo={textoDaOrigem(item.origem)}
+      quantidade={<Texto numerico style={[quantidadeAbaixo ? null : estilos.aDireita, riscado]}>{item.quantidade}</Texto>}
+      quantidadeAbaixo={quantidadeAbaixo}
+      inicio={<CaixaRedonda rotulo={`${item.nome}, marcar como comprado`} marcado={item.comprado} aoMudar={aoMarcar} />}
+      fim={ajustando ? (
+        <>
           <IconeBotao Icone={Pencil} rotulo={`${item.avulso ? 'Editar' : 'Ajustar'} ${item.nome}`} aoTocar={aoAjustar} />
           {item.avulso ? <IconeBotao Icone={Trash2} rotulo={`Remover ${item.nome}`} aoTocar={aoRemover} /> : null}
-        </View>
+        </>
       ) : null}
-    </View>
+      aoTocar={ajustando ? undefined : aoMarcar}
+    />
   );
 }
 
@@ -339,14 +327,7 @@ function FolhaAvulso({ item, quantos, aoFechar, aoSalvar }: {
 const estilos = StyleSheet.create({
   progresso: { gap: espaco(1) },
   forte: { fontFamily: fontes.semi, fontSize: 16 },
-  acoes: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: 56, paddingHorizontal: espaco(0.5) },
-  miolo: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: espaco(2), paddingVertical: espaco(1), minHeight: 48 },
-  textos: { flex: 1, minWidth: 0, gap: espaco(0.5) },
-  nome: { fontFamily: fontes.semi },
-  // A quantidade não encolhe até sumir: no máximo 45% da linha, quebrando dentro dela ("1 pacote de 1 kg").
-  quantidade: { flexShrink: 0, maxWidth: '45%', textAlign: 'right' },
+  aDireita: { textAlign: 'right' },
   riscado: { textDecorationLine: 'line-through' },
-  selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
   campos: { gap: espaco(2) },
 });

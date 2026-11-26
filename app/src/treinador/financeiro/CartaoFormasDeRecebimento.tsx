@@ -293,7 +293,7 @@ function Formulario({ dados, comInfinitePay, infinitePayConfigurada, aoSalvar, a
   };
   const botaoApagarPix = podeApagarPix(dados) ? (
     <LinhaDeAcoes>
-      <Botao rotulo="Apagar dados do Pix" tipo="perigoTexto" Icone={Trash2} style={estilos.fantasmaNaColuna}
+      <Botao rotulo="Apagar dados do Pix" tipo="perigo" Icone={Trash2}
         aoTocar={() => { setErroDoApagar(null); setConfirmandoApagar(true); }} />
     </LinhaDeAcoes>
   ) : null;

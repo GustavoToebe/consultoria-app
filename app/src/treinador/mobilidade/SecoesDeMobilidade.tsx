@@ -2,6 +2,7 @@ import { Ellipsis, Plus, Trash2 } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
+import { colunasDaMobilidade, LARGURA_DA_PREVIA_NA_ULTRALARGA, secaoEmEdicao, VAO_DAS_TRES_COLUNAS } from '../../dominio/colunasDaMobilidade';
 import { remover, substituir } from '../../dominio/editorTreino';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
 import {
@@ -23,12 +24,13 @@ import { Texto } from '../../ui/Texto';
 import { acoesDeMover } from '../acoesDeMover';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
 import { BarraDesfazer, type Desfazer } from '../plano/BarraDesfazer';
-import { BlocoAdicionar } from '../plano/BlocoAdicionar';
-import { useDuasColunas } from '../plano/ColunasDoEditor';
+import { BlocoAdicionar, BotaoDoBloco } from '../plano/BlocoAdicionar';
+import { useDuasColunas, useTresColunas } from '../plano/ColunasDoEditor';
 import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
 import { mostrarAbaixoDaBarra } from '../plano/TelaDoEditor';
 import { ESPERA_DA_SELECAO } from '../treino/ContadoresDoTreino';
 import { ItensDaSecao } from './ItemDeMobilidade';
+import { PreviaDaMobilidade } from './PreviaDaMobilidade';
 
 const MAXIMO_DE_SECOES = 10;
 const MAXIMO_DE_ITENS = 40;
@@ -48,7 +50,8 @@ type DesfazerDaTela = Desfazer<ConteudoMobilidade> & { voltarPara?: string; seca
  * Seções e itens da mobilidade, no padrão do editor de treino e de dieta (19/11). Usado pelo editor do plano do aluno e
  * pelo do modelo do Planejamento (o topo, configuração ou "Sobre o modelo", fica com cada um). Em duas colunas
  * (`TelaDoEditor colunas`) as seções são a lista à esquerda (`ItemDaListaDoEditor`, com a alça de arrastar) e a escolhida
- * abre à direita, com a faixa de ação; empilhado (celular), cada seção é um cartão, com a alça no cabeçalho. Mover fica
+ * abre à direita, com a faixa de ação; da faixa `larga` em diante (web), a 3ª coluna é a prévia ao vivo do que o aluno vê,
+ * rolada até a seção aberta (`PreviaDaMobilidade`, 26/11); empilhado (celular), cada seção é um cartão, com a alça no cabeçalho. Mover fica
  * na alça e no ⋯ ("Mover para cima/baixo"); excluir seção com itens confirma; remover tem "Desfazer". Nada salva sozinho.
  */
 export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, acoes }: {
@@ -61,6 +64,9 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, acoes }: {
 }) {
   const [desfazer, setDesfazer] = useState<DesfazerDaTela | null>(null);
   const duas = useDuasColunas();
+  const tres = useTresColunas();
+  // Largura medida da linha das colunas (lista | seção | prévia): da faixa `larga` em diante abre a prévia ao vivo.
+  const [linha, setLinha] = useState<number | null>(null);
   const { rolarAte } = useRolagem();
   // Seção do inspetor; a que sumiu (removida, modelo recarregado) cai na primeira.
   const [escolhidaUid, setEscolhidaUid] = useState<string | null>(null);
@@ -75,7 +81,7 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, acoes }: {
     const alvo = mob.secoes.find((x) => irPara.uids.includes(x.uid) || x.itens.some((i) => irPara.uids.includes(i.uid)));
     if (alvo) setEscolhidaUid(alvo.uid);
   }
-  const escolhida = mob.secoes.find((x) => x.uid === escolhidaUid) ?? mob.secoes[0];
+  const escolhida = secaoEmEdicao(mob.secoes, escolhidaUid);
   // Arrastar a seção pela alça (na lista ou no cartão empilhado): a mesma regra do ⋯; o Desfazer devolve a ordem.
   // A escolhida segue a seção, não a posição: mover a primeira não troca o que está no inspetor.
   const moverA = (de: number, para: number) => { setEscolhidaUid(escolhida?.uid ?? null); aoMudar(moverSecao(mob, de, para)); };
@@ -135,11 +141,16 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, acoes }: {
   // O único lugar de adicionar seção: no fim da lista (PC) ou dos cartões (celular), como "Adicionar próxima refeição".
   const adicionar = (
     <BlocoAdicionar titulo="Adicionar próxima seção" descricao="Um bloco do plano, como Aquecimento ou Alongamento.">
-      <Botao rotulo="Adicionar seção" tipo="acao" Icone={Plus} desabilitado={mob.secoes.length >= MAXIMO_DE_SECOES}
+      <BotaoDoBloco rotulo="Adicionar seção" tipo="acao" Icone={Plus} desabilitado={mob.secoes.length >= MAXIMO_DE_SECOES}
         motivo={`No máximo ${MAXIMO_DE_SECOES} seções.`} aoTocar={adicionarSecao} />
     </BlocoAdicionar>
   );
   const aExcluir = mob.secoes.find((x) => x.uid === excluir);
+  // Três colunas só na web (a prévia gruda abaixo da barra). Antes da 1ª medida vale o palpite da `TelaDoEditor` (ultralarga
+  // em Automática), para a prévia não aparecer só no 2º quadro; depois, as larguras exatas de `colunasDaMobilidade`.
+  const web = Platform.OS === 'web';
+  const colunas = web ? colunasDaMobilidade(linha) : null;
+  const larguraDaPrevia = colunas?.previa ?? (web && linha === null && tres ? LARGURA_DA_PREVIA_NA_ULTRALARGA : null);
   const nItens = aExcluir?.itens.length ?? 0;
 
   return <>
@@ -148,15 +159,17 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, acoes }: {
       {acoes ? <View style={estilos.linha}>{acoes}</View> : null}
     </View>
     {avisoNaSecao || avisoNoLugar !== null ? null : barra}
-    {duas && escolhida ? <View style={estilos.colunas}>
-      <View style={estilos.lista}>
+    {duas && escolhida ? <View onLayout={(e) => setLinha(Math.round(e.nativeEvent.layout.width))}
+      style={[estilos.colunas, larguraDaPrevia !== null ? { gap: colunas?.vao ?? VAO_DAS_TRES_COLUNAS } : null]}>
+      <View style={[estilos.lista, colunas ? { width: colunas.lista } : null]}>
         <View style={estilos.itensDaLista} role="group" accessibilityLabel="Seções da mobilidade">
           {mob.secoes.map((sec, si) => <ItemDaLista key={sec.uid} secao={sec} posicao={si} total={mob.secoes.length} arraste={arraste}
             escolhida={sec.uid === escolhida.uid} aoEscolher={() => { setEscolhidaUid(sec.uid); setItemNovo(null); }} />)}
         </View>
         {adicionar}
       </View>
-      <View style={estilos.inspetor}>{painel(escolhida, mob.secoes.indexOf(escolhida), true)}</View>
+      <View style={colunas ? { width: colunas.editor, minWidth: 0 } : estilos.inspetor}>{painel(escolhida, mob.secoes.indexOf(escolhida), true)}</View>
+      {larguraDaPrevia !== null ? <PreviaDaMobilidade conteudo={mob} secaoUid={escolhida.uid} largura={larguraDaPrevia} /> : null}
     </View> : <>
       {mob.secoes.flatMap((sec, si) => {
         const cartao = <ItemArrastavel key={sec.uid} arraste={arraste} indice={si}>{painel(sec, si, false)}</ItemArrastavel>;
@@ -238,7 +251,7 @@ function PainelDaSecao({ secao: sec, posicao, total, noInspetor, itemNovo, alca,
               {acoesDoMenu.length || aoExcluir ? (
                 <View style={estilos.acoesDaSecao}>
                   {acoesDoMenu.length ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações de ${titulo}`} aoTocar={() => setMenu(true)} /> : null}
-                  {aoExcluir ? <Botao tipo="perigoTexto" rotulo="Excluir seção" rotuloAcessivel={`Excluir seção ${titulo}`} Icone={Trash2} aoTocar={aoExcluir} /> : null}
+                  {aoExcluir ? <Botao tipo="perigo" rotulo="Excluir seção" rotuloAcessivel={`Excluir seção ${titulo}`} Icone={Trash2} aoTocar={aoExcluir} /> : null}
                 </View>
               ) : null}
             </View>
@@ -270,7 +283,8 @@ const estilos = StyleSheet.create({
   // Lista de 280 px (a mesma da dieta): em 1280 com o menu aberto o painel fica com ~710 px e os itens em tabela.
   lista: { width: 280, flexShrink: 0, gap: espaco(2) },
   itensDaLista: { gap: espaco(1) },
-  // Na tela larga o painel para em ~1400 px, à esquerda junto da lista; a sobra fica vazia (nunca campo esticado).
+  // Abaixo da faixa larga o painel para em ~1400 px, à esquerda junto da lista; dali em diante entra a prévia ao vivo e as
+  // larguras vêm de `colunasDaMobilidade` (a sobra vira vão igual dos dois lados).
   inspetor: { flex: 1, minWidth: 0, maxWidth: LARGURA_EDITOR_DE_CAMPOS },
   cabecalhoSecoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   cabecalho: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(0.5), paddingHorizontal: espaco(2), paddingVertical: espaco(1.25) },

@@ -126,7 +126,7 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
       <Cartao titulo="Acesso ao app">
         <View style={estilos.bloco}>
           <ListaDeDados>
-            <LinhaDeDado rotulo="Situação" valor={textoDaSituacao} conteudo={<View style={estilos.selo}><Selo texto={textoDaSituacao} tipo={selo.tipo} /></View>}
+            <LinhaDeDado rotulo="Situação" valor={textoDaSituacao} conteudo={<View style={estilos.selo}><Selo texto={textoDaSituacao} tipo={selo.tipo} ponto={selo.ponto} /></View>}
               nota={!aluno.temAcesso && comAcoes && !convite ? 'Gere um convite para o aluno criar a conta ou defina você o e-mail e uma senha provisória.'
                 : desativado && podeAgir ? 'O aluno não entra até o acesso ser reativado. Nada foi apagado.' : undefined}
               acoes={comAcoes && desativado ? (

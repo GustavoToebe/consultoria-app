@@ -1,5 +1,5 @@
 import { LARGURA_EDITOR_DE_CAMPOS } from '../tema/tokens';
-import { ABAIXO_DAS_DUAS_COLUNAS, abaixoDasColunas, colunaUnica, colunasDaAbaDados, COLUNAS_DA_FICHA, emDuasColunas, larguraMaximaDasColunas, ordemNumaColuna, pilhasDaAba, PROPORCAO_DAS_COLUNAS, resumoEmTresColunas, tetoDaColunaUnica, TRES_COLUNAS_DA_FICHA } from './colunasDaFicha';
+import { ABAIXO_DAS_DUAS_COLUNAS, abaixoDasColunas, colunaUnica, colunasDaAbaDados, colunasDoFormulario, COLUNAS_DA_FICHA, emDuasColunas, larguraMaximaDasColunas, ordemNumaColuna, pilhasDaAba, PROPORCAO_DAS_COLUNAS, resumoEmTresColunas, SECOES_DOS_DADOS, tetoDaColunaUnica, TRES_COLUNAS_DA_FICHA } from './colunasDaFicha';
 import type { BlocoDaFicha } from './fichaDoAluno';
 
 // ficha: colunas independentes (24/11)
@@ -8,16 +8,18 @@ const TODOS: BlocoDaFicha[] = ['dadosDoAluno', 'acessoAoApp', 'planoContratado',
 const VAO = 24;
 
 describe('colunasDaFicha', () => {
-  it('as duas e as três colunas na ordem pedida, cada peça num lugar só', () => {
-    expect(COLUNAS_DA_FICHA.esquerda).toEqual(['identificacao', 'contato', 'planoContratado']);
+  it('as duas e as três colunas na ordem pedida, cada peça num lugar só; as redes logo abaixo do Contato (26/11)', () => {
+    expect(COLUNAS_DA_FICHA.esquerda).toEqual(['identificacao', 'contato', 'redes', 'planoContratado']);
     expect(COLUNAS_DA_FICHA.direita).toEqual(['acompanhamento', 'objetivo', 'acessoAoApp', 'anamnese']);
     expect(ABAIXO_DAS_DUAS_COLUNAS).toEqual(['lesoes']);
+    // Numa coluna (compacta), a ordem do celular: as redes logo depois do Contato.
+    expect(SECOES_DOS_DADOS).toEqual(['identificacao', 'contato', 'redes', 'acompanhamento', 'objetivo']);
     expect(TRES_COLUNAS_DA_FICHA).toEqual([
-      ['identificacao', 'contato', 'objetivo'], ['planoContratado', 'lesoes'], ['acompanhamento', 'acessoAoApp', 'anamnese'],
+      ['identificacao', 'contato', 'redes', 'objetivo'], ['planoContratado', 'lesoes'], ['acompanhamento', 'acessoAoApp', 'anamnese'],
     ]);
     for (const todas of [[...COLUNAS_DA_FICHA.esquerda, ...COLUNAS_DA_FICHA.direita, ...ABAIXO_DAS_DUAS_COLUNAS], TRES_COLUNAS_DA_FICHA.flat()]) {
-      expect(new Set(todas).size).toBe(8);
-      expect(todas).toHaveLength(8);
+      expect(new Set(todas).size).toBe(9);
+      expect(todas).toHaveLength(9);
     }
   });
 
@@ -40,7 +42,7 @@ describe('colunasDaFicha', () => {
     for (const largura of [928, 1632, 3 * 640 + 2 * VAO - 1]) {
       const colunas = colunasDaAbaDados('larga', largura, VAO, TODOS);
       expect(colunas).toEqual([
-        { secoes: ['identificacao', 'contato'], blocos: ['planoContratado'], proporcao: 3 },
+        { secoes: ['identificacao', 'contato', 'redes'], blocos: ['planoContratado'], proporcao: 3 },
         { secoes: ['acompanhamento', 'objetivo'], blocos: ['acessoAoApp', 'anamnese'], proporcao: 2 },
       ]);
       expect(abaixoDasColunas(colunas, TODOS)).toEqual(['lesoes']);
@@ -57,7 +59,7 @@ describe('colunasDaFicha', () => {
 
   it('três colunas pela largura medida (2560 e 3440 com o menu aberto), não pela faixa', () => {
     const tres = [
-      { secoes: ['identificacao', 'contato', 'objetivo'], blocos: [], proporcao: 1 },
+      { secoes: ['identificacao', 'contato', 'redes', 'objetivo'], blocos: [], proporcao: 1 },
       { secoes: [], blocos: ['planoContratado', 'lesoes'], proporcao: 1.2 },
       { secoes: ['acompanhamento'], blocos: ['acessoAoApp', 'anamnese'], proporcao: 1 },
     ];
@@ -75,7 +77,7 @@ describe('colunasDaFicha', () => {
 
   it('a coluna do meio vazia (sem financeiro nem lesões) volta às duas colunas de 3:2', () => {
     expect(colunasDaAbaDados('larga', 2272, VAO, ['dadosDoAluno', 'acessoAoApp'])).toEqual([
-      { secoes: ['identificacao', 'contato'], blocos: [], proporcao: 3 },
+      { secoes: ['identificacao', 'contato', 'redes'], blocos: [], proporcao: 3 },
       { secoes: ['acompanhamento', 'objetivo'], blocos: ['acessoAoApp'], proporcao: 2 },
     ]);
   });
@@ -162,5 +164,18 @@ describe('colunasDaFicha', () => {
     expect(pilhasDaAba('acompanhamento', ['frequencia', 'trocasDeExercicio'], 3000, 24)).toBeNull();
     expect(pilhasDaAba('planos', ['pastas'], 3000, 24)).toBeNull();
     expect(pilhasDaAba('ficha', ['dadosDoAluno', 'acessoAoApp'], 3000, 24)).toBeNull();
+  });
+  it('o formulário dos Dados com o vão no x do da leitura (26/11)', () => {
+    expect(colunasDoFormulario(null, 900, VAO)).toBeNull();
+    // Duas colunas: as proporções da leitura, 3:2.
+    expect(colunasDoFormulario(colunasDaAbaDados('normal', 928, VAO, TODOS), 928, VAO)).toEqual([{ flex: 3 }, { flex: 2 }]);
+    // Três: a esquerda na largura da 1ª coluna da leitura, (largura - 2 vãos) / 3,2; a direita, o resto do teto.
+    const tres = colunasDoFormulario(colunasDaAbaDados('larga', 2270, VAO, TODOS), 2270, VAO);
+    expect(tres?.[0]).toEqual({ largura: expect.closeTo(694.375, 3) });
+    expect(tres?.[1]).toEqual({ flex: 1 });
+    expect(colunasDoFormulario(colunasDaAbaDados('ultralarga', 3150, VAO, TODOS), 3150, VAO)?.[0]).toEqual({ largura: expect.closeTo(969.375, 3) });
+    // Acima de ~3781 a do meio para no teto e a 1ª fica com metade do resto; na soma dos tetos, todas no teto.
+    expect(colunasDoFormulario(colunasDaAbaDados('ultralarga', 4000, VAO, TODOS), 4000, VAO)?.[0]).toEqual({ largura: expect.closeTo((4000 - 2 * VAO - LARGURA_EDITOR_DE_CAMPOS) / 2, 3) });
+    expect(colunasDoFormulario(colunasDaAbaDados('ultralarga', 4248, VAO, TODOS), 4248, VAO)?.[0]).toEqual({ largura: LARGURA_EDITOR_DE_CAMPOS });
   });
 });

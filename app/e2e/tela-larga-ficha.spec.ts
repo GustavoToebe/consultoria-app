@@ -283,6 +283,7 @@ for (const largura of [2560, 3440]) {
     const { errosDaPagina, pedidos } = await abrir(page, largura, 'ficha');
     await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Anamnese', exact: true })).toBeVisible();
+    let vao = { de: 0, ate: 0 };
     await assentado(async () => {
       const colunas = await Promise.all(TRES_COLUNAS.map((c) => Promise.all(c.map((t) => caixaDe(cartaoCom(page, t))))));
       const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
@@ -303,6 +304,8 @@ for (const largura of [2560, 3440]) {
       expect(Math.abs(colunas[0][0].x - titulo.x)).toBeLessThanOrEqual(1);
       const ultima = colunas[2][0];
       expect(Math.abs(editar.x + editar.width - (ultima.x + ultima.width))).toBeLessThanOrEqual(1);
+      // O 1º vão da leitura (entre Identificação e Plano contratado), para comparar com o do formulário.
+      vao = { de: colunas[0][0].x + colunas[0][0].width, ate: colunas[1][0].x };
     });
     // A coluna do meio é a mais larga (1,2): as lesões continuam em tabela já em 2560.
     await expect(page.getByRole('table', { name: 'Lesões' })).toHaveCount(1);
@@ -315,6 +318,14 @@ for (const largura of [2560, 3440]) {
     // Com a aba em três colunas o formulário continua no teto do editor de campos (`DadosDoAluno`, 4.10; D1 só o destravou nas duas).
     const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
     expect((await caixaDe(salvar)).x + (await caixaDe(salvar)).width - titulo.x).toBeLessThanOrEqual(1401);
+    // O vão do meio do formulário no lugar do 1º vão da leitura (26/11): Identificação e Contato não mudam de largura. Os
+    // blocos não servem de régua aqui: na edição a 1ª coluna fica vazia e o Plano contratado vai para a esquerda.
+    await assentado(async () => {
+      const ident = await caixaDe(cartaoCom(page, 'Identificação'));
+      const config = await caixaDe(cartaoCom(page, 'Configuração do acompanhamento'));
+      expect(Math.abs(ident.x + ident.width - vao.de)).toBeLessThanOrEqual(1);
+      expect(Math.abs(config.x - vao.ate)).toBeLessThanOrEqual(1);
+    });
     await expect(page.getByRole('heading', { name: 'Plano contratado', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Acesso ao app', exact: true })).toBeVisible();
     expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `/alunos/${ID}/anamneses`)).toHaveLength(1);
@@ -331,6 +342,7 @@ for (const largura of [1280, 1920]) {
     test(`${largura} px${recolhido ? ' (menu recolhido)' : ''}: Dados nas mesmas duas colunas (3:2), na largura do conteúdo`, async ({ page }) => {
       const { errosDaPagina } = await abrir(page, largura, 'ficha', { recolhido });
       await expect(page.getByRole('heading', { name: 'Histórico de lesões' })).toBeVisible();
+      let vao = { de: 0, ate: 0 };
       await assentado(async () => {
         const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
         const editar = await caixaDe(page.getByRole('button', { name: 'Editar dados' }));
@@ -352,6 +364,7 @@ for (const largura of [1280, 1920]) {
         expect(ident.width / config.width).toBeGreaterThan(1.45);
         expect(ident.width / config.width).toBeLessThan(1.55);
         if (largura >= 1920) expect(config.x + config.width - ident.x).toBeGreaterThan(1600);
+        vao = { de: ident.x + ident.width, ate: config.x };
       });
       // As lesões ficam em tabela em todas as larguras: em 1280 e 1920 abaixo das duas colunas, na largura delas somadas.
       await expect(page.getByRole('table', { name: 'Lesões' })).toHaveCount(1);
@@ -370,6 +383,10 @@ for (const largura of [1280, 1920]) {
         expect(Math.abs(ident.x - titulo.x)).toBeLessThanOrEqual(1);
         expect(Math.abs(s.x + s.width - (menu.x + menu.width))).toBeLessThanOrEqual(2);
         if (largura >= 1920) expect(s.x + s.width - titulo.x).toBeGreaterThan(1600);
+        // O vão do meio do formulário no mesmo x do da leitura (26/11; antes o formulário dividia ao meio e a leitura em 3:2).
+        const config = await caixaDe(cartaoCom(page, 'Configuração do acompanhamento'));
+        expect(Math.abs(ident.x + ident.width - vao.de)).toBeLessThanOrEqual(1);
+        expect(Math.abs(config.x - vao.ate)).toBeLessThanOrEqual(1);
       });
       await semRolagemHorizontal(page);
       expect(errosDaPagina).toEqual([]);

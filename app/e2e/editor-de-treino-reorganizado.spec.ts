@@ -273,6 +273,7 @@ test.describe('celular (390)', () => {
     await expect(blocos(page).first()).toBeVisible();
     // Empilhada: sem o cabeçalho das colunas e cada linha cabe na largura.
     await expect(page.getByText('Reps', { exact: true })).toHaveCount(0);
+    await expect(page.getByTestId('cabecalho-das-series')).toHaveCount(0);
     const linha = (await blocos(page).first().boundingBox())!;
     expect(linha.x + linha.width).toBeLessThanOrEqual(390);
     expect(await semRolagemLateral(page)).toBe(true);

@@ -6,7 +6,7 @@ import { ErroApi } from '../api/cliente';
 import { alterarAluno, escolherQuestionarioDoAluno, opcoesDeQuestionario, responsaveisEquipe } from '../api/rotas';
 import type { AlunoDetalhe } from '../api/tipos';
 import { enderecoParaLeitura, NAO_INFORMADO, NOTA_TELEFONE_SEM_ACESSO, SECOES_DO_ALUNO } from '../dominio/cadastroDoAluno';
-import { SECOES_DOS_DADOS, type SecaoDosDados } from '../dominio/colunasDaFicha';
+import { SECOES_DOS_DADOS, type MedidaDaColuna, type SecaoDosDados } from '../dominio/colunasDaFicha';
 import { linkParaFalarComOTreinador } from '../dominio/contatoDaConsultoria';
 import { dataParaTela } from '../dominio/formatos';
 import { textoDaMeta } from '../dominio/metaDoPesoNaFicha';
@@ -23,20 +23,20 @@ import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
-import { FileiraDeRedes } from '../ui/FileiraDeRedes';
 import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { IconeBotao } from '../ui/IconeBotao';
 import { IconeWhatsApp } from '../ui/IconeWhatsApp';
 import { LinkTexto } from '../ui/LinkTexto';
 import { LinhaDeDado, ListaDeDados, SubtituloDeDados } from '../ui/ListaDeDados';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
+import { RedesSociais } from '../ui/RedesSociais';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { ColunasDaFicha, type ColunaDaFicha } from './BlocosDaFicha';
 import { LinhaDoCicloNaFicha } from './ciclo/CicloNaFicha';
 import { copiarTexto } from './financeiro/comum';
 import { GrupoDoAlunoNaFicha } from './comunidade/GrupoDoAlunoNaFicha';
-import { FormAluno } from './FormAluno';
+import { FormAluno, TITULO_DAS_REDES } from './FormAluno';
 import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 import { CampoDeTags } from './tags/CampoDeTags';
 import { ChipDeTag } from './tags/ChipDeTag';
@@ -52,7 +52,8 @@ const PADRAO = 'Padrão da consultoria';
  * CPF, endereço e a seção 4 inteira só com `ALUNO_SENSIVEL_LER`: sem ela a linha ou a seção somem, sem título vazio.
  * Um único "Editar dados" abre o formulário no lugar (`FormAluno`). A edição é da ficha (`editando`): ela é um passo do
  * histórico e o `?editar=1` do lápis da lista de alunos também mora lá. No contato, copiar telefone e e-mail e abrir o
- * WhatsApp (`BotoesDeContato`), só com valor. Tags (`docs/planos/tags-de-aluno.md`, D10) na Configuração do acompanhamento,
+ * WhatsApp (`BotoesDeContato`), só com valor. Com alguma rede do aluno, o cartão "Redes sociais" logo abaixo do Contato, na
+ * mesma coluna (`ui/RedesSociais` em leitura, o WhatsApp primeiro e fora da linha do telefone; 26/11). Tags (`docs/planos/tags-de-aluno.md`, D10) na Configuração do acompanhamento,
  * logo depois do questionário e no mesmo padrão dele: na leitura, os chips; na edição, o `CampoDeTags`, que grava na hora.
  */
 export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar, colunas }: {
@@ -79,10 +80,12 @@ export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar, col
         {editando || !podeEditar ? null : <Botao rotulo="Editar dados" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} />}
       </View>
       {/* O formulário tem a largura da leitura: nas duas colunas, a do conteúdo (D1, 25/11; na `ultralarga` a aba já para no
-          editor de campos); com a aba em três, o teto do editor de campos (4.10). */}
+          editor de campos); com a aba em três, o teto do editor de campos (4.10). As colunas dele começam nas da leitura, para o
+          vão do meio não mudar de lugar ao entrar na edição (`colunasDoFormulario`, 26/11). */}
       {editando ? (
         <View style={colunas?.length === 3 ? estilos.formulario : null}><FormAluno
           inicial={aluno}
+          colunas={medidasDoFormulario(colunas)}
           nivel={3}
           diasPadrao={padrao}
           rotuloSalvar="Salvar"
@@ -125,6 +128,12 @@ export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar, col
   );
 }
 
+/** As medidas das duas colunas do formulário, das colunas da aba que as abrem; sem as duas, o formulário quebra sozinho. */
+function medidasDoFormulario(colunas: ColunaDaFicha[] | undefined): readonly [MedidaDaColuna, MedidaDaColuna] | undefined {
+  const [esquerda, direita] = colunas?.map((c) => c.noFormulario) ?? [];
+  return esquerda && direita ? [esquerda, direita] : undefined;
+}
+
 type Questionarios = ReturnType<typeof useCarregar<Awaited<ReturnType<typeof opcoesDeQuestionario>>>>;
 
 function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: {
@@ -144,7 +153,13 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
     : questionario.dados ? textoDoQuestionarioEscolhido(aluno.questionarioId, questionario.dados, PADRAO)
       : !aluno.questionarioId ? PADRAO : questionario.erro ? textoDoErro(questionario.erro) : 'Carregando…';
   const linhaDosPlanos = linhaDosPlanosAtivos(aluno.planosAtivos);
-  const redesDoPerfil = redesDoAluno(aluno);
+  // As redes que viram botão (só link https seguro; sem ALUNO_LER a API não as manda). Com alguma, o cartão "Redes sociais"
+  // aparece logo abaixo do Contato e o WhatsApp do telefone vai para a fileira dele (26/11); sem nenhuma, o cartão some e o
+  // WhatsApp continua na linha do telefone.
+  const redesDoPerfil = redesDoAluno(aluno).links;
+  const comRedes = redesDoPerfil.length > 0;
+  const telefone = aluno.telefone?.trim();
+  const whatsapp = telefone ? linkParaFalarComOTreinador(telefone) : null;
   const comGrupo = pode('COMUNIDADE_MODERAR');
   // A coluna de ações só existe com ação dentro (uma vazia tiraria o vão do valor).
   const comFinanceiro = pode('FINANCEIRO_LER') && pagamentosHabilitados;
@@ -167,16 +182,16 @@ function Leitura({ aluno, padrao, questionario, aoAlterar, editando, colunas }: 
             <Par rotulo="E-mail" valor={aluno.email} acoes={aluno.email?.trim() ? <BotoesDeContato tipo="email" valor={aluno.email} nome={aluno.nome} /> : undefined} />
             <Par rotulo="Telefone" valor={aluno.telefone} numerico
               nota={!aluno.temAcesso && !aluno.anonimizado ? NOTA_TELEFONE_SEM_ACESSO : undefined}
-              acoes={aluno.telefone?.trim() ? <BotoesDeContato tipo="telefone" valor={aluno.telefone} nome={aluno.nome} /> : undefined} />
-            {/* Só com dado (a API manda Instagram e TikTok só a quem lê dados de contato, ALUNO_LER): sem perfil, a linha some. */}
-            {redesDoPerfil.texto ? (
-              <Par rotulo="Redes sociais" valor={redesDoPerfil.texto}
-                acoes={<View style={estilos.botoes}><FileiraDeRedes redes={redesDoPerfil.links} de={aluno.nome} tamanho="pequeno" /></View>} />
-            ) : null}
+              acoes={telefone ? <BotoesDeContato tipo="telefone" valor={telefone} nome={aluno.nome} comWhatsapp={!comRedes} /> : undefined} />
             {sensivel ? <Par rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} /> : null}
           </ListaDeDados>
         </Cartao>
     ),
+    redes: comRedes ? (
+        <Cartao titulo={TITULO_DAS_REDES} nivel={nivel}>
+          <RedesSociais modo="leitura" redes={redesDoPerfil} de={aluno.nome} whatsapp={whatsapp ? { url: whatsapp, rotulo: telefone } : null} />
+        </Cartao>
+    ) : null,
     acompanhamento: (
         <Cartao titulo={SECOES_DO_ALUNO.acompanhamento} nivel={nivel}>
           {/* Os grupos e a ordem do pedido de 24/11; PLANO e COMUNIDADE só aparecem com a linha deles. */}
@@ -242,12 +257,16 @@ function VerNoFinanceiro({ alunoId }: { alunoId: string }) {
  * texto pronto; o número é o de `linkParaFalarComOTreinador`, que só aceita DDD + número). Sem valor nada aparece; telefone
  * que não vira número de WhatsApp fica só com o copiar. Copiar avisa se o navegador recusou.
  */
-function BotoesDeContato({ tipo, valor, nome }: { tipo: 'email' | 'telefone'; valor: string | null | undefined; nome: string }) {
+function BotoesDeContato({ tipo, valor, nome, comWhatsapp = true }: {
+  tipo: 'email' | 'telefone'; valor: string | null | undefined; nome: string;
+  /** `false` com o cartão "Redes sociais" na tela: o WhatsApp mora na fileira dele. */
+  comWhatsapp?: boolean;
+}) {
   const { avisar } = useAviso();
   const texto = valor?.trim();
   if (!texto) return null;
   const oQue = tipo === 'email' ? 'E-mail' : 'Telefone';
-  const whatsapp = tipo === 'telefone' ? linkParaFalarComOTreinador(texto) : null;
+  const whatsapp = tipo === 'telefone' && comWhatsapp ? linkParaFalarComOTreinador(texto) : null;
   const copiar = () => {
     void copiarTexto(texto).then((ok) => avisar(ok ? `${oQue} copiado.` : 'Não foi possível copiar. Selecione e copie à mão.', ok ? 'sucesso' : 'perigo'));
   };

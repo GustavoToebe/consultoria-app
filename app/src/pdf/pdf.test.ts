@@ -691,6 +691,14 @@ describe('PDF da mobilidade', () => {
     expect(d.corpo).toContain('RASCUNHO');
     expect(d.titulo).toBe('Mobilidade - Aluno Demonstração - Plano 16');
   });
+
+  it('título técnico não vai ao papel: sem "(rascunho)" e o nome padrão da importação vira "<Tipo> de <aluno>"', () => {
+    const m = documentoMobilidade({ ...dados, titulo: 'Importada da planilha (rascunho)' });
+    expect(m.titulo).toBe('Mobilidade - Aluno Demonstração - Mobilidade de Aluno Demonstração');
+    expect(m.corpo).toContain('Mobilidade de Aluno Demonstração (v');
+    expect(m.corpo).not.toContain('Importada da planilha');
+    expect(documentoMobilidade({ ...dados, titulo: 'Alongamento A (rascunho)', versao: null }).corpo).toContain('Alongamento A (RASCUNHO, não publicado)');
+  });
 });
 
 describe('html', () => {
@@ -831,6 +839,9 @@ describe('PDF da lista de compras', () => {
     expect(d.corpo).toContain('Dieta &amp; ciclo (prévia, não publicada)');
     expect(d.corpo).toContain('Prévia com os fatores atuais da biblioteca');
     expect(documentoListaDeCompras({ ...base, periodo: 'semana', opcoes: [], linhas: [] }).corpo).not.toContain('Prévia com');
+    const tecnico = documentoListaDeCompras({ ...base, titulo: 'Importada da planilha (rascunho)', periodo: 'semana', opcoes: [], linhas: [] });
+    expect(tecnico.titulo).toBe('Lista de compras - Aluno <Fictício> - Dieta de Aluno <Fictício>');
+    expect(tecnico.corpo).not.toContain('rascunho');
   });
 
   it('lista do aluno: ajuste e avulso marcados como dele, caixas vazias mesmo com item comprado; 14 dias no título', () => {

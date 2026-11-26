@@ -16,6 +16,7 @@ import { capturaDoGatilho, useDevolverFocoNoNativo } from './focoDaFolha';
 import { IconeBotao } from './IconeBotao';
 import { RodapeDeAcoes } from './LinhaDeAcoes';
 import { RolagemComTopo } from './RolagemComTopo';
+import { useRegistroDoRodapeDaFolha } from './rodapeFixoDaPagina';
 import { Texto } from './Texto';
 
 /**
@@ -147,7 +148,11 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
   const reduzido = useMovimentoReduzido();
   const portal = useId();
   const [elementoPortal, setElementoPortal] = useState<HTMLElement | null>(null);
-  const guardarElementoPortal = useCallback((no: View | null) => setElementoPortal(Platform.OS === 'web' ? (no as unknown as HTMLElement | null) : null), []);
+  const hostDoPortal = useRef<View | null>(null);
+  const guardarElementoPortal = useCallback((no: View | null) => {
+    hostDoPortal.current = no;
+    setElementoPortal(Platform.OS === 'web' ? (no as unknown as HTMLElement | null) : null);
+  }, []);
   const valorPortal = useMemo(() => ({ nome: portal, elemento: elementoPortal, lateral: !!lateral }), [portal, elementoPortal, lateral]);
   useFolhaNoHistorico(aoFechar, valorPortal);
   useDevolverFocoNoNativo();
@@ -159,6 +164,9 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
   const rodapeRef = useRef<View>(null);
   const medidas = useRef<{ rodape: number; painel: number } | null>(null);
   const [ajuste, setAjuste] = useState(0);
+  // Celular: o rodapé informa onde está para o toast subir acima das ações (inerte na web, que sonda o DOM).
+  const medirRodape = useRegistroDoRodapeDaFolha(portal, !!(rodape || statusDoRodape), rodapeRef, hostDoPortal);
+  const aoMedirLayout = Platform.OS === 'web' ? undefined : medirRodape;
   const ancorar = Platform.OS === 'web' && centralizado && !aDireita;
   useLayoutEffect(() => {
     const rodape = rodapeRef.current as unknown as HTMLElement | null;
@@ -257,7 +265,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
           ? <View style={StyleSheet.absoluteFill} aria-hidden {...({ onClick: aoFechar } as object)} />
           : <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel="Fechar painel" importantForAccessibility="no-hide-descendants" />}
         <Animated.View
-          onLayout={evento => { altura.set(evento.nativeEvent.layout.height); larguraDoPainel.set(evento.nativeEvent.layout.width); }}
+          onLayout={evento => { altura.set(evento.nativeEvent.layout.height); larguraDoPainel.set(evento.nativeEvent.layout.width); aoMedirLayout?.(); }}
           accessibilityViewIsModal
           role="dialog"
           aria-modal
@@ -290,14 +298,14 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura:larguraP
           </View>
           {rodape || statusDoRodape ? (
             // Marca do rodapé (web: `data-rodape-da-folha`): o `ui/Aviso` mede o topo dele para ficar acima das ações.
-            <View ref={rodapeRef} style={[estilos.rodape, aDireita && estilos.rodapeLateral, { borderColor: cores.divisor }]} {...({ dataSet: { rodapeDaFolha: 'sim' } } as object)}>
+            <View ref={rodapeRef} onLayout={aoMedirLayout} style={[estilos.rodape, aDireita && estilos.rodapeLateral, { borderColor: cores.divisor }]} {...({ dataSet: { rodapeDaFolha: 'sim' } } as object)}>
               <RodapeDeAcoes status={statusDoRodape} empilhar={!centralizado}>{rodape}</RodapeDeAcoes>
             </View>
           ) : null}
         </Animated.View>
       </View>
       </KeyboardAvoidingView>
-      <View ref={guardarElementoPortal} style={StyleSheet.absoluteFill} pointerEvents="box-none"><PortalHost name={portal} /></View>
+      <View ref={guardarElementoPortal} onLayout={aoMedirLayout} style={StyleSheet.absoluteFill} pointerEvents="box-none"><PortalHost name={portal} /></View>
     </GestureHandlerRootView>
     </PortalDaFolha.Provider>
   );

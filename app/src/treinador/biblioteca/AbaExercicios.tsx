@@ -1,7 +1,7 @@
 import { Permitido } from '../../ui/Permitido';
 import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { alterarExercicio, criarExercicio, inativarExercicio, listarExerciciosPagina, TAMANHO_DA_PAGINA_DE_EXERCICIOS } from '../../api/rotas';
 import type { Exercicio, ExercicioRequest, Modalidade } from '../../api/tipos';
@@ -21,7 +21,7 @@ import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { LinhaDaLista } from '../../ui/LinhaDaLista';
 import { ListaEmColunas } from '../ListaEmColunas';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_FOLHA_LARGA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { useTema } from '../../tema/TemaProvider';
 import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES } from '../../dominio/modalidades';
@@ -39,12 +39,22 @@ import { VideoDoExercicioEditor } from './VideoDoExercicioEditor';
 
 const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor: valor as Modalidade, rotulo }));
 
+/**
+ * Largura do corpo da folha (medida) a partir da qual Modalidade, Grupo e Equipamento ficam numa linha e Vídeo e Imagem
+ * lado a lado: a folha de ~640 px; abaixo disso, tudo empilha (nunca 2 + 1).
+ */
+const LARGURA_DAS_COLUNAS = 600;
+
 const estilos = StyleSheet.create({
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
-  // As medidas da `FolhaAlimento`: 180 px por campo deixa o par lado a lado na folha do PC (600) e empilhado no celular.
+  // Mesma composição da `FolhaAlimento`: um cartão com faixa de título por assunto, 24 px entre eles.
   partes: { gap: espaco(3) },
-  linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
-  campoLargo: { flexGrow: 1, flexBasis: 180 },
+  // Pela base: a Modalidade (`EscolhaSuspensa`) traz o rótulo dentro da caixa, os outros dois o têm acima.
+  linhaDeCampos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(2) },
+  colunaDeCampos: { gap: espaco(1.5) },
+  campoIgual: { flex: 1, minWidth: 0 },
+  midia: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
+  midiaEmpilhada: { gap: espaco(3) },
   imagemDepois: { gap: espaco(1) },
   tirar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   textoDoTirar: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
@@ -166,6 +176,10 @@ export function AbaExercicios() {
 function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }: { aoTirar?: () => void; inicial: Exercicio | null; aoFechar: () => void; aoSalvar: () => void; aoImagemMudou: () => void }) {
   const { pode } = useSessao();
   const { cores } = useTema();
+  const janela = useWindowDimensions().width;
+  // Até medir, a estimativa da janela (no PC a folha média): a folha não abre empilhada para logo depois se arrumar.
+  const [larguraMedida, setLarguraMedida] = useState<number | null>(null);
+  const emColunas = (larguraMedida ?? (janela >= LARGURA_MENU_LATERAL ? LARGURA_FOLHA_LARGA : janela)) >= LARGURA_DAS_COLUNAS;
   const [atual, setAtual] = useState<Exercicio | null>(inicial);
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [grupo, setGrupo] = useState(inicial?.grupoMuscular ?? '');
@@ -198,6 +212,7 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }:
     <Folha
       visivel
       titulo={inicial ? 'Editar exercício' : 'Novo exercício'}
+      largura={LARGURA_FOLHA_LARGA}
       aoFechar={aoFechar}
       rodape={
         <>
@@ -205,16 +220,18 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }:
           <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || !!erroDoVideo(video)} motivo={!nome.trim() ? 'Informe o nome.' : 'Corrija o link do vídeo.'} />
         </>
       }>
-      {/* Mesma composição da `FolhaAlimento`: um cartão com faixa de título por assunto, 24 px entre eles. */}
-      <View style={estilos.partes}>
+      <View style={estilos.partes} onLayout={(e) => setLarguraMedida(Math.floor(e.nativeEvent.layout.width))}>
         <Cartao titulo="Identificação" nivel={3}>
           <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
-          <EscolhaSuspensa rotulo="Modalidade" opcoes={OPCOES_MODALIDADE} valor={modalidade} aoMudar={setModalidade} semBusca />
-          <View style={estilos.linhaDeCampos}>
-            <View style={estilos.campoLargo}>
+          {/* Três colunas iguais na folha média; no celular, uma embaixo da outra. */}
+          <View style={emColunas ? estilos.linhaDeCampos : estilos.colunaDeCampos}>
+            <View style={emColunas ? estilos.campoIgual : null}>
+              <EscolhaSuspensa rotulo="Modalidade" opcoes={OPCOES_MODALIDADE} valor={modalidade} aoMudar={setModalidade} semBusca />
+            </View>
+            <View style={emColunas ? estilos.campoIgual : null}>
               <Campo rotulo="Grupo muscular (opcional)" valor={grupo} aoMudar={setGrupo} erro={campos.grupoMuscular} maxLength={60} />
             </View>
-            <View style={estilos.campoLargo}>
+            <View style={emColunas ? estilos.campoIgual : null}>
               <Campo rotulo="Equipamento (opcional)" valor={equipamento} aoMudar={setEquipamento} erro={campos.equipamento} maxLength={60} />
             </View>
           </View>
@@ -224,16 +241,23 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }:
           <Campo rotulo="Observações (opcional)" valor={observacoes} aoMudar={setObservacoes} linhas={3} maxLength={4000} />
         </Cartao>
 
+        {/* Vídeo e imagem lado a lado, cada prévia na largura da sua coluna; empilhados na folha estreita. */}
         <Cartao titulo="Vídeo e imagem" nivel={3}>
-          <VideoDoExercicioEditor valor={video} aoMudar={setVideo} erroDaApi={campos.videoUrl} nome={nome} />
-          {atual ? (
-            <ImagemDoExercicioEditor exercicio={atual} podeAlterar={pode('BIBLIOTECA_ALTERAR')} aoMudar={(e) => { setAtual(e); aoImagemMudou(); }} />
-          ) : (
-            <View style={estilos.imagemDepois}>
-              <Texto variante="rotulo" cor={cores.texto}>Imagem ou GIF</Texto>
-              <Texto variante="suave">Depois de salvar, você pode enviar uma imagem ou GIF deste exercício.</Texto>
+          <View style={emColunas ? estilos.midia : estilos.midiaEmpilhada}>
+            <View style={emColunas ? estilos.campoIgual : null}>
+              <VideoDoExercicioEditor valor={video} aoMudar={setVideo} erroDaApi={campos.videoUrl} nome={nome} />
             </View>
-          )}
+            <View style={emColunas ? estilos.campoIgual : null}>
+              {atual ? (
+                <ImagemDoExercicioEditor exercicio={atual} podeAlterar={pode('BIBLIOTECA_ALTERAR')} aoMudar={(e) => { setAtual(e); aoImagemMudou(); }} />
+              ) : (
+                <View style={estilos.imagemDepois}>
+                  <Texto variante="rotulo" cor={cores.texto}>Imagem ou GIF</Texto>
+                  <Texto variante="suave">Depois de salvar, você pode enviar uma imagem ou GIF deste exercício.</Texto>
+                </View>
+              )}
+            </View>
+          </View>
         </Cartao>
 
         {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
@@ -242,7 +266,7 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }:
           <Cartao>
             <View style={estilos.tirar}>
               <Texto variante="suave" style={estilos.textoDoTirar}>Os planos que já usam este exercício continuam com ele.</Texto>
-              <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} />
+              <Botao rotulo="Tirar da biblioteca" tipo="perigo" Icone={Trash2} aoTocar={aoTirar} />
             </View>
           </Cartao>
         ) : null}

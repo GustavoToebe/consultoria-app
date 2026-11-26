@@ -6,11 +6,12 @@ import type { TotaisComFibra } from '../../dominio/dieta';
 import { CONTA_NO_TOTAL, gramasSemUnidade, tituloDaOpcao, totaisDaOpcao } from '../../dominio/opcoesDaRefeicao';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../../tema/tokens';
+import { AlcaDeArraste, ItemArrastavel, LARGURA_DA_ALCA, useArrasteDaLista } from '../../ui/ArrasteDaLista';
 import { MarcadorDeOpcao } from '../../ui/MarcadorDeOpcao';
 import { Selo } from '../../ui/Selo';
-import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { FIBRA, fibraParcial, kcalNaTela, MACROS, MarcaDoMacro, type CorDoMacro, valoresPorExtenso } from '../../ui/ValoresDaDieta';
+import type { ReordenarOpcoes } from './AbasDeOpcao';
 
 /**
  * Colunas dos números, na ordem da tabela de alimentos: kcal, P, C, G e a fibra (cada uma com a marca, menos a kcal). No
@@ -41,12 +42,19 @@ export interface ColunasDaTabela {
  * direita e as marcas de macro no cabeçalho. Só mostra o total de cada opção (nada é calculado entre elas). A linha é o
  * atalho para abrir a aba da opção; a aberta fica marcada pelo fundo neutro (`superficie2`) e pelo círculo preenchido, o
  * mesmo da aba. Com `colunas` (a
- * opção em tabela), cada número fica embaixo da coluna dele na tabela de alimentos; sem, as colunas se dividem.
+ * opção em tabela), cada número fica embaixo da coluna dele na tabela de alimentos; sem, as colunas se dividem. Com
+ * `reordenar` (26/11), cada linha tem a alça ⠿ antes dela, fora do botão (a mesma peça e a mesma ordem das abas).
  */
-export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas }: {
-  opcoes: OpcaoRefeicao[]; aberta: string; aoAbrir: (uid: string) => void; colunas?: ColunasDaTabela;
+export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas, reordenar }: {
+  opcoes: OpcaoRefeicao[]; aberta: string; aoAbrir: (uid: string) => void; colunas?: ColunasDaTabela; reordenar?: ReordenarOpcoes;
 }) {
   const { cores } = useTema();
+  // O vão entre as linhas é de 2 px: a linha guia fica no meio dele.
+  const arraste = useArrasteDaLista({ total: reordenar ? opcoes.length : 0, folga: 1, aoSoltar: (de, para) => reordenar?.aoSoltar(de, para), mensagem: reordenar?.mensagem });
+  const comAlca = !!arraste.ativo;
+  // Mouse em cima ou apertada: o fundo vai na linha inteira (com a alça), como o da aberta.
+  const [sobreUid, setSobreUid] = useState<string | null>(null);
+  const sair = (uid: string) => setSobreUid((u) => (u === uid ? null : u));
   const [largura, setLargura] = useState(0);
   const compacta = largura > 0 && largura < LARGURA_COMPACTA;
   const coluna = (i: number) => (colunas ? { width: colunas.larguras[i] } : estilos.numero);
@@ -55,7 +63,8 @@ export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas }: {
   return (
     <View role="group" aria-label="Comparação das opções" style={estilos.tabela} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
       {/* O cabeçalho é só visual: cada linha diz ao leitor de tela os valores por extenso. */}
-      <View aria-hidden style={[estilos.linha, compacta && estilos.linhaJusta, vao, estilos.cabecalho, { borderBottomColor: cores.divisor }]}>
+      <View aria-hidden style={[estilos.linha, compacta && estilos.linhaJusta, vao, estilos.cabecalho,
+        comAlca ? (compacta ? estilos.cabecalhoJustoComAlca : estilos.cabecalhoComAlca) : null, { borderBottomColor: cores.divisor }]}>
         <View style={compacta ? estilos.letra : estilos.nome}><Texto variante="rotulo">Opção</Texto></View>
         {COLUNAS.map((c, ci) => (
           <View key={c.chave} style={[coluna(ci), estilos.celulaDoCabecalho]}>
@@ -71,11 +80,15 @@ export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas }: {
         const selo = i === 0 ? <Selo texto={CONTA_NO_TOTAL} /> : null;
         const nome = `${tituloDaOpcao(o)}: ${t ? valoresPorExtenso(t) : 'vazia'}${i === 0 ? `, ${CONTA_NO_TOTAL.toLowerCase()}` : ''}`;
         return (
-          <Pressable key={o.uid} accessibilityRole="button" accessibilityLabel={nome} accessibilityHint="Abre a opção nas abas."
+          <ItemArrastavel key={o.uid} arraste={arraste} indice={i}
+            style={[estilos.comAlca, { backgroundColor: sel ? cores.superficie2 : sobreUid === o.uid ? cores.sobre : 'transparent' }]}>
+          <AlcaDeArraste arraste={arraste} indice={i} />
+          <Pressable accessibilityRole="button" accessibilityLabel={nome} accessibilityHint="Abre a opção nas abas."
             aria-current={sel ? 'true' : undefined} onPress={() => aoAbrir(o.uid)}
-            style={(st) => [estilos.opcao, { backgroundColor: sel ? cores.superficie2 : sobre(st) ? cores.sobre : 'transparent' }]}>
+            onHoverIn={() => setSobreUid(o.uid)} onHoverOut={() => sair(o.uid)} onPressIn={() => setSobreUid(o.uid)} onPressOut={() => sair(o.uid)}
+            style={[estilos.opcao, comAlca ? estilos.opcaoComAlca : null]}>
             <View style={[estilos.linha, compacta && estilos.linhaJusta, vao]}>
-              <View style={compacta ? estilos.letra : estilos.nome}>
+              <View style={compacta ? (comAlca ? estilos.letraComAlca : estilos.letra) : estilos.nome}>
                 {/* O círculo com a letra, como nas abas (preenchido na aberta); no celular, só ele. */}
                 <MarcadorDeOpcao letra={o.rotulo} selecionado={sel} />
                 {compacta ? null : <Texto style={[estilos.textoDoNome, { fontFamily: sel ? fontes.negrito : fontes.medio }]}>{tituloDaOpcao(o)}</Texto>}
@@ -94,6 +107,7 @@ export function ComparacaoDasOpcoes({ opcoes, aberta, aoAbrir, colunas }: {
             </View>
             {compacta && selo ? <View style={estilos.seloAbaixo}>{selo}</View> : null}
           </Pressable>
+          </ItemArrastavel>
         );
       })}
     </View>
@@ -109,6 +123,14 @@ const estilos = StyleSheet.create({
   cabecalho: { paddingHorizontal: RECUO, paddingBottom: espaco(0.5), borderBottomWidth: 1 },
   celulaDoCabecalho: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: espaco(0.5) },
   opcao: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: RECUO, paddingVertical: espaco(0.5), borderRadius: RAIO_CONTROLE },
+  // Com a alça (24) antes do botão, o começo do cabeçalho anda o mesmo para "Opção" ficar sobre as letras; o botão perde o
+  // recuo da esquerda (a alça já afasta) e a linha inteira leva o fundo da aberta.
+  comAlca: { flexDirection: 'row', alignItems: 'stretch', borderRadius: RAIO_CONTROLE },
+  opcaoComAlca: { flex: 1, minWidth: 0, paddingLeft: 0 },
+  cabecalhoComAlca: { paddingLeft: LARGURA_DA_ALCA },
+  // No celular, "Opção" fica sobre a alça e o círculo (48 = 24 + 24): os números não perdem largura para a alça.
+  cabecalhoJustoComAlca: { paddingLeft: 0 },
+  letraComAlca: { width: LARGURA_DA_ALCA },
   // O nome cresce; cada número fica numa coluna de 48 a 96 px, alinhada à direita.
   nome: { flexGrow: 3, flexBasis: 0, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: 2 },
   // "Opção" inteiro no cabeçalho; no celular (~300 px úteis) sobram 5 colunas de 40 px ou mais.

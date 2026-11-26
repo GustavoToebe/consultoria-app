@@ -85,7 +85,8 @@ for (const largura of [390, 1280]) {
       const salvar = folha.getByRole('button', { name: 'Salvar', exact: true });
       const inicio = folha.getByLabel('Início (opcional)');
       const fim = folha.getByLabel('Fim (opcional)');
-      await folha.getByLabel('Região do corpo').fill('Ombro direito');
+      await folha.getByRole('radio', { name: 'Ombro', exact: true }).click();
+      await folha.getByRole('radio', { name: 'Direito', exact: true }).click();
       await expect(salvar).toBeEnabled();
 
       await inicio.fill('05/05/0261');
@@ -95,8 +96,8 @@ for (const largura of [390, 1280]) {
 
       await inicio.fill('05/03/2025');
       await expect(salvar).toBeEnabled();
-      // O Fim só existe com a situação Recuperada (ficha: folha de lesão, 24/11).
-      await expect(fim).toHaveCount(0);
+      // O Fim só é editável com a situação Recuperada (folha de lesão, 26/11: desabilitado com dica).
+      await expect(fim).not.toBeEditable();
       await folha.getByRole('radio', { name: 'Recuperada' }).click();
       await fim.fill('20/10/2026');
       await expect(folha.getByText(`Fim da lesão: ${FAIXA_DE_REGISTRO}`)).toBeVisible();

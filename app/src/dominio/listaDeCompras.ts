@@ -235,6 +235,22 @@ export function quantidadeParaTela(quantidade: number, unidade: UnidadeAlimento)
   return `${arredondada} ${unidade}`;
 }
 
+/** "Ovo", "ovos", "Ovo cozido", "Clara de ovo": a palavra inteira, sem acento e sem caixa ("Ovomaltine" e "Pão novo" não). */
+const PALAVRA_OVO = /(^|[^a-z0-9])ovos?([^a-z0-9]|$)/;
+
+/**
+ * Equivalente em dúzias da quantidade em unidade, para ovo (26/11: "120 un · 10 dúzias"). Só quando o número que a tela
+ * mostra (o inteiro de cima, como `quantidadeParaTela`) é múltiplo exato de 12; senão nada, para não arredondar a compra
+ * por outra conta. Outros itens não ganham dúzia: não há regra simples que diga quando a dúzia faz sentido.
+ */
+export function textoDasDuzias(l: Pick<LinhaDaLista, 'nome' | 'unidade' | 'quantidade'>): string | null {
+  if (l.unidade !== 'un' || !PALAVRA_OVO.test(semAcento(l.nome))) return null;
+  const unidades = acima(l.quantidade, 1);
+  if (unidades <= 0 || unidades % 12 !== 0) return null;
+  const duzias = unidades / 12;
+  return duzias === 1 ? '1 dúzia' : `${duzias} dúzias`;
+}
+
 /** Nota do rodapé da tela e do PDF. A mesma frase para o aluno, o treinador e os PDFs. */
 export const NOTA_DA_LISTA = NOTA_DA_ESTIMATIVA;
 

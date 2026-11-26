@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { ConteudoDieta, ItemDieta, PlanoDetalhe, VersaoDetalhe } from '../src/api/tipos';
-import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { erroApi, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 import { sessaoDeAluno } from './aluno';
 
 function item(uid: string, nome: string, quantidade: number, unidade: ItemDieta['unidade'], fatores: Partial<ItemDieta> = {}): ItemDieta {
@@ -389,3 +389,135 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+/**
+ * Prévia do treinador no editor da dieta (26/11): folha média com o selo "Prévia", o ⓘ das notas, a contagem e o
+ * período numa linha; grupos como títulos em duas colunas a partir de 640 px de lista (uma no celular), "Outros itens"
+ * por último; linhas com o "Na dieta" embaixo e a quantidade à direita, ovo com as dúzias; PDF e Fechar no rodapé.
+ * Os grupos e os fatores vêm de `GET /alimentos/fatores` (a prévia sobrescreve os do rascunho, como a publicação).
+ */
+const PREVIA: ConteudoDieta = {
+  ...CONTEUDO,
+  refeicoes: [
+    ...CONTEUDO.refeicoes,
+    {
+      uid: 'jantar', nome: 'Jantar', horario: '19:00', observacao: null,
+      opcoes: [{ uid: 'jantar-a', rotulo: 'A', itens: [
+        item('alface', 'Alface', 50, 'g'), item('maca', 'Maçã', 100, 'g'), item('whey', 'Proteína em pó', 30, 'g'),
+        item('sal', 'Sal', 2, 'g', { alimentoId: null, manual: true }),
+      ] }],
+    },
+  ],
+};
+const FATORES_DA_PREVIA = [
+  { alimentoId: 'arroz', fatorCorrecao: 1, fatorCoccao: 2.5, grupo: 'Cereais e derivados' },
+  { alimentoId: 'frango', fatorCorrecao: 1.12, fatorCoccao: 0.78, grupo: 'Carnes e derivados' },
+  { alimentoId: 'ovo', fatorCorrecao: null, fatorCoccao: null, grupo: 'Ovos e derivados' },
+  { alimentoId: 'batata', fatorCorrecao: 1.25, fatorCoccao: 1, grupo: null },
+  { alimentoId: 'alface', fatorCorrecao: 1.3, fatorCoccao: 1, grupo: 'Verduras, hortaliças e derivados' },
+  { alimentoId: 'maca', fatorCorrecao: 1.1, fatorCoccao: 1, grupo: 'Frutas e derivados' },
+  { alimentoId: 'whey', fatorCorrecao: 1, fatorCoccao: 1, grupo: 'Suplementos' },
+];
+
+async function abrirPrevia(page: Page, rascunho: ConteudoDieta, extra: RespostasApi = {}) {
+  const api = await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR'] })),
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /alimentos': { corpo: [] },
+    'GET /alimentos/fatores': { corpo: FATORES_DA_PREVIA },
+    'GET /consultoria': { corpo: { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null } },
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluno Teste' } },
+    [`GET /alunos/${ALUNO_ID}/foto-perfil`]: erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
+    [`GET /alunos/${ALUNO_ID}/pesos`]: { corpo: [] },
+    [`GET /planos-dieta/${PLANO_ID}`]: { corpo: { ...DETALHE, rascunho } },
+    ...extra,
+  });
+  await page.goto(`/treinador/dietas/${PLANO_ID}`);
+  await page.getByRole('button', { name: 'Lista de compras', exact: true }).click();
+  const folha = page.getByRole('dialog', { name: 'Lista de compras' });
+  await expect(folha).toBeVisible();
+  return { ...api, folha };
+}
+
+for (const largura of [390, 1280]) {
+  test(`prévia do treinador: topo numa linha, grupos em colunas, dúzias do ovo, ⓘ por teclado e rodapé, em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { folha, naoTratadas, errosDaPagina } = await abrirPrevia(page, PREVIA);
+
+    await expect(folha.getByText('Prévia', { exact: true })).toBeVisible();
+    await expect(folha.getByText('7 itens · 7 dias', { exact: true })).toBeVisible();
+    // Os cartões de antes saíram: o período é só o segmento, e as notas foram para o ⓘ.
+    await expect(folha.getByText('Para quanto tempo')).toHaveCount(0);
+    await expect(folha.getByText('Lista de 7 dias')).toHaveCount(0);
+    await expect(folha.getByText(/^Prévia com os fatores atuais/).filter({ visible: true })).toHaveCount(0);
+
+    // Grupos como títulos (h3), na ordem do mercado, "Outros itens" (sal manual, sem grupo) por último.
+    const titulos = folha.getByRole('heading', { level: 3 });
+    await expect(titulos).toHaveText([
+      'Verduras, hortaliças e derivados', 'Frutas e derivados', 'Carnes e derivados', 'Ovos e derivados', 'Cereais e derivados', 'Suplementos', 'Outros itens',
+    ]);
+    // Duas colunas em 1280 (folha de 800 px), uma no celular.
+    const xs = new Set<number>();
+    for (const t of await titulos.all()) xs.add(Math.round((await t.boundingBox())?.x ?? 0));
+    expect(xs.size).toBe(largura === 1280 ? 2 : 1);
+
+    // A linha: "Na dieta" embaixo do nome e a quantidade à direita; o ovo de 7 dias (14 un) não é dúzia exata.
+    await expect(folha.getByText('Na dieta: 700 g pronto → ~900 g cru limpo')).toBeVisible();
+    await expect(folha.getByText('Na dieta: 1,05 kg cozido')).toBeVisible();
+    await expect(folha.getByText('14 un', { exact: true })).toBeVisible();
+    await expect(folha.getByText(/dúzia/)).toHaveCount(0);
+    await folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: '30 dias', exact: true }).click();
+    await expect(folha.getByText('7 itens · 30 dias', { exact: true })).toBeVisible();
+    await expect(folha.getByText('60 un · 5 dúzias', { exact: true })).toBeVisible();
+
+    // O ⓘ: nome "Sobre esta prévia", as duas notas na descrição; toque abre, Esc fecha só o balão, Enter e Espaço alternam.
+    const dica = folha.getByRole('button', { name: 'Sobre esta prévia' });
+    await expect(dica).toHaveAccessibleDescription(/Prévia com os fatores atuais da biblioteca[\s\S]*Apenas um cálculo estimado/);
+    await dica.click();
+    await expect(dica).toHaveAttribute('aria-expanded', 'true');
+    await expect(folha.getByText(/^Prévia com os fatores atuais/).filter({ visible: true })).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(dica).toHaveAttribute('aria-expanded', 'false');
+    await expect(folha).toBeVisible();
+    await dica.focus();
+    if ((await dica.getAttribute('aria-expanded')) === 'true') await page.keyboard.press('Enter');
+    await expect(dica).toHaveAttribute('aria-expanded', 'false');
+    await page.keyboard.press('Enter');
+    await expect(dica).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press(' ');
+    await expect(dica).toHaveAttribute('aria-expanded', 'false');
+
+    // Rodapé fixo: PDF à esquerda e Fechar à direita no PC; no celular, empilhados com o Fechar em cima.
+    const pdf = folha.getByRole('button', { name: 'Baixar PDF da lista' });
+    const fechar = folha.getByRole('button', { name: 'Fechar', exact: true }).last();
+    await expect(pdf).toBeEnabled();
+    const caixaPdf = await pdf.boundingBox();
+    const caixaFechar = await fechar.boundingBox();
+    if (largura === 1280) expect(caixaPdf?.x ?? 0).toBeLessThan(caixaFechar?.x ?? 0);
+    else expect(caixaFechar?.y ?? 0).toBeLessThan(caixaPdf?.y ?? 0);
+    await fechar.click();
+    await expect(folha).toHaveCount(0);
+
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('prévia do treinador: lista vazia diz por quê e o PDF fica desabilitado com o motivo', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const semQuantidade: ConteudoDieta = {
+    ...CONTEUDO,
+    refeicoes: [{
+      uid: 'cafe', nome: 'Café da manhã', horario: '07:00', observacao: null,
+      opcoes: [{ uid: 'cafe-a', rotulo: 'A', itens: [{ ...item('ovo', 'Ovo', 1, 'un'), quantidade: null }] }],
+    }],
+  };
+  const { folha, naoTratadas, errosDaPagina } = await abrirPrevia(page, semQuantidade);
+  await expect(folha.getByText('Nada para listar')).toBeVisible();
+  await expect(folha.getByText('A dieta não tem itens com quantidade.')).toBeVisible();
+  await expect(folha.getByRole('button', { name: 'Baixar PDF da lista' })).toBeDisabled();
+  await expect(folha.getByText('A lista está vazia.')).toBeVisible();
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});

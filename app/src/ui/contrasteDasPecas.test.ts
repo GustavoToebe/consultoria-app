@@ -1,5 +1,6 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import { aparenciaDoIndicador } from './aparenciaDoIndicador';
+import { coresDoBotaoDePerigo } from './botaoDePerigo';
 import { superficiePintada } from './superficiePintada';
 import { coresDoDesabilitado } from './desabilitado';
 import { aparenciaDoNumero } from './destaqueDoNumero';
@@ -60,7 +61,8 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     for (const s of [cores.campo, cores.superficie2]) expect(contraste(cores.textoSuave, s)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('Selo normal (`neutro`, sem pílula): texto secundário direto sobre qualquer superfície, inclusive a `faixaForte` do exercício', () => {
+  it('Selo normal (`neutro`, sem pílula): texto secundário e o "●" do `ponto` direto sobre qualquer superfície, inclusive a `faixaForte` do exercício', () => {
+    // O ponto do neutro usa a mesma `textoSuave` do texto: ≥ 4,5:1 já cobre o ≥ 3:1 de marca não textual.
     for (const s of [...superficies, cores.painel, cores.faixaForte]) expect(contraste(cores.textoSuave, s)).toBeGreaterThanOrEqual(4.5);
   });
 
@@ -70,9 +72,8 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     }
   });
 
-  it('Botao fantasma e perigoTexto com o mouse em cima: `texto` e `perigo` sobre a superfície elevada (`superficie2`)', () => {
+  it('Botao fantasma com o mouse em cima: `texto` sobre a superfície elevada (`superficie2`)', () => {
     expect(contraste(cores.texto, cores.superficie2)).toBeGreaterThanOrEqual(4.5);
-    expect(contraste(cores.perigo, cores.superficie2)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('Alerta: texto na cor do tom sobre o fundo opaco `tingido` (não depende de onde a caixa está)', () => {
@@ -85,10 +86,16 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     for (const s of [cores.fundo, cores.superficie, cores.superficie3]) expect(contraste(cores.bordaCampo, s)).toBeGreaterThanOrEqual(3);
   });
 
-  // D7 (17/11): o destrutivo é de contorno, sem fundo cheio (antes, `perigoFundo` preenchido com texto branco).
-  it('Botao perigo: rótulo e contorno `perigo` sobre o cartão, a faixa e o fundo; no hover, sobre a pílula `perigoSuave`', () => {
-    for (const s of [cores.fundo, cores.superficie, cores.superficie2, cores.superficie3, cores.perigoSuave]) {
-      expect(contraste(cores.perigo, s)).toBeGreaterThanOrEqual(4.5);
+  // 26/11: o destrutivo é tonal (`perigo` e o nome antigo `perigoTexto`), o desenho do "Sair sem salvar" (antes, D7 de
+  // 17/11: só contorno, sem fundo). O fundo é opaco, então o rótulo não depende de onde o botão está.
+  it('Botao perigo tonal: rótulo e ícone `perigo` ≥ 4,5:1 sobre o fundo `perigoSuave`; contorno (repouso e hover) ≥ 3:1 contra o fundo e as superfícies', () => {
+    const p = coresDoBotaoDePerigo(cores);
+    expect(p).toMatchObject({ fundo: cores.perigoSuave, texto: cores.perigo, bordaAoPassar: cores.perigo });
+    expect(p.fundo).toMatch(/^#[0-9A-F]{6}$/i);
+    expect(contraste(p.texto, p.fundo)).toBeGreaterThanOrEqual(4.5);
+    for (const s of superficies) {
+      expect(contraste(p.borda, s)).toBeGreaterThanOrEqual(3);
+      expect(contraste(p.bordaAoPassar, s)).toBeGreaterThanOrEqual(3);
     }
   });
 
@@ -133,8 +140,8 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     }
   });
 
-  it('Botao perigoTexto e secundário: `perigo` e `texto` sobre o cartão, a faixa e o fundo', () => {
-    for (const s of [cores.fundo, cores.superficie, cores.superficie3]) {
+  it('item de perigo do menu ⋯ (`ItemDeLista perigo`, texto vermelho sem caixa) e Botao secundário: `perigo` e `texto` sobre o cartão, o hover (`superficie2`), a faixa e o fundo', () => {
+    for (const s of [cores.fundo, cores.superficie, cores.superficie2, cores.superficie3]) {
       expect(contraste(cores.perigo, s)).toBeGreaterThanOrEqual(4.5);
       expect(contraste(cores.texto, s)).toBeGreaterThanOrEqual(4.5);
     }

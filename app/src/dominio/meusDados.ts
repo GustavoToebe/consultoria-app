@@ -5,7 +5,7 @@ import {
   CAMPOS_DO_ENDERECO, CPF_EM_USO, enderecoParaEnvio, enderecoParaForm, erroDoCpf, erroDoTelefone, errosDoEndereco, MENSAGEM_CPF_EM_USO,
   mascaraCpf, mascaraTelefone, type CampoDoEndereco, type EnderecoNoForm,
 } from './cadastroDoAluno';
-import { erroDoUsuarioDaRede, REDES_DO_ALUNO, usuarioDaRede, type RedeDoAluno } from './redesSociais';
+import { erroDaRedeDigitada, REDES_SOCIAIS_DO_ALUNO, usuarioDaRede, valoresDasRedesDoAluno, type RedeSocialDoAluno, type ValoresDasRedes } from './redesSociais';
 import { sexoDoCampo } from './sexo';
 
 /**
@@ -37,30 +37,26 @@ export interface FormMeusDados {
   cpf: string;
   endereco: EnderecoNoForm;
   sexo: string;
-  /** Como digitado: `@usuario`, usuário ou link (a API grava só o usuário). */
-  instagram: string;
-  tiktok: string;
+  /** Como digitado (`@usuario`, usuário ou link). Chave presente (também `''`) = rede adicionada na peça; ausente = não adicionada. */
+  redes: ValoresDasRedes<RedeSocialDoAluno>;
 }
 
-/** Erros por campo (do formulário ou do servidor); o endereço tem uma chave por campo. */
-export interface ErrosMeusDados {
+/** Erros por campo (do formulário ou do servidor); o endereço tem uma chave por campo e cada rede, a sua. */
+export type ErrosMeusDados = Partial<Record<RedeSocialDoAluno, string>> & {
   telefone?: string;
   cpf?: string;
   sexo?: string;
-  instagram?: string;
-  tiktok?: string;
   endereco: Partial<Record<CampoDoEndereco, string>>;
-}
+};
 
-/** Form inicial, com as máscaras do que a API devolveu (Instagram e TikTok com o `@` na frente). */
+/** Form inicial, com as máscaras do que a API devolveu; só as redes com valor entram (Instagram e TikTok com o `@` na frente). */
 export function formDeMeusDados(resp: MeusDadosResponse): FormMeusDados {
   return {
     telefone: resp.telefone?.trim() ? mascaraTelefone(resp.telefone) : '',
     cpf: resp.cpf?.trim() ? mascaraCpf(resp.cpf) : '',
     endereco: enderecoParaForm(resp.endereco),
     sexo: sexoDoCampo(resp.sexo) ?? '',
-    instagram: resp.instagram?.trim() ? `@${resp.instagram.trim()}` : '',
-    tiktok: resp.tiktok?.trim() ? `@${resp.tiktok.trim()}` : '',
+    redes: valoresDasRedesDoAluno(resp),
   };
 }
 
@@ -68,8 +64,8 @@ export function formDeMeusDados(resp: MeusDadosResponse): FormMeusDados {
 export const cpfEditavel = (resp: MeusDadosResponse): boolean => !resp.cpf?.trim();
 
 /**
- * Corpo do `PUT`: telefone, endereço e sexo substituem (vazio apaga); `cpf` só vai se o campo é editável e está
- * preenchido, senão `null` (sem efeito). A `versao` é a da resposta que a tela mostra.
+ * Corpo do `PUT`: telefone, endereço, sexo e as seis redes substituem (vazio apaga); `cpf` só vai se o campo é editável e
+ * está preenchido, senão `null` (sem efeito). A `versao` é a da resposta que a tela mostra.
  */
 export function corpoDoPut(form: FormMeusDados, resp: MeusDadosResponse): MeusDadosRequest {
   return {
@@ -77,16 +73,21 @@ export function corpoDoPut(form: FormMeusDados, resp: MeusDadosResponse): MeusDa
     cpf: cpfEditavel(resp) && form.cpf.trim() ? mascaraCpf(form.cpf) : null,
     endereco: enderecoParaEnvio(form.endereco),
     sexo: sexoDoCampo(form.sexo),
-    // Substituem: em branco apaga, preenchido vai como digitado (a API aceita `@usuario`, usuário ou link).
-    instagram: form.instagram.trim(),
-    tiktok: form.tiktok.trim(),
+    ...corpoDasRedesDoAluno(form.redes),
     versao: resp.versao,
   };
 }
 
-/** Há algum erro (de campo ou de endereço)? */
+/**
+ * As seis redes sempre: o `PUT` substitui, então rede removida ou nunca adicionada vai `''` (apaga) e a preenchida vai como
+ * digitada, aparada (a API aceita `@usuario`, usuário ou link e normaliza).
+ */
+const corpoDasRedesDoAluno = (redes: ValoresDasRedes<RedeSocialDoAluno>): Record<RedeSocialDoAluno, string> =>
+  Object.fromEntries(REDES_SOCIAIS_DO_ALUNO.map((r) => [r, (redes[r] ?? '').trim()])) as Record<RedeSocialDoAluno, string>;
+
+/** Há algum erro (de campo, de rede ou de endereço)? */
 export const temErros = (erros: ErrosMeusDados): boolean =>
-  !!erros.telefone || !!erros.cpf || !!erros.sexo || !!erros.instagram || !!erros.tiktok || Object.values(erros.endereco).some(Boolean);
+  !!erros.telefone || !!erros.cpf || !!erros.sexo || REDES_SOCIAIS_DO_ALUNO.some((r) => !!erros[r]) || Object.values(erros.endereco).some(Boolean);
 
 /** Erros que o formulário já sabe achar (os mesmos validadores da ficha); o CPF só conta quando é editável. */
 export function errosDoForm(form: FormMeusDados, resp: MeusDadosResponse): ErrosMeusDados {
@@ -95,8 +96,9 @@ export function errosDoForm(form: FormMeusDados, resp: MeusDadosResponse): Erros
   if (telefone) erros.telefone = telefone;
   const cpf = cpfEditavel(resp) ? erroDoCpf(form.cpf) : undefined;
   if (cpf) erros.cpf = cpf;
-  for (const rede of REDES_DO_ALUNO) {
-    const erro = erroDoUsuarioDaRede(rede, form[rede]);
+  // Só as redes adicionadas: rede ausente vai em branco e não tem o que conferir.
+  for (const rede of REDES_SOCIAIS_DO_ALUNO) {
+    const erro = form.redes[rede] === undefined ? undefined : erroDaRedeDigitada(rede, form.redes[rede]);
     if (erro) erros[rede] = erro;
   }
   return erros;
@@ -108,27 +110,31 @@ export function houveMudanca(form: FormMeusDados, resp: MeusDadosResponse): bool
   if (somenteDigitos(form.telefone) !== somenteDigitos(inicial.telefone)) return true;
   if (cpfEditavel(resp) && somenteDigitos(form.cpf) !== '') return true;
   if (sexoDoCampo(form.sexo) !== sexoDoCampo(inicial.sexo)) return true;
-  if (REDES_DO_ALUNO.some((r) => usuarioOuTexto(r, form[r]) !== usuarioOuTexto(r, inicial[r]))) return true;
+  // Rede ausente e rede adicionada em branco são a mesma coisa (as duas vão `''`).
+  if (REDES_SOCIAIS_DO_ALUNO.some((r) => redeOuTexto(r, form.redes[r] ?? '') !== redeOuTexto(r, inicial.redes[r] ?? ''))) return true;
   const atual = enderecoParaEnvio(form.endereco);
   const antes = enderecoParaEnvio(inicial.endereco);
   return CAMPOS_DO_ENDERECO.some((c) => (atual?.[c] ?? null) !== (antes?.[c] ?? null));
 }
 
-/** "@fulano", "fulano" e o link do perfil são a mesma coisa; o que não se entende conta pelo texto. */
-const usuarioOuTexto = (rede: RedeDoAluno, texto: string) => {
+/**
+ * Instagram e TikTok: "@fulano", "fulano" e o link do perfil são a mesma coisa; o que não se entende conta pelo texto. As
+ * outras redes contam pelo texto aparado (a API as normaliza).
+ */
+const redeOuTexto = (rede: RedeSocialDoAluno, texto: string): string | null => {
+  if (rede !== 'instagram' && rede !== 'tiktok') return texto.trim();
   const usuario = usuarioDaRede(rede, texto);
   return usuario === undefined ? texto.trim() : usuario;
 };
 
-/** Erros por campo devolvidos pelo servidor (422 `ALUNO_INVALIDO`: `telefone`, `cpf`, `sexo`, `instagram`, `tiktok`, `endereco.<campo>`). */
+/** Erros por campo devolvidos pelo servidor (422 `ALUNO_INVALIDO`: `telefone`, `cpf`, `sexo`, as seis redes, `endereco.<campo>`). */
 export function errosDoServidor(erro: unknown): ErrosMeusDados {
   const campos = errosPorCampo(erro);
   const erros: ErrosMeusDados = { endereco: {} };
   if (campos.telefone) erros.telefone = campos.telefone;
   if (campos.cpf) erros.cpf = campos.cpf;
   if (campos.sexo) erros.sexo = campos.sexo;
-  if (campos.instagram) erros.instagram = campos.instagram;
-  if (campos.tiktok) erros.tiktok = campos.tiktok;
+  for (const r of REDES_SOCIAIS_DO_ALUNO) if (campos[r]) erros[r] = campos[r];
   for (const c of CAMPOS_DO_ENDERECO) {
     const mensagem = campos[`endereco.${c}`];
     if (mensagem) erros.endereco[c] = mensagem;

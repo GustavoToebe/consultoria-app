@@ -1,4 +1,5 @@
 import type { TipoPlano } from '../api/tipos';
+import { rotaInteiraDoCaminho } from './rotasDasConfiguracoes';
 
 /** Permissão de cada ação por tipo de plano. Mobilidade usa as do treino (decisão do produto). Mapa exaustivo: tipo novo não compila sem entrada. */
 export const PERMISSOES_DO_PLANO: Record<TipoPlano, { ler: string; alterar: string; publicar: string }> = {
@@ -27,6 +28,8 @@ export function moduloDesligadoDaTela(caminho:string,pagamentosHabilitados:boole
  * Financeiro some do menu mesmo para quem tem a permissão. `vitrineHabilitada`, idem para a Vitrine (`GET /eu`).
  */
 export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,pagamentosHabilitados:boolean=false,administrador:boolean=false,vitrineHabilitada:boolean=false):boolean {
+  // Item aberto dentro de Configurações (`/treinador/configuracoes/<id>`): a mesma regra da rota inteira dele; id desconhecido falha fechado.
+  if(caminho.startsWith('/treinador/configuracoes/')){const inteira=rotaInteiraDoCaminho(caminho);return inteira!==null&&podeAcessarTela(inteira,tem,pagamentosHabilitados,administrador,vitrineHabilitada);}
   if(['/treinador/perfil','/treinador/meus-dados','/treinador/seguranca','/treinador/ajustes','/treinador/ajuda','/treinador/termos','/treinador/configuracoes'].includes(caminho)) return true;
   if(caminho==='/treinador/comunidade') return tem('TREINO_LER');
   if(caminho==='/treinador/minha-conta') return tem('CONTA_LER');

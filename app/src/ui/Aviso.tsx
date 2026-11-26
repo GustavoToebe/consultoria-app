@@ -8,7 +8,7 @@ import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { CamadaDoAviso } from './camadaDoAviso';
 import { portalDaFolhaDoTopo } from './historicoDasFolhas';
-import { baseDoAviso, distanciaDoRodapeRegistrado, registrarPeDaCamada, topoDoRodapeFixo } from './rodapeFixoDaPagina';
+import { baseDoAviso, distanciaDoRodapeDaFolha, distanciaDoRodapeRegistrado, registrarPeDaCamada, topoDoRodapeFixo } from './rodapeFixoDaPagina';
 import { fundoPintado, superficiePintada } from './superficiePintada';
 import { Texto } from './Texto';
 
@@ -124,7 +124,8 @@ export function AvisoProvider({ children }: { children: ReactNode }) {
 
 /**
  * Para onde vai o aviso: `''` = camada da raiz (sem folha, ou com outro `Modal` por cima da folha do topo); senão o nome do portal da Folha do topo e, na web, `|` e a distância do
- * topo do rodapé dela ao pé da janela. Na web só vale a folha cujo nó ainda está na página (a que fecha neste commit já
+ * topo do rodapé dela ao pé da janela (no celular, ao pé do portal dela, medido dentro do `Modal`:
+ * `useRegistroDoRodapeDaFolha`). Na web só vale a folha cujo nó ainda está na página (a que fecha neste commit já
  * saiu do DOM, mas só sai da lista no efeito); no celular a folha que fecha já vem marcada. Sem folha, `|` e a distância
  * do topo do rodapé fixo da página (barra de ações da importação) ao pé da janela, com o host vazio: na web pelo DOM, no
  * celular pelo registro (`useRegistroDoRodapeFixo`).
@@ -144,7 +145,11 @@ function distanciaDoRodapeDaPagina(margemInferior: number): string {
 }
 
 function destinoDaFolha(folha: NonNullable<ReturnType<typeof portalDaFolhaDoTopo>>): string {
-  if (Platform.OS !== 'web') return folha.nome;
+  if (Platform.OS !== 'web') {
+    // Celular: o rodapé da folha se registra (`useRegistroDoRodapeDaFolha`); sem ele (ou antes da medida), só o portal.
+    const distancia = distanciaDoRodapeDaFolha(folha.nome);
+    return distancia === null ? folha.nome : `${folha.nome}|${distancia}`;
+  }
   if (!folha.elemento?.isConnected) return '';
   // Um `Modal` aberto depois da folha (menu, Calendário, seleção) fica por cima dela: o aviso vai para a camada do `body`.
   let raiz: Element | null = folha.elemento;

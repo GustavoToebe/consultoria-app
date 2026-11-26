@@ -377,7 +377,8 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Mais ações da lesão em Ombro direito' }).click();
     await page.getByRole('dialog', { name: 'Ombro direito' }).getByRole('button', { name: 'Editar' }).click();
     const folha = page.getByRole('dialog', { name: 'Editar lesão' });
-    await expect(folha.getByLabel('Região do corpo')).toHaveValue('Ombro direito');
+    await expect(folha.getByRole('radio', { name: 'Ombro', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(folha.getByRole('radio', { name: 'Direito', exact: true })).toHaveAttribute('aria-checked', 'true');
     await folha.getByRole('button', { name: 'Cancelar' }).click();
     await page.getByRole('button', { name: 'Mais ações da lesão em Joelho esquerdo' }).click();
     await page.getByRole('dialog', { name: 'Joelho esquerdo' }).getByRole('button', { name: 'Excluir lesão' }).click();

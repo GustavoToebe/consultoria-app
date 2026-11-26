@@ -10,12 +10,15 @@ import type { AbaDaFicha, BlocoDaFicha } from './fichaDoAluno';
  * Com largura medida para três colunas (2560 e 3440 com o menu aberto), três pilhas (`colunasDaAbaDados`, 24/11).
  */
 
-/** As quatro seções dos Dados do aluno (`SECOES_DO_ALUNO`, postas pelo `DadosDoAluno`) e os blocos da aba. */
-export type PecaDaAbaDados = 'identificacao' | 'contato' | 'acompanhamento' | 'objetivo' | 'planoContratado' | 'acessoAoApp' | 'anamnese' | 'lesoes';
-export type SecaoDosDados = Extract<PecaDaAbaDados, 'identificacao' | 'contato' | 'acompanhamento' | 'objetivo'>;
+/**
+ * As seções dos Dados do aluno (as quatro de `SECOES_DO_ALUNO` e o cartão "Redes sociais", 26/11, logo abaixo do Contato e
+ * sempre na coluna dele; postas pelo `DadosDoAluno`, que tira a das redes sem rede preenchida) e os blocos da aba.
+ */
+export type PecaDaAbaDados = 'identificacao' | 'contato' | 'redes' | 'acompanhamento' | 'objetivo' | 'planoContratado' | 'acessoAoApp' | 'anamnese' | 'lesoes';
+export type SecaoDosDados = Extract<PecaDaAbaDados, 'identificacao' | 'contato' | 'redes' | 'acompanhamento' | 'objetivo'>;
 type BlocoDaAbaDados = Exclude<PecaDaAbaDados, SecaoDosDados>;
 
-export const SECOES_DOS_DADOS: readonly SecaoDosDados[] = ['identificacao', 'contato', 'acompanhamento', 'objetivo'];
+export const SECOES_DOS_DADOS: readonly SecaoDosDados[] = ['identificacao', 'contato', 'redes', 'acompanhamento', 'objetivo'];
 const ehSecao = (p: PecaDaAbaDados): p is SecaoDosDados => (SECOES_DOS_DADOS as readonly string[]).includes(p);
 
 /**
@@ -24,7 +27,7 @@ const ehSecao = (p: PecaDaAbaDados): p is SecaoDosDados => (SECOES_DOS_DADOS as 
  * cabia em 1280 e virava cartões.
  */
 export const COLUNAS_DA_FICHA: Readonly<Record<'esquerda' | 'direita', readonly PecaDaAbaDados[]>> = {
-  esquerda: ['identificacao', 'contato', 'planoContratado'],
+  esquerda: ['identificacao', 'contato', 'redes', 'planoContratado'],
   direita: ['acompanhamento', 'objetivo', 'acessoAoApp', 'anamnese'],
 };
 export const ABAIXO_DAS_DUAS_COLUNAS: readonly BlocoDaAbaDados[] = ['lesoes'];
@@ -36,7 +39,7 @@ export const PROPORCAO_DAS_COLUNAS = { esquerda: 3, direita: 2 } as const;
  * 2560 com o menu aberto; com terços iguais ela teria ~740 px e viraria cartões.
  */
 export const TRES_COLUNAS_DA_FICHA: readonly (readonly PecaDaAbaDados[])[] = [
-  ['identificacao', 'contato', 'objetivo'],
+  ['identificacao', 'contato', 'redes', 'objetivo'],
   ['planoContratado', 'lesoes'],
   ['acompanhamento', 'acessoAoApp', 'anamnese'],
 ];
@@ -93,6 +96,26 @@ export const colunaUnica = (colunas: readonly ColunaDaAbaDados[] | null, editand
  */
 export const tetoDaColunaUnica = (largura: number, vao: number): number =>
   (PROPORCAO_DAS_COLUNAS.esquerda / (PROPORCAO_DAS_COLUNAS.esquerda + PROPORCAO_DAS_COLUNAS.direita)) * (largura - vao);
+
+/** Medida de uma coluna do formulário dos Dados: `flex` (proporção da linha) ou `largura` fixa em px. */
+export type MedidaDaColuna = { flex: number } | { largura: number };
+
+/**
+ * As duas colunas do formulário de edição dos Dados (`FormAluno`: 1 e 2 | 3 e 4) com o vão no mesmo x do vão da leitura
+ * (Gustavo, 26/11: "a divisória do meio alinhada entre edição e leitura"; antes o formulário dividia ao meio). Em duas
+ * colunas, as proporções da leitura (3:2) na mesma largura e com o mesmo vão. Em três, o formulário continua no teto do
+ * editor de campos (4.10): a esquerda tem a largura da 1ª coluna da leitura (Identificação e Contato ficam no lugar) e a
+ * direita, o resto do teto. `largura` é a da aba (a medida, já no teto dela); na compacta (`null`), o formulário quebra sozinho.
+ */
+export function colunasDoFormulario(colunas: readonly ColunaDaAbaDados[] | null, largura: number, vao: number): readonly [MedidaDaColuna, MedidaDaColuna] | null {
+  if (!colunas) return null;
+  if (colunas.length === 2) return [{ flex: colunas[0].proporcao }, { flex: colunas[1].proporcao }];
+  // A conta do flex com o `maxWidth` de cada coluna: a do meio (1,2) é a primeira a bater no teto e as outras dividem o resto.
+  const [p0, p1, p2] = colunas.map((c) => c.proporcao);
+  const livre = largura - 2 * vao;
+  const meio = Math.min(LARGURA_EDITOR_DE_CAMPOS, (livre * p1) / (p0 + p1 + p2));
+  return [{ largura: Math.min(LARGURA_EDITOR_DE_CAMPOS, ((livre - meio) * p0) / (p0 + p2)) }, { flex: 1 }];
+}
 
 /** Os blocos que vão abaixo das colunas, na largura toda delas: só no arranjo de duas e só os que a aba mostra. */
 export const abaixoDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, blocos: readonly BlocoDaFicha[]): BlocoDaAbaDados[] =>

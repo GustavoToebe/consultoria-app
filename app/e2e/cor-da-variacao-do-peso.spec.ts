@@ -51,6 +51,33 @@ async function corNoResumo(page: Page, texto: string): Promise<string> {
   return page.getByLabel(/^Desde o registro anterior/).getByText(texto, { exact: true }).evaluate((e) => getComputedStyle(e).color);
 }
 
+/**
+ * Balão do gráfico no ponto `rotulo` ("26/10: 80,5 kg"): cor da variação (seta e número), fundo do balão e miolo do
+ * ponto em foco. O gráfico abre pela aba; o ponto em foco é o único de raio 6.
+ */
+async function balaoNoPonto(page: Page, rotulo: string, variacao: string) {
+  await page.getByRole('tab', { name: 'Gráfico' }).click();
+  const ponto = page.getByRole('button', { name: rotulo, exact: true });
+  await ponto.scrollIntoViewIfNeeded();
+  await ponto.hover();
+  // O resumo acima repete a última variação: procura dentro do balão (o pai da linha "dd/mm/aaaa · peso").
+  const [dia, valor] = rotulo.split(': ');
+  const balao = page.getByText(new RegExp(`^${dia}/\\d{4} · ${valor}$`)).locator('..');
+  const parte = balao.getByText(variacao, { exact: true });
+  await expect(parte).toBeVisible();
+  return {
+    cor: await parte.evaluate((e) => getComputedStyle(e).color),
+    fundo: await parte.evaluate((e) => {
+      for (let n: Element | null = e; n; n = n.parentElement) {
+        const bg = getComputedStyle(n).backgroundColor;
+        if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
+      }
+      return null;
+    }),
+    miolo: await page.getByRole('img', { name: /^Gráfico de peso/ }).locator('circle[r="6"]').evaluate((e) => getComputedStyle(e).fill),
+  };
+}
+
 async function preparar(page: Page, largura: number, tema: NomeDoTema, usuarioId: string) {
   await page.setViewportSize({ width: largura, height: 900 });
   await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [usuarioId, tema]);
@@ -90,6 +117,22 @@ for (const tema of Object.keys(TEMAS) as NomeDoTema[]) {
         expect(errosDaPagina).toEqual([]);
       });
 
+      test('gráfico com REDUZIR: balão e ponto em foco com a cor da lista, balão na superfície do cartão', async ({ page }) => {
+        await preparar(page, largura, tema, TREINADOR.id);
+        const { errosDaPagina } = await abrirFicha(page, 'REDUZIR');
+        const desceu = await balaoNoPonto(page, '26/10: 80,5 kg', '▼ −0,7 kg');
+        expect(desceu).toEqual({ cor: rgb(cores.sucesso), fundo: rgb(cores.superficie), miolo: rgb(cores.sucesso) });
+        // O leitor de tela ouve a direção e a meta, sem a seta.
+        await expect(page.getByText('26/10/2026, 80,5 kg. Desceu 0,7 kg desde 19/10, a favor da meta', { exact: true })).toBeAttached();
+        const subiu = await balaoNoPonto(page, '19/10: 81,2 kg', '▲ +1,2 kg');
+        expect(subiu).toEqual({ cor: rgb(cores.perigo), fundo: rgb(cores.superficie), miolo: rgb(cores.perigo) });
+        // Primeiro registro: sem variação, ponto neutro.
+        await page.getByRole('button', { name: '12/10: 80 kg', exact: true }).hover();
+        await expect(page.getByText('Sem registro anterior', { exact: true })).toBeVisible();
+        expect(await page.getByRole('img', { name: /^Gráfico de peso/ }).locator('circle[r="6"]').evaluate((e) => getComputedStyle(e).fill)).toBe(rgb(cores.texto));
+        expect(errosDaPagina).toEqual([]);
+      });
+
       test('ficha com SEM_META: variação na cor do texto e sem a linha da meta', async ({ page }) => {
         await preparar(page, largura, tema, TREINADOR.id);
         const { errosDaPagina } = await abrirFicha(page, 'SEM_META');
@@ -97,6 +140,9 @@ for (const tema of Object.keys(TEMAS) as NomeDoTema[]) {
         expect(await corDe(page, '▲ +1,2 kg')).toBe(rgb(cores.texto));
         expect(await corNoResumo(page, '▼ −0,7 kg')).toBe(rgb(cores.texto));
         await expect(page.getByText(/Cores pela meta/)).toHaveCount(0);
+        // No gráfico também: sem meta, balão e ponto neutros (nada de verde ou vermelho inventado).
+        const balao = await balaoNoPonto(page, '26/10: 80,5 kg', '▼ −0,7 kg');
+        expect(balao).toEqual({ cor: rgb(cores.texto), fundo: rgb(cores.superficie), miolo: rgb(cores.texto) });
         expect(errosDaPagina).toEqual([]);
       });
 
@@ -115,6 +161,9 @@ for (const tema of Object.keys(TEMAS) as NomeDoTema[]) {
         expect(await corNoResumo(page, '▼ −0,7 kg')).toBe(rgb(cores.perigo));
         await expect(page.getByText('Verde: no caminho da sua meta', { exact: true })).toBeVisible();
         await expect(page.getByText(/Cores pela meta/)).toHaveCount(0);
+        // A inversão vale no balão: com AUMENTAR a queda é vermelha.
+        const balao = await balaoNoPonto(page, '26/10: 80,5 kg', '▼ −0,7 kg');
+        expect(balao).toEqual({ cor: rgb(cores.perigo), fundo: rgb(cores.superficie), miolo: rgb(cores.perigo) });
         expect(errosDaPagina).toEqual([]);
       });
     });

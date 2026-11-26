@@ -1,3 +1,5 @@
+import { rotaInteiraDoCaminho } from './rotasDasConfiguracoes';
+
 /**
  * Seção da Ajuda que explica cada tela: o "Saiba mais" do balão "Sobre esta tela" do cabeçalho (`ui/AjudaDoCabecalho`).
  * Só onde a correspondência com uma seção que existe em `ajuda/conteudo.ts` é óbvia (o título da seção ou um item dela
@@ -39,7 +41,9 @@ export const TELAS_COM_ARTIGO = Object.entries(SECAO_DA_TELA).filter((e): e is [
 const SEM_SUBTELAS = new Set(['/treinador']);
 
 /** Endereço do artigo da tela na Ajuda da área (`/treinador/ajuda?secao=biblioteca`), ou `null` sem artigo. */
-export function artigoDaTela(caminho: string): string | null {
+export function artigoDaTela(caminhoPedido: string): string | null {
+  // Item aberto dentro de Configurações tem o artigo da tela inteira dele (Segurança continua sem, Termos vai à privacidade).
+  const caminho = rotaInteiraDoCaminho(caminhoPedido) ?? caminhoPedido;
   const area = caminho.startsWith('/aluno') ? 'aluno' : caminho.startsWith('/treinador') ? 'treinador' : null;
   if (!area) return null;
   const chave = Object.keys(SECAO_DA_TELA)

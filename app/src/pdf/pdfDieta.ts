@@ -8,6 +8,7 @@ import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { linkParaAbrir } from '../dominio/links';
 import { tomDaVariacaoDoPeso } from '../dominio/corDaVariacaoDoPeso';
+import { tituloDoPlano } from '../dominio/tituloDoPlano';
 import { variacaoDoPeso } from '../dominio/variacaoDoPeso';
 import { textoSobre } from '../tema/tokens';
 import { FUNDO_LEVE } from './cssDosTemas';
@@ -157,7 +158,8 @@ function cssDoTemaDeDieta(tema: TemaPdf, cor: string): string {
  */
 export function documentoDieta(d: DadosPdfDieta): Documento {
   const c = soAVariacao(d.conteudo, d.variacaoUid ?? null);
-  const cor = corDaMarca(d.marca.corPrimaria);
+  const titulo = tituloDoPlano(d.titulo, 'dieta', d.aluno);
+  const cor =corDaMarca(d.marca.corPrimaria);
   const tema = temaValido(d.marca.temaPdf);
   const corTexto = corDeTextoNoTema(d.marca.corPrimaria, tema);
   const barra = `<div class="barra" style="background:${cor}"></div>`;
@@ -226,7 +228,7 @@ ${tabelaDoTotal(totalDoDia(c.refeicoes))}
       marca: d.marca,
       logoDataUri: d.logoDataUri,
       documento: 'Sugestão de plano alimentar',
-      titulo: d.titulo,
+      titulo,
       versao: d.versao,
       aluno: d.aluno,
       emitidoEm: d.emitidoEm,
@@ -265,5 +267,5 @@ ${tabelaDoTotal(totalDoDia(c.refeicoes))}
     `<div class="fim">${d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : ''}<div class="pequeno centro" style="margin-top:14pt">${esc(d.marca.nome)}</div></div>`,
   ];
   if (d.lista) partes.splice(partes.length - 1, 0, secaoDaLista(d.lista, d.versao, corTexto, comVariacoes));
-  return { titulo: `Dieta - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria, tema) + CSS_DIETA + cssDoTemaDeDieta(tema, cor), corpo: partes.join('\n') };
+  return { titulo: `Dieta - ${d.aluno} - ${titulo}`, css: cssBase(d.marca.corPrimaria, tema) + CSS_DIETA + cssDoTemaDeDieta(tema, cor), corpo: partes.join('\n') };
 }

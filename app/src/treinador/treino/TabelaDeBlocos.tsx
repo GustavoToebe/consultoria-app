@@ -14,6 +14,7 @@ import { coresDaEdicao } from '../../ui/selecao';
 import { sobre as comMouse } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { acoesDeMover } from '../acoesDeMover';
+import { LARGURA_MAXIMA_DAS_COLUNAS as MAXIMA } from './colunasDasSeries';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
 
 export interface LinhaDoBloco {
@@ -224,13 +225,13 @@ export function TabelaDeBlocos({ linhas, ativa, aoMudar, depois, empilhado = fal
   return (
     <View style={estilos.tabela}>
       {/* Cabeçalho só visual: cada linha já diz os valores no nome acessível. */}
-      <View style={[estilos.linha, estilos.cabecalho, comAlca ? estilos.cabecalhoComAlca : null, comMenu ? estilos.cabecalhoComMenu : null, { marginLeft: recuo }]} aria-hidden importantForAccessibility="no-hide-descendants">
-        <Texto variante="rotulo" style={estilos.serie}>Série</Texto>
-        <Texto variante="rotulo" style={estilos.tipo}>Tipo</Texto>
-        <Texto variante="rotulo" style={estilos.carga}>Carga</Texto>
-        <Texto variante="rotulo" style={estilos.reps}>Reps</Texto>
-        <Texto variante="rotulo" style={estilos.descanso}>Descanso</Texto>
-        <View style={estilos.chevron} />
+      <View testID="cabecalho-das-series" style={[estilos.linha, estilos.cabecalho, comAlca ? estilos.cabecalhoComAlca : null, comMenu ? estilos.cabecalhoComMenu : null, { marginLeft: recuo }]} aria-hidden importantForAccessibility="no-hide-descendants">
+        <Texto variante="rotulo" style={estilos.serie} testID="cabecalho-serie">Série</Texto>
+        <Texto variante="rotulo" style={estilos.tipo} testID="cabecalho-tipo">Tipo</Texto>
+        <Texto variante="rotulo" style={estilos.carga} testID="cabecalho-carga">Carga</Texto>
+        <Texto variante="rotulo" style={estilos.reps} testID="cabecalho-reps">Reps</Texto>
+        <Texto variante="rotulo" style={estilos.descanso} testID="cabecalho-descanso">Descanso</Texto>
+        <View style={estilos.chevron} testID="cabecalho-chevron" />
       </View>
       <View style={estilos.lista} role="group" aria-label="Blocos do exercício">{linhas.map(linha)}</View>
       {depois ? <View style={estilos.depois}>{depois}</View> : null}
@@ -265,11 +266,13 @@ const estilos = StyleSheet.create({
   // O Tipo tem base própria (16/11): com base 0 ficava com ~60 px em 1280 e o selo e a variação quebravam em várias
   // linhas, com o Descanso sobrando. Tipo e Carga (os textos longos) cedem quando falta espaço.
   // Com o ⋯ de cada linha (19/11) a sobra encolheu no inspetor de 1280: o Tipo segura 140 e quem cede é a Carga.
-  tipo: { flexGrow: 3, flexShrink: 1, flexBasis: 150, minWidth: 140 },
-  carga: { flexGrow: 3, flexShrink: 1, flexBasis: 120, minWidth: 96 },
-  reps: { flexGrow: 1, flexShrink: 0, flexBasis: 80 },
-  descanso: { flexGrow: 1, flexShrink: 0, flexBasis: 72 },
-  chevron: { width: CHEVRON, flexShrink: 0, alignItems: 'center' },
+  // Teto por coluna (26/11, ultralarga sem o teto do inspetor): passado o máximo a coluna para de crescer e a sobra fica
+  // antes do chevron, que vai para a borda (`marginLeft: 'auto'`, zero enquanto as colunas ainda crescem, até 1600).
+  tipo: { flexGrow: 3, flexShrink: 1, flexBasis: 150, minWidth: 140, maxWidth: MAXIMA.tipo },
+  carga: { flexGrow: 3, flexShrink: 1, flexBasis: 120, minWidth: 96, maxWidth: MAXIMA.carga },
+  reps: { flexGrow: 1, flexShrink: 0, flexBasis: 80, maxWidth: MAXIMA.reps },
+  descanso: { flexGrow: 1, flexShrink: 0, flexBasis: 72, maxWidth: MAXIMA.descanso },
+  chevron: { width: CHEVRON, flexShrink: 0, alignItems: 'center', marginLeft: 'auto' },
   titulo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexWrap: 'wrap' },
   forte: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 21, flexShrink: 1 },
   semi: { fontFamily: fontes.semi },

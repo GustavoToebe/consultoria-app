@@ -8,11 +8,14 @@ import {
   CAMPOS_DO_ENDERECO, CPF_EM_USO, ENDERECO_VAZIO, MENSAGEM_CPF_EM_USO, enderecoParaEnvio, enderecoParaForm, erroDoCpf, erroDoTelefone, errosDoEndereco,
   mascaraCpf, mascaraTelefone, nascimentoParaEnvio, SECOES_DO_ALUNO,
 } from '../dominio/cadastroDoAluno';
+import type { MedidaDaColuna } from '../dominio/colunasDaFicha';
 import { dataParaTela } from '../dominio/formatos';
 import { CamposDeEndereco } from '../ui/CamposDeEndereco';
 import { Escolha } from '../ui/Escolha';
 import { useCarregar } from '../ui/useCarregar';
-import { erroDoUsuarioDaRede, NOME_DA_REDE, REDES_DO_ALUNO, redeParaEnvio, type RedeDoAluno } from '../dominio/redesSociais';
+import {
+  erroDaRedeDigitada, redesAdicionadas, redesDoAlunoParaEnvio, REDES_SOCIAIS_DO_ALUNO, valoresDasRedesDoAluno, type RedeSocialDoAluno, type ValoresDasRedes,
+} from '../dominio/redesSociais';
 import { OPCOES_DE_SEXO, sexoDoCampo } from '../dominio/sexo';
 import { metaParaEnvio, OPCOES_DA_META_DO_ALUNO, opcaoDaMeta, type OpcaoDaMeta } from '../dominio/metaDoPesoNaFicha';
 import { useTema } from '../tema/TemaProvider';
@@ -25,6 +28,7 @@ import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
 import { MensagemErro } from '../ui/Estados';
 import { codigoApi, errosPorCampo, textoDoErro } from '../ui/erros';
+import { RedesSociais } from '../ui/RedesSociais';
 import { Texto } from '../ui/Texto';
 import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
 import { useGuardaDeSaida } from '../ui/GuardaDeSaida';
@@ -40,14 +44,19 @@ interface Props {
   noAcompanhamento?: ReactNode;
   /** Nível dos títulos das seções: 2 no Novo aluno (logo abaixo do h1), 3 na ficha (abaixo de "Dados do aluno"). */
   nivel?: 2 | 3;
+  /**
+   * As duas colunas na medida das da leitura (ficha em colunas, `colunasDoFormulario`): lado a lado, sem quebrar, com o vão no
+   * mesmo x. Sem ela (Novo aluno, faixa compacta), as colunas dividem a largura e descem quando não cabem.
+   */
+  colunas?: readonly [MedidaDaColuna, MedidaDaColuna];
 }
 
 /** Texto do campo em número de 1 a 365; vazio = sem prazo (undefined → null no envio) e inválido = null. */
 /** Objetivo e observações são dados sensíveis (LGPD): a nota é a mesma nos dois campos. */
 const SENSIVEL = 'Dado sensível: só membros com permissão de dados sensíveis veem.';
 
-/** A API guarda o usuário sem `@`; o campo mostra com ele. */
-const comArroba = (usuario: string | null | undefined) => (usuario?.trim() ? `@${usuario.trim()}` : '');
+/** O cartão próprio das redes do aluno (26/11), logo abaixo do Contato, aqui e na leitura (`DadosDoAluno`). */
+export const TITULO_DAS_REDES = 'Redes sociais';
 
 function diasDoCampo(texto: string): number | null {
   const n = Number(texto.trim());
@@ -56,12 +65,12 @@ function diasDoCampo(texto: string): number | null {
 
 /**
  * Dados do aluno nas quatro seções da ficha (`SECOES_DO_ALUNO`, a mesma ordem da leitura): Identificação (nome,
- * nascimento, sexo, CPF), Contato e endereço, Configuração do acompanhamento (responsável, questionário na ficha, dias) e
+ * nascimento, sexo, CPF), Contato e endereço (com o cartão "Redes sociais" logo abaixo, `ui/RedesSociais` em edição, 26/11), Configuração do acompanhamento (responsável, questionário na ficha, dias) e
  * Objetivo e observações (objetivo, meta, observações). CPF, endereço e a seção 4 inteira só com permissão de alterar
  * dado sensível; seção sem campo não aparece. O e-mail é opcional (o aluno escolhe o dele ao aceitar o convite).
  * Objetivo, observações, CPF e endereço são dado sensível: ficam só no banco, nunca em log.
  */
-export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null, noAcompanhamento, nivel = 2 }: Props) {
+export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null, noAcompanhamento, nivel = 2, colunas }: Props) {
   const {pode,usuario}=useSessao();
   const { cores } = useTema();
   const { width } = useWindowDimensions();
@@ -73,8 +82,9 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const [nascimento, setNascimento] = useState(dataParaTela(inicial?.dataNascimento ?? null));
   const [email, setEmail] = useState(inicial?.email ?? '');
   const [telefone, setTelefone] = useState(inicial?.telefone ?? '');
-  // Instagram e TikTok: a API devolve só o usuário; o campo mostra com o `@` e aceita `@usuario`, usuário ou link.
-  const [redes, setRedes] = useState({ instagram: comArroba(inicial?.instagram), tiktok: comArroba(inicial?.tiktok) });
+  // As seis redes (26/11): só as que têm valor abrem adicionadas (Instagram e TikTok com o `@`); as iniciais ficam como abriram,
+  // para o envio mandar só o que mudou.
+  const [redes, setRedes] = useState<ValoresDasRedes<RedeSocialDoAluno>>(() => valoresDasRedesDoAluno(inicial ?? {}));
   const [redesIniciais] = useState(redes);
   const [objetivo, setObjetivo] = useState(inicial?.objetivo ?? '');
   const [cpf, setCpf] = useState(inicial?.cpf ?? '');
@@ -93,17 +103,21 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   // Só com a leitura também: sem ela a meta lida não vem e o campo abriria em "Padrão" por engano.
   const comMeta = comSensivel && pode('ALUNO_SENSIVEL_LER');
   const erroTelefone = comTelefone ? erroDoTelefone(telefone) : undefined;
-  const errosRedes: Partial<Record<RedeDoAluno, string>> = comTelefone ? { instagram: erroDoUsuarioDaRede('instagram', redes.instagram), tiktok: erroDoUsuarioDaRede('tiktok', redes.tiktok) } : {};
+  // O erro local vence o da API (422 `ALUNO_INVALIDO` no campo da rede), que vale até o próximo Salvar, como nos outros campos.
+  const adicionadas = comTelefone ? redesAdicionadas(redes, REDES_SOCIAIS_DO_ALUNO) : [];
+  const redeComErroLocal = adicionadas.some((r) => erroDaRedeDigitada(r, redes[r] ?? ''));
+  const errosRedes = Object.fromEntries(adicionadas.map((r) => [r, erroDaRedeDigitada(r, redes[r] ?? '') ?? campos[r]]));
   const erroCpf = comSensivel ? erroDoCpf(cpf) : undefined;
   const errosEndereco = comSensivel ? errosDoEndereco(endereco) : {};
   const nascimentoEnvio = nascimentoParaEnvio(nascimento, !!inicial?.dataNascimento);
   // O campo de data já avisa a data impossível ou fora da faixa; a incompleta é avisada aqui, para o botão não travar sem motivo à vista.
   const nascimentoIncompleto = nascimento.trim().length > 0 && nascimento.trim().length < 10;
-  const dadosInvalidos = !!erroTelefone || !!errosRedes.instagram || !!errosRedes.tiktok || !!erroCpf || Object.keys(errosEndereco).length > 0 || nascimentoEnvio === undefined;
+  const dadosInvalidos = !!erroTelefone || redeComErroLocal || !!erroCpf || Object.keys(errosEndereco).length > 0 || nascimentoEnvio === undefined;
   const cpfEmUso = codigoApi(erro) === CPF_EM_USO ? MENSAGEM_CPF_EM_USO : undefined;
   // C7: qualquer campo diferente do que abriu deixa a saída guardada ("Sair sem salvar?"). O retrato é o da primeira
   // renderização; o questionário da ficha grava na hora e não entra. Quem salva e sai usa `useSairSemPerguntar`.
-  const retrato = JSON.stringify([nome, sexo, nascimento, email, telefone, redes, objetivo, cpf, endereco, observacoes, meta, dias, responsavelId]);
+  // As redes pelo valor de cada uma (rede vazia = sem rede): remover e adicionar de novo, ou adicionar sem escrever, não muda nada.
+  const retrato = JSON.stringify([nome, sexo, nascimento, email, telefone, REDES_SOCIAIS_DO_ALUNO.map((r) => (redes[r] ?? '').trim()), objetivo, cpf, endereco, observacoes, meta, dias, responsavelId]);
   const [retratoInicial] = useState(retrato);
   useGuardaDeSaida(retrato !== retratoInicial);
 
@@ -118,11 +132,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       nome: nome.trim(),
       email: email.trim() || null,
       ...(comTelefone ? { telefone: telefone.trim() ? mascaraTelefone(telefone) : '' } : {}),
-      // Só o que mudou (ausente não mexe; em branco apaga): um campo que a API não mandou nunca apaga o gravado.
-      ...(comTelefone ? {
-        instagram: redeParaEnvio(redes.instagram, redesIniciais.instagram, !!inicial),
-        tiktok: redeParaEnvio(redes.tiktok, redesIniciais.tiktok, !!inicial),
-      } : {}),
+      // Só o que mudou (ausente não mexe; removida ou em branco apaga); no cadastro novo, só o preenchido.
+      ...(comTelefone ? redesDoAlunoParaEnvio(redes, redesIniciais, !!inicial) : {}),
       ...(comSensivel ? {
         objetivo: objetivo.trim() || null, observacoes: observacoes.trim() || null,
         cpf: cpf.trim() ? mascaraCpf(cpf) : null, endereco: enderecoParaEnvio(endereco),
@@ -145,12 +156,14 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   };
 
   const motivo = !nome.trim() ? 'Informe o nome do aluno.' : diasInvalidos ? 'Os dias de atualização vão de 1 a 365.' : 'Corrija os campos marcados.';
-  // Duas colunas (1 e 2 à esquerda, 3 e 4 à direita) que descem uma embaixo da outra quando não cabem, pelo `flexWrap`:
-  // a ordem de leitura e de foco é 1, 2, 3, 4 em qualquer largura, e mudar a janela não remonta nenhum campo.
+  // Duas colunas (1 e 2 à esquerda, 3 e 4 à direita) que descem uma embaixo da outra quando não cabem, pelo `flexWrap`, ou
+  // nas medidas da leitura (`colunas`): a ordem de leitura e de foco é 1, 2, 3, 4 em qualquer largura, e mudar a janela
+  // não remonta nenhum campo (só o estilo muda).
+  const coluna = (i: 0 | 1) => (colunas ? [estilos.colunaMedida, 'largura' in colunas[i] ? { width: colunas[i].largura } : { flex: colunas[i].flex }] : estilos.coluna);
   return (
     <View style={estilos.form}>
-      <View style={estilos.colunas}>
-        <View style={estilos.coluna}>
+      <View style={colunas ? estilos.colunasMedidas : estilos.colunas}>
+        <View style={coluna(0)}>
           <Cartao titulo={SECOES_DO_ALUNO.identificacao} nivel={nivel}>
             <View style={estilos.linha}>
               <View style={estilos.inteiro}>
@@ -185,14 +198,6 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
                 </View>
               ) : null}
             </View>
-            {/* Instagram e TikTok juntos numa linha própria (não sobra um sozinho embaixo do telefone). */}
-            {comTelefone ? <View style={estilos.linha}>{REDES_DO_ALUNO.map((rede) => (
-                <View key={rede} style={estilos.curto}>
-                  <Campo rotulo={`${NOME_DA_REDE[rede]} (opcional)`} valor={redes[rede]} aoMudar={(t) => setRedes((atual) => ({ ...atual, [rede]: t }))}
-                    erro={errosRedes[rede] ?? campos[rede]} placeholder="@usuario" autoCapitalize="none" autoCorrect={false} spellCheck={false}
-                    autoComplete="off" maxLength={200} />
-                </View>
-              ))}</View> : null}
             {comSensivel ? (
               <View style={estilos.endereco}>
                 <CamposDeEndereco valor={endereco} aoMudar={setEndereco}
@@ -200,8 +205,16 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
               </View>
             ) : null}
           </Cartao>
+          {/* Logo abaixo do Contato, na mesma coluna, como na leitura: uma linha por rede adicionada e o "Adicionar rede". */}
+          {comTelefone ? (
+            <Cartao titulo={TITULO_DAS_REDES} nivel={nivel}>
+              <View style={estilos.redes}>
+                <RedesSociais modo="edicao" redesPermitidas={REDES_SOCIAIS_DO_ALUNO} valores={redes} aoMudar={setRedes} erros={errosRedes} />
+              </View>
+            </Cartao>
+          ) : null}
         </View>
-        <View style={estilos.coluna}>
+        <View style={coluna(1)}>
           <Cartao titulo={SECOES_DO_ALUNO.acompanhamento} nivel={nivel}>
             {responsaveis ? (
               <EscolhaEmFolha rotulo="Treinador responsável" valor={responsavelId} aoMudar={setResponsavelId} rotuloDoValor="Membro inativo"
@@ -261,6 +274,9 @@ const estilos = StyleSheet.create({
   // complemento lado a lado): abaixo de ~864 px úteis as colunas descem.
   colunas: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(3) },
   coluna: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0, gap: espaco(3) },
+  // Nas medidas da leitura: o mesmo vão do `ColunasDaFicha` (`espaco(3)`) e sem quebra (a direita estreita não desce).
+  colunasMedidas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
+  colunaMedida: { minWidth: 0, gap: espaco(3) },
   // Campos de uma seção: largura pelo tamanho da resposta, lado a lado quando cabem, topos alinhados. `medio` e `curto`
   // só valem dentro de uma `linha` (fora dela o `flexBasis` vira altura, no corpo em coluna do cartão).
   linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
@@ -270,6 +286,8 @@ const estilos = StyleSheet.create({
   conteudo: { flexShrink: 1, maxWidth: '100%' },
   comAjuda: { gap: espaco(0.5) },
   endereco: { maxWidth: 560 },
+  // A largura do endereço: o campo do @ não estica pela coluna larga.
+  redes: { maxWidth: 560 },
   leitura: { maxWidth: 640 },
   meta: { gap: espaco(0.5) },
   barra: { borderTopWidth: 1, paddingTop: espaco(2) },

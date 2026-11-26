@@ -1,14 +1,17 @@
 import { Fragment, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { abaixoDasColunas, colunaUnica, colunasDaAbaDados, larguraMaximaDasColunas, ordemNumaColuna, tetoDaColunaUnica, type SecaoDosDados } from '../dominio/colunasDaFicha';
+import { abaixoDasColunas, colunaUnica, colunasDaAbaDados, colunasDoFormulario, larguraMaximaDasColunas, ordemNumaColuna, tetoDaColunaUnica, type MedidaDaColuna, type SecaoDosDados } from '../dominio/colunasDaFicha';
 import type { BlocoDaFicha } from '../dominio/fichaDoAluno';
 import { espaco, LARGURA_EDITOR_DE_CAMPOS, LARGURA_FAIXA_NORMAL } from '../tema/tokens';
 import { useFaixaDaTela } from '../ui/Tela';
 import { CartaoLesoes, useLesoes } from './CartaoLesoes';
 
-/** Uma coluna da aba: as seções dos Dados que a abrem (postas pelo `DadosDoAluno`) e os blocos que vêm depois; `teto`, a largura máxima dela. */
-export interface ColunaDaFicha { secoes: SecaoDosDados[]; blocos: ReactNode[]; proporcao: number; teto?: number }
+/**
+ * Uma coluna da aba: as seções dos Dados que a abrem (postas pelo `DadosDoAluno`) e os blocos que vêm depois; `teto`, a largura
+ * máxima dela; `noFormulario`, a medida da coluna do formulário de edição que começa nela (`colunasDoFormulario`).
+ */
+export interface ColunaDaFicha { secoes: SecaoDosDados[]; blocos: ReactNode[]; proporcao: number; teto?: number; noFormulario?: MedidaDaColuna }
 
 const VAO = espaco(3);
 
@@ -16,9 +19,9 @@ const VAO = espaco(3);
  * Arranjo da aba Ficha do aluno (Ficha › Dados; regra em `dominio/colunasDaFicha.colunasDaAbaDados`, planos
  * `docs/planos/ficha-dados-colunas-independentes.md` e `tela-larga-revisao-2.md`). A partir da faixa `normal` da `Tela`
  * (`useFaixaDaTela`, 4.10): duas colunas independentes, 3 para 2, cada uma uma pilha com o mesmo vão: Identificação ›
- * Contato e endereço › Plano contratado à esquerda; Configuração do acompanhamento › Objetivo e observações › Acesso ao app
+ * Contato e endereço › Redes sociais (só com rede, 26/11) › Plano contratado à esquerda; Configuração do acompanhamento › Objetivo e observações › Acesso ao app
  * › Anamnese à direita; e o Histórico de lesões embaixo das duas, na largura delas (`abaixoDasColunas`). Com a largura medida da aba (`largura`, a do cabeçalho da ficha) para
- * três colunas (2560 e 3440 com o menu aberto), três pilhas: Identificação › Contato › Objetivo; Plano › Lesões;
+ * três colunas (2560 e 3440 com o menu aberto), três pilhas: Identificação › Contato › Redes › Objetivo; Plano › Lesões;
  * Acompanhamento › Acesso › Anamnese. As seções são do `DadosDoAluno`, que recebe as colunas (`colunas`). Numa coluna (faixa
  * `compacta`): os Dados e, depois, Lesões ativas › Plano › Acesso › Anamnese › Histórico (as recuperadas). Só aparece o que
  * `blocos` traz (`blocosDaAba`); as lesões são buscadas uma vez aqui e repartidas. Em duas colunas com a esquerda vazia (na
@@ -44,10 +47,11 @@ export function BlocosDaFicha({ alunoId, blocos, largura, editando, bloco }: {
   const arranjo = colunasDaAbaDados(faixa, largura, VAO, blocos);
   const maximo = larguraMaximaDasColunas(arranjo, VAO, faixa);
   // Em três, cada coluna para no editor de campos; numa só (a esquerda vazia), na largura que a esquerda teria nas duas.
+  const formulario = colunasDoFormulario(arranjo, Math.min(largura, maximo ?? largura), VAO);
   const teto = arranjo?.length === 3 ? LARGURA_EDITOR_DE_CAMPOS : colunaUnica(arranjo, editando) ? tetoDaColunaUnica(Math.min(largura, maximo ?? largura), VAO) : undefined;
   // Sem embrulho em volta do bloco: um que não desenha nada (as lesões fora do `CartaoLesoes`) não ocupa um vão da pilha.
-  const colunas = arranjo?.map((c) => ({
-    secoes: c.secoes, proporcao: c.proporcao, teto,
+  const colunas = arranjo?.map((c, i) => ({
+    secoes: c.secoes, proporcao: c.proporcao, teto, noFormulario: formulario?.[i],
     blocos: c.blocos.map((b) => (b === 'lesoes'
       ? <CartaoLesoes key={b} alunoId={alunoId} carga={lesoes} parte="tudo" />
       : <Fragment key={b}>{bloco(b)}</Fragment>)),

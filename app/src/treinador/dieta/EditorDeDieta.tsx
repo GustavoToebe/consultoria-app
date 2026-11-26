@@ -8,7 +8,7 @@ import type { Alimento, ConteudoDieta, Receita, Refeicao, ResultadoValidacao } f
 import { uidsComProblema } from '../../dominio/caminhos';
 import { LARGURA_TOTAL_NA_ULTRALARGA, larguraDoTotalNaColuna } from '../../dominio/colunasDaDieta';
 import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
-import { comNomesPadrao, itensSemValorNoTotal, novaRefeicao, normalizarDieta } from '../../dominio/dieta';
+import { comNomesPadrao, itensSemValorNoTotal, novaRefeicao, normalizarDieta, reletrarOpcoes } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { dataParaTela } from '../../dominio/formatos';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
@@ -34,7 +34,7 @@ import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { CartaoCicloNoPeriodo } from '../ciclo/CicloNaFicha';
 import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
 import { BarraDesfazer, type Desfazer } from '../plano/BarraDesfazer';
-import { BlocoAdicionar } from '../plano/BlocoAdicionar';
+import { BlocoAdicionar, BotaoDoBloco } from '../plano/BlocoAdicionar';
 import { ComColunas } from '../plano/ColunasDoEditor';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
@@ -146,7 +146,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const adicionar = unica ? null : (
     <BlocoAdicionar titulo="Adicionar próxima refeição" descricao="Comece em branco ou acrescente uma refeição pronta dos modelos.">
       <BotaoAdicionarRefeicao aoAdicionar={adicionarRefeicao} />
-      <Botao rotulo="Modelos prontos" tipo="acao" Icone={NotebookTabs} aoTocar={() => setFolha({ tipo: 'modelos' })} />
+      <BotaoDoBloco rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setFolha({ tipo: 'modelos' })} />
     </BlocoAdicionar>
   );
 
@@ -236,7 +236,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             aoMudar={(nova) => editor.alterarConteudo((a) => naSecao(a, (lista) => substituir(lista, ri, nova)))}
             aoSairDoNome={() => { if (refs.some((x) => x.nome.trim() === '')) editor.alterarConteudo(comNomesPadrao); }}
             aoRemoverOpcao={(oi) => comDesfazer(`Opção ${r.opcoes[oi]?.rotulo ?? oi + 1} removida.`, (a) =>
-              naSecao(a, (lista) => substituir(lista, ri, { ...lista[ri], opcoes: remover(lista[ri].opcoes, oi) })),
+              naSecao(a, (lista) => substituir(lista, ri, { ...lista[ri], opcoes: reletrarOpcoes(remover(lista[ri].opcoes, oi)) })),
               { refeicaoDaOpcao: r.uid })}
             aoRemoverItem={(oi, ii, nomeItem) => comDesfazer(`Alimento “${nomeItem}” removido.`, (a) =>
               naSecao(a, (lista) => substituir(lista, ri, {
@@ -264,7 +264,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           <View style={estilos.cabecalhoRefeicoes}>
             <Texto variante="bloco" nivel={2}>Refeições ({refs.length})</Texto>
             <LinhaDeAcoes>
-              <Botao rotulo="Lista de compras" tipo="fantasma" Icone={ShoppingCart} desabilitado={!temRefeicao}
+              <Botao rotulo="Lista de compras" tipo="acao" Icone={ShoppingCart} desabilitado={!temRefeicao}
                 motivo="Adicione uma refeição primeiro." aoTocar={() => setFolha({ tipo: 'compras' })} />
               {/* Em duas colunas a escolhida já está aberta: não há o que abrir todas. */}
               {!duas && !unica && refs.length > 1 ? (
@@ -376,7 +376,7 @@ function ListaDeRefeicoes({ refs, escolhidaUid, comErro, aoEscolher, aoSoltar }:
 function BotaoAdicionarRefeicao({ aoAdicionar }: { aoAdicionar: () => string }) {
   const { rolarAte } = useRolagem();
   return (
-    <Botao rotulo="Adicionar refeição" tipo="acao" Icone={Plus} aoTocar={() => {
+    <BotaoDoBloco rotulo="Adicionar refeição" tipo="acao" Icone={Plus} aoTocar={() => {
       const uid = aoAdicionar();
       // Depois de o cartão abrir (o `rolarAte` já espera um pouco por conta própria).
       if (Platform.OS === 'web') setTimeout(() => mostrarAbaixoDaBarra(idDaRefeicao(uid), true), ESPERA_DA_SELECAO);

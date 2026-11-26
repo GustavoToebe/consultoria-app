@@ -6,6 +6,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { Alimento, AlunoDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, ItemDeAtividade, ItemDieta, PainelTreinador, PlanoDetalhe, Refeicao } from '../src/api/tipos';
 import { fixarHoje } from './aluno';
 import { ALUNO, erroApi, MARCA, PERMISSOES_TREINADOR, simularApi, TREINADOR, type PedidoFalso } from './api-falsa';
+import { LARGURA_MAXIMA_DAS_COLUNAS } from '../src/treinador/treino/colunasDasSeries';
+import { colunasDaMobilidade } from '../src/dominio/colunasDaMobilidade';
 import { BIBLIOTECA, PLANO_ID as TREINO_ID, planoDetalhe } from './editor-inspetor.dados';
 import { estadoFinanceiro, INADIMPLENTE, PAINEL_COM_DADOS, PERMISSOES_FINANCEIRO, rotasDoFinanceiro, sessaoComFinanceiro } from './financeiro-falso';
 
@@ -517,11 +519,21 @@ for (const largura of [1280, 1920, 2400, 2800, 3440]) {
     // Mobilidade: lista de seções | painel da seção.
     await page.goto(`/treinador/mobilidades/${MOB_ID}`);
     await expect(page.getByRole('heading', { name: 'Seções (2)' })).toBeVisible();
+    // A prévia entra depois da primeira medida da linha: medir antes pegaria as duas colunas de antes.
+    if (largura >= 1920) await expect(page.getByTestId('previa-da-mobilidade')).toBeVisible();
     const lista = await caixa(page.getByRole('group', { name: 'Seções da mobilidade' }));
     const secao = await caixa(page.locator('#secao-s1'));
     expect(secao.width).toBeLessThanOrEqual(TETO);
-    if (limitado) expect(secao.width).toBeGreaterThan(1390);
-    expect(Math.abs(secao.x - (lista.x + lista.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
+    // 26/11: da faixa larga (1920 com o menu aberto) em diante, a 3ª coluna é a prévia ao vivo (`colunasDaMobilidade`).
+    if (largura >= 1920) {
+      const previa = await caixa(page.getByTestId('previa-da-mobilidade'));
+      const esperado = colunasDaMobilidade(Math.round(previa.x + previa.width - lista.x))!;
+      expect(Math.abs(secao.width - esperado.editor)).toBeLessThanOrEqual(2);
+      expect(Math.abs(secao.x - (lista.x + lista.width) - esperado.vao)).toBeLessThanOrEqual(2);
+    } else {
+      if (limitado) expect(secao.width).toBeGreaterThan(1390);
+      expect(Math.abs(secao.x - (lista.x + lista.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
+    }
     await semRolagemHorizontal(page);
     await capturar(page, `${largura}-automatica-mobilidade`);
 
@@ -556,6 +568,42 @@ for (const largura of [1280, 1920, 2400, 2800, 3440]) {
     }).toPass({ timeout: 10_000 });
     await semRolagemHorizontal(page);
     await capturar(page, `${largura}-automatica-treino`);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+/**
+ * Tabela de séries do inspetor (26/11): cada coluna para na sua largura máxima (`LARGURA_MAXIMA_DAS_COLUNAS`) e, na
+ * ultralarga, a sobra fica vazia antes do chevron, na borda da linha. Em 1280 nada muda: nenhuma coluna chega ao teto e a
+ * linha continua cheia (o chevron logo depois do Descanso, no vão de 16 px). Em 390 não há colunas (ver
+ * `editor-de-treino-reorganizado.spec.ts`).
+ */
+const COLUNAS_DAS_SERIES = ['tipo', 'carga', 'reps', 'descanso'] as const;
+const VAO_DA_LINHA = 16;
+
+for (const largura of [1280, 2560, 3440]) {
+  test(`${largura} px: colunas da tabela de séries até a largura máxima, sobra no fim da linha`, async ({ page }) => {
+    const { errosDaPagina } = await prepararAmbiente(page, largura, { altura: 1200 });
+    await page.goto(`/treinador/treinos/${TREINO_ID}`);
+    const cabecalho = page.locator('#inspetor-do-exercicio').getByTestId('cabecalho-das-series');
+    await expect(cabecalho).toBeVisible();
+    await expect(async () => {
+      const larguras = Object.fromEntries(await Promise.all(COLUNAS_DAS_SERIES.map(async (c) => [c, await caixa(cabecalho.getByTestId(`cabecalho-${c}`))] as const)));
+      const descanso = larguras.descanso;
+      const chevron = await caixa(cabecalho.getByTestId('cabecalho-chevron'));
+      const sobra = chevron.x - (descanso.x + descanso.width) - VAO_DA_LINHA;
+      for (const c of COLUNAS_DAS_SERIES) expect(larguras[c].width).toBeLessThanOrEqual(LARGURA_MAXIMA_DAS_COLUNAS[c] + 1);
+      if (largura >= 2560) {
+        // O inspetor passa de 1500 px: todas no teto e a sobra (bem mais que uma coluna) entre o Descanso e o chevron.
+        for (const c of COLUNAS_DAS_SERIES) expect(Math.abs(larguras[c].width - LARGURA_MAXIMA_DAS_COLUNAS[c])).toBeLessThanOrEqual(1);
+        expect(sobra).toBeGreaterThan(200);
+      } else {
+        for (const c of COLUNAS_DAS_SERIES) expect(larguras[c].width).toBeLessThan(LARGURA_MAXIMA_DAS_COLUNAS[c] - 1);
+        expect(Math.abs(sobra)).toBeLessThanOrEqual(2);
+      }
+    }).toPass({ timeout: 10_000 });
+    await semRolagemHorizontal(page);
+    await capturar(page, `${largura}-tabela-de-series`);
     expect(errosDaPagina).toEqual([]);
   });
 }
