@@ -66,7 +66,7 @@ class InscricaoInstagramIntegrationTest extends AbstractIntegrationTest {
 
     private String aceitar(JsonNode detalhe) throws Exception {
         return api.post("/inscricoes/" + detalhe.path("id").asString() + "/aceitar", admin,
-                Map.of("convidar", false, "versao", detalhe.path("versao").asLong()), 200).path("alunoId").asString();
+                Map.of("convidar", false, "versao", detalhe.path("versao").asLong(), "semCobranca", true), 200).path("alunoId").asString(); // Fase 3: sem pagamento confirmado, só como cortesia
     }
 
     private static boolean semValor(JsonNode campo) {
