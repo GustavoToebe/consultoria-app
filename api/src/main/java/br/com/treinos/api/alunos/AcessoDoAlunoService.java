@@ -3,6 +3,7 @@ package br.com.treinos.api.alunos;
 import br.com.plataforma.comum.auth.Autenticador;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
+import br.com.treinos.api.alunos.dto.AlunoDtos.EmailDeAcessoAlteradoResponse;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.auth.RegrasSenha;
 import br.com.treinos.api.auth.Usuario;
@@ -12,7 +13,9 @@ import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -34,10 +37,13 @@ public class AcessoDoAlunoService {
     private final br.com.treinos.api.push.PushService push;
     private final Auditoria auditoria;
     private final AvisoDeTrocaDeEmailDeAcesso aviso;
+    private final TransactionTemplate transacao;
 
     public AcessoDoAlunoService(AlunoRepository alunos, UsuarioRepository usuarios, AlunoService alunoService,
                                 PasswordEncoder passwordEncoder, Autenticador autenticador, br.com.treinos.api.push.PushService push,
-                                Auditoria auditoria, AvisoDeTrocaDeEmailDeAcesso aviso) {
+                                Auditoria auditoria, AvisoDeTrocaDeEmailDeAcesso aviso,
+                                PlatformTransactionManager transacoes) {
+        this.transacao = new TransactionTemplate(transacoes);
         this.auditoria = auditoria;
         this.aviso = aviso;
         this.alunos = alunos;
@@ -79,11 +85,20 @@ public class AcessoDoAlunoService {
 
     /**
      * Troca só o e-mail de login (o {@code aluno.email} do cadastro não muda, como em {@link #definir}). O mesmo e-mail é um
-     * 200 sem gravar nem auditar. Sobe {@code cv}, apaga o push e encerra as sessões por último. Os avisos aos dois endereços
-     * saem depois do commit ({@link AvisoDeTrocaDeEmailDeAcesso}).
+     * 200 sem gravar nem auditar. Sobe {@code cv}, apaga o push e encerra as sessões por último. Não é transacional na ponta:
+     * a troca commita primeiro e só então saem os avisos aos dois endereços ({@link AvisoDeTrocaDeEmailDeAcesso}), sem desfazer
+     * a troca se o envio falhar. {@code emailEnviado} = o aviso ao e-mail NOVO foi entregue ao provedor.
      */
-    @Transactional
-    public AlunoDetalhe alterarEmail(UUID alunoId, String email) {
+    public EmailDeAcessoAlteradoResponse alterarEmail(UUID alunoId, String email) {
+        Troca troca = transacao.execute(status -> trocarEmail(alunoId, email));
+        boolean enviado = troca.aviso() != null && aviso.enviar(troca.aviso());
+        return new EmailDeAcessoAlteradoResponse(troca.detalhe(), enviado);
+    }
+
+    private record Troca(AlunoDetalhe detalhe, AvisoDeTrocaDeEmailDeAcesso.Preparado aviso) {
+    }
+
+    private Troca trocarEmail(UUID alunoId, String email) {
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         AlunoService.exigirNaoAnonimizado(aluno);
         if (!aluno.isAtivo()) {
@@ -93,7 +108,7 @@ public class AcessoDoAlunoService {
         String novo = Emails.normalizar(email);
         String anterior = Emails.normalizar(usuario.getEmail());
         if (novo.equals(anterior)) {
-            return alunoService.detalheDe(aluno);
+            return new Troca(alunoService.detalheDe(aluno), null);
         }
         if (usuarios.existeEmail(novo)) {
             throw emailEmUso();
@@ -105,9 +120,9 @@ public class AcessoDoAlunoService {
             throw emailEmUso();
         }
         auditoria.registrarEvento("ALUNO_EMAIL_DE_ACESSO_ALTERADO", "ALUNO", aluno.getId(), RESUMO_EMAIL);
-        aviso.agendar(aluno.getConsultoriaId(), anterior, novo);
+        var preparado = aviso.preparar(aluno.getConsultoriaId(), anterior, novo);
         encerrarAcesso(usuario);
-        return alunoService.detalheDe(aluno);
+        return new Troca(alunoService.detalheDe(aluno), preparado);
     }
 
     /** Idempotente: já desativado = 200 sem regravar nem auditar. Nada é apagado; o aluno continua ativo. */

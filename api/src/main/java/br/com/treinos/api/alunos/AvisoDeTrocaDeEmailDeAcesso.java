@@ -8,17 +8,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
  * Avisa o endereço ANTERIOR e o NOVO quando o treinador troca o e-mail de login do aluno. Os textos são fixos e levam só o nome
  * da consultoria: nunca e-mail nem nome do aluno em texto de log. O envio sai depois do commit (a troca já está gravada) e a
- * falha do provedor, ou o e-mail desligado, não desfaz nada. Chamado dentro da transação da troca: a consultoria é lida ali e
- * o envio roda no {@code afterCommit}, sem tocar no banco.
+ * falha do provedor, ou o e-mail desligado, não desfaz nada. {@link #preparar} roda dentro da transação da troca (lê a
+ * consultoria) e {@link #enviar}, depois dela, devolve se o aviso ao e-mail novo foi entregue ao provedor.
  */
 @Component
 public class AvisoDeTrocaDeEmailDeAcesso {
@@ -33,32 +30,47 @@ public class AvisoDeTrocaDeEmailDeAcesso {
         this.consultorias = consultorias;
     }
 
-    /** Agenda os dois avisos para depois do commit da transação em curso; sem o envio ligado não faz nada. */
-    public void agendar(UUID consultoriaId, String anterior, String novo) {
+    /** Os dois avisos prontos, para sair depois do commit; o envio só acontece em {@link #enviar}. */
+    public record Preparado(EnviadorDeEmail envio, EnviadorDeEmail.Mensagem anterior, EnviadorDeEmail.Mensagem novo) {
+        @Override
+        public String toString() {
+            return "Preparado[***]"; // as mensagens levam os endereços
+        }
+    }
+
+    /** Monta os dois avisos dentro da transação da troca (lê a consultoria aqui); sem o envio ligado devolve nulo. */
+    public Preparado preparar(UUID consultoriaId, String anterior, String novo) {
         EnviadorDeEmail envio = emails.getIfAvailable();
-        if (envio == null || !TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
+        if (envio == null) {
+            return null;
         }
         Consultoria consultoria = consultorias.findById(consultoriaId).orElse(null);
         String nome = consultoria == null ? null : consultoria.getNome();
         var remetente = consultoria == null ? null : RemetenteDaConsultoria.de(consultoria);
-        List<EnviadorDeEmail.Mensagem> mensagens = List.of(
+        return new Preparado(envio,
                 mensagem(anterior, nome, remetente, "O e-mail de acesso à sua conta no app", "foi trocado pela sua equipe. A partir de agora o acesso é por outro endereço de e-mail.",
                         "Se você não esperava essa mudança, fale com a sua equipe."),
                 mensagem(novo, nome, remetente, "Este endereço de e-mail passou a ser o de acesso à sua conta no app", "por decisão da sua equipe.",
                         "Use-o para entrar no app. Sua senha não mudou."));
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                for (var m : mensagens) {
-                    try {
-                        envio.enviar(m);
-                    } catch (RuntimeException falha) {
-                        LOG.warn("E-mail de acesso trocado, mas o aviso não foi enviado ({}).", falha.getClass().getSimpleName());
-                    }
-                }
-            }
-        });
+    }
+
+    /**
+     * Envia depois do commit, sem tocar no banco. O aviso ao endereço anterior sai primeiro e não conta; o resultado é só o do
+     * endereço NOVO: {@code true} se o provedor aceitou. Falha nunca sobe: a troca já está gravada.
+     */
+    public boolean enviar(Preparado preparado) {
+        tentar(preparado.envio(), preparado.anterior());
+        return tentar(preparado.envio(), preparado.novo());
+    }
+
+    private static boolean tentar(EnviadorDeEmail envio, EnviadorDeEmail.Mensagem mensagem) {
+        try {
+            envio.enviar(mensagem);
+            return true;
+        } catch (RuntimeException falha) {
+            LOG.warn("E-mail de acesso trocado, mas o aviso não foi enviado ({}).", falha.getClass().getSimpleName());
+            return false;
+        }
     }
 
     private static EnviadorDeEmail.Mensagem mensagem(String para, String consultoria, RemetenteDaConsultoria.Remetente r,

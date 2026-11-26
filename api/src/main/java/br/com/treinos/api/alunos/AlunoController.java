@@ -6,6 +6,7 @@ import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
 import br.com.treinos.api.alunos.dto.AlunoDtos.ConviteResponse;
 import br.com.treinos.api.alunos.dto.AlunoDtos.DefinirAcessoRequest;
 import br.com.treinos.api.alunos.dto.AlunoDtos.DesativarAcessoRequest;
+import br.com.treinos.api.alunos.dto.AlunoDtos.EmailDeAcessoAlteradoResponse;
 import br.com.treinos.api.alunos.dto.AlunoDtos.PaginaAlunos;
 import br.com.treinos.api.alunos.dto.AlunoDtos.SituacaoRequest;
 import jakarta.validation.Valid;
@@ -101,10 +102,10 @@ public class AlunoController {
         return acessos.definir(id, request.email(), request.senha());
     }
 
-    /** Troca só o e-mail de login; encerra as sessões do aluno e avisa os dois endereços por e-mail, se o envio está ligado. */
+    /** Troca só o e-mail de login; encerra as sessões do aluno e avisa os dois endereços por e-mail, se o envio está ligado; {@code emailEnviado} é o do aviso ao novo. */
     @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")
     @PutMapping("/{id}/acesso/email")
-    public AlunoDetalhe emailDeAcesso(@PathVariable UUID id, @RequestBody @Valid AlterarEmailDeAcessoRequest request) {
+    public EmailDeAcessoAlteradoResponse emailDeAcesso(@PathVariable UUID id, @RequestBody @Valid AlterarEmailDeAcessoRequest request) {
         return acessos.alterarEmail(id, request.email());
     }
 

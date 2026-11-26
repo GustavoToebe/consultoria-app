@@ -240,6 +240,14 @@ public final class AlunoDtos {
         }
     }
 
+    /**
+     * Resposta da troca do e-mail de acesso. {@code emailEnviado} = o aviso ao e-mail NOVO foi entregue ao provedor; é
+     * {@code false} com o envio desligado, falha do provedor e quando o e-mail é o mesmo (nada gravado). O aviso ao endereço
+     * anterior não conta.
+     */
+    public record EmailDeAcessoAlteradoResponse(AlunoDetalhe aluno, boolean emailEnviado) {
+    }
+
     /** {@code motivo} ausente = {@code MANUAL}, o único valor de hoje; outro valor = 400. */
     public record DesativarAcessoRequest(@jakarta.validation.constraints.Pattern(regexp = "MANUAL") String motivo) {
     }

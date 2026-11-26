@@ -121,11 +121,15 @@ class AcessoDesativadoIntegrationTest extends AbstractIntegrationTest {
         String novo = ApiDeTeste.emailUnico("novo-acesso");
 
         // O mesmo e-mail (com outra caixa) é 200 sem mexer em nada: a sessão continua e nada é auditado nem enviado.
-        alterarEmail(treinador, alunoId, antigo.toUpperCase(Locale.ROOT), 200);
+        JsonNode mesmo = alterarEmail(treinador, alunoId, antigo.toUpperCase(Locale.ROOT), 200);
+        assertThat(mesmo.path("emailEnviado").asBoolean(true)).as("mesmo e-mail: nada foi enviado").isFalse();
+        assertThat(mesmo.path("aluno").path("emailDeAcesso").asString()).isEqualTo(antigo);
         api.get("/eu", aluno, 200);
         assertThat(eventos("ALUNO_EMAIL_DE_ACESSO_ALTERADO", alunoId)).isZero();
 
-        JsonNode depois = alterarEmail(treinador, alunoId, novo.toUpperCase(Locale.ROOT), 200);
+        JsonNode resposta = alterarEmail(treinador, alunoId, novo.toUpperCase(Locale.ROOT), 200);
+        assertThat(resposta.path("emailEnviado").asBoolean()).as("o aviso ao e-mail novo foi entregue ao provedor").isTrue();
+        JsonNode depois = resposta.path("aluno");
         assertThat(depois.path("emailDeAcesso").asString()).isEqualTo(novo);
         assertThat(depois.path("email").asString()).as("o e-mail do cadastro não muda").isEqualTo(emailDoCadastro);
         assertThat(depois.path("aguardandoPrimeiroAcesso").asBoolean()).isFalse();
@@ -165,7 +169,9 @@ class AcessoDesativadoIntegrationTest extends AbstractIntegrationTest {
         String novo = ApiDeTeste.emailUnico("provedor-fora");
         EmailDeTeste.FALHAR.set(true);
         try {
-            assertThat(alterarEmail(treinador, alunoId, novo, 200).path("emailDeAcesso").asString()).isEqualTo(novo);
+            JsonNode resposta = alterarEmail(treinador, alunoId, novo, 200);
+            assertThat(resposta.path("aluno").path("emailDeAcesso").asString()).isEqualTo(novo);
+            assertThat(resposta.path("emailEnviado").asBoolean(true)).as("provedor fora do ar: a troca vale, o aviso não saiu").isFalse();
         } finally {
             EmailDeTeste.FALHAR.set(false);
         }

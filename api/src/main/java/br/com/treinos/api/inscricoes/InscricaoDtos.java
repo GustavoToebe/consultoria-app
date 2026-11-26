@@ -89,14 +89,16 @@ public final class InscricaoDtos {
              * Código do link de indicação de um aluno (vem do fragmento da URL, no corpo e nunca no caminho). String e não UUID,
              * para um valor malformado não virar um 400 diferente: a API confere em silêncio e, se não valer, grava sem indicador.
              */
-            @Size(max = 64) String codigoIndicacao) {
+            @Size(max = 64) String codigoIndicacao,
+            /** Instagram (campo fixo, opcional): usuário, {@code @usuario} ou link do perfil; a API guarda só o usuário. Dado pessoal. */
+            @Size(max = 200) String instagram) {
         public InscricaoPublicaRequest(String nome, String whatsapp, String email, String objetivo,
                                        Boolean cienciaPrivacidade, String textoVersao, String turnstileToken,
                                        String sexo, Interesse interesse, ModalidadeDesejada modalidade,
                                        PrevisaoInicio previsaoInicio, OrigemInformada origem, String origemLink,
                                        UUID questionarioVersaoId, JsonNode respostas) {
             this(nome, whatsapp, email, objetivo, cienciaPrivacidade, textoVersao, turnstileToken, sexo, interesse,
-                    modalidade, previsaoInicio, origem, origemLink, questionarioVersaoId, respostas, null, null);
+                    modalidade, previsaoInicio, origem, origemLink, questionarioVersaoId, respostas, null, null, null);
         }
 
         /** Nada do pedido vai a log: nem o código de indicação (identifica um aluno) nem os dados da pessoa. */
@@ -215,7 +217,9 @@ public final class InscricaoDtos {
                                    List<Retorno> retornos, List<Evento> eventos, RespostasDaInscricao respostas,
                                    UUID questionarioId, String questionarioNome, String indicadoPor,
                                    /** Aluno que indicou, conferido: o nome com {@code ALUNO_LER}, senão "Um aluno" (sem nome nem id); nulo sem indicação. */
-                                   String indicadoPorAluno) {
+                                   String indicadoPorAluno,
+                                   /** Só o usuário (sem @), nulo sem Instagram. */
+                                   String instagram) {
         public InscricaoDetalhe(UUID id, String nome, String whatsapp, String email, String objetivo,
                                String observacao, String sexo, Interesse interesse,
                                ModalidadeDesejada modalidadeDesejada, PrevisaoInicio previsaoInicio,
@@ -233,7 +237,7 @@ public final class InscricaoDtos {
                     motivoDetalhe, encerradaEm, encerradaPorNome, pagamento, pagamentoConfirmadoPorNome,
                     pagamentoConfirmadoEm, responsavelId, responsavelNome, alunoId, aceitaEm, relacionadaA, proposta,
                     criadaEm, atualizadaEm, ultimaAtividadeEm, versao, duplicidade, notas, retornos, eventos, respostas,
-                    null, null, null, null);
+                    null, null, null, null, null);
         }
     }
 
@@ -353,7 +357,7 @@ public final class InscricaoDtos {
                                      List<NotaExportada> notas, String sexo, Interesse interesse,
                                      ModalidadeDesejada modalidadeDesejada, PrevisaoInicio previsaoInicio,
                                      OrigemInformada origemInformada, PropostaExportada proposta,
-                                     UUID questionarioVersaoId, JsonNode respostas) {
+                                     UUID questionarioVersaoId, JsonNode respostas, String instagram) {
     }
 
     /** Os termos que a consultoria propôs à pessoa (nulo sem proposta). */

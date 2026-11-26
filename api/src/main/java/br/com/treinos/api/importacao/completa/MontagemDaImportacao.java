@@ -63,7 +63,7 @@ import java.util.regex.Pattern;
  */
 public final class MontagemDaImportacao {
 
-    public static final String TITULO_PASTA = "Importada da planilha (rascunho)";
+    public static final String TITULO_PASTA = br.com.treinos.api.planos.TituloDoPlanoPublicado.NOME_PADRAO_DA_IMPORTACAO + " (rascunho)";
     private static final int NOME_ALUNO = 120;
     private static final int OBJETIVO = 200;
     private static final int OBSERVACOES_ALUNO = 4000;

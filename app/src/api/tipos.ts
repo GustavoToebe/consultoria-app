@@ -337,6 +337,12 @@ export interface MeusDadosRequest {
   versao: number;
 }
 
+/** Resposta de `PUT /alunos/{id}/acesso/email`: o aluno com o e-mail novo e se o aviso foi mesmo enviado ao e-mail novo (nunca é `true` com o envio desligado ou com falha do provedor). */
+export interface EmailDeAcessoAlterado {
+  aluno: AlunoDetalhe;
+  emailEnviado: boolean;
+}
+
 export interface AlunoDetalhe {
   id: string;
   nome: string;

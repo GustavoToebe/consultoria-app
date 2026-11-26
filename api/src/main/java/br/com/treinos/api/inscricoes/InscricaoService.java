@@ -13,6 +13,7 @@ import br.com.treinos.api.anamneses.AnamneseService;
 import br.com.treinos.api.auditoria.Auditar;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.consultoria.RedesSociais;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.inscricoes.Crm.TipoEvento;
 import br.com.treinos.api.inscricoes.InscricaoDtos.AceitarRequest;
@@ -191,10 +192,12 @@ public class InscricaoService {
             throw new br.com.treinos.api.web.ValidacaoException("Confira os campos.", "INSCRICAO_INVALIDA",
                     List.of(new br.com.plataforma.comum.web.ApiError.FieldError("sexo", "Escolha Masculino, Feminino ou Outro.")));
         }
+        String instagram = instagramDaInscricao(r.instagram());
         Inscricao nova = new Inscricao(r.nome().trim(), whatsapp,
                 ocultos.contains(CampoDaInscricao.EMAIL) ? null : Buscas.opcional(r.email()),
                 ocultos.contains(CampoDaInscricao.OBJETIVO) ? null : Buscas.opcional(r.objetivo()),
                 null, texto, responsavel, Sexo.ler(sexo));
+        nova.informarInstagram(instagram);
         nova.qualificar(ocultos.contains(CampoDaInscricao.INTERESSE) ? null : r.interesse(),
                 ocultos.contains(CampoDaInscricao.MODALIDADE) ? null : r.modalidade(),
                 ocultos.contains(CampoDaInscricao.PREVISAO_INICIO) ? null : r.previsaoInicio(),
@@ -213,6 +216,25 @@ public class InscricaoService {
         }
         historico.registrar(gravada, TipoEvento.CRIADA, null, null, null, null);
         return codigoDoProximo(q);
+    }
+
+    /** Instagram fixo e opcional: só o usuário (nulo para vazio); inválido é 422 no campo {@code instagram}, com a mensagem fixa e sem o valor. */
+    private static String instagramDaInscricao(String bruto) {
+        try {
+            return RedesSociais.usuario(RedesSociais.Rede.INSTAGRAM, bruto);
+        } catch (RedesSociais.RedeInvalidaException recusada) {
+            throw new br.com.treinos.api.web.ValidacaoException("Confira os campos.", "INSCRICAO_INVALIDA",
+                    List.of(new br.com.plataforma.comum.web.ApiError.FieldError("instagram", recusada.getMessage())));
+        }
+    }
+
+    /** O Instagram da inscrição já foi normalizado ao entrar; se por algum motivo não vale mais, o aceite segue sem ele. */
+    private static String instagramParaOAluno(String guardado) {
+        try {
+            return RedesSociais.usuario(RedesSociais.Rede.INSTAGRAM, guardado);
+        } catch (RedesSociais.RedeInvalidaException recusada) {
+            return null;
+        }
     }
 
     /**
@@ -417,8 +439,9 @@ public class InscricaoService {
         UUID responsavel = responsaveis.ativo(i.getResponsavelId()) ? i.getResponsavelId() : null;
         String objetivo = AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR") && i.getObjetivo() != null
                 && i.getObjetivo().length() <= OBJETIVO_DO_ALUNO ? i.getObjetivo() : null;
-        AlunoDetalhe aluno = alunos.criar(new AlunoRequest(i.getNome(), i.getEmail(), objetivo, null, null, null,
-                responsavel));
+        // Instagram da inscrição vira o do aluno (nulo não mexe; TikTok segue nulo). Telefone e demais campos como antes.
+        AlunoDetalhe aluno = alunos.criar(new AlunoRequest(i.getNome(), i.getEmail(), null, objetivo, null, null, null,
+                null, null, responsavel, null, null, null, instagramParaOAluno(i.getInstagram()), null));
         if (i.getSexo() != null) {
             alunos.definirSexo(aluno.id(), i.getSexo().name());
         }

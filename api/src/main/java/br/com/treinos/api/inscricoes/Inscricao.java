@@ -53,6 +53,9 @@ public class Inscricao {
 
     private String email;
 
+    /** Só o usuário (sem @), já normalizado por {@code RedesSociais}; dado pessoal, fora de log e de auditoria. */
+    private String instagram;
+
     private String objetivo;
 
     private String observacao;
@@ -238,6 +241,7 @@ public class Inscricao {
     public String getNome() { return nome; }
     public String getWhatsapp() { return whatsapp; }
     public String getEmail() { return email; }
+    public String getInstagram() { return instagram; }
     public String getObjetivo() { return objetivo; }
     public String getObservacao() { return observacao; }
     public Sexo getSexo() { return sexo; }
@@ -285,6 +289,11 @@ public class Inscricao {
     public UUID getIndicadoPorAlunoId() { return indicadoPorAlunoId; }
     /** Só antes de gravar a linha nova, com um aluno ativo da mesma consultoria já conferido. */
     void indicadaPor(UUID alunoId) { this.indicadoPorAlunoId = alunoId; }
+
+    /** Só na criação, com o usuário já normalizado (ou nulo). */
+    void informarInstagram(String instagram) {
+        this.instagram = instagram;
+    }
 
     /** Só na criação (as colunas não mudam depois): a versão respondida e as respostas, em JSON, já validadas. */
     void responder(UUID questionarioVersaoId, String respostas) {

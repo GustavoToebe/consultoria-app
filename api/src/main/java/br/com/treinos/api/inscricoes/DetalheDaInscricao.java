@@ -101,7 +101,7 @@ class DetalheDaInscricao {
                         e.getMotivo() == null ? null : MotivoEncerramento.valueOf(e.getMotivo()), e.getDetalhe(),
                         nomes.get(e.getAutorId()), e.getCriadoEm())).toList(),
                 respostas(i),
-                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), indicadoPorAluno(i));
+                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), indicadoPorAluno(i), i.getInstagram());
     }
 
     /** Indicação conferida pela API: o nome só para quem vê alunos, os demais veem só que foi um aluno (sem nome nem id). */

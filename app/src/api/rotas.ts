@@ -95,6 +95,7 @@ import type {
   AlimentoRequest,
   FatoresDoAlimento,
   AlunoDetalhe,
+  EmailDeAcessoAlterado,
   AlunoRequest,
   MeusDadosRequest,
   MeusDadosResponse,
@@ -794,7 +795,7 @@ export const definirAcessoDoAluno = (id: string, dados: { email: string; senha: 
  * do aluno e avisa por e-mail se o envio está ligado. `ALUNO_CONVITE`.
  */
 export const alterarEmailDeAcessoDoAluno = (id: string, email: string) =>
-  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso/email`, { metodo: 'PUT', corpo: { email } });
+  requisicao<EmailDeAcessoAlterado>(`/alunos/${seg(id)}/acesso/email`, { metodo: 'PUT', corpo: { email } });
 
 /** Desativa o acesso (o aluno não entra mais, sessões encerradas, nada é apagado). `motivo` hoje só `MANUAL`. `ALUNO_CONVITE`. */
 export const desativarAcessoDoAluno = (id: string, motivo: 'MANUAL' = 'MANUAL') =>
