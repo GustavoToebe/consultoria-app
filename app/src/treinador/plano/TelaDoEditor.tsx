@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, useWindowDimensions, View, type ViewProps, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTema } from '../../tema/TemaProvider';
@@ -7,6 +7,7 @@ import { espaco, faixaDeLargura, LARGURA_EDITOR, LARGURA_MENU_EXPANDIDO, LARGURA
 import { duasColunas, larguraDoEditor } from '../../dominio/colunasDoEditor';
 import { larguraMaximaDoConteudo, respiroLateralDaTela } from '../../dominio/larguraDoConteudo';
 import { RolagemComTopo } from '../../ui/RolagemComTopo';
+import { useRegistroDoRodapeFixo } from '../../ui/rodapeFixoDaPagina';
 import { ProvedorDeColunas, ProvedorDeTresColunas } from './ColunasDoEditor';
 import { useFundoDaArea } from '../../ui/fundoDaArea';
 import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
@@ -84,12 +85,26 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
             {web && rodape ? <Vidro estilo={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, bordaDaBarra, { marginHorizontal: -recuoLateral, paddingHorizontal: recuoLateral }]}>{rodape}</Vidro> : null}
           </View>
         </RolagemComTopo>
-        {!web && rodape ? <View style={[estilos.rodapeFora, fundoDaBarra, { paddingHorizontal: recuoLateral }]}><View style={[estilos.largura, estilos.linhaDoRodape, estiloLargura]}>{rodape}</View></View> : null}
+        {!web && rodape ? <RodapeFora estilo={[fundoDaBarra, { paddingHorizontal: recuoLateral }]} estiloLargura={estiloLargura}>{rodape}</RodapeFora> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
     </ProvedorDeTresColunas>
     </ProvedorDeColunas>
     </ContextoDaBarra.Provider>
+  );
+}
+
+/**
+ * Celular: o rodapé fora da rolagem publica onde está e o aviso (toast) sobe acima dele, em vez de cobrir Voltar e
+ * Validar (na web o aviso acha o rodapé `sticky` pelo DOM). Componente à parte para o registro nascer e morrer com a
+ * `View` do rodapé, não com a tela.
+ */
+function RodapeFora({ children, estilo, estiloLargura }: { children: ReactNode; estilo: StyleProp<ViewStyle>; estiloLargura?: ViewStyle }) {
+  const { ref, onLayout } = useRegistroDoRodapeFixo();
+  return (
+    <View ref={ref} onLayout={onLayout} style={[estilos.rodapeFora, estilo]}>
+      <View style={[estilos.largura, estilos.linhaDoRodape, estiloLargura]}>{children}</View>
+    </View>
   );
 }
 

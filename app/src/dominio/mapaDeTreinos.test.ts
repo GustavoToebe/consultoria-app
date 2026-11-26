@@ -1,4 +1,5 @@
-import { juntarConclusoes, montarMapa, periodoDoMapa, semanasParaCelular, textoDaCelula } from './mapaDeTreinos';
+import { somarDias } from './formatos';
+import { juntarConclusoes, montarMapa, periodoDasConclusoes, periodoDoMapa, semanasParaCelular, textoDaCelula } from './mapaDeTreinos';
 import type { ConclusaoDoTreino, ConclusaoLocal } from './sessoesConcluidas';
 
 // 11/11/2026 é quarta-feira.
@@ -16,6 +17,25 @@ describe('periodoDoMapa', () => {
     expect(periodoDoMapa(HOJE)).toEqual({ inicio: '2025-11-10', fim: HOJE, de: '2025-11-10' });
     // Domingo: hoje − 364 cai num domingo, a semana recua 6 dias (370 dias), mas a API só aceita 366.
     expect(periodoDoMapa('2026-11-15')).toEqual({ inicio: '2025-11-10', fim: '2026-11-15', de: '2025-11-14' });
+  });
+});
+
+describe('periodoDasConclusoes', () => {
+  it('é uma leitura só: do início do mapa até o que a API aceita (366 dias), sem passar de hoje + 60', () => {
+    // Quarta: o mapa começa 366 dias antes, a folga à frente some (a API não guarda conclusão depois de hoje).
+    expect(periodoDasConclusoes(HOJE)).toEqual({ de: '2025-11-10', ate: HOJE });
+    // Segunda: o mapa começa em hoje − 364 e sobram 2 dias à frente.
+    expect(periodoDasConclusoes('2026-11-09')).toEqual({ de: '2025-11-10', ate: '2026-11-11' });
+  });
+
+  it('cobre todo o período do mapa e nunca pede mais de 366 dias', () => {
+    for (let i = 0; i < 14; i++) {
+      const hoje = somarDias(HOJE, i);
+      const { de, ate } = periodoDasConclusoes(hoje);
+      expect(de).toBe(periodoDoMapa(hoje).de);
+      expect(ate >= hoje).toBe(true);
+      expect(somarDias(de, 366) >= ate).toBe(true);
+    }
   });
 });
 

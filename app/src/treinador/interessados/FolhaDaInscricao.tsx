@@ -28,6 +28,7 @@ import {
 import type { OpcaoQuestionario } from '../../api/tipos';
 import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
 import { centavosParaTela, dataHoraParaTela, SEM_DADO } from '../../dominio/formatos';
+import { linkDoPerfilDoAluno } from '../../dominio/redesSociais';
 import { rotuloDoSexo } from '../../dominio/sexo';
 import {
   alunoDoConflito,
@@ -39,6 +40,7 @@ import {
   linkDoWhatsApp,
   MODALIDADES_DESEJADAS,
   OPCOES_MOTIVO,
+  oQueVaiNoAceite,
   OPCOES_ORIGEM,
   OPCOES_PAGAMENTO,
   opcoesDeAnamneseDoAceite,
@@ -59,8 +61,10 @@ import {
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, LARGURA_EDITOR, LARGURA_FORMULARIO, RAIO } from '../../tema/tokens';
+import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { ICONE_DA_REDE } from '../../ui/IconesDeRedes';
 import { iconeWhatsApp } from '../../ui/IconeWhatsApp';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { Campo } from '../../ui/Campo';
@@ -350,6 +354,12 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
     Linking.openURL(whatsapp).catch(() => avisar('Não foi possível abrir o WhatsApp neste aparelho.', 'perigo'));
   };
 
+  // A API guarda só o usuário; o link é montado aqui e só abre https do Instagram (`abrirLinkExterno`, sem token).
+  const linkDoInstagram = linkDoPerfilDoAluno('instagram', dados.instagram);
+  const abrirInstagram = () => {
+    void abrirLinkExterno(linkDoInstagram).then((ok) => { if (!ok) avisar('Não foi possível abrir o Instagram. Tente de novo.', 'perigo'); });
+  };
+
   const copiar = (texto: string, oque: string) => {
     Clipboard.setStringAsync(texto).then(
       () => avisar(`${oque} copiado.`, 'sucesso'),
@@ -388,11 +398,13 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
       <Cartao titulo="Contato" descricao={`Inscrição em ${dataHoraParaTela(dados.criadaEm)}.`}>
         <CampoLeitura rotulo="WhatsApp" valor={dados.whatsapp} />
         <CampoLeitura rotulo="E-mail" valor={dados.email} />
+        <CampoLeitura rotulo="Instagram" valor={dados.instagram ? `@${dados.instagram}` : null} />
         <LinhaDeAcoes>
           {podeAlterar ? <Botao rotulo="Responder com modelo" Icone={MessageSquareText} tipo="secundario" aoTocar={() => setRespondendo(true)} /> : null}
           <Botao rotulo="Abrir WhatsApp" Icone={iconeWhatsApp(!!whatsapp)} tipo="secundario" aoTocar={abrirWhatsApp}
             desabilitado={!whatsapp} motivo="O número não tem DDD válido." />
           <Botao rotulo="Copiar WhatsApp" Icone={Copy} tipo="secundario" aoTocar={() => copiar(dados.whatsapp, 'WhatsApp')} />
+          {linkDoInstagram ? <Botao rotulo="Abrir Instagram" Icone={ICONE_DA_REDE.instagram} tipo="secundario" aoTocar={abrirInstagram} /> : null}
         </LinhaDeAcoes>
         <Texto variante="pequeno">Abrir o WhatsApp não envia nada: registre o contato numa nota ou no andamento.</Texto>
       </Cartao>
@@ -494,13 +506,15 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
         aoRegistrar={aoRecarregar} />
 
       <PainelConfirmacao visivel={pedido?.tipo === 'aceitar' && podeCadastrar && podeAceitar(dados.situacao)} titulo="Aceitar inscrição?"
-        mensagem={`${dados.nome} vira aluno da consultoria, com o nome${dados.email ? ' e o e-mail' : ''} da inscrição. O app não confere pagamento.`}
+        mensagem={`${dados.nome} vira aluno da consultoria, com ${oQueVaiNoAceite(dados)} da inscrição. O app não confere pagamento.`}
         rotuloConfirmar="Aceitar e cadastrar" aoConfirmar={aceitar} aoCancelar={aoFecharPedido}
         desabilitado={podeEnviarAnamnese && opcoes.carregando} motivo="Aguarde a lista de anamneses.">
         <View style={estilos.conferir}>
           <Texto variante="secao">Conferir antes de aceitar</Texto>
           <Texto variante="pequeno">Nome: {dados.nome}</Texto>
           <Texto variante="pequeno">E-mail: {dados.email ?? SEM_DADO}</Texto>
+          {/* O Instagram vai para as redes do cadastro do aluno; sem ele, a linha não aparece. */}
+          {dados.instagram ? <Texto variante="pequeno">Instagram: @{dados.instagram} (vai para as redes do aluno)</Texto> : null}
           <Texto variante="pequeno">Responsável: {dados.responsavelNome ?? 'Sem responsável'}</Texto>
           <Texto variante="pequeno">Proposta: {resumoDaProposta}</Texto>
           <Texto variante="pequeno">Pagamento (registro manual): {pagamentoTela.texto}</Texto>

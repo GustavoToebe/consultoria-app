@@ -75,18 +75,25 @@ async function capturar(page: Page, nome: string) {
  * Sessão simulada que muda como a API: ler → revisando; PUT do grupo troca destino e aluno e sobe a revisão; o primeiro
  * gravar deixa g1 importado e g2 com erro; o segundo (só g2) conclui a sessão. `confirmar` troca a resposta do gravar.
  */
-async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permissoes = TODAS, confirmar, lida = revisando }: {
+async function abrir(page: Page, { tema = 'CLARO', contraste = 'PADRAO', permissoes = TODAS, confirmar, lida = revisando, inicial = recebendo, atrasoDoGet = 0 }: {
   tema?: string; contraste?: string; permissoes?: string[]; confirmar?: RespostasApi[string]; lida?: SessaoDetalhe;
+  /** Sessão que o GET devolve antes de ler (a retomada pelo endereço, `?sessaoId=s1`). */
+  inicial?: SessaoDetalhe;
+  /** Espera (ms) no GET da sessão, para teclar antes de ela chegar. */
+  atrasoDoGet?: number;
 } = {}) {
   await page.addInitScript(([id, tm, c]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: tm, contraste: c })), [TREINADOR.id, tema, contraste]);
-  let atual = recebendo;
+  let atual = inicial;
   let gravacoes = 0;
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes })),
     [`POST ${BASE}`]: { corpo: { ...recebendo, arquivos: [] } },
     [`POST ${BASE}/{id}/textos`]: { corpo: recebendo.arquivos[0] },
     [`GET ${BASE}`]: { corpo: [] },
-    [`GET ${BASE}/{id}`]: (_p, route) => json(route, atual),
+    [`GET ${BASE}/{id}`]: async (_p, route) => {
+      if (atrasoDoGet) await new Promise((r) => setTimeout(r, atrasoDoGet));
+      return json(route, atual);
+    },
     [`POST ${BASE}/{id}/cancelar`]: (_p, route) => json(route, { ...atual, estado: 'CANCELADA' }),
     [`POST ${BASE}/{id}/processar`]: (_p, route) => { atual = lida; return json(route, atual); },
     [`POST ${BASE}/{id}/respostas`]: (p, route) => {
@@ -213,6 +220,60 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('button', { name: 'Fazer outra importação' })).toBeVisible();
       expect(corpoDoGravar(api)[1]).toMatchObject({ gruposIds: ['g2'], revisaoEsperada: 4, hashPrevia: 'h4' });
       await capturar(page, `importacao-concluida-${largura}`);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('foco ao entrar: no título sem sessão; em "Ler os arquivos" na sessão retomada; não volta a cada etapa', async ({ page }) => {
+      const api = await abrir(page);
+      await page.goto('/treinador/importacao/assistida');
+      const titulo = page.getByRole('heading', { level: 1, name: 'Importação assistida' });
+      await expect(titulo).toBeFocused();
+      // O título não rola nada: toda caixa rolável continua no começo.
+      expect(await page.evaluate(() => [...document.querySelectorAll('*')].every((e) => e.scrollTop === 0))).toBe(true);
+      await capturar(page, `importacao-foco-titulo-${largura}`);
+
+      await page.goto('/treinador/importacao/assistida?sessaoId=s1');
+      const ler = page.getByRole('button', { name: 'Ler os arquivos' });
+      await expect(ler).toBeFocused();
+      await expect(titulo).not.toBeFocused();
+      // Passar de etapa não traz o foco de volta ao título nem leva ao termo novo.
+      await ler.click();
+      await expect(page.getByText('Em revisão · 1 arquivo ou texto')).toBeVisible();
+      await page.waitForTimeout(600);
+      await expect(titulo).not.toBeFocused();
+      await expect(page.getByRole('button', { name: 'Corrigir o termo sup inc' })).not.toBeFocused();
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('foco ao entrar: sessão retomada com termo para conferir vai ao "Corrigir o termo"; sem termo, ao aluno parecido', async ({ page }) => {
+      let api = await abrir(page, { inicial: revisando });
+      await page.goto('/treinador/importacao/assistida?sessaoId=s1');
+      const corrigir = page.getByRole('button', { name: 'Corrigir o termo sup inc' });
+      await expect(corrigir).toBeFocused();
+      // Fica à vista (a tabela vira cartões no celular e o botão remonta: o foco segue o novo).
+      await page.waitForTimeout(600);
+      await expect(corrigir).toBeFocused();
+      await expect(corrigir).toBeInViewport();
+      await capturar(page, `importacao-foco-termo-${largura}`);
+      expect(api.errosDaPagina).toEqual([]);
+
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      api = await abrir(page, { inicial: { ...revisando, duvidas: revisando.duvidas.map((d) => ({ ...d, resolvida: true, respostaEscolhida: 'Supino inclinado' })) } });
+      await page.goto('/treinador/importacao/assistida?sessaoId=s1');
+      await expect(page.getByText(/Já existe aluno cadastrado parecido/)).toBeVisible();
+      await expect(page.locator(':focus')).toHaveAttribute('role', 'radio');
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('foco ao entrar não rouba: quem teclou antes de a sessão chegar fica onde está', async ({ page }) => {
+      const api = await abrir(page, { inicial: revisando, atrasoDoGet: 1500 });
+      await page.goto('/treinador/importacao/assistida?sessaoId=s1');
+      await expect(page.getByRole('heading', { level: 1, name: 'Importação assistida' })).toBeVisible();
+      await page.keyboard.press('Tab');
+      const corrigir = page.getByRole('button', { name: 'Corrigir o termo sup inc' });
+      await expect(corrigir).toBeVisible();
+      await page.waitForTimeout(600);
+      await expect(corrigir).not.toBeFocused();
       expect(api.errosDaPagina).toEqual([]);
     });
 
@@ -366,6 +427,15 @@ test.describe('1920 px', () => {
     await expect(coluna.getByText('Importação gravada em parte')).toBeInViewport();
     await expect(coluna.getByRole('button', { name: 'Tentar de novo os que deram erro' })).toBeVisible();
     await capturar(page, 'importacao-1920-com-erro');
+    expect(api.errosDaPagina).toEqual([]);
+  });
+
+  test('foco ao entrar: título sem sessão; "Ler os arquivos" fica na lateral e recebe o foco na sessão retomada', async ({ page }) => {
+    const api = await abrir(page);
+    await page.goto('/treinador/importacao/assistida');
+    await expect(page.getByRole('heading', { level: 1, name: 'Importação assistida' })).toBeFocused();
+    await page.goto('/treinador/importacao/assistida?sessaoId=s1');
+    await expect(lateral(page).getByRole('button', { name: 'Ler os arquivos' })).toBeFocused();
     expect(api.errosDaPagina).toEqual([]);
   });
 

@@ -1,4 +1,5 @@
 import { CheckCircle2 } from 'lucide-react-native';
+import type { Ref } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { rotuloDaDuvida, trechoDaDuvida } from '../../dominio/importacaoAssistida';
@@ -24,8 +25,10 @@ export interface EdicaoDoTermo {
  * que vira cartões abaixo de 760 px. Corrigir abre, embaixo da própria linha, as sugestões do catálogo, o campo e o
  * "Lembrar nas próximas importações"; resolvida mostra o que ficou, com Alterar e Revogar.
  */
-export function TermosParaConferir({ duvidas, decisoes, edicao, salvando, revogando, aoEditar, aoMudarResposta, aoMudarDicionario, aoSalvar, aoCancelar, aoRevogar }: {
+export function TermosParaConferir({ duvidas, decisoes, edicao, salvando, revogando, pendente, aoEditar, aoMudarResposta, aoMudarDicionario, aoSalvar, aoCancelar, aoRevogar }: {
   duvidas: readonly DuvidaImportacao[];
+  /** O "Corrigir o termo" que recebe o foco ao entrar na tela (T-206): o ref vai só no botão desta dúvida. */
+  pendente?: { id: string; ref: Ref<View> };
   decisoes: ReadonlyMap<string, DecisaoImportacao>;
   edicao: EdicaoDoTermo | null;
   salvando: boolean;
@@ -69,7 +72,7 @@ export function TermosParaConferir({ duvidas, decisoes, edicao, salvando, revoga
         if (!d.resolvida) {
           return (
             <View style={estilos.acoes}>
-              <Botao rotulo="Corrigir o termo" rotuloAcessivel={`Corrigir o termo ${d.termoOriginal}`} tipo="secundario" aoTocar={() => aoEditar(d, d.termoOriginal, null)} />
+              <Botao ref={pendente?.id === d.id ? pendente.ref : undefined} rotulo="Corrigir o termo" rotuloAcessivel={`Corrigir o termo ${d.termoOriginal}`} tipo="secundario" aoTocar={() => aoEditar(d, d.termoOriginal, null)} />
             </View>
           );
         }

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { StyleSheet, View, type TextInput } from 'react-native';
 
 import { alterarEmailDeAcessoDoAluno } from '../api/rotas';
-import type { AlunoDetalhe } from '../api/tipos';
+import type { AlunoDetalhe, EmailDeAcessoAlterado } from '../api/tipos';
 import { errosDoNovoEmail, LIMITE_DO_EMAIL, traduzirErroDoAcesso, type ErrosDoNovoEmail } from '../dominio/acessoAoApp';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
@@ -18,13 +18,13 @@ type CampoDoEmail = keyof ErrosDoNovoEmail;
 /**
  * Folha "Alterar e-mail de acesso" (25/11), aberta pela linha E-mail de acesso do cartão. Novo e-mail e a confirmação;
  * a própria folha diz o efeito (sessões encerradas, aviso por e-mail se o envio estiver ligado), então não há outro
- * painel de confirmação. Montada só aberta: cada abertura nasce limpa. Os campos não sugerem preenchimento automático (que
+ * painel de confirmação. O aviso de sucesso (com `emailEnviado`) é de quem abriu a folha (`textoDoEmailAlterado`). Montada só aberta: cada abertura nasce limpa. Os campos não sugerem preenchimento automático (que
  * traria o e-mail do próprio treinador).
  */
 export function FolhaAlterarEmailDeAcesso({ aluno, aoFechar, aoSalvar }: {
   aluno: AlunoDetalhe;
   aoFechar: () => void;
-  aoSalvar: (novo: AlunoDetalhe) => void;
+  aoSalvar: (resposta: EmailDeAcessoAlterado) => void;
 }) {
   const [form, setForm] = useState({ email: '', confirmacao: '' });
   const [tocados, setTocados] = useState<ReadonlySet<CampoDoEmail>>(new Set());
@@ -55,7 +55,7 @@ export function FolhaAlterarEmailDeAcesso({ aluno, aoFechar, aoSalvar }: {
     setEnviando(true);
     setGeral(null);
     alterarEmailDeAcessoDoAluno(aluno.id, form.email.trim()).then(
-      (novo) => { setEnviando(false); aoSalvar(novo); },
+      (resposta) => { setEnviando(false); aoSalvar(resposta); },
       (e: unknown) => {
         setEnviando(false);
         const t = traduzirErroDoAcesso(e);

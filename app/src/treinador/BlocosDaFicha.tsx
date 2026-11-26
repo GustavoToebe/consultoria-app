@@ -55,7 +55,7 @@ export function BlocosDaFicha({ alunoId, blocos, largura, editando, bloco }: {
   if (atrasada) return null;
   return (
     // Em duas colunas (normal e larga) a aba ocupa a largura do conteúdo (D1, 25/11); em três, cada coluna para no editor de
-    // campos; com a coluna única, ela e o Histórico (o formulário continua no teto do editor de campos).
+    // campos; com a coluna única, ela e o Histórico (o formulário de edição tem a mesma largura da leitura, 25/11).
     <View style={[estilos.aba, { maxWidth: maximo }]}>
       {tem('dadosDoAluno') ? bloco('dadosDoAluno', colunas) : colunas ? <ColunasDaFicha colunas={colunas.map((c) => ({ conteudo: c.blocos, proporcao: c.proporcao, teto: c.teto }))} /> : null}
       {/* Em duas colunas, o Histórico de lesões embaixo delas, na largura das duas somada (24/11), ou na da coluna única; em

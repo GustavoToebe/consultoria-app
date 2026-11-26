@@ -78,9 +78,10 @@ export function DadosDoAluno({ aluno, padrao, aoAlterar, editando, aoEditar, col
         <Texto variante="bloco" nivel={2} style={estilos.titulo}>Dados do aluno</Texto>
         {editando || !podeEditar ? null : <Botao rotulo="Editar dados" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} />}
       </View>
-      {/* O formulário fica no teto do editor de campos também com a aba em três colunas (4.10). */}
+      {/* O formulário tem a largura da leitura: nas duas colunas, a do conteúdo (D1, 25/11; na `ultralarga` a aba já para no
+          editor de campos); com a aba em três, o teto do editor de campos (4.10). */}
       {editando ? (
-        <View style={estilos.formulario}><FormAluno
+        <View style={colunas?.length === 3 ? estilos.formulario : null}><FormAluno
           inicial={aluno}
           nivel={3}
           diasPadrao={padrao}

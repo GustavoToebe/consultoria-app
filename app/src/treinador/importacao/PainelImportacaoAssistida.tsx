@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Ref, type RefObject } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import { CheckCircle2, FileSearch, FileText, FileUp, RotateCcw } from 'lucide-react-native';
 import type { Href } from 'expo-router';
-import { Platform, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, findNodeHandle, Platform, StyleSheet, View } from 'react-native';
 
 import { dataHoraParaTela, plural } from '../../dominio/formatos';
 import {
   campoDoErroDoTexto,
   duvidasVisiveis,
   DICA_DE_TREINO_DESMONTADO,
+  focoAoEntrar,
+  type FocoAoEntrar,
   gerarChaveIdempotencia,
   grupoResumido,
   idsComErro,
@@ -119,6 +121,14 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   // Qual botão de gravar foi tocado, para o carregando girar só nele.
   const [gravando, setGravando] = useState<'pendentes' | 'erros'>('pendentes');
 
+  // Foco ao entrar (T-206): sem sessão no endereço já se sabe que é o título; com ela, só depois de lê-la.
+  const [focoInicial, setFocoInicial] = useState<FocoAoEntrar | null>(() => (sessaoIdInicial ? null : { tipo: 'titulo' }));
+  const refRaiz = useRef<View>(null);
+  const refLer = useRef<View>(null);
+  const refTermo = useRef<View>(null);
+  const refAluno = useRef<Focavel | null>(null);
+  useFocoAoEntrar(focoInicial, refRaiz, refLer, refTermo, refAluno);
+
   const carregarSessoesAbertas = async () => {
     const lista = await listarSessoes().catch(() => [] as SessaoListaItem[]);
     setSessoesAbertas(lista.filter(sessaoRetomavel));
@@ -130,14 +140,20 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
       if (sessaoIdInicial) {
         try {
           const s = await obterSessao(sessaoIdInicial);
-          if (ativo) setSessao(s);
+          if (ativo) {
+            setSessao(s);
+            setFocoInicial(focoAoEntrar(s));
+          }
           return;
         } catch {
           // Se falhar ao abrir a sessão da URL, lista as abertas.
         }
       }
       const lista = await listarSessoes().catch(() => [] as SessaoListaItem[]);
-      if (ativo) setSessoesAbertas(lista.filter(sessaoRetomavel));
+      if (ativo) {
+        setSessoesAbertas(lista.filter(sessaoRetomavel));
+        setFocoInicial((atual) => atual ?? { tipo: 'titulo' });
+      }
     };
     void iniciar();
     return () => { ativo = false; };
@@ -401,7 +417,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   const podeLer = sessao?.estado === 'RECEBENDO' || sessao?.estado === 'RASCUNHO';
   const botaoLer = podeLer ? (
     <LinhaDeAcoes>
-      <Botao rotulo="Ler os arquivos" tipo="primario" Icone={FileSearch} carregando={acao === 'processar'} aoTocar={processar} />
+      <Botao ref={refLer} rotulo="Ler os arquivos" tipo="primario" Icone={FileSearch} carregando={acao === 'processar'} aoTocar={processar} />
     </LinhaDeAcoes>
   ) : null;
   // Resultado junto dos botões: quem tocou em gravar o vê sem rolar a página.
@@ -608,6 +624,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
                 edicao={duvidaAtiva ? { id: duvidaAtiva.id, resposta: respostaEscolhida, salvarDicionario } : null}
                 salvando={acao === 'responder'}
                 revogando={acao === 'revogar'}
+                pendente={focoInicial?.tipo === 'termo' ? { id: focoInicial.duvidaId, ref: refTermo } : undefined}
                 aoEditar={(d, resposta, referenciaId) => {
                   setDuvidaAtiva(d);
                   setRespostaEscolhida(resposta);
@@ -679,6 +696,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
                   selecionado={selecionadosAtivos.has(g.id)}
                   aoSelecionar={g.destino !== 'IGNORAR' ? (m) => alternarSelecao(g.id, m) : undefined}
                   aoMudar={(v) => alterarDestinoDoGrupo(g, v)}
+                  refDoDestino={focoInicial?.tipo === 'aluno' && focoInicial.grupoId === g.id ? refAluno : undefined}
                 />
               )))}
 
@@ -692,7 +710,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   );
 
   return (
-    <View style={estilos.blocos}>
+    <View ref={refRaiz} style={estilos.blocos}>
       {comLateral ? (
         <View style={estilos.ladoALado}>
           <View style={[estilos.blocos, estilos.principal]}>{blocos}</View>
@@ -715,6 +733,98 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   );
 }
 
+type Focavel = { focus: () => void };
+
+/** O h1 da tela (o título do `Cabecalho`, que não expõe ref): o mais perto do painel, subindo pelos ancestrais. */
+function tituloDaTela(raiz: View | null): HTMLElement | null {
+  for (let no = (raiz as unknown as HTMLElement | null)?.parentElement; no; no = no.parentElement) {
+    const titulo = no.querySelector<HTMLElement>('h1, [role="heading"][aria-level="1"]');
+    if (titulo) return titulo;
+  }
+  return null;
+}
+
+const emCampo = (el: Element | null) =>
+  !!el && ((el as HTMLElement).isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT');
+
+/**
+ * Foco ao entrar (T-206), uma vez por montagem: no título da tela ou na primeira ação pendente (`focoAoEntrar`). Não
+ * rouba: se a pessoa já tocou ou teclou desde que a tela abriu, ou está num campo, o foco fica onde está. Espera dois
+ * quadros, porque a tabela dos termos se mede e, estreita, vira cartões (o botão remonta), e confere de novo em 300 ms:
+ * se o botão focado sumiu nessa troca (foco no `body`), foca o novo. O título não rola a página; a ação rola só se
+ * estiver fora da vista. No nativo o leitor de tela já começa no topo da tela nova: só a ação pendente recebe o foco
+ * (`setAccessibilityFocus`, como em `ConferirOArquivo`).
+ */
+function useFocoAoEntrar(
+  foco: FocoAoEntrar | null,
+  raiz: RefObject<View | null>,
+  ler: RefObject<View | null>,
+  termo: RefObject<View | null>,
+  aluno: RefObject<Focavel | null>,
+) {
+  const interagiu = useRef(false);
+  const feito = useRef(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const marcar = () => { interagiu.current = true; };
+    document.addEventListener('keydown', marcar, true);
+    document.addEventListener('pointerdown', marcar, true);
+    return () => {
+      document.removeEventListener('keydown', marcar, true);
+      document.removeEventListener('pointerdown', marcar, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!foco || feito.current) return;
+    let noNativo: number | null = null;
+    const focar = () => {
+      if (interagiu.current) return;
+      if (Platform.OS !== 'web') {
+        const no = findNodeHandle(foco.tipo === 'ler' ? ler.current : foco.tipo === 'termo' ? termo.current : null);
+        // O mesmo nó já tem o foco; outro nó é o botão remontado.
+        if (!no || no === noNativo) return;
+        AccessibilityInfo.setAccessibilityFocus(no);
+        noNativo = no;
+        feito.current = true;
+        return;
+      }
+      const ativo = document.activeElement;
+      // Na segunda passada só refaz se o foco se perdeu (o botão sumiu); a primeira tira o foco do menu que abriu a tela.
+      if (feito.current && ativo && ativo !== document.body) return;
+      if (emCampo(ativo)) return;
+      if (foco.tipo === 'aluno') {
+        if (!aluno.current) return;
+        aluno.current.focus();
+      } else if (foco.tipo === 'titulo') {
+        const titulo = tituloDaTela(raiz.current);
+        if (!titulo) return;
+        if (!titulo.hasAttribute('tabindex')) titulo.setAttribute('tabindex', '-1');
+        titulo.focus({ preventScroll: true });
+      } else {
+        const botao = (foco.tipo === 'ler' ? ler.current : termo.current) as unknown as HTMLElement | null;
+        if (!botao) return;
+        botao.focus();
+      }
+      feito.current = true;
+    };
+    let segundo = 0;
+    let espera: ReturnType<typeof setTimeout> | undefined;
+    const primeiro = requestAnimationFrame(() => {
+      segundo = requestAnimationFrame(() => {
+        focar();
+        espera = setTimeout(focar, 300);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(primeiro);
+      cancelAnimationFrame(segundo);
+      clearTimeout(espera);
+    };
+  }, [foco, raiz, ler, termo, aluno]);
+}
+
 /** Grupo gravado, ignorado no fim ou com erro na gravação: uma linha com o selo, sem ações. O erro diz o motivo. */
 function LinhaResumida({ grupo }: { grupo: GrupoImportavel }) {
   const { cores } = useTema();
@@ -731,13 +841,15 @@ function LinhaResumida({ grupo }: { grupo: GrupoImportavel }) {
 }
 
 /** Grupo ainda não gravado: o que foi lido ("—" onde não há dado ou a pessoa não pode ver) e o destino. */
-function GrupoParaConferir({ grupo, pode, conferidos, selecionado, aoSelecionar, aoMudar }: {
+function GrupoParaConferir({ grupo, pode, conferidos, selecionado, aoSelecionar, aoMudar, refDoDestino }: {
   grupo: GrupoImportavel;
   pode: (codigo: string) => boolean;
   conferidos: ReadonlySet<string>;
   selecionado: boolean;
   aoSelecionar?: (marcado: boolean) => void;
   aoMudar: (valor: ValorDoDestino | null) => void;
+  /** Só no aluno parecido que recebe o foco ao entrar na tela (T-206). */
+  refDoDestino?: Ref<Focavel | null>;
 }) {
   const { cores } = useTema();
   const selo = seloDoGrupo(grupo.estado);
@@ -759,6 +871,7 @@ function GrupoParaConferir({ grupo, pode, conferidos, selecionado, aoSelecionar,
       ) : null}
 
       <Escolha<ValorDoDestino | null>
+        ref={refDoDestino}
         rotulo="Destino"
         valor={valorDoDestino(grupo, conferidos)}
         aoMudar={aoMudar}

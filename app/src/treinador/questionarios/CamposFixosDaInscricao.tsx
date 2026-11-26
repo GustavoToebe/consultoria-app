@@ -17,7 +17,8 @@ import { useCarregar } from '../../ui/useCarregar';
 
 /**
  * Campos fixos da página "Quero ser aluno" (D4 de `docs/planos/inscricao-com-perguntas-proprias.md`), no topo da aba
- * Inscrição do Planejamento. Nome, WhatsApp e a ciência do texto nunca saem; os outros o treinador pode esconder, um a um.
+ * Inscrição do Planejamento. Nome, WhatsApp, Instagram (opcional) e a ciência do texto nunca saem; os outros o treinador
+ * pode esconder, um a um.
  * A escolha mora na configuração do link (`INSCRICAO_LER` para ver, `INSCRICAO_ALTERAR` para mudar) e vale na hora,
  * com a versão da configuração: outra aba mudou antes = recarrega e avisa.
  */
@@ -46,7 +47,7 @@ function Campos({ podeAlterar }: { podeAlterar: boolean }) {
   };
 
   return <Cartao titulo="Campos fixos da página"
-    descricao="Nome, WhatsApp e a ciência do texto da consultoria sempre aparecem. Os outros você pode esconder; as suas perguntas entram embaixo deles.">
+    descricao="Nome, WhatsApp, Instagram (opcional) e a ciência do texto da consultoria sempre aparecem; o Instagram vai para as redes do aluno no aceite. Os outros você pode esconder; as suas perguntas entram embaixo deles.">
     {config.erro instanceof ErroApi && config.erro.status === 404 ? <Texto variante="suave">{SEM_FORMULARIO_PADRAO}</Texto>
       : config.erro ? <MensagemErro texto={textoDoErro(config.erro)} erro={config.erro} tentarDeNovo={config.recarregar} /> : null}
     {!config.dados && config.carregando ? <Esqueleto /> : null}

@@ -45,6 +45,7 @@ export function detalheFalso(r: InscricaoResumo, extra: Partial<InscricaoDetalhe
   const { proximoRetorno: _retorno, propostaPlanoNome: _plano, ...base } = r;
   return {
     ...base,
+    instagram: null,
     observacao: null,
     interesse: null,
     modalidadeDesejada: null,

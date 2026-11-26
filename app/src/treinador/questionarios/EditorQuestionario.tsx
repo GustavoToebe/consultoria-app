@@ -32,6 +32,7 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { BarraDoEditor } from '../plano/BarraDoEditor';
+import { AvisoDePerguntaDoInstagram } from './AvisoDePerguntaDoInstagram';
 import { FixoAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
 import { CamposFixosNaPrevia } from './CamposFixosNaPrevia';
 import { IndiceDoQuestionario, irParaBloco, useItemVisivel } from './IndiceDoQuestionario';
@@ -193,6 +194,9 @@ export function EditorQuestionario({ id }: { id: string }) {
           {/* D7: não dá para impedir por regra (o texto da pergunta é livre); o aviso fica sempre no editor da inscrição. */}
           {inscricao ? <Alerta tom="atencao" texto={AVISO_SAUDE_NA_INSCRICAO} /> : null}
         </Cartao>
+
+        {/* D4: pergunta parecida com o campo fixo Instagram só é avisada; remover é escolha do treinador. */}
+        {inscricao && editavel ? <AvisoDePerguntaDoInstagram conteudo={e.conteudo} aoMudar={editor.alterarConteudo} /> : null}
 
         {problemas && problemas.length ? <Cartao titulo="Corrija antes de publicar" acoes={<Botao rotulo="Fechar" tipo="fantasma" aoTocar={() => setProblemas(null)} />}>
           {problemas.map((p, i) => <ItemProblema key={`${p.caminho}${i}`} onde={descricaoDoLocal(e.conteudo, p.caminho)} mensagem={p.mensagem} tipo="perigo" />)}

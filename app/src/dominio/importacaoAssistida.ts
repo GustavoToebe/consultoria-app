@@ -497,3 +497,24 @@ export function resumoDaSessao(s: Pick<SessaoDetalhe, 'estado' | 'arquivos' | 'g
     termosPendentes: lida ? duvidasVisiveis(s.duvidas).filter((d) => !d.resolvida).length : null,
   };
 }
+
+/** Para onde vai o foco ao entrar na tela (T-206): o título ou a primeira ação pendente à vista. */
+export type FocoAoEntrar =
+  | { tipo: 'titulo' }
+  | { tipo: 'ler' }
+  | { tipo: 'termo'; duvidaId: string }
+  | { tipo: 'aluno'; grupoId: string };
+
+/**
+ * Sem sessão aberta (a lista "Importações em aberto" é escolha, não pendência), o título. Com a sessão aberta pelo
+ * endereço, a primeira ação que espera o treinador, na ordem da página: "Ler os arquivos" antes de ler, o primeiro termo
+ * a conferir, o primeiro aluno parecido sem resposta. Nada pendente (lendo, só gravar), o título.
+ */
+export function focoAoEntrar(s: Pick<SessaoDetalhe, 'estado' | 'duvidas' | 'grupos'> | null): FocoAoEntrar {
+  if (!s) return { tipo: 'titulo' };
+  if (s.estado === 'RASCUNHO' || s.estado === 'RECEBENDO') return { tipo: 'ler' };
+  const termo = duvidasVisiveis(s.duvidas).find((d) => !d.resolvida);
+  if (termo) return { tipo: 'termo', duvidaId: termo.id };
+  const grupo = (s.grupos ?? []).find((g) => precisaEscolherAluno(g, new Set()));
+  return grupo ? { tipo: 'aluno', grupoId: grupo.id } : { tipo: 'titulo' };
+}

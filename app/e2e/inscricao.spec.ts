@@ -74,7 +74,7 @@ for (const largura of [390, 1440]) {
     await page.getByLabel('Objetivo (opcional)').fill('Ganhar condicionamento.');
     await page.getByRole('checkbox', { name: 'Li e estou ciente' }).click();
     // A guia guarda só o contato (decisão 4): nem o objetivo nem a ciência.
-    expect(JSON.parse((await guardado(page))!)).toEqual({ nome: 'Pessoa Fictícia', whatsapp: '(11) 98765-4321', email: '' });
+    expect(JSON.parse((await guardado(page))!)).toEqual({ nome: 'Pessoa Fictícia', whatsapp: '(11) 98765-4321', email: '', instagram: '' });
     await page.getByRole('button', { name: 'Enviar inscrição' }).click();
 
     await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
@@ -86,6 +86,7 @@ for (const largura of [390, 1440]) {
       nome: 'Pessoa Fictícia',
       whatsapp: '(11) 98765-4321',
       email: null,
+      instagram: null,
       objetivo: 'Ganhar condicionamento.',
       interesse: null,
       modalidade: null,
@@ -110,8 +111,9 @@ for (const largura of [390, 1440]) {
     });
     await page.goto(`/inscricao/${CODIGO}`);
     await page.getByLabel('E-mail (opcional)').fill('pessoa@exemplo.test');
+    await page.getByLabel('Instagram (opcional)').fill('@pessoa.ficticia');
     await irParaASegundaParte(page);
-    await expect(page.getByText('Pessoa Fictícia · (11) 98765-4321 · pessoa@exemplo.test')).toBeVisible();
+    await expect(page.getByText('Pessoa Fictícia · (11) 98765-4321 · pessoa@exemplo.test · @pessoa.ficticia')).toBeVisible();
     await page.getByLabel('Objetivo (opcional)').fill('Voltar a treinar.');
     await page.getByLabel('Tô só de passagem', { exact: true }).click();
 
@@ -121,6 +123,9 @@ for (const largura of [390, 1440]) {
     await expect(page.getByLabel('Nome')).toHaveValue('Pessoa Fictícia');
     await expect(page.getByLabel('WhatsApp com DDD')).toHaveValue('(11) 98765-4321');
     await expect(page.getByLabel('E-mail (opcional)')).toHaveValue('pessoa@exemplo.test');
+    await expect(page.getByLabel('Instagram (opcional)')).toHaveValue('@pessoa.ficticia');
+    // O Instagram fica na guia com o resto do contato.
+    expect(JSON.parse((await guardado(page))!)).toMatchObject({ instagram: '@pessoa.ficticia' });
     await page.getByLabel('Nome').fill('Pessoa Fictícia Corrigida');
 
     await page.getByRole('button', { name: 'Continuar' }).click();
@@ -131,7 +136,8 @@ for (const largura of [390, 1440]) {
 
     await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
     expect(envios(pedidos)[0].corpo).toMatchObject({
-      nome: 'Pessoa Fictícia Corrigida', email: 'pessoa@exemplo.test', objetivo: 'Voltar a treinar.', previsaoInicio: 'SO_DE_PASSAGEM',
+      nome: 'Pessoa Fictícia Corrigida', email: 'pessoa@exemplo.test', instagram: '@pessoa.ficticia', objetivo: 'Voltar a treinar.',
+      previsaoInicio: 'SO_DE_PASSAGEM',
     });
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
@@ -173,6 +179,55 @@ for (const largura of [390, 1440]) {
     await page.getByRole('button', { name: 'Enviar inscrição' }).click();
     await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
     expect(envios(pedidos).map((p) => (p.corpo as { whatsapp: string }).whatsapp)).toEqual(['(11) 98765-4321', '(11) 91234-5678']);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`inscrição pública: Instagram opcional depois do contato, conferido no "Continuar" e com o erro da API no campo (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    let tentativas = 0;
+    const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+      [`GET /publico/inscricoes/${CODIGO}`]: { corpo: paginaPublica() },
+      [`POST /publico/inscricoes/${CODIGO}`]: (_p, route) => {
+        tentativas += 1;
+        if (tentativas === 1) {
+          const { status, corpo } = erroApi(422, 'Confira os campos.', 'INSCRICAO_INVALIDA', [
+            { field: 'instagram', message: 'Perfil do Instagram inválido.' },
+          ]);
+          return json(route, corpo, status);
+        }
+        return json(route, { mensagem: 'Recebemos sua inscrição.' }, 202);
+      },
+    });
+    await page.goto(`/inscricao/${CODIGO}`);
+    // Na parte 1, depois do WhatsApp e do e-mail, com a dica do formato.
+    const campo = page.getByLabel('Instagram (opcional)');
+    await expect(campo).toBeVisible();
+    await expect(page.getByText('@usuario ou link do perfil.')).toBeVisible();
+    await page.getByLabel('Nome').fill('Pessoa Fictícia');
+    await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+    await campo.fill('tiktok.com/@pessoa');
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByText('Use @usuario ou o link do perfil no Instagram.')).toBeVisible();
+    await expect(campo).toBeFocused();
+
+    // O link do perfil vale; a API recusa e o erro volta à parte 1, no campo.
+    await campo.fill('https://www.instagram.com/pessoa.ficticia/');
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+    await expect(page.getByRole('heading', { name: 'Seu contato', level: 2 })).toBeVisible();
+    await expect(page.getByText('Perfil do Instagram inválido.')).toBeVisible();
+    await expect(campo).toBeFocused();
+    await expect(campo).toHaveAttribute('aria-invalid', 'true');
+    await capturar(page, `instagram-erro-${largura}`);
+
+    // Em branco não é erro e vai nulo.
+    await campo.fill('');
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+    await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
+    expect(envios(pedidos).map((p) => (p.corpo as { instagram: string | null }).instagram))
+      .toEqual(['https://www.instagram.com/pessoa.ficticia/', null]);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
@@ -398,6 +453,34 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Inscrição aceita: o aluno foi cadastrado. Anamnese enviada.')).toBeVisible();
     const aceitar = pedidos.find((p) => p.caminho.endsWith('/aceitar'));
     expect(aceitar?.corpo).toEqual({ convidar: true, anamneseQuestionarioId: muitas[4].id, versao: 3 });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`Interessados: o Instagram aparece no contato, com "Abrir Instagram", e o aceite diz que ele vai para o aluno (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const aceite: AceiteInscricao = { id: INSCRICAO_ID, alunoId: ALUNO_NOVO, convite: null, anamneseId: null };
+    const { naoTratadas, errosDaPagina } = await abrirAceite(page, aceite, {
+      [`GET /inscricoes/${INSCRICAO_ID}`]: { corpo: { ...detalhe, instagram: 'pessoa.interessada' } },
+    });
+    await expect(page.getByText('com o nome, o e-mail e o Instagram da inscrição', { exact: false })).toBeVisible();
+    await expect(page.getByText('Instagram: @pessoa.interessada (vai para as redes do aluno)')).toBeVisible();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar' }).click();
+    await expect(page.getByLabel('Instagram: @pessoa.interessada')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Abrir Instagram' })).toBeVisible();
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`Interessados: sem Instagram o contato mostra "—", sem botão, e o aceite não o cita (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const aceite: AceiteInscricao = { id: INSCRICAO_ID, alunoId: ALUNO_NOVO, convite: null, anamneseId: null };
+    const { naoTratadas, errosDaPagina } = await abrirAceite(page, aceite);
+    await expect(page.getByText('Pessoa Interessada vira aluno da consultoria, com o nome e o e-mail da inscrição. O app não confere pagamento.')).toBeVisible();
+    await expect(page.getByText(/^Instagram: @/)).toHaveCount(0);
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar' }).click();
+    await expect(page.getByLabel('Instagram: —')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Abrir Instagram' })).toHaveCount(0);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

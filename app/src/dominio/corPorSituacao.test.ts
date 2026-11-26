@@ -108,9 +108,10 @@ describe('uma cor por situação, no aluno e no treinador', () => {
     expect(seloDoAcesso({ ativo: false, anonimizado: false, temAcesso: true, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Inativo', tipo: 'neutro' });
     expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: true })).toEqual({ texto: 'Aguardando primeiro acesso', tipo: 'neutro' });
     expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Com acesso', tipo: 'sucesso' });
-    // Acesso desativado (25/11): "Sem acesso" neutro, também se o aluno aguardava o primeiro acesso; a situação do aluno vence.
-    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: false, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toEqual({ texto: 'Sem acesso', tipo: 'neutro' });
-    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: true, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toEqual({ texto: 'Sem acesso', tipo: 'neutro' });
+    // Acesso desativado (25/11, T-202): "Sem acesso" com o "●" (tom `atencao`, o único com ponto sem criar cor), também se o aluno
+    // aguardava o primeiro acesso; a situação do aluno vence.
+    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: false, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toEqual({ texto: 'Sem acesso', tipo: 'atencao' });
+    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: true, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toEqual({ texto: 'Sem acesso', tipo: 'atencao' });
     expect(seloDoAcesso({ ativo: false, anonimizado: false, temAcesso: true, aguardandoPrimeiroAcesso: false, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toEqual({ texto: 'Inativo', tipo: 'neutro' });
   });
 

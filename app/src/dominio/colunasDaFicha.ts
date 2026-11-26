@@ -117,7 +117,7 @@ export function ordemNumaColuna(blocos: readonly BlocoDaFicha[]): PecaNumaColuna
  * em 1920 (Gustavo). Na `ultralarga` o arranjo normal é o de três, cada coluna até `LARGURA_EDITOR_DE_CAMPOS` (o `maxWidth`
  * dela) e a aba na soma (o "Editar dados" fica na borda da 3ª); quando ele volta às duas (a do meio vazia), as duas continuam
  * no teto do editor de campos, para não esticarem por ~3150 px. Numa coluna (`compacta`), a largura toda. O formulário da
- * edição continua no teto do editor de campos (`DadosDoAluno`).
+ * edição tem a largura da leitura (`DadosDoAluno`, D1 de 25/11): o teto do editor de campos só vale com a aba em três.
  */
 export const larguraMaximaDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, vao: number, faixa: FaixaDeLargura): number | undefined =>
   (!colunas ? undefined : colunas.length === 3 ? 3 * LARGURA_EDITOR_DE_CAMPOS + 2 * vao : faixa === 'ultralarga' ? LARGURA_EDITOR_DE_CAMPOS : undefined);

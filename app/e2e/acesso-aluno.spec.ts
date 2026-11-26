@@ -239,7 +239,7 @@ for (const largura of [390, 1280]) {
       [`PUT /alunos/${ALUNO_ID}/acesso/email`]: (p, route) => {
         tentativas++;
         if (tentativas === 1) return json(route, erroApi(409, 'Conflito.', 'EMAIL_EM_USO').corpo, 409);
-        return json(route, { ...COM_CONTA, emailDeAcesso: (p.corpo as { email: string }).email });
+        return json(route, { aluno: { ...COM_CONTA, emailDeAcesso: (p.corpo as { email: string }).email }, emailEnviado: true });
       },
     });
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
@@ -275,13 +275,34 @@ for (const largura of [390, 1280]) {
     await alterar.click();
     await expect(folha).toHaveCount(0);
     await expect(acesso.getByLabel(`E-mail de acesso: ${EMAIL_NOVO}`)).toBeVisible();
-    await expect(page.getByText('E-mail de acesso alterado. As sessões do aluno foram encerradas.')).toBeVisible();
+    await expect(page.getByText('E-mail de acesso alterado. As sessões do aluno foram encerradas. Avisamos o aluno no e-mail novo.')).toBeVisible();
     const envios = pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === `/alunos/${ALUNO_ID}/acesso/email`);
     expect(envios.map((p) => p.corpo)).toEqual([{ email: EMAIL_NOVO }, { email: EMAIL_NOVO }]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+test('"Alterar e-mail" com o envio de e-mails desligado diz para avisar o aluno', async ({ page }) => {
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: COM_CONTA },
+    [`PUT /alunos/${ALUNO_ID}/acesso/email`]: (p, route) => json(route, { aluno: { ...COM_CONTA, emailDeAcesso: (p.corpo as { email: string }).email }, emailEnviado: false }),
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+  const acesso = acessoDoAluno(page);
+  await acesso.getByRole('button', { name: 'Alterar e-mail de acesso' }).click();
+  const folha = page.getByRole('dialog', { name: 'Alterar e-mail de acesso' });
+  await folha.getByRole('textbox', { name: 'Novo e-mail', exact: true }).fill(EMAIL_NOVO);
+  await folha.getByRole('textbox', { name: 'Confirme o novo e-mail' }).fill(EMAIL_NOVO);
+  await folha.getByRole('button', { name: 'Alterar e-mail', exact: true }).click();
+  await expect(folha).toHaveCount(0);
+  await expect(acesso.getByLabel(`E-mail de acesso: ${EMAIL_NOVO}`)).toBeVisible();
+  await expect(page.getByText('E-mail de acesso alterado. As sessões do aluno foram encerradas. O envio de e-mails está desligado; avise o aluno.')).toBeVisible();
+  await expect(page.getByText(/Avisamos o aluno/)).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
 
 test('"Desativar acesso" pede confirmação; desativado mostra a data e só "Reativar acesso", que volta ao normal', async ({ page }) => {
   await fixarHoje(page);
@@ -307,7 +328,10 @@ test('"Desativar acesso" pede confirmação; desativado mostra a data e só "Rea
 
   await acesso.getByRole('button', { name: 'Desativar acesso' }).click();
   await dialogo.getByRole('button', { name: 'Desativar acesso' }).click();
-  await expect(acesso.getByLabel('Situação: Sem acesso (desativado em 17/10)', { exact: true })).toBeVisible();
+  const situacao = acesso.getByLabel('Situação: Sem acesso (desativado em 17/10)', { exact: true });
+  await expect(situacao).toBeVisible();
+  // T-202: o selo do desativado tem o "●" (6 x 6 px, só desenho) como os outros selos de situação.
+  expect(await situacao.locator('[aria-hidden="true"]').evaluateAll((els) => els.filter((e) => (e as HTMLElement).offsetWidth === 6 && (e as HTMLElement).offsetHeight === 6).length)).toBe(1);
   await expect(acesso.getByText('O aluno não entra até o acesso ser reativado. Nada foi apagado.')).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toHaveCount(0);
   await expect(acesso.getByRole('button', { name: 'Alterar e-mail de acesso' })).toHaveCount(0);

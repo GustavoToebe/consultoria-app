@@ -201,7 +201,7 @@ for (const largura of [390, 1280]) {
     const { errosDaPagina } = await abrir(page, ['ATUALIZACAO_LER']);
     await page.goto(`/treinador/dietas/${PLANO_ID}`);
 
-    await page.getByLabel('Água por dia (opcional)').fill('2,5');
+    await page.getByLabel('Água por dia, em litros (opcional)').fill('2,5');
     await page.getByRole('link', { name: 'Voltar à pasta' }).click();
     await expect(page.getByText('Sair sem salvar?')).toBeVisible();
     expect(new URL(page.url()).pathname).toBe(`/treinador/dietas/${PLANO_ID}`);
@@ -615,7 +615,7 @@ test('web: a atualização ao lado do editor é <a href> que abre em outra aba',
   await expect(page.getByText('Abrir atualização em outra aba')).toBeVisible();
 
   // O clique simples também abre outra aba: o editor fica onde está, com o rascunho.
-  await page.getByLabel('Água por dia (opcional)').fill('2,5');
+  await page.getByLabel('Água por dia, em litros (opcional)').fill('2,5');
   // A aba nova não tem a API simulada (o app dela volta ao Entrar ao carregar): a prova é a requisição de navegação.
   const pedido = context.waitForEvent('request', (r) => r.isNavigationRequest() && new URL(r.url()).pathname === `/treinador/atualizacoes/${ATUALIZACAO_ID}`);
   await link.click();

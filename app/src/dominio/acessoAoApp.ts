@@ -38,6 +38,10 @@ export function textoDoDesativado(acessoDesativadoEm: string | null | undefined,
   return `Sem acesso (desativado em ${dataSemAnoCorrente(dataEmBrasilia(acessoDesativadoEm), hojeEmBrasilia(agora))})`;
 }
 
+/** Aviso depois de trocar o e-mail de acesso: `emailEnviado` é o da API (aviso entregue ao provedor para o e-mail novo). */
+export const textoDoEmailAlterado = (emailEnviado: boolean): string =>
+  `E-mail de acesso alterado. As sessões do aluno foram encerradas. ${emailEnviado ? 'Avisamos o aluno no e-mail novo.' : 'O envio de e-mails está desligado; avise o aluno.'}`;
+
 /** Limite do e-mail (o mesmo `maxLength` do formulário de definir acesso). */
 export const LIMITE_DO_EMAIL = 254;
 export type ErrosDoNovoEmail = { email?: string; confirmacao?: string };

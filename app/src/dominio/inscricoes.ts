@@ -24,6 +24,7 @@ import type {
 } from '../api/inscricoesTipos';
 import type { ConteudoQuestionario, OpcaoQuestionario, RespostasAtualizacao } from '../api/tipos';
 import { centavosDaTela, inteiroComMilhar, SEM_DADO } from './formatos';
+import { erroDoUsuarioDaRede } from './redesSociais';
 import { respostasParaEnviar } from './respostasAtualizacao';
 
 /**
@@ -36,7 +37,7 @@ export type TipoDeSelo = 'sucesso' | 'atencao' | 'perigo' | 'neutro';
 
 /** Limites dos campos (mesmos do `@Size` da API). */
 export const LIMITES_INSCRICAO = {
-  nome: 120, email: 254, objetivo: 500, texto: 2000, nota: 2000,
+  nome: 120, email: 254, instagram: 200, objetivo: 500, texto: 2000, nota: 2000,
   motivoDetalhe: 300, motivoReabertura: 200, condicoes: 500, planoNome: 120, retorno: 200,
   modeloNome: 60, modeloTexto: 1000,
 } as const;
@@ -257,11 +258,36 @@ export const TEXTO_LIMITE_DA_INSCRICAO = 'Recebemos muitos envios agora. Tente d
 /** Aviso fixo do editor das perguntas da inscrição (D7): não dá para impedir por regra, porque o texto é livre. */
 export const AVISO_SAUDE_NA_INSCRICAO = 'Não peça informação de saúde aqui; ela fica para a anamnese, depois do aceite.';
 
+/**
+ * Pergunta do treinador que repete o campo fixo "Instagram (opcional)" (D4 de `docs/planos/decisoes-e-pendencias-25-11.md`):
+ * o texto tem "instagram", sem diferença de acento nem de caixa. Só avisa: quem remove é o treinador.
+ */
+export function perguntaParecidaComInstagram(texto: string | null | undefined): boolean {
+  return (texto ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().includes('instagram');
+}
+
+/** Aviso do editor das perguntas da inscrição sobre uma pergunta parecida com o campo fixo (D4). */
+export const AVISO_PERGUNTA_DO_INSTAGRAM = 'Já existe o campo fixo Instagram. Quer remover esta pergunta?';
+
+/** Perguntas do treinador parecidas com o campo fixo Instagram, na ordem da página, com o lugar de cada uma. */
+export function perguntasParecidasComInstagram(modelo: ConteudoQuestionario): { id: string; rotulo: string; secao: number }[] {
+  return modelo.secoes.flatMap((s, secao) => s.perguntas.filter((p) => perguntaParecidaComInstagram(p.rotulo))
+    .map((p) => ({ id: p.id, rotulo: p.rotulo, secao })));
+}
+
+/** O que vai da inscrição para o cadastro no aceite, para a frase do painel: "o nome", "o nome e o e-mail", "o nome, o e-mail e o Instagram". */
+export function oQueVaiNoAceite(d: { email: string | null; instagram: string | null }): string {
+  const partes = ['o nome', ...(d.email ? ['o e-mail'] : []), ...(d.instagram ? ['o Instagram'] : [])];
+  return partes.length === 1 ? partes[0] : `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}`;
+}
+
 /** Campos da página pública, como a pessoa digita. */
 export interface DadosDaInscricao {
   nome: string;
   whatsapp: string;
   email: string;
+  /** Campo fixo opcional, sempre visível: usuário, @usuario ou link do perfil (a API guarda só o usuário). */
+  instagram: string;
   objetivo: string;
   sexo: string;
   /** Qualificação rápida (opcional; vazio = não informado). */
@@ -273,34 +299,35 @@ export interface DadosDaInscricao {
 }
 
 export const INSCRICAO_VAZIA: DadosDaInscricao = {
-  nome: '', whatsapp: '', email: '', objetivo: '', sexo: '', interesse: '', modalidade: '', previsaoInicio: '', origem: '', indicadoPor: '',
+  nome: '', whatsapp: '', email: '', instagram: '', objetivo: '', sexo: '', interesse: '', modalidade: '', previsaoInicio: '', origem: '', indicadoPor: '',
 };
 
 /**
  * O que a página pública guarda no `sessionStorage` da guia (decisão 4 de `docs/planos/comunidade-perfil-e-apelido.md`):
- * só nome, WhatsApp e e-mail, para recarregar a página sem redigitar o contato. Nunca as respostas das perguntas, a
- * ciência nem os outros campos. A leitura aceita só essas três chaves em texto (o que sobrar de outro formato é ignorado).
+ * só o contato (nome, WhatsApp, e-mail e Instagram), para recarregar a página sem redigitar. Nunca as respostas das
+ * perguntas, a ciência nem os outros campos. A leitura aceita só essas chaves em texto (o resto é ignorado).
  */
-export type ContatoDaInscricao = Pick<DadosDaInscricao, 'nome' | 'whatsapp' | 'email'>;
-export const contatoParaGuardar = (d: DadosDaInscricao): ContatoDaInscricao => ({ nome: d.nome, whatsapp: d.whatsapp, email: d.email });
+export type ContatoDaInscricao = Pick<DadosDaInscricao, 'nome' | 'whatsapp' | 'email' | 'instagram'>;
+export const contatoParaGuardar = (d: DadosDaInscricao): ContatoDaInscricao =>
+  ({ nome: d.nome, whatsapp: d.whatsapp, email: d.email, instagram: d.instagram });
 export function contatoGuardado(salvo: string | null): Partial<ContatoDaInscricao> {
   let lido: unknown;
   try { lido = salvo ? JSON.parse(salvo) : null; } catch { return {}; }
   if (!lido || typeof lido !== 'object') return {};
   const obj = lido as Record<string, unknown>;
   const contato: Partial<ContatoDaInscricao> = {};
-  for (const chave of ['nome', 'whatsapp', 'email'] as const) if (typeof obj[chave] === 'string') contato[chave] = obj[chave];
+  for (const chave of ['nome', 'whatsapp', 'email', 'instagram'] as const) if (typeof obj[chave] === 'string') contato[chave] = obj[chave];
   return contato;
 }
 
 /**
  * A página pública em duas partes (D6 de `docs/planos/auditoria-ui-ux-lote-1.md`), antes de um envio só: a 1 é o
- * contato (nome, WhatsApp e e-mail), a 2 é todo o resto (sexo, objetivo, perguntas rápidas, perguntas do treinador,
+ * contato (nome, WhatsApp, e-mail e Instagram), a 2 é todo o resto (sexo, objetivo, perguntas rápidas, perguntas do treinador,
  * ciência e envio). As chaves são as dos erros, iguais às da API; o que não é do contato (pergunta do treinador,
  * ciência, verificação, campo desconhecido) cai na parte 2, a do botão de enviar.
  */
 export type ParteDaInscricao = 1 | 2;
-const CHAVES_DO_CONTATO: ReadonlySet<string> = new Set(['nome', 'whatsapp', 'email']);
+const CHAVES_DO_CONTATO: ReadonlySet<string> = new Set(['nome', 'whatsapp', 'email', 'instagram']);
 export const parteDoCampoDaInscricao = (chave: string): ParteDaInscricao => (CHAVES_DO_CONTATO.has(chave) ? 1 : 2);
 
 /** Só há parte 2 se sobra algo além do contato: algum fixo visível que não é o e-mail ou uma pergunta do treinador. */
@@ -338,6 +365,13 @@ export function errosDaInscricao(d: DadosDaInscricao, exigeCiencia: boolean, cie
   else if (!telefoneValido(d.whatsapp)) erros.whatsapp = 'WhatsApp inválido. Informe o DDD e o número.';
   const email = d.email.trim();
   if (mostra('EMAIL') && email && (!emailValido(email) || email.length > LIMITES_INSCRICAO.email)) erros.email = 'E-mail inválido.';
+  // Instagram não se esconde: a mesma regra do cadastro do aluno (a API confere de novo e responde 422 no campo).
+  const instagram = d.instagram.trim();
+  if (instagram.length > LIMITES_INSCRICAO.instagram) erros.instagram = `Use até ${LIMITES_INSCRICAO.instagram} caracteres.`;
+  else if (instagram) {
+    const erro = erroDoUsuarioDaRede('instagram', instagram);
+    if (erro) erros.instagram = erro;
+  }
   if (mostra('OBJETIVO') && d.objetivo.trim().length > LIMITES_INSCRICAO.objetivo) erros.objetivo = `Use até ${LIMITES_INSCRICAO.objetivo} caracteres.`;
   if (exigeCiencia && !ciencia) erros.cienciaPrivacidade = 'Marque que você leu o texto acima.';
   return erros;
@@ -373,6 +407,7 @@ export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: s
     nome: d.nome.trim(),
     whatsapp: d.whatsapp.trim(),
     email: mostra('EMAIL') ? opcional(d.email) : null,
+    instagram: opcional(d.instagram),
     objetivo: mostra('OBJETIVO') ? opcional(d.objetivo) : null,
     ...(d.sexo && mostra('SEXO') ? { sexo: d.sexo } : {}),
     interesse: mostra('INTERESSE') ? d.interesse || null : null,

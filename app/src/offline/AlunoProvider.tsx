@@ -27,6 +27,7 @@ import { inicioDaJanelaDeConclusao, validarConclusao, type ProblemasDaConclusao 
 import { filaVisivel } from '../dominio/filaVisivel';
 import { hojeIso, somarDias } from '../dominio/formatos';
 import { conclusaoDe, fundirConclusoes, totalDeConcluidos, type ConclusaoDoTreino } from '../dominio/sessoesConcluidas';
+import { periodoDasConclusoes } from '../dominio/mapaDeTreinos';
 import { periodoDaSemana } from '../dominio/progressoSemana';
 import { fundirMarcas, type MarcaDeMobilidade } from '../dominio/mobilidadeFeita';
 import { novoUid } from '../dominio/uid';
@@ -178,6 +179,10 @@ interface ValorAluno {
   totalConcluidos: number | null;
   /** Conclusões que a tela usa (aparelho e servidor fundidos, `fundirConclusoes`); vazio com "Concluir treino" desligado. */
   conclusoes: ConclusaoDoTreino[];
+  /** O que o servidor devolveu (12 meses, com o nome da sessão) na única leitura do app; o mapa de treinos usa esta lista. */
+  conclusoesDoServidor: SessaoConcluidaDoServidor[];
+  /** A leitura acima já terminou (com resposta ou falha): falso só antes da primeira tentativa. */
+  conclusoesDoServidorLidas: boolean;
   /** Instante (ISO) da primeira série marcada como feita daquele treino, só deste aparelho; `null` se não há. */
   inicioDoTreino: (planoVersaoId: string, sessaoUid: string, data: string) => string | null;
   /** Conclusões gravadas no aparelho (inclui o que ainda não foi enviado). Vazio com "Concluir treino" desligado. */
@@ -269,6 +274,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const [aguaDoServidor, setAguaDoServidor] = useState<AguaRegistrada[]>([]);
   const [conclusoesDoServidor, setConclusoesDoServidor] = useState<SessaoConcluidaDoServidor[]>([]);
   const [totalDoServidor, setTotalDoServidor] = useState<number | null>(null);
+  const [conclusoesLidas, setConclusoesLidas] = useState(false);
   const [inicios, setInicios] = useState<Record<string, string>>({});
   // A chave lida por ref: ela pode virar `true` depois da abertura (o /eu chega com o perfil) sem refazer a abertura inteira.
   const retornoRef = useRef(false);
@@ -373,18 +379,21 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     }
   }, []);
 
-  // Treinos concluídos que o servidor já tem (60 dias para cada lado de hoje, como a mobilidade) e o total do histórico:
-  // só leitura, em memória. Com a chave desligada NUNCA chama a rota. Falha não é erro para o aluno: segue com o último.
+  // Treinos concluídos que o servidor já tem (os 12 meses do mapa, `periodoDasConclusoes`) e o total do histórico: só
+  // leitura, em memória, UMA chamada para o app todo (o mapa de treinos lê daqui, não busca de novo). Com a chave desligada
+  // NUNCA chama a rota. Falha não é erro para o aluno: segue com o último, e a tentativa conta como lida (o mapa não fica
+  // esperando para sempre sem internet).
   const baixarSessoesConcluidas = useCallback(async () => {
     if (!retornoRef.current) return;
     try {
-      const hoje = hojeIso();
-      const resposta = await sessoesConcluidasDoAluno(somarDias(hoje, -60), somarDias(hoje, 60));
+      const { de, ate } = periodoDasConclusoes(hojeIso());
+      const resposta = await sessoesConcluidasDoAluno(de, ate);
       setConclusoesDoServidor(resposta.sessoes);
       setTotalDoServidor(resposta.totalConcluidos);
     } catch {
       // Fica como está.
     }
+    setConclusoesLidas(true);
   }, []);
 
   // Chave ligada (abertura ou retomada): as conclusões LOCAL anteriores à janela que o servidor aceita (hoje de Brasília
@@ -428,6 +437,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   }, [repositorio]);
 
   const baixarPacote = useCallback(async () => {
+    // As conclusões não dependem do pacote: começam juntas (o mapa do Início espera por elas) e nunca falham para fora.
+    const conclusoes = baixarSessoesConcluidas();
     try {
       const novo = await painelAluno();
       await repositorio.salvarPacote(novo);
@@ -441,7 +452,6 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       await baixarDemonstracoes();
       await baixarMarcasDeMobilidade();
       await baixarAgua();
-      await baixarSessoesConcluidas();
       await carregarSemanaDoServidor(hojeIso(), true, desdeDoPlano(novo.treino?.inicio ?? null));
     } catch (erro) {
       // Sem conexão: segue com o pacote salvo. Sem pacote salvo, a tela explica.
@@ -449,6 +459,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       else setErroPacote((atual: unknown) => atual ?? erro);
       await carregarSemanaDoServidor(hojeIso(), true);
     }
+    await conclusoes;
   }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade, baixarDemonstracoes, baixarMarcasDeMobilidade, baixarAgua, baixarSessoesConcluidas, carregarSemanaDoServidor]);
 
   const sincronizar = useCallback(async () => {
@@ -735,6 +746,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sessaoConcluidaDe: (v, s, d) => conclusaoDe(conclusoesFundidas, v, s, d),
       totalConcluidos: retornoHabilitado ? totalDeConcluidos(totalDoServidor, conclusoesDoServidor, conclusoesLocais) : null,
       conclusoes: conclusoesFundidas,
+      conclusoesDoServidor,
+      conclusoesDoServidorLidas: conclusoesLidas,
       inicioDoTreino: (v, s, d) => inicios[chaveDoInicioDoTreino(v, s, d)] ?? null,
       sessoesConcluidasNoAparelho,
       falhasDeConclusao,
@@ -749,7 +762,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, pacoteRecusado, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, aguaLocal, aguaDoServidor, marcarAgua, conclusoesLocais, conclusoesDoServidor, totalDoServidor, inicios, retornoHabilitado, sessoesConcluidasNoAparelho, falhasDeConclusao, concluirTreino, reabrirTreino, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, rascunhos, salvarRascunhoDaSerie, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, pacoteRecusado, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, aguaLocal, aguaDoServidor, marcarAgua, conclusoesLocais, conclusoesDoServidor, conclusoesLidas, totalDoServidor, inicios, retornoHabilitado, sessoesConcluidasNoAparelho, falhasDeConclusao, concluirTreino, reabrirTreino, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, rascunhos, salvarRascunhoDaSerie, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

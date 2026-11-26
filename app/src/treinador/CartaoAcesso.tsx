@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { definirAcessoDoAluno, desativarAcessoDoAluno, gerarConvite, reativarAcessoDoAluno } from '../api/rotas';
 import type { AlunoDetalhe, ConviteGerado } from '../api/tipos';
 import { seloDoAcesso } from '../dominio/cadastroDoAluno';
-import { acessoDesativado, textoDoDesativado, traduzirErroDoAcesso, ultimoLoginNaLinha } from '../dominio/acessoAoApp';
+import { acessoDesativado, textoDoDesativado, textoDoEmailAlterado, traduzirErroDoAcesso, ultimoLoginNaLinha } from '../dominio/acessoAoApp';
 import { dataHoraParaTela } from '../dominio/formatos';
 import { gerarSenhaProvisoria } from '../dominio/senhaProvisoria';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -217,10 +217,10 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
       />
       {alterandoEmail ? (
         <FolhaAlterarEmailDeAcesso aluno={aluno} aoFechar={() => setAlterandoEmail(false)}
-          aoSalvar={(novo) => {
+          aoSalvar={({ aluno: novo, emailEnviado }) => {
             setAlterandoEmail(false);
             aoAlterar(novo);
-            avisar('E-mail de acesso alterado. As sessões do aluno foram encerradas.', 'sucesso');
+            avisar(textoDoEmailAlterado(emailEnviado), emailEnviado ? 'sucesso' : 'atencao');
           }} />
       ) : null}
     </View>

@@ -232,6 +232,18 @@ test.describe('capturas', () => {
       });
     }
   }
+  // Edição dos Dados em 1920 e 1280 (D1: o formulário na largura da leitura), nos dois temas.
+  for (const largura of [1920, 1280]) {
+    for (const tema of ['ESCURO', 'CLARO']) {
+      test(`ficha ${largura} editando ${tema}`, async ({ page }) => {
+        await abrir(page, largura, 'ficha', { altura: 1500, tema });
+        await page.getByRole('button', { name: 'Editar dados' }).click();
+        await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeVisible();
+        await page.waitForTimeout(600);
+        await page.screenshot({ path: `${PASTA_DAS_CAPTURAS}/ficha/${FASE}/${largura}-editando-${tema.toLowerCase()}.png` });
+      });
+    }
+  }
   // Sem regressão no que já existia: 1280 (duas colunas nos Dados, uma no resto) e 390 (celular).
   for (const largura of [1280, 390]) {
     for (const { aba, pronta } of ABAS) {
@@ -300,7 +312,7 @@ for (const largura of [2560, 3440]) {
     await page.getByRole('button', { name: 'Editar dados' }).click();
     const salvar = page.getByRole('button', { name: 'Salvar', exact: true });
     await expect(salvar).toBeVisible();
-    // O formulário da edição continua no teto do editor de campos (`DadosDoAluno`, 4.10): D1 não mexeu nele.
+    // Com a aba em três colunas o formulário continua no teto do editor de campos (`DadosDoAluno`, 4.10; D1 só o destravou nas duas).
     const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
     expect((await caixaDe(salvar)).x + (await caixaDe(salvar)).width - titulo.x).toBeLessThanOrEqual(1401);
     await expect(page.getByRole('heading', { name: 'Plano contratado', exact: true })).toBeVisible();
@@ -343,6 +355,22 @@ for (const largura of [1280, 1920]) {
       });
       // As lesões ficam em tabela em todas as larguras: em 1280 e 1920 abaixo das duas colunas, na largura delas somadas.
       await expect(page.getByRole('table', { name: 'Lesões' })).toHaveCount(1);
+      await semRolagemHorizontal(page);
+
+      // Editando (D1, 25/11): o formulário na mesma largura da leitura, do título à borda do ⋯ (antes parava em 1400 e, em
+      // 1920, sobrava uma faixa à direita; em 1280 a aba já tinha menos que isso e nada muda).
+      await page.getByRole('button', { name: 'Editar dados' }).click();
+      const salvar = page.getByRole('button', { name: 'Salvar', exact: true });
+      await expect(salvar).toBeVisible();
+      await assentado(async () => {
+        const titulo = await caixaDe(page.getByText('Dados do aluno', { exact: true }));
+        const menu = await caixaDe(page.getByRole('button', { name: 'Mais ações do aluno' }));
+        const ident = await caixaDe(cartaoCom(page, 'Identificação'));
+        const s = await caixaDe(salvar);
+        expect(Math.abs(ident.x - titulo.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(s.x + s.width - (menu.x + menu.width))).toBeLessThanOrEqual(2);
+        if (largura >= 1920) expect(s.x + s.width - titulo.x).toBeGreaterThan(1600);
+      });
       await semRolagemHorizontal(page);
       expect(errosDaPagina).toEqual([]);
     });

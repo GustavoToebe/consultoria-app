@@ -31,6 +31,18 @@ export function periodoDoMapa(hoje: string): { inicio: string; fim: string; de: 
 }
 
 /**
+ * O período de UMA leitura de `GET /aluno/sessoes-concluidas` que serve a todo o app do aluno (o mapa e as conclusões do
+ * `AlunoProvider`): do início do mapa até o mais longe que a API deixa (366 dias), no máximo hoje + 60. A API não guarda
+ * conclusão depois de hoje (Brasília), então a folga à frente só cobre a diferença de fuso do aparelho.
+ */
+export function periodoDasConclusoes(hoje: string): { de: string; ate: string } {
+  const { de } = periodoDoMapa(hoje);
+  const limite = somarDias(de, ALCANCE_DA_API_EM_DIAS);
+  const folga = somarDias(hoje, 60);
+  return { de, ate: folga < limite ? folga : limite };
+}
+
+/**
  * Conclusões da API e do aparelho numa lista só (`fundirConclusoes`: a do aparelho ganha, a que falhou não conta), mantendo o
  * nome da sessão que a API trouxe. Conclusão só do aparelho fica sem nome (o mapa mostra "Treino").
  */

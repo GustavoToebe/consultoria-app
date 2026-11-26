@@ -4,6 +4,7 @@ import type { ConfirmacaoResultado, DuvidaImportacao, GrupoImportavel, SessaoDet
 import {
   campoDoErroDoTexto,
   duvidasVisiveis,
+  focoAoEntrar,
   gerarChaveIdempotencia,
   grupoResumido,
   idsComErro,
@@ -320,5 +321,37 @@ describe('termos para conferir e resumo da sessão', () => {
       ],
       termosPendentes: null,
     });
+  });
+});
+
+describe('foco ao entrar na tela', () => {
+  const termo = (id: string, termoOriginal: string, resolvida = false): DuvidaImportacao => ({
+    id, tipo: 'EXERCICIO_NAO_RECONHECIDO', termoOriginal, trechoOriginal: '', arquivoOrigem: 'Arquivo', ocorrencias: 1,
+    sugestoes: [], resolvida,
+  });
+  const parecido = grupo({ id: 'g2', candidatos: [{ alunoId: 'a1', nome: 'Aluno Fictício', motivo: 'NOME' }] });
+  const base: Pick<SessaoDetalhe, 'estado' | 'duvidas' | 'grupos'> = { estado: 'REVISANDO', duvidas: [], grupos: [] };
+
+  it('sem sessão vai ao título', () => {
+    expect(focoAoEntrar(null)).toEqual({ tipo: 'titulo' });
+  });
+
+  it('antes de ler, "Ler os arquivos"', () => {
+    expect(focoAoEntrar({ ...base, estado: 'RECEBENDO' })).toEqual({ tipo: 'ler' });
+    expect(focoAoEntrar({ ...base, estado: 'RASCUNHO' })).toEqual({ tipo: 'ler' });
+  });
+
+  it('o primeiro termo pendente visível vem antes do aluno parecido', () => {
+    const duvidas = [termo('a', ''), termo('b', 'rosca', true), termo('c', 'sup inc'), termo('d', 'leg')];
+    expect(focoAoEntrar({ ...base, duvidas, grupos: [parecido] })).toEqual({ tipo: 'termo', duvidaId: 'c' });
+  });
+
+  it('sem termo pendente, o primeiro aluno parecido sem resposta', () => {
+    expect(focoAoEntrar({ ...base, duvidas: [termo('b', 'rosca', true)], grupos: [grupo(), parecido] })).toEqual({ tipo: 'aluno', grupoId: 'g2' });
+  });
+
+  it('nada pendente (lendo ou só gravar) fica no título', () => {
+    expect(focoAoEntrar({ ...base, estado: 'PROCESSANDO' })).toEqual({ tipo: 'titulo' });
+    expect(focoAoEntrar({ ...base, grupos: [grupo(), { ...parecido, destino: 'VINCULAR_EXISTENTE', alunoExistenteId: 'a1' }] })).toEqual({ tipo: 'titulo' });
   });
 });
