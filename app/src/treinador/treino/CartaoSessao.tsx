@@ -161,11 +161,12 @@ export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'ao
   /** Coluna da esquerda (duas colunas): um botão por linha, para a quebra não juntar só os dois últimos. */
   emColuna?: boolean;
 }) {
+  // Um destaque só por área (25/11, como o "Adicionar alimento" da dieta): o exercício em `acao`, o resto neutro.
   const botoes = <>
     <Botao rotulo="Adicionar exercício" tipo="acao" Icone={Plus} aoTocar={p.aoNovoExercicio} />
-    <Botao rotulo="Adicionar cardio" tipo="acao" Icone={HeartPulse} aoTocar={p.aoNovoCardio} />
-    {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="acao" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
-    {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="acao" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
+    <Botao rotulo="Adicionar cardio" tipo="secundario" Icone={HeartPulse} aoTocar={p.aoNovoCardio} />
+    {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
+    {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
   </>;
   return (
     <BlocoAdicionar titulo="Adicionar próximo exercício" descricao="Escolha da biblioteca da consultoria ou use um modelo pronto.">

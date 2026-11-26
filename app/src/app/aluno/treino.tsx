@@ -91,7 +91,8 @@ export default function TreinoAluno() {
       {!pacote && !pacoteRecusado && !carregando && erroPacote ? (
         <MensagemErro texto={`${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`} erro={erroPacote} tentarDeNovo={() => void tentarDeNovo()} />
       ) : null}
-      {pacote ? <SeletorPlano soComVarios rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} /> : null}
+      {/* Sem o título do plano (nome de trabalho do treinador, 25/11): o seletor mostra a pasta pelo nome limpo da API e, sem ela, só o período. */}
+      {pacote ? <SeletorPlano soComVarios rotulo={treino ? periodo : null} /> : null}
       {somenteLeitura ? <Texto variante="suave">Você está vendo outro plano. Para registrar uma série, volte ao plano em uso.</Texto> : null}
       {pacote && !treino ? <Vazio titulo="Sem treino" texto={somenteLeitura ? 'Este plano só tem dieta publicada.' : 'Seu treinador ainda não publicou um treino.'} /> : null}
       {conteudo && treino ? (

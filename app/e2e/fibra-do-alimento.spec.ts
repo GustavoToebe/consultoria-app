@@ -7,7 +7,7 @@ import { sessaoDeAluno } from './aluno';
 /**
  * Fibra (18/11, V089; plano `docs/planos/fibra-do-alimento.md`): campo "Fibras (g)" opcional no alimento (vazio = nulo,
  * fora da faixa trava o Salvar, 422 da API no campo), "Fibra X g" e "Fibra —" na Biblioteca e no item da dieta, totais com
- * "(parcial)" quando algum item não tem fibra, e a dieta do aluno sem o "—" (some quando não há). A fibra não entra na kcal.
+ * "(parcial)" quando algum item não tem fibra, também na dieta do aluno ("Fibra —" no aluno desde 25/11). A fibra não entra na kcal.
  * Macros do alimento e cor da fibra (19/11): a fibra ganhou a marca verde-lima (só a marca; o texto segue neutro) e o
  * Editar alimento, a grade de colunas iguais (5 no modal largo, kcal no título e 4 ou 2 + 2 no estreito). Só dados
  * fictícios. Com `CAPTURAS=<pasta>`, guarda as telas.
@@ -251,7 +251,7 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     expect(errosDaPagina).toEqual([]);
   });
 
-  test(`fibra (18/11): dieta do aluno mostra a fibra só onde há, com o total "(parcial)" (${sufixo})`, async ({ page }) => {
+  test(`fibra (18/11; "Fibra —" no aluno desde 25/11): dieta do aluno com a fibra em cada item e o total "(parcial)" (${sufixo})`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     await tema(page, ALUNO.id, escuro);
     const { naoTratadas, errosDaPagina } = await simularApi(page, {
@@ -261,8 +261,8 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     });
     await page.goto('/aluno/dieta');
     await expect(page.getByText('Fibra 1,6 g', { exact: true })).toBeVisible();
-    // Recurso que não existe não aparece: sem "Fibra —" no aluno.
-    await expect(page.getByText('Fibra —', { exact: true })).toHaveCount(0);
+    // Gustavo, 25/11: o item sem fibra diz "Fibra —" também no aluno (o frango e a salada).
+    await expect(page.getByText('Fibra —', { exact: true })).toHaveCount(2);
     await expect(page.getByRole('group', { name: 'Total' }).getByText('Fibra 1,6 g (parcial)', { exact: true })).toBeVisible();
     await expect(page.getByText('1,6 g de fibra (parcial)', { exact: true })).toBeVisible();
     await expect(page.getByText('Há itens sem fibra informada.', { exact: true })).toBeVisible();

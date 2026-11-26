@@ -158,7 +158,8 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       const total = page.getByRole('group', { name: 'Total da opção A' });
       expect(await transbordos(linha)).toEqual([]);
       expect(await transbordos(total)).toEqual([]);
-      await expect(total.getByText('Total da opção A: 200 kcal, proteína 10,0 g, carboidrato 20,0 g, gordura 4,0 g', { exact: true })).toHaveCount(1);
+      // Sem fibra nos itens, "fibra sem dado" também para o leitor (25/11: o aluno vê "Fibra —").
+      await expect(total.getByText('Total da opção A: 200 kcal, proteína 10,0 g, carboidrato 20,0 g, gordura 4,0 g, fibra sem dado', { exact: true })).toHaveCount(1);
       expect(await semRolagemDeLado(page)).toBe(true);
       await cartao.screenshot({ path: testInfo.outputPath(`dieta-nome-longo-${nomeDoTema}-${largura}.png`) });
       expect(naoTratadas).toEqual([]);

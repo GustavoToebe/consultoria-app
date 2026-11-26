@@ -95,11 +95,14 @@ for (const largura of [390, 1280]) {
     await page.goto('/aluno/dieta');
     await expect(page.getByText('Horário: 12:00', { exact: true })).toBeVisible();
     await expect(page.getByText('As opções não se somam: o total do dia conta só a opção A.', { exact: true })).toBeVisible();
-    // Cada informação numa linha, com o rótulo; só as preenchidas.
-    await expect(page.getByText('Dose: 5 g', { exact: true })).toBeVisible();
-    await expect(page.getByText('Horário: 08:00', { exact: true })).toBeVisible();
-    await expect(page.getByText('Dose: 1 cápsula', { exact: true })).toBeVisible();
-    await expect(page.getByText('Observação: Com água', { exact: true })).toBeVisible();
+    // Suplementação e medicação (25/11): agrupadas pelo horário (subtítulo), a dose na pílula e a observação embaixo do
+    // nome, sem os rótulos "Dose:" e "Horário:"; sem horário, "Sem horário definido".
+    await expect(page.getByRole('heading', { name: '08:00', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sem horário definido', exact: true })).toBeVisible();
+    await expect(page.getByLabel('Dose: 5 g', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Dose: 1 cápsula', { exact: true })).toBeVisible();
+    await expect(page.getByText('Com água', { exact: true })).toBeVisible();
+    await expect(page.getByText(/^(Dose|Horário|Observação): (5 g|08:00|1 cápsula|Com água)$/)).toHaveCount(0);
     await expect(page.getByText(/1 cápsula · /)).toHaveCount(0);
     await semEstourar(page);
     expect(naoTratadas).toEqual([]);

@@ -17,7 +17,7 @@ import {
 import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { remover, substituir } from '../../dominio/editorTreino';
 import { proximaSelecao } from '../../dominio/inspetorDoTreino';
-import { abaComProblema, chaveDosProblemas, gramasSemUnidade, MAXIMO_DE_OPCOES, MOTIVO_NO_LIMITE_DE_OPCOES } from '../../dominio/opcoesDaRefeicao';
+import { abaComProblema, chaveDosProblemas, gramasSemUnidade } from '../../dominio/opcoesDaRefeicao';
 import { moverPara } from '../../dominio/reordenar';
 import { numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
@@ -106,10 +106,10 @@ interface Props {
 /**
  * Refeição: o cabeçalho (posição, título, um selo, ↑↓ e a lixeira com o nome), os dados dela (nome, horário, observação,
  * modo de preparo) e as opções (A, B...) com os itens e o total de cada uma. As opções são alternativas (o aluno escolhe
- * uma; o total do dia usa só a primeira). Opções em abas (19/11): com duas ou mais, a comparação dos totais, as abas
- * (`AbasDeOpcao`) e a opção aberta na largura toda; com uma só, nada de abas, só o "+ Opção" (`acao`). Duas molduras no
- * máximo (S4 de `editor-treino-inspetor.md`): a refeição e o item; a opção é o painel da aba, sem caixa. Nada é
- * calculado entre as opções: cada uma mostra o próprio total.
+ * uma; o total do dia usa só a primeira). Opções em abas (19/11; 25/11 à noite: sempre, também com uma opção): as abas
+ * (`AbasDeOpcao`, com o "+ Nova opção" tracejado no fim e o ⋯ da aberta, que exclui) e a opção aberta na largura toda;
+ * com duas ou mais, também a comparação dos totais. Duas molduras no máximo (S4 de `editor-treino-inspetor.md`): a
+ * refeição e o item; a opção é o painel da aba, sem caixa. Nada é calculado entre as opções: cada uma mostra o próprio total.
  */
 export function CartaoRefeicao(p: Props) {
   const { cores, identificacao } = useTema();
@@ -130,7 +130,7 @@ export function CartaoRefeicao(p: Props) {
     setProblemasVistos(chaveDeProblemas);
     if (aberta) setAbertaUid(abaComProblema(r.opcoes, aberta.uid, p.comProblema));
   }
-  // Foco depois de criar ou excluir uma opção: na aba dela (ou no "+ Opção" quando as abas somem). O botão que a pessoa
+  // Foco depois de criar ou excluir uma opção: na aba dela (a nova, ou a vizinha da excluída). O botão que a pessoa
   // tocou muda de lugar ou some, e sem isto o foco cairia no fim da página. Na web, depois do diálogo devolver o foco.
   const alvosDoFoco = useRef(new Map<string, View | null>());
   const focoPendente = useRef<string | null>(null);
@@ -141,6 +141,7 @@ export function CartaoRefeicao(p: Props) {
     return () => clearTimeout(espera);
   });
   const [confirmarExclusao, setConfirmarExclusao] = useState<OpcaoRefeicao | null>(null);
+  const [menuDaOpcao, setMenuDaOpcao] = useState(false);
   const mudarItens = (indice: number, fn: (itens: ItemDieta[]) => ItemDieta[]) =>
     mudar({ opcoes: substituir(r.opcoes, indice, { ...r.opcoes[indice], itens: fn(r.opcoes[indice].itens) }) });
   const modoDePreparo = r.modoDePreparo ?? '';
@@ -181,15 +182,18 @@ export function CartaoRefeicao(p: Props) {
     const depois = r.opcoes.filter((x) => x.uid !== o.uid);
     const proxima = proximaSelecao(r.opcoes.map((x) => x.uid), depois.map((x) => x.uid), o.uid);
     setAbertaUid(proxima);
-    focoPendente.current = depois.length > 1 ? proxima : MAIS_OPCAO;
+    focoPendente.current = proxima;
     p.aoRemoverOpcao(r.opcoes.indexOf(o));
   };
-  // A ação de construção da refeição (Gustavo, 25/11): `acao`, uma vez por cartão (no cabeçalho da opção ou no fim das abas).
-  const maisOpcao = (
-    <Botao ref={(b) => { alvosDoFoco.current.set(MAIS_OPCAO, b); }} rotulo="Opção" rotuloAcessivel={`Adicionar opção em ${titulo}`} tipo="acao" Icone={Plus}
-      aoTocar={adicionarOpcao} desabilitado={r.opcoes.length >= MAXIMO_DE_OPCOES} motivo={MOTIVO_NO_LIMITE_DE_OPCOES} />
-  );
   const indiceAberto = aberta ? r.opcoes.indexOf(aberta) : -1;
+  // O ⋯ da aba aberta (25/11): "Excluir opção", com o mesmo Desfazer; com itens, confirma antes. A única opção não se exclui.
+  const acoesDaOpcao: AcaoDoMenu[] = aberta && varias ? [{
+    rotulo: 'Excluir opção', detalhe: 'Dá para desfazer logo depois.', Icone: Trash2, perigo: true,
+    aoTocar: () => (aberta.itens.length ? setConfirmarExclusao(aberta) : excluirOpcao(aberta)),
+  }] : [];
+  const menuDaAberta = aberta && varias ? (
+    <IconeBotao compacto Icone={Ellipsis} rotulo={`Mais ações da opção ${aberta.rotulo}`} aoTocar={() => setMenuDaOpcao(true)} />
+  ) : undefined;
   // `key`: o arraste, o ⋯ e a confirmação de cada opção não passam para a outra ao trocar de aba.
   const opcaoAberta = aberta ? (
     <OpcaoDaRefeicao
@@ -199,10 +203,6 @@ export function CartaoRefeicao(p: Props) {
       varias={varias}
       comProblema={p.comProblema}
       alimentos={p.alimentos}
-      acao={varias ? (
-        <Botao tipo="perigoTexto" rotulo="Excluir opção" rotuloAcessivel={`Excluir opção ${aberta.rotulo}`} Icone={Trash2}
-          aoTocar={() => (aberta.itens.length ? setConfirmarExclusao(aberta) : excluirOpcao(aberta))} />
-      ) : maisOpcao}
       aoMudarItens={(fn) => mudarItens(indiceAberto, fn)}
       aoEscolherAlimento={() => p.aoEscolherAlimento(indiceAberto)}
       aoTrocarAlimento={p.aoTrocarAlimento}
@@ -265,18 +265,22 @@ export function CartaoRefeicao(p: Props) {
           </View>
           <Divisor />
           <View testID="opcoes-da-refeicao" style={estilos.opcoes} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
-            {varias && aberta ? <>
+            {varias && aberta ? (
               <ComparacaoDasOpcoes opcoes={r.opcoes} aberta={aberta.uid} aoAbrir={setAbertaUid}
                 colunas={largura >= larguraDaTabela() ? COLUNAS_DA_COMPARACAO : undefined} />
-              <AbasDeOpcao rotulo={`Opções de ${titulo}`} opcoes={r.opcoes} aberta={aberta.uid} comProblema={p.comProblema} aoAbrir={setAbertaUid}
-                depois={maisOpcao} registrar={(uid, aba) => alvosDoFoco.current.set(uid, aba)}
-                apoio={<>
-                  <Texto variante="suave">Cada opção substitui a refeição inteira: o aluno escolhe uma.</Texto>
+            ) : null}
+            {/* A barra aparece também com uma opção só ("Opção A" e "+ Nova opção"), acima da tabela, à esquerda. */}
+            {aberta ? (
+              <AbasDeOpcao rotulo={`Opções de ${titulo}`} refeicao={titulo} opcoes={r.opcoes} aberta={aberta.uid} comProblema={p.comProblema}
+                aoAbrir={setAbertaUid} aoAdicionar={adicionarOpcao} menuDaAberta={menuDaAberta}
+                registrar={(uid, aba) => alvosDoFoco.current.set(uid, aba)}
+                apoio={varias || avisoAcima ? <>
+                  {varias ? <Texto variante="suave">Cada opção substitui a refeição inteira: o aluno escolhe uma.</Texto> : null}
                   {avisoAcima}
-                </>}>
+                </> : undefined}>
                 {opcaoAberta}
               </AbasDeOpcao>
-            </> : <>{avisoAcima}{opcaoAberta}</>}
+            ) : avisoAcima}
           </View>
           {p.avisoDoAlimento ? p.aviso : null}
           {p.aoSalvarModelo ? (
@@ -291,6 +295,7 @@ export function CartaoRefeicao(p: Props) {
       ) : null}
     </Cartao>
     {menu ? <FolhaDeAcoes titulo={titulo} aoFechar={() => setMenu(false)} acoes={acoesDaRefeicao} /> : null}
+    {menuDaOpcao && aberta ? <FolhaDeAcoes titulo={`Opção ${aberta.rotulo} · ${titulo}`} aoFechar={() => setMenuDaOpcao(false)} acoes={acoesDaOpcao} /> : null}
     <PainelConfirmacao
       visivel={!!confirmarExclusao}
       titulo={`Excluir a opção ${confirmarExclusao?.rotulo ?? ''}?`}
@@ -308,12 +313,10 @@ export function CartaoRefeicao(p: Props) {
   );
 }
 
-/** Alvo do foco do "+ Opção" (as outras chaves são os uids das opções). */
-const MAIS_OPCAO = 'mais-opcao';
-
 /**
- * A opção aberta: "Alimentos (N)" com a ação do cabeçalho (o "Excluir opção" com várias, o "+ Opção" com uma só), os
- * itens, o total da opção ("—" no que faltar, alinhado às colunas na tabela) e os botões de adicionar.
+ * A opção aberta: "Alimentos (N)" (sem ação: o "+ Nova opção" e o "Excluir opção" ficam nas abas, 25/11), os itens, o
+ * total da opção ("—" no que faltar, alinhado às colunas na tabela) e os botões de adicionar: "Adicionar alimento" é o
+ * único `acao` da área (a aba tracejada é discreta), "Item manual" fica `secundario`.
  */
 function OpcaoDaRefeicao({
   opcao,
@@ -321,7 +324,6 @@ function OpcaoDaRefeicao({
   varias,
   comProblema,
   alimentos,
-  acao,
   aoMudarItens,
   aoEscolherAlimento,
   aoTrocarAlimento,
@@ -333,7 +335,6 @@ function OpcaoDaRefeicao({
   varias: boolean;
   comProblema: Set<string>;
   alimentos: Map<string, Alimento>;
-  acao: ReactNode;
   aoMudarItens: (fn: (itens: ItemDieta[]) => ItemDieta[]) => void;
   aoEscolherAlimento: () => void;
   aoTrocarAlimento?: (uid: string) => void;
@@ -352,7 +353,6 @@ function OpcaoDaRefeicao({
     <View style={estilos.opcao}>
       <View style={estilos.tituloDaOpcao}>
         <Texto variante="secao" style={estilos.cresce}>Alimentos ({opcao.itens.length})</Texto>
-        {acao}
       </View>
       {opcao.itens.length === 0 ? <Texto variante="suave">Nenhum alimento nesta opção ainda. Adicione um da biblioteca ou um item manual.</Texto> : (
         <View style={estilos.itens}>
@@ -386,7 +386,7 @@ function OpcaoDaRefeicao({
         </>}
       </View>}
       <LinhaDeAcoes>
-        <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="secundario" Icone={Plus} aoTocar={aoEscolherAlimento} />
+        <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="acao" Icone={Plus} aoTocar={aoEscolherAlimento} />
         <Botao rotulo="Item manual" rotuloAcessivel={`Item manual${naOpcao}`} tipo="secundario" Icone={PencilLine} aoTocar={() => aoMudarItens((itens) => [...itens, novoItem()])} />
       </LinhaDeAcoes>
     </View>
@@ -486,7 +486,7 @@ function AlcaDesativada() {
 
 /**
  * "Trocar alimento" do item da biblioteca: compacto e secundário neutro (`superficie2`, contorno `borda` / `bordaCampo`
- * ao passar o mouse, rótulo e ícone `texto`), para não multiplicar a cor de ação com "+ Opção" e os demais botões. O
+ * ao passar o mouse, rótulo e ícone `texto`), para não multiplicar a cor de ação com o "Adicionar alimento" e o "+ Nova opção". O
  * desenho tem 32 px e o alvo, 44 (como o `IconeBotao compacto`); o `Botao` não tem tamanho compacto (o padding e a
  * fonte dele não cabem embaixo do nome).
  */

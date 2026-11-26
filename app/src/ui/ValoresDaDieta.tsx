@@ -50,20 +50,20 @@ export function textoDaFibra(t: ValoresComFibra): string | null {
   if (t.fibra === undefined) return null;
   return `Fibra ${gramasNaTela(t.fibra)}${fibraParcial(t) ? ' (parcial)' : ''}`;
 }
-/** A fibra para o leitor: "fibra 2,8 g", "fibra 12,0 g, parcial", "fibra sem dado" (ou nada, se omitida ou ausente). */
-const fibraPorExtenso = (t: ValoresComFibra, omitirSemValor: boolean) =>
-  (t.fibra === undefined || (omitirSemValor && t.fibra === null) ? [] : [`${macroPorExtenso('fibra', t.fibra)}${fibraParcial(t) ? ', parcial' : ''}`]);
+/** A fibra para o leitor: "fibra 2,8 g", "fibra 12,0 g, parcial", "fibra sem dado" (ou nada, se os valores não a trazem). */
+const fibraPorExtenso = (t: ValoresComFibra) =>
+  (t.fibra === undefined ? [] : [`${macroPorExtenso('fibra', t.fibra)}${fibraParcial(t) ? ', parcial' : ''}`]);
 
 /** A linha inteira para o leitor de tela, na ordem da tela: "233 kcal, proteína 10,2 g, carboidrato 34,8 g, gordura sem dado". */
-export const valoresPorExtenso = (t: ValoresComFibra, omitirFibraSemValor = false) =>
-  [t.kcal === null ? 'kcal sem dado' : `${kcalNaTela(t.kcal)} kcal`, ...MACROS.map((m) => macroPorExtenso(m.nome.toLowerCase(), t[m.chave])), ...fibraPorExtenso(t, omitirFibraSemValor)].join(', ');
+export const valoresPorExtenso = (t: ValoresComFibra) =>
+  [t.kcal === null ? 'kcal sem dado' : `${kcalNaTela(t.kcal)} kcal`, ...MACROS.map((m) => macroPorExtenso(m.nome.toLowerCase(), t[m.chave])), ...fibraPorExtenso(t)].join(', ');
 
 /**
  * Um total (subtotal da refeição, total da opção) numa frase só para o leitor de tela, "Total da opção A: 233 kcal,
  * proteína…", em vez de números soltos. Quem usa esconde do leitor o rótulo visível e a linha dos valores (`aria-hidden`).
  */
-export function TotalParaLeitor({ rotulo, totais, omitirFibraSemValor = false }: { rotulo: string; totais: ValoresComFibra; omitirFibraSemValor?: boolean }) {
-  return <Texto style={estilos.soParaLeitor}>{`${rotulo}: ${valoresPorExtenso(totais, omitirFibraSemValor)}`}</Texto>;
+export function TotalParaLeitor({ rotulo, totais }: { rotulo: string; totais: ValoresComFibra }) {
+  return <Texto style={estilos.soParaLeitor}>{`${rotulo}: ${valoresPorExtenso(totais)}`}</Texto>;
 }
 
 /** Quadradinho de 8 px na cor do macro; sem a cor (tema de teste, sem `identificacao`), não aparece, a da fibra também não. */
@@ -78,16 +78,16 @@ export function MarcaDoMacro({ cor }: { cor: CorDoMacro }) {
  * editor (coluna), à esquerda (`inicio`) embaixo do nome na dieta do aluno. Sem espaço, os macros descem juntos.
  * A letra é só visual: o leitor de tela ouve o nome inteiro, num texto que não aparece (`aria-label` num texto solto não
  * é lido de forma confiável na web). A fibra, quando os valores a trazem, vem depois dos macros com a marca dela e o
- * texto neutro e sem negrito (é dado de apoio; "Fibra 12,0 g (parcial)" anda inteiro, como o macro);
- * `omitirFibraSemValor` (dieta do aluno) some com ela quando é "—".
+ * texto neutro e sem negrito (é dado de apoio; "Fibra 12,0 g (parcial)" anda inteiro, como o macro); sem valor, "Fibra —",
+ * no editor e na dieta do aluno (Gustavo, 25/11: antes o aluno não a via quando faltava).
  */
-export function ValoresDaDieta({ totais: t, forte = false, inicio = false, omitirFibraSemValor = false }: {
-  totais: ValoresComFibra; forte?: boolean; inicio?: boolean; omitirFibraSemValor?: boolean;
+export function ValoresDaDieta({ totais: t, forte = false, inicio = false }: {
+  totais: ValoresComFibra; forte?: boolean; inicio?: boolean;
 }) {
   const estilo = forte ? estilos.forte : undefined;
   const variante = forte ? 'corpo' : 'pequeno';
   const lado = inicio ? estilos.inicio : null;
-  const fibra = omitirFibraSemValor && t.fibra === null ? null : textoDaFibra(t);
+  const fibra = textoDaFibra(t);
   return (
     <View style={[estilos.valores, lado]}>
       <Texto variante={variante} numerico style={estilo}>{`${kcalNaTela(t.kcal)} kcal`}</Texto>
@@ -112,10 +112,9 @@ export function ValoresDaDieta({ totais: t, forte = false, inicio = false, omiti
 
 /**
  * Legenda das siglas com as marcas, uma vez por lista (nunca por linha), na Biblioteca, na folha de alimentos da dieta e no
- * total do dia do aluno. "■ Fibra" vem depois do "G = gordura" (a marca dela, o nome neutro); `fibra` falso a tira onde a
- * fibra não pode aparecer (dieta do aluno sem nenhum item com fibra, que a omite quando é "—").
+ * total do dia do aluno. "■ Fibra" vem depois do "G = gordura" (a marca dela, o nome neutro).
  */
-export function LegendaDosMacros({ fibra = true }: { fibra?: boolean }) {
+export function LegendaDosMacros() {
   return (
     <View style={[estilos.macros, estilos.inicio]}>
       {MACROS.map((m) => (
@@ -124,12 +123,10 @@ export function LegendaDosMacros({ fibra = true }: { fibra?: boolean }) {
           <Texto variante="pequeno">{`${m.curto} = ${m.nome.toLowerCase()}`}</Texto>
         </View>
       ))}
-      {fibra ? (
-        <View style={estilos.macro}>
-          <MarcaDoMacro cor={FIBRA.cor} />
-          <Texto variante="pequeno">Fibra</Texto>
-        </View>
-      ) : null}
+      <View style={estilos.macro}>
+        <MarcaDoMacro cor={FIBRA.cor} />
+        <Texto variante="pequeno">Fibra</Texto>
+      </View>
     </View>
   );
 }

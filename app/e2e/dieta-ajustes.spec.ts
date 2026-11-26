@@ -5,8 +5,9 @@ import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './ap
 
 /**
  * Ajustes do editor de dieta (04/11): observação e modo de preparo vazios recolhidos num link, unidade do alimento numa
- * lista suspensa ao lado da quantidade, "Adicionar refeição" só no pé da lista (duas colunas) e no topo (uma coluna), cada linha de
- * Suplementação e de "Outros" num sub-cartão "#N · Nome" com a lixeira, "Mais detalhes" em "Outros" e o modelo de uma
+ * lista suspensa ao lado da quantidade, "Adicionar refeição" só no pé da lista (duas colunas) e no topo (uma coluna), os
+ * complementos em abas (25/11; detalhes em `complementos-orientacoes-e-suplementos.spec.ts`), cada linha de "Outros" num
+ * sub-cartão "#N · Nome" com a lixeira, "Mais detalhes" em "Outros" e o modelo de uma
  * refeição só sem complementos, sem duas colunas e sem "Salvar como modelo de refeição". Só dados fictícios.
  */
 const PLANO_ID = 'p0000000-0000-4000-8000-0000000000a1';
@@ -135,20 +136,21 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     await page.getByRole('button', { name: 'Observação ou modo de preparo (opcional)' }).click();
     await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true }).last()).toHaveValue('Grelhe sem óleo.');
 
-    // Complementos nascem fechados, mesmo com conteúdo (18/11): só os títulos; cada um abre no toque.
-    await expect(page.getByRole('heading', { name: '#1 · Creatina fictícia' })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: '#1 · Item fictício A' })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Suplementação, recolhido' }).click();
-    await page.getByRole('button', { name: 'Outros (medicação e ergogênicos), recolhido' }).click();
+    // Complementos (25/11): um cartão com abas; nasce em Orientações, e a Suplementação abre no toque da aba.
+    await expect(page.getByRole('tab', { name: /^Orientações/ })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('tab', { name: /^Suplementação \(2\)/ }).click();
 
-    // Suplementação: um sub-cartão por linha, "#N · Nome" e a lixeira no canto.
-    await expect(page.getByRole('heading', { name: '#1 · Creatina fictícia' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: '#2 · Sem nome' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Remover Creatina fictícia' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Remover linha' })).toBeVisible();
-    await capturar(page, `suplementacao-${sufixo}`, page.getByRole('heading', { name: 'Suplementação' }));
+    // Suplementação: tabela no PC (nome editável na linha), cartão compacto no celular; sem o "#N · Nome" repetido.
+    await expect(page.getByRole('heading', { name: /^#1 ·/ })).toHaveCount(0);
+    if (duas) await expect(page.getByLabel('Nome do suplemento 1')).toHaveValue('Creatina fictícia');
+    else await expect(page.getByRole('button', { name: /^Suplemento 1 de 2: Creatina fictícia, 3 g · Manhã/ })).toBeVisible();
+    await expect(page.getByText('Falta o nome')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mais ações de Creatina fictícia' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mais ações de suplemento 2' })).toBeVisible();
+    await capturar(page, `suplementacao-${sufixo}`, page.getByRole('heading', { name: 'Complementos' }));
 
     // Outros: nome, dose e horário à vista; "Mais detalhes" nasce fechado em todos os itens, também no que tem princípio ativo.
+    await page.getByRole('tab', { name: /^Outros \(2\)/ }).click();
     await expect(page.getByRole('heading', { name: '#1 · Item fictício A' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Remover Item fictício A' })).toBeVisible();
     const detalhes = page.getByRole('button', { name: 'Mais detalhes (princípio ativo, concentração, observação)' });
@@ -156,11 +158,11 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     await expect(detalhes.first()).toHaveAttribute('aria-expanded', 'false');
     await expect(detalhes.last()).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByLabel('Princípio ativo', { exact: true })).toHaveCount(0);
-    await expect(page.getByLabel('Dose prescrita', { exact: true })).toHaveCount(4);
+    await expect(page.getByLabel('Dose prescrita', { exact: true })).toHaveCount(2);
     await detalhes.first().click();
     await expect(page.getByLabel('Princípio ativo', { exact: true })).toHaveCount(1);
     await expect(page.getByLabel('Princípio ativo', { exact: true })).toHaveValue('Substância fictícia');
-    await capturar(page, `outros-${sufixo}`, page.getByRole('heading', { name: 'Outros (medicação e ergogênicos)' }));
+    await capturar(page, `outros-${sufixo}`, page.getByRole('heading', { name: 'Complementos' }));
     await detalhes.last().click();
     await expect(page.getByLabel('Princípio ativo', { exact: true })).toHaveCount(2);
 

@@ -117,6 +117,19 @@ export function totalDoDia(fonte: Refeicao[] | ConteudoDieta): TotaisComFibra {
   return somar(refeicoes.flatMap((r) => r.opcoes[0]?.itens ?? []));
 }
 
+/** Uma linha do "Por refeição" do Total do dia: a kcal da opção A e a fração do dia (0 a 1); `null` = sem valor ou sem base. */
+export interface KcalDaRefeicao { uid: string; kcal: number | null; fracao: number | null }
+
+/**
+ * Kcal de cada refeição na ordem do dia, só a opção A (como o total). A fração é sobre o total do dia; sem total (algum
+ * item sem kcal, que o deixa "—") ou com total 0, nenhuma refeição tem fração: a barra fica vazia, nunca inventada.
+ */
+export function kcalPorRefeicao(refeicoes: Refeicao[]): KcalDaRefeicao[] {
+  const linhas = refeicoes.map((r) => ({ uid: r.uid, kcal: somar(r.opcoes[0]?.itens ?? []).kcal }));
+  const total = totalDoDia(refeicoes).kcal;
+  return linhas.map((l) => ({ ...l, fracao: total && l.kcal !== null ? l.kcal / total : null }));
+}
+
 const LETRAS = 'ABCDEF';
 
 export function novaOpcao(existentes: OpcaoRefeicao[]): OpcaoRefeicao {

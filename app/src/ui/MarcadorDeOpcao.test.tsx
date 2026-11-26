@@ -22,8 +22,8 @@ jest.mock('../components/ui/tabs', () => {
   return {
     Tabs: ({ children }: MockFilhos) => React.createElement(View, null, children),
     TabsList: ({ children, accessibilityLabel }: MockFilhos & { accessibilityLabel: string }) => React.createElement(View, { accessibilityRole: 'tablist', accessibilityLabel }, children),
-    TabsTrigger: ({ children, accessibilityLabel, accessibilityState }: MockFilhos & { accessibilityLabel: string; accessibilityState: object }) =>
-      React.createElement(Pressable, { accessibilityRole: 'tab', accessibilityLabel, accessibilityState }, children),
+    TabsTrigger: ({ children, accessibilityLabel, accessibilityState, onLayout, style }: MockFilhos & { accessibilityLabel: string; accessibilityState: object; onLayout?: unknown; style?: unknown }) =>
+      React.createElement(Pressable, { accessibilityRole: 'tab', accessibilityLabel, accessibilityState, onLayout, style }, children),
     TabsContent: ({ children }: MockFilhos) => React.createElement(View, { testID: 'painel' }, children),
   };
 });
@@ -82,5 +82,23 @@ describe('AbasDasOpcoes', () => {
     expect(sem.root.findAll((n) => n.props.testID === 'painel')).toHaveLength(0);
     const com = montar(<AbasDasOpcoes rotulo="Opções" abas={abas} aberta="0" aoAbrir={() => undefined}><Text>Itens</Text></AbasDasOpcoes>);
     expect(com.root.findAll((n) => n.props.testID === 'painel' && typeof n.type === 'string')).toHaveLength(1);
+  });
+
+  it('o ⋯ da aba aberta: fora da lista de abas, na ponta da aba aberta (que reserva o alvo de 44) e só depois de medida', () => {
+    mockCores = ESCURO;
+    const a = montar(<AbasDasOpcoes rotulo="Opções" abas={abas} aberta="1" aoAbrir={() => undefined} acaoDaAberta={<Text>⋯</Text>} />);
+    const menu = () => a.root.findAll((n) => n.type === Text && n.props.children === '⋯');
+    expect(menu()).toHaveLength(0);
+    const [, aberta] = a.root.findAll((n) => n.props.accessibilityRole === 'tab' && typeof n.props.onLayout === 'function' && typeof n.type === 'string');
+    expect(estiloDo(aberta).paddingRight).toBe(44);
+    Renderer.act(() => aberta.props.onLayout({ nativeEvent: { layout: { x: 120, y: 0, width: 150, height: 46 } } }));
+    expect(menu()).toHaveLength(1);
+    const lista = a.root.findAll((n) => n.props.accessibilityRole === 'tablist' && typeof n.type === 'string')[0];
+    expect(lista.findAll((n) => n.type === Text && n.props.children === '⋯')).toHaveLength(0);
+    // 4 da folga do anel + 120 + 150 - 44.
+    const caixa = a.root.findAll((n) => typeof n.type === 'string' && estiloDo(n)?.position === 'absolute' && n.findAll((f) => f.props.children === '⋯').length > 0)[0];
+    expect(estiloDo(caixa)).toMatchObject({ left: 230, height: 46 });
+    const [fechada] = a.root.findAll((n) => n.props.accessibilityRole === 'tab' && typeof n.props.onLayout === 'function' && typeof n.type === 'string');
+    expect(estiloDo(fechada).paddingRight).not.toBe(44);
   });
 });

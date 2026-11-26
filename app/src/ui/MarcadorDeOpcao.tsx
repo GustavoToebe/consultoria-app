@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -37,7 +37,7 @@ export interface AbaDaOpcao {
   rotuloAcessivel: string;
   /** Antes do círculo (o ícone de problema da validação). */
   antes?: ReactNode;
-  /** Depois do título, na mesma linha ("· 98 kcal"). */
+  /** Depois do título, na mesma linha ("98 kcal", "vazia", em texto secundário). */
   detalhe?: ReactNode;
   /** Na linha de baixo (o selo "Conta no total do dia"). */
   abaixo?: ReactNode;
@@ -49,8 +49,17 @@ interface PropsDasAbas {
   abas: AbaDaOpcao[];
   aberta: string;
   aoAbrir: (valor: string) => void;
-  /** No fim da faixa, fora da rolagem e da lista de abas (o "+ Opção"): sempre inteiro à vista. */
+  /**
+   * Logo depois da última aba, fora da rolagem e da lista de abas (o "+ Nova opção"): a faixa só ocupa o que as abas pedem,
+   * então ele fica colado a elas e, quando não cabem, sempre inteiro à vista na ponta.
+   */
   depois?: ReactNode;
+  /**
+   * O ⋯ da aba aberta (o menu da opção). Fica sobre a ponta direita dela, que ganha o espaço do botão, mas fora da lista
+   * de abas e do gatilho: botão dentro de `tab` ou de `tablist` é aninhamento inválido (APG). Na ordem do Tab vem logo
+   * depois da aba aberta.
+   */
+  acaoDaAberta?: ReactNode;
   /** Logo abaixo das abas, antes do painel (a frase de apoio). */
   apoio?: ReactNode;
   /** Guarda a aba de cada opção, para quem precisa pôr o foco nela (depois de criar ou excluir). */
@@ -75,7 +84,7 @@ const INDICADOR = 2;
  * Sempre dentro de um cartão: o esmaecido pinta com a `superficie` (não o fundo da página, que deixava um retângulo
  * mais escuro ao lado da aba no tema escuro).
  */
-export function AbasDasOpcoes({ rotulo, abas, aberta, aoAbrir, depois, apoio, registrar, children }: PropsDasAbas) {
+export function AbasDasOpcoes({ rotulo, abas, aberta, aoAbrir, depois, acaoDaAberta, apoio, registrar, children }: PropsDasAbas) {
   const { cores } = useTema();
   const fundo = cores.superficie;
   const { direita, esquerda, medidas } = useEsmaecimento();
@@ -95,10 +104,13 @@ export function AbasDasOpcoes({ rotulo, abas, aberta, aoAbrir, depois, apoio, re
   useEffect(() => { mostrarAtual.current = mostrar; });
   // Trocou a aba (toque, seta, opção criada): a nova vem para a vista. Na montagem as medidas ainda não chegaram.
   useEffect(() => { mostrarAtual.current(aberta, true); }, [aberta]);
+  // Onde a aba aberta está (no conteúdo da rolagem), para o ⋯ ficar na ponta dela; até medir, o ⋯ não aparece.
+  const [caixaDaAberta, setCaixaDaAberta] = useState<{ valor: string; x: number; y: number; altura: number } | null>(null);
+  const comAcao = !!acaoDaAberta;
   return (
     <Tabs value={aberta} onValueChange={aoAbrir} style={estilos.raiz}>
       <View style={[estilos.faixa, { borderBottomColor: cores.divisor }]}>
-        <View testID="faixa-das-abas" style={estilos.area}>
+        <View testID="faixa-das-abas" style={[estilos.area, depois ? estilos.areaJusta : null]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} ref={rolagem} scrollEventThrottle={medidas.scrollEventThrottle} style={estilos.rolagem} contentContainerStyle={estilos.conteudoRolagem}
             onLayout={(e: LayoutChangeEvent) => { medidas.onLayout(e); vista.current.largura = e.nativeEvent.layout.width; mostrar(aberta, false); }}
             onContentSizeChange={(w: number) => { medidas.onContentSizeChange(w); vista.current.total = w; mostrar(aberta, false); }}
@@ -112,9 +124,14 @@ export function AbasDasOpcoes({ rotulo, abas, aberta, aoAbrir, depois, apoio, re
                     onLayout={(e: LayoutChangeEvent) => {
                       // `x` vem da lista das abas, que fica depois da folga do anel no conteúdo da rolagem.
                       caixas.current[a.valor] = { x: e.nativeEvent.layout.x + FOLGA_DO_ANEL, largura: e.nativeEvent.layout.width };
-                      if (sel) mostrar(a.valor, false);
+                      if (!sel) return;
+                      mostrar(a.valor, false);
+                      const { x, y, width, height } = e.nativeEvent.layout;
+                      // O ⋯ ocupa os últimos 44 px da aba aberta (o espaço que ela reserva).
+                      const nova = { valor: a.valor, x: x + width - ALVO_TOQUE, y, altura: height };
+                      setCaixaDaAberta((c) => (c && c.valor === nova.valor && c.x === nova.x && c.y === nova.y && c.altura === nova.altura ? c : nova));
                     }}
-                    style={[estilos.aba, { borderColor: sel ? cores.acao : 'transparent' }]}>
+                    style={[estilos.aba, sel && comAcao ? estilos.abaComAcao : null, { borderColor: sel ? cores.acao : 'transparent' }]}>
                     <View style={estilos.conteudo}>
                       {a.antes}
                       <MarcadorDeOpcao letra={a.letra} selecionado={sel} />
@@ -126,6 +143,11 @@ export function AbasDasOpcoes({ rotulo, abas, aberta, aoAbrir, depois, apoio, re
                 );
               })}
             </TabsList>
+            {comAcao && caixaDaAberta?.valor === aberta ? (
+              <View style={[estilos.acaoDaAberta, { left: FOLGA_DO_ANEL + caixaDaAberta.x, top: FOLGA_DO_ANEL + caixaDaAberta.y, height: caixaDaAberta.altura }]}>
+                {acaoDaAberta}
+              </View>
+            ) : null}
           </ScrollView>
           {direita ? <Esmaecido cor={fundo} lado="direita" /> : null}
           {esquerda ? <Esmaecido cor={fundo} lado="esquerda" /> : null}
@@ -144,8 +166,11 @@ const estilos = StyleSheet.create({
   raiz: { gap: espaco(1.5) },
   faixa: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), borderBottomWidth: 1 },
   // A rolagem corta o que passa da caixa, e o anel de foco passa da aba: a folga do anel fica dentro do conteúdo e a área
-  // avança a mesma folga para os lados (à esquerda sai da faixa sem rolar; à direita entra no vão do `depois`).
+  // avança a mesma folga para os lados (à esquerda sai da faixa sem rolar; à direita entra no vão do `depois`). Não
+  // estica quando há o `depois` (25/11): o "+ Nova opção" fica logo depois da última aba; sem espaço, a área encolhe e
+  // rola. Sem ele (dieta do aluno), a área ocupa a faixa como antes.
   area: { position: 'relative', flex: 1, minWidth: 0, marginHorizontal: -FOLGA_DO_ANEL },
+  areaJusta: { flexGrow: 0, flexShrink: 1, flexBasis: 'auto' },
   depois: { flexShrink: 0 },
   lista: { flexDirection: 'row' },
   rolagem: { marginTop: -FOLGA_DO_ANEL, marginBottom: -(FOLGA_DO_ANEL + PIXEL_DO_GATILHO) },
@@ -166,6 +191,9 @@ const estilos = StyleSheet.create({
     backgroundColor: 'transparent',
     marginBottom: -1,
   },
+  // A aba aberta com o ⋯ guarda à direita o alvo dele (44); o desenho compacto de 32 fica centrado ali.
+  abaComAcao: { paddingRight: ALVO_TOQUE },
+  acaoDaAberta: { position: 'absolute', width: ALVO_TOQUE, justifyContent: 'center', alignItems: 'center' },
   conteudo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   titulo: { fontSize: 15 },
 });

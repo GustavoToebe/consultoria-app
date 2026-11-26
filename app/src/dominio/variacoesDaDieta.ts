@@ -168,6 +168,25 @@ export function dividirPorDia(c: ConteudoDieta): ConteudoDieta {
   return renomearVariacao(dividida, dividida.variacoes[1].uid, 'Variação 2');
 }
 
+/** Número (1, 2…, a posição na dieta) da variação que vale no dia, para a faixa da semana; `null` em dia sem variação. */
+export function numeroDaVariacaoNoDia(c: ConteudoDieta, dia: number): number | null {
+  const i = c.variacoes.findIndex((v) => v.dias.includes(dia));
+  return i < 0 ? null : i + 1;
+}
+
+/**
+ * "+ Nova variação": uma variação vazia no fim (sem dia e sem refeição; a publicação pede os dois), com o primeiro nome
+ * "Variação N" livre a partir de N = quantidade + 1. No limite ou sem variações (quem cria a primeira é
+ * {@link dividirPorDia}), não muda nada.
+ */
+export function novaVariacao(c: ConteudoDieta): ConteudoDieta {
+  if (c.variacoes.length === 0 || c.variacoes.length >= LIMITE_DE_VARIACOES) return c;
+  const usados = new Set(c.variacoes.map((v) => v.rotulo.trim().toLowerCase()));
+  let n = c.variacoes.length + 1;
+  while (usados.has(`variação ${n}`)) n++;
+  return { ...c, variacoes: [...c.variacoes, { uid: novoUid(), rotulo: `Variação ${n}`, dias: [], refeicoes: [] }] };
+}
+
 /** "Seg, Qua e Sex" (dias curtos, em ordem); sem dia, "Nenhum dia". */
 export function textoDosDiasCurtos(dias: number[]): string {
   const nomes = [...new Set(dias)].filter((d) => d >= 1 && d <= 7).sort((a, b) => a - b).map((d) => DIAS_CURTOS[d - 1]);

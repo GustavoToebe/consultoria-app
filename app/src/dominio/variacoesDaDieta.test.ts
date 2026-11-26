@@ -2,8 +2,8 @@ import type { ConteudoDieta, Refeicao } from '../api/tipos';
 import { normalizarDieta } from './dieta';
 import { localizar, uidsComProblema } from './caminhos';
 import {
-  alternarDia, criarVariacoes, diaDeHojeEmBrasilia, diasSemVariacao, dividirPorDia, duplicarVariacao, excluirVariacao,
-  LIMITE_DE_VARIACOES, mudarRefeicoesDaSecao, refeicoesDaSecao, refeicoesDoDia, renomearVariacao, ROTULO_MAXIMO,
+  alternarDia, criarVariacoes, DIAS_DA_SEMANA, diaDeHojeEmBrasilia, diasSemVariacao, dividirPorDia, duplicarVariacao, excluirVariacao,
+  LIMITE_DE_VARIACOES, mudarRefeicoesDaSecao, novaVariacao, numeroDaVariacaoNoDia, refeicoesDaSecao, refeicoesDoDia, renomearVariacao, ROTULO_MAXIMO,
   secoesDaDieta, soAVariacao, textoDosDiasCurtos, usarEmTodosOsDias, variacaoAberta, variacaoDoDia, variacaoMostrada,
 } from './variacoesDaDieta';
 
@@ -220,6 +220,25 @@ describe('editor: criar, renomear, excluir e voltar à dieta sem variação', ()
     expect(textoDosDiasCurtos([5, 1, 3, 3])).toBe('Seg, Qua e Sex');
     expect(textoDosDiasCurtos([7])).toBe('Dom');
     expect(textoDosDiasCurtos([])).toBe('Nenhum dia');
+  });
+
+  it('número da variação de cada dia (a da faixa da semana); dia descoberto, nulo', () => {
+    const c = excluirVariacao(duas(), 'alto');
+    expect(DIAS_DA_SEMANA.map((d) => numeroDaVariacaoNoDia(duas(), d))).toEqual([1, 2, 1, 2, 1, 2, 1]);
+    expect(numeroDaVariacaoNoDia(c, 1)).toBeNull();
+    expect(numeroDaVariacaoNoDia(c, 2)).toBe(1);
+  });
+
+  it('nova variação: vazia no fim, com o primeiro "Variação N" livre; no limite ou sem variações, igual', () => {
+    const c = novaVariacao(duas());
+    expect(c.variacoes.at(-1)).toEqual({ uid: 'novo-1', rotulo: 'Variação 3', dias: [], refeicoes: [] });
+    const comNome = renomearVariacao(duas(), 'zero', 'variação 3');
+    expect(novaVariacao(comNome).variacoes.at(-1)?.rotulo).toBe('Variação 4');
+    let cheia = duas();
+    while (cheia.variacoes.length < LIMITE_DE_VARIACOES) cheia = novaVariacao(cheia);
+    expect(novaVariacao(cheia)).toBe(cheia);
+    const r = raiz();
+    expect(novaVariacao(r)).toBe(r);
   });
 });
 

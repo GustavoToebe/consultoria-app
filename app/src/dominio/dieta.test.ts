@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta, Refeicao } from '../api/tipos';
-import { aguaValida, aplicarReceitaDeDieta, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
+import { aguaValida, aplicarReceitaDeDieta, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -203,6 +203,29 @@ describe('total do dia incompleto', () => {
   it('valor ausente não leva unidade', () => {
     expect(textoDoMacro('Proteína', null, 'g')).toBe('Proteína —');
     expect(textoDoMacro('Proteína', 180.25, 'g')).toBe('Proteína 180,3 g');
+  });
+});
+
+describe('kcal por refeição (Total do dia, 25/11)', () => {
+  const comKcal = (uid: string, kcal: number | null): ItemDieta => ({ ...novoItem(), uid, nome: uid, kcal, proteina: 0, carboidrato: 0, gordura: 0 });
+  const refeicao = (uid: string, a: ItemDieta[], b: ItemDieta[] = []): Refeicao => ({
+    uid, nome: uid, horario: null, observacao: null, modoDePreparo: null,
+    opcoes: [{ uid: `${uid}-a`, rotulo: 'A', itens: a }, ...(b.length ? [{ uid: `${uid}-b`, rotulo: 'B', itens: b }] : [])],
+  });
+
+  it('só a opção A, na ordem do dia, com a fração do total', () => {
+    const linhas = kcalPorRefeicao([refeicao('cafe', [comKcal('p', 100)], [comKcal('x', 900)]), refeicao('almoco', [comKcal('a', 200), comKcal('f', 100)])]);
+    expect(linhas).toEqual([{ uid: 'cafe', kcal: 100, fracao: 0.25 }, { uid: 'almoco', kcal: 300, fracao: 0.75 }]);
+  });
+
+  it('item sem kcal: a refeição fica "—" e o dia sem total, então nenhuma barra', () => {
+    expect(kcalPorRefeicao([refeicao('cafe', [comKcal('p', 100)]), refeicao('almoco', [comKcal('m', null)])]))
+      .toEqual([{ uid: 'cafe', kcal: 100, fracao: null }, { uid: 'almoco', kcal: null, fracao: null }]);
+  });
+
+  it('total 0 e refeição sem opção: sem fração', () => {
+    expect(kcalPorRefeicao([refeicao('cafe', [comKcal('p', 0)]), { ...refeicao('vazia', []), opcoes: [] }]))
+      .toEqual([{ uid: 'cafe', kcal: 0, fracao: null }, { uid: 'vazia', kcal: 0, fracao: null }]);
   });
 });
 

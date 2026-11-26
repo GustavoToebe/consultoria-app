@@ -1,7 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import type { ConteudoDieta, ItemDieta, PlanoDetalhe, VersaoDetalhe } from '../src/api/tipos';
-import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { ALUNO, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 import { sessaoDeAluno } from './aluno';
 
 /**
@@ -25,6 +25,26 @@ const CONTEUDO: ConteudoDieta = {
   }],
 };
 
+/**
+ * Capturas do pedido de 25/11 (opções como abas), só com `CAPTURAS_OPCOES=<pasta>`: a dieta do aluno em 390 e o editor com
+ * duas opções (A aberta, B vazia) em 1920, nos temas escuro e claro. A tela de agora fica como está; o tema muda e volta.
+ */
+const PASTA_OPCOES = process.env.CAPTURAS_OPCOES;
+async function capturarAluno(page: Page, largura: number) {
+  if (!PASTA_OPCOES || largura !== 390) return;
+  for (const tema of ['ESCURO', 'CLARO'] as const) {
+    await page.evaluate(([k, t]) => localStorage.setItem(k, JSON.stringify({ tema: t })), [`treinos:${ALUNO.id}:preferencias`, tema]);
+    await page.reload();
+    const abas = page.getByRole('tablist', { name: 'Opções de Almoço' });
+    await expect(abas).toBeVisible();
+    await abas.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: `${PASTA_OPCOES}/aluno-dieta-abas-390-${tema.toLowerCase()}.png` });
+  }
+  await page.evaluate(([k]) => localStorage.removeItem(k), [`treinos:${ALUNO.id}:preferencias`]);
+  await page.reload();
+}
+
 const DIETA: VersaoDetalhe<ConteudoDieta> = {
   id: 'd0000000-0000-4000-8000-000000000001', planoId: 'p0000000-0000-4000-8000-000000000001', numero: 1, titulo: 'Dieta de teste',
   inicio: '2026-10-01', fim: '2026-10-31', publicadoEm: '2026-10-01T12:00:00Z', conteudo: CONTEUDO,
@@ -46,16 +66,22 @@ for (const largura of [390, 1280]) {
     const totalDaOpcao = page.getByRole('group', { name: 'Total da opção A' });
     await expect(totalDaOpcao.getByText('190 kcal', { exact: true })).toBeVisible();
     await expect(totalDaOpcao.getByText('P 4,0 g', { exact: true })).toBeVisible();
-    // 25/11: as abas do aluno são as do editor, com o nome "Opção A" e o círculo da letra, preenchido na aberta (a cor do
-    // sublinhado da aba, a de ação); trocar de aba move o preenchimento.
-    const abaDoAluno = (r: string) => page.getByRole('tab', { name: `Opção ${r}`, exact: true });
+    // 25/11: as abas do aluno são as do editor, com "Opção A", a kcal em texto secundário e o círculo da letra, preenchido
+    // na aberta (a cor do sublinhado da aba, a de ação); trocar de aba move o preenchimento. Sem "+ Nova opção" nem ⋯.
+    const abaDoAluno = (r: string) => page.getByRole('tab', { name: new RegExp(`^Opção ${r},`) });
+    await expect(abaDoAluno('A')).toHaveAccessibleName('Opção A, 190 kcal');
+    await expect(abaDoAluno('B')).toContainText('170 kcal');
+    await expect(page.getByRole('button', { name: /^Adicionar opção/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Mais ações da opção/ })).toHaveCount(0);
+    await capturarAluno(page, largura);
     const circulo = (r: string) => abaDoAluno(r).getByTestId('marcador-de-opcao').evaluate((el) => ({ letra: el.textContent, fundo: getComputedStyle(el).backgroundColor }));
     const sublinhado = (r: string) => abaDoAluno(r).evaluate((el) => getComputedStyle(el).borderBottomColor);
     await expect(abaDoAluno('A')).toHaveAttribute('aria-selected', 'true');
     // Com poll: a cor do sublinhado da aba transita (0,984 de opacidade no meio da animação).
     await expect.poll(async () => (await circulo('A')).fundo === (await sublinhado('A'))).toBe(true);
     expect((await circulo('A')).letra).toBe('A');
-    expect(await circulo('B')).toEqual({ letra: 'B', fundo: 'rgba(0, 0, 0, 0)' });
+    await expect.poll(async () => (await circulo('B')).fundo).toBe('rgba(0, 0, 0, 0)');
+    expect((await circulo('B')).letra).toBe('B');
     await abaDoAluno('B').click();
     await expect(page.getByRole('group', { name: 'Total da opção B' })).toBeVisible();
     await expect.poll(async () => (await circulo('B')).fundo === (await sublinhado('B'))).toBe(true);
@@ -79,6 +105,12 @@ for (const largura of [390, 1280]) {
 }
 
 const PLANO_ID = 'p0000000-0000-4000-8000-000000000001';
+
+/** O ⋯ da aba aberta (25/11) e o "Excluir opção" da folha de ações. */
+async function excluirPeloMenu(page: Page, rotulo: string, dentro = page.locator('body')) {
+  await dentro.getByRole('button', { name: `Mais ações da opção ${rotulo}` }).click();
+  await page.getByText('Excluir opção', { exact: true }).click();
+}
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
 const DETALHE: PlanoDetalhe<ConteudoDieta> = {
   plano: {
@@ -129,13 +161,125 @@ for (const [largura, inspetor] of [[390, false], [1280, true]] as const) {
     await page.getByRole('button', { name: 'Observação ou modo de preparo (opcional)' }).click();
     await expect(page.getByLabel('Modo de preparo (opcional)', { exact: true })).toHaveValue(PREPARO);
     await expect(page.getByText(/equivalente/i)).toHaveCount(0);
-    // Excluir a opção (com itens, pede confirmação) leva os itens junto: dá para desfazer (04/11).
-    await page.getByRole('button', { name: 'Excluir opção B' }).click();
+    // Excluir a opção (no ⋯ da aba aberta, 25/11; com itens, pede confirmação) leva os itens junto: dá para desfazer (04/11).
+    await excluirPeloMenu(page, 'B');
     await page.getByRole('alertdialog', { name: 'Excluir a opção B?' }).getByRole('button', { name: 'Excluir opção' }).click();
     await expect(b).toHaveCount(0);
     await expect(page.getByText('Opção B removida.')).toBeVisible();
     await page.getByRole('button', { name: 'Desfazer' }).click();
     await expect(b).toBeVisible();
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+/**
+ * Opções como abas (25/11 à noite): a barra aparece também com uma opção só ("Opção A" e "+ Nova opção" tracejado, logo
+ * depois da última aba, acima da tabela e à esquerda); o "+ Nova opção" cria a próxima letra, vazia ("vazia" na aba);
+ * trocar de aba troca a tabela e o "Total da opção X"; o ⋯ da aba aberta exclui com Desfazer. "Adicionar alimento" é o
+ * único `acao` da área (o fundo do "Adicionar refeição"); "Item manual" não. Com `CAPTURAS_OPCOES`, guarda o editor com a
+ * A aberta e a B vazia em 1920.
+ */
+const UMA_OPCAO: PlanoDetalhe<ConteudoDieta> = {
+  ...DETALHE,
+  rascunho: { ...CONTEUDO, refeicoes: [{ ...CONTEUDO.refeicoes[0], opcoes: [CONTEUDO.refeicoes[0].opcoes[0]] }] },
+};
+/** O primeiro fundo pintado do botão (ele ou o que está dentro dele). */
+const fundoDe = (l: ReturnType<Page['getByRole']>) =>
+  l.evaluate((el) => [el, ...el.querySelectorAll('*')].map((e) => getComputedStyle(e).backgroundColor).find((c) => c !== 'rgba(0, 0, 0, 0)'));
+
+for (const [largura, tema] of [[1920, 'ESCURO'], [1920, 'CLARO'], [390, 'CLARO']] as const) {
+  test(`treinador: opções como abas, também com uma só; "+ Nova opção", total da aba e ⋯ com Desfazer (${largura}px, ${tema.toLowerCase()})`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema]);
+    const { naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      'GET /alimentos': { corpo: [] },
+      'GET /consultoria': { corpo: { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluno Teste' } },
+      [`GET /planos-dieta/${PLANO_ID}`]: { corpo: UMA_OPCAO },
+    });
+    await page.goto(`/treinador/dietas/${PLANO_ID}`);
+    if (largura >= 1280) await page.getByRole('button', { name: /^Refeição 1 de 1: 12:00 · Almoço/ }).click();
+    else await expect(page.getByRole('button', { name: /12:00 · Almoço, aberto/ })).toBeVisible();
+    const cartao = page.locator('#refeicao-almoco');
+    const abas = cartao.getByRole('tablist', { name: 'Opções de 12:00 · Almoço' });
+    const aba = (r: string) => abas.getByRole('tab', { name: new RegExp(`^Opção ${r},`) });
+    const nova = cartao.getByRole('button', { name: 'Adicionar opção em 12:00 · Almoço' });
+
+    // Uma opção: a barra com a A (sem o selo e sem ⋯: não há o que escolher nem o que excluir) e o "+ Nova opção".
+    await expect(abas.getByRole('tab')).toHaveCount(1);
+    await expect(aba('A')).toHaveAccessibleName('Opção A, 190 kcal');
+    await expect(aba('A')).toContainText('190 kcal');
+    await expect(nova).toBeVisible();
+    await expect(cartao.getByRole('button', { name: /^Mais ações da opção/ })).toHaveCount(0);
+    await expect(cartao.getByRole('group', { name: 'Comparação das opções' })).toHaveCount(0);
+    await expect(cartao.getByText('Conta no total do dia')).toHaveCount(0);
+    const [caixaA, caixaNova, titulo, painel] = await Promise.all([aba('A').boundingBox(), nova.boundingBox(),
+      cartao.getByText('Alimentos (1)', { exact: true }).boundingBox(), cartao.getByTestId('opcoes-da-refeicao').boundingBox()]);
+    if (!caixaA || !caixaNova || !titulo || !painel) throw new Error('sem caixa');
+    // À esquerda, acima da tabela, e o "+ Nova opção" colado à última aba (não na ponta da faixa).
+    expect(Math.abs(caixaA.x - painel.x)).toBeLessThan(4);
+    expect(caixaA.y + caixaA.height).toBeLessThanOrEqual(titulo.y);
+    expect(caixaNova.x - (caixaA.x + caixaA.width)).toBeLessThan(16);
+    expect(caixaNova.height).toBeGreaterThanOrEqual(44);
+    // O "+ Opção" saiu do cabeçalho "Alimentos": nada de botão na linha dele.
+    await expect(cartao.getByRole('button', { name: 'Opção', exact: true })).toHaveCount(0);
+    // Um só `acao` na área: o "Adicionar alimento" (o fundo do "Adicionar refeição"); o "Item manual" fica secundário.
+    const adicionar = cartao.getByRole('button', { name: 'Adicionar alimento', exact: true });
+    const corDeAcao = await fundoDe(page.getByRole('button', { name: 'Adicionar refeição' }));
+    expect(await fundoDe(adicionar)).toBe(corDeAcao);
+    expect(await fundoDe(cartao.getByRole('button', { name: 'Item manual', exact: true }))).not.toBe(corDeAcao);
+    // A aba tracejada é discreta: sem fundo, contorno tracejado e o texto na cor de ação.
+    const tracejado = await nova.evaluate((el) => {
+      const d = [...el.querySelectorAll('*')].find((e) => getComputedStyle(e).borderStyle === 'dashed');
+      return d ? getComputedStyle(d).backgroundColor : null;
+    });
+    expect(tracejado).toBe('rgba(0, 0, 0, 0)');
+
+    // "+ Nova opção": a B nasce vazia, aberta e com o foco; a A ganha o selo; a vazia não tem total.
+    await nova.click();
+    await expect(abas.getByRole('tab')).toHaveCount(2);
+    await expect(aba('B')).toHaveAttribute('aria-selected', 'true');
+    await expect(aba('B')).toBeFocused();
+    await expect(aba('B')).toHaveAccessibleName('Opção B, vazia');
+    await expect(aba('B')).toContainText('vazia');
+    await expect(aba('A')).toHaveAccessibleName('Opção A, 190 kcal, conta no total do dia');
+    await expect(cartao.getByText('Nenhum alimento nesta opção ainda. Adicione um da biblioteca ou um item manual.')).toBeVisible();
+    await expect(cartao.getByRole('group', { name: /^Total da opção/ })).toHaveCount(0);
+    await expect(cartao.locator('input[value="Arroz fictício"]')).toHaveCount(0);
+
+    // Trocar de aba troca a tabela e o total.
+    await aba('A').click();
+    await expect(cartao.getByRole('group', { name: 'Total da opção A' })).toBeVisible();
+    await expect(cartao.locator('input[value="Arroz fictício"]')).toBeVisible();
+    // O ⋯ fica na ponta da aba aberta.
+    const menuA = cartao.getByRole('button', { name: 'Mais ações da opção A' });
+    await expect(menuA).toBeVisible();
+    const [abaAberta, caixaMenu] = [(await aba('A').boundingBox())!, (await menuA.boundingBox())!];
+    expect(caixaMenu.x).toBeGreaterThanOrEqual(abaAberta.x);
+    expect(caixaMenu.x + caixaMenu.width).toBeLessThanOrEqual(abaAberta.x + abaAberta.width + 1);
+    if (PASTA_OPCOES) {
+      await page.setViewportSize({ width: largura, height: 1200 });
+      await cartao.evaluate((el) => { el.style.scrollMarginTop = '180px'; el.scrollIntoView({ block: 'start' }); });
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: `${PASTA_OPCOES}/editor-dieta-2-opcoes-A-aberta-B-vazia-${largura}-${tema.toLowerCase()}.png` });
+    }
+
+    // ⋯ da B (vazia): exclui sem perguntar, a A abre com o foco e o Desfazer devolve a B.
+    await aba('B').click();
+    await excluirPeloMenu(page, 'B', cartao);
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(aba('B')).toHaveCount(0);
+    await expect(aba('A')).toHaveAttribute('aria-selected', 'true');
+    await expect(aba('A')).toBeFocused();
+    await expect(cartao.getByRole('button', { name: /^Mais ações da opção/ })).toHaveCount(0);
+    await expect(page.getByText('Opção B removida.')).toBeVisible();
+    await page.getByRole('button', { name: 'Desfazer' }).click();
+    await expect(aba('B')).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(largura);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
@@ -174,7 +318,8 @@ for (const [largura, escuro] of [[390, false], [390, true], [1280, false]] as co
     /** Abre a aba B (a última, no celular: a do jantar), exclui e confirma (a opção tem itens). */
     const excluirB = async () => {
       await opcoesB.last().click();
-      await page.getByRole('button', { name: 'Excluir opção B' }).click();
+      await page.getByRole('button', { name: 'Mais ações da opção B' }).last().click();
+      await page.getByText('Excluir opção', { exact: true }).click();
       await page.getByRole('alertdialog', { name: 'Excluir a opção B?' }).getByRole('button', { name: 'Excluir opção' }).click();
     };
     const capturar = async (nome: string) => {
@@ -254,7 +399,7 @@ for (const largura of [390, 1280]) {
     await expect(total).toBeVisible();
     // A configuração do plano está fechada, e mesmo assim o campo da água aparece.
     await expect(page.getByLabel('Objetivo (opcional)')).toHaveCount(0);
-    const agua = page.getByLabel('Água por dia (opcional)');
+    const agua = page.getByLabel('Água por dia, em litros (opcional)');
     await expect(agua).toBeVisible();
     await agua.fill('2,5');
     await page.getByRole('button', { name: 'Salvar rascunho' }).click();

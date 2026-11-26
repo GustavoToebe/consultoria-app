@@ -31,9 +31,10 @@ export function SessaoVazia({ estado, aoNovoExercicio, aoNovoCardio, aoAbrirMode
   }
   return (
     <BlocoAdicionar titulo="Monte esta sessão" descricao="Adicione exercícios ou comece com um modelo pronto.">
-      <Botao rotulo="Adicionar exercício" Icone={Plus} aoTocar={aoNovoExercicio} />
-      {aoAbrirModelos ? <Botao rotulo="Usar modelo" tipo="acao" Icone={NotebookTabs} aoTocar={aoAbrirModelos} /> : null}
-      <Botao rotulo="Adicionar cardio" tipo="acao" Icone={HeartPulse} aoTocar={aoNovoCardio} />
+      {/* Um destaque só por área (25/11): o exercício em `acao` (o `primario` é o Publicar da barra); o resto neutro. */}
+      <Botao rotulo="Adicionar exercício" tipo="acao" Icone={Plus} aoTocar={aoNovoExercicio} />
+      {aoAbrirModelos ? <Botao rotulo="Usar modelo" tipo="secundario" Icone={NotebookTabs} aoTocar={aoAbrirModelos} /> : null}
+      <Botao rotulo="Adicionar cardio" tipo="secundario" Icone={HeartPulse} aoTocar={aoNovoCardio} />
     </BlocoAdicionar>
   );
 }
