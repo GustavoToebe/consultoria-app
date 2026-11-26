@@ -27,6 +27,27 @@
   - Carteira da matriz ou do sócio ausente desliga o split sem erro na subida (I7; o mesmo vale na Central, `CENTRAL_ASAAS_SOCIO_WALLET_ID`): decidir se a subida passa a exigir.
   - Menores: exigir `externalReference` igual na consulta; FK composta com `consultoria_id` e índice único parcial em `cobranca_aluno.asaas_cobranca_id` na V106; assinar `PAYMENT_PARTIALLY_REFUNDED` e os eventos de chargeback; `toString` de `GerarPixAsaasRequest`; `temCpfCadastrado` não considera o cliente que já existe no Asaas.
 
+**Decisões do Gustavo (27/11) e rodada "antes de ligar":** só registradas; nenhuma delas foi implementada neste lote. A implementação fica para a rodada "antes de ligar", que começa quando a conta Asaas estiver aprovada, junto com a validação no sandbox e uma bateria só.
+- **`ABATER_MENSALIDADE`: não ligar.** Na rodada, bloquear a opção na tela da Central (não selecionável) até existir a retenção gravada na cobrança e o aviso à Central com repetição (B2 acima).
+- **Carteira ausente:** com o Asaas configurado (credenciais presentes) e sem a carteira da matriz ou do sócio, a aplicação **não sobe**, com mensagem clara. Vale para o consultoria-app (`TREINOS_PAGAMENTOS_ASAAS_WALLET_MATRIZ` e `_WALLET_SOCIO`) e para a Central (`CENTRAL_ASAAS_SOCIO_WALLET_ID`). Sem Asaas configurado, sobe normal (I7).
+- **Boleto:** mapear como forma válida de pagamento, para a baixa não cair em CONFERIR (I6). Confirmar no sandbox como ele aparece em `GET /payments/{id}`.
+- **Parcelas e juros:** remover `overtrainingPayMaxParcelas`, `overtrainingPayJuros` e o texto "Cartão em até Nx" da tela e do contrato. Se o sandbox mostrar um parâmetro do Asaas que limite o parcelamento na página, registrar como pendência.
+- **Link antigo e cobrança órfã:** ao mudar o valor, reajustar, renegociar, cancelar ou na corrida Pix × fatura, cancelar no Asaas a cobrança anterior (I2). **Bloqueia ligar.**
+- **Pix da Central sem reserva nem prazo:** proposta com opções, recomendação e impacto em [asaas-pagamentos.md](../asaas-pagamentos.md) (repositório da Central), para o Gustavo decidir.
+
+**Bloqueia ligar em produção:**
+1. `ABATER_MENSALIDADE` bloqueado na tela da Central (e, depois, a retenção gravada com aviso repetido).
+2. Carteira ausente derruba a subida (consultoria-app e Central).
+3. Boleto mapeado como forma válida.
+4. Parcelas e juros removidos da tela e do contrato.
+5. Cobrança anterior cancelada no Asaas nas cinco situações acima.
+6. Assinar `PAYMENT_PARTIALLY_REFUNDED` e os eventos de chargeback.
+7. Índice único parcial em `asaas_cobranca_id` e FK composta com `consultoria_id` (migration do Overtraining Pay).
+8. As três validações no sandbox: `pixQrCode` com cobrança `UNDEFINED`, o meio real em `GET /payments/{id}` e o boleto na página.
+9. Teste próprio da limpeza do `asaas_cobranca_id` ao remover a subconta.
+
+**Pode esperar (também em "Pendências soltas" do `docs/planos/README.md`):** rotação do token do webhook (I4), subconta órfã (I5), `toString` de `GerarPixAsaasRequest`, `temCpfCadastrado`, o texto "Pix e Cartão" em `central-api-front/.../homologacao-split.component.ts:74` e os itens 3 e 6 da revisão da Central.
+
 ---
 
 > **Regra de ouro deste plano:** nada do que já roda em produção para o piloto do Saraiva é removido ou quebrado. Todo o trabalho acontecerá em **branches isoladas** nos dois repositórios, com servidor simulado (`AsaasFalso`) para rodar 100% dos testes locais mesmo **antes** de abrir a conta PJ no Asaas.
