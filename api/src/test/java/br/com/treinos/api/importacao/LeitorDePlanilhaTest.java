@@ -108,7 +108,13 @@ class LeitorDePlanilhaTest {
                 .hasMessageNotContaining("SEGREDO");
         byte[] xls = new byte[] {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, 0, 0};
         assertThatThrownBy(() -> LeitorDePlanilha.ler("antigo.xls", xls, 0))
-                .hasMessage("Salve a planilha como .xlsx ou .csv e envie de novo.");
+                .isInstanceOfSatisfying(ValidacaoException.class, e -> {
+                    assertThat(e.getCodigo()).isEqualTo("FORMATO_XLS_ANTIGO");
+                    assertThat(e.getMessage()).isEqualTo("Salve como .xlsx no Excel e envie de novo.");
+                });
+        // Pela assinatura, mesmo com outra extensão.
+        assertThatThrownBy(() -> LeitorDePlanilha.ler("renomeado.xlsx", xls, 0))
+                .isInstanceOfSatisfying(ValidacaoException.class, e -> assertThat(e.getCodigo()).isEqualTo("FORMATO_XLS_ANTIGO"));
     }
 
     @Test

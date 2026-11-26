@@ -7,6 +7,7 @@ import type {
   DuvidaImportacao,
   EstadoSessao,
   GrupoImportavel,
+  LeituraEmAndamento,
   ModoProcessamentoResumo,
   ObjetivoImportacao,
   SessaoDetalhe,
@@ -107,6 +108,7 @@ export const motivoDoErroDoArquivo = (codigo: string): string => ERROS_DO_ARQUIV
 const ERROS_DA_API: Record<string, string> = {
   OBJETIVO_INVALIDO: 'Escolha o que importar entre as opções da tela.',
   FORMATO_NAO_SUPORTADO: 'Formato não aceito. Envie PDF, DOCX, XLSX ou CSV.',
+  FORMATO_XLS_ANTIGO: 'Salve como .xlsx no Excel e envie de novo.',
   FORMATO_NAO_CONFERE: 'O conteúdo do arquivo não confere com a extensão. Abra o arquivo e salve de novo no formato certo.',
   ARQUIVO_VAZIO: 'O arquivo está vazio.',
   ARQUIVO_GRANDE_DEMAIS: 'Passa do tamanho máximo de 900 KB. Divida em partes menores.',
@@ -346,6 +348,34 @@ export const sessaoRetomavel = (s: Pick<SessaoListaItem, 'estado'>): boolean =>
 export const sessaoPodeCancelar = (estado: EstadoSessao): boolean =>
   estado === 'RASCUNHO' || estado === 'RECEBENDO' || estado === 'PROCESSANDO' || estado === 'REVISANDO' || estado === 'ERRO';
 
+/** Por que a leitura caiu para as regras fixas (`motivoFallback` do servidor). Motivo desconhecido não quebra: cai no texto geral. */
+const MOTIVOS_DO_FALLBACK: Record<string, string> = {
+  CHAVE_AUSENTE: 'A leitura por IA não está configurada neste servidor (falta a chave do serviço), então foram usadas regras fixas.',
+  ERRO_PROVEDOR:
+    'O serviço de IA não respondeu (tempo esgotado ou instabilidade) mesmo depois de uma nova tentativa, então foram usadas regras fixas.',
+};
+
+/** "Lendo 2 de 5 arquivos" enquanto o servidor processa; sem a contagem (sessão antiga ou ainda sem arquivo lido), `null`. */
+export function textoDaLeitura(leitura?: LeituraEmAndamento | null): string | null {
+  if (!leitura || leitura.total <= 0) return null;
+  const lidos = Math.min(Math.max(leitura.lidos, 0), leitura.total);
+  return `Lendo ${lidos} de ${plural(leitura.total, 'arquivo', 'arquivos')}`;
+}
+
+/**
+ * Dúvidas de exercício ou alimento que o "Aceitar todas as sugestões" resolve: ainda abertas e com uma única sugestão,
+ * ligada a um item da biblioteca (mesma regra do servidor, que confere de novo). Várias sugestões ou só da IA ficam
+ * para a pessoa escolher.
+ */
+export const duvidasComSugestaoUnica = (duvidas: readonly DuvidaImportacao[]): DuvidaImportacao[] =>
+  duvidas.filter(
+    (d) =>
+      !d.resolvida &&
+      (d.tipo.startsWith('EXERCICIO') || d.tipo.startsWith('ALIMENTO')) &&
+      d.sugestoes.length === 1 &&
+      !!d.sugestoes[0].referenciaId
+  );
+
 /**
  * Resumo honesto de como o lote foi processado (`modoEfetivo` e `fallbackParaRegras`).
  * Nunca exibe texto fixo afirmando um modo que não corresponde ao que o servidor executou.
@@ -370,10 +400,11 @@ export function resumoDoModoProcessamento(modo?: ModoProcessamentoResumo | null)
     };
   }
   if (modo.fallbackParaRegras) {
+    const porque = modo.motivoFallback ? MOTIVOS_DO_FALLBACK[modo.motivoFallback] : undefined;
     return {
       titulo: 'Leitura por regras fixas (contingência)',
       descricao: 'A leitura por IA não pôde ser concluída neste lote; o servidor usou regras fixas para separar os dados.',
-      alertaFallback: 'A leitura por IA não ficou disponível neste lote e o servidor usou regras fixas. Confira os termos e grupos com atenção.',
+      alertaFallback: `${porque ?? 'A leitura por IA não ficou disponível neste lote e o servidor usou regras fixas.'} Confira os termos e grupos com atenção.`,
     };
   }
   if (modo.modoEfetivo === 'IA') {
@@ -385,7 +416,10 @@ export function resumoDoModoProcessamento(modo?: ModoProcessamentoResumo | null)
   }
   return {
     titulo: 'Leitura por regras fixas',
-    descricao: 'O servidor leu os arquivos por regras fixas, separou os alunos e listou os termos para você conferir.',
+    descricao:
+      modo.motivoFallback === 'ENVIO_DESLIGADO'
+        ? 'O envio dos arquivos a um serviço de IA está desligado neste servidor: a leitura é feita só por regras fixas, sem IA, e os termos ficam para você conferir.'
+        : 'O servidor leu os arquivos por regras fixas, separou os alunos e listou os termos para você conferir.',
     alertaFallback: null,
   };
 }

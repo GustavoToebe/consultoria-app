@@ -1,11 +1,11 @@
-import { FileStack, Undo2 } from 'lucide-react-native';
+import { Undo2 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { desfazerImportacao } from '../../../api/rotas';
 import type { DetalheDeImportacao, ImportacaoDesfeita } from '../../../api/tipos';
 import { dataHoraParaTela, inteiroComMilhar } from '../../../dominio/formatos';
-import { CAMINHO_PLANILHA_COMPLETA, resumoDoDesfazer, textoDaParteDesfeita } from '../../../dominio/planilhaCompleta';
+import { resumoDoDesfazer, textoDaParteDesfeita } from '../../../dominio/planilhaCompleta';
 import { abasDoResultado, lerProblemas, problemasSemDetalhe, resumoDosProblemas } from '../../../dominio/resultadoDaPlanilha';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { espaco } from '../../../tema/tokens';
@@ -14,26 +14,11 @@ import { Cartao } from '../../../ui/Cartao';
 import { CartaoDeIndicador } from '../../../ui/CartaoDeIndicador';
 import { Alerta, MensagemErro } from '../../../ui/Estados';
 import { GradeDeIndicadores } from '../../../ui/GradeDeIndicadores';
-import { ItemDeLista } from '../../../ui/ItemDeLista';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { Texto } from '../../../ui/Texto';
 import { textoDoErro } from '../../../ui/erros';
 import { ResultadoPorAba } from './ResultadoPorAba';
-
-/**
- * O caminho para a planilha completa, ao lado dos destinos de uma aba. Só para quem pode criar alunos (a API confere as
- * outras partes uma a uma). Sair do assistente de uma aba com algo escolhido pergunta antes.
- */
-export function CartaoDaPlanilhaCompleta() {
-  const { pode } = useSessao();
-  if (!pode('ALUNO_ALTERAR')) return null;
-  return (
-    <ItemDeLista titulo="Planilha completa (alunos, pesos, treinos e dietas)" Icone={FileStack}
-      detalhe="Várias abas ligadas de uma vez, como a planilha de outra plataforma. Treinos e dietas entram em rascunho."
-      href={CAMINHO_PLANILHA_COMPLETA} />
-  );
-}
 
 const O_QUE_O_DESFAZER_FAZ = 'Apaga o que a importação criou e ninguém mexeu: planos nunca publicados, pastas vazias, pesos, exercícios sem uso e alunos sem acesso nem registros. O resto fica, com o motivo.';
 

@@ -146,6 +146,7 @@ import type {
   AmostraDaPlanilha,
   AnaliseDaPlanilha,
   ColunasDaImportacao,
+  ReconhecimentoDoArquivo,
   DiagnosticoDoArquivo,
   ConfirmacaoDaPlanilha,
   ImportacaoDesfeita,
@@ -977,8 +978,13 @@ export const listarImportacoes = (filtro: { destino?: string; situacao?: string;
 };
 export const detalheDaImportacao = (id: string) => requisicao<DetalheDeImportacao>(`/importacoes/${seg(id)}`);
 export const csvDeErrosDaImportacao = (id: string) => requisicao<string>(`/importacoes/${seg(id)}/erros.csv`, { aceita: 'text/csv' });
-export const colunasDaImportacao = (destino: string, arquivo: FormData, aba: number, linhaDoCabecalho: number) =>
-  requisicao<ColunasDaImportacao>(`/importacoes/${seg(destino)}/colunas?aba=${aba}&linhaDoCabecalho=${linhaDoCabecalho}`, { metodo: 'POST', corpoBruto: arquivo });
+/** Sem `linhaDoCabecalho` a API detecta a linha e a devolve na resposta. */
+export const colunasDaImportacao = (destino: string, arquivo: FormData, aba: number, linhaDoCabecalho?: number) =>
+  requisicao<ColunasDaImportacao>(`/importacoes/${seg(destino)}/colunas?aba=${aba}${linhaDoCabecalho === undefined ? '' : `&linhaDoCabecalho=${linhaDoCabecalho}`}`,
+    { metodo: 'POST', corpoBruto: arquivo });
+/** Entrada única da importação manual: diz se o arquivo é a planilha completa, uma aba (com o destino) ou nada conhecido. */
+export const reconhecerArquivo = (arquivo: FormData) =>
+  requisicao<ReconhecimentoDoArquivo>('/importacoes/reconhecer', { metodo: 'POST', corpoBruto: arquivo });
 export const previaDaImportacao = (destino: string, arquivo: FormData) =>
   requisicao<PreviaDeImportacao>(`/importacoes/${seg(destino)}/previa`, { metodo: 'POST', corpoBruto: arquivo });
 export const confirmarImportacao = (destino: string, arquivo: FormData, hash: string) =>

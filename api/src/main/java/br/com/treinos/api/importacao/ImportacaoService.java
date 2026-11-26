@@ -104,16 +104,35 @@ public class ImportacaoService {
         this.json = json;
     }
 
-    public Colunas colunas(String destino, String nome, byte[] bytes, int aba, int linhaDoCabecalho) {
+    /** Só lê: por qual trilha o arquivo entra (ver {@link ReconhecimentoDoArquivo}). */
+    public ImportacaoDtos.Reconhecimento reconhecer(String nome, byte[] bytes) {
+        return ReconhecimentoDoArquivo.reconhecer(nome, bytes);
+    }
+
+    /** {@code linhaPedida} nula: o servidor detecta o cabeçalho ({@link SugestaoDeColunas#detectarCabecalho}). */
+    public Colunas colunas(String destino, String nome, byte[] bytes, int aba, Integer linhaPedida) {
         exigir(destino);
-        conferirLinhaDoCabecalho(linhaDoCabecalho);
+        if (linhaPedida != null) {
+            conferirLinhaDoCabecalho(linhaPedida);
+        }
+        int linhaDoCabecalho = linhaPedida == null ? 1 : linhaPedida;
         var planilha = LeitorDePlanilha.ler(nome, bytes, aba, linhaDoCabecalho);
+        if (linhaPedida == null) {
+            linhaDoCabecalho = SugestaoDeColunas.detectarCabecalho(planilha.linhas(), destino);
+            if (linhaDoCabecalho > 1) {
+                // O separador do CSV sai da linha do cabeçalho. shortcut: título de CSV sem separador acima de um cabeçalho com
+                // vírgula não é detectado (a primeira leitura usa a linha 1), quando incomodar o app pede a linha à mão.
+                planilha = LeitorDePlanilha.ler(nome, bytes, aba, linhaDoCabecalho);
+            }
+        }
         List<String> colunas = new ArrayList<>();
+        List<String> titulos = new ArrayList<>();
         int posicaoDoCabecalho = ConfiguracaoDaImportacao.posicaoDoCabecalho(planilha, linhaDoCabecalho);
         if (posicaoDoCabecalho >= 0) {
             var celulasDoCabecalho = planilha.linhas().get(posicaoDoCabecalho).celulas();
             for (int i = 0; i < celulasDoCabecalho.size(); i++) {
                 String texto = celulasDoCabecalho.get(i).texto();
+                titulos.add(texto == null ? "" : texto);
                 colunas.add(texto == null || texto.isBlank() ? LeitorDePlanilha.letra(i) : texto);
             }
         } else {
@@ -143,7 +162,8 @@ public class ImportacaoService {
             amostra.add(valores);
         }
         int linhas = planilha.linhas().size() - primeira;
-        return new Colunas(planilha.abas(), planilha.aba(), colunas, linhas, amostra, numeros, amostra.size() < linhas, cortadas);
+        return new Colunas(planilha.abas(), planilha.aba(), colunas, linhas, amostra, numeros, amostra.size() < linhas, cortadas,
+                linhaDoCabecalho, SugestaoDeColunas.sugerir(destino, titulos));
     }
 
     public Previa previa(UUID importador, String destino, String nome, byte[] bytes, String configuracao) {

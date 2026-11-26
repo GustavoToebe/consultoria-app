@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
  * Formato do conteúdo de uma célula, só pela forma (nunca guarda o valor): e-mail, telefone, data, prescrição ("4x10"),
  * faixa de repetições ("8-12"), carga ("30 kg"), código ("ALU001") ou número.
  */
-enum FormatoDoConteudo {
+public enum FormatoDoConteudo {
     EMAIL, TELEFONE, DATA, PRESCRICAO, FAIXA, CARGA, CODIGO, NUMERO, TEXTO, VAZIO;
 
     private static final Pattern P_EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
@@ -36,7 +36,7 @@ enum FormatoDoConteudo {
         }
     }
 
-    static FormatoDoConteudo de(Celula c) {
+    public static FormatoDoConteudo de(Celula c) {
         if (c == null || c.erro()) {
             return c == null ? VAZIO : TEXTO;
         }
@@ -81,7 +81,7 @@ enum FormatoDoConteudo {
     }
 
     /** Conteúdo que é dado e não nome de coluna. */
-    boolean dado() {
+    public boolean dado() {
         return this != TEXTO && this != VAZIO;
     }
 

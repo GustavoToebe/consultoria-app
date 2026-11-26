@@ -84,4 +84,38 @@ class TiposDaMetodologiaTest {
         assertThat(r.objetivo()).isEqualTo("obj");
         assertThat(r.sessoes().getFirst().exercicios().getFirst().nome()).isEqualTo("Supino");
     }
+
+    private static ConteudoTreino comTecnica(ConteudoTreino.Tecnica tecnica) {
+        Serie serie = Serie.de(UUID.randomUUID(), "WS", 6, 8, null)
+                .comTecnica(tecnica);
+        ExercicioPlano ex = new ExercicioPlano(UUID.randomUUID(), null, "Supino", "MUSCULACAO", null, "obs", true, "kg",
+                List.of(serie));
+        return new ConteudoTreino(null, null,
+                List.of(new Sessao(UUID.randomUUID(), "A", 1, ConteudoTreino.TREINO, null, null, null, List.of(ex))));
+    }
+
+    @Test
+    void tecnicaDaMetodologiaFicaCompletaComOPadraoEACargaDeTrabalho() {
+        ConteudoTreino r = TiposDaMetodologia.normalizar(
+                comTecnica(ConteudoTreino.Tecnica.vazia(ConteudoTreino.REST_PAUSE)), PADRAO);
+
+        Serie serie = r.sessoes().getFirst().exercicios().getFirst().series().getFirst();
+        assertThat(serie.tecnica().tipo()).isEqualTo(ConteudoTreino.REST_PAUSE);
+        assertThat(serie.tecnica().pausaSegundos()).isNotNull();
+        assertThat(serie.tecnica().pausas()).isNotNull();
+        assertThat(serie.carga().modo()).isEqualTo(ConteudoTreino.CARGA_TRABALHO);
+    }
+
+    @Test
+    void tecnicaForaDaMetodologiaSaiEViraNotaNaObservacao() {
+        ConfiguracaoConsultoria semTecnicas = new ConfiguracaoConsultoria(List.of(
+                new TipoDeSerie("WORKING", "WS", Papel.TRABALHO, null, null, null, null, null)), null, null, null, null, null);
+
+        ConteudoTreino r = TiposDaMetodologia.normalizar(
+                comTecnica(ConteudoTreino.Tecnica.restPause(20, null, 1)), semTecnicas);
+
+        ExercicioPlano ex = r.sessoes().getFirst().exercicios().getFirst();
+        assertThat(ex.series().getFirst().tecnica()).isNull();
+        assertThat(ex.observacao()).isEqualTo("obs Técnica: Rest pause.");
+    }
 }

@@ -416,4 +416,106 @@ class ImportacaoAssistidaServiceTest {
                 "estado":"PRONTO"}]
                 """.formatted(id);
     }
+
+    @Test
+    void planilhaXlsAntigaERecusadaComCodigoProprioEPedeParaSalvarComoXlsx() {
+        ImportacaoSessao sessao = sessaoAberta();
+        byte[] ole = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1, 0, 0};
+
+        for (String nome : List.of("planilha.xls", "renomeada.xlsx")) {
+            assertThatThrownBy(() -> service.adicionarArquivo(sessao.getId(),
+                    new MockMultipartFile("arquivo", nome, "application/vnd.ms-excel", ole)))
+                    .isInstanceOfSatisfying(br.com.treinos.api.web.ValidacaoException.class, e -> {
+                        assertThat(e.getCodigo()).isEqualTo("FORMATO_XLS_ANTIGO");
+                        assertThat(e.getMessage()).isEqualTo("Salve como .xlsx no Excel e envie de novo.");
+                    });
+        }
+        verify(arquivos, never()).save(any());
+    }
+
+    @Test
+    void arquivosSaemNaOrdemEOProgressoSobeUmPorArquivoMesmoLendoEmParalelo() {
+        ImportacaoSessao sessao = sessaoAberta();
+        List<ImportacaoAssistidaService.ArquivoPendente> pendentes = new java.util.ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            String conteudo = "Aluno: Pessoa Teste " + i + "\nTreino A\n1. Supino Reto 4x10\n";
+            pendentes.add(new ImportacaoAssistidaService.ArquivoPendente(UUID.randomUUID(), "t" + i + ".txt", "TEXTO_LIVRE",
+                    conteudo.getBytes(StandardCharsets.UTF_8)));
+        }
+        var preparo = new ImportacaoAssistidaService.PreparoProcessamento(sessao.getId(), "CADASTROS_E_PLANOS_ATUAIS",
+                java.util.Map.of(), pendentes, List.of(), null, br.com.treinos.api.consultoria.ConfiguracaoConsultoria.padrao());
+        java.util.concurrent.atomic.AtomicInteger lidos = new java.util.concurrent.atomic.AtomicInteger();
+
+        var resultado = service.executarProcessamentoSemTransacao(preparo, lidos::incrementAndGet);
+
+        assertThat(resultado.itens()).extracting(ImportacaoAssistidaService.ResultadoArquivoProcessado::arquivoId)
+                .containsExactlyElementsOf(pendentes.stream().map(ImportacaoAssistidaService.ArquivoPendente::id).toList());
+        assertThat(resultado.itens()).allMatch(ImportacaoAssistidaService.ResultadoArquivoProcessado::sucesso);
+        assertThat(lidos).hasValue(7);
+    }
+
+    private static final String GRUPO_DE_EXERCICIOS = """
+            [{"id":"grupo-1","identificadorOrigem":"treino.pdf","nomeDetectado":"Aluno Teste",
+            "destino":"CRIAR_ALUNO","alunoExistenteId":null,"arquivosOrigem":[],"cadastro":null,
+            "pesos":[],"treino":{"objetivo":"Treino A","orientacoes":null,"sessoes":[{"nome":"Costas",
+            "diaSemana":1,"observacao":null,"exercicios":[
+            {"exercicioId":null,"nome":"puxada frent","modalidade":"MAQUINA","videoUrl":null,"observacao":null,"series":[]},
+            {"exercicioId":null,"nome":"remada","modalidade":"MAQUINA","videoUrl":null,"observacao":null,"series":[]},
+            {"exercicioId":null,"nome":"rosca","modalidade":"MAQUINA","videoUrl":null,"observacao":null,"series":[]}]}],
+            "metodologia":null},"dieta":null,"pendenciasIds":[],"estado":"PRONTO"}]
+            """;
+
+    @Test
+    void aceitarSugestoesSoAplicaADuvidaComUmaUnicaSugestaoDaBibliotecaERepetirNaoFazNada() {
+        ImportacaoSessao sessao = sessaoAberta();
+        UUID biblioteca = UUID.randomUUID();
+        String duvidas = """
+                [{"id":"duvida-1","tipo":"EXERCICIO_NAO_RECONHECIDO","termoOriginal":"puxada frent","trechoOriginal":"",
+                "arquivoOrigem":"treino.pdf","ocorrencias":1,"resolvida":false,"respostaEscolhida":null,
+                "sugestoes":[{"termo":"Puxada frontal","referenciaId":"%s","origem":"BIBLIOTECA","nota":0.9}]},
+                {"id":"duvida-2","tipo":"EXERCICIO_NAO_RECONHECIDO","termoOriginal":"remada","trechoOriginal":"",
+                "arquivoOrigem":"treino.pdf","ocorrencias":1,"resolvida":false,"respostaEscolhida":null,
+                "sugestoes":[{"termo":"Remada curvada","referenciaId":"%s","origem":"BIBLIOTECA","nota":0.8},
+                             {"termo":"Remada baixa","referenciaId":"%s","origem":"BIBLIOTECA","nota":0.7}]},
+                {"id":"duvida-3","tipo":"EXERCICIO_NAO_RECONHECIDO","termoOriginal":"rosca","trechoOriginal":"",
+                "arquivoOrigem":"treino.pdf","ocorrencias":1,"resolvida":false,"respostaEscolhida":null,
+                "sugestoes":[{"termo":"Rosca direta","referenciaId":null,"origem":"IA","nota":null}]}]
+                """.formatted(biblioteca, UUID.randomUUID(), UUID.randomUUID());
+        sessao.atualizarResultados(GRUPO_DE_EXERCICIOS, duvidas, "{}");
+        long revisao = sessao.getRevisao();
+
+        SessaoDetalhe detalhe = service.aceitarSugestoes(sessao.getId(), revisao);
+
+        assertThat(detalhe.duvidas()).extracting(ImportacaoAssistidaDtos.DuvidaImportacao::resolvida)
+                .containsExactly(true, false, false);
+        assertThat(detalhe.duvidas().getFirst().respostaEscolhida()).isEqualTo("Puxada frontal");
+        var nomes = detalhe.grupos().getFirst().treino().sessoes().getFirst().exercicios().stream()
+                .map(br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano::nome).toList();
+        assertThat(nomes).containsExactly("Puxada frontal", "remada", "rosca");
+        verify(apelidos, never()).save(any());
+
+        // Repetir (com a revisão nova) não muda nada.
+        long depois = sessao.getRevisao();
+        service.aceitarSugestoes(sessao.getId(), depois);
+        assertThat(sessao.getRevisao()).isEqualTo(depois);
+        // Revisão antiga = outra pessoa mexeu: 409 e nada muda.
+        assertThatThrownBy(() -> service.aceitarSugestoes(sessao.getId(), revisao))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void aceitarSugestoesIgnoraExercicioSemTreinoLer() {
+        ImportacaoSessao sessao = sessaoAberta();
+        String duvidas = """
+                [{"id":"duvida-1","tipo":"EXERCICIO_NAO_RECONHECIDO","termoOriginal":"puxada frent","trechoOriginal":"",
+                "arquivoOrigem":"treino.pdf","ocorrencias":1,"resolvida":false,"respostaEscolhida":null,
+                "sugestoes":[{"termo":"Puxada frontal","referenciaId":"%s","origem":"BIBLIOTECA","nota":0.9}]}]
+                """.formatted(UUID.randomUUID());
+        sessao.atualizarResultados(GRUPO_DE_EXERCICIOS, duvidas, "{}");
+        comPermissoes("ALUNO_LER", "ALUNO_ALTERAR", "ALUNO_SENSIVEL_LER", "DIETA_LER");
+
+        service.aceitarSugestoes(sessao.getId(), sessao.getRevisao());
+
+        assertThat(SessaoJson.duvidas(json, sessao)).noneMatch(ImportacaoAssistidaDtos.DuvidaImportacao::resolvida);
+    }
 }

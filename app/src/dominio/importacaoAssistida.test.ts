@@ -26,6 +26,8 @@ import {
   resumoDaCoberturaDoArquivo,
   resumoDaSessao,
   resumoDoModoProcessamento,
+  duvidasComSugestaoUnica,
+  textoDaLeitura,
   resumoDoResultado,
   rotuloDaDuvida,
   seloDoGrupo,
@@ -430,4 +432,42 @@ describe('foco ao entrar na tela', () => {
     expect(focoAoEntrar({ ...base, estado: 'PROCESSANDO' })).toEqual({ tipo: 'titulo' });
     expect(focoAoEntrar({ ...base, grupos: [grupo(), { ...parecido, destino: 'VINCULAR_EXISTENTE', alunoExistenteId: 'a1' }] })).toEqual({ tipo: 'titulo' });
   });
+});
+
+test('motivo da contingência dito com clareza e contagem da leitura em andamento', () => {
+  const semChave = resumoDoModoProcessamento({ modoEfetivo: 'REGRAS', fallbackParaRegras: true, motivoFallback: 'CHAVE_AUSENTE' });
+  expect(semChave.alertaFallback).toMatch(/falta a chave/);
+  const falhou = resumoDoModoProcessamento({ modoEfetivo: 'REGRAS', fallbackParaRegras: true, motivoFallback: 'ERRO_PROVEDOR' });
+  expect(falhou.alertaFallback).toMatch(/nova tentativa/);
+  expect(falhou.alertaFallback).toMatch(/Confira/);
+  const desligado = resumoDoModoProcessamento({ modoEfetivo: 'REGRAS', fallbackParaRegras: false, motivoFallback: 'ENVIO_DESLIGADO' });
+  expect(desligado.alertaFallback).toBeNull();
+  expect(desligado.descricao).toMatch(/desligado/);
+
+  expect(textoDaLeitura({ lidos: 2, total: 5 })).toBe('Lendo 2 de 5 arquivos');
+  expect(textoDaLeitura({ lidos: 0, total: 1 })).toBe('Lendo 0 de 1 arquivo');
+  expect(textoDaLeitura({ lidos: 9, total: 5 })).toBe('Lendo 5 de 5 arquivos');
+  expect(textoDaLeitura(null)).toBeNull();
+  expect(textoDaLeitura({ lidos: 0, total: 0 })).toBeNull();
+});
+
+test('só a sugestão única da biblioteca entra no "Aceitar todas as sugestões"', () => {
+  const duvida = (id: string, tipo: string, sugestoes: { termo: string; referenciaId?: string | null }[], resolvida = false) => ({
+    id, tipo, termoOriginal: id, trechoOriginal: '', arquivoOrigem: 'a.txt', ocorrencias: 1, resolvida,
+    sugestoes: sugestoes.map((s) => ({ ...s, origem: s.referenciaId ? 'BIBLIOTECA' : 'IA', nota: null })),
+  }) as DuvidaImportacao;
+  const lista = [
+    duvida('a', 'EXERCICIO_NAO_RECONHECIDO', [{ termo: 'Supino', referenciaId: 'r1' }]),
+    duvida('b', 'ALIMENTO_NAO_RECONHECIDO', [{ termo: 'Arroz', referenciaId: 'r2' }]),
+    duvida('c', 'EXERCICIO_NAO_RECONHECIDO', [{ termo: 'X', referenciaId: 'r3' }, { termo: 'Y', referenciaId: 'r4' }]),
+    duvida('d', 'EXERCICIO_NAO_RECONHECIDO', [{ termo: 'Só IA', referenciaId: null }]),
+    duvida('e', 'EXERCICIO_NAO_RECONHECIDO', [{ termo: 'Feita', referenciaId: 'r5' }], true),
+    duvida('f', 'OUTRO_TERMO', [{ termo: 'Z', referenciaId: 'r6' }]),
+  ];
+  expect(duvidasComSugestaoUnica(lista).map((d) => d.id)).toEqual(['a', 'b']);
+});
+
+test('planilha .xls antiga pede para salvar como .xlsx', () => {
+  const erro = new ErroApi(422, 'FORMATO_XLS_ANTIGO', 'texto do servidor');
+  expect(textoDoErroDaImportacao(erro)).toBe('Salve como .xlsx no Excel e envie de novo.');
 });

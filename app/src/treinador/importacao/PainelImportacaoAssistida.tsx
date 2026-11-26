@@ -10,6 +10,7 @@ import {
   contagensDasEtapas,
   duvidasVisiveis,
   DICA_DE_TREINO_DESMONTADO,
+  duvidasComSugestaoUnica,
   etapaDaImportacao,
   focoAoEntrar,
   type FocoAoEntrar,
@@ -32,6 +33,7 @@ import {
   seloDoGrupo,
   sessaoPodeCancelar,
   sessaoRetomavel,
+  textoDaLeitura,
   textoDoErroDaImportacao,
   textoDoEstadoDaSessao,
   tituloDoGrupoResumido,
@@ -39,6 +41,7 @@ import {
   type ValorDoDestino,
 } from '../../dominio/importacaoAssistida';
 import {
+  aceitarSugestoes,
   adicionarArquivo,
   adicionarTexto,
   atualizarGrupo,
@@ -84,7 +87,7 @@ import { TermosParaConferir } from './TermosParaConferir';
 const COLAR_TREINO: Href = { pathname: '/treinador/planejamento', params: { aba: 'treino', tipo: 'plano_treino', novo: '1', colar: '1' } };
 
 /** Qual ação está em andamento: cada botão mostra o próprio carregando, e só o processar mostra o cartão de espera. */
-type Acao = 'arquivos' | 'texto' | 'processar' | 'responder' | 'revogar' | 'destino' | 'confirmar' | 'cancelar' | 'retomar';
+type Acao = 'arquivos' | 'texto' | 'processar' | 'responder' | 'aceitar' | 'revogar' | 'destino' | 'confirmar' | 'cancelar' | 'retomar';
 /**
  * Cartão onde o erro aparece: perto do botão que o causou, não no topo da página (no celular ficaria fora da vista).
  * `proxima` acompanha o botão da próxima etapa (ler, gravar), que na faixa larga mora na coluna lateral.
@@ -289,6 +292,15 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
     });
   };
 
+  const aceitarTodas = () => {
+    if (!sessao) return;
+    void executar('aceitar', 'duvidas', async () => {
+      setSessao(await aceitarSugestoes(sessao.id, sessao.revisao));
+      setDuvidaAtiva(null);
+      setReferenciaEscolhida(null);
+    });
+  };
+
   const revogar = (decisao: DecisaoImportacao) => {
     if (!sessao) return;
     void executar('revogar', 'duvidas', async () => {
@@ -439,6 +451,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   // Na coluna das etapas o botão da próxima etapa é a ação de apoio (cor de ação); nos cartões, o principal.
   const tipoDaProxima = comLateral ? 'acao' : 'primario';
   const duvidas = duvidasVisiveis(sessao?.duvidas);
+  const sugestoesUnicas = duvidasComSugestaoUnica(duvidas).length;
   const podeLer = sessao?.estado === 'RECEBENDO' || sessao?.estado === 'RASCUNHO';
   const botaoLer = podeLer ? (
     <LinhaDeAcoes>
@@ -591,7 +604,10 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
           </Cartao>
 
           {acao === 'processar' || sessao.estado === 'PROCESSANDO' ? (
-            <Cartao titulo="Lendo os arquivos…" descricao="Acompanhando o processamento no servidor automaticamente.">
+            <Cartao
+              titulo="Lendo os arquivos…"
+              descricao={textoDaLeitura(sessao.leitura) ?? 'Acompanhando o processamento no servidor automaticamente.'}
+            >
               <Esqueleto />
             </Cartao>
           ) : null}
@@ -600,6 +616,16 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
             <Cartao
               titulo="Termos para conferir"
               descricao="Abreviações e nomes de exercícios ou alimentos que o sistema não reconheceu com certeza."
+              acoes={sugestoesUnicas > 0 ? (
+                <Botao
+                  rotulo={`Aceitar todas as sugestões (${sugestoesUnicas})`}
+                  tipo="secundario"
+                  carregando={acao === 'aceitar'}
+                  desabilitado={!!acao}
+                  motivo="Aguarde a ação em andamento."
+                  aoTocar={aceitarTodas}
+                />
+              ) : undefined}
             >
               {erroEm('duvidas')}
               <TermosParaConferir
@@ -858,6 +884,8 @@ function GrupoParaConferir({ grupo, pode, conferidos, selecionado, aoSelecionar,
       <View style={estilos.lista}>
         {linhasDoGrupo(grupo, pode).map((l) => <Texto key={l.rotulo} numerico>{l.rotulo}: {l.valor}</Texto>)}
       </View>
+
+      {(grupo.avisos ?? []).map((aviso) => <Alerta key={aviso} tom="atencao" texto={aviso} />)}
 
       {precisaEscolherAluno(grupo, conferidos) ? (
         <Alerta tom="atencao" texto="Já existe aluno cadastrado parecido com este. Escolha se é a mesma pessoa ou crie um aluno novo." />

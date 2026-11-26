@@ -1,5 +1,5 @@
 import type { PermissaoEquipe } from '../api/equipeTipos';
-import { semAcento } from './mapeamentoDaImportacao';
+import { semAcento } from './telas';
 import { completarPermissoes, desmarcarPermissoes, exigidaPor } from './perfilEquipe';
 
 /**

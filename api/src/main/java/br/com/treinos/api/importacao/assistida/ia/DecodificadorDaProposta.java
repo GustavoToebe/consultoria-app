@@ -29,22 +29,32 @@ final class DecodificadorDaProposta {
     static final String FORMATO_DA_RESPOSTA = """
             Formato da resposta (JSON):
             {"grupos": [{"nomeAluno": texto ou null, "objetivo": texto ou null, "observacoes": texto ou null,
-              "pesos": [{"data": "AAAA-MM-DD", "kg": número}],
+              "pesos": [{"data": "AAAA-MM-DD", "kg": número, "observacao": texto ou null}],
               "treino": {"sessoes": [{"nome": texto, "diaSemana": 1 (segunda) a 7 (domingo) ou null,
                 "exercicios": [{"nome": texto como está no documento,
-                  "observacao": técnica, carga, cadência ou outra nota, ou null,
+                  "observacao": carga, técnica que não coube nos campos ou outra nota, ou null,
+                  "cadencia": "3-1-1-0" (4 partes separadas por hífen, cada uma de 0 a 9 ou X) ou null,
+                  "isometriaSegundos": 1 a 120 ou null,
                   "series": [{"quantidade": quantas séries iguais, "tipo": o CODIGO da metodologia ou null,
-                    "repsMin": número ou null, "repsMax": número ou null, "descansoSegundos": número ou null}]}]}]} ou null,
-              "dieta": {"refeicoes": [{"nome": texto, "horario": "HH:MM" ou null,
+                    "repsMin": número ou null, "repsMax": número ou null, "descansoSegundos": número ou null,
+                    "tecnica": "REST_PAUSE", "CLUSTER", "DROP_SET" ou null, "pausas": número ou null,
+                    "blocos": [repetições de cada bloco do cluster, ex. 4, 2] ou null, "quedas": número ou null,
+                    "reducaoPercentual": número ou null, "pausaSegundos": número ou null}]}]}]} ou null,
+              "dieta": {"aguaLitros": número ou null, "refeicoes": [{"nome": texto, "horario": "HH:MM" ou null,
+                "modoDePreparo": texto ou null,
                 "opcoes": [{"itens": [{"nome": texto, "quantidade": número ou null, "unidade": "g", "ml", "un" ou outra curta}]}]}],
                 "suplementos": [{"nome": texto, "dose": texto ou null, "horario": texto ou null, "observacao": texto ou null}],
                 "medicacoes": [{"nome": texto, "principioAtivo": texto ou null, "concentracao": texto ou null,
                   "dose": texto ou null, "horario": texto ou null, "observacao": texto ou null}]} ou null}]}
             Um item de "grupos" por ALUNO, nunca por sessão, refeição ou página: um documento de um aluno só gera um item.
             Todas as sessões e refeições do mesmo aluno ficam dentro do mesmo item.
+            "tecnica" só quando o documento escreve a técnica da série (rest pause, cluster, drop set); qualquer outra
+            técnica vai em "observacao". Cluster: "blocos" e "repsMin" = "repsMax" = soma dos blocos.
+            "aguaLitros": só a meta de água por dia, se estiver escrita. "modoDePreparo": só se houver receita escrita.
+            Em planilhas, a linha "Colunas:" dá o nome de cada coluna; as linhas seguintes são os dados.
             "suplementos": whey, creatina, vitaminas e similares. "medicacoes": remédios, hormônios, anabolizantes,
             ergogênicos e qualquer outra substância com dose (ex.: "Testosterona enantato 250 mg/sem").
-            Copie como está escrito, sem opinar nem calcular nada sobre saúde.
+            Copie como está escrito, sem opinar nem calcular nada sobre saúde. Nada de kcal nem macros: vêm da biblioteca.
             Não invente: o que não estiver escrito fica null.
             """;
 
@@ -104,16 +114,40 @@ final class DecodificadorDaProposta {
         return sb.toString();
     }
 
+    // Tetos do plano (@Size de ConteudoTreino e ConteudoDieta): o que passa deles é cortado e vira aviso no grupo.
+    private static final int MAX_SESSOES = 20;
+    private static final int MAX_EXERCICIOS = 40;
+    private static final int MAX_SERIES = 30;
+    private static final int MAX_REFEICOES = 12;
+    private static final int MAX_OPCOES = 6;
+    private static final int MAX_ITENS = 40;
+    private static final int MAX_COMPLEMENTOS = 40;
+    private static final java.util.regex.Pattern CADENCIA = java.util.regex.Pattern.compile("[0-9X](-[0-9X]){3}");
+
+    /** Avisos de corte de um grupo: texto fixo, sem repetir (cada limite avisa uma vez por lugar). */
+    private static final class Avisos {
+        private final java.util.Set<String> textos = new java.util.LinkedHashSet<>();
+
+        void add(String texto) {
+            textos.add(texto);
+        }
+
+        List<String> lista() {
+            return List.copyOf(textos);
+        }
+    }
+
     static ResultadoInterpretacao decodificar(JsonMapper json, JsonNode root, ContextoIa contexto) {
         List<ResultadoInterpretacao.PropostaGrupo> grupos = new ArrayList<>();
 
         JsonNode gruposNode = root.path("grupos");
         if (gruposNode.isArray()) {
             for (JsonNode g : gruposNode) {
+                Avisos avisos = new Avisos();
                 String nome = texto(g, "nomeAluno");
-                List<ResultadoInterpretacao.PropostaPeso> pesos = pesos(g.path("pesos"));
-                ConteudoTreino treino = treino(g.path("treino"));
-                ConteudoDieta dieta = dieta(g.path("dieta"));
+                List<ResultadoInterpretacao.PropostaPeso> pesos = pesos(g.path("pesos"), avisos);
+                ConteudoTreino treino = treino(g.path("treino"), avisos);
+                ConteudoDieta dieta = dieta(g.path("dieta"), avisos);
                 boolean temTreino = treino != null && treino.sessoes() != null && !treino.sessoes().isEmpty();
                 boolean temDieta = dieta != null; // dieta() já devolve nulo sem refeição, suplemento nem medicação
                 if (nome == null && pesos.isEmpty() && !temTreino && !temDieta) {
@@ -122,7 +156,7 @@ final class DecodificadorDaProposta {
                 grupos.add(new ResultadoInterpretacao.PropostaGrupo(
                         contexto.nomeArquivo(), nome == null ? "Aluno sem identificação" : nome, null, null,
                         texto(g, "objetivo"), texto(g, "observacoes"), pesos,
-                        temTreino ? treino : null, temDieta ? dieta : null));
+                        temTreino ? treino : null, temDieta ? dieta : null, avisos.lista()));
             }
         }
         if (grupos.isEmpty()) {
@@ -143,38 +177,47 @@ final class DecodificadorDaProposta {
         return t.isEmpty() ? null : t;
     }
 
-    private static List<ResultadoInterpretacao.PropostaPeso> pesos(JsonNode pesosNode) {
+    private static List<ResultadoInterpretacao.PropostaPeso> pesos(JsonNode pesosNode, Avisos avisos) {
         List<ResultadoInterpretacao.PropostaPeso> pesos = new ArrayList<>();
         if (!pesosNode.isArray()) {
             return pesos;
         }
+        int descartados = 0;
         for (JsonNode p : pesosNode) {
             String data = texto(p, "data");
             String kg = texto(p, "kg");
             if (data == null || kg == null) {
-                continue; // sem data ou sem número: não vira peso
+                descartados++; // sem data ou sem número: não vira peso
+                continue;
             }
             try {
                 BigDecimal valor = new BigDecimal(kg.replace(',', '.'));
-                pesos.add(new ResultadoInterpretacao.PropostaPeso(LocalDate.parse(data), valor, null));
+                pesos.add(new ResultadoInterpretacao.PropostaPeso(LocalDate.parse(data), valor,
+                        texto(p, "observacao", 300, avisos, "uma observação de peso")));
             } catch (RuntimeException e) {
-                // peso mal formatado é descartado
+                descartados++; // peso mal formatado é descartado
             }
+        }
+        if (descartados > 0) {
+            avisos.add("Pesos sem data ou valor legível não entraram: " + descartados + ".");
         }
         return pesos;
     }
 
-    private static ConteudoTreino treino(JsonNode no) {
+    private static ConteudoTreino treino(JsonNode no, Avisos avisos) {
         List<ConteudoTreino.Sessao> sessoes = new ArrayList<>();
-        for (JsonNode s : lista(no.path("sessoes"), 20)) {
+        for (JsonNode s : lista(no.path("sessoes"), MAX_SESSOES, avisos,
+                "Treino: só as " + MAX_SESSOES + " primeiras divisões entraram.")) {
+            String nomeSessao = texto(s, "nome", 80, avisos, "um nome de divisão");
             List<ConteudoTreino.ExercicioPlano> exercicios = new ArrayList<>();
-            for (JsonNode e : lista(s.path("exercicios"), 40)) {
-                String nome = texto(e, "nome", 120);
+            for (JsonNode e : lista(s.path("exercicios"), MAX_EXERCICIOS, avisos,
+                    (nomeSessao == null ? "Treino" : nomeSessao) + ": só os " + MAX_EXERCICIOS + " primeiros exercícios entraram.")) {
+                String nome = texto(e, "nome", 120, avisos, "um nome de exercício");
                 if (nome == null) {
                     continue;
                 }
                 List<ConteudoTreino.Serie> series = new ArrayList<>();
-                for (JsonNode sr : lista(e.path("series"), 30)) {
+                for (JsonNode sr : lista(e.path("series"), MAX_SERIES, avisos, nome + ": só as " + MAX_SERIES + " primeiras séries entraram.")) {
                     Integer min = inteiro(sr, "repsMin", 1, 500);
                     Integer max = inteiro(sr, "repsMax", 1, 500);
                     if (min == null || max == null || max < min) {
@@ -183,33 +226,81 @@ final class DecodificadorDaProposta {
                         min = unico;
                         max = unico;
                     }
-                    Integer quantidade = inteiro(sr, "quantidade", 1, 30);
-                    for (int k = 0; k < (quantidade == null ? 1 : quantidade) && series.size() < 30; k++) {
+                    ConteudoTreino.Tecnica tecnica = tecnica(sr);
+                    Integer quantidade = inteiro(sr, "quantidade", 1, MAX_SERIES);
+                    for (int k = 0; k < (quantidade == null ? 1 : quantidade); k++) {
+                        if (series.size() == MAX_SERIES) {
+                            avisos.add(nome + ": só as " + MAX_SERIES + " primeiras séries entraram.");
+                            break;
+                        }
                         series.add(new ConteudoTreino.Serie(UUID.randomUUID(), texto(sr, "tipo", 30), min, max, null,
-                                null, null, inteiro(sr, "descansoSegundos", 0, 3600), null, null, null));
+                                null, null, inteiro(sr, "descansoSegundos", 0, 3600), tecnica, null, null));
                     }
                 }
+                String cadencia = texto(e, "cadencia", 15);
                 exercicios.add(new ConteudoTreino.ExercicioPlano(UUID.randomUUID(), null, nome, null, null,
-                        texto(e, "observacao", 1000), true, "kg", List.copyOf(series)));
+                        texto(e, "observacao", 1000, avisos, "uma observação de exercício"), true, "kg",
+                        List.copyOf(series), cadencia != null && CADENCIA.matcher(cadencia).matches() ? cadencia : null,
+                        inteiro(e, "isometriaSegundos", 1, 120), null));
             }
             if (!exercicios.isEmpty()) {
-                sessoes.add(new ConteudoTreino.Sessao(UUID.randomUUID(), texto(s, "nome", 80),
+                sessoes.add(new ConteudoTreino.Sessao(UUID.randomUUID(), nomeSessao,
                         inteiro(s, "diaSemana", 1, 7), null, null, null, null, List.copyOf(exercicios)));
             }
         }
         return sessoes.isEmpty() ? null : new ConteudoTreino(null, null, List.copyOf(sessoes));
     }
 
-    private static ConteudoDieta dieta(JsonNode no) {
+    /**
+     * A técnica como a IA escreveu, sem os padrões da metodologia: quem a completa (ou a troca por texto na observação,
+     * se a consultoria não a usa) é o {@code TiposDaMetodologia}, que conhece a metodologia.
+     */
+    private static ConteudoTreino.Tecnica tecnica(JsonNode serie) {
+        String tipo = texto(serie, "tecnica");
+        if (tipo == null) {
+            return null;
+        }
+        Integer pausa = inteiro(serie, "pausaSegundos", 5, 600);
+        return switch (tipo.toUpperCase(java.util.Locale.ROOT)) {
+            case ConteudoTreino.REST_PAUSE -> ConteudoTreino.Tecnica.restPause(pausa, null, inteiro(serie, "pausas", 1, 5));
+            case ConteudoTreino.CLUSTER -> ConteudoTreino.Tecnica.cluster(blocos(serie.path("blocos")), pausa, null);
+            case ConteudoTreino.DROP_SET -> ConteudoTreino.Tecnica.dropSet(inteiro(serie, "quedas", 1, 5),
+                    inteiro(serie, "reducaoPercentual", 5, 50), null, pausa);
+            default -> null; // outra técnica: o texto da IA ficou na observação do exercício
+        };
+    }
+
+    private static List<Integer> blocos(JsonNode no) {
+        if (!no.isArray() || no.size() < 2 || no.size() > 10) {
+            return null;
+        }
+        List<Integer> blocos = new ArrayList<>();
+        for (JsonNode b : no) {
+            BigDecimal v = b.isNumber() ? b.decimalValue() : null;
+            if (v == null || v.stripTrailingZeros().scale() > 0 || v.intValue() < 1 || v.intValue() > 50) {
+                return null;
+            }
+            blocos.add(v.intValue());
+        }
+        return List.copyOf(blocos);
+    }
+
+    private static ConteudoDieta dieta(JsonNode no, Avisos avisos) {
         List<ConteudoDieta.Refeicao> refeicoes = new ArrayList<>();
-        for (JsonNode r : lista(no.path("refeicoes"), 20)) {
+        for (JsonNode r : lista(no.path("refeicoes"), MAX_REFEICOES, avisos,
+                "Dieta: só as " + MAX_REFEICOES + " primeiras refeições entraram.")) {
+            String nomeRefeicao = texto(r, "nome", 80, avisos, "um nome de refeição");
+            String rotulo = nomeRefeicao == null ? "Refeição" : nomeRefeicao;
             // Itens direto na refeição também valem: é como a IA responde quando não há opções.
-            List<JsonNode> opcoesNo = r.path("opcoes").isArray() ? lista(r.path("opcoes"), 6) : List.of(r);
+            List<JsonNode> opcoesNo = r.path("opcoes").isArray()
+                    ? lista(r.path("opcoes"), MAX_OPCOES, avisos, rotulo + ": só as " + MAX_OPCOES + " primeiras opções entraram.")
+                    : List.of(r);
             List<ConteudoDieta.Opcao> opcoes = new ArrayList<>();
             for (JsonNode o : opcoesNo) {
                 List<ConteudoDieta.Item> itens = new ArrayList<>();
-                for (JsonNode it : lista(o.path("itens"), 40)) {
-                    String nome = texto(it, "nome", 160);
+                for (JsonNode it : lista(o.path("itens"), MAX_ITENS, avisos,
+                        rotulo + ": só os " + MAX_ITENS + " primeiros itens de cada opção entraram.")) {
+                    String nome = texto(it, "nome", 160, avisos, "um nome de alimento");
                     if (nome != null) {
                         itens.add(new ConteudoDieta.Item(UUID.randomUUID(), null, nome, decimal(it, "quantidade"),
                                 unidade(texto(it, "unidade")), null, null, null, null, true));
@@ -222,22 +313,25 @@ final class DecodificadorDaProposta {
             }
             String horario = texto(r, "horario", 5);
             if (!opcoes.isEmpty()) {
-                refeicoes.add(new ConteudoDieta.Refeicao(UUID.randomUUID(), texto(r, "nome", 80),
+                refeicoes.add(new ConteudoDieta.Refeicao(UUID.randomUUID(), nomeRefeicao,
                         horario != null && HORARIO.matcher(horario).matches() ? horario : null, null,
-                        List.copyOf(opcoes)));
+                        List.copyOf(opcoes), texto(r, "modoDePreparo", ConteudoDieta.MODO_DE_PREPARO_MAXIMO, avisos,
+                        "um modo de preparo")));
             }
         }
         List<ConteudoDieta.Suplemento> suplementos = new ArrayList<>();
-        for (JsonNode s : lista(no.path("suplementos"), 40)) {
-            String nome = texto(s, "nome", 120);
+        for (JsonNode s : lista(no.path("suplementos"), MAX_COMPLEMENTOS, avisos,
+                "Dieta: só os " + MAX_COMPLEMENTOS + " primeiros suplementos entraram.")) {
+            String nome = texto(s, "nome", 120, avisos, "um nome de suplemento");
             if (nome != null) {
                 suplementos.add(new ConteudoDieta.Suplemento(UUID.randomUUID(), nome, texto(s, "dose", 120),
                         texto(s, "horario", 120), texto(s, "observacao", 500), null, null));
             }
         }
         List<ConteudoDieta.Ergogenico> medicacoes = new ArrayList<>();
-        for (JsonNode m : lista(no.path("medicacoes"), 40)) {
-            String nome = texto(m, "nome", 120);
+        for (JsonNode m : lista(no.path("medicacoes"), MAX_COMPLEMENTOS, avisos,
+                "Dieta: só as " + MAX_COMPLEMENTOS + " primeiras medicações entraram.")) {
+            String nome = texto(m, "nome", 120, avisos, "um nome de medicação");
             if (nome != null) {
                 medicacoes.add(new ConteudoDieta.Ergogenico(UUID.randomUUID(), nome, texto(m, "principioAtivo", 160),
                         texto(m, "concentracao", 40), texto(m, "dose", 120), texto(m, "horario", 120),
@@ -247,7 +341,14 @@ final class DecodificadorDaProposta {
         // Só medicação ou suplemento também vale: o PDF pode trazer o protocolo sem refeição.
         return refeicoes.isEmpty() && suplementos.isEmpty() && medicacoes.isEmpty() ? null
                 : new ConteudoDieta(null, null, null, List.copyOf(refeicoes), List.of(), null,
-                        List.copyOf(suplementos), List.copyOf(medicacoes));
+                        List.copyOf(suplementos), List.copyOf(medicacoes), agua(no), null);
+    }
+
+    /** Meta de água do documento: 0,1 a 20 L com uma casa; qualquer outro valor fica nulo, sem arredondar. */
+    private static BigDecimal agua(JsonNode no) {
+        BigDecimal v = decimal(no, "aguaLitros");
+        return v == null || v.compareTo(new BigDecimal("0.1")) < 0 || v.compareTo(BigDecimal.valueOf(20)) > 0
+                || v.stripTrailingZeros().scale() > 1 ? null : v;
     }
 
     /** Formas longas comuns viram a sigla; outra acima de 5 letras fica nula (cortar gravaria "colhe", não inventamos). */
@@ -267,16 +368,19 @@ final class DecodificadorDaProposta {
 
     private static final java.util.regex.Pattern HORARIO = java.util.regex.Pattern.compile("([01]\\d|2[0-3]):[0-5]\\d");
 
-    private static List<JsonNode> lista(JsonNode no, int teto) {
+    /** Os objetos da lista até o teto; o que passa dele sai e o grupo ganha o aviso. */
+    private static List<JsonNode> lista(JsonNode no, int teto, Avisos avisos, String aviso) {
         List<JsonNode> itens = new ArrayList<>();
         if (no.isArray()) {
             for (JsonNode n : no) {
+                if (!n.isObject()) {
+                    continue;
+                }
                 if (itens.size() == teto) {
+                    avisos.add(aviso);
                     break;
                 }
-                if (n.isObject()) {
-                    itens.add(n);
-                }
+                itens.add(n);
             }
         }
         return itens;
@@ -286,6 +390,16 @@ final class DecodificadorDaProposta {
     private static String texto(JsonNode no, String campo, int maximo) {
         String t = texto(no, campo);
         return t == null || t.length() <= maximo ? t : t.substring(0, maximo).strip();
+    }
+
+    /** Como {@link #texto(JsonNode, String, int)}, avisando (sem repetir o texto) quando o corte tirou algo. */
+    private static String texto(JsonNode no, String campo, int maximo, Avisos avisos, String oque) {
+        String t = texto(no, campo);
+        if (t != null && t.length() > maximo) {
+            avisos.add("Cortado por passar de " + maximo + " caracteres: " + oque + ".");
+            return t.substring(0, maximo).strip();
+        }
+        return t;
     }
 
     private static Integer inteiro(JsonNode no, String campo, int min, int max) {

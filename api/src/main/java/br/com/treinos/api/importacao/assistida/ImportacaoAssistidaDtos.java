@@ -81,19 +81,37 @@ public final class ImportacaoAssistidaDtos {
                                 List<ArquivoResumo> arquivos, List<GrupoImportavel> grupos,
                                 List<DuvidaImportacao> duvidas, Instant criadoEm, Instant expiraEm,
                                 ModoProcessamentoResumo modoProcessamento,
-                                List<DecisaoImportacao> decisoes, String hashPrevia) {
+                                List<DecisaoImportacao> decisoes, String hashPrevia,
+                                @JsonInclude(JsonInclude.Include.NON_NULL) LeituraEmAndamento leitura) {
+        public SessaoDetalhe(UUID id, String objetivo, String estado, int revisao,
+                             List<ArquivoResumo> arquivos, List<GrupoImportavel> grupos,
+                             List<DuvidaImportacao> duvidas, Instant criadoEm, Instant expiraEm,
+                             ModoProcessamentoResumo modoProcessamento,
+                             List<DecisaoImportacao> decisoes, String hashPrevia) {
+            this(id, objetivo, estado, revisao, arquivos, grupos, duvidas, criadoEm, expiraEm, modoProcessamento,
+                    decisoes, hashPrevia, null);
+        }
+
         public SessaoDetalhe(UUID id, String objetivo, String estado, int revisao,
                              List<ArquivoResumo> arquivos, List<GrupoImportavel> grupos,
                              List<DuvidaImportacao> duvidas, Instant criadoEm, Instant expiraEm,
                              ModoProcessamentoResumo modoProcessamento) {
             this(id, objetivo, estado, revisao, arquivos, grupos, duvidas, criadoEm, expiraEm, modoProcessamento,
-                    List.of(), null);
+                    List.of(), null, null);
         }
 
         @Override
         public String toString() {
             return "SessaoDetalhe[id=" + id + ", estado=" + estado + ", revisao=" + revisao + "]";
         }
+    }
+
+    /** Só com a sessão em {@code PROCESSANDO}: quantos dos {@code total} arquivos desta leitura já terminaram. */
+    public record LeituraEmAndamento(int lidos, int total) {
+    }
+
+    /** Só pede a resposta de todas as dúvidas com uma sugestão única da biblioteca; {@code revisaoEsperada} como no revogar. */
+    public record AceitarSugestoesRequisicao(long revisaoEsperada) {
     }
 
     public record ModoProcessamentoResumo(String modoEfetivo, String provedorConfigurado,
@@ -138,9 +156,21 @@ public final class ImportacaoAssistidaDtos {
                                   List<PesoImportavel> pesos, ConteudoTreino treino, ConteudoDieta dieta,
                                   List<String> pendenciasIds, String estado, String erroCodigo,
                                   List<CandidatoAluno> candidatos,
-                                  @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<UUID, OcorrenciaOrigem> ocorrencias) {
+                                  @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<UUID, OcorrenciaOrigem> ocorrencias,
+                                  @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> avisos) {
         public GrupoImportavel {
             ocorrencias = ocorrencias == null ? Map.of() : ocorrencias;
+            avisos = avisos == null ? List.of() : avisos;
+        }
+
+        /** Sem avisos de corte. */
+        public GrupoImportavel(String id, String identificadorOrigem, String nomeDetectado, String destino,
+                               UUID alunoExistenteId, List<String> arquivosOrigem, CadastroImportavel cadastro,
+                               List<PesoImportavel> pesos, ConteudoTreino treino, ConteudoDieta dieta,
+                               List<String> pendenciasIds, String estado, String erroCodigo,
+                               List<CandidatoAluno> candidatos, Map<UUID, OcorrenciaOrigem> ocorrencias) {
+            this(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem, cadastro, pesos,
+                    treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, List.of());
         }
 
         public GrupoImportavel(String id, String identificadorOrigem, String nomeDetectado, String destino,
@@ -149,7 +179,7 @@ public final class ImportacaoAssistidaDtos {
                                List<String> pendenciasIds, String estado, String erroCodigo,
                                List<CandidatoAluno> candidatos) {
             this(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem, cadastro, pesos,
-                    treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, Map.of());
+                    treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, Map.of(), List.of());
         }
 
         @Override
@@ -161,22 +191,22 @@ public final class ImportacaoAssistidaDtos {
             CadastroImportavel cad = cadastro == null ? null : new CadastroImportavel(novoNome, cadastro.email(),
                     cadastro.telefone(), cadastro.objetivo(), cadastro.observacoes(), cadastro.ativo());
             return new GrupoImportavel(id, identificadorOrigem, novoNome, novoDestino, novoAluno, arquivosOrigem, cad,
-                    pesos, treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias);
+                    pesos, treino, dieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, avisos);
         }
 
         public GrupoImportavel comErro(String codigo) {
             return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
-                    cadastro, pesos, treino, dieta, pendenciasIds, "ERRO", codigo, candidatos, ocorrencias);
+                    cadastro, pesos, treino, dieta, pendenciasIds, "ERRO", codigo, candidatos, ocorrencias, avisos);
         }
 
         public GrupoImportavel comCandidatos(List<CandidatoAluno> novos) {
             return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
-                    cadastro, pesos, treino, dieta, pendenciasIds, estado, erroCodigo, novos, ocorrencias);
+                    cadastro, pesos, treino, dieta, pendenciasIds, estado, erroCodigo, novos, ocorrencias, avisos);
         }
 
         public GrupoImportavel comTreinoEDieta(ConteudoTreino novoTreino, ConteudoDieta novaDieta) {
             return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
-                    cadastro, pesos, novoTreino, novaDieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias);
+                    cadastro, pesos, novoTreino, novaDieta, pendenciasIds, estado, erroCodigo, candidatos, ocorrencias, avisos);
         }
 
         /**
@@ -199,7 +229,7 @@ public final class ImportacaoAssistidaDtos {
             return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
                     cad, sensivel ? pesos : List.of(), treinoLer ? treino : null, dietaVisivel,
                     pendenciasIds, estado, erroCodigo, candidatos,
-                    (treinoLer && dietaLer) ? ocorrencias : Map.of());
+                    (treinoLer && dietaLer) ? ocorrencias : Map.of(), (treinoLer && dietaLer) ? avisos : List.of());
         }
     }
 
