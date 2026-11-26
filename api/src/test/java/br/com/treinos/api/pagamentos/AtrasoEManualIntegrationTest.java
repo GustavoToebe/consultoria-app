@@ -2,6 +2,9 @@ package br.com.treinos.api.pagamentos;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.alunos.AcessoDoAlunoService;
+import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Fuso;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -26,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,6 +49,9 @@ class AtrasoEManualIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private TransactionTemplate transacao;
+    @Autowired private AlunoRepository alunos;
+    @Autowired private AcessoDoAlunoService acessos;
 
     private ApiDeTeste api;
     private JsonNode treinador;
@@ -213,7 +221,76 @@ class AtrasoEManualIntegrationTest extends AbstractIntegrationTest {
         }
     }
 
+    /**
+     * Prova a trava do pausar (a corrida acima passaria sem ela, porque quem decide é o WHERE do update): outra transação
+     * segura o aluno, o pausar fica esperando ({@code pg_blocking_pids}) e, enquanto ele espera, a equipe desativa (MANUAL) e
+     * confirma. Com a trava no começo, o pausar só lê a ficha depois e responde 409 {@code ACESSO_JA_DESATIVADO}; sem ela, já
+     * teria lido o acesso normal e acabaria em 200 com o update sem efeito.
+     */
+    @Test
+    void pausarEsperaATravaDoAlunoAntesDeLerAFicha() throws Exception {
+        UUID alunoId = api.criarAluno(treinador, "Aluno Trava Pausa");
+        api.convidarEEntrar(treinador, alunoId);
+        criarCobrancaAvulsa(alunoId, hoje.minusDays(10));
+        CountDownLatch travou = new CountDownLatch(1);
+        CountDownLatch liberar = new CountDownLatch(1);
+        AtomicInteger pid = new AtomicInteger();
+        Future<Object> segura = pool.submit(() -> TenantContext.executarComo(consultoriaId, () -> transacao.execute(st -> {
+            assertThat(alunos.buscarParaAlterar(alunoId)).isPresent();
+            pid.set(jdbc.queryForObject("select pg_backend_pid()", Integer.class));
+            travou.countDown();
+            try {
+                assertThat(liberar.await(30, TimeUnit.SECONDS)).isTrue();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+            }
+            acessos.desativar(alunoId);
+            return null;
+        })));
+        assertThat(travou.await(30, TimeUnit.SECONDS)).isTrue();
+        Future<Integer> pausa = pool.submit(() -> status("/alunos/" + alunoId + "/pausar-acesso", null));
+        esperarAlguemBloqueadoPor(pid.get());
+        liberar.countDown();
+
+        segura.get(30, TimeUnit.SECONDS);
+        assertThat(pausa.get(30, TimeUnit.SECONDS)).isEqualTo(409);
+        assertThat(motivoNoBanco(alunoId)).isEqualTo("MANUAL");
+        assertThat(usuarioAtivo(alunoId)).isFalse();
+        assertThat(eventos("ALUNO_ACESSO_PAUSADO", alunoId)).isZero();
+    }
+
+    /** Anonimizar quem está pausado limpa o ATRASO no banco e na resposta (o espelho em memória também). */
+    @Test
+    void anonimizarPausadoLimpaOMotivoNaResposta() throws Exception {
+        UUID alunoId = api.criarAluno(treinador, "Aluno Atraso Anonimiza");
+        api.convidarEEntrar(treinador, alunoId);
+        criarCobrancaAvulsa(alunoId, hoje.minusDays(10));
+        api.post("/alunos/" + alunoId + "/pausar-acesso", treinador, null, 200);
+        api.patch("/alunos/" + alunoId + "/situacao", treinador, Map.of("ativo", false), 200);
+        assertThat(motivoNoBanco(alunoId)).isEqualTo("ATRASO");
+
+        JsonNode anonimo = api.post("/alunos/" + alunoId + "/anonimizar", treinador,
+                Map.of("nomeConfirmado", "Aluno Atraso Anonimiza"), 200);
+        assertThat(anonimo.path("acessoDesativadoMotivo").asString(null)).isNull();
+        assertThat(anonimo.path("acessoDesativadoEm").asString(null)).isNull();
+        assertThat(motivoNoBanco(alunoId)).isNull();
+    }
+
     // ---- apoio ----
+
+    private void esperarAlguemBloqueadoPor(int pid) throws InterruptedException {
+        long limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+        while (System.nanoTime() < limite) {
+            Integer n = jdbc.queryForObject("select count(*) from pg_stat_activity where ? = any(pg_blocking_pids(pid))",
+                    Integer.class, pid);
+            if (n != null && n > 0) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("O pausar não ficou esperando a trava do aluno.");
+    }
 
     private List<Integer> juntos(Callable<Integer> a, Callable<Integer> b) throws Exception {
         CountDownLatch largada = new CountDownLatch(1);

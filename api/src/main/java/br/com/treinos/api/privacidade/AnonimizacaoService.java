@@ -208,6 +208,7 @@ public class AnonimizacaoService {
         aluno.anonimizar(Instant.now());
         Aluno salvo = alunos.saveAndFlush(aluno);
         alunos.limparAcessoDesativado(salvo.getConsultoriaId(), salvo.getId()); // colunas só leitura na JPA: o save não as limpa
+        salvo.reativarAcesso(); // e o espelho em memória, para a resposta não sair com o motivo velho
         return salvo;
     }
 

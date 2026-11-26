@@ -34,6 +34,8 @@ import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.LinksExternos;
 import br.com.treinos.api.web.VideoUrls;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
@@ -93,12 +95,14 @@ class GravadorDaImportacao {
     private final ErgogenicoRepository ergogenicos;
     private final VideoUrls videos;
     private final JsonMapper json;
+    private final EntityManager entityManager;
 
     GravadorDaImportacao(AlunoRepository alunos, AlunoService alunoService, UsuarioRepository usuarios,
                          PlanoDaConsultoria plano, RegistroPesoRepository pesos, ExercicioRepository exercicios,
                          AlimentoRepository alimentos,
                          ErgogenicoRepository ergogenicos, VideoUrls videos, JsonMapper json,
-                         LimiteDoTreinador limiteDoTreinador) {
+                         LimiteDoTreinador limiteDoTreinador, EntityManager entityManager) {
+        this.entityManager = entityManager;
         this.limiteDoTreinador = limiteDoTreinador;
         this.alunos = alunos;
         this.alunoService = alunoService;
@@ -173,6 +177,12 @@ class GravadorDaImportacao {
             throw falha(linha, config.chave(), "Há mais de um aluno com esta chave.");
         }
         Aluno atual = achados.isEmpty() ? null : achados.get(0);
+        if (gravar && atual != null) {
+            // O findAll do começo não trava e a ficha pode ter mudado desde então (outro treinador desativou o acesso, por
+            // exemplo). Relê e trava ANTES de vaga, situação e usuário: a ordem consultoria, aluno e usuário é a de quem
+            // desativa (aluno, usuário). buscarParaAlterar não serve: a instância já está no contexto e voltaria velha.
+            entityManager.refresh(atual, LockModeType.PESSIMISTIC_WRITE);
+        }
         if (atual != null && atual.isAnonimizado()) {
             throw falha(linha, config.chave(), "Aluno anonimizado não é atualizado.");
         }

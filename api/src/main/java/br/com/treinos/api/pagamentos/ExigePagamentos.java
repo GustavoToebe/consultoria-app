@@ -8,10 +8,11 @@ import java.lang.annotation.Target;
 
 /**
  * Controller do financeiro: só responde com {@code TREINOS_PAGAMENTOS_HABILITADO=true}; desligado, 503
- * {@code FINANCEIRO_INDISPONIVEL} em toda rota dele, leitura inclusive. Conferida por {@link PagamentosInterceptor}.
+ * {@code FINANCEIRO_INDISPONIVEL} em toda rota dele, leitura inclusive. Conferida por {@link PagamentosInterceptor}. No
+ * método, fecha só aquela rota de um controller de fora do financeiro (a pausa por atraso, em {@code AlunoController}).
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.TYPE)
+@Target({ElementType.TYPE, ElementType.METHOD})
 public @interface ExigePagamentos {
 }

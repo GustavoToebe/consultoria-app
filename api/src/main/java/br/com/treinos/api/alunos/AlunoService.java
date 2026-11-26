@@ -425,6 +425,9 @@ public class AlunoService {
      * Usado também pelo lote.
      */
     void aplicarSituacao(Aluno aluno, boolean ativo) {
+        // O login decide pelo motivo do banco (consulta escalar, fora do contexto), nunca pela ficha em memória, que pode ser
+        // de antes de um "Desativar acesso". Lido antes de mudar a ficha para não forçar o flush no meio; quem chama trava o aluno.
+        boolean desativadoPelaEquipe = alunos.motivoDoAcessoDesativado(aluno.getId()) == MotivoDoAcessoDesativado.MANUAL;
         aluno.alterarSituacao(ativo, Instant.now());
         if (!ativo) {
             agenda.cancelarFuturosDoAluno(aluno.getId()); // antes de encerrarSessoes, que não se desfaz
@@ -434,8 +437,7 @@ public class AlunoService {
         if (aluno.getUsuarioId() != null) {
             // Acesso desativado pela equipe (MANUAL) não volta com a situação do aluno: só "Reativar acesso" libera o usuário.
             // A pausa por atraso (ATRASO) não mexe no login e também sobrevive a inativar e reativar: só quitar ou "Reativar acesso" a tira.
-            usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(
-                    ativo && aluno.getAcessoDesativadoMotivo() != MotivoDoAcessoDesativado.MANUAL));
+            usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo && !desativadoPelaEquipe));
             if (!ativo) {
                 push.apagarDoUsuario(aluno.getConsultoriaId(), aluno.getUsuarioId());
                 autenticador.encerrarSessoes(aluno.getUsuarioId().toString());

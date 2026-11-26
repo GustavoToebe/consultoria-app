@@ -90,6 +90,7 @@ public class AlunoController {
     }
 
     /** Pausa por atraso (ATRASO): o aluno entra, mas só nas rotas liberadas; 409 {@code ACESSO_JA_DESATIVADO} se a equipe já desativou. */
+    @br.com.treinos.api.pagamentos.ExigePagamentos // financeiro desligado = 503; o reativar fica aberto (é a saída de uma pausa antiga)
     @PreAuthorize("hasAuthority('PERM_FINANCEIRO_ALTERAR')")
     @PostMapping("/{id}/pausar-acesso")
     public AlunoDetalhe pausarAcesso(@PathVariable UUID id) {

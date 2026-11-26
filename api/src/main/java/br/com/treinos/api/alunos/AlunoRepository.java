@@ -138,6 +138,10 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
      * memória desatualizada. Devolvem quantas linhas mudaram (0 = a regra não deixou).
      */
 
+    /** O motivo gravado no banco (escalar: não devolve a instância do contexto); nulo = acesso normal ou aluno de outra consultoria. */
+    @Query("select a.acessoDesativadoMotivo from Aluno a where a.id = :alunoId")
+    MotivoDoAcessoDesativado motivoDoAcessoDesativado(UUID alunoId);
+
     /** Pausa por atraso só quem está com o acesso normal (nunca sobrescreve MANUAL nem a data de uma pausa anterior). */
     @Modifying(flushAutomatically = true)
     @Query("update Aluno a set a.acessoDesativadoEm = :quando, "

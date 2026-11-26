@@ -29,7 +29,7 @@ public class PagamentosInterceptor implements HandlerInterceptor {
         if (!(handler instanceof HandlerMethod metodo)) {
             return true;
         }
-        if (!propriedades.habilitado() && AnnotatedElementUtils.hasAnnotation(metodo.getBeanType(), ExigePagamentos.class)) {
+        if (!propriedades.habilitado() && tem(metodo, ExigePagamentos.class)) {
             throw new FinanceiroIndisponivelException();
         }
         if (!infinitePay.habilitado() && (AnnotatedElementUtils.hasAnnotation(metodo.getBeanType(), ExigeInfinitePay.class)

@@ -346,6 +346,7 @@ class AcessoDesativadoIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode anonimo = api.post("/alunos/" + alunoId + "/anonimizar", treinador, Map.of("nomeConfirmado", "Aluno Fictício"), 200);
         assertThat(semValor(anonimo.path("acessoDesativadoEm"))).isTrue();
+        assertThat(semValor(anonimo.path("acessoDesativadoMotivo"))).isTrue();
         assertThat(banco.queryForObject("select count(*) from aluno where id = ?::uuid and acesso_desativado_em is null and acesso_desativado_motivo is null",
                 Integer.class, alunoId.toString())).isEqualTo(1);
     }

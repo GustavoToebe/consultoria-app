@@ -9,7 +9,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.servlet.http.Cookie;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -335,6 +338,44 @@ class PausarAcessoPorAtrasoIntegrationTest extends AbstractIntegrationTest {
         assertThat(salvoOutro.get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
         assertThat(pausadoNoBanco(outro)).isTrue();
         assertThat(api.get("/alunos/" + outro, treinador, 200).get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
+    }
+
+    /**
+     * O app manda o Bearer em toda chamada à própria API, inclusive no "Sair" e no refresh: o interceptor da pausa fica fora
+     * de {@code /auth/**} (senão o logout dava 403, o refresh não era revogado e o cookie httpOnly ficava). Rota fora da lista
+     * continua barrada.
+     */
+    @Test
+    void alunoPausadoRenovaESaiComOBearerERevogaORefresh() throws Exception {
+        UUID alunoId = api.criarAluno(treinador, "Aluno Pausado Sai");
+        JsonNode nativo = api.convidarEEntrar(treinador, alunoId);
+        String email = nativo.path("usuario").path("email").asString();
+        criarCobrancaAvulsa(alunoId, hoje.minusDays(10), 10_000);
+        api.post("/alunos/" + alunoId + "/pausar-acesso", treinador, null, 200);
+        assertBloqueado(api.get("/aluno/painel", nativo, 403));
+
+        // Nativo: refresh e logout com o Bearer do aluno pausado; o refresh do logout morre.
+        JsonNode renovado = api.post("/auth/refresh", nativo, Map.of("refreshToken", nativo.get("refreshToken").asString()), 200);
+        assertBloqueado(api.get("/aluno/painel", renovado, 403));
+        String refreshNativo = renovado.get("refreshToken").asString();
+        api.post("/auth/logout", renovado, Map.of("refreshToken", refreshNativo), 204);
+        api.post("/auth/refresh", null, Map.of("refreshToken", refreshNativo), 401);
+
+        // Web: o logout com Bearer, cookie e CSRF apaga o cookie httpOnly e revoga o refresh dele.
+        var login = mvc.perform(MockMvcRequestBuilders.post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content(api.corpoLogin(email, ApiDeTeste.SENHA))).andReturn().getResponse();
+        assertThat(login.getStatus()).isEqualTo(200);
+        Cookie refresh = login.getCookie("TREINOS_REFRESH");
+        assertThat(refresh).isNotNull();
+        String bearer = "Bearer " + json.readTree(login.getContentAsString()).get("accessToken").asString();
+        Cookie xsrf = new Cookie("TREINOS-XSRF-TOKEN", "xsrf-de-teste");
+        var saida = mvc.perform(MockMvcRequestBuilders.post("/auth/logout").header(HttpHeaders.AUTHORIZATION, bearer)
+                .cookie(refresh, xsrf).header("X-XSRF-TOKEN", "xsrf-de-teste")).andReturn().getResponse();
+        assertThat(saida.getStatus()).isEqualTo(204);
+        assertThat(saida.getHeaders(HttpHeaders.SET_COOKIE)).anySatisfy(c ->
+                assertThat(c).startsWith("TREINOS_REFRESH=").contains("Max-Age=0"));
+        assertThat(mvc.perform(MockMvcRequestBuilders.post("/auth/refresh").cookie(refresh, xsrf).header("X-XSRF-TOKEN", "xsrf-de-teste"))
+                .andReturn().getResponse().getStatus()).isEqualTo(401);
     }
 
     private boolean pausadoNoBanco(UUID alunoId) {
