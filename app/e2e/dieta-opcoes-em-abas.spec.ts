@@ -131,14 +131,16 @@ for (const largura of [1280, 390, 1920]) {
     const mais = almoco.getByRole('button', { name: 'Adicionar opção em 12:00 · Almoço' });
     await expect(mais).toHaveCount(1);
     expect(await fundoDe(mais)).toBe(await fundoDe(page.getByRole('button', { name: 'Adicionar refeição' })));
-    expect(await circuloDa(page, 'A')).toEqual({ letra: 'A', fundo: await sublinhadoDa(page, 'A') });
+    // Com poll: a cor do sublinhado da aba transita (opacidade parcial no meio da animação).
+    await expect.poll(async () => (await circuloDa(page, 'A')).fundo === (await sublinhadoDa(page, 'A'))).toBe(true);
+    expect((await circuloDa(page, 'A')).letra).toBe('A');
     expect((await circuloDa(page, 'B')).fundo).toBe('rgba(0, 0, 0, 0)');
     await capturar(page, 'almoco', `3-opcoes-aba-A-${largura}-escuro`);
 
     await aba(page, 'B').click();
     await expect(aba(page, 'B')).toHaveAttribute('aria-selected', 'true');
     await expect(almoco.getByRole('group', { name: 'Total da opção B' })).toBeVisible();
-    expect((await circuloDa(page, 'B')).fundo).toBe(await sublinhadoDa(page, 'B'));
+    await expect.poll(async () => (await circuloDa(page, 'B')).fundo === (await sublinhadoDa(page, 'B'))).toBe(true);
     expect((await circuloDa(page, 'A')).fundo).toBe('rgba(0, 0, 0, 0)');
     await expect(almoco.getByRole('group', { name: 'Total da opção A' })).toHaveCount(0);
     await expect(almoco.getByText(FRANGO.nome, { exact: true })).toHaveCount(0);
