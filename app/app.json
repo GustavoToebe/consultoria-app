@@ -34,7 +34,7 @@
       "package": "br.com.treinos.app",
       "allowBackup": false,
       "adaptiveIcon": {
-        "backgroundColor": "#0E0E10",
+        "backgroundColor": "#0A0A0A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
@@ -55,7 +55,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0E0E10",
+          "backgroundColor": "#0A0A0A",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200
         }
