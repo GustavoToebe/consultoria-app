@@ -2,6 +2,23 @@
 
 **Situação:** Planejamento completo para aprovação (nenhum código iniciado ainda) · **Onde será desenvolvido:** branches separadas (`asaas-overtraining-pay` no `consultoria-app` e `asaas-pagamentos` no repositório unificado `central`) · **Data:** 24/11/2026 · **Base de referência:** `consultoria-app` em `5ae79ef6` (Fase 1 de Contrato Fechado já em produção com a `V098`) e `central` em `7b5ccdf934a3`.
 
+## Estado em 26/11/2026 (vale sobre o resto do documento)
+
+**Decisões do Gustavo (26/11):**
+- **Cartão pela página de pagamento do Asaas** (`invoiceUrl`), sem formulário próprio. Nenhum endpoint recebe número, validade nem CVV; o app abre a URL no navegador e confere a situação ao voltar. As menções a "cartão dentro do app", `/cartao`, parcelas e `remoteIp` nas seções abaixo são do desenho de 24/11 e **não valem mais**.
+- **Pix continua dentro do app** (QR Code e copia e cola).
+- **Asaas é o provedor padrão e a InfinitePay fica de reserva.** Divisão **65% / 35%**, calculada só no servidor, na criação da cobrança, igual para Pix e cartão.
+- Rota nova do aluno: `POST /aluno/financeiro/cobrancas/{id}/overtraining-pay/fatura` → `{ url }` (https de `www.asaas.com` ou `sandbox.asaas.com`; 404 para outro aluno ou consultoria; 409 `COBRANCA_NAO_ABERTA`/`PAGAMENTO_EM_CONFIRMACAO`; 503 `OVERTRAINING_PAY_INDISPONIVEL` sem credenciais). A cobrança no Asaas é uma só por `cobranca_aluno` (`billingType` `UNDEFINED`), reaproveitada pelo Pix e pela fatura. Em "Minha conta" o cartão usa o `/minha-conta/cobrancas/{id}/pagar` que já existia.
+- Migration: a V101 do Overtraining Pay virou a **V105** (a V100 antiga da branch saiu, já é a V104 do main). A pausa por atraso segue o modelo do main (`acesso_desativado_motivo = 'ATRASO'`); a baixa pelo Asaas reativa só o motivo ATRASO, nunca o MANUAL (teste `baixaPeloAsaasReativaSoOAtrasoENuncaOManual`).
+
+**Pendências do Gustavo:**
+- **Conta Asaas com permissão para criar subcontas** (ele está confirmando). Sem ela, nada do Overtraining Pay roda de verdade; os testes usam o `AsaasFalsa`.
+- **Validar no sandbox** (não conferido na documentação do Asaas): `GET /payments/{id}/pixQrCode` para cobrança `UNDEFINED`; se o `GET /payments/{id}` devolve o meio real (CREDIT_CARD/PIX) após o pagamento (senão a baixa cai em CONFERIR, falha segura); se a página `UNDEFINED` oferece também boleto.
+- **Cartão dentro do app (adiado em 26/11):** ver a decisão e a pendência registradas na seção 8 e em "Pendências soltas" do `docs/planos/README.md`.
+- `maxParcelas` e juros da política (`overtrainingPayMaxParcelas`, `overtrainingPayJuros`) continuam no contrato e na tela do treinador, mas não valem na prática: o parcelamento é decidido na página do Asaas. Remover ou religar a um parâmetro do Asaas em decisão própria.
+
+---
+
 > **Regra de ouro deste plano:** nada do que já roda em produção para o piloto do Saraiva é removido ou quebrado. Todo o trabalho acontecerá em **branches isoladas** nos dois repositórios, com servidor simulado (`AsaasFalso`) para rodar 100% dos testes locais mesmo **antes** de abrir a conta PJ no Asaas.
 
 ---
@@ -150,7 +167,7 @@ Ainda não ter a conta PJ aberta no Asaas **não trava nada** nem no backend nem
 
 ### 5.2. Modelo de Dados no `consultoria-app` (Migration nova na branch separada)
 
-Como a árvore local da `main` está usando `V098` (Contrato fechado, já em produção), `V099` (Categorias da vitrine) e `V100` (Ficha rápida e acesso pausado), a migration do Asaas usa `V101__overtraining_pay_asaas.sql`, atualizando `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`.
+Como a árvore local da `main` está usando `V098` (Contrato fechado, já em produção), `V099` (Categorias da vitrine) e `V100` (Ficha rápida e acesso pausado), a migration do Asaas nasceu como `V101` e, após a atualização com o main de 26/11 (que trouxe até a V104), é a `V105__overtraining_pay_asaas.sql`, atualizando `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`.
 
 1. **Tabela `subconta_asaas` (`@TenantId`, uma por consultoria)**:
    - `id uuid primary key`, `consultoria_id uuid not null unique references consultoria(id)`
@@ -184,7 +201,7 @@ Como a árvore local da `main` está usando `V098` (Contrato fechado, já em pro
   - `GET /financeiro/overtraining-pay/cobranca-teste/{id}` → retorna o passo a passo em tempo real (`CRIADA` → `PAGA` → `HOMOLOGADA`). Quando o webhook confirma essa cobrança de teste, a subconta muda automaticamente para `ATIVA`!
 - **Aluno (autenticado como `ALUNO`, dono da própria cobrança ABERTA — ou aluno com acesso pausado na Fase 2)**:
   - `POST /aluno/financeiro/cobrancas/{id}/overtraining-pay/pix` `{ cpfPagador? }` → garante o `customer`, cria/reaproveita a cobrança Pix no Asaas com o `split` calculado no servidor e devolve `{ qrCodeBase64, codigoCopiaECola, expiraEm }`.
-  - `POST /aluno/financeiro/cobrancas/{id}/overtraining-pay/cartao` `{ cpfPagador, parcelas, cartao, titular }` → valida `parcelas <= maxParcelas`, envia ao Asaas fora da transação sem persistir dados de cartão e, se aprovado na hora (`CONFIRMED`), já aciona a conciliação imediata.
+  - `POST /aluno/financeiro/cobrancas/{id}/overtraining-pay/fatura` `{ cpfPagador? }` → cria ou reaproveita a cobrança no Asaas (split calculado no servidor) e devolve `{ url }` (`invoiceUrl`), onde o aluno paga com cartão; a baixa vem do webhook e da conciliação. *(Substituiu `/cartao` em 26/11.)*
   - `GET /aluno/financeiro/cobrancas/{id}/situacao` → rota enxuta para a `Folha` saber em segundos que o Pix foi confirmado e fechar com feedback verde.
 - **Webhook público**:
   - `POST /publico/pagamentos/asaas/{tokenCaminho}` → teto de 16 KiB, confere `asaas-access-token` em tempo constante contra `token_webhook_cifrado` (e o anterior se dentro das 24h), extrai apenas `event` e `payment.id` + `sha256` do corpo em `aviso_de_pagamento` antes de responder `200 OK`, e dispara o `ConciliadorAsaas` assíncrono (e varredura agendada a cada 15 min para avisos pendentes).
@@ -202,7 +219,7 @@ Como a árvore local da `main` está usando `V098` (Contrato fechado, já em pro
 
 1. **Isolamento absoluto por `consultoria_id` (`@TenantId`)**: toda consulta JPQL ou nativa em `subconta_asaas`, `cliente_asaas_aluno`, `cobranca_aluno` e `aviso_de_pagamento` filtra `consultoria_id` do banco; recurso de outra consultoria responde `404`.
 2. **Webhook nunca dá baixa direto**: o corpo do webhook **nunca é salvo** e nunca decide pagamento. A baixa só ocorre após `GET /v3/payments/{id}` oficial fora da transação confirmar `status` pago, moeda BRL, conta daquela consultoria e `value == cobranca.valorCentavos` (valor divergente vai para **"Para conferir"**, nunca baixa sozinho; estorno/chargeback gera alerta `ESTORNO_INFORMADO` para revisão humana, nunca apaga histórico sozinho).
-3. **PCI-DSS (Cartão de crédito)**: número do cartão, validade e CVV transitam exclusivamente em memória para a chamada TLS ao Asaas, nunca entram em entidade JPA, `aviso_de_pagamento`, log de erro, auditoria ou `toString` (`record` com `toString()` sobrescrito retornando texto fixo `"[PROTEGIDO]"`).
+3. **PCI-DSS (Cartão de crédito)**: desde 26/11 o cartão é digitado na página de pagamento do Asaas; **número, validade e CVV não passam pelo nosso app nem pela nossa API**, e nenhum endpoint os aceita. A `AsaasFalsa` registra violação se `creditCard`, `creditCardHolderInfo` ou `remoteIp` chegarem a ela.
 4. **Chaves e dados pessoais cifrados**: `apiKey` da subconta Asaas, `tokenWebhook` e CPF/CNPJ do titular ficam cifrados com AES-GCM (`CifraDePagamento`, com `consultoria_id` nos dados autenticados); a interface só recebe valores mascarados e nunca relê segredos salvos.
 5. **Anonimização e Exportação LGPD**: excluir conta ou anonimizar aluno limpa `cliente_asaas_aluno` e referências pessoais locais, mantendo a integridade contábil das cobranças pagas conforme `PagamentosDoAluno`.
 6. **Exceção na Cloudflare / Caddy**: a rota pública `/api/publico/pagamentos/asaas/*` entra ao lado da InfinitePay e da Kiwify sem bloqueio de bot-fight que impeça o POST autenticado do Asaas.
@@ -238,5 +255,5 @@ Como a árvore local da `main` está usando `V098` (Contrato fechado, já em pro
 ## 8. Decisões Rápidas para Confirmar Antes de Começar o Código
 
 1. **Percentual padrão do Split entre Sócios**: deixamos **65% Conta Matriz (Gustavo) / 35% Carteira Sócio (Saraiva)** configurável por variável de ambiente na Central (`CENTRAL_ASAAS_SOCIO_PERCENTUAL=35.00`), e a consultoria **Saraiva Team** marcada como **`ISENTO` (0% de retenção)** por padrão?
-2. **Meios no Checkout Transparente do Aluno**: liberamos **Pix com QR Code + Cartão de Crédito (1x a 12x)** já na primeira entrega e deixamos **Boleto** desligado para alunos (como já é decisão em `financeiro-em-fases.md`), mantendo Boleto/Pix opcional apenas na Central para consultorias PJ que pedirem?
+2. **Meios no Checkout Transparente do Aluno** *(decidido em 26/11: Pix no app e cartão pela página do Asaas; "cartão dentro do app" adiado — PCI-DSS SAQ D, tokenização do Asaas feita pelo servidor, Apple 3.1.1 e Google Play Billing; para reabrir, o código antigo está no commit `d65b968f`: `FolhaCheckoutTransparente`, `CartaoAlunoDados` e as rotas `/cartao`; só com campo seguro do provedor, tipo Stripe Elements, ou decisão de assumir a conformidade)*. Proposta original de 24/11: liberamos **Pix com QR Code + Cartão de Crédito (1x a 12x)** já na primeira entrega e deixamos **Boleto** desligado para alunos (como já é decisão em `financeiro-em-fases.md`), mantendo Boleto/Pix opcional apenas na Central para consultorias PJ que pedirem?
 3. **Posso criar os dois worktrees/branches isolados (`asaas-overtraining-pay` no `consultoria-app` e clonar o repositório unificado `central` na branch `asaas-pagamentos`) e iniciar a Onda 1?**
