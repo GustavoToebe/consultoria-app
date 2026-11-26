@@ -294,7 +294,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, emAtr
   const plano = aluno.planoAtivo?.titulo ?? null;
   const tags = aluno.tags ?? [];
   // A pílula do atraso diz o que venceu ("Cobrança vencida": a rota é a das cobranças) e usa o `perigo` da cobrança vencida, sem cor nova.
-  const excecoes = selosDeExcecaoDoAluno({ ativo: aluno.ativo, temAcesso: aluno.temAcesso, emAtraso, acessoPausado: aluno.acessoPausado });
+  const excecoes = selosDeExcecaoDoAluno({ ativo: aluno.ativo, temAcesso: aluno.temAcesso, emAtraso, acessoDesativadoMotivo: aluno.acessoDesativadoMotivo });
   // O "+N" das tags é um botão próprio (abre a lista das outras), irmão do link da linha; no Selecionar fica só o texto.
   const maisTags = useMaisTagsDaLinha(tags, aluno.nome);
   const seloDaAtualizacao: SeloDaLinha | null = atualizacao

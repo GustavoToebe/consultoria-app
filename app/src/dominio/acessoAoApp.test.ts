@@ -1,26 +1,71 @@
 import { ErroApi } from '@plataforma/web';
 
-import { acessoDesativado, errosDoNovoEmail, MENSAGEM_EMAIL_EM_USO, textoDoDesativado, traduzirErroDoAcesso, ultimoLoginNaLinha } from './acessoAoApp';
+import {
+  acoesDoAcesso, errosDoNovoEmail, MENSAGEM_EMAIL_EM_USO, MOTIVO_SEM_COBRANCA_VENCIDA, motivoDoAcesso, notaDoAcessoDesativado, seloDoMotivo,
+  TEXTO_ACESSO_DESATIVADO, TEXTO_ACESSO_PAUSADO, traduzirErroDoAcesso, ultimoLoginNaLinha,
+} from './acessoAoApp';
 
-// Acesso ao app: alterar e-mail e desativar (25/11)
-describe('acesso desativado', () => {
+// Acesso ao app: desativar (25/11) e pausar por atraso (26/11), um cartão e um selo.
+describe('selo e nota do acesso desativado ou pausado', () => {
   const agora = new Date('2026-11-25T15:00:00Z');
-  test('só com conta e a data de desativação', () => {
-    expect(acessoDesativado({ temAcesso: true, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toBe(true);
-    expect(acessoDesativado({ temAcesso: true, acessoDesativadoEm: null })).toBe(false);
-    expect(acessoDesativado({ temAcesso: true })).toBe(false);
-    expect(acessoDesativado({ temAcesso: false, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toBe(false);
+  test('motivo: o da API, nulo sem ele', () => {
+    expect(motivoDoAcesso({ acessoDesativadoMotivo: 'MANUAL' })).toBe('MANUAL');
+    expect(motivoDoAcesso({ acessoDesativadoMotivo: 'ATRASO' })).toBe('ATRASO');
+    expect(motivoDoAcesso({ acessoDesativadoMotivo: null })).toBeNull();
+    expect(motivoDoAcesso({})).toBeNull();
   });
-  test('a data é a de Brasília, sem o ano corrente', () => {
-    expect(textoDoDesativado('2026-11-20T12:00:00Z', agora)).toBe('Sem acesso (desativado em 20/11)');
+  test('selo: pausado âmbar, desativado neutro com o ponto, as mesmas palavras de todo lugar', () => {
+    expect(seloDoMotivo('ATRASO')).toEqual({ texto: TEXTO_ACESSO_PAUSADO, tipo: 'atencao' });
+    expect(seloDoMotivo('MANUAL')).toEqual({ texto: TEXTO_ACESSO_DESATIVADO, tipo: 'neutro', ponto: true });
+    expect(seloDoMotivo(null)).toBeNull();
+    expect([TEXTO_ACESSO_PAUSADO, TEXTO_ACESSO_DESATIVADO]).toEqual(['Acesso pausado', 'Acesso desativado']);
+  });
+  test('nota: a data de Brasília sem o ano corrente, no selo nunca', () => {
+    expect(notaDoAcessoDesativado('MANUAL', '2026-11-20T12:00:00Z', agora)).toBe('Desativado em 20/11. O aluno não entra até o acesso ser reativado. Nada foi apagado.');
     // 01:30 UTC de 20/11 ainda é 19/11 em Brasília.
-    expect(textoDoDesativado('2026-11-20T01:30:00Z', agora)).toBe('Sem acesso (desativado em 19/11)');
-    expect(textoDoDesativado('2025-12-30T12:00:00Z', agora)).toBe('Sem acesso (desativado em 30/12/2025)');
+    expect(notaDoAcessoDesativado('MANUAL', '2026-11-20T01:30:00Z', agora)).toMatch(/^Desativado em 19\/11\./);
+    expect(notaDoAcessoDesativado('ATRASO', '2025-12-30T12:00:00Z', agora)).toBe('Pausado em 30/12/2025 por cobrança vencida. O aluno entra e vê só as cobranças em aberto; o acesso volta sozinho quando ele quitar as vencidas.');
   });
-  test('sem data ou malformada: só "Sem acesso"', () => {
-    expect(textoDoDesativado(null, agora)).toBe('Sem acesso');
-    expect(textoDoDesativado(undefined, agora)).toBe('Sem acesso');
-    expect(textoDoDesativado('ontem', agora)).toBe('Sem acesso');
+  test('nota sem data ou com data malformada: só a frase', () => {
+    expect(notaDoAcessoDesativado('MANUAL', null, agora)).toBe('O aluno não entra até o acesso ser reativado. Nada foi apagado.');
+    expect(notaDoAcessoDesativado('ATRASO', 'ontem', agora)).toMatch(/^O aluno entra e vê só as cobranças em aberto/);
+  });
+});
+
+describe('acoesDoAcesso', () => {
+  const ativo = { ativo: true, anonimizado: false, temAcesso: true, acessoDesativadoMotivo: null } as const;
+  const tudo = { convite: true, financeiro: true, pausarVisivel: true };
+  test('acesso normal: pausar (com cobrança vencida) e desativar no ⋯, sem reativar', () => {
+    expect(acoesDoAcesso(ativo, tudo, true)).toEqual({ reativar: null, pausar: { motivo: null }, desativar: true });
+  });
+  test('sem cobrança vencida: pausar desabilitado com o motivo; sem saber (null), habilitado', () => {
+    expect(acoesDoAcesso(ativo, tudo, false).pausar).toEqual({ motivo: MOTIVO_SEM_COBRANCA_VENCIDA });
+    expect(acoesDoAcesso(ativo, tudo, null).pausar).toEqual({ motivo: null });
+  });
+  test('cada ação só com a sua permissão', () => {
+    expect(acoesDoAcesso(ativo, { ...tudo, financeiro: false }, true)).toEqual({ reativar: null, pausar: null, desativar: true });
+    expect(acoesDoAcesso(ativo, { ...tudo, convite: false }, true)).toEqual({ reativar: null, pausar: { motivo: null }, desativar: false });
+    // Financeiro desligado: sem a cobrança vencida para conferir, o pausar some.
+    expect(acoesDoAcesso(ativo, { ...tudo, pausarVisivel: false }, null).pausar).toBeNull();
+  });
+  test('MANUAL: só o reativar da equipe (ALUNO_CONVITE); nada no ⋯', () => {
+    const manual = { ...ativo, acessoDesativadoMotivo: 'MANUAL' } as const;
+    expect(acoesDoAcesso(manual, tudo, true)).toEqual({ reativar: 'desativacao', pausar: null, desativar: false });
+    expect(acoesDoAcesso(manual, { ...tudo, convite: false }, true).reativar).toBeNull();
+  });
+  test('ATRASO: o reativar do Financeiro e, no ⋯, só desativar (troca para MANUAL)', () => {
+    const atraso = { ...ativo, acessoDesativadoMotivo: 'ATRASO' } as const;
+    expect(acoesDoAcesso(atraso, tudo, true)).toEqual({ reativar: 'pausa', pausar: null, desativar: true });
+    expect(acoesDoAcesso(atraso, { ...tudo, financeiro: false }, true).reativar).toBeNull();
+    // Pausado sem conta (a API deixa): reativar ainda aparece; desativar não (409 ALUNO_SEM_ACESSO).
+    expect(acoesDoAcesso({ ...atraso, temAcesso: false }, tudo, true)).toEqual({ reativar: 'pausa', pausar: null, desativar: false });
+  });
+  test('sem conta: nada a pausar nem desativar', () => {
+    expect(acoesDoAcesso({ ...ativo, temAcesso: false }, tudo, true)).toEqual({ reativar: null, pausar: null, desativar: false });
+  });
+  test('inativo ou anonimizado: nenhuma ação, nem reativar', () => {
+    expect(acoesDoAcesso({ ...ativo, ativo: false, acessoDesativadoMotivo: 'MANUAL' }, tudo, true)).toEqual({ reativar: null, pausar: null, desativar: false });
+    expect(acoesDoAcesso({ ...ativo, anonimizado: true, acessoDesativadoMotivo: 'ATRASO' }, tudo, true)).toEqual({ reativar: null, pausar: null, desativar: false });
   });
 });
 
@@ -48,7 +93,10 @@ describe('traduzirErroDoAcesso', () => {
   test('recusas pelo código, não pelo texto da API', () => {
     expect(traduzirErroDoAcesso(new ErroApi(409, 'ACESSO_DESATIVADO', 'x')).mensagem).toMatch(/^O acesso deste aluno está desativado\./);
     expect(traduzirErroDoAcesso(new ErroApi(409, 'ALUNO_SEM_ACESSO', 'x')).mensagem).toMatch(/ainda não tem conta/);
-    expect(traduzirErroDoAcesso(new ErroApi(409, 'ALUNO_INATIVO', 'x')).mensagem).toMatch(/^Aluno inativo/);
+    expect(traduzirErroDoAcesso(new ErroApi(409, 'ALUNO_INATIVO', 'x')).mensagem).toMatch(/^Aluno inativo: reative pelo menu ⋯ do aluno/);
+    // 26/11: pausar quem a equipe desativou e pausar sem cobrança vencida, pelo código.
+    expect(traduzirErroDoAcesso(new ErroApi(409, 'ACESSO_JA_DESATIVADO', 'x')).mensagem).toBe('O acesso deste aluno foi desativado pela equipe. Só "Reativar acesso", em Acesso ao app, o libera.');
+    expect(traduzirErroDoAcesso(new ErroApi(409, 'SEM_COBRANCA_VENCIDA', 'x')).mensagem).toMatch(/não tem cobrança vencida em aberto/);
   });
   test('outro erro: a mensagem da API', () => {
     expect(traduzirErroDoAcesso(new ErroApi(500, null, 'Falhou no servidor.'))).toEqual({ campos: {}, mensagem: 'Falhou no servidor.' });

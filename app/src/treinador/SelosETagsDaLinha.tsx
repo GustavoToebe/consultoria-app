@@ -34,7 +34,7 @@ export function SelosETagsDaLinha({ selos, tags, mais, prenderMais }: {
   const { visiveis, texto } = resumoDasTagsNaLinha(tags);
   return (
     <View style={estilos.linha}>
-      {selos.map((s) => <Selo key={s.texto} texto={s.texto} tipo={s.tipo} />)}
+      {selos.map((s) => <Selo key={s.texto} texto={s.texto} tipo={s.tipo} ponto={s.ponto} />)}
       {visiveis.map((t) => <View key={t.id} aria-hidden><ChipDeTag tag={t} larguraMaxima={140} /></View>)}
       {texto && mais ? (
         // Só o desenho: o botão por cima tem o nome, o foco e o toque.

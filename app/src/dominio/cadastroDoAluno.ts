@@ -151,16 +151,19 @@ export const MENSAGEM_CPF_EM_USO = 'Este CPF já está no cadastro de outro alun
 
 /**
  * Selo do acesso ao app, visto só pela equipe. Quem age no "Aguardando primeiro acesso" é o aluno (entrar pela primeira
- * vez); o treinador espera, então é neutro (seção 4.5 do `docs/design-e-front.md`). Acesso desativado pela equipe (25/11)
- * é "Sem acesso" neutro com o "●" (`ponto` do `Selo`; Gustavo, 26/11: âmbar já é financeiro/em aberto); quem nunca teve
- * acesso é "Sem acesso" neutro sem o ponto, e só o ponto separa os dois. A data só aparece no cartão Acesso ao app
- * (`dominio/acessoAoApp.textoDoDesativado`).
+ * vez); o treinador espera, então é neutro (seção 4.5 do `docs/design-e-front.md`). Pausado por atraso é "Acesso pausado"
+ * âmbar e desativado pela equipe é "Acesso desativado" neutro com o "●" (26/11, `dominio/acessoAoApp.seloDoMotivo`: as
+ * mesmas palavras do cabeçalho e da lista); quem nunca teve acesso é "Sem acesso" neutro sem o ponto. O pausado vem antes
+ * do "Sem acesso" (a API pausa também quem ainda não criou a conta). A data fica na nota do cartão
+ * (`dominio/acessoAoApp.notaDoAcessoDesativado`).
  */
-export function seloDoAcesso(aluno: Pick<AlunoDetalhe, 'temAcesso' | 'aguardandoPrimeiroAcesso' | 'ativo' | 'anonimizado' | 'acessoDesativadoEm'>): { texto: string; tipo: 'sucesso' | 'atencao' | 'neutro'; ponto?: true } {
+export function seloDoAcesso(aluno: Pick<AlunoDetalhe, 'temAcesso' | 'aguardandoPrimeiroAcesso' | 'ativo' | 'anonimizado' | 'acessoDesativadoMotivo'>): { texto: string; tipo: 'sucesso' | 'atencao' | 'neutro'; ponto?: true } {
+  const encerrado = !aluno.ativo || aluno.anonimizado;
+  if (!encerrado && aluno.acessoDesativadoMotivo === 'ATRASO') return seloDaSituacao(aluno);
   if (!aluno.temAcesso) return { texto: 'Sem acesso', tipo: 'neutro' };
-  // Aluno encerrado com conta: a situação do cabeçalho vence ("Inativo"/"Anonimizado"), nunca "Com acesso" (24/11).
-  if (!aluno.ativo || aluno.anonimizado) return seloDaSituacao(aluno);
-  if (aluno.acessoDesativadoEm) return { texto: 'Sem acesso', tipo: 'neutro', ponto: true };
+  // Aluno encerrado com conta: a situação do cabeçalho vence ("Inativo"/"Anonimizado"), nunca "Com acesso" (24/11); o
+  // desativado também é o do cabeçalho ("Acesso desativado").
+  if (encerrado || aluno.acessoDesativadoMotivo) return seloDaSituacao(aluno);
   if (aluno.aguardandoPrimeiroAcesso) return { texto: 'Aguardando primeiro acesso', tipo: 'neutro' };
   return { texto: 'Com acesso', tipo: 'sucesso' };
 }

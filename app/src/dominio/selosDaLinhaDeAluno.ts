@@ -1,4 +1,5 @@
 import type { TagDeAluno } from '../api/tipos';
+import { seloDoMotivo, type MotivoDoAcesso } from './acessoAoApp';
 import { resumoDasTagsNaLinha } from './tagsDeAluno';
 
 /**
@@ -7,16 +8,18 @@ import { resumoDasTagsNaLinha } from './tagsDeAluno';
  * "Cobrança vencida"; "Vencida" sozinho podia ser a pasta ou o plano. Pasta e plano não têm selo na lista (a atualização
  * atrasada já tem o seu, na coluna "Atualização").
  */
-export interface SeloDeExcecao { texto: string; tipo: 'perigo' | 'atencao' | 'neutro' }
+export interface SeloDeExcecao { texto: string; tipo: 'perigo' | 'atencao' | 'neutro'; ponto?: true }
 
 export const TEXTO_DA_COBRANCA_VENCIDA = 'Cobrança vencida';
 
-export function selosDeExcecaoDoAluno(a: { ativo: boolean; temAcesso: boolean; emAtraso: boolean; acessoPausado?: boolean }): SeloDeExcecao[] {
+/** O selo do acesso (pausado ou desativado, 26/11) tem as palavras do cartão e do cabeçalho (`seloDoMotivo`) e toma o lugar do "Sem acesso". */
+export function selosDeExcecaoDoAluno(a: { ativo: boolean; temAcesso: boolean; emAtraso: boolean; acessoDesativadoMotivo?: MotivoDoAcesso | null }): SeloDeExcecao[] {
+  const doAcesso = a.ativo ? seloDoMotivo(a.acessoDesativadoMotivo) : null;
   return [
     ...(a.emAtraso ? [{ texto: TEXTO_DA_COBRANCA_VENCIDA, tipo: 'perigo' as const }] : []),
-    ...(a.ativo && a.acessoPausado ? [{ texto: 'Acesso pausado', tipo: 'atencao' as const }] : []),
+    ...(doAcesso ? [doAcesso] : []),
     ...(!a.ativo ? [{ texto: 'Inativo', tipo: 'neutro' as const }] : []),
-    ...(a.ativo && !a.temAcesso ? [{ texto: 'Sem acesso', tipo: 'neutro' as const }] : []),
+    ...(a.ativo && !a.temAcesso && !doAcesso ? [{ texto: 'Sem acesso', tipo: 'neutro' as const }] : []),
   ];
 }
 

@@ -29,10 +29,11 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu(EU).redesSociaisDaConsultoria).toBeUndefined();
   });
 
-  it('guarda acessoPausado tanto do nível raiz quanto de eu.aluno', () => {
+  it('acessoPausado vem só do motivo ATRASO do aluno (26/11: o acessoPausado da raiz saiu do /eu)', () => {
     expect(perfilDoEu(EU).acessoPausado).toBe(false);
-    expect(perfilDoEu({ ...EU, acessoPausado: true }).acessoPausado).toBe(true);
-    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno', acessoPausado: true } }).acessoPausado).toBe(true);
+    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno', acessoDesativadoMotivo: 'ATRASO' } }).acessoPausado).toBe(true);
+    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno', acessoDesativadoMotivo: null } }).acessoPausado).toBe(false);
+    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno' } }).acessoPausado).toBe(false);
   });
 });
 

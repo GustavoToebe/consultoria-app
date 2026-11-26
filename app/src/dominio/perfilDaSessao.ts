@@ -27,7 +27,7 @@ export interface PerfilDaSessao {
   whatsappDaConsultoria?: string;
   /** Só do aluno: links das redes preenchidas da consultoria (públicos); ausente = nenhuma. */
   redesSociaisDaConsultoria?: EuResponse['redesSociaisDaConsultoria'];
-  /** Só do aluno: acesso pausado manualmente por atraso; salvo no aparelho para bloquear também offline. */
+  /** Só do aluno: pausado por atraso (`eu.aluno.acessoDesativadoMotivo === 'ATRASO'` ou o 403 `ACESSO_PAUSADO_POR_ATRASO`); salvo no aparelho para bloquear também offline. */
   acessoPausado?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
@@ -57,7 +57,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     whatsappHabilitado: eu.whatsappHabilitado,
     whatsappDaConsultoria: eu.whatsappDaConsultoria,
     redesSociaisDaConsultoria: eu.redesSociaisDaConsultoria,
-    acessoPausado: Boolean(eu.acessoPausado || eu.aluno?.acessoPausado),
+    acessoPausado: eu.aluno?.acessoDesativadoMotivo === 'ATRASO',
     termosPendentes: eu.termosPendentes,
   };
 }

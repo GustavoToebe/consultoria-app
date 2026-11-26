@@ -108,11 +108,15 @@ describe('uma cor por situação, no aluno e no treinador', () => {
     expect(seloDoAcesso({ ativo: false, anonimizado: false, temAcesso: true, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Inativo', tipo: 'neutro' });
     expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: true })).toEqual({ texto: 'Aguardando primeiro acesso', tipo: 'neutro' });
     expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Com acesso', tipo: 'sucesso' });
-    // Acesso desativado (26/11): "Sem acesso" neutro com o "●" (âmbar é financeiro/em aberto), também se o aluno aguardava o
-    // primeiro acesso; o de quem nunca teve acesso (acima) não tem `ponto`. A situação do aluno vence.
-    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: false, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toEqual({ texto: 'Sem acesso', tipo: 'neutro', ponto: true });
-    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: true, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toEqual({ texto: 'Sem acesso', tipo: 'neutro', ponto: true });
-    expect(seloDoAcesso({ ativo: false, anonimizado: false, temAcesso: true, aguardandoPrimeiroAcesso: false, acessoDesativadoEm: '2026-11-20T12:00:00Z' })).toEqual({ texto: 'Inativo', tipo: 'neutro' });
+    // Acesso desativado pela equipe (26/11): "Acesso desativado" neutro com o "●", também se o aluno aguardava o primeiro
+    // acesso; o "Sem acesso" de quem nunca teve conta (acima) não tem `ponto`. Pausado por atraso: "Acesso pausado" âmbar,
+    // também sem conta (a API deixa). A situação do aluno vence.
+    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: false, acessoDesativadoMotivo: 'MANUAL' })).toEqual({ texto: 'Acesso desativado', tipo: 'neutro', ponto: true });
+    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: true, acessoDesativadoMotivo: 'MANUAL' })).toEqual({ texto: 'Acesso desativado', tipo: 'neutro', ponto: true });
+    expect(seloDoAcesso({ ...ativo, temAcesso: true, aguardandoPrimeiroAcesso: false, acessoDesativadoMotivo: 'ATRASO' })).toEqual({ texto: 'Acesso pausado', tipo: 'atencao' });
+    expect(seloDoAcesso({ ...ativo, temAcesso: false, aguardandoPrimeiroAcesso: false, acessoDesativadoMotivo: 'ATRASO' })).toEqual({ texto: 'Acesso pausado', tipo: 'atencao' });
+    expect(seloDoAcesso({ ativo: false, anonimizado: false, temAcesso: true, aguardandoPrimeiroAcesso: false, acessoDesativadoMotivo: 'MANUAL' })).toEqual({ texto: 'Inativo', tipo: 'neutro' });
+    expect(seloDoAcesso({ ativo: false, anonimizado: false, temAcesso: false, aguardandoPrimeiroAcesso: false, acessoDesativadoMotivo: 'ATRASO' })).toEqual({ texto: 'Sem acesso', tipo: 'neutro' });
   });
 
   it('pagamento da inscrição: Aguardando é âmbar (exceção da cobrança; o treinador confirma à mão)', () => {

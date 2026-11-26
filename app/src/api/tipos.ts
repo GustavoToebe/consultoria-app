@@ -80,11 +80,10 @@ export interface EuResponse {
   whatsappDaConsultoria?: string;
   /** Só do aluno: links das redes da consultoria que estão preenchidas (a API só manda as preenchidas); ausente = nenhuma. */
   redesSociaisDaConsultoria?: Partial<Record<RedeDaConsultoria, string>>;
-  /** Só do aluno: acesso pausado manualmente pelo treinador por atraso; verdadeiro = mostra apenas a tela de pagamento. */
-  acessoPausado?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
-  aluno?: { id: string; nome: string; sexo?: string | null; acessoPausado?: boolean; acessoPausadoEm?: string | null };
+  /** `acessoDesativadoMotivo` (só `ATRASO` chega aqui: o MANUAL nem entra): pausado pelo treinador por atraso, o app mostra só a tela das cobranças. */
+  aluno?: { id: string; nome: string; sexo?: string | null; acessoDesativadoMotivo?: 'ATRASO' | null };
   termosPendentes: boolean;
   termosVersao: string;
 }
@@ -272,9 +271,8 @@ export interface AlunoResumo {
   nome: string;
   ativo: boolean;
   temAcesso: boolean;
-  /** Acesso do aluno pausado manualmente por atraso. */
-  acessoPausado?: boolean;
-  acessoPausadoEm?: string | null;
+  /** Acesso desativado pela equipe (`MANUAL`) ou pausado por atraso (`ATRASO`); nulo = acesso normal. */
+  acessoDesativadoMotivo?: 'MANUAL' | 'ATRASO' | null;
   planoAtivo: { id: string; titulo: string } | null;
   ultimoRegistro: string | null;
   responsavelId?: string | null;
@@ -378,9 +376,6 @@ export interface AlunoDetalhe {
   metaDoPeso?: MetaDoPeso | null;
   ativo: boolean;
   temAcesso: boolean;
-  /** Acesso do aluno pausado manualmente pelo treinador por atraso. */
-  acessoPausado?: boolean;
-  acessoPausadoEm?: string | null;
   conviteExpiraEm: string | null;
   versao: number;
   diasAtualizacao: number | null;
@@ -393,10 +388,10 @@ export interface AlunoDetalhe {
   emailDeAcesso: string | null;
   /** O treinador definiu uma senha provisória e o aluno ainda não entrou para trocá-la. */
   aguardandoPrimeiroAcesso: boolean;
-  /** Acesso desativado pela equipe (instante ISO), sem apagar nada; nulo = não está desativado. Só com `ALUNO_LER`. */
+  /** Desde quando o acesso está desativado ou pausado (instante ISO), sem apagar nada; nulo = acesso normal. Só com `ALUNO_LER`. */
   acessoDesativadoEm?: string | null;
-  /** Por que foi desativado. Hoje só `MANUAL`; a Fase 2 (pausa por atraso) acrescenta outro. Nulo com o acesso ativo. */
-  acessoDesativadoMotivo?: 'MANUAL' | null;
+  /** `MANUAL` = a equipe desativou (o aluno não entra); `ATRASO` = pausado até quitar (entra e vê só as cobranças). Nulo com o acesso normal. */
+  acessoDesativadoMotivo?: 'MANUAL' | 'ATRASO' | null;
   /** Usuário (sem `@`) no Instagram e no TikTok; opcionais, só quem lê dados de contato (`ALUNO_LER`). */
   instagram?: string | null;
   tiktok?: string | null;

@@ -797,18 +797,19 @@ export const definirAcessoDoAluno = (id: string, dados: { email: string; senha: 
 export const alterarEmailDeAcessoDoAluno = (id: string, email: string) =>
   requisicao<EmailDeAcessoAlterado>(`/alunos/${seg(id)}/acesso/email`, { metodo: 'PUT', corpo: { email } });
 
-/** Desativa o acesso (o aluno não entra mais, sessões encerradas, nada é apagado). `motivo` hoje só `MANUAL`. `ALUNO_CONVITE`. */
+/** Desativa o acesso (o aluno não entra mais, sessões encerradas, nada é apagado; em `ATRASO`, troca para `MANUAL`). `ALUNO_CONVITE`. */
 export const desativarAcessoDoAluno = (id: string, motivo: 'MANUAL' = 'MANUAL') =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso/desativar`, { metodo: 'POST', corpo: { motivo } });
 
+/** Tira a desativação de qualquer motivo (`ALUNO_CONVITE`); 409 `ALUNO_INATIVO` com o aluno inativo. */
 export const reativarAcessoDoAluno = (id: string) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso/reativar`, { metodo: 'POST' });
 
-/** Pausa o acesso do aluno ao app por atraso (`FINANCEIRO_ALTERAR`); 409 `SEM_COBRANCA_VENCIDA` sem cobrança vencida em aberto. */
+/** Pausa por atraso, motivo `ATRASO` (`FINANCEIRO_ALTERAR`); 409 `SEM_COBRANCA_VENCIDA`, `ALUNO_INATIVO` e `ACESSO_JA_DESATIVADO` (MANUAL); já pausado = 200. */
 export const pausarAcessoDoAluno = (id: string) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/pausar-acesso`, { metodo: 'POST' });
 
-/** Reativa o acesso pausado do aluno manualmente (`FINANCEIRO_ALTERAR`). */
+/** Tira só a pausa por atraso (`FINANCEIRO_ALTERAR`); MANUAL = 409 `ACESSO_JA_DESATIVADO` (sai por `reativarAcessoDoAluno`). */
 export const reativarAcessoPausadoDoAluno = (id: string) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/reativar-acesso`, { metodo: 'POST' });
 

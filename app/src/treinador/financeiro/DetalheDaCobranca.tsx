@@ -155,8 +155,8 @@ export interface PropsDoDetalhe {
   abrirEmBaixa?: boolean;
   /** O nome do aluno vira link para a ficha: em toda lista fora da ficha (na própria ficha seria voltar ao mesmo lugar). */
   mostrarFicha?: boolean;
-  /** Estado atual de pausa de acesso do aluno (quando já conhecido, ex.: ficha); evita GET extra ao abrir a folha. */
-  alunoAcessoPausado?: boolean;
+  /** Motivo do acesso desativado do aluno, quando já conhecido (a ficha): `ATRASO` mostra "Reativar acesso" e `MANUAL` esconde a seção (só a equipe o reativa, em Acesso ao app). */
+  alunoAcessoMotivo?: AlunoDetalhe['acessoDesativadoMotivo'];
   /** Chamado quando pausar/reativar acesso devolve o `AlunoDetalhe` atualizado. */
   aoAlterarAluno?: (aluno: AlunoDetalhe) => void;
   aoFechar: () => void;
@@ -173,7 +173,7 @@ export interface PropsDoDetalhe {
  * envia valor de cobrança: só data, forma, observação e a versão que viu. "Copiar link de pagamento" pede o link da
  * InfinitePay (cobrança em aberto, recebimento online configurado) para a equipe mandar ao aluno.
  */
-export function DetalheDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAcessoPausado, aoAlterarAluno, aoFechar, aoMudar, casca }: PropsDoDetalhe & { casca: CascaDoDetalhe }) {
+export function DetalheDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAcessoMotivo, aoAlterarAluno, aoFechar, aoMudar, casca }: PropsDoDetalhe & { casca: CascaDoDetalhe }) {
   const { recebimentoOnlineHabilitado } = useSessao();
   // O estado do recebimento online só é buscado quando o link pode ser copiado (em aberto, com permissão e a InfinitePay
   // ligada); fica aqui, fora do `Conteudo`, para não buscar de novo a cada versão da cobrança.
@@ -189,17 +189,17 @@ export function DetalheDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, mostrar
   if (!cobranca) return null;
   // A chave reinicia o formulário a cada cobrança aberta.
   return <Conteudo key={`${cobranca.id}:${cobranca.versao}:${abrirEmBaixa ? 'b' : 'd'}`} cobranca={cobranca} podeAlterar={podeAlterar}
-    abrirEmBaixa={!!abrirEmBaixa} mostrarFicha={!!mostrarFicha} alunoAcessoPausado={alunoAcessoPausado} aoAlterarAluno={aoAlterarAluno}
+    abrirEmBaixa={!!abrirEmBaixa} mostrarFicha={!!mostrarFicha} alunoAcessoMotivo={alunoAcessoMotivo} aoAlterarAluno={aoAlterarAluno}
     querLink={querLink} recebimento={recebimento.dados} lembretes={lembretes.dados}
     aoFechar={aoFechar} aoMudar={aoMudar} casca={casca} />;
 }
 
-function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAcessoPausado, aoAlterarAluno, querLink, recebimento, lembretes, aoFechar, aoMudar, casca }: {
+function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAcessoMotivo, aoAlterarAluno, querLink, recebimento, lembretes, aoFechar, aoMudar, casca }: {
   cobranca: CobrancaResponse;
   podeAlterar: boolean;
   abrirEmBaixa: boolean;
   mostrarFicha: boolean;
-  alunoAcessoPausado?: boolean;
+  alunoAcessoMotivo?: AlunoDetalhe['acessoDesativadoMotivo'];
   aoAlterarAluno?: (aluno: AlunoDetalhe) => void;
   /** Mostra o "Copiar link de pagamento" (ou o aviso de que falta configurar). */
   querLink: boolean;
@@ -232,10 +232,11 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAces
   const [idParaCopiarAMao, setIdParaCopiarAMao] = useState(false);
   /** "Renegociar" abre o passo a passo; "Cancelar" volta ao detalhe. */
   const [renegociando, setRenegociando] = useState(false);
-  const [acessoPausadoLocal, setAcessoPausadoLocal] = useState<boolean | undefined>(alunoAcessoPausado);
+  const [motivoLocal, setMotivoLocal] = useState<AlunoDetalhe['acessoDesativadoMotivo'] | undefined>(undefined);
   const [confirmarAcesso, setConfirmarAcesso] = useState<'pausar' | 'reativar' | null>(null);
   const [alterandoAcesso, setAlterandoAcesso] = useState(false);
-  const acessoPausado = acessoPausadoLocal ?? (alunoAcessoPausado === true);
+  const motivoDoAcesso = motivoLocal !== undefined ? motivoLocal : alunoAcessoMotivo ?? null;
+  const acessoPausado = motivoDoAcesso === 'ATRASO';
 
   const executarAcesso = (acao: 'pausar' | 'reativar') => {
     setAlterandoAcesso(true);
@@ -245,7 +246,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAces
       (atualizado) => {
         setAlterandoAcesso(false);
         setConfirmarAcesso(null);
-        setAcessoPausadoLocal(atualizado.acessoPausado === true);
+        setMotivoLocal(atualizado.acessoDesativadoMotivo ?? null);
         aoAlterarAluno?.(atualizado);
         avisar(acao === 'pausar' ? 'Acesso do aluno pausado até a quitação.' : 'Acesso do aluno reativado.', 'sucesso');
         aoMudar();
@@ -495,7 +496,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAces
                   ) : null}
                 </Grupo>
               ) : null}
-              {emAberto && cobranca.vencida && podeAlterar ? (
+              {emAberto && cobranca.vencida && podeAlterar && motivoDoAcesso !== 'MANUAL' ? (
                 <Grupo titulo="Acesso ao aplicativo">
                   <Texto variante="suave">
                     {acessoPausado
@@ -574,7 +575,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, alunoAces
         <PainelConfirmacao
           visivel={confirmarAcesso === 'pausar'}
           titulo="Pausar acesso até quitar?"
-          mensagem="O aluno verá apenas a tela de pagamento até quitar as cobranças vencidas."
+          mensagem="O aluno continua entrando, mas vê só as cobranças em aberto. O acesso volta sozinho quando ele quitar as vencidas."
           rotuloConfirmar="Pausar acesso"
           rotuloCancelar="Voltar"
           carregando={alterandoAcesso}

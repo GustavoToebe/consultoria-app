@@ -60,7 +60,7 @@ export function CabecalhoDaFicha({ aluno, foto, aoVoltar, aoAbrirMenu, abas }: P
   const situacao = aluno ? seloDaSituacao(aluno) : null;
   const lateral = situacao || aoAbrirMenu ? (
     <View style={[estilos.lateral, !emLinha && estilos.lateralEmbaixo]}>
-      {situacao ? <Selo texto={situacao.texto} tipo={situacao.tipo} /> : null}
+      {situacao ? <Selo texto={situacao.texto} tipo={situacao.tipo} ponto={situacao.ponto} /> : null}
       {aoAbrirMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo="Mais ações do aluno" aoTocar={aoAbrirMenu} /> : null}
     </View>
   ) : null;

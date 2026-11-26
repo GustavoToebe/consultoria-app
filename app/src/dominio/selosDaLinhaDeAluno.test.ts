@@ -18,12 +18,20 @@ describe('selosDeExcecaoDoAluno', () => {
     expect(selosDeExcecaoDoAluno({ ativo: true, temAcesso: true, emAtraso: false })).toEqual([]);
   });
 
-  it('"Acesso pausado" aparece em âmbar só para aluno ativo, preservando "Cobrança vencida"', () => {
-    expect(selosDeExcecaoDoAluno({ ativo: true, temAcesso: true, emAtraso: true, acessoPausado: true })).toEqual([
+  it('"Acesso pausado" âmbar e "Acesso desativado" neutro com ● só para aluno ativo, preservando "Cobrança vencida"', () => {
+    expect(selosDeExcecaoDoAluno({ ativo: true, temAcesso: true, emAtraso: true, acessoDesativadoMotivo: 'ATRASO' })).toEqual([
       { texto: 'Cobrança vencida', tipo: 'perigo' },
       { texto: 'Acesso pausado', tipo: 'atencao' },
     ]);
-    expect(selosDeExcecaoDoAluno({ ativo: false, temAcesso: true, emAtraso: false, acessoPausado: true })).toEqual([
+    expect(selosDeExcecaoDoAluno({ ativo: true, temAcesso: true, emAtraso: false, acessoDesativadoMotivo: 'MANUAL' })).toEqual([
+      { texto: 'Acesso desativado', tipo: 'neutro', ponto: true },
+    ]);
+    // Pausado sem conta: o selo do acesso no lugar do "Sem acesso" (um selo de acesso por linha).
+    expect(selosDeExcecaoDoAluno({ ativo: true, temAcesso: false, emAtraso: true, acessoDesativadoMotivo: 'ATRASO' })).toEqual([
+      { texto: 'Cobrança vencida', tipo: 'perigo' },
+      { texto: 'Acesso pausado', tipo: 'atencao' },
+    ]);
+    expect(selosDeExcecaoDoAluno({ ativo: false, temAcesso: true, emAtraso: false, acessoDesativadoMotivo: 'ATRASO' })).toEqual([
       { texto: 'Inativo', tipo: 'neutro' },
     ]);
   });

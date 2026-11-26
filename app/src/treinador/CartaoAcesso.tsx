@@ -1,12 +1,13 @@
 import * as Clipboard from 'expo-clipboard';
-import { Copy } from 'lucide-react-native';
+import { Copy, Ellipsis } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { definirAcessoDoAluno, desativarAcessoDoAluno, gerarConvite, reativarAcessoDoAluno } from '../api/rotas';
+import { alunosEmAtraso } from '../api/financeiroContrato';
+import { definirAcessoDoAluno, desativarAcessoDoAluno, gerarConvite, pausarAcessoDoAluno, reativarAcessoDoAluno, reativarAcessoPausadoDoAluno } from '../api/rotas';
 import type { AlunoDetalhe, ConviteGerado } from '../api/tipos';
 import { seloDoAcesso } from '../dominio/cadastroDoAluno';
-import { acessoDesativado, textoDoDesativado, textoDoEmailAlterado, traduzirErroDoAcesso, ultimoLoginNaLinha } from '../dominio/acessoAoApp';
+import { acoesDoAcesso, motivoDoAcesso, notaDoAcessoDesativado, textoDoEmailAlterado, traduzirErroDoAcesso, ultimoLoginNaLinha } from '../dominio/acessoAoApp';
 import { dataHoraParaTela } from '../dominio/formatos';
 import { gerarSenhaProvisoria } from '../dominio/senhaProvisoria';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -25,7 +26,9 @@ import { LinhaDeDado, ListaDeDados } from '../ui/ListaDeDados';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
+import { useCarregar } from '../ui/useCarregar';
 import { FolhaAlterarEmailDeAcesso } from './FolhaAlterarEmailDeAcesso';
+import { FolhaDeAcoes } from './FolhaDeAcoes';
 
 /**
  * Acesso do aluno ao app. Sem conta: gera o convite (código de 10 letras e link, válidos por 7 dias; gerar outro
@@ -35,19 +38,25 @@ import { FolhaAlterarEmailDeAcesso } from './FolhaAlterarEmailDeAcesso';
  * `ListaDeDados` (Situação, Convite só sem conta, E-mail de acesso, Último login de `dominio/acessoAoApp`, Senha) com as
  * ações na coluna da direita, todas secundárias; o cabeçalho fica só com o título. Ações só com `ALUNO_CONVITE` e aluno
  * ativo e não anonimizado. Desde 25/11 (`docs/planos/ajustes-da-tarde-25-11.md`, D3): "Alterar e-mail" na linha do e-mail
- * (folha `FolhaAlterarEmailDeAcesso`) e "Desativar acesso" na Situação, com confirmação; desativado, a Situação diz
- * "Sem acesso (desativado em DD/MM)" e a única ação é "Reativar acesso" (a API recusa senha, e-mail e convite).
+ * (folha `FolhaAlterarEmailDeAcesso`). Desde 26/11 (`docs/planos/pausar-acesso-por-atraso.md`): um cartão e um selo para
+ * o acesso desativado pela equipe (`MANUAL`, "Acesso desativado" neutro com ●) e o pausado por atraso (`ATRASO`, "Acesso
+ * pausado" âmbar), com a data na nota e "Reativar acesso" na Situação; o ⋯ "Ações do acesso" no cabeçalho traz "Pausar
+ * acesso até quitar" (`FINANCEIRO_ALTERAR`, desabilitado sem cobrança vencida) e "Desativar acesso" (perigo, com painel).
+ * Quem vê o quê: `dominio/acessoAoApp.acoesDoAcesso`. Desativado, saem "Alterar e-mail" e a senha (a API os recusa);
+ * pausado, ficam (o aluno continua entrando).
  */
 export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (aluno: AlunoDetalhe) => void }) {
   const { avisar } = useAviso();
-  const { pode } = useSessao();
+  const { pode, pagamentosHabilitados } = useSessao();
   const [convite, setConvite] = useState<ConviteGerado | null>(null);
   const [gerando, setGerando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [alterandoEmail, setAlterandoEmail] = useState(false);
   const [confirmarDesativar, setConfirmarDesativar] = useState(false);
-  const [mudando, setMudando] = useState<'desativar' | 'reativar' | null>(null);
+  const [confirmarPausar, setConfirmarPausar] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [mudando, setMudando] = useState<'desativar' | 'reativar' | 'pausar' | null>(null);
   const [definindo, setDefinindo] = useState(false);
   const [definido, setDefinido] = useState<{ email: string; senha: string } | null>(null);
 
@@ -81,39 +90,55 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
     setDefinindo(true);
   };
 
-  // Desativar ou reativar: o destaque da senha ou do convite some (numa conta desativada ele enganaria).
-  const mudarAcesso = (qual: 'desativar' | 'reativar') => {
+  // A cobrança vencida (o mesmo dado da pílula da lista de alunos) só para quem pode pausar; 403/503 ou falha somem: o
+  // item fica habilitado e a API decide (409 `SEM_COBRANCA_VENCIDA`).
+  // shortcut: a rota devolve até 2000 ids (`truncado`); fora da lista truncada o item fica habilitado; trocar por um campo da ficha se passar disso.
+  const podeFinanceiro = pode('FINANCEIRO_ALTERAR');
+  const pausarVisivel = pagamentosHabilitados && pode('FINANCEIRO_LER') && pode('ALUNO_LER');
+  const consultaAtraso = podeFinanceiro && pausarVisivel && aluno.ativo && !aluno.anonimizado && aluno.temAcesso && !aluno.acessoDesativadoMotivo;
+  const atraso = useCarregar(consultaAtraso ? 'alunos-em-atraso|false' : null, () => alunosEmAtraso(false).catch(() => null)).dados;
+  const emAtraso = !atraso ? null : atraso.alunoIds.includes(aluno.id) ? true : atraso.truncado ? null : false;
+  const motivo = motivoDoAcesso(aluno);
+  const acoes = acoesDoAcesso(aluno, { convite: pode('ALUNO_CONVITE'), financeiro: podeFinanceiro, pausarVisivel }, emAtraso);
+
+  // Desativar, pausar ou reativar: o destaque da senha ou do convite some (numa conta desativada ele enganaria).
+  const mudarAcesso = (qual: 'desativar' | 'reativar' | 'pausar') => {
     if (mudando) return;
     setMudando(qual);
     setErro(null);
-    (qual === 'desativar' ? desativarAcessoDoAluno(aluno.id) : reativarAcessoDoAluno(aluno.id)).then(
+    const chamada = qual === 'desativar' ? desativarAcessoDoAluno(aluno.id)
+      : qual === 'pausar' ? pausarAcessoDoAluno(aluno.id)
+        : acoes.reativar === 'pausa' ? reativarAcessoPausadoDoAluno(aluno.id) : reativarAcessoDoAluno(aluno.id);
+    chamada.then(
       (novo) => {
         setMudando(null);
         setConfirmarDesativar(false);
+        setConfirmarPausar(false);
         setDefinido(null);
         setConvite(null);
         setDefinindo(false);
         aoAlterar(novo);
-        avisar(qual === 'desativar' ? 'Acesso desativado. As sessões do aluno foram encerradas.' : 'Acesso reativado.', 'sucesso');
+        avisar(qual === 'desativar' ? 'Acesso desativado. As sessões do aluno foram encerradas.'
+          : qual === 'pausar' ? 'Acesso pausado até o aluno quitar as cobranças vencidas.' : 'Acesso reativado.', 'sucesso');
       },
       (e: unknown) => {
         setMudando(null);
         setConfirmarDesativar(false);
+        setConfirmarPausar(false);
         setErro(traduzirErroDoAcesso(e).mensagem);
       },
     );
   };
 
-  const desativado = acessoDesativado(aluno);
   const selo = seloDoAcesso(aluno);
-  // Só o cartão mostra a data; a situação do aluno (inativo, anonimizado) continua vencendo.
-  const textoDaSituacao = desativado && selo.texto === 'Sem acesso' ? textoDoDesativado(aluno.acessoDesativadoEm) : selo.texto;
   // Inativo ou anonimizado: o acesso não muda daqui (reativar primeiro).
   const podeAgir = aluno.ativo && !aluno.anonimizado;
   // Com o formulário aberto as ações das linhas saem (ele diz o que fazer); voltam ao salvar ou cancelar.
   const comAcoes = podeAgir && !definindo && pode('ALUNO_CONVITE');
-  // Com a conta desativada só cabe reativar.
-  const naConta = comAcoes && aluno.temAcesso && !desativado;
+  // Desativado pela equipe só cabe reativar (a API recusa senha, e-mail e convite); pausado por atraso, a conta segue.
+  const naConta = comAcoes && aluno.temAcesso && motivo !== 'MANUAL';
+  const notaDoMotivo = motivo && podeAgir ? notaDoAcessoDesativado(motivo, aluno.acessoDesativadoEm) : undefined;
+  const comMenu = !definindo && (!!acoes.pausar || acoes.desativar);
   const validoAte = convite?.expiraEm ?? aluno.conviteExpiraEm ?? null;
   const conviteAnterior = !convite && !!aluno.conviteExpiraEm;
   const rotuloDaSenha = aluno.temAcesso ? (aluno.aguardandoPrimeiroAcesso ? 'Definir outra senha' : 'Definir nova senha') : 'Definir e-mail e senha';
@@ -123,16 +148,15 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
     // Lista de dados (24/11): Situação, Convite (só sem conta), E-mail de acesso, Último login e Senha, com as ações na
     // coluna da direita. O rótulo do bloco envolve o cartão inteiro: é por ele que o "Abrir acesso ao app" do Resumo chega.
     <View accessibilityLabel="Acesso ao app">
-      <Cartao titulo="Acesso ao app">
+      <Cartao titulo="Acesso ao app"
+        acoes={comMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo="Ações do acesso" aoTocar={() => setMenu(true)} /> : undefined}>
         <View style={estilos.bloco}>
           <ListaDeDados>
-            <LinhaDeDado rotulo="Situação" valor={textoDaSituacao} conteudo={<View style={estilos.selo}><Selo texto={textoDaSituacao} tipo={selo.tipo} ponto={selo.ponto} /></View>}
-              nota={!aluno.temAcesso && comAcoes && !convite ? 'Gere um convite para o aluno criar a conta ou defina você o e-mail e uma senha provisória.'
-                : desativado && podeAgir ? 'O aluno não entra até o acesso ser reativado. Nada foi apagado.' : undefined}
-              acoes={comAcoes && desativado ? (
+            {/* A data fica na nota: o selo tem as mesmas palavras do cabeçalho e da lista (26/11). */}
+            <LinhaDeDado rotulo="Situação" valor={selo.texto} conteudo={<View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} ponto={selo.ponto} /></View>}
+              nota={!aluno.temAcesso && !motivo && comAcoes && !convite ? 'Gere um convite para o aluno criar a conta ou defina você o e-mail e uma senha provisória.' : notaDoMotivo}
+              acoes={acoes.reativar && !definindo ? (
                 <Botao rotulo="Reativar acesso" tipo="secundario" tamanho="pequeno" carregando={mudando === 'reativar'} aoTocar={() => mudarAcesso('reativar')} />
-              ) : naConta ? (
-                <Botao rotulo="Desativar acesso" tipo="perigoTexto" tamanho="pequeno" aoTocar={() => setConfirmarDesativar(true)} />
               ) : undefined} />
             {!aluno.temAcesso ? (
               <LinhaDeDado rotulo="Convite" valor={validoAte ? `Válido até ${dataHoraParaTela(validoAte)}` : null} numerico
@@ -149,7 +173,7 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
                       aoTocar={() => { setDefinido(null); setErro(null); setAlterandoEmail(true); }} />
                   ) : null}
                   {email ? (
-                    <View style={naConta ? null : estilos.iconeNaLinha}>
+                    <View style={estilos.iconeNaLinha}>
                       <IconeBotao Icone={Copy} moldura compacto rotulo="Copiar e-mail de acesso" aoTocar={() => copiar(email, 'E-mail')} />
                     </View>
                   ) : null}
@@ -160,7 +184,7 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
             <LinhaDeDado rotulo="Senha" valor={aluno.temAcesso ? (aluno.aguardandoPrimeiroAcesso ? 'provisória' : 'definida') : null}
               conteudo={<Texto aria-hidden>••••••</Texto>}
               nota={aluno.aguardandoPrimeiroAcesso ? 'Provisória: o aluno cria a dele no primeiro login.' : undefined}
-              acoes={comAcoes && !desativado ? <Botao rotulo={rotuloDaSenha} tipo="secundario" tamanho="pequeno" aoTocar={abrirForm} /> : undefined} />
+              acoes={comAcoes && motivo !== 'MANUAL' ? <Botao rotulo={rotuloDaSenha} tipo="secundario" tamanho="pequeno" aoTocar={abrirForm} /> : undefined} />
           </ListaDeDados>
           {definido ? (
             <View style={estilos.convite}>
@@ -180,7 +204,7 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
           ) : null}
           {!podeAgir ? (
             <Texto variante="pequeno">
-              {aluno.anonimizado ? 'Aluno anonimizado: o acesso não muda mais.' : 'Aluno inativo: reative pelo menu ⋯ para mudar o acesso.'}
+              {aluno.anonimizado ? 'Aluno anonimizado: o acesso não muda mais.' : 'Aluno inativo: reative pelo menu ⋯ do aluno, no topo da ficha, para mudar o acesso.'}
             </Texto>
           ) : null}
           {erro ? <MensagemErro texto={erro} /> : null}
@@ -204,6 +228,31 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
         rotuloConfirmar="Gerar outro"
         aoConfirmar={gerar}
         aoCancelar={() => setConfirmar(false)}
+      />
+      {menu ? (
+        <FolhaDeAcoes titulo="Ações do acesso" aoFechar={() => setMenu(false)} acoes={[
+          !!acoes.pausar && {
+            rotulo: 'Pausar acesso até quitar',
+            detalhe: acoes.pausar.motivo ?? 'O aluno entra e vê só as cobranças em aberto até quitar as vencidas.',
+            desabilitado: !!acoes.pausar.motivo,
+            aoTocar: () => { setErro(null); setConfirmarPausar(true); },
+          },
+          acoes.desativar && {
+            rotulo: 'Desativar acesso',
+            detalhe: 'O aluno não entra mais. Nada é apagado.',
+            perigo: true,
+            aoTocar: () => { setErro(null); setConfirmarDesativar(true); },
+          },
+        ]} />
+      ) : null}
+      <PainelConfirmacao
+        visivel={confirmarPausar}
+        titulo="Pausar acesso até quitar?"
+        mensagem="O aluno continua entrando, mas vê só as cobranças em aberto. O acesso volta sozinho quando ele quitar as vencidas, e você pode reativar antes."
+        rotuloConfirmar="Pausar acesso"
+        carregando={mudando === 'pausar'}
+        aoConfirmar={() => mudarAcesso('pausar')}
+        aoCancelar={() => { if (!mudando) setConfirmarPausar(false); }}
       />
       <PainelConfirmacao
         visivel={confirmarDesativar}
@@ -312,7 +361,8 @@ function Destaque({ rotulo, texto, aoCopiar, grande }: { rotulo: string; texto: 
 
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1.5) },
-  // O desenho compacto (32) fica centrado no alvo de 44: -6 alinha a borda dele à do "Definir nova senha".
+  // O desenho compacto (32) fica centrado no alvo de 44: -6 alinha a borda dele à do "Definir nova senha" e do "Reativar
+  // acesso", sozinho ou depois do "Alterar e-mail" (26/11: antes só sozinho, e com o "Alterar e-mail" sobrava 6 px).
   iconeNaLinha: { marginRight: -espaco(0.75) },
   // O selo não estica na largura do valor.
   selo: { flexDirection: 'row' },
