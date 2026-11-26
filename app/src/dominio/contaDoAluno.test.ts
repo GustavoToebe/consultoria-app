@@ -1,5 +1,5 @@
 import {
-  cpfMascarado, envioDoMeuPerfil, meuPerfilMudou, resumoDoPerfil, resumoDosDados, secoesVisiveis, seloDoPlano, SEM_EDICAO_DO_PERFIL,
+  cpfMascarado, envioDoMeuPerfil, existeContratosNaConta, meuPerfilMudou, resumoDoContratoNaConta, resumoDoPerfil, resumoDosDados, secoesVisiveis, seloDoPlano, SEM_EDICAO_DO_PERFIL,
 } from './contaDoAluno';
 import type { PreferenciasLidas } from './perfilDaComunidade';
 
@@ -11,6 +11,31 @@ describe('secoesVisiveis', () => {
       .toEqual(['plano', 'perfil', 'dados', 'convite', 'privacidade', 'seguranca', 'app']);
     expect(secoesVisiveis({ plano: false, perfil: false, dados: false, convite: false }).map((s) => s.chave))
       .toEqual(['privacidade', 'seguranca', 'app']);
+  });
+
+  it('"Meus contratos" vem depois de "Meu plano" e só com existe.contratos', () => {
+    expect(secoesVisiveis({ plano: true, perfil: true, dados: true, convite: true, contratos: true }).map((s) => s.chave))
+      .toEqual(['plano', 'contratos', 'perfil', 'dados', 'convite', 'privacidade', 'seguranca', 'app']);
+    expect(secoesVisiveis({ plano: true, perfil: true, dados: true, convite: true, contratos: false }).map((s) => s.chave)).not.toContain('contratos');
+    // Quem ainda não conhece o campo (a tela de antes) continua sem a seção.
+    expect(secoesVisiveis({ plano: true, perfil: true, dados: true, convite: true }).map((s) => s.chave)).not.toContain('contratos');
+  });
+});
+
+describe('contratos na Conta', () => {
+  it('existe com a chave, internet e ao menos um contrato', () => {
+    expect(existeContratosNaConta(true, true, [{}])).toBe(true);
+    expect(existeContratosNaConta(false, true, [{}])).toBe(false);
+    expect(existeContratosNaConta(true, false, [{}])).toBe(false);
+    expect(existeContratosNaConta(true, true, [])).toBe(false);
+    expect(existeContratosNaConta(true, true, null)).toBe(false);
+  });
+
+  it('a linha de cada contrato', () => {
+    expect(resumoDoContratoNaConta({ situacao: 'ASSINADO', assinadoEm: '2026-11-27T01:00:00Z', prazoAte: null, vencido: false })).toBe('Assinado em 26/11/2026');
+    expect(resumoDoContratoNaConta({ situacao: 'PENDENTE', assinadoEm: null, prazoAte: '2026-11-30T02:59:59Z', vencido: false })).toBe('Para assinar · até 29/11');
+    expect(resumoDoContratoNaConta({ situacao: 'PENDENTE', assinadoEm: null, prazoAte: null, vencido: false })).toBe('Para assinar');
+    expect(resumoDoContratoNaConta({ situacao: 'PENDENTE', assinadoEm: null, prazoAte: '2026-11-10T02:59:59Z', vencido: true })).toBe('Prazo terminou');
   });
 });
 

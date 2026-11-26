@@ -12,6 +12,8 @@ public interface RegistroPesoRepository extends JpaRepository<RegistroPeso, UUID
 
     List<RegistroPeso> findByAlunoIdOrderByDataAsc(UUID alunoId);
 
+    List<RegistroPeso> findByAlunoIdIn(java.util.Collection<UUID> alunoIds);
+
     Optional<RegistroPeso> findByAlunoIdAndData(UUID alunoId, LocalDate data);
 
     Optional<RegistroPeso> findByIdAndAlunoId(UUID id, UUID alunoId);

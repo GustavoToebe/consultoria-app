@@ -18,6 +18,11 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu(EU).unidadeDeCargaHabilitada).toBeUndefined();
   });
 
+  it('guarda a chave do contrato digital; ausente fica ausente (a sessão a lê como desligada)', () => {
+    expect(perfilDoEu({ ...EU, contratosHabilitados: true }).contratosHabilitados).toBe(true);
+    expect(perfilDoEu(EU).contratosHabilitados).toBeUndefined();
+  });
+
   it('guarda o WhatsApp da consultoria do aluno; ausente fica ausente', () => {
     expect(perfilDoEu({ ...EU, whatsappDaConsultoria: '45999998888' }).whatsappDaConsultoria).toBe('45999998888');
     expect(perfilDoEu(EU).whatsappDaConsultoria).toBeUndefined();

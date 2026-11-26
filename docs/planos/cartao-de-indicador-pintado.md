@@ -10,7 +10,7 @@ cor e rótulo e número na cor quando legíveis. O resto fica neutro. Uma peça 
 ## Decisões
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
-| D1 | Fundo | Degradê de 135° da cor misturada à base (14% nas escuras; 8% nas claras e na Areia) até a base pura em 70%; `experimental_backgroundImage` no nativo (RN 0.86), `backgroundImage` no web; `forte` liso por baixo | Gustavo (pedido de 23/11); caminho conferido no código instalado do RN e do react-native-web |
+| D1 | Fundo | Degradê de 135° da cor misturada à base (14% nas escuras; 11% nas claras e na Areia, subido de 8% em 26/11: o claro ficava apagado; acima de 11% o `textoSuave` cai abaixo de 4,5:1 no Claro e no Céu, e chegar a 14% pede escurecer o `textoSuave` das claras) até a base pura em 70%; `experimental_backgroundImage` no nativo (RN 0.86), `backgroundImage` no web; `forte` liso por baixo | Gustavo (pedido de 23/11); caminho conferido no código instalado do RN e do react-native-web |
 | D2 | Borda | 1 px (`bordas.bloco`), cor a 50% sobre a base; a faixa grossa à esquerda saiu | Gustavo |
 | D3 | Texto | Rótulo e número na cor só se ≥ 4,5:1 no ponto mais forte; senão `texto`. Detalhe em `textoSuave` | Gustavo (valor); rótulo pela WCAG 1.4.3 |
 | D4 | Cores | Recebido/Pago `sucesso`; A receber/Em aberto/Vencendo/Para revisar `atencao`; Em atraso/Vencido/Atrasadas/Saídas avulsas `perigo`; Receita recorrente `informacao`; Recordes `conquista`; Entradas avulsas no azul dos Lançamentos; tipos de série na cor de identificação; resto neutro; zero e "—" neutros | Gustavo |

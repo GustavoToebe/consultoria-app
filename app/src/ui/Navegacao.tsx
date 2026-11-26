@@ -9,6 +9,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { urlDaApi } from '../api/cliente';
+import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueDeLink';
 import {
   alternarGrupoRecolhido,
   gruposDoMenu,
@@ -104,7 +105,7 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   const [recolhidoPorEscolha, setRecolhido] = useState(false);
   const recolhido = trilho || recolhidoPorEscolha;
   const { trilho: refDoTrilho, atual: dicaAtual, mostrar: mostrarDica, esconder: esconderDica, aoRolar: medirDica } = useDicaDoTrilho();
-  const submenu = useSubmenuDoTrilho(refDoTrilho);
+  const submenu = useSubmenuDoTrilho(refDoTrilho, lateral && recolhido && !trilho);
   useEffect(() => {
     AsyncStorage.getItem(CHAVE_MENU_RECOLHIDO).then((v) => setRecolhido(v === '1'), () => undefined);
   }, []);
@@ -208,7 +209,7 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
             onScroll={comDica ? () => { medirDica(); submenu.aoRolar(); } : undefined} scrollEventThrottle={32}
             contentContainerStyle={[estilos.blocos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
           {conta ? <View style={[estilos.rodapeDoMenu, { borderTopColor: cores.divisor }]}>{conta}</View> : null}
-          {!trilho && dicaAtual ? (
+          {!trilho && dicaAtual && !doSubmenu ? (
             <View pointerEvents="none" accessible={false} style={[
               estilos.dica,
               dicaAtual.abaixo ? { right: espaco(1.5) } : { left: larguraDoMenu + 4 },
@@ -219,7 +220,7 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
             </View>
           ) : null}
           {doSubmenu ? (
-            <SubmenuDoGrupo submenu={doSubmenu}>
+            <SubmenuDoGrupo key={doSubmenu.grupo} submenu={doSubmenu}>
               {itensDoSubmenu.map((item) => <ItemNavegacao key={item.caminho} item={item} lateral noSubmenu aoEscolher={submenu.aoEscolher} />)}
             </SubmenuDoGrupo>
           ) : null}
@@ -296,6 +297,10 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, noSubmenu, aoEscolher
   // Texto grande na barra inferior: o rótulo quebra em até duas linhas e o item cresce com a palavra (nada de reticências).
   const textoGrande = fatorTexto > 1;
   const mostrarDica = () => aoMostrarDica?.(item.rotulo, no.current);
+  const link = propsDeLink(item.href, () => {
+    aoEscolher?.();
+    if (!mesmaTela(caminho, item.href)) confirmar(() => router.navigate(item.href));
+  });
   return (
     <Pressable
       ref={ref}
@@ -304,10 +309,14 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, noSubmenu, aoEscolher
       accessibilityState={{ selected: ativo }}
       // O leitor de tela da web não recebe o `selected` de um link: `aria-current` diz qual é a página atual.
       aria-current={ativo ? 'page' : undefined}
-      {...propsDeLink(item.href, () => {
-        aoEscolher?.();
-        if (!mesmaTela(caminho, item.href)) confirmar(() => router.navigate(item.href));
-      })}
+      {...link}
+      onPress={(evento) => {
+        if (noSubmenu && deixarParaONavegador(evento as unknown as CliqueDoNavegador)) {
+          aoEscolher?.();
+          return;
+        }
+        link.onPress(evento);
+      }}
       onHoverIn={comDica ? mostrarDica : undefined}
       onHoverOut={comDica ? aoEsconderDica : undefined}
       onFocus={comDica ? mostrarDica : undefined}

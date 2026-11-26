@@ -4,22 +4,22 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { createElement, useId, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 
-import { colunasDaImportacao, confirmarImportacao, csvDeErrosDaImportacao, detalheDaImportacao, listarImportacoes, previaDaImportacao } from '../../api/rotas';
-import type { ColunasDaImportacao, DetalheDeImportacao, PreviaDeImportacao } from '../../api/tipos';
+import { colunasDaImportacao, confirmarImportacao, csvDeErrosDaImportacao, detalheDaImportacao, listarImportacoes, previaDaImportacao, reconhecerArquivo } from '../../api/rotas';
+import type { ColunasDaImportacao, DetalheDeImportacao, PreviaDeImportacao, ReconhecimentoDoArquivo } from '../../api/tipos';
 import {
-  ETAPAS_DA_IMPORTACAO, LINHA_DO_CABECALHO_PADRAO, SEM_AJUSTES, agruparErros, ajustarCelula, avisoDeTituloDeDado, colunasComTituloDeDado, ondeDoErro, textoDoGrupoDeErros, ajustesParaApi, alternarRemovida, avisoDoCorte, campoDaColuna, camposPermitidos,
+  ETAPAS_DA_IMPORTACAO, LINHA_DO_CABECALHO_PADRAO, motivoDoArquivo, textoDoReconhecimento, SEM_AJUSTES, agruparErros, ajustarCelula, avisoDeTituloDeDado, colunasComTituloDeDado, ondeDoErro, textoDoGrupoDeErros, ajustesParaApi, alternarRemovida, avisoDoCorte, campoDaColuna, camposPermitidos,
   celulaAjustada, errosNaTabela, escolherCampoDaColuna, explicacaoDosExistentes, linhasDaPlanilha, motivoParaNaoContinuar,
   opcoesDaLinhaDoCabecalho, opcoesDoCampoDaColuna, paginaDaPlanilha, primeiraLinhaDeDados, resumoDaValidacao, tamanhoParaTela, textoDoQueVaiAcontecer, tipoDoArquivo,
   totalDeAjustes, type AjustesDaTabela, type EtapaDaImportacao, type MapaDaImportacao,
 } from '../../dominio/assistenteDaImportacao';
-import { DESTINOS, destinosPermitidos, faltandoColuna, sugerirMapeamento, type Destino, type DestinoDaImportacao } from '../../dominio/mapeamentoDaImportacao';
+import { DESTINOS, destinosPermitidos, faltandoColuna, mapaDasSugestoes, type Destino, type DestinoDaImportacao } from '../../dominio/mapeamentoDaImportacao';
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
   ARQUIVOS, CHAVES_DO_ENDERECO, chipsDosFiltros, lerDoEndereco, paraEndereco, pedidoDaApi, SEM_FILTROS, semOFiltro, SITUACOES,
   type ChaveDoFiltro, type FiltrosDaImportacao, type ParametrosDoEndereco,
 } from '../../dominio/filtrosDaImportacao';
 import { dataHoraParaTela } from '../../dominio/formatos';
-import { DESTINO_PLANILHA_COMPLETA, ROTULO_PLANILHA_COMPLETA } from '../../dominio/planilhaCompleta';
+import { CAMINHO_PLANILHA_COMPLETA, DESTINO_PLANILHA_COMPLETA, ROTULO_PLANILHA_COMPLETA } from '../../dominio/planilhaCompleta';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, LARGURA_EDITOR_DE_CAMPOS, LARGURA_FOLHA_LARGA, LARGURA_MAXIMA, RAIO, espaco, fontes } from '../../tema/tokens';
@@ -34,7 +34,7 @@ import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
-import { useGuardaDeSaida, useSaidaGuardada } from '../../ui/GuardaDeSaida';
+import { useGuardaDeSaida, useSairSemPerguntar, useSaidaGuardada } from '../../ui/GuardaDeSaida';
 import { FolhaNovaImportacao } from './FolhaNovaImportacao';
 import { corDoNumero } from '../../ui/indicador';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
@@ -44,13 +44,13 @@ import { sobre } from '../../ui/sobre';
 import { Tabela } from '../../ui/Tabela';
 import { fundoPintado, superficiePintada } from '../../ui/superficiePintada';
 import { Texto } from '../../ui/Texto';
-import { textoDoErro as textoDoErroDaApi } from '../../ui/erros';
+import { codigoApi, textoDoErro as textoDoErroDaApi } from '../../ui/erros';
 import { CamposDePeriodo, UmaOpcao } from '../SeletoresDeFiltro';
 import { useCarregar } from '../../ui/useCarregar';
 import { baixarCsv } from '../financeiro/baixarCsv';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
-import { formulario, type ArquivoEscolhido } from './formularioDaImportacao';
-import { CartaoDaPlanilhaCompleta, DetalheDaPlanilha } from './planilhaCompleta/NoHistorico';
+import { deixarArquivoEmEspera, formulario, type ArquivoEscolhido } from './formularioDaImportacao';
+import { DetalheDaPlanilha } from './planilhaCompleta/NoHistorico';
 
 const SITUACAO: Record<string, { texto: string; tipo: TipoSelo }> = {
   CONCLUIDA: { texto: 'Concluída', tipo: 'sucesso' },
@@ -290,8 +290,11 @@ function Etapas({ etapa, estreita }: { etapa: EtapaDaImportacao; estreita: boole
 }
 
 /**
- * Nova importação em tela inteira (reunião de 30/10: na Folha cabiam quatro colunas da planilha e o treinador rolava
- * para os lados sem ver o todo). As etapas ficam presas no topo e Voltar/Validar na base. O arquivo, o mapeamento e as
+ * Nova importação manual em tela inteira (reunião de 30/10: na Folha cabiam quatro colunas da planilha e o treinador rolava
+ * para os lados sem ver o todo). Entrada única (D2, 26/11): primeiro o arquivo; a API o reconhece e a etapa 1 já vem com
+ * o destino e a aba sugeridos, ou, na planilha completa, Continuar leva o arquivo (em memória) para a tela dela. A linha do
+ * cabeçalho e o campo de cada coluna também vêm da API; a sugestão por semelhança fica marcada "Confira". As etapas
+ * ficam presas no topo e Voltar/Validar na base. O arquivo, o mapeamento e as
  * correções da tabela ficam só na memória desta tela: sair no meio (menu, seta, voltar do navegador, Cancelar) pergunta
  * antes, pela guarda de saída dos editores.
  */
@@ -301,8 +304,10 @@ export function AssistenteDaImportacao() {
   const router = useRouter();
   const { avisar } = useAviso();
   const { confirmar: confirmarSaida } = useSaidaGuardada();
+  const sairSemPerguntar = useSairSemPerguntar();
   const destinos = destinosPermitidos(pode);
   const podeSensivel = pode('ALUNO_SENSIVEL_ALTERAR');
+  const podeCompleta = pode('ALUNO_ALTERAR');
   const [etapa, setEtapa] = useState<EtapaDaImportacao>(1);
   const [largura, setLargura] = useState<number>(LARGURA_MAXIMA);
   const [destino, setDestino] = useState<Destino | null>(destinos.length === 1 ? destinos[0] : null);
@@ -313,6 +318,11 @@ export function AssistenteDaImportacao() {
   const [chave, setChave] = useState(destinos.length === 1 ? destinos[0].chaves[0].valor : 'email');
   const [existentes, setExistentes] = useState(destinos.length === 1 ? destinos[0].existentes[0].valor : 'IGNORAR');
   const [mapa, setMapa] = useState<MapaDaImportacao>({});
+  /** Campos que a API sugeriu só por semelhança do nome: a coluna leva "Confira" até ser mexida. */
+  const [paraConferir, setParaConferir] = useState<ReadonlySet<string>>(new Set());
+  const [reconhecimento, setReconhecimento] = useState<ReconhecimentoDoArquivo | null>(null);
+  const [reconhecendo, setReconhecendo] = useState(false);
+  const [erroDoArquivo, setErroDoArquivo] = useState<unknown>(null);
   const [previa, setPrevia] = useState<PreviaDeImportacao | null>(null);
   const [resultado, setResultado] = useState<DetalheDeImportacao | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -324,6 +334,9 @@ export function AssistenteDaImportacao() {
   const [soComErro, setSoComErro] = useState(false);
   /** Só a resposta do último pedido vale: trocar a aba duas vezes depressa não deixa a primeira resposta vencer. */
   const pedido = useRef(0);
+  const vaiParaCompleta = reconhecimento?.trilha === 'COMPLETA' && podeCompleta && !destino;
+  /** A última leitura das colunas pedida, para o "Tentar de novo" repetir a mesma. */
+  const ultimaLeitura = useRef<{ aba: number; linha?: number }>({ aba: 0 });
   const estreita = largura < LARGURA_ESTREITA;
 
   const descartarAjustes = () => {
@@ -338,8 +351,7 @@ export function AssistenteDaImportacao() {
     setPrevia(null);
   };
 
-  const escolherDestino = (id: string | null) => {
-    const d = destinos.find((x) => x.id === id) ?? null;
+  const aplicarDestino = (d: Destino | null) => {
     setDestino(d);
     if (d) {
       setChave(d.chaves[0].valor);
@@ -350,7 +362,9 @@ export function AssistenteDaImportacao() {
     setPrevia(null);
     descartarAjustes();
   };
+  const escolherDestino = (id: string | null) => aplicarDestino(destinos.find((x) => x.id === id) ?? null);
 
+  /** Escolher o arquivo já o manda reconhecer; a resposta sugere o destino e a aba (ou a planilha completa). */
   const escolherArquivo = (a: ArquivoEscolhido) => {
     setArquivo(a);
     setAba(0);
@@ -359,25 +373,53 @@ export function AssistenteDaImportacao() {
     setPrevia(null);
     setErro(null);
     descartarAjustes();
+    setReconhecimento(null);
+    setErroDoArquivo(null);
+    const meu = ++pedido.current;
+    if (motivoDoArquivo(a.nome)) {
+      setReconhecendo(false);
+      return;
+    }
+    setReconhecendo(true);
+    formulario(a).then(reconhecerArquivo).then((r) => {
+      if (meu !== pedido.current) return;
+      setReconhecendo(false);
+      setReconhecimento(r);
+      if (r.trilha === 'COMPLETA' && podeCompleta) {
+        aplicarDestino(null);
+        return;
+      }
+      const sugerido = r.trilha === 'UMA_ABA' ? destinos.find((d) => d.id === r.destino) : undefined;
+      if (sugerido) {
+        aplicarDestino(sugerido);
+        setAba(r.aba ?? 0);
+      }
+    }, (e: unknown) => {
+      // Sem reconhecimento a escolha do destino continua valendo; só o .xls antigo trava (`recusado`).
+      if (meu !== pedido.current) return;
+      setReconhecendo(false);
+      setErroDoArquivo(e);
+    });
   };
 
-  const lerColunas = (proxAba: number, proximaLinhaDoCabecalho: number) => {
+  /** Sem `linha` (primeira leitura ou outra aba) a API detecta o cabeçalho e diz qual usou. */
+  const lerColunas = (proxAba: number, linha?: number) => {
     if (!destino || !arquivo) return;
+    ultimaLeitura.current = { aba: proxAba, linha };
     const meu = ++pedido.current;
     setOcupado(true);
     setErro(null);
     setPrevia(null);
-    formulario(arquivo).then((dados) => colunasDaImportacao(destino.id, dados, proxAba, proximaLinhaDoCabecalho)).then((c) => {
+    formulario(arquivo).then((dados) => colunasDaImportacao(destino.id, dados, proxAba, linha)).then((c) => {
       if (meu !== pedido.current) return;
       setColunas(c);
       setAba(c.aba);
+      setLinhaDoCabecalho(c.linhaDoCabecalho);
       // Outra aba ou outro cabeçalho: as linhas mudam, e os ajustes e erros antigos não valem mais.
       descartarAjustes();
-      const sugerido = sugerirMapeamento(c.colunas, destino.campos);
-      if (!podeSensivel) {
-        for (const campo of destino.campos) if (campo.sensivel) sugerido[campo.id] = null;
-      }
-      setMapa(sugerido);
+      const sugerido = mapaDasSugestoes(c.sugestoes, destino, podeSensivel);
+      setMapa(sugerido.mapa);
+      setParaConferir(sugerido.paraConferir);
       setOcupado(false);
     }, (e: unknown) => {
       if (meu !== pedido.current) return;
@@ -431,8 +473,14 @@ export function AssistenteDaImportacao() {
   const avancar = () => {
     setErro(null);
     if (etapa === 1) {
+      if (vaiParaCompleta && arquivo) {
+        // A guarda de saída já está armada (há arquivo): sai sem perguntar, e o arquivo segue só na memória.
+        deixarArquivoEmEspera(arquivo);
+        sairSemPerguntar(() => router.replace(CAMINHO_PLANILHA_COMPLETA));
+        return;
+      }
       setEtapa(2);
-      if (!colunas) lerColunas(aba, linhaDoCabecalho);
+      if (!colunas) lerColunas(aba);
     } else if (etapa === 2) {
       setEtapa(3);
     } else if (etapa === 3) {
@@ -454,7 +502,8 @@ export function AssistenteDaImportacao() {
     router.replace('/treinador/importacao');
   };
 
-  const motivo = motivoParaNaoContinuar(etapa, { destino, arquivo, lendo: ocupado, temColunas: !!colunas, chave, mapa });
+  const recusado = codigoApi(erroDoArquivo) === 'FORMATO_XLS_ANTIGO' ? textoDoErroDaApi(erroDoArquivo) : null;
+  const motivo = motivoParaNaoContinuar(etapa, { destino, arquivo, reconhecendo, recusado, vaiParaCompleta, lendo: ocupado, temColunas: !!colunas, chave, mapa });
   const resumo = previa ? resumoDaValidacao(previa) : null;
   const titulo = destino ? `Nova importação · ${destino.rotulo}` : 'Nova importação';
   const tituloDeDado = colunas ? avisoDeTituloDeDado(colunasComTituloDeDado(colunas.colunas)) : null;
@@ -487,15 +536,24 @@ export function AssistenteDaImportacao() {
         {/* Sem conexão na leitura ou na validação, o "Tentar de novo" repete o mesmo pedido (a confirmação não: o
             treinador confere e toca em Confirmar de novo). */}
         {erro ? <MensagemErro texto={textoDoErroDaApi(erro)} erro={erro}
-          tentarDeNovo={etapa === 4 && !previa ? validar : etapa === 2 && !colunas ? () => lerColunas(aba, linhaDoCabecalho) : undefined} /> : null}
+          tentarDeNovo={etapa === 4 && !previa ? validar : etapa === 2 && !colunas ? () => lerColunas(ultimaLeitura.current.aba, ultimaLeitura.current.linha) : undefined} /> : null}
 
         {etapa === 1 ? (
           <>
-            <CartoesDeDestino destinos={destinos} valor={destino?.id ?? null} aoMudar={escolherDestino} />
-            <CartaoDaPlanilhaCompleta />
-            <Cartao titulo="Carregue seu arquivo de dados (.xlsx, .csv)">
-              <ZonaDeArquivo arquivo={arquivo} aoEscolher={escolherArquivo} />
+            <Cartao titulo="Carregue seu arquivo de dados (.xlsx, .csv)"
+              descricao="O app reconhece o arquivo: uma aba de alunos, pesos ou biblioteca, ou a planilha completa com treinos e dietas.">
+              <ZonaDeArquivo arquivo={arquivo} aoEscolher={escolherArquivo} erro={recusado} />
+              {erroDoArquivo && !recusado ? <Alerta tom="atencao" texto={`Não deu para reconhecer o arquivo agora (${textoDoErroDaApi(erroDoArquivo)}). Escolha o que vai importar.`} /> : null}
+              {reconhecendo ? <Texto variante="suave" accessibilityLiveRegion="polite">Reconhecendo o arquivo…</Texto> : null}
+              {reconhecimento ? (
+                <Texto accessibilityLiveRegion="polite">
+                  {textoDoReconhecimento(reconhecimento, podeCompleta, destinos.find((d) => d.id === reconhecimento.destino)?.rotulo ?? null)}
+                </Texto>
+              ) : null}
             </Cartao>
+            {/* O destino só depois do arquivo: reconhecido, já vem marcado; na planilha completa, escolher um é importar uma aba só. */}
+            {arquivo && !reconhecendo && !recusado && !motivoDoArquivo(arquivo.nome)
+              ? <CartoesDeDestino destinos={destinos} valor={destino?.id ?? null} aoMudar={escolherDestino} /> : null}
             {destino ? (
               <View style={estilos.linha}>
                 <Texto variante="suave">Ainda não tem a planilha?</Texto>
@@ -515,7 +573,7 @@ export function AssistenteDaImportacao() {
             <Cartao titulo="Leitura da planilha">
               {colunas && colunas.abas.length > 1 ? (
                 <View style={estilos.campo}>
-                  <EscolhaEmFolha rotulo="Aba" valor={String(aba)} aoMudar={(v) => lerColunas(Number(v), linhaDoCabecalho)}
+                  <EscolhaEmFolha rotulo="Aba" valor={String(aba)} aoMudar={(v) => lerColunas(Number(v))}
                     opcoes={colunas.abas.map((nome, i) => ({ valor: String(i), rotulo: nome }))} />
                   <Texto variante="pequeno">{`A planilha tem ${colunas.abas.length} abas; escolha a que tem os dados.`}</Texto>
                 </View>
@@ -524,7 +582,7 @@ export function AssistenteDaImportacao() {
               <View style={estilos.campo}>
                 <EscolhaEmFolha rotulo="Linha do cabeçalho" valor={linhaDoCabecalho} opcoes={opcoesDaLinhaDoCabecalho()}
                   aoMudar={(v) => { setLinhaDoCabecalho(v); lerColunas(aba, v); }} />
-                <Texto variante="pequeno">Número da linha no arquivo com o nome das colunas. As linhas acima dela não entram nos dados. Escolha Nenhuma se a planilha começa direto nos dados; as colunas viram A, B, C…</Texto>
+                <Texto variante="pequeno">Número da linha no arquivo com o nome das colunas, já escolhida pelo app: troque se estiver errada. As linhas acima dela não entram nos dados. Escolha Nenhuma se a planilha começa direto nos dados; as colunas viram A, B, C…</Texto>
               </View>
             </Cartao>
             <Cartao titulo="Quem já está cadastrado">
@@ -543,8 +601,14 @@ export function AssistenteDaImportacao() {
 
         {etapa === 3 && destino && colunas ? (
           <Mapeamento destino={destino} colunas={colunas} linhaDoCabecalho={linhaDoCabecalho} chave={chave} mapa={mapa} estreita={estreita} podeSensivel={podeSensivel}
-            larguraDisponivel={largura} tituloDeDado={tituloDeDado}
-            aoMudar={(m) => { setMapa(m); setPrevia(null); }} ajustes={ajustes} aoAjustar={mudarAjustes}
+            larguraDisponivel={largura} tituloDeDado={tituloDeDado} paraConferir={paraConferir}
+            aoMudar={(m, coluna) => {
+              // Mexer na coluna confere a sugestão dela: o "Confira" sai do campo que estava e do que foi escolhido.
+              const mexidos = [campoDaColuna(mapa, coluna), campoDaColuna(m, coluna)];
+              if (mexidos.some((c) => c && paraConferir.has(c))) setParaConferir(new Set([...paraConferir].filter((c) => !mexidos.includes(c))));
+              setMapa(m);
+              setPrevia(null);
+            }} ajustes={ajustes} aoAjustar={mudarAjustes}
             ultimaValidacao={ultimaValidacao} soComErro={soComErro} aoMudarSoComErro={setSoComErro} />
         ) : null}
 
@@ -628,9 +692,10 @@ function CartoesDeDestino({ destinos, valor, aoMudar }: { destinos: Destino[]; v
  * páginas de 50 linhas, células editáveis e a lixeira por linha (referência de 30/10). O que se corrige ou tira fica só
  * na memória da tela e vai junto na validação; a célula que veio cortada não se edita.
  */
-function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita, podeSensivel, larguraDisponivel, tituloDeDado, aoMudar, ajustes, aoAjustar, ultimaValidacao, soComErro, aoMudarSoComErro }: {
+function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita, podeSensivel, larguraDisponivel, tituloDeDado, paraConferir, aoMudar, ajustes, aoAjustar, ultimaValidacao, soComErro, aoMudarSoComErro }: {
   destino: Destino; colunas: ColunasDaImportacao; linhaDoCabecalho: number; chave: string; mapa: MapaDaImportacao;
-  estreita: boolean; podeSensivel: boolean; larguraDisponivel: number; tituloDeDado: string | null; aoMudar: (mapa: MapaDaImportacao) => void;
+  estreita: boolean; podeSensivel: boolean; larguraDisponivel: number; tituloDeDado: string | null;
+  paraConferir: ReadonlySet<string>; aoMudar: (mapa: MapaDaImportacao, coluna: number) => void;
   ajustes: AjustesDaTabela; aoAjustar: (ajustes: AjustesDaTabela) => void;
   ultimaValidacao: { erros: PreviaDeImportacao['erros']; mapa: MapaDaImportacao } | null;
   soComErro: boolean; aoMudarSoComErro: (v: boolean) => void;
@@ -668,7 +733,7 @@ function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita,
       {tituloDeDado ? <Alerta tom="atencao" texto={tituloDeDado} /> : null}
       <Texto variante="suave">
         {colunas.amostra.length > 0
-          ? 'Em cada coluna, escolha o campo do sistema; o que ficar em “Não importar” não entra. Dá para corrigir um valor direto na tabela ou tirar uma linha: o arquivo não muda e a correção vai junto na validação.'
+          ? `Em cada coluna, confira o campo do sistema; o que ficar em “Não importar” não entra.${[...paraConferir].some((c) => mapa[c] != null) ? ' As marcadas com “Confira” foram sugeridas por um nome parecido.' : ''} Dá para corrigir um valor direto na tabela ou tirar uma linha: o arquivo não muda e a correção vai junto na validação.`
           : 'A aba não tem linhas de dados. Volte e confira a aba ou o cabeçalho.'}
       </Texto>
       {!podeSensivel && destino.campos.some((c) => c.sensivel) ? (
@@ -705,7 +770,9 @@ function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita,
               <View key={i} style={[estilos.celulaCabecalho, { width: largura }]}>
                 <Texto variante="pequeno" numberOfLines={1}>{`Coluna “${nomeDaColuna(i)}”`}</Texto>
                 <EscolhaSuspensa rotulo="Campo" titulo={`Campo da coluna “${nomeDaColuna(i)}”`} valor={campoDaColuna(mapa, i)}
-                  opcoes={opcoesDoCampoDaColuna(campos, mapa, i, nomeDaColuna)} aoMudar={(campo) => aoMudar(escolherCampoDaColuna(mapa, i, campo))} />
+                  opcoes={opcoesDoCampoDaColuna(campos, mapa, i, nomeDaColuna)} aoMudar={(campo) => aoMudar(escolherCampoDaColuna(mapa, i, campo), i)} />
+                {/* Embaixo da lista: as listas de todas as colunas ficam na mesma altura. */}
+                {paraConferir.has(campoDaColuna(mapa, i) ?? '') ? <View style={estilos.linhaPequena}><Selo texto="Confira" /></View> : null}
               </View>
             ))}
             <View style={estilos.celulaAcao} />
@@ -795,7 +862,8 @@ function CelulaDaPlanilha({ largura, linha, coluna, valor, ajustada, cortada, er
   );
 }
 
-export function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhido | null; aoEscolher: (arquivo: ArquivoEscolhido) => void }) {
+/** Área do arquivo. `erro` = recusa da API junto do arquivo (ex.: 422 `FORMATO_XLS_ANTIGO`). */
+export function ZonaDeArquivo({ arquivo, aoEscolher, erro }: { arquivo: ArquivoEscolhido | null; aoEscolher: (arquivo: ArquivoEscolhido) => void; erro?: string | null }) {
   const { cores } = useTema();
   const idDaEntrada = `arquivo-da-planilha-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const [arrastando, setArrastando] = useState(false);
@@ -813,6 +881,7 @@ export function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhi
     (globalThis as { document?: { getElementById: (id: string) => { click: () => void } | null } }).document?.getElementById(idDaEntrada)?.click();
   };
   const tipo = arquivo ? tipoDoArquivo(arquivo.nome) : null;
+  const problema = arquivo ? motivoDoArquivo(arquivo.nome) ?? erro : null;
   const tamanho = arquivo ? tamanhoParaTela(arquivo.tamanho) : null;
 
   const conteudo = arquivo ? (
@@ -821,7 +890,7 @@ export function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhi
       <View style={estilos.textosDoArquivo}>
         <Texto variante="bloco" numberOfLines={2}>{arquivo.nome}</Texto>
         <Texto variante="suave">{[tipo ?? 'Formato não aceito', tamanho].filter(Boolean).join(' · ')}{' · selecionado, ainda não enviado'}</Texto>
-        {!tipo ? <Texto cor={cores.perigo}>Envie um arquivo .xlsx ou .csv.</Texto> : null}
+        {problema ? <Texto cor={cores.perigo} accessibilityLiveRegion="polite">{problema}</Texto> : null}
       </View>
       <Botao rotulo="Trocar arquivo" tipo="acao" aoTocar={escolher} />
     </View>

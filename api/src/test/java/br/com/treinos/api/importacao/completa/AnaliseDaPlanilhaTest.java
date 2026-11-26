@@ -240,7 +240,7 @@ class AnaliseDaPlanilhaTest {
     @Test
     void arquivoQueNaoEPlanilhaERecusadoSemConteudo() {
         assertThatThrownBy(() -> LeituraDasAbas.ler("x.xls", new byte[] {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0}))
-                .isInstanceOf(ValidacaoException.class);
+                .isInstanceOfSatisfying(ValidacaoException.class, e -> assertThat(e.getCodigo()).isEqualTo("FORMATO_XLS_ANTIGO"));
         Map<String, List<List<Object>>> muitas = new LinkedHashMap<>();
         for (int i = 0; i <= LeituraDasAbas.ABAS_MAXIMAS; i++) {
             muitas.put("Aba " + i, List.of(linha("x")));

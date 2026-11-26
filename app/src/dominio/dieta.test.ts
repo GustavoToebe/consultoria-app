@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta, Refeicao } from '../api/tipos';
-import { aguaValida, anuncioDaOpcaoMovida, aplicarReceitaDeDieta, avisoDaNovaOpcaoA, ehRotuloPadrao, letraDaPosicao, moverOpcao, nomeDaOpcao, novaOpcao, opcaoNaFrase, reletrarOpcoes, restaurarOrdemDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDaOpcao, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
+import { aguaValida, anuncioDaOpcaoMovida, aplicarReceitaDeDieta, avisoDaNovaOpcaoA, ehRotuloPadrao, letraDaPosicao, moverOpcao, nomeDaOpcao, novaOpcao, opcaoNaFrase, reletrarOpcoes, restaurarOrdemDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, opcaoDoTotalDoDia, totalDaOpcao,totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -322,6 +322,17 @@ describe('reordenar as opções: a letra segue a posição (26/11)', () => {
     expect(['A', ' B ', '3'].map(totalDaOpcao)).toEqual(['Total da opção A', 'Total da opção B', 'Total da opção 3']);
     expect(totalDaOpcao('')).toBe('Total da opção');
     expect(['Opção Principal', ' Light ', 'a'].map(totalDaOpcao)).toEqual(['Total · Opção Principal', 'Total · Light', 'Total · a']);
+  });
+
+  it('opcaoDoTotalDoDia: padrão ou vazio = "opção A"; mesmo personalizado = o rótulo; mistura = "primeira opção"', () => {
+    const r = (...rotulos: string[]): Refeicao => ({ uid: 'r', nome: 'R', horario: '', observacao: '', opcoes: rotulos.map((rotulo) => ({ uid: 'o', rotulo, itens: [] })) } as Refeicao);
+    expect(opcaoDoTotalDoDia([r('A', 'B'), r('A')])).toEqual({ padrao: true, nome: 'opção A' });
+    expect(opcaoDoTotalDoDia([r(''), r('1')])).toEqual({ padrao: true, nome: 'opção A' });
+    expect(opcaoDoTotalDoDia([r('Principal', 'B'), r(' Principal ')])).toEqual({ padrao: false, nome: 'Principal' });
+    expect(opcaoDoTotalDoDia([r('Principal'), r('Light')])).toEqual({ padrao: false, nome: 'primeira opção' });
+    expect(opcaoDoTotalDoDia([r('Principal'), r('A')])).toEqual({ padrao: false, nome: 'primeira opção' });
+    expect(opcaoDoTotalDoDia([r('Principal'), r()])).toEqual({ padrao: false, nome: 'Principal' }); // sem opção não conta
+    expect(opcaoDoTotalDoDia([])).toEqual({ padrao: true, nome: 'opção A' });
   });
 
   it('o personalizado não vira letra ao reordenar, e a instância continua a mesma', () => {

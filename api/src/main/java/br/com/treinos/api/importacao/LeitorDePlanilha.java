@@ -131,7 +131,7 @@ public final class LeitorDePlanilha {
         }
         String ext = extensao(nome);
         if ("xls".equals(ext) || ole(bytes)) {
-            throw arquivo("Salve a planilha como .xlsx ou .csv e envie de novo.");
+            throw new ValidacaoException("Salve como .xlsx no Excel e envie de novo.", "FORMATO_XLS_ANTIGO", List.of());
         }
         try {
             if ("xlsx".equals(ext) || zip(bytes)) {

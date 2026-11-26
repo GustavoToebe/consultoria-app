@@ -16,6 +16,8 @@ export interface ContextoDaFicha {
   pode: (codigo: string) => boolean;
   pagamentosHabilitados: boolean;
   retornoHabilitado: boolean;
+  /** Contrato digital ligado na plataforma; ausente = desligado. */
+  contratosHabilitados?: boolean;
 }
 
 /** Blocos de conteúdo que moram nas abas Planos, Acompanhamento, Evolução e Ficha (o Resumo só reúne o que decide a próxima ação). */
@@ -23,7 +25,7 @@ export type BlocoDaFicha =
   | 'pastas'
   | 'frequencia' | 'agua' | 'treinosConcluidos' | 'recordesDaSemana' | 'trocasDeExercicio' | 'evolucaoDasRespostas'
   | 'peso' | 'avaliacaoFisica' | 'fotos' | 'progresso'
-  | 'dadosDoAluno' | 'acessoAoApp' | 'planoContratado' | 'anamnese' | 'lesoes';
+  | 'dadosDoAluno' | 'acessoAoApp' | 'planoContratado' | 'contratos' | 'anamnese' | 'lesoes';
 
 /**
  * Cada bloco, a aba onde fica e a condição que a ficha usa hoje para mostrá-lo (a API autoriza de novo). `dadosDoAluno`
@@ -48,6 +50,7 @@ const BLOCOS: readonly { bloco: BlocoDaFicha; aba: AbaDaFicha; visivel: (c: Cont
   { bloco: 'dadosDoAluno', aba: 'ficha', visivel: () => true },
   { bloco: 'acessoAoApp', aba: 'ficha', visivel: () => true },
   { bloco: 'planoContratado', aba: 'ficha', visivel: (c) => c.pagamentosHabilitados && c.pode('FINANCEIRO_LER') },
+  { bloco: 'contratos', aba: 'ficha', visivel: (c) => c.contratosHabilitados === true && c.pode('CONTRATO_LER') },
   { bloco: 'anamnese', aba: 'ficha', visivel: (c) => c.pode('ANAMNESE_LER') && c.pode('ALUNO_SENSIVEL_LER') },
   { bloco: 'lesoes', aba: 'ficha', visivel: (c) => c.pode('ALUNO_SENSIVEL_LER') },
 ];

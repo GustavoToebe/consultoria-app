@@ -11,6 +11,7 @@ import br.com.treinos.api.pagamentos.PagamentosDtos.EscolhaDeLembretesExportada;
 import br.com.treinos.api.pagamentos.PagamentosDtos.FinanceiroExportado;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LembreteExportado;
 import br.com.treinos.api.tenant.TenantContext;
+import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.Fuso;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -92,6 +93,74 @@ public class PagamentosDoAluno {
         return contratacoes.findFirstByAlunoIdAndSituacao(alunoId, ContratacaoAluno.Situacao.ATIVA)
                 .flatMap(c -> planos.findById(c.getPlanoComercialId()))
                 .map(p -> new PlanosAtivos(p.isIncluiTreino(), p.isIncluiDieta()));
+    }
+
+    /** O que um contrato digital copia da contratação (D10 de {@code contrato-digital}); dado financeiro, nunca em log. */
+    public record DadosParaContrato(String plano, Long valorTotalCentavos, LocalDate inicio, LocalDate fim,
+                                    EntradaDoContrato entrada, List<ParcelaDoContrato> parcelas) {
+        @Override
+        public String toString() {
+            return "DadosParaContrato[...]";
+        }
+    }
+
+    public record EntradaDoContrato(long valorCentavos, LocalDate vencimento) { }
+
+    public record ParcelaDoContrato(long valorCentavos, LocalDate vencimento) { }
+
+    /** Nome e CPF do responsável financeiro para o texto do contrato; dado pessoal de terceiro, nunca em log. */
+    public record ResponsavelParaContrato(String nome, String cpf) {
+        @Override
+        public String toString() {
+            return "ResponsavelParaContrato[...]";
+        }
+    }
+
+    /**
+     * Os campos financeiros de um contrato digital, lidos da contratação (qualquer situação) do aluno: o plano, o início, e, só no
+     * contrato fechado ou na parcela única, o fim da vigência (o último dia, inclusive); só no fechado, o valor total e, no parcelado
+     * fixo, a entrada e as parcelas ainda vivas (CANCELADA e ESTORNADA não contam). Recorrente não tem total, parcelas nem fim.
+     * Financeiro desligado = 503 {@code FINANCEIRO_INDISPONIVEL}; contratação inexistente ou de outro aluno ou consultoria = 404.
+     * Quem chama já conferiu {@code FINANCEIRO_LER}.
+     */
+    @Transactional(readOnly = true)
+    public DadosParaContrato dadosParaContrato(UUID alunoId, UUID contratacaoId) {
+        if (!propriedades.habilitado()) {
+            throw new FinanceiroIndisponivelException();
+        }
+        ContratacaoAluno c = contratacoes.findById(contratacaoId).filter(x -> x.getAlunoId().equals(alunoId))
+                .orElseThrow(() -> new NaoEncontradoException("Contratação não encontrada."));
+        String plano = planos.findById(c.getPlanoComercialId()).map(PlanoComercial::getNome).orElse(null);
+        LocalDate fim = null;
+        if (c.fechado() || !c.getPeriodicidade().recorrente()) {
+            LocalDate termino = VigenciaDoPlano.de(c, LocalDate.now(Fuso.BRASILIA)).termino();
+            // O término é exclusivo (o primeiro dia depois do ciclo): no texto vai o último dia.
+            fim = termino == null ? null : termino.minusDays(1);
+        }
+        EntradaDoContrato entrada = null;
+        List<ParcelaDoContrato> parcelas = List.of();
+        if (c.getModoCobranca() == ModoDeCobranca.PARCELADO_FIXO) {
+            List<CobrancaAluno> vivas = cobrancas.doContrato(c.getId()).stream()
+                    .filter(x -> !CobrancaAluno.NAO_COBREM_PERIODO.contains(x.getSituacao())).toList();
+            entrada = vivas.stream().filter(x -> x.getTipo() == CobrancaAluno.Tipo.AVULSA).findFirst()
+                    .map(x -> new EntradaDoContrato(x.getValorCentavos(), x.getVencimento())).orElse(null);
+            parcelas = vivas.stream().filter(x -> x.getTipo() == CobrancaAluno.Tipo.RENEGOCIACAO)
+                    .sorted(Comparator.comparing(CobrancaAluno::getVencimento).thenComparing(CobrancaAluno::getId))
+                    .map(x -> new ParcelaDoContrato(x.getValorCentavos(), x.getVencimento())).toList();
+        }
+        return new DadosParaContrato(plano, c.fechado() ? c.getValorTotalCentavos() : null, c.getInicio(), fim, entrada, parcelas);
+    }
+
+    /**
+     * O responsável financeiro do aluno, para o texto do contrato. Vazio com o financeiro desligado (D12: ele mora aqui) ou sem
+     * responsável. Quem chama já conferiu {@code FINANCEIRO_LER}.
+     */
+    @Transactional(readOnly = true)
+    public Optional<ResponsavelParaContrato> responsavelParaContrato(UUID alunoId) {
+        if (!propriedades.habilitado()) {
+            return Optional.empty();
+        }
+        return responsaveis.paraContrato(alunoId);
     }
 
     /**

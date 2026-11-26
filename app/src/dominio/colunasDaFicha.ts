@@ -14,7 +14,7 @@ import type { AbaDaFicha, BlocoDaFicha } from './fichaDoAluno';
  * As seções dos Dados do aluno (as quatro de `SECOES_DO_ALUNO` e o cartão "Redes sociais", 26/11, logo abaixo do Contato e
  * sempre na coluna dele; postas pelo `DadosDoAluno`, que tira a das redes sem rede preenchida) e os blocos da aba.
  */
-export type PecaDaAbaDados = 'identificacao' | 'contato' | 'redes' | 'acompanhamento' | 'objetivo' | 'planoContratado' | 'acessoAoApp' | 'anamnese' | 'lesoes';
+export type PecaDaAbaDados = 'identificacao' | 'contato' | 'redes' | 'acompanhamento' | 'objetivo' | 'planoContratado' | 'contratos' | 'acessoAoApp' | 'anamnese' | 'lesoes';
 export type SecaoDosDados = Extract<PecaDaAbaDados, 'identificacao' | 'contato' | 'redes' | 'acompanhamento' | 'objetivo'>;
 type BlocoDaAbaDados = Exclude<PecaDaAbaDados, SecaoDosDados>;
 
@@ -27,7 +27,7 @@ const ehSecao = (p: PecaDaAbaDados): p is SecaoDosDados => (SECOES_DOS_DADOS as 
  * cabia em 1280 e virava cartões.
  */
 export const COLUNAS_DA_FICHA: Readonly<Record<'esquerda' | 'direita', readonly PecaDaAbaDados[]>> = {
-  esquerda: ['identificacao', 'contato', 'redes', 'planoContratado'],
+  esquerda: ['identificacao', 'contato', 'redes', 'planoContratado', 'contratos'],
   direita: ['acompanhamento', 'objetivo', 'acessoAoApp', 'anamnese'],
 };
 export const ABAIXO_DAS_DUAS_COLUNAS: readonly BlocoDaAbaDados[] = ['lesoes'];
@@ -40,7 +40,7 @@ export const PROPORCAO_DAS_COLUNAS = { esquerda: 3, direita: 2 } as const;
  */
 export const TRES_COLUNAS_DA_FICHA: readonly (readonly PecaDaAbaDados[])[] = [
   ['identificacao', 'contato', 'redes', 'objetivo'],
-  ['planoContratado', 'lesoes'],
+  ['planoContratado', 'contratos', 'lesoes'],
   ['acompanhamento', 'acessoAoApp', 'anamnese'],
 ];
 export const PROPORCAO_DAS_TRES_COLUNAS: readonly number[] = [1, 1.2, 1];
@@ -122,13 +122,13 @@ export const abaixoDasColunas = (colunas: readonly ColunaDaAbaDados[] | null, bl
   (colunas?.length === 2 ? ABAIXO_DAS_DUAS_COLUNAS.filter((b) => blocos.includes(b)) : []);
 
 /** Numa coluna, depois dos Dados: as lesões ativas no topo e as recuperadas no fim (a ordem do celular, 23/11). */
-export type PecaNumaColuna = 'lesoesAtivas' | 'planoContratado' | 'acessoAoApp' | 'anamnese' | 'lesoesRecuperadas';
+export type PecaNumaColuna = 'lesoesAtivas' | 'planoContratado' | 'contratos' | 'acessoAoApp' | 'anamnese' | 'lesoesRecuperadas';
 
 export function ordemNumaColuna(blocos: readonly BlocoDaFicha[]): PecaNumaColuna[] {
   const lesoes = blocos.includes('lesoes');
   return [
     ...(lesoes ? ['lesoesAtivas' as const] : []),
-    ...(['planoContratado', 'acessoAoApp', 'anamnese'] as const).filter((b) => blocos.includes(b)),
+    ...(['planoContratado', 'contratos', 'acessoAoApp', 'anamnese'] as const).filter((b) => blocos.includes(b)),
     ...(lesoes ? ['lesoesRecuperadas' as const] : []),
   ];
 }

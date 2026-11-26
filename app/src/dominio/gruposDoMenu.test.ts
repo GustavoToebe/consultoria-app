@@ -10,6 +10,7 @@ import {
   posicaoNoMenu,
   resumoDoGrupoRecolhido,
   rotuloCurtoDoMenu,
+  rumoAoSubmenu,
   sinaisDoIconeDoGrupo,
   topoDoSubmenu,
   type GrupoDoMenu,
@@ -246,5 +247,46 @@ describe('topoDoSubmenu', () => {
     expect(topoDoSubmenu(300, 900, 720)).toBe(8);
     expect(topoDoSubmenu(-20, null, 720)).toBe(8);
     expect(topoDoSubmenu(300, null, 720)).toBe(300);
+  });
+});
+
+describe('rumoAoSubmenu', () => {
+  const submenu = { esquerda: 76, topo: 333, altura: 220 };
+
+  it('travessia diagonal para baixo rumo ao último item do submenu é reconhecida', () => {
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 50, y: 395 }, submenu)).toBe(true);
+  });
+
+  it('travessia diagonal para cima quando o submenu foi empurrado por topoDoSubmenu é reconhecida', () => {
+    expect(rumoAoSubmenu({ x: 36, y: 520 }, { x: 50, y: 480 }, { esquerda: 76, topo: 340, altura: 220 })).toBe(true);
+  });
+
+  it('travessia horizontal direta e entrada até a margem da borda esquerda do submenu são reconhecidas', () => {
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 65, y: 355 }, submenu)).toBe(true);
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 80, y: 355 }, submenu)).toBe(true);
+  });
+
+  it('movimento puramente vertical pelo trilho ou com dx <= 1 troca imediatamente', () => {
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 36, y: 400 }, submenu)).toBe(false);
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 37, y: 400 }, submenu)).toBe(false);
+  });
+
+  it('movimento para a esquerda nunca mantém o submenu anterior', () => {
+    expect(rumoAoSubmenu({ x: 45, y: 355 }, { x: 30, y: 355 }, submenu)).toBe(false);
+  });
+
+  it('ponto fora do cone vertical (acima de topo - folga ou abaixo de topo + altura + folga) retorna falso', () => {
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 50, y: 300 }, submenu)).toBe(false);
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 50, y: 580 }, submenu)).toBe(false);
+    // Ponto na folga de 16 px acima do topo: aceito com folga padrão, recusado com folga 0.
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 76, y: 325 }, submenu)).toBe(true);
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 76, y: 325 }, submenu, 0)).toBe(false);
+  });
+
+  it('submenu com altura <= 0, origem já à direita ou ponto além de esquerda + 4 retornam falso', () => {
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 50, y: 355 }, { esquerda: 76, topo: 333, altura: 0 })).toBe(false);
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 50, y: 355 }, { esquerda: 76, topo: 333, altura: -10 })).toBe(false);
+    expect(rumoAoSubmenu({ x: 36, y: 355 }, { x: 81, y: 355 }, submenu)).toBe(false);
+    expect(rumoAoSubmenu({ x: 76, y: 355 }, { x: 78, y: 355 }, submenu)).toBe(false);
   });
 });

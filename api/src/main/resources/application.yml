@@ -129,6 +129,10 @@ treinos:
     meta-verify-token: ${TREINOS_WHATSAPP_META_VERIFY_TOKEN:}
     meta-url: ${TREINOS_WHATSAPP_META_URL:https://graph.facebook.com}
     envio-agendado: ${TREINOS_WHATSAPP_ENVIO_AGENDADO:true}
+  # Contrato digital do aluno (modelos com campos, aceite com evidências, prazo para assinar). Desligado por padrão: as rotas respondem
+  # 503 CONTRATOS_INDISPONIVEL e o app esconde tudo (GET /eu traz contratosHabilitados). A exportação e a anonimização rodam sempre.
+  contratos:
+    habilitado: ${TREINOS_CONTRATOS_HABILITADO:false}
   # Vitrine da consultoria (itens com preço, preço especial e cupom que o treinador mostra ao aluno; sem pagamento). Desligada por
   # padrão: as rotas respondem 503 VITRINE_INDISPONIVEL e o app esconde tudo (GET /eu traz vitrineHabilitada).
   vitrine:

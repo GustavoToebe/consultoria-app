@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -20,6 +21,8 @@ import java.util.Map;
  */
 @Component
 public class InterpretadorGemini implements InterpretadorIa {
+
+    static final Duration TIMEOUT_HTTP = Duration.ofSeconds(60);
 
     private final ConfiguracaoIaImportacao config;
     private final JsonMapper json;
@@ -55,14 +58,16 @@ public class InterpretadorGemini implements InterpretadorIa {
                     .uri(URI.create(url))
                     .header("Content-Type", "application/json")
                     .header("x-goog-api-key", apiKey)
-                    .timeout(Duration.ofSeconds(60))
+                    .timeout(TIMEOUT_HTTP)
                     .POST(HttpRequest.BodyPublishers.ofString(corpoRequisicao, StandardCharsets.UTF_8))
                     .build();
 
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() != 200) {
                 // Corpo da resposta fora da mensagem: pode ecoar o conteúdo enviado.
-                throw new IllegalStateException("Falha na chamada Gemini (HTTP " + response.statusCode() + ").");
+                String falha = "Falha na chamada Gemini (HTTP " + response.statusCode() + ").";
+                throw FalhaPassageiraDoProvedor.statusPassageiro(response.statusCode())
+                        ? new FalhaPassageiraDoProvedor(falha) : new IllegalStateException(falha);
             }
 
             return processarResposta(response.body(), contexto);
@@ -71,6 +76,9 @@ public class InterpretadorGemini implements InterpretadorIa {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Consulta ao Gemini interrompida.");
+        } catch (IOException e) {
+            // Inclui o tempo esgotado (HttpTimeoutException) e a conexão que caiu.
+            throw new FalhaPassageiraDoProvedor("Erro de rede ao consultar Google Gemini (" + e.getClass().getSimpleName() + ").");
         } catch (Exception e) {
             throw new IllegalStateException("Erro ao consultar Google Gemini (" + e.getClass().getSimpleName() + ").");
         }

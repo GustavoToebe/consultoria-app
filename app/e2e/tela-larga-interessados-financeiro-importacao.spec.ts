@@ -240,8 +240,9 @@ test('Importação › nova importação em 3440 px para em 1400 px à esquerda;
   const { errosDaPagina } = await abrirImportacao(page, 3440);
   await page.goto('/treinador/importacao/nova');
   const h1 = await caixa(page.getByRole('heading', { level: 1 }));
-  const planilha = await caixa(page.getByRole('link', { name: /Planilha completa \(alunos, pesos, treinos e dietas\)/ }));
-  expect(planilha.x).toBeLessThan(h1.x + 2);
+  // Entrada única (26/11): o cartão do arquivo é o primeiro da etapa 1; mede a área do arquivo (o botão dela ocupa a largura).
+  const planilha = await caixa(page.getByRole('button', { name: 'Escolher arquivo' }));
+  expect(planilha.x).toBeLessThan(h1.x + 60);
   expect(planilha.x + planilha.width - h1.x).toBeLessThanOrEqual(TETO);
   const cancelar = await caixa(page.getByRole('button', { name: 'Cancelar' }));
   expect(cancelar.x + cancelar.width - h1.x).toBeLessThanOrEqual(TETO);

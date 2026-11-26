@@ -1,6 +1,7 @@
 package br.com.treinos.api.importacao;
 
 import br.com.plataforma.comum.web.BadRequestException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
@@ -36,6 +37,7 @@ import br.com.treinos.api.web.LinksExternos;
 import br.com.treinos.api.web.VideoUrls;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import org.hibernate.Session;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
@@ -48,13 +50,17 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -120,6 +126,9 @@ class GravadorDaImportacao {
                      List<Amostra> amostra) {
     }
 
+    /** Linhas por lote de INSERT/UPDATE na confirmação; os ids são UUID gerados no Java, então o lote funciona. */
+    private static final int LOTE = 500;
+
     Resultado processar(String destino, LeitorDePlanilha.Planilha planilha, ConfiguracaoDaImportacao config,
                         UUID usuarioId, boolean gravar) {
         List<Linha> dados = List.copyOf(planilha.linhas().subList(
@@ -128,6 +137,11 @@ class GravadorDaImportacao {
         Ctx ctx = new Ctx();
         ctx.regra = config.existentes();
         CTX.set(ctx);
+        // Só na confirmação (há transação): o lote vale para esta sessão e volta ao padrão no fim.
+        Session sessao = gravar ? entityManager.unwrap(Session.class) : null;
+        if (sessao != null) {
+            sessao.setJdbcBatchSize(LOTE);
+        }
         try {
         switch (destino) {
             case "alunos" -> alunos(dados, config, usuarioId, gravar, conta);
@@ -138,10 +152,32 @@ class GravadorDaImportacao {
             case "outros" -> outros(dados, config, gravar, conta);
             default -> throw new IllegalStateException("Destino sem gravador.");
         }
+        if (gravar) {
+            descarregar();
+        }
         return new Resultado(dados.size(), conta.novos, conta.atualizados, conta.ignorados, conta.comErro,
                 conta.erros, conta.amostra);
         } finally {
+            if (sessao != null) {
+                sessao.setJdbcBatchSize(null);
+            }
             CTX.remove();
+        }
+    }
+
+    /**
+     * Grava de uma vez (em lotes) o que as linhas deixaram pendente. Violação de restrição aqui só vem de outra gravação
+     * que correu por fora da trava da consultoria (as repetições da própria planilha já viram erro da linha, em memória):
+     * o CPF segue dando o 409 de sempre e o resto vira 409 em vez de 500; a confirmação inteira recua.
+     */
+    private void descarregar() {
+        try {
+            alunos.flush();
+        } catch (DataIntegrityViolationException e) {
+            if (AlunoService.violouCpf(e)) {
+                throw AlunoService.cpfEmUso();
+            }
+            throw new ConflictException("Os dados mudaram durante a importação. Valide de novo.", "CONFLITO_NA_IMPORTACAO");
         }
     }
 
@@ -154,7 +190,7 @@ class GravadorDaImportacao {
             }
         }
         Vagas vagas = new Vagas(plano.vagasDeAluno());
-        VagasDoTreinador doTreinador = new VagasDoTreinador(limiteDoTreinador, gravar);
+        VagasDoTreinador doTreinador = new VagasDoTreinador(limiteDoTreinador);
         for (Linha linha : dados) {
             conta.amostra(linha, config, CAMPOS_ALUNO);
             try {
@@ -178,7 +214,7 @@ class GravadorDaImportacao {
         }
         Aluno atual = achados.isEmpty() ? null : achados.get(0);
         boolean ignorar = atual != null && "IGNORAR".equals(config.existentes());
-        if (gravar && atual != null && !ignorar) { // linha ignorada não altera nada: não segura a trava do aluno
+        if (gravar && atual != null && !ignorar && !indice.criadoNestaImportacao(atual)) { // linha ignorada não altera nada: não segura a trava do aluno
             // O findAll do começo não trava e a ficha pode ter mudado desde então (outro treinador desativou o acesso, por
             // exemplo). Relê e trava ANTES de vaga, situação e usuário: a ordem consultoria, aluno e usuário é a de quem
             // desativa (aluno, usuário). buscarParaAlterar não serve: a instância já está no contexto e voltaria velha.
@@ -242,7 +278,8 @@ class GravadorDaImportacao {
             // Aluno novo não tem acesso: o telefone fica no cadastro até o acesso existir (V048).
             aluno.guardarTelefoneSemAcesso(telefone);
             if (gravar) {
-                salvar(aluno);
+                alunos.save(aluno); // sem flush: os novos saem em lote no fim (descarregar), o CPF repetido já é erro da linha
+                indice.criado(aluno);
             }
             indice.adicionar(aluno);
             conta.novos++;
@@ -294,7 +331,8 @@ class GravadorDaImportacao {
     private void pesos(List<Linha> dados, ConfiguracaoDaImportacao config, UUID usuarioId, boolean gravar, Conta conta,
                        boolean data1904) {
         Indice indice = new Indice(alunos.findAll());
-        Map<String, RegistroPeso> porDia = new LinkedHashMap<>();
+        // Os pesos que já existem dos alunos do arquivo, lidos de uma vez (não uma consulta por linha); as linhas do arquivo entram aqui também.
+        Map<String, RegistroPeso> porDia = pesosExistentes(dados, config, indice);
         for (Linha linha : dados) {
             conta.amostra(linha, config, List.of("aluno", "data", "peso", "observacao"));
             try {
@@ -328,9 +366,6 @@ class GravadorDaImportacao {
                 String observacao = obs.mapeado() && !obs.vazio() ? limitar(obs.texto(), 300, linha.numero(), "observacao") : null;
                 String idDia = aluno.getId() + ":" + data;
                 RegistroPeso existente = porDia.get(idDia);
-                if (existente == null && aluno.getId() != null) {
-                    existente = pesos.findByAlunoIdAndData(aluno.getId(), data).orElse(null);
-                }
                 if (existente != null && "IGNORAR".equals(config.existentes())) {
                     conta.ignorados++;
                     continue;
@@ -341,13 +376,12 @@ class GravadorDaImportacao {
                     }
                     RegistroPeso novo = new RegistroPeso(aluno.getId(), data, peso, observacao, usuarioId);
                     if (gravar) {
-                        pesos.saveAndFlush(novo);
+                        pesos.save(novo); // sem flush: sai em lote no fim (descarregar)
                     }
                     porDia.put(idDia, novo);
                     conta.novos++;
                 } else if (gravar) {
-                    existente.alterar(peso, observacao == null ? existente.getObservacao() : observacao, usuarioId);
-                    pesos.saveAndFlush(existente);
+                    existente.alterar(peso, observacao == null ? existente.getObservacao() : observacao, usuarioId); // gerenciado: o UPDATE sai no fim
                     porDia.put(idDia, existente);
                     conta.atualizados++;
                 } else {
@@ -358,6 +392,29 @@ class GravadorDaImportacao {
                 conta.falha(e.linha, e.campo, e.motivo);
             }
         }
+    }
+
+    /** Pesos já gravados dos alunos que o arquivo cita (achados sem ambiguidade), por {@code alunoId:data}. */
+    private Map<String, RegistroPeso> pesosExistentes(List<Linha> dados, ConfiguracaoDaImportacao config, Indice indice) {
+        Set<UUID> ids = new HashSet<>();
+        for (Linha linha : dados) {
+            Leitura chave = leitura(linha, config, "aluno");
+            if (chave.erro() || chave.vazio()) {
+                continue; // a linha falha depois, com o motivo certo
+            }
+            List<Aluno> achados = indice.buscar(config.chave(), chave.texto());
+            if (achados.size() == 1 && achados.get(0).getId() != null) {
+                ids.add(achados.get(0).getId());
+            }
+        }
+        Map<String, RegistroPeso> porDia = new LinkedHashMap<>();
+        List<UUID> lista = new ArrayList<>(ids);
+        for (int i = 0; i < lista.size(); i += 1000) { // lotes de 1000 ids: longe do teto de parâmetros do driver
+            for (RegistroPeso p : pesos.findByAlunoIdIn(lista.subList(i, Math.min(i + 1000, lista.size())))) {
+                porDia.put(p.getAlunoId() + ":" + p.getData(), p);
+            }
+        }
+        return porDia;
     }
 
     private void exercicios(List<Linha> dados, ConfiguracaoDaImportacao config, boolean gravar, Conta conta) {
@@ -387,13 +444,12 @@ class GravadorDaImportacao {
                 if (novo) {
                     Exercicio criado = new Exercicio(nome, grupo, equipamento, modalidade, video, observacoes, Exercicio.Origem.IMPORTACAO);
                     if (gravar) {
-                        exercicios.saveAndFlush(criado);
+                        exercicios.save(criado);
                     }
                     porNome.put(Buscas.semAcento(nome), criado);
                     conta.novos++;
                 } else if (gravar) {
-                    atual.alterar(nome, grupo, equipamento, modalidade, video, observacoes);
-                    exercicios.saveAndFlush(atual);
+                    atual.alterar(nome, grupo, equipamento, modalidade, video, observacoes); // gerenciado: o UPDATE sai no fim
                     conta.atualizados++;
                 } else {
                     conta.atualizados++;
@@ -452,13 +508,12 @@ class GravadorDaImportacao {
                 if (novo) {
                     Alimento criado = new Alimento(valores, Exercicio.Origem.IMPORTACAO);
                     if (gravar) {
-                        alimentos.saveAndFlush(criado);
+                        alimentos.save(criado);
                     }
                     porNome.put(Buscas.semAcento(nome), criado);
                     conta.novos++;
                 } else if (gravar) {
-                    atual.alterar(valores);
-                    alimentos.saveAndFlush(atual);
+                    atual.alterar(valores); // gerenciado: o UPDATE sai no fim
                     conta.atualizados++;
                 } else {
                     conta.atualizados++;
@@ -516,13 +571,12 @@ class GravadorDaImportacao {
                 if (novo) {
                     Alimento criado = new Alimento(valores, Exercicio.Origem.IMPORTACAO, Alimento.Tipo.SUPLEMENTO);
                     if (gravar) {
-                        alimentos.saveAndFlush(criado);
+                        alimentos.save(criado);
                     }
                     porNome.put(Buscas.semAcento(nome), criado);
                     conta.novos++;
                 } else if (gravar) {
-                    atual.alterar(valores);
-                    alimentos.saveAndFlush(atual);
+                    atual.alterar(valores); // gerenciado: o UPDATE sai no fim
                     conta.atualizados++;
                 } else {
                     conta.atualizados++;
@@ -569,19 +623,15 @@ class GravadorDaImportacao {
                 var valores = new Ergogenico.Valores(categoria, nome, Buscas.semAcento(nome), principio,
                         Buscas.semAcento(principio), concentracao.isEmpty() ? null : concentracao,
                         apresentacao.isEmpty() ? null : apresentacao, observacao);
-                if (novo && ergogenicos.existeIgual(Buscas.semAcento(nome), concentracao, apresentacao, UUID.randomUUID())) {
-                    throw falha(linha, "nome", "Já existe um item com este nome.");
-                }
                 if (novo) {
                     Ergogenico criado = new Ergogenico(valores);
                     if (gravar) {
-                        ergogenicos.saveAndFlush(criado);
+                        ergogenicos.save(criado);
                     }
                     porVariante.computeIfAbsent(chave, k -> new ArrayList<>()).add(criado);
                     conta.novos++;
                 } else if (gravar) {
-                    atual.alterar(valores);
-                    ergogenicos.saveAndFlush(atual);
+                    atual.alterar(valores); // gerenciado: o UPDATE sai no fim
                     conta.atualizados++;
                 } else {
                     conta.atualizados++;
@@ -1070,29 +1120,40 @@ class GravadorDaImportacao {
     }
 
     /**
-     * Vagas dos responsáveis na importação. Na confirmação o banco já tem as linhas anteriores (cada uma é gravada e descarregada
-     * antes da próxima) e a consultoria está travada; na prévia nada é gravado, então {@code saldo} acompanha o que as linhas
-     * anteriores mudariam: +1 para quem passa a ter o aluno ativo, -1 para quem deixa de ter.
+     * Vagas dos responsáveis na importação, iguais na prévia e na confirmação: as vagas de cada responsável são lidas do banco uma
+     * vez (a consultoria está travada na confirmação e nada é gravado na prévia, então não mudam por fora) e {@code saldo}
+     * acompanha o que as linhas anteriores mudariam: +1 para quem passa a ter o aluno ativo, -1 para quem deixa de ter. Não
+     * reconta no banco a cada linha: os alunos novos só são gravados no fim, em lote.
      */
     private static final class VagasDoTreinador {
         private final LimiteDoTreinador limite;
-        private final boolean gravar;
+        private final Map<UUID, Optional<Long>> iniciais = new HashMap<>();
         private final Map<UUID, Long> saldo = new HashMap<>();
 
-        VagasDoTreinador(LimiteDoTreinador limite, boolean gravar) {
+        VagasDoTreinador(LimiteDoTreinador limite) {
             this.limite = limite;
-            this.gravar = gravar;
+        }
+
+        /** Lida antes de a linha mexer no responsável: depois disso o banco já teria a mudança e o saldo contaria duas vezes. */
+        private Long inicial(UUID responsavel) {
+            return iniciais.computeIfAbsent(responsavel, r -> Optional.ofNullable(limite.vagas(r, null))).orElse(null);
         }
 
         boolean cabe(UUID responsavel) {
-            Long vagas = limite.vagas(responsavel, null);
-            return vagas == null || vagas - (gravar ? 0 : saldo.getOrDefault(responsavel, 0L)) > 0;
+            Long vagas = inicial(responsavel);
+            return vagas == null || vagas - saldo.getOrDefault(responsavel, 0L) > 0;
         }
 
         void reservar(UUID deixa, UUID passa) {
             if (!Objects.equals(deixa, passa)) {
-                if (deixa != null) saldo.merge(deixa, -1L, Long::sum);
-                if (passa != null) saldo.merge(passa, 1L, Long::sum);
+                if (deixa != null) {
+                    inicial(deixa);
+                    saldo.merge(deixa, -1L, Long::sum);
+                }
+                if (passa != null) {
+                    inicial(passa);
+                    saldo.merge(passa, 1L, Long::sum);
+                }
             }
         }
     }
@@ -1217,9 +1278,19 @@ class GravadorDaImportacao {
         private final Map<String, List<Aluno>> porNome = new LinkedHashMap<>();
         /** O CPF com que cada aluno está no índice: na prévia a entidade não muda, então não dá para reler dela. */
         private final Map<Aluno, String> cpfIndexado = new IdentityHashMap<>();
+        /** Alunos gravados por esta importação e ainda sem flush: não há linha no banco para travar nem reler. */
+        private final Set<Aluno> criados = Collections.newSetFromMap(new IdentityHashMap<>());
 
         Indice(List<Aluno> todos) {
             todos.forEach(this::adicionar);
+        }
+
+        void criado(Aluno aluno) {
+            criados.add(aluno);
+        }
+
+        boolean criadoNestaImportacao(Aluno aluno) {
+            return criados.contains(aluno);
         }
 
         void adicionar(Aluno aluno) {

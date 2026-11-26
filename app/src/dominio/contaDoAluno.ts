@@ -1,17 +1,21 @@
+import type { ContratoDoAlunoResumo } from '../api/contratos';
 import type { PeriodoDoPlano, SituacaoDaContratacao } from '../api/financeiroTipos';
+import { dataEmBrasilia } from './agendaPresencial';
 import { apelidoParaEnviar } from './comunidade';
 import { rotuloDaPeriodicidade } from './financeiro';
+import { dataCurta, dataParaTela } from './formatos';
 import { corpoDoPerfil, perfilMudou, type CorpoDoPerfil, type EdicaoDoPerfil, type PreferenciasLidas } from './perfilDaComunidade';
 
 // Conta do aluno reorganizada (23/11, `docs/planos/conta-do-aluno.md`): só apresentação. As regras de cada dado continuam
 // nos domínios dele (meusDados, perfilDaComunidade, financeiro); aqui ficam a ordem das seções, os resumos das linhas, a
 // máscara de leitura do CPF e o que o "Salvar" do Meu perfil manda.
 
-export type ChaveDaSecao = 'plano' | 'perfil' | 'dados' | 'convite' | 'privacidade' | 'seguranca' | 'app';
+export type ChaveDaSecao = 'plano' | 'contratos' | 'perfil' | 'dados' | 'convite' | 'privacidade' | 'seguranca' | 'app';
 
 /** Ordem do pedido de 23/11; o título vai em caixa alta pela variante `secao` (o texto fica em caixa normal). */
 export const SECOES_DA_CONTA: readonly { chave: ChaveDaSecao; titulo: string }[] = [
   { chave: 'plano', titulo: 'Meu plano' },
+  { chave: 'contratos', titulo: 'Meus contratos' },
   { chave: 'perfil', titulo: 'Perfil na Comunidade' },
   { chave: 'dados', titulo: 'Meus dados' },
   { chave: 'convite', titulo: 'Convidar um amigo' },
@@ -21,13 +25,27 @@ export const SECOES_DA_CONTA: readonly { chave: ChaveDaSecao; titulo: string }[]
 ];
 
 /**
- * As seções que existem agora, na ordem (a tela e o índice da web usam a mesma lista). As quatro primeiras dependem do que a
+ * As seções que existem agora, na ordem (a tela e o índice da web usam a mesma lista). As quatro (e os contratos) dependem do que a
  * tela já sabe e seguem as regras de sempre: o plano só com o financeiro ligado (sem internet ele diz que espera a conexão);
  * perfil, dados e convite só com internet ou com o dado já lido (o convite também some com o 404 da consultoria sem link).
  * Privacidade, Segurança e App sempre têm linha (Termos, Sair, Aparência).
  */
-export function secoesVisiveis(existe: { plano: boolean; perfil: boolean; dados: boolean; convite: boolean }) {
-  return SECOES_DA_CONTA.filter((s) => (s.chave in existe ? existe[s.chave as keyof typeof existe] : true));
+export function secoesVisiveis(existe: { plano: boolean; perfil: boolean; dados: boolean; convite: boolean; contratos?: boolean }) {
+  // `contratos` ausente = não existe (ao contrário do que a lista não conhece, que sempre aparece).
+  const visivel: Record<string, boolean> = { contratos: false, ...existe };
+  return SECOES_DA_CONTA.filter((s) => (s.chave in visivel ? visivel[s.chave] : true));
+}
+
+/** "Meus contratos" existe com a chave ligada, internet e ao menos um contrato (pendente ou assinado); nada fica no aparelho. */
+export const existeContratosNaConta = (habilitado: boolean, online: boolean, lista: readonly unknown[] | null | undefined): boolean =>
+  habilitado && online && (lista?.length ?? 0) > 0;
+
+/** A linha de cada contrato em "Meus contratos": "Assinado em 26/11/2026", "Para assinar · até 29/11" ou "Para assinar". */
+export function resumoDoContratoNaConta(c: Pick<ContratoDoAlunoResumo, 'situacao' | 'assinadoEm' | 'prazoAte' | 'vencido'>): string {
+  if (c.situacao === 'ASSINADO') return `Assinado em ${dataParaTela(c.assinadoEm ? dataEmBrasilia(c.assinadoEm) : null) || '—'}`;
+  if (c.situacao === 'CANCELADO') return 'Cancelado';
+  if (c.vencido) return 'Prazo terminou';
+  return c.prazoAte ? `Para assinar · até ${dataCurta(dataEmBrasilia(c.prazoAte))}` : 'Para assinar';
 }
 
 /** Leitura do CPF (o cadastro guarda `123.456.789-09`): só os 6 dígitos do meio, como `***.456.789-**`. */

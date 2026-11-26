@@ -68,6 +68,7 @@ public class ExportacaoService {
     private final AlunoRepository alunosRepositorio;
     private final br.com.treinos.api.tags.TagsDeAlunoService tags;
     private final br.com.treinos.api.whatsapp.AvisosDoAlunoService avisosPeloWhatsApp;
+    private final br.com.treinos.api.contratos.ContratoService contratosDoAluno;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -85,7 +86,9 @@ public class ExportacaoService {
                              br.com.treinos.api.push.PushService push,
                              br.com.treinos.api.comunidade.ComunidadeService comunidade, AlunoRepository alunosRepositorio,
                              br.com.treinos.api.tags.TagsDeAlunoService tags,
-                             br.com.treinos.api.whatsapp.AvisosDoAlunoService avisosPeloWhatsApp) {
+                             br.com.treinos.api.whatsapp.AvisosDoAlunoService avisosPeloWhatsApp,
+                             br.com.treinos.api.contratos.ContratoService contratosDoAluno) {
+        this.contratosDoAluno = contratosDoAluno;
         this.avisosPeloWhatsApp = avisosPeloWhatsApp;
         this.tags = tags;
         this.alunosRepositorio = alunosRepositorio;
@@ -189,10 +192,12 @@ public class ExportacaoService {
         if (avisosWhatsApp == null) {
             omitidas.add("avisosPeloWhatsApp");
         }
+        // Contratos digitais (V105): o texto leva CPF e endereço, então só com a permissão que os mostra à equipe.
+        var contratos = secao(AcessoAtual.pode("CONTRATO_LER"), "contratos", omitidas, () -> contratosDoAluno.exportar(alunoId));
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
                 cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular, comunidadeDoAluno, indicacao,
-                tagsDoAluno, avisosWhatsApp);
+                tagsDoAluno, avisosWhatsApp, contratos);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

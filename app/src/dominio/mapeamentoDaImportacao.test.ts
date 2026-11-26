@@ -1,32 +1,41 @@
-import { DESTINOS, faltandoColuna, sugerirMapeamento } from './mapeamentoDaImportacao';
+import { DESTINOS, faltandoColuna, mapaDasSugestoes } from './mapeamentoDaImportacao';
 
 const alunos = DESTINOS[0];
 
 describe('mapeamento da importação', () => {
-  it('acha a coluna sem acento, sem caixa e pelo sinônimo', () => {
-    const mapa = sugerirMapeamento(['Nome do aluno', 'Telefone 1 (com DDD)', 'E-MAIL'], alunos.campos);
-    expect(mapa.nome).toBe(0);
-    expect(mapa.telefone).toBe(1);
-    expect(mapa.email).toBe(2);
-    expect(mapa.cpf).toBeNull();
+  it('monta o mapa pelas sugestões da API; campo sem sugestão fica em "Não importar"', () => {
+    const { mapa, paraConferir } = mapaDasSugestoes([
+      { campo: 'nome', coluna: 0, confianca: 'SINONIMO' },
+      { campo: 'email', coluna: 2, confianca: 'EXATA' },
+      { campo: 'telefone', coluna: 1, confianca: 'PARECIDA' },
+    ], alunos, true);
+    expect(mapa).toMatchObject({ nome: 0, telefone: 1, email: 2, cpf: null });
+    expect([...paraConferir]).toEqual(['telefone']);
   });
 
-  it('alimentos: fibra é coluna opcional e casa "fibra", "fibras" e "fibra (g)"', () => {
+  it('ignora campo de outro destino, sensível sem permissão e a segunda sugestão da mesma coluna', () => {
+    const { mapa } = mapaDasSugestoes([
+      { campo: 'kcal', coluna: 0, confianca: 'EXATA' },
+      { campo: 'cpf', coluna: 1, confianca: 'EXATA' },
+      { campo: 'nome', coluna: 2, confianca: 'EXATA' },
+      { campo: 'email', coluna: 2, confianca: 'SINONIMO' },
+    ], alunos, false);
+    expect(mapa.kcal).toBeUndefined();
+    expect(mapa.cpf).toBeNull();
+    expect(mapa.nome).toBe(2);
+    expect(mapa.email).toBeNull();
+  });
+
+  it('alimentos: fibra é coluna opcional', () => {
     const destino = DESTINOS.find((d) => d.id === 'alimentos')!;
     expect(destino.campos.find((c) => c.id === 'fibra')?.obrigatorio).toBe(false);
-    for (const cabecalho of ['Fibra', 'FIBRAS', 'Fibra (g)']) expect(sugerirMapeamento(['Nome', cabecalho], destino.campos).fibra).toBe(1);
-    expect(sugerirMapeamento(['Nome'], destino.campos).fibra).toBeNull();
-    expect(faltandoColuna(destino, 'nome', sugerirMapeamento(['Alimento', 'Quantidade', 'Unidade', 'Kcal', 'Proteína', 'Carboidrato', 'Gordura'], destino.campos))).toEqual([]);
-  });
-
-  it('não usa a mesma coluna duas vezes', () => {
-    const mapa = sugerirMapeamento(['Nome'], alunos.campos);
-    expect(mapa.nome).toBe(0);
-    expect(Object.values(mapa).filter((v) => v === 0)).toHaveLength(1);
+    const { mapa } = mapaDasSugestoes(['nome', 'quantidade', 'unidade', 'kcal', 'proteina', 'carboidrato', 'gordura']
+      .map((campo, coluna) => ({ campo, coluna, confianca: 'EXATA' as const })), destino, true);
+    expect(faltandoColuna(destino, 'nome', mapa)).toEqual([]);
   });
 
   it('a chave por e-mail bloqueia quando a coluna falta', () => {
-    const mapa = sugerirMapeamento(['Nome'], alunos.campos);
+    const { mapa } = mapaDasSugestoes([{ campo: 'nome', coluna: 0, confianca: 'EXATA' }], alunos, true);
     expect(faltandoColuna(alunos, 'email', mapa)).toEqual(['E-mail']);
     expect(faltandoColuna(alunos, 'nome', mapa)).toEqual([]);
   });

@@ -219,7 +219,7 @@ public final class ReconhecimentoDeAbas {
     }
 
     /** Texto curto, com letra, que não tem cara de dado (e-mail, telefone, data, código, número). */
-    static boolean pareceNomeDeColuna(Celula c) {
+    public static boolean pareceNomeDeColuna(Celula c) {
         if (c == null || c.numero() || c.erro()) {
             return false;
         }

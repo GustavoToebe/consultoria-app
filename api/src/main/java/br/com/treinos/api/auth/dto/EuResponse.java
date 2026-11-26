@@ -32,6 +32,8 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          boolean marketplaceHabilitado,
                          /* Avisos pelo WhatsApp oficial da Meta ligados ({@code TREINOS_WHATSAPP_HABILITADO}); desligado, o app esconde tudo deles. */
                          boolean whatsappHabilitado,
+                         /* Contrato digital ligado ({@code TREINOS_CONTRATOS_HABILITADO}); desligado, o app esconde tudo dele. */
+                         boolean contratosHabilitados,
                          /* Só para o aluno: WhatsApp da consultoria só com dígitos (DDD + número, sem o 55), para o app montar wa.me/55<dígitos>; some se não há. */
                          String whatsappDaConsultoria,
                          /* Só para o aluno: as redes sociais da consultoria que estão preenchidas (links https por chave); some se nenhuma. */

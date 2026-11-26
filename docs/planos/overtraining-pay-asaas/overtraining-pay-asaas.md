@@ -9,7 +9,7 @@
 - **Pix continua dentro do app** (QR Code e copia e cola).
 - **Asaas é o provedor padrão e a InfinitePay fica de reserva.** Divisão **65% / 35%**, calculada só no servidor, na criação da cobrança, igual para Pix e cartão.
 - Rota nova do aluno: `POST /aluno/financeiro/cobrancas/{id}/overtraining-pay/fatura` → `{ url }` (https de `www.asaas.com` ou `sandbox.asaas.com`; 404 para outro aluno ou consultoria; 409 `COBRANCA_NAO_ABERTA`/`PAGAMENTO_EM_CONFIRMACAO`; 503 `OVERTRAINING_PAY_INDISPONIVEL` sem credenciais). A cobrança no Asaas é uma só por `cobranca_aluno` (`billingType` `UNDEFINED`), reaproveitada pelo Pix e pela fatura. Em "Minha conta" o cartão usa o `/minha-conta/cobrancas/{id}/pagar` que já existia.
-- Migration: a V101 do Overtraining Pay virou a **V105** (a V100 antiga da branch saiu, já é a V104 do main). A pausa por atraso segue o modelo do main (`acesso_desativado_motivo = 'ATRASO'`); a baixa pelo Asaas reativa só o motivo ATRASO, nunca o MANUAL (teste `baixaPeloAsaasReativaSoOAtrasoENuncaOManual`).
+- Migration: a V101 do Overtraining Pay virou a **V106** (a V100 antiga da branch saiu, já é a V104 do main; a V105 do main é o contrato digital). A pausa por atraso segue o modelo do main (`acesso_desativado_motivo = 'ATRASO'`); a baixa pelo Asaas reativa só o motivo ATRASO, nunca o MANUAL (teste `baixaPeloAsaasReativaSoOAtrasoENuncaOManual`).
 
 **Pendências do Gustavo:**
 - **Conta Asaas com permissão para criar subcontas** (ele está confirmando). Sem ela, nada do Overtraining Pay roda de verdade; os testes usam o `AsaasFalsa`.
@@ -167,7 +167,7 @@ Ainda não ter a conta PJ aberta no Asaas **não trava nada** nem no backend nem
 
 ### 5.2. Modelo de Dados no `consultoria-app` (Migration nova na branch separada)
 
-Como a árvore local da `main` está usando `V098` (Contrato fechado, já em produção), `V099` (Categorias da vitrine) e `V100` (Ficha rápida e acesso pausado), a migration do Asaas nasceu como `V101` e, após a atualização com o main de 26/11 (que trouxe até a V104), é a `V105__overtraining_pay_asaas.sql`, atualizando `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`.
+Como a árvore local da `main` está usando `V098` (Contrato fechado, já em produção), `V099` (Categorias da vitrine) e `V100` (Ficha rápida e acesso pausado), a migration do Asaas nasceu como `V101` e, após a atualização com o main de 26/11 (que trouxe até a V105), é a `V106__overtraining_pay_asaas.sql` (a V105 do main é o contrato digital), atualizando `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`.
 
 1. **Tabela `subconta_asaas` (`@TenantId`, uma por consultoria)**:
    - `id uuid primary key`, `consultoria_id uuid not null unique references consultoria(id)`

@@ -46,7 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Importação de planilha: prévia sem efeito, confirmação, regras e permissões. Só dados fictícios. */
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "treinos.plano.aplicar=true")
+@TestPropertySource(properties = {"treinos.plano.aplicar=true",
+        "spring.jpa.properties.hibernate.session_factory.statement_inspector=br.com.treinos.api.importacao.TravasDeAlunoNoSql"})
 class ImportacaoIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mvc;
@@ -357,6 +358,29 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         String vazio = "nome;email;objetivo\nRegra Fictícia;" + email + ";\n";
         confirmar("alunos", "e.csv", vazio.getBytes(StandardCharsets.UTF_8), atualizar, hash("alunos", "e.csv", vazio, atualizar));
         assertThat(api.get("/alunos/" + id, treinador, 200).path("objetivo").asString()).isEqualTo("Manter força");
+    }
+
+    /** Linha IGNORAR não toma a trava do aluno (nenhum {@code FOR UPDATE} em {@code aluno}); ATUALIZAR toma (controle positivo). */
+    @Test
+    void linhaIgnoradaNaoTomaATravaDoAluno() throws Exception {
+        String email = unico("trava");
+        String base = "nome;email;objetivo\nTrava Fictícia;" + email + ";\n";
+        String ignorar = config("email", "IGNORAR", Map.of("nome", 0, "email", 1, "objetivo", 2));
+        confirmar("alunos", "a.csv", base.getBytes(StandardCharsets.UTF_8), ignorar, hash("alunos", "a.csv", base, ignorar));
+        String existente = "nome;email;objetivo\nTrava Fictícia;" + email + ";Ganhar força\n";
+
+        String hashIgnorar = hash("alunos", "b.csv", existente, ignorar);
+        TravasDeAlunoNoSql.zerar();
+        JsonNode ignorado = confirmar("alunos", "b.csv", existente.getBytes(StandardCharsets.UTF_8), ignorar, hashIgnorar);
+        assertThat(ignorado.path("ignorados").asInt()).isEqualTo(1);
+        assertThat(TravasDeAlunoNoSql.travas()).as("travas de aluno com a regra IGNORAR").isZero();
+
+        String atualizar = config("email", "ATUALIZAR", Map.of("nome", 0, "email", 1, "objetivo", 2));
+        String hashAtualizar = hash("alunos", "c.csv", existente, atualizar);
+        TravasDeAlunoNoSql.zerar();
+        JsonNode atualizado = confirmar("alunos", "c.csv", existente.getBytes(StandardCharsets.UTF_8), atualizar, hashAtualizar);
+        assertThat(atualizado.path("ignorados").asInt()).isZero();
+        assertThat(TravasDeAlunoNoSql.travas()).as("travas de aluno com a regra ATUALIZAR").isPositive();
     }
 
     @Test
@@ -1199,6 +1223,70 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
 
     private JsonNode confirmar(String destino, String nome, byte[] bytes, String config, String hash) throws Exception {
         return enviar(destino, nome, bytes, config, hash, 200);
+    }
+
+    /** Sem {@code linhaDoCabecalho} o servidor acha o cabeçalho e sugere o mapeamento; com ela (inclusive 0), vale o pedido. */
+    @Test
+    void colunasSemALinhaDetectamOCabecalhoESugeremOMapeamento() throws Exception {
+        String csv = "Relatório fictício de alunos\n\n\nNome do aluno;E-mail;Telefone;Coluna extra\nAna Fictícia;"
+                + unico("det") + ";45999998888;x\n";
+        byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
+        JsonNode r = enviar("alunos/colunas", "alunos.csv", bytes, "{}", 200);
+        assertThat(r.path("linhaDoCabecalho").asInt()).isEqualTo(4);
+        assertThat(r.path("colunas").get(0).asString()).isEqualTo("Nome do aluno");
+        assertThat(r.path("linhas").asInt()).isEqualTo(1);
+        assertThat(r.path("sugestoes").size()).isEqualTo(3);
+        assertThat(r.path("sugestoes").get(0).path("campo").asString()).isEqualTo("nome");
+        assertThat(r.path("sugestoes").get(0).path("coluna").asInt()).isZero();
+        assertThat(r.path("sugestoes").get(0).path("confianca").asString()).isEqualTo("SINONIMO");
+        assertThat(r.path("sugestoes").get(1).path("campo").asString()).isEqualTo("email");
+        assertThat(r.path("sugestoes").get(1).path("confianca").asString()).isEqualTo("EXATA");
+
+        var sem = multipart("/importacoes/alunos/colunas")
+                .file(new MockMultipartFile("arquivo", "alunos.csv", "text/csv", bytes))
+                .param("linhaDoCabecalho", "0")
+                .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador))
+                .header("X-Treinos-Cliente", "nativo");
+        JsonNode semCabecalho = json.readTree(mvc.perform(sem).andExpect(status().isOk()).andReturn()
+                .getResponse().getContentAsString(StandardCharsets.UTF_8));
+        assertThat(semCabecalho.path("linhaDoCabecalho").asInt()).isZero();
+        assertThat(semCabecalho.path("sugestoes").size()).isZero();
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
+    }
+
+    @Test
+    void reconhecerDizAATrilhaSemGravarNada() throws Exception {
+        String csv = "nome;email\nAna Fictícia;" + unico("rec") + "\n";
+        JsonNode doCsv = enviar("reconhecer", "alunos.csv", csv.getBytes(StandardCharsets.UTF_8), "{}", 200);
+        assertThat(doCsv.path("trilha").asString()).isEqualTo("UMA_ABA");
+        assertThat(doCsv.path("destino").asString()).isEqualTo("alunos");
+        assertThat(doCsv.path("aba").asInt()).isZero();
+        assertThat(doCsv.path("abas").get(0).path("linhaDoCabecalho").asInt()).isEqualTo(1);
+        assertThat(doCsv.path("abas").get(0).path("linhas").asInt()).isEqualTo(1);
+        assertThat(doCsv.path("abas").get(0).path("tipoNaPlanilhaCompleta").asString()).isEqualTo("ALUNOS");
+
+        JsonNode xlsx = enviar("reconhecer", "alunos.xlsx", xlsx(csv), "{}", 200);
+        assertThat(xlsx.path("trilha").asString()).isEqualTo("UMA_ABA");
+
+        JsonNode nada = enviar("reconhecer", "compras.csv", "Lista de compras\nleite\n".getBytes(StandardCharsets.UTF_8), "{}", 200);
+        assertThat(nada.path("trilha").asString()).isEqualTo("DESCONHECIDA");
+        assertThat(nada.path("destino").isNull()).isTrue();
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
+        assertThat(api.get("/importacoes", treinador, 200).path("total").asInt()).isZero();
+    }
+
+    @Test
+    void xlsAntigoE422ComCodigoProprioEmTodasAsRotas() throws Exception {
+        byte[] xls = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, 0, 0, 0, 0};
+        String config = config("email", "IGNORAR", Map.of("nome", 0, "email", 1));
+        for (JsonNode resposta : List.of(
+                enviar("alunos/colunas", "antigo.xls", xls, "{}", 422),
+                enviar("alunos/previa", "antigo.xls", xls, config, 422),
+                enviar("alunos", "antigo.xls", xls, config, "qualquer", 422),
+                enviar("reconhecer", "antigo.xls", xls, "{}", 422))) {
+            assertThat(resposta.path("codigo").asString()).isEqualTo("FORMATO_XLS_ANTIGO");
+            assertThat(resposta.path("message").asString()).isEqualTo("Salve como .xlsx no Excel e envie de novo.");
+        }
     }
 
     private JsonNode enviar(String caminho, String nome, byte[] bytes, String config, int esperado) throws Exception {

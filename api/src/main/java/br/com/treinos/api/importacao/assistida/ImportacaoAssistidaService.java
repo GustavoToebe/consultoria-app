@@ -19,6 +19,7 @@ import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.Cobertura
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.DecisaoImportacao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.DuvidaImportacao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.GrupoImportavel;
+import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.LeituraEmAndamento;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.ModoProcessamentoResumo;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.OcorrenciaOrigem;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.PesoImportavel;
@@ -37,6 +38,7 @@ import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.NaoEncontradoException;
+import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -59,6 +61,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.regex.Pattern;
 
 /**
@@ -80,6 +87,8 @@ public class ImportacaoAssistidaService {
     static final int OBJETIVO_DA_SESSAO = 40;
     static final int TERMO_DO_APELIDO = 160;
     static final int TIPO_DO_APELIDO = 24;
+    /** Arquivos de uma sessão lidos ao mesmo tempo: o provedor de IA é a espera, e mais que isso estoura o limite dele. */
+    static final int ARQUIVOS_EM_PARALELO = 3;
     private static final int CANDIDATOS_POR_GRUPO = 5;
     private static final Pattern EMAIL_SIMPLES = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
     private static final Pattern OBJETIVO_VALIDO = Pattern.compile("[A-Z][A-Z0-9_]*");
@@ -276,25 +285,76 @@ public class ImportacaoAssistidaService {
     }
 
     ResultadoProcessamentoLote executarProcessamentoSemTransacao(PreparoProcessamento preparo) {
+        return executarProcessamentoSemTransacao(preparo, null);
+    }
+
+    /**
+     * Lê os arquivos pendentes até ARQUIVOS_EM_PARALELO ao mesmo tempo (threads virtuais: a espera é do provedor de IA)
+     * e devolve os resultados na ordem dos arquivos. {@code aoConcluirArquivo} roda a cada arquivo terminado, na thread
+     * dele e já com a consultoria, e serve só para o progresso da tela. Sessão cortada (thread interrompida): as leituras
+     * ainda em curso são interrompidas, sem deixar chamada órfã ao provedor.
+     */
+    ResultadoProcessamentoLote executarProcessamentoSemTransacao(PreparoProcessamento preparo, Runnable aoConcluirArquivo) {
+        List<ArquivoPendente> lista = preparo.pendentes();
         List<ResultadoArquivoProcessado> itens = new ArrayList<>();
-        for (ArquivoPendente arq : preparo.pendentes()) {
-            try {
-                ResultadoExtracao extracao = extrairArquivo(arq.formato(), arq.nomeOriginal(), arq.conteudoBytes());
-                RedatorLgpdImportacao.RedacaoResultado redacao = RedatorLgpdImportacao.redigir(extracao.textoCompleto());
-                ContextoIa contexto = new ContextoIa(arq.nomeOriginal(), arq.formato(), extracao.blocos(),
-                        extracao.textoCompleto(), preparo.objetivo(), tiposParaOContexto(preparo.configuracao()),
-                        preparo.dicionario());
-                RoteadorInterpretadorIa.ExecucaoInterpretacao execucao = comTiposDaMetodologia(
-                        roteador.interpretarComModo(contexto), preparo);
-                itens.add(new ResultadoArquivoProcessado(arq.id(), true, json.writeValueAsString(extracao.metadados()),
-                        null, execucao, redacao));
-            } catch (ExtracaoRecusadaException e) {
-                itens.add(new ResultadoArquivoProcessado(arq.id(), false, null, e.codigo(), null, null));
-            } catch (RuntimeException e) {
-                itens.add(new ResultadoArquivoProcessado(arq.id(), false, null, "ERRO_PROCESSAMENTO", null, null));
+        if (lista.size() == 1) {
+            itens.add(processarArquivo(lista.getFirst(), preparo, aoConcluirArquivo));
+            return new ResultadoProcessamentoLote(List.copyOf(itens), preparo.existentes());
+        }
+        UUID consultoria = TenantContext.get();
+        Semaphore vagas = new Semaphore(ARQUIVOS_EM_PARALELO);
+        ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor();
+        try {
+            List<Future<ResultadoArquivoProcessado>> futuros = new ArrayList<>();
+            for (ArquivoPendente arq : lista) {
+                futuros.add(pool.submit(() -> {
+                    vagas.acquire();
+                    try {
+                        return consultoria == null ? processarArquivo(arq, preparo, aoConcluirArquivo)
+                                : TenantContext.executarComo(consultoria, () -> processarArquivo(arq, preparo, aoConcluirArquivo));
+                    } finally {
+                        vagas.release();
+                    }
+                }));
             }
+            for (int i = 0; i < lista.size(); i++) {
+                try {
+                    itens.add(futuros.get(i).get());
+                } catch (ExecutionException e) {
+                    itens.add(new ResultadoArquivoProcessado(lista.get(i).id(), false, null, "ERRO_PROCESSAMENTO", null, null));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("Leitura dos arquivos interrompida.");
+                }
+            }
+        } finally {
+            pool.shutdownNow();
         }
         return new ResultadoProcessamentoLote(List.copyOf(itens), preparo.existentes());
+    }
+
+    private ResultadoArquivoProcessado processarArquivo(ArquivoPendente arq, PreparoProcessamento preparo,
+                                                         Runnable aoConcluirArquivo) {
+        ResultadoArquivoProcessado resultado;
+        try {
+            ResultadoExtracao extracao = extrairArquivo(arq.formato(), arq.nomeOriginal(), arq.conteudoBytes());
+            RedatorLgpdImportacao.RedacaoResultado redacao = RedatorLgpdImportacao.redigir(extracao.textoCompleto());
+            ContextoIa contexto = new ContextoIa(arq.nomeOriginal(), arq.formato(), extracao.blocos(),
+                    extracao.textoCompleto(), preparo.objetivo(), tiposParaOContexto(preparo.configuracao()),
+                    preparo.dicionario());
+            RoteadorInterpretadorIa.ExecucaoInterpretacao execucao = comTiposDaMetodologia(
+                    roteador.interpretarComModo(contexto), preparo);
+            resultado = new ResultadoArquivoProcessado(arq.id(), true, json.writeValueAsString(extracao.metadados()),
+                    null, execucao, redacao);
+        } catch (ExtracaoRecusadaException e) {
+            resultado = new ResultadoArquivoProcessado(arq.id(), false, null, e.codigo(), null, null);
+        } catch (RuntimeException e) {
+            resultado = new ResultadoArquivoProcessado(arq.id(), false, null, "ERRO_PROCESSAMENTO", null, null);
+        }
+        if (aoConcluirArquivo != null) {
+            aoConcluirArquivo.run();
+        }
+        return resultado;
     }
 
     /** Uma linha por tipo, {@code CODIGO = Nome (PAPEL)}: é o que a IA e as regras podem usar em {@code serie.tipo}. */
@@ -317,7 +377,7 @@ public class ImportacaoAssistidaService {
                 treino = treino.comMetodologia(preparo.metodologia());
             }
             return new ResultadoInterpretacao.PropostaGrupo(pg.identificadorOrigem(), pg.nomeAluno(), pg.email(),
-                    pg.telefone(), pg.objetivo(), pg.observacoes(), pg.pesos(), treino, pg.dieta());
+                    pg.telefone(), pg.objetivo(), pg.observacoes(), pg.pesos(), treino, pg.dieta(), pg.avisos());
         }).toList();
         return new RoteadorInterpretadorIa.ExecucaoInterpretacao(
                 new ResultadoInterpretacao(grupos, exec.resultado().duvidas()), exec.modoEfetivo(),
@@ -419,7 +479,7 @@ public class ImportacaoAssistidaService {
         Map<UUID, OcorrenciaOrigem> ocorrencias = extrairOcorrencias(arq.getNomeOriginal(), pg.treino(), pg.dieta());
         return new GrupoImportavel(id, arq.getNomeOriginal(), nome, destino, alunoExistente,
                 List.of(arq.getNomeOriginal()), cadastro, pesos, pg.treino(), pg.dieta(), List.of(), "PRONTO", null,
-                candidatos, ocorrencias);
+                candidatos, ocorrencias, pg.avisos());
     }
 
     private static Map<UUID, OcorrenciaOrigem> extrairOcorrencias(String nomeArquivo, ConteudoTreino treino,
@@ -519,6 +579,49 @@ public class ImportacaoAssistidaService {
     public SessaoDetalhe responderDuvida(UUID sessaoId, ResponderDuvidaRequisicao req) {
         ImportacaoSessao sessao = sessaoTravada(sessaoId);
         exigirNaoEncerrada(sessao);
+        aplicarResposta(sessao, req);
+        return detalheDaSessao(sessao);
+    }
+
+    /** Teto de dúvidas por chamada de "aceitar todas as sugestões". */
+    static final int SUGESTOES_POR_CHAMADA = 200;
+
+    /**
+     * Aceita de uma vez as sugestões da biblioteca que são únicas: dúvida de exercício ou alimento ainda aberta, com
+     * exatamente uma sugestão e ela ligada a um item da biblioteca. As com várias sugestões, só da IA ou sem sugestão
+     * ficam para a pessoa; quem não lê treino ou dieta não aceita o que não vê. Não grava no dicionário da consultoria
+     * (isso é escolha item a item) e repetir a chamada não faz nada, pois só olha o que ainda está aberto.
+     */
+    @Transactional
+    public SessaoDetalhe aceitarSugestoes(UUID sessaoId, long revisaoEsperada) {
+        ImportacaoSessao sessao = sessaoTravada(sessaoId);
+        exigirNaoEncerrada(sessao);
+        if (revisaoEsperada != sessao.getRevisao()) {
+            throw new ConflictException("A importação mudou desde a sua revisão. Recarregue e confira de novo.",
+                    "CONFLITO_EDICAO");
+        }
+        boolean treinoLer = AcessoAtual.pode("TREINO_LER");
+        boolean dietaLer = AcessoAtual.pode("DIETA_LER");
+        int aceitas = 0;
+        for (DuvidaImportacao d : SessaoJson.duvidas(json, sessao)) {
+            if (aceitas >= SUGESTOES_POR_CHAMADA) {
+                break;
+            }
+            boolean exercicio = d.tipo() != null && d.tipo().startsWith("EXERCICIO") && treinoLer;
+            boolean alimento = d.tipo() != null && d.tipo().startsWith("ALIMENTO") && dietaLer;
+            if (d.resolvida() || !(exercicio || alimento) || d.sugestoes() == null || d.sugestoes().size() != 1
+                    || d.sugestoes().getFirst().referenciaId() == null) {
+                continue;
+            }
+            SugestaoDuvida unica = d.sugestoes().getFirst();
+            aplicarResposta(sessao, new ResponderDuvidaRequisicao(d.id(), unica.termo(), false, d.tipo(),
+                    d.termoOriginal(), unica.referenciaId(), null));
+            aceitas++;
+        }
+        return detalheDaSessao(sessao);
+    }
+
+    private void aplicarResposta(ImportacaoSessao sessao, ResponderDuvidaRequisicao req) {
         if (req.duvidaId() == null || req.respostaEscolhida() == null || req.respostaEscolhida().isBlank()
                 || req.respostaEscolhida().strip().length() > TERMO_DO_APELIDO) {
             throw new BadRequestException("Resposta da dúvida inválida.", "RESPOSTA_INVALIDA");
@@ -562,7 +665,6 @@ public class ImportacaoAssistidaService {
         }
         sessao.aplicarRespostas(json.writeValueAsString(decisoes), json.writeValueAsString(gruposAtualizados),
                 json.writeValueAsString(atualizadas));
-        return detalheDaSessao(sessao);
     }
 
     @Transactional
@@ -963,6 +1065,9 @@ public class ImportacaoAssistidaService {
         String ext = ponto < 0 ? "" : nome.substring(ponto + 1).toLowerCase(Locale.ROOT);
         boolean pdf = bytes.length >= 5 && bytes[0] == '%' && bytes[1] == 'P' && bytes[2] == 'D' && bytes[3] == 'F' && bytes[4] == '-';
         boolean zip = bytes.length >= 4 && bytes[0] == 'P' && bytes[1] == 'K' && bytes[2] == 3 && bytes[3] == 4;
+        if ("xlsx".equals(ext) && ole(bytes)) {
+            throw formatoXlsAntigo(); // .xls antigo só renomeado para .xlsx
+        }
         String formato;
         boolean confere;
         switch (ext) {
@@ -982,12 +1087,22 @@ public class ImportacaoAssistidaService {
                 formato = "csv".equals(ext) ? "CSV" : "TEXTO_LIVRE";
                 confere = !pdf && !zip && semByteNulo(bytes);
             }
+            case "xls" -> throw formatoXlsAntigo();
             default -> throw new BadRequestException("Formato de arquivo não suportado.", "FORMATO_NAO_SUPORTADO");
         }
         if (!confere) {
             throw new BadRequestException("O conteúdo do arquivo não corresponde ao formato.", "FORMATO_NAO_CONFERE");
         }
         return formato;
+    }
+
+    private static boolean ole(byte[] bytes) {
+        return bytes.length >= 4 && (bytes[0] & 0xFF) == 0xD0 && (bytes[1] & 0xFF) == 0xCF && bytes[2] == 0x11
+                && (bytes[3] & 0xFF) == 0xE0;
+    }
+
+    private static ValidacaoException formatoXlsAntigo() {
+        return new ValidacaoException("Salve como .xlsx no Excel e envie de novo.", "FORMATO_XLS_ANTIGO", List.of());
     }
 
     private static boolean semByteNulo(byte[] bytes) {
@@ -1116,6 +1231,15 @@ public class ImportacaoAssistidaService {
         String hashPrevia = "REVISANDO".equals(estadoAtual) ? HashPreviaImportacao.calcular(sessao, gruposBrutos) : null;
         return new SessaoDetalhe(sessao.getId(), sessao.getObjetivo(), estadoAtual, sessao.getRevisao(), arqs,
                 grupos, duvidas, sessao.getCriadoEm(), sessao.getExpiraEm(), lerModoProcessamento(sessao),
-                decisoes, hashPrevia);
+                decisoes, hashPrevia, "PROCESSANDO".equals(estadoAtual) ? lerLeitura(sessao) : null);
+    }
+
+    private LeituraEmAndamento lerLeitura(ImportacaoSessao sessao) {
+        try {
+            JsonNode n = json.readTree(sessao.getProgressoJson());
+            return n.has("aLer") ? new LeituraEmAndamento(n.path("lidos").asInt(0), n.path("aLer").asInt(0)) : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 }

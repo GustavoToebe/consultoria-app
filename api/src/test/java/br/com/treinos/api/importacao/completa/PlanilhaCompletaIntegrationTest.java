@@ -115,7 +115,7 @@ class PlanilhaCompletaIntegrationTest extends AbstractIntegrationTest {
     @Test
     void arquivoInvalidoSemPermissaoESemLogin() throws Exception {
         JsonNode invalido = analisar(treinador, "planilha.xls", new byte[] {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0}, 422);
-        assertThat(invalido.path("codigo").asString()).isEqualTo("ARQUIVO_INVALIDO");
+        assertThat(invalido.path("codigo").asString()).isEqualTo("FORMATO_XLS_ANTIGO");
 
         UUID aluno = api.criarAluno(treinador, "Aluno Fictício " + UUID.randomUUID());
         JsonNode loginDoAluno = api.convidarEEntrar(treinador, aluno);

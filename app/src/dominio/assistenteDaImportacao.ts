@@ -2,11 +2,12 @@
  * Regras puras do assistente de importação em etapas (análise do vídeo de 29/10, A03 e A04): etapas, arquivo aceito,
  * mapeamento escolhido por coluna, motivos de não continuar e o resumo da validação. Sem React e sem API.
  */
+import type { ReconhecimentoDoArquivo } from '../api/tipos';
 import { faltandoColuna, type CampoDaImportacao, type Destino } from './mapeamentoDaImportacao';
 import type { OpcaoSuspensa } from './escolhaSuspensa';
 import { semAcento } from './telas';
 
-export const ETAPAS_DA_IMPORTACAO = ['Destino e arquivo', 'Configuração', 'Mapeamento', 'Validação', 'Resultado'] as const;
+export const ETAPAS_DA_IMPORTACAO = ['Arquivo e destino', 'Configuração', 'Mapeamento', 'Validação', 'Resultado'] as const;
 export type EtapaDaImportacao = 1 | 2 | 3 | 4 | 5;
 
 /** Mapa campo → índice da coluna (nulo = não importar), como a API recebe. */
@@ -36,6 +37,32 @@ export function tipoDoArquivo(nome: string): 'Excel' | 'CSV' | null {
   if (minusculo.endsWith('.xlsx')) return 'Excel';
   if (minusculo.endsWith('.csv')) return 'CSV';
   return null;
+}
+
+/** O mesmo texto da API (422 `FORMATO_XLS_ANTIGO`): o .xls antigo não é lido. */
+export const AVISO_XLS = 'Salve como .xlsx no Excel e envie de novo.';
+
+/** Por que o arquivo não serve, pelo nome (nulo = .xlsx ou .csv). */
+export function motivoDoArquivo(nome: string): string | null {
+  if (tipoDoArquivo(nome)) return null;
+  return nome.trim().toLowerCase().endsWith('.xls') ? AVISO_XLS : 'Envie um arquivo .xlsx ou .csv.';
+}
+
+/**
+ * O que o reconhecimento achou, numa frase para a etapa 1. `podeCompleta` = o perfil abre a planilha completa
+ * (`ALUNO_ALTERAR`); `destino` = o rótulo do destino sugerido, quando o perfil importa para ele.
+ */
+export function textoDoReconhecimento(r: ReconhecimentoDoArquivo, podeCompleta: boolean, destino: string | null): string {
+  if (r.trilha === 'COMPLETA') {
+    return podeCompleta
+      ? 'O arquivo tem várias abas ligadas (alunos, treinos, dietas): Continuar abre a importação da planilha completa. Para importar só uma aba, escolha o destino abaixo.'
+      : 'O arquivo tem várias abas ligadas, mas a planilha completa pede a permissão de alterar alunos. Escolha o que vai importar de uma aba.';
+  }
+  if (r.trilha === 'UMA_ABA' && destino) {
+    const aba = r.aba === null ? null : r.abas.find((a) => a.indice === r.aba)?.nome;
+    return `Reconhecido: ${destino}${aba && r.abas.length > 1 ? `, na aba “${aba}”` : ''}. Se não for, escolha outro destino.`;
+  }
+  return 'Não reconhecemos o conteúdo do arquivo. Escolha o que vai importar.';
 }
 
 /** "850 bytes", "12 KB", "1,2 MB"; nulo quando o tamanho não é conhecido. */
@@ -70,6 +97,12 @@ export function camposPermitidos(destino: Destino, podeSensivel: boolean): Campo
 export interface EstadoDoAssistente {
   destino: Destino | null;
   arquivo: { nome: string } | null;
+  /** O reconhecimento do arquivo está em andamento. */
+  reconhecendo: boolean;
+  /** A API recusou o arquivo (ex.: .xls com outro nome); o texto dela. */
+  recusado: string | null;
+  /** Continuar leva à planilha completa (reconhecida, com permissão e sem destino escolhido). */
+  vaiParaCompleta: boolean;
   lendo: boolean;
   temColunas: boolean;
   chave: string;
@@ -79,9 +112,11 @@ export interface EstadoDoAssistente {
 /** Por que "Continuar" está desabilitado na etapa (nulo = pode continuar). */
 export function motivoParaNaoContinuar(etapa: EtapaDaImportacao, e: EstadoDoAssistente): string | null {
   if (etapa === 1) {
-    if (!e.destino) return 'Escolha o que vai importar.';
     if (!e.arquivo) return 'Escolha o arquivo da planilha.';
-    if (!tipoDoArquivo(e.arquivo.nome)) return 'Envie um arquivo .xlsx ou .csv.';
+    const doArquivo = motivoDoArquivo(e.arquivo.nome) ?? e.recusado;
+    if (doArquivo) return doArquivo;
+    if (e.reconhecendo) return 'Aguarde o reconhecimento do arquivo.';
+    if (!e.destino && !e.vaiParaCompleta) return 'Escolha o que vai importar.';
     return null;
   }
   if (etapa === 2) {

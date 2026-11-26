@@ -16,7 +16,7 @@ import { pode, podeAcessarTela } from './permissoes';
 import { ehItemEmbutido, itemDoCaminho, ROTA_INTEIRA_DO_ITEM, rotaInteiraDoCaminho } from './rotasDasConfiguracoes';
 import { nomeDaTela } from './telas';
 
-const TUDO: ContextoDeConfiguracoes = { pode: () => true, administrador: true, pagamentosHabilitados: true, chaves: { recebimentoOnlineHabilitado: true, overtrainingPayHabilitado: true, whatsappHabilitado: true } };
+const TUDO: ContextoDeConfiguracoes = { pode: () => true, administrador: true, pagamentosHabilitados: true, chaves: { recebimentoOnlineHabilitado: true, overtrainingPayHabilitado: true, whatsappHabilitado: true, contratosHabilitados: true } };
 const com = (codigos: string[], resto: Partial<ContextoDeConfiguracoes> = {}): ContextoDeConfiguracoes => ({
   pode: (c) => pode(codigos, c), administrador: false, pagamentosHabilitados: false, chaves: {}, ...resto,
 });
@@ -141,6 +141,21 @@ describe('cartoesVisiveis', () => {
     expect(ids(cartoesVisiveis({ ...TUDO, chaves: { recebimentoOnlineHabilitado: true } }, teste))).toEqual(['c']);
   });
 
+  it('Contratos (27/11): precisa de CONTRATO_LER e da chave contratosHabilitados, sem depender do financeiro', () => {
+    const chave = { contratosHabilitados: true };
+    expect(ids(cartoesVisiveis(com(['CONTRATO_LER'], { chaves: chave })))).toContain('contratos');
+    expect(ids(cartoesVisiveis(com(['CONTRATO_LER'], { chaves: { contratosHabilitados: false } })))).not.toContain('contratos');
+    expect(ids(cartoesVisiveis(com(['CONTRATO_LER'])))).not.toContain('contratos');
+    expect(ids(cartoesVisiveis(com(['CONTRATO_ALTERAR'], { chaves: chave })))).not.toContain('contratos');
+    expect(ids(buscarCartoes('assinatura', CARTOES_DE_CONFIGURACAO))).toContain('contratos');
+    expect(ids(buscarCartoes('prestacao de servico', CARTOES_DE_CONFIGURACAO))).toEqual(['contratos']);
+    const c = CARTOES_DE_CONFIGURACAO.find((x) => x.id === 'contratos')!;
+    expect([c.grupo, c.titulo, c.href]).toEqual(['Alunos e atendimento', 'Contratos', '/treinador/contratos']);
+    expect(ROTA_INTEIRA_DO_ITEM.contratos).toBe('/treinador/contratos');
+    expect(podeAcessarTela('/treinador/configuracoes/contratos', (p) => p === 'CONTRATO_LER')).toBe(true);
+    expect(podeAcessarTela('/treinador/contratos', () => false)).toBe(false);
+  });
+
   it('funcionalidade fora do plano esconde o cartão; sem a lista (pacote antigo, offline), vale tudo', () => {
     const teste: CartaoDeConfiguracao[] = [
       { id: 'a', grupo: 'Equipe', titulo: 'A', descricao: 'a', href: '/treinador/ajuda', palavras: [], funcionalidade: 'EQUIPE' },
@@ -221,7 +236,7 @@ describe('itens que abrem dentro de Configurações (coluna da direita)', () => 
 
   it('abrem dentro só as telas de configuração; as do menu principal abrem a tela inteira', () => {
     expect(ids(CARTOES_DE_CONFIGURACAO.filter(abreDentro))).toEqual([
-      'meus-dados', 'seguranca', 'ajustes', 'minha-conta', 'marca', 'contato', 'whatsapp-oficial', 'documentos-pdf', 'tags-dos-alunos', 'termos',
+      'meus-dados', 'seguranca', 'ajustes', 'minha-conta', 'marca', 'contato', 'whatsapp-oficial', 'documentos-pdf', 'tags-dos-alunos', 'contratos', 'termos',
     ]);
     const marca = CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'marca')!;
     const auditoria = CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'auditoria')!;

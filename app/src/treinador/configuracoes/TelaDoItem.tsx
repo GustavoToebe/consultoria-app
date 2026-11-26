@@ -5,6 +5,7 @@ import { Fragment, useEffect, type ReactNode } from 'react';
 
 import { BASE_DAS_CONFIGURACOES, ehItemEmbutido, itemDoCaminho, type ItemEmbutido } from '../../dominio/rotasDasConfiguracoes';
 import { LARGURA_FORMULARIO } from '../../tema/tokens';
+import { TelaContratos } from '../contratos/TelaContratos';
 import { TelaDocumentos } from '../documentos/TelaDocumentos';
 import { TelaWhatsApp } from '../whatsapp/TelaWhatsApp';
 import { Vazio } from '../../ui/Estados';
@@ -29,6 +30,7 @@ const TELA_DO_ITEM: Record<ItemEmbutido, () => ReactNode> = {
   'whatsapp-oficial': () => <TelaWhatsApp />,
   'documentos-pdf': () => <TelaDocumentos />,
   'tags-dos-alunos': () => <TelaTagsDosAlunos embutida />,
+  contratos: () => <TelaContratos embutida />,
   termos: () => <TelaDosTermos />,
 };
 

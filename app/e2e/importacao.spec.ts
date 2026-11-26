@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
-import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
  * Importação em etapas (análise do vídeo de 29/10 e referência de 30/10): lista separada do assistente, destino em
@@ -32,7 +32,19 @@ const COLUNAS = {
     ['', 'sem.nome@exemplo.com', ''],
   ],
   numerosDasLinhas: [2, 3, 4], amostraCortada: false, celulasCortadas: [],
+  // A linha do cabeçalho e o mapeamento vêm da API (entrada única, 26/11).
+  linhaDoCabecalho: 1,
+  sugestoes: [{ campo: 'nome', coluna: 0, confianca: 'SINONIMO' }, { campo: 'email', coluna: 1, confianca: 'EXATA' }],
 };
+/** O reconhecimento do arquivo (`POST /importacoes/reconhecer`): uma aba de alunos, a primeira de duas. */
+const UMA_ABA = {
+  trilha: 'UMA_ABA', aba: 0, destino: 'alunos',
+  abas: [
+    { indice: 0, nome: 'Dados', destino: 'alunos', tipoNaPlanilhaCompleta: 'ALUNOS', linhaDoCabecalho: 1, linhas: 3 },
+    { indice: 1, nome: 'Instruções', destino: null, tipoNaPlanilhaCompleta: null, linhaDoCabecalho: 1, linhas: 2 },
+  ],
+};
+const DESCONHECIDA = { trilha: 'DESCONHECIDA', aba: null, destino: null, abas: [{ indice: 0, nome: 'Planilha1', destino: null, tipoNaPlanilhaCompleta: null, linhaDoCabecalho: 1, linhas: 3 }] };
 /** Planilha maior que a amostra: 60 linhas vieram, de 1.500 no arquivo. */
 const COLUNAS_GRANDES = {
   ...COLUNAS, linhas: 1500, amostraCortada: true,
@@ -47,9 +59,9 @@ const PREVIA_CORRIGIDA = { ...PREVIA, hash: 'hash-corrigido', novos: 2, comErro:
 
 type Configuracao = { ajustes?: { celulas: { linha: number; coluna: number; valor: string }[]; removidas: number[] } };
 
-async function preparar(page: Page, largura: number, colunas: object = COLUNAS) {
+async function preparar(page: Page, largura: number, colunas: object = COLUNAS, reconhecer: (route: Route) => Promise<void> = (route) => json(route, UMA_ABA)) {
   await page.setViewportSize({ width: largura, height: 900 });
-  const pedidos = { previa: 0, colunas: [] as string[], configuracao: null as Configuracao | null };
+  const pedidos = { previa: 0, reconhecer: 0, colunas: [] as string[], configuracao: null as Configuracao | null };
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES_TREINADOR })),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
@@ -59,6 +71,10 @@ async function preparar(page: Page, largura: number, colunas: object = COLUNAS) 
     [`GET /importacoes/${ID}/erros.csv`]: (_pedido, route) => route.fulfill({
       status: 200, contentType: 'text/csv;charset=utf-8', body: 'Linha;Campo;Motivo\n4;nome;Informe o nome.\n',
     }),
+    'POST /importacoes/reconhecer': (_pedido, route) => {
+      pedidos.reconhecer += 1;
+      return reconhecer(route);
+    },
     'POST /importacoes/alunos/colunas': (pedido, route) => {
       pedidos.colunas.push(pedido.busca.toString());
       return json(route, colunas);
@@ -126,23 +142,27 @@ for (const largura of [390, 1280]) {
     await page.goto('/treinador/importacao');
     await abrirAssistente(page);
     const folha = page.locator('body');
-    await expect(folha.getByText(/Destino e arquivo/).first()).toBeVisible();
+    await expect(folha.getByText(/Arquivo e destino/).first()).toBeVisible();
 
-    // Etapa 1: destino em cartões; sem destino nem arquivo, Continuar explica o porquê; arquivo .xls não passa.
-    await expect(folha.getByText('Escolha o que vai importar.')).toBeVisible();
-    const destinos = folha.getByRole('radiogroup', { name: 'O que vai importar' });
-    await expect(destinos.getByRole('radio', { name: 'Pesos' })).toBeVisible();
-    await destinos.getByRole('radio', { name: 'Alunos' }).click();
-    await expect(destinos.getByRole('radio', { name: 'Alunos' })).toHaveAttribute('aria-checked', 'true');
-    await expect(folha.getByRole('button', { name: 'Baixar modelo Excel' })).toBeVisible();
+    // Etapa 1 (entrada única): primeiro o arquivo; o destino só aparece depois dele; o .xls antigo não passa nem vai à API.
     await expect(folha.getByText('Clique ou arraste o arquivo até aqui.')).toBeVisible();
     await expect(folha.getByText('XLSX ou CSV · até 900 KB')).toBeVisible();
     await expect(folha.getByText('Escolha o arquivo da planilha.')).toBeVisible();
+    const destinos = folha.getByRole('radiogroup', { name: 'O que vai importar' });
+    await expect(destinos).toHaveCount(0);
     await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'alunos.xls', mimeType: 'application/vnd.ms-excel', buffer: Buffer.from('x') });
-    await expect(folha.getByText('Envie um arquivo .xlsx ou .csv.').first()).toBeVisible();
+    await expect(folha.getByText('Salve como .xlsx no Excel e envie de novo.').first()).toBeVisible();
+    await expect(destinos).toHaveCount(0);
+    expect(pedidos.reconhecer).toBe(0);
+    // O arquivo reconhecido já marca o destino e diz em que aba estão os dados.
     await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'alunos.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
     await expect(folha.getByText('alunos.csv')).toBeVisible();
     await expect(folha.getByText(/CSV · \d+ bytes · selecionado, ainda não enviado/)).toBeVisible();
+    await expect(folha.getByText('Reconhecido: Alunos, na aba “Dados”. Se não for, escolha outro destino.')).toBeVisible();
+    await expect(destinos.getByRole('radio', { name: 'Alunos' })).toHaveAttribute('aria-checked', 'true');
+    await expect(destinos.getByRole('radio', { name: 'Pesos' })).toBeVisible();
+    await expect(folha.getByRole('button', { name: 'Baixar modelo Excel' })).toBeVisible();
+    expect(pedidos.reconhecer).toBe(1);
     await folha.getByRole('button', { name: 'Continuar' }).click();
 
     // Etapa 2: aba, cabeçalho, chave e regra com a frase de ajuda.
@@ -151,7 +171,7 @@ for (const largura of [390, 1280]) {
     await expect(folha.getByText('Deixa o cadastro como está e não usa a linha.')).toBeVisible();
     await folha.getByRole('button', { name: 'Continuar' }).click();
 
-    // Etapa 3: a planilha com o ID do arquivo e o campo em cada coluna; "Aluno" casa com Nome pelo sinônimo.
+    // Etapa 3: a planilha com o ID do arquivo e o campo em cada coluna, como a API sugeriu ("Aluno" é Nome pelo sinônimo).
     await expect(folha.getByLabel('Linha 3, coluna “Aluno”')).toHaveValue('Bruno Fictício');
     await expect(folha.getByRole('button', { name: /Campo: Cadastro > Nome/ })).toBeVisible();
     await expect(folha.getByRole('button', { name: /Campo: Cadastro > E-mail/ })).toBeVisible();
@@ -223,7 +243,8 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Importação registrada.')).toBeVisible();
     await expect(page).toHaveURL(/\/treinador\/importacao$/);
 
-    expect(pedidos.colunas).toEqual(['aba=0&linhaDoCabecalho=1']);
+    // A primeira leitura não manda a linha do cabeçalho: a API detecta.
+    expect(pedidos.colunas).toEqual(['aba=0']);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
@@ -233,8 +254,8 @@ for (const largura of [390, 1280]) {
     await page.goto('/treinador/importacao');
     await abrirAssistente(page);
     const folha = page.locator('body');
-    await folha.getByRole('radiogroup', { name: 'O que vai importar' }).getByRole('radio', { name: 'Alunos' }).click();
     await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'alunos.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
+    await expect(folha.getByRole('radio', { name: 'Alunos' })).toHaveAttribute('aria-checked', 'true');
     await folha.getByRole('button', { name: 'Continuar' }).click();
     await folha.getByRole('button', { name: 'Continuar' }).click();
 
@@ -281,8 +302,8 @@ for (const largura of [390, 1280]) {
     await expect(page).toHaveURL(/\/treinador\/importacao$/);
 
     await abrirAssistente(page);
-    await page.getByRole('radiogroup', { name: 'O que vai importar' }).getByRole('radio', { name: 'Alunos' }).click();
     await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'alunos.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
+    await expect(page.getByRole('radio', { name: 'Alunos' })).toHaveAttribute('aria-checked', 'true');
     // Com arquivo escolhido, Cancelar pergunta; "Continuar editando" fica.
     await page.getByRole('button', { name: 'Cancelar' }).click();
     await expect(page.getByText('Sair sem salvar?')).toBeVisible();
@@ -304,6 +325,46 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Cancelar' }).click();
     await page.getByRole('button', { name: 'Sair sem salvar' }).click();
     await expect(page).toHaveURL(/\/treinador\/importacao$/);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`arquivo não reconhecido pede o destino e a sugestão parecida fica marcada "Confira" em ${largura}px`, async ({ page }) => {
+    let resposta: object = DESCONHECIDA;
+    let status = 200;
+    const colunas = { ...COLUNAS, linhaDoCabecalho: 3, sugestoes: [...COLUNAS.sugestoes, { campo: 'telefone', coluna: 2, confianca: 'PARECIDA' }] };
+    const { naoTratadas, errosDaPagina, pedidos } = await preparar(page, largura, colunas, (route) => json(route, resposta, status));
+    await page.goto('/treinador/importacao/nova');
+
+    // A API recusa o .xls renomeado para .xlsx: a mensagem fica junto do arquivo e Continuar trava.
+    resposta = erroApi(422, 'Salve como .xlsx no Excel e envie de novo.', 'FORMATO_XLS_ANTIGO').corpo;
+    status = 422;
+    await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'velho.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from('x') });
+    await expect(page.getByText('Salve como .xlsx no Excel e envie de novo.').first()).toBeVisible();
+    await expect(page.getByRole('radiogroup', { name: 'O que vai importar' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+
+    // Não reconhecido: escolhe o destino como antes.
+    resposta = DESCONHECIDA;
+    status = 200;
+    await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'alunos.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
+    await expect(page.getByText('Não reconhecemos o conteúdo do arquivo. Escolha o que vai importar.')).toBeVisible();
+    await expect(page.getByText('Escolha o que vai importar.', { exact: true })).toBeVisible();
+    await page.getByRole('radiogroup', { name: 'O que vai importar' }).getByRole('radio', { name: 'Alunos' }).click();
+    await page.getByRole('button', { name: 'Continuar' }).click();
+
+    // A linha do cabeçalho detectada pela API vem escolhida.
+    await expect(page.getByRole('button', { name: 'Linha do cabeçalho: Linha 3. Escolher.' })).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByRole('button', { name: /Campo: Cadastro > Telefone/ })).toBeVisible();
+    await expect(page.getByText('Confira', { exact: true })).toHaveCount(1);
+    await expect(page.getByText(/As marcadas com “Confira” foram sugeridas por um nome parecido/)).toBeVisible();
+    await escolherCampo(page, /Campo: Cadastro > Telefone/, 'Apelido', 'Não importar');
+    await expect(page.getByText('Confira', { exact: true })).toHaveCount(0);
+    // Escolher de propósito o campo que tinha a sugestão parecida não traz o "Confira" de volta.
+    await escolherCampo(page, /Campo: Não importar/, 'Apelido', 'Cadastro > Telefone');
+    await expect(page.getByText('Confira', { exact: true })).toHaveCount(0);
+    expect(pedidos.colunas).toEqual(['aba=0']);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

@@ -104,4 +104,14 @@ class ExtratorXlsxCsvTest {
                 .extracting(e -> ((ExtracaoRecusadaException) e).codigo())
                 .isEqualTo("PLANILHA_CORROMPIDA");
     }
+
+    @Test
+    void textoParaOProvedorMarcaALinhaDeTitulosESoEle() throws IOException {
+        ResultadoExtracao res = ExtratorXlsxCsv.extrair("treino.xlsx", criarXlsxFicticio(true));
+
+        assertThat(res.textoCompleto()).contains("Colunas: Exercicio | Series").contains("Supino Reto | 4x10")
+                .doesNotContain("Colunas: Supino");
+        // Os blocos (que as regras locais leem) ficam sem a marca.
+        assertThat(res.blocos().getFirst().conteudo()).doesNotContain("Colunas:");
+    }
 }

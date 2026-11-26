@@ -223,7 +223,9 @@ class ArquiteturaTest {
                                 // Vitrine vista pelo próprio aluno, só os itens ativos (hasRole ALUNO); a equipe declara PERM_VITRINE_LER/ALTERAR.
                                 "VitrineAlunoController",
                                 // Opt-in do próprio aluno aos avisos pelo WhatsApp (hasRole ALUNO, sempre o da sessão); a conexão e os modelos declaram PERM_WHATSAPP_ALTERAR.
-                                "AlunoAvisosPeloWhatsAppController").contains(c.getSimpleName())))
+                                "AlunoAvisosPeloWhatsAppController",
+                                // Contratos do próprio aluno: ler e assinar (hasRole ALUNO, sempre o da sessão); a equipe declara PERM_CONTRATO_LER/ALTERAR.
+                                "ContratoAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {
@@ -251,6 +253,16 @@ class ArquiteturaTest {
                 .and().resideInAPackage("br.com.treinos.api.pagamentos..")
                 .should().beAnnotatedWith(ExigePagamentos.class)
                 .because("com TREINOS_PAGAMENTOS_HABILITADO=false toda rota do financeiro responde 503 (PagamentosInterceptor); "
+                        + "controller novo sem a anotação ficaria aberto com o módulo desligado")
+                .check(codigo);
+    }
+
+    @Test
+    void controllerDeContratosExigeContratosHabilitado() {
+        classes().that().areAnnotatedWith(RestController.class)
+                .and().resideInAPackage("br.com.treinos.api.contratos..")
+                .should().beAnnotatedWith(br.com.treinos.api.contratos.ExigeContratos.class)
+                .because("com TREINOS_CONTRATOS_HABILITADO=false toda rota de contrato responde 503 (ContratosConfiguracao); "
                         + "controller novo sem a anotação ficaria aberto com o módulo desligado")
                 .check(codigo);
     }

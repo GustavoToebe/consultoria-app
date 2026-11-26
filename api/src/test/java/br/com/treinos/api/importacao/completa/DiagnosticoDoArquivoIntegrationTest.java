@@ -202,7 +202,7 @@ class DiagnosticoDoArquivoIntegrationTest extends AbstractIntegrationTest {
         corpo(null, "a.xlsx", cadastro(1), 401);
 
         JsonNode invalido = json.readTree(corpo(treinador, "a.xls", new byte[] {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0}, 422));
-        assertThat(invalido.path("codigo").asString()).isEqualTo("ARQUIVO_INVALIDO");
+        assertThat(invalido.path("codigo").asString()).isEqualTo("FORMATO_XLS_ANTIGO");
         corpo(treinador, "vazio.csv", new byte[0], 422);
     }
 }

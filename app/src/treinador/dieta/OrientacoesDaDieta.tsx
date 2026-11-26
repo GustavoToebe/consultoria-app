@@ -50,7 +50,8 @@ export function OrientacoesDaDieta({ orientacoes, aoMudar, aoRemover }: {
   const emLinha = largura >= LARGURA_EM_LINHA;
 
   return (
-    <View style={estilos.aba}>
+    // Vazia, sem o teto de leitura: a frase cabe numa linha na tela larga (com o teto quebrava em duas).
+    <View style={orientacoes.length === 0 ? estilos.abaVazia : estilos.aba}>
       {orientacoes.length === 0 ? (
         <Texto variante="suave">Nenhuma orientação ainda. Escreva o que o aluno deve ler junto com a dieta (água, preparo, trocas).</Texto>
       ) : (
@@ -149,6 +150,7 @@ function LinhaDaOrientacao({ orientacao: o, posicao, total, emLinha, aberta, foc
 const estilos = StyleSheet.create({
   // Largura de leitura (~72 caracteres), à esquerda do cartão: a lista, a edição aberta e o botão (26/11).
   aba: { gap: espaco(2), maxWidth: LARGURA_TEXTO_CORRIDO },
+  abaVazia: { gap: espaco(2) },
   itens: { gap: 6 },
   faixa: { borderRadius: 12, borderWidth: 1, paddingHorizontal: espaco(1), paddingVertical: espaco(0.5) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },

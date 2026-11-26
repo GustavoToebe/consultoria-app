@@ -20,7 +20,7 @@ const ACESSO_TOTAL = [
 const CONSULTORIA: ConsultoriaResponse = { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' };
 
 interface Perfil {
-  permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; whatsapp?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO';
+  permissoes: string[]; administrador?: boolean; pagamentos?: boolean; recebimentoOnline?: boolean; whatsapp?: boolean; contratos?: boolean; tema?: 'CLARO' | 'AREIA' | 'ESCURO';
   larguraConteudo?: 'AUTOMATICA' | 'LIMITADA';
 }
 
@@ -39,10 +39,12 @@ async function abrir(page: Page, largura: number, perfil: Perfil, caminho = '/tr
       pagamentosHabilitados: perfil.pagamentos ?? false,
       recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false,
       whatsappHabilitado: perfil.whatsapp ?? false,
+      contratosHabilitados: perfil.contratos ?? false,
     })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /consultoria': { corpo: CONSULTORIA },
+    'GET /contratos/modelos': { corpo: [] },
   });
   await page.goto(caminho);
   return { errosDaPagina };
@@ -53,7 +55,7 @@ function esperado(perfil: Perfil) {
     pode: (c) => perfil.permissoes.includes(c),
     administrador: !!perfil.administrador,
     pagamentosHabilitados: perfil.pagamentos ?? false,
-    chaves: { recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false, whatsappHabilitado: perfil.whatsapp ?? false },
+    chaves: { recebimentoOnlineHabilitado: perfil.recebimentoOnline ?? false, whatsappHabilitado: perfil.whatsapp ?? false, contratosHabilitados: perfil.contratos ?? false },
   });
   return { grupos: gruposDeCartoes(visiveis).map((g) => g.grupo), visiveis };
 }
@@ -92,6 +94,30 @@ test('1280, acesso total: sem item abre Meus dados (sem empilhar), a coluna traz
   expect(await page.evaluate(() => history.length)).toBeLessThanOrEqual(2);
   await semRolagemLateral(page);
   expect(errosDaPagina).toEqual([]);
+});
+
+test('Contratos (1280 e 390): com CONTRATO_LER e a chave, o item abre dentro (1280) ou a rota inteira (390); sem a chave, some', async ({ page }) => {
+  const comContratos: Perfil = { ...ADMIN, permissoes: [...ACESSO_TOTAL, 'CONTRATO_LER'], contratos: true };
+  const { errosDaPagina } = await abrir(page, 1280, comContratos);
+  expect(esperado(comContratos).visiveis.map((c) => c.id)).toContain('contratos');
+  await item(page, 'Contratos').click();
+  await expect(page).toHaveURL(/\/configuracoes\/contratos$/);
+  await expect(h1(page)).toHaveText('Contratos');
+  await expect(page.getByText('Ainda não há modelo de contrato. Peça a quem administra a consultoria.')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/treinador/configuracoes');
+  await linha(page, 'Contratos').click();
+  await expect(page).toHaveURL(/\/treinador\/contratos$/);
+  await expect(h1(page)).toHaveText('Contratos');
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('Contratos (1280): sem a chave da plataforma o item não aparece, mesmo com CONTRATO_LER', async ({ page }) => {
+  const semChave: Perfil = { ...ADMIN, permissoes: [...ACESSO_TOTAL, 'CONTRATO_LER'], contratos: false };
+  await abrir(page, 1280, semChave);
+  await expect(h1(page)).toHaveText('Meus dados');
+  expect(esperado(semChave).visiveis.map((c) => c.id)).not.toContain('contratos');
+  await expect(item(page, 'Contratos')).toHaveCount(0);
 });
 
 test('perfil restrito (1280): só os itens que ele pode abrir; Consultoria, Equipe e Financeiro somem', async ({ page }) => {
@@ -360,8 +386,8 @@ async function colunasDaMarca(page: Page) {
   return { form: await caixa('coluna-do-formulario'), previa: await caixa('coluna-da-previa'), desenho: await caixa('previa-da-paleta'), nome, bloco };
 }
 
-// Item 5 (26/11): na tela larga o formulário inteiro fica em 640 px e a prévia ocupa o resto da linha, ao lado; o desenho do
-// app do aluno não passa de 720 e fica centrado no cartão. Em Limitada o conjunto fica nos 1800 centrados.
+// Item 5 (26/11): na tela larga o formulário inteiro fica em 640 px e a prévia vem colada ao lado (vão de 24), com o cartão
+// parando no desenho do app do aluno (720 + recuo) e o resto da linha vazio. Em Limitada o conjunto fica nos 1800 centrados.
 for (const [largura, larguraConteudo] of [[3440, 'AUTOMATICA'], [3440, 'LIMITADA'], [1920, 'AUTOMATICA']] as const) {
   test(`${largura}, marca, ${larguraConteudo === 'LIMITADA' ? 'Limitada' : 'Automática'}: formulário de 640 e a prévia no resto`, async ({ page }) => {
     const { errosDaPagina } = await abrir(page, largura, { ...ADMIN, larguraConteudo }, '/treinador/configuracoes/marca');
@@ -373,7 +399,10 @@ for (const [largura, larguraConteudo] of [[3440, 'AUTOMATICA'], [3440, 'LIMITADA
       expect(nome.x + nome.width).toBeLessThanOrEqual(form.x + form.width + 1);
       expect(Math.abs(form.x - bloco.x)).toBeLessThanOrEqual(1);
       expect(Math.abs(previa.x - (form.x + form.width) - 24)).toBeLessThanOrEqual(1);
-      expect(Math.abs(previa.x + previa.width - bloco.direita)).toBeLessThanOrEqual(1);
+      expect(previa.x - (form.x + form.width)).toBeLessThanOrEqual(48);
+      expect(previa.x + previa.width).toBeLessThanOrEqual(bloco.direita + 1);
+      expect(previa.width).toBeLessThanOrEqual(720 + 48 + 1);
+      if (largura === 3440) expect(previa.x).toBeLessThan((bloco.x + bloco.direita) / 2);
       expect(desenho.width).toBeLessThanOrEqual(720 + 1);
       expect(Math.abs(desenho.x + desenho.width / 2 - (previa.x + previa.width / 2))).toBeLessThanOrEqual(2);
       if (larguraConteudo === 'LIMITADA') expect(Math.abs(bloco.direita - bloco.x - 1800)).toBeLessThanOrEqual(1);

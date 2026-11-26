@@ -116,6 +116,33 @@ export function topoDoSubmenu(topoDoIcone: number, alturaDoSubmenu: number | nul
   return Math.max(folga, Math.min(topoDoIcone, alturaDisponivel - alturaDoSubmenu - folga));
 }
 
+/** Coordenada de ponteiro na viewport (em px). */
+export interface Ponto {
+  x: number;
+  y: number;
+}
+
+/** Caixa vertical do submenu aberto na viewport (em px), usada para o corredor diagonal do ponteiro. */
+export interface FaixaDoSubmenu {
+  esquerda: number;
+  topo: number;
+  altura: number;
+}
+
+/**
+ * Indica se o ponteiro indo de `origem` até `atual` segue pelo corredor diagonal rumo ao `submenu` aberto (com `folga`
+ * vertical nas pontas), para não trocar de grupo ao raspar num ícone vizinho durante a travessia.
+ */
+export function rumoAoSubmenu(origem: Ponto, atual: Ponto, submenu: FaixaDoSubmenu, folga = 16): boolean {
+  const dxTotal = submenu.esquerda - origem.x;
+  const dx = atual.x - origem.x;
+  if (submenu.altura <= 0 || dxTotal <= 0 || dx <= 1 || atual.x > submenu.esquerda + 4) return false;
+  const t = Math.min(1, dx / dxTotal);
+  const yMin = origem.y + t * (submenu.topo - folga - origem.y);
+  const yMax = origem.y + t * (submenu.topo + submenu.altura + folga - origem.y);
+  return atual.y >= yMin && atual.y <= yMax;
+}
+
 /** Rótulo do trilho do tablet e da barra do celular: o curto, quando existe (cerca de 10 letras cabem embaixo do ícone). */
 export function rotuloCurtoDoMenu(item: { rotulo: string; rotuloCurto?: string }): string {
   return item.rotuloCurto ?? item.rotulo;
