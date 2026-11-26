@@ -334,6 +334,19 @@ describe('PDF da dieta', () => {
     expect(html).toContain('▸ OPÇÃO B');
   });
 
+  it('rótulo personalizado vira a faixa em caixa alta, sem "OPÇÃO" duplicado', () => {
+    const personalizada = normalizarDieta({
+      refeicoes: [{ nome: 'Almoço', opcoes: [
+        { rotulo: 'A', itens: [{ nome: 'Arroz', quantidade: 100, unidade: 'g', kcal: 130, proteina: 2, carboidrato: 28, gordura: 0 }] },
+        { rotulo: 'Opção Principal', itens: [] },
+      ] }],
+    });
+    const corpo = documentoDieta({ ...base, versao: 1, conteudo: personalizada, pesos: [] }).corpo;
+    expect(corpo).toContain('▸ OPÇÃO A<');
+    expect(corpo).toContain('▸ OPÇÃO PRINCIPAL<');
+    expect(corpo).not.toContain('OPÇÃO OPÇÃO');
+  });
+
   it('refeição com várias opções diz para escolher uma, sem somar nem comparar', () => {
     expect(html).toContain('<div class="escolha">Escolha uma das opções: A ou B.</div>');
     expect(html.toLowerCase()).not.toContain('equivalente');

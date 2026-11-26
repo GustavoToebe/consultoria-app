@@ -13,7 +13,7 @@ import { corpoDasRedes, erroDaRede, formDasRedes, REDES_DA_CONSULTORIA, redesAlt
 import { avaliarMarca, avisoDeMarcaPertoDeStatus, paletaDaCor, PALETAS } from '../../dominio/paletas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { CODIGOS_PALETAS_VISIVEIS, espaco, fontes, LARGURA_DUAS_COLUNAS, MARCA_NEUTRA, PALETAS as PALETAS_DO_TEMA, paletaDe, RAIO, textoSobre, type Cores } from '../../tema/tokens';
+import { CODIGOS_PALETAS_VISIVEIS, espaco, fontes, LARGURA_FORMULARIO, MARCA_NEUTRA, PALETAS as PALETAS_DO_TEMA, paletaDe, RAIO, textoSobre, type Cores } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo, MensagemDeErro } from '../../ui/Campo';
@@ -30,11 +30,10 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { RedesSociais } from '../../ui/RedesSociais';
 import { Texto } from '../../ui/Texto';
 import { anexarLogo } from './anexarLogo';
+import { arranjoDaMarca, LARGURA_DO_APP_DO_ALUNO, VAO_DA_PREVIA } from './arranjoDaMarca';
 
 const LOGO_MAXIMO = 512 * 1024;
 const HEX = /^#[0-9A-Fa-f]{6}$/;
-/** Largura do grupo Aparência a partir da qual a prévia vai para uma coluna ao lado (sobram duas colunas de opções). */
-const PREVIA_AO_LADO = LARGURA_DUAS_COLUNAS - 80;
 /** `position: sticky` existe no react-native-web (CSS), mas não no tipo do React Native (o mesmo de `plano/TelaDoEditor`). */
 const GRUDADA = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), zIndex: 1 } : {}) as unknown as ViewStyle;
 
@@ -91,9 +90,11 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const [confirmarRemocao, setConfirmarRemocao] = useState(false);
   // Erro da logo fica no próprio campo (guia de 11/11, pág. 16): a prévia segue com a logo que valia.
   const [erroLogo, setErroLogo] = useState<string | null>(null);
-  // Largura medida do grupo Aparência (não a janela: o menu lateral come largura). `null` até medir: nenhuma prévia pisca.
-  const [larguraDoGrupo, setLarguraDoGrupo] = useState<number | null>(null);
-  const previaAoLado = larguraDoGrupo !== null && larguraDoGrupo >= PREVIA_AO_LADO;
+  // Largura medida do formulário inteiro (não a janela: o menu lateral come largura), num contêiner que é sempre 100% e
+  // não muda com o arranjo escolhido. `null` até medir: nenhuma prévia pisca.
+  const [larguraDaTela, setLarguraDaTela] = useState<number | null>(null);
+  const arranjo = arranjoDaMarca(larguraDaTela);
+  const previaAoLado = arranjo === 'lado' || arranjo === 'larga';
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
   const errosDasRedes = Object.fromEntries(REDES_DA_CONSULTORIA.flatMap((r) => { const e = erroDaRede(campos, r); return e ? [[r, e]] : []; }));
@@ -193,8 +194,16 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   ];
 
   const previaDaMarca = <Previa marca={previa} tema={tema} compacta={!previaAoLado} />;
+  // Uma prévia só por largura (`previa-da-paleta` é única): ao lado dos ajustes (`lado`) ou do formulário inteiro (`larga`).
+  const colunaDaPrevia = (
+    <View testID="coluna-da-previa" style={[arranjo === 'larga' ? estilos.previaNoResto : estilos.colunaDaPrevia, GRUDADA]}>
+      <Cartao titulo="Prévia do app do aluno" nivel={3} descricao="Muda junto com o que você escolhe ao lado." style={arranjo === 'larga' ? estilos.cartaoDaPrevia : undefined}>
+        {previaDaMarca}
+      </Cartao>
+    </View>
+  );
 
-  return (
+  const formulario = (
     <>
       {/* Aparência (nome, logo, cor, fonte e tema) num grupo, com a prévia perto; o acompanhamento fica no cartão de baixo. */}
       <View style={estilos.grupo}>
@@ -204,10 +213,9 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
             A marca aparece nas ações principais e na identidade. O tema define fundos e superfícies. Cada pessoa pode escolher sua aparência em Ajustes.
           </Texto>
         </View>
-        <View style={[estilos.aparencia, previaAoLado ? estilos.aparenciaAoLado : null]}
-          onLayout={(e) => setLarguraDoGrupo(e.nativeEvent.layout.width)}>
+        <View style={[estilos.aparencia, arranjo === 'lado' ? estilos.aparenciaAoLado : null]}>
           {/* Celular: uma prévia compacta no topo do grupo, sem grudar (cobriria o campo em foco e metade da tela). */}
-          {larguraDoGrupo !== null && !previaAoLado ? previaDaMarca : null}
+          {arranjo === 'acima' ? previaDaMarca : null}
           <View style={estilos.ajustes}>
             <Cartao titulo="Identidade" nivel={3} descricao="Nome e logo que os alunos veem no topo do app.">
               <Campo rotulo="Nome da consultoria" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
@@ -306,13 +314,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
               <LinkTexto texto="Escolher o tema do meu painel em Ajustes" href="/treinador/ajustes" />
             </Cartao>
           </View>
-          {previaAoLado ? (
-            <View style={[estilos.colunaDaPrevia, GRUDADA]}>
-              <Cartao titulo="Prévia do app do aluno" nivel={3} descricao="Muda junto com o que você escolhe ao lado.">
-                {previaDaMarca}
-              </Cartao>
-            </View>
-          ) : null}
+          {arranjo === 'lado' ? colunaDaPrevia : null}
         </View>
       </View>
       <Cartao titulo="Acompanhamento" descricao="Vale para os alunos sem ciclo ou meta própria no cadastro.">
@@ -371,6 +373,17 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
             motivo={!nome.trim() ? 'Informe o nome da consultoria.' : !corValida ? 'Use uma cor no formato #RRGGBB.' : avaliacao.bloqueia ? 'Escolha uma cor que segure texto branco.' : !diasValidos ? 'O ciclo de atualização vai de 1 a 365 dias.' : !contatoValido ? 'Corrija os campos do Contato.' : undefined} />
         </View>
       ) : null}
+    </>
+  );
+
+  return (
+    <>
+      {/* Tela larga: o formulário inteiro (campos, cartões e o salvar) numa coluna de 640 e a prévia no resto, ao lado. */}
+      <View style={arranjo === 'larga' ? estilos.formularioEPrevia : estilos.empilhado} onLayout={(e) => setLarguraDaTela(e.nativeEvent.layout.width)}>
+        {/* Sempre o mesmo invólucro (só o estilo muda): trocar de arranjo não remonta o formulário nem perde o foco. */}
+        <View testID="coluna-do-formulario" style={arranjo === 'larga' ? estilos.colunaDoFormulario : estilos.empilhado}>{formulario}</View>
+        {arranjo === 'larga' ? colunaDaPrevia : null}
+      </View>
       <PainelConfirmacao
         visivel={confirmarRemocao}
         titulo="Remover a logo?"
@@ -413,7 +426,7 @@ function Previa({ marca, tema, compacta }: { marca: Marca; tema: Tema; compacta:
     </View>
   );
   return (
-    <View style={estilos.previa}>
+    <View style={[estilos.previa, compacta ? null : estilos.previaNoCartao]}>
       {compacta ? <Texto variante="rotulo" cor={atuais.texto}>Prévia do app do aluno</Texto> : null}
       <Texto variante="suave">{`Paleta ${nome}`}</Texto>
       <View testID="previa-da-paleta" style={[estilos.telaPrevia, compacta ? estilos.telaCompacta : null, { backgroundColor: cores.fundo, borderColor: atuais.borda }]}>
@@ -445,9 +458,18 @@ const estilos = StyleSheet.create({
   aparencia: { gap: espaco(3) },
   aparenciaAoLado: { flexDirection: 'row', alignItems: 'flex-start' },
   ajustes: { flex: 1, minWidth: 0, gap: espaco(3) },
+  // O mesmo vão que o `Tela` dá entre os blocos (o `gap` da coluna da TelaMarca).
+  empilhado: { gap: espaco(2) },
+  formularioEPrevia: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO_DA_PREVIA },
+  colunaDoFormulario: { width: LARGURA_FORMULARIO, flexShrink: 0, gap: espaco(2) },
   // `flex-start`: sem ele a coluna estica até a altura dos ajustes e o `sticky` não tem para onde andar.
   colunaDaPrevia: { width: 320, alignSelf: 'flex-start' },
+  previaNoResto: { flex: 1, minWidth: 0, alignSelf: 'flex-start' },
+  // O cartão abraça o desenho (720 + o recuo do cartão) e fica centrado na coluna: sem cartão de 2000 px com o título longe do desenho.
+  cartaoDaPrevia: { width: '100%', maxWidth: LARGURA_DO_APP_DO_ALUNO + espaco(6), alignSelf: 'center' },
   previa: { gap: espaco(0.5) },
+  // O desenho do app do aluno não estica além da largura dele na web: centrado no cartão que ocupa o resto da linha.
+  previaNoCartao: { width: '100%', maxWidth: LARGURA_DO_APP_DO_ALUNO, alignSelf: 'center' },
   telaPrevia: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
   telaCompacta: { padding: espaco(1) },
   faixaPrevia: { borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(1) },

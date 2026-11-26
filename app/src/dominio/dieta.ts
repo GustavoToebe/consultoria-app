@@ -157,6 +157,9 @@ const nomeCurtoDaOpcao = (rotulo: string) => rotulo.trim().replace(/^Opção\s+(
 /** "opção A" ou "opção Principal", para o meio de uma frase ("Total da opção A", "Mais ações da opção A"). */
 export const opcaoNaFrase = (rotulo: string) => `opção ${ehRotuloPadrao(rotulo) ? rotulo.trim() : nomeCurtoDaOpcao(rotulo)}`;
 
+/** "Total da opção A" para o rótulo padrão; "Total · Opção Principal" para o personalizado (aluno, PDF e lista de compras). */
+export const totalDaOpcao = (rotulo: string) => (ehRotuloPadrao(rotulo) ? `Total da opção ${rotulo.trim()}`.trim() : `Total · ${rotulo.trim()}`);
+
 /**
  * A letra segue a posição (26/11) só nas opções de rótulo padrão: o `rotulo` é gravado no plano e o aluno, o PDF e o
  * "Escolha uma das opções" o leem, então reordenar grava as letras novas. O personalizado se mantém (e a posição 1 segue

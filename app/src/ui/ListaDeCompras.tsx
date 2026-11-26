@@ -12,6 +12,7 @@ import {
   type LinhaDaLista,
   type PeriodoDaLista,
 } from '../dominio/listaDeCompras';
+import { nomeDaOpcao } from '../dominio/dieta';
 import { agruparLista, contagemDoGrupo } from '../dominio/gruposDaLista';
 import { textoDosDiasCurtos } from '../dominio/variacoesDaDieta';
 import { espaco, fontes } from '../tema/tokens';
@@ -53,7 +54,7 @@ export function OpcoesDaLista({ conteudo, escolhas, aoMudarEscolhas }: {
         <Escolha
           key={r.uid}
           rotulo={`${variacao ? `${variacao} · ` : ''}${r.horario ? `${r.horario} · ` : ''}${r.nome || 'Refeição'}`}
-          opcoes={r.opcoes.map((o) => ({ valor: o.uid, rotulo: `Opção ${o.rotulo}` }))}
+          opcoes={r.opcoes.map((o) => ({ valor: o.uid, rotulo: nomeDaOpcao(o.rotulo) }))}
           valor={opcaoDe(r)?.uid ?? ''}
           aoMudar={(uid) => aoMudarEscolhas({ ...escolhas, [r.uid]: uid })}
         />

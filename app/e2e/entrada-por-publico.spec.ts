@@ -310,3 +310,44 @@ test('já logado, a entrada do outro público abre a área da conta sem formulá
   await expect(page).toHaveURL(/\/aluno$/);
   await expect(campoEmail(page)).toHaveCount(0);
 });
+
+test('aba do navegador, manifesto PWA e símbolo vetorial do Overtraining nas entradas', async ({ page, request }) => {
+  await simularApi(page);
+  await page.goto('/aluno/entrar');
+
+  // Links do <head> vindos de public/index.html (sem favicon duplicado).
+  await expect(page.locator('head link[rel="icon"]')).toHaveCount(2);
+  await expect(page.locator('head link[rel="icon"][href="/favicon.ico"]')).toHaveCount(1);
+  await expect(page.locator('head link[rel="icon"][href="/favicon.svg"][type="image/svg+xml"]')).toHaveCount(1);
+  await expect(page.locator('head link[rel="apple-touch-icon"][href="/apple-touch-icon.png"]')).toHaveCount(1);
+  await expect(page.locator('head link[rel="manifest"][href="/manifest.json"]')).toHaveCount(1);
+
+  // Símbolo vetorial (#0A0A0A + três barras #F2050B) ao lado de "Overtraining".
+  const marca = page.getByRole('img', { name: 'Overtraining' });
+  await expect(marca.locator('svg rect[fill="#0A0A0A"]')).toHaveCount(1);
+  await expect(marca.locator('svg rect[fill="#F2050B"]')).toHaveCount(3);
+
+  // Arquivos estáticos entregues na raiz da web exportada.
+  for (const [caminho, tipo] of [
+    ['/favicon.ico', 'image/x-icon'],
+    ['/favicon.svg', 'image/svg+xml'],
+    ['/apple-touch-icon.png', 'image/png'],
+    ['/icon-192.png', 'image/png'],
+    ['/icon-512.png', 'image/png'],
+    ['/manifest.json', 'application/json'],
+  ] as const) {
+    const resp = await request.get(caminho);
+    expect(resp.status(), caminho).toBe(200);
+    expect(resp.headers()['content-type'], caminho).toContain(tipo);
+  }
+  const manifesto = await (await request.get('/manifest.json')).json();
+  expect(manifesto).toMatchObject({
+    name: 'Overtraining',
+    short_name: 'Overtraining',
+    display: 'standalone',
+    icons: [
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+  });
+});

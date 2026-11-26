@@ -526,10 +526,15 @@ for (const largura of [1280, 1920, 2400, 2800, 3440]) {
     expect(secao.width).toBeLessThanOrEqual(TETO);
     // 26/11: da faixa larga (1920 com o menu aberto) em diante, a 3ª coluna é a prévia ao vivo (`colunasDaMobilidade`).
     if (largura >= 1920) {
-      const previa = await caixa(page.getByTestId('previa-da-mobilidade'));
-      const esperado = colunasDaMobilidade(Math.round(previa.x + previa.width - lista.x))!;
-      expect(Math.abs(secao.width - esperado.editor)).toBeLessThanOrEqual(2);
-      expect(Math.abs(secao.x - (lista.x + lista.width) - esperado.vao)).toBeLessThanOrEqual(2);
+      // Medido de novo a cada tentativa: a linha pode ainda estar assentando com a prévia (era a intermitência do teste).
+      await expect(async () => {
+        const listaDeNovo = await caixa(page.getByRole('group', { name: 'Seções da mobilidade' }));
+        const secaoDeNovo = await caixa(page.locator('#secao-s1'));
+        const previa = await caixa(page.getByTestId('previa-da-mobilidade'));
+        const esperado = colunasDaMobilidade(Math.round(previa.x + previa.width - listaDeNovo.x))!;
+        expect(Math.abs(secaoDeNovo.width - esperado.editor)).toBeLessThanOrEqual(2);
+        expect(Math.abs(secaoDeNovo.x - (listaDeNovo.x + listaDeNovo.width) - esperado.vao)).toBeLessThanOrEqual(2);
+      }).toPass({ timeout: 5_000 });
     } else {
       if (limitado) expect(secao.width).toBeGreaterThan(1390);
       expect(Math.abs(secao.x - (lista.x + lista.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
@@ -636,7 +641,9 @@ for (const c of [
   { largura: 3440, menuRecolhido: false, total: 400, larguraConteudo: 'LIMITADA' as const },
 ]) {
   test(`dieta ${c.largura} px (menu ${c.menuRecolhido ? 'recolhido' : 'aberto'}, ${c.larguraConteudo ?? 'AUTOMATICA'}): 3 colunas até a borda, total fixo ao rolar`, async ({ page }) => {
-    const { errosDaPagina } = await prepararAmbiente(page, c.largura, { altura: 900, menuRecolhido: c.menuRecolhido, larguraConteudo: c.larguraConteudo });
+    // Altura 1000: no fim da página o total (sticky) só fica 16 px abaixo da barra se o contêiner acabar abaixo dele, e isso
+    // depende da altura de tudo que vem depois (Complementos); com 900 a folga era de poucos pixels e oscilava.
+    const { errosDaPagina } = await prepararAmbiente(page, c.largura, { altura: 1000, menuRecolhido: c.menuRecolhido, larguraConteudo: c.larguraConteudo });
     await page.goto(`/treinador/dietas/${DIETA_ID}`);
     const coluna = page.getByTestId('coluna-total-dieta');
     // "Por refeição" escolhe a refeição no editor (a escolhida abre com as abas das opções).
@@ -650,8 +657,11 @@ for (const c of [
       expect(total.x + total.width - lista.x).toBeLessThanOrEqual(1800 + 1);
     }
     // P, C, G e Fibra numa linha só na coluna.
-    const ys = await Promise.all(['Proteína', 'Carboidrato', 'Gordura', 'Fibra'].map(async (m) => (await caixa(coluna.getByRole('listitem', { name: new RegExp(`^${m}:`) }))).y));
-    expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(2);
+    // Com nova tentativa: logo depois do clique a coluna ainda pode estar assentando (era a intermitência do teste).
+    await expect(async () => {
+      const ys = await Promise.all(['Proteína', 'Carboidrato', 'Gordura', 'Fibra'].map(async (m) => (await caixa(coluna.getByRole('listitem', { name: new RegExp(`^${m}:`) }))).y));
+      expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(2);
+    }).toPass({ timeout: 5_000 });
     // Fixo ao rolar: rolada a tela, a coluna gruda logo abaixo da barra do editor (16 px), à vista.
     const titulo = page.getByRole('heading', { name: /^Refeições \(/ });
     const antes = (await caixa(titulo)).y;

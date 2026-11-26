@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta, Refeicao } from '../api/tipos';
-import { aguaValida, anuncioDaOpcaoMovida, aplicarReceitaDeDieta, avisoDaNovaOpcaoA, ehRotuloPadrao, letraDaPosicao, moverOpcao, nomeDaOpcao, novaOpcao, opcaoNaFrase, reletrarOpcoes, restaurarOrdemDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
+import { aguaValida, anuncioDaOpcaoMovida, aplicarReceitaDeDieta, avisoDaNovaOpcaoA, ehRotuloPadrao, letraDaPosicao, moverOpcao, nomeDaOpcao, novaOpcao, opcaoNaFrase, reletrarOpcoes, restaurarOrdemDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDaOpcao, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -316,6 +316,12 @@ describe('reordenar as opções: a letra segue a posição (26/11)', () => {
     expect(['Opção Principal', 'Principal', 'G', 'AB', 'a'].map(ehRotuloPadrao)).toEqual([false, false, false, false, false]);
     expect([nomeDaOpcao('B'), nomeDaOpcao('Opção Principal'), opcaoNaFrase('B'), opcaoNaFrase('Opção Principal')])
       .toEqual(['Opção B', 'Opção Principal', 'opção B', 'opção Principal']);
+  });
+
+  it('totalDaOpcao: padrão diz "Total da opção A"; personalizado, "Total · <rótulo>"', () => {
+    expect(['A', ' B ', '3'].map(totalDaOpcao)).toEqual(['Total da opção A', 'Total da opção B', 'Total da opção 3']);
+    expect(totalDaOpcao('')).toBe('Total da opção');
+    expect(['Opção Principal', ' Light ', 'a'].map(totalDaOpcao)).toEqual(['Total · Opção Principal', 'Total · Light', 'Total · a']);
   });
 
   it('o personalizado não vira letra ao reordenar, e a instância continua a mesma', () => {

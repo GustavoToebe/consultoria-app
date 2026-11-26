@@ -1,4 +1,5 @@
 import type { ConteudoDieta, FatoresDoAlimento, ItemDieta, Refeicao, UnidadeAlimento } from '../api/tipos';
+import { ehRotuloPadrao, nomeDaOpcao, opcaoNaFrase } from './dieta';
 import { completarFatores, NOTA_DA_ESTIMATIVA } from './fatoresDoAlimento';
 import { secoesDaDieta } from './variacoesDaDieta';
 
@@ -170,7 +171,9 @@ export function textosDasOpcoes(conteudo: ConteudoDieta, escolhas: EscolhasDeOpc
   return secoesDaDieta(conteudo).flatMap((s) => s.refeicoes.filter((r) => r.opcoes.length > 1).map((r) => {
     const uid = escolhas[r.uid];
     const opcao = r.opcoes.find((o) => o.uid === uid) ?? r.opcoes[0];
-    return `${s.rotulo ? `${s.rotulo} · ` : ''}${r.nome || 'Refeição'}: opção ${opcao?.rotulo ?? '—'}`;
+    // Padrão: "opção B"; personalizado: o rótulo digitado ("Opção Principal"), sem "opção" duplicado.
+    const nome = !opcao ? 'opção —' : ehRotuloPadrao(opcao.rotulo) ? opcaoNaFrase(opcao.rotulo) : nomeDaOpcao(opcao.rotulo);
+    return `${s.rotulo ? `${s.rotulo} · ` : ''}${r.nome || 'Refeição'}: ${nome}`;
   }));
 }
 

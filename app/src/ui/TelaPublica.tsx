@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -7,12 +6,10 @@ import { NOME_DO_PRODUTO } from '../dominio/produto';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO, textoSobre } from '../tema/tokens';
 import { coresDoDesabilitado, visualDoInativo } from './desabilitado';
+import { IconeDoProduto } from './MarcaDoProduto';
 import { MarcaTitulo } from './MarcaTitulo';
 import { Tela } from './Tela';
 import { Texto } from './Texto';
-
-/** Símbolo do app (o mesmo ícone da loja, 4,5 KB), no topo das telas públicas sem consultoria conhecida. */
-const SIMBOLO: number = require('../../assets/images/icon.png');
 
 /** Largura única das telas públicas (antes 440, 480 ou 560 conforme a tela). */
 export const LARGURA_PUBLICA = 440;
@@ -50,7 +47,7 @@ export function TelaPublica({ titulo, subtitulo, marca, children }: {
 function TopoDoProduto() {
   return (
     <View style={estilos.produto} accessibilityRole="image" accessibilityLabel={NOME_DO_PRODUTO}>
-      <Image source={SIMBOLO} style={estilos.simbolo} contentFit="contain" accessible={false} />
+      <IconeDoProduto tamanho={36} />
       <Texto style={estilos.nomeDoProduto} accessible={false}>{NOME_DO_PRODUTO}</Texto>
     </View>
   );
@@ -96,7 +93,6 @@ const estilos = StyleSheet.create({
   topoAlto: { marginTop: espaco(4) },
   titulos: { gap: espaco(0.5) },
   produto: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
-  simbolo: { width: 36, height: 36, borderRadius: 8 },
   nomeDoProduto: { fontFamily: fontes.negrito, fontSize: 18 },
   comMotivo: { alignSelf: 'stretch', gap: espaco(0.5) },
   botao: { minHeight: ALVO_TOQUE, borderRadius: RAIO, borderWidth: 1, paddingHorizontal: espaco(2), paddingVertical: espaco(0.75), flexDirection: 'row', gap: espaco(1), alignItems: 'center', justifyContent: 'center' },
