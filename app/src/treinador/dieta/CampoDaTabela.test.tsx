@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-import { alturaDoCampo } from './CampoDaTabela';
+import { alturaDoCampo, alturaNoCelular } from './CampoDaTabela';
 
 jest.mock('../../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../../tema/tokens').ESCURO, fatorTexto: 1 }) }));
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
@@ -24,5 +24,19 @@ describe('alturaDoCampo', () => {
     expect(rola).toBe(true);
     // Área visível do texto (sem bordas e sem o recuo de cima) = exatamente duas linhas.
     expect(altura - 2 - 8).toBe(2 * 20);
+  });
+});
+
+describe('alturaNoCelular', () => {
+  // contentSize do TextInput = só o texto, linhas de 20 px; recuos de 8 e bordas de 1 px somam 18.
+  it('uma linha fica no alvo de toque; cresce com o texto até o teto', () => {
+    expect(alturaNoCelular(20, 2)).toBe(44);
+    expect(alturaNoCelular(40, 2)).toBe(58);
+    expect(alturaNoCelular(100, 6)).toBe(118);
+  });
+
+  it('passou do teto: para em linhas inteiras (o resto rola dentro do campo)', () => {
+    expect(alturaNoCelular(60, 2)).toBe(2 * 20 + 8 + 2);
+    expect(alturaNoCelular(400, 6)).toBe(6 * 20 + 8 + 2);
   });
 });

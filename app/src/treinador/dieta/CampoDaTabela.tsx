@@ -3,7 +3,7 @@ import { Platform, type TextInput, View } from 'react-native';
 
 import { nomeSemQuebra } from '../../dominio/complementosDaDieta';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco } from '../../tema/tokens';
 import { Campo } from '../../ui/Campo';
 
 /** Sem a alça de redimensionar do textarea (o preflight da web põe `resize: vertical`): o campo já cresce sozinho. */
@@ -46,10 +46,16 @@ function ajustarAltura(el: HTMLTextAreaElement, maximoDeLinhas: number): void {
   el.style.overflowY = rola ? 'auto' : 'hidden';
 }
 
-/** Fora da web (sem DOM para medir): a conta folgada de `linhasDoNome` (9 px por caractere da fonte de 16 px). */
-function linhasEstimadas(texto: string, larguraDoCampo: number, fatorDoTexto: number, maximoDeLinhas: number): number {
-  const porLinha = Math.max(1, Math.floor((larguraDoCampo - 28) / (9 * fatorDoTexto)));
-  return larguraDoCampo <= 28 ? 1 : Math.min(maximoDeLinhas, Math.max(1, Math.ceil(texto.length / porLinha)));
+/** Linha do campo no celular: o `leading-5` do `Input` (20 px, não muda com o tamanho do texto). */
+const LINHA_NO_CELULAR = 20;
+
+/**
+ * Fora da web (sem DOM para medir): altura do campo pelo `contentSize` que o `TextInput` informa (texto sem recuos).
+ * Mesma regra da web (`alturaDoCampo`): de uma linha (44) até o teto, e acima dele para em linhas inteiras e rola.
+ */
+export function alturaNoCelular(conteudo: number, maximoDeLinhas: number): number {
+  const recuo = espaco(1);
+  return alturaDoCampo({ conteudo: conteudo + 2 * recuo, linha: LINHA_NO_CELULAR, recuoDeCima: recuo, recuoDeBaixo: recuo, borda: 2 }, maximoDeLinhas).altura;
 }
 
 /**
@@ -58,13 +64,15 @@ function linhasEstimadas(texto: string, larguraDoCampo: number, fatorDoTexto: nu
  * design; Outros passa mais), sem a alça de redimensionar e sem gravar quebra pelo Enter. Sempre textarea: trocar de
  * input para textarea no meio da digitação perderia o foco. Por padrão o rótulo fica no cabeçalho da tabela (o leitor de
  * tela lê `rotuloAcessivel`); Outros passa `rotuloOculto={false}` e mostra o rótulo.
- * Na web a altura é medida no `textarea` (a mesma técnica do `CampoQueCresce` da mobilidade): antes era estimada pelo
- * número de caracteres e dava uma linha a mais nas colunas estreitas ("Pré-treino" em 104 px).
+ * Na web a altura é medida no `textarea` (a mesma técnica do `CampoQueCresce` da mobilidade); no celular, pelo
+ * `onContentSizeChange` do `TextInput` (`alturaNoCelular`, mesmo teto). A estimativa por caractere deu uma linha a mais
+ * nas colunas estreitas ("Pré-treino" em 104 px).
  */
 export function CampoDaTabela({ valor, aoMudar, rotuloOculto = true, maximoDeLinhas = 2, ...resto }: Omit<ComponentProps<typeof Campo>, 'linhas' | 'ref'> & { maximoDeLinhas?: number }) {
   const { fatorTexto } = useTema();
   const campo = useRef<TextInput>(null);
   const [largura, setLargura] = useState(0);
+  const [conteudo, setConteudo] = useState<number | null>(null);
   const web = Platform.OS === 'web';
   useEffect(() => {
     const el = campo.current as unknown;
@@ -78,7 +86,8 @@ export function CampoDaTabela({ valor, aoMudar, rotuloOculto = true, maximoDeLin
   return (
     <View onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}>
       <Campo {...resto} ref={campo} rotuloOculto={rotuloOculto} valor={valor}
-        linhas={web ? 1 : linhasEstimadas(valor, largura, fatorTexto, maximoDeLinhas)} className={SEM_ALCA}
+        linhas={1} className={SEM_ALCA} altura={web || conteudo === null ? undefined : alturaNoCelular(conteudo, maximoDeLinhas)}
+        onContentSizeChange={web ? undefined : (e) => setConteudo(Math.ceil(e.nativeEvent.contentSize.height))}
         blurOnSubmit onSubmitEditing={() => undefined} aoMudar={(v) => aoMudar(nomeSemQuebra(v))} />
     </View>
   );

@@ -173,6 +173,12 @@ export function opcaoDoTotalDoDia(refeicoes: Refeicao[]): { padrao: boolean; nom
   return { padrao: false, nome: todasIguais ? rotulos[0] : 'primeira opção' };
 }
 
+/** A descrição do "Total do dia" no editor, com as mesmas regras do aluno e do PDF ("Soma só a opção A…", "Soma só · Principal…"). */
+export function descricaoDoTotalDoDia(refeicoes: Refeicao[]): string {
+  const { padrao, nome } = opcaoDoTotalDoDia(refeicoes);
+  return `${padrao ? `Soma só a ${nome}` : `Soma só · ${nome}`} de cada refeição: as outras opções substituem a refeição e não entram no total.`;
+}
+
 /**
  * A letra segue a posição (26/11) só nas opções de rótulo padrão: o `rotulo` é gravado no plano e o aluno, o PDF e o
  * "Escolha uma das opções" o leem, então reordenar grava as letras novas. O personalizado se mantém (e a posição 1 segue
