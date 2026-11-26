@@ -41,8 +41,8 @@ Conferir no código cada pedido dos dias 24 e 25/11 (A1 a I) e fechar o que falt
 | F1 Aniversários no Início do treinador | Feito | `treinador/painel/BlocoAniversarios.tsx` | Nada |
 | F2 Edição do Início | Feito | `treinador/painel/edicao/*`, integrado em `app/treinador/index.tsx` | Nada |
 | G1 Dados do aluno: teto só com 3 colunas | Feito | `DadosDoAluno.tsx` | Nada |
-| G2 Selo do acesso desativado âmbar com ● | Feito | `seloDoAcesso` | Nada |
-| G3 Redes só na Conta | Feito | `FileiraDeRedes` | Nada |
+| G2 Selo do acesso desativado âmbar com ● | Feito (em 26/11 mudou para neutro com ●, T-301 de [ajustes-de-26-11.md](ajustes-de-26-11.md)) | `seloDoAcesso` | Nada |
+| G3 Redes só na Conta | Feito (em 26/11 as redes viraram a peça `ui/RedesSociais`, T-306 de [ajustes-de-26-11.md](ajustes-de-26-11.md); as da consultoria seguem só na Conta do aluno) | `FileiraDeRedes` | Nada |
 | G4 Instagram na Inscrição | Feito | V102, `AvisoDePerguntaDoInstagram` | Nada |
 | G5 Rodapé fixo da página | Feito | `rodapeFixoDaPagina.ts`, `TelaDoEditor` | Nada |
 | G6 Foco ao entrar | Feito | `useFocoAoEntrar` | Nada |

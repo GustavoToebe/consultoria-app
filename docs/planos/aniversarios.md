@@ -13,7 +13,7 @@ O treinador vê no Início quem faz aniversário nos próximos dias, para lembra
 | D1 | O que aparece | nome e dia/mês; nunca a idade nem o ano | Gustavo, 17/11 |
 | D2 | Quem vê | só com a permissão `ALUNO_LER`; fonte `aluno.data_nascimento` (V070) | Gustavo, 17/11 |
 | D3 | Janela | N = 0, 3, 7 ou 15 dias; preferência do aparelho, como `diasSemRegistro` em `dominio/configuracoes.ts` | Gustavo, 17/11 |
-| D4 | Configuração | item no hub de Configurações leva a essa escolha | Gustavo, 17/11 |
+| D4 | Configuração | ~~item no hub de Configurações leva a essa escolha~~ · o item saiu em 26/11 (T-308 de [ajustes-de-26-11.md](ajustes-de-26-11.md)); a opção segue no bloco do Início | Gustavo, 17/11; item removido na sessão de 26/11 |
 | D5 | Sem envio ao aluno | nada de mensagem, e-mail ou WhatsApp | Gustavo, 17/11 |
 | D6 | LGPD | a data de nascimento nunca vai a log nem a auditoria | Gustavo, 17/11 |
 | D7 | Sem compatibilidade | sem flag; é tela nova | regra do projeto |
@@ -28,7 +28,7 @@ O treinador vê no Início quem faz aniversário nos próximos dias, para lembra
 
 ## Passos
 - [x] 1. API e regra pura em `dominio/` com teste: aniversariantes dos próximos N dias, virada de ano, 29/02 — feito em `b9a6c3bf`. `AniversariantesService`/`Controller`, `AniversariantesIntegrationTest`, `AniversariantesRegraTest`, `dominio/aniversariosDosAlunos.ts` (+ teste) · commit: `b9a6c3bf`
-- [x] 2. Cartão "Aniversários" no Início do treinador, preferência `diasAniversario` (0, 3, 7 ou 15; padrão 7) escolhida em Ajustes e item "Aniversários dos alunos" no hub de Configurações — feito em `b9a6c3bf`. Cartão fora da grade e do "Editar" (`shortcut` em `BlocoAniversarios.tsx`); e2e escrito em `app/e2e/aniversarios.spec.ts`, ainda não rodado (Onda 5) · commit: `b9a6c3bf`
+- [x] 2. Cartão "Aniversários" no Início do treinador, preferência `diasAniversario` (0, 3, 7 ou 15; padrão 7) escolhida em Ajustes e item "Aniversários dos alunos" no hub de Configurações (o item saiu em 26/11, ver D4) — feito em `b9a6c3bf`. Cartão fora da grade e do "Editar" (`shortcut` em `BlocoAniversarios.tsx`); e2e escrito em `app/e2e/aniversarios.spec.ts`, ainda não rodado (Onda 5) · commit: `b9a6c3bf`
 - [x] 3. Revisão independente (data de nascimento, LGPD) — feita em 17/11: sem vazamento de ano ou idade nem quebra de autorização; ajustes pequenos aplicados (toString do record, espera da preferência no Início); lacunas de teste (sem responsável com `meus`, anonimizado isolado, espera do pedido no e2e) ficam para a Onda 5 · commit: `b9a6c3bf` e `8c35e28e`
 
 ## Critérios de aceite

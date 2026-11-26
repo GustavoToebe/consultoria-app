@@ -21,7 +21,7 @@ Aplicar o lote do Gustavo de 25/11 à tarde (monitor 24" 16:9, 1920×1080, zoom 
 - [x] T-104 Endereço: separar número da rua, autofill do Chrome limpa os erros, atributos `autocomplete` — executor — commit `36bf8fb1`
 - [x] T-105 Acesso ao app no app: Alterar e-mail, Desativar/Reativar acesso — executor-front — commit `36bf8fb1`
 - [x] T-106 Dieta: "+ Opção" `acao`, opções A/B com círculo, Fibras (cabeçalho em uma linha) e campos do item manual — executor-front — commit `36bf8fb1`
-- [x] T-107 Redes sociais no app (Contato, Conta e Início do aluno, Meus dados, cadastro e ficha) — executor-front — commit `36bf8fb1`
+- [x] T-107 Redes sociais no app (Contato, Conta e Início do aluno, Meus dados, cadastro e ficha) — executor-front — commit `36bf8fb1` (em 26/11: V103, mais redes e a peça única `ui/RedesSociais`, T-306 de [ajustes-de-26-11.md](ajustes-de-26-11.md); as redes da consultoria seguem só na Conta do aluno, não no Início, D3 de [decisoes-e-pendencias-25-11.md](decisoes-e-pendencias-25-11.md))
 - [x] T-108 Balão do ⓘ só aberto e toast sobre rodapé fixo — executor — commit `36bf8fb1`
 - [x] T-109 Investigação do ovo (só relatório, nenhum dado de cliente corrigido) — explorador — relatório no fim da sessão (origem MANUAL "Plano do treinador" de 29/10; alimento corrigido na produção por ele; dietas antigas mantêm os valores)
 - [x] T-110 Dieta: campo Quantidade do item manual alinhado ao nome e unidade como segmento interno do contorno (`CampoDaQuantidade`, `CartaoRefeicao`) — executor-front; commit `36bf8fb1`; `dieta-tabela.spec.ts` 8/8
