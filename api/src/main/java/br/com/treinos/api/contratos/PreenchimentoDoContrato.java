@@ -42,6 +42,12 @@ class PreenchimentoDoContrato {
 
     record Resultado(Map<Campo, String> valores, List<Falta> faltas) { }
 
+    /** D10 sem campos: o contrato de PDF só liga a contratação (mesmas recusas do {@link #montar}: 403, 503 e 404). */
+    void exigirContratacao(Aluno aluno, UUID contratacaoId) {
+        AcessoAtual.exigir("FINANCEIRO_LER");
+        pagamentos.dadosParaContrato(aluno.getId(), contratacaoId);
+    }
+
     /**
      * {@code contratacaoId} nulo = contrato sem plano. Informado, exige {@code FINANCEIRO_LER} (403), o financeiro ligado (503) e que a
      * contratação seja do aluno (404), mesmo que nenhum campo financeiro seja usado: o vínculo também é dado do financeiro.

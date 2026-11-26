@@ -1,5 +1,5 @@
 import type { ContratacaoResponse } from '../api/financeiroTipos';
-import type { FaltaDoContrato, SituacaoDoContrato } from '../api/contratos';
+import { LIMITES_DO_CONTRATO, type FaltaDoContrato, type SituacaoDoContrato } from '../api/contratos';
 import { esc } from '../pdf/html';
 import type { TipoSelo } from '../ui/Selo';
 import { dataEmBrasilia } from './agendaPresencial';
@@ -213,4 +213,21 @@ export function htmlDoTextoFormatado(texto: string | null | undefined): string {
         .join(''))
       .join('<br>')}</p>`)
     .join('');
+}
+
+// ---- PDF próprio (passo 3) ----
+
+export const ERRO_PDF_NAO_E_PDF = 'Envie um arquivo PDF.';
+export const ERRO_PDF_GRANDE = 'O PDF passa de 900 KB.';
+
+/**
+ * Confere o PDF escolhido antes do envio, com as mesmas frases da API (que confere de novo). `inicio` = os primeiros bytes
+ * do arquivo; nulo quando a tela não os leu (aí só o tipo e o tamanho valem). `tamanho` desconhecido não trava: a API decide.
+ */
+export function erroDoPdfEscolhido(a: { nome: string; tipo?: string | null; tamanho?: number | null; inicio?: Uint8Array | null }): string | null {
+  const pareceSerPdf = a.tipo === 'application/pdf' || /\.pdf$/i.test(a.nome);
+  const assinatura = a.inicio ? String.fromCharCode(...a.inicio.subarray(0, 5)) === '%PDF-' : true;
+  if (!pareceSerPdf || !assinatura || a.tamanho === 0) return ERRO_PDF_NAO_E_PDF;
+  if (a.tamanho != null && a.tamanho > LIMITES_DO_CONTRATO.arquivoPdf) return ERRO_PDF_GRANDE;
+  return null;
 }

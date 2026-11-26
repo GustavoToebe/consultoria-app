@@ -5,6 +5,7 @@ import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.auditoria.Auditoria;
+import br.com.treinos.api.contratos.ContratoAluno.Origem;
 import br.com.treinos.api.contratos.ContratoAluno.Signatario;
 import br.com.treinos.api.contratos.ContratoAluno.Situacao;
 import br.com.treinos.api.contratos.ContratoDtos.AssinarRequest;
@@ -43,8 +44,11 @@ public class ContratoDoAlunoService {
     private final ContratoAlunoRepository contratos;
     private final AlunoRepository alunos;
     private final Auditoria auditoria;
+    private final ContratoArquivoRepository arquivos;
 
-    public ContratoDoAlunoService(ContratoAlunoRepository contratos, AlunoRepository alunos, Auditoria auditoria) {
+    public ContratoDoAlunoService(ContratoAlunoRepository contratos, AlunoRepository alunos, Auditoria auditoria,
+                                  ContratoArquivoRepository arquivos) {
+        this.arquivos = arquivos;
         this.contratos = contratos;
         this.alunos = alunos;
         this.auditoria = auditoria;
@@ -65,6 +69,17 @@ public class ContratoDoAlunoService {
     public ContratoDoAlunoDetalhe obter(UUID alunoId, UUID id) {
         return detalhe(contratos.findByIdAndAlunoId(id, alunoId).filter(c -> c.getSituacao() != Situacao.CANCELADO)
                 .orElseThrow(ContratoDoAlunoService::naoEncontrado));
+    }
+
+    /** O PDF do próprio contrato: cancelado, de outro aluno ou consultoria, ou de modelo (sem arquivo) = 404. */
+    @Transactional(readOnly = true)
+    public byte[] arquivo(UUID alunoId, UUID id) {
+        ContratoAluno c = contratos.findByIdAndAlunoId(id, alunoId).filter(x -> x.getSituacao() != Situacao.CANCELADO)
+                .orElseThrow(ContratoDoAlunoService::naoEncontrado);
+        if (c.getOrigem() != Origem.PDF) {
+            throw naoEncontrado();
+        }
+        return arquivos.findById(c.getId()).map(ContratoArquivo::getBytes).orElseThrow(ContratoDoAlunoService::naoEncontrado);
     }
 
     /**

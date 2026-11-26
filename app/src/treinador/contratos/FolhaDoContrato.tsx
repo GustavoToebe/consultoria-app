@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { obterContrato, type ContratoDetalhe } from '../../api/contratos';
+import { baixarArquivoDoContrato, obterContrato, type ContratoDetalhe } from '../../api/contratos';
 import { baixarComprovanteDaEquipe } from '../../contratos/comprovante';
+import { ROTULO_DO_PDF } from '../../contratos/abrirPdf';
+import { useAbrirPdf } from '../../contratos/useAbrirPdf';
 import { dataEmBrasilia, horaEmBrasilia } from '../../dominio/agendaPresencial';
 import { linhasDeEvidencia, seloDoContrato } from '../../dominio/contratos';
 import { dataParaTela } from '../../dominio/formatos';
@@ -45,12 +47,14 @@ export function useComprovanteDaEquipe(alunoNome: string) {
 /**
  * O contrato gerado, visto pela equipe (ficha › Contratos › "Ver"): situação, quem gerou e quando, prazo, cancelamento e,
  * assinado, as evidências do aceite (nome digitado, data e hora de Brasília, IP, aparelho e o código de verificação) com
- * "Baixar comprovante"; depois o texto exato que o aluno vê. Só leitura.
+ * "Baixar comprovante"; depois o texto exato que o aluno vê (no PDF próprio, "Abrir o PDF"). Só leitura.
  */
 export function FolhaDoContrato({ contratoId, alunoNome, aoFechar }: { contratoId: string; alunoNome: string; aoFechar: () => void }) {
   const { cores } = useTema();
   const carga = useCarregar(`contrato-da-equipe:${contratoId}`, () => obterContrato(contratoId));
   const comprovante = useComprovanteDaEquipe(alunoNome);
+  const { offline } = useSessao();
+  const pdf = useAbrirPdf(() => baixarArquivoDoContrato(contratoId));
   const d = carga.dados;
   const selo = d ? seloDoContrato(d) : null;
   const a = d?.situacao === 'ASSINADO' ? d.assinatura : null;
@@ -81,12 +85,21 @@ export function FolhaDoContrato({ contratoId, alunoNome, aoFechar }: { contratoI
                   motivo="Aguarde a marca da consultoria carregar." style={estilos.botao} aoTocar={() => comprovante.baixar(d)} />
               </View>
             ) : null}
-            <View style={estilos.bloco}>
-              <Texto variante="bloco" nivel={3}>Texto do contrato</Texto>
-              <View style={[estilos.papel, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
-                <TextoFormatado texto={d.texto} selecionavel />
+            {d.origem === 'PDF' ? (
+              <View style={estilos.bloco}>
+                <Texto variante="bloco" nivel={3}>Documento</Texto>
+                <Texto>O contrato é o PDF enviado pela equipe. O aluno abre o mesmo arquivo para assinar.</Texto>
+                <Botao rotulo={ROTULO_DO_PDF} tipo="secundario" carregando={pdf.abrindo} desabilitado={offline}
+                  motivo="Sem internet: conecte-se para abrir o PDF." style={estilos.botao} aoTocar={pdf.abrir} />
               </View>
-            </View>
+            ) : (
+              <View style={estilos.bloco}>
+                <Texto variante="bloco" nivel={3}>Texto do contrato</Texto>
+                <View style={[estilos.papel, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+                  <TextoFormatado texto={d.texto} selecionavel />
+                </View>
+              </View>
+            )}
           </>
         ) : null}
       </View>

@@ -3,8 +3,10 @@ import { FileX2, WifiOff } from 'lucide-react-native';
 import { useRef, useState, type RefObject } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View, type TextInput } from 'react-native';
 
-import { assinarContrato, obterMeuContrato, LIMITES_DO_CONTRATO, type ContratoDoAlunoDetalhe } from '../../api/contratos';
+import { assinarContrato, baixarMeuArquivoDeContrato, obterMeuContrato, LIMITES_DO_CONTRATO, type ContratoDoAlunoDetalhe } from '../../api/contratos';
 import { baixarComprovanteDoAluno } from '../../contratos/comprovante';
+import { ROTULO_DO_PDF, VERBO_DO_PDF } from '../../contratos/abrirPdf';
+import { useAbrirPdf } from '../../contratos/useAbrirPdf';
 import { dataEmBrasilia } from '../../dominio/agendaPresencial';
 import { linhasDeEvidencia, seloDoContratoDoAluno } from '../../dominio/contratos';
 import { dataParaTela } from '../../dominio/formatos';
@@ -35,7 +37,8 @@ const ehIndisponivel = (e: unknown) => {
 };
 
 /**
- * Contrato do aluno (`/aluno/contrato/[id]`, `docs/planos/contrato-digital-telas.md`, tela C). Pendente: o texto e a
+ * Contrato do aluno (`/aluno/contrato/[id]`, `docs/planos/contrato-digital-telas.md`, tela C). Pendente: o texto (ou, no PDF
+ * próprio, "Abrir o PDF") e a
  * assinatura (nome completo + aceite), que manda o `sha256` do detalhe lido (o app nunca calcula hash). Assinado: as
  * evidências que o aluno vê (nome digitado, data e hora de Brasília, código) e o comprovante. Só com internet; nada fica no
  * aparelho. 404 e 503 dizem que o contrato não está mais disponível.
@@ -55,6 +58,7 @@ export function TelaDoContrato({ id }: { id: string }) {
   const [semFormulario, setSemFormulario] = useState<string | null>(null);
   const [assinando, setAssinando] = useState(false);
   const [baixando, setBaixando] = useState(false);
+  const pdf = useAbrirPdf(() => baixarMeuArquivoDeContrato(id));
   const nomeRef = useRef<TextInput>(null);
   const alertaRef = useRef<View>(null);
   const seloRef = useRef<View>(null);
@@ -159,10 +163,19 @@ export function TelaDoContrato({ id }: { id: string }) {
             <Botao rotulo="Baixar comprovante" cheio={celular} carregando={baixando} desabilitado={!marca} motivo="Aguarde a marca da consultoria carregar." aoTocar={() => baixar(d)} />
           </View>
         ) : null}
-        <View style={estilos.texto}>
-          <Texto variante="bloco" nivel={2}>Texto do contrato</Texto>
-          <TextoFormatado texto={d.texto} selecionavel />
-        </View>
+        {d.origem === 'PDF' ? (
+          <View style={estilos.texto}>
+            <Texto variante="bloco" nivel={2}>Contrato</Texto>
+            <Texto>{assinado ? 'O contrato que você assinou está no PDF.' : `O contrato está no PDF. ${VERBO_DO_PDF} e leia antes de assinar.`}</Texto>
+            <Botao rotulo={ROTULO_DO_PDF} tipo="secundario" cheio={celular} carregando={pdf.abrindo} desabilitado={!online}
+              motivo="Sem internet: conecte-se para abrir o PDF." aoTocar={pdf.abrir} />
+          </View>
+        ) : (
+          <View style={estilos.texto}>
+            <Texto variante="bloco" nivel={2}>Texto do contrato</Texto>
+            <TextoFormatado texto={d.texto} selecionavel />
+          </View>
+        )}
         {!assinado && d.situacao === 'PENDENTE' ? (
           <View style={estilos.texto}>
             <Texto variante="bloco" nivel={2}>Assinatura</Texto>
@@ -175,7 +188,7 @@ export function TelaDoContrato({ id }: { id: string }) {
                   <CaixaSelecao rotulo="Li o contrato e concordo com os termos." marcado={aceite} aoMudar={(v) => { setAceite(v); setErros((e) => ({ ...e, aceite: undefined })); }} />
                   {erros.aceite ? <MensagemDeErro erro={erros.aceite} /> : null}
                 </View>
-                <Texto variante="pequeno">Ao assinar, guardamos a data e a hora, o aparelho e um código que identifica este texto.</Texto>
+                <Texto variante="pequeno">Ao assinar, guardamos a data e a hora, o aparelho e {`um código que identifica ${d.origem === 'PDF' ? 'este arquivo' : 'este texto'}.`}</Texto>
                 <Botao rotulo="Assinar contrato" cheio={celular} carregando={assinando} desabilitado={!online} motivo="Sem internet: conecte-se para assinar." aoTocar={assinar} />
               </>
             )}

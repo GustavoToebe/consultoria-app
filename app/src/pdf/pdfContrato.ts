@@ -14,8 +14,8 @@ export interface DadosPdfContrato {
   logoDataUri: string | null;
   /** Título do contrato (o que a equipe escreveu ao gerar). */
   titulo: string;
-  /** O texto exato que o aluno leu e assinou (`**negrito**` e `__sublinhado__`). */
-  texto: string;
+  /** O texto exato que o aluno leu e assinou (`**negrito**` e `__sublinhado__`); nulo no PDF próprio (o documento é o arquivo). */
+  texto: string | null;
   sha256: string;
   /** Nome do aluno, quando a tela o conhece (a versão do aluno e a da ficha o têm). */
   aluno?: string | null;
@@ -35,12 +35,14 @@ export function documentoContrato(d: DadosPdfContrato): Documento {
   });
   const corpo = [
     cabecalhoDoPdf({ marca: d.marca, logoDataUri: d.logoDataUri, documento: 'Comprovante do contrato', titulo: d.titulo, aluno: d.aluno, emitidoEm: d.emitidoEm }),
-    `<div class="contrato-texto">${htmlDoTextoFormatado(d.texto)}</div>`,
+    `<div class="contrato-texto">${d.texto === null ? '<p>Documento em PDF anexo.</p>' : htmlDoTextoFormatado(d.texto)}</div>`,
     '<section class="evidencias"><h2>Evidências da assinatura</h2>',
     `<table class="ev"><tbody>${evidencias
       .map((l) => `<tr><th>${esc(l.rotulo)}</th><td${l.rotulo.startsWith('Código') ? ' class="codigo"' : ''}>${esc(l.valor)}</td></tr>`)
       .join('')}</tbody></table>`,
-    '<p class="pequeno">O código de verificação identifica o texto exato deste contrato. Se uma só letra do texto mudar, o código muda.</p>',
+    d.texto === null
+      ? '<p class="pequeno">O código de verificação identifica o arquivo PDF exato deste contrato. Se um só byte do arquivo mudar, o código muda.</p>'
+      : '<p class="pequeno">O código de verificação identifica o texto exato deste contrato. Se uma só letra do texto mudar, o código muda.</p>',
     '</section>',
   ].join('\n');
 

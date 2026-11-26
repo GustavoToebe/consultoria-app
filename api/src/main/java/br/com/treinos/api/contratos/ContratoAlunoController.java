@@ -7,6 +7,7 @@ import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,6 +43,12 @@ public class ContratoAlunoController {
     @GetMapping("/aluno/contratos/{id}")
     public ContratoDoAlunoDetalhe obter(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id) {
         return contratos.obter(AlunoAppService.alunoDaSessao(eu), id);
+    }
+
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/aluno/contratos/{id}/arquivo")
+    public ResponseEntity<byte[]> arquivo(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id) {
+        return ContratoController.pdf(contratos.arquivo(AlunoAppService.alunoDaSessao(eu), id));
     }
 
     @PreAuthorize("hasRole('ALUNO')")

@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import type { ContratacaoResponse } from '../api/financeiroTipos';
 import {
   acoesDoContrato, camposDesconhecidos, CAMPOS_DO_CONTRATO, contratacoesParaEscolher, erroDosCamposDesconhecidos, GRUPOS_DOS_CAMPOS,
-  htmlDoTextoFormatado, inserirCampo, instanteDeBrasilia, linhasDeEvidencia, notaDasFaltas, PADRAO_DO_CAMPO, podeCompletarOCadastro,
+  erroDoPdfEscolhido, htmlDoTextoFormatado, inserirCampo, instanteDeBrasilia, linhasDeEvidencia, notaDasFaltas, PADRAO_DO_CAMPO, podeCompletarOCadastro,
   rotuloDaContratacao, seloDoContrato, seloDoContratoDoAluno, TEXTO_DA_NOTA_DAS_FALTAS,
 } from './contratos';
 
@@ -184,5 +184,22 @@ describe('htmlDoTextoFormatado', () => {
   it('vazio ou nulo, nada', () => {
     expect(htmlDoTextoFormatado('')).toBe('');
     expect(htmlDoTextoFormatado(null)).toBe('');
+  });
+});
+
+describe('erroDoPdfEscolhido', () => {
+  const pdf = new TextEncoder().encode('%PDF-1.4');
+  it('aceita PDF pelo tipo ou pela extensão, até 900 KB inclusive', () => {
+    expect(erroDoPdfEscolhido({ nome: 'contrato.pdf', tipo: 'application/pdf', tamanho: 921_600, inicio: pdf })).toBeNull();
+    expect(erroDoPdfEscolhido({ nome: 'CONTRATO.PDF', tipo: 'application/octet-stream', tamanho: 10 })).toBeNull();
+    expect(erroDoPdfEscolhido({ nome: 'sem-extensao', tipo: 'application/pdf' })).toBeNull();
+  });
+  it('recusa outro tipo, PDF falso e vazio', () => {
+    expect(erroDoPdfEscolhido({ nome: 'contrato.docx', tipo: 'application/msword', tamanho: 10 })).toBe('Envie um arquivo PDF.');
+    expect(erroDoPdfEscolhido({ nome: 'falso.pdf', tipo: 'application/pdf', tamanho: 10, inicio: new TextEncoder().encode('<html') })).toBe('Envie um arquivo PDF.');
+    expect(erroDoPdfEscolhido({ nome: 'vazio.pdf', tipo: 'application/pdf', tamanho: 0, inicio: new Uint8Array() })).toBe('Envie um arquivo PDF.');
+  });
+  it('recusa acima de 921.600 bytes', () => {
+    expect(erroDoPdfEscolhido({ nome: 'grande.pdf', tipo: 'application/pdf', tamanho: 921_601, inicio: pdf })).toBe('O PDF passa de 900 KB.');
   });
 });

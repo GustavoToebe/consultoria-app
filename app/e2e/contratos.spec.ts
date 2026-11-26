@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 import type {
   ContratoDetalhe, ContratoDoAlunoDetalhe, ContratoDoAlunoResumo, ContratoResumo, ModeloDeContrato, PreviaDoContrato,
@@ -48,7 +49,7 @@ const resumo = (n: number, p: Partial<ContratoResumo> = {}): ContratoResumo => (
 const PENDENTE = resumo(1);
 const ASSINADO = resumo(2, { titulo: 'Contrato anual', situacao: 'ASSINADO', assinadoEm: '2026-11-21T17:03:09Z' });
 const detalheDe = (r: ContratoResumo): ContratoDetalhe => ({
-  ...r, motivoCancelamento: null, texto: 'Contratante: **Aluno Teste**, CPF 529.982.247-25.\n\nPlano Trimestral, valor R$ 997,00.', sha256: HASH,
+  ...r, motivoCancelamento: null, texto: r.origem === 'PDF' ? null : 'Contratante: **Aluno Teste**, CPF 529.982.247-25.\n\nPlano Trimestral, valor R$ 997,00.', sha256: HASH,
   geradoPorNome: TREINADOR.nome,
   assinatura: r.situacao === 'ASSINADO' ? { assinadoEm: r.assinadoEm!, nome: 'Aluno Teste da Silva', cpf: null, ip: '203.0.113.7', agente: 'Navegador de teste' } : null,
 });
@@ -428,3 +429,118 @@ test('aluno em 390 no tema escuro: contrato pendente (captura)', async ({ page }
   await expect(page.getByRole('heading', { level: 1, name: 'Prestação de serviço' })).toBeVisible();
   await capturar(page, 'aluno-pendente-390-escuro');
 });
+
+// ---------------------------------------------------------------- passo 3: PDF próprio
+
+/** PDF fictício mínimo (só o cabeçalho `%PDF-` importa ao app e à API falsa). */
+const PDF = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
+const PENDENTE_PDF = resumo(4, { titulo: 'Contrato em PDF', origem: 'PDF' });
+const arquivoPdf = (_p: PedidoFalso, r: Route) => r.fulfill({ status: 200, contentType: 'application/pdf', body: PDF });
+
+/** Escolhe o arquivo pelo seletor da web (o `expo-document-picker` abre um `<input type=file>`). */
+async function escolherArquivo(page: Page, botao: Locator, nome: string, conteudo: Buffer) {
+  const seletor = page.waitForEvent('filechooser');
+  await botao.click();
+  await (await seletor).setFiles({ name: nome, mimeType: 'application/pdf', buffer: conteudo });
+}
+
+/** Na web, "Baixar o PDF" baixa `contrato.pdf` com os bytes da API (sem guia nova: a política de segurança pode barrar o visualizador). */
+async function baixarPdf(page: Page, botao: Locator) {
+  const [download] = await Promise.all([page.waitForEvent('download'), botao.click()]);
+  expect(download.suggestedFilename()).toBe('contrato.pdf');
+  expect((await readFile(await download.path())).subarray(0, 5).toString()).toBe('%PDF-');
+}
+
+for (const largura of [390, 1280]) {
+  test.describe(`PDF próprio em ${largura} px`, () => {
+    test('gerar: PDF falso recusado no app, 422 da API no campo e outro arquivo leva outro pedidoId', async ({ page }) => {
+      let vez = 0;
+      const api = await abrirFicha(page, {
+        largura,
+        gerar: () => (vez++ === 0
+          ? { status: 422, corpo: erroApi(422, 'Contrato inválido.', 'CONTRATO_INVALIDO', [{ field: 'arquivo', message: 'O PDF passa de 900 KB.' }]).corpo }
+          : { status: 201, corpo: detalheDe(PENDENTE_PDF) }),
+      });
+      await page.getByRole('button', { name: 'Gerar contrato' }).click();
+      const folha = folhaGerar(page);
+      await folha.getByRole('radio', { name: 'PDF próprio' }).click();
+      const gerar = folha.getByRole('button', { name: 'Gerar contrato' });
+      await expect(gerar).toBeDisabled();
+      await expect(folha.getByText('Escolha o PDF.')).toBeVisible();
+      await expect(folha.getByText('Prévia', { exact: true })).toHaveCount(0);
+      await escolherArquivo(page, folha.getByRole('button', { name: 'Escolher PDF' }), 'falso.pdf', Buffer.from('<html>não é pdf</html>'));
+      await expect(folha.getByText('Envie um arquivo PDF.')).toBeVisible();
+      await expect(gerar).toBeDisabled();
+      await escolherArquivo(page, folha.getByRole('button', { name: 'Trocar o PDF' }), 'contrato-assinatura.pdf', PDF);
+      await expect(folha.getByText('contrato-assinatura.pdf')).toBeVisible();
+      await expect(folha.getByText('Escreva o título.')).toBeVisible();
+      await folha.getByLabel('Título').fill('Contrato em PDF');
+      await capturar(page, `pdf-gerar-${largura}`);
+      await gerar.click();
+      await expect(folha.getByText('O PDF passa de 900 KB.')).toBeVisible();
+      await expect(gerar).toBeDisabled();
+      await capturar(page, `pdf-gerar-422-${largura}`);
+      await escolherArquivo(page, folha.getByRole('button', { name: 'Trocar o PDF' }), 'contrato-assinatura.pdf', PDF);
+      await gerar.click();
+      await expect(page.getByText('Contrato gerado. O aluno já pode assinar no app.')).toBeVisible();
+      const envios = api.pedidos.filter((p) => p.metodo === 'POST' && p.caminho === `/alunos/${ID}/contratos`).map((p) => String(p.corpo));
+      expect(envios).toHaveLength(2);
+      const pedidoDe = (corpo: string) => /"pedidoId":"([^"]+)"/.exec(corpo)?.[1];
+      expect(pedidoDe(envios[0])).toBeTruthy();
+      // Trocar o arquivo é outro documento: outro pedido (a API recusa o mesmo pedido com outro PDF).
+      expect(pedidoDe(envios[1])).toBeTruthy();
+      expect(pedidoDe(envios[0])).not.toBe(pedidoDe(envios[1]));
+      // O nome do arquivo escolhido nunca vai à API: a parte leva o nome fixo.
+      expect(envios[1]).toContain('filename="contrato.pdf"');
+      expect(envios[1]).not.toContain('contrato-assinatura');
+      expect(envios[1]).toContain('%PDF-');
+      expect(envios[1]).toContain('"titulo":"Contrato em PDF"');
+      expect(envios[1]).toContain(`"contratacaoId":"${CONTRATACAO.id}"`);
+      // Só a prévia do modelo, de antes de escolher "PDF próprio"; o PDF não tem prévia.
+      expect(api.pedidos.filter((p) => p.caminho.endsWith('/contratos/previa')).length).toBeLessThanOrEqual(1);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('equipe: "Baixar o PDF"; 404 avisa', async ({ page }) => {
+      let falhar = false;
+      const api = await abrirFicha(page, {
+        largura, contratos: [PENDENTE_PDF],
+        rotas: { 'GET /contratos/{id}/arquivo': (p, r) => (falhar ? json(r, erroApi(404, 'Contrato não encontrado.', 'NAO_ENCONTRADO').corpo, 404) : arquivoPdf(p, r)) },
+      });
+      await page.getByRole('button', { name: 'Ver contrato Contrato em PDF' }).click();
+      const folha = page.getByRole('dialog', { name: 'Contrato em PDF' });
+      await expect(folha.getByText('O contrato é o PDF enviado pela equipe.', { exact: false })).toBeVisible();
+      await expect(folha.getByText('Texto do contrato')).toHaveCount(0);
+      await capturar(page, `pdf-equipe-${largura}`);
+      await baixarPdf(page, folha.getByRole('button', { name: 'Baixar o PDF' }));
+      falhar = true;
+      await folha.getByRole('button', { name: 'Baixar o PDF' }).click();
+      await expect(page.getByText('Contrato não encontrado.')).toBeVisible();
+      expect(api.pedidos.filter((p) => p.caminho.endsWith('/arquivo'))).toHaveLength(2);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: lê pelo PDF e assina', async ({ page }) => {
+      const api = await abrirAluno(page, largura, [PENDENTE_PDF], {
+        'GET /aluno/contratos/{id}/arquivo': arquivoPdf,
+        'POST /aluno/contratos/{id}/assinar': (_p, r) => json(r, detalheDoAluno({ ...PENDENTE_PDF, situacao: 'ASSINADO', assinadoEm: '2026-11-26T17:03:09Z' })),
+      }, `/aluno/contrato/${PENDENTE_PDF.id}`);
+      await expect(page.getByRole('heading', { level: 1, name: 'Contrato em PDF' })).toBeVisible();
+      await expect(page.getByText('O contrato está no PDF. Baixe e leia antes de assinar.')).toBeVisible();
+      await expect(page.getByText('Texto do contrato')).toHaveCount(0);
+      await capturar(page, `pdf-aluno-pendente-${largura}`);
+      await baixarPdf(page, page.getByRole('button', { name: 'Baixar o PDF' }));
+      await page.getByLabel('Seu nome completo').fill('Aluno Teste da Silva');
+      await page.getByRole('checkbox', { name: 'Li o contrato e concordo com os termos.' }).click();
+      await page.getByRole('button', { name: 'Assinar contrato' }).click();
+      await expect(page.getByText('Contrato assinado.')).toBeVisible();
+      await expect(page.getByText('O contrato que você assinou está no PDF.')).toBeVisible();
+      expect(api.pedidos.filter((p) => p.metodo === 'POST').at(-1)?.corpo).toEqual({ sha256: HASH, nome: 'Aluno Teste da Silva', aceite: true });
+      await capturar(page, `pdf-aluno-assinado-${largura}`);
+      await page.context().setOffline(true);
+      await expect(page.getByRole('button', { name: 'Baixar o PDF' })).toBeDisabled();
+      await page.context().setOffline(false);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+  });
+}

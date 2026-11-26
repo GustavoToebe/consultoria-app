@@ -59,6 +59,13 @@ describe('comprovante do contrato', () => {
     expect(corpo).toContain('<strong>&lt;script&gt;alert(1)&lt;/script&gt;</strong> &amp; &quot;x&quot;');
   });
 
+  it('PDF próprio (texto nulo): "Documento em PDF anexo." e o código do arquivo', () => {
+    const { corpo } = documentoContrato({ ...base, texto: null });
+    expect(corpo).toContain('<p>Documento em PDF anexo.</p>');
+    expect(corpo).toContain('identifica o arquivo PDF exato');
+    expect(corpo).toContain(base.sha256);
+  });
+
   it.each(TEMAS_PDF.map((t) => t.id))('gera em todos os temas (%s)', (tema) => {
     const html = documentoCompleto(documentoContrato({ ...equipe, marca: { ...marca, temaPdf: tema } as Marca }));
     expect(html).toContain('Evidências da assinatura');

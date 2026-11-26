@@ -1,9 +1,12 @@
+import { Platform } from 'react-native';
+
+import { anexarArquivoDoAparelho } from './anexarArquivoDoAparelho';
 import { requisicao } from './cliente';
 
 /**
  * Contrato digital (`docs/planos/contrato-digital.md`, passo 2): espelho à mão de `ContratoDtos.java` e uma função por rota
- * dos três controllers (`ContratoModeloController`, `ContratoController` e `ContratoAlunoController`). Só o signatário ALUNO e só
- * a origem MODELO são usados pelas telas. Instantes são ISO (`Instant`). Texto, CPF, IP, aparelho e nome do assinante são
+ * dos três controllers (`ContratoModeloController`, `ContratoController` e `ContratoAlunoController`). Só o signatário ALUNO é
+ * usado pelas telas; a origem PDF (passo 3) tem `texto` nulo e o arquivo à parte. Instantes são ISO (`Instant`). Texto, CPF, IP, aparelho e nome do assinante são
  * dado pessoal: nunca em log nem em nome de arquivo. O app NUNCA calcula o código de verificação (`sha256`): usa o que a API
  * devolve. Erros: 503 `CONTRATOS_INDISPONIVEL` (chave desligada), 422 `CONTRATO_MODELO_INVALIDO`, `CONTRATO_INCOMPLETO`,
  * `CONTRATO_INVALIDO` e `ASSINATURA_INVALIDA` (com `fieldErrors`), 409 `CONTRATO_MODELO_NOME_EM_USO`, `CONTRATO_MODELO_ARQUIVADO`,
@@ -23,6 +26,8 @@ export const LIMITES_DO_CONTRATO = {
   motivoDoCancelamento: 300,
   nomeDoAssinante: 200,
   prorrogarDias: 60,
+  /** PDF próprio: 900 KB (o corpo da API tem 1 MiB). */
+  arquivoPdf: 921_600,
 } as const;
 
 // ---- modelos ----
@@ -118,7 +123,8 @@ export interface ContratoDetalhe {
   geradoEm: string;
   canceladoEm: string | null;
   motivoCancelamento: string | null;
-  texto: string;
+  /** Nulo na origem PDF (o documento é o arquivo). */
+  texto: string | null;
   sha256: string;
   geradoPorNome: string | null;
   assinatura: AssinaturaDoContrato | null;
@@ -172,7 +178,8 @@ export interface ContratoDoAlunoDetalhe {
   prazoAte: string | null;
   vencido: boolean;
   geradoEm: string;
-  texto: string;
+  /** Nulo na origem PDF (o documento é o arquivo). */
+  texto: string | null;
   sha256: string;
   assinatura: AssinaturaDoAluno | null;
 }
@@ -200,6 +207,41 @@ export const previaDoContratoDoAluno = (alunoId: string, corpo: GerarContratoReq
 /** 201 na primeira vez; o mesmo `pedidoId` de novo devolve o contrato já gerado, em 200. */
 export const gerarContrato = (alunoId: string, corpo: GerarContratoRequest) =>
   requisicao<ContratoDetalhe>(`/alunos/${seg(alunoId)}/contratos`, { metodo: 'POST', corpo });
+/** O PDF escolhido na tela: na web o próprio `File`; no celular a `uri` do seletor. O nome real nunca vai à API. */
+export interface PdfEscolhido {
+  nome: string;
+  tamanho?: number | null;
+  parte: Blob | { uri: string };
+}
+
+export interface GerarContratoPdfDados {
+  pedidoId: string;
+  contratacaoId?: string | null;
+  titulo: string;
+  signatario?: SignatarioDoContrato;
+}
+
+/**
+ * PDF próprio em multipart: `arquivo` (sempre com o nome fixo `contrato.pdf`, o nome do arquivo pode levar o do aluno) e
+ * `dados` em JSON (a API lê a parte como texto). 201/200 como o modelo; 422 `CONTRATO_INVALIDO` em `arquivo` ou `titulo`.
+ */
+export async function gerarContratoPdf(alunoId: string, arquivo: PdfEscolhido, dados: GerarContratoPdfDados): Promise<ContratoDetalhe> {
+  const corpo = new FormData();
+  const json = JSON.stringify(dados);
+  if (Platform.OS === 'web') {
+    corpo.append('arquivo', arquivo.parte as Blob, 'contrato.pdf');
+    corpo.append('dados', new Blob([json], { type: 'application/json' }));
+  } else {
+    await anexarArquivoDoAparelho(corpo, 'arquivo', { nome: 'contrato.pdf', tipo: 'application/pdf', uri: (arquivo.parte as { uri: string }).uri });
+    corpo.append('dados', json);
+  }
+  return requisicao<ContratoDetalhe>(`/alunos/${seg(alunoId)}/contratos`, { metodo: 'POST', corpoBruto: corpo, limiteMs: 60000 });
+}
+
+/** Os bytes do PDF próprio (404 no MODELO, cancelado ou alheio). */
+export const baixarArquivoDoContrato = (id: string) =>
+  requisicao<Blob>(`/contratos/${seg(id)}/arquivo`, { binario: true, aceita: 'application/pdf', limiteMs: 60000 });
+
 export const cancelarContrato = (id: string, corpo: CancelarContratoRequest) =>
   requisicao<ContratoDetalhe>(`/contratos/${seg(id)}/cancelar`, { metodo: 'POST', corpo });
 export const prorrogarContrato = (id: string, corpo: ProrrogarContratoRequest) =>
@@ -209,5 +251,7 @@ export const prorrogarContrato = (id: string, corpo: ProrrogarContratoRequest) =
 
 export const listarMeusContratos = () => requisicao<ContratoDoAlunoResumo[]>('/aluno/contratos');
 export const obterMeuContrato = (id: string) => requisicao<ContratoDoAlunoDetalhe>(`/aluno/contratos/${seg(id)}`);
+export const baixarMeuArquivoDeContrato = (id: string) =>
+  requisicao<Blob>(`/aluno/contratos/${seg(id)}/arquivo`, { binario: true, aceita: 'application/pdf', limiteMs: 60000 });
 export const assinarContrato = (id: string, corpo: AssinarContratoRequest) =>
   requisicao<ContratoDoAlunoDetalhe>(`/aluno/contratos/${seg(id)}/assinar`, { metodo: 'POST', corpo });

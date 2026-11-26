@@ -322,6 +322,7 @@ const dadosDoContrato = {
 describe('PDF do contrato não deixa texto virar HTML', () => {
   conferir('contrato (equipe)', documentoContrato as never, { ...dadosDoContrato, ip: '203.0.113.7', agente: 'Mozilla/5.0', geradoPorNome: 'Treinador' });
   conferir('contrato (aluno)', documentoContrato as never, dadosDoContrato);
+  conferir('contrato em PDF (sem texto)', documentoContrato as never, { ...dadosDoContrato, texto: null, ip: '203.0.113.7', agente: 'Mozilla/5.0', geradoPorNome: 'Treinador' });
 });
 
 describe('o gráfico só passa como <img> com SVG em base64 (barreira da web)', () => {

@@ -18,6 +18,7 @@ import br.com.treinos.api.contratos.ContratoDtos.CancelarRequest;
 import br.com.treinos.api.contratos.ContratoDtos.ContratoDetalhe;
 import br.com.treinos.api.contratos.ContratoDtos.ContratoExportado;
 import br.com.treinos.api.contratos.ContratoDtos.ContratoResumo;
+import br.com.treinos.api.contratos.ContratoDtos.GerarContratoPdfRequest;
 import br.com.treinos.api.contratos.ContratoDtos.GerarContratoRequest;
 import br.com.treinos.api.contratos.ContratoDtos.PreviaDoContrato;
 import br.com.treinos.api.contratos.ContratoDtos.ProrrogarRequest;
@@ -32,11 +33,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Contrato digital, lado da equipe (D1 a D23): gerar pelo modelo (que já é o envio, D23), prévia, ler, cancelar e prorrogar. O texto
@@ -50,8 +55,11 @@ public class ContratoService {
     static final int TEXTO_PREENCHIDO_MAXIMO = 100_000;
     static final int MOTIVO_MAXIMO = 300;
     static final int PRORROGAR_MAXIMO_DIAS = 60;
+    /** 900 KB: o teto da coluna ({@code ck_contrato_arquivo_bytes}); o corpo da API tem 1 MiB. */
+    static final int PDF_MAXIMO_BYTES = 921_600;
 
     private final ContratoAlunoRepository contratos;
+    private final ContratoArquivoRepository arquivos;
     private final ContratoModeloService modelos;
     private final PreenchimentoDoContrato preenchimento;
     private final AlunoRepository alunos;
@@ -59,10 +67,11 @@ public class ContratoService {
     private final UsuarioRepository usuarios;
     private final Auditoria auditoria;
 
-    public ContratoService(ContratoAlunoRepository contratos, ContratoModeloService modelos, PreenchimentoDoContrato preenchimento,
-                           AlunoRepository alunos, ConsultoriaRepository consultorias, UsuarioRepository usuarios,
-                           Auditoria auditoria) {
+    public ContratoService(ContratoAlunoRepository contratos, ContratoArquivoRepository arquivos, ContratoModeloService modelos,
+                           PreenchimentoDoContrato preenchimento, AlunoRepository alunos, ConsultoriaRepository consultorias,
+                           UsuarioRepository usuarios, Auditoria auditoria) {
         this.contratos = contratos;
+        this.arquivos = arquivos;
         this.modelos = modelos;
         this.preenchimento = preenchimento;
         this.alunos = alunos;
@@ -89,7 +98,83 @@ public class ContratoService {
 
     @Transactional
     public Gerado gerar(UsuarioAutenticado eu, UUID alunoId, GerarContratoRequest r) {
-        if (r.pedidoId() == null) {
+        return gerarDe(alunoId, r.pedidoId(), aluno -> {
+            Signatario signatario = signatario(r.signatario());
+            Preenchido p = preencher(aluno, r);
+            if (!p.resultado().faltas().isEmpty()) {
+                throw new ValidacaoException("Faltam dados para preencher o contrato.", "CONTRATO_INCOMPLETO",
+                        p.resultado().faltas().stream().map(f -> new ApiError.FieldError(f.campo(), f.mensagem())).toList());
+            }
+            String texto = TextoDoContrato.normalizar(p.texto());
+            if (texto.length() > TEXTO_PREENCHIDO_MAXIMO) {
+                throw invalido("texto", "O contrato preenchido passa de 100.000 caracteres. Encurte o modelo.");
+            }
+            Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
+            return new ContratoAluno(alunoId, r.contratacaoId(), Origem.MODELO, p.modeloId(), p.titulo(), texto,
+                    TextoDoContrato.sha256(texto), signatario, prazoAte(p.prazoDias()), eu.usuarioId(), r.pedidoId(), agora);
+        }, null);
+    }
+
+    /**
+     * Contrato de PDF próprio (D14, D22): o hash cobre os bytes como vieram (nada é reescrito), sem texto nem modelo; o resto é o
+     * mesmo caminho do modelo. Arquivo vazio, sem {@code %PDF-} no começo ou acima de 900 KB, e título vazio ou longo, são 422
+     * {@code CONTRATO_INVALIDO} com frase fixa (nunca o nome nem o conteúdo do arquivo).
+     */
+    @Transactional
+    public Gerado gerarPdf(UsuarioAutenticado eu, UUID alunoId, GerarContratoPdfRequest r, byte[] pdf) {
+        if (r == null) {
+            throw invalido("dados", "Envie os dados do contrato.");
+        }
+        return gerarDe(alunoId, r.pedidoId(), aluno -> {
+            Signatario signatario = signatario(r.signatario());
+            String titulo = r.titulo() == null ? "" : r.titulo().strip();
+            List<ApiError.FieldError> problemas = new ArrayList<>();
+            if (pdf == null || pdf.length == 0 || !comecaComPdf(pdf)) {
+                problemas.add(new ApiError.FieldError("arquivo", "Envie um arquivo PDF."));
+            } else if (pdf.length > PDF_MAXIMO_BYTES) {
+                problemas.add(new ApiError.FieldError("arquivo", "O PDF passa de 900 KB."));
+            }
+            if (titulo.isEmpty()) {
+                problemas.add(new ApiError.FieldError("titulo", "Informe o título do contrato."));
+            } else if (titulo.length() > TITULO_MAXIMO) {
+                problemas.add(new ApiError.FieldError("titulo", "O título pode ter até " + TITULO_MAXIMO + " caracteres."));
+            }
+            if (!problemas.isEmpty()) {
+                throw new ValidacaoException("Confira os dados do contrato.", "CONTRATO_INVALIDO", problemas);
+            }
+            if (r.contratacaoId() != null) {
+                preenchimento.exigirContratacao(aluno, r.contratacaoId());
+            }
+            Consultoria consultoria = consultorias.findById(TenantContext.get())
+                    .orElseThrow(() -> new NaoEncontradoException("Consultoria não encontrada."));
+            Short dias = consultoria.getContratoPrazoDias();
+            Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
+            return new ContratoAluno(alunoId, r.contratacaoId(), Origem.PDF, null, titulo, null, TextoDoContrato.sha256(pdf), signatario,
+                    prazoAte(dias == null ? null : dias.intValue()), eu.usuarioId(), r.pedidoId(), agora);
+        }, pdf);
+    }
+
+    private static boolean comecaComPdf(byte[] pdf) {
+        byte[] marca = "%PDF-".getBytes(StandardCharsets.US_ASCII);
+        return pdf.length >= marca.length && Arrays.equals(pdf, 0, marca.length, marca, 0, marca.length);
+    }
+
+    /** Os bytes do PDF para a equipe (cancelado também: a equipe vê o histórico). Contrato de modelo ou sem arquivo = 404. */
+    @Transactional(readOnly = true)
+    public byte[] arquivo(UUID id) {
+        ContratoAluno c = contratos.findById(id).orElseThrow(ContratoService::contratoNaoEncontrado);
+        if (c.getOrigem() != Origem.PDF) {
+            throw contratoNaoEncontrado();
+        }
+        return arquivos.findById(c.getId()).map(ContratoArquivo::getBytes).orElseThrow(ContratoService::contratoNaoEncontrado);
+    }
+
+    /**
+     * O que os dois caminhos têm em comum: pedido obrigatório, trava consultoria → aluno, idempotência pelo {@code pedidoId} (depois
+     * da trava), aluno ativo e não anonimizado, gravar, o PDF quando houver e a auditoria de resumo fixo.
+     */
+    private Gerado gerarDe(UUID alunoId, UUID pedidoId, Function<Aluno, ContratoAluno> montar, byte[] pdf) {
+        if (pedidoId == null) {
             throw invalido("pedidoId", "Informe o identificador do pedido.");
         }
         // A trava do aluno vem antes da consulta do pedido: de duas chamadas iguais ao mesmo tempo, a segunda espera e recebe o que a
@@ -97,9 +182,13 @@ public class ContratoService {
         // (consultoria → aluno), para não dar deadlock com "Excluir minha conta".
         consultorias.travar(TenantContext.get());
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(ContratoService::alunoNaoEncontrado);
-        var existente = contratos.findByPedidoId(r.pedidoId());
+        var existente = contratos.findByPedidoId(pedidoId);
         if (existente.isPresent()) {
-            if (!existente.get().getAlunoId().equals(alunoId)) {
+            ContratoAluno c = existente.get();
+            // No PDF o reenvio só vale com o mesmo arquivo: outro arquivo no mesmo pedido ligaria o contrato ao PDF errado.
+            boolean outroDocumento = pdf == null ? c.getOrigem() != Origem.MODELO
+                    : c.getOrigem() != Origem.PDF || !c.getSha256().equals(TextoDoContrato.sha256(pdf));
+            if (!c.getAlunoId().equals(alunoId) || outroDocumento) {
                 throw new ConflictException("Este pedido já foi usado em outro contrato.", "PEDIDO_JA_USADO");
             }
             return new Gerado(detalhe(existente.get()), false);
@@ -108,19 +197,7 @@ public class ContratoService {
         if (!aluno.isAtivo()) {
             throw new ConflictException("Aluno inativo. Reative para gerar um contrato.", "ALUNO_INATIVO");
         }
-        Signatario signatario = signatario(r);
-        Preenchido p = preencher(aluno, r);
-        if (!p.resultado().faltas().isEmpty()) {
-            throw new ValidacaoException("Faltam dados para preencher o contrato.", "CONTRATO_INCOMPLETO",
-                    p.resultado().faltas().stream().map(f -> new ApiError.FieldError(f.campo(), f.mensagem())).toList());
-        }
-        String texto = TextoDoContrato.normalizar(p.texto());
-        if (texto.length() > TEXTO_PREENCHIDO_MAXIMO) {
-            throw invalido("texto", "O contrato preenchido passa de 100.000 caracteres. Encurte o modelo.");
-        }
-        Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
-        ContratoAluno novo = new ContratoAluno(alunoId, r.contratacaoId(), Origem.MODELO, p.modeloId(), p.titulo(), texto,
-                TextoDoContrato.sha256(texto), signatario, prazoAte(p.prazoDias()), eu.usuarioId(), r.pedidoId(), agora);
+        ContratoAluno novo = montar.apply(aluno);
         try {
             novo = contratos.saveAndFlush(novo);
         } catch (DataIntegrityViolationException e) {
@@ -128,6 +205,9 @@ public class ContratoService {
                 throw new ConflictException("Este pedido já foi usado em outro contrato.", "PEDIDO_JA_USADO");
             }
             throw e;
+        }
+        if (pdf != null) {
+            arquivos.saveAndFlush(new ContratoArquivo(novo.getId(), pdf));
         }
         auditoria.registrarEvento("CONTRATO_GERADO", "CONTRATO", novo.getId(), "Gerou um contrato para o aluno.");
         return new Gerado(detalhe(novo), true);
@@ -159,8 +239,8 @@ public class ContratoService {
     }
 
     /** Por ora só o aluno assina: o responsável por link é o passo 4 do plano. */
-    private static Signatario signatario(GerarContratoRequest r) {
-        if (r.signatario() == null || r.signatario().isBlank() || "ALUNO".equals(r.signatario())) {
+    private static Signatario signatario(String signatario) {
+        if (signatario == null || signatario.isBlank() || "ALUNO".equals(signatario)) {
             return Signatario.ALUNO;
         }
         // shortcut: só o aluno assina até o passo 4 (link do responsável)

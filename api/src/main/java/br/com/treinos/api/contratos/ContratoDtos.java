@@ -52,6 +52,14 @@ public final class ContratoDtos {
         }
     }
 
+    /** A parte {@code dados} do contrato de PDF próprio (passo 3): o PDF vem na parte {@code arquivo}; não há modelo nem texto. */
+    public record GerarContratoPdfRequest(UUID pedidoId, UUID contratacaoId, String titulo, String signatario) {
+        @Override
+        public String toString() {
+            return "GerarContratoPdfRequest[...]";
+        }
+    }
+
     /** O que falta para gerar: o código do campo do modelo e a frase fixa para a tela. */
     public record Falta(String campo, String mensagem) { }
 
