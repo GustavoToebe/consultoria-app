@@ -29,6 +29,18 @@ async function abrirComoAluno(page: Page, largura: number, extra: RespostasApi, 
   return { ...api, enviados };
 }
 
+/** "Água de hoje" sempre empilhada (25/11): título, números, barra e botões em coluna, os botões embaixo dos números. */
+async function esperarEmpilhada(page: Page) {
+  const caixa = async (l: import('@playwright/test').Locator) => (await l.boundingBox())!;
+  const titulo = await caixa(page.getByRole('heading', { name: 'Água de hoje' }));
+  const numeros = await caixa(page.getByText(/ L de 3,0 L$/));
+  const tirar = await caixa(page.getByRole('button', { name: 'Tirar um copo' }));
+  const mais = await caixa(page.getByRole('button', { name: 'Mais um copo' }));
+  expect(titulo.y + titulo.height).toBeLessThanOrEqual(numeros.y);
+  expect(tirar.y).toBeGreaterThanOrEqual(numeros.y + numeros.height);
+  expect(mais.y).toBeGreaterThanOrEqual(numeros.y + numeros.height);
+}
+
 for (const largura of [390, 1280]) {
   test(`aluno marca e tira copos hoje e em outro dia, e vai na fila (${largura}px)`, async ({ page }) => {
     const { enviados, naoTratadas, errosDaPagina } = await abrirComoAluno(page, largura, {}, '/aluno/dieta');
@@ -36,6 +48,7 @@ for (const largura of [390, 1280]) {
     await expect(cartao).toBeVisible();
     await expect(page.getByText('Nada marcado neste dia')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tirar um copo' })).toBeDisabled();
+    await esperarEmpilhada(page);
 
     await page.getByRole('button', { name: 'Mais um copo' }).click();
     await expect(page.getByText('0,25 L de 3,0 L')).toBeVisible();
@@ -74,6 +87,8 @@ test('Início: cartão compacto de hoje com o que já está no servidor', async 
   await expect(page.getByRole('heading', { name: 'Água de hoje' })).toBeVisible();
   await expect(page.getByText('1,5 L de 3,0 L')).toBeVisible();
   await expect(page.getByText('6 copos')).toBeVisible();
+  // Mesmo no Início os botões ficam embaixo dos números (nunca ao lado).
+  await esperarEmpilhada(page);
   // Compacto: sem os outros dias.
   await expect(page.getByRole('radio', { name: /Água, 18\/10/ })).toHaveCount(0);
   // O botão do treino de hoje continua à vista na primeira tela do celular.

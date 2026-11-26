@@ -1,6 +1,6 @@
 import { Check, ChevronDown } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { semAcento } from '../dominio/telas';
 import { useTema } from '../tema/TemaProvider';
@@ -121,6 +121,8 @@ export function EscolhaEmFolha<T extends string | number | null>({
                   aria-checked={ativa}
                   disabled={o.desabilitada}
                   onPress={() => escolher(o.valor)}
+                  // Web: o Pressable com papel `radio` só trata Enter; o Espaço (padrão ARIA) escolhe também, sem rolar a página.
+                  {...(Platform.OS === 'web' ? ({ onKeyDown: (e: { key: string; repeat?: boolean; preventDefault: () => void }) => { if (e.key === ' ') { e.preventDefault(); if (!e.repeat && !o.desabilitada) escolher(o.valor); } } } as object) : null)}
                   style={(estado) => [estilos.opcao, cinza ? { borderColor: cinza.borda, backgroundColor: cinza.fundo }
                     : { borderColor: ativa ? cores.bordaCampo : cores.divisor, backgroundColor: ativa ? cores.sobre : sobre(estado) ? cores.superficie2 : cores.superficie }]}>
                   <View style={estilos.textosOpcao}>

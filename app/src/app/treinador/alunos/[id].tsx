@@ -1,10 +1,11 @@
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Camera, UserCheck, UserMinus } from 'lucide-react-native';
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria } from '../../../api/rotas';
+import { comMotivoVisivel } from '../../../dominio/acessoAoApp';
 import { cicloDoAluno } from '../../../dominio/periodo';
 import { pilhasDaAba } from '../../../dominio/colunasDaFicha';
 import { ABAS_DA_FICHA, abaDaUrl, abaParaEditar, abaParaPasta, abasVisiveis, blocosDaAba, mostraMobilidade, type AbaDaFicha, type BlocoDaFicha } from '../../../dominio/fichaDoAluno';
@@ -65,7 +66,10 @@ export default function FichaAluno() {
   const visiveis = abasVisiveis(contexto);
   // `?editar=1` e `?pastaId=` mandam na aba até saírem do endereço (quem os consome grava a aba junto, para não voltar ao Resumo).
   const aba: AbaDaFicha = abaParaEditar(editar) ?? abaParaPasta(pastaId) ?? abaDaUrl(abaPedida, visiveis);
-  const { dados: aluno, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));
+  const { dados: alunoDaApi, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));
+  // Sem `FINANCEIRO_LER` o atraso não aparece: o `ATRASO` vira `MANUAL` aqui, antes de qualquer cartão, selo ou ação.
+  const veFinanceiro = pode('FINANCEIRO_LER');
+  const aluno = useMemo(() => (alunoDaApi ? comMotivoVisivel(alunoDaApi, veFinanceiro) : alunoDaApi), [alunoDaApi, veFinanceiro]);
   // Ciclo padrão da consultoria (V009). Quem não pode ler a consultoria fica só com o do aluno.
   const padrao = useCarregar('consultoria-ciclo', () => buscarConsultoria().then((c) => c.diasAtualizacaoPadrao ?? null, () => null)).dados ?? null;
   // Finalizar uma pasta ou aplicar uma alteração da anamnese pode gravar peso: o cartão de peso é remontado para buscar de novo.
@@ -186,7 +190,7 @@ export default function FichaAluno() {
         return <View ref={acessoRef} nativeID="acesso-ao-app" onLayout={() => setAcessoMedido((n) => n + 1)}><CartaoAcesso aluno={a} aoAlterar={definir} /></View>;
       case 'planoContratado':
         return <CartaoPlanoContratado key={geracaoFinanceiro} alunoId={a.id} ativo={a.ativo} anonimizado={a.anonimizado} alunoNome={a.nome} telefoneAluno={a.telefone}
-          alunoAcessoPausado={a.acessoPausado} aoAlterarAluno={definir} />;
+          alunoAcessoMotivo={a.acessoDesativadoMotivo} aoAlterarAluno={definir} />;
       case 'anamnese':
         return <CartaoAnamnese alunoId={a.id} anonimizado={a.anonimizado} aoMudarCadastro={() => { recarregar(); setGeracaoPeso((g) => g + 1); }} />;
       // As lesões são do `BlocosDaFicha`: ele as busca uma vez e põe as ativas no topo quando a aba fica numa coluna.
@@ -236,7 +240,8 @@ export default function FichaAluno() {
 
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
-      <View onLayout={aoMedir}>
+      {/* zIndex 1: o balão do ⓘ do cabeçalho passa por cima dos cartões, que vêm depois (cada `View` da web é um contexto de empilhamento). */}
+      <View onLayout={aoMedir} style={{ zIndex: 1 }}>
       <CabecalhoDaFicha aluno={aluno ?? null} aoVoltar={voltar} aoAbrirMenu={temMenu ? () => setMenu(true) : undefined}
         foto={aluno ? (
           <FotoDePerfilEditavel alunoId={aluno.id} alunoNome={aluno.nome} anonimizado={aluno.anonimizado} aoAnonimizado={recarregar}

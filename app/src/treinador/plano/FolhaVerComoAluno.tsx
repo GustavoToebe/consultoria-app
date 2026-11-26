@@ -8,6 +8,7 @@ import { DietaDoAluno } from '../../aluno/DietaDoAluno';
 import { ExercicioAluno } from '../../aluno/ExercicioAluno';
 import { ExerciciosDoDia } from '../../aluno/ExerciciosDoDia';
 import { LinhaDaDivisao } from '../../aluno/LinhaDaDivisao';
+import { OrientacoesDoTreinador } from '../../aluno/OrientacoesDoTreinador';
 import { SecaoDoInicio } from '../../aluno/SecaoDoInicio';
 import type { ConteudoDieta, ConteudoTreino } from '../../api/tipos';
 import { posicaoNoGrupo } from '../../dominio/combinacoes';
@@ -205,12 +206,7 @@ function PreviaDoTreino({ estado, agora }: { estado: PlanoNoEditor<ConteudoTrein
       ) : (
         <Vazio titulo="Sem divisões" texto="O aluno ainda não veria nenhuma divisão: adicione uma no editor." />
       )}
-      {conteudo.objetivo || conteudo.orientacoes ? (
-        <Cartao titulo="Orientações do treinador">
-          {conteudo.objetivo ? <Texto>Objetivo: {conteudo.objetivo}</Texto> : null}
-          {conteudo.orientacoes ? <Texto variante="suave">{conteudo.orientacoes}</Texto> : null}
-        </Cartao>
-      ) : null}
+      <OrientacoesDoTreinador objetivo={conteudo.objetivo} orientacoes={conteudo.orientacoes} />
     </Entrada>
   );
 }

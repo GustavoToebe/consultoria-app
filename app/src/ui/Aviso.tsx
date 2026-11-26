@@ -8,6 +8,7 @@ import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { CamadaDoAviso } from './camadaDoAviso';
 import { portalDaFolhaDoTopo } from './historicoDasFolhas';
+import { baseDoAviso, distanciaDoRodapeDaFolha, distanciaDoRodapeRegistrado, registrarPeDaCamada, topoDoRodapeFixo } from './rodapeFixoDaPagina';
 import { fundoPintado, superficiePintada } from './superficiePintada';
 import { Texto } from './Texto';
 
@@ -73,10 +74,14 @@ export function AvisoProvider({ children }: { children: ReactNode }) {
       const relogioDoHost = setInterval(mudou, 200);
       return () => clearInterval(relogioDoHost);
     },
-    () => (visivel ? destinoDoTopo() : ''),
+    () => (visivel ? destinoDoTopo(margem.bottom) : ''),
   );
   const [host, rodape] = destino ? destino.split('|') : [];
-  const bottom = rodape ? Number(rodape) + espaco(1) : margem.bottom + espaco(10);
+  // Rodapé da folha: logo acima dele. Sem folha (`host` vazio), o rodapé fixo da página só sobe o aviso, nunca o desce.
+  const bottom = baseDoAviso(margem.bottom, rodape ? Number(rodape) : null, !!host);
+  // Celular: o pé da camada do aviso na janela, a mesma régua do rodapé fixo registrado (`ui/rodapeFixoDaPagina`).
+  const medida = useRef<View>(null);
+  const medirPe = () => medida.current?.measureInWindow((_x, y, _largura, altura) => registrarPeDaCamada(altura > 0 ? y + altura : null));
 
   const cartao = aviso ? (
     <View key="aviso" pointerEvents="box-none" style={[estilos.camada, { bottom }]}>
@@ -107,6 +112,10 @@ export function AvisoProvider({ children }: { children: ReactNode }) {
 
   return (
     <Contexto.Provider value={valor}>
+      {Platform.OS !== 'web' ? (
+        <View ref={medida} onLayout={medirPe} pointerEvents="none" style={StyleSheet.absoluteFill}
+          accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+      ) : null}
       {children}
       {cartao && host ? <Portal name="aviso" hostName={host}>{cartao}</Portal> : <CamadaDoAviso>{cartao}</CamadaDoAviso>}
     </Contexto.Provider>
@@ -115,13 +124,32 @@ export function AvisoProvider({ children }: { children: ReactNode }) {
 
 /**
  * Para onde vai o aviso: `''` = camada da raiz (sem folha, ou com outro `Modal` por cima da folha do topo); senão o nome do portal da Folha do topo e, na web, `|` e a distância do
- * topo do rodapé dela ao pé da janela. Na web só vale a folha cujo nó ainda está na página (a que fecha neste commit já
- * saiu do DOM, mas só sai da lista no efeito); no celular a folha que fecha já vem marcada.
+ * topo do rodapé dela ao pé da janela (no celular, ao pé do portal dela, medido dentro do `Modal`:
+ * `useRegistroDoRodapeDaFolha`). Na web só vale a folha cujo nó ainda está na página (a que fecha neste commit já
+ * saiu do DOM, mas só sai da lista no efeito); no celular a folha que fecha já vem marcada. Sem folha, `|` e a distância
+ * do topo do rodapé fixo da página (barra de ações da importação) ao pé da janela, com o host vazio: na web pelo DOM, no
+ * celular pelo registro (`useRegistroDoRodapeFixo`).
  */
-function destinoDoTopo(): string {
+function destinoDoTopo(margemInferior: number): string {
   const folha = portalDaFolhaDoTopo();
-  if (!folha) return '';
-  if (Platform.OS !== 'web') return folha.nome;
+  if (folha) return destinoDaFolha(folha);
+  if (Platform.OS === 'web') return distanciaDoRodapeDaPagina(margemInferior);
+  const registrado = distanciaDoRodapeRegistrado();
+  return registrado === null ? '' : `|${registrado}`;
+}
+
+/** O rodapé fixo da página que cobriria o aviso na posição padrão (`''` = nenhum): `'|<px do topo dele ao pé da janela>'`. */
+function distanciaDoRodapeDaPagina(margemInferior: number): string {
+  const topo = topoDoRodapeFixo(window.innerHeight - margemInferior - espaco(10));
+  return topo === null ? '' : `|${window.innerHeight - topo}`;
+}
+
+function destinoDaFolha(folha: NonNullable<ReturnType<typeof portalDaFolhaDoTopo>>): string {
+  if (Platform.OS !== 'web') {
+    // Celular: o rodapé da folha se registra (`useRegistroDoRodapeDaFolha`); sem ele (ou antes da medida), só o portal.
+    const distancia = distanciaDoRodapeDaFolha(folha.nome);
+    return distancia === null ? folha.nome : `${folha.nome}|${distancia}`;
+  }
   if (!folha.elemento?.isConnected) return '';
   // Um `Modal` aberto depois da folha (menu, Calendário, seleção) fica por cima dela: o aviso vai para a camada do `body`.
   let raiz: Element | null = folha.elemento;

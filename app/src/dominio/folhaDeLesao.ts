@@ -2,16 +2,19 @@ import type { DadosLesao, Lesao, SituacaoLesao } from '../api/tipos';
 import { dataDaTelaNaFaixa } from './datasValidas';
 import { dataParaTela } from './formatos';
 
-// ficha: folha de lesão (24/11)
+// ficha: folha de lesão (24/11; grade de regiões, lado e datas, 26/11)
 
 /** Tamanho máximo da região na API (`LesaoRequest.regiao`, `@Size(max = 80)`). */
 export const LIMITE_DA_REGIAO = 80;
 export const LIMITE_DA_DESCRICAO = 500;
 export const LIMITE_DA_OBSERVACAO = 500;
 
-/** Atalhos de região (o treinador digita outra coisa quando não está aqui). Só preenchem o texto: a API não muda. */
+/** As regiões da grade; o que não está aqui é "Outra", digitada. Só montam o texto: a API não muda. */
 export const REGIOES = ['Ombro', 'Cotovelo', 'Punho', 'Cervical', 'Lombar', 'Quadril', 'Joelho', 'Tornozelo'] as const;
 export type RegiaoDoAtalho = (typeof REGIOES)[number];
+export const OUTRA = 'Outra';
+export type RegiaoEscolhida = RegiaoDoAtalho | typeof OUTRA;
+export const OPCOES_DE_REGIAO: readonly RegiaoEscolhida[] = [...REGIOES, OUTRA];
 
 export type LadoDaLesao = 'DIREITO' | 'ESQUERDO' | 'AMBOS';
 export const LADOS: { valor: LadoDaLesao; rotulo: string }[] = [
@@ -20,38 +23,57 @@ export const LADOS: { valor: LadoDaLesao; rotulo: string }[] = [
   { valor: 'AMBOS', rotulo: 'Ambos' },
 ];
 
-/** Cervical e Lombar são femininas: "Lombar direita". "Ambos" não flexiona: "Ombro (ambos os lados)". */
-const REGIOES_FEMININAS: readonly string[] = ['Cervical', 'Lombar'];
+/** Coluna não tem lado: Cervical e Lombar não oferecem a escolha (e o texto nunca leva lado). */
+const SEM_LADO: readonly string[] = ['Cervical', 'Lombar'];
+export const temLado = (regiao: RegiaoEscolhida | null): boolean => regiao !== null && !SEM_LADO.includes(regiao);
+
+/** A região "Outra" leva o lado sem flexionar (o gênero do que se digitou não se sabe): "Antebraço (lado direito)". */
+const SUFIXO_DO_LADO: Record<LadoDaLesao, string> = { DIREITO: ' (lado direito)', ESQUERDO: ' (lado esquerdo)', AMBOS: ' (ambos os lados)' };
+/** O "Qual região?" deixa espaço para o maior sufixo de lado caber nos 80 da API. */
+export const LIMITE_DA_OUTRA = LIMITE_DA_REGIAO - Math.max(...Object.values(SUFIXO_DO_LADO).map((s) => s.length));
 
 /**
- * O texto que vai para o campo "Região do corpo": sem região escolhida não há nada (o lado sozinho não preenche); região
- * sem lado é só a região; trocar a região recompõe com o mesmo lado, sem duplicá-lo.
+ * O texto de uma região da grade: sem região não há nada; região sem lado (ou que não tem lado) é só a região. "Ambos" não
+ * flexiona: "Ombro (ambos os lados)".
  */
 export function comporRegiao(regiao: RegiaoDoAtalho | null, lado: LadoDaLesao | null): string {
   if (!regiao) return '';
-  if (!lado) return regiao;
+  if (!lado || !temLado(regiao)) return regiao;
   if (lado === 'AMBOS') return `${regiao} (ambos os lados)`;
-  const feminina = REGIOES_FEMININAS.includes(regiao);
-  const palavra = lado === 'DIREITO' ? (feminina ? 'direita' : 'direito') : (feminina ? 'esquerda' : 'esquerdo');
-  return `${regiao} ${palavra}`;
+  return `${regiao} ${lado === 'DIREITO' ? 'direito' : 'esquerdo'}`;
+}
+
+/** O texto que vai à API: o da grade, ou o digitado em "Outra" com o sufixo do lado (sem texto, nada). */
+export function textoDaRegiao(f: Pick<FormularioDeLesao, 'regiao' | 'lado' | 'outra'>): string {
+  if (f.regiao !== OUTRA) return comporRegiao(f.regiao, f.lado);
+  const texto = f.outra.trim();
+  return texto && f.lado ? texto + SUFIXO_DO_LADO[f.lado] : texto;
 }
 
 /**
- * O contrário de `comporRegiao`: o atalho (e o lado) que o texto digitado reproduz exatamente, para os chips acompanharem
- * o que se digita à mão e para a edição de uma lesão já gravada abrir com os chips marcados. Texto livre = sem atalho.
+ * O contrário de `textoDaRegiao`, para a edição abrir com a grade marcada: o texto que uma região da grade reproduz
+ * exatamente marca essa região (e o lado); qualquer outro abre em "Outra" com o texto inteiro (e o lado, se termina num
+ * sufixo de lado). Assim abrir e salvar sem mexer grava o mesmo texto ("Lombar direita", de antes, vira "Outra").
  */
-export function lerRegiao(texto: string): { regiao: RegiaoDoAtalho | null; lado: LadoDaLesao | null } {
+export function lerRegiao(texto: string): Pick<FormularioDeLesao, 'regiao' | 'lado' | 'outra'> {
+  if (texto === '') return { regiao: null, lado: null, outra: '' };
   for (const regiao of REGIOES) {
     for (const lado of [null, ...LADOS.map((l) => l.valor)] as (LadoDaLesao | null)[]) {
-      if (comporRegiao(regiao, lado) === texto) return { regiao, lado };
+      if ((lado === null || temLado(regiao)) && comporRegiao(regiao, lado) === texto) return { regiao, lado, outra: '' };
     }
   }
-  return { regiao: null, lado: null };
+  for (const { valor } of LADOS) {
+    const sufixo = SUFIXO_DO_LADO[valor];
+    if (texto.endsWith(sufixo) && texto.length > sufixo.length) return { regiao: OUTRA, lado: valor, outra: texto.slice(0, -sufixo.length) };
+  }
+  return { regiao: OUTRA, lado: null, outra: texto };
 }
 
-/** Tudo o que a folha digita (datas como o campo mostra: DD/MM/AAAA). */
+/** Tudo o que a folha digita (datas como o campo mostra: DD/MM/AAAA). O texto de "Outra" fica guardado ao trocar de região. */
 export interface FormularioDeLesao {
-  regiao: string;
+  regiao: RegiaoEscolhida | null;
+  lado: LadoDaLesao | null;
+  outra: string;
   descricao: string;
   inicio: string;
   fim: string;
@@ -59,24 +81,38 @@ export interface FormularioDeLesao {
   observacao: string;
 }
 
-export const LESAO_EM_BRANCO: FormularioDeLesao = { regiao: '', descricao: '', inicio: '', fim: '', situacao: 'ATIVA', observacao: '' };
+export const LESAO_EM_BRANCO: FormularioDeLesao = { regiao: null, lado: null, outra: '', descricao: '', inicio: '', fim: '', situacao: 'ATIVA', observacao: '' };
+
+/** O Fim só existe na situação "Recuperada". */
+export const temFim = (situacao: SituacaoLesao): boolean => situacao === 'RECUPERADA';
 
 export function formularioDaLesao(lesao: Lesao | null): FormularioDeLesao {
   if (!lesao) return LESAO_EM_BRANCO;
   return {
-    regiao: lesao.regiao,
+    ...lerRegiao(lesao.regiao),
     descricao: lesao.descricao ?? '',
     inicio: dataParaTela(lesao.dataInicio),
-    fim: dataParaTela(lesao.dataFim),
+    fim: temFim(lesao.situacao) ? dataParaTela(lesao.dataFim) : '',
     situacao: lesao.situacao,
     observacao: lesao.observacao ?? '',
   };
 }
 
-/** O Fim só existe na situação "Recuperada". */
-export const temFim = (situacao: SituacaoLesao): boolean => situacao === 'RECUPERADA';
+/** Trocar a região: a que não tem lado (Cervical, Lombar) descarta o lado escolhido. */
+export function escolherRegiao(f: FormularioDeLesao, regiao: RegiaoEscolhida): FormularioDeLesao {
+  return { ...f, regiao, lado: temLado(regiao) ? f.lado : null };
+}
 
-export const AVISO_FIM_ANTES_DO_INICIO = 'O fim vem antes do início.';
+/**
+ * Trocar a situação: sair de "Recuperada" limpa o Fim (o envio leva `dataFim: null`); entrar com o Fim vazio sugere
+ * `sugestao` (a folha passa o fim com que a lesão abriu, senão hoje em Brasília), que a pessoa pode apagar.
+ */
+export function trocarSituacao(f: FormularioDeLesao, situacao: SituacaoLesao, sugestao: string): FormularioDeLesao {
+  if (temFim(f.situacao) === temFim(situacao)) return { ...f, situacao };
+  return { ...f, situacao, fim: temFim(situacao) ? sugestao : '' };
+}
+
+export const AVISO_FIM_ANTES_DO_INICIO = 'O fim não pode ser antes do início.';
 
 export interface AnaliseDaLesao {
   /** O corpo do envio; `null` enquanto algo impede de salvar. */
@@ -93,18 +129,21 @@ export interface AnaliseDaLesao {
  * que o `CampoData` mostra no campo.
  */
 export function analisarLesao(f: FormularioDeLesao): AnaliseDaLesao {
+  const regiao = textoDaRegiao(f);
   const inicio = dataDaTelaNaFaixa(f.inicio, 'REGISTRO');
   const fim = temFim(f.situacao) ? dataDaTelaNaFaixa(f.fim, 'REGISTRO') : null;
   const fimAntes = typeof inicio === 'string' && typeof fim === 'string' && fim < inicio;
   const erroDoFim = fimAntes ? AVISO_FIM_ANTES_DO_INICIO : null;
-  const motivo = f.regiao.trim() === '' ? 'Informe a região do corpo'
+  const motivo = f.regiao === null ? 'Escolha a região do corpo'
+    : regiao === '' ? 'Escreva qual é a região'
+    : regiao.length > LIMITE_DA_REGIAO ? `Encurte a região (até ${LIMITE_DA_REGIAO} caracteres com o lado)`
     : inicio === undefined ? 'Corrija a data de início'
     : fim === undefined || fimAntes ? 'Corrija a data de fim'
     : null;
   if (motivo || inicio === undefined || fim === undefined) return { corpo: null, motivo, erroDoFim };
   return {
     corpo: {
-      regiao: f.regiao.trim(),
+      regiao,
       descricao: f.descricao.trim() || null,
       dataInicio: inicio,
       dataFim: fim,
@@ -116,9 +155,21 @@ export function analisarLesao(f: FormularioDeLesao): AnaliseDaLesao {
   };
 }
 
-/** Algo diferente do que a folha abriu? (o Fim escondido não conta). Só com isso o fechar pergunta "Sair sem salvar?". */
+/** Algo diferente do que a folha abriu? Compara o texto da região, não os botões. Só com isso o fechar pergunta "Sair sem salvar?". */
 export function lesaoAlterada(inicial: FormularioDeLesao, atual: FormularioDeLesao): boolean {
-  const fimDe = (f: FormularioDeLesao) => (temFim(f.situacao) ? f.fim : '');
-  return inicial.regiao !== atual.regiao || inicial.descricao !== atual.descricao || inicial.inicio !== atual.inicio
-    || inicial.situacao !== atual.situacao || inicial.observacao !== atual.observacao || fimDe(inicial) !== fimDe(atual);
+  return inicial.regiao !== atual.regiao || textoDaRegiao(inicial) !== textoDaRegiao(atual) || inicial.descricao !== atual.descricao
+    || inicial.inicio !== atual.inicio || inicial.situacao !== atual.situacao || inicial.observacao !== atual.observacao || inicial.fim !== atual.fim;
+}
+
+/**
+ * Colunas das grades de região e de lado (3 por linha, alinhadas uma sob a outra), pela largura medida da grade: a célula
+ * precisa caber "Tornozelo" (o nome mais largo, ~66 px a 14 px em semi-negrito, medido) mais o recuo; o ✓ desce para cima
+ * do nome quando não cabe ao lado. Abaixo disso (o texto ampliado aumenta a conta) cai para `reserva` colunas; nunca menos de 1.
+ */
+const NOME_MAIS_LARGO = 68;
+const RECUO_DA_CELULA = 16;
+export function colunasDaGrade(largura: number, fatorTexto: number, reserva: 1 | 2, vao: number): 1 | 2 | 3 {
+  const cabe = (n: number) => largura >= n * (NOME_MAIS_LARGO * fatorTexto + RECUO_DA_CELULA) + (n - 1) * vao;
+  if (cabe(3)) return 3;
+  return reserva === 2 && cabe(2) ? 2 : 1;
 }

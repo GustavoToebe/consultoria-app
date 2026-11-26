@@ -1,5 +1,6 @@
 package br.com.treinos.api.importacao.completa;
 
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.auth.LimiteTentativas;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Analise;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Confirmacao;
@@ -17,9 +18,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,9 +42,13 @@ public class PlanilhaCompletaController {
     private final GravacaoDaPlanilha gravacao;
     private final DesfazerDaPlanilha desfazer;
     private final LimiteTentativas limites;
+    private final JsonMapper json;
+    /** Uma chave é {@code nome:<nome comparável>}, e o nome do aluno tem até 120 caracteres. */
+    private static final int CHAVE_MAXIMA = 200;
 
     public PlanilhaCompletaController(PlanilhaCompletaService service, GravacaoDaPlanilha gravacao,
-                                      DesfazerDaPlanilha desfazer, LimiteTentativas limites) {
+                                      DesfazerDaPlanilha desfazer, LimiteTentativas limites, JsonMapper json) {
+        this.json = json;
         this.service = service;
         this.gravacao = gravacao;
         this.desfazer = desfazer;
@@ -63,18 +71,43 @@ public class PlanilhaCompletaController {
         return gravacao.previa(eu.usuarioId(), arquivo.getOriginalFilename(), arquivo.getBytes(), respostas);
     }
 
+    /**
+     * {@code chavesIgnoradas} = JSON com a lista das chaves (da amostra) dos alunos desmarcados, numa parte do corpo e nunca
+     * na query: a chave pode ser {@code nome:<nome do aluno>} e a query vai para o log de acesso do proxy.
+     */
     @PostMapping(value = "/planilha-completa/confirmar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
     public Confirmacao confirmar(@AuthenticationPrincipal UsuarioAutenticado eu,
                                  @RequestPart("arquivo") MultipartFile arquivo,
                                  @RequestPart(value = "respostas", required = false) String respostas,
-                                 @RequestParam String hash,
-                                 @RequestParam(value = "alunosIgnorados", required = false) List<Integer> alunosIgnorados,
-                                 @RequestParam(value = "chavesIgnoradas", required = false) Set<String> chavesIgnoradas)
+                                 @RequestPart(value = "chavesIgnoradas", required = false) String chavesIgnoradas,
+                                 @RequestParam String hash)
             throws IOException {
         limites.confirmacaoDeImportacao(eu.usuarioId());
-        return gravacao.confirmar(eu, arquivo.getOriginalFilename(), arquivo.getBytes(), respostas, hash, alunosIgnorados,
-                chavesIgnoradas == null ? Set.of() : chavesIgnoradas);
+        return gravacao.confirmar(eu, arquivo.getOriginalFilename(), arquivo.getBytes(), respostas, hash,
+                chaves(chavesIgnoradas));
+    }
+
+    private Set<String> chaves(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return Set.of();
+        }
+        try {
+            JsonNode lista = json.readTree(texto);
+            if (!lista.isArray()) {
+                throw new BadRequestException("A lista de alunos ignorados é inválida.", "ALUNOS_IGNORADOS_INVALIDOS");
+            }
+            Set<String> chaves = new HashSet<>();
+            for (JsonNode c : lista) {
+                if (!c.isString() || c.asString().length() > CHAVE_MAXIMA) {
+                    throw new BadRequestException("A lista de alunos ignorados é inválida.", "ALUNOS_IGNORADOS_INVALIDOS");
+                }
+                chaves.add(c.asString());
+            }
+            return chaves;
+        } catch (JacksonException e) {
+            throw new BadRequestException("A lista de alunos ignorados é inválida.", "ALUNOS_IGNORADOS_INVALIDOS");
+        }
     }
 
     /** Apaga as respostas guardadas das importações anteriores (a próxima análise volta sem sugestão marcada). */

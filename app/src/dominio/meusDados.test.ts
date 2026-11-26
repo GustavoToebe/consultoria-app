@@ -13,9 +13,11 @@ const ENDERECO = { cep: '01310-100', logradouro: 'Rua Exemplo', numero: '100', c
 
 const RESP: MeusDadosResponse = {
   nome: 'Aluno Exemplo', email: 'aluno@exemplo.test', emailDeAcesso: 'acesso@exemplo.test',
-  telefone: '(45) 99999-8888', cpf: null, endereco: ENDERECO, sexo: 'FEMININO', versao: 3,
+  telefone: '(45) 99999-8888', cpf: null, endereco: ENDERECO, sexo: 'FEMININO', instagram: 'aluno.exemplo', tiktok: null, versao: 3,
 };
 const SEM_NADA: MeusDadosResponse = { nome: 'Aluno Exemplo', email: 'aluno@exemplo.test', versao: 0 };
+const LINKS = { youtube: 'https://www.youtube.com/@canal.exemplo', facebook: 'https://www.facebook.com/aluno.exemplo', linkedin: 'https://www.linkedin.com/in/aluno-exemplo', telegram: 'https://t.me/aluno_exemplo' };
+const SEIS_VAZIAS = { instagram: '', tiktok: '', youtube: '', facebook: '', linkedin: '', telegram: '' };
 
 const erroApi = (status: number, codigo: string | null, campos: { field: string; message: string }[] = []) =>
   new ErroApi(status, codigo, 'Mensagem do servidor com 529.982.247-25', campos);
@@ -41,12 +43,17 @@ describe('emailParaLeitura', () => {
 describe('formDeMeusDados', () => {
   it('traz os dados com máscara', () => {
     expect(formDeMeusDados({ ...RESP, telefone: '45999998888', cpf: '52998224725' })).toEqual({
-      telefone: '(45) 99999-8888', cpf: CPF_DE_TESTE, endereco: ENDERECO, sexo: 'FEMININO',
+      telefone: '(45) 99999-8888', cpf: CPF_DE_TESTE, endereco: ENDERECO, sexo: 'FEMININO', redes: { instagram: '@aluno.exemplo' },
     });
   });
   it('ausente e nulo viram vazio; sexo inválido vira "Não informado"', () => {
-    expect(formDeMeusDados(SEM_NADA)).toEqual({ telefone: '', cpf: '', endereco: ENDERECO_VAZIO, sexo: '' });
+    expect(formDeMeusDados(SEM_NADA)).toEqual({ telefone: '', cpf: '', endereco: ENDERECO_VAZIO, sexo: '', redes: {} });
     expect(formDeMeusDados({ ...RESP, sexo: 'XYZ', endereco: null }).sexo).toBe('');
+  });
+  it('só as redes com valor entram: usuário com @, as outras como o link', () => {
+    expect(formDeMeusDados({ ...RESP, tiktok: 'tt.exemplo', youtube: LINKS.youtube, telegram: '  ', facebook: LINKS.facebook }).redes).toEqual({
+      instagram: '@aluno.exemplo', tiktok: '@tt.exemplo', youtube: LINKS.youtube, facebook: LINKS.facebook,
+    });
   });
 });
 
@@ -63,12 +70,22 @@ describe('corpoDoPut', () => {
   it('leva a versão da resposta e os campos do formulário', () => {
     const form = { ...formDeMeusDados(RESP), telefone: '45988887777', sexo: 'MASCULINO' };
     expect(corpoDoPut(form, RESP)).toEqual({
-      telefone: '(45) 98888-7777', cpf: null, endereco: ENDERECO, sexo: 'MASCULINO', versao: 3,
+      telefone: '(45) 98888-7777', cpf: null, endereco: ENDERECO, sexo: 'MASCULINO', ...SEIS_VAZIAS, instagram: '@aluno.exemplo', versao: 3,
     });
   });
-  it('telefone em branco apaga, endereço vazio apaga, sexo vazio = não informado', () => {
-    const form = { telefone: '  ', cpf: '', endereco: ENDERECO_VAZIO, sexo: '' };
-    expect(corpoDoPut(form, RESP)).toEqual({ telefone: null, cpf: null, endereco: null, sexo: null, versao: 3 });
+  it('telefone em branco apaga, endereço vazio apaga, sexo vazio = não informado, redes em branco apagam', () => {
+    const form = { telefone: '  ', cpf: '', endereco: ENDERECO_VAZIO, sexo: '', redes: { instagram: ' ' } };
+    expect(corpoDoPut(form, RESP)).toEqual({ telefone: null, cpf: null, endereco: null, sexo: null, ...SEIS_VAZIAS, versao: 3 });
+  });
+  it('leva sempre as seis redes: removida ou nunca adicionada vai em branco', () => {
+    const base = formDeMeusDados(RESP);
+    const corpo = corpoDoPut({ ...base, redes: { youtube: LINKS.youtube } }, RESP);
+    expect(corpo).toMatchObject({ ...SEIS_VAZIAS, youtube: LINKS.youtube });
+    expect(Object.keys(corpo).filter((k) => k in SEIS_VAZIAS).sort()).toEqual(Object.keys(SEIS_VAZIAS).sort());
+  });
+  it('as quatro redes de link vão como digitadas, aparadas', () => {
+    const redes = { youtube: ` ${LINKS.youtube} `, facebook: LINKS.facebook, linkedin: LINKS.linkedin, telegram: '@aluno_exemplo' };
+    expect(corpoDoPut({ ...formDeMeusDados(RESP), redes }, RESP)).toMatchObject({ ...LINKS, telegram: '@aluno_exemplo' });
   });
   it('endereço sai normalizado (espaços, CEP com máscara, UF em maiúsculas)', () => {
     const form = { ...formDeMeusDados(RESP), endereco: { ...ENDERECO, cep: '01310100', logradouro: ' Rua Exemplo ', uf: 'sp', bairro: '   ' } };
@@ -81,6 +98,10 @@ describe('corpoDoPut', () => {
     // Preenchido no servidor: o que estiver no campo é ignorado.
     const preenchido = { ...RESP, cpf: CPF_DE_TESTE };
     expect(corpoDoPut({ ...formDeMeusDados(preenchido), cpf: '111.444.777-35' }, preenchido).cpf).toBeNull();
+  });
+  it('Instagram e TikTok vão como digitados, aparados (a API normaliza)', () => {
+    const form = { ...formDeMeusDados(RESP), redes: { instagram: ' https://www.instagram.com/outro ', tiktok: '@tt.exemplo' } };
+    expect(corpoDoPut(form, RESP)).toMatchObject({ instagram: 'https://www.instagram.com/outro', tiktok: '@tt.exemplo' });
   });
   it('sexo desconhecido não vai', () => {
     expect(corpoDoPut({ ...formDeMeusDados(RESP), sexo: 'XYZ' }, RESP).sexo).toBeNull();
@@ -103,6 +124,21 @@ describe('errosDoForm', () => {
     const form = { ...formDeMeusDados(SEM_NADA), cpf: '529.982.247-26' };
     expect(errosDoForm(form, SEM_NADA).cpf).toBe('CPF inválido.');
     expect(errosDoForm(form, { ...SEM_NADA, cpf: CPF_DE_TESTE }).cpf).toBeUndefined();
+  });
+  it('Instagram ou TikTok que não dá para entender', () => {
+    const erros = errosDoForm({ ...formDeMeusDados(RESP), redes: { instagram: 'nome com espaço', tiktok: 'https://www.tiktok.com/sem-arroba' } }, RESP);
+    expect(erros.instagram).toBe('Use @usuario ou o link do perfil no Instagram.');
+    expect(erros.tiktok).toBe('Use @usuario ou o link do perfil no TikTok.');
+    expect(temErros(erros)).toBe(true);
+  });
+  it('as outras redes só recusam espaço no meio; rede ausente ou em branco não tem erro', () => {
+    const erros = errosDoForm({ ...formDeMeusDados(RESP), redes: { youtube: 'canal com espaço', linkedin: '', telegram: LINKS.telegram } }, RESP);
+    expect(erros.youtube).toBe('Use @usuario ou o link do perfil no YouTube.');
+    expect(erros.linkedin).toBeUndefined();
+    expect(erros.telegram).toBeUndefined();
+    expect(erros.facebook).toBeUndefined();
+    expect(temErros(erros)).toBe(true);
+    expect(temErros({ endereco: {}, linkedin: 'x' })).toBe(true);
   });
   it('endereço parcial pede os campos obrigatórios', () => {
     const erros = errosDoForm({ ...formDeMeusDados(RESP), endereco: { ...ENDERECO_VAZIO, bairro: 'Centro' } }, RESP);
@@ -129,6 +165,24 @@ describe('houveMudanca', () => {
     expect(houveMudanca({ ...base, endereco: { ...ENDERECO, numero: '101' } }, RESP)).toBe(true);
     expect(houveMudanca({ ...base, endereco: ENDERECO_VAZIO }, RESP)).toBe(true);
   });
+  it('Instagram: @usuario, usuario e o link do perfil são a mesma coisa; apagar ou trocar conta', () => {
+    const base = formDeMeusDados(RESP);
+    expect(houveMudanca({ ...base, redes: { instagram: 'aluno.exemplo' } }, RESP)).toBe(false);
+    expect(houveMudanca({ ...base, redes: { instagram: 'https://www.instagram.com/aluno.exemplo/' } }, RESP)).toBe(false);
+    expect(houveMudanca({ ...base, redes: { instagram: '' } }, RESP)).toBe(true);
+    expect(houveMudanca({ ...base, redes: {} }, RESP)).toBe(true);
+    expect(houveMudanca({ ...base, redes: { ...base.redes, tiktok: '@novo' } }, RESP)).toBe(true);
+  });
+  it('redes de link: remover, trocar e adicionar contam; adicionar em branco ou repetir o texto não', () => {
+    const resp = { ...RESP, youtube: LINKS.youtube };
+    const base = formDeMeusDados(resp);
+    expect(houveMudanca(base, resp)).toBe(false);
+    expect(houveMudanca({ ...base, redes: { ...base.redes, youtube: ` ${LINKS.youtube} ` } }, resp)).toBe(false);
+    expect(houveMudanca({ ...base, redes: { ...base.redes, telegram: '' } }, resp)).toBe(false);
+    expect(houveMudanca({ ...base, redes: { instagram: '@aluno.exemplo' } }, resp)).toBe(true);
+    expect(houveMudanca({ ...base, redes: { ...base.redes, youtube: LINKS.facebook } }, resp)).toBe(true);
+    expect(houveMudanca({ ...base, redes: { ...base.redes, telegram: LINKS.telegram } }, resp)).toBe(true);
+  });
   it('CPF digitado conta só quando editável', () => {
     expect(houveMudanca({ ...formDeMeusDados(SEM_NADA), cpf: '5' }, SEM_NADA)).toBe(true);
     const preenchido = { ...RESP, cpf: CPF_DE_TESTE };
@@ -142,12 +196,14 @@ describe('errosDoServidor', () => {
       { field: 'telefone', message: 'Telefone inválido.' },
       { field: 'cpf', message: 'CPF inválido.' },
       { field: 'sexo', message: 'Sexo inválido.' },
+      { field: 'instagram', message: 'Usuário do Instagram inválido.' },
+      { field: 'telegram', message: 'Link do Telegram inválido.' },
       { field: 'endereco.cep', message: 'CEP inválido.' },
       { field: 'endereco.uf', message: 'Escolha a UF.' },
       { field: 'outro', message: 'ignorado' },
     ]);
     expect(errosDoServidor(erro)).toEqual({
-      telefone: 'Telefone inválido.', cpf: 'CPF inválido.', sexo: 'Sexo inválido.', endereco: { cep: 'CEP inválido.', uf: 'Escolha a UF.' },
+      telefone: 'Telefone inválido.', cpf: 'CPF inválido.', sexo: 'Sexo inválido.', instagram: 'Usuário do Instagram inválido.', telegram: 'Link do Telegram inválido.', endereco: { cep: 'CEP inválido.', uf: 'Escolha a UF.' },
     });
   });
   it('erro sem campos, ou que nem é da API, não tem erro de campo', () => {

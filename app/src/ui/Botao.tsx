@@ -5,6 +5,7 @@ import { ActivityIndicator, Platform, StyleSheet, View, type PressableStateCallb
 import { Button } from '../components/ui/button';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, coresDoBotaoPrincipal, espaco, fontes, misturar, RAIO_CONTROLE } from '../tema/tokens';
+import { coresDoBotaoDePerigo } from './botaoDePerigo';
 import { coresDoDesabilitado, visualDoInativo } from './desabilitado';
 import { useArranjoDasAcoes } from './LinhaDeAcoes';
 import { sobre } from './sobre';
@@ -45,10 +46,11 @@ interface Props {
 /**
  * Ação principal neutra (D7, 17/11: fundo `texto`, rótulo `fundo`; no máximo uma por área; mouse em cima ou apertado =
  * `coresDoBotaoPrincipal().fundoAoPassar`); a marca não pinta botão. Secundária: poço (`superficie2`) com contorno
- * `borda` (`bordaCampo` ao passar o mouse); fantasma só texto, para ação rara ou de baixo risco; `perigoTexto` é o
- * fantasma com texto vermelho (remover, inativar), sempre com confirmação. `perigo` (contorno e rótulo em `perigo`, sem
- * fundo cheio; hover `perigoSuave`) é só para o botão de confirmação do painel. `acao` (visual-ponytail, 17/11;
- * `destaque` é o mesmo, nome antigo) é a ação de construção que precisa ser achada sem ser a principal ("Adicionar
+ * `borda` (`bordaCampo` ao passar o mouse); fantasma só texto, para ação rara ou de baixo risco. `perigo` (26/11) é o
+ * destrutivo tonal (`coresDoBotaoDePerigo`): remover, excluir, encerrar, cancelar, desativar, solto na tela, na linha da
+ * lista ou na confirmação do painel, com a altura do secundário. `perigoTexto` é o nome antigo e hoje desenha igual (como
+ * `destaque` para `acao`). O vermelho só em texto fica para o item de menu ⋯ (`ItemDeLista perigo`, na `FolhaDeAcoes`) e
+ * a lixeira de linha densa é `IconeBotao` com nome. `acao` (visual-ponytail, 17/11; `destaque` é o mesmo, nome antigo) é a ação de construção que precisa ser achada sem ser a principal ("Adicionar
  * exercício", "Usar receita de séries", "Modelos prontos", "Adicionar refeição"): fundo `acaoSuave`, rótulo e
  * ícone na cor de ação (índigo por padrão, a pessoa troca em Ajustes) e contorno a 35%; com o mouse em cima o contorno
  * fica cheio. O rótulo quebra em até duas linhas e nunca estoura o cartão; vários botões lado a lado vão numa
@@ -67,19 +69,20 @@ export const Botao = forwardRef<View, Props>(function Botao(
   const arranjo = useArranjoDasAcoes();
   const largo = cheio ?? arranjo.empilhar;
   const inativo = desabilitado || carregando;
-  const semFundo = tipo === 'fantasma' || tipo === 'perigoTexto';
+  const semFundo = tipo === 'fantasma';
   const tonal = tipo === 'acao' || tipo === 'destaque';
+  const perigo = tipo === 'perigo' || tipo === 'perigoTexto' ? coresDoBotaoDePerigo(cores) : null;
   const cinza = coresDoDesabilitado(cores);
   const visual = visualDoInativo(desabilitado, carregando);
-  const fundo = visual.cinza && !semFundo ? cinza.fundo : tipo === 'primario' ? principal.fundo : tonal ? cores.acaoSuave : tipo === 'secundario' ? cores.superficie2 : 'transparent';
-  const texto = visual.cinza ? cinza.texto : tipo === 'primario' ? principal.texto : tonal ? cores.acao : tipo === 'perigo' || tipo === 'perigoTexto' ? cores.perigo : cores.texto;
-  const borda = visual.cinza && !semFundo ? cinza.borda : tipo === 'secundario' ? cores.borda : tonal ? misturar(cores.acaoSuave, cores.acao, 0.35) : tipo === 'perigo' ? cores.perigo : fundo;
+  const fundo = visual.cinza && !semFundo ? cinza.fundo : tipo === 'primario' ? principal.fundo : tonal ? cores.acaoSuave : perigo ? perigo.fundo : tipo === 'secundario' ? cores.superficie2 : 'transparent';
+  const texto = visual.cinza ? cinza.texto : tipo === 'primario' ? principal.texto : tonal ? cores.acao : perigo ? perigo.texto : cores.texto;
+  const borda = visual.cinza && !semFundo ? cinza.borda : tipo === 'secundario' ? cores.borda : tonal ? misturar(cores.acaoSuave, cores.acao, 0.35) : perigo ? perigo.borda : fundo;
   const explicacao = desabilitado && !carregando && motivo ? motivo : undefined;
-  /** Mouse em cima ou apertado: o principal anda na direção da página, o perigo ganha a pílula vermelha, o destaque o contorno azul, os outros a superfície elevada. */
+  /** Mouse em cima ou apertado: o principal anda na direção da página, o perigo e a ação ganham o contorno cheio, os outros a superfície elevada. */
   const corAoPassar = (ativo: boolean) => {
     if (!ativo) return { backgroundColor: fundo, borderColor: borda };
     if (tipo === 'primario') return { backgroundColor: principal.fundoAoPassar, borderColor: principal.fundoAoPassar };
-    if (tipo === 'perigo') return { backgroundColor: cores.perigoSuave, borderColor: borda };
+    if (perigo) return { backgroundColor: fundo, borderColor: perigo.bordaAoPassar };
     // O fundo não escurece: mais tinta tiraria o rótulo de 4,5:1 nos temas claros (`contrasteDasPecas.test.ts`).
     if (tonal) return { backgroundColor: fundo, borderColor: cores.acao };
     if (tipo === 'secundario') return { backgroundColor: fundo, borderColor: cores.bordaCampo };
@@ -107,7 +110,7 @@ export const Botao = forwardRef<View, Props>(function Botao(
     <Button
       ref={ref}
       autoFocus={autoFocus}
-      variant={tipo === 'primario' ? 'default' : tipo === 'perigo' || tipo === 'secundario' || tonal ? 'outline' : 'ghost'}
+      variant={tipo === 'primario' ? 'default' : perigo || tipo === 'secundario' || tonal ? 'outline' : 'ghost'}
       accessibilityRole="button"
       testID={testID}
       accessibilityLabel={rotuloAcessivel ?? rotulo}

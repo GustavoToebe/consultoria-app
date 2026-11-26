@@ -40,6 +40,7 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
     private JsonNode admin;
     private JsonNode membro;
     private LocalDate hoje;
+    private final Map<UUID, JsonNode> logins = new java.util.HashMap<>();
 
     @BeforeEach
     void preparar() throws Exception {
@@ -55,7 +56,15 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
                 Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
     }
 
+    /** Aluno com acesso ao app (só ele entra nas contagens e na lista de atualizações) e o treino publicado numa pasta que termina em {@code fimDaPasta}. */
     private UUID alunoDe(JsonNode responsavel, String nome, LocalDate fimDaPasta) throws Exception {
+        UUID aluno = alunoSemAcessoDe(responsavel, nome, fimDaPasta);
+        logins.put(aluno, api.convidarEEntrar(admin, aluno));
+        return aluno;
+    }
+
+    /** Mesmo cenário, mas sem acesso ao app: nunca poderá enviar atualização. */
+    private UUID alunoSemAcessoDe(JsonNode responsavel, String nome, LocalDate fimDaPasta) throws Exception {
         JsonNode criado = api.post("/alunos", admin, Map.of("nome", nome,
                 "responsavelId", responsavel.path("usuario").path("id").asString()), 200);
         UUID aluno = UUID.fromString(criado.path("id").asString());
@@ -73,7 +82,7 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
         return aluno;
     }
 
-    /** Aluno cuja pasta vigente vem só da dieta publicada (sem treino ativo). */
+    /** Aluno (com acesso) cuja pasta vigente vem só da dieta publicada (sem treino ativo). */
     private UUID alunoSoComDieta(JsonNode responsavel, String nome, LocalDate fimDaPasta) throws Exception {
         UUID aluno = UUID.fromString(api.post("/alunos", admin, Map.of("nome", nome,
                 "responsavelId", responsavel.path("usuario").path("id").asString()), 200).path("id").asString());
@@ -93,11 +102,12 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
                 ApiDeTeste.rascunho("Dieta fictícia", conteudo, plano.path("plano").path("versao").asLong()), 200);
         api.post("/planos-dieta/" + id + "/publicar", admin,
                 Map.of("versao", salvo.path("plano").path("versao").asLong(), "confirmarAvisos", true), 200);
+        logins.put(aluno, api.convidarEEntrar(admin, aluno));
         return aluno;
     }
 
-    private JsonNode loginDoAluno(UUID aluno) throws Exception {
-        return api.convidarEEntrar(admin, aluno);
+    private JsonNode loginDoAluno(UUID aluno) {
+        return logins.get(aluno);
     }
 
     private String pastaAtual(JsonNode loginAluno) throws Exception {
@@ -170,6 +180,30 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
         assertThat(naLista(membro, "AVISARAM_ATRASO", true)).isZero();
         // "Meus" não restringe quem não pede: a mesma lista de antes.
         assertThat(api.get("/atualizacoes?situacao=ATRASADAS", membro, 200)).hasSize(3);
+    }
+
+    @Test
+    void alunoSemAcessoNaoEntraNasContagensNemNaListaDeAtualizacoes() throws Exception {
+        // Sem acesso ao app (usuarioId nulo): a pasta vigente venceu ou vence, mas nunca haverá envio; só o aluno com acesso conta.
+        alunoDe(admin, "Aluno atrasado com acesso", hoje.minusDays(2));
+        alunoDe(admin, "Aluno próximo com acesso", hoje.plusDays(3));
+        alunoSemAcessoDe(admin, "Aluno atrasado sem acesso", hoje.minusDays(2));
+        alunoSemAcessoDe(membro, "Aluno próximo sem acesso", hoje.plusDays(3));
+
+        for (boolean meus : new boolean[]{false, true}) {
+            for (String situacao : SITUACOES) {
+                assertThat((long) naLista(admin, situacao, meus)).as("lista × painel de %s (meus=%s)", situacao, meus)
+                        .isEqualTo(noPainel(admin, situacao, meus));
+            }
+        }
+        assertThat(noPainel(admin, "ATRASADAS", false)).isEqualTo(1);
+        assertThat(noPainel(admin, "PROXIMAS", false)).isEqualTo(1);
+        assertThat(noPainel(admin, "PROXIMAS", true)).isEqualTo(1);
+        assertThat(api.get("/atualizacoes?situacao=ATRASADAS", admin, 200)).extracting(i -> i.path("nomeAluno").asString())
+                .containsExactly("Aluno atrasado com acesso");
+        assertThat(api.get("/atualizacoes/contagens", admin, 200).path("ATRASADAS").asLong()).isEqualTo(1);
+        // O aluno sem acesso segue ativo e contado em alunosSemAcesso.
+        assertThat(api.get("/painel", admin, 200).path("alunosSemAcesso").asLong()).isEqualTo(2);
     }
 
     @Test

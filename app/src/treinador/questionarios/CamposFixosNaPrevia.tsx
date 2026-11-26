@@ -41,6 +41,8 @@ function Campos({ ocultos, nota }: { ocultos: readonly CampoDaInscricao[]; nota:
       <Campo rotulo="WhatsApp com DDD" valor={v.whatsapp ?? ''} aoMudar={mudar('whatsapp')} placeholder="DDD + número" inputMode="tel" autoComplete="off" />
       {mostra('EMAIL') ? <Campo rotulo="E-mail (opcional)" valor={v.email ?? ''} aoMudar={mudar('email')} inputMode="email" autoComplete="off" autoCapitalize="none" spellCheck={false}
         ajuda="Usado só para o convite de acesso ao app, se você virar aluno." /> : null}
+      <Campo rotulo="Instagram (opcional)" valor={v.instagram ?? ''} aoMudar={mudar('instagram')} placeholder="@usuario ou link do perfil" autoComplete="off" autoCapitalize="none" spellCheck={false}
+        ajuda="O Instagram vai para as redes do aluno quando você aceitar a inscrição." />
     </Cartao>
     {mostra('SEXO') || mostra('OBJETIVO') ? <Cartao>
       {mostra('SEXO') ? <Escolha rotulo="Sexo (opcional)" valor={v.sexo ?? ''} aoMudar={mudar('sexo')} distribuida

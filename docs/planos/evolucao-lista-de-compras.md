@@ -1,6 +1,6 @@
 # Evolução da lista de compras
 
-Situação: Pronta na branch (falta juntar na `main` e publicar) · Onde: branches `evo-compras` e `evo-categorias` (worktrees, sem push) · Atualizado: 28/10/2026
+Situação: Pronta na branch (falta juntar na `main` e publicar) · Onde: branches `evo-compras` e `evo-categorias` (worktrees, sem push) · Atualizado: 25/11/2026
 
 ## Objetivo
 A lista de compras do aluno vira uma lista de mercado de verdade: além de Semana e Mês, o período de 14 dias; marcar o
@@ -17,7 +17,7 @@ concorrente (7/14/30 dias, "2 de 6 comprados", "Limpar marcações", "Ajustar li
 | 4 | PDF do aluno | Inclui ajustes e avulsos marcados como tal, com a caixinha vazia para marcar no papel. A prévia do treinador não tem ajustes | Gustavo, 28/10 |
 | 5 | Cálculo | Sem mudança (fatores, opção por refeição); só o período novo. Não une itens por nome parecido | Gustavo, 28/10 |
 | 6 | Treinador | Só a prévia, sem marcações | Gustavo, 28/10 |
-| 7 | Rótulos do período | "Semana", "2 semanas" e "Mês" (valor `duasSemanas`, 14 dias fixos); título do PDF "2 semanas (14 dias)". "Quinzena" ficou de fora porque costuma ser 15 dias | Claude, 28/10 |
+| 7 | Rótulos do período | Desde 25/11: "7 dias", "14 dias" e "30 dias" (`textoDoPeriodo`; valor `duasSemanas` = 14 dias fixos; título da tela "Lista de N dias" e do PDF "Lista de compras — N dias"). Antes (28/10): "Semana", "2 semanas" e "Mês", título do PDF "2 semanas (14 dias)". "Quinzena" ficou de fora porque costuma ser 15 dias | Claude, 28/10; Gustavo, 25/11 |
 | 8 | Onde fica | Documento `listaDeCompras` no `RepositorioLocal` (kv do SQLite no celular, `treinos:<usuarioId>:listaDeCompras` na web), o mesmo lugar da dieta salva: sai no "Sair" (`apagarTudo`) e na sessão recusada (`reterSoAFila`), não entra em `SOBREVIVEM_AO_SAIR` nem em `CHAVES_DA_FILA_RETIDA` | Claude, 28/10 |
 | 9 | Formato guardado | Um documento só, da versão em uso: `{versaoId, periodo, escolhas, periodos: {semana?, duasSemanas?, mes?}}`, cada período com `comprados`, `ajustes` e `avulsos`. Versão diferente da salva começa do zero e substitui o documento ao gravar (não acumula versões antigas). Lido sempre por `normalizarListaSalva` (o que não confere é descartado, sem conversão) | Claude, 28/10 |
 | 10 | Período e opção lembrados | A tela abre no último período e nas últimas opções por refeição escolhidos para aquela versão (senão as marcações da opção B sumiriam ao voltar para a tela). Não muda o cálculo | Claude, 28/10 |
@@ -58,6 +58,15 @@ concorrente (7/14/30 dias, "2 de 6 comprados", "Limpar marcações", "Ajustar li
   `listaDeCompras*.test.ts`, `pdf.test.ts` e `injecao.test.ts` com o grupo envenenado); `node --test scripts/importacao/modelos.test.mjs` verde.
 - e2e não rodado aqui (o `node_modules` desta máquina empacota outro checkout): o spec foi atualizado e fica para o checkout principal.
 
+## O que mudou em 25/11 (A7 da auditoria; `auditoria-24-25-11.md`)
+- Tela do aluno em linhas, cada uma com a `ui/CaixaRedonda`; o comprado fica riscado, na cor cheia, e no fim do grupo (`gruposDaTelaDoAluno`); o selo "Comprado" saiu. O PDF segue com `gruposDoAluno` (caixas vazias, ordem do grupo).
+- Períodos "7 dias · 14 dias · 30 dias" (decisão 7). Marcações, ajustes e avulsos continuam só no aparelho; a conta e a API não mudaram.
+
+## O que mudou em 26/11 (T-302 e T-311 de [ajustes-de-26-11.md](ajustes-de-26-11.md); sem commit)
+- Prévia do treinador (`treinador/dieta/FolhaListaDeCompras`, `DicaDaPrevia`): folha média; topo numa linha (selo Prévia, ⓘ "Sobre esta prévia", "N itens · X dias", segmento de período); grupos como títulos com contagem, em 2 colunas a partir de 640 px de lista (alvenaria); rodapé "Baixar PDF da lista" e "Fechar" secundários. O botão "Lista de compras" do cabeçalho "Refeições (N)" passou de fantasma para `acao`.
+- `ui/LinhaDeCompra`: a linha é comum à tela do aluno e à prévia. Dúzias só para ovo e só em múltiplo exato de 12 (`dominio/listaDeCompras.textoDasDuzias`: "120 un · 10 dúzias"); o PDF não mostra dúzias.
+- O título técnico do plano (nome padrão da importação) não aparece mais na lista do aluno nem no PDF da lista (`dominio/tituloDoPlano.ts`).
+
 ## Fora do escopo
 - Sincronizar marcações entre aparelhos (decisão 2: só no aparelho).
 
@@ -69,7 +78,7 @@ concorrente (7/14/30 dias, "2 de 6 comprados", "Limpar marcações", "Ajustar li
 ## Texto para o AGENTS.md
 (acrescentar ao item "Lista de compras")
 
-Período de 7, 14 ou 30 dias (`PeriodoDaLista` `semana`/`duasSemanas`/`mes`, `PERIODOS_DA_LISTA`, rótulos Semana/2 semanas/Mês) na tela do aluno, na prévia do treinador e nos PDFs. Na tela do aluno (`aluno/ListaDeComprasDoAluno`, regras puras em `dominio/listaDeComprasDoAluno.ts`) o aluno marca o que comprou ("N de M comprados" com `BarraProgresso`, "Limpar marcações" com desfazer no aviso), ajusta a quantidade de um item calculado (texto livre, "ajustado por você", "Voltar ao calculado") e acrescenta itens avulsos (nome até 80, quantidade e unidade livres até 20, "adicionado por você", remover com desfazer), no modo "Ajustar lista". Nada disso vai à API nem muda a dieta: fica no documento `listaDeCompras` do `RepositorioLocal` (kv do SQLite / `treinos:<usuarioId>:listaDeCompras`), um só, da versão publicada em uso (`{versaoId, periodo, escolhas, periodos}`; versão nova começa do zero), lido por `normalizarListaSalva`; sai no "Sair" e na sessão recusada (não está em `SOBREVIVEM_AO_SAIR` nem na fila retida). O PDF do aluno (`documentoListaDeCompras` com `itensDoAluno`) leva os ajustes e avulsos marcados como tal e caixas vazias; a prévia do treinador (`ui/ListaDeCompras`) não tem marcações nem ajustes. Teste de tela: `e2e/lista-de-compras.spec.ts`.
+Período de 7, 14 ou 30 dias (`PeriodoDaLista` `semana`/`duasSemanas`/`mes`, `PERIODOS_DA_LISTA`, rótulos Semana/2 semanas/Mês) na tela do aluno, na prévia do treinador e nos PDFs. Na tela do aluno (`aluno/ListaDeComprasDoAluno`, regras puras em `dominio/listaDeComprasDoAluno.ts`) o aluno marca o que comprou ("N de M comprados" com `BarraProgresso`, "Limpar marcações" com desfazer no aviso), ajusta a quantidade de um item calculado (texto livre, "ajustado por você", "Voltar ao calculado") e acrescenta itens avulsos (nome até 80, quantidade e unidade livres até 20, "adicionado por você", remover com desfazer), no modo "Ajustar lista". Nada disso vai à API nem muda a dieta: fica no documento `listaDeCompras` do `RepositorioLocal` (kv do SQLite / `treinos:<usuarioId>:listaDeCompras`), um só, da versão publicada em uso (`{versaoId, periodo, escolhas, periodos}`; versão nova começa do zero), lido por `normalizarListaSalva`; sai no "Sair" e na sessão recusada (não está em `SOBREVIVEM_AO_SAIR` nem na fila retida). O PDF do aluno (`documentoListaDeCompras` com `itensDoAluno`) leva os ajustes e avulsos marcados como tal e caixas vazias; a prévia do treinador (`ui/ListaDeCompras` dentro da `FolhaListaDeCompras`; desde 26/11 com `ui/LinhaDeCompra` e dúzias do ovo) não tem marcações nem ajustes. Teste de tela: `e2e/lista-de-compras.spec.ts`.
 
 (e um item novo, logo depois do da lista de compras)
 

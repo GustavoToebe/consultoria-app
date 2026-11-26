@@ -196,10 +196,9 @@ public class AuthService {
             aluno = alunos.findById(usuario.getAlunoId())
                     .map(a -> new EuResponse.AlunoResumo(a.getId(), a.getNome(),
                             a.getSexo() == null ? null : a.getSexo().name(),
-                            a.isAcessoPausado(), a.getAcessoPausadoEm()))
+                            a.getAcessoDesativadoMotivo() == null ? null : a.getAcessoDesativadoMotivo().name()))
                     .orElse(null);
         }
-        boolean acessoPausado = usuario.getPapel() == Papel.ALUNO && aluno != null && aluno.acessoPausado();
         var perfil = usuario.getPerfilId() == null ? null : perfis.buscar(usuario.getPerfilId(), usuario.getConsultoriaId())
                 .map(p -> new EuResponse.PerfilResumo(p.getId(), p.getNome(), p.isAcessoTotal())).orElse(null);
         return new EuResponse(UsuarioResumo.de(usuario), marca(usuario), aluno, perfil,
@@ -213,7 +212,8 @@ public class AuthService {
                 vitrine.habilitada(), vitrine.lojaEfetiva(), vitrine.marketplaceEfetivo(), whatsapp.habilitado(),
                 usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())
                         .map(br.com.treinos.api.consultoria.Consultoria::whatsappParaLink).orElse(null) : null,
-                acessoPausado);
+                usuario.getPapel() == Papel.ALUNO ? consultorias.findById(usuario.getConsultoriaId())
+                        .map(br.com.treinos.api.consultoria.Consultoria::redesPreenchidas).orElse(null) : null);
     }
 
     /**

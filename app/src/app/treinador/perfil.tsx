@@ -47,7 +47,7 @@ export default function PerfilTreinador() {
   const doNegocio = itens.filter((i) => DA_CONSULTORIA.has(i.id));
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Perfil" subtitulo={[usuario?.nome, perfilEquipe?.nome].filter(Boolean).join(' · ') || undefined} />
+      <Cabecalho titulo="Perfil" descricao="Sua conta e os atalhos para as telas que o seu perfil pode abrir: dados, segurança, ajustes, equipe e Ajuda." subtitulo={[usuario?.nome, perfilEquipe?.nome].filter(Boolean).join(' · ') || undefined} />
       <Cartao titulo="Minha conta">
         <View style={estilos.lista}>{daPessoa.map(linha)}</View>
       </Cartao>

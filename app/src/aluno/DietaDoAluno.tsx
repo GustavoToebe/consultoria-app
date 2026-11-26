@@ -5,19 +5,16 @@ import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta, Refeicao, VariacaoDaDieta, VersaoDetalhe } from '../api/tipos';
 import { corDaRefeicao } from '../dominio/corDaSerie';
-import { MACROS as CHAVES_DOS_MACROS, normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
+import { ehRotuloPadrao, MACROS as CHAVES_DOS_MACROS, normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDaOpcao, totalDoDia, type TotaisComFibra } from '../dominio/dieta';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
-import { linhasDoComplemento } from '../dominio/linhasDoComplemento';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { duasColunasCom } from '../dominio/grade';
 import { colunasDaGradeDoAluno, LARGURA_LATERAL_DO_ALUNO } from '../dominio/telaLargaDoAluno';
-import { linkParaAbrir } from '../dominio/links';
+import { kcalDaAba, letraDoMarcador, tituloDaOpcao } from '../dominio/opcoesDaRefeicao';
 import { textoDosDiasCurtos, variacaoDoDia, variacaoMostrada } from '../dominio/variacoesDaDieta';
 import type { DadosPdfDieta } from '../pdf/pdfDieta';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
-import { Abas } from '../ui/Abas';
-import { CupomDoProduto, VerProduto } from '../ui/AcoesDoProduto';
 import { Botao } from '../ui/Botao';
 import { CabecalhoDeGrupo } from '../ui/CabecalhoDeGrupo';
 import { Cartao } from '../ui/Cartao';
@@ -26,11 +23,14 @@ import { Escolha } from '../ui/Escolha';
 import { Selo } from '../ui/Selo';
 import { FolhaPdfDieta } from '../ui/FolhaPdfDieta';
 import { Grade } from '../ui/Grade';
+import { AbasDasOpcoes } from '../ui/MarcadorDeOpcao';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { NumeroAnimado } from '../ui/NumeroAnimado';
 import { AJUDA_DA_FIBRA_PARCIAL, FIBRA, fibraParcial, LegendaDosMacros, MACROS, MarcaDoMacro, TotalParaLeitor, ValoresDaDieta } from '../ui/ValoresDaDieta';
+import { CartoesDosComplementos } from './CartoesDosComplementos';
 import { ModoDePreparo } from './ModoDePreparo';
+import { PilulaDaQuantidade } from './PilulaDaQuantidade';
 import { useDiaDeHojeEmBrasilia } from './useDiaDeHoje';
 
 /** Por que a lista de compras e o PDF ficam desabilitados na prévia do treinador. */
@@ -53,6 +53,10 @@ const MOTIVO_NA_PREVIA = 'Só o aluno abre isto no app dele.';
  * `largo` (tela larga, 24/11; só a aba Dieta passa, a folha da prévia não muda): o resumo (`lado`, a água do dia, o plano,
  * o total, a lista de compras, o PDF e as orientações) numa coluna fixa à esquerda e as refeições em colunas ao lado, com a
  * medicação e a suplementação embaixo delas, no lugar de cartões e botões da largura da tela.
+ *
+ * O título do plano não aparece (25/11): é o nome de trabalho do treinador ("Dieta de <aluno>", o da importação) e a tela
+ * já se chama Dieta; o plano em uso e o período ficam no `SeletorPlano`, acima. Sem objetivo, água, início nem
+ * profissional, o cartão do plano não aparece.
  */
 export function DietaDoAluno({
   versao,
@@ -90,19 +94,19 @@ export function DietaDoAluno({
   const inicioEProfissional = [c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ');
 
   const selo = salva ? <Selo texto="Sem conexão — mostrando a última versão salva" tipo="neutro" /> : null;
-  const plano = (
+  const agua = aguaNoCartao ? null : textoDaAgua(c.aguaLitros);
+  const plano = c.objetivo || agua || inicioEProfissional ? (
     <Cartao>
-      <Texto numerico variante="subtitulo">{versao.titulo}</Texto>
       {c.objetivo ? <Texto numerico>Objetivo: {c.objetivo}</Texto> : null}
-      {!aguaNoCartao && textoDaAgua(c.aguaLitros) ? (
+      {agua ? (
         <View style={estilos.agua}>
           <Droplet size={20} color={cores.texto} />
-          <Texto numerico style={estilos.forte}>Água: {textoDaAgua(c.aguaLitros)}</Texto>
+          <Texto numerico style={estilos.forte}>Água: {agua}</Texto>
         </View>
       ) : null}
       {inicioEProfissional ? <Texto numerico variante="suave">{inicioEProfissional}</Texto> : null}
     </Cartao>
-  );
+  ) : null;
   // Orientações e observações logo abaixo do plano (ficavam no fim, depois de todas as refeições), recolhíveis.
   const orientacoes = c.orientacoes.length ? (
     <Cartao titulo="Orientações" recolhivel recolhido>
@@ -127,8 +131,7 @@ export function DietaDoAluno({
   const total = semDietaHoje ? null : (
     <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
       <TotalDoDia totais={totais} />
-      {/* "■ Fibra" só se algum item mostra fibra (a do aluno some quando é "—", `omitirFibraSemValor`), em qualquer opção. */}
-      <LegendaDosMacros fibra={refeicoes.some((r) => r.opcoes.some((o) => o.itens.some((i) => i.fibra != null)))} />
+      <LegendaDosMacros />
       {/* Só os macros e a kcal: a fibra é opcional e nula não deixa o total incompleto. */}
       {CHAVES_DOS_MACROS.some((m) => totais[m] === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
     </Cartao>
@@ -140,30 +143,7 @@ export function DietaDoAluno({
       ))}
     </Grade>
   ) : null;
-  const medicacao = ergogenicos.length ? (
-    <Cartao titulo="Medicação e ergogênicos">
-      {ergogenicos.map((e) => (
-        <View key={e.uid} style={[estilos.item, { borderColor: cores.divisor }]}>
-          <Texto numerico style={estilos.forte}>{e.nome || '—'}</Texto>
-          {e.principioAtivo ? <Texto numerico variante="suave">{e.principioAtivo}</Texto> : null}
-          <LinhasDoComplemento item={e} />
-          {e.prescricao ? <Texto numerico variante="suave">Prescrição: {e.prescricao}</Texto> : null}
-        </View>
-      ))}
-    </Cartao>
-  ) : null;
-  const suplementacao = c.suplementacao.length ? (
-    <Cartao titulo="Suplementação">
-      {c.suplementacao.map((s) => (
-        <View key={s.uid} style={[estilos.item, { borderColor: cores.divisor }]}>
-          <Texto numerico style={estilos.forte}>{s.nome || '—'}</Texto>
-          <LinhasDoComplemento item={s} />
-          {linkParaAbrir(s.link) ? <VerProduto link={s.link} /> : null}
-          {s.cupom?.trim() ? <CupomDoProduto uid={s.uid} nome={s.nome} cupom={s.cupom.trim()} /> : null}
-        </View>
-      ))}
-    </Cartao>
-  ) : null;
+  const complementos = <CartoesDosComplementos ergogenicos={ergogenicos} suplementacao={c.suplementacao} />;
   const botaoPdf = previa || aoBaixarPdf ? (
     <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) setFolhaPdf(true); }} /></NoPlano>
   ) : null;
@@ -185,8 +165,7 @@ export function DietaDoAluno({
         </View>
         <View style={[estilos.pilha, estilos.principal]}>
           {listaDeRefeicoes}
-          {medicacao}
-          {suplementacao}
+          {complementos}
         </View>
         {folha}
       </View>
@@ -202,23 +181,9 @@ export function DietaDoAluno({
       {variacao}
       {total}
       {listaDeRefeicoes}
-      {medicacao}
-      {suplementacao}
+      {complementos}
       {botaoPdf}
       {folha}
-    </>
-  );
-}
-
-/** "Dose: …", "Horário: …", "Observação: …", uma por linha e só as preenchidas (A10); nada preenchido = "—". */
-function LinhasDoComplemento({ item }: { item: { dose?: string | null; horario?: string | null; observacao?: string | null } }) {
-  const linhas = linhasDoComplemento(item);
-  if (!linhas.length) return <Texto numerico variante="suave">—</Texto>;
-  return (
-    <>
-      {linhas.map((l) => (
-        <Texto key={l} numerico variante="suave">{l}</Texto>
-      ))}
     </>
   );
 }
@@ -234,7 +199,7 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
   const [ativa, setAtiva] = useState(0);
   const opcao = refeicao.opcoes[Math.min(ativa, refeicao.opcoes.length - 1)];
   const escolha = textoEscolhaDasOpcoes(refeicao.opcoes.map((o) => o.rotulo));
-  const rotuloDoTotal = refeicao.opcoes.length > 1 && opcao ? `Total da opção ${opcao.rotulo}` : 'Total';
+  const rotuloDoTotal = refeicao.opcoes.length > 1 && opcao ? totalDaOpcao(opcao.rotulo) : 'Total';
   return (
     <Cartao
       style={{ borderLeftWidth: BARRA_DA_REFEICAO, borderLeftColor: cor.cor }}
@@ -247,14 +212,20 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
       {escolha ? (
         <View style={[estilos.escolha, { backgroundColor: cores.superficie3, borderLeftColor: cores.bordaCampo }]}>
           <Texto numerico style={estilos.forte} cor={cores.texto}>{escolha}</Texto>
-          <Texto numerico variante="pequeno">As opções não se somam: o total do dia conta só a opção A.</Texto>
+          <Texto variante="pequeno">As opções não se somam: o total do dia conta só {ehRotuloPadrao(refeicao.opcoes[0]?.rotulo ?? 'A') ? 'a opção A' : 'a primeira opção'}.</Texto>
         </View>
       ) : null}
+      {/* As mesmas abas do editor (círculo com a letra, preenchido na aberta, e a kcal ou "vazia" em texto secundário), sem o
+          "+ Nova opção" nem o ⋯; com uma opção só, sem abas (não há o que escolher). Os itens vêm logo abaixo. */}
       {refeicao.opcoes.length > 1 ? (
-        <Abas
-          abas={refeicao.opcoes.map((o, i) => ({ valor: String(i), rotulo: `Opção ${o.rotulo}` }))}
-          ativa={String(Math.min(ativa, refeicao.opcoes.length - 1))}
-          aoMudar={(v) => setAtiva(Number(v))}
+        <AbasDasOpcoes
+          rotulo={`Opções de ${refeicao.nome || 'Refeição'}`}
+          abas={refeicao.opcoes.map((o, i) => ({
+            valor: String(i), letra: letraDoMarcador(o.rotulo), titulo: tituloDaOpcao(o), rotuloAcessivel: `${tituloDaOpcao(o)}, ${kcalDaAba(o)}`,
+            detalhe: <Texto variante="suave" numerico={o.itens.length > 0}>{kcalDaAba(o)}</Texto>,
+          }))}
+          aberta={String(Math.min(ativa, refeicao.opcoes.length - 1))}
+          aoAbrir={(v) => setAtiva(Number(v))}
         />
       ) : null}
       {opcao?.itens.map((i) => {
@@ -264,24 +235,19 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
           <View key={i.uid} style={[estilos.itemComQuantidade, { borderColor: cores.divisor }]}>
             <View style={estilos.nomeDoItem}>
               <Texto numerico style={estilos.forte}>{i.nome}</Texto>
-              <ValoresDaDieta totais={somar([i])} inicio omitirFibraSemValor />
+              <ValoresDaDieta totais={somar([i])} inicio />
             </View>
-            <View
-              style={[estilos.quantidade, { borderColor: cor.cor, backgroundColor: cor.fundo }]}
-              accessible
-              accessibilityLabel={`Quantidade: ${unidade ? `${quantidade} ${unidade}` : quantidade}`}>
-              <Texto numerico cor={cor.cor} style={estilos.valorDaQuantidade}>{quantidade}</Texto>
-              {unidade ? <Texto numerico cor={cor.cor} style={estilos.unidadeDaQuantidade}>{unidade}</Texto> : null}
-            </View>
+            <PilulaDaQuantidade numero={quantidade} resto={unidade || null} cor={cor.cor} fundo={cor.fundo}
+              rotuloAcessivel={`Quantidade: ${unidade ? `${quantidade} ${unidade}` : quantidade}`} />
           </View>
         );
       })}
       {opcao ? (
         <View style={[estilos.totalDaRefeicao, { borderColor: cores.bordaCampo }]} role="group" aria-label={rotuloDoTotal}>
           {/* O leitor ouve rótulo e valores numa frase só; o que se vê fica escondido dele. */}
-          <TotalParaLeitor rotulo={rotuloDoTotal} totais={somar(opcao.itens)} omitirFibraSemValor />
+          <TotalParaLeitor rotulo={rotuloDoTotal} totais={somar(opcao.itens)} />
           <Texto numerico style={estilos.forte} cor={cores.texto} aria-hidden>{rotuloDoTotal}</Texto>
-          <View aria-hidden><ValoresDaDieta totais={somar(opcao.itens)} forte inicio omitirFibraSemValor /></View>
+          <View aria-hidden><ValoresDaDieta totais={somar(opcao.itens)} forte inicio /></View>
         </View>
       ) : null}
       <ModoDePreparo texto={refeicao.modoDePreparo} />
@@ -317,8 +283,8 @@ function VariacaoDoDia({ variacoes, mostrada, deHoje, aoEscolher }: {
 
 /**
  * Total do dia: kcal em destaque na cor do texto e, por macro, a marca de cor da peça única (`ui/ValoresDaDieta`, a mesma do
- * editor) com o valor e o nome por extenso ("—" sem valor). A fibra vem depois, com a marca dela e o texto neutro, só quando há valor (recurso que não
- * existe não aparece), com "(parcial)" e a ajuda quando algum item não a tem.
+ * editor) com o valor e o nome por extenso ("—" sem valor). A fibra vem depois, com a marca dela e o texto neutro, "Fibra —"
+ * sem valor (Gustavo, 25/11), com "(parcial)" e a ajuda quando algum item não a tem.
  */
 function TotalDoDia({ totais }: { totais: TotaisComFibra }) {
   const parcial = fibraParcial(totais);
@@ -336,12 +302,14 @@ function TotalDoDia({ totais }: { totais: TotaisComFibra }) {
             )}
           </View>
         ))}
-        {totais.fibra === null ? null : (
-          <View style={estilos.macro}>
-            <MarcaDoMacro cor={FIBRA.cor} />
+        <View style={estilos.macro}>
+          <MarcaDoMacro cor={FIBRA.cor} />
+          {totais.fibra === null ? (
+            <Texto numerico>Fibra —</Texto>
+          ) : (
             <NumeroAnimado valor={totais.fibra} casas={1} sufixo={` g de fibra${parcial ? ' (parcial)' : ''}`} />
-          </View>
-        )}
+          )}
+        </View>
       </View>
       {parcial ? <Texto variante="pequeno">{AJUDA_DA_FIBRA_PARCIAL}</Texto> : null}
     </View>
@@ -359,15 +327,11 @@ const estilos = StyleSheet.create({
   principal: { flex: 1, minWidth: 0 },
   itemComQuantidade: { borderTopWidth: 1, paddingTop: espaco(1), flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
   nomeDoItem: { flex: 1, minWidth: 0, gap: 2 },
-  quantidade: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(0.5), borderWidth: 1, borderRadius: 10, paddingVertical: espaco(0.75), paddingHorizontal: espaco(1.5), flexShrink: 0, maxWidth: '50%' },
-  valorDaQuantidade: { fontFamily: fontes.negrito, fontSize: 18, lineHeight: 22 },
-  unidadeDaQuantidade: { fontFamily: fontes.negrito, fontSize: 14, lineHeight: 18, flexShrink: 1 },
   agua: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
   textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
   orientacao: { gap: 2 },
   forte: { fontFamily: fontes.semi },
-  item: { borderTopWidth: 1, paddingTop: espaco(1), gap: 2 },
   escolha: { borderRadius: RAIO, borderLeftWidth: 3, paddingVertical: espaco(1), paddingHorizontal: espaco(1.25), gap: 2 },
   totalDaRefeicao: { borderTopWidth: 1, paddingTop: espaco(1), marginTop: espaco(0.5), gap: espaco(0.5) },
   totalDoDia: { gap: espaco(1) },

@@ -3,11 +3,12 @@ import type { ContagensInscricoes } from '../api/inscricoesTipos';
 import type { ResumoDaAgenda } from '../api/agendaTipos';
 import type { PainelTreinador, RecordesDaSemana, TrocasPendentes } from '../api/tipos';
 import { periodoDoCalendario } from './agendaCalendario';
+import { descricaoDaJanela, OPCOES_DIAS_ANIVERSARIO } from './aniversariosDosAlunos';
 import { caminhoListaAtualizacoes } from './atualizacao';
 import { dataRelativa } from './datasRelativas';
 import { enfaseDoNumero, type EnfaseDoNumero, type FuncaoDeDestaque } from './destaque';
 import { centavosParaTela, dataCurta, inteiroComMilhar as milhares, SEM_DADO } from './formatos';
-import { avisoDoHistoricoParcial, hojeEmBrasilia, periodoDoPainel } from './financeiro';
+import { hojeEmBrasilia, periodoDoPainel } from './financeiro';
 import { contadorDeRetornos } from './inicioTreinador';
 import { rotuloDoMes } from './numeros';
 import { textoDoRecorde } from './recordesPessoais';
@@ -16,12 +17,12 @@ import type { UnidadeDeCarga } from './unidadeDeCarga';
 import { ehFinanceiroDesligado, TEXTO_RECURSO_DESATIVADO } from './financeiroDesligado';
 import { ehRetornoDesligado } from './retornoDesligado';
 import {
-  BLOCOS_DO_PAINEL, type BlocoDoPainelId, ehBlocoDoPainel, ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido,
-  ROTULOS_DOS_TAMANHOS, TAMANHO_PADRAO_DO_BLOCO, tamanhoDoBloco, TAMANHOS_DO_BLOCO, type TamanhoDoBloco,
+  BLOCOS_DO_PAINEL, type BlocoDoPainelId, DIAS_PADRAO_DO_ANIVERSARIO, type DiasDoAniversario, ehBlocoDoPainel, ehDiasDoAniversario,
+  ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido, ROTULOS_DOS_TAMANHOS, TAMANHO_PADRAO_DO_BLOCO, tamanhoDoBloco, TAMANHOS_DO_BLOCO, type TamanhoDoBloco,
 } from './painelBlocos';
 
 export { BLOCOS_DO_PAINEL, ehBlocoDoPainel, PAINEL_DO_INICIO_PADRAO, ROTULOS_DOS_TAMANHOS, TAMANHO_PADRAO_DO_BLOCO, tamanhoDoBloco, TAMANHOS_DO_BLOCO };
-export type { BlocoDoPainelId, PainelDoInicioPreferido, TamanhoDoBloco };
+export type { BlocoDoPainelId, DiasDoAniversario, PainelDoInicioPreferido, TamanhoDoBloco };
 
 /**
  * Regras do painel novo do Início do treinador (passo 8 de `docs/planos/atualizacao-visual-app-full.md`, D7 e D9; protótipo
@@ -50,6 +51,7 @@ export const TITULOS_DOS_BLOCOS: Record<BlocoDoPainelId, string> = {
   financeiro: 'Financeiro',
   recebido: 'Recebido e lançamentos',
   alunos: 'Alunos',
+  aniversarios: 'Aniversários',
 };
 
 /** Frase pequena do "Editar" sob o nome de cada bloco. */
@@ -62,6 +64,7 @@ export const DESCRICOES_DOS_BLOCOS: Record<BlocoDoPainelId, string> = {
   financeiro: 'Vencidas, vencendo e recebido no mês',
   recebido: 'Gráfico de barras dos últimos 6 meses',
   alunos: 'Rosca: ativos com e sem acesso, inativos',
+  aniversarios: 'Quem faz aniversário nos próximos dias.',
 };
 
 // ---- Textos fixos (protótipo) ----
@@ -116,7 +119,8 @@ export interface ContextoDoPainel {
  * O bloco existe para esta pessoa? Permissões de cada fonte hoje: `/painel` pede `PAINEL_VER` (o Início inteiro já pede);
  * Atualizações, `ATUALIZACAO_LER` + `ALUNO_SENSIVEL_LER` (as duas; sem elas o `/painel` devolve as quatro contagens nulas, nunca 0);
  * Interessados, `INSCRICAO_LER`; Treinos, `REGISTRO_LER` + `ALUNO_LER`; Pastas, `TREINO_LER` + `ALUNO_LER`; Agenda,
- * `AGENDA_LER`; Financeiro e Recebido, `pagamentosHabilitados` + `FINANCEIRO_LER`; Alunos (rosca), `ALUNO_LER`.
+ * `AGENDA_LER`; Financeiro e Recebido, `pagamentosHabilitados` + `FINANCEIRO_LER`; Alunos (rosca), `ALUNO_LER`;
+ * Aniversários, `ALUNO_LER` (a lista tem consulta própria, fora do `/painel`).
  */
 export function blocoDisponivel(id: BlocoDoPainelId, ctx: ContextoDoPainel): boolean {
   const { pode } = ctx;
@@ -129,6 +133,7 @@ export function blocoDisponivel(id: BlocoDoPainelId, ctx: ContextoDoPainel): boo
     case 'financeiro':
     case 'recebido': return ctx.pagamentosHabilitados && pode('FINANCEIRO_LER');
     case 'alunos': return pode('PAINEL_VER') && pode('ALUNO_LER');
+    case 'aniversarios': return pode('ALUNO_LER');
   }
 }
 
@@ -146,7 +151,7 @@ export interface BlocoParaEditar {
   id: BlocoDoPainelId;
   titulo: string;
   descricao: string;
-  /** Aparece no Início (fora da bandeja de ocultos). */
+  /** Aparece no Início (fora de "Adicionar blocos"). */
   ligado: boolean;
   /** Posição entre os que aparecem (1 a N) e o total, para "posição 2 de 7"; `null` no bloco oculto. */
   posicao: number | null;
@@ -155,11 +160,37 @@ export interface BlocoParaEditar {
   podeDescer: boolean;
   /** Tamanho que vale (o escolhido ou o de fábrica). */
   tamanho: TamanhoDoBloco;
+  /** Opções além do tamanho (só os aniversários, hoje); ausente = o bloco não tem. */
+  opcoes?: OpcaoDoBloco[];
+}
+
+/** Uma opção do bloco na edição: o que a pessoa escolhe, os valores com rótulo e o que vale agora. */
+export interface OpcaoDoBloco {
+  chave: 'dias';
+  rotulo: string;
+  valores: { valor: number; rotulo: string }[];
+  atual: number;
+}
+
+export const ROTULO_DOS_DIAS_DO_ANIVERSARIO = 'Mostrar aniversários de';
+export const rotuloDosDiasDoAniversario = (n: number): string => (n === 0 ? 'Só hoje' : `${n} dias`);
+
+/** Janela dos aniversários que vale (a escolhida no bloco ou 7). */
+export function diasDoBlocoAniversarios(pref: Pick<PainelDoInicioPreferido, 'opcoes'>): DiasDoAniversario {
+  return pref.opcoes?.aniversarios?.dias ?? DIAS_PADRAO_DO_ANIVERSARIO;
+}
+
+function opcoesDoBloco(id: BlocoDoPainelId, pref: PainelDoInicioPreferido): OpcaoDoBloco[] | undefined {
+  if (id !== 'aniversarios') return undefined;
+  return [{
+    chave: 'dias', rotulo: ROTULO_DOS_DIAS_DO_ANIVERSARIO, atual: diasDoBlocoAniversarios(pref),
+    valores: OPCOES_DIAS_ANIVERSARIO.map((valor) => ({ valor, rotulo: rotuloDosDiasDoAniversario(valor) })),
+  }];
 }
 
 /**
  * O "Editar": todos os blocos permitidos, na ordem. Subir e Descer andam entre os que **aparecem** (trocar de lugar com
- * um oculto não mudaria nada na tela); o oculto fica na bandeja e guarda o lugar para quando voltar.
+ * um oculto não mudaria nada na tela); o oculto fica em "Adicionar blocos" e guarda o lugar (a tela o põe no fim ao adicionar).
  */
 export function blocosParaEditar(ctx: ContextoDoPainel, pref: PainelDoInicioPreferido): BlocoParaEditar[] {
   const visiveis = blocosVisiveis(ctx, pref);
@@ -169,15 +200,17 @@ export function blocosParaEditar(ctx: ContextoDoPainel, pref: PainelDoInicioPref
       id, titulo: TITULOS_DOS_BLOCOS[id], descricao: DESCRICOES_DOS_BLOCOS[id], ligado: i >= 0,
       posicao: i >= 0 ? i + 1 : null, total: visiveis.length, podeSubir: i > 0, podeDescer: i >= 0 && i < visiveis.length - 1,
       tamanho: tamanhoDoBloco(id, pref.tamanhos),
+      ...(id === 'aniversarios' ? { opcoes: opcoesDoBloco(id, pref) } : {}),
     };
   });
 }
 
 const copia = (pref: PainelDoInicioPreferido): PainelDoInicioPreferido => ({
   ordem: [...pref.ordem], escondidos: [...pref.escondidos], meus: { ...pref.meus }, tamanhos: { ...pref.tamanhos },
+  opcoes: pref.opcoes?.aniversarios ? { aniversarios: { ...pref.opcoes.aniversarios } } : {},
 });
 
-/** Mostra (`true`, o "Adicionar" da bandeja) ou oculta um bloco. Id desconhecido não muda nada; o resto é preservado. */
+/** Mostra (`true`, o "Adicionar" de "Adicionar blocos") ou oculta um bloco. Id desconhecido não muda nada; o resto é preservado. */
 export function mostrarBloco(pref: PainelDoInicioPreferido, id: BlocoDoPainelId, mostrar: boolean): PainelDoInicioPreferido {
   if (!ehBlocoDoPainel(id)) return pref;
   const sem = pref.escondidos.filter((x) => x !== id);
@@ -213,10 +246,56 @@ export function redimensionarBloco(pref: PainelDoInicioPreferido, id: BlocoDoPai
   return { ...copia(pref), tamanhos };
 }
 
-/** "Restaurar padrão": ordem, ocultos, tamanhos e Todos/Meus de fábrica, numa cópia nova (o rascunho pode mexer nela). */
+/**
+ * Escolhe uma opção do bloco. Fica gravada por inteiro, até no valor padrão (assim o `diasAniversario` antigo não é migrado
+ * de novo depois de "Restaurar padrão"). Bloco sem essa opção, chave desconhecida ou valor fora do conjunto não mudam nada.
+ */
+export function definirOpcaoDoBloco(pref: PainelDoInicioPreferido, bloco: BlocoDoPainelId, chave: OpcaoDoBloco['chave'], valor: number): PainelDoInicioPreferido {
+  if (bloco !== 'aniversarios' || chave !== 'dias' || !ehDiasDoAniversario(valor)) return pref;
+  return { ...copia(pref), opcoes: { aniversarios: { dias: valor } } };
+}
+
+/** "Restaurar padrão": ordem, ocultos, tamanhos, opções e Todos/Meus de fábrica, numa cópia nova (o rascunho pode mexer nela). */
 export function restaurarPadrao(): PainelDoInicioPreferido {
   return copia(PAINEL_DO_INICIO_PADRAO);
 }
+
+// ---- Barra da edição ----
+
+/** Menor número de blocos que mudaram de lugar: os que não estão na maior subsequência da ordem salva que o rascunho manteve. */
+function blocosMovidos(salvo: readonly BlocoDoPainelId[], rascunho: readonly BlocoDoPainelId[]): number {
+  const seq = rascunho.filter((id) => salvo.includes(id)).map((id) => salvo.indexOf(id));
+  const maior: number[] = [];
+  seq.forEach((v, i) => {
+    maior[i] = 1 + Math.max(0, ...seq.slice(0, i).map((w, j) => (w < v ? maior[j] : 0)));
+  });
+  return seq.length - Math.max(0, ...maior);
+}
+
+/**
+ * Alterações do rascunho sobre o que está salvo, para a barra de baixo. Cada mudança conta uma vez: bloco movido (subir um
+ * bloco é uma alteração, não quantas vagas mudaram), mostrado ou ocultado, tamanho, Todos/Meus gravado (o "Restaurar
+ * padrão" o limpa) e opção diferentes. Compara o valor que
+ * vale (o de fábrica e o gravado igual a ele não contam).
+ */
+export function contarAlteracoes(salvo: PainelDoInicioPreferido, rascunho: PainelDoInicioPreferido): number {
+  let n = blocosMovidos(salvo.ordem, rascunho.ordem);
+  for (const id of BLOCOS_DO_PAINEL) {
+    if (salvo.escondidos.includes(id) !== rascunho.escondidos.includes(id)) n++;
+    if (tamanhoDoBloco(id, salvo.tamanhos) !== tamanhoDoBloco(id, rascunho.tamanhos)) n++;
+  }
+  for (const id of BLOCOS_DO_PAINEL) if (salvo.meus[id] !== rascunho.meus[id]) n++;
+  if (diasDoBlocoAniversarios(salvo) !== diasDoBlocoAniversarios(rascunho)) n++;
+  return n;
+}
+
+export function textoDaBarra(alteracoes: number): string {
+  if (alteracoes <= 0) return 'Nenhuma alteração ainda';
+  return alteracoes === 1 ? '1 alteração' : `${alteracoes} alterações`;
+}
+
+/** Anúncio ao mover: "Agenda, posição 3 de 8" (posição entre os blocos que aparecem, de 1 a N). */
+export const textoDaPosicao = (titulo: string, posicao: number, total: number): string => `${titulo}, posição ${posicao} de ${total}`;
 
 // ---- Fontes (o que a tela já carregou) ----
 
@@ -274,6 +353,8 @@ export interface FontesDoPainel {
   inadimplentes?: Fonte<PaginaInadimplentes>;
   /** `GET /financeiro/painel` do período {@link periodoDoFinanceiroNoPainel} e do escopo do bloco. */
   financeiro?: Fonte<PainelFinanceiro>;
+  /** `GET /alunos/aniversariantes?dias=&meus=` (consulta própria da tela, fora das vagas): só a situação importa aqui. */
+  aniversarios?: Fonte<unknown>;
 }
 
 // ---- Consultas ----
@@ -327,6 +408,8 @@ export interface OpcoesDoBloco {
   hoje: string;
   /** Id do usuário da sessão (para o "Meus" da Agenda). */
   usuarioId: string | null;
+  /** "Mostrar aniversários de" do bloco ({@link diasDoBlocoAniversarios}); ausente = 7. */
+  diasDoAniversario?: number;
 }
 
 /** As consultas que o bloco precisa agora (vazio se o bloco não existe para a pessoa). */
@@ -356,6 +439,8 @@ export function consultasDoBloco(id: BlocoDoPainelId, ctx: ContextoDoPainel, o: 
       return lista;
     }
     case 'recebido': return [{ fonte: 'financeiro', meus, ...periodoDoFinanceiroNoPainel(o.hoje) }];
+    // A lista de aniversariantes tem consulta própria (`aniversariantesDosAlunos`), fora do `/painel`.
+    case 'aniversarios': return [];
   }
 }
 
@@ -477,7 +562,8 @@ export function enderecoDoBloco(id: BlocoDoPainelId, meus: boolean): string {
     case 'interessados': return comConsulta('/treinador/interessados', meusQ(meus));
     case 'treinos':
     case 'pastas':
-    case 'alunos': return listaDeAlunos(meus);
+    case 'alunos':
+    case 'aniversarios': return listaDeAlunos(meus);
     case 'agenda': return comConsulta('/treinador/agenda', 'visao=semana', meusQ(meus));
     case 'financeiro': return comConsulta('/treinador/financeiro', meusQ(meus));
     // As barras vêm do mesmo `/financeiro/painel` da Visão geral, que respeita `?meus=`; a aba Lançamentos não filtra por aluno.
@@ -487,12 +573,14 @@ export function enderecoDoBloco(id: BlocoDoPainelId, meus: boolean): string {
 
 // ---- Gráficos ----
 
+export type TomDaRosca = 'forte' | 'medio' | 'suave';
+
 export interface FatiaDaRosca {
   chave: 'comAcesso' | 'semAcesso' | 'inativos';
   rotulo: string;
   valor: number;
-  /** Verde (situação: com acesso), azul (informativo: sem acesso, nunca âmbar, que é pendência explícita) ou cinza. */
-  cor: FuncaoDeDestaque | 'neutro';
+  /** Graduação de cinza (`forte` > `medio` > `suave`): a rosca é neutra, sem cor onde não há situação (25/11). */
+  cor: TomDaRosca;
   /** Fração do total (0 a 1) e onde começa (0 a 1, a partir do topo, sentido horário). */
   fracao: number;
   inicio: number;
@@ -516,6 +604,10 @@ export interface RoscaDoPainel {
 }
 
 export type SerieDaBarra = 'recebido' | 'lancamentos';
+/** Verde do recebido das cobranças (`sucesso`) e verde mais claro da entrada avulsa (`corDaEntradaAvulsa` em `tema/tokens`). */
+export type CorDaBarra = 'verde' | 'verdeClaro';
+/** Meses que o gráfico mostra no mínimo: o mês em andamento e os dois anteriores, mesmo sem nenhum valor. */
+export const MESES_MINIMOS_DAS_BARRAS = 3;
 
 export interface MesDasBarras {
   mes: string;
@@ -542,7 +634,7 @@ export interface BarrasDoPainel {
   tipo: 'barras';
   titulo: string;
   desenhar: boolean;
-  series: { chave: SerieDaBarra; rotulo: string; cor: FuncaoDeDestaque }[];
+  series: { chave: SerieDaBarra; rotulo: string; cor: CorDaBarra }[];
   meses: MesDasBarras[];
   /** Maior valor das barras (centavos), 0 sem nenhum dado. */
   maximo: number;
@@ -574,8 +666,6 @@ export interface BlocoDoPainel {
   grafico: RoscaDoPainel | BarrasDoPainel | null;
   /** Frase pequena sob os cartões. */
   nota: string | null;
-  /** Ressalva do histórico financeiro parcial (neutra, com ícone); uma vez por tela, veja {@link ressalvaUmaVez}. */
-  ressalva: string | null;
   /** O recurso do bloco está desligado na plataforma: a tela diz "Recurso desativado" (sem cartões, sem "Atualizar"). */
   desativado: boolean;
   /** Alguma consulta do bloco ainda carrega. */
@@ -584,7 +674,7 @@ export interface BlocoDoPainel {
   falhou: boolean;
 }
 
-function cabecalho(id: BlocoDoPainelId, meus: boolean, extra: { periodo?: string | null } = {}): Omit<BlocoDoPainel, 'cartoes' | 'linha' | 'grafico' | 'nota' | 'ressalva' | 'desativado' | 'carregando' | 'falhou'> {
+function cabecalho(id: BlocoDoPainelId, meus: boolean, extra: { periodo?: string | null } = {}): Omit<BlocoDoPainel, 'cartoes' | 'linha' | 'grafico' | 'nota' | 'desativado' | 'carregando' | 'falhou'> {
   const titulo = TITULOS_DOS_BLOCOS[id];
   return {
     id, titulo, periodo: extra.periodo ?? null, escopo: meus ? SO_OS_MEUS : null, meus, temFiltro: true,
@@ -594,11 +684,11 @@ function cabecalho(id: BlocoDoPainelId, meus: boolean, extra: { periodo?: string
   };
 }
 
-function fechar(base: ReturnType<typeof cabecalho>, partes: { cartoes?: CartaoDoPainel[]; linha?: CartaoDoPainel | null; grafico?: BlocoDoPainel['grafico']; nota?: string | null; ressalva?: string | null; falhouGrafico?: boolean }): BlocoDoPainel {
+function fechar(base: ReturnType<typeof cabecalho>, partes: { cartoes?: CartaoDoPainel[]; linha?: CartaoDoPainel | null; grafico?: BlocoDoPainel['grafico']; nota?: string | null; falhouGrafico?: boolean }): BlocoDoPainel {
   const cartoes = partes.cartoes ?? [];
   const todos = [...cartoes, ...(partes.linha ? [partes.linha] : [])];
   return {
-    ...base, cartoes, linha: partes.linha ?? null, grafico: partes.grafico ?? null, nota: partes.nota ?? null, ressalva: partes.ressalva ?? null,
+    ...base, cartoes, linha: partes.linha ?? null, grafico: partes.grafico ?? null, nota: partes.nota ?? null,
     desativado: false,
     carregando: todos.some((c) => c.estado === 'carregando'),
     falhou: todos.length > 0 ? todos.every((c) => c.estado === 'naoCarregou') : !!partes.falhouGrafico,
@@ -623,10 +713,24 @@ export function montarBloco(id: BlocoDoPainelId, ctx: ContextoDoPainel, o: Opcoe
     case 'financeiro': return blocoFinanceiro(ctx, o);
     case 'recebido': return blocoRecebido(o);
     case 'alunos': return blocoAlunos(o);
+    case 'aniversarios': return blocoAniversarios(o);
   }
 }
 
 type Entrada = OpcoesDoBloco & { fontes: FontesDoPainel };
+
+/**
+ * Aniversários: só a faixa (título, janela, Todos/Meus) e a situação da consulta. A lista é o corpo próprio do bloco
+ * (`treinador/painel/BlocoAniversarios`), posto pela tela dentro do `BlocoDoPainel`; carregando e "Não carregou" são os
+ * de sempre (sem cartões: o esqueleto e o alerta com "Atualizar").
+ */
+function blocoAniversarios(o: Entrada): BlocoDoPainel {
+  const sit = situacaoDe(o.fontes.aniversarios);
+  return {
+    ...fechar(cabecalho('aniversarios', o.meus, { periodo: descricaoDaJanela(o.diasDoAniversario ?? DIAS_PADRAO_DO_ANIVERSARIO) }), {}),
+    carregando: sit === 'carregando', falhou: sit === 'falhou',
+  };
+}
 
 function blocoAtualizacoes(o: Entrada): BlocoDoPainel {
   const sit = situacaoDe(o.fontes.painel);
@@ -703,10 +807,11 @@ function blocoPastas(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   // O filtro "Sem pasta com período" da lista é o da atualização (pede ATUALIZACAO_LER + ALUNO_SENSIVEL_LER); sem ele, a
   // lista abre sem esse filtro (o grupo "Sem pasta com período" aparece lá) em vez de mandar um filtro que daria 403.
   const filtroSemPasta = ctx.pode('ATUALIZACAO_LER') && ctx.pode('ALUNO_SENSIVEL_LER') && 'atualizacao=SEM_PASTA';
+  // O cartão só conta aluno com acesso ao app (a API); a lista abre com o mesmo recorte para o número bater.
   return fechar(cabecalho('pastas', o.meus), {
     cartoes: [
       cartao({ chave: 'pastas.aRenovar', rotulo: 'A renovar em 7 dias', nome: 'Pastas a renovar em 7 dias', situacao: sit, valor: p?.pastasARenovar, destaque: 'ambar', destino: { tipo: 'folha', folha: 'pastasARenovar' }, abreLista: true }),
-      cartao({ chave: 'pastas.semPasta', rotulo: 'Sem pasta com período', nome: 'Alunos sem pasta com período', situacao: sit, valor: p?.alunosSemPastaComPeriodo, destaque: null, destino: { tipo: 'endereco', href: listaDeAlunos(o.meus, filtroSemPasta) } }),
+      cartao({ chave: 'pastas.semPasta', rotulo: 'Sem pasta com período', nome: 'Alunos sem pasta com período', situacao: sit, valor: p?.alunosSemPastaComPeriodo, destaque: null, destino: { tipo: 'endereco', href: listaDeAlunos(o.meus, filtroSemPasta, 'acesso=COM') } }),
     ],
   });
 }
@@ -756,7 +861,7 @@ function blocoFinanceiro(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   const q7 = em7 && ehNumero(em7.cobrancas) ? em7.cobrancas : null;
   cartoes.push(cartao({
     chave: 'financeiro.vencendo', rotulo: 'Vencendo em 7 dias', nome: 'Cobranças vencendo em 7 dias', situacao: q7 === null && sitF === 'pronta' ? 'falhou' : sitF,
-    valor: em7?.valorCentavos, destaque: 'ciano', moeda: true, detalhe: q7 ? quantidade(q7) : null, detalheFalado: q7 ? quantidade(q7) : null,
+    valor: em7?.valorCentavos, destaque: 'ambar', moeda: true, detalhe: q7 ? quantidade(q7) : null, detalheFalado: q7 ? quantidade(q7) : null,
     destino: href('aba=cobrancas', 'situacao=ABERTA', 'vencimento=PROXIMOS_7_DIAS'),
   }));
 
@@ -765,18 +870,12 @@ function blocoFinanceiro(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   // `resultadoDoMes` é "Não carregou" (nunca zero inventado).
   const recebido = f?.resultadoDoMes?.recebidoCentavos;
   const entradaRecebido = {
-    chave: 'financeiro.recebido', rotulo: 'Recebido no mês (bruto)', nome: 'Recebido no mês, valor bruto', destaque: 'azul' as const, moeda: true, largo: true,
+    chave: 'financeiro.recebido', rotulo: 'Recebido no mês (bruto)', nome: 'Recebido no mês, valor bruto', destaque: 'verde' as const, moeda: true, largo: true,
     destino: href('aba=visao'),
   };
   cartoes.push(cartao({ ...entradaRecebido, situacao: sitF, valor: recebido }));
-  // Histórico parcial (API, 13/11): a mesma ressalva do Financeiro; não muda nenhum valor.
-  return fechar(cabecalho('financeiro', o.meus), { cartoes, nota: sitF === 'desligada' ? null : NOTA_FINANCEIRO_GERADAS, ressalva: avisoDoHistoricoParcial(f) });
-}
-
-/** A ressalva do histórico parcial aparece uma vez por tela: no bloco Financeiro e, sem ele, no Recebido. */
-export function ressalvaUmaVez(blocos: BlocoDoPainel[]): BlocoDoPainel[] {
-  if (!blocos.some((b) => b.id === 'financeiro')) return blocos;
-  return blocos.map((b) => (b.id === 'recebido' && b.ressalva ? { ...b, ressalva: null } : b));
+  // O histórico parcial (`historicoFinanceiroParcial`) não aparece no Início (25/11): fica no Financeiro e no CSV.
+  return fechar(cabecalho('financeiro', o.meus), { cartoes, nota: sitF === 'desligada' ? null : NOTA_FINANCEIRO_GERADAS });
 }
 
 function blocoRecebido(o: Entrada): BlocoDoPainel {
@@ -786,7 +885,7 @@ function blocoRecebido(o: Entrada): BlocoDoPainel {
   if (sit === 'carregando') return { ...fechar(base, {}), carregando: true };
   if (sit === 'desligada') return { ...fechar(base, {}), desativado: true };
   if (!f || !Array.isArray(f.serie)) return { ...fechar(base, { falhouGrafico: true }), falhou: true };
-  return fechar(base, { grafico: barrasDoRecebido(f.serie, o.meus, o.graficos), ressalva: avisoDoHistoricoParcial(f) });
+  return fechar(base, { grafico: barrasDoRecebido(f.serie, o.meus, o.graficos) });
 }
 
 /** Dados prontos das barras: `serie[]` do `/financeiro/painel`. Valor ausente fica `null` ("—"), nunca zero. */
@@ -794,7 +893,7 @@ export function barrasDoRecebido(serie: PainelFinanceiro['serie'], meus: boolean
   const nomeLanc = LANCAMENTOS_NAS_BARRAS === 'entradas' ? 'Entradas avulsas' : 'Saídas avulsas';
   const valor = (v: number | null | undefined) => (ehNumero(v) ? v : null);
   const texto = (v: number | null) => (v === null ? SEM_DADO : reaisSemCentavos(v));
-  const meses: MesDasBarras[] = serie.map((m) => {
+  const todos: MesDasBarras[] = serie.map((m) => {
     const recebido = valor(m.recebidoCentavos);
     const entradasAvulsas = valor(m.entradasAvulsasCentavos);
     const saidasAvulsas = valor(m.saidasAvulsasCentavos);
@@ -804,6 +903,9 @@ export function barrasDoRecebido(serie: PainelFinanceiro['serie'], meus: boolean
       recebidoTexto: texto(recebido), lancamentosTexto: texto(lancamentos), entradasTexto: texto(entradasAvulsas), saidasTexto: texto(saidasAvulsas),
     };
   });
+  // Começa no primeiro mês com valor (sem "R$ 0" nem "—" vazios à esquerda), com no mínimo 3 meses; o mês em andamento fica sempre.
+  const primeiroComValor = todos.findIndex((m) => (m.recebido ?? 0) > 0 || (m.lancamentos ?? 0) > 0);
+  const meses = todos.slice(Math.min(primeiroComValor < 0 ? todos.length : primeiroComValor, Math.max(todos.length - MESES_MINIMOS_DAS_BARRAS, 0)));
   const valores = meses.flatMap((m) => [m.recebido, m.lancamentos]).filter((v): v is number => v !== null);
   const falado = (v: number | null) => (v === null ? 'sem dado' : centavosParaTela(v));
   const ultimo = meses[meses.length - 1];
@@ -813,7 +915,7 @@ export function barrasDoRecebido(serie: PainelFinanceiro['serie'], meus: boolean
   if (meus) notas.push('Com "Meus", os lançamentos avulsos ficam de fora: não pertencem a um aluno.');
   return {
     tipo: 'barras', titulo: 'Recebido e lançamentos por mês', desenhar: graficos,
-    series: [{ chave: 'recebido', rotulo: 'Recebido (bruto)', cor: 'azul' }, { chave: 'lancamentos', rotulo: nomeLanc, cor: 'violeta' }],
+    series: [{ chave: 'recebido', rotulo: 'Recebido (bruto)', cor: 'verde' }, { chave: 'lancamentos', rotulo: nomeLanc, cor: 'verdeClaro' }],
     meses, maximo: valores.length ? Math.max(...valores) : 0, semDados: valores.length === 0, notas,
     descricao: meses.length
       ? `Recebido (bruto) e ${nomeLanc.toLowerCase()} por mês, de ${meses[0].rotulo} a ${ultimo.rotulo}. ${meses.map((m) => `${m.rotulo}: recebido ${falado(m.recebido)}, ${nomeLanc.toLowerCase()} ${falado(m.lancamentos)}`).join('; ')}.${ultimo.parcial ? ' O último mês é parcial.' : ''}`
@@ -842,9 +944,9 @@ export function roscaDosAlunos(p: Pick<PainelTreinador, 'alunosAtivos' | 'alunos
   const total = ativos + inativos;
   // Cada fatia abre a lista de alunos já filtrada (a situação "Ativos" é o padrão da lista).
   const brutas: Pick<FatiaDaRosca, 'chave' | 'rotulo' | 'valor' | 'cor' | 'href'>[] = [
-    { chave: 'comAcesso', rotulo: 'Ativos com acesso', valor: ativos - semAcesso, cor: 'verde', href: listaDeAlunos(meus, 'acesso=COM') },
-    { chave: 'semAcesso', rotulo: 'Ativos sem acesso', valor: semAcesso, cor: 'azul', href: listaDeAlunos(meus, 'acesso=SEM') },
-    { chave: 'inativos', rotulo: 'Inativos', valor: inativos, cor: 'neutro', href: listaDeAlunos(meus, 'situacao=INATIVO') },
+    { chave: 'comAcesso', rotulo: 'Ativos com acesso', valor: ativos - semAcesso, cor: 'forte', href: listaDeAlunos(meus, 'acesso=COM') },
+    { chave: 'semAcesso', rotulo: 'Ativos sem acesso', valor: semAcesso, cor: 'medio', href: listaDeAlunos(meus, 'acesso=SEM') },
+    { chave: 'inativos', rotulo: 'Inativos', valor: inativos, cor: 'suave', href: listaDeAlunos(meus, 'situacao=INATIVO') },
   ];
   let acumulado = 0;
   const fatias: FatiaDaRosca[] = brutas.map((f) => {

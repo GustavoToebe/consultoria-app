@@ -43,7 +43,8 @@ import java.util.regex.Pattern;
  * "Desfazer" de uma importação da planilha completa: apaga só o que ninguém mexeu de um jeito que importe e diz o que
  * ficou e por quê. Ordem: planos (só os nunca publicados), pastas (só sem plano nenhum), pesos, exercícios (só sem uso
  * em plano, versão publicada, modelo, registro ou imagem própria) e alunos (só sem acesso ao app, sem registro de
- * treino, sem compromisso e sem mais nada no cadastro). Cada item é apagado na sua própria transação curta: o que o
+ * treino, sem compromisso, sem nenhuma outra tabela ligada a ele (responsável financeiro, tags, WhatsApp, conquistas,
+ * cobranças…) e com o cadastro como a importação o gravou). Cada item é apagado na sua própria transação curta: o que o
  * banco recusa (uma ligação criada depois, que as conferências não viram) volta atrás sozinho e fica como "em uso", sem
  * desfazer o resto. Repetir é seguro: o que já foi apagado não aparece mais e o que ficou é conferido de novo.
  *
@@ -221,7 +222,10 @@ public class DesfazerDaPlanilha {
         }
         long resto = linhas.pastasDoAluno(id) + linhas.treinosDoAluno(id) + linhas.dietasDoAluno(id)
                 + linhas.mobilidadesDoAluno(id) + linhas.pesosDoAluno(id);
-        if (a.isAnonimizado() || linhas.alunoTemCompromisso(id) || resto > 0) {
+        // Versão > 0: o cadastro foi salvo de novo depois da importação (que insere uma vez só): CPF, endereço, objetivo etc.
+        boolean cadastroMexido = a.getVersao() != null && a.getVersao() > 0;
+        if (a.isAnonimizado() || cadastroMexido || linhas.alunoTemCompromisso(id) || resto > 0
+                || linhas.alunoTemOutraLigacao(id)) {
             return "EM_USO";
         }
         return null;

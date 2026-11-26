@@ -7,9 +7,9 @@ import { erroApi, json, simularApi } from './api-falsa';
 import { estadoFinanceiro, PAINEL_VAZIO, rotasDoFinanceiro, sessaoComFinanceiro } from './financeiro-falso';
 
 /**
- * Início do treinador com o histórico financeiro parcial (13/11): a ressalva aparece uma vez só, no primeiro bloco de dinheiro
- * visível. Com o Financeiro oculto pelo "Editar" e o Recebido visível, ela vai para o Recebido; com os dois ocultos, nenhuma.
- * Também: "Recurso desativado" nos cartões e no bloco quando o financeiro responde 503, distinto de "Não carregou" e de zero.
+ * Início do treinador com o histórico financeiro parcial: desde 25/11 (pedido do Gustavo) o Início não mostra a ressalva em
+ * lugar nenhum (nem no Financeiro, nem no Recebido, com qualquer um deles oculto pelo "Editar"); ela segue só nas abas do
+ * Financeiro (não) e na coluna do CSV. Também: "Recurso desativado" nos cartões e no bloco quando o financeiro responde 503, distinto de "Não carregou" e de zero.
  * Dados fictícios; relógio em 19/10/2026. Com `CAPTURAS=<pasta>` grava as imagens.
  */
 
@@ -49,36 +49,28 @@ async function abrirInicio(page: Page, extra: Parameters<typeof simularApi>[1] =
 /** Abre o "Editar", desliga os blocos pedidos e salva. */
 async function ocultar(page: Page, blocos: string[]) {
   await page.getByRole('button', { name: 'Editar os blocos do Início' }).click();
-  for (const b of blocos) await page.getByRole('switch', { name: `${b} aparece no Início` }).click();
+  for (const b of blocos) await page.getByRole('button', { name: `Ocultar ${b}`, exact: true }).click();
   await page.getByRole('button', { name: 'Salvar o Início' }).click();
   await expect(page.getByRole('button', { name: 'Salvar o Início' })).toHaveCount(0);
 }
 
-test('Financeiro oculto no "Editar" e Recebido visível: a ressalva aparece uma vez, no Recebido', async ({ page }) => {
+test('histórico parcial: o Início não mostra a ressalva, nem com o Financeiro oculto e o Recebido visível', async ({ page }) => {
   const { errosDaPagina } = await abrirInicio(page);
-  // Padrão: os dois visíveis, a ressalva fica no Financeiro, uma vez.
-  await expect(page.getByText(AVISO_HISTORICO_PARCIAL, { exact: true })).toHaveCount(1);
+  const semRessalva = async () => {
+    await expect(page.getByText(AVISO_HISTORICO_PARCIAL, { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/limpeza anterior/)).toHaveCount(0);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  };
+  await expect(page.getByRole('heading', { name: 'Financeiro', level: 2 })).toBeVisible();
+  await semRessalva();
   await ocultar(page, ['Financeiro']);
   await expect(page.getByRole('heading', { name: 'Financeiro', level: 2 })).toHaveCount(0);
-  const recebido = page.getByRole('heading', { name: 'Recebido e lançamentos', level: 2 });
-  await expect(recebido).toBeVisible();
-  await expect(page.getByText(AVISO_HISTORICO_PARCIAL, { exact: true })).toHaveCount(1);
-  // O aviso está dentro do bloco do Recebido: o menor ancestral do título que contém o aviso tem só esse título de bloco.
-  const dono = recebido.locator(`xpath=ancestor::*[.//text()[normalize-space()="${AVISO_HISTORICO_PARCIAL}"]][1]`);
-  await expect(dono.getByRole('heading', { level: 2 })).toHaveCount(1);
-  await expect(page.getByRole('alert')).toHaveCount(0);
-  await capturar(page, 'inicio-financeiro-oculto-ressalva-no-recebido-1280');
-  expect(errosDaPagina).toEqual([]);
-});
-
-test('Financeiro e Recebido ocultos: nenhuma ressalva no Início', async ({ page }) => {
-  const { errosDaPagina } = await abrirInicio(page);
-  await ocultar(page, ['Financeiro', 'Recebido e lançamentos']);
-  await expect(page.getByRole('heading', { name: 'Financeiro', level: 2 })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Recebido e lançamentos', level: 2 })).toBeVisible();
+  await semRessalva();
+  await capturar(page, 'inicio-financeiro-oculto-sem-ressalva-1280');
+  await ocultar(page, ['Recebido e lançamentos']);
   await expect(page.getByRole('heading', { name: 'Recebido e lançamentos', level: 2 })).toHaveCount(0);
-  await expect(page.getByText(AVISO_HISTORICO_PARCIAL, { exact: true })).toHaveCount(0);
-  await expect(page.getByText(/limpeza anterior/)).toHaveCount(0);
-  await capturar(page, 'inicio-financeiro-e-recebido-ocultos-1280');
+  await semRessalva();
   expect(errosDaPagina).toEqual([]);
 });
 

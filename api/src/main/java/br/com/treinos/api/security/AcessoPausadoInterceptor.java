@@ -2,6 +2,7 @@ package br.com.treinos.api.security;
 
 import br.com.plataforma.comum.web.ForbiddenException;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.alunos.MotivoDoAcessoDesativado;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
@@ -12,7 +13,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import java.util.regex.Pattern;
 
 /**
- * Restringe o aluno cujo acesso foi pausado manualmente por atraso (Fase 2): ele continua entrando e mantendo sessão,
+ * Restringe o aluno com o acesso pausado por atraso ({@code aluno.acesso_desativado_motivo = 'ATRASO'}, V104; Fase 2,
+ * decisão manual do treinador): ele continua entrando e mantendo sessão,
  * mas só acessa a lista fechada de rotas necessárias para consultar sua situação, aceitar termos, gerenciar conta/push
  * e regularizar o pagamento. Qualquer outra rota devolve 403 {@code ACESSO_PAUSADO_POR_ATRASO}.
  */
@@ -21,11 +23,11 @@ public class AcessoPausadoInterceptor implements HandlerInterceptor {
 
     public static final String CODIGO = "ACESSO_PAUSADO_POR_ATRASO";
     private static final String MENSAGEM = "Seu acesso está pausado por atraso. Regularize o pagamento para continuar.";
-    private static final Pattern LINK_OU_PIX = Pattern.compile("^/aluno/financeiro/cobrancas/[^/]+/(link|pix)$");
-    private static final Pattern OVERTRAINING_PAY_CHECKOUT = Pattern.compile(
-            "^/aluno/financeiro/cobrancas/[^/]+/overtraining-pay/(pix|cartao)$");
-    private static final Pattern SITUACAO_COBRANCA = Pattern.compile(
-            "^/aluno/financeiro/cobrancas/[^/]+/situacao$");
+    private static final String UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+    private static final Pattern LINK_OU_PIX = Pattern.compile("^/aluno/financeiro/cobrancas/" + UUID + "/(link|pix)$");
+    /** Overtraining Pay: Pix no app e fatura do Asaas (cartão fora do app); sem eles o aluno pausado não consegue regularizar. */
+    private static final Pattern OVERTRAINING_PAY = Pattern.compile("^/aluno/financeiro/cobrancas/" + UUID + "/overtraining-pay/(pix|fatura)$");
+    private static final Pattern SITUACAO_COBRANCA = Pattern.compile("^/aluno/financeiro/cobrancas/" + UUID + "/situacao$");
 
     private final AlunoRepository alunos;
 
@@ -47,7 +49,8 @@ public class AcessoPausadoInterceptor implements HandlerInterceptor {
         if (permitido(metodo, caminho)) {
             return true;
         }
-        if (alunos.existsByIdAndAcessoPausadoEmIsNotNull(eu.alunoId())) {
+        // O MANUAL não chega aqui: o usuário fica inativo e as sessões caem (o filtro JWT recusa antes).
+        if (alunos.existsByIdAndAcessoDesativadoMotivo(eu.alunoId(), MotivoDoAcessoDesativado.ATRASO)) {
             throw new ForbiddenException(MENSAGEM, CODIGO);
         }
         return true;
@@ -83,7 +86,7 @@ public class AcessoPausadoInterceptor implements HandlerInterceptor {
                     || "/aluno/conta/excluir".equals(caminho)
                     || "/aluno/financeiro/retorno-pagamento".equals(caminho)
                     || LINK_OU_PIX.matcher(caminho).matches()
-                    || OVERTRAINING_PAY_CHECKOUT.matcher(caminho).matches();
+                    || OVERTRAINING_PAY.matcher(caminho).matches();
         }
         return false;
     }

@@ -180,3 +180,21 @@ export function sessaoComCardio(): Sessao[] {
   };
   return [sessao];
 }
+
+/**
+ * Toca o ✓ da série `n` na tela do exercício (redesenho de 25/11). O ✓ só habilita com kg e reps (digitados ou sugeridos):
+ * desabilitado, preenche antes o que estiver vazio (`carga`, `reps`). Habilitado (sugestão, ou já feita), só toca.
+ */
+export async function fazerSerie(page: Page, n: number, carga = '40', reps = '8'): Promise<void> {
+  const ok = page.getByRole('checkbox', { name: new RegExp(`^Marcar série ${n} como feita`) });
+  await ok.waitFor();
+  const campoDaCarga = page.getByRole('textbox', { name: new RegExp(`^Carga da série ${n}, em `) });
+  const campoDasReps = page.getByRole('textbox', { name: `Repetições da série ${n}`, exact: true });
+  // O ✓ só habilita com kg e reps (ou as sugestões): preenche o que falta, esperando a tela assentar.
+  for (let i = 0; i < 30 && (await ok.isDisabled()); i++) {
+    if ((await campoDaCarga.count()) && !(await campoDaCarga.inputValue())) await campoDaCarga.fill(carga);
+    if ((await campoDasReps.count()) && !(await campoDasReps.inputValue())) await campoDasReps.fill(reps);
+    if (await ok.isDisabled()) await page.waitForTimeout(100);
+  }
+  await ok.click();
+}

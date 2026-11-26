@@ -179,7 +179,7 @@ class CobrancaVencidaNaoBloqueiaOAlunoIntegrationTest extends AbstractIntegratio
 
         // Treinador pausa manualmente: agora o painel responde 403 ACESSO_PAUSADO_POR_ATRASO, mas /aluno/financeiro continua aberto.
         JsonNode pausado = api.post("/alunos/" + alunoId + "/pausar-acesso", treinador, null, 200);
-        assertThat(pausado.get("acessoPausado").asBoolean()).isTrue();
+        assertThat(pausado.get("acessoDesativadoMotivo").asString()).isEqualTo("ATRASO");
         JsonNode erro = api.get("/aluno/painel", aluno, 403);
         assertThat(erro.get("codigo").asString()).isEqualTo("ACESSO_PAUSADO_POR_ATRASO");
         api.get("/aluno/financeiro", aluno, 200);
@@ -187,7 +187,7 @@ class CobrancaVencidaNaoBloqueiaOAlunoIntegrationTest extends AbstractIntegratio
         // Quitação da cobrança vencida reativa o acesso automaticamente.
         api.post("/cobrancas/" + cobranca.get("id").asString() + "/baixa-manual", treinador,
                 Map.of("data", hoje.toString(), "forma", "PIX_DIRETO", "versao", cobranca.get("versao").asLong()), 200);
-        assertThat(api.get("/eu", aluno, 200).get("acessoPausado").asBoolean()).isFalse();
+        assertThat(api.get("/eu", aluno, 200).get("aluno").get("acessoDesativadoMotivo").isNull()).isTrue();
         api.get("/aluno/painel", aluno, 200);
     }
 

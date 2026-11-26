@@ -71,6 +71,10 @@ public class PainelService {
      * treinador não pode ver (nunca zero): {@code pastasARenovar} (o total da lista, sem teto) e
      * {@code alunosSemPastaComPeriodo} pedem {@code TREINO_LER}; {@code alunosSemRegistroTotal}, {@code REGISTRO_LER};
      * {@code alunosSemAcesso} segue o {@code alunosAtivos} (sem permissão extra).
+     * Contagens de acompanhamento (sem registro, planos terminando, pastas a renovar, sem pasta com período) só contam
+     * alunos com acesso ao app ({@code usuarioId} não nulo): quem não tem acesso não registra nem atualiza. {@code alunosAtivos},
+     * {@code alunosSemAcesso} e {@code alunosInativos} seguem sobre todos. As quatro contagens de atualização também
+     * só leem alunos com acesso ({@code AtualizacaoRepository.linhasDoPainel}, a mesma fonte da lista que o cartão abre).
      * As quatro contagens de atualização ({@code atualizacoesParaRevisar}, {@code atualizacoesAtrasadas},
      * {@code atualizacoesAvisaramAtraso}, {@code atualizacoesProximas}) são {@code null} (nunca zero) sem
      * {@code ATUALIZACAO_LER} + {@code ALUNO_SENSIVEL_LER}, como o {@code NumerosService}; com elas, zero é zero de verdade.
@@ -126,12 +130,15 @@ public class PainelService {
                 org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).usuarioId() : null;
         List<Aluno> ativos = alunos.ativosDoEscopo(responsavelId);
         Map<UUID, Aluno> porId = ativos.stream().collect(Collectors.toMap(Aluno::getId, Function.identity()));
+        // Acompanhamento só conta quem tem acesso ao app: sem acesso não registra nem atualiza (os convites são o passo certo).
+        List<Aluno> acompanhados = ativos.stream().filter(a -> a.getUsuarioId() != null).toList();
+        Map<UUID, Aluno> acompanhadosPorId = acompanhados.stream().collect(Collectors.toMap(Aluno::getId, Function.identity()));
 
         Map<UUID, LocalDate> ultimo = new HashMap<>();
-        if (!ativos.isEmpty()) {
-            execucoes.ultimoRegistro(porId.keySet()).forEach(u -> ultimo.put(u.alunoId(), u.data()));
+        if (!acompanhados.isEmpty()) {
+            execucoes.ultimoRegistro(acompanhadosPorId.keySet()).forEach(u -> ultimo.put(u.alunoId(), u.data()));
         }
-        List<Aluno> paradosHaDias = ativos.stream()
+        List<Aluno> paradosHaDias = acompanhados.stream()
                 .filter(a -> ultimo.get(a.getId()) == null || ultimo.get(a.getId()).isBefore(hoje.minusDays(diasSemRegistro)))
                 .toList();
         List<AlunoSemRegistro> semRegistro = paradosHaDias.stream()
@@ -141,7 +148,7 @@ public class PainelService {
 
         List<PlanoTerminando> terminando = new ArrayList<>();
         for (PlanoTreino p : planos.findByAtivoTrueAndFimBetweenOrderByFimAsc(hoje, hoje.plusDays(7))) {
-            Aluno a = porId.get(p.getAlunoId());
+            Aluno a = acompanhadosPorId.get(p.getAlunoId());
             if (a != null && terminando.size() < LIMITE_LISTA) {
                 terminando.add(new PlanoTerminando(new PlanoRef(p.getId(), p.getTitulo()),
                         new AlunoRef(a.getId(), a.getNome()), p.getFim()));
@@ -156,17 +163,19 @@ public class PainelService {
                 ? atualizacoes.leituraDoPainel(responsavelId) : null;
         Map<String,Long> contagem = checkin ? leitura.contagem() : Map.of();
         // Pastas a renovar: a contagem (sem teto) e a lista (até 20) saem da mesma consulta, então a regra é uma só.
-        List<PastaPlano> aRenovar = treinos ? pastas.aRenovar(responsavelId, hoje.plusDays(DIAS_PARA_RENOVAR)) : List.of();
+        // Só de aluno com acesso: a contagem e a lista saem do mesmo filtro, então o cartão e a Folha batem.
+        List<PastaPlano> aRenovar = treinos ? pastas.aRenovar(responsavelId, hoje.plusDays(DIAS_PARA_RENOVAR)).stream()
+                .filter(p -> acompanhadosPorId.containsKey(p.getAlunoId())).toList() : List.of();
         List<PastaARenovar> listaARenovar = new ArrayList<>();
         for (PastaPlano p : aRenovar) {
-            Aluno a = porId.get(p.getAlunoId());
+            Aluno a = acompanhadosPorId.get(p.getAlunoId());
             if (a != null && listaARenovar.size() < LIMITE_LISTA) {
                 listaARenovar.add(new PastaARenovar(new PastaRef(p.getId(), p.getTitulo()),
                         new AlunoRef(a.getId(), a.getNome()), p.getFim()));
             }
         }
         // Contagens novas: só números, sem teto; null (nunca 0) quando o treinador não pode ver.
-        Long semPasta = treinos ? semPastaComPeriodo(ativos, leitura) : null;
+        Long semPasta = treinos ? semPastaComPeriodo(acompanhados, leitura) : null;
         Long semAcesso = ativos.stream().filter(a -> a.getUsuarioId() == null).count();
         // Mesma janela dos recordes da semana (hoje e os 6 dias antes); sem retorno ou sem REGISTRO_LER, null.
         Long concluidas = registros && retorno.habilitado() ? concluidasNa7Dias(ativos, hoje) : null;

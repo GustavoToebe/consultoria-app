@@ -77,11 +77,6 @@ public class Aluno {
     @Column(name = "inativado_em")
     private Instant inativadoEm;
 
-    /** Quando o treinador pausou o acesso do aluno por atraso. Nulo = acesso liberado. Não sobe a versão do cadastro. */
-    @OptimisticLock(excluded = true)
-    @Column(name = "acesso_pausado_em")
-    private Instant acessoPausadoEm;
-
     /** Preenchido quando os dados pessoais foram apagados; o cadastro não volta a ser editado nem reativado. */
     @Column(name = "anonimizado_em")
     private Instant anonimizadoEm;
@@ -89,6 +84,30 @@ public class Aluno {
     /** Quando o aluno autorizou o uso das fotos de evolução para divulgação. Nulo = não autorizado. */
     @Column(name = "uso_de_imagem_autorizado_em")
     private Instant usoDeImagemAutorizadoEm;
+
+    /**
+     * Acesso ao app desativado (V100; ATRASO desde a V104), sem apagar nada; nulo = acesso normal. As duas colunas andam juntas.
+     * {@code MANUAL} deixa o usuário do aluno inativo mesmo com o aluno ativo ({@code AlunoService.aplicarSituacao});
+     * {@code ATRASO} não mexe no usuário: o {@code AcessoPausadoInterceptor} limita as rotas. Só leitura na JPA (como
+     * {@code pod_id}): quem grava são os updates dirigidos de {@code AlunoRepository}, sob a trava do aluno, para uma ficha
+     * lida antes e salva depois nunca desfazer uma desativação ou reativação. Não sobe a versão do cadastro.
+     */
+    @Column(name = "acesso_desativado_em", insertable = false, updatable = false)
+    private Instant acessoDesativadoEm;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "acesso_desativado_motivo", insertable = false, updatable = false)
+    private MotivoDoAcessoDesativado acessoDesativadoMotivo;
+
+    /** Usuário (sem @) no Instagram e no TikTok (V101), já normalizados por {@code RedesSociais}. Dado pessoal: nunca em log, auditoria nem mensagem de erro. */
+    private String instagram;
+    private String tiktok;
+
+    /** Link https normalizado (V103) de YouTube, Facebook, LinkedIn e Telegram, por {@code RedesSociais}; nulo = sem. Dado pessoal, como o Instagram. */
+    private String youtube;
+    private String facebook;
+    private String linkedin;
+    private String telegram;
 
     /** Quando o aluno desligou, só para ele, os lembretes de cobrança por e-mail. Nulo = recebe. */
     @Column(name = "lembretes_cobranca_desligados_em")
@@ -261,22 +280,6 @@ public class Aluno {
         return inativadoEm;
     }
 
-    public boolean isAcessoPausado() {
-        return acessoPausadoEm != null;
-    }
-
-    public Instant getAcessoPausadoEm() {
-        return acessoPausadoEm;
-    }
-
-    public void pausarAcesso(Instant quando) {
-        this.acessoPausadoEm = quando;
-    }
-
-    public void reativarAcesso() {
-        this.acessoPausadoEm = null;
-    }
-
     public String getConviteHash() {
         return conviteHash;
     }
@@ -373,14 +376,66 @@ public class Aluno {
     public void alterarSituacao(boolean ativo, Instant quando) {
         this.ativo = ativo;
         this.inativadoEm = ativo ? null : quando;
-        if (!ativo) {
-            this.acessoPausadoEm = null;
-        }
         this.atualizadoEm = quando;
     }
 
     public boolean isAnonimizado() {
         return anonimizadoEm != null;
+    }
+
+    public Instant getAcessoDesativadoEm() {
+        return acessoDesativadoEm;
+    }
+
+    public MotivoDoAcessoDesativado getAcessoDesativadoMotivo() {
+        return acessoDesativadoMotivo;
+    }
+
+    /** Só o espelho em memória do que o update dirigido de {@code AlunoRepository} já gravou (a resposta sai igual à leitura seguinte). */
+    void desativarAcesso(Instant quando, MotivoDoAcessoDesativado motivo) {
+        this.acessoDesativadoEm = quando;
+        this.acessoDesativadoMotivo = motivo;
+    }
+
+    /** Espelho em memória de {@code AlunoRepository.limparAcessoDesativado}/{@code reativarAcessoPausadoPorAtraso}. */
+    public void reativarAcesso() {
+        this.acessoDesativadoEm = null;
+        this.acessoDesativadoMotivo = null;
+    }
+
+    public String getInstagram() {
+        return instagram;
+    }
+
+    public String getTiktok() {
+        return tiktok;
+    }
+
+    public String getYoutube() {
+        return youtube;
+    }
+
+    public String getFacebook() {
+        return facebook;
+    }
+
+    public String getLinkedin() {
+        return linkedin;
+    }
+
+    public String getTelegram() {
+        return telegram;
+    }
+
+    /** Já normalizados (usuário no Instagram e no TikTok, link nas outras); nulo apaga. */
+    public void alterarRedes(String instagram, String tiktok, String youtube, String facebook, String linkedin, String telegram) {
+        this.instagram = instagram;
+        this.tiktok = tiktok;
+        this.youtube = youtube;
+        this.facebook = facebook;
+        this.linkedin = linkedin;
+        this.telegram = telegram;
+        this.atualizadoEm = Instant.now();
     }
 
     /** Troca o nome e apaga o que identifica a pessoa; a situação fica inativa. Contagens (pastas, treinos) seguem. */
@@ -402,7 +457,6 @@ public class Aluno {
         this.conviteExpiraEm = null;
         this.ativo = false;
         if (this.inativadoEm == null) this.inativadoEm = quando;
-        this.acessoPausadoEm = null;
         this.anonimizadoEm = quando;
         this.usoDeImagemAutorizadoEm = null;
         this.lembretesCobrancaDesligadosEm = null;
@@ -416,6 +470,14 @@ public class Aluno {
         this.perfilMoldura = null;
         this.perfilDestaques = null;
         this.metaDoPeso = null;
+        this.instagram = null;
+        this.tiktok = null;
+        this.youtube = null;
+        this.facebook = null;
+        this.linkedin = null;
+        this.telegram = null;
+        this.acessoDesativadoEm = null;
+        this.acessoDesativadoMotivo = null;
         this.cicloAtivadoEm = null;
         this.cicloConsentimentoVersao = null;
         this.cicloDuracaoHabitual = null;

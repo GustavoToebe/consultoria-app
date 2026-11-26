@@ -2,6 +2,7 @@ import { ErroApi } from '../api/cliente';
 import type { EtapaRegistrada, LoteResponse, RegistroAguaEnvio, RegistroEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio } from '../api/tipos';
 import { inicioDaJanelaDeConclusao } from '../dominio/conclusaoDoTreino';
 import { chavePasseio } from '../dominio/passeio';
+import { chaveDoRascunhoDaSerie } from '../dominio/rascunhoDaSerie';
 import { chaveDasPreferencias } from '../dominio/preferencias';
 import { chavePrimeirosPassos } from '../dominio/primeirosPassos';
 import { emMemoria } from './armazenamento';
@@ -413,8 +414,71 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     await repo.apagarTudo();
     await repo.registrar(serie('y'));
     await repo.salvarCargaDeTrabalho('e1', '2026-10-07', 30);
+    await repo.salvarRascunhoDeSerie('k', { carga: 30 }, '2026-10-07');
     expect(await repo.listar()).toEqual([]);
     expect(await repo.lerCargasDeTrabalho()).toEqual({});
+    expect(await repo.lerRascunhosDeSerie('2026-10-07')).toEqual({});
+  });
+
+  describe('rascunho da série (antes do ✓)', () => {
+    const HOJE = '2026-10-07';
+    const ref = { planoVersaoId: 'v1', exercicioUid: 'e1', exercicioId: 'x1', serieUid: 's1', data: HOJE };
+
+    it('guarda a cada mudança, sobrevive a fechar o app e nunca entra na fila de envio', async () => {
+      const repo = aparelho('u1');
+      const chave = chaveDoRascunhoDaSerie(ref);
+      await repo.salvarRascunhoDeSerie(chave, { carga: 90 }, HOJE);
+      expect(await repo.salvarRascunhoDeSerie(chave, { repeticoes: 7 }, HOJE)).toEqual({ [chave]: { carga: 90, repeticoes: 7, dia: HOJE } });
+      await repo.fechar();
+      const depois = aparelho('u1');
+      expect(await depois.lerRascunhosDeSerie(HOJE)).toEqual({ [chave]: { carga: 90, repeticoes: 7, dia: HOJE } });
+      expect(await depois.listar()).toEqual([]);
+      expect(await depois.pendentes()).toEqual([]);
+    });
+
+    it('é do aluno: outro usuário no mesmo aparelho não vê', async () => {
+      const chave = chaveDoRascunhoDaSerie(ref);
+      await aparelho('u1').salvarRascunhoDeSerie(chave, { carga: 90 }, HOJE);
+      expect(await aparelho('u2').lerRascunhosDeSerie(HOJE)).toEqual({});
+    });
+
+    it('apaga quando os campos ficam vazios e sai no dia seguinte', async () => {
+      const repo = aparelho('u1');
+      const chave = chaveDoRascunhoDaSerie(ref);
+      await repo.salvarRascunhoDeSerie(chave, { carga: 90, repeticoes: 7 }, HOJE);
+      expect(await repo.salvarRascunhoDeSerie(chave, { carga: null, repeticoes: null }, HOJE)).toEqual({});
+      await repo.salvarRascunhoDeSerie(chave, { carga: 90 }, HOJE);
+      expect(await repo.lerRascunhosDeSerie('2026-10-08')).toEqual({});
+      expect(await aparelho('u1').lerRascunhosDeSerie(HOJE)).toEqual({});
+    });
+
+    it('o ✓ (registrar) tira o rascunho da série e deixa o das outras', async () => {
+      const repo = aparelho('u1');
+      const doS1 = chaveDoRascunhoDaSerie(ref);
+      const doS2 = chaveDoRascunhoDaSerie({ ...ref, serieUid: 's2' });
+      await repo.salvarRascunhoDeSerie(doS1, { carga: 90, repeticoes: 7 }, HOJE);
+      await repo.salvarRascunhoDeSerie(doS2, { carga: 80 }, HOJE);
+      await repo.registrar(serie('s1', { data: HOJE, carga: 90, repeticoes: 7 }));
+      expect(Object.keys(await repo.lerRascunhosDeSerie(HOJE))).toEqual([doS2]);
+      expect(await repo.pendentes()).toHaveLength(1);
+    });
+
+    it('sair da conta apaga o rascunho', async () => {
+      const repo = aparelho('u1');
+      await repo.salvarRascunhoDeSerie(chaveDoRascunhoDaSerie(ref), { carga: 90 }, HOJE);
+      await repo.apagarTudo();
+      expect(await aparelho('u1').lerRascunhosDeSerie(HOJE)).toEqual({});
+    });
+
+    it('sessão recusada guarda a série da fila e apaga o rascunho', async () => {
+      const repo = aparelho('u1');
+      await repo.registrar(serie('fila'));
+      await repo.salvarRascunhoDeSerie(chaveDoRascunhoDaSerie(ref), { carga: 90 }, HOJE);
+      expect(await repo.reterSoAFila()).toBe(1);
+      const depois = aparelho('u1');
+      expect(await depois.lerRascunhosDeSerie(HOJE)).toEqual({});
+      expect((await depois.listar()).map((r) => r.serieUid)).toEqual(['fila']);
+    });
   });
 
   describe('sessão recusada pelo servidor: guarda só a fila de envio', () => {
@@ -442,6 +506,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
       await repo.salvarDemonstracoes([{ exercicioId: 'e1', imagens: ['A/0.jpg'], imagemPropriaEm: null }]);
       await repo.salvarCargaDeTrabalho('e1', '2026-10-07', 30);
       await repo.salvarRascunhoAtualizacao('p1', { questionarioVersaoId: 'q1', respostas: { peso: 80 } });
+      await repo.salvarRascunhoDeSerie('rascunho-1', { carga: 50, repeticoes: 8 }, '2026-10-07');
       await repo.salvarHistoricoSemana({ inicio: '2026-10-05', dias: [] });
       return todos;
     }
@@ -461,6 +526,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
       expect(await depois.lerRascunhoAtualizacao('p1')).toBeNull();
       expect(await depois.lerHistoricoSemana()).toBeNull();
       expect(await depois.lerCargasDeTrabalho()).toEqual({});
+      expect(await depois.lerRascunhosDeSerie('2026-10-07')).toEqual({});
       // Os dois da fila voltam iguais (mesmo id, para o servidor reconhecer o reenvio); enviado e recusado se foram.
       expect(await depois.listar()).toEqual([fila1, fila2]);
       expect((await depois.pendentes()).map((r) => r.id)).toEqual([fila1.id, fila2.id]);

@@ -36,7 +36,7 @@ import { CartaoMetodologia } from '../marca/CartaoMetodologia';
 import { listaDeProblemas, motivoDoSalvar } from '../marca/problemasDaTela';
 import { FaixaDoModelo } from '../plano/FaixaDoPlano';
 import { SecoesDeMobilidade } from '../mobilidade/SecoesDeMobilidade';
-import { OrientacoesDaMobilidade, SobreOModelo } from '../mobilidade/SobreAMobilidade';
+import { SobreOModelo } from '../mobilidade/SobreAMobilidade';
 import { EditorSeries } from '../treino/EditorSeries';
 
 export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { receita: Receita; aoRecarregar: () => void; salvoAs: Date | null; aoSalvar: (quando: Date) => void }) {
@@ -78,14 +78,16 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
   };
   const campoNome = <Campo rotulo="Nome do modelo" valor={nome} aoMudar={(v) => { setNome(v); setPendente(true); }} maxLength={120} erro={nome.trim() ? null : 'Informe o nome do modelo.'} />;
   const campoDescricao = <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={(v) => { setDescricao(v); setPendente(true); }} linhas={2} maxLength={LIMITE_DESCRICAO_DO_MODELO} />;
-  // Mobilidade (19/11): um cartão só, "Sobre o modelo", com Nome e Descrição lado a lado e as Orientações recolhidas.
+  // Mobilidade (26/11): um cartão só, "Sobre o modelo": Nome e Descrição lado a lado e, embaixo, as Orientações.
   const cartaoDoNome = mob
-    ? <SobreOModelo nome={campoNome} descricao={campoDescricao} orientacoes={<OrientacoesDaMobilidade valor={mob.orientacoes} aoMudar={(orientacoes) => mudarConteudo({ ...mob, orientacoes })} />} />
+    ? <SobreOModelo nome={nome} descricao={descricao} maximoDaDescricao={LIMITE_DESCRICAO_DO_MODELO} erroDoNome={nome.trim() ? null : 'Informe o nome do modelo.'}
+      orientacoes={mob.orientacoes} aoMudarNome={(v) => { setNome(v); setPendente(true); }} aoMudarDescricao={(v) => { setDescricao(v); setPendente(true); }}
+      aoMudarOrientacoes={(orientacoes) => mudarConteudo({ ...mob, orientacoes })} />
     : <Cartao>{campoNome}{campoDescricao}</Cartao>;
   const situacao: SituacaoDoEditor = salvando ? 'salvando' : erro ? 'erro' : pendente ? 'pendente' : 'salvo';
   return <TelaDoEditor
     colunas={r.tipo === 'MOBILIDADE'}
-    cabecalho={<Cabecalho titulo={tituloDoModelo(r.tipo)} trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: tituloDoModelo(r.tipo) }]} voltar="/treinador/planejamento" />}
+    cabecalho={<Cabecalho titulo={tituloDoModelo(r.tipo)} descricao="O molde que você reaproveita: monte aqui e aplique a um aluno, que recebe uma cópia sem ligação com o modelo." trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: tituloDoModelo(r.tipo) }]} voltar="/treinador/planejamento" />}
     barra={<BarraDoModelo situacao={situacao} salvoAs={salvoAs} mensagemDeErro={erro ? textoDoErro(erro) : null} salvando={salvando}
       desabilitado={motivo !== null} motivo={motivo ?? undefined} aoSalvar={() => void salvar()} aoRecarregar={aoRecarregar} receita={r} />}>
     <FaixaDoModelo />

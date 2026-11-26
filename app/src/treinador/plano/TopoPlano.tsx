@@ -242,7 +242,7 @@ function ListaProblemas({ conteudo, resultado, aoFechar, irPara }: { conteudo: u
       {resultado.erros.length ? (
         <Alerta tom="perigo">
           {irPara
-            ? <Botao rotulo={`${textoDosProblemas(resultado.erros.length)} · ir ao primeiro`} tipo="perigoTexto" aoTocar={() => irPara(resultado.erros)} />
+            ? <Botao rotulo={`${textoDosProblemas(resultado.erros.length)} · ir ao primeiro`} tipo="secundario" aoTocar={() => irPara(resultado.erros)} />
             : <Selo texto={textoDosProblemas(resultado.erros.length)} tipo="perigo" />}
           {resultado.erros.map((p, i) => (
             <ItemProblema key={`e${i}`} conteudo={conteudo} problema={p} tipo="perigo" aoIr={irPara ? () => irPara([p]) : undefined} />

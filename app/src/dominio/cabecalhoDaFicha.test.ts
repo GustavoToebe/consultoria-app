@@ -42,9 +42,10 @@ describe('seloDaSituacao', () => {
     expect(seloDaSituacao({ ativo: false, anonimizado: true })).toEqual({ texto: 'Anonimizado', tipo: 'neutro' });
   });
 
-  it('acesso pausado aparece em âmbar só quando o aluno está ativo e não anonimizado', () => {
-    expect(seloDaSituacao({ ativo: true, anonimizado: false, acessoPausado: true })).toEqual({ texto: 'Acesso pausado', tipo: 'atencao' });
-    expect(seloDaSituacao({ ativo: false, anonimizado: false, acessoPausado: true })).toEqual({ texto: 'Inativo', tipo: 'neutro' });
-    expect(seloDaSituacao({ ativo: true, anonimizado: true, acessoPausado: true })).toEqual({ texto: 'Anonimizado', tipo: 'neutro' });
+  it('acesso pausado (âmbar) e desativado (neutro com ●) só com o aluno ativo e não anonimizado', () => {
+    expect(seloDaSituacao({ ativo: true, anonimizado: false, acessoDesativadoMotivo: 'ATRASO' })).toEqual({ texto: 'Acesso pausado', tipo: 'atencao' });
+    expect(seloDaSituacao({ ativo: true, anonimizado: false, acessoDesativadoMotivo: 'MANUAL' })).toEqual({ texto: 'Acesso desativado', tipo: 'neutro', ponto: true });
+    expect(seloDaSituacao({ ativo: false, anonimizado: false, acessoDesativadoMotivo: 'ATRASO' })).toEqual({ texto: 'Inativo', tipo: 'neutro' });
+    expect(seloDaSituacao({ ativo: true, anonimizado: true, acessoDesativadoMotivo: 'MANUAL' })).toEqual({ texto: 'Anonimizado', tipo: 'neutro' });
   });
 });

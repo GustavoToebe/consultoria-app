@@ -92,7 +92,10 @@ public final class FormatoDasAbas {
             "dorsal", "dorsais", "trapezio", "antebraco", "antebracos", "superiores", "inferiores", "membros", "completo",
             "adutores", "abdutores", "lombar", "aquecimento", "cafe", "manha", "almoco", "jantar", "lanche", "ceia",
             "desjejum", "colacao", "pre", "pos", "opcao", "opcoes", "sessao", "sessoes", "series", "serie", "reps",
-            "repeticoes", "carga", "cargas", "descanso", "volume", "total", "novo", "nova", "copia");
+            "repeticoes", "carga", "cargas", "descanso", "volume", "total", "novo", "nova", "copia",
+            // Os meses (a chave já vem sem acento: "Março" e "Marco" caem no mesmo; quem se chama Marco usa o nome completo).
+            "janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro",
+            "dezembro");
 
     private FormatoDasAbas() {
     }

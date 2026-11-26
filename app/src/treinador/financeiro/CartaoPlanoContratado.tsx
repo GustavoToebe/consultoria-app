@@ -64,13 +64,13 @@ function rotuloDaCobranca(c: CobrancaResponse): string {
  * retoma e encerra, e registra pagamento na folha da cobrança. Aluno inativo ou anonimizado não ganha contratação nova.
  * O valor da cobrança nunca é digitado aqui: sai do plano ou da contratação, no servidor.
  */
-export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, telefoneAluno, alunoAcessoPausado, aoAlterarAluno }: {
+export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, telefoneAluno, alunoAcessoMotivo, aoAlterarAluno }: {
   alunoId: string;
   ativo: boolean;
   anonimizado: boolean;
   alunoNome?: string;
   telefoneAluno?: string | null;
-  alunoAcessoPausado?: boolean;
+  alunoAcessoMotivo?: AlunoDetalhe['acessoDesativadoMotivo'];
   aoAlterarAluno?: (aluno: AlunoDetalhe) => void;
 }) {
   const { pode } = useSessao();
@@ -221,7 +221,7 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, 
           aoFechar={() => setFormulario(null)} aoMudar={recarregar} />
       ) : null}
       <FolhaDaCobranca cobranca={cobrancaAberta ?? (abrirAoCarregar ? cobrancas.dados?.find((c) => c.id === abrirAoCarregar) ?? null : null)}
-        podeAlterar={podeAlterar} alunoAcessoPausado={alunoAcessoPausado} aoAlterarAluno={aoAlterarAluno}
+        podeAlterar={podeAlterar} alunoAcessoMotivo={alunoAcessoMotivo} aoAlterarAluno={aoAlterarAluno}
         aoFechar={() => { setCobrancaAberta(null); setAbrirAoCarregar(null); }} aoMudar={recarregar} />
       <PainelConfirmacao visivel={confirmando === 'pausar'} titulo="Pausar este plano?"
         mensagem="Enquanto estiver pausado, o aluno não recebe novas mensalidades. Você pode retomar quando quiser."

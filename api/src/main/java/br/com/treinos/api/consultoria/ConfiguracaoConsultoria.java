@@ -349,8 +349,10 @@ public record ConfiguracaoConsultoria(
             List<Faixa> faixas = e.getValue();
             if (faixas == null || faixas.size() != quantidade
                     || faixas.stream().anyMatch(f -> !faixaValida(f))) {
-                throw new BadRequestException("Regra de " + nome + ": " + e.getKey() + " série(s) precisam de "
-                        + e.getKey() + " percentual(is) de 1 a 200, com o máximo maior ou igual ao mínimo.");
+                String series = quantidade == 1 ? "1 série precisa" : quantidade + " séries precisam";
+                String percentuais = quantidade == 1 ? "1 percentual" : quantidade + " percentuais";
+                throw new BadRequestException("Regra de " + nome + ": " + series + " de " + percentuais
+                        + " de 1 a 200, com o máximo maior ou igual ao mínimo.");
             }
         }
     }

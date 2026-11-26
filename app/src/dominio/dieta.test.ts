@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta, Refeicao } from '../api/tipos';
-import { aguaValida, aplicarReceitaDeDieta, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
+import { aguaValida, anuncioDaOpcaoMovida, aplicarReceitaDeDieta, avisoDaNovaOpcaoA, ehRotuloPadrao, letraDaPosicao, moverOpcao, nomeDaOpcao, novaOpcao, opcaoNaFrase, reletrarOpcoes, restaurarOrdemDasOpcoes, comNomesPadrao, erroDaFibra, fibraValida, itensSemValorNoTotal, kcalPorRefeicao, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, semConversao, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDaOpcao, totalDoDia, trocarAlimento, trocarAlimentoNasRefeicoes } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -206,6 +206,29 @@ describe('total do dia incompleto', () => {
   });
 });
 
+describe('kcal por refeição (Total do dia, 25/11)', () => {
+  const comKcal = (uid: string, kcal: number | null): ItemDieta => ({ ...novoItem(), uid, nome: uid, kcal, proteina: 0, carboidrato: 0, gordura: 0 });
+  const refeicao = (uid: string, a: ItemDieta[], b: ItemDieta[] = []): Refeicao => ({
+    uid, nome: uid, horario: null, observacao: null, modoDePreparo: null,
+    opcoes: [{ uid: `${uid}-a`, rotulo: 'A', itens: a }, ...(b.length ? [{ uid: `${uid}-b`, rotulo: 'B', itens: b }] : [])],
+  });
+
+  it('só a opção A, na ordem do dia, com a fração do total', () => {
+    const linhas = kcalPorRefeicao([refeicao('cafe', [comKcal('p', 100)], [comKcal('x', 900)]), refeicao('almoco', [comKcal('a', 200), comKcal('f', 100)])]);
+    expect(linhas).toEqual([{ uid: 'cafe', kcal: 100, fracao: 0.25 }, { uid: 'almoco', kcal: 300, fracao: 0.75 }]);
+  });
+
+  it('item sem kcal: a refeição fica "—" e o dia sem total, então nenhuma barra', () => {
+    expect(kcalPorRefeicao([refeicao('cafe', [comKcal('p', 100)]), refeicao('almoco', [comKcal('m', null)])]))
+      .toEqual([{ uid: 'cafe', kcal: 100, fracao: null }, { uid: 'almoco', kcal: null, fracao: null }]);
+  });
+
+  it('total 0 e refeição sem opção: sem fração', () => {
+    expect(kcalPorRefeicao([refeicao('cafe', [comKcal('p', 0)]), { ...refeicao('vazia', []), opcoes: [] }]))
+      .toEqual([{ uid: 'cafe', kcal: 0, fracao: null }, { uid: 'vazia', kcal: 0, fracao: null }]);
+  });
+});
+
 describe('modo de preparo da refeição (28/10)', () => {
   it('é opcional, vai até 2000 caracteres e o que só tem espaços não aparece', () => {
     expect(MODO_DE_PREPARO_MAXIMO).toBe(2000);
@@ -238,6 +261,127 @@ describe('opções da refeição: só apresentação (28/10)', () => {
     expect(textoEscolhaDasOpcoes(['A', 'B', 'C'])).toBe('Escolha uma das opções: A, B ou C.');
     expect(textoEscolhaDasOpcoes(['A', ' '])).toBe('Escolha uma das opções: A ou 2.');
     expect(textoEscolhaDasOpcoes(['A', 'B', 'C']) ?? '').not.toMatch(/equivalent/i);
+  });
+});
+
+describe('reordenar as opções: a letra segue a posição (26/11)', () => {
+  const opcao = (uid: string, rotulo: string, nItens = 0) => ({ uid, rotulo, itens: Array.from({ length: nItens }, (_, i) => ({ ...novoItem(), uid: `${uid}-${i}` })) });
+  const tres = [opcao('x', 'A', 1), opcao('y', 'B', 2), opcao('z', 'C')];
+  const ordem = (os: { uid: string; rotulo: string }[]) => os.map((o) => `${o.rotulo}:${o.uid}`).join(' ');
+
+  it('letras pela posição; depois de F, o número; quem já está certo fica a mesma instância', () => {
+    expect([0, 1, 5, 6].map(letraDaPosicao)).toEqual(['A', 'B', 'F', '7']);
+    const r = reletrarOpcoes([opcao('x', 'A'), opcao('y', 'C')]);
+    expect(ordem(r)).toBe('A:x B:y');
+    expect(reletrarOpcoes(tres)[0]).toBe(tres[0]);
+  });
+
+  it('mover para o primeiro lugar: a B vira A e conta no total; os itens vão junto', () => {
+    const m = moverOpcao(tres, 1, 0)!;
+    expect(ordem(m.opcoes)).toBe('A:y B:x C:z');
+    expect(m.opcoes[0].itens).toBe(tres[1].itens);
+    expect(m).toMatchObject({ uid: 'y', letraAntes: 'B', letraDepois: 'A', para: 0, novaPrimeira: 'B' });
+    expect(avisoDaNovaOpcaoA(m.novaPrimeira!)).toBe('Opção B agora é a Opção A e conta no total do dia.');
+  });
+
+  it('a A sair do primeiro lugar também troca a que conta no total (aviso pela letra da nova primeira)', () => {
+    const m = moverOpcao(tres, 0, 2)!;
+    expect(ordem(m.opcoes)).toBe('A:y B:z C:x');
+    expect(m.novaPrimeira).toBe('B');
+    expect(anuncioDaOpcaoMovida(m)).toBe('Opção A movida para a posição 3: agora é a Opção C.');
+  });
+
+  it('mover sem mexer na primeira não avisa; o anúncio diz a posição e a letra novas', () => {
+    const m = moverOpcao(tres, 2, 1)!;
+    expect(ordem(m.opcoes)).toBe('A:x B:z C:y');
+    expect(m.novaPrimeira).toBeNull();
+    expect(anuncioDaOpcaoMovida(m)).toBe('Opção C movida para a posição 2: agora é a Opção B.');
+  });
+
+  it('nada muda (mesmo lugar, fora dos limites, uma opção só): nulo', () => {
+    expect(moverOpcao(tres, 1, 1)).toBeNull();
+    expect(moverOpcao(tres, 0, 3)).toBeNull();
+    expect(moverOpcao(tres, -1, 0)).toBeNull();
+    expect(moverOpcao([opcao('x', 'A')], 0, 0)).toBeNull();
+  });
+
+  it('letras fora da posição (opção excluída antes) passam a seguir a ordem ao mover', () => {
+    const m = moverOpcao([opcao('x', 'A'), opcao('z', 'C'), opcao('w', 'D')], 2, 1)!;
+    expect(ordem(m.opcoes)).toBe('A:x B:w C:z');
+    expect(m.letraAntes).toBe('D');
+  });
+
+  it('rótulo padrão = letra A-F ou número (vazio volta a ser padrão); o resto é personalizado e fica como está', () => {
+    expect(['A', 'F', '7', '12', ''].map(ehRotuloPadrao)).toEqual([true, true, true, true, true]);
+    expect(['Opção Principal', 'Principal', 'G', 'AB', 'a'].map(ehRotuloPadrao)).toEqual([false, false, false, false, false]);
+    expect([nomeDaOpcao('B'), nomeDaOpcao('Opção Principal'), opcaoNaFrase('B'), opcaoNaFrase('Opção Principal')])
+      .toEqual(['Opção B', 'Opção Principal', 'opção B', 'opção Principal']);
+  });
+
+  it('totalDaOpcao: padrão diz "Total da opção A"; personalizado, "Total · <rótulo>"', () => {
+    expect(['A', ' B ', '3'].map(totalDaOpcao)).toEqual(['Total da opção A', 'Total da opção B', 'Total da opção 3']);
+    expect(totalDaOpcao('')).toBe('Total da opção');
+    expect(['Opção Principal', ' Light ', 'a'].map(totalDaOpcao)).toEqual(['Total · Opção Principal', 'Total · Light', 'Total · a']);
+  });
+
+  it('o personalizado não vira letra ao reordenar, e a instância continua a mesma', () => {
+    const principal = opcao('p', 'Opção Principal', 1);
+    const r = reletrarOpcoes([opcao('x', 'B'), principal, opcao('z', 'F')]);
+    expect(ordem(r)).toBe('A:x Opção Principal:p C:z');
+    expect(r[1]).toBe(principal);
+  });
+
+  it('mistura (A, "Principal", C): mover a C para o início reletra só as de rótulo padrão; o personalizado fica', () => {
+    const mista = [opcao('x', 'A', 1), opcao('p', 'Principal', 1), opcao('z', 'C')];
+    const m = moverOpcao(mista, 2, 0)!;
+    expect(ordem(m.opcoes)).toBe('A:z B:x Principal:p');
+    expect(m).toMatchObject({ uid: 'z', letraAntes: 'C', letraDepois: 'A', novaPrimeira: 'C' });
+    expect(m.opcoes[2].itens).toBe(mista[1].itens);
+  });
+
+  it('personalizado movido: o rótulo fica, os textos não falam em letra e a posição 1 é a que conta no total do dia', () => {
+    const tresMistas = [opcao('x', 'A', 1), opcao('p', 'Opção Principal', 1), opcao('z', 'C')];
+    const m = moverOpcao(tresMistas, 1, 0)!;
+    expect(ordem(m.opcoes)).toBe('Opção Principal:p B:x C:z');
+    expect(m).toMatchObject({ letraAntes: 'Opção Principal', letraDepois: 'Opção Principal', novaPrimeira: 'Opção Principal' });
+    expect(avisoDaNovaOpcaoA(m.novaPrimeira!)).toBe('Principal agora conta no total do dia.');
+    expect(anuncioDaOpcaoMovida(m)).toBe('Principal movida para a posição 1.');
+    // O total do dia é o da posição 1, seja qual for o rótulo.
+    const dia = (opcoes: typeof tresMistas) => totalDoDia([{ uid: 'r', nome: 'R', horario: null, observacao: null, modoDePreparo: null, opcoes }]).kcal;
+    const comKcal = (o: ReturnType<typeof opcao>, kcal: number) => ({ ...o, itens: o.itens.map((i) => ({ ...i, kcal })) });
+    const base = [comKcal(tresMistas[0], 100), comKcal(tresMistas[1], 300), tresMistas[2]];
+    expect(dia(base)).toBe(100);
+    expect(dia(moverOpcao(base, 1, 0)!.opcoes)).toBe(300);
+    // A padrão que passa para a frente de um personalizado continua falando em letra.
+    const aposMover = moverOpcao([opcao('p', 'Opção Principal'), opcao('y', 'B')], 1, 0)!;
+    expect(avisoDaNovaOpcaoA(aposMover.novaPrimeira!)).toBe('Opção B agora é a Opção A e conta no total do dia.');
+    expect(ordem(aposMover.opcoes)).toBe('A:y Opção Principal:p');
+    expect(anuncioDaOpcaoMovida(aposMover)).toBe('Opção B movida para a posição 1: agora é a Opção A.');
+  });
+
+  it('opção padrão que não muda de letra não diz "agora é" igual; "Escolha uma das opções" usa o nome curto do personalizado', () => {
+    expect(anuncioDaOpcaoMovida({ letraAntes: 'A', letraDepois: 'A', para: 0 })).toBe('Opção A movida para a posição 1.');
+    expect(textoEscolhaDasOpcoes(['Opção Principal', 'B'])).toBe('Escolha uma das opções: Principal ou B.');
+  });
+
+  it('nova opção e Desfazer seguem valendo com o personalizado: a nova ganha a letra da posição; o Desfazer devolve os rótulos de antes', () => {
+    const base = [opcao('p', 'Opção Principal', 1), opcao('y', 'B', 1)];
+    const nova = reletrarOpcoes([...base, novaOpcao(base)]);
+    expect(nova.map((o) => o.rotulo)).toEqual(['Opção Principal', 'B', 'C']);
+    const antes = base.map(({ uid, rotulo }) => ({ uid, rotulo }));
+    const movidas = moverOpcao(base, 1, 0)!.opcoes;
+    expect(ordem(restaurarOrdemDasOpcoes(movidas, antes))).toBe('Opção Principal:p B:y');
+  });
+
+  it('Desfazer: volta a ordem e as letras de antes pelo uid, com os itens de agora; nova vai ao fim, excluída não volta', () => {
+    const antes = tres.map(({ uid, rotulo }) => ({ uid, rotulo }));
+    const movidas = moverOpcao(tres, 1, 0)!.opcoes;
+    const editadas = movidas.map((o) => (o.uid === 'x' ? { ...o, itens: [] } : o));
+    const voltou = restaurarOrdemDasOpcoes(editadas, antes);
+    expect(ordem(voltou)).toBe('A:x B:y C:z');
+    expect(voltou[0].itens).toEqual([]);
+    const comNovaSemZ = [...editadas.filter((o) => o.uid !== 'z'), opcao('n', 'D')];
+    expect(ordem(restaurarOrdemDasOpcoes(comNovaSemZ, antes))).toBe('A:x B:y D:n');
   });
 });
 

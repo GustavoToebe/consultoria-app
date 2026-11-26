@@ -6,6 +6,7 @@ import br.com.plataforma.comum.web.ResourceNotFoundException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
+import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.importacao.LeitorDePlanilha;
@@ -29,6 +30,8 @@ import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SugestaoD
 import br.com.treinos.api.importacao.assistida.ia.ContextoIa;
 import br.com.treinos.api.importacao.assistida.ia.ResultadoInterpretacao;
 import br.com.treinos.api.importacao.assistida.ia.RoteadorInterpretadorIa;
+import br.com.treinos.api.importacao.assistida.ia.TermoDeDuvida;
+import br.com.treinos.api.receitas.ReceitaService;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.web.Buscas;
@@ -81,8 +84,6 @@ public class ImportacaoAssistidaService {
     private static final Pattern EMAIL_SIMPLES = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
     private static final Pattern OBJETIVO_VALIDO = Pattern.compile("[A-Z][A-Z0-9_]*");
     private static final Set<String> DESTINOS = Set.of("CRIAR_ALUNO", "VINCULAR_EXISTENTE", "MODELO_BIBLIOTECA", "IGNORAR");
-    private static final List<String> SIGLAS_METODOLOGIA = List.of("WS", "FS", "AQUECIMENTO", "TOP_SET", "FEEDER", "BACKOFF",
-            "REST_PAUSE");
 
     private final ImportacaoSessaoRepository sessoes;
     private final ImportacaoArquivoRepository arquivos;
@@ -90,16 +91,18 @@ public class ImportacaoAssistidaService {
     private final AlunoRepository alunos;
     private final JsonMapper json;
     private final RoteadorInterpretadorIa roteador;
+    private final ReceitaService receitas;
 
     public ImportacaoAssistidaService(ImportacaoSessaoRepository sessoes, ImportacaoArquivoRepository arquivos,
                                       ImportacaoApelidoConsultoriaRepository apelidos, AlunoRepository alunos,
-                                      JsonMapper json, RoteadorInterpretadorIa roteador) {
+                                      JsonMapper json, RoteadorInterpretadorIa roteador, ReceitaService receitas) {
         this.sessoes = sessoes;
         this.arquivos = arquivos;
         this.apelidos = apelidos;
         this.alunos = alunos;
         this.json = json;
         this.roteador = roteador;
+        this.receitas = receitas;
     }
 
     /** Política conservadora para o piloto: entrada/leitura de sessão mista exige as permissões de leitura do conteúdo. */
@@ -228,8 +231,13 @@ public class ImportacaoAssistidaService {
         byte[] conteudoBytes() { return conteudoBytes; }
     }
 
+    /**
+     * {@code metodologia} é a receita padrão da consultoria (nula quando não há: o plano fica sem ela, como os demais) e
+     * {@code configuracao} é a que vale para nomear os tipos de série (a própria receita ou o padrão do sistema).
+     */
     record PreparoProcessamento(UUID sessaoId, String objetivo, Map<String, String> dicionario,
-                                List<ArquivoPendente> pendentes, List<Aluno> existentes) {
+                                List<ArquivoPendente> pendentes, List<Aluno> existentes,
+                                ConteudoTreino.Metodologia metodologia, ConfiguracaoConsultoria configuracao) {
     }
 
     record ResultadoArquivoProcessado(UUID arquivoId, boolean sucesso, String extracaoJson, String erroCodigo,
@@ -260,7 +268,11 @@ public class ImportacaoAssistidaService {
                 .map(a -> new ArquivoPendente(a.getId(), a.getNomeOriginal(), a.getFormato(), a.getConteudoBytes()))
                 .toList();
         List<Aluno> existentes = alunos.findAll();
-        return new PreparoProcessamento(sessao.getId(), sessao.getObjetivo(), dicionario, itens, existentes);
+        ConteudoTreino.Metodologia metodologia = receitas.metodologiaPadrao().orElse(null);
+        ConfiguracaoConsultoria configuracao = metodologia != null && metodologia.configuracao() != null
+                ? metodologia.configuracao() : ConfiguracaoConsultoria.padrao();
+        return new PreparoProcessamento(sessao.getId(), sessao.getObjetivo(), dicionario, itens, existentes, metodologia,
+                configuracao);
     }
 
     ResultadoProcessamentoLote executarProcessamentoSemTransacao(PreparoProcessamento preparo) {
@@ -270,8 +282,10 @@ public class ImportacaoAssistidaService {
                 ResultadoExtracao extracao = extrairArquivo(arq.formato(), arq.nomeOriginal(), arq.conteudoBytes());
                 RedatorLgpdImportacao.RedacaoResultado redacao = RedatorLgpdImportacao.redigir(extracao.textoCompleto());
                 ContextoIa contexto = new ContextoIa(arq.nomeOriginal(), arq.formato(), extracao.blocos(),
-                        extracao.textoCompleto(), preparo.objetivo(), SIGLAS_METODOLOGIA, preparo.dicionario());
-                RoteadorInterpretadorIa.ExecucaoInterpretacao execucao = roteador.interpretarComModo(contexto);
+                        extracao.textoCompleto(), preparo.objetivo(), tiposParaOContexto(preparo.configuracao()),
+                        preparo.dicionario());
+                RoteadorInterpretadorIa.ExecucaoInterpretacao execucao = comTiposDaMetodologia(
+                        roteador.interpretarComModo(contexto), preparo);
                 itens.add(new ResultadoArquivoProcessado(arq.id(), true, json.writeValueAsString(extracao.metadados()),
                         null, execucao, redacao));
             } catch (ExtracaoRecusadaException e) {
@@ -281,6 +295,33 @@ public class ImportacaoAssistidaService {
             }
         }
         return new ResultadoProcessamentoLote(List.copyOf(itens), preparo.existentes());
+    }
+
+    /** Uma linha por tipo, {@code CODIGO = Nome (PAPEL)}: é o que a IA e as regras podem usar em {@code serie.tipo}. */
+    private static List<String> tiposParaOContexto(ConfiguracaoConsultoria config) {
+        return config.tipos().stream().filter(t -> t != null && t.codigo() != null)
+                .map(t -> t.codigo().strip() + " = " + (t.nome() == null ? t.codigo().strip() : t.nome().strip())
+                        + (t.papel() == null ? "" : " (" + t.papel().name() + ")"))
+                .toList();
+    }
+
+    /** Leva o tipo de cada série ao código da metodologia e põe a metodologia padrão no treino proposto. */
+    private static RoteadorInterpretadorIa.ExecucaoInterpretacao comTiposDaMetodologia(
+            RoteadorInterpretadorIa.ExecucaoInterpretacao exec, PreparoProcessamento preparo) {
+        List<ResultadoInterpretacao.PropostaGrupo> grupos = exec.resultado().grupos().stream().map(pg -> {
+            if (pg.treino() == null) {
+                return pg;
+            }
+            ConteudoTreino treino = TiposDaMetodologia.normalizar(pg.treino(), preparo.configuracao());
+            if (preparo.metodologia() != null) {
+                treino = treino.comMetodologia(preparo.metodologia());
+            }
+            return new ResultadoInterpretacao.PropostaGrupo(pg.identificadorOrigem(), pg.nomeAluno(), pg.email(),
+                    pg.telefone(), pg.objetivo(), pg.observacoes(), pg.pesos(), treino, pg.dieta());
+        }).toList();
+        return new RoteadorInterpretadorIa.ExecucaoInterpretacao(
+                new ResultadoInterpretacao(grupos, exec.resultado().duvidas()), exec.modoEfetivo(),
+                exec.provedorConfigurado(), exec.fallbackParaRegras(), exec.motivoFallback());
     }
 
     void concluirProcessamentoEmTransacao(UUID sessaoId, ResultadoProcessamentoLote resultado) {
@@ -328,6 +369,9 @@ public class ImportacaoAssistidaService {
                 grupos.add(montarGrupo(pg, arq, "grupo-" + seqGrupo, email, telefone, resultado.existentes()));
             }
             for (ResultadoInterpretacao.PropostaDuvida pd : item.execucao().resultado().duvidas()) {
+                if (TermoDeDuvida.semConteudo(pd.termoOriginal())) {
+                    continue; // mesma regra do decodificador, para qualquer interpretador
+                }
                 List<SugestaoDuvida> sugs = new ArrayList<>();
                 if (pd.sugestoes() != null) {
                     for (ResultadoInterpretacao.PropostaSugestao ps : pd.sugestoes()) {
@@ -338,7 +382,7 @@ public class ImportacaoAssistidaService {
                 seqDuvida++;
                 List<String> ocIds = pd.ocorrenciaIds() == null ? List.of() : pd.ocorrenciaIds();
                 int qtdOc = ocIds.isEmpty() ? 1 : ocIds.size();
-                duvidas.add(new DuvidaImportacao("duvida-" + seqDuvida, pd.tipo(), pd.termoOriginal(), pd.trechoOriginal(),
+                duvidas.add(new DuvidaImportacao("duvida-" + seqDuvida, pd.tipo(), pd.termoOriginal(), pd.trechoOriginal() == null ? "" : pd.trechoOriginal(),
                         arq.getNomeOriginal(), qtdOc, sugs, false, null, ocIds));
             }
         }
@@ -1054,11 +1098,12 @@ public class ImportacaoAssistidaService {
         boolean sensivel = AcessoAtual.pode("ALUNO_SENSIVEL_LER");
         boolean treinoLer = AcessoAtual.pode("TREINO_LER");
         boolean dietaLer = AcessoAtual.pode("DIETA_LER");
+        boolean ergogenicoLer = AcessoAtual.pode("ERGOGENICO_LER");
         List<ArquivoResumo> arqs = arquivos.findBySessaoIdOrderByCriadoEmAsc(sessao.getId()).stream()
                 .map(this::resumo).toList();
         List<GrupoImportavel> gruposBrutos = SessaoJson.grupos(json, sessao);
         List<GrupoImportavel> grupos = gruposBrutos.stream()
-                .map(g -> g.paraLeitura(sensivel, treinoLer, dietaLer)).toList();
+                .map(g -> g.paraLeitura(sensivel, treinoLer, dietaLer, ergogenicoLer)).toList();
         List<DuvidaImportacao> duvidas = SessaoJson.duvidas(json, sessao).stream()
                 .filter(d -> dietaLer || d.tipo() == null || !d.tipo().startsWith("ALIMENTO"))
                 .filter(d -> treinoLer || d.tipo() == null || !d.tipo().startsWith("EXERCICIO"))

@@ -4,8 +4,9 @@ import type { ConteudoDieta, ItemDieta, PlanoDetalhe, Refeicao, VariacaoDaDieta,
 import { ALUNO, erroApi, json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 import { fixarHoje, sessaoDeAluno, sessaoDeAlunoComTreino, SESSOES_COM_DIAS } from './aluno';
 /**
- * Dieta por dia da semana (passos 3 e 4 do plano `dieta-por-dia-da-semana`): no editor, os chips das variações e os sete
- * dias da aberta (marcar tira da outra), duplicar, criar a partir da dieta sem variação e voltar; no aluno, a dieta abre na
+ * Dieta por dia da semana (passos 3 e 4 do plano `dieta-por-dia-da-semana`; abas e faixa da semana em 25/11): no editor,
+ * as abas das variações e a faixa da semana da aberta (o número da variação de cada dia; marcar tira da outra), duplicar,
+ * nova variação, excluir com confirmação, criar a partir da dieta sem variação e voltar; no aluno, a dieta abre na
  * variação de hoje (relógio em segunda-feira, 19/10/2026, Brasília) com troca à mão, o Início conta as refeições de hoje e
  * a prévia do rascunho com segunda descoberta avisa. Só dados fictícios.
  */
@@ -94,7 +95,7 @@ for (const largura of [390, 1280]) {
     await expect(abas.getByRole('tab', { name: /^Dia de treino, Qua e Sex/ })).toBeVisible();
 
     // Duplicar: a cópia abre, sem dia marcado, e o aviso diz o que falta para publicar.
-    await page.getByRole('button', { name: 'Duplicar variação' }).click();
+    await page.getByRole('button', { name: 'Duplicar a variação Descanso' }).click();
     await expect(abas.getByRole('tab')).toHaveCount(3);
     await expect(abas.getByRole('tab', { name: /^Descanso \(cópia\), Nenhum dia/ })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText('Sem dia marcado: Descanso (cópia).')).toBeVisible();
@@ -114,6 +115,75 @@ for (const largura of [390, 1280]) {
     const salvo = await salvarERetornar(page, pedidos);
     expect(salvo.refeicoes).toEqual([]);
     expect(salvo.variacoes.map((v) => [v.rotulo, v.dias])).toEqual([['Dia de treino', [3, 5]], ['Fim de semana', [1, 2, 4, 6, 7]]]);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`editor: abas, faixa da semana com o número de cada dia, contador, dica, nova variação e excluir (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    const { pedidos, naoTratadas, errosDaPagina } = await abrirEditor(page, COM_VARIACOES);
+    const abas = page.getByRole('tablist', { name: 'Variações da dieta' });
+    await expect(abas.getByRole('tab', { name: /^Dia de treino, Seg, Qua e Sex$/ })).toContainText('Dia de treino· Seg, Qua e Sex');
+    await expect(abas.getByRole('tab', { name: /^Descanso, Ter, Qui, Sáb e Dom$/ })).toContainText('2');
+
+    // Faixa: os dias da aberta (1) marcados com o número dela; os outros com o número da outra (2).
+    const faixa = page.getByRole('group', { name: 'Dias da variação Dia de treino' });
+    const dias = faixa.getByRole('checkbox');
+    await expect(dias).toHaveCount(7);
+    await expect(dias).toHaveText(['Seg1', 'Ter2', 'Qua1', 'Qui2', 'Sex1', 'Sáb2', 'Dom2']);
+    await expect(faixa.getByRole('checkbox', { checked: true })).toHaveCount(3);
+    // Sete numa linha também em 390, cada um com pelo menos 44 px.
+    const caixas = await dias.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ y: Math.round(r.y), w: r.width, h: r.height })));
+    expect(new Set(caixas.map((c) => c.y)).size).toBe(1);
+    for (const c of caixas) { expect(c.w).toBeGreaterThanOrEqual(44); expect(c.h).toBeGreaterThanOrEqual(44); }
+
+    // Tocar num dia da outra passa o dia para a aberta (e o número muda para 1).
+    await faixa.getByRole('checkbox', { name: 'Terça, está em Descanso' }).click();
+    await expect(faixa.getByRole('checkbox', { name: 'Terça' })).toHaveAttribute('aria-checked', 'true');
+    await expect(dias.nth(1)).toHaveText('Ter1');
+    await expect(abas.getByRole('tab', { name: /^Descanso, Qui, Sáb e Dom$/ })).toBeVisible();
+
+    // Contador no lugar da frase de limite.
+    await expect(page.getByText('13/40', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Até 40 caracteres/)).toHaveCount(0);
+    await page.getByRole('textbox', { name: 'Nome da variação' }).fill('');
+    await expect(page.getByText('0/40', { exact: true })).toBeVisible();
+    await page.getByRole('textbox', { name: 'Nome da variação' }).fill('Treino');
+
+    // A frase da regra virou a dica do ⓘ.
+    // (o texto também mora, oculto, na descrição acessível do ⓘ: conta só o que está à vista)
+    const dica = page.getByText('Marcar um dia o tira da outra variação.').filter({ visible: true });
+    const info = page.getByRole('button', { name: 'Sobre dias desta variação' });
+    await expect(dica).toHaveCount(0);
+    await expect(info).toHaveAccessibleDescription('Marcar um dia o tira da outra variação.');
+    await info.hover();
+    await expect(dica).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(dica).toHaveCount(0);
+
+    // "+ Nova variação": vazia, aberta, sem dia e sem refeição.
+    await page.getByRole('button', { name: 'Nova variação' }).click();
+    await expect(abas.getByRole('tab', { name: /^Variação 3, Nenhum dia$/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('heading', { name: 'Refeições (0)' })).toBeVisible();
+    await page.getByRole('button', { name: 'Desfazer' }).click();
+    await expect(abas.getByRole('tab')).toHaveCount(2);
+
+    // Excluir pede confirmação; cancelar não muda nada; confirmar exclui com Desfazer.
+    await abas.getByRole('tab', { name: /^Descanso,/ }).click();
+    await page.getByRole('button', { name: 'Excluir a variação Descanso' }).click();
+    const painel = page.getByRole('alertdialog', { name: 'Excluir a variação “Descanso”?' });
+    await expect(painel).toContainText('Qui, Sáb e Dom ficam sem dieta');
+    await painel.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(abas.getByRole('tab')).toHaveCount(2);
+    await page.getByRole('button', { name: 'Excluir a variação Descanso' }).click();
+    await painel.getByRole('button', { name: 'Excluir variação' }).click();
+    await expect(abas.getByRole('tab')).toHaveCount(1);
+    await expect(page.getByText('Dias sem variação: Qui, Sáb e Dom.', { exact: false })).toBeVisible();
+    await page.getByRole('button', { name: 'Desfazer' }).click();
+    await expect(abas.getByRole('tab')).toHaveCount(2);
+
+    const salvo = await salvarERetornar(page, pedidos);
+    expect(salvo.variacoes.map((v) => [v.rotulo, v.dias])).toEqual([['Treino', [1, 2, 3, 5]], ['Descanso', [4, 6, 7]]]);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
@@ -315,7 +385,7 @@ for (const largura of [390, 1280]) {
   });
 }
 
-/** Capturas do editor nos três temas (claro, areia, escuro): os chips de variação e de dia, a seleção neutra com ✓ e o aviso. */
+/** Capturas do editor nos três temas (claro, areia, escuro): as abas das variações, a faixa da semana com ✓ e o aviso. */
 for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
   for (const largura of [390, 1280]) {
     test(`capturas: editor com variações (${largura}px, ${tema.toLowerCase()})`, async ({ page }, testInfo) => {
@@ -328,7 +398,7 @@ for (const tema of ['CLARO', 'AREIA', 'ESCURO'] as const) {
       });
       await expect(page.getByText('Dias sem variação: Dom.', { exact: false })).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`editor-${largura}-${tema}.png`), fullPage: true });
-      // O ponto de erro no chip da variação com problema (contraste nos três temas).
+      // O ícone de erro na aba da variação com problema (contraste nos três temas).
       await page.getByRole('button', { name: 'Validar' }).click();
       await expect(page.getByRole('tab', { name: /^Descanso, .*precisa corrigir$/ })).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`editor-erro-${largura}-${tema}.png`) });

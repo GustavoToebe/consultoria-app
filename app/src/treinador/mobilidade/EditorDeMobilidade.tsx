@@ -37,7 +37,8 @@ import { OrientacoesDaMobilidade } from './SobreAMobilidade';
  * Editor do plano de mobilidade do aluno: mesmo ciclo do treino e da dieta (salvar rascunho, validar, publicar
  * versão imutável, PDF do rascunho ou da versão publicada pela `BarraDoPlano`), com as seções e itens do modelo de
  * mobilidade. "Modelos" (como no treino e na dieta) usa um modelo de mobilidade no rascunho, com "Desfazer", ou guarda o
- * rascunho como modelo no Planejamento. Não há "Ver como o aluno" na mobilidade.
+ * rascunho como modelo no Planejamento. Não há "Ver como o aluno" na mobilidade: da faixa `larga` em diante a prévia ao vivo
+ * fica ao lado da seção (`SecoesDeMobilidade`).
  */
 export default function EditorDeMobilidade() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -69,7 +70,7 @@ export default function EditorDeMobilidade() {
   return (
     <TelaDoEditor
       colunas
-      cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(false, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />}
+      cabecalho={<Cabecalho titulo={titulo} descricao="Monte os itens de alongamento e mobilidade, com prescrição e vídeo, em rascunho. O aluno só vê o que você publica e marca o que fez." trilha={trilhaDoPlano(false, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />}
       barra={<BarraDoPlano tipo="mobilidade" editor={editor} aoProblemas={setProblemas} />}>
       {/* Plano de uma pasta: volta à Folha dela e lê a atualização sem perder o rascunho (reunião de 30/10). */}
       {estado.plano.pastaId ? (
@@ -82,7 +83,7 @@ export default function EditorDeMobilidade() {
       <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas}
         aoIrAoPrimeiro={(uids) => setIrPara((p) => ({ uids, vez: (p?.vez ?? 0) + 1 }))} />
       <FaixaDoPlanoDoAluno tipo="mobilidade" />
-      {/* Um cartão só no topo (19/11): título, período e as Orientações recolhidas (as do plano, que o modelo aplicado não troca). */}
+      {/* Um cartão só no topo (19/11): título, período e as Orientações (as do plano, que o modelo aplicado não troca). */}
       <ConfiguracaoDoPlano editor={editor} descricao="Título, período e orientações da mobilidade.">
         <OrientacoesDaMobilidade valor={estado.conteudo.orientacoes} aoMudar={(orientacoes) => editor.alterarConteudo((c) => ({ ...c, orientacoes }))} />
       </ConfiguracaoDoPlano>

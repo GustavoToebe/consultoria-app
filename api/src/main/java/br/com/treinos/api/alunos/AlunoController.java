@@ -1,9 +1,12 @@
 package br.com.treinos.api.alunos;
 
+import br.com.treinos.api.alunos.dto.AlunoDtos.AlterarEmailDeAcessoRequest;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
 import br.com.treinos.api.alunos.dto.AlunoDtos.ConviteResponse;
 import br.com.treinos.api.alunos.dto.AlunoDtos.DefinirAcessoRequest;
+import br.com.treinos.api.alunos.dto.AlunoDtos.DesativarAcessoRequest;
+import br.com.treinos.api.alunos.dto.AlunoDtos.EmailDeAcessoAlteradoResponse;
 import br.com.treinos.api.alunos.dto.AlunoDtos.PaginaAlunos;
 import br.com.treinos.api.alunos.dto.AlunoDtos.SituacaoRequest;
 import jakarta.validation.Valid;
@@ -86,16 +89,19 @@ public class AlunoController {
         return alunos.alterarSituacao(id, request.ativo());
     }
 
+    /** Pausa por atraso (ATRASO): o aluno entra, mas só nas rotas liberadas; 409 {@code ACESSO_JA_DESATIVADO} se a equipe já desativou. */
+    @br.com.treinos.api.pagamentos.ExigePagamentos // financeiro desligado = 503; o reativar fica aberto (é a saída de uma pausa antiga)
     @PreAuthorize("hasAuthority('PERM_FINANCEIRO_ALTERAR')")
     @PostMapping("/{id}/pausar-acesso")
     public AlunoDetalhe pausarAcesso(@PathVariable UUID id) {
-        return alunos.pausarAcesso(id);
+        return acessos.pausarPorAtraso(id);
     }
 
+    /** Tira só a pausa por atraso; a desativação MANUAL é 409 {@code ACESSO_JA_DESATIVADO} (sai por {@code /acesso/reativar}). */
     @PreAuthorize("hasAuthority('PERM_FINANCEIRO_ALTERAR')")
     @PostMapping("/{id}/reativar-acesso")
-    public AlunoDetalhe reativarAcesso(@PathVariable UUID id) {
-        return alunos.reativarAcesso(id);
+    public AlunoDetalhe reativarAcessoPausado(@PathVariable UUID id) {
+        return acessos.reativarPausadoPorAtraso(id);
     }
 
     @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")
@@ -109,5 +115,28 @@ public class AlunoController {
     @PutMapping("/{id}/acesso")
     public AlunoDetalhe acesso(@PathVariable UUID id, @RequestBody @Valid DefinirAcessoRequest request) {
         return acessos.definir(id, request.email(), request.senha());
+    }
+
+    /** Troca só o e-mail de login; encerra as sessões do aluno e avisa os dois endereços por e-mail, se o envio está ligado; {@code emailEnviado} é o do aviso ao novo. */
+    @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")
+    @PutMapping("/{id}/acesso/email")
+    public EmailDeAcessoAlteradoResponse emailDeAcesso(@PathVariable UUID id, @RequestBody @Valid AlterarEmailDeAcessoRequest request) {
+        return acessos.alterarEmail(id, request.email());
+    }
+
+    /**
+     * Desativa o acesso ao app (MANUAL) sem apagar nada e sem inativar o aluno; idempotente. O {@code motivo} do corpo só
+     * aceita {@code MANUAL}: a pausa por atraso tem rota própria ({@code /pausar-acesso}, com a permissão do Financeiro).
+     */
+    @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")
+    @PostMapping("/{id}/acesso/desativar")
+    public AlunoDetalhe desativarAcesso(@PathVariable UUID id, @RequestBody(required = false) @Valid DesativarAcessoRequest request) {
+        return acessos.desativar(id);
+    }
+
+    @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")
+    @PostMapping("/{id}/acesso/reativar")
+    public AlunoDetalhe reativarAcesso(@PathVariable UUID id) {
+        return acessos.reativar(id);
     }
 }

@@ -32,7 +32,6 @@ import { ListaEmColunas, MINIMO_DA_COLUNA_COM_ACOES } from '../../../treinador/L
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO, podeAplicarModelo } from '../../../dominio/modelos';
 import { Tela } from '../../../ui/Tela';
-import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 import { useSecoesAbertas } from '../../../ui/useSecoesAbertas';
 import { CONFIGURACAO_PADRAO } from '../../../dominio/metodologiaPadrao';
@@ -116,10 +115,11 @@ export default function Planejamento() {
     duplicarReceita(r.id).then(() => { modelos.recarregar(); avisar('Modelo duplicado.', 'sucesso'); }, (e: unknown) => avisar(textoDoErro(e), 'perigo')).finally(() => setOcupado(null));
   };
   return <Tela bordas={['top']} largura={LARGURA_LISTA}>
-    <Cabecalho titulo="Planejamento" mostrarMarca="celular" />
-    {/* Nas abas de modelo o apoio é a descrição do tipo, no cartão: sem frase de página repetindo a mesma ideia, o
-        primeiro modelo fica mais perto do topo. "Aplicar" já diz que cria uma cópia para o aluno. */}
-    {emAtualizacao ? <Texto variante="suave">{emInscricao ? 'Monte as perguntas da página "Quero ser aluno", embaixo dos campos fixos.' : emAnamnese ? 'Monte as anamneses que você envia ao aluno pela ficha dele.' : 'Monte os questionários de atualização que o aluno responde a cada período.'}</Texto> : null}
+    {/* A explicação da página vai no ⓘ do cabeçalho; nas abas de modelo o apoio é a descrição do tipo, no cartão ("Aplicar" já diz
+        que cria uma cópia para o aluno), e nas de questionário a frase da aba. */}
+    <Cabecalho titulo="Planejamento" mostrarMarca="celular" descricao={emAtualizacao
+      ? (emInscricao ? 'Monte as perguntas da página "Quero ser aluno", embaixo dos campos fixos.' : emAnamnese ? 'Monte as anamneses que você envia ao aluno pela ficha dele.' : 'Monte os questionários de atualização que o aluno responde a cada período.')
+      : 'Treinos, dietas, pacotes e mobilidade que você reaproveita, organizados em coleções. Crie um modelo e aplique ao aluno, que recebe uma cópia sem ligação com ele.'} />
     <Abas abas={[...(veModelos ? grupos.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo })) : []), ...(veAtualizacao ? ABAS_DE_QUESTIONARIO.map((r) => ({ valor: r, rotulo: r })) : [])]}
       ativa={aba}
       aoMudar={(rotulo) => { if (rotulo !== aba) router.push({ pathname: '/treinador/planejamento', params: { aba: slugDaAba(rotulo) } }); }} />

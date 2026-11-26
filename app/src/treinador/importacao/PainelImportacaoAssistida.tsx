@@ -1,15 +1,23 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Ref, type RefObject } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
-import { CheckCircle2, FileSearch, FileText, FileUp, RotateCcw } from 'lucide-react-native';
-import { Platform, StyleSheet, View } from 'react-native';
+import { CheckCircle2, FileSearch, FileUp, RotateCcw } from 'lucide-react-native';
+import type { Href } from 'expo-router';
+import { AccessibilityInfo, findNodeHandle, Platform, StyleSheet, View } from 'react-native';
 
 import { dataHoraParaTela, plural } from '../../dominio/formatos';
 import {
   campoDoErroDoTexto,
+  contagensDasEtapas,
+  duvidasVisiveis,
+  DICA_DE_TREINO_DESMONTADO,
+  etapaDaImportacao,
+  focoAoEntrar,
+  type FocoAoEntrar,
   gerarChaveIdempotencia,
   grupoResumido,
   idsComErro,
   idsSelecionaveisProntos,
+  lidoSemIa,
   linhasDoGrupo,
   motivoDoErroDoArquivo,
   motivoDoErroDoGrupo,
@@ -21,7 +29,6 @@ import {
   resumoDaCoberturaDoArquivo,
   resumoDoModoProcessamento,
   resumoDoResultado,
-  rotuloDaDuvida,
   seloDoGrupo,
   sessaoPodeCancelar,
   sessaoRetomavel,
@@ -57,24 +64,37 @@ import { espaco, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { Campo } from '../../ui/Campo';
-import { Interruptor } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Alerta, MensagemErro } from '../../ui/Estados';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { LinkTexto } from '../../ui/LinkTexto';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
+import { useFaixaDaTela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { AreaDeSoltarArquivos } from './AreaDeSoltarArquivos';
+import { EscolhaDoQueImportar } from './EscolhaDoQueImportar';
+import { ColunaDasEtapas, LinhaDasEtapas, VAO_DA_LATERAL } from './EtapasDaImportacao';
+import { ImportacoesEmAberto } from './LinhaDeImportacaoEmAberto';
+import { TermosParaConferir } from './TermosParaConferir';
+
+/** O mesmo destino de `FolhaNovaImportacao`: cria o modelo de Semana de Treino já com a Folha de colar aberta. */
+const COLAR_TREINO: Href = { pathname: '/treinador/planejamento', params: { aba: 'treino', tipo: 'plano_treino', novo: '1', colar: '1' } };
 
 /** Qual ação está em andamento: cada botão mostra o próprio carregando, e só o processar mostra o cartão de espera. */
 type Acao = 'arquivos' | 'texto' | 'processar' | 'responder' | 'revogar' | 'destino' | 'confirmar' | 'cancelar' | 'retomar';
-/** Cartão onde o erro aparece: perto do botão que o causou, não no topo da página (no celular ficaria fora da vista). */
-type Onde = 'entrada' | 'duvidas' | 'grupos';
+/**
+ * Cartão onde o erro aparece: perto do botão que o causou, não no topo da página (no celular ficaria fora da vista).
+ * `proxima` acompanha o botão da próxima etapa (ler, gravar), que na faixa larga mora na coluna lateral.
+ */
+type Onde = 'entrada' | 'abertas' | 'duvidas' | 'grupos' | 'proxima';
 
 export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial?: string } = {}) {
   const { cores } = useTema();
   const { pode } = useSessao();
+  const faixa = useFaixaDaTela();
 
   const [objetivo, setObjetivo] = useState<ObjetivoImportacao>('CADASTROS_E_PLANOS_ATUAIS');
   const [sessao, setSessao] = useState<SessaoDetalhe | null>(null);
@@ -82,6 +102,9 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   const [acao, setAcao] = useState<Acao | null>(null);
   const [erro, setErro] = useState<{ texto: string; tom: 'perigo' | 'atencao'; onde: Onde; causa: unknown } | null>(null);
   const [descartar, setDescartar] = useState(false);
+  // Importação da lista "Em aberto": a que está abrindo (carregando só nela) e a que o ⋯ pediu para descartar.
+  const [retomando, setRetomando] = useState<string | null>(null);
+  const [descartarDaLista, setDescartarDaLista] = useState<SessaoListaItem | null>(null);
 
   // Entrada de texto colado
   const [mostrarTexto, setMostrarTexto] = useState(false);
@@ -105,6 +128,14 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   // Qual botão de gravar foi tocado, para o carregando girar só nele.
   const [gravando, setGravando] = useState<'pendentes' | 'erros'>('pendentes');
 
+  // Foco ao entrar (T-206): sem sessão no endereço já se sabe que é o título; com ela, só depois de lê-la.
+  const [focoInicial, setFocoInicial] = useState<FocoAoEntrar | null>(() => (sessaoIdInicial ? null : { tipo: 'titulo' }));
+  const refRaiz = useRef<View>(null);
+  const refLer = useRef<View>(null);
+  const refTermo = useRef<View>(null);
+  const refAluno = useRef<Focavel | null>(null);
+  useFocoAoEntrar(focoInicial, refRaiz, refLer, refTermo, refAluno);
+
   const carregarSessoesAbertas = async () => {
     const lista = await listarSessoes().catch(() => [] as SessaoListaItem[]);
     setSessoesAbertas(lista.filter(sessaoRetomavel));
@@ -116,14 +147,20 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
       if (sessaoIdInicial) {
         try {
           const s = await obterSessao(sessaoIdInicial);
-          if (ativo) setSessao(s);
+          if (ativo) {
+            setSessao(s);
+            setFocoInicial(focoAoEntrar(s));
+          }
           return;
         } catch {
           // Se falhar ao abrir a sessão da URL, lista as abertas.
         }
       }
       const lista = await listarSessoes().catch(() => [] as SessaoListaItem[]);
-      if (ativo) setSessoesAbertas(lista.filter(sessaoRetomavel));
+      if (ativo) {
+        setSessoesAbertas(lista.filter(sessaoRetomavel));
+        setFocoInicial((atual) => atual ?? { tipo: 'titulo' });
+      }
     };
     void iniciar();
     return () => { ativo = false; };
@@ -186,7 +223,13 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
     }
   };
 
-  const iniciarSessaoComArquivos = () => executar('arquivos', 'entrada', async () => {
+  /** Sobe os arquivos um a um na sessão (a atual, a reservada ou uma nova); o picker e o soltar da web usam o mesmo caminho. */
+  const subir = (lista: readonly { parte: Blob; nome: string }[]) =>
+    comSessaoNova(async (id) => {
+      for (const a of lista) await adicionarArquivo(id, a.parte, a.nome);
+    });
+
+  const escolherArquivos = () => executar('arquivos', 'entrada', async () => {
     const res = await DocumentPicker.getDocumentAsync({
       multiple: true,
       type: [
@@ -199,19 +242,17 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
       copyToCacheDirectory: true,
     });
     if (res.canceled || !res.assets || res.assets.length === 0) return;
-
-    await comSessaoNova(async (id) => {
-      for (const asset of res.assets) {
-        let parteArquivo: any;
-        if (Platform.OS === 'web' && (asset as any).file) {
-          parteArquivo = (asset as any).file;
-        } else {
-          parteArquivo = { uri: asset.uri, name: asset.name, type: asset.mimeType ?? 'application/octet-stream' };
-        }
-        await adicionarArquivo(id, parteArquivo, asset.name);
-      }
-    });
+    await subir(res.assets.map((asset) => ({
+      nome: asset.name,
+      // No celular o FormData do React Native recebe { uri, name, type } no lugar do Blob (não existe File ali).
+      parte: Platform.OS === 'web' && asset.file
+        ? asset.file
+        : ({ uri: asset.uri, name: asset.name, type: asset.mimeType ?? 'application/octet-stream' } as unknown as Blob),
+    })));
   });
+
+  const soltarArquivos = (arquivos: File[]) =>
+    void executar('arquivos', 'entrada', () => subir(arquivos.map((f) => ({ parte: f, nome: f.name }))));
 
   const enviarTextoLivre = () => executar('texto', 'entrada', async () => {
     await comSessaoNova((id) => adicionarTexto(id, tituloTexto, conteudoTexto).then(() => undefined));
@@ -225,7 +266,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
 
   const processar = () => {
     if (!sessao) return;
-    void executar('processar', 'entrada', async () => setSessao(await processarSessao(sessao.id)));
+    void executar('processar', 'proxima', async () => setSessao(await processarSessao(sessao.id)));
   };
 
   const resolverDuvida = () => {
@@ -270,9 +311,21 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
   };
 
   const retomar = (id: string) => {
-    void executar('retomar', 'entrada', async () => {
+    setRetomando(id);
+    void executar('retomar', 'abertas', async () => {
       limparEstadoLocalDaSessao();
       setSessao(await obterSessao(id));
+    }).finally(() => setRetomando(null));
+  };
+
+  /** O mesmo cancelar da sessão aberta, para uma importação da lista; depois a lista é lida de novo. */
+  const confirmarDescarteDaLista = () => {
+    const alvo = descartarDaLista;
+    setDescartarDaLista(null);
+    if (!alvo) return;
+    void executar('cancelar', 'abertas', async () => {
+      await cancelarSessao(alvo.id);
+      await carregarSessoesAbertas();
     });
   };
 
@@ -314,7 +367,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
     setGravando(quais);
     const chave = chaveParaTentativa(ids);
     const hashPrevia = sessao.hashPrevia;
-    void executar('confirmar', 'grupos', async () => {
+    void executar('confirmar', 'proxima', async () => {
       setResultado(await confirmarSessao(sessao.id, ids, sessao.revisao, hashPrevia, chave));
       const atual = await obterSessao(sessao.id).catch(() => null);
       setSessao(atual && atual.estado !== 'CONCLUIDA' ? atual : null);
@@ -380,75 +433,81 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
     if (dec.ativa) decisoesAtivasPorDuvida.set(dec.duvidaId, dec);
   }
 
-  return (
-    <View style={estilos.blocos}>
+  // Tela larga (25/11): da faixa larga em diante, o resumo e a próxima etapa vão para a coluna ao lado, grudada ao rolar.
+  // Um botão da próxima etapa por vez, num lugar só: na lateral nessa faixa, nos cartões abaixo dela.
+  const comLateral = faixa === 'larga' || faixa === 'ultralarga';
+  // Na coluna das etapas o botão da próxima etapa é a ação de apoio (cor de ação); nos cartões, o principal.
+  const tipoDaProxima = comLateral ? 'acao' : 'primario';
+  const duvidas = duvidasVisiveis(sessao?.duvidas);
+  const podeLer = sessao?.estado === 'RECEBENDO' || sessao?.estado === 'RASCUNHO';
+  const botaoLer = podeLer ? (
+    <LinhaDeAcoes>
+      <Botao ref={refLer} rotulo="Ler os arquivos" tipo={tipoDaProxima} Icone={FileSearch} carregando={acao === 'processar'} aoTocar={processar} />
+    </LinhaDeAcoes>
+  ) : null;
+  // Resultado junto dos botões: quem tocou em gravar o vê sem rolar a página.
+  const blocoDoResultado = resumo ? (
+    <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+      <View style={estilos.lista}>
+        <Texto variante="bloco" nivel={3}>{resumo.titulo}</Texto>
+        {resumo.descricao ? <Texto variante="suave">{resumo.descricao}</Texto> : null}
+      </View>
+      {resumo.alerta ? <Alerta tom={resumo.alerta.tom} texto={resumo.alerta.texto} /> : null}
+      <View style={estilos.lista}>
+        {resumo.linhas.map((l) => <Texto key={l} numerico>{l}</Texto>)}
+      </View>
+    </View>
+  ) : null;
+  const botoesDeGravar = sessao && (temPendentes || comErro.length > 0) ? (
+    <LinhaDeAcoes>
+      {temPendentes ? (
+        <Botao
+          rotulo={gravaveisSelecionados.length > 0 ? `Gravar selecionados (${gravaveisSelecionados.length})` : 'Gravar selecionados'}
+          tipo={tipoDaProxima}
+          Icone={CheckCircle2}
+          carregando={acao === 'confirmar' && gravando === 'pendentes'}
+          desabilitado={!!motivoConfirmar || acao === 'destino' || acao === 'confirmar'}
+          motivo={motivoConfirmar ?? (acao === 'destino' ? 'Salvando o destino…' : 'Aguarde a gravação terminar.')}
+          aoTocar={() => gravar(gravaveisSelecionados, 'pendentes')}
+        />
+      ) : null}
+      {comErro.length > 0 ? (
+        <Botao
+          rotulo="Tentar de novo os que deram erro"
+          tipo={temPendentes ? 'secundario' : tipoDaProxima}
+          Icone={RotateCcw}
+          carregando={acao === 'confirmar' && gravando === 'erros'}
+          desabilitado={acao === 'confirmar' || acao === 'destino' || !sessao.hashPrevia}
+          motivo={!sessao.hashPrevia ? 'Atualize a sessão antes de tentar de novo.' : 'Aguarde a gravação terminar.'}
+          aoTocar={() => gravar(comErro, 'erros')}
+        />
+      ) : null}
+    </LinhaDeAcoes>
+  ) : null;
+  const doGravar = sessao && sessao.grupos.length > 0 ? <>{blocoDoResultado}{erroEm('proxima')}{botoesDeGravar}</> : null;
+  // Etapas (26/11): a atual sai da máquina de estados da sessão; as contagens, do que a tela já tem.
+  const etapaAtual = etapaDaImportacao(sessao, !temPendentes || !motivoConfirmar);
+  const contagens = sessao ? contagensDasEtapas(sessao, pode, { marcados: selecionadosAtivos.size, possiveis: idsSelecionaveis.size }) : null;
+
+  const blocos = (
+    <>
+      {comLateral ? null : <LinhaDasEtapas atual={etapaAtual} />}
       {!sessao ? (
         <>
-          {sessoesAbertas.length > 0 ? (
-            <Cartao
-              titulo="Importações em aberto"
-              descricao="Você pode retomar uma importação anterior antes que ela expire ou começar uma nova abaixo."
-            >
-              <View style={estilos.lista}>
-                {sessoesAbertas.map((s) => (
-                  <View key={s.id} style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
-                    <View style={estilos.cabecalhoItem}>
-                      <Texto variante="bloco" nivel={3} style={estilos.encolher}>
-                        {dataHoraParaTela(s.criadoEm)}
-                      </Texto>
-                      <Selo texto={textoDoEstadoDaSessao(s.estado)} tipo={s.estado === 'ERRO' ? 'perigo' : s.estado === 'PROCESSANDO' ? 'atencao' : 'neutro'} />
-                    </View>
-                    <Texto variante="suave" numerico>
-                      {plural(s.totalArquivos, 'arquivo', 'arquivos')} · {plural(s.totalGrupos, 'grupo', 'grupos')} · {plural(s.duvidasAbertas, 'dúvida em aberto', 'dúvidas em aberto')}
-                    </Texto>
-                    <LinhaDeAcoes>
-                      <Botao
-                        rotulo="Retomar"
-                        tipo="secundario"
-                        carregando={acao === 'retomar'}
-                        aoTocar={() => retomar(s.id)}
-                      />
-                    </LinhaDeAcoes>
-                  </View>
-                ))}
-              </View>
-            </Cartao>
-          ) : null}
-
           <Cartao
             titulo="Enviar arquivos ou texto"
-            descricao="Envie PDFs de treino, DOCX de dieta, planilhas e mensagens de texto num lote só. Você confere os termos e escolhe o que gravar antes de confirmar."
+            descricao="PDFs de treino, DOCX de dieta, planilhas e mensagens num lote só. Você confere os termos e escolhe o que gravar antes de confirmar."
           >
-          <Escolha
-            rotulo="O que importar"
-            valor={objetivo}
-            aoMudar={(o) => { setObjetivo(o); sessaoReservada.current = null; }}
-            opcoes={[
-              { valor: 'CADASTROS_E_PLANOS_ATUAIS', rotulo: 'Cadastros e planos atuais (treino e dieta)' },
-              { valor: 'SOMENTE_CADASTROS', rotulo: 'Só cadastros e contatos' },
-              { valor: 'INCLUIR_HISTORICO', rotulo: 'Tudo, com o histórico de cargas e pesos' },
-            ]}
+          <EscolhaDoQueImportar valor={objetivo} aoMudar={(o) => { setObjetivo(o); sessaoReservada.current = null; }} />
+          <AreaDeSoltarArquivos
+            aoEscolher={() => void escolherArquivos()}
+            aoSoltar={soltarArquivos}
+            aoColar={() => setMostrarTexto(!mostrarTexto)}
+            colando={mostrarTexto}
+            enviando={acao === 'arquivos'}
+            ocupado={acao !== null}
           />
-
           {erroEm('entrada')}
-          <LinhaDeAcoes>
-            <Botao
-              rotulo="Escolher arquivos"
-              tipo="primario"
-              Icone={FileUp}
-              carregando={acao === 'arquivos'}
-              aoTocar={() => void iniciarSessaoComArquivos()}
-            />
-            <Botao
-              rotulo={mostrarTexto ? 'Fechar o texto' : 'Colar texto'}
-              tipo="secundario"
-              Icone={FileText}
-              aoTocar={() => setMostrarTexto(!mostrarTexto)}
-            />
-          </LinhaDeAcoes>
-          <Texto variante="pequeno" cor={cores.textoSuave}>
-            PDF, DOCX, XLSX ou CSV (até 20 arquivos e 8 MB no lote). Arquivos escaneados sem texto selecionável serão sinalizados na leitura.
-          </Texto>
 
           {mostrarTexto ? (
             <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
@@ -479,6 +538,13 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
             </View>
           ) : null}
           </Cartao>
+
+          {sessoesAbertas.length > 0 ? (
+            <Cartao titulo="Importações em aberto" descricao="Retome uma importação antes que ela expire.">
+              {erroEm('abertas')}
+              <ImportacoesEmAberto sessoes={sessoesAbertas} retomando={retomando} aoRetomar={retomar} aoDescartar={setDescartarDaLista} />
+            </Cartao>
+          ) : null}
         </>
       ) : (
         <>
@@ -493,6 +559,12 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
               <Alerta tom="atencao" texto={modo.alertaFallback} />
             ) : modo ? (
               <Texto variante="suave">{modo.descricao}</Texto>
+            ) : null}
+            {lidoSemIa(sessao.modoProcessamento) ? (
+              <View style={estilos.lista}>
+                <Texto variante="suave">{DICA_DE_TREINO_DESMONTADO}</Texto>
+                {pode('MODELO_LER') && pode('MODELO_ALTERAR') ? <LinkTexto href={COLAR_TREINO} texto="Colar treino de PDF / Docs" /> : null}
+              </View>
             ) : null}
             <View style={estilos.lista}>
               {sessao.arquivos.map((arq) => {
@@ -515,17 +587,7 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
             </View>
 
             {erroEm('entrada')}
-            {sessao.estado === 'RECEBENDO' || sessao.estado === 'RASCUNHO' ? (
-              <LinhaDeAcoes>
-                <Botao
-                  rotulo="Ler os arquivos"
-                  tipo="primario"
-                  Icone={FileSearch}
-                  carregando={acao === 'processar'}
-                  aoTocar={processar}
-                />
-              </LinhaDeAcoes>
-            ) : null}
+            {!comLateral && podeLer ? <>{erroEm('proxima')}{botaoLer}</> : null}
           </Cartao>
 
           {acao === 'processar' || sessao.estado === 'PROCESSANDO' ? (
@@ -534,127 +596,36 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
             </Cartao>
           ) : null}
 
-          {sessao.duvidas && sessao.duvidas.length > 0 ? (
+          {duvidas.length > 0 ? (
             <Cartao
               titulo="Termos para conferir"
               descricao="Abreviações e nomes de exercícios ou alimentos que o sistema não reconheceu com certeza."
             >
               {erroEm('duvidas')}
-              {sessao.duvidas.map((d) => {
-                const qtdOcorrencias = d.ocorrenciaIds?.length ?? d.ocorrencias;
-                const decisaoAtiva = decisoesAtivasPorDuvida.get(d.id);
-                const editandoEsta = duvidaAtiva?.id === d.id;
-                return (
-                  <View key={d.id} style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
-                    <View style={estilos.cabecalhoItem}>
-                      <Texto variante="bloco" nivel={3} style={estilos.encolher}>{rotuloDaDuvida(d.tipo)}</Texto>
-                      <Selo texto={d.resolvida ? 'Resolvida' : 'Conferir'} tipo={d.resolvida ? 'sucesso' : 'atencao'} />
-                    </View>
-
-                    <Texto>Termo: “{d.termoOriginal}” · no trecho “{d.trechoOriginal}”</Texto>
-                    <Texto variante="pequeno" cor={cores.textoSuave} numerico>
-                      {plural(qtdOcorrencias, 'ocorrência afetada', 'ocorrências afetadas')}
-                    </Texto>
-
-                    {d.resolvida && !editandoEsta ? (
-                      <View style={estilos.blocoInterno}>
-                        <Texto variante="suave">Ficou como: {d.respostaEscolhida ?? '—'}</Texto>
-                        <LinhaDeAcoes>
-                          <Botao
-                            rotulo="Alterar resposta"
-                            tipo="secundario"
-                            aoTocar={() => {
-                              setDuvidaAtiva(d);
-                              setRespostaEscolhida(d.respostaEscolhida ?? d.termoOriginal);
-                              setReferenciaEscolhida(decisaoAtiva?.referenciaId ?? null);
-                            }}
-                          />
-                          {decisaoAtiva ? (
-                            <Botao
-                              rotulo="Revogar"
-                              tipo="fantasma"
-                              carregando={acao === 'revogar'}
-                              aoTocar={() => revogar(decisaoAtiva)}
-                            />
-                          ) : null}
-                        </LinhaDeAcoes>
-                      </View>
-                    ) : (
-                      <View style={estilos.blocoInterno}>
-                        {d.sugestoes && d.sugestoes.length > 0 ? (
-                          <View style={estilos.blocoInterno}>
-                            <Texto variante="rotulo">Sugestões do catálogo</Texto>
-                            <LinhaDeAcoes>
-                              {d.sugestoes.map((sug) => (
-                                <Botao
-                                  key={`${sug.termo}-${sug.referenciaId ?? ''}`}
-                                  rotulo={sug.nota != null ? `${sug.termo} (${Math.round(sug.nota * 100)}%)` : sug.termo}
-                                  tipo="secundario"
-                                  aoTocar={() => {
-                                    setDuvidaAtiva(d);
-                                    setRespostaEscolhida(sug.termo);
-                                    setReferenciaEscolhida(sug.referenciaId ?? null);
-                                  }}
-                                />
-                              ))}
-                            </LinhaDeAcoes>
-                          </View>
-                        ) : null}
-
-                        {editandoEsta ? (
-                          <View style={estilos.blocoInterno}>
-                            <Campo
-                              rotulo="Nome correto do exercício ou alimento"
-                              valor={respostaEscolhida}
-                              aoMudar={(texto) => {
-                                setRespostaEscolhida(texto);
-                                setReferenciaEscolhida(null);
-                              }}
-                            />
-                            <Interruptor
-                              rotulo="Lembrar nas próximas importações"
-                              ajuda="Fica no dicionário da consultoria."
-                              valor={salvarDicionario}
-                              aoMudar={setSalvarDicionario}
-                            />
-                            <LinhaDeAcoes>
-                              <Botao
-                                rotulo="Salvar resposta"
-                                tipo="primario"
-                                Icone={CheckCircle2}
-                                carregando={acao === 'responder'}
-                                desabilitado={!respostaEscolhida.trim()}
-                                motivo="Escreva o nome correto."
-                                aoTocar={resolverDuvida}
-                              />
-                              <Botao
-                                rotulo="Cancelar"
-                                tipo="fantasma"
-                                aoTocar={() => {
-                                  setDuvidaAtiva(null);
-                                  setReferenciaEscolhida(null);
-                                }}
-                              />
-                            </LinhaDeAcoes>
-                          </View>
-                        ) : (
-                          <LinhaDeAcoes>
-                            <Botao
-                              rotulo="Corrigir o termo"
-                              tipo="secundario"
-                              aoTocar={() => {
-                                setDuvidaAtiva(d);
-                                setRespostaEscolhida(d.termoOriginal);
-                                setReferenciaEscolhida(null);
-                              }}
-                            />
-                          </LinhaDeAcoes>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
+              <TermosParaConferir
+                duvidas={duvidas}
+                decisoes={decisoesAtivasPorDuvida}
+                edicao={duvidaAtiva ? { id: duvidaAtiva.id, resposta: respostaEscolhida, salvarDicionario } : null}
+                salvando={acao === 'responder'}
+                revogando={acao === 'revogar'}
+                pendente={focoInicial?.tipo === 'termo' ? { id: focoInicial.duvidaId, ref: refTermo } : undefined}
+                aoEditar={(d, resposta, referenciaId) => {
+                  setDuvidaAtiva(d);
+                  setRespostaEscolhida(resposta);
+                  setReferenciaEscolhida(referenciaId);
+                }}
+                aoMudarResposta={(texto) => {
+                  setRespostaEscolhida(texto);
+                  setReferenciaEscolhida(null);
+                }}
+                aoMudarDicionario={setSalvarDicionario}
+                aoSalvar={resolverDuvida}
+                aoCancelar={() => {
+                  setDuvidaAtiva(null);
+                  setReferenciaEscolhida(null);
+                }}
+                aoRevogar={revogar}
+              />
             </Cartao>
           ) : null}
 
@@ -709,52 +680,29 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
                   selecionado={selecionadosAtivos.has(g.id)}
                   aoSelecionar={g.destino !== 'IGNORAR' ? (m) => alternarSelecao(g.id, m) : undefined}
                   aoMudar={(v) => alterarDestinoDoGrupo(g, v)}
+                  refDoDestino={focoInicial?.tipo === 'aluno' && focoInicial.grupoId === g.id ? refAluno : undefined}
                 />
               )))}
 
-              {/* Resultado junto dos botões: quem tocou em gravar o vê sem rolar a página. */}
-              {resumo ? (
-                <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
-                  <View style={estilos.lista}>
-                    <Texto variante="bloco" nivel={3}>{resumo.titulo}</Texto>
-                    {resumo.descricao ? <Texto variante="suave">{resumo.descricao}</Texto> : null}
-                  </View>
-                  {resumo.alerta ? <Alerta tom={resumo.alerta.tom} texto={resumo.alerta.texto} /> : null}
-                  <View style={estilos.lista}>
-                    {resumo.linhas.map((l) => <Texto key={l} numerico>{l}</Texto>)}
-                  </View>
-                </View>
-              ) : null}
-
               {erroEm('grupos')}
-              <LinhaDeAcoes>
-                {temPendentes ? (
-                  <Botao
-                    rotulo={gravaveisSelecionados.length > 0 ? `Gravar selecionados (${gravaveisSelecionados.length})` : 'Gravar selecionados'}
-                    tipo="primario"
-                    Icone={CheckCircle2}
-                    carregando={acao === 'confirmar' && gravando === 'pendentes'}
-                    desabilitado={!!motivoConfirmar || acao === 'destino' || acao === 'confirmar'}
-                    motivo={motivoConfirmar ?? (acao === 'destino' ? 'Salvando o destino…' : 'Aguarde a gravação terminar.')}
-                    aoTocar={() => gravar(gravaveisSelecionados, 'pendentes')}
-                  />
-                ) : null}
-                {comErro.length > 0 ? (
-                  <Botao
-                    rotulo="Tentar de novo os que deram erro"
-                    tipo={temPendentes ? 'secundario' : 'primario'}
-                    Icone={RotateCcw}
-                    carregando={acao === 'confirmar' && gravando === 'erros'}
-                    desabilitado={acao === 'confirmar' || acao === 'destino' || !sessao.hashPrevia}
-                    motivo={!sessao.hashPrevia ? 'Atualize a sessão antes de tentar de novo.' : 'Aguarde a gravação terminar.'}
-                    aoTocar={() => gravar(comErro, 'erros')}
-                  />
-                ) : null}
-              </LinhaDeAcoes>
+              {comLateral ? null : doGravar}
             </Cartao>
           ) : null}
         </>
       )}
+    </>
+  );
+
+  return (
+    <View ref={refRaiz} style={estilos.blocos}>
+      {comLateral ? (
+        <View style={estilos.ladoALado}>
+          <View style={[estilos.blocos, estilos.principal]}>{blocos}</View>
+          <ColunaDasEtapas atual={etapaAtual} contagens={contagens}>
+            {podeLer ? <>{erroEm('proxima')}{botaoLer}</> : doGravar}
+          </ColunaDasEtapas>
+        </View>
+      ) : blocos}
 
       <PainelConfirmacao
         visivel={descartar}
@@ -765,8 +713,109 @@ export function PainelImportacaoAssistida({ sessaoIdInicial }: { sessaoIdInicial
         aoConfirmar={confirmarCancelamento}
         aoCancelar={() => setDescartar(false)}
       />
+      <PainelConfirmacao
+        visivel={!!descartarDaLista}
+        titulo={`Descartar a importação de ${descartarDaLista ? dataHoraParaTela(descartarDaLista.criadoEm) : ''}?`}
+        mensagem="A sessão será cancelada e os arquivos temporários serão descartados. O que já foi gravado permanece."
+        rotuloConfirmar="Descartar importação"
+        perigo
+        aoConfirmar={confirmarDescarteDaLista}
+        aoCancelar={() => setDescartarDaLista(null)}
+      />
     </View>
   );
+}
+
+type Focavel = { focus: () => void };
+
+/** O h1 da tela (o título do `Cabecalho`, que não expõe ref): o mais perto do painel, subindo pelos ancestrais. */
+function tituloDaTela(raiz: View | null): HTMLElement | null {
+  for (let no = (raiz as unknown as HTMLElement | null)?.parentElement; no; no = no.parentElement) {
+    const titulo = no.querySelector<HTMLElement>('h1, [role="heading"][aria-level="1"]');
+    if (titulo) return titulo;
+  }
+  return null;
+}
+
+const emCampo = (el: Element | null) =>
+  !!el && ((el as HTMLElement).isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT');
+
+/**
+ * Foco ao entrar (T-206), uma vez por montagem: no título da tela ou na primeira ação pendente (`focoAoEntrar`). Não
+ * rouba: se a pessoa já tocou ou teclou desde que a tela abriu, ou está num campo, o foco fica onde está. Espera dois
+ * quadros, porque a tabela dos termos se mede e, estreita, vira cartões (o botão remonta), e confere de novo em 300 ms:
+ * se o botão focado sumiu nessa troca (foco no `body`), foca o novo. O título não rola a página; a ação rola só se
+ * estiver fora da vista. No nativo o leitor de tela já começa no topo da tela nova: só a ação pendente recebe o foco
+ * (`setAccessibilityFocus`, como em `ConferirOArquivo`).
+ */
+function useFocoAoEntrar(
+  foco: FocoAoEntrar | null,
+  raiz: RefObject<View | null>,
+  ler: RefObject<View | null>,
+  termo: RefObject<View | null>,
+  aluno: RefObject<Focavel | null>,
+) {
+  const interagiu = useRef(false);
+  const feito = useRef(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const marcar = () => { interagiu.current = true; };
+    document.addEventListener('keydown', marcar, true);
+    document.addEventListener('pointerdown', marcar, true);
+    return () => {
+      document.removeEventListener('keydown', marcar, true);
+      document.removeEventListener('pointerdown', marcar, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!foco || feito.current) return;
+    let noNativo: number | null = null;
+    const focar = () => {
+      if (interagiu.current) return;
+      if (Platform.OS !== 'web') {
+        const no = findNodeHandle(foco.tipo === 'ler' ? ler.current : foco.tipo === 'termo' ? termo.current : null);
+        // O mesmo nó já tem o foco; outro nó é o botão remontado.
+        if (!no || no === noNativo) return;
+        AccessibilityInfo.setAccessibilityFocus(no);
+        noNativo = no;
+        feito.current = true;
+        return;
+      }
+      const ativo = document.activeElement;
+      // Na segunda passada só refaz se o foco se perdeu (o botão sumiu); a primeira tira o foco do menu que abriu a tela.
+      if (feito.current && ativo && ativo !== document.body) return;
+      if (emCampo(ativo)) return;
+      if (foco.tipo === 'aluno') {
+        if (!aluno.current) return;
+        aluno.current.focus();
+      } else if (foco.tipo === 'titulo') {
+        const titulo = tituloDaTela(raiz.current);
+        if (!titulo) return;
+        if (!titulo.hasAttribute('tabindex')) titulo.setAttribute('tabindex', '-1');
+        titulo.focus({ preventScroll: true });
+      } else {
+        const botao = (foco.tipo === 'ler' ? ler.current : termo.current) as unknown as HTMLElement | null;
+        if (!botao) return;
+        botao.focus();
+      }
+      feito.current = true;
+    };
+    let segundo = 0;
+    let espera: ReturnType<typeof setTimeout> | undefined;
+    const primeiro = requestAnimationFrame(() => {
+      segundo = requestAnimationFrame(() => {
+        focar();
+        espera = setTimeout(focar, 300);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(primeiro);
+      cancelAnimationFrame(segundo);
+      clearTimeout(espera);
+    };
+  }, [foco, raiz, ler, termo, aluno]);
 }
 
 /** Grupo gravado, ignorado no fim ou com erro na gravação: uma linha com o selo, sem ações. O erro diz o motivo. */
@@ -785,13 +834,15 @@ function LinhaResumida({ grupo }: { grupo: GrupoImportavel }) {
 }
 
 /** Grupo ainda não gravado: o que foi lido ("—" onde não há dado ou a pessoa não pode ver) e o destino. */
-function GrupoParaConferir({ grupo, pode, conferidos, selecionado, aoSelecionar, aoMudar }: {
+function GrupoParaConferir({ grupo, pode, conferidos, selecionado, aoSelecionar, aoMudar, refDoDestino }: {
   grupo: GrupoImportavel;
   pode: (codigo: string) => boolean;
   conferidos: ReadonlySet<string>;
   selecionado: boolean;
   aoSelecionar?: (marcado: boolean) => void;
   aoMudar: (valor: ValorDoDestino | null) => void;
+  /** Só no aluno parecido que recebe o foco ao entrar na tela (T-206). */
+  refDoDestino?: Ref<Focavel | null>;
 }) {
   const { cores } = useTema();
   const selo = seloDoGrupo(grupo.estado);
@@ -813,6 +864,7 @@ function GrupoParaConferir({ grupo, pode, conferidos, selecionado, aoSelecionar,
       ) : null}
 
       <Escolha<ValorDoDestino | null>
+        ref={refDoDestino}
         rotulo="Destino"
         valor={valorDoDestino(grupo, conferidos)}
         aoMudar={aoMudar}
@@ -840,6 +892,7 @@ const estilos = StyleSheet.create({
   // A linha resumida é mais baixa que o grupo para conferir: diz o que houve sem disputar a atenção.
   resumida: { borderWidth: 1, borderRadius: RAIO, paddingVertical: espaco(1.5), paddingHorizontal: espaco(2), gap: espaco(0.5) },
   cabecalhoItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: espaco(1) },
-  blocoInterno: { gap: espaco(2) },
+  ladoALado: { flexDirection: 'row', alignItems: 'flex-start', gap: VAO_DA_LATERAL },
+  principal: { flex: 1, minWidth: 0 },
   encolher: { flex: 1, minWidth: 0 },
 });

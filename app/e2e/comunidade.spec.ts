@@ -226,6 +226,19 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
+    test('aluno: no celular "Nova publicação" ocupa a largura do conteúdo; no PC fica do tamanho do texto', async ({ page }) => {
+      await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia });
+      await page.goto('/aluno/comunidade');
+      const botao = page.getByRole('button', { name: 'Nova publicação' });
+      await expect(botao).toBeVisible();
+      const caixa = (await botao.boundingBox())!;
+      // Celular: do recuo da esquerda ao da direita (margens simétricas de até 40 px), sem sair da tela.
+      if (largura === 390) {
+        expect(caixa.x).toBeLessThan(40);
+        expect(Math.abs(caixa.x - (390 - caixa.x - caixa.width))).toBeLessThanOrEqual(2);
+      } else expect(caixa.width).toBeLessThan(300);
+    });
+
     test('aluno: "Nova publicação" abre a folha, valida no envio, escolhe o tipo e manda o objeto; sem foto, sem botão de foto', async ({ page }) => {
       const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia, 'POST /aluno/comunidade/mural': { corpo: { ...POST, id: 'novo', texto: 'Oi, time' } } });
       await page.goto('/aluno/comunidade');

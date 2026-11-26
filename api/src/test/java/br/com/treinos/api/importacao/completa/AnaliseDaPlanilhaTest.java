@@ -138,6 +138,28 @@ class AnaliseDaPlanilhaTest {
     }
 
     @Test
+    void dataAntesDe1900OuQueNaoExisteEInvalidaNoPesoENoInicio() {
+        Map<String, List<List<Object>>> abas = new LinkedHashMap<>();
+        abas.put("Alunos", List.of(CAB_ALUNOS,
+                linha("ALU001", "Aluno Teste 1", null, null, 80, null, "05/01/0224", "Ativo", null),
+                linha("ALU002", "Aluno Teste 2", null, null, 70, null, "31/04/2026", "Ativo", null),
+                linha("ALU003", "Aluno Teste 3", null, null, 60, null, "05/01/1900", "Ativo", null)));
+        abas.put("Histórico Pesos", List.of(CAB_PESOS,
+                linha("P1", "ALU001", "Aluno Teste 1", "15/03/0224", 1, 80, null, null),
+                linha("P2", "ALU001", "Aluno Teste 1", "29/02/2025", 2, 80, null, null),
+                linha("P3", "ALU001", "Aluno Teste 1", "31/12/1899", 3, 80, null, null),
+                linha("P4", "ALU001", "Aluno Teste 1", "01/01/1900", 4, 80, null, null)));
+        Analise a = analisar(abas, List.of());
+        assertThat(semCampo(a.problemas())).containsExactly(
+                problema("Alunos", 2, "DATA_INICIO_INVALIDA"),
+                problema("Alunos", 3, "DATA_INICIO_INVALIDA"),
+                problema("Histórico Pesos", 2, "DATA_INVALIDA"),
+                problema("Histórico Pesos", 3, "DATA_INVALIDA"),
+                problema("Histórico Pesos", 4, "DATA_INVALIDA"));
+        assertThat(a.toString()).doesNotContain("0224");
+    }
+
+    @Test
     void paridadeTituloAcimaEOutrosCasosDoConversorDeAlunos() {
         // "primeira célula do cabeçalho com um ID no lugar de ID, título acima e aba com outro nome de caixa"
         Map<String, List<List<Object>>> titulo = new LinkedHashMap<>();

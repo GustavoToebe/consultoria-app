@@ -60,7 +60,7 @@ class AmostraDaPlanilhaIntegrationTest extends AbstractIntegrationTest {
     }
 
     private JsonNode enviar(JsonNode login, String acao, String inicio, String hash, int esperado, byte[] planilha,
-                            String ignorados) throws Exception {
+                            List<String> chavesIgnoradas) throws Exception {
         MockMultipartHttpServletRequestBuilder pedido = multipart(BASE + acao)
                 .file(new MockMultipartFile("arquivo", "planilha.xlsx", "application/octet-stream", planilha))
                 .header("X-Treinos-Cliente", "nativo")
@@ -71,8 +71,10 @@ class AmostraDaPlanilhaIntegrationTest extends AbstractIntegrationTest {
         if (hash != null) {
             pedido.param("hash", hash);
         }
-        if (ignorados != null) {
-            pedido.param("alunosIgnorados", ignorados);
+        if (chavesIgnoradas != null) {
+            // Parte do corpo, nunca a query: a chave pode ter o nome do aluno.
+            pedido.file(new MockMultipartFile("chavesIgnoradas", "", "application/json",
+                    json.writeValueAsString(chavesIgnoradas).getBytes(StandardCharsets.UTF_8)));
         }
         String texto = mvc.perform(pedido).andExpect(status().is(esperado)).andReturn().getResponse()
                 .getContentAsString(StandardCharsets.UTF_8);
@@ -176,6 +178,10 @@ class AmostraDaPlanilhaIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/alunos/" + id + "/pesos", treinador, 200)).hasSize(2);
     }
 
+    private static String chave(JsonNode amostra, int posicao) {
+        return amostra.path("alunos").get(posicao).path("chave").asString();
+    }
+
     @Test
     void alunoIgnoradoNaAmostraFicaForaDaConfirmacaoSemMudarOHash() throws Exception {
         JsonNode amostra = enviar(treinador, "amostra", null, null, 200);
@@ -185,7 +191,8 @@ class AmostraDaPlanilhaIntegrationTest extends AbstractIntegrationTest {
 
         // Marcar ou desmarcar um aluno não muda o hash: a mesma prévia vale com e sem a lista.
         assertThat(enviar(treinador, "previa", null, null, 200).path("hash").asString()).isEqualTo(hash);
-        JsonNode feito = enviar(treinador, "confirmar", null, hash, 200, PLANILHA, "2,4");
+        JsonNode feito = enviar(treinador, "confirmar", null, hash, 200, PLANILHA,
+                List.of(chave(amostra, 1), chave(amostra, 3)));
 
         assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(3);
         assertThat(feito.path("criados").path("alunosNovos").asInt()).isEqualTo(3);
@@ -194,14 +201,37 @@ class AmostraDaPlanilhaIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void ignorarTodosOsAlunosOuUmNumeroQueNaoExisteERecusado() throws Exception {
-        String hash = enviar(treinador, "amostra", null, null, 200).path("hash").asString();
+    void ignoradoPelaChaveContinuaOMesmoSeAlguemEhCriadoDepoisDaAmostra() throws Exception {
+        JsonNode amostra = enviar(treinador, "amostra", null, null, 200);
+        String hash = amostra.path("hash").asString();
+        String nomeIgnorado = amostra.path("alunos").get(0).path("nome").asString();
+        String chave = chave(amostra, 0);
+        // O "Aluno Um" da planilha é cadastrado entre a amostra e a confirmação: na planilha ele passa de NOVO a EXISTENTE,
+        // mas a chave dele continua a mesma e o ignorado continua sendo ele.
+        String id = api.post("/alunos", treinador, Map.of("nome", nomeIgnorado,
+                "email", amostra.path("alunos").get(0).path("email").asString()), 200).path("id").asString();
 
-        JsonNode todos = enviar(treinador, "confirmar", null, hash, 422, PLANILHA, "1,2,3,4,5");
+        enviar(treinador, "confirmar", null, hash, 200, PLANILHA, List.of(chave));
+
+        // O que já existia + os outros 4 da planilha; o ignorado não ganhou pasta nem peso.
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(5);
+        assertThat(api.get("/alunos/" + id + "/pesos", treinador, 200)).isEmpty();
+        assertThat(api.get("/alunos/" + id + "/pastas", treinador, 200)).isEmpty();
+    }
+
+    @Test
+    void ignorarTodosOsAlunosOuUmaChaveQueNaoExisteERecusado() throws Exception {
+        JsonNode amostra = enviar(treinador, "amostra", null, null, 200);
+        String hash = amostra.path("hash").asString();
+
+        List<String> todas = new java.util.ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            todas.add(chave(amostra, i));
+        }
+        JsonNode todos = enviar(treinador, "confirmar", null, hash, 422, PLANILHA, todas);
         assertThat(todos.path("codigo").asString()).isEqualTo("NENHUM_ALUNO_MARCADO");
-        assertThat(enviar(treinador, "confirmar", null, hash, 422, PLANILHA, "9").path("codigo").asString())
+        assertThat(enviar(treinador, "confirmar", null, hash, 422, PLANILHA, List.of("linha:999")).path("codigo").asString())
                 .isEqualTo("ALUNO_IGNORADO_INVALIDO");
-        enviar(treinador, "confirmar", null, hash, 422, PLANILHA, "0");
         // Nada foi gravado.
         assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
     }

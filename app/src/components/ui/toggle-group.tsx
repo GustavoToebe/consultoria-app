@@ -58,7 +58,19 @@ function ToggleGroupItem({
     isLast?: boolean;
   }) {
   const context = useToggleGroupContext();
-  const { value } = ToggleGroupPrimitive.useRootContext();
+  const { type, value, onValueChange } = ToggleGroupPrimitive.useRootContext();
+  const espacoApertado = React.useRef(false);
+  // Web: o item é um `div role="radio"` e o primitivo só trata Enter (Pressable); o Espaço (padrão ARIA) não faz nada e ainda rola a página.
+  // Seleciona ao soltar, como o botão nativo, pelo mesmo caminho do clique (`onPress` do primitivo).
+  const teclaEspaco = Platform.OS === 'web' && !props.disabled ? {
+    onKeyDown: (e: { key: string; preventDefault: () => void; repeat?: boolean }) => { if (e.key === ' ') { e.preventDefault(); if (!e.repeat) espacoApertado.current = true; } },
+    onKeyUp: (e: { key: string }) => {
+      if (e.key !== ' ' || !espacoApertado.current) return;
+      espacoApertado.current = false;
+      if (type === 'single') onValueChange(ToggleGroupPrimitive.utils.getNewSingleValue(value as string | undefined, props.value));
+      else onValueChange(ToggleGroupPrimitive.utils.getNewMultipleValue(value as string[] | undefined, props.value));
+    },
+  } : null;
 
   return (
     <TextClassContext.Provider
@@ -85,7 +97,7 @@ function ToggleGroupItem({
           }),
           className
         )}
-        {...props} style={estiloPrimitivo(props.style)}>
+        {...teclaEspaco} {...props} style={estiloPrimitivo(props.style)}>
         {children}
       </ToggleGroupPrimitive.Item>
     </TextClassContext.Provider>

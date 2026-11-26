@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 
 import { LARGURA_MAXIMA } from '../../tema/tokens';
+import { distanciaDoRodapeRegistrado, limparRegistroDoRodape, registrarPeDaCamada } from '../../ui/rodapeFixoDaPagina';
 import { ComColunas, useDuasColunas, useTresColunas } from './ColunasDoEditor';
 import { TelaDoEditor } from './TelaDoEditor';
 
@@ -91,6 +92,33 @@ describe('TelaDoEditor: duas e três colunas (ultralarga)', () => {
     mockLarguraJanela = 1920;
     const a = montar(true, 1680);
     expect(a.root.findByProps({ testID: 'sonda' }).props.children).toBe('true:false|true:false');
+  });
+
+  it('no celular, o rodapé fora da rolagem entra no registro do aviso (toast) e sai quando some', () => {
+    limparRegistroDoRodape();
+    registrarPeDaCamada(844);
+    let arvore: Arvore | undefined;
+    Renderer.act(() => {
+      arvore = Renderer.create(
+        <TelaDoEditor cabecalho={<View />} barra={<View />} rodape={<View />}><View /></TelaDoEditor>,
+      );
+    });
+    const a = arvore as Arvore;
+    // Só o rodapé é medido na janela: topo a 147 px do pé (64 do rodapé + 83 da barra de abas). A `View` simulada do jest
+    // tem `measureInWindow` vazio; o rodapé é a única com `ref` e `onLayout` fora a raiz e a do `KeyboardAvoidingView`.
+    const rodape = a.root.findAll((n) => typeof n.props.onLayout === 'function' && Array.isArray(n.props.style)
+      && n.props.style.some((s: { borderTopWidth?: number } | null) => s?.borderTopWidth === 1) && n.instance !== null);
+    expect(rodape.length).toBe(1);
+    Renderer.act(() => {
+      (rodape[0].instance as { measureInWindow: (cb: (x: number, y: number, l: number, h: number) => void) => void }).measureInWindow = (cb) => cb(0, 697, 390, 64);
+      rodape[0].props.onLayout({ nativeEvent: { layout: { width: 390, height: 64 } } });
+    });
+    expect(distanciaDoRodapeRegistrado()).toBe(147);
+    // O rodapé some com a tela ainda montada: sai do registro junto com a `View` dele.
+    Renderer.act(() => a.update(<TelaDoEditor cabecalho={<View />} barra={<View />}><View /></TelaDoEditor>));
+    expect(distanciaDoRodapeRegistrado()).toBeNull();
+    Renderer.act(() => a.unmount());
+    expect(distanciaDoRodapeRegistrado()).toBeNull();
   });
 
   it('sem a prop colunas, não ativa duas nem três colunas mesmo em ultralarga', () => {

@@ -127,7 +127,7 @@ export default function HistoricoAluno() {
 
   const ainda = naoEnviados.length ? (
     <Cartao titulo="Ainda não enviados">
-      <Texto numerico variante="suave">Salvos neste aparelho. Vão para o seu treinador quando houver internet.</Texto>
+      <Texto variante="suave">Salvos neste aparelho. Vão para o seu treinador quando houver internet.</Texto>
       {agrupar(naoEnviados).map(([chave, lista]) => {
         const info = nomes.get(lista[0].exercicioUid);
         return (
@@ -167,7 +167,7 @@ export default function HistoricoAluno() {
       ) : null}
       <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
       {historico.dados && historico.dados.length ? <Texto numerico variante="pequeno">{fraseDoHistorico(visao, de, ate)}</Texto> : null}
-      {semConexao ? <Texto numerico variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}
+      {semConexao ? <Texto variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}
       {historico.erro && !semConexao ? <MensagemErro texto={textoDoErro(historico.erro)} erro={historico.erro} tentarDeNovo={historico.recarregar} /> : null}
       {!historico.dados && historico.carregando ? <Esqueleto /> : null}
       {historico.dados && historico.dados.length === 0 ? (

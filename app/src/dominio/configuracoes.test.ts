@@ -1,14 +1,20 @@
 import { abaDoPlanejamento, tipoDoPlanejamento } from '../treinador/planejamento/modelos';
+import { artigoDaTela } from './ajudaDaTela';
 import {
+  abreDentro,
   buscarCartoes,
   CARTOES_DE_CONFIGURACAO,
   cartoesVisiveis,
+  destinoNaColuna,
+  primeiroItemDentro,
   type CartaoDeConfiguracao,
   type ContextoDeConfiguracoes,
   GRUPOS_DE_CONFIGURACAO,
   gruposDeCartoes,
 } from './configuracoes';
 import { pode, podeAcessarTela } from './permissoes';
+import { ehItemEmbutido, itemDoCaminho, ROTA_INTEIRA_DO_ITEM, rotaInteiraDoCaminho } from './rotasDasConfiguracoes';
+import { nomeDaTela } from './telas';
 
 const TUDO: ContextoDeConfiguracoes = { pode: () => true, administrador: true, pagamentosHabilitados: true, chaves: { recebimentoOnlineHabilitado: true, overtrainingPayHabilitado: true, whatsappHabilitado: true } };
 const com = (codigos: string[], resto: Partial<ContextoDeConfiguracoes> = {}): ContextoDeConfiguracoes => ({
@@ -203,5 +209,66 @@ describe('buscarCartoes', () => {
   it('só procura entre os cartões recebidos (os que o perfil não vê não são achados)', () => {
     expect(buscarCartoes('marca', cartoesVisiveis(com([])))).toEqual([]);
     expect(ids(buscarCartoes('marca', cartoesVisiveis(TUDO)))).toContain('marca');
+  });
+});
+
+describe('itens que abrem dentro de Configurações (coluna da direita)', () => {
+  it('cada item embutido é um cartão do catálogo e a rota inteira dele é o href do cartão (as duas rotas mostram a mesma tela)', () => {
+    for (const [id, rota] of Object.entries(ROTA_INTEIRA_DO_ITEM)) {
+      expect([id, CARTOES_DE_CONFIGURACAO.find((c) => c.id === id)?.href]).toEqual([id, rota]);
+    }
+  });
+
+  it('abrem dentro só as telas de configuração; as do menu principal abrem a tela inteira', () => {
+    expect(ids(CARTOES_DE_CONFIGURACAO.filter(abreDentro))).toEqual([
+      'meus-dados', 'seguranca', 'ajustes', 'minha-conta', 'marca', 'contato', 'whatsapp-oficial', 'documentos-pdf', 'tags-dos-alunos', 'termos',
+    ]);
+    const marca = CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'marca')!;
+    const auditoria = CARTOES_DE_CONFIGURACAO.find((c) => c.id === 'auditoria')!;
+    expect(destinoNaColuna(marca)).toBe('/treinador/configuracoes/marca');
+    expect(destinoNaColuna(auditoria)).toBe('/treinador/auditoria');
+  });
+
+  it('sem item, abre o primeiro que abre dentro (Meus dados); sem nenhum, nada', () => {
+    expect(primeiroItemDentro(cartoesVisiveis(com([])))?.id).toBe('meus-dados');
+    expect(primeiroItemDentro(CARTOES_DE_CONFIGURACAO.filter((c) => !abreDentro(c)))).toBeNull();
+  });
+
+  it('o caminho embutido vira a rota inteira; o resto não', () => {
+    expect(itemDoCaminho('/treinador/configuracoes/marca')).toBe('marca');
+    expect(itemDoCaminho('/treinador/configuracoes/auditoria')).toBe('auditoria');
+    expect(itemDoCaminho('/treinador/configuracoes')).toBeNull();
+    expect(itemDoCaminho('/treinador/configuracoes/marca/x')).toBeNull();
+    expect(rotaInteiraDoCaminho('/treinador/configuracoes/contato')).toBe('/treinador/marca');
+    expect(rotaInteiraDoCaminho('/treinador/configuracoes/auditoria')).toBeNull();
+    expect(rotaInteiraDoCaminho('/treinador/marca')).toBeNull();
+    expect(ehItemEmbutido('toString')).toBe(false);
+  });
+
+  it('a guarda do item embutido é a da rota inteira, e id desconhecido falha fechado', () => {
+    expect(podeAcessarTela('/treinador/configuracoes/meus-dados', () => false)).toBe(true);
+    expect(podeAcessarTela('/treinador/configuracoes/marca', () => true, false, false)).toBe(false);
+    expect(podeAcessarTela('/treinador/configuracoes/marca', () => true, false, true)).toBe(true);
+    expect(podeAcessarTela('/treinador/configuracoes/minha-conta', (c) => c === 'CONTA_LER')).toBe(true);
+    expect(podeAcessarTela('/treinador/configuracoes/minha-conta', () => false)).toBe(false);
+    expect(podeAcessarTela('/treinador/configuracoes/tags-dos-alunos', (c) => c === 'ALUNO_LER')).toBe(true);
+    expect(podeAcessarTela('/treinador/configuracoes/auditoria', () => true, true, true)).toBe(false);
+    expect(podeAcessarTela('/treinador/configuracoes/xyz', () => true, true, true)).toBe(false);
+  });
+
+  it('o "Saiba mais" e o título da aba são os da tela inteira', () => {
+    expect(artigoDaTela('/treinador/configuracoes/seguranca')).toBeNull();
+    expect(artigoDaTela('/treinador/configuracoes/meus-dados')).toBeNull();
+    expect(artigoDaTela('/treinador/configuracoes/termos')).toBe('/treinador/ajuda?secao=privacidade');
+    expect(artigoDaTela('/treinador/configuracoes/marca')).toBe(artigoDaTela('/treinador/marca'));
+    expect(artigoDaTela('/treinador/configuracoes')).toBe('/treinador/ajuda?secao=consultoria');
+    expect(nomeDaTela('/treinador/configuracoes/seguranca')).toBe('Segurança');
+    expect(nomeDaTela('/treinador/configuracoes/minha-conta')).toBe('Assinatura e faturas');
+    expect(nomeDaTela('/treinador/configuracoes')).toBe('Configurações');
+  });
+
+  it('o item "Aniversários dos alunos" saiu (a opção mora no bloco do Início)', () => {
+    expect(ids(CARTOES_DE_CONFIGURACAO)).not.toContain('aniversarios');
+    expect(buscarCartoes('aniversario', CARTOES_DE_CONFIGURACAO)).toEqual([]);
   });
 });

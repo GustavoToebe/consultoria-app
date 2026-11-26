@@ -107,10 +107,11 @@ for (const [largura, altura, mesmaLinha] of [[1920, 1080, false], [2560, 1440, t
       } else {
         expect(agenda.y).toBeGreaterThan(atualizacoes.y + 100);
       }
-      // Sem cartão sozinho na última linha: Alunos (a rosca) fica na mesma linha de Recebido.
-      const recebido = await caixa(blocoDoInicio(page, 'Recebido e lançamentos'));
+      // Sem cartão sozinho na última linha: com 6 colunas Alunos desce para junto de Aniversários (o último, Médio, 25/11);
+      // em 1920 (5 colunas) Alunos fica na linha de Recebido.
+      const vizinho = await caixa(blocoDoInicio(page, mesmaLinha ? 'Aniversários' : 'Recebido e lançamentos'));
       const alunos = await caixa(blocoDoInicio(page, 'Alunos'));
-      expect(Math.abs(alunos.y - recebido.y)).toBeLessThan(4);
+      expect(Math.abs(alunos.y - vizinho.y)).toBeLessThan(4);
     });
     await semRolagemHorizontal(page);
     expect(errosDaPagina).toEqual([]);

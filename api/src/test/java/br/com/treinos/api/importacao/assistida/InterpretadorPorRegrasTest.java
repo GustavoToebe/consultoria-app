@@ -75,4 +75,99 @@ class InterpretadorPorRegrasTest {
         assertThat(res.grupos().getFirst().pesos().getFirst().data()).isEqualTo(java.time.LocalDate.of(2026, 3, 12));
         assertThat(res.grupos().getFirst().pesos().getFirst().kg()).isEqualByComparingTo("61.5");
     }
+
+    private ResultadoInterpretacao interpretar(String texto) {
+        return interpretador.interpretar(new ContextoIa("plano.pdf", "PDF",
+                List.of(new BlocoTexto("Geral", texto, "plano.pdf", 1)), texto, "CADASTROS_E_PLANOS_ATUAIS", List.of(), Map.of()));
+    }
+
+    private static List<String> nomesDeExercicios(ResultadoInterpretacao res, int sessao) {
+        return res.grupos().getFirst().treino().sessoes().get(sessao).exercicios().stream().map(e -> e.nome()).toList();
+    }
+
+    @Test
+    void titulosDeColunaNaoViramExercicio() {
+        ResultadoInterpretacao res = interpretar("""
+                Segunda - Costas
+                Exercício Séries Reps
+                Exercícios 3x10
+                Remada baixa 3x10
+                """);
+
+        assertThat(nomesDeExercicios(res, 0)).containsExactly("Remada baixa");
+    }
+
+    @Test
+    void titulosDeColunaNaoViramAlimento() {
+        ResultadoInterpretacao res = interpretar("""
+                Café da Manhã
+                2 un Alimento
+                50g Aveia
+                """);
+
+        assertThat(res.grupos().getFirst().dieta().refeicoes().getFirst().opcoes().getFirst().itens())
+                .extracting(i -> i.nome()).containsExactly("Aveia");
+    }
+
+    @Test
+    void linhaComDoseDeSubstanciaNaoViraExercicioNemAlimento() {
+        ResultadoInterpretacao res = interpretar("""
+                Treino A - Peito
+                Supino reto 3x10
+                250 mg/sem - Substancia ficticia 2x
+                1 ampola de Outra ficticia 3x8
+
+                Café da Manhã
+                50g Aveia
+                10 ml Substancia ficticia 250 mg/sem
+                """);
+
+        assertThat(nomesDeExercicios(res, 0)).containsExactly("Supino reto");
+        assertThat(res.grupos().getFirst().dieta().refeicoes().getFirst().opcoes().getFirst().itens()).hasSize(1);
+    }
+
+    @Test
+    void nomeDeAlimentoSoComNumeroOuSinalNaoViraAlimentoNemDuvida() {
+        ResultadoInterpretacao res = interpretar("""
+                Café da Manhã
+                50g Aveia
+                1 un 0
+                2 un -1
+                3 un -2
+                """);
+
+        assertThat(res.grupos().getFirst().dieta().refeicoes().getFirst().opcoes().getFirst().itens()).hasSize(1);
+        assertThat(res.duvidas()).extracting(d -> d.termoOriginal()).doesNotContain("0", "-1", "-2");
+    }
+
+    @Test
+    void fraseDeInstrucaoNaoViraSessao() {
+        ResultadoInterpretacao res = interpretar("""
+                Segunda - Costas
+                Remada baixa 3x10
+                treino anterior. Por isso, pesos de 0,25 kg e até 0,5 kg não são descartados. O
+                Treino B - Pernas
+                Agachamento 4x8
+                """);
+
+        assertThat(res.grupos().getFirst().treino().sessoes()).hasSize(2);
+        assertThat(nomesDeExercicios(res, 0)).containsExactly("Remada baixa");
+        assertThat(nomesDeExercicios(res, 1)).containsExactly("Agachamento");
+    }
+
+    @Test
+    void nomeQuebradoEmDuasLinhasFicaNumExercicioSo() {
+        ResultadoInterpretacao res = interpretar("""
+                Segunda - Costas
+                Remada curvada no 2x10
+                smith
+                T Bar row (pegada 3x8
+                neutra)
+                Supino 3x10
+                alongar bem
+                """);
+
+        assertThat(nomesDeExercicios(res, 0))
+                .containsExactly("Remada curvada no smith", "T Bar row (pegada neutra)", "Supino");
+    }
 }

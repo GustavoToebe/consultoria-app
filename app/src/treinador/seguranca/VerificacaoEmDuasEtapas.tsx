@@ -19,6 +19,7 @@ import { textoDoErro } from '../../ui/erros';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { NUMERICO } from '../../ui/tipografia';
 import { useCarregar } from '../../ui/useCarregar';
 
 type Etapa = 'repouso' | 'senha' | 'configurar' | 'recuperacao' | 'desativar';
@@ -99,7 +100,7 @@ export function VerificacaoEmDuasEtapas() {
         descricao="Cada código vale uma única vez, no lugar do código do aplicativo, se você perder o celular. Eles não aparecem de novo.">
         <View style={estilos.codigos} accessibilityLabel="Códigos de recuperação">
           {recuperacao.map((c) => (
-            <Texto key={c} selectable numerico style={estilos.codigo}>{c}</Texto>
+            <Texto key={c} selectable style={[NUMERICO, estilos.codigo]}>{c}</Texto>
           ))}
         </View>
         <LinhaDeAcoes>
@@ -168,7 +169,7 @@ export function VerificacaoEmDuasEtapas() {
             <CodigoQr conteudo={preparacao.otpauthUri} tamanho={200} descricao="QR code para o aplicativo autenticador" />
           </View>
           <Texto variante="rotulo">Segredo</Texto>
-          <Texto selectable numerico style={estilos.codigo}>{segredoEmBlocos(preparacao.segredo)}</Texto>
+          <Texto selectable style={[NUMERICO, estilos.codigo]}>{segredoEmBlocos(preparacao.segredo)}</Texto>
           <LinhaDeAcoes>
             <Botao rotulo="Copiar segredo" tipo="secundario" Icone={Copy} aoTocar={() => copiar(preparacao.segredo, 'Segredo')} />
             {Platform.OS !== 'web' ? (

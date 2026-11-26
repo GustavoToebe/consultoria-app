@@ -1,41 +1,69 @@
-import { FileDown } from 'lucide-react-native';
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta } from '../api/tipos';
 import {
   detalheDaConversao,
-  listaDeCompras,
-  NOTA_DA_LISTA_ALUNO,
-  NOTA_DA_LISTA_TREINADOR,
   PERIODOS_DA_LISTA,
   escolhasDaLista,
   quantidadeParaTela,
+  textoDasDuzias,
   textoDoPeriodo,
-  textosDasOpcoes,
-  tituloDaLista,
   type EscolhasDeOpcao,
   type LinhaDaLista,
   type PeriodoDaLista,
 } from '../dominio/listaDeCompras';
+import { nomeDaOpcao } from '../dominio/dieta';
 import { agruparLista, contagemDoGrupo } from '../dominio/gruposDaLista';
 import { textoDosDiasCurtos } from '../dominio/variacoesDaDieta';
 import { espaco, fontes } from '../tema/tokens';
-import { useAviso } from './Aviso';
-import { Botao } from './Botao';
-import { CabecalhoDeGrupo } from './CabecalhoDeGrupo';
-import { Cartao } from './Cartao';
+import { Alvenaria } from './Alvenaria';
 import { Escolha } from './Escolha';
 import { Vazio } from './Estados';
-import { textoDoErro } from './erros';
-import { NoPlano } from './NoPlano';
-import { Tabela, type ColunaDaTabela } from './Tabela';
+import { LinhaDeCompra } from './LinhaDeCompra';
+import { ListaDeLinhas } from './LinhaDaLista';
 import { Texto } from './Texto';
 
-// "Mês (30 dias)": o rótulo diz a conta, para ninguém ler o mês do calendário (reunião de 29/10).
+// "30 dias": o rótulo diz a conta, para ninguém ler o mês do calendário (reunião de 29/10; "7 dias · 14 dias · 30 dias" desde 25/11).
 const PERIODOS = PERIODOS_DA_LISTA.map((valor) => ({ valor, rotulo: textoDoPeriodo(valor) }));
 
-/** Período e, quando a refeição tem mais de uma opção, qual entra na lista. A folha do PDF da dieta usa o mesmo controle. */
+/** A lista de uma variação só (PDF de uma variação) diz qual e os dias dela; com várias, a conta de cada uma. */
+export function textoDasVariacoes(conteudo: ConteudoDieta): string | null {
+  const variacoes = conteudo.variacoes;
+  if (variacoes.length === 1) return `Lista da variação ${variacoes[0].rotulo.trim() || 'sem nome'}, que vale em ${textoDosDiasCurtos(variacoes[0].dias)}.`;
+  return variacoes.length > 1 ? 'Cada variação entra pelo número de dias dela na semana.' : null;
+}
+
+/** O segmento "7 dias · 14 dias · 30 dias". */
+export function EscolhaDoPeriodo({ periodo, aoMudar }: { periodo: PeriodoDaLista; aoMudar: (periodo: PeriodoDaLista) => void }) {
+  return <Escolha descricao="Período da lista" opcoes={PERIODOS} valor={periodo} aoMudar={aoMudar} />;
+}
+
+/** Nas refeições com mais de uma opção, qual entra na lista (nada quando nenhuma tem). */
+export function OpcoesDaLista({ conteudo, escolhas, aoMudarEscolhas }: {
+  conteudo: ConteudoDieta;
+  escolhas: EscolhasDeOpcao;
+  aoMudarEscolhas: (escolhas: EscolhasDeOpcao) => void;
+}) {
+  const comEscolha = escolhasDaLista(conteudo);
+  if (!comEscolha.length) return null;
+  const opcaoDe = (r: (typeof comEscolha)[number]['refeicao']) => r.opcoes.find((o) => o.uid === escolhas[r.uid]) ?? r.opcoes[0];
+  return (
+    <View style={estilos.opcoes}>
+      <Texto variante="suave">Nas refeições com mais de uma opção, escolha a que vai comprar. A lista soma só a opção escolhida de cada refeição.</Texto>
+      {comEscolha.map(({ refeicao: r, variacao }) => (
+        <Escolha
+          key={r.uid}
+          rotulo={`${variacao ? `${variacao} · ` : ''}${r.horario ? `${r.horario} · ` : ''}${r.nome || 'Refeição'}`}
+          opcoes={r.opcoes.map((o) => ({ valor: o.uid, rotulo: nomeDaOpcao(o.rotulo) }))}
+          valor={opcaoDe(r)?.uid ?? ''}
+          aoMudar={(uid) => aoMudarEscolhas({ ...escolhas, [r.uid]: uid })}
+        />
+      ))}
+    </View>
+  );
+}
+
+/** Período e, quando a refeição tem mais de uma opção, qual entra na lista. O aluno e a folha do PDF da dieta usam isto. */
 export function EscolhasDaLista({
   conteudo,
   periodo,
@@ -49,65 +77,14 @@ export function EscolhasDaLista({
   escolhas: EscolhasDeOpcao;
   aoMudarEscolhas: (escolhas: EscolhasDeOpcao) => void;
 }) {
-  const comEscolha = escolhasDaLista(conteudo);
-  const opcaoDe = (r: (typeof comEscolha)[number]['refeicao']) => r.opcoes.find((o) => o.uid === escolhas[r.uid]) ?? r.opcoes[0];
-  const variacoes = conteudo.variacoes;
+  const variacoes = textoDasVariacoes(conteudo);
   return (
     <>
-      {/* Lista de uma variação só (PDF de uma variação): diz qual e os dias dela; com várias, a conta de cada uma. */}
-      {variacoes.length === 1 ? (
-        <Texto variante="suave">{`Lista da variação ${variacoes[0].rotulo.trim() || 'sem nome'}, que vale em ${textoDosDiasCurtos(variacoes[0].dias)}.`}</Texto>
-      ) : variacoes.length > 1 ? (
-        <Texto variante="suave">Cada variação entra pelo número de dias dela na semana.</Texto>
-      ) : null}
-      <Escolha descricao="Período da lista" opcoes={PERIODOS} valor={periodo} aoMudar={aoMudarPeriodo} />
-      {comEscolha.length ? (
-        <View style={estilos.opcoes}>
-          <Texto variante="suave">Nas refeições com mais de uma opção, escolha a que vai comprar. A lista soma só a opção escolhida de cada refeição.</Texto>
-          {comEscolha.map(({ refeicao: r, variacao }) => (
-            <Escolha
-              key={r.uid}
-              rotulo={`${variacao ? `${variacao} · ` : ''}${r.horario ? `${r.horario} · ` : ''}${r.nome || 'Refeição'}`}
-              opcoes={r.opcoes.map((o) => ({ valor: o.uid, rotulo: `Opção ${o.rotulo}` }))}
-              valor={opcaoDe(r)?.uid ?? ''}
-              aoMudar={(uid) => aoMudarEscolhas({ ...escolhas, [r.uid]: uid })}
-            />
-          ))}
-        </View>
-      ) : null}
+      {variacoes ? <Texto variante="suave">{variacoes}</Texto> : null}
+      <EscolhaDoPeriodo periodo={periodo} aoMudar={aoMudarPeriodo} />
+      <OpcoesDaLista conteudo={conteudo} escolhas={escolhas} aoMudarEscolhas={aoMudarEscolhas} />
     </>
   );
-}
-
-/**
- * Alimento e quantidade. A quantidade é coluna de "ação" da `Tabela`: no celular fica no canto do cartão, sem o rótulo
- * "Quantidade" repetido em cada item. Quando houve limpeza ou cocção, a linha diz de onde veio o número.
- */
-function colunas(): ColunaDaTabela<LinhaDaLista>[] {
-  return [
-    { chave: 'nome', titulo: 'Alimento', principal: true, flex: 2, render: (l) => {
-      const detalhe = detalheDaConversao(l);
-      return (
-      <View style={estilos.nome}>
-        <Texto numerico>{l.nome}</Texto>
-        {detalhe ? <Texto variante="suave">{detalhe}</Texto> : null}
-      </View>
-      );
-    } },
-    {
-      chave: 'quantidade',
-      titulo: 'Quantidade',
-      alinhar: 'direita',
-      acao: true,
-      tituloNaTabela: true,
-      render: (l) => (
-        <Texto numerico style={estilos.forte}>
-          {quantidadeParaTela(l.quantidade, l.unidade)}
-          {l.cru ? <Texto variante="suave"> cru</Texto> : null}
-        </Texto>
-      ),
-    },
-  ];
 }
 
 /** O que o PDF precisa da escolha feita na tela. */
@@ -118,57 +95,65 @@ export interface EscolhaDaLista {
   linhas: LinhaDaLista[];
 }
 
+/** Abaixo disto (largura medida da lista, não da janela) os grupos ficam numa coluna só: no celular e na folha estreita. */
+const LARGURA_DAS_DUAS_COLUNAS = 640;
+
 /**
- * Lista de compras de um conteúdo de dieta (hoje a prévia do treinador no editor, com os fatores e o grupo atuais da
- * biblioteca já aplicados; o aluno usa `aluno/ListaDeComprasDoAluno`). Um cartão por grupo do alimento
- * (`agruparLista`: catálogo na ordem do mercado, grupos do treinador depois, "Outros itens" por último), com a contagem na faixa. Período e opção por refeição
- * são estado da tela, não ficam salvos. O botão de PDF só aparece com `aoGerarPdf` e com a funcionalidade `PDF` no plano.
+ * Os itens da prévia do treinador (26/11), já calculados por quem chama: um título de seção por grupo do alimento
+ * (`agruparLista`: catálogo na ordem do mercado, grupos do treinador depois, "Outros itens" por último), com a contagem
+ * em secundário, sem cartão nem faixa; os itens em linhas com divisória (`ui/LinhaDeCompra`, a mesma do aluno, sem a
+ * caixa). A partir de 640 px de lista, os grupos vão em duas colunas equilibradas (`Alvenaria`, cada um na coluna mais
+ * baixa, na ordem de hoje; o Tab e o leitor seguem a ordem lógica). À direita de cada linha, o que comprar: a quantidade
+ * em negrito e números tabulares, "cru" e o equivalente em dúzias do ovo em secundário.
  */
-export function ListaDeCompras({ conteudo, aoGerarPdf, papel = 'aluno' }: { conteudo: ConteudoDieta; aoGerarPdf?: (escolha: EscolhaDaLista) => Promise<void>; papel?: 'aluno' | 'treinador' }) {
-  const { avisar } = useAviso();
-  const [periodo, setPeriodo] = useState<PeriodoDaLista>('semana');
-  const [escolhas, setEscolhas] = useState<EscolhasDeOpcao>({});
-  const [gerando, setGerando] = useState(false);
-  const linhas = listaDeCompras(conteudo, escolhas, periodo);
-  const grupos = agruparLista(linhas, (l) => l.grupo);
-
-  const pdf = async () => {
-    if (!aoGerarPdf) return;
-    setGerando(true);
-    try {
-      await aoGerarPdf({ periodo, opcoes: textosDasOpcoes(conteudo, escolhas), linhas });
-    } catch (e) {
-      avisar(textoDoErro(e), 'perigo');
-    } finally {
-      setGerando(false);
-    }
-  };
-
+export function ListaDeCompras({ linhas }: { linhas: readonly LinhaDaLista[] }) {
+  if (!linhas.length) return <Vazio titulo="Nada para listar" texto="A dieta não tem itens com quantidade." />;
+  const grupos = agruparLista([...linhas], (l) => l.grupo);
   return (
-    <>
-      <Cartao titulo="Para quanto tempo">
-        <EscolhasDaLista conteudo={conteudo} periodo={periodo} aoMudarPeriodo={setPeriodo} escolhas={escolhas} aoMudarEscolhas={setEscolhas} />
-      </Cartao>
-      <Cartao titulo={tituloDaLista(periodo)}>
-        {linhas.length ? null : <Vazio titulo="Nada para listar" texto="A dieta não tem itens com quantidade." />}
-        <Texto variante="suave">{papel === 'aluno' ? NOTA_DA_LISTA_ALUNO : NOTA_DA_LISTA_TREINADOR}</Texto>
-      </Cartao>
-      {grupos.map((g) => (
-        <Cartao key={g.chave} cabecalho={<CabecalhoDeGrupo titulo={g.titulo} resumo={contagemDoGrupo(g.itens.length)} />}>
-          <Tabela rotulo={`Lista de compras: ${g.titulo}`} colunas={colunas()} linhas={g.itens} chave={(l) => l.chave} />
-        </Cartao>
-      ))}
-      {aoGerarPdf ? (
-        <NoPlano funcionalidade="PDF">
-          <Botao rotulo="Baixar PDF da lista" tipo="secundario" cheio Icone={FileDown} carregando={gerando} desabilitado={!linhas.length} motivo="A lista está vazia." aoTocar={() => void pdf()} />
-        </NoPlano>
-      ) : null}
-    </>
+    <Alvenaria
+      colunas={(largura) => (largura >= LARGURA_DAS_DUAS_COLUNAS ? 2 : 1)}
+      vao={espaco(3)}
+      pecas={grupos.map((g) => ({
+        chave: g.chave,
+        peso: g.itens.length + 1,
+        conteudo: (
+          <View style={estilos.grupo}>
+            <View style={estilos.tituloDoGrupo}>
+              <Texto variante="bloco" nivel={3} style={estilos.encolhe}>{g.titulo}</Texto>
+              <Texto variante="suave" numerico>{contagemDoGrupo(g.itens.length)}</Texto>
+            </View>
+            <ListaDeLinhas divisorias>
+              {g.itens.map((l) => <LinhaDaPrevia key={l.chave} linha={l} />)}
+            </ListaDeLinhas>
+          </View>
+        ),
+      }))}
+    />
+  );
+}
+
+function LinhaDaPrevia({ linha: l }: { linha: LinhaDaLista }) {
+  const duzias = textoDasDuzias(l);
+  const complemento = l.cru ? ' cru' : duzias ? ` · ${duzias}` : '';
+  return (
+    <LinhaDeCompra
+      nome={l.nome}
+      linhasDoNome={2}
+      detalhe={detalheDaConversao(l)}
+      quantidade={(
+        <Texto numerico style={estilos.quantidade}>
+          {quantidadeParaTela(l.quantidade, l.unidade)}
+          {complemento ? <Texto variante="suave">{complemento}</Texto> : null}
+        </Texto>
+      )}
+    />
   );
 }
 
 const estilos = StyleSheet.create({
-  forte: { fontFamily: fontes.semi },
-  nome: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
+  grupo: { gap: espaco(1) },
+  tituloDoGrupo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: espaco(1) },
+  encolhe: { flexShrink: 1 },
+  quantidade: { fontFamily: fontes.semi, textAlign: 'right' },
   opcoes: { gap: espaco(1.5), paddingTop: espaco(1) },
 });

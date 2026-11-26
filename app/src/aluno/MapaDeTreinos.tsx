@@ -7,6 +7,7 @@ import { espaco } from '../tema/tokens';
 import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
 import { Texto } from '../ui/Texto';
+import { coresDoMapa } from './coresDoMapa';
 import { useMapaDeTreinos } from './useMapaDeTreinos';
 
 /** Celular: as últimas 26 semanas (seis meses), célula de 22 px com 4 de folga (alvo de 24 px pelo espaçamento, WCAG 2.5.8). */
@@ -26,10 +27,11 @@ const DICA = 'Toque num dia para ver a data, o treino e o resultado.';
 
 /**
  * Mapa de treinos do aluno (M1 a M4, plano `comunidade-organizada-e-mapa`): uma coluna por semana (segunda a domingo,
- * como o "Sua semana"), o mês em cima. Sem treino = célula vazia (`superficie3`); "Fiz em parte" = anel na cor da marca;
- * "Fiz tudo" = célula cheia na cor da marca, nunca o verde de situação. O anel e o cheio usam `marcaPeca`, que passa 3:1
- * sobre o cartão e sobre o vazio em toda paleta e cor da marca (`tema/tokens.test.ts`): um tom médio misturado não passaria
- * 3:1 contra os dois vizinhos, então o "médio" é a forma (anel), com a legenda escrita.
+ * como o "Sua semana"), o mês em cima. Escala de intensidade no verde de treino feito (`sucesso`, Gustavo, 25/11; antes
+ * era a cor da marca), em `coresDoMapa`: sem treino = célula vazia (`superficie3`); "Fiz em parte" = verde a 35% com
+ * contorno no verde cheio; "Fiz tudo" = verde cheio. Um tom médio sozinho não passaria 3:1 contra os dois vizinhos nas
+ * paletas claras, então o contorno separa o parcial do vazio e o miolo claro o separa do cheio (`coresDoMapa.test.ts`),
+ * com a legenda escrita.
  *
  * Tocar num dia (ou andar pelas setas com a grade em foco, na web) mostra data, treino e resultado na linha fixa abaixo:
  * nada depende de hover. A grade é uma parada só do Tab; cada dia tem o rótulo `textoDaCelula` para o leitor de tela.
@@ -43,7 +45,8 @@ export function MapaDeTreinos() {
 }
 
 function GradeDoMapa({ mapa }: { mapa: Mapa }) {
-  const { cores, marcaPeca } = useTema();
+  const { cores } = useTema();
+  const escala = coresDoMapa(cores);
   const [largura, setLargura] = useState(0);
   const [escolhida, setEscolhida] = useState<string | null>(null);
   const [focada, setFocada] = useState(false);
@@ -109,7 +112,7 @@ function GradeDoMapa({ mapa }: { mapa: Mapa }) {
                 <View key={s.dias[0].data} style={{ gap: folga }}>
                   {s.dias.map((d) => (
                     <Dia key={d.data} dia={d} tamanho={celula} selecionado={selecionada?.data === d.data}
-                      cores={{ vazio: cores.superficie3, marca: marcaPeca, anel: cores.anelFoco }}
+                      cores={{ ...escala, anel: cores.anelFoco }}
                       aoTocar={() => setEscolhida(d.data)} />
                   ))}
                 </View>
@@ -124,7 +127,7 @@ function GradeDoMapa({ mapa }: { mapa: Mapa }) {
       <View style={estilos.legenda}>
         {([[0, 'Sem treino'], [1, 'Fiz em parte'], [2, 'Fiz tudo']] as const).map(([nivel, texto]) => (
           <View key={nivel} style={estilos.itemDaLegenda}>
-            <View aria-hidden style={[estilos.amostra, estiloDoNivel(nivel, { vazio: cores.superficie3, marca: marcaPeca }, 14)]} />
+            <View aria-hidden style={[estilos.amostra, estiloDoNivel(nivel, escala, 14)]} />
             <Texto variante="pequeno">{texto}</Texto>
           </View>
         ))}
@@ -135,7 +138,7 @@ function GradeDoMapa({ mapa }: { mapa: Mapa }) {
 
 function Dia({ dia, tamanho, selecionado, cores, aoTocar }: {
   dia: CelulaDoMapa; tamanho: number; selecionado: boolean;
-  cores: { vazio: string; marca: string; anel: string }; aoTocar: () => void;
+  cores: Escala & { anel: string }; aoTocar: () => void;
 }) {
   const forma = { width: tamanho, height: tamanho, borderRadius: tamanho >= 16 ? 4 : 2 };
   // Dia que ainda não chegou: só o lugar na grade, sem toque.
@@ -147,10 +150,12 @@ function Dia({ dia, tamanho, selecionado, cores, aoTocar }: {
   );
 }
 
-/** Vazio = superfície de seleção; parcial = anel da marca sobre o vazio; tudo = cheio da marca. */
-function estiloDoNivel(nivel: 0 | 1 | 2, cores: { vazio: string; marca: string }, tamanho: number) {
-  if (nivel === 2) return { backgroundColor: cores.marca };
-  if (nivel === 1) return { backgroundColor: cores.vazio, borderWidth: tamanho >= 16 ? 3 : 2, borderColor: cores.marca };
+type Escala = ReturnType<typeof coresDoMapa>;
+
+/** Vazio = superfície de seleção; parcial = verde claro com contorno no verde cheio; tudo = verde cheio. */
+function estiloDoNivel(nivel: 0 | 1 | 2, cores: Escala, tamanho: number) {
+  if (nivel === 2) return { backgroundColor: cores.tudo };
+  if (nivel === 1) return { backgroundColor: cores.parcial, borderWidth: tamanho >= 16 ? 2 : 1, borderColor: cores.tudo };
   return { backgroundColor: cores.vazio };
 }
 

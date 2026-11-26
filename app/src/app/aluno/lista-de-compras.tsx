@@ -3,6 +3,7 @@ import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
 import { ErroApi } from '../../api/cliente';
 import type { ConteudoDieta, VersaoDetalhe } from '../../api/tipos';
 import { normalizarDieta } from '../../dominio/dieta';
+import { tituloDoPlano } from '../../dominio/tituloDoPlano';
 import { useAluno } from '../../offline/AlunoProvider';
 import { imprimir } from '../../pdf/imprimir';
 import { logoComoDataUri } from '../../pdf/logo';
@@ -65,7 +66,7 @@ function Lista({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
     <>
       {salva ? <Selo texto="Sem conexão — usando a última dieta salva" tipo="neutro" /> : null}
       <Texto variante="suave">
-        {versao.titulo}
+        {tituloDoPlano(versao.titulo, 'dieta', pacote?.pacote.aluno.nome)}
       </Texto>
       <ListaDeComprasDoAluno conteudo={normalizarDieta(versao.conteudo)} versaoId={versao.id} aoGerarPdf={pdf} />
     </>

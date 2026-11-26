@@ -334,6 +334,19 @@ describe('PDF da dieta', () => {
     expect(html).toContain('▸ OPÇÃO B');
   });
 
+  it('rótulo personalizado vira a faixa em caixa alta, sem "OPÇÃO" duplicado', () => {
+    const personalizada = normalizarDieta({
+      refeicoes: [{ nome: 'Almoço', opcoes: [
+        { rotulo: 'A', itens: [{ nome: 'Arroz', quantidade: 100, unidade: 'g', kcal: 130, proteina: 2, carboidrato: 28, gordura: 0 }] },
+        { rotulo: 'Opção Principal', itens: [] },
+      ] }],
+    });
+    const corpo = documentoDieta({ ...base, versao: 1, conteudo: personalizada, pesos: [] }).corpo;
+    expect(corpo).toContain('▸ OPÇÃO A<');
+    expect(corpo).toContain('▸ OPÇÃO PRINCIPAL<');
+    expect(corpo).not.toContain('OPÇÃO OPÇÃO');
+  });
+
   it('refeição com várias opções diz para escolher uma, sem somar nem comparar', () => {
     expect(html).toContain('<div class="escolha">Escolha uma das opções: A ou B.</div>');
     expect(html.toLowerCase()).not.toContain('equivalente');
@@ -691,6 +704,14 @@ describe('PDF da mobilidade', () => {
     expect(d.corpo).toContain('RASCUNHO');
     expect(d.titulo).toBe('Mobilidade - Aluno Demonstração - Plano 16');
   });
+
+  it('título técnico não vai ao papel: sem "(rascunho)" e o nome padrão da importação vira "<Tipo> de <aluno>"', () => {
+    const m = documentoMobilidade({ ...dados, titulo: 'Importada da planilha (rascunho)' });
+    expect(m.titulo).toBe('Mobilidade - Aluno Demonstração - Mobilidade de Aluno Demonstração');
+    expect(m.corpo).toContain('Mobilidade de Aluno Demonstração (v');
+    expect(m.corpo).not.toContain('Importada da planilha');
+    expect(documentoMobilidade({ ...dados, titulo: 'Alongamento A (rascunho)', versao: null }).corpo).toContain('Alongamento A (RASCUNHO, não publicado)');
+  });
 });
 
 describe('html', () => {
@@ -814,7 +835,7 @@ describe('PDF da lista de compras', () => {
       ],
     });
     expect(d.titulo).toBe('Lista de compras - Aluno <Fictício> - Dieta & ciclo');
-    expect(d.corpo).toContain('Lista de compras — Semana (7 dias)');
+    expect(d.corpo).toContain('Lista de compras — 7 dias');
     expect(d.corpo).toContain('Arroz &lt;b&gt;cozido&lt;/b&gt; <span class="suave">(cru)</span>');
     expect(d.corpo).toContain('1,23 kg');
     expect(d.corpo).toContain('21 un');
@@ -831,6 +852,9 @@ describe('PDF da lista de compras', () => {
     expect(d.corpo).toContain('Dieta &amp; ciclo (prévia, não publicada)');
     expect(d.corpo).toContain('Prévia com os fatores atuais da biblioteca');
     expect(documentoListaDeCompras({ ...base, periodo: 'semana', opcoes: [], linhas: [] }).corpo).not.toContain('Prévia com');
+    const tecnico = documentoListaDeCompras({ ...base, titulo: 'Importada da planilha (rascunho)', periodo: 'semana', opcoes: [], linhas: [] });
+    expect(tecnico.titulo).toBe('Lista de compras - Aluno <Fictício> - Dieta de Aluno <Fictício>');
+    expect(tecnico.corpo).not.toContain('rascunho');
   });
 
   it('lista do aluno: ajuste e avulso marcados como dele, caixas vazias mesmo com item comprado; 14 dias no título', () => {
@@ -842,7 +866,7 @@ describe('PDF da lista de compras', () => {
     m = gravarAvulso(m, { id: 'x', nome: 'Café <moído>', quantidade: null, unidade: null });
     m = alternarComprado(m, 'a');
     const d = documentoListaDeCompras({ ...base, periodo: 'duasSemanas', opcoes: [], linhas, itensDoAluno: itensDoAluno(linhas, m) });
-    expect(d.corpo).toContain('Lista de compras — 2 semanas (14 dias)');
+    expect(d.corpo).toContain('Lista de compras — 14 dias');
     expect(d.corpo).toContain('Arroz <span class="suave">(cru)</span><div class="suave">Na dieta: 2,10 kg cozido</div></td><td class="qtd">840 g</td>');
     expect(d.corpo).toContain('Ovo <span class="suave origem">(ajustado por você)</span></td><td class="qtd">2 cartelas <span class="suave">(calculado: 28 un)</span></td>');
     expect(d.corpo).toContain('Café &lt;moído&gt; <span class="suave origem">(adicionado por você)</span></td><td class="qtd">—</td>');
@@ -871,7 +895,7 @@ describe('PDF da lista de compras', () => {
 
   it('lista vazia vira "—"', () => {
     const d = documentoListaDeCompras({ ...base, periodo: 'mes', opcoes: [], linhas: [] });
-    expect(d.corpo).toContain('Mês (30 dias)');
+    expect(d.corpo).toContain('Lista de compras — 30 dias');
     expect(d.corpo).toContain('<div class="suave">—</div>');
   });
 });

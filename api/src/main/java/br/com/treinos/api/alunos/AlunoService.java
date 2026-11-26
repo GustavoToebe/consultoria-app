@@ -15,6 +15,7 @@ import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.comunidade.ComunidadePod;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.consultoria.RedesSociais;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
 import br.com.treinos.api.treino.PlanoTreino;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
@@ -160,7 +161,7 @@ public class AlunoService {
             return new AlunoResumo(a.getId(), a.getNome(), a.isAtivo(), a.getUsuarioId() != null,
                     (p == null || !br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER")) ? null : new PlanoAtivoResumo(p.getId(), p.getTitulo()), br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER") ? ultimo.get(a.getId()) : null,a.getResponsavelId(),
                     situacoes.get(a.getId()), tagsDosAlunos.getOrDefault(a.getId(), List.of()),
-                    a.isAcessoPausado(), a.getAcessoPausadoEm());
+                    MotivoDoAcessoDesativado.paraEquipe(a.getAcessoDesativadoMotivo()));
         }).toList();
         return new PaginaAlunos(itens, total);
     }
@@ -277,6 +278,7 @@ public class AlunoService {
         limiteDoTreinador.exigirVaga(aluno.getResponsavelId(), 1, null);
         aplicarSexo(aluno, r.sexo());
         aluno.alterarDataNascimento(dados.dataNascimento());
+        aluno.alterarRedes(dados.instagram(), dados.tiktok(), dados.youtube(), dados.facebook(), dados.linkedin(), dados.telegram());
         return detalheDe(gravar(aluno));
     }
 
@@ -357,6 +359,13 @@ public class AlunoService {
         if (r.dataNascimento() != null) {
             aluno.alterarDataNascimento(dados.dataNascimento());
         }
+        // Cada rede sozinha: nulo mantém o gravado, em branco apaga, preenchido grava (usuário no Instagram e no TikTok, link nas outras).
+        aluno.alterarRedes(r.instagram() == null ? aluno.getInstagram() : dados.instagram(),
+                r.tiktok() == null ? aluno.getTiktok() : dados.tiktok(),
+                r.youtube() == null ? aluno.getYoutube() : dados.youtube(),
+                r.facebook() == null ? aluno.getFacebook() : dados.facebook(),
+                r.linkedin() == null ? aluno.getLinkedin() : dados.linkedin(),
+                r.telegram() == null ? aluno.getTelegram() : dados.telegram());
         UUID anterior=aluno.getResponsavelId();
         definirResponsavel(aluno,r.responsavelId());
         if(!java.util.Objects.equals(anterior,aluno.getResponsavelId()))
@@ -385,47 +394,6 @@ public class AlunoService {
         }
         aplicarSituacao(aluno, ativo);
         return detalheDe(alunos.saveAndFlush(aluno));
-    }
-
-    /**
-     * Pausa o acesso do aluno por atraso (decisão manual do treinador, nunca automática). Trava o aluno antes de consultar
-     * cobranças (ordem única de travas). Idempotente: se já pausado, não sobrescreve {@code acessoPausadoEm} nem duplica auditoria.
-     */
-    @Transactional
-    public AlunoDetalhe pausarAcesso(UUID id) {
-        Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
-        exigirNaoAnonimizado(aluno);
-        if (!aluno.isAtivo()) {
-            throw new ConflictException("Aluno inativo não pode ter o acesso pausado.", "ALUNO_INATIVO");
-        }
-        if (!pagamentos.temCobrancaVencida(aluno.getId())) {
-            throw new ConflictException("O aluno não tem cobrança vencida em aberto para pausar o acesso.", "SEM_COBRANCA_VENCIDA");
-        }
-        if (!aluno.isAcessoPausado()) {
-            aluno.pausarAcesso(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS));
-            alunos.saveAndFlush(aluno);
-            auditoria.registrarEvento("ALUNO_ACESSO_PAUSADO", "ALUNO", aluno.getId(), "Pausou o acesso do aluno por atraso.");
-        }
-        return detalheDe(aluno);
-    }
-
-    /**
-     * Reativa o acesso do aluno pausado por atraso (decisão manual do treinador). Idempotente: se já não estiver pausado,
-     * retorna a ficha sem duplicar auditoria.
-     */
-    @Transactional
-    public AlunoDetalhe reativarAcesso(UUID id) {
-        Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
-        exigirNaoAnonimizado(aluno);
-        if (!aluno.isAtivo()) {
-            throw new ConflictException("Aluno inativo não pode ter o acesso reativado por aqui.", "ALUNO_INATIVO");
-        }
-        if (aluno.isAcessoPausado()) {
-            aluno.reativarAcesso();
-            alunos.saveAndFlush(aluno);
-            auditoria.registrarEvento("ALUNO_ACESSO_REATIVADO", "ALUNO", aluno.getId(), "Reativou o acesso do aluno.");
-        }
-        return detalheDe(aluno);
     }
 
     static final String CODIGO_CONTRATO_FECHADO_VIGENTE = "CONTRATO_FECHADO_VIGENTE";
@@ -457,6 +425,9 @@ public class AlunoService {
      * Usado também pelo lote.
      */
     void aplicarSituacao(Aluno aluno, boolean ativo) {
+        // O login decide pelo motivo do banco (consulta escalar, fora do contexto), nunca pela ficha em memória, que pode ser
+        // de antes de um "Desativar acesso". Lido antes de mudar a ficha para não forçar o flush no meio; quem chama trava o aluno.
+        boolean desativadoPelaEquipe = alunos.motivoDoAcessoDesativado(aluno.getId()) == MotivoDoAcessoDesativado.MANUAL;
         aluno.alterarSituacao(ativo, Instant.now());
         if (!ativo) {
             agenda.cancelarFuturosDoAluno(aluno.getId()); // antes de encerrarSessoes, que não se desfaz
@@ -464,7 +435,9 @@ public class AlunoService {
             alunos.tirarDoPod(aluno.getConsultoriaId(), aluno.getId());
         }
         if (aluno.getUsuarioId() != null) {
-            usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo));
+            // Acesso desativado pela equipe (MANUAL) não volta com a situação do aluno: só "Reativar acesso" libera o usuário.
+            // A pausa por atraso (ATRASO) não mexe no login e também sobrevive a inativar e reativar: só quitar ou "Reativar acesso" a tira.
+            usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo && !desativadoPelaEquipe));
             if (!ativo) {
                 push.apagarDoUsuario(aluno.getConsultoriaId(), aluno.getUsuarioId());
                 autenticador.encerrarSessoes(aluno.getUsuarioId().toString());
@@ -548,17 +521,24 @@ public class AlunoService {
      * {@code endereco.uf}, {@code endereco.logradouro}...) e uma mensagem fixa do {@code Formatos} ou da {@code RegrasDoEndereco}, nunca o valor enviado. CPF e endereço só são lidos
      * (e conferidos) com {@code ALUNO_SENSIVEL_ALTERAR}.
      */
-    record Dados(String telefone, String cpf, Endereco endereco, LocalDate dataNascimento) {
+    record Dados(String telefone, String cpf, Endereco endereco, LocalDate dataNascimento, String instagram, String tiktok,
+                 String youtube, String facebook, String linkedin, String telegram) {
         static Dados de(AlunoRequest r, boolean sensivel) {
             var erros = new ArrayList<ApiError.FieldError>();
             LocalDate nascimento = dataNascimento(erros, r.dataNascimento());
             String telefone = formato(erros, "telefone", Formatos::telefone, r.telefone());
             String cpf = sensivel ? formato(erros, "cpf", Formatos::cpf, r.cpf()) : null;
             Endereco endereco = sensivel ? endereco(erros, r.endereco()) : null;
+            String instagram = rede(erros, "instagram", RedesSociais.Rede.INSTAGRAM, r.instagram());
+            String tiktok = rede(erros, "tiktok", RedesSociais.Rede.TIKTOK, r.tiktok());
+            String youtube = link(erros, "youtube", RedesSociais.Rede.YOUTUBE, r.youtube());
+            String facebook = link(erros, "facebook", RedesSociais.Rede.FACEBOOK, r.facebook());
+            String linkedin = link(erros, "linkedin", RedesSociais.Rede.LINKEDIN, r.linkedin());
+            String telegram = link(erros, "telegram", RedesSociais.Rede.TELEGRAM, r.telegram());
             if (!erros.isEmpty()) {
                 throw new ValidacaoException("Confira os dados do aluno.", "ALUNO_INVALIDO", erros);
             }
-            return new Dados(telefone, cpf, endereco, nascimento);
+            return new Dados(telefone, cpf, endereco, nascimento, instagram, tiktok, youtube, facebook, linkedin, telegram);
         }
 
         /** Em branco ou nulo = sem data. Texto fora de {@code AAAA-MM-DD} ou fora da faixa de registro vira erro no campo, sem o valor. */
@@ -584,6 +564,26 @@ public class AlunoService {
             RegrasDoEndereco.Resultado r = RegrasDoEndereco.normalizar(e);
             r.erros().forEach(x -> erros.add(new ApiError.FieldError("endereco." + x.campo(), x.mensagem())));
             return r.endereco();
+        }
+
+        /** Instagram e TikTok: só o usuário normalizado (nulo para vazio); erro no campo com a mensagem fixa da rede, sem o valor. */
+        static String rede(List<ApiError.FieldError> erros, String campo, RedesSociais.Rede rede, String valor) {
+            try {
+                return RedesSociais.usuario(rede, valor);
+            } catch (RedesSociais.RedeInvalidaException recusada) {
+                erros.add(new ApiError.FieldError(campo, recusada.getMessage()));
+                return null;
+            }
+        }
+
+        /** YouTube, Facebook, LinkedIn e Telegram: o link https normalizado (nulo para vazio); erro no campo com a mensagem fixa da rede, sem o valor. */
+        static String link(List<ApiError.FieldError> erros, String campo, RedesSociais.Rede rede, String valor) {
+            try {
+                return RedesSociais.link(rede, valor);
+            } catch (RedesSociais.RedeInvalidaException recusada) {
+                erros.add(new ApiError.FieldError(campo, recusada.getMessage()));
+                return null;
+            }
         }
 
         static String formato(List<ApiError.FieldError> erros, String campo, UnaryOperator<String> formatar, String valor) {

@@ -105,6 +105,11 @@ public abstract class PlanoBase {
         this.rascunhoAlteradoEm = Instant.now();
     }
 
+    /** Título final gravado na publicação ({@link TituloDoPlanoPublicado}); não conta como edição do rascunho. */
+    public void definirTituloAoPublicar(String titulo) {
+        this.titulo = titulo;
+    }
+
     /** Liga o plano a uma pasta (quem chama já conferiu que a pasta é do mesmo aluno). */
     public void definirPasta(UUID pastaId) {
         this.pastaId = pastaId;

@@ -27,8 +27,9 @@ import { useCarregar } from '../../ui/useCarregar';
 import { AcoesDaCobranca, LinhaDaCobranca } from './CartaoMeuPlano';
 import { FolhaCheckoutTransparente } from './FolhaCheckoutTransparente';
 
+// Sem frase de pagamento (26/11): no celular com a chave da loja desligada a tela só informa.
 const AVISO_AINDA_NAO_CONFIRMADO =
-  'Ainda não recebemos a confirmação do pagamento. Se acabou de pagar, aguarde alguns instantes e tente novamente.';
+  'O acesso continua pausado: ainda há cobrança vencida em aberto. Verifique de novo em alguns instantes.';
 const ERRO_SEM_INTERNET = 'Conecte-se à internet para ver suas cobranças e regularizar o acesso.';
 
 /**
@@ -174,9 +175,13 @@ export function TelaAcessoPausado() {
   return (
     <Tela largura={720}>
       <View style={estilos.cabecalho}>
-        <Texto variante="titulo" nivel={1}>Seu acesso está pausado. Quite aqui.</Texto>
+        <Texto variante="titulo" nivel={1}>
+          {modoDePagamento === 'informar' ? 'Seu acesso está pausado.' : 'Seu acesso está pausado. Quite aqui.'}
+        </Texto>
         <Texto variante="suave">
-          Assim que as cobranças vencidas forem quitadas, seu acesso ao aplicativo volta automaticamente.
+          {modoDePagamento === 'informar'
+            ? 'Assim que o seu treinador confirmar a regularização das cobranças vencidas, seu acesso ao aplicativo volta automaticamente.'
+            : 'Assim que as cobranças vencidas forem quitadas, seu acesso ao aplicativo volta automaticamente.'}
         </Texto>
       </View>
 
@@ -211,7 +216,7 @@ export function TelaAcessoPausado() {
                 {textoDoModo ? <Texto variante="suave">{textoDoModo}</Texto> : null}
               </>
             ) : (
-              <Texto variante="suave">Nenhuma cobrança em aberto encontrada. Toque em “Já paguei, verificar agora” para atualizar seu acesso.</Texto>
+              <Texto variante="suave">Nenhuma cobrança em aberto encontrada. Toque em “Verificar meu acesso” para atualizar seu acesso.</Texto>
             )}
           </View>
         </Cartao>
@@ -221,7 +226,7 @@ export function TelaAcessoPausado() {
 
       <LinhaDeAcoes alinhar="inicio">
         <Botao
-          rotulo="Já paguei, verificar agora"
+          rotulo="Verificar meu acesso"
           tipo={acoesDoCartao.length > 0 ? 'secundario' : 'primario'}
           Icone={RefreshCw}
           carregando={verificando}

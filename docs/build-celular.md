@@ -17,7 +17,7 @@ O que já está pronto no repositório:
 - `app/app.json` com os textos de câmera e fotos, `privacyManifests` do iOS e só as permissões que o app usa no Android.
   O iPhone tem a seção própria: [5. iPhone](#5-iphone).
 - Push do aviso de compromisso: código pronto e desligado; as credenciais que faltam estão em [6. Push do Expo](#6-push-do-expo-aviso-de-compromisso).
-- Ícone e abertura **provisórios** (letra T no fundo escuro do app). Ver "Antes da loja".
+- Ícone e abertura com a marca do Overtraining (três barras em `#F2050B` sobre `#0A0A0A`). Ver "Ícones e arquivos da marca".
 
 ## 1. Primeira vez
 
@@ -392,18 +392,16 @@ arquivo do Firebase fica preso ao `android.package`.
 - [ ] "Sair" da conta: a próxima mudança não chega a este aparelho.
 - [ ] Negar a permissão ao ligar: o interruptor volta a desligado e nada chega.
 
-## Antes da loja: ícones
+## Ícones e arquivos da marca
 
-Os arquivos de `app/assets/images` são **provisórios**: uma letra "T" (fonte do título do app, Oswald Bold) em
-`#F4F4F5` sobre `#0E0E10`. O app não tem marca própria (a marca é a de cada consultoria, carregada depois do login), então o
-ícone final precisa ser decidido pelo Gustavo. Para trocar, substitua os arquivos mantendo os tamanhos:
+Os arquivos de `app/assets/images` trazem o símbolo do Overtraining (três barras horizontais em `#F2050B` sobre `#0A0A0A`), e `app/assets/marca` guarda os vetores e os PNGs de 4000 px da logo completa (`logo-branco` para fundo escuro e `logo-preto` para fundo claro), além de `icone.svg` e `icone-barras.svg`. Na web (`app/public`), entram `favicon.ico`, `favicon.svg`, `apple-touch-icon.png` e o `manifest.json` com `icon-192.png` e `icon-512.png`.
 
-| Arquivo | Tamanho | Regra |
+| Arquivo (`app/assets/images`) | Tamanho | Regra |
 | --- | --- | --- |
 | `icon.png` | 1024×1024 | iOS e geral: **sem transparência** (RGB), cantos retos (o sistema arredonda) |
 | `android-icon-foreground.png` | 1024×1024 | fundo transparente; o desenho fica no círculo central de ~66% |
-| `android-icon-monochrome.png` | 1024×1024 | silhueta de uma cor sobre transparente (ícone temático do Android 13+) |
-| `splash-icon.png` | 1024×1024 | desenho sobre transparente; o fundo `#0E0E10` e a largura (200) estão no plugin do `expo-splash-screen` |
-| `favicon.png` | 48×48 | só a web |
+| `android-icon-monochrome.png` | 1024×1024 | silhueta branca sobre transparente (ícone temático do Android 13+) |
+| `splash-icon.png` | 1024×1024 | desenho sobre transparente; o fundo `#0A0A0A` e a largura (200) estão no plugin do `expo-splash-screen` |
+| `favicon.png` | 48×48 | reserva do Expo para a web (`app/public` entrega `favicon.ico` e `favicon.svg`) |
 
-O fundo do ícone adaptativo do Android é a cor `#0E0E10` (`android.adaptiveIcon.backgroundColor`).
+O fundo do ícone adaptativo do Android é a cor `#0A0A0A` (`android.adaptiveIcon.backgroundColor`).

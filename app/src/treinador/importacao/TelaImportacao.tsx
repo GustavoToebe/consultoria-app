@@ -830,6 +830,7 @@ export function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhi
       style={(e) => [estilos.vazioDoArquivo, { backgroundColor: sobre(e) ? cores.sobre : 'transparent' }]}>
       <FileUp size={28} color={cores.textoSuave} />
       <Texto variante="suave">{Platform.OS === 'web' ? 'Clique ou arraste o arquivo até aqui.' : 'Toque para escolher o arquivo no aparelho.'}</Texto>
+      <Texto variante="pequeno">XLSX ou CSV · até 900 KB</Texto>
     </Pressable>
   );
 

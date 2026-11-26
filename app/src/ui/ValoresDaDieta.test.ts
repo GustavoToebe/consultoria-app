@@ -24,9 +24,8 @@ describe('textoDaFibra', () => {
 });
 
 describe('valoresPorExtenso com fibra', () => {
-  it('lê a fibra depois dos macros; omitida sem valor no aluno', () => {
+  it('lê a fibra depois dos macros; sem valor, "sem dado" (editor e aluno)', () => {
     expect(valoresPorExtenso({ ...macros, fibra: 1.5, fibraCompleta: false })).toBe('100 kcal, proteína 1,0 g, carboidrato 2,0 g, gordura 3,0 g, fibra 1,5 g, parcial');
     expect(valoresPorExtenso({ ...macros, fibra: null })).toBe('100 kcal, proteína 1,0 g, carboidrato 2,0 g, gordura 3,0 g, fibra sem dado');
-    expect(valoresPorExtenso({ ...macros, fibra: null }, true)).toBe('100 kcal, proteína 1,0 g, carboidrato 2,0 g, gordura 3,0 g');
   });
 });

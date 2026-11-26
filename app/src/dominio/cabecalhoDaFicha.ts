@@ -1,4 +1,5 @@
 import type { AlunoDetalhe } from '../api/tipos';
+import { seloDoMotivo } from './acessoAoApp';
 import { dataEmBrasilia, horaEmBrasilia } from './agendaPresencial';
 import { dataParaTela } from './formatos';
 
@@ -39,11 +40,11 @@ export function linhaDeDatas(a: DatasDoAluno): string[] {
 
 /**
  * Situação do aluno no cabeçalho (tabela 4.5 do `docs/design-e-front.md`): ativo é `sucesso`; inativo e anonimizado são
- * encerrados, `neutro`. Anonimizado vale mais que inativo (a anonimização inativa).
+ * encerrados, `neutro`. Anonimizado vale mais que inativo (a anonimização inativa). Aluno ativo com o acesso pausado ou
+ * desativado mostra o selo do acesso (26/11, `dominio/acessoAoApp.seloDoMotivo`: as mesmas palavras do cartão e da lista).
  */
-export function seloDaSituacao(a: Pick<AlunoDetalhe, 'ativo' | 'anonimizado' | 'acessoPausado'>): { texto: string; tipo: 'sucesso' | 'atencao' | 'neutro' } {
+export function seloDaSituacao(a: Pick<AlunoDetalhe, 'ativo' | 'anonimizado' | 'acessoDesativadoMotivo'>): { texto: string; tipo: 'sucesso' | 'atencao' | 'neutro'; ponto?: true } {
   if (a.anonimizado) return { texto: 'Anonimizado', tipo: 'neutro' };
   if (!a.ativo) return { texto: 'Inativo', tipo: 'neutro' };
-  if (a.acessoPausado) return { texto: 'Acesso pausado', tipo: 'atencao' };
-  return { texto: 'Ativo', tipo: 'sucesso' };
+  return seloDoMotivo(a.acessoDesativadoMotivo) ?? { texto: 'Ativo', tipo: 'sucesso' };
 }

@@ -101,7 +101,7 @@ class DetalheDaInscricao {
                         e.getMotivo() == null ? null : MotivoEncerramento.valueOf(e.getMotivo()), e.getDetalhe(),
                         nomes.get(e.getAutorId()), e.getCriadoEm())).toList(),
                 respostas(i),
-                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), indicadoPorAluno(i),
+                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor(), indicadoPorAluno(i), i.getInstagram(),
                 i.isAceitaSemCobranca());
     }
 

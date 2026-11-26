@@ -1,5 +1,5 @@
 import { GripVertical } from 'lucide-react-native';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector, type PanGesture } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
@@ -47,7 +47,8 @@ export type ArrasteDaLista = Arraste<number, number>;
  * `Gesture.Pan` por item. As listas (`useArrasteDaLista`), o Kanban de Interessados e o Início em edição usam este.
  *
  * - Começa (D3): na web, com o mouse, depois de 4 px (clicar continua sendo clique); no aparelho, toque longo de 250 ms.
- * - Durante: uma cópia translúcida do item segue o ponteiro (também com o movimento reduzido, D2), a origem vira um
+ * - Durante: uma cópia translúcida do item segue o ponteiro (também com o movimento reduzido, D2), sem escala e presa ao
+ *   ponto onde foi pega (26/11: sai exatamente sobre a linha e anda o mesmo que o ponteiro), a origem vira um
  *   espaço tracejado do mesmo tamanho e `para` acompanha o destino (`destino` recebe a caixa de cada alvo). Na web a
  *   cópia, o tracejado e a linha guia vão numa camada no `body` (`ui/arrasteNaWeb`), a área que rola anda sozinha perto
  *   da borda e as medidas são refeitas a cada movimento e a cada rolagem; no aparelho o próprio item anda.
@@ -70,6 +71,9 @@ export function useArraste<K, D>({ ativo, destino, guia, aoSoltar, encaixar = tr
   const medidas = useRef(new Map<D, CaixaDoItem>());
   const [estado, setEstado] = useState<{ de: K; para: D | null; guia: CaixaDoItem | null; origem: CaixaDoItem | null } | null>(null);
   const sessao = useRef<{ de: K; ponto: Ponto; camada: CamadaDoArraste | null; rolar?: (y: number) => void; parar: (() => void)[] } | null>(null);
+  // Onde o botão desceu (`onBegin`). Na web o `translationX/Y` do gesto conta a partir da ativação (depois dos 4 px), não
+  // do toque: a cópia ficava para trás do ponteiro (26/11, "a sombra sai deslocada"). O deslocamento é medido daqui.
+  const pega = useRef<Ponto | null>(null);
   const fimEm = useRef(0);
   const dx = useSharedValue(0);
   const dy = useSharedValue(0);
@@ -142,14 +146,18 @@ export function useArraste<K, D>({ ativo, destino, guia, aoSoltar, encaixar = tr
   const gesto = (chave: K) => {
     const base = Gesture.Pan().runOnJS(true).enabled(ativo);
     return (WEB ? base.minDistance(4) : base.activateAfterLongPress(250))
+      .onBegin((e) => { pega.current = { x: e.absoluteX, y: e.absoluteY }; })
       .onStart((e) => comecar(chave, { x: e.absoluteX, y: e.absoluteY }))
       .onUpdate((e) => {
         const s = sessao.current;
         if (!s || s.de !== chave) return;
-        dx.set(e.translationX);
-        dy.set(e.translationY);
+        const p = pega.current;
+        const x = p ? e.absoluteX - p.x : e.translationX;
+        const y = p ? e.absoluteY - p.y : e.translationY;
+        dx.set(x);
+        dy.set(y);
         s.ponto = { x: e.absoluteX, y: e.absoluteY };
-        s.camada?.mover(e.translationX, e.translationY);
+        s.camada?.mover(x, y);
         s.rolar?.(e.absoluteY);
         calcular();
       })
@@ -188,14 +196,17 @@ export function comItensComoAlvos<K>(a: Arraste<K, K>): Arraste<K, K> {
  * alterada." com Desfazer. Se `aoSoltar` devolve uma função, ela é o desfazer (o conteúdo de antes, como o `BarraDesfazer`);
  * senão o Desfazer leva o item de volta (`aoSoltar(para, de)` da versão mais nova da lista, nada se ela já saiu da tela).
  *
- * Os índices são os da ordem visível, de 0 a `total - 1`.
+ * Os índices são os da ordem visível, de 0 a `total - 1`. `horizontal` (uma fileira só, as abas das opções da refeição):
+ * vale só o x do ponteiro, como se ele estivesse na altura da fileira (subir ou descer um pouco não leva ao começo nem ao
+ * fim). `mensagem` troca o "Ordem alterada." quando a lista tem algo a dizer sobre a ordem nova (lida antes de soltar).
  */
-export function useArrasteDaLista({ total, aoSoltar, eixo = 'vertical', folga = espaco(0.5) }: {
+export function useArrasteDaLista({ total, aoSoltar, eixo = 'vertical', folga = espaco(0.5), mensagem }: {
   total: number;
   aoSoltar: (de: number, para: number) => (() => void) | void;
-  eixo?: 'vertical' | 'linhas';
+  eixo?: 'vertical' | 'linhas' | 'horizontal';
   /** Metade do espaço entre os itens: a linha guia fica no meio dele. */
   folga?: number;
+  mensagem?: (de: number, para: number) => string;
 }): ArrasteDaLista {
   const { avisar } = useAviso();
   // O Desfazer chega até 10 s depois: usa o `aoSoltar` da lista de agora, e só se ela ainda está na tela.
@@ -206,12 +217,18 @@ export function useArrasteDaLista({ total, aoSoltar, eixo = 'vertical', folga = 
   const emOrdem = (m: ReadonlyMap<number, CaixaDoItem>) => Array.from({ length: total }, (_, i) => m.get(i));
   return comItensComoAlvos(useArraste<number, number>({
     ativo: total > 1,
-    destino: (de, ponto, m) => Math.min(destinoDoArraste(emOrdem(m), de, ponto, eixo), total - 1),
-    guia: (de, para, m) => linhaGuia(emOrdem(m), de, para, eixo, folga),
+    destino: (de, ponto, m) => {
+      const caixas = emOrdem(m);
+      const fileira = caixas[de];
+      const p = eixo === 'horizontal' && fileira ? { x: ponto.x, y: fileira.y + fileira.h / 2 } : ponto;
+      return Math.min(destinoDoArraste(caixas, de, p, eixo === 'vertical' ? 'vertical' : 'linhas'), total - 1);
+    },
+    guia: (de, para, m) => linhaGuia(emOrdem(m), de, para, eixo === 'vertical' ? 'vertical' : 'linhas', folga),
     aoSoltar: (de, para) => {
       if (para === de || para < 0) return false;
+      const texto = mensagem?.(de, para) ?? 'Ordem alterada.';
       const desfazer = aoSoltar(de, para) ?? (() => { if (montada.current) atual.current(para, de); });
-      avisar('Ordem alterada.', 'neutro', { rotulo: 'Desfazer', aoTocar: desfazer });
+      avisar(texto, 'neutro', { rotulo: 'Desfazer', aoTocar: desfazer });
       return true;
     },
   }));
@@ -237,13 +254,26 @@ export function ItemArrastavel<K>({ arraste: a, indice, style, children }: {
   children: ReactNode;
 }) {
   const { cores } = useTema();
+  // O `ref` do `Animated.View` só é chamado na montagem (o Reanimated repassa por uma função fixa): com ele, o item ficava
+  // registrado na posição em que nasceu, e depois de reordenar o arraste pegava (e copiava) a linha de outro índice, que
+  // aparecia acima ou abaixo do ponteiro (26/11). O nó vem do `ref`; o registro segue o índice de agora. Os efeitos de
+  // layout desfazem todos os registros velhos antes de fazer os novos, então trocar dois itens não apaga nenhum.
+  const no = useRef<View | null>(null);
+  const medir = useRef(a.medir);
+  useLayoutEffect(() => { medir.current = a.medir; });
+  useLayoutEffect(() => {
+    const registrar = medir.current(indice);
+    registrar(no.current);
+    return () => registrar(null);
+  }, [indice]);
   const andando = a.de === indice && !WEB;
   const { dx, dy, origem: o, guia: g } = a;
-  const andar = useAnimatedStyle(() => (andando ? { transform: [{ translateX: dx.get() }, { translateY: dy.get() }, { scale: 1.02 }] } : {}));
+  // Sem escala (26/11): a cópia sai exatamente sobre a linha e anda o mesmo que o dedo.
+  const andar = useAnimatedStyle(() => (andando ? { transform: [{ translateX: dx.get() }, { translateY: dy.get() }] } : {}));
   // Desconta o quanto o item andou: o contorno e a linha ficam parados no lugar de origem.
   const ficar = useAnimatedStyle(() => (andando ? { transform: [{ translateX: -dx.get() }, { translateY: -dy.get() }] } : {}));
   return (
-    <Animated.View ref={a.medir(indice)} collapsable={false}
+    <Animated.View ref={(n: View | null) => { no.current = n; }} collapsable={false}
       style={[style, andando ? [estilos.porCima, { backgroundColor: cores.superficie, boxShadow: cores.sombra, opacity: 0.6 }] : null, andar]}>
       {children}
       {andando ? (

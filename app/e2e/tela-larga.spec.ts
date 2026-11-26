@@ -6,6 +6,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { Alimento, AlunoDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, ItemDeAtividade, ItemDieta, PainelTreinador, PlanoDetalhe, Refeicao } from '../src/api/tipos';
 import { fixarHoje } from './aluno';
 import { ALUNO, erroApi, MARCA, PERMISSOES_TREINADOR, simularApi, TREINADOR, type PedidoFalso } from './api-falsa';
+import { LARGURA_MAXIMA_DAS_COLUNAS } from '../src/treinador/treino/colunasDasSeries';
+import { colunasDaMobilidade } from '../src/dominio/colunasDaMobilidade';
 import { BIBLIOTECA, PLANO_ID as TREINO_ID, planoDetalhe } from './editor-inspetor.dados';
 import { estadoFinanceiro, INADIMPLENTE, PAINEL_COM_DADOS, PERMISSOES_FINANCEIRO, rotasDoFinanceiro, sessaoComFinanceiro } from './financeiro-falso';
 
@@ -19,6 +21,8 @@ import { estadoFinanceiro, INADIMPLENTE, PAINEL_COM_DADOS, PERMISSOES_FINANCEIRO
 // Sem CAPTURAS_TELA_LARGA, as capturas vão para um diretório temporário criado só quando o teste captura (nada de caminho fixo).
 let pastaTemporaria: string | undefined;
 const pastaDasCapturas = () => process.env.CAPTURAS_TELA_LARGA ?? (pastaTemporaria ??= fs.mkdtempSync(path.join(os.tmpdir(), 'capturas-tela-larga-')));
+// Apaga só a pasta que o próprio teste criou; a escolhida em CAPTURAS_TELA_LARGA fica.
+test.afterAll(() => { if (pastaTemporaria) fs.rmSync(pastaTemporaria, { recursive: true, force: true }); });
 
 const TODAS_PERMISSOES = [
   ...PERMISSOES_TREINADOR,
@@ -371,7 +375,8 @@ test('3440 px (ultralarga): Automática abre 3 colunas e supera 1800 px; Limitad
     const cabecalhoInicio = await caixa(page.getByRole('heading', { name: 'Início', level: 1 }));
     expect(cabecalhoInicio.x).toBeGreaterThan(200);
     const blocoAtualizacoes = await caixa(titulo(page, 'Atualizações'));
-    const blocoAlunos = await caixa(titulo(page, 'Alunos'));
+    // 25/11: o Início é uma grade editável; em 3440 px a primeira linha tem os blocos lado a lado (Atualizações, Interessados...).
+    const blocoAlunos = await caixa(titulo(page, 'Interessados'));
     expect(blocoAlunos.x).toBeGreaterThan(blocoAtualizacoes.x);
   });
 
@@ -495,10 +500,11 @@ test('capturas visuais em 1920 px (Automática), 3440 px (Automática) e 3440 px
 });
 
 /**
- * Editor de uma coluna de campos (19/11): o painel do item (inspetor do treino, da dieta e da mobilidade) para em
+ * Editor de uma coluna de campos (19/11): o painel do item (inspetor do treino e da mobilidade) para em
  * `LARGURA_EDITOR_DE_CAMPOS` (1400), alinhado à esquerda junto da lista; a sobra fica vazia à direita. Abaixo disso nada
- * muda (em 1280 e 1920 com o menu aberto o painel já é menor). Na ultralarga, a 3ª coluna (Total do dia, Resumo da
- * sessão) vem logo depois do painel, no mesmo grupo à esquerda.
+ * muda (em 1280 e 1920 com o menu aberto o painel já é menor). Na ultralarga, a 3ª coluna (Resumo da sessão) vem logo
+ * depois do painel, no mesmo grupo à esquerda. A dieta saiu da regra em 25/11: da faixa `larga` em diante, lista |
+ * refeição (sem teto) | Total do dia (400 na larga, 460 na ultralarga) preenchem a largura do conteúdo.
  */
 const TETO = 1400 + 2;
 const VAO_DAS_COLUNAS = 16;
@@ -513,54 +519,161 @@ for (const largura of [1280, 1920, 2400, 2800, 3440]) {
     // Mobilidade: lista de seções | painel da seção.
     await page.goto(`/treinador/mobilidades/${MOB_ID}`);
     await expect(page.getByRole('heading', { name: 'Seções (2)' })).toBeVisible();
+    // A prévia entra depois da primeira medida da linha: medir antes pegaria as duas colunas de antes.
+    if (largura >= 1920) await expect(page.getByTestId('previa-da-mobilidade')).toBeVisible();
     const lista = await caixa(page.getByRole('group', { name: 'Seções da mobilidade' }));
     const secao = await caixa(page.locator('#secao-s1'));
     expect(secao.width).toBeLessThanOrEqual(TETO);
-    if (limitado) expect(secao.width).toBeGreaterThan(1390);
-    expect(Math.abs(secao.x - (lista.x + lista.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
+    // 26/11: da faixa larga (1920 com o menu aberto) em diante, a 3ª coluna é a prévia ao vivo (`colunasDaMobilidade`).
+    if (largura >= 1920) {
+      // Medido de novo a cada tentativa: a linha pode ainda estar assentando com a prévia (era a intermitência do teste).
+      await expect(async () => {
+        const listaDeNovo = await caixa(page.getByRole('group', { name: 'Seções da mobilidade' }));
+        const secaoDeNovo = await caixa(page.locator('#secao-s1'));
+        const previa = await caixa(page.getByTestId('previa-da-mobilidade'));
+        const esperado = colunasDaMobilidade(Math.round(previa.x + previa.width - listaDeNovo.x))!;
+        expect(Math.abs(secaoDeNovo.width - esperado.editor)).toBeLessThanOrEqual(2);
+        expect(Math.abs(secaoDeNovo.x - (listaDeNovo.x + listaDeNovo.width) - esperado.vao)).toBeLessThanOrEqual(2);
+      }).toPass({ timeout: 5_000 });
+    } else {
+      if (limitado) expect(secao.width).toBeGreaterThan(1390);
+      expect(Math.abs(secao.x - (lista.x + lista.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
+    }
     await semRolagemHorizontal(page);
     await capturar(page, `${largura}-automatica-mobilidade`);
 
-    // Dieta: lista de refeições | refeição com abas e comparação | (ultralarga) Total do dia logo depois.
+    // Dieta (25/11): da faixa larga (1920 com o menu aberto) em diante, lista | refeição (sem teto) | Total do dia (400 na
+    // larga, 460 na ultralarga), as três até a borda direita do conteúdo; em 1280 nada muda (total em faixa cheia acima).
     await page.goto(`/treinador/dietas/${DIETA_ID}`);
+    // A 3ª coluna entra depois da primeira medida da linha (o total sobe da faixa de cima): clicar antes acertaria outro lugar.
+    if (largura >= 1920) await expect(page.getByTestId('coluna-total-dieta')).toBeVisible();
     await page.getByRole('button', { name: /^Refeição 2 de 2: 12:00 · Almoço/ }).click();
     await expect(page.getByRole('tablist', { name: 'Opções de 12:00 · Almoço' }).getByRole('tab')).toHaveCount(2);
-    const refeicao = await caixa(page.locator('#refeicao-almoco'));
-    expect(refeicao.width).toBeLessThanOrEqual(TETO);
-    if (limitado) expect(refeicao.width).toBeGreaterThan(1390);
-    if (tres) {
-      const total = await caixa(page.getByTestId('coluna-total-dieta'));
-      expect(Math.abs(total.x - (refeicao.x + refeicao.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
-    }
+    await conferirColunasDaDieta(page, largura >= 2800 ? 460 : largura >= 1920 ? 400 : null);
     await semRolagemHorizontal(page);
     await capturar(page, `${largura}-automatica-dieta-abas`);
 
-    // Treino: lista de exercícios | inspetor | (ultralarga) Resumo da sessão logo depois.
+    // Treino (25/11): lista de exercícios como antes (360 px) | inspetor sem teto | (ultralarga) Resumo da sessão de 380 px
+    // logo depois; a última coluna termina na borda do bloco da sessão (a largura do conteúdo), sem faixa vazia à direita.
     await page.goto(`/treinador/treinos/${TREINO_ID}`);
-    const inspetor = await caixa(page.locator('#inspetor-do-exercicio'));
-    expect(inspetor.width).toBeLessThanOrEqual(TETO);
-    if (limitado) expect(inspetor.width).toBeGreaterThan(1390);
-    if (tres) {
-      const resumo = await caixa(page.getByTestId('coluna-resumo-sessao'));
-      expect(Math.abs(resumo.x - (inspetor.x + inspetor.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
-    }
+    const inspetorDoTreino = page.locator('#inspetor-do-exercicio');
+    await expect(async () => {
+      const inspetor = await caixa(inspetorDoTreino);
+      const blocoDaSessao = await caixa(inspetorDoTreino.locator('xpath=ancestor::*[starts-with(@id,"sessao-")][1]'));
+      const listaDoTreino = await caixa(page.getByRole('group', { name: 'Exercícios da sessão' }));
+      expect(Math.abs(inspetor.x - (listaDoTreino.x + listaDoTreino.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
+      if (largura >= 1920) expect(Math.round(listaDoTreino.width)).toBe(360);
+      const ultima = tres ? await caixa(page.getByTestId('coluna-resumo-sessao')) : inspetor;
+      if (tres) {
+        expect(Math.round(ultima.width)).toBe(380);
+        expect(Math.abs(ultima.x - (inspetor.x + inspetor.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
+      }
+      expect(Math.abs(ultima.x + ultima.width - (blocoDaSessao.x + blocoDaSessao.width))).toBeLessThanOrEqual(2);
+      if (limitado) expect(inspetor.width).toBeGreaterThan(1400);
+    }).toPass({ timeout: 10_000 });
     await semRolagemHorizontal(page);
     await capturar(page, `${largura}-automatica-treino`);
     expect(errosDaPagina).toEqual([]);
   });
 }
 
-test('1920 px, menu recolhido: o painel da refeição termina na borda dos cartões de cima', async ({ page }) => {
-  await prepararAmbiente(page, 1920, { altura: 1600, menuRecolhido: true });
-  await page.goto(`/treinador/dietas/${DIETA_ID}`);
-  await page.getByRole('button', { name: /^Refeição 2 de 2: 12:00 · Almoço/ }).click();
-  await expect(page.getByRole('tablist', { name: 'Opções de 12:00 · Almoço' }).getByRole('tab')).toHaveCount(2);
+/**
+ * Tabela de séries do inspetor (26/11): cada coluna para na sua largura máxima (`LARGURA_MAXIMA_DAS_COLUNAS`) e, na
+ * ultralarga, a sobra fica vazia antes do chevron, na borda da linha. Em 1280 nada muda: nenhuma coluna chega ao teto e a
+ * linha continua cheia (o chevron logo depois do Descanso, no vão de 16 px). Em 390 não há colunas (ver
+ * `editor-de-treino-reorganizado.spec.ts`).
+ */
+const COLUNAS_DAS_SERIES = ['tipo', 'carga', 'reps', 'descanso'] as const;
+const VAO_DA_LINHA = 16;
+
+for (const largura of [1280, 2560, 3440]) {
+  test(`${largura} px: colunas da tabela de séries até a largura máxima, sobra no fim da linha`, async ({ page }) => {
+    const { errosDaPagina } = await prepararAmbiente(page, largura, { altura: 1200 });
+    await page.goto(`/treinador/treinos/${TREINO_ID}`);
+    const cabecalho = page.locator('#inspetor-do-exercicio').getByTestId('cabecalho-das-series');
+    await expect(cabecalho).toBeVisible();
+    await expect(async () => {
+      const larguras = Object.fromEntries(await Promise.all(COLUNAS_DAS_SERIES.map(async (c) => [c, await caixa(cabecalho.getByTestId(`cabecalho-${c}`))] as const)));
+      const descanso = larguras.descanso;
+      const chevron = await caixa(cabecalho.getByTestId('cabecalho-chevron'));
+      const sobra = chevron.x - (descanso.x + descanso.width) - VAO_DA_LINHA;
+      for (const c of COLUNAS_DAS_SERIES) expect(larguras[c].width).toBeLessThanOrEqual(LARGURA_MAXIMA_DAS_COLUNAS[c] + 1);
+      if (largura >= 2560) {
+        // O inspetor passa de 1500 px: todas no teto e a sobra (bem mais que uma coluna) entre o Descanso e o chevron.
+        for (const c of COLUNAS_DAS_SERIES) expect(Math.abs(larguras[c].width - LARGURA_MAXIMA_DAS_COLUNAS[c])).toBeLessThanOrEqual(1);
+        expect(sobra).toBeGreaterThan(200);
+      } else {
+        for (const c of COLUNAS_DAS_SERIES) expect(larguras[c].width).toBeLessThan(LARGURA_MAXIMA_DAS_COLUNAS[c] - 1);
+        expect(Math.abs(sobra)).toBeLessThanOrEqual(2);
+      }
+    }).toPass({ timeout: 10_000 });
+    await semRolagemHorizontal(page);
+    await capturar(page, `${largura}-tabela-de-series`);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+/**
+ * Editor de dieta (25/11): com o Total do dia como 3ª coluna, as três colunas terminam na borda direita do conteúdo (a
+ * de "Lista de compras", que vai até a borda dos cartões de cima): sem faixa vazia à direita. `total` = largura esperada
+ * da coluna do total, `null` = sem a coluna (o total fica em faixa cheia acima, abaixo da faixa larga).
+ */
+async function conferirColunasDaDieta(page: Page, total: number | null) {
   await expect(async () => {
     const refeicao = await caixa(page.locator('#refeicao-almoco'));
-    // "Lista de compras" é o último item da linha de "Refeições", que vai até a borda direita da área (a dos cartões de cima).
-    const listaDeCompras = await caixa(page.getByRole('button', { name: 'Lista de compras' }));
-    expect(refeicao.width).toBeLessThanOrEqual(TETO);
-    expect(Math.abs(refeicao.x + refeicao.width - (listaDeCompras.x + listaDeCompras.width))).toBeLessThanOrEqual(3);
+    const direita = await caixa(page.getByRole('button', { name: 'Lista de compras' }));
+    if (total === null) {
+      expect(await page.getByTestId('coluna-total-dieta').count()).toBe(0);
+      expect(refeicao.width).toBeLessThanOrEqual(TETO);
+      return;
+    }
+    const coluna = await caixa(page.getByTestId('coluna-total-dieta'));
+    expect(Math.abs(coluna.width - total)).toBeLessThanOrEqual(1);
+    expect(Math.abs(coluna.x - (refeicao.x + refeicao.width) - VAO_DAS_COLUNAS)).toBeLessThanOrEqual(2);
+    expect(Math.abs(coluna.x + coluna.width - (direita.x + direita.width))).toBeLessThanOrEqual(3);
   }).toPass({ timeout: 10_000 });
-  await semRolagemHorizontal(page);
-});
+}
+
+for (const c of [
+  { largura: 1920, menuRecolhido: true, total: 400 },
+  { largura: 2560, menuRecolhido: false, total: 400 },
+  { largura: 3440, menuRecolhido: false, total: 460 },
+  { largura: 3440, menuRecolhido: false, total: 400, larguraConteudo: 'LIMITADA' as const },
+]) {
+  test(`dieta ${c.largura} px (menu ${c.menuRecolhido ? 'recolhido' : 'aberto'}, ${c.larguraConteudo ?? 'AUTOMATICA'}): 3 colunas até a borda, total fixo ao rolar`, async ({ page }) => {
+    // Altura 1000: no fim da página o total (sticky) só fica 16 px abaixo da barra se o contêiner acabar abaixo dele, e isso
+    // depende da altura de tudo que vem depois (Complementos); com 900 a folga era de poucos pixels e oscilava.
+    const { errosDaPagina } = await prepararAmbiente(page, c.largura, { altura: 1000, menuRecolhido: c.menuRecolhido, larguraConteudo: c.larguraConteudo });
+    await page.goto(`/treinador/dietas/${DIETA_ID}`);
+    const coluna = page.getByTestId('coluna-total-dieta');
+    // "Por refeição" escolhe a refeição no editor (a escolhida abre com as abas das opções).
+    await coluna.getByRole('button', { name: /^Ir para 12:00 · Almoço: 192 kcal, 59% do dia/ }).click();
+    await expect(page.getByRole('tablist', { name: 'Opções de 12:00 · Almoço' }).getByRole('tab')).toHaveCount(2);
+    await conferirColunasDaDieta(page, c.total);
+    if (c.larguraConteudo === 'LIMITADA') {
+      // Limitada segura o conteúdo em 1800: as três colunas cabem dentro dele.
+      const lista = await caixa(page.getByRole('group', { name: 'Refeições do plano' }));
+      const total = await caixa(coluna);
+      expect(total.x + total.width - lista.x).toBeLessThanOrEqual(1800 + 1);
+    }
+    // P, C, G e Fibra numa linha só na coluna.
+    // Com nova tentativa: logo depois do clique a coluna ainda pode estar assentando (era a intermitência do teste).
+    await expect(async () => {
+      const ys = await Promise.all(['Proteína', 'Carboidrato', 'Gordura', 'Fibra'].map(async (m) => (await caixa(coluna.getByRole('listitem', { name: new RegExp(`^${m}:`) }))).y));
+      expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(2);
+    }).toPass({ timeout: 5_000 });
+    // Fixo ao rolar: rolada a tela, a coluna gruda logo abaixo da barra do editor (16 px), à vista.
+    const titulo = page.getByRole('heading', { name: /^Refeições \(/ });
+    const antes = (await caixa(titulo)).y;
+    await page.mouse.move(c.largura / 2, 600);
+    await page.mouse.wheel(0, 3000);
+    await expect(async () => {
+      const barra = await caixa(page.locator('#barra-do-editor'));
+      const total = await caixa(coluna);
+      expect((await caixa(titulo)).y).toBeLessThan(antes - 100);
+      expect(Math.abs(total.y - (barra.y + barra.height) - 16)).toBeLessThanOrEqual(3);
+    }).toPass({ timeout: 10_000 });
+    await semRolagemHorizontal(page);
+    expect(errosDaPagina).toEqual([]);
+  });
+}

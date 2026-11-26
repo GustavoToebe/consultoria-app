@@ -56,9 +56,20 @@ const medida = (page: Page) => painel(page).evaluate((d) => {
 const PRONTO = { direita: 1280, largura: 460, transform: 'none', veu: '1' };
 
 test('1280px, movimento normal: o painel desliza da direita, assenta sem resto de transform e fecha na hora', async ({ page }) => {
-  await abrirCobrancas(page, 1280);
+  // Relógio da página parado na abertura: a animação anda só quando o teste manda (`runFor`). Com o relógio solto, a
+  // máquina carregada pulava o primeiro quadro (a animação já nascia no fim, 180 ms depois) e o deslocamento nunca
+  // aparecia: a asserção media a velocidade da máquina, não o painel (25/11).
+  await abrirCobrancas(page, 1280, { relogio: 'parado' });
+  await page.clock.pauseAt(new Date('2026-10-19T12:05:00-03:00'));
   await botao(page).click();
   await expect(painel(page)).toBeVisible();
+  await page.clock.runFor(16);
+  // A caminho de zero: o painel ainda está à direita (deslocado) e o véu ainda não está inteiro.
+  const caminho = await medida(page);
+  expect(caminho.direita).toBeGreaterThan(PRONTO.direita);
+  expect(Number(caminho.veu)).toBeLessThan(1);
+  await page.clock.runFor(400);
+  await page.clock.resume();
   // Espera o fim de verdade (o estado final estável), não um tempo fixo.
   await expect.poll(() => medida(page)).toEqual(PRONTO);
   // Houve deslocamento a caminho de zero, e o último valor escrito tira o inline (`''`): nada de 0,7 px sobrando.

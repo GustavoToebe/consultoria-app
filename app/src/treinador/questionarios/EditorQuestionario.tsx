@@ -32,9 +32,10 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useSecoesAbertas } from '../../ui/useSecoesAbertas';
 import { BarraDoEditor } from '../plano/BarraDoEditor';
-import { TelaDoEditor } from '../plano/TelaDoEditor';
+import { AvisoDePerguntaDoInstagram } from './AvisoDePerguntaDoInstagram';
+import { FixoAbaixoDaBarra, TelaDoEditor } from '../plano/TelaDoEditor';
 import { CamposFixosNaPrevia } from './CamposFixosNaPrevia';
-import { fixoAbaixoDaBarra, IndiceDoQuestionario, irParaBloco, useItemVisivel } from './IndiceDoQuestionario';
+import { IndiceDoQuestionario, irParaBloco, useItemVisivel } from './IndiceDoQuestionario';
 import { PreviaDoQuestionario } from './PreviaDoQuestionario';
 import { SecoesDoQuestionario } from './SecoesDoQuestionario';
 import { useQuestionarioEditor } from './useQuestionarioEditor';
@@ -64,7 +65,6 @@ export function EditorQuestionario({ id }: { id: string }) {
   const [respostas, setRespostas] = useState<RespostasAtualizacao>({});
   const [errosPrevia, setErrosPrevia] = useState<Record<string, string> | null>(null);
   // Tela larga (`dominio/indiceDoQuestionario`): a área medida no próprio editor decide índice e prévia ao vivo.
-  const { height: alturaDaJanela } = useWindowDimensions();
   const { cores } = useTema();
   const [area, setArea] = useState<number | null>(null);
   const ancora = useRef<View>(null);
@@ -164,6 +164,7 @@ export function EditorQuestionario({ id }: { id: string }) {
 
   return <TelaDoEditor largura={LARGURA_MAXIMA}
     cabecalho={<Cabecalho titulo={titulo}
+      descricao="Monte as seções e as perguntas, confira na Prévia e publique. Nada muda para quem responde enquanto for rascunho."
       trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: inscricao ? 'Inscrição' : anamnese ? 'Anamnese' : 'Atualização', href: ABA_VOLTAR }, { rotulo: e.nome || 'Questionário' }]}
       voltar={ABA_VOLTAR} />}
     barra={<BarraDoEditor selo={selo} info={info.charAt(0).toUpperCase() + info.slice(1)} erro={editor.situacao === 'erro' ? editor.mensagemDeErro : null}>
@@ -194,6 +195,9 @@ export function EditorQuestionario({ id }: { id: string }) {
           {inscricao ? <Alerta tom="atencao" texto={AVISO_SAUDE_NA_INSCRICAO} /> : null}
         </Cartao>
 
+        {/* D4: pergunta parecida com o campo fixo Instagram só é avisada; remover é escolha do treinador. */}
+        {inscricao && editavel ? <AvisoDePerguntaDoInstagram conteudo={e.conteudo} aoMudar={editor.alterarConteudo} /> : null}
+
         {problemas && problemas.length ? <Cartao titulo="Corrija antes de publicar" acoes={<Botao rotulo="Fechar" tipo="fantasma" aoTocar={() => setProblemas(null)} />}>
           {problemas.map((p, i) => <ItemProblema key={`${p.caminho}${i}`} onde={descricaoDoLocal(e.conteudo, p.caminho)} mensagem={p.mensagem} tipo="perigo" />)}
         </Cartao> : null}
@@ -216,14 +220,14 @@ export function EditorQuestionario({ id }: { id: string }) {
           aoAbrir={perguntas.abrir} problemas={agrupados} finalidade={d.finalidade} aoEditarSecao={editarSecao} />
         </> : previa(false)}
       </View>
-      {arranjo === 'tres' && colunas ? <View role="complementary" aria-label="Prévia ao vivo" testID="previa-ao-vivo"
-        style={[estilos.lateral, { width: colunas.previa }, fixoAbaixoDaBarra(alturaDaJanela)]}>
+      {arranjo === 'tres' && colunas ? <FixoAbaixoDaBarra role="complementary" aria-label="Prévia ao vivo" testID="previa-ao-vivo"
+        style={[estilos.lateral, { width: colunas.previa }]}>
         {/* A coluna tem o fundo da tela do aluno e rolagem própria (a `useRolagem` de dentro, de "Avançar" e dos erros,
             rola a coluna, não a página). */}
         <View style={[estilos.moldura, { backgroundColor: cores.fundo, borderColor: cores.borda }]}>
           <RolagemComTopo contentContainerStyle={estilos.rolagemDaPrevia}>{previa(true)}</RolagemComTopo>
         </View>
-      </View> : null}
+      </FixoAbaixoDaBarra> : null}
     </View>
 
     <PainelConfirmacao visivel={confirmando && avisos === null} titulo={inscricao ? 'Publicar estas perguntas?' : anamnese ? 'Publicar esta anamnese?' : 'Publicar este questionário?'}

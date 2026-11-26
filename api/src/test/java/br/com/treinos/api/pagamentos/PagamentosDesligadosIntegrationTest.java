@@ -69,6 +69,10 @@ class PagamentosDesligadosIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.post("/cobrancas/baixa-em-lote", admin, Map.of("itens",
                 java.util.List.of(Map.of("cobrancaId", UUID.randomUUID().toString(), "versao", 0)), "data", hoje.toString(),
                 "forma", "DINHEIRO"), 503).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
+        // Pausar por atraso também fecha (antes do 409 SEM_COBRANCA_VENCIDA); reativar fica aberto: é a saída de uma pausa antiga.
+        assertThat(api.post("/alunos/" + aluno + "/pausar-acesso", admin, null, 503).path("codigo").asString())
+                .isEqualTo("FINANCEIRO_INDISPONIVEL");
+        api.post("/alunos/" + aluno + "/reativar-acesso", admin, null, 200);
 
         JsonNode login = api.convidarEEntrar(admin, aluno);
         assertThat(api.get("/aluno/financeiro", login, 503).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");

@@ -136,6 +136,7 @@ for (const largura of [390, 1280]) {
     await expect(destinos.getByRole('radio', { name: 'Alunos' })).toHaveAttribute('aria-checked', 'true');
     await expect(folha.getByRole('button', { name: 'Baixar modelo Excel' })).toBeVisible();
     await expect(folha.getByText('Clique ou arraste o arquivo até aqui.')).toBeVisible();
+    await expect(folha.getByText('XLSX ou CSV · até 900 KB')).toBeVisible();
     await expect(folha.getByText('Escolha o arquivo da planilha.')).toBeVisible();
     await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'alunos.xls', mimeType: 'application/vnd.ms-excel', buffer: Buffer.from('x') });
     await expect(folha.getByText('Envie um arquivo .xlsx ou .csv.').first()).toBeVisible();

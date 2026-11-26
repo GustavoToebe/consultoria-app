@@ -1,7 +1,8 @@
-import { OPCOES_DIAS_ANIVERSARIO } from './aniversariosDosAlunos';
 import { GRUPOS_DO_MENU, type GrupoDoMenu } from './gruposDoMenu';
 import { PERIODOS_DA_LISTA, type PeriodoDaLista } from './listaDeCompras';
-import { BLOCOS_DO_PAINEL, ehBlocoDoPainel, ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
+import {
+  BLOCOS_DO_PAINEL, DIAS_PADRAO_DO_ANIVERSARIO, ehBlocoDoPainel, ehDiasDoAniversario, ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido,
+} from './painelBlocos';
 import { BORDA_BLOCO, BORDA_ITEM, CODIGOS_DA_COR_DE_ACAO, contraste, misturar, type CorDeAcao, type Cores } from '../tema/tokens';
 import { UNIDADES_DE_CARGA, type UnidadeDeCarga } from './unidadeDeCarga';
 
@@ -27,6 +28,8 @@ export type LarguraConteudo = 'AUTOMATICA' | 'LIMITADA';
 /** Onde as folhas de detalhe (`Folha detalhe`) abrem no PC: na lateral direita (padrão) ou numa janela no centro. */
 export type DetalhesAbrem = 'LATERAL' | 'CENTRO';
 export type Movimento = 'SISTEMA' | 'REDUZIDO';
+/** Cor das séries do treino (montar e executar): a de cada tipo (padrão) ou a de ação da pessoa em todas (25/11). */
+export type CorDasSeries = 'TIPO' | 'ACAO';
 export type ModoPdfDieta = 'simples' | 'detalhado';
 
 /** Última escolha da folha "PDF da dieta". Fica no aparelho, como as outras preferências. */
@@ -50,6 +53,11 @@ export interface Preferencias {
   larguraConteudo: LarguraConteudo;
   /** Só no PC (no celular a folha de baixo não muda): folhas de detalhe na lateral ou no centro, com `LARGURA_FOLHA_LARGA`. */
   detalhesAbrem: DetalhesAbrem;
+  /**
+   * Treinador e aluno: séries do editor de treino e da tela do exercício na cor do tipo (Aquecimento, FS, WS...) ou todas
+   * na cor de ação. Nos dois modos o nome do tipo continua no selo; no de ação o selo fica neutro.
+   */
+  corDasSeries: CorDasSeries;
   movimento: Movimento;
   /** Só aparece no celular. */
   vibracao: boolean;
@@ -61,8 +69,6 @@ export interface Preferencias {
   barrasEscuras: boolean;
   /** Só treinador: "Sem registro há N dias" no Início. Informação, nunca inativa ninguém. */
   diasSemRegistro: number;
-  /** Só treinador com `ALUNO_LER`: aniversariantes no Início de hoje até N dias (0 = só hoje, 3, 7 ou 15). Só nome, dia e mês. */
-  diasAniversario: number;
   /** Folha do PDF da dieta: Simples ou Detalhado, período e colunas de fator. */
   pdfDieta: PdfDietaPreferida;
   /** Folha "Gerar imagem": incluir a logo da consultoria. Sem logo, a caixinha fica desligada. */
@@ -115,13 +121,13 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   tamanhoTexto: 'PADRAO',
   larguraConteudo: 'AUTOMATICA',
   detalhesAbrem: 'LATERAL',
+  corDasSeries: 'TIPO',
   movimento: 'SISTEMA',
   vibracao: true,
   graficos: true,
   bordasReforcadas: false,
   barrasEscuras: true,
   diasSemRegistro: 7,
-  diasAniversario: 7,
   pdfDieta: { modo: 'simples', periodo: 'semana', fatores: true },
   logoNaComparacao: true,
   mostrarFasesDoCiclo: true,
@@ -151,6 +157,7 @@ const TAMANHOS: readonly TamanhoTexto[] = ['PADRAO', 'MEDIO', 'GRANDE', 'EXTRA']
 const LARGURAS_CONTEUDO: readonly LarguraConteudo[] = ['AUTOMATICA', 'LIMITADA'];
 const DETALHES_ABREM: readonly DetalhesAbrem[] = ['LATERAL', 'CENTRO'];
 const MOVIMENTOS: readonly Movimento[] = ['SISTEMA', 'REDUZIDO'];
+const CORES_DAS_SERIES: readonly CorDasSeries[] = ['TIPO', 'ACAO'];
 
 function entre<T extends string>(valor: unknown, validos: readonly T[], padrao: T): T {
   return typeof valor === 'string' && (validos as readonly string[]).includes(valor) ? (valor as T) : padrao;
@@ -174,13 +181,13 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     tamanhoTexto: entre(o.tamanhoTexto, TAMANHOS, PREFERENCIAS_PADRAO.tamanhoTexto),
     larguraConteudo: entre(o.larguraConteudo, LARGURAS_CONTEUDO, PREFERENCIAS_PADRAO.larguraConteudo),
     detalhesAbrem: entre(o.detalhesAbrem, DETALHES_ABREM, PREFERENCIAS_PADRAO.detalhesAbrem),
+    corDasSeries: entre(o.corDasSeries, CORES_DAS_SERIES, PREFERENCIAS_PADRAO.corDasSeries),
     movimento: entre(o.movimento, MOVIMENTOS, PREFERENCIAS_PADRAO.movimento),
     vibracao: typeof o.vibracao === 'boolean' ? o.vibracao : PREFERENCIAS_PADRAO.vibracao,
     graficos: typeof o.graficos === 'boolean' ? o.graficos : PREFERENCIAS_PADRAO.graficos,
     bordasReforcadas: typeof o.bordasReforcadas === 'boolean' ? o.bordasReforcadas : PREFERENCIAS_PADRAO.bordasReforcadas,
     barrasEscuras: typeof o.barrasEscuras === 'boolean' ? o.barrasEscuras : PREFERENCIAS_PADRAO.barrasEscuras,
     diasSemRegistro: typeof o.diasSemRegistro === 'number' && OPCOES_DIAS_SEM_REGISTRO.includes(o.diasSemRegistro) ? o.diasSemRegistro : PREFERENCIAS_PADRAO.diasSemRegistro,
-    diasAniversario: typeof o.diasAniversario === 'number' && OPCOES_DIAS_ANIVERSARIO.includes(o.diasAniversario) ? o.diasAniversario : PREFERENCIAS_PADRAO.diasAniversario,
     pdfDieta: pdfDietaDe(o.pdfDieta),
     logoNaComparacao: typeof o.logoNaComparacao === 'boolean' ? o.logoNaComparacao : PREFERENCIAS_PADRAO.logoNaComparacao,
     mostrarFasesDoCiclo: typeof o.mostrarFasesDoCiclo === 'boolean' ? o.mostrarFasesDoCiclo : PREFERENCIAS_PADRAO.mostrarFasesDoCiclo,
@@ -188,7 +195,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     avisoNoCelular: typeof o.avisoNoCelular === 'boolean' ? o.avisoNoCelular : PREFERENCIAS_PADRAO.avisoNoCelular,
     agendasOcultas: agendasOcultasDe(o.agendasOcultas),
     gruposRecolhidos: gruposRecolhidosDe(o.gruposRecolhidos),
-    painelDoInicio: painelDoInicioDe(o.painelDoInicio),
+    painelDoInicio: painelDoInicioDe(o.painelDoInicio, o.diasAniversario),
     unidadeDeCarga: entre(o.unidadeDeCarga, UNIDADES_DE_CARGA, PREFERENCIAS_PADRAO.unidadeDeCarga),
   };
 }
@@ -196,9 +203,11 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
 /**
  * Ordem salva: ids conhecidos, sem repetir, na ordem salva; os que faltam (bloco novo numa versão futura) entram no fim, na
  * ordem padrão. Escondidos: só ids conhecidos, sem repetir. Meus: só ids conhecidos com valor booleano. Tamanhos: só ids
- * conhecidos com 1, 2 ou 3. Qualquer outra coisa volta ao padrão.
+ * conhecidos com 1, 2 ou 3. Opções: a dos aniversários sai sempre gravada; sem ela, vale o `diasAniversario` antigo (migração,
+ * lido do bruto, para continuar valendo quando o campo sair de `Preferencias`); com ela, valor fora do conjunto volta a 7.
+ * Qualquer outra coisa volta ao padrão.
  */
-function painelDoInicioDe(valor: unknown): PainelDoInicioPreferido {
+function painelDoInicioDe(valor: unknown, diasLegado?: unknown): PainelDoInicioPreferido {
   const o = valor && typeof valor === 'object' ? (valor as Record<string, unknown>) : {};
   const conhecidos = (v: unknown) => (Array.isArray(v) ? [...new Set(v.filter(ehBlocoDoPainel))] : []);
   const salva = conhecidos(o.ordem);
@@ -211,11 +220,15 @@ function painelDoInicioDe(valor: unknown): PainelDoInicioPreferido {
   if (o.tamanhos && typeof o.tamanhos === 'object' && !Array.isArray(o.tamanhos)) {
     for (const [id, v] of Object.entries(o.tamanhos)) if (ehBlocoDoPainel(id) && ehTamanhoDoBloco(v)) tamanhos[id] = v;
   }
+  const opcoes = o.opcoes && typeof o.opcoes === 'object' ? (o.opcoes as Record<string, unknown>) : {};
+  const salvas = opcoes.aniversarios && typeof opcoes.aniversarios === 'object' ? (opcoes.aniversarios as Record<string, unknown>) : null;
+  const dias = salvas ? salvas.dias : diasLegado;
   return {
     ordem: [...salva, ...BLOCOS_DO_PAINEL.filter((id) => !salva.includes(id))],
     escondidos: conhecidos(o.escondidos),
     meus,
     tamanhos,
+    opcoes: { aniversarios: { dias: ehDiasDoAniversario(dias) ? dias : DIAS_PADRAO_DO_ANIVERSARIO } },
   };
 }
 

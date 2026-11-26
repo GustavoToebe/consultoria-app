@@ -16,12 +16,13 @@ const ALTURA_BASE = 240;
 const MARGEM_BASE = { topo: 14, base: 24, esq: 70, dir: 12 };
 /** Abaixo desta largura as barras ficam apertadas demais para ler: o gráfico vira tabela. */
 const LARGURA_MINIMA_DO_GRAFICO = 420;
-/** Vão de cada lado do centro entre recebido e previsto: azul e ciano diferem pouco em luminosidade (1,25 no claro), então o fundo as separa. */
+/** Vão de cada lado do centro entre recebido (cheia) e previsto (só contorno): o fundo as separa. */
 const FOLGA = 2;
 
 /**
- * Gráfico de barras mês a mês (SVG): recebido (azul) e previsto (ciano) lado a lado, como os cartões da Visão geral (D6: as cores têm
- * significado, nunca a marca; as duas quase não diferem em luminosidade, então a legenda tem texto e as barras têm um vão). Com a preferência "Mostrar gráficos" desligada, ou numa tela estreita, vira tabela com os mesmos valores.
+ * Gráfico de barras mês a mês (SVG): recebido (verde de `sucesso`, barra cheia) e previsto (só contorno tracejado neutro; 25/11: sem
+ * azul nem roxo no Financeiro, e o previsto não é situação) lado a lado. O que as distingue é o desenho (cheia × vazada), não só a
+ * cor, e a legenda repete o desenho e tem texto. Com a preferência "Mostrar gráficos" desligada, ou numa tela estreita, vira tabela com os mesmos valores.
  * O leitor de tela recebe a lista de valores em texto (o SVG é decorativo). Valor ausente fica sem barra e "—" na tabela; zero
  * (realizado e previsto, igual) é um traço fino na base com "R$ 0" (`MarcaDeZero`), nunca uma barra preenchida.
  */
@@ -63,18 +64,19 @@ export function GraficoBarras({ barras, rotulo = 'Recebido e previsto por mês' 
       )}
       {comTabela ? null : (
         <View style={{ flexDirection: 'row', gap: espaco(2), flexWrap: 'wrap' }}>
-          <Legenda cor={destaques.azul.cor} texto="Recebido" />
-          <Legenda cor={destaques.ciano.cor} texto="Previsto (cobranças já geradas)" />
+          <Legenda cor={destaques.verde.cor} texto="Recebido" />
+          <Legenda contorno={cores.textoSuave} texto="Previsto (cobranças já geradas)" />
         </View>
       )}
     </View>
   );
 }
 
-function Legenda({ cor, texto }: { cor: string; texto: string }) {
+/** Quadrado cheio (`cor`) ou vazado e tracejado (`contorno`): o mesmo desenho das barras. */
+function Legenda({ cor, contorno, texto }: { cor?: string; contorno?: string; texto: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) }}>
-      <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: cor }} />
+      <View style={{ width: 12, height: 12, borderRadius: 3, ...(contorno ? { borderWidth: 1.5, borderStyle: 'dashed', borderColor: contorno } : { backgroundColor: cor }) }} />
       <Texto variante="pequeno">{texto}</Texto>
     </View>
   );
@@ -114,10 +116,10 @@ function desenho({ barras, largura, ALTURA, MARGEM, fonte, cores, destaques }: {
           <G key={b.rotulo}>
             {/* Zero de verdade é o traço com "R$ 0" (sem barra preenchida); sem dado (`null`) não desenha nada. */}
             {b.realizado === null ? null : b.realizado > 0 ? (
-              <Rect x={centro - larguraBarra - FOLGA} y={y(b.realizado / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.realizado / 100), 1)} fill={destaques.azul.cor} rx={2} />
+              <Rect x={centro - larguraBarra - FOLGA} y={y(b.realizado / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.realizado / 100), 1)} fill={destaques.verde.cor} rx={2} />
             ) : <MarcaDeZero x={centro - larguraBarra - FOLGA} largura={larguraBarra} yBase={y(0)} ancora="end" fonte={fonte} cor={cores.textoSuave} />}
             {b.previsto === null ? null : b.previsto > 0 ? (
-              <Rect x={centro + FOLGA} y={y(b.previsto / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.previsto / 100), 1)} fill={destaques.ciano.cor} rx={2} />
+              <Rect x={centro + FOLGA} y={y(b.previsto / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.previsto / 100), 1)} fill="none" stroke={cores.textoSuave} strokeWidth={1.5} strokeDasharray="3 2" rx={2} />
             ) : <MarcaDeZero x={centro + FOLGA} largura={larguraBarra} yBase={y(0)} ancora="start" fonte={fonte} cor={cores.textoSuave} />}
           </G>
         );

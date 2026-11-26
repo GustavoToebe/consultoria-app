@@ -60,15 +60,46 @@ class MontagemDeSeriesTest {
 
     @Test
     void backOffSemPercentualUsaOPadraoDaMetodologia() {
-        // Sem "Back Off %" a série não fica sem carga (erro no editor): vale o padrão do tipo, % da WS, e o aviso fica.
-        Resultado r = MontagemDeSeries.montar(entrada(1, null, Logico.AUSENTE, Logico.SIM, 0, TRES_A_SEIS), PADRAO);
+        // Com a célula vazia a série não fica sem carga (erro no editor): vale o padrão do tipo, % da WS, e o aviso fica.
+        Resultado r = MontagemDeSeries.montar(entrada(1, null, Logico.AUSENTE, Logico.SIM, null, TRES_A_SEIS), PADRAO);
         assertThat(r.series()).hasSize(2);
         assertThat(r.series().get(1).carga().modo()).isEqualTo("PERCENTUAL_WS");
         assertThat(r.series().get(1).carga().percentualMin()).isEqualByComparingTo("85");
         assertThat(r.avisos()).containsExactly("BACK_OFF_SEM_PERCENTUAL");
-        // Célula vazia (ausente) também.
-        Resultado vazia = MontagemDeSeries.montar(entrada(1, null, Logico.AUSENTE, Logico.SIM, null, TRES_A_SEIS), PADRAO);
-        assertThat(vazia.series().get(1).carga().modo()).isEqualTo("PERCENTUAL_WS");
+    }
+
+    @Test
+    void backOffEscritoComoPercentualDiretoOuComSimbolo() {
+        for (Object escrito : new Object[]{80, "80", "80%", "80 %", "80,5%", 80.5}) {
+            Resultado r = MontagemDeSeries.montar(new Entrada(n(1), n(null), Logico.AUSENTE, Logico.SIM,
+                    MontagemDeSeries.percentual(celula(escrito)), TRES_A_SEIS), PADRAO);
+            assertThat(r.avisos()).as(escrito.toString()).isEmpty();
+            BigDecimal esperado = new BigDecimal(escrito.toString().replace("%", "").replace(',', '.').strip());
+            assertThat(r.series().get(1).carga().modo()).isEqualTo("PERCENTUAL_WS");
+            assertThat(r.series().get(1).carga().percentualMin()).isEqualByComparingTo(esperado);
+        }
+        // Fração continua valendo (0,85 e 1 = 100%) e 200 é o teto.
+        assertThat(percentualDe("0,85")).isEqualByComparingTo("85");
+        assertThat(percentualDe(1)).isEqualByComparingTo("100");
+        assertThat(percentualDe("200%")).isEqualByComparingTo("200");
+    }
+
+    private static BigDecimal percentualDe(Object escrito) {
+        Resultado r = MontagemDeSeries.montar(new Entrada(n(1), n(null), Logico.AUSENTE, Logico.SIM,
+                MontagemDeSeries.percentual(celula(escrito)), TRES_A_SEIS), PADRAO);
+        return r.series().get(1).carga().percentualMin();
+    }
+
+    @Test
+    void backOffEscritoMasIlegivelNaoRecebeOPadraoEAvisaComCodigoProprio() {
+        for (Object ilegivel : new Object[]{0, -5, 201, "%", "abc", "80%%", "oitenta"}) {
+            Resultado r = MontagemDeSeries.montar(new Entrada(n(1), n(null), Logico.AUSENTE, Logico.SIM,
+                    MontagemDeSeries.percentual(celula(ilegivel)), TRES_A_SEIS), PADRAO);
+            assertThat(r.avisos()).as(ilegivel.toString()).containsExactly("BACK_OFF_PERCENTUAL_INVALIDO");
+            // Sem % escrito entendido e sem o padrão da metodologia (85): a série fica sem sugestão de carga.
+            assertThat(r.series().get(1).carga().modo()).as(ilegivel.toString()).isEqualTo("NENHUMA");
+            assertThat(r.series().get(1).carga().percentualMin()).isNull();
+        }
     }
 
     @Test

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable } from 'react-native';
 
 import type { AlunoDetalhe, AlunoRequest } from '../api/tipos';
+import type { RedeSocialDoAluno, ValoresDasRedes } from '../dominio/redesSociais';
 import { GuardaDeSaida, useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { FormAluno } from './FormAluno';
 
@@ -39,6 +40,10 @@ jest.mock('../ui/Campo', () => ({
     }),
 }));
 jest.mock('../ui/CamposDeEndereco', () => ({ CamposDeEndereco: () => null }));
+// A peça das redes (testada à parte): guarda as props da edição para o teste mudar os valores e ler os erros.
+interface PropsDasRedes { valores: ValoresDasRedes<RedeSocialDoAluno>; aoMudar: (v: ValoresDasRedes<RedeSocialDoAluno>) => void; erros?: Partial<Record<RedeSocialDoAluno, string | undefined>>; redesPermitidas: readonly RedeSocialDoAluno[] }
+const mockRedes: { props?: PropsDasRedes } = {};
+jest.mock('../ui/RedesSociais', () => ({ RedesSociais: (p: PropsDasRedes) => { mockRedes.props = p; return null; } }));
 // Tocar no campo de data apaga o que estava escrito (o suficiente para conferir o envio).
 jest.mock('../ui/Campos', () => ({
   CampoData: ({ rotulo, aoMudar, erro }: { rotulo: string; aoMudar: (valor: string) => void; erro?: string | null }) =>
@@ -200,6 +205,74 @@ describe('FormAluno data de nascimento', () => {
     aoSalvar.mockImplementationOnce(() => Promise.reject(new ErroApi(422, 'ALUNO_INVALIDO', 'Confira os dados.', [{ field: 'dataNascimento', message: 'Data fora do intervalo permitido.' }])));
     await tocarEEsperar(raiz, 'Salvar');
     expect(alvoDe(raiz, 'Data de nascimento (opcional)').props.accessibilityHint).toBe('Data fora do intervalo permitido.');
+    await Renderer.act(async () => { raiz.unmount(); });
+  });
+});
+
+describe('FormAluno redes sociais', () => {
+  const redes = () => {
+    if (!mockRedes.props) throw new Error('A peça das redes não apareceu.');
+    return mockRedes.props;
+  };
+  const mudarRedes = (valores: ValoresDasRedes<RedeSocialDoAluno>) => Renderer.act(() => { redes().aoMudar(valores); });
+
+  it('abre só com as redes preenchidas (o @ no Instagram), as seis permitidas, e salvar sem mexer não manda rede nem marca alteração', async () => {
+    const { raiz, aoSalvar } = await montar(aluno({ instagram: 'ana.amostra', tiktok: null, youtube: 'https://www.youtube.com/@ana' }));
+    expect(redes().redesPermitidas).toEqual(['instagram', 'tiktok', 'youtube', 'facebook', 'linkedin', 'telegram']);
+    expect(redes().valores).toEqual({ instagram: '@ana.amostra', youtube: 'https://www.youtube.com/@ana' });
+    // Adicionar uma rede sem escrever nada não é alteração.
+    mudarRedes({ ...redes().valores, telegram: '' });
+    tocar(raiz, 'Sair da edição');
+    expect(saiu).toBe(true);
+    await tocarEEsperar(raiz, 'Salvar');
+    const enviado = aoSalvar.mock.calls[0][0];
+    for (const rede of ['instagram', 'tiktok', 'youtube', 'facebook', 'linkedin', 'telegram'] as const) expect(enviado).not.toHaveProperty(rede);
+    await Renderer.act(async () => { raiz.unmount(); });
+  });
+
+  it('remover uma rede manda em branco (apaga) e mudar outra manda só ela; com alteração, a saída pergunta', async () => {
+    const { raiz, aoSalvar } = await montar(aluno({ instagram: 'ana.amostra', youtube: 'https://www.youtube.com/@ana' }));
+    mudarRedes({ youtube: 'https://www.youtube.com/@ana.nova' });
+    tocar(raiz, 'Sair da edição');
+    expect(saiu).toBe(false);
+    await tocarEEsperar(raiz, 'Salvar');
+    const enviado = aoSalvar.mock.calls[0][0];
+    expect(enviado).toEqual(expect.objectContaining({ instagram: '', youtube: 'https://www.youtube.com/@ana.nova' }));
+    expect(enviado).not.toHaveProperty('tiktok');
+    await Renderer.act(async () => { raiz.unmount(); });
+  });
+
+  it('cadastro novo: começa sem rede e manda só a preenchida', async () => {
+    const { raiz, aoSalvar } = await montar();
+    expect(redes().valores).toEqual({});
+    tocar(raiz, 'Nome');
+    mudarRedes({ tiktok: '@ana.tt', linkedin: '  ' });
+    await tocarEEsperar(raiz, 'Cadastrar');
+    const enviado = aoSalvar.mock.calls[0][0];
+    expect(enviado).toEqual(expect.objectContaining({ tiktok: '@ana.tt' }));
+    expect(enviado).not.toHaveProperty('linkedin');
+    expect(enviado).not.toHaveProperty('instagram');
+    await Renderer.act(async () => { raiz.unmount(); });
+  });
+
+  it('erro local na rede vai ao campo dela e trava o Salvar', async () => {
+    const { raiz, aoSalvar } = await montar(aluno());
+    mudarRedes({ instagram: 'nome com espaço', facebook: 'facebook.com/ana amostra' });
+    expect(redes().erros?.instagram).toBe('Use @usuario ou o link do perfil no Instagram.');
+    expect(redes().erros?.facebook).toBe('Use @usuario ou o link do perfil no Facebook.');
+    expect(alvoDe(raiz, 'Salvar').props.accessibilityState).toEqual({ disabled: true });
+    await tocarEEsperar(raiz, 'Salvar');
+    expect(aoSalvar).not.toHaveBeenCalled();
+    await Renderer.act(async () => { raiz.unmount(); });
+  });
+
+  it('422 da API numa rede aparece no campo dela', async () => {
+    const { ErroApi } = require('@plataforma/web') as typeof import('@plataforma/web');
+    const { raiz, aoSalvar } = await montar(aluno({ youtube: 'https://www.youtube.com/@ana' }));
+    aoSalvar.mockImplementationOnce(() => Promise.reject(new ErroApi(422, 'ALUNO_INVALIDO', 'Confira os dados.', [{ field: 'youtube', message: 'Use um link do YouTube.' }])));
+    mudarRedes({ youtube: 'https://exemplo.com/ana' });
+    await tocarEEsperar(raiz, 'Salvar');
+    expect(redes().erros?.youtube).toBe('Use um link do YouTube.');
     await Renderer.act(async () => { raiz.unmount(); });
   });
 });

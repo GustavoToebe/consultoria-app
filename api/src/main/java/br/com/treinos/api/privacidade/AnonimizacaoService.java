@@ -206,7 +206,10 @@ public class AnonimizacaoService {
             autenticador.encerrarSessoes(aluno.getUsuarioId().toString());
         }
         aluno.anonimizar(Instant.now());
-        return alunos.saveAndFlush(aluno);
+        Aluno salvo = alunos.saveAndFlush(aluno);
+        alunos.limparAcessoDesativado(salvo.getConsultoriaId(), salvo.getId()); // colunas só leitura na JPA: o save não as limpa
+        salvo.reativarAcesso(); // e o espelho em memória, para a resposta não sair com o motivo velho
+        return salvo;
     }
 
     private static boolean igual(String nome, String digitado) {

@@ -1,5 +1,6 @@
 import type { Marca } from '../api/tipos';
 import type { ConteudoMobilidade, SecaoMobilidade } from '../dominio/mobilidade';
+import { tituloDoPlano } from '../dominio/tituloDoPlano';
 import { cabecalhoDoPdf, cssBase, esc, escLinhas, link, type Documento } from './html';
 
 export interface DadosPdfMobilidade {
@@ -35,12 +36,13 @@ function blocoSecao(s: SecaoMobilidade): string {
 /** PDF da mobilidade: orientações e, por seção, a tabela de exercícios com prescrição e só o link do vídeo. */
 export function documentoMobilidade(d: DadosPdfMobilidade): Documento {
   const c = d.conteudo;
+  const titulo = tituloDoPlano(d.titulo, 'mobilidade', d.aluno);
   const corpo = [
     cabecalhoDoPdf({
       marca: d.marca,
       logoDataUri: d.logoDataUri,
       documento: 'Mobilidade',
-      titulo: d.titulo,
+      titulo,
       versao: d.versao,
       aluno: d.aluno,
       emitidoEm: d.emitidoEm,
@@ -49,5 +51,5 @@ export function documentoMobilidade(d: DadosPdfMobilidade): Documento {
     ...c.secoes.filter((s) => s.itens.length).map(blocoSecao),
     d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',
   ].join('\n');
-  return { titulo: `Mobilidade - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf), corpo };
+  return { titulo: `Mobilidade - ${d.aluno} - ${titulo}`, css: cssBase(d.marca.corPrimaria, d.marca.temaPdf), corpo };
 }

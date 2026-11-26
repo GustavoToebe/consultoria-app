@@ -1,4 +1,5 @@
 import type { ConteudoDieta, FatoresDoAlimento, ItemDieta, Refeicao, UnidadeAlimento } from '../api/tipos';
+import { ehRotuloPadrao, nomeDaOpcao, opcaoNaFrase } from './dieta';
 import { completarFatores, NOTA_DA_ESTIMATIVA } from './fatoresDoAlimento';
 import { secoesDaDieta } from './variacoesDaDieta';
 
@@ -26,14 +27,17 @@ export const PERIODOS_DA_LISTA: readonly PeriodoDaLista[] = ['semana', 'duasSema
  */
 export const DIAS_DO_PERIODO: Record<PeriodoDaLista, number> = { semana: 7, duasSemanas: 14, mes: 30 };
 
-/** Rótulo curto do período no seletor: "Semana", "2 semanas", "Mês". */
-export const ROTULO_DO_PERIODO: Record<PeriodoDaLista, string> = { semana: 'Semana', duasSemanas: '2 semanas', mes: 'Mês' };
+/**
+ * Rótulo do período no seletor e no título do PDF: "7 dias", "14 dias", "30 dias" (A7, 25/11: o número de dias é a
+ * conta, e "mês" fazia ler o mês do calendário).
+ */
+export function textoDoPeriodo(periodo: PeriodoDaLista): string {
+  return `${DIAS_DO_PERIODO[periodo]} dias`;
+}
 
-/** Título do cartão da lista: "Lista da semana", "Lista de 2 semanas", "Lista do mês". */
+/** Título do cartão da lista: "Lista de 7 dias", "Lista de 14 dias", "Lista de 30 dias". */
 export function tituloDaLista(periodo: PeriodoDaLista): string {
-  if (periodo === 'semana') return 'Lista da semana';
-  if (periodo === 'duasSemanas') return 'Lista de 2 semanas';
-  return 'Lista do mês';
+  return `Lista de ${textoDoPeriodo(periodo)}`;
 }
 
 /** Opção escolhida por refeição: `uid` da refeição → `uid` da opção. Sem escolha (ou escolha que sumiu), vale a primeira. */
@@ -167,7 +171,9 @@ export function textosDasOpcoes(conteudo: ConteudoDieta, escolhas: EscolhasDeOpc
   return secoesDaDieta(conteudo).flatMap((s) => s.refeicoes.filter((r) => r.opcoes.length > 1).map((r) => {
     const uid = escolhas[r.uid];
     const opcao = r.opcoes.find((o) => o.uid === uid) ?? r.opcoes[0];
-    return `${s.rotulo ? `${s.rotulo} · ` : ''}${r.nome || 'Refeição'}: opção ${opcao?.rotulo ?? '—'}`;
+    // Padrão: "opção B"; personalizado: o rótulo digitado ("Opção Principal"), sem "opção" duplicado.
+    const nome = !opcao ? 'opção —' : ehRotuloPadrao(opcao.rotulo) ? opcaoNaFrase(opcao.rotulo) : nomeDaOpcao(opcao.rotulo);
+    return `${s.rotulo ? `${s.rotulo} · ` : ''}${r.nome || 'Refeição'}: ${nome}`;
   }));
 }
 
@@ -232,6 +238,22 @@ export function quantidadeParaTela(quantidade: number, unidade: UnidadeAlimento)
   return `${arredondada} ${unidade}`;
 }
 
+/** "Ovo", "ovos", "Ovo cozido", "Clara de ovo": a palavra inteira, sem acento e sem caixa ("Ovomaltine" e "Pão novo" não). */
+const PALAVRA_OVO = /(^|[^a-z0-9])ovos?([^a-z0-9]|$)/;
+
+/**
+ * Equivalente em dúzias da quantidade em unidade, para ovo (26/11: "120 un · 10 dúzias"). Só quando o número que a tela
+ * mostra (o inteiro de cima, como `quantidadeParaTela`) é múltiplo exato de 12; senão nada, para não arredondar a compra
+ * por outra conta. Outros itens não ganham dúzia: não há regra simples que diga quando a dúzia faz sentido.
+ */
+export function textoDasDuzias(l: Pick<LinhaDaLista, 'nome' | 'unidade' | 'quantidade'>): string | null {
+  if (l.unidade !== 'un' || !PALAVRA_OVO.test(semAcento(l.nome))) return null;
+  const unidades = acima(l.quantidade, 1);
+  if (unidades <= 0 || unidades % 12 !== 0) return null;
+  const duzias = unidades / 12;
+  return duzias === 1 ? '1 dúzia' : `${duzias} dúzias`;
+}
+
 /** Nota do rodapé da tela e do PDF. A mesma frase para o aluno, o treinador e os PDFs. */
 export const NOTA_DA_LISTA = NOTA_DA_ESTIMATIVA;
 
@@ -257,8 +279,3 @@ export function detalheDaConversao(l: Pick<LinhaDaLista, 'unidade' | 'cru' | 'br
 
 /** Aviso da prévia no editor do treinador (a lista do aluno sai dos fatores copiados na publicação). */
 export const NOTA_DA_PREVIA = 'Prévia com os fatores atuais da biblioteca; o aluno vê os fatores que estiverem na biblioteca quando você publicar.';
-
-/** "Semana (7 dias)" / "2 semanas (14 dias)" / "Mês (30 dias)" para o título do PDF. */
-export function textoDoPeriodo(periodo: PeriodoDaLista): string {
-  return `${ROTULO_DO_PERIODO[periodo]} (${DIAS_DO_PERIODO[periodo]} dias)`;
-}

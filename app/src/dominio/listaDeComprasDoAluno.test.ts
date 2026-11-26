@@ -8,6 +8,7 @@ import {
   errosDoAvulso,
   estadoDaVersao,
   gravarAvulso,
+  gruposDaTelaDoAluno,
   gruposDoAluno,
   itensDoAluno,
   LIMITE_AVULSOS,
@@ -192,5 +193,40 @@ describe('gruposDoAluno', () => {
       ['Adicionados por você', [['Café', 'avulso']]],
     ]);
     expect(contagemDeComprados(itens)).toEqual({ comprados: 1, total: 4 });
+  });
+});
+
+describe('gruposDaTelaDoAluno', () => {
+  it('comprados vão para o fim do grupo deles, em ordem estável; o PDF (gruposDoAluno) e a contagem não mudam', () => {
+    const cereais = { grupo: 'Cereais e derivados' };
+    const linhas = [
+      linha('a:arroz:g', 'Arroz', 420, cereais),
+      linha('a:aveia:g', 'Aveia', 200, cereais),
+      linha('a:granola:g', 'Granola', 100, cereais),
+      linha('a:pao:g', 'Pão', 300, cereais),
+      linha('n:sal:g', 'Sal', 35),
+    ];
+    let m = alternarComprado(MARCACOES_VAZIAS, 'a:aveia:g');
+    m = alternarComprado(m, 'a:arroz:g');
+    m = gravarAvulso(m, { id: 'x', nome: 'Café', quantidade: null, unidade: null });
+    m = gravarAvulso(m, { id: 'y', nome: 'Chá', quantidade: null, unidade: null });
+    m = alternarComprado(m, 'avulso:x');
+    const itens = itensDoAluno(linhas, m);
+    const nomes = (grupos: ReturnType<typeof gruposDoAluno>) => grupos.map((g) => [g.titulo, g.itens.map((i) => i.nome)]);
+    // A ordem de marcar (aveia antes do arroz) não conta: os comprados descem na ordem em que estavam na lista.
+    expect(nomes(gruposDaTelaDoAluno(itens))).toEqual([
+      ['Cereais e derivados', ['Granola', 'Pão', 'Arroz', 'Aveia']],
+      ['Outros itens', ['Sal']],
+      ['Adicionados por você', ['Chá', 'Café']],
+    ]);
+    expect(nomes(gruposDoAluno(itens))).toEqual([
+      ['Cereais e derivados', ['Arroz', 'Aveia', 'Granola', 'Pão']],
+      ['Outros itens', ['Sal']],
+      ['Adicionados por você', ['Café', 'Chá']],
+    ]);
+    // Desmarcar devolve o item ao lugar dele.
+    const desmarcado = itensDoAluno(linhas, alternarComprado(m, 'a:arroz:g'));
+    expect(nomes(gruposDaTelaDoAluno(desmarcado))[0]).toEqual(['Cereais e derivados', ['Arroz', 'Granola', 'Pão', 'Aveia']]);
+    expect(contagemDeComprados(itens)).toEqual({ comprados: 3, total: 7 });
   });
 });

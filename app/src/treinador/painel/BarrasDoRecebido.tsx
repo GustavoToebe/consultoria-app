@@ -4,10 +4,10 @@ import Svg, { G, Line, Rect, Text as SvgTexto } from 'react-native-svg';
 
 import { reaisCompactos } from '../../dominio/financeiro';
 import { marcasDoEixo } from '../../dominio/grafico';
-import type { BarrasDoPainel, MesDasBarras } from '../../dominio/painelDoInicio';
+import type { BarrasDoPainel, CorDaBarra, MesDasBarras } from '../../dominio/painelDoInicio';
 import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes } from '../../tema/tokens';
+import { corDaEntradaAvulsa, espaco, fontes } from '../../tema/tokens';
 import { MarcaDeZero } from '../../ui/MarcaDeZero';
 import { useDestaques } from '../../ui/NumeroDeDestaque';
 import { Tabela } from '../../ui/Tabela';
@@ -17,22 +17,23 @@ const ALTURA = 220;
 const MARGEM = { topo: 12, base: 26, esq: 64, dir: 8 };
 /** Abaixo disto o rótulo do mês encurta ("out/26"). */
 const LARGURA_CURTA = 480;
-/** Vão de cada lado do centro entre as duas barras: azul e violeta quase não diferem em luminosidade (1,06 no claro), então o fundo as separa. */
+/** Vão de cada lado do centro entre as duas barras: os dois verdes diferem pouco em luminosidade (1,3 a 1,4), então o fundo as separa. */
 const FOLGA = 2;
 
 /** "out/2026" vira "out/26" quando a largura aperta. */
 const rotuloCurto = (m: MesDasBarras) => m.rotulo.replace(/\/(\d{2})(\d{2})$/, '/$2');
 
 /**
- * Barras do recebido (bruto, azul de destaque) e dos lançamentos (violeta de destaque) dos últimos 6 meses, em SVG sem biblioteca. As
- * cores são de dado, nunca da marca. O leitor de tela recebe a descrição com todos os valores (o desenho é uma imagem
+ * Barras do recebido (bruto, verde da situação `sucesso`) e das entradas avulsas (verde mais claro) a partir do primeiro mês com
+ * valor, no mínimo 3 meses, em SVG sem biblioteca. As cores são de dado, nunca da marca. O leitor de tela recebe a descrição com todos os valores (o desenho é uma imagem
  * só); com "Mostrar gráficos" desligado ou sem nenhum valor vira a tabela com os mesmos números. Mês sem dado: "—", sem
  * barra; zero é um traço fino na base com "R$ 0" (`ui/MarcaDeZero`), nunca uma barra preenchida; o mês em andamento vem em
  * negrito, com "*".
  */
 export function BarrasDoRecebido({ barras }: { barras: BarrasDoPainel }) {
-  const { cores, fatorTexto } = useTema();
+  const { cores, fatorTexto, variante } = useTema();
   const destaques = useDestaques();
+  const corDaBarra = (c: CorDaBarra) => (c === 'verde' ? destaques.verde.cor : corDaEntradaAvulsa(variante));
   const [largura, setLargura] = useState(0);
   const aoMedir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
   const comTabela = !barras.desenhar || barras.semDados;
@@ -56,7 +57,7 @@ export function BarrasDoRecebido({ barras }: { barras: BarrasDoPainel }) {
           <View style={estilos.legenda} aria-hidden importantForAccessibility="no-hide-descendants">
             {barras.series.map((s) => (
               <View key={s.chave} style={estilos.itemDaLegenda}>
-                <View style={[estilos.quadrado, { backgroundColor: destaques[s.cor].cor }]} />
+                <View style={[estilos.quadrado, { backgroundColor: corDaBarra(s.cor) }]} />
                 <Texto variante="pequeno" cor={cores.texto}>{s.rotulo}</Texto>
               </View>
             ))}
@@ -64,7 +65,7 @@ export function BarrasDoRecebido({ barras }: { barras: BarrasDoPainel }) {
           <View onLayout={aoMedir} accessible accessibilityRole="image" accessibilityLabel={barras.descricao}>
             {largura > 0 ? (
               <Svg width={largura} height={ALTURA} aria-hidden>
-                <Desenho barras={barras} largura={largura} fonte={escalar(12, fatorTexto)} cores={cores} destaques={destaques} />
+                <Desenho barras={barras} largura={largura} fonte={escalar(12, fatorTexto)} cores={cores} corDaBarra={corDaBarra} />
               </Svg>
             ) : <View style={{ height: ALTURA }} />}
           </View>
@@ -75,8 +76,8 @@ export function BarrasDoRecebido({ barras }: { barras: BarrasDoPainel }) {
   );
 }
 
-function Desenho({ barras, largura, fonte, cores, destaques }: {
-  barras: BarrasDoPainel; largura: number; fonte: number; cores: ReturnType<typeof useTema>['cores']; destaques: ReturnType<typeof useDestaques>;
+function Desenho({ barras, largura, fonte, cores, corDaBarra }: {
+  barras: BarrasDoPainel; largura: number; fonte: number; cores: ReturnType<typeof useTema>['cores']; corDaBarra: (c: CorDaBarra) => string;
 }) {
   const maxReais = Math.max(barras.maximo / 100, 1);
   const marcas = marcasDoEixo(0, maxReais * 1.08);
@@ -113,8 +114,8 @@ function Desenho({ barras, largura, fonte, cores, destaques }: {
         const centro = MARGEM.esq + faixa * i + faixa / 2;
         return (
           <G key={m.mes}>
-            {barra(m.recebido, centro - larguraBarra - FOLGA, destaques[recebido.cor].cor, 'r', 'end')}
-            {barra(m.lancamentos, centro + FOLGA, destaques[lancamentos.cor].cor, 'l', 'start')}
+            {barra(m.recebido, centro - larguraBarra - FOLGA, corDaBarra(recebido.cor), 'r', 'end')}
+            {barra(m.lancamentos, centro + FOLGA, corDaBarra(lancamentos.cor), 'l', 'start')}
             <SvgTexto x={centro} y={ALTURA - 8} fontSize={fonte} fill={m.parcial ? cores.texto : cores.textoSuave} fontWeight={m.parcial ? 'bold' : 'normal'} textAnchor="middle">
               {`${curto ? rotuloCurto(m) : m.rotulo}${m.parcial ? '*' : ''}`}
             </SvgTexto>

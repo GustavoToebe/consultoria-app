@@ -8,7 +8,9 @@ import {
   URL_DO_SCRIPT_TURNSTILE,
   type MensagemDoWidget,
 } from '../dominio/verificacaoHumana';
+import { ehAndroid, oferecerOutroNavegador } from '../dominio/navegadorEmbutido';
 import { useTema } from '../tema/TemaProvider';
+import { AbraNoNavegador } from './AbraNoNavegador';
 import { MensagemErro } from './Estados';
 import type { PropsVerificacaoHumana } from './verificacaoHumanaTipos';
 
@@ -185,6 +187,9 @@ export function VerificacaoHumana({ siteKey, onToken, chave, aoReconferir }: Pro
     return <MensagemErro texto={TEXTO_FALHA_AO_CARREGAR} />;
   }
   if (falhou) {
+    // Navegador de dentro de outro app (ou Android): o Turnstile costuma falhar ali; oferece copiar o link e abrir no Chrome.
+    const userAgent = navigator.userAgent;
+    if (oferecerOutroNavegador(userAgent)) return <AbraNoNavegador android={ehAndroid(userAgent)} tentarDeNovo={tentarDeNovo} />;
     return <MensagemErro texto={TEXTO_FALHA_AO_CARREGAR} tentarDeNovo={tentarDeNovo} />;
   }
   return <div ref={container} style={{ width: '100%', minHeight: ALTURA_INICIAL }} />;

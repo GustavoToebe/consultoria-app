@@ -16,12 +16,14 @@ const FUNDO_DO_SELO = { sucesso: 'sucessoSuave', atencao: 'atencaoSuave', perigo
  * encerrado, código "3× WS") não ganha selo colorido: é só o texto secundário. O que pede ação ou confirma (`atencao`,
  * `perigo`, `sucesso`) vira pílula com o ponto e o texto na cor da situação sobre o fundo `*Suave` dela (≥ 4,5:1 e ponto
  * ≥ 3:1, `tema/tokens.test.ts`; fundo opaco, então vale sobre qualquer faixa). Com `Icone`, o ícone ocupa o lugar do ponto.
+ * `ponto` no neutro: o mesmo texto secundário sem pílula com o "●" em `textoSuave` (≥ 4,5:1 sobre qualquer superfície),
+ * para separar dois estados neutros de mesmo texto (acesso desativado × nunca teve acesso, 26/11); nos outros tipos o ponto já existe.
  *
  * `categoria` (tipo de série, divisão, refeição: `useTema().identificacao[chave]`) é a terceira família: pílula escura
  * tingida com o texto na cor da categoria, sem ponto (guia pág. 17); vale mais que o `tipo`.
  */
-export function Selo({ texto, tipo = 'neutro', categoria, larguraMinima, Icone }: {
-  texto: string; tipo?: TipoSelo; categoria?: { cor: string; fundo: string }; larguraMinima?: number; Icone?: LucideIcon;
+export function Selo({ texto, tipo = 'neutro', categoria, larguraMinima, Icone, ponto }: {
+  texto: string; tipo?: TipoSelo; categoria?: { cor: string; fundo: string }; larguraMinima?: number; Icone?: LucideIcon; ponto?: boolean;
 }) {
   const { cores } = useTema();
   const normal = tipo === 'neutro' && !categoria;
@@ -35,7 +37,7 @@ export function Selo({ texto, tipo = 'neutro', categoria, larguraMinima, Icone }
         larguraMinima ? { minWidth: larguraMinima, justifyContent: 'center' } : null,
         normal ? estilos.semPilula : { borderColor: 'transparent', backgroundColor: fundo },
       ]}>
-      {Icone ? <Icone size={12} color={cor} strokeWidth={2.5} /> : normal || categoria ? null : <View aria-hidden style={[estilos.ponto, { backgroundColor: cor }]} />}
+      {Icone ? <Icone size={12} color={cor} strokeWidth={2.5} /> : (normal && !ponto) || categoria ? null : <View aria-hidden style={[estilos.ponto, { backgroundColor: cor }]} />}
       <Texto style={[estilos.texto, { color: cor }]}>{texto}</Texto>
     </Badge>
   );

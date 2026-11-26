@@ -15,6 +15,8 @@ public class AcessoPausadoWebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(interceptor);
+        // Sair, renovar a sessão e as rotas públicas nunca são do aluno pausado: o app manda o Bearer em toda chamada e o
+        // logout barrado deixaria o refresh vivo. A lista fechada do interceptor segue valendo para todo o resto.
+        registry.addInterceptor(interceptor).excludePathPatterns("/auth/**", "/publico/**", "/actuator/**");
     }
 }

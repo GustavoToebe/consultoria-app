@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -66,7 +67,8 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
 
     boolean existsByCpfAndIdNot(String cpf, UUID id);
 
-    boolean existsByIdAndAcessoPausadoEmIsNotNull(UUID id);
+    /** O {@code AcessoPausadoInterceptor} pergunta só isto a cada requisição do aluno (sem carregar a entidade). */
+    boolean existsByIdAndAcessoDesativadoMotivo(UUID id, MotivoDoAcessoDesativado motivo);
 
     long countByAtivoTrue();
 
@@ -129,6 +131,44 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
     @Query("update Aluno a set a.podId = :podId where a.id = :alunoId and a.consultoriaId = :consultoriaId and a.ativo = true "
             + "and a.anonimizadoEm is null and a.usuarioId is not null")
     int colocarNoPod(UUID consultoriaId, UUID alunoId, UUID podId);
+
+    /*
+     * Acesso desativado (V100/V104): só estes updates gravam as duas colunas (só leitura na JPA), sem regravar a ficha nem
+     * subir a versão. Quem chama já travou o aluno; a condição no WHERE repete a regra, para valer mesmo com a entidade em
+     * memória desatualizada. Devolvem quantas linhas mudaram (0 = a regra não deixou).
+     */
+
+    /** O motivo gravado no banco (escalar: não devolve a instância do contexto); nulo = acesso normal ou aluno de outra consultoria. */
+    @Query("select a.acessoDesativadoMotivo from Aluno a where a.id = :alunoId")
+    MotivoDoAcessoDesativado motivoDoAcessoDesativado(UUID alunoId);
+
+    /** Pausa por atraso só quem está com o acesso normal (nunca sobrescreve MANUAL nem a data de uma pausa anterior). */
+    @Modifying(flushAutomatically = true)
+    @Query("update Aluno a set a.acessoDesativadoEm = :quando, "
+            + "a.acessoDesativadoMotivo = br.com.treinos.api.alunos.MotivoDoAcessoDesativado.ATRASO "
+            + "where a.id = :alunoId and a.consultoriaId = :consultoriaId and a.acessoDesativadoMotivo is null")
+    int pausarAcessoPorAtraso(UUID consultoriaId, UUID alunoId, Instant quando);
+
+    /** Desativação manual: vale com o acesso normal e troca a pausa por atraso por MANUAL; já MANUAL não muda. */
+    @Modifying(flushAutomatically = true)
+    @Query("update Aluno a set a.acessoDesativadoEm = :quando, "
+            + "a.acessoDesativadoMotivo = br.com.treinos.api.alunos.MotivoDoAcessoDesativado.MANUAL "
+            + "where a.id = :alunoId and a.consultoriaId = :consultoriaId and (a.acessoDesativadoMotivo is null "
+            + "or a.acessoDesativadoMotivo = br.com.treinos.api.alunos.MotivoDoAcessoDesativado.ATRASO)")
+    int desativarAcessoManualmente(UUID consultoriaId, UUID alunoId, Instant quando);
+
+    /** Limpa só a pausa por atraso (quitação e "Reativar acesso" do Financeiro); MANUAL nunca sai por aqui. */
+    @Modifying(flushAutomatically = true)
+    @Query("update Aluno a set a.acessoDesativadoEm = null, a.acessoDesativadoMotivo = null "
+            + "where a.id = :alunoId and a.consultoriaId = :consultoriaId "
+            + "and a.acessoDesativadoMotivo = br.com.treinos.api.alunos.MotivoDoAcessoDesativado.ATRASO")
+    int reativarAcessoPausadoPorAtraso(UUID consultoriaId, UUID alunoId);
+
+    /** Limpa o acesso desativado por qualquer motivo: "Reativar acesso" do cartão Acesso ao app e a anonimização. */
+    @Modifying(flushAutomatically = true)
+    @Query("update Aluno a set a.acessoDesativadoEm = null, a.acessoDesativadoMotivo = null "
+            + "where a.id = :alunoId and a.consultoriaId = :consultoriaId")
+    int limparAcessoDesativado(UUID consultoriaId, UUID alunoId);
 
     /** Tira o aluno do pod (nulo é válido): inativar, anonimizar, "Excluir minha conta" e a remoção pela equipe. */
     @Modifying(flushAutomatically = true)

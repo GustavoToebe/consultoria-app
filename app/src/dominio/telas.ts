@@ -2,6 +2,7 @@ import { temFuncionalidade } from './funcionalidadesDoPlano';
 import { posicaoNoMenu, type GrupoDoMenu } from './gruposDoMenu';
 import { podeAcessarTela } from './permissoes';
 import { NOME_DA_VITRINE_DE_CONSULTORIAS, NOME_DO_PRODUTO } from './produto';
+import { rotaInteiraDoCaminho } from './rotasDasConfiguracoes';
 
 /**
  * Seção de uma tela na busca global: o grupo do menu lateral (D24 de `docs/planos/auditoria-ficha.md`, os mesmos do
@@ -53,7 +54,7 @@ const CATALOGO: readonly Omit<TelaDoCatalogo, 'secao'>[] = [
   { id: 'minha-conta', rotulo: 'Assinatura e faturas', href: '/treinador/minha-conta', palavras: ['minha conta', 'plano', 'assinatura', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
   { id: 'marca', rotulo: 'Marca', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome'], permissao: null },
   { id: 'documentos-pdf', rotulo: 'Documentos (PDF)', href: '/treinador/documentos', palavras: ['pdf', 'documentos', 'tema', 'modelo', 'tema do pdf', 'impressao'], permissao: 'MARCA_ALTERAR', funcionalidade: 'PDF' },
-  { id: 'ajustes', rotulo: 'Ajustes', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
+  { id: 'ajustes', rotulo: 'Aparência e preferências', href: '/treinador/ajustes', palavras: ['ajustes', 'preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
   { id: 'configuracoes', rotulo: 'Configurações', href: '/treinador/configuracoes', palavras: ['ajustes', 'preferencias', 'opcoes', 'configurar'], permissao: null },
   { id: 'termos', rotulo: 'Termos e privacidade', href: '/treinador/termos', palavras: ['termo de uso', 'aviso de privacidade', 'lgpd', 'dados pessoais', 'politica'], permissao: null },
 
@@ -187,13 +188,15 @@ const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
   ['/treinador/perfil', 'Perfil'],
   ['/treinador/meus-dados', 'Meus dados'],
   ['/treinador/seguranca', 'Segurança'],
-  ['/treinador/ajustes', 'Ajustes'],
+  ['/treinador/ajustes', 'Aparência e preferências'],
   ['/treinador/minha-conta', 'Assinatura e faturas'],
   ['/treinador/termos', 'Termos e privacidade'],
 ];
 
 /** Nome da tela do caminho atual para o título da aba do navegador; `null` quando não se sabe (fica só a consultoria). */
-export function nomeDaTela(caminho: string, telas: readonly TelaDoCatalogo[] = TELAS): string | null {
+export function nomeDaTela(caminhoPedido: string, telas: readonly TelaDoCatalogo[] = TELAS): string | null {
+  // Item aberto dentro de Configurações: o nome da tela inteira dele (o h1 que está à direita).
+  const caminho = rotaInteiraDoCaminho(caminhoPedido) ?? caminhoPedido;
   for (const [prefixo, nome] of TITULOS_DE_SUBTELAS) {
     if (caminho === prefixo || caminho.startsWith(`${prefixo}/`)) return nome;
   }

@@ -113,9 +113,19 @@ function MenuDaUnidade({ unidade, aoMudar }: { unidade: UnidadeAlimento; aoMudar
     <>
       <Pressable ref={botao} collapsable={false} onPress={abrir} accessibilityRole="button" accessibilityLabel={`Unidade: ${unidade}. Escolher.`}
         accessibilityState={{ expanded: aberto }} aria-expanded={aberto} aria-haspopup="menu"
-        style={(e) => [estilos.botao, { backgroundColor: sobre(e) ? cores.sobre : 'transparent' }]}>
-        <Texto style={[estilos.sigla, { color: cores.texto }]}>{unidade}</Texto>
-        <ChevronDown size={14} color={cores.textoSuave} strokeWidth={2.5} />
+        testID="segmento-da-unidade" style={estilos.botao}>
+        {(e) => (
+          <>
+            {/* O realce fica dentro do contorno do campo (2 px: a borda do foco e do erro), nunca por cima dele (25/11). */}
+            <View pointerEvents="none" testID="realce-da-unidade" style={[estilos.realce, { backgroundColor: sobre(e) ? cores.sobre : 'transparent' }]} />
+            <View pointerEvents="none" style={[estilos.divisor, { backgroundColor: cores.bordaCampo }]} />
+            {/* Numa `View` (posicionada na web): o SVG solto ficava por baixo do realce absoluto. */}
+            <View style={estilos.conteudo}>
+              <Texto style={[estilos.sigla, { color: cores.texto }]}>{unidade}</Texto>
+              <ChevronDown size={14} color={cores.textoSuave} strokeWidth={2.5} />
+            </View>
+          </>
+        )}
       </Pressable>
       {ancora ? (
         <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={() => fechar()}>
@@ -141,8 +151,12 @@ function MenuDaUnidade({ unidade, aoMudar }: { unidade: UnidadeAlimento; aoMudar
 }
 
 const estilos = StyleSheet.create({
-  // O alvo tem 44 de largura (o recuo que o `Campo` reserva para a `acao`) e a altura do campo.
-  botao: { width: ALVO_TOQUE, minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: RAIO_CONTROLE },
+  // O alvo tem 44 de largura (o recuo que o `Campo` reserva para a `acao`) e a altura do campo inteira; o desenho é um
+  // segmento do mesmo contorno: divisor fino à esquerda e o realce recuado da borda, com os cantos de dentro.
+  botao: { width: ALVO_TOQUE, minHeight: ALVO_TOQUE, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
+  conteudo: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  realce: { position: 'absolute', top: 2, bottom: 2, right: 2, left: 1, borderTopRightRadius: RAIO_CONTROLE - 2, borderBottomRightRadius: RAIO_CONTROLE - 2 },
+  divisor: { position: 'absolute', left: 0, top: espaco(1), bottom: espaco(1), width: 1 },
   sigla: { fontFamily: fontes.semi, fontSize: 14, lineHeight: 20 },
   menu: { position: 'absolute', width: LARGURA_DO_MENU, borderRadius: RAIO, paddingVertical: espaco(0.5), overflow: 'hidden' },
   item: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5) },

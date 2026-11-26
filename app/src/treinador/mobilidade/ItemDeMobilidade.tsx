@@ -219,10 +219,11 @@ const estilos = StyleSheet.create({
   cabecalho: { paddingHorizontal: RECUO_DA_FAIXA + CONTORNO_DA_FAIXA, alignItems: 'center' },
   colunaDaAlca: { width: LARGURA_DA_ALCA },
   colunaDoNumero: { width: LARGURA_DO_NUMERO, alignItems: 'center' },
-  // Nome e Prescrição maiores (1,2 cada), Vídeo menor (1).
-  colunaDoNome: { flex: 1.2, minWidth: 0 },
-  colunaDaPrescricao: { flex: 1.2, minWidth: 0 },
-  colunaDoVideo: { flex: 1, minWidth: 0 },
+  // Proporcionais na largura toda do editor (26/11): Nome 35%, Prescrição 35% e o Vídeo com o resto (30%) das colunas que
+  // crescem, cada uma com um mínimo (a soma, 400 + alça, número, ⋯ e vãos, cabe nos 600 em que a tabela começa).
+  colunaDoNome: { flexGrow: 35, flexShrink: 1, flexBasis: 0, minWidth: 120 },
+  colunaDaPrescricao: { flexGrow: 35, flexShrink: 1, flexBasis: 0, minWidth: 120 },
+  colunaDoVideo: { flexGrow: 30, flexShrink: 1, flexBasis: 0, minWidth: 150 },
   colunaDasAcoes: { width: ALVO_TOQUE },
   // Número e ⋯ no meio da caixa do campo (44 de altura), mesmo quando a célula do lado cresce com um aviso.
   noMeio: { minHeight: ALVO_TOQUE, justifyContent: 'center' },

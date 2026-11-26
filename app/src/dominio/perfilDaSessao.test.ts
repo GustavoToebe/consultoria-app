@@ -28,10 +28,17 @@ describe('perfilDoEu', () => {
     expect(perfilDoEu(EU).overtrainingPayHabilitado).toBe(false);
   });
 
-  it('guarda acessoPausado tanto do nível raiz quanto de eu.aluno', () => {
+  it('guarda as redes da consultoria do aluno; ausentes ficam ausentes', () => {
+    const redes = { instagram: 'https://www.instagram.com/exemplo', facebook: 'https://www.facebook.com/exemplo', telegram: 'https://t.me/exemplo', site: 'https://exemplo.test' };
+    expect(perfilDoEu({ ...EU, redesSociaisDaConsultoria: redes }).redesSociaisDaConsultoria).toEqual(redes);
+    expect(perfilDoEu(EU).redesSociaisDaConsultoria).toBeUndefined();
+  });
+
+  it('acessoPausado vem só do motivo ATRASO do aluno (26/11: o acessoPausado da raiz saiu do /eu)', () => {
     expect(perfilDoEu(EU).acessoPausado).toBe(false);
-    expect(perfilDoEu({ ...EU, acessoPausado: true }).acessoPausado).toBe(true);
-    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno', acessoPausado: true } }).acessoPausado).toBe(true);
+    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno', acessoDesativadoMotivo: 'ATRASO' } }).acessoPausado).toBe(true);
+    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno', acessoDesativadoMotivo: null } }).acessoPausado).toBe(false);
+    expect(perfilDoEu({ ...EU, aluno: { id: 'a1', nome: 'Aluno' } }).acessoPausado).toBe(false);
   });
 });
 

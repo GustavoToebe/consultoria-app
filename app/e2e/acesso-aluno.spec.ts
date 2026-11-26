@@ -1,8 +1,15 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AlunoDetalhe } from '../src/api/tipos';
+import { CLARO } from '../src/tema/tokens';
 import { ALUNO, erroApi, json, sessao, simularApi, TREINADOR } from './api-falsa';
 import { fixarHoje } from './aluno';
+
+const rgbCss = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+/** O "●" do selo (6 x 6 px, só desenho) dentro do elemento: cor do ponto, do texto ao lado e do fundo da pílula. */
+const pontosDoSelo = (el: Locator) => el.locator('[aria-hidden="true"]').evaluateAll((els) => els
+  .filter((e) => (e as HTMLElement).offsetWidth === 6 && (e as HTMLElement).offsetHeight === 6)
+  .map((e) => ({ ponto: getComputedStyle(e).backgroundColor, texto: getComputedStyle(e.nextElementSibling!).color, pilula: getComputedStyle(e.parentElement!).backgroundColor })));
 
 /** Cartão "Acesso ao app": o treinador define e-mail e senha provisória. Só dados fictícios. */
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
@@ -74,7 +81,8 @@ test('aluno sem conta: define e-mail e senha gerada, mostra o e-mail em uso no c
   const senha = await page.getByLabel('Senha provisória').inputValue();
   expect(senha).toMatch(/^[a-km-zA-HJ-NP-Z2-9]{10}$/);
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
-  await expect(page.getByText('Este e-mail já tem uma conta.')).toBeVisible();
+  // 25/11: o 409 EMAIL_EM_USO vira o texto do app no campo (pelo código, não pelo texto da API).
+  await expect(page.getByText('Este e-mail já é usado por outra conta.')).toBeVisible();
 
   await email.fill(EMAIL_LOGIN);
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
@@ -214,6 +222,8 @@ for (const largura of [390, 1280]) {
     ficha = { ...SEM_CONTA, conviteExpiraEm: '2026-10-25T15:00:00Z' };
     await page.reload();
     await expect(acesso.getByLabel('Situação: Sem acesso', { exact: true })).toBeVisible();
+    // Nunca teve acesso: "Sem acesso" neutro sem o "●" (o desativado tem; só o ponto separa os dois).
+    expect(await pontosDoSelo(acesso.getByLabel('Situação: Sem acesso', { exact: true }))).toEqual([]);
     await expect(acesso.getByLabel('Último login: —', { exact: true })).toBeVisible();
     await expect(acesso.getByLabel('E-mail de acesso: —', { exact: true })).toBeVisible();
     await expect(acesso.getByLabel('Convite: Válido até 25/10/2026 12:00', { exact: true })).toBeVisible();
@@ -223,3 +233,161 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+// Acesso ao app (25/11, D3 de `docs/planos/ajustes-da-tarde-25-11.md`): alterar e-mail, desativar e reativar.
+const EMAIL_NOVO = 'novo-login@exemplo.test';
+
+for (const largura of [390, 1280]) {
+  test(`${largura}px: "Alterar e-mail" confere formato, igualdade e o atual; o 409 fica no campo e o sucesso troca a linha`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    let tentativas = 0;
+    const { pedidos, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR)),
+      ...ROTAS_DA_FICHA,
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: COM_CONTA },
+      [`PUT /alunos/${ALUNO_ID}/acesso/email`]: (p, route) => {
+        tentativas++;
+        if (tentativas === 1) return json(route, erroApi(409, 'Conflito.', 'EMAIL_EM_USO').corpo, 409);
+        return json(route, { aluno: { ...COM_CONTA, emailDeAcesso: (p.corpo as { email: string }).email }, emailEnviado: true });
+      },
+    });
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+    const acesso = acessoDoAluno(page);
+    await acesso.getByRole('button', { name: 'Alterar e-mail de acesso' }).click();
+    const folha = page.getByRole('dialog', { name: 'Alterar e-mail de acesso' });
+    await expect(folha.getByLabel(`E-mail atual: ${ALUNO.email}`)).toBeVisible();
+    await expect(folha.getByText(/as sessões abertas do aluno são encerradas/)).toBeVisible();
+    const novo = folha.getByRole('textbox', { name: 'Novo e-mail', exact: true });
+    const confirmacao = folha.getByRole('textbox', { name: 'Confirme o novo e-mail' });
+    const alterar = folha.getByRole('button', { name: 'Alterar e-mail', exact: true });
+
+    await alterar.click();
+    await expect(folha.getByText('Informe o novo e-mail.')).toBeVisible();
+    await expect(folha.getByText('Repita o novo e-mail.')).toBeVisible();
+    await expect(novo).toBeFocused();
+    await novo.fill('sem-arroba');
+    await novo.blur();
+    await expect(folha.getByText('Informe um e-mail válido, como nome@exemplo.com.')).toBeVisible();
+    await novo.fill(ALUNO.email.toUpperCase());
+    await confirmacao.fill(ALUNO.email);
+    await alterar.click();
+    await expect(folha.getByText('Este já é o e-mail de acesso do aluno. Informe outro.')).toBeVisible();
+    await novo.fill(EMAIL_NOVO);
+    await confirmacao.fill('outro@exemplo.test');
+    await alterar.click();
+    await expect(folha.getByText('Os dois e-mails não são iguais.')).toBeVisible();
+    expect(pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
+
+    await confirmacao.fill(EMAIL_NOVO);
+    await alterar.click();
+    await expect(folha.getByText('Este e-mail já é usado por outra conta.')).toBeVisible();
+    await alterar.click();
+    await expect(folha).toHaveCount(0);
+    await expect(acesso.getByLabel(`E-mail de acesso: ${EMAIL_NOVO}`)).toBeVisible();
+    await expect(page.getByText('E-mail de acesso alterado. As sessões do aluno foram encerradas. Avisamos o aluno no e-mail novo.')).toBeVisible();
+    const envios = pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === `/alunos/${ALUNO_ID}/acesso/email`);
+    expect(envios.map((p) => p.corpo)).toEqual([{ email: EMAIL_NOVO }, { email: EMAIL_NOVO }]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('"Alterar e-mail" com o envio de e-mails desligado diz para avisar o aluno', async ({ page }) => {
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: COM_CONTA },
+    [`PUT /alunos/${ALUNO_ID}/acesso/email`]: (p, route) => json(route, { aluno: { ...COM_CONTA, emailDeAcesso: (p.corpo as { email: string }).email }, emailEnviado: false }),
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+  const acesso = acessoDoAluno(page);
+  await acesso.getByRole('button', { name: 'Alterar e-mail de acesso' }).click();
+  const folha = page.getByRole('dialog', { name: 'Alterar e-mail de acesso' });
+  await folha.getByRole('textbox', { name: 'Novo e-mail', exact: true }).fill(EMAIL_NOVO);
+  await folha.getByRole('textbox', { name: 'Confirme o novo e-mail' }).fill(EMAIL_NOVO);
+  await folha.getByRole('button', { name: 'Alterar e-mail', exact: true }).click();
+  await expect(folha).toHaveCount(0);
+  await expect(acesso.getByLabel(`E-mail de acesso: ${EMAIL_NOVO}`)).toBeVisible();
+  await expect(page.getByText('E-mail de acesso alterado. As sessões do aluno foram encerradas. O envio de e-mails está desligado; avise o aluno.')).toBeVisible();
+  await expect(page.getByText(/Avisamos o aluno/)).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('"Desativar acesso" no ⋯ "Ações do acesso" pede confirmação; desativado mostra a data e só "Reativar acesso", que volta ao normal', async ({ page }) => {
+  await fixarHoje(page);
+  const DESATIVADO: AlunoDetalhe = { ...COM_CONTA, acessoDesativadoEm: '2026-10-17T15:00:00Z', acessoDesativadoMotivo: 'MANUAL' };
+  const { pedidos, errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: COM_CONTA },
+    [`POST /alunos/${ALUNO_ID}/acesso/desativar`]: { corpo: DESATIVADO },
+    [`POST /alunos/${ALUNO_ID}/acesso/reativar`]: { corpo: COM_CONTA },
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+  const acesso = acessoDoAluno(page);
+  const posts = () => pedidos.filter((p) => p.metodo === 'POST' && p.caminho.includes('/acesso/'));
+
+  // 26/11: "Desativar acesso" saiu da Situação e foi para o ⋯ do cabeçalho do cartão (item de perigo, texto vermelho).
+  const abrirDesativar = async () => {
+    await acesso.getByRole('button', { name: 'Ações do acesso', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: 'Ações do acesso' });
+    // Sem a permissão do Financeiro, o "Pausar acesso até quitar" nem aparece.
+    await expect(menu.getByRole('button', { name: /^Pausar acesso até quitar/ })).toHaveCount(0);
+    await menu.getByRole('button', { name: /^Desativar acesso/ }).click();
+  };
+  await expect(acesso.getByRole('button', { name: 'Desativar acesso' })).toHaveCount(0);
+  // Cancelar não envia nada.
+  await abrirDesativar();
+  const dialogo = page.getByRole('alertdialog', { name: 'Desativar acesso ao app?' });
+  await expect(dialogo.getByText(/Nada é apagado/)).toBeVisible();
+  await dialogo.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(dialogo).toHaveCount(0);
+  expect(posts()).toHaveLength(0);
+
+  await abrirDesativar();
+  await dialogo.getByRole('button', { name: 'Desativar acesso' }).click();
+  const situacao = acesso.getByLabel('Situação: Acesso desativado', { exact: true });
+  await expect(situacao).toBeVisible();
+  // 26/11: o selo do desativado é "Acesso desativado" neutro (texto secundário, sem pílula; âmbar é o pausado) com o "●" na
+  // mesma cor; o "Sem acesso" de quem nunca teve conta não tem o ponto (caso de cima). Tema claro, o padrão sem preferência.
+  const suave = rgbCss(CLARO.textoSuave);
+  // O mouse fica onde a confirmação estava, agora em cima do selo: o `Badge` ganha fundo ao passar o mouse e o devolve com uma
+  // transição de cor, que mascararia a medida: tira o mouse e espera ela terminar.
+  await page.mouse.move(0, 0);
+  await expect.poll(() => pontosDoSelo(situacao)).toEqual([{ ponto: suave, texto: suave, pilula: 'rgba(0, 0, 0, 0)' }]);
+  // A data vai na nota (o selo tem as mesmas palavras do cabeçalho e da lista).
+  await expect(acesso.getByText('Desativado em 17/10. O aluno não entra até ser reativado. Nada foi apagado.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Acesso desativado', { exact: true })).toHaveCount(2);
+  await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toHaveCount(0);
+  await expect(acesso.getByRole('button', { name: 'Alterar e-mail de acesso' })).toHaveCount(0);
+  // Desativado, o ⋯ não tem o que oferecer e some.
+  await expect(acesso.getByRole('button', { name: 'Ações do acesso', exact: true })).toHaveCount(0);
+  // O e-mail continua à vista e copiável.
+  await expect(acesso.getByRole('button', { name: 'Copiar e-mail de acesso' })).toBeVisible();
+  expect(posts().map((p) => [p.caminho, p.corpo])).toEqual([[`/alunos/${ALUNO_ID}/acesso/desativar`, { motivo: 'MANUAL' }]]);
+
+  await acesso.getByRole('button', { name: 'Reativar acesso' }).click();
+  await expect(acesso.getByLabel('Situação: Com acesso', { exact: true })).toBeVisible();
+  await expect(acesso.getByRole('button', { name: 'Definir nova senha' })).toBeVisible();
+  await expect(page.getByText('Acesso reativado.')).toBeVisible();
+  // O MANUAL sai pela rota da equipe (ALUNO_CONVITE), nunca pela do Financeiro.
+  expect(posts().map((p) => p.caminho)).toEqual([`/alunos/${ALUNO_ID}/acesso/desativar`, `/alunos/${ALUNO_ID}/acesso/reativar`]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('acesso desativado de aluno inativo: "Inativo" sem a data e sem "Reativar acesso"; ativo de novo, o botão volta', async ({ page }) => {
+  let ficha: AlunoDetalhe = { ...COM_CONTA, ativo: false, acessoDesativadoEm: '2026-10-17T15:00:00Z', acessoDesativadoMotivo: 'MANUAL' };
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    [`GET /alunos/${ALUNO_ID}`]: (_p, route) => json(route, ficha),
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
+  const acesso = acessoDoAluno(page);
+  await expect(acesso.getByLabel('Situação: Inativo', { exact: true })).toBeVisible();
+  await expect(acesso.getByRole('button', { name: 'Reativar acesso' })).toHaveCount(0);
+  ficha = { ...ficha, ativo: true };
+  await page.reload();
+  await expect(acesso.getByRole('button', { name: 'Reativar acesso' })).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});

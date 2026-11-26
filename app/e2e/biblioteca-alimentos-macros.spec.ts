@@ -37,10 +37,12 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
         await expect(editar).toBeVisible();
         const sobras = await editar.evaluate((botao) => {
           const b = botao.getBoundingClientRect();
-          // A linha é o ancestral que traz os macros; cada macro é um texto "P 14,0 g".
+          // A linha é o ancestral que traz os macros; cada macro é um texto "P 14,0 g" (25/11: o número vai num <span> mono dentro
+          // do <div>, então "folha" quer dizer sem <div> dentro, não sem filhos).
+          const ehMacro = (d: Element) => /^[PCG] \d/.test(d.textContent ?? '') && ![...d.children].some((c) => c.tagName === 'DIV');
           let linha: HTMLElement | null = botao.parentElement;
-          while (linha && ![...linha.querySelectorAll('div')].some((d) => /^[PCG] \d/.test(d.textContent ?? '') && d.children.length === 0)) linha = linha.parentElement;
-          const textos = [...linha!.querySelectorAll('div')].filter((d) => /^[PCG] \d/.test(d.textContent ?? '') && d.children.length === 0);
+          while (linha && ![...linha.querySelectorAll('div')].some(ehMacro)) linha = linha.parentElement;
+          const textos = [...linha!.querySelectorAll('div')].filter(ehMacro);
           return textos.map((d) => {
             const r = d.getBoundingClientRect();
             const alturaDaLinha = parseFloat(getComputedStyle(d).lineHeight) || r.height;

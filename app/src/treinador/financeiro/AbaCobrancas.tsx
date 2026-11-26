@@ -43,6 +43,7 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { NUMERICO } from '../../ui/tipografia';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { useFaixaDeLargura } from '../../ui/useFaixaDeLargura';
 import { useFaixaDaTela } from '../../ui/Tela';
@@ -282,7 +283,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
               }}
               colunas={[
                 { chave: 'id', titulo: 'ID', largura: MINIMOS.id, render: (c) => (
-                  <Texto variante="pequeno" numerico numberOfLines={1} accessibilityLabel={`ID terminado em ${idCurtoDaCobranca(c.id)}`}>{idCurtoDaCobranca(c.id)}</Texto>
+                  <Texto variante="pequeno" style={NUMERICO} numberOfLines={1} accessibilityLabel={`ID terminado em ${idCurtoDaCobranca(c.id)}`}>{idCurtoDaCobranca(c.id)}</Texto>
                 ) },
                 { chave: 'aluno', titulo: 'Aluno', flex: 2, minimo: medida.aluno, principal: true, render: (c) => <AlunoDaCobranca cobranca={c} /> },
                 // Só o mês (MM/AAAA); a avulsa e a parcela de acordo não têm e mostram "—": a descrição fica no detalhe da cobrança.

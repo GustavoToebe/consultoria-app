@@ -1,5 +1,6 @@
 import { temFuncionalidade } from './funcionalidadesDoPlano';
 import { podeAcessarTela } from './permissoes';
+import { caminhoDoItem, ehItemEmbutido } from './rotasDasConfiguracoes';
 import { caminhoDoHref, semAcento } from './telas';
 
 /** Grupos do hub de Configurações, na ordem em que aparecem (`docs/planos/configuracoes-centralizadas.md`, H5). */
@@ -51,7 +52,7 @@ export const CARTOES_DE_CONFIGURACAO: readonly CartaoDeConfiguracao[] = [
   // MARCA_ALTERAR além da guarda da tela (administrador): decisão do Gustavo em 16/11 (H10), o administrador tem as duas.
   { id: 'marca', grupo: 'Consultoria', titulo: 'Marca', descricao: 'Nome, logo e cores que o aluno vê, e o acompanhamento.', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome', 'acompanhamento', 'dias de atualizacao', 'fases do ciclo'], permissao: 'MARCA_ALTERAR' },
   // Bloco "Contato" da tela Marca (C1 de `contato-da-consultoria.md`): a mesma regra de visibilidade do cartão da Marca.
-  { id: 'contato', grupo: 'Consultoria', titulo: 'Contato', descricao: 'WhatsApp que o aluno vê e o remetente dos e-mails.', href: '/treinador/marca', palavras: ['whatsapp', 'telefone', 'remetente', 'responder para', 'email', 'e-mail', 'falar com o treinador'], permissao: 'MARCA_ALTERAR' },
+  { id: 'contato', grupo: 'Consultoria', titulo: 'Contato', descricao: 'WhatsApp e redes sociais que o aluno vê, e o remetente dos e-mails.', href: '/treinador/marca', palavras: ['whatsapp', 'telefone', 'remetente', 'responder para', 'email', 'e-mail', 'falar com o treinador', 'redes sociais', 'instagram', 'tiktok', 'youtube', 'x', 'twitter', 'site', 'facebook', 'linkedin'], permissao: 'MARCA_ALTERAR' },
   { id: 'whatsapp-oficial', grupo: 'Consultoria', titulo: 'WhatsApp oficial', descricao: 'Conexão com a Meta e modelos de avisos automáticos.', href: '/treinador/whatsapp', palavras: ['whatsapp', 'meta', 'cloud api', 'modelos', 'avisos', 'lembretes', 'waba'], permissao: 'WHATSAPP_ALTERAR', chave: 'whatsappHabilitado' },
   // A mesma regra da Marca e, além dela, o PDF no plano (como os botões de PDF).
   { id: 'documentos-pdf', grupo: 'Consultoria', titulo: 'Documentos (PDF)', descricao: 'Tema dos PDFs de treino e dieta, com prévia de exemplo.', href: '/treinador/documentos', palavras: ['pdf', 'documentos', 'tema', 'modelo', 'tema do pdf', 'impressao'], permissao: 'MARCA_ALTERAR', funcionalidade: 'PDF' },
@@ -65,8 +66,6 @@ export const CARTOES_DE_CONFIGURACAO: readonly CartaoDeConfiguracao[] = [
   { id: 'metodologias', grupo: 'Alunos e atendimento', titulo: 'Metodologias', descricao: 'Regras de séries e preparação usadas nos treinos.', href: '/treinador/planejamento?tipo=metodologia', palavras: ['metodologia', 'series', 'preparacao', 'receitas', 'treino'], permissao: 'MODELO_LER' },
   // Tela própria em /treinador/alunos/tags: a guarda da lista de alunos (ALUNO_LER); gerir pede ALUNO_ALTERAR, conferido na tela.
   { id: 'tags-dos-alunos', grupo: 'Alunos e atendimento', titulo: 'Tags dos alunos', descricao: 'Rótulos da equipe para achar e filtrar os alunos.', href: '/treinador/alunos/tags', palavras: ['tags', 'etiquetas', 'rotulos', 'marcadores', 'categorias de alunos', 'filtrar alunos'] },
-  // Leva às preferências do aparelho (Ajustes), onde mora a escolha de 0, 3, 7 ou 15 dias; só com ALUNO_LER, como o bloco do Início.
-  { id: 'aniversarios', grupo: 'Alunos e atendimento', titulo: 'Aniversários dos alunos', descricao: 'Quantos dias antes o Início mostra quem faz aniversário.', href: '/treinador/ajustes', palavras: ['aniversario', 'aniversariantes', 'data de nascimento', 'parabens', 'inicio'], permissao: 'ALUNO_LER' },
   { id: 'financeiro-planos', grupo: 'Financeiro', titulo: 'Planos comerciais', descricao: 'Os planos que você cobra dos alunos.', href: '/treinador/financeiro?aba=planos', palavras: ['pagamentos', 'mensalidade', 'valores', 'cobranca', 'planos'] },
   { id: 'financeiro-lembretes', grupo: 'Financeiro', titulo: 'Lembretes de cobrança', descricao: 'Quando avisar o aluno por e-mail sobre uma cobrança.', href: '/treinador/financeiro?aba=lembretes', palavras: ['lembrete', 'avisos', 'email', 'vencimento', 'atraso', 'inadimplencia'] },
   { id: 'financeiro-recebimento', grupo: 'Financeiro', titulo: 'Recebimento online', descricao: 'Como o aluno paga: Pix, link próprio, InfinitePay e manual.', href: '/treinador/financeiro?aba=recebimento', palavras: ['formas de recebimento', 'infinitepay', 'pix', 'copia e cola', 'chave pix', 'cartao', 'link de pagamento', 'link proprio', 'manual', 'parcelamento', 'juros'] },
@@ -108,4 +107,20 @@ export function buscarCartoes(texto: string, cartoes: readonly CartaoDeConfigura
 /** Agrupa na ordem de `GRUPOS_DE_CONFIGURACAO`, mantendo a ordem dos cartões; grupo sem cartão não aparece. */
 export function gruposDeCartoes(cartoes: readonly CartaoDeConfiguracao[]): { grupo: GrupoDeConfiguracao; cartoes: CartaoDeConfiguracao[] }[] {
   return GRUPOS_DE_CONFIGURACAO.map((grupo) => ({ grupo, cartoes: cartoes.filter((c) => c.grupo === grupo) })).filter((g) => g.cartoes.length > 0);
+}
+
+/**
+ * O cartão abre dentro de Configurações (coluna da direita, a partir de 1024 px de janela)? Os de telas do menu principal
+ * (Equipe, Planejamento, Interessados, Financeiro, Importação, Auditoria, Ajuda) abrem a tela inteira deles.
+ */
+export const abreDentro = (c: Pick<CartaoDeConfiguracao, 'id'>): boolean => ehItemEmbutido(c.id);
+
+/** Destino do item na coluna da esquerda: o endereço dentro de Configurações ou, nos que abrem fora, a tela deles. */
+export function destinoNaColuna(c: Pick<CartaoDeConfiguracao, 'id' | 'href'>): string {
+  return ehItemEmbutido(c.id) ? caminhoDoItem(c.id) : c.href;
+}
+
+/** O que abre em `/treinador/configuracoes` sem item, na tela larga: o primeiro que abre dentro (Meus dados). */
+export function primeiroItemDentro(visiveis: readonly CartaoDeConfiguracao[]): CartaoDeConfiguracao | null {
+  return visiveis.find(abreDentro) ?? null;
 }

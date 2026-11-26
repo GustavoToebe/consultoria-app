@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
-import type { TomDoPeso } from '../dominio/corDaVariacaoDoPeso';
-import type { LinhaDoHistorico } from '../dominio/resumoDoPeso';
+import { corDoTom, type TomDoPeso } from '../dominio/corDaVariacaoDoPeso';
+import { direcaoFalada, type LinhaDoHistorico } from '../dominio/resumoDoPeso';
 import type { SetaDoPeso } from '../dominio/variacaoDoPeso';
 import { useTema } from '../tema/TemaProvider';
 import { fontes } from '../tema/tokens';
@@ -9,17 +9,13 @@ import { Texto } from '../ui/Texto';
 
 export const SETA_DO_PESO: Record<SetaDoPeso, string> = { sobe: '▲', desce: '▼', igual: '' };
 
-/** A cor do tom no tema em uso (a mesma no resumo e no histórico). */
+/** A cor do tom no tema em uso (a mesma no resumo, no histórico e no balão do gráfico, `corDoTom`). */
 export function useCorDoTom(tom: TomDoPeso): string {
-  const { cores } = useTema();
-  return tom === 'positivo' ? cores.sucesso : tom === 'problema' ? cores.perigo : cores.texto;
+  return corDoTom(tom, useTema().cores);
 }
 
-/** "Subiu 1,2 kg", "Desceu 0,7 kg", "Sem alteração" (sem o sinal: o verbo diz a direção ao leitor de tela). */
-export function direcaoFalada(seta: SetaDoPeso, texto: string): string {
-  if (seta === 'igual') return 'Sem alteração';
-  return `${seta === 'sobe' ? 'Subiu' : 'Desceu'} ${texto.replace(/^[+−]/, '')}`;
-}
+// Mora em `dominio/resumoDoPeso` (o balão do gráfico também fala a variação); quem já importava daqui segue igual.
+export { direcaoFalada };
 
 /**
  * Variação de um registro de peso no histórico (A11 da reunião de 30/10; peso-visual D6), igual na ficha e no histórico

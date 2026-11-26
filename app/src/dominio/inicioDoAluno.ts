@@ -7,7 +7,7 @@ import { nomeComDia, rotuloDoTipo, sessoesDaSemana } from './semana';
 import { variacaoDoDia } from './variacoesDaDieta';
 
 /**
- * Regras do Início do aluno (a tela só desenha). Nada aqui inventa dado: dia, água e contagens vêm do plano publicado
+ * Regras do Início do aluno (a tela só desenha). Nada aqui inventa dado: dia e contagens vêm do plano publicado
  * pelo treinador, e o que falta fica ausente.
  */
 
@@ -32,13 +32,7 @@ export type DietaNoInicio =
   | { tipo: 'carregando' }
   | { tipo: 'erro' }
   | { tipo: 'sem-dieta' }
-  | { tipo: 'ok'; refeicoes: string; agua: string | null };
-
-/** "3,0 L": o número que o treinador escreveu, sempre com uma casa. Sem valor, `null` e a coluna da água some. */
-export function aguaDoInicio(litros: number | null | undefined): string | null {
-  if (litros == null || Number.isNaN(litros)) return null;
-  return `${litros.toFixed(1).replace('.', ',')} L`;
-}
+  | { tipo: 'ok'; refeicoes: string };
 
 /**
  * Cartão da Dieta. `conteudo` nulo = o treinador ainda não publicou. Falha de busca nunca vira "não publicada": é
@@ -50,11 +44,10 @@ export function dietaNoInicio(entrada: { conteudo: ConteudoDieta | null | undefi
   if (conteudo === undefined) return erro ? { tipo: 'erro' } : { tipo: 'carregando' };
   if (conteudo === null) return { tipo: 'sem-dieta' };
   const c = normalizarDieta(conteudo);
-  const agua = aguaDoInicio(c.aguaLitros);
-  if (c.variacoes.length === 0) return { tipo: 'ok', refeicoes: `${contagem(c.refeicoes.length, 'refeição', 'refeições')} no seu plano`, agua };
+  if (c.variacoes.length === 0) return { tipo: 'ok', refeicoes: `${contagem(c.refeicoes.length, 'refeição', 'refeições')} no seu plano` };
   const hoje = variacaoDoDia(c, dia);
-  if (!hoje) return { tipo: 'ok', refeicoes: 'Sem dieta marcada para hoje', agua };
-  return { tipo: 'ok', refeicoes: `Hoje: ${hoje.rotulo.trim() || 'Variação sem nome'} · ${contagem(hoje.refeicoes.length, 'refeição', 'refeições')}`, agua };
+  if (!hoje) return { tipo: 'ok', refeicoes: 'Sem dieta marcada para hoje' };
+  return { tipo: 'ok', refeicoes: `Hoje: ${hoje.rotulo.trim() || 'Variação sem nome'} · ${contagem(hoje.refeicoes.length, 'refeição', 'refeições')}` };
 }
 
 // ---- Hoje ----

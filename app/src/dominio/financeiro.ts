@@ -739,8 +739,9 @@ export interface CartaoDoPainel {
 export const MOTIVO_SEM_PAGANTES = 'Sem pagamentos no período';
 
 /**
- * Os seis cartões, na ordem da tela. Pagantes e valor médio ficam neutros: contagem e média, sem função de cor no D6 (a média é
- * medida calculada: zero com base válida não é apagado, `enfaseDaMedida`).
+ * Os seis cartões, na ordem da tela. Cor só de situação (25/11, sem azul nem roxo no Financeiro): recebido verde, a receber
+ * âmbar, em atraso vermelho. Recorrente, pagantes e valor médio ficam neutros: projeção, contagem e média não são situação (a
+ * média é medida calculada: zero com base válida não é apagado, `enfaseDaMedida`).
  * Zero da API (consulta válida e vazia) aparece como R$ 0,00; nulo é sem dado e aparece "—". O valor médio, sem pagante,
  * fica indisponível.
  */
@@ -751,12 +752,12 @@ export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
   const recorrente = c.receitaRecorrenteMensalCentavos;
   const pagantes = c.alunosPagantes;
   return [
-    { chave: 'recebido', titulo: 'Recebido no período', valor: centavosParaTela(recebido), enfase: enfaseDoNumero('azul', recebido) },
+    { chave: 'recebido', titulo: 'Recebido no período', valor: centavosParaTela(recebido), enfase: enfaseDoNumero('verde', recebido) },
     {
       chave: 'aReceber',
       titulo: 'A receber',
       valor: centavosParaTela(aReceber),
-      enfase: enfaseDoNumero('ciano', aReceber),
+      enfase: enfaseDoNumero('ambar', aReceber),
       detalhe: NOTA_CONSIDERA_GERADAS,
     },
     {
@@ -772,7 +773,7 @@ export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
       chave: 'recorrente',
       titulo: 'Receita recorrente mensal',
       valor: centavosParaTela(recorrente),
-      enfase: enfaseDoNumero('violeta', recorrente),
+      enfase: enfaseDoNumero(null, recorrente),
     },
     { chave: 'pagantes', titulo: 'Alunos pagantes', valor: contagemParaTela(pagantes), enfase: enfaseDoNumero(null, pagantes) },
     {

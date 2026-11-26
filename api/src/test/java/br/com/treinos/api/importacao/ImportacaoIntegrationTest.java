@@ -340,6 +340,14 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         String comObjetivo = "nome;email;objetivo\nRegra Fictícia;" + email + ";Ganhar força\n";
         JsonNode ignorar = previa("alunos", "b.csv", comObjetivo, config);
         assertThat(ignorar.path("ignorados").asInt()).isEqualTo(1);
+        // Confirmar com IGNORAR (grava de verdade, sem travar a linha): conta o ignorado e deixa o aluno intacto.
+        long versao = api.get("/alunos/" + id, treinador, 200).path("versao").asLong();
+        JsonNode ignorado = confirmar("alunos", "b.csv", comObjetivo.getBytes(StandardCharsets.UTF_8), config,
+                hash("alunos", "b.csv", comObjetivo, config));
+        assertThat(ignorado.path("ignorados").asInt()).isEqualTo(1);
+        JsonNode intacto = api.get("/alunos/" + id, treinador, 200);
+        assertThat(intacto.path("objetivo").asString("")).isEmpty();
+        assertThat(intacto.path("versao").asLong()).isEqualTo(versao);
         String completar = config("email", "COMPLETAR", Map.of("nome", 0, "email", 1, "objetivo", 2));
         confirmar("alunos", "c.csv", comObjetivo.getBytes(StandardCharsets.UTF_8), completar, hash("alunos", "c.csv", comObjetivo, completar));
         assertThat(api.get("/alunos/" + id, treinador, 200).path("objetivo").asString()).isEqualTo("Ganhar força");
@@ -873,6 +881,54 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
     }
 
     private static final String AMBIGUO = "Número ambíguo: use vírgula para decimais.";
+
+    private static String textoXlsx(String ref, String texto) {
+        return "<c r=\"" + ref + "\" t=\"inlineStr\"><is><t>" + texto + "</t></is></c>";
+    }
+
+    @Test
+    void pesoComDataQueNaoExisteForaDaFaixaOuComResiduoDeContaDoExcel() throws Exception {
+        String email = unico("datas");
+        String alunos = "nome;email\nDatas Fictício;" + email + "\n";
+        String configAluno = config("email", "IGNORAR", Map.of("nome", 0, "email", 1));
+        confirmar("alunos", "d0.csv", alunos.getBytes(StandardCharsets.UTF_8), configAluno, hash("alunos", "d0.csv", alunos, configAluno));
+        UUID alunoId = UUID.fromString(api.get("/alunos", treinador, 200).path("itens").get(0).path("id").asString());
+
+        StringBuilder folha = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
+        folha.append("<row r=\"1\">").append(textoXlsx("A1", "aluno")).append(textoXlsx("B1", "data")).append(textoXlsx("C1", "peso")).append("</row>");
+        String[][] linhas = {
+                {"31/04/2026", "70.5"},       // abril não tem dia 31: nada de gravar 30/04
+                {"29/02/2025", "71"},         // 2025 não é bissexto
+                {"15/03/0224", "72"},         // ano digitado errado: fora da faixa de registro
+                {"01/02/2026", "81.900000000000006"}, // resíduo de conta de fórmula do Excel: numérico vira 81,9
+                {"02/02/2026", null}};        // este peso é texto com terceira casa: continua inválido
+        for (int i = 0; i < linhas.length; i++) {
+            int n = i + 2;
+            folha.append("<row r=\"").append(n).append("\">").append(textoXlsx("A" + n, email)).append(textoXlsx("B" + n, linhas[i][0]));
+            folha.append(linhas[i][1] == null ? textoXlsx("C" + n, "81,905") : "<c r=\"C" + n + "\"><v>" + linhas[i][1] + "</v></c>").append("</row>");
+        }
+        folha.append("</sheetData></worksheet>");
+        byte[] arquivo = planilha("<sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"></sst>", folha.toString());
+        String configPeso = config("email", "IGNORAR", Map.of("aluno", 0, "data", 1, "peso", 2));
+
+        JsonNode previa = enviar("pesos/previa", "datas.xlsx", arquivo, configPeso, 200);
+        assertThat(previa.path("novos").asInt()).isEqualTo(1);
+        assertThat(previa.path("comErro").asInt()).isEqualTo(4);
+        var erros = previa.path("erros");
+        assertThat(erros.get(0).path("motivo").asString()).isEqualTo("Data inválida.");
+        assertThat(erros.get(1).path("motivo").asString()).isEqualTo("Data inválida.");
+        assertThat(erros.get(2).path("campo").asString()).isEqualTo("data");
+        assertThat(erros.get(2).path("motivo").asString()).isEqualTo("Data: use uma data entre 01/01/1900 e hoje");
+        assertThat(erros.get(3).path("campo").asString()).isEqualTo("peso");
+        assertThat(erros.get(3).path("motivo").asString()).isEqualTo("Valor inválido.");
+        assertThat(erros.toString()).doesNotContain("0224"); // a amostra mostra o arquivo ao treinador; a mensagem de erro não repete o valor
+
+        confirmar("pesos", "datas.xlsx", arquivo, configPeso, previa.path("hash").asString());
+        JsonNode gravados = api.get("/alunos/" + alunoId + "/pesos", treinador, 200);
+        assertThat(gravados).hasSize(1);
+        assertThat(gravados.get(0).path("data").asString()).isEqualTo("2026-02-01");
+        assertThat(gravados.get(0).path("pesoKg").decimalValue()).isEqualByComparingTo("81.9");
+    }
 
     @Test
     void numeroComPontoETresDigitosEAmbiguoNoPesoENoAlimento() throws Exception {

@@ -3,9 +3,11 @@
  * Só leitura do painel; nada é feito sozinho.
  */
 
-export type DestinoDoInicio = 'PARA_REVISAR' | 'ATRASADAS' | 'RETORNOS' | 'INTERESSADOS' | 'PLANOS_TERMINANDO' | 'SEM_REGISTRO' | 'TROCAS';
+export type DestinoDoInicio = 'SEM_ACESSO' | 'PARA_REVISAR' | 'ATRASADAS' | 'RETORNOS' | 'INTERESSADOS' | 'PLANOS_TERMINANDO' | 'SEM_REGISTRO' | 'TROCAS';
 
 export interface PendenciasDoInicio {
+  /** Alunos ativos que ainda não entraram no app (`alunosSemAcesso` do painel). Nulo = sem permissão de convidar ou sem o número. */
+  semAcesso?: number | null;
   /** Nulo = sem permissão para ver (o item não entra na conta). */
   paraRevisar: number | null;
   atrasadas: number | null;
@@ -23,7 +25,8 @@ export interface PendenciasDoInicio {
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
 /**
- * A primeira pendência, na ordem do trabalho do dia: atualização para revisar (o aluno espera o feedback), atrasadas,
+ * A primeira pendência, na ordem do trabalho do dia: aluno sem acesso (sem convite ele não registra nem atualiza, então
+ * convidar vem antes de cobrar o que ele não consegue fazer), atualização para revisar (o aluno espera o feedback), atrasadas,
  * retorno a interessado já vencido (combinado e não cumprido), interessados novos (quem espera contato), retornos
  * marcados para hoje, planos que terminam, alunos sem registro e trocas de exercício para ver. Nada pendente = nulo.
  */
@@ -31,6 +34,7 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 export const TETO_PLANOS_TERMINANDO = 20;
 
 export function proximoPassoDoInicio(p: PendenciasDoInicio): { texto: string; acao: string; destino: DestinoDoInicio } | null {
+  if (p.semAcesso) return { texto: `${plural(p.semAcesso, 'aluno ainda não tem', 'alunos ainda não têm')} acesso.`, acao: p.semAcesso === 1 ? 'Enviar convite' : 'Enviar convites', destino: 'SEM_ACESSO' };
   if (p.paraRevisar) return { texto: `${plural(p.paraRevisar, 'atualização chegou', 'atualizações chegaram')} para revisar.`, acao: 'Revisar agora', destino: 'PARA_REVISAR' };
   if (p.atrasadas) return { texto: `${plural(p.atrasadas, 'atualização está atrasada', 'atualizações estão atrasadas')}.`, acao: 'Ver atrasadas', destino: 'ATRASADAS' };
   if (p.retornosAtrasados) return { texto: `${plural(p.retornosAtrasados, 'retorno a interessado está atrasado', 'retornos a interessados estão atrasados')}.`, acao: 'Ver retornos', destino: 'RETORNOS' };

@@ -1,6 +1,7 @@
 import type { AnamneseDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, EtapaRegistrada, OrigemDaReferencia, PainelAluno, VersaoDetalhe } from '../api/tipos';
 import { nomeDoBanco, prepararEsquema, type BancoSql, type ConexaoSql, type FabricaBanco, type ValorSql } from './banco';
 import type { ListaDeComprasSalva } from '../dominio/listaDeComprasDoAluno';
+import { aplicarRascunho, chaveDoRascunhoDaSerie, podarRascunhos, type MudancaDoRascunho, type RascunhosDeSerie } from '../dominio/rascunhoDaSerie';
 import { pacoteNoFormatoAtual } from './formatoDoPacote';
 import {
   filaRetidaVenceu,
@@ -366,6 +367,31 @@ export class RepositorioSqlite implements RepositorioLocal {
     );
   }
 
+  // ---- Rascunho das séries (antes do ✓): documento `rascunhosDeSerie` na tabela kv, fora da fila de envio ----
+
+  lerRascunhosDeSerie(hoje: string): Promise<RascunhosDeSerie> {
+    return this.emFila({}, (b) =>
+      b.transacao(async (t) => {
+        const lidos = await this.lerDocumento<unknown>(t, 'rascunhosDeSerie');
+        const podados = podarRascunhos(lidos, hoje);
+        if (lidos && typeof lidos === 'object' && Object.keys(lidos).length !== Object.keys(podados).length) {
+          await this.gravarDocumento(t, 'rascunhosDeSerie', podados);
+        }
+        return podados;
+      }),
+    );
+  }
+
+  salvarRascunhoDeSerie(chave: string, mudanca: MudancaDoRascunho | null, hoje: string): Promise<RascunhosDeSerie> {
+    return this.emFila({}, (b) =>
+      b.transacao(async (t) => {
+        const novos = aplicarRascunho(podarRascunhos(await this.lerDocumento<unknown>(t, 'rascunhosDeSerie'), hoje), chave, mudanca, hoje);
+        await this.gravarDocumento(t, 'rascunhosDeSerie', novos);
+        return novos;
+      }),
+    );
+  }
+
   // ---- Registros ----
 
   listar(): Promise<RegistroLocal[]> {
@@ -412,6 +438,13 @@ export class RepositorioSqlite implements RepositorioLocal {
           );
         } else {
           await t.rodar(INSERIR_REGISTRO, paraLinha(registro));
+        }
+        // O registro manda nos campos da série daqui em diante: o rascunho dela sai, na mesma transação.
+        const rascunhos = await this.lerDocumento<Record<string, unknown>>(t, 'rascunhosDeSerie');
+        const chaveDoRascunho = chaveDoRascunhoDaSerie(dados);
+        if (rascunhos && typeof rascunhos === 'object' && chaveDoRascunho in rascunhos) {
+          delete rascunhos[chaveDoRascunho];
+          await this.gravarDocumento(t, 'rascunhosDeSerie', rascunhos);
         }
         return registro;
       }),

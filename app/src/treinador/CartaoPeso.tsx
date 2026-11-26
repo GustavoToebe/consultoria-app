@@ -11,7 +11,8 @@ import { dataParaTela, hojeIso } from '../dominio/formatos';
 import { periodoDesdeOPrimeiro } from '../dominio/historicoDoAluno';
 import { linhaDaMeta } from '../dominio/metaDoPesoNaFicha';
 import { avisoDoGrafico } from '../dominio/progresso';
-import { escalaDoPeso, legendaDaEscala, linhaDoHistorico, pesoComCasas, pontosDoPeso } from '../dominio/resumoDoPeso';
+import { corDoTom } from '../dominio/corDaVariacaoDoPeso';
+import { escalaDoPeso, legendaDaEscala, linhaDoHistorico, pesoComCasas, pontosDoPeso, variacaoFalada } from '../dominio/resumoDoPeso';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
@@ -27,7 +28,7 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
-import { GraficoLinha } from '../ui/GraficoLinha';
+import { GraficoLinha, type LinhaDaDica } from '../ui/GraficoLinha';
 import { IconeBotao } from '../ui/IconeBotao';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Tabela, type ColunaDaTabela } from '../ui/Tabela';
@@ -161,12 +162,25 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
   // A observação é só da equipe (a rota do aluno a devolve nula) e vira detalhe do registro que a tem, sem coluna de "—".
   const comObservacao = daEquipe && visiveis.some((p) => p.observacao);
   const escala = escalaDoPeso(registros);
-  const dicaDoPonto = (ponto: { data?: string; valor: number }) => {
-    const r = cronologico.find((p) => p.data === ponto.data && p.pesoKg === ponto.valor);
+  // Balão: a mesma linha da coluna Variação (seta e número na cor da meta, "desde dd/mm" neutro) e o ponto em foco na
+  // mesma cor; o primeiro registro e o 0,0 ficam neutros. A linha do gráfico continua no azul do peso.
+  const registroDoPonto = (ponto: { data?: string; valor: number }) => cronologico.find((p) => p.data === ponto.data && p.pesoKg === ponto.valor);
+  const dicaDoPonto = (ponto: { data?: string; valor: number }): LinhaDaDica[] => {
+    const r = registroDoPonto(ponto);
     if (!r) return [`${pesoComCasas(ponto.valor)} kg`];
     const h = historico(r);
-    const diferenca = h.seta ? [SETA_DO_PESO[h.seta], h.texto, h.desde].filter(Boolean).join(' ') : h.texto;
-    return [`${dataParaTela(r.data)} · ${pesoComCasas(r.pesoKg)} kg`, diferenca];
+    const valor = `${dataParaTela(r.data)} · ${pesoComCasas(r.pesoKg)} kg`;
+    if (!h.seta) return [valor, h.texto];
+    const numero = [SETA_DO_PESO[h.seta], h.texto].filter(Boolean).join(' ');
+    return [valor, { texto: numero, cor: corDoTom(h.tom, cores), depois: h.desde ? ` ${h.desde}` : '' }];
+  };
+  const faladoDoPonto = (ponto: { data?: string; valor: number }) => {
+    const r = registroDoPonto(ponto);
+    return r ? `${dataParaTela(r.data)}, ${pesoComCasas(r.pesoKg)} kg. ${variacaoFalada(historico(r))}` : `${pesoComCasas(ponto.valor)} kg`;
+  };
+  const corDoPontoEmFoco = (ponto: { data?: string; valor: number }) => {
+    const r = registroDoPonto(ponto);
+    return corDoTom(r ? historico(r).tom : 'neutro', cores);
   };
   const primeiro = cronologico[0];
   const ultimo = cronologico[cronologico.length - 1];
@@ -206,6 +220,8 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
           escala={escala}
           legendaDaEscala={legendaDaEscala(escala)}
           textoDaDica={dicaDoPonto}
+          faladoDaDica={faladoDoPonto}
+          corDoPonto={corDoPontoEmFoco}
           descricao={descricaoDoGrafico}
           faixas={ciclo.ativo && preferencias.mostrarFasesDoCiclo ? ciclo.faixasDe(primeiro.data, ultimo.data) : undefined}
         />

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { RegistroEnvio } from '../src/api/tipos';
 import { ALUNO, erroApi, simularApi, type RespostasApi } from './api-falsa';
-import { fixarHoje, MEUS_DADOS_VAZIOS, sessaoComTopSetEBackOff, sessaoDeAluno, sessaoDeAlunoComTreino } from './aluno';
+import { fixarHoje, MEUS_DADOS_VAZIOS, sessaoComTopSetEBackOff, sessaoDeAluno, sessaoDeAlunoComTreino, fazerSerie } from './aluno';
 
 /**
  * Auditoria de UI/UX do aluno (03/11, frente 3): selo só nas séries registradas (N3), aviso de série sem carga (N6) e do
@@ -40,19 +40,20 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Feita', { exact: true })).toHaveCount(0);
 
     // N7: letras no peso dizem o porquê, junto do campo.
-    const peso = page.getByRole('textbox', { name: 'Peso da série 1, em quilos', exact: true });
+    const peso = page.getByRole('textbox', { name: 'Carga da série 1, em quilos', exact: true });
     await peso.fill('abc');
     await expect(page.getByText('Peso: use só números.', { exact: true })).toBeVisible();
     await peso.fill('');
     await expect(page.getByText('Peso: use só números.', { exact: true })).toHaveCount(0);
 
-    // N6: marcada com o kg vazio (sem sugestão para perguntar), a série avisa que não entra no progresso e ganha o selo.
+    // N6 (25/11): sem kg e sem sugestão o ✓ não marca e diz o que falta; com o kg, marca e ganha o selo, sem o aviso.
     await page.getByRole('textbox', { name: 'Repetições da série 1', exact: true }).fill('5');
-    await page.getByRole('checkbox', { name: 'Série 1 feita', exact: true }).click();
-    await expect(page.getByText(AVISO_SEM_CARGA, { exact: true })).toBeVisible();
-    await expect(page.getByText('Feita', { exact: true })).toHaveCount(1);
-    // Com o kg preenchido o aviso some.
+    const marcar = page.getByRole('checkbox', { name: /^Marcar série 1 como feita/ });
+    await expect(marcar).toBeDisabled();
+    await expect(page.getByText('Digite a carga para marcar a série.', { exact: true })).toBeVisible();
     await peso.fill('80');
+    await marcar.click();
+    await expect(page.getByText('Feita', { exact: true })).toHaveCount(1);
     await expect(page.getByText(AVISO_SEM_CARGA, { exact: true })).toHaveCount(0);
 
     await semEstourar(page);
@@ -74,9 +75,9 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Sincronizado', { exact: true })).toHaveCount(0);
 
     // Um registro que não saiu: o selo aparece.
-    await page.getByRole('textbox', { name: 'Peso da série 1, em quilos', exact: true }).fill('80');
+    await page.getByRole('textbox', { name: 'Carga da série 1, em quilos', exact: true }).fill('80');
     await page.getByRole('textbox', { name: 'Repetições da série 1', exact: true }).fill('5');
-    await page.getByRole('checkbox', { name: 'Série 1 feita', exact: true }).click();
+    await fazerSerie(page, 1);
     await expect(page.getByText(/aguardando envio|salvo\(s\) no aparelho/)).toBeVisible({ timeout: 15_000 });
     await semEstourar(page);
     expect(naoTratadas).toEqual([]);

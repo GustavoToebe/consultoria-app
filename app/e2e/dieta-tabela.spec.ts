@@ -99,6 +99,22 @@ async function validarComProblemas(page: Page) {
   expect(await contornoDoManual(page, 0)).toBe(TRANSPARENTE);
 }
 
+/**
+ * Os cinco valores do item manual (Kcal, P, C, G e Fibras) com a mesma largura (25/11; a fibra, sozinha no par, esticava):
+ * numa linha de 5 ou em 3 + 2, sem passar da linha.
+ */
+async function mesmaLarguraNosValoresDoManual(page: Page) {
+  const grade = page.getByTestId('valores-do-item-manual').first();
+  const caixas = async () => grade.locator('input').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width }; }));
+  await expect.poll(async () => (await caixas()).length).toBe(5);
+  await expect.poll(async () => { const c = await caixas(); return Math.max(...c.map((x) => x.w)) - Math.min(...c.map((x) => x.w)); }).toBeLessThanOrEqual(1);
+  const c = await caixas();
+  const linhas = [...new Set(c.map((x) => Math.round(x.y)))].length;
+  expect(linhas === 1 || linhas === 2).toBe(true);
+  // Em duas linhas, 3 + 2: as de baixo começam nas colunas das de cima.
+  if (linhas === 2) for (const i of [3, 4]) expect(Math.abs(c[i].x - c[i - 3].x)).toBeLessThan(1);
+}
+
 /** Captura (só com `CAPTURAS`): a janela alta, com a refeição no topo. */
 async function capturar(page: Page, nome: string) {
   const pasta = process.env.CAPTURAS;
@@ -137,6 +153,30 @@ for (const escuro of [false, true]) {
       const nomeDoManual = (await page.getByRole('textbox', { name: 'Item', exact: true }).first().boundingBox())!;
       const campoKcal = (await page.getByRole('textbox', { name: 'Kcal', exact: true }).first().boundingBox())!;
       expect(campoKcal.y).toBeGreaterThan(nomeDoManual.y + nomeDoManual.height);
+      // A quantidade do item manual na mesma linha e com a mesma altura do campo do nome (25/11: ficava ~13 px abaixo).
+      const quantidadeDoManual = (await campos.nth(2).boundingBox())!;
+      expect(Math.abs(quantidadeDoManual.y - nomeDoManual.y)).toBeLessThanOrEqual(1);
+      expect(Math.abs(quantidadeDoManual.height - nomeDoManual.height)).toBeLessThanOrEqual(1);
+      // Campo e unidade são uma peça: o segmento da unidade tem a altura do campo e fica dentro do contorno dele.
+      for (const i of [0, 2]) {
+        const caixa = (await campos.nth(i).boundingBox())!;
+        const segmento = (await page.getByTestId('segmento-da-unidade').nth(i).boundingBox())!;
+        expect(Math.abs(segmento.height - caixa.height)).toBeLessThanOrEqual(1);
+        expect(segmento.y).toBeGreaterThanOrEqual(caixa.y - 0.5);
+        expect(segmento.x + segmento.width).toBeLessThanOrEqual(caixa.x + caixa.width + 0.5);
+        // O realce do mouse fica dentro da borda (antes pintava por cima dela e cortava o contorno).
+        await page.getByTestId('segmento-da-unidade').nth(i).hover();
+        // Medido depois do hover, que pode rolar a página.
+        const [aberta, realce] = [(await campos.nth(i).boundingBox())!, (await page.getByTestId('realce-da-unidade').nth(i).boundingBox())!];
+        expect(realce.y).toBeGreaterThanOrEqual(aberta.y + 1);
+        expect(realce.y + realce.height).toBeLessThanOrEqual(aberta.y + aberta.height - 1);
+        expect(realce.x + realce.width).toBeLessThanOrEqual(aberta.x + aberta.width - 1);
+      }
+      await page.mouse.move(0, 0);
+      await mesmaLarguraNosValoresDoManual(page);
+      // "Fibras (g)" no cabeçalho numa linha só (25/11), com a mesma altura do "Kcal".
+      const fibras = (await page.getByText('Fibras (g)', { exact: true }).first().boundingBox())!;
+      expect(Math.abs(fibras.height - kcal.height)).toBeLessThan(1);
       // Dois selos "Item manual" e o botão "Item manual" da opção.
       await expect(page.getByText('Item manual', { exact: true })).toHaveCount(3);
       // Na linha, só o ⋯ e a alça: a lixeira foi para o ⋯ ("Excluir alimento").
@@ -144,6 +184,14 @@ for (const escuro of [false, true]) {
       await expect(page.getByRole('button', { name: /^Mais ações de / })).toHaveCount(4);
       expect(await contornoDaFaixa(page, ARROZ.nome)).toBe(TRANSPARENTE);
       await validarComProblemas(page);
+      // "1000" e "12,5" cabem no campo de 100 px sem cortar (a unidade ocupa os 44 da direita); um número longo corta,
+      // o que prova que a medida enxerga o corte.
+      await campos.first().fill('123456789');
+      expect(await campos.first().evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(false);
+      for (const texto of ['1000', '12,5']) {
+        await campos.first().fill(texto);
+        expect(await campos.first().evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(largura);
       await capturar(page, `tabela-${largura}-${sufixo}`);
       expect(naoTratadas).toEqual([]);
@@ -158,6 +206,7 @@ for (const escuro of [false, true]) {
       await expect(page.getByText('Quantidade', { exact: true })).toHaveCount(4);
       await expect(page.getByRole('textbox', { name: 'Quantidade', exact: true })).toHaveCount(4);
       await expect(page.getByRole('button', { name: 'Unidade: g. Escolher.' })).toHaveCount(4);
+      await mesmaLarguraNosValoresDoManual(page);
       await validarComProblemas(page);
       // Nada passa da janela no celular.
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(largura);
@@ -168,20 +217,21 @@ for (const escuro of [false, true]) {
   }
 }
 
-// O limite é a largura da OPÇÃO, `larguraDaTabela()` = 656 px desde 20/11 (quantidade e unidade num campo só, números
-// em 48 px sem o "g", só o ⋯ no fim, vão de 6 e o nome no mínimo da largura do "Trocar alimento"). No layout de duas
-// colunas a opção acompanha a janela 1:1 (medido em 20/11, com o menu aberto e a lista de 260: 1270 → 658, 1280 → 668),
-// então a tabela começa em ~1268 px de janela; 1263 (651 px) ainda empilha e 1273 (661 px) já é tabela.
-test('o limite sai das colunas: a opção abaixo de 656 px empilha e a partir dele vira tabela (janelas de 1263 e 1273)', async ({ page }) => {
+// O limite é a largura da OPÇÃO, `larguraDaTabela()` = 670 px desde 25/11 (era 656 em 20/11; a coluna "Fibras (g)" passou
+// de 56 a 70 para o título caber numa linha): quantidade e unidade num campo só, números em 48 px sem o "g", só o ⋯ no fim,
+// vão de 6 e o nome no mínimo da largura do "Trocar alimento". No layout de duas colunas a opção acompanha a janela 1:1
+// (com o menu aberto e a lista de 248 desde 25/11: 1280 → 680), então a tabela começa em ~1270 px de janela; 1263
+// (663 px) ainda empilha e 1273 (673 px) já é tabela.
+test('o limite sai das colunas: a opção abaixo de 670 px empilha e a partir dele vira tabela (janelas de 1263 e 1273)', async ({ page }) => {
   await abrir(page, 1263);
   const estreita = (await opcoes(page).boundingBox())!.width;
-  expect(estreita).toBeLessThan(656);
-  expect(estreita).toBeGreaterThan(646);
+  expect(estreita).toBeLessThan(670);
+  expect(estreita).toBeGreaterThan(656);
   await expect(page.getByText('Alimento', { exact: true })).toHaveCount(0);
   await page.setViewportSize({ width: 1273, height: 1000 });
-  await expect.poll(async () => (await opcoes(page).boundingBox())!.width).toBeGreaterThanOrEqual(656);
+  await expect.poll(async () => (await opcoes(page).boundingBox())!.width).toBeGreaterThanOrEqual(670);
   await expect(page.getByText('Alimento', { exact: true })).toHaveCount(1);
-  await capturar(page, 'opcao-656-claro');
+  await capturar(page, 'opcao-670-claro');
 });
 
 // Na tabela, a linha fica com a alça e o ⋯ (20/11): a lixeira é o "Excluir alimento" do ⋯, com o mesmo Desfazer; a unidade

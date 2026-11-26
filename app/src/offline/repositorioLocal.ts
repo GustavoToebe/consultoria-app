@@ -1,5 +1,6 @@
 import type { AnamneseDetalhe, EtapaRegistrada, OrigemDaReferencia, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroAguaEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ListaDeComprasSalva } from '../dominio/listaDeComprasDoAluno';
+import { aplicarRascunho, chaveDoRascunhoDaSerie, podarRascunhos, type MudancaDoRascunho, type RascunhosDeSerie } from '../dominio/rascunhoDaSerie';
 import type { ChaveValor } from './armazenamento';
 import { pacoteNoFormatoAtual } from './formatoDoPacote';
 
@@ -185,6 +186,13 @@ export interface RepositorioLocal {
   /** Por `exercicioUid|data`. */
   lerCargasDeTrabalho(): Promise<Record<string, number>>;
   salvarCargaDeTrabalho(exercicioUid: string, data: string, carga: number | null): Promise<Record<string, number>>;
+  /**
+   * Rascunhos das séries (o que o aluno digitou antes do ✓; `dominio/rascunhoDaSerie`). Documento próprio, fora da fila
+   * de envio: nunca vai ao servidor. O digitado antes de `hoje` sai na leitura. `registrar` apaga o rascunho da série.
+   */
+  lerRascunhosDeSerie(hoje: string): Promise<RascunhosDeSerie>;
+  /** Junta a mudança ao rascunho da série (`chaveDoRascunhoDaSerie`); `null` ou os dois campos vazios apagam. Devolve todos. */
+  salvarRascunhoDeSerie(chave: string, mudanca: MudancaDoRascunho | null, hoje: string): Promise<RascunhosDeSerie>;
   /** Na ordem em que foram criados. */
   listar(): Promise<RegistroLocal[]>;
   /**
@@ -448,6 +456,25 @@ export class RepositorioChaveValor implements RepositorioLocal {
     });
   }
 
+  // ---- Rascunho das séries (antes do ✓) ----
+
+  lerRascunhosDeSerie(hoje: string): Promise<RascunhosDeSerie> {
+    return this.emFila(async () => {
+      const lidos = await this.lerJson<unknown>('rascunhosDeSerie', {});
+      const podados = podarRascunhos(lidos, hoje);
+      if (lidos && typeof lidos === 'object' && Object.keys(lidos).length !== Object.keys(podados).length) await this.gravarJson('rascunhosDeSerie', podados);
+      return podados;
+    });
+  }
+
+  salvarRascunhoDeSerie(chave: string, mudanca: MudancaDoRascunho | null, hoje: string): Promise<RascunhosDeSerie> {
+    return this.emFila(async () => {
+      const novos = aplicarRascunho(podarRascunhos(await this.lerJson<unknown>('rascunhosDeSerie', {}), hoje), chave, mudanca, hoje);
+      await this.gravarJson('rascunhosDeSerie', novos);
+      return novos;
+    });
+  }
+
   // ---- Registros ----
 
   listar(): Promise<RegistroLocal[]> {
@@ -470,6 +497,13 @@ export class RepositorioChaveValor implements RepositorioLocal {
       if (i >= 0) lista[i] = registro;
       else lista.push(registro);
       await this.gravarJson('registros', lista);
+      // O registro manda nos campos da série daqui em diante: o rascunho dela sai (mesma fila, sem outra gravação se não há).
+      const rascunhos = await this.lerJson<Record<string, unknown> | null>('rascunhosDeSerie', {});
+      const chaveDoRascunho = chaveDoRascunhoDaSerie(dados);
+      if (rascunhos && typeof rascunhos === 'object' && chaveDoRascunho in rascunhos) {
+        delete rascunhos[chaveDoRascunho];
+        await this.gravarJson('rascunhosDeSerie', rascunhos);
+      }
       return registro;
     });
   }

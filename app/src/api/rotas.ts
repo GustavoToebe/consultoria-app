@@ -95,6 +95,7 @@ import type {
   AlimentoRequest,
   FatoresDoAlimento,
   AlunoDetalhe,
+  EmailDeAcessoAlterado,
   AlunoRequest,
   MeusDadosRequest,
   MeusDadosResponse,
@@ -713,6 +714,8 @@ export const alterarMarca = (dados: {
   whatsapp: string;
   emailRemetenteNome: string;
   emailResponderPara: string;
+  /** Redes sociais: nulo ou ausente mantém, em branco apaga, preenchido valida (`@usuario` ou link; 422 `MARCA_INVALIDA` por campo) e grava o link https. */
+  redesSociais?: Partial<Record<import('./tipos').RedeDaConsultoria, string>>;
 }) => requisicao<ConsultoriaResponse>('/consultoria/marca', { metodo: 'PUT', corpo: dados });
 
 /** `arquivo`: FormData já montado (web: File; nativo: objeto com bytes(), `anexarArquivoDoAparelho`). */
@@ -787,12 +790,27 @@ export const gerarConvite = (id: string) => requisicao<ConviteGerado>(`/alunos/$
 export const definirAcessoDoAluno = (id: string, dados: { email: string; senha: string }) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso`, { metodo: 'PUT', corpo: dados });
 
-/** Pausa o acesso do aluno ao app por atraso (`FINANCEIRO_ALTERAR`); 409 `SEM_COBRANCA_VENCIDA` sem cobrança vencida em aberto. */
+/**
+ * Troca só o e-mail de login (a senha não muda): 409 `EMAIL_EM_USO`, `ALUNO_SEM_ACESSO`, `ALUNO_INATIVO`; encerra as sessões
+ * do aluno e avisa por e-mail se o envio está ligado. `ALUNO_CONVITE`.
+ */
+export const alterarEmailDeAcessoDoAluno = (id: string, email: string) =>
+  requisicao<EmailDeAcessoAlterado>(`/alunos/${seg(id)}/acesso/email`, { metodo: 'PUT', corpo: { email } });
+
+/** Desativa o acesso (o aluno não entra mais, sessões encerradas, nada é apagado; em `ATRASO`, troca para `MANUAL`). `ALUNO_CONVITE`. */
+export const desativarAcessoDoAluno = (id: string, motivo: 'MANUAL' = 'MANUAL') =>
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso/desativar`, { metodo: 'POST', corpo: { motivo } });
+
+/** Tira a desativação de qualquer motivo (`ALUNO_CONVITE`); 409 `ALUNO_INATIVO` com o aluno inativo. */
+export const reativarAcessoDoAluno = (id: string) =>
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso/reativar`, { metodo: 'POST' });
+
+/** Pausa por atraso, motivo `ATRASO` (`FINANCEIRO_ALTERAR`); 409 `SEM_COBRANCA_VENCIDA`, `ALUNO_INATIVO` e `ACESSO_JA_DESATIVADO` (MANUAL); já pausado = 200. */
 export const pausarAcessoDoAluno = (id: string) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/pausar-acesso`, { metodo: 'POST' });
 
-/** Reativa o acesso pausado do aluno manualmente (`FINANCEIRO_ALTERAR`). */
-export const reativarAcessoDoAluno = (id: string) =>
+/** Tira só a pausa por atraso (`FINANCEIRO_ALTERAR`); MANUAL = 409 `ACESSO_JA_DESATIVADO` (sai por `reativarAcessoDoAluno`). */
+export const reativarAcessoPausadoDoAluno = (id: string) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/reativar-acesso`, { metodo: 'POST' });
 
 export const execucoesDoAluno = (id: string, de: string, ate: string) =>
@@ -970,12 +988,13 @@ export const analisarPlanilhaCompleta = (arquivo: FormData) =>
   requisicao<AnaliseDaPlanilha>('/importacoes/planilha-completa/analisar', { metodo: 'POST', corpoBruto: arquivo });
 export const previaDaPlanilhaCompleta = (arquivo: FormData) =>
   requisicao<PreviaDaPlanilha>('/importacoes/planilha-completa/previa', { metodo: 'POST', corpoBruto: arquivo });
-/** `ignorados` = o `numero` (de 1) dos alunos desmarcados na amostra: vão em parâmetro próprio, fora do `hash` (marcar não invalida a prévia). */
-export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string, ignorados: readonly number[] = []) =>
-  requisicao<ConfirmacaoDaPlanilha>(
-    `/importacoes/planilha-completa/confirmar?hash=${encodeURIComponent(hash)}${ignorados.length > 0 ? `&alunosIgnorados=${ignorados.join(',')}` : ''}`,
-    { metodo: 'POST', corpoBruto: arquivo },
-  );
+/**
+ * Os alunos desmarcados na amostra vão no corpo (parte `chavesIgnoradas` do FormData, montada por quem chama): a chave pode ser
+ * `nome:<nome>` e a query vai para o log de acesso do proxy. Ficam fora do `hash`: marcar não invalida a prévia.
+ */
+export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string) =>
+  requisicao<ConfirmacaoDaPlanilha>(`/importacoes/planilha-completa/confirmar?hash=${encodeURIComponent(hash)}`,
+    { metodo: 'POST', corpoBruto: arquivo });
 /** Migração assistida, fase 1: diz o que dá para importar do arquivo. Não grava nada (503 `MIGRACAO_INDISPONIVEL` com a chave desligada). */
 export const diagnosticarArquivo = (arquivo: FormData) =>
   requisicao<DiagnosticoDoArquivo>('/importacoes/diagnostico', { metodo: 'POST', corpoBruto: arquivo });

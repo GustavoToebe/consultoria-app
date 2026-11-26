@@ -56,7 +56,7 @@ public class InterpretadorClaude implements InterpretadorIa {
                     .header("x-api-key", apiKey)
                     .header("anthropic-version", "2023-06-01")
                     .header("content-type", "application/json")
-                    .timeout(Duration.ofMinutes(2))
+                    .timeout(Duration.ofMinutes(5)) // 32000 tokens de saída sem streaming passam de 2 min no pior caso
                     .POST(HttpRequest.BodyPublishers.ofString(corpoRequisicao, StandardCharsets.UTF_8))
                     .build();
 
@@ -80,14 +80,16 @@ public class InterpretadorClaude implements InterpretadorIa {
     private String montarCorpo(ContextoIa contexto, String modelo) throws Exception {
         Map<String, Object> req = new java.util.HashMap<>();
         req.put("model", modelo);
-        // O raciocínio (adaptativo, ligado por padrão) conta dentro do max_tokens.
-        req.put("max_tokens", 16000);
+        // O raciocínio (adaptativo, ligado por padrão) conta dentro do max_tokens. O Haiku 5.5 aceita até 128K de saída
+        // (skill claude-api, 25/11/2026); 32000 dá folga a planos longos sem exigir streaming.
+        req.put("max_tokens", 32000);
         req.put("output_config", Map.of("effort", config.getClaudeEsforco()));
 
         String systemPrompt = "Você é o assistente de importação da plataforma Overtraining.\n"
-                + "Extraia cadastros de alunos, evolução de peso, treinos e dietas.\n"
-                + "Metodologia: séries válidas: " + String.join(", ", contexto.metodosConsultoria()) + ".\n"
+                + "Extraia cadastros de alunos, evolução de peso, treinos, dietas, suplementos e medicações.\n"
+                + DecodificadorDaProposta.trechoDeMetodologiaEBiblioteca(contexto)
                 + "Apelidos da consultoria: " + DecodificadorDaProposta.formatarApelidos(contexto.apelidosConhecidos()) + ".\n"
+                + DecodificadorDaProposta.FORMATO_DA_RESPOSTA
                 + "Sempre acione a ferramenta 'propor_importacao'.";
         req.put("system", systemPrompt);
 
@@ -99,14 +101,13 @@ public class InterpretadorClaude implements InterpretadorIa {
         // Configuração de tool calling
         Map<String, Object> tool = Map.of(
                 "name", "propor_importacao",
-                "description", "Retorna a proposta estruturada de importação com grupos e dúvidas",
+                "description", "Retorna a proposta de importação: um grupo por aluno",
                 "input_schema", Map.of(
                         "type", "object",
                         "properties", Map.of(
-                                "grupos", Map.of("type", "array"),
-                                "duvidas", Map.of("type", "array")
+                                "grupos", Map.of("type", "array", "items", Map.of("type", "object"))
                         ),
-                        "required", List.of("grupos", "duvidas")
+                        "required", List.of("grupos")
                 )
         );
         req.put("tools", List.of(tool));
@@ -120,8 +121,11 @@ public class InterpretadorClaude implements InterpretadorIa {
         try {
             JsonNode root = json.readTree(jsonResposta);
             String parada = root.path("stop_reason").asText();
-            if ("refusal".equals(parada) || "max_tokens".equals(parada)) {
-                // Recusa ou resposta cortada: a ferramenta viria incompleta, então volta às regras.
+            if ("max_tokens".equals(parada)) {
+                // A ferramenta viria incompleta: o roteador volta às regras com o motivo RESPOSTA_CORTADA.
+                throw new DecodificadorDaProposta.RespostaCortada("Claude");
+            }
+            if ("refusal".equals(parada)) {
                 throw new IllegalStateException("Claude não concluiu a resposta (" + parada + ").");
             }
             JsonNode content = root.path("content");
@@ -140,6 +144,8 @@ public class InterpretadorClaude implements InterpretadorIa {
             }
 
             return DecodificadorDaProposta.decodificar(json, toolUse, contexto);
+        } catch (DecodificadorDaProposta.RespostaCortada e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Falha ao decodificar a resposta do Claude.");
         }

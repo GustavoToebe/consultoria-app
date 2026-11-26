@@ -46,6 +46,9 @@ import {
   ORIGENS,
   ORIGENS_INFORMADAS,
   origemDoLink,
+  oQueVaiNoAceite,
+  perguntaParecidaComInstagram,
+  perguntasParecidasComInstagram,
   porcentagem,
   PREVISOES,
   primeiroNome,
@@ -178,6 +181,7 @@ describe('formulário público', () => {
       nome: 'Pessoa Fictícia',
       whatsapp: '(11) 98765-4321',
       email: null,
+      instagram: null,
       objetivo: 'Força',
       interesse: null,
       modalidade: null,
@@ -195,6 +199,17 @@ describe('formulário público', () => {
     expect(qualificada).toMatchObject({ interesse: 'TREINO', modalidade: 'NAO_SEI', previsaoInicio: 'ESTE_MES', origem: 'INSTAGRAM', origemLink: 'instagram' });
     expect(corpoDaInscricao(ok, false, 'tok').turnstileToken).toBe('tok');
     expect(corpoDaInscricao(ok, true, null, 'abc123').textoVersao).toBe('abc123');
+  });
+
+  it('Instagram opcional: usuário, @usuario ou link vão como digitados (sem espaços); em branco vai nulo; inválido é erro no campo', () => {
+    expect(errosDaInscricao({ ...ok, instagram: '@pessoa.ficticia' }, false, false)).toEqual({});
+    expect(errosDaInscricao({ ...ok, instagram: 'https://www.instagram.com/pessoa_ficticia/' }, false, false)).toEqual({});
+    expect(errosDaInscricao({ ...ok, instagram: 'tiktok.com/@pessoa' }, false, false).instagram).toBe('Use @usuario ou o link do perfil no Instagram.');
+    expect(errosDaInscricao({ ...ok, instagram: 'a'.repeat(201) }, false, false).instagram).toBe('Use até 200 caracteres.');
+    // Não se esconde: vale mesmo sem nenhum campo fixo visível.
+    expect(errosDaInscricao({ ...ok, instagram: 'com espaço' }, false, false, []).instagram).toBeDefined();
+    expect(corpoDaInscricao({ ...ok, instagram: '  @pessoa.ficticia ' }, false, null, null, null, []).instagram).toBe('@pessoa.ficticia');
+    expect(corpoDaInscricao({ ...ok, instagram: '   ' }, false, null).instagram).toBeNull();
   });
 
   it('o código de indicação só vai quando há', () => {
@@ -243,7 +258,7 @@ describe('formulário público em duas partes', () => {
   ] }] };
 
   it('o contato é a parte 1; todo o resto, inclusive o que não se conhece, é a parte 2', () => {
-    expect(['nome', 'whatsapp', 'email'].map(parteDoCampoDaInscricao)).toEqual([1, 1, 1]);
+    expect(['nome', 'whatsapp', 'email', 'instagram'].map(parteDoCampoDaInscricao)).toEqual([1, 1, 1, 1]);
     expect(['sexo', 'objetivo', 'interesse', 'origem', 'cienciaPrivacidade', 'treina', 'turnstileToken'].map(parteDoCampoDaInscricao))
       .toEqual([2, 2, 2, 2, 2, 2, 2]);
   });
@@ -268,6 +283,8 @@ describe('formulário público em duas partes', () => {
     expect(errosDoContato({ ...ok, objetivo: 'a'.repeat(501) })).toEqual({});
     expect(errosDoContato({ ...ok, email: 'sem-arroba' })).toEqual({ email: 'E-mail inválido.' });
     expect(errosDoContato({ ...ok, email: 'sem-arroba' }, ['SEXO'])).toEqual({});
+    expect(errosDoContato({ ...ok, instagram: 'com espaço' }, ['SEXO'])).toEqual({ instagram: 'Use @usuario ou o link do perfil no Instagram.' });
+    expect(parteComErro({ instagram: 'Perfil inválido.' })).toBe(1);
   });
 
   it('voltar da parte 2 para a parte 1 preserva os dados digitados e as respostas', () => {
@@ -517,15 +534,46 @@ describe('CRM: estados vazios, retornos, proposta e indicadores', () => {
 });
 
 describe('contato guardado na guia (sessionStorage)', () => {
-  it('guarda só nome, WhatsApp e e-mail, nunca o resto do formulário', () => {
-    const dados = { ...INSCRICAO_VAZIA, nome: 'Ana Fictícia', whatsapp: '(45) 99999-0000', email: 'ana@exemplo.test', objetivo: 'segredo', sexo: 'FEMININO', indicadoPor: 'x' };
-    expect(contatoParaGuardar(dados)).toEqual({ nome: 'Ana Fictícia', whatsapp: '(45) 99999-0000', email: 'ana@exemplo.test' });
+  it('guarda só o contato (nome, WhatsApp, e-mail e Instagram), nunca o resto do formulário', () => {
+    const dados = { ...INSCRICAO_VAZIA, nome: 'Ana Fictícia', whatsapp: '(45) 99999-0000', email: 'ana@exemplo.test', instagram: '@ana.ficticia', objetivo: 'segredo', sexo: 'FEMININO', indicadoPor: 'x' };
+    expect(contatoParaGuardar(dados)).toEqual({ nome: 'Ana Fictícia', whatsapp: '(45) 99999-0000', email: 'ana@exemplo.test', instagram: '@ana.ficticia' });
   });
-  it('lê só as três chaves em texto e ignora o formato antigo (respostas, ciência, dados)', () => {
-    expect(contatoGuardado(JSON.stringify({ nome: 'Ana', email: 'a@b.test', respostas: { p1: 'sim' }, ciencia: true, objetivo: 'x', whatsapp: 3 })))
-      .toEqual({ nome: 'Ana', email: 'a@b.test' });
+  it('lê só as chaves do contato em texto e ignora o formato antigo (respostas, ciência, dados)', () => {
+    expect(contatoGuardado(JSON.stringify({ nome: 'Ana', email: 'a@b.test', instagram: '@ana', respostas: { p1: 'sim' }, ciencia: true, objetivo: 'x', whatsapp: 3 })))
+      .toEqual({ nome: 'Ana', email: 'a@b.test', instagram: '@ana' });
     expect(contatoGuardado(JSON.stringify({ dados: { nome: 'Ana' }, respostas: { p1: 'x' } }))).toEqual({});
     expect(contatoGuardado('não é json')).toEqual({});
     expect(contatoGuardado(null)).toEqual({});
+  });
+});
+
+describe('Instagram: campo fixo e pergunta parecida (D4)', () => {
+  it('parecida é a pergunta com "instagram" no texto, sem acento nem caixa; "insta" sozinho não', () => {
+    expect(perguntaParecidaComInstagram('Qual o seu Instagram?')).toBe(true);
+    expect(perguntaParecidaComInstagram('INSTAGRAM')).toBe(true);
+    expect(perguntaParecidaComInstagram('Seu @ no ínstágram')).toBe(true);
+    expect(perguntaParecidaComInstagram('Perfil (instagram.com/...)')).toBe(true);
+    expect(perguntaParecidaComInstagram('Seu insta')).toBe(false);
+    expect(perguntaParecidaComInstagram('')).toBe(false);
+    expect(perguntaParecidaComInstagram(null)).toBe(false);
+  });
+
+  it('lista as parecidas com a seção, na ordem da página', () => {
+    const modelo = { instrucoes: [], secoes: [
+      { uid: 'a', titulo: 'A', perguntas: [{ id: 'p1', tipo: 'TEXTO' as const, rotulo: 'Treina?', obrigatoria: false }] },
+      { uid: 'b', titulo: 'B', perguntas: [
+        { id: 'p2', tipo: 'TEXTO' as const, rotulo: 'Qual seu Instagram?', obrigatoria: false },
+        { id: 'p3', tipo: 'TEXTO' as const, rotulo: 'Seu insta', obrigatoria: false },
+      ] },
+    ] };
+    expect(perguntasParecidasComInstagram(modelo)).toEqual([{ id: 'p2', rotulo: 'Qual seu Instagram?', secao: 1 }]);
+    expect(perguntasParecidasComInstagram({ instrucoes: [], secoes: [] })).toEqual([]);
+  });
+
+  it('a frase do aceite diz o que vai para o cadastro', () => {
+    expect(oQueVaiNoAceite({ email: null, instagram: null })).toBe('o nome');
+    expect(oQueVaiNoAceite({ email: 'a@b.test', instagram: null })).toBe('o nome e o e-mail');
+    expect(oQueVaiNoAceite({ email: null, instagram: 'ana' })).toBe('o nome e o Instagram');
+    expect(oQueVaiNoAceite({ email: 'a@b.test', instagram: 'ana' })).toBe('o nome, o e-mail e o Instagram');
   });
 });
