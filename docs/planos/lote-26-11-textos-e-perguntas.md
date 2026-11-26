@@ -53,6 +53,20 @@ Fonte: `atualizacao-pasta-e-questionarios.md`, bloco C. O script `scripts/questi
 Perguntas em aberto para o Gustavo ao aprovar: (a) o motivo da pergunta 6 é obrigatório ou opcional; (b) confirmar os rótulos
 dos itens acima antes de gravar.
 
+
+## 3b. Lista final gerada pela simulação do script (C2, `scripts/questionario/atualizacao-saraiva.mjs`)
+
+Nada foi gravado em produção. Padrão = simular; só `--gravar` salva, valida e publica. Hoje são 26 perguntas; saem 8, entram 14, ficam 18 (notas, peso, fotos e o resto intactos): 32 no total. Todas as novas têm `obrigatoria: false`.
+Os rótulos das perguntas de acompanhamento são escolha do agente (o plano não os define): **confirmar**.
+
+- Alimentar: "Momento que mais ficou com fome" (múltipla: Manhã, Tarde, Noite, Madrugada, Não senti mais fome que o normal); "Algum alimento que enjoou ou gostaria de substituir?" (Sim/Não) e, se Sim, "Quais alimentos você quer substituir?" (alimentos da dieta, até 10, motivo opcional).
+- Treino: "Quantos dias por semana está conseguindo treinar?" (Todos os prescritos, Faltei 1 dia, Faltei 2 ou mais); "Sentiu dores ou dificuldades?" (Sim/Não) e, se Sim, "Em quais exercícios?" (exercícios do treino, até 10, motivo opcional "Onde e como doeu?"); "Precisou fazer descanso no meio da semana?" (Sim/Não) e, se Sim, "Qual dia?" (segunda a domingo).
+- Feedbacks: "Qual dia foi mais desgastante?" (dias treinados, escolha única, motivo OBRIGATÓRIO por padrão); "Teve algum exercício que substituiu por não ter o maquinário?" (Sim/Não) e, se Sim, "Quais exercícios você substituiu?" (exercícios, até 10, motivo opcional "O que usou no lugar?") e "Foto do aparelho que você usou" (até 2); "Seu músculo recuperou até a próxima sessão?" (Sim/Não) e, se Não, "Em quais treinos você ainda estava dolorido?" (dias treinados, até 10, motivo opcional).
+
+Decisões do agente: ids novos para cada pergunta (a API recusa publicar id que muda de tipo; respostas antigas seguem legíveis pela versão em que foram dadas); `max` 10 (1 no dia desgastante) para caber na capacidade de texto (32.800 de 40.000).
+
+**Conflito devolvido ao Gustavo:** o plano manda manter a média de dias de treino que o app mostra embaixo de "Quantos dias por semana...". Essa média é o campo `ajudaAutomatica: MEDIA_DIAS_TREINO`, que a API só aceita em TEXTO e NUMERO; em ESCOLHA_UNICA seria recusado, então o script a retirou e a média deixa de aparecer nessa pergunta. Para mantê-la é preciso mudar o `ValidadorQuestionario` e o espelho `dominio/questionario.ts` (contrato de API) ou mostrar a média por outro caminho. **Decisão pendente.**
+
 ## Aprovação
 - [ ] Textos da seção 1 e os da seção 2 quando entregues
-- [ ] Perguntas da seção 3 (e a lista final gerada pelo C2)
+- [ ] Perguntas da seção 3 e a lista final da seção 3b (rótulos de acompanhamento; motivo da pergunta 6; média de dias de treino)

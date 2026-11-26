@@ -1,5 +1,5 @@
 import type {
-  Atualizacao, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao, TipoPergunta,
+  Atualizacao, ConteudoQuestionario, ItensDisponiveis, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao, TipoPergunta,
 } from '../api/tipos';
 import type { RascunhoAtualizacao } from '../offline/repositorioLocal';
 import { enderecoDaResposta, enderecoParaLeitura } from './cadastroDoAluno';
@@ -53,8 +53,23 @@ export function textoDaResposta(p: PerguntaAtualizacao, valor: RespostaAtualizac
       return (p.linhas ?? []).map((l) => `${l.rotulo}: ${(p.colunas ?? []).find((c) => c.id === marcadas[l.id])?.rotulo ?? SEM_DADO}`).join('\n');
     }
     case 'ENDERECO': return enderecoParaLeitura(enderecoDaResposta(valor)) ?? SEM_DADO;
+    case 'ITENS_DO_PLANO': return textoDosItens(valor);
     default: return SEM_DADO;
   }
+}
+
+/**
+ * ITENS_DO_PLANO na leitura: uma linha por item, "Nome — motivo". O nome vem gravado na resposta do servidor (o rascunho do
+ * aluno não o tem, só o `id`: item sem nome não aparece, e sem nenhum é "—").
+ */
+function textoDosItens(valor: RespostaAtualizacao | undefined): string {
+  if (!Array.isArray(valor)) return SEM_DADO;
+  const linhas = (valor as unknown[]).flatMap((i) => {
+    const { nome, motivo } = (typeof i === 'object' && i !== null ? i : {}) as { nome?: unknown; motivo?: unknown };
+    if (typeof nome !== 'string' || nome.trim() === '') return [];
+    return [typeof motivo === 'string' && motivo.trim() !== '' ? `${nome.trim()} — ${motivo.trim()}` : nome.trim()];
+  });
+  return linhas.length ? linhas.join('\n') : SEM_DADO;
 }
 
 /** Pergunta que o aluno pulou, na leitura: diz o que houve (o "—" solto não dizia). */
@@ -130,6 +145,7 @@ export function respostaLida(p: PerguntaAtualizacao, valor: RespostaAtualizacao 
     case 'TEXTO_LONGO':
     case 'EMAIL':
     case 'ACEITE':
+    case 'ITENS_DO_PLANO':
     case 'ENDERECO': {
       const texto = textoDaResposta(p, valor);
       if (texto === SEM_DADO) return { forma: 'vazia' };
@@ -254,9 +270,9 @@ export function rascunhoVigente(rascunho: RascunhoAtualizacao | null, atualizaca
 }
 
 /** Por seção visível: quantas perguntas respondíveis estão respondidas (para o "3 de 5" e a barra do formulário). */
-export function progressoDasSecoes(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao, fotosLigadas = false) {
+export function progressoDasSecoes(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao, fotosLigadas = false, itens: ItensDisponiveis = {}) {
   // `erros` também guarda a resposta fora do formato (data de nascimento inválida): ela não conta como respondida (N16).
-  const { erros, escondidas, secoesEscondidas } = avaliarRespostas(modelo, respostas, fotosLigadas);
+  const { erros, escondidas, secoesEscondidas } = avaliarRespostas(modelo, respostas, fotosLigadas, {}, undefined, itens);
   return modelo.secoes.map((secao, i) => {
     if (secoesEscondidas.has(i)) return null;
     const contam = secao.perguntas.filter((p) => !semResposta(p.tipo) && !escondidas.has(p.id) && (p.tipo !== 'FOTOS' || fotosLigadas));

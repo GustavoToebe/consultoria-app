@@ -135,7 +135,8 @@ for (const { largura, menuRecolhido, lado } of MATRIZ) {
     expect(linha.width).toBeLessThanOrEqual(880);
     // Com o bloco mais largo que a lista, ela sai da borda esquerda (fica no meio), em vez de colada à esquerda com vazio à direita.
     const h1 = await caixa(page.getByRole('heading', { level: 1, name: 'Histórico' }));
-    if (lado) expect(linha.x).toBeGreaterThan(h1.x + 100);
+    // Em 1280 a sobra é pequena (bloco de ~990 e lista de 880): basta sair da borda.
+    if (lado) expect(linha.x).toBeGreaterThan(h1.x + 40);
     await expect(titulo(page, 'Peso')).toHaveCount(0);
     expect(errosDaPagina).toEqual([]);
   });

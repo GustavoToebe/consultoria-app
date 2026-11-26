@@ -1,4 +1,4 @@
-import type { CondicaoPergunta, ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, TipoPergunta } from '../api/tipos';
+import type { CondicaoPergunta, ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, FonteDeItens, MotivoDeItens, OpcaoPergunta, PerguntaAtualizacao, TipoPergunta } from '../api/tipos';
 import { ANO_INICIAL_DE_REGISTRO, ANOS_A_FRENTE } from './datasValidas';
 
 /**
@@ -80,6 +80,14 @@ export const LIMITES_QUESTIONARIO = {
   enderecoUfTamanho: 2,
 } as const;
 
+/**
+ * Limites da pergunta ITENS_DO_PLANO (igual a `ValidadorQuestionario.ITENS_MAXIMO`, `MOTIVO_TAMANHO` e `ROTULO_MOTIVO_TAMANHO`).
+ * Fora de `LIMITES_QUESTIONARIO` porque o teste de paridade compara aquele objeto inteiro com o `limites.json` gerado.
+ */
+export const LIMITES_DE_ITENS = { maximo: 20, motivoTamanho: 300, rotuloMotivoTamanho: 60 } as const;
+export const FONTES_DE_ITENS: readonly FonteDeItens[] = ['ALIMENTOS_DA_DIETA', 'EXERCICIOS_DO_TREINO', 'DIAS_TREINADOS'];
+export const MOTIVOS_DE_ITENS: readonly MotivoDeItens[] = ['NENHUM', 'OPCIONAL', 'OBRIGATORIO'];
+
 export interface ProblemaDoQuestionario { caminho: string; mensagem: string }
 export interface ResultadoDoQuestionario { erros: ProblemaDoQuestionario[]; avisos: ProblemaDoQuestionario[] }
 
@@ -87,7 +95,7 @@ const ID = /^[A-Za-z0-9_-]{1,40}$/;
 /** Id de imagem: UUID em minúsculas, como a API devolve (igual a `LimitesQuestionario.IMAGEM_PADRAO`). */
 const IMAGEM = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const TIPOS_DE_PERGUNTA: readonly TipoPergunta[] = ['DATA_AUTOMATICA', 'PESO', 'NOTA', 'TEXTO', 'TEXTO_LONGO', 'NOTAS_POR_DIA', 'FOTOS',
-  'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'NUMERO', 'SIM_NAO', 'DATA', 'TELEFONE', 'EMAIL', 'GRADE', 'ENDERECO', 'ACEITE', 'INFORMATIVO'];
+  'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'NUMERO', 'SIM_NAO', 'DATA', 'TELEFONE', 'EMAIL', 'GRADE', 'ENDERECO', 'ACEITE', 'INFORMATIVO', 'ITENS_DO_PLANO'];
 const TIPOS = TIPOS_DE_PERGUNTA;
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
@@ -96,7 +104,7 @@ const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA'];
  * Tipos fora da página pública de inscrição (D5 de `docs/planos/inscricao-com-perguntas-proprias.md`): quem preenche ainda
  * não é aluno nem tem login. Mesmo conjunto de `ValidadorQuestionario.FORA_DA_INSCRICAO` no Java.
  */
-export const TIPOS_FORA_DA_INSCRICAO: readonly TipoPergunta[] = ['FOTOS', 'ENDERECO', 'PESO', 'NOTAS_POR_DIA', 'DATA_AUTOMATICA'];
+export const TIPOS_FORA_DA_INSCRICAO: readonly TipoPergunta[] = ['FOTOS', 'ENDERECO', 'PESO', 'NOTAS_POR_DIA', 'DATA_AUTOMATICA', 'ITENS_DO_PLANO'];
 /** A página pública não mostra imagem (D6). */
 const SEM_IMAGEM_NA_INSCRICAO = 'A página de inscrição não mostra imagem.';
 /** Tipo de pergunta que alimenta cada campo do cadastro (igual a `DestinoNoPerfil` do Java). */
@@ -149,6 +157,17 @@ export function maximoDeFotos(p: Pick<PerguntaAtualizacao, 'max' | 'lugares'>): 
   if (Array.isArray(p.lugares) && p.lugares.length > 0) return Math.min(p.lugares.length, L.fotosPorPergunta);
   return Number.isInteger(p.max) && (p.max as number) >= 1 && (p.max as number) <= L.fotosPorPergunta ? (p.max as number) : L.fotosPorPergunta;
 }
+
+/** Itens que a pergunta ITENS_DO_PLANO aceita: o `max` (1 a 20) ou, vazio ou fora da regra, 20. */
+export function maximoDeItens(p: Pick<PerguntaAtualizacao, 'max'>): number {
+  return Number.isInteger(p.max) && (p.max as number) >= 1 && (p.max as number) <= LIMITES_DE_ITENS.maximo ? (p.max as number) : LIMITES_DE_ITENS.maximo;
+}
+
+/** Como a pergunta ITENS_DO_PLANO trata o motivo; ausente = NENHUM (valor desconhecido volta como veio, e a pergunta fica mal configurada). */
+export const modoDoMotivo = (p: Pick<PerguntaAtualizacao, 'motivo'>): MotivoDeItens => p.motivo ?? 'NENHUM';
+
+/** Pergunta do motivo de cada item: a do treinador ou, vazia, "Motivo". */
+export const rotuloDoMotivo = (p: Pick<PerguntaAtualizacao, 'rotuloMotivo'>) => p.rotuloMotivo?.trim() || 'Motivo';
 
 /** Tipos que carregam a lista de opções. */
 export function temOpcoes(tipo: TipoPergunta) {
@@ -257,7 +276,7 @@ function pergunta(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro
   // Tipo desconhecido não existe no Java (a leitura falha); aqui é só defesa contra dado velho ou de outro app.
   if (p.tipo == null || !TIPOS.includes(p.tipo)) { erro(`${cp}.tipo`, 'Falta o tipo.'); return; }
   if (p.id != null && !estado.anteriores.has(p.id)) estado.anteriores.set(p.id, p);
-  if (estado.finalidade === 'ANAMNESE' && p.tipo === 'DATA_AUTOMATICA') erro(`${cp}.tipo`, 'Este tipo só vale no questionário de atualização.');
+  if (estado.finalidade === 'ANAMNESE' && (p.tipo === 'DATA_AUTOMATICA' || p.tipo === 'ITENS_DO_PLANO')) erro(`${cp}.tipo`, 'Este tipo só vale no questionário de atualização.');
   if (estado.finalidade === 'ATUALIZACAO' && p.tipo === 'ENDERECO') erro(`${cp}.tipo`, 'Este tipo só vale no questionário de anamnese.');
   if (estado.finalidade === 'INSCRICAO' && TIPOS_FORA_DA_INSCRICAO.includes(p.tipo)) erro(`${cp}.tipo`, 'Este tipo não vale no formulário de inscrição.');
   if (UNICOS.includes(p.tipo) && estado.tipos.has(p.tipo)) erro(`${cp}.tipo`, 'Este tipo só pode aparecer uma vez.');
@@ -279,7 +298,31 @@ function pergunta(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro
   if (p.somentePassado != null && p.tipo !== 'DATA') erro(`${cp}.somentePassado`, 'Este tipo não tem esta opção.');
   textos(p, cp, erro);
   grade(p, cp, erro);
+  itens(p, cp, estado, erro);
   destino(p, cp, estado, erro);
+}
+
+/**
+ * ITENS_DO_PLANO: `fonte` obrigatória; `motivo` (ausente = NENHUM); `rotuloMotivo` só com motivo, até `rotuloMotivoTamanho`; `max`
+ * de 1 a 20 (conferido em `numero`). Com motivo, cada item reserva `motivoTamanho` na capacidade de texto. Outros tipos não os têm.
+ */
+function itens(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro) {
+  const L = LIMITES_DE_ITENS;
+  if (p.tipo !== 'ITENS_DO_PLANO') {
+    if (p.fonte != null) erro(`${cp}.fonte`, 'Este tipo não tem fonte de itens.');
+    if (p.motivo != null) erro(`${cp}.motivo`, 'Este tipo não tem motivo.');
+    if (p.rotuloMotivo != null) erro(`${cp}.rotuloMotivo`, 'Este tipo não tem texto do motivo.');
+    return;
+  }
+  if (p.fonte == null || !FONTES_DE_ITENS.includes(p.fonte)) erro(`${cp}.fonte`, 'Escolha de onde vêm os itens.');
+  const motivoValido = p.motivo == null || MOTIVOS_DE_ITENS.includes(p.motivo);
+  if (!motivoValido) erro(`${cp}.motivo`, 'Escolha se o motivo é opcional ou obrigatório.');
+  const pedeMotivo = motivoValido && p.motivo != null && p.motivo !== 'NENHUM';
+  if (p.rotuloMotivo != null) {
+    if (!pedeMotivo) erro(`${cp}.rotuloMotivo`, 'O texto do motivo só vale quando há motivo.');
+    else if (p.rotuloMotivo.length > L.rotuloMotivoTamanho) erro(`${cp}.rotuloMotivo`, 'Texto longo demais.');
+  }
+  if (pedeMotivo) estado.capacidadeDeTexto += maximoDeItens(p) * L.motivoTamanho;
 }
 
 /** Destino no perfil (só na anamnese): tipo compatível e um por campo; `destinoData` só no PESO com destino. */
@@ -415,7 +458,7 @@ function numero(p: PerguntaAtualizacao, cp: string, erro: Erro) {
   const L = LIMITES_QUESTIONARIO;
   if (p.tipo !== 'NUMERO') {
     if (p.min != null && p.tipo !== 'NOTA') erro(`${cp}.min`, 'Este tipo não tem mínimo.');
-    if (p.max != null && p.tipo !== 'NOTA' && p.tipo !== 'FOTOS') erro(`${cp}.max`, 'Este tipo não tem máximo.');
+    if (p.max != null && p.tipo !== 'NOTA' && p.tipo !== 'FOTOS' && p.tipo !== 'ITENS_DO_PLANO') erro(`${cp}.max`, 'Este tipo não tem máximo.');
     if (p.casas != null) erro(`${cp}.casas`, 'Este tipo não tem casas decimais.');
     if (p.unidade != null) erro(`${cp}.unidade`, 'Este tipo não tem unidade.');
     if (p.tipo === 'NOTA') {
@@ -423,6 +466,7 @@ function numero(p: PerguntaAtualizacao, cp: string, erro: Erro) {
       if (p.max != null && !inteiroEntre(p.max, L.notaMaxMinimo, L.notaMaxPadrao)) erro(`${cp}.max`, `A escala termina entre ${L.notaMaxMinimo} e ${L.notaMaxPadrao}.`);
     }
     if (p.tipo === 'FOTOS' && p.max != null && !inteiroEntre(p.max, 1, L.fotosPorPergunta)) erro(`${cp}.max`, `Use de 1 a ${L.fotosPorPergunta} fotos.`);
+    if (p.tipo === 'ITENS_DO_PLANO' && p.max != null && !inteiroEntre(p.max, 1, LIMITES_DE_ITENS.maximo)) erro(`${cp}.max`, `Use de 1 a ${LIMITES_DE_ITENS.maximo} itens.`);
     return;
   }
   if (p.casas != null && (!Number.isInteger(p.casas) || p.casas < 0 || p.casas > L.casasMaximo)) {

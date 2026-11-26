@@ -110,8 +110,9 @@ for (const largura of [1280, 1920, 2560]) {
       cartaoCom(page, titulo(page, 'Sua semana')), cartaoCom(page, titulo(page, 'Seu nível')), cartaoCom(page, grade(page)), cartaoCom(page, titulo(page, 'Vitrine')),
     ].map(caixa));
     const fim = m.x + m.width;
-    // Topo: a principal (Hoje → Dieta → compromissos) e o apoio da peça (360, vão de 32) com pendências → Água.
-    expect(Math.abs(ap.width - 360)).toBeLessThan(2);
+    // Topo: a principal (Hoje → Dieta → compromissos) e o apoio da peça (vão de 32) com pendências → Água. O apoio é o da
+    // peça: 360 abaixo da área de 1312 (1280 com o menu aberto) e 400 no teto (1920 e 2560).
+    expect(Math.abs(ap.width - (largura === 1280 ? 360 : 400))).toBeLessThan(2);
     expect(Math.abs(princ.x + princ.width + 32 - ap.x)).toBeLessThan(2);
     expect(Math.abs(ap.x + ap.width - fim)).toBeLessThan(2);
     expect(Math.abs(pend.y - h.y)).toBeLessThan(4);
@@ -157,7 +158,7 @@ test('1920 sem pendências: a Água sobe sozinha para a altura do Hoje, que não
   ].map(caixa));
   expect(ag.y).toBeLessThan(ver.y);
   expect(dentro(ag, ap)).toBe(true);
-  expect(Math.abs(princ.width - (m.width - 32 - 360))).toBeLessThan(2);
+  expect(Math.abs(princ.width - (m.width - 32 - ap.width))).toBeLessThan(2);
   expect(Math.abs(d.x - h.x)).toBeLessThan(2);
   expect(d.y).toBeGreaterThan(ver.y);
 });

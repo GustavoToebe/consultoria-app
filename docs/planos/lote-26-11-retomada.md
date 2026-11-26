@@ -59,3 +59,20 @@ Nenhum foi editado ainda; conferir cada um sobre a `main` sem o lote antes de at
 - Trava: a fila do `lock-pesado` atrasou e2e de vários agentes por mais de 1 h; as rodadas finais por frente ainda não rodaram. Servidor antigo na porta 8131 (PID 17852, `dist-antes`) contamina quem a reaproveita.
 - B (rodada 2, entregue): `ui/ListaDeDados` ganhou a prop opcional `arranjo` (`dominio/listaDeDados.ts` `arranjoDaLista`; sem a prop, idêntico ao de antes, provado em teste) e a leitura voltou a usá-la. Peça compartilhada alterada: a e2e COMPLETA é obrigatória (regra do AGENTS.md). Rodada de 40 specs do B: 926 testes, 68 falhas, NÃO atribuídas (tela-larga-ficha 24, tela-larga-equipe-ajuda-ajustes 11, tags-de-aluno 16, redes-sociais 7, documentos-pdf 8, cor-da-variacao-do-peso 3, comparacao-de-fotos 2; parte por processo morto por memória, 3221225794); reexecutar isoladas e sobre a main. Jest: 19 falhas só em `paridadeQuestionario` (espelho do ITENS_DO_PLANO, C-app).
 - Pendências do B: Sim/Não com `Selo` neutro sai em 12 px suave (mais fraco que a pergunta; decisão do Gustavo); vão pergunta/resposta empilhadas 2 px (a seção 2.1 pede 4); "O que mudou: Não encontrado." no spec do B é do bloco D (rota nova sem simulação).
+
+## Decisões do Gustavo (26/11, noite) e escopo congelado
+Escopo congelado: NÃO começam F (folha da pasta), G (editor de questionários), UI de `ITENS_DO_PLANO` (aluno, editor, prévia), aviso "Seu novo plano está disponível" no Início, "Cancelar agendamento" e PDFs N2 a N4. Fechar o que está em andamento, validar, juntar com a main e subir (push só com ordem dele).
+- Pergunta 6 (dia mais desgastante): motivo OBRIGATÓRIO (como no script do Saraiva).
+- Média de dias de treino: a API não muda; mostrar a média calculada na leitura das respostas (regra em `dominio/` com teste); sem caminho limpo, tirar e registrar pendência.
+- Lista do Saraiva (3b) e textos da seção 1: o Gustavo vai ler; nenhum `--gravar` em produção sem aprovação explícita dele.
+- Início empilhado (Dieta sob o Hoje, Água sob as pendências): APROVADO.
+- "12:00 · Almoço": voltar para a A12 em todo lugar, inclusive web larga; conciliar no merge com a "opção A no aluno e PDF" da main.
+- Tablet/nativo: a Dieta sempre empilha por `Platform` dentro de `DietaDoAluno`; não mexer no `PrincipalComApoio`.
+- Leitura Sim/Não: resposta não pode ficar mais fraca que a pergunta; vão pergunta/resposta empilhadas 4 px.
+- "Avisar o aluno": envio implícito (ausente = true), registrado em comentário no app.
+- Cartões compartilhados do Histórico: não mexer; pendência para rodada própria com a lista das telas afetadas. Vídeos 2+2+2+1 em 1280: aceitos.
+- Porta 8131 (PID 17852): o Gustavo encerra; depois rodar de novo o e2e do E-app em porta livre e conferir que o servidor serve as fontes atuais.
+- Ordem: fechar relatórios (E API, D, P5, E-app, Início, Histórico) → separar falha do lote × falha que já existia na main (`aluno-clareza`, `treino-do-aluno-lacunas`, `concluir-treino` sobre a main sem o lote; reexecutar isoladas as 68 falhas do B) → merge com a main renumerando para V106 e V107 → validar no nível completo (mvn verify, Jest e e2e completos, uma verificação pesada por vez, com tempos) → docs (constantes na 4.10 e em `tema/tokens.ts`, README, chromium-1243).
+
+## Próximo lote (registrado, não feito)
+F (folha da pasta, "Ordem sugerida" no ⓘ), G (editor de questionários), UI de `ITENS_DO_PLANO` (campo do aluno, controles do editor, prévia, leitura; o tipo está oculto do menu do editor até lá: `OCULTOS_NO_MENU` em `dominio/editorQuestionario.ts`; sincronizar séries antes do check-in ou tratar o 422 de DIAS_TREINADOS), aviso "Seu novo plano está disponível" no Início, "Cancelar agendamento", PDFs N2 a N4, cartões compartilhados do Histórico (rodada própria), Início a 1688, dívidas pequenas (`FOLGA_DO_BOTAO` duplicada no Exercício, `role="tabpanel"` e `aria-controls` do `ui/Abas`, selo da linha da pasta), `npm ci` no `central-api-front` para o focal da Central, script `atualizacao-saraiva.mjs` pronto mas sem `--gravar` até aprovação.

@@ -1,6 +1,6 @@
 import type { ConteudoQuestionario, RespostasAtualizacao } from '../api/tipos';
 import { LIMITES_QUESTIONARIO } from './questionario';
-import { errosRespostasAtualizacao } from './respostasAtualizacao';
+import { conferirItens, errosRespostasAtualizacao, itensDaResposta, nomeNormalizadoDeItem, respostaDeItens } from './respostasAtualizacao';
 const modelo:ConteudoQuestionario={instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
   {id:'peso',tipo:'PESO',rotulo:'Peso',obrigatoria:true},{id:'nota',tipo:'NOTA',rotulo:'Nota',obrigatoria:true},
   {id:'texto',tipo:'TEXTO',rotulo:'Texto',obrigatoria:false},{id:'dias',tipo:'NOTAS_POR_DIA',rotulo:'Dias',obrigatoria:false,dias:[1,2]},
@@ -83,4 +83,38 @@ it('nota na escala da pergunta; notas por dia seguem de 0 a 10',()=>{
   expect(errosRespostasAtualizacao(escala,{n:1,d:{'1':10}})).toEqual({});
   expect(Object.keys(errosRespostasAtualizacao(escala,{n:0}))).toEqual(['n']);
   expect(Object.keys(errosRespostasAtualizacao(escala,{n:6}))).toEqual(['n']);
+});
+
+describe('ITENS_DO_PLANO', () => {
+  const pergunta = { id: 'i', tipo: 'ITENS_DO_PLANO', rotulo: 'Quais?', obrigatoria: false, fonte: 'ALIMENTOS_DA_DIETA', motivo: 'OPCIONAL' } as const;
+  const itens = { ALIMENTOS_DA_DIETA: [{ id: 'a', nome: 'Frango grelhado' }, { id: 'b', nome: 'Arroz' }, { id: 'c', nome: 'FRANGO  grelhado' }] };
+
+  it('normaliza o nome como o servidor: sem acento, caixa nem espaço sobrando', () => {
+    expect(nomeNormalizadoDeItem('  Pão   de  Queijo ')).toBe('pao de queijo');
+  });
+
+  it('grava o nome da lista, na ordem escolhida, e o motivo sem as pontas (some se vazio)', () => {
+    expect(conferirItens(pergunta, [{ id: 'b', motivo: '   ' }, { id: 'a', motivo: '  enjoei ' }], itens))
+      .toEqual({ limpa: [{ id: 'b', nome: 'Arroz' }, { id: 'a', nome: 'Frango grelhado', motivo: 'enjoei' }] });
+  });
+
+  it('as mensagens de recusa são fixas e nunca repetem o que o aluno escreveu', () => {
+    const r = conferirItens({ ...pergunta, motivo: 'NENHUM' }, [{ id: 'a', motivo: 'segredo-da-dieta' }], itens);
+    expect(r).toEqual({ erro: 'Esta pergunta não pede motivo.' });
+    expect(JSON.stringify(conferirItens(pergunta, [{ id: 'segredo-id' }], itens))).not.toContain('segredo');
+    expect(conferirItens(pergunta, [{ id: 'a' }, { id: 'c' }], itens)).toEqual({ erro: 'Item repetido.' });
+  });
+
+  it('sem a lista da fonte toda resposta é recusada', () => {
+    expect(conferirItens(pergunta, [{ id: 'a' }])).toEqual({ erro: 'Item que não está na lista.' });
+    const m: ConteudoQuestionario = { instrucoes: [], secoes: [{ titulo: 'F', perguntas: [pergunta] }] };
+    expect(errosRespostasAtualizacao(m, { i: respostaDeItens([{ id: 'a' }]) })).toEqual({ i: 'Item que não está na lista.' });
+    expect(errosRespostasAtualizacao(m, { i: respostaDeItens([{ id: 'a' }]) }, false, {}, '2026-11-25', itens)).toEqual({});
+  });
+
+  it('itensDaResposta lê só objetos', () => {
+    expect(itensDaResposta(respostaDeItens([{ id: 'a', nome: 'Frango grelhado' }]))).toEqual([{ id: 'a', nome: 'Frango grelhado' }]);
+    expect(itensDaResposta(['a', 'b'])).toEqual([]);
+    expect(itensDaResposta(undefined)).toEqual([]);
+  });
 });

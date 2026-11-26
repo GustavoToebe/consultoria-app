@@ -4,7 +4,7 @@ import {
   progressoDasSecoes, resumoDoTreinador, simNaoParaEscolha, textoDaResposta, textoDoProgresso, textoDaNota, notaEmDuasPartes, respostasDaGrade,
   colunasDasOpcoes, arranjoDaLeitura, diasNaSemana, notasPorDiaEmTabela, fraseDaMediaDeTreino, respostaLida, temImagemNasOpcoes, textoDasPerguntas,
 } from './atualizacaoQuestionario';
-import { errosRespostasAtualizacao, respondida } from './respostasAtualizacao';
+import { errosRespostasAtualizacao, respondida, respostaDeItens } from './respostasAtualizacao';
 
 const opcoes = [{ id: 'a', rotulo: 'Ruim' }, { id: 'b', rotulo: 'Bom' }, { id: 'c', rotulo: 'Ótimo' }];
 const modelo: ConteudoQuestionario = {
@@ -296,5 +296,30 @@ describe('leitura das respostas (bloco B)', () => {
     expect(diasNaSemana(4)).toBe('4 dias');
     expect(fraseDaMediaDeTreino(0, false)).toBe('Pelo app, você treinou em média 0 dias por semana neste período.');
     expect(fraseDaMediaDeTreino(2.5, true)).toBe('Pelo app: média de 2,5 dias de treino por semana no período.');
+  });
+});
+
+describe('ITENS_DO_PLANO na leitura', () => {
+  const pergunta: PerguntaAtualizacao = { id: 'i', tipo: 'ITENS_DO_PLANO', rotulo: 'Quais?', obrigatoria: false, fonte: 'ALIMENTOS_DA_DIETA', motivo: 'OPCIONAL' };
+  const gravada = respostaDeItens([{ id: 'a', nome: 'Frango grelhado', motivo: 'enjoei' }, { id: 'b', nome: 'Arroz' }]);
+  const texto = 'Frango grelhado — enjoei\nArroz';
+
+  it('uma linha por item, "Nome — motivo", com o nome gravado pelo servidor', () => {
+    expect(textoDaResposta(pergunta, gravada)).toBe(texto);
+    expect(respostaLida(pergunta, gravada)).toEqual({ forma: 'texto', texto, numerico: false });
+  });
+
+  it('sem resposta, ou só com ids do rascunho (sem nome), é "Não respondeu"', () => {
+    expect(respostaLida(pergunta, undefined)).toEqual({ forma: 'vazia' });
+    expect(respostaLida(pergunta, respostaDeItens([]))).toEqual({ forma: 'vazia' });
+    expect(respostaLida(pergunta, respostaDeItens([{ id: 'a' }]))).toEqual({ forma: 'vazia' });
+    expect(textoDaResposta(pergunta, respostaDeItens([{ id: 'a' }]))).toBe('—');
+  });
+
+  it('o progresso conta a escolha só quando a lista do aparelho a aceita', () => {
+    const m: ConteudoQuestionario = { instrucoes: [], secoes: [{ titulo: 'F', perguntas: [pergunta] }] };
+    const escolha = { i: respostaDeItens([{ id: 'a' }]) };
+    expect(progressoDasSecoes(m, escolha)).toEqual([{ respondidas: 0, total: 1 }]);
+    expect(progressoDasSecoes(m, escolha, false, { ALIMENTOS_DA_DIETA: [{ id: 'a', nome: 'Frango' }] })).toEqual([{ respondidas: 1, total: 1 }]);
   });
 });

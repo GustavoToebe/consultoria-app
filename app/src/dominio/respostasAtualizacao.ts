@@ -1,10 +1,10 @@
-import type { CondicaoPergunta, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../api/tipos';
+import type { CondicaoPergunta, ConteudoQuestionario, ItemDaLista, ItemEscolhido, ItensDisponiveis, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../api/tipos';
 import { cpfValido, telefoneValido as telefoneDoCadastroValido } from '@plataforma/web';
 
 import { CAMPOS_DO_ENDERECO, errosDoEndereco } from './cadastroDoAluno';
 import { dataNaFaixa, regraDaPerguntaData } from './datasValidas';
 import { hojeIso } from './formatos';
-import { escalaDaNota, LIMITES_QUESTIONARIO, maximoDeFotos } from './questionario';
+import { escalaDaNota, FONTES_DE_ITENS, LIMITES_DE_ITENS, LIMITES_QUESTIONARIO, maximoDeFotos, maximoDeItens, modoDoMotivo, MOTIVOS_DE_ITENS } from './questionario';
 
 const nota = (v: unknown, min: number = LIMITES_QUESTIONARIO.notaMinPadrao, max: number = LIMITES_QUESTIONARIO.notaMaxPadrao) =>
   typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
@@ -95,8 +95,57 @@ export function tamanhoDoTexto(p: Pick<PerguntaAtualizacao, 'tipo' | 'destino'>)
   return p.tipo === 'TEXTO' ? LIMITES_QUESTIONARIO.textoCurtoCapacidade : LIMITES_QUESTIONARIO.textoLongoCapacidade;
 }
 
-/** Uma resposta (já presente) respeita o tipo e os limites da pergunta. Mesmas regras do `ValidadorAtualizacao`. */
-export function respostaValida(p: PerguntaAtualizacao, v: unknown, hoje: string = hojeIso()) {
+/** Minúsculas, sem acento, espaços simples e sem as pontas: o mesmo cálculo de `Buscas.semAcento` do Java (dois itens com o mesmo nome valem como um). */
+export const nomeNormalizadoDeItem = (nome: string) => nome.normalize('NFD').replace(/\p{M}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/** Itens gravados (`[{id, nome, motivo?}]`, o que o servidor guarda) ou a mensagem fixa do erro (nunca repete id, nome nem motivo). */
+export type ConferenciaDeItens = { limpa: ItemEscolhido[] } | { erro: string };
+
+/**
+ * Resposta de ITENS_DO_PLANO, as mesmas recusas do `RespostaDeItens` do Java. `itens` é a lista de cada fonte (sem ela, toda
+ * resposta é recusada). A `limpa` leva o `nome` lido da lista, na ordem escolhida, com o motivo sem as pontas (some se vazio).
+ * Dado sensível (dieta, dor): a mensagem é fixa.
+ */
+export function conferirItens(p: PerguntaAtualizacao, v: unknown, itens: ItensDisponiveis = {}): ConferenciaDeItens {
+  const modo = modoDoMotivo(p);
+  const fonte = p.fonte;
+  if (fonte == null || !FONTES_DE_ITENS.includes(fonte) || !MOTIVOS_DE_ITENS.includes(modo)) return { erro: 'Esta pergunta está mal configurada.' };
+  if (!Array.isArray(v)) return { erro: 'Confira os itens escolhidos.' };
+  if (v.length > maximoDeItens(p)) return { erro: 'Mais itens do que o permitido.' };
+  const permitidos = new Map<string, ItemDaLista>();
+  for (const i of itens[fonte] ?? []) if (!permitidos.has(i.id)) permitidos.set(i.id, i);
+  const ids = new Set<string>();
+  const nomes = new Set<string>();
+  const limpa: ItemEscolhido[] = [];
+  for (const escolhido of v as unknown[]) {
+    if (typeof escolhido !== 'object' || escolhido === null || Array.isArray(escolhido)) return { erro: 'Confira os itens escolhidos.' };
+    const { id, motivo } = escolhido as Record<string, unknown>;
+    if (Object.keys(escolhido).some((k) => k !== 'id' && k !== 'motivo') || typeof id !== 'string') return { erro: 'Confira os itens escolhidos.' };
+    const item = permitidos.get(id);
+    if (!item) return { erro: 'Item que não está na lista.' };
+    const nome = nomeNormalizadoDeItem(item.nome);
+    if (ids.has(item.id) || nomes.has(nome)) return { erro: 'Item repetido.' };
+    ids.add(item.id);
+    nomes.add(nome);
+    if (motivo != null && typeof motivo !== 'string') return { erro: 'Confira o motivo.' };
+    const texto = typeof motivo === 'string' ? motivo.trim() : '';
+    if (texto.length > LIMITES_DE_ITENS.motivoTamanho) return { erro: 'Motivo longo demais.' };
+    if (modo === 'OBRIGATORIO' && texto === '') return { erro: 'Informe o motivo de cada item.' };
+    if (modo === 'NENHUM' && texto !== '') return { erro: 'Esta pergunta não pede motivo.' };
+    limpa.push({ id: item.id, nome: item.nome, ...(texto === '' ? {} : { motivo: texto }) });
+  }
+  return { limpa };
+}
+
+/** Os itens da resposta de ITENS_DO_PLANO (lista vazia se a resposta não tem a forma certa); o contrário de `respostaDeItens`. */
+export const itensDaResposta = (valor: RespostaAtualizacao | undefined): ItemEscolhido[] =>
+  Array.isArray(valor) ? (valor as unknown[]).filter((i): i is ItemEscolhido => typeof i === 'object' && i !== null && !Array.isArray(i)) : [];
+
+/** Guarda os itens escolhidos como resposta (`RespostaAtualizacao` não os lista na união: ver `ItemEscolhido`). */
+export const respostaDeItens = (itens: readonly ItemEscolhido[]): RespostaAtualizacao => itens as unknown as RespostaAtualizacao;
+
+/** Uma resposta (já presente) respeita o tipo e os limites da pergunta. Mesmas regras do `ValidadorAtualizacao`. `itens`: só o ITENS_DO_PLANO a usa. */
+export function respostaValida(p: PerguntaAtualizacao, v: unknown, hoje: string = hojeIso(), itens: ItensDisponiveis = {}) {
   switch (p.tipo) {
     case 'NOTA': return notaValida(p, v);
     case 'PESO': return typeof v === 'number' && Number.isFinite(v) && v >= 20 && v <= 400 && Math.abs(v * 10 - Math.round(v * 10)) < 1e-8;
@@ -116,6 +165,7 @@ export function respostaValida(p: PerguntaAtualizacao, v: unknown, hoje: string 
     case 'GRADE': return gradeValida(p, v);
     case 'ENDERECO': return enderecoValido(v);
     case 'ACEITE': return v === true;
+    case 'ITENS_DO_PLANO': return 'limpa' in conferirItens(p, v, itens);
     default: return false;
   }
 }
@@ -140,7 +190,7 @@ export function condicaoAtendida(condicao: CondicaoPergunta | undefined, aceitas
   const valores = new Set(condicao.valores ?? []);
   if (typeof r === 'boolean') return valores.has(r ? 'sim' : 'nao');
   if (typeof r === 'string') return valores.has(r);
-  if (Array.isArray(r)) return r.some((item) => valores.has(item));
+  if (Array.isArray(r)) return (r as unknown[]).some((item) => typeof item === 'string' && valores.has(item));
   return false;
 }
 
@@ -169,6 +219,8 @@ export function avaliarRespostas(
   fotosLigadas = false,
   fotosNoAparelho: Readonly<Record<string, number>> = {},
   hoje: string = hojeIso(),
+  /** Lista de cada fonte do ITENS_DO_PLANO (`dominio/itensDoPlano`); sem ela, a resposta dessa pergunta é recusada. */
+  itens: ItensDisponiveis = {},
 ): Avaliacao {
   const erros: Record<string, string> = {};
   const aceitasMapa = new Map<string, RespostaAtualizacao>();
@@ -197,7 +249,10 @@ export function avaliarRespostas(
         erros[p.id] = 'Responda todas as linhas.';
         continue;
       }
-      if (!respostaValida(p, v, hoje)) { erros[p.id] = 'Confira o formato e os limites deste campo.'; continue; }
+      if (p.tipo === 'ITENS_DO_PLANO') {
+        const conferencia = conferirItens(p, v, itens);
+        if ('erro' in conferencia) { erros[p.id] = conferencia.erro; continue; }
+      } else if (!respostaValida(p, v, hoje)) { erros[p.id] = 'Confira o formato e os limites deste campo.'; continue; }
       aceitasMapa.set(p.id, v);
     }
   });
@@ -225,8 +280,9 @@ export function errosRespostasAtualizacao(
   /** Fotos ainda no aparelho (celular), por pergunta: vão subir no envio, então já contam como respondidas e no limite. */
   fotosNoAparelho: Readonly<Record<string, number>> = {},
   hoje: string = hojeIso(),
+  itens: ItensDisponiveis = {},
 ) {
-  const { erros } = avaliarRespostas(modelo, respostas, fotosLigadas, fotosNoAparelho, hoje);
+  const { erros } = avaliarRespostas(modelo, respostas, fotosLigadas, fotosNoAparelho, hoje, itens);
   if (excedeBytes(respostas)) return { respostas: 'As respostas ultrapassam o limite de 256 KiB.', ...erros };
   return erros;
 }
@@ -237,5 +293,12 @@ export function errosRespostasAtualizacao(
  */
 export function respostasParaEnviar(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao, fotosLigadas = false): RespostasAtualizacao {
   const { escondidas } = avaliarRespostas(modelo, respostas, fotosLigadas);
-  return Object.fromEntries(Object.entries(respostas).filter(([id]) => !escondidas.has(id)));
+  const deItens = new Set(modelo.secoes.flatMap((s) => s.perguntas).filter((p) => p.tipo === 'ITENS_DO_PLANO').map((p) => p.id));
+  return Object.fromEntries(Object.entries(respostas).filter(([id]) => !escondidas.has(id)).map(([id, v]) => [id, deItens.has(id) ? semNomeDosItens(v) : v]));
 }
+
+/** O servidor recusa `nome` vindo do cliente (ele lê o nome da lista): o envio leva só `{id, motivo?}`. */
+const semNomeDosItens = (v: RespostaAtualizacao): RespostaAtualizacao =>
+  Array.isArray(v)
+    ? respostaDeItens((v as unknown[]).map((i) => (typeof i === 'object' && i !== null && !Array.isArray(i) ? Object.fromEntries(Object.entries(i).filter(([k]) => k !== 'nome')) : i)) as ItemEscolhido[])
+    : v;
