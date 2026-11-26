@@ -40,9 +40,16 @@ O treinador pausa o acesso de um aluno em atraso, na hora que decidir. O aluno p
 
 ## Evidências e verificação (26/11/2026, app sobre o motivo ATRASO, sem commit de API)
 - `npm run typecheck` sem erro; `npm run lint` 0 erros (10 avisos que já existiam); Jest completo 453 suítes, 11.034 testes, 0 falhas.
-- E2e: `acesso-pausado-fase2.spec.ts` (16 casos, 390 e 1280, repetidos 2 vezes) e `acesso-aluno.spec.ts` (13) verdes; suíte completa (contrato de DTO e sessão): 3.285 passaram, 299 pulados, 4 falharam; 3 passaram isolados (intermitência: `editor-questionario-tela-larga:43`, `financeiro:722`, `tela-larga:638`) e `editor-mobilidade:235` (URL da aba nova vazia no "Abrir vídeo") é falha real: falha também isolado; nenhum arquivo do caminho dele mudou nesta entrega e não foi rodado no commit base.
+- E2e: `acesso-pausado-fase2.spec.ts` (16 casos, 390 e 1280, repetidos 2 vezes) e `acesso-aluno.spec.ts` (13) verdes; suíte completa (contrato de DTO e sessão): 3.285 passaram, 299 pulados, 4 falharam; 3 passaram isolados (intermitência: `editor-questionario-tela-larga:43`, `financeiro:722`, `tela-larga:638`) e `editor-mobilidade:235` (URL da aba nova vazia no "Abrir vídeo") falhava também isolado e na `main`, sem relação com esta entrega: era corrida do próprio spec (lia `aba.url()` antes da navegação do popup); corrigida em `57dedf29` com `waitForURL`, e os 7 casos de vídeo passam.
 - Capturas em 1280 e 390, claro e escuro: `C:\Users\gusta\Documents\consultoria-app\capturas\26-11\acesso\` (com acesso, ⋯ aberto, desativado, pausado, cabeçalho).
 - Não conferido: aparelho nativo (Android/iOS), temas Areia e contraste alto, modo `informar` da tela do aluno (o e2e roda na web, que sempre tem "Pagar").
+
+## Decisões pendentes do Gustavo e riscos (26/11/2026, revisão independente)
+- **Visibilidade do motivo ATRASO:** quem só tem `ALUNO_LER` vê "Acesso pausado" e, portanto, que o aluno está inadimplente; o selo "Cobrança vencida" já exigia `FINANCEIRO_LER`. Decidir se o motivo `ATRASO` aparece como "Acesso desativado" neutro sem `FINANCEIRO_LER`.
+- **V104 junta Fase 2 e Fase 3** (`ficha rápida` e `acesso por atraso`): não se desfaz uma sem a outra, e o `AGENTS.md` pede migration separada por assunto.
+- **Rollback da imagem:** antes de voltar a imagem anterior, limpar o ATRASO no banco, senão o CHECK antigo (só `MANUAL`) recusa as linhas: `update aluno set acesso_desativado_em = null, acesso_desativado_motivo = null where acesso_desativado_motivo = 'ATRASO';`
+- **Importação:** a trava (`PESSIMISTIC_WRITE`) roda antes da checagem IGNORAR e segura a linha de todo aluno existente na planilha; evitar pede novo `mvn verify` (~31 min), então ficou assim.
+- Pausar pode devolver 503 `FINANCEIRO_INDISPONIVEL`: o app não mostra isso como erro de acesso.
 
 ## Fora do escopo
 - Pausa automática por dias de atraso; mudar a regra das lojas; mexer no que inativar já faz.
