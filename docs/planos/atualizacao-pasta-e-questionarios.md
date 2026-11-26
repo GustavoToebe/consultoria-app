@@ -13,6 +13,10 @@ e [copiar-periodo-na-pasta.md](copiar-periodo-na-pasta.md), para não reabrir de
 **Se tiver dúvida que o código não resolve, pergunte ao Gustavo** (ele pediu isso) em uma rodada só, com a opção
 recomendada primeiro.
 
+Relacionado: [aluno-web-layout.md](aluno-web-layout.md) reorganiza o layout do app do aluno na web (Início, Treino,
+Dieta, Comunidade, Histórico). A tela de responder e ler a atualização é deste plano (blocos A e B); se surgir lá uma peça
+de layout "coluna principal + coluna de apoio", use a mesma aqui na revisão do treinador (bloco D).
+
 ## Objetivo
 
 Deixar a atualização (check-in do aluno) mais rápida de responder, mais fácil de ler e de revisar, deixar a pasta do aluno
