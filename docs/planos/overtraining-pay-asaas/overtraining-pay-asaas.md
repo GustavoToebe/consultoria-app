@@ -33,7 +33,7 @@
 - **Boleto:** mapear como forma válida de pagamento, para a baixa não cair em CONFERIR (I6). Confirmar no sandbox como ele aparece em `GET /payments/{id}`.
 - **Parcelas e juros:** remover `overtrainingPayMaxParcelas`, `overtrainingPayJuros` e o texto "Cartão em até Nx" da tela e do contrato. Se o sandbox mostrar um parâmetro do Asaas que limite o parcelamento na página, registrar como pendência.
 - **Link antigo e cobrança órfã:** ao mudar o valor, reajustar, renegociar, cancelar ou na corrida Pix × fatura, cancelar no Asaas a cobrança anterior (I2). **Bloqueia ligar.**
-- **Pix da Central sem reserva nem prazo:** proposta com opções, recomendação e impacto em [asaas-pagamentos.md](../asaas-pagamentos.md) (repositório da Central), para o Gustavo decidir.
+- **Pix da Central sem reserva nem prazo:** decidido em 27/11, **A + B**: cancelar no Asaas o QR pendente quando o restante muda (o mesmo mecanismo da cobrança órfã) e prazo curto no QR; a opção C está descartada. Opções e impacto em `asaas-pagamentos.md` (repositório da Central). Entra em "bloqueia ligar" da Central.
 
 **Bloqueia ligar em produção:**
 1. `ABATER_MENSALIDADE` bloqueado na tela da Central (e, depois, a retenção gravada com aviso repetido).
